@@ -7,8 +7,10 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
+	"github.com/animal-ekarte/backend/internal/infra/crypto"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/repository"
 )
@@ -386,4 +388,230 @@ func TestGetCPMV2Thresholds_RepoError(t *testing.T) {
 	svc := NewLstepSettingsService(&mockLstepSettingsRepository{}, &mockLstepSyncSettingsRepository{}, nil, nil, csRepo)
 	_, err := svc.GetCPMV2Thresholds(context.Background(), 1)
 	assert.Error(t, err)
+}
+
+// ================================================================
+// GetSettings: syncSettingsRepo / clinicSettingsRepo 分岐の網羅
+// ================================================================
+
+func TestGetSettings_AppliesSyncSettingsWhenPresent(t *testing.T) {
+	syncEnabledAt := time.Now()
+	syncRepo := &mockLstepSyncSettingsRepository{
+		findByClinicIDFn: func(_ context.Context, _ uint64) (*model.LstepSettings, error) {
+			return &model.LstepSettings{IsSyncEnabled: true, SyncEnabledAt: &syncEnabledAt}, nil
+		},
+	}
+	svc := NewLstepSettingsService(&mockLstepSettingsRepository{}, syncRepo, nil, nil, nil)
+
+	res, err := svc.GetSettings(context.Background(), 1)
+	require.NoError(t, err)
+	assert.True(t, res.IsSyncEnabled)
+	if assert.NotNil(t, res.SyncEnabledAt) {
+		assert.True(t, res.SyncEnabledAt.Equal(syncEnabledAt))
+	}
+}
+
+func TestGetSettings_SyncSettingsNotFoundIsNotError(t *testing.T) {
+	syncRepo := &mockLstepSyncSettingsRepository{
+		findByClinicIDFn: func(_ context.Context, _ uint64) (*model.LstepSettings, error) {
+			return nil, apperrors.WrapNotFound("lstep_settings", "clinic_id=1")
+		},
+	}
+	svc := NewLstepSettingsService(&mockLstepSettingsRepository{}, syncRepo, nil, nil, nil)
+
+	res, err := svc.GetSettings(context.Background(), 1)
+	require.NoError(t, err)
+	assert.False(t, res.IsSyncEnabled)
+}
+
+func TestGetSettings_SyncSettingsRepoErrorPropagates(t *testing.T) {
+	syncRepo := &mockLstepSyncSettingsRepository{
+		findByClinicIDFn: func(_ context.Context, _ uint64) (*model.LstepSettings, error) {
+			return nil, errors.New("db error")
+		},
+	}
+	svc := NewLstepSettingsService(&mockLstepSettingsRepository{}, syncRepo, nil, nil, nil)
+
+	_, err := svc.GetSettings(context.Background(), 1)
+	require.Error(t, err)
+}
+
+func TestGetSettings_ClinicSettingsRepoErrorPropagates(t *testing.T) {
+	csRepo := &mockClinicSettingsRepository{
+		findByClinicIDFn: func(_ context.Context, _ uint64) (*model.ClinicSettings, error) {
+			return nil, errors.New("db error")
+		},
+	}
+	svc := NewLstepSettingsService(&mockLstepSettingsRepository{}, &mockLstepSyncSettingsRepository{}, nil, nil, csRepo)
+
+	_, err := svc.GetSettings(context.Background(), 1)
+	require.Error(t, err)
+}
+
+func TestGetSettings_ClinicSettingsAppliesDefaultsAndCPMVersion(t *testing.T) {
+	t.Run("CPMVersion 空文字は v1 にデフォルトされる", func(t *testing.T) {
+		csRepo := &mockClinicSettingsRepository{
+			findByClinicIDFn: func(_ context.Context, _ uint64) (*model.ClinicSettings, error) {
+				return &model.ClinicSettings{}, nil // 全フィールドゼロ値
+			},
+		}
+		svc := NewLstepSettingsService(&mockLstepSettingsRepository{}, &mockLstepSyncSettingsRepository{}, nil, nil, csRepo)
+
+		res, err := svc.GetSettings(context.Background(), 1)
+		require.NoError(t, err)
+		assert.Equal(t, "v1", res.CPMVersion)
+		assert.Equal(t, 180, res.DormantPrevention180Days)
+		assert.Equal(t, 2, res.CPMV2ComingThreshold)
+		assert.NotZero(t, res.CPMV1NoahDays)
+		assert.NotZero(t, res.HealthPreventionLookbackDays)
+	})
+
+	t.Run("CPMVersion は DB 値が優先される", func(t *testing.T) {
+		csRepo := &mockClinicSettingsRepository{
+			findByClinicIDFn: func(_ context.Context, _ uint64) (*model.ClinicSettings, error) {
+				return &model.ClinicSettings{CPMVersion: "v2"}, nil
+			},
+		}
+		svc := NewLstepSettingsService(&mockLstepSettingsRepository{}, &mockLstepSyncSettingsRepository{}, nil, nil, csRepo)
+
+		res, err := svc.GetSettings(context.Background(), 1)
+		require.NoError(t, err)
+		assert.Equal(t, "v2", res.CPMVersion)
+	})
+}
+
+func TestGetSettings_DecryptErrorFallsBackToEmptyValue(t *testing.T) {
+	cipher, err := crypto.NewAESGCMCipher(testIntegrationKeyHex)
+	require.NoError(t, err)
+	repo := &mockLstepSettingsRepository{
+		findByClinicAndServiceFn: func(_ context.Context, _ uint64, _ string) ([]*model.ClinicIntegration, error) {
+			return []*model.ClinicIntegration{
+				{KeyName: model.IntegrationKeyLstepAPIKey, KeyValue: "not-valid-base64!!", UpdatedAt: time.Now()},
+			}, nil
+		},
+	}
+	svc := NewLstepSettingsService(repo, nil, cipher, nil, nil)
+
+	res, err := svc.GetSettings(context.Background(), 1)
+	require.NoError(t, err, "復号失敗はエラーにせず空文字にフォールバックする")
+	assert.False(t, res.IsConfigured, "復号失敗した値は未設定扱いになる")
+}
+
+// ================================================================
+// buildLstepSettingsResponse: 直接単体テスト
+// ================================================================
+
+func TestBuildLstepSettingsResponse(t *testing.T) {
+	now := time.Now()
+
+	t.Run("空map -> IsConfigured=false・マスク値も空", func(t *testing.T) {
+		resp := buildLstepSettingsResponse(map[string]string{}, &now)
+		assert.False(t, resp.IsConfigured)
+		assert.Empty(t, resp.LstepAPIKeyMasked)
+		assert.Empty(t, resp.LineChannelAccessTokenMasked)
+		assert.Empty(t, resp.LineChannelSecretMasked)
+		if assert.NotNil(t, resp.LastUpdatedAt) {
+			assert.True(t, resp.LastUpdatedAt.Equal(now))
+		}
+	})
+
+	t.Run("apiKeyのみ設定 -> IsConfigured=true", func(t *testing.T) {
+		resp := buildLstepSettingsResponse(map[string]string{model.IntegrationKeyLstepAPIKey: "secret"}, nil)
+		assert.True(t, resp.IsConfigured)
+		assert.NotEmpty(t, resp.LstepAPIKeyMasked)
+		assert.Nil(t, resp.LastUpdatedAt)
+	})
+
+	t.Run("tokenのみ設定 -> IsConfigured=true", func(t *testing.T) {
+		resp := buildLstepSettingsResponse(map[string]string{model.IntegrationKeyLineChannelAccessToken: "token"}, nil)
+		assert.True(t, resp.IsConfigured)
+		assert.NotEmpty(t, resp.LineChannelAccessTokenMasked)
+	})
+
+	t.Run("全フィールドが正しくマッピングされる", func(t *testing.T) {
+		kv := map[string]string{
+			model.IntegrationKeyLstepAPIKey:            "api-key",
+			model.IntegrationKeyLstepBaseURL:           "https://example.com",
+			model.IntegrationKeyLineChannelAccessToken: "token",
+			model.IntegrationKeyLineChannelSecret:      "secret",
+			model.IntegrationKeyLiffID:                 "liff-1",
+			model.IntegrationKeyLineAccountName:        "アカウント名",
+		}
+		resp := buildLstepSettingsResponse(kv, nil)
+		assert.Equal(t, "https://example.com", resp.LstepBaseURL)
+		assert.Equal(t, "liff-1", resp.LiffID)
+		assert.Equal(t, "アカウント名", resp.LineAccountName)
+		assert.NotEmpty(t, resp.LineChannelSecretMasked)
+	})
+}
+
+// ================================================================
+// UpdateSettings: 未カバー分岐の網羅
+// ================================================================
+
+func TestUpdateSettings_IntegrationCredentialsError(t *testing.T) {
+	repo := &mockLstepSettingsRepository{
+		upsertFn: func(_ context.Context, _ *model.ClinicIntegration) error {
+			return errors.New("db error")
+		},
+	}
+	svc := NewLstepSettingsService(repo, &mockLstepSyncSettingsRepository{}, nil, nil, nil)
+
+	_, err := svc.UpdateSettings(context.Background(), 1, &UpdateLstepSettingsInput{LstepAPIKey: "new-key"}, nil)
+	require.Error(t, err)
+}
+
+func TestUpdateSettings_ClinicSyncConfigError(t *testing.T) {
+	csRepo := &mockClinicSettingsRepository{}
+	svc := NewLstepSettingsService(&mockLstepSettingsRepository{}, &mockLstepSyncSettingsRepository{}, nil, nil, csRepo)
+
+	badVersion := "v99"
+	_, err := svc.UpdateSettings(context.Background(), 1, &UpdateLstepSettingsInput{CPMVersion: &badVersion}, nil)
+	require.Error(t, err)
+	assert.True(t, apperrors.IsInvalidInput(err))
+}
+
+func TestUpdateSettings_SkipsSyncEnabledWhenRepoNil(t *testing.T) {
+	enabled := true
+	svc := NewLstepSettingsService(&mockLstepSettingsRepository{}, nil, nil, nil, nil)
+
+	_, err := svc.UpdateSettings(context.Background(), 1, &UpdateLstepSettingsInput{IsSyncEnabled: &enabled}, nil)
+	require.NoError(t, err, "syncSettingsRepo が nil なら IsSyncEnabled 更新をスキップする")
+}
+
+func TestUpdateSettings_AuditLogSuccess(t *testing.T) {
+	audit := &mockAuditService{}
+	svc := NewLstepSettingsService(&mockLstepSettingsRepository{}, &mockLstepSyncSettingsRepository{}, nil, audit, nil)
+
+	staffID := uint64(5)
+	_, err := svc.UpdateSettings(context.Background(), 1, &UpdateLstepSettingsInput{}, &staffID)
+	assert.NoError(t, err)
+}
+
+func TestUpdateSettings_AuditLogFailureIsBestEffort(t *testing.T) {
+	audit := &mockAuditService{logLstepOperationErr: errors.New("audit db down")}
+	svc := NewLstepSettingsService(&mockLstepSettingsRepository{}, &mockLstepSyncSettingsRepository{}, nil, audit, nil)
+
+	_, err := svc.UpdateSettings(context.Background(), 1, &UpdateLstepSettingsInput{}, nil)
+	assert.NoError(t, err, "監査ログ失敗は UpdateSettings 全体を失敗させない（best-effort）")
+}
+
+// ================================================================
+// DeleteSettings: auditSvc 分岐の網羅
+// ================================================================
+
+func TestDeleteSettings_AuditLogSuccess(t *testing.T) {
+	audit := &mockAuditService{}
+	svc := NewLstepSettingsService(&mockLstepSettingsRepository{}, &mockLstepSyncSettingsRepository{}, nil, audit, nil)
+
+	err := svc.DeleteSettings(context.Background(), 1, nil)
+	assert.NoError(t, err)
+}
+
+func TestDeleteSettings_AuditLogFailureIsBestEffort(t *testing.T) {
+	audit := &mockAuditService{logLstepOperationErr: errors.New("audit db down")}
+	svc := NewLstepSettingsService(&mockLstepSettingsRepository{}, &mockLstepSyncSettingsRepository{}, nil, audit, nil)
+
+	err := svc.DeleteSettings(context.Background(), 1, nil)
+	assert.NoError(t, err, "監査ログ失敗は DeleteSettings 全体を失敗させない（best-effort）")
 }

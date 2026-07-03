@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -18,8 +19,10 @@ import (
 // stubReportExamRepo is a minimal ExaminationRepository stub for LabReportQueryService tests.
 // Only FindByJobID and FindByID are exercised; all others are no-ops.
 type stubReportExamRepo struct {
-	byJobID map[string][]*model.Examination // key: jobID.String()
-	byID    map[uint64]*model.Examination   // key: examID, value: exam (clinic-scoped)
+	byJobID        map[string][]*model.Examination // key: jobID.String()
+	byID           map[uint64]*model.Examination   // key: examID, value: exam (clinic-scoped)
+	findByJobIDErr error                           // when set, FindByJobID returns this error instead
+	findByIDErr    error                           // when set, FindByID returns this error instead
 }
 
 func newStubReportExamRepo() *stubReportExamRepo {
@@ -34,6 +37,9 @@ func (r *stubReportExamRepo) FindAll(_ context.Context, _ uint64, _, _ *uint64, 
 }
 
 func (r *stubReportExamRepo) FindByID(_ context.Context, clinicID, id uint64) (*model.Examination, error) {
+	if r.findByIDErr != nil {
+		return nil, r.findByIDErr
+	}
 	e, ok := r.byID[id]
 	if !ok || e.ClinicID != clinicID {
 		return nil, apperrors.WrapNotFound("exam", "")
@@ -43,6 +49,9 @@ func (r *stubReportExamRepo) FindByID(_ context.Context, clinicID, id uint64) (*
 }
 
 func (r *stubReportExamRepo) FindByJobID(_ context.Context, clinicID uint64, jobID uuid.UUID) ([]*model.Examination, error) {
+	if r.findByJobIDErr != nil {
+		return nil, r.findByJobIDErr
+	}
 	all := r.byJobID[jobID.String()]
 	var out []*model.Examination
 	for _, e := range all {
@@ -183,6 +192,22 @@ func TestLabReportQueryService_ListJobReportSummaries_MissingClinicID(t *testing
 	}
 	if !apperrors.IsInvalidInput(err) {
 		t.Errorf("expected InvalidInput, got: %v", err)
+	}
+}
+
+// TestLabReportQueryService_ListJobReportSummaries_RepositoryError verifies that
+// a repository failure is wrapped and propagated (not swallowed).
+func TestLabReportQueryService_ListJobReportSummaries_RepositoryError(t *testing.T) {
+	repo := newStubReportExamRepo()
+	repo.findByJobIDErr = errors.New("db connection error")
+
+	svc := NewLabReportQueryService(repo)
+	summaries, err := svc.ListJobReportSummaries(context.Background(), 1, uuid.New())
+	if err == nil {
+		t.Fatal("expected error to be propagated")
+	}
+	if summaries != nil {
+		t.Errorf("expected nil summaries on error, got %v", summaries)
 	}
 }
 

@@ -1,0 +1,210 @@
+package repository
+
+// reservation_type_occupation_repository_test.go
+// ReservationTypeOccupationRepository（予約区分×職種の中間テーブル）の CRUD・Occupation Preload の
+// clinic_id 隔離・CountWorkingStaffByReservationTypeID の raw SQL 集計を実 DB で検証する。
+
+import (
+	"context"
+	"testing"
+	"time"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"gorm.io/gorm"
+
+	apperrors "github.com/animal-ekarte/backend/internal/errors"
+	"github.com/animal-ekarte/backend/internal/model"
+)
+
+// setupReservationTypeOccupationTestDB は ReservationTypeOccupationRepository のテスト用に DB を整備する。
+// AutoMigrate より先に shift_entries / reservation_types をクリアする（setupTestDB が
+// shift_type / reservation_type_category ENUM を DROP CASCADE し列が消えるため、NULL 違反回避）。
+// 最後の occupations CASCADE は staffs.occupation_id FK / reservation_type_occupations.occupation_id FK
+// 経由で両テーブルも連鎖 TRUNCATE する。
+func setupReservationTypeOccupationTestDB(t *testing.T) *gorm.DB {
+	t.Helper()
+	db := setupTestDB(t)
+	db.Exec("TRUNCATE TABLE shift_entries CASCADE")
+	db.Exec("TRUNCATE TABLE reservation_types CASCADE")
+	require.NoError(t, db.AutoMigrate(
+		&model.Occupation{}, &model.Staff{}, &model.ShiftEntry{},
+		&model.ReservationType{}, &model.ReservationTypeOccupation{},
+	))
+	db.Exec("TRUNCATE TABLE occupations CASCADE")
+	return db
+}
+
+func makeReservationTypeOccupationLink(t *testing.T, db *gorm.DB, clinicID, reservationTypeID, occupationID uint64) *model.ReservationTypeOccupation {
+	t.Helper()
+	rto := &model.ReservationTypeOccupation{
+		ClinicID:          clinicID,
+		ReservationTypeID: reservationTypeID,
+		OccupationID:      occupationID,
+	}
+	require.NoError(t, db.WithContext(context.Background()).Create(rto).Error)
+	return rto
+}
+
+func TestReservationTypeOccupationRepository_FindAll(t *testing.T) {
+	db := setupReservationTypeOccupationTestDB(t)
+	repo := NewReservationTypeOccupationRepository(db)
+	ctx := context.Background()
+	const clinicA, clinicB = uint64(1), uint64(2)
+
+	rtA := makeReservationTypeLinked(t, db, clinicA, "職種紐付け区分A", nil, nil)
+	occA := makeOccupation(t, db, clinicA, "医院Aの職種")
+	occB := makeOccupation(t, db, clinicB, "医院Bの職種")
+
+	legit := makeReservationTypeOccupationLink(t, db, clinicA, rtA.ID, occA.ID)
+	// (cross) clinic A の紐付けに clinic B の occupation_id を植え付け（汚染データ模擬）
+	cross := makeReservationTypeOccupationLink(t, db, clinicA, rtA.ID, occB.ID)
+
+	t.Run("同一クリニックの紐付けを取得し、Occupation は clinic_id が一致する場合のみ Preload される", func(t *testing.T) {
+		got, err := repo.FindAll(ctx, clinicA, rtA.ID)
+		require.NoError(t, err)
+		require.Len(t, got, 2)
+
+		byID := make(map[uint64]model.ReservationTypeOccupation, len(got))
+		for _, rto := range got {
+			byID[rto.ID] = rto
+		}
+
+		gotLegit, ok := byID[legit.ID]
+		require.True(t, ok)
+		require.NotNil(t, gotLegit.Occupation, "同一クリニックの Occupation は Preload されるべき")
+		assert.Equal(t, occA.ID, gotLegit.Occupation.ID)
+
+		gotCross, ok := byID[cross.ID]
+		require.True(t, ok, "越境FKの紐付け行自体は base クエリで返るべき")
+		assert.Nil(t, gotCross.Occupation, "別クリニックの Occupation マスタが混入してはならない")
+	})
+
+	t.Run("別クリニックIDでは0件（clinic_id 隔離）", func(t *testing.T) {
+		got, err := repo.FindAll(ctx, clinicB, rtA.ID)
+		require.NoError(t, err)
+		assert.Empty(t, got)
+	})
+}
+
+func TestReservationTypeOccupationRepository_FindByID(t *testing.T) {
+	db := setupReservationTypeOccupationTestDB(t)
+	repo := NewReservationTypeOccupationRepository(db)
+	ctx := context.Background()
+	const clinicA, clinicB = uint64(1), uint64(2)
+
+	rtA := makeReservationTypeLinked(t, db, clinicA, "職種単体取得区分", nil, nil)
+	occA := makeOccupation(t, db, clinicA, "単体取得用職種")
+	link := makeReservationTypeOccupationLink(t, db, clinicA, rtA.ID, occA.ID)
+
+	t.Run("同一クリニックIDで取得でき、Occupation が Preload される", func(t *testing.T) {
+		got, err := repo.FindByID(ctx, clinicA, rtA.ID, occA.ID)
+		require.NoError(t, err)
+		assert.Equal(t, link.ID, got.ID)
+		require.NotNil(t, got.Occupation)
+		assert.Equal(t, occA.ID, got.Occupation.ID)
+	})
+
+	t.Run("別クリニックIDでは NotFound", func(t *testing.T) {
+		got, err := repo.FindByID(ctx, clinicB, rtA.ID, occA.ID)
+		assert.Error(t, err)
+		assert.Nil(t, got)
+		assert.True(t, apperrors.IsNotFound(err))
+	})
+
+	t.Run("存在しない組み合わせは NotFound", func(t *testing.T) {
+		got, err := repo.FindByID(ctx, clinicA, rtA.ID, uint64(999999))
+		assert.Error(t, err)
+		assert.Nil(t, got)
+		assert.True(t, apperrors.IsNotFound(err))
+	})
+}
+
+func TestReservationTypeOccupationRepository_Create(t *testing.T) {
+	db := setupReservationTypeOccupationTestDB(t)
+	repo := NewReservationTypeOccupationRepository(db)
+	ctx := context.Background()
+	const clinicA = uint64(1)
+
+	rtA := makeReservationTypeLinked(t, db, clinicA, "新規紐付け区分", nil, nil)
+	occA := makeOccupation(t, db, clinicA, "新規紐付け職種")
+
+	rto := &model.ReservationTypeOccupation{ClinicID: clinicA, ReservationTypeID: rtA.ID, OccupationID: occA.ID}
+	require.NoError(t, repo.Create(ctx, rto))
+	assert.NotZero(t, rto.ID)
+
+	got, err := repo.FindByID(ctx, clinicA, rtA.ID, occA.ID)
+	require.NoError(t, err)
+	assert.Equal(t, rto.ID, got.ID)
+}
+
+func TestReservationTypeOccupationRepository_Delete(t *testing.T) {
+	db := setupReservationTypeOccupationTestDB(t)
+	repo := NewReservationTypeOccupationRepository(db)
+	ctx := context.Background()
+	const clinicA, clinicB = uint64(1), uint64(2)
+
+	rtA := makeReservationTypeLinked(t, db, clinicA, "削除対象紐付け区分", nil, nil)
+	occA := makeOccupation(t, db, clinicA, "削除対象職種")
+	makeReservationTypeOccupationLink(t, db, clinicA, rtA.ID, occA.ID)
+
+	t.Run("別クリニックIDでは NotFound", func(t *testing.T) {
+		err := repo.Delete(ctx, clinicB, rtA.ID, occA.ID)
+		assert.Error(t, err)
+		assert.True(t, apperrors.IsNotFound(err))
+	})
+
+	t.Run("正しいクリニックIDで削除できる（物理削除）", func(t *testing.T) {
+		require.NoError(t, repo.Delete(ctx, clinicA, rtA.ID, occA.ID))
+		_, err := repo.FindByID(ctx, clinicA, rtA.ID, occA.ID)
+		assert.True(t, apperrors.IsNotFound(err))
+	})
+
+	t.Run("既に削除済みの再削除は NotFound", func(t *testing.T) {
+		err := repo.Delete(ctx, clinicA, rtA.ID, occA.ID)
+		assert.Error(t, err)
+		assert.True(t, apperrors.IsNotFound(err))
+	})
+}
+
+func TestReservationTypeOccupationRepository_CountWorkingStaffByReservationTypeID(t *testing.T) {
+	db := setupReservationTypeOccupationTestDB(t)
+	repo := NewReservationTypeOccupationRepository(db)
+	ctx := context.Background()
+	const clinicA, clinicB = uint64(1), uint64(2)
+
+	// jstLoc は本パッケージ内で reservation_type_occupation_repository.go が公開する非公開変数（同一パッケージのため参照可）。
+	date := time.Date(2026, 6, 15, 0, 0, 0, 0, jstLoc)
+
+	rtA := makeReservationTypeLinked(t, db, clinicA, "出勤集計対象区分", nil, nil)
+	occA := makeOccupation(t, db, clinicA, "出勤集計対象職種")
+	makeReservationTypeOccupationLink(t, db, clinicA, rtA.ID, occA.ID)
+
+	working := makeStaffWithOccupation(t, db, clinicA, occA.ID, "出勤スタッフ")
+	makeShiftEntryWithType(t, db, clinicA, working.ID, date, model.ShiftTypeFull)
+
+	off := makeStaffWithOccupation(t, db, clinicA, occA.ID, "休日スタッフ")
+	makeShiftEntryWithType(t, db, clinicA, off.ID, date, model.ShiftTypeOff)
+
+	paidLeave := makeStaffWithOccupation(t, db, clinicA, occA.ID, "有給スタッフ")
+	makeShiftEntryWithType(t, db, clinicA, paidLeave.ID, date, model.ShiftTypePaidLeave)
+
+	t.Run("off/paid_leaveを除いた出勤スタッフのみカウントされる", func(t *testing.T) {
+		count, err := repo.CountWorkingStaffByReservationTypeID(ctx, clinicA, rtA.ID, date)
+		require.NoError(t, err)
+		assert.Equal(t, int64(1), count)
+	})
+
+	t.Run("該当日にシフトが無い日は0件", func(t *testing.T) {
+		otherDate := time.Date(2026, 6, 16, 0, 0, 0, 0, jstLoc)
+		count, err := repo.CountWorkingStaffByReservationTypeID(ctx, clinicA, rtA.ID, otherDate)
+		require.NoError(t, err)
+		assert.Equal(t, int64(0), count)
+	})
+
+	t.Run("別クリニックIDでは0件（clinic_id 隔離）", func(t *testing.T) {
+		count, err := repo.CountWorkingStaffByReservationTypeID(ctx, clinicB, rtA.ID, date)
+		require.NoError(t, err)
+		assert.Equal(t, int64(0), count)
+	})
+}

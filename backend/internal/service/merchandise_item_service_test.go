@@ -69,6 +69,156 @@ func newTestMerchandiseItemService(repo *mockMerchandiseItemRepository) Merchand
 	return NewMerchandiseItemService(repo)
 }
 
+// ---- List テスト ----
+
+func TestMerchandiseItemService_List(t *testing.T) {
+	tests := []struct {
+		name     string
+		category string
+		items    []model.MerchandiseItem
+		repoErr  error
+		wantLen  int
+		wantErr  bool
+	}{
+		{
+			name:     "returns items for category",
+			category: "food",
+			items: []model.MerchandiseItem{
+				{ID: 1, Name: "ドッグフード", Category: "food"},
+				{ID: 2, Name: "キャットフード", Category: "food"},
+			},
+			wantLen: 2,
+		},
+		{
+			name:     "returns empty list when no items exist",
+			category: "toy",
+			items:    []model.MerchandiseItem{},
+			wantLen:  0,
+		},
+		{
+			name:     "propagates repository error",
+			category: "food",
+			repoErr:  errors.New("db error"),
+			wantErr:  true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			repo := &mockMerchandiseItemRepository{
+				findAllFn: func(_ context.Context, _ uint64, _ string) ([]model.MerchandiseItem, error) {
+					return tt.items, tt.repoErr
+				},
+			}
+			svc := newTestMerchandiseItemService(repo)
+
+			items, err := svc.List(context.Background(), 1, tt.category)
+
+			if tt.wantErr {
+				assert.Error(t, err)
+				assert.Nil(t, items)
+				return
+			}
+			assert.NoError(t, err)
+			assert.Len(t, items, tt.wantLen)
+		})
+	}
+}
+
+// ---- GetByID テスト ----
+
+func TestMerchandiseItemService_GetByID(t *testing.T) {
+	tests := []struct {
+		name       string
+		findByIDFn func(ctx context.Context, clinicID, id uint64) (*model.MerchandiseItem, error)
+		wantErr    bool
+	}{
+		{
+			name: "returns item successfully",
+			findByIDFn: func(_ context.Context, clinicID, id uint64) (*model.MerchandiseItem, error) {
+				return &model.MerchandiseItem{ID: id, ClinicID: clinicID}, nil
+			},
+		},
+		{
+			name: "returns error when item does not exist",
+			findByIDFn: func(_ context.Context, _, _ uint64) (*model.MerchandiseItem, error) {
+				return nil, apperrors.WrapNotFound("merchandise_item", "999")
+			},
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			repo := &mockMerchandiseItemRepository{findByIDFn: tt.findByIDFn}
+			svc := newTestMerchandiseItemService(repo)
+
+			item, err := svc.GetByID(context.Background(), 1, 5)
+
+			if tt.wantErr {
+				assert.Error(t, err)
+				assert.Nil(t, item)
+				return
+			}
+			assert.NoError(t, err)
+			assert.NotNil(t, item)
+			assert.Equal(t, uint64(5), item.ID)
+		})
+	}
+}
+
+// ---- Reorder テスト ----
+
+func TestMerchandiseItemService_Reorder(t *testing.T) {
+	tests := []struct {
+		name      string
+		ids       []uint64
+		reorderFn func(ctx context.Context, clinicID uint64, ids []uint64) error
+		wantErr   bool
+	}{
+		{
+			name: "reorders items successfully",
+			ids:  []uint64{3, 1, 2},
+			reorderFn: func(_ context.Context, _ uint64, _ []uint64) error {
+				return nil
+			},
+		},
+		{
+			name:    "returns error when ids is empty",
+			ids:     []uint64{},
+			wantErr: true,
+		},
+		{
+			name:    "returns error when ids is nil",
+			ids:     nil,
+			wantErr: true,
+		},
+		{
+			name: "propagates repository error",
+			ids:  []uint64{1, 2},
+			reorderFn: func(_ context.Context, _ uint64, _ []uint64) error {
+				return errors.New("db error")
+			},
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			repo := &mockMerchandiseItemRepository{reorderFn: tt.reorderFn}
+			svc := newTestMerchandiseItemService(repo)
+
+			err := svc.Reorder(context.Background(), 1, tt.ids)
+
+			if tt.wantErr {
+				assert.Error(t, err)
+				return
+			}
+			assert.NoError(t, err)
+		})
+	}
+}
+
 // ---- Create テスト ----
 
 func TestMerchandiseItemService_Create(t *testing.T) {
@@ -150,6 +300,33 @@ func TestMerchandiseItemService_Create(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestMerchandiseItemService_Create_CustomTaxTypeAndRate は TaxType/TaxRate が明示指定された場合、
+// デフォルト値ではなく指定値がそのまま採用されることを検証する。
+func TestMerchandiseItemService_Create_CustomTaxTypeAndRate(t *testing.T) {
+	customRate := 0.08
+	var created *model.MerchandiseItem
+	repo := &mockMerchandiseItemRepository{
+		createFn: func(_ context.Context, item *model.MerchandiseItem) error {
+			created = item
+			return nil
+		},
+	}
+	svc := newTestMerchandiseItemService(repo)
+
+	item, err := svc.Create(context.Background(), 1, &CreateMerchandiseItemInput{
+		Name:      "軽減税率商品",
+		UnitPrice: 500,
+		TaxType:   "included",
+		TaxRate:   &customRate,
+	})
+
+	assert.NoError(t, err)
+	assert.NotNil(t, item)
+	assert.NotNil(t, created)
+	assert.Equal(t, model.TaxType("included"), created.TaxType)
+	assert.Equal(t, customRate, created.TaxRate)
 }
 
 // ---- Update テスト ----
@@ -334,4 +511,91 @@ func TestMerchandiseItemService_Delete_RepositoryError(t *testing.T) {
 	err := svc.Delete(context.Background(), 1, 1)
 
 	assert.Error(t, err)
+}
+
+// ---- Update 追加分岐テスト ----
+
+func TestMerchandiseItemService_Update_NilInput(t *testing.T) {
+	svc := newTestMerchandiseItemService(&mockMerchandiseItemRepository{})
+
+	item, err := svc.Update(context.Background(), 1, 1, nil)
+
+	assert.Error(t, err)
+	assert.Nil(t, item)
+	assert.True(t, apperrors.IsInvalidInput(err))
+}
+
+func TestMerchandiseItemService_Update_FindByIDError(t *testing.T) {
+	name := "更新後商品名"
+	repo := &mockMerchandiseItemRepository{
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.MerchandiseItem, error) {
+			return nil, apperrors.WrapNotFound("merchandise_item", "1")
+		},
+	}
+	svc := newTestMerchandiseItemService(repo)
+
+	item, err := svc.Update(context.Background(), 1, 1, &UpdateMerchandiseItemInput{Name: &name})
+
+	assert.Error(t, err)
+	assert.Nil(t, item)
+}
+
+func TestMerchandiseItemService_Update_InvalidOptionalName(t *testing.T) {
+	blank := "   "
+	repo := &mockMerchandiseItemRepository{
+		findByIDFn: func(_ context.Context, _, id uint64) (*model.MerchandiseItem, error) {
+			return &model.MerchandiseItem{ID: id}, nil
+		},
+	}
+	svc := newTestMerchandiseItemService(repo)
+
+	item, err := svc.Update(context.Background(), 1, 1, &UpdateMerchandiseItemInput{Name: &blank})
+
+	assert.Error(t, err)
+	assert.Nil(t, item)
+}
+
+// ---- buildMerchandiseItemUpdate 直接テスト ----
+
+func TestBuildMerchandiseItemUpdate(t *testing.T) {
+	t.Run("nilフィールドはmapに含まれない（ゼロ値入力）", func(t *testing.T) {
+		fields := buildMerchandiseItemUpdate(&UpdateMerchandiseItemInput{})
+		assert.Empty(t, fields)
+	})
+
+	t.Run("全フィールド指定時はすべてmapに含まれる", func(t *testing.T) {
+		name := "商品A"
+		category := "food"
+		price := int64(500)
+		taxType := "included"
+		taxRate := 0.08
+		isActive := true
+		sortOrder := 3
+
+		fields := buildMerchandiseItemUpdate(&UpdateMerchandiseItemInput{
+			Name:      &name,
+			Category:  &category,
+			UnitPrice: &price,
+			TaxType:   &taxType,
+			TaxRate:   &taxRate,
+			IsActive:  &isActive,
+			SortOrder: &sortOrder,
+		})
+
+		assert.Equal(t, name, fields[colMerchandiseItemName])
+		assert.Equal(t, category, fields[colMerchandiseItemCategory])
+		assert.Equal(t, price, fields[colMerchandiseItemUnitPrice])
+		assert.Equal(t, taxType, fields[colMerchandiseItemTaxType])
+		assert.Equal(t, taxRate, fields[colMerchandiseItemTaxRate])
+		assert.Equal(t, isActive, fields[colMerchandiseItemIsActive])
+		assert.Equal(t, sortOrder, fields[colMerchandiseItemSortOrder])
+	})
+
+	t.Run("IsActive=falseも明示的にmapへ含まれる（GORMゼロ値スキップ回避）", func(t *testing.T) {
+		isActive := false
+		fields := buildMerchandiseItemUpdate(&UpdateMerchandiseItemInput{IsActive: &isActive})
+		val, ok := fields[colMerchandiseItemIsActive]
+		assert.True(t, ok, "IsActive=false でもキーが存在するべき")
+		assert.Equal(t, false, val)
+	})
 }

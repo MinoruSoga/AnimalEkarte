@@ -136,6 +136,11 @@ func TestPermissionGroupService_Create(t *testing.T) {
 			createErr: errors.New("db error"),
 			wantErr:   true,
 		},
+		{
+			name:    "returns error when name is empty",
+			input:   CreatePermissionGroupInput{Name: ""},
+			wantErr: true,
+		},
 	}
 
 	for _, tt := range tests {
@@ -160,10 +165,11 @@ func TestPermissionGroupService_Update(t *testing.T) {
 	existing := &model.PermissionGroup{ID: 1, ClinicID: 1, Name: "既存グループ"}
 
 	tests := []struct {
-		name      string
-		input     *UpdatePermissionGroupInput
-		updateErr error
-		wantErr   bool
+		name       string
+		input      *UpdatePermissionGroupInput
+		findByIDFn func(ctx context.Context, clinicID, id uint64) (*model.PermissionGroup, error)
+		updateErr  error
+		wantErr    bool
 	}{
 		{
 			name:    "updates group successfully",
@@ -181,14 +187,31 @@ func TestPermissionGroupService_Update(t *testing.T) {
 			updateErr: errors.New("update failed"),
 			wantErr:   true,
 		},
+		{
+			name:  "returns error when group not found",
+			input: &UpdatePermissionGroupInput{Name: strPtr("名前")},
+			findByIDFn: func(_ context.Context, _, _ uint64) (*model.PermissionGroup, error) {
+				return nil, apperrors.WrapNotFound("permission_group", "1")
+			},
+			wantErr: true,
+		},
+		{
+			name:    "returns error for invalid optional name",
+			input:   &UpdatePermissionGroupInput{Name: strPtr("   ")},
+			wantErr: true,
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			repo := &mockPermissionGroupRepository{
-				findByIDFn: func(_ context.Context, _, id uint64) (*model.PermissionGroup, error) {
+			findByIDFn := tt.findByIDFn
+			if findByIDFn == nil {
+				findByIDFn = func(_ context.Context, _, _ uint64) (*model.PermissionGroup, error) {
 					return existing, nil
-				},
+				}
+			}
+			repo := &mockPermissionGroupRepository{
+				findByIDFn: findByIDFn,
 				updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.PermissionGroup, error) {
 					return existing, tt.updateErr
 				},
@@ -383,4 +406,316 @@ func TestPermissionGroupService_UpdateRules_FailClosedOnGroupLookupError(t *test
 
 	assert.Error(t, err, "所属グループ取得が失敗したら fail-closed で拒否すべき（自己参照チェックを素通りさせない）")
 	assert.False(t, setRulesCalled, "検証不能時に repo.UpdateRules を呼んではならない")
+}
+
+// ---- List ----
+
+func TestPermissionGroupService_List(t *testing.T) {
+	items := []model.PermissionGroup{{ID: 1, Name: "管理者"}}
+
+	tests := []struct {
+		name    string
+		repoErr error
+		wantErr bool
+	}{
+		{
+			name:    "lists permission groups successfully",
+			wantErr: false,
+		},
+		{
+			name:    "propagates repository error",
+			repoErr: errors.New("db error"),
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			repo := &mockPermissionGroupRepository{
+				findAllFn: func(_ context.Context, _ uint64) ([]model.PermissionGroup, error) {
+					return items, tt.repoErr
+				},
+			}
+			svc := NewPermissionGroupService(repo)
+			got, err := svc.List(context.Background(), 1)
+			if tt.wantErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, items, got)
+			}
+		})
+	}
+}
+
+// ---- newPermissionGroupServiceImpl / GetEffectivePermissions ----
+
+func TestPermissionGroupService_GetEffectivePermissions(t *testing.T) {
+	rules := []model.PermissionGroupRule{{Resource: string(model.ResourceOwners), CanView: true}}
+
+	tests := []struct {
+		name    string
+		repoErr error
+		wantErr bool
+	}{
+		{
+			name:    "returns effective permissions successfully",
+			wantErr: false,
+		},
+		{
+			name:    "propagates repository error",
+			repoErr: errors.New("db error"),
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			repo := &mockPermissionGroupRepository{
+				getEffectivePermissionsByStaffID: func(_ context.Context, _, _ uint64) ([]model.PermissionGroupRule, error) {
+					return rules, tt.repoErr
+				},
+			}
+			// newPermissionGroupServiceImpl は service.go の DI 配線で使用される具体型コンストラクタ。
+			// EffectivePermissionService と PermissionGroupService の両方を実装する。
+			impl := newPermissionGroupServiceImpl(repo)
+			var _ PermissionGroupService = impl
+			var _ EffectivePermissionService = impl
+
+			got, err := impl.GetEffectivePermissions(context.Background(), 5, 1)
+			if tt.wantErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, rules, got)
+			}
+		})
+	}
+}
+
+// ---- buildPermissionGroupUpdate ----
+
+func TestBuildPermissionGroupUpdate(t *testing.T) {
+	name := "新名称"
+	desc := "説明"
+	color := "#FFFFFF"
+	sortOrder := 3
+	active := true
+
+	tests := []struct {
+		name  string
+		input *UpdatePermissionGroupInput
+		want  map[string]any
+	}{
+		{
+			name: "all fields set",
+			input: &UpdatePermissionGroupInput{
+				Name:        &name,
+				Description: &desc,
+				Color:       &color,
+				SortOrder:   &sortOrder,
+				IsActive:    &active,
+			},
+			want: map[string]any{
+				colPermissionGroupName:        name,
+				colPermissionGroupDescription: desc,
+				colPermissionGroupColor:       color,
+				colPermissionGroupSortOrder:   sortOrder,
+				colPermissionGroupIsActive:    active,
+			},
+		},
+		{
+			name:  "no fields set returns empty map",
+			input: &UpdatePermissionGroupInput{},
+			want:  map[string]any{},
+		},
+		{
+			name:  "only name set",
+			input: &UpdatePermissionGroupInput{Name: &name},
+			want:  map[string]any{colPermissionGroupName: name},
+		},
+		{
+			name:  "only is_active set to false",
+			input: &UpdatePermissionGroupInput{IsActive: boolPtr(false)},
+			want:  map[string]any{colPermissionGroupIsActive: false},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := buildPermissionGroupUpdate(tt.input)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+// ---- UpdateRules validation branches (経由: service.UpdateRules) ----
+
+func TestPermissionGroupService_UpdateRules_ValidationErrors(t *testing.T) {
+	t.Run("rejects duplicate rules before checking self reference", func(t *testing.T) {
+		setRulesCalled := false
+		repo := &mockPermissionGroupRepository{
+			setRulesFn: func(_ context.Context, _ uint64, _ []model.PermissionGroupRule) error {
+				setRulesCalled = true
+				return nil
+			},
+		}
+		svc := NewPermissionGroupService(repo)
+
+		inputs := []SetPermissionGroupRulesInput{
+			{Resource: string(model.ResourceOwners)},
+			{Resource: string(model.ResourceOwners)},
+		}
+		err := svc.UpdateRules(context.Background(), 1, inputs, 10)
+
+		assert.Error(t, err)
+		assert.True(t, apperrors.IsInvalidInput(err))
+		assert.False(t, setRulesCalled)
+	})
+
+	t.Run("rejects removing own master-permission edit", func(t *testing.T) {
+		setRulesCalled := false
+		repo := &mockPermissionGroupRepository{
+			getGroupIDsByStaffIDFn: func(_ context.Context, _ uint64) ([]uint64, error) {
+				return []uint64{1}, nil
+			},
+			setRulesFn: func(_ context.Context, _ uint64, _ []model.PermissionGroupRule) error {
+				setRulesCalled = true
+				return nil
+			},
+		}
+		svc := NewPermissionGroupService(repo)
+
+		inputs := []SetPermissionGroupRulesInput{
+			{Resource: string(model.ResourceOwners), CanView: true},
+		}
+		err := svc.UpdateRules(context.Background(), 1, inputs, 10)
+
+		assert.Error(t, err)
+		assert.True(t, apperrors.IsInvalidInput(err))
+		assert.False(t, setRulesCalled)
+	})
+
+	t.Run("allows self-referencing group when master-permission edit is retained", func(t *testing.T) {
+		repo := &mockPermissionGroupRepository{
+			getGroupIDsByStaffIDFn: func(_ context.Context, _ uint64) ([]uint64, error) {
+				return []uint64{1}, nil
+			},
+			setRulesFn: func(_ context.Context, _ uint64, _ []model.PermissionGroupRule) error {
+				return nil
+			},
+		}
+		svc := NewPermissionGroupService(repo)
+
+		inputs := []SetPermissionGroupRulesInput{
+			{Resource: string(model.ResourceMasterPermission), CanEdit: true},
+		}
+		err := svc.UpdateRules(context.Background(), 1, inputs, 10)
+
+		assert.NoError(t, err)
+	})
+}
+
+// ---- validateNoDuplicateRules ----
+
+func TestValidateNoDuplicateRules(t *testing.T) {
+	tests := []struct {
+		name    string
+		rules   []model.PermissionGroupRule
+		wantErr bool
+	}{
+		{
+			name:    "no rules is valid",
+			rules:   nil,
+			wantErr: false,
+		},
+		{
+			name: "unique valid resources",
+			rules: []model.PermissionGroupRule{
+				{Resource: string(model.ResourceOwners)},
+				{Resource: string(model.ResourceMasterPermission)},
+			},
+			wantErr: false,
+		},
+		{
+			name:    "empty resource name is rejected",
+			rules:   []model.PermissionGroupRule{{Resource: ""}},
+			wantErr: true,
+		},
+		{
+			name:    "invalid resource name is rejected",
+			rules:   []model.PermissionGroupRule{{Resource: "bogus-resource"}},
+			wantErr: true,
+		},
+		{
+			name: "duplicate resource name is rejected",
+			rules: []model.PermissionGroupRule{
+				{Resource: string(model.ResourceOwners)},
+				{Resource: string(model.ResourceOwners)},
+			},
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validateNoDuplicateRules(tt.rules)
+			if tt.wantErr {
+				assert.Error(t, err)
+				assert.True(t, apperrors.IsInvalidInput(err))
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
+
+// ---- validateNotSelfReference ----
+
+func TestValidateNotSelfReference(t *testing.T) {
+	const groupID uint64 = 5
+
+	tests := []struct {
+		name          string
+		staffGroupIDs []uint64
+		rules         []model.PermissionGroupRule
+		wantErr       bool
+	}{
+		{
+			name:          "not a self-referencing group",
+			staffGroupIDs: []uint64{1, 2},
+			rules:         []model.PermissionGroupRule{{Resource: string(model.ResourceMasterPermission), CanEdit: false}},
+			wantErr:       false,
+		},
+		{
+			name:          "self-referencing group retains master-permission edit",
+			staffGroupIDs: []uint64{groupID},
+			rules:         []model.PermissionGroupRule{{Resource: string(model.ResourceMasterPermission), CanEdit: true}},
+			wantErr:       false,
+		},
+		{
+			name:          "self-referencing group removes master-permission edit",
+			staffGroupIDs: []uint64{groupID},
+			rules:         []model.PermissionGroupRule{{Resource: string(model.ResourceOwners), CanEdit: true}},
+			wantErr:       true,
+		},
+		{
+			name:          "self-referencing group with empty rules",
+			staffGroupIDs: []uint64{groupID},
+			rules:         nil,
+			wantErr:       true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validateNotSelfReference(groupID, tt.rules, tt.staffGroupIDs)
+			if tt.wantErr {
+				assert.Error(t, err)
+				assert.True(t, apperrors.IsInvalidInput(err))
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
 }

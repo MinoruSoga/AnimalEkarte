@@ -121,7 +121,7 @@ func TestMedicineDoseParamService_Upsert_OwnershipAndGuards(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			audit := &mockDoseAuditService{}
-			svc := NewMedicineDoseParamService(&mockMedicineDoseParamRepository{}, tt.medRepo, audit)
+			svc := NewMedicineDoseParamService(&mockMedicineDoseParamRepository{}, tt.medRepo, &mockTransactor{}, audit)
 
 			_, err := svc.Upsert(context.Background(), doseClinicID, 50, tt.input, nil)
 			require.Error(t, err)
@@ -149,7 +149,7 @@ func TestMedicineDoseParamService_Upsert_CreatesWhenAbsent(t *testing.T) {
 			return nil
 		},
 	}
-	svc := NewMedicineDoseParamService(repo, perWeightMedicineRepo(), audit)
+	svc := NewMedicineDoseParamService(repo, perWeightMedicineRepo(), &mockTransactor{}, audit)
 
 	staffID := uint64(7)
 	got, err := svc.Upsert(context.Background(), doseClinicID, 50, validDoseParamInput(), &staffID)
@@ -181,7 +181,7 @@ func TestMedicineDoseParamService_Upsert_UpdatesWhenPresent(t *testing.T) {
 			return &model.MedicineDoseParam{ID: 200, ClinicID: doseClinicID, MedicineID: 50, Species: model.MedicineDoseSpeciesDog, DosePerKg: 5, MaxMgPerKg: fptr(10)}, nil
 		},
 	}
-	svc := NewMedicineDoseParamService(repo, perWeightMedicineRepo(), audit)
+	svc := NewMedicineDoseParamService(repo, perWeightMedicineRepo(), &mockTransactor{}, audit)
 
 	got, err := svc.Upsert(context.Background(), doseClinicID, 50, validDoseParamInput(), nil)
 	require.NoError(t, err)
@@ -201,6 +201,39 @@ func TestMedicineDoseParamService_Upsert_UpdatesWhenPresent(t *testing.T) {
 	assert.NotNil(t, e.NewValue)
 }
 
+// TestMedicineDoseParamService_Upsert_AuditFailureRollsBack は BE-refactor.md R1-2 の
+// fail-closed 契約を固定する: 監査（LogEntryTx）が失敗すると Upsert（create/update 両分岐）全体が
+// エラーを返す（dose param の書込のみが成功し監査だけ欠落する部分コミットを許さない）。
+func TestMedicineDoseParamService_Upsert_AuditFailureRollsBack(t *testing.T) {
+	t.Run("create分岐: audit失敗はUpsert全体を失敗させる", func(t *testing.T) {
+		audit := &mockDoseAuditService{logEntryTxErr: errAuditWriteFailed}
+		repo := &mockMedicineDoseParamRepository{
+			findByMedicineAndSpeciesFn: func(_ context.Context, _, _ uint64, _ model.MedicineDoseSpecies) (*model.MedicineDoseParam, error) {
+				return nil, apperrors.WrapNotFound("medicine_dose_param", "")
+			},
+			createFn: func(_ context.Context, _ uint64, p *model.MedicineDoseParam) error { p.ID = 400; return nil },
+		}
+		svc := NewMedicineDoseParamService(repo, perWeightMedicineRepo(), &mockTransactor{}, audit)
+		_, err := svc.Upsert(context.Background(), doseClinicID, 50, validDoseParamInput(), nil)
+		require.Error(t, err, "audit失敗はcreate全体を失敗させる")
+	})
+
+	t.Run("update分岐: audit失敗はUpsert全体を失敗させる", func(t *testing.T) {
+		audit := &mockDoseAuditService{logEntryTxErr: errAuditWriteFailed}
+		repo := &mockMedicineDoseParamRepository{
+			findByMedicineAndSpeciesFn: func(_ context.Context, _, _ uint64, _ model.MedicineDoseSpecies) (*model.MedicineDoseParam, error) {
+				return &model.MedicineDoseParam{ID: 401, ClinicID: doseClinicID, MedicineID: 50, Species: model.MedicineDoseSpeciesDog, DosePerKg: 3, MaxMgPerKg: fptr(8)}, nil
+			},
+			updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.MedicineDoseParam, error) {
+				return &model.MedicineDoseParam{ID: 401, ClinicID: doseClinicID, MedicineID: 50, Species: model.MedicineDoseSpeciesDog, DosePerKg: 5, MaxMgPerKg: fptr(10)}, nil
+			},
+		}
+		svc := NewMedicineDoseParamService(repo, perWeightMedicineRepo(), &mockTransactor{}, audit)
+		_, err := svc.Upsert(context.Background(), doseClinicID, 50, validDoseParamInput(), nil)
+		require.Error(t, err, "audit失敗はupdate全体を失敗させる")
+	})
+}
+
 // ---- Delete + audit ----
 
 func TestMedicineDoseParamService_Delete(t *testing.T) {
@@ -211,7 +244,7 @@ func TestMedicineDoseParamService_Delete(t *testing.T) {
 				return nil, apperrors.WrapNotFound("medicine", fmt.Sprintf("%d", id))
 			},
 		}
-		svc := NewMedicineDoseParamService(&mockMedicineDoseParamRepository{}, medRepo, audit)
+		svc := NewMedicineDoseParamService(&mockMedicineDoseParamRepository{}, medRepo, &mockTransactor{}, audit)
 		err := svc.Delete(context.Background(), doseClinicID, 50, model.MedicineDoseSpeciesDog, nil)
 		require.Error(t, err)
 		assert.True(t, apperrors.IsNotFound(err))
@@ -219,7 +252,7 @@ func TestMedicineDoseParamService_Delete(t *testing.T) {
 	})
 
 	t.Run("不正speciesは拒否", func(t *testing.T) {
-		svc := NewMedicineDoseParamService(&mockMedicineDoseParamRepository{}, perWeightMedicineRepo(), &mockDoseAuditService{})
+		svc := NewMedicineDoseParamService(&mockMedicineDoseParamRepository{}, perWeightMedicineRepo(), &mockTransactor{}, &mockDoseAuditService{})
 		err := svc.Delete(context.Background(), doseClinicID, 50, model.MedicineDoseSpecies("rabbit"), nil)
 		require.Error(t, err)
 		assert.True(t, apperrors.IsInvalidInput(err))
@@ -231,7 +264,7 @@ func TestMedicineDoseParamService_Delete(t *testing.T) {
 				return nil, apperrors.WrapNotFound("medicine_dose_param", "")
 			},
 		}
-		svc := NewMedicineDoseParamService(repo, perWeightMedicineRepo(), &mockDoseAuditService{})
+		svc := NewMedicineDoseParamService(repo, perWeightMedicineRepo(), &mockTransactor{}, &mockDoseAuditService{})
 		err := svc.Delete(context.Background(), doseClinicID, 50, model.MedicineDoseSpeciesDog, nil)
 		require.Error(t, err)
 		assert.True(t, apperrors.IsNotFound(err))
@@ -252,7 +285,7 @@ func TestMedicineDoseParamService_Delete(t *testing.T) {
 			},
 		}
 		staffID := uint64(9)
-		svc := NewMedicineDoseParamService(repo, perWeightMedicineRepo(), audit)
+		svc := NewMedicineDoseParamService(repo, perWeightMedicineRepo(), &mockTransactor{}, audit)
 		err := svc.Delete(context.Background(), doseClinicID, 50, model.MedicineDoseSpeciesCat, &staffID)
 		require.NoError(t, err)
 		assert.True(t, deleted)
@@ -262,6 +295,20 @@ func TestMedicineDoseParamService_Delete(t *testing.T) {
 		assert.Equal(t, model.AuditResourceMedicineDoseParam, e.Resource)
 		assert.NotNil(t, e.OldValue, "削除は before 記録")
 		assert.Nil(t, e.NewValue, "削除は after なし")
+	})
+
+	// BE-refactor.md R1-2: audit（LogEntryTx）失敗は Delete 全体を失敗させる（fail-closed）。
+	t.Run("audit失敗はDelete全体をロールバックする（fail-closed）", func(t *testing.T) {
+		audit := &mockDoseAuditService{logEntryTxErr: errAuditWriteFailed}
+		repo := &mockMedicineDoseParamRepository{
+			findByMedicineAndSpeciesFn: func(_ context.Context, _, _ uint64, _ model.MedicineDoseSpecies) (*model.MedicineDoseParam, error) {
+				return &model.MedicineDoseParam{ID: 402, ClinicID: doseClinicID, MedicineID: 50, Species: model.MedicineDoseSpeciesCat, DosePerKg: 2, MaxMgPerKg: fptr(6)}, nil
+			},
+			deleteFn: func(_ context.Context, _, _ uint64) error { return nil },
+		}
+		svc := NewMedicineDoseParamService(repo, perWeightMedicineRepo(), &mockTransactor{}, audit)
+		err := svc.Delete(context.Background(), doseClinicID, 50, model.MedicineDoseSpeciesCat, nil)
+		require.Error(t, err, "audit失敗は削除全体を失敗させる")
 	})
 }
 
@@ -274,7 +321,7 @@ func TestMedicineDoseParamService_List(t *testing.T) {
 				return nil, apperrors.WrapNotFound("medicine", fmt.Sprintf("%d", id))
 			},
 		}
-		svc := NewMedicineDoseParamService(&mockMedicineDoseParamRepository{}, medRepo, &mockDoseAuditService{})
+		svc := NewMedicineDoseParamService(&mockMedicineDoseParamRepository{}, medRepo, &mockTransactor{}, &mockDoseAuditService{})
 		_, err := svc.List(context.Background(), doseClinicID, 50)
 		require.Error(t, err)
 		assert.True(t, apperrors.IsNotFound(err))
@@ -289,7 +336,7 @@ func TestMedicineDoseParamService_List(t *testing.T) {
 				}, nil
 			},
 		}
-		svc := NewMedicineDoseParamService(repo, perWeightMedicineRepo(), &mockDoseAuditService{})
+		svc := NewMedicineDoseParamService(repo, perWeightMedicineRepo(), &mockTransactor{}, &mockDoseAuditService{})
 		got, err := svc.List(context.Background(), doseClinicID, 50)
 		require.NoError(t, err)
 		assert.Len(t, got, 2)

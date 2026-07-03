@@ -1,11 +1,42 @@
 package handler
 
 import (
+	"net/url"
 	"testing"
 	"time"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 )
+
+func TestNewListEstimateQuery(t *testing.T) {
+	t.Run("extracts all query parameters", func(t *testing.T) {
+		values := url.Values{
+			"owner_id":          []string{"10"},
+			"medical_record_id": []string{"20"},
+			"status":            []string{"approved"},
+		}
+
+		got := newListEstimateQuery(values)
+
+		if got.OwnerID != "10" {
+			t.Errorf("OwnerID = %q, want %q", got.OwnerID, "10")
+		}
+		if got.MedicalRecordID != "20" {
+			t.Errorf("MedicalRecordID = %q, want %q", got.MedicalRecordID, "20")
+		}
+		if got.Status != "approved" {
+			t.Errorf("Status = %q, want %q", got.Status, "approved")
+		}
+	})
+
+	t.Run("returns zero values for empty query", func(t *testing.T) {
+		got := newListEstimateQuery(url.Values{})
+
+		if got != (listEstimateQuery{}) {
+			t.Errorf("got = %#v, want zero value", got)
+		}
+	})
+}
 
 func TestListEstimateQuery_ToServiceFilters(t *testing.T) {
 	filters, err := (listEstimateQuery{

@@ -20,6 +20,7 @@ type mockInquiryTemplateRepository struct {
 	updateFieldsFn func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.InquiryTemplate, error)
 	deleteFn       func(ctx context.Context, clinicID, id uint64) error
 	reorderErr     error
+	countUsageFn   func(ctx context.Context, clinicID, id uint64) (int64, error)
 }
 
 func (m *mockInquiryTemplateRepository) FindAll(ctx context.Context, clinicID uint64) ([]model.InquiryTemplate, error) {
@@ -49,7 +50,10 @@ func (m *mockInquiryTemplateRepository) Reorder(_ context.Context, _ uint64, _ [
 	return m.reorderErr
 }
 
-func (m *mockInquiryTemplateRepository) CountUsageByInquiryTemplateID(_ context.Context, _, _ uint64) (int64, error) {
+func (m *mockInquiryTemplateRepository) CountUsageByInquiryTemplateID(ctx context.Context, clinicID, id uint64) (int64, error) {
+	if m.countUsageFn != nil {
+		return m.countUsageFn(ctx, clinicID, id)
+	}
 	return 0, nil
 }
 
@@ -211,6 +215,20 @@ func TestInquiryTemplateService_Create(t *testing.T) {
 			repoErr: errors.New("db error"),
 			wantErr: true,
 		},
+		{
+			name: "returns validation error when title is empty",
+			input: &CreateInquiryTemplateInput{
+				Title: "",
+			},
+			wantErr: true,
+		},
+		{
+			name: "returns validation error when title is whitespace only",
+			input: &CreateInquiryTemplateInput{
+				Title: "   ",
+			},
+			wantErr: true,
+		},
 	}
 
 	for _, tt := range tests {
@@ -247,6 +265,7 @@ func TestInquiryTemplateService_Update(t *testing.T) {
 		input        *UpdateInquiryTemplateInput
 		repoTemplate *model.InquiryTemplate
 		repoErr      error
+		findByIDErr  error
 		wantErr      bool
 	}{
 		{
@@ -312,11 +331,36 @@ func TestInquiryTemplateService_Update(t *testing.T) {
 			repoErr: nil,
 			wantErr: false,
 		},
+		{
+			name:     "returns error when FindByID fails before update",
+			clinicID: 1,
+			id:       999,
+			input: &UpdateInquiryTemplateInput{
+				Title: &updatedTitle,
+			},
+			findByIDErr: apperrors.WrapNotFound("inquiry_template", "999"),
+			wantErr:     true,
+		},
+		{
+			name:     "returns validation error when title is whitespace only",
+			clinicID: 1,
+			id:       1,
+			input: &UpdateInquiryTemplateInput{
+				Title: func(s string) *string { return &s }("   "),
+			},
+			wantErr: true,
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockInquiryTemplateRepository{
+				findByIDFn: func(_ context.Context, clinicID, id uint64) (*model.InquiryTemplate, error) {
+					if tt.findByIDErr != nil {
+						return nil, tt.findByIDErr
+					}
+					return &model.InquiryTemplate{ID: id, ClinicID: clinicID}, nil
+				},
 				updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.InquiryTemplate, error) {
 					if tt.repoErr != nil {
 						return nil, tt.repoErr
@@ -336,6 +380,15 @@ func TestInquiryTemplateService_Update(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestInquiryTemplateService_Update_NilInput(t *testing.T) {
+	repo := &mockInquiryTemplateRepository{}
+	svc := NewInquiryTemplateService(repo)
+	result, err := svc.Update(context.Background(), 1, 1, nil)
+	assert.Error(t, err)
+	assert.True(t, apperrors.IsInvalidInput(err))
+	assert.Nil(t, result)
 }
 
 func TestInquiryTemplateService_Reorder(t *testing.T) {
@@ -381,11 +434,15 @@ func TestInquiryTemplateService_Reorder(t *testing.T) {
 
 func TestInquiryTemplateService_Delete(t *testing.T) {
 	tests := []struct {
-		name    string
-		id      uint64
-		repoErr error
-		wantErr bool
-		wantNF  bool
+		name         string
+		id           uint64
+		findByIDErr  error
+		usageCount   int64
+		usageErr     error
+		repoErr      error
+		wantErr      bool
+		wantNF       bool
+		wantConflict bool
 	}{
 		{
 			name:    "deletes inquiry template successfully",
@@ -407,11 +464,41 @@ func TestInquiryTemplateService_Delete(t *testing.T) {
 			wantErr: true,
 			wantNF:  false,
 		},
+		{
+			name:        "returns not found error when FindByID fails",
+			id:          999,
+			findByIDErr: apperrors.WrapNotFound("inquiry_template", "999"),
+			wantErr:     true,
+			wantNF:      true,
+		},
+		{
+			name:       "returns error when usage count check fails",
+			id:         1,
+			usageCount: 0,
+			usageErr:   errors.New("db error"),
+			wantErr:    true,
+		},
+		{
+			name:         "returns conflict error when template is in use",
+			id:           1,
+			usageCount:   3,
+			wantErr:      true,
+			wantConflict: true,
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockInquiryTemplateRepository{
+				findByIDFn: func(_ context.Context, clinicID, id uint64) (*model.InquiryTemplate, error) {
+					if tt.findByIDErr != nil {
+						return nil, tt.findByIDErr
+					}
+					return &model.InquiryTemplate{ID: id, ClinicID: clinicID}, nil
+				},
+				countUsageFn: func(_ context.Context, _, _ uint64) (int64, error) {
+					return tt.usageCount, tt.usageErr
+				},
 				deleteFn: func(_ context.Context, _, _ uint64) error {
 					return tt.repoErr
 				},
@@ -424,6 +511,9 @@ func TestInquiryTemplateService_Delete(t *testing.T) {
 				assert.Error(t, err)
 				if tt.wantNF {
 					assert.True(t, apperrors.IsNotFound(err))
+				}
+				if tt.wantConflict {
+					assert.True(t, apperrors.IsConflict(err))
 				}
 			} else {
 				assert.NoError(t, err)

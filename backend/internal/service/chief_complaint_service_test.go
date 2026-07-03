@@ -20,6 +20,7 @@ type mockChiefComplaintTypeRepository struct {
 	createFn                         func(ctx context.Context, category *model.ChiefComplaintType) error
 	updateFieldsFn                   func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.ChiefComplaintType, error)
 	deleteFn                         func(ctx context.Context, clinicID, id uint64) error
+	reorderErr                       error
 }
 
 func (m *mockChiefComplaintTypeRepository) FindAll(ctx context.Context, clinicID uint64) ([]model.ChiefComplaintType, error) {
@@ -56,7 +57,7 @@ func (m *mockChiefComplaintTypeRepository) Delete(ctx context.Context, clinicID,
 }
 
 func (m *mockChiefComplaintTypeRepository) Reorder(_ context.Context, _ uint64, _ []uint64) error {
-	return nil
+	return m.reorderErr
 }
 
 // ---- Tests ----
@@ -232,6 +233,22 @@ func TestChiefComplaintTypeService_Create(t *testing.T) {
 	}
 }
 
+func TestChiefComplaintTypeService_Create_ValidationError(t *testing.T) {
+	repo := &mockChiefComplaintTypeRepository{
+		createFn: func(_ context.Context, _ *model.ChiefComplaintType) error {
+			t.Fatal("repository must not be called when name validation fails")
+			return nil
+		},
+	}
+	svc := NewChiefComplaintTypeService(repo)
+
+	result, err := svc.Create(context.Background(), 1, &CreateChiefComplaintTypeInput{Name: "   "})
+
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	assert.True(t, apperrors.IsInvalidInput(err))
+}
+
 func TestChiefComplaintTypeService_Update(t *testing.T) {
 	newName := "更新症状"
 	newSortOrder := 3
@@ -312,6 +329,43 @@ func TestChiefComplaintTypeService_Update(t *testing.T) {
 	}
 }
 
+func TestChiefComplaintTypeService_Update_FindByIDError(t *testing.T) {
+	repo := &mockChiefComplaintTypeRepository{
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.ChiefComplaintType, error) {
+			return nil, apperrors.WrapNotFound("chief_complaint_type", "999")
+		},
+		updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.ChiefComplaintType, error) {
+			t.Fatal("repository Update must not be called when the category is not found")
+			return nil, nil
+		},
+	}
+	svc := NewChiefComplaintTypeService(repo)
+
+	newName := "更新症状"
+	result, err := svc.Update(context.Background(), 1, 999, &UpdateChiefComplaintTypeInput{Name: &newName})
+
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	assert.True(t, apperrors.IsNotFound(err))
+}
+
+func TestChiefComplaintTypeService_Update_InvalidName(t *testing.T) {
+	repo := &mockChiefComplaintTypeRepository{
+		updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.ChiefComplaintType, error) {
+			t.Fatal("repository Update must not be called when name validation fails")
+			return nil, nil
+		},
+	}
+	svc := NewChiefComplaintTypeService(repo)
+
+	blankName := "   "
+	result, err := svc.Update(context.Background(), 1, 1, &UpdateChiefComplaintTypeInput{Name: &blankName})
+
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	assert.True(t, apperrors.IsInvalidInput(err))
+}
+
 func TestChiefComplaintTypeService_Update_NilInput(t *testing.T) {
 	repo := &mockChiefComplaintTypeRepository{}
 	svc := NewChiefComplaintTypeService(repo)
@@ -363,6 +417,14 @@ func TestChiefComplaintTypeService_Delete(t *testing.T) {
 			repoErr:      errors.New("not found"),
 			wantErr:      true,
 		},
+		{
+			name:         "returns error when repository delete fails",
+			id:           4,
+			inquiryCount: 0,
+			inquiryErr:   nil,
+			repoErr:      errors.New("db error"),
+			wantErr:      true,
+		},
 	}
 
 	for _, tt := range tests {
@@ -391,6 +453,51 @@ func TestChiefComplaintTypeService_Delete(t *testing.T) {
 				if tt.wantConflict {
 					assert.True(t, errors.Is(err, apperrors.ErrConflict),
 						"expected conflict error, got: %v", err)
+				}
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
+
+func TestChiefComplaintTypeService_Reorder(t *testing.T) {
+	tests := []struct {
+		name             string
+		ids              []uint64
+		repoErr          error
+		wantErr          bool
+		wantInvalidInput bool
+	}{
+		{
+			name: "reorders successfully",
+			ids:  []uint64{3, 1, 2},
+		},
+		{
+			name:             "returns invalid input when ids is empty",
+			ids:              []uint64{},
+			wantErr:          true,
+			wantInvalidInput: true,
+		},
+		{
+			name:    "propagates repository error",
+			ids:     []uint64{1, 2},
+			repoErr: errors.New("db error"),
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			repo := &mockChiefComplaintTypeRepository{reorderErr: tt.repoErr}
+			svc := NewChiefComplaintTypeService(repo)
+
+			err := svc.Reorder(context.Background(), 1, tt.ids)
+
+			if tt.wantErr {
+				assert.Error(t, err)
+				if tt.wantInvalidInput {
+					assert.True(t, apperrors.IsInvalidInput(err))
 				}
 			} else {
 				assert.NoError(t, err)

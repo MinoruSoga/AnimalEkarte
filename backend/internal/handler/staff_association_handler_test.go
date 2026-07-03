@@ -18,6 +18,7 @@ package handler
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -28,7 +29,32 @@ import (
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/service"
 )
+
+// mockStaffClinicAssignmentServiceErr is a StaffClinicAssignmentService mock that
+// always fails FindAllByStaffID, used to exercise the 500 passthrough on
+// GetStaffClinicAssignments.
+type mockStaffClinicAssignmentServiceErr struct{}
+
+func (m *mockStaffClinicAssignmentServiceErr) FindAllByStaffID(_ context.Context, _ uint64) ([]model.StaffClinicAssignment, error) {
+	return nil, fmt.Errorf("db failure")
+}
+func (m *mockStaffClinicAssignmentServiceErr) Create(_ context.Context, _ *model.StaffClinicAssignment) error {
+	return nil
+}
+
+// newHandlerWithStaffSvcAndAssignmentErr builds a handler whose
+// StaffClinicAssignment dependency always errors, for GetStaffClinicAssignments
+// 500 coverage.
+func newHandlerWithStaffSvcAndAssignmentErr(staffSvc service.StaffService) *Handler {
+	return &Handler{
+		svc: &service.Services{
+			Staff:                 staffSvc,
+			StaffClinicAssignment: &mockStaffClinicAssignmentServiceErr{},
+		},
+	}
+}
 
 // staffAssocCtx builds a gin test context with clinic_id=1 and :id=10.
 func staffAssocCtx(w *httptest.ResponseRecorder, method string, body []byte) *gin.Context {
@@ -78,6 +104,17 @@ func TestGetStaffPermissionGroups_Characterization(t *testing.T) {
 		newHandlerWithStaffSvc(svc).GetStaffPermissionGroups(staffAssocCtx(w, http.MethodGet, nil))
 		assert.Equal(t, http.StatusNotFound, w.Code)
 	})
+
+	t.Run("500 on service error", func(t *testing.T) {
+		svc := &mockStaffService{
+			getPermissionGroupIDsFn: func(_ context.Context, _ uint64) ([]uint64, error) {
+				return nil, fmt.Errorf("db failure")
+			},
+		}
+		w := httptest.NewRecorder()
+		newHandlerWithStaffSvc(svc).GetStaffPermissionGroups(staffAssocCtx(w, http.MethodGet, nil))
+		assert.Equal(t, http.StatusInternalServerError, w.Code)
+	})
 }
 
 // ---- SET PermissionGroups ----
@@ -124,6 +161,34 @@ func TestSetStaffPermissionGroups_Characterization(t *testing.T) {
 		newHandlerWithStaffSvc(svc).SetStaffPermissionGroups(staffAssocCtx(w, http.MethodPut, []byte(`{"group_ids":[2,5]}`)))
 		assert.Equal(t, http.StatusNotFound, w.Code)
 	})
+
+	t.Run("401 when clinic_id is missing", func(t *testing.T) {
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Request = httptest.NewRequest(http.MethodPut, "/", bytes.NewReader([]byte(`{"group_ids":[2,5]}`)))
+		c.Request.Header.Set("Content-Type", "application/json")
+		c.Params = gin.Params{{Key: "id", Value: "10"}}
+		// clinic_id intentionally NOT set.
+		newHandlerWithStaffSvc(&mockStaffService{}).SetStaffPermissionGroups(c)
+		assert.Equal(t, http.StatusUnauthorized, w.Code)
+	})
+
+	t.Run("400 for invalid JSON body", func(t *testing.T) {
+		w := httptest.NewRecorder()
+		newHandlerWithStaffSvc(&mockStaffService{}).SetStaffPermissionGroups(staffAssocCtx(w, http.MethodPut, []byte(`not-json`)))
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+	})
+
+	t.Run("500 on service error", func(t *testing.T) {
+		svc := &mockStaffService{
+			setPermissionGroupIDsFn: func(_ context.Context, _ uint64, _ []uint64) error {
+				return fmt.Errorf("db failure")
+			},
+		}
+		w := httptest.NewRecorder()
+		newHandlerWithStaffSvc(svc).SetStaffPermissionGroups(staffAssocCtx(w, http.MethodPut, []byte(`{"group_ids":[2,5]}`)))
+		assert.Equal(t, http.StatusInternalServerError, w.Code)
+	})
 }
 
 // ---- GET/SET ClinicAssignments ----
@@ -146,6 +211,22 @@ func TestGetStaffClinicAssignments_Characterization(t *testing.T) {
 		w := httptest.NewRecorder()
 		newHandlerWithStaffSvc(svc).GetStaffClinicAssignments(staffAssocCtx(w, http.MethodGet, nil))
 		assert.Equal(t, http.StatusNotFound, w.Code)
+	})
+
+	t.Run("401 when clinic_id is missing", func(t *testing.T) {
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Request = httptest.NewRequest(http.MethodGet, "/", http.NoBody)
+		c.Params = gin.Params{{Key: "id", Value: "10"}}
+		// clinic_id intentionally NOT set.
+		newHandlerWithStaffSvc(&mockStaffService{}).GetStaffClinicAssignments(c)
+		assert.Equal(t, http.StatusUnauthorized, w.Code)
+	})
+
+	t.Run("500 on assignment service error", func(t *testing.T) {
+		w := httptest.NewRecorder()
+		newHandlerWithStaffSvcAndAssignmentErr(&mockStaffService{}).GetStaffClinicAssignments(staffAssocCtx(w, http.MethodGet, nil))
+		assert.Equal(t, http.StatusInternalServerError, w.Code)
 	})
 }
 
@@ -191,6 +272,34 @@ func TestSetStaffClinicAssignments_Characterization(t *testing.T) {
 		newHandlerWithStaffSvc(svc).SetStaffClinicAssignments(staffAssocCtx(w, http.MethodPut, []byte(`{"clinic_ids":[1,3]}`)))
 		assert.Equal(t, http.StatusNotFound, w.Code)
 	})
+
+	t.Run("401 when clinic_id is missing", func(t *testing.T) {
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Request = httptest.NewRequest(http.MethodPut, "/", bytes.NewReader([]byte(`{"clinic_ids":[1,3]}`)))
+		c.Request.Header.Set("Content-Type", "application/json")
+		c.Params = gin.Params{{Key: "id", Value: "10"}}
+		// clinic_id intentionally NOT set.
+		newHandlerWithStaffSvc(&mockStaffService{}).SetStaffClinicAssignments(c)
+		assert.Equal(t, http.StatusUnauthorized, w.Code)
+	})
+
+	t.Run("400 for invalid JSON body", func(t *testing.T) {
+		w := httptest.NewRecorder()
+		newHandlerWithStaffSvc(&mockStaffService{}).SetStaffClinicAssignments(staffAssocCtx(w, http.MethodPut, []byte(`not-json`)))
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+	})
+
+	t.Run("500 on service error", func(t *testing.T) {
+		svc := &mockStaffService{
+			setClinicAssignmentsFn: func(_ context.Context, _ uint64, _ []uint64) error {
+				return fmt.Errorf("db failure")
+			},
+		}
+		w := httptest.NewRecorder()
+		newHandlerWithStaffSvc(svc).SetStaffClinicAssignments(staffAssocCtx(w, http.MethodPut, []byte(`{"clinic_ids":[1,3]}`)))
+		assert.Equal(t, http.StatusInternalServerError, w.Code)
+	})
 }
 
 // ---- GET/SET ExcludedReservationTypes ----
@@ -222,6 +331,27 @@ func TestGetStaffExcludedReservationTypes_Characterization(t *testing.T) {
 		w := httptest.NewRecorder()
 		newHandlerWithStaffSvc(svc).GetStaffExcludedReservationTypes(staffAssocCtx(w, http.MethodGet, nil))
 		assert.Equal(t, http.StatusNotFound, w.Code)
+	})
+
+	t.Run("401 when clinic_id is missing", func(t *testing.T) {
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Request = httptest.NewRequest(http.MethodGet, "/", http.NoBody)
+		c.Params = gin.Params{{Key: "id", Value: "10"}}
+		// clinic_id intentionally NOT set.
+		newHandlerWithStaffSvc(&mockStaffService{}).GetStaffExcludedReservationTypes(c)
+		assert.Equal(t, http.StatusUnauthorized, w.Code)
+	})
+
+	t.Run("500 on service error", func(t *testing.T) {
+		svc := &mockStaffService{
+			getExcludedReservationTypesFn: func(_ context.Context, _ uint64) ([]uint64, error) {
+				return nil, fmt.Errorf("db failure")
+			},
+		}
+		w := httptest.NewRecorder()
+		newHandlerWithStaffSvc(svc).GetStaffExcludedReservationTypes(staffAssocCtx(w, http.MethodGet, nil))
+		assert.Equal(t, http.StatusInternalServerError, w.Code)
 	})
 }
 
@@ -263,6 +393,34 @@ func TestSetStaffExcludedReservationTypes_Characterization(t *testing.T) {
 		newHandlerWithStaffSvc(svc).SetStaffExcludedReservationTypes(staffAssocCtx(w, http.MethodPut, []byte(`{"reservation_type_ids":[7,9]}`)))
 		assert.Equal(t, http.StatusNotFound, w.Code)
 	})
+
+	t.Run("401 when clinic_id is missing", func(t *testing.T) {
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Request = httptest.NewRequest(http.MethodPut, "/", bytes.NewReader([]byte(`{"reservation_type_ids":[7,9]}`)))
+		c.Request.Header.Set("Content-Type", "application/json")
+		c.Params = gin.Params{{Key: "id", Value: "10"}}
+		// clinic_id intentionally NOT set.
+		newHandlerWithStaffSvc(&mockStaffService{}).SetStaffExcludedReservationTypes(c)
+		assert.Equal(t, http.StatusUnauthorized, w.Code)
+	})
+
+	t.Run("400 for invalid JSON body", func(t *testing.T) {
+		w := httptest.NewRecorder()
+		newHandlerWithStaffSvc(&mockStaffService{}).SetStaffExcludedReservationTypes(staffAssocCtx(w, http.MethodPut, []byte(`not-json`)))
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+	})
+
+	t.Run("500 on service error", func(t *testing.T) {
+		svc := &mockStaffService{
+			setExcludedReservationTypesFn: func(_ context.Context, _ uint64, _ []uint64) error {
+				return fmt.Errorf("db failure")
+			},
+		}
+		w := httptest.NewRecorder()
+		newHandlerWithStaffSvc(svc).SetStaffExcludedReservationTypes(staffAssocCtx(w, http.MethodPut, []byte(`{"reservation_type_ids":[7,9]}`)))
+		assert.Equal(t, http.StatusInternalServerError, w.Code)
+	})
 }
 
 // ---- GET/SET CapableReservationTypes ----
@@ -292,6 +450,27 @@ func TestGetStaffCapableReservationTypes_Characterization(t *testing.T) {
 		newHandlerWithStaffSvc(svc).GetStaffCapableReservationTypes(staffAssocCtx(w, http.MethodGet, nil))
 		assert.Equal(t, http.StatusNotFound, w.Code)
 	})
+
+	t.Run("401 when clinic_id is missing", func(t *testing.T) {
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Request = httptest.NewRequest(http.MethodGet, "/", http.NoBody)
+		c.Params = gin.Params{{Key: "id", Value: "10"}}
+		// clinic_id intentionally NOT set.
+		newHandlerWithStaffSvc(&mockStaffService{}).GetStaffCapableReservationTypes(c)
+		assert.Equal(t, http.StatusUnauthorized, w.Code)
+	})
+
+	t.Run("500 on service error", func(t *testing.T) {
+		svc := &mockStaffService{
+			getCapableReservationTypesFn: func(_ context.Context, _, _ uint64) ([]uint64, error) {
+				return nil, fmt.Errorf("db failure")
+			},
+		}
+		w := httptest.NewRecorder()
+		newHandlerWithStaffSvc(svc).GetStaffCapableReservationTypes(staffAssocCtx(w, http.MethodGet, nil))
+		assert.Equal(t, http.StatusInternalServerError, w.Code)
+	})
 }
 
 func TestSetStaffCapableReservationTypes_Characterization(t *testing.T) {
@@ -319,6 +498,47 @@ func TestSetStaffCapableReservationTypes_Characterization(t *testing.T) {
 		w := httptest.NewRecorder()
 		newHandlerWithStaffSvc(svc).SetStaffCapableReservationTypes(staffAssocCtx(w, http.MethodPut, []byte(`{"reservation_type_ids":[4]}`)))
 		assert.Equal(t, http.StatusNotFound, w.Code)
+	})
+
+	t.Run("200 normalizes null to empty array", func(t *testing.T) {
+		svc := &mockStaffService{
+			setCapableReservationTypesFn: func(_ context.Context, _, _ uint64, ids []uint64) error {
+				assert.Equal(t, []uint64{}, ids)
+				return nil
+			},
+		}
+		w := httptest.NewRecorder()
+		newHandlerWithStaffSvc(svc).SetStaffCapableReservationTypes(staffAssocCtx(w, http.MethodPut, []byte(`{"reservation_type_ids":null}`)))
+		require.Equal(t, http.StatusOK, w.Code)
+		assert.JSONEq(t, `{"reservation_type_ids":[]}`, w.Body.String())
+	})
+
+	t.Run("401 when clinic_id is missing", func(t *testing.T) {
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Request = httptest.NewRequest(http.MethodPut, "/", bytes.NewReader([]byte(`{"reservation_type_ids":[4]}`)))
+		c.Request.Header.Set("Content-Type", "application/json")
+		c.Params = gin.Params{{Key: "id", Value: "10"}}
+		// clinic_id intentionally NOT set.
+		newHandlerWithStaffSvc(&mockStaffService{}).SetStaffCapableReservationTypes(c)
+		assert.Equal(t, http.StatusUnauthorized, w.Code)
+	})
+
+	t.Run("400 for invalid JSON body", func(t *testing.T) {
+		w := httptest.NewRecorder()
+		newHandlerWithStaffSvc(&mockStaffService{}).SetStaffCapableReservationTypes(staffAssocCtx(w, http.MethodPut, []byte(`not-json`)))
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+	})
+
+	t.Run("500 on service error", func(t *testing.T) {
+		svc := &mockStaffService{
+			setCapableReservationTypesFn: func(_ context.Context, _, _ uint64, _ []uint64) error {
+				return fmt.Errorf("db failure")
+			},
+		}
+		w := httptest.NewRecorder()
+		newHandlerWithStaffSvc(svc).SetStaffCapableReservationTypes(staffAssocCtx(w, http.MethodPut, []byte(`{"reservation_type_ids":[4]}`)))
+		assert.Equal(t, http.StatusInternalServerError, w.Code)
 	})
 }
 
@@ -423,5 +643,16 @@ func TestGetStaff_Characterization(t *testing.T) {
 		c.Params = gin.Params{{Key: "id", Value: "abc"}}
 		newHandlerWithStaffSvc(svc).GetStaff(c)
 		assert.Equal(t, http.StatusBadRequest, w.Code)
+	})
+
+	t.Run("500 on service error", func(t *testing.T) {
+		svc := &mockStaffService{
+			getByIDFn: func(_ context.Context, _ uint64) (*model.Staff, error) {
+				return nil, fmt.Errorf("db failure")
+			},
+		}
+		w := httptest.NewRecorder()
+		newHandlerWithStaffSvc(svc).GetStaff(staffAssocCtx(w, http.MethodGet, nil))
+		assert.Equal(t, http.StatusInternalServerError, w.Code)
 	})
 }

@@ -1,0 +1,352 @@
+package repository
+
+// inventory_repository_test.go — InventoryRepository の統合テスト（内部カバレッジ向上）。
+//
+// 対象: FindAll / FindByID / Create / Update / Delete / DecreaseStock /
+//       CountUsageByInventoryID / DeleteByNameAndMedicineCategory / UpdateNameByMedicineCategory
+// 検証観点: 正常系、clinic_id 隔離、ソフトデリート除外、NotFound ラップ、使用数カウントの参照種別別合算。
+//
+// makeHistoryMedicalRecord は treatment_repository_test.go で定義され、このファイルからも再利用する。
+
+import (
+	"context"
+	"testing"
+	"time"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"gorm.io/gorm"
+
+	apperrors "github.com/animal-ekarte/backend/internal/errors"
+	"github.com/animal-ekarte/backend/internal/model"
+)
+
+// setupInventoryTestDB は inventory_items と CountUsageByInventoryID の JOIN 先
+// treatments/vaccines/medicines/medical_records を整備する。
+// Owner/AnimalSpecies/Pet は medical_records.pet_id の FK (fk_medical_records_pet) を満たすため
+// AutoMigrate 対象に含める（makeHistoryMedicalRecord は実在の pet.ID を要求する）。
+func setupInventoryTestDB(t *testing.T) *gorm.DB {
+	t.Helper()
+	db := setupTestDB(t)
+	require.NoError(t, db.AutoMigrate(
+		&model.Owner{}, &model.AnimalSpecies{}, &model.Pet{},
+		&model.InventoryItem{}, &model.Treatment{}, &model.Vaccine{}, &model.Medicine{},
+	))
+	db.Exec("TRUNCATE TABLE treatments CASCADE")
+	db.Exec("TRUNCATE TABLE vaccines CASCADE")
+	db.Exec("TRUNCATE TABLE medicines CASCADE")
+	db.Exec("TRUNCATE TABLE medical_records CASCADE")
+	db.Exec("TRUNCATE TABLE inventory_items CASCADE")
+	db.Exec("TRUNCATE TABLE pets CASCADE")
+	db.Exec("TRUNCATE TABLE owners CASCADE")
+	db.Exec("TRUNCATE TABLE animal_species CASCADE")
+	return db
+}
+
+func makeInventoryItem(t *testing.T, db *gorm.DB, clinicID uint64, name string, category model.InventoryCategory, status model.InventoryStatus, quantity int) *model.InventoryItem {
+	t.Helper()
+	item := &model.InventoryItem{ClinicID: clinicID, Name: name, Category: category, Status: status, Quantity: quantity}
+	require.NoError(t, db.WithContext(context.Background()).Create(item).Error)
+	return item
+}
+
+func TestInventoryRepository_FindAll_ClinicIsolationFiltersAndPagination(t *testing.T) {
+	db := setupInventoryTestDB(t)
+	repo := NewInventoryRepository(db)
+	ctx := context.Background()
+	const clinicA, clinicB = uint64(1), uint64(2)
+
+	itemB := makeInventoryItem(t, db, clinicB, "医院Bの在庫", model.InventoryCategoryMedicine, model.InventoryStatusSufficient, 10)
+	medA := makeInventoryItem(t, db, clinicA, "薬剤A", model.InventoryCategoryMedicine, model.InventoryStatusLow, 5)
+	foodA := makeInventoryItem(t, db, clinicA, "フードA", model.InventoryCategoryFood, model.InventoryStatusSufficient, 20)
+
+	t.Run("clinic_id 隔離: 他院の在庫は含まれない", func(t *testing.T) {
+		got, total, err := repo.FindAll(ctx, clinicA, nil, nil, 1, 10)
+		require.NoError(t, err)
+		assert.EqualValues(t, 2, total)
+		require.Len(t, got, 2)
+		for _, i := range got {
+			assert.NotEqual(t, itemB.ID, i.ID)
+		}
+	})
+
+	t.Run("category フィルタ", func(t *testing.T) {
+		cat := string(model.InventoryCategoryMedicine)
+		got, total, err := repo.FindAll(ctx, clinicA, &cat, nil, 1, 10)
+		require.NoError(t, err)
+		assert.EqualValues(t, 1, total)
+		require.Len(t, got, 1)
+		assert.Equal(t, medA.ID, got[0].ID)
+	})
+
+	t.Run("status フィルタ", func(t *testing.T) {
+		status := string(model.InventoryStatusLow)
+		got, total, err := repo.FindAll(ctx, clinicA, nil, &status, 1, 10)
+		require.NoError(t, err)
+		assert.EqualValues(t, 1, total)
+		require.Len(t, got, 1)
+		assert.Equal(t, medA.ID, got[0].ID)
+	})
+
+	t.Run("name ASC でページネーションされる", func(t *testing.T) {
+		got, total, err := repo.FindAll(ctx, clinicA, nil, nil, 1, 1)
+		require.NoError(t, err)
+		assert.EqualValues(t, 2, total, "total は limit に依存せず全件数")
+		require.Len(t, got, 1)
+		assert.Equal(t, foodA.ID, got[0].ID, "name ASC でフードAが先")
+
+		got2, _, err := repo.FindAll(ctx, clinicA, nil, nil, 2, 1)
+		require.NoError(t, err)
+		require.Len(t, got2, 1)
+		assert.Equal(t, medA.ID, got2[0].ID)
+	})
+}
+
+func TestInventoryRepository_FindByID(t *testing.T) {
+	db := setupInventoryTestDB(t)
+	repo := NewInventoryRepository(db)
+	ctx := context.Background()
+	const clinicA, clinicB = uint64(1), uint64(2)
+
+	item := makeInventoryItem(t, db, clinicA, "在庫A", model.InventoryCategoryConsumable, model.InventoryStatusSufficient, 3)
+
+	t.Run("同一クリニックで取得できる", func(t *testing.T) {
+		got, err := repo.FindByID(ctx, clinicA, item.ID)
+		require.NoError(t, err)
+		assert.Equal(t, "在庫A", got.Name)
+	})
+
+	t.Run("別クリニックからは NotFound", func(t *testing.T) {
+		_, err := repo.FindByID(ctx, clinicB, item.ID)
+		require.Error(t, err)
+		assert.True(t, apperrors.IsNotFound(err))
+	})
+
+	t.Run("存在しない ID は NotFound", func(t *testing.T) {
+		_, err := repo.FindByID(ctx, clinicA, 999999)
+		require.Error(t, err)
+		assert.True(t, apperrors.IsNotFound(err))
+	})
+}
+
+func TestInventoryRepository_Create(t *testing.T) {
+	db := setupInventoryTestDB(t)
+	repo := NewInventoryRepository(db)
+	ctx := context.Background()
+	const clinicA = uint64(1)
+
+	item := &model.InventoryItem{Name: "新規在庫", Category: model.InventoryCategoryOther}
+	require.NoError(t, repo.Create(ctx, clinicA, item))
+	assert.NotZero(t, item.ID)
+	assert.Equal(t, clinicA, item.ClinicID, "Create は clinicID を強制的にセットする")
+
+	got, err := repo.FindByID(ctx, clinicA, item.ID)
+	require.NoError(t, err)
+	assert.Equal(t, "新規在庫", got.Name)
+}
+
+func TestInventoryRepository_Update(t *testing.T) {
+	db := setupInventoryTestDB(t)
+	repo := NewInventoryRepository(db)
+	ctx := context.Background()
+	const clinicA, clinicB = uint64(1), uint64(2)
+
+	item := makeInventoryItem(t, db, clinicA, "旧在庫名", model.InventoryCategoryOther, model.InventoryStatusSufficient, 1)
+
+	t.Run("同一クリニックで更新できる", func(t *testing.T) {
+		got, err := repo.Update(ctx, clinicA, item.ID, map[string]any{"name": "新在庫名"})
+		require.NoError(t, err)
+		assert.Equal(t, "新在庫名", got.Name)
+	})
+
+	t.Run("別クリニックからの更新は NotFound", func(t *testing.T) {
+		_, err := repo.Update(ctx, clinicB, item.ID, map[string]any{"name": "乗っ取り"})
+		require.Error(t, err)
+		assert.True(t, apperrors.IsNotFound(err))
+	})
+
+	t.Run("存在しない ID の更新は NotFound", func(t *testing.T) {
+		_, err := repo.Update(ctx, clinicA, 999999, map[string]any{"name": "x"})
+		require.Error(t, err)
+		assert.True(t, apperrors.IsNotFound(err))
+	})
+}
+
+func TestInventoryRepository_Delete(t *testing.T) {
+	db := setupInventoryTestDB(t)
+	repo := NewInventoryRepository(db)
+	ctx := context.Background()
+	const clinicA, clinicB = uint64(1), uint64(2)
+
+	item := makeInventoryItem(t, db, clinicA, "削除対象", model.InventoryCategoryOther, model.InventoryStatusSufficient, 1)
+
+	t.Run("別クリニックからの削除は NotFound", func(t *testing.T) {
+		err := repo.Delete(ctx, clinicB, item.ID)
+		require.Error(t, err)
+		assert.True(t, apperrors.IsNotFound(err))
+	})
+
+	t.Run("存在しない ID の削除は NotFound", func(t *testing.T) {
+		err := repo.Delete(ctx, clinicA, 999999)
+		require.Error(t, err)
+		assert.True(t, apperrors.IsNotFound(err))
+	})
+
+	t.Run("同一クリニックで削除でき、ソフトデリートされ FindAll から除外される", func(t *testing.T) {
+		require.NoError(t, repo.Delete(ctx, clinicA, item.ID))
+
+		_, err := repo.FindByID(ctx, clinicA, item.ID)
+		assert.True(t, apperrors.IsNotFound(err))
+
+		var raw model.InventoryItem
+		require.NoError(t, db.WithContext(ctx).Unscoped().Where("id = ?", item.ID).First(&raw).Error)
+		assert.True(t, raw.DeletedAt.Valid, "deleted_at が設定されているべき")
+	})
+}
+
+func TestInventoryRepository_DecreaseStock(t *testing.T) {
+	db := setupInventoryTestDB(t)
+	repo := NewInventoryRepository(db)
+	ctx := context.Background()
+	const clinicA = uint64(1)
+
+	item := makeInventoryItem(t, db, clinicA, "在庫減算対象", model.InventoryCategoryMedicine, model.InventoryStatusSufficient, 10)
+
+	t.Run("在庫数が減算される", func(t *testing.T) {
+		require.NoError(t, repo.DecreaseStock(ctx, item.ID, 3))
+
+		got, err := repo.FindByID(ctx, clinicA, item.ID)
+		require.NoError(t, err)
+		assert.Equal(t, 7, got.Quantity)
+	})
+
+	t.Run("存在しない ID は NotFound", func(t *testing.T) {
+		err := repo.DecreaseStock(ctx, 999999, 1)
+		require.Error(t, err)
+		assert.True(t, apperrors.IsNotFound(err))
+	})
+}
+
+func TestInventoryRepository_CountUsageByInventoryID(t *testing.T) {
+	db := setupInventoryTestDB(t)
+	repo := NewInventoryRepository(db)
+	ctx := context.Background()
+	const clinicA, clinicB = uint64(1), uint64(2)
+
+	item := makeInventoryItem(t, db, clinicA, "使用中の在庫", model.InventoryCategoryMedicine, model.InventoryStatusSufficient, 100)
+
+	t.Run("参照が無ければ 0", func(t *testing.T) {
+		count, err := repo.CountUsageByInventoryID(ctx, clinicA, item.ID)
+		require.NoError(t, err)
+		assert.Equal(t, int64(0), count)
+	})
+
+	owner := makeOwner(t, db, clinicA, "在庫使用飼主")
+	pet := makeSpeciesAndPet(t, db, clinicA, owner.ID, "在庫使用犬")
+	mr := makeHistoryMedicalRecord(t, db, clinicA, pet.ID, "MR-INV-001", time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC))
+	inventoryID := item.ID
+	treatment := &model.Treatment{MedicalRecordID: mr.ID, ItemType: model.TreatmentItemTypeMedicine, InventoryID: &inventoryID, Content: "薬剤投与"}
+	require.NoError(t, db.WithContext(ctx).Create(treatment).Error)
+
+	vaccine := &model.Vaccine{ClinicID: clinicA, Name: "混合ワクチン", InventoryID: &inventoryID}
+	require.NoError(t, db.WithContext(ctx).Create(vaccine).Error)
+
+	medicine := &model.Medicine{ClinicID: clinicA, Name: "抗生物質", InventoryID: &inventoryID}
+	require.NoError(t, db.WithContext(ctx).Create(medicine).Error)
+
+	t.Run("treatment/vaccine/medicine の参照が合算される", func(t *testing.T) {
+		count, err := repo.CountUsageByInventoryID(ctx, clinicA, item.ID)
+		require.NoError(t, err)
+		assert.Equal(t, int64(3), count)
+	})
+
+	t.Run("別クリニックIDでは 0（クロステナント越境なし）", func(t *testing.T) {
+		count, err := repo.CountUsageByInventoryID(ctx, clinicB, item.ID)
+		require.NoError(t, err)
+		assert.Equal(t, int64(0), count)
+	})
+
+	t.Run("ソフトデリートされた treatment は除外される（P2）", func(t *testing.T) {
+		require.NoError(t, db.WithContext(ctx).Delete(treatment).Error)
+		count, err := repo.CountUsageByInventoryID(ctx, clinicA, item.ID)
+		require.NoError(t, err)
+		assert.Equal(t, int64(2), count, "treatment 分が除外され vaccine+medicine の2件のみ")
+	})
+
+	t.Run("ソフトデリートされた vaccine/medicine は除外される（P2）", func(t *testing.T) {
+		require.NoError(t, db.WithContext(ctx).Delete(vaccine).Error)
+		require.NoError(t, db.WithContext(ctx).Delete(medicine).Error)
+		count, err := repo.CountUsageByInventoryID(ctx, clinicA, item.ID)
+		require.NoError(t, err)
+		assert.Equal(t, int64(0), count)
+	})
+}
+
+func TestInventoryRepository_DeleteByNameAndMedicineCategory(t *testing.T) {
+	db := setupInventoryTestDB(t)
+	repo := NewInventoryRepository(db)
+	ctx := context.Background()
+	const clinicA, clinicB = uint64(1), uint64(2)
+
+	t.Run("マッチなしは no-op（エラーなし）", func(t *testing.T) {
+		require.NoError(t, repo.DeleteByNameAndMedicineCategory(ctx, clinicA, "存在しない薬剤"))
+	})
+
+	medItem := makeInventoryItem(t, db, clinicA, "アモキシリン", model.InventoryCategoryMedicine, model.InventoryStatusSufficient, 10)
+	consumableSameName := makeInventoryItem(t, db, clinicA, "アモキシリン", model.InventoryCategoryConsumable, model.InventoryStatusSufficient, 10)
+	otherClinicItem := makeInventoryItem(t, db, clinicB, "アモキシリン", model.InventoryCategoryMedicine, model.InventoryStatusSufficient, 10)
+
+	require.NoError(t, repo.DeleteByNameAndMedicineCategory(ctx, clinicA, "アモキシリン"))
+
+	t.Run("category=medicine の同名在庫のみ削除される", func(t *testing.T) {
+		_, err := repo.FindByID(ctx, clinicA, medItem.ID)
+		assert.True(t, apperrors.IsNotFound(err))
+	})
+
+	t.Run("category が異なる在庫は削除されない", func(t *testing.T) {
+		got, err := repo.FindByID(ctx, clinicA, consumableSameName.ID)
+		require.NoError(t, err)
+		assert.Equal(t, "アモキシリン", got.Name)
+	})
+
+	t.Run("別クリニックの同名在庫は削除されない", func(t *testing.T) {
+		got, err := repo.FindByID(ctx, clinicB, otherClinicItem.ID)
+		require.NoError(t, err)
+		assert.Equal(t, "アモキシリン", got.Name)
+	})
+}
+
+func TestInventoryRepository_UpdateNameByMedicineCategory(t *testing.T) {
+	db := setupInventoryTestDB(t)
+	repo := NewInventoryRepository(db)
+	ctx := context.Background()
+	const clinicA, clinicB = uint64(1), uint64(2)
+
+	t.Run("マッチなしは no-op（エラーなし）", func(t *testing.T) {
+		require.NoError(t, repo.UpdateNameByMedicineCategory(ctx, clinicA, "存在しない薬剤", "新名称"))
+	})
+
+	medItem := makeInventoryItem(t, db, clinicA, "旧薬剤名", model.InventoryCategoryMedicine, model.InventoryStatusSufficient, 10)
+	consumableSameName := makeInventoryItem(t, db, clinicA, "旧薬剤名", model.InventoryCategoryConsumable, model.InventoryStatusSufficient, 10)
+	otherClinicItem := makeInventoryItem(t, db, clinicB, "旧薬剤名", model.InventoryCategoryMedicine, model.InventoryStatusSufficient, 10)
+
+	require.NoError(t, repo.UpdateNameByMedicineCategory(ctx, clinicA, "旧薬剤名", "新薬剤名"))
+
+	t.Run("category=medicine の同名在庫のみ更新される", func(t *testing.T) {
+		got, err := repo.FindByID(ctx, clinicA, medItem.ID)
+		require.NoError(t, err)
+		assert.Equal(t, "新薬剤名", got.Name)
+	})
+
+	t.Run("category が異なる在庫は更新されない", func(t *testing.T) {
+		got, err := repo.FindByID(ctx, clinicA, consumableSameName.ID)
+		require.NoError(t, err)
+		assert.Equal(t, "旧薬剤名", got.Name)
+	})
+
+	t.Run("別クリニックの同名在庫は更新されない", func(t *testing.T) {
+		got, err := repo.FindByID(ctx, clinicB, otherClinicItem.ID)
+		require.NoError(t, err)
+		assert.Equal(t, "旧薬剤名", got.Name)
+	})
+}

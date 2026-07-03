@@ -134,7 +134,6 @@ func (s *OwnerService) CreateWithPets(ctx context.Context, input CreateOwnerInpu
 
     g, ctx := errgroup.WithContext(ctx)
     for _, pet := range input.Pets {
-        pet := pet // ループ変数をキャプチャ
         g.Go(func() error {
             return s.petRepo.Create(ctx, &model.Pet{OwnerID: owner.ID, Name: pet.Name})
         })
@@ -181,3 +180,15 @@ slog.ErrorContext(ctx, "failed to create owner", "error", err, "name", input.Nam
 3. **Context first** — 全メソッドの第一引数は `ctx context.Context`
 4. **Wrap errors** — `fmt.Errorf("context: %w", err)` でコンテキスト情報を保持
 5. **Early return** — `if err != nil { return } ` パターンで深いネストを避ける
+
+## 監査ログの原子化（実績パターン）
+
+状態変更（返金・削除等）と監査ログ書込は**同一トランザクションで原子化**し、監査書込失敗時は本処理も巻き戻す（fail-closed）。`AuditTxLogger` / `LogEntryTx` が dbOrTx を受け取る実装が先例。
+- 実例: refund_service の Create（commit 6f432912）、clinical系（commit fe04b460）
+- 注意: 現状の監査書込は大半が tx外 best-effort（auditRepository.Create が dbOrTx 非対応）。横断是正は docs/tasks/open/PERF-AUDIT-TX-UNIVERSAL-BEST-EFFORT.md 参照
+（出典: memory issue211_refund_audit_tx_atomicity_20260701 / issue211_audit_tx_atomicity_verify_20260630）
+
+## 対称定数の単一ソース化（実績パターン）
+
+sync/trigger のように2箇所で一致が必要な定数は単一ソースに集約し、alignment test で固定する。片側だけの変更は静かに機能を無効化する（配信が発火しない等）。
+（出典: memory feedback_constants_dual_source）

@@ -1,11 +1,45 @@
 package handler
 
 import (
+	"net/url"
 	"testing"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
 )
+
+func TestNewUnbilledItemsQuery(t *testing.T) {
+	tests := []struct {
+		name      string
+		values    url.Values
+		wantPetID string
+	}{
+		{
+			name:      "extracts pet_id from query values",
+			values:    url.Values{"pet_id": []string{"42"}},
+			wantPetID: "42",
+		},
+		{
+			name:      "returns empty PetID when pet_id absent",
+			values:    url.Values{},
+			wantPetID: "",
+		},
+		{
+			name:      "nil values yields empty PetID",
+			values:    nil,
+			wantPetID: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			q := newUnbilledItemsQuery(tt.values)
+			if q.PetID != tt.wantPetID {
+				t.Fatalf("PetID = %q, want %q", q.PetID, tt.wantPetID)
+			}
+		})
+	}
+}
 
 func TestUnbilledItemsQuery_ToPetID(t *testing.T) {
 	petID, err := (unbilledItemsQuery{PetID: "10"}).toPetID()

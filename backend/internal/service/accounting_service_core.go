@@ -112,24 +112,17 @@ func (s *accountingService) Update(ctx context.Context, input *UpdateAccountingI
 		return nil, apperrors.WrapInvalidInput("no fields to update")
 	}
 
-	// Billing 本体の更新
-	if len(fields) > 0 {
-		if _, err := s.repo.Update(ctx, input.ClinicID, input.ID, fields); err != nil {
-			slog.ErrorContext(ctx, "failed to update accounting", "error", err)
-			return nil, apperrors.Wrap(err, "failed to update accounting")
-		}
-	}
-
-	// Payment upsert（支払フィールドが含まれている場合）— トランザクション内で SavePayment + SavePaymentSplits を実行
+	// #128: 書込み前に method(ENUM)→payment_methods マスタ id を解決する（tx 外・低コストな読取のみ）。
+	// レジ締め・月次集計は payment_method_id をキーにし NULL を現金とみなすため、
+	// 非現金 split が NULL のまま保存されると全て現金に倒れる。解決失敗時はここで会計確定を止める。
+	var payment *model.Payment
+	var splits []model.PaymentSplit
 	if hasPaymentFields(input) {
-		// #128: 書込み前に method(ENUM)→payment_methods マスタ id を解決する。
-		// レジ締め・月次集計は payment_method_id をキーにし NULL を現金とみなすため、
-		// 非現金 split が NULL のまま保存されると全て現金に倒れる。解決失敗時はここで会計確定を止める。
 		systemKeyToID, err := s.loadPaymentMethodSystemKeyToID(ctx, input.ClinicID)
 		if err != nil {
 			return nil, err // loadPaymentMethodSystemKeyToID 内で既に wrap + log 済み
 		}
-		payment := buildPaymentFromInput(input)
+		payment = buildPaymentFromInput(input)
 		// 代表支払方法も master id を併設（dual maintain）。method 未設定の更新（保険のみ等）は解決対象外。
 		if payment.Method != "" {
 			pid, err := resolvePaymentMethodMasterID(payment.Method, payment.PaymentMethodID, systemKeyToID)
@@ -138,7 +131,7 @@ func (s *accountingService) Update(ctx context.Context, input *UpdateAccountingI
 			}
 			payment.PaymentMethodID = pid
 		}
-		splits := buildPaymentSplits(input)
+		splits = buildPaymentSplits(input)
 		for i := range splits {
 			pid, err := resolvePaymentMethodMasterID(splits[i].Method, splits[i].PaymentMethodID, systemKeyToID)
 			if err != nil {
@@ -146,8 +139,23 @@ func (s *accountingService) Update(ctx context.Context, input *UpdateAccountingI
 			}
 			splits[i].PaymentMethodID = pid
 		}
+	}
 
-		if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
+	// BE-refactor.md R1-2 (D1): Billing 本体更新・Payment upsert・締め後編集監査を単一 tx に統合する。
+	// 従来は fields 更新が tx 外、payment upsert が独立 tx、監査が tx 外 best-effort の三系統に分かれており、
+	// 途中失敗時に部分コミット（例: fields 更新は成功したが payment upsert のみ失敗）が起こり得た。
+	// 統合後は「本体書込（fields/payment）と締め後編集監査が原子」になる（refund/CorrectCreditPayment と同型）。
+	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
+		// Billing 本体の更新
+		if len(fields) > 0 {
+			if _, err := s.repo.Update(txCtx, input.ClinicID, input.ID, fields); err != nil {
+				slog.ErrorContext(txCtx, "failed to update accounting", "error", err)
+				return apperrors.Wrap(err, "failed to update accounting")
+			}
+		}
+
+		// Payment upsert（支払フィールドが含まれている場合）
+		if hasPaymentFields(input) {
 			if err := s.repo.SavePayment(txCtx, payment); err != nil {
 				slog.ErrorContext(txCtx, "failed to upsert payment", "error", err)
 				return apperrors.Wrap(err, "failed to upsert payment")
@@ -160,10 +168,17 @@ func (s *accountingService) Update(ctx context.Context, input *UpdateAccountingI
 			slog.InfoContext(txCtx, "payment upserted",
 				slog.Uint64("clinic_id", input.ClinicID),
 				slog.Uint64("billing_id", input.ID))
-			return nil
-		}); err != nil {
-			return nil, apperrors.Wrap(err, "failed to upsert payment")
 		}
+
+		// #115: 締め後編集監査ログ（fail-closed: 失敗時は tx をロールバックし更新ごと無効にする。BE-refactor.md R1-2）
+		if input.IsPostClose {
+			if err := s.logPostCloseEdit(txCtx, input); err != nil {
+				return err
+			}
+		}
+		return nil
+	}); err != nil {
+		return nil, apperrors.Wrap(err, "failed to update accounting in transaction")
 	}
 
 	// 更新後のレコードを返す
@@ -177,30 +192,6 @@ func (s *accountingService) Update(ctx context.Context, input *UpdateAccountingI
 		slog.Uint64("billing_id", accounting.ID),
 		slog.Uint64("clinic_id", input.ClinicID))
 
-	// #115: 締め後編集監査ログ（ベストエフォート）
-	if input.IsPostClose && s.auditSvc != nil {
-		billingID := input.ID
-		aType := "system"
-		if input.StaffID != nil {
-			aType = "staff"
-		}
-		meta := map[string]any{}
-		if input.PostCloseReason != nil {
-			meta["reason"] = *input.PostCloseReason
-		}
-		if logErr := s.auditSvc.LogEntry(ctx, &AuditLogInput{
-			ClinicID:   &input.ClinicID,
-			ActorID:    input.StaffID,
-			ActorType:  aType,
-			Action:     model.AuditActionBillingPostCloseEdit,
-			Resource:   "billing",
-			ResourceID: &billingID,
-			Metadata:   meta,
-		}); logErr != nil {
-			slog.WarnContext(ctx, "audit log failed for post_close_edit", "error", logErr, "billing_id", input.ID)
-		}
-	}
-
 	if input.Status != nil && *input.Status == model.BillingStatusCompleted {
 		if err := s.completeAccountingAppointments(ctx, input.ClinicID, accounting); err != nil {
 			return nil, apperrors.Wrap(err, "failed to complete accounting appointments during update")
@@ -208,6 +199,36 @@ func (s *accountingService) Update(ctx context.Context, input *UpdateAccountingI
 		s.syncCPMStageTag(ctx, input.ClinicID, accounting)
 	}
 	return accounting, nil
+}
+
+// logPostCloseEdit はレジ締め済み期間の会計編集監査ログを記録する（#115 / B4）。
+// BE-refactor.md R1-2: Update の ambient tx に参加する LogEntryTx を使う（fail-closed）。
+// 呼び出し元は返されたエラーで tx をロールバックし、監査失敗時に編集自体も無効にする。
+func (s *accountingService) logPostCloseEdit(ctx context.Context, input *UpdateAccountingInput) error {
+	if s.auditTx == nil {
+		return nil
+	}
+	billingID := input.ID
+	aType := "system"
+	if input.StaffID != nil {
+		aType = "staff"
+	}
+	meta := map[string]any{}
+	if input.PostCloseReason != nil {
+		meta["reason"] = *input.PostCloseReason
+	}
+	if err := s.auditTx.LogEntryTx(ctx, &AuditLogInput{
+		ClinicID:   &input.ClinicID,
+		ActorID:    input.StaffID,
+		ActorType:  aType,
+		Action:     model.AuditActionBillingPostCloseEdit,
+		Resource:   "billing",
+		ResourceID: &billingID,
+		Metadata:   meta,
+	}); err != nil {
+		return apperrors.Wrap(err, "failed to write post_close_edit audit log")
+	}
+	return nil
 }
 
 // loadPaymentMethodSystemKeyToID は当該 clinic の payment_methods マスタを system_key→id マップとして読み込む（#197）。

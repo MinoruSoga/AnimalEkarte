@@ -10,7 +10,7 @@ description: データベーススキーマの分析・マイグレーション�
 ## Overview
 
 Go/GORM + PostgreSQL 環境に特化したデータベーススキーマ分析スキル。
-AnimalEkarte プロジェクトの22テーブル構成を理解し、スキーマ変更・マイグレーション・モデル定義を支援する。
+AnimalEkarte プロジェクトの103テーブル構成（正確な数は backend/migrations/001_init.sql を正とする）を理解し、スキーマ変更・マイグレーション・モデル定義を支援する。
 
 ## When to Use
 
@@ -22,7 +22,7 @@ AnimalEkarte プロジェクトの22テーブル構成を理解し、スキー�
 
 ## Workflow
 
-1. **現状把握**: GORMモデル定義ファイルを確認（`backend/internal/models/`）
+1. **現状把握**: GORMモデル定義ファイルを確認（`backend/internal/model/`）
 2. **スキーマ分析**: PostgreSQL MCPサーバーで実テーブル構造を確認
 3. **リレーション確認**: 外部キー制約・関連テーブルを確認
 4. **変更計画**: マイグレーション内容を決定
@@ -32,7 +32,7 @@ AnimalEkarte プロジェクトの22テーブル構成を理解し、スキー�
 
 ### GORM モデル定義パターン
 ```go
-type Patient struct {
+type Pet struct {
     gorm.Model
     Name        string    `gorm:"type:varchar(100);not null" json:"name"`
     Species     string    `gorm:"type:varchar(50);not null" json:"species"`
@@ -50,7 +50,7 @@ SELECT table_name FROM information_schema.tables WHERE table_schema = 'public';
 
 -- カラム情報
 SELECT column_name, data_type, is_nullable, column_default
-FROM information_schema.columns WHERE table_name = 'patients';
+FROM information_schema.columns WHERE table_name = 'pets';
 
 -- 外部キー確認
 SELECT tc.constraint_name, tc.table_name, kcu.column_name,
@@ -61,13 +61,12 @@ JOIN information_schema.constraint_column_usage AS ccu ON ccu.constraint_name = 
 WHERE tc.constraint_type = 'FOREIGN KEY';
 
 -- インデックス確認
-SELECT indexname, indexdef FROM pg_indexes WHERE tablename = 'patients';
+SELECT indexname, indexdef FROM pg_indexes WHERE tablename = 'pets';
 ```
 
 ## Tools
 
-- **PostgreSQL MCP**: データベース直接クエリ
-- **Serena**: Go ソースコード解析（GORMモデル）
+- **PostgreSQL MCP**: データベース直接クエリ（local opt-in only。CLAUDE.md方針により読み取り専用の調査目的のみ）
 - **Grep/Glob**: マイグレーションファイル検索
 
 ## Reference

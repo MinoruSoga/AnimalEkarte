@@ -188,21 +188,26 @@ func TestOwnerHandler_GetOwner(t *testing.T) {
 
 ## テスト実行コマンド
 
+> ⚠️ `go test ./...` の全体実行は CLAUDE.md の自動実行禁止コマンド。スコープ限定版
+> （例: `go test ./internal/service/...`）を使うか、ユーザーに手動実行を依頼する。
+
 ```bash
-# 全テスト実行
+# 全テスト実行（⚠️ 自動実行禁止。ユーザー手動実行を依頼）
 docker compose exec backend go test ./...
 
-# カバレッジ付き
+# カバレッジ付き（⚠️ 自動実行禁止。ユーザー手動実行を依頼）
 docker compose exec backend go test ./... -cover
 
-# 特定パッケージ
+# 特定パッケージ（✅ スコープ限定・自動実行可）
 docker compose exec backend go test ./internal/service/... -v
 
-# レースコンディション検出
+# レースコンディション検出（⚠️ 全体実行は自動実行禁止。スコープ限定版を使う）
 docker compose exec backend go test ./... -race
+docker compose exec backend go test ./internal/service/... -race
 
-# カバレッジレポート
+# カバレッジレポート（⚠️ 全体実行は自動実行禁止。スコープ限定版を使う）
 docker compose exec backend go test ./... -coverprofile=coverage.out
+docker compose exec backend go test ./internal/service/... -coverprofile=coverage.out
 docker compose exec backend go tool cover -html=coverage.out
 ```
 
@@ -245,3 +250,23 @@ func TestOwnerService_GetOwner(t *testing.T) {
     mockRepo := new(MockOwnerRepository)
 }
 ```
+
+## インベントリ lint テスト（実績パターン）
+
+「あるべき集合」と「実コードの集合」を go/ast で双方向突合し、追加漏れを CI で fail させる。実例: preload_clinic_scope_lint_test.go / master_fk_write_inventory_lint_test.go / audit_taxonomy_exhaustiveness_test.go。
+- 実装: go:embed *.go + go/parser + go/ast（trimpath 耐性）、_test.go は runtime skip
+- **anti-vacuous 保証必須**: 検出件数の floor / occurrence-count pin / 例外リストが生きていることの検証。無いと対象ゼロでも GREEN になる空虚テスト
+- **非空虚性は temp-revert で実証**: 述語を一時的に外して RED を確認 → 戻して GREEN。tracked ファイルは HEAD と byte-identical に復元
+（出典: memory preload_clinic_scope_lint_p0_20260630 / issue211_audit_tx_inventory_lint_20260630、commit 8a51c2eb / d67469aa）
+
+## CASCADE 挙動テストは実 DDL で（実績パターン）
+
+GORM の AutoMigrate は ON DELETE 句を再現しない。CASCADE / SET NULL の挙動テストは migration から実 DDL を抽出してテーブルを再作成した上で delete を発火させる。実例: checkup_field_cascade_test.go（SET NULL→CASCADE の一時改変で三重 RED 実証済み）
+（出典: memory issue211_checkup_package_spec_20260630）
+
+## repository テスト3つの罠（実績由来）
+
+1. **warm-DB が fresh-DB 失敗をマスク**: 前 run のテーブル残存で PASS しても CI の fresh DB で FAIL する。`DROP DATABASE ekarte_db_test` 後に1回走らせて確認
+2. **setupTestDB の手書き ENUM リストは migration とドリフトする**: ENUM 追加 migration のたびに欠落し、カスケード失敗を起こす（migration009 の4 ENUM 欠落で25テスト失敗の実例）
+3. **コネクション枯渇**: 接続を閉じないと full suite で too many clients (53300)。SetMaxOpenConns + t.Cleanup(Close)
+（出典: memory ops_golangci_lint_cap_and_reconcile_20260630 / issue196_clinic_isolation_tests_complete_20260626）

@@ -1,14 +1,17 @@
 ---
 name: task-create
-description: 抽象的なタスク依頼から docs/tasks/ にタスク詳細ドキュメントを生成し、backend/issues/open/ と frontend/issues/open/ にAIが実装可能な粒度のイシューを自動作成する。「タスク分解」「イシュー作成」「チケット作成」時に使用。
+description: 抽象的なタスク依頼から docs/tasks/open/ にタスク詳細ドキュメントと、AIが実装可能な粒度の BE/FE イシューファイルを自動作成する。「タスク分解」「イシュー作成」「チケット作成」時に使用。生成物は全て docs/tasks/open/ 配下（旧 backend/issues/・frontend/issues/ は廃止済み）。
 ---
 
 # Task Decompose — タスク分解・イシュー自動生成
 
 抽象的なタスク依頼を受け取り、コードベースを調査した上で:
-1. `docs/tasks/open/TASK-XXX.md` にタスク詳細ドキュメントを生成
-2. `backend/issues/open/BE-XXX-*.md` にバックエンドイシューを生成
-3. `frontend/issues/open/FE-XXX-*.md` にフロントエンドイシューを生成
+1. `docs/tasks/open/TASK-XXX-<title>.md` にタスク詳細ドキュメントを生成
+2. `docs/tasks/open/BE-XXX-<title>.md` にバックエンドイシューを生成
+3. `docs/tasks/open/FE-XXX-<title>.md` にフロントエンドイシューを生成
+
+> **パス正本の注意**: 旧 `backend/issues/` / `frontend/issues/` 体系は**廃止済み**（closed のみ `docs/archive/{backend,frontend}-issues/` に残存）。
+> 生成物は全て `docs/tasks/open/` 配下に置く。`docs/tasks/` は .gitignore 済みのため、生成ファイルの commit 提案はしない。
 
 ## 起動トリガー
 
@@ -32,11 +35,9 @@ ls docs/tasks/{open,closed}/TASK-*.md 2>/dev/null | sort -t- -k2 -n | tail -1
 ### 1.2 BE/FE番号の決定
 
 ```bash
-# backend: open/ と closed/ 両方から最大番号を取得
-ls backend/issues/{open,closed}/BE-*.md 2>/dev/null | grep -oE 'BE-[0-9]+' | sort -t- -k2 -n | tail -1
-
-# frontend: open/ と closed/ 両方から最大番号を取得
-ls frontend/issues/{open,closed}/FE-*.md 2>/dev/null | grep -oE 'FE-[0-9]+' | sort -t- -k2 -n | tail -1
+# 現行タスク + 旧イシューアーカイブの両方から最大番号を取得（番号の連続性を維持）
+ls docs/tasks/{open,closed}/BE-*.md docs/archive/backend-issues/closed/*.md 2>/dev/null | grep -oE 'BE-[0-9]+' | sort -t- -k2 -n | tail -1
+ls docs/tasks/{open,closed}/FE-*.md docs/archive/frontend-issues/closed/*.md 2>/dev/null | grep -oE 'FE-[0-9]+' | sort -t- -k2 -n | tail -1
 ```
 
 形式: `BE-XXX`, `FE-XXX`（3桁ゼロ埋め）
@@ -259,195 +260,25 @@ Phase 2.5 で解消できなかった、または実装中に判明する可能�
 
 ## 関連イシュー
 
-- BE-XXX: [タイトル](../../backend/issues/open/BE-XXX-*.md)
-- FE-XXX: [タイトル](../../frontend/issues/open/FE-XXX-*.md)
+- BE-XXX: [タイトル](./BE-XXX-*.md)
+- FE-XXX: [タイトル](./FE-XXX-*.md)
 ```
 
 ---
 
 ## Phase 4: Backend イシュー生成
 
-### 出力先: `backend/issues/open/BE-XXX-kebab-case-title.md`
+### 出力先: `docs/tasks/open/BE-XXX-kebab-case-title.md`
 
-### テンプレート
-
-```markdown
-# BE-XXX: イシュータイトル
-
-**Status**: Open
-**Priority**: High / Medium / Low
-**Affects**: 影響する機能・コンポーネント
-**Date Created**: YYYY-MM-DD
-**Related**: TASK-XXX, FE-XXX（関連イシュー）
-
-## Summary
-
-1-2行で問題・実装内容を説明。
-
-## 現状のコード
-
-**実際のコードを読んで** 現在の実装を記載（推測禁止）。
-
-```go
-// backend/internal/model/xxx.go:行番号
-// 現在のコード（関連部分のみ抜粋）
-```
-
-## 必要な変更
-
-### 1. DB マイグレーション（該当する場合）
-
-```sql
--- backend/migrations/001_init.sql に追記
-ALTER TABLE xxx ADD COLUMN yyy TYPE;
-```
-
-### 2. Model 変更
-
-```go
-// backend/internal/model/xxx.go
-// Before → After のコード差分
-```
-
-### 3. Repository 変更
-
-```go
-// backend/internal/repository/xxx_repository.go
-// 追加・修正するメソッド
-```
-
-### 4. Service 変更
-
-```go
-// backend/internal/service/xxx_service.go
-// 追加・修正するメソッド
-```
-
-### 5. Handler 変更
-
-```go
-// backend/internal/handler/xxx_handler.go
-// 追加・修正するメソッド
-```
-
-### 6. Request/Response 変更（該当する場合）
-
-```go
-// backend/internal/handler/xxx_request.go
-// backend/internal/handler/xxx_response.go
-```
-
-## API レスポンス形式（該当する場合）
-
-```json
-{
-  "data": { ... }
-}
-```
-
-## フロントエンド影響
-
-- `make codegen` で `models.ts` が更新される
-- FE-XXX で対応が必要
-
-## 完了条件
-
-- [ ] DB マイグレーション適用
-- [ ] モデル変更 + `make codegen`
-- [ ] 3層（handler → service → repository）実装
-- [ ] 既存テストが通る
-- [ ] API レスポンスが期待通り
-```
+テンプレートは `templates/be-issue.md` を読み込んで使用する。
 
 ---
 
 ## Phase 5: Frontend イシュー生成
 
-### 出力先: `frontend/issues/open/FE-XXX-kebab-case-title.md`
+### 出力先: `docs/tasks/open/FE-XXX-kebab-case-title.md`
 
-### テンプレート
-
-```markdown
-# FE-XXX: イシュータイトル
-
-**Status**: Open
-**Priority**: High / Medium / Low
-**Affects**: 影響する機能・コンポーネント
-**Date Created**: YYYY-MM-DD
-**Related**: TASK-XXX, BE-XXX（関連イシュー）
-
-## Summary
-
-1-2行で問題・実装内容を説明。
-
-## 現状のコード
-
-**実際のコードを読んで** 現在の実装を記載（推測禁止）。
-
-```typescript
-// frontend/src/features/xxx/yyy.tsx:行番号
-// 現在のコード（関連部分のみ抜粋）
-```
-
-## 必要な変更
-
-### 1. 型定義（該当する場合）
-
-```typescript
-// frontend/src/features/xxx/api/types.ts
-// models.ts からの導出型を追加・修正
-```
-
-### 2. API hooks（該当する場合）
-
-```typescript
-// frontend/src/features/xxx/api/get-xxx.ts or create-xxx.ts
-// 追加・修正する API 関数・hook
-```
-
-### 3. コンポーネント変更
-
-```typescript
-// frontend/src/features/xxx/components/XxxComponent.tsx
-// or frontend/src/features/xxx/routes/XxxPage.tsx
-// 追加・修正する UI（Before → After の差分）
-```
-
-### 4. hooks 変更（該当する場合）
-
-```typescript
-// frontend/src/features/xxx/hooks/useXxxForm.ts
-// フォーム状態・バリデーション等の変更
-```
-
-## UI 操作フロー
-
-1. ユーザーが「〜」画面を開く
-2. 「〜」ボタンをクリック
-3. 〜が表示される
-4. ...
-
-## プロジェクトルール遵守チェック
-
-- [ ] `any` 型なし
-- [ ] `FC` / `forwardRef` なし
-- [ ] barrel index 経由 import なし
-- [ ] 条件レンダー `? ... : null`（`&&` 禁止）
-- [ ] `useTransition` で pending 管理（`useState(false)` + `setIsPending` 禁止）
-- [ ] 型は `models.ts` から導出（手書き interface 禁止）
-
-## 依存関係
-
-- BE-XXX が先に完了している必要がある（API エンドポイントが必要）
-- `make codegen` で `models.ts` が更新されている必要がある
-
-## 完了条件
-
-- [ ] 型エラーなし（`pnpm build` パス）
-- [ ] ESLint エラーなし（`pnpm lint` パス）
-- [ ] UI が期待通りに動作
-- [ ] 既存機能に影響なし
-```
+テンプレートは `templates/fe-issue.md` を読み込んで使用する。
 
 ---
 
@@ -459,7 +290,7 @@ ALTER TABLE xxx ADD COLUMN yyy TYPE;
 ## タスク分解完了
 
 ### タスクドキュメント
-- docs/tasks/TASK-XXX-title.md
+- docs/tasks/open/TASK-XXX-title.md（BE/FE イシューも同ディレクトリ。.gitignore 済みのため commit 提案はしない）
 
 ### Backend イシュー (N件)
 - BE-XXX: タイトル — 概要

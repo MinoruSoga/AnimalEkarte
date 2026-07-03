@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
@@ -164,6 +165,37 @@ func TestValidateBusinessRules(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestValidateBusinessRules_MalformedBreakHours_FailsClosed は BE-refactor.md D10/F-2 の
+// fail-closed 化を検証する。break_hours の JSON が破損している場合、予約を拒否すべき。
+//
+// temp-revert RED: liff_service_availability_business.go の parseBusinessHoursForDate で
+// `if err := json.Unmarshal(setting.BreakHours, &breaks); err != nil { breaks = nil }` と
+// エラーを握りつぶす形に戻すと、休憩時間チェック（step 6）が空配列に対して行われ常に重複なしと
+// 判定されるため、本テストは NoError になり RED になる（＝壊れた休憩時間設定下でも予約が通ってしまう）。
+func TestValidateBusinessRules_MalformedBreakHours_FailsClosed(t *testing.T) {
+	settings := newSettingForValidation()
+	settings.BreakHours = []byte(`not-valid-json`)
+
+	err := validateBusinessRules(settings, dateInDays(3), "1000", "1015")
+
+	require.Error(t, err,
+		"break_hours の JSON が破損している場合、休憩時間との重複を検証できないため予約を拒否すべき（fail-closed）。"+
+			"fail-open（現状バグ）だと breaks=nil にフォールバックし検証がスキップされ予約が通ってしまう")
+}
+
+// TestValidateBusinessRules_MalformedBreakEntry_FailsClosed は、break_hours の JSON 配列自体は
+// パースできるが個々のエントリの HHMM 値が不正な場合も同様に拒否されることを検証する
+// （検証ループ内の個別 continue による fail-open の是正）。
+func TestValidateBusinessRules_MalformedBreakEntry_FailsClosed(t *testing.T) {
+	settings := newSettingForValidation()
+	settings.BreakHours = []byte(`[{"start":"not-a-time","end":"1300"}]`)
+
+	err := validateBusinessRules(settings, dateInDays(3), "1000", "1015")
+
+	require.Error(t, err,
+		"個別休憩エントリの時刻形式が不正な場合、そのエントリの重複判定をスキップせず拒否すべき（fail-closed）")
 }
 
 func TestReservationValidators_ValidateAndCreate_MapsCapacityConflict(t *testing.T) {

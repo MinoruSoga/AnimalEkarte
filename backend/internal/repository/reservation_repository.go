@@ -50,7 +50,9 @@ type ReservationSlotRepository interface {
 type ReservationQueryRepository interface {
 	ExistsByReservationTypeID(ctx context.Context, clinicID, reservationTypeID uint64) (bool, error)
 	ExistsByStaffID(ctx context.Context, clinicID, staffID uint64) (bool, error)
-	CountMedicalRecordsByReservationID(ctx context.Context, reservationID uint64) (int64, error)
+	// CountMedicalRecordsByReservationID は BE-refactor.md R2-5 (D12) で clinic_id 述語を追加した
+	// （唯一の呼び出し元 reservationService.Delete が clinicID を既に保持・ownership 検証済み）。
+	CountMedicalRecordsByReservationID(ctx context.Context, clinicID, reservationID uint64) (int64, error)
 	// CountByCustomerAndDateRange は顧客・期間での予約件数を返す（日次・月次制限チェック用）。
 	CountByCustomerAndDateRange(ctx context.Context, clinicID, customerID uint64, start, end time.Time) (int64, error)
 	// CountByDateAndSource は日付・ソースの予約件数を返す（確認番号生成用）。
@@ -214,11 +216,12 @@ func (r *reservationRepository) ExistsByStaffID(ctx context.Context, clinicID, s
 }
 
 // CountMedicalRecordsByReservationID は予約を参照しているカルテの件数を返す（BUG-201）
-func (r *reservationRepository) CountMedicalRecordsByReservationID(ctx context.Context, reservationID uint64) (int64, error) {
+// BE-refactor.md R2-5 (D12): clinic_id 述語を追加（medical_records は clinic_id カラムを直接持つ）。
+func (r *reservationRepository) CountMedicalRecordsByReservationID(ctx context.Context, clinicID, reservationID uint64) (int64, error) {
 	var count int64
 	if err := dbOrTx(ctx, r.db).
 		Model(&model.MedicalRecord{}).
-		Where("appointment_id = ? AND deleted_at IS NULL", reservationID).
+		Where("appointment_id = ? AND clinic_id = ? AND deleted_at IS NULL", reservationID, clinicID).
 		Count(&count).Error; err != nil {
 		return 0, apperrors.FromGORM(err, "medical_record", "")
 	}
@@ -324,6 +327,42 @@ func (r *reservationRepository) CountByTypeAndStartTime(ctx context.Context, cli
 		return 0, apperrors.FromGORM(err, "reservation", "")
 	}
 	return count, nil
+}
+
+// countByTypeAndStartTimeRow is the GROUP BY scan target for CountByTypeAndStartTimes.
+type countByTypeAndStartTimeRow struct {
+	StartTime time.Time
+	Count     int64
+}
+
+// CountByTypeAndStartTimes は複数の開始時刻の予約件数を一括取得する（GROUP BY start_time）。
+// BE-refactor.md R2-4 (D8): liff_service.filterSlotsByCapacity の N+1（日付ごとの各スロットで
+// CountByTypeAndStartTime を個別発行）を解消するためのバッチ経路。CountByTypeAndStartTime を
+// 置き換えるものではなく（reservation_service の単発チェックは従来どおり）、追加の一括経路として
+// 提供する。戻り値は startTime.Unix() 秒 → count のマップ（time.Time を map key にすると
+// Location/monotonic 差異で等価判定が壊れるため Unix 秒で正規化する）。
+// startTimes が空の場合は空マップを返す（クエリを発行しない）。
+func (r *reservationRepository) CountByTypeAndStartTimes(ctx context.Context, clinicID, reservationTypeID uint64, startTimes []time.Time, excludeID *uint64) (map[int64]int64, error) {
+	result := make(map[int64]int64, len(startTimes))
+	if len(startTimes) == 0 {
+		return result, nil
+	}
+	var rows []countByTypeAndStartTimeRow
+	q := dbOrTx(ctx, r.db).Model(&model.Reservation{}).
+		Select("start_time, COUNT(*) AS count").
+		Where("clinic_id = ? AND reservation_type_id = ? AND start_time IN ? AND status NOT IN ('cancelled') AND deleted_at IS NULL",
+			clinicID, reservationTypeID, startTimes).
+		Group("start_time")
+	if excludeID != nil {
+		q = q.Where("id != ?", *excludeID)
+	}
+	if err := q.Scan(&rows).Error; err != nil {
+		return nil, apperrors.FromGORM(err, "reservation", "")
+	}
+	for _, row := range rows {
+		result[row.StartTime.Unix()] = row.Count
+	}
+	return result, nil
 }
 
 // CountByCustomerAndDateRange は顧客・期間での予約件数を返す。

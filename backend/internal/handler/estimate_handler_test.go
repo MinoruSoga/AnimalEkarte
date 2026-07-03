@@ -1,14 +1,575 @@
 package handler
 
 import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 
+	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	apperrors "github.com/animal-ekarte/backend/internal/errors"
+	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/service"
 )
 
 // TestEstimateHandlerCompiles verifies estimate_handler.go compiles
 func TestEstimateHandlerCompiles(t *testing.T) {
 	assert.True(t, true, "estimate_handler.go compiled successfully")
+}
+
+// ---- mock EstimateService ----
+
+type mockEstimateService struct {
+	listFn   func(ctx context.Context, clinicID uint64, ownerID, medicalRecordID *uint64, status *string, page, limit int) ([]model.Estimate, int64, error)
+	getFn    func(ctx context.Context, clinicID, id uint64) (*model.Estimate, error)
+	createFn func(ctx context.Context, clinicID uint64, input *service.CreateEstimateInput) (*model.Estimate, error)
+	updateFn func(ctx context.Context, clinicID, id uint64, input *service.UpdateEstimateInput) (*model.Estimate, error)
+	deleteFn func(ctx context.Context, clinicID, id uint64) error
+}
+
+func (m *mockEstimateService) List(ctx context.Context, clinicID uint64, ownerID, medicalRecordID *uint64, status *string, page, limit int) ([]model.Estimate, int64, error) {
+	return m.listFn(ctx, clinicID, ownerID, medicalRecordID, status, page, limit)
+}
+
+func (m *mockEstimateService) GetByID(ctx context.Context, clinicID, id uint64) (*model.Estimate, error) {
+	return m.getFn(ctx, clinicID, id)
+}
+
+func (m *mockEstimateService) Create(ctx context.Context, clinicID uint64, input *service.CreateEstimateInput) (*model.Estimate, error) {
+	return m.createFn(ctx, clinicID, input)
+}
+
+func (m *mockEstimateService) Update(ctx context.Context, clinicID, id uint64, input *service.UpdateEstimateInput) (*model.Estimate, error) {
+	return m.updateFn(ctx, clinicID, id, input)
+}
+
+func (m *mockEstimateService) Delete(ctx context.Context, clinicID, id uint64) error {
+	return m.deleteFn(ctx, clinicID, id)
+}
+
+func newHandlerWithEstimateSvc(svc service.EstimateService) *Handler {
+	return &Handler{svc: &service.Services{Estimate: svc}}
+}
+
+// ---- ListEstimates ----
+
+func TestListEstimates(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	tests := []struct {
+		name       string
+		query      string
+		setupCtx   func(c *gin.Context)
+		svc        *mockEstimateService
+		wantStatus int
+		wantBody   string
+	}{
+		{
+			name:     "returns paginated estimates",
+			query:    "page=1&limit=10",
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockEstimateService{
+				listFn: func(_ context.Context, clinicID uint64, ownerID, medicalRecordID *uint64, status *string, page, limit int) ([]model.Estimate, int64, error) {
+					assert.Equal(t, uint64(1), clinicID)
+					assert.Nil(t, ownerID)
+					assert.Nil(t, medicalRecordID)
+					assert.Nil(t, status)
+					assert.Equal(t, 1, page)
+					assert.Equal(t, 10, limit)
+					return []model.Estimate{{ID: 1, Title: "見積1"}}, 1, nil
+				},
+			},
+			wantStatus: http.StatusOK,
+			wantBody:   `"title":"見積1"`,
+		},
+		{
+			name:     "applies owner_id/medical_record_id/status filters",
+			query:    "owner_id=5&medical_record_id=7&status=sent",
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockEstimateService{
+				listFn: func(_ context.Context, _ uint64, ownerID, medicalRecordID *uint64, status *string, _, _ int) ([]model.Estimate, int64, error) {
+					require.NotNil(t, ownerID)
+					assert.Equal(t, uint64(5), *ownerID)
+					require.NotNil(t, medicalRecordID)
+					assert.Equal(t, uint64(7), *medicalRecordID)
+					require.NotNil(t, status)
+					assert.Equal(t, "sent", *status)
+					return []model.Estimate{}, 0, nil
+				},
+			},
+			wantStatus: http.StatusOK,
+		},
+		{
+			name:       "returns 401 when clinic_id is missing",
+			setupCtx:   func(_ *gin.Context) {},
+			svc:        &mockEstimateService{},
+			wantStatus: http.StatusUnauthorized,
+		},
+		{
+			name:       "returns 400 on invalid pagination",
+			query:      "page=abc",
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockEstimateService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:       "returns 400 on invalid owner_id filter",
+			query:      "owner_id=abc",
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockEstimateService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:     "returns 500 on service error",
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockEstimateService{
+				listFn: func(_ context.Context, _ uint64, _, _ *uint64, _ *string, _, _ int) ([]model.Estimate, int64, error) {
+					return nil, 0, fmt.Errorf("db failure")
+				},
+			},
+			wantStatus: http.StatusInternalServerError,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := newHandlerWithEstimateSvc(tt.svc)
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			c.Request = httptest.NewRequest(http.MethodGet, "/?"+tt.query, http.NoBody)
+			tt.setupCtx(c)
+
+			h.ListEstimates(c)
+
+			assert.Equal(t, tt.wantStatus, w.Code)
+			if tt.wantBody != "" {
+				assert.Contains(t, w.Body.String(), tt.wantBody)
+			}
+		})
+	}
+}
+
+// ---- GetEstimate ----
+
+func TestGetEstimate(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	tests := []struct {
+		name       string
+		paramID    string
+		setupCtx   func(c *gin.Context)
+		svc        *mockEstimateService
+		wantStatus int
+		wantBody   string
+	}{
+		{
+			name:     "returns estimate detail",
+			paramID:  "1",
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockEstimateService{
+				getFn: func(_ context.Context, clinicID, id uint64) (*model.Estimate, error) {
+					assert.Equal(t, uint64(1), clinicID)
+					assert.Equal(t, uint64(1), id)
+					return &model.Estimate{ID: 1, Title: "見積1"}, nil
+				},
+			},
+			wantStatus: http.StatusOK,
+			wantBody:   `"title":"見積1"`,
+		},
+		{
+			name:       "returns 401 when clinic_id is missing",
+			paramID:    "1",
+			setupCtx:   func(_ *gin.Context) {},
+			svc:        &mockEstimateService{},
+			wantStatus: http.StatusUnauthorized,
+		},
+		{
+			name:       "returns 400 on invalid id",
+			paramID:    "abc",
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockEstimateService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:     "returns 404 when not found",
+			paramID:  "999",
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockEstimateService{
+				getFn: func(_ context.Context, _, _ uint64) (*model.Estimate, error) {
+					return nil, apperrors.WrapNotFound("estimate", "999")
+				},
+			},
+			wantStatus: http.StatusNotFound,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := newHandlerWithEstimateSvc(tt.svc)
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			c.Request = httptest.NewRequest(http.MethodGet, "/", http.NoBody)
+			c.Params = gin.Params{{Key: "id", Value: tt.paramID}}
+			tt.setupCtx(c)
+
+			h.GetEstimate(c)
+
+			assert.Equal(t, tt.wantStatus, w.Code)
+			if tt.wantBody != "" {
+				assert.Contains(t, w.Body.String(), tt.wantBody)
+			}
+		})
+	}
+}
+
+// ---- CreateEstimate ----
+
+func TestCreateEstimate(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	tests := []struct {
+		name       string
+		body       any
+		bodyRaw    string
+		setupCtx   func(c *gin.Context)
+		svc        *mockEstimateService
+		permSvc    *mockEffectivePermissionService
+		wantStatus int
+		wantHeader string
+	}{
+		{
+			name: "creates estimate successfully",
+			body: map[string]any{
+				"title":        "新規見積",
+				"subtotal":     1000,
+				"tax_total":    100,
+				"total_amount": 1100,
+			},
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockEstimateService{
+				createFn: func(_ context.Context, clinicID uint64, input *service.CreateEstimateInput) (*model.Estimate, error) {
+					assert.Equal(t, uint64(1), clinicID)
+					assert.Equal(t, "新規見積", input.Title)
+					return &model.Estimate{ID: 10, Title: input.Title}, nil
+				},
+			},
+			wantStatus: http.StatusCreated,
+			wantHeader: "/api/v1/estimates/10",
+		},
+		{
+			name:       "returns 401 when clinic_id is missing",
+			body:       map[string]any{"title": "x"},
+			setupCtx:   func(_ *gin.Context) {},
+			svc:        &mockEstimateService{},
+			wantStatus: http.StatusUnauthorized,
+		},
+		{
+			name:       "returns 400 when title is missing",
+			body:       map[string]any{},
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockEstimateService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:       "returns 400 on malformed JSON body",
+			bodyRaw:    `{"title":`,
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockEstimateService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name: "returns 500 on service error",
+			body: map[string]any{
+				"title":        "新規見積",
+				"subtotal":     1000,
+				"tax_total":    100,
+				"total_amount": 1100,
+			},
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockEstimateService{
+				createFn: func(_ context.Context, _ uint64, _ *service.CreateEstimateInput) (*model.Estimate, error) {
+					return nil, fmt.Errorf("db failure")
+				},
+			},
+			wantStatus: http.StatusInternalServerError,
+		},
+		{
+			// BUG-372: discount_amount != 0 かつ discount:create 権限なし → 403
+			name: "returns 403 when discount permission denied on create",
+			body: map[string]any{
+				"title":           "新規見積",
+				"subtotal":        1000,
+				"tax_total":       100,
+				"total_amount":    1100,
+				"discount_amount": 500,
+			},
+			setupCtx: func(c *gin.Context) { setNonSystemAdmin(c) },
+			svc:      &mockEstimateService{},
+			permSvc: &mockEffectivePermissionService{
+				getEffectivePermissionsFn: func(_ context.Context, _, _ uint64) ([]model.PermissionGroupRule, error) {
+					return []model.PermissionGroupRule{}, nil
+				},
+			},
+			wantStatus: http.StatusForbidden,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := newHandlerWithEstimateSvc(tt.svc)
+			if tt.permSvc != nil {
+				h.svc.EffectivePermission = tt.permSvc
+			}
+
+			var bodyBytes []byte
+			if tt.bodyRaw != "" {
+				bodyBytes = []byte(tt.bodyRaw)
+			} else {
+				var err error
+				bodyBytes, err = json.Marshal(tt.body)
+				require.NoError(t, err)
+			}
+
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			c.Request = httptest.NewRequest(http.MethodPost, "/", bytes.NewReader(bodyBytes))
+			c.Request.Header.Set("Content-Type", "application/json")
+			tt.setupCtx(c)
+
+			h.CreateEstimate(c)
+
+			assert.Equal(t, tt.wantStatus, w.Code)
+			if tt.wantHeader != "" {
+				assert.Equal(t, tt.wantHeader, w.Header().Get("Location"))
+			}
+		})
+	}
+}
+
+// ---- UpdateEstimate ----
+
+func TestUpdateEstimate(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	tests := []struct {
+		name       string
+		paramID    string
+		body       any
+		bodyRaw    string
+		setupCtx   func(c *gin.Context)
+		svc        *mockEstimateService
+		permSvc    *mockEffectivePermissionService
+		wantStatus int
+		wantBody   string
+	}{
+		{
+			name:     "updates estimate successfully without discount change",
+			paramID:  "1",
+			body:     map[string]any{"title": "更新後"},
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockEstimateService{
+				updateFn: func(_ context.Context, clinicID, id uint64, input *service.UpdateEstimateInput) (*model.Estimate, error) {
+					assert.Equal(t, uint64(1), clinicID)
+					assert.Equal(t, uint64(1), id)
+					require.NotNil(t, input.Title)
+					assert.Equal(t, "更新後", *input.Title)
+					return &model.Estimate{ID: 1, Title: "更新後"}, nil
+				},
+			},
+			wantStatus: http.StatusOK,
+			wantBody:   `"title":"更新後"`,
+		},
+		{
+			name:     "updates estimate when discount amount unchanged",
+			paramID:  "1",
+			body:     map[string]any{"discount_amount": 500},
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockEstimateService{
+				getFn: func(_ context.Context, _, _ uint64) (*model.Estimate, error) {
+					return &model.Estimate{ID: 1, DiscountAmount: 500}, nil
+				},
+				updateFn: func(_ context.Context, _, _ uint64, input *service.UpdateEstimateInput) (*model.Estimate, error) {
+					require.NotNil(t, input.DiscountAmount)
+					assert.Equal(t, int64(500), *input.DiscountAmount)
+					return &model.Estimate{ID: 1, DiscountAmount: 500}, nil
+				},
+			},
+			wantStatus: http.StatusOK,
+		},
+		{
+			name:       "returns 401 when clinic_id is missing",
+			paramID:    "1",
+			body:       map[string]any{},
+			setupCtx:   func(_ *gin.Context) {},
+			svc:        &mockEstimateService{},
+			wantStatus: http.StatusUnauthorized,
+		},
+		{
+			name:       "returns 400 on invalid id",
+			paramID:    "abc",
+			body:       map[string]any{},
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockEstimateService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:       "returns 400 on malformed JSON body",
+			paramID:    "1",
+			bodyRaw:    `{"title":`,
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockEstimateService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:     "returns error when existing estimate lookup fails for discount change",
+			paramID:  "1",
+			body:     map[string]any{"discount_amount": 500},
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockEstimateService{
+				getFn: func(_ context.Context, _, _ uint64) (*model.Estimate, error) {
+					return nil, apperrors.WrapNotFound("estimate", "1")
+				},
+			},
+			wantStatus: http.StatusNotFound,
+		},
+		{
+			name:     "returns 500 on service error",
+			paramID:  "1",
+			body:     map[string]any{"title": "更新後"},
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockEstimateService{
+				updateFn: func(_ context.Context, _, _ uint64, _ *service.UpdateEstimateInput) (*model.Estimate, error) {
+					return nil, fmt.Errorf("db failure")
+				},
+			},
+			wantStatus: http.StatusInternalServerError,
+		},
+		{
+			// BUG-372: discount_amount が既存値から変化し discount:edit 権限なし → 403
+			name:     "returns 403 when discount permission denied on change",
+			paramID:  "1",
+			body:     map[string]any{"discount_amount": 999},
+			setupCtx: func(c *gin.Context) { setNonSystemAdmin(c) },
+			svc: &mockEstimateService{
+				getFn: func(_ context.Context, _, _ uint64) (*model.Estimate, error) {
+					return &model.Estimate{ID: 1, DiscountAmount: 500}, nil
+				},
+			},
+			permSvc: &mockEffectivePermissionService{
+				getEffectivePermissionsFn: func(_ context.Context, _, _ uint64) ([]model.PermissionGroupRule, error) {
+					return []model.PermissionGroupRule{}, nil
+				},
+			},
+			wantStatus: http.StatusForbidden,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := newHandlerWithEstimateSvc(tt.svc)
+			if tt.permSvc != nil {
+				h.svc.EffectivePermission = tt.permSvc
+			}
+
+			var bodyBytes []byte
+			if tt.bodyRaw != "" {
+				bodyBytes = []byte(tt.bodyRaw)
+			} else {
+				var err error
+				bodyBytes, err = json.Marshal(tt.body)
+				require.NoError(t, err)
+			}
+
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			c.Request = httptest.NewRequest(http.MethodPatch, "/", bytes.NewReader(bodyBytes))
+			c.Request.Header.Set("Content-Type", "application/json")
+			c.Params = gin.Params{{Key: "id", Value: tt.paramID}}
+			tt.setupCtx(c)
+
+			h.UpdateEstimate(c)
+
+			assert.Equal(t, tt.wantStatus, w.Code)
+			if tt.wantBody != "" {
+				assert.Contains(t, w.Body.String(), tt.wantBody)
+			}
+		})
+	}
+}
+
+// ---- DeleteEstimate ----
+
+func TestDeleteEstimate(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	tests := []struct {
+		name       string
+		paramID    string
+		setupCtx   func(c *gin.Context)
+		svc        *mockEstimateService
+		wantStatus int
+	}{
+		{
+			name:     "deletes estimate successfully",
+			paramID:  "1",
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockEstimateService{
+				deleteFn: func(_ context.Context, clinicID, id uint64) error {
+					assert.Equal(t, uint64(1), clinicID)
+					assert.Equal(t, uint64(1), id)
+					return nil
+				},
+			},
+			wantStatus: http.StatusNoContent,
+		},
+		{
+			name:       "returns 401 when clinic_id is missing",
+			paramID:    "1",
+			setupCtx:   func(_ *gin.Context) {},
+			svc:        &mockEstimateService{},
+			wantStatus: http.StatusUnauthorized,
+		},
+		{
+			name:       "returns 400 on invalid id",
+			paramID:    "abc",
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockEstimateService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:     "returns 500 on service error",
+			paramID:  "1",
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockEstimateService{
+				deleteFn: func(_ context.Context, _, _ uint64) error {
+					return fmt.Errorf("db failure")
+				},
+			},
+			wantStatus: http.StatusInternalServerError,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := newHandlerWithEstimateSvc(tt.svc)
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			c.Request = httptest.NewRequest(http.MethodDelete, "/", http.NoBody)
+			c.Params = gin.Params{{Key: "id", Value: tt.paramID}}
+			tt.setupCtx(c)
+
+			h.DeleteEstimate(c)
+			c.Writer.WriteHeaderNow() // flush a bare c.Status() (no body) to the recorder
+
+			assert.Equal(t, tt.wantStatus, w.Code)
+		})
+	}
 }
 
 // ---- Comprehensive Test Coverage Documentation ----

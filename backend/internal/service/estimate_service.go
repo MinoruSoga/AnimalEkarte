@@ -213,7 +213,7 @@ func (s *estimateService) Delete(ctx context.Context, clinicID, id uint64) error
 	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
 		return apperrors.Wrap(err, "failed to find estimate")
 	}
-	count, err := s.repo.CountItemsByEstimateID(ctx, id)
+	count, err := s.repo.CountItemsByEstimateID(ctx, clinicID, id)
 	if err != nil {
 		return apperrors.Wrap(err, "failed to check estimate item dependencies")
 	}

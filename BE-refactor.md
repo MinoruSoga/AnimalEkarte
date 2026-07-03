@@ -132,6 +132,7 @@
 - **現状**: 6/30 調査で「format 宣言と Go 実装は現状整合（0/76）」と確認済みだが、**将来の drift を検出する CI が無い**。R2-1 の統一が完了してもそれを守る仕組みがない。
 - **手順**: openapi の date/date-time 宣言と、対応する response builder の `.Format()` verb（wire format は型でなく Format verb で決まる — 6/30 の教訓）を突合するテストを追加。全 76 フィールドの手書き対応表ではなく、response 構造体の time 系フィールドを ast 走査 → openapi 定義と機械照合する形式にする。
 - **検証**: 一時的に 1 フィールドの Format を崩して RED になること。
+- **状態（2026-07-02 検証・完了）**: `backend/internal/apicontract/openapi_date_format_drift_test.go` に実装済み。`docs/api.yaml` の `format: date` 宣言 ↔ handler `*_response.go` の `time.Time`/`*time.Time`（datetime wire）を go/ast で突合。独立 package のため handler test package の compile 状態に非依存＝BLOCKED 事由「handler 大規模改修中」を回避（実測: 変更中の handler `*.go` 100 件は全て `_test.go`・response builder は不変）。既存 drift 22 箇所/18 キーを allowlist 固定し新規・数変化・stale で fail。**20:31 時点の版**で scoped test 4 件 GREEN・allowlist 1 件除去で RED を実証（drift 検出が機能することを確認）。dedicated CI job `openapi-date-format-drift`（全イベント無条件）配線済み。⚠️ 6/30「format↔実装 0/76 整合」は現 HEAD では不成立（22 drift 既存）— 解消（openapi date-time 化 or handler date-only 文字列化）は FE contract の follow-up。**本領域は並行セッションが同時実装・改良中**（当該版はその後 go-reviewer 指摘反映で `gopkg.in/yaml.v3` ベースへ改良され本セッションでは未再実行。handler test 群・coverage-ratchet も並行進行）。最終 GREEN は当該セッションの CI に委ねる。実装・コミット所有は並行セッション側。
 
 #### R3-4. repository 層テスト補強（D6/D7）— 規模 L
 
@@ -164,6 +165,7 @@
   3. #211 で確立した「migration から実 DDL を抽出して挙動テスト」の手法で、複合 FK が越境 INSERT を拒否することをテスト化。
 - **検証**: cascade/FK 挙動テスト GREEN + STG 適用は db_reset 運用ルールに従う。
 - **備考**: 制約追加は「不正データを物理的に拒否する」変更であり、正当データに対しては挙動保存。適用前検証（手順1）が必須条件。
+- **状態（2026-07-02 検証）**: checkup_field_results = **完了**（`migrations/012_add_clinical_result_composite_fk.sql` ＋ `repository/checkup_field_composite_fk_test.go`：越境 INSERT 拒否/同一 clinic 許可/列指定 SET NULL 保護）。挙動テストの live 実行は並行セッションの container 飽和（同時 `go test` 10 本）で本セッションでは未取得だが、DDL・テスト・schema を直接確認済みで CI backend job（`go test ./...`）が clean runner で実行する。**exam_results = 正当 BLOCKED（別タスク）**: exam_results も参照先 `exam_type_fields` も `clinic_id` 列を持たず（clinic は `exam_type_fields→exam_types→clinics` と 2 段先。`001_init.sql` 実測）、`(id, clinic_id)` 複合 FK が構造的に張れない。同等防御は `clinic_id` 列追加＋backfill という**非 additive** スキーマ拡張を要し、実施ルール 5（additive 追記のみ）・behavior-preserving の範囲外。現行防御はアプリ層 `FindByID(clinicID)` ガード（#124 同型）で維持。
 
 ---
 
@@ -209,5 +211,5 @@
 - repository の読取クエリ（count/junction 含む）が clinic スコープ規約に例外なく準拠（既決の accept-and-document を除く）
 - repository テストが安定 GREEN（pool 枯渇解消）＋ auth ライフサイクル検証あり
 - カバレッジ ratchet が CI で有効・golangci-lint の cap が 0（隠蔽なし）
-- exam_results / checkup_field_results に DB レベル複合 FK（越境 INSERT 拒否のテスト付き）
+- checkup_field_results に DB レベル複合 FK（越境 INSERT 拒否のテスト付き）＝**完了**（migration 012）。exam_results は `clinic_id` 列不在で additive 複合 FK 不可＝**正当 BLOCKED**（別タスク: 非 additive な列追加＋backfill、要 PO/architect 判断）。R3-7 の状態を参照
 - pwreset タイムアウトバグの追跡 Issue が起票済み（本計画外への引き継ぎ完了）

@@ -278,7 +278,12 @@ func validateBusinessRules(settings *model.LineReservationSetting, date time.Tim
 	}
 
 	// 5. 営業時間
-	bh, breaks := parseBusinessHoursForDate(settings, dateStart)
+	// D10/F-2: break_hours の unmarshal 失敗は fail-closed（予約拒否）。休憩時間との重複を
+	// 検証できない状態で予約を通すと、休憩時間帯の予約が誤って確定しうるため。
+	bh, breaks, err := parseBusinessHoursForDate(settings, dateStart)
+	if err != nil {
+		return apperrors.Wrap(err, "invalid break_hours")
+	}
 	bsStart, err := minutesSinceMidnight(bh.Start)
 	if err != nil {
 		return apperrors.Wrap(err, "invalid business_hours.start")
@@ -300,14 +305,16 @@ func validateBusinessRules(settings *model.LineReservationSetting, date time.Tim
 	}
 
 	// 6. 休憩時間との重複（半開区間 [start, end) で重複判定）
+	// D10/F-2: 個別エントリの形式不正も fail-closed。continue でスキップすると、その
+	// エントリだけ重複判定を回避でき休憩時間帯の予約が誤って確定しうる。
 	for _, b := range breaks {
 		brStart, err := minutesSinceMidnight(b.Start)
 		if err != nil {
-			continue
+			return apperrors.Wrap(err, "invalid break_hours entry")
 		}
 		brEnd, err := minutesSinceMidnight(b.End)
 		if err != nil {
-			continue
+			return apperrors.Wrap(err, "invalid break_hours entry")
 		}
 		if reqStart < brEnd && reqEnd > brStart {
 			return apperrors.WrapInvalidInput(fmt.Sprintf("休憩時間(%s-%s)と重複しています", b.Start, b.End))

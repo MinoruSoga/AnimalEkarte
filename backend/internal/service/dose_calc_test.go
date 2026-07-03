@@ -281,6 +281,43 @@ func TestCalculateDose_Calculation(t *testing.T) {
 	}
 }
 
+// TestRoundQuantity は roundQuantity の丸め分岐を直接網羅する（CalculateDose 経由では
+// Nearest モードや無効な mode・step<=0・mode nil のケースを再現しづらいため）。
+func TestRoundQuantity(t *testing.T) {
+	up := model.MedicineRoundingModeUp
+	down := model.MedicineRoundingModeDown
+	nearest := model.MedicineRoundingModeNearest
+	invalid := model.MedicineRoundingMode("invalid_mode")
+
+	tests := []struct {
+		name  string
+		value float64
+		step  *float64
+		mode  *model.MedicineRoundingMode
+		want  float64
+	}{
+		{"step nil は丸めない", 1.234, nil, &up, 1.234},
+		{"mode nil は丸めない", 1.234, fptr(1), nil, 1.234},
+		{"step も mode も nil", 1.234, nil, nil, 1.234},
+		{"step<=0 は丸めない", 1.234, fptr(0), &up, 1.234},
+		{"step 負値は丸めない", 1.234, fptr(-1), &up, 1.234},
+		{"Up: 切上", 1.1, fptr(1), &up, 2},
+		{"Down: 切下", 1.9, fptr(1), &down, 1},
+		{"Nearest: 四捨五入（切上側）", 1.5, fptr(1), &nearest, 2},
+		{"Nearest: 四捨五入（切下側）", 1.4, fptr(1), &nearest, 1},
+		{"Nearest: step=0.5刻み", 1.3, fptr(0.5), &nearest, 1.5},
+		{"未知の mode は丸めない（fail-safe）", 1.234, fptr(1), &invalid, 1.234},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := roundQuantity(tt.value, tt.step, tt.mode)
+			if !floatEq(got, tt.want) {
+				t.Fatalf("roundQuantity(%v, step=%v, mode=%v) = %v, want %v", tt.value, tt.step, tt.mode, got, tt.want)
+			}
+		})
+	}
+}
+
 // TestCalculateDose_C1_NoSilentBreach は #201 の最重要回帰: 上限が設定されている限り、
 // 丸め後の実効用量が上限を越えるなら必ず ExceedsMax=true になることを境界で網羅する。
 func TestCalculateDose_C1_NoSilentBreach(t *testing.T) {

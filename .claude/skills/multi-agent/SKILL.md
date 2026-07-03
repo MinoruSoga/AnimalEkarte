@@ -180,8 +180,14 @@ combined = merge_search_results(results)
 
 ---
 
+## サブエージェント報告の再検証（実績由来・必須）
+
+サブエージェントの出力は**証拠であって権威ではない**。main agent が grep 全文・go test（コンパイラ）で必ず再検証する。
+- 実例: read IDOR 監査で 3 reviewer が SAFE 多数派、database-reviewer だけ LEAK 判定 → 実コード検証で**少数派の database-reviewer が正しかった**。多数決は誤る
+- 実例: 「26 service 234行 identical」の subagent 報告 → 実際は4構造のアウトライアあり（過大報告）
+- レビュアー間で判定が割れたら、脆弱寄りに倒して自分で再精査する
+（出典: memory cross_tenant_read_idor_audit_20260629 / be_refactor_systematic_20260630 / preload_clinic_scope_lint_p0_20260630）
+
 ## 参照
 
-- [マルチエージェントシステム詳細](../docs/15-multi-agent-systems.md)
-- [エージェント設計パターン](../docs/13-agent-design-patterns.md)
 - [How We Built Our Multi-Agent Research System](https://www.anthropic.com/engineering/multi-agent-research-system)

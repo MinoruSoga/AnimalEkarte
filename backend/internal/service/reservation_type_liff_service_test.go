@@ -81,7 +81,7 @@ func (m *mockReservationQueryRepository) ExistsByStaffID(_ context.Context, _, _
 	return false, nil
 }
 
-func (m *mockReservationQueryRepository) CountMedicalRecordsByReservationID(_ context.Context, _ uint64) (int64, error) {
+func (m *mockReservationQueryRepository) CountMedicalRecordsByReservationID(_ context.Context, _, _ uint64) (int64, error) {
 	return 0, nil
 }
 
@@ -312,4 +312,437 @@ func TestReservationTypeLiffService_Delete_NotFound(t *testing.T) {
 
 	assert.Error(t, err)
 	assert.True(t, apperrors.IsNotFound(err))
+}
+
+// ---- buildReservationTypeLiffUpdate (pure function) ----
+
+func TestBuildReservationTypeLiffUpdate(t *testing.T) {
+	name := "コース"
+	color := "#FFFFFF"
+	desc := "説明"
+	sortOrder := 2
+	duration := 30
+	maxConcurrent := 3
+	shortName := "コ"
+	showShortName := true
+	visible := true
+	comment := "コメント"
+	dayOption := "weekday"
+	isInternal := true
+
+	tests := []struct {
+		name  string
+		input *UpdateReservationTypeLiffInput
+		want  map[string]any
+	}{
+		{
+			name: "all fields set",
+			input: &UpdateReservationTypeLiffInput{
+				Name: &name, Color: &color, Description: &desc, SortOrder: &sortOrder,
+				DurationMinutes: &duration, MaxConcurrent: &maxConcurrent,
+				ShortName: &shortName, ShowShortName: &showShortName,
+				ReservationVisible: &visible, ReservationComment: &comment,
+				ReservationDayOption: &dayOption, IsInternal: &isInternal,
+			},
+			want: map[string]any{
+				colReservationTypeLiffName:                 name,
+				colReservationTypeLiffColor:                color,
+				colReservationTypeLiffDescription:          desc,
+				colReservationTypeLiffSortOrder:            sortOrder,
+				colReservationTypeLiffDurationMinutes:      duration,
+				colReservationTypeLiffMaxConcurrent:        maxConcurrent,
+				colReservationTypeLiffShortName:            shortName,
+				colReservationTypeLiffShowShortName:        showShortName,
+				colReservationTypeLiffReservationVisible:   visible,
+				colReservationTypeLiffReservationComment:   comment,
+				colReservationTypeLiffReservationDayOption: dayOption,
+				colReservationTypeLiffIsInternal:           isInternal,
+			},
+		},
+		{
+			name:  "all nil returns empty map",
+			input: &UpdateReservationTypeLiffInput{},
+			want:  map[string]any{},
+		},
+		{
+			name:  "ClearMaxConcurrent takes precedence over MaxConcurrent",
+			input: &UpdateReservationTypeLiffInput{ClearMaxConcurrent: true, MaxConcurrent: &maxConcurrent},
+			want: map[string]any{
+				colReservationTypeLiffMaxConcurrent: nil,
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := buildReservationTypeLiffUpdate(tt.input)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+// ---- Create: remaining branches ----
+
+func TestReservationTypeLiffService_Create_ValidationError(t *testing.T) {
+	repo := &mockReservationTypeLiffRepository{}
+	resAdminRepo := &mockReservationAdminRepository{}
+	resRepo := &mockReservationQueryRepository{}
+	svc := newTestReservationTypeLiffService(repo, resAdminRepo, resRepo)
+
+	badMax := 0
+	input := &CreateReservationTypeLiffInput{Name: "コース", MaxConcurrent: &badMax}
+	result, err := svc.Create(context.Background(), 1, input)
+
+	assert.Error(t, err)
+	assert.Nil(t, result)
+}
+
+func TestReservationTypeLiffService_Create_RepoCreateError(t *testing.T) {
+	repo := &mockReservationTypeLiffRepository{
+		createFn: func(_ context.Context, _ *model.ReservationType) error {
+			return errors.New("db error")
+		},
+	}
+	resAdminRepo := &mockReservationAdminRepository{}
+	resRepo := &mockReservationQueryRepository{}
+	svc := newTestReservationTypeLiffService(repo, resAdminRepo, resRepo)
+
+	input := &CreateReservationTypeLiffInput{Name: "コース"}
+	result, err := svc.Create(context.Background(), 1, input)
+
+	assert.Error(t, err)
+	assert.Nil(t, result)
+}
+
+func TestReservationTypeLiffService_Create_FindByIDAfterCreateError(t *testing.T) {
+	repo := &mockReservationTypeLiffRepository{
+		createFn: func(_ context.Context, st *model.ReservationType) error {
+			st.ID = 10
+			return nil
+		},
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.ReservationType, error) {
+			return nil, errors.New("db error")
+		},
+	}
+	resAdminRepo := &mockReservationAdminRepository{}
+	resRepo := &mockReservationQueryRepository{}
+	svc := newTestReservationTypeLiffService(repo, resAdminRepo, resRepo)
+
+	input := &CreateReservationTypeLiffInput{Name: "コース", ReservationDayOption: "weekday"}
+	result, err := svc.Create(context.Background(), 1, input)
+
+	assert.Error(t, err)
+	assert.Nil(t, result)
+}
+
+// ---- Update: remaining branches ----
+
+func TestReservationTypeLiffService_Update_Success(t *testing.T) {
+	existing := &model.ReservationType{ID: 1, ClinicID: 1, Name: "元コース"}
+	updated := &model.ReservationType{ID: 1, ClinicID: 1, Name: "更新後コース"}
+	repo := &mockReservationTypeLiffRepository{
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.ReservationType, error) {
+			return existing, nil
+		},
+		updateFieldsFn: func(_ context.Context, _, _ uint64, fields map[string]any) (*model.ReservationType, error) {
+			assert.Equal(t, "更新後コース", fields[colReservationTypeLiffName])
+			return updated, nil
+		},
+	}
+	resAdminRepo := &mockReservationAdminRepository{}
+	resRepo := &mockReservationQueryRepository{}
+	svc := newTestReservationTypeLiffService(repo, resAdminRepo, resRepo)
+
+	name := "更新後コース"
+	result, err := svc.Update(context.Background(), 1, 1, &UpdateReservationTypeLiffInput{Name: &name})
+
+	assert.NoError(t, err)
+	assert.Equal(t, updated, result)
+}
+
+func TestReservationTypeLiffService_Update_ValidationError(t *testing.T) {
+	existing := &model.ReservationType{ID: 1, ClinicID: 1}
+	repo := &mockReservationTypeLiffRepository{
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.ReservationType, error) {
+			return existing, nil
+		},
+	}
+	resAdminRepo := &mockReservationAdminRepository{}
+	resRepo := &mockReservationQueryRepository{}
+	svc := newTestReservationTypeLiffService(repo, resAdminRepo, resRepo)
+
+	badMax := -1
+	result, err := svc.Update(context.Background(), 1, 1, &UpdateReservationTypeLiffInput{MaxConcurrent: &badMax})
+
+	assert.Error(t, err)
+	assert.Nil(t, result)
+}
+
+func TestReservationTypeLiffService_Update_NoFields(t *testing.T) {
+	existing := &model.ReservationType{ID: 1, ClinicID: 1, Name: "現状維持"}
+	callCount := 0
+	repo := &mockReservationTypeLiffRepository{
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.ReservationType, error) {
+			callCount++
+			return existing, nil
+		},
+	}
+	resAdminRepo := &mockReservationAdminRepository{}
+	resRepo := &mockReservationQueryRepository{}
+	svc := newTestReservationTypeLiffService(repo, resAdminRepo, resRepo)
+
+	result, err := svc.Update(context.Background(), 1, 1, &UpdateReservationTypeLiffInput{})
+
+	assert.NoError(t, err)
+	assert.Equal(t, existing, result)
+	assert.Equal(t, 2, callCount)
+}
+
+func TestReservationTypeLiffService_Update_NoFields_SecondFindByIDError(t *testing.T) {
+	existing := &model.ReservationType{ID: 1, ClinicID: 1}
+	callCount := 0
+	repo := &mockReservationTypeLiffRepository{
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.ReservationType, error) {
+			callCount++
+			if callCount == 1 {
+				return existing, nil
+			}
+			return nil, errors.New("db error")
+		},
+	}
+	resAdminRepo := &mockReservationAdminRepository{}
+	resRepo := &mockReservationQueryRepository{}
+	svc := newTestReservationTypeLiffService(repo, resAdminRepo, resRepo)
+
+	result, err := svc.Update(context.Background(), 1, 1, &UpdateReservationTypeLiffInput{})
+
+	assert.Error(t, err)
+	assert.Nil(t, result)
+}
+
+func TestReservationTypeLiffService_Update_RepoError(t *testing.T) {
+	existing := &model.ReservationType{ID: 1, ClinicID: 1}
+	repo := &mockReservationTypeLiffRepository{
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.ReservationType, error) {
+			return existing, nil
+		},
+		updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.ReservationType, error) {
+			return nil, errors.New("db error")
+		},
+	}
+	resAdminRepo := &mockReservationAdminRepository{}
+	resRepo := &mockReservationQueryRepository{}
+	svc := newTestReservationTypeLiffService(repo, resAdminRepo, resRepo)
+
+	name := "更新"
+	result, err := svc.Update(context.Background(), 1, 1, &UpdateReservationTypeLiffInput{Name: &name})
+
+	assert.Error(t, err)
+	assert.Nil(t, result)
+}
+
+// ---- Delete: remaining branches ----
+
+func TestReservationTypeLiffService_Delete_Success(t *testing.T) {
+	existing := &model.ReservationType{ID: 1, ClinicID: 1}
+	repo := &mockReservationTypeLiffRepository{
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.ReservationType, error) {
+			return existing, nil
+		},
+		deleteFn: func(_ context.Context, _, _ uint64) error { return nil },
+	}
+	resAdminRepo := &mockReservationAdminRepository{}
+	resRepo := &mockReservationQueryRepository{}
+	svc := newTestReservationTypeLiffService(repo, resAdminRepo, resRepo)
+
+	err := svc.Delete(context.Background(), 1, 1)
+
+	assert.NoError(t, err)
+}
+
+func TestReservationTypeLiffService_Delete_CountChildrenError(t *testing.T) {
+	existing := &model.ReservationType{ID: 1, ClinicID: 1}
+	repo := &mockReservationTypeLiffRepository{
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.ReservationType, error) {
+			return existing, nil
+		},
+		countChildrenFn: func(_ context.Context, _, _ uint64) (int64, error) {
+			return 0, errors.New("db error")
+		},
+	}
+	resAdminRepo := &mockReservationAdminRepository{}
+	resRepo := &mockReservationQueryRepository{}
+	svc := newTestReservationTypeLiffService(repo, resAdminRepo, resRepo)
+
+	err := svc.Delete(context.Background(), 1, 1)
+
+	assert.Error(t, err)
+}
+
+func TestReservationTypeLiffService_Delete_ExistsError(t *testing.T) {
+	existing := &model.ReservationType{ID: 1, ClinicID: 1}
+	repo := &mockReservationTypeLiffRepository{
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.ReservationType, error) {
+			return existing, nil
+		},
+	}
+	resAdminRepo := &mockReservationAdminRepository{}
+	resRepo := &mockReservationQueryRepository{
+		existsByReservationTypeIDFn: func(_ context.Context, _, _ uint64) (bool, error) {
+			return false, errors.New("db error")
+		},
+	}
+	svc := newTestReservationTypeLiffService(repo, resAdminRepo, resRepo)
+
+	err := svc.Delete(context.Background(), 1, 1)
+
+	assert.Error(t, err)
+}
+
+func TestReservationTypeLiffService_Delete_RepoDeleteError(t *testing.T) {
+	existing := &model.ReservationType{ID: 1, ClinicID: 1}
+	repo := &mockReservationTypeLiffRepository{
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.ReservationType, error) {
+			return existing, nil
+		},
+		deleteFn: func(_ context.Context, _, _ uint64) error {
+			return errors.New("db error")
+		},
+	}
+	resAdminRepo := &mockReservationAdminRepository{}
+	resRepo := &mockReservationQueryRepository{}
+	svc := newTestReservationTypeLiffService(repo, resAdminRepo, resRepo)
+
+	err := svc.Delete(context.Background(), 1, 1)
+
+	assert.Error(t, err)
+}
+
+// ---- PatchStatus ----
+
+func TestReservationTypeLiffService_PatchStatus_Success(t *testing.T) {
+	existing := &model.ReservationType{ID: 1, ClinicID: 1, IsActive: true}
+	updated := &model.ReservationType{ID: 1, ClinicID: 1, IsActive: false}
+	repo := &mockReservationTypeLiffRepository{
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.ReservationType, error) {
+			return existing, nil
+		},
+		updateFieldsFn: func(_ context.Context, _, _ uint64, fields map[string]any) (*model.ReservationType, error) {
+			assert.Equal(t, false, fields["is_active"])
+			return updated, nil
+		},
+	}
+	resAdminRepo := &mockReservationAdminRepository{}
+	resRepo := &mockReservationQueryRepository{}
+	svc := newTestReservationTypeLiffService(repo, resAdminRepo, resRepo)
+
+	result, err := svc.PatchStatus(context.Background(), 1, 1, false)
+
+	assert.NoError(t, err)
+	assert.False(t, result.IsActive)
+}
+
+func TestReservationTypeLiffService_PatchStatus_NotFound(t *testing.T) {
+	repo := &mockReservationTypeLiffRepository{
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.ReservationType, error) {
+			return nil, apperrors.WrapNotFound("reservation_type_liff", "1")
+		},
+	}
+	resAdminRepo := &mockReservationAdminRepository{}
+	resRepo := &mockReservationQueryRepository{}
+	svc := newTestReservationTypeLiffService(repo, resAdminRepo, resRepo)
+
+	result, err := svc.PatchStatus(context.Background(), 1, 1, true)
+
+	assert.Error(t, err)
+	assert.True(t, apperrors.IsNotFound(err))
+	assert.Nil(t, result)
+}
+
+func TestReservationTypeLiffService_PatchStatus_RepoError(t *testing.T) {
+	existing := &model.ReservationType{ID: 1, ClinicID: 1}
+	repo := &mockReservationTypeLiffRepository{
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.ReservationType, error) {
+			return existing, nil
+		},
+		updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.ReservationType, error) {
+			return nil, errors.New("db error")
+		},
+	}
+	resAdminRepo := &mockReservationAdminRepository{}
+	resRepo := &mockReservationQueryRepository{}
+	svc := newTestReservationTypeLiffService(repo, resAdminRepo, resRepo)
+
+	result, err := svc.PatchStatus(context.Background(), 1, 1, true)
+
+	assert.Error(t, err)
+	assert.Nil(t, result)
+}
+
+// ---- PatchSortOrder ----
+
+func TestReservationTypeLiffService_PatchSortOrder_Success(t *testing.T) {
+	existing := &model.ReservationType{ID: 1, ClinicID: 1}
+	repo := &mockReservationTypeLiffRepository{
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.ReservationType, error) {
+			return existing, nil
+		},
+		updateSortOrder: func(_ context.Context, _, _ uint64, direction string) error {
+			assert.Equal(t, "up", direction)
+			return nil
+		},
+	}
+	resAdminRepo := &mockReservationAdminRepository{}
+	resRepo := &mockReservationQueryRepository{}
+	svc := newTestReservationTypeLiffService(repo, resAdminRepo, resRepo)
+
+	err := svc.PatchSortOrder(context.Background(), 1, 1, "up")
+
+	assert.NoError(t, err)
+}
+
+func TestReservationTypeLiffService_PatchSortOrder_InvalidDirection(t *testing.T) {
+	repo := &mockReservationTypeLiffRepository{}
+	resAdminRepo := &mockReservationAdminRepository{}
+	resRepo := &mockReservationQueryRepository{}
+	svc := newTestReservationTypeLiffService(repo, resAdminRepo, resRepo)
+
+	err := svc.PatchSortOrder(context.Background(), 1, 1, "sideways")
+
+	assert.Error(t, err)
+	assert.True(t, apperrors.IsInvalidInput(err))
+}
+
+func TestReservationTypeLiffService_PatchSortOrder_NotFound(t *testing.T) {
+	repo := &mockReservationTypeLiffRepository{
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.ReservationType, error) {
+			return nil, apperrors.WrapNotFound("reservation_type_liff", "1")
+		},
+	}
+	resAdminRepo := &mockReservationAdminRepository{}
+	resRepo := &mockReservationQueryRepository{}
+	svc := newTestReservationTypeLiffService(repo, resAdminRepo, resRepo)
+
+	err := svc.PatchSortOrder(context.Background(), 1, 1, "down")
+
+	assert.Error(t, err)
+	assert.True(t, apperrors.IsNotFound(err))
+}
+
+func TestReservationTypeLiffService_PatchSortOrder_RepoError(t *testing.T) {
+	existing := &model.ReservationType{ID: 1, ClinicID: 1}
+	repo := &mockReservationTypeLiffRepository{
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.ReservationType, error) {
+			return existing, nil
+		},
+		updateSortOrder: func(_ context.Context, _, _ uint64, _ string) error {
+			return errors.New("db error")
+		},
+	}
+	resAdminRepo := &mockReservationAdminRepository{}
+	resRepo := &mockReservationQueryRepository{}
+	svc := newTestReservationTypeLiffService(repo, resAdminRepo, resRepo)
+
+	err := svc.PatchSortOrder(context.Background(), 1, 1, "up")
+
+	assert.Error(t, err)
 }

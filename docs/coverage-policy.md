@@ -58,13 +58,18 @@
 - 動作: CI が `coverage.out` を生成し Job Summary + artifact に publish するが、しきい値なし
 - ブランチ対象: main, staging, production への PR / push
 
-### Phase 1（PR コメント + 低下 warn）
+### Phase 1（低下 warn ratchet）
 
-- 目標: PR ごとにカバレッジ数値をコメント表示し、前回比で低下した場合に warn を出す
-- 実装: `github-script` または `go-coverage-report` action の導入
-- しきい値設定: なし（warn のみ、fail なし）
-- ブランチ対象: main への PR
-- 発火条件: backend / frontend いずれかのコード変更を含む PR
+- 状態: **実装済み（BE-refactor.md R3-5）**
+- 実装: `backend/cmd/coverage-ratchet`（Go ツール・判定ロジックは `main_test.go` で単体検証）が
+  `go tool cover -func` 総計 % と `backend/.coverage-baseline` を比較する。CI の
+  「Coverage ratchet (Phase 1 non-gating warn)」ステップが `-warn-only` で実行し、低下しても
+  CI を落とさず WARN を Job Summary に出す（`continue-on-error: true`）。
+- しきい値設定: なし（warn のみ、fail なし）。`tolerance` 既定 0.5pp。
+- ブランチ対象: backend Test job（main への push / staging・production への PR）
+- **ベースライン arm 手順**: `.coverage-baseline` は現状 `0`（未記録＝warn のみ）。初回 CI 実測後、
+  `backend-coverage` artifact の `coverage-summary.txt` 末尾 `total:` 行の % を `.coverage-baseline`
+  に転記すると、以降 tolerance 超の低下が WARN 表示される（Phase 3 で `-warn-only` を外すと fail ゲート化）。
 
 ### Phase 2（パッチカバレッジ warn）
 

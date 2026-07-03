@@ -819,10 +819,16 @@ func TestAccountingService_Update_CompletesSameDayAccountingAppointments(t *test
 	assert.Equal(t, scheduledDate, completedDate)
 }
 
-// mockAccountingAuditService は #118 用 AuditService テストモック
+// mockAccountingAuditService は #118 用 AuditService テストモック。
+// LogEntryTx も実装し AuditTxLogger を満たす（BE-refactor.md R1-2・#211 パターン踏襲）。
+// logEntryTxErr は fail-closed 回帰テスト用の失敗注入（checkup_field_result_service_test.go の
+// mockAuditTxLogger.logEntryTxFn と同型）。
 type mockAccountingAuditService struct {
-	logEntryCalled bool
-	logEntryInput  *AuditLogInput
+	logEntryCalled   bool
+	logEntryInput    *AuditLogInput
+	logEntryTxCalled bool
+	logEntryTxInput  *AuditLogInput
+	logEntryTxErr    error
 }
 
 func (m *mockAccountingAuditService) Log(_ context.Context, _ *model.AuditLog) error { return nil }
@@ -830,6 +836,11 @@ func (m *mockAccountingAuditService) LogEntry(_ context.Context, input *AuditLog
 	m.logEntryCalled = true
 	m.logEntryInput = input
 	return nil
+}
+func (m *mockAccountingAuditService) LogEntryTx(_ context.Context, input *AuditLogInput) error {
+	m.logEntryTxCalled = true
+	m.logEntryTxInput = input
+	return m.logEntryTxErr
 }
 func (m *mockAccountingAuditService) LogAuthLogin(_ context.Context, _, _ *uint64, _, _, _ string) error {
 	return nil
@@ -957,11 +968,12 @@ func TestAccountingService_Cancel(t *testing.T) {
 			} else {
 				assert.NoError(t, err)
 				if tt.wantAuditLogged {
-					assert.True(t, auditSvc.logEntryCalled, "audit log should be called on success")
-					assert.Equal(t, model.AuditActionBillingCancel, auditSvc.logEntryInput.Action)
-					assert.Equal(t, "billing", auditSvc.logEntryInput.Resource)
-					assert.NotNil(t, auditSvc.logEntryInput.OldValue, "cancel audit: old_value に変更前 status が必要")
-					assert.NotNil(t, auditSvc.logEntryInput.NewValue, "cancel audit: new_value に変更後 status が必要")
+					// BE-refactor.md R1-2: Cancel は ambient tx 内で LogEntryTx を呼ぶよう移行済み（fail-closed）。
+					assert.True(t, auditSvc.logEntryTxCalled, "audit log should be called on success")
+					assert.Equal(t, model.AuditActionBillingCancel, auditSvc.logEntryTxInput.Action)
+					assert.Equal(t, "billing", auditSvc.logEntryTxInput.Resource)
+					assert.NotNil(t, auditSvc.logEntryTxInput.OldValue, "cancel audit: old_value に変更前 status が必要")
+					assert.NotNil(t, auditSvc.logEntryTxInput.NewValue, "cancel audit: new_value に変更後 status が必要")
 				}
 			}
 		})
@@ -1811,6 +1823,8 @@ func TestAccountingService_Update_PostCloseReasonRequired(t *testing.T) {
 // TestAccountingService_Update_PostCloseEmitsAudit は #115 / B4 の成功経路で
 // 締め後編集監査ログ（AuditActionBillingPostCloseEdit・reason 付き）が必ず記録されることを固定する。
 // reason ガード通過後に監査が欠落しないことの回帰防止網（review follow-up）。
+// BE-refactor.md R1-2: Update の締め後編集監査を fail-closed 化（LogEntryTx・ambient tx 参加）した後の
+// 挙動保存を確認する（refund/CorrectCreditPayment と同型）。
 func TestAccountingService_Update_PostCloseEmitsAudit(t *testing.T) {
 	reason := "金額訂正のため"
 	memo := "訂正済み"
@@ -1834,12 +1848,42 @@ func TestAccountingService_Update_PostCloseEmitsAudit(t *testing.T) {
 	})
 
 	assert.NoError(t, err)
-	assert.True(t, audit.logEntryCalled, "post-close edit must emit an audit log entry")
-	if assert.NotNil(t, audit.logEntryInput) {
-		assert.Equal(t, model.AuditActionBillingPostCloseEdit, audit.logEntryInput.Action)
-		meta, ok := audit.logEntryInput.Metadata.(map[string]any)
+	assert.True(t, audit.logEntryTxCalled, "post-close edit must emit an audit log entry")
+	if assert.NotNil(t, audit.logEntryTxInput) {
+		assert.Equal(t, model.AuditActionBillingPostCloseEdit, audit.logEntryTxInput.Action)
+		meta, ok := audit.logEntryTxInput.Metadata.(map[string]any)
 		if assert.True(t, ok, "audit metadata should be map[string]any") {
 			assert.Equal(t, reason, meta["reason"])
 		}
 	}
+}
+
+// TestAccountingService_Update_PostCloseAuditFailureRollsBack は BE-refactor.md R1-2 の
+// fail-closed 契約を固定する: 締め後編集監査（LogEntryTx）が失敗すると Update 全体がエラーを返し
+// tx がロールバックされる（本体の fields 更新のみが残る部分コミットを許さない）。
+// #211/refund_service で確立した「監査失敗注入で本体も失敗すること」の検証パターンを踏襲する。
+func TestAccountingService_Update_PostCloseAuditFailureRollsBack(t *testing.T) {
+	reason := "金額訂正のため"
+	memo := "訂正済み"
+	staffID := uint64(3)
+	billing := &model.Billing{ID: 7, ClinicID: 1, ScheduledDate: time.Now()}
+
+	repo := &mockAccountingRepository{
+		findByIDFn:     func(_ context.Context, _, _ uint64) (*model.Billing, error) { return billing, nil },
+		updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Billing, error) { return billing, nil },
+	}
+	audit := &mockAccountingAuditService{logEntryTxErr: errors.New("audit write failed")}
+	svc := NewAccountingService(repo, nil, &mockTransactor{}, audit, &mockPaymentMethodMasterRepository{})
+
+	_, err := svc.Update(context.Background(), &UpdateAccountingInput{
+		ID:              7,
+		ClinicID:        1,
+		StaffID:         &staffID,
+		Memo:            &memo,
+		IsPostClose:     true,
+		PostCloseReason: &reason,
+	})
+
+	assert.Error(t, err, "audit failure must fail the whole update (fail-closed)")
+	assert.True(t, audit.logEntryTxCalled, "audit write must have been attempted")
 }

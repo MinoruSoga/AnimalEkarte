@@ -1,14 +1,466 @@
 package handler
 
 import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 
+	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
+
+	apperrors "github.com/animal-ekarte/backend/internal/errors"
+	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/service"
 )
 
 // TestExaminationHandlerCompiles verifies examination_handler.go compiles
 func TestExaminationHandlerCompiles(t *testing.T) {
 	assert.True(t, true, "examination_handler.go compiled successfully")
+}
+
+// ---- ListExaminations ----
+
+func TestListExaminations(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	tests := []struct {
+		name       string
+		query      string
+		setupCtx   func(c *gin.Context)
+		svc        *mockExaminationService
+		wantStatus int
+		wantBody   string
+	}{
+		{
+			name:     "returns paginated list of examinations",
+			query:    "",
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockExaminationService{
+				listFn: func(_ context.Context, clinicID uint64, petID, ownerID *uint64, status, startDate, endDate *string, page, limit int) ([]model.Examination, int64, error) {
+					assert.Equal(t, uint64(1), clinicID)
+					assert.Equal(t, 1, page)
+					assert.Equal(t, 20, limit)
+					return []model.Examination{{ID: 1, ClinicID: 1, ExamTypeID: 2, Status: model.ExaminationStatusPending}}, 1, nil
+				},
+			},
+			wantStatus: http.StatusOK,
+			wantBody:   `"total":1`,
+		},
+		{
+			name:     "applies pet_id, status, and date filters",
+			query:    "pet_id=5&status=completed&start_date=2026-05-01&end_date=2026-05-31&page=2&limit=10",
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockExaminationService{
+				listFn: func(_ context.Context, _ uint64, petID, ownerID *uint64, status, startDate, endDate *string, page, limit int) ([]model.Examination, int64, error) {
+					assert.NotNil(t, petID)
+					assert.Equal(t, uint64(5), *petID)
+					assert.NotNil(t, status)
+					assert.Equal(t, "completed", *status)
+					assert.NotNil(t, startDate)
+					assert.Equal(t, "2026-05-01", *startDate)
+					assert.NotNil(t, endDate)
+					assert.Equal(t, "2026-05-31", *endDate)
+					assert.Equal(t, 2, page)
+					assert.Equal(t, 10, limit)
+					return []model.Examination{}, 0, nil
+				},
+			},
+			wantStatus: http.StatusOK,
+			wantBody:   `"total":0`,
+		},
+		{
+			name:       "returns 401 when clinic_id is missing",
+			query:      "",
+			setupCtx:   func(_ *gin.Context) {},
+			svc:        &mockExaminationService{},
+			wantStatus: http.StatusUnauthorized,
+		},
+		{
+			name:       "returns 400 when pagination is invalid",
+			query:      "page=0",
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockExaminationService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:       "returns 400 when pet_id filter is invalid",
+			query:      "pet_id=abc",
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockExaminationService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:     "returns 500 on service error",
+			query:    "",
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockExaminationService{
+				listFn: func(_ context.Context, _ uint64, _, _ *uint64, _, _, _ *string, _, _ int) ([]model.Examination, int64, error) {
+					return nil, 0, fmt.Errorf("db failure")
+				},
+			},
+			wantStatus: http.StatusInternalServerError,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := newHandlerWithExaminationSvc(tt.svc)
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			c.Request = httptest.NewRequest(http.MethodGet, "/?"+tt.query, http.NoBody)
+			tt.setupCtx(c)
+			h.ListExaminations(c)
+			assert.Equal(t, tt.wantStatus, w.Code)
+			if tt.wantBody != "" {
+				assert.Contains(t, w.Body.String(), tt.wantBody)
+			}
+		})
+	}
+}
+
+// ---- GetExamination ----
+
+func TestGetExamination(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	tests := []struct {
+		name       string
+		paramID    string
+		setupCtx   func(c *gin.Context)
+		svc        *mockExaminationService
+		wantStatus int
+		wantBody   string
+	}{
+		{
+			name:     "returns single examination",
+			paramID:  "10",
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockExaminationService{
+				getByIDFn: func(_ context.Context, clinicID, id uint64) (*model.Examination, error) {
+					assert.Equal(t, uint64(1), clinicID)
+					assert.Equal(t, uint64(10), id)
+					return &model.Examination{ID: 10, ClinicID: 1, ExamTypeID: 2, Status: model.ExaminationStatusCompleted}, nil
+				},
+			},
+			wantStatus: http.StatusOK,
+			wantBody:   `"id":10`,
+		},
+		{
+			name:       "returns 401 when clinic_id is missing",
+			paramID:    "10",
+			setupCtx:   func(_ *gin.Context) {},
+			svc:        &mockExaminationService{},
+			wantStatus: http.StatusUnauthorized,
+		},
+		{
+			name:       "returns 400 when id is non-numeric",
+			paramID:    "abc",
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockExaminationService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:     "returns 404 when examination does not exist",
+			paramID:  "999",
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockExaminationService{
+				getByIDFn: func(_ context.Context, _, _ uint64) (*model.Examination, error) {
+					return nil, apperrors.WrapNotFound("examination", "999")
+				},
+			},
+			wantStatus: http.StatusNotFound,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := newHandlerWithExaminationSvc(tt.svc)
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			c.Request = httptest.NewRequest(http.MethodGet, "/", http.NoBody)
+			c.Params = gin.Params{{Key: "id", Value: tt.paramID}}
+			tt.setupCtx(c)
+			h.GetExamination(c)
+			assert.Equal(t, tt.wantStatus, w.Code)
+			if tt.wantBody != "" {
+				assert.Contains(t, w.Body.String(), tt.wantBody)
+			}
+		})
+	}
+}
+
+// ---- CreateExamination ----
+
+func TestCreateExamination(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	tests := []struct {
+		name       string
+		body       any
+		bodyRaw    string
+		setupCtx   func(c *gin.Context)
+		svc        *mockExaminationService
+		wantStatus int
+		wantBody   string
+		wantLoc    string
+	}{
+		{
+			name: "creates examination successfully",
+			body: map[string]any{
+				"exam_type_id": 2,
+				"date":         "2026-05-28T00:00:00Z",
+				"status":       "pending",
+			},
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockExaminationService{
+				createFn: func(_ context.Context, clinicID uint64, input *service.CreateExaminationInput) (*model.Examination, error) {
+					assert.Equal(t, uint64(1), clinicID)
+					assert.Equal(t, uint64(2), input.ExamTypeID)
+					return &model.Examination{ID: 42, ClinicID: 1, ExamTypeID: 2, Status: model.ExaminationStatusPending}, nil
+				},
+			},
+			wantStatus: http.StatusCreated,
+			wantBody:   `"id":42`,
+			wantLoc:    "/api/v1/examinations/42",
+		},
+		{
+			name:       "returns 401 when clinic_id is missing",
+			body:       map[string]any{},
+			setupCtx:   func(_ *gin.Context) {},
+			svc:        &mockExaminationService{},
+			wantStatus: http.StatusUnauthorized,
+		},
+		{
+			name:       "returns 400 for malformed JSON",
+			bodyRaw:    `{"exam_type_id":`,
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockExaminationService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:       "returns 400 when required field missing",
+			body:       map[string]any{"result_summary": "x"},
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockExaminationService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name: "returns 500 on service error",
+			body: map[string]any{
+				"exam_type_id": 2,
+				"date":         "2026-05-28T00:00:00Z",
+			},
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockExaminationService{
+				createFn: func(_ context.Context, _ uint64, _ *service.CreateExaminationInput) (*model.Examination, error) {
+					return nil, fmt.Errorf("db failure")
+				},
+			},
+			wantStatus: http.StatusInternalServerError,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := newHandlerWithExaminationSvc(tt.svc)
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+
+			var body []byte
+			if tt.bodyRaw != "" {
+				body = []byte(tt.bodyRaw)
+			} else {
+				var err error
+				body, err = json.Marshal(tt.body)
+				assert.NoError(t, err)
+			}
+			c.Request = httptest.NewRequest(http.MethodPost, "/", bytes.NewReader(body))
+			c.Request.Header.Set("Content-Type", "application/json")
+			tt.setupCtx(c)
+
+			h.CreateExamination(c)
+			assert.Equal(t, tt.wantStatus, w.Code)
+			if tt.wantBody != "" {
+				assert.Contains(t, w.Body.String(), tt.wantBody)
+			}
+			if tt.wantLoc != "" {
+				assert.Equal(t, tt.wantLoc, w.Header().Get("Location"))
+			}
+		})
+	}
+}
+
+// ---- UpdateExamination ----
+
+func TestUpdateExamination(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	tests := []struct {
+		name       string
+		paramID    string
+		body       any
+		bodyRaw    string
+		setupCtx   func(c *gin.Context)
+		svc        *mockExaminationService
+		wantStatus int
+		wantBody   string
+	}{
+		{
+			name:     "updates examination successfully",
+			paramID:  "10",
+			body:     map[string]any{"result_summary": "normal"},
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockExaminationService{
+				updateFn: func(_ context.Context, clinicID, id uint64, input service.UpdateExaminationInput) (*model.Examination, error) {
+					assert.Equal(t, uint64(1), clinicID)
+					assert.Equal(t, uint64(10), id)
+					assert.NotNil(t, input.ResultSummary)
+					assert.Equal(t, "normal", *input.ResultSummary)
+					return &model.Examination{ID: 10, ClinicID: 1, ResultSummary: "normal"}, nil
+				},
+			},
+			wantStatus: http.StatusOK,
+			wantBody:   `"result_summary":"normal"`,
+		},
+		{
+			name:       "returns 401 when clinic_id is missing",
+			paramID:    "10",
+			body:       map[string]any{},
+			setupCtx:   func(_ *gin.Context) {},
+			svc:        &mockExaminationService{},
+			wantStatus: http.StatusUnauthorized,
+		},
+		{
+			name:       "returns 400 when id is non-numeric",
+			paramID:    "abc",
+			body:       map[string]any{},
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockExaminationService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:       "returns 400 for malformed JSON",
+			paramID:    "10",
+			bodyRaw:    `{"result_summary":`,
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockExaminationService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:     "returns 404 when examination does not exist",
+			paramID:  "999",
+			body:     map[string]any{"result_summary": "x"},
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockExaminationService{
+				updateFn: func(_ context.Context, _, _ uint64, _ service.UpdateExaminationInput) (*model.Examination, error) {
+					return nil, apperrors.WrapNotFound("examination", "999")
+				},
+			},
+			wantStatus: http.StatusNotFound,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := newHandlerWithExaminationSvc(tt.svc)
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+
+			var body []byte
+			if tt.bodyRaw != "" {
+				body = []byte(tt.bodyRaw)
+			} else {
+				var err error
+				body, err = json.Marshal(tt.body)
+				assert.NoError(t, err)
+			}
+			c.Request = httptest.NewRequest(http.MethodPatch, "/", bytes.NewReader(body))
+			c.Request.Header.Set("Content-Type", "application/json")
+			c.Params = gin.Params{{Key: "id", Value: tt.paramID}}
+			tt.setupCtx(c)
+
+			h.UpdateExamination(c)
+			assert.Equal(t, tt.wantStatus, w.Code)
+			if tt.wantBody != "" {
+				assert.Contains(t, w.Body.String(), tt.wantBody)
+			}
+		})
+	}
+}
+
+// ---- DeleteExamination ----
+
+func newDeleteExaminationRouter(svc service.ExaminationService) *gin.Engine {
+	r := gin.New()
+	h := newHandlerWithExaminationSvc(svc)
+	r.DELETE("/examinations/:id", func(c *gin.Context) {
+		setClinicID(c)
+	}, h.DeleteExamination)
+	return r
+}
+
+func TestDeleteExamination(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	tests := []struct {
+		name       string
+		paramID    string
+		svc        *mockExaminationService
+		wantStatus int
+	}{
+		{
+			name:    "deletes examination successfully",
+			paramID: "10",
+			svc: &mockExaminationService{
+				deleteFn: func(_ context.Context, clinicID, id uint64) error {
+					assert.Equal(t, uint64(1), clinicID)
+					assert.Equal(t, uint64(10), id)
+					return nil
+				},
+			},
+			wantStatus: http.StatusNoContent,
+		},
+		{
+			name:       "returns 400 when id is non-numeric",
+			paramID:    "abc",
+			svc:        &mockExaminationService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:    "returns 404 when examination does not exist",
+			paramID: "999",
+			svc: &mockExaminationService{
+				deleteFn: func(_ context.Context, _, _ uint64) error {
+					return apperrors.WrapNotFound("examination", "999")
+				},
+			},
+			wantStatus: http.StatusNotFound,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			router := newDeleteExaminationRouter(tt.svc)
+			w := httptest.NewRecorder()
+			req := httptest.NewRequest(http.MethodDelete, "/examinations/"+tt.paramID, http.NoBody)
+			router.ServeHTTP(w, req)
+			assert.Equal(t, tt.wantStatus, w.Code)
+		})
+	}
+
+	t.Run("returns 401 when clinic_id is missing", func(t *testing.T) {
+		h := newHandlerWithExaminationSvc(&mockExaminationService{})
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Request = httptest.NewRequest(http.MethodDelete, "/", http.NoBody)
+		c.Params = gin.Params{{Key: "id", Value: "10"}}
+		h.DeleteExamination(c)
+		assert.Equal(t, http.StatusUnauthorized, w.Code)
+	})
 }
 
 // ---- Comprehensive Test Coverage Documentation ----

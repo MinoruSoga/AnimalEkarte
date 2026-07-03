@@ -169,16 +169,17 @@ type medicineService struct {
 	repo          repository.MedicineRepository
 	inventoryRepo repository.InventoryRepository
 	transactor    repository.Transactor
-	auditSvc      AuditService // #201 B-2: per_weight 有効化の監査（nil 可・後方互換）
+	auditTx       AuditTxLogger // #201 B-2 / BE-refactor.md R1-2: per_weight 有効化の監査（nil 可・後方互換）
 }
 
 func NewMedicineService(repo repository.MedicineRepository, inventoryRepo repository.InventoryRepository, transactor repository.Transactor) MedicineService {
 	return &medicineService{repo: repo, inventoryRepo: inventoryRepo, transactor: transactor}
 }
 
-// NewMedicineServiceWithAudit は AuditService を注入する（#201 B-2: per_weight 有効化の監査記録）。
-func NewMedicineServiceWithAudit(repo repository.MedicineRepository, inventoryRepo repository.InventoryRepository, transactor repository.Transactor, auditSvc AuditService) MedicineService {
-	return &medicineService{repo: repo, inventoryRepo: inventoryRepo, transactor: transactor, auditSvc: auditSvc}
+// NewMedicineServiceWithAudit は AuditTxLogger を注入する（#201 B-2: per_weight 有効化の監査記録）。
+// BE-refactor.md R1-2 (D1): per_weight 有効化は薬剤作成/更新の tx 内で LogEntryTx を使い fail-closed 化する。
+func NewMedicineServiceWithAudit(repo repository.MedicineRepository, inventoryRepo repository.InventoryRepository, transactor repository.Transactor, auditTx AuditTxLogger) MedicineService {
+	return &medicineService{repo: repo, inventoryRepo: inventoryRepo, transactor: transactor, auditTx: auditTx}
 }
 
 func (s *medicineService) List(ctx context.Context, clinicID uint64, page, limit int) ([]model.Medicine, int64, error) {
@@ -263,6 +264,7 @@ func (s *medicineService) Create(ctx context.Context, clinicID uint64, input *Cr
 	}
 
 	// BUG-429: 薬剤作成と在庫アイテム自動作成をトランザクションでアトミックに実行
+	// BE-refactor.md R1-2 (D1): per_weight 有効化監査も同一 tx に統合する（fail-closed）。
 	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
 		if err := s.repo.Create(txCtx, medicine); err != nil {
 			slog.ErrorContext(txCtx, "failed to create medicine", "error", err, "clinic_id", clinicID)
@@ -282,6 +284,12 @@ func (s *medicineService) Create(ctx context.Context, clinicID uint64, input *Cr
 			slog.ErrorContext(txCtx, "failed to create inventory item for medicine", "error", err, "clinic_id", clinicID)
 			return apperrors.Wrap(err, "failed to create inventory item for medicine")
 		}
+		// #201 B-2: per_weight 有効化は安全クリティカル設定変更 → 監査（fail-closed）。
+		if calcType == model.MedicineCalculationTypePerWeight {
+			if err := s.auditPerWeightEnableTx(txCtx, clinicID, input.ActorID, medicine.ID, nil, medicine); err != nil {
+				return err
+			}
+		}
 		return nil
 	}); err != nil {
 		slog.ErrorContext(ctx, "failed to create medicine", "error", err)
@@ -293,17 +301,15 @@ func (s *medicineService) Create(ctx context.Context, clinicID uint64, input *Cr
 		slog.Uint64("medicine_id", medicine.ID),
 		slog.String("name", medicine.Name),
 	)
-	// #201 B-2: per_weight 有効化は安全クリティカル設定変更 → 監査。
-	if calcType == model.MedicineCalculationTypePerWeight {
-		s.auditPerWeightEnable(ctx, clinicID, input.ActorID, medicine.ID, nil, medicine)
-	}
 	return medicine, nil
 }
 
-// auditPerWeightEnable は per_weight 有効化（none→per_weight 含む）を監査記録する（ベストエフォート）。
-func (s *medicineService) auditPerWeightEnable(ctx context.Context, clinicID uint64, actorID *uint64, medicineID uint64, before, after *model.Medicine) {
-	if s.auditSvc == nil {
-		return
+// auditPerWeightEnableTx は per_weight 有効化（none→per_weight 含む）を監査記録する（fail-closed）。
+// BE-refactor.md R1-2: 呼び出し元の ambient tx に参加する LogEntryTx を使う。失敗時は呼び出し元の
+// WithTx が rollback し、薬剤作成/更新自体も無効になる（#211/refund パターン踏襲）。
+func (s *medicineService) auditPerWeightEnableTx(ctx context.Context, clinicID uint64, actorID *uint64, medicineID uint64, before, after *model.Medicine) error {
+	if s.auditTx == nil {
+		return nil
 	}
 	actorType := model.AuditActorTypeSystem
 	if actorID != nil {
@@ -327,9 +333,10 @@ func (s *medicineService) auditPerWeightEnable(ctx context.Context, clinicID uin
 		OldValue:   oldVal,
 		NewValue:   newVal,
 	}
-	if err := s.auditSvc.LogEntry(ctx, input); err != nil {
-		slog.ErrorContext(ctx, "failed to audit per_weight enable", "error", err, "medicine_id", medicineID)
+	if err := s.auditTx.LogEntryTx(ctx, input); err != nil {
+		return apperrors.Wrap(err, "failed to audit per_weight enable")
 	}
+	return nil
 }
 
 func (s *medicineService) Update(ctx context.Context, clinicID, id uint64, input *UpdateMedicineInput) (*model.Medicine, error) {
@@ -385,44 +392,48 @@ func (s *medicineService) Update(ctx context.Context, clinicID, id uint64, input
 		return nil, apperrors.WrapInvalidInput(ErrMsgAtLeastOneField)
 	}
 
-	var result *model.Medicine
-	if input.Name != nil && *input.Name != existing.Name {
+	nameChanged := input.Name != nil && *input.Name != existing.Name
+	var oldName, newName string
+	if nameChanged {
 		// TASK-215: 薬剤名変更時に連携在庫の name を同期する
-		oldName := existing.Name
-		newName := *input.Name
-		if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
-			var txErr error
-			result, txErr = s.repo.Update(txCtx, clinicID, id, fields)
-			if txErr != nil {
-				slog.ErrorContext(txCtx, "failed to update medicine", "error", txErr, "id", id, "clinic_id", clinicID)
-				return apperrors.Wrap(txErr, "failed to update medicine")
-			}
+		oldName = existing.Name
+		newName = *input.Name
+	}
+	// #201 B-2: none→per_weight への有効化を監査（fail-closed。BE-refactor.md R1-2）。
+	perWeightEnabling := input.CalculationType != nil &&
+		resolveCalculationType(input.CalculationType) == model.MedicineCalculationTypePerWeight &&
+		existing.CalculationType != model.MedicineCalculationTypePerWeight
+
+	// BE-refactor.md R1-2 (D1): fields 更新・連携在庫名同期・per_weight 有効化監査を単一 tx に統合する。
+	// 従来は名前変更時のみ tx 化され、監査は tx 外 best-effort だった。統合後は「本体書込と監査が原子」になる。
+	var result *model.Medicine
+	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
+		var txErr error
+		result, txErr = s.repo.Update(txCtx, clinicID, id, fields)
+		if txErr != nil {
+			slog.ErrorContext(txCtx, "failed to update medicine", "error", txErr, "id", id, "clinic_id", clinicID)
+			return apperrors.Wrap(txErr, "failed to update medicine")
+		}
+		if nameChanged {
 			if txErr = s.inventoryRepo.UpdateNameByMedicineCategory(txCtx, clinicID, oldName, newName); txErr != nil {
 				slog.ErrorContext(txCtx, "failed to sync inventory item name", "error", txErr, "clinic_id", clinicID)
 				return apperrors.Wrap(txErr, "failed to sync inventory item name")
 			}
-			return nil
-		}); err != nil {
-			slog.ErrorContext(ctx, "failed to update medicine", "error", err)
-			return nil, apperrors.Wrap(err, "failed to update medicine")
 		}
-	} else {
-		result, err = s.repo.Update(ctx, clinicID, id, fields)
-		if err != nil {
-			slog.ErrorContext(ctx, "failed to update medicine", "error", err, "id", id, "clinic_id", clinicID)
-			return nil, apperrors.Wrap(err, "failed to update medicine")
+		if perWeightEnabling {
+			if auditErr := s.auditPerWeightEnableTx(txCtx, clinicID, input.ActorID, id, existing, result); auditErr != nil {
+				return auditErr
+			}
 		}
+		return nil
+	}); err != nil {
+		slog.ErrorContext(ctx, "failed to update medicine", "error", err)
+		return nil, apperrors.Wrap(err, "failed to update medicine")
 	}
 	slog.InfoContext(ctx, "medicine updated",
 		slog.Uint64("clinic_id", clinicID),
 		slog.Uint64("medicine_id", id),
 	)
-	// #201 B-2: none→per_weight への有効化を監査。
-	if input.CalculationType != nil &&
-		resolveCalculationType(input.CalculationType) == model.MedicineCalculationTypePerWeight &&
-		existing.CalculationType != model.MedicineCalculationTypePerWeight {
-		s.auditPerWeightEnable(ctx, clinicID, input.ActorID, id, existing, result)
-	}
 	return result, nil
 }
 

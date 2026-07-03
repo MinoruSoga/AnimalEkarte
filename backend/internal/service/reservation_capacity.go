@@ -16,6 +16,20 @@ type reservationTypeCapacityCounter interface {
 	CountByTypeAndStartTime(ctx context.Context, clinicID, reservationTypeID uint64, startTime time.Time, excludeID *uint64) (int64, error)
 }
 
+// reservationTypeCapacityBatchCounter is an optional capability of reservationTypeCapacityCounter
+// implementations: batched capacity counting across multiple start_time values in one query.
+// BE-refactor.md R2-4 (D8): liff_service.filterSlotsByCapacity issued one CountByTypeAndStartTime
+// query per candidate slot (N+1 per date). Kept as a separate, narrow interface — not merged into
+// reservationTypeCapacityCounter — so existing single-count callers (checkReservationTypeCapacity)
+// and their test mocks are unaffected. filterSlotsByCapacity type-asserts for it and falls back to
+// the per-slot path when unavailable (same optional-capability pattern as
+// auditSvc.(AuditTxLogger) in service.go).
+type reservationTypeCapacityBatchCounter interface {
+	// CountByTypeAndStartTimes returns counts keyed by startTime.Unix() (see repository doc comment
+	// for why Unix seconds, not time.Time, is used as the map key).
+	CountByTypeAndStartTimes(ctx context.Context, clinicID, reservationTypeID uint64, startTimes []time.Time, excludeID *uint64) (map[int64]int64, error)
+}
+
 func checkReservationTypeCapacity(
 	ctx context.Context,
 	reservationRepo reservationTypeCapacityCounter,

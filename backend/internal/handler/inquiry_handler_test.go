@@ -1,14 +1,124 @@
 package handler
 
 import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 
+	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	apperrors "github.com/animal-ekarte/backend/internal/errors"
+	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/service"
 )
 
 // TestInquiryHandlerCompiles verifies inquiry_handler.go compiles
 func TestInquiryHandlerCompiles(t *testing.T) {
 	assert.True(t, true, "inquiry_handler.go compiled successfully")
+}
+
+// ---- test helper ----
+
+func newHandlerWithInquirySvc(svc service.InquiryService) *Handler {
+	return &Handler{svc: &service.Services{Inquiry: svc}}
+}
+
+// ---- UpdateInquiry ----
+
+func TestUpdateInquiry(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	tests := []struct {
+		name       string
+		paramID    string
+		body       any
+		setupCtx   func(c *gin.Context)
+		svc        *mockInquiryService
+		wantStatus int
+		wantBody   string
+	}{
+		{
+			name:     "updates inquiry successfully",
+			paramID:  "5",
+			body:     map[string]any{"chief_complaint": "嘔吐"},
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockInquiryService{
+				upsertFn: func(_ context.Context, input service.UpsertInquiryInput) (*model.Inquiry, error) {
+					assert.Equal(t, uint64(1), input.ClinicID)
+					assert.Equal(t, uint64(5), input.MedicalRecordID)
+					require.NotNil(t, input.ChiefComplaint)
+					assert.Equal(t, "嘔吐", *input.ChiefComplaint)
+					return &model.Inquiry{ID: 1, MedicalRecordID: 5, ChiefComplaint: *input.ChiefComplaint}, nil
+				},
+			},
+			wantStatus: http.StatusOK,
+			wantBody:   `"chief_complaint":"嘔吐"`,
+		},
+		{
+			name:       "returns 401 when clinic_id is missing",
+			paramID:    "5",
+			body:       map[string]any{"notes": "x"},
+			setupCtx:   func(_ *gin.Context) {},
+			svc:        &mockInquiryService{},
+			wantStatus: http.StatusUnauthorized,
+		},
+		{
+			name:       "returns 400 for non-numeric id",
+			paramID:    "abc",
+			body:       map[string]any{"notes": "x"},
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockInquiryService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:       "returns 400 for invalid JSON",
+			paramID:    "5",
+			body:       "not-json",
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockInquiryService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:     "returns 404 when medical record not found",
+			paramID:  "999",
+			body:     map[string]any{"notes": "x"},
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockInquiryService{
+				upsertFn: func(_ context.Context, _ service.UpsertInquiryInput) (*model.Inquiry, error) {
+					return nil, apperrors.WrapNotFound("medical_record", "999")
+				},
+			},
+			wantStatus: http.StatusNotFound,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := newHandlerWithInquirySvc(tt.svc)
+
+			bodyBytes, err := json.Marshal(tt.body)
+			require.NoError(t, err)
+
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			c.Request = httptest.NewRequest(http.MethodPatch, "/", bytes.NewReader(bodyBytes))
+			c.Request.Header.Set("Content-Type", "application/json")
+			c.Params = gin.Params{{Key: "id", Value: tt.paramID}}
+			tt.setupCtx(c)
+
+			h.UpdateInquiry(c)
+
+			assert.Equal(t, tt.wantStatus, w.Code)
+			if tt.wantBody != "" {
+				assert.Contains(t, w.Body.String(), tt.wantBody)
+			}
+		})
+	}
 }
 
 // ---- Comprehensive Test Coverage Documentation ----

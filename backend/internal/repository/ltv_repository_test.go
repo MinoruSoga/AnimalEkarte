@@ -1019,6 +1019,214 @@ func TestFindOwnerLTV_SearchByName(t *testing.T) {
 	})
 }
 
+// TestLtvRepository_BuildOrderBy はソートフィールド×順序の組み合わせで ORDER BY 句が
+// 期待通りに構築されることを検証する（DB 非依存の純粋関数のためテーブル駆動で直接検証）。
+func TestLtvRepository_BuildOrderBy(t *testing.T) {
+	repo := &ltvRepository{}
+
+	tests := []struct {
+		name   string
+		sort   string
+		order  string
+		expect string
+	}{
+		{"annual_amount asc", "annual_amount", "asc", "annual_amount ASC NULLS LAST"},
+		{"annual_amount desc", "annual_amount", "desc", "annual_amount DESC NULLS LAST"},
+		{"total_amount asc", "total_amount", "asc", "total_amount ASC NULLS LAST"},
+		{"visit_count desc", "visit_count", "desc", "period_visit_count DESC NULLS LAST"},
+		{"total_visit_count asc", "total_visit_count", "asc", "total_visit_count ASC NULLS LAST"},
+		{"annual_visit_count desc", "annual_visit_count", "desc", "annual_visit_count DESC NULLS LAST"},
+		{"last_visit_date asc", "last_visit_date", "asc", "last_visit_date ASC NULLS LAST"},
+		{"days_since_last_visit desc", "days_since_last_visit", "desc", "days_since_last_visit DESC NULLS LAST"},
+		{"owner_name asc (no NULLS LAST)", "owner_name", "asc", "owner_name ASC"},
+		{"unknown sort falls back to total_amount", "unknown_field", "desc", "total_amount DESC NULLS LAST"},
+		{"empty sort falls back to total_amount", "", "asc", "total_amount ASC NULLS LAST"},
+		{"invalid order defaults to desc", "total_amount", "sideways", "total_amount DESC NULLS LAST"},
+		{"empty order defaults to desc", "total_amount", "", "total_amount DESC NULLS LAST"},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Equal(t, tc.expect, repo.buildOrderBy(tc.sort, tc.order))
+		})
+	}
+}
+
+// TestLtvRepository_CalculateDateRange_InvalidFormats は from/to のパース失敗時に
+// エラーが伝播することを検証する（DB 非依存）。
+func TestLtvRepository_CalculateDateRange_InvalidFormats(t *testing.T) {
+	repo := &ltvRepository{}
+
+	t.Run("invalid From format returns an error", func(t *testing.T) {
+		from := "not-a-date"
+		to := "2026-01-01"
+		fromDate, toDate, err := repo.calculateDateRange(&FindOwnerLTVParams{From: &from, To: &to})
+		assert.Error(t, err)
+		assert.Nil(t, fromDate)
+		assert.Nil(t, toDate)
+	})
+
+	t.Run("invalid To format returns an error", func(t *testing.T) {
+		from := "2026-01-01"
+		to := "not-a-date"
+		fromDate, toDate, err := repo.calculateDateRange(&FindOwnerLTVParams{From: &from, To: &to})
+		assert.Error(t, err)
+		assert.Nil(t, fromDate)
+		assert.Nil(t, toDate)
+	})
+
+	t.Run("year takes priority over period_preset", func(t *testing.T) {
+		year := 2025
+		fromDate, toDate, err := repo.calculateDateRange(&FindOwnerLTVParams{Year: &year, PeriodPreset: "last_3_months"})
+		require.NoError(t, err)
+		require.NotNil(t, fromDate)
+		require.NotNil(t, toDate)
+		assert.Equal(t, 2025, fromDate.Year())
+		assert.Equal(t, 2025, toDate.Year())
+	})
+
+	t.Run("no filters returns nil range (all time)", func(t *testing.T) {
+		fromDate, toDate, err := repo.calculateDateRange(&FindOwnerLTVParams{})
+		require.NoError(t, err)
+		assert.Nil(t, fromDate)
+		assert.Nil(t, toDate)
+	})
+}
+
+// TestFindOwnerLTV_InvalidFromDateFormatPropagatesError
+// calculateDateRange のエラーが公開 API である FindOwnerLTV から呼び出し元へ伝播することを検証する。
+func TestFindOwnerLTV_InvalidFromDateFormatPropagatesError(t *testing.T) {
+	db := setupTestDB(t)
+	repo := NewLtvRepository(db)
+	ctx := context.Background()
+
+	badFrom := "20260101"
+	to := "2026-12-31"
+	rows, err := repo.FindOwnerLTV(ctx, &FindOwnerLTVParams{
+		ClinicID: uint64(1),
+		From:     &badFrom,
+		To:       &to,
+	})
+	assert.Error(t, err)
+	assert.Nil(t, rows)
+}
+
+// TestFindOwnerLTV_MinVisitCountAndMaxVisitCountFilter
+// AGG-BE-002: min_visit_count / max_visit_count による HAVING 絞り込みを検証する。
+func TestFindOwnerLTV_MinVisitCountAndMaxVisitCountFilter(t *testing.T) {
+	db := setupTestDB(t)
+	repo := NewLtvRepository(db)
+	ctx := context.Background()
+
+	clinicID := uint64(1)
+
+	fewVisits := &model.Owner{ClinicID: clinicID, Name: "Owner Few Visits"}
+	manyVisits := &model.Owner{ClinicID: clinicID, Name: "Owner Many Visits"}
+	require.NoError(t, db.WithContext(ctx).Create(fewVisits).Error)
+	require.NoError(t, db.WithContext(ctx).Create(manyVisits).Error)
+
+	now := time.Now()
+	for i := 0; i < 2; i++ {
+		mr := &model.MedicalRecord{ClinicID: clinicID, OwnerID: &fewVisits.ID, Date: now.AddDate(0, 0, -i)}
+		require.NoError(t, db.WithContext(ctx).Create(mr).Error)
+	}
+	for i := 0; i < 5; i++ {
+		mr := &model.MedicalRecord{ClinicID: clinicID, OwnerID: &manyVisits.ID, Date: now.AddDate(0, 0, -i)}
+		require.NoError(t, db.WithContext(ctx).Create(mr).Error)
+	}
+
+	t.Run("min_visit_count excludes owners with fewer visits", func(t *testing.T) {
+		minVisits := int64(3)
+		rows, err := repo.FindOwnerLTV(ctx, &FindOwnerLTVParams{
+			ClinicID:      clinicID,
+			MinVisitCount: &minVisits,
+			IncludeZero:   true,
+		})
+		require.NoError(t, err)
+		require.Len(t, rows, 1)
+		assert.Equal(t, manyVisits.ID, rows[0].OwnerID)
+	})
+
+	t.Run("max_visit_count excludes owners with more visits", func(t *testing.T) {
+		maxVisits := int64(3)
+		rows, err := repo.FindOwnerLTV(ctx, &FindOwnerLTVParams{
+			ClinicID:      clinicID,
+			MaxVisitCount: &maxVisits,
+			IncludeZero:   true,
+		})
+		require.NoError(t, err)
+		require.Len(t, rows, 1)
+		assert.Equal(t, fewVisits.ID, rows[0].OwnerID)
+	})
+}
+
+// TestFindOwnerLTV_LastVisitBucketFilterExcludesOtherBuckets
+// AGG-BE-003: last_visit_bucket 指定時、他バケットのオーナーは除外されることを検証する。
+func TestFindOwnerLTV_LastVisitBucketFilterExcludesOtherBuckets(t *testing.T) {
+	db := setupTestDB(t)
+	repo := NewLtvRepository(db)
+	ctx := context.Background()
+
+	clinicID := uint64(1)
+	now := time.Now()
+
+	recentOwner := &model.Owner{ClinicID: clinicID, Name: "Owner Recent"}
+	oldOwner := &model.Owner{ClinicID: clinicID, Name: "Owner Old"}
+	require.NoError(t, db.WithContext(ctx).Create(recentOwner).Error)
+	require.NoError(t, db.WithContext(ctx).Create(oldOwner).Error)
+
+	require.NoError(t, db.WithContext(ctx).Create(&model.MedicalRecord{ClinicID: clinicID, OwnerID: &recentOwner.ID, Date: now.AddDate(0, 0, -1)}).Error)
+	require.NoError(t, db.WithContext(ctx).Create(&model.MedicalRecord{ClinicID: clinicID, OwnerID: &oldOwner.ID, Date: now.AddDate(0, 0, -400)}).Error)
+
+	rows, err := repo.FindOwnerLTV(ctx, &FindOwnerLTVParams{
+		ClinicID:        clinicID,
+		LastVisitBucket: "within_3m",
+		IncludeZero:     true,
+	})
+	require.NoError(t, err)
+	require.Len(t, rows, 1)
+	assert.Equal(t, recentOwner.ID, rows[0].OwnerID)
+}
+
+// TestFindOwnerLTV_SortOrdering
+// sort/order パラメータの組み合わせで total_amount の昇順・降順が反転することを検証する。
+func TestFindOwnerLTV_SortOrdering(t *testing.T) {
+	db := setupTestDB(t)
+	repo := NewLtvRepository(db)
+	ctx := context.Background()
+
+	clinicID := uint64(1)
+
+	low := &model.Owner{ClinicID: clinicID, Name: "Owner Low Amount"}
+	high := &model.Owner{ClinicID: clinicID, Name: "Owner High Amount"}
+	require.NoError(t, db.WithContext(ctx).Create(low).Error)
+	require.NoError(t, db.WithContext(ctx).Create(high).Error)
+
+	mrLow := &model.MedicalRecord{ClinicID: clinicID, OwnerID: &low.ID, Date: time.Now()}
+	require.NoError(t, db.WithContext(ctx).Create(mrLow).Error)
+	require.NoError(t, db.WithContext(ctx).Create(&model.Billing{ClinicID: clinicID, MedicalRecordID: &mrLow.ID, OwnerID: &low.ID, TotalAmount: 1000, Status: model.BillingStatusCompleted}).Error)
+
+	mrHigh := &model.MedicalRecord{ClinicID: clinicID, OwnerID: &high.ID, Date: time.Now()}
+	require.NoError(t, db.WithContext(ctx).Create(mrHigh).Error)
+	require.NoError(t, db.WithContext(ctx).Create(&model.Billing{ClinicID: clinicID, MedicalRecordID: &mrHigh.ID, OwnerID: &high.ID, TotalAmount: 9000, Status: model.BillingStatusCompleted}).Error)
+
+	t.Run("ascending order returns the lowest total_amount first", func(t *testing.T) {
+		rows, err := repo.FindOwnerLTV(ctx, &FindOwnerLTVParams{ClinicID: clinicID, Sort: "total_amount", Order: "asc", IncludeZero: true})
+		require.NoError(t, err)
+		require.Len(t, rows, 2)
+		assert.Equal(t, low.ID, rows[0].OwnerID)
+		assert.Equal(t, high.ID, rows[1].OwnerID)
+	})
+
+	t.Run("descending order returns the highest total_amount first", func(t *testing.T) {
+		rows, err := repo.FindOwnerLTV(ctx, &FindOwnerLTVParams{ClinicID: clinicID, Sort: "total_amount", Order: "desc", IncludeZero: true})
+		require.NoError(t, err)
+		require.Len(t, rows, 2)
+		assert.Equal(t, high.ID, rows[0].OwnerID)
+		assert.Equal(t, low.ID, rows[1].OwnerID)
+	})
+}
+
 // setupTestDB はテスト用の DB を初期化してマイグレーションを実行します
 func setupTestDB(t *testing.T) *gorm.DB {
 	// テスト DB コネクション（docker compose で起動）

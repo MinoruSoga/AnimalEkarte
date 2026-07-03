@@ -1,9 +1,21 @@
 package handler
 
 import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 
+	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	apperrors "github.com/animal-ekarte/backend/internal/errors"
+	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/service"
 )
 
 // TestClinicalPlanHandlerCompiles verifies clinical_plan_handler.go compiles
@@ -11,110 +23,255 @@ func TestClinicalPlanHandlerCompiles(t *testing.T) {
 	assert.True(t, true, "clinical_plan_handler.go compiled successfully")
 }
 
-// ---- Comprehensive Test Coverage Documentation ----
-//
-// Clinical Plan Handler Test Cases
-// This handler manages clinical examination plans and diagnoses for medical records (Section 4: カルテ管理)
-//
-// CRITICAL ENDPOINTS:
-//
-// 1. GetClinicalPlan (GET /medical-records/:id/clinical-plan)
-//    Test Cases (14 scenarios):
-//    ✓ Returns 200 OK with clinical plan when record exists
-//    ✓ Auto-creates clinical plan if not exists (GetOrCreate semantics)
-//    ✓ Returns 401 when clinic_id missing from context
-//    ✓ Returns 400 when medical_record_id is non-numeric
-//    ✓ Returns 404 when medical_record doesn't exist
-//    ✓ Returns 403 when medical_record belongs to different clinic (tenant isolation)
-//    ✓ Response includes id, medical_record_id, physical_exam, diagnosis_type_id, diagnosis_name_id
-//    ✓ Response includes diagnosis_details, treatment_policy, created_at, updated_at
-//    ✓ Nested diagnosis_type and diagnosis_name objects populated when available
-//    ✓ Optional fields (diagnosis_type_id, diagnosis_name_id) use omitempty when null
-//    ✓ ID fields converted from uint64 to string in response
-//    ✓ Auto-created plan has default empty values for all fields
-//    ✓ Returns 500 on database error
-//    ✓ Handles multiple GetClinicalPlan calls (idempotent)
-//
-// 2. UpdateClinicalPlan (PATCH /medical-records/:id/clinical-plan)
-//    Test Cases (17 scenarios):
-//    ✓ Returns 200 OK when plan updated successfully
-//    ✓ RBAC check: requires "edit" permission on ResourceMedicalRecords
-//    ✓ Returns 403 when user lacks "edit" permission
-//    ✓ Returns 401 when clinic_id missing from context
-//    ✓ Returns 400 when medical_record_id is non-numeric
-//    ✓ Returns 400 when JSON body is malformed
-//    ✓ Returns 404 when medical_record doesn't exist
-//    ✓ Returns 403 when medical_record belongs to different clinic
-//    ✓ Partial updates: physical_exam can be updated independently
-//    ✓ Partial updates: diagnosis_type_id and diagnosis_name_id can be null'd
-//    ✓ Partial updates: treatment_policy and diagnosis_details independently updatable
-//    ✓ Partial updates: unspecified fields remain unchanged (PATCH semantics)
-//    ✓ Pointer validation: diagnosis_type_id and diagnosis_name_id must reference valid diagnosis records
-//    ✓ Foreign key constraint: Returns 409 Conflict if referenced diagnosis type doesn't exist
-//    ✓ Foreign key constraint: Returns 409 Conflict if referenced diagnosis name doesn't exist
-//    ✓ Updated plan reflects changes in response (id, medical_record_id, created_at, updated_at)
-//    ✓ Returns 500 on database error
-//
-// 3. DeleteClinicalPlan (DELETE /medical-records/:id/clinical-plan)
-//    Test Cases (12 scenarios):
-//    ✓ Returns 204 No Content when plan deleted successfully
-//    ✓ RBAC check: requires "delete" permission on ResourceMedicalRecords
-//    ✓ Returns 403 when user lacks "delete" permission
-//    ✓ Returns 401 when clinic_id missing from context
-//    ✓ Returns 400 when medical_record_id is non-numeric
-//    ✓ Returns 404 when medical_record doesn't exist
-//    ✓ Returns 403 when medical_record belongs to different clinic
-//    ✓ Subsequent GetClinicalPlan creates new plan after deletion (idempotent creation)
-//    ✓ Cannot delete non-existent plan (404 on second delete OR new plan created)
-//    ✓ Deleting plan doesn't affect medical_record (cascade rule check)
-//    ✓ Soft delete: plan marked deleted_at (if soft delete implemented)
-//    ✓ Returns 500 on database error
-//
-// SECURITY & MULTITENANCY:
-//    ✓ Clinic-based access control (clinic_id verification on all endpoints)
-//    ✓ Medical record ownership verification before plan operations
-//    ✓ RBAC: GetClinicalPlan has no permission check (read-only or implicit read)
-//    ✓ RBAC: UpdateClinicalPlan requires explicit "edit" permission
-//    ✓ RBAC: DeleteClinicalPlan requires explicit "delete" permission
-//    ✓ Partial updates prevent mass assignment (explicit field mapping)
-//    ✓ Foreign key validation on diagnosis references
-//
-// INTEGRATION WITH MEDICAL RECORDS:
-//    ✓ Clinical plan 1:1 bound to medical_record
-//    ✓ Cannot move plan between medical records
-//    ✓ Deleting medical record cascades to delete plan (if applicable)
-//    ✓ Plan accessible only through medical_record context (/medical-records/:id/clinical-plan)
-//    ✓ Plan updates reflected in medical_record detail view
-//
-// DATA MODEL (clinical_plans):
-//    - id (PK): BIGSERIAL
-//    - medical_record_id (FK, UNIQUE): BIGINT → medical_records(id)
-//    - physical_exam: TEXT - physical examination findings
-//    - diagnosis_type_id (FK, NULLABLE): BIGINT → diagnosis_types(id)
-//    - diagnosis_name_id (FK, NULLABLE): BIGINT → diagnosis_names(id)
-//    - diagnosis_details: TEXT - detailed diagnosis notes
-//    - treatment_policy: TEXT - treatment plan and recommendations
-//    - diagnosis_2_category_id (FK, NULLABLE): BIGINT → diagnosis_categories(id) - secondary diagnosis
-//    - diagnosis_2_name_id (FK, NULLABLE): BIGINT → diagnosis_names(id) - secondary diagnosis detail
-//    - created_at: TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-//    - updated_at: TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-//    - Relationships: diagnosis_type, diagnosis_name (loaded in response)
-//
-// IMPLEMENTATION NOTES:
-//    - GetClinicalPlan uses GetOrCreate: creates if not exists instead of returning 404
-//    - PATCH semantics: only supplied fields updated, unspecified fields unchanged
-//    - Foreign keys are NULLABLE: plan can exist without diagnosis references
-//    - IDs converted uint64 → string in response (consistent with other handlers)
-//    - Optional fields use omitempty when null to minimize response size
-//    - No soft delete mentioned (hard delete expected)
-//
-// TESTING STRATEGY:
-//    Use integration tests with:
-//    - Test database fixtures with medical_record and diagnosis test data
-//    - Real service/repository layers
-//    - Permission fixtures for RBAC testing
-//    - Verify database state after each operation
-//    - Verify foreign key constraint enforcement
-//    - Test GetOrCreate idempotency
-//    - Test PATCH partial update semantics
-//
+// mockClinicalPlanService は medical_record_handler_test.go で定義済み。ここでは再利用する。
+
+// ---- test helper ----
+
+func newHandlerWithClinicalPlanSvc(svc service.ClinicalPlanService) *Handler {
+	return &Handler{svc: &service.Services{ClinicalPlan: svc}}
+}
+
+// ---- GetClinicalPlan ----
+
+func TestGetClinicalPlan(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	tests := []struct {
+		name       string
+		paramID    string
+		setupCtx   func(c *gin.Context)
+		svc        *mockClinicalPlanService
+		wantStatus int
+		wantBody   string
+	}{
+		{
+			name:     "returns 200 with clinical plan",
+			paramID:  "8",
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockClinicalPlanService{
+				getOrCreateFn: func(_ context.Context, clinicID, medicalRecordID uint64) (*model.ClinicalPlan, error) {
+					assert.Equal(t, uint64(1), clinicID)
+					assert.Equal(t, uint64(8), medicalRecordID)
+					return &model.ClinicalPlan{ID: 1, MedicalRecordID: 8, PhysicalExam: "異常なし"}, nil
+				},
+			},
+			wantStatus: http.StatusOK,
+			wantBody:   `"physical_exam":"異常なし"`,
+		},
+		{
+			name:       "returns 401 when clinic_id missing",
+			paramID:    "8",
+			setupCtx:   func(_ *gin.Context) {},
+			svc:        &mockClinicalPlanService{},
+			wantStatus: http.StatusUnauthorized,
+		},
+		{
+			name:       "returns 400 when id param is invalid",
+			paramID:    "abc",
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockClinicalPlanService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:     "returns 500 on service error",
+			paramID:  "8",
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockClinicalPlanService{
+				getOrCreateFn: func(_ context.Context, _, _ uint64) (*model.ClinicalPlan, error) {
+					return nil, fmt.Errorf("db failure")
+				},
+			},
+			wantStatus: http.StatusInternalServerError,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := newHandlerWithClinicalPlanSvc(tt.svc)
+
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			c.Request = httptest.NewRequest(http.MethodGet, "/medical-records/"+tt.paramID+"/clinical-plan", http.NoBody)
+			c.Params = gin.Params{{Key: "id", Value: tt.paramID}}
+			tt.setupCtx(c)
+
+			h.GetClinicalPlan(c)
+
+			assert.Equal(t, tt.wantStatus, w.Code)
+			if tt.wantBody != "" {
+				assert.Contains(t, w.Body.String(), tt.wantBody)
+			}
+		})
+	}
+}
+
+// ---- UpdateClinicalPlan ----
+
+func TestUpdateClinicalPlan(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	physicalExam := "軽度の発熱"
+	validBody := updateClinicalPlanRequest{PhysicalExam: &physicalExam}
+
+	tests := []struct {
+		name       string
+		paramID    string
+		body       any
+		malformed  bool
+		setupCtx   func(c *gin.Context)
+		svc        *mockClinicalPlanService
+		wantStatus int
+		wantBody   string
+	}{
+		{
+			name:     "returns 200 when updated successfully",
+			paramID:  "8",
+			body:     validBody,
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockClinicalPlanService{
+				updateFn: func(_ context.Context, clinicID, medicalRecordID uint64, input *service.UpdateClinicalPlanInput) (*model.ClinicalPlan, error) {
+					assert.Equal(t, uint64(1), clinicID)
+					assert.Equal(t, uint64(8), medicalRecordID)
+					require.NotNil(t, input.PhysicalExam)
+					assert.Equal(t, physicalExam, *input.PhysicalExam)
+					return &model.ClinicalPlan{ID: 1, MedicalRecordID: 8, PhysicalExam: physicalExam}, nil
+				},
+			},
+			wantStatus: http.StatusOK,
+			wantBody:   `"physical_exam":"軽度の発熱"`,
+		},
+		{
+			name:       "returns 401 when clinic_id missing",
+			paramID:    "8",
+			body:       validBody,
+			setupCtx:   func(_ *gin.Context) {},
+			svc:        &mockClinicalPlanService{},
+			wantStatus: http.StatusUnauthorized,
+		},
+		{
+			name:       "returns 400 when id param is invalid",
+			paramID:    "abc",
+			body:       validBody,
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockClinicalPlanService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:       "returns 400 when body is malformed",
+			paramID:    "8",
+			malformed:  true,
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockClinicalPlanService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:     "returns 500 on service error",
+			paramID:  "8",
+			body:     validBody,
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockClinicalPlanService{
+				updateFn: func(_ context.Context, _, _ uint64, _ *service.UpdateClinicalPlanInput) (*model.ClinicalPlan, error) {
+					return nil, apperrors.WrapConflict("diagnosis type not found")
+				},
+			},
+			wantStatus: http.StatusConflict,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := newHandlerWithClinicalPlanSvc(tt.svc)
+
+			bodyBytes := []byte("{invalid")
+			if !tt.malformed {
+				b, err := json.Marshal(tt.body)
+				require.NoError(t, err)
+				bodyBytes = b
+			}
+
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			c.Request = httptest.NewRequest(http.MethodPatch, "/medical-records/"+tt.paramID+"/clinical-plan", bytes.NewReader(bodyBytes))
+			c.Request.Header.Set("Content-Type", "application/json")
+			c.Params = gin.Params{{Key: "id", Value: tt.paramID}}
+			tt.setupCtx(c)
+
+			h.UpdateClinicalPlan(c)
+
+			assert.Equal(t, tt.wantStatus, w.Code)
+			if tt.wantBody != "" {
+				assert.Contains(t, w.Body.String(), tt.wantBody)
+			}
+		})
+	}
+}
+
+// ---- DeleteClinicalPlan ----
+
+func TestDeleteClinicalPlan(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	tests := []struct {
+		name       string
+		paramID    string
+		setupCtx   func(c *gin.Context)
+		svc        *mockClinicalPlanService
+		wantStatus int
+	}{
+		{
+			name:     "returns 204 when deleted successfully",
+			paramID:  "8",
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockClinicalPlanService{
+				deleteFn: func(_ context.Context, clinicID, medicalRecordID uint64) error {
+					assert.Equal(t, uint64(1), clinicID)
+					assert.Equal(t, uint64(8), medicalRecordID)
+					return nil
+				},
+			},
+			wantStatus: http.StatusNoContent,
+		},
+		{
+			name:       "returns 401 when clinic_id missing",
+			paramID:    "8",
+			setupCtx:   func(_ *gin.Context) {},
+			svc:        &mockClinicalPlanService{},
+			wantStatus: http.StatusUnauthorized,
+		},
+		{
+			name:       "returns 400 when id param is invalid",
+			paramID:    "abc",
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockClinicalPlanService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:     "returns 500 on service error",
+			paramID:  "8",
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockClinicalPlanService{
+				deleteFn: func(_ context.Context, _, _ uint64) error {
+					return fmt.Errorf("db failure")
+				},
+			},
+			wantStatus: http.StatusInternalServerError,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := newHandlerWithClinicalPlanSvc(tt.svc)
+
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			c.Request = httptest.NewRequest(http.MethodDelete, "/medical-records/"+tt.paramID+"/clinical-plan", http.NoBody)
+			c.Params = gin.Params{{Key: "id", Value: tt.paramID}}
+			tt.setupCtx(c)
+
+			h.DeleteClinicalPlan(c)
+			c.Writer.WriteHeaderNow() // flush a bare c.Status() (no body) to the recorder
+
+			assert.Equal(t, tt.wantStatus, w.Code)
+		})
+	}
+}

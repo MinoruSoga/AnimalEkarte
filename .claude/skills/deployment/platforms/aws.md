@@ -1,105 +1,116 @@
-# AWS デプロイメントガイド
+# AWS デプロイメントガイド（AnimalEkarte 実態）
 
-## 対応サービス
+> このプロジェクトの AWS デプロイは **GitHub Actions ワークフロー**（`.github/workflows/backend-deploy.yml`）が実行する。
+> CodePipeline / CodeBuild は使用していない。手動での `aws` CLI 操作は調査・障害対応目的に限定する。
+
+## 使用サービス
 
 | サービス | 用途 |
 |---------|------|
-| EC2 | 仮想サーバー |
-| ECS/Fargate | コンテナ |
-| Lambda | サーバーレス |
-| RDS | データベース |
-| S3 | 静的ファイル |
-| CloudFront | CDN |
+| ECS/Fargate | バックエンド API コンテナ実行 |
+| ECR | Docker イメージレジストリ |
+| RDS (PostgreSQL) | データベース（ステージング: `animalekarte-stg-db`） |
+| CloudWatch Logs | ログ確認（ロググループ `/ecs/animalekarte-stg`） |
 
-## デプロイフロー
+フロントエンドは AWS ではなく **Vercel** にデプロイされる（`.github/workflows/frontend-deploy.yml` 参照）。本ファイルはバックエンド（ECS）のみを対象とする。
+
+## デプロイフロー（実態）
 
 ```
-Local → GitHub → CodePipeline → CodeBuild → ECS/EC2
+git push (staging ブランチ, backend/** 変更)
+  → GitHub Actions (backend-deploy.yml)
+    → OIDC で AWS 認証 (aws-actions/configure-aws-credentials, role-to-assume)
+    → ECR ログイン・Docker イメージビルド & push
+    → RDS 停止状態なら起動 (preflight)
+    → .env.staging → ECS タスク定義の environment に変換
+    → migrate タスク定義を登録し ECS RunTask でマイグレーション実行・完了待ち
+    → ECS service の desiredCount を確認（0 なら 1 に戻す）
+    → amazon-ecs-deploy-task-definition で API タスク定義を更新・デプロイ
+    → runningCount を検証
+  → (時間外デプロイの場合) 30分後に ECS desiredCount=0 / RDS 停止
 ```
 
-## 環境設定
+## 認証（OIDC・キー不要）
 
-### AWS CLI 設定
+`aws configure` や `AWS_ACCESS_KEY_ID` は使用しない。GitHub Actions の OIDC + IAM ロールで認証する。
+
+```yaml
+permissions:
+  id-token: write
+  contents: read
+
+- uses: aws-actions/configure-aws-credentials@v6.1.0
+  with:
+    role-to-assume: arn:aws:iam::698109622668:role/animalekarte-stg-github-ecs-deploy-role
+    aws-region: us-east-1
+```
+
+## デプロイ方法
+
+デプロイは **GitHub Actions で自動実行**。手動での `aws ecs update-service` によるデプロイは行わない。
 
 ```bash
-# 認証情報設定
-aws configure
+# ステージング: staging ブランチへの push で backend/** 変更時に自動デプロイ
+git push origin staging
 
-# プロファイル確認
-aws sts get-caller-identity
+# 手動トリガー（DB リセットが必要な場合など）
+# GitHub Actions → backend-deploy.yml → Run workflow → db_reset: true/false
+
+# CI ステータス確認
+gh run list --workflow=backend-deploy.yml
+gh run watch
 ```
 
-### 必要な環境変数
+## 主要ステップの内訳
+
+### 1. イメージビルド & ECR push
 
 ```bash
-AWS_ACCESS_KEY_ID=xxx
-AWS_SECRET_ACCESS_KEY=xxx
-AWS_REGION=ap-northeast-1
+docker buildx build --platform linux/amd64 \
+  -f backend/Dockerfile.production \
+  -t <ECR_REGISTRY>/animalekarte-api:$GITHUB_SHA \
+  -t <ECR_REGISTRY>/animalekarte-api:latest \
+  --push ./backend
 ```
 
-## ECS デプロイ
+### 2. マイグレーション（デプロイ前必須）
 
-### タスク定義
+`animalekarte-stg-migrate` タスク定義を ECS RunTask (Fargate) で実行し、`STOPPED` になるまでポーリング。`exitCode != 0` は即座にログを取得して fail。
 
-```json
-{
-  "family": "app-task",
-  "containerDefinitions": [
-    {
-      "name": "app",
-      "image": "xxx.dkr.ecr.ap-northeast-1.amazonaws.com/app:latest",
-      "portMappings": [
-        { "containerPort": 3000 }
-      ],
-      "environment": [
-        { "name": "NODE_ENV", "value": "production" }
-      ]
-    }
-  ]
-}
-```
+### 3. API デプロイ
 
-### デプロイコマンド
-
-```bash
-# ECR にイメージプッシュ
-aws ecr get-login-password | docker login --username AWS --password-stdin xxx.dkr.ecr.ap-northeast-1.amazonaws.com
-docker build -t app .
-docker tag app:latest xxx.dkr.ecr.ap-northeast-1.amazonaws.com/app:latest
-docker push xxx.dkr.ecr.ap-northeast-1.amazonaws.com/app:latest
-
-# ECS サービス更新
-aws ecs update-service --cluster my-cluster --service my-service --force-new-deployment
-```
-
-## RDS 設定
-
-### 接続文字列
-
-```
-postgresql://user:password@xxx.ap-northeast-1.rds.amazonaws.com:5432/dbname
-```
-
-### セキュリティグループ
-
-- ECS タスクからのインバウンド許可（ポート 5432）
-- VPC 内部のみアクセス可能に設定
+`aws-actions/amazon-ecs-deploy-task-definition` で `animalekarte-stg-service` を更新。`wait-for-service-stability: true` でロールアウト完了を待機。
 
 ## ロールバック
 
 ```bash
-# 前のタスク定義に戻す
-aws ecs update-service --cluster my-cluster --service my-service --task-definition app-task:123
+# 直前のタスク定義リビジョンに戻す
+aws ecs update-service --cluster animalekarte-stg-cluster \
+  --service animalekarte-stg-service \
+  --task-definition animalekarte-stg-api:<直前のリビジョン番号>
 ```
 
 ## モニタリング
 
-- CloudWatch Logs でログ確認
-- CloudWatch Metrics でメトリクス監視
-- X-Ray でトレーシング
+```bash
+# マイグレーション/API ログ確認
+aws logs get-log-events \
+  --log-group-name /ecs/animalekarte-stg \
+  --log-stream-name <stream-name>
 
-## コスト最適化
+# サービス状態確認
+aws ecs describe-services \
+  --cluster animalekarte-stg-cluster \
+  --services animalekarte-stg-service \
+  --query 'services[0].{status:status,runningCount:runningCount,desiredCount:desiredCount}'
+```
 
-- Fargate Spot の活用
-- Auto Scaling の設定
-- Reserved Instances の検討
+## ステージングのコスト最適化（実装済み）
+
+- 営業時間外 (JST 08:00-22:00 の外) にデプロイした場合、デプロイ完了 30 分後に ECS `desiredCount=0` / RDS 停止を自動実行（`backend-deploy.yml` の `delayed-stop` job）。
+- デプロイ時に RDS が停止していれば自動起動（`rds-preflight` step）。
+
+## 注意事項
+
+- 本番環境への直接 push は禁止（`main` → `staging` は PR 経由、`production` への直接 push 禁止は `.claude/CLAUDE.md` 参照）。
+- `.env.staging` の内容がそのまま ECS タスク定義の `environment` に展開されるため、秘密情報を平文で置かない（Secrets Manager 未導入は既知の技術的負債）。

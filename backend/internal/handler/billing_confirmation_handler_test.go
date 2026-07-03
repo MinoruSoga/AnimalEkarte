@@ -1,140 +1,334 @@
 package handler
 
 import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 
+	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	apperrors "github.com/animal-ekarte/backend/internal/errors"
+	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/service"
 )
 
-// TestBillingConfirmationHandlerCompiles verifies billing_confirmation_handler.go compiles
-func TestBillingConfirmationHandlerCompiles(t *testing.T) {
-	assert.True(t, true, "billing_confirmation_handler.go compiled successfully")
+// ---- mock BillingConfirmationService ----
+
+type mockBillingConfirmationService struct {
+	getOrCreateFn func(ctx context.Context, clinicID, medicalRecordID uint64) (*model.BillingConfirmation, error)
+	confirmFn     func(ctx context.Context, clinicID, medicalRecordID uint64, input *service.ConfirmBillingConfirmationInput) (*model.BillingConfirmation, error)
+	returnFn      func(ctx context.Context, clinicID, medicalRecordID uint64, input *service.ReturnBillingConfirmationInput) (*model.BillingConfirmation, error)
 }
 
-// ---- Comprehensive Test Coverage Documentation ----
-//
-// Billing Confirmation Handler Test Cases
-// This handler manages doctor confirmation workflow for medical billing (Section 6: 会計管理 - confirmation)
-// BillingConfirmation: nested resource under medical_records with status transitions
-//
-// CRITICAL ENDPOINTS (nested under /medical-records/:id/billing-confirmation):
-//
-// 1. GetBillingConfirmation (GET /medical-records/:id/billing-confirmation)
-//    Test Cases (10 scenarios):
-//    ✓ Returns 200 OK with billing confirmation record (GetOrCreate pattern)
-//    ✓ Returns 401 when clinic_id missing from context
-//    ✓ Returns 400 when medical_record id is non-numeric or invalid format
-//    ✓ Returns 404 when medical record doesn't exist
-//    ✓ Returns 403 when medical record belongs to different clinic (tenant isolation)
-//    ✓ Auto-creates BillingConfirmation if not exists (GetOrCreate semantics)
-//    ✓ Auto-created confirmation: status=pending, confirmed_by=NULL, returned_by=NULL
-//    ✓ Response includes complete confirmation data with status and staff references
-//    ✓ Uses toBillingConfirmationResponse() transformation for response
-//    ✓ Returns 500 on database error
-//
-// 2. ConfirmBillingConfirmation (POST /medical-records/:id/billing-confirmation/confirm)
-//    Test Cases (15 scenarios):
-//    ✓ Returns 200 OK when billing confirmed successfully (status: pending → confirmed)
-//    ✓ Returns 400 when required field missing (confirmed_by)
-//    ✓ Returns 400 when JSON body is malformed
-//    ✓ Returns 401 when clinic_id missing from context
-//    ✓ Returns 400 when medical_record id is non-numeric or invalid format
-//    ✓ Returns 404 when medical record doesn't exist
-//    ✓ Returns 403 when medical record belongs to different clinic
-//    ✓ Requires ResourceAccounting edit permission (checked via middleware)
-//    ✓ ConfirmedBy field: required, staff ID of confirming doctor
-//    ✓ Memo field: optional text for confirmation notes
-//    ✓ Status transition validation: pending → confirmed (rejects if already confirmed/returned)
-//    ✓ confirmed_at timestamp: set to current time
-//    ✓ Response includes updated confirmation with new status
-//    ✓ Uses toBillingConfirmationResponse() transformation
-//    ✓ Returns 500 on database error
-//
-// 3. ReturnBillingConfirmation (POST /medical-records/:id/billing-confirmation/return)
-//    Test Cases (15 scenarios):
-//    ✓ Returns 200 OK when billing returned successfully (status: confirmed → returned)
-//    ✓ Returns 400 when required field missing (returned_by)
-//    ✓ Returns 400 when JSON body is malformed
-//    ✓ Returns 401 when clinic_id missing from context
-//    ✓ Returns 400 when medical_record id is non-numeric or invalid format
-//    ✓ Returns 404 when medical record doesn't exist
-//    ✓ Returns 403 when medical record belongs to different clinic
-//    ✓ Requires ResourceAccounting edit permission (checked via middleware)
-//    ✓ ReturnedBy field: required, staff ID of person returning confirmation
-//    ✓ ReturnReason field: required text (reason for return, e.g., "診療内容誤り", "金額確認必要")
-//    ✓ Memo field: optional text for additional notes
-//    ✓ Status transition validation: confirmed → returned (rejects if not confirmed)
-//    ✓ returned_at timestamp: set to current time
-//    ✓ Response includes updated confirmation with new status
-//    ✓ Uses toBillingConfirmationResponse() transformation
-//    ✓ Returns 500 on database error
-//
-// SECURITY & MULTITENANCY:
-//    ✓ Clinic-based access control (clinic_id verification on all endpoints)
-//    ✓ RBAC: ResourceAccounting edit permission (Confirm/Return require permission)
-//    ✓ GetOrCreate: automatic creation prevents missing confirmation records
-//    ✓ Status workflow prevents invalid transitions (pending → confirmed/returned, confirmed → returned only)
-//    ✓ Soft delete: medical_record soft delete should cascade or block confirmation updates
-//
-// DATA USES:
-//    ✓ BillingConfirmation linked 1:1 to medical_records via medical_record_id FK
-//    ✓ Status workflow: pending (initial) → confirmed (doctor approved) → returned (doc rejected)
-//    ✓ Confirmation required before billing can be finalized
-//    ✓ Staff references (confirmed_by, returned_by) for audit trail
-//    ✓ Timestamps (confirmed_at, returned_at) for workflow tracking
-//
-// DATA MODEL (billing_confirmations):
-//    - id (PK): BIGSERIAL
-//    - clinic_id: BIGINT NOT NULL (multitenancy)
-//    - medical_record_id: BIGINT NOT NULL, UNIQUE (FK → medical_records) - 1:1 relationship
-//    - status: VARCHAR(50) NOT NULL DEFAULT 'pending' - ENUM (pending, confirmed, returned)
-//    - confirmed_by: BIGINT (NULLABLE, FK → staffs) - doctor who confirmed
-//    - confirmed_at: TIMESTAMP (NULLABLE) - confirmation timestamp
-//    - confirmation_memo: TEXT (NULLABLE) - confirmation notes
-//    - returned_by: BIGINT (NULLABLE, FK → staffs) - doctor who returned
-//    - returned_at: TIMESTAMP (NULLABLE) - return timestamp
-//    - return_reason: VARCHAR(255) (NULLABLE) - reason for return
-//    - return_memo: TEXT (NULLABLE) - return notes
-//    - created_at: TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-//    - updated_at: TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-//    - Indexes: (clinic_id, medical_record_id), (clinic_id, status), (confirmed_by), (returned_by)
-//    - Unique constraint: (clinic_id, medical_record_id)
-//
-// IMPLEMENTATION NOTES:
-//    - Nested resource: always accessed via medical_record_id parent, not standalone list/create
-//    - GetOrCreate pattern: automatic initialization prevents missing records
-//    - Status workflow: 3-state machine (pending → confirmed → returned)
-//    - Confirm endpoint: transitions pending → confirmed (rejects if already confirmed/returned)
-//    - Return endpoint: transitions confirmed → returned (rejects if not confirmed)
-//    - Idempotency: Confirm/Return should reject if already in target state (application rule)
-//    - Staff references: confirmed_by and returned_by are doctor IDs (audit trail)
-//    - Timestamps: confirmed_at and returned_at capture when transitions occurred
-//    - Memo fields: separate memo for confirm and return (confirmation_memo, return_memo)
-//    - Medical record isolation: billing confirmation scoped to medical record's clinic
-//    - Transformations: toBillingConfirmationResponse()
-//    - RBAC: ResourceAccounting edit permission required for Confirm/Return
-//    - Get endpoint: NO permission check (info-only, confirmation status publicly readable within clinic)
-//
-// TESTING STRATEGY:
-//    Use integration tests with:
-//    - Test database fixtures with sample medical_records, staffs
-//    - Real service/repository layers
-//    - Verify clinic_id scoping (no cross-clinic confirmation access)
-//    - Test GetBillingConfirmation creates confirmation if missing (GetOrCreate)
-//    - Test GetBillingConfirmation returns existing if present
-//    - Test ConfirmBillingConfirmation with all required fields
-//    - Test ConfirmBillingConfirmation status transition (pending → confirmed)
-//    - Test ConfirmBillingConfirmation rejects if already confirmed
-//    - Test ConfirmBillingConfirmation rejects if already returned
-//    - Test ReturnBillingConfirmation with all required fields
-//    - Test ReturnBillingConfirmation status transition (confirmed → returned)
-//    - Test ReturnBillingConfirmation rejects if not confirmed (still pending)
-//    - Test ReturnBillingConfirmation rejects if already returned
-//    - Test confirmed_by/returned_by FK validation
-//    - Test timestamps (confirmed_at, returned_at) set correctly
-//    - Test response transformation (toBillingConfirmationResponse)
-//    - Test permission checks (ResourceAccounting edit on Confirm/Return)
-//    - Test no permission required on Get
-//    - Test soft delete: medical_record deletion blocks confirmation updates
-//    - Verify clinic_id parameter on all endpoints
-//
+func (m *mockBillingConfirmationService) GetOrCreate(ctx context.Context, clinicID, medicalRecordID uint64) (*model.BillingConfirmation, error) {
+	return m.getOrCreateFn(ctx, clinicID, medicalRecordID)
+}
+
+func (m *mockBillingConfirmationService) Confirm(ctx context.Context, clinicID, medicalRecordID uint64, input *service.ConfirmBillingConfirmationInput) (*model.BillingConfirmation, error) {
+	return m.confirmFn(ctx, clinicID, medicalRecordID, input)
+}
+
+func (m *mockBillingConfirmationService) Return(ctx context.Context, clinicID, medicalRecordID uint64, input *service.ReturnBillingConfirmationInput) (*model.BillingConfirmation, error) {
+	return m.returnFn(ctx, clinicID, medicalRecordID, input)
+}
+
+// ---- test helper ----
+
+func newHandlerWithBillingConfirmationSvc(svc service.BillingConfirmationService) *Handler {
+	return &Handler{svc: &service.Services{BillingConfirmation: svc}}
+}
+
+// ---- GetBillingConfirmation ----
+
+func TestGetBillingConfirmation(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	tests := []struct {
+		name       string
+		paramID    string
+		setupCtx   func(c *gin.Context)
+		svc        *mockBillingConfirmationService
+		wantStatus int
+		wantBody   string
+	}{
+		{
+			name:     "returns 200 with billing confirmation",
+			paramID:  "5",
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockBillingConfirmationService{
+				getOrCreateFn: func(_ context.Context, clinicID, medicalRecordID uint64) (*model.BillingConfirmation, error) {
+					assert.Equal(t, uint64(1), clinicID)
+					assert.Equal(t, uint64(5), medicalRecordID)
+					return &model.BillingConfirmation{ID: 1, MedicalRecordID: 5, Status: model.ConfirmationStatusPending}, nil
+				},
+			},
+			wantStatus: http.StatusOK,
+			wantBody:   `"status":"pending"`,
+		},
+		{
+			name:       "returns 401 when clinic_id missing",
+			paramID:    "5",
+			setupCtx:   func(_ *gin.Context) {},
+			svc:        &mockBillingConfirmationService{},
+			wantStatus: http.StatusUnauthorized,
+		},
+		{
+			name:       "returns 400 when id param is invalid",
+			paramID:    "abc",
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockBillingConfirmationService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:     "returns 500 on service error",
+			paramID:  "5",
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockBillingConfirmationService{
+				getOrCreateFn: func(_ context.Context, _, _ uint64) (*model.BillingConfirmation, error) {
+					return nil, fmt.Errorf("db failure")
+				},
+			},
+			wantStatus: http.StatusInternalServerError,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := newHandlerWithBillingConfirmationSvc(tt.svc)
+
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			c.Request = httptest.NewRequest(http.MethodGet, "/medical-records/"+tt.paramID+"/billing-confirmation", http.NoBody)
+			c.Params = gin.Params{{Key: "id", Value: tt.paramID}}
+			tt.setupCtx(c)
+
+			h.GetBillingConfirmation(c)
+
+			assert.Equal(t, tt.wantStatus, w.Code)
+			if tt.wantBody != "" {
+				assert.Contains(t, w.Body.String(), tt.wantBody)
+			}
+		})
+	}
+}
+
+// ---- ConfirmBillingConfirmation ----
+
+func TestConfirmBillingConfirmation(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	validBody := confirmBillingConfirmationRequest{ConfirmedBy: 3, Memo: "確認済み"}
+
+	tests := []struct {
+		name       string
+		paramID    string
+		body       any
+		malformed  bool
+		setupCtx   func(c *gin.Context)
+		svc        *mockBillingConfirmationService
+		wantStatus int
+		wantBody   string
+	}{
+		{
+			name:     "returns 200 when confirmed successfully",
+			paramID:  "5",
+			body:     validBody,
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockBillingConfirmationService{
+				confirmFn: func(_ context.Context, clinicID, medicalRecordID uint64, input *service.ConfirmBillingConfirmationInput) (*model.BillingConfirmation, error) {
+					assert.Equal(t, uint64(1), clinicID)
+					assert.Equal(t, uint64(5), medicalRecordID)
+					assert.Equal(t, uint64(3), input.ConfirmedBy)
+					return &model.BillingConfirmation{ID: 1, MedicalRecordID: 5, Status: model.ConfirmationStatusConfirmed}, nil
+				},
+			},
+			wantStatus: http.StatusOK,
+			wantBody:   `"status":"confirmed"`,
+		},
+		{
+			name:       "returns 401 when clinic_id missing",
+			paramID:    "5",
+			body:       validBody,
+			setupCtx:   func(_ *gin.Context) {},
+			svc:        &mockBillingConfirmationService{},
+			wantStatus: http.StatusUnauthorized,
+		},
+		{
+			name:       "returns 400 when id param is invalid",
+			paramID:    "abc",
+			body:       validBody,
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockBillingConfirmationService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:       "returns 400 when body is malformed",
+			paramID:    "5",
+			malformed:  true,
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockBillingConfirmationService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:       "returns 400 when confirmed_by is missing",
+			paramID:    "5",
+			body:       confirmBillingConfirmationRequest{Memo: "x"},
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockBillingConfirmationService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:     "returns 500 on service error",
+			paramID:  "5",
+			body:     validBody,
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockBillingConfirmationService{
+				confirmFn: func(_ context.Context, _, _ uint64, _ *service.ConfirmBillingConfirmationInput) (*model.BillingConfirmation, error) {
+					return nil, apperrors.WrapConflict("already confirmed")
+				},
+			},
+			wantStatus: http.StatusConflict,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := newHandlerWithBillingConfirmationSvc(tt.svc)
+
+			bodyBytes := []byte("{invalid")
+			if !tt.malformed {
+				b, err := json.Marshal(tt.body)
+				require.NoError(t, err)
+				bodyBytes = b
+			}
+
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			c.Request = httptest.NewRequest(http.MethodPost, "/medical-records/"+tt.paramID+"/billing-confirmation/confirm", bytes.NewReader(bodyBytes))
+			c.Request.Header.Set("Content-Type", "application/json")
+			c.Params = gin.Params{{Key: "id", Value: tt.paramID}}
+			tt.setupCtx(c)
+
+			h.ConfirmBillingConfirmation(c)
+
+			assert.Equal(t, tt.wantStatus, w.Code)
+			if tt.wantBody != "" {
+				assert.Contains(t, w.Body.String(), tt.wantBody)
+			}
+		})
+	}
+}
+
+// ---- ReturnBillingConfirmation ----
+
+func TestReturnBillingConfirmation(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	validBody := returnBillingConfirmationRequest{ReturnedBy: 3, ReturnReason: "金額確認必要", Memo: ""}
+
+	tests := []struct {
+		name       string
+		paramID    string
+		body       any
+		malformed  bool
+		setupCtx   func(c *gin.Context)
+		svc        *mockBillingConfirmationService
+		wantStatus int
+		wantBody   string
+	}{
+		{
+			name:     "returns 200 when returned successfully",
+			paramID:  "5",
+			body:     validBody,
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockBillingConfirmationService{
+				returnFn: func(_ context.Context, clinicID, medicalRecordID uint64, input *service.ReturnBillingConfirmationInput) (*model.BillingConfirmation, error) {
+					assert.Equal(t, uint64(1), clinicID)
+					assert.Equal(t, uint64(5), medicalRecordID)
+					assert.Equal(t, uint64(3), input.ReturnedBy)
+					assert.Equal(t, "金額確認必要", input.ReturnReason)
+					return &model.BillingConfirmation{ID: 1, MedicalRecordID: 5, Status: model.ConfirmationStatusReturned}, nil
+				},
+			},
+			wantStatus: http.StatusOK,
+			wantBody:   `"status":"returned"`,
+		},
+		{
+			name:       "returns 401 when clinic_id missing",
+			paramID:    "5",
+			body:       validBody,
+			setupCtx:   func(_ *gin.Context) {},
+			svc:        &mockBillingConfirmationService{},
+			wantStatus: http.StatusUnauthorized,
+		},
+		{
+			name:       "returns 400 when id param is invalid",
+			paramID:    "abc",
+			body:       validBody,
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockBillingConfirmationService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:       "returns 400 when body is malformed",
+			paramID:    "5",
+			malformed:  true,
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockBillingConfirmationService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:       "returns 400 when returned_by is missing",
+			paramID:    "5",
+			body:       returnBillingConfirmationRequest{ReturnReason: "reason"},
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockBillingConfirmationService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:     "returns 500 on service error",
+			paramID:  "5",
+			body:     validBody,
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockBillingConfirmationService{
+				returnFn: func(_ context.Context, _, _ uint64, _ *service.ReturnBillingConfirmationInput) (*model.BillingConfirmation, error) {
+					return nil, fmt.Errorf("db failure")
+				},
+			},
+			wantStatus: http.StatusInternalServerError,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := newHandlerWithBillingConfirmationSvc(tt.svc)
+
+			bodyBytes := []byte("{invalid")
+			if !tt.malformed {
+				b, err := json.Marshal(tt.body)
+				require.NoError(t, err)
+				bodyBytes = b
+			}
+
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			c.Request = httptest.NewRequest(http.MethodPost, "/medical-records/"+tt.paramID+"/billing-confirmation/return", bytes.NewReader(bodyBytes))
+			c.Request.Header.Set("Content-Type", "application/json")
+			c.Params = gin.Params{{Key: "id", Value: tt.paramID}}
+			tt.setupCtx(c)
+
+			h.ReturnBillingConfirmation(c)
+
+			assert.Equal(t, tt.wantStatus, w.Code)
+			if tt.wantBody != "" {
+				assert.Contains(t, w.Body.String(), tt.wantBody)
+			}
+		})
+	}
+}

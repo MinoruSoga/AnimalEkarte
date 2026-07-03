@@ -377,6 +377,14 @@ func TestUpdateDiagnosisType(t *testing.T) {
 			wantStatus: http.StatusBadRequest,
 		},
 		{
+			name:       "returns 400 for invalid JSON",
+			paramID:    "1",
+			body:       "not-json",
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			typeSvc:    &mockDiagnosisTypeService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
 			name:     "returns 404 when not found",
 			paramID:  "999",
 			body:     map[string]any{"name": "テスト"},
@@ -532,6 +540,30 @@ func TestReorderDiagnosisTypes(t *testing.T) {
 		c.Request.Header.Set("Content-Type", "application/json")
 		h.ReorderDiagnosisTypes(c)
 		assert.Equal(t, http.StatusUnauthorized, w.Code)
+	})
+
+	t.Run("returns 400 for invalid JSON", func(t *testing.T) {
+		router := newReorderDiagnosisTypesRouter(&mockDiagnosisTypeService{})
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodPut, "/diagnosis-types/reorder", bytes.NewReader([]byte(`{invalid}`)))
+		req.Header.Set("Content-Type", "application/json")
+		router.ServeHTTP(w, req)
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+	})
+
+	t.Run("returns 500 on service error", func(t *testing.T) {
+		typeSvc := &mockDiagnosisTypeService{
+			reorderFn: func(_ context.Context, _ uint64, _ []uint64) error {
+				return fmt.Errorf("db failure")
+			},
+		}
+		router := newReorderDiagnosisTypesRouter(typeSvc)
+		body, _ := json.Marshal(map[string]any{"ids": []int{1, 2}})
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodPut, "/diagnosis-types/reorder", bytes.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		router.ServeHTTP(w, req)
+		assert.Equal(t, http.StatusInternalServerError, w.Code)
 	})
 }
 
@@ -835,6 +867,14 @@ func TestUpdateDiagnosisName(t *testing.T) {
 			wantStatus: http.StatusBadRequest,
 		},
 		{
+			name:       "returns 400 for invalid JSON",
+			paramID:    "1",
+			body:       "not-json",
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			nameSvc:    &mockDiagnosisNameService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
 			name:     "returns 404 when not found",
 			paramID:  "999",
 			body:     map[string]any{"name": "テスト"},
@@ -991,4 +1031,115 @@ func TestReorderDiagnosisNames(t *testing.T) {
 		h.ReorderDiagnosisNames(c)
 		assert.Equal(t, http.StatusUnauthorized, w.Code)
 	})
+
+	t.Run("returns 400 for invalid JSON", func(t *testing.T) {
+		router := newReorderDiagnosisNamesRouter(&mockDiagnosisNameService{})
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodPut, "/diagnosis-names/reorder", bytes.NewReader([]byte(`{invalid}`)))
+		req.Header.Set("Content-Type", "application/json")
+		router.ServeHTTP(w, req)
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+	})
+
+	t.Run("returns 500 on service error", func(t *testing.T) {
+		nameSvc := &mockDiagnosisNameService{
+			reorderFn: func(_ context.Context, _ uint64, _ []uint64) error {
+				return fmt.Errorf("db failure")
+			},
+		}
+		router := newReorderDiagnosisNamesRouter(nameSvc)
+		body, _ := json.Marshal(map[string]any{"ids": []int{1, 2}})
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodPut, "/diagnosis-names/reorder", bytes.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		router.ServeHTTP(w, req)
+		assert.Equal(t, http.StatusInternalServerError, w.Code)
+	})
+}
+
+// ---- ListDiagnosisNamesAll ----
+
+func TestListDiagnosisNamesAll(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	tests := []struct {
+		name       string
+		query      string
+		setupCtx   func(c *gin.Context)
+		nameSvc    *mockDiagnosisNameService
+		wantStatus int
+		wantBody   string
+	}{
+		{
+			name:     "returns all diagnosis names without pagination",
+			query:    "",
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			nameSvc: &mockDiagnosisNameService{
+				listNamesFn: func(_ context.Context, clinicID uint64, typeID *uint64) ([]model.DiagnosisName, error) {
+					assert.Equal(t, uint64(1), clinicID)
+					assert.Nil(t, typeID)
+					return []model.DiagnosisName{{ID: 1, Name: "急性胃炎"}}, nil
+				},
+			},
+			wantStatus: http.StatusOK,
+			wantBody:   `"name":"急性胃炎"`,
+		},
+		{
+			name:     "filters by type_id when provided",
+			query:    "type_id=5",
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			nameSvc: &mockDiagnosisNameService{
+				listNamesFn: func(_ context.Context, _ uint64, typeID *uint64) ([]model.DiagnosisName, error) {
+					require.NotNil(t, typeID)
+					assert.Equal(t, uint64(5), *typeID)
+					return []model.DiagnosisName{{ID: 2, Name: "慢性胃炎"}}, nil
+				},
+			},
+			wantStatus: http.StatusOK,
+			wantBody:   `"name":"慢性胃炎"`,
+		},
+		{
+			name:       "returns 401 when clinic_id is missing",
+			query:      "",
+			setupCtx:   func(_ *gin.Context) {},
+			nameSvc:    &mockDiagnosisNameService{},
+			wantStatus: http.StatusUnauthorized,
+		},
+		{
+			name:       "returns 400 for malformed type_id",
+			query:      "type_id=abc",
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			nameSvc:    &mockDiagnosisNameService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:     "returns 500 on service error",
+			query:    "",
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			nameSvc: &mockDiagnosisNameService{
+				listNamesFn: func(_ context.Context, _ uint64, _ *uint64) ([]model.DiagnosisName, error) {
+					return nil, fmt.Errorf("db failure")
+				},
+			},
+			wantStatus: http.StatusInternalServerError,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := newHandlerWithDiagnosisSvc(&mockDiagnosisTypeService{}, tt.nameSvc)
+
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			c.Request = httptest.NewRequest(http.MethodGet, "/?"+tt.query, http.NoBody)
+			tt.setupCtx(c)
+
+			h.ListDiagnosisNamesAll(c)
+
+			assert.Equal(t, tt.wantStatus, w.Code)
+			if tt.wantBody != "" {
+				assert.Contains(t, w.Body.String(), tt.wantBody)
+			}
+		})
+	}
 }

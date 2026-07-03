@@ -46,3 +46,11 @@ description: コードレビュー支援。PRレビュー、コード品質チ�
 ## 確認事項
 - ...
 ```
+
+## 実績由来のレビュー原則
+
+1. **subagent / 静的解析の指摘は額面で信じず一次ソースで再検証**: 行単位 grep は誤マッチする（「11件」が実は20件、コメント直上に説明ドキュメントが既にあった等の実例）。指摘対象の実コードを読み、テスト・コンパイラで確認する
+   （出典: memory be_second_lens_audit_20260630 / be_refactor_systematic_20260630）
+2. **推測オーバー実装を指摘する**: 仕様外の条件分岐・production コードの test-only フィールド・依頼されていない自動リカバリ等は削除を求める
+   （出典: memory feedback_no_speculative_overengineering）
+3. 専門レビューは go-reviewer / typescript-reviewer / security-reviewer 等の専用エージェントに委譲し、本スキルは軽量セルフレビュー用と位置付ける

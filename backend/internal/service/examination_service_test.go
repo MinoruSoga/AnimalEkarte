@@ -76,9 +76,14 @@ func (m *mockExaminationRepository) FindByJobID(_ context.Context, _ uint64, _ u
 }
 
 // mockMedicalRecordRepositoryForExam は MedicalRecordRepository のテスト用 stub（全メソッド実装）
-type mockMedicalRecordRepositoryForExam struct{}
+type mockMedicalRecordRepositoryForExam struct {
+	findByIDFn func(ctx context.Context, clinicID, id uint64) (*model.MedicalRecord, error)
+}
 
 func (m *mockMedicalRecordRepositoryForExam) FindByID(ctx context.Context, clinicID, id uint64) (*model.MedicalRecord, error) {
+	if m.findByIDFn != nil {
+		return m.findByIDFn(ctx, clinicID, id)
+	}
 	return &model.MedicalRecord{Status: model.MedicalRecordStatusDraft}, nil
 }
 
@@ -114,7 +119,7 @@ func (m *mockMedicalRecordRepositoryForExam) CountByOwnerID(ctx context.Context,
 	return 0, nil
 }
 
-func (m *mockMedicalRecordRepositoryForExam) CountEstimatesByMedicalRecordID(ctx context.Context, medicalRecordID uint64) (int64, error) {
+func (m *mockMedicalRecordRepositoryForExam) CountEstimatesByMedicalRecordID(ctx context.Context, clinicID, medicalRecordID uint64) (int64, error) {
 	return 0, nil
 }
 
@@ -352,11 +357,14 @@ func TestExaminationService_GetByID(t *testing.T) {
 func TestExaminationService_Create(t *testing.T) {
 	now := time.Now()
 	tests := []struct {
-		name     string
-		clinicID uint64
-		input    *CreateExaminationInput
-		repoErr  error
-		wantErr  bool
+		name         string
+		clinicID     uint64
+		input        *CreateExaminationInput
+		repoErr      error
+		medRecErr    error
+		medRecStatus model.MedicalRecordStatus
+		examTypeErr  error
+		wantErr      bool
 	}{
 		{
 			name:     "creates exam successfully",
@@ -391,6 +399,38 @@ func TestExaminationService_Create(t *testing.T) {
 			repoErr: errors.New("db error"),
 			wantErr: true,
 		},
+		{
+			name:     "returns error when medical record lookup fails",
+			clinicID: 1,
+			input: &CreateExaminationInput{
+				MedicalRecordID: ptrUint64(5),
+				ExamTypeID:      1,
+				Date:            now,
+			},
+			medRecErr: errors.New("db error"),
+			wantErr:   true,
+		},
+		{
+			name:     "returns conflict when parent medical record is finalized",
+			clinicID: 1,
+			input: &CreateExaminationInput{
+				MedicalRecordID: ptrUint64(5),
+				ExamTypeID:      1,
+				Date:            now,
+			},
+			medRecStatus: model.MedicalRecordStatusFinalized,
+			wantErr:      true,
+		},
+		{
+			name:     "returns error when exam type ownership verification fails",
+			clinicID: 1,
+			input: &CreateExaminationInput{
+				ExamTypeID: 1,
+				Date:       now,
+			},
+			examTypeErr: errors.New("not found"),
+			wantErr:     true,
+		},
 	}
 
 	for _, tt := range tests {
@@ -400,7 +440,25 @@ func TestExaminationService_Create(t *testing.T) {
 					return tt.repoErr
 				},
 			}
-			svc := NewExaminationService(repo, &mockMedicalRecordRepositoryForExam{}, okExamTypeRepo(), nil)
+			medRec := &mockMedicalRecordRepositoryForExam{
+				findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
+					if tt.medRecErr != nil {
+						return nil, tt.medRecErr
+					}
+					status := tt.medRecStatus
+					if status == "" {
+						status = model.MedicalRecordStatusDraft
+					}
+					return &model.MedicalRecord{Status: status}, nil
+				},
+			}
+			examTypeRepo := okExamTypeRepo()
+			if tt.examTypeErr != nil {
+				examTypeRepo = &mockExamTypeRepository{findByIDFn: func(_ context.Context, _, _ uint64) (*model.ExaminationType, error) {
+					return nil, tt.examTypeErr
+				}}
+			}
+			svc := NewExaminationService(repo, medRec, examTypeRepo, nil)
 
 			exam, err := svc.Create(context.Background(), tt.clinicID, tt.input)
 
@@ -420,11 +478,17 @@ func TestExaminationService_Update(t *testing.T) {
 	statusCompleted := model.ExaminationStatusCompleted
 	resultSummary := "正常範囲内"
 	tests := []struct {
-		name    string
-		input   UpdateExaminationInput
-		repoErr error
-		wantErr bool
-		wantNF  bool
+		name             string
+		input            UpdateExaminationInput
+		repoErr          error
+		wantErr          bool
+		wantNF           bool
+		existingStatus   model.ExaminationStatus
+		existingMedRecID *uint64
+		medRecErr        error
+		medRecStatus     model.MedicalRecordStatus
+		examTypeErr      error
+		wantConflict     bool
 	}{
 		{
 			name: "updates exam successfully",
@@ -459,6 +523,48 @@ func TestExaminationService_Update(t *testing.T) {
 			repoErr: errors.New("db error"),
 			wantErr: true,
 		},
+		{
+			name: "rejects update when exam is already confirmed",
+			input: UpdateExaminationInput{
+				ResultSummary: &resultSummary,
+			},
+			existingStatus: model.ExaminationStatusConfirmed,
+			wantErr:        true,
+		},
+		{
+			name: "returns conflict when parent medical record is finalized",
+			input: UpdateExaminationInput{
+				ResultSummary: &resultSummary,
+			},
+			existingMedRecID: ptrUint64(5),
+			medRecStatus:     model.MedicalRecordStatusFinalized,
+			wantErr:          true,
+			wantConflict:     true,
+		},
+		{
+			name: "returns error when parent medical record lookup fails",
+			input: UpdateExaminationInput{
+				ResultSummary: &resultSummary,
+			},
+			existingMedRecID: ptrUint64(5),
+			medRecErr:        errors.New("db error"),
+			wantErr:          true,
+		},
+		{
+			name: "returns error when exam type ownership verification fails",
+			input: UpdateExaminationInput{
+				ExamTypeID: ptrUint64(9),
+			},
+			examTypeErr: errors.New("not found"),
+			wantErr:     true,
+		},
+		{
+			name: "succeeds when exam type ownership verification passes",
+			input: UpdateExaminationInput{
+				ExamTypeID: ptrUint64(9),
+			},
+			wantErr: false,
+		},
 	}
 
 	for _, tt := range tests {
@@ -468,7 +574,11 @@ func TestExaminationService_Update(t *testing.T) {
 					if tt.wantNF {
 						return nil, tt.repoErr
 					}
-					return &model.Examination{ID: 1, Status: model.ExaminationStatusPending}, nil
+					status := tt.existingStatus
+					if status == "" {
+						status = model.ExaminationStatusPending
+					}
+					return &model.Examination{ID: 1, Status: status, MedicalRecordID: tt.existingMedRecID}, nil
 				},
 				updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Examination, error) {
 					if tt.repoErr != nil {
@@ -477,7 +587,25 @@ func TestExaminationService_Update(t *testing.T) {
 					return &model.Examination{ID: 1}, nil
 				},
 			}
-			svc := NewExaminationService(repo, &mockMedicalRecordRepositoryForExam{}, okExamTypeRepo(), nil)
+			medRec := &mockMedicalRecordRepositoryForExam{
+				findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
+					if tt.medRecErr != nil {
+						return nil, tt.medRecErr
+					}
+					status := tt.medRecStatus
+					if status == "" {
+						status = model.MedicalRecordStatusDraft
+					}
+					return &model.MedicalRecord{Status: status}, nil
+				},
+			}
+			examTypeRepo := okExamTypeRepo()
+			if tt.examTypeErr != nil {
+				examTypeRepo = &mockExamTypeRepository{findByIDFn: func(_ context.Context, _, _ uint64) (*model.ExaminationType, error) {
+					return nil, tt.examTypeErr
+				}}
+			}
+			svc := NewExaminationService(repo, medRec, examTypeRepo, nil)
 
 			exam, err := svc.Update(context.Background(), 1, 1, tt.input)
 
@@ -486,6 +614,9 @@ func TestExaminationService_Update(t *testing.T) {
 				assert.Nil(t, exam)
 				if tt.wantNF {
 					assert.True(t, apperrors.IsNotFound(err))
+				}
+				if tt.wantConflict {
+					assert.True(t, apperrors.IsConflict(err))
 				}
 			} else {
 				assert.NoError(t, err)
@@ -506,6 +637,8 @@ func TestExaminationService_Delete(t *testing.T) {
 		wantErr      bool
 		wantNF       bool
 		wantConflict bool
+		medRecErr    error
+		medRecStatus model.MedicalRecordStatus
 	}{
 		{
 			name:         "deletes exam successfully when no items exist",
@@ -554,6 +687,21 @@ func TestExaminationService_Delete(t *testing.T) {
 			repoErr:      errors.New("db error"),
 			wantErr:      true,
 		},
+		{
+			name:         "returns conflict when parent medical record is finalized",
+			clinicID:     1,
+			id:           10,
+			medRecStatus: model.MedicalRecordStatusFinalized,
+			wantErr:      true,
+			wantConflict: true,
+		},
+		{
+			name:      "returns error when parent medical record lookup fails",
+			clinicID:  1,
+			id:        10,
+			medRecErr: errors.New("db error"),
+			wantErr:   true,
+		},
 	}
 
 	for _, tt := range tests {
@@ -566,7 +714,19 @@ func TestExaminationService_Delete(t *testing.T) {
 					return tt.repoErr
 				},
 			}
-			svc := NewExaminationService(repo, &mockMedicalRecordRepositoryForExam{}, okExamTypeRepo(), nil)
+			medRec := &mockMedicalRecordRepositoryForExam{
+				findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
+					if tt.medRecErr != nil {
+						return nil, tt.medRecErr
+					}
+					status := tt.medRecStatus
+					if status == "" {
+						status = model.MedicalRecordStatusDraft
+					}
+					return &model.MedicalRecord{Status: status}, nil
+				},
+			}
+			svc := NewExaminationService(repo, medRec, okExamTypeRepo(), nil)
 
 			err := svc.Delete(context.Background(), tt.clinicID, tt.id)
 
@@ -846,5 +1006,45 @@ func TestExaminationService_ReplaceItems(t *testing.T) {
 		if assert.NotNil(t, captured[0].ExamTypeItemID) {
 			assert.Equal(t, uint64(100), *captured[0].ExamTypeItemID)
 		}
+	})
+}
+
+// TestBuildExaminationUpdate は buildExaminationUpdate の全フィールド網羅とゼロ値挙動を検証する。
+func TestBuildExaminationUpdate(t *testing.T) {
+	medRecID := uint64(5)
+	petID := uint64(7)
+	examTypeID := uint64(1)
+	doctorID := uint64(3)
+	date := time.Now()
+	resultSummary := "正常"
+	machine := "X線装置A"
+	status := model.ExaminationStatusCompleted
+
+	t.Run("maps all provided fields", func(t *testing.T) {
+		input := UpdateExaminationInput{
+			MedicalRecordID: &medRecID,
+			PetID:           &petID,
+			ExamTypeID:      &examTypeID,
+			DoctorID:        &doctorID,
+			Date:            &date,
+			ResultSummary:   &resultSummary,
+			Machine:         &machine,
+			Status:          &status,
+		}
+		fields := buildExaminationUpdate(input)
+		assert.Equal(t, medRecID, fields["medical_record_id"])
+		assert.Equal(t, petID, fields["pet_id"])
+		assert.Equal(t, examTypeID, fields["exam_type_id"])
+		assert.Equal(t, doctorID, fields["doctor_id"])
+		assert.Equal(t, date, fields["date"])
+		assert.Equal(t, resultSummary, fields["result_summary"])
+		assert.Equal(t, machine, fields["machine"])
+		assert.Equal(t, status, fields["status"])
+		assert.Len(t, fields, 8)
+	})
+
+	t.Run("returns empty map when all fields are nil", func(t *testing.T) {
+		fields := buildExaminationUpdate(UpdateExaminationInput{})
+		assert.Empty(t, fields)
 	})
 }

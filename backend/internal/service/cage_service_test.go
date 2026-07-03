@@ -238,6 +238,33 @@ func TestCageService_Create(t *testing.T) {
 			repoErr: errors.New("db error"),
 			wantErr: true,
 		},
+		{
+			name: "returns error when name is empty",
+			input: &CreateCageInput{
+				Name:     "",
+				CageType: string(model.CageTypeDog),
+				CageSize: string(model.CageSizeSmall),
+			},
+			wantErr: true,
+		},
+		{
+			name: "returns error when cage_type is invalid",
+			input: &CreateCageInput{
+				Name:     "不正種別ケージ",
+				CageType: "invalid_type",
+				CageSize: string(model.CageSizeSmall),
+			},
+			wantErr: true,
+		},
+		{
+			name: "returns error when cage_size is invalid",
+			input: &CreateCageInput{
+				Name:     "不正サイズケージ",
+				CageType: string(model.CageTypeDog),
+				CageSize: "invalid_size",
+			},
+			wantErr: true,
+		},
 	}
 
 	for _, tt := range tests {
@@ -352,11 +379,73 @@ func TestCageService_Update_NilInput(t *testing.T) {
 	assert.Nil(t, result)
 }
 
+func TestCageService_Update_FindByIDError(t *testing.T) {
+	name := "更新後ケージ"
+	repo := &mockCageRepository{
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.Cage, error) {
+			return nil, apperrors.WrapNotFound("cage", "999")
+		},
+	}
+	svc := newTestCageService(repo)
+
+	cage, err := svc.Update(context.Background(), 1, 999, &UpdateCageInput{Name: &name})
+
+	assert.Error(t, err)
+	assert.Nil(t, cage)
+	assert.True(t, apperrors.IsNotFound(err))
+}
+
+func TestCageService_Update_InvalidName(t *testing.T) {
+	empty := ""
+	repo := &mockCageRepository{
+		findByIDFn: func(_ context.Context, _, id uint64) (*model.Cage, error) {
+			return &model.Cage{ID: id}, nil
+		},
+	}
+	svc := newTestCageService(repo)
+
+	cage, err := svc.Update(context.Background(), 1, 1, &UpdateCageInput{Name: &empty})
+
+	assert.Error(t, err)
+	assert.Nil(t, cage)
+}
+
+func TestCageService_Update_InvalidCageType(t *testing.T) {
+	invalid := "invalid_type"
+	repo := &mockCageRepository{
+		findByIDFn: func(_ context.Context, _, id uint64) (*model.Cage, error) {
+			return &model.Cage{ID: id}, nil
+		},
+	}
+	svc := newTestCageService(repo)
+
+	cage, err := svc.Update(context.Background(), 1, 1, &UpdateCageInput{CageType: &invalid})
+
+	assert.Error(t, err)
+	assert.Nil(t, cage)
+}
+
+func TestCageService_Update_InvalidCageSize(t *testing.T) {
+	invalid := "invalid_size"
+	repo := &mockCageRepository{
+		findByIDFn: func(_ context.Context, _, id uint64) (*model.Cage, error) {
+			return &model.Cage{ID: id}, nil
+		},
+	}
+	svc := newTestCageService(repo)
+
+	cage, err := svc.Update(context.Background(), 1, 1, &UpdateCageInput{CageSize: &invalid})
+
+	assert.Error(t, err)
+	assert.Nil(t, cage)
+}
+
 func TestCageService_Delete(t *testing.T) {
 	tests := []struct {
 		name         string
 		id           uint64
 		usageCount   int64
+		usageErr     error
 		findByIDErr  error
 		repoErr      error
 		wantErr      bool
@@ -389,6 +478,12 @@ func TestCageService_Delete(t *testing.T) {
 			wantErr:      true,
 			wantConflict: true,
 		},
+		{
+			name:     "returns error when usage count check fails",
+			id:       3,
+			usageErr: errors.New("db error"),
+			wantErr:  true,
+		},
 	}
 
 	for _, tt := range tests {
@@ -401,7 +496,7 @@ func TestCageService_Delete(t *testing.T) {
 					return &model.Cage{ID: id}, nil
 				},
 				countUsageByCageIDFn: func(_ context.Context, _, _ uint64) (int64, error) {
-					return tt.usageCount, nil
+					return tt.usageCount, tt.usageErr
 				},
 				deleteFn: func(_ context.Context, _, _ uint64) error {
 					return tt.repoErr
@@ -422,6 +517,110 @@ func TestCageService_Delete(t *testing.T) {
 			} else {
 				assert.NoError(t, err)
 			}
+		})
+	}
+}
+
+func TestCageService_Reorder(t *testing.T) {
+	tests := []struct {
+		name    string
+		ids     []uint64
+		repoErr error
+		wantErr bool
+	}{
+		{
+			name: "reorders successfully",
+			ids:  []uint64{3, 1, 2},
+		},
+		{
+			name:    "returns error when ids is empty",
+			ids:     []uint64{},
+			wantErr: true,
+		},
+		{
+			name:    "propagates repository error",
+			ids:     []uint64{1, 2},
+			repoErr: errors.New("db error"),
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			repo := &mockCageRepository{
+				reorderFn: func(_ context.Context, _ uint64, _ []uint64) error {
+					return tt.repoErr
+				},
+			}
+			svc := newTestCageService(repo)
+
+			err := svc.Reorder(context.Background(), 1, tt.ids)
+
+			if tt.wantErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
+
+func TestBuildCageUpdate(t *testing.T) {
+	name := "テストケージ"
+	cageType := string(model.CageTypeDog)
+	cageSize := string(model.CageSizeSmall)
+	price := int64(1000)
+	isActive := true
+	description := "説明文"
+	sortOrder := 3
+
+	tests := []struct {
+		name  string
+		input *UpdateCageInput
+		want  map[string]any
+	}{
+		{
+			name:  "全フィールド未指定なら空map",
+			input: &UpdateCageInput{},
+			want:  map[string]any{},
+		},
+		{
+			name: "全フィールド指定で全キーが含まれる",
+			input: &UpdateCageInput{
+				Name:        &name,
+				CageType:    &cageType,
+				CageSize:    &cageSize,
+				Price:       &price,
+				IsActive:    &isActive,
+				Description: &description,
+				SortOrder:   &sortOrder,
+			},
+			want: map[string]any{
+				colCageName:        name,
+				colCageCageType:    model.CageType(cageType),
+				colCageCageSize:    model.CageSize(cageSize),
+				colCagePrice:       price,
+				colCageIsActive:    isActive,
+				colCageDescription: description,
+				colCageSortOrder:   sortOrder,
+			},
+		},
+		{
+			name:  "Description のみ指定",
+			input: &UpdateCageInput{Description: &description},
+			want:  map[string]any{colCageDescription: description},
+		},
+		{
+			name:  "SortOrder のみ指定",
+			input: &UpdateCageInput{SortOrder: &sortOrder},
+			want:  map[string]any{colCageSortOrder: sortOrder},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := buildCageUpdate(tt.input)
+			assert.Equal(t, tt.want, got)
 		})
 	}
 }

@@ -94,11 +94,246 @@ func TestTrimmingCourseTypeService_Create(t *testing.T) {
 		assert.Error(t, err)
 		assert.Nil(t, got)
 	})
+
+	t.Run("エラー: 名前が空白のみ", func(t *testing.T) {
+		svc := NewTrimmingCourseTypeService(&mockTrimmingCourseTypeRepository{})
+		got, err := svc.Create(context.Background(), 1, &CreateTrimmingCourseTypeInput{Name: "   "})
+		assert.Error(t, err)
+		assert.Nil(t, got)
+	})
+
+	t.Run("エラー: repo がエラーを返す", func(t *testing.T) {
+		repo := &mockTrimmingCourseTypeRepository{
+			createFn: func(_ context.Context, _ *model.TrimmingCourseType) (*model.TrimmingCourseType, error) {
+				return nil, errors.New("db error")
+			},
+		}
+		svc := NewTrimmingCourseTypeService(repo)
+		got, err := svc.Create(context.Background(), 1, &CreateTrimmingCourseTypeInput{Name: "エラーケース"})
+		assert.Error(t, err)
+		assert.Nil(t, got)
+	})
+}
+
+func TestTrimmingCourseTypeService_List(t *testing.T) {
+	tests := []struct {
+		name    string
+		items   []model.TrimmingCourseType
+		repoErr error
+		wantLen int
+		wantErr bool
+	}{
+		{
+			name: "正常: 一覧を返す",
+			items: []model.TrimmingCourseType{
+				{ID: 1, ClinicID: 1, Name: "シャンプー"},
+				{ID: 2, ClinicID: 1, Name: "カット"},
+			},
+			wantLen: 2,
+		},
+		{
+			name:    "正常: 空リスト",
+			items:   []model.TrimmingCourseType{},
+			wantLen: 0,
+		},
+		{
+			name:    "エラー: repo エラーを伝播",
+			repoErr: errors.New("db error"),
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			repo := &mockTrimmingCourseTypeRepository{
+				findAllFn: func(_ context.Context, _ uint64) ([]model.TrimmingCourseType, error) {
+					return tt.items, tt.repoErr
+				},
+			}
+			svc := NewTrimmingCourseTypeService(repo)
+			got, err := svc.List(context.Background(), 1)
+			if tt.wantErr {
+				assert.Error(t, err)
+				assert.Nil(t, got)
+				return
+			}
+			assert.NoError(t, err)
+			assert.Len(t, got, tt.wantLen)
+		})
+	}
+}
+
+func TestTrimmingCourseTypeService_GetByID(t *testing.T) {
+	tests := []struct {
+		name    string
+		item    *model.TrimmingCourseType
+		repoErr error
+		wantErr bool
+		wantNF  bool
+	}{
+		{
+			name: "正常: 取得できる",
+			item: &model.TrimmingCourseType{ID: 1, Name: "シャンプー"},
+		},
+		{
+			name:    "エラー: 見つからない",
+			repoErr: apperrors.WrapNotFound("trimming_course_type", "999"),
+			wantErr: true,
+			wantNF:  true,
+		},
+		{
+			name:    "エラー: repo エラーを伝播",
+			repoErr: errors.New("db error"),
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			repo := &mockTrimmingCourseTypeRepository{
+				findByIDFn: func(_ context.Context, _, _ uint64) (*model.TrimmingCourseType, error) {
+					return tt.item, tt.repoErr
+				},
+			}
+			svc := NewTrimmingCourseTypeService(repo)
+			got, err := svc.GetByID(context.Background(), 1, 1)
+			if tt.wantErr {
+				assert.Error(t, err)
+				assert.Nil(t, got)
+				if tt.wantNF {
+					assert.True(t, apperrors.IsNotFound(err))
+				}
+				return
+			}
+			assert.NoError(t, err)
+			assert.Equal(t, tt.item, got)
+		})
+	}
+}
+
+func TestTrimmingCourseTypeService_Update(t *testing.T) {
+	name := "更新後"
+	sortOrder := 5
+	isActive := true
+
+	t.Run("正常: 更新できる", func(t *testing.T) {
+		repo := &mockTrimmingCourseTypeRepository{
+			findByIDFn: func(_ context.Context, _, id uint64) (*model.TrimmingCourseType, error) {
+				return &model.TrimmingCourseType{ID: id}, nil
+			},
+			updateFieldsFn: func(_ context.Context, _, id uint64, _ map[string]any) (*model.TrimmingCourseType, error) {
+				return &model.TrimmingCourseType{ID: id, Name: name}, nil
+			},
+		}
+		svc := NewTrimmingCourseTypeService(repo)
+		got, err := svc.Update(context.Background(), 1, 1, &UpdateTrimmingCourseTypeInput{Name: &name, SortOrder: &sortOrder, IsActive: &isActive})
+		assert.NoError(t, err)
+		assert.Equal(t, name, got.Name)
+	})
+
+	t.Run("エラー: input が nil", func(t *testing.T) {
+		svc := NewTrimmingCourseTypeService(&mockTrimmingCourseTypeRepository{})
+		got, err := svc.Update(context.Background(), 1, 1, nil)
+		assert.Error(t, err)
+		assert.Nil(t, got)
+		assert.True(t, apperrors.IsInvalidInput(err))
+	})
+
+	t.Run("エラー: FindByID が見つからない", func(t *testing.T) {
+		repo := &mockTrimmingCourseTypeRepository{
+			findByIDFn: func(_ context.Context, _, _ uint64) (*model.TrimmingCourseType, error) {
+				return nil, apperrors.WrapNotFound("trimming_course_type", "999")
+			},
+		}
+		svc := NewTrimmingCourseTypeService(repo)
+		got, err := svc.Update(context.Background(), 1, 999, &UpdateTrimmingCourseTypeInput{Name: &name})
+		assert.Error(t, err)
+		assert.Nil(t, got)
+		assert.True(t, apperrors.IsNotFound(err))
+	})
+
+	t.Run("エラー: 名前が空文字", func(t *testing.T) {
+		empty := ""
+		repo := &mockTrimmingCourseTypeRepository{
+			findByIDFn: func(_ context.Context, _, id uint64) (*model.TrimmingCourseType, error) {
+				return &model.TrimmingCourseType{ID: id}, nil
+			},
+		}
+		svc := NewTrimmingCourseTypeService(repo)
+		got, err := svc.Update(context.Background(), 1, 1, &UpdateTrimmingCourseTypeInput{Name: &empty})
+		assert.Error(t, err)
+		assert.Nil(t, got)
+	})
+
+	t.Run("エラー: 更新フィールドなし", func(t *testing.T) {
+		repo := &mockTrimmingCourseTypeRepository{
+			findByIDFn: func(_ context.Context, _, id uint64) (*model.TrimmingCourseType, error) {
+				return &model.TrimmingCourseType{ID: id}, nil
+			},
+		}
+		svc := NewTrimmingCourseTypeService(repo)
+		got, err := svc.Update(context.Background(), 1, 1, &UpdateTrimmingCourseTypeInput{})
+		assert.Error(t, err)
+		assert.Nil(t, got)
+		assert.True(t, apperrors.IsInvalidInput(err))
+	})
+
+	t.Run("エラー: repo Update がエラーを返す", func(t *testing.T) {
+		repo := &mockTrimmingCourseTypeRepository{
+			findByIDFn: func(_ context.Context, _, id uint64) (*model.TrimmingCourseType, error) {
+				return &model.TrimmingCourseType{ID: id}, nil
+			},
+			updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.TrimmingCourseType, error) {
+				return nil, errors.New("db error")
+			},
+		}
+		svc := NewTrimmingCourseTypeService(repo)
+		got, err := svc.Update(context.Background(), 1, 1, &UpdateTrimmingCourseTypeInput{Name: &name})
+		assert.Error(t, err)
+		assert.Nil(t, got)
+	})
+}
+
+func TestBuildTrimmingCourseTypeUpdate(t *testing.T) {
+	name := "新名称"
+	sortOrder := 2
+	isActive := false
+
+	tests := []struct {
+		name  string
+		input *UpdateTrimmingCourseTypeInput
+		want  map[string]any
+	}{
+		{
+			name:  "全フィールド未指定なら空map",
+			input: &UpdateTrimmingCourseTypeInput{},
+			want:  map[string]any{},
+		},
+		{
+			name:  "全フィールド指定で全キーが含まれる",
+			input: &UpdateTrimmingCourseTypeInput{Name: &name, SortOrder: &sortOrder, IsActive: &isActive},
+			want: map[string]any{
+				colTrimmingCourseTypeName:      name,
+				colTrimmingCourseTypeSortOrder: sortOrder,
+				colTrimmingCourseTypeIsActive:  isActive,
+			},
+		},
+		{
+			name:  "IsActive のみ指定",
+			input: &UpdateTrimmingCourseTypeInput{IsActive: &isActive},
+			want:  map[string]any{colTrimmingCourseTypeIsActive: isActive},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := buildTrimmingCourseTypeUpdate(tt.input)
+			assert.Equal(t, tt.want, got)
+		})
+	}
 }
 
 func TestTrimmingCourseTypeService_Delete(t *testing.T) {
 	tests := []struct {
 		name         string
+		findByIDErr  error
 		countUsageFn func(ctx context.Context, clinicID, id uint64) (int64, error)
 		deleteFn     func(ctx context.Context, clinicID, id uint64) error
 		wantErr      bool
@@ -120,12 +355,27 @@ func TestTrimmingCourseTypeService_Delete(t *testing.T) {
 			countUsageFn: func(_ context.Context, _, _ uint64) (int64, error) { return 0, errors.New("db error") },
 			wantErr:      true,
 		},
+		{
+			name:        "エラー: FindByID が見つからない",
+			findByIDErr: apperrors.WrapNotFound("trimming_course_type", "999"),
+			wantErr:     true,
+			wantErrIs:   apperrors.ErrNotFound,
+		},
+		{
+			name:         "エラー: repo Delete がエラーを返す",
+			countUsageFn: func(_ context.Context, _, _ uint64) (int64, error) { return 0, nil },
+			deleteFn:     func(_ context.Context, _, _ uint64) error { return errors.New("db error") },
+			wantErr:      true,
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockTrimmingCourseTypeRepository{
 				findByIDFn: func(_ context.Context, _, id uint64) (*model.TrimmingCourseType, error) {
+					if tt.findByIDErr != nil {
+						return nil, tt.findByIDErr
+					}
 					return &model.TrimmingCourseType{ID: id}, nil
 				},
 				countUsageFn: tt.countUsageFn,
@@ -157,5 +407,13 @@ func TestTrimmingCourseTypeService_Reorder(t *testing.T) {
 	t.Run("エラー: ID リストが空", func(t *testing.T) {
 		svc := NewTrimmingCourseTypeService(&mockTrimmingCourseTypeRepository{})
 		assert.Error(t, svc.Reorder(context.Background(), 1, []uint64{}))
+	})
+
+	t.Run("エラー: repo エラーを伝播", func(t *testing.T) {
+		repo := &mockTrimmingCourseTypeRepository{
+			reorderFn: func(_ context.Context, _ uint64, _ []uint64) error { return errors.New("db error") },
+		}
+		svc := NewTrimmingCourseTypeService(repo)
+		assert.Error(t, svc.Reorder(context.Background(), 1, []uint64{1, 2}))
 	})
 }

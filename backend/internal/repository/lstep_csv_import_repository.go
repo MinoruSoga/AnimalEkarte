@@ -37,9 +37,25 @@ func (r *lstepCsvImportRepository) Create(ctx context.Context, imp *model.LstepC
 }
 
 func (r *lstepCsvImportRepository) Update(ctx context.Context, imp *model.LstepCsvImport) error {
+	// NOTE: GORM's Save() keys UPDATE purely on the primary key when it is already populated
+	// (imp.ID is a non-zero UUID here) and silently ignores any chained .Where(...) clause —
+	// the clinic_id predicate below would have zero effect and allow cross-tenant overwrites.
+	// Use an explicit Model+Where+Updates(map) so the clinic_id predicate actually gates the
+	// UPDATE's WHERE clause (P4: clinicScope on Update, MANDATORY).
 	if err := r.db.WithContext(ctx).
-		Where("clinic_id = ?", imp.ClinicID).
-		Save(imp).Error; err != nil {
+		Model(&model.LstepCsvImport{}).
+		Where("id = ? AND clinic_id = ?", imp.ID, imp.ClinicID).
+		Updates(map[string]any{
+			"csv_type":            imp.CsvType,
+			"file_name":           imp.FileName,
+			"uploaded_by_user_id": imp.UploadedByUserID,
+			"row_count":           imp.RowCount,
+			"success_count":       imp.SuccessCount,
+			"error_count":         imp.ErrorCount,
+			"status":              imp.Status,
+			"error_log":           imp.ErrorLog,
+			"imported_at":         imp.ImportedAt,
+		}).Error; err != nil {
 		return apperrors.FromGORM(err, "lstep_csv_import", imp.ID.String())
 	}
 	return nil

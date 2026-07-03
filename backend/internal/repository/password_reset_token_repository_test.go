@@ -155,3 +155,33 @@ func TestPasswordResetTokenRepository_DeleteByAccountID(t *testing.T) {
 		assert.Equal(t, otherAccountID, got.AccountID)
 	})
 }
+
+// TestPasswordResetTokenRepository_Create_DuplicateTokenHash は token_hash に
+// uniqueIndex が張られているため、同一ハッシュの重複作成がエラーになることを検証する
+// （apperrors.FromGORM の NotFound 以外の分岐を経由する）。
+func TestPasswordResetTokenRepository_Create_DuplicateTokenHash(t *testing.T) {
+	db := setupPasswordResetTokenTestDB(t)
+	repo := NewPasswordResetTokenRepository(db)
+	ctx := context.Background()
+
+	makePasswordResetToken(t, repo, uint64(1), "dup-hash", time.Now().Add(1*time.Hour))
+
+	err := repo.Create(ctx, &model.PasswordResetToken{
+		AccountID: uint64(2),
+		TokenHash: "dup-hash",
+		ExpiresAt: time.Now().Add(1 * time.Hour),
+	})
+	require.Error(t, err, "token_hash の重複は作成エラーになるべき")
+}
+
+// TestPasswordResetTokenRepository_DeleteByID_NonexistentID_NoError は、
+// 存在しない ID に対する DeleteByID が RowsAffected を検証しないため
+// エラーを返さない（no-op）ことを固定する。
+func TestPasswordResetTokenRepository_DeleteByID_NonexistentID_NoError(t *testing.T) {
+	db := setupPasswordResetTokenTestDB(t)
+	repo := NewPasswordResetTokenRepository(db)
+	ctx := context.Background()
+
+	err := repo.DeleteByID(ctx, 9999999)
+	require.NoError(t, err, "DeleteByID は RowsAffected==0 でもエラーを返さない実装")
+}

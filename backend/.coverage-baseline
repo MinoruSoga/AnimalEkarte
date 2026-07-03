@@ -1,0 +1,5 @@
+# backend 総計カバレッジ % のベースライン（BE-refactor.md R3-5 / bug.md H-7 / coverage-policy.md）。
+# coverage-ratchet ツールがこの値と CI の実測値を比較し、tolerance を超える低下を検出する。
+# 0 = 未記録（ratchet は warn のみ）。初回 CI 実測後、backend-coverage artifact の
+# coverage-summary.txt 末尾 total: 行の % をこの行に転記してゲートを arm すること。
+0

@@ -85,7 +85,7 @@ func (m *mockReservationForStaff) ExistsByStaffID(ctx context.Context, clinicID,
 	}
 	return false, nil
 }
-func (m *mockReservationForStaff) CountMedicalRecordsByReservationID(_ context.Context, _ uint64) (int64, error) {
+func (m *mockReservationForStaff) CountMedicalRecordsByReservationID(_ context.Context, _, _ uint64) (int64, error) {
 	return 0, nil
 }
 func (m *mockReservationForStaff) CountByCustomerAndDateRange(_ context.Context, _, _ uint64, _, _ time.Time) (int64, error) {

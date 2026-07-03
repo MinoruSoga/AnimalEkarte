@@ -1,7 +1,9 @@
 package service
 
 import (
+	"bytes"
 	"context"
+	"encoding/csv"
 	"errors"
 	"testing"
 	"time"
@@ -440,4 +442,218 @@ func TestValidateReportPeriod(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestAccountingReportService_GetMonthly_ClinicRepoError は buildReportResponse 内の
+// clinicRepo.FindByID エラー分岐（税率取得失敗）を固定化する。
+func TestAccountingReportService_GetMonthly_ClinicRepoError(t *testing.T) {
+	repo := &mockAccountingRepositoryForReport{}
+	svc := NewAccountingReportService(
+		repo,
+		&mockPaymentMethodMasterRepository{findAllFn: func(_ context.Context, _ uint64) ([]model.PaymentMethodMaster, error) {
+			return []model.PaymentMethodMaster{}, nil
+		}},
+		&mockClinicHolidayRepository{findByYearMonthFn: func(_ context.Context, _ uint64, _ string) ([]model.ClinicHoliday, error) {
+			return []model.ClinicHoliday{}, nil
+		}},
+		&mockClinicRepository{findByIDFn: func(_ context.Context, _ uint64) (*model.Clinic, error) {
+			return nil, errors.New("clinic not found")
+		}},
+	)
+
+	got, err := svc.GetMonthly(context.Background(), 1, 2026, 4)
+
+	assert.Error(t, err)
+	assert.Nil(t, got)
+}
+
+func TestAccountingReportService_GetMonthlyByPeriod_ValidationError(t *testing.T) {
+	svc := newAccountingReportService(
+		&mockAccountingRepositoryForReport{},
+		&mockPaymentMethodMasterRepository{},
+		&mockClinicHolidayRepository{},
+	)
+	start := time.Date(2026, 5, 1, 0, 0, 0, 0, jst)
+	end := time.Date(2026, 4, 1, 0, 0, 0, 0, jst) // start > end
+
+	got, err := svc.GetMonthlyByPeriod(context.Background(), 1, start, end)
+
+	assert.Error(t, err)
+	assert.True(t, apperrors.IsInvalidInput(err))
+	assert.Nil(t, got)
+}
+
+func TestAccountingReportService_GetMonthlyByPeriod_RepoError(t *testing.T) {
+	repo := &mockAccountingRepositoryForReport{
+		getMonthlyReportByPeriodFn: func(_ context.Context, _ uint64, _, _ time.Time) (*repository.MonthlyReportResult, error) {
+			return nil, errors.New("db error")
+		},
+	}
+	svc := newAccountingReportService(
+		repo,
+		&mockPaymentMethodMasterRepository{findAllFn: func(_ context.Context, _ uint64) ([]model.PaymentMethodMaster, error) {
+			return []model.PaymentMethodMaster{}, nil
+		}},
+		&mockClinicHolidayRepository{findByYearMonthFn: func(_ context.Context, _ uint64, _ string) ([]model.ClinicHoliday, error) {
+			return []model.ClinicHoliday{}, nil
+		}},
+	)
+	start := time.Date(2026, 4, 1, 0, 0, 0, 0, jst)
+	end := time.Date(2026, 4, 2, 0, 0, 0, 0, jst)
+
+	got, err := svc.GetMonthlyByPeriod(context.Background(), 1, start, end)
+
+	assert.Error(t, err)
+	assert.Nil(t, got)
+}
+
+// TestResolvePaymentMethodName は支払方法名解決の全分岐（nil/既知ID/未知ID）を固定化する。
+func TestResolvePaymentMethodName(t *testing.T) {
+	names := map[uint64]string{1: "クレジット"}
+	tests := []struct {
+		name string
+		id   *uint64
+		want string
+	}{
+		{name: "nil id は現金として扱う", id: nil, want: "現金"},
+		{name: "既知の id はマスタ名を返す", id: ptrUint64(1), want: "クレジット"},
+		{name: "未知の id はフォールバック表記を返す", id: ptrUint64(99), want: "支払方法(99)"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := resolvePaymentMethodName(tt.id, names)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+// TestBuildMonthlyCSV は CSV バイト列の構造（BOM・ヘッダ・日別明細・合計行）を固定化する。
+func TestBuildMonthlyCSV(t *testing.T) {
+	result := &MonthlyReportResponse{
+		Year:      2026,
+		Month:     4,
+		StartDate: "2026-04-01",
+		EndDate:   "2026-04-02",
+		Summary: MonthlyReportSummary{
+			NetAmount:   3000,
+			TotalRefund: 100,
+			TaxBreakdown: TaxBreakdownSummary{
+				Standard: TaxBreakdownEntry{TaxableAmount: 1000, TaxAmount: 100},
+				Reduced:  TaxBreakdownEntry{TaxableAmount: 500, TaxAmount: 40},
+			},
+		},
+		DailyDetails: []DailyReportDetail{
+			{
+				Date: "2026-04-01", Weekday: "水",
+				AMCount: 1, AMNet: 1000, PMCount: 2, PMNet: 2000, DayNet: 3000,
+				Refund: 0, AMClosed: true, PMClosed: false, IsHoliday: false,
+			},
+			{
+				Date: "2026-04-02", Weekday: "木", IsHoliday: true,
+			},
+		},
+	}
+
+	got, err := buildMonthlyCSV(result, "test_report.csv")
+
+	assert.NoError(t, err)
+	assert.NotNil(t, got)
+	assert.Equal(t, "test_report.csv", got.Filename)
+	assert.True(t, bytes.HasPrefix(got.Data, []byte("\xEF\xBB\xBF")), "CSV は UTF-8 BOM で始まるべき")
+
+	reader := csv.NewReader(bytes.NewReader(got.Data[3:]))
+	records, err := reader.ReadAll()
+	assert.NoError(t, err)
+	// ヘッダ行 + 日別明細2行 + 合計行
+	assert.Len(t, records, 4)
+	assert.Equal(t, "日付", records[0][0])
+	assert.Equal(t, "2026-04-01", records[1][0])
+	assert.Equal(t, "済", records[1][8])  // AM締め
+	assert.Equal(t, "未", records[1][9])  // PM締め
+	assert.Equal(t, "休", records[2][10]) // 休診
+	assert.Equal(t, "合計", records[3][0])
+	assert.Equal(t, "3000", records[3][6])
+	assert.Equal(t, "100", records[3][7])
+}
+
+func TestAccountingReportService_ExportMonthlyCSV(t *testing.T) {
+	t.Run("正常: CSV を出力する", func(t *testing.T) {
+		repo := &mockAccountingRepositoryForReport{
+			getMonthlyReportFn: func(_ context.Context, _ uint64, _, _ int) (*repository.MonthlyReportResult, error) {
+				return &repository.MonthlyReportResult{GrandTotal: 1000, BillingCount: 1}, nil
+			},
+		}
+		svc := newAccountingReportService(
+			repo,
+			&mockPaymentMethodMasterRepository{findAllFn: func(_ context.Context, _ uint64) ([]model.PaymentMethodMaster, error) {
+				return []model.PaymentMethodMaster{}, nil
+			}},
+			&mockClinicHolidayRepository{findByYearMonthFn: func(_ context.Context, _ uint64, _ string) ([]model.ClinicHoliday, error) {
+				return []model.ClinicHoliday{}, nil
+			}},
+		)
+
+		got, err := svc.ExportMonthlyCSV(context.Background(), 1, 2026, 4)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, got)
+		assert.Equal(t, "monthly_report_202604.csv", got.Filename)
+		assert.True(t, bytes.HasPrefix(got.Data, []byte("\xEF\xBB\xBF")))
+	})
+
+	t.Run("エラー: GetMonthly がエラーを返す", func(t *testing.T) {
+		svc := newAccountingReportService(
+			&mockAccountingRepositoryForReport{},
+			&mockPaymentMethodMasterRepository{},
+			&mockClinicHolidayRepository{},
+		)
+
+		// month=0 は validateMonth で拒否される
+		got, err := svc.ExportMonthlyCSV(context.Background(), 1, 2026, 0)
+
+		assert.Error(t, err)
+		assert.Nil(t, got)
+	})
+}
+
+func TestAccountingReportService_ExportMonthlyCSVByPeriod(t *testing.T) {
+	t.Run("正常: 期間指定で CSV を出力する", func(t *testing.T) {
+		repo := &mockAccountingRepositoryForReport{
+			getMonthlyReportByPeriodFn: func(_ context.Context, _ uint64, _, _ time.Time) (*repository.MonthlyReportResult, error) {
+				return &repository.MonthlyReportResult{GrandTotal: 500, BillingCount: 1}, nil
+			},
+		}
+		svc := newAccountingReportService(
+			repo,
+			&mockPaymentMethodMasterRepository{findAllFn: func(_ context.Context, _ uint64) ([]model.PaymentMethodMaster, error) {
+				return []model.PaymentMethodMaster{}, nil
+			}},
+			&mockClinicHolidayRepository{findByYearMonthFn: func(_ context.Context, _ uint64, _ string) ([]model.ClinicHoliday, error) {
+				return []model.ClinicHoliday{}, nil
+			}},
+		)
+		start := time.Date(2026, 4, 1, 0, 0, 0, 0, jst)
+		end := time.Date(2026, 4, 2, 0, 0, 0, 0, jst)
+
+		got, err := svc.ExportMonthlyCSVByPeriod(context.Background(), 1, start, end)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, got)
+		assert.Equal(t, "monthly_report_20260401_20260402.csv", got.Filename)
+	})
+
+	t.Run("エラー: GetMonthlyByPeriod がエラーを返す", func(t *testing.T) {
+		svc := newAccountingReportService(
+			&mockAccountingRepositoryForReport{},
+			&mockPaymentMethodMasterRepository{},
+			&mockClinicHolidayRepository{},
+		)
+		start := time.Date(2026, 5, 1, 0, 0, 0, 0, jst)
+		end := time.Date(2026, 4, 1, 0, 0, 0, 0, jst) // start > end で validateReportPeriod が拒否
+
+		got, err := svc.ExportMonthlyCSVByPeriod(context.Background(), 1, start, end)
+
+		assert.Error(t, err)
+		assert.Nil(t, got)
+	})
 }

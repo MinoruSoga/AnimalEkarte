@@ -50,6 +50,13 @@ func TestDecodeCsvBytes(t *testing.T) {
 			input: []byte{},
 			want:  "",
 		},
+		{
+			// golang.org/x/text/encoding/japanese の SJIS デコーダは不正バイト列に対して
+			// エラーを返さず、U+FFFD（置換文字）に差し替えて処理を継続する（ライブラリの仕様）。
+			name:  "不正な SJIS バイト列は置換文字にフォールバックする（エラーにはならない）",
+			input: []byte{0x80, 0xFF, 0xFE, 0x81, 0xFF},
+			want:  "\u0080\uFFFD\uFFFD\uFFFD",
+		},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

@@ -17,7 +17,10 @@ type EstimateRepository interface {
 	Create(ctx context.Context, estimate *model.Estimate) error
 	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error
 	Delete(ctx context.Context, clinicID, id uint64) error
-	CountItemsByEstimateID(ctx context.Context, estimateID uint64) (int64, error)
+	// CountItemsByEstimateID は BE-refactor.md R2-5 (D12) で clinic_id 述語を追加した
+	// （唯一の呼び出し元 estimateService.Delete が clinicID を既に保持・ownership 検証済み）。
+	// estimate_items 自体は clinic_id を持たないため estimates への JOIN で述語を付与する。
+	CountItemsByEstimateID(ctx context.Context, clinicID, estimateID uint64) (int64, error)
 }
 
 type estimateRepository struct {
@@ -101,11 +104,14 @@ func (r *estimateRepository) Delete(ctx context.Context, clinicID, id uint64) er
 }
 
 // CountItemsByEstimateID は見積書に紐付く明細行の件数を返す（BUG-201）
-func (r *estimateRepository) CountItemsByEstimateID(ctx context.Context, estimateID uint64) (int64, error) {
+// BE-refactor.md R2-5 (D12): clinic_id 述語を追加。estimate_items は clinic_id カラムを持たないため
+// estimates への JOIN で述語を付与する。
+func (r *estimateRepository) CountItemsByEstimateID(ctx context.Context, clinicID, estimateID uint64) (int64, error) {
 	var count int64
 	if err := r.db.WithContext(ctx).
 		Model(&model.EstimateItem{}).
-		Where("estimate_id = ? AND deleted_at IS NULL", estimateID).
+		Joins("JOIN estimates ON estimates.id = estimate_items.estimate_id AND estimates.clinic_id = ? AND estimates.deleted_at IS NULL", clinicID).
+		Where("estimate_items.estimate_id = ? AND estimate_items.deleted_at IS NULL", estimateID).
 		Count(&count).Error; err != nil {
 		return 0, apperrors.FromGORM(err, "estimate_item", "")
 	}

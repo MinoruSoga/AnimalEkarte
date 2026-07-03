@@ -185,8 +185,6 @@ func (r *gormProductRepo) FindAll(ctx context.Context, f domain.ProductFilter) (
 }
 ```
 
-> For associations, hooks, soft-deletes — see the **golang-gin-database** skill.
-
 ---
 
 ## 4. Transactions
@@ -287,4 +285,3 @@ func safeOrderBy(col, dir string) string {
 - **[error-handling.md](error-handling.md)** — repo error propagation to HTTP
 - **[testing-by-layer.md](testing-by-layer.md)** — full mock patterns and coverage goals
 - **[dependency-injection.md](dependency-injection.md)** — wiring repositories into usecases
-- **golang-gin-database** skill — GORM associations, migrations, sqlx

@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"net/url"
 	"testing"
 	"time"
 
@@ -9,6 +10,31 @@ import (
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 )
+
+func TestNewListPetQuery(t *testing.T) {
+	tests := []struct {
+		name   string
+		values url.Values
+		want   listPetQuery
+	}{
+		{
+			name:   "parses owner_id and search",
+			values: url.Values{"owner_id": {"10"}, "search": {"momo"}},
+			want:   listPetQuery{OwnerID: "10", Search: "momo"},
+		},
+		{
+			name:   "empty values yield zero query",
+			values: url.Values{},
+			want:   listPetQuery{},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, newListPetQuery(tt.values))
+		})
+	}
+}
 
 func TestListPetQuery_ToServiceFilters(t *testing.T) {
 	filters, err := (&listPetQuery{

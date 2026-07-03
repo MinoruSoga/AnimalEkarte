@@ -44,7 +44,7 @@ func (s *lstepSettingsService) TestConnection(ctx context.Context, clinicID uint
 	// LINE Messaging API疎通確認
 	lineToken := kvMap[model.IntegrationKeyLineChannelAccessToken]
 	if lineToken != "" {
-		if err := testLineAPI(ctx, lineToken); err != nil {
+		if err := testLineAPI(ctx, "https://api.line.me", lineToken); err != nil {
 			result.LineOK = false
 			result.LineError = err.Error()
 		} else {
@@ -73,8 +73,8 @@ func testLstepAPI(ctx context.Context, baseURL, apiKey string) error {
 	return nil
 }
 
-func testLineAPI(ctx context.Context, channelToken string) error {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://api.line.me/v2/bot/info", http.NoBody)
+func testLineAPI(ctx context.Context, baseURL, channelToken string) error {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, baseURL+"/v2/bot/info", http.NoBody)
 	if err != nil {
 		return fmt.Errorf("failed to build request: %w", err)
 	}

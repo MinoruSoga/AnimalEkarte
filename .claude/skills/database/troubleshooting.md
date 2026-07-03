@@ -80,10 +80,10 @@ make codegen
 **診断**:
 ```sql
 -- 実行計画の確認
-EXPLAIN ANALYZE SELECT * FROM patients WHERE owner_id = 1;
+EXPLAIN ANALYZE SELECT * FROM pets WHERE owner_id = 1;
 
 -- インデックス確認
-\di+ patients
+\di+ pets
 
 -- スロークエリ確認
 SELECT query, mean_exec_time FROM pg_stat_statements ORDER BY mean_exec_time DESC LIMIT 10;
@@ -91,8 +91,8 @@ SELECT query, mean_exec_time FROM pg_stat_statements ORDER BY mean_exec_time DES
 
 **対処**:
 ```sql
--- インデックス追加（001_init.sql に追記して再適用）
-CREATE INDEX CONCURRENTLY idx_patients_owner_id ON patients(owner_id);
+-- インデックス追加（最終番号+1 の新規 migration で追加。適用済みファイルへの追記は禁止 — checksum mismatch）
+CREATE INDEX CONCURRENTLY idx_pets_owner_id ON pets(owner_id);
 ```
 
 ---

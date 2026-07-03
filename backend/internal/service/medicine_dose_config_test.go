@@ -14,7 +14,7 @@ import (
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
-func medicineServiceWithAudit(repo *mockMedicineRepository, audit AuditService) MedicineService {
+func medicineServiceWithAudit(repo *mockMedicineRepository, audit AuditTxLogger) MedicineService {
 	inv := &mockInventoryRepository{
 		createFn: func(_ context.Context, _ uint64, _ *model.InventoryItem) error { return nil },
 	}
@@ -82,6 +82,22 @@ func TestMedicineService_Create_DoseConfig(t *testing.T) {
 		assert.Equal(t, model.MedicineCalculationTypeNone, med.CalculationType)
 		assert.Empty(t, audit.entries)
 	})
+
+	// BE-refactor.md R1-2: per_weight 有効化監査（LogEntryTx）が失敗すると Create 全体が失敗する
+	// （fail-closed。薬剤作成のみが成功し監査だけ欠落する部分コミットを許さない）。
+	t.Run("per_weight 有効化 audit 失敗は Create 全体をロールバックする（fail-closed）", func(t *testing.T) {
+		repo := &mockMedicineRepository{
+			createFn: func(_ context.Context, m *model.Medicine) error { m.ID = 54; return nil },
+		}
+		audit := &mockDoseAuditService{logEntryTxErr: errAuditWriteFailed}
+		svc := medicineServiceWithAudit(repo, audit)
+
+		_, err := svc.Create(context.Background(), clinicID, &CreateMedicineInput{
+			Name: "メロキシカム2", CalculationType: strptr("per_weight"),
+			MedicineUnit: strptr("per_tablet"), Strength: fptr(1.5),
+		})
+		require.Error(t, err, "audit 失敗は作成全体を失敗させる")
+	})
 }
 
 func TestMedicineService_Update_DoseConfig(t *testing.T) {
@@ -119,5 +135,26 @@ func TestMedicineService_Update_DoseConfig(t *testing.T) {
 		_, err := svc.Update(context.Background(), clinicID, 61, &UpdateMedicineInput{ClearStrength: true})
 		require.Error(t, err)
 		assert.True(t, apperrors.IsInvalidInput(err))
+	})
+
+	// BE-refactor.md R1-2: per_weight 有効化監査（LogEntryTx）が失敗すると Update 全体が失敗する
+	// （fail-closed。fields 更新のみが成功し監査だけ欠落する部分コミットを許さない）。
+	t.Run("none→per_weight 有効化 audit 失敗は Update 全体をロールバックする（fail-closed）", func(t *testing.T) {
+		repo := &mockMedicineRepository{
+			findByIDFn: func(_ context.Context, _, _ uint64) (*model.Medicine, error) {
+				unit := model.MedicineUnitPerTablet
+				return &model.Medicine{ID: 62, ClinicID: clinicID, Name: "薬", CalculationType: model.MedicineCalculationTypeNone, MedicineUnit: &unit}, nil
+			},
+			updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Medicine, error) {
+				return &model.Medicine{ID: 62, CalculationType: model.MedicineCalculationTypePerWeight, Strength: fptr(5)}, nil
+			},
+		}
+		audit := &mockDoseAuditService{logEntryTxErr: errAuditWriteFailed}
+		svc := medicineServiceWithAudit(repo, audit)
+
+		_, err := svc.Update(context.Background(), clinicID, 62, &UpdateMedicineInput{
+			CalculationType: strptr("per_weight"), Strength: fptr(5),
+		})
+		require.Error(t, err, "audit 失敗は更新全体を失敗させる")
 	})
 }

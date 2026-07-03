@@ -44,11 +44,14 @@ docker compose exec frontend npx tsc --noEmit
 
 # Backend
 docker compose exec backend go test ./...
+# ⚠️ CLAUDE.md の自動実行禁止コマンド。ユーザーに手動実行を依頼するか、スコープ限定版（例: `go test ./internal/service/...`）を使う
 docker compose exec backend go vet ./...
 docker compose exec backend golangci-lint run ./...
+# ⚠️ CLAUDE.md の自動実行禁止コマンド。ユーザーに手動実行を依頼するか、スコープ限定版を使う
 
 # Database
 docker compose exec db psql -U postgres -d ekarte_dev
+# ⚠️ CLAUDE.md の自動実行禁止コマンド。ユーザーに手動実行を依頼するか、スコープ限定版を使う
 
 # CodeGen（Go モデル → TypeScript 型）
 make codegen
@@ -83,13 +86,14 @@ docker volume ls
 ```bash
 # ボリュームを再作成
 docker compose down -v
+# ⚠️ CLAUDE.md の自動実行禁止コマンド。ユーザーに手動実行を依頼するか、スコープ限定版を使う
 docker compose up -d
 ```
 
 ### ポート競合
 ```bash
 # 使用中のポートを確認
-lsof -i :3000
+lsof -i :3003
 lsof -i :8080
 lsof -i :5432
 
@@ -107,7 +111,7 @@ docker compose logs db
 docker compose exec db pg_isready
 
 # 接続テスト
-docker compose exec backend go run cmd/api/main.go -- 接続テスト
+docker compose exec db pg_isready -U "$DB_USER"
 ```
 
 ### 変更が反映されない
@@ -146,9 +150,9 @@ CMD ["./app"]
 
 ```dockerfile
 # Frontend（本番）
-FROM node:20-alpine AS builder
+FROM node:24-alpine AS builder
 WORKDIR /app
-COPY package.json package-lock.json ./
+COPY package.json pnpm-lock.yaml ./
 RUN pnpm install --frozen-lockfile                # 依存を先にキャッシュ
 COPY . .
 RUN pnpm build
@@ -203,3 +207,5 @@ make clean    # キャッシュクリア + 再ビルド
 make test-front  # フロントエンドテスト
 make lint-front  # フロントエンド lint
 ```
+
+⚠️ `make db` は CLAUDE.md の自動実行禁止コマンドに該当する（DB リセット等の高影響操作）。ユーザーに手動実行を依頼するか、スコープ限定版を使う

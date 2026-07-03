@@ -1,14 +1,270 @@
 package handler
 
 import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 
+	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	apperrors "github.com/animal-ekarte/backend/internal/errors"
+	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/service"
 )
 
 // TestRefundHandlerCompiles verifies refund_handler.go compiles
 func TestRefundHandlerCompiles(t *testing.T) {
 	assert.True(t, true, "refund_handler.go compiled successfully")
+}
+
+// ---- mock RefundService ----
+
+type mockRefundService struct {
+	listByBillingIDFn func(ctx context.Context, clinicID, billingID uint64) ([]model.BillingRefund, error)
+	createFn          func(ctx context.Context, clinicID, billingID uint64, input service.CreateRefundInput) (*model.BillingRefund, error)
+}
+
+func (m *mockRefundService) ListByBillingID(ctx context.Context, clinicID, billingID uint64) ([]model.BillingRefund, error) {
+	if m.listByBillingIDFn != nil {
+		return m.listByBillingIDFn(ctx, clinicID, billingID)
+	}
+	return nil, nil
+}
+
+func (m *mockRefundService) Create(ctx context.Context, clinicID, billingID uint64, input service.CreateRefundInput) (*model.BillingRefund, error) {
+	if m.createFn != nil {
+		return m.createFn(ctx, clinicID, billingID, input)
+	}
+	return &model.BillingRefund{ID: 1, ClinicID: clinicID, BillingID: billingID, Amount: input.Amount}, nil
+}
+
+// ---- test helper ----
+
+func newHandlerWithRefundSvc(svc service.RefundService) *Handler {
+	return &Handler{svc: &service.Services{Refund: svc}}
+}
+
+// setClinicAndStaff は clinic_id と user_id の両方をコンテキストに設定するヘルパー。
+func setClinicAndStaff(c *gin.Context) {
+	c.Set("clinic_id", "1")
+	c.Set("user_id", "2")
+}
+
+// ---- ListRefunds ----
+
+func TestListRefunds(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	tests := []struct {
+		name       string
+		paramID    string
+		setupCtx   func(c *gin.Context)
+		svc        *mockRefundService
+		wantStatus int
+		wantBody   string
+	}{
+		{
+			name:     "returns list of refunds",
+			paramID:  "1",
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockRefundService{
+				listByBillingIDFn: func(_ context.Context, clinicID, billingID uint64) ([]model.BillingRefund, error) {
+					assert.Equal(t, uint64(1), clinicID)
+					assert.Equal(t, uint64(1), billingID)
+					return []model.BillingRefund{{ID: 1, ClinicID: 1, BillingID: 1, Amount: 1000, Reason: "過剰請求"}}, nil
+				},
+			},
+			wantStatus: http.StatusOK,
+			wantBody:   `"reason":"過剰請求"`,
+		},
+		{
+			name:       "returns 401 when clinic_id missing",
+			paramID:    "1",
+			setupCtx:   func(_ *gin.Context) {},
+			svc:        &mockRefundService{},
+			wantStatus: http.StatusUnauthorized,
+		},
+		{
+			name:       "returns 400 for non-numeric billing id",
+			paramID:    "abc",
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockRefundService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:     "returns 500 on service error",
+			paramID:  "1",
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockRefundService{
+				listByBillingIDFn: func(_ context.Context, _, _ uint64) ([]model.BillingRefund, error) {
+					return nil, fmt.Errorf("db error")
+				},
+			},
+			wantStatus: http.StatusInternalServerError,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := newHandlerWithRefundSvc(tt.svc)
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			c.Request = httptest.NewRequest(http.MethodGet, "/", http.NoBody)
+			c.Params = gin.Params{{Key: "id", Value: tt.paramID}}
+			tt.setupCtx(c)
+			h.ListRefunds(c)
+			assert.Equal(t, tt.wantStatus, w.Code)
+			if tt.wantBody != "" {
+				assert.Contains(t, w.Body.String(), tt.wantBody)
+			}
+		})
+	}
+}
+
+// ---- CreateRefund ----
+
+func TestCreateRefund(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	validBody := func() map[string]any {
+		return map[string]any{"amount": 1000, "reason": "過剰請求"}
+	}
+
+	tests := []struct {
+		name       string
+		paramID    string
+		body       any
+		setupCtx   func(c *gin.Context)
+		svc        *mockRefundService
+		wantStatus int
+		wantBody   string
+	}{
+		{
+			name:     "creates refund successfully",
+			paramID:  "1",
+			body:     validBody(),
+			setupCtx: setClinicAndStaff,
+			svc: &mockRefundService{
+				createFn: func(_ context.Context, clinicID, billingID uint64, input service.CreateRefundInput) (*model.BillingRefund, error) {
+					assert.Equal(t, uint64(1), clinicID)
+					assert.Equal(t, uint64(1), billingID)
+					require.NotNil(t, input.StaffID)
+					assert.Equal(t, uint64(2), *input.StaffID)
+					assert.Equal(t, int64(1000), input.Amount)
+					assert.Equal(t, "過剰請求", input.Reason)
+					return &model.BillingRefund{ID: 5, ClinicID: clinicID, BillingID: billingID, Amount: input.Amount, Reason: input.Reason}, nil
+				},
+			},
+			wantStatus: http.StatusCreated,
+			wantBody:   `"reason":"過剰請求"`,
+		},
+		{
+			name:     "creates refund with payment_method",
+			paramID:  "1",
+			body:     map[string]any{"amount": 500, "payment_method": "cash"},
+			setupCtx: setClinicAndStaff,
+			svc: &mockRefundService{
+				createFn: func(_ context.Context, _, _ uint64, input service.CreateRefundInput) (*model.BillingRefund, error) {
+					require.NotNil(t, input.PaymentMethod)
+					assert.Equal(t, model.PaymentMethod("cash"), *input.PaymentMethod)
+					return &model.BillingRefund{ID: 6, Amount: input.Amount, PaymentMethod: input.PaymentMethod}, nil
+				},
+			},
+			wantStatus: http.StatusCreated,
+		},
+		{
+			name:       "returns 401 when clinic_id missing",
+			paramID:    "1",
+			body:       validBody(),
+			setupCtx:   func(_ *gin.Context) {},
+			svc:        &mockRefundService{},
+			wantStatus: http.StatusUnauthorized,
+		},
+		{
+			name:       "returns 401 when staff_id missing",
+			paramID:    "1",
+			body:       validBody(),
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockRefundService{},
+			wantStatus: http.StatusUnauthorized,
+		},
+		{
+			name:       "returns 400 for non-numeric billing id",
+			paramID:    "abc",
+			body:       validBody(),
+			setupCtx:   setClinicAndStaff,
+			svc:        &mockRefundService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:       "returns 400 when amount is missing",
+			paramID:    "1",
+			body:       map[string]any{"reason": "no amount"},
+			setupCtx:   setClinicAndStaff,
+			svc:        &mockRefundService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:       "returns 400 on malformed body",
+			paramID:    "1",
+			body:       "not-json",
+			setupCtx:   setClinicAndStaff,
+			svc:        &mockRefundService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:     "returns 500 on service error",
+			paramID:  "1",
+			body:     validBody(),
+			setupCtx: setClinicAndStaff,
+			svc: &mockRefundService{
+				createFn: func(_ context.Context, _, _ uint64, _ service.CreateRefundInput) (*model.BillingRefund, error) {
+					return nil, fmt.Errorf("db error")
+				},
+			},
+			wantStatus: http.StatusInternalServerError,
+		},
+		{
+			name:     "returns 404 when billing not found",
+			paramID:  "999",
+			body:     validBody(),
+			setupCtx: setClinicAndStaff,
+			svc: &mockRefundService{
+				createFn: func(_ context.Context, _, _ uint64, _ service.CreateRefundInput) (*model.BillingRefund, error) {
+					return nil, apperrors.WrapNotFound("billing", "999")
+				},
+			},
+			wantStatus: http.StatusNotFound,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := newHandlerWithRefundSvc(tt.svc)
+			b, err := json.Marshal(tt.body)
+			require.NoError(t, err)
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			c.Request = httptest.NewRequest(http.MethodPost, "/", bytes.NewReader(b))
+			c.Request.Header.Set("Content-Type", "application/json")
+			c.Params = gin.Params{{Key: "id", Value: tt.paramID}}
+			tt.setupCtx(c)
+			h.CreateRefund(c)
+			assert.Equal(t, tt.wantStatus, w.Code)
+			if tt.wantBody != "" {
+				assert.Contains(t, w.Body.String(), tt.wantBody)
+			}
+			if tt.wantStatus == http.StatusCreated {
+				assert.NotEmpty(t, w.Header().Get("Location"))
+			}
+		})
+	}
 }
 
 // ---- Comprehensive Test Coverage Documentation ----

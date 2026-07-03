@@ -11,6 +11,8 @@ Backend (Go) と Frontend (React) のパフォーマンスを詳細に分析・�
 
 ### 1. Go Backend Profiling (pprof)
 
+**前提: backend には現在 net/http/pprof が未配線**。以下のコマンドは `import _ "net/http/pprof"` + :6060 リッスンを追加してから使う。未配線のまま実行しても接続失敗する
+
 #### CPU プロファイル
 ```bash
 docker compose exec backend go tool pprof http://localhost:6060/debug/pprof/profile?seconds=30
@@ -79,12 +81,13 @@ docker compose exec backend go tool pprof http://localhost:6060/debug/pprof/goro
 
 #### Database クエリ分析
 ```bash
-docker compose exec db psql -U ekarte_user -d ekarte_db -c "
+docker compose exec db psql -U "$DB_USER" -d "$DB_NAME" -c "
   SELECT query, calls, mean_time
   FROM pg_stat_statements
   ORDER BY mean_time DESC LIMIT 10;
 "
 ```
+⚠️ CLAUDE.md の自動実行禁止コマンド（psql 直叩き）。ユーザーに手動実行を依頼する
 
 **N+1 クエリ検出:**
 ```go
@@ -151,7 +154,7 @@ export function MyComponent() {
 
 #### Lighthouse スコア
 ```bash
-docker compose exec frontend pnpm lighthouse
+docker compose exec frontend pnpm exec lighthouse
 ```
 
 **Core Web Vitals:**
@@ -277,4 +280,3 @@ CLS:                < 0.1
 ## 関連スキル
 
 - `database-indexing` - クエリパフォーマンス
-- `error-handling-patterns` - エラー時のログ効率化

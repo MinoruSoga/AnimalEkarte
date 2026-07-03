@@ -560,6 +560,105 @@ func TestLabResultImportService_Commit_CreateJobError(t *testing.T) {
 	}
 }
 
+// TestLabResultImportService_Commit_TransitionToValidatedError verifies that a failure
+// transitioning the job to "validated" is wrapped and returned as an error (no PersistBatch call).
+func TestLabResultImportService_Commit_TransitionToValidatedError(t *testing.T) {
+	jobSvc := newStubLabJobService()
+	jobSvc.transErr = errors.New("db error on validated transition")
+	jobSvc.transErrFor = model.LabImportJobStatusValidated
+	examSvc := &stubLabExamService{}
+	svc := NewLabResultImportService(jobSvc, examSvc)
+
+	batch := syntheticFixtureBatch(1)
+	inputs := []LabExamPersistInput{{ClinicID: 1, ExamTypeID: 1, Date: time.Now()}}
+
+	_, err := svc.Commit(context.Background(), 1, batch, inputs)
+	if err == nil {
+		t.Fatal("expected error when transition to validated fails")
+	}
+	if examSvc.callCount != 0 {
+		t.Errorf("PersistExam must not be called when validated transition fails, got %d calls", examSvc.callCount)
+	}
+}
+
+// TestLabResultImportService_Commit_TransitionToMappedError verifies that a failure
+// transitioning the job to "mapped" is wrapped and returned as an error (no PersistBatch call).
+func TestLabResultImportService_Commit_TransitionToMappedError(t *testing.T) {
+	jobSvc := newStubLabJobService()
+	jobSvc.transErr = errors.New("db error on mapped transition")
+	jobSvc.transErrFor = model.LabImportJobStatusMapped
+	examSvc := &stubLabExamService{}
+	svc := NewLabResultImportService(jobSvc, examSvc)
+
+	batch := syntheticFixtureBatch(1)
+	inputs := []LabExamPersistInput{{ClinicID: 1, ExamTypeID: 1, Date: time.Now()}}
+
+	_, err := svc.Commit(context.Background(), 1, batch, inputs)
+	if err == nil {
+		t.Fatal("expected error when transition to mapped fails")
+	}
+	if examSvc.callCount != 0 {
+		t.Errorf("PersistExam must not be called when mapped transition fails, got %d calls", examSvc.callCount)
+	}
+}
+
+// TestLabResultImportService_Commit_TerminalTransitionError verifies that a failure on the
+// final terminal transition (persisted/duplicate/failed) is logged only — persistence already
+// happened, so Commit still returns the response successfully (best-effort per production comment).
+func TestLabResultImportService_Commit_TerminalTransitionError(t *testing.T) {
+	jobSvc := newStubLabJobService()
+	jobSvc.transErr = errors.New("db error on terminal transition")
+	jobSvc.transErrFor = model.LabImportJobStatusPersisted
+	examSvc := &stubLabExamService{}
+	svc := NewLabResultImportService(jobSvc, examSvc)
+
+	batch := syntheticFixtureBatch(1)
+	inputs := []LabExamPersistInput{{ClinicID: 1, ExamTypeID: 1, Date: time.Now()}}
+
+	resp, err := svc.Commit(context.Background(), 1, batch, inputs)
+	if err != nil {
+		t.Fatalf("Commit must not fail when only the terminal transition errors: %v", err)
+	}
+	if resp.PersistedCount != 1 {
+		t.Errorf("expected persisted_count=1, got %d", resp.PersistedCount)
+	}
+	if examSvc.callCount != 1 {
+		t.Errorf("expected PersistExam called once, got %d", examSvc.callCount)
+	}
+}
+
+// TestLabResultImportService_Commit_ContextCancelledDuringPersist verifies that when
+// PersistBatch is interrupted by a cancelled context, Commit transitions the job to
+// "failed" via a compensating context (WithoutCancel) and returns the underlying error.
+func TestLabResultImportService_Commit_ContextCancelledDuringPersist(t *testing.T) {
+	jobSvc := newStubLabJobService()
+	examSvc := &stubLabExamService{} // PersistBatch checks ctx.Err() before each row
+	svc := NewLabResultImportService(jobSvc, examSvc)
+
+	batch := syntheticFixtureBatch(1)
+	inputs := []LabExamPersistInput{{ClinicID: 1, ExamTypeID: 1, Date: time.Now()}}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel() // pre-cancel so the first PersistBatch loop iteration observes ctx.Err() != nil
+
+	_, err := svc.Commit(ctx, 1, batch, inputs)
+	if err == nil {
+		t.Fatal("expected error when context is cancelled during PersistBatch")
+	}
+
+	// the job must have been created and transitioned to failed via the compensating context
+	var job *model.LabImportJob
+	for _, j := range jobSvc.jobs {
+		job = j
+	}
+	if job == nil {
+		t.Fatal("expected job to have been created before cancellation was observed")
+	}
+	if job.Status != model.LabImportJobStatusFailed {
+		t.Errorf("expected job status=failed after cancellation cleanup, got %s", job.Status)
+	}
+}
+
 // TestLabResultImportService_Commit_EmptyInputs verifies an empty inputs slice
 // creates a job, persists no exams, and reaches the duplicate terminal state
 // (empty = nothing written = idempotent/duplicate semantics).

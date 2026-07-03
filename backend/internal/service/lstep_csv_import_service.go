@@ -175,10 +175,7 @@ func (s *lstepCsvImportService) ImportFriendAttributesCSV(ctx context.Context, c
 				return apperrors.FromGORM(err, "lstep_friend_attribute_snapshot", "bulk_create")
 			}
 		}
-		if err := tx.Where("clinic_id = ?", clinicID).Save(imp).Error; err != nil {
-			return apperrors.FromGORM(err, "lstep_csv_import", imp.ID.String())
-		}
-		return nil
+		return updateCsvImportRecordTx(tx, clinicID, imp)
 	})
 	if txErr != nil {
 		slog.ErrorContext(ctx, "failed to commit csv import transaction", "error", txErr, "import_id", imp.ID)
@@ -254,6 +251,32 @@ func (s *lstepCsvImportService) parseFriendAttrCSVRow(row []string, colIdx map[s
 	}
 
 	return snapshot, nil
+}
+
+// updateCsvImportRecordTx は最終集計結果を呼び出し元のトランザクション内で永続化する。
+// NOTE: GORM の Save() は imp.ID (主キー) がセット済みだと、事前に連結した .Where(...) 条件を
+// 無視して主キーのみで UPDATE を発行する（clinic_id 境界がクロステナント書き込みに対して無力化
+// される既知の落とし穴）。同じトランザクション内で完結させる必要があるため
+// LstepCsvImportRepository.Update は使わず、Model+Where+Updates(map) で明示的に id と clinic_id
+// 両方を WHERE 句に効かせる（P4: clinicScope on Update, MANDATORY）。
+func updateCsvImportRecordTx(tx *gorm.DB, clinicID uint64, imp *model.LstepCsvImport) error {
+	result := tx.Model(&model.LstepCsvImport{}).
+		Where("id = ? AND clinic_id = ?", imp.ID, clinicID).
+		Updates(map[string]any{
+			"row_count":     imp.RowCount,
+			"success_count": imp.SuccessCount,
+			"error_count":   imp.ErrorCount,
+			"status":        imp.Status,
+			"error_log":     imp.ErrorLog,
+			"imported_at":   imp.ImportedAt,
+		})
+	if result.Error != nil {
+		return apperrors.FromGORM(result.Error, "lstep_csv_import", imp.ID.String())
+	}
+	if result.RowsAffected == 0 {
+		return apperrors.WrapNotFound("lstep_csv_import", imp.ID.String())
+	}
+	return nil
 }
 
 // markImportFailed はインポートレコードを failed に更新する（TX 失敗後の補償処理）。

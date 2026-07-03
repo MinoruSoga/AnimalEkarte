@@ -505,7 +505,7 @@ func (s *reservationService) Delete(ctx context.Context, clinicID, id uint64) er
 	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
 		return apperrors.Wrap(err, "failed to find reservation")
 	}
-	count, err := s.repo.CountMedicalRecordsByReservationID(ctx, id)
+	count, err := s.repo.CountMedicalRecordsByReservationID(ctx, clinicID, id)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to check reservation dependencies", "error", err, "id", id, "clinic_id", clinicID)
 		return apperrors.Wrap(err, "failed to check reservation dependencies")

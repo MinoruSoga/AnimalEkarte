@@ -966,3 +966,63 @@ func TestIsCapable(t *testing.T) {
 		assert.False(t, isCapable([]model.StaffReservationCapability{}, 5))
 	})
 }
+
+// ================================================================
+// NewLiffService / NewLiffServiceWithType テスト
+// ================================================================
+
+func TestNewLiffService(t *testing.T) {
+	svc := NewLiffService(
+		&mockLiffSettingRepository{},
+		&mockLiffTypeRepository{},
+		&mockLiffStaffRepository{},
+		&mockLiffScheduleRepository{},
+		&mockLiffAdminRepository{},
+		&mockLiffCustomerRepository{},
+		&mockLiffOwnerRepository{},
+		&mockTransactor{},
+		&mockLiffReservationRepository{},
+		&mockLiffNotifier{},
+		&mockLiffUnavailableTimeRepository{},
+		&mockAvailableSlotRepository{},
+		&mockLiffOccupationRepository{},
+		&mockTrimmingCourseRepository{},
+		&mockTrimmingOptionRepository{},
+		&mockTrimmingDetailRepository{},
+	)
+	require.NotNil(t, svc)
+
+	impl, ok := svc.(*liffService)
+	require.True(t, ok, "戻り値は具象型 *liffService であるべき")
+	assert.Nil(t, impl.typeRepo, "NewLiffService は typeRepo に nil を渡す委譲コンストラクタ")
+	assert.NotNil(t, impl.validators, "validators が初期化されていること")
+}
+
+func TestNewLiffServiceWithType(t *testing.T) {
+	typeRepo := &mockLiffTypeRepository{}
+	svc := NewLiffServiceWithType(
+		&mockLiffSettingRepository{},
+		&mockLiffTypeRepository{},
+		typeRepo,
+		&mockLiffStaffRepository{},
+		&mockLiffScheduleRepository{},
+		&mockLiffAdminRepository{},
+		&mockLiffCustomerRepository{},
+		&mockLiffOwnerRepository{},
+		&mockTransactor{},
+		&mockLiffReservationRepository{},
+		&mockLiffNotifier{},
+		&mockLiffUnavailableTimeRepository{},
+		&mockAvailableSlotRepository{},
+		&mockLiffOccupationRepository{},
+		&mockTrimmingCourseRepository{},
+		&mockTrimmingOptionRepository{},
+		&mockTrimmingDetailRepository{},
+	)
+	require.NotNil(t, svc)
+
+	impl, ok := svc.(*liffService)
+	require.True(t, ok, "戻り値は具象型 *liffService であるべき")
+	assert.Same(t, typeRepo, impl.typeRepo, "typeRepo が明示的に配線されること")
+	assert.NotNil(t, impl.validators, "validators が初期化されていること")
+}

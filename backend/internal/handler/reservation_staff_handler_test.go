@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/gin-gonic/gin"
@@ -163,6 +164,19 @@ func TestListReservationStaffs_ReturnsOK(t *testing.T) {
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockReservationStaffService{
 				listFn: func(_ context.Context, _ uint64) ([]model.Staff, error) {
+					return nil, fmt.Errorf("db failure")
+				},
+			},
+			wantStatus: http.StatusInternalServerError,
+		},
+		{
+			name:     "returns 500 when ListExcludedByStaffIDs fails",
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockReservationStaffService{
+				listFn: func(_ context.Context, _ uint64) ([]model.Staff, error) {
+					return []model.Staff{{ID: 5, Name: "予約スタッフA"}}, nil
+				},
+				listExcludedByStaffIDsFn: func(_ context.Context, _ []uint64) (map[uint64][]model.StaffReservationExclusion, error) {
 					return nil, fmt.Errorf("db failure")
 				},
 			},
@@ -398,6 +412,14 @@ func TestUpdateReservationStaff(t *testing.T) {
 			svc:        &mockReservationStaffService{},
 			wantStatus: http.StatusBadRequest,
 		},
+		{
+			name:       "returns 400 for invalid JSON",
+			paramID:    "3",
+			body:       "not-json",
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockReservationStaffService{},
+			wantStatus: http.StatusBadRequest,
+		},
 	}
 
 	for _, tt := range tests {
@@ -418,4 +440,214 @@ func TestUpdateReservationStaff(t *testing.T) {
 			assert.Equal(t, tt.wantStatus, w.Code)
 		})
 	}
+}
+
+// ---- PatchReservationStaffStatus ----
+
+func TestPatchReservationStaffStatus(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	tests := []struct {
+		name       string
+		paramID    string
+		body       any
+		setupCtx   func(c *gin.Context)
+		svc        *mockReservationStaffService
+		wantStatus int
+	}{
+		{
+			name:     "activates reservation staff successfully",
+			paramID:  "3",
+			body:     map[string]any{"is_active": true},
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockReservationStaffService{
+				patchStatusFn: func(_ context.Context, clinicID, id uint64, isActive bool) (*model.Staff, []model.StaffReservationExclusion, error) {
+					assert.Equal(t, uint64(1), clinicID)
+					assert.Equal(t, uint64(3), id)
+					assert.True(t, isActive)
+					return &model.Staff{ID: 3, IsActive: isActive}, nil, nil
+				},
+			},
+			wantStatus: http.StatusOK,
+		},
+		{
+			name:       "returns 401 when clinic_id is missing",
+			paramID:    "3",
+			body:       map[string]any{"is_active": false},
+			setupCtx:   func(_ *gin.Context) {},
+			svc:        &mockReservationStaffService{},
+			wantStatus: http.StatusUnauthorized,
+		},
+		{
+			name:       "returns 400 for non-numeric id",
+			paramID:    "abc",
+			body:       map[string]any{"is_active": true},
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockReservationStaffService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:       "returns 400 for invalid JSON",
+			paramID:    "3",
+			body:       "not-json",
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockReservationStaffService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:     "returns 404 when reservation staff not found",
+			paramID:  "999",
+			body:     map[string]any{"is_active": true},
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockReservationStaffService{
+				patchStatusFn: func(_ context.Context, _, _ uint64, _ bool) (*model.Staff, []model.StaffReservationExclusion, error) {
+					return nil, nil, apperrors.WrapNotFound("staff", "999")
+				},
+			},
+			wantStatus: http.StatusNotFound,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := newHandlerWithReservationStaffSvc(tt.svc)
+			bodyBytes, err := json.Marshal(tt.body)
+			require.NoError(t, err)
+
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			c.Request = httptest.NewRequest(http.MethodPatch, "/", bytes.NewReader(bodyBytes))
+			c.Request.Header.Set("Content-Type", "application/json")
+			c.Params = gin.Params{{Key: "staffId", Value: tt.paramID}}
+			tt.setupCtx(c)
+
+			h.PatchReservationStaffStatus(c)
+
+			assert.Equal(t, tt.wantStatus, w.Code)
+		})
+	}
+}
+
+// ---- PatchReservationStaffSortOrder ----
+//
+// c.Status(http.StatusNoContent) は httptest.ResponseRecorder に即時反映されないため
+// gin.Engine 経由でリクエストを送る。
+
+func newPatchSortOrderRouter(svc service.ReservationStaffService) *gin.Engine {
+	r := gin.New()
+	h := newHandlerWithReservationStaffSvc(svc)
+	r.PATCH("/reservation-staffs/:staffId/sort-order", func(c *gin.Context) {
+		setClinicID(c)
+	}, h.PatchReservationStaffSortOrder)
+	return r
+}
+
+func TestPatchReservationStaffSortOrder(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	tests := []struct {
+		name       string
+		paramID    string
+		body       string
+		svc        *mockReservationStaffService
+		wantStatus int
+	}{
+		{
+			name:    "moves sort order up successfully",
+			paramID: "3",
+			body:    `{"direction":"up"}`,
+			svc: &mockReservationStaffService{
+				patchSortOrderFn: func(_ context.Context, clinicID, id uint64, direction string) error {
+					assert.Equal(t, uint64(1), clinicID)
+					assert.Equal(t, uint64(3), id)
+					assert.Equal(t, "up", direction)
+					return nil
+				},
+			},
+			wantStatus: http.StatusNoContent,
+		},
+		{
+			name:    "moves sort order down successfully",
+			paramID: "3",
+			body:    `{"direction":"down"}`,
+			svc: &mockReservationStaffService{
+				patchSortOrderFn: func(_ context.Context, _, _ uint64, direction string) error {
+					assert.Equal(t, "down", direction)
+					return nil
+				},
+			},
+			wantStatus: http.StatusNoContent,
+		},
+		{
+			name:       "returns 400 for invalid direction",
+			paramID:    "3",
+			body:       `{"direction":"sideways"}`,
+			svc:        &mockReservationStaffService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:       "returns 400 for invalid JSON",
+			paramID:    "3",
+			body:       `{invalid}`,
+			svc:        &mockReservationStaffService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:       "returns 400 for non-numeric id",
+			paramID:    "abc",
+			body:       `{"direction":"up"}`,
+			svc:        &mockReservationStaffService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:    "returns 404 when reservation staff not found",
+			paramID: "999",
+			body:    `{"direction":"up"}`,
+			svc: &mockReservationStaffService{
+				patchSortOrderFn: func(_ context.Context, _, _ uint64, _ string) error {
+					return apperrors.WrapNotFound("staff", "999")
+				},
+			},
+			wantStatus: http.StatusNotFound,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			router := newPatchSortOrderRouter(tt.svc)
+			w := httptest.NewRecorder()
+			req := httptest.NewRequest(http.MethodPatch, "/reservation-staffs/"+tt.paramID+"/sort-order", strings.NewReader(tt.body))
+			req.Header.Set("Content-Type", "application/json")
+			router.ServeHTTP(w, req)
+			assert.Equal(t, tt.wantStatus, w.Code)
+		})
+	}
+
+	t.Run("returns 401 when clinic_id is missing", func(t *testing.T) {
+		h := newHandlerWithReservationStaffSvc(&mockReservationStaffService{})
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Request = httptest.NewRequest(http.MethodPatch, "/", strings.NewReader(`{"direction":"up"}`))
+		c.Request.Header.Set("Content-Type", "application/json")
+		c.Params = gin.Params{{Key: "staffId", Value: "3"}}
+		h.PatchReservationStaffSortOrder(c)
+		assert.Equal(t, http.StatusUnauthorized, w.Code)
+	})
+}
+
+// ---- UploadReservationStaffImage ----
+//
+// v2 スコープ：未実装（RespondError で 501 Not Implemented を返すのみ）。
+
+func TestUploadReservationStaffImage(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	h := newHandlerWithReservationStaffSvc(&mockReservationStaffService{})
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest(http.MethodPost, "/", http.NoBody)
+
+	h.UploadReservationStaffImage(c)
+
+	assert.Equal(t, http.StatusNotImplemented, w.Code)
 }

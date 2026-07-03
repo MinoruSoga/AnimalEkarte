@@ -4,6 +4,8 @@ package service
 // C1 は「保存される実効用量(mg)」で判定する点・両上限・逸脱検出・スナップショット値固定を固定する。
 
 import (
+	"context"
+	"math"
 	"testing"
 
 	"github.com/animal-ekarte/backend/internal/model"
@@ -138,5 +140,74 @@ func TestEvaluateSavedDose_Snapshot(t *testing.T) {
 	}
 	if snap.FormulaVersion != doseFormulaVersion {
 		t.Errorf("snapshot formula version = %q, want %q", snap.FormulaVersion, doseFormulaVersion)
+	}
+}
+
+// TestClearedDoseColumns は per_weight 対象でなくなった治療の dose スナップショット列を
+// NULL クリアする map の内容を固定する（L-3: stale スナップショット除去）。
+func TestClearedDoseColumns(t *testing.T) {
+	got := clearedDoseColumns()
+	want := map[string]any{
+		"dose_weight_kg":      nil,
+		"dose_weight_source":  nil,
+		"dose_amount_mg":      nil,
+		"dose_amount_unit":    nil,
+		"dose_param_snapshot": nil,
+	}
+	if len(got) != len(want) {
+		t.Fatalf("clearedDoseColumns() len = %d, want %d", len(got), len(want))
+	}
+	for k, wantV := range want {
+		gotV, ok := got[k]
+		if !ok {
+			t.Errorf("clearedDoseColumns() missing key %q", k)
+			continue
+		}
+		if gotV != wantV {
+			t.Errorf("clearedDoseColumns()[%q] = %v, want %v", k, gotV, wantV)
+		}
+	}
+}
+
+// TestMarshalDoseSnapshot_MarshalError は JSON マーシャル失敗時（例: 非有限浮動小数点値）に
+// ベストエフォートで nil を返すことを検証する（監査記録の欠落は許容し治療保存自体は継続させる設計）。
+func TestMarshalDoseSnapshot_MarshalError(t *testing.T) {
+	med := perWeightTabletMedicine(10)
+	param := &model.MedicineDoseParam{
+		Species:    model.MedicineDoseSpeciesDog,
+		DoseBasis:  model.MedicineDoseBasisPerAdministration,
+		DosePerKg:  5,
+		MaxMgPerKg: fptr(5),
+	}
+	// WeightKg=+Inf は json.Marshal で "unsupported value" エラーになる非有限浮動小数点値。
+	eval := EvaluateSavedDose(SavedDoseInput{
+		Medicine: med, Param: param, Species: model.MedicineDoseSpeciesDog,
+		WeightKg: math.Inf(1), SubmittedQty: 2,
+	})
+
+	got := marshalDoseSnapshot(context.Background(), &eval)
+
+	if got != nil {
+		t.Errorf("marshalDoseSnapshot() with non-finite float = %v, want nil (best-effort)", got)
+	}
+}
+
+// TestMarshalDoseSnapshot_Success は正常系で有効な JSON バイト列を返すことを検証する。
+func TestMarshalDoseSnapshot_Success(t *testing.T) {
+	med := perWeightTabletMedicine(10)
+	param := &model.MedicineDoseParam{
+		Species:    model.MedicineDoseSpeciesDog,
+		DoseBasis:  model.MedicineDoseBasisPerAdministration,
+		DosePerKg:  5,
+		MaxMgPerKg: fptr(5),
+	}
+	eval := EvaluateSavedDose(SavedDoseInput{
+		Medicine: med, Param: param, Species: model.MedicineDoseSpeciesDog, WeightKg: 4, SubmittedQty: 2,
+	})
+
+	got := marshalDoseSnapshot(context.Background(), &eval)
+
+	if got == nil {
+		t.Fatal("marshalDoseSnapshot() = nil, want non-nil JSON bytes for a valid snapshot")
 	}
 }

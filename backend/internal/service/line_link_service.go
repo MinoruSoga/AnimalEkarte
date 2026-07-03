@@ -64,6 +64,9 @@ type lineLinkService struct {
 	// cipher は Webhook 署名検証時に line_channel_secret を復号するために使う（H-4）。
 	// nil の場合は復号なしで動作する（開発環境で INTEGRATION_ENCRYPTION_KEY 未設定時）。
 	cipher *crypto.AESGCMCipher
+	// httpClient は LINE ID Token 検証 API 呼び出しに使う。テスト容易性のためのシームで、
+	// 本番では http.DefaultClient と等価に振る舞う（挙動変更なし）。
+	httpClient *http.Client
 }
 
 // NewLineLinkService は LineLinkService を初期化して返す。
@@ -81,6 +84,7 @@ func NewLineLinkService(
 		lineSettingRepo:   lineSettingRepo,
 		auditSvc:          auditSvc,
 		cipher:            cipher,
+		httpClient:        http.DefaultClient,
 	}
 }
 
@@ -134,7 +138,7 @@ func (s *lineLinkService) GenerateLinkToken(ctx context.Context, clinicID, owner
 // LinkAccount は LINE ID Token を検証してトークン対応の飼い主に LINE User ID を紐付ける。
 func (s *lineLinkService) LinkAccount(ctx context.Context, clinicID uint64, input LinkAccountInput) (*model.Owner, error) {
 	// 1. LINE ID Token 検証 → LINE User ID 取得
-	lineUserID, err := verifyLineIDToken(ctx, input.LineIDToken, clinicID, s.lineSettingRepo)
+	lineUserID, err := verifyLineIDToken(ctx, input.LineIDToken, clinicID, s.lineSettingRepo, s.httpClient)
 	if err != nil {
 		return nil, apperrors.WrapUnauthorized(fmt.Sprintf("invalid line id token: %v", err))
 	}
@@ -273,13 +277,17 @@ func verifyLineSignature(body []byte, signature, channelSecret string) bool {
 }
 
 // verifyLineIDToken は LINE API でIDトークンを検証し LINE User ID を返す。
-func verifyLineIDToken(ctx context.Context, idToken string, clinicID uint64, settingRepo repository.LineReservationSettingRepository) (string, error) {
+// client は呼び出しに使う *http.Client（テスト容易性のためのシーム）。nil の場合は http.DefaultClient を使う。
+func verifyLineIDToken(ctx context.Context, idToken string, clinicID uint64, settingRepo repository.LineReservationSettingRepository, client *http.Client) (string, error) {
 	setting, err := settingRepo.FindByClinicID(ctx, clinicID)
 	if err != nil {
 		return "", apperrors.Wrap(err, "failed to get line channel id")
 	}
+	if client == nil {
+		client = http.DefaultClient
+	}
 
-	resp, err := http.PostForm("https://api.line.me/oauth2/v2.1/verify", url.Values{
+	resp, err := client.PostForm("https://api.line.me/oauth2/v2.1/verify", url.Values{
 		"id_token":  {idToken},
 		"client_id": {setting.LineChannelID},
 	})

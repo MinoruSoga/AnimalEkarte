@@ -1,303 +1,108 @@
 ---
 name: ci-cd-automation
-description: CI/CD パイプライン自動化（GitHub Actions、テスト・ビルド・デプロイ）
+description: このプロジェクトの GitHub Actions CI/CD 構成の把握と、CI 失敗調査・ローカル検証の手順。CI が赤い時、ワークフロー変更時、push 後の結論確認時に使用。
 ---
 
-# CI/CD Pipeline Automation
+# CI/CD Pipeline — AnimalEkarte 実構成と失敗調査
 
-GitHub Actions によるテスト・ビルド・デプロイ自動化。
+このスキルは**実在するワークフローのみ**を記述する。架空のテンプレートを書かないこと。
+ワークフロー定義の正本は `.github/workflows/` であり、変更時は必ず実ファイルを読む。
 
-## パイプライン構成
+## 実在するワークフロー一覧
 
-```
-┌─────────────────────────────────────────────────┐
-│ Trigger: git push (main, develop)               │
-└────────────┬────────────────────────────────────┘
-             │
-             ▼
-┌─────────────────────────────────────────────────┐
-│ Lint & Format Check                             │
-├─────────────────────────────────────────────────┤
-│ - Go: golangci-lint                             │
-│ - TypeScript: ESLint + Prettier                 │
-│ - YAML: yamllint                                │
-│ ⏱️ ~2分                                          │
-└────────────┬────────────────────────────────────┘
-             │
-             ▼
-┌─────────────────────────────────────────────────┐
-│ Unit Tests                                      │
-├─────────────────────────────────────────────────┤
-│ - Backend: go test ./... -cover                 │
-│ - Frontend: pnpm test:run                    │
-│ ⏱️ ~5分                                          │
-└────────────┬────────────────────────────────────┘
-             │
-             ▼
-┌─────────────────────────────────────────────────┐
-│ Security Scan                                   │
-├─────────────────────────────────────────────────┤
-│ - Go: gosec ./...                               │
-│ - Deps: pnpm audit                               │
-│ ⏱️ ~2分                                          │
-└────────────┬────────────────────────────────────┘
-             │
-             ▼
-┌─────────────────────────────────────────────────┐
-│ Build Docker Images                             │
-├─────────────────────────────────────────────────┤
-│ - Backend: docker build                         │
-│ - Frontend: docker build                        │
-│ ⏱️ ~3分                                          │
-└────────────┬────────────────────────────────────┘
-             │
-             ├─ IF main branch
-             │   ▼
-             │ ┌──────────────────────────────────┐
-             │ │ Integration Tests (Docker)       │
-             │ │ ⏱️ ~5分                           │
-             │ └──────────────────────────────────┘
-             │   ▼
-             │ ┌──────────────────────────────────┐
-             │ │ Push to Registry                 │
-             │ │ ⏱️ ~2分                           │
-             │ └──────────────────────────────────┘
-             │   ▼
-             │ ┌──────────────────────────────────┐
-             │ │ Deploy to Test Environment       │
-             │ │ ⏱️ ~5分                           │
-             │ └──────────────────────────────────┘
-             │
-             └─ IF feature branch
-                 (Skip deployment)
-```
+| ファイル | 役割 |
+|---------|------|
+| `ci.yml` | メイン CI（下記ジョブ構成） |
+| `backend-deploy.yml` | Backend の AWS ECS デプロイ（`db_reset` input あり） |
+| `frontend-deploy.yml` | Frontend デプロイ |
+| `e2e.yml` | E2E テスト |
+| `security-scan.yml` | agentshield（エージェント設定の監査。Go コードスキャナではない） |
+| `performance-tests.yml` | パフォーマンステスト（push 後のみ） |
+| `actionlint.yml` | ワークフロー自体の lint（`paths: .github/workflows/**` フィルタ） |
+| `staging-stop.yml` / `stg-smoke.yml` | STG 停止 / スモーク |
 
-## GitHub Actions ワークフロー例
+## ci.yml の実ジョブ構成
 
-### .github/workflows/lint.yml
+- **トリガー**: `pull_request: branches: [main, staging, production]` + `push: branches: [main]`
+- **changes**: paths-filter で backend / frontend / migration 変更を判定し、後続ジョブを条件起動
+- **インベントリ lint 群**（go/ast ベースの再発防止テスト。それぞれ独立ジョブ）:
+  `preload-clinic-scope-lint` / `master-fk-write-inventory` / `clinical-result-audit-tx-inventory` / `migration-cascade-inventory` / `openapi-date-format-drift` / `dbortx-inventory`
+- **backend**: verify_seed.py → go build → golangci-lint（`golangci/golangci-lint-action@v9`）→ go test（-race + coverage）→ schema drift check
+- **frontend**: pnpm audit → type-check → test:coverage → lint → build（**4ゲート**）
+- **codegen-check**: Go モデル ↔ models.ts の同期検証
+- **migration-verify**: マイグレーション検証
+- **reset-contract** / **shellcheck**: スクリプト契約テスト
 
-```yaml
-name: Lint & Format Check
-on: [push, pull_request]
+使用アクションの正: `actions/checkout@v7` / `actions/setup-go@v6` / `actions/setup-node@v6` / `pnpm/action-setup@v6`。
+（`node-actions/setup-node` や `go-actions/setup-go` というアクションは存在しない — 過去にこのスキルが記載していた誤り）
 
-jobs:
-  lint:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
+## CI 失敗調査の手順（実績由来）
 
-      # Go Lint
-      - uses: golangci/golangci-lint-action@v3
-        with:
-          version: latest
-          working-directory: ./backend
+過去の実害から抽出した盲点。この順で確認する。
 
-      # TypeScript Lint
-      - uses: node-actions/setup-node@v3
-        with:
-          node-version: '20'
-      - run: cd frontend && pnpm install --frozen-lockfile && pnpm lint
-
-      # YAML Lint
-      - uses: ibiqlik/action-yamllint@v3
-        with:
-          file_or_dir: .
-          config_file: .yamllint
-```
-
-### .github/workflows/test.yml
-
-```yaml
-name: Tests
-on: [push, pull_request]
-
-jobs:
-  backend-tests:
-    runs-on: ubuntu-latest
-    services:
-      postgres:
-        image: postgres:18
-        env:
-          POSTGRES_PASSWORD: test
-          POSTGRES_DB: ekarte_test
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-
-    steps:
-      - uses: actions/checkout@v4
-      - uses: go-actions/setup-go@v4
-        with:
-          go-version: '1.25'
-
-      - name: Run tests
-        run: cd backend && go test ./... -v -cover
-        env:
-          DATABASE_URL: postgres://postgres:test@localhost/ekarte_test
-
-      - name: Upload coverage
-        uses: codecov/codecov-action@v3
-        with:
-          files: ./backend/coverage.out
-
-  frontend-tests:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: node-actions/setup-node@v3
-        with:
-          node-version: '20'
-
-      - run: cd frontend && pnpm install --frozen-lockfile && pnpm test:run
-
-      - name: Upload coverage
-        uses: codecov/codecov-action@v3
-        with:
-          files: ./frontend/coverage/coverage-final.json
-```
-
-### .github/workflows/security.yml
-
-```yaml
-name: Security Scan
-on: [push, pull_request]
-
-jobs:
-  gosec:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: securego/gosec@master
-        with:
-          args: '-no-fail -fmt json ./...'
-          working-directory: backend
-
-  npm-audit:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: node-actions/setup-node@v3
-      - run: cd frontend && pnpm install --frozen-lockfile && pnpm audit --audit-level=moderate
-```
-
-### .github/workflows/docker-build.yml
-
-```yaml
-name: Docker Build & Push
-on:
-  push:
-    branches: [main, develop]
-
-jobs:
-  build:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: docker/setup-buildx-action@v2
-
-      # Backend
-      - uses: docker/build-push-action@v4
-        with:
-          context: ./backend
-          file: ./backend/Dockerfile
-          push: ${{ github.ref == 'refs/heads/main' }}
-          tags: ghcr.io/your-org/ekarte-backend:${{ github.sha }}
-          cache-from: type=registry
-          cache-to: type=inline
-
-      # Frontend
-      - uses: docker/build-push-action@v4
-        with:
-          context: ./frontend
-          file: ./frontend/Dockerfile
-          push: ${{ github.ref == 'refs/heads/main' }}
-          tags: ghcr.io/your-org/ekarte-frontend:${{ github.sha }}
-```
-
-## パイプライン監視
-
-### ステータス確認
+### 1. run の特定は `--branch` 軸（`--commit` は使わない）
 
 ```bash
-# GitHub Actions 確認
-gh run list --repo your-org/ekarte
+# ❌ このリポでは空を返す
+gh run list --commit <sha>
+# ✅ branch + headSha で自前フィルタ
+gh run list --branch main --json databaseId,event,conclusion,headSha --limit 10
+```
+（出典: memory ops_gh_run_list_commit_empty_use_branch）
 
-# 特定ワークフロー確認
-gh run view --repo your-org/ekarte 12345
+### 2. job / step 単位で確認（conclusion=success を額面で信じない）
 
-# ローカル CI 実行
-make test
-make lint
-make docker-build
+```bash
+gh run view <run-id> --json jobs
 ```
 
-### 失敗時の対応
+- **fail-fast マスク**: backend ジョブは Build → Lint → Test の順次 step。前段失敗で後段が未実行のまま赤になる。逆に前段を直すと**隠れていた後段の失敗が初めて露出**する（Lint 緑化で Test 失敗が露出した実例）。失敗 step だけでなく未実行 step を必ず確認
+- **paths-filter silent green**: changes ジョブで skip されたジョブは実行されていないのに全体は success に見える。skip されたジョブがあれば当該層は「未検証」として扱う
+（出典: memory feedback_ci_step_order_masks_lint / feedback_paths_filter_silent_green / ops_golangci_lint_cap_and_reconcile_20260630）
 
-| 失敗箇所 | 対応 |
-|---------|------|
-| Lint 失敗 | `pnpm lint:fix`, `go fmt` |
-| Test 失敗 | ローカルで `go test -v` 実行 |
-| Build 失敗 | Docker ログ確認、キャッシュクリア |
-| Deploy 失敗 | K8s/ECS ログ確認 |
+### 3. golangci-lint の件数 cap に注意
 
-## パフォーマンス目標
+`.golangci.yml` の `max-same-issues` / `max-issues-per-linter` により**件数が過少表示される**（11件目以降が隠れる）。完全な件数確認は cap 解除で行う:
 
+```bash
+--max-same-issues 0 --max-issues-per-linter 0
 ```
-Total Pipeline Time:    < 15分
-Lint:                   < 2分
-Test:                   < 5分
-Security:               < 2分
-Build:                   < 3分
-Deploy:                  < 5分
+（出典: memory ops_golangci_lint_cap_and_reconcile_20260630、commit 7d103994）
 
-Success Rate:           > 98%
+### 4. ローカル再現（スコープ限定・禁止コマンド回避）
+
+全体 `go test ./...` / `golangci-lint run ./...` は CLAUDE.md の自動実行禁止コマンド。スコープ限定 + 以下の罠回避で再現する:
+
+```bash
+# lint: entrypoint.sh がコマンドを無視するため --entrypoint 上書き必須
+docker compose run --rm --no-deps -T --entrypoint golangci-lint backend run ./internal/repository/...
+
+# キャッシュ偽0件の回避（stale cache で 0 issues に見える）
+docker compose exec -T backend sh -c 'GOLANGCI_LINT_CACHE=/tmp/glc-$RANDOM golangci-lint run ./internal/handler/...'
 ```
+（出典: memory ops_backend_scoped_lint_entrypoint_override / ops_golangci_lint_stale_cache_false_zero）
 
-## ベストプラクティス
+### 5. DB 依存テストの fresh-DB ゲート
 
-1. **キャッシング**
-   ```yaml
-   - uses: actions/cache@v3
-     with:
-       path: ~/.cache/go-build
-       key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
-   ```
+warm-DB（前 run のテーブル残存）でローカル PASS しても CI の fresh DB で FAIL する。seed / migration / ENUM を変更した場合はテスト DB を作り直して1回走らせる。
+（出典: memory ops_golangci_lint_cap_and_reconcile_20260630）
 
-2. **Artifact 保存**
-   ```yaml
-   - uses: actions/upload-artifact@v3
-     with:
-       name: coverage-reports
-       path: coverage/
-   ```
+## ワークフロー変更時の注意
 
-3. **通知**
-   - Slack 連携
-   - GitHub チェック実行
-   - メール通知（失敗時）
+- **バージョン統一**: Actions のバージョンはリポジトリ全体で統一されている（setup-node v6 等）。1ファイルだけ上げない（出典: memory infra002_github_actions_unification_complete — 「value の DRY ≠ actions の DRY」）
+- **drift スキャンは `with:` / `env:` / `working-directory:` も対象**（出典: memory feedback_workflow_with_param_drift）
+- **production 起動条件（env）変更は CI workflow にも波及**する。`.github/workflows/` の env を同時更新（出典: memory feedback_config_change_ci_propagation）
+- workflow ファイル変更後は actionlint.yml が走る（paths フィルタあり — 見かけ green に注意）
 
-4. **セキュリティ**
-   - Secrets 管理（token、credentials）
-   - OpenID Connect で認証
-   - Runner セキュリティ
+## 完了条件（CI 調査タスクの合格基準）
 
-## チェックリスト
-
-- [ ] Lint ワークフロー実装
-- [ ] Unit Test ワークフロー実装
-- [ ] Security Scan ワークフロー実装
-- [ ] Docker Build ワークフロー実装
-- [ ] Integration Test ワークフロー実装
-- [ ] Deploy ワークフロー実装
-- [ ] 通知設定（Slack、メール）
-- [ ] キャッシング最適化
-- [ ] Artifact 保存設定
+- [ ] 対象 commit の run を headSha 一致で特定した
+- [ ] 全ジョブの conclusion を job 単位で確認し、skip されたジョブを列挙した
+- [ ] 失敗時: 失敗 step と未実行 step を区別して報告した
+- [ ] 「CI green」と報告する場合、skip ではなく実 success であることを確認済み
 
 ## 関連スキル
 
-- `docker-optimization` - イメージビルド最適化
-- `deployment` - デプロイメント自動化
-- `security-audit` - セキュリティチェック
+- `docker-optimization` — イメージビルド最適化
+- `deployment` — デプロイメント（backend-deploy.yml / frontend-deploy.yml）
+- `migration-seed-safety` — migration / seed 変更時の安全ガード

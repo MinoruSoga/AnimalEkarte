@@ -194,6 +194,64 @@ func newTestReservationTypeService(repo *mockReservationTypeRepository) Reservat
 	return NewReservationTypeService(repo, &mockUnavailableTimeRepository{}, &mockOccupationRepoForRType{}, &mockBaseOccupationRepo{})
 }
 
+// mockAvailableSlotRepoForRType is a minimal ReservationTypeAvailableSlotRepository
+// implementation used to exercise NewReservationTypeService's variadic
+// availableSlotRepo parameter (only set when a caller explicitly passes one).
+type mockAvailableSlotRepoForRType struct {
+	findAllFn func(ctx context.Context, clinicID, reservationTypeID uint64) ([]model.ReservationTypeAvailableSlot, error)
+}
+
+func (m *mockAvailableSlotRepoForRType) FindAll(ctx context.Context, clinicID, reservationTypeID uint64) ([]model.ReservationTypeAvailableSlot, error) {
+	if m.findAllFn != nil {
+		return m.findAllFn(ctx, clinicID, reservationTypeID)
+	}
+	return []model.ReservationTypeAvailableSlot{}, nil
+}
+func (m *mockAvailableSlotRepoForRType) FindByID(_ context.Context, _, id uint64) (*model.ReservationTypeAvailableSlot, error) {
+	return &model.ReservationTypeAvailableSlot{ID: id}, nil
+}
+func (m *mockAvailableSlotRepoForRType) Create(_ context.Context, _ *model.ReservationTypeAvailableSlot) error {
+	return nil
+}
+func (m *mockAvailableSlotRepoForRType) Delete(_ context.Context, _, _ uint64) error { return nil }
+
+func TestNewReservationTypeService_WithAvailableSlotRepo(t *testing.T) {
+	t.Run("variadic availableSlotRepo is wired when provided", func(t *testing.T) {
+		called := false
+		slotRepo := &mockAvailableSlotRepoForRType{
+			findAllFn: func(_ context.Context, _, _ uint64) ([]model.ReservationTypeAvailableSlot, error) {
+				called = true
+				return []model.ReservationTypeAvailableSlot{{ID: 1}}, nil
+			},
+		}
+		svc := NewReservationTypeService(
+			&mockReservationTypeRepository{},
+			&mockUnavailableTimeRepository{},
+			&mockOccupationRepoForRType{},
+			&mockBaseOccupationRepo{},
+			slotRepo,
+		)
+
+		slots, err := svc.ListAvailableSlots(context.Background(), 1, 5)
+
+		assert.NoError(t, err)
+		assert.True(t, called, "the explicitly provided availableSlotRepo should be used")
+		assert.Len(t, slots, 1)
+	})
+
+	t.Run("omitting availableSlotRepo leaves it nil", func(t *testing.T) {
+		svc := NewReservationTypeService(
+			&mockReservationTypeRepository{},
+			&mockUnavailableTimeRepository{},
+			&mockOccupationRepoForRType{},
+			&mockBaseOccupationRepo{},
+		)
+		concrete, ok := svc.(*reservationTypeService)
+		require.True(t, ok)
+		assert.Nil(t, concrete.availableSlotRepo)
+	})
+}
+
 // ---- List ----
 
 func TestReservationTypeService_List(t *testing.T) {

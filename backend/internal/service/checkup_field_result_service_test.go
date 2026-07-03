@@ -101,6 +101,83 @@ func (m *mockCheckupTransactor) WithTx(ctx context.Context, fn func(context.Cont
 	return fn(ctx)
 }
 
+// TestComputeCheckupNumberStatus は number 型の status/is_abnormal 導出の全分岐を検証する。
+func TestComputeCheckupNumberStatus(t *testing.T) {
+	tests := []struct {
+		name           string
+		value          *float64
+		refMin         *float64
+		refMax         *float64
+		wantStatus     model.ExaminationResultStatus
+		wantIsAbnormal bool
+	}{
+		{
+			name:           "nil value returns normal",
+			value:          nil,
+			refMin:         fptr(1),
+			refMax:         fptr(10),
+			wantStatus:     model.ExaminationResultStatusNormal,
+			wantIsAbnormal: false,
+		},
+		{
+			name:           "value below refMin returns low",
+			value:          fptr(0.5),
+			refMin:         fptr(1),
+			refMax:         fptr(10),
+			wantStatus:     model.ExaminationResultStatusLow,
+			wantIsAbnormal: true,
+		},
+		{
+			name:           "value above refMax returns high",
+			value:          fptr(11),
+			refMin:         fptr(1),
+			refMax:         fptr(10),
+			wantStatus:     model.ExaminationResultStatusHigh,
+			wantIsAbnormal: true,
+		},
+		{
+			name:           "value within range returns normal",
+			value:          fptr(5),
+			refMin:         fptr(1),
+			refMax:         fptr(10),
+			wantStatus:     model.ExaminationResultStatusNormal,
+			wantIsAbnormal: false,
+		},
+		{
+			name:           "nil refMin skips low check",
+			value:          fptr(-100),
+			refMin:         nil,
+			refMax:         fptr(10),
+			wantStatus:     model.ExaminationResultStatusNormal,
+			wantIsAbnormal: false,
+		},
+		{
+			name:           "nil refMax skips high check",
+			value:          fptr(1000),
+			refMin:         fptr(1),
+			refMax:         nil,
+			wantStatus:     model.ExaminationResultStatusNormal,
+			wantIsAbnormal: false,
+		},
+		{
+			name:           "both ref bounds nil returns normal",
+			value:          fptr(42),
+			refMin:         nil,
+			refMax:         nil,
+			wantStatus:     model.ExaminationResultStatusNormal,
+			wantIsAbnormal: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			status, isAbnormal := computeCheckupNumberStatus(tt.value, tt.refMin, tt.refMax)
+			assert.Equal(t, tt.wantStatus, status)
+			assert.Equal(t, tt.wantIsAbnormal, isAbnormal)
+		})
+	}
+}
+
 func TestCheckupFieldResultService_ListFields(t *testing.T) {
 	ctx := context.Background()
 
@@ -161,6 +238,32 @@ func TestCheckupFieldResultService_ListByCheckup(t *testing.T) {
 		svc := NewCheckupFieldResultService(checkupRepo, nil, nil, resultRepo, nil, nil)
 		_, err := svc.ListByCheckup(ctx, 1, 10, 50)
 		assert.Error(t, err)
+	})
+
+	// verifyCheckup: 非 NotFound の repo エラー（DB 障害等）は NotFound と異なりログ出力を伴う分岐。
+	t.Run("checkup verify non-notfound repository error is logged and wrapped", func(t *testing.T) {
+		checkupRepo := &mockCheckupResultCheckupRepository{
+			findByIDFn: func(_ context.Context, _, _ uint64) (*model.Checkup, error) {
+				return nil, errors.New("db connection error")
+			},
+		}
+		svc := NewCheckupFieldResultService(checkupRepo, nil, nil, nil, nil, nil)
+		_, err := svc.ListByCheckup(ctx, 1, 10, 50)
+		assert.Error(t, err)
+		assert.False(t, apperrors.IsNotFound(err))
+	})
+
+	// verifyCheckup: checkup が別の medical_record に属する場合は NotFound（クロスカルテ紐付け拒否）。
+	t.Run("checkup belongs to a different medical record returns not found", func(t *testing.T) {
+		checkupRepo := &mockCheckupResultCheckupRepository{
+			findByIDFn: func(_ context.Context, clinicID, id uint64) (*model.Checkup, error) {
+				return &model.Checkup{ID: id, ClinicID: clinicID, MedicalRecordID: 999, CheckupTypeID: 100}, nil
+			},
+		}
+		svc := NewCheckupFieldResultService(checkupRepo, nil, nil, nil, nil, nil)
+		_, err := svc.ListByCheckup(ctx, 1, 10, 50)
+		assert.Error(t, err)
+		assert.True(t, apperrors.IsNotFound(err))
 	})
 }
 
@@ -355,6 +458,27 @@ func TestCheckupFieldResultService_ReplaceForCheckup(t *testing.T) {
 		id := uint64(4)
 		inputs := []UpsertCheckupFieldResultInput{
 			{CheckupTypeFieldID: &id, ValueText: "X"},
+		}
+		_, err := svc.ReplaceForCheckup(ctx, 1, 10, 50, nil, inputs)
+		assert.Error(t, err)
+	})
+
+	// parseCheckupOptionValues: options 未定義（len==0）フィールドに非空値が送信された場合、
+	// 許可集合が空のため必ず「選択肢に存在しません」エラーになる分岐を検証する。
+	t.Run("validation input single select with no options defined rejects any value", func(t *testing.T) {
+		checkupRepo := &mockCheckupResultCheckupRepository{}
+		medRepo := &mockCheckupResultMedicalRecordRepository{}
+		fieldRepo := &mockCheckupTypeFieldRepository{
+			findByCheckupTypeIDFn: func(_ context.Context, _ uint64, _ uint64) ([]model.CheckupTypeField, error) {
+				return []model.CheckupTypeField{
+					{ID: 4, Name: "Single", FieldType: model.CheckupFieldTypeSingleSelect, Options: nil},
+				}, nil
+			},
+		}
+		svc := NewCheckupFieldResultService(checkupRepo, medRepo, fieldRepo, nil, nil, nil)
+		id := uint64(4)
+		inputs := []UpsertCheckupFieldResultInput{
+			{CheckupTypeFieldID: &id, ValueText: "anything"},
 		}
 		_, err := svc.ReplaceForCheckup(ctx, 1, 10, 50, nil, inputs)
 		assert.Error(t, err)

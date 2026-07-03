@@ -351,6 +351,135 @@ func TestFindMonthlyUnpaidCarryover_EmptyResult(t *testing.T) {
 	assert.Empty(t, items)
 }
 
+// TestAccountingRepository_FindUnpaidByBilling_ReturnsWaitingWithinRangeOnly は
+// status=waiting かつ scheduled_date が範囲内の billing のみが会計単位で返ることを検証する。#120
+func TestAccountingRepository_FindUnpaidByBilling_ReturnsWaitingWithinRangeOnly(t *testing.T) {
+	db := setupUnpaidCarryoverTestDB(t)
+	repo := NewAccountingRepository(db)
+	ctx := context.Background()
+	clinicID := uint64(1)
+
+	owner := makeOwner(t, db, clinicID, "会計単位テスト飼主")
+	id := owner.ID
+
+	makeBilling(t, db, clinicID, &id, nil, 1000, model.BillingStatusWaiting, time.Date(2026, 6, 10, 0, 0, 0, 0, time.UTC))
+	makeBilling(t, db, clinicID, &id, nil, 2000, model.BillingStatusCompleted, time.Date(2026, 6, 10, 0, 0, 0, 0, time.UTC))
+	makeBilling(t, db, clinicID, &id, nil, 3000, model.BillingStatusWaiting, time.Date(2026, 5, 1, 0, 0, 0, 0, time.UTC))
+
+	billings, total, err := repo.FindUnpaidByBilling(ctx, clinicID, firstDay2026June, lastDay2026June, 1, 100)
+	require.NoError(t, err)
+	assert.Equal(t, int64(1), total, "waiting かつ範囲内は1件のみ")
+	require.Len(t, billings, 1)
+	assert.Equal(t, int64(1000), billings[0].TotalAmount)
+	assert.NotNil(t, billings[0].Owner, "Owner が Preload される")
+}
+
+// TestAccountingRepository_FindUnpaidByBilling_ClinicIsolation は clinic_id 隔離を検証する。
+func TestAccountingRepository_FindUnpaidByBilling_ClinicIsolation(t *testing.T) {
+	db := setupUnpaidCarryoverTestDB(t)
+	repo := NewAccountingRepository(db)
+	ctx := context.Background()
+	clinicA, clinicB := uint64(1), uint64(2)
+
+	ownerA := makeOwner(t, db, clinicA, "医院A")
+	ownerB := makeOwner(t, db, clinicB, "医院B")
+	makeBilling(t, db, clinicA, &ownerA.ID, nil, 1000, model.BillingStatusWaiting, time.Date(2026, 6, 10, 0, 0, 0, 0, time.UTC))
+	makeBilling(t, db, clinicB, &ownerB.ID, nil, 9000, model.BillingStatusWaiting, time.Date(2026, 6, 10, 0, 0, 0, 0, time.UTC))
+
+	billingsA, totalA, err := repo.FindUnpaidByBilling(ctx, clinicA, firstDay2026June, lastDay2026June, 1, 100)
+	require.NoError(t, err)
+	assert.Equal(t, int64(1), totalA)
+	require.Len(t, billingsA, 1)
+	assert.Equal(t, int64(1000), billingsA[0].TotalAmount, "clinic B の未納が混入してはならない")
+}
+
+// TestAccountingRepository_FindUnpaidByBilling_Pagination はページネーションを検証する。
+func TestAccountingRepository_FindUnpaidByBilling_Pagination(t *testing.T) {
+	db := setupUnpaidCarryoverTestDB(t)
+	repo := NewAccountingRepository(db)
+	ctx := context.Background()
+	clinicID := uint64(1)
+
+	for i := range 3 {
+		owner := makeOwner(t, db, clinicID, fmt.Sprintf("会計ページ飼主%d", i))
+		makeBilling(t, db, clinicID, &owner.ID, nil, 1000, model.BillingStatusWaiting, time.Date(2026, 6, 10, 0, 0, 0, 0, time.UTC))
+	}
+
+	billings, total, err := repo.FindUnpaidByBilling(ctx, clinicID, firstDay2026June, lastDay2026June, 1, 2)
+	require.NoError(t, err)
+	assert.Equal(t, int64(3), total)
+	assert.Len(t, billings, 2, "page1 limit2 → 2件")
+}
+
+// TestAccountingRepository_FindUnpaidByOwner_AggregatesByOwnerAndSummarizes は
+// 飼主単位の集約とサマリー（合計・件数・飼主数）が正しく算出されることを検証する。#120
+func TestAccountingRepository_FindUnpaidByOwner_AggregatesByOwnerAndSummarizes(t *testing.T) {
+	db := setupUnpaidCarryoverTestDB(t)
+	repo := NewAccountingRepository(db)
+	ctx := context.Background()
+	clinicID := uint64(1)
+
+	owner1 := makeOwner(t, db, clinicID, "未納集約飼主1")
+	owner2 := makeOwner(t, db, clinicID, "未納集約飼主2")
+
+	makeBilling(t, db, clinicID, &owner1.ID, nil, 1000, model.BillingStatusWaiting, time.Date(2026, 6, 5, 0, 0, 0, 0, time.UTC))
+	makeBilling(t, db, clinicID, &owner1.ID, nil, 500, model.BillingStatusWaiting, time.Date(2026, 6, 20, 0, 0, 0, 0, time.UTC))
+	makeBilling(t, db, clinicID, &owner2.ID, nil, 3000, model.BillingStatusWaiting, time.Date(2026, 6, 15, 0, 0, 0, 0, time.UTC))
+	// completed は集計から除外
+	makeBilling(t, db, clinicID, &owner1.ID, nil, 9999, model.BillingStatusCompleted, time.Date(2026, 6, 5, 0, 0, 0, 0, time.UTC))
+
+	aggregates, totalOwners, summary, err := repo.FindUnpaidByOwner(ctx, clinicID, firstDay2026June, lastDay2026June, 1, 100)
+	require.NoError(t, err)
+
+	assert.Equal(t, int64(2), totalOwners, "未納がある飼主数=2")
+	assert.Equal(t, int64(4500), summary.TotalAmount, "1000+500+3000")
+	assert.Equal(t, int64(3), summary.BillingCount)
+	assert.Equal(t, int64(2), summary.OwnerCount)
+
+	byOwner := make(map[uint64]UnpaidOwnerAggregate, len(aggregates))
+	for _, a := range aggregates {
+		byOwner[a.OwnerID] = a
+	}
+	require.Contains(t, byOwner, owner1.ID)
+	assert.Equal(t, int64(1500), byOwner[owner1.ID].TotalAmount, "飼主1は1000+500")
+	assert.Equal(t, int64(2), byOwner[owner1.ID].Count)
+	assert.Equal(t, int64(3000), byOwner[owner2.ID].TotalAmount)
+}
+
+// TestAccountingRepository_FindUnpaidByOwner_ClinicIsolation は clinic_id 隔離を検証する。
+func TestAccountingRepository_FindUnpaidByOwner_ClinicIsolation(t *testing.T) {
+	db := setupUnpaidCarryoverTestDB(t)
+	repo := NewAccountingRepository(db)
+	ctx := context.Background()
+	clinicA, clinicB := uint64(1), uint64(2)
+
+	ownerA := makeOwner(t, db, clinicA, "医院A飼主")
+	ownerB := makeOwner(t, db, clinicB, "医院B飼主")
+	makeBilling(t, db, clinicA, &ownerA.ID, nil, 1000, model.BillingStatusWaiting, time.Date(2026, 6, 10, 0, 0, 0, 0, time.UTC))
+	makeBilling(t, db, clinicB, &ownerB.ID, nil, 9000, model.BillingStatusWaiting, time.Date(2026, 6, 10, 0, 0, 0, 0, time.UTC))
+
+	_, totalA, summaryA, err := repo.FindUnpaidByOwner(ctx, clinicA, firstDay2026June, lastDay2026June, 1, 100)
+	require.NoError(t, err)
+	assert.Equal(t, int64(1), totalA)
+	assert.Equal(t, int64(1000), summaryA.TotalAmount, "clinic B の未納が混入してはならない")
+}
+
+// TestAccountingRepository_FindUnpaidByOwner_EmptyResult は該当データなしの場合にゼロ値を返すことを検証する。
+func TestAccountingRepository_FindUnpaidByOwner_EmptyResult(t *testing.T) {
+	db := setupUnpaidCarryoverTestDB(t)
+	repo := NewAccountingRepository(db)
+	ctx := context.Background()
+	clinicID := uint64(1)
+
+	aggregates, total, summary, err := repo.FindUnpaidByOwner(ctx, clinicID, firstDay2026June, lastDay2026June, 1, 100)
+	require.NoError(t, err)
+	assert.Equal(t, int64(0), total)
+	assert.Equal(t, int64(0), summary.TotalAmount)
+	assert.Equal(t, int64(0), summary.BillingCount)
+	assert.Equal(t, int64(0), summary.OwnerCount)
+	assert.Empty(t, aggregates)
+}
+
 // TestFindMonthlyUnpaidCarryover_NextMonthCarryoverEquality は
 // next_month_carryover = prev_month_carryover + current_month_unpaid の等式を検証する。
 func TestFindMonthlyUnpaidCarryover_NextMonthCarryoverEquality(t *testing.T) {

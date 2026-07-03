@@ -7,6 +7,45 @@ description: テスト自動生成（ユニット・統合テスト、Go testify
 
 関数・メソッド・コンポーネントのテストケースを自動生成します。
 
+## テスト作成の基本方針
+
+### AAA (Arrange-Act-Assert) パターン
+
+テストは Arrange（準備）→ Act（実行）→ Assert（検証）の3ブロックで構成する。
+
+```typescript
+it('should return expected result when given valid input', () => {
+  // Arrange
+  const input = 'test input'
+
+  // Act
+  const result = functionToTest(input)
+
+  // Assert
+  expect(result).toBe('expected output')
+})
+```
+
+### Descriptive naming
+
+テスト名は「何をしたら何が起きるか」を明示する（`should return X when Y` 形式）。`test1` や `it works` のような曖昧な名前は禁止。
+
+### テストコマンド
+
+| 種別 | ツール | コマンド |
+|------|--------|---------|
+| ユニット (FE) | Vitest + Testing Library + MSW | `docker compose exec frontend pnpm test:run` |
+| カバレッジ (FE) | Vitest | `docker compose exec frontend pnpm test:coverage` |
+| ユニット (BE) | go test + testify | `docker compose exec backend go test ./... -v` |
+
+E2Eは `e2e-design` コマンド / `docs/testing/E2E_TESTING_GUIDE.md` を参照
+
+### モック方針
+
+- モックは最小限に。過剰なモック化は実装との乖離を生む
+- テストデータはファクトリパターンを使用
+- 非同期テストは適切に await する
+
 ## 実行スコープ
 
 ### 1. Go Backend テスト生成
@@ -176,7 +215,7 @@ test('raises error with invalid owner prop', () => {
 #### Hook テスト
 ```typescript
 import { renderHook, act } from '@testing-library/react'
-import { useOwnerForm } from './useOwnerForm'
+import { useOwnerForm } from './use-owner-form' // hooks ファイルは kebab-case 命名
 
 test('useOwnerForm initializes with default values', () => {
   const { result } = renderHook(() => useOwnerForm())
@@ -289,10 +328,10 @@ docker compose exec backend go tool cover -html=coverage.out
 ### Next Steps
 1. Review generated tests
 2. Add custom test cases if needed
-3. Run tests: `docker compose exec backend go test ./...`
+3. Run tests: `docker compose exec backend go test ./internal/<対象パッケージ>/...`
+   （⚠️ 全体 `go test ./...` は CLAUDE.md の自動実行禁止コマンド。ユーザーに手動実行を依頼する）
 ```
 
 ## 関連スキル
 
-- `tdd-workflow` - テスト駆動開発フロー
-- `error-handling-patterns` - エラーケースの完全網羅
+- `/tdd-workflow`（コマンド） - テスト駆動開発フロー

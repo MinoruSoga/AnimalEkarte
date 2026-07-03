@@ -40,7 +40,9 @@ type MedicalRecordRepository interface {
 	// FindFirstVisitDateByPetID は指定ペットの初診日（最古の有効カルテ date）を返す（#158 飼主レポート）。
 	// clinic スコープ + 論理削除除外。カルテが存在しない場合は nil, nil を返す。
 	FindFirstVisitDateByPetID(ctx context.Context, clinicID, petID uint64) (*time.Time, error)
-	CountEstimatesByMedicalRecordID(ctx context.Context, medicalRecordID uint64) (int64, error)
+	// CountEstimatesByMedicalRecordID は BE-refactor.md R2-5 (D12) で clinic_id 述語を追加した
+	// （呼び出し元 Delete が clinicID を既に保持・ownership 検証済みのため低リスクで追加可能）。
+	CountEstimatesByMedicalRecordID(ctx context.Context, clinicID, medicalRecordID uint64) (int64, error)
 	// FindOwnerVisitSummary は飼い主の初回/最終診療日・年間来院数を集計して返す（Lステップ同期用）。
 	FindOwnerVisitSummary(ctx context.Context, clinicID, ownerID uint64) (*OwnerVisitSummary, error)
 	// FindLatestByOwner は飼い主の最新カルテを返す（Lステップ次回来院推奨日タグ同期用）。
@@ -224,11 +226,12 @@ func (r *medicalRecordRepository) CountByOwnerID(ctx context.Context, clinicID, 
 
 // CountEstimatesByMedicalRecordID はカルテに紐付く見積書の件数を返す（BUG-201）
 // estimates.medical_record_id は ON DELETE RESTRICT のため削除前チェックが必要。
-func (r *medicalRecordRepository) CountEstimatesByMedicalRecordID(ctx context.Context, medicalRecordID uint64) (int64, error) {
+// BE-refactor.md R2-5 (D12): clinic_id 述語を追加（estimates は clinic_id カラムを直接持つ）。
+func (r *medicalRecordRepository) CountEstimatesByMedicalRecordID(ctx context.Context, clinicID, medicalRecordID uint64) (int64, error) {
 	var count int64
 	err := r.db.WithContext(ctx).
 		Model(&model.Estimate{}).
-		Where("medical_record_id = ? AND deleted_at IS NULL", medicalRecordID).
+		Where("medical_record_id = ? AND clinic_id = ? AND deleted_at IS NULL", medicalRecordID, clinicID).
 		Count(&count).Error
 	if err != nil {
 		return 0, apperrors.FromGORM(err, "estimate", "")

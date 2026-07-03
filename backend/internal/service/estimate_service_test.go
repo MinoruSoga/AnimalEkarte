@@ -46,7 +46,7 @@ func (m *mockEstimateRepository) Delete(ctx context.Context, clinicID, id uint64
 	return m.deleteFn(ctx, clinicID, id)
 }
 
-func (m *mockEstimateRepository) CountItemsByEstimateID(ctx context.Context, estimateID uint64) (int64, error) {
+func (m *mockEstimateRepository) CountItemsByEstimateID(ctx context.Context, _, estimateID uint64) (int64, error) {
 	if m.countItemsByEstimateID != nil {
 		return m.countItemsByEstimateID(ctx, estimateID)
 	}

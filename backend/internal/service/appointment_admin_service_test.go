@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
@@ -364,6 +365,7 @@ func TestReservationAdminService_Create_RejectsUnavailableTime(t *testing.T) {
 func TestReservationAdminService_Delete(t *testing.T) {
 	tests := []struct {
 		name      string
+		findErr   error
 		deleteErr error
 		wantErr   bool
 	}{
@@ -376,16 +378,26 @@ func TestReservationAdminService_Delete(t *testing.T) {
 			deleteErr: errors.New("db error"),
 			wantErr:   true,
 		},
+		{
+			name:    "returns error when reservation appointment is not found",
+			findErr: apperrors.WrapNotFound("reservation", "1"),
+			wantErr: true,
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			resRepo := &mockReservationRepository{
+				findByIDFn: func(_ context.Context, _, id uint64) (*model.Reservation, error) {
+					return &model.Reservation{ID: id}, tt.findErr
+				},
+			}
 			repo := &mockReservationAdminRepository{
 				softDeleteFn: func(_ context.Context, _, _ uint64) error {
 					return tt.deleteErr
 				},
 			}
-			svc := NewReservationAdminService(repo, &mockReservationRepository{}, &mockTransactor{})
+			svc := NewReservationAdminService(repo, resRepo, &mockTransactor{})
 			err := svc.Delete(context.Background(), 1, 1)
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -394,4 +406,41 @@ func TestReservationAdminService_Delete(t *testing.T) {
 			}
 		})
 	}
+}
+
+// ---- NewReservationAdminServiceWithAvailabilityAndType ----
+
+func TestNewReservationAdminServiceWithAvailabilityAndType(t *testing.T) {
+	t.Run("wires optional available slot repository when provided", func(t *testing.T) {
+		slotRepo := &mockAvailableSlotRepository{}
+
+		svc := NewReservationAdminServiceWithAvailabilityAndType(
+			&mockReservationAdminRepository{},
+			&mockReservationRepository{},
+			nil,
+			&mockTransactor{},
+			nil,
+			nil,
+			slotRepo,
+		)
+
+		impl, ok := svc.(*reservationAdminService)
+		require.True(t, ok)
+		assert.Same(t, slotRepo, impl.availableSlotRepo)
+	})
+
+	t.Run("leaves available slot repository nil when not provided", func(t *testing.T) {
+		svc := NewReservationAdminServiceWithAvailabilityAndType(
+			&mockReservationAdminRepository{},
+			&mockReservationRepository{},
+			nil,
+			&mockTransactor{},
+			nil,
+			nil,
+		)
+
+		impl, ok := svc.(*reservationAdminService)
+		require.True(t, ok)
+		assert.Nil(t, impl.availableSlotRepo)
+	})
 }

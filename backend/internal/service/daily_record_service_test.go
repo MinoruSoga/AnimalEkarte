@@ -252,6 +252,45 @@ func TestDailyRecordService_AddVitalRecord(t *testing.T) {
 	}
 }
 
+func TestDailyRecordService_AddVitalRecord_CreateError(t *testing.T) {
+	today := time.Now().UTC().Truncate(24 * time.Hour)
+	repo := &mockDailyRecordRepository{
+		getOrCreateByDateFn: func(_ context.Context, _, _ uint64, _ time.Time) (*model.DailyRecord, error) {
+			return &model.DailyRecord{ID: 1, HospitalizationID: 1, Date: today}, nil
+		},
+		createVitalRecordFn: func(_ context.Context, _ *model.VitalRecord) error {
+			return errors.New("db error creating vital record")
+		},
+	}
+	svc := NewDailyRecordService(repo)
+
+	record, err := svc.AddVitalRecord(context.Background(), 1, 1, today, &CreateVitalRecordInput{Time: today})
+
+	assert.Error(t, err)
+	assert.Nil(t, record)
+}
+
+func TestDailyRecordService_AddVitalRecord_RefetchError(t *testing.T) {
+	today := time.Now().UTC().Truncate(24 * time.Hour)
+	repo := &mockDailyRecordRepository{
+		getOrCreateByDateFn: func(_ context.Context, _, _ uint64, _ time.Time) (*model.DailyRecord, error) {
+			return &model.DailyRecord{ID: 1, HospitalizationID: 1, Date: today}, nil
+		},
+		createVitalRecordFn: func(_ context.Context, _ *model.VitalRecord) error {
+			return nil
+		},
+		findByHospitalizationIDAndDateFn: func(_ context.Context, _, _ uint64, _ time.Time) (*model.DailyRecord, error) {
+			return nil, errors.New("db error on refetch")
+		},
+	}
+	svc := NewDailyRecordService(repo)
+
+	record, err := svc.AddVitalRecord(context.Background(), 1, 1, today, &CreateVitalRecordInput{Time: today})
+
+	assert.Error(t, err)
+	assert.Nil(t, record)
+}
+
 func TestDailyRecordService_AddCareLog(t *testing.T) {
 	today := time.Now().UTC().Truncate(24 * time.Hour)
 	recordTime := today.Add(12 * time.Hour)
@@ -362,6 +401,49 @@ func TestDailyRecordService_AddCareLog(t *testing.T) {
 	}
 }
 
+func TestDailyRecordService_AddCareLog_CreateError(t *testing.T) {
+	today := time.Now().UTC().Truncate(24 * time.Hour)
+	repo := &mockDailyRecordRepository{
+		getOrCreateByDateFn: func(_ context.Context, _, _ uint64, _ time.Time) (*model.DailyRecord, error) {
+			return &model.DailyRecord{ID: 1, HospitalizationID: 1, Date: today}, nil
+		},
+		createCareLogFn: func(_ context.Context, _ *model.CareLog) error {
+			return errors.New("db error creating care log")
+		},
+	}
+	svc := NewDailyRecordService(repo)
+
+	record, err := svc.AddCareLog(context.Background(), 1, 1, today, &CreateCareLogInput{
+		Time: today, Type: string(model.CareLogTypeFood), Status: string(model.CareLogStatusCompleted),
+	})
+
+	assert.Error(t, err)
+	assert.Nil(t, record)
+}
+
+func TestDailyRecordService_AddCareLog_RefetchError(t *testing.T) {
+	today := time.Now().UTC().Truncate(24 * time.Hour)
+	repo := &mockDailyRecordRepository{
+		getOrCreateByDateFn: func(_ context.Context, _, _ uint64, _ time.Time) (*model.DailyRecord, error) {
+			return &model.DailyRecord{ID: 1, HospitalizationID: 1, Date: today}, nil
+		},
+		createCareLogFn: func(_ context.Context, _ *model.CareLog) error {
+			return nil
+		},
+		findByHospitalizationIDAndDateFn: func(_ context.Context, _, _ uint64, _ time.Time) (*model.DailyRecord, error) {
+			return nil, errors.New("db error on refetch")
+		},
+	}
+	svc := NewDailyRecordService(repo)
+
+	record, err := svc.AddCareLog(context.Background(), 1, 1, today, &CreateCareLogInput{
+		Time: today, Type: string(model.CareLogTypeFood), Status: string(model.CareLogStatusCompleted),
+	})
+
+	assert.Error(t, err)
+	assert.Nil(t, record)
+}
+
 func TestDailyRecordService_AddStaffNote(t *testing.T) {
 	today := time.Now().UTC().Truncate(24 * time.Hour)
 	staffID := uint64(10)
@@ -438,4 +520,43 @@ func TestDailyRecordService_AddStaffNote(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestDailyRecordService_AddStaffNote_CreateError(t *testing.T) {
+	today := time.Now().UTC().Truncate(24 * time.Hour)
+	repo := &mockDailyRecordRepository{
+		getOrCreateByDateFn: func(_ context.Context, _, _ uint64, _ time.Time) (*model.DailyRecord, error) {
+			return &model.DailyRecord{ID: 1, HospitalizationID: 1, Date: today}, nil
+		},
+		createStaffNoteFn: func(_ context.Context, _ *model.StaffNote) error {
+			return errors.New("db error creating staff note")
+		},
+	}
+	svc := NewDailyRecordService(repo)
+
+	record, err := svc.AddStaffNote(context.Background(), 1, 1, today, &CreateStaffNoteInput{Time: today, Content: "note"})
+
+	assert.Error(t, err)
+	assert.Nil(t, record)
+}
+
+func TestDailyRecordService_AddStaffNote_RefetchError(t *testing.T) {
+	today := time.Now().UTC().Truncate(24 * time.Hour)
+	repo := &mockDailyRecordRepository{
+		getOrCreateByDateFn: func(_ context.Context, _, _ uint64, _ time.Time) (*model.DailyRecord, error) {
+			return &model.DailyRecord{ID: 1, HospitalizationID: 1, Date: today}, nil
+		},
+		createStaffNoteFn: func(_ context.Context, _ *model.StaffNote) error {
+			return nil
+		},
+		findByHospitalizationIDAndDateFn: func(_ context.Context, _, _ uint64, _ time.Time) (*model.DailyRecord, error) {
+			return nil, errors.New("db error on refetch")
+		},
+	}
+	svc := NewDailyRecordService(repo)
+
+	record, err := svc.AddStaffNote(context.Background(), 1, 1, today, &CreateStaffNoteInput{Time: today, Content: "note"})
+
+	assert.Error(t, err)
+	assert.Nil(t, record)
 }

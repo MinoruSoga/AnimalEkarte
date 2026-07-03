@@ -63,6 +63,8 @@ func (s *accountingService) GetOwnerUnpaidBalance(ctx context.Context, clinicID,
 
 // Cancel は会計を論理削除（status=cancelled）する。
 // BUG-371 / #118: ハード削除の代替。actorID で監査ログを記録する。
+// BE-refactor.md R1-2: 更新+監査を同一 tx で原子化する（fail-closed。#211/refund_service パターン踏襲）。
+// 監査書込が失敗すると tx がロールバックし、status=cancelled への更新も無効になる。
 func (s *accountingService) Cancel(ctx context.Context, clinicID, id uint64, actorID *uint64) error {
 	existing, err := s.repo.FindByID(ctx, clinicID, id)
 	if err != nil {
@@ -73,37 +75,42 @@ func (s *accountingService) Cancel(ctx context.Context, clinicID, id uint64, act
 		return apperrors.WrapConflict("既にキャンセル済みの会計です")
 	}
 
-	fields := map[string]any{"status": model.BillingStatusCancelled}
-	if _, err := s.repo.Update(ctx, clinicID, id, fields); err != nil {
-		slog.ErrorContext(ctx, "failed to cancel accounting", "error", err, "billing_id", id, "clinic_id", clinicID)
-		return apperrors.Wrap(err, "failed to cancel accounting")
+	billingID := id
+	aType := "system"
+	if actorID != nil {
+		aType = "staff"
 	}
 
-	slog.InfoContext(ctx, "billing cancelled",
-		slog.Uint64("billing_id", id),
-		slog.Uint64("clinic_id", clinicID))
+	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
+		fields := map[string]any{"status": model.BillingStatusCancelled}
+		if _, err := s.repo.Update(txCtx, clinicID, id, fields); err != nil {
+			slog.ErrorContext(txCtx, "failed to cancel accounting", "error", err, "billing_id", id, "clinic_id", clinicID)
+			return apperrors.Wrap(err, "failed to cancel accounting")
+		}
 
-	// #118: 監査ログ（ベストエフォート）
-	if s.auditSvc != nil {
-		billingID := id
-		aType := "system"
-		if actorID != nil {
-			aType = "staff"
+		slog.InfoContext(txCtx, "billing cancelled",
+			slog.Uint64("billing_id", id),
+			slog.Uint64("clinic_id", clinicID))
+
+		// #118: 監査ログ
+		if s.auditTx != nil {
+			if err := s.auditTx.LogEntryTx(txCtx, &AuditLogInput{
+				ClinicID:   &clinicID,
+				ActorID:    actorID,
+				ActorType:  aType,
+				Action:     model.AuditActionBillingCancel,
+				Resource:   "billing",
+				ResourceID: &billingID,
+				OldValue:   map[string]any{"status": string(existing.Status)},
+				NewValue:   map[string]any{"status": string(model.BillingStatusCancelled)},
+			}); err != nil {
+				return apperrors.Wrap(err, "failed to write billing cancel audit log")
+			}
 		}
-		if logErr := s.auditSvc.LogEntry(ctx, &AuditLogInput{
-			ClinicID:   &clinicID,
-			ActorID:    actorID,
-			ActorType:  aType,
-			Action:     model.AuditActionBillingCancel,
-			Resource:   "billing",
-			ResourceID: &billingID,
-			OldValue:   map[string]any{"status": string(existing.Status)},
-			NewValue:   map[string]any{"status": string(model.BillingStatusCancelled)},
-		}); logErr != nil {
-			slog.WarnContext(ctx, "audit log failed for billing cancel", "error", logErr, "billing_id", id)
-		}
+		return nil
+	}); err != nil {
+		return apperrors.Wrap(err, "failed to cancel accounting in transaction")
 	}
-
 	return nil
 }
 

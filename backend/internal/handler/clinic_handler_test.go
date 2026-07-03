@@ -1,7 +1,9 @@
 package handler
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -9,6 +11,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
@@ -507,4 +510,492 @@ func TestGetClinic_MissingIsSystemAdmin_Returns401(t *testing.T) {
 	h.GetClinic(c)
 
 	assert.Equal(t, http.StatusUnauthorized, w.Code)
+}
+
+// ---- ListClinics scope=all service error ----
+
+func TestListClinics_ScopeAll_ServiceError_Returns500(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	svc := &mockClinicService{
+		listClinicsFn: func(_ context.Context) ([]model.Clinic, error) {
+			return nil, fmt.Errorf("db failure")
+		},
+	}
+	// system_admin=true → hasPermission は即 true を返すので EffectivePermission は不要
+	h := newHandlerWithClinicAndPermSvc(svc, &mockEffectivePermissionService{})
+
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest(http.MethodGet, "/clinics?scope=all", http.NoBody)
+	setSystemAdmin(c)
+	setClinicID(c)
+
+	h.ListClinics(c)
+
+	assert.Equal(t, http.StatusInternalServerError, w.Code)
+}
+
+// ---- hasPermission (direct unit tests) ----
+
+func TestHasPermission(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	tests := []struct {
+		name     string
+		resource string
+		action   string
+		setupCtx func(c *gin.Context)
+		permSvc  *mockEffectivePermissionService
+		want     bool
+	}{
+		{
+			name:     "returns false when is_system_admin missing from context",
+			resource: string(model.ResourceHospitalSettings),
+			action:   "view",
+			setupCtx: func(_ *gin.Context) {},
+			permSvc:  &mockEffectivePermissionService{},
+			want:     false,
+		},
+		{
+			name:     "returns true immediately for system_admin",
+			resource: string(model.ResourceHospitalSettings),
+			action:   "view",
+			setupCtx: func(c *gin.Context) {
+				c.Set("is_system_admin", true)
+			},
+			permSvc: &mockEffectivePermissionService{},
+			want:    true,
+		},
+		{
+			name:     "returns false when staff_id missing",
+			resource: string(model.ResourceHospitalSettings),
+			action:   "view",
+			setupCtx: func(c *gin.Context) {
+				c.Set("is_system_admin", false)
+			},
+			permSvc: &mockEffectivePermissionService{},
+			want:    false,
+		},
+		{
+			name:     "returns false when clinic_id missing",
+			resource: string(model.ResourceHospitalSettings),
+			action:   "view",
+			setupCtx: func(c *gin.Context) {
+				c.Set("is_system_admin", false)
+				c.Set("user_id", "1")
+			},
+			permSvc: &mockEffectivePermissionService{},
+			want:    false,
+		},
+		{
+			name:     "returns false when GetEffectivePermissions errors",
+			resource: string(model.ResourceHospitalSettings),
+			action:   "view",
+			setupCtx: func(c *gin.Context) {
+				c.Set("is_system_admin", false)
+				c.Set("user_id", "1")
+				c.Set("clinic_id", "1")
+			},
+			permSvc: &mockEffectivePermissionService{
+				getEffectivePermissionsFn: func(_ context.Context, _, _ uint64) ([]model.PermissionGroupRule, error) {
+					return nil, fmt.Errorf("db failure")
+				},
+			},
+			want: false,
+		},
+		{
+			name:     "returns false when no rule matches the resource",
+			resource: string(model.ResourceHospitalSettings),
+			action:   "view",
+			setupCtx: func(c *gin.Context) {
+				c.Set("is_system_admin", false)
+				c.Set("user_id", "1")
+				c.Set("clinic_id", "1")
+			},
+			permSvc: &mockEffectivePermissionService{
+				getEffectivePermissionsFn: func(_ context.Context, _, _ uint64) ([]model.PermissionGroupRule, error) {
+					return []model.PermissionGroupRule{
+						{Resource: "owner", CanView: true},
+					}, nil
+				},
+			},
+			want: false,
+		},
+		{
+			name:     "returns CanView for view action when rule matches",
+			resource: string(model.ResourceHospitalSettings),
+			action:   "view",
+			setupCtx: func(c *gin.Context) {
+				c.Set("is_system_admin", false)
+				c.Set("user_id", "1")
+				c.Set("clinic_id", "1")
+			},
+			permSvc: &mockEffectivePermissionService{
+				getEffectivePermissionsFn: func(_ context.Context, _, _ uint64) ([]model.PermissionGroupRule, error) {
+					return []model.PermissionGroupRule{
+						{Resource: string(model.ResourceHospitalSettings), CanView: true, CanCreate: false, CanEdit: false, CanDelete: false},
+					}, nil
+				},
+			},
+			want: true,
+		},
+		{
+			name:     "returns CanCreate for create action when rule matches",
+			resource: string(model.ResourceHospitalSettings),
+			action:   "create",
+			setupCtx: func(c *gin.Context) {
+				c.Set("is_system_admin", false)
+				c.Set("user_id", "1")
+				c.Set("clinic_id", "1")
+			},
+			permSvc: &mockEffectivePermissionService{
+				getEffectivePermissionsFn: func(_ context.Context, _, _ uint64) ([]model.PermissionGroupRule, error) {
+					return []model.PermissionGroupRule{
+						{Resource: string(model.ResourceHospitalSettings), CanCreate: true},
+					}, nil
+				},
+			},
+			want: true,
+		},
+		{
+			name:     "returns CanEdit for edit action when rule matches",
+			resource: string(model.ResourceHospitalSettings),
+			action:   "edit",
+			setupCtx: func(c *gin.Context) {
+				c.Set("is_system_admin", false)
+				c.Set("user_id", "1")
+				c.Set("clinic_id", "1")
+			},
+			permSvc: &mockEffectivePermissionService{
+				getEffectivePermissionsFn: func(_ context.Context, _, _ uint64) ([]model.PermissionGroupRule, error) {
+					return []model.PermissionGroupRule{
+						{Resource: string(model.ResourceHospitalSettings), CanEdit: true},
+					}, nil
+				},
+			},
+			want: true,
+		},
+		{
+			name:     "returns CanDelete for delete action when rule matches",
+			resource: string(model.ResourceHospitalSettings),
+			action:   "delete",
+			setupCtx: func(c *gin.Context) {
+				c.Set("is_system_admin", false)
+				c.Set("user_id", "1")
+				c.Set("clinic_id", "1")
+			},
+			permSvc: &mockEffectivePermissionService{
+				getEffectivePermissionsFn: func(_ context.Context, _, _ uint64) ([]model.PermissionGroupRule, error) {
+					return []model.PermissionGroupRule{
+						{Resource: string(model.ResourceHospitalSettings), CanDelete: true},
+					}, nil
+				},
+			},
+			want: true,
+		},
+		{
+			name:     "returns false when action is unrecognized",
+			resource: string(model.ResourceHospitalSettings),
+			action:   "unknown-action",
+			setupCtx: func(c *gin.Context) {
+				c.Set("is_system_admin", false)
+				c.Set("user_id", "1")
+				c.Set("clinic_id", "1")
+			},
+			permSvc: &mockEffectivePermissionService{
+				getEffectivePermissionsFn: func(_ context.Context, _, _ uint64) ([]model.PermissionGroupRule, error) {
+					return []model.PermissionGroupRule{
+						{Resource: string(model.ResourceHospitalSettings), CanView: true, CanCreate: true, CanEdit: true, CanDelete: true},
+					}, nil
+				},
+			},
+			want: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := newHandlerWithClinicAndPermSvc(&mockClinicService{}, tt.permSvc)
+
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			c.Request = httptest.NewRequest(http.MethodGet, "/clinics", http.NoBody)
+			tt.setupCtx(c)
+
+			got := h.hasPermission(c, tt.resource, tt.action)
+
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+// ---- UpdateClinic ----
+
+func TestUpdateClinic(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	newName := "改名後クリニック"
+	validBody := updateClinicRequest{Name: &newName}
+
+	tests := []struct {
+		name       string
+		paramID    string
+		body       any
+		malformed  bool
+		setupCtx   func(c *gin.Context)
+		svc        *mockClinicService
+		wantStatus int
+		wantBody   string
+	}{
+		{
+			name:     "returns 200 when system_admin updates any clinic",
+			paramID:  "5",
+			body:     validBody,
+			setupCtx: func(c *gin.Context) { setSystemAdmin(c) },
+			svc: &mockClinicService{
+				updateClinicFn: func(_ context.Context, id uint64, input *service.UpdateClinicInput) (*model.Clinic, error) {
+					assert.Equal(t, uint64(5), id)
+					require.NotNil(t, input.Name)
+					assert.Equal(t, newName, *input.Name)
+					return &model.Clinic{ID: 5, Name: newName}, nil
+				},
+			},
+			wantStatus: http.StatusOK,
+			wantBody:   `"name":"改名後クリニック"`,
+		},
+		{
+			name:       "returns 400 when clinic_id param is invalid",
+			paramID:    "abc",
+			body:       validBody,
+			setupCtx:   func(c *gin.Context) { setSystemAdmin(c) },
+			svc:        &mockClinicService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:       "returns 401 when is_system_admin missing",
+			paramID:    "1",
+			body:       validBody,
+			setupCtx:   func(_ *gin.Context) {},
+			svc:        &mockClinicService{},
+			wantStatus: http.StatusUnauthorized,
+		},
+		{
+			name:       "returns 403 when non-admin updates another clinic",
+			paramID:    "2",
+			body:       validBody,
+			setupCtx:   func(c *gin.Context) { setNonSystemAdmin(c) },
+			svc:        &mockClinicService{},
+			wantStatus: http.StatusForbidden,
+		},
+		{
+			name:     "returns 200 when non-admin updates own clinic",
+			paramID:  "1",
+			body:     validBody,
+			setupCtx: func(c *gin.Context) { setNonSystemAdmin(c) },
+			svc: &mockClinicService{
+				updateClinicFn: func(_ context.Context, id uint64, _ *service.UpdateClinicInput) (*model.Clinic, error) {
+					assert.Equal(t, uint64(1), id)
+					return &model.Clinic{ID: 1, Name: newName}, nil
+				},
+			},
+			wantStatus: http.StatusOK,
+		},
+		{
+			name:       "returns 400 when body is malformed",
+			paramID:    "1",
+			malformed:  true,
+			setupCtx:   func(c *gin.Context) { setSystemAdmin(c) },
+			svc:        &mockClinicService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:     "returns 404 when service reports not found",
+			paramID:  "9",
+			body:     validBody,
+			setupCtx: func(c *gin.Context) { setSystemAdmin(c) },
+			svc: &mockClinicService{
+				updateClinicFn: func(_ context.Context, id uint64, _ *service.UpdateClinicInput) (*model.Clinic, error) {
+					return nil, apperrors.WrapNotFound("clinic", fmt.Sprintf("%d", id))
+				},
+			},
+			wantStatus: http.StatusNotFound,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := newHandlerWithClinicSvc(tt.svc)
+
+			bodyBytes := []byte("{invalid")
+			if !tt.malformed {
+				b, err := json.Marshal(tt.body)
+				require.NoError(t, err)
+				bodyBytes = b
+			}
+
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			c.Request = httptest.NewRequest(http.MethodPatch, "/clinics/"+tt.paramID, bytes.NewReader(bodyBytes))
+			c.Request.Header.Set("Content-Type", "application/json")
+			c.Params = gin.Params{{Key: "clinic_id", Value: tt.paramID}}
+			tt.setupCtx(c)
+
+			h.UpdateClinic(c)
+
+			assert.Equal(t, tt.wantStatus, w.Code)
+			if tt.wantBody != "" {
+				assert.Contains(t, w.Body.String(), tt.wantBody)
+			}
+		})
+	}
+}
+
+// ---- CreateClinic ----
+
+func TestCreateClinic(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	validBody := createClinicRequest{Name: "新規クリニック"}
+
+	tests := []struct {
+		name       string
+		body       any
+		malformed  bool
+		svc        *mockClinicService
+		wantStatus int
+		wantHeader string
+		wantBody   string
+	}{
+		{
+			name: "returns 201 with Location header on success",
+			body: validBody,
+			svc: &mockClinicService{
+				createClinicFn: func(_ context.Context, input *service.CreateClinicInput) (*model.Clinic, error) {
+					assert.Equal(t, "新規クリニック", input.Name)
+					return &model.Clinic{ID: 7, Name: "新規クリニック"}, nil
+				},
+			},
+			wantStatus: http.StatusCreated,
+			wantHeader: "/api/v1/clinics/7",
+			wantBody:   `"name":"新規クリニック"`,
+		},
+		{
+			name:       "returns 400 when body is malformed",
+			malformed:  true,
+			svc:        &mockClinicService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:       "returns 400 when required name is missing",
+			body:       createClinicRequest{},
+			svc:        &mockClinicService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name: "returns 500 on service error",
+			body: validBody,
+			svc: &mockClinicService{
+				createClinicFn: func(_ context.Context, _ *service.CreateClinicInput) (*model.Clinic, error) {
+					return nil, fmt.Errorf("db failure")
+				},
+			},
+			wantStatus: http.StatusInternalServerError,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := newHandlerWithClinicSvc(tt.svc)
+
+			bodyBytes := []byte("{invalid")
+			if !tt.malformed {
+				b, err := json.Marshal(tt.body)
+				require.NoError(t, err)
+				bodyBytes = b
+			}
+
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			c.Request = httptest.NewRequest(http.MethodPost, "/clinics", bytes.NewReader(bodyBytes))
+			c.Request.Header.Set("Content-Type", "application/json")
+
+			h.CreateClinic(c)
+
+			assert.Equal(t, tt.wantStatus, w.Code)
+			if tt.wantHeader != "" {
+				assert.Equal(t, tt.wantHeader, w.Header().Get("Location"))
+			}
+			if tt.wantBody != "" {
+				assert.Contains(t, w.Body.String(), tt.wantBody)
+			}
+		})
+	}
+}
+
+// ---- DeleteClinic ----
+
+func TestDeleteClinic(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	tests := []struct {
+		name       string
+		paramID    string
+		svc        *mockClinicService
+		wantStatus int
+	}{
+		{
+			name:    "returns 204 when deleted successfully",
+			paramID: "3",
+			svc: &mockClinicService{
+				deleteClinicFn: func(_ context.Context, id uint64) error {
+					assert.Equal(t, uint64(3), id)
+					return nil
+				},
+			},
+			wantStatus: http.StatusNoContent,
+		},
+		{
+			name:       "returns 400 when clinic_id param is invalid",
+			paramID:    "abc",
+			svc:        &mockClinicService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:    "returns 404 when clinic does not exist",
+			paramID: "999",
+			svc: &mockClinicService{
+				deleteClinicFn: func(_ context.Context, id uint64) error {
+					return apperrors.WrapNotFound("clinic", fmt.Sprintf("%d", id))
+				},
+			},
+			wantStatus: http.StatusNotFound,
+		},
+		{
+			name:    "returns 409 when clinic still in use",
+			paramID: "4",
+			svc: &mockClinicService{
+				deleteClinicFn: func(_ context.Context, _ uint64) error {
+					return apperrors.WrapConflict("clinic is still in use")
+				},
+			},
+			wantStatus: http.StatusConflict,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := newHandlerWithClinicSvc(tt.svc)
+
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			c.Request = httptest.NewRequest(http.MethodDelete, "/clinics/"+tt.paramID, http.NoBody)
+			c.Params = gin.Params{{Key: "clinic_id", Value: tt.paramID}}
+
+			h.DeleteClinic(c)
+			c.Writer.WriteHeaderNow() // flush a bare c.Status() (no body) to the recorder
+
+			assert.Equal(t, tt.wantStatus, w.Code)
+		})
+	}
 }

@@ -1,12 +1,49 @@
 package handler
 
 import (
+	"net/url"
 	"testing"
 	"time"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
 )
+
+func TestNewListHospitalizationQuery(t *testing.T) {
+	values := url.Values{
+		"pet_id":     []string{"10"},
+		"owner_id":   []string{"20"},
+		"status":     []string{"admitted"},
+		"start_date": []string{"2026-05-01"},
+		"end_date":   []string{"2026-05-31"},
+	}
+
+	q := newListHospitalizationQuery(values)
+
+	if q.PetID != "10" {
+		t.Errorf("PetID = %q, want %q", q.PetID, "10")
+	}
+	if q.OwnerID != "20" {
+		t.Errorf("OwnerID = %q, want %q", q.OwnerID, "20")
+	}
+	if q.Status != "admitted" {
+		t.Errorf("Status = %q, want %q", q.Status, "admitted")
+	}
+	if q.StartDate != "2026-05-01" {
+		t.Errorf("StartDate = %q, want %q", q.StartDate, "2026-05-01")
+	}
+	if q.EndDate != "2026-05-31" {
+		t.Errorf("EndDate = %q, want %q", q.EndDate, "2026-05-31")
+	}
+}
+
+func TestNewListHospitalizationQuery_Empty(t *testing.T) {
+	q := newListHospitalizationQuery(url.Values{})
+
+	if q != (listHospitalizationQuery{}) {
+		t.Fatalf("q = %#v, want zero value", q)
+	}
+}
 
 func TestListHospitalizationQuery_ToServiceFilters(t *testing.T) {
 	filters, err := (&listHospitalizationQuery{
@@ -131,6 +168,44 @@ func TestCreateHospitalizationRequest_ToServiceInput(t *testing.T) {
 	}
 }
 
+func TestCreateHospitalizationRequest_ToServiceInput_EmptyStatus(t *testing.T) {
+	input, err := (&createHospitalizationRequest{
+		OwnerID:             1,
+		PetID:               2,
+		HospitalizationType: string(model.HospitalizationTypeInpatient),
+		Status:              "",
+	}).toServiceInput()
+	if err != nil {
+		t.Fatalf("toServiceInput() error = %v", err)
+	}
+	if input.Status != "" {
+		t.Fatalf("Status = %q, want empty (zero value)", input.Status)
+	}
+}
+
+func TestCreateHospitalizationRequest_ToServiceInput_InvalidHospitalizationType(t *testing.T) {
+	_, err := (&createHospitalizationRequest{
+		OwnerID:             1,
+		PetID:               2,
+		HospitalizationType: "invalid",
+	}).toServiceInput()
+	if err == nil {
+		t.Fatal("toServiceInput() error = nil, want error")
+	}
+}
+
+func TestCreateHospitalizationRequest_ToServiceInput_InvalidStatus(t *testing.T) {
+	_, err := (&createHospitalizationRequest{
+		OwnerID:             1,
+		PetID:               2,
+		HospitalizationType: string(model.HospitalizationTypeInpatient),
+		Status:              "invalid",
+	}).toServiceInput()
+	if err == nil {
+		t.Fatal("toServiceInput() error = nil, want error")
+	}
+}
+
 func TestUpdateHospitalizationRequest_ToServiceInput(t *testing.T) {
 	ownerID := uint64(1)
 	petID := uint64(2)
@@ -195,5 +270,21 @@ func TestUpdateHospitalizationRequest_ToServiceInput_NilFields(t *testing.T) {
 
 	if input.OwnerID != nil || input.HospitalizationType != nil || input.Status != nil {
 		t.Fatalf("expected nil optional fields, got %#v", input)
+	}
+}
+
+func TestUpdateHospitalizationRequest_ToServiceInput_InvalidHospitalizationType(t *testing.T) {
+	invalid := "invalid"
+	_, err := (&updateHospitalizationRequest{HospitalizationType: &invalid}).toServiceInput()
+	if err == nil {
+		t.Fatal("toServiceInput() error = nil, want error")
+	}
+}
+
+func TestUpdateHospitalizationRequest_ToServiceInput_InvalidStatus(t *testing.T) {
+	invalid := "invalid"
+	_, err := (&updateHospitalizationRequest{Status: &invalid}).toServiceInput()
+	if err == nil {
+		t.Fatal("toServiceInput() error = nil, want error")
 	}
 }

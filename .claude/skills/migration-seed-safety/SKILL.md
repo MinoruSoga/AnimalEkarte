@@ -34,6 +34,10 @@ description: backend/migrations/ の新規作成・編集、およびseed(002/00
 3. **fresh DB apply必須**: seedの差し替えは静的確認だけで完了とせず、**fresh DBへの実適用**で検証する。既存DBへの追記適用では検出できない不整合がある
 4. **DB非依存の最低検証**: `python3 scripts/verify_seed.py` を実行する（DB起動不要）
 5. **実DB適用はユーザー承認必須**: `make db` / `docker compose exec db psql ...` は自動実行禁止コマンド（`.claude/CLAUDE.md`）。migration適用・DBリセットはユーザーが手動で実施する
+6. **テーブル定義外の CREATE UNIQUE INDEX との突合**: seed 差し替え時、PK/FK/CHECK/NOT NULL だけでなく 001_init.sql 末尾の `CREATE UNIQUE INDEX`（例: idx_procedures_clinic_name (clinic_id, name) WHERE deleted_at IS NULL）に対する重複も検証する。過去 revert（PR#78）の唯一の原因はこの見逃し（(1,'輸血') / (1,'お手入れ') の同名2ペア）
+   （出典: memory seed_lowid_remap_xtenant_regression / seed_master_update_startup_crash_revert）
+7. **CI を通っても migrate の実走を仮定しない — ローカル fresh-DB 実適用が正本**: 現行 ci.yml は main 向け PR も対象だが、paths-filter で migration ジョブが skip され得るうえ、通常 CI は fresh DB への全 migration 適用を保証しない（過去には main 向け PR が Backend CI 対象外で未検証のまま merge された実例あり）。seed/migration 変更は merge 前に `docker compose down -v && up -d db && run --rm backend go run ./cmd/migrate` で ERROR ゼロを確認（ユーザー承認の上で）
+   （出典: memory seed_lowid_remap_xtenant_regression。CI 対象ブランチは .github/workflows/ci.yml を正とする）
 
 ## checksum mismatchからの復旧
 

@@ -7,9 +7,11 @@ description: React セキュリティ分析・XSS対応（dangerouslySetInnerHTM
 
 React アプリケーションのセキュリティを OWASP + React セキュリティベストプラクティスで分析します。
 
+OWASP Top 10 の一般論・脅威説明・チェックリストは `security-review` スキルを参照。ここでは React/TSX 実装固有の差分のみ扱う。
+
 ## 実行スコープ
 
-### 1. XSS（クロスサイトスクリプティング）検出
+### 1. XSS（クロスサイトスクリプティング）検出 — React/TSX実装
 
 #### ❌ 危険パターン
 ```typescript
@@ -190,8 +192,8 @@ const isAllowed = ALLOWED_SCRIPTS.includes(scriptUrl)
   - Fix: Remove and use safe JSX rendering
 
 ### 🟠 High Issues
-- **Token Management** - localStorage에서 제거
-- **CSRF Token** - X-CSRF-Token header 추가
+- **Token Management** - localStorageから削除
+- **CSRF Token** - X-CSRF-Tokenヘッダーを追加
 
 ### 🟡 Medium Issues
 - Missing CSP headers
@@ -210,5 +212,10 @@ const isAllowed = ALLOWED_SCRIPTS.includes(scriptUrl)
 
 ## 関連スキル
 
+- `security-review` - OWASP一般論・シークレット管理・統合チェックリスト
 - `go-security` - Backend 認証・認可
-- `error-handling-patterns` - エラーメッセージのセキュア化
+
+## プロジェクト実績由来の注意（出典付き）
+
+- **render中のsetState + useActionState は stale closure を生む**: React 19 の useActionState と組み合わせて render フェーズで setState すると、action が古い state を掴む。state同期は effect で行うこと（出典: memory feedback_render_phase_setstate_useactionstate_stale_closure）
+- **Radix Select のテストで fireEvent はcloseライフサイクルを完走しない**: option選択で閉じる挙動の検証は `user.click`（userEvent）必須（出典: memory feedback_radix_select_fireevent_close_lifecycle）

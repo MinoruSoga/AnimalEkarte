@@ -169,10 +169,13 @@ func (r *accountingRepository) findBillingByIDWithScope(q *gorm.DB, id uint64) (
 }
 
 // LockAndFindByID は FOR UPDATE で請求を行ロック取得する。
-// refund_service の CreateRefund のトランザクション内で使用し、TOCTOU を防止する。
+// refund_service の CreateRefund・accounting_service_correction の CorrectCreditPayment の
+// トランザクション内で使用し、TOCTOU を防止する。
+// BE-refactor.md R1-1 (D2): dbOrTx で ambient tx に参加する。参加しないと FOR UPDATE ロックが
+// 別セッションで即座に解放され、TOCTOU 防止が機能しない（過去は r.db.WithContext(ctx) 直参照だった）。
 func (r *accountingRepository) LockAndFindByID(ctx context.Context, clinicID, id uint64) (*model.Billing, error) {
 	var billing model.Billing
-	err := r.db.WithContext(ctx).
+	err := dbOrTx(ctx, r.db).
 		Preload("Items", "deleted_at IS NULL").
 		Preload("Payments", "deleted_at IS NULL").
 		Preload("Payments.PaidByStaff", "deleted_at IS NULL").
@@ -206,8 +209,10 @@ func (r *accountingRepository) Create(ctx context.Context, clinicID uint64, acco
 // Update は指定フィールドのみを更新し、更新後のレコードを返す。
 // map[string]any を使うことで GORM のゼロ値スキップ問題を回避する。
 // P2: service 層で逆遷移を拒否（修正 1）、repo は RowsAffected チェックで clinic scope/soft-delete を検証
+// BE-refactor.md R1-2: Cancel が本メソッドを ambient tx（監査と原子化）から呼ぶため dbOrTx で参加する。
+// ambient tx が無ければ従来どおり db.WithContext(ctx) と等価（挙動保存）。
 func (r *accountingRepository) Update(ctx context.Context, clinicID, billingID uint64, fields map[string]any) (*model.Billing, error) {
-	result := r.db.WithContext(ctx).
+	result := dbOrTx(ctx, r.db).
 		Model(&model.Billing{}).
 		Scopes(clinicScope(clinicID)).
 		Where("id = ?", billingID).
@@ -220,7 +225,7 @@ func (r *accountingRepository) Update(ctx context.Context, clinicID, billingID u
 		return nil, apperrors.WrapNotFound("billing", fmt.Sprintf("%d", billingID))
 	}
 	var billing model.Billing
-	if err := r.db.WithContext(ctx).
+	if err := dbOrTx(ctx, r.db).
 		Preload("Items", "deleted_at IS NULL").Preload("Payments", "deleted_at IS NULL").Preload("Payments.PaidByStaff", "deleted_at IS NULL").Preload("Refunds").Preload("Refunds.RefundedByStaff").Preload("Owner", "deleted_at IS NULL").Preload("Pet", "deleted_at IS NULL").Preload("PaymentSplits").
 		Scopes(clinicScope(clinicID)).
 		First(&billing, "id = ?", billingID).Error; err != nil {
@@ -229,6 +234,8 @@ func (r *accountingRepository) Update(ctx context.Context, clinicID, billingID u
 	return &billing, nil
 }
 
+// BE-refactor.md R1-1 (D2): accounting_service_core.Update・accounting_service_correction.
+// CorrectCreditPayment の両方が本メソッドを ambient tx 内から txCtx 付きで呼ぶため dbOrTx で参加する。
 func (r *accountingRepository) SavePayment(ctx context.Context, payment *model.Payment) error {
 	// map[string]any を使用してゼロ値（Subtotal=0 等）も確実に更新する。
 	// struct の Assign では GORM がゼロ値フィールドをスキップする問題がある。
@@ -248,7 +255,7 @@ func (r *accountingRepository) SavePayment(ctx context.Context, payment *model.P
 	}
 
 	var existing model.Payment
-	err := r.db.WithContext(ctx).
+	err := dbOrTx(ctx, r.db).
 		Where("billing_id = ?", payment.BillingID).
 		First(&existing).Error
 
@@ -258,14 +265,14 @@ func (r *accountingRepository) SavePayment(ctx context.Context, payment *model.P
 			return apperrors.FromGORM(err, "payment", fmt.Sprintf("billing_id=%d", payment.BillingID))
 		}
 		// レコードなし → 新規作成
-		if err := r.db.WithContext(ctx).Create(payment).Error; err != nil {
+		if err := dbOrTx(ctx, r.db).Create(payment).Error; err != nil {
 			return apperrors.FromGORM(err, "payment", fmt.Sprintf("billing_id=%d", payment.BillingID))
 		}
 		return nil
 	}
 
 	// 既存レコード → map で更新（ゼロ値も反映）
-	if err := r.db.WithContext(ctx).
+	if err := dbOrTx(ctx, r.db).
 		Model(&model.Payment{}).
 		Where("billing_id = ?", payment.BillingID).
 		Updates(fields).Error; err != nil {
@@ -278,13 +285,17 @@ func (r *accountingRepository) SavePayment(ctx context.Context, payment *model.P
 // SavePaymentSplits は billing の payment_splits を delete-then-recreate で保存する。
 // splits が空の場合は既存レコードを削除のみ行う。
 // P4: DELETE に clinic_id = ? を付与しテナント越境削除を防ぐ（splits[0].ClinicID = 呼び出し元の clinicID）。
+// BE-refactor.md R1-1 (D2): dbOrTx(ctx, r.db).Transaction(...) にすることで、ambient tx があれば
+// その中のネスト tx（SAVEPOINT）として参加する。過去は r.db.WithContext(ctx).Transaction(...) で
+// 常に独立した新規 tx を開始しており、ambient tx が rollback しても本メソッドの書込は
+// 既にコミット済みのため巻き戻らない部分コミットのバグがあった。
 func (r *accountingRepository) SavePaymentSplits(ctx context.Context, splits []model.PaymentSplit) error {
 	if len(splits) == 0 {
 		return nil
 	}
 	billingID := splits[0].BillingID
 	clinicID := splits[0].ClinicID
-	if err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	if err := dbOrTx(ctx, r.db).Transaction(func(tx *gorm.DB) error {
 		if err := tx.Where("billing_id = ? AND clinic_id = ?", billingID, clinicID).Delete(&model.PaymentSplit{}).Error; err != nil {
 			return apperrors.FromGORM(err, "payment_split", fmt.Sprintf("billing_id=%d", billingID))
 		}

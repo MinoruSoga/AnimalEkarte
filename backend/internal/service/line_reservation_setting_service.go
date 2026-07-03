@@ -84,6 +84,32 @@ func validateJSONFields(fields map[string][]byte) error {
 	return nil
 }
 
+// validateBreakHoursShape は break_hours が []BreakPeriod{start,end} 形式に unmarshal でき、
+// 各エントリの start/end が HHMM 形式であることを確認する（go-reviewer/security-reviewer 指摘）。
+//
+// BE-refactor.md D10/F-2 で parseBusinessHoursForDate の break_hours unmarshal 失敗を
+// fail-closed（予約拒否）に変更したため、構文的には有効だが形状が不正な JSON（例: "{}"）が
+// 保存されると、保存時ではなく以降のあらゆる予約作成試行が拒否され続ける可用性劣化になる。
+// 保存時にこの形状を検証し、破損データが永続化される前に 400 で拒否する。
+func validateBreakHoursShape(data []byte) error {
+	if len(data) == 0 {
+		return nil
+	}
+	var breaks []BreakPeriod
+	if err := json.Unmarshal(data, &breaks); err != nil {
+		return apperrors.WrapInvalidInput(`break_hours は [{"start":"HHMM","end":"HHMM"}] 形式である必要があります`)
+	}
+	for _, b := range breaks {
+		if _, err := minutesSinceMidnight(b.Start); err != nil {
+			return apperrors.WrapInvalidInput("break_hours の start は HHMM 形式である必要があります: " + b.Start)
+		}
+		if _, err := minutesSinceMidnight(b.End); err != nil {
+			return apperrors.WrapInvalidInput("break_hours の end は HHMM 形式である必要があります: " + b.End)
+		}
+	}
+	return nil
+}
+
 func (s *lineReservationSettingService) Save(ctx context.Context, clinicID uint64, input *UpsertLineReservationSettingInput) (*model.LineReservationSetting, bool, error) {
 	if err := validateJSONFields(map[string][]byte{
 		"closed_weekdays":           input.ClosedWeekdays,
@@ -93,6 +119,9 @@ func (s *lineReservationSettingService) Save(ctx context.Context, clinicID uint6
 		"break_hours":               input.BreakHours,
 		"additional_fields":         input.AdditionalFields,
 	}); err != nil {
+		return nil, false, err
+	}
+	if err := validateBreakHoursShape(input.BreakHours); err != nil {
 		return nil, false, err
 	}
 

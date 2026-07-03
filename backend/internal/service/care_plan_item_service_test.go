@@ -5,6 +5,7 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/lib/pq"
 	"github.com/stretchr/testify/assert"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
@@ -51,6 +52,104 @@ func okHospRepoForCarePlan() *mockHospitalizationRepository {
 }
 
 // ---- Tests ----
+
+func TestBuildCarePlanItemUpdate(t *testing.T) {
+	typ := string(model.CarePlanTypeFood)
+	name := "更新名"
+	description := "更新説明"
+	status := string(model.CarePlanStatusCompleted)
+	notes := "メモ"
+	medicineID := uint64(1)
+	procedureID := uint64(2)
+	hospPlanID := uint64(3)
+	unitPrice := int64(500)
+	category := "カテゴリ"
+	sortOrder := 4
+
+	tests := []struct {
+		name  string
+		input *UpdateCarePlanItemInput
+		want  map[string]any
+	}{
+		{
+			name:  "no fields set returns empty map",
+			input: &UpdateCarePlanItemInput{},
+			want:  map[string]any{},
+		},
+		{
+			name:  "only type set",
+			input: &UpdateCarePlanItemInput{Type: &typ},
+			want:  map[string]any{"type": typ},
+		},
+		{
+			name:  "only name set",
+			input: &UpdateCarePlanItemInput{Name: &name},
+			want:  map[string]any{"name": name},
+		},
+		{
+			name:  "only description set",
+			input: &UpdateCarePlanItemInput{Description: &description},
+			want:  map[string]any{"description": description},
+		},
+		{
+			name:  "timing set writes pq.StringArray",
+			input: &UpdateCarePlanItemInput{Timing: []string{"morning", "evening"}},
+			want:  map[string]any{"timing": pq.StringArray{"morning", "evening"}},
+		},
+		{
+			name:  "timing set to empty slice still writes (explicit clear)",
+			input: &UpdateCarePlanItemInput{Timing: []string{}},
+			want:  map[string]any{"timing": pq.StringArray{}},
+		},
+		{
+			name:  "only status set",
+			input: &UpdateCarePlanItemInput{Status: &status},
+			want:  map[string]any{"status": status},
+		},
+		{
+			name:  "only notes set",
+			input: &UpdateCarePlanItemInput{Notes: &notes},
+			want:  map[string]any{"notes": notes},
+		},
+		{
+			name:  "only medicine_id set",
+			input: &UpdateCarePlanItemInput{MedicineID: &medicineID},
+			want:  map[string]any{"medicine_id": medicineID},
+		},
+		{
+			name:  "only procedure_id set",
+			input: &UpdateCarePlanItemInput{ProcedureID: &procedureID},
+			want:  map[string]any{"procedure_id": procedureID},
+		},
+		{
+			name:  "only hospitalization_plan_id set",
+			input: &UpdateCarePlanItemInput{HospitalizationPlanID: &hospPlanID},
+			want:  map[string]any{"hospitalization_plan_id": hospPlanID},
+		},
+		{
+			name:  "only unit_price set",
+			input: &UpdateCarePlanItemInput{UnitPrice: &unitPrice},
+			want:  map[string]any{"unit_price": unitPrice},
+		},
+		{
+			name:  "only category set",
+			input: &UpdateCarePlanItemInput{Category: &category},
+			want:  map[string]any{"category": category},
+		},
+		{
+			name:  "only sort_order set",
+			input: &UpdateCarePlanItemInput{SortOrder: &sortOrder},
+			want:  map[string]any{"sort_order": sortOrder},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := buildCarePlanItemUpdate(tt.input)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
 
 func TestCarePlanItemService_List(t *testing.T) {
 	tests := []struct {
@@ -205,6 +304,56 @@ func TestCarePlanItemService_Create(t *testing.T) {
 	}
 }
 
+// TestCarePlanItemService_ValidateMasterFKs_ProcedureOwnership は procedure_id の
+// クロステナント所有権検証（validateMasterFKs の procedureID 分岐）を Create 経由で検証する。
+// medicine_id 分岐は cross_tenant_master_fk_write_test.go で既にカバーされているため、
+// ここでは procedure_id 分岐のみを対象にする。
+func TestCarePlanItemService_ValidateMasterFKs_ProcedureOwnership(t *testing.T) {
+	const clinicID = uint64(1)
+	const ownedProcedureID = uint64(20)
+	const foreignProcedureID = uint64(888)
+
+	t.Run("rejects cross-clinic procedure_id and does not persist", func(t *testing.T) {
+		created := false
+		repo := &mockCarePlanItemRepository{
+			createFn: func(_ context.Context, _ *model.CarePlanItem) error { created = true; return nil },
+			findByIDFn: func(_ context.Context, _, itemID uint64) (*model.CarePlanItem, error) {
+				return &model.CarePlanItem{ID: itemID}, nil
+			},
+		}
+		svc := NewCarePlanItemService(repo, okHospRepoForCarePlan(), okMedicineRepo(), rejectProcedureRepo(ownedProcedureID))
+
+		foreign := foreignProcedureID
+		item, err := svc.Create(context.Background(), clinicID, 1, &CreateCarePlanItemInput{
+			Type: string(model.CarePlanTypeTreatment), Name: "x", ProcedureID: &foreign,
+		})
+
+		assert.Error(t, err)
+		assert.Nil(t, item)
+		assert.False(t, created, "care plan item must NOT be persisted referencing another clinic's procedure")
+	})
+
+	t.Run("accepts same-clinic procedure_id (no false-reject)", func(t *testing.T) {
+		created := false
+		repo := &mockCarePlanItemRepository{
+			createFn: func(_ context.Context, _ *model.CarePlanItem) error { created = true; return nil },
+			findByIDFn: func(_ context.Context, _, itemID uint64) (*model.CarePlanItem, error) {
+				return &model.CarePlanItem{ID: itemID}, nil
+			},
+		}
+		svc := NewCarePlanItemService(repo, okHospRepoForCarePlan(), okMedicineRepo(), rejectProcedureRepo(ownedProcedureID))
+
+		owned := ownedProcedureID
+		item, err := svc.Create(context.Background(), clinicID, 1, &CreateCarePlanItemInput{
+			Type: string(model.CarePlanTypeTreatment), Name: "x", ProcedureID: &owned,
+		})
+
+		assert.NoError(t, err)
+		assert.NotNil(t, item)
+		assert.True(t, created)
+	})
+}
+
 func TestCarePlanItemService_Update(t *testing.T) {
 	newName := "Updated Food"
 	newStatus := string(model.CarePlanStatusCompleted)
@@ -301,6 +450,62 @@ func TestCarePlanItemService_Update(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestCarePlanItemService_Update_InvalidType(t *testing.T) {
+	invalidType := "invalid_type"
+	repo := &mockCarePlanItemRepository{
+		findByIDFn: func(_ context.Context, _, itemID uint64) (*model.CarePlanItem, error) {
+			return &model.CarePlanItem{ID: itemID, HospitalizationID: 1}, nil
+		},
+	}
+	svc := NewCarePlanItemService(repo, okHospRepoForCarePlan(), okMedicineRepo(), okProcedureRepo())
+
+	item, err := svc.Update(context.Background(), 1, 1, 1, &UpdateCarePlanItemInput{Type: &invalidType})
+
+	assert.Error(t, err)
+	assert.Nil(t, item)
+}
+
+func TestCarePlanItemService_Update_InvalidStatus(t *testing.T) {
+	invalidStatus := "invalid_status"
+	repo := &mockCarePlanItemRepository{
+		findByIDFn: func(_ context.Context, _, itemID uint64) (*model.CarePlanItem, error) {
+			return &model.CarePlanItem{ID: itemID, HospitalizationID: 1}, nil
+		},
+	}
+	svc := NewCarePlanItemService(repo, okHospRepoForCarePlan(), okMedicineRepo(), okProcedureRepo())
+
+	item, err := svc.Update(context.Background(), 1, 1, 1, &UpdateCarePlanItemInput{Status: &invalidStatus})
+
+	assert.Error(t, err)
+	assert.Nil(t, item)
+}
+
+// TestCarePlanItemService_Update_ReloadError は Update 成功後の再取得
+// （s.repo.FindByID の2回目呼び出し）が失敗した場合にラップされたエラーを返すことを検証する。
+func TestCarePlanItemService_Update_ReloadError(t *testing.T) {
+	newName := "更新後"
+	callCount := 0
+	repo := &mockCarePlanItemRepository{
+		findByIDFn: func(_ context.Context, _, itemID uint64) (*model.CarePlanItem, error) {
+			callCount++
+			if callCount == 1 {
+				return &model.CarePlanItem{ID: itemID, HospitalizationID: 1}, nil
+			}
+			return nil, errors.New("db error on reload")
+		},
+		updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) error {
+			return nil
+		},
+	}
+	svc := NewCarePlanItemService(repo, okHospRepoForCarePlan(), okMedicineRepo(), okProcedureRepo())
+
+	item, err := svc.Update(context.Background(), 1, 1, 1, &UpdateCarePlanItemInput{Name: &newName})
+
+	assert.Error(t, err)
+	assert.Nil(t, item)
+	assert.Equal(t, 2, callCount)
 }
 
 func TestCarePlanItemService_Delete(t *testing.T) {

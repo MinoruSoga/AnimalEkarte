@@ -50,9 +50,29 @@ func (r *labImportJobRepository) Create(ctx context.Context, job *model.LabImpor
 }
 
 func (r *labImportJobRepository) Update(ctx context.Context, job *model.LabImportJob) error {
+	// NOTE: GORM's Save() keys UPDATE purely on the primary key when it is already populated
+	// (job.ID is a non-zero UUID here) and silently ignores the chained Scopes(clinicScope(...))
+	// condition — the clinic_id predicate would have zero effect and allow cross-tenant
+	// overwrites. Use an explicit Model+Where+Updates(map) so clinic_id actually gates the
+	// UPDATE's WHERE clause (P4: clinicScope on Update, MANDATORY).
 	result := r.db.WithContext(ctx).
+		Model(&model.LabImportJob{}).
+		Where("id = ?", job.ID).
 		Scopes(clinicScope(job.ClinicID)).
-		Save(job)
+		Updates(map[string]any{
+			"source_type":        job.SourceType,
+			"source_fingerprint": job.SourceFingerprint,
+			"status":             job.Status,
+			"row_count":          job.RowCount,
+			"persisted_count":    job.PersistedCount,
+			"duplicate_count":    job.DuplicateCount,
+			"needs_review_count": job.NeedsReviewCount,
+			"failed_count":       job.FailedCount,
+			"error_code":         job.ErrorCode,
+			"error_message":      job.ErrorMessage,
+			"started_at":         job.StartedAt,
+			"finished_at":        job.FinishedAt,
+		})
 	if result.Error != nil {
 		return apperrors.FromGORM(result.Error, "lab_import_job", job.ID.String())
 	}

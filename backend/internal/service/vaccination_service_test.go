@@ -56,6 +56,91 @@ func (m *mockVaccinationRepository) FindOwnersByVaccineDeadline(_ context.Contex
 	return nil, nil
 }
 
+func TestBuildVaccinationUpdate(t *testing.T) {
+	medicalRecordID := uint64(1)
+	petID := uint64(2)
+	vaccineID := uint64(3)
+	date := time.Date(2026, 5, 1, 0, 0, 0, 0, time.UTC)
+	doctorID := uint64(4)
+	nextDate := time.Date(2026, 11, 1, 0, 0, 0, 0, time.UTC)
+	nextScheduleType := model.NextScheduleType("fixed")
+	supplemental := "追記"
+	lot1, lot2, lot3, lot4 := "L1", "L2", "L3", "L4"
+	remarks := "remarks"
+
+	tests := []struct {
+		name  string
+		input *UpdateVaccinationInput
+		want  map[string]any
+	}{
+		{
+			name: "all fields set",
+			input: &UpdateVaccinationInput{
+				MedicalRecordID: &medicalRecordID, PetID: &petID, VaccineID: &vaccineID, Date: &date,
+				DoctorID: &doctorID, NextDate: &nextDate, NextScheduleType: &nextScheduleType,
+				Supplemental: &supplemental, Lot1: &lot1, Lot2: &lot2, Lot3: &lot3, Lot4: &lot4, Remarks: &remarks,
+			},
+			want: map[string]any{
+				"medical_record_id":  medicalRecordID,
+				"pet_id":             petID,
+				"vaccine_id":         vaccineID,
+				"date":               date,
+				"doctor_id":          doctorID,
+				"next_date":          nextDate,
+				"next_schedule_type": nextScheduleType,
+				"supplemental":       supplemental,
+				"lot1":               lot1,
+				"lot2":               lot2,
+				"lot3":               lot3,
+				"lot4":               lot4,
+				"remarks":            remarks,
+			},
+		},
+		{
+			name:  "no fields set returns empty map",
+			input: &UpdateVaccinationInput{},
+			want:  map[string]any{},
+		},
+		{
+			name:  "only pet_id set",
+			input: &UpdateVaccinationInput{PetID: &petID},
+			want:  map[string]any{"pet_id": petID},
+		},
+		{
+			name:  "only doctor_id set",
+			input: &UpdateVaccinationInput{DoctorID: &doctorID},
+			want:  map[string]any{"doctor_id": doctorID},
+		},
+		{
+			name:  "only next_date set",
+			input: &UpdateVaccinationInput{NextDate: &nextDate},
+			want:  map[string]any{"next_date": nextDate},
+		},
+		{
+			name:  "only next_schedule_type set",
+			input: &UpdateVaccinationInput{NextScheduleType: &nextScheduleType},
+			want:  map[string]any{"next_schedule_type": nextScheduleType},
+		},
+		{
+			name:  "only lot fields set",
+			input: &UpdateVaccinationInput{Lot1: &lot1, Lot3: &lot3},
+			want:  map[string]any{"lot1": lot1, "lot3": lot3},
+		},
+		{
+			name:  "only remarks set",
+			input: &UpdateVaccinationInput{Remarks: &remarks},
+			want:  map[string]any{"remarks": remarks},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := buildVaccinationUpdate(tt.input)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
 func TestVaccinationService_List(t *testing.T) {
 	now := time.Now()
 	tests := []struct {
@@ -324,6 +409,44 @@ func TestVaccinationService_Create(t *testing.T) {
 	}
 }
 
+func TestVaccinationService_Create_PostCreateFindByIDError(t *testing.T) {
+	repo := &mockVaccinationRepository{
+		createFn: func(_ context.Context, vaccination *model.Vaccination) error {
+			vaccination.ID = 10
+			return nil
+		},
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.Vaccination, error) {
+			return nil, errors.New("db error")
+		},
+	}
+	svc := NewVaccinationService(repo, okVaccineRepo(), nil)
+
+	vaccination, err := svc.Create(context.Background(), 1, &CreateVaccinationInput{VaccineID: 1, Date: time.Now()})
+
+	assert.NoError(t, err, "post-create FindByID failure falls back to created record instead of erroring")
+	assert.NotNil(t, vaccination)
+	assert.Equal(t, uint64(10), vaccination.ID)
+}
+
+func TestVaccinationService_Create_PostCreateFindByIDNil(t *testing.T) {
+	repo := &mockVaccinationRepository{
+		createFn: func(_ context.Context, vaccination *model.Vaccination) error {
+			vaccination.ID = 11
+			return nil
+		},
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.Vaccination, error) {
+			return nil, nil
+		},
+	}
+	svc := NewVaccinationService(repo, okVaccineRepo(), nil)
+
+	vaccination, err := svc.Create(context.Background(), 1, &CreateVaccinationInput{VaccineID: 1, Date: time.Now()})
+
+	assert.NoError(t, err)
+	assert.NotNil(t, vaccination)
+	assert.Equal(t, uint64(11), vaccination.ID)
+}
+
 func TestVaccinationService_Create_SyncsVaccineTagBestEffort(t *testing.T) {
 	ownerID := uint64(10)
 	petID := uint64(20)
@@ -442,6 +565,22 @@ func TestVaccinationService_Update(t *testing.T) {
 	}
 }
 
+func TestVaccinationService_Update_FindByIDError(t *testing.T) {
+	supplemental := "追記"
+	repo := &mockVaccinationRepository{
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.Vaccination, error) {
+			return nil, apperrors.WrapNotFound("vaccination", "1")
+		},
+	}
+	svc := NewVaccinationService(repo, okVaccineRepo(), nil)
+
+	vaccination, err := svc.Update(context.Background(), 1, 1, &UpdateVaccinationInput{Supplemental: &supplemental})
+
+	assert.Error(t, err)
+	assert.Nil(t, vaccination)
+	assert.True(t, apperrors.IsNotFound(err))
+}
+
 func TestVaccinationService_Delete(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -498,6 +637,20 @@ func TestVaccinationService_Delete(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestVaccinationService_Delete_FindByIDError(t *testing.T) {
+	repo := &mockVaccinationRepository{
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.Vaccination, error) {
+			return nil, apperrors.WrapNotFound("vaccination", "999")
+		},
+	}
+	svc := NewVaccinationService(repo, okVaccineRepo(), nil)
+
+	err := svc.Delete(context.Background(), 1, 999)
+
+	assert.Error(t, err)
+	assert.True(t, apperrors.IsNotFound(err))
 }
 
 func TestVaccinationService_Update_ResyncsOwnerVaccineTags(t *testing.T) {

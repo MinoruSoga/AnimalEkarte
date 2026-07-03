@@ -140,5 +140,4 @@ Explore エージェント → 「認証関連のファイルを探して」
 
 ## 参照
 
-- [コンテキストエンジニアリング詳細](../docs/14-context-engineering.md)
 - [Contextual Retrieval](https://www.anthropic.com/engineering/contextual-retrieval)

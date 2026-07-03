@@ -36,7 +36,9 @@ func (s *liffService) GetAvailableDates(ctx context.Context, clinicID, typeID, s
 		return s.buildStaffSlotInputs(ctx, clinicID, visibleStaffs, date)
 	}
 	slotSettingsFn := func(date time.Time) TimeSlotsInput {
-		bh, defaultBreaks := parseBusinessHoursForDate(setting, date)
+		// 一覧表示パスは既存挙動を維持し break_hours 破損時のエラーを無視する（意図的・スコープ外。
+		// parseBusinessHoursForDate のコメント参照。書込パスの fail-closed 化のみ D10/F-2 対象）。
+		bh, defaultBreaks, _ := parseBusinessHoursForDate(setting, date)
 		return TimeSlotsInput{
 			BusinessHours:     bh,
 			DefaultBreaks:     defaultBreaks,
@@ -59,7 +61,9 @@ func (s *liffService) GetAvailableDates(ctx context.Context, clinicID, typeID, s
 				if course.MaxConcurrent == nil {
 					return merged
 				}
-				// TODO: 日付一覧取得時の capacity チェックは N+1 になるため将来バッチ取得に改善する
+				// BE-refactor.md R2-4 (D8): filterSlotsByCapacity 内部で日付ごとの全スロットを
+				// 1クエリにバッチ化済み（reservationTypeCapacityBatchCounter）。日付間の反復は
+				// CalcAvailableDates の制御下にあり残るが、支配的だったスロット数分の N+1 は解消。
 				filtered, err := filterSlotsByCapacity(ctx, merged, s.reservationRepo, clinicID, typeID, date, *course.MaxConcurrent)
 				if err != nil {
 					slog.WarnContext(ctx, "failed to filter by capacity in dates, skipping", "error", err)
@@ -70,7 +74,8 @@ func (s *liffService) GetAvailableDates(ctx context.Context, clinicID, typeID, s
 		}
 	} else if course.MaxConcurrent != nil {
 		slotFilterFn = func(date time.Time, slots []TimeSlot) []TimeSlot {
-			// TODO: 日付一覧取得時の capacity チェックは N+1 になるため将来バッチ取得に改善する
+			// BE-refactor.md R2-4 (D8): filterSlotsByCapacity 内部で日付ごとの全スロットを
+			// 1クエリにバッチ化済み（reservationTypeCapacityBatchCounter）。
 			filtered, err := filterSlotsByCapacity(ctx, slots, s.reservationRepo, clinicID, typeID, date, *course.MaxConcurrent)
 			if err != nil {
 				slog.WarnContext(ctx, "failed to filter by capacity in dates, skipping", "error", err)
@@ -195,7 +200,9 @@ func (s *liffService) GetAvailableTimes(ctx context.Context, clinicID, typeID, s
 		return nil, apperrors.Wrap(err, "failed to build staff slot inputs")
 	}
 
-	bh, defaultBreaks := parseBusinessHoursForDate(setting, date)
+	// 一覧表示パスは既存挙動を維持し break_hours 破損時のエラーを無視する（意図的・スコープ外。
+	// parseBusinessHoursForDate のコメント参照。書込パスの fail-closed 化のみ D10/F-2 対象）。
+	bh, defaultBreaks, _ := parseBusinessHoursForDate(setting, date)
 	input := &TimeSlotsInput{
 		BusinessHours:     bh,
 		DefaultBreaks:     defaultBreaks,
@@ -280,6 +287,9 @@ func mergeAvailableTimeSlots(slots []TimeSlot, availableSlots []model.Reservatio
 }
 
 // filterSlotsByCapacity は max_concurrent に達したスロットを除外する。
+// BE-refactor.md R2-4 (D8): repo が reservationTypeCapacityBatchCounter を実装していれば
+// （本番の *reservationRepository は実装する）その日の全スロットの件数を1クエリで取得する。
+// 実装していない場合（一部テストモック等）は従来どおり per-slot で問い合わせる（挙動保存）。
 func filterSlotsByCapacity(
 	ctx context.Context,
 	slots []TimeSlot,
@@ -288,23 +298,51 @@ func filterSlotsByCapacity(
 	date time.Time,
 	maxConcurrent int,
 ) ([]TimeSlot, error) {
-	result := make([]TimeSlot, 0, len(slots))
 	dateJST := date.In(jstLocation)
+
+	type slotStart struct {
+		slot      TimeSlot
+		startTime time.Time
+	}
+	valid := make([]slotStart, 0, len(slots))
 	for _, slot := range slots {
 		startMin, err := minutesSinceMidnight(slot.StartTime)
 		if err != nil {
-			continue
+			continue // 不正な形式のスロットは結果から除外（既存挙動）
 		}
 		startTime := time.Date(
 			dateJST.Year(), dateJST.Month(), dateJST.Day(),
 			startMin/60, startMin%60, 0, 0, jstLocation,
 		)
-		count, err := repo.CountByTypeAndStartTime(ctx, clinicID, typeID, startTime, nil)
+		valid = append(valid, slotStart{slot: slot, startTime: startTime})
+	}
+
+	result := make([]TimeSlot, 0, len(valid))
+
+	if batchRepo, ok := repo.(reservationTypeCapacityBatchCounter); ok {
+		startTimes := make([]time.Time, len(valid))
+		for i, v := range valid {
+			startTimes[i] = v.startTime
+		}
+		counts, err := batchRepo.CountByTypeAndStartTimes(ctx, clinicID, typeID, startTimes, nil)
+		if err != nil {
+			return nil, apperrors.Wrap(err, "failed to count reservations")
+		}
+		for _, v := range valid {
+			if counts[v.startTime.Unix()] < int64(maxConcurrent) {
+				result = append(result, v.slot)
+			}
+		}
+		return result, nil
+	}
+
+	for _, v := range valid {
+		count, err := repo.CountByTypeAndStartTime(ctx, clinicID, typeID, v.startTime, nil)
 		if err != nil {
 			return nil, apperrors.Wrap(err, "failed to count reservations")
 		}
 		if count < int64(maxConcurrent) {
-			result = append(result, slot)
+			result = append(result, v.slot)
 		}
 	}
 	return result, nil

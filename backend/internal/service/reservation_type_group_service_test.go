@@ -59,6 +59,111 @@ func (m *mockReservationTypeGroupRepository) Reorder(_ context.Context, _ uint64
 
 // ---- Tests ----
 
+func TestBuildReservationTypeGroupUpdate(t *testing.T) {
+	name := "新グループ"
+	color := "#FF0000"
+	sortOrder := 5
+	isActive := true
+
+	tests := []struct {
+		name  string
+		input *UpdateReservationTypeGroupInput
+		want  map[string]any
+	}{
+		{
+			name:  "all fields set",
+			input: &UpdateReservationTypeGroupInput{Name: &name, Color: &color, SortOrder: &sortOrder, IsActive: &isActive},
+			want: map[string]any{
+				colReservationTypeGroupName:      name,
+				colReservationTypeGroupColor:     color,
+				colReservationTypeGroupSortOrder: sortOrder,
+				colReservationTypeGroupIsActive:  isActive,
+			},
+		},
+		{
+			name:  "no fields set returns empty map",
+			input: &UpdateReservationTypeGroupInput{},
+			want:  map[string]any{},
+		},
+		{
+			name:  "only name set",
+			input: &UpdateReservationTypeGroupInput{Name: &name},
+			want:  map[string]any{colReservationTypeGroupName: name},
+		},
+		{
+			name:  "only color set",
+			input: &UpdateReservationTypeGroupInput{Color: &color},
+			want:  map[string]any{colReservationTypeGroupColor: color},
+		},
+		{
+			name:  "only sort_order set",
+			input: &UpdateReservationTypeGroupInput{SortOrder: &sortOrder},
+			want:  map[string]any{colReservationTypeGroupSortOrder: sortOrder},
+		},
+		{
+			name:  "only is_active set",
+			input: &UpdateReservationTypeGroupInput{IsActive: &isActive},
+			want:  map[string]any{colReservationTypeGroupIsActive: isActive},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := buildReservationTypeGroupUpdate(tt.input)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+func TestReservationTypeGroupService_List(t *testing.T) {
+	tests := []struct {
+		name       string
+		repoGroups []model.ReservationTypeGroup
+		repoErr    error
+		wantLen    int
+		wantErr    bool
+	}{
+		{
+			name: "returns groups",
+			repoGroups: []model.ReservationTypeGroup{
+				{ID: 1, Name: "午前診察"},
+				{ID: 2, Name: "午後診察"},
+			},
+			wantLen: 2,
+		},
+		{
+			name:       "returns empty list when no groups exist",
+			repoGroups: []model.ReservationTypeGroup{},
+			wantLen:    0,
+		},
+		{
+			name:    "propagates repository error",
+			repoErr: errors.New("db connection error"),
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			repo := &mockReservationTypeGroupRepository{
+				findAllFn: func(_ context.Context, _ uint64) ([]model.ReservationTypeGroup, error) {
+					return tt.repoGroups, tt.repoErr
+				},
+			}
+			svc := NewReservationTypeGroupService(repo)
+
+			groups, err := svc.List(context.Background(), 1)
+
+			if tt.wantErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+				assert.Len(t, groups, tt.wantLen)
+			}
+		})
+	}
+}
+
 func TestReservationTypeGroupService_GetByID(t *testing.T) {
 	existing := &model.ReservationTypeGroup{ID: 1, ClinicID: 1, Name: "午前診察", Color: "#3B82F6"}
 
@@ -190,6 +295,17 @@ func TestReservationTypeGroupService_Update(t *testing.T) {
 			updateErr: errors.New("update failed"),
 			wantErr:   true,
 		},
+		{
+			name:    "returns error when group not found",
+			input:   UpdateReservationTypeGroupInput{Name: strPtr("名前")},
+			findErr: apperrors.WrapNotFound("reservation_type_group", "1"),
+			wantErr: true,
+		},
+		{
+			name:    "returns error when name is blank",
+			input:   UpdateReservationTypeGroupInput{Name: strPtr("")},
+			wantErr: true,
+		},
 	}
 
 	for _, tt := range tests {
@@ -276,6 +392,14 @@ func TestReservationTypeGroupService_Delete(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestReservationTypeGroupService_Update_NilInput(t *testing.T) {
+	repo := &mockReservationTypeGroupRepository{}
+	svc := NewReservationTypeGroupService(repo)
+	result, err := svc.Update(context.Background(), 1, 1, nil)
+	assert.Error(t, err)
+	assert.Nil(t, result)
 }
 
 func TestReservationTypeGroupService_Reorder(t *testing.T) {

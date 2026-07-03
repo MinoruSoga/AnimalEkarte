@@ -396,6 +396,155 @@ func TestOccupationService_Delete(t *testing.T) {
 	}
 }
 
+// ---- buildOccupationUpdate 直接テスト ----
+
+func TestBuildOccupationUpdate(t *testing.T) {
+	name := "更新名"
+	description := "更新説明"
+	sortOrder := 5
+	isActive := true
+
+	tests := []struct {
+		name  string
+		input *UpdateOccupationInput
+		want  map[string]any
+	}{
+		{
+			name:  "全フィールドnilの場合は空map",
+			input: &UpdateOccupationInput{},
+			want:  map[string]any{},
+		},
+		{
+			name:  "Nameのみ設定",
+			input: &UpdateOccupationInput{Name: &name},
+			want:  map[string]any{colOccupationName: name},
+		},
+		{
+			name:  "Descriptionのみ設定",
+			input: &UpdateOccupationInput{Description: &description},
+			want:  map[string]any{colOccupationDescription: description},
+		},
+		{
+			name:  "SortOrderのみ設定",
+			input: &UpdateOccupationInput{SortOrder: &sortOrder},
+			want:  map[string]any{colOccupationSortOrder: sortOrder},
+		},
+		{
+			name:  "IsActiveのみ設定",
+			input: &UpdateOccupationInput{IsActive: &isActive},
+			want:  map[string]any{colOccupationIsActive: isActive},
+		},
+		{
+			name: "全フィールド設定",
+			input: &UpdateOccupationInput{
+				Name:        &name,
+				Description: &description,
+				SortOrder:   &sortOrder,
+				IsActive:    &isActive,
+			},
+			want: map[string]any{
+				colOccupationName:        name,
+				colOccupationDescription: description,
+				colOccupationSortOrder:   sortOrder,
+				colOccupationIsActive:    isActive,
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := buildOccupationUpdate(tt.input)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+// ---- Create バリデーションエラー ----
+
+func TestOccupationService_Create_ValidationError(t *testing.T) {
+	repo := &mockOccupationRepository{
+		createFn: func(_ context.Context, _ *model.Occupation) error {
+			t.Fatal("repo.Create should not be called when validation fails")
+			return nil
+		},
+	}
+	svc := NewOccupationService(repo)
+
+	occ, err := svc.Create(context.Background(), 1, &CreateOccupationInput{Name: ""})
+
+	assert.Error(t, err)
+	assert.Nil(t, occ)
+	assert.True(t, apperrors.IsInvalidInput(err))
+}
+
+// ---- Update 追加分岐 ----
+
+func TestOccupationService_Update_NilInput(t *testing.T) {
+	repo := &mockOccupationRepository{}
+	svc := NewOccupationService(repo)
+
+	occ, err := svc.Update(context.Background(), 1, 1, nil)
+
+	assert.Error(t, err)
+	assert.Nil(t, occ)
+	assert.True(t, apperrors.IsInvalidInput(err))
+}
+
+func TestOccupationService_Update_FindByIDError(t *testing.T) {
+	name := "更新名"
+	repo := &mockOccupationRepository{
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.Occupation, error) {
+			return nil, apperrors.WrapNotFound("occupation", "1")
+		},
+	}
+	svc := NewOccupationService(repo)
+
+	occ, err := svc.Update(context.Background(), 1, 1, &UpdateOccupationInput{Name: &name})
+
+	assert.Error(t, err)
+	assert.Nil(t, occ)
+	assert.True(t, apperrors.IsNotFound(err))
+}
+
+func TestOccupationService_Update_InvalidName(t *testing.T) {
+	invalidName := "無効\x00文字"
+	repo := &mockOccupationRepository{}
+	svc := NewOccupationService(repo)
+
+	occ, err := svc.Update(context.Background(), 1, 1, &UpdateOccupationInput{Name: &invalidName})
+
+	assert.Error(t, err)
+	assert.Nil(t, occ)
+	assert.True(t, apperrors.IsInvalidInput(err))
+}
+
+// ---- Delete 追加分岐 ----
+
+func TestOccupationService_Delete_CountUsageError(t *testing.T) {
+	repo := &mockOccupationRepository{
+		countUsageByOccupationIDFn: func(_ context.Context, _, _ uint64) (int64, error) {
+			return 0, errors.New("db error")
+		},
+	}
+	svc := NewOccupationService(repo)
+
+	err := svc.Delete(context.Background(), 1, 1)
+
+	assert.Error(t, err)
+}
+
+// ---- Reorder 追加分岐 ----
+
+func TestOccupationService_Reorder_EmptyIDs(t *testing.T) {
+	repo := &mockOccupationRepository{}
+	svc := NewOccupationService(repo)
+
+	err := svc.Reorder(context.Background(), 1, []uint64{})
+
+	assert.Error(t, err)
+	assert.True(t, apperrors.IsInvalidInput(err))
+}
+
 func TestOccupationService_Reorder(t *testing.T) {
 	tests := []struct {
 		name    string

@@ -232,6 +232,61 @@ func TestClinicService_ListClinics(t *testing.T) {
 	}
 }
 
+func TestClinicService_ListClinicsByStaffID(t *testing.T) {
+	tests := []struct {
+		name        string
+		staffID     uint64
+		repoClinics []model.Clinic
+		repoErr     error
+		wantLen     int
+		wantErr     bool
+	}{
+		{
+			name:    "returns clinics for staff",
+			staffID: 1,
+			repoClinics: []model.Clinic{
+				{ID: 1, CompanyID: 1, Name: "本院"},
+				{ID: 2, CompanyID: 1, Name: "分院"},
+			},
+			wantLen: 2,
+		},
+		{
+			name:        "returns empty list when staff belongs to no clinics",
+			staffID:     2,
+			repoClinics: []model.Clinic{},
+			wantLen:     0,
+		},
+		{
+			name:    "propagates repository error",
+			staffID: 3,
+			repoErr: errors.New("db connection error"),
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			repo := &mockClinicRepository{
+				findByStaffIDFn: func(_ context.Context, staffID uint64) ([]model.Clinic, error) {
+					assert.Equal(t, tt.staffID, staffID)
+					return tt.repoClinics, tt.repoErr
+				},
+			}
+			pgRepo := &mockPermissionGroupRepositoryForClinic{}
+			svc := NewClinicService(repo, pgRepo, &mockTransactor{})
+
+			clinics, err := svc.ListClinicsByStaffID(context.Background(), tt.staffID)
+
+			if tt.wantErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+				assert.Len(t, clinics, tt.wantLen)
+			}
+		})
+	}
+}
+
 func TestClinicService_GetClinicByID(t *testing.T) {
 	tests := []struct {
 		name       string
@@ -451,6 +506,90 @@ func TestClinicService_UpdateClinic(t *testing.T) {
 	}
 }
 
+func TestClinicService_UpdateClinic_InputNil(t *testing.T) {
+	repo := &mockClinicRepository{
+		findByIDFn: func(_ context.Context, _ uint64) (*model.Clinic, error) {
+			t.Fatal("clinic must not be looked up when input is nil")
+			return nil, nil
+		},
+	}
+	pgRepo := &mockPermissionGroupRepositoryForClinic{}
+	svc := NewClinicService(repo, pgRepo, &mockTransactor{})
+
+	result, err := svc.UpdateClinic(context.Background(), 1, nil)
+
+	assert.Error(t, err)
+	assert.True(t, apperrors.IsInvalidInput(err))
+	assert.Nil(t, result)
+}
+
+func TestClinicService_UpdateClinic_NoFieldsProvided(t *testing.T) {
+	existing := &model.Clinic{ID: 1, CompanyID: 5, Name: "既存院"}
+	updateCalled := false
+	repo := &mockClinicRepository{
+		findByIDFn: func(_ context.Context, _ uint64) (*model.Clinic, error) {
+			return existing, nil
+		},
+		updateFn: func(_ context.Context, _ uint64, _ map[string]any) error {
+			updateCalled = true
+			return nil
+		},
+	}
+	pgRepo := &mockPermissionGroupRepositoryForClinic{}
+	svc := NewClinicService(repo, pgRepo, &mockTransactor{})
+
+	result, err := svc.UpdateClinic(context.Background(), 1, &UpdateClinicInput{})
+
+	assert.NoError(t, err)
+	assert.Equal(t, existing, result)
+	assert.False(t, updateCalled, "更新フィールドが無い場合は repo.Update を呼ばない")
+}
+
+func TestClinicService_UpdateClinic_InvalidTaxRate(t *testing.T) {
+	invalidRate := 1.5
+	repo := &mockClinicRepository{
+		findByIDFn: func(_ context.Context, _ uint64) (*model.Clinic, error) {
+			return &model.Clinic{ID: 1, CompanyID: 5}, nil
+		},
+		updateFn: func(_ context.Context, _ uint64, _ map[string]any) error {
+			t.Fatal("clinic must not be updated when the input fails validation")
+			return nil
+		},
+	}
+	pgRepo := &mockPermissionGroupRepositoryForClinic{}
+	svc := NewClinicService(repo, pgRepo, &mockTransactor{})
+
+	result, err := svc.UpdateClinic(context.Background(), 1, &UpdateClinicInput{StandardTaxRate: &invalidRate})
+
+	assert.Error(t, err)
+	assert.True(t, apperrors.IsInvalidInput(err))
+	assert.Nil(t, result)
+}
+
+func TestClinicService_UpdateClinic_RefetchErrorAfterUpdate(t *testing.T) {
+	findCalls := 0
+	repo := &mockClinicRepository{
+		findByIDFn: func(_ context.Context, _ uint64) (*model.Clinic, error) {
+			findCalls++
+			if findCalls == 1 {
+				return &model.Clinic{ID: 1, CompanyID: 5, Name: "旧院名"}, nil
+			}
+			return nil, errors.New("db error")
+		},
+		updateFn: func(_ context.Context, _ uint64, _ map[string]any) error {
+			return nil
+		},
+	}
+	pgRepo := &mockPermissionGroupRepositoryForClinic{}
+	svc := NewClinicService(repo, pgRepo, &mockTransactor{})
+
+	result, err := svc.UpdateClinic(context.Background(), 1, &UpdateClinicInput{Name: strPtr("新院名")})
+
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	assert.Equal(t, 2, findCalls, "更新後のリフレッシュ取得も呼ばれる")
+}
+
 // TestBuildClinicUpdate_AccountingDocumentSettings は #179 follow-up ①（#190）の
 // 帳票レイアウト設定が PATCH セマンティクスで更新マップへ反映されることを検証する。
 // 指定フィールドは実カラム名付きでマップへ入り、nil フィールドは省略される（既存値保持）。
@@ -562,6 +701,68 @@ func TestBuildClinicUpdate_AccountingDocumentSettings(t *testing.T) {
 	})
 }
 
+func TestBuildClinicUpdate_TaxRateValidation(t *testing.T) {
+	tests := []struct {
+		name             string
+		standardTaxRate  *float64
+		reducedTaxRate   *float64
+		wantErr          bool
+		wantStandardRate float64
+		wantReducedRate  float64
+	}{
+		{
+			name:             "有効な税率は更新マップへ入る",
+			standardTaxRate:  ptrFloat64(0.10),
+			reducedTaxRate:   ptrFloat64(0.08),
+			wantErr:          false,
+			wantStandardRate: 0.10,
+			wantReducedRate:  0.08,
+		},
+		{
+			name:            "standard_tax_rate が1を超える場合はエラー",
+			standardTaxRate: ptrFloat64(1.5),
+			wantErr:         true,
+		},
+		{
+			name:            "standard_tax_rate が負の場合はエラー",
+			standardTaxRate: ptrFloat64(-0.1),
+			wantErr:         true,
+		},
+		{
+			name:           "reduced_tax_rate が1を超える場合はエラー",
+			reducedTaxRate: ptrFloat64(1.1),
+			wantErr:        true,
+		},
+		{
+			name:           "reduced_tax_rate が負の場合はエラー",
+			reducedTaxRate: ptrFloat64(-0.01),
+			wantErr:        true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			fields, err := buildClinicUpdate(&UpdateClinicInput{
+				StandardTaxRate: tt.standardTaxRate,
+				ReducedTaxRate:  tt.reducedTaxRate,
+			})
+
+			if tt.wantErr {
+				assert.Error(t, err)
+				assert.True(t, apperrors.IsInvalidInput(err))
+				return
+			}
+			assert.NoError(t, err)
+			if tt.standardTaxRate != nil {
+				assert.Equal(t, tt.wantStandardRate, fields["standard_tax_rate"])
+			}
+			if tt.reducedTaxRate != nil {
+				assert.Equal(t, tt.wantReducedRate, fields["reduced_tax_rate"])
+			}
+		})
+	}
+}
+
 func TestClinicService_DeleteClinic(t *testing.T) {
 	tests := []struct {
 		name          string
@@ -627,6 +828,16 @@ func TestClinicService_DeleteClinic(t *testing.T) {
 			staffCount:    0,
 			countOwnerErr: errors.New("db error"),
 			countStaffErr: nil,
+			repoErr:       nil,
+			wantErr:       true,
+		},
+		{
+			name:          "returns error when staff count check fails",
+			id:            1,
+			ownerCount:    0,
+			staffCount:    0,
+			countOwnerErr: nil,
+			countStaffErr: errors.New("db error"),
 			repoErr:       nil,
 			wantErr:       true,
 		},

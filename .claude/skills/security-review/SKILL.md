@@ -8,6 +8,14 @@ origin: ECC (adapted for AnimalEkarte)
 
 このプロジェクト（Go/Gin + React 19）向けの統合セキュリティチェックリスト。
 
+## 他スキルとの使い分け
+
+- **本スキル**: 認証・入力検証・シークレット管理・OWASP Top10 全般の統合チェックリスト
+- **go-security**: Go/Gin/GORM 固有の実装詳細（gosec, SQLi のパラメータ化, bcrypt/JWT の Go 実装）
+- **react-security**: React/TSX 固有の実装詳細（dangerouslySetInnerHTML, CSRF token 管理, localStorage）
+
+3スキルとも参照してよいが、本文の重複を避けるため OWASP 一般論は本スキルに集約し、go-security/react-security は言語固有の diff のみを持つ。
+
 ## When to Activate
 
 - 認証・認可コードの実装・変更
@@ -41,6 +49,13 @@ const API_KEY = import.meta.env.VITE_API_KEY
 - [ ] シークレットが `.env` に格納（`.gitignore` に追加済み）
 - [ ] `.env.example` にダミー値のみ
 - [ ] ソースコードにキー・パスワードなし
+
+### 環境変数の有無確認で値を漏らさない（実績由来）
+
+- 有無確認に `${VAR:-...}` を使うと設定済みの場合に**値そのものが出力される**。2026-06-25 に GITHUB_TOKEN が平文露出しローテーションに至った実例あり
+- 有無だけなら `${VAR:+set}`、長さ確認は `${#VAR}` を使う
+- gh CLI の write 操作が env の失効トークンで失敗する場合は `env -u GITHUB_TOKEN gh ...` で keyring トークンを強制使用
+（出典: memory feedback_env_var_presence_check_leaks_value / ops_gh_invalid_github_token_env）
 
 ## 2. 入力バリデーション（Go）
 
@@ -134,6 +149,8 @@ RespondError(c, err) // 内部エラーはログに記録、ユーザーには�
 | A09 | Logging Failures | slog 構造化ログ |
 
 ## セキュリティスキャンコマンド
+
+**gosec は本プロジェクト未導入**（Dockerfile/Makefile/CI に無し）。実行する場合は導入が先。CI の security-scan.yml は agentshield（エージェント設定監査）のみで Go コードスキャナではない
 
 ```bash
 # Go: gosec 静的分析

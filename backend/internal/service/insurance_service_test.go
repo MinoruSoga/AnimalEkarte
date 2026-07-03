@@ -271,10 +271,11 @@ func TestInsuranceService_Update(t *testing.T) {
 	rateNeg := -5
 	rate200 := 200
 	tests := []struct {
-		name    string
-		input   UpdateInsuranceInput
-		repoErr error
-		wantErr bool
+		name        string
+		input       UpdateInsuranceInput
+		repoErr     error
+		findByIDErr error
+		wantErr     bool
 	}{
 		{
 			name: "updates insurance successfully",
@@ -316,12 +317,23 @@ func TestInsuranceService_Update(t *testing.T) {
 			repoErr: errors.New("db error"),
 			wantErr: true,
 		},
+		{
+			name: "returns error when insurance not found",
+			input: UpdateInsuranceInput{
+				Name: &name,
+			},
+			findByIDErr: apperrors.WrapNotFound("insurance", "999"),
+			wantErr:     true,
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockInsuranceRepository{
 				findByIDFn: func(_ context.Context, _, _ uint64) (*model.Insurance, error) {
+					if tt.findByIDErr != nil {
+						return nil, tt.findByIDErr
+					}
 					return &model.Insurance{ID: 1, ClinicID: 1}, nil
 				},
 				updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Insurance, error) {
@@ -371,6 +383,11 @@ func TestInsuranceService_Reorder(t *testing.T) {
 			name:    "propagates repository error",
 			ids:     []uint64{1, 2},
 			repoErr: errors.New("db error"),
+			wantErr: true,
+		},
+		{
+			name:    "returns error when ids is empty",
+			ids:     []uint64{},
 			wantErr: true,
 		},
 	}
@@ -428,6 +445,12 @@ func TestInsuranceService_Delete(t *testing.T) {
 			wantErr:      true,
 			wantConflict: true,
 		},
+		{
+			name:     "returns error when usage count check fails",
+			id:       3,
+			countErr: errors.New("db error"),
+			wantErr:  true,
+		},
 	}
 
 	for _, tt := range tests {
@@ -466,4 +489,38 @@ func TestInsuranceService_Delete(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestBuildInsuranceUpdate は buildInsuranceUpdate の全フィールド網羅とゼロ値挙動を検証する。
+func TestBuildInsuranceUpdate(t *testing.T) {
+	name := "新保険名"
+	isActive := true
+	description := "説明文"
+	coverageRate := 60
+	contactPhone := "03-0000-0000"
+	sortOrder := 5
+
+	t.Run("maps all provided fields", func(t *testing.T) {
+		input := &UpdateInsuranceInput{
+			Name:         &name,
+			IsActive:     &isActive,
+			Description:  &description,
+			CoverageRate: &coverageRate,
+			ContactPhone: &contactPhone,
+			SortOrder:    &sortOrder,
+		}
+		fields := buildInsuranceUpdate(input)
+		assert.Equal(t, name, fields[colInsuranceName])
+		assert.Equal(t, isActive, fields[colInsuranceIsActive])
+		assert.Equal(t, description, fields[colInsuranceDescription])
+		assert.Equal(t, coverageRate, fields[colInsuranceCoverageRate])
+		assert.Equal(t, contactPhone, fields[colInsuranceContactPhone])
+		assert.Equal(t, sortOrder, fields[colInsuranceSortOrder])
+		assert.Len(t, fields, 6)
+	})
+
+	t.Run("returns empty map when all fields are nil", func(t *testing.T) {
+		fields := buildInsuranceUpdate(&UpdateInsuranceInput{})
+		assert.Empty(t, fields)
+	})
 }

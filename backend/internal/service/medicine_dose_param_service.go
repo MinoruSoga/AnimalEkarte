@@ -68,13 +68,19 @@ type MedicineDoseParamService interface {
 }
 
 type medicineDoseParamService struct {
-	repo     repository.MedicineDoseParamRepository
-	medRepo  repository.MedicineRepository // 親 medicine の所有権/存在検証（clinicScope）
-	auditSvc AuditService                  // nil 可（後方互換）。dose param 変更の監査記録。
+	repo       repository.MedicineDoseParamRepository
+	medRepo    repository.MedicineRepository // 親 medicine の所有権/存在検証（clinicScope）
+	transactor repository.Transactor
+	auditTx    AuditTxLogger // nil 可（後方互換）。dose param 変更の監査記録（fail-closed）。
 }
 
-func NewMedicineDoseParamService(repo repository.MedicineDoseParamRepository, medRepo repository.MedicineRepository, auditSvc AuditService) MedicineDoseParamService {
-	return &medicineDoseParamService{repo: repo, medRepo: medRepo, auditSvc: auditSvc}
+// NewMedicineDoseParamService は Transactor/AuditTxLogger を注入する。
+// BE-refactor.md R1-2 (D1): dose param の Create/Update/Delete と監査を単一 tx に束ね、
+// 監査書込の失敗が書込自体もロールバックするようにする（fail-closed。#211/refund パターン踏襲）。
+// transactor は必須（Upsert/Delete が s.transactor.WithTx を無条件に呼ぶため、nil 注入は panic）。
+// 本番配線（service.go）とテストは常に非 nil の Transactor を注入する。
+func NewMedicineDoseParamService(repo repository.MedicineDoseParamRepository, medRepo repository.MedicineRepository, transactor repository.Transactor, auditTx AuditTxLogger) MedicineDoseParamService {
+	return &medicineDoseParamService{repo: repo, medRepo: medRepo, transactor: transactor, auditTx: auditTx}
 }
 
 func (s *medicineDoseParamService) List(ctx context.Context, clinicID, medicineID uint64) ([]model.MedicineDoseParam, error) {
@@ -112,13 +118,19 @@ func (s *medicineDoseParamService) Upsert(ctx context.Context, clinicID, medicin
 	existing, findErr := s.repo.FindByMedicineAndSpecies(ctx, clinicID, medicineID, input.Species)
 	switch {
 	case findErr == nil:
-		fields := buildDoseParamReplaceFields(input)
-		updated, err := s.repo.Update(ctx, clinicID, existing.ID, fields)
-		if err != nil {
-			slog.ErrorContext(ctx, "failed to update medicine dose param", "error", err, "id", existing.ID, "clinic_id", clinicID)
-			return nil, apperrors.Wrap(err, "failed to update medicine dose param")
+		var updated *model.MedicineDoseParam
+		if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
+			fields := buildDoseParamReplaceFields(input)
+			var txErr error
+			updated, txErr = s.repo.Update(txCtx, clinicID, existing.ID, fields)
+			if txErr != nil {
+				slog.ErrorContext(txCtx, "failed to update medicine dose param", "error", txErr, "id", existing.ID, "clinic_id", clinicID)
+				return apperrors.Wrap(txErr, "failed to update medicine dose param")
+			}
+			return s.auditChangeTx(txCtx, clinicID, actorID, model.AuditActionMedicineDoseParamUpsert, medicineID, updated.ID, existing, updated)
+		}); err != nil {
+			return nil, err
 		}
-		s.auditChange(ctx, clinicID, actorID, model.AuditActionMedicineDoseParamUpsert, medicineID, updated.ID, existing, updated)
 		return updated, nil
 	case apperrors.IsNotFound(findErr):
 		param := &model.MedicineDoseParam{
@@ -134,11 +146,15 @@ func (s *medicineDoseParamService) Upsert(ctx context.Context, clinicID, medicin
 			RoundingMode:    input.RoundingMode,
 			Notes:           input.Notes,
 		}
-		if err := s.repo.Create(ctx, clinicID, param); err != nil {
-			slog.ErrorContext(ctx, "failed to create medicine dose param", "error", err, "medicine_id", medicineID, "clinic_id", clinicID)
-			return nil, apperrors.Wrap(err, "failed to create medicine dose param")
+		if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
+			if txErr := s.repo.Create(txCtx, clinicID, param); txErr != nil {
+				slog.ErrorContext(txCtx, "failed to create medicine dose param", "error", txErr, "medicine_id", medicineID, "clinic_id", clinicID)
+				return apperrors.Wrap(txErr, "failed to create medicine dose param")
+			}
+			return s.auditChangeTx(txCtx, clinicID, actorID, model.AuditActionMedicineDoseParamUpsert, medicineID, param.ID, nil, param)
+		}); err != nil {
+			return nil, err
 		}
-		s.auditChange(ctx, clinicID, actorID, model.AuditActionMedicineDoseParamUpsert, medicineID, param.ID, nil, param)
 		return param, nil
 	default:
 		slog.ErrorContext(ctx, "failed to lookup medicine dose param", "error", findErr, "medicine_id", medicineID, "clinic_id", clinicID)
@@ -158,19 +174,22 @@ func (s *medicineDoseParamService) Delete(ctx context.Context, clinicID, medicin
 	if err != nil {
 		return apperrors.Wrap(err, "failed to find medicine dose param")
 	}
-	if err := s.repo.Delete(ctx, clinicID, existing.ID); err != nil {
-		slog.ErrorContext(ctx, "failed to delete medicine dose param", "error", err, "id", existing.ID, "clinic_id", clinicID)
-		return apperrors.Wrap(err, "failed to delete medicine dose param")
-	}
-	s.auditChange(ctx, clinicID, actorID, model.AuditActionMedicineDoseParamDelete, medicineID, existing.ID, existing, nil)
-	return nil
+	return s.transactor.WithTx(ctx, func(txCtx context.Context) error {
+		if txErr := s.repo.Delete(txCtx, clinicID, existing.ID); txErr != nil {
+			slog.ErrorContext(txCtx, "failed to delete medicine dose param", "error", txErr, "id", existing.ID, "clinic_id", clinicID)
+			return apperrors.Wrap(txErr, "failed to delete medicine dose param")
+		}
+		return s.auditChangeTx(txCtx, clinicID, actorID, model.AuditActionMedicineDoseParamDelete, medicineID, existing.ID, existing, nil)
+	})
 }
 
-// auditChange は dose param 変更（upsert/delete）をベストエフォートで監査記録する。
+// auditChangeTx は dose param 変更（upsert/delete）を fail-closed で監査記録する。
 // before/after は doseParamAuditValue でスナップショットし、metadata に medicine_id/species を含める。
-func (s *medicineDoseParamService) auditChange(ctx context.Context, clinicID uint64, actorID *uint64, action string, medicineID, paramID uint64, before, after *model.MedicineDoseParam) {
-	if s.auditSvc == nil {
-		return
+// BE-refactor.md R1-2: ambient tx に参加する LogEntryTx を使う。失敗時は呼び出し元の WithTx が
+// rollback し、dose param の書込自体も無効になる（#211/refund パターン踏襲）。
+func (s *medicineDoseParamService) auditChangeTx(ctx context.Context, clinicID uint64, actorID *uint64, action string, medicineID, paramID uint64, before, after *model.MedicineDoseParam) error {
+	if s.auditTx == nil {
+		return nil
 	}
 	actorType := model.AuditActorTypeSystem
 	if actorID != nil {
@@ -196,9 +215,10 @@ func (s *medicineDoseParamService) auditChange(ctx context.Context, clinicID uin
 		NewValue:   doseParamAuditValue(after),
 		Metadata:   map[string]any{"medicine_id": medicineID, "species": species},
 	}
-	if err := s.auditSvc.LogEntry(ctx, input); err != nil {
-		slog.ErrorContext(ctx, "failed to audit medicine dose param change", "error", err, "action", action, "medicine_id", medicineID)
+	if err := s.auditTx.LogEntryTx(ctx, input); err != nil {
+		return apperrors.Wrap(err, "failed to audit medicine dose param change")
 	}
+	return nil
 }
 
 // doseParamAuditValue は audit before/after 用に dose param の主要値をスナップショットする（nil → nil）。

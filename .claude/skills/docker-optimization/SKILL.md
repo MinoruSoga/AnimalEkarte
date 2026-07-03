@@ -34,7 +34,7 @@ COPY . .
 RUN CGO_ENABLED=0 GOOS=linux go build -o app ./cmd/api
 
 # 実行ステージ
-FROM alpine:3.18
+FROM alpine:3.21
 WORKDIR /app
 COPY --from=builder /app/app .
 EXPOSE 8080
@@ -64,7 +64,7 @@ RUN go build -o app ./cmd/api
 ### 3. イメージサイズ削減
 
 ```dockerfile
-FROM alpine:3.18
+FROM alpine:3.21
 
 # 不要なファイル除外
 RUN apk add --no-cache ca-certificates tzdata
@@ -80,7 +80,7 @@ CMD ["./app"]
 ### 4. セキュリティ最適化
 
 ```dockerfile
-FROM alpine:3.18
+FROM alpine:3.21
 
 # non-root ユーザー作成
 RUN addgroup -g 1000 appuser && \
@@ -99,10 +99,10 @@ CMD ["./app"]
 
 ```dockerfile
 # ビルドステージ
-FROM node:20-alpine AS builder
+FROM node:24-alpine AS builder
 WORKDIR /app
-COPY package.json package-lock.json ./
-RUN pnpm install --frozen-lockfile --only=production
+COPY package.json pnpm-lock.yaml ./
+RUN pnpm install --frozen-lockfile --prod
 
 COPY . .
 RUN pnpm build

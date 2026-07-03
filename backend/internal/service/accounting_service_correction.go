@@ -43,7 +43,8 @@ func toValidationInputs(splits []model.PaymentSplit) []PaymentSplitInput {
 // refund_service.Create と同じく WithTx + LockAndFindByID（FOR UPDATE）で TOCTOU を防ぎ、
 // 訂正対象のカード内訳のみを書き換え、Payment.billing_amount を内訳合計に再計算する。
 // 医療費（subtotal/tax/total_amount）・保険・他の支払い内訳は不変（最小スコープ）。
-// 監査ログは before/after・理由・メモ・実行者を記録する（refund と同じく best-effort）。
+// 監査ログは before/after・理由・メモ・実行者を記録する（BE-refactor.md R1-2 で refund と同じく
+// fail-closed 化済み。LogEntryTx が失敗すると訂正自体もロールバックされる）。
 func (s *accountingService) CorrectCreditPayment(ctx context.Context, input *CorrectCreditPaymentInput) (*model.Billing, error) {
 	// 入力検証（トランザクション外・低コスト）
 	if strings.TrimSpace(input.Reason) == "" {
@@ -149,8 +150,10 @@ func (s *accountingService) CorrectCreditPayment(ctx context.Context, input *Cor
 				slog.String("scheduled_date", billing.ScheduledDate.Format("2006-01-02")))
 		}
 
-		// 監査ログ（best-effort。auditRepository は tx 非参加のため失敗しても訂正は確定する）
-		s.logCreditCorrection(txCtx, input, &target, oldBillingAmount, newBillingAmount, billing.ScheduledDate)
+		// 監査ログ（fail-closed: 失敗時は tx をロールバックし訂正ごと無効にする。BE-refactor.md R1-2・#211 パターン踏襲）
+		if err := s.logCreditCorrection(txCtx, input, &target, oldBillingAmount, newBillingAmount, billing.ScheduledDate); err != nil {
+			return err
+		}
 		return nil
 	}); err != nil {
 		return nil, apperrors.Wrap(err, "failed to correct credit payment in transaction")
@@ -168,9 +171,11 @@ func (s *accountingService) CorrectCreditPayment(ctx context.Context, input *Cor
 // logCreditCorrection はクレジット訂正の監査ログを記録する（before/after・理由・メモ・実行者）。
 // M-1: billing_amount の before/after と差額（delta）を明示し、売上への影響額を追跡可能にする。
 // M-2: 締め済み期間への訂正（IsPostClose）は post_close フラグと対象締めの識別子（予定日）を記録する。
-func (s *accountingService) logCreditCorrection(ctx context.Context, input *CorrectCreditPaymentInput, before *model.PaymentSplit, oldBillingAmount, newBillingAmount int64, scheduledDate time.Time) {
-	if s.auditSvc == nil {
-		return
+// BE-refactor.md R1-2: CorrectCreditPayment の ambient tx に参加する LogEntryTx を使う（fail-closed）。
+// 呼び出し元は返されたエラーで tx をロールバックし、監査失敗時に訂正自体も無効にする。
+func (s *accountingService) logCreditCorrection(ctx context.Context, input *CorrectCreditPaymentInput, before *model.PaymentSplit, oldBillingAmount, newBillingAmount int64, scheduledDate time.Time) error {
+	if s.auditTx == nil {
+		return nil
 	}
 	actorType := model.AuditActorTypeSystem
 	if input.StaffID != nil {
@@ -188,7 +193,7 @@ func (s *accountingService) logCreditCorrection(ctx context.Context, input *Corr
 		metadata["post_close"] = true
 		metadata["post_close_date"] = scheduledDate.Format("2006-01-02")
 	}
-	if err := s.auditSvc.LogEntry(ctx, &AuditLogInput{
+	if err := s.auditTx.LogEntryTx(ctx, &AuditLogInput{
 		ClinicID:   &input.ClinicID,
 		ActorID:    input.StaffID,
 		ActorType:  actorType,
@@ -211,6 +216,7 @@ func (s *accountingService) logCreditCorrection(ctx context.Context, input *Corr
 		},
 		Metadata: metadata,
 	}); err != nil {
-		slog.WarnContext(ctx, "audit log failed for credit correction", "error", err, "billing_id", input.BillingID)
+		return apperrors.Wrap(err, "failed to write credit correction audit log")
 	}
+	return nil
 }

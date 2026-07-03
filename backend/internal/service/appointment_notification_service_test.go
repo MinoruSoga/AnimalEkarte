@@ -124,6 +124,122 @@ func TestReservationNotificationService_NotifyCancelled(t *testing.T) {
 	})
 }
 
+// TestReservationNotificationService_BuildCancelledLineMessage は buildCancelledLineMessage の
+// ReservationType の有無による分岐（メニュー行を含めるか）を直接検証する。
+func TestReservationNotificationService_BuildCancelledLineMessage(t *testing.T) {
+	svc := &reservationNotificationService{}
+	start := time.Date(2026, 7, 10, 10, 0, 0, 0, time.UTC)
+	end := start.Add(time.Hour)
+
+	t.Run("includes menu line when ReservationType is set", func(t *testing.T) {
+		appt := &model.Reservation{
+			ID: 42, StartTime: start, EndTime: end,
+			ReservationType: &model.ReservationType{Name: "一般診療"},
+		}
+		msg := svc.buildCancelledLineMessage(appt)
+		assert.Contains(t, msg, "R-000042")
+		assert.Contains(t, msg, "■ メニュー: 一般診療")
+		assert.Contains(t, msg, "再度のご予約はLINEメニューの")
+	})
+
+	t.Run("omits menu line when ReservationType is nil", func(t *testing.T) {
+		appt := &model.Reservation{ID: 43, StartTime: start, EndTime: end}
+		msg := svc.buildCancelledLineMessage(appt)
+		assert.Contains(t, msg, "R-000043")
+		assert.NotContains(t, msg, "■ メニュー:")
+	})
+}
+
+// TestReservationNotificationService_SendEmail は SMTP 未設定時のスキップ、
+// auth 分岐（SMTPUser 設定時）、接続失敗時のラップされたエラー返却を検証する。
+// smtp.SendMail は実ネットワークの成功応答をモックできないため、成功パスは
+// SMTPHost="" のスキップ分岐で代替する（本番コード変更なしでのテスト可能な範囲）。
+func TestReservationNotificationService_SendEmail(t *testing.T) {
+	t.Run("skips send when SMTPHost is empty", func(t *testing.T) {
+		svc := &reservationNotificationService{cfg: ReservationNotificationConfig{SMTPHost: ""}}
+		err := svc.sendEmail(context.Background(), "to@example.com", "subject", "body")
+		assert.NoError(t, err)
+	})
+
+	t.Run("wraps error when SMTP connection fails without auth", func(t *testing.T) {
+		svc := &reservationNotificationService{cfg: ReservationNotificationConfig{
+			SMTPHost: "127.0.0.1",
+			SMTPPort: "65533",
+			SMTPFrom: "from@example.com",
+		}}
+		err := svc.sendEmail(context.Background(), "to@example.com", "subject", "body")
+		assert.Error(t, err)
+	})
+
+	t.Run("wraps error when SMTP connection fails with auth configured", func(t *testing.T) {
+		svc := &reservationNotificationService{cfg: ReservationNotificationConfig{
+			SMTPHost: "127.0.0.1",
+			SMTPPort: "65533",
+			SMTPUser: "user",
+			SMTPPass: "pass",
+			SMTPFrom: "from@example.com",
+		}}
+		err := svc.sendEmail(context.Background(), "to@example.com", "subject", "body")
+		assert.Error(t, err)
+	})
+}
+
+// TestExtractPetNamesFromCustomerFields は appt.Pet 優先・customer_fields フォールバック・
+// 不正JSON・空配列・type有無混在の各分岐を検証する。
+func TestExtractPetNamesFromCustomerFields(t *testing.T) {
+	tests := []struct {
+		name string
+		appt *model.Reservation
+		want string
+	}{
+		{
+			name: "appt.Pet takes priority over customer_fields",
+			appt: &model.Reservation{
+				Pet:            &model.Pet{Name: "ポチ"},
+				CustomerFields: []byte(`{"pets": [{"name": "タマ", "type": "猫"}]}`),
+			},
+			want: "ポチ",
+		},
+		{
+			name: "empty customer_fields returns empty string",
+			appt: &model.Reservation{CustomerFields: nil},
+			want: "",
+		},
+		{
+			name: "invalid JSON returns empty string",
+			appt: &model.Reservation{CustomerFields: []byte(`not-json`)},
+			want: "",
+		},
+		{
+			name: "empty pets array returns empty string",
+			appt: &model.Reservation{CustomerFields: []byte(`{"pets": []}`)},
+			want: "",
+		},
+		{
+			name: "single pet with type",
+			appt: &model.Reservation{CustomerFields: []byte(`{"pets": [{"name": "ポチ", "type": "犬"}]}`)},
+			want: "ポチ(犬)",
+		},
+		{
+			name: "single pet without type",
+			appt: &model.Reservation{CustomerFields: []byte(`{"pets": [{"name": "ポチ"}]}`)},
+			want: "ポチ",
+		},
+		{
+			name: "multiple pets joined with japanese comma",
+			appt: &model.Reservation{CustomerFields: []byte(`{"pets": [{"name": "ポチ", "type": "犬"}, {"name": "タマ"}]}`)},
+			want: "ポチ(犬)、タマ",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := extractPetNamesFromCustomerFields(tt.appt)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
 func TestNotificationHelpers(t *testing.T) {
 	t.Run("reservationTypeDisplayName", func(t *testing.T) {
 		assert.Equal(t, "", reservationTypeDisplayName(nil))

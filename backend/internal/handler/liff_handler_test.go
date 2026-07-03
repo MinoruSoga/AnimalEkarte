@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -26,15 +27,17 @@ import (
 // ================================================================
 
 type mockLiffService struct {
-	getSettingsFn       func(ctx context.Context, clinicID uint64) (*model.LineReservationSetting, error)
-	getProfileFn        func(ctx context.Context, clinicID, customerID uint64) (*model.LineCustomer, error)
-	getCoursesFn        func(ctx context.Context, clinicID uint64) ([]model.ReservationType, error)
-	getStaffsFn         func(ctx context.Context, clinicID, typeID uint64) ([]model.Staff, error)
-	getAvailableDatesFn func(ctx context.Context, clinicID, typeID, staffID uint64) ([]service.AvailableDateResult, service.BookingWindow, error)
-	getAvailableTimesFn func(ctx context.Context, clinicID, typeID, staffID uint64, date time.Time) ([]service.TimeSlot, error)
-	createReservationFn func(ctx context.Context, clinicID, customerID uint64, input *service.CreateReservationInput) (*model.Reservation, error)
-	getMyReservationsFn func(ctx context.Context, clinicID, customerID uint64) ([]model.Reservation, error)
-	cancelReservationFn func(ctx context.Context, clinicID, customerID, reservationID uint64) error
+	getSettingsFn        func(ctx context.Context, clinicID uint64) (*model.LineReservationSetting, error)
+	getProfileFn         func(ctx context.Context, clinicID, customerID uint64) (*model.LineCustomer, error)
+	getCoursesFn         func(ctx context.Context, clinicID uint64) ([]model.ReservationType, error)
+	getTrimmingCoursesFn func(ctx context.Context, clinicID uint64) ([]model.TrimmingCourse, error)
+	getTrimmingOptionsFn func(ctx context.Context, clinicID uint64) ([]model.TrimmingOption, error)
+	getStaffsFn          func(ctx context.Context, clinicID, typeID uint64) ([]model.Staff, error)
+	getAvailableDatesFn  func(ctx context.Context, clinicID, typeID, staffID uint64) ([]service.AvailableDateResult, service.BookingWindow, error)
+	getAvailableTimesFn  func(ctx context.Context, clinicID, typeID, staffID uint64, date time.Time) ([]service.TimeSlot, error)
+	createReservationFn  func(ctx context.Context, clinicID, customerID uint64, input *service.CreateReservationInput) (*model.Reservation, error)
+	getMyReservationsFn  func(ctx context.Context, clinicID, customerID uint64) ([]model.Reservation, error)
+	cancelReservationFn  func(ctx context.Context, clinicID, customerID, reservationID uint64) error
 }
 
 func (m *mockLiffService) GetSettings(ctx context.Context, clinicID uint64) (*model.LineReservationSetting, error) {
@@ -58,11 +61,17 @@ func (m *mockLiffService) GetCourses(ctx context.Context, clinicID uint64) ([]mo
 	return []model.ReservationType{}, nil
 }
 
-func (m *mockLiffService) GetTrimmingCourses(_ context.Context, _ uint64) ([]model.TrimmingCourse, error) {
+func (m *mockLiffService) GetTrimmingCourses(ctx context.Context, clinicID uint64) ([]model.TrimmingCourse, error) {
+	if m.getTrimmingCoursesFn != nil {
+		return m.getTrimmingCoursesFn(ctx, clinicID)
+	}
 	return []model.TrimmingCourse{}, nil
 }
 
-func (m *mockLiffService) GetTrimmingOptions(_ context.Context, _ uint64) ([]model.TrimmingOption, error) {
+func (m *mockLiffService) GetTrimmingOptions(ctx context.Context, clinicID uint64) ([]model.TrimmingOption, error) {
+	if m.getTrimmingOptionsFn != nil {
+		return m.getTrimmingOptionsFn(ctx, clinicID)
+	}
 	return []model.TrimmingOption{}, nil
 }
 
@@ -138,6 +147,8 @@ func newLiffRouter(h *Handler, withCustomer bool) *gin.Engine {
 	liff.GET("/settings", h.GetLiffSettings)
 	liff.GET("/profile", h.GetLiffProfile)
 	liff.GET("/courses", h.GetLiffTypes)
+	liff.GET("/trimming-courses", h.GetLiffTrimmingCourses)
+	liff.GET("/trimming-options", h.GetLiffTrimmingOptions)
 	liff.GET("/staffs", h.GetLiffStaffs)
 	liff.GET("/available-dates", h.GetLiffAvailableDates)
 	liff.GET("/available-times", h.GetLiffAvailableTimes)
@@ -292,6 +303,90 @@ func TestGetLiffTypes(t *testing.T) {
 			},
 		})
 		w := doLiffRequest(t, newLiffRouter(h, false), http.MethodGet, "/api/liff/3/courses", nil)
+		assert.Equal(t, http.StatusInternalServerError, w.Code)
+	})
+
+	t.Run("clinicId が数値でない → 400", func(t *testing.T) {
+		h := newLiffHandler(&mockLiffService{})
+		w := doLiffRequest(t, newLiffRouter(h, false), http.MethodGet, "/api/liff/abc/courses", nil)
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+	})
+}
+
+// ================================================================
+// GetLiffTrimmingCourses テスト
+// ================================================================
+
+func TestGetLiffTrimmingCourses(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	t.Run("正常系: トリミングコース一覧を返す", func(t *testing.T) {
+		price := int64(5000)
+		h := newLiffHandler(&mockLiffService{
+			getTrimmingCoursesFn: func(_ context.Context, clinicID uint64) ([]model.TrimmingCourse, error) {
+				assert.Equal(t, uint64(3), clinicID)
+				return []model.TrimmingCourse{
+					{ID: 1, Name: "フルコース", Price: &price},
+				}, nil
+			},
+		})
+		w := doLiffRequest(t, newLiffRouter(h, false), http.MethodGet, "/api/liff/3/trimming-courses", nil)
+		assert.Equal(t, http.StatusOK, w.Code)
+		assert.Contains(t, w.Body.String(), "フルコース")
+	})
+
+	t.Run("clinicId が数値でない → 400", func(t *testing.T) {
+		h := newLiffHandler(&mockLiffService{})
+		w := doLiffRequest(t, newLiffRouter(h, false), http.MethodGet, "/api/liff/abc/trimming-courses", nil)
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+	})
+
+	t.Run("サービスエラー → 500", func(t *testing.T) {
+		h := newLiffHandler(&mockLiffService{
+			getTrimmingCoursesFn: func(_ context.Context, _ uint64) ([]model.TrimmingCourse, error) {
+				return nil, errors.New("internal error")
+			},
+		})
+		w := doLiffRequest(t, newLiffRouter(h, false), http.MethodGet, "/api/liff/3/trimming-courses", nil)
+		assert.Equal(t, http.StatusInternalServerError, w.Code)
+	})
+}
+
+// ================================================================
+// GetLiffTrimmingOptions テスト
+// ================================================================
+
+func TestGetLiffTrimmingOptions(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	t.Run("正常系: トリミングオプション一覧を返す", func(t *testing.T) {
+		price := int64(800)
+		h := newLiffHandler(&mockLiffService{
+			getTrimmingOptionsFn: func(_ context.Context, clinicID uint64) ([]model.TrimmingOption, error) {
+				assert.Equal(t, uint64(3), clinicID)
+				return []model.TrimmingOption{
+					{ID: 1, Name: "爪切り", Price: &price},
+				}, nil
+			},
+		})
+		w := doLiffRequest(t, newLiffRouter(h, false), http.MethodGet, "/api/liff/3/trimming-options", nil)
+		assert.Equal(t, http.StatusOK, w.Code)
+		assert.Contains(t, w.Body.String(), "爪切り")
+	})
+
+	t.Run("clinicId が数値でない → 400", func(t *testing.T) {
+		h := newLiffHandler(&mockLiffService{})
+		w := doLiffRequest(t, newLiffRouter(h, false), http.MethodGet, "/api/liff/abc/trimming-options", nil)
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+	})
+
+	t.Run("サービスエラー → 500", func(t *testing.T) {
+		h := newLiffHandler(&mockLiffService{
+			getTrimmingOptionsFn: func(_ context.Context, _ uint64) ([]model.TrimmingOption, error) {
+				return nil, errors.New("internal error")
+			},
+		})
+		w := doLiffRequest(t, newLiffRouter(h, false), http.MethodGet, "/api/liff/3/trimming-options", nil)
 		assert.Equal(t, http.StatusInternalServerError, w.Code)
 	})
 }
@@ -524,6 +619,33 @@ func TestCreateLiffReservation(t *testing.T) {
 		})
 		w := doLiffRequest(t, newLiffRouter(h, true), http.MethodPost, "/api/liff/3/reservations", validBody)
 		assert.Equal(t, http.StatusInternalServerError, w.Code)
+	})
+
+	t.Run("clinicId が数値でない → 400", func(t *testing.T) {
+		h := newLiffHandler(&mockLiffService{})
+		w := doLiffRequest(t, newLiffRouter(h, true), http.MethodPost, "/api/liff/abc/reservations", validBody)
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+	})
+
+	t.Run("request_text が長過ぎる → 400 (BUG-LINE-012)", func(t *testing.T) {
+		h := newLiffHandler(&mockLiffService{})
+		body := map[string]any{
+			"course_id":    1,
+			"date":         "2026-05-01",
+			"start_time":   "1000",
+			"end_time":     "1015",
+			"request_text": strings.Repeat("a", maxRequestTextLength+1),
+		}
+		w := doLiffRequest(t, newLiffRouter(h, true), http.MethodPost, "/api/liff/3/reservations", body)
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+	})
+
+	t.Run("指名スタッフが当該クリニックに未所属 → 400", func(t *testing.T) {
+		// mockStaffClinicAssignmentService はクリニック 1, 3 のみ所属を返すため、
+		// clinicId=99 を指定すると checkDoctorClinicAssignment が失敗する。
+		h := newLiffHandler(&mockLiffService{})
+		w := doLiffRequest(t, newLiffRouter(h, true), http.MethodPost, "/api/liff/99/reservations", validBody)
+		assert.Equal(t, http.StatusBadRequest, w.Code)
 	})
 }
 

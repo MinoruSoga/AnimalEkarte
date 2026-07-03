@@ -64,6 +64,93 @@ func (m *mockConsultationRepository) CountChildrenByParentID(ctx context.Context
 
 // ---- Tests ----
 
+func TestBuildConsultationUpdate(t *testing.T) {
+	name := "更新名"
+	price := int64(3000)
+	isActive := true
+	description := "説明"
+	timeCondition := "平日"
+	duration := 30
+	parentID := uint64(1)
+	sortOrder := 2
+	taxType := "included"
+	taxRate := 0.08
+
+	tests := []struct {
+		name  string
+		input *UpdateConsultationInput
+		want  map[string]any
+	}{
+		{
+			name:  "no fields set returns empty map",
+			input: &UpdateConsultationInput{},
+			want:  map[string]any{},
+		},
+		{
+			name:  "only name set",
+			input: &UpdateConsultationInput{Name: &name},
+			want:  map[string]any{colConsultationName: name},
+		},
+		{
+			name:  "only price set",
+			input: &UpdateConsultationInput{Price: &price},
+			want:  map[string]any{colConsultationPrice: price},
+		},
+		{
+			name:  "only is_active set",
+			input: &UpdateConsultationInput{IsActive: &isActive},
+			want:  map[string]any{colConsultationIsActive: isActive},
+		},
+		{
+			name:  "only description set",
+			input: &UpdateConsultationInput{Description: &description},
+			want:  map[string]any{colConsultationDescription: description},
+		},
+		{
+			name:  "only time_condition set",
+			input: &UpdateConsultationInput{TimeCondition: &timeCondition},
+			want:  map[string]any{colConsultationTimeCondition: timeCondition},
+		},
+		{
+			name:  "only duration set",
+			input: &UpdateConsultationInput{Duration: &duration},
+			want:  map[string]any{colConsultationDuration: duration},
+		},
+		{
+			name:  "parent_id set writes value",
+			input: &UpdateConsultationInput{ParentID: &parentID},
+			want:  map[string]any{colConsultationParentID: parentID},
+		},
+		{
+			name:  "clear_parent_id writes explicit NULL even with parent_id set",
+			input: &UpdateConsultationInput{ParentID: &parentID, ClearParentID: true},
+			want:  map[string]any{colConsultationParentID: nil},
+		},
+		{
+			name:  "only sort_order set",
+			input: &UpdateConsultationInput{SortOrder: &sortOrder},
+			want:  map[string]any{colConsultationSortOrder: sortOrder},
+		},
+		{
+			name:  "only tax_type set",
+			input: &UpdateConsultationInput{TaxType: &taxType},
+			want:  map[string]any{colConsultationTaxType: model.TaxType(taxType)},
+		},
+		{
+			name:  "only tax_rate set",
+			input: &UpdateConsultationInput{TaxRate: &taxRate},
+			want:  map[string]any{colConsultationTaxRate: taxRate},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := buildConsultationUpdate(tt.input)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
 func TestConsultationService_List(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -226,6 +313,11 @@ func TestConsultationService_Create(t *testing.T) {
 			repoErr: errors.New("db error"),
 			wantErr: true,
 		},
+		{
+			name:    "returns validation error when name is blank",
+			input:   &CreateConsultationInput{Name: ""},
+			wantErr: true,
+		},
 	}
 
 	for _, tt := range tests {
@@ -245,6 +337,59 @@ func TestConsultationService_Create(t *testing.T) {
 			} else {
 				assert.NoError(t, err)
 				assert.NotNil(t, consultation)
+			}
+		})
+	}
+}
+
+// TestConsultationService_Create_TaxDefaults は tax_type/tax_rate のデフォルト・
+// カスタム指定・空文字指定の各分岐を検証する（消費税表示の正確性に直結するため個別テスト）。
+func TestConsultationService_Create_TaxDefaults(t *testing.T) {
+	tests := []struct {
+		name        string
+		input       *CreateConsultationInput
+		wantTaxType model.TaxType
+		wantTaxRate float64
+	}{
+		{
+			name:        "nil TaxType/TaxRate use defaults",
+			input:       &CreateConsultationInput{Name: "デフォルト"},
+			wantTaxType: model.TaxTypeExcluded,
+			wantTaxRate: 0.10,
+		},
+		{
+			name:        "empty string TaxType falls back to default",
+			input:       &CreateConsultationInput{Name: "空文字税区分", TaxType: strPtr("")},
+			wantTaxType: model.TaxTypeExcluded,
+			wantTaxRate: 0.10,
+		},
+		{
+			name:        "custom TaxType is applied",
+			input:       &CreateConsultationInput{Name: "内税相談", TaxType: strPtr("included")},
+			wantTaxType: model.TaxType("included"),
+			wantTaxRate: 0.10,
+		},
+		{
+			name:        "custom TaxRate is applied",
+			input:       &CreateConsultationInput{Name: "軽減税率相談", TaxRate: float64Ptr(0.08)},
+			wantTaxType: model.TaxTypeExcluded,
+			wantTaxRate: 0.08,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			repo := &mockConsultationRepository{
+				createFn: func(_ context.Context, _ *model.Consultation) error { return nil },
+			}
+			svc := NewConsultationService(repo)
+
+			consultation, err := svc.Create(context.Background(), 1, tt.input)
+
+			assert.NoError(t, err)
+			if assert.NotNil(t, consultation) {
+				assert.Equal(t, tt.wantTaxType, consultation.TaxType)
+				assert.InDelta(t, tt.wantTaxRate, consultation.TaxRate, 0.0001)
 			}
 		})
 	}
@@ -295,6 +440,11 @@ func TestConsultationService_Update(t *testing.T) {
 			repoErr:     errors.New("db error"),
 			wantErr:     true,
 		},
+		{
+			name:    "returns validation error when name is blank",
+			input:   UpdateConsultationInput{Name: strPtr("")},
+			wantErr: true,
+		},
 	}
 
 	for _, tt := range tests {
@@ -329,6 +479,14 @@ func TestConsultationService_Update(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestConsultationService_Update_NilInput(t *testing.T) {
+	repo := &mockConsultationRepository{}
+	svc := NewConsultationService(repo)
+	result, err := svc.Update(context.Background(), 1, 1, nil)
+	assert.Error(t, err)
+	assert.Nil(t, result)
 }
 
 func TestConsultationService_Delete(t *testing.T) {

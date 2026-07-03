@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -10,6 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
+	"github.com/animal-ekarte/backend/internal/infra/lstep"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/repository"
 )
@@ -758,4 +760,90 @@ func TestCheckupSyncService_CreateCheckupSync_PersistsMetadata(t *testing.T) {
 	assert.Equal(t, 1, meta["skipped_line_unlinked"])
 	assert.Equal(t, 0, meta["skipped_opt_out"])
 	assert.Equal(t, 0, meta["skipped_no_living_pet"])
+}
+
+// ================================================================
+// buildClient: 分岐網羅（IsSyncEnabled / GetRawCredentials / buildClientFn 差し替え）
+// ================================================================
+
+func TestCheckupSyncService_buildClient(t *testing.T) {
+	t.Run("buildClientFn が設定されている場合はそれを使う（テスト注入経路）", func(t *testing.T) {
+		called := false
+		svc := &checkupSyncService{
+			buildClientFn: func(_ context.Context, clinicID uint64) (lstep.Client, error) {
+				called = true
+				assert.Equal(t, uint64(1), clinicID)
+				return nil, nil
+			},
+		}
+		_, err := svc.buildClient(context.Background(), 1)
+		assert.NoError(t, err)
+		assert.True(t, called)
+	})
+
+	t.Run("IsSyncEnabled がエラーを返す場合はラップして返す", func(t *testing.T) {
+		settingsSvc := &mockLstepSettingsService{
+			isSyncEnabledFn: func(_ context.Context, _ uint64) (bool, error) {
+				return false, errors.New("db error")
+			},
+		}
+		svc := &checkupSyncService{settingsSvc: settingsSvc}
+
+		_, err := svc.buildClient(context.Background(), 1)
+		assert.Error(t, err)
+	})
+
+	t.Run("同期無効の場合は nil, nil を返す", func(t *testing.T) {
+		settingsSvc := &mockLstepSettingsService{
+			isSyncEnabledFn: func(_ context.Context, _ uint64) (bool, error) {
+				return false, nil
+			},
+		}
+		svc := &checkupSyncService{settingsSvc: settingsSvc}
+
+		client, err := svc.buildClient(context.Background(), 1)
+		assert.NoError(t, err)
+		assert.Nil(t, client)
+	})
+
+	t.Run("GetRawCredentials がエラーを返す場合はラップして返す", func(t *testing.T) {
+		settingsSvc := &mockLstepSettingsService{
+			isSyncEnabledFn: func(_ context.Context, _ uint64) (bool, error) { return true, nil },
+			getRawCredentialsFn: func(_ context.Context, _ uint64) (string, string, string, error) {
+				return "", "", "", errors.New("db error")
+			},
+		}
+		svc := &checkupSyncService{settingsSvc: settingsSvc}
+
+		_, err := svc.buildClient(context.Background(), 1)
+		assert.Error(t, err)
+	})
+
+	t.Run("apiKeyが空の場合は nil, nil を返す", func(t *testing.T) {
+		settingsSvc := &mockLstepSettingsService{
+			isSyncEnabledFn: func(_ context.Context, _ uint64) (bool, error) { return true, nil },
+			getRawCredentialsFn: func(_ context.Context, _ uint64) (string, string, string, error) {
+				return "", "https://example.com", "", nil
+			},
+		}
+		svc := &checkupSyncService{settingsSvc: settingsSvc}
+
+		client, err := svc.buildClient(context.Background(), 1)
+		assert.NoError(t, err)
+		assert.Nil(t, client)
+	})
+
+	t.Run("apiKeyが設定されている場合はクライアントを返す", func(t *testing.T) {
+		settingsSvc := &mockLstepSettingsService{
+			isSyncEnabledFn: func(_ context.Context, _ uint64) (bool, error) { return true, nil },
+			getRawCredentialsFn: func(_ context.Context, _ uint64) (string, string, string, error) {
+				return "test-key", "https://example.com", "", nil
+			},
+		}
+		svc := &checkupSyncService{settingsSvc: settingsSvc}
+
+		client, err := svc.buildClient(context.Background(), 1)
+		assert.NoError(t, err)
+		assert.NotNil(t, client)
+	})
 }

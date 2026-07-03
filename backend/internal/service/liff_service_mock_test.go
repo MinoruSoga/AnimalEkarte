@@ -388,7 +388,7 @@ func (m *mockLiffReservationRepository) ExistsByStaffID(_ context.Context, _, _ 
 	return false, nil
 }
 
-func (m *mockLiffReservationRepository) CountMedicalRecordsByReservationID(_ context.Context, _ uint64) (int64, error) {
+func (m *mockLiffReservationRepository) CountMedicalRecordsByReservationID(_ context.Context, _, _ uint64) (int64, error) {
 	return 0, nil
 }
 

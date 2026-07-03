@@ -118,6 +118,8 @@ func TestVitalService_Create(t *testing.T) {
 		medicalRecordID uint64
 		input           *CreateVitalInput
 		repoErr         error
+		parentErr       error
+		parentStatus    model.MedicalRecordStatus
 		wantErr         bool
 	}{
 		{
@@ -193,6 +195,30 @@ func TestVitalService_Create(t *testing.T) {
 			repoErr: errors.New("db error"),
 			wantErr: true,
 		},
+		{
+			name:            "returns error when medical record lookup fails",
+			medicalRecordID: 1,
+			input: &CreateVitalInput{
+				ClinicID:    1,
+				PetID:       1,
+				RecordedAt:  recordedAt,
+				Temperature: &temperature,
+			},
+			parentErr: errors.New("db error"),
+			wantErr:   true,
+		},
+		{
+			name:            "returns conflict when parent medical record is finalized",
+			medicalRecordID: 1,
+			input: &CreateVitalInput{
+				ClinicID:    1,
+				PetID:       1,
+				RecordedAt:  recordedAt,
+				Temperature: &temperature,
+			},
+			parentStatus: model.MedicalRecordStatusFinalized,
+			wantErr:      true,
+		},
 	}
 
 	for _, tt := range tests {
@@ -207,10 +233,17 @@ func TestVitalService_Create(t *testing.T) {
 			}
 			medRecordRepo := &mockMedicalRecordRepository{
 				findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
+					if tt.parentErr != nil {
+						return nil, tt.parentErr
+					}
 					// HC-006: Return draft medical record for Create tests (finalized check)
+					status := tt.parentStatus
+					if status == "" {
+						status = model.MedicalRecordStatusDraft
+					}
 					return &model.MedicalRecord{
 						ID:     tt.medicalRecordID,
-						Status: model.MedicalRecordStatusDraft,
+						Status: status,
 					}, nil
 				},
 			}
@@ -355,6 +388,21 @@ func TestVitalService_Update(t *testing.T) {
 			parentRecord: &model.MedicalRecord{ID: 1, Status: model.MedicalRecordStatusDraft},
 			wantErr:      false,
 		},
+		{
+			name:            "returns error when parent medical record lookup fails",
+			clinicID:        1,
+			medicalRecordID: 1,
+			vitalID:         1,
+			input: &UpdateVitalInput{
+				Temperature: &updatedTemperature,
+			},
+			repoVital: &model.VitalRecord{
+				ID:              1,
+				MedicalRecordID: ptrUint64(1),
+			},
+			parentErr: errors.New("db error"),
+			wantErr:   true,
+		},
 	}
 
 	for _, tt := range tests {
@@ -460,6 +508,18 @@ func TestVitalService_Delete(t *testing.T) {
 			parentRecord: &model.MedicalRecord{ID: 1, Status: model.MedicalRecordStatusDraft},
 			deleteErr:    errors.New("db error"),
 			wantErr:      true,
+		},
+		{
+			name:            "returns error when parent medical record lookup fails",
+			clinicID:        1,
+			medicalRecordID: 1,
+			vitalID:         1,
+			repoVital: &model.VitalRecord{
+				ID:              1,
+				MedicalRecordID: ptrUint64(1),
+			},
+			parentErr: errors.New("db error"),
+			wantErr:   true,
 		},
 	}
 
@@ -639,4 +699,55 @@ func TestVitalService_AuditFailure_NonFatal(t *testing.T) {
 	}
 	_, err := svc.Create(context.Background(), 77, input)
 	assert.NoError(t, err, "監査ログ失敗はメイン処理のエラーを返さない（best-effort）")
+}
+
+// TestBuildVitalUpdate は buildVitalUpdate の全フィールド網羅とゼロ値挙動を検証する。
+func TestBuildVitalUpdate(t *testing.T) {
+	recordedAt := time.Date(2026, 1, 1, 10, 0, 0, 0, time.UTC)
+	staffID := uint64(7)
+	temperature := 38.2
+	heartRate := 90
+	respirationRate := 20
+	weight := 12.5
+	weightUnit := model.BodyWeightUnitG
+	notes := "元気"
+
+	t.Run("maps all provided fields", func(t *testing.T) {
+		input := &UpdateVitalInput{
+			RecordedAt:      &recordedAt,
+			StaffID:         &staffID,
+			Temperature:     &temperature,
+			HeartRate:       &heartRate,
+			RespirationRate: &respirationRate,
+			Weight:          &weight,
+			WeightUnit:      &weightUnit,
+			Notes:           &notes,
+		}
+		fields := buildVitalUpdate(input)
+		assert.Equal(t, recordedAt, fields["recorded_at"])
+		assert.Equal(t, staffID, fields["staff_id"])
+		assert.Equal(t, temperature, fields["temperature"])
+		assert.Equal(t, heartRate, fields["heart_rate"])
+		assert.Equal(t, respirationRate, fields["respiration_rate"])
+		assert.Equal(t, weight, fields["weight"])
+		assert.Equal(t, weightUnit, fields["weight_unit"])
+		assert.Equal(t, notes, fields["notes"])
+		assert.Len(t, fields, 8)
+	})
+
+	t.Run("returns empty map when all fields are nil", func(t *testing.T) {
+		fields := buildVitalUpdate(&UpdateVitalInput{})
+		assert.Empty(t, fields)
+	})
+}
+
+// TestWeightUnitOrDefault は weightUnitOrDefault のデフォルト補完・明示指定の両分岐を検証する。
+func TestWeightUnitOrDefault(t *testing.T) {
+	t.Run("returns default kg when nil", func(t *testing.T) {
+		assert.Equal(t, model.BodyWeightUnitKg, weightUnitOrDefault(nil))
+	})
+	t.Run("returns provided unit when set", func(t *testing.T) {
+		g := model.BodyWeightUnitG
+		assert.Equal(t, model.BodyWeightUnitG, weightUnitOrDefault(&g))
+	})
 }

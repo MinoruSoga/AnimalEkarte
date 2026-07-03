@@ -47,6 +47,56 @@ func okMedRecForPlan() *mockMedicalRecordRepository {
 
 // ---- Tests ----
 
+func TestBuildClinicalPlanUpdate(t *testing.T) {
+	physicalExam := "Normal"
+	diagnosisTypeID := uint64(1)
+	diagnosisNameID := uint64(2)
+	diagnosis2CategoryID := uint64(3)
+	diagnosis2NameID := uint64(4)
+	diagnosisDetails := "details"
+	treatmentPolicy := "policy"
+
+	tests := []struct {
+		name       string
+		input      *UpdateClinicalPlanInput
+		wantFields map[string]any
+	}{
+		{
+			name:       "empty input returns empty map",
+			input:      &UpdateClinicalPlanInput{},
+			wantFields: map[string]any{},
+		},
+		{
+			name: "all fields set are reflected with real column names",
+			input: &UpdateClinicalPlanInput{
+				PhysicalExam:         &physicalExam,
+				DiagnosisTypeID:      &diagnosisTypeID,
+				DiagnosisNameID:      &diagnosisNameID,
+				Diagnosis2CategoryID: &diagnosis2CategoryID,
+				Diagnosis2NameID:     &diagnosis2NameID,
+				DiagnosisDetails:     &diagnosisDetails,
+				TreatmentPolicy:      &treatmentPolicy,
+			},
+			wantFields: map[string]any{
+				"physical_exam":           physicalExam,
+				"diagnosis_type_id":       diagnosisTypeID,
+				"diagnosis_name_id":       diagnosisNameID,
+				"diagnosis_2_category_id": diagnosis2CategoryID,
+				"diagnosis_2_name_id":     diagnosis2NameID,
+				"diagnosis_details":       diagnosisDetails,
+				"treatment_policy":        treatmentPolicy,
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			fields := buildClinicalPlanUpdate(tt.input)
+			assert.Equal(t, tt.wantFields, fields)
+		})
+	}
+}
+
 func TestClinicalPlanService_GetOrCreate(t *testing.T) {
 	existingPlan := &model.ClinicalPlan{
 		ID:              1,
@@ -255,6 +305,82 @@ func TestClinicalPlanService_Update(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestClinicalPlanService_Update_ValidateDiagnosisFKsError は、貼り替え先の診断マスタFKが
+// 呼び出し元クリニックの所有でない場合に Update がエラーを返し、repo.Update が呼ばれない
+// ことを検証する（クロステナント write 防止）。
+func TestClinicalPlanService_Update_ValidateDiagnosisFKsError(t *testing.T) {
+	foreignTypeID := uint64(999)
+	repo := &mockClinicalPlanRepository{
+		findByMedicalRecordIDFn: func(_ context.Context, _, _ uint64) (*model.ClinicalPlan, error) {
+			return &model.ClinicalPlan{ID: 1, MedicalRecordID: 1}, nil
+		},
+		updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) error {
+			t.Fatal("clinical plan must not be updated when diagnosis FK ownership check fails")
+			return nil
+		},
+	}
+	diagTypeRepo := &mockDiagnosisTypeRepository{
+		findByIDFn: func(_ context.Context, _, id uint64) (*model.DiagnosisType, error) {
+			if id != foreignTypeID {
+				return &model.DiagnosisType{ID: id}, nil
+			}
+			return nil, apperrors.WrapNotFound("diagnosis_type", "foreign")
+		},
+	}
+	svc := NewClinicalPlanService(repo, okMedRecForPlan(), diagTypeRepo, okDiagnosisNameRepo())
+
+	plan, err := svc.Update(context.Background(), 1, 1, &UpdateClinicalPlanInput{DiagnosisTypeID: &foreignTypeID})
+
+	assert.Error(t, err)
+	assert.Nil(t, plan)
+}
+
+// TestClinicalPlanService_Update_GetOrCreateError は、Update が内部で呼ぶ GetOrCreate が
+// 失敗した場合にそのエラーがラップされて伝播することを検証する。
+func TestClinicalPlanService_Update_GetOrCreateError(t *testing.T) {
+	physicalExam := "Normal"
+	repo := &mockClinicalPlanRepository{
+		findByMedicalRecordIDFn: func(_ context.Context, _, _ uint64) (*model.ClinicalPlan, error) {
+			return nil, apperrors.WrapNotFound("clinical_plan", "1")
+		},
+		createFn: func(_ context.Context, _ *model.ClinicalPlan) error {
+			return errors.New("db create error")
+		},
+	}
+	svc := NewClinicalPlanService(repo, okMedRecForPlan(), okDiagnosisTypeRepo(), okDiagnosisNameRepo())
+
+	plan, err := svc.Update(context.Background(), 1, 1, &UpdateClinicalPlanInput{PhysicalExam: &physicalExam})
+
+	assert.Error(t, err)
+	assert.Nil(t, plan)
+}
+
+// TestClinicalPlanService_Update_RefetchError は、更新自体は成功したが更新後の
+// FindByMedicalRecordID による再取得が失敗した場合にエラーが伝播することを検証する。
+func TestClinicalPlanService_Update_RefetchError(t *testing.T) {
+	physicalExam := "Normal"
+	findCalls := 0
+	repo := &mockClinicalPlanRepository{
+		findByMedicalRecordIDFn: func(_ context.Context, _, _ uint64) (*model.ClinicalPlan, error) {
+			findCalls++
+			if findCalls == 1 {
+				return &model.ClinicalPlan{ID: 1, MedicalRecordID: 1}, nil
+			}
+			return nil, errors.New("db error")
+		},
+		updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) error {
+			return nil
+		},
+	}
+	svc := NewClinicalPlanService(repo, okMedRecForPlan(), okDiagnosisTypeRepo(), okDiagnosisNameRepo())
+
+	plan, err := svc.Update(context.Background(), 1, 1, &UpdateClinicalPlanInput{PhysicalExam: &physicalExam})
+
+	assert.Error(t, err)
+	assert.Nil(t, plan)
+	assert.Equal(t, 2, findCalls, "更新後の再取得も呼ばれる")
 }
 
 func TestClinicalPlanService_Delete(t *testing.T) {

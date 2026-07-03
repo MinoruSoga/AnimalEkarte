@@ -47,7 +47,7 @@ func (m *mockMedicalRecordRepoForTreatment) CountByPetID(_ context.Context, _, _
 func (m *mockMedicalRecordRepoForTreatment) FindFirstVisitDateByPetID(_ context.Context, _, _ uint64) (*time.Time, error) {
 	return nil, nil
 }
-func (m *mockMedicalRecordRepoForTreatment) CountEstimatesByMedicalRecordID(_ context.Context, _ uint64) (int64, error) {
+func (m *mockMedicalRecordRepoForTreatment) CountEstimatesByMedicalRecordID(_ context.Context, _, _ uint64) (int64, error) {
 	return 0, nil
 }
 

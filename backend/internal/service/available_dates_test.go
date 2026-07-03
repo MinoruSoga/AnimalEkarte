@@ -42,6 +42,38 @@ func TestParseAvailableDatesSettings(t *testing.T) {
 	})
 }
 
+// TestOrEmptyJSONArray は orEmptyJSONArray の nil/空/非空バイト列の分岐を直接検証する。
+func TestOrEmptyJSONArray(t *testing.T) {
+	tests := []struct {
+		name  string
+		input []byte
+		want  []byte
+	}{
+		{
+			name:  "nil slice becomes empty JSON array",
+			input: nil,
+			want:  []byte("[]"),
+		},
+		{
+			name:  "empty (non-nil) slice becomes empty JSON array",
+			input: []byte{},
+			want:  []byte("[]"),
+		},
+		{
+			name:  "non-empty slice is returned unchanged",
+			input: []byte("[1,2,3]"),
+			want:  []byte("[1,2,3]"),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := orEmptyJSONArray(tt.input)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
 func TestCalcAvailableDates(t *testing.T) {
 	ctx := context.Background()
 

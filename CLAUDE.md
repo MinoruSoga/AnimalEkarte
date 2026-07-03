@@ -23,3 +23,16 @@
 | [.gemini/styleguide.md](.gemini/styleguide.md) | スタイルガイド・実装パターン詳細 |
 | [docs/ERD.md](docs/ERD.md) | データベース設計（ER図） |
 | [docs/architecture.md](docs/architecture.md) | アーキテクチャの詳細ドキュメント |
+
+## モデルルーティング
+
+デフォルト：Claude Sonnet 5
+コーディング、ツール利用、リファクタリング、
+日常的な作業にはSonnet 5を使用する。
+Opus 4.8へ切り替えるのは、次の場合のみ：
+- Sonnet 5が同じタスクに2回失敗した場合
+- より深い推論が必要な場合
+  - 複雑なシステム設計
+  - 微妙な正しさを証明する必要があるタスク
+まずSonnet 5から始める。
+最初からOpusを使うのではなく、結果や証拠に基づいて切り替える。

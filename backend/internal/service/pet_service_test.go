@@ -17,6 +17,7 @@ import (
 type mockPetRepository struct {
 	findAllFn                     func(ctx context.Context, clinicID uint64, ownerID *uint64, page, limit int, search string) ([]model.Pet, int64, error)
 	findByIDFn                    func(ctx context.Context, clinicID, id uint64) (*model.Pet, error)
+	findByIDForClinicsFn          func(ctx context.Context, clinicIDs []uint64, id uint64) (*model.Pet, error)
 	countByOwnerFn                func(ctx context.Context, clinicID, ownerID uint64) (int64, error)
 	countLivingByOwnerFn          func(ctx context.Context, clinicID, ownerID uint64) (int64, error)
 	countLivingByOwnerIDsFn       func(ctx context.Context, clinicID uint64, ownerIDs []uint64) (map[uint64]int64, error)
@@ -38,7 +39,10 @@ func (m *mockPetRepository) FindByID(ctx context.Context, clinicID, id uint64) (
 	return nil, nil
 }
 
-func (m *mockPetRepository) FindByIDForClinics(_ context.Context, _ []uint64, _ uint64) (*model.Pet, error) {
+func (m *mockPetRepository) FindByIDForClinics(ctx context.Context, clinicIDs []uint64, id uint64) (*model.Pet, error) {
+	if m.findByIDForClinicsFn != nil {
+		return m.findByIDForClinicsFn(ctx, clinicIDs, id)
+	}
 	return nil, nil
 }
 
@@ -323,15 +327,80 @@ func TestPetService_GetByID_NotFound(t *testing.T) {
 	assert.True(t, apperrors.IsNotFound(err))
 }
 
+// TestPetService_GetByIDForClinics は #86 拠点横断詳細画面取得の委譲を検証する。
+func TestPetService_GetByIDForClinics(t *testing.T) {
+	tests := []struct {
+		name      string
+		clinicIDs []uint64
+		id        uint64
+		repoPet   *model.Pet
+		repoErr   error
+		wantErr   bool
+		wantNF    bool
+	}{
+		{
+			name:      "returns pet when found in any of the clinics",
+			clinicIDs: []uint64{1, 2},
+			id:        10,
+			repoPet:   &model.Pet{ID: 10, ClinicID: 2, OwnerID: 5, Name: "ポチ"},
+			wantErr:   false,
+		},
+		{
+			name:      "returns not found error when pet is not in any of the clinics",
+			clinicIDs: []uint64{1, 2},
+			id:        999,
+			repoErr:   apperrors.WrapNotFound("pet", "999"),
+			wantErr:   true,
+			wantNF:    true,
+		},
+		{
+			name:      "returns error on repository failure",
+			clinicIDs: []uint64{1},
+			id:        10,
+			repoErr:   errors.New("db error"),
+			wantErr:   true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var capturedClinicIDs []uint64
+			repo := &mockPetRepository{
+				findByIDForClinicsFn: func(_ context.Context, clinicIDs []uint64, _ uint64) (*model.Pet, error) {
+					capturedClinicIDs = clinicIDs
+					return tt.repoPet, tt.repoErr
+				},
+			}
+			svc := newPetSvc(repo, defaultOwnerRepo(), defaultInsuranceRepo(1), defaultMedicalRecordRepo())
+
+			pet, err := svc.GetByIDForClinics(context.Background(), tt.clinicIDs, tt.id)
+
+			if tt.wantErr {
+				assert.Error(t, err)
+				assert.Nil(t, pet)
+				if tt.wantNF {
+					assert.True(t, apperrors.IsNotFound(err))
+				}
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, tt.repoPet, pet)
+				assert.Equal(t, tt.clinicIDs, capturedClinicIDs)
+			}
+		})
+	}
+}
+
 func TestPetService_Create(t *testing.T) {
 	tests := []struct {
-		name         string
-		clinicID     uint64
-		input        CreatePetInput
-		repoErr      error
-		ownerRepoErr error
-		wantErr      bool
-		wantPet      bool
+		name             string
+		clinicID         uint64
+		input            CreatePetInput
+		repoErr          error
+		ownerRepoErr     error
+		insuranceRepoErr error
+		countByOwnerErr  error
+		wantErr          bool
+		wantPet          bool
 	}{
 		{
 			name:     "creates pet successfully",
@@ -403,6 +472,29 @@ func TestPetService_Create(t *testing.T) {
 			repoErr: errors.New("db connection error"),
 			wantErr: true,
 		},
+		{
+			name:     "rejects insurance not in clinic",
+			clinicID: 1,
+			input: CreatePetInput{
+				OwnerID:         5,
+				AnimalSpeciesID: 1,
+				Name:            "ペット",
+				InsuranceID:     ptrUint64(99),
+			},
+			insuranceRepoErr: apperrors.WrapNotFound("insurance", "99"),
+			wantErr:          true,
+		},
+		{
+			name:     "returns error when CountByOwner fails",
+			clinicID: 1,
+			input: CreatePetInput{
+				OwnerID:         5,
+				AnimalSpeciesID: 1,
+				Name:            "ペット",
+			},
+			countByOwnerErr: errors.New("db error"),
+			wantErr:         true,
+		},
 	}
 
 	for _, tt := range tests {
@@ -410,6 +502,12 @@ func TestPetService_Create(t *testing.T) {
 			repo := &mockPetRepository{
 				createFn: func(_ context.Context, _ *model.Pet) error {
 					return tt.repoErr
+				},
+				countByOwnerFn: func(_ context.Context, _, _ uint64) (int64, error) {
+					if tt.countByOwnerErr != nil {
+						return 0, tt.countByOwnerErr
+					}
+					return 0, nil
 				},
 			}
 			ownerRepo := &mockOwnerRepository{
@@ -420,7 +518,15 @@ func TestPetService_Create(t *testing.T) {
 					return &model.Owner{ID: 5}, nil
 				},
 			}
-			svc := newPetSvc(repo, ownerRepo, defaultInsuranceRepo(tt.clinicID), defaultMedicalRecordRepo())
+			insuranceRepo := defaultInsuranceRepo(tt.clinicID)
+			if tt.insuranceRepoErr != nil {
+				insuranceRepo = &mockInsuranceRepository{
+					findByIDFn: func(_ context.Context, _, _ uint64) (*model.Insurance, error) {
+						return nil, tt.insuranceRepoErr
+					},
+				}
+			}
+			svc := newPetSvc(repo, ownerRepo, insuranceRepo, defaultMedicalRecordRepo())
 
 			pet, err := svc.Create(context.Background(), tt.clinicID, &tt.input)
 
@@ -597,6 +703,71 @@ func TestPetService_Update(t *testing.T) {
 	}
 }
 
+// TestPetService_Update_OwnerValidation は owner_id 変更時の clinic 所属確認の失敗パスを検証する。
+func TestPetService_Update_OwnerValidation(t *testing.T) {
+	repo := &mockPetRepository{
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.Pet, error) {
+			return &model.Pet{ID: 1, ClinicID: 1}, nil
+		},
+	}
+	ownerRepo := &mockOwnerRepository{
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.Owner, error) {
+			return nil, apperrors.WrapNotFound("owner", "999")
+		},
+	}
+	svc := newPetSvc(repo, ownerRepo, defaultInsuranceRepo(1), defaultMedicalRecordRepo())
+
+	pet, err := svc.Update(context.Background(), 1, 1, &UpdatePetInput{OwnerID: ptrUint64(999)})
+
+	assert.Error(t, err)
+	assert.Nil(t, pet)
+}
+
+// TestPetService_Update_InsuranceValidation は insurance_id 変更時の clinic 所属確認の失敗パスを検証する。
+func TestPetService_Update_InsuranceValidation(t *testing.T) {
+	repo := &mockPetRepository{
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.Pet, error) {
+			return &model.Pet{ID: 1, ClinicID: 1}, nil
+		},
+	}
+	insuranceRepo := &mockInsuranceRepository{
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.Insurance, error) {
+			return nil, apperrors.WrapNotFound("insurance", "999")
+		},
+	}
+	invalidInsuranceID := ptrUint64(999)
+	svc := newPetSvc(repo, defaultOwnerRepo(), insuranceRepo, defaultMedicalRecordRepo())
+
+	pet, err := svc.Update(context.Background(), 1, 1, &UpdatePetInput{InsuranceID: &invalidInsuranceID})
+
+	assert.Error(t, err)
+	assert.Nil(t, pet)
+}
+
+// TestPetService_Update_RefetchError は更新後の再取得（2回目の FindByID）失敗パスを検証する。
+func TestPetService_Update_RefetchError(t *testing.T) {
+	callCount := 0
+	repo := &mockPetRepository{
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.Pet, error) {
+			callCount++
+			if callCount == 1 {
+				return &model.Pet{ID: 1, ClinicID: 1}, nil
+			}
+			return nil, errors.New("db error on refetch")
+		},
+		updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) error {
+			return nil
+		},
+	}
+	svc := newPetSvc(repo, defaultOwnerRepo(), defaultInsuranceRepo(1), defaultMedicalRecordRepo())
+
+	pet, err := svc.Update(context.Background(), 1, 1, &UpdatePetInput{Name: ptrString("更新後")})
+
+	assert.Error(t, err)
+	assert.Nil(t, pet)
+	assert.Equal(t, 2, callCount)
+}
+
 func TestPetService_Update_SyncLstepTagsBestEffort(t *testing.T) {
 	animalSyncCalled := false
 	basicSyncCalled := false
@@ -636,14 +807,16 @@ func TestPetService_Update_SyncLstepTagsBestEffort(t *testing.T) {
 
 func TestPetService_Delete(t *testing.T) {
 	tests := []struct {
-		name         string
-		clinicID     uint64
-		id           uint64
-		recordCount  int64
-		repoErr      error
-		wantErr      bool
-		wantNF       bool
-		wantConflict bool
+		name          string
+		clinicID      uint64
+		id            uint64
+		findByIDErr   error
+		recordCount   int64
+		countByPetErr error
+		repoErr       error
+		wantErr       bool
+		wantNF        bool
+		wantConflict  bool
 	}{
 		{
 			name:         "deletes pet successfully",
@@ -659,8 +832,8 @@ func TestPetService_Delete(t *testing.T) {
 			name:         "returns not found error when pet does not exist",
 			clinicID:     1,
 			id:           999,
+			findByIDErr:  apperrors.WrapNotFound("pet", "999"),
 			recordCount:  0,
-			repoErr:      apperrors.WrapNotFound("pet", "999"),
 			wantErr:      true,
 			wantNF:       true,
 			wantConflict: false,
@@ -685,16 +858,32 @@ func TestPetService_Delete(t *testing.T) {
 			wantNF:       false,
 			wantConflict: true,
 		},
+		{
+			name:          "returns error when medical record count check fails",
+			clinicID:      1,
+			id:            10,
+			countByPetErr: errors.New("db error"),
+			wantErr:       true,
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			medicalRecordRepo := &mockMedicalRecordRepository{
 				countByPetIDFn: func(_ context.Context, _, _ uint64) (int64, error) {
+					if tt.countByPetErr != nil {
+						return 0, tt.countByPetErr
+					}
 					return tt.recordCount, nil
 				},
 			}
 			repo := &mockPetRepository{
+				findByIDFn: func(_ context.Context, _, _ uint64) (*model.Pet, error) {
+					if tt.findByIDErr != nil {
+						return nil, tt.findByIDErr
+					}
+					return &model.Pet{ID: tt.id, ClinicID: tt.clinicID}, nil
+				},
 				deleteFn: func(_ context.Context, _, _ uint64) error {
 					return tt.repoErr
 				},
@@ -758,5 +947,100 @@ func TestPetService_GetFirstVisitDate(t *testing.T) {
 
 		_, err := svc.GetFirstVisitDate(ctx, 1, 7)
 		require.Error(t, err)
+	})
+}
+
+// TestBuildPetUpdate は buildPetUpdate のポインタ→map 変換ロジックを直接検証する。
+func TestBuildPetUpdate(t *testing.T) {
+	t.Run("returns empty map when all fields are nil", func(t *testing.T) {
+		fields := buildPetUpdate(&UpdatePetInput{})
+		assert.Empty(t, fields)
+	})
+
+	t.Run("includes all provided fields with correct column names", func(t *testing.T) {
+		ownerID := uint64(5)
+		speciesID := uint64(2)
+		petNumber := "5-1"
+		name := "ポチ"
+		nameKana := "ポチ"
+		gender := "male"
+		status := "alive"
+		birthDate := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
+		breed := "柴犬"
+		color := "茶"
+		bloodType := "A"
+		microchip := "123456789012345"
+		weight := 5.5
+		neuteredDate := time.Date(2021, 1, 1, 0, 0, 0, 0, time.UTC)
+		acquisitionType := "purchase"
+		dangerLevel := "low"
+		food := "ドライフード"
+		environment := "indoor"
+		phone := "090-1234-5678"
+		lastVisit := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
+		insuranceID := uint64(3)
+		insuranceIDPtr := &insuranceID
+		remarks := "備考"
+
+		input := &UpdatePetInput{
+			OwnerID:         &ownerID,
+			AnimalSpeciesID: &speciesID,
+			PetNumber:       &petNumber,
+			Name:            &name,
+			PetNameKana:     &nameKana,
+			Gender:          &gender,
+			Status:          &status,
+			BirthDate:       &birthDate,
+			Breed:           &breed,
+			Color:           &color,
+			BloodType:       &bloodType,
+			MicrochipNumber: &microchip,
+			Weight:          &weight,
+			NeuteredDate:    &neuteredDate,
+			AcquisitionType: &acquisitionType,
+			DangerLevel:     &dangerLevel,
+			Food:            &food,
+			Environment:     &environment,
+			Phone:           &phone,
+			LastVisit:       &lastVisit,
+			InsuranceID:     &insuranceIDPtr,
+			Remarks:         &remarks,
+		}
+
+		fields := buildPetUpdate(input)
+
+		assert.Equal(t, ownerID, fields[colPetOwnerID])
+		assert.Equal(t, speciesID, fields[colPetAnimalSpeciesID])
+		assert.Equal(t, petNumber, fields["pet_number"])
+		assert.Equal(t, name, fields[colPetName])
+		assert.Equal(t, nameKana, fields[colPetNameKana])
+		assert.Equal(t, gender, fields[colPetGender])
+		assert.Equal(t, status, fields[colPetStatus])
+		assert.Equal(t, birthDate, fields[colPetBirthDate])
+		assert.Equal(t, breed, fields[colPetBreed])
+		assert.Equal(t, color, fields["color"])
+		assert.Equal(t, bloodType, fields[colPetBloodType])
+		assert.Equal(t, microchip, fields[colPetMicrochipNumber])
+		assert.Equal(t, weight, fields[colPetWeight])
+		assert.Equal(t, neuteredDate, fields["neutered_date"])
+		assert.Equal(t, acquisitionType, fields["acquisition_type"])
+		assert.Equal(t, dangerLevel, fields["danger_level"])
+		assert.Equal(t, food, fields["food"])
+		assert.Equal(t, environment, fields[colPetEnvironment])
+		assert.Equal(t, phone, fields["phone"])
+		assert.Equal(t, lastVisit, fields["last_visit"])
+		assert.Equal(t, insuranceIDPtr, fields[colPetInsuranceID])
+		assert.Equal(t, remarks, fields[colPetRemarks])
+		assert.Len(t, fields, 22)
+	})
+
+	t.Run("clears insurance_id when InsuranceID points to a nil pointer", func(t *testing.T) {
+		var nilInsurance *uint64
+		input := &UpdatePetInput{InsuranceID: &nilInsurance}
+
+		fields := buildPetUpdate(input)
+
+		assert.Contains(t, fields, colPetInsuranceID)
+		assert.Nil(t, fields[colPetInsuranceID])
 	})
 }

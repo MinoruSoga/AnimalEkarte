@@ -165,6 +165,80 @@ jobs:
         run: go test ./internal/repository/ -run TestClinicalResultAuditTxInventory -count=1
 
   # ──────────────────────────────────────────────
+  # Migration CASCADE inventory gate: backend/migrations/*.sql の "ON DELETE CASCADE" 出現数を
+  # ファイル単位でピンし、未レビューの新規 CASCADE 混入を検出する（BE-refactor.md R3-1・D9 P0）。
+  # migrations/CLAUDE.md の「CASCADE DELETE 禁止」原則を、新規 migration に対して機械強制する
+  # （既存の 001_init.sql/010 の正当な CASCADE は allowlist でピン留め済み）。
+  # DB 不要・純静的検査。backend job は PR→main でスキップされるため、独立 job で全イベント
+  # 無条件に走らせ pre-merge で必ずブロックする。
+  # ──────────────────────────────────────────────
+  migration-cascade-inventory:
+    name: Migration CASCADE Inventory Gate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7.0.0
+
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache-dependency-path: backend/go.sum
+
+      - name: Run migration CASCADE inventory gate
+        working-directory: backend
+        run: go test ./internal/repository/ -run TestMigrationCascadeInventory -count=1
+
+  # ──────────────────────────────────────────────
+  # OpenAPI date-format drift gate: docs/api.yaml の `format: date`（日付のみ）宣言と handler の
+  # response 構造体の time.Time/*time.Time フィールド（datetime wire）の乖離を検出する
+  # （BE-refactor.md R3-3・D9 P1）。既存 drift 22 箇所は allowlist で固定し、新規 drift・出現数変化・
+  # stale エントリで fail する。独立 package(internal/apicontract)が openapi + handler ソースを
+  # os.ReadFile+go/ast で読むため handler/service test package の compile 状態に依存しない。
+  # DB 不要・純静的検査。backend job は PR→main でスキップされるため独立 job で全イベント無条件。
+  # ──────────────────────────────────────────────
+  openapi-date-format-drift:
+    name: OpenAPI Date-Format Drift Gate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7.0.0
+
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache-dependency-path: backend/go.sum
+
+      - name: Run OpenAPI date-format drift gate
+        working-directory: backend
+        run: go test ./internal/apicontract/ -run TestOpenAPIDateFormatDrift -count=1
+
+  # ──────────────────────────────────────────────
+  # dbOrTx inventory gate: ambient transaction に参加する（dbOrTx を使う）repository メソッド集合を
+  # 固定し、(1) 固定メソッドが dbOrTx をやめる=tx参加 regression（R1-1/R1-2 の部分コミット/TOCTOU 修正の
+  # 退行）、(2) 未登録の新規 dbOrTx メソッド追加（atomicity/isolation テスト添付のレビュー強制）を検出する。
+  # 「WithTx 内で呼ばれるのに dbOrTx 未使用」の検出は taint 解析が必要で go/ast 単体では不可のため対象外
+  # （各 tx フローの atomicity テストが正本ガード）。DB 不要・純静的検査・全イベント無条件。
+  # ──────────────────────────────────────────────
+  dbortx-inventory:
+    name: dbOrTx Inventory Gate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7.0.0
+
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache-dependency-path: backend/go.sum
+
+      - name: Run dbOrTx inventory gate
+        working-directory: backend
+        run: go test ./internal/repository/ -run TestDBOrTxInventory -count=1
+
+  # ──────────────────────────────────────────────
   # Backend: build + lint + schema check
   # ──────────────────────────────────────────────
   backend:
@@ -264,6 +338,20 @@ jobs:
             } >> "$GITHUB_STEP_SUMMARY"
           else
             echo "coverage.out not produced (tests failed before profiling completed); skipping summary."
+          fi
+
+      # BE-refactor.md R3-5 / bug.md H-7 / coverage-policy.md Phase 1: カバレッジ ratchet（低下 warn）。
+      # .coverage-baseline が 0（未記録）の間は WARN のみで CI を落とさない。初回実測後にベースラインを
+      # 記録するとゲートが arm され、tolerance を超える低下を検出する。--warn-only は Phase 1 の非ゲート運用。
+      - name: Coverage ratchet (Phase 1 non-gating warn)
+        if: always()
+        continue-on-error: true
+        working-directory: backend
+        run: |
+          if [ -f coverage-summary.txt ]; then
+            go run ./cmd/coverage-ratchet -baseline .coverage-baseline -func-file coverage-summary.txt -warn-only | tee -a "$GITHUB_STEP_SUMMARY"
+          else
+            echo "coverage-summary.txt not produced; skipping ratchet."
           fi
 
       - name: Upload backend coverage artifact

@@ -153,37 +153,75 @@ func TestClinicHolidayService_Remove(t *testing.T) {
 	date := time.Date(2026, 4, 1, 0, 0, 0, 0, time.UTC)
 
 	tests := []struct {
-		name     string
-		deleteFn func(ctx context.Context, clinicID uint64, date time.Time) error
-		wantErr  bool
+		name           string
+		findByDateFn   func(ctx context.Context, clinicID uint64, date time.Time) (*model.ClinicHoliday, error)
+		deleteFn       func(ctx context.Context, clinicID uint64, date time.Time) error
+		wantErr        bool
+		wantDeleteCall bool
 	}{
 		{
 			name: "removes holiday successfully",
+			findByDateFn: func(_ context.Context, _ uint64, _ time.Time) (*model.ClinicHoliday, error) {
+				return &model.ClinicHoliday{ID: 1, Date: date}, nil
+			},
 			deleteFn: func(_ context.Context, _ uint64, _ time.Time) error {
 				return nil
 			},
-			wantErr: false,
+			wantErr:        false,
+			wantDeleteCall: true,
 		},
 		{
-			name: "returns nil when holiday does not exist (idempotent)",
+			name: "returns nil when holiday does not exist (idempotent) — FindByDate NotFound short-circuits before Delete",
+			findByDateFn: func(_ context.Context, _ uint64, _ time.Time) (*model.ClinicHoliday, error) {
+				return nil, apperrors.WrapNotFound("clinic_holiday", "2026-04-01")
+			},
+			wantErr:        false,
+			wantDeleteCall: false,
+		},
+		{
+			name: "propagates non-NotFound FindByDate repository error",
+			findByDateFn: func(_ context.Context, _ uint64, _ time.Time) (*model.ClinicHoliday, error) {
+				return nil, errors.New("db connection error on find")
+			},
+			wantErr:        true,
+			wantDeleteCall: false,
+		},
+		{
+			name: "returns nil when Delete races to NotFound (already deleted)",
+			findByDateFn: func(_ context.Context, _ uint64, _ time.Time) (*model.ClinicHoliday, error) {
+				return &model.ClinicHoliday{ID: 1, Date: date}, nil
+			},
 			deleteFn: func(_ context.Context, _ uint64, _ time.Time) error {
 				return apperrors.WrapNotFound("clinic_holiday", "2026-04-01")
 			},
-			wantErr: false,
+			wantErr:        false,
+			wantDeleteCall: true,
 		},
 		{
-			name: "propagates non-NotFound repository error",
+			name: "propagates non-NotFound Delete repository error",
+			findByDateFn: func(_ context.Context, _ uint64, _ time.Time) (*model.ClinicHoliday, error) {
+				return &model.ClinicHoliday{ID: 1, Date: date}, nil
+			},
 			deleteFn: func(_ context.Context, _ uint64, _ time.Time) error {
 				return errors.New("db connection error")
 			},
-			wantErr: true,
+			wantErr:        true,
+			wantDeleteCall: true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			deleteCalled := false
 			repo := &mockClinicHolidayRepository{
-				deleteFn: tt.deleteFn,
+				findByDateFn: tt.findByDateFn,
+				deleteFn: func(ctx context.Context, clinicID uint64, date time.Time) error {
+					deleteCalled = true
+					if tt.deleteFn != nil {
+						return tt.deleteFn(ctx, clinicID, date)
+					}
+					return nil
+				},
 			}
 			svc := NewClinicHolidayService(repo)
 			err := svc.Remove(context.Background(), 1, date)
@@ -192,6 +230,7 @@ func TestClinicHolidayService_Remove(t *testing.T) {
 			} else {
 				assert.NoError(t, err)
 			}
+			assert.Equal(t, tt.wantDeleteCall, deleteCalled)
 		})
 	}
 }

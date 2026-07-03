@@ -171,6 +171,12 @@ func (r *reservationStaffRepository) UpdateSortOrder(ctx context.Context, clinic
 	return nil
 }
 
+// BE-refactor.md R2-5 (D12) レビュー結果: clinic_id 述語なしを意図的に維持する
+// (preload_clinic_scope_lint_test.go の site-exception と同一の判断)。
+// staff_reservation_exclusions は clinic_id カラムを持たず、staffID にも clinicID 引数が無い。
+// 貫通させるには reservation_staff_service (6箇所) + staff_service_permissions の呼び出し元まで
+// シグネチャ変更が連鎖し、書込側は UpdateExcludedReservationTypes で既にクリニック所有権検証済み。
+// 残存リスクは過去汚染データによる ReservationType 名の低severity漏洩のみ（P1 follow-up として記録済み）。
 func (r *reservationStaffRepository) FindAllExcludedReservationTypes(ctx context.Context, staffID uint64) ([]model.StaffReservationExclusion, error) {
 	var items []model.StaffReservationExclusion
 	err := r.db.WithContext(ctx).

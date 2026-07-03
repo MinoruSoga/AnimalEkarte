@@ -47,9 +47,12 @@ func (r *refundRepository) FindByBillingID(ctx context.Context, clinicID, billin
 	return refunds, nil
 }
 
+// BE-refactor.md R1-1 (D2): refund_service.Create が本メソッドを WithTx 内で txCtx 付きで呼び
+// 「返金可能残額チェック（トランザクション内で再計算）」する。dbOrTx で ambient tx に参加しないと
+// 同一 tx 内で直前に作成した返金の未コミット行を合計に含められず、TOCTOU チェックが機能しない。
 func (r *refundRepository) SumByBillingID(ctx context.Context, clinicID, billingID uint64) (int64, error) {
 	var total int64
-	if err := r.db.WithContext(ctx).
+	if err := dbOrTx(ctx, r.db).
 		Model(&model.BillingRefund{}).
 		Scopes(clinicScope(clinicID)).Where("billing_id = ?", billingID).
 		Select("COALESCE(SUM(amount), 0)").
@@ -61,7 +64,7 @@ func (r *refundRepository) SumByBillingID(ctx context.Context, clinicID, billing
 
 func (r *refundRepository) SumByBillingIDAndPaymentMethod(ctx context.Context, clinicID, billingID uint64, method model.PaymentMethod) (int64, error) {
 	var total int64
-	if err := r.db.WithContext(ctx).
+	if err := dbOrTx(ctx, r.db).
 		Model(&model.BillingRefund{}).
 		Scopes(clinicScope(clinicID)).Where("billing_id = ? AND payment_method = ?", billingID, method).
 		Select("COALESCE(SUM(amount), 0)").

@@ -1,14 +1,142 @@
 package handler
 
 import (
+	"net/url"
 	"testing"
 	"time"
 
 	"github.com/gin-gonic/gin/binding"
+	"github.com/stretchr/testify/assert"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
 )
+
+// ---- newListAccountingQuery ----
+
+func TestNewListAccountingQuery(t *testing.T) {
+	tests := []struct {
+		name   string
+		values url.Values
+		want   listAccountingQuery
+	}{
+		{
+			name: "normal: all params present",
+			values: url.Values{
+				"pet_id":     {"10"},
+				"owner_id":   {"20"},
+				"status":     {"completed"},
+				"start_date": {"2026-05-01"},
+				"end_date":   {"2026-05-31"},
+			},
+			want: listAccountingQuery{
+				PetID: "10", OwnerID: "20", Status: "completed",
+				StartDate: "2026-05-01", EndDate: "2026-05-31",
+			},
+		},
+		{
+			name:   "zero value: empty url.Values",
+			values: url.Values{},
+			want:   listAccountingQuery{},
+		},
+		{
+			name:   "nil url.Values",
+			values: nil,
+			want:   listAccountingQuery{},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := newListAccountingQuery(tt.values)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+// ---- newListUnpaidBillingsQuery ----
+
+func TestNewListUnpaidBillingsQuery(t *testing.T) {
+	tests := []struct {
+		name   string
+		values url.Values
+		want   listUnpaidBillingsQuery
+	}{
+		{
+			name: "normal: all params present",
+			values: url.Values{
+				"start_date": {"2026-01-01"},
+				"end_date":   {"2026-01-31"},
+				"group_by":   {"billing"},
+			},
+			want: listUnpaidBillingsQuery{StartDate: "2026-01-01", EndDate: "2026-01-31", GroupBy: "billing"},
+		},
+		{
+			name:   "zero value: empty url.Values",
+			values: url.Values{},
+			want:   listUnpaidBillingsQuery{},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := newListUnpaidBillingsQuery(tt.values)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+// ---- newDailySummaryQuery ----
+
+func TestNewDailySummaryQuery(t *testing.T) {
+	tests := []struct {
+		name   string
+		values url.Values
+		want   dailySummaryQuery
+	}{
+		{
+			name:   "normal: date present",
+			values: url.Values{"date": {"2026-06-01"}},
+			want:   dailySummaryQuery{Date: "2026-06-01"},
+		},
+		{
+			name:   "zero value: empty url.Values",
+			values: url.Values{},
+			want:   dailySummaryQuery{},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := newDailySummaryQuery(tt.values)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+// ---- newMonthlyUnpaidQuery ----
+
+func TestNewMonthlyUnpaidQuery(t *testing.T) {
+	tests := []struct {
+		name   string
+		values url.Values
+		want   monthlyUnpaidQuery
+	}{
+		{
+			name:   "normal: year/month present",
+			values: url.Values{"year": {"2026"}, "month": {"6"}},
+			want:   monthlyUnpaidQuery{Year: "2026", Month: "6"},
+		},
+		{
+			name:   "zero value: empty url.Values",
+			values: url.Values{},
+			want:   monthlyUnpaidQuery{},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := newMonthlyUnpaidQuery(tt.values)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
 
 func TestListAccountingQuery_ToServiceFilters(t *testing.T) {
 	filters, err := (&listAccountingQuery{

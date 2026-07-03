@@ -5,6 +5,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -15,6 +16,10 @@ import (
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/repository"
 )
+
+// errAuditWriteFailed は BE-refactor.md R1-2 の fail-closed 回帰テスト（medicine/dose-param/treatment）
+// で共有する失敗注入用センチネル。mockDoseAuditService.logEntryTxErr にセットして使う。
+var errAuditWriteFailed = errors.New("audit write failed")
 
 // ---- mockMedicineDoseParamRepository ----
 
@@ -57,16 +62,25 @@ func (m *mockMedicineDoseParamRepository) Delete(ctx context.Context, clinicID, 
 	return m.deleteFn(ctx, clinicID, id)
 }
 
-// ---- mockDoseAuditService（LogEntry をキャプチャ。他は no-op）----
+// ---- mockDoseAuditService（LogEntry/LogEntryTx をキャプチャ。他は no-op）----
+// logEntryTxErr は fail-closed 回帰テスト用の失敗注入（BE-refactor.md R1-2・checkup_field_result_service_test.go
+// の mockAuditTxLogger.logEntryTxFn と同型）。
 
 type mockDoseAuditService struct {
-	entries []*AuditLogInput
+	entries       []*AuditLogInput
+	logEntryTxErr error
 }
 
 func (m *mockDoseAuditService) Log(_ context.Context, _ *model.AuditLog) error { return nil }
 func (m *mockDoseAuditService) LogEntry(_ context.Context, in *AuditLogInput) error {
 	m.entries = append(m.entries, in)
 	return nil
+}
+
+// LogEntryTx は AuditTxLogger を満たす（BE-refactor.md R1-2: medicine/dose-param の tx 内監査）。
+func (m *mockDoseAuditService) LogEntryTx(_ context.Context, in *AuditLogInput) error {
+	m.entries = append(m.entries, in)
+	return m.logEntryTxErr
 }
 func (m *mockDoseAuditService) LogAuthLogin(_ context.Context, _, _ *uint64, _, _, _ string) error {
 	return nil
@@ -90,19 +104,43 @@ func (m *mockDoseAuditService) LogClinicSwitch(_ context.Context, _ *uint64, _, 
 	return nil
 }
 
+// ---- mockTreatmentAuditRepository（repository.AuditRepository を満たす。CreateTx をキャプチャ）----
+//
+// BE-refactor.md R1-2: treatment は repos.Transaction 機構（ctx-txKey を使わない）を使うため、
+// auditDoseDeviationTx は txRepos.Audit.CreateTx を直接呼ぶ（mockDoseAuditService/AuditTxLogger
+// 経由ではない — struct コメント参照）。よってこの経路のテストは repository.AuditRepository の
+// モックで検証する。createTxErr は fail-closed 回帰テスト用の失敗注入。
+type mockTreatmentAuditRepository struct {
+	entries     []*model.AuditLog
+	createTxErr error
+}
+
+func (m *mockTreatmentAuditRepository) Create(_ context.Context, log *model.AuditLog) error {
+	m.entries = append(m.entries, log)
+	return nil
+}
+func (m *mockTreatmentAuditRepository) CreateTx(_ context.Context, log *model.AuditLog) error {
+	if m.createTxErr != nil {
+		return m.createTxErr
+	}
+	m.entries = append(m.entries, log)
+	return nil
+}
+
 // ---- helpers ----
 
 type doseSaveFixture struct {
-	repos   *repository.Repositories
-	audit   *mockDoseAuditService
-	created *model.Treatment
+	repos     *repository.Repositories
+	audit     *mockDoseAuditService // 非nilフラグとしてのみ使う（NewTreatmentServiceWithAudit 有効化）
+	auditRepo *mockTreatmentAuditRepository
+	created   *model.Treatment
 }
 
 // newDoseSaveFixture は per_weight 医薬 1 種・犬・体重 4kg・dose 5mg/kg・max 5・strength 10mg/錠 の保存環境を構築する。
 // calcType=none を指定すると後方互換（再検証なし）を再現する。paramSpecies で取得 param の種を上書きできる（mismatch 検証）。
 func newDoseSaveFixture(t *testing.T, calcType model.MedicineCalculationType, paramSpecies model.MedicineDoseSpecies) *doseSaveFixture {
 	t.Helper()
-	f := &doseSaveFixture{audit: &mockDoseAuditService{}}
+	f := &doseSaveFixture{audit: &mockDoseAuditService{}, auditRepo: &mockTreatmentAuditRepository{}}
 
 	medRepo := &mockMedicineRepository{
 		findByIDFn: func(_ context.Context, _, _ uint64) (*model.Medicine, error) {
@@ -156,6 +194,7 @@ func newDoseSaveFixture(t *testing.T, calcType model.MedicineCalculationType, pa
 		Vital:             vitalRepo,
 		MedicineDoseParam: paramRepo,
 		Inventory:         &mockInventoryRepository{},
+		Audit:             f.auditRepo,
 	}
 	repos.TransactionFn = func(ctx context.Context, fn func(*repository.Repositories) error) error {
 		return fn(repos)
@@ -190,7 +229,7 @@ func TestTreatmentService_Create_DoseRevalidation(t *testing.T) {
 		require.NotNil(t, f.created.DoseWeightKg)
 		assert.InDelta(t, 4.0, *f.created.DoseWeightKg, 1e-6)
 		assert.NotEmpty(t, f.created.DoseParamSnapshot, "dose_param_snapshot(jsonb) が値で固定されること")
-		assert.Empty(t, f.audit.entries, "上限内・乖離なしでは逸脱 audit は発火しない")
+		assert.Empty(t, f.auditRepo.entries, "上限内・乖離なしでは逸脱 audit は発火しない")
 	})
 
 	t.Run("回帰: 範囲外 quantity で保存 → 逸脱 audit 記録（silent 過量保存の閉鎖）", func(t *testing.T) {
@@ -201,8 +240,8 @@ func TestTreatmentService_Create_DoseRevalidation(t *testing.T) {
 		require.NoError(t, err, "上書きは拒否せず記録する")
 		require.NotNil(t, f.created.DoseAmountMg)
 		assert.InDelta(t, 50.0, *f.created.DoseAmountMg, 1e-6)
-		require.Len(t, f.audit.entries, 1, "逸脱は audit に1件記録される")
-		entry := f.audit.entries[0]
+		require.Len(t, f.auditRepo.entries, 1, "逸脱は audit に1件記録される")
+		entry := f.auditRepo.entries[0]
 		assert.Equal(t, model.AuditActionTreatmentDoseDeviation, entry.Action)
 		assert.Equal(t, model.AuditResourceTreatmentDose, entry.Resource)
 		require.NotNil(t, entry.ActorID)
@@ -229,6 +268,62 @@ func TestTreatmentService_Create_DoseRevalidation(t *testing.T) {
 		require.NotNil(t, f.created)
 		assert.Nil(t, f.created.DoseAmountMg, "none では dose スナップショットを書かない")
 		assert.Empty(t, f.created.DoseParamSnapshot)
-		assert.Empty(t, f.audit.entries)
+		assert.Empty(t, f.auditRepo.entries)
+	})
+
+	// BE-refactor.md R1-2: 逸脱 audit（txRepos.Audit.CreateTx）が失敗すると Create 全体が失敗する
+	// （fail-closed。treatment/在庫減算のみが成功し監査だけ欠落する部分コミットを許さない）。
+	t.Run("逸脱 audit 失敗は Create 全体をロールバックする（fail-closed）", func(t *testing.T) {
+		f := newDoseSaveFixture(t, model.MedicineCalculationTypePerWeight, model.MedicineDoseSpeciesDog)
+		f.auditRepo.createTxErr = errAuditWriteFailed
+		svc := NewTreatmentServiceWithAudit(f.repos, f.audit)
+
+		_, err := svc.Create(context.Background(), clinicID, 100, medicineCreateInput(5)) // 5錠=50mg > cap 20mg → 逸脱
+		require.Error(t, err, "audit 失敗は treatment 作成全体を失敗させる")
+	})
+}
+
+// TestTreatmentService_Update_DoseRevalidation は Update 経路の逸脱 audit（BE-refactor.md R1-2 で
+// Create と同じ auditDoseDeviationTx 経路に統一）を固定する。quantity 変更で再評価対象になり、
+// 逸脱時は audit 記録・audit 失敗時は Update 全体が fail-closed で失敗することを検証する。
+func TestTreatmentService_Update_DoseRevalidation(t *testing.T) {
+	const clinicID = uint64(1)
+	const treatmentID = uint64(200)
+
+	newUpdateFixture := func(t *testing.T) *doseSaveFixture {
+		t.Helper()
+		f := newDoseSaveFixture(t, model.MedicineCalculationTypePerWeight, model.MedicineDoseSpeciesDog)
+		medID := uint64(50)
+		existing := &model.Treatment{
+			ID: treatmentID, MedicalRecordID: 100, ItemType: model.TreatmentItemTypeMedicine,
+			MedicineID: &medID, Quantity: 1,
+		}
+		f.repos.Treatment = &mockTreatmentRepository{
+			findByIDFn: func(_ context.Context, _, _ uint64) (*model.Treatment, error) { return existing, nil },
+			updateFn:   func(_ context.Context, _, _ uint64, _ map[string]any) error { return nil },
+		}
+		return f
+	}
+
+	t.Run("範囲外 quantity への更新 → 逸脱 audit 記録", func(t *testing.T) {
+		f := newUpdateFixture(t)
+		svc := NewTreatmentServiceWithAudit(f.repos, f.audit)
+
+		qty := 5.0 // 5錠=50mg > cap 20mg
+		_, err := svc.Update(context.Background(), clinicID, 100, treatmentID, &UpdateTreatmentInput{Quantity: &qty})
+		require.NoError(t, err, "上書きは拒否せず記録する")
+		require.Len(t, f.auditRepo.entries, 1)
+		assert.Equal(t, model.AuditActionTreatmentDoseDeviation, f.auditRepo.entries[0].Action)
+	})
+
+	// BE-refactor.md R1-2: audit 失敗は Update 全体を fail-closed で失敗させる。
+	t.Run("逸脱 audit 失敗は Update 全体をロールバックする（fail-closed）", func(t *testing.T) {
+		f := newUpdateFixture(t)
+		f.auditRepo.createTxErr = errAuditWriteFailed
+		svc := NewTreatmentServiceWithAudit(f.repos, f.audit)
+
+		qty := 5.0
+		_, err := svc.Update(context.Background(), clinicID, 100, treatmentID, &UpdateTreatmentInput{Quantity: &qty})
+		require.Error(t, err, "audit 失敗は treatment 更新全体を失敗させる")
 	})
 }

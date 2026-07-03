@@ -71,7 +71,7 @@ func (m *mockTrimmingReservationRepository) ExistsByStaffID(_ context.Context, _
 	return false, nil
 }
 
-func (m *mockTrimmingReservationRepository) CountMedicalRecordsByReservationID(_ context.Context, _ uint64) (int64, error) {
+func (m *mockTrimmingReservationRepository) CountMedicalRecordsByReservationID(_ context.Context, _, _ uint64) (int64, error) {
 	return 0, nil
 }
 
@@ -377,6 +377,119 @@ func TestTrimmingService_GetByID(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestTrimmingService_GetByID_DetailFetchError(t *testing.T) {
+	reserv := &mockTrimmingReservationRepository{
+		findByIDFn: func(_ context.Context, _, id uint64) (*model.Reservation, error) {
+			return &model.Reservation{ID: id, ClinicID: 1}, nil
+		},
+	}
+	detail := &mockTrimmingDetailRepository{
+		findByAppointmentIDFn: func(_ context.Context, _, _ uint64) (*model.AppointmentTrimmingDetail, error) {
+			return nil, errors.New("db connection error")
+		},
+	}
+	svc := newTrimmingTestService(reserv, detail)
+
+	appt, err := svc.GetByID(context.Background(), 1, 10)
+
+	assert.Error(t, err)
+	assert.Nil(t, appt)
+}
+
+func TestTrimmingService_Create_ValidationErrors(t *testing.T) {
+	tests := []struct {
+		name  string
+		input CreateTrimmingInput
+	}{
+		{
+			name: "returns error when start_time is zero",
+			input: CreateTrimmingInput{
+				ReservationTypeID: 1,
+				EndTime:           time.Now().Add(time.Hour),
+			},
+		},
+		{
+			name: "returns error when end_time is zero",
+			input: CreateTrimmingInput{
+				ReservationTypeID: 1,
+				StartTime:         time.Now(),
+			},
+		},
+		{
+			name: "returns error when reservation_route is invalid",
+			input: CreateTrimmingInput{
+				ReservationTypeID: 1,
+				StartTime:         time.Now(),
+				EndTime:           time.Now().Add(time.Hour),
+				ReservationRoute:  ptrString("invalid_route"),
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			reserv := &mockTrimmingReservationRepository{
+				createFn: func(_ context.Context, _ *model.Reservation) error {
+					t.Fatal("appointment must not be created when validation fails")
+					return nil
+				},
+			}
+			svc := newTrimmingTestService(reserv, &mockTrimmingDetailRepository{})
+
+			appt, err := svc.Create(context.Background(), 1, &tt.input)
+
+			assert.Error(t, err)
+			assert.True(t, apperrors.IsInvalidInput(err))
+			assert.Nil(t, appt)
+		})
+	}
+}
+
+func TestTrimmingService_ValidateTrimmingReservationType_NilRepository(t *testing.T) {
+	reserv := &mockTrimmingReservationRepository{
+		createFn: func(_ context.Context, _ *model.Reservation) error {
+			t.Fatal("appointment must not be created when reservation type repository is nil")
+			return nil
+		},
+	}
+	// reservationType repository を明示的に nil で渡し、interface が真に nil であることを検証する。
+	svc := NewTrimmingService(reserv, nil, nil, nil, nil, &mockTrimmingDetailRepository{}, &mockTransactor{})
+
+	appt, err := svc.Create(context.Background(), 1, &CreateTrimmingInput{
+		ReservationTypeID: 1,
+		StartTime:         time.Now(),
+		EndTime:           time.Now().Add(time.Hour),
+	})
+
+	assert.Error(t, err)
+	assert.True(t, apperrors.IsInvalidInput(err))
+	assert.Nil(t, appt)
+}
+
+func TestTrimmingService_ValidateTrimmingReservationType_FindByIDError(t *testing.T) {
+	reservationType := &mockTrimmingReservationTypeRepository{
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.ReservationType, error) {
+			return nil, errors.New("db error")
+		},
+	}
+	reserv := &mockTrimmingReservationRepository{
+		createFn: func(_ context.Context, _ *model.Reservation) error {
+			t.Fatal("appointment must not be created when reservation type lookup fails")
+			return nil
+		},
+	}
+	svc := newTrimmingTestServiceWithReservationType(reserv, &mockTrimmingDetailRepository{}, reservationType)
+
+	appt, err := svc.Create(context.Background(), 1, &CreateTrimmingInput{
+		ReservationTypeID: 1,
+		StartTime:         time.Now(),
+		EndTime:           time.Now().Add(time.Hour),
+	})
+
+	assert.Error(t, err)
+	assert.Nil(t, appt)
 }
 
 func TestTrimmingService_Create(t *testing.T) {
@@ -697,6 +810,257 @@ func TestTrimmingService_Create_ExistingAppointmentFillsMissingPet(t *testing.T)
 	assert.Equal(t, map[string]any{"pet_id": requestPetID}, updatedFields)
 }
 
+func TestTrimmingService_Create_ExistingAppointment_NotTrimmingType(t *testing.T) {
+	appointmentID := uint64(77)
+	reserv := &mockTrimmingReservationRepository{
+		findByIDFn: func(_ context.Context, _, id uint64) (*model.Reservation, error) {
+			return &model.Reservation{
+				ID:              id,
+				ClinicID:        1,
+				ReservationType: &model.ReservationType{ID: 9, Category: model.ReservationTypeCategoryGeneral},
+			}, nil
+		},
+	}
+	detail := &mockTrimmingDetailRepository{
+		createFn: func(_ context.Context, _ *model.AppointmentTrimmingDetail) error {
+			t.Fatal("detail must not be created for a non-trimming appointment")
+			return nil
+		},
+	}
+	svc := newTrimmingTestService(reserv, detail)
+
+	appt, err := svc.Create(context.Background(), 1, &CreateTrimmingInput{
+		AppointmentID: &appointmentID,
+	})
+
+	assert.Error(t, err)
+	assert.True(t, apperrors.IsInvalidInput(err))
+	assert.Nil(t, appt)
+}
+
+func TestTrimmingService_Create_ExistingAppointment_NilReservationType(t *testing.T) {
+	appointmentID := uint64(77)
+	reserv := &mockTrimmingReservationRepository{
+		findByIDFn: func(_ context.Context, _, id uint64) (*model.Reservation, error) {
+			return &model.Reservation{ID: id, ClinicID: 1, ReservationType: nil}, nil
+		},
+	}
+	detail := &mockTrimmingDetailRepository{
+		createFn: func(_ context.Context, _ *model.AppointmentTrimmingDetail) error {
+			t.Fatal("detail must not be created when appointment has no reservation type")
+			return nil
+		},
+	}
+	svc := newTrimmingTestService(reserv, detail)
+
+	appt, err := svc.Create(context.Background(), 1, &CreateTrimmingInput{
+		AppointmentID: &appointmentID,
+	})
+
+	assert.Error(t, err)
+	assert.True(t, apperrors.IsInvalidInput(err))
+	assert.Nil(t, appt)
+}
+
+func TestTrimmingService_Create_ExistingAppointment_AlreadyHasDetail(t *testing.T) {
+	appointmentID := uint64(77)
+	category := model.ReservationTypeCategoryTrimming
+	reserv := &mockTrimmingReservationRepository{
+		findByIDFn: func(_ context.Context, _, id uint64) (*model.Reservation, error) {
+			return &model.Reservation{
+				ID:              id,
+				ClinicID:        1,
+				ReservationType: &model.ReservationType{ID: 9, Category: category},
+			}, nil
+		},
+	}
+	detailCreated := false
+	detail := &mockTrimmingDetailRepository{
+		findByAppointmentIDFn: func(_ context.Context, _ uint64, id uint64) (*model.AppointmentTrimmingDetail, error) {
+			return &model.AppointmentTrimmingDetail{AppointmentID: id}, nil
+		},
+		createFn: func(_ context.Context, _ *model.AppointmentTrimmingDetail) error {
+			detailCreated = true
+			return nil
+		},
+	}
+	svc := newTrimmingTestService(reserv, detail)
+
+	appt, err := svc.Create(context.Background(), 1, &CreateTrimmingInput{
+		AppointmentID: &appointmentID,
+	})
+
+	assert.NoError(t, err)
+	assert.NotNil(t, appt)
+	assert.False(t, detailCreated, "既に detail が存在する場合は再作成しない")
+}
+
+func TestTrimmingService_Create_ExistingAppointment_DetailLookupError(t *testing.T) {
+	appointmentID := uint64(77)
+	category := model.ReservationTypeCategoryTrimming
+	reserv := &mockTrimmingReservationRepository{
+		findByIDFn: func(_ context.Context, _, id uint64) (*model.Reservation, error) {
+			return &model.Reservation{
+				ID:              id,
+				ClinicID:        1,
+				ReservationType: &model.ReservationType{ID: 9, Category: category},
+			}, nil
+		},
+	}
+	detail := &mockTrimmingDetailRepository{
+		findByAppointmentIDFn: func(_ context.Context, _ uint64, _ uint64) (*model.AppointmentTrimmingDetail, error) {
+			return nil, errors.New("db connection error")
+		},
+		createFn: func(_ context.Context, _ *model.AppointmentTrimmingDetail) error {
+			t.Fatal("detail must not be created when existing-detail lookup fails")
+			return nil
+		},
+	}
+	svc := newTrimmingTestService(reserv, detail)
+
+	appt, err := svc.Create(context.Background(), 1, &CreateTrimmingInput{
+		AppointmentID: &appointmentID,
+	})
+
+	assert.Error(t, err)
+	assert.Nil(t, appt)
+}
+
+func TestTrimmingService_Create_ExistingAppointment_StaffCannotHandleReservationType(t *testing.T) {
+	appointmentID := uint64(77)
+	staffID := uint64(33)
+	category := model.ReservationTypeCategoryTrimming
+	reserv := &mockTrimmingReservationRepository{
+		findByIDFn: func(_ context.Context, _, id uint64) (*model.Reservation, error) {
+			return &model.Reservation{
+				ID:                id,
+				ClinicID:          1,
+				ReservationTypeID: 9,
+				ReservationType:   &model.ReservationType{ID: 9, Category: category},
+			}, nil
+		},
+	}
+	detail := &mockTrimmingDetailRepository{
+		findByAppointmentIDFn: func(_ context.Context, _ uint64, _ uint64) (*model.AppointmentTrimmingDetail, error) {
+			return nil, apperrors.WrapNotFound("appointment_trimming_detail", "missing")
+		},
+		createFn: func(_ context.Context, _ *model.AppointmentTrimmingDetail) error {
+			t.Fatal("detail must not be created when staff cannot handle reservation type")
+			return nil
+		},
+	}
+	staffRepo := &mockReservationStaffRepository{
+		findByIDFn: func(_ context.Context, _, id uint64) (*model.Staff, error) {
+			return &model.Staff{ID: id, IsActive: true}, nil
+		},
+		supportsReservationTypeFn: func(_ context.Context, _, _, _ uint64) (bool, error) {
+			return false, nil
+		},
+	}
+	svc := newTrimmingTestServiceWithAvailability(
+		reserv,
+		detail,
+		&mockTrimmingReservationTypeRepository{},
+		staffRepo,
+		nil,
+		nil,
+	)
+
+	appt, err := svc.Create(context.Background(), 1, &CreateTrimmingInput{
+		AppointmentID: &appointmentID,
+		StaffID:       &staffID,
+	})
+
+	assert.Error(t, err)
+	assert.True(t, apperrors.IsInvalidInput(err))
+	assert.Nil(t, appt)
+}
+
+func TestTrimmingService_Create_ExistingAppointment_TimeRangeInvalid(t *testing.T) {
+	appointmentID := uint64(77)
+	category := model.ReservationTypeCategoryTrimming
+	reserv := &mockTrimmingReservationRepository{
+		findByIDFn: func(_ context.Context, _, id uint64) (*model.Reservation, error) {
+			return &model.Reservation{
+				ID:                id,
+				ClinicID:          1,
+				ReservationTypeID: 9,
+				ReservationType:   &model.ReservationType{ID: 9, Category: category},
+				StartTime:         time.Now(),
+				EndTime:           time.Now().Add(time.Hour),
+			}, nil
+		},
+	}
+	detail := &mockTrimmingDetailRepository{
+		// mockTrimmingDetailRepository.FindByAppointmentID のデフォルト実装は非nilのdetailを
+		// 返すため、未設定のままだと「既存detailあり」経路に入り GetByID で早期returnしてしまい
+		// 時間帯バリデーションを一切通らない。「detail未作成」を明示的に模擬する。
+		findByAppointmentIDFn: func(_ context.Context, _, _ uint64) (*model.AppointmentTrimmingDetail, error) {
+			return nil, apperrors.WrapNotFound("appointment_trimming_detail", "missing")
+		},
+		createFn: func(_ context.Context, _ *model.AppointmentTrimmingDetail) error {
+			t.Fatal("detail must not be created when the requested time range is invalid")
+			return nil
+		},
+	}
+	svc := newTrimmingTestService(reserv, detail)
+
+	// end_time が start_time より前 → validateReservationTypeAvailableTime 内の
+	// validateTimeRange がエラーを返す。
+	appt, err := svc.Create(context.Background(), 1, &CreateTrimmingInput{
+		AppointmentID: &appointmentID,
+		StartTime:     time.Now().Add(time.Hour),
+		EndTime:       time.Now(),
+	})
+
+	assert.Error(t, err)
+	assert.Nil(t, appt)
+}
+
+func TestTrimmingService_Create_ExistingAppointment_ResolvesPartialTimeRange(t *testing.T) {
+	appointmentID := uint64(77)
+	category := model.ReservationTypeCategoryTrimming
+	existingStart := time.Now()
+	existingEnd := existingStart.Add(2 * time.Hour)
+	// newStart は既存の start_time より後だが、end_time (existingEnd) より前でなければならない。
+	// end_time は未指定のため appt.EndTime に解決され、resolvedStart < resolvedEnd を
+	// 満たす必要がある（validateReservationTypeAvailableTime 内の validateTimeRange）。
+	newStart := existingStart.Add(30 * time.Minute)
+
+	reserv := &mockTrimmingReservationRepository{
+		findByIDFn: func(_ context.Context, _, id uint64) (*model.Reservation, error) {
+			return &model.Reservation{
+				ID:                id,
+				ClinicID:          1,
+				ReservationTypeID: 9,
+				ReservationType:   &model.ReservationType{ID: 9, Category: category},
+				StartTime:         existingStart,
+				EndTime:           existingEnd,
+			}, nil
+		},
+		updateFieldsFn: func(_ context.Context, _ uint64, id uint64, fields map[string]any) (*model.Reservation, error) {
+			// start_time のみ指定 → end_time は既存予約の end_time に解決されるはず。
+			assert.Equal(t, newStart, fields["start_time"])
+			assert.NotContains(t, fields, "end_time")
+			return &model.Reservation{ID: id, ClinicID: 1}, nil
+		},
+	}
+	detail := &mockTrimmingDetailRepository{
+		createFn: func(_ context.Context, _ *model.AppointmentTrimmingDetail) error {
+			return nil
+		},
+	}
+	svc := newTrimmingTestService(reserv, detail)
+
+	appt, err := svc.Create(context.Background(), 1, &CreateTrimmingInput{
+		AppointmentID: &appointmentID,
+		StartTime:     newStart,
+	})
+
+	assert.NoError(t, err)
+	assert.NotNil(t, appt)
+}
+
 func TestTrimmingService_Update(t *testing.T) {
 	ptrStr := func(s string) *string { return &s }
 	optionIDs := []uint64{10, 20}
@@ -816,6 +1180,26 @@ func TestTrimmingService_Update(t *testing.T) {
 	}
 }
 
+func TestTrimmingService_Update_FindByIDError(t *testing.T) {
+	ptrStr := func(s string) *string { return &s }
+	reserv := &mockTrimmingReservationRepository{
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.Reservation, error) {
+			return nil, apperrors.WrapNotFound("appointment", "999")
+		},
+		updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Reservation, error) {
+			t.Fatal("appointment must not be updated when the parent lookup fails")
+			return nil, nil
+		},
+	}
+	svc := newTrimmingTestService(reserv, &mockTrimmingDetailRepository{})
+
+	appt, err := svc.Update(context.Background(), 1, 999, &UpdateTrimmingInput{StyleRequest: ptrStr("x")})
+
+	assert.Error(t, err)
+	assert.True(t, apperrors.IsNotFound(err))
+	assert.Nil(t, appt)
+}
+
 func TestTrimmingService_Delete(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -874,4 +1258,25 @@ func TestTrimmingService_Delete(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestTrimmingService_Delete_RepositoryFailureAfterFindSucceeds は、FindByID が成功した後に
+// Delete 自体がエラーを返すケースを、FindByID の失敗と混同せずに検証する
+// （既存テーブルの "returns error on repository failure" は同一 repoErr を FindByID にも
+// 適用するため実際には FindByID で早期リターンし、Delete のエラーパスは通らない）。
+func TestTrimmingService_Delete_RepositoryFailureAfterFindSucceeds(t *testing.T) {
+	reserv := &mockTrimmingReservationRepository{
+		findByIDFn: func(_ context.Context, _, id uint64) (*model.Reservation, error) {
+			return &model.Reservation{ID: id, ClinicID: 1}, nil
+		},
+		deleteFn: func(_ context.Context, _, _ uint64) error {
+			return errors.New("db error")
+		},
+	}
+	svc := newTrimmingTestService(reserv, &mockTrimmingDetailRepository{})
+
+	err := svc.Delete(context.Background(), 1, 10)
+
+	assert.Error(t, err)
+	assert.False(t, apperrors.IsNotFound(err))
 }

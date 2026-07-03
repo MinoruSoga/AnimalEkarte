@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -148,8 +149,14 @@ func TestLabImportJobService_PreviewBatch_MissingExamCode(t *testing.T) {
 // ------------------------------------
 
 // stubJobRepo はテスト用のインメモリ LabImportJobRepository。
+// createErr/updateErr/findByIDErr/findByClinicErr はゼロ値(nil)の場合は通常動作となり、
+// 既存テストの挙動には影響しない。エラー注入が必要な新規テストのみが設定する。
 type stubJobRepo struct {
-	jobs map[uuid.UUID]*model.LabImportJob
+	jobs            map[uuid.UUID]*model.LabImportJob
+	createErr       error
+	updateErr       error
+	findByIDErr     error
+	findByClinicErr error
 }
 
 func newStubJobRepo() *stubJobRepo {
@@ -157,6 +164,9 @@ func newStubJobRepo() *stubJobRepo {
 }
 
 func (r *stubJobRepo) Create(_ context.Context, job *model.LabImportJob) error {
+	if r.createErr != nil {
+		return r.createErr
+	}
 	if job.ID == uuid.Nil {
 		job.ID = uuid.New()
 	}
@@ -166,6 +176,9 @@ func (r *stubJobRepo) Create(_ context.Context, job *model.LabImportJob) error {
 }
 
 func (r *stubJobRepo) Update(_ context.Context, job *model.LabImportJob) error {
+	if r.updateErr != nil {
+		return r.updateErr
+	}
 	if _, ok := r.jobs[job.ID]; !ok {
 		return apperrors.WrapNotFound("lab_import_job", job.ID.String())
 	}
@@ -175,6 +188,9 @@ func (r *stubJobRepo) Update(_ context.Context, job *model.LabImportJob) error {
 }
 
 func (r *stubJobRepo) FindByID(_ context.Context, clinicID uint64, id uuid.UUID) (*model.LabImportJob, error) {
+	if r.findByIDErr != nil {
+		return nil, r.findByIDErr
+	}
 	j, ok := r.jobs[id]
 	if !ok || j.ClinicID != clinicID {
 		return nil, apperrors.WrapNotFound("lab_import_job", id.String())
@@ -184,6 +200,9 @@ func (r *stubJobRepo) FindByID(_ context.Context, clinicID uint64, id uuid.UUID)
 }
 
 func (r *stubJobRepo) FindByClinic(_ context.Context, clinicID uint64, _ int) ([]*model.LabImportJob, error) {
+	if r.findByClinicErr != nil {
+		return nil, r.findByClinicErr
+	}
 	var out []*model.LabImportJob
 	for _, j := range r.jobs {
 		if j.ClinicID == clinicID {
@@ -195,15 +214,26 @@ func (r *stubJobRepo) FindByClinic(_ context.Context, clinicID uint64, _ int) ([
 }
 
 // stubEventRepo はテスト用のインメモリ LabImportEventRepository。
-type stubEventRepo struct{ events []*model.LabImportEvent }
+// createErr/findByJobErr はゼロ値(nil)の場合は通常動作となり、既存テストの挙動には影響しない。
+type stubEventRepo struct {
+	events       []*model.LabImportEvent
+	createErr    error
+	findByJobErr error
+}
 
 func (r *stubEventRepo) Create(_ context.Context, event *model.LabImportEvent) error {
+	if r.createErr != nil {
+		return r.createErr
+	}
 	cp := *event
 	r.events = append(r.events, &cp)
 	return nil
 }
 
 func (r *stubEventRepo) FindByJob(_ context.Context, _ uint64, jobID uuid.UUID) ([]*model.LabImportEvent, error) {
+	if r.findByJobErr != nil {
+		return nil, r.findByJobErr
+	}
 	var out []*model.LabImportEvent
 	for _, e := range r.events {
 		if e.JobID == jobID {
@@ -405,4 +435,269 @@ func TestLabImportSourceType_Constants(t *testing.T) {
 			t.Errorf("source type constant must not be empty")
 		}
 	}
+}
+
+// ------------------------------------
+// CreateJob
+// ------------------------------------
+
+func TestLabImportJobService_CreateJob_Success(t *testing.T) {
+	jobRepo := newStubJobRepo()
+	eventRepo := &stubEventRepo{}
+	svc := NewLabImportJobService(jobRepo, eventRepo)
+
+	batch := model.LabInboundBatch{
+		SourceType:        model.LabImportSourceTypeFixture,
+		SourceFingerprint: "sha256:abc123",
+		ReceivedAt:        time.Now(),
+		ResultRows: []model.LabInboundResultRow{
+			{OldPetKey: "P001", ExamCode: "BUN", DisplayValue: "12.3"},
+		},
+	}
+
+	job, err := svc.CreateJob(context.Background(), 7, batch)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if job.ClinicID != 7 {
+		t.Errorf("expected clinic_id=7, got %d", job.ClinicID)
+	}
+	if job.Status != model.LabImportJobStatusReceived {
+		t.Errorf("expected status=received, got %s", job.Status)
+	}
+	if job.RowCount != 1 {
+		t.Errorf("expected row_count=1, got %d", job.RowCount)
+	}
+	if job.StartedAt == nil {
+		t.Error("expected started_at to be set")
+	}
+	events, err := eventRepo.FindByJob(context.Background(), 7, job.ID)
+	if err != nil {
+		t.Fatalf("FindByJob: %v", err)
+	}
+	if len(events) != 1 {
+		t.Errorf("expected 1 creation event, got %d", len(events))
+	}
+}
+
+func TestLabImportJobService_CreateJob_JobRepoError(t *testing.T) {
+	jobRepo := newStubJobRepo()
+	jobRepo.createErr = errors.New("db error")
+	eventRepo := &stubEventRepo{}
+	svc := NewLabImportJobService(jobRepo, eventRepo)
+
+	batch := model.LabInboundBatch{SourceType: model.LabImportSourceTypeFixture, ReceivedAt: time.Now()}
+	job, err := svc.CreateJob(context.Background(), 1, batch)
+	if err == nil {
+		t.Fatal("expected error when job repo Create fails, got nil")
+	}
+	if job != nil {
+		t.Error("expected nil job on error")
+	}
+	if len(eventRepo.events) != 0 {
+		t.Error("expected no events to be created when job creation fails")
+	}
+}
+
+func TestLabImportJobService_CreateJob_EventRepoError(t *testing.T) {
+	jobRepo := newStubJobRepo()
+	eventRepo := &stubEventRepo{createErr: errors.New("db error")}
+	svc := NewLabImportJobService(jobRepo, eventRepo)
+
+	batch := model.LabInboundBatch{SourceType: model.LabImportSourceTypeFixture, ReceivedAt: time.Now()}
+	job, err := svc.CreateJob(context.Background(), 1, batch)
+	if err == nil {
+		t.Fatal("expected error when event repo Create fails, got nil")
+	}
+	if job != nil {
+		t.Error("expected nil job on error")
+	}
+	if len(jobRepo.jobs) != 1 {
+		t.Error("expected job to remain persisted even though the audit event append failed")
+	}
+}
+
+// ------------------------------------
+// TransitionStatus: additional error branches
+// ------------------------------------
+
+func TestLabImportJobService_TransitionStatus_JobNotFound(t *testing.T) {
+	jobRepo := newStubJobRepo()
+	eventRepo := &stubEventRepo{}
+	svc := NewLabImportJobService(jobRepo, eventRepo)
+
+	_, err := svc.TransitionStatus(context.Background(), 1, uuid.New(), model.LabImportJobStatusValidated, TransitionCounts{})
+	if err == nil {
+		t.Fatal("expected error for unknown job id, got nil")
+	}
+	if !apperrors.IsNotFound(err) {
+		t.Errorf("expected NotFound error, got: %v", err)
+	}
+}
+
+func TestLabImportJobService_TransitionStatus_JobRepoUpdateError(t *testing.T) {
+	jobRepo := newStubJobRepo()
+	eventRepo := &stubEventRepo{}
+	svc := NewLabImportJobService(jobRepo, eventRepo)
+
+	batch := model.LabInboundBatch{SourceType: model.LabImportSourceTypeFixture, ReceivedAt: time.Now()}
+	job, err := svc.CreateJob(context.Background(), 1, batch)
+	if err != nil {
+		t.Fatalf("CreateJob: %v", err)
+	}
+
+	jobRepo.updateErr = errors.New("db error")
+	_, err = svc.TransitionStatus(context.Background(), 1, job.ID, model.LabImportJobStatusValidated, TransitionCounts{})
+	if err == nil {
+		t.Fatal("expected error when job repo Update fails, got nil")
+	}
+}
+
+func TestLabImportJobService_TransitionStatus_EventRepoError(t *testing.T) {
+	jobRepo := newStubJobRepo()
+	eventRepo := &stubEventRepo{}
+	svc := NewLabImportJobService(jobRepo, eventRepo)
+
+	batch := model.LabInboundBatch{SourceType: model.LabImportSourceTypeFixture, ReceivedAt: time.Now()}
+	job, err := svc.CreateJob(context.Background(), 1, batch)
+	if err != nil {
+		t.Fatalf("CreateJob: %v", err)
+	}
+
+	eventRepo.createErr = errors.New("db error")
+	_, err = svc.TransitionStatus(context.Background(), 1, job.ID, model.LabImportJobStatusValidated, TransitionCounts{})
+	if err == nil {
+		t.Fatal("expected error when event repo Create fails, got nil")
+	}
+}
+
+// ------------------------------------
+// GetJob
+// ------------------------------------
+
+func TestLabImportJobService_GetJob(t *testing.T) {
+	jobRepo := newStubJobRepo()
+	eventRepo := &stubEventRepo{}
+	svc := NewLabImportJobService(jobRepo, eventRepo)
+
+	batch := model.LabInboundBatch{SourceType: model.LabImportSourceTypeFixture, ReceivedAt: time.Now()}
+	created, err := svc.CreateJob(context.Background(), 3, batch)
+	if err != nil {
+		t.Fatalf("CreateJob: %v", err)
+	}
+
+	t.Run("returns job when found", func(t *testing.T) {
+		job, err := svc.GetJob(context.Background(), 3, created.ID)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if job.ID != created.ID {
+			t.Errorf("expected job id %s, got %s", created.ID, job.ID)
+		}
+	})
+
+	t.Run("returns not found for unknown job id", func(t *testing.T) {
+		_, err := svc.GetJob(context.Background(), 3, uuid.New())
+		if err == nil {
+			t.Fatal("expected error for unknown job id, got nil")
+		}
+		if !apperrors.IsNotFound(err) {
+			t.Errorf("expected NotFound error, got: %v", err)
+		}
+	})
+
+	t.Run("returns not found for wrong clinic scope", func(t *testing.T) {
+		_, err := svc.GetJob(context.Background(), 999, created.ID)
+		if err == nil {
+			t.Fatal("expected error for cross-clinic access, got nil")
+		}
+		if !apperrors.IsNotFound(err) {
+			t.Errorf("expected NotFound error, got: %v", err)
+		}
+	})
+}
+
+// ------------------------------------
+// ListJobs
+// ------------------------------------
+
+func TestLabImportJobService_ListJobs(t *testing.T) {
+	jobRepo := newStubJobRepo()
+	eventRepo := &stubEventRepo{}
+	svc := NewLabImportJobService(jobRepo, eventRepo)
+
+	batch := model.LabInboundBatch{SourceType: model.LabImportSourceTypeFixture, ReceivedAt: time.Now()}
+	if _, err := svc.CreateJob(context.Background(), 5, batch); err != nil {
+		t.Fatalf("CreateJob: %v", err)
+	}
+	if _, err := svc.CreateJob(context.Background(), 5, batch); err != nil {
+		t.Fatalf("CreateJob: %v", err)
+	}
+	if _, err := svc.CreateJob(context.Background(), 6, batch); err != nil {
+		t.Fatalf("CreateJob: %v", err)
+	}
+
+	t.Run("returns jobs scoped to clinic", func(t *testing.T) {
+		jobs, err := svc.ListJobs(context.Background(), 5, 10)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if len(jobs) != 2 {
+			t.Errorf("expected 2 jobs for clinic 5, got %d", len(jobs))
+		}
+	})
+
+	t.Run("propagates repository error", func(t *testing.T) {
+		jobRepo.findByClinicErr = errors.New("db error")
+		defer func() { jobRepo.findByClinicErr = nil }()
+		_, err := svc.ListJobs(context.Background(), 5, 10)
+		if err == nil {
+			t.Fatal("expected error, got nil")
+		}
+	})
+}
+
+// ------------------------------------
+// ListEvents
+// ------------------------------------
+
+func TestLabImportJobService_ListEvents(t *testing.T) {
+	jobRepo := newStubJobRepo()
+	eventRepo := &stubEventRepo{}
+	svc := NewLabImportJobService(jobRepo, eventRepo)
+
+	batch := model.LabInboundBatch{SourceType: model.LabImportSourceTypeFixture, ReceivedAt: time.Now()}
+	created, err := svc.CreateJob(context.Background(), 4, batch)
+	if err != nil {
+		t.Fatalf("CreateJob: %v", err)
+	}
+
+	t.Run("returns events for existing job", func(t *testing.T) {
+		events, err := svc.ListEvents(context.Background(), 4, created.ID)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if len(events) == 0 {
+			t.Error("expected at least the creation event")
+		}
+	})
+
+	t.Run("returns not found when job does not exist", func(t *testing.T) {
+		_, err := svc.ListEvents(context.Background(), 4, uuid.New())
+		if err == nil {
+			t.Fatal("expected error for unknown job id, got nil")
+		}
+		if !apperrors.IsNotFound(err) {
+			t.Errorf("expected NotFound error, got: %v", err)
+		}
+	})
+
+	t.Run("propagates event repository error", func(t *testing.T) {
+		eventRepo.findByJobErr = errors.New("db error")
+		defer func() { eventRepo.findByJobErr = nil }()
+		_, err := svc.ListEvents(context.Background(), 4, created.ID)
+		if err == nil {
+			t.Fatal("expected error, got nil")
+		}
+	})
 }

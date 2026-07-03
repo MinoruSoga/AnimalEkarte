@@ -35,9 +35,16 @@ func NewBillingItemRepository(db *gorm.DB) BillingItemRepository {
 	return &billingItemRepository{db: db}
 }
 
+// BE-refactor.md R1-1 follow-up (go-reviewer指摘・D2と同型): billing_item_service の
+// CreateItem/UpdateItem/DeleteItem は Create/Update/Delete + recalculateTotals
+// （FindByBillingID + UpdateBillingTotals）を WithTx 内で txCtx 付きで呼ぶ。
+// dbOrTx 未参加のままだと SavePaymentSplits と同じ部分コミットが起こりうる
+// （明細書込は独立 tx で即コミット、直後の合計再計算のみ失敗すると ambient tx の rollback で
+// 明細だけ残り billing.subtotal/tax_total/total_amount と不整合になる）。
+// FindByID も Update 後の再読込（txCtx 付き）で呼ばれるため対象に含める。
 func (r *billingItemRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.BillingItem, error) {
 	var item model.BillingItem
-	err := r.db.WithContext(ctx).
+	err := dbOrTx(ctx, r.db).
 		Joins("JOIN billings ON billings.id = billing_items.billing_id AND billings.clinic_id = ? AND billings.deleted_at IS NULL", clinicID).
 		Where("billing_items.id = ?", id).
 		First(&item).Error
@@ -49,7 +56,7 @@ func (r *billingItemRepository) FindByID(ctx context.Context, clinicID, id uint6
 
 func (r *billingItemRepository) FindByBillingID(ctx context.Context, clinicID, billingID uint64) ([]model.BillingItem, error) {
 	items := make([]model.BillingItem, 0)
-	if err := r.db.WithContext(ctx).
+	if err := dbOrTx(ctx, r.db).
 		Joins("JOIN billings ON billings.id = billing_items.billing_id AND billings.clinic_id = ? AND billings.deleted_at IS NULL", clinicID).
 		Where("billing_items.billing_id = ?", billingID).
 		Order("sort_order ASC, id ASC").
@@ -60,14 +67,14 @@ func (r *billingItemRepository) FindByBillingID(ctx context.Context, clinicID, b
 }
 
 func (r *billingItemRepository) Create(ctx context.Context, item *model.BillingItem) error {
-	if err := r.db.WithContext(ctx).Create(item).Error; err != nil {
+	if err := dbOrTx(ctx, r.db).Create(item).Error; err != nil {
 		return apperrors.FromGORM(err, "billing_item", "")
 	}
 	return nil
 }
 
 func (r *billingItemRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
-	result := r.db.WithContext(ctx).
+	result := dbOrTx(ctx, r.db).
 		Model(&model.BillingItem{}).
 		Joins("JOIN billings ON billings.id = billing_items.billing_id AND billings.clinic_id = ? AND billings.deleted_at IS NULL", clinicID).
 		Where("billing_items.id = ?", id).
@@ -82,7 +89,7 @@ func (r *billingItemRepository) Update(ctx context.Context, clinicID, id uint64,
 }
 
 func (r *billingItemRepository) Delete(ctx context.Context, clinicID, id uint64) error {
-	result := r.db.WithContext(ctx).
+	result := dbOrTx(ctx, r.db).
 		Joins("JOIN billings ON billings.id = billing_items.billing_id AND billings.clinic_id = ? AND billings.deleted_at IS NULL", clinicID).
 		Delete(&model.BillingItem{}, "billing_items.id = ?", id)
 	if result.Error != nil {
@@ -95,7 +102,7 @@ func (r *billingItemRepository) Delete(ctx context.Context, clinicID, id uint64)
 }
 
 func (r *billingItemRepository) UpdateBillingTotals(ctx context.Context, clinicID, billingID uint64, subtotal, taxTotal, totalAmount int64) error {
-	result := r.db.WithContext(ctx).
+	result := dbOrTx(ctx, r.db).
 		Model(&model.Billing{}).
 		Scopes(clinicScope(clinicID)).Where("id = ?", billingID).
 		Updates(map[string]any{

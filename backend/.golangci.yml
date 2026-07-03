@@ -137,5 +137,7 @@ linters:
           - contextcheck
 
 issues:
-  max-issues-per-linter: 50
-  max-same-issues: 10
+  # 2026-06-30: max-same-issues:10 により11件目以降の同種issueがCI上で隠蔽される事故を経験した
+  # (27件一括解消 ci_lint_26_to_0_complete 参照)。真の正本gateは無制限。cap を再導入しない。
+  max-issues-per-linter: 0
+  max-same-issues: 0

@@ -64,6 +64,83 @@ func (m *mockPetChronicConditionRepository) GetActiveConditionCodesByOwner(ctx c
 	return []string{}, nil
 }
 
+// chronicTagSyncOverride は *mockLstepTagSyncService（lstep_lifecycle_service_test.go）を
+// 埋め込み、SyncChronicConditionTags のみを差し替え可能にする小さなラッパー。
+// mockLstepTagSyncService.SyncChronicConditionTags は常に nil を返す固定実装のため、
+// エラー注入テストにはこのラッパーが必要（対象外ファイルを編集せずにテストする）。
+type chronicTagSyncOverride struct {
+	*mockLstepTagSyncService
+	syncChronicConditionTagsFn func(ctx context.Context, clinicID, ownerID uint64, codes []string) error
+}
+
+func (m *chronicTagSyncOverride) SyncChronicConditionTags(ctx context.Context, clinicID, ownerID uint64, codes []string) error {
+	if m.syncChronicConditionTagsFn != nil {
+		return m.syncChronicConditionTagsFn(ctx, clinicID, ownerID, codes)
+	}
+	return nil
+}
+
+func TestBuildChronicConditionUpdateFields(t *testing.T) {
+	code := "C02"
+	name := "疾患名"
+	diagnosedAt := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	notes := "メモ"
+	isActive := true
+
+	tests := []struct {
+		name  string
+		input UpdateChronicConditionInput
+		want  map[string]any
+	}{
+		{
+			name:  "no fields set returns empty map",
+			input: UpdateChronicConditionInput{},
+			want:  map[string]any{},
+		},
+		{
+			name:  "only condition_code set",
+			input: UpdateChronicConditionInput{ConditionCode: &code},
+			want:  map[string]any{"condition_code": code},
+		},
+		{
+			name:  "only condition_name set",
+			input: UpdateChronicConditionInput{ConditionName: &name},
+			want:  map[string]any{"condition_name": name},
+		},
+		{
+			name:  "only diagnosed_at set",
+			input: UpdateChronicConditionInput{DiagnosedAt: &diagnosedAt},
+			want:  map[string]any{"diagnosed_at": diagnosedAt},
+		},
+		{
+			name:  "only notes set",
+			input: UpdateChronicConditionInput{Notes: &notes},
+			want:  map[string]any{"notes": notes},
+		},
+		{
+			name:  "only is_active set",
+			input: UpdateChronicConditionInput{IsActive: &isActive},
+			want:  map[string]any{"is_active": isActive},
+		},
+		{
+			name: "all fields set",
+			input: UpdateChronicConditionInput{
+				ConditionCode: &code, ConditionName: &name, DiagnosedAt: &diagnosedAt, Notes: &notes, IsActive: &isActive,
+			},
+			want: map[string]any{
+				"condition_code": code, "condition_name": name, "diagnosed_at": diagnosedAt, "notes": notes, "is_active": isActive,
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := buildChronicConditionUpdateFields(tt.input)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
 func TestChronicConditionService_List(t *testing.T) {
 	ctx := context.Background()
 
@@ -227,6 +304,105 @@ func TestChronicConditionService_Update(t *testing.T) {
 		svc := NewChronicConditionService(repo, petRepo, nil)
 		_, err := svc.Update(ctx, 1, 100, 10, UpdateChronicConditionInput{})
 		assert.Error(t, err)
+	})
+}
+
+// TestChronicConditionService_Update_ReloadError は Update 成功後の再取得
+// （s.repo.FindByID の2回目呼び出し）が失敗した場合にエラーが返ることを検証する。
+func TestChronicConditionService_Update_ReloadError(t *testing.T) {
+	ctx := context.Background()
+	callCount := 0
+
+	petRepo := &mockPetRepository{
+		findByIDFn: func(_ context.Context, clinicID, id uint64) (*model.Pet, error) {
+			return &model.Pet{ID: id, ClinicID: clinicID, OwnerID: 500}, nil
+		},
+	}
+	repo := &mockPetChronicConditionRepository{
+		findByIDFn: func(_ context.Context, clinicID, id uint64) (*model.PetChronicCondition, error) {
+			callCount++
+			if callCount == 1 {
+				return &model.PetChronicCondition{ID: id, ClinicID: clinicID}, nil
+			}
+			return nil, errors.New("db error on reload")
+		},
+		updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) error {
+			return nil
+		},
+	}
+	svc := NewChronicConditionService(repo, petRepo, &mockLstepTagSyncService{})
+	code := "C03"
+	res, err := svc.Update(ctx, 1, 100, 10, UpdateChronicConditionInput{ConditionCode: &code})
+
+	assert.Error(t, err)
+	assert.Nil(t, res)
+	assert.Equal(t, 2, callCount)
+}
+
+// TestChronicConditionService_SyncTags_BestEffort は syncTags が best-effort であり、
+// GetActiveConditionCodesByOwner / SyncChronicConditionTags のエラーが呼び出し元の
+// Create/Update/Delete の成功結果に伝播しないことを検証する（患者記録操作を失敗させない設計）。
+func TestChronicConditionService_SyncTags_BestEffort(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("GetActiveConditionCodesByOwner error does not fail Create", func(t *testing.T) {
+		petRepo := &mockPetRepository{
+			findByIDFn: func(_ context.Context, clinicID, id uint64) (*model.Pet, error) {
+				return &model.Pet{ID: id, ClinicID: clinicID, OwnerID: 500}, nil
+			},
+		}
+		syncCalled := false
+		repo := &mockPetChronicConditionRepository{
+			createFn: func(_ context.Context, record *model.PetChronicCondition) error {
+				record.ID = 10
+				return nil
+			},
+			getActiveConditionCodesByOwnerFn: func(_ context.Context, _, _ uint64) ([]string, error) {
+				return nil, errors.New("db error")
+			},
+		}
+		tagSync := &chronicTagSyncOverride{
+			mockLstepTagSyncService: &mockLstepTagSyncService{},
+			syncChronicConditionTagsFn: func(_ context.Context, _, _ uint64, _ []string) error {
+				syncCalled = true
+				return nil
+			},
+		}
+		svc := NewChronicConditionService(repo, petRepo, tagSync)
+
+		res, err := svc.Create(ctx, 1, 100, CreateChronicConditionInput{ConditionCode: "C01"})
+
+		assert.NoError(t, err, "codes fetch failure must not fail the create operation")
+		assert.NotNil(t, res)
+		assert.False(t, syncCalled, "tag sync must not be attempted when codes fetch failed")
+	})
+
+	t.Run("SyncChronicConditionTags error does not fail Delete", func(t *testing.T) {
+		petRepo := &mockPetRepository{
+			findByIDFn: func(_ context.Context, clinicID, id uint64) (*model.Pet, error) {
+				return &model.Pet{ID: id, ClinicID: clinicID, OwnerID: 500}, nil
+			},
+		}
+		repo := &mockPetChronicConditionRepository{
+			findByIDFn: func(_ context.Context, clinicID, id uint64) (*model.PetChronicCondition, error) {
+				return &model.PetChronicCondition{ID: id, ClinicID: clinicID}, nil
+			},
+			deleteFn: func(_ context.Context, _, _ uint64) error { return nil },
+			getActiveConditionCodesByOwnerFn: func(_ context.Context, _, _ uint64) ([]string, error) {
+				return []string{"C01"}, nil
+			},
+		}
+		tagSync := &chronicTagSyncOverride{
+			mockLstepTagSyncService: &mockLstepTagSyncService{},
+			syncChronicConditionTagsFn: func(_ context.Context, _, _ uint64, _ []string) error {
+				return errors.New("lstep sync failed")
+			},
+		}
+		svc := NewChronicConditionService(repo, petRepo, tagSync)
+
+		err := svc.Delete(ctx, 1, 100, 10)
+
+		assert.NoError(t, err, "tag sync failure must not fail the delete operation (best-effort)")
 	})
 }
 

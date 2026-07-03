@@ -109,6 +109,20 @@ func TestIsPetBasicInfoTag(t *testing.T) {
 			assert.Equal(t, tc.want, isPetBasicInfoTagWithPrefixes(tc.tag, c1Prefixes))
 		})
 	}
+
+	t.Run("prefixes outside category C1 are ignored even on an exact/prefix match", func(t *testing.T) {
+		mixedPrefixes := []*model.LstepAutoManagedPrefix{
+			{Prefix: "breed_", Category: "C2"}, // not C1 -> must not match despite the same prefix text
+			{Prefix: "sex_", Category: "C1"},
+		}
+		assert.False(t, isPetBasicInfoTagWithPrefixes("breed_shiba_inu", mixedPrefixes), "C2-category prefix must not classify the tag as C1")
+		assert.True(t, isPetBasicInfoTagWithPrefixes("sex_male", mixedPrefixes))
+	})
+
+	t.Run("empty dbPrefixes never matches", func(t *testing.T) {
+		assert.False(t, isPetBasicInfoTagWithPrefixes("breed_shiba_inu", nil))
+		assert.False(t, isPetBasicInfoTagWithPrefixes("", nil))
+	})
 }
 
 // ---- isDormantTag ----
@@ -1013,5 +1027,137 @@ func TestSyncExclusionTagsCaution(t *testing.T) {
 		err := svc.SyncExclusionTags(context.Background(), 1, 10)
 		assert.NoError(t, err)
 		assert.Contains(t, removedTags, exclTagDeliveryCaution)
+	})
+}
+
+// ---- buildClient ----
+
+func TestLstepTagSyncService_BuildClient(t *testing.T) {
+	tests := []struct {
+		name          string
+		isSyncEnabled bool
+		syncErr       error
+		apiKey        string
+		credErr       error
+		wantErr       bool
+		wantNilClient bool
+	}{
+		{
+			name:          "sync disabled -> nil client, nil error",
+			isSyncEnabled: false,
+			wantNilClient: true,
+		},
+		{
+			name:          "IsSyncEnabled error -> wrapped error",
+			isSyncEnabled: false,
+			syncErr:       errors.New("db error"),
+			wantErr:       true,
+			wantNilClient: true,
+		},
+		{
+			name:          "GetRawCredentials error -> wrapped error",
+			isSyncEnabled: true,
+			credErr:       errors.New("db error"),
+			wantErr:       true,
+			wantNilClient: true,
+		},
+		{
+			name:          "empty api key -> nil client, nil error",
+			isSyncEnabled: true,
+			apiKey:        "",
+			wantNilClient: true,
+		},
+		{
+			name:          "valid credentials -> non-nil client",
+			isSyncEnabled: true,
+			apiKey:        "secret-key",
+			wantNilClient: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			settingsSvc := &mockLstepSettingsService{
+				isSyncEnabledFn: func(_ context.Context, _ uint64) (bool, error) {
+					return tt.isSyncEnabled, tt.syncErr
+				},
+				getRawCredentialsFn: func(_ context.Context, _ uint64) (string, string, string, error) {
+					return tt.apiKey, "https://example.com", "", tt.credErr
+				},
+			}
+			svc := &lstepTagSyncService{settingsSvc: settingsSvc}
+
+			client, err := svc.buildClient(context.Background(), 1)
+
+			if tt.wantErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
+			if tt.wantNilClient {
+				assert.Nil(t, client)
+			} else {
+				assert.NotNil(t, client)
+			}
+		})
+	}
+
+	t.Run("buildClientFn override takes precedence over real settingsSvc lookups", func(t *testing.T) {
+		called := false
+		fakeClient := &mockLstepAPIClient{}
+		svc := &lstepTagSyncService{
+			settingsSvc: &mockLstepSettingsService{
+				isSyncEnabledFn: func(_ context.Context, _ uint64) (bool, error) {
+					t.Fatal("real settingsSvc must not be consulted when buildClientFn is set")
+					return false, nil
+				},
+			},
+			buildClientFn: func(_ context.Context, _ uint64) (lstep.Client, error) {
+				called = true
+				return fakeClient, nil
+			},
+		}
+		client, err := svc.buildClient(context.Background(), 1)
+		assert.NoError(t, err)
+		assert.Same(t, fakeClient, client)
+		assert.True(t, called)
+	})
+}
+
+// ---- shouldSkipSync ----
+
+func TestLstepTagSyncService_ShouldSkipSync(t *testing.T) {
+	t.Run("nil settingsSvc always skips", func(t *testing.T) {
+		svc := &lstepTagSyncService{}
+		skip, err := svc.shouldSkipSync(context.Background(), 1)
+		assert.NoError(t, err)
+		assert.True(t, skip)
+	})
+
+	t.Run("IsSyncEnabled error is wrapped and skip=false", func(t *testing.T) {
+		svc := &lstepTagSyncService{
+			settingsSvc: &mockLstepSettingsService{isSyncEnabledFn: func(_ context.Context, _ uint64) (bool, error) { return false, errors.New("db error") }},
+		}
+		skip, err := svc.shouldSkipSync(context.Background(), 1)
+		assert.Error(t, err)
+		assert.False(t, skip)
+	})
+
+	t.Run("sync disabled -> skip=true, nil error", func(t *testing.T) {
+		svc := &lstepTagSyncService{
+			settingsSvc: &mockLstepSettingsService{isSyncEnabledFn: func(_ context.Context, _ uint64) (bool, error) { return false, nil }},
+		}
+		skip, err := svc.shouldSkipSync(context.Background(), 1)
+		assert.NoError(t, err)
+		assert.True(t, skip)
+	})
+
+	t.Run("sync enabled -> skip=false, nil error", func(t *testing.T) {
+		svc := &lstepTagSyncService{
+			settingsSvc: &mockLstepSettingsService{isSyncEnabledFn: func(_ context.Context, _ uint64) (bool, error) { return true, nil }},
+		}
+		skip, err := svc.shouldSkipSync(context.Background(), 1)
+		assert.NoError(t, err)
+		assert.False(t, skip)
 	})
 }

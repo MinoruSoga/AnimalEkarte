@@ -1,11 +1,57 @@
 package handler
 
 import (
+	"net/url"
 	"testing"
 	"time"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 )
+
+func TestNewListExaminationQuery(t *testing.T) {
+	tests := []struct {
+		name   string
+		values url.Values
+		want   listExaminationQuery
+	}{
+		{
+			name: "extracts all query parameters",
+			values: url.Values{
+				"pet_id":     []string{"10"},
+				"owner_id":   []string{"20"},
+				"status":     []string{"completed"},
+				"start_date": []string{"2026-05-01"},
+				"end_date":   []string{"2026-05-31"},
+			},
+			want: listExaminationQuery{
+				PetID:     "10",
+				OwnerID:   "20",
+				Status:    "completed",
+				StartDate: "2026-05-01",
+				EndDate:   "2026-05-31",
+			},
+		},
+		{
+			name:   "returns zero value for empty query",
+			values: url.Values{},
+			want:   listExaminationQuery{},
+		},
+		{
+			name:   "returns zero value for nil query",
+			values: nil,
+			want:   listExaminationQuery{},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := newListExaminationQuery(tt.values)
+			if got != tt.want {
+				t.Errorf("newListExaminationQuery() = %#v, want %#v", got, tt.want)
+			}
+		})
+	}
+}
 
 func TestListExaminationQuery_ToServiceFilters(t *testing.T) {
 	filters, err := (&listExaminationQuery{

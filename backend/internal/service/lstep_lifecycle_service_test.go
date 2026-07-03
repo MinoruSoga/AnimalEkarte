@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
+	"github.com/animal-ekarte/backend/internal/infra/lstep"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/repository"
 )
@@ -281,7 +282,11 @@ func (m *mockLstepTagSyncService) SyncDormantTagsWithThresholds(_ context.Contex
 
 // ---- AuditService モック ----
 
-type mockAuditService struct{}
+// mockAuditService は AuditService のテスト用モック。logLstepOperationErr はゼロ値(nil)の場合は
+// 通常動作(成功)となり、既存テストの挙動には影響しない。
+type mockAuditService struct {
+	logLstepOperationErr error
+}
 
 func (m *mockAuditService) Log(_ context.Context, _ *model.AuditLog) error { return nil }
 func (m *mockAuditService) LogEntry(_ context.Context, _ *AuditLogInput) error {
@@ -291,6 +296,9 @@ func (m *mockAuditService) LogAuthLogin(_ context.Context, _, _ *uint64, _, _, _
 	return nil
 }
 func (m *mockAuditService) LogLstepOperation(_ context.Context, _ uint64, _ *uint64, _, _ string, _ *uint64) error {
+	if m.logLstepOperationErr != nil {
+		return m.logLstepOperationErr
+	}
 	return nil
 }
 
@@ -960,3 +968,491 @@ func TestLstepLifecycleService_LoadPetDerivedPrefixes(t *testing.T) {
 var _ repository.LstepTagCacheRepository = (*mockLstepTagCacheRepository)(nil)
 var _ LstepSettingsService = (*mockLstepSettingsService)(nil)
 var _ LstepTagSyncService = (*mockLstepTagSyncService)(nil)
+
+// mockLstepClientForLifecycle is a lstep.Client mock local to this file so that
+// removePetDerivedTagsFromLstep can be tested without any real HTTP calls (the client
+// is a plain function parameter on that method, so it can be injected directly).
+type mockLstepClientForLifecycle struct {
+	removeTagFn func(ctx context.Context, lineUserID, tagName string) error
+}
+
+func (m *mockLstepClientForLifecycle) AddTag(_ context.Context, _, _ string) error { return nil }
+func (m *mockLstepClientForLifecycle) RemoveTag(ctx context.Context, lineUserID, tagName string) error {
+	if m.removeTagFn != nil {
+		return m.removeTagFn(ctx, lineUserID, tagName)
+	}
+	return nil
+}
+func (m *mockLstepClientForLifecycle) GetUserTags(_ context.Context, _ string) ([]string, error) {
+	return nil, nil
+}
+func (m *mockLstepClientForLifecycle) AddTagBulk(_ context.Context, _ []string, _ string) error {
+	return nil
+}
+func (m *mockLstepClientForLifecycle) GetUser(_ context.Context, _ string) (*lstep.UserInfo, error) {
+	return nil, nil
+}
+func (m *mockLstepClientForLifecycle) SetProperty(_ context.Context, _, _, _ string) error {
+	return nil
+}
+
+var _ lstep.Client = (*mockLstepClientForLifecycle)(nil)
+
+// ---- buildClient ----
+
+func TestLstepLifecycleService_BuildClient(t *testing.T) {
+	tests := []struct {
+		name          string
+		isSyncEnabled bool
+		syncErr       error
+		apiKey        string
+		credErr       error
+		wantErr       bool
+		wantNilClient bool
+	}{
+		{
+			name:          "sync disabled -> nil client, nil error",
+			isSyncEnabled: false,
+			wantNilClient: true,
+		},
+		{
+			name:          "IsSyncEnabled error -> wrapped error",
+			isSyncEnabled: false,
+			syncErr:       errors.New("db error"),
+			wantErr:       true,
+			wantNilClient: true,
+		},
+		{
+			name:          "GetRawCredentials error -> wrapped error",
+			isSyncEnabled: true,
+			credErr:       errors.New("db error"),
+			wantErr:       true,
+			wantNilClient: true,
+		},
+		{
+			name:          "empty api key -> nil client, nil error",
+			isSyncEnabled: true,
+			apiKey:        "",
+			wantNilClient: true,
+		},
+		{
+			name:          "valid credentials -> non-nil client",
+			isSyncEnabled: true,
+			apiKey:        "secret-key",
+			wantNilClient: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			settingsSvc := &mockLstepSettingsService{
+				isSyncEnabledFn: func(_ context.Context, _ uint64) (bool, error) {
+					return tt.isSyncEnabled, tt.syncErr
+				},
+				getRawCredentialsFn: func(_ context.Context, _ uint64) (string, string, string, error) {
+					return tt.apiKey, "https://example.com", "", tt.credErr
+				},
+			}
+			svc := &lstepLifecycleService{settingsSvc: settingsSvc}
+
+			client, err := svc.buildClient(context.Background(), 1)
+
+			if tt.wantErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
+			if tt.wantNilClient {
+				assert.Nil(t, client)
+			} else {
+				assert.NotNil(t, client)
+			}
+		})
+	}
+}
+
+// ---- removeAllTagsFromLstep ----
+
+func TestLstepLifecycleService_RemoveAllTagsFromLstep(t *testing.T) {
+	tests := []struct {
+		name         string
+		settingsSvc  *mockLstepSettingsService
+		tagCacheRepo *mockLstepTagCacheRepository
+		wantErr      bool
+	}{
+		{
+			name: "buildClient error propagates",
+			settingsSvc: &mockLstepSettingsService{
+				isSyncEnabledFn: func(_ context.Context, _ uint64) (bool, error) {
+					return false, errors.New("settings db error")
+				},
+			},
+			tagCacheRepo: &mockLstepTagCacheRepository{},
+			wantErr:      true,
+		},
+		{
+			name:        "tag cache FindByOwner error is wrapped",
+			settingsSvc: defaultLstepSettingsSvc(),
+			tagCacheRepo: &mockLstepTagCacheRepository{
+				findByOwnerFn: func(_ context.Context, _, _ uint64) ([]*model.LstepTagCache, error) {
+					return nil, errors.New("db error")
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name:        "client nil (sync disabled) deletes cache without calling RemoveTag",
+			settingsSvc: defaultLstepSettingsSvc(),
+			tagCacheRepo: &mockLstepTagCacheRepository{
+				findByOwnerFn: func(_ context.Context, _, _ uint64) ([]*model.LstepTagCache, error) {
+					return []*model.LstepTagCache{{TagName: "cpm_new"}}, nil
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name:        "DeleteAllByOwner error is wrapped",
+			settingsSvc: defaultLstepSettingsSvc(),
+			tagCacheRepo: &mockLstepTagCacheRepository{
+				deleteAllByOwnerFn: func(_ context.Context, _, _ uint64) error {
+					return errors.New("db error")
+				},
+			},
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			svc := &lstepLifecycleService{
+				settingsSvc:  tt.settingsSvc,
+				tagCacheRepo: tt.tagCacheRepo,
+			}
+
+			err := svc.removeAllTagsFromLstep(context.Background(), 1, 10, "Uabc123")
+
+			if tt.wantErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
+
+// ---- removePetDerivedTagsFromLstep ----
+
+func TestLstepLifecycleService_RemovePetDerivedTagsFromLstep(t *testing.T) {
+	tests := []struct {
+		name             string
+		tagCacheRepo     *mockLstepTagCacheRepository
+		removeTagFn      func(ctx context.Context, lineUserID, tagName string) error
+		wantDeleteCalled bool
+	}{
+		{
+			name: "removes matching pet-derived tags (fallback prefixes), skips unrelated tags",
+			tagCacheRepo: &mockLstepTagCacheRepository{
+				findByOwnerFn: func(_ context.Context, _, _ uint64) ([]*model.LstepTagCache, error) {
+					return []*model.LstepTagCache{
+						{TagName: "vaccine_dog_2026-01-01"},
+						{TagName: "cpm_new"},
+					}, nil
+				},
+			},
+			wantDeleteCalled: true,
+		},
+		{
+			name: "FindByOwner error returns early without panic",
+			tagCacheRepo: &mockLstepTagCacheRepository{
+				findByOwnerFn: func(_ context.Context, _, _ uint64) ([]*model.LstepTagCache, error) {
+					return nil, errors.New("db error")
+				},
+			},
+		},
+		{
+			name: "RemoveTag error is best-effort, does not panic",
+			tagCacheRepo: &mockLstepTagCacheRepository{
+				findByOwnerFn: func(_ context.Context, _, _ uint64) ([]*model.LstepTagCache, error) {
+					return []*model.LstepTagCache{{TagName: "checkup_done_1"}}, nil
+				},
+			},
+			removeTagFn: func(_ context.Context, _, _ string) error { return errors.New("api error") },
+		},
+		{
+			name: "DeleteTag error is logged, does not panic",
+			tagCacheRepo: &mockLstepTagCacheRepository{
+				findByOwnerFn: func(_ context.Context, _, _ uint64) ([]*model.LstepTagCache, error) {
+					return []*model.LstepTagCache{{TagName: "vaccine_cat_2026-01-01"}}, nil
+				},
+				deleteTagFn: func(_ context.Context, _, _ uint64, _ string) error {
+					return errors.New("db error")
+				},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			deleteCalled := false
+			if tt.tagCacheRepo.deleteTagFn == nil {
+				tt.tagCacheRepo.deleteTagFn = func(_ context.Context, _, _ uint64, _ string) error {
+					deleteCalled = true
+					return nil
+				}
+			}
+			svc := &lstepLifecycleService{tagCacheRepo: tt.tagCacheRepo}
+			client := &mockLstepClientForLifecycle{removeTagFn: tt.removeTagFn}
+
+			assert.NotPanics(t, func() {
+				svc.removePetDerivedTagsFromLstep(context.Background(), client, 1, 10, "Uabc123")
+			})
+			if tt.wantDeleteCalled {
+				assert.True(t, deleteCalled)
+			}
+		})
+	}
+}
+
+// ---- HandlePetDeath: additional branches ----
+
+func TestLstepLifecycleService_HandlePetDeath_FindLivingByOwnerError(t *testing.T) {
+	petRepo := &mockPetRepository{
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.Pet, error) {
+			return &model.Pet{ID: 1, OwnerID: 10}, nil
+		},
+		updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) error { return nil },
+		findLivingByOwnerFn: func(_ context.Context, _, _ uint64) ([]model.Pet, error) {
+			return nil, errors.New("db error")
+		},
+	}
+	svc := newLstepLifecycleSvc(defaultLstepSettingsSvc(), &mockOwnerRepository{}, petRepo, &mockLstepTagCacheRepository{}, &mockLstepTagSyncService{})
+
+	err := svc.HandlePetDeath(context.Background(), 1, 1, time.Now(), "病気")
+
+	assert.Error(t, err)
+}
+
+func TestLstepLifecycleService_HandlePetDeath_AllPetsDead_OwnerFindError(t *testing.T) {
+	petRepo := &mockPetRepository{
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.Pet, error) {
+			return &model.Pet{ID: 1, OwnerID: 10}, nil
+		},
+		updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) error { return nil },
+		findLivingByOwnerFn: func(_ context.Context, _, _ uint64) ([]model.Pet, error) {
+			return []model.Pet{}, nil
+		},
+	}
+	ownerRepo := &mockOwnerRepository{
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.Owner, error) {
+			return nil, errors.New("db error")
+		},
+	}
+	svc := newLstepLifecycleSvc(defaultLstepSettingsSvc(), ownerRepo, petRepo, &mockLstepTagCacheRepository{}, &mockLstepTagSyncService{})
+
+	// owner lookup failure on the all-pets-dead path is best-effort: HandlePetDeath must
+	// still return nil (the death was already recorded successfully).
+	err := svc.HandlePetDeath(context.Background(), 1, 1, time.Now(), "病気")
+
+	assert.NoError(t, err)
+}
+
+func TestLstepLifecycleService_HandlePetDeath_AllPetsDead_LineLinkedRemovesTags(t *testing.T) {
+	lineUserID := "Uabc123"
+	deleteAllCalled := false
+	petRepo := &mockPetRepository{
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.Pet, error) {
+			return &model.Pet{ID: 1, OwnerID: 10}, nil
+		},
+		updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) error { return nil },
+		findLivingByOwnerFn: func(_ context.Context, _, _ uint64) ([]model.Pet, error) {
+			return []model.Pet{}, nil
+		},
+	}
+	ownerRepo := &mockOwnerRepository{
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.Owner, error) {
+			return &model.Owner{ID: 10, LineUserID: &lineUserID}, nil
+		},
+	}
+	tagCacheRepo := &mockLstepTagCacheRepository{
+		findByOwnerFn: func(_ context.Context, _, _ uint64) ([]*model.LstepTagCache, error) {
+			return []*model.LstepTagCache{{TagName: "cpm_new"}}, nil
+		},
+		deleteAllByOwnerFn: func(_ context.Context, _, _ uint64) error {
+			deleteAllCalled = true
+			return nil
+		},
+	}
+	svc := newLstepLifecycleSvc(defaultLstepSettingsSvc(), ownerRepo, petRepo, tagCacheRepo, &mockLstepTagSyncService{})
+
+	err := svc.HandlePetDeath(context.Background(), 1, 1, time.Now(), "病気")
+
+	assert.NoError(t, err)
+	assert.True(t, deleteAllCalled)
+}
+
+func TestLstepLifecycleService_HandlePetDeath_SurvivingPets_PetDerivedCleanupBestEffort(t *testing.T) {
+	lineUserID := "Uabc123"
+	petRepo := &mockPetRepository{
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.Pet, error) {
+			return &model.Pet{ID: 1, OwnerID: 10}, nil
+		},
+		updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) error { return nil },
+		findLivingByOwnerFn: func(_ context.Context, _, _ uint64) ([]model.Pet, error) {
+			return []model.Pet{{ID: 2, OwnerID: 10}}, nil
+		},
+	}
+	ownerRepo := &mockOwnerRepository{
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.Owner, error) {
+			return &model.Owner{ID: 10, LineUserID: &lineUserID}, nil
+		},
+	}
+	// Sync enabled with a real api key: buildClient returns a non-nil client, exercising
+	// the "cleanup path builds a client" branch of HandlePetDeath. tagCacheRepo returns no
+	// tags, so removePetDerivedTagsFromLstep never actually calls RemoveTag (no network hit).
+	settingsSvc := &mockLstepSettingsService{
+		isSyncEnabledFn: func(_ context.Context, _ uint64) (bool, error) { return true, nil },
+		getRawCredentialsFn: func(_ context.Context, _ uint64) (string, string, string, error) {
+			return "api-key", "https://example.com", "", nil
+		},
+	}
+	svc := newLstepLifecycleSvc(settingsSvc, ownerRepo, petRepo, &mockLstepTagCacheRepository{}, &mockLstepTagSyncService{})
+
+	err := svc.HandlePetDeath(context.Background(), 1, 1, time.Now(), "病気")
+
+	assert.NoError(t, err)
+}
+
+func TestLstepLifecycleService_HandlePetDeath_AuditLogFailureIsBestEffort(t *testing.T) {
+	petRepo := &mockPetRepository{
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.Pet, error) {
+			return &model.Pet{ID: 1, OwnerID: 10}, nil
+		},
+		updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) error { return nil },
+		findLivingByOwnerFn: func(_ context.Context, _, _ uint64) ([]model.Pet, error) {
+			return []model.Pet{{ID: 2, OwnerID: 10}}, nil
+		},
+	}
+	svc := NewLstepLifecycleService(
+		defaultLstepSettingsSvc(),
+		&mockOwnerRepository{},
+		petRepo,
+		&mockLstepTagCacheRepository{},
+		&mockLstepTagSyncService{},
+		&mockAuditService{logLstepOperationErr: errors.New("audit db error")},
+		nil,
+	)
+
+	err := svc.HandlePetDeath(context.Background(), 1, 1, time.Now(), "病気")
+
+	assert.NoError(t, err)
+}
+
+// ---- HandlePetRevival: additional branches ----
+
+func TestLstepLifecycleService_HandlePetRevival_UpdateError(t *testing.T) {
+	petRepo := &mockPetRepository{
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.Pet, error) {
+			return &model.Pet{ID: 1, OwnerID: 10}, nil
+		},
+		updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) error {
+			return errors.New("db error")
+		},
+	}
+	svc := newLstepLifecycleSvc(defaultLstepSettingsSvc(), &mockOwnerRepository{}, petRepo, &mockLstepTagCacheRepository{}, &mockLstepTagSyncService{})
+
+	err := svc.HandlePetRevival(context.Background(), 1, 1)
+
+	assert.Error(t, err)
+}
+
+func TestLstepLifecycleService_HandlePetRevival_SyncErrorsAreBestEffort(t *testing.T) {
+	petRepo := &mockPetRepository{
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.Pet, error) {
+			return &model.Pet{ID: 1, OwnerID: 10}, nil
+		},
+		updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) error { return nil },
+	}
+	syncSvc := &mockLstepTagSyncService{
+		syncOwnerAnimalClassificationTagFn: func(_ context.Context, _, _ uint64) error {
+			return errors.New("sync error")
+		},
+		syncPetBasicInfoTagsFn: func(_ context.Context, _, _ uint64) error {
+			return errors.New("sync error")
+		},
+		syncCPMStageTagFn: func(_ context.Context, _, _ uint64) error {
+			return errors.New("sync error")
+		},
+	}
+	svc := NewLstepLifecycleService(
+		defaultLstepSettingsSvc(),
+		&mockOwnerRepository{},
+		petRepo,
+		&mockLstepTagCacheRepository{},
+		syncSvc,
+		&mockAuditService{logLstepOperationErr: errors.New("audit db error")},
+		nil,
+	)
+
+	err := svc.HandlePetRevival(context.Background(), 1, 1)
+
+	assert.NoError(t, err)
+}
+
+// ---- HandleOwnerOptIn: additional branches ----
+
+func TestLstepLifecycleService_HandleOwnerOptIn_UpdateError(t *testing.T) {
+	ownerRepo := &mockOwnerRepository{
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.Owner, error) {
+			return &model.Owner{ID: 10, LstepOptOut: true}, nil
+		},
+		updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) error {
+			return errors.New("db error")
+		},
+	}
+	svc := newLstepLifecycleSvc(defaultLstepSettingsSvc(), ownerRepo, &mockPetRepository{}, &mockLstepTagCacheRepository{}, &mockLstepTagSyncService{})
+
+	err := svc.HandleOwnerOptIn(context.Background(), 1, 10)
+
+	assert.Error(t, err)
+}
+
+func TestLstepLifecycleService_HandleOwnerOptIn_SyncErrorIsBestEffort(t *testing.T) {
+	ownerRepo := &mockOwnerRepository{
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.Owner, error) {
+			return &model.Owner{ID: 10, LstepOptOut: true}, nil
+		},
+		updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) error { return nil },
+	}
+	syncSvc := &mockLstepTagSyncService{
+		syncCPMStageTagFn: func(_ context.Context, _, _ uint64) error {
+			return errors.New("sync error")
+		},
+	}
+	svc := newLstepLifecycleSvc(defaultLstepSettingsSvc(), ownerRepo, &mockPetRepository{}, &mockLstepTagCacheRepository{}, syncSvc)
+
+	err := svc.HandleOwnerOptIn(context.Background(), 1, 10)
+
+	assert.NoError(t, err)
+}
+
+// ---- HandleOwnerDeletion: additional branches ----
+
+func TestLstepLifecycleService_HandleOwnerDeletion_RemoveTagsErrorIsBestEffort(t *testing.T) {
+	lineUserID := "Uabc123"
+	ownerRepo := &mockOwnerRepository{
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.Owner, error) {
+			return &model.Owner{ID: 10, LineUserID: &lineUserID}, nil
+		},
+	}
+	tagCacheRepo := &mockLstepTagCacheRepository{
+		findByOwnerFn: func(_ context.Context, _, _ uint64) ([]*model.LstepTagCache, error) {
+			return nil, errors.New("db error")
+		},
+	}
+	svc := newLstepLifecycleSvc(defaultLstepSettingsSvc(), ownerRepo, &mockPetRepository{}, tagCacheRepo, &mockLstepTagSyncService{})
+
+	// removeAllTagsFromLstep failing must not abort the owner-deletion flow.
+	err := svc.HandleOwnerDeletion(context.Background(), 1, 10)
+
+	assert.NoError(t, err)
+}

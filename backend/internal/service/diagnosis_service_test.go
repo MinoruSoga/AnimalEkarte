@@ -286,6 +286,11 @@ func TestDiagnosisTypeService_Create(t *testing.T) {
 			repoErr: errors.New("db error"),
 			wantErr: true,
 		},
+		{
+			name:    "rejects empty name",
+			input:   &CreateDiagnosisTypeInput{Name: ""},
+			wantErr: true,
+		},
 	}
 
 	for _, tt := range tests {
@@ -315,14 +320,17 @@ func TestDiagnosisTypeService_Create(t *testing.T) {
 func TestDiagnosisTypeService_Update(t *testing.T) {
 	updatedName := "更新後カテゴリ名"
 	isActive := false
+	emptyName := "   "
 
 	tests := []struct {
 		name            string
 		id              uint64
 		input           *UpdateDiagnosisTypeInput
+		findByIDErr     error
 		updateFieldsErr error
 		fetchRes        *model.DiagnosisType
 		wantErr         bool
+		wantNF          bool
 	}{
 		{
 			name:            "updates category successfully",
@@ -352,11 +360,37 @@ func TestDiagnosisTypeService_Update(t *testing.T) {
 			updateFieldsErr: errors.New("db error"),
 			wantErr:         true,
 		},
+		{
+			name:        "returns not found error when FindByID fails",
+			id:          999,
+			input:       &UpdateDiagnosisTypeInput{Name: &updatedName},
+			findByIDErr: apperrors.WrapNotFound("diagnosis_type", "999"),
+			wantErr:     true,
+			wantNF:      true,
+		},
+		{
+			name:    "returns invalid input when name is blank",
+			id:      1,
+			input:   &UpdateDiagnosisTypeInput{Name: &emptyName},
+			wantErr: true,
+		},
+		{
+			name:    "returns invalid input when input is nil",
+			id:      1,
+			input:   nil,
+			wantErr: true,
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockDiagnosisTypeRepository{
+				findByIDFn: func(_ context.Context, _, id uint64) (*model.DiagnosisType, error) {
+					if tt.findByIDErr != nil {
+						return nil, tt.findByIDErr
+					}
+					return &model.DiagnosisType{ID: id, ClinicID: testClinicID}, nil
+				},
 				updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.DiagnosisType, error) {
 					return tt.fetchRes, tt.updateFieldsErr
 				},
@@ -368,6 +402,9 @@ func TestDiagnosisTypeService_Update(t *testing.T) {
 			if tt.wantErr {
 				assert.Error(t, err)
 				assert.Nil(t, result)
+				if tt.wantNF {
+					assert.True(t, apperrors.IsNotFound(err))
+				}
 			} else {
 				assert.NoError(t, err)
 				assert.NotNil(t, result)
@@ -610,6 +647,66 @@ func TestDiagnosisNameService_List(t *testing.T) {
 	}
 }
 
+// TestDiagnosisNameService_ListNames は #418 ページネーションなし一覧取得の委譲を検証する。
+func TestDiagnosisNameService_ListNames(t *testing.T) {
+	tests := []struct {
+		name     string
+		typeID   *uint64
+		repoData []model.DiagnosisName
+		repoErr  error
+		wantLen  int
+		wantErr  bool
+	}{
+		{
+			name: "returns all diagnosis names when typeID is nil",
+			repoData: []model.DiagnosisName{
+				{ID: 1, Name: "アトピー性皮膚炎", DiagnosisTypeID: 1},
+				{ID: 2, Name: "食物アレルギー", DiagnosisTypeID: 1},
+			},
+			wantLen: 2,
+		},
+		{
+			name:     "returns names filtered by typeID when provided",
+			typeID:   func() *uint64 { v := uint64(1); return &v }(),
+			repoData: []model.DiagnosisName{{ID: 1, Name: "アトピー性皮膚炎", DiagnosisTypeID: 1}},
+			wantLen:  1,
+		},
+		{
+			name:     "returns empty list when no names exist",
+			repoData: []model.DiagnosisName{},
+			wantLen:  0,
+		},
+		{
+			name:    "propagates repository error",
+			repoErr: errors.New("db connection error"),
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var capturedTypeID *uint64
+			repo := &mockDiagnosisNameRepository{
+				findAllByFilterFn: func(_ context.Context, _ uint64, typeID *uint64) ([]model.DiagnosisName, error) {
+					capturedTypeID = typeID
+					return tt.repoData, tt.repoErr
+				},
+			}
+			svc := newNameService(repo, defaultCategoryRepo())
+
+			names, err := svc.ListNames(context.Background(), testClinicID, tt.typeID)
+
+			if tt.wantErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+				assert.Len(t, names, tt.wantLen)
+				assert.Equal(t, tt.typeID, capturedTypeID)
+			}
+		})
+	}
+}
+
 func TestDiagnosisNameService_GetByID(t *testing.T) {
 	tests := []struct {
 		name         string
@@ -746,10 +843,12 @@ func TestDiagnosisNameService_Update(t *testing.T) {
 		name            string
 		id              uint64
 		input           *UpdateDiagnosisNameInput
+		findByIDErr     error
 		updateFieldsErr error
 		fetchRes        *model.DiagnosisName
 		categoryErr     error
 		wantErr         bool
+		wantNF          bool
 	}{
 		{
 			name:            "updates diagnosis name successfully",
@@ -786,11 +885,25 @@ func TestDiagnosisNameService_Update(t *testing.T) {
 			updateFieldsErr: errors.New("db error"),
 			wantErr:         true,
 		},
+		{
+			name:        "returns not found error when FindByID fails",
+			id:          999,
+			input:       &UpdateDiagnosisNameInput{Name: &updatedName},
+			findByIDErr: apperrors.WrapNotFound("diagnosis_name", "999"),
+			wantErr:     true,
+			wantNF:      true,
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockDiagnosisNameRepository{
+				findByIDFn: func(_ context.Context, _, id uint64) (*model.DiagnosisName, error) {
+					if tt.findByIDErr != nil {
+						return nil, tt.findByIDErr
+					}
+					return &model.DiagnosisName{ID: id, ClinicID: testClinicID}, nil
+				},
 				updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.DiagnosisName, error) {
 					return tt.fetchRes, tt.updateFieldsErr
 				},
@@ -811,6 +924,9 @@ func TestDiagnosisNameService_Update(t *testing.T) {
 			if tt.wantErr {
 				assert.Error(t, err)
 				assert.Nil(t, result)
+				if tt.wantNF {
+					assert.True(t, apperrors.IsNotFound(err))
+				}
 			} else {
 				assert.NoError(t, err)
 				assert.NotNil(t, result)
@@ -858,6 +974,12 @@ func TestDiagnosisNameService_Delete(t *testing.T) {
 			planCount:    3,
 			wantErr:      true,
 			wantConflict: true,
+		},
+		{
+			name:     "returns error when usage count check fails",
+			id:       1,
+			countErr: errors.New("db error"),
+			wantErr:  true,
 		},
 	}
 

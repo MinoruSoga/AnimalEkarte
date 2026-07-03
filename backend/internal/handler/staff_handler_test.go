@@ -494,6 +494,26 @@ func TestUpdateStaff(t *testing.T) {
 			svc:        &mockStaffService{},
 			wantStatus: http.StatusBadRequest,
 		},
+		{
+			name:       "returns 400 for invalid JSON body",
+			paramID:    "5",
+			body:       "not-json",
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockStaffService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:     "returns 500 on service error",
+			paramID:  "5",
+			body:     map[string]any{"name": "エラースタッフ"},
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockStaffService{
+				updateFn: func(_ context.Context, _, _ uint64, _ *service.UpdateStaffInput) (*model.Staff, error) {
+					return nil, fmt.Errorf("db failure")
+				},
+			},
+			wantStatus: http.StatusInternalServerError,
+		},
 	}
 
 	for _, tt := range tests {
@@ -510,6 +530,85 @@ func TestUpdateStaff(t *testing.T) {
 			tt.setupCtx(c)
 
 			h.UpdateStaff(c)
+
+			assert.Equal(t, tt.wantStatus, w.Code)
+		})
+	}
+}
+
+// ---- ReorderStaffs ----
+
+func TestReorderStaffs(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	tests := []struct {
+		name       string
+		body       any
+		setupCtx   func(c *gin.Context)
+		svc        *mockStaffService
+		wantStatus int
+	}{
+		{
+			name:     "reorders successfully and returns 204",
+			body:     map[string]any{"ids": []uint64{3, 1, 2}},
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockStaffService{
+				reorderFn: func(_ context.Context, clinicID uint64, ids []uint64) error {
+					assert.Equal(t, uint64(1), clinicID)
+					assert.Equal(t, []uint64{3, 1, 2}, ids)
+					return nil
+				},
+			},
+			wantStatus: http.StatusNoContent,
+		},
+		{
+			name:       "returns 401 when clinic_id is missing",
+			body:       map[string]any{"ids": []uint64{1}},
+			setupCtx:   func(_ *gin.Context) {},
+			svc:        &mockStaffService{},
+			wantStatus: http.StatusUnauthorized,
+		},
+		{
+			name:       "returns 400 when ids is empty",
+			body:       map[string]any{"ids": []uint64{}},
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockStaffService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:       "returns 400 for invalid JSON body",
+			body:       "not-json",
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockStaffService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:     "returns 500 on service error",
+			body:     map[string]any{"ids": []uint64{1, 2}},
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockStaffService{
+				reorderFn: func(_ context.Context, _ uint64, _ []uint64) error {
+					return fmt.Errorf("db failure")
+				},
+			},
+			wantStatus: http.StatusInternalServerError,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := newHandlerWithStaffSvc(tt.svc)
+			bodyBytes, err := json.Marshal(tt.body)
+			require.NoError(t, err)
+
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			c.Request = httptest.NewRequest(http.MethodPatch, "/", bytes.NewReader(bodyBytes))
+			c.Request.Header.Set("Content-Type", "application/json")
+			tt.setupCtx(c)
+
+			h.ReorderStaffs(c)
+			c.Writer.WriteHeaderNow() // flush a bare c.Status() (no body) to the recorder
 
 			assert.Equal(t, tt.wantStatus, w.Code)
 		})

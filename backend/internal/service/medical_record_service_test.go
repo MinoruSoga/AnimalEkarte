@@ -75,7 +75,7 @@ func (m *mockMedicalRecordRepository) FindFirstVisitDateByPetID(ctx context.Cont
 	return nil, nil
 }
 
-func (m *mockMedicalRecordRepository) CountEstimatesByMedicalRecordID(ctx context.Context, medicalRecordID uint64) (int64, error) {
+func (m *mockMedicalRecordRepository) CountEstimatesByMedicalRecordID(ctx context.Context, _, medicalRecordID uint64) (int64, error) {
 	if m.countEstimatesByMedicalRecordIDFn != nil {
 		return m.countEstimatesByMedicalRecordIDFn(ctx, medicalRecordID)
 	}
@@ -1387,7 +1387,7 @@ func (m *mockReservationRepoForMedicalRecord) ExistsByReservationTypeID(_ contex
 func (m *mockReservationRepoForMedicalRecord) ExistsByStaffID(_ context.Context, _, _ uint64) (bool, error) {
 	return false, nil
 }
-func (m *mockReservationRepoForMedicalRecord) CountMedicalRecordsByReservationID(_ context.Context, _ uint64) (int64, error) {
+func (m *mockReservationRepoForMedicalRecord) CountMedicalRecordsByReservationID(_ context.Context, _, _ uint64) (int64, error) {
 	return 0, nil
 }
 func (m *mockReservationRepoForMedicalRecord) CountByCustomerAndDateRange(_ context.Context, _, _ uint64, _, _ time.Time) (int64, error) {

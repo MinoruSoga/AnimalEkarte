@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 
@@ -238,6 +239,72 @@ func TestInventoryService_GetByID(t *testing.T) {
 	}
 }
 
+func TestBuildInventoryUpdate(t *testing.T) {
+	name := "点滴セット"
+	category := model.InventoryCategoryMedicine
+	quantity := 42
+	unit := "本"
+	minStock := 5
+	location := "棚A"
+	expiry := time.Date(2027, 1, 1, 0, 0, 0, 0, time.UTC)
+	supplier := "サプライヤーA"
+	lastRestocked := time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC)
+	status := model.InventoryStatusLow
+
+	tests := []struct {
+		name       string
+		input      *UpdateInventoryInput
+		wantFields map[string]any
+	}{
+		{
+			name:       "nil-value input produces empty fields",
+			input:      &UpdateInventoryInput{},
+			wantFields: map[string]any{},
+		},
+		{
+			name: "all fields set produces full field map",
+			input: &UpdateInventoryInput{
+				Name:          &name,
+				Category:      &category,
+				Quantity:      &quantity,
+				Unit:          &unit,
+				MinStockLevel: &minStock,
+				Location:      &location,
+				ExpiryDate:    &expiry,
+				Supplier:      &supplier,
+				LastRestocked: &lastRestocked,
+				Status:        &status,
+			},
+			wantFields: map[string]any{
+				"name":            name,
+				"category":        category,
+				"quantity":        quantity,
+				"unit":            unit,
+				"min_stock_level": minStock,
+				"location":        location,
+				"expiry_date":     expiry,
+				"supplier":        supplier,
+				"last_restocked":  lastRestocked,
+				"status":          status,
+			},
+		},
+		{
+			name: "only name set produces single field",
+			input: &UpdateInventoryInput{
+				Name: &name,
+			},
+			wantFields: map[string]any{"name": name},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := buildInventoryUpdate(tt.input)
+			assert.Equal(t, tt.wantFields, got)
+		})
+	}
+}
+
 func TestInventoryService_Create(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -273,6 +340,16 @@ func TestInventoryService_Create(t *testing.T) {
 			repoErr:  errors.New("db error"),
 			wantErr:  true,
 		},
+		{
+			name:     "explicit status overrides default sufficient status",
+			clinicID: 1,
+			input: &CreateInventoryInput{
+				Name:     "在庫少アイテム",
+				Category: string(model.InventoryCategoryMedicine),
+				Status:   string(model.InventoryStatusLow),
+			},
+			wantErr: false,
+		},
 	}
 
 	for _, tt := range tests {
@@ -292,9 +369,23 @@ func TestInventoryService_Create(t *testing.T) {
 			} else {
 				assert.NoError(t, err)
 				assert.NotNil(t, item)
+				if tt.input.Status != "" {
+					assert.Equal(t, model.InventoryStatus(tt.input.Status), item.Status)
+				} else {
+					assert.Equal(t, model.InventoryStatusSufficient, item.Status)
+				}
 			}
 		})
 	}
+}
+
+func TestInventoryService_Update_NilInput(t *testing.T) {
+	repo := &mockInventoryRepository{}
+	svc := NewInventoryService(repo)
+	item, err := svc.Update(context.Background(), 1, 1, nil)
+	assert.Error(t, err)
+	assert.True(t, apperrors.IsInvalidInput(err))
+	assert.Nil(t, item)
 }
 
 func TestInventoryService_Update(t *testing.T) {
@@ -302,11 +393,12 @@ func TestInventoryService_Update(t *testing.T) {
 	quantity := 200
 	statusSufficient := model.InventoryStatusSufficient
 	tests := []struct {
-		name    string
-		input   UpdateInventoryInput
-		repoErr error
-		wantErr bool
-		wantNF  bool
+		name        string
+		input       UpdateInventoryInput
+		repoErr     error
+		findByIDErr error
+		wantErr     bool
+		wantNF      bool
 	}{
 		{
 			name: "updates inventory item successfully",
@@ -341,11 +433,26 @@ func TestInventoryService_Update(t *testing.T) {
 			repoErr: errors.New("db error"),
 			wantErr: true,
 		},
+		{
+			name: "returns error when FindByID fails before update",
+			input: UpdateInventoryInput{
+				Name: &name,
+			},
+			findByIDErr: apperrors.WrapNotFound("inventory_item", "999"),
+			wantErr:     true,
+			wantNF:      true,
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockInventoryRepository{
+				findByIDFn: func(_ context.Context, clinicID, id uint64) (*model.InventoryItem, error) {
+					if tt.findByIDErr != nil {
+						return nil, tt.findByIDErr
+					}
+					return &model.InventoryItem{ID: id, ClinicID: clinicID}, nil
+				},
 				updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.InventoryItem, error) {
 					if tt.repoErr != nil {
 						return nil, tt.repoErr

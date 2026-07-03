@@ -112,3 +112,17 @@ func TestTokenBlacklistRepository_DeleteExpired(t *testing.T) {
 		assert.True(t, exists, "有効エントリは失効照会でも存在扱いであるべき")
 	})
 }
+
+// TestTokenBlacklistRepository_Create_DuplicateJTI は jti が主キーであるため、
+// 同一 JTI の重複登録が GORM エラーとしてラップされて返ることを検証する
+// （apperrors.FromGORM の NotFound 以外の分岐を経由する）。
+func TestTokenBlacklistRepository_Create_DuplicateJTI(t *testing.T) {
+	db := setupTokenBlacklistTestDB(t)
+	repo := NewTokenBlacklistRepository(db)
+	ctx := context.Background()
+
+	makeBlacklistEntry(t, repo, "duplicate-jti", time.Now().Add(1*time.Hour))
+
+	err := repo.Create(ctx, &model.TokenBlacklist{JTI: "duplicate-jti", ExpiresAt: time.Now().Add(2 * time.Hour)})
+	require.Error(t, err, "主キー重複は作成エラーになるべき")
+}

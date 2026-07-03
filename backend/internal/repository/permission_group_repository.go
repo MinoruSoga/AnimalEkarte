@@ -173,6 +173,12 @@ func (r *permissionGroupRepository) FindAllEffectivePermissionsByStaffID(ctx con
 }
 
 // FindAllGroupIDsByStaffID はスタッフが所属する権限グループIDリストを返す。
+// BE-refactor.md R2-5 (D12) レビュー結果: clinic_id 述語なしを意図的に維持する。
+// permission_groups.id はクリニック横断でグローバル一意の PK であり、呼び出し元
+// (UpdateRules の自己参照チェック) は「groupID ∈ staffGroupIDs」という単純メンバーシップ判定にのみ使う。
+// クリニックでスコープしても対象 groupID は既に一意なため判定結果は変わらず、
+// スコープを追加すると clinicID の追加引数貫通のみでセキュリティ上の実利益がない
+// （D12 実測: 実害は低い・整数IDのみ）。
 func (r *permissionGroupRepository) FindAllGroupIDsByStaffID(ctx context.Context, staffID uint64) ([]uint64, error) {
 	var rows []struct {
 		GroupID uint64

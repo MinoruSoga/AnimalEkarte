@@ -56,7 +56,7 @@ func (m *batchMockReservationRepo) ExistsByReservationTypeID(_ context.Context, 
 func (m *batchMockReservationRepo) ExistsByStaffID(_ context.Context, _, _ uint64) (bool, error) {
 	return false, nil
 }
-func (m *batchMockReservationRepo) CountMedicalRecordsByReservationID(_ context.Context, _ uint64) (int64, error) {
+func (m *batchMockReservationRepo) CountMedicalRecordsByReservationID(_ context.Context, _, _ uint64) (int64, error) {
 	return 0, nil
 }
 func (m *batchMockReservationRepo) CountByCustomerAndDateRange(_ context.Context, _, _ uint64, _, _ time.Time) (int64, error) {
@@ -103,7 +103,7 @@ func (m *batchMockMedRecordRepo) CountByPetID(_ context.Context, _, _ uint64) (i
 func (m *batchMockMedRecordRepo) FindFirstVisitDateByPetID(_ context.Context, _, _ uint64) (*time.Time, error) {
 	return nil, nil
 }
-func (m *batchMockMedRecordRepo) CountEstimatesByMedicalRecordID(_ context.Context, _ uint64) (int64, error) {
+func (m *batchMockMedRecordRepo) CountEstimatesByMedicalRecordID(_ context.Context, _, _ uint64) (int64, error) {
 	return 0, nil
 }
 func (m *batchMockMedRecordRepo) FindOwnerVisitSummary(_ context.Context, _, _ uint64) (*repository.OwnerVisitSummary, error) {

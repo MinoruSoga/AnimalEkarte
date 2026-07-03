@@ -153,10 +153,12 @@ func (r *treatmentRepository) Create(ctx context.Context, treatment *model.Treat
 }
 
 func (r *treatmentRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
+	// NOTE: GORM does not propagate Joins() into the generated UPDATE statement's SQL
+	// (it is a SELECT-only clause), so a WHERE referencing the joined table fails with
+	// "missing FROM-clause entry". clinic_id isolation must be expressed as a subquery instead.
 	result := r.db.WithContext(ctx).
 		Model(&model.Treatment{}).
-		Joins("JOIN medical_records ON medical_records.id = treatments.medical_record_id AND medical_records.deleted_at IS NULL").
-		Where("medical_records.clinic_id = ? AND treatments.id = ? AND treatments.deleted_at IS NULL", clinicID, id).
+		Where("treatments.id = ? AND treatments.deleted_at IS NULL AND treatments.medical_record_id IN (SELECT id FROM medical_records WHERE clinic_id = ? AND deleted_at IS NULL)", id, clinicID).
 		Updates(fields)
 	if result.Error != nil {
 		return apperrors.FromGORM(result.Error, "treatment", fmt.Sprintf("%d", id))
@@ -168,9 +170,9 @@ func (r *treatmentRepository) Update(ctx context.Context, clinicID, id uint64, f
 }
 
 func (r *treatmentRepository) Delete(ctx context.Context, clinicID, id uint64) error {
+	// NOTE: see Update — Joins() does not propagate into DELETE's SQL either.
 	result := r.db.WithContext(ctx).
-		Joins("JOIN medical_records ON medical_records.id = treatments.medical_record_id AND medical_records.deleted_at IS NULL").
-		Where("medical_records.clinic_id = ? AND treatments.id = ? AND treatments.deleted_at IS NULL", clinicID, id).
+		Where("treatments.id = ? AND treatments.deleted_at IS NULL AND treatments.medical_record_id IN (SELECT id FROM medical_records WHERE clinic_id = ? AND deleted_at IS NULL)", id, clinicID).
 		Delete(&model.Treatment{})
 	if result.Error != nil {
 		return apperrors.FromGORM(result.Error, "treatment", fmt.Sprintf("%d", id))
@@ -185,8 +187,7 @@ func (r *treatmentRepository) BulkUpdateSortOrder(ctx context.Context, updates [
 	if err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		for _, u := range updates {
 			result := tx.Model(&model.Treatment{}).
-				Joins("JOIN medical_records ON treatments.medical_record_id = medical_records.id").
-				Where("treatments.id = ? AND treatments.deleted_at IS NULL AND medical_records.clinic_id = ?", u.ID, u.ClinicID).
+				Where("treatments.id = ? AND treatments.deleted_at IS NULL AND treatments.medical_record_id IN (SELECT id FROM medical_records WHERE clinic_id = ?)", u.ID, u.ClinicID).
 				Update("sort_order", u.SortOrder)
 			if result.Error != nil {
 				return apperrors.FromGORM(result.Error, "treatment", fmt.Sprintf("%d", u.ID))

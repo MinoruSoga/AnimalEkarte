@@ -1,44 +1,46 @@
 ---
 name: implement-issue
-description: イシュー番号（BE-XXX / FE-XXX）を指定して、コード規約準拠の実装 → セルフレビュー → イシュークローズまでを自動化する。`/implement FE-038` のように使用。
+description: docs/tasks/open/ のタスクID（FEAT-XXX / PERF-XXX / BUG-XXX / SEED-XXX 等）を指定して、コード規約準拠の実装 → セルフレビュー → タスククローズまでを自動化する。`/implement PERF-FOLLOWUP-01` のように使用。旧 BE-XXX / FE-XXX イシュー体系は docs/archive/ に移設済み（新規実装には使わない）。
 ---
 
-# Implement Issue — イシュー実装ワークフロー
+# Implement Issue — タスク実装ワークフロー
 
-イシューファイルを読み込み、コード規約に準拠した実装 → セルフレビュー → クローズ処理までを実行する。
+タスクファイルを読み込み、コード規約に準拠した実装 → セルフレビュー → クローズ処理までを実行する。
+
+> **パス正本の注意**: 旧 `backend/issues/` / `frontend/issues/` 体系は**廃止済み**。
+> closed のみ `docs/archive/backend-issues/` / `docs/archive/frontend-issues/` に残存する。
+> 現行のタスク管理は `docs/tasks/{open,closed,pending}/`（.gitignore 済み — タスクファイルの commit 提案はしない）。
 
 ## 起動トリガー
 
-- `/implement BE-XXX` または `/implement FE-XXX`（例: `/implement FE-038`）
-- 旧形式番号も対応: `/implement 003`（`open/` 内からファイル名に `003` を含むものを検索）
-- 引数なしの場合: `frontend/issues/open/` + `backend/issues/open/` を一覧表示し、ユーザーに選択させる
+- `/implement <タスクID>`（例: `/implement PERF-FOLLOWUP-01`）— `docs/tasks/open/` からファイル名前方一致で検索
+- 引数なしの場合: `docs/tasks/open/` を一覧表示し、ユーザーに選択させる
+- 旧 `BE-XXX` / `FE-XXX` 番号を指定された場合: `docs/archive/*/closed/` を参照して経緯確認のみ行い、新規実装には使わない
 
 引数は `$ARGUMENTS` 変数で受け取る。
 
 ---
 
-## Phase 1: イシュー選択・読み込み
+## Phase 1: タスク選択・読み込み
 
 ### 1.1 引数解析
 
-- `BE-XXX` → `backend/issues/open/BE-XXX-*.md` を検索
-- `FE-XXX` → `frontend/issues/open/FE-XXX-*.md` を検索
-- 旧形式（`003`, `master-002` 等プレフィックスなし）→ 両ディレクトリから `*003*` でパターン検索
+- タスクID（`FEAT-XXX`, `PERF-XXX`, `BUG-XXX`, `SEED-XXX` 等）→ `docs/tasks/open/<ID>*.md` を前方一致検索
 - 引数なし → 以下を実行して一覧表示:
 
 ```bash
-echo "=== Backend Issues (Open) ==="
-ls backend/issues/open/*.md 2>/dev/null | sort
+echo "=== Open Tasks ==="
+ls docs/tasks/open/*.md 2>/dev/null | sort
 echo ""
-echo "=== Frontend Issues (Open) ==="
-ls frontend/issues/open/*.md 2>/dev/null | sort
+echo "=== Pending Tasks (着手保留) ==="
+ls docs/tasks/pending/*.md 2>/dev/null | sort
 ```
 
 ユーザーに番号またはファイル名を選択させる。
 
-### 1.2 イシューファイル読み込み
+### 1.2 タスクファイル読み込み
 
-イシューファイルを Read で読み込み、以下を抽出:
+タスクファイルを Read で読み込み、以下を抽出:
 - **Summary**: 実装内容の概要
 - **親タスク**: 親 TASK へのリンク（`**親タスク**: [TASK-XXX](...)` 形式）
 - **Related**: 依存イシュー（`BE-XXX`, `FE-XXX`, `TASK-XXX`）
@@ -48,17 +50,16 @@ ls frontend/issues/open/*.md 2>/dev/null | sort
 
 ### 1.3 依存関係チェック
 
-- `Related` と「依存関係」セクションに記載された前提イシューが `closed/` に存在するか確認
-- FE イシューが BE イシューに依存する場合:
-  - `backend/issues/closed/` に対応する BE イシューがあるか確認
-  - なければユーザーに警告: 「BE-XXX が未完了。先に実装するか？」
+- `Related` と「依存関係」セクションに記載された前提タスクが `docs/tasks/closed/` に存在するか確認
+- 前提タスクが未完了（`open/` または `pending/` に残存）の場合:
+  - ユーザーに警告: 「<前提ID> が未完了。先に実装するか？」
 
 ```bash
-# 依存イシューのクローズ確認（新旧両形式に対応）
-ls backend/issues/closed/BE-XXX-*.md 2>/dev/null
-ls backend/issues/closed/*XXX*.md 2>/dev/null
-ls frontend/issues/closed/FE-XXX-*.md 2>/dev/null
-ls frontend/issues/closed/*XXX*.md 2>/dev/null
+# 依存タスクのクローズ確認
+ls docs/tasks/closed/*XXX*.md 2>/dev/null
+# 旧イシュー体系（BE-XXX / FE-XXX）はアーカイブを確認
+ls docs/archive/backend-issues/closed/*XXX*.md 2>/dev/null
+ls docs/archive/frontend-issues/closed/*XXX*.md 2>/dev/null
 ```
 
 ---
@@ -74,7 +75,7 @@ ls frontend/issues/closed/*XXX*.md 2>/dev/null
 **FE イシューの場合:**
 - `features/owners/` の対応パターンを確認（ベストプラクティス参照実装）
 - 変更内容に応じて、以下のファイルから該当パターンを読む:
-  - フォーム系 → `features/owners/routes/OwnerForm.tsx` + `features/owners/hooks/useOwnerForm.ts`
+  - フォーム系 → `features/owners/routes/OwnerForm.tsx` + `features/owners/hooks/use-owner-form.ts`
   - リスト系 → `features/owners/routes/OwnersList.tsx`
   - API hooks → `features/owners/api/` 内の対応ファイル
   - loader → `features/owners/loaders.ts`
@@ -134,8 +135,8 @@ ls frontend/issues/closed/*XXX*.md 2>/dev/null
 ### 3.3 実装実行
 
 - `implementer` エージェント（Sonnet）を使って実装を並列実行してよい
-- DB マイグレーションがある場合: `backend/migrations/001_init.sql` を直接編集（リリース前運用）
-- モデル変更がある場合: `make codegen` を実行して `models.ts` を更新
+- DB マイグレーションがある場合: **適用済み migration の編集は禁止**（checksum mismatch → STG db_reset が必要になる。出典: memory ops_applied_migration_edit_requires_db_reset）。`backend/migrations/` の最終番号 +1 で新規ファイルを追加し、`migration-seed-safety` スキルのチェックリストに従う
+- モデル変更がある場合: `make codegen` を実行して `models.ts` を更新（※ CLAUDE.md の自動実行禁止コマンド。ユーザーに実行を依頼する）
 
 ```bash
 # モデル変更後の codegen
@@ -173,19 +174,26 @@ make codegen
 - [ ] PATCH はポインタ型 + `buildXxxUpdateFields()`
 - [ ] service に `*gin.Context` / `binding:` タグなし
 
-### 4.4 Lint・ビルド・テスト実行（Docker 経由）
+### 4.4 Lint・ビルド・テスト実行（Docker 経由・スコープ限定）
+
+**全体 lint / build / test（`pnpm lint` `pnpm build` `pnpm test:run` `golangci-lint run ./...` `go test ./...`）は CLAUDE.md の自動実行禁止コマンド。** 変更スコープに限定した検証を自分で実行し、全体検証はユーザーに手動実行を依頼する。
 
 ```bash
-# FE の場合（3段階: lint → 型チェック → テスト）
-docker compose exec frontend pnpm lint
-docker compose exec frontend pnpm build
-docker compose exec frontend pnpm test:run
+# FE の場合 — 変更した feature に限定（`--` 付き pnpm test は全件実行になる罠。npx vitest run <path> が正。出典: memory feedback_frontend_verify_harness_gotchas）
+docker compose exec frontend npx vitest run src/features/<対象feature>
 
-# BE の場合（3段階: lint → vet/build → テスト）
-docker compose exec backend golangci-lint run ./...
-docker compose exec backend go vet ./...
+# BE の場合 — 変更したパッケージに限定
 docker compose exec backend go build ./...
-docker compose exec backend go test ./... -v
+docker compose exec backend go vet ./internal/<対象パッケージ>/...
+docker compose exec backend go test ./internal/<対象パッケージ>/...
+```
+
+全体検証が必要な場合の依頼文例:
+
+```
+変更完了。全体検証は以下を手動実行してください:
+$ docker compose exec backend go test ./...
+$ docker compose exec frontend pnpm lint && docker compose exec frontend pnpm test:run
 ```
 
 ### 4.5 問題があれば Phase 3 に戻る（最大3回）
@@ -197,9 +205,9 @@ Lint エラー・型エラー・テスト失敗・規約違反があれば修正
 
 ## Phase 5: クローズ処理
 
-### 5.1 イシューファイル更新
+### 5.1 タスクファイル更新
 
-イシューファイルの先頭に YAML frontmatter を更新:
+タスクファイルの先頭の Status を更新:
 
 ```
 **Status**: Closed
@@ -217,17 +225,8 @@ Lint エラー・型エラー・テスト失敗・規約違反があれば修正
 ### 5.2 ファイル移動
 
 ```bash
-# closed/ ディレクトリが存在することを確認
-mkdir -p backend/issues/closed frontend/issues/closed
-
-# BE イシューの場合
-mv backend/issues/open/BE-XXX-*.md backend/issues/closed/
-
-# FE イシューの場合
-mv frontend/issues/open/FE-XXX-*.md frontend/issues/closed/
-
-# 旧形式イシューの場合（BE-/FE- プレフィックスなし）
-# mv [backend|frontend]/issues/open/XXX-*.md [backend|frontend]/issues/closed/
+# タスクファイルを closed へ移動（docs/tasks は .gitignore 済み — commit 提案はしない）
+mv docs/tasks/open/<タスクID>*.md docs/tasks/closed/
 ```
 
 ### 5.3 親 TASK ドキュメント更新（存在する場合）
@@ -242,19 +241,19 @@ mv frontend/issues/open/FE-XXX-*.md frontend/issues/closed/
 以下のフォーマットでユーザーに報告:
 
 ```
-## 実装完了: [BE/FE]-XXX
+## 実装完了: <タスクID>
 
 ### 変更ファイル
 - `path/to/file1.tsx` — 変更内容
 - `path/to/file2.ts` — 変更内容
 
 ### レビュー結果
-- Lint: PASS
-- Build: PASS
+- スコープ限定 vet/test: PASS（実行したコマンドと結果を明記）
 - 完了条件: 全項目クリア
+- 全体 lint/test: ユーザー手動実行待ち（コマンド提示済み）
 
-### イシュー
-- [BE/FE]-XXX → closed/ に移動済み
+### タスク
+- <タスクID> → docs/tasks/closed/ に移動済み
 ```
 
 ---

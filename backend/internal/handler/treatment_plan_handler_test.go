@@ -1,14 +1,1373 @@
 package handler
 
 import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
+	"strconv"
 	"testing"
+	"time"
 
+	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	apperrors "github.com/animal-ekarte/backend/internal/errors"
+	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/service"
 )
 
 // TestTreatmentPlanHandlerCompiles verifies treatment_plan_handler.go compiles
 func TestTreatmentPlanHandlerCompiles(t *testing.T) {
 	assert.True(t, true, "treatment_plan_handler.go compiled successfully")
+}
+
+// ---- mock TreatmentPlanService ----
+
+type mockTreatmentPlanService struct {
+	listByMedicalRecordFn   func(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.TreatmentPlan, error)
+	listByHospitalizationFn func(ctx context.Context, clinicID, hospitalizationID uint64) ([]model.TreatmentPlan, error)
+	getByIDFn               func(ctx context.Context, clinicID, id uint64) (*model.TreatmentPlan, error)
+	createFn                func(ctx context.Context, clinicID uint64, medicalRecordID, hospitalizationID *uint64, input *service.CreateTreatmentPlanInput) (*model.TreatmentPlan, error)
+	updateFn                func(ctx context.Context, clinicID, id uint64, input *service.UpdateTreatmentPlanInput) (*model.TreatmentPlan, error)
+	deleteFn                func(ctx context.Context, clinicID, id uint64) error
+}
+
+func (m *mockTreatmentPlanService) ListByMedicalRecord(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.TreatmentPlan, error) {
+	return m.listByMedicalRecordFn(ctx, clinicID, medicalRecordID)
+}
+
+func (m *mockTreatmentPlanService) ListByHospitalization(ctx context.Context, clinicID, hospitalizationID uint64) ([]model.TreatmentPlan, error) {
+	return m.listByHospitalizationFn(ctx, clinicID, hospitalizationID)
+}
+
+func (m *mockTreatmentPlanService) GetByID(ctx context.Context, clinicID, id uint64) (*model.TreatmentPlan, error) {
+	if m.getByIDFn != nil {
+		return m.getByIDFn(ctx, clinicID, id)
+	}
+	return &model.TreatmentPlan{ID: id, ClinicID: clinicID}, nil
+}
+
+func (m *mockTreatmentPlanService) Create(ctx context.Context, clinicID uint64, medicalRecordID, hospitalizationID *uint64, input *service.CreateTreatmentPlanInput) (*model.TreatmentPlan, error) {
+	return m.createFn(ctx, clinicID, medicalRecordID, hospitalizationID, input)
+}
+
+func (m *mockTreatmentPlanService) Update(ctx context.Context, clinicID, id uint64, input *service.UpdateTreatmentPlanInput) (*model.TreatmentPlan, error) {
+	return m.updateFn(ctx, clinicID, id, input)
+}
+
+func (m *mockTreatmentPlanService) Delete(ctx context.Context, clinicID, id uint64) error {
+	return m.deleteFn(ctx, clinicID, id)
+}
+
+// ---- test helpers ----
+// (mockHospitalizationService is already defined in hospitalization_handler_test.go and is
+// reused here; note that its getByIDFn field has no nil-safe default, so every test case in
+// this file that reaches Hospitalization.GetByID must set it explicitly.)
+
+func newHandlerWithTreatmentPlanSvc(tpSvc service.TreatmentPlanService, hospSvc service.HospitalizationService, mrSvc service.MedicalRecordService, effPerm service.EffectivePermissionService) *Handler {
+	return &Handler{svc: &service.Services{
+		TreatmentPlan:       tpSvc,
+		Hospitalization:     hospSvc,
+		MedicalRecord:       mrSvc,
+		EffectivePermission: effPerm,
+	}}
+}
+
+// noPermEffPerm は discount 権限を一切持たないルールセットを返すヘルパー。
+func noPermEffPerm() *mockEffectivePermissionService {
+	return &mockEffectivePermissionService{
+		getEffectivePermissionsFn: func(_ context.Context, _, _ uint64) ([]model.PermissionGroupRule, error) {
+			return nil, nil
+		},
+	}
+}
+
+// ---- ListTreatmentPlansByMedicalRecord ----
+
+func TestListTreatmentPlansByMedicalRecord(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	tests := []struct {
+		name       string
+		paramID    string
+		setupCtx   func(c *gin.Context)
+		mrSvc      *mockMedicalRecordService
+		tpSvc      *mockTreatmentPlanService
+		wantStatus int
+		wantBody   string
+	}{
+		{
+			name:     "returns list of treatment plans",
+			paramID:  "7",
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			mrSvc: &mockMedicalRecordService{
+				getByIDFn: func(_ context.Context, clinicID, id uint64) (*model.MedicalRecord, error) {
+					assert.Equal(t, uint64(1), clinicID)
+					assert.Equal(t, uint64(7), id)
+					return &model.MedicalRecord{ID: 7, ClinicID: 1}, nil
+				},
+			},
+			tpSvc: &mockTreatmentPlanService{
+				listByMedicalRecordFn: func(_ context.Context, _, _ uint64) ([]model.TreatmentPlan, error) {
+					return []model.TreatmentPlan{{ID: 1, TreatmentContent: "点滴"}}, nil
+				},
+			},
+			wantStatus: http.StatusOK,
+			wantBody:   `"treatment_content":"点滴"`,
+		},
+		{
+			name:       "returns 401 when clinic_id is missing",
+			paramID:    "7",
+			setupCtx:   func(_ *gin.Context) {},
+			mrSvc:      &mockMedicalRecordService{},
+			tpSvc:      &mockTreatmentPlanService{},
+			wantStatus: http.StatusUnauthorized,
+		},
+		{
+			name:       "returns 400 for non-numeric medical record id",
+			paramID:    "abc",
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			mrSvc:      &mockMedicalRecordService{},
+			tpSvc:      &mockTreatmentPlanService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:     "returns 404 when medical record not found",
+			paramID:  "999",
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			mrSvc: &mockMedicalRecordService{
+				getByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
+					return nil, apperrors.WrapNotFound("medical_record", "999")
+				},
+			},
+			tpSvc:      &mockTreatmentPlanService{},
+			wantStatus: http.StatusNotFound,
+		},
+		{
+			name:     "returns 500 on service error",
+			paramID:  "7",
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			mrSvc: &mockMedicalRecordService{
+				getByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
+					return &model.MedicalRecord{ID: 7, ClinicID: 1}, nil
+				},
+			},
+			tpSvc: &mockTreatmentPlanService{
+				listByMedicalRecordFn: func(_ context.Context, _, _ uint64) ([]model.TreatmentPlan, error) {
+					return nil, fmt.Errorf("db failure")
+				},
+			},
+			wantStatus: http.StatusInternalServerError,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := newHandlerWithTreatmentPlanSvc(tt.tpSvc, &mockHospitalizationService{}, tt.mrSvc, &mockEffectivePermissionService{})
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			c.Request = httptest.NewRequest(http.MethodGet, "/", http.NoBody)
+			c.Params = gin.Params{{Key: "id", Value: tt.paramID}}
+			tt.setupCtx(c)
+			h.ListTreatmentPlansByMedicalRecord(c)
+			assert.Equal(t, tt.wantStatus, w.Code)
+			if tt.wantBody != "" {
+				assert.Contains(t, w.Body.String(), tt.wantBody)
+			}
+		})
+	}
+}
+
+// ---- CreateTreatmentPlanForMedicalRecord ----
+
+func TestCreateTreatmentPlanForMedicalRecord(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	validBody := map[string]any{
+		"treatment_content": "点滴",
+		"unit_price":        1000,
+		"quantity":          1,
+	}
+
+	tests := []struct {
+		name       string
+		paramID    string
+		body       any
+		malformed  bool
+		setupCtx   func(c *gin.Context)
+		mrSvc      *mockMedicalRecordService
+		tpSvc      *mockTreatmentPlanService
+		effPerm    *mockEffectivePermissionService
+		wantStatus int
+		wantHeader string
+	}{
+		{
+			name:     "creates plan with valid body",
+			paramID:  "7",
+			body:     validBody,
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			mrSvc: &mockMedicalRecordService{
+				getByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
+					return &model.MedicalRecord{ID: 7, ClinicID: 1}, nil
+				},
+			},
+			tpSvc: &mockTreatmentPlanService{
+				createFn: func(_ context.Context, clinicID uint64, medicalRecordID, hospitalizationID *uint64, input *service.CreateTreatmentPlanInput) (*model.TreatmentPlan, error) {
+					assert.Equal(t, uint64(1), clinicID)
+					require.NotNil(t, medicalRecordID)
+					assert.Equal(t, uint64(7), *medicalRecordID)
+					assert.Nil(t, hospitalizationID)
+					assert.Equal(t, "点滴", input.TreatmentContent)
+					return &model.TreatmentPlan{ID: 1, TreatmentContent: input.TreatmentContent}, nil
+				},
+			},
+			wantStatus: http.StatusCreated,
+			wantHeader: "/api/v1/medical-records/7/treatment-plans/1",
+		},
+		{
+			name:       "returns 401 when clinic_id is missing",
+			paramID:    "7",
+			body:       validBody,
+			setupCtx:   func(_ *gin.Context) {},
+			mrSvc:      &mockMedicalRecordService{},
+			tpSvc:      &mockTreatmentPlanService{},
+			wantStatus: http.StatusUnauthorized,
+		},
+		{
+			name:       "returns 400 for non-numeric medical record id",
+			paramID:    "abc",
+			body:       validBody,
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			mrSvc:      &mockMedicalRecordService{},
+			tpSvc:      &mockTreatmentPlanService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:     "returns 404 when medical record not found",
+			paramID:  "999",
+			body:     validBody,
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			mrSvc: &mockMedicalRecordService{
+				getByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
+					return nil, apperrors.WrapNotFound("medical_record", "999")
+				},
+			},
+			tpSvc:      &mockTreatmentPlanService{},
+			wantStatus: http.StatusNotFound,
+		},
+		{
+			name:      "returns 400 when body is malformed",
+			paramID:   "7",
+			malformed: true,
+			setupCtx:  func(c *gin.Context) { setClinicID(c) },
+			mrSvc: &mockMedicalRecordService{
+				getByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
+					return &model.MedicalRecord{ID: 7, ClinicID: 1}, nil
+				},
+			},
+			tpSvc:      &mockTreatmentPlanService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:     "returns 400 when required field missing",
+			paramID:  "7",
+			body:     map[string]any{"unit_price": 1000},
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			mrSvc: &mockMedicalRecordService{
+				getByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
+					return &model.MedicalRecord{ID: 7, ClinicID: 1}, nil
+				},
+			},
+			tpSvc:      &mockTreatmentPlanService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:    "returns 403 when discount rate specified without permission",
+			paramID: "7",
+			body: map[string]any{
+				"treatment_content": "点滴",
+				"discount_rate":     10.0,
+			},
+			setupCtx: func(c *gin.Context) { setNonSystemAdmin(c) },
+			mrSvc: &mockMedicalRecordService{
+				getByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
+					return &model.MedicalRecord{ID: 7, ClinicID: 1}, nil
+				},
+			},
+			tpSvc:      &mockTreatmentPlanService{},
+			effPerm:    noPermEffPerm(),
+			wantStatus: http.StatusForbidden,
+		},
+		{
+			name:    "returns 403 when discount amount specified without permission",
+			paramID: "7",
+			body: map[string]any{
+				"treatment_content": "点滴",
+				"discount_amount":   500,
+			},
+			setupCtx: func(c *gin.Context) { setNonSystemAdmin(c) },
+			mrSvc: &mockMedicalRecordService{
+				getByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
+					return &model.MedicalRecord{ID: 7, ClinicID: 1}, nil
+				},
+			},
+			tpSvc:      &mockTreatmentPlanService{},
+			effPerm:    noPermEffPerm(),
+			wantStatus: http.StatusForbidden,
+		},
+		{
+			name:    "allows discount when permission granted",
+			paramID: "7",
+			body: map[string]any{
+				"treatment_content": "点滴",
+				"discount_rate":     10.0,
+			},
+			setupCtx: func(c *gin.Context) { setNonSystemAdmin(c) },
+			mrSvc: &mockMedicalRecordService{
+				getByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
+					return &model.MedicalRecord{ID: 7, ClinicID: 1}, nil
+				},
+			},
+			tpSvc: &mockTreatmentPlanService{
+				createFn: func(_ context.Context, _ uint64, _, _ *uint64, input *service.CreateTreatmentPlanInput) (*model.TreatmentPlan, error) {
+					assert.InDelta(t, 10.0, input.DiscountRate, 0.0001)
+					return &model.TreatmentPlan{ID: 2}, nil
+				},
+			},
+			effPerm: &mockEffectivePermissionService{
+				getEffectivePermissionsFn: func(_ context.Context, _, _ uint64) ([]model.PermissionGroupRule, error) {
+					return []model.PermissionGroupRule{{Resource: "discount", CanCreate: true}}, nil
+				},
+			},
+			wantStatus: http.StatusCreated,
+			wantHeader: "/api/v1/medical-records/7/treatment-plans/2",
+		},
+		{
+			name:     "returns 500 on service error",
+			paramID:  "7",
+			body:     validBody,
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			mrSvc: &mockMedicalRecordService{
+				getByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
+					return &model.MedicalRecord{ID: 7, ClinicID: 1}, nil
+				},
+			},
+			tpSvc: &mockTreatmentPlanService{
+				createFn: func(_ context.Context, _ uint64, _, _ *uint64, _ *service.CreateTreatmentPlanInput) (*model.TreatmentPlan, error) {
+					return nil, fmt.Errorf("db failure")
+				},
+			},
+			wantStatus: http.StatusInternalServerError,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			effPerm := tt.effPerm
+			if effPerm == nil {
+				effPerm = &mockEffectivePermissionService{}
+			}
+			h := newHandlerWithTreatmentPlanSvc(tt.tpSvc, &mockHospitalizationService{}, tt.mrSvc, effPerm)
+
+			bodyBytes := []byte("{invalid")
+			if !tt.malformed {
+				b, err := json.Marshal(tt.body)
+				require.NoError(t, err)
+				bodyBytes = b
+			}
+
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			c.Request = httptest.NewRequest(http.MethodPost, "/", bytes.NewReader(bodyBytes))
+			c.Request.Header.Set("Content-Type", "application/json")
+			c.Params = gin.Params{{Key: "id", Value: tt.paramID}}
+			tt.setupCtx(c)
+
+			h.CreateTreatmentPlanForMedicalRecord(c)
+
+			assert.Equal(t, tt.wantStatus, w.Code)
+			if tt.wantHeader != "" {
+				assert.Equal(t, tt.wantHeader, w.Header().Get("Location"))
+			}
+		})
+	}
+}
+
+// ---- ListTreatmentPlansByHospitalization ----
+
+func TestListTreatmentPlansByHospitalization(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	tests := []struct {
+		name       string
+		paramID    string
+		setupCtx   func(c *gin.Context)
+		hospSvc    *mockHospitalizationService
+		tpSvc      *mockTreatmentPlanService
+		wantStatus int
+		wantBody   string
+	}{
+		{
+			name:     "returns list of treatment plans",
+			paramID:  "5",
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			hospSvc: &mockHospitalizationService{
+				getByIDFn: func(_ context.Context, clinicID, id uint64) (*model.Hospitalization, error) {
+					assert.Equal(t, uint64(1), clinicID)
+					assert.Equal(t, uint64(5), id)
+					return &model.Hospitalization{ID: 5, ClinicID: 1}, nil
+				},
+			},
+			tpSvc: &mockTreatmentPlanService{
+				listByHospitalizationFn: func(_ context.Context, _, _ uint64) ([]model.TreatmentPlan, error) {
+					return []model.TreatmentPlan{{ID: 1, TreatmentContent: "点滴"}}, nil
+				},
+			},
+			wantStatus: http.StatusOK,
+			wantBody:   `"treatment_content":"点滴"`,
+		},
+		{
+			name:       "returns 401 when clinic_id is missing",
+			paramID:    "5",
+			setupCtx:   func(_ *gin.Context) {},
+			hospSvc:    &mockHospitalizationService{},
+			tpSvc:      &mockTreatmentPlanService{},
+			wantStatus: http.StatusUnauthorized,
+		},
+		{
+			name:       "returns 400 for non-numeric hospitalization id",
+			paramID:    "abc",
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			hospSvc:    &mockHospitalizationService{},
+			tpSvc:      &mockTreatmentPlanService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:     "returns 404 when hospitalization not found",
+			paramID:  "999",
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			hospSvc: &mockHospitalizationService{
+				getByIDFn: func(_ context.Context, _, _ uint64) (*model.Hospitalization, error) {
+					return nil, apperrors.WrapNotFound("hospitalization", "999")
+				},
+			},
+			tpSvc:      &mockTreatmentPlanService{},
+			wantStatus: http.StatusNotFound,
+		},
+		{
+			name:     "returns 500 on service error",
+			paramID:  "5",
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			hospSvc: &mockHospitalizationService{
+				getByIDFn: func(_ context.Context, _, _ uint64) (*model.Hospitalization, error) {
+					return &model.Hospitalization{ID: 5, ClinicID: 1}, nil
+				},
+			},
+			tpSvc: &mockTreatmentPlanService{
+				listByHospitalizationFn: func(_ context.Context, _, _ uint64) ([]model.TreatmentPlan, error) {
+					return nil, fmt.Errorf("db failure")
+				},
+			},
+			wantStatus: http.StatusInternalServerError,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := newHandlerWithTreatmentPlanSvc(tt.tpSvc, tt.hospSvc, &mockMedicalRecordService{}, &mockEffectivePermissionService{})
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			c.Request = httptest.NewRequest(http.MethodGet, "/", http.NoBody)
+			c.Params = gin.Params{{Key: "id", Value: tt.paramID}}
+			tt.setupCtx(c)
+			h.ListTreatmentPlansByHospitalization(c)
+			assert.Equal(t, tt.wantStatus, w.Code)
+			if tt.wantBody != "" {
+				assert.Contains(t, w.Body.String(), tt.wantBody)
+			}
+		})
+	}
+}
+
+// ---- CreateTreatmentPlanForHospitalization ----
+
+func TestCreateTreatmentPlanForHospitalization(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	validBody := map[string]any{
+		"treatment_content": "点滴",
+	}
+
+	tests := []struct {
+		name       string
+		paramID    string
+		body       any
+		malformed  bool
+		setupCtx   func(c *gin.Context)
+		hospSvc    *mockHospitalizationService
+		tpSvc      *mockTreatmentPlanService
+		effPerm    *mockEffectivePermissionService
+		wantStatus int
+		wantHeader string
+	}{
+		{
+			name:     "creates plan with valid body",
+			paramID:  "5",
+			body:     validBody,
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			hospSvc: &mockHospitalizationService{
+				getByIDFn: func(_ context.Context, _, _ uint64) (*model.Hospitalization, error) {
+					return &model.Hospitalization{ID: 5, ClinicID: 1}, nil
+				},
+			},
+			tpSvc: &mockTreatmentPlanService{
+				createFn: func(_ context.Context, _ uint64, medicalRecordID, hospitalizationID *uint64, _ *service.CreateTreatmentPlanInput) (*model.TreatmentPlan, error) {
+					assert.Nil(t, medicalRecordID)
+					require.NotNil(t, hospitalizationID)
+					assert.Equal(t, uint64(5), *hospitalizationID)
+					return &model.TreatmentPlan{ID: 3}, nil
+				},
+			},
+			wantStatus: http.StatusCreated,
+			wantHeader: "/api/v1/hospitalizations/5/treatment-plans/3",
+		},
+		{
+			name:       "returns 401 when clinic_id is missing",
+			paramID:    "5",
+			body:       validBody,
+			setupCtx:   func(_ *gin.Context) {},
+			hospSvc:    &mockHospitalizationService{},
+			tpSvc:      &mockTreatmentPlanService{},
+			wantStatus: http.StatusUnauthorized,
+		},
+		{
+			name:       "returns 400 for non-numeric hospitalization id",
+			paramID:    "abc",
+			body:       validBody,
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			hospSvc:    &mockHospitalizationService{},
+			tpSvc:      &mockTreatmentPlanService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:     "returns 404 when hospitalization not found",
+			paramID:  "999",
+			body:     validBody,
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			hospSvc: &mockHospitalizationService{
+				getByIDFn: func(_ context.Context, _, _ uint64) (*model.Hospitalization, error) {
+					return nil, apperrors.WrapNotFound("hospitalization", "999")
+				},
+			},
+			tpSvc:      &mockTreatmentPlanService{},
+			wantStatus: http.StatusNotFound,
+		},
+		{
+			name:      "returns 400 when body is malformed",
+			paramID:   "5",
+			malformed: true,
+			setupCtx:  func(c *gin.Context) { setClinicID(c) },
+			hospSvc: &mockHospitalizationService{
+				getByIDFn: func(_ context.Context, _, _ uint64) (*model.Hospitalization, error) {
+					return &model.Hospitalization{ID: 5, ClinicID: 1}, nil
+				},
+			},
+			tpSvc:      &mockTreatmentPlanService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:     "returns 400 when required field missing",
+			paramID:  "5",
+			body:     map[string]any{"unit_price": 1000},
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			hospSvc: &mockHospitalizationService{
+				getByIDFn: func(_ context.Context, _, _ uint64) (*model.Hospitalization, error) {
+					return &model.Hospitalization{ID: 5, ClinicID: 1}, nil
+				},
+			},
+			tpSvc:      &mockTreatmentPlanService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:    "returns 403 when discount rate specified without permission",
+			paramID: "5",
+			body: map[string]any{
+				"treatment_content": "点滴",
+				"discount_rate":     15.0,
+			},
+			setupCtx: func(c *gin.Context) { setNonSystemAdmin(c) },
+			hospSvc: &mockHospitalizationService{
+				getByIDFn: func(_ context.Context, _, _ uint64) (*model.Hospitalization, error) {
+					return &model.Hospitalization{ID: 5, ClinicID: 1}, nil
+				},
+			},
+			tpSvc:      &mockTreatmentPlanService{},
+			effPerm:    noPermEffPerm(),
+			wantStatus: http.StatusForbidden,
+		},
+		{
+			name:    "returns 403 when discount amount specified without permission",
+			paramID: "5",
+			body: map[string]any{
+				"treatment_content": "点滴",
+				"discount_amount":   300,
+			},
+			setupCtx: func(c *gin.Context) { setNonSystemAdmin(c) },
+			hospSvc: &mockHospitalizationService{
+				getByIDFn: func(_ context.Context, _, _ uint64) (*model.Hospitalization, error) {
+					return &model.Hospitalization{ID: 5, ClinicID: 1}, nil
+				},
+			},
+			tpSvc:      &mockTreatmentPlanService{},
+			effPerm:    noPermEffPerm(),
+			wantStatus: http.StatusForbidden,
+		},
+		{
+			name:     "returns 500 on service error",
+			paramID:  "5",
+			body:     validBody,
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			hospSvc: &mockHospitalizationService{
+				getByIDFn: func(_ context.Context, _, _ uint64) (*model.Hospitalization, error) {
+					return &model.Hospitalization{ID: 5, ClinicID: 1}, nil
+				},
+			},
+			tpSvc: &mockTreatmentPlanService{
+				createFn: func(_ context.Context, _ uint64, _, _ *uint64, _ *service.CreateTreatmentPlanInput) (*model.TreatmentPlan, error) {
+					return nil, fmt.Errorf("db failure")
+				},
+			},
+			wantStatus: http.StatusInternalServerError,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			effPerm := tt.effPerm
+			if effPerm == nil {
+				effPerm = &mockEffectivePermissionService{}
+			}
+			h := newHandlerWithTreatmentPlanSvc(tt.tpSvc, tt.hospSvc, &mockMedicalRecordService{}, effPerm)
+
+			bodyBytes := []byte("{invalid")
+			if !tt.malformed {
+				b, err := json.Marshal(tt.body)
+				require.NoError(t, err)
+				bodyBytes = b
+			}
+
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			c.Request = httptest.NewRequest(http.MethodPost, "/", bytes.NewReader(bodyBytes))
+			c.Request.Header.Set("Content-Type", "application/json")
+			c.Params = gin.Params{{Key: "id", Value: tt.paramID}}
+			tt.setupCtx(c)
+
+			h.CreateTreatmentPlanForHospitalization(c)
+
+			assert.Equal(t, tt.wantStatus, w.Code)
+			if tt.wantHeader != "" {
+				assert.Equal(t, tt.wantHeader, w.Header().Get("Location"))
+			}
+		})
+	}
+}
+
+// ---- UpdateTreatmentPlanInMedicalRecord (covers checkTreatmentPlanDiscountPermission) ----
+
+func TestUpdateTreatmentPlanInMedicalRecord(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	tests := []struct {
+		name       string
+		mrID       string
+		planID     string
+		body       any
+		malformed  bool
+		setupCtx   func(c *gin.Context)
+		mrSvc      *mockMedicalRecordService
+		tpSvc      *mockTreatmentPlanService
+		effPerm    *mockEffectivePermissionService
+		wantStatus int
+	}{
+		{
+			name:     "updates plan successfully",
+			mrID:     "7",
+			planID:   "1",
+			body:     map[string]any{"memo": "経過良好"},
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			mrSvc: &mockMedicalRecordService{
+				getByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
+					return &model.MedicalRecord{ID: 7, ClinicID: 1}, nil
+				},
+			},
+			tpSvc: &mockTreatmentPlanService{
+				updateFn: func(_ context.Context, clinicID, id uint64, input *service.UpdateTreatmentPlanInput) (*model.TreatmentPlan, error) {
+					assert.Equal(t, uint64(1), clinicID)
+					assert.Equal(t, uint64(1), id)
+					require.NotNil(t, input.Memo)
+					assert.Equal(t, "経過良好", *input.Memo)
+					return &model.TreatmentPlan{ID: 1, Memo: "経過良好"}, nil
+				},
+			},
+			wantStatus: http.StatusOK,
+		},
+		{
+			name:       "returns 401 when clinic_id is missing",
+			mrID:       "7",
+			planID:     "1",
+			body:       map[string]any{"memo": "x"},
+			setupCtx:   func(_ *gin.Context) {},
+			mrSvc:      &mockMedicalRecordService{},
+			tpSvc:      &mockTreatmentPlanService{},
+			wantStatus: http.StatusUnauthorized,
+		},
+		{
+			name:       "returns 400 for non-numeric medical record id",
+			mrID:       "abc",
+			planID:     "1",
+			body:       map[string]any{"memo": "x"},
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			mrSvc:      &mockMedicalRecordService{},
+			tpSvc:      &mockTreatmentPlanService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:     "returns 404 when medical record not found",
+			mrID:     "999",
+			planID:   "1",
+			body:     map[string]any{"memo": "x"},
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			mrSvc: &mockMedicalRecordService{
+				getByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
+					return nil, apperrors.WrapNotFound("medical_record", "999")
+				},
+			},
+			tpSvc:      &mockTreatmentPlanService{},
+			wantStatus: http.StatusNotFound,
+		},
+		{
+			name:     "returns 400 for non-numeric plan id",
+			mrID:     "7",
+			planID:   "abc",
+			body:     map[string]any{"memo": "x"},
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			mrSvc: &mockMedicalRecordService{
+				getByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
+					return &model.MedicalRecord{ID: 7, ClinicID: 1}, nil
+				},
+			},
+			tpSvc:      &mockTreatmentPlanService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:      "returns 400 when body is malformed",
+			mrID:      "7",
+			planID:    "1",
+			malformed: true,
+			setupCtx:  func(c *gin.Context) { setClinicID(c) },
+			mrSvc: &mockMedicalRecordService{
+				getByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
+					return &model.MedicalRecord{ID: 7, ClinicID: 1}, nil
+				},
+			},
+			tpSvc:      &mockTreatmentPlanService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:     "returns error from GetByID when checking discount permission",
+			mrID:     "7",
+			planID:   "1",
+			body:     map[string]any{"discount_rate": 5.0},
+			setupCtx: func(c *gin.Context) { setNonSystemAdmin(c) },
+			mrSvc: &mockMedicalRecordService{
+				getByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
+					return &model.MedicalRecord{ID: 7, ClinicID: 1}, nil
+				},
+			},
+			tpSvc: &mockTreatmentPlanService{
+				getByIDFn: func(_ context.Context, _, _ uint64) (*model.TreatmentPlan, error) {
+					return nil, apperrors.WrapNotFound("treatment_plan", "1")
+				},
+			},
+			wantStatus: http.StatusNotFound,
+		},
+		{
+			name:     "returns 403 when discount rate changed without permission",
+			mrID:     "7",
+			planID:   "1",
+			body:     map[string]any{"discount_rate": 5.0},
+			setupCtx: func(c *gin.Context) { setNonSystemAdmin(c) },
+			mrSvc: &mockMedicalRecordService{
+				getByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
+					return &model.MedicalRecord{ID: 7, ClinicID: 1}, nil
+				},
+			},
+			tpSvc: &mockTreatmentPlanService{
+				getByIDFn: func(_ context.Context, _, _ uint64) (*model.TreatmentPlan, error) {
+					return &model.TreatmentPlan{ID: 1, DiscountRate: 0}, nil
+				},
+			},
+			effPerm:    noPermEffPerm(),
+			wantStatus: http.StatusForbidden,
+		},
+		{
+			name:     "returns 403 when discount amount changed without permission",
+			mrID:     "7",
+			planID:   "1",
+			body:     map[string]any{"discount_amount": 200},
+			setupCtx: func(c *gin.Context) { setNonSystemAdmin(c) },
+			mrSvc: &mockMedicalRecordService{
+				getByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
+					return &model.MedicalRecord{ID: 7, ClinicID: 1}, nil
+				},
+			},
+			tpSvc: &mockTreatmentPlanService{
+				getByIDFn: func(_ context.Context, _, _ uint64) (*model.TreatmentPlan, error) {
+					return &model.TreatmentPlan{ID: 1, DiscountAmount: 0}, nil
+				},
+			},
+			effPerm:    noPermEffPerm(),
+			wantStatus: http.StatusForbidden,
+		},
+		{
+			name:     "allows update when discount rate unchanged",
+			mrID:     "7",
+			planID:   "1",
+			body:     map[string]any{"discount_rate": 5.0},
+			setupCtx: func(c *gin.Context) { setNonSystemAdmin(c) },
+			mrSvc: &mockMedicalRecordService{
+				getByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
+					return &model.MedicalRecord{ID: 7, ClinicID: 1}, nil
+				},
+			},
+			tpSvc: &mockTreatmentPlanService{
+				getByIDFn: func(_ context.Context, _, _ uint64) (*model.TreatmentPlan, error) {
+					return &model.TreatmentPlan{ID: 1, DiscountRate: 5.0}, nil
+				},
+				updateFn: func(_ context.Context, _, _ uint64, _ *service.UpdateTreatmentPlanInput) (*model.TreatmentPlan, error) {
+					return &model.TreatmentPlan{ID: 1, DiscountRate: 5.0}, nil
+				},
+			},
+			wantStatus: http.StatusOK,
+		},
+		{
+			name:     "returns 500 on service error",
+			mrID:     "7",
+			planID:   "1",
+			body:     map[string]any{"memo": "x"},
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			mrSvc: &mockMedicalRecordService{
+				getByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
+					return &model.MedicalRecord{ID: 7, ClinicID: 1}, nil
+				},
+			},
+			tpSvc: &mockTreatmentPlanService{
+				updateFn: func(_ context.Context, _, _ uint64, _ *service.UpdateTreatmentPlanInput) (*model.TreatmentPlan, error) {
+					return nil, fmt.Errorf("db failure")
+				},
+			},
+			wantStatus: http.StatusInternalServerError,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			effPerm := tt.effPerm
+			if effPerm == nil {
+				effPerm = &mockEffectivePermissionService{}
+			}
+			h := newHandlerWithTreatmentPlanSvc(tt.tpSvc, &mockHospitalizationService{}, tt.mrSvc, effPerm)
+
+			bodyBytes := []byte("{invalid")
+			if !tt.malformed {
+				b, err := json.Marshal(tt.body)
+				require.NoError(t, err)
+				bodyBytes = b
+			}
+
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			c.Request = httptest.NewRequest(http.MethodPatch, "/", bytes.NewReader(bodyBytes))
+			c.Request.Header.Set("Content-Type", "application/json")
+			c.Params = gin.Params{{Key: "id", Value: tt.mrID}, {Key: "planId", Value: tt.planID}}
+			tt.setupCtx(c)
+
+			h.UpdateTreatmentPlanInMedicalRecord(c)
+
+			assert.Equal(t, tt.wantStatus, w.Code)
+		})
+	}
+}
+
+// ---- DeleteTreatmentPlanInMedicalRecord ----
+
+func TestDeleteTreatmentPlanInMedicalRecord(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	tests := []struct {
+		name       string
+		mrID       string
+		planID     string
+		setupCtx   func(c *gin.Context)
+		mrSvc      *mockMedicalRecordService
+		tpSvc      *mockTreatmentPlanService
+		wantStatus int
+	}{
+		{
+			name:     "deletes plan successfully",
+			mrID:     "7",
+			planID:   "1",
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			mrSvc: &mockMedicalRecordService{
+				getByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
+					return &model.MedicalRecord{ID: 7, ClinicID: 1}, nil
+				},
+			},
+			tpSvc: &mockTreatmentPlanService{
+				deleteFn: func(_ context.Context, clinicID, id uint64) error {
+					assert.Equal(t, uint64(1), clinicID)
+					assert.Equal(t, uint64(1), id)
+					return nil
+				},
+			},
+			wantStatus: http.StatusNoContent,
+		},
+		{
+			name:       "returns 401 when clinic_id is missing",
+			mrID:       "7",
+			planID:     "1",
+			setupCtx:   func(_ *gin.Context) {},
+			mrSvc:      &mockMedicalRecordService{},
+			tpSvc:      &mockTreatmentPlanService{},
+			wantStatus: http.StatusUnauthorized,
+		},
+		{
+			name:       "returns 400 for non-numeric medical record id",
+			mrID:       "abc",
+			planID:     "1",
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			mrSvc:      &mockMedicalRecordService{},
+			tpSvc:      &mockTreatmentPlanService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:     "returns 404 when medical record not found",
+			mrID:     "999",
+			planID:   "1",
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			mrSvc: &mockMedicalRecordService{
+				getByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
+					return nil, apperrors.WrapNotFound("medical_record", "999")
+				},
+			},
+			tpSvc:      &mockTreatmentPlanService{},
+			wantStatus: http.StatusNotFound,
+		},
+		{
+			name:     "returns 400 for non-numeric plan id",
+			mrID:     "7",
+			planID:   "abc",
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			mrSvc: &mockMedicalRecordService{
+				getByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
+					return &model.MedicalRecord{ID: 7, ClinicID: 1}, nil
+				},
+			},
+			tpSvc:      &mockTreatmentPlanService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:     "returns 500 on service error",
+			mrID:     "7",
+			planID:   "1",
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			mrSvc: &mockMedicalRecordService{
+				getByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
+					return &model.MedicalRecord{ID: 7, ClinicID: 1}, nil
+				},
+			},
+			tpSvc: &mockTreatmentPlanService{
+				deleteFn: func(_ context.Context, _, _ uint64) error {
+					return fmt.Errorf("db failure")
+				},
+			},
+			wantStatus: http.StatusInternalServerError,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := newHandlerWithTreatmentPlanSvc(tt.tpSvc, &mockHospitalizationService{}, tt.mrSvc, &mockEffectivePermissionService{})
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			c.Request = httptest.NewRequest(http.MethodDelete, "/", http.NoBody)
+			c.Params = gin.Params{{Key: "id", Value: tt.mrID}, {Key: "planId", Value: tt.planID}}
+			tt.setupCtx(c)
+			h.DeleteTreatmentPlanInMedicalRecord(c)
+			c.Writer.WriteHeaderNow() // flush a bare c.Status() (no body) to the recorder
+			assert.Equal(t, tt.wantStatus, w.Code)
+		})
+	}
+}
+
+// ---- UpdateTreatmentPlanInHospitalization ----
+
+func TestUpdateTreatmentPlanInHospitalization(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	tests := []struct {
+		name       string
+		hospID     string
+		planID     string
+		body       any
+		malformed  bool
+		setupCtx   func(c *gin.Context)
+		hospSvc    *mockHospitalizationService
+		tpSvc      *mockTreatmentPlanService
+		effPerm    *mockEffectivePermissionService
+		wantStatus int
+	}{
+		{
+			name:     "updates plan successfully",
+			hospID:   "5",
+			planID:   "1",
+			body:     map[string]any{"memo": "経過良好"},
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			hospSvc: &mockHospitalizationService{
+				getByIDFn: func(_ context.Context, _, _ uint64) (*model.Hospitalization, error) {
+					return &model.Hospitalization{ID: 5, ClinicID: 1}, nil
+				},
+			},
+			tpSvc: &mockTreatmentPlanService{
+				updateFn: func(_ context.Context, clinicID, id uint64, input *service.UpdateTreatmentPlanInput) (*model.TreatmentPlan, error) {
+					assert.Equal(t, uint64(1), clinicID)
+					assert.Equal(t, uint64(1), id)
+					return &model.TreatmentPlan{ID: 1, Memo: *input.Memo}, nil
+				},
+			},
+			wantStatus: http.StatusOK,
+		},
+		{
+			name:       "returns 401 when clinic_id is missing",
+			hospID:     "5",
+			planID:     "1",
+			body:       map[string]any{"memo": "x"},
+			setupCtx:   func(_ *gin.Context) {},
+			hospSvc:    &mockHospitalizationService{},
+			tpSvc:      &mockTreatmentPlanService{},
+			wantStatus: http.StatusUnauthorized,
+		},
+		{
+			name:       "returns 400 for non-numeric hospitalization id",
+			hospID:     "abc",
+			planID:     "1",
+			body:       map[string]any{"memo": "x"},
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			hospSvc:    &mockHospitalizationService{},
+			tpSvc:      &mockTreatmentPlanService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:     "returns 404 when hospitalization not found",
+			hospID:   "999",
+			planID:   "1",
+			body:     map[string]any{"memo": "x"},
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			hospSvc: &mockHospitalizationService{
+				getByIDFn: func(_ context.Context, _, _ uint64) (*model.Hospitalization, error) {
+					return nil, apperrors.WrapNotFound("hospitalization", "999")
+				},
+			},
+			tpSvc:      &mockTreatmentPlanService{},
+			wantStatus: http.StatusNotFound,
+		},
+		{
+			name:     "returns 400 for non-numeric plan id",
+			hospID:   "5",
+			planID:   "abc",
+			body:     map[string]any{"memo": "x"},
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			hospSvc: &mockHospitalizationService{
+				getByIDFn: func(_ context.Context, _, _ uint64) (*model.Hospitalization, error) {
+					return &model.Hospitalization{ID: 5, ClinicID: 1}, nil
+				},
+			},
+			tpSvc:      &mockTreatmentPlanService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:      "returns 400 when body is malformed",
+			hospID:    "5",
+			planID:    "1",
+			malformed: true,
+			setupCtx:  func(c *gin.Context) { setClinicID(c) },
+			hospSvc: &mockHospitalizationService{
+				getByIDFn: func(_ context.Context, _, _ uint64) (*model.Hospitalization, error) {
+					return &model.Hospitalization{ID: 5, ClinicID: 1}, nil
+				},
+			},
+			tpSvc:      &mockTreatmentPlanService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:     "returns 403 when discount rate changed without permission",
+			hospID:   "5",
+			planID:   "1",
+			body:     map[string]any{"discount_rate": 8.0},
+			setupCtx: func(c *gin.Context) { setNonSystemAdmin(c) },
+			hospSvc: &mockHospitalizationService{
+				getByIDFn: func(_ context.Context, _, _ uint64) (*model.Hospitalization, error) {
+					return &model.Hospitalization{ID: 5, ClinicID: 1}, nil
+				},
+			},
+			tpSvc: &mockTreatmentPlanService{
+				getByIDFn: func(_ context.Context, _, _ uint64) (*model.TreatmentPlan, error) {
+					return &model.TreatmentPlan{ID: 1, DiscountRate: 0}, nil
+				},
+			},
+			effPerm:    noPermEffPerm(),
+			wantStatus: http.StatusForbidden,
+		},
+		{
+			name:     "returns 500 on service error",
+			hospID:   "5",
+			planID:   "1",
+			body:     map[string]any{"memo": "x"},
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			hospSvc: &mockHospitalizationService{
+				getByIDFn: func(_ context.Context, _, _ uint64) (*model.Hospitalization, error) {
+					return &model.Hospitalization{ID: 5, ClinicID: 1}, nil
+				},
+			},
+			tpSvc: &mockTreatmentPlanService{
+				updateFn: func(_ context.Context, _, _ uint64, _ *service.UpdateTreatmentPlanInput) (*model.TreatmentPlan, error) {
+					return nil, fmt.Errorf("db failure")
+				},
+			},
+			wantStatus: http.StatusInternalServerError,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			effPerm := tt.effPerm
+			if effPerm == nil {
+				effPerm = &mockEffectivePermissionService{}
+			}
+			h := newHandlerWithTreatmentPlanSvc(tt.tpSvc, tt.hospSvc, &mockMedicalRecordService{}, effPerm)
+
+			bodyBytes := []byte("{invalid")
+			if !tt.malformed {
+				b, err := json.Marshal(tt.body)
+				require.NoError(t, err)
+				bodyBytes = b
+			}
+
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			c.Request = httptest.NewRequest(http.MethodPatch, "/", bytes.NewReader(bodyBytes))
+			c.Request.Header.Set("Content-Type", "application/json")
+			c.Params = gin.Params{{Key: "id", Value: tt.hospID}, {Key: "planId", Value: tt.planID}}
+			tt.setupCtx(c)
+
+			h.UpdateTreatmentPlanInHospitalization(c)
+
+			assert.Equal(t, tt.wantStatus, w.Code)
+		})
+	}
+}
+
+// ---- DeleteTreatmentPlanInHospitalization ----
+
+func TestDeleteTreatmentPlanInHospitalization(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	tests := []struct {
+		name       string
+		hospID     string
+		planID     string
+		setupCtx   func(c *gin.Context)
+		hospSvc    *mockHospitalizationService
+		tpSvc      *mockTreatmentPlanService
+		wantStatus int
+	}{
+		{
+			name:     "deletes plan successfully",
+			hospID:   "5",
+			planID:   "1",
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			hospSvc: &mockHospitalizationService{
+				getByIDFn: func(_ context.Context, _, _ uint64) (*model.Hospitalization, error) {
+					return &model.Hospitalization{ID: 5, ClinicID: 1}, nil
+				},
+			},
+			tpSvc: &mockTreatmentPlanService{
+				deleteFn: func(_ context.Context, clinicID, id uint64) error {
+					assert.Equal(t, uint64(1), clinicID)
+					assert.Equal(t, uint64(1), id)
+					return nil
+				},
+			},
+			wantStatus: http.StatusNoContent,
+		},
+		{
+			name:       "returns 401 when clinic_id is missing",
+			hospID:     "5",
+			planID:     "1",
+			setupCtx:   func(_ *gin.Context) {},
+			hospSvc:    &mockHospitalizationService{},
+			tpSvc:      &mockTreatmentPlanService{},
+			wantStatus: http.StatusUnauthorized,
+		},
+		{
+			name:       "returns 400 for non-numeric hospitalization id",
+			hospID:     "abc",
+			planID:     "1",
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			hospSvc:    &mockHospitalizationService{},
+			tpSvc:      &mockTreatmentPlanService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:     "returns 404 when hospitalization not found",
+			hospID:   "999",
+			planID:   "1",
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			hospSvc: &mockHospitalizationService{
+				getByIDFn: func(_ context.Context, _, _ uint64) (*model.Hospitalization, error) {
+					return nil, apperrors.WrapNotFound("hospitalization", "999")
+				},
+			},
+			tpSvc:      &mockTreatmentPlanService{},
+			wantStatus: http.StatusNotFound,
+		},
+		{
+			name:     "returns 400 for non-numeric plan id",
+			hospID:   "5",
+			planID:   "abc",
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			hospSvc: &mockHospitalizationService{
+				getByIDFn: func(_ context.Context, _, _ uint64) (*model.Hospitalization, error) {
+					return &model.Hospitalization{ID: 5, ClinicID: 1}, nil
+				},
+			},
+			tpSvc:      &mockTreatmentPlanService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:     "returns 500 on service error",
+			hospID:   "5",
+			planID:   "1",
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			hospSvc: &mockHospitalizationService{
+				getByIDFn: func(_ context.Context, _, _ uint64) (*model.Hospitalization, error) {
+					return &model.Hospitalization{ID: 5, ClinicID: 1}, nil
+				},
+			},
+			tpSvc: &mockTreatmentPlanService{
+				deleteFn: func(_ context.Context, _, _ uint64) error {
+					return fmt.Errorf("db failure")
+				},
+			},
+			wantStatus: http.StatusInternalServerError,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := newHandlerWithTreatmentPlanSvc(tt.tpSvc, tt.hospSvc, &mockMedicalRecordService{}, &mockEffectivePermissionService{})
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			c.Request = httptest.NewRequest(http.MethodDelete, "/", http.NoBody)
+			c.Params = gin.Params{{Key: "id", Value: tt.hospID}, {Key: "planId", Value: tt.planID}}
+			tt.setupCtx(c)
+			h.DeleteTreatmentPlanInHospitalization(c)
+			c.Writer.WriteHeaderNow() // flush a bare c.Status() (no body) to the recorder
+			assert.Equal(t, tt.wantStatus, w.Code)
+		})
+	}
+}
+
+// ---- toTreatmentPlanResponse (pure conversion) ----
+
+func TestToTreatmentPlanResponse(t *testing.T) {
+	now := time.Now()
+	mrID := uint64(7)
+	hospID := uint64(5)
+
+	tests := []struct {
+		name string
+		plan *model.TreatmentPlan
+	}{
+		{
+			name: "maps all fields with medical record id",
+			plan: &model.TreatmentPlan{
+				ID:               1,
+				MedicalRecordID:  &mrID,
+				TreatmentContent: "点滴",
+				Memo:             "経過良好",
+				IsInsurance:      true,
+				UnitPrice:        1000,
+				Quantity:         2,
+				DiscountRate:     10,
+				DiscountAmount:   100,
+				Subtotal:         1800,
+				SortOrder:        1,
+				CreatedAt:        now,
+				UpdatedAt:        now,
+			},
+		},
+		{
+			name: "maps hospitalization id and nil medical record id",
+			plan: &model.TreatmentPlan{
+				ID:                2,
+				HospitalizationID: &hospID,
+				TreatmentContent:  "投薬",
+			},
+		},
+		{
+			name: "both parent ids nil (zero value plan)",
+			plan: &model.TreatmentPlan{
+				ID:               3,
+				TreatmentContent: "検査",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := toTreatmentPlanResponse(tt.plan)
+			assert.Equal(t, strconv.FormatUint(tt.plan.ID, 10), got.ID)
+			assert.Equal(t, tt.plan.TreatmentContent, got.TreatmentContent)
+			assert.Equal(t, tt.plan.Memo, got.Memo)
+			assert.Equal(t, tt.plan.IsInsurance, got.IsInsurance)
+			assert.Equal(t, tt.plan.UnitPrice, got.UnitPrice)
+			assert.Equal(t, tt.plan.Quantity, got.Quantity)
+			assert.Equal(t, tt.plan.DiscountRate, got.DiscountRate)
+			assert.Equal(t, tt.plan.DiscountAmount, got.DiscountAmount)
+			assert.Equal(t, tt.plan.Subtotal, got.Subtotal)
+			assert.Equal(t, tt.plan.SortOrder, got.SortOrder)
+
+			if tt.plan.MedicalRecordID != nil {
+				require.NotNil(t, got.MedicalRecordID)
+				assert.Equal(t, strconv.FormatUint(*tt.plan.MedicalRecordID, 10), *got.MedicalRecordID)
+			} else {
+				assert.Nil(t, got.MedicalRecordID)
+			}
+
+			if tt.plan.HospitalizationID != nil {
+				require.NotNil(t, got.HospitalizationID)
+				assert.Equal(t, strconv.FormatUint(*tt.plan.HospitalizationID, 10), *got.HospitalizationID)
+			} else {
+				assert.Nil(t, got.HospitalizationID)
+			}
+		})
+	}
 }
 
 // ---- Comprehensive Test Coverage Documentation ----

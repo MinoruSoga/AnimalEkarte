@@ -143,6 +143,68 @@ func TestLineReservationSettingService_Save(t *testing.T) {
 		assert.Error(t, err)
 	})
 
+	// BE-refactor.md D10/F-2 フォローアップ（go-reviewer/security-reviewer 指摘）:
+	// break_hours の unmarshal 失敗を予約作成側で fail-closed にしたため、保存側でも形状を
+	// 検証しないと、構文的には有効だが形状が不正な値が保存された時点で当該クリニックの
+	// 全 LINE 予約が拒否され続ける可用性劣化になる。保存時に 400 で弾くことを保証する。
+	t.Run("break_hours: 構文は有効だが形状が不正（オブジェクト）→ 400", func(t *testing.T) {
+		svc := NewLineReservationSettingService(nil, nil)
+		input := &UpsertLineReservationSettingInput{
+			BreakHours: []byte(`{}`),
+		}
+		_, _, err := svc.Save(ctx, 1, input)
+		assert.Error(t, err)
+		assert.True(t, apperrors.IsInvalidInput(err))
+	})
+
+	t.Run("break_hours: 配列だが数値フィールド（文字列でない）→ 400", func(t *testing.T) {
+		svc := NewLineReservationSettingService(nil, nil)
+		input := &UpsertLineReservationSettingInput{
+			BreakHours: []byte(`[{"start":1200,"end":1300}]`),
+		}
+		_, _, err := svc.Save(ctx, 1, input)
+		assert.Error(t, err)
+		assert.True(t, apperrors.IsInvalidInput(err))
+	})
+
+	t.Run("break_hours: 配列・文字列だが HHMM 形式でないエントリ → 400", func(t *testing.T) {
+		svc := NewLineReservationSettingService(nil, nil)
+		input := &UpsertLineReservationSettingInput{
+			BreakHours: []byte(`[{"start":"not-a-time","end":"1300"}]`),
+		}
+		_, _, err := svc.Save(ctx, 1, input)
+		assert.Error(t, err)
+		assert.True(t, apperrors.IsInvalidInput(err))
+	})
+
+	t.Run("break_hours: 正しい形状は保存できる（回帰防止）", func(t *testing.T) {
+		repo := &mockLineReservationSettingRepository{
+			findByClinicIDFn: func(_ context.Context, clinicID uint64) (*model.LineReservationSetting, error) {
+				return &model.LineReservationSetting{ClinicID: clinicID}, nil
+			},
+		}
+		svc := NewLineReservationSettingService(repo, nil)
+		input := &UpsertLineReservationSettingInput{
+			BreakHours: []byte(`[{"start":"1200","end":"1300"}]`),
+		}
+		_, _, err := svc.Save(ctx, 1, input)
+		assert.NoError(t, err)
+	})
+
+	t.Run("break_hours: 空は許容される（休憩時間なし）", func(t *testing.T) {
+		repo := &mockLineReservationSettingRepository{
+			findByClinicIDFn: func(_ context.Context, clinicID uint64) (*model.LineReservationSetting, error) {
+				return &model.LineReservationSetting{ClinicID: clinicID}, nil
+			},
+		}
+		svc := NewLineReservationSettingService(repo, nil)
+		input := &UpsertLineReservationSettingInput{
+			BreakHours: []byte(`[]`),
+		}
+		_, _, err := svc.Save(ctx, 1, input)
+		assert.NoError(t, err)
+	})
+
 	t.Run("db find error on save", func(t *testing.T) {
 		repo := &mockLineReservationSettingRepository{
 			findByClinicIDFn: func(_ context.Context, _ uint64) (*model.LineReservationSetting, error) {

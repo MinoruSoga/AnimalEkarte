@@ -140,6 +140,168 @@ func ptrUint64ForAuditTest(v uint64) *uint64 {
 	return &v
 }
 
+// TestValidateAuditLog は validateAuditLog の全分岐（nil ログ・必須フィールド欠落・
+// actor_type 別の actor_id 制約・不正な actor_type）を直接検証する。
+func TestValidateAuditLog(t *testing.T) {
+	clinicID := uint64(1)
+	actorID := uint64(2)
+
+	tests := []struct {
+		name    string
+		log     *model.AuditLog
+		wantErr bool
+	}{
+		{
+			name:    "nil log is rejected",
+			log:     nil,
+			wantErr: true,
+		},
+		{
+			name:    "missing clinic_id is rejected",
+			log:     &model.AuditLog{ActorType: model.AuditActorTypeStaff, ActorID: &actorID, Action: "update", Resource: "owner"},
+			wantErr: true,
+		},
+		{
+			name:    "zero clinic_id is rejected",
+			log:     &model.AuditLog{ClinicID: ptrUint64ForAuditTest(0), ActorType: model.AuditActorTypeStaff, ActorID: &actorID, Action: "update", Resource: "owner"},
+			wantErr: true,
+		},
+		{
+			name:    "blank actor_type is rejected",
+			log:     &model.AuditLog{ClinicID: &clinicID, ActorType: "  ", Action: "update", Resource: "owner"},
+			wantErr: true,
+		},
+		{
+			name:    "blank action is rejected",
+			log:     &model.AuditLog{ClinicID: &clinicID, ActorType: model.AuditActorTypeStaff, ActorID: &actorID, Action: " ", Resource: "owner"},
+			wantErr: true,
+		},
+		{
+			name:    "blank resource is rejected",
+			log:     &model.AuditLog{ClinicID: &clinicID, ActorType: model.AuditActorTypeStaff, ActorID: &actorID, Action: "update", Resource: ""},
+			wantErr: true,
+		},
+		{
+			name:    "staff actor without actor_id is rejected",
+			log:     &model.AuditLog{ClinicID: &clinicID, ActorType: model.AuditActorTypeStaff, Action: "update", Resource: "owner"},
+			wantErr: true,
+		},
+		{
+			name:    "staff actor with zero actor_id is rejected",
+			log:     &model.AuditLog{ClinicID: &clinicID, ActorType: model.AuditActorTypeStaff, ActorID: ptrUint64ForAuditTest(0), Action: "update", Resource: "owner"},
+			wantErr: true,
+		},
+		{
+			name:    "system actor with actor_id is rejected",
+			log:     &model.AuditLog{ClinicID: &clinicID, ActorType: model.AuditActorTypeSystem, ActorID: &actorID, Action: "batch", Resource: "owner"},
+			wantErr: true,
+		},
+		{
+			name:    "unknown actor_type is rejected",
+			log:     &model.AuditLog{ClinicID: &clinicID, ActorType: "account", ActorID: &actorID, Action: "update", Resource: "owner"},
+			wantErr: true,
+		},
+		{
+			name:    "valid staff log passes",
+			log:     &model.AuditLog{ClinicID: &clinicID, ActorType: model.AuditActorTypeStaff, ActorID: &actorID, Action: "update", Resource: "owner"},
+			wantErr: false,
+		},
+		{
+			name:    "valid system log passes",
+			log:     &model.AuditLog{ClinicID: &clinicID, ActorType: model.AuditActorTypeSystem, Action: "batch", Resource: "owner"},
+			wantErr: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validateAuditLog(tt.log)
+			if tt.wantErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
+
+// TestAuditService_Log_NilLog は Log(ctx, nil) が validateAuditLog の nil チェックを
+// 経由してエラーを返すことを確認する。
+func TestAuditService_Log_NilLog(t *testing.T) {
+	repo := &mockAuditRepository{}
+	svc := NewAuditService(repo)
+
+	err := svc.Log(context.Background(), nil)
+
+	assert.Error(t, err)
+	assert.Nil(t, repo.lastLogged)
+}
+
+// TestAuditService_LogEntryTx は #211 tx 内監査経路が repo.CreateTx を使うこと、
+// validateAuditLog のバリデーションを経由すること、repo エラーがラップされて返ることを検証する。
+func TestAuditService_LogEntryTx(t *testing.T) {
+	t.Run("success writes via CreateTx", func(t *testing.T) {
+		repo := &mockAuditRepository{}
+		svc := NewAuditService(repo)
+		auditTxLogger, ok := svc.(AuditTxLogger)
+		if !assert.True(t, ok, "auditService must implement AuditTxLogger") {
+			return
+		}
+
+		clinicID := uint64(1)
+		actorID := uint64(2)
+
+		err := auditTxLogger.LogEntryTx(context.Background(), &AuditLogInput{
+			ClinicID:  &clinicID,
+			ActorID:   &actorID,
+			ActorType: model.AuditActorTypeStaff,
+			Action:    "replace",
+			Resource:  "checkup_field_result",
+		})
+
+		assert.NoError(t, err)
+		if assert.NotNil(t, repo.lastLogged) {
+			assert.Equal(t, "replace", repo.lastLogged.Action)
+			assert.Equal(t, "checkup_field_result", repo.lastLogged.Resource)
+		}
+	})
+
+	t.Run("validation error is returned without hitting repo", func(t *testing.T) {
+		repo := &mockAuditRepository{}
+		svc := NewAuditService(repo)
+		auditTxLogger := svc.(AuditTxLogger)
+
+		err := auditTxLogger.LogEntryTx(context.Background(), &AuditLogInput{
+			ActorType: model.AuditActorTypeStaff,
+			Action:    "replace",
+			Resource:  "checkup_field_result",
+		})
+
+		assert.Error(t, err)
+		assert.Nil(t, repo.lastLogged)
+	})
+
+	t.Run("repo error is wrapped", func(t *testing.T) {
+		repo := &mockAuditRepository{
+			createFn: func(_ context.Context, _ *model.AuditLog) error {
+				return errors.New("tx write failed")
+			},
+		}
+		svc := NewAuditService(repo)
+		auditTxLogger := svc.(AuditTxLogger)
+
+		clinicID := uint64(1)
+		err := auditTxLogger.LogEntryTx(context.Background(), &AuditLogInput{
+			ClinicID:  &clinicID,
+			ActorType: model.AuditActorTypeSystem,
+			Action:    "replace",
+			Resource:  "checkup_field_result",
+		})
+
+		assert.Error(t, err)
+	})
+}
+
 // TestAuditService_LogLstepOperation_BackwardCompat は ISSUE-010 でメソッドを追加した後でも
 // 既存の LogLstepOperation 呼び出しが互換動作（actor_type / clinic_id / metadata=nil）を維持することを検証する。
 func TestAuditService_LogLstepOperation_BackwardCompat(t *testing.T) {

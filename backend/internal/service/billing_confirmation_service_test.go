@@ -337,3 +337,126 @@ func TestBillingConfirmationService_GetOrCreate_CrossTenantParentRejected(t *tes
 	assert.Nil(t, review)
 	assert.False(t, createCalled, "親カルテ所有権検証に失敗した場合、billing_confirmation を永続化してはならない")
 }
+
+// TestBillingConfirmationService_GetOrCreate_ParentLookupNonNotFoundError は親カルテ所有権検証が
+// NotFound 以外のエラー（DB接続エラー等）で失敗した場合、slog.ErrorContext でログしつつ
+// エラーを伝播することを検証する（NotFound の場合はクロステナント越境として静かに拒否する対照）。
+func TestBillingConfirmationService_GetOrCreate_ParentLookupNonNotFoundError(t *testing.T) {
+	repo := &mockBillingConfirmationRepository{
+		findByMedicalRecordIDFn: func(_ context.Context, _, _ uint64) (*model.BillingConfirmation, error) {
+			return nil, apperrors.WrapNotFound("billing_confirmation", "1")
+		},
+		createFn: func(_ context.Context, _ *model.BillingConfirmation) error {
+			return nil
+		},
+	}
+	medRec := &mockMedicalRecordRepository{
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
+			return nil, errors.New("db connection error")
+		},
+	}
+	svc := NewBillingConfirmationService(repo, medRec)
+
+	review, err := svc.GetOrCreate(context.Background(), 1, 1)
+
+	assert.Error(t, err)
+	assert.Nil(t, review)
+	assert.False(t, apperrors.IsNotFound(err), "非NotFoundエラーはNotFoundとして分類されないべき")
+}
+
+// TestBillingConfirmationService_Confirm_GetOrCreateError は GetOrCreate の失敗が
+// Confirm のエラーとしてそのまま伝播することを検証する。
+func TestBillingConfirmationService_Confirm_GetOrCreateError(t *testing.T) {
+	repo := &mockBillingConfirmationRepository{
+		findByMedicalRecordIDFn: func(_ context.Context, _, _ uint64) (*model.BillingConfirmation, error) {
+			return nil, errors.New("db error")
+		},
+	}
+	svc := NewBillingConfirmationService(repo, okMedRecForBilling())
+
+	review, err := svc.Confirm(context.Background(), 1, 1, &ConfirmBillingConfirmationInput{ConfirmedBy: 3})
+
+	assert.Error(t, err)
+	assert.Nil(t, review)
+}
+
+// TestBillingConfirmationService_Confirm_FindAfterUpdateError は Update 成功後の
+// 再取得（FindByMedicalRecordID）失敗が Confirm のエラーとして伝播することを検証する。
+func TestBillingConfirmationService_Confirm_FindAfterUpdateError(t *testing.T) {
+	findCount := 0
+	repo := &mockBillingConfirmationRepository{
+		findByMedicalRecordIDFn: func(_ context.Context, _, _ uint64) (*model.BillingConfirmation, error) {
+			findCount++
+			if findCount == 1 {
+				return &model.BillingConfirmation{ID: 1, MedicalRecordID: 1, Status: model.ConfirmationStatusPending}, nil
+			}
+			return nil, errors.New("db error")
+		},
+		updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) error {
+			return nil
+		},
+	}
+	svc := NewBillingConfirmationService(repo, okMedRecForBilling())
+
+	review, err := svc.Confirm(context.Background(), 1, 1, &ConfirmBillingConfirmationInput{ConfirmedBy: 3})
+
+	assert.Error(t, err)
+	assert.Nil(t, review)
+}
+
+// TestBillingConfirmationService_Return_GetOrCreateError は GetOrCreate の失敗が
+// Return のエラーとしてそのまま伝播することを検証する。
+func TestBillingConfirmationService_Return_GetOrCreateError(t *testing.T) {
+	repo := &mockBillingConfirmationRepository{
+		findByMedicalRecordIDFn: func(_ context.Context, _, _ uint64) (*model.BillingConfirmation, error) {
+			return nil, errors.New("db error")
+		},
+	}
+	svc := NewBillingConfirmationService(repo, okMedRecForBilling())
+
+	review, err := svc.Return(context.Background(), 1, 1, &ReturnBillingConfirmationInput{ReturnedBy: 2, ReturnReason: "reason"})
+
+	assert.Error(t, err)
+	assert.Nil(t, review)
+}
+
+// TestBillingConfirmationService_Return_NotConfirmedRejected は未確認（pending）状態の
+// billing_confirmation に対する差し戻しが拒否されることを検証する。
+func TestBillingConfirmationService_Return_NotConfirmedRejected(t *testing.T) {
+	repo := &mockBillingConfirmationRepository{
+		findByMedicalRecordIDFn: func(_ context.Context, _, _ uint64) (*model.BillingConfirmation, error) {
+			return &model.BillingConfirmation{ID: 1, MedicalRecordID: 1, Status: model.ConfirmationStatusPending}, nil
+		},
+	}
+	svc := NewBillingConfirmationService(repo, okMedRecForBilling())
+
+	review, err := svc.Return(context.Background(), 1, 1, &ReturnBillingConfirmationInput{ReturnedBy: 2, ReturnReason: "reason"})
+
+	assert.Error(t, err)
+	assert.Nil(t, review)
+	assert.True(t, apperrors.IsInvalidInput(err))
+}
+
+// TestBillingConfirmationService_Return_FindAfterUpdateError は Update 成功後の
+// 再取得（FindByMedicalRecordID）失敗が Return のエラーとして伝播することを検証する。
+func TestBillingConfirmationService_Return_FindAfterUpdateError(t *testing.T) {
+	findCount := 0
+	repo := &mockBillingConfirmationRepository{
+		findByMedicalRecordIDFn: func(_ context.Context, _, _ uint64) (*model.BillingConfirmation, error) {
+			findCount++
+			if findCount == 1 {
+				return &model.BillingConfirmation{ID: 1, MedicalRecordID: 1, Status: model.ConfirmationStatusConfirmed}, nil
+			}
+			return nil, errors.New("db error")
+		},
+		updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) error {
+			return nil
+		},
+	}
+	svc := NewBillingConfirmationService(repo, okMedRecForBilling())
+
+	review, err := svc.Return(context.Background(), 1, 1, &ReturnBillingConfirmationInput{ReturnedBy: 2, ReturnReason: "reason"})
+
+	assert.Error(t, err)
+	assert.Nil(t, review)
+}

@@ -66,6 +66,21 @@ var clinicScopedMasterAssoc = map[string]string{
 	"DiagnosisName":    "DiagnosisName",
 	"Names":            "DiagnosisName", // diagnosis_type.Names []DiagnosisName
 	"Occupation":       "Occupation",
+	// BE-refactor.md R3-2 (D9・P1): 以下3件は write 側 clinicScopedMasterFKField
+	// (master_fk_write_inventory_lint_test.go) には既に登録済みで、model 層にも
+	// gorm:"foreignKey:...ID" association フィールドが既に存在するが、本ファイル作成時点では
+	// repository 層でまだ一度も Preload されていない「未点火の地雷」だった。read 側に未登録のまま
+	// 誰かが初めて Preload した瞬間、本ゲートの `!isMaster` 分岐を素通りして無述語のまま
+	// 別クリニックのマスタ名が混入しうる。Preload が実際に書かれる前に事前登録することで、
+	// 「新規 master 登録漏れ」を発生源で塞ぐ（read/write 両ゲートの双方向整合）。
+	"ChiefComplaintType":  "ChiefComplaintType",  // inquiry.ChiefComplaintType (inquiry.go)
+	"HospitalizationPlan": "HospitalizationPlan", // care_plan_item.HospitalizationPlan (hospitalization.go)
+	"Inventory":           "InventoryItem",       // treatment.Inventory / medicine.Inventory (association名はInventoryItemでなくInventory)
+	// 残り3件（MerchandiseItem/TrimmingCourseType/PaymentMethodMaster）は write 側
+	// clinicScopedMasterFKField には登録済みだが、model 層に gorm:"foreignKey:...ID" association
+	// フィールドがまだ存在しない（生の *ID フィールドのみ）。Preload 自体が構文的に不可能なため
+	// 本マップへの事前登録はできない。P1 follow-up: これらに association フィールドを追加する際は
+	// 同一コミットで本マップにも登録すること（read/write 両ゲートの双方向整合を維持する）。
 }
 
 // staffExemptAssoc: P3.1 Staff exception. Staff belongs to multiple clinics via
@@ -444,6 +459,12 @@ func TestPreloadClinicScope_Analyzer(t *testing.T) {
 		{"global master exempt", `db.Preload("AnimalSpecies")`, 0},
 		{"non-master ignored", `db.Preload("Items", "deleted_at IS NULL")`, 0},
 		{"non-literal predicate fails closed", `db.Preload("Vaccine", cond)`, 1},
+		// BE-refactor.md R3-2 (D9・P1): 事前登録した「未点火の地雷」3件が実際に効くことの証明。
+		{"pre-registered ChiefComplaintType missing clinic_id", `db.Preload("ChiefComplaintType", "deleted_at IS NULL")`, 1},
+		{"pre-registered ChiefComplaintType scoped", `db.Preload("ChiefComplaintType", "clinic_id = ? AND deleted_at IS NULL", clinicID)`, 0},
+		{"pre-registered HospitalizationPlan missing clinic_id", `db.Preload("HospitalizationPlan", "deleted_at IS NULL")`, 1},
+		{"pre-registered Inventory missing clinic_id", `db.Preload("Inventory", "deleted_at IS NULL")`, 1},
+		{"pre-registered Inventory scoped", `db.Preload("Inventory", "clinic_id = ? AND deleted_at IS NULL", clinicID)`, 0},
 	}
 
 	for _, tc := range cases {

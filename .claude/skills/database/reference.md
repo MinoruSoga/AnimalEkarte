@@ -7,12 +7,13 @@
 ```go
 type Owner struct {
     ID        uint           `gorm:"primaryKey"`
+    ClinicID  uint64         `gorm:"not null"`
     Name      string         `gorm:"not null"`
-    Email     string         `gorm:"uniqueIndex"`
+    Email     string         // clinic_id との複合部分UNIQUE（マルチテナント）が実態。単純な uniqueIndex ではない
     CreatedAt time.Time
     UpdatedAt time.Time
     DeletedAt gorm.DeletedAt `gorm:"index"`
-    Patients  []Patient      `gorm:"foreignKey:OwnerID"`
+    Pets      []Pet          `gorm:"foreignKey:OwnerID"`
 }
 ```
 
@@ -21,8 +22,8 @@ type Owner struct {
 | 種別 | GORM タグ | 例 |
 |------|-----------|-----|
 | 1:1 | `gorm:"foreignKey:OwnerID"` | Owner - Profile |
-| 1:N | `gorm:"foreignKey:OwnerID"` | Owner - Patients |
-| M:N | 中間テーブル + `many2many:` | Patient - Tags |
+| 1:N | `gorm:"foreignKey:OwnerID"` | Owner - Pets |
+| M:N | 中間テーブル + `many2many:` | Pet - Tags |
 
 ### データ型マッピング
 
@@ -39,7 +40,7 @@ type Owner struct {
 ## インデックス設計
 
 ```go
-type Patient struct {
+type Pet struct {
     ID      uint   `gorm:"primaryKey"`
     OwnerID uint   `gorm:"index"`                     // 単一
     Status  string `gorm:"index:idx_status_created"`  // 複合
@@ -53,17 +54,17 @@ type Patient struct {
 - 外部キーには手動でインデックス追加（GORM は自動生成しない）
 - 複合インデックスは左から順に使用される
 
-## マイグレーション（Raw SQL 直接編集）
+## マイグレーション（Raw SQL・新規採番）
+
+> ⚠️ 以下の `psql` 直接実行・`make codegen` は CLAUDE.md の自動実行禁止コマンド。ユーザーに手動実行を依頼する。
+> **適用済み migration の編集は禁止**（checksum mismatch → db_reset が必要になる）。変更は最終番号+1 の新規ファイルで行う（migration-seed-safety スキル参照）。
 
 ```bash
-# スキーマ変更: backend/migrations/001_init.sql を直接編集（リリース前運用）
-
-# 変更を DB に適用
-docker compose exec db psql -U postgres -d animalekarte -f /migrations/001_init.sql
+# スキーマ変更: 最終番号+1 で新規 migration を追加（例: 013_add_xxx.sql）
 
 # 現在のスキーマ確認
-docker compose exec db psql -U postgres -d animalekarte -c "\dt"
-docker compose exec db psql -U postgres -d animalekarte -c "\d patients"
+docker compose exec db psql -U "$DB_USER" -d "$DB_NAME" -c "\dt"
+docker compose exec db psql -U "$DB_USER" -d "$DB_NAME" -c "\d pets"
 
 # GORM モデル変更後は codegen で models.ts を再生成
 make codegen
@@ -85,12 +86,12 @@ NNN_description.sql
 var owners []Owner
 db.Find(&owners)
 for _, o := range owners {
-    var patients []Patient
-    db.Where("owner_id = ?", o.ID).Find(&patients)
+    var pets []Pet
+    db.Where("owner_id = ?", o.ID).Find(&pets)
 }
 
-// OK: Preload で解決
-db.Preload("Patients").Find(&owners)
+// OK: Preload で解決（clinic-scoped マスタの Preload は clinic_id 述語必須 — postgres-patterns 参照）
+db.Preload("Pets").Find(&owners)
 ```
 
 ### 選択的フィールド取得

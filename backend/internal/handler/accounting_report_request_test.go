@@ -62,6 +62,28 @@ func TestMonthlyReportQuery_ToYearMonth_Invalid(t *testing.T) {
 	}
 }
 
+func TestMonthlyReportQuery_HasPeriod(t *testing.T) {
+	cases := []struct {
+		name  string
+		query monthlyReportQuery
+		want  bool
+	}{
+		{"both start and end set", monthlyReportQuery{StartDate: "2026-04-01", EndDate: "2026-04-30"}, true},
+		{"only start set", monthlyReportQuery{StartDate: "2026-04-01"}, true},
+		{"only end set", monthlyReportQuery{EndDate: "2026-04-30"}, true},
+		{"neither set", monthlyReportQuery{}, false},
+		{"year/month set but no period", monthlyReportQuery{Year: "2026", Month: "4"}, false},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := tc.query.hasPeriod(); got != tc.want {
+				t.Errorf("hasPeriod() = %v, want %v", got, tc.want)
+			}
+		})
+	}
+}
+
 func TestMonthlyReportQuery_ToPeriod(t *testing.T) {
 	start, end, err := newMonthlyReportQuery(url.Values{
 		"start_date": {"2026-04-30"},

@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"io"
+	"strings"
 	"testing"
 	"time"
 
@@ -281,6 +282,103 @@ func TestSharedFileService_Delete(t *testing.T) {
 		err := svc.Delete(ctx, 1, 100)
 		assert.Error(t, err)
 	})
+}
+
+func TestSharedFileService_Upload_RollbackDeleteAlsoFails(t *testing.T) {
+	ctx := context.Background()
+	ownerRepo := &mockOwnerRepository{}
+	rollbackCalled := false
+	storage := &mockFileStorage{
+		deleteFn: func(_ context.Context, _ string) error {
+			rollbackCalled = true
+			return errors.New("rollback failed")
+		},
+	}
+	repo := &mockSharedFileRepository{
+		createFn: func(_ context.Context, _ *model.SharedFile) error {
+			return errors.New("db error")
+		},
+	}
+	svc := NewSharedFileService(repo, ownerRepo, storage)
+	input := &UploadSharedFileInput{FileName: "test.txt"}
+
+	_, err := svc.Upload(ctx, 1, 10, input)
+
+	assert.Error(t, err)
+	assert.True(t, rollbackCalled, "storage.Delete によるロールバックが試行されること")
+}
+
+func TestSharedFileService_GetSignedURL_StorageError(t *testing.T) {
+	ctx := context.Background()
+	repo := &mockSharedFileRepository{
+		findByIDFn: func(_ context.Context, clinicID, id uint64) (*model.SharedFile, error) {
+			return &model.SharedFile{ID: id, ClinicID: clinicID, FileKey: "dummy-key"}, nil
+		},
+	}
+	storage := &mockFileStorage{
+		getSignedURLFn: func(_ context.Context, _ string, _ time.Duration) (string, error) {
+			return "", errors.New("storage error")
+		},
+	}
+	svc := NewSharedFileService(repo, nil, storage)
+
+	_, err := svc.GetSignedURL(ctx, 1, 100)
+
+	assert.Error(t, err)
+}
+
+func TestSharedFileService_Delete_RepoDeleteError(t *testing.T) {
+	ctx := context.Background()
+	repo := &mockSharedFileRepository{
+		findByIDFn: func(_ context.Context, clinicID, id uint64) (*model.SharedFile, error) {
+			return &model.SharedFile{ID: id, ClinicID: clinicID, FileKey: "dummy-key"}, nil
+		},
+		deleteFn: func(_ context.Context, _, _ uint64) error {
+			return errors.New("db error")
+		},
+	}
+	storage := &mockFileStorage{}
+	svc := NewSharedFileService(repo, nil, storage)
+
+	err := svc.Delete(ctx, 1, 100)
+
+	assert.Error(t, err)
+}
+
+func TestSharedFileService_CleanupExpired_RepoDeleteErrorAfterStorageSuccess(t *testing.T) {
+	ctx := context.Background()
+	repo := &mockSharedFileRepository{
+		findExpiredFn: func(_ context.Context, _ int64) ([]*model.SharedFile, error) {
+			return []*model.SharedFile{
+				{ID: 10, ClinicID: 1, FileKey: "key10"},
+			}, nil
+		},
+		deleteFn: func(_ context.Context, _, _ uint64) error {
+			return errors.New("db error")
+		},
+	}
+	storage := &mockFileStorage{}
+	svc := NewSharedFileService(repo, nil, storage)
+
+	err := svc.CleanupExpired(ctx)
+
+	assert.Error(t, err)
+}
+
+func TestGenerateSharedFileKey(t *testing.T) {
+	key1, err := generateSharedFileKey(1, "photo.jpg")
+	assert.NoError(t, err)
+	assert.True(t, strings.HasPrefix(key1, "shared/1/"))
+	assert.True(t, strings.HasSuffix(key1, ".jpg"))
+
+	key2, err := generateSharedFileKey(1, "photo.jpg")
+	assert.NoError(t, err)
+	assert.NotEqual(t, key1, key2, "各呼び出しでユニークなキーが生成されること")
+
+	keyNoExt, err := generateSharedFileKey(2, "noext")
+	assert.NoError(t, err)
+	assert.True(t, strings.HasPrefix(keyNoExt, "shared/2/"))
+	assert.False(t, strings.Contains(keyNoExt, "."))
 }
 
 func TestSharedFileService_CleanupExpired(t *testing.T) {

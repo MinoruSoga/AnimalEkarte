@@ -147,6 +147,73 @@ func TestImportFriendAttributesCSV_Integration_InvalidHeaderCreatesFailedImport(
 	}
 }
 
+// TestUpdateCsvImportRecordTx_ClinicIsolation は updateCsvImportRecordTx の clinic_id 境界を検証する
+// (HIGH follow-up: 独立security-reviewが発見した tx.Where("clinic_id=?").Save(imp) パターン修正の回帰テスト)。
+// GORM の Save() は imp.ID (主キー) がセット済みだと事前に連結した Where(clinic_id) を無視して主キーの
+// みで UPDATE するため、誤って別クリニックの clinicID を渡しても他クリニックの行を上書きできてしまう
+// 既知の落とし穴がある。本テストは2クリニックの実DBフィクスチャで、同一クリニックの更新は成功し、
+// clinic_id が一致しない場合は他クリニックの行が一切変化しないことを直接確認する。
+func TestUpdateCsvImportRecordTx_ClinicIsolation(t *testing.T) {
+	db := setupLstepCsvImportTestDB(t)
+	ctx := context.Background()
+
+	clinicA := seedLstepCsvImportClinic(t, db)
+	clinicB := seedLstepCsvImportClinic(t, db)
+
+	repo := repository.NewLstepCsvImportRepository(db)
+
+	rowA := &model.LstepCsvImport{ClinicID: clinicA, CsvType: "friend_attribute", FileName: "a.csv", Status: csvImportStatusProcessing}
+	if err := repo.Create(ctx, rowA); err != nil {
+		t.Fatalf("failed to create clinicA row: %v", err)
+	}
+	rowB := &model.LstepCsvImport{ClinicID: clinicB, CsvType: "friend_attribute", FileName: "b.csv", Status: csvImportStatusProcessing}
+	if err := repo.Create(ctx, rowB); err != nil {
+		t.Fatalf("failed to create clinicB row: %v", err)
+	}
+
+	t.Run("same-clinic update succeeds", func(t *testing.T) {
+		rowA.Status = csvImportStatusCompleted
+		rowA.RowCount = 5
+
+		err := db.Transaction(func(tx *gorm.DB) error {
+			return updateCsvImportRecordTx(tx, clinicA, rowA)
+		})
+		if err != nil {
+			t.Fatalf("same-clinic update returned error: %v", err)
+		}
+
+		var stored model.LstepCsvImport
+		if err := db.Where("id = ?", rowA.ID).First(&stored).Error; err != nil {
+			t.Fatalf("failed to load clinicA row: %v", err)
+		}
+		if stored.Status != csvImportStatusCompleted || stored.RowCount != 5 {
+			t.Fatalf("clinicA row not updated as expected: %+v", stored)
+		}
+	})
+
+	t.Run("clinic mismatch does not overwrite the other clinic's row", func(t *testing.T) {
+		// rowB.ID は clinicB 所有だが、誤って clinicA を境界として渡すケース（防御的境界チェック）。
+		mismatched := *rowB
+		mismatched.Status = csvImportStatusFailed
+		mismatched.RowCount = 999
+
+		err := db.Transaction(func(tx *gorm.DB) error {
+			return updateCsvImportRecordTx(tx, clinicA, &mismatched)
+		})
+		if err == nil {
+			t.Fatal("expected an error when clinicID does not match the row's owning clinic, got nil")
+		}
+
+		var stored model.LstepCsvImport
+		if err := db.Where("id = ?", rowB.ID).First(&stored).Error; err != nil {
+			t.Fatalf("failed to load clinicB row: %v", err)
+		}
+		if stored.Status != csvImportStatusProcessing || stored.RowCount != 0 {
+			t.Fatalf("clinicB's row must remain unchanged, got: %+v", stored)
+		}
+	})
+}
+
 func setupLstepCsvImportTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
 

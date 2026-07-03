@@ -50,6 +50,10 @@ type lineSendService struct {
 	auditSvc      AuditService
 	logRepo       repository.LineSendLogRepository
 	tagConfigRepo repository.LstepTagConfigRepository
+	// newLineClient は LINE Messaging API クライアントのファクトリ。
+	// 本番では lineinfra.NewMessagingClient（実際に外部 API へ通信する）で初期化される。
+	// テスト時にのみ差し替え可能にするためのテスト容易性シーム（振る舞いは変更しない）。
+	newLineClient func(channelAccessToken string) lineinfra.MessagingClient
 }
 
 func NewLineSendService(
@@ -69,6 +73,7 @@ func NewLineSendService(
 		auditSvc:      auditSvc,
 		logRepo:       logRepo,
 		tagConfigRepo: tagConfigRepo,
+		newLineClient: lineinfra.NewMessagingClient,
 	}
 }
 
@@ -91,7 +96,7 @@ func (s *lineSendService) Send(ctx context.Context, clinicID uint64, input *Send
 		return nil, apperrors.Wrap(err, "failed to get LINE credentials")
 	}
 
-	lineClient := lineinfra.NewMessagingClient(lineToken)
+	lineClient := s.newLineClient(lineToken)
 
 	var contentSummary string
 	var sendErr error

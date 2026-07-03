@@ -1,0 +1,72 @@
+---
+name: scoped-verification-gates
+description: commit/push 前のスコープ限定ローカル検証ゲート。全体 lint/test は自動実行禁止のため、変更範囲に絞った build/vet/test/gofmt を自分で実行してから完了報告する。「局所検証はユーザー手動」で済ませそうな時に使用。
+---
+
+# Scoped Verification Gates
+
+このプロジェクトには「ローカル検証をスキップして『ユーザー手動で実行してください』で完了報告してしまう」chronicな失敗パターンがある。全体 lint/test の自動実行が禁止されているのは事実だが、それは**スコープ限定の検証まで省略してよい理由にはならない**。このskillは、変更範囲に絞った検証を自分で実行し、その結果を報告するための手順である。
+
+## いつ発動するか
+
+- commit / push 前
+- backend / frontend の lint・test・gofmt をローカルで確認したい時
+- 「動作確認は完了しました」と報告しようとしている時（報告前に必ず参照する）
+
+## 手順
+
+1. **frontend 実行可否の判定**: 現在のモデルが Haiku かを確認する。Haiku限定で `pnpm` コマンドの自動実行が許可されている。Opus/Sonnetはユーザーに手動実行を依頼する（出典: memory feedback_pnpm_haiku）
+2. **backend lint（スコープ限定）**:
+   ```bash
+   GOLANGCI_LINT_CACHE=/tmp/glc-$RANDOM docker compose run --rm --no-deps -T \
+     --entrypoint golangci-lint backend run ./internal/service/...
+   ```
+   `--entrypoint` での上書きが必須（`entrypoint.sh` は渡されたコマンドを無視する。出典: ops_backend_scoped_lint_entrypoint_override）。キャッシュは毎回フレッシュ化する（stale cacheは偽の0件を返す。出典: ops_golangci_lint_stale_cache_false_zero）
+3. **backend build/vet/test（スコープ限定）**:
+   ```bash
+   docker compose exec backend go build ./...
+   docker compose exec backend go vet ./internal/service/...
+   docker compose exec backend go test ./internal/service/...
+   ```
+4. **gofmt**: 秒単位で完了するためスキップ理由が無い。対象ファイルを明示して必ず実行する:
+   ```bash
+   docker compose exec backend gofmt -l internal/service/foo_service.go
+   ```
+5. **DB依存テストは fresh-DB gate**: warm DBでの成功はCIのfresh DB失敗をマスクしうる。DB stateに関わる変更は一度 `DROP DATABASE ekarte_db_test` 相当のリセット後に走らせる（ユーザー承認の上で実施可否を確認する）
+6. **codegen影響の確認**: modelやAPIスキーマを変更した場合は `make codegen` 実行後 `git diff` で差分をユーザーに確認依頼する（`make codegen` 自体は自動実行禁止コマンド）
+7. **frontend（スコープ限定）**:
+   ```bash
+   npx vitest run src/features/xxx
+   ```
+   `pnpm test:run --` は罠——全件実行になる（出典: feedback_frontend_verify_harness_gotchas）
+
+## 良い例・悪い例
+
+✅ 良い例（スコープ限定・実行結果を報告）:
+```
+backend/internal/service/billing_service.go を変更したので検証した:
+$ docker compose exec backend go build ./...          → OK
+$ docker compose exec backend go vet ./internal/service/...  → OK
+$ docker compose exec backend go test ./internal/service/... → PASS (12 tests)
+$ docker compose exec backend gofmt -l internal/service/billing_service.go → (差分なし)
+```
+
+❌ 悪い例(1) — 全体コマンドに逃げる:
+```
+docker compose exec backend go test ./...
+```
+（禁止コマンドを自動実行しようとしている。スコープを絞った代替コマンドを使うべき）
+
+❌ 悪い例(2) — 「ユーザー手動で」に逃げる（このskillが解決対象とする失敗パターンそのもの）:
+```
+変更が完了しました。動作確認はユーザーの方で go test を実行して確認してください。
+```
+（スコープ限定の検証は自動実行が許可されている。実行せず手動依頼だけで済ませるのは chronic な回避パターン）
+
+## 完了条件
+
+変更パッケージの build / vet / scoped test / gofmt の**実行結果**を報告する。「ユーザー手動実行してください」で済ませることは禁止——それ自体がこのskillの解決対象となる chronic な失敗パターンである。
+
+## 出典
+
+memory: `feedback_claudecode_local_verify_skipping` / `ops_backend_scoped_lint_entrypoint_override` / `feedback_frontend_verify_harness_gotchas` / `feedback_pnpm_haiku` / `ops_golangci_lint_stale_cache_false_zero`

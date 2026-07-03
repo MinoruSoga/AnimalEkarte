@@ -637,6 +637,96 @@ func TestSyncAggregationTags_AcceptsManualTagName(t *testing.T) {
 	require.NoError(t, err, "manual tag name should be accepted")
 }
 
+// TestSyncAggregationTags_TagConfigRepoErrorIsLoggedNotReturned は
+// tagConfigRepo.FindAllAutoManagedPrefixes がエラーを返した場合、ログのみで
+// タグ名は拒否されずに処理が継続することを確認する。
+func TestSyncAggregationTags_TagConfigRepoErrorIsLoggedNotReturned(t *testing.T) {
+	tagConfigRepo := &mockLstepTagConfigRepository{
+		findAllAutoManagedPrefixesFn: func(_ context.Context) ([]*model.LstepAutoManagedPrefix, error) {
+			return nil, errors.New("db error")
+		},
+	}
+	repoMock := &mockLtvRepository{rows: []repository.OwnerLTVRow{}}
+	svc := NewAggregationService(repoMock, &mockLstepTagCacheRepository{}, tagConfigRepo, &mockLstepSettingsService{})
+
+	result, err := svc.SyncAggregationTags(context.Background(), 1, SyncAggregationTagsInput{
+		TagName: "VIP顧客", DryRun: true,
+	})
+
+	require.NoError(t, err, "prefix lookup failure must not reject the tag name")
+	require.NotNil(t, result)
+}
+
+// TestSyncAggregationTags_RepoError は FindOwnerLTV のエラーがラップされて返ることを確認する。
+func TestSyncAggregationTags_RepoError(t *testing.T) {
+	wantErr := errors.New("db error")
+	repoMock := &mockLtvRepository{err: wantErr}
+	svc := NewAggregationService(repoMock, &mockLstepTagCacheRepository{}, nil, &mockLstepSettingsService{})
+
+	_, err := svc.SyncAggregationTags(context.Background(), 1, SyncAggregationTagsInput{TagName: "VIP"})
+
+	require.Error(t, err)
+	// apperrors.Wrap は fmt.Errorf("%s: %w", message, err) で実装されており（P8）、
+	// errors.Is で元エラーがチェーンに残ることが正しい「ラップ」の振る舞い。
+	assert.ErrorIs(t, err, wantErr, "error should be wrapped with %w, preserving the original in the chain")
+	assert.Contains(t, err.Error(), "db error")
+}
+
+// TestSyncAggregationTags_NonDryRun_UpsertSuccess は DryRun=false で対象オーナーの
+// UpsertTag が実際に呼ばれ、Synced がカウントされることを確認する。
+func TestSyncAggregationTags_NonDryRun_UpsertSuccess(t *testing.T) {
+	rows := []repository.OwnerLTVRow{
+		{OwnerID: 1, OwnerName: "linked", LineUserID: aggStrPtr("U-1"), LstepOptOut: false},
+	}
+	upsertCalls := 0
+	tagCache := &mockLstepTagCacheRepository{
+		upsertTagFn: func(_ context.Context, clinicID, ownerID uint64, tagName, _, _ string) error {
+			upsertCalls++
+			assert.Equal(t, uint64(1), clinicID)
+			assert.Equal(t, uint64(1), ownerID)
+			assert.Equal(t, "VIP", tagName)
+			return nil
+		},
+	}
+	repoMock := &mockLtvRepository{rows: rows}
+	svc := NewAggregationService(repoMock, tagCache, nil, &mockLstepSettingsService{})
+
+	r, err := svc.SyncAggregationTags(context.Background(), 1, SyncAggregationTagsInput{
+		TagName: "VIP", DryRun: false,
+	})
+
+	require.NoError(t, err)
+	assert.False(t, r.DryRun)
+	assert.Equal(t, 1, r.Total)
+	assert.Equal(t, 1, r.Synced)
+	assert.Equal(t, 0, r.Skipped)
+	assert.Equal(t, 1, upsertCalls)
+}
+
+// TestSyncAggregationTags_NonDryRun_UpsertError は UpsertTag がエラーを返した場合、
+// その行が Skipped にカウントされ、処理全体は成功で継続することを確認する。
+func TestSyncAggregationTags_NonDryRun_UpsertError(t *testing.T) {
+	rows := []repository.OwnerLTVRow{
+		{OwnerID: 1, OwnerName: "linked", LineUserID: aggStrPtr("U-1"), LstepOptOut: false},
+	}
+	tagCache := &mockLstepTagCacheRepository{
+		upsertTagFn: func(_ context.Context, _, _ uint64, _, _, _ string) error {
+			return errors.New("db error")
+		},
+	}
+	repoMock := &mockLtvRepository{rows: rows}
+	svc := NewAggregationService(repoMock, tagCache, nil, &mockLstepSettingsService{})
+
+	r, err := svc.SyncAggregationTags(context.Background(), 1, SyncAggregationTagsInput{
+		TagName: "VIP", DryRun: false,
+	})
+
+	require.NoError(t, err, "per-row upsert errors must not fail the overall sync")
+	assert.Equal(t, 1, r.Total)
+	assert.Equal(t, 0, r.Synced)
+	assert.Equal(t, 1, r.Skipped)
+}
+
 // ---- 補助モック ----
 
 // mockLtvRepositoryCapture は FindOwnerLTV 引数キャプチャ用。

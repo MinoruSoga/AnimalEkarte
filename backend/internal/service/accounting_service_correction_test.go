@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -95,17 +96,17 @@ func TestAccountingService_CorrectCreditPayment(t *testing.T) {
 		assert.Equal(t, int64(0), (*savedSplits)[0].ChangeAmount)
 
 		// 監査: before/after + reason
-		assert.True(t, audit.logEntryCalled, "訂正時は監査ログ必須")
-		assert.Equal(t, model.AuditActionBillingCreditCorrection, audit.logEntryInput.Action)
-		assert.Equal(t, "billing", audit.logEntryInput.Resource)
-		assert.Equal(t, &staffID, audit.logEntryInput.ActorID)
-		old, ok := audit.logEntryInput.OldValue.(map[string]any)
+		assert.True(t, audit.logEntryTxCalled, "訂正時は監査ログ必須")
+		assert.Equal(t, model.AuditActionBillingCreditCorrection, audit.logEntryTxInput.Action)
+		assert.Equal(t, "billing", audit.logEntryTxInput.Resource)
+		assert.Equal(t, &staffID, audit.logEntryTxInput.ActorID)
+		old, ok := audit.logEntryTxInput.OldValue.(map[string]any)
 		assert.True(t, ok, "OldValue は map")
 		assert.Equal(t, int64(10000), old["amount"])
-		nv, ok := audit.logEntryInput.NewValue.(map[string]any)
+		nv, ok := audit.logEntryTxInput.NewValue.(map[string]any)
 		assert.True(t, ok, "NewValue は map")
 		assert.Equal(t, int64(12000), nv["amount"])
-		meta, ok := audit.logEntryInput.Metadata.(map[string]any)
+		meta, ok := audit.logEntryTxInput.Metadata.(map[string]any)
 		assert.True(t, ok, "Metadata は map")
 		assert.Equal(t, "クレジット端末の打ち間違い", meta["reason"])
 		assert.Equal(t, "本人確認済み", meta["memo"])
@@ -135,11 +136,36 @@ func TestAccountingService_CorrectCreditPayment(t *testing.T) {
 		})
 		assert.NoError(t, err, "締め済み期間でも訂正は成功する（M-2 は拒否しない・可視化のみ）")
 
-		assert.True(t, audit.logEntryCalled, "締め済み訂正も監査ログを記録する")
-		meta, ok := audit.logEntryInput.Metadata.(map[string]any)
+		assert.True(t, audit.logEntryTxCalled, "締め済み訂正も監査ログを記録する")
+		meta, ok := audit.logEntryTxInput.Metadata.(map[string]any)
 		assert.True(t, ok, "Metadata は map")
 		assert.Equal(t, true, meta["post_close"], "締め済み期間の訂正は post_close=true を記録")
 		assert.Equal(t, "2026-06-30", meta["post_close_date"], "対象締めの識別子として予定日を記録")
+	})
+
+	// BE-refactor.md R1-2 手順3（go-reviewer HIGH-2 指摘の是正）: money-critical なクレジット訂正でも
+	// 監査書込（LogEntryTx）が失敗すると tx 全体がロールバックし訂正ごと無効になる（fail-closed）ことを固定する。
+	// 他の6移行サイト（Cancel/Update/medicine/dose-param/treatment）と同型の失敗注入回帰テスト。
+	// これが無いと将来 logCreditCorrection を fire-and-forget に戻す退行を検出できない。
+	t.Run("監査失敗時は訂正全体をロールバックする（fail-closed）", func(t *testing.T) {
+		billing := completedCardBilling()
+		saveCalled := false
+		repo := &mockAccountingRepository{
+			findByIDFn:          func(_ context.Context, _, _ uint64) (*model.Billing, error) { return billing, nil },
+			savePaymentFn:       func(_ context.Context, _ *model.Payment) error { saveCalled = true; return nil },
+			savePaymentSplitsFn: func(_ context.Context, _ []model.PaymentSplit) error { return nil },
+		}
+		audit := &mockAccountingAuditService{logEntryTxErr: errors.New("audit write failed")}
+		svc := NewAccountingService(repo, nil, &mockTransactor{}, audit, &mockPaymentMethodMasterRepository{})
+
+		_, err := svc.CorrectCreditPayment(context.Background(), &CorrectCreditPaymentInput{
+			ClinicID: 1, BillingID: 10, StaffID: &staffID,
+			Method: model.PaymentMethodCreditCard, Amount: 12000, Reason: "監査失敗の注入",
+		})
+
+		assert.Error(t, err, "監査失敗はクレジット訂正全体を失敗させる（fail-closed）")
+		assert.True(t, audit.logEntryTxCalled, "監査書込は試行される")
+		assert.True(t, saveCalled, "監査は payment 保存の後に呼ばれる（同一 tx 内で rollback 対象）")
 	})
 
 	denied := []struct {
@@ -201,7 +227,7 @@ func TestAccountingService_CorrectCreditPayment(t *testing.T) {
 			_, err := svc.CorrectCreditPayment(context.Background(), tc.input)
 			assert.Error(t, err, "不正入力/状態は決定的にエラーを返す")
 			assert.False(t, saveCalled, "拒否時は支払いを保存しない")
-			assert.False(t, audit.logEntryCalled, "拒否時は監査を記録しない")
+			assert.False(t, audit.logEntryTxCalled, "拒否時は監査を記録しない")
 		})
 	}
 

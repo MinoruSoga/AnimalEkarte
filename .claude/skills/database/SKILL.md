@@ -15,6 +15,8 @@ description: PostgreSQL操作、マイグレーション、最適化
 
 ### マイグレーション（Raw SQL、リリース前直接編集運用）
 
+> ⚠️ 以下の `psql` 直接実行は CLAUDE.md の自動実行禁止コマンド。ユーザーに手動実行を依頼する。
+
 ```bash
 # マイグレーションファイルを直接編集（リリース前のみ）
 # backend/migrations/001_init.sql
@@ -27,6 +29,8 @@ docker compose exec db psql -U postgres -d animalekarte -c "\dt"
 ```
 
 ### データベース操作
+
+> ⚠️ 以下はいずれも CLAUDE.md の自動実行禁止コマンド。ユーザーに手動実行を依頼する。
 
 ```bash
 # psql 接続
@@ -54,5 +58,5 @@ docker compose exec db psql -U postgres -d animalekarte < backup.sql
 
 ## 詳細リファレンス
 
-- スキーマガイド: [schema-guide.md](./schema-guide.md)
-- パフォーマンス: [performance.md](./performance.md)
+- リファレンス: [reference.md](./reference.md)
+- トラブルシューティング: [troubleshooting.md](./troubleshooting.md)

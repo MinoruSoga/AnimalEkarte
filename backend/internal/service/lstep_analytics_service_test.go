@@ -314,6 +314,48 @@ func TestLstepAnalyticsService_GetLatestFriendAttributes(t *testing.T) {
 
 		assert.Error(t, err)
 	})
+
+	t.Run("snapshotRepo error は wrap されて返る", func(t *testing.T) {
+		lu := "U9999"
+		ownerRepo := &mockAnalyticsOwnerRepo{
+			findByIDFn: func(_ context.Context, _, id uint64) (*model.Owner, error) {
+				return &model.Owner{ID: id, LineUserID: &lu}, nil
+			},
+		}
+		snapshotRepo := &mockAnalyticsSnapshotRepo{
+			findLatestFn: func(_ context.Context, _ uint64, _ string) (*model.LstepFriendAttributeSnapshot, error) {
+				return nil, errors.New("db error")
+			},
+		}
+		svc := NewLstepAnalyticsService(ownerRepo, &mockAnalyticsTriggerLogRepo{}, snapshotRepo)
+
+		got, err := svc.GetLatestFriendAttributes(context.Background(), 100, 200)
+
+		assert.Error(t, err)
+		assert.Nil(t, got)
+	})
+}
+
+// ---- calculateRate direct tests ----
+
+func TestCalculateRate(t *testing.T) {
+	tests := []struct {
+		name        string
+		numerator   int64
+		denominator int64
+		want        float64
+	}{
+		{name: "denominator zero returns zero", numerator: 5, denominator: 0, want: 0},
+		{name: "denominator zero with zero numerator returns zero", numerator: 0, denominator: 0, want: 0},
+		{name: "normal ratio", numerator: 1, denominator: 4, want: 0.25},
+		{name: "full ratio", numerator: 10, denominator: 10, want: 1},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := calculateRate(tt.numerator, tt.denominator)
+			assert.InDelta(t, tt.want, got, 0.0001)
+		})
+	}
 }
 
 func TestLstepAnalyticsService_GetVisitConversionSummary(t *testing.T) {

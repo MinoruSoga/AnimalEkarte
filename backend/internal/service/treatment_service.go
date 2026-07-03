@@ -138,7 +138,14 @@ type TreatmentService interface {
 // ─── Implementation ───────────────────────────────────────────────────────────
 
 type treatmentService struct {
-	repos    *repository.Repositories
+	repos *repository.Repositories
+	// auditSvc は非nilかどうかのみを「逸脱audit機能の有効/無効」フラグとして使う。
+	// BE-refactor.md R1-2 (D1): treatment は repos.Transaction(ctx, func(txRepos...)) で tx 境界を
+	// 作る（Transactor.WithTx + ctx-txKey とは別機構）。この機構では tx が txRepos（tx にバインドされた
+	// *Repositories）に宿り、ctx には伝播しないため、AuditTxLogger.LogEntryTx（dbOrTx が ctx の txKey を
+	// 見る）は参加できない — base db に書いてしまい fail-closed にならない。そのため実際の書込は
+	// auditDoseDeviationTx が txRepos.Audit.CreateTx を直接使う（tx にバインドされた Audit リポジトリ
+	// インスタンス自体が tx 参加を保証する）。auditSvc のメソッドは呼ばない。
 	auditSvc AuditService
 }
 
@@ -148,7 +155,8 @@ func NewTreatmentService(repos *repository.Repositories) TreatmentService {
 	return &treatmentService{repos: repos}
 }
 
-// NewTreatmentServiceWithAudit は AuditService を注入する（#201 B-2: 逸脱上書きの監査記録）。
+// NewTreatmentServiceWithAudit は逸脱 audit 機能を有効化する（#201 B-2）。
+// auditSvc は非nilフラグとしてのみ使う（上記 struct コメント参照）。
 func NewTreatmentServiceWithAudit(repos *repository.Repositories, auditSvc AuditService) TreatmentService {
 	return &treatmentService{repos: repos, auditSvc: auditSvc}
 }
@@ -283,17 +291,20 @@ func (s *treatmentService) Create(ctx context.Context, clinicID, medicalRecordID
 			}
 		}
 
+		// #201 B-2 / BE-refactor.md R1-2: 逸脱（過量/過少/著しい上書き）を監査記録（fail-closed）。
+		// tx 内で失敗すると treatment 作成・在庫減算ごとロールバックする。
+		if doseEval != nil && input.MedicineID != nil {
+			if err := s.auditDoseDeviationTx(ctx, txRepos, clinicID, input.ActorID, treatment.ID, *input.MedicineID, doseEval); err != nil {
+				return err
+			}
+		}
+
 		return nil
 	})
 
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to create treatment", "error", err)
 		return nil, apperrors.Wrap(err, "failed to create treatment")
-	}
-
-	// #201 B-2: 逸脱（過量/過少/著しい上書き）を監査記録（ベストエフォート・保存はブロックしない）。
-	if doseEval != nil && input.MedicineID != nil {
-		s.auditDoseDeviation(ctx, clinicID, input.ActorID, treatment.ID, *input.MedicineID, doseEval)
 	}
 
 	slog.InfoContext(ctx, "treatment created with atomic inventory sync",
@@ -390,14 +401,17 @@ func (s *treatmentService) Update(ctx context.Context, clinicID, medicalRecordID
 				maps.Copy(fields, clearedDoseColumns())
 			}
 		}
-		return txRepos.Treatment.Update(ctx, clinicID, treatmentID, fields)
+		if err := txRepos.Treatment.Update(ctx, clinicID, treatmentID, fields); err != nil {
+			return err
+		}
+		// #201 B-2 / BE-refactor.md R1-2: 逸脱監査を fail-closed 化。失敗すると Update ごとロールバックする。
+		if doseEval != nil {
+			return s.auditDoseDeviationTx(ctx, txRepos, clinicID, input.ActorID, treatmentID, doseMedicineID, doseEval)
+		}
+		return nil
 	}); txErr != nil {
 		slog.ErrorContext(ctx, "failed to update treatment", "error", txErr)
 		return nil, apperrors.Wrap(txErr, "failed to update treatment")
-	}
-
-	if doseEval != nil {
-		s.auditDoseDeviation(ctx, clinicID, input.ActorID, treatmentID, doseMedicineID, doseEval)
 	}
 
 	slog.InfoContext(ctx, "treatment updated",
@@ -596,10 +610,14 @@ func (s *treatmentService) resolveDoseWeight(ctx context.Context, repos *reposit
 	return kg, fmt.Sprintf("vital_records:%d", chosen.ID), true
 }
 
-// auditDoseDeviation は逸脱（過量/過少/著しい上書き）を audit_logs に記録する（ベストエフォート）。
-func (s *treatmentService) auditDoseDeviation(ctx context.Context, clinicID uint64, actorID *uint64, treatmentID, medicineID uint64, eval *SavedDoseEvaluation) {
+// auditDoseDeviationTx は逸脱（過量/過少/著しい上書き）を audit_logs に fail-closed で記録する。
+// BE-refactor.md R1-2 (D1): txRepos.Audit（呼び出し元 repos.Transaction が tx にバインドした
+// Audit リポジトリインスタンス）へ直接 CreateTx する。s.auditSvc は有効/無効フラグとしてのみ使う
+// （struct コメント参照 — LogEntryTx 経由だと ctx に tx が伝播せず fail-closed にならない）。
+// エラーを返すと呼び出し元の repos.Transaction が rollback し、treatment 書込ごと無効になる。
+func (s *treatmentService) auditDoseDeviationTx(ctx context.Context, txRepos *repository.Repositories, clinicID uint64, actorID *uint64, treatmentID, medicineID uint64, eval *SavedDoseEvaluation) error {
 	if s.auditSvc == nil || eval == nil || !eval.IsDeviation() {
-		return
+		return nil
 	}
 	actorType := model.AuditActorTypeSystem
 	if actorID != nil {
@@ -616,9 +634,14 @@ func (s *treatmentService) auditDoseDeviation(ctx context.Context, clinicID uint
 		NewValue:   map[string]any{"submitted_quantity": eval.Snapshot.SubmittedQty, "effective_mg": eval.SavedEffectiveMg, "exceeds_max": eval.ExceedsCapSaved, "below_min": eval.BelowMinSaved},
 		Metadata:   map[string]any{"medicine_id": medicineID, "deviation_threshold_pending_operational": true},
 	}
-	if err := s.auditSvc.LogEntry(ctx, input); err != nil {
-		slog.ErrorContext(ctx, "failed to audit dose deviation", "error", err, "treatment_id", treatmentID)
+	log := buildAuditLog(input)
+	if err := validateAuditLog(log); err != nil {
+		return err
 	}
+	if err := txRepos.Audit.CreateTx(ctx, log); err != nil {
+		return apperrors.Wrap(err, "failed to write dose deviation audit log")
+	}
+	return nil
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
