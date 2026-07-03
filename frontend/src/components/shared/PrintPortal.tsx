@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 
 interface PrintPortalProps {
@@ -47,10 +47,41 @@ export function PrintPortal({
   active = true,
   children,
 }: PrintPortalProps) {
+  const elementRef = useRef<HTMLDivElement>(null);
+
+  // FD6 (FE-refactor.md): 同居する全 PrintPortal が active=false だと印刷面が
+  // 0 件になり白紙化する（呼び出し側責務、実行時のガードは無し）。dev ビルド限定で
+  // 印刷実行時にこの状態を検出し console.warn する（本番挙動は不変・挙動保存）。
+  useEffect(() => {
+    if (!import.meta.env.DEV) return;
+
+    function warnIfAllPortalsInactive() {
+      const portals = document.querySelectorAll<HTMLElement>("[data-print-portal]");
+      if (portals.length === 0) return;
+      // 複数 PrintPortal が同時に mount されている場合、DOM 順で最初のものだけが
+      // チェックを実行する（各インスタンスの effect が重複して警告しないため）。
+      if (portals[0] !== elementRef.current) return;
+
+      const hasActivePortal = Array.from(portals).some(
+        (el) => el.getAttribute("data-print-active") === "true",
+      );
+      if (!hasActivePortal) {
+        console.warn(
+          "[PrintPortal] 同居する全ての印刷ポータルが active=false です。印刷面が白紙化します。" +
+            "呼び出し側で最低1つを active=true にしてください（#187）。",
+        );
+      }
+    }
+
+    window.addEventListener("beforeprint", warnIfAllPortalsInactive);
+    return () => window.removeEventListener("beforeprint", warnIfAllPortalsInactive);
+  }, []);
+
   // SSR / 非ブラウザ環境では body 直下への portal は不可。SPA では常に存在する。
   if (typeof document === "undefined") return null;
   return createPortal(
     <div
+      ref={elementRef}
       hidden
       className="bg-white"
       data-testid={testId}

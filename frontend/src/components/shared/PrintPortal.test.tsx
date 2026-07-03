@@ -1,6 +1,10 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi, afterEach } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { PrintPortal } from "./PrintPortal";
+
+function fireBeforePrint(): void {
+  window.dispatchEvent(new Event("beforeprint"));
+}
 
 /**
  * #187 再発防止テスト。
@@ -97,5 +101,61 @@ describe("PrintPortal (#187 多重ポータル白紙化の再発防止)", () => 
       </PrintPortal>,
     );
     expect(styleTextOf("area-a")).toContain("size: A4 landscape");
+  });
+
+  describe("FD6: 全ポータル active=false の実行時検出（devビルド限定 console.warn）", () => {
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    it("同居する全ポータルが active=false のとき、印刷実行時に console.warn する", () => {
+      const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+      render(
+        <>
+          <PrintPortal testId="area-a" active={false}>
+            <p>A</p>
+          </PrintPortal>
+          <PrintPortal testId="area-b" active={false}>
+            <p>B</p>
+          </PrintPortal>
+        </>,
+      );
+
+      fireBeforePrint();
+
+      expect(warnSpy).toHaveBeenCalledTimes(1);
+      expect(warnSpy.mock.calls[0][0]).toContain("[PrintPortal]");
+    });
+
+    it("最低1つのポータルが active=true のとき、印刷実行時に console.warn しない", () => {
+      const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+      render(
+        <>
+          <PrintPortal testId="area-a" active>
+            <p>A</p>
+          </PrintPortal>
+          <PrintPortal testId="area-b" active={false}>
+            <p>B</p>
+          </PrintPortal>
+        </>,
+      );
+
+      fireBeforePrint();
+
+      expect(warnSpy).not.toHaveBeenCalled();
+    });
+
+    it("単一ポータル（既定 active=true）では印刷実行時に console.warn しない", () => {
+      const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+      render(
+        <PrintPortal testId="area-a">
+          <p>A</p>
+        </PrintPortal>,
+      );
+
+      fireBeforePrint();
+
+      expect(warnSpy).not.toHaveBeenCalled();
+    });
   });
 });
