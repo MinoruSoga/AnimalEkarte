@@ -72,6 +72,9 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	// checkup_field (#211 tx-internal replace)
 	"checkup_field_repository.go|checkupFieldResultRepository.FindByCheckupID":   {},
 	"checkup_field_repository.go|checkupFieldResultRepository.ReplaceForCheckup": {},
+	// examination (BE-refactor.md R1-2 tx-internal replace)
+	"examination_repository.go|examinationRepository.FindAllItemsByExamID": {},
+	"examination_repository.go|examinationRepository.ReplaceItemsByExamID": {},
 	// medical_record_addendum
 	"medical_record_addendum_repository.go|medicalRecordAddendumRepository.Create":                {},
 	"medical_record_addendum_repository.go|medicalRecordAddendumRepository.FindByID":              {},
