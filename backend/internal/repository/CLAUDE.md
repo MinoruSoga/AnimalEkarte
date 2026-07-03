@@ -154,3 +154,30 @@ type VaccineRepository interface {
 // ❌
 GetAll(...)  GetByID(...)  List(...)  Fetch(...)
 ```
+
+## テストヘルパー: DROP+CREATE 系は setupIsolatedTestDB を使う (MANDATORY)
+
+`*_test.go` の setup ヘルパーがテーブル/ENUM 型を `DROP TABLE`/`DROP TYPE` → 再作成する場合、
+`setupTestDB`（全テストで共有する DB 接続プール）ではなく `setupIsolatedTestDB`（呼び出し毎の
+使い捨て接続、`ltv_repository_test.go`）を使う。共有プール上で DROP+CREATE すると、他テストが
+保持する古いテーブル/型 OID を参照したキャッシュ済み prepared statement が壊れる
+（`cache lookup failed` SQLSTATE XX000 / `cached plan must not change result type` SQLSTATE 0A000）。
+
+```go
+// ✅ DROP+CREATE を伴う setup は使い捨て接続
+func setupXxxTestDB(t *testing.T) *gorm.DB {
+    db := setupIsolatedTestDB(t)
+    db.Exec("DROP TABLE IF EXISTS xxx CASCADE")
+    // ...
+}
+
+// ❌ 共有プールで DROP+CREATE すると他テストの prepared statement を破壊しうる
+func setupXxxTestDB(t *testing.T) *gorm.DB {
+    db := setupTestDB(t)
+    db.Exec("DROP TABLE IF EXISTS xxx CASCADE")
+    // ...
+}
+```
+
+TRUNCATE のみ（テーブル構造を変えない）なら `setupTestDB` のままでよい。既存例:
+`checkup_field_repository_test.go` の `setupCheckupFieldTestDB`。

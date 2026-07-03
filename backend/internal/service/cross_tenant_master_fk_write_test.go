@@ -280,7 +280,7 @@ func TestExaminationService_Create_RejectsCrossClinicExamType(t *testing.T) {
 		repo := &mockExaminationRepository{
 			createFn: func(_ context.Context, _ *model.Examination) error { *created = true; return nil },
 		}
-		return NewExaminationService(repo, &mockMedicalRecordRepositoryForExam{}, rejectExamTypeRepo(ownedExamTypeID), nil)
+		return NewExaminationService(repo, &mockMedicalRecordRepositoryForExam{}, rejectExamTypeRepo(ownedExamTypeID), nil, nil)
 	}
 
 	t.Run("rejects cross-clinic exam_type_id and does not persist", func(t *testing.T) {
@@ -317,7 +317,7 @@ func TestExaminationService_Update_RejectsCrossClinicExamType(t *testing.T) {
 				return &model.Examination{ID: 1}, nil
 			},
 		}
-		return NewExaminationService(repo, &mockMedicalRecordRepositoryForExam{}, rejectExamTypeRepo(ownedExamTypeID), nil)
+		return NewExaminationService(repo, &mockMedicalRecordRepositoryForExam{}, rejectExamTypeRepo(ownedExamTypeID), nil, nil)
 	}
 
 	t.Run("rejects cross-clinic exam_type_id on update and does not persist", func(t *testing.T) {

@@ -13,9 +13,12 @@ package repository
 // tx; if the post-replace audit write fails, the caller's tx rollback also reverts the delete
 // (fail-closed). The runtime proof is checkup_field_result_tx_atomicity_test.go.
 //
-// exam_results is still "pending-migration": ReplaceItemsByExamID uses
-// r.db.WithContext(ctx).Transaction(...) — NOT ambient-tx-aware. The delete commits
-// immediately in its own tx; audit cannot be made atomic. This lint makes the gap CI-visible.
+// exam_results was migrated to "audited-tx-internal" (BE-refactor.md R1-2): ReplaceItemsByExamID
+// now uses dbOrTx(ctx, r.db).Transaction(...) so the delete participates in the caller's ambient
+// tx; examinationService.ReplaceItems wraps it in Transactor.WithTx and writes a post-replace
+// AuditTxLogger.LogEntryTx audit entry (gated on deletedCount > 0) in the same tx — an audit
+// failure rolls back the delete (fail-closed). The runtime proof is
+// examination_repository_tx_atomicity_test.go.
 //
 // ─── Purpose ────────────────────────────────────────────────────────────────────────
 //
@@ -142,13 +145,13 @@ var clinicalResultAuditTxAllowlist = []auditInventoryEntry{
 		function:    "examinationRepository.ReplaceItemsByExamID",
 		modelType:   "ExamResult",
 		occurrences: 1,
-		status:      statusPendingMigration,
-		reason: "examination_repository.go: ReplaceItemsByExamID uses r.db.WithContext(ctx).Transaction(...) — " +
-			"NOT ambient-tx-aware. The exam_results delete commits in its own independent tx before any " +
-			"audit write; a subsequent audit failure cannot roll back the already-committed deletion. " +
-			"This is the same tamper-traceability gap that checkup_field_results had before fe04b460. " +
-			"Migration target: switch to dbOrTx(ctx, r.db).Transaction(...) and add a runtime atomicity " +
-			"test analogous to checkup_field_result_tx_atomicity_test.go.",
+		status:      statusAuditedTxInternal,
+		reason: "examination_repository.go: ReplaceItemsByExamID uses dbOrTx(ctx, r.db).Transaction(...) — " +
+			"ambient-tx-aware (BE-refactor.md R1-2). The delete participates in the caller's " +
+			"Transactor.WithTx ambient tx; examinationService.ReplaceItems writes a post-replace " +
+			"AuditTxLogger.LogEntryTx entry (gated on deletedCount > 0) in the same tx, and if it fails " +
+			"and the caller rolls back, the delete is also reverted (fail-closed). " +
+			"Runtime proof: examination_repository_tx_atomicity_test.go.",
 	},
 }
 
@@ -369,21 +372,24 @@ func TestClinicalResultAuditTxInventory_AllowlistMatchesRealSource(t *testing.T)
 	}
 }
 
-// TestClinicalResultAuditTxInventory_StatusesAreLive proves the status taxonomy is exercised.
-// Both statuses must be present: audited-tx-internal (checkup, fe04b460) and
-// pending-migration (exam_results, CI-visible gap).
+// TestClinicalResultAuditTxInventory_StatusesAreLive proves the audited-tx-internal status is
+// exercised by a real entry. Both known clinical-result hard-delete sites (checkup_field_results
+// fe04b460, exam_results BE-refactor.md R1-2) are migrated as of this test — there is currently
+// no 'pending-migration' example. statusPendingMigration itself stays in the taxonomy (see the
+// const block above and TestClinicalResultAuditTxInventory_GateDetectsViolations fixtures) for
+// the next clinical-result hard-delete site that is added but not yet made ambient-tx-aware.
 func TestClinicalResultAuditTxInventory_StatusesAreLive(t *testing.T) {
 	counts := map[auditInventoryStatus]int{}
 	for _, e := range clinicalResultAuditTxAllowlist {
 		counts[e.status]++
 	}
 	if counts[statusAuditedTxInternal] == 0 {
-		t.Error("no 'audited-tx-internal' entries; checkup_field_results migration (fe04b460) " +
-			"may have drifted or been removed — verify before deleting")
+		t.Error("no 'audited-tx-internal' entries; checkup_field_results (fe04b460) / exam_results " +
+			"(R1-2) migrations may have drifted or been removed — verify before deleting")
 	}
-	if counts[statusPendingMigration] == 0 {
-		t.Error("no 'pending-migration' entries; exam_results is the known migration target — " +
-			"if it was migrated, update its status to audited-tx-internal and add a runtime atomicity test")
+	if counts[statusAuditedTxInternal] != len(clinicalResultAuditTxAllowlist) {
+		t.Error("a non-audited-tx-internal entry exists; if this is a genuine new pending-migration " +
+			"site that is expected, this assertion should be relaxed with a comment explaining why")
 	}
 }
 

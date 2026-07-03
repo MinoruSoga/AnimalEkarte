@@ -241,7 +241,7 @@ func NewServices(repos *repository.Repositories, notifCfg *ReservationNotificati
 		DiagnosisName:                  NewDiagnosisNameService(repos.DiagnosisName, repos.DiagnosisType),
 		CheckupType:                    NewCheckupTypeService(repos.CheckupType),
 		Clinic:                         NewClinicService(repos.Clinic, repos.PermissionGroup, tx),
-		Examination:                    NewExaminationService(repos.Examination, repos.MedicalRecord, repos.ExaminationType, auditSvc),
+		Examination:                    NewExaminationService(repos.Examination, repos.MedicalRecord, repos.ExaminationType, auditTxLogger, tx),
 		Vaccination:                    NewVaccinationService(repos.Vaccination, repos.Vaccine, lstepTagSyncSvc),
 		Occupation:                     NewOccupationService(repos.Occupation),
 		ChiefComplaintType:             NewChiefComplaintTypeService(repos.ChiefComplaintType),

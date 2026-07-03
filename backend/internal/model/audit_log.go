@@ -74,6 +74,10 @@ const (
 
 	// #211 健診結果値の置換（既存削除を伴う PUT）監査アクション
 	AuditActionCheckupFieldResultReplace = "checkup_field_result.replace"
+
+	// BE-refactor.md R1-2 (D1): 検査結果値（exam_results）の置換（既存削除を伴う PUT）監査アクション。
+	// checkup_field_result と同型の tx 内 fail-closed 監査。
+	AuditActionExamResultReplace = "exam_result.replace"
 )
 
 // audit_logs.resource 定数
@@ -85,6 +89,8 @@ const (
 	AuditResourceTreatmentDose     = "treatment_dose"
 	// #211 健診パッケージ型付き結果値の置換（既存削除を伴う）監査
 	AuditResourceCheckupFieldResult = "checkup_field_result"
+	// BE-refactor.md R1-2: 検査結果値の置換（既存削除を伴う）監査
+	AuditResourceExamResult = "exam_result"
 )
 
 // LabBlockedReason は source_blocked 監査イベントの reason フィールドに使用できる

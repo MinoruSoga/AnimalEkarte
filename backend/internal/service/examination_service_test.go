@@ -23,7 +23,7 @@ type mockExaminationRepository struct {
 	deleteFn               func(ctx context.Context, clinicID, id uint64) error
 	countItemsByExamIDFn   func(ctx context.Context, clinicID, examID uint64) (int64, error)
 	findAllItemsByExamIDFn func(ctx context.Context, clinicID, examID uint64) ([]model.ExamResult, error)
-	replaceItemsByExamIDFn func(ctx context.Context, clinicID, examID uint64, items []model.ExamResult) ([]model.ExamResult, error)
+	replaceItemsByExamIDFn func(ctx context.Context, clinicID, examID uint64, items []model.ExamResult) ([]model.ExamResult, int64, error)
 }
 
 func (m *mockExaminationRepository) FindAll(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status, startDate, endDate *string, page, limit int) ([]model.Examination, int64, error) {
@@ -64,9 +64,9 @@ func (m *mockExaminationRepository) FindAllItemsByExamID(ctx context.Context, cl
 	return m.findAllItemsByExamIDFn(ctx, clinicID, examID)
 }
 
-func (m *mockExaminationRepository) ReplaceItemsByExamID(ctx context.Context, clinicID, examID uint64, items []model.ExamResult) ([]model.ExamResult, error) {
+func (m *mockExaminationRepository) ReplaceItemsByExamID(ctx context.Context, clinicID, examID uint64, items []model.ExamResult) ([]model.ExamResult, int64, error) {
 	if m.replaceItemsByExamIDFn == nil {
-		return items, nil
+		return items, 0, nil
 	}
 	return m.replaceItemsByExamIDFn(ctx, clinicID, examID, items)
 }
@@ -271,7 +271,7 @@ func TestExaminationService_List(t *testing.T) {
 					return tt.repoItems, tt.repoTotal, tt.repoErr
 				},
 			}
-			svc := NewExaminationService(repo, &mockMedicalRecordRepositoryForExam{}, okExamTypeRepo(), nil)
+			svc := NewExaminationService(repo, &mockMedicalRecordRepositoryForExam{}, okExamTypeRepo(), nil, nil)
 
 			items, total, err := svc.List(context.Background(), tt.clinicID, tt.petID, tt.ownerID, tt.status, nil, nil, tt.page, tt.limit)
 
@@ -337,7 +337,7 @@ func TestExaminationService_GetByID(t *testing.T) {
 					return tt.repoItem, tt.repoErr
 				},
 			}
-			svc := NewExaminationService(repo, &mockMedicalRecordRepositoryForExam{}, okExamTypeRepo(), nil)
+			svc := NewExaminationService(repo, &mockMedicalRecordRepositoryForExam{}, okExamTypeRepo(), nil, nil)
 
 			item, err := svc.GetByID(context.Background(), tt.clinicID, tt.id)
 
@@ -458,7 +458,7 @@ func TestExaminationService_Create(t *testing.T) {
 					return nil, tt.examTypeErr
 				}}
 			}
-			svc := NewExaminationService(repo, medRec, examTypeRepo, nil)
+			svc := NewExaminationService(repo, medRec, examTypeRepo, nil, nil)
 
 			exam, err := svc.Create(context.Background(), tt.clinicID, tt.input)
 
@@ -605,7 +605,7 @@ func TestExaminationService_Update(t *testing.T) {
 					return nil, tt.examTypeErr
 				}}
 			}
-			svc := NewExaminationService(repo, medRec, examTypeRepo, nil)
+			svc := NewExaminationService(repo, medRec, examTypeRepo, nil, nil)
 
 			exam, err := svc.Update(context.Background(), 1, 1, tt.input)
 
@@ -726,7 +726,7 @@ func TestExaminationService_Delete(t *testing.T) {
 					return &model.MedicalRecord{Status: status}, nil
 				},
 			}
-			svc := NewExaminationService(repo, medRec, okExamTypeRepo(), nil)
+			svc := NewExaminationService(repo, medRec, okExamTypeRepo(), nil, nil)
 
 			err := svc.Delete(context.Background(), tt.clinicID, tt.id)
 
@@ -823,7 +823,7 @@ func TestExaminationService_ListItems(t *testing.T) {
 					return tt.repoItems, tt.repoErr
 				},
 			}
-			svc := NewExaminationService(repo, &mockMedicalRecordRepositoryForExam{}, okExamTypeRepo(), nil)
+			svc := NewExaminationService(repo, &mockMedicalRecordRepositoryForExam{}, okExamTypeRepo(), nil, nil)
 
 			items, err := svc.ListItems(context.Background(), 1, 10)
 
@@ -848,12 +848,12 @@ func TestExaminationService_ReplaceItems(t *testing.T) {
 			findByIDFn: func(_ context.Context, _, _ uint64) (*model.Examination, error) {
 				return &model.Examination{ID: 10, Status: model.ExaminationStatusInProgress}, nil
 			},
-			replaceItemsByExamIDFn: func(_ context.Context, _, _ uint64, items []model.ExamResult) ([]model.ExamResult, error) {
+			replaceItemsByExamIDFn: func(_ context.Context, _, _ uint64, items []model.ExamResult) ([]model.ExamResult, int64, error) {
 				capturedItems = items
-				return items, nil
+				return items, 0, nil
 			},
 		}
-		svc := NewExaminationService(repo, &mockMedicalRecordRepositoryForExam{}, okExamTypeRepo(), nil)
+		svc := NewExaminationService(repo, &mockMedicalRecordRepositoryForExam{}, okExamTypeRepo(), nil, &mockCheckupTransactor{})
 
 		min1 := 1.0
 		max10 := 10.0
@@ -864,7 +864,7 @@ func TestExaminationService_ReplaceItems(t *testing.T) {
 			{Name: "Note", InspectionValue: "陰性"},                                // non-numeric → normal
 		}
 
-		saved, err := svc.ReplaceItems(context.Background(), 1, 10, inputs)
+		saved, err := svc.ReplaceItems(context.Background(), 1, 10, nil, inputs)
 		assert.NoError(t, err)
 		assert.Len(t, saved, 4)
 
@@ -891,14 +891,14 @@ func TestExaminationService_ReplaceItems(t *testing.T) {
 			findByIDFn: func(_ context.Context, _, _ uint64) (*model.Examination, error) {
 				return &model.Examination{ID: 10, Status: model.ExaminationStatusConfirmed}, nil
 			},
-			replaceItemsByExamIDFn: func(_ context.Context, _, _ uint64, _ []model.ExamResult) ([]model.ExamResult, error) {
+			replaceItemsByExamIDFn: func(_ context.Context, _, _ uint64, _ []model.ExamResult) ([]model.ExamResult, int64, error) {
 				t.Fatal("repo should not be called when exam is confirmed")
-				return nil, nil
+				return nil, 0, nil
 			},
 		}
-		svc := NewExaminationService(repo, &mockMedicalRecordRepositoryForExam{}, okExamTypeRepo(), nil)
+		svc := NewExaminationService(repo, &mockMedicalRecordRepositoryForExam{}, okExamTypeRepo(), nil, &mockCheckupTransactor{})
 
-		_, err := svc.ReplaceItems(context.Background(), 1, 10, []UpsertExamItemInput{
+		_, err := svc.ReplaceItems(context.Background(), 1, 10, nil, []UpsertExamItemInput{
 			{Name: "WBC", InspectionValue: "5.0"},
 		})
 		assert.Error(t, err)
@@ -911,9 +911,9 @@ func TestExaminationService_ReplaceItems(t *testing.T) {
 				return nil, apperrors.WrapNotFound("exam", "999")
 			},
 		}
-		svc := NewExaminationService(repo, &mockMedicalRecordRepositoryForExam{}, okExamTypeRepo(), nil)
+		svc := NewExaminationService(repo, &mockMedicalRecordRepositoryForExam{}, okExamTypeRepo(), nil, &mockCheckupTransactor{})
 
-		_, err := svc.ReplaceItems(context.Background(), 1, 999, []UpsertExamItemInput{})
+		_, err := svc.ReplaceItems(context.Background(), 1, 999, nil, []UpsertExamItemInput{})
 		assert.Error(t, err)
 		assert.True(t, apperrors.IsNotFound(err))
 	})
@@ -924,15 +924,15 @@ func TestExaminationService_ReplaceItems(t *testing.T) {
 			findByIDFn: func(_ context.Context, _, _ uint64) (*model.Examination, error) {
 				return &model.Examination{ID: 10, Status: model.ExaminationStatusInProgress}, nil
 			},
-			replaceItemsByExamIDFn: func(_ context.Context, _, _ uint64, items []model.ExamResult) ([]model.ExamResult, error) {
+			replaceItemsByExamIDFn: func(_ context.Context, _, _ uint64, items []model.ExamResult) ([]model.ExamResult, int64, error) {
 				called = true
 				assert.Empty(t, items)
-				return []model.ExamResult{}, nil
+				return []model.ExamResult{}, 0, nil
 			},
 		}
-		svc := NewExaminationService(repo, &mockMedicalRecordRepositoryForExam{}, okExamTypeRepo(), nil)
+		svc := NewExaminationService(repo, &mockMedicalRecordRepositoryForExam{}, okExamTypeRepo(), nil, &mockCheckupTransactor{})
 
-		saved, err := svc.ReplaceItems(context.Background(), 1, 10, []UpsertExamItemInput{})
+		saved, err := svc.ReplaceItems(context.Background(), 1, 10, nil, []UpsertExamItemInput{})
 		assert.NoError(t, err)
 		assert.Empty(t, saved)
 		assert.True(t, called)
@@ -943,16 +943,69 @@ func TestExaminationService_ReplaceItems(t *testing.T) {
 			findByIDFn: func(_ context.Context, _, _ uint64) (*model.Examination, error) {
 				return &model.Examination{ID: 10, Status: model.ExaminationStatusInProgress}, nil
 			},
-			replaceItemsByExamIDFn: func(_ context.Context, _, _ uint64, _ []model.ExamResult) ([]model.ExamResult, error) {
-				return nil, errors.New("db error")
+			replaceItemsByExamIDFn: func(_ context.Context, _, _ uint64, _ []model.ExamResult) ([]model.ExamResult, int64, error) {
+				return nil, 0, errors.New("db error")
 			},
 		}
-		svc := NewExaminationService(repo, &mockMedicalRecordRepositoryForExam{}, okExamTypeRepo(), nil)
+		svc := NewExaminationService(repo, &mockMedicalRecordRepositoryForExam{}, okExamTypeRepo(), nil, &mockCheckupTransactor{})
 
-		_, err := svc.ReplaceItems(context.Background(), 1, 10, []UpsertExamItemInput{
+		_, err := svc.ReplaceItems(context.Background(), 1, 10, nil, []UpsertExamItemInput{
 			{Name: "WBC", InspectionValue: "5.0"},
 		})
 		assert.Error(t, err)
+	})
+
+	// BE-refactor.md R1-2 (#211 と同型): 実削除が発生した置換で監査書込が失敗すると tx 全体が
+	// rollback される（fail-closed）ことを mock レベルで証明する。原子性の DB-backed 正本は
+	// examination_repository_tx_atomicity_test.go 側にある。
+	t.Run("rolls back replacement when audit write fails after real deletion (fail-closed)", func(t *testing.T) {
+		repo := &mockExaminationRepository{
+			findByIDFn: func(_ context.Context, _, _ uint64) (*model.Examination, error) {
+				return &model.Examination{ID: 10, Status: model.ExaminationStatusInProgress}, nil
+			},
+			replaceItemsByExamIDFn: func(_ context.Context, _, _ uint64, items []model.ExamResult) ([]model.ExamResult, int64, error) {
+				return items, 1, nil // 実削除 1 件 → 監査ゲートが発火する
+			},
+		}
+		audit := &mockAuditTxLogger{
+			logEntryTxFn: func(_ context.Context, _ *AuditLogInput) error {
+				return errors.New("audit write failed")
+			},
+		}
+		svc := NewExaminationService(repo, &mockMedicalRecordRepositoryForExam{}, okExamTypeRepo(), audit, &mockCheckupTransactor{})
+
+		actor := uint64(100)
+		_, err := svc.ReplaceItems(context.Background(), 1, 10, &actor, []UpsertExamItemInput{
+			{Name: "WBC", InspectionValue: "5.0"},
+		})
+		assert.Error(t, err, "監査書込失敗は tx をロールバックしエラーを返す（fail-closed）")
+	})
+
+	// 実削除が無い（純粋な新規追加）置換では監査ゲートが発火しないことを確認する。
+	t.Run("does not audit when no rows were actually deleted", func(t *testing.T) {
+		auditCalled := false
+		repo := &mockExaminationRepository{
+			findByIDFn: func(_ context.Context, _, _ uint64) (*model.Examination, error) {
+				return &model.Examination{ID: 10, Status: model.ExaminationStatusInProgress}, nil
+			},
+			replaceItemsByExamIDFn: func(_ context.Context, _, _ uint64, items []model.ExamResult) ([]model.ExamResult, int64, error) {
+				return items, 0, nil // 既存 item が無い初回登録 → 削除 0 件
+			},
+		}
+		audit := &mockAuditTxLogger{
+			logEntryTxFn: func(_ context.Context, _ *AuditLogInput) error {
+				auditCalled = true
+				return nil
+			},
+		}
+		svc := NewExaminationService(repo, &mockMedicalRecordRepositoryForExam{}, okExamTypeRepo(), audit, &mockCheckupTransactor{})
+
+		saved, err := svc.ReplaceItems(context.Background(), 1, 10, nil, []UpsertExamItemInput{
+			{Name: "WBC", InspectionValue: "5.0"},
+		})
+		assert.NoError(t, err)
+		assert.Len(t, saved, 1)
+		assert.False(t, auditCalled, "純粋な新規追加（削除0件）は監査を書かない")
 	})
 
 	// #124: exam_type_field のクロステナント/別種別 紐付け防止。03bf1cb5 は親 exam_type_id のみ
@@ -963,18 +1016,18 @@ func TestExaminationService_ReplaceItems(t *testing.T) {
 			findByIDFn: func(_ context.Context, _, _ uint64) (*model.Examination, error) {
 				return &model.Examination{ID: 10, ExamTypeID: 50, Status: model.ExaminationStatusInProgress}, nil
 			},
-			replaceItemsByExamIDFn: func(_ context.Context, _, _ uint64, _ []model.ExamResult) ([]model.ExamResult, error) {
+			replaceItemsByExamIDFn: func(_ context.Context, _, _ uint64, _ []model.ExamResult) ([]model.ExamResult, int64, error) {
 				t.Fatal("repo should not persist when a cross-type/cross-tenant exam_type_field is supplied")
-				return nil, nil
+				return nil, 0, nil
 			},
 		}
 		examTypeRepo := &mockExamTypeRepository{findByIDFn: func(_ context.Context, _, id uint64) (*model.ExaminationType, error) {
 			return &model.ExaminationType{ID: id, Items: []model.ExamTypeField{{ID: 100}, {ID: 101}}}, nil
 		}}
-		svc := NewExaminationService(repo, &mockMedicalRecordRepositoryForExam{}, examTypeRepo, nil)
+		svc := NewExaminationService(repo, &mockMedicalRecordRepositoryForExam{}, examTypeRepo, nil, &mockCheckupTransactor{})
 
 		foreignField := uint64(999) // not in {100,101}
-		_, err := svc.ReplaceItems(context.Background(), 1, 10, []UpsertExamItemInput{
+		_, err := svc.ReplaceItems(context.Background(), 1, 10, nil, []UpsertExamItemInput{
 			{Name: "WBC", InspectionValue: "5.0", ExamTypeFieldID: &foreignField},
 		})
 		assert.Error(t, err)
@@ -987,18 +1040,18 @@ func TestExaminationService_ReplaceItems(t *testing.T) {
 			findByIDFn: func(_ context.Context, _, _ uint64) (*model.Examination, error) {
 				return &model.Examination{ID: 10, ExamTypeID: 50, Status: model.ExaminationStatusInProgress}, nil
 			},
-			replaceItemsByExamIDFn: func(_ context.Context, _, _ uint64, items []model.ExamResult) ([]model.ExamResult, error) {
+			replaceItemsByExamIDFn: func(_ context.Context, _, _ uint64, items []model.ExamResult) ([]model.ExamResult, int64, error) {
 				captured = items
-				return items, nil
+				return items, 0, nil
 			},
 		}
 		examTypeRepo := &mockExamTypeRepository{findByIDFn: func(_ context.Context, _, id uint64) (*model.ExaminationType, error) {
 			return &model.ExaminationType{ID: id, Items: []model.ExamTypeField{{ID: 100}, {ID: 101}}}, nil
 		}}
-		svc := NewExaminationService(repo, &mockMedicalRecordRepositoryForExam{}, examTypeRepo, nil)
+		svc := NewExaminationService(repo, &mockMedicalRecordRepositoryForExam{}, examTypeRepo, nil, &mockCheckupTransactor{})
 
 		ownField := uint64(100)
-		saved, err := svc.ReplaceItems(context.Background(), 1, 10, []UpsertExamItemInput{
+		saved, err := svc.ReplaceItems(context.Background(), 1, 10, nil, []UpsertExamItemInput{
 			{Name: "WBC", InspectionValue: "5.0", ExamTypeFieldID: &ownField},
 		})
 		assert.NoError(t, err)

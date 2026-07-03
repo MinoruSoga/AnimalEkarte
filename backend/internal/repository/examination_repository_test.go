@@ -362,9 +362,10 @@ func TestExaminationRepository_ReplaceItemsByExamID(t *testing.T) {
 			{ID: 999999, Name: "WBC", InspectionValue: "10.0"},
 			{ID: 999998, Name: "RBC", InspectionValue: "5.0"},
 		}
-		got, err := repo.ReplaceItemsByExamID(ctx, clinicA, exam.ID, items)
+		got, deleted, err := repo.ReplaceItemsByExamID(ctx, clinicA, exam.ID, items)
 		require.NoError(t, err)
 		require.Len(t, got, 2)
+		assert.EqualValues(t, 0, deleted, "既存 item が無い状態の初回置換は削除 0 件")
 		for _, item := range got {
 			assert.NotEqual(t, uint64(999999), item.ID)
 			assert.NotEqual(t, uint64(999998), item.ID)
@@ -373,25 +374,27 @@ func TestExaminationRepository_ReplaceItemsByExamID(t *testing.T) {
 	})
 
 	t.Run("再度差し替えると旧 items が消え新 items のみ残る", func(t *testing.T) {
-		got, err := repo.ReplaceItemsByExamID(ctx, clinicA, exam.ID, []model.ExamResult{{Name: "Glucose"}})
+		got, deleted, err := repo.ReplaceItemsByExamID(ctx, clinicA, exam.ID, []model.ExamResult{{Name: "Glucose"}})
 		require.NoError(t, err)
 		require.Len(t, got, 1)
 		assert.Equal(t, "Glucose", got[0].Name)
+		assert.EqualValues(t, 2, deleted, "直前の2件が削除される（#211 監査ゲートの根拠）")
 	})
 
 	t.Run("空スライスへの差し替えで全削除される", func(t *testing.T) {
-		got, err := repo.ReplaceItemsByExamID(ctx, clinicA, exam.ID, nil)
+		got, deleted, err := repo.ReplaceItemsByExamID(ctx, clinicA, exam.ID, nil)
 		require.NoError(t, err)
 		assert.Empty(t, got)
+		assert.EqualValues(t, 1, deleted, "直前の1件が削除される")
 	})
 
 	t.Run("存在しない exam ID は NotFound", func(t *testing.T) {
-		_, err := repo.ReplaceItemsByExamID(ctx, clinicA, 999999, []model.ExamResult{{Name: "x"}})
+		_, _, err := repo.ReplaceItemsByExamID(ctx, clinicA, 999999, []model.ExamResult{{Name: "x"}})
 		require.Error(t, err)
 	})
 
 	t.Run("別クリニックの exam ID は NotFound", func(t *testing.T) {
-		_, err := repo.ReplaceItemsByExamID(ctx, clinicB, exam.ID, []model.ExamResult{{Name: "x"}})
+		_, _, err := repo.ReplaceItemsByExamID(ctx, clinicB, exam.ID, []model.ExamResult{{Name: "x"}})
 		require.Error(t, err)
 	})
 }

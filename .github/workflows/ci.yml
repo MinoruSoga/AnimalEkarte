@@ -347,16 +347,19 @@ jobs:
             echo "coverage.out not produced (tests failed before profiling completed); skipping summary."
           fi
 
-      # BE-refactor.md R3-5 / bug.md H-7 / coverage-policy.md Phase 1: カバレッジ ratchet（低下 warn）。
-      # .coverage-baseline が 0（未記録）の間は WARN のみで CI を落とさない。初回実測後にベースラインを
-      # 記録するとゲートが arm され、tolerance を超える低下を検出する。--warn-only は Phase 1 の非ゲート運用。
-      - name: Coverage ratchet (Phase 1 non-gating warn)
+      # BE-refactor.md R3-5 / bug.md H-7 / coverage-policy.md Phase 1: カバレッジ ratchet。
+      # .coverage-baseline は 2026-07-03 の CI 実測（run 28655388836 / commit 80e0648a）で 89.9% に
+      # arm 済み。baseline > 0 のため evaluateRatchet が tolerance（既定 0.5pp）を超える低下を検出すると
+      # 非0 exit する。continue-on-error を外し -warn-only も外しているため、低下時はこのステップ自体が
+      # 失敗し Backend Test job 全体を fail させる（Phase 1 の非ゲート運用から fail ゲートへ昇格）。
+      # coverage-summary.txt が無い場合（テスト自体が失敗しプロファイリング未完了）はスキップする —
+      # その場合は先行の Test ステップの失敗がジョブを落とす。
+      - name: Coverage ratchet
         if: always()
-        continue-on-error: true
         working-directory: backend
         run: |
           if [ -f coverage-summary.txt ]; then
-            go run ./cmd/coverage-ratchet -baseline .coverage-baseline -func-file coverage-summary.txt -warn-only | tee -a "$GITHUB_STEP_SUMMARY"
+            go run ./cmd/coverage-ratchet -baseline .coverage-baseline -func-file coverage-summary.txt | tee -a "$GITHUB_STEP_SUMMARY"
           else
             echo "coverage-summary.txt not produced; skipping ratchet."
           fi

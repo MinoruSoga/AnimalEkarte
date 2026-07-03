@@ -74,8 +74,8 @@ func (r *stubReportExamRepo) CountItemsByExamID(_ context.Context, _, _ uint64) 
 func (r *stubReportExamRepo) FindAllItemsByExamID(_ context.Context, _, _ uint64) ([]model.ExamResult, error) {
 	return nil, nil
 }
-func (r *stubReportExamRepo) ReplaceItemsByExamID(_ context.Context, _, _ uint64, items []model.ExamResult) ([]model.ExamResult, error) {
-	return items, nil
+func (r *stubReportExamRepo) ReplaceItemsByExamID(_ context.Context, _, _ uint64, items []model.ExamResult) ([]model.ExamResult, int64, error) {
+	return items, 0, nil
 }
 
 // ------------------------------------

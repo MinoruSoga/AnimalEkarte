@@ -113,18 +113,21 @@ type ExaminationService interface {
 	Update(ctx context.Context, clinicID, id uint64, input UpdateExaminationInput) (*model.Examination, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
 	ListItems(ctx context.Context, clinicID, examID uint64) ([]model.ExamResult, error)
-	ReplaceItems(ctx context.Context, clinicID, examID uint64, inputs []UpsertExamItemInput) ([]model.ExamResult, error)
+	// ReplaceItems は検査項目を一括置換する（PUT セマンティクス）。actorID は監査ログ用の操作スタッフ ID
+	// （nil = システム実行）。BE-refactor.md R1-2: 実削除が発生した場合は同一 tx 内で fail-closed 監査する。
+	ReplaceItems(ctx context.Context, clinicID, examID uint64, actorID *uint64, inputs []UpsertExamItemInput) ([]model.ExamResult, error)
 }
 
 type examinationService struct {
 	repo         repository.ExaminationRepository
 	medRec       repository.MedicalRecordRepository
 	examTypeRepo repository.ExamTypeRepository
-	auditSvc     AuditService
+	auditTx      AuditTxLogger
+	transactor   repository.Transactor
 }
 
-func NewExaminationService(repo repository.ExaminationRepository, medRec repository.MedicalRecordRepository, examTypeRepo repository.ExamTypeRepository, auditSvc AuditService) ExaminationService {
-	return &examinationService{repo: repo, medRec: medRec, examTypeRepo: examTypeRepo, auditSvc: auditSvc}
+func NewExaminationService(repo repository.ExaminationRepository, medRec repository.MedicalRecordRepository, examTypeRepo repository.ExamTypeRepository, auditTx AuditTxLogger, transactor repository.Transactor) ExaminationService {
+	return &examinationService{repo: repo, medRec: medRec, examTypeRepo: examTypeRepo, auditTx: auditTx, transactor: transactor}
 }
 
 func (s *examinationService) List(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status, startDate, endDate *string, page, limit int) ([]model.Examination, int64, error) {
@@ -252,7 +255,9 @@ func (s *examinationService) ListItems(ctx context.Context, clinicID, examID uin
 //  2. 親 exam が confirmed の場合は 400 で拒否（既存 Update と同方針）
 //  3. 各 input の inspection_value と ref_min / ref_max から status / is_abnormal を導出（FE 送信値は無視）
 //  4. repository の ReplaceItemsByExamID（トランザクション内で全削除→一括挿入）に委譲
-func (s *examinationService) ReplaceItems(ctx context.Context, clinicID, examID uint64, inputs []UpsertExamItemInput) ([]model.ExamResult, error) {
+//  5. 実削除が発生した場合（deletedCount > 0）は同一 tx 内で監査ログを書き込む。監査書込が失敗したら
+//     tx を rollback する（best-effort ではなく fail-closed。BE-refactor.md R1-2・#211 と同方針）。
+func (s *examinationService) ReplaceItems(ctx context.Context, clinicID, examID uint64, actorID *uint64, inputs []UpsertExamItemInput) ([]model.ExamResult, error) {
 	existing, err := s.repo.FindByID(ctx, clinicID, examID)
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to find examination")
@@ -309,17 +314,86 @@ func (s *examinationService) ReplaceItems(ctx context.Context, clinicID, examID 
 		})
 	}
 
-	saved, err := s.repo.ReplaceItemsByExamID(ctx, clinicID, examID, items)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to replace examination items", "error", err, "exam_id", examID, "clinic_id", clinicID)
-		return nil, apperrors.Wrap(err, "failed to replace examination items")
+	// #211/R1-2 tx 内監査による原子的置換: スナップショット読取→削除/挿入→削除監査 を単一トランザクションで
+	// 実行する。監査書込が失敗したら tx 全体を rollback し、削除・挿入も巻き戻す（監査なしの検査結果削除を
+	// 許さない＝fail-closed）。exam_results は hard-delete のため old_value が唯一の耐久記録であり、
+	// 旧コードでは「置換 commit 後に監査を書く」経路自体が存在しなかった（audit_tx_inventory_lint_test.go
+	// が発見した無監査ギャップ）。スナップショットも同一 tx 内で取得し TOCTOU 窓を作らない。
+	var saved []model.ExamResult
+	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
+		before, err := s.repo.FindAllItemsByExamID(txCtx, clinicID, examID)
+		if err != nil {
+			slog.ErrorContext(txCtx, "failed to snapshot existing examination items before replace", "error", err, "exam_id", examID, "clinic_id", clinicID)
+			return apperrors.Wrap(err, "failed to load existing examination items")
+		}
+
+		replaced, deletedCount, err := s.repo.ReplaceItemsByExamID(txCtx, clinicID, examID, items)
+		if err != nil {
+			slog.ErrorContext(txCtx, "failed to replace examination items", "error", err, "exam_id", examID, "clinic_id", clinicID)
+			return apperrors.Wrap(err, "failed to replace examination items")
+		}
+		saved = replaced
+
+		// 実際に削除が発生した場合のみ監査する（純粋な新規挿入は削除を伴わない）。ゲートはスナップショット
+		// 件数でなく DELETE の実削除数（deletedCount）に基づく（#211 security MEDIUM-1 と同方針: 並行 INSERT
+		// 競合下でスナップショット 0 件でも実削除>0 を取りこぼさない）。監査書込失敗は tx を rollback する。
+		if deletedCount > 0 {
+			actorType := model.AuditActorTypeSystem
+			if actorID != nil {
+				actorType = model.AuditActorTypeStaff
+			}
+			if err := s.auditTx.LogEntryTx(txCtx, &AuditLogInput{
+				ClinicID:   &clinicID,
+				ActorID:    actorID,
+				ActorType:  actorType,
+				Action:     model.AuditActionExamResultReplace,
+				Resource:   model.AuditResourceExamResult,
+				ResourceID: &examID,
+				OldValue:   extractExamResultsAudit(before),
+				NewValue:   extractExamResultsAudit(saved),
+				Metadata: map[string]any{
+					"exam_id":       examID,
+					"deleted_count": deletedCount,
+					"new_count":     len(saved),
+				},
+			}); err != nil {
+				slog.ErrorContext(txCtx, "audit log failed for examination items replace; rolling back deletion", "error", err, "exam_id", examID, "clinic_id", clinicID)
+				return apperrors.Wrap(err, "failed to write examination items deletion audit")
+			}
+		}
+		return nil
+	}); err != nil {
+		return nil, apperrors.Wrap(err, "failed to replace examination items in transaction")
 	}
+
 	slog.InfoContext(ctx, "examination items replaced",
 		slog.Uint64("clinic_id", clinicID),
 		slog.Uint64("examination_id", examID),
 		slog.Int("item_count", len(saved)),
 	)
 	return saved, nil
+}
+
+// extractExamResultsAudit は監査ログの old_value/new_value に格納する検査結果値のスナップショットを構築する。
+// 飼主/患者の識別情報は含まず、行 ID・フィールド定義参照・検査値のみを記録する
+// （extractCheckupFieldResultsAudit と同方針）。
+func extractExamResultsAudit(results []model.ExamResult) []map[string]any {
+	if len(results) == 0 {
+		return nil
+	}
+	out := make([]map[string]any, 0, len(results))
+	for i := range results {
+		r := results[i]
+		out = append(out, map[string]any{
+			"id":                 r.ID,
+			"exam_type_field_id": r.ExamTypeItemID,
+			"name":               r.Name,
+			"inspection_value":   r.InspectionValue,
+			"is_abnormal":        r.IsAbnormal,
+			"status":             string(r.Status),
+		})
+	}
+	return out
 }
 
 func (s *examinationService) Delete(ctx context.Context, clinicID, id uint64) error {

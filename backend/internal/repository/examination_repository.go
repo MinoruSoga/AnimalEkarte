@@ -21,7 +21,10 @@ type ExaminationRepository interface {
 	Delete(ctx context.Context, clinicID, id uint64) error
 	CountItemsByExamID(ctx context.Context, clinicID, examID uint64) (int64, error)
 	FindAllItemsByExamID(ctx context.Context, clinicID, examID uint64) ([]model.ExamResult, error)
-	ReplaceItemsByExamID(ctx context.Context, clinicID, examID uint64, items []model.ExamResult) ([]model.ExamResult, error)
+	// ReplaceItemsByExamID は exam_results を一括置換する。第 2 戻り値は実際に削除された行数
+	// （DELETE の RowsAffected）。サービス層が「削除が実際に起きたか」を監査ゲートに使う
+	// （BE-refactor.md R1-2・#211 checkup_field_result と同方針）。
+	ReplaceItemsByExamID(ctx context.Context, clinicID, examID uint64, items []model.ExamResult) ([]model.ExamResult, int64, error)
 }
 
 type examinationRepository struct {
@@ -147,9 +150,11 @@ func (r *examinationRepository) CountItemsByExamID(ctx context.Context, clinicID
 
 // FindAllItemsByExamID は exam_results を sort_order ASC で取得する。
 // clinic_id 隔離は exams を JOIN して保証する（exam_results 自体は clinic_id を持たない）。
+// dbOrTx: ambient tx（Transactor.WithTx）内から呼ばれた場合は同一 tx で読む（BE-refactor.md R1-2:
+// ReplaceItemsByExamID 置換直後の read-your-writes に必須。tx 外呼び出し時は base db＝従来挙動）。
 func (r *examinationRepository) FindAllItemsByExamID(ctx context.Context, clinicID, examID uint64) ([]model.ExamResult, error) {
 	items := make([]model.ExamResult, 0)
-	err := r.db.WithContext(ctx).
+	err := dbOrTx(ctx, r.db).
 		Model(&model.ExamResult{}).
 		Joins("JOIN exams ON exam_results.exam_id = exams.id AND exams.deleted_at IS NULL").
 		Where("exams.clinic_id = ? AND exam_results.exam_id = ?", clinicID, examID).
@@ -164,8 +169,15 @@ func (r *examinationRepository) FindAllItemsByExamID(ctx context.Context, clinic
 // ReplaceItemsByExamID は exam_results を一括置換する（既存全削除→一括挿入をトランザクション内で実行）。
 // 親 exam の clinic_id 隔離はサービス層の FindByID で保証されている前提。
 // items の ExamID は本メソッド内で examID に強制上書きする（呼び出し側の指定ミスを防ぐ）。
-func (r *examinationRepository) ReplaceItemsByExamID(ctx context.Context, clinicID, examID uint64, items []model.ExamResult) ([]model.ExamResult, error) {
-	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+//
+// dbOrTx: ambient tx（Transactor.WithTx）内から呼ばれた場合は同一 tx に join し、.Transaction は
+// savepoint（ネスト）として実行される。これにより削除+挿入が caller の tx に入り、後続の監査書込が
+// 失敗して caller が tx を rollback すると削除も巻き戻る（BE-refactor.md R1-2・#211 fail-closed
+// 原子性と同方針）。ambient tx が無い場合は base db で独立トランザクションを開く（従来挙動＝後方互換）。
+// 第 2 戻り値 deletedCount は DELETE の RowsAffected — サービス層の監査ゲートに使う。
+func (r *examinationRepository) ReplaceItemsByExamID(ctx context.Context, clinicID, examID uint64, items []model.ExamResult) ([]model.ExamResult, int64, error) {
+	var deletedCount int64
+	err := dbOrTx(ctx, r.db).Transaction(func(tx *gorm.DB) error {
 		// 親 exam の存在 + clinic 隔離をトランザクション内で再確認（並行削除/clinic 越境を防ぐ）
 		var count int64
 		if err := tx.Model(&model.Examination{}).
@@ -178,9 +190,11 @@ func (r *examinationRepository) ReplaceItemsByExamID(ctx context.Context, clinic
 		}
 
 		// 既存 items を全削除（exam_results は CASCADE では消えないため明示削除）
-		if err := tx.Where("exam_id = ?", examID).Delete(&model.ExamResult{}).Error; err != nil {
-			return apperrors.FromGORM(err, "exam_item", fmt.Sprintf("exam_id=%d", examID))
+		del := tx.Where("exam_id = ?", examID).Delete(&model.ExamResult{})
+		if del.Error != nil {
+			return apperrors.FromGORM(del.Error, "exam_item", fmt.Sprintf("exam_id=%d", examID))
 		}
+		deletedCount = del.RowsAffected
 
 		if len(items) == 0 {
 			return nil
@@ -197,7 +211,13 @@ func (r *examinationRepository) ReplaceItemsByExamID(ctx context.Context, clinic
 		return nil
 	})
 	if err != nil {
-		return nil, apperrors.Wrap(err, "failed to replace exam items")
+		return nil, 0, apperrors.Wrap(err, "failed to replace exam items")
 	}
-	return r.FindAllItemsByExamID(ctx, clinicID, examID)
+	// 置換後の最終状態を読み直す。ctx は ambient tx を保持するため dbOrTx で同一 tx から読み、
+	// 削除+挿入後の結果を read-your-writes で返す（tx 外呼び出し時は base db＝従来挙動）。
+	saved, err := r.FindAllItemsByExamID(ctx, clinicID, examID)
+	if err != nil {
+		return nil, 0, err
+	}
+	return saved, deletedCount, nil
 }

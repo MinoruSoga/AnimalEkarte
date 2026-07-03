@@ -50,21 +50,22 @@ func (r *stubExamRepo) Create(_ context.Context, exam *model.Examination) error 
 	return nil
 }
 
-func (r *stubExamRepo) ReplaceItemsByExamID(_ context.Context, clinicID, examID uint64, items []model.ExamResult) ([]model.ExamResult, error) {
+func (r *stubExamRepo) ReplaceItemsByExamID(_ context.Context, clinicID, examID uint64, items []model.ExamResult) ([]model.ExamResult, int64, error) {
 	if r.replaceErr != nil {
-		return nil, r.replaceErr
+		return nil, 0, r.replaceErr
 	}
 	exam, ok := r.exams[examID]
 	if !ok || exam.ClinicID != clinicID {
-		return nil, apperrors.WrapNotFound("exam", "")
+		return nil, 0, apperrors.WrapNotFound("exam", "")
 	}
+	deleted := int64(len(r.results[examID]))
 	saved := make([]model.ExamResult, len(items))
 	for i := range items {
 		saved[i] = items[i]
 		saved[i].ExamID = examID
 	}
 	r.results[examID] = saved
-	return saved, nil
+	return saved, deleted, nil
 }
 
 func (r *stubExamRepo) FindAll(_ context.Context, _ uint64, _, _ *uint64, _, _, _ *string, _, _ int) ([]model.Examination, int64, error) {

@@ -1,5 +1,6 @@
 # backend 総計カバレッジ % のベースライン（BE-refactor.md R3-5 / bug.md H-7 / coverage-policy.md）。
-# coverage-ratchet ツールがこの値と CI の実測値を比較し、tolerance を超える低下を検出する。
-# 0 = 未記録（ratchet は warn のみ）。初回 CI 実測後、backend-coverage artifact の
-# coverage-summary.txt 末尾 total: 行の % をこの行に転記してゲートを arm すること。
-0
+# coverage-ratchet ツールがこの値と CI の実測値を比較し、tolerance（既定 0.5pp）を超える低下を検出する。
+# 2026-07-03 に main の CI 実測値で arm 済み: GitHub Actions run 28655388836
+# （push, commit 80e0648a, backend-coverage artifact の coverage-summary.txt 末尾 total: 行）。
+# 更新する場合は同じく CI artifact の実測値を転記すること（推測値を書かない）。
+89.9

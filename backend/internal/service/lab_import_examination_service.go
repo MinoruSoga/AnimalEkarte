@@ -178,7 +178,7 @@ func (s *labImportExaminationService) PersistExam(ctx context.Context, input Lab
 
 	if len(input.Items) > 0 {
 		items := buildExamResults(exam.ID, input.Items)
-		if _, err := s.examRepo.ReplaceItemsByExamID(ctx, input.ClinicID, exam.ID, items); err != nil {
+		if _, _, err := s.examRepo.ReplaceItemsByExamID(ctx, input.ClinicID, exam.ID, items); err != nil {
 			slog.ErrorContext(ctx, "lab import exam items save failed",
 				"error", err,
 				"clinic_id", input.ClinicID,
