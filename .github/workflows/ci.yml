@@ -428,6 +428,18 @@ jobs:
         working-directory: frontend
         run: pnpm run test:coverage
 
+      # FE-refactor.md R-F5 / coverage-policy.md Phase 1: カバレッジ ratchet（backend cmd/coverage-ratchet と対）。
+      # .coverage-baseline が未記録（0）の間は warn のみで exit 0。実測値は本 PR merge 後の CI run の
+      # frontend-coverage artifact から取得し、別コミットで .coverage-baseline に転記する。
+      - name: Coverage ratchet
+        working-directory: frontend
+        run: |
+          if [ -f coverage/coverage-summary.json ]; then
+            node scripts/coverage-ratchet.mjs --summary coverage/coverage-summary.json --baseline .coverage-baseline | tee -a "$GITHUB_STEP_SUMMARY"
+          else
+            echo "coverage/coverage-summary.json not produced; skipping ratchet."
+          fi
+
       - name: Upload frontend coverage artifact
         if: always()
         uses: actions/upload-artifact@v7

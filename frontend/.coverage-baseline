@@ -1,0 +1,6 @@
+# FE-refactor.md R-F5 / coverage-policy.md Phase 1 ratchet baseline.
+# frontend statements カバレッジ %（coverage/coverage-summary.json の total.statements.pct）を1行の数値で記録する。
+# 未記録（0）の間は scripts/coverage-ratchet.mjs は warn のみで exit 0 になる。
+# 記録手順: CI の frontend-coverage artifact から coverage-summary.json の total.statements.pct を
+# 確認し、実測値をここに転記する（推測値を書かない。backend/.coverage-baseline と同じ運用）。
+0

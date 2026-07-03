@@ -48,6 +48,7 @@
 |---|---|---|---|
 | 2026-07-01 | (CIにて測定予定) | — | `closing_settings_service`, `chronic_condition_service`, `shared_file_service`, `validators` 等の各種Service/Middlewareのテストを大幅に拡充しカバレッジを大幅向上。 |
 | 2026-07-03 | **89.9%**（arm 済み） | — | BE-refactor.md R3-5。GitHub Actions run 28655388836（push, commit 80e0648a）の `backend-coverage` artifact `coverage-summary.txt` 末尾 `total:` 行を `backend/.coverage-baseline` に転記。以降 tolerance（既定 0.5pp）を超える低下は CI を fail させる。 |
+| 2026-07-04 | — | **未記録（0・warn-onlyで起動）** | FE-refactor.md R-F5。`vite.config.ts` の coverage reporter に `json-summary` を追加し `coverage/coverage-summary.json` を生成。`frontend/scripts/coverage-ratchet.mjs` + `frontend/.coverage-baseline` を新設し CI に ratchet ステップを追加（backend と同型）。ベースラインは未記録（0）のため現時点では warn のみ。次回 CI run の `frontend-coverage` artifact から実測値を取得し `.coverage-baseline` に転記した時点で fail ゲートとして arm される。 |
 
 ---
 
@@ -61,8 +62,8 @@
 
 ### Phase 1（低下 fail ratchet）
 
-- 状態: **fail ゲートとして arm 済み（BE-refactor.md R3-5・2026-07-03）**
-- 実装: `backend/cmd/coverage-ratchet`（Go ツール・判定ロジックは `main_test.go` で単体検証）が
+- 状態: **fail ゲートとして arm 済み（BE-refactor.md R3-5・2026-07-03）／FE は 2026-07-04 導入・baseline 未記録で warn-only 稼働中**
+- 実装（Backend）: `backend/cmd/coverage-ratchet`（Go ツール・判定ロジックは `main_test.go` で単体検証）が
   `go tool cover -func` 総計 % と `backend/.coverage-baseline` を比較する。CI の
   「Coverage ratchet」ステップは `-warn-only` なし・`continue-on-error` なしで実行し、
   tolerance を超える低下を検出すると非0 exit してステップ自体を fail させる
@@ -71,6 +72,16 @@
 - ブランチ対象: backend Test job（main への push / staging・production への PR）
 - **ベースライン更新手順**: 意図的にカバレッジ基準を変える場合のみ、`backend-coverage` artifact の
   `coverage-summary.txt` 末尾 `total:` 行の実測 % を `.coverage-baseline` に転記する（推測値を書かない）。
+- 実装（Frontend / FE-refactor.md R-F5）: `frontend/scripts/coverage-ratchet.mjs`（Node script・
+  `parseTotalStatementsPct` / `readBaseline` / `evaluateRatchet` は純粋関数として export・fixture 実行で
+  4パターン [OK / FAIL / baseline未記録 / --warn-only] を検証済み）が `coverage/coverage-summary.json`
+  の `total.statements.pct` と `frontend/.coverage-baseline` を比較する。CI の「Coverage ratchet」ステップは
+  backend と同じく `-warn-only` なしで実行。**baseline は現在 0（未記録）のため warn-only 相当で動作中** —
+  次回 CI run の `frontend-coverage` artifact から実測値を取得し `.coverage-baseline` に転記した時点で
+  fail ゲートとして arm される（backend が辿ったのと同じ2段階導入）。
+- ブランチ対象: frontend Test job（main への push / staging・production への PR）
+- **ベースライン記録手順（Frontend）**: `frontend-coverage` artifact 内の `coverage-summary.json` の
+  `total.statements.pct` の実測値を `frontend/.coverage-baseline` に転記する（推測値を書かない）。
 
 ### Phase 2（パッチカバレッジ warn）
 
