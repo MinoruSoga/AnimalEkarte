@@ -3,7 +3,7 @@
 ## 概要
 - **画面の目的**: 院内のケージ、入院室、ペットホテルの宿泊スペースの定義。
 - **URLパターン**: `/settings/cage`
-- **アクセス権限**: 設備マスタ管理権限が必要（`ResourceMasterMedical`）
+- **アクセス権限**: 設備マスタ管理権限が必要（`ResourceMasterHospitalization`）
 
 ---
 
@@ -41,9 +41,14 @@
 - **`PropInput`**: 基本属性の編集。
 
 ### API連携
-| メソッド | エンドポイント | 用途 |
-|:---|:---|:---|
-| GET | `/api/v1/masters/cages` | 定義済みケージの一覧取得。 |
-| PATCH | `/api/v1/masters/cages/reorder` | 表示レイアウトの保存。 |
+| メソッド | エンドポイント | 用途 | 必須権限 | 必須アクション |
+|:---|:---|:---|:---|:---|
+| GET | `/api/v1/masters/cages` | 定義済みケージの一覧取得 | `master-hospitalization` | `view` |
+| GET | `/api/v1/masters/cages/:id` | 特定のケージ詳細情報の取得 | `master-hospitalization` | `view` |
+| POST | `/api/v1/masters/cages` | 新規ケージの登録 | `master-hospitalization` | `create` |
+| PATCH | `/api/v1/masters/cages/:id` | ケージ情報の更新 | `master-hospitalization` | `edit` |
+| DELETE | `/api/v1/masters/cages/:id` | ケージの削除 | `master-hospitalization` | `delete` |
+| PATCH | `/api/v1/masters/cages/reorder` | 表示レイアウトの保存 | `master-hospitalization` | `edit` |
 
 ---
+

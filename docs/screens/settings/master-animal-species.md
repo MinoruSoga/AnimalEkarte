@@ -39,10 +39,14 @@
 - **`PropInput`**: ボーダーレスな名称編集。
 
 ### API連携
-| メソッド | エンドポイント | 用途 |
-|:---|:---|:---|
-| GET | `/api/v1/masters/animal-species` | 有効な動物種一覧の取得。 |
-| PATCH | `/api/v1/masters/animal-species/:id` | 属性の更新。 |
-| PATCH | `/api/v1/masters/animal-species/reorder` | 表示順序の一括保存。 |
+| メソッド | エンドポイント | 用途 | 必須権限 | 必須アクション |
+|:---|:---|:---|:---|:---|
+| GET | `/api/v1/masters/animal-species` | 有効な動物種一覧の取得 | `master-animal-species` | `view` |
+| GET | `/api/v1/masters/animal-species/:id` | 特定の動物種情報の取得 | `master-animal-species` | `view` |
+| POST | `/api/v1/masters/animal-species` | 新規動物種の登録 | `master-animal-species` | `create` |
+| PATCH | `/api/v1/masters/animal-species/:id` | 属性の更新 | `master-animal-species` | `edit` |
+| DELETE | `/api/v1/masters/animal-species/:id` | 動物種の削除（紐付けなしの場合のみ） | `master-animal-species` | `delete` |
+| PATCH | `/api/v1/masters/animal-species/reorder` | 表示順序の一括保存 | `master-animal-species` | `edit` |
 
 ---
+

@@ -3,7 +3,7 @@
 ## 概要
 - **画面の目的**: システムが自動生成した Lステップ配信トリガーの実行状況、除外判定、および API 通信の成否をリアルタイムに監視する。
 - **URLパターン**: `/lstep/delivery-monitor`
-- **アクセス権限**: 外部連携管理権限が必要（`ResourceHospitalSettings`）
+- **アクセス権限**: フロントエンド表示には外部連携管理権限（`ResourceHospitalSettings`）が必要。バックエンドAPIには Lステップ分析閲覧権限（`ResourceLstepAnalytics`）が必要。
 
 ---
 
@@ -46,10 +46,10 @@
 - **`StatusBadge`**: 各ステータスを意味的なカラーで表示。
 
 ### API連携
-| メソッド | エンドポイント | 用途 |
-|:---|:---|:---|
-| GET | `/api/v1/clinics/:clinic_id/lstep/delivery-monitor/summary` | 期間別配信サマリ（scheduled/fired/failed 等）を取得。 |
-| GET | `/api/v1/clinics/:clinic_id/lstep/delivery-monitor/logs` | 配信ログ履歴の取得。 |
-| GET | `/api/v1/clinics/:clinic_id/lstep/trigger-priorities` | 現在の優先順位設定の参照。 |
+| メソッド | エンドポイント | 用途 | 必須権限 | 必須アクション |
+|:---|:---|:---|:---|:---|
+| GET | `/api/v1/clinics/:clinic_id/lstep/delivery-monitor/summary` | 期間別配信サマリの取得 | `lstep-analytics` | `view` |
+| GET | `/api/v1/clinics/:clinic_id/lstep/delivery-monitor/logs` | 配信ログ履歴の取得 | `lstep-analytics` | `view` |
+| GET | `/api/v1/clinics/:clinic_id/lstep/trigger-priorities` | 現在の優先順位設定の参照 | `hospital-settings` | `view` |
 
 ---

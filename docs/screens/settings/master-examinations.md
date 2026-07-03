@@ -39,10 +39,15 @@
 - **`PropInput`**: 数値（基準値）や単位のインライン編集。
 
 ### API連携
-| メソッド | エンドポイント | 用途 |
-|:---|:---|:---|
-| GET | `/api/v1/masters/examination-types` | 定義済み項目の一覧取得。 |
-| PATCH | `/api/v1/masters/examination-types/:id` | 基準値や属性の更新。 |
-| PATCH | `/api/v1/masters/examination-types/reorder` | 並び順の一括保存。 |
+| メソッド | エンドポイント | 用途 | 必須権限 | 必須アクション |
+|:---|:---|:---|:---|:---|
+| GET | `/api/v1/masters/examination-types` | 定義済み項目の一覧取得 | `master-medical` | `view` |
+| GET | `/api/v1/masters/examination-types/:id` | 特定の検査項目情報の取得 | `master-medical` | `view` |
+| POST | `/api/v1/masters/examination-types` | 新規検査項目の登録 | `master-medical` | `create` |
+| PATCH | `/api/v1/masters/examination-types/:id` | 基準値や属性の更新 | `master-medical` | `edit` |
+| DELETE | `/api/v1/masters/examination-types/:id` | 検査項目の削除 | `master-medical` | `delete` |
+| PATCH | `/api/v1/masters/examination-types/reorder` | 並び順の一括保存 | `master-medical` | `edit` |
 
 ---
+
+

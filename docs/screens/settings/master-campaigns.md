@@ -40,10 +40,12 @@
 - **`CampaignSidePanel`**: 名称・期間・割引設定・対象条件の編集。
 
 ### API連携
-| メソッド | エンドポイント | 用途 |
-|:---|:---|:---|
-| GET | `/api/v1/masters/campaigns` | キャンペーン一覧取得。 |
-| POST | `/api/v1/masters/campaigns` | キャンペーン作成。 |
-| PATCH | `/api/v1/masters/campaigns/{id}` | キャンペーン更新。 |
-| DELETE | `/api/v1/masters/campaigns/{id}` | キャンペーン削除。 |
-| PATCH | `/api/v1/masters/campaigns/reorder` | キャンペーンの表示順一括保存。 |
+| メソッド | エンドポイント | 用途 | 必須権限 | 必須アクション |
+|:---|:---|:---|:---|:---|
+| GET | `/api/v1/masters/campaigns` | キャンペーン一覧取得 | `accounting` | `view` |
+| GET | `/api/v1/masters/campaigns/:id` | 特定のキャンペーン情報の取得 | `accounting` | `view` |
+| POST | `/api/v1/masters/campaigns` | キャンペーン作成 | `accounting` | `create` |
+| PATCH | `/api/v1/masters/campaigns/:id` | キャンペーン更新 | `accounting` | `edit` |
+| DELETE | `/api/v1/masters/campaigns/:id` | キャンペーン削除 | `accounting` | `delete` |
+| PATCH | `/api/v1/masters/campaigns/reorder` | キャンペーンの表示順一括保存 | `accounting` | `edit` |
+

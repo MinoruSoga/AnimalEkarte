@@ -38,10 +38,14 @@
 - **`PropInput`**: 職種名や略称のインライン編集。
 
 ### API連携
-| メソッド | エンドポイント | 用途 |
-|:---|:---|:---|
-| GET | `/api/v1/masters/occupations` | 定義済み職種の一覧取得。 |
-| POST | `/api/v1/masters/occupations` | 新規職種の追加。 |
-| PATCH | `/api/v1/masters/occupations/:id` | 属性やカテゴリの更新。 |
+| メソッド | エンドポイント | 用途 | 必須権限 | 必須アクション |
+|:---|:---|:---|:---|:---|
+| GET | `/api/v1/masters/occupations` | 定義済み職種の一覧取得 | `master-staff` | `view` |
+| GET | `/api/v1/masters/occupations/:id` | 特定の職種詳細の取得 | `master-staff` | `view` |
+| POST | `/api/v1/masters/occupations` | 新規職種の追加 | `master-staff` | `create` |
+| PATCH | `/api/v1/masters/occupations/:id` | 属性やカテゴリの更新 | `master-staff` | `edit` |
+| DELETE | `/api/v1/masters/occupations/:id` | 職種の削除 | `master-staff` | `delete` |
+| PATCH | `/api/v1/masters/occupations/reorder` | 表示順序の一括保存 | `master-staff` | `edit` |
 
 ---
+

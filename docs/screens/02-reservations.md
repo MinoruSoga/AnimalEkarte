@@ -53,10 +53,11 @@
 - **レスポンシブ**: デスクトップ環境を優先しつつ、タブレット端末での視認性も確保。
 
 ### API連携
-| メソッド | エンドポイント | 用途 |
-|:---|:---|:---|
-| GET | `/api/v1/reservations` | カレンダー期間内の予約一括取得。 |
-| POST | `/api/v1/reservations` | 新規予約の作成（重複チェック含む）。 |
-| PATCH | `/api/v1/reservations/:id` | 時間変更・ステータス更新。 |
+| メソッド | エンドポイント | 用途 | 必須権限 | 必須アクション |
+|:---|:---|:---|:---|:---|
+| GET | `/api/v1/reservations` | カレンダー期間内の予約一括取得 | `reservations` | `view` |
+| POST | `/api/v1/reservations` | 新規予約の作成（重複チェック含む） | `reservations` | `create` |
+| PATCH | `/api/v1/reservations/:id` | 時間変更・ステータス更新 | `reservations` | `edit` |
+| DELETE | `/api/v1/reservations/:id` | 予約のキャンセル・削除 | `reservations` | `delete` |
 
 ---

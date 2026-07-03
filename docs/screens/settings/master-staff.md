@@ -43,10 +43,22 @@
 - **`ClinicAssignmentGrid`**: 複数拠点への所属状況を可視化する専用部品。
 
 ### API連携
-| メソッド | エンドポイント | 用途 |
-|:---|:---|:---|
-| GET | `/api/v1/masters/staffs` | スタッフ一覧の取得。 |
-| POST | `/api/v1/masters/staffs` | 新規スタッフの作成。 |
-| PATCH | `/api/v1/masters/staffs/:id` | プロフィールや権限の更新。 |
+| メソッド | エンドポイント | 用途 | 必須権限 | 必須アクション |
+|:---|:---|:---|:---|:---|
+| GET | `/api/v1/masters/staffs` | スタッフ一覧の取得 | `master-staff` | `view` |
+| GET | `/api/v1/masters/staffs/:id` | 特定のスタッフ詳細の取得 | `master-staff` | `view` |
+| POST | `/api/v1/masters/staffs` | 新規スタッフの作成 | `master-staff` | `create` |
+| PATCH | `/api/v1/masters/staffs/:id` | プロフィールや権限の更新 | `master-staff` | `edit` |
+| DELETE | `/api/v1/masters/staffs/:id` | スタッフの削除 | `master-staff` | `delete` |
+| PATCH | `/api/v1/masters/staffs/reorder` | 表示順序の一括保存 | `master-staff` | `edit` |
+| GET | `/api/v1/masters/staffs/:id/permission-groups` | スタッフの権限グループ割り当て取得 | `master-staff` | `view` |
+| PUT | `/api/v1/masters/staffs/:id/permission-groups` | スタッフの権限グループ割り当て更新 | `master-staff` | `edit` |
+| GET | `/api/v1/masters/staffs/:id/clinics` | スタッフの医院割り当て取得 | `master-staff` | `view` |
+| PUT | `/api/v1/masters/staffs/:id/clinics` | スタッフの医院割り当て更新 | `master-staff` | `edit` |
+| GET | `/api/v1/masters/staffs/:id/excluded-reservation-types` | スタッフの対応不可予約区分の取得 | `master-staff` | `view` |
+| PUT | `/api/v1/masters/staffs/:id/excluded-reservation-types` | スタッフの対応不可予約区分の更新 | `master-staff` | `edit` |
+| GET | `/api/v1/masters/staffs/:id/capable-reservation-types` | スタッフの対応可能予約区分の取得 | `master-staff` | `view` |
+| PUT | `/api/v1/masters/staffs/:id/capable-reservation-types` | スタッフの対応可能予約区分の更新 | `master-staff` | `edit` |
 
 ---
+

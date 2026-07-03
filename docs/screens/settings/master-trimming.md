@@ -37,17 +37,20 @@
 - **`MasterSelectModal`**: 対象となる品種の検索・選択。
 
 ### API連携
-| メソッド | エンドポイント | 用途 |
-|:---|:---|:---|
-| GET | `/api/v1/masters/trimming-courses` | 基本コース一覧の取得。 |
-| POST | `/api/v1/masters/trimming-courses` | 基本コースの作成。 |
-| PATCH | `/api/v1/masters/trimming-courses/:id` | コース情報の更新。 |
-| DELETE | `/api/v1/masters/trimming-courses/:id` | コースの削除。 |
-| PATCH | `/api/v1/masters/trimming-courses/reorder` | コース表示順の一括保存。 |
-| GET | `/api/v1/masters/trimming-options` | オプション項目の一覧取得。 |
-| POST | `/api/v1/masters/trimming-options` | オプション項目の作成。 |
-| PATCH | `/api/v1/masters/trimming-options/:id` | オプション項目の更新。 |
-| DELETE | `/api/v1/masters/trimming-options/:id` | オプション項目の削除。 |
-| PATCH | `/api/v1/masters/trimming-options/reorder` | オプション表示順の一括保存。 |
+| メソッド | エンドポイント | 用途 | 必須権限 | 必須アクション |
+|:---|:---|:---|:---|:---|
+| GET | `/api/v1/masters/trimming-courses` | 基本コース一覧の取得 | `master-trimming` | `view` |
+| GET | `/api/v1/masters/trimming-courses/:id` | 特定の基本コース詳細の取得 | `master-trimming` | `view` |
+| POST | `/api/v1/masters/trimming-courses` | 基本コースの作成 | `master-trimming` | `create` |
+| PATCH | `/api/v1/masters/trimming-courses/:id` | コース情報の更新 | `master-trimming` | `edit` |
+| DELETE | `/api/v1/masters/trimming-courses/:id` | コースの削除 | `master-trimming` | `delete` |
+| PATCH | `/api/v1/masters/trimming-courses/reorder` | コース表示順の一括保存 | `master-trimming` | `edit` |
+| GET | `/api/v1/masters/trimming-options` | オプション項目の一覧取得 | `master-trimming` | `view` |
+| GET | `/api/v1/masters/trimming-options/:id` | 特定のオプション項目詳細の取得 | `master-trimming` | `view` |
+| POST | `/api/v1/masters/trimming-options` | オプション項目の作成 | `master-trimming` | `create` |
+| PATCH | `/api/v1/masters/trimming-options/:id` | オプション項目の更新 | `master-trimming` | `edit` |
+| DELETE | `/api/v1/masters/trimming-options/:id` | オプション項目の削除 | `master-trimming` | `delete` |
+| PATCH | `/api/v1/masters/trimming-options/reorder` | オプション表示順の一括保存 | `master-trimming` | `edit` |
 
 ---
+

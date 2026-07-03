@@ -42,9 +42,9 @@
 - **遅延フィルタリング**: `useDeferredValue` により、数千点の在庫品目から目的の品を特定する際も UI がフリーズしません。
 
 ### API連携
-| メソッド | エンドポイント | 用途 |
-|:---|:---|:---|
-| GET | `/api/v1/inventory` | 条件に応じた在庫一覧の取得。 |
-| DELETE | `/api/v1/inventory/:id` | 在庫品目の論理削除。 |
+| メソッド | エンドポイント | 用途 | 必須権限 | 必須アクション |
+|:---|:---|:---|:---|:---|
+| GET | `/api/v1/inventory` | 条件に応じた在庫一覧の取得 | `inventory` | `view` |
+| DELETE | `/api/v1/inventory/:id` | 在庫品目の論理削除 | `inventory` | `delete` |
 
 ---

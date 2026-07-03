@@ -47,9 +47,9 @@
 - **URL同期**: ページ番号や検索条件は URL パラメータと同期され、ページ再訪時も状態が維持されます。
 
 ### API連携
-| メソッド | エンドポイント | 用途 |
-|:---|:---|:---|
-| GET | `/api/v1/accountings` | 条件に応じた会計一覧の取得。 |
-| POST | `/api/v1/accountings/:id/cancel` | 特定の会計レコードの論理削除（キャンセル処理。#118 で旧 `DELETE /:id` から変更）。 |
+| メソッド | エンドポイント | 用途 | 必須権限 | 必須アクション |
+|:---|:---|:---|:---|:---|
+| GET | `/api/v1/accountings` | 条件に応じた会計一覧の取得 | `accounting` | `view` |
+| POST | `/api/v1/accountings/:id/cancel` | 特定の会計レコードの論理削除（キャンセル処理） | `accounting-cancel` | `edit` |
 
 ---

@@ -61,11 +61,15 @@ Notion スタイルの 4 カラムグリッドを採用し、臨床現場での�
 - **`LineSendPanel`**: 個別メッセージおよび共有ファイル送信 UI。
 
 ### API連携
-| メソッド | エンドポイント | 用途 |
-|:---|:---|:---|
-| GET | `/api/v1/owners/:id` | 飼主・ペット情報の取得。 |
-| POST | `/api/v1/owners` | 新規登録（アカウント自動生成含む）。 |
-| PATCH | `/api/v1/pets/:id` | ペット単体の属性変更。 |
-| POST | `/api/v1/shared-files` | LINE 共有用ファイルのアップロード。 |
+| メソッド | エンドポイント | 用途 | 必須権限 | 必須アクション |
+|:---|:---|:---|:---|:---|
+| GET | `/api/v1/owners/:id` | 飼主・ペット情報の取得 | `owners` | `view` |
+| POST | `/api/v1/owners` | 新規登録（アカウント自動生成含む） | `owners` | `create` |
+| PATCH | `/api/v1/owners/:id` | 飼主基本情報の更新 | `owners` | `edit` |
+| PATCH | `/api/v1/pets/:id` | ペット単体の属性変更 | `owners` | `edit` |
+| POST | `/api/v1/shared-files` | LINE 共有用ファイルのアップロード | `owners` or `medical-records` | `edit` (or `create`/`edit`) |
+| POST | `/api/v1/owners/:id/line/send` | LINE個別メッセージ送信 | `owners` | `edit` |
+| GET | `/api/v1/owners/:id/line/send-logs` | LINEメッセージ送信履歴取得 | `owners` | `view` |
+| POST | `/api/v1/owners/:id/line/link-token` | 飼い主紐付けトークン発行 | `owners` | `edit` |
 
 ---

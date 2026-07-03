@@ -45,11 +45,11 @@
 - **`ImageUploader`**: 署名付き URL を用いたセキュアな画像保存。
 
 ### API連携
-| メソッド | エンドポイント | 用途 |
-|:---|:---|:---|
-| GET | `/api/v1/trimmings/:id` | 施術詳細および画像 URL の取得。 |
-| POST | `/api/v1/trimmings` | 新規保存。 |
-| PATCH | `/api/v1/trimmings/:id` | 内容の更新。 |
-| GET | `/api/v1/pets/:id/trimmings` | 過去のカット履歴の取得。 |
+| メソッド | エンドポイント | 用途 | 必須権限 | 必須アクション |
+|:---|:---|:---|:---|:---|
+| GET | `/api/v1/trimmings/:id` | 施術詳細および画像 URL の取得 | `trimming` | `view` |
+| POST | `/api/v1/trimmings` | 新規保存 | `trimming` | `create` |
+| PATCH | `/api/v1/trimmings/:id` | 内容の更新 | `trimming` | `edit` |
+| GET | `/api/v1/trimmings` | 過去のカット履歴の取得（クエリパラメータ: `petId=xxx`） | `trimming` | `view` |
 
 ---

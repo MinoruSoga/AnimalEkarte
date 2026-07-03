@@ -1,8 +1,8 @@
 # 診療項目マスタ 仕様書 (Treatment Items)
 
 ## 概要
-- **画面 of Purpose**: 診察、処置、手術、検査等の臨床行為の定義、および標準価格・税率の設定。
-- **URLパターン**: `/settings/treatment-items`
+- **画面の目的**: 診察、処置、手術、検査等の臨床行為の定義、および標準価格・税率の設定。
+- **URLパターン**: `/settings/treatment-items` (タブパラメータ: `?tab=consultation` (診察), `?tab=procedure` (処置), `?tab=vaccine` (予防), `?tab=examination` (検査))
 - **アクセス権限**: 診療マスタ管理権限が必要（`ResourceMasterMedical`）
 
 ---
@@ -43,32 +43,39 @@
 - **`PropInput`**: 単価、名称、コードのボーダーレス編集。
 
 ### API連携
-| メソッド | エンドポイント | 用途 |
-|:---|:---|:---|
-| GET | `/api/v1/masters/consultations` | 診察項目一覧の取得。 |
-| POST | `/api/v1/masters/consultations` | 診察項目の作成。 |
-| PATCH | `/api/v1/masters/consultations/:id` | 診察項目の更新。 |
-| DELETE | `/api/v1/masters/consultations/:id` | 診察項目の削除。 |
-| PATCH | `/api/v1/masters/consultations/reorder` | 診察項目の表示順一括保存。 |
-| GET | `/api/v1/masters/examination-types` | 検査項目一覧の取得。 |
-| POST | `/api/v1/masters/examination-types` | 検査項目の作成。 |
-| PATCH | `/api/v1/masters/examination-types/:id` | 検査項目の更新。 |
-| DELETE | `/api/v1/masters/examination-types/:id` | 検査項目の削除。 |
-| PATCH | `/api/v1/masters/examination-types/reorder` | 検査項目の表示順一括保存。 |
-| GET | `/api/v1/masters/procedures` | 処置項目一覧の取得。 |
-| POST | `/api/v1/masters/procedures` | 処置項目の作成。 |
-| PATCH | `/api/v1/masters/procedures/:id` | 処置項目の更新。 |
-| DELETE | `/api/v1/masters/procedures/:id` | 処置項目の削除。 |
-| PATCH | `/api/v1/masters/procedures/reorder` | 処置項目の表示順一括保存。 |
-| GET | `/api/v1/masters/vaccines` | 予防接種項目一覧の取得。 |
-| POST | `/api/v1/masters/vaccines` | 予防接種項目の作成。 |
-| PATCH | `/api/v1/masters/vaccines/:id` | 予防接種項目の更新。 |
-| DELETE | `/api/v1/masters/vaccines/:id` | 予防接種項目の削除。 |
-| PATCH | `/api/v1/masters/vaccines/reorder` | 予防接種項目の表示順一括保存。 |
-| GET | `/api/v1/masters/checkup-types` | 定期健診項目一覧の取得。 |
-| POST | `/api/v1/masters/checkup-types` | 定期健診項目の作成。 |
-| PATCH | `/api/v1/masters/checkup-types/:id` | 定期健診項目の更新。 |
-| DELETE | `/api/v1/masters/checkup-types/:id` | 定期健診項目の削除。 |
-| PATCH | `/api/v1/masters/checkup-types/reorder` | 定期健診項目の表示順一括保存。 |
+| メソッド | エンドポイント | 用途 | 必須権限 | 必須アクション |
+|:---|:---|:---|:---|:---|
+| GET | `/api/v1/masters/consultations` | 診察項目一覧の取得 | `master-medical` | `view` |
+| GET | `/api/v1/masters/consultations/:id` | 特定の診察項目情報の取得 | `master-medical` | `view` |
+| POST | `/api/v1/masters/consultations` | 診察項目の作成 | `master-medical` | `create` |
+| PATCH | `/api/v1/masters/consultations/:id` | 診察項目の更新 | `master-medical` | `edit` |
+| DELETE | `/api/v1/masters/consultations/:id` | 診察項目の削除 | `master-medical` | `delete` |
+| PATCH | `/api/v1/masters/consultations/reorder` | 診察項目の表示順一括保存 | `master-medical` | `edit` |
+| GET | `/api/v1/masters/examination-types` | 検査項目一覧の取得 | `master-medical` | `view` |
+| GET | `/api/v1/masters/examination-types/:id` | 特定の検査項目情報の取得 | `master-medical` | `view` |
+| POST | `/api/v1/masters/examination-types` | 検査項目の作成 | `master-medical` | `create` |
+| PATCH | `/api/v1/masters/examination-types/:id` | 検査項目の更新 | `master-medical` | `edit` |
+| DELETE | `/api/v1/masters/examination-types/:id` | 検査項目の削除 | `master-medical` | `delete` |
+| PATCH | `/api/v1/masters/examination-types/reorder` | 検査項目の表示順一括保存 | `master-medical` | `edit` |
+| GET | `/api/v1/masters/procedures` | 処置項目一覧の取得 | `master-medical` | `view` |
+| GET | `/api/v1/masters/procedures/:id` | 特定の処置項目情報の取得 | `master-medical` | `view` |
+| POST | `/api/v1/masters/procedures` | 処置項目の作成 | `master-medical` | `create` |
+| PATCH | `/api/v1/masters/procedures/:id` | 処置項目の更新 | `master-medical` | `edit` |
+| DELETE | `/api/v1/masters/procedures/:id` | 処置項目の削除 | `master-medical` | `delete` |
+| PATCH | `/api/v1/masters/procedures/reorder` | 処置項目の表示順一括保存 | `master-medical` | `edit` |
+| GET | `/api/v1/masters/vaccines` | 予防接種項目一覧の取得 | `master-medical` | `view` |
+| GET | `/api/v1/masters/vaccines/:id` | 特定の予防接種項目情報の取得 | `master-medical` | `view` |
+| POST | `/api/v1/masters/vaccines` | 予防接種項目の作成 | `master-medical` | `create` |
+| PATCH | `/api/v1/masters/vaccines/:id` | 予防接種項目の更新 | `master-medical` | `edit` |
+| DELETE | `/api/v1/masters/vaccines/:id` | 予防接種項目の削除 | `master-medical` | `delete` |
+| PATCH | `/api/v1/masters/vaccines/reorder` | 予防接種項目の表示順一括保存 | `master-medical` | `edit` |
+| GET | `/api/v1/masters/checkup-types` | 定期健診項目一覧の取得 | `checkups` | `view` |
+| GET | `/api/v1/masters/checkup-types/:id` | 特定の定期健診項目情報の取得 | `checkups` | `view` |
+| POST | `/api/v1/masters/checkup-types` | 定期健診項目の作成 | `checkups` | `create` |
+| PATCH | `/api/v1/masters/checkup-types/:id` | 定期健診項目の更新 | `checkups` | `edit` |
+| DELETE | `/api/v1/masters/checkup-types/:id` | 定期健診項目の削除 | `checkups` | `delete` |
+| PATCH | `/api/v1/masters/checkup-types/reorder` | 定期健診項目の表示順一括保存 | `checkups` | `edit` |
+
 
 ---
+

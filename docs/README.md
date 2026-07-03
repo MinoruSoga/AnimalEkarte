@@ -20,7 +20,7 @@
 | カテゴリ | ドキュメント | 概要 |
 |:---|:---|:---|
 | **技術設計** | [architecture.md](architecture.md) | 軽量レイヤードアーキテクチャの定義。 |
-| **データ** | [ERD.md](ERD.md) | データベース設計（全 **106 テーブル**・リレーション）。 |
+| **データ** | [ERD.md](ERD.md) | データベース設計（全 **108 テーブル**・リレーション）。 |
 | **セキュリティ**| [AUTH.md](AUTH.md) | RBAC 権限モデル（全 **34 リソース**）、マルチテナント隔離。 |
 | **UI/UX** | [DESIGN_SYSTEM.md](DESIGN_SYSTEM.md) | Notion ライクなデザイン規約とデザイントークン。 |
 | **API** | [API_SPEC.md](API_SPEC.md) | バックエンド Go API の詳細リファレンス (v3.1.0)。 |
@@ -55,4 +55,4 @@
 
 ---
 
-**最新更新**: 2026-06-29 | **ステータス**: All Sync with Implementation (106 Tables / 34 Resources)
+**最新更新**: 2026-07-03 | **ステータス**: All Sync with Implementation (108 Tables / 34 Resources)

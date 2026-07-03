@@ -45,12 +45,22 @@
 - **`TimeDurationInput`**: 時間枠の数値入力（ステップ制御）。
 
 ### API連携
-| メソッド | エンドポイント | 用途 |
-|:---|:---|:---|
-| GET | `/api/v1/masters/reservation-types` | 有効な予約区分一覧の取得。 |
-| PATCH | `/api/v1/masters/reservation-types/:id` | 名称、時間、色の更新。 |
-| GET / POST / DELETE | `/api/v1/masters/reservation-types/:id/available-slots[/:slotId]` | 予約可能枠の取得・追加・削除。 |
-| GET / POST / DELETE | `/api/v1/masters/reservation-types/:id/unavailable-times[/:timeId]` | 予約不可時間の取得・追加・削除。 |
-| GET / POST / DELETE | `/api/v1/masters/reservation-types/:id/occupations[/:occupationId]` | 対応職種の取得・紐付け・解除。 |
+| メソッド | エンドポイント | 用途 | 必須権限 | 必須アクション |
+|:---|:---|:---|:---|:---|
+| GET | `/api/v1/masters/reservation-types` | 有効な予約区分一覧の取得 | `master-reservation-type` | `view` |
+| GET | `/api/v1/masters/reservation-types/:id` | 特定の予約区分詳細の取得 | `master-reservation-type` | `view` |
+| POST | `/api/v1/masters/reservation-types` | 新規予約区分の登録 | `master-reservation-type` | `create` |
+| PATCH | `/api/v1/masters/reservation-types/:id` | 名称、時間、色の更新 | `master-reservation-type` | `edit` |
+| DELETE | `/api/v1/masters/reservation-types/:id` | 予約区分の削除 | `master-reservation-type` | `delete` |
+| PATCH | `/api/v1/masters/reservation-types/reorder` | 表示順序の一括保存 | `master-reservation-type` | `edit` |
+| GET | `/api/v1/masters/reservation-types/:id/available-slots` | 予約可能枠の取得 | `master-reservation-type` | `view` |
+| POST | `/api/v1/masters/reservation-types/:id/available-slots` | 予約可能枠の追加 | `master-reservation-type` | `edit` |
+| DELETE | `/api/v1/masters/reservation-types/:id/available-slots/:available_slot_id` | 予約可能枠の削除 | `master-reservation-type` | `delete` |
+| GET | `/api/v1/masters/reservation-types/:id/unavailable-times` | 予約不可時間の取得 | `master-reservation-type` | `view` |
+| POST | `/api/v1/masters/reservation-types/:id/unavailable-times` | 予約不可時間の追加 | `master-reservation-type` | `edit` |
+| DELETE | `/api/v1/masters/reservation-types/:id/unavailable-times/:unavailable_time_id` | 予約不可時間の削除 | `master-reservation-type` | `delete` |
+| GET | `/api/v1/masters/reservation-types/:id/occupations` | 対応職種の取得 | `master-reservation-type` | `view` |
+| POST | `/api/v1/masters/reservation-types/:id/occupations` | 対応職種の紐付け | `master-reservation-type` | `edit` |
+| DELETE | `/api/v1/masters/reservation-types/:id/occupations/:occupation_id` | 対応職種の解除 | `master-reservation-type` | `delete` |
 
 ---

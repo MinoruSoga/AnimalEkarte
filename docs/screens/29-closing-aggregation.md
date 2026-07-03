@@ -44,10 +44,12 @@
 - **`DailyClosingReport`**: 帳票用テンプレートコンポーネント。
 
 ### API連携
-| メソッド | エンドポイント | 用途 |
-|:---|:---|:---|
-| GET | `/api/v1/cash-register/preview` | 指定期間の未確定売上の集計取得。 |
-| POST | `/api/v1/cash-register/closes` | レジ締めの確定保存とロックの実行。 |
-| GET | `/api/v1/cash-register/closes` | 過去の締め履歴一覧の取得。 |
+| メソッド | エンドポイント | 用途 | 必須権限 | 必須アクション |
+|:---|:---|:---|:---|:---|
+| GET | `/api/v1/cash-register/preview` | 指定期間の未確定売上の集計取得 | `cash-register-close` | `view` |
+| POST | `/api/v1/cash-register/closes` | レジ締めの確定保存とロックの実行 | `cash-register-close` | `create` |
+| GET | `/api/v1/cash-register/closes` | 過去の締め履歴一覧の取得 | `cash-register-close` | `view` |
+| GET | `/api/v1/cash-register/closes/:id` | 特定の締め記録詳細の取得 | `cash-register-close` | `view` |
 
 ---
+

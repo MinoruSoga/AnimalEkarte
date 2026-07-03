@@ -51,10 +51,15 @@
 - **`GroupAssignmentInfo`**: 当該グループに現在所属しているスタッフの一覧表示。
 
 ### API連携
-| メソッド | エンドポイント | 用途 |
-|:---|:---|:---|
-| GET | `/api/v1/masters/permission-groups` | 権限定義の一覧取得。 |
-| PATCH | `/api/v1/masters/permission-groups/:id` | グループ名・説明・カラー等メタデータの更新。 |
-| PUT | `/api/v1/masters/permission-groups/:id/rules` | 権限マトリックス（ルール）の更新。 |
+| メソッド | エンドポイント | 用途 | 必須権限 | 必須アクション |
+|:---|:---|:---|:---|:---|
+| GET | `/api/v1/masters/permission-groups` | 権限定義の一覧取得 | `master-permission` | `view` |
+| GET | `/api/v1/masters/permission-groups/:id` | 特定の権限グループ詳細の取得 | `master-permission` | `view` |
+| POST | `/api/v1/masters/permission-groups` | 新規権限グループの作成 | `master-permission` | `create` |
+| PATCH | `/api/v1/masters/permission-groups/:id` | グループ名・説明・カラー等メタデータの更新 | `master-permission` | `edit` |
+| DELETE | `/api/v1/masters/permission-groups/:id` | 権限グループの削除 | `master-permission` | `delete` |
+| PATCH | `/api/v1/masters/permission-groups/reorder` | 表示順序の一括保存 | `master-permission` | `edit` |
+| PUT | `/api/v1/masters/permission-groups/:id/rules` | 権限マトリックス（ルール）の更新 | `master-permission` | `edit` |
 
 ---
+

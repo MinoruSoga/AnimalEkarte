@@ -41,13 +41,13 @@
 - **`DynamicBreakForm`**: 行追加・削除に対応した動的リスト形式の休憩時間入力部品。
 
 ### API連携
-| メソッド | エンドポイント | 用途 |
-|:---|:---|:---|
-| GET | `/api/v1/shift-templates` | 登録済みテンプレートの取得。 |
-| POST | `/api/v1/shift-templates` | 新規パターンの作成。 |
-| PATCH | `/api/v1/shift-templates/reorder` | 全体の表示順序の更新。 |
-| GET | `/api/v1/shift-templates/:id` | テンプレート詳細の取得。 |
-| PATCH | `/api/v1/shift-templates/:id` | テンプレート情報の更新。 |
-| DELETE | `/api/v1/shift-templates/:id` | テンプレートの削除。 |
+| メソッド | エンドポイント | 用途 | 必須権限 | 必須アクション |
+|:---|:---|:---|:---|:---|
+| GET | `/api/v1/shift-templates` | 登録済みテンプレートの取得 | `shifts` | `view` |
+| POST | `/api/v1/shift-templates` | 新規パターンの作成 | `shifts` | `create` |
+| PATCH | `/api/v1/shift-templates/reorder` | 全体の表示順序の更新 | `shifts` | `edit` |
+| GET | `/api/v1/shift-templates/:id` | テンプレート詳細の取得 | `shifts` | `view` |
+| PATCH | `/api/v1/shift-templates/:id` | テンプレート情報の更新 | `shifts` | `edit` |
+| DELETE | `/api/v1/shift-templates/:id` | テンプレートの削除 | `shifts` | `delete` |
 
 ---

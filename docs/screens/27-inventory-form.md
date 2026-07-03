@@ -46,10 +46,10 @@
 - **`NotionDatePicker`**: 操作性の高い日付選択コンポーネント。
 
 ### API連携
-| メソッド | エンドポイント | 用途 |
-|:---|:---|:---|
-| GET | `/api/v1/inventory/:id` | 在庫詳細情報の取得。 |
-| POST | `/api/v1/inventory` | 新規品目の保存。 |
-| PATCH | `/api/v1/inventory/:id` | 在庫数や属性の更新。 |
+| メソッド | エンドポイント | 用途 | 必須権限 | 必須アクション |
+|:---|:---|:---|:---|:---|
+| GET | `/api/v1/inventory/:id` | 在庫詳細情報の取得 | `inventory` | `view` |
+| POST | `/api/v1/inventory` | 新規品目の保存 | `inventory` | `create` |
+| PATCH | `/api/v1/inventory/:id` | 在庫数や属性の更新 | `inventory` | `edit` |
 
 ---

@@ -37,9 +37,14 @@
 - **`TaskTemplateList`**: プランに紐づく初期タスクの動的編集。
 
 ### API連携
-| メソッド | エンドポイント | 用途 |
-|:---|:---|:---|
-| GET | `/api/v1/masters/hospitalization-plans` | 有効なプラン一覧の取得。 |
-| PATCH | `/api/v1/masters/hospitalization-plans/:id` | 価格や初期タスクの更新。 |
+| メソッド | エンドポイント | 用途 | 必須権限 | 必須アクション |
+|:---|:---|:---|:---|:---|
+| GET | `/api/v1/masters/hospitalization-plans` | 有効なプラン一覧の取得 | `master-hospitalization` | `view` |
+| GET | `/api/v1/masters/hospitalization-plans/:id` | 特定の入院プラン詳細の取得 | `master-hospitalization` | `view` |
+| POST | `/api/v1/masters/hospitalization-plans` | 新規入院プランの登録 | `master-hospitalization` | `create` |
+| PATCH | `/api/v1/masters/hospitalization-plans/:id` | 価格や初期タスクの更新 | `master-hospitalization` | `edit` |
+| DELETE | `/api/v1/masters/hospitalization-plans/:id` | 入院プランの削除 | `master-hospitalization` | `delete` |
+| PATCH | `/api/v1/masters/hospitalization-plans/reorder` | 表示順序の一括保存 | `master-hospitalization` | `edit` |
 
 ---
+

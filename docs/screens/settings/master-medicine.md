@@ -41,10 +41,17 @@
 - **`PropInput`**: 薬価や単位名の直接編集。
 
 ### API連携
-| メソッド | エンドポイント | 用途 |
-|:---|:---|:---|
-| GET | `/api/v1/masters/medicines` | 薬剤一覧の取得。 |
-| POST | `/api/v1/masters/medicines` | 新規薬剤の登録。 |
-| PATCH | `/api/v1/masters/medicines/:id` | 価格や在庫紐付け、剤形の更新。 |
+| メソッド | エンドポイント | 用途 | 必須権限 | 必須アクション |
+|:---|:---|:---|:---|:---|
+| GET | `/api/v1/masters/medicines` | 薬剤一覧の取得 | `master-medical` | `view` |
+| GET | `/api/v1/masters/medicines/:id` | 特定の薬剤詳細の取得 | `master-medical` | `view` |
+| POST | `/api/v1/masters/medicines` | 新規薬剤の登録 | `master-medical` | `create` |
+| PATCH | `/api/v1/masters/medicines/:id` | 価格や在庫紐付け、剤形の更新 | `master-medical` | `edit` |
+| DELETE | `/api/v1/masters/medicines/:id` | 薬剤の削除 | `master-medical` | `delete` |
+| PATCH | `/api/v1/masters/medicines/reorder` | 表示順序の一括保存 | `master-medical` | `edit` |
+| GET | `/api/v1/masters/medicines/:id/dose-params` | 薬剤の動物種別投与量計算パラメータ一覧取得 | `master-medical` | `view` |
+| PUT | `/api/v1/masters/medicines/:id/dose-params/:species` | 動物種別投与量計算パラメータの登録・更新 | `master-medical` | `edit` |
+| DELETE | `/api/v1/masters/medicines/:id/dose-params/:species` | 動物種別投与量計算パラメータの削除 | `master-medical` | `delete` |
+
 
 ---

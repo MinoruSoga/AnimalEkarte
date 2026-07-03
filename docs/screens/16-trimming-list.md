@@ -43,9 +43,9 @@
 - **透過インジケータ**: フィルタ処理中は `FilteringIndicator` により状態を通知。
 
 ### API連携
-| メソッド | エンドポイント | 用途 |
-|:---|:---|:---|
-| GET | `/api/v1/trimmings` | 条件に応じた施術記録の一括取得。 |
-| DELETE | `/api/v1/trimmings/:id` | 施術記録の論理削除。 |
+| メソッド | エンドポイント | 用途 | 必須権限 | 必須アクション |
+|:---|:---|:---|:---|:---|
+| GET | `/api/v1/trimmings` | 条件に応じた施術記録の一括取得 | `trimming` | `view` |
+| DELETE | `/api/v1/trimmings/:id` | 施術記録の論理削除 | `trimming` | `delete` |
 
 ---

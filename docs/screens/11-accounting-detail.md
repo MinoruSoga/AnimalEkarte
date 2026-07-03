@@ -51,10 +51,13 @@
 - **`paymentSplits`**: 複合決済の状態を React 19 の `useTransition` と共にスムーズに描画。
 
 ### API連携
-| メソッド | エンドポイント | 用途 |
-|:---|:---|:---|
-| GET | `/api/v1/accountings/:id` | 会計詳細および関連明細の取得。 |
-| PATCH | `/api/v1/accountings/:id` | 決済情報の確定、または精算済データの修正。 |
-| POST | `/api/v1/accountings/:id/refunds` | 理由を伴う部分返金の記録。 |
+| メソッド | エンドポイント | 用途 | 必須権限 | 必須アクション |
+|:---|:---|:---|:---|:---|
+| GET | `/api/v1/accountings/:id` | 会計詳細および関連明細の取得 | `accounting` | `view` |
+| POST | `/api/v1/accountings` | 新規会計レコードの作成 | `accounting` | `create` |
+| PATCH | `/api/v1/accountings/:id` | 決済情報の確定、または精算済データの修正 | `accounting` | `edit` |
+| POST | `/api/v1/accountings/:id/refunds` | 理由を伴う部分返金の記録 | `accounting` | `create` |
+| POST | `/api/v1/accountings/:id/credit-correction` | 確定済みカード金額の確定後訂正 | `accounting-post-close-edit` | `edit` |
+| POST | `/api/v1/accountings/:id/cancel` | 会計のキャンセル（論理削除） | `accounting-cancel` | `edit` |
 
 ---

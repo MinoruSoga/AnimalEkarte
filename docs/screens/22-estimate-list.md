@@ -41,9 +41,9 @@
 - **透過インジケータ**: フィルタ処理中は `FilteringIndicator` により状態を通知。
 
 ### API連携
-| メソッド | エンドポイント | 用途 |
-|:---|:---|:---|
-| GET | `/api/v1/estimates` | 条件に応じた見積一覧の取得。 |
-| DELETE | `/api/v1/estimates/:id` | 特定の見積レコードの論理削除。 |
+| メソッド | エンドポイント | 用途 | 必須権限 | 必須アクション |
+|:---|:---|:---|:---|:---|
+| GET | `/api/v1/estimates` | 条件に応じた見積一覧の取得 | `estimates` | `view` |
+| DELETE | `/api/v1/estimates/:id` | 特定の見積レコードの論理削除 | `estimates` | `delete` |
 
 ---

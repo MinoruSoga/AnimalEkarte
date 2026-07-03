@@ -1578,6 +1578,79 @@ paths:
         '401': { $ref: '#/components/responses/UnauthorizedError' }
         '403': { $ref: '#/components/responses/ForbiddenError' }
 
+  /api/v1/checkups:
+    parameters:
+      - $ref: '#/components/parameters/XClinicIDHeader'
+    get:
+      tags: [Checkups]
+      summary: 健診記録一覧
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PaginatedResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items: { $ref: '#/components/schemas/Checkup' }
+
+  /api/v1/checkups/alerts:
+    parameters:
+      - $ref: '#/components/parameters/XClinicIDHeader'
+    get:
+      tags: [Checkups]
+      summary: 健診期限アラート集計
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: within_days
+          in: query
+          required: false
+          schema: { type: integer, default: 30 }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  alerts:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        pet_id: { type: integer }
+                        pet_name: { type: string }
+                        owner_id: { type: integer }
+                        owner_name: { type: string }
+                        checkup_type_id: { type: integer }
+                        checkup_type_name: { type: string }
+                        next_date: { type: string, format: date }
+                        days_remaining: { type: integer }
+
+  /api/v1/checkups/field-results:
+    parameters:
+      - $ref: '#/components/parameters/XClinicIDHeader'
+    get:
+      tags: [Checkups]
+      summary: 飼い主レポート用のペット別健診結果
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: pet_id
+          in: query
+          required: true
+          schema: { type: integer }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/CheckupFieldResult' }
+
   /api/v1/medical-records:
     parameters:
       - $ref: '#/components/parameters/XClinicIDHeader'
@@ -1628,6 +1701,273 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/MedicalRecord' }
+
+  /api/v1/medical-records/{id}/checkups:
+    parameters:
+      - $ref: '#/components/parameters/XClinicIDHeader'
+      - name: id
+        in: path
+        required: true
+        schema: { type: integer }
+    get:
+      tags: [Checkups]
+      summary: カルテに紐づく健診記録一覧
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Checkup' }
+    post:
+      tags: [Checkups]
+      summary: 健診記録の新規作成
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [checkup_type_id, date]
+              properties:
+                checkup_type_id: { type: integer }
+                date: { type: string, format: date }
+                doctor_id: { type: integer }
+                result: { type: string }
+                next_date: { type: string, format: date }
+      responses:
+        '201':
+          description: Created
+          headers:
+            Location:
+              schema: { type: string }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Checkup' }
+
+  /api/v1/medical-records/{id}/checkups/{checkupId}:
+    parameters:
+      - $ref: '#/components/parameters/XClinicIDHeader'
+      - name: id
+        in: path
+        required: true
+        schema: { type: integer }
+      - name: checkupId
+        in: path
+        required: true
+        schema: { type: integer }
+    patch:
+      tags: [Checkups]
+      summary: 健診記録の部分更新
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                date: { type: string, format: date }
+                doctor_id: { type: integer }
+                result: { type: string }
+                next_date: { type: string, format: date }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Checkup' }
+    delete:
+      tags: [Checkups]
+      summary: 健診記録の削除
+      security: [{ bearerAuth: [] }]
+      responses:
+        '204':
+          description: No Content
+
+  /api/v1/medical-records/{id}/checkups/{checkupId}/field-results:
+    parameters:
+      - $ref: '#/components/parameters/XClinicIDHeader'
+      - name: id
+        in: path
+        required: true
+        schema: { type: integer }
+      - name: checkupId
+        in: path
+        required: true
+        schema: { type: integer }
+    get:
+      tags: [Checkups]
+      summary: 健診記録の型付き結果一覧
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/CheckupFieldResult' }
+    put:
+      tags: [Checkups]
+      summary: 健診記録の型付き結果一括更新
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [results]
+              properties:
+                results:
+                  type: array
+                  items:
+                    type: object
+                    required: [checkup_type_field_id]
+                    properties:
+                      checkup_type_field_id: { type: integer }
+                      value_number: { type: number }
+                      value_text: { type: string }
+                      value_bool: { type: boolean }
+                      value_list: { type: array, items: { type: string } }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/CheckupFieldResult' }
+
+  /api/v1/masters/checkup-types:
+    parameters:
+      - $ref: '#/components/parameters/XClinicIDHeader'
+    get:
+      tags: [Checkups]
+      summary: 健診パッケージマスタ一覧
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/CheckupType' }
+    post:
+      tags: [Checkups]
+      summary: 健診パッケージマスタの作成
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name: { type: string }
+                price: { type: integer }
+                is_active: { type: boolean }
+                description: { type: string }
+                interval: { type: string }
+                target_age: { type: string }
+                parent_id: { type: integer }
+      responses:
+        '201':
+          headers:
+            Location:
+              schema: { type: string }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CheckupType' }
+
+  /api/v1/masters/checkup-types/reorder:
+    parameters:
+      - $ref: '#/components/parameters/XClinicIDHeader'
+    patch:
+      tags: [Checkups]
+      summary: 健診パッケージマスタの並び替え
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [ids]
+              properties:
+                ids:
+                  type: array
+                  items: { type: integer }
+      responses:
+        '204':
+          description: No Content
+
+  /api/v1/masters/checkup-types/{id}:
+    parameters:
+      - $ref: '#/components/parameters/XClinicIDHeader'
+      - name: id
+        in: path
+        required: true
+        schema: { type: integer }
+    get:
+      tags: [Checkups]
+      summary: 健診パッケージマスタ詳細
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CheckupType' }
+    patch:
+      tags: [Checkups]
+      summary: 健診パッケージマスタ更新
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name: { type: string }
+                price: { type: integer }
+                is_active: { type: boolean }
+                description: { type: string }
+                interval: { type: string }
+                target_age: { type: string }
+                parent_id: { type: integer }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CheckupType' }
+    delete:
+      tags: [Checkups]
+      summary: 健診パッケージマスタ削除
+      security: [{ bearerAuth: [] }]
+      responses:
+        '204':
+          description: No Content
+
+  /api/v1/masters/checkup-types/{id}/fields:
+    parameters:
+      - $ref: '#/components/parameters/XClinicIDHeader'
+      - name: id
+        in: path
+        required: true
+        schema: { type: integer }
+    get:
+      tags: [Checkups]
+      summary: 健診パッケージフィールド定義一覧
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/CheckupTypeField' }
 
   /api/v1/reservations:
     parameters:
@@ -3304,6 +3644,70 @@ components:
         error: { type: string }
         code: { type: string }
         request_id: { type: string }
+
+    Checkup:
+      type: object
+      properties:
+        id: { type: integer }
+        clinic_id: { type: integer }
+        medical_record_id: { type: integer }
+        pet_id: { type: integer }
+        checkup_type_id: { type: integer }
+        date: { type: string, format: date }
+        doctor_id: { type: integer }
+        result: { type: string }
+        next_date: { type: string, format: date }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    CheckupType:
+      type: object
+      properties:
+        id: { type: integer }
+        clinic_id: { type: integer }
+        name: { type: string }
+        price: { type: integer, nullable: true }
+        is_active: { type: boolean }
+        description: { type: string }
+        interval: { type: string }
+        target_age: { type: string }
+        parent_id: { type: integer, nullable: true }
+        sort_order: { type: integer }
+
+    CheckupTypeField:
+      type: object
+      properties:
+        id: { type: integer }
+        clinic_id: { type: integer }
+        checkup_type_id: { type: integer }
+        name: { type: string }
+        field_type: { type: string, enum: [number, single_select, multi_select, boolean, checklist, text] }
+        unit: { type: string }
+        min_value: { type: number, nullable: true }
+        max_value: { type: number, nullable: true }
+        options: { type: array, items: { type: object } }
+        is_provisional: { type: boolean }
+        sort_order: { type: integer }
+
+    CheckupFieldResult:
+      type: object
+      properties:
+        id: { type: integer }
+        clinic_id: { type: integer }
+        checkup_id: { type: integer }
+        checkup_type_field_id: { type: integer, nullable: true }
+        field_name: { type: string }
+        field_type: { type: string, enum: [number, single_select, multi_select, boolean, checklist, text] }
+        unit: { type: string }
+        value_number: { type: number, nullable: true }
+        value_text: { type: string }
+        value_bool: { type: boolean, nullable: true }
+        value_list: { type: array, items: { type: string } }
+        ref_min: { type: number, nullable: true }
+        ref_max: { type: number, nullable: true }
+        is_abnormal: { type: boolean }
+        status: { type: string, enum: [normal, warning, critical] }
+        sort_order: { type: integer }
 
   parameters:
     XClinicIDHeader:

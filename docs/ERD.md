@@ -1,13 +1,13 @@
 # データベース設計書 (Entity Relationship Diagram)
 
 > **Animal Ekarte**: 高精度・高整合な動物病院データモデル
-> **バージョン**: v31.25 | **最新更新**: 2026-06-29 | **状態**: Production Ready (106 Tables Verified)
+> **バージョン**: v31.25 | **最新更新**: 2026-07-03 | **状態**: Production Ready (108 Tables Verified)
 
 ---
 
-## 1. データモデルの全体像 (全 106 テーブル)
+## 1. データモデルの全体像 (全 108 テーブル)
 
-本システムは、臨床・経営・外部連携を支える 106 のテーブルが高度に正規化され、臨床的整合性を維持するリレーショナルモデルを採用しています。
+本システムは、臨床・経営・外部連携を支える 108 のテーブルが高度に正規化され、臨床的整合性を維持するリレーショナルモデルを採用しています。
 
 ### 1.1 主要ドメイン別構成
 
@@ -16,7 +16,7 @@
 | **システム基盤 (13)** | `accounts`, `clinics`, `clinic_settings`, `clinic_holidays`, `closing_special_periods`, `staffs`, `permission_groups`, `permission_group_rules`, `audit_logs`, `companies`, `password_reset_tokens`, `token_blacklist`, `occupations` |
 | **入院・稼働 (11)** | `hospitalizations`, `daily_records`, `care_plan_items`, `care_logs`, `cages`, `hospitalization_plans`, `staff_notes`, `staff_clinic_assignments`, `staff_permission_groups`, `staff_reservation_exclusions`, `staff_reservation_capabilities` |
 | **臨床・診察 (22)** | `owners`, `pets`, `pet_chronic_conditions`, `animal_species`, `chief_complaint_types`, `medical_records`, `medical_record_addenda`, `medical_record_images`, `clinical_plans`, `treatment_plans`, `treatments`, `prescriptions`, `procedures`, `vital_records`, `inquiries`, `consultations`, `diagnosis_names`, `diagnosis_types`, `inquiry_templates`, `medicines`, `medicine_dose_params`, `vaccines` |
-| **検査・予防 (10)** | `exams`, `exam_results`, `exam_types`, `exam_type_fields`, `vaccinations`, `checkups`, `checkup_types`, `shared_files`, `lab_import_jobs`, `lab_import_events` |
+| **検査・予防 (12)** | `exams`, `exam_results`, `exam_types`, `exam_type_fields`, `vaccinations`, `checkups`, `checkup_types`, `checkup_type_fields`, `checkup_field_results`, `shared_files`, `lab_import_jobs`, `lab_import_events` |
 | **予約・シフト (12)** | `appointments`, `reservation_types`, `reservation_type_groups`, `reservation_type_occupations`, `reservation_type_available_slots`, `reservation_type_unavailable_times`, `appointment_trimming_details`, `appointment_trimming_options`, `shift_entries`, `shift_entry_breaks`, `shift_templates`, `shift_template_breaks` |
 | **会計・経営 (15)** | `billings`, `billing_items`, `payments`, `payment_splits`, `billing_refunds`, `billing_confirmations`, `cash_register_closes`, `payment_methods`, `merchandise_items`, `estimate_items`, `estimates`, `insurances`, `campaigns`, `campaign_target_categories`, `campaign_target_items` |
 | **トリミング (3)** | `trimming_course_types`, `trimming_courses`, `trimming_options` |
@@ -62,16 +62,20 @@ erDiagram
 
     %% 取扱説明書（マニュアル）
     manual_articles ||--o{ manual_article_versions : "article_id"
+    
+    %% 健診パッケージ
+    checkups ||--o{ checkup_field_results : "checkup_id"
+    checkup_type_fields ||--o{ checkup_field_results : "checkup_type_field_id"
 ```
 
 ---
 
 ## 3. 設計原則と安全性
 
-### 3.1 物理設計の標準
+### 3.1 物理設計 of 健診パッケージ複合FK保護
 - **主キー**: 全テーブルで `bigint` (auto_increment) または `uuid` を採用。
 - **日時管理**: アプリケーション、DB セッション、インフラ設定は `Asia/Tokyo` を標準とする。日時カラムは主に `timestamptz` を使い、API 入出力は JST オフセット付き ISO 8601 を基本とする。
-- **整合性制約**: アプリケーション層だけでなく、DB レベルで `FOREIGN KEY` 制約によりデータの孤立を防止。
+- **整合性制約**: アプリケーション層だけでなく、DB レベルで `FOREIGN KEY` 制約によりデータの孤立を防止。特に健診パッケージの結果レコード `checkup_field_results` では、越境防止のため `(checkup_type_field_id, clinic_id)` 複合FKにより親定義とクリニックIDの不一致を物理的に排除しています。
 
 ### 3.2 高度なマルチテナント隔離
 - **`clinic_id` の強制**: ビジネスロジックが関わる全テーブルに `clinic_id` カラムを配置。
@@ -85,14 +89,14 @@ erDiagram
 
 ## 4. スキーマ整合・不要候補判定ログ
 
-現行マイグレーション (`001_init.sql` および増分 `005`〜`009`) の `CREATE TABLE` 定義と本 ERD の主要ドメイン別構成を静的照合し、2026-06-29 時点で以下の通り整理しました。実 DB のデータ量・実行時 SQL・アクセスログは確認対象外です。
+現行マイグレーション (`001_init.sql` および増分 `005`〜`012`) の `CREATE TABLE` 定義と本 ERD の主要ドメイン別構成を静的照合し、2026-07-03 時点で以下の通り整理しました。実 DB のデータ量・実行時 SQL・アクセスログは確認対象外です。
 
 | 項目 | 結果 | 判定 |
 |:---|:---|:---|
-| `001_init.sql` の `CREATE TABLE` 数 | 103 | 初期スキーマのテーブル数 |
-| 増分マイグレーションが追加するテーブル | 3: `lab_import_jobs` / `lab_import_events` (`005_add_lab_import_tables.sql`)、`medicine_dose_params` (`009_add_medicine_dose_params.sql`) | 005/009 で追加 |
-| 全マイグレーション (001-009) の物理テーブル総数 | 106 | ERD の全体数と一致 |
-| ERD ドメイン表の物理テーブル数 | 106 | migrations と一致 |
+| `001_init.sql` の `CREATE TABLE` 数 | 103 | 初期スキーマ of テーブル数 |
+| 増分マイグレーションが追加するテーブル | 5: `lab_import_jobs` / `lab_import_events` (`005`)、`medicine_dose_params` (`009`)、`checkup_type_fields` / `checkup_field_results` (`010`) | 005/009/010 で追加 |
+| 全マイグレーション (001-012) の物理テーブル総数 | 108 | ERD の全体数と一致 |
+| ERD ドメイン表の物理テーブル数 | 108 | migrations と一致 |
 | ERD へ追加した不足テーブル | 6: `token_blacklist`, `reservation_type_available_slots`, `trimming_course_types`, `campaigns`, `campaign_target_categories`, `campaign_target_items` | migration に存在し、用途コメントまたはドメイン上の継続理由があるため追加 |
 | migrations にあり ERD にないテーブル | 0 | 整合済み |
 | ERD にあり migrations にないテーブル | 0 | 整合済み |
@@ -113,8 +117,8 @@ erDiagram
 ### 4.3 スキーマ更新履歴（001-004 統合 + 005 以降の増分）
 
 2026-06-26 に、かつて独立した増分ファイル (旧 005-012) として管理されていたスキーマ・シード変更を `001_init.sql` および `003_seed_demo.sql` へ統合しました。
-その後、新たな機能追加に伴い増分マイグレーション 005〜009 が追加されています。
-現行マイグレーションは以下の 9 ファイルです（`backend/migrations/`）。
+その後、新たな機能追加に伴い増分マイグレーション 005〜012 が追加されています。
+現行マイグレーションは以下の 12 ファイルです（`backend/migrations/`）。
 
 - `001_init.sql`（初期スキーマ・103 テーブル）
 - `002_seed_master.sql`、`003_seed_demo.sql`、`004_seed_staging.sql`（シード）
@@ -123,6 +127,9 @@ erDiagram
 - `007_add_exams_dup_check_index.sql`（インデックス追加）
 - `008_add_exams_job_id.sql`（`exams.job_id` カラム追加）
 - `009_add_medicine_dose_params.sql`（`medicine_dose_params` を追加）
+- `010_add_checkup_packages.sql`（`checkup_type_fields` / `checkup_field_results` を追加、歯科検診暫定シード投入）
+- `011_add_closing_am_start.sql`（`clinic_settings` に `closing_am_start` カラムを追加）
+- `012_add_clinical_result_composite_fk.sql`（`checkup_field_results` の `(checkup_type_field_id, clinic_id)` 複合FKの追加）
 
 以下は 2026-06-26 の統合時点で `001_init.sql` / `003_seed_demo.sql` へ畳み込まれた変更の論理的な記録です（参照用、当時の独立ファイルは存在しません）。
 

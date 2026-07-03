@@ -36,18 +36,18 @@
 
 | 優先度 | トリガーコード | 内容 |
 |:---:|:---|:---|
-| **2** | `DormantPrevention365` | 最終来院から 1 年経過。 |
-| **3** | `CheckupFollowUp` | 健診結果に基づく精密検査案内。 |
-| **4** | `FilariaAlert` / `FleaTickAlert` | フィラリア・ノミダニシーズン開始。 |
-| **5** | `DormantPrevention240` | 休眠防止ステップ（240日経過）。 |
-| **6** | `DormantPrevention210` | 休眠防止ステップ（210日経過）。 |
-| **7** | `DormantPrevention180` | 休眠防止ステップ（180日経過）。 |
-| **8** | `VaccineDeadline60/30` | ワクチン期限の 60日/30日前通知。 |
-| **10** | `FoodRefillReminder` | 療法食の購入から約 30日後の案内。 |
-| **11** | `NextVisitReminder` | カルテ指定の「次回来院推奨日」の直前。 |
-| **12** | `BirthdayMessage` | ペットの誕生日の当日祝い。 |
-| **13** | `FirstVisitFollowUp3D/7D` | 初診の 3日後、7日後の調子伺い。 |
-| **14** | `FirstVisitWelcome` | 初診会計完了直後の挨拶。 |
+| **2** | `dormant_prevention_365d` | 最終来院から 1 年経過。 |
+| **3** | `checkup_followup` | 健診結果に基づく精密検査案内。 |
+| **4** | `filaria_alert` / `flea_tick_alert` | フィラリア・ノミダニシーズン開始。 |
+| **5** | `dormant_prevention_240d` | 休眠防止ステップ（240日経過）。 |
+| **6** | `dormant_prevention_210d` | 休眠防止ステップ（210日経過）。 |
+| **7** | `dormant_prevention_180d` | 休眠防止ステップ（180日経過）。 |
+| **8** | `vaccine_deadline_60d` / `vaccine_deadline_30d` | ワクチン期限の 60日/30日前通知。 |
+| **10** | `food_refill_reminder` | 療法食の購入から約 30日後の案内。 |
+| **11** | `next_visit_reminder` | カルテ指定の「次回来院推奨日」の直前。 |
+| **12** | `birthday_message` | ペットの誕生日の当日祝い。 |
+| **13** | `first_visit_followup_3d` / `first_visit_followup_7d` | 初診の 3日後、7日後の調子伺い。 |
+| **14** | `first_visit_welcome` | 初診会計完了直後の挨拶。 |
 
 ---
 

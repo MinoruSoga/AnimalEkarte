@@ -39,9 +39,9 @@ LIFF アプリ内の主要な 4 つのフェーズを個別に編集可能です
 - **`PropTextarea`**: 複数行の案内文入力。
 
 ### API連携
-| メソッド | エンドポイント | 用途 |
-|:---|:---|:---|
-| GET | `/api/v1/clinics/:clinic_id/line-reservation-settings` | LINE予約設定（文言含む）を取得。 |
-| PUT | `/api/v1/clinics/:clinic_id/line-reservation-settings` | LINE予約ページ文言を含む設定更新。 |
+| メソッド | エンドポイント | 用途 | 必須権限 | 必須アクション |
+|:---|:---|:---|:---|:---|
+| GET | `/api/v1/clinics/:clinic_id/line-reservation-settings` | LINE予約設定（文言含む）を取得 | `hospital-settings` | `view` |
+| PUT | `/api/v1/clinics/:clinic_id/line-reservation-settings` | LINE予約ページ文言を含む設定更新 | `hospital-settings` | `edit` |
 
 ---

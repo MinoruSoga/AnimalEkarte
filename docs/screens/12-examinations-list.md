@@ -43,9 +43,9 @@
 - **透過アニメーション**: フィルタ処理中は `FilteringIndicator` により画面全体の透過度を調整し、ユーザーに状況を通知します。
 
 ### API連携
-| メソッド | エンドポイント | 用途 |
-|:---|:---|:---|
-| GET | `/api/v1/examinations` | 条件に応じた検査一覧の取得。 |
-| DELETE | `/api/v1/examinations/:id` | オーダーの取り消し（論理削除）。 |
+| メソッド | エンドポイント | 用途 | 必須権限 | 必須アクション |
+|:---|:---|:---|:---|:---|
+| GET | `/api/v1/examinations` | 条件に応じた検査一覧 of 取得 | `examinations` | `view` |
+| DELETE | `/api/v1/examinations/:id` | オーダーの取り消し（論理削除） | `examinations` | `delete` |
 
 ---

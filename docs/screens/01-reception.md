@@ -62,4 +62,11 @@
 - **`useReceptionKanban`**: DnD ロジックとフィルタリングを統合したカスタムフック。
 - **`ReceptionDetailModal`**: ステータスに応じた動的アクションボタンを提供。
 
+### API連携
+| メソッド | エンドポイント | 用途 | 必須権限 | 必須アクション |
+|:---|:---|:---|:---|:---|
+| GET | `/api/v1/reservations` | 本日の予約・受付状況一覧の取得 | `reservations` | `view` |
+| PATCH | `/api/v1/reservations/:id` | 予約・受付ステータスの更新 | `reservations` | `edit` |
+| GET | `/api/v1/masters/staffs` | 担当医フィルター用スタッフマスタ取得 | `master-staff` | `view` |
+
 ---

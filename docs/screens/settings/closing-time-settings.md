@@ -3,7 +3,7 @@
 ## 概要
 - **画面の目的**: 日次および月次の売上集計に使用する境界時刻、休診日、および特別な集計期間の管理。
 - **URLパターン**: `/settings/closing-time`
-- **アクセス権限**: 医院管理者権限が必要（`ResourceHospitalSettings`）
+- **アクセス権限**: 締め時間設定管理権限が必要（`ResourceClosingSettings`）
 
 ---
 
@@ -39,10 +39,17 @@
 - **`SpecialPeriodList`**: 登録済み例外設定の管理。
 
 ### API連携
-| メソッド | エンドポイント | 用途 |
-|:---|:---|:---|
-| GET | `/api/v1/closing-settings` | 現在の時刻・休診設定の取得。 |
-| PATCH | `/api/v1/closing-settings` | 境界時刻の更新。 |
-| POST | `/api/v1/closing-settings/special-periods` | 新規例外期間の登録。 |
+| メソッド | エンドポイント | 用途 | 必須権限 | 必須アクション |
+|:---|:---|:---|:---|:---|
+| GET | `/api/v1/closing-settings` | 現在の時刻・休診設定の取得 | `closing-settings` | `view` |
+| PATCH | `/api/v1/closing-settings` | 境界時刻の更新 | `closing-settings` | `edit` |
+| GET | `/api/v1/closing-settings/special-periods` | 登録済み例外期間の一覧取得 | `closing-settings` | `view` |
+| POST | `/api/v1/closing-settings/special-periods` | 新規例外期間の登録 | `closing-settings` | `create` |
+| PATCH | `/api/v1/closing-settings/special-periods/:id` | 例外期間の更新 | `closing-settings` | `edit` |
+| DELETE | `/api/v1/closing-settings/special-periods/:id` | 例外期間の削除 | `closing-settings` | `delete` |
+| GET | `/api/v1/closing-settings/holidays` | 休診日一覧の取得 | `closing-settings` | `view` |
+| POST | `/api/v1/closing-settings/holidays` | 休診日の登録 | `closing-settings` | `create` |
+| DELETE | `/api/v1/closing-settings/holidays/:date` | 休診日の削除 | `closing-settings` | `delete` |
 
 ---
+

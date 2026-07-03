@@ -45,11 +45,14 @@
 - **`DynamicExamFields`**: マスタの構造（`exam_type_fields`）を再帰的に解決して描画する動的エンジン。
 
 ### API連携
-| メソッド | エンドポイント | 用途 |
-|:---|:---|:---|
-| GET | `/api/v1/examinations/:id` | 検査基本情報および項目リストの取得。 |
-| POST | `/api/v1/examinations` | 新規保存。 |
-| PATCH | `/api/v1/examinations/:id` | 数値・判定・ステータスの更新。 |
-| GET | `/api/v1/masters/examination-types` | 利用可能な検査種別リストの取得。 |
+| メソッド | エンドポイント | 用途 | 必須権限 | 必須アクション |
+|:---|:---|:---|:---|:---|
+| GET | `/api/v1/examinations/:id` | 検査基本情報および項目リストの取得 | `examinations` | `view` |
+| POST | `/api/v1/examinations` | 新規保存 | `examinations` | `create` |
+| PATCH | `/api/v1/examinations/:id` | 数値・判定・ステータスの更新 | `examinations` | `edit` |
+| GET | `/api/v1/examinations/:id/items` | 検査項目（結果）のリスト取得 | `examinations` | `view` |
+| PUT | `/api/v1/examinations/:id/items` | 検査項目（結果）の一括更新 | `examinations` | `edit` |
+| GET | `/api/v1/masters/examination-types` | 利用可能な検査種別リストの取得 | `master-medical` | `view` |
 
 ---
+

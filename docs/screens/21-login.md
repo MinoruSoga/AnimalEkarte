@@ -43,11 +43,11 @@ Notion 風のミニマルなデザインを採用。
 - **ハッシュ化**: `bcrypt` (cost=12) による不可逆な暗号化保存。
 
 ### API連携
-| メソッド | エンドポイント | 用途 |
-|:---|:---|:---|
-| POST | `/api/v1/login` | 認証情報の検証と Cookie 発行。 |
-| POST | `/api/v1/auth/refresh` | アクセストークンの自動延長。 |
-| POST | `/api/v1/auth/forgot-password` | パスワード再設定用リンクの送信。 |
-| POST | `/api/v1/auth/reset-password` | トークン検証と新パスワードの確定。 |
+| メソッド | エンドポイント | 用途 | 必須権限 | 必須アクション |
+|:---|:---|:---|:---|:---|
+| POST | `/api/v1/login` | 認証情報の検証と Cookie 発行 | なし | なし |
+| POST | `/api/v1/auth/refresh` | アクセストークンの自動延長 | なし | なし |
+| POST | `/api/v1/auth/forgot-password` | パスワード再設定用リンクの送信 | なし | なし |
+| POST | `/api/v1/auth/reset-password` | トークン検証と新パスワードの確定 | なし | なし |
 
 ---

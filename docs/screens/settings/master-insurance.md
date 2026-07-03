@@ -3,7 +3,7 @@
 ## 概要
 - **画面の目的**: ペット保険（アニコム、アイペット等）の定義、および窓口精算時の「負担割合」設定の管理。
 - **URLパターン**: `/settings/insurance`
-- **アクセス権限**: 会計マスタ管理権限が必要（`ResourceMasterMedical`）
+- **アクセス権限**: 会計マスタ管理権限が必要（`ResourceMasterInsurance`）
 
 ---
 
@@ -38,9 +38,14 @@
 - **`NotionStatusPill`**: 保険会社の取扱い停止・再開の切り替え。
 
 ### API連携
-| メソッド | エンドポイント | 用途 |
-|:---|:---|:---|
-| GET | `/api/v1/masters/insurances` | 取扱い保険の一覧取得。 |
-| PATCH | `/api/v1/masters/insurances/:id` | 設定内容の更新。 |
+| メソッド | エンドポイント | 用途 | 必須権限 | 必須アクション |
+|:---|:---|:---|:---|:---|
+| GET | `/api/v1/masters/insurances` | 取扱い保険の一覧取得 | `master-insurance` | `view` |
+| GET | `/api/v1/masters/insurances/:id` | 特定の保険会社情報の取得 | `master-insurance` | `view` |
+| POST | `/api/v1/masters/insurances` | 新規保険会社の登録 | `master-insurance` | `create` |
+| PATCH | `/api/v1/masters/insurances/:id` | 設定内容の更新 | `master-insurance` | `edit` |
+| DELETE | `/api/v1/masters/insurances/:id` | 保険会社の削除 | `master-insurance` | `delete` |
+| PATCH | `/api/v1/masters/insurances/reorder` | 表示順序の一括保存 | `master-insurance` | `edit` |
 
 ---
+

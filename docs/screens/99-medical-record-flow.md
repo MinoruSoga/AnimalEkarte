@@ -51,3 +51,13 @@
 - **二重送信防止**: React 19 の `useActionState` により、保存処理中の重複クリックを無効化します。
 
 ---
+
+## API連携
+| メソッド | エンドポイント | 用途 | 必須権限 | 必須アクション |
+|:---|:---|:---|:---|:---|
+| PATCH | `/api/v1/medical-records/:id` | カルテ本体の属性を保存・更新 | `medical-records` | `edit` |
+| PUT | `/api/v1/medical-records/:id/treatments` | 処置・処方明細の一括更新 | `medical-records` | `edit` |
+| POST | `/api/v1/medical-records/:id/vitals` | バイタル測定結果の記録 | `medical-records` | `edit` |
+| POST | `/api/v1/examinations` | 新規検査オーダーの登録 | `examinations` | `create` |
+
+---

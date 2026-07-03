@@ -43,9 +43,9 @@
 - **`DailyBreakdownTable`**: 日次推移の一覧テーブル。
 
 ### API連携
-| メソッド | エンドポイント | 用途 |
-|:---|:---|:---|
-| GET | `/api/v1/reports/monthly` | 指定年月の集計データの取得。 |
-| GET | `/api/v1/reports/monthly/csv` | 集計データの CSV 出力。 |
+| メソッド | エンドポイント | 用途 | 必須権限 | 必須アクション |
+|:---|:---|:---|:---|:---|
+| GET | `/api/v1/reports/monthly` | 指定年月の集計データの取得 | `accounting-reports` | `view` |
+| GET | `/api/v1/reports/monthly/csv` | 集計データの CSV 出力 | `accounting-reports` | `view` |
 
 ---

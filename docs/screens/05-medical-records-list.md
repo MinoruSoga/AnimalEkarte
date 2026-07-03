@@ -46,9 +46,9 @@
 - **無限スクロール / ページネーション**: 大量の履歴データ（数万件規模）でも、スムーズなスクロールを実現。
 
 ### API連携
-| メソッド | エンドポイント | 用途 |
-|:---|:---|:---|
-| GET | `/api/v1/medical-records` | 条件に応じた診療記録の一括取得。 |
-| DELETE | `/api/v1/medical-records/:id` | 誤作成カルテの論理削除。 |
+| メソッド | エンドポイント | 用途 | 必須権限 | 必須アクション |
+|:---|:---|:---|:---|:---|
+| GET | `/api/v1/medical-records` | 条件に応じた診療記録の一括取得 | `medical-records` | `view` |
+| DELETE | `/api/v1/medical-records/:id` | 誤作成カルテの論理削除 | `medical-records` | `delete` |
 
 ---

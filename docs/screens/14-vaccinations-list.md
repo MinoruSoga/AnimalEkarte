@@ -39,9 +39,9 @@
 - **遅延フィルタリング**: `useDeferredValue` により、膨大な過去実績を検索する際も軽快な操作感を維持。
 
 ### API連携
-| メソッド | エンドポイント | 用途 |
-|:---|:---|:---|
-| GET | `/api/v1/vaccinations` | 条件に応じた接種記録の一括取得。 |
-| DELETE | `/api/v1/vaccinations/:id` | 誤登録データの論理削除。 |
+| メソッド | エンドポイント | 用途 | 必須権限 | 必須アクション |
+|:---|:---|:---|:---|:---|
+| GET | `/api/v1/vaccinations` | 条件に応じた接種記録の一括取得 | `vaccinations` | `view` |
+| DELETE | `/api/v1/vaccinations/:id` | 誤登録データの論理削除 | `vaccinations` | `delete` |
 
 ---

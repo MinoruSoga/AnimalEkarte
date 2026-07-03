@@ -42,10 +42,11 @@
 - **`DischargeAlertDialog`**: 安全な退院手続きのための最終確認ダイアログ。
 
 ### API連携
-| メソッド | エンドポイント | 用途 |
-|:---|:---|:---|
-| GET | `/api/v1/hospitalizations/:id` | 入院詳細情報の取得。 |
-| POST | `/api/v1/hospitalizations/:id/daily-records` | 日次バイタル・処置記録の保存。 |
-| PATCH | `/api/v1/hospitalizations/:id/status` | 退院・ステータス変更。 |
+| メソッド | エンドポイント | 用途 | 必須権限 | 必須アクション |
+|:---|:---|:---|:---|:---|
+| GET | `/api/v1/hospitalizations/:id` | 入院詳細情報の取得 | `hospitalization` | `view` |
+| POST | `/api/v1/hospitalizations/:id/daily-records` | 日次バイタル・処置記録の保存 | `hospitalization` | `create` |
+| PATCH | `/api/v1/hospitalizations/:id` | 入院情報（ケージ・プラン等）の更新 | `hospitalization` | `edit` |
+| POST | `/api/v1/hospitalizations/:id/discharge-with-billing` | 退院処理（会計連携含む） | `hospitalization` | `edit` |
 
 ---

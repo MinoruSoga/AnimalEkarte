@@ -46,15 +46,15 @@
 - **保存アクション**: React 19 の `useActionState` を活用し、保存中の二重送信を防止。
 
 ### API連携
-| メソッド | エンドポイント | 用途 |
-|:---|:---|:---|
-| GET | `/api/v1/estimates/:id` | 明細を含む見積情報の取得。 |
-| POST | `/api/v1/estimates` | 新規保存。 |
-| PATCH | `/api/v1/estimates/:id` | 内容およびステータスの更新。 |
-| GET | `/api/v1/masters/consultations` | 診療項目（診察）マスタの検索・引用。 |
-| GET | `/api/v1/masters/examination-types` | 検査項目マスタの検索・引用。 |
-| GET | `/api/v1/masters/procedures` | 処置項目マスタの検索・引用。 |
-| GET | `/api/v1/masters/vaccines` | 予防接種項目マスタの検索・引用。 |
-| GET | `/api/v1/masters/checkup-types` | 定期健診項目マスタの検索・引用。 |
+| メソッド | エンドポイント | 用途 | 必須権限 | 必須アクション |
+|:---|:---|:---|:---|:---|
+| GET | `/api/v1/estimates/:id` | 明細を含む見積情報の取得 | `estimates` | `view` |
+| POST | `/api/v1/estimates` | 新規保存 | `estimates` | `create` |
+| PATCH | `/api/v1/estimates/:id` | 内容およびステータスの更新 | `estimates` | `edit` |
+| GET | `/api/v1/masters/consultations` | 診療項目（診察）マスタの検索・引用 | `master-medical` | `view` |
+| GET | `/api/v1/masters/examination-types` | 検査項目マスタの検索・引用 | `master-medical` | `view` |
+| GET | `/api/v1/masters/procedures` | 処置項目マスタの検索・引用 | `master-medical` | `view` |
+| GET | `/api/v1/masters/vaccines` | 予防接種項目マスタの検索・引用 | `master-medical` | `view` |
+| GET | `/api/v1/masters/checkup-types` | 定期健診項目マスタの検索・引用 | `checkups` | `view` |
 
 ---

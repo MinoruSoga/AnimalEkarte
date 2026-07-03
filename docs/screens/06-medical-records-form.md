@@ -55,10 +55,11 @@
 - **`historyItems`**: 画面右側のサイドパネルに過去の全診療履歴を表示。
 
 ### API連携
-| メソッド | エンドポイント | 用途 |
-|:---|:---|:---|
-| GET | `/api/v1/medical-records/:id` | カルテ本体と全サブリソースの取得。 |
-| PATCH | `/api/v1/medical-records/:id` | カルテ属性の更新。 |
-| PUT | `/api/v1/medical-records/:id/treatments` | 処置・処方明細の一括更新。 |
+| メソッド | エンドポイント | 用途 | 必須権限 | 必須アクション |
+|:---|:---|:---|:---|:---|
+| GET | `/api/v1/medical-records/:id` | カルテ本体と全サブリソースの取得 | `medical-records` | `view` |
+| POST | `/api/v1/medical-records` | 新規カルテレコードの作成 | `medical-records` | `create` |
+| PATCH | `/api/v1/medical-records/:id` | カルテ属性の更新 | `medical-records` | `edit` |
+| PUT | `/api/v1/medical-records/:id/treatments` | 処置・処方明細の一括更新 | `medical-records` | `edit` |
 
 ---

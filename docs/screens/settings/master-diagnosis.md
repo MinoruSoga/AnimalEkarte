@@ -37,17 +37,21 @@
 - **`PropInput`**: 各項目のインライン編集。
 
 ### API連携
-| メソッド | エンドポイント | 用途 |
-|:---|:---|:---|
-| GET | `/api/v1/masters/diagnosis-types` | 診断カテゴリ一覧の取得。 |
-| POST | `/api/v1/masters/diagnosis-types` | 診断カテゴリの作成。 |
-| PATCH | `/api/v1/masters/diagnosis-types/:id` | 診断カテゴリ情報の更新。 |
-| DELETE | `/api/v1/masters/diagnosis-types/:id` | 診断カテゴリの削除。 |
-| PATCH | `/api/v1/masters/diagnosis-types/reorder` | 診断カテゴリ表示順の一括保存。 |
-| GET | `/api/v1/masters/diagnosis-names` | 診断名一覧の取得。 |
-| POST | `/api/v1/masters/diagnosis-names` | 診断名の作成。 |
-| PATCH | `/api/v1/masters/diagnosis-names/:id` | 診断名情報の更新。 |
-| DELETE | `/api/v1/masters/diagnosis-names/:id` | 診断名の削除。 |
-| PATCH | `/api/v1/masters/diagnosis-names/reorder` | 診断名表示順の一括保存。 |
+| メソッド | エンドポイント | 用途 | 必須権限 | 必須アクション |
+|:---|:---|:---|:---|:---|
+| GET | `/api/v1/masters/diagnosis-types` | 診断カテゴリ一覧の取得 | `master-medical` | `view` |
+| GET | `/api/v1/masters/diagnosis-types/:id` | 特定の診断カテゴリ情報の取得 | `master-medical` | `view` |
+| POST | `/api/v1/masters/diagnosis-types` | 診断カテゴリの作成 | `master-medical` | `create` |
+| PATCH | `/api/v1/masters/diagnosis-types/:id` | 診断カテゴリ情報の更新 | `master-medical` | `edit` |
+| DELETE | `/api/v1/masters/diagnosis-types/:id` | 診断カテゴリの削除 | `master-medical` | `delete` |
+| PATCH | `/api/v1/masters/diagnosis-types/reorder` | 診断カテゴリ表示順の一括保存 | `master-medical` | `edit` |
+| GET | `/api/v1/masters/diagnosis-names` | 診断名一覧の取得 | `master-medical` | `view` |
+| GET | `/api/v1/masters/diagnosis-names/all` | 全ての診断名一覧（未ページネーション）の取得 | `master-medical` | `view` |
+| GET | `/api/v1/masters/diagnosis-names/:id` | 特定の診断名情報の取得 | `master-medical` | `view` |
+| POST | `/api/v1/masters/diagnosis-names` | 診断名の作成 | `master-medical` | `create` |
+| PATCH | `/api/v1/masters/diagnosis-names/:id` | 診断名情報の更新 | `master-medical` | `edit` |
+| DELETE | `/api/v1/masters/diagnosis-names/:id` | 診断名の削除 | `master-medical` | `delete` |
+| PATCH | `/api/v1/masters/diagnosis-names/reorder` | 診断名表示順の一括保存 | `master-medical` | `edit` |
+
 
 ---

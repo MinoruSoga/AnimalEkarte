@@ -37,12 +37,14 @@
 - **`PropInput`**: カテゴリ名の編集。
 
 ### API連携
-| メソッド | エンドポイント | 用途 |
-|:---|:---|:---|
-| GET | `/api/v1/masters/chief-complaint-types` | 有効なカテゴリ一覧の取得。 |
-| POST | `/api/v1/masters/chief-complaint-types` | 新規カテゴリの作成。 |
-| PATCH | `/api/v1/masters/chief-complaint-types/:id` | 名称やテンプレート紐付けの更新。 |
-| DELETE | `/api/v1/masters/chief-complaint-types/:id` | カテゴリの削除。 |
-| PATCH | `/api/v1/masters/chief-complaint-types/reorder` | 表示順の一括保存。 |
+| メソッド | エンドポイント | 用途 | 必須権限 | 必須アクション |
+|:---|:---|:---|:---|:---|
+| GET | `/api/v1/masters/chief-complaint-types` | 有効なカテゴリ一覧の取得 | `master-medical` | `view` |
+| GET | `/api/v1/masters/chief-complaint-types/:id` | 特定のカテゴリ情報の取得 | `master-medical` | `view` |
+| POST | `/api/v1/masters/chief-complaint-types` | 新規カテゴリの作成 | `master-medical` | `create` |
+| PATCH | `/api/v1/masters/chief-complaint-types/:id` | 名称やテンプレート紐付けの更新 | `master-medical` | `edit` |
+| DELETE | `/api/v1/masters/chief-complaint-types/:id` | カテゴリの削除 | `master-medical` | `delete` |
+| PATCH | `/api/v1/masters/chief-complaint-types/reorder` | 表示順の一括保存 | `master-medical` | `edit` |
 
 ---
+

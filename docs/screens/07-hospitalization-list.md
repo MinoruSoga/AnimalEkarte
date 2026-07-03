@@ -43,9 +43,9 @@
 - **視覚的フィードバック**: 処理中は `FilteringIndicator` により状態を通知。
 
 ### API連携
-| メソッド | エンドポイント | 用途 |
-|:---|:---|:---|
-| GET | `/api/v1/hospitalizations` | 期間・条件に応じた入院データの一括取得。 |
-| DELETE | `/api/v1/hospitalizations/:id` | 入院レコードの削除。 |
+| メソッド | エンドポイント | 用途 | 必須権限 | 必須アクション |
+|:---|:---|:---|:---|:---|
+| GET | `/api/v1/hospitalizations` | 期間・条件に応じた入院データの一括取得 | `hospitalization` | `view` |
+| DELETE | `/api/v1/hospitalizations/:id` | 入院レコードの削除 | `hospitalization` | `delete` |
 
 ---

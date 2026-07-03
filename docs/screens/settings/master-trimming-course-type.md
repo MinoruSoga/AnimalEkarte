@@ -22,13 +22,15 @@
 ## 技術仕様
 
 ### API連携
-| メソッド | エンドポイント | 用途 |
-|:---|:---|:---|
-| GET | `/api/v1/masters/trimming-course-types` | 定義済みのコース種別を取得。 |
-| POST | `/api/v1/masters/trimming-course-types` | コース種別を追加。 |
-| PATCH | `/api/v1/masters/trimming-course-types/:id` | コース種別情報を更新。 |
-| DELETE | `/api/v1/masters/trimming-course-types/:id` | コース種別を削除。 |
-| PATCH | `/api/v1/masters/trimming-course-types/reorder` | 種別の表示順を一括保存。 |
+| メソッド | エンドポイント | 用途 | 必須権限 | 必須アクション |
+|:---|:---|:---|:---|:---|
+| GET | `/api/v1/masters/trimming-course-types` | 定義済みのコース種別を取得 | `master-trimming` | `view` |
+| GET | `/api/v1/masters/trimming-course-types/:id` | 特定のコース種別詳細を取得 | `master-trimming` | `view` |
+| POST | `/api/v1/masters/trimming-course-types` | コース種別を追加 | `master-trimming` | `create` |
+| PATCH | `/api/v1/masters/trimming-course-types/:id` | コース種別情報を更新 | `master-trimming` | `edit` |
+| DELETE | `/api/v1/masters/trimming-course-types/:id` | コース種別を削除 | `master-trimming` | `delete` |
+| PATCH | `/api/v1/masters/trimming-course-types/reorder` | 種別の表示順を一括保存 | `master-trimming` | `edit` |
+
 
 ### 関連画面
 - トリミングマスタ（`/settings/trimming`）で表示するコース群の上位分類として参照されます。

@@ -39,9 +39,9 @@
 - **`CalculationSummary`**: 消費税や保険負担額の共通計算表示部品。
 
 ### API連携
-| メソッド | エンドポイント | 用途 |
-|:---|:---|:---|
-| GET | `/api/v1/estimates/:id` | 明細を含む見積詳細情報の取得。 |
-| DELETE | `/api/v1/estimates/:id` | 特定の見積レコードの論理削除。 |
+| メソッド | エンドポイント | 用途 | 必須権限 | 必須アクション |
+|:---|:---|:---|:---|:---|
+| GET | `/api/v1/estimates/:id` | 明細を含む見積詳細情報の取得 | `estimates` | `view` |
+| DELETE | `/api/v1/estimates/:id` | 特定の見積レコードの論理削除 | `estimates` | `delete` |
 
 ---

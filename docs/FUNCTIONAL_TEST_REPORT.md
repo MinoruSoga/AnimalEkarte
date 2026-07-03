@@ -1,7 +1,7 @@
 # 機能テスト・品質検証レポート (Functional Test Report)
 
 > **Animal Ekarte**: システム全ドメインにおける網羅的な動作検証記録
-> **最新更新**: 2026-05-21 | **ステータス**: 100% Implementation-Synced (95 Tables / 31 Resources)
+> **最新更新**: 2026-07-03 | **ステータス**: 100% Implementation-Synced (108 Tables / 34 Resources)
 
 ---
 

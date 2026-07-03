@@ -40,10 +40,13 @@
 - **`ImageUploader`**: 病院ロゴの S3 へのセキュアなアップロード（署名付き URL 利用）。
 
 ### API連携
-| メソッド | エンドポイント | 用途 |
-|:---|:---|:---|
-| GET | `/api/v1/clinics` | 所属グループ内の医院一覧取得。 |
-| POST | `/api/v1/clinics` | 新規拠点の開設。 |
-| PATCH | `/api/v1/clinics/:id` | 拠点情報の更新。 |
+| メソッド | エンドポイント | 用途 | 必須権限 | 必須アクション |
+|:---|:---|:---|:---|:---|
+| GET | `/api/v1/clinics` | 所属グループ内の医院一覧取得 | `hospital-settings` | `view` |
+| GET | `/api/v1/clinics/:clinic_id` | 特定の医院詳細情報の取得 | `hospital-settings` | `view` |
+| POST | `/api/v1/clinics` | 新規拠点の開設 | `hospital-settings` | `create` |
+| PATCH | `/api/v1/clinics/:clinic_id` | 拠点情報の更新 | `hospital-settings` | `edit` |
+| DELETE | `/api/v1/clinics/:clinic_id` | 拠点情報の削除（論理削除） | `hospital-settings` | `delete` |
 
 ---
+

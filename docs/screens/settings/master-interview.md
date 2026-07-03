@@ -40,12 +40,14 @@
 - **`PropInput`**: カテゴリやタイトルの編集。
 
 ### API連携
-| メソッド | エンドポイント | 用途 |
-|:---|:---|:---|
-| GET | `/api/v1/masters/inquiry-templates` | 登録済みテンプレートの取得。 |
-| POST | `/api/v1/masters/inquiry-templates` | 新規テンプレートの保存。 |
-| PATCH | `/api/v1/masters/inquiry-templates/:id` | 本文やカテゴリ、順序の更新。 |
-| DELETE | `/api/v1/masters/inquiry-templates/:id` | テンプレートの削除。 |
-| PATCH | `/api/v1/masters/inquiry-templates/reorder` | 表示順の一括保存。 |
+| メソッド | エンドポイント | 用途 | 必須権限 | 必須アクション |
+|:---|:---|:---|:---|:---|
+| GET | `/api/v1/masters/inquiry-templates` | 登録済みテンプレートの取得 | `master-medical` | `view` |
+| GET | `/api/v1/masters/inquiry-templates/:id` | 特定のテンプレート情報の取得 | `master-medical` | `view` |
+| POST | `/api/v1/masters/inquiry-templates` | 新規テンプレートの保存 | `master-medical` | `create` |
+| PATCH | `/api/v1/masters/inquiry-templates/:id` | 本文やカテゴリ、順序の更新 | `master-medical` | `edit` |
+| DELETE | `/api/v1/masters/inquiry-templates/:id` | テンプレートの削除 | `master-medical` | `delete` |
+| PATCH | `/api/v1/masters/inquiry-templates/reorder` | 表示順の一括保存 | `master-medical` | `edit` |
 
 ---
+

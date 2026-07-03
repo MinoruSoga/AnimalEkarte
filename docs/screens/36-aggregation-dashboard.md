@@ -49,9 +49,8 @@ LTV や最終来院日でソート可能な詳細リスト。
 - **サーバーサイド集計**: 複雑な LTV 計算は DB レベルで `SUM` 集計を行い、API レスポンスを軽量化しています。
 
 ### API連携
-| メソッド | エンドポイント | 用途 |
-|:---|:---|:---|
-| GET | `/api/v1/clinics/:clinic_id/owners/aggregations` | 統計サマリおよびランキングの取得。 |
-| GET | `/api/v1/clinics/:clinic_id/owners/aggregations?cpm_stage=<stage>` | CPM ステージ分布。専用 `/charts` エンドポイントは無く、`cpm_stage` を指定した同一エンドポイントをステージ数分並列取得してグラフ化する。 |
+| メソッド | エンドポイント | 用途 | 必須権限 | 必須アクション |
+|:---|:---|:---|:---|:---|
+| GET | `/api/v1/clinics/:clinic_id/owners/aggregations` | 統計サマリ、ランキング、および CPM ステージ分布データの取得 | `owners` | `view` |
 
 ---

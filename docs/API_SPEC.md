@@ -46,7 +46,18 @@
 - `GET/POST/DELETE /medical-records/:id/vitals` — バイタル測定値（グラフ用）。
 - `GET/POST/DELETE /medical-records/:id/images` — 患部写真・資料 PDF。
 - `GET/POST/PATCH/DELETE /medical-records/:id/checkups` — 定期健診記録。
+- `GET/PUT /medical-records/:id/checkups/:checkupId/field-results` — 健診パッケージの型付き結果値。PUTによる一括置換に対応。
 - `GET/PATCH /medical-records/:id/clinical-plan` — 身体検査所見・診断名。
+
+#### ── 定期健診 (Checkups) ──
+- `GET /checkups` — クリニック横断の健診記録一覧（検索・ページング対応）
+- `GET /checkups/alerts` — 健診期限アラート集計（`within_days`）
+- `GET /checkups/field-results` — 飼い主レポート用のペット別健診結果（`pet_id` 必須）
+- `GET /masters/checkup-types` — 健診パッケージ（マスタ）一覧
+- `POST /masters/checkup-types` — 健診パッケージ（マスタ）新規作成
+- `GET/PATCH/DELETE /masters/checkup-types/:id` — 健診パッケージ（マスタ）の取得・更新・削除
+- `PATCH /masters/checkup-types/reorder` — 健診パッケージ（マスタ）の順序保存
+- `GET /masters/checkup-types/:id/fields` — 健診パッケージのフィールド定義一覧（FE動的フォーム構築用）
 - `POST /medical-records/:id/billing-confirmation/confirm` — 会計を医師確認済みにする。
 
 ### 2.2 入院管理 (Hospitalization)

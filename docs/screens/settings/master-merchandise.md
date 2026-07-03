@@ -42,12 +42,14 @@
 - **`PropInput`**: 金額、JAN コード、カテゴリの直接編集。
 
 ### API連携
-| メソッド | エンドポイント | 用途 |
-|:---|:---|:---|
-| GET | `/api/v1/masters/merchandise-items` | 販売商品の一覧取得。 |
-| POST | `/api/v1/masters/merchandise-items` | 新商品の登録。 |
-| PATCH | `/api/v1/masters/merchandise-items/:id` | 価格・在庫連携設定の変更。 |
-| DELETE | `/api/v1/masters/merchandise-items/:id` | 商品の削除。 |
-| PATCH | `/api/v1/masters/merchandise-items/reorder` | 表示順の一括保存。 |
+| メソッド | エンドポイント | 用途 | 必須権限 | 必須アクション |
+|:---|:---|:---|:---|:---|
+| GET | `/api/v1/masters/merchandise-items` | 販売商品の一覧取得 | `master-merchandise` | `view` |
+| GET | `/api/v1/masters/merchandise-items/:id` | 特定の商品詳細の取得 | `master-merchandise` | `view` |
+| POST | `/api/v1/masters/merchandise-items` | 新商品の登録 | `master-merchandise` | `create` |
+| PATCH | `/api/v1/masters/merchandise-items/:id` | 価格・在庫連携設定の変更 | `master-merchandise` | `edit` |
+| DELETE | `/api/v1/masters/merchandise-items/:id` | 商品の削除 | `master-merchandise` | `delete` |
+| PATCH | `/api/v1/masters/merchandise-items/reorder` | 表示順の一括保存 | `master-merchandise` | `edit` |
 
 ---
+

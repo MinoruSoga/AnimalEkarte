@@ -44,11 +44,11 @@
 - **`NextDateCalculator`**: 接種周期に基づいた自動計算ロジック。
 
 ### API連携
-| メソッド | エンドポイント | 用途 |
-|:---|:---|:---|
-| GET | `/api/v1/vaccinations/:id` | 接種詳細情報の取得。 |
-| POST | `/api/v1/vaccinations` | 新規保存。 |
-| PATCH | `/api/v1/vaccinations/:id` | 登録内容（LOT、予定日等）の更新。 |
-| GET | `/api/v1/masters/vaccines` | 利用可能なワクチン種類の取得。 |
+| メソッド | エンドポイント | 用途 | 必須権限 | 必須アクション |
+|:---|:---|:---|:---|:---|
+| GET | `/api/v1/vaccinations/:id` | 接種詳細情報の取得 | `vaccinations` | `view` |
+| POST | `/api/v1/vaccinations` | 新規保存 | `vaccinations` | `create` |
+| PATCH | `/api/v1/vaccinations/:id` | 登録内容（LOT、予定日等）の更新 | `vaccinations` | `edit` |
+| GET | `/api/v1/masters/vaccines` | 利用可能なワクチン種類の取得 | `master-medical` | `view` |
 
 ---

@@ -4,7 +4,7 @@
 - **画面の目的**: 入院またはペットホテルの新規受付、および入院中の治療・ケアプラン（投薬・給餌・処置スケジュール）の定義。
 - **URLパターン**:
   - 新規作成: `/hospitalization/new?petId=xxx`
-  - 編集: `/hospitalization/:id`
+  - 編集: `/hospitalization/:id/edit`
 - **アクセス権限**: 認証済ユーザー全員（操作権限は `usePermission` で制御）
 
 ---
@@ -47,10 +47,10 @@ Notionスタイルのプロパティ編集UIで、入院の根幹となる条件
 - **`HospitalizationCostSummary`**: 金額計算・値引き処理モジュール。
 
 ### API連携
-| メソッド | エンドポイント | 用途 |
-|:---|:---|:---|
-| POST | `/api/v1/hospitalizations` | 入院レコードの新規保存。 |
-| PATCH | `/api/v1/hospitalizations/:id` | 登録情報の更新。 |
-| GET | `/api/v1/masters/cages` | 利用可能なケージ一覧の取得。 |
+| メソッド | エンドポイント | 用途 | 必須権限 | 必須アクション |
+|:---|:---|:---|:---|:---|
+| POST | `/api/v1/hospitalizations` | 入院レコードの新規保存 | `hospitalization` | `create` |
+| PATCH | `/api/v1/hospitalizations/:id` | 登録情報の更新 | `hospitalization` | `edit` |
+| GET | `/api/v1/masters/cages` | 利用可能なケージ一覧の取得 | `master-hospitalization` | `view` |
 
 ---

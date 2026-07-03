@@ -3,7 +3,7 @@
 ## 概要
 - **画面の目的**: 会計精算時に選択可能な決済手段（現金、クレジットカード、電子マネー等）の定義。
 - **URLパターン**: `/settings/payment-methods`
-- **アクセス権限**: 医院管理者権限が必要（`ResourceHospitalSettings`）
+- **アクセス権限**: 支払方法マスタ管理権限が必要（`ResourcePaymentMethod`）
 
 ---
 
@@ -35,12 +35,15 @@
 - **`NotionStatusPill`**: 有効/無効のトグル切り替え。
 
 ### API連携
-| メソッド | エンドポイント | 用途 |
-|:---|:---|:---|
-| GET | `/api/v1/payment-methods` | 利用可能な支払方法一覧の取得。 |
-| POST | `/api/v1/payment-methods` | 新規支払方法の作成。 |
-| PATCH | `/api/v1/payment-methods/:id` | 名称やステータスの更新。 |
-| DELETE | `/api/v1/payment-methods/:id` | 支払方法の削除。 |
-| PATCH | `/api/v1/payment-methods/reorder` | 表示順の一括保存。 |
+| メソッド | エンドポイント | 用途 | 必須権限 | 必須アクション |
+|:---|:---|:---|:---|:---|
+| GET | `/api/v1/payment-methods` | 利用可能な支払方法一覧の取得 | `master-payment-method` | `view` |
+| GET | `/api/v1/payment-methods/:id` | 特定の支払方法詳細の取得 | `master-payment-method` | `view` |
+| POST | `/api/v1/payment-methods` | 新規支払方法の作成 | `master-payment-method` | `create` |
+| PATCH | `/api/v1/payment-methods/:id` | 名称やステータスの更新 | `master-payment-method` | `edit` |
+| DELETE | `/api/v1/payment-methods/:id` | 支払方法の削除 | `master-payment-method` | `delete` |
+| PATCH | `/api/v1/payment-methods/reorder` | 表示順の一括保存 | `master-payment-method` | `edit` |
+
 
 ---
+

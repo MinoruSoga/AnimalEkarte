@@ -2,8 +2,8 @@
 
 ## 概要
 - **画面の目的**: 指定した基準日時点で支払が完了していない売掛金を把握し、督促や回収業務を支援するための管理ビュー。
-- **URLパターン**: `/accounting/unpaid`
-- **アクセス権限**: 認証済ユーザー全員（主に経理・事務担当者が使用）
+- **URLパターン**: `/accounting?tab=unpaid`
+- **アクセス権限**: 会計管理権限が必要（`ResourceAccounting`）
 
 ---
 
@@ -41,8 +41,11 @@
 - **ページネーション**: 大規模な未納データにも対応できるよう、1ページ20件のページング処理を実装しています。
 
 ### API連携
-| メソッド | エンドポイント | 用途 |
-|:---|:---|:---|
-| GET | `/api/v1/accountings/unpaid` | 基準日・単位に応じた未納データの集計取得。 |
+| メソッド | エンドポイント | 用途 | 必須権限 | 必須アクション |
+|:---|:---|:---|:---|:---|
+| GET | `/api/v1/accountings/unpaid` | 基準日・単位に応じた未納データの集計取得 | `accounting` | `view` |
+| GET | `/api/v1/accountings/unpaid-monthly` | 月次未納繰越集計の取得 | `accounting` | `view` |
+| GET | `/api/v1/accountings/unpaid-balance` | 特定飼主の未入金残高と件数の取得 | `accounting` | `view` |
 
 ---
+
