@@ -203,7 +203,7 @@ export function useTrimmingForm(id?: string) {
       });
       // 既存画像URLをプレビューとして復元
       if (existingTrimming.styleImage) {
-        // eslint-disable-next-line react-hooks/set-state-in-effect
+        // eslint-disable-next-line react-hooks/set-state-in-effect -- 上記と同じ理由（初回のみ・effect同期が必須）
         setStyleImagePreview(existingTrimming.styleImage);
       }
       if (existingTrimming.completedImage) {
@@ -235,7 +235,7 @@ export function useTrimmingForm(id?: string) {
       staffName: existingAppointmentTrimming.staff || prev.staffName || "",
     }));
     if (existingAppointmentTrimming.styleImage) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- 上記と同じ理由（初回のみ・effect同期が必須）
       setStyleImagePreview(existingAppointmentTrimming.styleImage);
     }
     if (existingAppointmentTrimming.completedImage) {

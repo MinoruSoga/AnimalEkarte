@@ -43,6 +43,7 @@ export function MyReservationsPage({
   const [cancellingId, setCancellingId] = useState<number | null>(null);
 
   useEffect(() => {
+    // マウント時 + clinicId/idToken 変更時に読み込み中フラグを立てる（フェッチ開始の同期処理）。
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(true);
     liffApi.getMyReservations(clinicId, idToken)

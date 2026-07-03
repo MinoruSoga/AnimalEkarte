@@ -12,10 +12,12 @@ import {
   ClinicDeleteDialog,
   ClinicMasterList,
   ClinicMasterSidePanel,
+} from "../components/ClinicMasterSettingsPanels";
+import {
   DEFAULT_CLINIC_FORM_DATA,
   clinicToFormData,
   type ClinicFormData,
-} from "../components/ClinicMasterSettingsPanels";
+} from "../components/ClinicMasterSettingsModel";
 import {
   useCreateClinic,
   useDeleteClinic,

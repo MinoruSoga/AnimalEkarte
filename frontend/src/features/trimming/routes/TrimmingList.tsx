@@ -87,7 +87,7 @@ export function TrimmingList() {
     if (clampedPage !== currentPage) {
       goToPage(clampedPage);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- currentPage/goToPage は意図的に除外（URL変更時のみ同期する設計。FE-144）
   }, [urlPage, totalPages]);
 
   // FE-144: ページ変更時にURLクエリパラメータを更新

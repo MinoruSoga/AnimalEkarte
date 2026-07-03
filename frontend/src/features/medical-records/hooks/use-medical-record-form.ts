@@ -254,6 +254,7 @@ export function useMedicalRecordForm(recordId?: string) {
   }, [visitType, recordId, existingRecord?.version, updateMutation, startSaveTransition]);
 
   // 次回予定変更ハンドラ（ヘッダー NextVisitButton 用・即時PATCH）
+  // existingRecord?.version のみ参照するため object 全体を dep に含めない (OCC versioning)
   // eslint-disable-next-line react-hooks/preserve-manual-memoization
   const handleNextVisitDatePatch = useCallback((newDate: string) => {
     const prev = nextVisitDate;
