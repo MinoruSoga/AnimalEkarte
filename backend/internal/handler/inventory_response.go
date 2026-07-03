@@ -33,9 +33,11 @@ func toInventoryResponse(item *model.InventoryItem) inventoryResponse {
 		Unit:          item.Unit,
 		MinStockLevel: item.MinStockLevel,
 		Location:      item.Location,
-		ExpiryDate:    item.ExpiryDate,
+		// 日付フィールドは canonical 規約 (BE-refactor.md R2-1) に従い localTimePtr で
+		// time.Local へ変換する。pet.BirthDate/NeuteredDate/LastVisit と同一パターン。
+		ExpiryDate:    localTimePtr(item.ExpiryDate),
 		Supplier:      item.Supplier,
-		LastRestocked: item.LastRestocked,
+		LastRestocked: localTimePtr(item.LastRestocked),
 		Status:        string(item.Status),
 		CreatedAt:     localTime(item.CreatedAt),
 		UpdatedAt:     localTime(item.UpdatedAt),

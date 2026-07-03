@@ -58,7 +58,7 @@ func newHandlerWithSharedFileSvc(svc service.SharedFileService) *Handler {
 
 // buildSharedFileMultipart はテスト用の multipart/form-data ボディを組み立てる。
 // includeFile が false の場合、file パートを省略する（欠落パラメータ検証用）。
-func buildSharedFileMultipart(t *testing.T, includeFile bool, fileName string, content []byte, formFields map[string]string) (*bytes.Buffer, string) {
+func buildSharedFileMultipart(t *testing.T, includeFile bool, fileName string, content []byte, formFields map[string]string) (body *bytes.Buffer, contentType string) {
 	t.Helper()
 	var buf bytes.Buffer
 	w := multipart.NewWriter(&buf)

@@ -87,6 +87,7 @@
 - **手順**: 各 response builder で raw time → `localTimePtr` 化。既存の pet 対応コミットをテンプレートにする。openapi の format 宣言（date-time）は整合済み（6/30 調査で 0/76 ミスマッチ確認）なので API 定義変更は不要。FE 側で `Z` / `+09:00` の差に依存した処理がないことを grep で確認してから入れる。
 - **検証**: 対象 handler の response テスト（シリアライズ形式 pin）＋ `npx vitest run` の該当 feature（FE で日付表示に使う画面のみ）
 - **完了条件**: API 応答の日付系フィールドが全て同一 tz 表現。format↔シリアライズ突合 CI（R3-3）が入ればここで pin される。
+- **状態（2026-07-03 検証・完了）**: FirstVisit・cash_register PaidAt は既に統一済みだったが、**inventory ExpiryDate/LastRestocked が唯一未統一のまま残存**していた（並行セッションの3回revertでCONTESTEDと記録された箇所・その後放置）。`inventory_response.go` の `toInventoryResponse` を `localTimePtr(item.ExpiryDate)` / `localTimePtr(item.LastRestocked)` に修正。TDD（RED→GREEN）で `inventory_response_test.go` を新規追加し、pet と同一のcanonicalパターンであることをテストで固定。R3-3 の apicontract drift テストへの型レベル影響なし（`*time.Time` のまま・実行時のtz表現のみ変更）を確認済み。scoped test/build/vet 全て GREEN。
 
 #### R2-2. 孤児エンドポイント medication-history の処分（D4）— 規模 S
 

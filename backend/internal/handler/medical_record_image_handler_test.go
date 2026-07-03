@@ -80,12 +80,12 @@ func newHandlerWithMedicalRecordImageSvc(mrSvc service.MedicalRecordService, img
 
 // buildImageMultipart はテスト用の multipart/form-data ボディを組み立てる。
 // contentType が空文字の場合は Content-Type ヘッダを省略する（拡張子判定経路を検証するため）。
-func buildImageMultipart(t *testing.T, fileName, contentType string, content []byte) (*bytes.Buffer, string) {
+func buildImageMultipart(t *testing.T, fileName, contentType string, content []byte) (body *bytes.Buffer, contentTypeHeader string) {
 	t.Helper()
 	var buf bytes.Buffer
 	w := multipart.NewWriter(&buf)
 	header := textproto.MIMEHeader{}
-	header.Set("Content-Disposition", fmt.Sprintf(`form-data; name="file"; filename="%s"`, fileName))
+	header.Set("Content-Disposition", fmt.Sprintf(`form-data; name="file"; filename=%q`, fileName))
 	if contentType != "" {
 		header.Set("Content-Type", contentType)
 	}
