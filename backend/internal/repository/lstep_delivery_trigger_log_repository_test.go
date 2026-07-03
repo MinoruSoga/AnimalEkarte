@@ -318,11 +318,11 @@ func TestLstepDeliveryTriggerLogRepository_FindByDateRangeWithFilters(t *testing
 		assert.Equal(t, int64(3), total)
 		require.Len(t, rows, 3)
 		// DESC 順: l3, l2, l1
-		assert.Equal(t, l3.ID, rows[0].LstepDeliveryTriggerLog.ID)
+		assert.Equal(t, l3.ID, rows[0].ID)
 		assert.Equal(t, "", rows[0].OwnerName, "存在しない owner_id は COALESCE で空文字になるべき")
-		assert.Equal(t, l2.ID, rows[1].LstepDeliveryTriggerLog.ID)
+		assert.Equal(t, l2.ID, rows[1].ID)
 		assert.Equal(t, owner.Name, rows[1].OwnerName)
-		assert.Equal(t, l1.ID, rows[2].LstepDeliveryTriggerLog.ID)
+		assert.Equal(t, l1.ID, rows[2].ID)
 		assert.Equal(t, owner.Name, rows[2].OwnerName)
 	})
 
@@ -331,7 +331,7 @@ func TestLstepDeliveryTriggerLogRepository_FindByDateRangeWithFilters(t *testing
 		require.NoError(t, err)
 		assert.Equal(t, int64(1), total)
 		require.Len(t, rows, 1)
-		assert.Equal(t, l3.ID, rows[0].LstepDeliveryTriggerLog.ID)
+		assert.Equal(t, l3.ID, rows[0].ID)
 	})
 
 	t.Run("limit/offset でページングされる（total はページング前の総数）", func(t *testing.T) {
@@ -339,7 +339,7 @@ func TestLstepDeliveryTriggerLogRepository_FindByDateRangeWithFilters(t *testing
 		require.NoError(t, err)
 		assert.Equal(t, int64(3), total, "total はフィルタ後・ページング前の件数であるべき")
 		require.Len(t, rows, 1)
-		assert.Equal(t, l2.ID, rows[0].LstepDeliveryTriggerLog.ID, "offset=1 の2番目の行が返るべき")
+		assert.Equal(t, l2.ID, rows[0].ID, "offset=1 の2番目の行が返るべき")
 	})
 }
 

@@ -280,7 +280,7 @@ func TestSyncPrescriptionTag(t *testing.T) {
 	t.Run("picks the latest refill date across multiple active prescriptions", func(t *testing.T) {
 		var addedTag string
 		client := &mockLstepAPIClient{addTagFn: func(_ context.Context, _, tagName string) error { addedTag = tagName; return nil }}
-		earlier := model.Prescription{PrescribedAt: now, DurationDays: 10} // refill = now+3
+		earlier := model.Prescription{PrescribedAt: now, DurationDays: 10} // refill: now+3
 		later := model.Prescription{PrescribedAt: now, DurationDays: 20}   // refill = now+13 (latest)
 		svc := &lstepTagSyncService{
 			settingsSvc: &mockLstepSettingsService{},

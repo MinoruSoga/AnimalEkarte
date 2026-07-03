@@ -482,12 +482,12 @@ func TestBuildReservationStaffUpdate(t *testing.T) {
 		{
 			name: "all fields set",
 			input: &UpdateReservationStaffInput{
-				Name:                &name,
-				StaffType:           &staffType,
-				ReservationVisible:  &visible,
-				ReservationComment:  &comment,
-				SortOrder:           &sortOrder,
-				ExcludedTypeIDs:     &excludedIDs,
+				Name:               &name,
+				StaffType:          &staffType,
+				ReservationVisible: &visible,
+				ReservationComment: &comment,
+				SortOrder:          &sortOrder,
+				ExcludedTypeIDs:    &excludedIDs,
 			},
 			wantFields: map[string]any{
 				colReservationStaffName:               name,

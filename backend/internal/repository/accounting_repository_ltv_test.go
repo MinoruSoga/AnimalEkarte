@@ -82,9 +82,9 @@ func TestAccountingRepository_MaxSingleVisitAmountByOwner_ReturnsMaxOfCompleted(
 	pending := &model.Billing{ClinicID: clinicID, OwnerID: &owner.ID, TotalAmount: 50_000, Status: model.BillingStatusPending, ScheduledDate: time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC)}
 	require.NoError(t, db.WithContext(ctx).Create(pending).Error)
 
-	max, err := repo.MaxSingleVisitAmountByOwner(ctx, clinicID, owner.ID)
+	maxAmount, err := repo.MaxSingleVisitAmountByOwner(ctx, clinicID, owner.ID)
 	require.NoError(t, err)
-	assert.Equal(t, int64(35_000), max)
+	assert.Equal(t, int64(35_000), maxAmount)
 }
 
 func TestAccountingRepository_MaxSingleVisitAmountByOwner_ZeroWhenNoCompletedBillings(t *testing.T) {
@@ -94,9 +94,9 @@ func TestAccountingRepository_MaxSingleVisitAmountByOwner_ZeroWhenNoCompletedBil
 	const clinicID = uint64(1)
 
 	owner := makeOwner(t, db, clinicID, "会計なし飼主")
-	max, err := repo.MaxSingleVisitAmountByOwner(ctx, clinicID, owner.ID)
+	maxAmount, err := repo.MaxSingleVisitAmountByOwner(ctx, clinicID, owner.ID)
 	require.NoError(t, err)
-	assert.Equal(t, int64(0), max)
+	assert.Equal(t, int64(0), maxAmount)
 }
 
 func TestAccountingRepository_FindOwnersByAnnualRevenue_OrdersDescendingAndExcludesOldBillings(t *testing.T) {

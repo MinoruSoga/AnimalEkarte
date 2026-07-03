@@ -5,8 +5,9 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/animal-ekarte/backend/internal/model"
 )
 
 // ---- removeStaleTagsByPrefixes ----
