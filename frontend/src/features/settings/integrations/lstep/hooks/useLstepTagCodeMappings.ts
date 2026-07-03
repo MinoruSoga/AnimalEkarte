@@ -1,33 +1,15 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { axios } from "@/lib/axios";
 import { handleApiError } from "@/lib/handle-api-error";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 import { getClinicId } from "./get-clinic-id";
+import { fetchTagCodeMappings, putTagCodeMappingsForTag } from "../api/lstep-tag-code-mappings";
+import type { PutTagCodeMappingsRequest } from "../api/lstep-tag-code-mappings";
 
-// ─────────────────────────────────────────────────
-// Types
-// ─────────────────────────────────────────────────
-
-export interface TagCodeMappingItem {
-  id: number;
-  clinic_id: number;
-  tag_name: string;
-  code_type: string;
-  codes: string[];
-  species_scope?: string;
-  age_min?: number;
-}
-
-export interface PutMappingEntry {
-  code_type: string;
-  codes: string[];
-  species_scope?: string;
-  age_min?: number;
-}
-
-export interface PutTagCodeMappingsRequest {
-  entries: PutMappingEntry[];
-}
+export type {
+  TagCodeMappingItem,
+  PutMappingEntry,
+  PutTagCodeMappingsRequest,
+} from "../api/lstep-tag-code-mappings";
 
 // ─────────────────────────────────────────────────
 // Query key
@@ -37,36 +19,6 @@ const MAPPINGS_QUERY_KEY = (clinicId: string | null) =>
   ["lstep-tag-code-mappings", clinicId] as const;
 
 // ─────────────────────────────────────────────────
-// API helpers
-// ─────────────────────────────────────────────────
-
-async function fetchTagCodeMappings(): Promise<TagCodeMappingItem[]> {
-  const clinicId = getClinicId();
-  if (clinicId === null) {
-    throw new Error("clinic_id is not selected");
-  }
-  const { data } = await axios.get<TagCodeMappingItem[]>(
-    `/v1/clinics/${clinicId}/lstep-tag-code-mappings`,
-  );
-  return data;
-}
-
-async function putTagCodeMappingsForTag(params: {
-  tagName: string;
-  req: PutTagCodeMappingsRequest;
-}): Promise<TagCodeMappingItem[]> {
-  const clinicId = getClinicId();
-  if (clinicId === null) {
-    throw new Error("clinic_id is not selected");
-  }
-  const { data } = await axios.put<TagCodeMappingItem[]>(
-    `/v1/clinics/${clinicId}/lstep-tag-code-mappings/${encodeURIComponent(params.tagName)}`,
-    params.req,
-  );
-  return data;
-}
-
-// ─────────────────────────────────────────────────
 // Hooks
 // ─────────────────────────────────────────────────
 
@@ -74,7 +26,12 @@ export function useGetTagCodeMappings() {
   const clinicId = getClinicId();
   return useQuery({
     queryKey: MAPPINGS_QUERY_KEY(clinicId),
-    queryFn: fetchTagCodeMappings,
+    queryFn: () => {
+      if (clinicId === null) {
+        throw new Error("clinic_id is not selected");
+      }
+      return fetchTagCodeMappings(clinicId);
+    },
     staleTime: QUERY_STALE_TIMES.STATIC,
     gcTime: QUERY_GC_TIMES.LONG,
     enabled: !!clinicId,
@@ -85,7 +42,13 @@ export function usePutTagCodeMappingsForTag() {
   const queryClient = useQueryClient();
   const clinicId = getClinicId();
   return useMutation({
-    mutationFn: putTagCodeMappingsForTag,
+    mutationFn: (params: { tagName: string; req: PutTagCodeMappingsRequest }) => {
+      const currentClinicId = getClinicId();
+      if (currentClinicId === null) {
+        throw new Error("clinic_id is not selected");
+      }
+      return putTagCodeMappingsForTag(currentClinicId, params);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({
         queryKey: MAPPINGS_QUERY_KEY(clinicId),

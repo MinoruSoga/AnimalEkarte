@@ -1,50 +1,26 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { axios } from "@/lib/axios";
 import { handleApiError } from "@/lib/handle-api-error";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
+import {
+  fetchAutoManagedPrefixes,
+  createAutoManagedPrefix,
+  deleteAutoManagedPrefix,
+  fetchConditionTagMappings,
+  createConditionTagMapping,
+  deleteConditionTagMapping,
+  fetchSendPurposeTagPrefixes,
+  createSendPurposeTagPrefix,
+  deleteSendPurposeTagPrefix,
+} from "../api/lstep-tag-config";
 
-// ─────────────────────────────────────────────────
-// Types
-// ─────────────────────────────────────────────────
-
-export interface AutoManagedPrefix {
-  id: number;
-  prefix: string;
-  category: string;
-  description?: string | null;
-}
-
-export interface ConditionTagMapping {
-  id: number;
-  condition_code: string;
-  tag_name: string;
-  description?: string | null;
-}
-
-export interface SendPurposeTagPrefix {
-  id: number;
-  purpose: string;
-  tag_prefix: string;
-  description?: string | null;
-}
-
-export interface CreateAutoManagedPrefixRequest {
-  prefix: string;
-  category: string;
-  description?: string;
-}
-
-export interface CreateConditionTagMappingRequest {
-  condition_code: string;
-  tag_name: string;
-  description?: string;
-}
-
-export interface CreateSendPurposeTagPrefixRequest {
-  purpose: string;
-  tag_prefix: string;
-  description?: string;
-}
+export type {
+  AutoManagedPrefix,
+  ConditionTagMapping,
+  SendPurposeTagPrefix,
+  CreateAutoManagedPrefixRequest,
+  CreateConditionTagMappingRequest,
+  CreateSendPurposeTagPrefixRequest,
+} from "../api/lstep-tag-config";
 
 // ─────────────────────────────────────────────────
 // Query keys
@@ -53,73 +29,6 @@ export interface CreateSendPurposeTagPrefixRequest {
 const AUTO_MANAGED_PREFIXES_KEY = ["lstep-tag-config", "auto-managed-prefixes"] as const;
 const CONDITION_TAG_MAPPINGS_KEY = ["lstep-tag-config", "condition-tag-mappings"] as const;
 const SEND_PURPOSE_TAG_PREFIXES_KEY = ["lstep-tag-config", "send-purpose-tag-prefixes"] as const;
-
-// ─────────────────────────────────────────────────
-// API helpers
-// ─────────────────────────────────────────────────
-
-async function fetchAutoManagedPrefixes(): Promise<AutoManagedPrefix[]> {
-  const { data } = await axios.get<AutoManagedPrefix[]>(
-    "/v1/lstep-tag-config/auto-managed-prefixes",
-  );
-  return data;
-}
-
-async function createAutoManagedPrefix(
-  req: CreateAutoManagedPrefixRequest,
-): Promise<AutoManagedPrefix> {
-  const { data } = await axios.post<AutoManagedPrefix>(
-    "/v1/lstep-tag-config/auto-managed-prefixes",
-    req,
-  );
-  return data;
-}
-
-async function deleteAutoManagedPrefix(id: number): Promise<void> {
-  await axios.delete(`/v1/lstep-tag-config/auto-managed-prefixes/${id}`);
-}
-
-async function fetchConditionTagMappings(): Promise<ConditionTagMapping[]> {
-  const { data } = await axios.get<ConditionTagMapping[]>(
-    "/v1/lstep-tag-config/condition-tag-mappings",
-  );
-  return data;
-}
-
-async function createConditionTagMapping(
-  req: CreateConditionTagMappingRequest,
-): Promise<ConditionTagMapping> {
-  const { data } = await axios.post<ConditionTagMapping>(
-    "/v1/lstep-tag-config/condition-tag-mappings",
-    req,
-  );
-  return data;
-}
-
-async function deleteConditionTagMapping(id: number): Promise<void> {
-  await axios.delete(`/v1/lstep-tag-config/condition-tag-mappings/${id}`);
-}
-
-async function fetchSendPurposeTagPrefixes(): Promise<SendPurposeTagPrefix[]> {
-  const { data } = await axios.get<SendPurposeTagPrefix[]>(
-    "/v1/lstep-tag-config/send-purpose-tag-prefixes",
-  );
-  return data;
-}
-
-async function createSendPurposeTagPrefix(
-  req: CreateSendPurposeTagPrefixRequest,
-): Promise<SendPurposeTagPrefix> {
-  const { data } = await axios.post<SendPurposeTagPrefix>(
-    "/v1/lstep-tag-config/send-purpose-tag-prefixes",
-    req,
-  );
-  return data;
-}
-
-async function deleteSendPurposeTagPrefix(id: number): Promise<void> {
-  await axios.delete(`/v1/lstep-tag-config/send-purpose-tag-prefixes/${id}`);
-}
 
 // ─────────────────────────────────────────────────
 // Hooks: auto_managed_prefixes

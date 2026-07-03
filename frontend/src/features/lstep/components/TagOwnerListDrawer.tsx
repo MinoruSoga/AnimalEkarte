@@ -9,12 +9,9 @@ import {
 } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { C, STYLE, ICON } from "@/lib/design-tokens";
-import { axios } from "@/lib/axios";
-import { requireStoredClinicId } from "@/lib/current-clinic";
 import { handleApiError } from "@/lib/handle-api-error";
 import { isAutoManagedTag } from "@/constants/lstep-auto-tag-prefixes";
-import { useGetLstepTagOwners } from "../api/get-lstep-tag-owners";
-import type { LstepTagOwner, LstepTagOwnersResponse } from "../api/get-lstep-tag-owners";
+import { useGetLstepTagOwners, fetchAllLstepTagOwners } from "../api/get-lstep-tag-owners";
 import { BulkTagRemoveDialog } from "./BulkTagRemoveDialog";
 
 interface TagOwnerListDrawerProps {
@@ -41,26 +38,6 @@ function buildOwnersCsv(
       `${o.owner_id},"${o.owner_name.replace(/"/g, '""')}","${tagName}",${o.last_visit_date ?? ""}`
   );
   return [header, ...rows].join("\n");
-}
-
-async function fetchAllOwnersForCsv(tagName: string, ownerCount: number): Promise<LstepTagOwner[]> {
-  const clinicId = requireStoredClinicId();
-  const perPage = 100;
-  const totalPages = Math.max(1, Math.ceil(ownerCount / perPage));
-  const owners: LstepTagOwner[] = [];
-
-  for (let page = 1; page <= totalPages; page += 1) {
-    const { data } = await axios.get<LstepTagOwnersResponse>(
-      `/v1/clinics/${clinicId}/lstep/owners`,
-      { params: { tag: tagName, page, per_page: perPage } }
-    );
-    owners.push(...data.owners);
-    if (owners.length >= data.total || data.owners.length === 0) {
-      break;
-    }
-  }
-
-  return owners;
 }
 
 function downloadCsv(content: string, filename: string): void {
@@ -97,7 +74,7 @@ export function TagOwnerListDrawer({
     if (ownerCount === 0 || !canExportCsv) return;
     startCsvTransition(async () => {
       try {
-        const allOwners = await fetchAllOwnersForCsv(tagName, ownerCount);
+        const allOwners = await fetchAllLstepTagOwners(tagName, ownerCount);
         const csv = buildOwnersCsv(allOwners, tagName);
         downloadCsv(csv, `lstep-tag-${tagName}-owners.csv`);
       } catch (error) {
