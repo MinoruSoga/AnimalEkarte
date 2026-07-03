@@ -19,9 +19,16 @@ import (
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
+// setupCheckupFieldTestDB は setupIsolatedTestDB（呼び出し毎に使い捨ての新規 DB 接続）を使う。
+// checkup_field_results/checkup_type_fields は本ファイル・checkup_field_cascade_test.go・
+// checkup_field_composite_fk_test.go の 3 ヘルパーが同じテーブルを異なるスキーマ（AutoMigrate 由来 /
+// migration 実 DDL 由来）で意図的に毎回 DROP+CREATE し合う（migration drift 検出のため必須の挙動）。
+// setupTestDB の共有コネクションプールでこれを行うと、別テストが保持する古いテーブル/型 OID 参照の
+// キャッシュ済み prepared statement が壊れるため、この cluster だけ専用の使い捨て接続を使う
+// （詳細は setupIsolatedTestDB のコメント参照）。
 func setupCheckupFieldTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
-	db := setupTestDB(t)
+	db := setupIsolatedTestDB(t)
 	// checkup_field_type ENUM は migration 010 で新設。setupTestDB のハードコード一覧に
 	// 含まれないため、本テストで明示的に作成する（exam_result_status は setupTestDB が作成済み）。
 	db.Exec("DROP TABLE IF EXISTS checkup_field_results CASCADE")

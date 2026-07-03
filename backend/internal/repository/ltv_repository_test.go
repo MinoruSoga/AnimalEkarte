@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -1295,12 +1296,95 @@ func TestFindOwnerLTV_SortOrdering(t *testing.T) {
 	})
 }
 
-// setupTestDB はテスト用の DB を初期化してマイグレーションを実行します
+// テストDB接続・ENUM型・共有ベースモデルの AutoMigrate はプロセス全体（package repository の
+// go test 実行単位）で一度だけ実行する（sharedTestSchemaOnce/TestMain）。130+ ファイル・158+ 箇所の
+// setupTestDB(t) 呼び出し毎にこれらを繰り返すと、接続確立×2・ENUM存在チェック46回・AutoMigrate
+// スキーマ内省クエリが呼び出し回数分積み上がり、repository テストスイート全体の支配的コストになる
+// （2026-07 計測: ローカル 191s → 本最適化後は setupTestDB 呼び出し側を一切変更せず短縮）。
+// TRUNCATE のみ setupTestDB 内で呼び出し毎に実行し、テスト間データ分離を維持する。
+var (
+	sharedTestDB         *gorm.DB
+	sharedTestDBOnce     sync.Once
+	sharedTestDBErr      error
+	sharedTestSchemaOnce sync.Once
+	sharedTestSchemaErr  error
+)
+
+// TestMain は internal/repository package の全テストで共有する DB 接続プールを管理する。
+// 個々のテストは接続を閉じず（sharedTestDBOnce で一度だけ確立・全テストで再利用）、プロセス終了時に
+// ここで一度だけ閉じる。
+func TestMain(m *testing.M) {
+	code := m.Run()
+	if sharedTestDB != nil {
+		if sqlDB, err := sharedTestDB.DB(); err == nil {
+			_ = sqlDB.Close()
+		}
+	}
+	os.Exit(code)
+}
+
+// setupTestDB はテスト用の DB を返し、共有ベーステーブルを TRUNCATE してクリーンな状態にします。
+// DB接続確立・ENUM型作成・ベースモデルの AutoMigrate はプロセス全体で一度だけ実行されます。
 func setupTestDB(t *testing.T) *gorm.DB {
-	// テスト DB コネクション（docker compose で起動）
-	// 実装は環境に合わせて調整
+	t.Helper()
 	db := getTestDatabaseConnection(t)
 
+	sharedTestSchemaOnce.Do(func() {
+		sharedTestSchemaErr = setupSharedTestSchema(db)
+	})
+	if sharedTestSchemaErr != nil {
+		t.Fatalf("failed to set up shared test schema: %v", sharedTestSchemaErr)
+	}
+
+	// Truncate tables to ensure clean state (data isolation between tests)
+	db.Exec("TRUNCATE TABLE billing_refunds CASCADE")
+	db.Exec("TRUNCATE TABLE payments CASCADE")
+	db.Exec("TRUNCATE TABLE billings CASCADE")
+	db.Exec("TRUNCATE TABLE medical_records CASCADE")
+	db.Exec("TRUNCATE TABLE owners CASCADE")
+
+	return db
+}
+
+// setupIsolatedTestDB は setupTestDB と異なり、プロセス全体で共有しない「呼び出し毎に完全に新しい」
+// DB 接続を返す（最適化前の setupTestDB と同じ挙動）。
+//
+// checkup_field_results/checkup_type_fields は checkup_field_repository_test.go（AutoMigrate 由来
+// スキーマ）・checkup_field_cascade_test.go（migration 010 の実 DDL）・
+// checkup_field_composite_fk_test.go（010 実 DDL + migration 012 複合 FK）という 3 種の異なる
+// ヘルパーが同じテーブルを意図的に毎回 DROP+CREATE し合う（migration drift 検出が目的で、
+// 挙動として必須）。この cluster に setupTestDB の共有コネクションプールを使うと、いずれかの
+// ヘルパーが DROP TABLE/DROP TYPE した瞬間に、別テストが既に保持していた同一物理コネクション上の
+// キャッシュ済み prepared statement（古いテーブル/型 OID 参照）が
+// "cache lookup failed"（SQLSTATE XX000）で壊れる。3 ヘルパーの意図的な毎回 DROP+CREATE は
+// 統合できないため、この cluster だけは共有プールから外し、テスト毎に使い捨ての新規コネクションを
+// 割り当てることでキャッシュ汚染を根本的に回避する（対象は少数のためスループット影響は軽微）。
+func setupIsolatedTestDB(t *testing.T) *gorm.DB {
+	t.Helper()
+	db, err := connectTestDatabase()
+	if err != nil {
+		t.Fatalf("failed to connect to isolated test db: %v", err)
+	}
+	if sqlDB, derr := db.DB(); derr == nil {
+		t.Cleanup(func() { _ = sqlDB.Close() })
+	}
+
+	if err := setupSharedTestSchema(db); err != nil {
+		t.Fatalf("failed to set up shared test schema (isolated): %v", err)
+	}
+
+	db.Exec("TRUNCATE TABLE billing_refunds CASCADE")
+	db.Exec("TRUNCATE TABLE payments CASCADE")
+	db.Exec("TRUNCATE TABLE billings CASCADE")
+	db.Exec("TRUNCATE TABLE medical_records CASCADE")
+	db.Exec("TRUNCATE TABLE owners CASCADE")
+
+	return db
+}
+
+// setupSharedTestSchema は PostgreSQL カスタム ENUM 型の作成とベースモデルの AutoMigrate を行います。
+// setupTestDB から sharedTestSchemaOnce 経由でプロセス全体につき一度だけ呼ばれます。
+func setupSharedTestSchema(db *gorm.DB) error {
 	// AutoMigrate の前に、PostgreSQL カスタム ENUM 型を作成
 	// （001_init.sql の 46 型 + 009 #201 薬量計算の 4 型）。
 	// model.Medicine が calculation_type を持つため、本 setup を使う全テストの
@@ -1377,32 +1461,37 @@ BEGIN
 END
 $$;`, et.name, et.create)
 		if err := db.Exec(query).Error; err != nil {
-			t.Fatalf("failed to create ENUM type %s: %v", et.name, err)
+			return fmt.Errorf("failed to create ENUM type %s: %w", et.name, err)
 		}
 	}
 
-	// Truncate tables to ensure clean state (data isolation between tests)
-	db.Exec("TRUNCATE TABLE billing_refunds CASCADE")
-	db.Exec("TRUNCATE TABLE payments CASCADE")
-	db.Exec("TRUNCATE TABLE billings CASCADE")
-	db.Exec("TRUNCATE TABLE medical_records CASCADE")
-	db.Exec("TRUNCATE TABLE owners CASCADE")
-
-	db.AutoMigrate(
+	if err := db.AutoMigrate(
 		&model.Owner{},
 		&model.MedicalRecord{},
 		&model.Billing{},
 		&model.Payment{},
 		&model.BillingRefund{},
-	)
-	if db.Error != nil {
-		t.Fatalf("failed to migrate test db: %v", db.Error)
+	); err != nil {
+		return fmt.Errorf("failed to migrate test db: %w", err)
 	}
-	return db
+	return nil
 }
 
-// getTestDatabaseConnection はテスト用の DB コネクションを取得（環境変数から）
+// getTestDatabaseConnection はテスト用の DB コネクションを返す。接続確立（テストDB存在確認込み）は
+// sharedTestDBOnce によりプロセス全体で一度だけ行われ、以降の呼び出しは共有プールを再利用する。
 func getTestDatabaseConnection(t *testing.T) *gorm.DB {
+	t.Helper()
+	sharedTestDBOnce.Do(func() {
+		sharedTestDB, sharedTestDBErr = connectTestDatabase()
+	})
+	if sharedTestDBErr != nil {
+		t.Fatalf("failed to connect to test db: %v", sharedTestDBErr)
+	}
+	return sharedTestDB
+}
+
+// connectTestDatabase はテスト用 DB への接続を確立する（sharedTestDBOnce によりプロセス全体で一度だけ呼ばれる）。
+func connectTestDatabase() (*gorm.DB, error) {
 	// 環境変数から DB パラメータを取得（デフォルト: ekarte_db）
 	dbHost := os.Getenv("DB_HOST")
 	if dbHost == "" {
@@ -1431,63 +1520,67 @@ func getTestDatabaseConnection(t *testing.T) *gorm.DB {
 	// まず本番DBに接続してテストDBを作成
 	mainDB, err := gorm.Open(postgres.Open(mainDSN), &gorm.Config{})
 	if err != nil {
-		t.Logf("warning: failed to connect to main db: %v", err)
+		fmt.Fprintf(os.Stderr, "warning: failed to connect to main db: %v\n", err)
 	} else {
-		ensureTestDatabaseExists(t, mainDB, testDBName)
-		// 接続リーク防止: mainDB は CREATE DATABASE 専用。閉じないと setupTestDB 呼び出し毎に
-		// 1 接続が漏れ、full suite で PostgreSQL の max_connections を使い切る
-		// （FATAL: sorry, too many clients already / SQLSTATE 53300）。
+		if err := ensureTestDatabaseExists(mainDB, testDBName); err != nil {
+			return nil, err
+		}
+		// 接続リーク防止: mainDB は CREATE DATABASE 専用。閉じないと接続が漏れ、
+		// PostgreSQL の max_connections を使い切る（FATAL: sorry, too many clients already / SQLSTATE 53300）。
 		if sqlMainDB, derr := mainDB.DB(); derr == nil {
 			_ = sqlMainDB.Close()
 		}
 	}
 
 	// テストDB接続
+	// 共有プール上で ENUM/テーブルの DROP+CREATE を毎テスト実行すると、サーバサイド prepared
+	// statement キャッシュ（pgx デフォルト cache_statement モード）が古い型/リレーション OID を
+	// 保持し続け "cache lookup failed" (SQLSTATE XX000) で失敗する。この対策としては
+	// setupTestDB 内で全 ENUM を一度きり idempotent 作成するのに加え、DROP+CREATE を行う
+	// 個別ヘルパー（checkup_field_repository_test.go / medicine_dose_param_clinic_isolation_test.go）
+	// 側もプロセス全体で一度だけ実行するよう sync.Once 化した。これによりプロセス起動後は
+	// スキーマが不変となるため、接続プロトコルは pgx デフォルト（cache_statement、最速）のままでよい。
 	testDSN := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable", dbUser, dbPassword, dbHost, dbPort, testDBName)
 	if envDSN := os.Getenv("TEST_DATABASE_URL"); envDSN != "" {
 		testDSN = envDSN
 	}
 	db, err := gorm.Open(postgres.Open(testDSN), &gorm.Config{})
 	if err != nil {
-		t.Fatalf("failed to connect to test db: %v", err)
+		return nil, fmt.Errorf("failed to connect to test db: %w", err)
 	}
-	// 接続枯渇防止: setupTestDB は多数のテストから呼ばれる。プールを上限し、テスト終了時に
-	// 必ず閉じることで接続の累積を防ぐ（閉じないと full suite で max_connections を超え 53300）。
+	// 接続枯渇防止: このプールは全テストで共有する唯一の接続で、プロセス終了時に TestMain が一度だけ閉じる
+	// （テスト毎に開閉すると、full suite で接続確立オーバーヘッドが呼び出し回数分積み上がる）。
 	if sqlDB, derr := db.DB(); derr == nil {
 		sqlDB.SetMaxOpenConns(10)
 		sqlDB.SetMaxIdleConns(2)
-		t.Cleanup(func() { _ = sqlDB.Close() })
 	}
-	return db
+	return db, nil
 }
 
-func ensureTestDatabaseExists(t *testing.T, mainDB *gorm.DB, testDBName string) {
-	t.Helper()
-
+func ensureTestDatabaseExists(mainDB *gorm.DB, testDBName string) error {
 	lockKey := "setup_test_database:" + testDBName
 	if err := mainDB.Exec("SELECT pg_advisory_lock(hashtext(?))", lockKey).Error; err != nil {
-		t.Fatalf("failed to acquire test database creation lock: %v", err)
+		return fmt.Errorf("failed to acquire test database creation lock: %w", err)
 	}
 	defer func() {
-		if err := mainDB.Exec("SELECT pg_advisory_unlock(hashtext(?))", lockKey).Error; err != nil {
-			t.Logf("warning: failed to release test database creation lock: %v", err)
-		}
+		_ = mainDB.Exec("SELECT pg_advisory_unlock(hashtext(?))", lockKey).Error
 	}()
 
 	var exists bool
 	if err := mainDB.Raw("SELECT EXISTS (SELECT 1 FROM pg_database WHERE datname = ?)", testDBName).Scan(&exists).Error; err != nil {
-		t.Fatalf("failed to check test database existence: %v", err)
+		return fmt.Errorf("failed to check test database existence: %w", err)
 	}
 	if exists {
-		return
+		return nil
 	}
 
 	if err := mainDB.Exec("CREATE DATABASE " + quotePostgresIdentifier(testDBName)).Error; err != nil {
 		if isDuplicateDatabaseError(err) {
-			return
+			return nil
 		}
-		t.Fatalf("failed to create test database %s: %v", testDBName, err)
+		return fmt.Errorf("failed to create test database %s: %w", testDBName, err)
 	}
+	return nil
 }
 
 func quotePostgresIdentifier(identifier string) string {

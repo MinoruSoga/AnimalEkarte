@@ -11,6 +11,8 @@ package repository
 
 import (
 	"context"
+	"fmt"
+	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -21,36 +23,50 @@ import (
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
+var (
+	medicineDoseParamSchemaOnce sync.Once
+	medicineDoseParamSchemaErr  error
+)
+
 // setupMedicineDoseParamIsolationTestDB は dose param 隔離テスト用に新 ENUM を作成し AutoMigrate する。
 // setupTestDB は 001 の ENUM のみ作成するため、#201 で追加した ENUM はここで作成する。
 func setupMedicineDoseParamIsolationTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
 	db := setupTestDB(t)
-	// 永続テスト DB の残存行対策（既知 gotcha）: DROP TYPE ... CASCADE は依存列を削除するが行は残す。
-	// その後 AutoMigrate が species NOT NULL（default なし）を再追加すると残存行で 23502 になる。
-	// 子テーブルを先に DROP して fresh 作成し、順序を「DROP TABLE → CREATE TYPE → AutoMigrate」に固定する。
-	require.NoError(t, db.Exec("DROP TABLE IF EXISTS medicine_dose_params CASCADE").Error)
-	doseEnums := []string{
-		"DROP TYPE IF EXISTS medicine_calculation_type CASCADE",
-		"CREATE TYPE medicine_calculation_type AS ENUM ('none', 'per_weight')",
-		"DROP TYPE IF EXISTS medicine_dose_basis CASCADE",
-		"CREATE TYPE medicine_dose_basis AS ENUM ('per_administration', 'per_day')",
-		"DROP TYPE IF EXISTS medicine_rounding_mode CASCADE",
-		"CREATE TYPE medicine_rounding_mode AS ENUM ('up', 'down', 'nearest')",
-		"DROP TYPE IF EXISTS medicine_dose_species CASCADE",
-		"CREATE TYPE medicine_dose_species AS ENUM ('dog', 'cat')",
+	// DROP TABLE/DROP TYPE を含む破壊的リセットはプロセス全体で一度だけ実行する（sync.Once）。
+	// setupTestDB が全テストで DB 接続プールを共有するため、毎テスト DROP TYPE すると別テストが
+	// 保持する古い型 OID 参照のキャッシュ済み prepared statement が "cache lookup failed"
+	// (SQLSTATE XX000) で壊れる。
+	medicineDoseParamSchemaOnce.Do(func() {
+		medicineDoseParamSchemaErr = setupMedicineDoseParamSchema(db)
+	})
+	if medicineDoseParamSchemaErr != nil {
+		t.Fatalf("failed to set up medicine dose param schema: %v", medicineDoseParamSchemaErr)
 	}
-	for _, stmt := range doseEnums {
-		if err := db.Exec(stmt).Error; err != nil {
-			t.Fatalf("failed to prepare dose ENUM (%q): %v", stmt, err)
-		}
-	}
-	// medicines は calculation_type に DEFAULT 'none' があるため AutoMigrate の ADD NOT NULL は残存行でも成功するが、
-	// 隔離テストの一意性のため行をクリアする。
-	require.NoError(t, db.AutoMigrate(&model.Medicine{}, &model.MedicineDoseParam{}))
 	db.Exec("TRUNCATE TABLE medicine_dose_params CASCADE")
 	db.Exec("TRUNCATE TABLE medicines CASCADE")
 	return db
+}
+
+// setupMedicineDoseParamSchema は dose param 用テーブルを準備する。
+// medicineDoseParamSchemaOnce 経由でプロセス全体につき一度だけ呼ばれる。
+//
+// medicine_calculation_type/medicine_dose_basis/medicine_rounding_mode/medicine_dose_species の
+// 4 ENUM は setupTestDB（ltv_repository_test.go の共有 enumTypes）が既に idempotent に作成済みのため、
+// ここで DROP+CREATE しない（以前はここでも作成していたが #201 の対応で共有 setupTestDB 側に統合済み・
+// 残っていた重複コード。共有 ENUM を再作成すると、medicines.calculation_type 等を通じて既に
+// この型を参照した他テストのキャッシュ済み prepared statement が壊れる）。
+func setupMedicineDoseParamSchema(db *gorm.DB) error {
+	// 永続テスト DB の残存行対策（既知 gotcha）: medicine_dose_params.species は NOT NULL（default なし）
+	// のため、AutoMigrate 前に残存行があると ADD COLUMN で 23502 になる。DROP TABLE で fresh 作成する。
+	if err := db.Exec("DROP TABLE IF EXISTS medicine_dose_params CASCADE").Error; err != nil {
+		return fmt.Errorf("failed to drop medicine_dose_params: %w", err)
+	}
+	// medicines は calculation_type に DEFAULT 'none' があるため AutoMigrate の ADD NOT NULL は残存行でも成功する。
+	if err := db.AutoMigrate(&model.Medicine{}, &model.MedicineDoseParam{}); err != nil {
+		return fmt.Errorf("failed to migrate medicine dose param schema: %w", err)
+	}
+	return nil
 }
 
 func makeDoseTestMedicine(t *testing.T, db *gorm.DB, clinicID uint64, name string) *model.Medicine {
