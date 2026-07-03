@@ -2,11 +2,14 @@ package repository
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gorm.io/driver/postgres"
@@ -18,6 +21,71 @@ import (
 func TestEscapeLikePattern(t *testing.T) {
 	assert.Equal(t, `100\%\_\\`, escapeLikePattern(`100%_\`))
 	assert.Equal(t, `normal`, escapeLikePattern(`normal`))
+}
+
+func TestQuotePostgresIdentifier(t *testing.T) {
+	tests := []struct {
+		name       string
+		identifier string
+		want       string
+	}{
+		{
+			name:       "simple identifier",
+			identifier: "ekarte_db_test",
+			want:       `"ekarte_db_test"`,
+		},
+		{
+			name:       "embedded quote is escaped",
+			identifier: `ekarte"db_test`,
+			want:       `"ekarte""db_test"`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, quotePostgresIdentifier(tt.identifier))
+		})
+	}
+}
+
+func TestIsDuplicateDatabaseError(t *testing.T) {
+	tests := []struct {
+		name string
+		err  error
+		want bool
+	}{
+		{
+			name: "duplicate_database is true",
+			err:  &pgconn.PgError{Code: "42P04"},
+			want: true,
+		},
+		{
+			name: "wrapped duplicate_database is true",
+			err:  fmt.Errorf("create failed: %w", &pgconn.PgError{Code: "42P04"}),
+			want: true,
+		},
+		{
+			name: "different pg error is false",
+			err:  &pgconn.PgError{Code: "23505"},
+			want: false,
+		},
+		{
+			name: "plain error is false",
+			err:  errors.New("plain error"),
+			want: false,
+		},
+		{
+			name: "nil is false",
+			err:  nil,
+			want: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, isDuplicateDatabaseError(tt.err))
+		})
+	}
 }
 
 func TestFindOwnerLTV_SearchEscapesLikeWildcards(t *testing.T) {
@@ -1365,7 +1433,7 @@ func getTestDatabaseConnection(t *testing.T) *gorm.DB {
 	if err != nil {
 		t.Logf("warning: failed to connect to main db: %v", err)
 	} else {
-		mainDB.Exec("CREATE DATABASE " + testDBName)
+		ensureTestDatabaseExists(t, mainDB, testDBName)
 		// 接続リーク防止: mainDB は CREATE DATABASE 専用。閉じないと setupTestDB 呼び出し毎に
 		// 1 接続が漏れ、full suite で PostgreSQL の max_connections を使い切る
 		// （FATAL: sorry, too many clients already / SQLSTATE 53300）。
@@ -1391,4 +1459,42 @@ func getTestDatabaseConnection(t *testing.T) *gorm.DB {
 		t.Cleanup(func() { _ = sqlDB.Close() })
 	}
 	return db
+}
+
+func ensureTestDatabaseExists(t *testing.T, mainDB *gorm.DB, testDBName string) {
+	t.Helper()
+
+	lockKey := "setup_test_database:" + testDBName
+	if err := mainDB.Exec("SELECT pg_advisory_lock(hashtext(?))", lockKey).Error; err != nil {
+		t.Fatalf("failed to acquire test database creation lock: %v", err)
+	}
+	defer func() {
+		if err := mainDB.Exec("SELECT pg_advisory_unlock(hashtext(?))", lockKey).Error; err != nil {
+			t.Logf("warning: failed to release test database creation lock: %v", err)
+		}
+	}()
+
+	var exists bool
+	if err := mainDB.Raw("SELECT EXISTS (SELECT 1 FROM pg_database WHERE datname = ?)", testDBName).Scan(&exists).Error; err != nil {
+		t.Fatalf("failed to check test database existence: %v", err)
+	}
+	if exists {
+		return
+	}
+
+	if err := mainDB.Exec("CREATE DATABASE " + quotePostgresIdentifier(testDBName)).Error; err != nil {
+		if isDuplicateDatabaseError(err) {
+			return
+		}
+		t.Fatalf("failed to create test database %s: %v", testDBName, err)
+	}
+}
+
+func quotePostgresIdentifier(identifier string) string {
+	return `"` + strings.ReplaceAll(identifier, `"`, `""`) + `"`
+}
+
+func isDuplicateDatabaseError(err error) bool {
+	var pgErr *pgconn.PgError
+	return errors.As(err, &pgErr) && pgErr.Code == "42P04"
 }
