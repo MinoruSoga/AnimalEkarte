@@ -90,7 +90,7 @@ export function CheckupSyncPreviewTable({
                   checked={allEligibleSelected}
                   onChange={(e) => handleSelectAll(e.target.checked)}
                   disabled={eligibleOwners.length === 0}
-                  className="size-4 cursor-pointer accent-[#038B94]"
+                  className={`size-4 cursor-pointer ${C.accentBrand}`}
                   aria-label="送信可能対象をすべて選択"
                 />
               </th>
@@ -124,7 +124,7 @@ export function CheckupSyncPreviewTable({
                         handleRowToggle(owner.owner_id, e.target.checked)
                       }
                       disabled={!eligible}
-                      className="size-4 cursor-pointer accent-[#038B94] disabled:cursor-not-allowed"
+                      className={`size-4 cursor-pointer ${C.accentBrand} disabled:cursor-not-allowed`}
                       aria-label={`${owner.owner_name}を選択`}
                     />
                   </td>

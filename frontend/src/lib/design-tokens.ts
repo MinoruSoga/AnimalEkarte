@@ -267,8 +267,12 @@ export const C = {
   bgBrandDot:    "bg-[#038B94]",
   hoverBgBrand:  "hover:bg-[#027A82]",
   focusRingBrand:"focus:ring-[#038B94]",
+  /** Focus ring (40% opacity) — use for form inputs matching the manual sidebar search field */
+  focusRingBrand40: "focus:ring-[#038B94]/40",
   borderBrand:   "border-[#038B94]",
   borderLBrand:  "border-l-[#038B94]",
+  /** Tailwind accent-color utility (checkbox/radio) — brand teal */
+  accentBrand:   "accent-[#038B94]",
 
   /* ── Border ── */
   borderLight:   "border-[rgba(55,53,47,0.09)]",
@@ -308,6 +312,8 @@ export const C = {
   focusBorderAccent: "focus:border-[#2383E2]",
   focusRingAccent: "focus-visible:ring-[#2383E2]",
   focusRingAccent40: "focus-visible:ring-[#2383E2]/40",
+  /** Focus ring (30% opacity, `focus:` not `focus-visible:`) — plain form inputs (date/number fields) */
+  focusRingAccent30: "focus:ring-[#2383E2]/30",
   /** data-state checked (Radix Checkbox) */
   dataCheckedBgAccent: "data-[state=checked]:bg-[#2383E2]",
   dataCheckedBorderAccent: "data-[state=checked]:border-[#2383E2]",

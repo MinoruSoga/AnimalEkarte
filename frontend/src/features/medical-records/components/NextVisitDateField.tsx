@@ -130,8 +130,8 @@ export function NextVisitDateField({
         min={today()}
         onChange={(e) => handleChange(e.target.value)}
         disabled={disabled}
-        className={`${STYLE.formInput} rounded-[4px] border px-3 w-full max-w-[220px] outline-none focus:ring-2 focus:ring-[#2383E2]/30 ${
-          !isValid && value !== "" ? `ring-2 ring-[#C0392B]/30 ${C.borderDanger}` : ""
+        className={`${STYLE.formInput} rounded-[4px] border px-3 w-full max-w-[220px] outline-none focus:ring-2 ${C.focusRingAccent30} ${
+          !isValid && value !== "" ? STYLE.formInputError : ""
         }`}
       />
 

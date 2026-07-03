@@ -89,7 +89,7 @@ export function ManualSidebar({
             value={query}
             onChange={(e) => onChangeQuery(e.target.value)}
             aria-label="マニュアル内検索"
-            className={`w-full pl-8 pr-2 py-1.5 text-sm rounded-[3px] border ${C.borderDivider} bg-white outline-none focus:ring-1 focus:ring-[#038B94]/40 ${C.text}`}
+            className={`w-full pl-8 pr-2 py-1.5 text-sm rounded-[3px] border ${C.borderDivider} bg-white outline-none focus:ring-1 ${C.focusRingBrand40} ${C.text}`}
           />
         </div>
       </div>
