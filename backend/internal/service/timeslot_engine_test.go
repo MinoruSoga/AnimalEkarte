@@ -280,6 +280,19 @@ func TestMinutesSinceMidnight(t *testing.T) {
 		{name: "invalid length (too long)", hhmm: "09000", wantErr: true},
 		{name: "invalid hour", hhmm: "2500", wantErr: true},
 		{name: "invalid minute", hhmm: "0060", wantErr: true},
+		// R1-3: 非ASCII数字混入は明示的に拒否する。以下は byte 型の unsigned wraparound
+		// （'0'=0x30 未満の文字は減算で 200+ に、'9' 超の文字は 10+ にラップする）により
+		// 現行実装が「たまたま」レンジ外へ弾いているだけの例。桁が偶然レンジ内に収まる非数字
+		// （':' などの 0x3A-0x47 台の文字）は素通りするため、明示的な ASCII 数字チェックが必要。
+		{name: "non-digit letter in hour tens (caught by range, kept as regression)", hhmm: "1a00", wantErr: true},
+		{name: "non-digit letter in minute tens (caught by range, kept as regression)", hhmm: "12x0", wantErr: true},
+		{name: "full-width digits (caught by length, kept as regression)", hhmm: "１２00", wantErr: true},
+		{name: "leading space (caught by range, kept as regression)", hhmm: " 900", wantErr: true},
+		{name: "colon in hour ones digit slips through range check", hhmm: "1:00", wantErr: true},
+		{name: "colon in hour ones digit with zero tens slips through range check", hhmm: "0:00", wantErr: true},
+		{name: "colon in minute ones digit slips through range check", hhmm: "090:", wantErr: true},
+		{name: "semicolon in hour ones digit slips through range check", hhmm: "1;00", wantErr: true},
+		{name: "less-than sign in hour ones digit slips through range check", hhmm: "0<00", wantErr: true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

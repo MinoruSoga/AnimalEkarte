@@ -198,6 +198,25 @@ func TestValidateBusinessRules_MalformedBreakEntry_FailsClosed(t *testing.T) {
 		"個別休憩エントリの時刻形式が不正な場合、そのエントリの重複判定をスキップせず拒否すべき（fail-closed）")
 }
 
+// TestValidateBusinessRules_NonDigitHHMMBreakEntry_FailsClosed は、長さ4文字の break_hours
+// エントリに非ASCII数字が混入した場合も拒否されることを検証する（R1-3）。
+//
+// temp-revert RED: minutesSinceMidnight の ASCII 数字チェックを外すと、byte 型の unsigned
+// wraparound で ':' (0x3A) が "偶然" レンジ内の値に化けてしまい（'1'+':'+'0'+'0' → 20時00分と
+// 誤変換）、エラーなく break 区間 [1200,780) として扱われる。この壊れた区間は通常の予約時刻
+// （10:00-10:15）と重複判定されず、検証をすり抜けて予約が通ってしまう（＝本テストが NoError
+// になり RED になる）。
+func TestValidateBusinessRules_NonDigitHHMMBreakEntry_FailsClosed(t *testing.T) {
+	settings := newSettingForValidation()
+	settings.BreakHours = []byte(`[{"start":"1:00","end":"1300"}]`)
+
+	err := validateBusinessRules(settings, dateInDays(3), "1000", "1015")
+
+	require.Error(t, err,
+		"長さ4文字でも非ASCII数字混入のHHMMは拒否すべき（fail-closed）。"+
+			"byteのunsigned wraparoundでレンジ内に化けると重複判定をすり抜け予約が通ってしまう")
+}
+
 func TestReservationValidators_ValidateAndCreate_MapsCapacityConflict(t *testing.T) {
 	date := dateInDays(3)
 	startDT, err := toDateTime(date, "1000")
