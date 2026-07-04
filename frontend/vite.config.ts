@@ -136,7 +136,10 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: './src/testing/setup.ts',
     css: true,
-    exclude: ['**/node_modules/**', '**/dist/**', 'tests/**', 'e2e/**'],
+    // scripts/**: node:test ベースのガードレール回帰テスト（例: check-eslint-disable-rationale.test.mjs）は
+    // 専用 CI ジョブが `node --test` で直接実行する。Vitest のデフォルト include glob (*.test.mjs) にも
+    // 一致してしまい「No test suite found」で Test (with coverage) step を落とすため除外する。
+    exclude: ['**/node_modules/**', '**/dist/**', 'tests/**', 'e2e/**', 'scripts/**'],
     coverage: {
       provider: 'v8',
       // json-summary: coverage-policy.md Phase 1 ratchet（scripts/coverage-ratchet.mjs）が

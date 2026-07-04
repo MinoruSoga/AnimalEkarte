@@ -86,8 +86,9 @@ jobs:
             --out json=load-tests/results-endpoints.json
         env:
           BASE_URL: http://localhost:8080
-          TEST_EMAIL: admin@example.com
-          TEST_CRED: test
+          # bug.md M-11 / #109: Secrets 未登録時は既存の CI seed 専用デモ値へフォールバック（JWT_SECRET と同型）
+          TEST_EMAIL: ${{ secrets.CI_TEST_EMAIL || 'admin@example.com' }}
+          TEST_CRED: ${{ secrets.CI_TEST_PASSWORD || 'test' }}
         continue-on-error: true
 
       - name: Run k6 spike test
@@ -96,8 +97,8 @@ jobs:
             --out json=load-tests/results-spike.json
         env:
           BASE_URL: http://localhost:8080
-          TEST_EMAIL: admin@example.com
-          TEST_CRED: test
+          TEST_EMAIL: ${{ secrets.CI_TEST_EMAIL || 'admin@example.com' }}
+          TEST_CRED: ${{ secrets.CI_TEST_PASSWORD || 'test' }}
         continue-on-error: true
 
       - name: Upload load test results
