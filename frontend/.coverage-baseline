@@ -1,6 +1,21 @@
 # FE-refactor.md R-F5 / coverage-policy.md Phase 1 ratchet baseline.
 # frontend statements カバレッジ %（coverage/coverage-summary.json の total.statements.pct）を1行の数値で記録する。
 # 未記録（0）の間は scripts/coverage-ratchet.mjs は warn のみで exit 0 になる。
-# 記録手順: CI の frontend-coverage artifact から coverage-summary.json の total.statements.pct を
-# 確認し、実測値をここに転記する（推測値を書かない。backend/.coverage-baseline と同じ運用）。
-0
+#
+# 実測値の出所（2026-07-04 arm）:
+#   CI run https://github.com/MinoruSoga/AnimalEkarte/actions/runs/28672433856
+#   （push to main, commit 61b85d7a, job "Frontend" / "Test (with coverage)" ステップ成功）の
+#   frontend-coverage artifact 内 coverage-final.json（v8 provider の生カバレッジマップ）を
+#   istanbul json-summary と同じ式（covered statements / total statements × 100、四捨五入2桁）で
+#   全799ファイル分集計: 13624 statements 中 5964 covered = 43.78%。
+#   この CI run は R-F5（coverage.reporter への json-summary 追加）以前のため
+#   coverage-summary.json 自体は artifact に存在しないが、vite.config.ts の
+#   coverage 設定（provider: v8, exclude 対象）は R-F5 前後で不変のため、
+#   coverage-final.json からの集計値は total.statements.pct と数学的に同一。
+#   本 PR (#218) の Frontend job は ci.yml:396 の
+#   `github.base_ref != 'main'` 条件により PR→main では skip されるため、
+#   R-F1〜R-F7 適用後の実測値はまだ CI 上で得られていない
+#   （次に Frontend job が実行される CI run — main への push または
+#   staging 向け PR — の frontend-coverage artifact で再確認し、
+#   有意に上昇していれば本ファイルを更新すること）。
+43.78

@@ -72,6 +72,54 @@ jobs:
         run: bash scripts/check-reset-wait-services.test.sh
 
   # ──────────────────────────────────────────────
+  # CI step順序ガードレール: 各 job 内で Lint/Build/Type check が Test/ratchet より
+  # 前に配置されていることを検証する（feedback_ci_step_order_masks_lint 再発防止・
+  # FE-refactor.md「CI step順序ガードレール」）。fail-fast のデフォルト挙動下では、
+  # リスク系ステップがゲート系より前にあると失敗時に Lint/Build が一度も実行されず
+  # 壊れが見えなくなる（PR #218 で実際に混入し 3fcbcaf4 で手動是正）。
+  # Docker 不要・純テキスト検査なので無条件かつ最速で走らせる。
+  # ──────────────────────────────────────────────
+  ci-step-order-guardrail:
+    name: CI Step Order Guardrail
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7.0.0
+
+      - name: Verify ci.yml step order contract
+        run: bash scripts/check-ci-step-order.sh
+
+      - name: Self-test the step order guardrail
+        run: bash scripts/check-ci-step-order.test.sh
+
+  # ──────────────────────────────────────────────
+  # eslint-disable 根拠コメント ratchet: 根拠コメント（` -- 理由`）の無い
+  # eslint-disable が新規に増えていないかを検査する（FE-refactor.md「eslint-disable
+  # 根拠コメントの機械強制」・R-F3 の追跡）。plugin 依存を追加せず plain Node script
+  # （frontend/scripts/check-eslint-disable-rationale.mjs）で機械強制する。
+  # pnpm install 不要（依存ゼロのスクリプト）・全イベント無条件で走らせる。
+  # ──────────────────────────────────────────────
+  eslint-disable-rationale-guardrail:
+    name: eslint-disable Rationale Guardrail
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7.0.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Run eslint-disable rationale ratchet
+        working-directory: frontend
+        run: node scripts/check-eslint-disable-rationale.mjs
+
+      - name: Self-test the rationale ratchet
+        working-directory: frontend
+        run: node --test scripts/check-eslint-disable-rationale.test.mjs
+
+  # ──────────────────────────────────────────────
   # ShellCheck: scripts/*.sh の静的検査ゲート。
   # シェルスクリプトの退行を手動レビューではなく自動で弾く。
   # ubuntu-latest には shellcheck がプリインストールされているため

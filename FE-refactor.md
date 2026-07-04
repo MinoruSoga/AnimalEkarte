@@ -29,29 +29,9 @@
 - `pnpm build`: 成功（既知警告のみ。3.5節参照）
 - 開発中 scoped vitest: 581 + 18 + 135 tests 全PASS
 
-## 現在残すフォローアップ
+PR #218 完了後の3件のフォローアップ（FE カバレッジ ratchet baseline arm・CI step順序ガードレール・eslint-disable 根拠コメントの機械強制）も実装完了。詳細はコードと `ci.yml` を正本とする。
 
-以下は R-F1〜R-F7 の未対応ではなく、PR #218 が完了後もなお残るとして明示的に切り出した項目。
-
-### FE カバレッジ ratchet の実測値 arm（P1）
-
-`frontend/.coverage-baseline` はプレースホルダ `0` のまま。R-F5 で導入した ratchet は現状 warn-only で、fail ゲートとして機能していない。
-
-次回 CI run の `frontend-coverage` artifact から `coverage-summary.json` の `total.statements.pct` を取得し、`.coverage-baseline` に転記する別コミットが必要（backend 側と同じ2段階導入方式）。
-
-### CI step順序ガードレール（ハーネス改善・P1）
-
-過去に複数回、ratchet/test 系ステップが Lint/Build より前に配置され、fail-fast により後続の Lint/Build がスキップされたまま green に見えるバグを作り込んでいる（[[feedback_ci_step_order_masks_lint]]。直近では PR #218 でも同型が発生し `3fcbcaf4` で手動是正）。
-
-再発防止の自動チェック（`ci.yml` の job 内 step 順序を検証する lint/スクリプト）はまだ存在しない。都度レビューで見つける運用のまま残っている。導入する場合は、既存の `P3.1 Preload Clinic-Scope Lint` 等と同様の go/node 製 CI ゲートとして追加するのが本プロジェクトの慣行に合う。
-
-### eslint-disable 根拠コメントの機械強制（任意・P2）
-
-R-F3 で既存33件を監査・分類し、新規追加分は根拠コメント付きにした。ただし今後新規に追加される eslint-disable に根拠コメントを義務付ける仕組み（`eslint-comments/require-description` 相当）はまだ導入していない。
-
-未導入の理由は新規 pnpm 依存追加が必要なため。導入する場合はユーザーによる `pnpm add -D` 実行が前提（`docker compose exec frontend pnpm install` は自動実行禁止コマンド）。
-
-### 既知の非対応事項（対応不要・再指摘防止の参考）
+## 既知の非対応事項（対応不要・再指摘防止の参考）
 
 - `src/hooks/` 配下の `@/lib/axios` 直接使用（`use-pet.ts` 等）は `src/hooks/CLAUDE.md` で定義済みの意図的な cross-feature 共有パターン。R-F1 完了後もこれを規約逸脱として再指摘しないこと。
 - `tsconfig.node.json`（`vite.config.ts` 専用 project reference）を単独 type-check すると無関係な既存エラーが出る（vite の型が vitest の `test` 拡張を認識しない、本PR以前から存在）。`pnpm run type-check` は `tsc --noEmit` 実行のため対象外であり実害なし。R-F7 の対象外。
