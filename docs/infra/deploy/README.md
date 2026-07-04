@@ -28,7 +28,7 @@
 - **[STG 継続運用チェックリスト (STG-CONTINUOUS-OPERATIONS.md)](./STG-CONTINUOUS-OPERATIONS.md)**: 日次/週次/月次の STG 環境監視・検査・メンテナンス。
 - **[Vercel フロントエンド検証手順 (VERCEL-FRONTEND-STAGING-TEST.md)](./VERCEL-FRONTEND-STAGING-TEST.md)**: デプロイ後の UI・ログイン・API 連携検証。
 - **[休憩時間データ形状監査 (BREAK-HOURS-SHAPE-AUDIT.md)](./BREAK-HOURS-SHAPE-AUDIT.md)**: R1-3 デプロイ前の STG/本番 break_hours 形状監査手順。
-- **[Delete / Soft Delete 設計パターン (../DELETE_SOFT_DELETE_PATTERNS.md)](../DELETE_SOFT_DELETE_PATTERNS.md)**: Hard Delete と Soft Delete の使い分け、FK 制約との関係、実装パターン、STG-001 教訓。
+- **[Delete / Soft Delete 設計パターン (../../DELETE_SOFT_DELETE_PATTERNS.md)](../../DELETE_SOFT_DELETE_PATTERNS.md)**: Hard Delete と Soft Delete の使い分け、FK 制約との関係、実装パターン、STG-001 教訓。
 
 > PR #49 Post-Merge Smoke Checklist・CRUD スモーク自動化戦略は特定PR/時点のスナップショットのため `docs/archive/` へ退役済み（§3.4 に撤去の経緯を記録）。
 

@@ -48,7 +48,7 @@
 - **生存期間**: **デプロイ直後のみ。スモークテスト完了直後に削除必須**
 - **管理**: [CRUD-SMOKE-TEST.md](./CRUD-SMOKE-TEST.md) に従う
 - **リスク**: 残置すると UI に表示（ユーザー混乱）、FK 制約違反の原因に
-詳細は [Delete / Soft Delete 設計パターン](../DELETE_SOFT_DELETE_PATTERNS.md) で hard delete と soft delete の使い分け、FK 制約の注意点、STG-001 事例を参照してください。
+詳細は [Delete / Soft Delete 設計パターン](../../DELETE_SOFT_DELETE_PATTERNS.md) で hard delete と soft delete の使い分け、FK 制約の注意点、STG-001 事例を参照してください。
 
 ### 2.4 Investigation Data
 - **目的**: バグ再現、仕様検証、パフォーマンス調査

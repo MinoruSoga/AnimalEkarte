@@ -170,7 +170,7 @@ curl -X DELETE "${API_V1}/masters/staffs/${TEST_STAFF_ID}" \
 | バリデーション失敗 | `400 Bad Request` | 必須項目欠損、型不正 |
 | システムエラー | `500+ Internal Server Error` | **即座にロールバック** |
 
-詳細は [Delete / Soft Delete 設計パターン](../DELETE_SOFT_DELETE_PATTERNS.md) の FK 制約と soft delete の注意点を参照してください。
+詳細は [Delete / Soft Delete 設計パターン](../../DELETE_SOFT_DELETE_PATTERNS.md) の FK 制約と soft delete の注意点を参照してください。
 
 ---
 
