@@ -5,13 +5,10 @@
 
 ---
 
-> [!TIP]
-> **自動化スモークテストの導入**
-> 本手順書に記載されたテスト項目は、GitHub Actions ワークフローによって自動化されています。
-> 迅速かつ安全な疎通確認のために、まずは以下の自動化ワークフローの実行を推奨します。
-> 詳細は [CRUD-SMOKE-AUTOMATION.md](./CRUD-SMOKE-AUTOMATION.md) を参照してください。
+> [!WARNING]
 > **⚠️ 2026-06**: login/readonly/CRUD の自動 smoke は `STG_DEMO_*` secret 未設定で約1年間
-> 機能していなかったため撤去された（`stg-smoke.yml` は現状 health 疎通のみ）。
+> 機能していなかったため撤去された（`stg-smoke.yml` は現状 health 疎通のみ）。当時の自動化計画
+> (`CRUD-SMOKE-AUTOMATION.md`) は歴史的記録として `docs/archive/` へ退役済み。
 > 本手順書の CRUD 項目は **手動 curl** 又は本表の項目を参照して実施する。
 > CRUD の正しさ自体は backend unit/integration テスト + FE route-guard テストでカバー済み。
 
@@ -173,7 +170,7 @@ curl -X DELETE "${API_V1}/masters/staffs/${TEST_STAFF_ID}" \
 | バリデーション失敗 | `400 Bad Request` | 必須項目欠損、型不正 |
 | システムエラー | `500+ Internal Server Error` | **即座にロールバック** |
 
-詳細は [Delete / Soft Delete 設計パターン](../../architecture/delete-soft-delete-patterns.md) の FK 制約と soft delete の注意点を参照してください。
+詳細は [Delete / Soft Delete 設計パターン](../DELETE_SOFT_DELETE_PATTERNS.md) の FK 制約と soft delete の注意点を参照してください。
 
 ---
 

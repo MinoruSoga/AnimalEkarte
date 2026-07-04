@@ -6,7 +6,7 @@
 
 ## 📂 ディレクトリ構成
 
-- **`architecture.md`**: システム全体のインフラ構成図、ネットワーク、セキュリティ設計。
+- **`INFRA_ARCHITECTURE.md`**: システム全体のインフラ構成図、ネットワーク、セキュリティ設計（`docs/architecture.md`＝レイヤードアーキテクチャとは別物）。
 - **`deploy/`**:
     - **`README.md`**: デプロイメントハブ（各環境の URL や主要コマンド）。
     - **`CI-CD-PIPELINE.md`**: GitHub Actions と Vercel による自動化パイプラインの詳細。

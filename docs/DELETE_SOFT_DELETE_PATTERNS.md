@@ -517,8 +517,8 @@ curl -X DELETE "https://api.stg.noah-karte.com/api/v1/clinics/clinic-B-id" \
 
 ## 参考資料
 
-- **デプロイメント運用**: [`docs/infra/deploy/README.md`](../infra/deploy/README.md)
-- **STG テストデータライフサイクル**: [`docs/infra/deploy/STG-DEMO-DATA-LIFECYCLE.md`](../infra/deploy/STG-DEMO-DATA-LIFECYCLE.md)（テスト削除ポリシー参照）
+- **デプロイメント運用**: [`docs/infra/deploy/README.md`](infra/deploy/README.md)
+- **STG テストデータライフサイクル**: [`docs/infra/deploy/STG-DEMO-DATA-LIFECYCLE.md`](infra/deploy/STG-DEMO-DATA-LIFECYCLE.md)（テスト削除ポリシー参照）
 - **PR #64 修正内容**: commit `1755c193` 他
-- **Go アーキテクチャ規約**: [`backend/CLAUDE.md`](../../backend/CLAUDE.md)
-- **API 設計**: [`docs/API_SPEC.md`](../API_SPEC.md)
+- **Go アーキテクチャ規約**: [`backend/CLAUDE.md`](../backend/CLAUDE.md)
+- **API 設計**: [`backend/docs/api.yaml`](../backend/docs/api.yaml)（contract 正本）

@@ -48,7 +48,7 @@
 - **生存期間**: **デプロイ直後のみ。スモークテスト完了直後に削除必須**
 - **管理**: [CRUD-SMOKE-TEST.md](./CRUD-SMOKE-TEST.md) に従う
 - **リスク**: 残置すると UI に表示（ユーザー混乱）、FK 制約違反の原因に
-詳細は [Delete / Soft Delete 設計パターン](../../architecture/delete-soft-delete-patterns.md) で hard delete と soft delete の使い分け、FK 制約の注意点、STG-001 事例を参照してください。
+詳細は [Delete / Soft Delete 設計パターン](../DELETE_SOFT_DELETE_PATTERNS.md) で hard delete と soft delete の使い分け、FK 制約の注意点、STG-001 事例を参照してください。
 
 ### 2.4 Investigation Data
 - **目的**: バグ再現、仕様検証、パフォーマンス調査
@@ -239,19 +239,11 @@ docker run -e DB_RESET=true backend:latest
 ```
 
 #### GitHub Actions CI/CD
-```yaml
-# .github/workflows/deploy.yml 内
-jobs:
-  deploy:
-    steps:
-      - name: Deploy with DB Reset
-        env:
-          DB_RESET: "true"  # true / false で制御
-        run: |
-          aws ecs update-service \
-            --cluster animalekarte-stg-cluster \
-            --service animalekarte-stg-service \
-            --environment DB_RESET=true
+`.github/workflows/backend-deploy.yml` の `workflow_dispatch` 入力 `db_reset` で明示指定します
+（push トリガー時は `.env.staging` の `DB_RESET` 値がそのまま使用されます）。
+
+```bash
+gh workflow run backend-deploy.yml --ref staging -f db_reset=true
 ```
 
 ### 7.4 DB_RESET 実行前のチェックリスト

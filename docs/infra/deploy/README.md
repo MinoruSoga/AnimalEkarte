@@ -23,13 +23,14 @@
 - **[リリースマニュアル (STG_PRE_DEPLOY_READINESS_CHECK.md)](./runbooks/STG_PRE_DEPLOY_READINESS_CHECK.md)**: 本番反映前の最終検証ランブック。
 - **[スモークテスト手順 (CRUD-SMOKE-TEST.md)](./CRUD-SMOKE-TEST.md)**: デプロイ直後の主要機能（医院/スタッフ/権限）の導線確認。
 - **[混在会計スモークテスト (MIXED-PAYMENT-SMOKE-TEST.md)](./MIXED-PAYMENT-SMOKE-TEST.md)**: 混在会計 (payment_splits) の詳細動作確認。
-- **[PR #49 Post-Merge Smoke Checklist (PR49_POST_MERGE_SMOKE_TEST.md)](./PR49_POST_MERGE_SMOKE_TEST.md)**: PR #49 merge 後の総合スモークチェックリスト（予約・会計・返金・CRUD・入院・健診・seed）。
 - **[Lステップ Write API 一時停止メモ (LSTEP_WRITE_API_PAUSE.md)](./LSTEP_WRITE_API_PAUSE.md)**: Lステップへのタグ付与・解除・プロパティ更新を再有効化する前提条件。
 - **[STG デモデータライフサイクル (STG-DEMO-DATA-LIFECYCLE.md)](./STG-DEMO-DATA-LIFECYCLE.md)**: Seed/Demo/Smoke テストデータの分類、作成元、Cleanup 方針、DB_RESET 機構。
 - **[STG 継続運用チェックリスト (STG-CONTINUOUS-OPERATIONS.md)](./STG-CONTINUOUS-OPERATIONS.md)**: 日次/週次/月次の STG 環境監視・検査・メンテナンス。
 - **[Vercel フロントエンド検証手順 (VERCEL-FRONTEND-STAGING-TEST.md)](./VERCEL-FRONTEND-STAGING-TEST.md)**: デプロイ後の UI・ログイン・API 連携検証。
-- **[CRUD スモーク自動化戦略 (CRUD-SMOKE-AUTOMATION.md)](./CRUD-SMOKE-AUTOMATION.md)**: デプロイ後スモークテスト自動化スコープ・実装ロードマップ。
-- **[Delete / Soft Delete 設計パターン (../../architecture/delete-soft-delete-patterns.md)](../../architecture/delete-soft-delete-patterns.md)**: Hard Delete と Soft Delete の使い分け、FK 制約との関係、実装パターン、STG-001 教訓。
+- **[休憩時間データ形状監査 (BREAK-HOURS-SHAPE-AUDIT.md)](./BREAK-HOURS-SHAPE-AUDIT.md)**: R1-3 デプロイ前の STG/本番 break_hours 形状監査手順。
+- **[Delete / Soft Delete 設計パターン (../DELETE_SOFT_DELETE_PATTERNS.md)](../DELETE_SOFT_DELETE_PATTERNS.md)**: Hard Delete と Soft Delete の使い分け、FK 制約との関係、実装パターン、STG-001 教訓。
+
+> PR #49 Post-Merge Smoke Checklist・CRUD スモーク自動化戦略は特定PR/時点のスナップショットのため `docs/archive/` へ退役済み（§3.4 に撤去の経緯を記録）。
 
 ---
 
