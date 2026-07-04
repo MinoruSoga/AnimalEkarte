@@ -9,7 +9,7 @@ package repository
 // FORCE ROW LEVEL SECURITY で RLS が効く」ことを probe テーブルで実証した。しかし
 // superuser 接続は FORCE RLS すら bypass する（PostgreSQL 仕様）ため、実際にアプリが
 // 接続する DB ロール自体が superuser/BYPASSRLS を持つ場合、将来 FORCE を全 clinic
-// テーブルへ適用しても実効化されない。docs/be-refactor-followup-status.md は「アプリは
+// テーブルへ適用しても実効化されない。docs/archive/be-refactor-followup-status.md は「アプリは
 // POSTGRES_USER=テーブル owner（かつ superuser）で接続」と記載しているが、これは
 // 001_init.sql のコメント根拠の質的記述であり、実測（pg_roles への実クエリ）ではなかった。
 // 本テストはその実測を固定する（RLS full 実効化 architect レビューの preflight）。
@@ -53,7 +53,7 @@ func TestDBConnectionRolePrivileges_LocalMeasurement(t *testing.T) {
 		t.Logf("[#219] 接続ロールが superuser または BYPASSRLS のため、FORCE ROW LEVEL SECURITY を" +
 			"適用しても RLS は常に bypass される（現状 dormant の実測確認）。" +
 			"full 実効化には非 superuser かつ非 BYPASSRLS のアプリロールへの移行が前提条件" +
-			"（docs/be-refactor-followup-status.md 記載の質的結論を実測で裏付け）。")
+			"（docs/archive/be-refactor-followup-status.md 記載の質的結論を実測で裏付け）。")
 	} else {
 		t.Logf("[#219] 接続ロールは非 superuser かつ非 BYPASSRLS。FORCE ROW LEVEL SECURITY 配線の" +
 			"前提が満たされている可能性がある（他の前提条件は別途確認要）。")
