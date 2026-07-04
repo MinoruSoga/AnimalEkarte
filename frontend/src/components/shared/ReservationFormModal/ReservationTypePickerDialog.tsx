@@ -2,11 +2,13 @@
 import { useState, useCallback, useMemo, memo, Fragment } from "react";
 
 // External
-import { Search, X, Check } from "lucide-react";
+import { Check } from "lucide-react";
 
 // Internal
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
+import { EmptyState } from "@/components/shared/DataStates";
+import { ClearableSearchInput } from "@/components/shared/ClearableSearchInput";
+import { CategoryChipsFilter } from "@/components/shared/CategoryChipsFilter";
 import { cn } from "@/lib/utils";
 import { C, ICON } from "@/lib/design-tokens";
 import { normalizeKana } from "@/lib/normalize-kana";
@@ -32,65 +34,6 @@ interface ReservationTypePickerDialogProps {
   selectedId: string;
   onSelect: (id: string) => void;
 }
-
-// --- Sub-Components ---
-
-interface CategoryChipsProps {
-  categories: string[];
-  activeCategory: string | null;
-  onSelectCategory: (category: string | null) => void;
-}
-
-const CategoryChips = memo(function CategoryChips({
-  categories,
-  activeCategory,
-  onSelectCategory,
-}: CategoryChipsProps) {
-  return (
-    <div
-      className={cn(
-        "flex items-center gap-1.5 overflow-x-auto rounded-md p-2 [&::-webkit-scrollbar]:hidden",
-        C.bgPage30,
-      )}
-      style={{ scrollbarWidth: "none" }}
-    >
-      <div className="flex min-w-max gap-1.5">
-        {activeCategory ? (
-          <button
-            type="button"
-            onClick={() => onSelectCategory(null)}
-            className={cn(
-              "flex h-8 shrink-0 items-center gap-1 rounded-md border border-transparent bg-transparent px-3 text-sm",
-              C.text60,
-              C.hoverBgMedium,
-            )}
-          >
-            <X className={ICON.action} />
-            解除
-          </button>
-        ) : null}
-        {categories.map((category) => {
-          const isActive = activeCategory === category;
-          return (
-            <button
-              key={category}
-              type="button"
-              onClick={() => onSelectCategory(isActive ? null : category)}
-              className={cn(
-                "h-8 shrink-0 rounded-md border px-2.5 text-sm whitespace-nowrap transition-colors",
-                isActive
-                  ? cn(C.bgAccent, "border-transparent text-white", C.bgAccentHover)
-                  : cn("bg-white", C.text, C.borderMedium, C.hoverBgLight),
-              )}
-            >
-              {category}
-            </button>
-          );
-        })}
-      </div>
-    </div>
-  );
-});
 
 // --- Main Component ---
 
@@ -150,27 +93,14 @@ export const ReservationTypePickerDialog = memo(function ReservationTypePickerDi
         </DialogHeader>
 
         {/* Search */}
-        <div className="relative">
-          <Search className={cn("absolute top-1/2 left-2.5 -translate-y-1/2", ICON.action, C.text40)} />
-          <Input
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="予約区分を検索..."
-            className={cn("h-11 bg-white pl-9 text-sm", C.borderMedium)}
-          />
-          {searchTerm ? (
-            <button
-              type="button"
-              onClick={() => setSearchTerm("")}
-              className={cn("absolute top-1/2 right-2.5 -translate-y-1/2", C.text40, C.hoverText)}
-            >
-              <X className={ICON.xs} />
-            </button>
-          ) : null}
-        </div>
+        <ClearableSearchInput
+          value={searchTerm}
+          onChange={setSearchTerm}
+          placeholder="予約区分を検索..."
+        />
 
         {/* Category chips */}
-        <CategoryChips
+        <CategoryChipsFilter
           categories={categories}
           activeCategory={activeCategory}
           onSelectCategory={setActiveCategory}
@@ -179,9 +109,7 @@ export const ReservationTypePickerDialog = memo(function ReservationTypePickerDi
         {/* Card list */}
         <div className="max-h-[440px] flex-1 space-y-1 overflow-y-auto overscroll-contain pr-1">
           {!hasResults ? (
-            <div className={cn("py-12 text-center text-sm", C.text60)}>
-              該当する予約区分が見つかりません。
-            </div>
+            <EmptyState message="該当する予約区分が見つかりません。" />
           ) : (
             filteredGroups.map((group) => (
               <Fragment key={group.label}>

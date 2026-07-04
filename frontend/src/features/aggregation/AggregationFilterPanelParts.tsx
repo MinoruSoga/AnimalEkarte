@@ -3,6 +3,7 @@ import { ArrowDown, ArrowUp, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { DateRangeInputs } from "@/components/shared/DateRangeInputs";
 import { C, STYLE } from "@/lib/design-tokens";
 
 import { CPM_STAGE_OPTIONS, type CPMStage } from "@/lib/cpm-stage";
@@ -159,21 +160,13 @@ export function VisitFilters({
 
       <div className="flex flex-col gap-1">
         <label className={labelClass}>日付範囲</label>
-        <div className="flex items-center gap-2">
-          <Input
-            type="date"
-            className={`${inputClass} w-36`}
-            value={params.from ?? ""}
-            onChange={(e) => onParamsChange({ from: e.target.value || undefined, page: 1 })}
-          />
-          <span className={`text-sm ${C.text50}`}>〜</span>
-          <Input
-            type="date"
-            className={`${inputClass} w-36`}
-            value={params.to ?? ""}
-            onChange={(e) => onParamsChange({ to: e.target.value || undefined, page: 1 })}
-          />
-        </div>
+        <DateRangeInputs
+          fromValue={params.from ?? ""}
+          toValue={params.to ?? ""}
+          onFromChange={(e) => onParamsChange({ from: e.target.value || undefined, page: 1 })}
+          onToChange={(e) => onParamsChange({ to: e.target.value || undefined, page: 1 })}
+          inputClassName={`${inputClass} w-36`}
+        />
       </div>
 
       <div className="flex flex-col gap-1">

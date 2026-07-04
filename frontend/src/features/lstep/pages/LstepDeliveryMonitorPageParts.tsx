@@ -8,6 +8,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { DateRangeInputs } from "@/components/shared/DateRangeInputs";
 import { BADGE, C, ICON } from "@/lib/design-tokens";
 
 import type { DeliveryTriggerSummaryResponse } from "../api/get-lstep-delivery-trigger-summary";
@@ -42,20 +43,14 @@ export function DeliveryMonitorFilters({
     <div className={`bg-white border ${C.borderLight} rounded-[4px] px-4 py-3 flex flex-wrap items-center gap-3`}>
       <label className={`text-sm ${C.text70} flex items-center gap-2`}>
         期間
-        <input
-          type="date"
-          value={from}
-          onChange={onFromChange}
-          className={`h-9 px-2 text-sm border ${C.borderMedium} rounded-[4px] bg-white ${C.text}`}
-          data-testid="filter-from"
-        />
-        <span className={C.text50}>〜</span>
-        <input
-          type="date"
-          value={to}
-          onChange={onToChange}
-          className={`h-9 px-2 text-sm border ${C.borderMedium} rounded-[4px] bg-white ${C.text}`}
-          data-testid="filter-to"
+        <DateRangeInputs
+          fromValue={from}
+          toValue={to}
+          onFromChange={onFromChange}
+          onToChange={onToChange}
+          fromTestId="filter-from"
+          toTestId="filter-to"
+          inputClassName={`h-9 w-auto px-2 text-sm border ${C.borderMedium} rounded-[4px] bg-white ${C.text}`}
         />
       </label>
 

@@ -1,12 +1,9 @@
 // React/Framework
-import { C, ICON } from "@/lib/design-tokens";
+import { C } from "@/lib/design-tokens";
 import { useCallback, useMemo } from "react";
 
-// External
-import { ChevronLeft, ChevronRight } from "lucide-react";
-
 // Internal
-import { Button } from "@/components/ui/button";
+import { CalendarNavToolbar } from "@/components/shared/CalendarNavToolbar";
 import { formatJSTWallDate } from "@/lib/jst-date";
 
 const WEEK_DAYS = ["日", "月", "火", "水", "木", "金", "土"];
@@ -58,28 +55,17 @@ export function DailyDateNav({
     }, [selectedDate]);
 
     return (
-        <div className="flex items-center justify-between py-2 px-1">
-            <Button
-                variant="ghost"
-                size="sm"
-                onClick={handlePrev}
-                disabled={!canGoPrev}
-                className="h-8 w-8 p-0"
-                aria-label="前日"
-            >
-                <ChevronLeft className={ICON.action} />
-            </Button>
-            <span className={`text-sm font-semibold ${C.text}`}>{displayDate}</span>
-            <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleNext}
-                disabled={!canGoNext}
-                className="h-8 w-8 p-0"
-                aria-label="翌日"
-            >
-                <ChevronRight className={ICON.action} />
-            </Button>
-        </div>
+        <CalendarNavToolbar
+            layout="spread"
+            size="sm"
+            className="py-2 px-1"
+            onPrev={handlePrev}
+            onNext={handleNext}
+            prevDisabled={!canGoPrev}
+            nextDisabled={!canGoNext}
+            prevAriaLabel="前日"
+            nextAriaLabel="翌日"
+            label={<span className={`text-sm font-semibold ${C.text}`}>{displayDate}</span>}
+        />
     );
 }

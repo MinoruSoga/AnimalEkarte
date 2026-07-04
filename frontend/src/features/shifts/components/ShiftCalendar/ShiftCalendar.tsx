@@ -1,8 +1,8 @@
-import { ICON, C, STYLE } from "@/lib/design-tokens";
+import { C, STYLE } from "@/lib/design-tokens";
+import { EmptyState } from "@/components/shared/DataStates";
 import { lazy, memo, Suspense, useCallback, useMemo, useState } from "react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { SearchableSelect, type SearchableSelectOption } from "@/components/ui/searchable-select";
+import { CalendarNavToolbar } from "@/components/shared/CalendarNavToolbar";
 import type { Shift } from "../../types";
 import { ShiftCell } from "../../components/ShiftCell/ShiftCell";
 import type { ClinicHoliday } from "../../api/clinic-holidays";
@@ -143,27 +143,20 @@ export const ShiftCalendar = memo(function ShiftCalendar({
     <div className="flex flex-col h-full">
       {/* ツールバー */}
       <div className={`flex items-center justify-between px-4 py-3 border-b ${C.borderLight} ${C.bgWhite} shrink-0`}>
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={onPrevMonth}
-            aria-label="前月"
-          >
-            <ChevronLeft className={ICON.action} />
-          </Button>
-          <span className="text-base font-semibold min-w-[120px] text-center">
-            {displayLabel}
-          </span>
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={onNextMonth}
-            aria-label="翌月"
-          >
-            <ChevronRight className={ICON.action} />
-          </Button>
-        </div>
+        <CalendarNavToolbar
+          layout="inline"
+          variant="outline"
+          size="auto"
+          onPrev={onPrevMonth}
+          onNext={onNextMonth}
+          prevAriaLabel="前月"
+          nextAriaLabel="翌月"
+          label={
+            <span className="text-base font-semibold min-w-[120px] text-center">
+              {displayLabel}
+            </span>
+          }
+        />
 
         <div className="flex items-center gap-2">
           <SearchableSelect
@@ -252,8 +245,8 @@ export const ShiftCalendar = memo(function ShiftCalendar({
           ))}
 
           {visibleStaffs.length === 0 ? (
-            <div className={`flex items-center justify-center py-16 text-sm ${C.text40}`}>
-              スタッフが見つかりません
+            <div className="flex items-center justify-center py-16">
+              <EmptyState message="スタッフが見つかりません" />
             </div>
           ) : null}
         </div>

@@ -9,10 +9,10 @@ import {
   subWeeks,
 } from "date-fns";
 import { ja } from "date-fns/locale";
-import { ChevronLeft, ChevronRight, Plus, Repeat, Trash2 } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Plus, Repeat, Trash2 } from "lucide-react";
 import { Select, SelectContent, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { SubmitButton } from "@/components/shared/Form/SubmitButton";
+import { CalendarNavToolbar } from "@/components/shared/CalendarNavToolbar";
 import { C, ICON, STYLE } from "@/lib/design-tokens";
 import { toJSTWallDate } from "@/lib/jst-date";
 import { paths } from "@/config/paths";
@@ -154,20 +154,14 @@ export function ReservationTypeAvailableSlotsCalendar({
     <div className="flex-1 min-h-0 flex flex-col gap-3">
       {/* 予約管理ページと同一構成のナビゲーションバー */}
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex items-center gap-4">
-          <div className={`flex items-center ${C.bgWhite} rounded-md border ${C.borderMedium} p-1 shadow-sm`}>
-            <Button variant="ghost" size="icon" className="h-10 w-10" onClick={handlePrevWeek} aria-label="前の週">
-              <ChevronLeft className={ICON.page} />
-            </Button>
-            <Button variant="ghost" size="sm" className="h-10 px-4 text-base font-medium" onClick={handleToday}>
-              今日
-            </Button>
-            <Button variant="ghost" size="icon" className="h-10 w-10" onClick={handleNextWeek} aria-label="次の週">
-              <ChevronRight className={ICON.page} />
-            </Button>
-          </div>
-          <h2 className={`text-xl font-bold ${C.text}`}>{weekLabel}</h2>
-        </div>
+        <CalendarNavToolbar
+          onPrev={handlePrevWeek}
+          onToday={handleToday}
+          onNext={handleNextWeek}
+          prevAriaLabel="前の週"
+          nextAriaLabel="次の週"
+          label={<h2 className={`text-xl font-bold ${C.text}`}>{weekLabel}</h2>}
+        />
 
         {/* 凡例（予約管理ページの予約区分凡例と同形式） */}
         <div className="flex items-center gap-3 flex-wrap">

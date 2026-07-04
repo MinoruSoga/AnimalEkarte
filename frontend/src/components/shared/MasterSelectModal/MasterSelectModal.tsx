@@ -1,7 +1,8 @@
 import { useState, useMemo, useCallback, memo } from "react";
-import { Search, X, Check } from "lucide-react";
+import { Check } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
+import { EmptyState } from "@/components/shared/DataStates";
+import { ClearableSearchInput } from "@/components/shared/ClearableSearchInput";
 import { C, ICON } from "@/lib/design-tokens";
 import { normalizeKana } from "@/lib/normalize-kana";
 
@@ -66,31 +67,16 @@ export const MasterSelectModal = memo(function MasterSelectModal({
         </DialogHeader>
 
         {/* Search */}
-        <div className="relative">
-          <Search className={`absolute left-2.5 top-1/2 -translate-y-1/2 ${ICON.action} ${C.text40}`} />
-          <Input
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder={searchPlaceholder}
-            className={`pl-9 h-11 text-sm bg-white ${C.borderMedium}`}
-          />
-          {searchTerm ? (
-            <button
-              type="button"
-              onClick={() => setSearchTerm("")}
-              className={`absolute right-2.5 top-1/2 -translate-y-1/2 ${C.text40} ${C.hoverText}`}
-            >
-              <X className={`${ICON.xs}`} />
-            </button>
-          ) : null}
-        </div>
+        <ClearableSearchInput
+          value={searchTerm}
+          onChange={setSearchTerm}
+          placeholder={searchPlaceholder}
+        />
 
         {/* Item List */}
         <div className="space-y-2 max-h-[400px] overflow-y-auto pr-1">
           {filtered.length === 0 ? (
-            <div className={`py-12 text-center text-sm ${C.text40}`}>
-              該当する項目がありません
-            </div>
+            <EmptyState message="該当する項目がありません" />
           ) : (
             filtered.map((item) => {
               const isSelected =

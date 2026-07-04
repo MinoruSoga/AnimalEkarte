@@ -1,0 +1,1 @@
+export { CategoryChipsFilter } from "./CategoryChipsFilter";
