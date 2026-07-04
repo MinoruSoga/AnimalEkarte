@@ -30,7 +30,9 @@
 - **[休憩時間データ形状監査 (BREAK-HOURS-SHAPE-AUDIT.md)](./BREAK-HOURS-SHAPE-AUDIT.md)**: R1-3 デプロイ前の STG/本番 break_hours 形状監査手順。
 - **[Delete / Soft Delete 設計パターン (../../DELETE_SOFT_DELETE_PATTERNS.md)](../../DELETE_SOFT_DELETE_PATTERNS.md)**: Hard Delete と Soft Delete の使い分け、FK 制約との関係、実装パターン、STG-001 教訓。
 
-> PR #49 Post-Merge Smoke Checklist・CRUD スモーク自動化戦略は特定PR/時点のスナップショットのため `docs/archive/` へ退役済み（§3.4 に撤去の経緯を記録）。
+> PR #49 Post-Merge Smoke Checklist（PR固有の使い切りチェックリスト）・CRUD スモーク自動化戦略
+> （§3.4 に記載の通り自動化自体が撤去済みで計画倒れとなった歴史的記録）は特定PR/時点のスナップショット
+> のため `docs/archive/` へ退役済み。
 
 ---
 

@@ -53,7 +53,7 @@
 
 まず以下を読んで、仕様とタスクを理解してください。
 - docs/<対象機能の仕様書>.md
-- docs/API_SPEC.md
+- backend/docs/api.yaml（API contract 正本）
 - docs/tasks/open/<対象タスク>/00-OVERVIEW.md
 - docs/tasks/open/<対象タスク>/BE.md
 - docs/tasks/open/<対象タスク>/ISSUE-XXX-be-*.md（担当 issue のみ）
@@ -69,7 +69,7 @@
 
 まず以下を読んで、仕様とタスクを理解してください。
 - docs/<対象機能の仕様書>.md
-- docs/API_SPEC.md
+- backend/docs/api.yaml（API contract 正本）
 - docs/tasks/open/<対象タスク>/00-OVERVIEW.md
 - docs/tasks/open/<対象タスク>/FE.md
 - docs/tasks/open/<対象タスク>/ISSUE-XXX-fe-*.md（担当 issue のみ）
