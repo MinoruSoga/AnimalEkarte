@@ -51,14 +51,14 @@ make codegen
 
 ---
 
-## 📖 ドキュメント体系 (95 Tables / 31 Resources)
+## 📖 ドキュメント体系 (詳細は [docs/README.md](docs/README.md) 参照)
 
 | カテゴリ | 主要ドキュメント |
 |:---|:---|
 | **業務仕様** | [SPECIFICATION.md](docs/SPECIFICATION.md) / [screens/](docs/screens/) |
 | **機能詳細** | [Lステップ連携](docs/line/lstep-integration.md) / [会計・集計](docs/CASH_REGISTER_SPEC.md) / [顧客分析](docs/CUSTOMER_AGGREGATION_SPEC.md) |
-| **技術設計** | [Architecture](docs/architecture.md) / [ER図 (v31.18)](docs/ERD.md) / [認証・認可](docs/AUTH.md) |
-| **API** | [API_SPEC.md (v2.3)](docs/API_SPEC.md) / [openapi.yaml](docs/openapi.yaml) |
+| **技術設計** | [Architecture](docs/architecture.md) / [ER図](docs/ERD.md)（テーブル数の正本） / [認証・認可](docs/AUTH.md)（RBACリソース数の正本） |
+| **API** | [openapi.yaml](docs/openapi.yaml)（Swagger UI表示用） / [backend/docs/api.yaml](backend/docs/api.yaml)（contract正本） |
 | **運用・テスト** | [Deployment Hub](docs/infra/deploy/README.md) / [Manual Test Guide](docs/testing/SECTION_14_MANUAL_TEST_GUIDE.md) |
 
 ---

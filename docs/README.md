@@ -8,9 +8,8 @@
 
 プロジェクトの最新規約、アーキテクチャ、および開発手順については、以下のファイルを**必ず**最優先で参照してください。
 
-- **[ANTIGRAVITY_CLI.md](ANTIGRAVITY_CLI.md)**: **【現在の標準】** Antigravity CLI (`agy`) 運用メモ（2026-06-18 に提供停止となる Gemini CLI からの移行手順）。
 - **[.claude/CLAUDE.md](../.claude/CLAUDE.md)**: 全エージェントおよび開発者向けの統合ルール（SSOT）。
-- **[GEMINI.md](../GEMINI.md)**: Gemini CLI 向け最適化コンテキスト（移行後もルール参照・互換用として保持）。
+- **[GEMINI.md](../GEMINI.md)**: Gemini CLI 向け最適化コンテキスト（`.claude/CLAUDE.md`と同期済み）。
 - **[AI_DEVELOPMENT_WORKFLOW.md](AI_DEVELOPMENT_WORKFLOW.md)**: 仕様駆動・AI エージェント協働開発の標準手順。
 
 ---
@@ -19,19 +18,21 @@
 
 | カテゴリ | ドキュメント | 概要 |
 |:---|:---|:---|
+| **設計思想** | [PRODUCT_PHILOSOPHY.md](PRODUCT_PHILOSOPHY.md) | 業務効率ソフトウェアとしての意思決定原則（5 ステッププロセス）。 |
 | **技術設計** | [architecture.md](architecture.md) | 軽量レイヤードアーキテクチャの定義。 |
 | **データ** | [ERD.md](ERD.md) | データベース設計（全 **108 テーブル**・リレーション）。 |
 | **セキュリティ**| [AUTH.md](AUTH.md) | RBAC 権限モデル（全 **34 リソース**）、マルチテナント隔離。 |
 | **UI/UX** | [DESIGN_SYSTEM.md](DESIGN_SYSTEM.md) | Notion ライクなデザイン規約とデザイントークン。 |
-| **API** | [API_SPEC.md](API_SPEC.md) | バックエンド Go API の詳細リファレンス (v3.1.0)。 |
+| **API** | [openapi.yaml](openapi.yaml) | Swagger UI 表示用。contract 正本は [`backend/docs/api.yaml`](../backend/docs/api.yaml)。 |
 | **データフロー** | [data-flow.md](data-flow.md) | リクエストの追跡（Request ID）と非同期同期の仕組み。 |
+| **削除設計** | [DELETE_SOFT_DELETE_PATTERNS.md](DELETE_SOFT_DELETE_PATTERNS.md) | Hard Delete と Soft Delete の使い分け、FK 制約との関係。 |
 
 ---
 
 ## 📱 業務・画面仕様
 
 - **[SPECIFICATION.md](SPECIFICATION.md)**: システム全体の機能要件と主要ビジネスフロー。
-- **[screens/README.md](screens/README.md)**: **【全 38 画面インデックス】** 各機能の詳細操作ガイド。
+- **[screens/README.md](screens/README.md)**: **【全 37 画面インデックス】** 各機能の詳細操作ガイド。
 - **[CASH_REGISTER_SPEC.md](CASH_REGISTER_SPEC.md)**: レジ締め・日次/月次売上集計の業務仕様。
 - **[CUSTOMER_AGGREGATION_SPEC.md](CUSTOMER_AGGREGATION_SPEC.md)**: 累計売上・来院頻度に基づく顧客分析ダッシュボード。
 
