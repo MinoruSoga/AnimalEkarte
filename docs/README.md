@@ -11,6 +11,7 @@
 - **[.claude/CLAUDE.md](../.claude/CLAUDE.md)**: 全エージェントおよび開発者向けの統合ルール（SSOT）。
 - **[GEMINI.md](../GEMINI.md)**: Gemini CLI 向け最適化コンテキスト（`.claude/CLAUDE.md`と同期済み）。
 - **[AI_DEVELOPMENT_WORKFLOW.md](AI_DEVELOPMENT_WORKFLOW.md)**: 仕様駆動・AI エージェント協働開発の標準手順。
+- **[CODEGRAPH_PROMPTS.md](CODEGRAPH_PROMPTS.md)**: CodeGraph MCP 調査プロンプト集。
 
 ---
 
@@ -26,6 +27,7 @@
 | **API** | [openapi.yaml](openapi.yaml) | Swagger UI 表示用。contract 正本は [`backend/docs/api.yaml`](../backend/docs/api.yaml)。 |
 | **データフロー** | [data-flow.md](data-flow.md) | リクエストの追跡（Request ID）と非同期同期の仕組み。 |
 | **削除設計** | [DELETE_SOFT_DELETE_PATTERNS.md](DELETE_SOFT_DELETE_PATTERNS.md) | Hard Delete と Soft Delete の使い分け、FK 制約との関係。 |
+| **意思決定記録** | [adr/](adr/) | アーキテクチャ判断の経緯（ADR）。マルチテナント隔離・支払方法・健診系統など4件。 |
 
 ---
 
@@ -35,6 +37,7 @@
 - **[screens/README.md](screens/README.md)**: **【全 37 画面インデックス】** 各機能の詳細操作ガイド。
 - **[CASH_REGISTER_SPEC.md](CASH_REGISTER_SPEC.md)**: レジ締め・日次/月次売上集計の業務仕様。
 - **[CUSTOMER_AGGREGATION_SPEC.md](CUSTOMER_AGGREGATION_SPEC.md)**: 累計売上・来院頻度に基づく顧客分析ダッシュボード。
+- **[reservation-to-record-flow.md](reservation-to-record-flow.md)**: 予約からカルテ作成までの統合フロー詳細。
 
 ---
 
@@ -53,6 +56,8 @@
 - **[testing/SECTION_14_MANUAL_TEST_GUIDE.md](testing/SECTION_14_MANUAL_TEST_GUIDE.md)**: ブラウザによる詳細な手動検証シナリオ。
 - **[FUNCTIONAL_TEST_REPORT.md](FUNCTIONAL_TEST_REPORT.md)**: **【全機能検証記録】** 2,000 項目以上の詳細チェックリスト。
 - **[DEPLOYMENT_CHECKLIST.md](DEPLOYMENT_CHECKLIST.md)**: 本番リリース前の統合チェックリスト。
+- **[ci-policy.md](ci-policy.md)**: CI ワークフローの決定事項記録（Actions バージョン統一方針など）。
+- **[coverage-policy.md](coverage-policy.md)**: テストカバレッジ ratchet 方式の運用ポリシー。
 
 ---
 
