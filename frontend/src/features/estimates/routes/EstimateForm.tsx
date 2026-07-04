@@ -323,7 +323,7 @@ function EstimateFormContent({ id }: { id?: string }) {
       maxWidth="max-w-2xl"
     >
       <NavigationBlocker when={isDirty && !isPending} />
-      <div className={`${C.bgWhite} border ${C.borderLight} rounded-[6px] p-5 space-y-5`}>
+      <div className={`${C.bgWhite} border ${C.borderLight} rounded-md p-5 space-y-5`}>
         {/* rerender-memo: BasicInfoSection — 金額/テキスト変更では再レンダーしない */}
         <BasicInfoSection
           title={form.title}

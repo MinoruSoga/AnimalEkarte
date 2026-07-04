@@ -52,7 +52,7 @@ export function PetDeceasedBanner({
   };
 
   return (
-    <div className="rounded-lg border border-gray-300 bg-gray-50 p-3 text-sm">
+    <div className={`rounded-lg border ${C.borderGray300} ${C.bgGray100} p-3 text-sm`}>
       <div className="flex items-center justify-between gap-2">
         <p className={`${C.text70}`}>
           {age !== null ? (
