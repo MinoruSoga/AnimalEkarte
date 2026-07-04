@@ -6,6 +6,7 @@ import { DataTableRow } from "@/components/shared/DataTable/DataTableRow";
 import { RowActionButton } from "@/components/shared/RowActionButton";
 import { NotionStatusPill } from "@/components/shared/StatusPill/NotionStatusPill";
 import { C, LAYOUT, ICON, PALETTE } from "@/lib/design-tokens";
+import { MASTER_TABLE_COL } from "../constants/styles";
 import { useMasterCRUD } from "../hooks/use-master-crud";
 import { useMasterSave } from "../hooks/use-master-save";
 import { usePermission } from "@/hooks/use-permission";
@@ -44,10 +45,10 @@ import { ResourceMasterStaff } from "@/types/generated/models";
 
 const COLUMNS = [
   { header: "氏名", className: "flex-1" },
-  { header: "職種", className: "w-[130px]" },
-  { header: "権限グループ", className: "w-[200px]" },
-  { header: "ステータス", className: "w-[90px]", align: "center" as const },
-  { header: "操作", className: "w-[80px]", align: "right" as const },
+  { header: "職種", className: MASTER_TABLE_COL.w130 },
+  { header: "権限グループ", className: MASTER_TABLE_COL.w200 },
+  { header: "ステータス", className: MASTER_TABLE_COL.w90, align: "center" as const },
+  { header: "操作", className: MASTER_TABLE_COL.w80, align: "right" as const },
 ];
 
 // ─────────────────────────────────────────────────

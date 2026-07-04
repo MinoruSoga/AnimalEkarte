@@ -688,6 +688,16 @@ export const ICON = {
   dotMd:   "size-2.5",
   /** 最小インジケーター (6px) */
   dotSm:   "size-1.5",
+  /** サイドバーナビ項目のアイコンラップ (18px) — テキスト行高に合わせた固有値。Tailwindのsize-4(16px)/size-5(20px)の中間で他箇所実績なし */
+  navItem: "size-[18px]",
+  /**
+   * ユーザーアバター円 (26px) — Sidebar固有のtoken化。
+   * 同値の生literal(size-[26px])がLoginForm.tsx/ForgotPasswordPage.tsx/ResetPasswordPage.tsx(認証フォーム、計4箇所)にも
+   * 残存しているが、本タスクのスコープ(Sidebar/マスタページ)外のため未移行。認証フォーム側の統合は別タスクで検討。
+   */
+  avatar:  "size-[26px]",
+  /** アバター内グリフ (13px) — Sidebar固有 */
+  avatarGlyph: "size-[13px]",
 } as const;
 
 /* ================================================================== */
@@ -703,12 +713,19 @@ export const LAYOUT = {
     collapsed:     "w-[56px]",
     expandedPx:    220,
     collapsedPx:   56,
+    /** 折りたたみ時の正方形ボタン高さ (30px) — トグル/ログアウトボタン共通 */
+    collapsedItemH: "h-[30px]",
   },
 
   /* ── Side Peek (master edit, etc.) ── */
   sidePeek: {
     width:         "w-[520px]",
     widthPx:       520,
+  },
+
+  /** Master-detail nav panel width (tree/list side panel, e.g. LINE予約枠) */
+  treeNavPanel: {
+    width: "w-[260px]",
   },
 
   /* ── Property Row (Notion-style key-value) ── */

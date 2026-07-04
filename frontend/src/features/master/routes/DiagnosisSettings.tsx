@@ -1,26 +1,25 @@
 import { useCallback } from "react";
-import { useNavigate, useSearchParams } from "react-router";
+import { useSearchParams } from "react-router";
 import ClipboardList from "lucide-react/dist/esm/icons/clipboard-list";
-import Plus from "lucide-react/dist/esm/icons/plus";
-import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
-import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
-import { paths } from "@/config/paths";
 import { usePermission } from "@/hooks/use-permission";
 import { useSidePeekDirty } from "@/hooks/use-side-peek-dirty";
 import { C, ICON } from "@/lib/design-tokens";
 import { ResourceMasterMedical } from "@/types/generated/models";
+import { UnifiedTabs, UnifiedTabsContent } from "@/components/shared/UnifiedTabs";
 import type {
   DiagnosisNameFormData,
   DiagnosisTypeFormData,
 } from "../components/DiagnosisSidePanelModel";
 import { DiagnosisDeleteDialogs } from "../components/DiagnosisDeleteDialogs";
 import { DiagnosisSettingsSidePanels } from "../components/DiagnosisSettingsSidePanels";
-import { DiagnosisSettingsTabs } from "../components/DiagnosisSettingsTabs";
+import { DiagnosisNameTab, DiagnosisTypeTab } from "../components/DiagnosisTabs";
+import { MasterTabPage } from "../components/MasterTabPage";
 import {
   buildDiagnosisNameCreateRequest,
   buildDiagnosisNameUpdateRequest,
   buildDiagnosisTypeCreateRequest,
   buildDiagnosisTypeUpdateRequest,
+  DIAGNOSIS_TABS,
   toDiagnosisTabValue,
 } from "./DiagnosisSettingsModel";
 import {
@@ -39,8 +38,7 @@ import { useMasterCRUD } from "../hooks/use-master-crud";
 import { useMasterSave } from "../hooks/use-master-save";
 
 export function DiagnosisSettings() {
-  const navigate = useNavigate();
-  const { canCreate, canEdit, canDelete } = usePermission(ResourceMasterMedical);
+  const { canEdit, canDelete } = usePermission(ResourceMasterMedical);
   const [searchParams, setSearchParams] = useSearchParams();
   const activeTab = toDiagnosisTabValue(searchParams.get("tab"));
 
@@ -83,6 +81,11 @@ export function DiagnosisSettings() {
     nameSetEditTarget(null);
   }, [setSearchParams, catSetEditTarget, nameSetEditTarget, dirty]);
 
+  const handleNew = useCallback(() => {
+    if (activeTab === "diagnosis_type") catCrud.handleNew();
+    else nameCrud.handleNew();
+  }, [activeTab, catCrud, nameCrud]);
+
   const catSave = useMasterSave({
     crud: catCrud,
     createMutation: createCategoryMutation,
@@ -106,37 +109,12 @@ export function DiagnosisSettings() {
   });
 
   return (
-    <>
-      <div className="flex h-full">
-        <div className="flex-1 min-w-0">
-          <PageLayout
-            title="診断病名マスタ"
-            icon={<ClipboardList className={`${ICON.page} ${C.text}`} />}
-            resource={ResourceMasterMedical}
-            onBack={() => navigate(paths.settings.getHref())}
-            maxWidth="max-w-full"
-            headerAction={
-              canCreate ? (
-                <PrimaryButton onClick={() => {
-                  if (activeTab === "diagnosis_type") catCrud.handleNew();
-                  else nameCrud.handleNew();
-                }}>
-                  <Plus className={`mr-1.5 ${ICON.action}`} />
-                  新規登録
-                </PrimaryButton>
-              ) : null
-            }
-          >
-            <DiagnosisSettingsTabs
-              activeTab={activeTab}
-              onTabChange={handleTabChange}
-              onTypeEditTargetChange={catCrud.setEditTarget}
-              onNameEditTargetChange={nameCrud.setEditTarget}
-              canEdit={canEdit}
-            />
-          </PageLayout>
-        </div>
-
+    <MasterTabPage
+      title="診断病名マスタ"
+      icon={<ClipboardList className={`${ICON.page} ${C.text}`} />}
+      resource={ResourceMasterMedical}
+      onNew={handleNew}
+      sidePanel={
         <DiagnosisSettingsSidePanels
           activeTab={activeTab}
           typeEditTarget={catCrud.editTarget}
@@ -154,16 +132,37 @@ export function DiagnosisSettings() {
           onNameDeleteRequest={nameCrud.setPendingDelete}
           onDirtyChange={handleDirtyChange}
         />
-      </div>
-
-      <DiagnosisDeleteDialogs
-        pendingTypeDelete={catCrud.pendingDelete}
-        pendingNameDelete={nameCrud.pendingDelete}
-        onTypeDeleteCancel={catCrud.handleDeleteCancel}
-        onTypeDeleteConfirm={catCrud.handleDeleteConfirm}
-        onNameDeleteCancel={nameCrud.handleDeleteCancel}
-        onNameDeleteConfirm={nameCrud.handleDeleteConfirm}
-      />
-    </>
+      }
+      deleteDialogs={
+        <DiagnosisDeleteDialogs
+          pendingTypeDelete={catCrud.pendingDelete}
+          pendingNameDelete={nameCrud.pendingDelete}
+          onTypeDeleteCancel={catCrud.handleDeleteCancel}
+          onTypeDeleteConfirm={catCrud.handleDeleteConfirm}
+          onNameDeleteCancel={nameCrud.handleDeleteCancel}
+          onNameDeleteConfirm={nameCrud.handleDeleteConfirm}
+        />
+      }
+    >
+      <UnifiedTabs
+        items={DIAGNOSIS_TABS}
+        value={activeTab}
+        onValueChange={handleTabChange}
+        className="flex flex-col gap-4"
+      >
+        <UnifiedTabsContent value="diagnosis_type" className="mt-4">
+          <DiagnosisTypeTab
+            onEditTargetChange={catCrud.setEditTarget}
+            canEdit={canEdit}
+          />
+        </UnifiedTabsContent>
+        <UnifiedTabsContent value="diagnosis_name" className="mt-4">
+          <DiagnosisNameTab
+            onEditTargetChange={nameCrud.setEditTarget}
+            canEdit={canEdit}
+          />
+        </UnifiedTabsContent>
+      </UnifiedTabs>
+    </MasterTabPage>
   );
 }

@@ -3,7 +3,7 @@ import { useSearchParams } from "react-router";
 import { CalendarDays, Info } from "lucide-react";
 import { FormHeader } from "@/components/shared/Form/FormHeader";
 import { PermissionBadges } from "@/components/shared/PermissionBadges/PermissionBadges";
-import { C, ICON } from "@/lib/design-tokens";
+import { C, ICON, LAYOUT } from "@/lib/design-tokens";
 import { ResourceMasterReservationType } from "@/types/generated/models";
 import { useGetReservationTypes } from "../api/reservation-types";
 import { ReservationTypeAvailableSlotsCalendar } from "../components/ReservationTypeAvailableSlotsCalendar";
@@ -114,7 +114,7 @@ export function LineReservationSlotsSettings() {
       <div className={`flex-1 min-h-0 flex flex-row gap-0 overflow-hidden mt-3`}>
         {/* 左: ツリーパネル */}
         <div
-          className={`w-[260px] shrink-0 border-r ${C.borderMedium} overflow-y-auto ${C.bgWhite}`}
+          className={`${LAYOUT.treeNavPanel.width} shrink-0 border-r ${C.borderMedium} overflow-y-auto ${C.bgWhite}`}
         >
           {isLoading ? (
             <p className={`text-sm ${C.text40} p-4`}>読み込み中...</p>

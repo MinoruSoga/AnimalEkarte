@@ -49,6 +49,7 @@ const SidebarItem = memo(function SidebarItem({ item, collapsed = false, level =
   };
 
   const contentBaseClassName = [
+    // rounded-[3px]: コードベース全体112箇所の既存compact-control標準値(全面改修は範囲外)
     "w-full flex items-center gap-3 px-3 h-12 rounded-[3px] text-base transition-colors",
     isActive ? STYLE.sidebarItemActive : STYLE.sidebarItemIdle,
     collapsed ? "justify-center" : "",
@@ -59,7 +60,7 @@ const SidebarItem = memo(function SidebarItem({ item, collapsed = false, level =
     <div
       className={contentBaseClassName}
     >
-      <div className={`size-[18px] flex items-center justify-center shrink-0${level > 0 && !item.icon ? " invisible" : ""}`}>
+      <div className={`${ICON.navItem} flex items-center justify-center shrink-0${level > 0 && !item.icon ? " invisible" : ""}`}>
         {item.icon}
       </div>
       {!collapsed ? <span className="truncate flex-1 text-left">{item.label}</span> : null}
@@ -77,7 +78,7 @@ const SidebarItem = memo(function SidebarItem({ item, collapsed = false, level =
             title={collapsed ? item.label : undefined}
             aria-expanded={isExpanded}
           >
-            <div className={`size-[18px] flex items-center justify-center shrink-0${level > 0 && !item.icon ? " invisible" : ""}`}>
+            <div className={`${ICON.navItem} flex items-center justify-center shrink-0${level > 0 && !item.icon ? " invisible" : ""}`}>
               {item.icon}
             </div>
             {!collapsed ? <span className="truncate flex-1">{item.label}</span> : null}

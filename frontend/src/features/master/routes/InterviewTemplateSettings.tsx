@@ -8,7 +8,7 @@ import { RowActionButton } from "@/components/shared/RowActionButton";
 import { NotionStatusPill } from "@/components/shared/StatusPill/NotionStatusPill";
 import { C, ICON } from "@/lib/design-tokens";
 import { normalizeKana } from "@/lib/normalize-kana";
-import { MASTER_STATUS_FILTER } from "../constants/styles";
+import { MASTER_STATUS_FILTER, MASTER_TABLE_COL } from "../constants/styles";
 import { useMasterCRUD } from "../hooks/use-master-crud";
 import { useMasterSave } from "../hooks/use-master-save";
 import { MasterCRUDPage } from "../components/MasterCRUDPage";
@@ -35,10 +35,10 @@ const INQUIRY_CATEGORY_LABELS: Record<string, string> = {
 };
 
 const COLUMNS = [
-  { header: "カテゴリ", className: "w-[150px]" },
+  { header: "カテゴリ", className: MASTER_TABLE_COL.w150 },
   { header: "タイトル", className: "flex-1" },
-  { header: "ステータス", className: "w-[90px]", align: "center" as const },
-  { header: "操作", className: "w-[80px]", align: "right" as const },
+  { header: "ステータス", className: MASTER_TABLE_COL.w90, align: "center" as const },
+  { header: "操作", className: MASTER_TABLE_COL.w80, align: "right" as const },
 ];
 
 export function InterviewTemplateSettings() {
