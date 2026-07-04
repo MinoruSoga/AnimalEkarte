@@ -1,7 +1,7 @@
 -- =============================================================================
 -- Animal Ekarte - 統合スキーマ定義 v23.0 (consolidated)
 -- PostgreSQL 18
--- テーブル数: 103 (旧 001–021 + mig-005〜mig-013 + 取扱説明書テーブル + #81キャンペーンテーブル + 新 005-007 を統合)
+-- テーブル数: 108 (旧 001–021 + mig-005〜mig-013 + 取扱説明書テーブル + #81キャンペーンテーブル + 新 005-007 + 増分 005-012 を統合)
 -- 統合内容:
 --   002: マスタシードデータ
 --   003: デモシードデータ
@@ -52,6 +52,15 @@
 --           ※ ALTER TABLE / ADD COLUMN は 001 の CREATE TABLE に統合済み
 --   新 006: 冗長インデックス削除 (idx_vital_records_deleted_at / idx_billing_confirmations_status)
 --   新 007: グローバル一意制約削除 (idx_shift_entries_staff_date)
+-- --- 増分マイグレーション統合 (旧 005〜012 / 2026-07-04, 本ファイル末尾セクション7に原文を番号順追記) ---
+--   005: lab_import_jobs / lab_import_events テーブル (Dr.Wan / 外部検査連携 Phase 0 scaffold)
+--   006: idx_exam_results_exam_id インデックス
+--   007: idx_exams_clinic_exam_type_date インデックス
+--   008: exams.job_id カラム + idx_exams_clinic_job インデックス
+--   009: medicine_dose_params テーブル + medicines/treatments 計算パラメータカラム (#201)
+--   010: checkup_type_fields / checkup_field_results テーブル (#211。歯科検診暫定 seed は 003_seed_demo.sql へ)
+--   011: clinic_settings.closing_am_start カラム (#215)
+--   012: checkup_field_results の (checkup_type_field_id, clinic_id) 複合FK (BE-refactor R3-7/D13)
 -- =============================================================================
 
 -- -----------------------------------------------------------------------------
@@ -3149,3 +3158,509 @@ SELECT app_private.apply_rls_policy(
 -- companies, animal_species, token_blacklist,
 -- lstep_auto_managed_prefixes, lstep_condition_tag_mappings, lstep_send_purpose_tag_prefixes,
 -- password_reset_tokens, manual_articles, manual_article_versions
+
+-- =============================================================================
+-- 7. 増分マイグレーション統合 (旧 005〜012 / 2026-07-04)
+-- =============================================================================
+-- 以下は独立ファイルとして管理されていた 005_add_lab_import_tables.sql 〜
+-- 012_add_clinical_result_composite_fk.sql の原文を、番号順にそのまま追記したもの
+-- (010 の DML 部分 = 歯科検診パッケージの暫定 seed DO ブロックのみ 003_seed_demo.sql へ移動)。
+-- 各ファイルの内部 statement 順は変更していない。詳細は docs/ERD.md §4.3 を参照。
+--
+-- 注意（RLS 自動ループとの順序依存）: 上記セクション6の DO ブロックは「時点で clinic_id 列を
+-- 持つ public テーブル」を自動的に RLS 保護するが、本セクションのテーブル (lab_import_jobs 等) は
+-- そのループより後、同一トランザクション内で作成されるため自動ループの対象にならない
+-- (旧ファイル分割適用時と同じ挙動: 005/009 は明示的な apply_rls_policy 呼び出しを持たないため
+-- RLS 未適用のまま、010 のみ自身で apply_rls_policy を呼ぶ)。ファイル統合後もこの順序関係は
+-- 保持されており、意図せず新規テーブルに RLS が有効化されることはない。
+
+-- 005_add_lab_import_tables.sql
+-- Dr.Wan / 外部検査連携: lab_import_jobs + lab_import_events (Phase 0 scaffold)
+-- 外部接続・MDB・機器通信は Phase BLOCKED。このマイグレーションはローカル write のみ。
+--
+-- State machine (lab_import_job_status):
+--   received → validated, failed
+--   validated → mapped, needs_review, failed
+--   mapped → persisted, duplicate, needs_review, failed
+--   persisted → (terminal)
+--   duplicate → (terminal)
+--   needs_review → validated, failed
+--   failed → received
+--
+-- Source types (lab_import_source_type):
+--   fixture  : テスト・開発用フィクスチャ入力 (Phase 0 で使用可能)
+--   drwan    : Dr.Wan MDB アダプタ (Phase BLOCKED — MDB スキーマ未確認)
+--   manual   : 手動 CSV/JSON アップロード (Phase 2+ 予定)
+
+-- ------------------------------------
+-- ENUM types
+-- ------------------------------------
+CREATE TYPE lab_import_job_status AS ENUM (
+    'received',
+    'validated',
+    'mapped',
+    'persisted',
+    'duplicate',
+    'needs_review',
+    'failed'
+);
+
+CREATE TYPE lab_import_source_type AS ENUM (
+    'fixture',
+    'drwan',
+    'manual'
+);
+
+-- ------------------------------------
+-- lab_import_jobs
+-- ------------------------------------
+CREATE TABLE lab_import_jobs (
+    id                  uuid            PRIMARY KEY DEFAULT gen_random_uuid(),
+    clinic_id           bigint          NOT NULL REFERENCES clinics(id)     ON DELETE RESTRICT,
+    source_type         lab_import_source_type NOT NULL DEFAULT 'fixture',
+    source_fingerprint  varchar(255)    NOT NULL DEFAULT '',
+    status              lab_import_job_status  NOT NULL DEFAULT 'received',
+    row_count           int             NOT NULL DEFAULT 0,
+    persisted_count     int             NOT NULL DEFAULT 0,
+    duplicate_count     int             NOT NULL DEFAULT 0,
+    needs_review_count  int             NOT NULL DEFAULT 0,
+    failed_count        int             NOT NULL DEFAULT 0,
+    error_code          varchar(50),
+    error_message       varchar(1000),
+    started_at          timestamptz,
+    finished_at         timestamptz,
+    created_at          timestamptz     NOT NULL DEFAULT now(),
+    updated_at          timestamptz     NOT NULL DEFAULT now()
+);
+
+CREATE INDEX idx_lab_import_jobs_clinic_created
+    ON lab_import_jobs (clinic_id, created_at DESC);
+
+CREATE INDEX idx_lab_import_jobs_clinic_status
+    ON lab_import_jobs (clinic_id, status);
+
+COMMENT ON TABLE lab_import_jobs IS 'Dr.Wan / 外部検査連携インポートジョブ状態管理 (Phase 0 scaffold)';
+COMMENT ON COLUMN lab_import_jobs.source_fingerprint IS '入力バッチの冪等キー (ハッシュ等)。raw 接続文字列や認証情報は格納しない';
+COMMENT ON COLUMN lab_import_jobs.error_code IS 'lab_error_taxonomy のコード (source_unavailable 等)。スタックトレース不可';
+COMMENT ON COLUMN lab_import_jobs.error_message IS '安全なエラーメッセージのみ。生デバイスペイロード・PHI 不可';
+
+-- ------------------------------------
+-- lab_import_events (監査ログ)
+-- ------------------------------------
+CREATE TABLE lab_import_events (
+    id                  bigserial       PRIMARY KEY,
+    clinic_id           bigint          NOT NULL REFERENCES clinics(id)         ON DELETE RESTRICT,
+    job_id              uuid            NOT NULL REFERENCES lab_import_jobs(id)  ON DELETE RESTRICT,
+    event_type          varchar(50)     NOT NULL,
+    from_status         lab_import_job_status,
+    to_status           lab_import_job_status,
+    row_count           int             NOT NULL DEFAULT 0,
+    persisted_count     int             NOT NULL DEFAULT 0,
+    duplicate_count     int             NOT NULL DEFAULT 0,
+    needs_review_count  int             NOT NULL DEFAULT 0,
+    error_code          varchar(50),
+    created_at          timestamptz     NOT NULL DEFAULT now()
+);
+
+CREATE INDEX idx_lab_import_events_job
+    ON lab_import_events (job_id, created_at ASC);
+
+CREATE INDEX idx_lab_import_events_clinic_created
+    ON lab_import_events (clinic_id, created_at DESC);
+
+COMMENT ON TABLE lab_import_events IS '検査インポートジョブ監査イベント。PHI・raw デバイスペイロード・接続情報不可';
+COMMENT ON COLUMN lab_import_events.event_type IS 'status_transition | validation_result | mapping_result | persistence_result | retry_requested';
+COMMENT ON COLUMN lab_import_events.error_code IS 'lab_error_taxonomy のコードのみ。スタックトレース不可';
+
+-- 006_add_exam_results_exam_id_index.sql
+-- Phase 2: exam_results.exam_id index for lab import batch performance.
+--
+-- ReplaceItemsByExamID (used by LabImportExaminationService) runs a DELETE + INSERT
+-- keyed on exam_id. Without this index each call is a full table scan on exam_results.
+-- Phase 1 comment noted this migration must be applied before large-batch lab import runs.
+--
+-- Note: CONCURRENTLY was removed because the migration runner wraps each file in an
+-- explicit transaction (cmd/migrate/main.go:tx.Begin/Exec/Commit), and PostgreSQL
+-- does not allow CREATE INDEX CONCURRENTLY inside a transaction block. The tables
+-- created in this phase are new (005_add_lab_import_tables.sql) with no concurrent
+-- traffic at migration time, so a plain CREATE INDEX is safe.
+-- IF NOT EXISTS makes the migration idempotent.
+--
+-- Phase 3A decision: no DB unique constraint on (clinic_id, exam_type_id, date, pet_id).
+-- Local data check showed 87 duplicate groups (95 extra rows) in migrated data; these
+-- are legitimate multi-visit records with distinct medical_record_ids, not true import
+-- duplicates. Duplicate prevention is enforced at service level via LabImportDuplicateCheckerDB.
+-- Production data must be verified before adding any DB unique constraint.
+-- See: docs/lab-go/app-integration-boundary.md Phase 3A section.
+
+CREATE INDEX IF NOT EXISTS idx_exam_results_exam_id
+    ON exam_results (exam_id);
+
+COMMENT ON INDEX idx_exam_results_exam_id
+    IS 'Phase 2: supports ReplaceItemsByExamID DELETE+INSERT in lab import batches';
+
+-- 007_add_exams_dup_check_index.sql
+-- Phase 2: composite index for LabImportDuplicateCheckerDB hot path.
+--
+-- IsDuplicate queries exams with:
+--   WHERE clinic_id = ? AND exam_type_id = ? AND date = ? AND deleted_at IS NULL
+-- Without a composite index PostgreSQL performs a bitmap-AND over individual single-column
+-- indexes (idx_exams_clinic_id, idx_exams_exam_type_id), which degrades toward a seq scan
+-- on any table with more than a few thousand rows.
+--
+-- Column order: clinic_id (most selective for multi-tenant), exam_type_id, date (equality).
+-- pet_id is handled by Go-side NULL branching and cannot be added to a single composite
+-- index without expression tricks; the index narrows to (clinic_id, exam_type_id, date)
+-- first and pet_id is applied as a recheck predicate.
+--
+-- Partial index on deleted_at IS NULL keeps the index smaller (soft-deleted exams are
+-- excluded from import duplicate checks by design).
+--
+-- Note: CONCURRENTLY was removed because the migration runner wraps each file in an
+-- explicit transaction (cmd/migrate/main.go:tx.Begin/Exec/Commit), and PostgreSQL
+-- does not allow CREATE INDEX CONCURRENTLY inside a transaction block. The exams table
+-- exists with migrated data but lab import is not yet live, so a plain CREATE INDEX is
+-- safe at migration time.
+--
+-- Phase 3A decision: no DB unique constraint added.
+-- 87 duplicate groups exist in local migrated data on the 4-column key
+-- (clinic_id, exam_type_id, date, pet_id). 84/85 non-null groups have distinct
+-- medical_record_ids (same pet, different karte visits on the same day) and are
+-- legitimate. A DB unique constraint on this key would reject valid historical records.
+-- Service-level duplicate prevention is the formal policy until production data is
+-- verified and a 5-column partial unique index (adding medical_record_id) can be assessed.
+-- See: docs/lab-go/app-integration-boundary.md Phase 3A section.
+
+CREATE INDEX IF NOT EXISTS idx_exams_clinic_exam_type_date
+    ON exams (clinic_id, exam_type_id, date)
+    WHERE deleted_at IS NULL;
+
+COMMENT ON INDEX idx_exams_clinic_exam_type_date
+    IS 'Phase 2/3A: LabImportDuplicateCheckerDB (clinic_id, exam_type_id, date) lookup; no unique constraint — see Phase 3A decision';
+
+-- 008_add_exams_job_id.sql
+-- Phase 4B.2: exams.job_id nullable FK to lab_import_jobs
+--
+-- Decision (Phase 4B.1): ADD as uuid NULL with ON DELETE SET NULL so that
+-- job deletion does not cascade-delete exam rows (business data must be preserved).
+-- Nullable to remain backward-compatible with hand-created exams (NULL = no import job).
+
+ALTER TABLE exams
+    ADD COLUMN job_id uuid NULL
+    REFERENCES lab_import_jobs(id) ON DELETE SET NULL;
+
+-- Index for ListJobReportSummaries: "give me all exams for this job under this clinic"
+-- clinic_id + job_id covers the primary query access pattern.
+-- Partial index (WHERE job_id IS NOT NULL) keeps it small for hand-created exams.
+CREATE INDEX idx_exams_clinic_job
+    ON exams (clinic_id, job_id)
+    WHERE job_id IS NOT NULL;
+
+COMMENT ON COLUMN exams.job_id IS 'lab_import_jobs.id FK — NULL for hand-created exams. ON DELETE SET NULL preserves exam rows when job is deleted (Phase 4B.2).';
+
+-- 009_add_medicine_dose_params.sql
+-- #201 カルテ薬量（投与量）自動計算: 薬マスタ計算パラメータ + 種別子テーブル + treatments スナップショット
+--
+-- 方針（新規・追記のみ・additive・後方互換）:
+--   - 既存 001-008 は無編集。既存薬剤の挙動は calculation_type=none（既定）で不変（手動 quantity）。
+--   - per_weight 自動計算は mg/kg 線形の部分集合のみ。CRI/IU/%濃度/血中濃度/mg/head/BSA は none（手動）。
+--   - 製品軸（strength）は medicines、種軸（dose_per_kg）は子テーブル medicine_dose_params に分離。
+--     薬用量マニュアル実読で犬・猫の mg/kg が網羅的に異なることが判明したため、スカラー1列では破綻する。
+--   - clinic_id は子テーブルに非正規化保持し clinicScope(P4) を直適用する（JOIN スコープは base.go で不可）。
+--   - FK は ON DELETE RESTRICT（CASCADE DELETE 禁止方針 + 論理削除整合）。
+--   - マスタ計算パラメータ変更・per_weight 有効化・著しい逸脱の上書きは audit_logs に記録（アプリ層）。
+
+-- ------------------------------------
+-- ENUM types
+-- ------------------------------------
+
+-- calculation_type は 2 値。非線形（CRI/IU/濃度/BSA 等）は将来 ENUM 拡張で名前付き計算式を追加する
+-- （コードで実装した計算式の選択。自由入力式ではない）。default 'none' で default-deny。
+CREATE TYPE medicine_calculation_type AS ENUM ('none', 'per_weight');
+
+-- dose_basis は dose_per_kg が 1回量基準か 1日量基準かを区別する。
+--   per_administration: dose_per_kg は 1回投与あたりの mg/kg
+--   per_day:            dose_per_kg は 1日あたりの mg/kg（1回量は frequency_per_day で按分）
+CREATE TYPE medicine_dose_basis AS ENUM ('per_administration', 'per_day');
+
+-- rounding_mode は丸め方向。臨床ソースは丸め規則を定義しないため運用前提（NULL=丸めなし）。
+CREATE TYPE medicine_rounding_mode AS ENUM ('up', 'down', 'nearest');
+
+-- dose_species は計算対象の患者種。mg/kg は犬・猫で網羅的に異なり、'both' は意味を持たない
+-- （vaccine_species と異なり 'both' を持たない）。マップ不能種は子行なし → 自動計算スキップ（fail-closed）。
+CREATE TYPE medicine_dose_species AS ENUM ('dog', 'cat');
+
+-- ------------------------------------
+-- medicines: 製品軸の計算パラメータ
+-- ------------------------------------
+ALTER TABLE medicines
+  ADD COLUMN calculation_type      medicine_calculation_type NOT NULL DEFAULT 'none', -- default-deny
+  ADD COLUMN strength              numeric(10,4),   -- 製品含量。medicine_unit で分母解釈（per_tablet=mg/錠, per_ml=mg/mL, per_gram=mg/g）
+  ADD COLUMN frequency_per_day     integer,         -- 1日投与回数（dose_basis=per_day の按分に使用）
+  ADD COLUMN default_duration_days integer,         -- 既定投与日数（プリフィル補助）
+  ALTER COLUMN default_quantity TYPE numeric(10,2); -- C2: 液剤 0.25 等の精度（widening・既存値は無損失）
+
+-- per_weight 有効時は strength 必須（ゼロ除算・含量不明の自動計算を構造的に防ぐ）。
+ALTER TABLE medicines
+  ADD CONSTRAINT ck_medicines_per_weight_strength
+    CHECK (calculation_type = 'none' OR strength IS NOT NULL);
+
+-- per_weight 有効時は strength > 0（ゼロ除算防止。service validators と二重化）。
+ALTER TABLE medicines
+  ADD CONSTRAINT ck_medicines_strength_positive
+    CHECK (strength IS NULL OR strength > 0);
+
+ALTER TABLE medicines
+  ADD CONSTRAINT ck_medicines_frequency_positive
+    CHECK (frequency_per_day IS NULL OR frequency_per_day > 0);
+
+ALTER TABLE medicines
+  ADD CONSTRAINT ck_medicines_duration_positive
+    CHECK (default_duration_days IS NULL OR default_duration_days > 0);
+
+-- 子テーブルからの複合 FK ターゲット。id は PK で自明に一意だが、(id, clinic_id) を参照可能にする
+-- ための一意制約（防御の加重: 子の非正規化 clinic_id が親と一致することを DB で保証する）。
+ALTER TABLE medicines
+  ADD CONSTRAINT uq_medicines_id_clinic UNIQUE (id, clinic_id);
+
+COMMENT ON COLUMN medicines.calculation_type IS '#201 投与量計算方式。none=手動（既定・default-deny）/per_weight=mg/kg 線形自動計算';
+COMMENT ON COLUMN medicines.strength IS '#201 製品含量（mg/単位）。分母は medicine_unit で解釈。per_weight 必須';
+
+-- ------------------------------------
+-- medicine_dose_params: 製品 × 種 の種軸パラメータ（1:N 子テーブル）
+-- ------------------------------------
+CREATE TABLE medicine_dose_params (
+    id                BIGSERIAL                 PRIMARY KEY,
+    -- clinic_id は親 medicines から非正規化。clinicScope(P4) を子に直適用するため。
+    clinic_id         bigint                    NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,
+    medicine_id       bigint                    NOT NULL,   -- 複合 FK(medicine_id, clinic_id) を下部で定義（CASCADE 禁止）
+    species           medicine_dose_species     NOT NULL,
+    dose_basis        medicine_dose_basis       NOT NULL DEFAULT 'per_administration',
+    dose_per_kg       numeric(10,6)             NOT NULL,   -- mg/kg（per_weight は mg/kg 専用。CRI/μg は calculation_type=none で手動）
+    min_mg_per_kg     numeric(10,6),                        -- 安全域下限（NULL=下限なし）
+    max_mg_per_kg     numeric(10,6),                        -- 体重連動上限（NULL=上限なし）
+    absolute_max_dose numeric(10,4),                        -- 体重非依存 mg/head 上限（NULL=上限なし）
+    rounding_step     numeric(10,4),                        -- 丸め単位（NULL=丸めなし）
+    rounding_mode     medicine_rounding_mode,               -- 丸め方向（NULL=丸めなし）
+    notes             text                      NOT NULL DEFAULT '',
+    created_at        timestamptz               NOT NULL DEFAULT now(),
+    updated_at        timestamptz               NOT NULL DEFAULT now(),
+    deleted_at        timestamptz,                          -- 論理削除（スナップショット再構築保全）
+    CONSTRAINT ck_dose_per_kg_positive
+        CHECK (dose_per_kg > 0),
+    CONSTRAINT ck_dose_min_positive
+        CHECK (min_mg_per_kg IS NULL OR min_mg_per_kg > 0),
+    CONSTRAINT ck_dose_max_positive
+        CHECK (max_mg_per_kg IS NULL OR max_mg_per_kg > 0),
+    CONSTRAINT ck_dose_absolute_max_positive
+        CHECK (absolute_max_dose IS NULL OR absolute_max_dose > 0),
+    CONSTRAINT ck_dose_min_max
+        CHECK (min_mg_per_kg IS NULL OR max_mg_per_kg IS NULL OR min_mg_per_kg <= max_mg_per_kg),
+    -- 患者安全: per_weight 計算には上限が必須（丸め上げの silent 過量を防止）。service validators と二重化。
+    CONSTRAINT ck_dose_upper_bound_required
+        CHECK (max_mg_per_kg IS NOT NULL OR absolute_max_dose IS NOT NULL),
+    CONSTRAINT ck_dose_rounding_step_positive
+        CHECK (rounding_step IS NULL OR rounding_step > 0),
+    -- rounding_step と rounding_mode はペアで設定/未設定（片方だけの指定を禁止）。
+    CONSTRAINT ck_dose_rounding_pair
+        CHECK ((rounding_step IS NULL) = (rounding_mode IS NULL)),
+    -- 防御の加重: 子の clinic_id は必ず親 medicines の clinic_id と一致する（クロステナント不整合を DB で封殺）。
+    -- service 層の clinic_id 設定（採用方針）と二重化。CASCADE 禁止につき ON DELETE RESTRICT。
+    CONSTRAINT fk_dose_params_medicine_clinic
+        FOREIGN KEY (medicine_id, clinic_id) REFERENCES medicines(id, clinic_id) ON DELETE RESTRICT
+);
+
+-- 同一 (medicine, species) の有効パラメータは 1 件（論理削除を除く）。
+CREATE UNIQUE INDEX uq_dose_params_med_species
+    ON medicine_dose_params (medicine_id, species)
+    WHERE deleted_at IS NULL;
+
+-- clinicScope 主クエリ（clinic_id, medicine_id）。
+CREATE INDEX idx_dose_params_clinic_medicine
+    ON medicine_dose_params (clinic_id, medicine_id);
+
+COMMENT ON TABLE medicine_dose_params IS '#201 薬剤 × 種 の体重あたり投与量パラメータ（per_weight 自動計算用）';
+COMMENT ON COLUMN medicine_dose_params.clinic_id IS '親 medicines から非正規化。clinicScope(P4) を子に直適用するため';
+COMMENT ON COLUMN medicine_dose_params.dose_per_kg IS '体重あたり投与量 mg/kg。dose_basis で 1回量/1日量を解釈';
+COMMENT ON COLUMN medicine_dose_params.absolute_max_dose IS '体重非依存の mg/head 上限。大型患者で max_mg_per_kg より binding になり得る';
+
+-- ------------------------------------
+-- treatments: C2 精度拡張 + 計算根拠スナップショット
+-- ------------------------------------
+ALTER TABLE treatments
+  ALTER COLUMN quantity TYPE numeric(10,2),       -- C2: 液剤 0.25mL 等。既存 CHECK(quantity > 0) 維持
+  ADD COLUMN dose_weight_kg      numeric(6,2),     -- 使用体重スナップショット（kg 正規化後）
+  ADD COLUMN dose_weight_source  varchar(255),      -- 体重の出典（vital_records.id / 時刻 pin 等）
+  ADD COLUMN dose_amount_mg      numeric(12,6),    -- 実効用量(mg)。安全域判定(C1)はこの丸め後の値
+  ADD COLUMN dose_amount_unit    text,             -- 'mg' | 'ug'
+  ADD COLUMN dose_param_snapshot jsonb;            -- 適用 species/dose_per_kg/strength/丸め設定/計算式版を値で固定
+
+COMMENT ON COLUMN treatments.dose_amount_mg IS '#201 丸め後の実効用量(mg)。安全域(C1)判定に使用';
+COMMENT ON COLUMN treatments.dose_param_snapshot IS '#201 計算根拠を値で固定（マスタ後変更・論理削除でも当時値を保全）';
+
+-- =============================================================================
+-- 010_add_checkup_packages.sql
+-- #211 検査・健診パッケージ化 — 型付きフィールド機構（垂直スライス: 歯科検診）
+--
+-- 設計: examination ドメイン（exam_types → exam_type_fields → exam_results,
+--       001_init.sql:692/1680）のパターンを踏襲し、checkup 用に正規化する。
+--   - anchor は既存 checkup_types を「パッケージ」として拡張（新テーブルは作らない）。
+--   - checkup_type_fields  : パッケージのフィールド定義（型付き）。
+--   - checkup_field_results: 健診記録（checkups）に紐づく結果値。
+--
+-- マルチテナント: 両テーブルとも clinic_id NOT NULL を持ち、RLS は
+--   tenant_clinic_id 直接ポリシーで保護する（001_init の clinic_id 自動ループは
+--   既適用済みのため、後発の本マイグレーションで明示的に apply_rls_policy する）。
+--
+-- CASCADE 判断: migrations/CLAUDE.md の「純粋従属子行は CASCADE 許容例外」に従う。
+--   - checkup_type_fields.checkup_type_id  → exam_type_fields.exam_type_id と同型（構成要素）
+--   - checkup_field_results.checkup_id     → exam_results.exam_id と同型（純粋従属の結果行）。
+--     RESTRICT にすると既存 medical_records → checkups CASCADE 連鎖を壊すため CASCADE 必須。
+--   - checkup_field_results.checkup_type_field_id は nullable + ON DELETE SET NULL とし、
+--     field_name/field_type/unit を非正規化スナップショットとして結果行に保持する
+--     （exam_results.exam_type_field_id と同型。フィールド定義削除後も結果が自己記述的）。
+-- =============================================================================
+
+-- ------------------------------------
+-- フィールド型 ENUM（6種）
+-- ------------------------------------
+CREATE TYPE checkup_field_type AS ENUM (
+    'number',
+    'single_select',
+    'multi_select',
+    'boolean',
+    'checklist',
+    'text'
+);
+
+-- ------------------------------------
+-- checkup_type_fields（健診パッケージのフィールド定義マスタ）
+-- ------------------------------------
+CREATE TABLE checkup_type_fields (
+    id              BIGSERIAL          PRIMARY KEY,
+    clinic_id       bigint             NOT NULL REFERENCES clinics(id)       ON DELETE RESTRICT,
+    checkup_type_id bigint             NOT NULL REFERENCES checkup_types(id) ON DELETE CASCADE,
+    name            text               NOT NULL,
+    field_type      checkup_field_type NOT NULL,
+    unit            text               NOT NULL DEFAULT '',
+    -- number 型の異常値判定基準（EXAM-001 と同じく min/max は任意）
+    min_value       decimal(10,4),
+    max_value       decimal(10,4),
+    -- single_select / multi_select / checklist の選択肢定義: [{"value":"...","label":"..."}]
+    options         jsonb              NOT NULL DEFAULT '[]'::jsonb,
+    -- 暫定 seed フラグ（確定値は Notion 反映の別タスク）
+    is_provisional  boolean            NOT NULL DEFAULT false,
+    sort_order      integer            NOT NULL DEFAULT 0,
+    created_at      timestamptz        NOT NULL DEFAULT now(),
+    updated_at      timestamptz        NOT NULL DEFAULT now(),
+    deleted_at      timestamptz
+);
+
+-- ------------------------------------
+-- checkup_field_results（健診結果値: checkups の純粋従属子）
+-- ------------------------------------
+CREATE TABLE checkup_field_results (
+    id                    BIGSERIAL          PRIMARY KEY,
+    clinic_id             bigint             NOT NULL REFERENCES clinics(id)   ON DELETE RESTRICT,
+    checkup_id            bigint             NOT NULL REFERENCES checkups(id)  ON DELETE CASCADE,
+    checkup_type_field_id bigint                      REFERENCES checkup_type_fields(id) ON DELETE SET NULL,
+    -- 非正規化スナップショット（フィールド定義削除後も結果が自己記述的であるため）
+    field_name            text               NOT NULL DEFAULT '',
+    field_type            checkup_field_type NOT NULL,
+    unit                  text               NOT NULL DEFAULT '',
+    -- 型別の値カラム（field_type に応じてサーバが該当列のみ書き込む）
+    value_number          decimal(10,4),
+    value_text            text               NOT NULL DEFAULT '',
+    value_bool            boolean,
+    value_list            text[]             NOT NULL DEFAULT '{}',
+    -- number 型の異常値判定（EXAM-001 機構を再利用。exam_result_status を共用）
+    ref_min               decimal(10,4),
+    ref_max               decimal(10,4),
+    is_abnormal           boolean            NOT NULL DEFAULT false,
+    status                exam_result_status NOT NULL DEFAULT 'normal',
+    sort_order            integer            NOT NULL DEFAULT 0,
+    created_at            timestamptz        NOT NULL DEFAULT now(),
+    updated_at            timestamptz        NOT NULL DEFAULT now()
+);
+
+-- ------------------------------------
+-- インデックス（clinic_id を含む複合 + FK）
+-- ------------------------------------
+CREATE INDEX idx_checkup_type_fields_clinic_id        ON checkup_type_fields(clinic_id);
+CREATE INDEX idx_checkup_type_fields_checkup_type_id  ON checkup_type_fields(checkup_type_id);
+CREATE INDEX idx_checkup_type_fields_clinic_type_sort ON checkup_type_fields(clinic_id, checkup_type_id, sort_order) WHERE deleted_at IS NULL;
+
+-- FindByCheckupID / ReplaceForCheckup はともに WHERE clinic_id = ? AND checkup_id = ? を発行する。
+-- clinic_id 先頭（等値）+ checkup_id（等値）の複合で両クエリを単一インデックスで賄う
+-- （migrations/CLAUDE.md「clinic_id を含む複合インデックス」規約）。clinic_id 単独はこの複合の前方一致で代替できるため作らない。
+CREATE INDEX idx_checkup_field_results_clinic_checkup ON checkup_field_results(clinic_id, checkup_id);
+-- checkup_id 単独は FindByPetID の JOIN（checkups.id = checkup_field_results.checkup_id）用に保持する。
+CREATE INDEX idx_checkup_field_results_checkup_id      ON checkup_field_results(checkup_id);
+-- checkup_type_field_id は ON DELETE SET NULL で NULL 行が増えるため部分インデックス。
+CREATE INDEX idx_checkup_field_results_field_id        ON checkup_field_results(checkup_type_field_id) WHERE checkup_type_field_id IS NOT NULL;
+
+-- ------------------------------------
+-- RLS（clinic_id 直接ポリシー。001_init の自動ループ相当を後発で明示適用）
+-- ------------------------------------
+SELECT app_private.apply_rls_policy(
+    'checkup_type_fields',
+    'tenant_checkup_type_fields_isolation',
+    'app_private.has_clinic_access(clinic_id)',
+    'app_private.has_clinic_access(clinic_id)'
+);
+
+SELECT app_private.apply_rls_policy(
+    'checkup_field_results',
+    'tenant_checkup_field_results_isolation',
+    'app_private.has_clinic_access(clinic_id)',
+    'app_private.has_clinic_access(clinic_id)'
+);
+
+-- ------------------------------------
+-- COMMENT
+-- ------------------------------------
+COMMENT ON TABLE checkup_type_fields    IS '健診パッケージの型付きフィールド定義マスタ（#211）';
+COMMENT ON TABLE checkup_field_results  IS '健診結果値（checkups の純粋従属子・#211）';
+COMMENT ON COLUMN checkup_type_fields.options       IS 'select/checklist の選択肢定義 [{"value","label"}]';
+COMMENT ON COLUMN checkup_type_fields.is_provisional IS '暫定 seed フラグ（確定値は別タスク）';
+COMMENT ON COLUMN checkup_field_results.field_type  IS 'checkup_type_fields.field_type の非正規化スナップショット';
+
+-- 011_add_closing_am_start.sql
+-- #215: AM 開始時刻（既定 09:00）を clinic_settings に追加する（additive）。
+-- 締めレンジは AM=[am_start, boundary) / PM=[boundary, pm_end) / EMG=[pm_end, 翌日 am_start) になり、
+-- 深夜 0:00〜am_start の緊急会計は前日の EMG に帰属する。
+-- 既存の締め記録（cash_register_closes のスナップショット）は再計算しない（過去データ非破壊）。
+ALTER TABLE clinic_settings
+    ADD COLUMN IF NOT EXISTS closing_am_start time NOT NULL DEFAULT '09:00';
+
+-- 012_add_clinical_result_composite_fk.sql
+-- 臨床結果テーブルの DB レベル複合 FK（clinic_id 込み）で越境 INSERT/UPDATE を物理拒否する
+-- （BE-refactor.md R3-7 / D13・defense-in-depth）。
+--
+-- 対象は checkup_field_results のみ。exam_results は clinic_id 列を持たず、参照先の exam_type_fields も
+-- clinic_id 列を持たない（clinic は exam_type_fields→exam_types→clinics と2段先）ため、(id, clinic_id) の
+-- 複合 FK が構造的に張れない。exam_results への同等防御は clinic_id 列の追加 + backfill という
+-- 非 additive なスキーマ拡張を要し、behavior-preserving リファクタの範囲外（別タスク）。
+--
+-- 挙動保存: migration 010 の患者結果値保護（フィールド定義削除時に結果値を残す ON DELETE SET NULL）を
+-- 列指定 SET NULL（PostgreSQL 15+ 機能・本番は PG18）で維持する。親 checkup_type_fields を削除すると
+-- checkup_type_field_id のみ NULL 化され（MATCH SIMPLE で FK チェックがスキップされる）、NOT NULL の
+-- clinic_id と結果値スナップショットは保持される。単一列 SET NULL FK と挙動は完全に一致する。
+--
+-- 適用前提（手順1・必須）: 既存データに親子 clinic_id 不整合が無いことを検証してから適用すること
+-- （違反行があると複合 FK 追加が失敗する）。STG 適用は db_reset 運用ルールに従う。
+
+-- 親テーブルに複合 FK ターゲット用の UNIQUE(id, clinic_id) を追加する。
+-- id は PK のため (id, clinic_id) は常に一意で、既存データに対して無条件に充足する（挙動非破壊）。
+ALTER TABLE checkup_type_fields
+    ADD CONSTRAINT uq_checkup_type_fields_id_clinic UNIQUE (id, clinic_id);
+
+-- 既存の単一列 FK（010 の CREATE TABLE インライン FK・自動命名）を複合 FK に置換する。
+ALTER TABLE checkup_field_results
+    DROP CONSTRAINT IF EXISTS checkup_field_results_checkup_type_field_id_fkey;
+
+ALTER TABLE checkup_field_results
+    ADD CONSTRAINT fk_checkup_field_results_field_clinic
+    FOREIGN KEY (checkup_type_field_id, clinic_id)
+    REFERENCES checkup_type_fields (id, clinic_id)
+    ON DELETE SET NULL (checkup_type_field_id);

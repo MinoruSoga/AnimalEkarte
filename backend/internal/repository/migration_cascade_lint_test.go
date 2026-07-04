@@ -4,10 +4,11 @@ package repository
 //
 // ─── Purpose ────────────────────────────────────────────────────────────────────────
 //
-// migrations/CLAUDE.md は「CASCADE DELETE 禁止」を原則とするが、001_init.sql（初期スキーマ）と
-// 010_add_checkup_packages.sql には既に 50+ 件の "ON DELETE CASCADE" が存在する — 大半は
-// junction テーブルや line item 等「純粋従属の子テーブル」の正当な用法で、#211 の CASCADE
-// 安全監査（checkup_field_cascade_test.go）でも個別に安全性が確認されている。
+// migrations/CLAUDE.md は「CASCADE DELETE 禁止」を原則とするが、001_init.sql（初期スキーマ。
+// 2026-07-04 に旧 005〜012 の増分マイグレーションを統合済み）には既に 50+ 件の
+// "ON DELETE CASCADE" が存在する — 大半は junction テーブルや line item 等「純粋従属の
+// 子テーブル」の正当な用法で、#211 の CASCADE 安全監査（checkup_field_cascade_test.go）でも
+// 個別に安全性が確認されている（旧 010 由来の 2 件を含む）。
 //
 // これら既存サイトを1行ずつ allowlist に列挙するのは churn が大きく安全価値が薄い。本ゲートは
 // 「新規 migration が未レビューの CASCADE を持ち込むことを検出する」（R3-1 の実際の目的）に
@@ -40,12 +41,13 @@ const migrationsDir = "../../migrations"
 // migrationCascadeAllowlist はレビュー済みの CASCADE 出現数をファイル単位でピンする。
 // 出現数が変化した場合、または新規ファイルで非ゼロが検出された場合はゲートが fail する。
 //
-//	001_init.sql: 初期スキーマの junction/line-item 等の純粋従属子（#211 監査時点でレビュー済み）
-//	010_add_checkup_packages.sql: checkup_type_fields.checkup_type_id と
-//	  checkup_field_results.checkup_id の2件（純粋従属子・checkup_field_cascade_test.go で安全性実証済み）
+//	001_init.sql: 初期スキーマの junction/line-item 等の純粋従属子50件（#211 監査時点でレビュー済み）
+//	  + 旧 010_add_checkup_packages.sql 由来の checkup_type_fields.checkup_type_id と
+//	  checkup_field_results.checkup_id の2件（純粋従属子・checkup_field_cascade_test.go で安全性実証済み）。
+//	  旧 010 は 2026-07-04 に 001_init.sql へ統合され、独立ファイルとしては存在しない
+//	  （docs/ERD.md §4.3 参照）。合計 52。
 var migrationCascadeAllowlist = map[string]int{
-	"001_init.sql":                 50,
-	"010_add_checkup_packages.sql": 2,
+	"001_init.sql": 52,
 }
 
 // countCascadeOccurrences は SQL テキスト中の "ON DELETE CASCADE" 出現数を数える純粋関数。
@@ -115,10 +117,15 @@ func walkMigrationsForCascade(t *testing.T) map[string]int {
 // TestMigrationCascadeInventory_NoUnreviewedCascade is the gate: every migration file's
 // "ON DELETE CASCADE" occurrence count must match the reviewed allowlist. A floor guards
 // against a vacuous pass if the migrations directory glob silently breaks.
+//
+// Floor rationale (2026-07-04): backend/migrations/ was consolidated from 12 files down to
+// 4 (001_init.sql + 002/003/004 seed files — see docs/ERD.md §4.3). The floor tracks the
+// current known minimum file count, not an arbitrary buffer; it must be revisited whenever
+// migrations are consolidated or the directory's file count otherwise legitimately shrinks.
 func TestMigrationCascadeInventory_NoUnreviewedCascade(t *testing.T) {
 	found := walkMigrationsForCascade(t)
 
-	if len(found) < 5 {
+	if len(found) < 4 {
 		t.Fatalf("only %d migration file(s) found; directory read likely broken (would vacuously "+
 			"pass). Expected multiple .sql files under %s.", len(found), migrationsDir)
 	}

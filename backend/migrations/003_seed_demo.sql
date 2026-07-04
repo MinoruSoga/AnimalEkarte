@@ -2767,6 +2767,59 @@ ON CONFLICT DO NOTHING;
 SELECT setval(pg_get_serial_sequence('checkup_types', 'id'), (SELECT MAX(id) FROM checkup_types));
 
 -- -----------------------------------------------------------------------------
+-- J-12b. checkup_type_fields（歯科検診パッケージの暫定 seed・旧 010_add_checkup_packages.sql DML）
+--   既存の '歯科検診' checkup_type を持つ各クリニックにフィールドを投入する。
+--   名前マッチ + NOT EXISTS で冪等・環境非依存（demo 未投入環境では no-op）。
+--   確定の選択肢・基準値は Notion「健康診断」反映の別タスク（is_provisional=true）。
+--   全 checkup_types INSERT（J-12 まで）より後段に配置すること — 本 DO ブロックは
+--   name = '歯科検診' AND deleted_at IS NULL の全件を対象にループするため。
+-- -----------------------------------------------------------------------------
+DO $$
+DECLARE
+    ct RECORD;
+BEGIN
+    FOR ct IN
+        SELECT id, clinic_id FROM checkup_types
+        WHERE name = '歯科検診' AND deleted_at IS NULL
+    LOOP
+        -- 歯石除去必要の有無（boolean）
+        INSERT INTO checkup_type_fields (clinic_id, checkup_type_id, name, field_type, is_provisional, sort_order)
+        SELECT ct.clinic_id, ct.id, '歯石除去必要の有無', 'boolean', true, 1
+        WHERE NOT EXISTS (
+            SELECT 1 FROM checkup_type_fields f
+            WHERE f.checkup_type_id = ct.id AND f.name = '歯石除去必要の有無' AND f.deleted_at IS NULL
+        );
+
+        -- 歯石付着度スコア（number・0〜4。max 超過で異常値判定）
+        INSERT INTO checkup_type_fields (clinic_id, checkup_type_id, name, field_type, unit, min_value, max_value, is_provisional, sort_order)
+        SELECT ct.clinic_id, ct.id, '歯石付着度スコア', 'number', '', 0, 4, true, 2
+        WHERE NOT EXISTS (
+            SELECT 1 FROM checkup_type_fields f
+            WHERE f.checkup_type_id = ct.id AND f.name = '歯石付着度スコア' AND f.deleted_at IS NULL
+        );
+
+        -- 歯科ケアアドバイス（multi_select・クライアント文面由来の暫定選択肢）
+        -- 暫定 seed のため value == label（日本語）とし、結果値（value_list）が
+        -- そのまま飼主レポートで人間可読に表示されるようにする。確定キー体系は
+        -- マスタ管理 UI イテレーションで value≠label を導入する（その際は owner-report 側で
+        -- options からのラベル逆引きが必要・follow-up）。
+        INSERT INTO checkup_type_fields (clinic_id, checkup_type_id, name, field_type, options, is_provisional, sort_order)
+        SELECT ct.clinic_id, ct.id, '歯科ケアアドバイス', 'multi_select',
+            '[{"value":"毎日の歯磨き","label":"毎日の歯磨き"},
+              {"value":"デンタルガムの利用","label":"デンタルガムの利用"},
+              {"value":"定期的なスケーリング","label":"定期的なスケーリング"},
+              {"value":"歯科用フードへの切替","label":"歯科用フードへの切替"},
+              {"value":"経過観察","label":"経過観察"}]'::jsonb,
+            true, 3
+        WHERE NOT EXISTS (
+            SELECT 1 FROM checkup_type_fields f
+            WHERE f.checkup_type_id = ct.id AND f.name = '歯科ケアアドバイス' AND f.deleted_at IS NULL
+        );
+    END LOOP;
+END;
+$$;
+
+-- -----------------------------------------------------------------------------
 -- J-13. chief_complaint_types
 -- 城東: IDs 15-16 (+2 → 計6件), 敷島: IDs 17-18 (+2 → 計6件)
 -- -----------------------------------------------------------------------------

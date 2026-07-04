@@ -366,7 +366,8 @@ func TestLabReportQueryService_GetExamReport_PII_Safe(t *testing.T) {
 // ------------------------------------
 
 // TestLabReportQueryService_ExamSurvivesJobDeletion models the ON DELETE SET NULL behavior
-// declared in migration 008_add_exams_job_id.sql.
+// declared in migrations/001_init.sql (formerly migration 008_add_exams_job_id.sql, consolidated
+// 2026-07-04 — see docs/ERD.md §4.3).
 //
 // When a lab_import_job is deleted the DB sets exams.job_id = NULL (the exam row is NOT deleted).
 // This test verifies that LabReportQueryService.GetExamReport can still retrieve an exam

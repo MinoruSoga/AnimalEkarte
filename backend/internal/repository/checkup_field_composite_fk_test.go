@@ -15,6 +15,12 @@ package repository
 //
 // 注: exam_results は clinic_id 列を持たず（参照先 exam_type_fields も持たない）複合 FK を張れないため
 // 対象外。同等防御は clinic_id 列追加 + backfill という非 additive スキーマ拡張を要する別タスク。
+//
+// 注記（2026-07-04 統合）: migration 012 は 001_init.sql 末尾へ統合され独立ファイルとしては
+// 存在しない（docs/ERD.md §4.3）。001_init.sql は他の全テーブル定義を含む ~170KB のファイルに
+// なったため、012 相当の3 ALTER 文だけをマーカー文字列で切り出して適用する
+// （extractMigration012CompositeFKBlock）。ファイル全体を素朴に実行すると、テスト DB に存在しない
+// 無関係テーブルへの参照で即 fail する。
 
 import (
 	"context"
@@ -30,19 +36,47 @@ import (
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
-const checkupMigration012Path = "../../migrations/012_add_clinical_result_composite_fk.sql"
+const checkupMigration012Path = "../../migrations/001_init.sql"
 
-// applyMigration012CompositeFK は migration 012 の実 ALTER 文をテスト DB へ適用する。
-// 012 は clinics を参照しないため（UNIQUE(id,clinic_id) と複合 FK のみ）そのまま適用できる。
-// setupCheckupCascadeTestDB が 010 の実 DDL でテーブルを再作成した後に呼ぶこと
-// （010 のインライン FK checkup_field_results_checkup_type_field_id_fkey を 012 が DROP するため）。
+// checkupMigration012BlockStart/End は、統合後の 001_init.sql 内で旧 012 の3 ALTER 文
+// （checkup_type_fields への UNIQUE(id,clinic_id) 追加 → checkup_field_results の単一列 FK
+// DROP → 複合 FK ADD）を一意に切り出すための開始・終端マーカー。原文をそのまま番号順に
+// 追記した結果であり、テキストが一致する限り 001_init.sql 内で他の CREATE TABLE/ALTER 文と
+// 混同しない（他に同一文字列は存在しない）。
+const (
+	checkupMigration012BlockStart = "ALTER TABLE checkup_type_fields\n    ADD CONSTRAINT uq_checkup_type_fields_id_clinic UNIQUE (id, clinic_id);"
+	checkupMigration012BlockEnd   = "ON DELETE SET NULL (checkup_type_field_id);"
+)
+
+// extractMigration012CompositeFKBlock は統合後の 001_init.sql から、旧 012 の3 ALTER 文の
+// 範囲だけをテキストとして切り出す（extractCreateTableDDL と同じ「マーカー文字列検索」手法）。
+// ファイル全体（~170KB・数百文）をテスト DB に対して実行すると、テスト DB に存在しない
+// 無関係テーブルへの参照で即 fail するため、この範囲限定が必須。
+func extractMigration012CompositeFKBlock(t *testing.T, sql string) string {
+	t.Helper()
+	start := strings.Index(sql, checkupMigration012BlockStart)
+	require.GreaterOrEqual(t, start, 0, "migration 012 相当の複合FK ALTER 文（先頭）が 001_init.sql に見つからない")
+
+	endMarkerIdx := strings.Index(sql[start:], checkupMigration012BlockEnd)
+	require.GreaterOrEqual(t, endMarkerIdx, 0, "migration 012 相当の複合FK ALTER 文（終端）が 001_init.sql に見つからない")
+
+	end := start + endMarkerIdx + len(checkupMigration012BlockEnd)
+	return sql[start:end]
+}
+
+// applyMigration012CompositeFK は migration 012 相当の実 ALTER 文（001_init.sql から切り出した
+// 範囲）をテスト DB へ適用する。012 は clinics を参照しないため（UNIQUE(id,clinic_id) と複合 FK
+// のみ）そのまま適用できる。setupCheckupCascadeTestDB が 010 の実 DDL でテーブルを再作成した
+// 後に呼ぶこと（010 のインライン FK checkup_field_results_checkup_type_field_id_fkey を
+// 012 が DROP するため）。
 func applyMigration012CompositeFK(t *testing.T, db *gorm.DB) {
 	t.Helper()
 	raw, err := os.ReadFile(checkupMigration012Path)
-	require.NoError(t, err, "migration 012 を読めること")
+	require.NoError(t, err, "001_init.sql を読めること")
 
-	for _, stmt := range splitSQLStatements(string(raw)) {
-		require.NoError(t, db.Exec(stmt).Error, "migration 012 の文を適用できること: %s", stmt)
+	block := extractMigration012CompositeFKBlock(t, string(raw))
+	for _, stmt := range splitSQLStatements(block) {
+		require.NoError(t, db.Exec(stmt).Error, "migration 012 相当の文を適用できること: %s", stmt)
 	}
 }
 

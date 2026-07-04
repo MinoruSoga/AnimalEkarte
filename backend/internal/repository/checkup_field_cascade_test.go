@@ -5,6 +5,14 @@ package repository
 // 目的: migration 010 の ON DELETE 設計が「患者の健診結果値（checkup_field_results）を
 //       マスタ/フィールド定義の削除で silent に失わない」ことを決定的に保証する。
 //
+// 注記（2026-07-04 統合）: migration 010 は 001_init.sql へ統合され独立ファイルとしては
+// 存在しない（docs/ERD.md §4.3）。本ファイルが「migration 010」と呼ぶのは 001_init.sql に
+// 統合された当該 CREATE TABLE ブロックの設計意図であり、以下の (A) 静的テストは 001_init.sql
+// から直接その CREATE TABLE ブロックを抽出する。同ファイル内には 010 の CREATE TABLE より
+// 後段で、旧 012 由来の複合FK ALTER 文（checkup_type_field_id を単一列 FK から複合FKへ置換）
+// が続くが、そちらは checkup_field_composite_fk_test.go が個別に検証する別レイヤーであり、
+// 本ファイルが検証する「作成時点の単一列 SET NULL」設計そのものは変わらない。
+//
 // 設計（migration 010 の FK アクション・真実の源泉）:
 //   checkup_type_fields.checkup_type_id      → checkup_types  ON DELETE CASCADE   (定義はパッケージ構成要素)
 //   checkup_type_fields.clinic_id            → clinics        ON DELETE RESTRICT
@@ -39,7 +47,7 @@ import (
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
-const checkupMigration010Path = "../../migrations/010_add_checkup_packages.sql"
+const checkupMigration010Path = "../../migrations/001_init.sql"
 
 // readCheckupMigration010 は migration 010 の SQL テキストを返す（path はパッケージ相対）。
 func readCheckupMigration010(t *testing.T) string {
