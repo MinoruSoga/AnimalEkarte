@@ -19,6 +19,7 @@
 | ドキュメント | 内容 |
 |-------------|------|
 | [.claude/CLAUDE.md](.claude/CLAUDE.md) | **【最優先】** 開発ルール・コマンド・最新技術規約 |
+| [docs/PRODUCT_PHILOSOPHY.md](docs/PRODUCT_PHILOSOPHY.md) | **【機能開発前 必読】** 業務効率ソフトウェアとしての意思決定原則（5 ステップ） |
 | [GEMINI.md](GEMINI.md) | Gemini CLI 向け最適化コンテキスト |
 | [.gemini/styleguide.md](.gemini/styleguide.md) | スタイルガイド・実装パターン詳細 |
 | [docs/ERD.md](docs/ERD.md) | データベース設計（ER図） |
