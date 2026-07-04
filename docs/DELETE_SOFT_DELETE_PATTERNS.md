@@ -1,5 +1,9 @@
 # Hard Delete / Soft Delete 設計パターン
 
+> **目的**: Hard Delete と Soft Delete の使い分け・FK 制約との関係を定義する。
+> **読者**: 削除機能の実装者。
+> **タイミング**: 削除/論理削除の機能を実装する時。
+
 > **Animal Ekarte**: Hard Delete と Soft Delete の使い分け、FK 制約との関係、実装時チェックリスト
 > **最新更新**: 2026-06-12 | **目的**: STG-001 の根本原因解消と今後の実装指針
 

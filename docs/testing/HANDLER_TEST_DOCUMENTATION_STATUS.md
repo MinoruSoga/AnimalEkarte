@@ -1,5 +1,9 @@
 # API ハンドラー・テストカバレッジ状況 (API Test Status)
 
+> **目的**: ハンドラーテストの方針・カバレッジ状況を記録する。
+> **読者**: 実装者・QA。
+> **タイミング**: ハンドラーテスト方針の確認時。
+
 > **Animal Ekarte**: バックエンドハンドラー（`backend/internal/handler/*_handler.go`・88 ファイル）の検証状態
 > **最新更新**: 2026-06-12 | **全体カバレッジ**: 未検証（実測には手動で `make test-cover` / `go test ./internal/handler/... -cover` が必要）
 

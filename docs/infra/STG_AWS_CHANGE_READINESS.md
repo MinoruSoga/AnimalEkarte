@@ -1,5 +1,7 @@
 # STG AWS 変更前事前準備ドキュメント
 
+> **時点スナップショット**: 2026-06-17 時点の調査・承認材料。改変不可（P1/P2実施完了後はarchiveへ移動想定）。
+
 > **Animal Ekarte**: STG 環境 AWS 変更の事前チェックリスト・承認材料・手順・検証・ロールバック整理
 > **作成日**: 2026-06-17 | **対象環境**: Staging (us-east-1 / ap-northeast-1)
 > **参照元**: [STG_AWS_COST_REDUCTION.md](./STG_AWS_COST_REDUCTION.md)

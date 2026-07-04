@@ -1,5 +1,9 @@
 # CodeGraph 定番プロンプト集（AnimalEkarte 向け）
 
+> **目的**: Claude Code + CodeGraph MCP でこのリポジトリを調査する際の定型プロンプト集。
+> **読者**: CodeGraph MCP を利用する開発者・AI エージェント。
+> **タイミング**: コードベース調査プロンプトを作成する時。
+
 このドキュメントは、Claude Code + CodeGraph MCP でこのリポジトリを調査するときの定番プロンプト集です。
 そのまま貼って使える形にしています。
 

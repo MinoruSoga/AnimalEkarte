@@ -1,5 +1,9 @@
 # Runbook: line_reservation_settings.break_hours 形状監査
 
+> **目的**: R1-3デプロイ前のbreak_hoursデータ形状監査手順を定義する。
+> **読者**: 運用担当(deploy実施者)。
+> **タイミング**: R1-3デプロイ前のSTG/本番監査実行時。
+
 > BE-refactor.md R1-3（D10/F-2）フォローアップ。deploy 前に **1回** 実施する STG/prod 監査手順。
 
 ## 背景（なぜ必要か）

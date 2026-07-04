@@ -1,6 +1,8 @@
 # インフラ・運用ディレクトリ (Infrastructure & Operations)
 
 > **目的**: クラウド基盤（AWS/Vercel）、デプロイフロー、およびシステムの安定稼働に関する情報の管理。
+> **読者**: AI エージェント(Claude Code)。
+> **タイミング**: docs/infra/ 配下編集時。
 
 ---
 

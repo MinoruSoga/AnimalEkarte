@@ -1,5 +1,7 @@
 # STG AWS コスト削減・リソース改善レポート
 
+> **時点スナップショット**: 2026-06-17 時点の調査レポート。改変不可（P1/P2実施完了後はarchiveへ移動想定）。
+
 > **Animal Ekarte**: STG 環境の AWS コスト最適化調査と改善候補の整理
 > **最終更新**: 2026-06-17 | **対象環境**: Staging (us-east-1)
 > **調査方式**: read-only (AWS CLI describe/get/list + Cost Explorer のみ。AWS リソース変更・削除なし)

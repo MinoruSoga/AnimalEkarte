@@ -1,7 +1,11 @@
 # データベース設計書 (Entity Relationship Diagram)
 
+> **目的**: 全108テーブルのデータベース設計(ER図)を定義し、テーブル数等の統計値の正本とする。
+> **読者**: 全開発者。
+> **タイミング**: スキーマ変更・DB設計判断時。
+
 > **Animal Ekarte**: 高精度・高整合な動物病院データモデル
-> **バージョン**: v31.25 | **最新更新**: 2026-07-03 | **状態**: Production Ready (108 Tables Verified)
+> **バージョン**: v31.26 | **最新更新**: 2026-07-04 | **状態**: Production Ready (108 Tables Verified)
 
 ---
 
@@ -91,11 +95,14 @@ erDiagram
 
 現行マイグレーション (`001_init.sql` および増分 `005`〜`012`) の `CREATE TABLE` 定義と本 ERD の主要ドメイン別構成を静的照合し、2026-07-03 時点で以下の通り整理しました。実 DB のデータ量・実行時 SQL・アクセスログは確認対象外です。
 
+> [!NOTE]
+> **2026-07-04 追記**: 増分マイグレーション `005`〜`012` は同日中に `001_init.sql`（DDL）/ `003_seed_demo.sql`（歯科検診暫定 seed DML）へ再統合され、独立ファイルとしては存在しません（§4.3 参照）。ファイル構成が変わっただけで物理テーブル定義そのものは変化していないため、以下の判定結果・テーブル総数は本追記時点でも有効です。
+
 | 項目 | 結果 | 判定 |
 |:---|:---|:---|
-| `001_init.sql` の `CREATE TABLE` 数 | 103 | 初期スキーマ of テーブル数 |
-| 増分マイグレーションが追加するテーブル | 5: `lab_import_jobs` / `lab_import_events` (`005`)、`medicine_dose_params` (`009`)、`checkup_type_fields` / `checkup_field_results` (`010`) | 005/009/010 で追加 |
-| 全マイグレーション (001-012) の物理テーブル総数 | 108 | ERD の全体数と一致 |
+| `001_init.sql` の `CREATE TABLE` 数 | 108（2026-07-04 統合前は 103） | 旧 005/009/010 由来の5テーブルが統合により `001_init.sql` に直接定義されるようになった。物理テーブル総数(108)自体は統合の前後で不変 |
+| 旧増分マイグレーションが追加していたテーブル | 5: `lab_import_jobs` / `lab_import_events` (旧`005`)、`medicine_dose_params` (旧`009`)、`checkup_type_fields` / `checkup_field_results` (旧`010`) | 2026-07-04 統合により現在は `001_init.sql` に直接定義（旧ファイルは削除済み） |
+| 全マイグレーション（統合後: `001_init.sql` + `002`/`003`/`004`）の物理テーブル総数 | 108 | ERD の全体数と一致（ファイル統合の前後で不変） |
 | ERD ドメイン表の物理テーブル数 | 108 | migrations と一致 |
 | ERD へ追加した不足テーブル | 6: `token_blacklist`, `reservation_type_available_slots`, `trimming_course_types`, `campaigns`, `campaign_target_categories`, `campaign_target_items` | migration に存在し、用途コメントまたはドメイン上の継続理由があるため追加 |
 | migrations にあり ERD にないテーブル | 0 | 整合済み |
@@ -114,22 +121,14 @@ erDiagram
 - 互換注記:
   - `docker compose` 実行時、`.env.local` にて `DB_USER` / `DB_PASSWORD` / `DB_NAME` などの環境変数を読み込んでおり、検証は正常に成功しました。
 
-### 4.3 スキーマ更新履歴（001-004 統合 + 005 以降の増分）
+### 4.3 スキーマ更新履歴（001-004 統合 + 005〜012 増分 + 2026-07-04 再統合）
 
 2026-06-26 に、かつて独立した増分ファイル (旧 005-012) として管理されていたスキーマ・シード変更を `001_init.sql` および `003_seed_demo.sql` へ統合しました。
-その後、新たな機能追加に伴い増分マイグレーション 005〜012 が追加されています。
-現行マイグレーションは以下の 12 ファイルです（`backend/migrations/`）。
+その後、新たな機能追加に伴い増分マイグレーション 005〜012 が再び追加されていましたが、2026-07-04 にこれらを再度 `001_init.sql`（DDL）および `003_seed_demo.sql`（歯科検診パッケージの暫定 seed DML のみ）へ統合し、独立ファイルとしての 005〜012 は削除しました。
+現行マイグレーションは以下の 4 ファイルです（`backend/migrations/`）。
 
-- `001_init.sql`（初期スキーマ・103 テーブル）
+- `001_init.sql`（初期スキーマ・108 テーブル）
 - `002_seed_master.sql`、`003_seed_demo.sql`、`004_seed_staging.sql`（シード）
-- `005_add_lab_import_tables.sql`（`lab_import_jobs` / `lab_import_events` を追加）
-- `006_add_exam_results_exam_id_index.sql`（インデックス追加）
-- `007_add_exams_dup_check_index.sql`（インデックス追加）
-- `008_add_exams_job_id.sql`（`exams.job_id` カラム追加）
-- `009_add_medicine_dose_params.sql`（`medicine_dose_params` を追加）
-- `010_add_checkup_packages.sql`（`checkup_type_fields` / `checkup_field_results` を追加、歯科検診暫定シード投入）
-- `011_add_closing_am_start.sql`（`clinic_settings` に `closing_am_start` カラムを追加）
-- `012_add_clinical_result_composite_fk.sql`（`checkup_field_results` の `(checkup_type_field_id, clinic_id)` 複合FKの追加）
 
 以下は 2026-06-26 の統合時点で `001_init.sql` / `003_seed_demo.sql` へ畳み込まれた変更の論理的な記録です（参照用、当時の独立ファイルは存在しません）。
 
@@ -149,6 +148,23 @@ erDiagram
   - `exam_types` (id 12000-12003) および `exam_type_fields` (id 45-58) を clinic 1 向けに 003_seed_demo.sql 末尾へシード定義済み。
 - **手術処置フラグ追加 (Issue #159 → 001_init.sql に統合)**
   - `procedures.is_surgery` (BOOLEAN NOT NULL DEFAULT false) と部分インデックス `idx_procedures_clinic_is_surgery` を定義済み。
+
+以下は 2026-07-04 の再統合時点で `001_init.sql` / `003_seed_demo.sql` へ畳み込まれた変更の論理的な記録です（参照用、当時の独立ファイル 005〜012 は存在しません）。
+
+- **Dr.Wan / 外部検査連携インポート基盤の追加 (旧 005 → 001_init.sql に統合)**
+  - `lab_import_job_status` / `lab_import_source_type` ENUM、`lab_import_jobs` / `lab_import_events` テーブルを定義済み（Phase 0 scaffold）。統合前と同じく、両テーブルには明示的な RLS ポリシー適用（`apply_rls_policy`）が無い。
+- **検査取り込みバッチ用インデックス追加 (旧 006/007 → 001_init.sql に統合)**
+  - `idx_exam_results_exam_id`、`idx_exams_clinic_exam_type_date` を定義済み。
+- **exams.job_id FK 追加 (旧 008 → 001_init.sql に統合)**
+  - `exams.job_id` (uuid NULL, `ON DELETE SET NULL`) と `idx_exams_clinic_job` を定義済み。
+- **薬量自動計算基盤の追加 (Issue #201 / 旧 009 → 001_init.sql に統合)**
+  - `medicine_calculation_type` / `medicine_dose_basis` / `medicine_rounding_mode` / `medicine_dose_species` ENUM、`medicines` への計算パラメータカラム、`medicine_dose_params` テーブル、`treatments` への計算根拠スナップショットカラムを定義済み。
+- **検査・健診パッケージ化 歯科検診垂直スライス (Issue #211 / 旧 010 → 001_init.sql / 003_seed_demo.sql に統合)**
+  - `checkup_field_type` ENUM、`checkup_type_fields` / `checkup_field_results` テーブルを `001_init.sql` に、歯科検診の暫定 seed（DO ブロック）を `003_seed_demo.sql`（J-12b セクション）に定義済み。
+- **AM 開始時刻の追加 (Issue #215 / 旧 011 → 001_init.sql に統合)**
+  - `clinic_settings.closing_am_start` (time, デフォルト 09:00) を定義済み。
+- **臨床結果テーブルの複合 FK 追加 (BE-refactor R3-7/D13 / 旧 012 → 001_init.sql に統合)**
+  - `checkup_type_fields` に `UNIQUE(id, clinic_id)`、`checkup_field_results` の `checkup_type_field_id` を `(checkup_type_field_id, clinic_id)` 複合 FK（`ON DELETE SET NULL` 列指定）へ置換済み。
 
 ### 4.1 継続理由を明示する対象
 

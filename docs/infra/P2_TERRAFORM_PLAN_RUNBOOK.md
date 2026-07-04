@@ -1,5 +1,9 @@
 # P2 Terraform Full Plan Runbook（STG）
 
+> **目的**: P2 Terraform変更の承認・実行手順を定義する。
+> **読者**: 承認者・実行者。
+> **タイミング**: P2 full plan 承認プロセス実行時。
+
 STG の **P2（internal ALB + CloudFront VPC Origin）** を承認するための full plan 手順。
 秘密値を露出させずに前提条件を検証し、承認判断を `terraform plan -out=tfplan` の結果のみで行うためのランブック。
 
