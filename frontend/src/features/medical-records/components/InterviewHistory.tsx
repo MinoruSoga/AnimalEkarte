@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { C, LAYOUT, ICON } from "@/lib/design-tokens";
+import { EmptyState } from "@/components/shared/DataStates";
 import { normalizedIncludes } from "@/lib/normalize-kana";
 import type { InterviewHistoryItem } from "../types";
 
@@ -126,9 +127,7 @@ export const InterviewHistory = memo(function InterviewHistory({
             );
           })}
           {filteredItems.length === 0 ? (
-            <div className={`p-4 text-center text-sm ${C.text60}`}>
-              該当するカルテはありません
-            </div>
+            <EmptyState message="該当するカルテはありません" />
           ) : null}
         </div>
       </ScrollArea>

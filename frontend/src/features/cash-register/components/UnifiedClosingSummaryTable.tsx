@@ -1,4 +1,5 @@
 import { memo, useMemo } from "react";
+import { EmptyState } from "@/components/shared/DataStates";
 import { C, STYLE } from "@/lib/design-tokens";
 import type { PaymentMethodMaster } from "@/types/generated/models";
 import type { CloseBillingDetail } from "../api/get-cash-register-preview";
@@ -27,9 +28,7 @@ export const UnifiedClosingSummaryTable = memo(function UnifiedClosingSummaryTab
   const totals = useMemo(() => buildUnifiedClosingTotals(rows), [rows]);
 
   if (rows.length === 0) {
-    return (
-      <p className={`text-base ${C.text50} py-4 text-center`}>対象期間の会計データがありません</p>
-    );
+    return <EmptyState message="対象期間の会計データがありません" />;
   }
 
   return (

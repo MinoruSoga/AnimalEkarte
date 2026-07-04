@@ -2,43 +2,45 @@
 
 :root {
   --font-size: 16px;
-  --background: #ffffff;
-  --foreground: #37352F;
+  --background: #f6f5f4;
+  --foreground: #000000;
   --card: #ffffff;
-  --card-foreground: #37352F;
+  --card-foreground: #000000;
   --popover: #ffffff;
-  --popover-foreground: #37352F;
-  --primary: #37352F;
+  --popover-foreground: #000000;
+  --primary: #0075de;
   --primary-foreground: #ffffff;
   --secondary: #F1F0EE;
-  --secondary-foreground: #37352F;
+  --secondary-foreground: #000000;
   --muted: #F1F0EE;
-  --muted-foreground: #787774;
-  --accent: #EBEAE8;
-  --accent-foreground: #37352F;
+  --muted-foreground: #615d59;
+  --accent: #f6f5f4;
+  --accent-foreground: #000000;
   --destructive: #C0392B;
   --destructive-foreground: #ffffff;
-  --border: rgba(55, 53, 47, 0.09);
-  --input: rgba(55, 53, 47, 0.16);
+  --border: rgba(0, 0, 0, 0.09);
+  --input: rgba(0, 0, 0, 0.16);
   --input-background: rgba(242, 241, 238, 0.6);
   --switch-background: #E3E2E0;
   --font-weight-medium: 500;
   --font-weight-normal: 400;
-  --ring: rgba(55, 53, 47, 0.16);
+  --ring: rgba(0, 117, 222, 0.32);
   --chart-1: oklch(0.646 0.222 41.116);
   --chart-2: oklch(0.6 0.118 184.704);
   --chart-3: oklch(0.398 0.07 227.392);
   --chart-4: oklch(0.828 0.189 84.429);
   --chart-5: oklch(0.769 0.188 70.08);
-  --radius: 0.5rem;
+  /* DESIGN.md rounded.lg (12px) — kept as the shadcn calc anchor; sm/md/lg/xl are pinned
+     directly below to DESIGN.md's named scale rather than derived offsets. */
+  --radius: 0.75rem;
   --sidebar: #ffffff;
-  --sidebar-foreground: #37352F;
-  --sidebar-primary: #37352F;
+  --sidebar-foreground: #000000;
+  --sidebar-primary: #0075de;
   --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #EBEAE8;
-  --sidebar-accent-foreground: #37352F;
-  --sidebar-border: rgba(55, 53, 47, 0.09);
-  --sidebar-ring: rgba(55, 53, 47, 0.16);
+  --sidebar-accent: #f6f5f4;
+  --sidebar-accent-foreground: #000000;
+  --sidebar-border: rgba(0, 0, 0, 0.09);
+  --sidebar-ring: rgba(0, 117, 222, 0.32);
 }
 
 .dark {
@@ -79,17 +81,15 @@
 }
 
 @theme inline {
-  --font-sans: 'Noto Sans JP', sans-serif;
+  --font-sans: 'Inter', 'Noto Sans JP', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   /* Notion text scale: matches Figma's custom text sizes (xs=13px, sm=15px at 16px base) */
   --text-xs: 0.8125rem;  /* 13px */
   --text-sm: 0.9375rem;  /* 15px */
-  /* Notion-inspired letter-spacing (matches Figma design) */
-  --tracking-notion: -0.0156em;   /* -0.2344px at 15px — for body/heading text */
-  --tracking-notion-sm: -0.0059em; /* -0.0762px at 13px — for badge text */
-  --tracking-notion-xs: 0.0059em;  /* +0.065px at 11px — for small action buttons */
-  /* Notion-style shadow — used by STYLE.dropdownShadow / STYLE.btnOutline */
-  --notion-shadow: rgba(15,15,15,0.05) 0px 0px 0px 1px, rgba(15,15,15,0.10) 0px 3px 6px, rgba(15,15,15,0.20) 0px 9px 24px;
-  --notion-shadow-btn: rgba(15,15,15,0.10) 0px 1px 2px;
+  --tracking-notion: 0;
+  --tracking-notion-sm: 0;
+  --tracking-notion-xs: 0;
+  --notion-shadow: rgba(15,15,15,0.04) 0px 0px 0px 1px, rgba(15,15,15,0.04) 0px 4px 18px;
+  --notion-shadow-btn: rgba(15,15,15,0.04) 0px 1px 2px;
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -116,10 +116,13 @@
   --color-chart-3: var(--chart-3);
   --color-chart-4: var(--chart-4);
   --color-chart-5: var(--chart-5);
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
+  /* Pinned directly to DESIGN.md's rounded scale (xs/sm/md/lg/xl = 4/5/8/12/16px)
+     instead of the shadcn default relative-offset chain, so rounded-sm doesn't
+     balloon in lockstep with rounded-lg/xl. */
+  --radius-sm: 5px;
+  --radius-md: 8px;
   --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 4px);
+  --radius-xl: 16px;
   --color-sidebar: var(--sidebar);
   --color-sidebar-foreground: var(--sidebar-foreground);
   --color-sidebar-primary: var(--sidebar-primary);
@@ -136,12 +139,12 @@
   }
 
   html {
-    font-family: 'Noto Sans JP', sans-serif;
+    font-family: 'Inter', 'Noto Sans JP', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   }
 
   body {
     @apply bg-background text-foreground;
-    font-family: 'Noto Sans JP', sans-serif;
+    font-family: 'Inter', 'Noto Sans JP', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   }
 
   html, body {
@@ -219,7 +222,7 @@ html {
 
 /* Override Tailwind preflight font-family */
 html, body {
-  font-family: 'Noto Sans JP', sans-serif !important;
+  font-family: 'Inter', 'Noto Sans JP', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif !important;
 }
 
 @keyframes progress-indeterminate {

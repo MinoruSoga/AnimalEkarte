@@ -15,15 +15,15 @@
 /* ================================================================== */
 
 export const PALETTE = {
-  /** Notion primary (text, icons, fills) */
-  primary: "#37352F",
+  /** Ink (text, icons) */
+  primary: "#000000",
 
   /** Page / section background */
-  bgMain: "#F7F6F3",
+  bgMain: "#F6F5F4",
   /** Slightly lighter background (e.g. date-time card) */
-  bgSubtle: "#FAFAF8",
+  bgSubtle: "#FFFFFF",
   /** Active / selected row background in sidebar */
-  bgActive: "#EAE9E5",
+  bgActive: "#F1F0EE",
 
   /** White */
   white: "#ffffff",
@@ -38,40 +38,40 @@ export const PALETTE = {
   pickerDefaultBlue: "#3B82F6",
 
   /* ── Brand (hospital main color) ── */
-  /** Brand primary — veterinary teal */
-  brand: "#038B94",
+  /** Brand primary — DESIGN.md structural blue */
+  brand: "#0075DE",
   /** Brand hover — slightly darker */
-  brandHover: "#027A82",
+  brandHover: "#005BAB",
   /** Brand light background */
-  brandLight: "#E6F4F5",
+  brandLight: "#E7F2FD",
   /** Brand dark text (on light bg) */
-  brandDark: "#025E65",
+  brandDark: "#004D91",
 
   /** Border – light (table cell, card) */
-  borderLight: "rgba(55,53,47,0.09)",
+  borderLight: "rgba(0,0,0,0.09)",
   /** Border – medium (input, divider) */
-  borderMedium: "rgba(55,53,47,0.16)",
+  borderMedium: "rgba(0,0,0,0.16)",
 
   /** Hover overlay – light */
-  hoverLight: "rgba(55,53,47,0.04)",
+  hoverLight: "rgba(0,0,0,0.04)",
   /** Hover overlay – medium */
-  hoverMedium: "rgba(55,53,47,0.08)",
+  hoverMedium: "rgba(0,0,0,0.08)",
   /** Hover overlay – used for scrollbar thumb hover */
-  hoverStrong: "rgba(55,53,47,0.35)",
+  hoverStrong: "rgba(0,0,0,0.35)",
 
   /** Skeleton / light background fill (6% primary) */
-  bgSkeleton: "rgba(55,53,47,0.06)",
+  bgSkeleton: "rgba(0,0,0,0.06)",
   /** Semi-transparent white (80%) — toggle dot on active chart buttons */
   whiteAlpha80: "rgba(255,255,255,0.8)",
 
-  /** Notion blue accent */
-  accent: "#2383E2",
+  /** DESIGN.md primary blue accent */
+  accent: "#0075DE",
   /** Accent hover */
-  accentHover: "#1B6EC2",
+  accentHover: "#005BAB",
   /** Accent light background (status pill) */
-  accentLight: "#D3E5EF",
+  accentLight: "#E7F2FD",
   /** Accent dark text */
-  accentDark: "#183B56",
+  accentDark: "#004D91",
 
   /** Destructive / danger — BUG-084: #C0392B (contrast 7.1:1 on white, WCAG AA) */
   danger: "#C0392B",
@@ -191,14 +191,14 @@ export const PALETTE = {
   borderUnselected: "#e5e7eb",
 
   /* ── Medical accent blue (karte / hospitalization) ── */
-  /** Medical accent blue — used for focus rings, active states, board borders */
-  medicalBlue: "#2EAADC",
+  /** Medical accent blue — use the single structural accent for focus/active states */
+  medicalBlue: "#0075DE",
 
   /* ── Chart colors (Recharts / VitalsGraph) ── */
   /** Chart: temperature line */
   chartTemperature: "#E07B54",
   /** Chart: heart rate line */
-  chartHeartRate: "#37352F",
+  chartHeartRate: "#000000",
   /** Chart: respiratory rate line */
   chartRespiratory: "#9C6EDE",
   /** Chart: body weight line */
@@ -214,7 +214,7 @@ export const PALETTE = {
   /** Input/select/textarea hover bg (warm neutral) */
   hoverBgInput:      "hover:bg-[rgba(242,241,238,0.5)]",
   /** Input/select/textarea focus border (primary 24%) */
-  focusBorderInput:  "focus:border-[rgba(55,53,47,0.24)]",
+  focusBorderInput:  "focus:border-[rgba(0,0,0,0.24)]",
 } as const;
 
 /* ================================================================== */
@@ -225,73 +225,73 @@ export const PALETTE = {
 
 export const C = {
   /* ── Text ── */
-  text:          "text-[#37352F]",
-  text90:        "text-[#37352F]/90",
-  text80:        "text-[#37352F]/80",
-  text70:        "text-[#37352F]/70",
-  text65:        "text-[#37352F]/65",
-  text60:        "text-[#37352F]/60",
-  text55:        "text-[#37352F]/55",
-  text50:        "text-[#37352F]/50",
-  text45:        "text-[#37352F]/45",
-  text40:        "text-[#37352F]/40",
-  text35:        "text-[#37352F]/35",
-  text30:        "text-[#37352F]/30",
-  text25:        "text-[#37352F]/25",
-  text20:        "text-[#37352F]/20",
-  text15:        "text-[#37352F]/15",
-  textPlaceholder: "placeholder:text-[rgba(55,53,47,0.3)]",
-  textPlaceholderFaint: "placeholder:text-[rgba(55,53,47,0.15)]",
+  text:          "text-[#000000]",
+  text90:        "text-[#000000]/90",
+  text80:        "text-[#000000]/80",
+  text70:        "text-[#000000]/70",
+  text65:        "text-[#000000]/65",
+  text60:        "text-[#000000]/60",
+  text55:        "text-[#000000]/55",
+  text50:        "text-[#000000]/50",
+  text45:        "text-[#000000]/45",
+  text40:        "text-[#000000]/40",
+  text35:        "text-[#000000]/35",
+  text30:        "text-[#000000]/30",
+  text25:        "text-[#000000]/25",
+  text20:        "text-[#000000]/20",
+  text15:        "text-[#000000]/15",
+  textPlaceholder: "placeholder:text-[rgba(0,0,0,0.30)]",
+  textPlaceholderFaint: "placeholder:text-[rgba(0,0,0,0.15)]",
 
   /* ── Background ── */
-  bgPage:        "bg-[#F7F6F3]",
-  bgPage60:      "bg-[#F7F6F3]/60",
-  bgPageHalf:    "bg-[#F7F6F3]/50",
-  bgPage30:      "bg-[#F7F6F3]/30",
+  bgPage:        "bg-[#F6F5F4]",
+  bgPage60:      "bg-[#F6F5F4]/60",
+  bgPageHalf:    "bg-[#F6F5F4]/50",
+  bgPage30:      "bg-[#F6F5F4]/30",
   bgInputLogin:  "bg-[rgba(242,241,238,0.6)]",
   bgWhite:       "bg-white",
-  bgSubtle:      "bg-[#FAFAF8]",
-  bgActive:      "bg-[#EAE9E5]",
-  bgHover:       "bg-[rgba(55,53,47,0.04)]",
-  bgHoverMd:     "bg-[rgba(55,53,47,0.08)]",
-  bgPrimary:     "bg-[#37352F]",
-  bgPrimary10:   "bg-[#37352F]/10",
-  bgPrimary8:    "bg-[#37352F]/8",
-  bgPrimary5:    "bg-[#37352F]/5",
+  bgSubtle:      "bg-white",
+  bgActive:      "bg-[#F1F0EE]",
+  bgHover:       "bg-[rgba(0,0,0,0.04)]",
+  bgHoverMd:     "bg-[rgba(0,0,0,0.08)]",
+  bgPrimary:     "bg-[#000000]",
+  bgPrimary10:   "bg-[#000000]/10",
+  bgPrimary8:    "bg-[#000000]/8",
+  bgPrimary5:    "bg-[#000000]/5",
   /** Faint tinted background — skeleton shimmer base */
-  bgSkeleton:    "bg-[rgba(55,53,47,0.06)]",
+  bgSkeleton:    "bg-[rgba(0,0,0,0.06)]",
   /** Lightest bg — matching borderLight opacity; use for hr-style dividers */
-  bgLight:       "bg-[rgba(55,53,47,0.09)]",
+  bgLight:       "bg-[rgba(0,0,0,0.09)]",
 
   /* ── Brand (Hospital teal) ── */
-  textBrand:     "text-[#038B94]",
-  bgBrand:       "bg-[#038B94]",
-  bgBrand10:     "bg-[#038B94]/10",
-  bgBrand8:      "bg-[#038B94]/8",
-  bgBrandDot:    "bg-[#038B94]",
-  hoverBgBrand:  "hover:bg-[#027A82]",
-  focusRingBrand:"focus:ring-[#038B94]",
+  textBrand:     "text-[#0075DE]",
+  bgBrand:       "bg-[#0075DE]",
+  bgBrand10:     "bg-[#0075DE]/10",
+  bgBrand8:      "bg-[#0075DE]/8",
+  bgBrandDot:    "bg-[#0075DE]",
+  hoverBgBrand:  "hover:bg-[#005BAB]",
+  focusRingBrand:"focus:ring-[#0075DE]",
   /** Focus ring (40% opacity) — use for form inputs matching the manual sidebar search field */
-  focusRingBrand40: "focus:ring-[#038B94]/40",
-  borderBrand:   "border-[#038B94]",
-  borderLBrand:  "border-l-[#038B94]",
+  focusRingBrand40: "focus:ring-[#0075DE]/40",
+  borderBrand:   "border-[#0075DE]",
+  borderLBrand:  "border-l-[#0075DE]",
   /** Tailwind accent-color utility (checkbox/radio) — brand teal */
-  accentBrand:   "accent-[#038B94]",
+  accentBrand:   "accent-[#0075DE]",
 
   /* ── Border ── */
-  borderLight:   "border-[rgba(55,53,47,0.09)]",
-  borderLight50: "border-[rgba(55,53,47,0.09)]/50",
-  borderMediumLight: "border-[rgba(55,53,47,0.12)]",
-  borderMedium:  "border-[rgba(55,53,47,0.16)]",
-  borderDivider: "border-[rgba(55,53,47,0.06)]",
-  borderPrimary: "border-[#37352F]",
-  borderPrimary20: "border-[#37352F]/20",
-  borderPrimary25: "border-[#37352F]/25",
-  borderPrimary10: "border-[#37352F]/10",
-  borderLPrimary: "border-l-[#37352F]",
-  borderBPrimary: "border-b-[#37352F]",
-  divideDivider: "divide-[rgba(55,53,47,0.09)]",
-  divideDividerFaint: "divide-[rgba(55,53,47,0.06)]",
+  borderLight:   "border-[rgba(0,0,0,0.09)]",
+  borderLight50: "border-[rgba(0,0,0,0.09)]/50",
+  borderMediumLight: "border-[rgba(0,0,0,0.12)]",
+  borderMedium:  "border-[rgba(0,0,0,0.16)]",
+  borderDivider: "border-[rgba(0,0,0,0.06)]",
+  borderPrimary: "border-[#000000]",
+  borderPrimary20: "border-[#000000]/20",
+  borderPrimary25: "border-[#000000]/25",
+  borderPrimary10: "border-[#000000]/10",
+  borderLPrimary: "border-l-[#000000]",
+  borderBPrimary: "border-b-[#000000]",
+  divideDivider: "divide-[rgba(0,0,0,0.09)]",
+  divideDividerFaint: "divide-[rgba(0,0,0,0.06)]",
 
   /* ── Accent ── */
   accent:        "text-[#2383E2]",
@@ -461,39 +461,39 @@ export const C = {
   textRed700:     "text-red-700",
 
   /* ── Hover utilities ── */
-  hoverBgPage:   "hover:bg-[#F7F6F3]",
-  hoverBgPageHalf: "hover:bg-[#F7F6F3]/50",
-  hoverBgPage60: "hover:bg-[#F7F6F3]/60",
-  hoverBgLight:  "hover:bg-[rgba(55,53,47,0.04)]",
-  hoverBgMedium: "hover:bg-[rgba(55,53,47,0.08)]",
-  hoverBgPrimary4:  "hover:bg-[#37352F]/4",
-  hoverBgPrimary10: "hover:bg-[#37352F]/10",
-  hoverBgPrimaryDark: "hover:bg-[#37352F]/90",
-  hoverText:     "hover:text-[#37352F]",
-  hoverText60:   "hover:text-[#37352F]/60",
-  hoverBorderPrimary30: "hover:border-[#37352F]/30",
-  hoverBorderPrimary40: "hover:border-[#37352F]/40",
-  hoverBorderMedium: "hover:border-[rgba(55,53,47,0.24)]",
-  hoverBorderMedium40: "hover:border-[rgba(55,53,47,0.40)]",
-  hoverBgSubtle: "hover:bg-[#FAFAF8]",
+  hoverBgPage:   "hover:bg-[#F6F5F4]",
+  hoverBgPageHalf: "hover:bg-[#F6F5F4]/50",
+  hoverBgPage60: "hover:bg-[#F6F5F4]/60",
+  hoverBgLight:  "hover:bg-[rgba(0,0,0,0.04)]",
+  hoverBgMedium: "hover:bg-[rgba(0,0,0,0.08)]",
+  hoverBgPrimary4:  "hover:bg-[#000000]/4",
+  hoverBgPrimary10: "hover:bg-[#000000]/10",
+  hoverBgPrimaryDark: "hover:bg-[#000000]/90",
+  hoverText:     "hover:text-[#000000]",
+  hoverText60:   "hover:text-[#000000]/60",
+  hoverBorderPrimary30: "hover:border-[#000000]/30",
+  hoverBorderPrimary40: "hover:border-[#000000]/40",
+  hoverBorderMedium: "hover:border-[rgba(0,0,0,0.24)]",
+  hoverBorderMedium40: "hover:border-[rgba(0,0,0,0.40)]",
+  hoverBgSubtle: "hover:bg-[#F6F5F4]",
 
   /** Search input hover bg (slightly darker page) */
-  hoverBgPageDark: "hover:bg-[#EFEEEB]",
+  hoverBgPageDark: "hover:bg-[#F1F0EE]",
   /** Group-hover bg primary (settings row icon) */
-  groupHoverBgPrimary: "group-hover:bg-[#37352F]",
+  groupHoverBgPrimary: "group-hover:bg-[#000000]",
   groupHoverTextWhite: "group-hover:text-white",
   textWhite: "text-white",
 
   /* ── Focus utilities ── */
-  focusBgPage:   "focus:bg-[#F7F6F3]",
-  focusBgLight:  "focus:bg-[rgba(55,53,47,0.04)]",
-  focusBorderLight: "focus:border-[rgba(55,53,47,0.09)]",
-  focusRingMedium: "focus-visible:ring-[rgba(55,53,47,0.16)]",
+  focusBgPage:   "focus:bg-[#F6F5F4]",
+  focusBgLight:  "focus:bg-[rgba(0,0,0,0.04)]",
+  focusBorderLight: "focus:border-[rgba(0,0,0,0.09)]",
+  focusRingMedium: "focus-visible:ring-[rgba(0,0,0,0.16)]",
 
   /* ─ Ring ── */
-  ringPrimary50: "ring-[#37352F]/50",
-  ringPrimary40: "ring-[#37352F]/40",
-  ringPrimary20: "ring-[#37352F]/20",
+  ringPrimary50: "ring-[#000000]/50",
+  ringPrimary40: "ring-[#000000]/40",
+  ringPrimary20: "ring-[#000000]/20",
 
   /* ── Notion Accent-light (badge / pill) — for status-helpers ── */
   /** Additional Accent tokens for badge combos */
@@ -603,8 +603,8 @@ export const C = {
   textCheckupDueSoon: "text-[#7A5C00]",
 
   /* ── Data-state active (Radix Tabs) ── */
-  dataActiveBorderB: "data-[state=active]:border-b-[#37352F]",
-  dataActiveText:    "data-[state=active]:text-[#37352F]",
+  dataActiveBorderB: "data-[state=active]:border-b-[#000000]",
+  dataActiveText:    "data-[state=active]:text-[#000000]",
 } as const;
 
 /* ================================================================== */

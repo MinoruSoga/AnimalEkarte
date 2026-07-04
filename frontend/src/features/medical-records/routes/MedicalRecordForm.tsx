@@ -10,7 +10,7 @@ import { paths } from "@/config/paths";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 import { C, ICON, LAYOUT } from "@/lib/design-tokens";
-import { LoadingFallback } from "@/components/shared/DataStates";
+import { LoadingFallback, ErrorFallback } from "@/components/shared/DataStates";
 import { UnifiedTabsRoot } from "@/components/shared/UnifiedTabs";
 
 // Relative
@@ -238,7 +238,7 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
   if (notFound) {
     return (
       <PageLayout title="カルテ" onBack={handleBack} icon={<HeartPulse className={`${ICON.page} ${C.text}`} />}>
-        <div className={`px-6 py-12 text-center text-base ${C.text50}`}>カルテが見つかりません</div>
+        <ErrorFallback message="カルテが見つかりません" />
       </PageLayout>
     );
   }

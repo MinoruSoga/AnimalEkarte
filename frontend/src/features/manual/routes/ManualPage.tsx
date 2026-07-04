@@ -14,6 +14,7 @@ import { Navigate, useParams } from "react-router";
 import { Menu, X, Printer, Edit2 } from "lucide-react";
 
 import { C } from "@/lib/design-tokens";
+import { EmptyState } from "@/components/shared/DataStates";
 
 import "../manual-print.css";
 
@@ -194,7 +195,7 @@ export function ManualPage() {
         )
       ) : (
         <div className="flex-1 flex items-center justify-center p-8">
-          <p className={C.text50}>マニュアル項目が見つかりません</p>
+          <EmptyState message="マニュアル項目が見つかりません" />
         </div>
       )}
     </div>

@@ -1,4 +1,5 @@
 import { memo } from "react";
+import { EmptyState } from "@/components/shared/DataStates";
 import { C, STYLE } from "@/lib/design-tokens";
 import type { DailyReportDetail } from "../api/get-monthly-report";
 
@@ -16,7 +17,7 @@ export const DailyBreakdownTable = memo(function DailyBreakdownTable({
   onDrillDown,
 }: DailyBreakdownTableProps) {
   if (details.length === 0) {
-    return <p className={`text-base ${C.text50} py-4 text-center`}>日次データがありません</p>;
+    return <EmptyState message="日次データがありません" />;
   }
 
   return (

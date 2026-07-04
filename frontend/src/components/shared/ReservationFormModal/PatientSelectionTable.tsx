@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { EmptyState } from "@/components/shared/DataStates";
 import { useSearchPets } from "@/hooks/use-pet";
 import { normalizedIncludes } from "@/lib/normalize-kana";
 
@@ -159,9 +160,8 @@ export const PatientSelectionTable = memo(function PatientSelectionTable({ onSel
               <div className={`text-sm ${C.text40}`}>検索中...</div>
             </div>
           ) : filteredPets.length === 0 ? (
-            <div className="flex flex-col items-center justify-center flex-1 text-center gap-3">
-              <SearchX className={`${ICON.xl} ${C.text20}`} />
-              <div className={`text-sm ${C.text40}`}>該当する患者が見つかりませんでした</div>
+            <div className="flex-1 flex items-center justify-center">
+              <EmptyState icon={<SearchX className={ICON.xl} />} message="該当する患者が見つかりませんでした" />
             </div>
           ) : (
             <Table>

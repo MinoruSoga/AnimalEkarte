@@ -8,6 +8,7 @@ import { Loader2, PlusCircle } from "lucide-react";
 // Internal
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import { EmptyState } from "@/components/shared/DataStates";
 import { handleApiError } from "@/lib/handle-api-error";
 import { todayJSTISO } from "@/lib/jst-date";
 
@@ -147,8 +148,7 @@ export const DailyRecordsTab = memo(function DailyRecordsTab({
                     <span className="text-sm">読み込み中...</span>
                 </div>
             ) : isError ? (
-                <div className="flex flex-col items-center justify-center py-10 gap-3">
-                    <p className={`text-sm ${C.text50}`}>この日の記録はまだありません</p>
+                <EmptyState message="この日の記録はまだありません">
                     {canCreate ? (
                         <Button
                             variant="outline"
@@ -165,7 +165,7 @@ export const DailyRecordsTab = memo(function DailyRecordsTab({
                             この日の記録を作成
                         </Button>
                     ) : null}
-                </div>
+                </EmptyState>
             ) : (
                 <div className="space-y-4">
                     <DailyVitalsSection

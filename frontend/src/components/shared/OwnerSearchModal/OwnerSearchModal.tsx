@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
+import { EmptyState } from "@/components/shared/DataStates";
 import { handleApiError } from "@/lib/handle-api-error";
 import { axios } from "@/lib/axios";
 
@@ -189,8 +190,8 @@ export const OwnerSearchModal = memo(function OwnerSearchModal({
                 </tbody>
               </table>
             ) : hasSearched ? (
-              <div className={`flex items-center justify-center h-full text-sm ${C.text40}`}>
-                該当する飼主が見つかりません
+              <div className="flex items-center justify-center h-full">
+                <EmptyState message="該当する飼主が見つかりません" />
               </div>
             ) : (
               <div className={`flex items-center justify-center h-full text-sm ${C.text30}`}>

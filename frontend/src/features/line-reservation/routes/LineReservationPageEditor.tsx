@@ -2,6 +2,7 @@ import { useActionState, useState, useCallback } from "react";
 import { toast } from "sonner";
 import { handleApiError } from "@/lib/handle-api-error";
 import { C } from "@/lib/design-tokens";
+import { EmptyState } from "@/components/shared/DataStates";
 import { useAuth } from "@/hooks/use-auth";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { SubmitButton } from "@/components/shared/Form/SubmitButton";
@@ -142,9 +143,7 @@ export function LineReservationPageEditor() {
       ) : setting ? (
         <PageEditorForm setting={setting} clinicId={currentClinicId!} />
       ) : (
-        <div className={`text-sm ${C.textMuted} py-8 text-center`}>
-          設定データが見つかりません。
-        </div>
+        <EmptyState message="設定データが見つかりません。" />
       )}
     </PageLayout>
   );

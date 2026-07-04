@@ -15,7 +15,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { LoadingFallback, ErrorFallback } from "@/components/shared/DataStates";
+import { LoadingFallback, ErrorFallback, EmptyState } from "@/components/shared/DataStates";
 import { C, ICON } from "@/lib/design-tokens";
 import { todayJSTISO } from "@/lib/jst-date";
 import { formatCurrency } from "@/utils/format/number";
@@ -512,9 +512,7 @@ export function DailyAccountingTab({
 
         {!isLoading && !isError ? (
           rows.length === 0 ? (
-            <p className={`text-sm ${C.text50} py-8 text-center`} data-testid="daily-empty">
-              当日の会計データがありません
-            </p>
+            <EmptyState data-testid="daily-empty" message="当日の会計データがありません" />
           ) : (
             <div
               className={`overflow-x-auto rounded-lg border ${C.borderLight} ${C.bgWhite}`}

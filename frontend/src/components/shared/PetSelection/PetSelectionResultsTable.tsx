@@ -1,5 +1,5 @@
 import { memo } from "react";
-import { C, ICON } from "@/lib/design-tokens";
+import { C, ICON, STYLE } from "@/lib/design-tokens";
 import { Check, Octagon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -101,7 +101,7 @@ export const PetSelectionResultsTable = memo(function PetSelectionResultsTable({
             })}
             {pets.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={11} className={`h-24 text-center text-sm ${C.text60}`}>
+                <TableCell colSpan={11} className={STYLE.tableEmpty}>
                   該当するペットが見つかりません
                 </TableCell>
               </TableRow>

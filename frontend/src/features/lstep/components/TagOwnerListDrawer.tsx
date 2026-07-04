@@ -9,6 +9,7 @@ import {
 } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { C, STYLE, ICON } from "@/lib/design-tokens";
+import { EmptyState } from "@/components/shared/DataStates";
 import { handleApiError } from "@/lib/handle-api-error";
 import { isAutoManagedTag } from "@/constants/lstep-auto-tag-prefixes";
 import { useGetLstepTagOwners, fetchAllLstepTagOwners } from "../api/get-lstep-tag-owners";
@@ -129,9 +130,7 @@ export function TagOwnerListDrawer({
             {isLoading ? (
               <div className={`py-12 text-center ${C.text50} text-sm`}>読み込み中...</div>
             ) : owners.length === 0 ? (
-              <div className={`py-12 text-center ${C.text40} text-sm`}>
-                対象者が見つかりません
-              </div>
+              <EmptyState message="対象者が見つかりません" />
             ) : (
               <ul className="divide-y divide-[rgba(55,53,47,0.09)]">
                 {owners.map((owner) => (

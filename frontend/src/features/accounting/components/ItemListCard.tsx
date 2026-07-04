@@ -12,6 +12,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { DeleteIconButton } from "@/components/shared/DeleteIconButton/DeleteIconButton";
+import { EmptyState } from "@/components/shared/DataStates";
 import { FormFieldError } from "@/components/shared/FormFieldError/FormFieldError";
 import { TaxRateSelector } from "@/components/shared/TaxRateSelector/TaxRateSelector";
 import { TaxTypeSelector } from "@/components/shared/TaxTypeSelector/TaxTypeSelector";
@@ -390,8 +391,8 @@ export const ItemListCard = memo(function ItemListCard({
                         </tbody>
                       </table>
                     ) : (
-                      <div className={`flex items-center justify-center h-full text-sm ${C.text50} py-8`}>
-                        該当する品目がありません
+                      <div className="flex items-center justify-center h-full">
+                        <EmptyState message="該当する品目がありません" />
                       </div>
                     )}
                   </div>

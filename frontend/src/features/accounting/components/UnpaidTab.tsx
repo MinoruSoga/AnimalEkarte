@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Pagination } from "@/components/shared/Pagination/Pagination";
-import { LoadingFallback, ErrorFallback } from "@/components/shared/DataStates";
+import { LoadingFallback, ErrorFallback, EmptyState } from "@/components/shared/DataStates";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { C, STYLE } from "@/lib/design-tokens";
 import { paths } from "@/config/paths";
@@ -258,7 +258,7 @@ export function UnpaidTab() {
       {/* 会計単位テーブル */}
       {!isLoading && !isError && groupBy === "billing" ? (
         (billingQuery.data?.data ?? []).length === 0 ? (
-          <p className={`text-sm ${C.text50} py-8 text-center`}>未納会計はありません</p>
+          <EmptyState message="未納会計はありません" />
         ) : (
           <div className={`rounded-lg border ${C.borderLight} ${C.bgWhite} overflow-hidden`}>
             <Table>
@@ -301,7 +301,7 @@ export function UnpaidTab() {
       {/* 月次繰越テーブル */}
       {!isLoading && !isError && groupBy === "monthly" ? (
         monthlyRows.length === 0 ? (
-          <p className={`text-sm ${C.text50} py-8 text-center`}>対象月の未納データがありません</p>
+          <EmptyState message="対象月の未納データがありません" />
         ) : (
           <div className={`rounded-lg border ${C.borderLight} ${C.bgWhite} overflow-hidden`}>
             <Table>

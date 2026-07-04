@@ -12,7 +12,7 @@ import { PatientInfoCard } from "@/components/shared/PatientInfoCard";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { FormFieldError } from "@/components/shared/FormFieldError/FormFieldError";
 import { NavigationBlocker } from "@/components/shared/NavigationBlocker";
-import { LoadingFallback } from "@/components/shared/DataStates";
+import { LoadingFallback, ErrorFallback } from "@/components/shared/DataStates";
 import { useMasterItems } from "@/hooks/use-master-items";
 import { useGetTrimmingCourseTypes } from "@/features/master";
 import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
@@ -201,7 +201,7 @@ export function TrimmingForm() {
   if (notFound) {
     return (
       <PageLayout title="トリミング" onBack={handleBack} icon={<Scissors className={`${ICON.page} ${C.text}`} />}>
-        <div className={`px-6 py-12 text-center text-base ${C.text50}`}>トリミング記録が見つかりません</div>
+        <ErrorFallback message="トリミング記録が見つかりません" />
       </PageLayout>
     );
   }
