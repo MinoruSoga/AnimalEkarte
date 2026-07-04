@@ -41,7 +41,7 @@
 ### 使用コンポーネント
 - **`CashRegisterClosePage`**: レジ締めメイン画面。
 - **`CashReconciliationForm`**: 金種入力・計算モジュール。
-- **`DailyClosingReport`**: 帳票用テンプレートコンポーネント。
+- **`ClosePrintArea`**: 帳票用テンプレートコンポーネント（`cash-register/components/`）。
 
 ### API連携
 | メソッド | エンドポイント | 用途 | 必須権限 | 必須アクション |
