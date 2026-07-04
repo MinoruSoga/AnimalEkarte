@@ -22,7 +22,7 @@ const TABLE_COLUMNS = [
   { key: "category", label: "カテゴリ", className: "w-[90px] text-center" },
   { key: "price", label: "単価(税込)", className: "w-[120px] text-right pr-4" },
   { key: "taxRate", label: "税率", className: "w-[80px] text-center" },
-  { key: "status", label: "ステータス", className: "w-[90px] text-center" },
+  { key: "status", label: "ステータス", className: "w-[100px] text-center" },
   { key: "action", label: "操作", className: "w-[80px] text-right pr-2" },
 ];
 

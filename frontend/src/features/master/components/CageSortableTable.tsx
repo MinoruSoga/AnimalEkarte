@@ -23,7 +23,7 @@ const TABLE_COLUMNS = [
   { key: "type", label: "エリア", className: "w-[100px]" },
   { key: "size", label: "サイズ", className: "w-[90px]" },
   { key: "price", label: "単価(税込)", className: "w-[120px] text-right pr-4" },
-  { key: "status", label: "ステータス", className: "w-[90px] text-center" },
+  { key: "status", label: "ステータス", className: "w-[100px] text-center" },
   { key: "action", label: "操作", className: "w-[80px] text-right pr-2" },
 ];
 

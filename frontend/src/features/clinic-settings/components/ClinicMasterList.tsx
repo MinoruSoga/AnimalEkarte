@@ -6,6 +6,7 @@ import { DataTableRow } from "@/components/shared/DataTable/DataTableRow";
 import { NotionFilter } from "@/components/shared/NotionFilter/NotionFilter";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
+import { RowActionButton } from "@/components/shared/RowActionButton";
 import { C, ICON } from "@/lib/design-tokens";
 import { ResourceHospitalSettings } from "@/types/generated/models";
 import type { Clinic } from "../api/clinics";
@@ -14,7 +15,8 @@ const COLUMNS = [
   { header: "院名" },
   { header: "電話番号", className: "w-[150px]" },
   { header: "メール" },
-  { header: "ステータス", className: "w-[90px]", align: "right" as const },
+  { header: "ステータス", className: "w-[100px]", align: "right" as const },
+  { header: "操作", className: "w-[80px]", align: "right" as const },
 ];
 
 interface ClinicMasterListProps {
@@ -87,6 +89,9 @@ export function ClinicMasterList({
                     {item.isActive ? "有効" : "無効"}
                   </span>
                 </span>
+              </TableCell>
+              <TableCell className="p-0 text-right">
+                {canEdit ? <RowActionButton onClick={() => onEdit(item)} /> : null}
               </TableCell>
             </DataTableRow>
           )}

@@ -18,12 +18,12 @@ export const MASTER_STATUS_FILTER: FilterProperty = {
 
 /**
  * 全マスタ共通: テーブル列幅（DataTable columns の className に使用）。
- * 「ステータス」「操作」列は複数ファイルで同一幅(90px/80px)が重複していたため一元化。
+ * 「ステータス」「操作」列は複数ファイルで同一幅(100px/80px)が重複していたため一元化。
+ * ステータス列は90pxだと「ステータス」ラベルが折り返すため100pxを標準値とする。
  * DESIGN.mdのspacingスケールは32pxまでのため、列幅(コンテンツ駆動の100-200px域)はスケール対象外の構造値として扱う。
  */
 export const MASTER_TABLE_COL = {
   w80:  "w-[80px]",
-  w90:  "w-[90px]",
   w100: "w-[100px]",
   w120: "w-[120px]",
   w130: "w-[130px]",

@@ -25,7 +25,7 @@ const COLUMNS = [
   { header: "名称", className: "flex-1" },
   { header: "補償率", className: MASTER_TABLE_COL.w100, align: "center" as const },
   { header: "連絡先", className: MASTER_TABLE_COL.w140 },
-  { header: "ステータス", className: MASTER_TABLE_COL.w90, align: "center" as const },
+  { header: "ステータス", className: MASTER_TABLE_COL.w100, align: "center" as const },
   { header: "操作", className: MASTER_TABLE_COL.w80, align: "right" as const },
 ];
 

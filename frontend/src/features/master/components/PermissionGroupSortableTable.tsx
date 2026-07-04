@@ -14,7 +14,7 @@ import type { PermissionGroup } from "../api/permission-groups";
 const COLUMNS = [
   { header: "", className: "w-[32px]" },
   { header: "グループ名", className: "flex-1" },
-  { header: "ステータス", className: "w-[90px]", align: "center" as const },
+  { header: "ステータス", className: "w-[100px]", align: "center" as const },
   { header: "操作", className: "w-[80px]", align: "right" as const },
 ];
 

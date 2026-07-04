@@ -33,7 +33,7 @@ import {
 // ─── Constants ───
 const COLUMNS = [
   { header: "名称", className: "flex-1" },
-  { header: "ステータス", className: MASTER_TABLE_COL.w90, align: "center" as const },
+  { header: "ステータス", className: MASTER_TABLE_COL.w100, align: "center" as const },
   { header: "操作", className: MASTER_TABLE_COL.w80, align: "right" as const },
 ];
 

@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 
 import type { ActiveFilter } from "@/components/shared/NotionFilter/types";
 import { normalizeKana } from "@/lib/normalize-kana";
+import { MASTER_TABLE_COL } from "../constants/styles";
 
 interface DataTableColumn {
   header: ReactNode;
@@ -14,7 +15,8 @@ export const TRIMMING_COURSE_COLUMNS: DataTableColumn[] = [
   { header: "対象サイズ", className: "w-[120px]" },
   { header: "所要時間", className: "w-[100px]" },
   { header: "単価(税込)", className: "w-[110px]", align: "right" },
-  { header: "ステータス", className: "w-[90px]", align: "right" },
+  { header: "ステータス", className: MASTER_TABLE_COL.w100, align: "center" },
+  { header: "操作", className: MASTER_TABLE_COL.w80, align: "right" },
 ];
 
 export const TRIMMING_OPTION_COLUMNS: DataTableColumn[] = [
@@ -22,7 +24,8 @@ export const TRIMMING_OPTION_COLUMNS: DataTableColumn[] = [
   { header: "所要時間", className: "w-[100px]" },
   { header: "組合せ可否", className: "w-[110px]", align: "center" },
   { header: "単価(税込)", className: "w-[110px]", align: "right" },
-  { header: "ステータス", className: "w-[90px]", align: "right" },
+  { header: "ステータス", className: MASTER_TABLE_COL.w100, align: "center" },
+  { header: "操作", className: MASTER_TABLE_COL.w80, align: "right" },
 ];
 
 interface TrimmingFilterableItem {
