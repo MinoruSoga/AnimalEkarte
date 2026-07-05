@@ -5,6 +5,7 @@ import { toast } from "sonner";
 
 import { handleApiError } from "@/lib/handle-api-error";
 import { queryKeys } from "@/lib/query-keys";
+import { C } from "@/lib/design-tokens";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -121,7 +122,7 @@ export function CreditCorrectionDialog({ accounting, isPostClose = false }: Cred
           </DialogDescription>
         </DialogHeader>
         {isPostClose ? (
-          <p className="rounded-md border border-red-200 bg-red-50 p-2 text-sm font-semibold text-red-600">
+          <p className={`rounded-md border ${C.borderDanger20} ${C.bgDanger8} p-2 text-sm font-semibold ${C.danger}`}>
             ⚠ この会計はレジ締め確定済み期間です。訂正すると締め時点の帳票と差異が生じます。
           </p>
         ) : null}

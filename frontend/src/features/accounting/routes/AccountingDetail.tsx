@@ -8,6 +8,7 @@ import { LoadingFallback, ErrorFallback } from "@/components/shared/DataStates";
 import { useGetAccountingDetail } from "../api/get-accounting";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 import { paths } from "@/config/paths";
+import { C } from "@/lib/design-tokens";
 import {
   AccountingDetailColumns,
   AccountingDocumentPreviewDialog,
@@ -212,7 +213,7 @@ export const AccountingDetail = memo(function AccountingDetail({ invoiceRegistra
           {/* #115: 締め後編集理由入力（レジ締め済み期間かつ編集権限あり） */}
           {isScheduledDateClosed && canSubmit && canPostCloseEdit ? (
             <div className="px-4 pb-4">
-              <label htmlFor="postCloseReason" className="block text-sm font-semibold text-red-600 mb-1">
+              <label htmlFor="postCloseReason" className={`block text-sm font-semibold ${C.danger} mb-1`}>
                 ⚠ レジ締め済み期間の編集 — 修正理由（必須）
               </label>
               <textarea

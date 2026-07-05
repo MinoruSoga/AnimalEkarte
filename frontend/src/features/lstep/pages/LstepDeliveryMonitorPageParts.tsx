@@ -123,11 +123,12 @@ export function DeliveryFailedWarning({ summary }: DeliverySummaryCardsProps) {
 
   return (
     <div
-      className="flex items-center gap-2 bg-red-50 border border-red-200 rounded-[4px] px-4 py-3"
+      role="alert"
+      className={`flex items-center gap-2 ${C.bgDanger8} border ${C.borderDanger20} rounded-[4px] px-4 py-3`}
       data-testid="failed-warning-banner"
     >
-      <AlertTriangle className={`${ICON.sm} text-red-600 shrink-0`} />
-      <p className="text-sm text-red-700">
+      <AlertTriangle className={`${ICON.sm} ${C.danger} shrink-0`} />
+      <p className={`text-sm ${C.danger}`}>
         <strong>{summary.failed.toLocaleString("ja-JP")}件</strong>
         の配信が失敗しています。ログを確認してください。
       </p>
