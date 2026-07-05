@@ -3,14 +3,14 @@ import { C } from "@/lib/design-tokens";
 
 interface PrimaryButtonProps extends ButtonProps {
   /**
-   * "brand" — DESIGN.md `button-primary`（brand blue `#0075DE` + pill `{rounded.full}`）。
-   * 既定の "default"（旧 accent ブルー + 4px 角丸）はアプリ全体で共有されるため変更しない。
+   * "brand"（既定） — DESIGN.md `button-primary`（brand blue `#0075DE` + pill `{rounded.full}`）。
+   * "default" — 旧 accent ブルー + 角丸（`C.bgAccent`）。DESIGN.md 未準拠のため新規実装では使用しないこと。
    * SubmitButton と対称のプロパティ名・実装（単一 className 文字列を選択し連結しない）。
    */
   colorVariant?: "default" | "brand";
 }
 
-export function PrimaryButton({ className, colorVariant = "default", ...props }: PrimaryButtonProps) {
+export function PrimaryButton({ className, colorVariant = "brand", ...props }: PrimaryButtonProps) {
   const baseClassName =
     colorVariant === "brand"
       ? `${C.bgBrand} ${C.hoverBgBrand} ${C.textWhite} h-11 text-sm shadow-none rounded-full border-transparent`

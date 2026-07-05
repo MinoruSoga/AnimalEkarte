@@ -5,8 +5,9 @@ import { C, STYLE } from "@/lib/design-tokens";
 interface SubmitButtonProps extends Omit<ButtonProps, "variant"> {
   loadingText?: string;
   /**
-   * "brand" — DESIGN.md `button-primary`（brand blue `#0075DE` + pill `{rounded.full}`）。
-   * 既定の "default"（STYLE.confirmPrimary、旧 accent ブルー + 4px 角丸）はアプリ全体で共有されるため変更しない。
+   * "brand"（既定） — DESIGN.md `button-primary`（brand blue `#0075DE` + pill `{rounded.full}`）。
+   * "default" — 旧 accent ブルー + 4px 角丸（`STYLE.confirmPrimary`）。DESIGN.md 未準拠のため
+   * 新規実装では使用しないこと。既存の視覚差分を一時的に避ける必要がある場合のみの opt-out。
    * 単一の className 文字列を選択（連結しない）ことで Tailwind の同一 specificity クラス競合を避ける。
    * shadcn Button 自身の `variant`（outline/ghost 等）と名前が衝突するため `colorVariant` という名前にしている。
    */
@@ -22,7 +23,7 @@ export function SubmitButton({
   loadingText = "保存中...",
   className,
   disabled,
-  colorVariant = "default",
+  colorVariant = "brand",
   ...props
 }: SubmitButtonProps) {
   const { pending } = useFormStatus();

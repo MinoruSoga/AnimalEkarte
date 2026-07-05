@@ -484,6 +484,12 @@ jobs:
         working-directory: frontend
         run: pnpm run build
 
+      - name: Design primary CTA guard (accent reintroduction)
+        run: node scripts/check-design-primary-cta.mjs
+
+      - name: Self-test design primary CTA guard
+        run: bash scripts/check-design-primary-cta.test.sh
+
       # 非ゲートのカバレッジ可視化: vite.config.ts には coverage.thresholds 未設定のため、
       # --coverage はレポート生成のみで低カバレッジによる fail は起きない。テストの合否は従来どおり。
       - name: Test (with coverage)

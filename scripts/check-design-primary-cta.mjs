@@ -14,6 +14,9 @@
  * 禁止トークン（className 等に明示的に旧 accent CTA を指定）:
  *   C.bgAccent, STYLE.confirmPrimary, btnAccent, sidePeekSaveBtn
  *
+ * SubmitButton / PrimaryButton は既定で DESIGN.md button-primary（brand blue + pill）を
+ * 適用するため、`colorVariant="default"` は旧 accent CTA への opt-out（再混入）とみなして検出する。
+ *
  * 許容（検出しない）:
  *   design-tokens.ts（STYLE 定義本体）
  *   *.test.tsx / *.test.ts（fixture）
@@ -34,6 +37,13 @@ const FORBIDDEN = [
   { id: "btnAccent", re: /\b(btnAccent|STYLE\.btnAccent)\b/ },
   { id: "sidePeekSaveBtn", re: /\bsidePeekSaveBtn\b/ },
 ];
+
+// SubmitButton/PrimaryButton は既定で brand（button-primary）を適用するため、
+// colorVariant="default" は旧 accent CTA への明示的な opt-out（再混入）として扱う。
+const FORBIDDEN_COLOR_VARIANT_DEFAULT = {
+  id: 'colorVariant="default"',
+  re: /colorVariant\s*=\s*["']default["']/,
+};
 
 const SCAN_REL_DIRS = [
   "frontend/src/features",
@@ -101,6 +111,14 @@ function findViolations(content, filePath) {
       if (rule.re.test(inspect)) {
         hits.push({ file: filePath, rule: rule.id, snippet: block.slice(0, 120).replace(/\s+/g, " ") });
       }
+    }
+    const isSubmitOrPrimaryButton = block.startsWith("<SubmitButton") || block.startsWith("<PrimaryButton");
+    if (isSubmitOrPrimaryButton && FORBIDDEN_COLOR_VARIANT_DEFAULT.re.test(inspect)) {
+      hits.push({
+        file: filePath,
+        rule: FORBIDDEN_COLOR_VARIANT_DEFAULT.id,
+        snippet: block.slice(0, 120).replace(/\s+/g, " "),
+      });
     }
   }
   return hits;

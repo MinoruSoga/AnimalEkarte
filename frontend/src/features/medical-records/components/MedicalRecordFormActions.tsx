@@ -71,7 +71,6 @@ export function MedicalRecordFloatingActions({
       ) : null}
       {canSubmit ? (
         <SubmitButton
-          colorVariant="brand"
           className="px-5"
           disabled={isCreating}
         >

@@ -38,7 +38,6 @@ export const SidePeekFooter = memo(function SidePeekFooter({
       <SubmitButton
         onClick={onSave}
         disabled={isPending}
-        colorVariant="brand"
         className="h-9 px-5"
         loadingText="保存中..."
       >

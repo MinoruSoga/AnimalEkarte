@@ -112,8 +112,8 @@ shadcn `DialogContent`（`frontend/src/components/ui/dialog.tsx`）は `rounded-
 | `ex-data-table-cell`（header: canvas-soft + eyebrow、body: body-sm、hairline 区切り） | `OwnersListTable` / `PetSelectionResultsTable` / `OwnerPetsSection` / `HistoryTable`（owner-report） / `AggregationOwnerTable` | header は `C.bgPage`（canvas-soft）+ eyebrow 相当タイポグラフィ、body 行は `STYLE.tableCell`（body-sm 相当）、行区切りは `C.borderLight` / `C.divideDivider`（hairline の実装上の等価トークン） |
 | `feature-card` / `ex-auth-form-card` | フォームセクションカード（`OwnerForm` の飼主情報カード、`PetSelectionSearchForm` など） | white surface + `rounded-lg` + `p-4`〜`p-6` |
 | `ex-modal-card` | `PetEditModal` / `OwnerSearchModal` / `LstepTagAddDialog` 等、shadcn `Dialog` ベースの全モーダル | `rounded-xl` + `p-6` + `shadow-lg`（既定で準拠） |
-| `text-input` | `Input` / `Textarea` / `SelectTrigger`（`components/ui/`） | `{rounded.xs}`（4px）が仕様値。現行実装は共有プリミティブが `rounded-md`（8px）を採用しており、**アプリ全体への影響が大きいため本タスクでは変更しない**（Remaining Risks 参照） |
-| `button-primary` | Primary CTA（保存・登録ボタン） | brand ブルー `#0075DE` + pill（`{rounded.full}`）。既定の共有 `SubmitButton` / `STYLE.confirmPrimary` は旧 accent ブルーを使うため、in-scope の主要 CTA では `C.bgBrand` 系トークンで個別に上書きする |
+| `text-input` | `Input` / `Textarea` / `SelectTrigger`（`components/ui/`） | `{rounded.xs}`（4px）に準拠済み（2026-07-05）。`--radius-xs: 4px` を `globals.css` に追加し、3 プリミティブの角丸を `rounded-md`（8px）から `rounded-xs` へ変更 |
+| `button-primary` | Primary CTA（保存・登録ボタン） | brand ブルー `#0075DE` + pill（`{rounded.full}`）に準拠済み（2026-07-05）。共有 `SubmitButton` / `PrimaryButton` の既定 `colorVariant` を `"brand"` に変更し、feature 層からの旧 accent 上書きを撤去 |
 | `button-utility` | ユーティリティボタン（8px 角丸） | `{rounded.md}` に既定で一致 |
 | `badge-pill` | ステータスバッジ | `BADGE.*`（pill 形状・eyebrow 相当タイポグラフィ） |
 
