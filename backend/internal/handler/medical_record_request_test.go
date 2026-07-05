@@ -234,6 +234,52 @@ func TestUpdateMedicalRecordRequest_ToServiceInput_InvalidNextVisitDate(t *testi
 	}
 }
 
+// TestResolveMedicalRecordSort は B-1 follow-up の列ソート server 化における
+// sort/order query の許可リスト検証を網羅する。
+func TestResolveMedicalRecordSort(t *testing.T) {
+	tests := []struct {
+		name      string
+		sort      string
+		order     string
+		wantSort  string
+		wantOrder string
+	}{
+		{name: "allowed key date + asc", sort: "date", order: "asc", wantSort: "date", wantOrder: "asc"},
+		{name: "allowed key owner_name + desc", sort: "owner_name", order: "desc", wantSort: "owner_name", wantOrder: "desc"},
+		{name: "allowed key pet_name, no order defaults to desc", sort: "pet_name", order: "", wantSort: "pet_name", wantOrder: "desc"},
+		{name: "allowed key status, invalid order defaults to desc", sort: "status", order: "invalid", wantSort: "status", wantOrder: "desc"},
+		{name: "unknown sort key falls back to empty (default order)", sort: "unknown_column", order: "asc", wantSort: "", wantOrder: ""},
+		{name: "empty sort falls back to empty (default order)", sort: "", order: "asc", wantSort: "", wantOrder: ""},
+		{name: "SQL-injection-shaped sort key is rejected", sort: "date; DROP TABLE medical_records;--", order: "asc", wantSort: "", wantOrder: ""},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gotSort, gotOrder := resolveMedicalRecordSort(tt.sort, tt.order)
+			if gotSort != tt.wantSort {
+				t.Fatalf("sort = %q, want %q", gotSort, tt.wantSort)
+			}
+			if gotOrder != tt.wantOrder {
+				t.Fatalf("order = %q, want %q", gotOrder, tt.wantOrder)
+			}
+		})
+	}
+}
+
+// TestListMedicalRecordQuery_ToServiceFilters_Sort は toServiceFilters が sort/order を
+// listMedicalRecordFilters へ正しく伝播することを検証する。
+func TestListMedicalRecordQuery_ToServiceFilters_Sort(t *testing.T) {
+	filters, err := (&listMedicalRecordQuery{Sort: "owner_name", Order: "asc"}).toServiceFilters()
+	if err != nil {
+		t.Fatalf("toServiceFilters returned error: %v", err)
+	}
+	if filters.Sort != "owner_name" {
+		t.Fatalf("Sort = %q, want owner_name", filters.Sort)
+	}
+	if filters.Order != "asc" {
+		t.Fatalf("Order = %q, want asc", filters.Order)
+	}
+}
+
 func TestPatchMedicalRecordRecommendationReasonRequest_ToServiceInput(t *testing.T) {
 	req := patchMedicalRecordRecommendationReasonRequest{Reason: "exam"}
 

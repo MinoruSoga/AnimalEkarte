@@ -123,6 +123,13 @@ var knownSafeParamQualifiers = map[string]struct{}{
 	"model":   {}, // model.* — domain models; service-local DTOs (which carry master FKs) are not here
 	"uuid":    {}, // github.com/google/uuid
 	"io":      {}, // io.Reader (file/stream import)
+	// repository.* — read-filter/query structs (e.g. MedicalRecordListFilters), not persistence
+	// write DTOs. Fields checked against clinicScopedMasterFKField: PetID/OwnerID/StartDate/
+	// EndDate/Status/Search carry no master FK; DoctorID references Staff (explicitly exempt from
+	// clinic-scope write checks — multi-clinic assignment, see repository/CLAUDE.md P3.1); and
+	// AnimalSpeciesID is a global (non clinic-scoped) master. Re-review if repository.* gains a
+	// write-path DTO carrying a clinic-scoped master FK field.
+	"repository": {},
 }
 
 // masterFKWriteStatus records WHY a master-FK write is on the allowlist. The gate does not

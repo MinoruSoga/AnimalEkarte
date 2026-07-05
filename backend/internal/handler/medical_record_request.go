@@ -7,31 +7,62 @@ import (
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/repository"
 	"github.com/animal-ekarte/backend/internal/service"
 )
 
 type listMedicalRecordQuery struct {
-	PetID     string
-	OwnerID   string
-	StartDate string
-	EndDate   string
+	PetID           string
+	OwnerID         string
+	StartDate       string
+	EndDate         string
+	Search          string
+	Status          string
+	DoctorID        string
+	AnimalSpeciesID string
+	Sort            string
+	Order           string
 }
 
 func newListMedicalRecordQuery(values url.Values) listMedicalRecordQuery {
 	return listMedicalRecordQuery{
-		PetID:     values.Get("pet_id"),
-		OwnerID:   values.Get("owner_id"),
-		StartDate: values.Get("start_date"),
-		EndDate:   values.Get("end_date"),
+		PetID:           values.Get("pet_id"),
+		OwnerID:         values.Get("owner_id"),
+		StartDate:       values.Get("start_date"),
+		EndDate:         values.Get("end_date"),
+		Search:          values.Get("search"),
+		Status:          values.Get("status"),
+		DoctorID:        values.Get("doctor_id"),
+		AnimalSpeciesID: values.Get("animal_species_id"),
+		Sort:            values.Get("sort"),
+		Order:           values.Get("order"),
 	}
 }
 
-type listMedicalRecordFilters struct {
-	PetID     *uint64
-	OwnerID   *uint64
-	StartDate *string
-	EndDate   *string
+// allowedMedicalRecordSortKeys は B-1 follow-up の列ソート server 化で受理する sort query の許可値。
+// repository.medicalRecordSortColumns と1対1対応させ、リポジトリ側の防御的 map lookup と二重に守る。
+var allowedMedicalRecordSortKeys = map[string]struct{}{
+	"date":       {},
+	"owner_name": {},
+	"pet_name":   {},
+	"status":     {},
 }
+
+// resolveMedicalRecordSort は FE の sort/order query を検証済みの (sort, order) に正規化する。
+// 許可されていない sort キーは空文字（= repository 側で既定順にフォールバック）にする。
+// order は "asc"/"desc" のいずれでもない場合は "desc" にフォールバックする。
+func resolveMedicalRecordSort(sort, order string) (string, string) {
+	if _, ok := allowedMedicalRecordSortKeys[sort]; !ok {
+		return "", ""
+	}
+	if order == "asc" {
+		return sort, "asc"
+	}
+	return sort, "desc"
+}
+
+// listMedicalRecordFilters は互換のためのエイリアス。実体は repository.MedicalRecordListFilters。
+type listMedicalRecordFilters = repository.MedicalRecordListFilters
 
 func (q listMedicalRecordQuery) toServiceFilters() (listMedicalRecordFilters, error) {
 	petID, err := parseOptionalUintQueryFilter(q.PetID, "pet_id")
@@ -50,11 +81,37 @@ func (q listMedicalRecordQuery) toServiceFilters() (listMedicalRecordFilters, er
 	if err != nil {
 		return listMedicalRecordFilters{}, err
 	}
+	doctorID, err := parseOptionalUintQueryFilter(q.DoctorID, "doctor_id")
+	if err != nil {
+		return listMedicalRecordFilters{}, err
+	}
+	animalSpeciesID, err := parseOptionalUintQueryFilter(q.AnimalSpeciesID, "animal_species_id")
+	if err != nil {
+		return listMedicalRecordFilters{}, err
+	}
+	var status *model.MedicalRecordStatus
+	if q.Status != "" {
+		parsed, err := validateEnum(q.Status,
+			model.MedicalRecordStatusDraft,
+			model.MedicalRecordStatusFinalized,
+		)
+		if err != nil {
+			return listMedicalRecordFilters{}, apperrors.WrapInvalidInput("invalid status: " + err.Error())
+		}
+		status = &parsed
+	}
+	sortKey, sortOrder := resolveMedicalRecordSort(q.Sort, q.Order)
 	return listMedicalRecordFilters{
-		PetID:     petID,
-		OwnerID:   ownerID,
-		StartDate: startDate,
-		EndDate:   endDate,
+		PetID:           petID,
+		OwnerID:         ownerID,
+		StartDate:       startDate,
+		EndDate:         endDate,
+		Status:          status,
+		DoctorID:        doctorID,
+		AnimalSpeciesID: animalSpeciesID,
+		Search:          q.Search,
+		Sort:            sortKey,
+		Order:           sortOrder,
 	}, nil
 }
 

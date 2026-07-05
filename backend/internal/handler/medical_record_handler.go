@@ -32,10 +32,7 @@ func (h *Handler) ListMedicalRecords(c *gin.Context) {
 	records, total, err := h.svc.MedicalRecord.List(
 		c.Request.Context(),
 		clinicIDs,
-		filters.PetID,
-		filters.OwnerID,
-		filters.StartDate,
-		filters.EndDate,
+		filters,
 		page,
 		limit,
 	)

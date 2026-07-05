@@ -17,13 +17,14 @@ import (
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/repository"
 	"github.com/animal-ekarte/backend/internal/service"
 )
 
 // ---- mock MedicalRecordService ----
 
 type mockMedicalRecordService struct {
-	listFn                       func(ctx context.Context, clinicIDs []uint64, petID, ownerID *uint64, startDate, endDate *string, page, limit int) ([]model.MedicalRecord, int64, error)
+	listFn                       func(ctx context.Context, clinicIDs []uint64, filters repository.MedicalRecordListFilters, page, limit int) ([]model.MedicalRecord, int64, error)
 	getByIDFn                    func(ctx context.Context, clinicID, id uint64) (*model.MedicalRecord, error)
 	getByIDForClinicsFn          func(ctx context.Context, clinicIDs []uint64, id uint64) (*model.MedicalRecord, error)
 	countByPetFn                 func(ctx context.Context, clinicID, petID uint64) (int64, error)
@@ -34,8 +35,8 @@ type mockMedicalRecordService struct {
 	autoCreateFromReservationFn  func(ctx context.Context, clinicID uint64, reservation *model.Reservation)
 }
 
-func (m *mockMedicalRecordService) List(ctx context.Context, clinicIDs []uint64, petID, ownerID *uint64, startDate, endDate *string, page, limit int) ([]model.MedicalRecord, int64, error) {
-	return m.listFn(ctx, clinicIDs, petID, ownerID, startDate, endDate, page, limit)
+func (m *mockMedicalRecordService) List(ctx context.Context, clinicIDs []uint64, filters repository.MedicalRecordListFilters, page, limit int) ([]model.MedicalRecord, int64, error) {
+	return m.listFn(ctx, clinicIDs, filters, page, limit)
 }
 
 func (m *mockMedicalRecordService) GetByID(ctx context.Context, clinicID, id uint64) (*model.MedicalRecord, error) {
@@ -278,7 +279,7 @@ func TestListMedicalRecords(t *testing.T) {
 			query:    "page=1&limit=10",
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockMedicalRecordService{
-				listFn: func(_ context.Context, clinicIDs []uint64, _, _ *uint64, _, _ *string, _, _ int) ([]model.MedicalRecord, int64, error) {
+				listFn: func(_ context.Context, clinicIDs []uint64, _ repository.MedicalRecordListFilters, _, _ int) ([]model.MedicalRecord, int64, error) {
 					assert.Equal(t, []uint64{1}, clinicIDs)
 					return []model.MedicalRecord{{ID: 1, RecordNo: "MR-20260324-1-ABCDEF"}}, 1, nil
 				},
@@ -291,13 +292,77 @@ func TestListMedicalRecords(t *testing.T) {
 			query:    "page=1&limit=10&pet_id=5",
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockMedicalRecordService{
-				listFn: func(_ context.Context, _ []uint64, petID, _ *uint64, _, _ *string, _, _ int) ([]model.MedicalRecord, int64, error) {
-					require.NotNil(t, petID)
-					assert.Equal(t, uint64(5), *petID)
+				listFn: func(_ context.Context, _ []uint64, filters repository.MedicalRecordListFilters, _, _ int) ([]model.MedicalRecord, int64, error) {
+					require.NotNil(t, filters.PetID)
+					assert.Equal(t, uint64(5), *filters.PetID)
 					return []model.MedicalRecord{}, 0, nil
 				},
 			},
 			wantStatus: http.StatusOK,
+		},
+		{
+			name:     "passes search/status/doctor_id/animal_species_id filters to service",
+			query:    "page=1&limit=10&search=" + "%E7%94%B0%E4%B8%AD" + "&status=draft&doctor_id=7&animal_species_id=3",
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockMedicalRecordService{
+				listFn: func(_ context.Context, _ []uint64, filters repository.MedicalRecordListFilters, _, _ int) ([]model.MedicalRecord, int64, error) {
+					assert.Equal(t, "田中", filters.Search)
+					require.NotNil(t, filters.Status)
+					assert.Equal(t, model.MedicalRecordStatusDraft, *filters.Status)
+					require.NotNil(t, filters.DoctorID)
+					assert.Equal(t, uint64(7), *filters.DoctorID)
+					require.NotNil(t, filters.AnimalSpeciesID)
+					assert.Equal(t, uint64(3), *filters.AnimalSpeciesID)
+					return []model.MedicalRecord{}, 0, nil
+				},
+			},
+			wantStatus: http.StatusOK,
+		},
+		{
+			name:     "passes allowed sort/order to service (B-1 follow-up)",
+			query:    "page=1&limit=10&sort=owner_name&order=asc",
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockMedicalRecordService{
+				listFn: func(_ context.Context, _ []uint64, filters repository.MedicalRecordListFilters, _, _ int) ([]model.MedicalRecord, int64, error) {
+					assert.Equal(t, "owner_name", filters.Sort)
+					assert.Equal(t, "asc", filters.Order)
+					return []model.MedicalRecord{}, 0, nil
+				},
+			},
+			wantStatus: http.StatusOK,
+		},
+		{
+			name:     "unknown sort key falls back to default (empty Sort/Order)",
+			query:    "page=1&limit=10&sort=unknown_column&order=asc",
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockMedicalRecordService{
+				listFn: func(_ context.Context, _ []uint64, filters repository.MedicalRecordListFilters, _, _ int) ([]model.MedicalRecord, int64, error) {
+					assert.Empty(t, filters.Sort, "許可外の sort キーは無視され既定順にフォールバックする")
+					assert.Empty(t, filters.Order)
+					return []model.MedicalRecord{}, 0, nil
+				},
+			},
+			wantStatus: http.StatusOK,
+		},
+		{
+			name:     "sort without order defaults to desc",
+			query:    "page=1&limit=10&sort=date",
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockMedicalRecordService{
+				listFn: func(_ context.Context, _ []uint64, filters repository.MedicalRecordListFilters, _, _ int) ([]model.MedicalRecord, int64, error) {
+					assert.Equal(t, "date", filters.Sort)
+					assert.Equal(t, "desc", filters.Order)
+					return []model.MedicalRecord{}, 0, nil
+				},
+			},
+			wantStatus: http.StatusOK,
+		},
+		{
+			name:       "returns 400 for invalid status",
+			query:      "page=1&limit=10&status=unknown",
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockMedicalRecordService{},
+			wantStatus: http.StatusBadRequest,
 		},
 		{
 			name:       "returns 400 for invalid pet_id",
@@ -318,7 +383,7 @@ func TestListMedicalRecords(t *testing.T) {
 			query:    "page=1&limit=10",
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockMedicalRecordService{
-				listFn: func(_ context.Context, _ []uint64, _, _ *uint64, _, _ *string, _, _ int) ([]model.MedicalRecord, int64, error) {
+				listFn: func(_ context.Context, _ []uint64, _ repository.MedicalRecordListFilters, _, _ int) ([]model.MedicalRecord, int64, error) {
 					return nil, 0, fmt.Errorf("db error")
 				},
 			},

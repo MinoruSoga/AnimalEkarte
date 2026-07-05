@@ -91,7 +91,7 @@ func (m *mockMedicalRecordRepositoryForExam) FindByIDForClinics(_ context.Contex
 	return nil, nil
 }
 
-func (m *mockMedicalRecordRepositoryForExam) FindAll(ctx context.Context, clinicIDs []uint64, petID, ownerID *uint64, startDate, endDate *string, page, limit int) ([]model.MedicalRecord, int64, error) {
+func (m *mockMedicalRecordRepositoryForExam) FindAll(ctx context.Context, clinicIDs []uint64, filters repository.MedicalRecordListFilters, page, limit int) ([]model.MedicalRecord, int64, error) {
 	return nil, 0, nil
 }
 

@@ -128,7 +128,7 @@ func TestAutoCreateFromReservation_AdditionalBranches(t *testing.T) {
 	t.Run("同日同ペットの既存カルテがある場合はスキップする", func(t *testing.T) {
 		created := false
 		repo := &mockMedicalRecordRepository{
-			findAllFn: func(_ context.Context, _ []uint64, _ *uint64, _ *uint64, _, _ *string, _, _ int) ([]model.MedicalRecord, int64, error) {
+			findAllFn: func(_ context.Context, _ []uint64, _ repository.MedicalRecordListFilters, _, _ int) ([]model.MedicalRecord, int64, error) {
 				return []model.MedicalRecord{{ID: 1}}, 1, nil
 			},
 			createFn: func(_ context.Context, _ *model.MedicalRecord) error {
@@ -146,7 +146,7 @@ func TestAutoCreateFromReservation_AdditionalBranches(t *testing.T) {
 	t.Run("重複チェックでリポジトリエラーが発生した場合はスキップする", func(t *testing.T) {
 		created := false
 		repo := &mockMedicalRecordRepository{
-			findAllFn: func(_ context.Context, _ []uint64, _ *uint64, _ *uint64, _, _ *string, _, _ int) ([]model.MedicalRecord, int64, error) {
+			findAllFn: func(_ context.Context, _ []uint64, _ repository.MedicalRecordListFilters, _, _ int) ([]model.MedicalRecord, int64, error) {
 				return nil, 0, errors.New("db error")
 			},
 			createFn: func(_ context.Context, _ *model.MedicalRecord) error {
@@ -164,7 +164,7 @@ func TestAutoCreateFromReservation_AdditionalBranches(t *testing.T) {
 	t.Run("owner_id/pet_idが既に設定済みならLINE補完なしで作成される", func(t *testing.T) {
 		var createdRecord *model.MedicalRecord
 		repo := &mockMedicalRecordRepository{
-			findAllFn: func(_ context.Context, _ []uint64, _ *uint64, _ *uint64, _, _ *string, _, _ int) ([]model.MedicalRecord, int64, error) {
+			findAllFn: func(_ context.Context, _ []uint64, _ repository.MedicalRecordListFilters, _, _ int) ([]model.MedicalRecord, int64, error) {
 				return nil, 0, nil
 			},
 			createFn: func(_ context.Context, record *model.MedicalRecord) error {
@@ -201,7 +201,7 @@ func TestAutoCreateFromReservation_AdditionalBranches(t *testing.T) {
 
 	t.Run("Createが失敗した場合はサブレコード作成を試みずパニックしない", func(t *testing.T) {
 		repo := &mockMedicalRecordRepository{
-			findAllFn: func(_ context.Context, _ []uint64, _ *uint64, _ *uint64, _, _ *string, _, _ int) ([]model.MedicalRecord, int64, error) {
+			findAllFn: func(_ context.Context, _ []uint64, _ repository.MedicalRecordListFilters, _, _ int) ([]model.MedicalRecord, int64, error) {
 				return nil, 0, nil
 			},
 			createFn: func(_ context.Context, _ *model.MedicalRecord) error {

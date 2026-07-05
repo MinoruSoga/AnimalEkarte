@@ -757,6 +757,97 @@ func TestReservationService_Update_CancelledSoftDeletes(t *testing.T) {
 	assert.True(t, deleteCalled, "キャンセル時は repo.Delete でソフトデリートされるべき")
 }
 
+// 受付ヘッダー テレメトリ（change-ui.md Phase 2）: checked_in への遷移時に checked_in_at が
+// now() で記録されることを保証する。
+func TestReservationService_Update_CheckedInStampsCheckedInAt(t *testing.T) {
+	statusCheckedIn := model.ReservationStatusCheckedIn
+	var capturedFields map[string]any
+	repo := &mockReservationRepository{
+		findByIDFn: func(_ context.Context, clinicID, id uint64) (*model.Reservation, error) {
+			return &model.Reservation{ID: id, ClinicID: clinicID, Status: model.ReservationStatusPending}, nil
+		},
+		updateFieldsFn: func(_ context.Context, _, _ uint64, fields map[string]any) (*model.Reservation, error) {
+			capturedFields = fields
+			return &model.Reservation{ID: 1, ClinicID: 1, Status: model.ReservationStatusCheckedIn}, nil
+		},
+	}
+	svc := NewReservationService(repo, nil)
+
+	before := time.Now()
+	reservation, err := svc.Update(context.Background(), 1, 1, &UpdateReservationInput{Status: &statusCheckedIn})
+	after := time.Now()
+
+	assert.NoError(t, err)
+	assert.NotNil(t, reservation)
+	require.Contains(t, capturedFields, "checked_in_at")
+	stamped, ok := capturedFields["checked_in_at"].(time.Time)
+	require.True(t, ok, "checked_in_at must be a time.Time")
+	assert.False(t, stamped.Before(before), "checked_in_at must not be before the call")
+	assert.False(t, stamped.After(after), "checked_in_at must not be after the call")
+}
+
+// 非ステータス更新（時刻変更のみ等）では checked_in_at に触れないことを保証する。
+// UpdatedAt(autoUpdateTime) を待ち時間算出に流用してはならないという仕様の裏返しの検証。
+func TestReservationService_Update_NonStatusUpdateLeavesCheckedInAtUntouched(t *testing.T) {
+	newStart := time.Date(2026, 7, 5, 10, 0, 0, 0, jstLocation)
+	newEnd := newStart.Add(30 * time.Minute)
+	var capturedFields map[string]any
+	repo := &mockReservationRepository{
+		findByIDFn: func(_ context.Context, clinicID, id uint64) (*model.Reservation, error) {
+			return &model.Reservation{ID: id, ClinicID: clinicID, ReservationTypeID: 1, Status: model.ReservationStatusCheckedIn}, nil
+		},
+		lockAndFindByIDFn: func(_ context.Context, clinicID, id uint64) (*model.Reservation, error) {
+			return &model.Reservation{ID: id, ClinicID: clinicID, ReservationTypeID: 1, Status: model.ReservationStatusCheckedIn}, nil
+		},
+		countOnDutyDoctorsFn: func(_ context.Context, _ uint64, _ time.Time) (int64, error) { return 1, nil },
+		countConflictsFn:     func(_ context.Context, _ uint64, _, _ time.Time, _ *uint64) (int64, error) { return 0, nil },
+		updateFieldsFn: func(_ context.Context, _, _ uint64, fields map[string]any) (*model.Reservation, error) {
+			capturedFields = fields
+			return &model.Reservation{ID: 1, ClinicID: 1, Status: model.ReservationStatusCheckedIn}, nil
+		},
+	}
+	svc := NewReservationServiceWithAvailability(repo, &mockTransactor{}, nil, nil)
+
+	reservation, err := svc.Update(context.Background(), 1, 1, &UpdateReservationInput{StartTime: &newStart, EndTime: &newEnd})
+
+	assert.NoError(t, err)
+	assert.NotNil(t, reservation)
+	assert.NotContains(t, capturedFields, "checked_in_at", "非ステータス更新は checked_in_at を変更してはならない")
+}
+
+// checked_in → 他ステータス → checked_in（再受付）で checked_in_at が最新遷移時刻へ上書きされる
+// （待ち直しとみなす）ことを保証する。
+func TestReservationService_Update_RecheckInResetsCheckedInAt(t *testing.T) {
+	statusCheckedIn := model.ReservationStatusCheckedIn
+	statusPending := model.ReservationStatusPending
+	var capturedFields map[string]any
+	repo := &mockReservationRepository{
+		findByIDFn: func(_ context.Context, clinicID, id uint64) (*model.Reservation, error) {
+			return &model.Reservation{ID: id, ClinicID: clinicID, Status: model.ReservationStatusPending}, nil
+		},
+		updateFieldsFn: func(_ context.Context, _, _ uint64, fields map[string]any) (*model.Reservation, error) {
+			capturedFields = fields
+			return &model.Reservation{ID: 1, ClinicID: 1}, nil
+		},
+	}
+	svc := NewReservationService(repo, nil)
+
+	_, err := svc.Update(context.Background(), 1, 1, &UpdateReservationInput{Status: &statusCheckedIn})
+	require.NoError(t, err)
+	firstStamp := capturedFields["checked_in_at"].(time.Time)
+
+	_, err = svc.Update(context.Background(), 1, 1, &UpdateReservationInput{Status: &statusPending})
+	require.NoError(t, err)
+	assert.NotContains(t, capturedFields, "checked_in_at", "checked_in 以外への遷移では checked_in_at を触らない")
+
+	time.Sleep(time.Millisecond)
+	_, err = svc.Update(context.Background(), 1, 1, &UpdateReservationInput{Status: &statusCheckedIn})
+	require.NoError(t, err)
+	secondStamp, ok := capturedFields["checked_in_at"].(time.Time)
+	require.True(t, ok)
+	assert.True(t, secondStamp.After(firstStamp), "再受付時は checked_in_at が最新の遷移時刻へ上書きされるべき")
+}
+
 func TestReservationService_Update_RejectsExcludedStaffWhenTypeChanges(t *testing.T) {
 	doctorID := uint64(10)
 	nextTypeID := uint64(5)

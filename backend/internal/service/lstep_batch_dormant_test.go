@@ -19,7 +19,7 @@ type dormantMockMedicalRecordRepository struct {
 	findDormantOwnerEntriesFn func(ctx context.Context, clinicID uint64, minDaysSince int) ([]repository.DormantOwnerEntry, error)
 }
 
-func (m *dormantMockMedicalRecordRepository) FindAll(_ context.Context, _ []uint64, _, _ *uint64, _, _ *string, _, _ int) ([]model.MedicalRecord, int64, error) {
+func (m *dormantMockMedicalRecordRepository) FindAll(_ context.Context, _ []uint64, _ repository.MedicalRecordListFilters, _, _ int) ([]model.MedicalRecord, int64, error) {
 	return nil, 0, nil
 }
 func (m *dormantMockMedicalRecordRepository) FindByID(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {

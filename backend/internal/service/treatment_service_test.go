@@ -20,7 +20,7 @@ type mockMedicalRecordRepoForTreatment struct {
 	findByIDFn func(ctx context.Context, clinicID, id uint64) (*model.MedicalRecord, error)
 }
 
-func (m *mockMedicalRecordRepoForTreatment) FindAll(_ context.Context, _ []uint64, _, _ *uint64, _, _ *string, _, _ int) ([]model.MedicalRecord, int64, error) {
+func (m *mockMedicalRecordRepoForTreatment) FindAll(_ context.Context, _ []uint64, _ repository.MedicalRecordListFilters, _, _ int) ([]model.MedicalRecord, int64, error) {
 	return nil, 0, nil
 }
 func (m *mockMedicalRecordRepoForTreatment) FindByID(ctx context.Context, clinicID, id uint64) (*model.MedicalRecord, error) {

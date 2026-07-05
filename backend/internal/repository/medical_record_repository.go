@@ -25,9 +25,37 @@ type DormantOwnerEntry struct {
 	DaysSince int
 }
 
+// MedicalRecordListFilters はカルテ一覧のフィルタ条件（B-1: server-side pagination/search 拡張）。
+// Search は飼主名/カナ・ペット名/カナ・record_no・主訴を対象に ILIKE + NormalizeKana で部分一致検索する。
+type MedicalRecordListFilters struct {
+	PetID           *uint64
+	OwnerID         *uint64
+	StartDate       *string
+	EndDate         *string
+	Status          *model.MedicalRecordStatus
+	DoctorID        *uint64
+	AnimalSpeciesID *uint64
+	Search          string
+	// Sort/Order: B-1 follow-up（列ソート server 化）。Sort はハンドラ層で検証済みの許可キー
+	// （medicalRecordSortColumns の key）のみが渡される想定。空文字は既定順
+	// （date DESC, created_at DESC）を維持する。Order は "asc"/"desc"（既定 "desc"）。
+	Sort  string
+	Order string
+}
+
+// medicalRecordSortColumns は B-1 follow-up の列ソート許可リスト（FE sort key → 実 SQL カラム）。
+// ハンドラ層 (resolveMedicalRecordSort) がこのキー集合で検証済みの値のみを Filters.Sort に渡すため、
+// ここでの map lookup は防御的二重チェックとして機能する（SQL injection: 値は固定文字列のみ使用）。
+var medicalRecordSortColumns = map[string]string{
+	"date":       "medical_records.date",
+	"owner_name": "owners.name",
+	"pet_name":   "pets.name",
+	"status":     "medical_records.status",
+}
+
 type MedicalRecordRepository interface {
 	// FindAll は指定した複数医院 (#86 拠点横断) のカルテを検索する。clinicIDs はハンドラ層で所属検証済みであること。
-	FindAll(ctx context.Context, clinicIDs []uint64, petID, ownerID *uint64, startDate, endDate *string, page, limit int) ([]model.MedicalRecord, int64, error)
+	FindAll(ctx context.Context, clinicIDs []uint64, filters MedicalRecordListFilters, page, limit int) ([]model.MedicalRecord, int64, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.MedicalRecord, error)
 	// FindByIDForClinics は複数医院スコープでカルテを1件取得する (#86 詳細画面拠点横断)。clinicIDs はハンドラ層で所属検証済みであること。
 	FindByIDForClinics(ctx context.Context, clinicIDs []uint64, id uint64) (*model.MedicalRecord, error)
@@ -68,7 +96,7 @@ func NewMedicalRecordRepository(db *gorm.DB) MedicalRecordRepository {
 	return &medicalRecordRepository{db: db}
 }
 
-func (r *medicalRecordRepository) FindAll(ctx context.Context, clinicIDs []uint64, petID, ownerID *uint64, startDate, endDate *string, page, limit int) ([]model.MedicalRecord, int64, error) {
+func (r *medicalRecordRepository) FindAll(ctx context.Context, clinicIDs []uint64, filters MedicalRecordListFilters, page, limit int) ([]model.MedicalRecord, int64, error) {
 	records := make([]model.MedicalRecord, 0)
 	var total int64
 
@@ -76,28 +104,96 @@ func (r *medicalRecordRepository) FindAll(ctx context.Context, clinicIDs []uint6
 	if len(clinicIDs) == 0 {
 		return []model.MedicalRecord{}, 0, nil
 	}
-	q := r.db.WithContext(ctx).Model(&model.MedicalRecord{}).Scopes(clinicScopeIn(clinicIDs))
-	if petID != nil {
-		q = q.Where("pet_id = ?", *petID)
+
+	// search / animal_species_id / 列ソート(pet_name・owner_name) は pets / owners / inquiries への JOIN が必要。
+	// inquiries.medical_record_id と owners/pets の FK は 1 レコードにつき高々1件のため LEFT JOIN による重複行は発生しない。
+	needsPetJoin := filters.AnimalSpeciesID != nil || filters.Search != "" || filters.Sort == "pet_name"
+	needsOwnerJoin := filters.Search != "" || filters.Sort == "owner_name"
+	needsInquiryJoin := filters.Search != ""
+
+	buildBase := func() *gorm.DB {
+		// clinicScopeIn は "clinic_id" を無修飾で参照するため、pets/owners
+		// （いずれも clinic_id 列を持つ）を LEFT JOIN すると曖昧になる。
+		// search/animal_species_id フィルタで JOIN が入るケースがあるため、
+		// ここでは常に medical_records.clinic_id を明示指定する。
+		q := r.db.WithContext(ctx).Model(&model.MedicalRecord{}).Where("medical_records.clinic_id IN ?", clinicIDs)
+		if needsPetJoin {
+			q = q.Joins("LEFT JOIN pets ON pets.id = medical_records.pet_id AND pets.deleted_at IS NULL")
+		}
+		if needsOwnerJoin {
+			q = q.Joins("LEFT JOIN owners ON owners.id = medical_records.owner_id AND owners.deleted_at IS NULL")
+		}
+		if needsInquiryJoin {
+			q = q.Joins("LEFT JOIN inquiries ON inquiries.medical_record_id = medical_records.id")
+		}
+		if filters.PetID != nil {
+			q = q.Where("medical_records.pet_id = ?", *filters.PetID)
+		}
+		if filters.OwnerID != nil {
+			q = q.Where("medical_records.owner_id = ?", *filters.OwnerID)
+		}
+		if filters.StartDate != nil {
+			q = q.Where("medical_records.date >= ?", *filters.StartDate)
+		}
+		if filters.EndDate != nil {
+			q = q.Where("medical_records.date <= ?", *filters.EndDate)
+		}
+		if filters.Status != nil {
+			q = q.Where("medical_records.status = ?", *filters.Status)
+		}
+		if filters.DoctorID != nil {
+			q = q.Where("medical_records.doctor_id = ?", *filters.DoctorID)
+		}
+		if filters.AnimalSpeciesID != nil {
+			q = q.Where("pets.animal_species_id = ?", *filters.AnimalSpeciesID)
+		}
+		if filters.Search != "" {
+			// NormalizeKana で検索語のカタカナをひらがなに正規化し、DB 列の translate() 正規化値と統一比較する（owner_repository.go と同型）。
+			pattern := "%" + escapeLike(NormalizeKana(filters.Search)) + "%"
+			q = q.Where(
+				`(medical_records.record_no ILIKE ? ESCAPE '\'`+
+					` OR owners.name ILIKE ? ESCAPE '\'`+
+					` OR translate(owners.name_kana, ?, ?) ILIKE ? ESCAPE '\'`+
+					` OR pets.name ILIKE ? ESCAPE '\'`+
+					` OR translate(pets.name_kana, ?, ?) ILIKE ? ESCAPE '\'`+
+					` OR inquiries.chief_complaint ILIKE ? ESCAPE '\')`,
+				pattern,
+				pattern,
+				kanaSourceChars, kanaTargetChars, pattern,
+				pattern,
+				kanaSourceChars, kanaTargetChars, pattern,
+				pattern,
+			)
+		}
+		return q
 	}
-	if ownerID != nil {
-		q = q.Where("owner_id = ?", *ownerID)
-	}
-	if startDate != nil {
-		q = q.Where("date >= ?", *startDate)
-	}
-	if endDate != nil {
-		q = q.Where("date <= ?", *endDate)
-	}
-	if err := q.Count(&total).Error; err != nil {
+
+	if err := buildBase().Count(&total).Error; err != nil {
 		return nil, 0, apperrors.FromGORM(err, "medical_record", "")
 	}
-	if err := q.Offset((page-1)*limit).Limit(limit).Order("date DESC, created_at DESC").
+	if err := buildBase().
+		Offset((page-1)*limit).Limit(limit).Order(medicalRecordOrderClause(filters.Sort, filters.Order)).
 		Preload("Owner", "deleted_at IS NULL").Preload("Pet", "deleted_at IS NULL").Preload("Pet.AnimalSpecies").Preload("Doctor", "deleted_at IS NULL").Preload("EnteredByStaff", "deleted_at IS NULL").Preload("Inquiry").Preload("Billing", "deleted_at IS NULL").
 		Find(&records).Error; err != nil {
 		return nil, 0, apperrors.FromGORM(err, "medical_record", "")
 	}
 	return records, total, nil
+}
+
+// medicalRecordOrderClause は B-1 follow-up の列ソート server 化用 ORDER BY 句を組み立てる。
+// sort が medicalRecordSortColumns の許可キーでない場合は既存デフォルト順を維持する。
+// created_at DESC を常に tie-breaker として付与し、同値時の並び順を安定させる
+// （デフォルト順と同じ安定化ルールを踏襲）。
+func medicalRecordOrderClause(sort, order string) string {
+	col, ok := medicalRecordSortColumns[sort]
+	if !ok {
+		return "medical_records.date DESC, medical_records.created_at DESC"
+	}
+	dir := "DESC"
+	if order == "asc" {
+		dir = "ASC"
+	}
+	return fmt.Sprintf("%s %s, medical_records.created_at DESC", col, dir)
 }
 
 func (r *medicalRecordRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.MedicalRecord, error) {
