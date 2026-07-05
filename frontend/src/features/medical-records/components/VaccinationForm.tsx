@@ -10,7 +10,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { NotionDatePicker } from "@/components/shared/NotionDatePicker";
 import { MasterLink } from "@/components/shared/MasterLink";
-import { C, STYLE } from "@/lib/design-tokens";
+import { C } from "@/lib/design-tokens";
 
 interface VaccineOption {
   value: string;
@@ -241,7 +241,7 @@ export const VaccinationForm = memo(function VaccinationForm({
             type="button"
             onClick={onSave}
             disabled={isSaving}
-            className={STYLE.btnPrimary}
+            className={`${C.bgBrand} ${C.hoverBgBrand} text-white rounded-full border-transparent transition-colors`}
           >
             {isSaving ? "登録中..." : "接種記録を追加"}
           </Button>

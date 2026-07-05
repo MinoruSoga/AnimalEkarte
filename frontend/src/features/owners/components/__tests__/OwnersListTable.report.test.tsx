@@ -4,6 +4,7 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import { OwnersListTable } from "../OwnersListTable";
+import { STYLE } from "@/lib/design-tokens";
 import type { Pet } from "@/types";
 
 // 行アクション(RowActionDropdown)の表示・発火に焦点を当てるため、無関係な重い子は無効化する。
@@ -75,5 +76,16 @@ describe("OwnersListTable レポート行アクション (#158)", () => {
 
     expect(await screen.findByRole("menuitem", { name: /編集/ })).toBeInTheDocument();
     expect(screen.queryByRole("menuitem", { name: /レポート/ })).not.toBeInTheDocument();
+  });
+});
+
+describe("OwnersListTable header (DESIGN.md ex-data-table-cell)", () => {
+  it("ソート可能な列見出しが eyebrow 相当（STYLE.sectionLabel）で表示される", () => {
+    render(<OwnersListTable {...baseProps()} />);
+
+    const sortButton = screen.getByRole("button", { name: "飼主名でソート" });
+    for (const cls of STYLE.sectionLabel.split(" ")) {
+      expect(sortButton.className).toContain(cls);
+    }
   });
 });

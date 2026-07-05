@@ -2,7 +2,7 @@ import { HeartPulse, Printer, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SubmitButton } from "@/components/shared/Form/SubmitButton";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
-import { C, ICON, STYLE } from "@/lib/design-tokens";
+import { C, ICON } from "@/lib/design-tokens";
 import { formatJSTDate } from "@/lib/jst-date";
 import { MedicalRecordPrintView } from "./MedicalRecordPrintView";
 import type { Treatment } from "../types";
@@ -71,7 +71,8 @@ export function MedicalRecordFloatingActions({
       ) : null}
       {canSubmit ? (
         <SubmitButton
-          className={`${STYLE.btnPrimary} px-5`}
+          colorVariant="brand"
+          className="px-5"
           disabled={isCreating}
         >
           {isCreating ? "カルテ作成中..." : "保存"}

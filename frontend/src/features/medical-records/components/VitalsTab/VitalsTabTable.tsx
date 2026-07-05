@@ -6,16 +6,17 @@ import type { UpdateVitalInput, Vital } from "../../types";
 import { VitalsAddRow, VitalsDisplayRow, VitalsEditRow } from "./VitalsTabRows";
 import type { VitalsAddFormState } from "./VitalsTabTableModel";
 
+// DESIGN.md ex-data-table-cell: header は canvas-soft 背景 + eyebrow 相当タイポグラフィ（STYLE.sectionLabel）。
 const TABLE_HEADER = (
   <thead>
-    <tr className={`border-b ${C.borderLight} ${C.bgPage30} h-10`}>
-      <th className={`px-3 text-left text-xs font-medium ${C.text70} w-40`}>記録日時</th>
-      <th className={`px-3 text-right text-xs font-medium ${C.text70} w-24`}>体温 (℃)</th>
-      <th className={`px-3 text-right text-xs font-medium ${C.text70} w-24`}>心拍数 (bpm)</th>
-      <th className={`px-3 text-right text-xs font-medium ${C.text70} w-24`}>呼吸数 (/min)</th>
-      <th className={`px-3 text-right text-xs font-medium ${C.text70} w-32`}>体重</th>
-      <th className={`px-3 text-left text-xs font-medium ${C.text70}`}>メモ</th>
-      <th className={`px-2 text-right text-xs font-medium ${C.text70} w-24`}>操作</th>
+    <tr className={`border-b ${C.borderLight} ${C.bgPage} h-11`}>
+      <th className={`px-3 text-left ${STYLE.sectionLabel} w-40`}>記録日時</th>
+      <th className={`px-3 text-right ${STYLE.sectionLabel} w-24`}>体温 (℃)</th>
+      <th className={`px-3 text-right ${STYLE.sectionLabel} w-24`}>心拍数 (bpm)</th>
+      <th className={`px-3 text-right ${STYLE.sectionLabel} w-24`}>呼吸数 (/min)</th>
+      <th className={`px-3 text-right ${STYLE.sectionLabel} w-32`}>体重</th>
+      <th className={`px-3 text-left ${STYLE.sectionLabel}`}>メモ</th>
+      <th className={`px-2 text-right ${STYLE.sectionLabel} w-24`}>操作</th>
     </tr>
   </thead>
 );

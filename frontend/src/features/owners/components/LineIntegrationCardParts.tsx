@@ -163,7 +163,7 @@ export function UnlinkedLineIdForm({
           placeholder="Uxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
           className={`${STYLE.formInput} flex-1 rounded-md px-3`}
         />
-        <SubmitButton loadingText="設定中...">設定</SubmitButton>
+        <SubmitButton loadingText="設定中..." colorVariant="brand">設定</SubmitButton>
       </div>
       {lineIdState.error !== null ? (
         <p className={`text-sm ${C.danger}`}>{lineIdState.error}</p>

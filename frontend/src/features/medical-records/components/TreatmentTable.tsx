@@ -1,5 +1,5 @@
 // React/Framework
-import { C, ICON } from "@/lib/design-tokens";
+import { C, ICON, STYLE } from "@/lib/design-tokens";
 import React, { memo } from "react";
 
 // Shared
@@ -65,10 +65,10 @@ export const TreatmentTable = memo(function TreatmentTable({
 
   return (
     <div className={`flex-1 flex flex-col min-h-0 border ${C.borderMedium} rounded-lg ${C.bgWhite} overflow-hidden shadow-sm`}>
-      {/* Header */}
+      {/* Header — DESIGN.md ex-data-table-cell: canvas-soft 背景 + eyebrow 相当タイポグラフィ（STYLE.sectionLabel） */}
       <div
         className={cn(
-          `grid gap-0 border-b ${C.borderMedium} ${C.bgPage} text-sm font-bold ${C.text80} min-h-[48px] items-center`,
+          `grid gap-0 border-b ${C.borderMedium} ${C.bgPage} ${STYLE.sectionLabel} min-h-[48px] items-center`,
           gridColsClass
         )}
       >

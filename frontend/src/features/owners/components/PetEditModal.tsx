@@ -153,7 +153,9 @@ export const PetEditModal = memo(function PetEditModal({
             {canEdit ? (
               <Button
                 onClick={handleSave}
-                className={`${STYLE.confirmPrimary} text-sm px-4`}
+                // DESIGN.md button-primary: brand blue #0075DE + pill。Button は cn()/tailwind-merge で
+                // クラス競合を解決するため、STYLE.confirmPrimary（旧 accent ブルー + 4px 角丸）を後続クラスで安全に上書きできる。
+                className={`${STYLE.confirmPrimary} text-sm px-4 ${C.bgBrand} ${C.hoverBgBrand} rounded-full`}
               >
                 {isEdit ? "更新" : "登録"}
               </Button>

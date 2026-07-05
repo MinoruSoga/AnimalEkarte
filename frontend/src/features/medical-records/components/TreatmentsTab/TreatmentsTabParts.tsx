@@ -4,19 +4,20 @@ import { C, ICON, STYLE } from "@/lib/design-tokens";
 import type { Treatment, TreatmentItemType, UpdateTreatmentInput } from "../../types";
 import { TreatmentRow } from "./TreatmentRow";
 
+// DESIGN.md ex-data-table-cell: header は canvas-soft 背景 + eyebrow 相当タイポグラフィ（STYLE.sectionLabel）。
 const TABLE_HEADER = (
   <thead>
-    <tr className={`border-b ${C.borderLight} ${C.bgPage30} h-10`}>
-      <th className={`px-3 text-left text-xs font-medium ${C.text70} w-10`}></th>
-      <th className={`px-3 text-left text-xs font-medium ${C.text70} w-24`}>種別</th>
-      <th className={`px-3 text-left text-xs font-medium ${C.text70}`}>内容</th>
-      <th className={`px-3 text-center text-xs font-medium ${C.text70} w-16`}>保険</th>
-      <th className={`px-3 text-right text-xs font-medium ${C.text70} w-28`}>単価</th>
-      <th className={`px-3 text-right text-xs font-medium ${C.text70} w-20`}>数量</th>
-      <th className={`px-3 text-right text-xs font-medium ${C.text70} w-28`}>値引き</th>
-      <th className={`px-3 text-right text-xs font-medium ${C.text70} w-28`}>小計</th>
-      <th className={`px-3 text-left text-xs font-medium ${C.text70}`}>メモ</th>
-      <th className={`px-2 text-right text-xs font-medium ${C.text70} w-28`}></th>
+    <tr className={`border-b ${C.borderLight} ${C.bgPage} h-11`}>
+      <th className={`px-3 text-left ${STYLE.sectionLabel} w-10`}></th>
+      <th className={`px-3 text-left ${STYLE.sectionLabel} w-24`}>種別</th>
+      <th className={`px-3 text-left ${STYLE.sectionLabel}`}>内容</th>
+      <th className={`px-3 text-center ${STYLE.sectionLabel} w-16`}>保険</th>
+      <th className={`px-3 text-right ${STYLE.sectionLabel} w-28`}>単価</th>
+      <th className={`px-3 text-right ${STYLE.sectionLabel} w-20`}>数量</th>
+      <th className={`px-3 text-right ${STYLE.sectionLabel} w-28`}>値引き</th>
+      <th className={`px-3 text-right ${STYLE.sectionLabel} w-28`}>小計</th>
+      <th className={`px-3 text-left ${STYLE.sectionLabel}`}>メモ</th>
+      <th className={`px-2 text-right ${STYLE.sectionLabel} w-28`}></th>
     </tr>
   </thead>
 );
@@ -173,7 +174,7 @@ export function TreatmentAddControls({
         />
         <Button
           size="sm"
-          className={`${STYLE.btnPrimary} h-8 text-xs px-3`}
+          className={`${C.bgBrand} ${C.hoverBgBrand} text-white rounded-full border-transparent transition-colors h-8 text-xs px-3`}
           onClick={onSubmit}
           disabled={isPending || !addContent.trim()}
         >

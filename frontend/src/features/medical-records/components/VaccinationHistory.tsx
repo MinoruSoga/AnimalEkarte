@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { NotionDatePicker } from "@/components/shared/NotionDatePicker/NotionDatePicker";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { C } from "@/lib/design-tokens";
+import { C, STYLE } from "@/lib/design-tokens";
 import { normalizedIncludes } from "@/lib/normalize-kana";
 
 // rendering-hoist-jsx: 静的 SelectItem JSX をモジュール定数に巻き上げ
@@ -111,8 +111,8 @@ export const VaccinationHistory = memo(function VaccinationHistory({
 
       {/* Table */}
       <div className={`border ${C.borderMedium} rounded-lg ${C.bgWhite} overflow-hidden flex-1 flex flex-col shadow-sm`}>
-        {/* Header */}
-        <div className={`flex items-center border-b ${C.borderMedium} ${C.bgPage} text-sm font-bold ${C.text80} h-12 shrink-0`}>
+        {/* Header — DESIGN.md ex-data-table-cell: canvas-soft 背景 + eyebrow 相当タイポグラフィ（STYLE.sectionLabel） */}
+        <div className={`flex items-center border-b ${C.borderMedium} ${C.bgPage} ${STYLE.sectionLabel} h-12 shrink-0`}>
           <div className="flex-1 px-3 text-center">予防接種名</div>
           <div className={`w-[100px] px-2 text-center border-l ${C.borderMedium}`}>
             実施日
@@ -151,9 +151,8 @@ export const VaccinationHistory = memo(function VaccinationHistory({
               <div className={`w-[70px] px-2 flex justify-center border-l ${C.borderMedium}`}>
                 {canCreate ? (
                   <Button
-                    variant="outline"
                     size="sm"
-                    className={`h-10 w-[50px] text-sm ${C.bgAccent} ${C.textWhite} ${C.bgAccentHover} border-transparent px-0`}
+                    className={`h-10 w-[50px] text-sm ${C.bgBrand} ${C.textWhite} ${C.hoverBgBrand} rounded-full border-transparent px-0`}
                     onClick={() => onDuplicate?.(item)}
                   >
                     複製
