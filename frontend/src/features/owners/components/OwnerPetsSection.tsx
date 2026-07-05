@@ -123,20 +123,24 @@ const PetTableRow = memo(function PetTableRow({
   );
 });
 
+// DESIGN.md ex-data-table-cell: header は canvas-soft 背景（既存の C.bgPage）+ eyebrow 相当タイポグラフィ。
+// STYLE.tableCellMuted（body 用）ではなく既存の STYLE.sectionLabel（uppercase + tracking-wide）を再利用する。
+const PET_TABLE_HEADER_CELL = `${STYLE.sectionLabel} whitespace-nowrap`;
+
 const PET_TABLE_HEADER = (
   <TableHeader>
     <TableRow className={`hover:bg-transparent ${C.bgPage} border-b ${C.borderMedium} h-12`}>
-      <TableHead className={STYLE.tableCellMuted}>ペット番号</TableHead>
-      <TableHead className={STYLE.tableCellMuted}>ペット名</TableHead>
-      <TableHead className={STYLE.tableCellMuted}>生死</TableHead>
-      <TableHead className={STYLE.tableCellMuted}>種別</TableHead>
-      <TableHead className={STYLE.tableCellMuted}>性別</TableHead>
-      <TableHead className={STYLE.tableCellMuted}>生年月日</TableHead>
-      <TableHead className={STYLE.tableCellMuted}>毛色</TableHead>
-      <TableHead className={STYLE.tableCellMuted}>体重</TableHead>
-      <TableHead className={STYLE.tableCellMuted}>環境</TableHead>
-      <TableHead className={STYLE.tableCellMuted}>備考</TableHead>
-      <TableHead className={STYLE.tableCellMuted}>操作</TableHead>
+      <TableHead className={PET_TABLE_HEADER_CELL}>ペット番号</TableHead>
+      <TableHead className={PET_TABLE_HEADER_CELL}>ペット名</TableHead>
+      <TableHead className={PET_TABLE_HEADER_CELL}>生死</TableHead>
+      <TableHead className={PET_TABLE_HEADER_CELL}>種別</TableHead>
+      <TableHead className={PET_TABLE_HEADER_CELL}>性別</TableHead>
+      <TableHead className={PET_TABLE_HEADER_CELL}>生年月日</TableHead>
+      <TableHead className={PET_TABLE_HEADER_CELL}>毛色</TableHead>
+      <TableHead className={PET_TABLE_HEADER_CELL}>体重</TableHead>
+      <TableHead className={PET_TABLE_HEADER_CELL}>環境</TableHead>
+      <TableHead className={PET_TABLE_HEADER_CELL}>備考</TableHead>
+      <TableHead className={PET_TABLE_HEADER_CELL}>操作</TableHead>
     </TableRow>
   </TableHeader>
 );
@@ -174,7 +178,8 @@ export function OwnerPetsSection({
             type="button"
             size="sm"
             onClick={onAddPet}
-            className={`${STYLE.confirmPrimary} gap-1.5 text-sm px-4`}
+            // DESIGN.md button-primary: brand blue #0075DE + pill（旧 accent ブルーから移行）
+            className={`${C.bgBrand} ${C.hoverBgBrand} ${C.textWhite} gap-1.5 text-sm px-4 rounded-full transition-colors shadow-none border-transparent`}
           >
             <Plus className={ICON.action} />
             ペット追加

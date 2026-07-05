@@ -12,6 +12,13 @@ interface DataTableProps<T> {
   renderRow: (item: T) => ReactNode;
   emptyMessage?: string;
   className?: string;
+  /**
+   * DESIGN.md `ex-data-table-cell` の header 行/セル用クラスを丸ごと置き換える opt-in オーバーライド。
+   * 既定（未指定）は STYLE.tableHeaderRow/tableHeaderCell を維持するため、既存の他画面の見た目は変わらない。
+   * 併記ではなく置換であることに注意（Tailwind の同一 specificity クラス競合を避けるため）。
+   */
+  headerRowClassName?: string;
+  headerCellClassName?: string;
 }
 
 export const DataTable = memo(function DataTable<T>({
@@ -20,17 +27,19 @@ export const DataTable = memo(function DataTable<T>({
   renderRow,
   emptyMessage = "データが見つかりません",
   className = "",
+  headerRowClassName,
+  headerCellClassName,
 }: DataTableProps<T>) {
   return (
     <div className={`${STYLE.tableContainer} ${className}`}>
       <div className="flex-1 overflow-auto relative">
         <Table className="min-w-[640px]">
           <TableHeader className="sticky top-0 z-10">
-            <TableRow className={STYLE.tableHeaderRow}>
+            <TableRow className={headerRowClassName ?? STYLE.tableHeaderRow}>
               {columns.map((col, index) => (
                 <TableHead
                   key={index}
-                  className={`${STYLE.tableHeaderCell} ${
+                  className={`${headerCellClassName ?? STYLE.tableHeaderCell} ${
                     col.align === "right" ? "text-right" :
                     col.align === "center" ? "text-center" : ""
                   } ${col.className || ""}`}

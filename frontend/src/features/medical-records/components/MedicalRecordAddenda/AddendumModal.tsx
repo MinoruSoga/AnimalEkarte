@@ -114,7 +114,7 @@ export function AddendumModal({ open, onOpenChange, medicalRecordId }: AddendumM
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               キャンセル
             </Button>
-            <SubmitButton loadingText="保存中...">追記を保存</SubmitButton>
+            <SubmitButton colorVariant="brand" loadingText="保存中...">追記を保存</SubmitButton>
           </div>
         </form>
       </DialogContent>

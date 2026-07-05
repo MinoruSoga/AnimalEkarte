@@ -28,17 +28,17 @@ export const PetSelectionResultsTable = memo(function PetSelectionResultsTable({
             <TableRow
               className={`hover:bg-transparent ${C.bgPage} border-b ${C.borderMedium} h-12`}
             >
-              <TableHead className={`min-w-[80px] text-sm ${C.text60} whitespace-nowrap h-12`}>飼主No</TableHead>
-              <TableHead className={`min-w-[140px] text-sm ${C.text60} whitespace-nowrap h-12`}>飼主名</TableHead>
-              <TableHead className={`min-w-[80px] text-sm ${C.text60} whitespace-nowrap h-12`}>ペット番号</TableHead>
-              <TableHead className={`min-w-[100px] text-sm ${C.text60} whitespace-nowrap h-12`}>ペット名</TableHead>
-              <TableHead className={`min-w-[50px] text-sm ${C.text60} whitespace-nowrap h-12`}>生死</TableHead>
-              <TableHead className={`min-w-[50px] text-sm ${C.text60} whitespace-nowrap h-12`}>種</TableHead>
-              <TableHead className={`min-w-[90px] text-sm ${C.text60} whitespace-nowrap h-12`}>生年月日</TableHead>
-              <TableHead className={`min-w-[60px] text-sm ${C.text60} whitespace-nowrap h-12`}>体重</TableHead>
-              <TableHead className={`min-w-[100px] text-sm ${C.text60} whitespace-nowrap h-12`}>環境</TableHead>
-              <TableHead className={`min-w-[90px] text-sm ${C.text60} whitespace-nowrap h-12`}>前回来院</TableHead>
-              <TableHead className={`min-w-[80px] text-sm ${C.text60} whitespace-nowrap h-12`}>操作</TableHead>
+              <TableHead className={`min-w-[80px] ${STYLE.sectionLabel} whitespace-nowrap h-12`}>飼主No</TableHead>
+              <TableHead className={`min-w-[140px] ${STYLE.sectionLabel} whitespace-nowrap h-12`}>飼主名</TableHead>
+              <TableHead className={`min-w-[80px] ${STYLE.sectionLabel} whitespace-nowrap h-12`}>ペット番号</TableHead>
+              <TableHead className={`min-w-[100px] ${STYLE.sectionLabel} whitespace-nowrap h-12`}>ペット名</TableHead>
+              <TableHead className={`min-w-[50px] ${STYLE.sectionLabel} whitespace-nowrap h-12`}>生死</TableHead>
+              <TableHead className={`min-w-[50px] ${STYLE.sectionLabel} whitespace-nowrap h-12`}>種</TableHead>
+              <TableHead className={`min-w-[90px] ${STYLE.sectionLabel} whitespace-nowrap h-12`}>生年月日</TableHead>
+              <TableHead className={`min-w-[60px] ${STYLE.sectionLabel} whitespace-nowrap h-12`}>体重</TableHead>
+              <TableHead className={`min-w-[100px] ${STYLE.sectionLabel} whitespace-nowrap h-12`}>環境</TableHead>
+              <TableHead className={`min-w-[90px] ${STYLE.sectionLabel} whitespace-nowrap h-12`}>前回来院</TableHead>
+              <TableHead className={`min-w-[80px] ${STYLE.sectionLabel} whitespace-nowrap h-12`}>操作</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -80,7 +80,8 @@ export const PetSelectionResultsTable = memo(function PetSelectionResultsTable({
                       size="sm"
                       variant={isDeceased ? "ghost" : "outline"}
                       disabled={isDeceased}
-                      className={`h-11 gap-1 ${isDeceased ? C.textStatusGray : `${C.bgAccent} ${C.bgAccentHover} ${C.textWhite}`} text-sm px-4`}
+                      // DESIGN.md button-primary: brand blue #0075DE + pill（旧 accent ブルーから移行）
+                      className={`h-11 gap-1 ${isDeceased ? C.textStatusGray : `${C.bgBrand} ${C.hoverBgBrand} ${C.textWhite} rounded-full`} text-sm px-4`}
                       onClick={() => onSelect(pet)}
                     >
                       {isDeceased ? (

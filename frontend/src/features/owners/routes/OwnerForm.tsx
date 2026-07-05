@@ -216,7 +216,7 @@ export function OwnerForm({ petMutations, lineSection }: OwnerFormProps = {}) {
         maxWidth="max-w-[1400px]"
         headerAction={
           canSubmit ? (
-            <SubmitButton size="sm">
+            <SubmitButton size="sm" colorVariant="brand">
               {isEdit ? "更新" : "登録"}
             </SubmitButton>
           ) : null

@@ -9,15 +9,16 @@ import { CheckupAddRow, CheckupDisplayRow, CheckupEditRow } from "./CheckupsTabR
 
 export { LstepStatusBadge, type LstepStatus } from "./CheckupsTabBadges";
 
+// DESIGN.md ex-data-table-cell: header は canvas-soft 背景 + eyebrow 相当タイポグラフィ（STYLE.sectionLabel）。
 const TABLE_HEADER = (
   <thead>
-    <tr className={`border-b ${C.borderLight} ${C.bgPage30} h-10`}>
-      <th className={`px-3 text-left text-xs font-medium ${C.text70} w-32`}>日付</th>
-      <th className={`px-3 text-left text-xs font-medium ${C.text70} w-40`}>健診種別</th>
-      <th className={`px-3 text-left text-xs font-medium ${C.text70} w-32`}>次回予定日</th>
-      <th className={`px-3 text-left text-xs font-medium ${C.text70} w-32`}>担当医</th>
-      <th className={`px-3 text-left text-xs font-medium ${C.text70}`}>結果</th>
-      <th className={`px-2 text-right text-xs font-medium ${C.text70} w-24`}>操作</th>
+    <tr className={`border-b ${C.borderLight} ${C.bgPage} h-11`}>
+      <th className={`px-3 text-left ${STYLE.sectionLabel} w-32`}>日付</th>
+      <th className={`px-3 text-left ${STYLE.sectionLabel} w-40`}>健診種別</th>
+      <th className={`px-3 text-left ${STYLE.sectionLabel} w-32`}>次回予定日</th>
+      <th className={`px-3 text-left ${STYLE.sectionLabel} w-32`}>担当医</th>
+      <th className={`px-3 text-left ${STYLE.sectionLabel}`}>結果</th>
+      <th className={`px-2 text-right ${STYLE.sectionLabel} w-24`}>操作</th>
     </tr>
   </thead>
 );

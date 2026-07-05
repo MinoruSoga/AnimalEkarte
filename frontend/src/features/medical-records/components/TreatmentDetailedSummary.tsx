@@ -3,7 +3,7 @@ import { memo } from "react";
 
 // Internal
 import { NumberInput } from "@/components/shared/NumberInput/NumberInput";
-import { C } from "@/lib/design-tokens";
+import { C, STYLE } from "@/lib/design-tokens";
 
 interface TreatmentDetailedSummaryProps {
   subtotal: number;
@@ -32,21 +32,21 @@ export const TreatmentDetailedSummary = memo(function TreatmentDetailedSummary({
   return (
     <div className={`grid grid-cols-2 gap-0 mt-2 border ${C.borderMedium} rounded-lg ${C.bgWhite} text-sm overflow-hidden mb-8 shadow-sm`}>
       <div className="col-span-2">
-        {/* Summary Headers */}
+        {/* Summary Headers — DESIGN.md ex-data-table-cell: canvas-soft 背景 + eyebrow 相当タイポグラフィ（STYLE.sectionLabel） */}
         <div className={`grid grid-cols-5 border-b ${C.borderMedium} ${C.bgPage}`}>
-          <div className={`p-2 font-bold ${C.text80} text-sm border-r ${C.borderMedium}`}>
+          <div className={`p-2 ${STYLE.sectionLabel} border-r ${C.borderMedium}`}>
             診療費 小計
           </div>
-          <div className={`p-2 font-bold ${C.text80} text-sm border-r ${C.borderMedium}`}>
+          <div className={`p-2 ${STYLE.sectionLabel} border-r ${C.borderMedium}`}>
             割引適用額
           </div>
-          <div className={`p-2 font-bold ${C.text80} text-sm border-r ${C.borderMedium}`}>
+          <div className={`p-2 ${STYLE.sectionLabel} border-r ${C.borderMedium}`}>
             値引適用額
           </div>
-          <div className={`p-2 font-bold ${C.text80} text-sm border-r ${C.borderMedium}`}>
+          <div className={`p-2 ${STYLE.sectionLabel} border-r ${C.borderMedium}`}>
             消費税
           </div>
-          <div className={`p-2 font-bold ${C.text80} text-sm`}>
+          <div className={`p-2 ${STYLE.sectionLabel}`}>
             請求額
           </div>
         </div>

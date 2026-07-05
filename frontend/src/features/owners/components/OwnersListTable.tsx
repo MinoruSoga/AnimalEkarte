@@ -22,6 +22,12 @@ import { formatWeight } from "@/utils/format/number";
 import { getPetStatusColor } from "@/utils/status-helpers";
 import type { Pet } from "@/types";
 
+// DESIGN.md ex-data-table-cell: header は canvas-soft 背景 + eyebrow 相当タイポグラフィ（12px/600/tracking）。
+// STYLE.tableHeaderRow/tableHeaderCell（他画面と共有）を直接変更すると影響範囲が広がるため、
+// DataTable の headerRowClassName/headerCellClassName で本テーブルのみ上書きする。
+const OWNERS_TABLE_HEADER_ROW = `border-b ${C.borderLight} ${C.bgPage} h-11`;
+const OWNERS_TABLE_HEADER_CELL = `${STYLE.sectionLabel} h-11`;
+
 const OWNER_SORT_PROPERTIES: SortProperty[] = [
   { key: "ownerNumber", label: "飼主No" },
   { key: "ownerName", label: "飼主名" },
@@ -130,6 +136,7 @@ export function OwnersListTable({
           label="飼主No"
           direction={directionFor("ownerNumber")}
           onToggle={() => onToggleSort("ownerNumber")}
+          variant="eyebrow"
         />
       ),
       className: "w-[100px] hidden lg:table-cell",
@@ -140,6 +147,7 @@ export function OwnersListTable({
           label="飼主名"
           direction={directionFor("ownerName")}
           onToggle={() => onToggleSort("ownerName")}
+          variant="eyebrow"
         />
       ),
       className: "w-[180px]",
@@ -153,6 +161,7 @@ export function OwnersListTable({
           label="ペット名"
           direction={directionFor("name")}
           onToggle={() => onToggleSort("name")}
+          variant="eyebrow"
         />
       ),
       className: "w-[120px]",
@@ -164,6 +173,7 @@ export function OwnersListTable({
           label="種"
           direction={directionFor("species")}
           onToggle={() => onToggleSort("species")}
+          variant="eyebrow"
         />
       ),
       className: "w-[60px]",
@@ -174,6 +184,7 @@ export function OwnersListTable({
           label="生年月日"
           direction={directionFor("birthDate")}
           onToggle={() => onToggleSort("birthDate")}
+          variant="eyebrow"
         />
       ),
       className: "w-[100px] hidden lg:table-cell",
@@ -186,6 +197,7 @@ export function OwnersListTable({
           label="前回来院"
           direction={directionFor("lastVisit")}
           onToggle={() => onToggleSort("lastVisit")}
+          variant="eyebrow"
         />
       ),
       className: "w-[100px] hidden lg:table-cell",
@@ -213,6 +225,8 @@ export function OwnersListTable({
           columns={columns}
           data={pagination.paginatedData}
           emptyMessage="データが見つかりません"
+          headerRowClassName={OWNERS_TABLE_HEADER_ROW}
+          headerCellClassName={OWNERS_TABLE_HEADER_CELL}
           renderRow={(pet) => {
             // #86: 別医院の行は編集・削除を抑止（閲覧のみ）。行クリックの遷移ガードは呼び出し側
             const isOtherClinic = !!(

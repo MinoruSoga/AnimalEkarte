@@ -4,6 +4,7 @@ import { render, screen } from "@testing-library/react";
 import { ExaminationGroup } from "./ExaminationGroup";
 import type { ExamGroup } from "../api/get-record-examinations";
 import type { ExamResult } from "@/features/examinations";
+import { STYLE } from "@/lib/design-tokens";
 
 // shared transformExamResult が返す ViewModel 形状をフィクスチャに使う。
 // ここで snake_case フィールドを使ってしまうと型エラーになり、共有型のズレを検知できる。
@@ -40,6 +41,15 @@ describe("ExaminationGroup", () => {
     expect(screen.getByText("単位")).toBeInTheDocument();
     expect(screen.getByText("基準値")).toBeInTheDocument();
     expect(screen.getByText("判定")).toBeInTheDocument();
+  });
+
+  it("ヘッダ行が DESIGN.md ex-data-table-cell（sectionLabel）で表示される", () => {
+    render(<ExaminationGroup group={makeGroup()} />);
+    const headerRow = screen.getByText("項目名").parentElement;
+    expect(headerRow).not.toBeNull();
+    for (const cls of STYLE.sectionLabel.split(" ")) {
+      expect(headerRow?.className).toContain(cls);
+    }
   });
 
   it("date と machine をヘッダに表示する", () => {

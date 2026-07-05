@@ -49,8 +49,9 @@ export function AggregationOwnerTable({
     <div className={STYLE.tableContainer}>
       <Table>
         <TableHeader>
-          <TableRow className={STYLE.tableHeaderRow}>
-            <TableHead className={`${STYLE.tableHeaderCell} w-12 px-4`}>
+          {/* DESIGN.md ex-data-table-cell: header は canvas-soft 背景（bgPage30 → bgPage）+ eyebrow 相当タイポグラフィ */}
+          <TableRow className={`${STYLE.tableHeaderRow} ${C.bgPage}`}>
+            <TableHead className={`${STYLE.tableHeaderCell} ${STYLE.sectionLabel} w-12 px-4`}>
               <Checkbox
                 checked={someSelected ? "indeterminate" : allSelected}
                 onCheckedChange={(checked) => onSelectAll(!!checked)}
@@ -62,7 +63,7 @@ export function AggregationOwnerTable({
             {columns.map((col) => (
               <TableHead
                 key={col.key}
-                className={`${STYLE.tableHeaderCell} px-4 ${col.width ?? ""} ${
+                className={`${STYLE.tableHeaderCell} ${STYLE.sectionLabel} px-4 ${col.width ?? ""} ${
                   col.textAlign === "right" ? "text-right" : ""
                 }`}
               >
