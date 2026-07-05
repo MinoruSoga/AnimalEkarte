@@ -312,7 +312,6 @@ function EstimateFormContent({ id }: { id?: string }) {
           {canSubmit ? (
             <SubmitButton
               size="sm"
-              colorVariant="brand"
               disabled={!form.title.trim()}
               className="h-9 text-sm"
             >

@@ -93,7 +93,6 @@ export function ForgotPasswordPage() {
             <FormFieldError id="forgot-error" message={errorMessage} />
 
             <SubmitButton
-              colorVariant="brand"
               className="w-full h-[52px] text-base font-medium"
               loadingText="送信中..."
             >

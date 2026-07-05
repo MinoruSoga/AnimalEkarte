@@ -53,7 +53,6 @@ export function OwnerFormPage() {
       <div className="flex justify-end">
         <PrimaryButton
           type="button"
-          colorVariant="brand"
           onClick={() => setSendPanelOpen(true)}
           className="px-4 text-base"
         >

@@ -297,7 +297,7 @@ export function ClinicMasterSidePanel({
               キャンセル
             </button>
             {canEdit ? (
-              <SubmitButton colorVariant="brand" className="h-9 px-5">保存</SubmitButton>
+              <SubmitButton className="h-9 px-5">保存</SubmitButton>
             ) : null}
           </div>
         </fieldset>

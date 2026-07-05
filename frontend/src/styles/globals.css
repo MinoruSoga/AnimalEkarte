@@ -119,6 +119,7 @@
   /* Pinned directly to DESIGN.md's rounded scale (xs/sm/md/lg/xl = 4/5/8/12/16px)
      instead of the shadcn default relative-offset chain, so rounded-sm doesn't
      balloon in lockstep with rounded-lg/xl. */
+  --radius-xs: 4px;
   --radius-sm: 5px;
   --radius-md: 8px;
   --radius-lg: var(--radius);

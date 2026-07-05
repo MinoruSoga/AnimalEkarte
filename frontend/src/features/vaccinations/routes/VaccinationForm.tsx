@@ -168,7 +168,6 @@ export const VaccinationForm = memo(function VaccinationForm() {
             ) : null}
             {canSubmit ? (
               <SubmitButton
-                colorVariant="brand"
                 className="px-6 h-10 text-sm"
               >
                 保存

@@ -105,7 +105,7 @@ export function CashRegisterClosePage() {
                   onClick={() => handlePeriodChange(p)}
                   className={`px-4 h-11 text-base rounded-[4px] border transition-colors ${
                     period === p
-                      ? `${C.bgAccent} ${C.textWhite} border-transparent`
+                      ? `${C.bgBrand} ${C.textWhite} border-transparent`
                       : `${C.bgWhite} ${C.borderMedium} ${C.text} ${C.hoverBgLight}`
                   }`}
                 >
@@ -298,7 +298,7 @@ export function CashRegisterClosePage() {
             <AlertDialogCancel onClick={handleCancelConfirm}>キャンセル</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleConfirmClose}
-              className={`${C.bgAccent} ${C.textWhite} ${C.bgAccentHover}`}
+              className={`${C.bgBrand} ${C.textWhite} ${C.hoverBgBrand} rounded-full`}
             >
               締める
             </AlertDialogAction>

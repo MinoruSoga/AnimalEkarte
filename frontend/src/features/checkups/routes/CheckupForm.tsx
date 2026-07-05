@@ -65,7 +65,6 @@ export function CheckupForm() {
         maxWidth="max-w-[900px]"
         headerAction={
           <SubmitButton
-            colorVariant="brand"
             className="px-6 h-10 text-sm"
             disabled={isPending}
           >

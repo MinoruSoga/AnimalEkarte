@@ -159,7 +159,6 @@ export function ResetPasswordPage() {
           <FormFieldError id="reset-error" message={state.error} />
 
           <SubmitButton
-            colorVariant="brand"
             className="w-full h-[52px] text-base font-medium"
             loadingText="設定中..."
           >

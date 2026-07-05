@@ -218,7 +218,7 @@ export function LineSendPanel({
                 </p>
               ) : null}
 
-              <SubmitButton loadingText="送信中..." colorVariant="brand">送信する</SubmitButton>
+              <SubmitButton loadingText="送信中...">送信する</SubmitButton>
             </form>
           ) : null}
 

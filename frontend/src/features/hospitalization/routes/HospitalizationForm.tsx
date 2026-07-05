@@ -179,7 +179,6 @@ export function HospitalizationForm() {
             ) : null}
             {canSubmit ? (
               <SubmitButton
-              colorVariant="brand"
               className="h-10 text-sm px-4"
               >
               {hospitalizationId ? "更新" : "登録"}
