@@ -42,7 +42,7 @@ PageLayout
 ```tsx
 <PageLayout
   title="診断病名マスタ"
-  icon={<ClipboardList className="size-5 text-[#37352F]" />}
+  icon={<ClipboardList className={`size-5 ${C.text}`} />}
   onBack={() => navigate("/settings")}
   maxWidth="max-w-full"
 >
@@ -93,7 +93,7 @@ const COLUMNS = [
 
 ```tsx
 // ハンドルセル
-<TableCell className="w-[32px] py-2.5 text-[#37352F]/20 cursor-grab" {...listeners}>
+<TableCell className={`w-[32px] py-2.5 ${C.text20} cursor-grab`} {...listeners}>
   <GripVertical className="size-4" />
 </TableCell>
 
@@ -206,7 +206,7 @@ function SortableXxxRow({ item, onEdit }: { item: Xxx; onEdit: () => void }) {
     <DataTableRow ref={setNodeRef} style={style} {...attributes} onClick={onEdit}>
       {/* ハンドル: listeners をここに渡す。attributes は DataTableRow に渡す */}
       <TableCell
-        className="w-[32px] py-2.5 text-[#37352F]/20 cursor-grab"
+        className={`w-[32px] py-2.5 ${C.text20} cursor-grab`}
         {...listeners}
       >
         <GripVertical className="size-4" />
@@ -308,7 +308,7 @@ function XxxSidePanel({ item, onClose, onSave, onDeleteRequest }) {
             <button
               type="button"
               onClick={onDeleteRequest}
-              className={`${STYLE.sidePeekToolbarBtn} cursor-pointer text-[#EB5757] hover:bg-[#EB5757]/10`}
+              className={`${STYLE.sidePeekToolbarBtn} cursor-pointer ${C.danger} ${C.hoverBgDanger5}`}
             >
               <Trash2 className="size-4" />
             </button>
@@ -400,7 +400,7 @@ Notion スタイルのキーバリュー行。ラベル幅 `140px` 固定。
 function PropertyRow({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div className={`flex gap-2 py-2 px-2 -mx-2 rounded-[3px] ${C.hoverBgLight} transition-colors min-h-[40px]`}>
-      <div className="w-[140px] shrink-0 text-sm text-[#37352F]/65 select-none truncate flex items-center">
+      <div className={`w-[140px] shrink-0 text-sm ${C.text65} select-none truncate flex items-center`}>
         {label}
       </div>
       <div className="flex-1 flex items-center">{children}</div>
@@ -431,17 +431,19 @@ function PropInput({ value, onChange, placeholder }: {
 
 ### サイドピークのトークン一覧
 
-| トークン | 実際のクラス |
+トークンの実体は `frontend/src/lib/design-tokens.ts` が SSOT。色を直書きせず、常に `C.*` / `STYLE.*` 経由で参照する。
+
+| トークン | 定義（`design-tokens.ts` の合成元） |
 |---------|------------|
-| `STYLE.sidePeekPanel` | `flex flex-col h-full bg-white border-l border-[rgba(55,53,47,0.09)] shadow-[-1px_0_5px_rgba(0,0,0,0.02)]` |
+| `STYLE.sidePeekPanel` | `flex flex-col h-full overflow-y-auto bg-white border-l ${C.borderLight} shadow-[-1px_0_5px_rgba(0,0,0,0.02)]` |
 | `STYLE.sidePeekToolbar` | `flex items-center justify-between h-[48px] px-3 shrink-0` |
-| `STYLE.sidePeekToolbarBtn` | `size-9 flex items-center justify-center rounded-[3px] ...` |
+| `STYLE.sidePeekToolbarBtn` | `size-9 flex items-center justify-center rounded-[3px] ${C.text45} ${C.hoverBgMedium} transition-colors` |
 | `STYLE.sidePeekBody` | `flex-1 overflow-y-auto` |
-| `STYLE.sidePeekFooter` | `flex items-center justify-end gap-2 px-4 py-3 border-t ... shrink-0` |
-| `STYLE.sidePeekCancelBtn` | `px-4 py-[7px] text-sm ... rounded-[3px] cursor-pointer` |
-| `STYLE.sidePeekSaveBtn` | `px-5 py-[7px] text-sm text-white bg-[#2383E2] ... rounded-[3px]` |
-| `STYLE.pageIcon` | `size-[38px] flex items-center justify-center rounded-[3px] ...` |
-| `LAYOUT.pageIcon.innerIcon` | `"size-[20px]"` |
+| `STYLE.sidePeekFooter` | `flex items-center justify-end gap-2 px-4 py-3 border-t ${C.borderLight} shrink-0` |
+| `STYLE.sidePeekCancelBtn` | `px-4 py-[7px] text-base ${C.text65} ${C.hoverBgLight} rounded-[3px] transition-colors cursor-pointer` |
+| `STYLE.sidePeekSaveBtn` | `px-5 py-[7px] text-base text-white ${C.bgAccent} ${C.bgAccentHover} rounded-[3px] transition-colors cursor-pointer shadow-[0_1px_2px_rgba(0,0,0,0.1)]` |
+| `STYLE.pageIcon` | `size-[38px] flex items-center justify-center rounded-[3px] ${C.bgPage} ${C.text45}` |
+| `LAYOUT.pageIcon.innerIcon` | `"size-5"` |
 
 ### アニメーション付きサイドピーク（高度なパターン）
 
@@ -477,16 +479,16 @@ const panelDuration = useReducedMotion() ? 0 : 0.2;
 ```tsx
 const STATUS_CONFIG = {
   active: {
-    dot:  "bg-[#2383E2]",    // 青ドット
+    dot:   C.bgAccent,       // 青ドット
     label: "有効",
-    bg:   "bg-[#D3E5EF]",   // 薄青背景
-    text: "text-[#183B56]",  // 濃青テキスト
+    bg:    C.bgAccentLight,  // 薄青背景
+    text:  C.textAccentDark, // 濃青テキスト
   },
   inactive: {
-    dot:  "bg-[#37352F]/10", // グレードット
+    dot:   C.bgPrimary10,    // グレードット
     label: "無効",
-    bg:   "bg-[#E3E2E0]",   // グレー背景
-    text: "text-[#37352F]/60",
+    bg:    C.bgInactive,     // グレー背景
+    text:  C.text60,
   },
 } as const;
 
@@ -515,7 +517,7 @@ function NotionStatusPill({ isActive }: { isActive: boolean }) {
 <button
   type="button"
   onClick={handleCreate}
-  className="inline-flex items-center gap-1 text-sm font-medium text-[#2383E2] hover:text-[#1B6EC2] cursor-pointer transition-colors"
+  className={`inline-flex items-center gap-1 text-sm font-medium ${C.accent} ${C.hoverTextAccent} cursor-pointer transition-colors`}
 >
   <Plus className="size-4" />
   新規登録
@@ -604,7 +606,7 @@ export function XxxSettings() {
               key={tab.value}
               value={tab.value}
               className={`h-9 border-b-2 border-b-transparent px-4 text-sm ${C.text60} outline-none transition-colors cursor-pointer
-                data-[state=active]:border-b-[#37352F] data-[state=active]:text-[#37352F] data-[state=active]:font-medium`}
+                ${C.dataActiveBorderB} ${C.dataActiveText} data-[state=active]:font-medium`}
             >
               {tab.label}
             </TabsPrimitive.Trigger>
