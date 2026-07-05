@@ -2,7 +2,7 @@ import { type ComponentProps } from "react";
 import { DndContext, closestCenter } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 
-import { DataTable } from "@/components/shared/DataTable/DataTable";
+import { DataTable, DESIGN_TABLE_HEADER_ROW, DESIGN_TABLE_HEADER_CELL } from "@/components/shared/DataTable/DataTable";
 import { SortableDataTableRow } from "@/components/shared/DataTable/SortableDataTableRow";
 import { RowActionButton } from "@/components/shared/RowActionButton";
 import { NotionStatusPill } from "@/components/shared/StatusPill/NotionStatusPill";
@@ -37,6 +37,8 @@ export function PermissionGroupSortableTable({
     <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
       <SortableContext items={items.map((item) => item.id)} strategy={verticalListSortingStrategy}>
         <DataTable
+          headerRowClassName={DESIGN_TABLE_HEADER_ROW}
+          headerCellClassName={DESIGN_TABLE_HEADER_CELL}
           columns={COLUMNS}
           data={items}
           emptyMessage="権限グループが登録されていません"

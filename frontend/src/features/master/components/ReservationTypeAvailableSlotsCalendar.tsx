@@ -197,14 +197,14 @@ export function ReservationTypeAvailableSlotsCalendar({
                 onClick={() => setSelectedDate(dateKey)}
                 aria-label={format(day, "yyyy年M月d日", { locale: ja })}
                 className={`h-full min-h-[420px] text-left border-b border-r ${C.borderLight} p-3 transition-colors cursor-pointer flex flex-col
-                  ${isSelected ? C.bgAccent8 : `${C.bgWhite} ${C.hoverBgPage}`}
+                  ${isSelected ? C.bgBrand8 : `${C.bgWhite} ${C.hoverBgPage}`}
                 `}
               >
                 <div className="flex justify-between items-start mb-3">
                   <div className="min-w-0">
                     <span
                       className={`text-base font-bold size-8 flex items-center justify-center rounded-full ${
-                        isSameDay(day, today) ? `${C.bgAccent} ${C.textWhite} shadow-sm` : C.text
+                        isSameDay(day, today) ? `${C.bgBrand} ${C.textWhite} shadow-sm` : C.text
                       }`}
                     >
                       {format(day, "d")}
@@ -305,6 +305,7 @@ export function ReservationTypeAvailableSlotsCalendar({
                 <p className={`text-xs ${C.text40}`}>この時刻は既に登録済みです</p>
               ) : null}
               <SubmitButton
+                colorVariant="brand"
                 disabled={isDuplicate}
                 loadingText="追加中..."
                 className="h-8 text-sm px-3"

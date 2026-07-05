@@ -1,5 +1,5 @@
 import { memo, type ReactNode } from "react";
-import { DataTable } from "@/components/shared/DataTable/DataTable";
+import { DataTable, DESIGN_TABLE_HEADER_ROW, DESIGN_TABLE_HEADER_CELL } from "@/components/shared/DataTable/DataTable";
 import { MasterListPage } from "../components/MasterListPage";
 import { usePermission } from "@/hooks/use-permission";
 import type { UseMasterCRUDReturn } from "../hooks/use-master-crud";
@@ -139,6 +139,8 @@ export const MasterCRUDPage = memo(function MasterCRUDPage<T extends MasterEntit
     >
       {children ?? (
         <DataTable
+          headerRowClassName={DESIGN_TABLE_HEADER_ROW}
+          headerCellClassName={DESIGN_TABLE_HEADER_CELL}
           columns={columns}
           data={crud.filteredItems}
           emptyMessage={emptyMessage}

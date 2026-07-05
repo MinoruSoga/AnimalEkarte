@@ -5,7 +5,7 @@ import Calendar from "lucide-react/dist/esm/icons/calendar";
 import { useNavigate } from "react-router";
 import { toast } from "sonner";
 
-import { DataTable } from "@/components/shared/DataTable/DataTable";
+import { DataTable, DESIGN_TABLE_HEADER_ROW, DESIGN_TABLE_HEADER_CELL } from "@/components/shared/DataTable/DataTable";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { useSidePeekDirty } from "@/hooks/use-side-peek-dirty";
 import { useSortableList } from "@/hooks/use-sortable-list";
@@ -166,6 +166,8 @@ export function ShiftTemplateSettings() {
               strategy={verticalListSortingStrategy}
             >
               <DataTable
+                headerRowClassName={DESIGN_TABLE_HEADER_ROW}
+                headerCellClassName={DESIGN_TABLE_HEADER_CELL}
                 columns={SHIFT_TEMPLATE_COLUMNS}
                 data={orderedItems}
                 renderRow={(item) => (

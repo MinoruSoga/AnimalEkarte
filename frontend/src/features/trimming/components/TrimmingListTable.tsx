@@ -1,7 +1,7 @@
 import { AlertTriangle, Edit, Trash2 } from "lucide-react";
 import { memo } from "react";
 import { TableCell } from "@/components/ui/table";
-import { DataTable } from "@/components/shared/DataTable/DataTable";
+import { DataTable, DESIGN_TABLE_HEADER_ROW, DESIGN_TABLE_HEADER_CELL } from "@/components/shared/DataTable/DataTable";
 import { DataTableRow } from "@/components/shared/DataTable/DataTableRow";
 import { FilteringIndicator } from "@/components/shared/FilteringIndicator/FilteringIndicator";
 import { NotionFilter } from "@/components/shared/NotionFilter/NotionFilter";
@@ -161,6 +161,8 @@ export function TrimmingListTable({
 
       <FilteringIndicator isFiltering={isFiltering}>
         <DataTable
+          headerRowClassName={DESIGN_TABLE_HEADER_ROW}
+          headerCellClassName={DESIGN_TABLE_HEADER_CELL}
           columns={columns}
           data={records}
           renderRow={(record) => (

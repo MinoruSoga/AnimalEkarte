@@ -15,7 +15,7 @@ import { paths } from "@/config/paths";
 import { TableCell } from "@/components/ui/table";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { NotionFilter } from "@/components/shared/NotionFilter/NotionFilter";
-import { DataTable } from "@/components/shared/DataTable/DataTable";
+import { DataTable, DESIGN_TABLE_HEADER_ROW, DESIGN_TABLE_HEADER_CELL } from "@/components/shared/DataTable/DataTable";
 import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
 import { DataTableRow } from "@/components/shared/DataTable/DataTableRow";
 import { RowActionDropdown } from "@/components/shared/RowActionDropdown/RowActionDropdown";
@@ -241,7 +241,7 @@ export function VaccinationList() {
       headerAction={
         <div className="flex items-center gap-2">
           {canCreate ? (
-            <PrimaryButton onClick={handleCreate}>
+            <PrimaryButton colorVariant="brand" onClick={handleCreate}>
               <Plus className={`mr-1.5 ${ICON.action}`} />
               新規登録
             </PrimaryButton>
@@ -266,6 +266,8 @@ export function VaccinationList() {
 
         <FilteringIndicator isFiltering={isFiltering}>
           <DataTable
+            headerRowClassName={DESIGN_TABLE_HEADER_ROW}
+            headerCellClassName={DESIGN_TABLE_HEADER_CELL}
             columns={columns}
             data={pagination.paginatedData}
             emptyMessage="データが見つかりません"

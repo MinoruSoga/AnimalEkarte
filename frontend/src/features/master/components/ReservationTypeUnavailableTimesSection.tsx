@@ -205,7 +205,7 @@ export function ReservationTypeUnavailableTimesSection({ clinicId, reservationTy
             </SelectTrigger>
             <SelectContent>{TIME_SELECT_ITEMS}</SelectContent>
           </Select>
-          <SubmitButton loadingText="追加中..." className="h-8 text-sm px-3">
+          <SubmitButton colorVariant="brand" loadingText="追加中..." className="h-8 text-sm px-3">
             <Plus className={ICON.smXs} />
             追加
           </SubmitButton>

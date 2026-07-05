@@ -178,7 +178,7 @@ export function CreditCorrectionDialog({ accounting, isPostClose = false }: Cred
             />
           </div>
           <DialogFooter>
-            <SubmitButton>訂正を保存</SubmitButton>
+            <SubmitButton colorVariant="brand">訂正を保存</SubmitButton>
           </DialogFooter>
         </form>
       </DialogContent>

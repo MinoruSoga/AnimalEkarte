@@ -133,7 +133,7 @@ export function CheckupSyncPage() {
                 type="button"
                 onClick={handleOpenConfirm}
                 disabled={selectedOwnerIds.size === 0}
-                className={STYLE.btnPrimary}
+                className={`${C.bgBrand} ${C.hoverBgBrand} text-white h-11 px-4 text-base rounded-full transition-colors shadow-none border-transparent`}
               >
                 <Send className={ICON.sm} />
                 タグを一括付与する

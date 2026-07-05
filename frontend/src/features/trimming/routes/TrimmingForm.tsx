@@ -1,5 +1,5 @@
 // React/Framework
-import { ICON, C, STYLE } from "@/lib/design-tokens";
+import { ICON, C } from "@/lib/design-tokens";
 import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams, useLocation, useSearchParams } from "react-router";
 
@@ -232,7 +232,7 @@ export function TrimmingForm() {
             <Button
               type="submit"
               form={TRIMMING_FORM_ID}
-              className={`${STYLE.confirmPrimary} h-10`}
+              className={`${C.bgBrand} ${C.hoverBgBrand} text-white px-4 text-base rounded-full transition-colors shadow-none border-transparent h-10`}
               disabled={isSaving}
             >
               {isSaving ? "保存中..." : "保存"}

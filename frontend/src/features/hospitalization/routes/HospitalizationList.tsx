@@ -244,7 +244,7 @@ export function HospitalizationList() {
       resource={ResourceHospitalization}
       headerAction={
         canCreate ? (
-          <PrimaryButton onClick={() => handleNavigateToForm()}>
+          <PrimaryButton colorVariant="brand" onClick={() => handleNavigateToForm()}>
             <Plus className={`mr-1.5 ${ICON.action}`} />
             新規入院登録
           </PrimaryButton>

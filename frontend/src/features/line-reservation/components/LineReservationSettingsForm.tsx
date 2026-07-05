@@ -319,7 +319,7 @@ export function LineReservationSettingsForm({ setting, clinicId }: SettingsFormP
       </Section>
 
       <div className="pt-2">
-        <SubmitButton>設定を保存</SubmitButton>
+        <SubmitButton colorVariant="brand">設定を保存</SubmitButton>
       </div>
       {formState !== undefined ? null : null}
     </form>

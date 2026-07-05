@@ -65,7 +65,8 @@ export function CheckupForm() {
         maxWidth="max-w-[900px]"
         headerAction={
           <SubmitButton
-            className={`${C.bgAccent} ${C.bgAccentHover} ${C.textWhite} shadow-sm px-6 h-10 text-sm`}
+            colorVariant="brand"
+            className="px-6 h-10 text-sm"
             disabled={isPending}
           >
             {isPending ? "保存中..." : "保存"}

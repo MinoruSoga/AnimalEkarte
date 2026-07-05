@@ -120,7 +120,7 @@ export const TreatmentItemSidePanel = memo(function TreatmentItemSidePanel({
           type="button"
           onClick={() => setFormDataDirty((prev) => ({ ...prev, isNonInsurance: !prev.isNonInsurance }))}
           aria-label="保険対象外を切り替え"
-          className={`inline-flex items-center rounded-[3px] ${C.hoverBgLight} transition-colors py-0.5 px-1.5 cursor-pointer text-sm ${formData.isNonInsurance ? C.accent : C.text50}`}
+          className={`inline-flex items-center rounded-[3px] ${C.hoverBgLight} transition-colors py-0.5 px-1.5 cursor-pointer text-sm ${formData.isNonInsurance ? C.textBrand : C.text50}`}
         >
           {formData.isNonInsurance ? "対象外" : "対象"}
         </button>

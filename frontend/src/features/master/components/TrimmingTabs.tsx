@@ -1,5 +1,5 @@
 import { useDeferredValue, useMemo, useState } from "react";
-import { DataTable } from "@/components/shared/DataTable/DataTable";
+import { DataTable, DESIGN_TABLE_HEADER_ROW, DESIGN_TABLE_HEADER_CELL } from "@/components/shared/DataTable/DataTable";
 import { NotionFilter } from "@/components/shared/NotionFilter/NotionFilter";
 import type { ActiveFilter } from "@/components/shared/NotionFilter/types";
 import { MASTER_STATUS_FILTER } from "../constants/styles";
@@ -46,6 +46,8 @@ export function TrimmingCourseTab({ onEditTargetChange, canEdit }: TrimmingCours
       />
 
       <DataTable
+        headerRowClassName={DESIGN_TABLE_HEADER_ROW}
+        headerCellClassName={DESIGN_TABLE_HEADER_CELL}
         columns={TRIMMING_COURSE_COLUMNS}
         data={filteredItems}
         emptyMessage="トリミングコースが登録されていません"
@@ -92,6 +94,8 @@ export function TrimmingOptionTab({ onEditTargetChange, canEdit }: TrimmingOptio
       />
 
       <DataTable
+        headerRowClassName={DESIGN_TABLE_HEADER_ROW}
+        headerCellClassName={DESIGN_TABLE_HEADER_CELL}
         columns={TRIMMING_OPTION_COLUMNS}
         data={filteredItems}
         emptyMessage="トリミングオプションが登録されていません"

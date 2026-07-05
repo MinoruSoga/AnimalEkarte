@@ -102,7 +102,7 @@ export function CheckupSyncConfirmDialog({
             type="button"
             onClick={onConfirm}
             disabled={isTagNameEmpty || isPending}
-            className={STYLE.btnPrimary}
+            className={`${C.bgBrand} ${C.hoverBgBrand} text-white h-11 px-4 text-base rounded-full transition-colors shadow-none border-transparent`}
           >
             {isPending ? "付与中..." : "タグを一括付与する"}
           </Button>

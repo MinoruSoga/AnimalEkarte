@@ -18,7 +18,7 @@ import { createPet, useCreatePet, useUpdatePet, useDeletePet } from "@/features/
 import { LinkedLineCustomers } from "@/features/line-reservation";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
-import { ICON, STYLE } from "@/lib/design-tokens";
+import { C, ICON } from "@/lib/design-tokens";
 import type { PetMutations } from "@/types/pet";
 
 export function OwnerFormPage() {
@@ -54,7 +54,7 @@ export function OwnerFormPage() {
         <Button
           type="button"
           onClick={() => setSendPanelOpen(true)}
-          className={STYLE.btnPrimary}
+          className={`${C.bgBrand} ${C.hoverBgBrand} ${C.textWhite} h-11 px-4 text-base rounded-full transition-colors shadow-none border-transparent`}
         >
           <Send className={ICON.sm} />
           個別LINE送信

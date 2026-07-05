@@ -23,7 +23,14 @@ interface DemoCredential {
   isSystemAdmin?: boolean;
 }
 
-const SHOW_DEMO = import.meta.env.DEV || import.meta.env.VITE_SHOW_DEMO_ACCOUNTS === "true";
+// M-10: Vercel Production（__VERCEL_ENV__ === "production"）では VITE_SHOW_DEMO_ACCOUNTS の
+// 値に関わらず常に非表示にする。この式は frontend/src/features/auth/lib/show-demo-accounts.ts の
+// computeShowDemoAccounts と同じロジックを表す（そちらでユニットテスト済み）。関数呼び出しにすると
+// Vite/esbuild が定数畳み込みできず本番バンドルから DEMO_ACCOUNTS が tree-shake されないため、
+// ここでは import.meta.env.* / __VERCEL_ENV__ を直接使ったリテラル式のままにする。
+const SHOW_DEMO =
+  __VERCEL_ENV__ !== "production" &&
+  (import.meta.env.DEV || import.meta.env.VITE_SHOW_DEMO_ACCOUNTS === "true");
 
 const DEMO_ACCOUNTS: readonly DemoCredential[] = SHOW_DEMO ? [
   // システム管理者（全医院）
@@ -225,7 +232,7 @@ export const LoginForm = memo(function LoginForm() {
 
         {/* Submit */}
         <SubmitButton
-          className={`w-full h-[52px] text-base font-medium rounded-[3px] ${C.bgBrand} ${C.hoverBgBrand} transition-colors ${C.textWhite}`}
+          className={`w-full h-[52px] text-base font-medium rounded-full ${C.bgBrand} ${C.hoverBgBrand} transition-colors ${C.textWhite}`}
           loadingText="ログイン中..."
         >
           ログイン

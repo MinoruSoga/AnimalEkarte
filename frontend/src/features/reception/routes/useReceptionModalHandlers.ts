@@ -118,6 +118,8 @@ export function useReceptionModalHandlers({
         status: data.status || (selectedAppointmentRef.current ? preserveEditableStatus(selectedAppointmentRef.current) : "confirmed"),
         notes: data.notes,
         source: selectedAppointmentRef.current?.source || "manual",
+        // 予約内容の編集(時間/医師変更等)では checked_in_at は不変。ローカルの楽観更新でも既存値を保持する。
+        checkedInAt: selectedAppointmentRef.current?.checkedInAt,
       };
 
       updateReservationMutation.mutate(

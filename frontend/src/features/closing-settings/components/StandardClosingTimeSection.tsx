@@ -174,7 +174,7 @@ export const StandardClosingTimeSection = memo(function StandardClosingTimeSecti
           </div>
         </div>
         <div className="flex justify-end pt-2">
-          <SubmitButton>保存</SubmitButton>
+          <SubmitButton colorVariant="brand">保存</SubmitButton>
         </div>
       </form>
     </section>

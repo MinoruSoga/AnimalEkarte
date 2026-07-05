@@ -80,7 +80,7 @@ export const CategoryChipsFilter = memo(function CategoryChipsFilter({
                 roundedClass,
                 hoverTransitionClass,
                 isActive
-                  ? cn(C.bgAccent, "border-transparent text-white", C.bgAccentHover)
+                  ? cn(C.bgBrand, "border-transparent text-white", C.hoverBgBrand)
                   : cn("bg-white", C.text, C.borderMedium, C.hoverBgLight),
               )}
             >

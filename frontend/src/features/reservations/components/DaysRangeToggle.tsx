@@ -28,7 +28,7 @@ export function DaysRangeToggle({ days, onChange }: DaysRangeToggleProps) {
             onClick={() => onChange(opt.value)}
             className={`h-9 px-3 rounded text-base font-medium transition-colors ${
               isActive
-                ? `${C.bgAccent} text-white`
+                ? `${C.bgBrand} text-white`
                 : `${C.text60} hover:${C.text}`
             }`}
           >

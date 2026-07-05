@@ -222,7 +222,7 @@ export const ShiftTemplateSidePanel = memo(function ShiftTemplateSidePanel({
           type="button"
           onClick={handleAction}
           disabled={isSaving || !formData.name.trim()}
-          className={STYLE.sidePeekSaveBtn}
+          className={`px-5 py-[7px] text-base text-white ${C.bgBrand} ${C.hoverBgBrand} rounded-full transition-colors cursor-pointer shadow-[0_1px_2px_rgba(0,0,0,0.1)]`}
         >
           {isSaving ? "保存中..." : "保存"}
         </button>

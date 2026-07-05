@@ -169,7 +169,7 @@ function ExaminationFormFieldsBase({
           ) : null}
           <Button variant="outline" type="button" onClick={onBack} className="h-10 text-sm">キャンセル</Button>
           {canSubmit ? (
-            <SubmitButton className={`${C.bgAccent} ${C.bgAccentHover} ${C.textWhite} h-10 text-sm`}>
+            <SubmitButton colorVariant="brand" className="h-10 text-sm">
               保存
             </SubmitButton>
           ) : null}

@@ -10,7 +10,7 @@ import { ja } from "date-fns/locale";
 
 // Internal
 import { paths } from "@/config/paths";
-import { C, STYLE } from "@/lib/design-tokens";
+import { C } from "@/lib/design-tokens";
 import { toJSTWallDate } from "@/lib/jst-date";
 import { Button } from "@/components/ui/button";
 import { FormHeader } from "@/components/shared/Form/FormHeader";
@@ -24,8 +24,10 @@ import { LoadingFallback, ErrorFallback } from "@/components/shared/DataStates";
 
 import { KanbanColumn } from "../components/KanbanColumn";
 import { ReceptionFilterPanel } from "../components/ReceptionFilterPanel";
+import { ReceptionTelemetryStrip } from "../components/ReceptionTelemetryStrip";
 import type { ReceptionAppointment } from "../api/types";
 import { useReceptionKanban } from "../hooks/use-reception-kanban";
+import { RECEPTION_TELEMETRY_PHASE2_ENABLED, useReceptionTelemetry } from "../hooks/use-reception-telemetry";
 import { ReceptionDetailModal, ReservationFormModal } from "./ReceptionLazyModals";
 import { NO_ADD_BUTTON_COLUMNS } from "./ReceptionModel";
 import { useReceptionDragHandlers } from "./useReceptionDragHandlers";
@@ -87,6 +89,10 @@ export function Reception() {
     );
 
     const { handleDragEnd } = useReceptionDragHandlers(columns, moveCard);
+
+    // 受付ヘッダー テレメトリ（change-ui.md）: 集計は必ず columns（フィルタ非適用）から算出する。
+    // filteredColumns を渡すと「本日受付」件数がフィルタ操作で変動してしまう。
+    const telemetry = useReceptionTelemetry(columns);
 
     const todayLabel = format(toJSTWallDate(new Date()), "yyyy年M月d日 (E)", { locale: ja });
 
@@ -170,7 +176,7 @@ export function Reception() {
                         </Button>
                         {canCreateReservation ? (
                             <Button
-                                className={`${STYLE.confirmPrimary} h-11 text-base tracking-[var(--tracking-notion)]`}
+                                className={`${C.bgBrand} ${C.hoverBgBrand} text-white rounded-full px-4 shadow-none border-transparent h-11 text-base tracking-[var(--tracking-notion)]`}
                                 onClick={() => goToNewReservation("reception=1")}
                             >
                                 新規予約登録
@@ -178,6 +184,11 @@ export function Reception() {
                         ) : null}
                     </div>
                 }
+            />
+
+            <ReceptionTelemetryStrip
+                totalCount={telemetry.totalCount}
+                waitStats={RECEPTION_TELEMETRY_PHASE2_ENABLED ? telemetry : undefined}
             />
 
             {isFilterOpen ? (

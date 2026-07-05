@@ -214,7 +214,7 @@ export function AccountingList() {
       icon={<CreditCard className={`${ICON.page} ${C.text}`} />}
       headerAction={
         activeTab === "list" && canCreate ? (
-          <PrimaryButton onClick={handleCreate}>
+          <PrimaryButton colorVariant="brand" onClick={handleCreate}>
             <Plus className={`mr-1.5 ${ICON.action}`} />
             新規会計登録
           </PrimaryButton>

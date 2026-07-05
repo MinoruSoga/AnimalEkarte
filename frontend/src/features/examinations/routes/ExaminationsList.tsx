@@ -15,7 +15,7 @@ import { TableCell } from "@/components/ui/table";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { LoadingFallback, ErrorFallback } from "@/components/shared/DataStates";
 import { NotionFilter } from "@/components/shared/NotionFilter/NotionFilter";
-import { DataTable } from "@/components/shared/DataTable/DataTable";
+import { DataTable, DESIGN_TABLE_HEADER_ROW, DESIGN_TABLE_HEADER_CELL } from "@/components/shared/DataTable/DataTable";
 import { DataTableRow } from "@/components/shared/DataTable/DataTableRow";
 import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
 import { StatusBadge } from "@/components/shared/StatusBadge/StatusBadge";
@@ -249,7 +249,7 @@ export function ExaminationsList() {
       headerAction={
         <div className="flex items-center gap-2">
           {canCreate ? (
-            <PrimaryButton onClick={handleCreate}>
+            <PrimaryButton colorVariant="brand" onClick={handleCreate}>
               <Plus className={`mr-1.5 ${ICON.action}`} />
               新規検査登録
             </PrimaryButton>
@@ -274,6 +274,8 @@ export function ExaminationsList() {
 
         <FilteringIndicator isFiltering={isFiltering}>
           <DataTable
+            headerRowClassName={DESIGN_TABLE_HEADER_ROW}
+            headerCellClassName={DESIGN_TABLE_HEADER_CELL}
             columns={columns}
             data={pagination.paginatedData}
             emptyMessage="検査データが見つかりません"

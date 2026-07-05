@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { C } from "@/lib/design-tokens";
 import { DaysRangeToggle } from "../DaysRangeToggle";
 
 describe("DaysRangeToggle", () => {
@@ -20,6 +21,13 @@ describe("DaysRangeToggle", () => {
     render(<DaysRangeToggle days={7} onChange={vi.fn()} />);
     expect(screen.getByTestId("days-toggle-7")).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByTestId("days-toggle-5")).toHaveAttribute("aria-pressed", "false");
+  });
+
+  it("active ボタンは DESIGN.md 構造色（brand blue）を使い accent は使わない", () => {
+    render(<DaysRangeToggle days={5} onChange={vi.fn()} />);
+    const active = screen.getByTestId("days-toggle-5");
+    expect(active.className).toContain(C.bgBrand);
+    expect(active.className).not.toContain(C.bgAccent);
   });
 
   it("7日ボタンをクリックすると onChange(7) が呼ばれる", async () => {

@@ -98,7 +98,7 @@ function WeekHeader({ startDate, appointmentsByDay, columnWidth }: WeekHeaderPro
             key={offset}
             data-testid="week-header-day"
             className={`flex-1 flex-shrink-0 text-center py-2 border-r border-b ${C.borderMedium} ${C.bgWhite} ${
-              isToday ? C.bgAccentLight30 : ""
+              isToday ? C.bgBrand8 : ""
             }`}
             style={{ minWidth: columnWidth }}
           >
@@ -110,10 +110,10 @@ function WeekHeader({ startDate, appointmentsByDay, columnWidth }: WeekHeaderPro
               {format(day, "E", { locale: ja })}
             </div>
             <div className="flex items-center justify-center">
-              <div className={`relative text-lg font-bold ${isToday ? C.accent : C.text}`}>
+              <div className={`relative text-lg font-bold ${isToday ? C.textBrand : C.text}`}>
                 {format(day, "d")}
                 {count > 0 ? (
-                  <span className={`absolute -right-7 bottom-0 text-xs whitespace-nowrap ${C.accent}`}>
+                  <span className={`absolute -right-7 bottom-0 text-xs whitespace-nowrap ${C.textBrand}`}>
                     {count}件
                   </span>
                 ) : null}

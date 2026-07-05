@@ -12,7 +12,7 @@ import { TableCell } from "@/components/ui/table";
 import { CheckupAlertBadge } from "../components/CheckupAlertBadge";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { NotionFilter } from "@/components/shared/NotionFilter/NotionFilter";
-import { DataTable } from "@/components/shared/DataTable/DataTable";
+import { DataTable, DESIGN_TABLE_HEADER_ROW, DESIGN_TABLE_HEADER_CELL } from "@/components/shared/DataTable/DataTable";
 import { DataTableRow } from "@/components/shared/DataTable/DataTableRow";
 import { SortableHeader } from "@/components/shared/SortableHeader/SortableHeader";
 import { FilteringIndicator } from "@/components/shared/FilteringIndicator/FilteringIndicator";
@@ -223,7 +223,7 @@ export function CheckupsList() {
       maxWidth="max-w-full"
       headerAction={
         canCreate ? (
-          <PrimaryButton onClick={handleCreate}>
+          <PrimaryButton colorVariant="brand" onClick={handleCreate}>
             <Plus className={`mr-1.5 ${ICON.action}`} />
             新規登録
           </PrimaryButton>
@@ -246,6 +246,8 @@ export function CheckupsList() {
 
         <FilteringIndicator isFiltering={isFiltering}>
           <DataTable
+            headerRowClassName={DESIGN_TABLE_HEADER_ROW}
+            headerCellClassName={DESIGN_TABLE_HEADER_CELL}
             columns={columns}
             data={pagination.paginatedData}
             emptyMessage="定期健診の記録がありません"

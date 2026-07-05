@@ -156,7 +156,7 @@ export function ReservationTypeSettings() {
             maxWidth="max-w-full"
             headerAction={
               canCreate ? (
-                <PrimaryButton onClick={() => handleCategoryAddInGroup(undefined)}>
+                <PrimaryButton colorVariant="brand" onClick={() => handleCategoryAddInGroup(undefined)}>
                   <Plus className={`mr-1.5 ${ICON.action}`} />
                   新規登録
                 </PrimaryButton>
