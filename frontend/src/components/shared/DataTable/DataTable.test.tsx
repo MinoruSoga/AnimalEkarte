@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { render, screen } from "@testing-library/react";
-import { STYLE } from "@/lib/design-tokens";
-import { DataTable } from "./DataTable";
+import { C, STYLE } from "@/lib/design-tokens";
+import { DataTable, DESIGN_TABLE_HEADER_ROW, DESIGN_TABLE_HEADER_CELL } from "./DataTable";
 
 interface Row {
   id: string;
@@ -52,5 +52,15 @@ describe("DataTable", () => {
 
     const headerRow = headerCell.closest("tr");
     expect(headerRow?.className).toContain("custom-row-class");
+  });
+
+  it("DESIGN_TABLE_HEADER_ROW/CELL は ex-data-table-cell（canvas-soft + sectionLabel）を構成する", () => {
+    expect(DESIGN_TABLE_HEADER_ROW).toContain(C.bgPage);
+    expect(DESIGN_TABLE_HEADER_ROW).toContain(C.borderLight);
+    expect(DESIGN_TABLE_HEADER_ROW).toContain("h-11");
+    expect(DESIGN_TABLE_HEADER_CELL).not.toContain("h-11");
+    for (const cls of STYLE.sectionLabel.split(" ")) {
+      expect(DESIGN_TABLE_HEADER_CELL).toContain(cls);
+    }
   });
 });

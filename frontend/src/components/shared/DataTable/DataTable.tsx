@@ -1,6 +1,14 @@
 import { memo, ReactNode } from "react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { STYLE } from "@/lib/design-tokens";
+import { C, STYLE } from "@/lib/design-tokens";
+
+/**
+ * DESIGN.md `ex-data-table-cell` 準拠の header chrome（eyebrow/sectionLabel + canvas-soft）。
+ * headerRowClassName / headerCellClassName への opt-in 用共有定数。
+ * MedicalRecords.tsx / OwnersListTable.tsx のローカル定数と同一値（コミット済み e93b53a2 パターン）。
+ */
+export const DESIGN_TABLE_HEADER_ROW = `border-b ${C.borderLight} ${C.bgPage} h-11`;
+export const DESIGN_TABLE_HEADER_CELL = STYLE.sectionLabel;
 
 interface DataTableProps<T> {
   columns: {

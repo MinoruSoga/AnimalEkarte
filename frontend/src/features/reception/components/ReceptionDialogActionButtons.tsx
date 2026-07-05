@@ -10,7 +10,8 @@ import Trash2 from "lucide-react/dist/esm/icons/trash-2";
 import User from "lucide-react/dist/esm/icons/user";
 
 import { Button } from "@/components/ui/button";
-import { C, ICON, STYLE } from "@/lib/design-tokens";
+import { BRAND_PRIMARY_BUTTON_CLASSES } from "@/components/shared/Form/brand-button-classes";
+import { C, ICON } from "@/lib/design-tokens";
 
 import type { ReceptionAppointment as Appointment } from "../api/types";
 
@@ -77,7 +78,7 @@ export const ActionButtons = memo(function ActionButtons({
         ) : null}
         {ownerDetailBtn}
         {onConfirm ? (
-          <Button onClick={onConfirm} className={STYLE.confirmPrimary}>
+          <Button onClick={onConfirm} className={BRAND_PRIMARY_BUTTON_CLASSES}>
             受付済にする
           </Button>
         ) : null}
@@ -96,7 +97,7 @@ export const ActionButtons = memo(function ActionButtons({
                 if (onConfirm) onConfirm();
                 onCreateTrimming();
               }}
-              className={STYLE.confirmPrimary}
+              className={BRAND_PRIMARY_BUTTON_CLASSES}
             >
               <Scissors className={ICON.action} />
               トリミングカルテ作成
@@ -112,7 +113,7 @@ export const ActionButtons = memo(function ActionButtons({
                 if (onConfirm) onConfirm();
                 onCreateMedicalRecord();
               }}
-              className={STYLE.confirmPrimary}
+              className={BRAND_PRIMARY_BUTTON_CLASSES}
             >
               <FileText className={ICON.action} />
               カルテ作成
@@ -122,7 +123,7 @@ export const ActionButtons = memo(function ActionButtons({
             </span>
           </div>
         ) : onConfirm ? (
-          <Button onClick={onConfirm} className={STYLE.confirmPrimary}>
+          <Button onClick={onConfirm} className={BRAND_PRIMARY_BUTTON_CLASSES}>
             診察を開始する
           </Button>
         ) : null}
@@ -145,7 +146,7 @@ export const ActionButtons = memo(function ActionButtons({
         ) : null}
         {isMedical ? (
           <>
-            <Button onClick={() => onCreateMedicalRecord()} className={STYLE.confirmPrimary}>
+            <Button onClick={() => onCreateMedicalRecord()} className={BRAND_PRIMARY_BUTTON_CLASSES}>
               <FileText className={ICON.action} />
               カルテ入力
             </Button>
@@ -167,7 +168,7 @@ export const ActionButtons = memo(function ActionButtons({
     return (
       <>
         {ownerDetailBtn}
-        <Button onClick={onCreateAccounting} className={STYLE.confirmPrimary}>
+        <Button onClick={onCreateAccounting} className={BRAND_PRIMARY_BUTTON_CLASSES}>
           <CreditCard className={ICON.action} />
           会計へ進む
         </Button>
@@ -180,7 +181,7 @@ export const ActionButtons = memo(function ActionButtons({
       <>
         {ownerDetailBtn}
         {onConfirm ? (
-          <Button onClick={onConfirm} className={STYLE.confirmPrimary}>
+          <Button onClick={onConfirm} className={BRAND_PRIMARY_BUTTON_CLASSES}>
             完了/リストから削除
           </Button>
         ) : null}
@@ -192,25 +193,25 @@ export const ActionButtons = memo(function ActionButtons({
     <>
       {ownerDetailBtn}
       {isMedical ? (
-        <Button onClick={() => onCreateMedicalRecord()} className={STYLE.confirmPrimary}>
+        <Button onClick={() => onCreateMedicalRecord()} className={BRAND_PRIMARY_BUTTON_CLASSES}>
           <FileText className={ICON.action} />
           カルテ確認
         </Button>
       ) : null}
       {isTrimming ? (
-        <Button onClick={onCreateTrimming} className={STYLE.confirmPrimary}>
+        <Button onClick={onCreateTrimming} className={BRAND_PRIMARY_BUTTON_CLASSES}>
           <Scissors className={ICON.action} />
           トリミング
         </Button>
       ) : null}
       {isHospitalization ? (
-        <Button onClick={onCreateHospitalization} className={STYLE.confirmPrimary}>
+        <Button onClick={onCreateHospitalization} className={BRAND_PRIMARY_BUTTON_CLASSES}>
           <BedDouble className={ICON.action} />
           入院登録
         </Button>
       ) : null}
       {onConfirm ? (
-        <Button onClick={onConfirm} className={STYLE.confirmPrimary}>
+        <Button onClick={onConfirm} className={BRAND_PRIMARY_BUTTON_CLASSES}>
           ステータス変更
         </Button>
       ) : null}
