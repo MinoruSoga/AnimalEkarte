@@ -156,7 +156,7 @@ export function TrimmingList() {
       resource={ResourceTrimming}
       headerAction={
         canCreate ? (
-          <PrimaryButton colorVariant="brand" onClick={handleNew}>
+          <PrimaryButton onClick={handleNew}>
             <Plus className={`mr-1.5 ${ICON.action}`} />
             新規登録
           </PrimaryButton>

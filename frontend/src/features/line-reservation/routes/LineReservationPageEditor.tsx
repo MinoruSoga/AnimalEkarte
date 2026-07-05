@@ -123,7 +123,7 @@ function PageEditorForm({ setting, clinicId }: PageEditorFormProps) {
       ))}
 
       <div className="pt-2">
-        <SubmitButton colorVariant="brand">変更を保存</SubmitButton>
+        <SubmitButton>変更を保存</SubmitButton>
       </div>
       {formState !== undefined ? null : null}
     </form>

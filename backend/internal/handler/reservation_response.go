@@ -20,6 +20,7 @@ type reservationResponse struct {
 	IsDesignated        bool                     `json:"is_designated"`
 	Status              string                   `json:"status"`
 	Notes               string                   `json:"notes"`
+	CheckedInAt         *time.Time               `json:"checked_in_at,omitempty"`
 	Source              string                   `json:"source"`
 	CreatedBy           *uint64                  `json:"created_by,omitempty"`
 	LineCustomerID      *uint64                  `json:"line_customer_id,omitempty"`
@@ -56,6 +57,7 @@ func toReservationResponse(r *model.Reservation) reservationResponse {
 		IsDesignated:        r.IsDesignated,
 		Status:              string(r.Status),
 		Notes:               r.Notes,
+		CheckedInAt:         localTimePtr(r.CheckedInAt),
 		Source:              string(r.Source),
 		CreatedBy:           r.CreatedBy,
 		LineCustomerID:      r.LineCustomerID,

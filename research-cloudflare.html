@@ -88,11 +88,12 @@
   <div class="inner">
     <div class="eyebrow">Infrastructure Migration Research · 内部技術調査</div>
     <h1>STG AWS 環境 → Cloudflare 全面移行 調査レポート</h1>
-    <p class="lede">Animal Ekarte（動物病院向け電子カルテ）の Staging AWS バックエンド/インフラを Cloudflare ネイティブ構成へ全面移行した場合の、リソース対応関係・移行リスク・JPY 建て費用（STG 実態 / 本番投影の 2 シナリオ）・移行可否の結論を、リポジトリ IaC を一次情報として検証した。<strong>結論を先に言う: 「すべて Cloudflare」は DB 制約により本質的に不可能であり、推奨はハイブリッド構成である。</strong></p>
+    <p class="lede">Animal Ekarte（動物病院向け電子カルテ）の Staging AWS バックエンド/インフラを Cloudflare ネイティブ構成へ全面移行した場合の、リソース対応関係・移行リスク・JPY 建て費用（STG 実態 / 本番投影の 2 シナリオ）・移行可否の結論を、リポジトリ IaC を一次情報として検証した。<strong>結論を先に言う: DB 本体を Cloudflare がホストする経路は依然存在しないが、PlanetScale 提携（2026-06-18）により「Cloudflare 課金・管理に一元化された Postgres」が成立した。推奨は引き続きハイブリッド構成（ただし DB の選択肢が拡大）。</strong></p>
     <div class="meta-grid">
-      <div class="meta-card"><div class="k">調査日</div><div class="v">2026-06-28</div></div>
+      <div class="meta-card"><div class="k">調査日</div><div class="v">2026-07-04（再調査）</div></div>
+      <div class="meta-card"><div class="k">初回調査</div><div class="v">2026-06-28</div></div>
       <div class="meta-card"><div class="k">対象</div><div class="v">STG (us-east-1)</div></div>
-      <div class="meta-card"><div class="k">為替前提</div><div class="v">1 USD = 161.7 JPY</div></div>
+      <div class="meta-card"><div class="k">為替前提</div><div class="v">1 USD = 161.2 JPY</div></div>
       <div class="meta-card"><div class="k">一次情報</div><div class="v">infra/terraform/* IaC</div></div>
       <div class="meta-card"><div class="k">料金出典</div><div class="v">公式ページ実取得</div></div>
       <div class="meta-card"><div class="k">変更操作</div><div class="v">なし（read-only / ローカル書込のみ）</div></div>
@@ -114,6 +115,20 @@
 
 <div class="wrap">
 
+<!-- ===================== DIFF SINCE LAST RESEARCH ===================== -->
+<div class="callout" style="margin-top:40px">
+  <h4>🔄 前回調査（2026-06-28）からの主要な変化（2026-07-04 再調査）</h4>
+  <ul style="margin-bottom:0">
+    <li><strong>PlanetScale 提携（2026-06-18 発表・最重要）:</strong> Cloudflare ダッシュボードから <strong>PlanetScale Postgres/MySQL を直接作成し、Cloudflare アカウントに課金統合</strong>できるようになった（pay-as-you-go は提供中、契約顧客は 2026-07 から）。Hyperdrive 自動連携。「Cloudflare がマネージド Postgres をホストしない」事実は不変だが、<strong>調達・課金・管理が Cloudflare で完結する Postgres</strong> が成立し、DB 戦略の選択肢が実質 1 つ増えた（§④に案C として追加）。</li>
+    <li><strong>Workers VPC が拡充（public beta）:</strong> VPC Services（2025-11 beta）に加え <strong>VPC Networks + Cloudflare Mesh 対応（2026-04-14 beta）</strong>。Cloudflare Tunnel 経由で AWS VPC 内の private RDS へ Workers から直接到達可能（TCP DB は Hyperdrive 経由）。beta 期間中は無料。「既存 RDS を private のまま Cloudflare 背後に置く」経路の実装手段が具体化した。ただし GA 前であり本番採用は時期尚早。</li>
+    <li><strong>Hyperdrive のキャッシュ挙動変更:</strong> <code>STABLE</code> 関数を含むクエリもキャッシュ対象外になった（VOLATILE に加え）。臨床/会計データの陳腐化読み取りリスクが公式側で一段緩和。</li>
+    <li><strong>Containers 機能拡充:</strong> <code>exec()</code>（2026-06-18、稼働中コンテナ内プロセス実行 = <code>./migrate</code> one-shot の代替手段として有力）、カスタムインスタンスタイプ全ユーザ開放（2026-01）、Google Artifact Registry 対応（2026-07-01）。料金表は変更なし。</li>
+    <li><strong>Neon の料金改定（Databricks 買収後）:</strong> 月額最低額が撤廃され完全従量制に（2025-12〜）。ストレージ $0.35/GB-月。常時起動 1CU の月額推計は ~$95 で前回と同水準だが、根拠となる体系が変わった。</li>
+    <li><strong>為替:</strong> 161.7 → <strong>161.2 JPY/USD</strong>（2026-07-03/04 取得）。JPY 建て金額を全面再計算。</li>
+    <li><strong>変わっていないこと:</strong> Cloudflare 自身がホストするマネージド Postgres は依然として存在しない。D1 は SQLite・10GB 上限で不変。Workers/Containers/R2/D1/DO の料金表も前回から変更なし。AWS 側単価（Fargate/RDS/ALB 東京）も Price List 再取得で実質変更なしを確認。<strong>総合 Verdict（全面移行は不可・ハイブリッド推奨）は維持。</strong></li>
+  </ul>
+</div>
+
 <!-- ===================== SUMMARY / VERDICT ===================== -->
 <h2 id="summary">エグゼクティブサマリ</h2>
 <p class="section-intro">調査の核心を 6 行で示す。詳細は各章を参照。</p>
@@ -122,18 +137,18 @@
   <thead><tr><th style="width:24%">論点</th><th>結論</th><th style="width:14%">判定</th></tr></thead>
   <tbody>
     <tr><td>Go(Gin/GORM) バックエンド</td><td>本番は <code>CMD ["./api"]</code> の常駐 HTTP サーバ（port 8080）。Workers 単体では動かない。Cloudflare <strong>Containers（2026-04-13 GA）</strong>なら稼働可能だが scale-to-zero / Durable Object 結合 / CPU 課金の変動という新しさのリスクを伴う。</td><td><span class="pill warn">条件付可</span></td></tr>
-    <tr><td>PostgreSQL (RDS)</td><td>Cloudflare に<strong>マネージド Postgres は存在しない</strong>。D1 は SQLite・10GB 上限・方言非互換で電子カルテ移植は高リスク。→ 外部 Postgres を維持（CF からは任意で Hyperdrive 経由）。</td><td><span class="pill bad">等価なし</span></td></tr>
+    <tr><td>PostgreSQL (RDS)</td><td>Cloudflare 自身がホストする<strong>マネージド Postgres は依然存在しない</strong>。D1 は SQLite・10GB 上限・方言非互換で電子カルテ移植は高リスク。ただし <strong>PlanetScale 提携（2026-06-18）</strong>により、Cloudflare ダッシュボード作成・Cloudflare 課金・Hyperdrive 自動連携の Postgres が選択肢に加わった。→ 外部 Postgres を維持（RDS 継続 / PlanetScale / Neon / Supabase）。</td><td><span class="pill warn">提携で緩和</span></td></tr>
     <tr><td>S3（臨床画像）</td><td>R2 は S3 API 互換。<code>aws-sdk-go-v2/service/s3</code> のエンドポイント差替で移行可。<strong>egress 課金ゼロ</strong>が明確な利得。</td><td><span class="pill good">最適</span></td></tr>
     <tr><td>CloudFront / Route53 / ACM / ALB</td><td>Cloudflare CDN / DNS / Universal SSL / Load Balancing で素直に置換。多くが無料枠。Cloudflare のコア強み。</td><td><span class="pill good">適合</span></td></tr>
     <tr><td>VPC / NAT / Subnet / SG / EIP</td><td>サーバレス/エッジ前提のため<strong>大半が不要化</strong>（等価概念なし）。固定 egress IP（LINE allowlist 等）のみ別途検討。</td><td><span class="pill good">不要化</span></td></tr>
-    <tr><td>費用</td><td>STG: AWS <strong>¥6,424/月</strong> → Cloudflare <strong>~¥1,455/月</strong>。本番投影: AWS <strong>~¥52,700/月</strong> → Cloudflare スタック <strong>~¥29,100/月</strong>（外部 Postgres 込み）。<strong>ただし②は AWS=Multi-AZ(HA) vs CF=単一インスタンスの非対称比較</strong>で、HA 同等化なら外部 Postgres は $150〜250 に上がり DB はほぼ拮抗する（詳細§⑤）。</td><td><span class="pill good">CF が安価</span></td></tr>
+    <tr><td>費用</td><td>STG: AWS <strong>¥6,404/月</strong> → Cloudflare <strong>~¥1,450/月</strong>。本番投影: AWS <strong>~¥51,700/月</strong> → Cloudflare スタック <strong>~¥28,200/月</strong>（外部 Postgres 込み）。<strong>ただし②は AWS=Multi-AZ(HA) vs CF=単一インスタンスの非対称比較</strong>で、HA 同等化なら外部 Postgres は $140〜250 に上がり DB はほぼ拮抗する（詳細§⑤）。</td><td><span class="pill good">CF が安価</span></td></tr>
   </tbody>
 </table>
 
 <div class="verdict-box">
   <h4 style="margin-top:0;color:#fff">総合 Verdict</h4>
-  <p style="margin-bottom:6px"><strong>「STG AWS を丸ごと Cloudflare へ全面移行（DB 含む）」は不可能・非推奨。</strong>理由はただ一つ — Cloudflare はマネージド PostgreSQL を提供せず、D1(SQLite) への移植は本電子カルテの Postgres 依存（ENUM 型・配列・jsonb・CTE・生 SQL・clinic_id マルチテナント・臨床/会計データ整合性）に対して高工数・高リスクで割に合わない。</p>
-  <p style="margin-bottom:0">現実的な推奨は<strong>ハイブリッド</strong>: エッジ層（DNS/CDN/SSL/WAF）と画像ストレージ（R2）を Cloudflare へ寄せ、DB は外部マネージド Postgres + Hyperdrive で残す。最小リスク・最大 ROI の第一手は <strong>「R2 への画像移行」+「既存 AWS スタックの前段に Cloudflare を被せる」</strong>。コンピュート（ECS→Containers）の移行は任意で、既に安定動作する Fargate を置き換える積極的理由は薄い。詳細は<a href="#verdict">⑥移行可否</a>。</p>
+  <p style="margin-bottom:6px"><strong>「STG AWS を丸ごと Cloudflare へ全面移行（DB 含む）」は依然不可能・非推奨。</strong>理由はただ一つ — Cloudflare 自身は マネージド PostgreSQL をホストせず、D1(SQLite) への移植は本電子カルテの Postgres 依存（ENUM 型・配列・jsonb・CTE・生 SQL・clinic_id マルチテナント・臨床/会計データ整合性）に対して高工数・高リスクで割に合わない。ただし <strong>PlanetScale 提携により「Cloudflare 課金・管理に一元化された外部 Postgres」という中間解が成立</strong>し、「実質すべて Cloudflare の管理画面で完結する」構成には近づいた。</p>
+  <p style="margin-bottom:0">現実的な推奨は<strong>ハイブリッド</strong>: エッジ層（DNS/CDN/SSL/WAF）と画像ストレージ（R2）を Cloudflare へ寄せ、DB は外部マネージド Postgres + Hyperdrive で残す（PlanetScale なら課金も Cloudflare に統合可）。最小リスク・最大 ROI の第一手は <strong>「R2 への画像移行」+「既存 AWS スタックの前段に Cloudflare を被せる」</strong>。コンピュート（ECS→Containers）の移行は任意で、既に安定動作する Fargate を置き換える積極的理由は薄い。詳細は<a href="#verdict">⑥移行可否</a>。</p>
 </div>
 
 <!-- ===================== 1. INVENTORY ===================== -->
@@ -204,7 +219,7 @@
     <tr class="map-row"><td>Security Group ×4</td><td class="map-cf">Cloudflare WAF / Zero Trust / Worker ルーティング</td><td>L4 SG は L7 制御へ移行。RDS の private 隔離は外部 Postgres 側の責務。</td></tr>
     <tr class="map-row"><td>CloudWatch Log Group</td><td class="map-cf">Workers Logs / Logpush</td><td>保持・転送は Workers Logs(7日) / Logpush。長期保管は R2/外部 SIEM。</td></tr>
     <tr class="map-row"><td>SSM Parameter Store</td><td class="map-cf">Workers Secrets / Secrets Store(open beta)</td><td>暗号化環境変数 or アカウント単位 Secrets Store。</td></tr>
-    <tr class="map-row"><td><strong>RDS PostgreSQL</strong></td><td class="map-cf"><span class="pill bad">等価なし</span> → 外部 Postgres + Hyperdrive</td><td><strong>本移行の最大の壁。</strong>Cloudflare にマネージド Postgres なし。D1 は非互換。詳細は<a href="#db">④</a>。</td></tr>
+    <tr class="map-row"><td><strong>RDS PostgreSQL</strong></td><td class="map-cf"><span class="pill warn">CF ホストなし</span> → 外部 Postgres + Hyperdrive（PlanetScale なら CF 課金統合）</td><td><strong>本移行の最大の壁。</strong>Cloudflare 自身のマネージド Postgres はなし。D1 は非互換。PlanetScale 提携（2026-06-18）で CF ダッシュボード作成・CF 課金の Postgres が選択可に。private RDS へは Workers VPC（beta）で到達する経路も出現。詳細は<a href="#db">④</a>。</td></tr>
     <tr class="map-row"><td>RDS Subnet/Param Group</td><td class="map-cf">外部 Postgres プロバイダ側設定</td><td>Neon/Supabase/RDS の管理画面に内包。</td></tr>
     <tr class="map-row"><td>ECR Repository</td><td class="map-cf">Cloudflare Containers イメージレジストリ</td><td><code>wrangler</code> で push。Containers はイメージを Cloudflare 管理レジストリへ格納。</td></tr>
     <tr class="map-row"><td>ALB</td><td class="map-cf">Cloudflare Load Balancing / Worker ルーティング</td><td>単一デプロイなら Worker ルーティングで LB 不要。マルチオリジンのみ LB add-on。</td></tr>
@@ -238,14 +253,14 @@
     <tr>
       <td><strong>コンピュート</strong><br><span class="small">ECS Fargate → Containers</span></td>
       <td>Workers + Containers</td>
-      <td>Go 常駐サーバはそのまま動くが、Containers は <strong>scale-to-zero / Durable Object 結合 / CPU 課金が負荷依存</strong>。GA は 2026-04 と新しく運用実績が浅い。<code>./migrate</code> one-shot 投入の置換設計が必要（Cron/手動 exec）。コールドスタート許容性の検証必須。</td>
+      <td>Go 常駐サーバはそのまま動くが、Containers は <strong>scale-to-zero / Durable Object 結合 / CPU 課金が負荷依存</strong>。GA は 2026-04 と新しく運用実績が浅い。<code>./migrate</code> one-shot は <strong><code>exec()</code> API（2026-06-18〜）</strong>で置換可能になった（CI からの起動トリガ設計は要）。コールドスタート許容性の検証必須。</td>
       <td class="num">5〜12</td>
       <td><span class="pill warn">中</span></td>
     </tr>
     <tr>
       <td><strong>データベース</strong><br><span class="small">RDS → 外部PG+Hyperdrive</span></td>
-      <td>Hyperdrive（+ Neon/Supabase/RDS）</td>
-      <td>マネージド Postgres が CF に無いのが本質制約。Hyperdrive は接続プール/キャッシュのみで <strong>DB 本体はホストしない</strong>。外部依存とクロスプロバイダ遅延・egress を再導入。D1 移植は<a href="#db">非推奨</a>。</td>
+      <td>Hyperdrive（+ PlanetScale/Neon/Supabase/RDS）</td>
+      <td>CF 自身がホストする Postgres が無いのが本質制約。Hyperdrive は接続プール/キャッシュのみで <strong>DB 本体はホストしない</strong>。PlanetScale 提携（2026-06）で CF ダッシュボード作成・CF 課金統合の Postgres が選択可に。外部依存とクロスプロバイダ遅延・egress の再導入は不変。D1 移植は<a href="#db">非推奨</a>。</td>
       <td class="num">2〜5<br><span class="small">(D1化:30+)</span></td>
       <td><span class="pill warn">条件付</span></td>
     </tr>
@@ -320,8 +335,8 @@
 <p class="section-intro">Cloudflare へ移行する上で唯一かつ最大の論点。2 案を制約・書き換え工数・リスク・推奨度で比較する。</p>
 
 <div class="callout bad">
-  <h4>前提事実: Cloudflare にマネージド PostgreSQL は存在しない</h4>
-  <p style="margin-bottom:0">公式に確認済み（<a href="https://developers.cloudflare.com/workers/databases/connecting-to-databases/">Connect to databases</a>）。Cloudflare の DB 製品は <strong>D1（SQLite）</strong> と <strong>Durable Objects（SQLite）</strong>、そして外部 DB を高速化する <strong>Hyperdrive</strong>。RDS 相当のマネージド Postgres を「Cloudflare に移す」ことはできない。</p>
+  <h4>前提事実: Cloudflare 自身がホストするマネージド PostgreSQL は存在しない（2026-07-04 再確認）</h4>
+  <p style="margin-bottom:0">Cloudflare の自社 DB 製品は <strong>D1（SQLite）</strong> と <strong>Durable Objects（SQLite）</strong>、そして外部 DB を高速化する <strong>Hyperdrive</strong> のまま。ただし <strong>2026-06-18 の PlanetScale 提携</strong>により、Cloudflare ダッシュボード（Storage &amp; databases &gt; Postgres &amp; MySQL）から PlanetScale Postgres を作成し、<strong>使用料を Cloudflare アカウントに課金統合</strong>できるようになった（Hyperdrive 自動連携・pay-as-you-go 提供中）。DB 本体のホスト先は PlanetScale（AWS/GCP 上）であり「Cloudflare に移す」ことは依然できないが、調達・課金・接続管理の一元化という意味では実質的な前進。</p>
 </div>
 
 <table>
@@ -343,15 +358,30 @@
       <td><span class="pill warn">中</span><br>方言維持で論理回帰は小。運用は二系統に。</td>
       <td><span class="pill good">推奨案：採用</span></td>
     </tr>
+    <tr>
+      <td><strong>案C: PlanetScale Postgres（CF 課金統合）<span class="tag">NEW 2026-06-18</span></strong></td>
+      <td>案B の亜種。Cloudflare ダッシュボードから PlanetScale Postgres を作成し、課金を Cloudflare に一元化。Hyperdrive 自動連携。単一ノード $5〜（PS-40 arm 1/2vCPU/4GB $28、HA 3ノード $83〜）。</td>
+      <td>DB ホストは PlanetScale（現行 Postgres 17 系）。ストレージは 10GB 込み・超過 $0.50/GB/インスタンス（HA は 3 ノード分）。バックアップ 12h 毎・BAA 込み。PITR 粒度は RDS と要比較。契約顧客のコントラクト統合は 2026-07 から。</td>
+      <td class="num">2〜5 人日<br>（案B と同等 + データ移設）</td>
+      <td><span class="pill warn">中</span><br>方言維持で論理回帰は小。プロバイダ実績は Vitess で豊富、Postgres 提供は比較的新しい。</td>
+      <td><span class="pill good">案Bの有力バリアント</span><br>課金一元化を重視するなら第一候補</td>
+    </tr>
   </tbody>
 </table>
 
 <h4>なぜ D1 を不採用とするか（senior judgment）</h4>
-<p>本電子カルテのスキーマは Postgres 依存が深い — <code>CREATE TYPE ... AS ENUM</code>（migrations/001_init.sql:95 等）、<code>text[]</code>、jsonb、CTE(<code>WITH</code>)を用いる集計 SQL（例: <code>accounting_repository_reports_monthly.go</code> / <code>accounting_repository_reports_close.go</code>）、raw SQL＋Postgres 固有関数を直書きする集計（<code>EXTRACT</code>・<code>::</code> キャスト等。例: <code>ltv_repository.go</code>）、clinic_id マルチテナント、臨床・会計データの整合性要件。SQLite はネイティブの ENUM・配列を持たず、JSON も方言が異なり、10GB のハード上限は成長するカルテ/画像メタには非現実的。<strong>全 repository 層・全 migration・全型定義を書き換える 30+ 人日の作業を、臨床/会計データの回帰リスクと引き換えに行う合理性はない。</strong>よって案B（外部 Postgres + Hyperdrive）を推奨案として採用する。最も低リスクなのは <strong>既存 RDS をそのまま外部 Postgres として Hyperdrive の背後に置く</strong>構成（DB 移設すら不要・Hyperdrive の RDS 対応は公式確認済）。外部移設する場合の現実解は <strong>Supabase Pro+Medium(~$75/月 = Pro$25 + Medium$60 − $10 compute クレジット)</strong> または <strong>Neon Launch を常時起動した場合の推計 ~$95/月</strong>（Neon は usage-based: 公称 <code>$0.106/CU-h</code>・scale-to-zero であり掲示の固定額ではない。1 CU を 24/7 常時起動＝730h×$0.106≈$77 ＋ ストレージ ~$18 の概算。いずれも単一インスタンス・&lt;50GB）。HA/SLA が必要なら Neon Scale(<code>$0.222/CU-h</code>)等の常時起動＋レプリカ推計で $150〜250/月。料金は<a href="https://neon.com/pricing">neon.com/pricing</a> / <a href="https://supabase.com/pricing">supabase.com/pricing</a>（2026-06-28 取得）。</p>
+<p>本電子カルテのスキーマは Postgres 依存が深い — <code>CREATE TYPE ... AS ENUM</code>（migrations/001_init.sql:95 等）、<code>text[]</code>、jsonb、CTE(<code>WITH</code>)を用いる集計 SQL（例: <code>accounting_repository_reports_monthly.go</code> / <code>accounting_repository_reports_close.go</code>）、raw SQL＋Postgres 固有関数を直書きする集計（<code>EXTRACT</code>・<code>::</code> キャスト等。例: <code>ltv_repository.go</code>）、clinic_id マルチテナント、臨床・会計データの整合性要件。SQLite はネイティブの ENUM・配列を持たず、JSON も方言が異なり、10GB のハード上限（拡張不可・2026-07 再確認）は成長するカルテ/画像メタには非現実的。<strong>全 repository 層・全 migration・全型定義を書き換える 30+ 人日の作業を、臨床/会計データの回帰リスクと引き換えに行う合理性はない。</strong>よって案B/案C（外部 Postgres + Hyperdrive）を推奨とする。最も低リスクなのは <strong>既存 RDS をそのまま外部 Postgres として Hyperdrive の背後に置く</strong>構成（DB 移設すら不要・Hyperdrive の RDS 対応は公式確認済。private RDS のままなら Workers VPC beta の Tunnel 経由も可）。</p>
+<p>外部移設する場合の現実解（単一インスタンス・データ &lt;50GB・2026-07-04 取得料金）:</p>
+<ul>
+  <li><strong>PlanetScale PS-40 arm 単一ノード ~$48/月</strong>（本体 $28 + ストレージ超過 40GB×$0.50=$20。10GB 込み。CF 課金統合可）— 最安の有力候補。</li>
+  <li><strong>Supabase Pro + Medium ~$75/月</strong>（Pro $25 + Medium $60 − $10 compute クレジット）。</li>
+  <li><strong>Neon Launch 常時起動 推計 ~$95/月</strong>（2025-12 の改定で月額最低額撤廃・完全従量制。1CU 24/7 = 730h × $0.106 ≈ $77 + ストレージ 50GB × $0.35 ≈ $18。scale-to-zero を許容すれば大幅減）。</li>
+</ul>
+<p>HA/SLA が必要なら <strong>PlanetScale PS-40 HA(3ノード) $83 + ストレージ超過 3 台分 $60 = ~$143/月</strong>、Neon Scale(<code>$0.222/CU-h</code>)常時起動+レプリカ推計や Supabase+replica で $150〜250/月。料金出典: <a href="https://planetscale.com/docs/postgres/pricing">planetscale.com/docs/postgres/pricing</a> / <a href="https://neon.com/pricing">neon.com/pricing</a> / <a href="https://supabase.com/pricing">supabase.com/pricing</a>（いずれも 2026-07-04 取得）。</p>
 
 <!-- ===================== 5. COST ===================== -->
 <h2 id="cost">⑤ 費用 2 シナリオ（AWS vs Cloudflare・JPY）</h2>
-<p class="section-intro">想定トラフィック前提・為替・出典を明記の上、①STG 実態 ②本番投影 の 2 シナリオで対比する。<strong>為替前提: 1 USD = 161.7 JPY（2026-06-28、ECB 参照レート 161.65 / open.er-api 161.71 の中点 161.68 を 161.7 に丸め）。</strong>料金は全て税前。日本の消費税(10%)は別途。USD 併記。</p>
+<p class="section-intro">想定トラフィック前提・為替・出典を明記の上、①STG 実態 ②本番投影 の 2 シナリオで対比する。<strong>為替前提: 1 USD = 161.2 JPY（2026-07-04 再取得。frankfurter.dev(ECB) 161.15 / open.er-api 161.30 の中点 161.22 を 161.2 に丸め）。</strong>料金は全て税前。日本の消費税(10%)は別途。USD 併記。</p>
 
 <h3>シナリオ① STG 実態（低トラフィック・us-east-1）</h3>
 <p class="small"><strong>トラフィック前提：</strong>Staging 実測（2026-06-01〜17 の 16 日実績 ×30/16）。夜間停止(22:00–8:00 JST)・Fargate Spot・fck-nat・RDS single-AZ private の最適化済み状態。CDN/画像は実質ゼロ課金量。AWS 側はチームの read-only Cost Explorer 実測値（<code>docs/infra/STG_AWS_COST_REDUCTION.md</code>）を採用。</p>
@@ -362,16 +392,16 @@
 <table>
   <thead><tr><th>サービス</th><th class="num">USD</th><th class="num">JPY</th></tr></thead>
   <tbody>
-    <tr><td>ALB (ELB)</td><td class="num">15.83</td><td class="num">¥2,560</td></tr>
-    <tr><td>VPC Public IPv4 ×3</td><td class="num">9.46</td><td class="num">¥1,530</td></tr>
-    <tr><td>RDS db.t4g.micro</td><td class="num">9.23</td><td class="num">¥1,493</td></tr>
-    <tr><td>fck-nat (t4g.nano)</td><td class="num">2.93</td><td class="num">¥474</td></tr>
+    <tr><td>ALB (ELB)</td><td class="num">15.83</td><td class="num">¥2,552</td></tr>
+    <tr><td>VPC Public IPv4 ×3</td><td class="num">9.46</td><td class="num">¥1,525</td></tr>
+    <tr><td>RDS db.t4g.micro</td><td class="num">9.23</td><td class="num">¥1,488</td></tr>
+    <tr><td>fck-nat (t4g.nano)</td><td class="num">2.93</td><td class="num">¥472</td></tr>
     <tr><td>ECS Fargate (Spot)</td><td class="num">1.92</td><td class="num">¥310</td></tr>
     <tr><td>EC2 Other (EIP)</td><td class="num">0.33</td><td class="num">¥53</td></tr>
     <tr><td>ECR</td><td class="num">0.03</td><td class="num">¥5</td></tr>
     <tr><td>CloudFront / S3(画像)</td><td class="num">~0</td><td class="num">~¥0</td></tr>
-    <tr class="totalrow"><td>AWS 合計（実測）</td><td class="num">39.73</td><td class="num">¥6,424</td></tr>
-    <tr><td class="small">P2(internal ALB)適用後 ※</td><td class="num">~32.5</td><td class="num">~¥5,260</td></tr>
+    <tr class="totalrow"><td>AWS 合計（実測）</td><td class="num">39.73</td><td class="num">¥6,404</td></tr>
+    <tr><td class="small">P2(internal ALB)適用後 ※</td><td class="num">~32.5</td><td class="num">~¥5,240</td></tr>
   </tbody>
 </table>
 <p class="small">※ 内部 ALB 化で public IPv4(ALB 2IP, ~$7.20)が消える後の実効値。</p>
@@ -382,27 +412,27 @@
 <table>
   <thead><tr><th>サービス</th><th class="num">USD</th><th class="num">JPY</th></tr></thead>
   <tbody>
-    <tr><td>Workers Paid（基本料）</td><td class="num">5.00</td><td class="num">¥809</td></tr>
-    <tr><td>Containers (basic・低稼働)</td><td class="num">~4.00</td><td class="num">~¥647</td></tr>
+    <tr><td>Workers Paid（基本料）</td><td class="num">5.00</td><td class="num">¥806</td></tr>
+    <tr><td>Containers (basic・低稼働)</td><td class="num">~4.00</td><td class="num">~¥645</td></tr>
     <tr><td>Hyperdrive</td><td class="num">0</td><td class="num">¥0</td></tr>
     <tr><td>R2（画像 &lt;10GB 無料枠）</td><td class="num">0</td><td class="num">¥0</td></tr>
     <tr><td>DNS / Universal SSL</td><td class="num">0</td><td class="num">¥0</td></tr>
-    <tr><td>外部 Postgres（Neon/Supabase 無料枠）</td><td class="num">0</td><td class="num">¥0</td></tr>
+    <tr><td>外部 Postgres（Neon 無料枠 or PlanetScale PS-5 $5）</td><td class="num">0〜5</td><td class="num">¥0〜806</td></tr>
     <tr><td>Workers Logs（無料枠内）</td><td class="num">0</td><td class="num">¥0</td></tr>
-    <tr class="totalrow"><td>Cloudflare 合計</td><td class="num">~9.00</td><td class="num">~¥1,455</td></tr>
+    <tr class="totalrow"><td>Cloudflare 合計</td><td class="num">~9〜14</td><td class="num">~¥1,450〜2,260</td></tr>
   </tbody>
 </table>
-<p class="small">レンジ: $5〜10（scale-to-zero が効けば $5 近傍）≈ ¥800〜1,600。</p>
+<p class="small">レンジ: $5〜14（scale-to-zero が効き Neon 無料枠なら $5 近傍、PlanetScale PS-5 単一ノードを使うなら +$5）≈ ¥800〜2,300。</p>
 </div>
 </div>
 
 <div class="callout good">
   <h4>シナリオ① 差額</h4>
-  <p style="margin-bottom:0">AWS <strong>¥6,424/月</strong>（P2 後 ~¥5,260） → Cloudflare <strong>~¥1,455/月</strong>。<strong>削減 ~¥4,970/月（約 77%）</strong>。差の大半は ALB($15.83)・public IPv4・RDS 最小インスタンスの固定費で、Cloudflare では無料枠中心のサーバレス＋外部 Postgres 無料枠が置換する。ただし STG の外部 Postgres 無料枠は容量/自動休止の制約あり（後述）。</p>
+  <p style="margin-bottom:0">AWS <strong>¥6,404/月</strong>（P2 後 ~¥5,240） → Cloudflare <strong>~¥1,450/月</strong>。<strong>削減 ~¥4,950/月（約 77%）</strong>。差の大半は ALB($15.83)・public IPv4・RDS 最小インスタンスの固定費で、Cloudflare では無料枠中心のサーバレス＋外部 Postgres 無料枠（or PlanetScale PS-5 $5）が置換する。ただし STG の外部 Postgres 無料枠は容量/自動休止の制約あり（後述）。</p>
 </div>
 
 <h3>シナリオ② 本番投影（24/7・HA・ap-northeast-1 東京）</h3>
-<p class="small"><strong>トラフィック前提：</strong>数院規模の SaaS、同時接続 数十ユーザ、API <strong>~500 万 req/月</strong>、CDN egress <strong>~50GB/月</strong>、画像ストレージ <strong>~50GB</strong>、DB データ <strong>&lt;50GB</strong>。本番要件として 24/7 稼働・Fargate On-Demand・RDS Multi-AZ・HA を想定。<strong>リージョン前提：</strong>日本の医療データ・レイテンシを考慮し本番は東京(ap-northeast-1)を想定（現行 STG の us-east-1 を維持する場合 AWS 側は概ね 10〜15% 低下、Cloudflare 側は不変）。AWS 単価は公式 Price List Bulk API（version 20260626・東京）由来。</p>
+<p class="small"><strong>トラフィック前提：</strong>数院規模の SaaS、同時接続 数十ユーザ、API <strong>~500 万 req/月</strong>、CDN egress <strong>~50GB/月</strong>、画像ストレージ <strong>~50GB</strong>、DB データ <strong>&lt;50GB</strong>。本番要件として 24/7 稼働・Fargate On-Demand・RDS Multi-AZ・HA を想定。<strong>リージョン前提：</strong>日本の医療データ・レイテンシを考慮し本番は東京(ap-northeast-1)を想定（現行 STG の us-east-1 を維持する場合 AWS 側は概ね 10〜15% 低下、Cloudflare 側は不変）。AWS 単価は公式 Price List Bulk API を 2026-07-04 に再取得（RDS: version 20260703 / ECS: 20260603 / ELB: 20260619・東京リージョンファイル）。Fargate（$0.05056/vCPU-h, $0.00553/GB-h）・RDS db.t4g.medium Multi-AZ（$0.202/h + gp3 $0.276/GB-月）・ALB（$0.0243/h + LCU $0.008）はいずれも前回調査から単価変更なし。月間時間は 730h で統一。</p>
 
 <div class="two-col">
 <div>
@@ -410,21 +440,21 @@
 <table>
   <thead><tr><th>サービス</th><th class="num">USD</th><th class="num">JPY</th></tr></thead>
   <tbody>
-    <tr><td>Fargate On-Demand 2×(.5vCPU/1GB) 24/7</td><td class="num">44.98</td><td class="num">¥7,273</td></tr>
-    <tr><td>ALB（hourly+LCU）</td><td class="num">29.42</td><td class="num">¥4,758</td></tr>
-    <tr><td>RDS db.t4g.medium Multi-AZ+50GB</td><td class="num">166.26</td><td class="num">¥26,884</td></tr>
-    <tr><td>NAT Gateway ×1（+データ）</td><td class="num">51.46</td><td class="num">¥8,321</td></tr>
-    <tr><td>CloudFront（ほぼ無料枠内）</td><td class="num">~3.00</td><td class="num">¥485</td></tr>
-    <tr><td>S3（50GB+ops）</td><td class="num">2.50</td><td class="num">¥404</td></tr>
-    <tr><td>ECR</td><td class="num">0.30</td><td class="num">¥49</td></tr>
-    <tr><td>Secrets Manager</td><td class="num">1.50</td><td class="num">¥243</td></tr>
-    <tr><td>Route53</td><td class="num">1.00</td><td class="num">¥162</td></tr>
-    <tr><td>CloudWatch（ログ+メトリクス）</td><td class="num">12.50</td><td class="num">¥2,021</td></tr>
-    <tr><td>Public IPv4 + 転送(inter-AZ 等)</td><td class="num">13.00</td><td class="num">¥2,102</td></tr>
-    <tr class="totalrow"><td>AWS 合計</td><td class="num">~325.9</td><td class="num">~¥52,700</td></tr>
+    <tr><td>Fargate On-Demand 2×(.5vCPU/1GB) 24/7</td><td class="num">44.98</td><td class="num">¥7,251</td></tr>
+    <tr><td>ALB（hourly+LCU）</td><td class="num">29.42</td><td class="num">¥4,743</td></tr>
+    <tr><td>RDS db.t4g.medium Multi-AZ+50GB gp3</td><td class="num">161.26</td><td class="num">¥25,995</td></tr>
+    <tr><td>NAT Gateway ×1（+データ）</td><td class="num">51.46</td><td class="num">¥8,295</td></tr>
+    <tr><td>CloudFront（ほぼ無料枠内）</td><td class="num">~3.00</td><td class="num">¥484</td></tr>
+    <tr><td>S3（50GB+ops）</td><td class="num">2.50</td><td class="num">¥403</td></tr>
+    <tr><td>ECR</td><td class="num">0.30</td><td class="num">¥48</td></tr>
+    <tr><td>Secrets Manager</td><td class="num">1.50</td><td class="num">¥242</td></tr>
+    <tr><td>Route53</td><td class="num">1.00</td><td class="num">¥161</td></tr>
+    <tr><td>CloudWatch（ログ+メトリクス）</td><td class="num">12.50</td><td class="num">¥2,015</td></tr>
+    <tr><td>Public IPv4 + 転送(inter-AZ 等)</td><td class="num">13.00</td><td class="num">¥2,096</td></tr>
+    <tr class="totalrow"><td>AWS 合計</td><td class="num">~320.9</td><td class="num">~¥51,700</td></tr>
   </tbody>
 </table>
-<p class="small">RDS Multi-AZ($166)が支配的。NAT HA(2台)なら +~$45。</p>
+<p class="small">RDS Multi-AZ($161)が支配的。NAT HA(2台)なら +~$45。前回計上 $166.26 → 今回 $161.26 の差は月間時間の 730h 統一（744h→730h）によるもので単価変更ではない。</p>
 </div>
 
 <div>
@@ -432,47 +462,47 @@
 <table>
   <thead><tr><th>サービス</th><th class="num">USD</th><th class="num">JPY</th></tr></thead>
   <tbody>
-    <tr><td>Workers Paid（基本料）</td><td class="num">5.00</td><td class="num">¥809</td></tr>
+    <tr><td>Workers Paid（基本料）</td><td class="num">5.00</td><td class="num">¥806</td></tr>
     <tr><td>Workers requests（5M&lt;10M 無料）</td><td class="num">0</td><td class="num">¥0</td></tr>
-    <tr><td>Containers 2×standard-1 24/7（mem+disk+CPU+egress）</td><td class="num">~77.0</td><td class="num">¥12,451</td></tr>
-    <tr><td>Durable Objects（Container 制御）</td><td class="num">~10.0</td><td class="num">¥1,617</td></tr>
-    <tr><td>R2（50GB+ops, egress 0）</td><td class="num">~2.00</td><td class="num">¥323</td></tr>
+    <tr><td>Containers 2×standard-1 24/7（mem+disk+CPU+egress）</td><td class="num">~77.0</td><td class="num">¥12,412</td></tr>
+    <tr><td>Durable Objects（Container 制御）</td><td class="num">~10.0</td><td class="num">¥1,612</td></tr>
+    <tr><td>R2（50GB+ops, egress 0）</td><td class="num">~2.00</td><td class="num">¥322</td></tr>
     <tr><td>Hyperdrive</td><td class="num">0</td><td class="num">¥0</td></tr>
-    <tr><td>Workers Logs（超過分）</td><td class="num">~6.00</td><td class="num">¥970</td></tr>
+    <tr><td>Workers Logs（超過分）</td><td class="num">~6.00</td><td class="num">¥967</td></tr>
     <tr><td>DNS / SSL / LB(単一は不要)</td><td class="num">0</td><td class="num">¥0</td></tr>
-    <tr><td>小計（Cloudflare 課金分）</td><td class="num">~100</td><td class="num">~¥16,170</td></tr>
-    <tr><td>外部マネージド Postgres（単一インスタンス・Supabase ~$75〜Neon ~$95 のレンジ内概算）</td><td class="num">~80</td><td class="num">~¥12,936</td></tr>
-    <tr class="totalrow"><td>Cloudflare 合計（DB 込）</td><td class="num">~180</td><td class="num">~¥29,100</td></tr>
+    <tr><td>小計（Cloudflare 課金分）</td><td class="num">~100</td><td class="num">~¥16,120</td></tr>
+    <tr><td>外部マネージド Postgres（単一インスタンス・PlanetScale ~$48〜Neon ~$95 のレンジ中央概算）</td><td class="num">~75</td><td class="num">~¥12,090</td></tr>
+    <tr class="totalrow"><td>Cloudflare 合計（DB 込）</td><td class="num">~175</td><td class="num">~¥28,200</td></tr>
   </tbody>
 </table>
-<p class="small">外部 Postgres: Supabase Pro+Medium(2vCPU/4GB) ~$75（Pro$25+Medium$60−$10 クレジット）/ Neon Launch 常時起動の推計 ~$95（usage-based $0.106/CU-h を 24/7 換算＋ストレージの概算で掲示額ではない。単一インスタンス・&lt;50GB、いずれも Hyperdrive 対応確認済）。<strong>RDS Multi-AZ と同等 HA を求めると $150〜250 に上昇</strong>（Neon Scale / Supabase+replica）。</p>
+<p class="small">外部 Postgres（単一インスタンス・&lt;50GB・いずれも Hyperdrive 対応確認済）: PlanetScale PS-40 arm ~$48（$28 + ストレージ超過 $20。<strong>CF 課金統合可</strong>）/ Supabase Pro+Medium(4GB) ~$75（Pro$25+Medium$60−$10 クレジット）/ Neon Launch 常時起動の推計 ~$95（完全従量制 $0.106/CU-h を 24/7 換算＋ストレージ 50GB×$0.35 の概算で掲示額ではない）。<strong>RDS Multi-AZ と同等 HA を求めると $140〜250 に上昇</strong>（PlanetScale PS-40 HA ~$143 / Neon Scale / Supabase+replica）。</p>
 </div>
 </div>
 
 <div class="callout good">
   <h4>シナリオ② 差額</h4>
-  <p style="margin-bottom:6px">AWS <strong>~¥52,700/月</strong> → Cloudflare スタック（外部 Postgres 単一インスタンス込）<strong>~¥29,100/月</strong>。<strong>削減 ~¥23,600/月（約 45%）</strong>。Cloudflare 課金分のみなら ~¥16,170 だが、DB は外部で必ず費用が発生するため「DB 込」を正とする。</p>
-  <p style="margin-bottom:0" class="small"><strong>不確実性（重要）:</strong> ① Container の CPU 課金は負荷依存で ±¥3,000〜6,000 振れる（高負荷時は Fargate を超え得る）。② Durable Objects コストは概算。③ 外部 Postgres が最大変数。<strong>本表は AWS=RDS Multi-AZ(HA) vs Cloudflare=単一インスタンスの非対称比較</strong>である。両側 HA 同等にすると外部 Postgres は $150〜250 に上がり、Cloudflare の優位は大きく縮小し DB では概ね拮抗する。これは「Cloudflare の費用」ではなく外部依存の再導入でもある。数値は方向性であり契約前に実測検証を要する。</p>
+  <p style="margin-bottom:6px">AWS <strong>~¥51,700/月</strong> → Cloudflare スタック（外部 Postgres 単一インスタンス込）<strong>~¥28,200/月</strong>。<strong>削減 ~¥23,500/月（約 45%）</strong>。Cloudflare 課金分のみなら ~¥16,120 だが、DB は外部で必ず費用が発生するため「DB 込」を正とする。PlanetScale を選べば DB 費用も Cloudflare 請求に統合される（費用の発生自体は変わらない）。</p>
+  <p style="margin-bottom:0" class="small"><strong>不確実性（重要）:</strong> ① Container の CPU 課金は負荷依存で ±¥3,000〜6,000 振れる（高負荷時は Fargate を超え得る）。② Durable Objects コストは概算。③ 外部 Postgres が最大変数。<strong>本表は AWS=RDS Multi-AZ(HA) vs Cloudflare=単一インスタンスの非対称比較</strong>である。両側 HA 同等にすると外部 Postgres は $140〜250 に上がり、Cloudflare の優位は大きく縮小し DB では概ね拮抗する（PlanetScale PS-40 HA ~$143 なら差は残る）。これは「Cloudflare の費用」ではなく外部依存の再導入でもある。数値は方向性であり契約前に実測検証を要する。</p>
 </div>
 
 <!-- ===================== 6. VERDICT ===================== -->
 <h2 id="verdict">⑥ 移行可否（結論・Verdict）と推奨アーキテクチャ</h2>
 
 <div class="verdict-box">
-  <h4 style="margin-top:0">Verdict: 「DB を含む全面 Cloudflare 移行」は不可。ハイブリッドを推奨。</h4>
-  <p>費用だけ見れば Cloudflare は両シナリオで安い（STG −77%、本番 −45%）。しかし<strong>「すべて Cloudflare」を額面どおり実現する経路は存在しない</strong> — マネージド Postgres が無く、D1 化は電子カルテの Postgres 依存に対して 30+ 人日・高回帰リスクで割に合わない。したがって DB は外部に残らざるを得ず、定義上「全面移行」は成立しない。</p>
+  <h4 style="margin-top:0">Verdict: 「DB を含む全面 Cloudflare 移行」は依然不可。ハイブリッドを推奨（再調査後も結論維持）。</h4>
+  <p>費用だけ見れば Cloudflare は両シナリオで安い（STG −77%、本番 −45%）。しかし<strong>「すべて Cloudflare」を額面どおり実現する経路は存在しない</strong> — Cloudflare 自身がホストする Postgres は無く、D1 化は電子カルテの Postgres 依存に対して 30+ 人日・高回帰リスクで割に合わない。したがって DB は外部に残らざるを得ず、定義上「全面移行」は成立しない。<strong>ただし 2026-06-18 の PlanetScale 提携により「DB を含め課金・管理を Cloudflare に一元化する」ことは可能になった</strong>（DB 実体は PlanetScale ホスト）。「単一ベンダー管理」が目的なら、この構成は実務上「ほぼ全面 Cloudflare」と呼べる水準に達している。</p>
 </div>
 
 <h3>3 つの選択肢と推奨</h3>
 
 <div class="verdict-box option">
   <h4>選択肢 1 — フル Cloudflare 化（Containers + 外部PG+Hyperdrive + R2 + Edge）</h4>
-  <p style="margin-bottom:0"><span class="pill warn">条件付き</span> エッジ/コンピュート/ストレージは Cloudflare に集約できるが DB は外部。本番 ~¥29,100/月。<strong>ネック:</strong> Containers の運用実績の浅さ・CPU 課金変動・DO 結合・外部 Postgres 依存。コスト削減は得るが、安定稼働中の ECS を新基盤へ載せ替える移行リスク（10〜25 人日）を負う。<strong>戦略的にエッジ統合を狙う場合のみ妥当。</strong></p>
+  <p style="margin-bottom:0"><span class="pill warn">条件付き</span> エッジ/コンピュート/ストレージは Cloudflare に集約でき、DB も PlanetScale 経由なら課金・管理は Cloudflare に一元化可能（ホストは外部）。本番 ~¥28,200/月。<strong>ネック:</strong> Containers の運用実績の浅さ・CPU 課金変動・DO 結合・外部 Postgres 依存。コスト削減は得るが、安定稼働中の ECS を新基盤へ載せ替える移行リスク（10〜25 人日）を負う。<strong>戦略的にエッジ統合を狙う場合のみ妥当。</strong></p>
 </div>
 
 <div class="verdict-box option">
   <h4>選択肢 2 — ハイブリッド（推奨 ★）</h4>
-  <p style="margin-bottom:0"><span class="pill good">推奨</span> エッジ層（DNS/CDN/SSL/WAF）と画像（R2）を Cloudflare へ。Go バックエンドは当面 ECS Fargate 継続、または段階的に Containers 評価。DB は外部マネージド Postgres + Hyperdrive。<strong>R2 の egress ゼロ</strong>と<strong>エッジ無料枠</strong>を即取りしつつ、コンピュート/DB の再プラットフォーム化は実証後に判断。低リスクで大半の利得を獲得。</p>
+  <p style="margin-bottom:0"><span class="pill good">推奨</span> エッジ層（DNS/CDN/SSL/WAF）と画像（R2）を Cloudflare へ。Go バックエンドは当面 ECS Fargate 継続、または段階的に Containers 評価。DB は外部マネージド Postgres + Hyperdrive（既存 RDS 温存 / PlanetScale で CF 課金統合のいずれも可。private RDS への接続は Workers VPC の GA を待って評価）。<strong>R2 の egress ゼロ</strong>と<strong>エッジ無料枠</strong>を即取りしつつ、コンピュート/DB の再プラットフォーム化は実証後に判断。低リスクで大半の利得を獲得。</p>
 </div>
 
 <div class="verdict-box option">
@@ -494,10 +524,12 @@
               │        ▼ Hyperdrive (pool/cache)            │
               └────────┼────────────────────────────────────┘
                        ▼
-            外部マネージド PostgreSQL（RDS 継続 or Neon/Supabase）
-            ※ Cloudflare 外。方言維持で GORM 無改修。
+            外部マネージド PostgreSQL
+            （RDS 継続 or PlanetScale[CF課金統合] or Neon/Supabase）
+            ※ ホストは Cloudflare 外。方言維持で GORM 無改修。
+            ※ private RDS 温存なら Workers VPC(beta) + Tunnel 経由も可
 </pre>
-<p class="small">第一手は「R2 + 前段 Cloudflare」（選択肢 3）。コンピュートの Containers 化は実証後に選択肢 2 へ。DB は終始外部 Postgres。「すべて Cloudflare」を完全達成することはできない、という事実をステークホルダーに明示すること。</p>
+<p class="small">第一手は「R2 + 前段 Cloudflare」（選択肢 3）。コンピュートの Containers 化は実証後に選択肢 2 へ。DB は終始外部 Postgres（PlanetScale なら課金・管理は Cloudflare に一元化可）。「Cloudflare が DB をホストすることはない」という事実はステークホルダーに引き続き明示すること。</p>
 
 <h3>移行の前提・残課題（senior の警告）</h3>
 <ul>
@@ -505,34 +537,40 @@
   <li><strong>WAF の費用:</strong> 推奨スタックの "WAF" は無料プランの限定マネージドルールセットを指す。<strong>フル WAF（マネージドルール一式・レート制限等）は Pro/Business ゾーンプラン（$25〜200+/月・ゾーン単位）</strong>を要し、費用表には含めていない。要件次第で Cloudflare 側コストが上振れる。</li>
   <li><strong>バックアップ/PITR/DR:</strong> RDS の自動バックアップ + ポイントインタイムリカバリ（RPO/RTO）に対し、外部 Postgres(Neon/Supabase)の PITR・DR 能力と費用は別途比較が必要。HA だけでなく復旧要件も EMR では同等に重要。</li>
   <li><strong>固定 egress IP:</strong> LINE 連携等の IP allowlist がある場合、Cloudflare の egress は固定 IP 設計（専用機能）を別途要する。fck-nat の EIP 安定化が担っていた役割の代替を見落とすな。</li>
-  <li><strong>Hyperdrive のキャッシュ整合:</strong> Hyperdrive のクエリキャッシュは陳腐化した読み取りを返し得る。臨床/会計の整合性が要る経路ではキャッシュ無効化が必要。長時間稼働 Container は GORM でプール可能なため Hyperdrive は必須ではなく任意。</li>
+  <li><strong>Hyperdrive のキャッシュ整合:</strong> Hyperdrive のクエリキャッシュは陳腐化した読み取りを返し得る。2026 年の変更で <code>VOLATILE</code> に加え <code>STABLE</code> 関数を含むクエリもキャッシュ対象外となり公式側でリスクは一段緩和されたが、臨床/会計の整合性が要る経路では引き続きキャッシュ無効化を明示すべき。また Hyperdrive は <code>LISTEN/NOTIFY</code>・advisory lock・SQL レベル prepared statement 非対応（GORM の既定 prepared statement 設定の確認要）。長時間稼働 Container は GORM でプール可能なため Hyperdrive は必須ではなく任意。</li>
   <li><strong>監査ログ保持:</strong> 医療系の監査証跡要件に対し Workers Logs の 7 日保持は不足。Logpush→R2/外部 SIEM の長期保管設計が必須。</li>
-  <li><strong>migrate one-shot:</strong> 現行は deploy 時に ECS one-shot タスクで <code>./migrate</code> を実行。Containers では起動時 exec / Cron Triggers 等への置換設計が要る。</li>
+  <li><strong>migrate one-shot:</strong> 現行は deploy 時に ECS one-shot タスクで <code>./migrate</code> を実行。Containers では <strong><code>exec()</code> API（2026-06-18 提供開始）</strong>で稼働中コンテナ内のプロセス実行・exit code 取得が可能になり、置換設計の主要な穴が埋まった。CI からの起動トリガ設計は依然必要。</li>
   <li><strong>Cookie 認証:</strong> <code>SameSite=None; Secure</code> のクロスドメイン Cookie 認証が、ドメイン/エッジ構成変更後も成立することを検証せよ。</li>
-  <li><strong>Containers の成熟度:</strong> 2026-04 GA。本番電子カルテを最初期採用者として載せる運用リスクを過小評価しないこと。</li>
+  <li><strong>Containers の成熟度:</strong> 2026-04-13 GA から約 3 ヶ月。GA 後も exec()・レジストリ対応等の基盤機能が毎月追加されている段階であり、本番電子カルテを初期採用者として載せる運用リスクを過小評価しないこと。</li>
+  <li><strong>Workers VPC は beta:</strong> private RDS へ Workers から到達する経路（VPC Services / VPC Networks + Tunnel）は公開 beta で無料提供中だが、GA 前で API 変更があり得る。GA 時に料金が設定される可能性も高く、本費用試算には未計上。本番採用は GA 後に判断。</li>
+  <li><strong>PlanetScale 採用時の固有論点:</strong> Postgres ストレージは 10GB 込み・超過 $0.50/GB/インスタンス（HA は 3 ノードに課金）。バックアップは 12 時間毎で、RDS の PITR（秒粒度）との差を EMR の RPO 要件と突き合わせること。コントラクト顧客の課金統合は 2026-07 開始。</li>
 </ul>
 
 <!-- ===================== SOURCES ===================== -->
-<h2 id="sources">出典（現行公式ソース・2026-06-28 取得）</h2>
-<p class="section-intro">料金・製品仕様は訓練データではなく以下の現行公式ページを実取得した値に基づく。</p>
+<h2 id="sources">出典（現行公式ソース・2026-07-04 再取得）</h2>
+<p class="section-intro">料金・製品仕様は訓練データではなく以下の現行公式ページを実取得した値に基づく（初回 2026-06-28 取得、2026-07-04 に全面再取得・再検証）。</p>
 
 <h4>Cloudflare（製品・料金）</h4>
 <ul>
-  <li>Workers 料金: <a href="https://developers.cloudflare.com/workers/platform/pricing/">https://developers.cloudflare.com/workers/platform/pricing/</a></li>
-  <li>Containers 料金: <a href="https://developers.cloudflare.com/containers/pricing/">https://developers.cloudflare.com/containers/pricing/</a> / 上限: <a href="https://developers.cloudflare.com/containers/platform-details/limits/">platform-details/limits</a> / GA: <a href="https://developers.cloudflare.com/changelog/product/containers/">changelog</a></li>
-  <li>R2 料金: <a href="https://developers.cloudflare.com/r2/pricing/">https://developers.cloudflare.com/r2/pricing/</a></li>
-  <li>D1 料金/上限: <a href="https://developers.cloudflare.com/d1/platform/pricing/">d1/platform/pricing</a> / <a href="https://developers.cloudflare.com/d1/platform/limits/">d1/platform/limits</a></li>
-  <li>Hyperdrive 料金: <a href="https://developers.cloudflare.com/hyperdrive/platform/pricing/">hyperdrive/platform/pricing</a> / 対応DB: <a href="https://developers.cloudflare.com/hyperdrive/reference/supported-databases-and-features/">supported-databases</a></li>
+  <li>Workers 料金: <a href="https://developers.cloudflare.com/workers/platform/pricing/">https://developers.cloudflare.com/workers/platform/pricing/</a>（2026-07-04 再取得・変更なし）</li>
+  <li>Containers 料金: <a href="https://developers.cloudflare.com/containers/pricing/">https://developers.cloudflare.com/containers/pricing/</a>（再取得・変更なし）/ 上限: <a href="https://developers.cloudflare.com/containers/platform-details/limits/">platform-details/limits</a> / changelog（GA 2026-04-13・exec() 2026-06-18）: <a href="https://developers.cloudflare.com/changelog/product/containers/">changelog</a></li>
+  <li><strong>PlanetScale 提携（NEW）:</strong> <a href="https://developers.cloudflare.com/changelog/post/2026-06-18-planetscale-databases-cloudflare-billing/">changelog 2026-06-18（CF 課金統合）</a> / <a href="https://developers.cloudflare.com/hyperdrive/planetscale/">hyperdrive/planetscale</a> / <a href="https://blog.cloudflare.com/deploy-planetscale-postgres-with-workers/">blog: deploy-planetscale-postgres-with-workers</a></li>
+  <li><strong>Workers VPC（NEW・beta）:</strong> <a href="https://developers.cloudflare.com/workers-vpc/">workers-vpc（beta 明記・beta 中無料）</a> / <a href="https://developers.cloudflare.com/changelog/post/2026-04-14-vpc-networks/">VPC Networks + Mesh beta（2026-04-14）</a></li>
+  <li>R2 料金: <a href="https://developers.cloudflare.com/r2/pricing/">https://developers.cloudflare.com/r2/pricing/</a>（再取得・変更なし）</li>
+  <li>D1 料金/上限: <a href="https://developers.cloudflare.com/d1/platform/pricing/">d1/platform/pricing</a> / <a href="https://developers.cloudflare.com/d1/platform/limits/">d1/platform/limits</a>（10GB 上限「拡張不可」を再確認）</li>
+  <li>Hyperdrive 料金: <a href="https://developers.cloudflare.com/hyperdrive/platform/pricing/">hyperdrive/platform/pricing</a> / 対応DB・非対応機能: <a href="https://developers.cloudflare.com/hyperdrive/reference/supported-databases-and-features/">supported-databases</a>（STABLE 関数キャッシュ除外は <a href="https://developers.cloudflare.com/changelog/product/hyperdrive/">changelog</a>）</li>
   <li>マネージド DB 不在の確認: <a href="https://developers.cloudflare.com/workers/databases/connecting-to-databases/">workers/databases/connecting-to-databases</a></li>
   <li>Hyperdrive × AWS RDS 接続例: <a href="https://developers.cloudflare.com/hyperdrive/examples/connect-to-postgres/postgres-database-providers/aws-rds-aurora/">hyperdrive/examples/.../aws-rds-aurora</a></li>
-  <li>Durable Objects 料金: <a href="https://developers.cloudflare.com/durable-objects/platform/pricing/">durable-objects/platform/pricing</a></li>
+  <li>Durable Objects 料金: <a href="https://developers.cloudflare.com/durable-objects/platform/pricing/">durable-objects/platform/pricing</a>（SQLite ストレージ課金は 2026-01 開始済み）</li>
   <li>Load Balancing / プラン: <a href="https://www.cloudflare.com/plans/">https://www.cloudflare.com/plans/</a></li>
   <li>Workers Logs: <a href="https://developers.cloudflare.com/workers/observability/logs/workers-logs/">observability/logs/workers-logs</a></li>
+  <li>Secrets Store: <a href="https://developers.cloudflare.com/secrets-store/">secrets-store</a>（2026-07-04 時点も open beta・無料 100 secrets・有料単価未公表）</li>
+  <li>Data Localization Suite: <a href="https://developers.cloudflare.com/data-localization/">data-localization</a>（Enterprise 限定アドオン・日本リージョン対応・価格非公表）</li>
 </ul>
 
 <h4>AWS（料金・東京/グローバル）</h4>
 <ul>
-  <li>料金一次データ: AWS Price List Bulk API（version 20260626・ap-northeast-1 region files）。例: <span class="mono">pricing.us-east-1.amazonaws.com/offers/v1.0/aws/AmazonECS|AmazonRDS|AWSELB|AmazonS3|...</span></li>
+  <li>料金一次データ: AWS Price List Bulk API・ap-northeast-1 region files を 2026-07-04 再取得（AmazonRDS: version 20260703 / AmazonECS: 20260603 / AWSELB: 20260619）。Fargate・RDS db.t4g.medium・ALB の東京単価は前回調査から変更なしを確認。<span class="mono">pricing.us-east-1.amazonaws.com/offers/v1.0/aws/AmazonECS|AmazonRDS|AWSELB|AmazonS3|...</span></li>
   <li>Fargate 料金: <a href="https://aws.amazon.com/fargate/pricing/">https://aws.amazon.com/fargate/pricing/</a></li>
   <li>RDS 料金: <a href="https://aws.amazon.com/rds/postgresql/pricing/">https://aws.amazon.com/rds/postgresql/pricing/</a></li>
   <li>ALB(ELB) 料金: <a href="https://aws.amazon.com/elasticloadbalancing/pricing/">https://aws.amazon.com/elasticloadbalancing/pricing/</a></li>
@@ -543,25 +581,25 @@
 
 <h4>為替・社内一次情報</h4>
 <ul>
-  <li>USD/JPY: ECB 参照レート 161.65（2026-06-26、<a href="https://api.frankfurter.dev/v1/latest?base=USD&amp;symbols=JPY">frankfurter.dev</a>）/ open.er-api 161.71（2026-06-28）→ 採用 <strong>161.7</strong>。</li>
-  <li>STG 構成: <code>infra/terraform/**</code>（main.tf / modules/{vpc,security,rds,ecr,ecs,scheduler,github-oidc}）, <code>infra/CLAUDE.md</code>。</li>
-  <li>STG 実コスト: <code>docs/infra/STG_AWS_COST_REDUCTION.md</code>（2026-06-17, read-only Cost Explorer 実測）。</li>
-  <li>外部 Postgres 料金: <a href="https://neon.com/pricing">neon.com/pricing</a> / <a href="https://supabase.com/pricing">supabase.com/pricing</a>（2026-06-28 取得）。</li>
+  <li>USD/JPY: frankfurter.dev(ECB) 161.15（2026-07-03）/ open.er-api 161.30（2026-07-04）→ 採用 <strong>161.2</strong>（前回 161.7）。</li>
+  <li>STG 構成: <code>infra/terraform/**</code>（main.tf / modules/{vpc,security,rds,ecr,ecs,scheduler,github-oidc}）, <code>infra/CLAUDE.md</code>。2026-06-28 以降 infra 配下にコード変更なし（git log で確認）。</li>
+  <li>STG 実コスト: <code>docs/infra/STG_AWS_COST_REDUCTION.md</code>（2026-06-17, read-only Cost Explorer 実測。以降更新なし）。</li>
+  <li>外部 Postgres 料金: <a href="https://planetscale.com/docs/postgres/pricing">planetscale.com/docs/postgres/pricing</a> / <a href="https://neon.com/pricing">neon.com/pricing</a>（2025-12 改定で月額最低額撤廃を確認）/ <a href="https://supabase.com/pricing">supabase.com/pricing</a>（いずれも 2026-07-04 取得）。</li>
   <li>ストレージ実装: <code>backend/internal/infra/s3_file_storage.go</code>, <code>s3_uploader.go</code>。</li>
 </ul>
 
 <!-- ===================== APPENDIX ===================== -->
 <h2 id="appendix">付録 — 前提・免責・機密非転記</h2>
 <ul>
-  <li><strong>前提（明記）:</strong> 為替 1USD=161.7JPY（2026-06-28）。本番トラフィックは数院規模 SaaS の仮定値（API 5M req/月・CDN 50GB/月・画像/DB 各 ~50GB）。本番リージョンは東京想定。これらは前提であり、実測で校正すべき。</li>
-  <li><strong>料金変動:</strong> 料金は知識カットオフ後にドリフトする前提で、全て現行公式ソースを実取得して算出。契約前に再取得を推奨。</li>
-  <li><strong>UNVERIFIED 項目:</strong> Fargate Spot 単価（Price List 非掲載・動的）、Cloudflare Load Balancing のオリジン別細目、Secrets Store の有料単価（open beta）、Logpush 単価は公式から確定取得できず、概算/レンジ扱い。</li>
+  <li><strong>前提（明記）:</strong> 為替 1USD=161.2JPY（2026-07-04）。本番トラフィックは数院規模 SaaS の仮定値（API 5M req/月・CDN 50GB/月・画像/DB 各 ~50GB）。本番リージョンは東京想定。これらは前提であり、実測で校正すべき。</li>
+  <li><strong>料金変動:</strong> 料金は知識カットオフ後にドリフトする前提で、全て現行公式ソースを実取得して算出（2026-07-04 再取得済み）。契約前に再取得を推奨。</li>
+  <li><strong>UNVERIFIED 項目:</strong> Fargate Spot 単価（Price List 非掲載・動的）、Cloudflare Load Balancing のオリジン別細目、Secrets Store の有料単価（2026-07 時点も open beta・未公表）、Logpush 単価、Workers VPC の GA 後料金、PlanetScale の Postgres バージョン別提供状況は公式から確定取得できず、概算/レンジ/未計上扱い。</li>
   <li><strong>機密非転記（SC8）:</strong> 本レポートは AWS アカウント ID・subnet/SG ID・IAM role ARN・実エンドポイント(CloudFront/ALB/RDS ホスト名)・tfstate バケット名・DB パスワード・患者/飼主 PII を一切含まない。リソースは型と仕様のみで記述。</li>
   <li><strong>変更操作なし:</strong> 本調査は read-only（IaC 読解・公式料金取得）+ ローカル書込（本 HTML）のみ。AWS/Cloudflare への変更・プロビジョニング・API 書込は実施していない。</li>
   <li><strong>スコープ外:</strong> フロントエンド(Vercel)の移行実装、実移行作業、Cloudflare アカウント操作。Vercel→Pages 統合は「すべて Cloudflare」整合のための注記に留めた。</li>
 </ul>
 
-<p class="foot">Animal Ekarte — Cloudflare 移行可否調査 / 生成日 2026-06-28 / 一次情報: リポジトリ IaC + 現行公式料金ページ / 通貨: JPY（1USD=161.7JPY）/ 本書はローカル生成物であり機密・PII を含まない。</p>
+<p class="foot">Animal Ekarte — Cloudflare 移行可否調査 / 初版 2026-06-28・再調査 2026-07-04 / 一次情報: リポジトリ IaC + 現行公式料金ページ / 通貨: JPY（1USD=161.2JPY）/ 本書はローカル生成物であり機密・PII を含まない。</p>
 
 </div>
 </body>

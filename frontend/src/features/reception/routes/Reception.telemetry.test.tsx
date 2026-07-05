@@ -13,11 +13,21 @@ import { Reception } from "./Reception";
  * 受付済患者を意図的に含める。それでも平均待ち/最長待ちが表示されないことを示せて初めて、
  * ゲート（RECEPTION_TELEMETRY_PHASE2_ENABLED）が実データの有無ではなくフラグで
  * 判定していることの証明になる。
+ *
+ * Phase 2 が稼働開始した現在、実際の `RECEPTION_TELEMETRY_PHASE2_ENABLED` は true だが、
+ * OFF 経路の回帰は退行させる価値がある（将来何らかの理由で再度 false に戻す運用が
+ * 発生した場合の安全網）。そのため gate-on.test.tsx と対称に、ゲート値を明示的に
+ * mock してこのテストの前提を実フラグの現在値から独立させる。
  */
 
 vi.mock("@/hooks/use-permission", () => ({
   usePermission: vi.fn(() => ({ canView: true, canCreate: true, canEdit: true, canDelete: true })),
 }));
+
+vi.mock("../hooks/use-reception-telemetry", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../hooks/use-reception-telemetry")>();
+  return { ...actual, RECEPTION_TELEMETRY_PHASE2_ENABLED: false };
+});
 
 const columnsFixture: ColumnData[] = [
   {
@@ -106,7 +116,7 @@ function renderReception() {
   );
 }
 
-describe("Reception — テレメトリ配線（Phase 2 ゲート OFF、実際の現行状態）", () => {
+describe("Reception — テレメトリ配線（Phase 2 ゲート OFF、mock による安全網）", () => {
   it("checked_in_at を持つ受付済患者が実在しても、ゲートが false の間は本日受付件数のみ表示する", () => {
     renderReception();
 

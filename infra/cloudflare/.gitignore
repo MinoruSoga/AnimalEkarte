@@ -1,0 +1,15 @@
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.backup
+tfplan
+*.tfplan
+
+# .terraform.lock.hcl は追跡する(Terraform公式推奨: provider バージョンの再現性確保)。
+# infra/terraform/(AWS側)は除外運用だが、ここは新規ディレクトリのため公式推奨に合わせる。
+
+# Environment / Secrets
+terraform.tfvars
+!terraform.tfvars.example
+*.env.local
+*.env.staging

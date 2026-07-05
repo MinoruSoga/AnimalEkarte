@@ -129,7 +129,7 @@ func main() {
 	// 共有ファイルストレージ初期化（STORAGE_TYPE=s3 で S3、それ以外はローカル）
 	var sharedStorage infra.FileStorage
 	if os.Getenv("STORAGE_TYPE") == "s3" {
-		s3fs, err := infra.NewS3FileStorage(context.Background(), cfg.S3SharedBucket, cfg.S3SharedRegion)
+		s3fs, err := infra.NewS3FileStorage(context.Background(), cfg.S3SharedBucket, cfg.S3SharedRegion, cfg.S3Endpoint)
 		if err != nil {
 			logger.Error("failed to initialize S3FileStorage", slog.String("error", err.Error()))
 			os.Exit(1)
@@ -175,7 +175,7 @@ func main() {
 			logger.Error("S3_BUCKET and S3_REGION are required when STORAGE_TYPE=s3")
 			os.Exit(1)
 		}
-		s3Up, err := infra.NewS3Uploader(context.Background(), s3Bucket, s3Region)
+		s3Up, err := infra.NewS3Uploader(context.Background(), s3Bucket, s3Region, cfg.S3Endpoint)
 		if err != nil {
 			logger.Error("failed to initialize S3 uploader", slog.String("error", err.Error()))
 			os.Exit(1)

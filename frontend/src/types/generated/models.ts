@@ -2756,6 +2756,10 @@ export interface Reservation {
   is_designated: boolean;
   status: ReservationStatus;
   notes: string;
+  /**
+   * 受付ヘッダー テレメトリ（change-ui.md Phase 2）: checked_in へ遷移した時刻。待ち時間算出専用。
+   */
+  checked_in_at?: string;
   created_at: string;
   updated_at: string;
   /**
@@ -2763,10 +2767,6 @@ export interface Reservation {
    */
   reservation_route?: string;
   actual_reservation_at?: string;
-  /**
-   * 受付ヘッダー テレメトリ（change-ui.md Phase 2）: checked_in へ遷移した時刻。待ち時間算出専用。
-   */
-  checked_in_at?: string;
   /**
    * LINE予約用フィールド
    */

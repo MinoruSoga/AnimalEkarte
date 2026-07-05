@@ -138,7 +138,7 @@ export const SpecialPeriodSection = memo(function SpecialPeriodSection({
             >
               キャンセル
             </button>
-            <SubmitButton colorVariant="brand">追加</SubmitButton>
+            <SubmitButton>追加</SubmitButton>
           </div>
         </form>
       ) : null}

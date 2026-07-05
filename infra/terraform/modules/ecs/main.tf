@@ -148,6 +148,51 @@ resource "aws_iam_role_policy_attachment" "task_execution" {
   policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
 }
 
+# H-5: containerDefinitions[*].secrets の valueFrom（SSM Parameter Store）を ECS Agent が
+# タスク起動時に解決するための権限。AmazonECSTaskExecutionRolePolicy には ssm:GetParameters が
+# 含まれないため個別付与する。パラメータ名は infra/CLAUDE.md の既存命名（/animalekarte/<env>/...）
+# に合わせ、name_prefix（例: animalekarte-stg）から環境名を導出してスコープを絞る。
+# SecureString は既定で AWS 管理キー（alias/aws/ssm）を使うため kms:Decrypt も合わせて付与する。
+# 適用（terraform apply）は SSM パラメータ実登録（H-5 ユーザー実施）とセットで行うこと。
+locals {
+  ssm_parameter_env  = trimprefix(var.name_prefix, "animalekarte-")
+  ssm_parameter_path = "/animalekarte/${local.ssm_parameter_env}"
+}
+
+data "aws_caller_identity" "current" {}
+
+resource "aws_iam_role_policy" "task_execution_ssm_secrets" {
+  name = "${var.name_prefix}-ecs-task-execution-ssm-secrets"
+  role = aws_iam_role.task_execution.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid    = "ReadAppSecretParameters"
+        Effect = "Allow"
+        Action = [
+          "ssm:GetParameters",
+        ]
+        Resource = "arn:aws:ssm:${var.aws_region}:${data.aws_caller_identity.current.account_id}:parameter${local.ssm_parameter_path}/*"
+      },
+      {
+        Sid    = "DecryptSecureStringWithDefaultSSMKey"
+        Effect = "Allow"
+        Action = [
+          "kms:Decrypt",
+        ]
+        Resource = "*"
+        Condition = {
+          StringEquals = {
+            "kms:ViaService" = "ssm.${var.aws_region}.amazonaws.com"
+          }
+        }
+      }
+    ]
+  })
+}
+
 # IAM Role for ECS Task
 resource "aws_iam_role" "task" {
   name = "${var.name_prefix}-ecs-task-role"

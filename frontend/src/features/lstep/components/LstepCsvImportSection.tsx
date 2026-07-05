@@ -86,7 +86,7 @@ function CsvUploadSection() {
         </p>
       ) : null}
       <div className="flex justify-end">
-        <SubmitButton colorVariant="brand" disabled={isPending}>
+        <SubmitButton disabled={isPending}>
           {isPending ? "アップロード中..." : "アップロード"}
         </SubmitButton>
       </div>

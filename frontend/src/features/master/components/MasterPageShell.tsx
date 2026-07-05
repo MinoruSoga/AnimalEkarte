@@ -61,7 +61,7 @@ export const MasterPageShell = memo(function MasterPageShell({
           maxWidth="max-w-full"
           headerAction={
             canCreate ? (
-              <PrimaryButton colorVariant="brand" onClick={onNew}>
+              <PrimaryButton onClick={onNew}>
                 <Plus className={`mr-1.5 ${ICON.action}`} />
                 新規登録
               </PrimaryButton>

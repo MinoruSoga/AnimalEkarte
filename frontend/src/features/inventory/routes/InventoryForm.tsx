@@ -98,7 +98,7 @@ export function InventoryForm() {
       onBack={handleBack}
       headerAction={
         canSubmit ? (
-          <SubmitButton size="sm" colorVariant="brand" form={INVENTORY_FORM_ID}>
+          <SubmitButton size="sm" form={INVENTORY_FORM_ID}>
             <Save className={`mr-1.5 ${ICON.action}`} />
             {isEdit ? "更新" : "登録"}
           </SubmitButton>
@@ -139,7 +139,7 @@ export function InventoryForm() {
         {/* Actions */}
         <div className="flex justify-end gap-3">
           {canSubmit ? (
-            <SubmitButton colorVariant="brand" className="h-10">
+            <SubmitButton className="h-10">
               <Save className={`mr-1.5 ${ICON.action}`} />
               {isEdit ? "更新" : "登録"}
             </SubmitButton>

@@ -189,7 +189,7 @@ export const ChangePasswordDialog = memo(function ChangePasswordDialog({
             >
               キャンセル
             </Button>
-            <SubmitButton colorVariant="brand">変更する</SubmitButton>
+            <SubmitButton>変更する</SubmitButton>
           </DialogFooter>
         </form>
       </DialogContent>

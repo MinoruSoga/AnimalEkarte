@@ -38,6 +38,10 @@ type Config struct {
 	// S3 ファイルストレージ設定（shared_files用）
 	S3SharedBucket string
 	S3SharedRegion string
+
+	// S3Endpoint はカスタム S3 互換エンドポイント（Cloudflare R2 等）。
+	// 空文字（既定）の場合は AWS S3 のリージョナルエンドポイント・バーチャルホスト形式を維持する。
+	S3Endpoint string
 }
 
 func Load() *Config {
@@ -64,6 +68,7 @@ func Load() *Config {
 		IntegrationEncryptionKey: os.Getenv("INTEGRATION_ENCRYPTION_KEY"),
 		S3SharedBucket:           os.Getenv("S3_SHARED_BUCKET"),
 		S3SharedRegion:           getEnv("S3_SHARED_REGION", "ap-northeast-1"),
+		S3Endpoint:               os.Getenv("S3_ENDPOINT"),
 	}
 }
 

@@ -12,22 +12,29 @@ import (
 
 // S3Uploader は AWS S3 にファイルをアップロードする FileUploader 実装。
 type S3Uploader struct {
-	client *s3.Client
-	bucket string
-	region string
+	client   *s3.Client
+	bucket   string
+	region   string
+	endpoint string
 }
 
 // NewS3Uploader は S3Uploader を生成する。
 // bucket と region は環境変数から受け取る。
-func NewS3Uploader(ctx context.Context, bucket, region string) (*S3Uploader, error) {
+// endpoint が空文字の場合は AWS S3 の既定エンドポイントを使用する。
+// 非空の場合（Cloudflare R2 等の S3 互換ストレージ）は path-style でアクセスする。
+func NewS3Uploader(ctx context.Context, bucket, region, endpoint string) (*S3Uploader, error) {
 	cfg, err := config.LoadDefaultConfig(ctx, config.WithRegion(region))
 	if err != nil {
 		return nil, fmt.Errorf("failed to load AWS config: %w", err)
 	}
+	client := s3.NewFromConfig(cfg, func(o *s3.Options) {
+		applyS3EndpointOverride(o, endpoint)
+	})
 	return &S3Uploader{
-		client: s3.NewFromConfig(cfg),
-		bucket: bucket,
-		region: region,
+		client:   client,
+		bucket:   bucket,
+		region:   region,
+		endpoint: endpoint,
 	}, nil
 }
 
@@ -42,8 +49,7 @@ func (u *S3Uploader) Upload(ctx context.Context, key string, body io.Reader, con
 	if err != nil {
 		return "", fmt.Errorf("s3 upload failed: %w", err)
 	}
-	url := fmt.Sprintf("https://%s.s3.%s.amazonaws.com/%s", u.bucket, u.region, key)
-	return url, nil
+	return buildS3ObjectURL(u.endpoint, u.bucket, u.region, key), nil
 }
 
 // Delete は S3 からオブジェクトを削除する。

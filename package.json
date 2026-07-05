@@ -4,10 +4,18 @@
     "harness:loop": "node scripts/harness-refinement-loop.js",
     "harness:audit": "node scripts/harness-audit.js repo",
     "deploy:frontend": "cd frontend && vercel deploy",
-    "deploy:frontend:prod": "cd frontend && vercel deploy --prod"
+    "deploy:frontend:prod": "cd frontend && vercel deploy --prod",
+    "cf:whoami": "wrangler whoami",
+    "cf:deploy": "cd backend && wrangler deploy",
+    "cf:migrate": "./infra/scripts/cf-run-migrate.sh",
+    "cf:smoke": "./infra/scripts/cf-crud-smoke.sh"
   },
   "dependencies": {
-    "@openai/codex": "^0.120.0"
+    "@openai/codex": "^0.120.0",
+    "@cloudflare/containers": "^0.3.7"
+  },
+  "devDependencies": {
+    "wrangler": "4.107.0"
   },
   "packageManager": "pnpm@10.15.0+sha512.486ebc259d3e999a4e8691ce03b5cac4a71cbeca39372a9b762cb500cfdf0873e2cb16abe3d951b1ee2cf012503f027b98b6584e4df22524e0c7450d9ec7aa7b"
 }

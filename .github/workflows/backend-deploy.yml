@@ -24,6 +24,7 @@ permissions:
 
 env:
   AWS_REGION: us-east-1
+  AWS_ACCOUNT_ID: "698109622668"
   ECR_REPOSITORY: animalekarte-api
   ECS_CLUSTER: animalekarte-stg-cluster
   ECS_SERVICE: animalekarte-stg-service
@@ -31,6 +32,15 @@ env:
   ECS_MIGRATE_TASK_FAMILY: animalekarte-stg-migrate
   ECS_SUBNETS: subnet-02442ec427303161f,subnet-0e2c5fa539a4048ca
   ECS_SECURITY_GROUPS: sg-0aa38e88ba0e4876c
+  # H-5: SSM Parameter Store（SecureString）に切り出すシークレットキー名。
+  # ここに列挙されたキーは .env.staging に残っていても environment（平文）へは展開せず、
+  # 代わりに containerDefinitions[*].secrets の valueFrom で SSM から解決する。
+  # パラメータ名は infra/CLAUDE.md の既存命名（/animalekarte/stg/...）に合わせる。
+  # 実際の SSM 登録・IAM 権限付与はユーザー実施（docs/infra/deploy/ の H-5 runbook 参照）。
+  SSM_SECRET_PARAM_MAP: |
+    DB_PASSWORD=/animalekarte/stg/db/password
+    JWT_SECRET=/animalekarte/stg/jwt_secret
+    INTEGRATION_ENCRYPTION_KEY=/animalekarte/stg/integration_encryption_key
 
 jobs:
   deploy:
@@ -118,26 +128,64 @@ jobs:
           echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> "$GITHUB_OUTPUT"
 
       # -------------------------------------------------------
-      # .env.production → ECS environment JSON に変換
+      # .env.staging → ECS environment(平文) / secrets(SSM valueFrom) JSON に分離変換
+      # H-5: SSM_SECRET_PARAM_MAP に列挙したキーは environment に平文展開せず、
+      # secrets 配列の valueFrom で SSM Parameter Store（SecureString）から解決する。
       # -------------------------------------------------------
-      - name: Parse .env.staging
+      - name: Parse .env.staging into environment / secrets
+        env:
+          SSM_SECRET_PARAM_MAP: ${{ env.SSM_SECRET_PARAM_MAP }}
+          AWS_ACCOUNT_ID: ${{ env.AWS_ACCOUNT_ID }}
+          AWS_REGION: ${{ env.AWS_REGION }}
         run: |
           python3 -c "
-          import json
-          pairs = []
+          import json, os
+
+          secret_map = {}
+          for line in os.environ['SSM_SECRET_PARAM_MAP'].strip().splitlines():
+              line = line.strip()
+              if not line:
+                  continue
+              key, _, param = line.partition('=')
+              secret_map[key] = param
+
+          account_id = os.environ['AWS_ACCOUNT_ID']
+          region = os.environ['AWS_REGION']
+
+          env_pairs = []
           with open('.env.staging') as f:
               for line in f:
                   line = line.strip()
                   if not line or line.startswith('#'):
                       continue
                   key, _, value = line.partition('=')
-                  if key:
-                      pairs.append({'name': key, 'value': value})
-          print(json.dumps(pairs))
-          " > /tmp/env_vars.json
+                  if not key:
+                      continue
+                  if key in secret_map:
+                      # 平文の値は environment/secrets どちらにも書き出さない（H-5: SSM 移行後は
+                      # .env.staging からこの行自体を削除する。移行期間中の後方互換のためスキップのみ）。
+                      continue
+                  env_pairs.append({'name': key, 'value': value})
+
+          secret_pairs = []
+
+          # secret_map に列挙された全キーを valueFrom で secrets に追加する（.env.staging に
+          # 該当行が既に無い場合でも SSM 側にさえ登録されていれば解決できるようにするため）。
+          for key, param in secret_map.items():
+              secret_pairs.append({
+                  'name': key,
+                  'valueFrom': f'arn:aws:ssm:{region}:{account_id}:parameter{param}',
+              })
+
+          with open('/tmp/env_vars.json', 'w') as f:
+              json.dump(env_pairs, f)
+          with open('/tmp/secrets.json', 'w') as f:
+              json.dump(secret_pairs, f)
+          "
 
       # -------------------------------------------------------
-      # API タスク定義: env 全置換・secrets 撤廃
+      # API タスク定義: 非シークレット env は environment、シークレットは
+      # secrets（SSM valueFrom）に分離して反映する（H-5）。
       # -------------------------------------------------------
       - name: Download and prepare API task definition
         run: |
@@ -146,10 +194,10 @@ jobs:
             --query taskDefinition \
             --region ${{ env.AWS_REGION }} > task-definition-raw.json
 
-          jq --argjson envvars "$(cat /tmp/env_vars.json)" \
+          jq --argjson envvars "$(cat /tmp/env_vars.json)" --argjson secrets "$(cat /tmp/secrets.json)" \
             'del(.taskDefinitionArn,.revision,.status,.registeredAt,.registeredBy,.compatibilities,.requiresAttributes) |
              .containerDefinitions[0].environment = $envvars |
-             .containerDefinitions[0].secrets = []' \
+             .containerDefinitions[0].secrets = $secrets' \
             task-definition-raw.json > task-definition.json
 
       - name: Fill in new image ID in API task definition
@@ -185,10 +233,10 @@ jobs:
           print(json.dumps(vars))
           " > /tmp/migrate_env_vars.json
 
-          jq --argjson envvars "$(cat /tmp/migrate_env_vars.json)" \
+          jq --argjson envvars "$(cat /tmp/migrate_env_vars.json)" --argjson secrets "$(cat /tmp/secrets.json)" \
             'del(.taskDefinitionArn,.revision,.status,.registeredAt,.registeredBy,.compatibilities,.requiresAttributes) |
              .containerDefinitions[0].environment = $envvars |
-             .containerDefinitions[0].secrets = []' \
+             .containerDefinitions[0].secrets = $secrets' \
             migrate-task-definition-raw.json > migrate-task-definition.json
 
       - name: Fill in new image ID in migrate task definition

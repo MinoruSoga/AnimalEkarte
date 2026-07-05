@@ -344,7 +344,7 @@ export const ShiftFormDialog = memo(function ShiftFormDialog({
               キャンセル
             </Button>
             {canEdit ? (
-              <SubmitButton size="sm" colorVariant="brand" disabled={isDeletePending}>
+              <SubmitButton size="sm" disabled={isDeletePending}>
                 保存
               </SubmitButton>
             ) : null}

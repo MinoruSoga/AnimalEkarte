@@ -19,12 +19,16 @@ type S3FileStorage struct {
 }
 
 // NewS3FileStorage は S3FileStorage を生成する。
-func NewS3FileStorage(ctx context.Context, bucket, region string) (*S3FileStorage, error) {
+// endpoint が空文字の場合は AWS S3 の既定エンドポイントを使用する。
+// 非空の場合（Cloudflare R2 等の S3 互換ストレージ）は path-style でアクセスする。
+func NewS3FileStorage(ctx context.Context, bucket, region, endpoint string) (*S3FileStorage, error) {
 	cfg, err := awsconfig.LoadDefaultConfig(ctx, awsconfig.WithRegion(region))
 	if err != nil {
 		return nil, fmt.Errorf("failed to load AWS config: %w", err)
 	}
-	client := s3.NewFromConfig(cfg)
+	client := s3.NewFromConfig(cfg, func(o *s3.Options) {
+		applyS3EndpointOverride(o, endpoint)
+	})
 	return &S3FileStorage{
 		client:  client,
 		presign: s3.NewPresignClient(client),

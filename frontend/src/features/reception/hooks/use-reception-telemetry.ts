@@ -13,11 +13,12 @@ const RECOMPUTE_INTERVAL_MS = 60_000;
  * この明示フラグで判定する。
  *
  * migration `005_add_appointment_checked_in_at.sql` の適用 と
- * `make codegen` による `Reservation.checked_in_at` の regen が完了したら、
- * 専用のフォローアップコミットで `true` に切り替える（本フラグ自体は
- * 恒久的なフィーチャーフラグ基盤ではなく、この移行を跨ぐための一時的なスイッチ）。
+ * `make codegen` による `Reservation.checked_in_at` の regen が完了したため `true` へ切替済み。
+ * ただし本番/staging 環境へは、`backend/migrations/CLAUDE.md` の警告どおり
+ * migration 適用 ≥ バックエンドデプロイの順序を守ること（未適用環境へ先にデプロイすると
+ * 「受付済へ進める」操作が DB エラーで失敗する）。
  */
-export const RECEPTION_TELEMETRY_PHASE2_ENABLED = false;
+export const RECEPTION_TELEMETRY_PHASE2_ENABLED = true;
 
 export interface ReceptionTelemetryResult extends TelemetryWaitStats {
   totalCount: number;

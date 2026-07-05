@@ -254,7 +254,7 @@ export function MedicalRecords() {
       resource={ResourceMedicalRecords}
       headerAction={
         canCreate ? (
-          <PrimaryButton colorVariant="brand" onClick={() => handleNavigateToForm()}>
+          <PrimaryButton onClick={() => handleNavigateToForm()}>
             <Plus className={ICON.action} />
             新規カルテ登録
           </PrimaryButton>

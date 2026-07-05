@@ -25,6 +25,7 @@
 - **[デプロイ手順書 (CI-CD-PIPELINE.md)](./CI-CD-PIPELINE.md)**: 自動デプロイ、手動トリガー、ロールバックの手順。
 - **[事前確認リスト (../../DEPLOYMENT_CHECKLIST.md)](../../DEPLOYMENT_CHECKLIST.md)**: デプロイ前の動作確認、DBリセット、疎通確認。
 - **[リリースマニュアル (STG_PRE_DEPLOY_READINESS_CHECK.md)](./runbooks/STG_PRE_DEPLOY_READINESS_CHECK.md)**: 本番反映前の最終検証ランブック。
+- **[外部操作ランブック (BUG_MD_EXTERNAL_OPS_PENDING_APPROVAL.md)](./runbooks/BUG_MD_EXTERNAL_OPS_PENDING_APPROVAL.md)**: bug.md C-1/H-5/M-4/M-11 — シークレットローテーション・SSM登録・STG db_reset・GitHub Secrets登録（すべてユーザー承認後に実施）。
 - **[スモークテスト手順 (CRUD-SMOKE-TEST.md)](./CRUD-SMOKE-TEST.md)**: デプロイ直後の主要機能（医院/スタッフ/権限）の導線確認。
 - **[混在会計スモークテスト (MIXED-PAYMENT-SMOKE-TEST.md)](./MIXED-PAYMENT-SMOKE-TEST.md)**: 混在会計 (payment_splits) の詳細動作確認。
 - **[Lステップ Write API 一時停止メモ (LSTEP_WRITE_API_PAUSE.md)](./LSTEP_WRITE_API_PAUSE.md)**: Lステップへのタグ付与・解除・プロパティ更新を再有効化する前提条件。

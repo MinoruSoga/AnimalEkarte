@@ -34,6 +34,7 @@ func TestConfigLoad(t *testing.T) {
 	t.Setenv("INTEGRATION_ENCRYPTION_KEY", "key")
 	t.Setenv("S3_SHARED_BUCKET", "bucket")
 	t.Setenv("S3_SHARED_REGION", "us-east-1")
+	t.Setenv("S3_ENDPOINT", "https://example.r2.cloudflarestorage.com")
 
 	cfg := Load()
 
@@ -90,6 +91,19 @@ func TestConfigLoad(t *testing.T) {
 	}
 	if cfg.S3SharedRegion != "us-east-1" {
 		t.Errorf("S3SharedRegion = %s, want us-east-1", cfg.S3SharedRegion)
+	}
+	if cfg.S3Endpoint != "https://example.r2.cloudflarestorage.com" {
+		t.Errorf("S3Endpoint = %s, want https://example.r2.cloudflarestorage.com", cfg.S3Endpoint)
+	}
+}
+
+func TestConfigLoad_S3EndpointDefaultsEmpty(t *testing.T) {
+	t.Setenv("S3_ENDPOINT", "") // CI/デプロイ環境で S3_ENDPOINT が既に設定されていても隔離する
+
+	cfg := Load()
+
+	if cfg.S3Endpoint != "" {
+		t.Errorf("S3Endpoint = %q, want empty (AWS S3 既定挙動を維持)", cfg.S3Endpoint)
 	}
 }
 

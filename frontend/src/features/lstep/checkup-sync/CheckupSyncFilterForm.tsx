@@ -291,7 +291,6 @@ export function CheckupSyncFilterForm({
 
       <div className="flex justify-end">
         <SubmitButton
-          colorVariant="brand"
           loadingText="検索中..."
           disabled={isLoading}
           className="min-w-[120px]"

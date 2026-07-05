@@ -268,7 +268,6 @@ export const PaymentCard = memo(function PaymentCard({
 
         {canSubmit ? (
           <SubmitButton
-            colorVariant="brand"
             className="w-full h-14 text-lg font-bold mt-4"
             size="lg"
             disabled={isDisabled}

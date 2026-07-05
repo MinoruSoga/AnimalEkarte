@@ -167,7 +167,7 @@ export function ReservationManagement() {
           <div className="flex items-center gap-2">
             <PermissionBadges resource={ResourceReservations} />
             {canCreate ? (
-              <PrimaryButton colorVariant="brand" className="gap-2" onClick={() => handleOpenForm()}>
+              <PrimaryButton className="gap-2" onClick={() => handleOpenForm()}>
                 <Plus className={ICON.action} />
                 <span className="hidden sm:inline">新規予約登録</span>
                 <span className="sm:hidden">予約</span>

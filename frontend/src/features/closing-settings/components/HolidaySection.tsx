@@ -97,7 +97,7 @@ export const HolidaySection = memo(function HolidaySection({ holidays }: Holiday
             >
               キャンセル
             </button>
-            <SubmitButton colorVariant="brand">追加</SubmitButton>
+            <SubmitButton>追加</SubmitButton>
           </div>
         </form>
       ) : null}

@@ -159,7 +159,7 @@ export function MedicineSettings() {
             maxWidth="max-w-full"
             headerAction={
               canCreate ? (
-                <PrimaryButton colorVariant="brand" onClick={() => handleCreate()}>
+                <PrimaryButton onClick={() => handleCreate()}>
                   <Plus className={`mr-1.5 ${ICON.action}`} />
                   新規登録
                 </PrimaryButton>
