@@ -12,7 +12,7 @@
 | 項目 | 結果 |
 |---|---|
 | ドメイン数 | D01–D24（24） |
-| status=完了 | 24 / 24（Known Exclusions を含むもの 3 件: D16, D17, D21 は「完了（除外あり）」） |
+| status=完了 | 24 / 24（Known Exclusions を含むもの 2 件: D16, D17 は「完了（除外あり）」。D21 は 2026-07-05 に PATTERNS.md 対応完了し「完了」に更新） |
 | `node scripts/check-design-primary-cta.mjs` | `PASS  no primary CTA accent reintroduction detected`（exit 0） |
 | hex 直書き（`frontend/src/features/**` 実コード、コメント・print-only・design-tokens.ts 除く） | 0 件 |
 | Tailwind 生色クラス（同上） | 0 件 |
@@ -46,7 +46,7 @@
 | D18 | lstep | /lstep/*, /settings/lstep/* | features/lstep, features/settings | 完了 | **修正実施**: 配信失敗警告バナー（`bg-red-50`/`border-red-200`/`text-red-600`/`text-red-700`）を `C.bgDanger8`/`C.borderDanger20`/`C.danger` に置換し `role="alert"` を付与。タグ管理テーブルのヘッダーを `STYLE.tableHeaderRow/Cell`（既定）から `DESIGN_TABLE_HEADER_ROW/CELL`（canvas-soft + eyebrow）に統一 | `pages/LstepDeliveryMonitorPageParts.tsx`, `components/TagSummaryTable.tsx` |
 | D19 | line-reservation | /line-reservation/* | features/line-reservation | 完了 | hex/tw 違反 0 | なし |
 | D20 | clinic-settings | /settings/clinic | features/clinic-settings | 完了 | hex/tw 違反 0（grep 一致は全て `#190` 等 Issue 番号コメント） | なし |
-| D21 | master-settings | /settings/*（D14/D18 以外） | features/master, features/closing-settings | 完了（除外あり） | hex/tw 違反 0（grep 一致は Issue 番号コメント、または `features/master/PATTERNS.md` 内のドキュメント例示コードのみ）。PATTERNS.md は内部パターン集ドキュメントであり実行コードではないため Known Exclusion（§4）とし、実装済みトークンとの整合は別タスクでの更新を推奨 | なし |
+| D21 | master-settings | /settings/*（D14/D18 以外） | features/master, features/closing-settings | 完了 | hex/tw 違反 0（実行コード）。`features/master/PATTERNS.md` 内のドキュメント例示コードに残っていた旧 hex 直書き（`text-[#37352F]`/`bg-[#2383E2]` 等）は `C.*` トークン参照に置換済み（2026-07-05、Known Exclusion #7 対応済み） | `frontend/src/features/master/PATTERNS.md`（ドキュメントのみ、実行コード変更なし） |
 | D22 | manual | /manual/* | features/manual | 完了 | hex/tw 違反 0 | なし |
 | D23 | owner-report | /owners/:id/report | features/owner-report | 完了 | hex/tw 違反 0（先行コミットで HistoryTable 等 token 化済み。header は canvas-soft + eyebrow uppercase を実装済み） | なし |
 | D24 | shared-shell | Layout 配下共通 | components/shared/*, components/ui/* | 完了 | hex/tw 違反 0。`DataTable.tsx`（`DESIGN_TABLE_HEADER_ROW/CELL` 提供元）、`SortableHeader.tsx`、`dialog.tsx`（`rounded-xl p-6 shadow-lg` = ex-modal-card 準拠）、`SubmitButton.tsx`/`PrimaryButton.tsx`（`colorVariant="brand"` opt-in）、`Sidebar.tsx` 等、いずれも準拠 | なし |
@@ -92,7 +92,7 @@ docker compose exec frontend npx vitest run src/features/<domain>
 | 4 | `frontend/liff`, `frontend/line-reserve` | 別アプリのため対象外 |
 | 5 | `change-ui.md`（受付テレメトリー機能 / `checked_in_at` BE 連携） | 別タスクのため対象外 |
 | 6 | `design-tokens.ts` の大規模リファクタ | 対象外。今回は既存トークン（`C.danger`/`C.bgDanger8`/`C.borderDanger20`）のみを使用し、新規トークン追加は行っていない |
-| 7 | `frontend/src/features/master/PATTERNS.md` 内のコード例示 | 内部向けパターン集ドキュメントに残る旧 hex 直書き例（`text-[#37352F]` 等）。実行コードではなく画面に影響しないため本タスクでは対象外。ドキュメント正確性の観点では別タスクでの更新を推奨 |
+| 7 | ~~`frontend/src/features/master/PATTERNS.md` 内のコード例示~~ | **対応済み（2026-07-05）**。内部向けパターン集ドキュメントに残っていた旧 hex 直書き例（`text-[#37352F]`、`bg-[#2383E2]` 等、計8箇所）を `C.text` / `C.text20` / `C.text65` / `C.danger` / `C.hoverBgDanger5` / `C.bgAccent` / `C.bgAccentLight` / `C.textAccentDark` / `C.bgPrimary10` / `C.bgInactive` / `C.text60` / `C.accent` / `C.hoverTextAccent` / `C.dataActiveBorderB` / `C.dataActiveText` に置換し、「サイドピークのトークン一覧」表も `design-tokens.ts` の合成元表記に更新。例の意味（SidePeek 保存ボタン・削除ボタン・バッジ色・タブ active 状態）は維持。ドキュメントのみの変更で実行コードは無変更 |
 
 ---
 
@@ -101,7 +101,7 @@ docker compose exec frontend npx vitest run src/features/<domain>
 | # | 条件 | 結果 |
 |---|---|---|
 | 1 | `docs/UI_DESIGN_COMPLIANCE.md` が存在し D01–D24 全行に status がある | PASS（本ファイル） |
-| 2 | 全ドメイン status=完了（Known Exclusions のみ「完了（除外あり）」可） | PASS（D16/D17/D21 が「完了（除外あり）」、他 21 ドメインが「完了」） |
+| 2 | 全ドメイン status=完了（Known Exclusions のみ「完了（除外あり）」可） | PASS（D16/D17 が「完了（除外あり）」、他 22 ドメインが「完了」） |
 | 3 | `node scripts/check-design-primary-cta.mjs` が exit 0 | PASS |
 | 4 | 各ドメインで hex 直書き・Tailwind 生色・旧 accent Primary CTA が残っていない | PASS（§4 の Known Exclusions を除く） |
 | 5 | 変更ドメインの scoped vitest が PASS | PASS（`docker compose exec frontend npx vitest run src/features/accounting src/features/lstep` → 19 test files / 210 passed, 3 skipped, 0 failed） |
