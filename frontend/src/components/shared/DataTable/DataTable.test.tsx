@@ -57,6 +57,8 @@ describe("DataTable", () => {
   it("DESIGN_TABLE_HEADER_ROW/CELL は ex-data-table-cell（canvas-soft + sectionLabel）を構成する", () => {
     expect(DESIGN_TABLE_HEADER_ROW).toContain(C.bgPage);
     expect(DESIGN_TABLE_HEADER_ROW).toContain(C.borderLight);
+    expect(DESIGN_TABLE_HEADER_ROW).toContain("h-11");
+    expect(DESIGN_TABLE_HEADER_CELL).not.toContain("h-11");
     for (const cls of STYLE.sectionLabel.split(" ")) {
       expect(DESIGN_TABLE_HEADER_CELL).toContain(cls);
     }

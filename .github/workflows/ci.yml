@@ -462,6 +462,12 @@ jobs:
         working-directory: frontend
         run: pnpm install
 
+      - name: Design primary CTA guard (accent reintroduction)
+        run: node scripts/check-design-primary-cta.mjs
+
+      - name: Self-test design primary CTA guard
+        run: bash scripts/check-design-primary-cta.test.sh
+
       - name: Audit frontend dependencies
         working-directory: frontend
         run: pnpm audit --audit-level moderate

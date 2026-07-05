@@ -8,7 +8,7 @@ import { C, STYLE } from "@/lib/design-tokens";
  * MedicalRecords.tsx / OwnersListTable.tsx のローカル定数と同一値（コミット済み e93b53a2 パターン）。
  */
 export const DESIGN_TABLE_HEADER_ROW = `border-b ${C.borderLight} ${C.bgPage} h-11`;
-export const DESIGN_TABLE_HEADER_CELL = `${STYLE.sectionLabel} h-11`;
+export const DESIGN_TABLE_HEADER_CELL = STYLE.sectionLabel;
 
 interface DataTableProps<T> {
   columns: {
