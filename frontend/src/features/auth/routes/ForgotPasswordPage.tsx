@@ -93,7 +93,7 @@ export function ForgotPasswordPage() {
             <FormFieldError id="forgot-error" message={errorMessage} />
 
             <SubmitButton
-              className={`w-full h-[52px] text-base font-medium rounded-[3px] ${C.bgBrand} hover:opacity-90 transition-opacity ${C.textWhite}`}
+              className="w-full h-[52px] text-base font-medium"
               loadingText="送信中..."
             >
               リセットリンクを送信

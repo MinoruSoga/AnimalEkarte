@@ -30,9 +30,10 @@ const MembershipTypeButtons = memo(function MembershipTypeButtons({
           type="button"
           variant={value === type ? "default" : "outline"}
           size="sm"
+          // DESIGN.md: 構造色は brand blue #0075DE のみ（旧 accent ブルーから移行）
           className={
             value === type
-              ? `${STYLE.confirmPrimary} text-sm px-3`
+              ? `${C.bgBrand} ${C.hoverBgBrand} ${C.textWhite} h-11 text-sm px-3 rounded-full transition-colors shadow-none border-transparent`
               : `h-11 text-sm ${C.text} ${C.hoverBgMedium} ${C.borderMedium} px-3`
           }
           onClick={() => onChange(type)}

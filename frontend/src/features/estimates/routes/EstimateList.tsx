@@ -11,7 +11,7 @@ import { Plus, FileText, Trash2, ExternalLink, CircleDot, Calendar } from "lucid
 import { TableCell } from "@/components/ui/table";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { NotionFilter } from "@/components/shared/NotionFilter/NotionFilter";
-import { DataTable } from "@/components/shared/DataTable/DataTable";
+import { DataTable, DESIGN_TABLE_HEADER_ROW, DESIGN_TABLE_HEADER_CELL } from "@/components/shared/DataTable/DataTable";
 import { DataTableRow } from "@/components/shared/DataTable/DataTableRow";
 import { Pagination } from "@/components/shared/Pagination/Pagination";
 import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
@@ -269,6 +269,8 @@ export function EstimateList() {
         />
 
         <DataTable
+          headerRowClassName={DESIGN_TABLE_HEADER_ROW}
+          headerCellClassName={DESIGN_TABLE_HEADER_CELL}
           columns={COLUMNS}
           data={pagination.paginatedData}
           emptyMessage="見積書が見つかりません"

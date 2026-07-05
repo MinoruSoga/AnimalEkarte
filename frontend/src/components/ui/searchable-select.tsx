@@ -120,7 +120,7 @@ export function SearchableSelect({
         disabled={disabled}
         data-testid={triggerTestId}
         className={cn(
-          "flex h-10 w-full items-center justify-between gap-2 rounded-md border bg-white px-3 py-2 text-sm whitespace-nowrap transition-colors outline-none",
+          "flex h-10 w-full items-center justify-between gap-2 rounded-xs border bg-white px-3 py-2 text-sm whitespace-nowrap transition-colors outline-none",
           C.borderMedium,
           "hover:bg-[rgba(242,241,238,0.5)] focus:bg-white focus:border-[rgba(35,131,226,0.57)] focus:shadow-[0_0_0_1px_rgba(35,131,226,0.35)]",
           "disabled:cursor-not-allowed disabled:opacity-50",

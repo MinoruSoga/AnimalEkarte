@@ -10,7 +10,7 @@ import { ja } from "date-fns/locale";
 
 // Internal
 import { paths } from "@/config/paths";
-import { C, STYLE } from "@/lib/design-tokens";
+import { C } from "@/lib/design-tokens";
 import { toJSTWallDate } from "@/lib/jst-date";
 import { Button } from "@/components/ui/button";
 import { FormHeader } from "@/components/shared/Form/FormHeader";
@@ -170,7 +170,7 @@ export function Reception() {
                         </Button>
                         {canCreateReservation ? (
                             <Button
-                                className={`${STYLE.confirmPrimary} h-11 text-base tracking-[var(--tracking-notion)]`}
+                                className={`${C.bgBrand} ${C.hoverBgBrand} text-white rounded-full px-4 shadow-none border-transparent h-11 text-base tracking-[var(--tracking-notion)]`}
                                 onClick={() => goToNewReservation("reception=1")}
                             >
                                 新規予約登録

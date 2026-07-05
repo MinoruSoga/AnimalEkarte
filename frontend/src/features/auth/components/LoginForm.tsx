@@ -225,7 +225,7 @@ export const LoginForm = memo(function LoginForm() {
 
         {/* Submit */}
         <SubmitButton
-          className={`w-full h-[52px] text-base font-medium rounded-[3px] ${C.bgBrand} ${C.hoverBgBrand} transition-colors ${C.textWhite}`}
+          className="w-full h-[52px] text-base font-medium"
           loadingText="ログイン中..."
         >
           ログイン

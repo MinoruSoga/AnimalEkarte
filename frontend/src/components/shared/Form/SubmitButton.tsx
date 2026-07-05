@@ -1,9 +1,17 @@
 import { useFormStatus } from "react-dom";
 import { Button, type ButtonProps } from "@/components/ui/button";
-import { STYLE } from "@/lib/design-tokens";
+import { C, STYLE } from "@/lib/design-tokens";
 
-interface SubmitButtonProps extends ButtonProps {
+interface SubmitButtonProps extends Omit<ButtonProps, "variant"> {
   loadingText?: string;
+  /**
+   * "brand"（既定） — DESIGN.md `button-primary`（brand blue `#0075DE` + pill `{rounded.full}`）。
+   * "default" — 旧 accent ブルー + 4px 角丸（`STYLE.confirmPrimary`）。DESIGN.md 未準拠のため
+   * 新規実装では使用しないこと。既存の視覚差分を一時的に避ける必要がある場合のみの opt-out。
+   * 単一の className 文字列を選択（連結しない）ことで Tailwind の同一 specificity クラス競合を避ける。
+   * shadcn Button 自身の `variant`（outline/ghost 等）と名前が衝突するため `colorVariant` という名前にしている。
+   */
+  colorVariant?: "default" | "brand";
 }
 
 /**
@@ -15,15 +23,21 @@ export function SubmitButton({
   loadingText = "保存中...",
   className,
   disabled,
+  colorVariant = "brand",
   ...props
 }: SubmitButtonProps) {
   const { pending } = useFormStatus();
+
+  const baseClassName =
+    colorVariant === "brand"
+      ? `${C.bgBrand} ${C.hoverBgBrand} text-white h-11 text-base rounded-full transition-colors shadow-none border-transparent`
+      : STYLE.confirmPrimary;
 
   return (
     <Button
       type="submit"
       disabled={pending || disabled}
-      className={`${STYLE.confirmPrimary} px-4 ${className || ""}`}
+      className={`${baseClassName} px-4 ${className || ""}`}
       {...props}
     >
       {pending ? loadingText : children}

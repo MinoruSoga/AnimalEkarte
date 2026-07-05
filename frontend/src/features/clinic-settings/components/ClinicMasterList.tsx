@@ -1,7 +1,7 @@
 import { Building2, Plus } from "lucide-react";
 
 import { TableCell } from "@/components/ui/table";
-import { DataTable } from "@/components/shared/DataTable/DataTable";
+import { DataTable, DESIGN_TABLE_HEADER_ROW, DESIGN_TABLE_HEADER_CELL } from "@/components/shared/DataTable/DataTable";
 import { DataTableRow } from "@/components/shared/DataTable/DataTableRow";
 import { NotionFilter } from "@/components/shared/NotionFilter/NotionFilter";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
@@ -68,6 +68,8 @@ export function ClinicMasterList({
         />
 
         <DataTable
+          headerRowClassName={DESIGN_TABLE_HEADER_ROW}
+          headerCellClassName={DESIGN_TABLE_HEADER_CELL}
           columns={COLUMNS}
           data={items}
           emptyMessage="医院が登録されていません"

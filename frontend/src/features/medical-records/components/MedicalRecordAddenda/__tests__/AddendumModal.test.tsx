@@ -9,6 +9,7 @@ vi.mock("../../../hooks/use-medical-record-addenda", () => ({
 
 import { AddendumModal } from "../AddendumModal";
 import { useCreateMedicalRecordAddendum } from "../../../hooks/use-medical-record-addenda";
+import { C } from "@/lib/design-tokens";
 
 function renderModal(
   mutateAsync: ReturnType<typeof vi.fn> = vi.fn().mockResolvedValue({}),
@@ -103,5 +104,12 @@ describe("AddendumModal", () => {
 
     await user.click(screen.getByText("キャンセル"));
     expect(onOpenChange).toHaveBeenCalledWith(false);
+  });
+
+  it("『追記を保存』は DESIGN.md button-primary（brand blue + pill）を使う", () => {
+    renderModal();
+    const button = screen.getByRole("button", { name: "追記を保存" });
+    expect(button.className).toContain(C.bgBrand);
+    expect(button.className).toContain("rounded-full");
   });
 });

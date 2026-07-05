@@ -40,7 +40,7 @@ export const ExaminationFilter = memo(function ExaminationFilter({
             type="button"
             size="sm"
             onClick={onImport}
-            className={`${C.bgAccent} ${C.bgAccentHover} ${C.textWhite} gap-2 h-10 text-sm shadow-sm border-transparent px-4`}
+            className={`${C.bgBrand} ${C.hoverBgBrand} ${C.textWhite} gap-2 h-10 text-sm shadow-none rounded-full border-transparent px-4`}
           >
             <FileText className={ICON.action} />
             検査取り込み

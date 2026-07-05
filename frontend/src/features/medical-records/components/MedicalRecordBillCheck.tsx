@@ -10,7 +10,7 @@ import type { CreateTreatmentInput, UpdateTreatmentInput, TreatmentItemType } fr
 import { useAuth } from "@/hooks/use-auth";
 import { usePermission } from "@/hooks/use-permission";
 import { CheckCircle2, RotateCcw } from "lucide-react";
-import { C, ICON, STYLE } from "@/lib/design-tokens";
+import { C, ICON } from "@/lib/design-tokens";
 import type { TreatmentMasterItem } from "@/components/shared/TreatmentSearchDialog/TreatmentSearchDialog";
 import { calculateBillingTotals } from "@/lib/calculations";
 
@@ -215,7 +215,7 @@ export const MedicalRecordBillCheck = memo(function MedicalRecordBillCheck({ isN
               size="sm"
               disabled={isConfirmPending || items.length === 0}
               onClick={handleConfirm}
-              className={`${STYLE.confirmPrimary} min-w-[120px] shadow-lg h-10 text-sm gap-2`}
+              className={`${C.bgBrand} ${C.hoverBgBrand} text-white rounded-full border-transparent min-w-[120px] shadow-lg h-10 text-sm gap-2 transition-colors`}
             >
               <CheckCircle2 className={ICON.action} />
               {isConfirmPending ? "処理中..." : "チェック完了"}

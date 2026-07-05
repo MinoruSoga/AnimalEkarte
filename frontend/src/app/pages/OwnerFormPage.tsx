@@ -17,8 +17,8 @@ import {
 import { createPet, useCreatePet, useUpdatePet, useDeletePet } from "@/features/pets";
 import { LinkedLineCustomers } from "@/features/line-reservation";
 import { useAuth } from "@/hooks/use-auth";
-import { Button } from "@/components/ui/button";
-import { ICON, STYLE } from "@/lib/design-tokens";
+import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
+import { ICON } from "@/lib/design-tokens";
 import type { PetMutations } from "@/types/pet";
 
 export function OwnerFormPage() {
@@ -51,14 +51,14 @@ export function OwnerFormPage() {
       <LinkedLineCustomers clinicId={clinicId} ownerId={Number(ownerId)} />
       <LineIntegrationCard ownerId={ownerId} ownerName={ownerName} owner={owner} />
       <div className="flex justify-end">
-        <Button
+        <PrimaryButton
           type="button"
           onClick={() => setSendPanelOpen(true)}
-          className={STYLE.btnPrimary}
+          className="px-4 text-base"
         >
           <Send className={ICON.sm} />
           個別LINE送信
-        </Button>
+        </PrimaryButton>
       </div>
       <LineSendPanel
         ownerId={ownerId}

@@ -1,5 +1,5 @@
 // React/Framework
-import { C, ICON } from "@/lib/design-tokens";
+import { C, ICON, STYLE } from "@/lib/design-tokens";
 import { memo } from "react";
 
 // External
@@ -41,7 +41,7 @@ export const ExaminationGroup = memo(function ExaminationGroup({
       </div>
 
       <div className={`border ${C.borderMedium} rounded-lg ${C.bgWhite} overflow-hidden shadow-sm overflow-x-auto`}>
-        <div className={`min-w-[600px] grid grid-cols-[2fr_1.5fr_1.5fr_2fr_1.5fr] gap-0 border-b ${C.borderMedium} ${C.bgPage} text-sm font-bold ${C.text80} h-12 items-center`}>
+        <div className={`min-w-[600px] grid grid-cols-[2fr_1.5fr_1.5fr_2fr_1.5fr] gap-0 border-b ${C.borderMedium} ${C.bgPage} ${STYLE.sectionLabel} h-12 items-center`}>
           <div className={`p-2 border-r ${C.borderMedium} pl-3`}>
             項目名
           </div>
