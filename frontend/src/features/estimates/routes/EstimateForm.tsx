@@ -312,8 +312,9 @@ function EstimateFormContent({ id }: { id?: string }) {
           {canSubmit ? (
             <SubmitButton
               size="sm"
+              colorVariant="brand"
               disabled={!form.title.trim()}
-              className={`h-9 ${C.bgAccent} ${C.bgAccentHover} ${C.textWhite} text-sm`}
+              className="h-9 text-sm"
             >
               {isEdit ? '更新' : '作成'}
             </SubmitButton>
