@@ -409,7 +409,12 @@ func TestMedicalRecordRepository_FindAll_Pagination(t *testing.T) {
 		}
 		for _, r := range page2 {
 			assert.False(t, seen[r.ID], "page2 のレコードが page1 と重複してはならない（B-1 旧 failure mode: 常に先頭20件のみ表示の再発防止）")
+			seen[r.ID] = true
 		}
+		for _, id := range ids {
+			assert.True(t, seen[id], "作成した全レコード(id=%d)が page1+page2 のいずれかに含まれるべき（欠落防止）", id)
+		}
+		assert.Len(t, seen, len(ids), "page1+page2 の合計件数は作成件数と一致すべき（重複/欠落なし）")
 	})
 }
 

@@ -23,7 +23,8 @@ func (h *Handler) ListMedicalRecords(c *gin.Context) {
 		return
 	}
 
-	filters, err := newListMedicalRecordQuery(c.Request.URL.Query()).toServiceFilters()
+	q := newListMedicalRecordQuery(c.Request.URL.Query())
+	filters, err := q.toServiceFilters()
 	if err != nil {
 		RespondError(c, err)
 		return

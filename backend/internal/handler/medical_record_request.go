@@ -51,7 +51,7 @@ var allowedMedicalRecordSortKeys = map[string]struct{}{
 // resolveMedicalRecordSort は FE の sort/order query を検証済みの (sort, order) に正規化する。
 // 許可されていない sort キーは空文字（= repository 側で既定順にフォールバック）にする。
 // order は "asc"/"desc" のいずれでもない場合は "desc" にフォールバックする。
-func resolveMedicalRecordSort(sort, order string) (string, string) {
+func resolveMedicalRecordSort(sort, order string) (sortKey, sortOrder string) {
 	if _, ok := allowedMedicalRecordSortKeys[sort]; !ok {
 		return "", ""
 	}
@@ -64,7 +64,7 @@ func resolveMedicalRecordSort(sort, order string) (string, string) {
 // listMedicalRecordFilters は互換のためのエイリアス。実体は repository.MedicalRecordListFilters。
 type listMedicalRecordFilters = repository.MedicalRecordListFilters
 
-func (q listMedicalRecordQuery) toServiceFilters() (listMedicalRecordFilters, error) {
+func (q *listMedicalRecordQuery) toServiceFilters() (listMedicalRecordFilters, error) {
 	petID, err := parseOptionalUintQueryFilter(q.PetID, "pet_id")
 	if err != nil {
 		return listMedicalRecordFilters{}, err
