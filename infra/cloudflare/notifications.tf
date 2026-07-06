@@ -27,9 +27,14 @@
 #      Health Checks はゾーンとは別の課金対象アドオンであり(STG月額試算 ¥4,430 に含まれていない)、
 #      本来は外部オリジンIP監視を想定した機能でworkers.dev ホスト名への適用実績が確認できないため、
 #      本セッションでは追加しない(P6 follow-up として migration-cloudflare.md に記録)。
-#   4. `billing_usage_alert` という alert_type は実在し、P6-4(Budget Alert)をTerraformで
-#      直接構成できる可能性が高い(ダッシュボード操作不要)。ただし P6-4 は本タスクの明示スコープ外
-#      (P6-1/P6-2/P6-3のみ)のため実装しない。migration-cloudflare.md に follow-up として記録する。
+#   4. `billing_usage_alert` という alert_type は実在するが、【2026-07-07 P6-4調査で確定・genuine
+#      BLOCKED】Cloudflare公式ドキュメント確認の結果、これはArgo Smart Routing(トラフィックのバイト数)や
+#      Load Balancing(DNSクエリ数)のような特定の従量課金プロダクト専用の使用量閾値通知であり、
+#      Workers/Containersは対象外。かつCloudflareにはAWS Budget Alert相当の「アカウント全体の
+#      ドル建て月額支出」を監視する機構自体が存在しない。したがってP6-4(Budget Alert)はTerraform/CLI
+#      では実装不可能と結論した(前回の「直接構成できる可能性が高い」はスキーマだけを見た誤った推測
+#      だったため訂正)。代替策(Cloudflare GraphQL Analytics APIによるCPU/メモリ使用量の定期手動確認)
+#      はfollow-upとしてmigration-cloudflare.md「2026-07-07 Phase 6 残件」に記録する。
 #
 # 送信先メールアドレスは var.notification_email(必須・default無し)。値が無い環境では
 # `terraform plan` がこの変数の未設定エラーで失敗する — これは意図した genuine BLOCKED

@@ -2,7 +2,7 @@
 
 > **作成日**: 2026-07-05 | **対象**: Staging 環境（us-east-1）の全リソース
 > **前提調査**: [research-cloudflare.html](research-cloudflare.html)（2026-07-04 再調査版）
-> **ステータス**: 実行中 — **Phase 4 完了（P4-1〜P4-9、2026-07-05 試行12確定）**。**Phase 5（CI/CD 置換）コード完了（2026-07-06。P5-1/P5-3/P5-4 実装・コミット `4a9ad331` 確定。P5-2（Secrets登録）/P5-5（2回連続成功確認）は人間タスク待ち・BLOCKED(genuine)）**。**Phase 6（監視・ログ・通知）— P6-1〜P6-3 完了（2026-07-06）・P6-4 調査完了/genuine BLOCKED（2026-07-07、Cloudflareにアカウント全体のドル建て支出アラート機構が存在しないため実装不可と判明）・P6-5 棚卸し完了（2026-07-07、AWS CloudWatch依存はすべてPASS/N/A、代替不能項目なし）**。
+> **ステータス**: 実行中 — **Phase 4 完了（P4-1〜P4-9、2026-07-05 試行12確定）**。**Phase 5（CI/CD 置換）コード完了（2026-07-06。P5-1/P5-3/P5-4 実装・コミット `4a9ad331` 確定。P5-2（Secrets登録）/P5-5（2回連続成功確認）は人間タスク待ち・BLOCKED(genuine)）**。**Phase 6（監視・ログ・通知）— P6-1〜P6-3 完了（2026-07-06）・P6-4 調査完了/genuine BLOCKED（2026-07-07、Cloudflareにアカウント全体のドル建て支出アラート機構が存在しないため実装不可と判明）・P6-5 棚卸し完了（2026-07-07、AWS CloudWatch依存6項目中、代替不能は1件のみ=#4 RDS PostgreSQLログのCloudWatch Logsエクスポート↔PlanetScale側の同等性・未検証BLOCKED、他5件はPASS/N/A）**。
 > Phase 0〜3 は完了（P2-4/P2-5 画像データ移行実行・P3-6/P3-7 データ本切替は人間判断待ち）。
 > トラフィック切替（P1-2 NS 切替・Phase 7）は未実施。現行 `api.stg.noah-karte.com` は AWS ECS 経路（夜間停止等で 503 になり得る）、Cloudflare 検証経路は `*.workers.dev`（2026-07-06 時点 `/health` 200 確認済み。P6着手セッションではdeployしていないため前回記録を維持）。詳細は「実施記録」の 2026-07-06 セクション参照
 
@@ -169,7 +169,7 @@ Plan: 1 to add, 1 to change, 0 to destroy.
 
 **Phase 6 follow-up（2026-07-07セッションで確定・下記「2026-07-07」セクション参照）**:
 - ~~P6-4: `billing_usage_alert` alert_typeでのBudget Alert Terraform化を検討~~ → **2026-07-07で調査完了。Cloudflare公式ドキュメントで`billing_usage_alert`はArgo Smart Routing/Load Balancing等の特定従量課金プロダクト専用と判明し、Workers/Containers非対応・アカウント全体のドル建て支出アラート機構自体がCloudflareに存在しないため実装不可(genuine BLOCKED)と確定**。詳細は下記参照
-- ~~P6-5: CloudWatchダッシュボード/アラームの代替可否の最終確認~~ → **2026-07-07で棚卸し完了。代替不能項目なし**。詳細は下記参照
+- ~~P6-5: CloudWatchダッシュボード/アラームの代替可否の最終確認~~ → **2026-07-07で棚卸し完了。代替不能は1件のみ（#4 RDS PostgreSQLログのCloudWatch Logsエクスポート↔PlanetScale側の同等性・未検証BLOCKED）**。詳細は下記参照
 - Containers専用の異常検知手段（`cloudflare_healthcheck`アドオンの要否含む）は本番移行判断時に再検討（未解消・継続）
 - P1-2完了後、`http_alert_edge_error`ポリシーが実際にシグナルを発報するか実測検証すること（現状は待機中でテスト不可・未解消・継続）
 
