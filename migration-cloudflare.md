@@ -2,9 +2,9 @@
 
 > **作成日**: 2026-07-05 | **対象**: Staging 環境（us-east-1）の全リソース
 > **前提調査**: [research-cloudflare.html](research-cloudflare.html)（2026-07-04 再調査版）
-> **ステータス**: 実行中 — **Phase 4 完了（P4-1〜P4-9、2026-07-05 試行12確定）**。**Phase 5（CI/CD 置換）着手（2026-07-06。P5-1/P5-3/P5-4 実装済み、P5-2（Secrets登録）/P5-5（2回連続成功確認）は人間タスク待ち）**。
+> **ステータス**: 実行中 — **Phase 4 完了（P4-1〜P4-9、2026-07-05 試行12確定）**。**Phase 5（CI/CD 置換）コード完了（2026-07-06。P5-1/P5-3/P5-4 実装・コミット `4a9ad331` 確定。P5-2（Secrets登録）/P5-5（2回連続成功確認）は人間タスク待ち・BLOCKED(genuine)）**。**Phase 6（監視・ログ・通知）— P6-1〜P6-3 完了（2026-07-06）・P6-4 調査完了/genuine BLOCKED（2026-07-07、Cloudflareにアカウント全体のドル建て支出アラート機構が存在しないため実装不可と判明）・P6-5 棚卸し完了（2026-07-07、AWS CloudWatch依存はすべてPASS/N/A、代替不能項目なし）**。
 > Phase 0〜3 は完了（P2-4/P2-5 画像データ移行実行・P3-6/P3-7 データ本切替は人間判断待ち）。
-> トラフィック切替（P1-2 NS 切替・Phase 7）は未実施。現行 `api.stg.noah-karte.com` は AWS ECS 経路（夜間停止等で 503 になり得る）、Cloudflare 検証経路は `*.workers.dev`（2026-07-06 時点 `/health` 200 確認済み）。詳細は「実施記録」の 2026-07-06 セクション参照
+> トラフィック切替（P1-2 NS 切替・Phase 7）は未実施。現行 `api.stg.noah-karte.com` は AWS ECS 経路（夜間停止等で 503 になり得る）、Cloudflare 検証経路は `*.workers.dev`（2026-07-06 時点 `/health` 200 確認済み。P6着手セッションではdeployしていないため前回記録を維持）。詳細は「実施記録」の 2026-07-06 セクション参照
 
 ---
 
@@ -120,6 +120,95 @@
 | P5-5 | Secrets投入後のCIデプロイ2回連続成功確認 — **BLOCKED（genuine）**。Secrets未投入のため本セッションでは実行不可。手順は `infra/cloudflare/README.md` §CIデプロイ検証参照 |
 
 `e2e.yml` / `performance-tests.yml` の対象URL更新はP1-2 NS切替後の対応とし、本セッションではdeferとして記録のみ（P5-4は部分完了）。
+
+**2026-07-06 Phase 6 着手前リポジトリ状態確定**: Phase 6着手時点の`git log -1 --oneline` = `4a9ad331 feat(infra): STG Backend CIをAWS ECSからCloudflare Workers/Containers へ移行 (Phase 5)`（ローカル`main`は`origin/main`に対し3コミットahead・未push）。P5-1/P5-3/P5-4はこのコミットで確定済み。`backend-deploy.yml` のトリガーは `staging` ブランチへの push（`main` ではない。`infra/CLAUDE.md` に記載の旧ECS運用（`main` push トリガー）とは異なる新経路であることに注意）。**注記（並行セッション検出）**: 本セッション作業中に別セッション/エージェントが`6e34e684 chore(security): untrack .env.staging, align C-1 runbook with Cloudflare STG`をコミットし、`git log -1`は現在この値に進んでいる。これはCloudflare移行（bug.md C-1シークレットローテーション）とは無関係の並行作業であり、本セッションのPhase 6スコープ（Terraform/doc）とはファイル競合していないため、そのまま尊重し本ドキュメントでは触れない（`bug.md`/`BUG_MD_EXTERNAL_OPS_PENDING_APPROVAL.md`は編集対象外のまま）。
+
+---
+
+### 2026-07-06 Phase 6（監視・ログ・通知）着手記録
+
+**前提**: Phase 5 コード実装（P5-1/P5-3/P5-4）確定後、人間タスク（P5-2/P5-5）を除く次フェーズとしてPhase 6の着手可能項目（P6-1〜P6-3）を実施。P6-4/P6-5は本セッション（2026-07-06）ではスコープ外としたが、2026-07-07の後続セッションで対応済み（下記「2026-07-07 Phase 6 残件」参照）。
+
+**P6-1（Workers Logs 有効化）— 確認のみ・変更なし**:
+`backend/wrangler.jsonc` に既に `"observability": { "enabled": true, "head_sampling_rate": 1 }` が宣言済み（試行9で追加）。`head_sampling_rate: 1` は全リクエストを100%サンプリングする設定（STGは低トラフィックのため、コスト影響よりも可観測性を優先する判断は妥当と判断・変更不要）。Workers Paid プランには2,000万件/月のログ取り込みが含まれる（P0記載の月額試算に既に包含済み・追加コストなし）。**結論: P6-1は試行9時点で実質完了済み。本セッションでは doc 記載を「完了」に確定するのみ**。
+
+**P6-2（監査要件の確認・7日保持の妥当性判断）**:
+STGは臨床データを扱うがコンプライアンス監査対象ではなく（本番運用開始前の検証環境）、`AuditService`（DBの`audit_logs`テーブル）が診療記録の変更監査を別途永続的に担っているため、Workers Logs（HTTPリクエストログ）はインフラ運用・障害調査目的に限定される。7日保持で「直近の障害調査」には十分であり、本番相当の監査要件（法定保存期間等）はWorkers Logsではなく`audit_logs`テーブル側の責務である。したがって**STGにおいてLogpush→R2の追加設定は不要と判断**（P6-2は「不要」で完了・Terraform追加なし）。本番移行時に法定監査要件が明確化された場合は`cloudflare_logpush_job`の追加を再検討すること（Phase 6 follow-upとして記録）。
+
+**P6-3（通知設定 — Terraform `cloudflare_notification_policy`）**:
+`infra/cloudflare/notifications.tf`（新規）を追加。実装前に `terraform providers schema -json` で cloudflare provider（`~> 5.21`, 実体 5.21.1）の `cloudflare_notification_policy` スキーマを直接抽出し、`alert_type`受理値（52種）を精査した結果、Workers スクリプトエラーやContainers(コンテナ/Durable Object)固有の異常を直接指すalert_typeは**存在しない**ことを確認（新規発見・当初想定と異なる）。最も近い代替として`http_alert_edge_error`（ゾーン全体のエッジ観測5xx率）を採用し、以下の制約を`notifications.tf`内コメントおよび本記録に明記した:
+- ゾーン単位の集計であり、`api.stg.noah-karte.com`サブドメインの5xxのみを狙い撃つフィルタは無い（`filters.zones`のみサポート）
+- P1-2（NS切替）完了・実トラフィックがCloudflareエッジを経由するまでシグナルは発生しない（現状全DNSレコードは`proxied=false`、NS自体もVercel側のまま）ため、apply後も当面「待機中(dormant)」のポリシーとなる
+- Containers固有のクラッシュ/OOM/再起動を検知するalert_typeは現状のCloudflare通知APIに存在しない。近い代替の`cloudflare_healthcheck`（能動的HTTP監視）は別課金アドオン（月額試算¥4,430に未包含）かつworkers.devホスト名への適用実績が未確認のため、本セッションでは追加しない（follow-upとしてリスク登録簿に記録）
+- `billing_usage_alert`というalert_typeが実在し、P6-4（Budget Alert）をTerraformで直接構成できる可能性が高いことも判明（P6-4は本セッションのスコープ外のためfollow-upとして記録のみ）
+
+送信先メールアドレスは`infra/cloudflare/variables.tf`に`notification_email`変数（`sensitive = true`・**default無し**）として追加。運用担当者の実メールアドレスをClaude Codeが推測で埋めることを避けるため、値は`TF_VAR_notification_email`で人間が供給する設計とし、未供給時は`terraform plan`が変数未設定エラーで失敗する（意図した genuine BLOCKED）。
+
+**terraform validate / plan 結果**:
+```
+$ terraform validate
+Success! The configuration is valid.
+
+$ terraform plan -out=tfplan   # TF_VAR_notification_email にプレースホルダ値を使用（実値は運用担当者が決定）
+Plan: 1 to add, 1 to change, 0 to destroy.
+  # cloudflare_notification_policy.worker_edge_error_rate will be created
+  # cloudflare_hyperdrive_config.stg_planetscale will be updated in-place
+    （↑ origin.host/user/password のsensitive差分。pscale発行の短命クレデンシャルを本セッションでは
+      供給していないための既知drift・notification_policy追加とは無関係・apply対象外）
+```
+**apply は実施していない**（Constraint／Risk Tier: External write境界のため）。tfplanファイルはレビュー後に削除済み（実値を含むstateへの影響を避けるため）。
+
+**独立レビュー実施前の注記（既知の作業ミス）**: 初回`terraform plan`試行時に、環境変数の取り違え（`TF_VAR_account_id`を誤って空文字で上書き）によりzone/DNS/R2/Hyperdrive等13リソースが`must be replaced`と誤表示される事象が発生した。これは`.env.staging`が`CLOUDFLARE_ACCOUNT_ID`ではなく`TF_VAR_account_id`を直接exportする設計（README.md記載通り）であることを見落とした単純な作業ミスであり、実インフラ側の問題ではない。正しい変数供給（`.env.staging`をsourceしTF_VAR_account_idを上書きしない）で再実行し、上記のクリーンなplan（1 add, 1 change, 0 destroy）を確認した。**教訓: `.env.staging`は`TF_VAR_account_id`を直接供給するため、追加の`export TF_VAR_account_id=$CLOUDFLARE_ACCOUNT_ID`は不要かつ有害（空文字での上書きになり得る）**。
+
+**独立レビュー（code-reviewer + security-reviewer）結果**:
+- **security-reviewer**: CRITICAL/HIGH/MEDIUM 0件。LOW 1件（`sensitive = true`指定の`notification_email`もtfstate自体には平文保存される旨の情報共有 — 既存の`pscale_stg_db_*`変数と同様の許容済みパターンであり対応不要）。ハードコードされた実メールアドレス・シークレット等の混入なし、`cloudflare_zone.noah_karte`参照も既存リソースへの正当な参照であり新規攻撃面なしと結論
+- **code-reviewer**: CRITICAL/HIGH 0件。MEDIUM 1件・LOW 2件、すべて即時対応済み:
+  - **即時対応済み(MEDIUM)**: Cloudflare通知メールの送信先は、ダッシュボードのNotification Settingsで確認リンク経由の事前検証(verification)が必要な可能性があり、`terraform plan`では検出できない制約 → `notification_email`実値供給後も`apply`が「未検証アドレス」で失敗し得る旨を`notifications.tf`内コメントに追記（本セッションでは実際にこの制約が発現するか未検証のまま・apply実施時に要確認）
+  - **即時対応済み(LOW)**: リソース名`"${var.environment}-worker-edge-error-rate"`が既存の`animalekarte-`プレフィックス命名規則（`hyperdrive.tf`の`animalekarte-stg-planetscale`等）から逸脱 → `"animalekarte-${var.environment}-worker-edge-error-rate"`に修正。修正後`terraform validate`/`plan`を再実行し同一のクリーンな差分（1 add, 1 change, 0 destroy）を再確認済み
+  - **即時対応済み(LOW)**: 本チェックリスト（P6-3行）が`terraform plan`結果を「1 to add, 0 destroy」とだけ記載し、実際に発生している「1 to change」（無関係なHyperdrive credential drift）を省略していた → チェックリスト行を実際のplan出力と一致するよう修正
+
+**Phase 6 follow-up（2026-07-07セッションで確定・下記「2026-07-07」セクション参照）**:
+- ~~P6-4: `billing_usage_alert` alert_typeでのBudget Alert Terraform化を検討~~ → **2026-07-07で調査完了。Cloudflare公式ドキュメントで`billing_usage_alert`はArgo Smart Routing/Load Balancing等の特定従量課金プロダクト専用と判明し、Workers/Containers非対応・アカウント全体のドル建て支出アラート機構自体がCloudflareに存在しないため実装不可(genuine BLOCKED)と確定**。詳細は下記参照
+- ~~P6-5: CloudWatchダッシュボード/アラームの代替可否の最終確認~~ → **2026-07-07で棚卸し完了。代替不能項目なし**。詳細は下記参照
+- Containers専用の異常検知手段（`cloudflare_healthcheck`アドオンの要否含む）は本番移行判断時に再検討（未解消・継続）
+- P1-2完了後、`http_alert_edge_error`ポリシーが実際にシグナルを発報するか実測検証すること（現状は待機中でテスト不可・未解消・継続）
+
+---
+
+### 2026-07-07 Phase 6 残件（P6-4 Budget Alert 調査・P6-5 CloudWatch代替棚卸し）
+
+**前提**: 2026-07-06セッションのPhase 6着手記録（P6-1〜P6-3）はコミット未実施のまま作業ツリーに残置されていた。本セッションでland作業に先立ち、P6-4/P6-5の残件調査を実施した（`git log -1` は本セッション開始時点で`6e34e684`。並行セッションによる`bug.md`/C-1 runbook更新のコミットであり、Cloudflare移行スコープと無関係のため触れない）。
+
+**P6-4（Budget Alert）— 調査の結果、genuine BLOCKED（実装不可と確定）**:
+
+前回セッションの記録は「`billing_usage_alert`というalert_typeが実在し、Terraformで直接構成できる可能性が高い」という**Terraformプロバイダのスキーマだけを見た暫定推測**だった。本セッションでCloudflare公式ドキュメント（`developers.cloudflare.com/notifications/`）を確認したところ、この推測は誤りと判明した:
+
+- `billing_usage_alert`（Cloudflareの呼称は "Usage-Based Billing" 通知）は、**Argo Smart Routing（トラフィックのバイト数）や Load Balancing（DNSクエリ数）のような個別プロダクトの使用量閾値**を監視する機能であり、Workers/Containers/PlanetScaleを含むアカウント全体の**ドル建て月額支出**を監視する機能ではない
+- 公式ドキュメントはWorkers/Containers/サーバーレスコンピュート製品への言及自体がなく、対応外と判断できる
+- Cloudflareの通知APIおよびWorkers公式ドキュメント（`developers.cloudflare.com/workers/platform/limits/`）を横断的に確認したが、AWS Budget Alert相当の「アカウント全体の月額支出がドル閾値を超えたら通知」という汎用機能はCloudflareに**存在しない**
+- したがって、`migration-cloudflare.md`のP6-4記述（「月$40目安のBudget Alert」）を実現するTerraformリソースは追加できない。誤った`billing_usage_alert`設定を追加すると、Workers/Containers使用量とは無関係な値(または無効なproduct指定によるapply失敗)になり、「アラート設定済みに見えて実際は無監視」という悪い意味でのサイレント障害を生む — これは`.claude/CLAUDE.md`のPrompt Defense Baselineおよびsilent-failure回避の原則に反するため、意図的に実装を見送った
+
+**P6-4の代替策（follow-upとして記録・本セッションでは未実装）**:
+1. 試行12（P4-9）で実施したCloudflare GraphQL Analytics API（`containersUsageAdaptiveGroups`）によるCPU/メモリ/ディスク使用量の手動クエリを、Phase 5の定期実行（例: 週次cron/GitHub Actions scheduled workflow）に昇格させ、想定コスト（~$27.5/月、閾値$40相当）からの乖離を人が確認する運用に切り替える
+2. Cloudflareダッシュボードの請求画面（Billing）は月次実績を表示するのみで能動的通知はできないため、①の定期クエリ+Slack/メール通知を自前実装する場合はPhase 7以降で改めて設計すること
+3. **P6-4はTerraform/CLIでは実装不可能と結論**。migration-cloudflare.mdの本項目は「完了」ではなく「設計上不可能と判明・代替策は運用手順に格下げ」として扱う
+
+**P6-5（CloudWatch → Cloudflare 代替棚卸し）— 完了**:
+
+`infra/terraform/`配下のAWS CloudWatch依存を`grep -rn "aws_cloudwatch" infra/terraform --include="*.tf"`で網羅的に洗い出した（read-only調査）。
+
+| # | AWS/CloudWatch項目（現行実装） | 現行の役割 | Cloudflare/PlanetScale側の代替 | 判定 |
+|---|---|---|---|---|
+| 1 | `aws_cloudwatch_log_group.ecs`（`infra/terraform/modules/security/main.tf:148`、`retention_in_days=1`） | ECSアプリケーションログ保管 | Workers Observability Logs（`backend/wrangler.jsonc`の`observability`、P6-1で確認済み・保持7日） | **PASS**（保持日数はむしろ1日→7日に改善） |
+| 2 | `aws_cloudwatch_metric_alarm.fck_nat_recover`（`infra/terraform/modules/vpc/main.tf:152`） | fck-nat（NAT代替EC2インスタンス）のシステムステータスチェック失敗時に自動復旧 | 該当なし | **PASS（構造的に不要化）**。Cloudflareアーキテクチャ（Worker→Container直結、`worker/index.ts`のcontainerFetch経由）にNATインスタンスという概念自体が存在しないため、監視対象そのものが消滅する |
+| 3 | `aws_scheduler_schedule` ×4（`infra/terraform/modules/scheduler/main.tf`: ecs_start/ecs_stop/rds_start/rds_stop） | 夜間（22:00–8:00 JST）のECS/RDS停止スケジュール（EventBridge Scheduler） | scale-to-zero（Containers）+ PlanetScale固定額課金 | **PASS（Phase 5・P5-3で既に対応済み）**。本項目は棚卸しで再確認したのみ |
+| 4 | `enabled_cloudwatch_logs_exports = ["postgresql"]`（`infra/terraform/modules/rds/main.tf:64`） | RDS PostgreSQLのCloudWatch Logsへのログエクスポート | PlanetScale側のクエリログ/Insights機能の同等性 | **未検証・BLOCKED**。運用原則によりPlanetScaleダッシュボード操作は本セッションで実施しておらず、ログ機能の同等性を実機確認していない。P7（切替）判断前に運用担当者が確認すること |
+| 5 | CloudWatchダッシュボード | — | 該当なし | **PASS（N/A）**。`grep -rn "aws_cloudwatch_dashboard" infra/terraform`は0件。そもそも本リポジトリにCloudWatchダッシュボードは存在しない |
+| 6 | ECS Container Insights | 無効（`infra/CLAUDE.md`記載どおり明示的に無効化済み・コスト最適化方針） | 該当なし | **PASS（N/A）**。元々未使用のため代替不要 |
+
+**結論**: CloudWatch依存6項目中、代替不能（BLOCKED）は#4（RDS PostgreSQLログのCloudWatch Logsエクスポートとの同等性）の1件のみ。それ以外はPASSまたはN/A。#4はPhase 7切替判断前の確認事項としてリスク登録簿に追記する。
+
+**独立レビュー**: 本セクション（P6-4/P6-5の調査・doc追記のみ、Terraformコード変更なし）はdoc-onlyのため、下記「2026-07-07独立レビュー」でP6-3の修正差分と合わせて実施。
 
 ---
 
@@ -641,7 +730,7 @@ Phase 1〜3 は互いに独立しており並行着手可能。Phase 4 が最大
 - [x] **P3-2** スキーマ互換性の事前検証 — `backend/migrations/001〜005` 全5件を空DBへ適用、`schema_migrations`テーブルで5/5件・ファイル名一致を確認。ENUM/`text[]`/jsonb/トリガすべて動作確認済み（`infra/scripts/validate-schema.sql`で再現可能。実施記録 8. 参照）
 - [x] **P3-3** 拡張機能の確認 — `\dx`で`pg_trgm`（+ PlanetScale標準の`hypopg`/`plpgsql`）を確認。現行RDSで使用中の拡張と一致
 - [x] **P3-4** Hyperdrive 設定作成 — `infra/cloudflare/hyperdrive.tf` の `cloudflare_hyperdrive_config`（`caching.disabled = true`）は試行6で **apply 済み**（ID: `45ae9b2a018a4c0fa84c1744c0f12efa`）。`backend/wrangler.jsonc` の placeholder は試行7でこの ID に置換済み
-- [x] **P3-5** Hyperdrive 実接続 CRUD/トランザクション検証 — **2026-07-05 試行7で PASS**。`wrangler dev --remote`（エフェメラルな edge プレビュー、永続 deploy ではない）+ `postgres.js` から `env.HYPERDRIVE.connectionString` 経由で SELECT/INSERT/UPDATE/DELETE + BEGIN→COMMIT/BEGIN→ROLLBACK を全実行し成功。`inet_server_addr()` がプール内部アドレスであることから Hyperdrive 経由であることを確認。詳細は下記「試行7」記録参照。**GORM(Go)自体での実接続確認は未実施** — Cloudflare Hyperdrive の `connectionString` は Worker 実行コンテキスト外(単体Goバイナリ/ローカルpsql)からは取得不能という Cloudflare 側の仕様上の制約のため、GORM経由の確認は Phase 4 で実際の Worker/Container 実装が組まれた時点で行う。GORM互換性についての静的解析結論（`PrepareStmt`既定false・migrate直結方針）は実施記録10.・`hyperdrive.tf`コメント参照で変更なし
+- [x] **P3-5** Hyperdrive 実接続 CRUD/トランザクション検証 — **2026-07-05 試行7で PASS（確定）**。`wrangler dev --remote`（エフェメラルな edge プレビュー、永続 deploy ではない）+ `postgres.js` から `env.HYPERDRIVE.connectionString` 経由で SELECT/INSERT/UPDATE/DELETE + BEGIN→COMMIT/BEGIN→ROLLBACK を全実行し成功。`inet_server_addr()` がプール内部アドレスであることから Hyperdrive 経由であることを確認。詳細は下記「試行7」記録参照。**GORM(Go)自体での実接続確認 — 試行9(P4-4/AC-6)で間接検証済み**（旧記載「未実施」「Phase 4で行う」は試行4時点の暫定記録として陳腐化していたため2026-07-06に修正）: `cmd/api/main.go` は `repository.NewDB(cfg)`（GORM Open + Ping相当）が成功するまで HTTP サーバーを起動しない実装のため、`/health` が複数回 `200` を返した実測（試行9）はGORM×PlanetScale直接接続（`sslmode=require`・Hyperdrive非経由）の間接証跡として十分と判断済み（Container内部Goログでの直接確認は`wrangler tail`非対応のため未実施のまま・残課題として保持）。GORM互換性についての静的解析結論（`PrepareStmt`既定false・migrate直結方針）は実施記録10.・`hyperdrive.tf`コメント参照で変更なし
 - [ ] **P3-6** データ移行リハーサル — **スコープ外**（private RDSへの接続経路が必要なため未実施）
 - [ ] **P3-7** 本切替 — **スコープ外**（P3-6未実施のため）
 - [ ] **P3-8** RDS は**即削除しない** — 該当なし（Phase 8着手時まで判断保留）
@@ -680,11 +769,11 @@ Phase 1〜3 は互いに独立しており並行着手可能。Phase 4 が最大
 
 ## Phase 6: 監視・ログ・通知（1〜2 人日）
 
-- [ ] **P6-1** Workers Logs 有効化 — `wrangler.jsonc` の `observability` 設定で宣言（Paid: 2,000 万件/月込み・保持 7 日）
-- [ ] **P6-2** 監査要件の確認 — 7 日保持で STG として十分か判断。不足なら Logpush → R2 を Terraform `cloudflare_logpush_job` で設定
-- [ ] **P6-3** 通知設定 — Terraform `cloudflare_notification_policy`（Worker エラー率・Containers 異常）
-- [ ] **P6-4** Budget Alert 設定（月 $40 目安 — 想定 $27.5 の 1.5 倍で異常検知）。API 経由で設定できない場合はダッシュボード操作を例外として記録
-- [ ] **P6-5** CloudWatch ダッシュボード/アラームで代替不能なものがないか最終確認
+- [x] **P6-1** Workers Logs 有効化 — **2026-07-06 確認完了（試行9時点で既に宣言済み）**。`backend/wrangler.jsonc` の `observability: { enabled: true, head_sampling_rate: 1 }`（Paid: 2,000 万件/月込み・保持 7 日、月額試算に既に包含済み）
+- [x] **P6-2** 監査要件の確認 — **2026-07-06 判断完了**。臨床データの変更監査は`audit_logs`テーブル（`AuditService`）が別途永続的に担うため、Workers Logs（HTTPリクエストログ）はインフラ運用・障害調査目的に限定される。7日保持はSTGとして十分と判断し、Logpush→R2は**不要**（追加設定なし）。本番移行時に法定監査要件が明確化されれば`cloudflare_logpush_job`を再検討
+- [x] **P6-3** 通知設定 — **2026-07-06 実装済み**。`infra/cloudflare/notifications.tf`に`cloudflare_notification_policy`（`http_alert_edge_error`、Worker/Containersクラッシュ専用alert_typeはCloudflare API側に不存在のため最も近い代替指標を採用）を追加。`terraform validate`PASS・`terraform plan`は**1 to add, 1 to change（本ポリシー追加とは無関係な既存Hyperdrive credential drift）, 0 to destroy**でクリーン。送信先は`notification_email`変数（default無し・genuine BLOCKED設計）。**未検証事項（code-reviewer指摘）**: Cloudflare通知メール送信先はダッシュボードでの事前検証(confirmation link)が必要な可能性があり、`terraform plan`ではこの制約を検出できない。実値供給後の`apply`が「未検証アドレス」で失敗し得ることを`notifications.tf`内コメントに明記済み。apply未実施。詳細は「2026-07-06 Phase 6着手記録」参照
+- [ ] **P6-4** Budget Alert 設定（月 $40 目安 — 想定 $27.5 の 1.5 倍で異常検知）。**2026-07-07 調査完了・genuine BLOCKED（Terraform/CLIでは実装不可能と確定。「完了」ではないため未チェックのまま維持）**。Cloudflare公式ドキュメント確認の結果、`billing_usage_alert`はArgo Smart Routing/Load Balancing等の特定従量課金プロダクト専用でWorkers/Containers非対応、かつCloudflareにアカウント全体のドル建て支出アラート機構自体が存在しないことが判明（前回セッションの「API経由で構成できる可能性が高い」という記述はスキーマだけを見た誤った推測だったため訂正）。代替策（GraphQL Analytics APIの定期実行への昇格）はfollow-upとして記録。詳細は「2026-07-07 Phase 6 残件」参照
+- [x] **P6-5** CloudWatch ダッシュボード/アラームで代替不能なものがないか最終確認 — **2026-07-07 棚卸し完了**。AWS CloudWatch依存6項目（ECSログ/fck-nat復旧アラーム/夜間停止スケジューラ/RDS PostgreSQLログエクスポート/ダッシュボード/Container Insights）を精査し、代替不能(BLOCKED)は「RDS PostgreSQLログのCloudWatch Logsエクスポートとの同等性（PlanetScale側未検証）」の1件のみ。詳細は「2026-07-07 Phase 6 残件」の対応表参照
 
 ---
 
@@ -734,7 +823,9 @@ Phase 1〜3 は互いに独立しており並行着手可能。Phase 4 が最大
 | **[試行12で新規発見]** frontend CSP `connect-src` が新オリジンをブロック | Cookie/CORS検証はPASSしてもブラウザ側CSPで別途ブロックされ得る | P4-8実機検証で発見。本番カットオーバー(P1-2 NS切替)時は`frontend/index.html`のCSP `connect-src`に最終オリジンが含まれているか確認する運用チェックをrunbookに追加推奨（試行12ではlocalhost検証用に一時追加→revert済み） |
 | **[試行12で新規発見]** Container(Durable Object)インスタンスの env var(vars)反映タイミング | `wrangler deploy`でvars変更してもコンテナimage無変更時は稼働中instanceに即時反映されない（次回コールドスタートまで旧値継続） | 試行12でCORS revert直後に旧設定が数分残存する事象を実測。運用上は「vars変更を伴うdeployの直後は数分の反映待ちが発生し得る」ことをP5(CI/CD)のデプロイ後検証手順に明記推奨 |
 | DB 切替時のデータ差分 | カルテデータ欠損 | 凍結ウィンドウ + チェックサム突合（P3-6/P3-7）。RDS を 2 週間保持 |
-| CPU 課金の想定超過 | 月額が試算を超える | P4-9 実測 + P6-4 Budget Alert |
+| CPU 課金の想定超過 | 月額が試算を超える | P4-9 実測。**P6-4で判明**: CloudflareにAWS Budget Alert相当の機構（アカウント全体のドル建て支出アラート）が存在しないため自動アラートは実装不可（genuine BLOCKED）。GraphQL Analytics APIの定期手動クエリ（Phase 5以降のスケジュール実行への昇格）で代替する運用が必要 |
+| **[2026-07-07 P6-5で新規発見]** RDS PostgreSQLログのCloudWatch Logsエクスポート（`enabled_cloudwatch_logs_exports=["postgresql"]`）とPlanetScale側の同等機能の有無が未検証 | DB切替後にクエリログ調査能力が低下する可能性 | 運用原則によりPlanetScaleダッシュボード操作は本セッションで未実施。P7（切替）判断前に運用担当者がPlanetScale側のログ/Insights機能の同等性を確認すること |
+| **[2026-07-06 Phase 6で新規発見]** Containers(Durable Object)専用の異常検知alert_typeがCloudflare通知APIに存在しない | コンテナのクラッシュ/OOM/再起動が無通知になり得る | P6-3で`http_alert_edge_error`（ゾーン全体のエッジ5xx率）を代替指標として採用（Worker/Container起因の5xxもエッジ観測に含まれる想定）。専用監視が必要と判断されれば`cloudflare_healthcheck`（別課金アドオン）を本番移行判断時に再検討 |
 | Cookie/CORS の挙動差 | ログイン不能 | P1-6 / P4-8 の二段階検証 |
 | 本番移行時の再現性 | 本番展開の手戻り | 全フェーズの実施記録・所要時間を本ドキュメントに追記し、本番移行計画の一次情報とする |
 

@@ -4,4 +4,5 @@
 # account_id             = "CLOUDFLARE_ACCOUNT_ID と同値。TF_VAR_account_id で供給推奨"
 # pscale_stg_db_host     = "pscale role reset-default animalekarte-stg main --org noah-animalekarte --force で取得"
 # pscale_stg_db_user     = "同上"
-# pscale_stg_db_password = "同上(都度発行の短命クレデンシャルを推奨。使い終わったら再度 reset-default で失効させる)"
+# pscale_stg_db_password の値 = "同上(都度発行の短命クレデンシャルを推奨。使い終わったら再度 reset-default で失効させる)"
+# notification_email     = "P6-3通知ポリシーの送信先。運用担当者が決定しTF_VAR_notification_emailで供給(要事前検証。詳細はREADME参照)"

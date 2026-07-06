@@ -59,13 +59,20 @@ terraform apply tfplan   # 承認後、承認者自身または明示承認を�
 
 ```
 infra/cloudflare/
-├── providers.tf   # cloudflare provider(~> 5.21)
-├── variables.tf    # account_id / zone_name / environment / r2_bucket_name / pscale_stg_db_*
-├── backend.tf      # 当面 local backend。R2 backend 切替は TODO コメント参照
-├── zone.tf          # P1-1: cloudflare_zone + cloudflare_dns_record(棚卸し済み)
-├── r2.tf            # P2-1: cloudflare_r2_bucket(apply 済み: animalekarte-stg-images)
-└── hyperdrive.tf    # P3-4: cloudflare_hyperdrive_config(apply 済み)
+├── providers.tf      # cloudflare provider(~> 5.21)
+├── variables.tf      # account_id / zone_name / environment / r2_bucket_name / pscale_stg_db_* / notification_email
+├── backend.tf        # 当面 local backend。R2 backend 切替は TODO コメント参照
+├── zone.tf           # P1-1: cloudflare_zone + cloudflare_dns_record(棚卸し済み)
+├── r2.tf             # P2-1: cloudflare_r2_bucket(apply 済み: animalekarte-stg-images)
+├── hyperdrive.tf     # P3-4: cloudflare_hyperdrive_config(apply 済み)
+└── notifications.tf  # P6-3: cloudflare_notification_policy(http_alert_edge_error。apply 未実施 — TF_VAR_notification_email 未供給かつ送信先メール事前検証(要確認)のため genuine BLOCKED)
 ```
+
+### P6-3 通知ポリシー apply の前提（`notifications.tf`）
+
+- 送信先メールアドレスは `TF_VAR_notification_email` で供給する（`terraform.tfvars` に書かない。値未供給時は `terraform plan` が変数未設定エラーで失敗する — 意図した genuine BLOCKED）。
+- Cloudflareの通知メール送信先はダッシュボードの Notification Settings で確認リンク経由の事前検証が必要な可能性がある（本リポジトリでは未検証。`terraform plan` はこの制約を検出できないため、`apply` 前に運用担当者が送信先アドレスの検証状態を確認すること）。
+- `http_alert_edge_error` はゾーン全体のエッジ観測5xx率に基づく代替指標であり、Worker/Containers専用のalert_typeはCloudflare通知APIに存在しない（詳細は `migration-cloudflare.md` P6-3参照）。P1-2(NS切替)完了までシグナルは発生しない。
 
 ## CI デプロイ (Phase 5 / P5-2)
 
