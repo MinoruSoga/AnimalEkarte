@@ -63,9 +63,54 @@ infra/cloudflare/
 ├── variables.tf    # account_id / zone_name / environment / r2_bucket_name / pscale_stg_db_*
 ├── backend.tf      # 当面 local backend。R2 backend 切替は TODO コメント参照
 ├── zone.tf          # P1-1: cloudflare_zone + cloudflare_dns_record(棚卸し済み)
-├── r2.tf            # P2-1: cloudflare_r2_bucket(BLOCKED — CLOUDFLARE_API_TOKEN 未設定のため未apply)
-└── hyperdrive.tf    # P3-4: cloudflare_hyperdrive_config(BLOCKED — 同上 + pscale_stg_db_* 未供給)
+├── r2.tf            # P2-1: cloudflare_r2_bucket(apply 済み: animalekarte-stg-images)
+└── hyperdrive.tf    # P3-4: cloudflare_hyperdrive_config(apply 済み)
 ```
+
+## CI デプロイ (Phase 5 / P5-2)
+
+GitHub Actions `.github/workflows/backend-deploy.yml` が `staging` push で Cloudflare へデプロイする。
+以下を **Repository Secrets** に登録する（値はコミットしない。人間タスク）:
+
+| Secret | 用途 | スコープ目安 |
+|---|---|---|
+| `CLOUDFLARE_API_TOKEN` | `wrangler deploy` | Account: Workers Scripts Edit, Workers Containers Edit, Account Settings Read |
+| `MIGRATE_RUN_SECRET` | `POST /_internal/migrate` 認証 | `wrangler secret put` 投入時と同一値 |
+| `STG_DEMO_EMAIL` | 任意: deploy 後 CRUD smoke | demo system_admin |
+| `STG_DEMO_PASSWORD` | 任意: deploy 後 CRUD smoke | 同上 |
+
+登録コマンド例（値はプレースホルダ。実値を貼り付けてから実行し、シェル履歴に残さないよう先頭にスペースを入れるかヒアドキュメントを使うこと）:
+
+```bash
+# CLOUDFLARE_API_TOKEN: デプロイ専用の最小スコープトークンを別途発行して使うこと
+# （STG検証で使った統合トークンをそのままCIに登録しない）
+gh secret set CLOUDFLARE_API_TOKEN --repo <owner>/<repo>
+# MIGRATE_RUN_SECRET: wrangler secret put 投入時と同一の値
+gh secret set MIGRATE_RUN_SECRET --repo <owner>/<repo>
+# 任意（P5-4 optional smoke 用）
+gh secret set STG_DEMO_EMAIL --repo <owner>/<repo>
+gh secret set STG_DEMO_PASSWORD --repo <owner>/<repo>
+```
+
+ECS ロールバック用: `.github/workflows/backend-deploy-ecs.yml`（`workflow_dispatch` のみ）。
+
+## CI デプロイ検証 (Phase 5 / P5-5)
+
+上記 Secrets 投入後、通常デプロイとマイグレーション込みデプロイが 2 回連続で成功することを確認する（人間承認後に実行。External write境界）:
+
+```bash
+gh workflow run backend-deploy.yml --ref staging
+# 完了を待って結果確認
+gh run list --workflow=backend-deploy.yml --branch=staging --limit 1
+gh run view <run-id> --log-failed   # 失敗時のみ
+
+# 直後にもう一度実行し、migrate ステップが冪等（exit 0）で成功することを確認
+gh workflow run backend-deploy.yml --ref staging
+```
+
+Secrets 未設定の状態で実行すると `Verify Cloudflare credentials` / `Run database migration` ステップが
+`::error::...secret is not configured` で明示的に fail する（サイレント成功はしない設計）。
+P5-5 は Secrets 投入前は **BLOCKED（genuine）** として `migration-cloudflare.md` に記録し、実行しない。
 
 ## 関連スクリプト(`infra/scripts/`)
 

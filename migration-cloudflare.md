@@ -2,9 +2,9 @@
 
 > **作成日**: 2026-07-05 | **対象**: Staging 環境（us-east-1）の全リソース
 > **前提調査**: [research-cloudflare.html](research-cloudflare.html)（2026-07-04 再調査版）
-> **ステータス**: 実行中 — 2026-07-05 に Phase 0 完了・Phase 1 準備（NS 切替手前まで）・Phase 2（全項目）・
-> Phase 3 前半（PlanetScale DB 作成 + スキーマ検証）・**Phase 4 完了（P4-1〜P4-9）**。試行9で初回 STG デプロイ + `/health` 疎通確認 PASS、試行10で migrate one-shot 置換 PASS、試行11で CRUD + 混在会計 API スモーク全 AC PASS、**試行12で外部連携棚卸し(P4-7)・Cookie認証ブラウザ実機検証(P4-8)・10分負荷スモーク+CPU課金実測(P4-9)を実施し全AC PASS/BLOCKED(genuine)判定**。
-> データ移行実行（P2-4/P3-6）とトラフィック切替（P1-2 後半・Phase 7）は次段の人間判断待ち（詳細は「実施記録」参照）
+> **ステータス**: 実行中 — **Phase 4 完了（P4-1〜P4-9、2026-07-05 試行12確定）**。**Phase 5（CI/CD 置換）着手（2026-07-06。P5-1/P5-3/P5-4 実装済み、P5-2（Secrets登録）/P5-5（2回連続成功確認）は人間タスク待ち）**。
+> Phase 0〜3 は完了（P2-4/P2-5 画像データ移行実行・P3-6/P3-7 データ本切替は人間判断待ち）。
+> トラフィック切替（P1-2 NS 切替・Phase 7）は未実施。現行 `api.stg.noah-karte.com` は AWS ECS 経路（夜間停止等で 503 になり得る）、Cloudflare 検証経路は `*.workers.dev`（2026-07-06 時点 `/health` 200 確認済み）。詳細は「実施記録」の 2026-07-06 セクション参照
 
 ---
 
@@ -91,6 +91,37 @@
 - ~~Worker→Container 間の `TRUSTED_PROXY_CIDR` 未確定 + XFF転送されない機能バグ~~ → 試行9で実測確定（`10.1.0.0/32`）+ `worker/index.ts` にXFF転送コード追加で解消
 - ~~ECS `animalekarte-stg-migrate` one-shot task 相当の置換手段が未実装（P4-5）~~ → 試行10で `POST /_internal/migrate` + `Container.exec()` により実装・実測PASS
 - ~~機能スモーク未実施（P4-6）~~ → 試行11で `infra/scripts/cf-crud-smoke.sh` により CRUD + 混在会計 API スモークを実施し全AC PASS(AC-11のみUIスコープ外でBLOCKED)
+
+### 2026-07-06 ステータス監査（Phase 5 着手前）+ Phase 5 実装記録
+
+**疎通再確認（2026-07-06）**:
+
+| 経路 | URL | 結果 | 解釈 |
+|---|---|---|---|
+| Cloudflare Workers | `https://animalekarte-stg-api.baritech-soga.workers.dev/health` | **200** `{"status":"ok"}` | Phase 4 構成は稼働継続 |
+| AWS ECS（現行 STG 公開経路） | `https://api.stg.noah-karte.com/health` | **503** | NS 未切替。夜間停止・`desiredCount=0` 等で停止中と推定（想定内。Cloudflare側の異常ではない） |
+
+**リポジトリ / インフラ state**: Git `main` clean（`62c81d76` で Cloudflare 関連コード統合済み）。Terraform state 13 リソース。`pnpm cf:*` は `package.json` 登録済み。
+
+**ドキュメント陳腐化の修正（本セッションで反映）**:
+- P0-5「`CLOUDFLARE_API_TOKEN`/`CLOUDFLARE_ACCOUNT_ID` 未設定 BLOCKED」→ 試行4〜12・本セッションで `.env.staging`/GitHub Secrets 経由の運用が確立済みのため、Done 基準を「`.env.staging` またはGitHub Secretsで供給可能であること」に更新（§Phase 0参照）
+- P3-5「GORM実接続確認は未実施」（試行4以前の暫定記録）→ 試行7でHyperdrive実接続CRUD/トランザクション検証PASS、試行9のAC-6でGORM起動順序（`repository.NewDB`成功まで`/health`を返さない実装）による間接検証も実施済み。§Phase 3 P3-5 参照
+- 試行11「残課題」欄のP4-7/P4-8/P4-9「未着手」→ 試行12で全AC PASS/BLOCKED(genuine)判定によりPhase 4完了。当該記述は試行11時点のスナップショットとして保持し、本行で解消済みである旨を注記
+- P1-6「Cookie認証プロキシ経由検証 未着手」→ P4-8（試行12）でworkers.dev経由の実ブラウザ検証は実施済み。ただしP1-6が指す「本番相当ドメイン経由」の検証はNS切替（P1-2）後まで不可のため、P1-6自体は引き続き未着手（Phase 7でP7-3と合わせて実施）が正しい
+
+**Phase 5（CI/CD 置換）実装内容**:
+
+| 項目 | 内容 |
+|---|---|
+| P5-1 | `backend-deploy.yml` を `wrangler deploy` + `POST /_internal/migrate`（P4-5実装を再利用）+ `/health` ポーリング（deploy後・migrate後の2段階）構成に置換。旧ECSフローは `backend-deploy-ecs.yml`（`workflow_dispatch`のみ、Phase 8までロールバック用に残置）へ分離 |
+| P5-3 | `staging-stop.yml` に非推奨コメントを追加（scale-to-zero + PlanetScale固定額により夜間停止スケジューラ不要。ECS/RDS緊急手動停止用途のみ残す） |
+| P5-4 | `stg-smoke.yml` を `workflow_dispatch` 入力 `api_base`（既定値 workers.dev）で上書き可能にし、`API_BASE` 環境変数をハードコードのAWS URLから切替。`cf:smoke`（CRUDスモーク）はP5-1で `backend-deploy.yml` のoptional stepとして統合済み |
+| P5-2 | GitHub Secrets登録（`CLOUDFLARE_API_TOKEN`/`MIGRATE_RUN_SECRET`/任意`STG_DEMO_EMAIL`・`STG_DEMO_PASSWORD`）— **人間タスク**。手順は `infra/cloudflare/README.md` §CIデプロイ参照 |
+| P5-5 | Secrets投入後のCIデプロイ2回連続成功確認 — **BLOCKED（genuine）**。Secrets未投入のため本セッションでは実行不可。手順は `infra/cloudflare/README.md` §CIデプロイ検証参照 |
+
+`e2e.yml` / `performance-tests.yml` の対象URL更新はP1-2 NS切替後の対応とし、本セッションではdeferとして記録のみ（P5-4は部分完了）。
+
+---
 
 ### 2026-07-05 試行12（P4-7〜P4-9 — 外部連携棚卸し・Cookie認証ブラウザ実機検証・10分負荷スモーク+CPU課金実測。Phase 4完了）
 
@@ -197,7 +228,7 @@ FAIL=0。全PASS(BLOCKED除く)でexit code 0。
 
 **残課題（次段以降）**:
 - `MIXED-PAYMENT-SMOKE-TEST.md` §5 の期待値422はdoc drift（実装は400）。ドキュメント側の修正は本試行スコープ外（記録のみ）
-- P4-7（外部連携: LINE/SMTP/Lstep IP allowlist棚卸し）、P4-8（Cookie認証のブラウザ実機検証）、P4-9（負荷スモーク）は未着手
+- ~~P4-7（外部連携: LINE/SMTP/Lstep IP allowlist棚卸し）、P4-8（Cookie認証のブラウザ実機検証）、P4-9（負荷スモーク）は未着手~~ → 試行12で全て実施し全AC PASS/BLOCKED(genuine)判定、Phase 4完了（本行は試行11時点のスナップショットとして保持）
 - AC-11のUI混在会計スモークはP7-3（フルスモーク、DNS切替後）へdefer。現状frontendはAWS(`api.stg.noah-karte.com`)向きのままのため、Cloudflare経路での検証には別途frontend環境変数/プロキシ設定変更が必要
 - Phase 5(`P5-4`)で `stg-smoke.yml` から `pnpm cf:smoke` をCI実行する設計を検討（`STG_DEMO_EMAIL`/`STG_DEMO_PASSWORD`はGitHub Secrets化が前提）
 
@@ -532,7 +563,7 @@ $ terraform state list | wc -l
 7. **P3-1 PlanetScale DB作成**: `pscale database create animalekarte-stg --org noah-animalekarte --region ap-northeast --cluster-size PS-10` を実行。`pscale branch list` で `main` ブランチ region=`ap-northeast`・READY=Yes を確認。手順を `infra/scripts/pscale-create-stg.sh` にスクリプト化。
 8. **P3-2/P3-3 スキーマ/拡張検証**: `pscale role reset-default` で都度クレデンシャルを発行し、`backend/cmd/migrate` 相当の手順で `backend/migrations/001〜005` の全5件を空DBへ適用（`schema_migrations` テーブルで5/5件確認、ファイル名一致）。`infra/scripts/validate-schema.sql` で以下を確認済み: 拡張機能 `pg_trgm`（+ PlanetScale標準の `hypopg`/`plpgsql`）、ENUM型多数、`text[]`等の配列カラム、`jsonb` カラム、トリガ2件（`trg_create_default_payment_methods` 等）。public スキーマ テーブル数 109。検証に使ったクレデンシャルは都度 `pscale role reset-default --force` で失効・再発行し、値を本ドキュメント・ログに残していない。
 9. **P3-4 Hyperdrive設定**: `infra/cloudflare/hyperdrive.tf` に `cloudflare_hyperdrive_config`（`caching.disabled = true`）を定義。`pscale_stg_db_*` 変数（`variables.tf`）はデフォルト空文字でガード。apply は BLOCKED。
-10. **P3-5 GORM×Hyperdrive互換判定**: 静的解析による暫定判断（実接続検証はBLOCKEDのため未実施）。`backend/internal/repository/db.go` の GORM初期化は `PrepareStmt` 未指定（既定 false）— SQLレベル `PREPARE`/`DEALLOCATE` を発行しないため、通常のAPIトラフィック（Handler→Service→Repository経路）は Hyperdrive の「prepared statement非対応」制約に抵触しないと判断。一方 `backend/cmd/migrate/main.go` は `pg_advisory_lock` を使用し Hyperdrive非対応のため、**migrate/一shotタスクは PlanetScaleへ直結（Hyperdriveを経由しない）**方針とする。`LISTEN/NOTIFY` は使用なし（grep確認済み）。結論は暫定であり、Phase 4着手前に人間が `CLOUDFLARE_API_TOKEN` を用意した上で実Hyperdrive接続によるCRUD/トランザクション検証を行うこと。
+10. **P3-5 GORM×Hyperdrive互換判定**: 静的解析による暫定判断（実接続検証はBLOCKEDのため未実施）。`backend/internal/repository/db.go` の GORM初期化は `PrepareStmt` 未指定（既定 false）— SQLレベル `PREPARE`/`DEALLOCATE` を発行しないため、通常のAPIトラフィック（Handler→Service→Repository経路）は Hyperdrive の「prepared statement非対応」制約に抵触しないと判断。一方 `backend/cmd/migrate/main.go` は `pg_advisory_lock` を使用し Hyperdrive非対応のため、**migrate/一shotタスクは PlanetScaleへ直結（Hyperdriveを経由しない）**方針とする。`LISTEN/NOTIFY` は使用なし（grep確認済み）。結論は暫定であり、Phase 4着手前に人間が `CLOUDFLARE_API_TOKEN` を用意した上で実Hyperdrive接続によるCRUD/トランザクション検証を行うこと。（**→試行7で実施しPASS**。試行9のAC-6でGORM起動順序による間接検証も実施済み。詳細は§Phase 3 P3-5参照。本項目は試行4時点の記録として保持）
 11. **P4-1 wrangler.jsonc雛形**: `backend/wrangler.jsonc` を新規作成（Worker routes・Containers・Durable Objects・Hyperdrive binding・R2 binding・secrets.requiredの一覧）。`wrangler deploy --dry-run --config=backend/wrangler.jsonc` でJSONC構文の妥当性を確認（entry point未実装によるエラーは想定通り。ネットワーク呼び出し・Cloudflare認証は発生せず）。
 12. **独立レビュー**: `go-reviewer` サブエージェントがS3_ENDPOINT関連コード（CRITICAL 0 / HIGH 1 / MEDIUM 3）、`code-reviewer` サブエージェントがTerraform+wrangler.jsonc（CRITICAL 0 / HIGH 0 / MEDIUM 3 / LOW 2、Verdict: APPROVE）をレビュー。指摘のうちHIGH（テスト隔離漏れ）とMEDIUM（table-driven化、wrangler.jsonc `image`フィールドのTODO補足、`terraform.tfvars.example`追加）は本セッション内で対応済み。残りMEDIUM（tfstate平文保存対策・変数validation追加）はコメントで既知のリスクとして文書化済み、対応要否はチーム判断に委ねる。
 13. **セキュリティ配慮**: PlanetScale検証用に発行したクレデンシャルは検証終了後に都度 `pscale role reset-default --force` で失効・再発行し、有効なクレデンシャルを放置していない。Cloudflare API Token/Account IDは全工程で環境変数からのみ参照し、値の出力・コミット・ログ保存は行っていない。
@@ -566,11 +597,11 @@ Phase 1〜3 は互いに独立しており並行着手可能。Phase 4 が最大
 - [x] **P0-4** チーム内合意: PlanetScale は PITR なし（12h 毎バックアップ）を STG として受容 — 本ドキュメントに記録済み（§8 DB選定の経緯）
 - [x] **P0-5** ツールチェーン整備:
   - `wrangler`（`package.json` devDependency、`4.107.0`）導入済み。`pscale`（認証済み）/ `rclone` / `cf-terraforming` は `infra/cloudflare/README.md` に導入手順を記載
-  - 初回 API Token 発行（**例外 #2**）は人間側で発行済み（統合トークン1本方針、上表参照）。本タスク実行時点では環境変数 `CLOUDFLARE_API_TOKEN`/`CLOUDFLARE_ACCOUNT_ID` は未エクスポート（**BLOCKED** — plan/apply不可の直接要因）
+  - 初回 API Token 発行（**例外 #2**）は人間側で発行済み（統合トークン1本方針、上表参照）。本タスク実行時点（試行4）では環境変数 `CLOUDFLARE_API_TOKEN`/`CLOUDFLARE_ACCOUNT_ID` は未エクスポートでBLOCKEDだったが、試行5以降 `infra/cloudflare/.env.staging`（gitignore）経由の `source` 運用で解消済み。CI（Phase 5/P5-2）では GitHub Secrets 経由で供給する
   - `infra/cloudflare/` 新設済み（`providers.tf`/`variables.tf`/`backend.tf`/`zone.tf`/`r2.tf`/`hyperdrive.tf`/`README.md`/`terraform.tfvars.example`）。tfstateは当面local backend、R2 backendへの切替はTODOコメントで残置（`backend.tf`）
 - [ ] **P0-6** 移行凍結ウィンドウの調整（Phase 3 の DB 切替時に STG への書き込みを止める時間帯）— Phase 3後半（本切替）着手時に人間が調整する事項のため未実施
 
-**Done 基準**: `infra/cloudflare/` で `terraform plan` が通り（`terraform validate` は成功済み。`plan`/`apply`実行はCLOUDFLARE_API_TOKEN/ACCOUNT_ID未設定のためBLOCKED）、`wrangler whoami` / `pscale auth check` が成功する状態（`pscale auth check` は認証済みを確認。`wrangler whoami` はCloudflare認証情報が無いため未実行）。
+**Done 基準**: `infra/cloudflare/.env.staging`（ローカル）または GitHub Secrets（CI）で `CLOUDFLARE_API_TOKEN`/`CLOUDFLARE_ACCOUNT_ID` が供給可能であること。`terraform plan`（試行5以降 apply も含め成功実績あり）、`wrangler whoami` / `pscale auth check` が成功する状態（いずれも試行5以降で確認済み）。
 
 ---
 
@@ -639,11 +670,11 @@ Phase 1〜3 は互いに独立しており並行着手可能。Phase 4 が最大
 
 ## Phase 5: CI/CD — GitHub Actions 置換（2〜3 人日）
 
-- [ ] **P5-1** `backend-deploy.yml` の置換 — AWS OIDC / ECR push / task-definition render / ECS update / migrate task 実行のジョブ群を `wrangler deploy`（+ P4-5 の migrate 実行）に置換。デプロイ後検証（wait-for-stability 相当 → `/health` ポーリング）を再実装
-- [ ] **P5-2** GitHub Secrets に Cloudflare API Token 登録（deploy 権限のみの最小スコープ）、AWS OIDC ロール参照の除去
-- [ ] **P5-3** `staging-stop.yml`（夜間停止）を**廃止** — scale-to-zero + PlanetScale 固定額により不要
-- [ ] **P5-4** `stg-smoke.yml` / `e2e.yml` / `performance-tests.yml` の対象 URL・前提を新構成に更新
-- [ ] **P5-5** デプロイ 2 回連続成功（通常デプロイ + マイグレーション含むデプロイ）を確認
+- [x] **P5-1** `backend-deploy.yml` の置換 — **2026-07-06 実装済み**。AWS OIDC / ECR push / task-definition render / ECS update / migrate task 実行のジョブ群を `wrangler deploy`（+ P4-5 の migrate 実行）に置換。デプロイ後検証は deploy直後と migrate後の2段階で `/health` ポーリングを実装。旧ECSフローは `backend-deploy-ecs.yml`（`workflow_dispatch` のみ）へ分離しPhase 8まで温存
+- [ ] **P5-2** GitHub Secrets に Cloudflare API Token 登録（deploy 権限のみの最小スコープ）、AWS OIDC ロール参照の除去 — **人間タスク（未実施）**。登録手順・最小スコープ表は `infra/cloudflare/README.md` §CIデプロイ参照
+- [x] **P5-3** `staging-stop.yml`（夜間停止）を**廃止** — **2026-07-06 実装済み**。scale-to-zero + PlanetScale 固定額により不要と判断し非推奨コメントを追加（ファイル自体はECS/RDS緊急手動停止用に残置、Phase 8で完全削除）
+- [x] **P5-4** `stg-smoke.yml` / `e2e.yml` / `performance-tests.yml` の対象 URL・前提を新構成に更新 — **`stg-smoke.yml` は2026-07-06実装済み**（`workflow_dispatch`入力`api_base`で workers.dev/本番相当を切替可能）。`e2e.yml` / `performance-tests.yml` はP1-2 NS切替後に対象URLが確定するためPhase 7へdefer（部分完了）
+- [ ] **P5-5** デプロイ 2 回連続成功（通常デプロイ + マイグレーション含むデプロイ）を確認 — **BLOCKED（genuine）**。P5-2のSecrets未投入のため本セッションでは実行不可。Secrets投入後の実行手順は `infra/cloudflare/README.md` §CIデプロイ検証参照
 
 ---
 
