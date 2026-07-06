@@ -73,7 +73,7 @@ export const ExaminationGroup = memo(function ExaminationGroup({
                 item.status === "high"
                   ? `${C.danger} font-bold`
                   : item.status === "low"
-                  ? `${C.accent} font-bold`
+                  ? `${C.textBrand} font-bold`
                   : ""
               }`}
             >
@@ -97,7 +97,7 @@ export const ExaminationGroup = memo(function ExaminationGroup({
               {item.status === "low" ? (
                 <Badge
                   variant="outline"
-                  className={`h-10 px-3 text-sm ${C.accent} ${C.borderAccent} ${C.bgAccent5}`}
+                  className={`h-10 px-3 text-sm ${C.textBrand} ${C.borderBrand} ${C.bgBrand5}`}
                 >
                   LOW
                 </Badge>

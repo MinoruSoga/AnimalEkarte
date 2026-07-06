@@ -4,7 +4,7 @@ import Maximize2 from "lucide-react/dist/esm/icons/maximize-2";
 import MoreHorizontal from "lucide-react/dist/esm/icons/more-horizontal";
 import Plus from "lucide-react/dist/esm/icons/plus";
 import { SortableDataTableRow } from "@/components/shared/DataTable/SortableDataTableRow";
-import { NotionStatusPill } from "@/components/shared/StatusPill/NotionStatusPill";
+import { StatusPill } from "@/components/shared/StatusPill/StatusPill";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { TableCell, TableRow } from "@/components/ui/table";
 import { C, ICON, STYLE } from "@/lib/design-tokens";
@@ -103,7 +103,7 @@ export function MedicineCategoryHeaderRow({
       <TableCell className="w-[100px] py-0" />
       <TableCell className="w-[130px] py-0" />
       <TableCell className="w-[110px] py-0 text-center">
-        <NotionStatusPill isActive={true} />
+        <StatusPill isActive={true} />
       </TableCell>
       <TableCell className="w-[80px] py-0 text-center" onClick={(event) => event.stopPropagation()}>
         {canEdit ? (
@@ -144,7 +144,7 @@ export function SortableMedicineRow({
         {medicine.price > 0 ? `¥${medicine.price.toLocaleString()}` : "-"}
       </TableCell>
       <TableCell className="w-[110px] py-2.5 text-center">
-        <NotionStatusPill isActive={medicine.isActive} />
+        <StatusPill isActive={medicine.isActive} />
       </TableCell>
       <TableCell className="w-[80px] py-2.5 text-center" onClick={(e) => e.stopPropagation()}>
         {canEdit ? (
@@ -200,7 +200,7 @@ export function MedicineRowOverlay({ medicine, grouped }: MedicineRowOverlayProp
         {medicine.price > 0 ? `¥${medicine.price.toLocaleString()}` : "-"}
       </div>
       <div className="w-[110px] shrink-0 flex justify-center">
-        <NotionStatusPill isActive={medicine.isActive} />
+        <StatusPill isActive={medicine.isActive} />
       </div>
       <div className="w-[80px] shrink-0" />
     </div>

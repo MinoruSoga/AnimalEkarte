@@ -9,7 +9,7 @@ import { FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { NotionDatePicker } from "@/components/shared/NotionDatePicker/NotionDatePicker";
+import { DatePicker } from "@/components/shared/DatePicker/DatePicker";
 import { usePermission } from "@/hooks/use-permission";
 
 interface ExaminationFilterProps {
@@ -67,14 +67,14 @@ export const ExaminationFilter = memo(function ExaminationFilter({
             期間
           </Label>
           <div className="flex items-center gap-2">
-            <NotionDatePicker
+            <DatePicker
               value={dateStart}
               onChange={onDateStartChange}
               placeholder="開始日"
               className="flex-1"
             />
             <span className={`${C.text} font-medium text-sm`}>〜</span>
-            <NotionDatePicker
+            <DatePicker
               value={dateEnd}
               onChange={onDateEndChange}
               placeholder="終了日"

@@ -29,8 +29,8 @@ export const FormHeader = memo(function FormHeader({ title, description, icon, o
         <div className="flex items-center gap-2">
           {icon ? <div className="shrink-0">{icon}</div> : null}
           <div className="flex flex-col">
-            <h1 className={`text-base ${C.text} leading-tight tracking-[var(--tracking-notion)]`}>{title}</h1>
-            {description ? <p className={`text-sm ${C.text50} mt-0.5 tracking-[var(--tracking-notion-sm)]`}>{description}</p> : null}
+            <h1 className={`text-base ${C.text} leading-tight tracking-[var(--tracking-compact)]`}>{title}</h1>
+            {description ? <p className={`text-sm ${C.text50} mt-0.5 tracking-[var(--tracking-compact-sm)]`}>{description}</p> : null}
           </div>
         </div>
       </div>

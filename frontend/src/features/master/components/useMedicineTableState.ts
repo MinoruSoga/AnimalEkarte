@@ -2,7 +2,7 @@ import { useCallback, useDeferredValue, useMemo, useState } from "react";
 import { flushSync } from "react-dom";
 import type { DragEndEvent } from "@dnd-kit/core";
 import type { UseMutationResult } from "@tanstack/react-query";
-import type { ActiveFilter } from "@/components/shared/NotionFilter/types";
+import type { ActiveFilter } from "@/components/shared/PropertyFilter/types";
 import { handleApiError } from "@/lib/handle-api-error";
 import { useSortableList } from "@/hooks/use-sortable-list";
 import type { ReorderMedicinesRequest, UpdateMedicineRequest } from "@/types/medicine";

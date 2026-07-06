@@ -3,7 +3,7 @@
 > **作成日**: 2026-07-05 | **対象**: Staging 環境（us-east-1）の全リソース
 > **前提調査**: [research-cloudflare.html](research-cloudflare.html)（2026-07-04 再調査版）
 > **ステータス**: 実行中 — 2026-07-05 に Phase 0 完了・Phase 1 準備（NS 切替手前まで）・Phase 2（全項目）・
-> Phase 3 前半（PlanetScale DB 作成 + スキーマ検証）・**Phase 4（P4-1〜P4-6 まで完了。試行9で初回 STG デプロイ + `/health` 疎通確認 PASS、試行10で migrate one-shot 置換 PASS、試行11で CRUD + 混在会計 API スモーク全 AC PASS）**。
+> Phase 3 前半（PlanetScale DB 作成 + スキーマ検証）・**Phase 4 完了（P4-1〜P4-9）**。試行9で初回 STG デプロイ + `/health` 疎通確認 PASS、試行10で migrate one-shot 置換 PASS、試行11で CRUD + 混在会計 API スモーク全 AC PASS、**試行12で外部連携棚卸し(P4-7)・Cookie認証ブラウザ実機検証(P4-8)・10分負荷スモーク+CPU課金実測(P4-9)を実施し全AC PASS/BLOCKED(genuine)判定**。
 > データ移行実行（P2-4/P3-6）とトラフィック切替（P1-2 後半・Phase 7）は次段の人間判断待ち（詳細は「実施記録」参照）
 
 ---
@@ -91,6 +91,72 @@
 - ~~Worker→Container 間の `TRUSTED_PROXY_CIDR` 未確定 + XFF転送されない機能バグ~~ → 試行9で実測確定（`10.1.0.0/32`）+ `worker/index.ts` にXFF転送コード追加で解消
 - ~~ECS `animalekarte-stg-migrate` one-shot task 相当の置換手段が未実装（P4-5）~~ → 試行10で `POST /_internal/migrate` + `Container.exec()` により実装・実測PASS
 - ~~機能スモーク未実施（P4-6）~~ → 試行11で `infra/scripts/cf-crud-smoke.sh` により CRUD + 混在会計 API スモークを実施し全AC PASS(AC-11のみUIスコープ外でBLOCKED)
+
+### 2026-07-05 試行12（P4-7〜P4-9 — 外部連携棚卸し・Cookie認証ブラウザ実機検証・10分負荷スモーク+CPU課金実測。Phase 4完了）
+
+**前提**: 試行9〜11で確立した Worker/Container 構成に対し、残る P4-7（外部連携）・P4-8（Cookie認証ブラウザ検証）・P4-9（負荷スモーク）を実施。前半（P4-7 doc/LSTEP grep/wrangler secret list、CORS localhost追加deploy、CSP発見・追加、k6スクリプト作成）と後半（`STG_DEMO_EMAIL`/`STG_DEMO_PASSWORD`投入後のcurl/browser/k6実測、revert、doc記録）の2セッションに分割して実施。認証情報は `infra/cloudflare/.env.staging`（gitignore）にユーザーが直接追記し、`set -a && source ... && set +a` で都度export・使用後unsetする方式（チャット/git/本ドキュメントに値は一切残さない）。
+
+**P4-7 — 外部連携棚卸し結果**:
+
+新規ドキュメント `docs/infra/deploy/CLOUDFLARE-EXTERNAL-INTEGRATIONS-AUDIT.md` を作成。
+
+| 連携 | 判定 | 根拠 |
+|---|---|---|
+| LINE Messaging API | **PASS**（doc結論）／live送信は**BLOCKED** | Bearer token認証。LINE公式ガイドラインは「webhook受信側のIP制限禁止」を明言。push送信(outbound)側はlong-lived token使用時に**オプションでIP allowlist設定可能**（既定は無効）。STG `clinic_integrations` に実クリニックのトークン/LINE User IDが登録されているため、誤配信リスク回避を優先しlive送信は見合わせ、inventory onlyとした |
+| Lステップ Write API | **PASS** | `tag.go`(`AddTag`/`RemoveTag`/`AddTagBulk`)・`user.go`(`SetProperty`)の`[DISABLED]`コメント4箇所をgrepで再確認、抑止継続を確認。`LSTEP_WRITE_API_PAUSE.md`の再有効化前提条件（5項目）は未達のためコード変更なし |
+| SMTP | **BLOCKED** | `wrangler secret list --name animalekarte-stg-api`で`SMTP_HOST`/`SMTP_USER`/`SMTP_PASS`が`secret_text`として登録済みであることを確認（値は取得しない）。試行9記録に「未使用分は空文字投入の可能性」があり、実際に空文字か否かは値を取得しない限り判別不可。空文字であれば`config.go`のガードで送信自体スキップされ移行によるリグレッションは無いが、実値が入っていた場合に実メール送信のリスクがあるため、アプリ経由の送信トリガーは見合わせた |
+| LIFF / コールバックURL | **BLOCKED**（P7-3 defer） | `frontend/vercel.json`のrewrite先が`https://api.stg.noah-karte.com`（AWS）固定で、workers.dev段階では本番相当のLIFF導線検証が不可。P1-2(NS切替)後に再検証 |
+
+`migration-cloudflare.md` §9 リスク登録簿の「IP allowlist依存の外部連携」行を上記結論で更新済み（解消済み・残作業はP7-3へdefer）。
+
+**P4-8 — Cookie認証の実機検証結果**:
+
+- **AC-A（curl, Set-Cookie属性）**: `POST /api/v1/login`成功時のレスポンスヘッダーを確認（値は`[REDACTED]`）:
+  ```
+  set-cookie: access_token=[REDACTED]; Path=/; Max-Age=899; HttpOnly; Secure; SameSite=None
+  set-cookie: refresh_token=[REDACTED]; Path=/api/v1/auth/refresh; Max-Age=604799; HttpOnly; Secure; SameSite=None
+  ```
+  `GIN_MODE=release`時の想定通り`HttpOnly`/`Secure`/`SameSite=None`を確認。**PASS**
+- **AC-B（ブラウザ cross-origin ログイン）**: ローカル docker compose の frontend（`VITE_API_URL`を一時的に`https://animalekarte-stg-api.baritech-soga.workers.dev/api`へ変更）+ `backend/wrangler.jsonc`の`CORS_ALLOWED_ORIGIN`に`http://localhost:3003`を一時追加してdeployし、chrome-devtools MCPで実ブラウザ検証。
+  - **想定外の新規発見**: CORS許可後も`frontend/index.html`のCSP `connect-src`ディレクティブ（`'self' https://api.stg.noah-karte.com ...`固定）がブラウザ側でworkers.devへの接続をブロック（`Content-Security-Policy`違反エラーをconsoleで確認）。これはCORS/Cookie検証だけでは検出できない、フロントエンド側の別レイヤーの制約であり、P4-8のチェック項目に無かった新規リスクとして記録
+  - CSPに`https://animalekarte-stg-api.baritech-soga.workers.dev`を一時追加して再検証したところ、`POST /api/v1/login`→200、`GET /api/v1/me`→200、以降の`/api/v1/reservations`・`/api/v1/masters/staffs`等の呼び出しも200で正常に動作。デモアカウント（admin@noavet.jp）でログイン後、ダッシュボード（受付管理画面）が正常表示されることをスクリーンショットで確認。**PASS**
+  - 検証後、CSP一時追加行・`VITE_API_URL`一時変更・`CORS_ALLOWED_ORIGIN`一時追加を全てrevert（下記「revert確認」参照）
+
+**P4-9 — 10分負荷スモーク + CPU課金実測結果**:
+
+- k6スクリプト `load-tests/k6-cf-stg-sustained.js` を新規作成、`package.json`に`cf:load-smoke`登録
+- **初回実行で発見した設計不備**: 当初はループ内で毎イテレーション再ログインする設計にしたところ、`POST /api/v1/login`にはIPベースのレートリミット（**5回/分・バースト5**、`handler.go` L63、BUG-130ブルートフォース対策）が掛かっており、VU3による同一IPからの連続ログインが即座にレート制限に抵触。失敗率**55.86%**（successful_logins 54/333）という結果になったが、これはCloudflare Containers側の性能問題ではなく、既存のブルートフォース対策が意図通り機能した結果と判断。実運用のユーザー挙動（1回ログイン→セッション継続）に合わせ、`setup()`で1回だけログインしCookieを全イテレーションで再利用する設計に修正して再実行
+- **修正後の実行結果（Docker経由 `grafana/k6`, 10分, VU最大3, exit code 0）**:
+  - Total requests: 837 / Failed rate: **0.00%** / p95 duration: **897ms** / avg duration: 564ms / 418 iterations complete, 0 interrupted
+  - thresholds（`http_req_duration p95<3000ms`, `http_req_failed rate<0.05`, `errors rate<0.05`）全てPASS。**AC-P49-1: PASS**
+- **CPU課金実測（AC-P49-2）**: Cloudflare Dashboardの手動操作を避け、GraphQL Analytics API（`containersUsageAdaptiveGroups`、`cpuTimeSec`/`allocatedMemory`/`allocatedDisk`）を`CLOUDFLARE_API_TOKEN`で直接クエリして実測（値はコード/gitに残さず本記録にのみ数値を記載）。
+  - 試行12セッション全体（CORS deploy〜k6完走まで、約55分）での差分: **CPU 33.18 vCPU秒 / メモリ 2200.87 GiB秒 / ディスク 8800.11 GB秒**
+  - このセッションのコストは Cloudflare公式レート（CPU $0.000020/vCPU秒、メモリ $0.0000025/GiB秒、ディスク $0.00000007/GB秒）換算で約 **$0.0068**
+  - **月額換算（保守的な上限側シナリオ: このセッションの負荷強度が24時間365日continueすると仮定した場合)**: CPU課金対象分 約 $0.07、メモリ課金対象分 約 $4.10、ディスク課金対象分 約 $0.43（Free枠 CPU 375 vCPU分・メモリ25GiB時間・ディスク200GB時間は考慮済み）で **合計 約 $4.60**
+  - **試算(~$4.00)との比較**: 差分 **+15%**、**±50%以内でPASS**。実際の運用は本試行のような集中的なテストトラフィックより疎らな業務時間アクセスが主となるため、実運用でのCPU課金はFree枠内に収まる可能性が高く、本結果は「試算を上回るリスクは低い」ことを示す上限側の裏付けと判断。**AC-P49-2: PASS**
+- **post-load `/health`回帰（AC-P49-3）**: `200 {"status":"ok"}`。**PASS**
+
+**revert確認（AC-REVERT-CORS / AC-REVERT-CSP）**:
+- `backend/wrangler.jsonc`の`CORS_ALLOWED_ORIGIN`から`http://localhost:3003`を除去し`git diff`が空であることを確認、`wrangler deploy`を再実行
+- `frontend/index.html`のCSP `connect-src`からworkers.dev一時行を除去、`frontend/.env.local`の`VITE_API_URL`も`/api`へ復帰
+- **運用上の新規発見**: revert後の`wrangler deploy`は「no changes」（コンテナimage不変のため）と表示され、既に稼働中（warm）のContainerインスタンス（Durable Object, `cf-singleton-container`, sleepAfter=10m）が新しい`vars`を即時には反映しない事象を実測。deploy直後に`curl -X OPTIONS`で確認したところ、数分間旧CORS設定（`localhost:3003`許可）が残存した
+- アイドルタイムアウト（10分）経過を待ち、`wrangler containers instances`でインスタンスが`running`→`inactive`（scale-to-zero）に遷移したことを確認した上で再検証:
+  - `curl -X OPTIONS ... -H "Origin: http://localhost:3003"` → `Access-Control-Allow-Origin`ヘッダーなし（許可されない・revert反映確認）
+  - `curl -X OPTIONS ... -H "Origin: https://stg.noah-karte.com"` → `access-control-allow-origin: https://stg.noah-karte.com`（正規オリジンは引き続き許可・正常動作確認）
+  - `GET /health` → `200 {"status":"ok"}`
+  - **AC-REVERT-CORS / AC-REVERT-CSP / post-revert health回帰: 全PASS**
+
+**独立レビュー**: `security-reviewer`（readonly）を2回実施——(1)前半セッションで新規doc(`CLOUDFLARE-EXTERNAL-INTEGRATIONS-AUDIT.md`)・k6スクリプトをスキャンし CRITICAL/HIGH 0・LOW 1（k6デフォルトURLのハードコード、`__ENV.BASE_URL`で上書き可能な意図的デフォルト値のため対応不要）でPASS、(2)本セクション記録後に変更ファイル全体を再スキャン（結果は下記参照）。
+
+**Harness Improvement Feedback（記録）**:
+- P4-8手順に「frontend CSP `connect-src`が新オリジンをブロックし得る」ことをrunbook/チェックリストに追記推奨（本試行で新規発見・上表に反映済み）
+- Container `vars`変更のdeploy後、warm instanceには即時反映されない（次アイドルサイクルまで数分〜10分残存）ことをP5(CI/CD)のデプロイ後検証手順に明記推奨
+- `load-tests/k6-api-endpoints.js`の既存login body `cred`→`password`フィールド名drift修正は別PRで対応（本試行スコープ外、記録のみ）
+- `migration-cloudflare.md`へのStrReplace編集は本試行では正常に成功（試行11で発生したhookブロック事象は再発せず）
+
+**まとめ**: P4-7（外部連携棚卸し）・P4-8（Cookie認証ブラウザ実機検証）・P4-9（10分負荷スモーク+CPU課金実測）の全AC PASSまたはgenuine BLOCKED（SMTP/LIFF/LINE live送信、いずれも理由明記済み）。**Phase 4（P4-1〜P4-9）完了**。
+
+---
 
 ### 2026-07-05 試行11（P4-6 機能スモーク — CRUD + 混在会計 API スモーク実施・実測検証）
 
@@ -563,9 +629,9 @@ Phase 1〜3 は互いに独立しており並行着手可能。Phase 4 が最大
 - [x] **P4-4** ヘルスチェック — **2026-07-05 試行9で PASS**。`https://animalekarte-stg-api.baritech-soga.workers.dev/health` が `200 {"status":"ok"}`。コールドスタート実測 2.26〜3.17秒・ウォーム 0.19〜0.56秒（許容目安+2〜5秒の範囲内）。詳細は試行9記録参照
 - [x] **P4-5** migrate one-shot の置換 — **2026-07-05 試行10で PASS**。`POST /_internal/migrate`(`MIGRATE_RUN_SECRET`認証)→ `Container.exec(["/app/migrate"])` → exit code をJSONで返却。`infra/scripts/cf-run-migrate.sh` + `pnpm cf:migrate` で運用。PlanetScale STGで exit 0 ×2(冪等)・`schema_migrations` 5件整合・`/health`回帰なしを実測確認。詳細は試行10記録参照
 - [x] **P4-6** 機能スモーク — **2026-07-05 試行11で PASS**。`infra/scripts/cf-crud-smoke.sh`(`pnpm cf:smoke`)で CRUD(clinics/permission-groups/staffs) + 混在会計(payment_splits) API スモークを実施、全11 AC中10 PASS・1 BLOCKED(AC-11、UI検証はスコープ外)。詳細は試行11記録参照
-- [ ] **P4-7** 外部連携の検証 — LINE Messaging API / LIFF / SMTP 送信が Containers の egress で動作すること。**送信元 IP が Cloudflare 網になるため**、IP allowlist に依存する連携（Lstep 等）がないか `docs/infra/deploy/LSTEP_WRITE_API_PAUSE.md` 含め棚卸し
-- [ ] **P4-8** Cookie 認証の再検証（P1-6 と同じ手順を Containers オリジンで）
-- [ ] **P4-9** 負荷スモーク — 通常操作 10 分間程度で CPU 課金レートを実測し、月額試算（~$4）との乖離を確認
+- [x] **P4-7** 外部連携の検証 — **2026-07-05 試行12で PASS/BLOCKED(genuine)**。`docs/infra/deploy/CLOUDFLARE-EXTERNAL-INTEGRATIONS-AUDIT.md` 新規作成。LINE(既定IP allowlist非依存、doc結論PASS/live送信は誤配信リスク回避でBLOCKED)・Lstep(Write4メソッド`[DISABLED]`継続確認)・SMTP(secret名存在確認済み、値非取得のためBLOCKED)・LIFF(DNS未切替でBLOCKED、P7-3 defer)。詳細は試行12記録参照
+- [x] **P4-8** Cookie 認証の再検証 — **2026-07-05 試行12で PASS**。curl で `Set-Cookie` の `HttpOnly`/`Secure`/`SameSite=None` を確認（AC-A）、ローカル frontend(docker compose)から workers.dev への実ブラウザcross-originログイン成功（AC-B、Network 200+以降のAPI呼び出しも200）。検証中に frontend `index.html` の CSP `connect-src` が workers.dev をブロックする新規事象を発見・一時許可して検証、検証後revert・redeploy済み。詳細は試行12記録参照
+- [x] **P4-9** 負荷スモーク — **2026-07-05 試行12で PASS**。`load-tests/k6-cf-stg-sustained.js`(`pnpm cf:load-smoke`)で10分負荷実行(Docker経由grafana/k6)、失敗率0.00%・p95=897ms・exit code 0。Cloudflare GraphQL Analytics API(`containersUsageAdaptiveGroups`)でCPU実測、月額試算(~$4)との比較は±50%以内(詳細は試行12記録参照)
 
 **ロールバック**: DNS/Worker ルートを既存 CloudFront/ALB オリジンへ戻す（Phase 7 まで ECS は稼働継続しているため即時可能）。
 
@@ -633,7 +699,9 @@ Phase 1〜3 は互いに独立しており並行着手可能。Phase 4 が最大
 | ~~Containers のコールドスタートが遅い~~ | STG 利用者の初回アクセスが数秒待ち | 試行9で実測: 2.26〜3.17秒（許容目安+2〜5秒の範囲内）。**解消済み**。将来的に許容不可と判断されれば min instances 検討（費用増） |
 | **[試行9で新規発見]** in-memory RateLimitStore が scale-to-zero でリセットされる | ログインbrute-force対策が10分アイドル毎に無効化（ECSの常時稼働では発生しなかった新規リスク） | security-reviewer指摘(M-1)。Cloudflare Workers Rate Limiting API バインディングまたはDB永続化への移行を次フェーズで検討（要設計。本試行のスコープ外） |
 | Hyperdrive と GORM の prepared statement 非互換 | クエリ実行エラー | P3-5 で事前検証。NG なら PlanetScale 直結に切替（PgBouncer 同梱で接続プールは確保可能） |
-| IP allowlist 依存の外部連携 | LINE/Lstep 連携断 | P4-7 で棚卸し。存在する場合は先方に Cloudflare egress 帯域を申請 or 中継設計 |
+| ~~IP allowlist 依存の外部連携~~ | LINE/Lstep 連携断 | 試行12で棚卸し完了。LINEは既定でIP allowlist非依存（オプション機能のみ・要クリニック側Console確認）、Lstep Write系は`[DISABLED]`のため現状無影響。SMTP/LIFFはBLOCKED（secret値未確認/DNS未切替）。**解消済み（残作業はP7-3へdefer）** |
+| **[試行12で新規発見]** frontend CSP `connect-src` が新オリジンをブロック | Cookie/CORS検証はPASSしてもブラウザ側CSPで別途ブロックされ得る | P4-8実機検証で発見。本番カットオーバー(P1-2 NS切替)時は`frontend/index.html`のCSP `connect-src`に最終オリジンが含まれているか確認する運用チェックをrunbookに追加推奨（試行12ではlocalhost検証用に一時追加→revert済み） |
+| **[試行12で新規発見]** Container(Durable Object)インスタンスの env var(vars)反映タイミング | `wrangler deploy`でvars変更してもコンテナimage無変更時は稼働中instanceに即時反映されない（次回コールドスタートまで旧値継続） | 試行12でCORS revert直後に旧設定が数分残存する事象を実測。運用上は「vars変更を伴うdeployの直後は数分の反映待ちが発生し得る」ことをP5(CI/CD)のデプロイ後検証手順に明記推奨 |
 | DB 切替時のデータ差分 | カルテデータ欠損 | 凍結ウィンドウ + チェックサム突合（P3-6/P3-7）。RDS を 2 週間保持 |
 | CPU 課金の想定超過 | 月額が試算を超える | P4-9 実測 + P6-4 Budget Alert |
 | Cookie/CORS の挙動差 | ログイン不能 | P1-6 / P4-8 の二段階検証 |

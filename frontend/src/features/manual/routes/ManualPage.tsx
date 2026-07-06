@@ -99,14 +99,14 @@ export function ManualPage() {
   }
 
   return (
-    <div className={`flex flex-1 overflow-hidden relative manual-root ${C.bgWhite}`}>
+    <div className={`flex flex-1 overflow-hidden relative manual-root ${C.bgPage}`}>
       {/* モバイル用ハンバーガー (md 未満で表示)
        * アプリのメインサイドバー（collapsed 約50px）と被らないよう left-16 に配置 */}
       <button
         type="button"
         onClick={() => setDrawerOpen(true)}
         aria-label="マニュアル目次を開く"
-        className={`md:hidden fixed top-3 left-16 z-30 size-10 flex items-center justify-center rounded-[3px] border ${C.borderDivider} bg-white shadow-sm ${C.hoverBgLight} no-print`}
+        className={`md:hidden fixed top-3 left-16 z-30 size-10 flex items-center justify-center rounded-[3px] border ${C.borderDivider} ${C.bgWhite} shadow-sm ${C.hoverBgLight} no-print`}
       >
         <Menu className="size-5" />
       </button>
@@ -118,7 +118,7 @@ export function ManualPage() {
           onClick={() => setEditMode(true)}
           aria-label="このページを編集"
           title="このページを編集（編集内容はダウンロードして管理者に共有）"
-          className={`fixed top-3 right-16 z-30 size-10 flex items-center justify-center rounded-[3px] border ${C.borderDivider} bg-white shadow-sm ${C.hoverBgLight} no-print`}
+          className={`fixed top-3 right-16 z-30 size-10 flex items-center justify-center rounded-[3px] border ${C.borderDivider} ${C.bgWhite} shadow-sm ${C.hoverBgLight} no-print`}
         >
           <Edit2 className="size-5" />
         </button>
@@ -131,7 +131,7 @@ export function ManualPage() {
           onClick={() => window.print()}
           aria-label="このページを印刷"
           title="このページを印刷"
-          className={`fixed top-3 right-3 z-30 size-10 flex items-center justify-center rounded-[3px] border ${C.borderDivider} bg-white shadow-sm ${C.hoverBgLight} no-print`}
+          className={`fixed top-3 right-3 z-30 size-10 flex items-center justify-center rounded-[3px] border ${C.borderDivider} ${C.bgWhite} shadow-sm ${C.hoverBgLight} no-print`}
         >
           <Printer className="size-5" />
         </button>
@@ -178,7 +178,7 @@ export function ManualPage() {
               type="button"
               onClick={() => setDrawerOpen(false)}
               aria-label="ドロワーを閉じる"
-              className={`size-10 m-2 flex items-center justify-center rounded-[3px] bg-white border ${C.borderDivider} shadow-sm`}
+              className={`size-10 m-2 flex items-center justify-center rounded-[3px] ${C.bgWhite} border ${C.borderDivider} shadow-sm`}
             >
               <X className="size-5" />
             </button>

@@ -52,7 +52,7 @@ test.describe('在庫管理 E2E', () => {
       await inventory.gotoList();
       await expect(inventory.listHeading()).toBeVisible();
 
-      // NotionFilter: 検索トグルボタンをクリックして入力欄を表示
+      // PropertyFilter: 検索トグルボタンをクリックして入力欄を表示
       await page.getByLabel('検索').click();
       const searchInput = inventory.searchInput();
       await expect(searchInput).toBeVisible();
@@ -107,7 +107,7 @@ test.describe('在庫管理 E2E', () => {
       await expect(inventory.listHeading()).toBeVisible();
 
       // 登録した品名が一覧に表示される
-      // NotionFilter: 検索トグルボタンをクリックして入力欄を表示
+      // PropertyFilter: 検索トグルボタンをクリックして入力欄を表示
       await page.getByLabel('検索').click();
       const searchInput = inventory.searchInput();
       await expect(searchInput).toBeVisible();

@@ -8,7 +8,7 @@ import { STYLE } from "@/lib/design-tokens";
 import type { Pet } from "@/types";
 
 // 行アクション(RowActionDropdown)の表示・発火に焦点を当てるため、無関係な重い子は無効化する。
-vi.mock("@/components/shared/NotionFilter/NotionFilter", () => ({ NotionFilter: () => null }));
+vi.mock("@/components/shared/PropertyFilter/PropertyFilter", () => ({ PropertyFilter: () => null }));
 vi.mock("@/components/shared/Pagination", () => ({ Pagination: () => null }));
 vi.mock("@/components/shared/FilteringIndicator/FilteringIndicator", () => ({
   FilteringIndicator: ({ children }: { children: ReactNode }) => <>{children}</>,

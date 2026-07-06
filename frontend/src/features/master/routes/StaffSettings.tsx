@@ -4,7 +4,7 @@ import { useSidePeekDirty } from "@/hooks/use-side-peek-dirty";
 import { TableCell } from "@/components/ui/table";
 import { DataTableRow } from "@/components/shared/DataTable/DataTableRow";
 import { RowActionButton } from "@/components/shared/RowActionButton";
-import { NotionStatusPill } from "@/components/shared/StatusPill/NotionStatusPill";
+import { StatusPill } from "@/components/shared/StatusPill/StatusPill";
 import { C, LAYOUT, ICON, PALETTE } from "@/lib/design-tokens";
 import { MASTER_TABLE_COL } from "../constants/styles";
 import { useMasterCRUD } from "../hooks/use-master-crud";
@@ -201,7 +201,7 @@ export function StaffSettings() {
               </div>
             </TableCell>
             <TableCell className="text-center">
-              <NotionStatusPill isActive={item.isActive} />
+              <StatusPill isActive={item.isActive} />
             </TableCell>
             <TableCell className="p-0 text-right">
               {canEdit ? <RowActionButton onClick={() => onEdit(item)} /> : null}

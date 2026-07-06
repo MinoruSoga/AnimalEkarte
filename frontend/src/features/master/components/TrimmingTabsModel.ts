@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 
-import type { ActiveFilter } from "@/components/shared/NotionFilter/types";
+import type { ActiveFilter } from "@/components/shared/PropertyFilter/types";
 import { normalizeKana } from "@/lib/normalize-kana";
 import { MASTER_TABLE_COL } from "../constants/styles";
 

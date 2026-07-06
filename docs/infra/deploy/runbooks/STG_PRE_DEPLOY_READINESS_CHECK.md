@@ -38,8 +38,8 @@
   `gh workflow run backend-deploy.yml --ref staging -f db_reset=true`
 
 - **監視項目**:
-  - `aws logs tail` で `applying 001_init.sql` 〜 `004_seed_staging.sql` の成功を確認。
-  - Checksum mismatch エラーが発生していないか。
+  - `aws logs tail` で `001_init.sql` の適用と `002_master`/`003_demo`/`004_staging` seed バンドルのロード成功を確認（`Migration summary` / `Seed bundle summary` ログ）。
+  - Checksum mismatch エラー、`detected legacy seed migration key(s)` エラーが発生していないか。
 - **シード突合検証**: `bash scripts/verify_seed_matches_stg_dump_full.sh` → exit 0 確認 (seed が STG dump と全テーブルで一致すること)。
 
 ---

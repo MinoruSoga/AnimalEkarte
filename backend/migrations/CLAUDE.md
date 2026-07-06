@@ -39,9 +39,21 @@ docker compose exec db psql ...  # 直接 SQL 実行
 
 `001_init.sql` の checksum mismatch が出たローカル環境は、`docs/infra/deploy/LOCAL_DB_RESET.md` の手順で DB volume を再構築する。
 
+## seed データは CSV が正、SQL は 001 のみ（2026-07 stub 削除）
+
+`backend/migrations/` に存在する `.sql` は `001_init.sql`（DDL 専用）のみ。002/003/004 の stub SQL ファイル（`SELECT 1;` の no-op）は削除済みで、実体は `backend/migrations/seeds/{002_master,003_demo,004_staging}/*.csv` + `manifest.json` というディレクトリだけになった。
+
+- **cmd/migrate は二段フェーズ構成**: ①`*.sql`（実質 001_init.sql のみ）を昇順適用 → ②`internal/seedbundle.BundleOrder`（`002_master → 003_demo → 004_staging`固定順）で CSV バンドルを pgx `COPY FROM STDIN` ロード（`backend/cmd/migrate/csvbundle.go`）。DDL 失敗時は seed フェーズへ進まない
+- **schema_migrations の記録キー**: DDL は従来通りファイル名（`001_init.sql`）。seed バンドルは `internal/seedbundle.BundleMigrationKey(bundleDir)` が返す `"seeds/<bundle>"`（例: `seeds/002_master`）— stub SQL ファイル名には二度と紐付かない。fresh DB 適用後の正しい終了状態は `schema_migrations` に 4 行（`001_init.sql` + `seeds/002_master` + `seeds/003_demo` + `seeds/004_staging`）
+- seed バンドルの checksum（`bundleChecksum`）は manifest.json + 全 CSV ファイルの内容を合成したもの。CSV だけの編集でも、既に適用済みの DB では通常の migration ファイル編集と同じ checksum mismatch ガードが働く
+- COPY はシーケンスを進めないため、テーブルロード後に自動 setval される（`advanceSerialSequence`）
+- **旧形式（stub SQL 時代）からの移行は非対応**: `schema_migrations` に `002_seed_master.sql` 等の旧キーが残っている DB を現行バイナリで起動すると `detectLegacySeedKeys` が fail-fast する。対処は `db_reset` またはボリューム再構築のみ（in-place 移行は実装しない）
+- CSV の正データ生成経路は使い捨てDBダンプのみ: `docker compose exec backend go run ./cmd/seed-export`。SQL の静的パース/手編集による CSV 生成は禁止（ON CONFLICT の最終マージ状態・`random()` 依存データは静的パースでは再現できない）
+- テーブル→バンドル割当は「最初に触れたファイル」基準（earliest-file-wins、`cmd/seed-export/tables.go` の `bundleTables`）で固定済み。新しいシードテーブルの追加は `cmd/seed-export` の再設計が必要
+
 ## seed / migration 差し替え時の注意
 
-- 適用済み migration / seed を編集すると既存 DB は checksum mismatch になる
-- seed master / demo の差し替えは静的確認だけでなく **fresh DB apply** が必要
-- DB 非依存の最低検証は `python3 scripts/verify_seed.py`
+- 適用済み migration（`001_init.sql`）/ seed バンドル（CSV・manifest.json）を編集すると既存 DB は checksum mismatch になる
+- seed データの内容変更は CSV の手編集ではなく `cmd/seed-export` の再実行で行う（上記参照）
+- DB 非依存の最低検証は `python3 scripts/verify_seed.py`（CSV ベース）
 - 運用メモ: `docs/infra/deploy/SEED_MIGRATION_OPERATIONS.md`

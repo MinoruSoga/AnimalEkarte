@@ -1,7 +1,7 @@
 import { memo, type ReactNode, type RefObject } from "react";
 import { FormHeader } from "@/components/shared/Form/FormHeader";
 import { PermissionBadges } from "@/components/shared/PermissionBadges/PermissionBadges";
-import { STYLE } from "@/lib/design-tokens";
+import { LAYOUT, STYLE } from "@/lib/design-tokens";
 import type { Resource } from "@/types/generated/models";
 
 interface PageLayoutProps {
@@ -28,7 +28,7 @@ export const PageLayout = memo(function PageLayout({
   icon,
   headerAction,
   resource,
-  maxWidth = "max-w-[1440px]",
+  maxWidth = LAYOUT.pageContentMaxWidth.default,
   className,
   align = "center",
   scrollContainerRef,

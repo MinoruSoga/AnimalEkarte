@@ -145,32 +145,32 @@ export const AppointmentCard = memo(function AppointmentCard({
           <div className="flex items-start justify-between gap-2">
             <div className={`flex items-center gap-1.5 ${C.text60} min-w-0`}>
               <Clock className={`${ICON.xs} flex-shrink-0`} />
-              <span className="text-base font-medium font-mono tracking-[var(--tracking-notion)]">{appointment.time}</span>
+              <span className="text-base font-medium font-mono tracking-[var(--tracking-compact)]">{appointment.time}</span>
             </div>
           </div>
 
           <div className="space-y-0.5">
-            <p className="text-base font-semibold truncate leading-tight tracking-[var(--tracking-notion)]">{appointment.ownerName}</p>
+            <p className="text-base font-semibold truncate leading-tight tracking-[var(--tracking-compact)]">{appointment.ownerName}</p>
             <div className={`flex items-center gap-1 ${C.text60}`}>
               <Dog className={`${ICON.xs} flex-shrink-0`} />
-              <p className="text-base truncate tracking-[var(--tracking-notion)]">{appointment.petType} - {appointment.petName}</p>
+              <p className="text-base truncate tracking-[var(--tracking-compact)]">{appointment.petType} - {appointment.petName}</p>
             </div>
           </div>
 
           <div className="flex items-center flex-wrap gap-1 pt-0.5">
             <Badge
               variant="secondary"
-              className={`text-sm px-[7.5px] h-[22px] tracking-[var(--tracking-notion-sm)] ${visitColor.badgeBg} ${visitColor.badgeText} ${visitColor.badgeBorder}`}
+              className={`text-sm px-[7.5px] h-[22px] tracking-[var(--tracking-compact-sm)] ${visitColor.badgeBg} ${visitColor.badgeText} ${visitColor.badgeBorder}`}
             >
               {appointment.visitType}
             </Badge>
-            <Badge variant="outline" className={`flex items-center gap-1 text-sm px-[7.5px] h-[22px] ${C.bgWhite} tracking-[var(--tracking-notion-sm)]`}>
+            <Badge variant="outline" className={`flex items-center gap-1 text-sm px-[7.5px] h-[22px] ${C.bgWhite} tracking-[var(--tracking-compact-sm)]`}>
               <ServiceIcon service={appointment.reservationType} category={appointment.reservationCategory} />
               <span className="truncate max-w-[80px]">{appointment.reservationType}</span>
             </Badge>
 
             {/* BUG-037: 担当医バッジ — doctor が未設定でも「担当医未設定」として表示 */}
-            <Badge variant="outline" className={`flex items-center gap-1 text-sm px-[7.5px] h-[22px] tracking-[var(--tracking-notion-sm)] ${appointment.isDesignated ? `${C.bgDiscountLight} ${C.textDiscount} ${C.borderDiscount20}` : `${C.bgWhite} ${C.text60}`}`}>
+            <Badge variant="outline" className={`flex items-center gap-1 text-sm px-[7.5px] h-[22px] tracking-[var(--tracking-compact-sm)] ${appointment.isDesignated ? `${C.bgDiscountLight} ${C.textDiscount} ${C.borderDiscount20}` : `${C.bgWhite} ${C.text60}`}`}>
               <Stethoscope className={`${ICON.xs} shrink-0`} />
               <span className="truncate max-w-[80px]">{appointment.doctor ?? "担当医未設定"}</span>
               {appointment.isDesignated ? <span className="text-[10px] ml-0.5 font-bold tracking-[0.12em]">指</span> : null}
@@ -183,7 +183,7 @@ export const AppointmentCard = memo(function AppointmentCard({
               <button
                 type="button"
                 aria-label={isTrimming ? `${appointment.petName}のトリミング記録` : `${appointment.petName}のカルテ`}
-                className={`flex items-center gap-1 text-[11px] tracking-[var(--tracking-notion-xs)] ${C.accent} ${C.bgAccentLight30} border ${C.borderAccentBadge} rounded px-1.5 py-0.5 ${C.hoverBgAccentLight60} transition-colors`}
+                className={`flex items-center gap-1 text-[11px] tracking-[var(--tracking-compact-xs)] ${C.textBrand} ${C.bgBrandLight30} border ${C.borderBrandLight} rounded px-1.5 py-0.5 ${C.hoverBgBrandLight60} transition-colors`}
                 onClick={handleKarteClick}
               >
                 {isTrimming ? <Scissors className={`${ICON.xs} shrink-0`} /> : <FileText className={`${ICON.xs} shrink-0`} />}
@@ -194,7 +194,7 @@ export const AppointmentCard = memo(function AppointmentCard({
               <button
                 type="button"
                 aria-label={`${appointment.petName}の会計`}
-                className={`flex items-center gap-1 text-[11px] tracking-[var(--tracking-notion-xs)] ${C.textStatusGreen} ${C.bgStatusGreen30} border ${C.borderStatusGreen} rounded px-1.5 py-0.5 ${C.hoverBgStatusGreenLight60} transition-colors`}
+                className={`flex items-center gap-1 text-[11px] tracking-[var(--tracking-compact-xs)] ${C.textStatusGreen} ${C.bgStatusGreen30} border ${C.borderStatusGreen} rounded px-1.5 py-0.5 ${C.hoverBgStatusGreenLight60} transition-colors`}
                 onClick={handleAccountingClick}
               >
                 <CreditCard className={`${ICON.xs} shrink-0`} />
@@ -205,7 +205,7 @@ export const AppointmentCard = memo(function AppointmentCard({
               <button
                 type="button"
                 aria-label={`${appointment.petName}の入院登録`}
-                className={`flex items-center gap-1 text-[11px] tracking-[var(--tracking-notion-xs)] ${C.textStatusPurple} ${C.bgStatusPurple30} border ${C.borderStatusPurple} rounded px-1.5 py-0.5 ${C.hoverBgStatusPurpleLight60} transition-colors`}
+                className={`flex items-center gap-1 text-[11px] tracking-[var(--tracking-compact-xs)] ${C.textStatusPurple} ${C.bgStatusPurple30} border ${C.borderStatusPurple} rounded px-1.5 py-0.5 ${C.hoverBgStatusPurpleLight60} transition-colors`}
                 onClick={handleHospitalizationClick}
               >
                 <BedDouble className={`${ICON.xs} shrink-0`} />

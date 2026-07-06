@@ -1,6 +1,6 @@
 import type { ComponentProps } from "react";
-import { NotionFilter } from "@/components/shared/NotionFilter/NotionFilter";
-import type { ActiveFilter } from "@/components/shared/NotionFilter/types";
+import { PropertyFilter } from "@/components/shared/PropertyFilter/PropertyFilter";
+import type { ActiveFilter } from "@/components/shared/PropertyFilter/types";
 import { MASTER_STATUS_FILTER } from "../constants/styles";
 import { MedicineTable } from "./MedicineTable";
 
@@ -23,7 +23,7 @@ export function MedicineTableSection({
 }: MedicineTableSectionProps) {
   return (
     <div className="flex flex-col gap-4">
-      <NotionFilter
+      <PropertyFilter
         properties={[MASTER_STATUS_FILTER]}
         activeFilters={activeFilters}
         onFilterChange={onFilterChange}

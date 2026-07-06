@@ -6,7 +6,7 @@ import X from "lucide-react/dist/esm/icons/x";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { NotionStatusPill } from "@/components/shared/StatusPill/NotionStatusPill";
+import { StatusPill } from "@/components/shared/StatusPill/StatusPill";
 import { C, ICON } from "@/lib/design-tokens";
 
 import { SHIFT_TYPE_LABELS, type ShiftType } from "../types";
@@ -46,7 +46,7 @@ export function ShiftTemplateProperties({
             onClick={() => onField("is_active", !formData.is_active)}
             className={`inline-flex items-center rounded-[3px] ${C.hoverBgLight} transition-colors py-0.5 px-0.5 cursor-pointer`}
           >
-            <NotionStatusPill isActive={formData.is_active} />
+            <StatusPill isActive={formData.is_active} />
           </button>
         </PropertyRow>
 

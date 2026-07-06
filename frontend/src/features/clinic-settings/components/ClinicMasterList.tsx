@@ -3,7 +3,7 @@ import { Building2, Plus } from "lucide-react";
 import { TableCell } from "@/components/ui/table";
 import { DataTable, DESIGN_TABLE_HEADER_ROW, DESIGN_TABLE_HEADER_CELL } from "@/components/shared/DataTable/DataTable";
 import { DataTableRow } from "@/components/shared/DataTable/DataTableRow";
-import { NotionFilter } from "@/components/shared/NotionFilter/NotionFilter";
+import { PropertyFilter } from "@/components/shared/PropertyFilter/PropertyFilter";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
 import { RowActionButton } from "@/components/shared/RowActionButton";
@@ -57,7 +57,7 @@ export function ClinicMasterList({
       maxWidth="max-w-full"
     >
       <div className="flex flex-col gap-4">
-        <NotionFilter
+        <PropertyFilter
           properties={[]}
           activeFilters={[]}
           onFilterChange={() => {}}
@@ -86,7 +86,7 @@ export function ClinicMasterList({
               </TableCell>
               <TableCell className="text-right py-2.5">
                 <span className="inline-flex items-center gap-1.5">
-                  <span className={`size-[7px] rounded-full ${item.isActive ? C.bgAccent : C.bgPrimary10}`} />
+                  <span className={`size-[7px] rounded-full ${item.isActive ? C.bgBrandDot : C.bgPrimary10}`} />
                   <span className={`text-sm ${item.isActive ? C.text65 : C.text35}`}>
                     {item.isActive ? "有効" : "無効"}
                   </span>

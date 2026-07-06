@@ -38,7 +38,7 @@ interface MasterTabPageProps {
  * search/filter/ConfirmDialog; MasterTabPage instead leaves entity count,
  * per-tab filtering, and delete confirmation entirely to the route, since
  * a tabbed master page manages 2+ independent entities with their own
- * NotionFilter state and dialogs (see DiagnosisSettingsSidePanels /
+ * PropertyFilter state and dialogs (see DiagnosisSettingsSidePanels /
  * DiagnosisDeleteDialogs for the multi-entity slot pattern).
  *
  * Shares the flex-h-full/PageLayout/canCreate-gated button/sidePanel chrome

@@ -125,7 +125,7 @@ export function ReservationTypeAvailableSlotsSection({ clinicId, reservationType
         <button
           type="button"
           onClick={() => navigate(`${paths.lineReservation.slots.getHref()}?typeId=${reservationTypeId}`)}
-          className={`ml-auto flex items-center gap-1 text-xs ${C.text50} ${C.hoverTextAccent} transition-colors`}
+          className={`ml-auto flex items-center gap-1 text-xs ${C.text50} ${C.hoverTextBrand} transition-colors`}
         >
           <CalendarDays className={ICON.smXs} />
           カレンダーで編集

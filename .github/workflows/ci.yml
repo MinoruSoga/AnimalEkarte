@@ -75,7 +75,7 @@ jobs:
 
   # ──────────────────────────────────────────────
   # Reset wait-set contract: make reset の `up --wait` が
-  # 長寿命サービス (db migrate backend frontend) だけを待ち、
+  # 長寿命サービス (db backend frontend) だけを待ち、
   # one-shot codegen を含めないことを静的に検証する。
   # Docker 不要・純テキスト検査なので無条件かつ最速で走らせ、
   # cosmetic exit-1 を起こす wait-set 退行を merge 前に reject する。

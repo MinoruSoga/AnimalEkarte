@@ -104,7 +104,7 @@ function WeekHeader({ startDate, appointmentsByDay, columnWidth }: WeekHeaderPro
           >
             <div
               className={`text-sm mb-1 ${
-                dow === 0 ? C.textNotionRed : dow === 6 ? C.accent : C.text60
+                dow === 0 ? C.textNotionRed : dow === 6 ? C.textBrand : C.text60
               }`}
             >
               {format(day, "E", { locale: ja })}

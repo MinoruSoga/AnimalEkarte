@@ -153,7 +153,7 @@ export function TagOwnerListDrawer({
                     </div>
                     <Link
                       to={`/owners/${owner.owner_id}`}
-                      className={`shrink-0 ml-3 text-xs ${C.accent} hover:underline whitespace-nowrap`}
+                      className={`shrink-0 ml-3 text-xs ${C.textBrand} hover:underline whitespace-nowrap`}
                     >
                       カルテを開く
                     </Link>

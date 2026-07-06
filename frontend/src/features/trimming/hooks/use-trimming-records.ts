@@ -3,7 +3,7 @@ import type { MutateOptions } from "@tanstack/react-query";
 import { useGetTrimmings } from "../api/get-trimmings";
 import { useDeleteTrimming } from "../api/delete-trimming";
 import { normalizeKana } from "@/lib/normalize-kana";
-import type { ActiveFilter } from "@/components/shared/NotionFilter/types";
+import type { ActiveFilter } from "@/components/shared/PropertyFilter/types";
 import type { TrimmingFilters } from "../api/get-trimmings";
 
 export function useFilterTrimmingRecords(

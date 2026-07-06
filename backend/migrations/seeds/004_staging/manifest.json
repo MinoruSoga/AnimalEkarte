@@ -1,0 +1,9 @@
+{
+  "bundle": "004_staging",
+  "tables": [
+    {
+      "table": "appointment_trimming_details",
+      "csvFile": "appointment_trimming_details.csv"
+    }
+  ]
+}

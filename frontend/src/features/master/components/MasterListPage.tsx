@@ -2,7 +2,7 @@
 import { memo, type ReactNode } from "react";
 
 // Internal
-import { NotionFilter } from "@/components/shared/NotionFilter/NotionFilter";
+import { PropertyFilter } from "@/components/shared/PropertyFilter/PropertyFilter";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 import { MasterPageShell } from "./MasterPageShell";
 import type {
@@ -10,7 +10,7 @@ import type {
   ActiveFilter,
   SortProperty,
   ActiveSort,
-} from "@/components/shared/NotionFilter/types";
+} from "@/components/shared/PropertyFilter/types";
 import type { Resource } from "@/types/generated/models";
 
 // ─────────────────────────────────────────────────
@@ -29,19 +29,19 @@ interface MasterListPageProps {
   searchTerm: string;
   onSearchChange: (term: string) => void;
   searchPlaceholder: string;
-  /** Filtered item count displayed in NotionFilter */
+  /** Filtered item count displayed in PropertyFilter */
   count: number;
   /** Handler for "新規登録" button */
   onNew: () => void;
 
-  /** NotionFilter filter properties */
+  /** PropertyFilter filter properties */
   filterProperties?: FilterProperty[];
   /** Active filters state */
   activeFilters?: ActiveFilter[];
   /** Filter change handler */
   onFilterChange?: (filters: ActiveFilter[]) => void;
 
-  /** NotionFilter sort properties */
+  /** PropertyFilter sort properties */
   sortProperties?: SortProperty[];
   /** Active sorts state */
   activeSorts?: ActiveSort[];
@@ -95,7 +95,7 @@ export const MasterListPage = memo(function MasterListPage({
     <>
       <MasterPageShell title={title} icon={icon} resource={resource} onNew={onNew} sidePanel={sidePanel}>
         <div className="flex flex-col gap-4">
-          <NotionFilter
+          <PropertyFilter
             properties={filterProperties ?? []}
             activeFilters={activeFilters ?? []}
             onFilterChange={onFilterChange ?? (() => {})}

@@ -143,7 +143,7 @@ export function TagSummaryTable({
                           自動
                         </span>
                       ) : (
-                        <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium border ${C.bgAccentLight} ${C.textAccentDark} ${C.borderAccentBadge}`}>
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium border ${C.bgBrandLight} ${C.textBrandDark} ${C.borderBrandLight}`}>
                           手動
                         </span>
                       )}

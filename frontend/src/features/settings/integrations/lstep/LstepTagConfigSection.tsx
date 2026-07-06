@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { toast } from "sonner";
-import { C, PALETTE, STYLE } from "@/lib/design-tokens";
+import { BADGE, C, PALETTE, STYLE } from "@/lib/design-tokens";
 import { Button } from "@/components/ui/button";
 import {
   useGetAutoManagedPrefixes,
@@ -100,7 +100,7 @@ function AutoManagedPrefixesSection() {
             >
               <span className="text-sm font-mono flex-1">{item.prefix}</span>
               <span
-                className={`text-xs px-1.5 py-0.5 rounded ${C.bgAccentLight8} ${C.accent}`}
+                className={`text-xs px-1.5 py-0.5 rounded ${BADGE.blueNoBorder}`}
               >
                 {item.category}
               </span>

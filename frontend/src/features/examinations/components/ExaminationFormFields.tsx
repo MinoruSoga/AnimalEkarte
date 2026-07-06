@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { SearchableSelect, type SearchableSelectOption } from "@/components/ui/searchable-select";
 import { SubmitButton } from "@/components/shared/Form/SubmitButton";
 import { MasterLink } from "@/components/shared/MasterLink";
-import { NotionDatePicker } from "@/components/shared/NotionDatePicker/NotionDatePicker";
+import { DatePicker } from "@/components/shared/DatePicker/DatePicker";
 import { C, ICON, STYLE } from "@/lib/design-tokens";
 import { jstDateStartISOString, todayJSTISO, toJSTWallDate } from "@/lib/jst-date";
 import type { ExaminationRecord } from "../api/transforms";
@@ -119,7 +119,7 @@ function ExaminationFormFieldsBase({
 
       <div className="space-y-1.5">
         <Label className={`text-sm ${C.text60}`}>検査日</Label>
-        <NotionDatePicker
+        <DatePicker
           value={formData.date ? formData.date.split("T")[0] : ""}
           onChange={(value) => onSetFormData({ date: value ? jstDateStartISOString(value) : jstDateStartISOString(todayJSTISO()) })}
           disabledDays={{ after: toJSTWallDate(new Date()) }}

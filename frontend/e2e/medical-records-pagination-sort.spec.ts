@@ -11,7 +11,7 @@ import { MedicalRecordsPage } from './pages/medical-records-page';
 // Design: interaction + URL-state assertions only (no writes). Row-content assertions
 // are intentionally avoided where data volume/ordering could make them flaky; instead
 // we assert on the URL query params that MedicalRecords.tsx derives sort/pagination
-// state from, and on the NotionFilter active-filter pill for the status filter.
+// state from, and on the PropertyFilter active-filter pill for the status filter.
 
 test.describe('カルテ一覧 ページネーション/ソート/フィルタ E2E', () => {
   let context: BrowserContext;

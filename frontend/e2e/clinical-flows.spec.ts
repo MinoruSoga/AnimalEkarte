@@ -38,7 +38,7 @@ test.describe('カルテ フロー E2E', () => {
       await medical.gotoList();
       await expect(medical.listHeading()).toBeVisible();
 
-      // NotionFilter: 検索トグルボタンをクリックして入力欄を表示
+      // PropertyFilter: 検索トグルボタンをクリックして入力欄を表示
       await page.getByLabel('検索').click();
       const searchInput = medical.searchInput();
       await expect(searchInput).toBeVisible();

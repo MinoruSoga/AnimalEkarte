@@ -173,11 +173,19 @@ EOF
 ## 4. M-4: STG `db_reset=true` デプロイ
 
 **前提（現状の正確な把握）**: `backend/migrations/` は既に統合済みで
-`001_init.sql` 〜 `005_add_appointment_checked_in_at.sql` の5ファイルのみが存在する
+`001_init.sql`（DDL 専用）1ファイルのみが存在する（2026-07-06 に
+`005_add_appointment_checked_in_at.sql` [appointments.checked_in_at 追加] も
+`001_init.sql` へ再統合済み。同日、002/003/004 の stub SQL ファイルも削除され、
+seed データは `backend/migrations/seeds/{002_master,003_demo,004_staging}/` の
+CSV バンドルのみになった — `cmd/migrate` が `001_init.sql` 適用後に固定順で
+ロードする）。
 （bug.md 旧稿にあった「migration 010/011」という番号は統合前の呼称で、現在は実体が無い —
 これは LOW #179 と同根の文書ドリフト）。Checkup 系（#211, ADR-004）のスキーマは
 既に `001_init.sql` に統合済みのため、STG の DB が古い場合は `db_reset=true` で
 `001_init.sql` から作り直す以外に反映経路がない（個別 ALTER の追い migration は作成しない方針）。
+**さらに、STG の `schema_migrations` に 002-004 の旧 stub SQL キー（`002_seed_master.sql`
+等）が残っている場合、現行バイナリは `detectLegacySeedKeys` で fail-fast する** —
+この場合も `db_reset=true` 以外の反映経路はない。
 
 **⚠️ 破壊的操作**: `db_reset=true` は STG DB を DROP & 再作成する。STG 上の全データが失われる。
 実行前に必ずユーザーへ「破棄可否」を確認すること（`.claude/skills/stg-release-readiness` 準拠）。
@@ -203,8 +211,8 @@ gh workflow run backend-deploy.yml --ref staging -f db_reset=true
 gh run watch --exit-status $(gh run list --workflow=backend-deploy.yml --branch=staging --limit=1 --json databaseId -q '.[0].databaseId')
 ```
 
-- `applying 001_init.sql` 〜 `005_add_appointment_checked_in_at.sql` が全て成功すること。
-- Checksum mismatch エラーが出ていないこと。
+- `001_init.sql` の適用と、`002_master` / `003_demo` / `004_staging` の seed バンドルロードが全て成功すること（ログの `Migration summary` / `Seed bundle summary` を確認）。
+- Checksum mismatch エラーや `detected legacy seed migration key(s)` エラーが出ていないこと。
 
 ### 4.4 事後確認
 

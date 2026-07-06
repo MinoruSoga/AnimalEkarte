@@ -22,27 +22,6 @@ services:
       timeout: 5s
       retries: 5
 
-  migrate:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile.dev
-    networks:
-      - ekarte-network
-    depends_on:
-      db:
-        condition: service_healthy
-    volumes:
-      - ./backend:/app
-      - go_mod_cache:/go/pkg/mod
-    env_file:
-      - .env.local
-    environment:
-      TZ: Asia/Tokyo
-      DB_HOST: db
-      DB_PORT: 5432
-    entrypoint: ["sh", "-c", "go run ./cmd/migrate"]
-    restart: "no"
-
   backend:
     build:
       context: ./backend
@@ -52,8 +31,6 @@ services:
     depends_on:
       db:
         condition: service_healthy
-      migrate:
-        condition: service_completed_successfully
     ports:
       - "8080:8080"
     volumes:
@@ -70,7 +47,8 @@ services:
       interval: 5s
       timeout: 5s
       retries: 36
-      # 初回 migration は別サービスに分離したが、cold build 余裕は残す。
+      # entrypoint 内で migration を実行してから air を起動するため、cold build +
+      # migration 適用の余裕を残す。
       start_period: 5m
 
   frontend:

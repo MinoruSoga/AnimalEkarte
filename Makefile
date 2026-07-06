@@ -7,10 +7,12 @@
 DC = docker compose --env-file .env.local
 
 # 起動
-# --wait で db / migrate / backend / frontend の ready を待つ
+# --wait で db / backend / frontend の ready を待つ
+# migration は backend の entrypoint 内で go run ./cmd/migrate として実行されるため、
+# 個別の migrate サービスは存在しない（失敗時は backend が healthy にならず --wait がブロックする）。
 up:
 	$(DC) down --remove-orphans 2>/dev/null || true
-	$(DC) up -d --wait --wait-timeout 1200 db migrate backend frontend
+	$(DC) up -d --wait --wait-timeout 1200 db backend frontend
 
 # node_modules をホストにコピー（IDE補完用・初回 or package.json 変更時のみ実行）
 sync-modules:
@@ -52,18 +54,19 @@ clean:
 	$(DC) build --no-cache
 
 # 完全リセット（スキーマ・シーダー含む）
-# migration は compose の one-shot service に任せ、reset は DB 初期化 + 起動完了待ちだけに絞る
-# --wait は up と同じく長寿命サービス（db migrate backend frontend）だけを対象にする。
+# migration は backend の entrypoint 内で go run ./cmd/migrate として実行されるため、
+# reset は DB 初期化 + 起動完了待ちだけに絞る
+# --wait は up と同じく長寿命サービス（db backend frontend）だけを対象にする。
 # codegen は一発実行で正常終了する one-shot のため、wait 対象に含めると正常終了が
 # --wait の失敗扱いになり cosmetic exit 1 を起こす（必要時は make codegen で個別実行）。
 reset:
 	@echo "🔄 Resetting database..."
 	$(DC) down -v
-	$(DC) up -d --build --wait --wait-timeout 1200 db migrate backend frontend
+	$(DC) up -d --build --wait --wait-timeout 1200 db backend frontend
 	@echo "✓ Reset complete — database reinitialized and services are healthy"
 
 # reset の wait-set 契約チェック（Docker 不要・純テキスト検査・高速）
-# `make reset` の `up --wait` が長寿命サービス (db migrate backend frontend) だけを
+# `make reset` の `up --wait` が長寿命サービス (db backend frontend) だけを
 # 待ち、one-shot codegen を含めないことを静的に保証する。これが裸の `up --wait` に
 # 退行すると cosmetic exit-1 が再発するため、ci-local と CI で自動実行する。
 check-reset-contract:
@@ -88,14 +91,15 @@ shellcheck-test:
 	@bash scripts/shellcheck-scripts.test.sh
 
 # マイグレーション適用（差分のみ・DBは落とさない）
-# 使うのは backend ではなく one-shot の migrate サービス
+# 専用の migrate サービスは廃止し、backend イメージの entrypoint を go に差し替えて
+# one-off 実行する（db が未起動なら depends_on 経由で自動起動される）。
 migrate:
-	$(DC) run --rm migrate
+	$(DC) run --rm --entrypoint go backend run ./cmd/migrate
 	@echo "✓ Migrations applied"
 
-# シーダー適用（migrate と同一処理。SQL seed も migration サービスで一括適用）
+# シーダー適用（migrate と同一処理。SQL seed も migration ファイルとして一括適用）
 seed:
-	$(DC) run --rm migrate
+	$(DC) run --rm --entrypoint go backend run ./cmd/migrate
 	@echo "✓ Seed data applied"
 
 # 旧DB移行データのローカル投入

@@ -9,7 +9,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { NotionDatePicker } from "@/components/shared/NotionDatePicker/NotionDatePicker";
+import { DatePicker } from "@/components/shared/DatePicker/DatePicker";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { C, ICON } from "@/lib/design-tokens";
 
@@ -117,14 +117,14 @@ export const ImageGalleryFilter = memo(function ImageGalleryFilter({
             期間
           </Label>
           <div className="flex items-center gap-2">
-            <NotionDatePicker
+            <DatePicker
               value={dateStart}
               onChange={onDateStartChange}
               placeholder="開始日"
               className="flex-1"
             />
             <span className={`${C.text} font-medium text-sm`}>〜</span>
-            <NotionDatePicker
+            <DatePicker
               value={dateEnd}
               onChange={onDateEndChange}
               placeholder="終了日"

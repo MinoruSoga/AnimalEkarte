@@ -2,7 +2,7 @@ import { useDeferredValue, useState, memo } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { NotionDatePicker } from "@/components/shared/NotionDatePicker/NotionDatePicker";
+import { DatePicker } from "@/components/shared/DatePicker/DatePicker";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { C, STYLE } from "@/lib/design-tokens";
 import { normalizedIncludes } from "@/lib/normalize-kana";
@@ -68,14 +68,14 @@ export const VaccinationHistory = memo(function VaccinationHistory({
         <div className="flex flex-col gap-1.5">
           <Label className={`text-sm ${C.text60}`}>実施日</Label>
           <div className="flex items-center gap-2">
-            <NotionDatePicker
+            <DatePicker
               value={filterStartDate}
               onChange={setFilterStartDate}
               placeholder="開始日"
               className="flex-1"
             />
             <span className={`${C.text} text-sm`}>〜</span>
-            <NotionDatePicker
+            <DatePicker
               value={filterEndDate}
               onChange={setFilterEndDate}
               placeholder="終了日"

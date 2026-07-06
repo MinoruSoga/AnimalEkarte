@@ -1,7 +1,7 @@
 import { TableCell } from "@/components/ui/table";
 import { DataTableRow } from "@/components/shared/DataTable/DataTableRow";
 import { RowActionButton } from "@/components/shared/RowActionButton";
-import { NotionStatusPill } from "@/components/shared/StatusPill/NotionStatusPill";
+import { StatusPill } from "@/components/shared/StatusPill/StatusPill";
 import { C } from "@/lib/design-tokens";
 
 import {
@@ -34,7 +34,7 @@ export function TrimmingCourseRow({
       </TableCell>
       <TrimmingPriceCell price={item.price} />
       <TableCell className="text-center">
-        <NotionStatusPill isActive={item.isActive} />
+        <StatusPill isActive={item.isActive} />
       </TableCell>
       <TableCell className="p-0 text-right">
         {canEdit ? <RowActionButton onClick={() => onEdit(item)} /> : null}
@@ -67,7 +67,7 @@ export function TrimmingOptionRow({
       </TableCell>
       <TrimmingPriceCell price={item.price} />
       <TableCell className="text-center">
-        <NotionStatusPill isActive={item.isActive} />
+        <StatusPill isActive={item.isActive} />
       </TableCell>
       <TableCell className="p-0 text-right">
         {canEdit ? <RowActionButton onClick={() => onEdit(item)} /> : null}

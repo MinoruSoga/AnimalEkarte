@@ -39,7 +39,7 @@ export function ReservationModalHeader({
           {isEditMode ? (
             <CalendarCheck className={`${ICON.page} ${C.textNotice}`} />
           ) : (
-            <Calendar className={`${ICON.page} ${C.accent}`} />
+            <Calendar className={`${ICON.page} ${C.textBrand}`} />
           )}
           <DialogTitle className={`text-sm font-bold ${C.text}`}>
             {isEditMode ? "予約編集" : "新規予約作成"}
@@ -253,7 +253,7 @@ function SelectedPatientSummary({
   onSelectedPetsChange: (updater: (prev: Pet[]) => Pet[]) => void;
 }) {
   return (
-    <div className={`rounded-lg border p-3 transition-colors ${selectedPets.length > 0 ? `${C.bgAccentLight50} ${C.borderAccentLight}` : `${C.bgPage} ${C.borderMediumLight}`}`}>
+    <div className={`rounded-lg border p-3 transition-colors ${selectedPets.length > 0 ? `${C.bgBrandLight50} ${C.borderBrandLight}` : `${C.bgPage} ${C.borderMediumLight}`}`}>
       <Label className={`text-[12px] ${C.text40} font-bold tracking-widest uppercase block mb-3`}>
         予約対象（選択中）
         <span style={{ color: C.danger }} className="ml-1 normal-case" aria-hidden="true">*</span>

@@ -14,7 +14,7 @@ import { Plus, Syringe, Calendar, User, Pencil, Trash2 } from "lucide-react";
 import { paths } from "@/config/paths";
 import { TableCell } from "@/components/ui/table";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
-import { NotionFilter } from "@/components/shared/NotionFilter/NotionFilter";
+import { PropertyFilter } from "@/components/shared/PropertyFilter/PropertyFilter";
 import { DataTable, DESIGN_TABLE_HEADER_ROW, DESIGN_TABLE_HEADER_CELL } from "@/components/shared/DataTable/DataTable";
 import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
 import { DataTableRow } from "@/components/shared/DataTable/DataTableRow";
@@ -39,8 +39,8 @@ import type {
   FilterProperty,
   ActiveFilter,
   SortProperty,
-} from "@/components/shared/NotionFilter/types";
-import { CONDITIONS_WITH_EMPTY } from "@/components/shared/NotionFilter/types";
+} from "@/components/shared/PropertyFilter/types";
+import { CONDITIONS_WITH_EMPTY } from "@/components/shared/PropertyFilter/types";
 import { ResourceVaccinations } from "@/types/generated/models";
 
 // rendering-hoist-jsx: 静的フィルタプロパティ（担当医は動的オプションのためコンポーネント内で構築）
@@ -251,7 +251,7 @@ export function VaccinationList() {
       maxWidth="max-w-full"
     >
       <div className="flex flex-col gap-4">
-        <NotionFilter
+        <PropertyFilter
           properties={filterProperties}
           activeFilters={activeFilters}
           onFilterChange={setActiveFilters}

@@ -4,14 +4,14 @@ import { TableCell } from "@/components/ui/table";
 import { DataTable, DESIGN_TABLE_HEADER_ROW, DESIGN_TABLE_HEADER_CELL } from "@/components/shared/DataTable/DataTable";
 import { DataTableRow } from "@/components/shared/DataTable/DataTableRow";
 import { FilteringIndicator } from "@/components/shared/FilteringIndicator/FilteringIndicator";
-import { NotionFilter } from "@/components/shared/NotionFilter/NotionFilter";
-import { CONDITIONS_NO_EMPTY, CONDITIONS_WITH_EMPTY } from "@/components/shared/NotionFilter/types";
+import { PropertyFilter } from "@/components/shared/PropertyFilter/PropertyFilter";
+import { CONDITIONS_NO_EMPTY, CONDITIONS_WITH_EMPTY } from "@/components/shared/PropertyFilter/types";
 import type {
   ActiveFilter,
   ActiveSort,
   FilterProperty,
   SortProperty,
-} from "@/components/shared/NotionFilter/types";
+} from "@/components/shared/PropertyFilter/types";
 import { Pagination } from "@/components/shared/Pagination/Pagination";
 import { RowActionButton } from "@/components/shared/RowActionButton";
 import { SortableHeader } from "@/components/shared/SortableHeader/SortableHeader";
@@ -185,7 +185,7 @@ export function AccountingListTable({
 
   return (
     <>
-      <NotionFilter
+      <PropertyFilter
         properties={FILTER_PROPERTIES}
         activeFilters={activeFilters}
         onFilterChange={onFilterChange}
@@ -288,7 +288,7 @@ function AccountingListRow({
           <Button
             variant="ghost"
             size="icon"
-            className={`h-8 w-8 ${C.accent} ${C.hoverTextAccent} ${C.hoverBgAccent5}`}
+            className={`h-8 w-8 ${C.textBrand} ${C.hoverTextBrand} ${C.hoverBgBrand5}`}
             onClick={(event) => {
               event.stopPropagation();
               onMedicalRecordOpen(accounting.medicalRecordId!);

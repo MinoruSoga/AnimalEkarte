@@ -2,7 +2,7 @@ import { memo, useCallback, useEffect, useState, type ChangeEvent } from "react"
 import { Scissors } from "lucide-react";
 
 import { MasterSidePanel, PropertyInput, PropertyRow } from "@/components/shared/SidePeek";
-import { NotionStatusPill } from "@/components/shared/StatusPill/NotionStatusPill";
+import { StatusPill } from "@/components/shared/StatusPill/StatusPill";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { C, LAYOUT, STYLE } from "@/lib/design-tokens";
 
@@ -115,7 +115,7 @@ export const TrimmingCourseSidePanel = memo(function TrimmingCourseSidePanel({
           onClick={handleToggleStatus}
           className={`inline-flex items-center rounded-[3px] ${C.hoverBgLight} transition-colors py-0.5 px-0.5 cursor-pointer`}
         >
-          <NotionStatusPill isActive={formData.isActive} />
+          <StatusPill isActive={formData.isActive} />
         </button>
       </PropertyRow>
 

@@ -45,7 +45,7 @@ test.describe('設定マスタ CRUD E2E', () => {
       await settings.open('/settings/animal-species');
       await expect(settings.heading('動物種類マスタ')).toBeVisible();
 
-      // NotionFilter: 検索トグルを開いてから入力
+      // PropertyFilter: 検索トグルを開いてから入力
       await page.getByLabel('検索').click();
       const searchInput = page.getByPlaceholder('動物種類名で検索...');
       await expect(searchInput).toBeVisible();
@@ -78,7 +78,7 @@ test.describe('設定マスタ CRUD E2E', () => {
       await settings.open('/settings/animal-species');
       await expect(settings.heading('動物種類マスタ')).toBeVisible();
 
-      // NotionFilter: 検索トグルボタンをクリックして入力欄を表示
+      // PropertyFilter: 検索トグルボタンをクリックして入力欄を表示
       await page.getByLabel('検索').click();
       const searchInput = page.getByPlaceholder('動物種類名で検索...');
       await expect(searchInput).toBeVisible();

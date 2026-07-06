@@ -96,7 +96,7 @@ export function ClinicMasterSidePanel({
                     }
                     className={`inline-flex items-center rounded-[3px] ${C.hoverBgLight} transition-colors py-0.5 px-0.5 cursor-pointer`}
                   >
-                    <NotionStatusPill status={formData.is_active ? "active" : "inactive"} />
+                    <StatusPill status={formData.is_active ? "active" : "inactive"} />
                   </button>
                 </PropertyRow>
 
@@ -392,7 +392,7 @@ function ClinicBooleanProperty({
         onClick={() => onChange(!value)}
         className={`inline-flex items-center rounded-[3px] ${C.hoverBgLight} transition-colors py-0.5 px-0.5 cursor-pointer`}
       >
-        <NotionStatusPill status={value ? "active" : "inactive"} />
+        <StatusPill status={value ? "active" : "inactive"} />
       </button>
     </PropertyRow>
   );
@@ -487,10 +487,10 @@ function SectionOrderProperty({
 
 const STATUS_CONFIG = {
   active: {
-    dot: `${C.bgAccent}`,
+    dot: `${C.bgBrandDot}`,
     label: "有効",
-    bg: `${C.bgAccentLight}`,
-    text: `${C.textAccentDark}`,
+    bg: `${C.bgBrandLight}`,
+    text: `${C.textBrandDark}`,
   },
   inactive: {
     dot: C.bgPrimary10,
@@ -500,7 +500,7 @@ const STATUS_CONFIG = {
   },
 } as const;
 
-function NotionStatusPill({ status }: { status: "active" | "inactive" }) {
+function StatusPill({ status }: { status: "active" | "inactive" }) {
   const cfg = STATUS_CONFIG[status];
   return (
     <span

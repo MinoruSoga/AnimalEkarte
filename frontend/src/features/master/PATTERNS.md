@@ -15,7 +15,7 @@
 4. [サイドピーク](#4-サイドピーク)
 5. [ステータス表示](#5-ステータス表示)
 6. [新規登録ボタン](#6-新規登録ボタン)
-7. [NotionFilter](#7-notionfilter)
+7. [PropertyFilter](#7-propertyfilter)
 8. [タブ切り替え](#8-タブ切り替え)
 
 ---
@@ -28,7 +28,7 @@ PageLayout
     ├── TabsPrimitive.List      # タブナビゲーション
     └── TabsPrimitive.Content   # タブコンテンツ
         └── XxxTab（コンポーネント）
-            ├── NotionFilter + 新規登録ボタン
+            ├── PropertyFilter + 新規登録ボタン
             ├── DndContext > SortableContext > DataTable
             └── サイドピーク（isEditing ? <XxxSidePanel /> : null）
 ```
@@ -109,7 +109,7 @@ const COLUMNS = [
 
 // ステータスセル
 <TableCell className="text-center py-2.5">
-  <NotionStatusPill isActive={item.isActive} />
+  <StatusPill isActive={item.isActive} />
 </TableCell>
 
 // 操作ボタンセル
@@ -363,7 +363,7 @@ function XxxSidePanel({ item, onClose, onSave, onDeleteRequest }) {
                 onClick={() => setFormData({ ...formData, isActive: !formData.isActive })}
                 className={`inline-flex items-center rounded-[3px] ${C.hoverBgLight} transition-colors py-0.5 px-0.5 cursor-pointer`}
               >
-                <NotionStatusPill isActive={formData.isActive} />
+                <StatusPill isActive={formData.isActive} />
               </button>
             </PropertyRow>
 
@@ -441,7 +441,7 @@ function PropInput({ value, onChange, placeholder }: {
 | `STYLE.sidePeekBody` | `flex-1 overflow-y-auto` |
 | `STYLE.sidePeekFooter` | `flex items-center justify-end gap-2 px-4 py-3 border-t ${C.borderLight} shrink-0` |
 | `STYLE.sidePeekCancelBtn` | `px-4 py-[7px] text-base ${C.text65} ${C.hoverBgLight} rounded-[3px] transition-colors cursor-pointer` |
-| `STYLE.sidePeekSaveBtn` | `px-5 py-[7px] text-base text-white ${C.bgAccent} ${C.bgAccentHover} rounded-[3px] transition-colors cursor-pointer shadow-[0_1px_2px_rgba(0,0,0,0.1)]` |
+| `STYLE.sidePeekSaveBtn` | `px-5 py-[7px] text-base text-white ${C.bgBrand} ${C.hoverBgBrand} rounded-[3px] transition-colors cursor-pointer shadow-[0_1px_2px_rgba(0,0,0,0.1)]` |
 | `STYLE.pageIcon` | `size-[38px] flex items-center justify-center rounded-[3px] ${C.bgPage} ${C.text45}` |
 | `LAYOUT.pageIcon.innerIcon` | `"size-5"` |
 
@@ -474,15 +474,15 @@ const panelDuration = useReducedMotion() ? 0 : 0.2;
 
 ## 5. ステータス表示
 
-マスタページのステータスは **NotionStatusPill** を使う。`StatusBadge` は使わない。
+マスタページのステータスは **StatusPill** を使う。`StatusBadge` は使わない。
 
 ```tsx
 const STATUS_CONFIG = {
   active: {
-    dot:   C.bgAccent,       // 青ドット
+    dot:   C.bgBrandDot,     // ブランドteal ドット
     label: "有効",
-    bg:    C.bgAccentLight,  // 薄青背景
-    text:  C.textAccentDark, // 濃青テキスト
+    bg:    C.bgBrandLight,   // 薄teal背景
+    text:  C.textBrandDark,  // 濃teal テキスト
   },
   inactive: {
     dot:   C.bgPrimary10,    // グレードット
@@ -492,7 +492,7 @@ const STATUS_CONFIG = {
   },
 } as const;
 
-function NotionStatusPill({ isActive }: { isActive: boolean }) {
+function StatusPill({ isActive }: { isActive: boolean }) {
   const cfg = STATUS_CONFIG[isActive ? "active" : "inactive"];
   return (
     <span
@@ -517,19 +517,19 @@ function NotionStatusPill({ isActive }: { isActive: boolean }) {
 <button
   type="button"
   onClick={handleCreate}
-  className={`inline-flex items-center gap-1 text-sm font-medium ${C.accent} ${C.hoverTextAccent} cursor-pointer transition-colors`}
+  className={`inline-flex items-center gap-1 text-sm font-medium ${C.textBrand} ${C.hoverTextBrand} cursor-pointer transition-colors`}
 >
   <Plus className="size-4" />
   新規登録
 </button>
 ```
 
-**配置**: NotionFilter の右端（flex レイアウトで末尾に）
+**配置**: PropertyFilter の右端（flex レイアウトで末尾に）
 
 ```tsx
 <div className="flex items-center gap-3">
   <div className="flex-1 min-w-0">
-    <NotionFilter ... />
+    <PropertyFilter ... />
   </div>
   {/* 新規登録ボタン */}
   <button type="button" onClick={handleCreate} className="...">
@@ -541,12 +541,12 @@ function NotionStatusPill({ isActive }: { isActive: boolean }) {
 
 ---
 
-## 7. NotionFilter
+## 7. PropertyFilter
 
 ```tsx
-import { NotionFilter } from "@/components/shared/NotionFilter/NotionFilter";
+import { PropertyFilter } from "@/components/shared/PropertyFilter/PropertyFilter";
 
-<NotionFilter
+<PropertyFilter
   properties={FILTER_PROPERTIES}
   activeFilters={activeFilters}
   onFilterChange={setActiveFilters}
@@ -638,10 +638,10 @@ export function XxxSettings() {
 - [ ] D&Dハンドルは先頭カラム `w-[32px]`、`GripVertical`、`{...listeners}` をセルに
 - [ ] `orderedItems`（`useSortableList` 戻り値）をレンダリング（`items` 直接不可）
 - [ ] テーブルセルに `py-2.5` を付与
-- [ ] ステータスは `NotionStatusPill`（`StatusBadge` 禁止）
+- [ ] ステータスは `StatusPill`（`StatusBadge` 禁止）
 - [ ] 新規登録ボタンはテキストリンクスタイル（`PrimaryButton` 禁止）
 - [ ] サイドピーク幅は `LAYOUT.sidePeek.width`（`w-[520px]`）
 - [ ] サイドピークは `isEditing ? <Panel /> : null` で条件レンダー（`&&` 禁止）
 - [ ] `key` プロップでサイドピークをリセット（新規 vs 編集）
 - [ ] URL `?tab=xxx` でタブ状態を管理（`useSearchParams`）
-- [ ] `NotionFilter` の `count` にはフィルタ後の件数を渡す
+- [ ] `PropertyFilter` の `count` にはフィルタ後の件数を渡す

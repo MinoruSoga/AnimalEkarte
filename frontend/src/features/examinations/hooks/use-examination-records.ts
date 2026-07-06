@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { useGetExaminations } from "../api/get-examinations";
 import { normalizeKana } from "@/lib/normalize-kana";
 import type { ExaminationFilters } from "../api/get-examinations";
-import type { ActiveFilter } from "@/components/shared/NotionFilter/types";
+import type { ActiveFilter } from "@/components/shared/PropertyFilter/types";
 
 export function useFilterExaminationRecords(
   searchTerm: string,

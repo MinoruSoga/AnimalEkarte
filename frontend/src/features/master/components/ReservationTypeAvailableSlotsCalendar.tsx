@@ -33,7 +33,7 @@ const HEADER_ROW = (
       <div
         key={d}
         className={`py-3 text-sm font-bold text-center ${
-          i === 5 ? C.accent : i === 6 ? C.danger : C.text60
+          i === 5 ? C.textBrand : i === 6 ? C.danger : C.text60
         }`}
       >
         {d}
@@ -170,7 +170,7 @@ export function ReservationTypeAvailableSlotsCalendar({
             <span className={`text-base ${C.text60}`}>毎週の枠</span>
           </div>
           <div className="flex items-center gap-1.5">
-            <span className={`${ICON.dotMd} rounded-full ${C.bgAccent}`} />
+            <span className={`${ICON.dotMd} rounded-full ${C.bgBrandDot}`} />
             <span className={`text-base ${C.text60}`}>特定日の枠</span>
           </div>
         </div>
@@ -220,7 +220,7 @@ export function ReservationTypeAvailableSlotsCalendar({
                       className={`text-sm px-2 py-1.5 rounded border leading-tight flex items-center gap-1 tabular-nums ${
                         weekly
                           ? `${C.bgPage} ${C.text50} ${C.borderLight}`
-                          : `${C.bgAccentLight} ${C.textAccentDark} ${C.borderLight}`
+                          : `${C.bgBrandLight} ${C.textBrandDark} ${C.borderLight}`
                       }`}
                     >
                       {weekly ? <Repeat className="size-3 shrink-0" /> : null}
@@ -263,7 +263,7 @@ export function ReservationTypeAvailableSlotsCalendar({
                       `${paths.settings.reservationType.getHref()}?typeId=${reservationTypeId}`,
                     )
                   }
-                  className={`text-xs ${C.text40} ${C.hoverTextAccent} transition-colors`}
+                  className={`text-xs ${C.text40} ${C.hoverTextBrand} transition-colors`}
                 >
                   毎週枠は予約区分マスタで編集 →
                 </button>
@@ -276,7 +276,7 @@ export function ReservationTypeAvailableSlotsCalendar({
                 {selectedSpecificSlots.map((slot) => (
                   <span
                     key={slot.id}
-                    className={`flex items-center gap-1 text-sm px-2 py-1 rounded border ${C.borderLight} ${C.bgAccentLight} ${C.textAccentDark} tabular-nums`}
+                    className={`flex items-center gap-1 text-sm px-2 py-1 rounded border ${C.borderLight} ${C.bgBrandLight} ${C.textBrandDark} tabular-nums`}
                   >
                     {slot.startTime}
                     <button

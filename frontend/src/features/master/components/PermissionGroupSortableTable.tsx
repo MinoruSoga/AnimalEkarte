@@ -5,7 +5,7 @@ import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable"
 import { DataTable, DESIGN_TABLE_HEADER_ROW, DESIGN_TABLE_HEADER_CELL } from "@/components/shared/DataTable/DataTable";
 import { SortableDataTableRow } from "@/components/shared/DataTable/SortableDataTableRow";
 import { RowActionButton } from "@/components/shared/RowActionButton";
-import { NotionStatusPill } from "@/components/shared/StatusPill/NotionStatusPill";
+import { StatusPill } from "@/components/shared/StatusPill/StatusPill";
 import { TableCell } from "@/components/ui/table";
 import { C } from "@/lib/design-tokens";
 
@@ -46,7 +46,7 @@ export function PermissionGroupSortableTable({
             <SortableDataTableRow key={item.id} id={item.id} onClick={() => onEdit(item)}>
               <TableCell className={`font-medium text-base ${C.text}`}>{item.name}</TableCell>
               <TableCell className="text-center">
-                <NotionStatusPill isActive={item.isActive} />
+                <StatusPill isActive={item.isActive} />
               </TableCell>
               <TableCell className="p-0 text-right">
                 {canEdit ? <RowActionButton onClick={() => onEdit(item)} /> : null}

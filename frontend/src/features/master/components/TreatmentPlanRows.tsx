@@ -4,7 +4,7 @@ import ChevronRight from "lucide-react/dist/esm/icons/chevron-right";
 import { DataTableRow } from "@/components/shared/DataTable/DataTableRow";
 import { SortableDataTableRow } from "@/components/shared/DataTable/SortableDataTableRow";
 import { RowActionButton } from "@/components/shared/RowActionButton";
-import { NotionStatusPill } from "@/components/shared/StatusPill/NotionStatusPill";
+import { StatusPill } from "@/components/shared/StatusPill/StatusPill";
 import { TableCell } from "@/components/ui/table";
 import { C, ICON } from "@/lib/design-tokens";
 import type { TreatmentItem } from "@/lib/transforms/treatment";
@@ -79,7 +79,7 @@ function RootTreatmentRow({
       </TableCell>
       <TreatmentPriceCell price={item.price} />
       <TableCell className="text-center">
-        <NotionStatusPill isActive={item.isActive} />
+        <StatusPill isActive={item.isActive} />
       </TableCell>
       <TableCell className="p-0 text-right">
         {canEdit ? <RowActionButton onClick={onEdit} /> : null}
@@ -139,7 +139,7 @@ function ChildTreatmentRow({ item, onEdit, canEdit }: ChildTreatmentRowProps) {
       </TableCell>
       <TreatmentPriceCell price={item.price} />
       <TableCell className="text-center">
-        <NotionStatusPill isActive={item.isActive} />
+        <StatusPill isActive={item.isActive} />
       </TableCell>
       <TableCell className="p-0 text-right">
         {canEdit ? <RowActionButton onClick={onEdit} /> : null}

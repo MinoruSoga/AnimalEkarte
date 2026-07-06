@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { SearchableSelect } from "@/components/ui/searchable-select";
-import { NotionDatePicker } from "@/components/shared/NotionDatePicker";
+import { DatePicker } from "@/components/shared/DatePicker";
 import { MasterLink } from "@/components/shared/MasterLink";
 import { C } from "@/lib/design-tokens";
 
@@ -89,7 +89,7 @@ export const VaccinationForm = memo(function VaccinationForm({
           <Label className={`text-sm font-medium ${C.text60}`}>
             予防接種日
           </Label>
-          <NotionDatePicker value={date} onChange={setDate} />
+          <DatePicker value={date} onChange={setDate} />
         </div>
       </div>
 
@@ -219,7 +219,7 @@ export const VaccinationForm = memo(function VaccinationForm({
         <Label className={`text-sm font-medium ${C.text60}`}>
           次回予定日
         </Label>
-        <NotionDatePicker value={nextDate} onChange={setNextDate} />
+        <DatePicker value={nextDate} onChange={setNextDate} />
       </div>
 
       {/* Remarks */}

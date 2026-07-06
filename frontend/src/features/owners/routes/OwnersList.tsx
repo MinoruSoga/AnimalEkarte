@@ -37,7 +37,7 @@ import type { Pet } from "@/types";
 import type { OwnersLoaderData } from "../loaders";
 import type { PetFormData } from "../types";
 import type { UpdatePetRequest } from "@/types/pet";
-import type { ActiveFilter } from "@/components/shared/NotionFilter/types";
+import type { ActiveFilter } from "@/components/shared/PropertyFilter/types";
 import { ResourceMedicalRecords, ResourceOwners } from "@/types/generated/models";
 import { OwnersListTable } from "../components/OwnersListTable";
 

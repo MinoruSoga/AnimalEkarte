@@ -4,24 +4,47 @@
 > **読者**: 開発者。
 > **タイミング**: seed/migration変更時。
 
-更新日: 2026-06-04
+更新日: 2026-07-06
 
 ## 前提
 
-- `001_init.sql` / `002_seed_master.sql` / `003_seed_demo.sql` / `004_seed_staging.sql` は、fresh DB への初期構築前提で順次適用される。
-- 既に適用済みの migration / seed を編集すると、既存 DB の `schema_migrations` に記録された checksum と不一致になる。
+- `backend/migrations/` に存在する `.sql` は `001_init.sql`（DDL 専用、変更しない）のみ。002/003/004 の stub SQL ファイルは **2026-07 に削除済み**。002〜004 は現在 `backend/migrations/seeds/{002_master,003_demo,004_staging}/` という CSV + `manifest.json` のディレクトリとしてのみ存在する。
+- **cmd/migrate は二段フェーズ構成**（`backend/cmd/migrate/main.go`）:
+  1. `*.sql`（実質 `001_init.sql` のみ）を昇順適用し `schema_migrations` にファイル名で記録
+  2. 完了後、`internal/seedbundle.BundleOrder` の固定順（`002_master → 003_demo → 004_staging`）で CSV バンドルを pgx `COPY FROM STDIN` ロードし、`internal/seedbundle.BundleMigrationKey(bundleDir)`（`"seeds/002_master"` 等）で `schema_migrations` に記録する
+  - 正データの唯一の生成経路は **使い捨てDBへの実適用 → `COPY ... TO STDOUT` ダンプ**（`backend/cmd/seed-export`）。SQL の静的パースによる生成は禁止（ON CONFLICT の最終マージ状態や `random()` 依存データは静的パースでは再現できないため）。
+  - `schema_migrations` に記録される seed バンドルの checksum（`bundleChecksum`）は `manifest.json` + 全 CSV ファイルを合成したもの — CSV のみの変更でも通常の migration ファイル編集と同じ checksum mismatch ガードが働く。
+  - COPY はシーケンス（BIGSERIAL）を進めないため、`cmd/migrate` は各テーブルロード後に自動で `setval` を実行する（`advanceSerialSequence`）。
+- fresh DB 適用後の正しい終了状態は `schema_migrations` に **4行**: `001_init.sql` + `seeds/002_master` + `seeds/003_demo` + `seeds/004_staging`。
+- 既に適用済みの `001_init.sql` / seed バンドル（CSV・manifest.json）を編集すると、既存 DB の `schema_migrations` に記録された checksum と不一致になる。
+- **旧形式（stub SQL 時代）互換なし**: `schema_migrations` に `002_seed_master.sql` 等の旧キーが残る DB（2026-07 削除より前のバイナリで migrate 済み）を現行バイナリで起動すると `detectLegacySeedKeys` が fail-fast する。エラーメッセージが出た場合は in-place 移行ではなく `db_reset=true` かボリューム再構築で対応する。
 
 ## 今回の事故で確認したこと
 
-- seed master 差し替えは静的 grep だけでは不十分で、**fresh DB apply** まで通して初めて `(clinic_id, name)` の実衝突を検知できた。
+- seed master 差し替えは静的 grep だけでは不十分で、**fresh DB apply** まで通して初めて `(clinic_id, name)` の実衝突を検知できた。この教訓が CSV 移行時の「正データ=DBダンプ・静的パース禁止」の根拠になっている。
 - 今回の demo/master 差し替えは **DB reset 前提** で判断した。既存 DB にそのまま上書き適用する前提ではない。
 - ローカル復旧で必要だったのは `make reset` 相当の DB 再構築であり、`make db` は `psql` 接続用コマンドであって reset ではない。
-- STG で適用済み migration/seed を編集して反映する場合、`backend-deploy.yml` の `db_reset=true` が必要になる可能性が高い。
+- STG で適用済み migration/seed を編集して反映する場合、`backend-deploy.yml` の `db_reset=true` が必要になる可能性が高い。**stub SQL 削除自体も 002〜004 の記録キーを変える破壊的変更のため、既に適用済みの環境（STG 等）へは `db_reset=true` が必須**（旧キーが残った状態で新バイナリを起動すると fail-fast する）。
+
+## CSV シードバンドルの再生成（seed データ内容を変更する場合）
+
+seed データの内容（行の追加・削除・値変更）を変えたい場合は、CSV を直接手編集せず、以下の手順で **使い捨てDBからの再エクスポート** を行う。
+
+```bash
+# 1. db が起動していること（docker compose ps で確認）
+# 2. 使い捨てDB seed_export_tmp を作成 → 未改変の 002-004 フル INSERT 版を適用
+#    → 90テーブルを COPY ダンプ → seed_export_tmp を削除、まで一括実行
+docker compose exec backend go run ./cmd/seed-export
+```
+
+- `cmd/seed-export` は `DB_HOST` が `db`/`localhost`/`127.0.0.1` 以外なら拒否し、DB名は常に固定の `seed_export_tmp`（環境変数 `DB_NAME` は無視）— 本番/STG DBを誤操作する経路が構造的に存在しない。
+- 003 の高密度予約デモ生成（`random()`使用）は、この使い捨てDB適用の中で一度だけ実行され、その結果行がそのまま CSV としてダンプされる。**同じデータを再現したい場合に「2回実行して同じハッシュになるか」を確認する検証方法は誤り** — 実行のたびに新しい使い捨てDBを作るため、`random()` は毎回新しい値を引く。凍結の担保は「dump 側が読み取り専用の `COPY TO STDOUT` しか実行しない」ことと「移行後は `cmd/migrate` 側に `random()`/DO ブロックが一切残っていない」ことの両方で保証される。
+- 生成された CSV / `manifest.json` は `git add` して通常のコミットフローでレビューする。
 
 ## 変更時の最低確認
 
-1. `python3 scripts/verify_seed.py`
-2. fresh DB への migration apply 検証
+1. `python3 scripts/verify_seed.py`（CSV ベース。SQL の静的パースは行わない）
+2. fresh DB への migration apply 検証（`docker compose exec backend go test ./cmd/migrate/...` はスコープ限定で自動実行可。実DBへの fresh apply はユーザー手動）
 3. seed/migration を編集した場合は、checksum mismatch と `db_reset=true` 要否を事前に整理する
 
 ## ローカル復旧

@@ -8,7 +8,8 @@
     "cf:whoami": "wrangler whoami",
     "cf:deploy": "cd backend && wrangler deploy",
     "cf:migrate": "./infra/scripts/cf-run-migrate.sh",
-    "cf:smoke": "./infra/scripts/cf-crud-smoke.sh"
+    "cf:smoke": "./infra/scripts/cf-crud-smoke.sh",
+    "cf:load-smoke": "k6 run load-tests/k6-cf-stg-sustained.js"
   },
   "dependencies": {
     "@openai/codex": "^0.120.0",

@@ -21,7 +21,7 @@ interface DateRangeInputsProps {
 /**
  * ネイティブ日付 Input x2 + 「〜」区切りの軽量レンジフィルタ。
  * AggregationFilterPanelParts の VisitFilters と LstepDeliveryMonitorPageParts の
- * DeliveryMonitorFilters から抽出。重量級の NotionDatePickerRange とは別物。
+ * DeliveryMonitorFilters から抽出。重量級の DatePickerRange とは別物。
  */
 export function DateRangeInputs({
   fromValue,

@@ -4,7 +4,7 @@ import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable"
 import { Plus } from "lucide-react";
 
 import { RowActionButton } from "@/components/shared/RowActionButton";
-import { NotionStatusPill } from "@/components/shared/StatusPill/NotionStatusPill";
+import { StatusPill } from "@/components/shared/StatusPill/StatusPill";
 import { SortableDataTableRow } from "@/components/shared/DataTable/SortableDataTableRow";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { C, ICON, STYLE } from "@/lib/design-tokens";
@@ -98,7 +98,7 @@ export function MerchandiseSortableTable({
                       {formatMerchandiseTaxRate(item.taxRate)}
                     </TableCell>
                     <TableCell className="text-center">
-                      <NotionStatusPill isActive={item.isActive} />
+                      <StatusPill isActive={item.isActive} />
                     </TableCell>
                     <TableCell className="p-0 text-right pr-2">
                       {canEdit ? <RowActionButton onClick={() => onEdit(item)} /> : null}

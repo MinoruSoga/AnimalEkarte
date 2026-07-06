@@ -1,6 +1,6 @@
 import { GripVertical } from "lucide-react";
 
-import { NotionStatusPill } from "@/components/shared/StatusPill/NotionStatusPill";
+import { StatusPill } from "@/components/shared/StatusPill/StatusPill";
 import { C, ICON, STYLE } from "@/lib/design-tokens";
 
 import type { FrontendMerchandiseItem } from "../api/merchandise-items";
@@ -33,7 +33,7 @@ export function MerchandiseRowOverlay({ item }: MerchandiseRowOverlayProps) {
         {formatMerchandiseTaxRate(item.taxRate)}
       </div>
       <div className="w-[90px] shrink-0 flex justify-center">
-        <NotionStatusPill isActive={item.isActive} />
+        <StatusPill isActive={item.isActive} />
       </div>
       <div className="w-[80px] shrink-0" />
     </div>

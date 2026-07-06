@@ -33,7 +33,7 @@ import { usePermission } from "@/hooks/use-permission";
 
 // Types
 import type { Accounting as AccountingType } from "../types";
-import type { ActiveFilter } from "@/components/shared/NotionFilter/types";
+import type { ActiveFilter } from "@/components/shared/PropertyFilter/types";
 import { ResourceAccounting } from "@/types/generated/models";
 
 const TABS = [

@@ -14,7 +14,7 @@ import { Plus, TestTube, Calendar, CircleDot, FlaskConical, User } from "lucide-
 import { TableCell } from "@/components/ui/table";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { LoadingFallback, ErrorFallback } from "@/components/shared/DataStates";
-import { NotionFilter } from "@/components/shared/NotionFilter/NotionFilter";
+import { PropertyFilter } from "@/components/shared/PropertyFilter/PropertyFilter";
 import { DataTable, DESIGN_TABLE_HEADER_ROW, DESIGN_TABLE_HEADER_CELL } from "@/components/shared/DataTable/DataTable";
 import { DataTableRow } from "@/components/shared/DataTable/DataTableRow";
 import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
@@ -36,8 +36,8 @@ import type {
   FilterProperty,
   ActiveFilter,
   SortProperty,
-} from "@/components/shared/NotionFilter/types";
-import { CONDITIONS_NO_EMPTY, CONDITIONS_WITH_EMPTY } from "@/components/shared/NotionFilter/types";
+} from "@/components/shared/PropertyFilter/types";
+import { CONDITIONS_NO_EMPTY, CONDITIONS_WITH_EMPTY } from "@/components/shared/PropertyFilter/types";
 import type { ExaminationRecord } from "../api/transforms";
 import { ResourceExaminations } from "@/types/generated/models";
 
@@ -259,7 +259,7 @@ export function ExaminationsList() {
       maxWidth="max-w-full"
     >
       <div className="flex flex-col gap-4">
-        <NotionFilter
+        <PropertyFilter
           properties={filterProperties}
           activeFilters={activeFilters}
           onFilterChange={setActiveFilters}

@@ -1,8 +1,9 @@
 import { useActionState, useState, useCallback } from "react";
-import { Printer } from "lucide-react";
+import { Calculator, Printer } from "lucide-react";
 import { toast } from "sonner";
-import { C, STYLE } from "@/lib/design-tokens";
+import { C, ICON, LAYOUT, STYLE } from "@/lib/design-tokens";
 import { SubmitButton } from "@/components/shared/Form/SubmitButton";
+import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { handleApiError } from "@/lib/handle-api-error";
 import { useCurrentClinicName } from "@/hooks/use-current-clinic-name";
 import {
@@ -23,6 +24,7 @@ import { CashReconciliationCard } from "../components/CashReconciliationCard";
 import { BillingDetailTable } from "../components/BillingDetailTable";
 import { ClosePrintArea } from "../components/ClosePrintArea";
 import { useCashRegisterCloseForm } from "../hooks/use-cash-register-close-form";
+import { ResourceCashRegisterClose } from "@/types/generated/models";
 
 export function CashRegisterClosePage() {
   const { date, period, previewEnabled, handleDateChange, handlePeriodChange, enablePreview } =
@@ -76,235 +78,240 @@ export function CashRegisterClosePage() {
   const periodLabel = PERIOD_LABELS[period];
 
   return (
-    <div className="flex-1 overflow-y-auto px-6 py-6 space-y-6">
-      <h1 className={`text-xl font-bold ${C.text}`}>レジ締め</h1>
-
-      {/* 対象日・区分選択 */}
-      <section className={`${C.bgWhite} rounded-lg border ${C.borderLight} p-6`}>
-        <h2 className={`text-base font-semibold ${C.text} mb-4`}>対象日時の選択</h2>
-        <div className="flex flex-wrap items-end gap-4">
-          <div>
-            <label htmlFor="target_date" className={STYLE.formLabel}>
-              対象日
-            </label>
-            <input
-              id="target_date"
-              type="date"
-              value={date}
-              onChange={(e) => handleDateChange(e.target.value)}
-              className={`${STYLE.formInput} mt-1 rounded-[4px] border px-3 block`}
-            />
-          </div>
-          <div>
-            <p className={`${STYLE.formLabel} mb-1`}>区分</p>
-            <div className="flex gap-2">
-              {PERIOD_OPTIONS.map((p) => (
-                <button
-                  key={p}
-                  type="button"
-                  onClick={() => handlePeriodChange(p)}
-                  className={`px-4 h-11 text-base rounded-[4px] border transition-colors ${
-                    period === p
-                      ? `${C.bgBrand} ${C.textWhite} border-transparent`
-                      : `${C.bgWhite} ${C.borderMedium} ${C.text} ${C.hoverBgLight}`
-                  }`}
-                >
-                  {PERIOD_LABELS[p]}
-                </button>
-              ))}
+    <PageLayout
+      title="レジ締め"
+      resource={ResourceCashRegisterClose}
+      icon={<Calculator className={`${ICON.page} ${C.text}`} />}
+      maxWidth={LAYOUT.pageContentMaxWidth.full}
+    >
+      <div className="space-y-6">
+        {/* 対象日・区分選択 */}
+        <section className={`${C.bgWhite} rounded-lg border ${C.borderLight} p-6`}>
+          <h2 className={`text-base font-semibold ${C.text} mb-4`}>対象日時の選択</h2>
+          <div className="flex flex-wrap items-end gap-4">
+            <div>
+              <label htmlFor="target_date" className={STYLE.formLabel}>
+                対象日
+              </label>
+              <input
+                id="target_date"
+                type="date"
+                value={date}
+                onChange={(e) => handleDateChange(e.target.value)}
+                className={`${STYLE.formInput} mt-1 rounded-[4px] border px-3 block`}
+              />
             </div>
-          </div>
-          <button
-            type="button"
-            onClick={enablePreview}
-            className={`h-11 px-5 text-base rounded-[4px] ${C.bgBrand} ${C.textWhite} ${C.hoverBgBrand} transition-colors`}
-          >
-            プレビュー
-          </button>
-        </div>
-      </section>
-
-      {previewLoading ? (
-        <div className="flex items-center justify-center py-8">
-          <p className={`text-base ${C.text50}`}>読み込み中...</p>
-        </div>
-      ) : null}
-
-      {preview !== undefined && !previewLoading ? (
-        <>
-          {preview.isHoliday ? (
-            <div className={`p-4 rounded-lg ${C.bgNotice} border ${C.borderNotice}`}>
-              <p className={`text-base ${C.textNotice}`}>この日は休診日として設定されています</p>
-            </div>
-          ) : null}
-
-          {preview.isAlreadyClosed ? (
-            <div className={`p-4 rounded-lg ${C.bgStatusGreen} border ${C.borderStatusGreen}`}>
-              <p className={`text-base font-medium ${C.textStatusGreen}`}>
-                {date} {periodLabel} はすでに締め済みです
-              </p>
-            </div>
-          ) : (
-            <>
-              {/* 印刷 / PDF 出力導線（#153: #184 と同じ印刷基盤を再利用）*/}
-              <div className="flex justify-end print:hidden" data-testid="close-actions">
-                <button
-                  type="button"
-                  onClick={() => window.print()}
-                  data-testid="close-print-button"
-                  className={`flex items-center gap-2 px-4 h-10 text-base rounded-[4px] ${C.bgWhite} border ${C.borderMedium} ${C.text} ${C.hoverBgLight} transition-colors`}
-                >
-                  <Printer className="size-4" />
-                  印刷 / PDF出力
-                </button>
+            <div>
+              <p className={`${STYLE.formLabel} mb-1`}>区分</p>
+              <div className="flex gap-2">
+                {PERIOD_OPTIONS.map((p) => (
+                  <button
+                    key={p}
+                    type="button"
+                    onClick={() => handlePeriodChange(p)}
+                    className={`px-4 h-11 text-base rounded-[4px] border transition-colors ${
+                      period === p
+                        ? `${C.bgBrand} ${C.textWhite} border-transparent`
+                        : `${C.bgWhite} ${C.borderMedium} ${C.text} ${C.hoverBgLight}`
+                    }`}
+                  >
+                    {PERIOD_LABELS[p]}
+                  </button>
+                ))}
               </div>
+            </div>
+            <button
+              type="button"
+              onClick={enablePreview}
+              className={`h-11 px-5 text-base rounded-[4px] ${C.bgBrand} ${C.textWhite} ${C.hoverBgBrand} transition-colors`}
+            >
+              プレビュー
+            </button>
+          </div>
+        </section>
 
-              {/* 統合テーブル: 部門別集計（件数＋支払方法別金額＋合計）*/}
-              <section className={`${C.bgWhite} rounded-lg border ${C.borderLight} p-6`}>
-                <h2 className={`text-base font-semibold ${C.text} mb-4`}>部門別集計</h2>
-                <UnifiedClosingSummaryTable
+        {previewLoading ? (
+          <div className="flex items-center justify-center py-8">
+            <p className={`text-base ${C.text50}`}>読み込み中...</p>
+          </div>
+        ) : null}
+
+        {preview !== undefined && !previewLoading ? (
+          <>
+            {preview.isHoliday ? (
+              <div className={`p-4 rounded-lg ${C.bgNotice} border ${C.borderNotice}`}>
+                <p className={`text-base ${C.textNotice}`}>この日は休診日として設定されています</p>
+              </div>
+            ) : null}
+
+            {preview.isAlreadyClosed ? (
+              <div className={`p-4 rounded-lg ${C.bgStatusGreen} border ${C.borderStatusGreen}`}>
+                <p className={`text-base font-medium ${C.textStatusGreen}`}>
+                  {date} {periodLabel} はすでに締め済みです
+                </p>
+              </div>
+            ) : (
+              <>
+                {/* 印刷 / PDF 出力導線（#153: #184 と同じ印刷基盤を再利用）*/}
+                <div className="flex justify-end print:hidden" data-testid="close-actions">
+                  <button
+                    type="button"
+                    onClick={() => window.print()}
+                    data-testid="close-print-button"
+                    className={`flex items-center gap-2 px-4 h-10 text-base rounded-[4px] ${C.bgWhite} border ${C.borderMedium} ${C.text} ${C.hoverBgLight} transition-colors`}
+                  >
+                    <Printer className="size-4" />
+                    印刷 / PDF出力
+                  </button>
+                </div>
+
+                {/* 統合テーブル: 部門別集計（件数＋支払方法別金額＋合計）*/}
+                <section className={`${C.bgWhite} rounded-lg border ${C.borderLight} p-6`}>
+                  <h2 className={`text-base font-semibold ${C.text} mb-4`}>部門別集計</h2>
+                  <UnifiedClosingSummaryTable
+                    categories={preview.aggregate.categories}
+                    paymentMethods={preview.aggregate.paymentMethods}
+                    billingDetails={preview.billingDetails}
+                  />
+                </section>
+
+                {/* 印刷 / PDF 出力ビュー（印刷時のみ表示）*/}
+                <ClosePrintArea
+                  date={preview.date}
+                  period={period}
+                  clinicName={clinicName}
                   categories={preview.aggregate.categories}
                   paymentMethods={preview.aggregate.paymentMethods}
                   billingDetails={preview.billingDetails}
+                  taxBreakdown={preview.aggregate.taxBreakdown}
+                  theoreticalCash={preview.aggregate.theoreticalCash}
+                  actualCash={actualCash !== "" ? Number(actualCash) : null}
                 />
-              </section>
 
-              {/* 印刷 / PDF 出力ビュー（印刷時のみ表示）*/}
-              <ClosePrintArea
-                date={preview.date}
-                period={period}
-                clinicName={clinicName}
-                categories={preview.aggregate.categories}
-                paymentMethods={preview.aggregate.paymentMethods}
-                billingDetails={preview.billingDetails}
-                taxBreakdown={preview.aggregate.taxBreakdown}
-                theoreticalCash={preview.aggregate.theoreticalCash}
-                actualCash={actualCash !== "" ? Number(actualCash) : null}
-              />
-
-              {/* 消費税内訳 */}
-              <section className={`${C.bgWhite} rounded-lg border ${C.borderLight} p-6`}>
-                <h2 className={`text-base font-semibold ${C.text} mb-4`}>消費税内訳</h2>
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 max-w-lg">
-                  <div>
-                    <p className={`text-xs ${C.text40} mb-1`}>標準税率（10%）</p>
-                    <div className="flex justify-between text-sm py-1">
-                      <span className={C.text60}>課税対象額</span>
-                      <span className={C.text}>
-                        ¥{preview.aggregate.taxBreakdown.standard.taxableAmount.toLocaleString()}
-                      </span>
+                {/* 消費税内訳 */}
+                <section className={`${C.bgWhite} rounded-lg border ${C.borderLight} p-6`}>
+                  <h2 className={`text-base font-semibold ${C.text} mb-4`}>消費税内訳</h2>
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 max-w-lg">
+                    <div>
+                      <p className={`text-xs ${C.text40} mb-1`}>標準税率（10%）</p>
+                      <div className="flex justify-between text-sm py-1">
+                        <span className={C.text60}>課税対象額</span>
+                        <span className={C.text}>
+                          ¥{preview.aggregate.taxBreakdown.standard.taxableAmount.toLocaleString()}
+                        </span>
+                      </div>
+                      <div className="flex justify-between text-sm py-1">
+                        <span className={C.text60}>消費税額</span>
+                        <span className={C.text}>
+                          ¥{preview.aggregate.taxBreakdown.standard.taxAmount.toLocaleString()}
+                        </span>
+                      </div>
                     </div>
-                    <div className="flex justify-between text-sm py-1">
-                      <span className={C.text60}>消費税額</span>
-                      <span className={C.text}>
-                        ¥{preview.aggregate.taxBreakdown.standard.taxAmount.toLocaleString()}
-                      </span>
-                    </div>
-                  </div>
-                  <div>
-                    <p className={`text-xs ${C.text40} mb-1`}>軽減税率（8%）</p>
-                    <div className="flex justify-between text-sm py-1">
-                      <span className={C.text60}>課税対象額</span>
-                      <span className={C.text}>
-                        ¥{preview.aggregate.taxBreakdown.reduced.taxableAmount.toLocaleString()}
-                      </span>
-                    </div>
-                    <div className="flex justify-between text-sm py-1">
-                      <span className={C.text60}>消費税額</span>
-                      <span className={C.text}>
-                        ¥{preview.aggregate.taxBreakdown.reduced.taxAmount.toLocaleString()}
-                      </span>
+                    <div>
+                      <p className={`text-xs ${C.text40} mb-1`}>軽減税率（8%）</p>
+                      <div className="flex justify-between text-sm py-1">
+                        <span className={C.text60}>課税対象額</span>
+                        <span className={C.text}>
+                          ¥{preview.aggregate.taxBreakdown.reduced.taxableAmount.toLocaleString()}
+                        </span>
+                      </div>
+                      <div className="flex justify-between text-sm py-1">
+                        <span className={C.text60}>消費税額</span>
+                        <span className={C.text}>
+                          ¥{preview.aggregate.taxBreakdown.reduced.taxAmount.toLocaleString()}
+                        </span>
+                      </div>
                     </div>
                   </div>
-                </div>
-                <div className={`mt-3 pt-3 border-t ${C.borderLight} flex justify-between text-sm font-medium max-w-lg`}>
-                  <span className={C.text70}>消費税合計</span>
-                  <span className={C.text}>
-                    ¥{(
-                      preview.aggregate.taxBreakdown.standard.taxAmount +
-                      preview.aggregate.taxBreakdown.reduced.taxAmount
-                    ).toLocaleString()}
-                  </span>
-                </div>
-              </section>
-
-              {/* 締めフォーム */}
-              <section className={`${C.bgWhite} rounded-lg border ${C.borderLight} p-6`}>
-                <h2 className={`text-base font-semibold ${C.text} mb-4`}>レジ締め実行</h2>
-                <form action={formAction} className="space-y-4">
-                  <input type="hidden" name="close_date" value={date} />
-                  <input type="hidden" name="period" value={period} />
-                  <div className="max-w-sm">
-                    <label htmlFor="actual_cash" className={STYLE.formLabel}>
-                      実際のレジ現金（円）
-                    </label>
-                    <input
-                      id="actual_cash"
-                      name="actual_cash"
-                      type="number"
-                      min="0"
-                      value={actualCash}
-                      onChange={handleActualCashChange}
-                      className={`${STYLE.formInput} mt-1 w-full rounded-[4px] border px-3`}
-                      placeholder="0"
-                      required
-                    />
+                  <div className={`mt-3 pt-3 border-t ${C.borderLight} flex justify-between text-sm font-medium max-w-lg`}>
+                    <span className={C.text70}>消費税合計</span>
+                    <span className={C.text}>
+                      ¥{(
+                        preview.aggregate.taxBreakdown.standard.taxAmount +
+                        preview.aggregate.taxBreakdown.reduced.taxAmount
+                      ).toLocaleString()}
+                    </span>
                   </div>
-                  {actualCash !== "" ? (
-                    <CashReconciliationCard
-                      theoreticalCash={preview.aggregate.theoreticalCash}
-                      actualCash={Number(actualCash)}
-                    />
-                  ) : null}
-                  <div>
-                    <label htmlFor="close_memo" className={STYLE.formLabel}>
-                      メモ（任意）
-                    </label>
-                    <input
-                      id="close_memo"
-                      name="memo"
-                      type="text"
-                      className={`${STYLE.formInput} mt-1 w-full rounded-[4px] border px-3`}
-                      placeholder="特記事項があれば入力"
-                    />
-                  </div>
-                  <div className="flex justify-end">
-                    <SubmitButton colorVariant="brand" loadingText="締め中...">締める</SubmitButton>
-                  </div>
-                </form>
-              </section>
+                </section>
 
-              {/* 個別会計明細 */}
-              <section className={`${C.bgWhite} rounded-lg border ${C.borderLight} p-6`}>
-                <h2 className={`text-base font-semibold ${C.text} mb-4`}>
-                  個別会計明細（{preview.billingDetails.length}件）
-                </h2>
-                <BillingDetailTable details={preview.billingDetails} />
-              </section>
-            </>
-          )}
-        </>
-      ) : null}
+                {/* 締めフォーム */}
+                <section className={`${C.bgWhite} rounded-lg border ${C.borderLight} p-6`}>
+                  <h2 className={`text-base font-semibold ${C.text} mb-4`}>レジ締め実行</h2>
+                  <form action={formAction} className="space-y-4">
+                    <input type="hidden" name="close_date" value={date} />
+                    <input type="hidden" name="period" value={period} />
+                    <div className="max-w-sm">
+                      <label htmlFor="actual_cash" className={STYLE.formLabel}>
+                        実際のレジ現金（円）
+                      </label>
+                      <input
+                        id="actual_cash"
+                        name="actual_cash"
+                        type="number"
+                        min="0"
+                        value={actualCash}
+                        onChange={handleActualCashChange}
+                        className={`${STYLE.formInput} mt-1 w-full rounded-[4px] border px-3`}
+                        placeholder="0"
+                        required
+                      />
+                    </div>
+                    {actualCash !== "" ? (
+                      <CashReconciliationCard
+                        theoreticalCash={preview.aggregate.theoreticalCash}
+                        actualCash={Number(actualCash)}
+                      />
+                    ) : null}
+                    <div>
+                      <label htmlFor="close_memo" className={STYLE.formLabel}>
+                        メモ（任意）
+                      </label>
+                      <input
+                        id="close_memo"
+                        name="memo"
+                        type="text"
+                        className={`${STYLE.formInput} mt-1 w-full rounded-[4px] border px-3`}
+                        placeholder="特記事項があれば入力"
+                      />
+                    </div>
+                    <div className="flex justify-end">
+                      <SubmitButton colorVariant="brand" loadingText="締め中...">締める</SubmitButton>
+                    </div>
+                  </form>
+                </section>
 
-      <AlertDialog open={showConfirm} onOpenChange={setShowConfirm}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>締めを実行しますか？</AlertDialogTitle>
-            <AlertDialogDescription>
-              {date} {periodLabel} の締めを実行します。この操作は取り消せません。
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={handleCancelConfirm}>キャンセル</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleConfirmClose}
-              className={`${C.bgBrand} ${C.textWhite} ${C.hoverBgBrand} rounded-full`}
-            >
-              締める
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-    </div>
+                {/* 個別会計明細 */}
+                <section className={`${C.bgWhite} rounded-lg border ${C.borderLight} p-6`}>
+                  <h2 className={`text-base font-semibold ${C.text} mb-4`}>
+                    個別会計明細（{preview.billingDetails.length}件）
+                  </h2>
+                  <BillingDetailTable details={preview.billingDetails} />
+                </section>
+              </>
+            )}
+          </>
+        ) : null}
+
+        <AlertDialog open={showConfirm} onOpenChange={setShowConfirm}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>締めを実行しますか？</AlertDialogTitle>
+              <AlertDialogDescription>
+                {date} {periodLabel} の締めを実行します。この操作は取り消せません。
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel onClick={handleCancelConfirm}>キャンセル</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handleConfirmClose}
+                className={`${C.bgBrand} ${C.textWhite} ${C.hoverBgBrand} rounded-full`}
+              >
+                締める
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      </div>
+    </PageLayout>
   );
 }

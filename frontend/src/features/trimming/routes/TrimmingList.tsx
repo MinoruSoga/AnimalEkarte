@@ -13,7 +13,7 @@ import { Plus, Scissors } from "lucide-react";
 import { toast } from "sonner";
 
 // Types
-import type { ActiveFilter, FilterProperty } from "@/components/shared/NotionFilter/types";
+import type { ActiveFilter, FilterProperty } from "@/components/shared/PropertyFilter/types";
 
 // Internal
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";

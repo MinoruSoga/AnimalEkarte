@@ -40,7 +40,7 @@ test.describe('予防接種管理 フロー E2E', () => {
       await vaccinations.gotoList();
       await expect(vaccinations.listHeading()).toBeVisible();
 
-      // NotionFilter: 検索トグルボタンをクリックして入力欄を表示
+      // PropertyFilter: 検索トグルボタンをクリックして入力欄を表示
       await page.getByLabel('検索').click();
       const searchInput = vaccinations.searchInput();
       await expect(searchInput).toBeVisible();

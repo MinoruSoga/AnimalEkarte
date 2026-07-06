@@ -87,3 +87,9 @@ docker compose exec frontend pnpm build
 docker compose exec frontend pnpm type-check
 docker compose exec frontend pnpm install
 ```
+
+## Scoped Test Verification (MANDATORY)
+
+- `docker compose exec frontend pnpm test:run -- <path>` は罠 — `--` 以降のパスがスコープ指定として渡らず全件実行になる。スコープ限定したい場合は必ず `docker compose exec frontend npx vitest run <path>` を使うこと（`.claude/skills/scoped-verification-gates/SKILL.md` と整合）。
+- `PageLayout` に `resource` prop を渡す route の render test では `PermissionBadges → usePermission → useAuth` が呼ばれるため、`vi.mock("@/hooks/use-auth", () => ({ useAuth: () => ({ ... hasPermission: () => true }) }))` が必須（`AuthProvider` 無しだと `useAuth must be used within an AuthProvider` で全滅する）。正例: `frontend/src/features/cash-register/routes/CashRegisterHistoryPage.test.tsx`。
+- 新規リーフルートを追加したら `docs/UI_DESIGN_COMPLIANCE.md` §2 のページ表を同じコミットで更新すること（C1/C3/C5 は `pnpm design-audit` で機械検証されるが、C2/C4 の `PageLayout` 使用有無は手動追跡のみのため更新漏れが唯一の防御線）。

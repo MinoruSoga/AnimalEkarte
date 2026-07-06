@@ -4,13 +4,13 @@ import { TableCell } from "@/components/ui/table";
 import { DataTable, DESIGN_TABLE_HEADER_ROW, DESIGN_TABLE_HEADER_CELL } from "@/components/shared/DataTable/DataTable";
 import { DataTableRow } from "@/components/shared/DataTable/DataTableRow";
 import { FilteringIndicator } from "@/components/shared/FilteringIndicator/FilteringIndicator";
-import { NotionFilter } from "@/components/shared/NotionFilter/NotionFilter";
+import { PropertyFilter } from "@/components/shared/PropertyFilter/PropertyFilter";
 import type {
   ActiveFilter,
   ActiveSort,
   FilterProperty,
   SortProperty,
-} from "@/components/shared/NotionFilter/types";
+} from "@/components/shared/PropertyFilter/types";
 import { Pagination } from "@/components/shared/Pagination";
 import { RowActionDropdown } from "@/components/shared/RowActionDropdown";
 import { SortableHeader } from "@/components/shared/SortableHeader/SortableHeader";
@@ -146,7 +146,7 @@ export function TrimmingListTable({
 
   return (
     <>
-      <NotionFilter
+      <PropertyFilter
         properties={filterProperties}
         activeFilters={activeFilters}
         onFilterChange={onFilterChange}

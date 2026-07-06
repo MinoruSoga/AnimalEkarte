@@ -23,7 +23,7 @@ interface MasterPageShellProps {
   onNew: () => void;
   /** SidePanel rendered next to main content */
   sidePanel: ReactNode;
-  /** PageLayout body — MasterListPage wraps with NotionFilter, MasterTabPage passes UnifiedTabs directly */
+  /** PageLayout body — MasterListPage wraps with PropertyFilter, MasterTabPage passes UnifiedTabs directly */
   children: ReactNode;
 }
 

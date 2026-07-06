@@ -12,7 +12,7 @@ const RECOMPUTE_INTERVAL_MS = 60_000;
  * データ形状だけで区別できない。そのため実データの有無から推測せず、
  * この明示フラグで判定する。
  *
- * migration `005_add_appointment_checked_in_at.sql` の適用 と
+ * migration `appointments.checked_in_at`（2026-07-06 に `001_init.sql` へ統合済み）の適用 と
  * `make codegen` による `Reservation.checked_in_at` の regen が完了したため `true` へ切替済み。
  * ただし本番/staging 環境へは、`backend/migrations/CLAUDE.md` の警告どおり
  * migration 適用 ≥ バックエンドデプロイの順序を守ること（未適用環境へ先にデプロイすると

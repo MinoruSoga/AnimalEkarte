@@ -37,7 +37,7 @@ const HEADER_ROW = (
       <div
         key={d}
         className={`py-3 text-sm font-bold text-center ${
-          i === 0 ? C.danger : i === 6 ? C.accent : C.text60
+          i === 0 ? C.danger : i === 6 ? C.textBrand : C.text60
         }`}
       >
         {d}
@@ -78,7 +78,7 @@ export const MonthView = memo(function MonthView({ currentDate, appointments, on
             <div className="flex justify-between items-start mb-2">
                 <button
                   type="button"
-                  className={`text-base font-bold size-7 flex items-center justify-center rounded-full transition-colors ${isSameDay(day, today) ? `${C.bgBrand} ${C.textWhite} shadow-sm` : `${C.hoverBgAccentLight} ${C.hoverTextAccent}`}`}
+                  className={`text-base font-bold size-7 flex items-center justify-center rounded-full transition-colors ${isSameDay(day, today) ? `${C.bgBrand} ${C.textWhite} shadow-sm` : `${C.hoverBgBrandLight} ${C.hoverTextBrand}`}`}
                   onClick={(e) => {
                     e.stopPropagation();
                     onDateClick?.(cloneDay);
@@ -105,7 +105,7 @@ export const MonthView = memo(function MonthView({ currentDate, appointments, on
                         <div className="flex items-center gap-1 min-w-0">
                             {app.visitType === "first"
                                 ? <span className={`${C.bgRedLight} ${C.danger} text-[10px] px-1 rounded flex-shrink-0`}>初</span>
-                                : <span className={`${C.bgAccentLight} ${C.textAccentDark} text-[10px] px-1 rounded flex-shrink-0`}>再</span>
+                                : <span className={`${C.bgBrandLight} ${C.textBrandDark} text-[10px] px-1 rounded flex-shrink-0`}>再</span>
                             }
                             <span className="truncate text-xs font-medium">{app.petName}</span>
                         </div>

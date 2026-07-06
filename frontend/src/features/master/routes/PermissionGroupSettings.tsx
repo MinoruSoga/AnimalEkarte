@@ -6,7 +6,7 @@ import { usePermission } from "@/hooks/use-permission";
 import { C, ICON } from "@/lib/design-tokens";
 import { normalizeKana } from "@/lib/normalize-kana";
 import { MASTER_STATUS_FILTER } from "../constants/styles";
-import type { FilterProperty } from "@/components/shared/NotionFilter/types";
+import type { FilterProperty } from "@/components/shared/PropertyFilter/types";
 import { useMasterCRUD } from "../hooks/use-master-crud";
 import { useMasterSave } from "../hooks/use-master-save";
 import { MasterCRUDPage } from "../components/MasterCRUDPage";

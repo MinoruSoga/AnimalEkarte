@@ -5,7 +5,7 @@ import { C, STYLE } from "@/lib/design-tokens";
 interface SubmitButtonProps extends Omit<ButtonProps, "variant"> {
   loadingText?: string;
   /**
-   * "brand"（既定） — DESIGN.md `button-primary`（brand blue `#0075DE` + pill `{rounded.full}`）。
+   * "brand"（既定） — docs/DESIGN_SYSTEM.md `button-primary`（brand teal `#038B94` + pill `{rounded.full}`）。
    * "default" — 旧 accent ブルー + 4px 角丸（`STYLE.confirmPrimary`）。DESIGN.md 未準拠のため
    * 新規実装では使用しないこと。既存の視覚差分を一時的に避ける必要がある場合のみの opt-out。
    * 単一の className 文字列を選択（連結しない）ことで Tailwind の同一 specificity クラス競合を避ける。

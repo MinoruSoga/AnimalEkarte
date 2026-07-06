@@ -232,7 +232,7 @@ export function AggregationDashboardPage() {
           onSelect={handleCpmStageSelect}
         />
 
-        {/* 件数 + 選択件数 (NotionFilter のツールバーと同じ密度) */}
+        {/* 件数 + 選択件数 (PropertyFilter のツールバーと同じ密度) */}
         <div className="flex flex-wrap items-center gap-2">
           {data ? <span className={STYLE.searchCount}>{data.total} 件</span> : null}
           {selectedCount > 0 ? (

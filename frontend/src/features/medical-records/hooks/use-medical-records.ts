@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { useGetMedicalRecords } from "../api/get-medical-records";
 import type { MedicalRecordFilters, MedicalRecordSortKey } from "../api/get-medical-records";
-import type { ActiveFilter } from "@/components/shared/NotionFilter/types";
+import type { ActiveFilter } from "@/components/shared/PropertyFilter/types";
 import { toBackendMedicalRecordStatus } from "../api/transforms";
 
 interface UseMedicalRecordsListParams {
@@ -19,7 +19,7 @@ interface UseMedicalRecordsListParams {
 
 /**
  * BUG-B1: カルテ一覧の server-side pagination/search/filter。
- * NotionFilter の ActiveFilter（診療日・ステータス・担当医ID・種ID）を BE query に変換して
+ * PropertyFilter の ActiveFilter（診療日・ステータス・担当医ID・種ID）を BE query に変換して
  * `/v1/medical-records` を取得する。旧DB由来を含む全件（425,000件超）へページング可能。
  *
  * status/doctor/species は BE が単一値の完全一致のみ対応するため "is" 条件のみを送信対象とする

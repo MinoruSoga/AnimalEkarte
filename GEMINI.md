@@ -69,7 +69,7 @@ docker compose exec backend go test ./...
 - **Ref as Prop**: Use `ref` directly as a prop; do not use `forwardRef`.
 - **`useTransition`**: Standard for managing pending states in complex forms.
 - **`useDeferredValue`**: Use for non-urgent updates like search filters.
-- **`memo()`**: Use to break re-render boundaries in large forms (e.g., `OwnerForm.tsx`). Shared components (`DataTable`, `NotionFilter`, `Pagination`, `SidePeekPanel`) are already wrapped with `memo()`.
+- **`memo()`**: Use to break re-render boundaries in large forms (e.g., `OwnerForm.tsx`). Shared components (`DataTable`, `PropertyFilter`, `Pagination`, `SidePeekPanel`) are already wrapped with `memo()`.
 - **Conditional Rendering**: Always use ternary `condition ? <Component /> : null`. Never use `&&`.
 
 ### State Management

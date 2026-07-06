@@ -4,18 +4,18 @@ import { TableCell } from "@/components/ui/table";
 import { DataTable } from "@/components/shared/DataTable/DataTable";
 import { DataTableRow } from "@/components/shared/DataTable/DataTableRow";
 import { FilteringIndicator } from "@/components/shared/FilteringIndicator/FilteringIndicator";
-import { NotionFilter } from "@/components/shared/NotionFilter/NotionFilter";
+import { PropertyFilter } from "@/components/shared/PropertyFilter/PropertyFilter";
 import { Pagination } from "@/components/shared/Pagination";
 import { RowActionDropdown } from "@/components/shared/RowActionDropdown";
 import { SortableHeader } from "@/components/shared/SortableHeader";
 import { StatusBadge } from "@/components/shared/StatusBadge/StatusBadge";
-import { CONDITIONS_NO_EMPTY } from "@/components/shared/NotionFilter/types";
+import { CONDITIONS_NO_EMPTY } from "@/components/shared/PropertyFilter/types";
 import type {
   ActiveFilter,
   ActiveSort,
   FilterProperty,
   SortProperty,
-} from "@/components/shared/NotionFilter/types";
+} from "@/components/shared/PropertyFilter/types";
 import { C, STYLE } from "@/lib/design-tokens";
 import { formatDate } from "@/utils/format/date";
 import { formatWeight } from "@/utils/format/number";
@@ -207,7 +207,7 @@ export function OwnersListTable({
 
   return (
     <div className="flex flex-col gap-4 flex-1 min-h-0">
-      <NotionFilter
+      <PropertyFilter
         properties={OWNER_FILTER_PROPERTIES}
         activeFilters={activeFilters}
         onFilterChange={onFilterChange}

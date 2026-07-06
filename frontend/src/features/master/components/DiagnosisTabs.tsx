@@ -1,5 +1,5 @@
 import { useDeferredValue, useMemo, useState } from "react";
-import { NotionFilter } from "@/components/shared/NotionFilter/NotionFilter";
+import { PropertyFilter } from "@/components/shared/PropertyFilter/PropertyFilter";
 import { useSortableList } from "@/hooks/use-sortable-list";
 import {
   useGetDiagnosisNames,
@@ -46,7 +46,7 @@ export function DiagnosisTypeTab({ onEditTargetChange, canEdit }: DiagnosisTypeT
 
   return (
     <div className="flex flex-col gap-4">
-      <NotionFilter
+      <PropertyFilter
         properties={[]}
         activeFilters={[]}
         onFilterChange={() => {}}
@@ -108,7 +108,7 @@ export function DiagnosisNameTab({ onEditTargetChange, canEdit }: DiagnosisNameT
 
   return (
     <div className="flex flex-col gap-4">
-      <NotionFilter
+      <PropertyFilter
         properties={[]}
         activeFilters={[]}
         onFilterChange={() => {}}

@@ -112,6 +112,9 @@ tables.txt
 .env.staging
 .env.local
 
+# k6負荷テストの実行結果（Cookie/JWT等の実行時データを含み得るため、生成物は追跡しない）
+load-tests/results-*.json
+
 # Trash directory
 trash/
 

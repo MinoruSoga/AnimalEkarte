@@ -2,7 +2,7 @@ import type { Dispatch, ReactNode, SetStateAction } from "react";
 
 import { FormFieldError } from "@/components/shared/FormFieldError";
 import { MasterLink } from "@/components/shared/MasterLink";
-import { NotionDatePicker } from "@/components/shared/NotionDatePicker";
+import { DatePicker } from "@/components/shared/DatePicker";
 import { NumberInput } from "@/components/shared/NumberInput/NumberInput";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -215,7 +215,7 @@ export function PetIdentitySection({
 
       <div className="space-y-1">
         <Label htmlFor="birthDate" className={LABEL_CLS}>生年月日</Label>
-        <NotionDatePicker
+        <DatePicker
           id="birthDate"
           value={formData.birthDate}
           onChange={(val) => setFormData((prev) => ({ ...prev, birthDate: val }))}
@@ -309,7 +309,7 @@ export function PetPhysicalSection({
 
       <div className="space-y-1">
         <Label htmlFor="neuteredDate" className={LABEL_CLS}>去勢・避妊手術日</Label>
-        <NotionDatePicker
+        <DatePicker
           id="neuteredDate"
           value={formData.neuteredDate || ""}
           onChange={(val) => setFormData((prev) => ({ ...prev, neuteredDate: val }))}

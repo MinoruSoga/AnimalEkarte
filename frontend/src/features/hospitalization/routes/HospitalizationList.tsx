@@ -13,7 +13,7 @@ import { LoadingFallback, ErrorFallback } from "@/components/shared/DataStates";
 import { UnifiedTabs } from "@/components/shared/UnifiedTabs";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
-import { NotionFilter } from "@/components/shared/NotionFilter/NotionFilter";
+import { PropertyFilter } from "@/components/shared/PropertyFilter/PropertyFilter";
 import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
 import { usePagination } from "@/hooks/use-pagination";
 import { Pagination } from "@/components/shared/Pagination/Pagination";
@@ -35,8 +35,8 @@ import type {
   ActiveFilter,
   SortProperty,
   ActiveSort,
-} from "@/components/shared/NotionFilter/types";
-import { CONDITIONS_NO_EMPTY } from "@/components/shared/NotionFilter/types";
+} from "@/components/shared/PropertyFilter/types";
+import { CONDITIONS_NO_EMPTY } from "@/components/shared/PropertyFilter/types";
 import { ResourceHospitalization } from "@/types/generated/models";
 
 type SortKey = "startDate" | "ownerName" | "petName" | "species" | "status";
@@ -264,7 +264,7 @@ export function HospitalizationList() {
         {/* Search & View Toggle */}
         <div className="flex items-center gap-4">
             <div className="flex-1">
-                <NotionFilter
+                <PropertyFilter
                   properties={filterProperties}
                   activeFilters={activeFilters}
                   onFilterChange={setActiveFilters}

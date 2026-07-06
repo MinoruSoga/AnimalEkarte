@@ -16,7 +16,7 @@ import { Plus, FileText, Edit, Trash2, Receipt, AlertTriangle, Calendar, CircleD
 import { paths } from "@/config/paths";
 import { TableCell } from "@/components/ui/table";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
-import { NotionFilter } from "@/components/shared/NotionFilter/NotionFilter";
+import { PropertyFilter } from "@/components/shared/PropertyFilter/PropertyFilter";
 import { SortableHeader } from "@/components/shared/SortableHeader/SortableHeader";
 import { DataTable } from "@/components/shared/DataTable/DataTable";
 import { DataTableRow } from "@/components/shared/DataTable/DataTableRow";
@@ -28,7 +28,7 @@ import { LoadingFallback, ErrorFallback } from "@/components/shared/DataStates";
 import { Pagination } from "@/components/shared/Pagination";
 import { FilteringIndicator } from "@/components/shared/FilteringIndicator/FilteringIndicator";
 import { ClinicScopeFilter } from "@/components/shared/ClinicScopeFilter/ClinicScopeFilter";
-import { C, STYLE, ICON } from "@/lib/design-tokens";
+import { C, STYLE, ICON, LAYOUT } from "@/lib/design-tokens";
 import { getMedicalRecordStatusColor } from "@/utils/status-helpers";
 import { useStaffValidation } from "@/hooks/use-staff-validation";
 
@@ -44,7 +44,7 @@ import type {
   FilterProperty,
   ActiveFilter,
   FilterCondition,
-} from "@/components/shared/NotionFilter/types";
+} from "@/components/shared/PropertyFilter/types";
 import { ResourceMedicalRecords } from "@/types/generated/models";
 
 const PAGE_SIZE = 20;
@@ -260,7 +260,7 @@ export function MedicalRecords() {
           </PrimaryButton>
         ) : null
       }
-      maxWidth="max-w-full"
+      maxWidth={LAYOUT.pageContentMaxWidth.full}
     >
       <div className="flex flex-col gap-4 flex-1 min-h-0">
         {/* #86: 拠点横断フィルター — 複数所属医院がある場合のみ表示 */}
@@ -271,7 +271,7 @@ export function MedicalRecords() {
         />
 
         {/* Search */}
-        <NotionFilter
+        <PropertyFilter
           properties={filterProperties}
           activeFilters={activeFilters}
           onFilterChange={setActiveFilters}

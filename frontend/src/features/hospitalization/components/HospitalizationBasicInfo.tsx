@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { MasterLink } from "@/components/shared/MasterLink";
 import { Textarea } from "@/components/ui/textarea";
-import { NotionDatePicker } from "@/components/shared/NotionDatePicker/NotionDatePicker";
+import { DatePicker } from "@/components/shared/DatePicker/DatePicker";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 
@@ -71,7 +71,7 @@ export const HospitalizationBasicInfo = memo(function HospitalizationBasicInfo({
           期間
         </Label>
         <div className={`flex items-center ${H_STYLES.gap.default}`}>
-          <NotionDatePicker
+          <DatePicker
             id="start_date"
             value={formData.displayDate}
             onChange={(v) => onChange({ displayDate: v })}
@@ -79,7 +79,7 @@ export const HospitalizationBasicInfo = memo(function HospitalizationBasicInfo({
             className="flex-1"
           />
           <span className={`${C.text40} text-sm`}>〜</span>
-          <NotionDatePicker
+          <DatePicker
             id="end_date"
             value={formData.endDate ?? ""}
             onChange={(v) => onChange({ endDate: v })}

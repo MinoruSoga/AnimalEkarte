@@ -2,7 +2,7 @@ import type { Dispatch, SetStateAction } from "react";
 import Pill from "lucide-react/dist/esm/icons/pill";
 
 import { PropertyInput, PropertyRow } from "@/components/shared/SidePeek";
-import { NotionStatusPill } from "@/components/shared/StatusPill/NotionStatusPill";
+import { StatusPill } from "@/components/shared/StatusPill/StatusPill";
 import { TaxRateSelector } from "@/components/shared/TaxRateSelector/TaxRateSelector";
 import { TaxTypeSelector } from "@/components/shared/TaxTypeSelector/TaxTypeSelector";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -138,7 +138,7 @@ export function MedicineBasicFlagsSection({
           onClick={() => setFormDataDirty((prev) => ({ ...prev, isActive: !prev.isActive }))}
           className={`inline-flex items-center rounded-[3px] ${C.hoverBgLight} transition-colors py-0.5 px-0.5 cursor-pointer`}
         >
-          <NotionStatusPill isActive={formData.isActive} />
+          <StatusPill isActive={formData.isActive} />
         </button>
       </PropertyRow>
 

@@ -3,7 +3,7 @@ import { DataTable, DESIGN_TABLE_HEADER_ROW, DESIGN_TABLE_HEADER_CELL } from "@/
 import { MasterListPage } from "../components/MasterListPage";
 import { usePermission } from "@/hooks/use-permission";
 import type { UseMasterCRUDReturn } from "../hooks/use-master-crud";
-import type { FilterProperty, SortProperty } from "@/components/shared/NotionFilter/types";
+import type { FilterProperty, SortProperty } from "@/components/shared/PropertyFilter/types";
 import type { Resource } from "@/types/generated/models";
 
 // ─────────────────────────────────────────────────
@@ -65,10 +65,10 @@ interface MasterCRUDPageProps<T extends MasterEntity, TForm = Record<string, unk
   /** Custom delete description (overrides auto-generated one) */
   deleteDescription?: string;
 
-  /** NotionFilter filter properties */
+  /** PropertyFilter filter properties */
   filterProperties?: FilterProperty[];
 
-  /** NotionFilter sort properties */
+  /** PropertyFilter sort properties */
   sortProperties?: SortProperty[];
 }
 

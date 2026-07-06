@@ -6,7 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { FormFieldError } from "@/components/shared/FormFieldError";
-import { NotionDatePicker } from "@/components/shared/NotionDatePicker";
+import { DatePicker } from "@/components/shared/DatePicker";
 import { NumberInput } from "@/components/shared/NumberInput/NumberInput";
 import { C, STYLE } from "@/lib/design-tokens";
 import { toJSTWallDate } from "@/lib/jst-date";
@@ -30,7 +30,7 @@ const MembershipTypeButtons = memo(function MembershipTypeButtons({
           type="button"
           variant={value === type ? "default" : "outline"}
           size="sm"
-          // DESIGN.md: 構造色は brand blue #0075DE のみ（旧 accent ブルーから移行）
+          // docs/DESIGN_SYSTEM.md: 構造色は brand teal #038B94 のみ（旧 accent ブルーから移行）
           className={
             value === type
               ? `${C.bgBrand} ${C.hoverBgBrand} ${C.textWhite} h-11 text-sm px-3 rounded-full transition-colors shadow-none border-transparent`
@@ -308,7 +308,7 @@ export const OwnerInfoSection = memo(function OwnerInfoSection({
 
       <div className="space-y-1.5">
         <Label htmlFor="birthDate" className={`text-sm ${C.text60}`}>飼主生年月日</Label>
-        <NotionDatePicker
+        <DatePicker
           id="birthDate"
           value={ownerData.birthDate}
           onChange={(value) => onChange("birthDate", value)}

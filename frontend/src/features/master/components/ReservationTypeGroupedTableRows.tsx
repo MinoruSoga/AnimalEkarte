@@ -1,7 +1,7 @@
 import { ChevronDown, Pencil, Plus } from "lucide-react";
 import { SortableDataTableRow } from "@/components/shared/DataTable/SortableDataTableRow";
 import { RowActionButton } from "@/components/shared/RowActionButton";
-import { NotionStatusPill } from "@/components/shared/StatusPill/NotionStatusPill";
+import { StatusPill } from "@/components/shared/StatusPill/StatusPill";
 import { TableCell } from "@/components/ui/table";
 import { C, ICON, LAYOUT, PALETTE, STYLE } from "@/lib/design-tokens";
 import type { ReservationType } from "../api/reservation-types";
@@ -147,7 +147,7 @@ export function ReservationTypeRow({ category, canEdit, onEdit }: ReservationTyp
         {category.description || "-"}
       </TableCell>
       <TableCell className="text-center">
-        <NotionStatusPill isActive={category.isActive} />
+        <StatusPill isActive={category.isActive} />
       </TableCell>
       <TableCell className="p-0 text-right">
         {canEdit ? <RowActionButton onClick={onEdit} /> : null}

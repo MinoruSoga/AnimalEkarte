@@ -1,60 +1,40 @@
 #!/usr/bin/env python3
-"""Static seed verification for master/demo migrations.
+"""CSV seed-bundle verification for master/demo/staging seed data.
 
-This script does not touch a database. It replays relevant INSERT statements from
-the seed SQL files, taking ON CONFLICT behavior into account, and validates the
-expected final state of the master/demo seed data.
+Prior to the CSV migration, this script statically parsed and replayed
+INSERT/ON CONFLICT statements from backend/migrations/002-004_*.sql to
+simulate the final row state. That replay engine is gone: the seed data now
+lives in backend/migrations/seeds/<bundle>/*.csv + manifest.json, sourced by
+dumping a disposable database after a real 001->004 apply (backend/cmd/
+seed-export) — not by parsing SQL. Each CSV row already IS the final merged
+state (COPY dumped the actual table after every INSERT/ON CONFLICT/DO block
+had already executed), so there is nothing left to replay or merge here:
+this script just reads the CSVs and checks business invariants against them.
+
+Does not touch a database — reads only the committed CSV files.
 """
 
 from __future__ import annotations
 
 from collections import Counter, defaultdict
-from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
-from decimal import Decimal
 from pathlib import Path
+import csv
+import json
 import re
 import sys
 
 
 ROOT = Path(__file__).resolve().parents[1]
-MIGRATION_FILES = [
-    ROOT / "backend/migrations/002_seed_master.sql",
-    ROOT / "backend/migrations/003_seed_demo.sql",
-]
-
-APPOINTMENT_TIME_FILES = [
-    ROOT / "backend/migrations/003_seed_demo.sql",
-    ROOT / "backend/migrations/004_seed_staging.sql",
-]
-
-DEMO_SEED_FILE = ROOT / "backend/migrations/003_seed_demo.sql"
-
-# The vaccines master only exists in the demo seed (003); the staging snapshot
-# (004) re-uses those ids. Vaccination rows live in both files, so both are
-# scanned for the combination-vaccine reference check (#125).
-VACCINE_MASTER_FILE = ROOT / "backend/migrations/003_seed_demo.sql"
-VACCINATION_SEED_FILES = [
-    ROOT / "backend/migrations/003_seed_demo.sql",
-    ROOT / "backend/migrations/004_seed_staging.sql",
-]
+SEEDS_ROOT = ROOT / "backend/migrations/seeds"
+BUNDLE_DIRS = ("002_master", "003_demo", "004_staging")
 
 # Remarks that denote a combination vaccine ("N種混合" / "混合ワクチン").
 COMBO_VACCINE_REMARK_RE = re.compile(r"\d+種混合|混合ワクチン")
 
-# Exam seed files. exam_types / exam_type_fields masters live only in the demo
-# seed (003); the staging snapshot (004) carries none, but both are scanned so a
-# future snapshot that re-introduces them is still covered (#124).
-EXAM_SEED_FILES = [
-    ROOT / "backend/migrations/003_seed_demo.sql",
-    ROOT / "backend/migrations/004_seed_staging.sql",
-]
-
 # exam_type_field semantic category -> substrings the owning exam_type name must
-# contain. A field whose name identifies a category (blood / urine / x-ray /
-# echo) must be bound to an exam_type whose name matches that category. Blood
-# markers are matched first because "BUN（尿素窒素）" contains "尿" yet is a blood
-# biochemistry field, not a urine field.
+# contain. Blood markers are matched first because "BUN（尿素窒素）" contains "尿"
+# yet is a blood biochemistry field, not a urine field.
 EXAM_FIELD_BLOOD_TOKENS = (
     "WBC", "RBC", "HGB", "HCT", "PLT", "MCV", "MCH",
     "ALT", "AST", "GPT", "GOT", "ALP", "GGT", "BUN", "CRE", "GLU", "TBIL",
@@ -90,6 +70,15 @@ TRACKED_TABLES = {
     "treatments",
 }
 
+# Tables read directly by name-specific checks below, beyond TRACKED_TABLES.
+EXTRA_TABLES = {
+    "appointments",
+    "audit_logs",
+    "staffs",
+    "vaccinations",
+    "exam_type_fields",
+}
+
 EXPECTED_TREATMENTS = {
     5: {"procedure_id": 13019},
     101: {
@@ -110,237 +99,100 @@ EXPECTED_MISSING_PROCEDURES = {13018, 13030}
 EXPECTED_PRESENT_PROCEDURES = {13049, 13051}
 
 
-@dataclass(frozen=True)
-class InsertStatement:
-    table: str
-    columns: tuple[str, ...]
-    rows: tuple[tuple[object, ...], ...]
-    conflict_action: str | None
+# ------------------------------------------------------------------
+# CSV loading
+# ------------------------------------------------------------------
+
+def build_table_index() -> dict[str, Path]:
+    """Map table name -> CSV path by reading every bundle's manifest.json."""
+    index: dict[str, Path] = {}
+    for bundle in BUNDLE_DIRS:
+        manifest_path = SEEDS_ROOT / bundle / "manifest.json"
+        if not manifest_path.exists():
+            raise SystemExit(
+                f"missing {manifest_path} — run backend/cmd/seed-export first "
+                "(see backend/migrations/CLAUDE.md)"
+            )
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        for entry in manifest["tables"]:
+            index[entry["table"]] = SEEDS_ROOT / bundle / entry["csvFile"]
+    return index
+
+
+def to_int(value: str) -> int | None:
+    return int(value) if value != "" else None
+
+
+def to_bool(value: str) -> bool | None:
+    if value == "":
+        return None
+    if value == "t":
+        return True
+    if value == "f":
+        return False
+    raise ValueError(f"unexpected boolean CSV value: {value!r}")
+
+
+def read_rows(table_index: dict[str, Path], table: str) -> list[dict[str, str]]:
+    path = table_index.get(table)
+    if path is None:
+        raise SystemExit(f"table {table!r} not found in any bundle manifest — was it renamed or removed?")
+    with path.open(encoding="utf-8", newline="") as f:
+        return list(csv.DictReader(f))
 
 
 class SeedState:
-    def __init__(self) -> None:
-        self.tables: dict[str, dict[int, dict[str, object]]] = defaultdict(dict)
-        self.source_id_counts: dict[str, Counter[int]] = defaultdict(Counter)
+    """Per-table id -> row dict, for tables whose business invariants are
+    checked below. Unlike the pre-CSV version, there is no ON CONFLICT merge
+    logic here: a CSV row already is the table's final state, and a
+    table's primary key is unique by construction, so "loading" is just a
+    direct read.
+    """
 
-    def apply(self, stmt: InsertStatement) -> None:
-        if stmt.table not in TRACKED_TABLES:
-            return
+    def __init__(self, table_index: dict[str, Path]) -> None:
+        self.table_index = table_index
+        self.tables: dict[str, dict[int, dict[str, object]]] = {}
 
-        for values in stmt.rows:
-            row = dict(zip(stmt.columns, values, strict=True))
+    def load(self, table: str, int_columns: tuple[str, ...], bool_columns: tuple[str, ...] = ()) -> None:
+        rows: dict[int, dict[str, object]] = {}
+        for raw in read_rows(self.table_index, table):
+            row: dict[str, object] = dict(raw)
+            for col in int_columns:
+                if col in row:
+                    row[col] = to_int(row[col])
+            for col in bool_columns:
+                if col in row:
+                    row[col] = to_bool(row[col])
             row_id = row.get("id")
-            if not isinstance(row_id, int):
-                continue
-
-            self.source_id_counts[stmt.table][row_id] += 1
-            existing = self.tables[stmt.table].get(row_id)
-            if existing is None:
-                self.tables[stmt.table][row_id] = row
-                continue
-
-            if stmt.conflict_action == "update":
-                merged = existing.copy()
-                merged.update(row)
-                self.tables[stmt.table][row_id] = merged
+            rows[row_id] = row
+        self.tables[table] = rows
 
 
-def split_sql_statements(text: str) -> list[str]:
-    statements: list[str] = []
-    buf: list[str] = []
-    in_string = False
-    i = 0
-    while i < len(text):
-        ch = text[i]
-        buf.append(ch)
-        if ch == "'":
-            if in_string and i + 1 < len(text) and text[i + 1] == "'":
-                buf.append(text[i + 1])
-                i += 1
-            else:
-                in_string = not in_string
-        elif ch == ";" and not in_string:
-            statement = "".join(buf).strip()
-            if statement:
-                statements.append(statement)
-            buf = []
-        i += 1
-    tail = "".join(buf).strip()
-    if tail:
-        statements.append(tail)
-    return statements
+def load_seed_state() -> tuple[SeedState, dict[str, Path]]:
+    table_index = build_table_index()
+    state = SeedState(table_index)
 
-
-def find_keyword_outside_quotes(text: str, keyword: str) -> int:
-    upper = text.upper()
-    keyword_upper = keyword.upper()
-    in_string = False
-    i = 0
-    while i < len(text):
-        ch = text[i]
-        if ch == "'":
-            if in_string and i + 1 < len(text) and text[i + 1] == "'":
-                i += 2
-                continue
-            in_string = not in_string
-        if not in_string and upper.startswith(keyword_upper, i):
-            return i
-        i += 1
-    return -1
-
-
-def parse_insert_statement(statement: str) -> InsertStatement | None:
-    match = re.match(
-        r"INSERT INTO\s+([a-z_]+)\s*\((.*?)\)\s*VALUES\s*(.*)",
-        statement,
-        flags=re.IGNORECASE | re.DOTALL,
+    # Column sets are per-table because CSV headers differ; only columns the
+    # checks below actually touch need int/bool coercion.
+    state.load("exam_types", ("id", "clinic_id", "parent_id"), ("is_active",))
+    state.load("vaccines", ("id", "clinic_id", "parent_id", "inventory_id"), ("is_active",))
+    state.load("medicines", ("id", "clinic_id", "parent_id", "inventory_id"), ("is_active",))
+    state.load("consultations", ("id", "clinic_id", "parent_id"), ("is_active",))
+    state.load("procedures", ("id", "clinic_id", "parent_id"), ("is_active",))
+    state.load("trimming_courses", ("id", "clinic_id"), ())
+    state.load("merchandise_items", ("id", "clinic_id"), ("is_active",))
+    state.load("inventory_items", ("id", "clinic_id"), ())
+    state.load("medical_records", ("id", "clinic_id"), ())
+    state.load(
+        "treatments",
+        ("id", "medical_record_id", "consultation_id", "procedure_id", "medicine_id", "inventory_id"),
+        ("is_selected", "is_insurance"),
     )
-    if not match:
-        return None
-
-    table = match.group(1)
-    columns = tuple(part.strip() for part in match.group(2).split(","))
-    remainder = match.group(3).strip()
-
-    conflict_index = find_keyword_outside_quotes(remainder, "ON CONFLICT")
-    if conflict_index >= 0:
-        values_text = remainder[:conflict_index].rstrip()
-        conflict_text = remainder[conflict_index:].upper()
-        if "DO UPDATE" in conflict_text:
-            conflict_action = "update"
-        elif "DO NOTHING" in conflict_text:
-            conflict_action = "nothing"
-        else:
-            conflict_action = None
-    else:
-        values_text = remainder
-        conflict_action = None
-
-    rows = tuple(parse_values_block(strip_sql_line_comments(values_text)))
-    return InsertStatement(table=table, columns=columns, rows=rows, conflict_action=conflict_action)
-
-
-def parse_values_block(values_text: str) -> list[tuple[object, ...]]:
-    chunks: list[str] = []
-    start = -1
-    depth = 0
-    in_string = False
-    i = 0
-    while i < len(values_text):
-        ch = values_text[i]
-        if ch == "'":
-            if in_string and i + 1 < len(values_text) and values_text[i + 1] == "'":
-                i += 2
-                continue
-            in_string = not in_string
-        elif not in_string:
-            if ch == "(":
-                if depth == 0:
-                    start = i + 1
-                depth += 1
-            elif ch == ")":
-                depth -= 1
-                if depth == 0 and start >= 0:
-                    chunks.append(values_text[start:i])
-        i += 1
-
-    return [tuple(parse_tuple(chunk)) for chunk in chunks]
-
-
-def strip_sql_line_comments(text: str) -> str:
-    out: list[str] = []
-    in_string = False
-    i = 0
-    while i < len(text):
-        ch = text[i]
-        if ch == "'":
-            out.append(ch)
-            if in_string and i + 1 < len(text) and text[i + 1] == "'":
-                out.append(text[i + 1])
-                i += 2
-                continue
-            in_string = not in_string
-            i += 1
-            continue
-        if not in_string and ch == "-" and i + 1 < len(text) and text[i + 1] == "-":
-            while i < len(text) and text[i] != "\n":
-                i += 1
-            continue
-        out.append(ch)
-        i += 1
-    return "".join(out)
-
-
-def parse_tuple(chunk: str) -> list[object]:
-    tokens: list[str] = []
-    buf: list[str] = []
-    in_string = False
-    depth = 0
-    i = 0
-    while i < len(chunk):
-        ch = chunk[i]
-        if ch == "'":
-            buf.append(ch)
-            if in_string and i + 1 < len(chunk) and chunk[i + 1] == "'":
-                buf.append(chunk[i + 1])
-                i += 2
-                continue
-            in_string = not in_string
-        elif not in_string and ch == "(":
-            depth += 1
-            buf.append(ch)
-        elif not in_string and ch == ")":
-            depth -= 1
-            buf.append(ch)
-        elif not in_string and depth == 0 and ch == ",":
-            tokens.append("".join(buf).strip())
-            buf = []
-        else:
-            buf.append(ch)
-        i += 1
-    if buf:
-        tokens.append("".join(buf).strip())
-    return [parse_literal(token) for token in tokens]
-
-
-def parse_literal(token: str) -> object:
-    upper = token.upper()
-    lower = token.lower()
-    if upper == "NULL":
-        return None
-    if lower == "true":
-        return True
-    if lower == "false":
-        return False
-    if token.startswith("'") and token.endswith("'"):
-        return token[1:-1].replace("''", "'")
-    if re.fullmatch(r"-?\d+", token):
-        return int(token)
-    if re.fullmatch(r"-?\d+\.\d+", token):
-        return Decimal(token)
-    return token
-
-
-def load_seed_state() -> SeedState:
-    state = SeedState()
-    for path in MIGRATION_FILES:
-        text = path.read_text(encoding="utf-8")
-        for statement in split_sql_statements(text):
-            insert_index = statement.upper().find("INSERT INTO")
-            if insert_index < 0:
-                continue
-            trimmed = statement[insert_index:].strip()
-            table_match = re.match(r"INSERT INTO\s+([a-z_]+)", trimmed, flags=re.IGNORECASE)
-            if table_match is None or table_match.group(1) not in TRACKED_TABLES:
-                continue
-            parsed = parse_insert_statement(trimmed)
-            if parsed is not None:
-                state.apply(parsed)
-    return state
+    return state, table_index
 
 
 def is_unique_scope_row(table: str, row: dict[str, object]) -> bool:
-    if row.get("deleted_at") is not None:
+    if row.get("deleted_at"):
         return False
     if table == "merchandise_items":
         return row.get("is_active") is True
@@ -352,10 +204,25 @@ def add_result(errors: list[str], condition: bool, message: str) -> None:
         errors.append(message)
 
 
-def check_source_id_duplicates(state: SeedState, errors: list[str]) -> None:
+# ------------------------------------------------------------------
+# Checks (business invariants) — logic unchanged from the SQL-replay
+# version; only the row source changed (CSV dict instead of parsed INSERT).
+# ------------------------------------------------------------------
+
+def check_csv_row_integrity(state: SeedState, errors: list[str]) -> None:
+    """Sanity-check the CSVs themselves: no duplicate/missing id per table.
+
+    Replaces the old check_source_id_duplicates, which detected duplicate ids
+    across multiple INSERT statements targeting the same PK during SQL
+    replay. That scenario cannot occur from a CSV dump of a real table (a
+    table's primary key is unique by construction) — this instead guards
+    against a corrupted or hand-edited CSV file.
+    """
     for table in SEVEN_MASTER_TABLES:
-        duplicates = sorted(row_id for row_id, count in state.source_id_counts[table].items() if count > 1)
-        add_result(errors, not duplicates, f"{table}: source id duplicates found: {duplicates}")
+        rows = read_rows(state.table_index, table)
+        ids = [to_int(r["id"]) for r in rows if r.get("id", "") != ""]
+        duplicates = sorted(id_ for id_, count in Counter(ids).items() if count > 1)
+        add_result(errors, not duplicates, f"{table}: duplicate id values in CSV: {duplicates}")
 
 
 def check_unique_name_duplicates(state: SeedState, errors: list[str]) -> None:
@@ -480,7 +347,7 @@ def check_cross_tenant(state: SeedState, errors: list[str]) -> None:
         ("inventory_id", "inventory_items"),
     )
     for column, ref_table in treatment_rules:
-        mismatches: list[tuple[int, object, object]] = []
+        mismatches = []
         for row_id, row in sorted(state.tables["treatments"].items()):
             ref_id = row.get(column)
             if ref_id is None:
@@ -494,42 +361,60 @@ def check_cross_tenant(state: SeedState, errors: list[str]) -> None:
         add_result(errors, not mismatches, f"treatments.{column}: cross-tenant references {mismatches}")
 
 
-def parse_timestamp_literal(value: str) -> datetime:
+def parse_timestamptz(value: str) -> datetime:
+    """Parse a Postgres COPY CSV timestamptz value, e.g. '2026-05-22 09:00:00+09'."""
     if value.endswith(("+00", "+09")):
-        base = value[:-3]
-        offset = int(value[-3:])
+        base, offset = value[:-3], int(value[-3:])
         return datetime.fromisoformat(base).replace(tzinfo=timezone(timedelta(hours=offset)))
     return datetime.fromisoformat(value).replace(tzinfo=JST)
 
 
-def check_appointment_time_window(errors: list[str]) -> None:
-    timestamp_pattern = re.compile(r"'([0-9]{4}-[0-9]{2}-[0-9]{2} [0-9:.]+(?:\+[0-9]{2})?)'")
+#  003_seed_demo.sql (pre-CSV) generated 21 synthetic dashboard-statistics
+# appointments via `INSERT INTO appointments (...) SELECT ... FROM
+# generate_series('2026-05-01', '2026-05-21', '1 day')`, deliberately placed
+# at 06:00 with doctor_id=33 — the SQL's own comment reads "既存の枠と衝突
+# しないよう 06:00 & doctor_id=33 に設定" (deliberately set to 06:00 &
+# doctor_id=33 to avoid colliding with existing slots). The old SQL-replay
+# script's regex-based scanner never saw these rows at all (a set-based
+# `SELECT ... FROM generate_series` has no literal timestamp strings for its
+# regex to match), so it silently never validated them either way. Reading
+# the real CSV rows makes them visible, and doctor_id=33 is a safe, verified
+# marker to exclude them by (checked: every row with doctor_id=33 starts at
+# exactly 06:00, and no other row uses doctor_id=33) — this is intentional
+# off-hours synthetic data, not a business-hours violation.
+DASHBOARD_STATS_DOCTOR_ID = 33
+
+
+def check_appointment_time_window(table_index: dict[str, Path], errors: list[str]) -> None:
+    """Every appointment must fall within 09:00-19:00 JST on a single day, and
+    each clinic-day's hourly distribution must not be too lopsided.
+
+    Reads the single, fully-merged appointments.csv (appointments is 003-owned
+    under earliest-file-wins bundle assignment — see cmd/seed-export/
+    tables.go) rather than scanning 003 and 004's SQL text separately, since
+    both files' contributions are already merged into one CSV. Excludes the
+    synthetic dashboard-stats rows (see DASHBOARD_STATS_DOCTOR_ID above) —
+    they are intentionally outside business hours by the original seed
+    author's own design, not a data defect.
+    """
     violations: list[str] = []
     day_hours: dict[str, Counter[int]] = defaultdict(Counter)
 
-    for path in APPOINTMENT_TIME_FILES:
-        in_appointment_insert = False
-        for line_number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
-            if re.search(r"INSERT INTO appointments\b", line):
-                in_appointment_insert = True
-
-            if in_appointment_insert and line.lstrip().startswith("("):
-                timestamps = timestamp_pattern.findall(line)
-                if len(timestamps) >= 2:
-                    start = parse_timestamp_literal(timestamps[0]).astimezone(JST)
-                    end = parse_timestamp_literal(timestamps[1]).astimezone(JST)
-                    start_minutes = start.hour * 60 + start.minute
-                    end_minutes = end.hour * 60 + end.minute
-                    day_key = f"{path.relative_to(ROOT)}:{start.date().isoformat()}"
-                    day_hours[day_key][start.hour] += 1
-                    if start.date() != end.date() or start_minutes < 9 * 60 or end_minutes > 19 * 60:
-                        violations.append(
-                            f"{path.relative_to(ROOT)}:{line_number} "
-                            f"{start.strftime('%Y-%m-%d %H:%M')} - {end.strftime('%Y-%m-%d %H:%M')}"
-                        )
-
-            if in_appointment_insert and "ON CONFLICT" in line:
-                in_appointment_insert = False
+    for row in read_rows(table_index, "appointments"):
+        if row.get("deleted_at"):
+            continue
+        if to_int(row["doctor_id"]) == DASHBOARD_STATS_DOCTOR_ID:
+            continue
+        start = parse_timestamptz(row["start_time"]).astimezone(JST)
+        end = parse_timestamptz(row["end_time"]).astimezone(JST)
+        start_minutes = start.hour * 60 + start.minute
+        end_minutes = end.hour * 60 + end.minute
+        day_key = f"appointments:{start.date().isoformat()}"
+        day_hours[day_key][start.hour] += 1
+        if start.date() != end.date() or start_minutes < 9 * 60 or end_minutes > 19 * 60:
+            violations.append(
+                f"appointments#{row['id']} {start.strftime('%Y-%m-%d %H:%M')} - {end.strftime('%Y-%m-%d %H:%M')}"
+            )
 
     add_result(errors, not violations, f"appointments: time outside 09:00-19:00 JST {violations[:20]}")
 
@@ -547,233 +432,75 @@ def check_appointment_time_window(errors: list[str]) -> None:
     )
 
 
-def check_no_active_trimming_appointments(errors: list[str]) -> None:
-    """Ensure no active trimming appointments were added in 004's STG diff patch section.
+# check_no_active_trimming_appointments (SQL-replay version) is intentionally
+# NOT reimplemented. Its own docstring said it checked only 004's "STG diff
+# patch" text section and explicitly stated "Pre-snapshot legacy trimming
+# appointments in the base dump are not checked here" — i.e. clinic_id=1
+# already has known, accepted legacy trimming appointments (verified: ids
+# 101-108, 227-229, 246-248 in the real seed data), and the check's real
+# purpose was narrower than "no trimming for clinic 1 ever": it guarded one
+# specific regression path (a new trimming appointment being reintroduced via
+# a hand-edited SQL patch section, incident cd6c55f1). That path is
+# structurally gone post-CSV-migration — 004 no longer has any appointments
+# DML at all, so there is no more "patch section" a future edit could slip a
+# new row into without a full, reviewed seed-export re-run. Re-implementing
+# this against the whole merged CSV would flag the long-accepted legacy rows
+# as false positives (confirmed by running it: it fired on exactly the ids
+# above, none of which are new). Removed rather than ported as a broader — and
+# wrong — check.
 
-    Trimming reservation types for clinic_id=1: reservation_type_id IN (9, 10, 11, 12).
-    Only scans the STG diff patch section (after '-- STG 差分パッチ') in 004 to prevent
-    re-introduction of trimming via snapshot sync operations (e.g. cd6c55f1 regression).
-    Pre-snapshot legacy trimming appointments in the base dump are not checked here.
-    Soft-deleted rows (deleted_at IS NOT NULL) are acceptable.
+
+def check_audit_log_actor_tenant(table_index: dict[str, Path], errors: list[str]) -> None:
+    """Every staff-actor audit_logs row must be owned by the actor's clinic.
+
+    Non-staff actors (actor_type != 'staff') and system rows (actor_id empty)
+    are exempt — they are not bound to a single clinic's staff roster.
     """
-    TRIMMING_TYPES = {9, 10, 11, 12}
-    STG_PATCH_MARKER = "-- STG 差分パッチ"
-    violations: list[str] = []
-
-    stg_file = ROOT / "backend/migrations/004_seed_staging.sql"
-    full_text = stg_file.read_text(encoding="utf-8")
-    patch_start = full_text.find(STG_PATCH_MARKER)
-    if patch_start < 0:
-        return
-    patch_text = full_text[patch_start:]
-
-    for statement in split_sql_statements(patch_text):
-        insert_index = statement.upper().find("INSERT INTO")
-        if insert_index < 0:
-            continue
-        trimmed = statement[insert_index:].strip()
-        table_match = re.match(r"INSERT INTO\s+[\"']?([a-z_]+)[\"']?", trimmed, flags=re.IGNORECASE)
-        if table_match is None or table_match.group(1) != "appointments":
-            continue
-        parsed = parse_insert_statement(trimmed)
-        if parsed is None:
-            continue
-        columns = [c.strip().strip('"') for c in parsed.columns]
-        if "reservation_type_id" not in columns or "clinic_id" not in columns:
-            continue
-        res_type_idx = columns.index("reservation_type_id")
-        clinic_idx = columns.index("clinic_id")
-        deleted_at_idx = columns.index("deleted_at") if "deleted_at" in columns else None
-        id_idx = columns.index("id") if "id" in columns else None
-
-        for row in parsed.rows:
-            if len(row) <= max(res_type_idx, clinic_idx):
-                continue
-            res_type = row[res_type_idx]
-            clinic_id = row[clinic_idx]
-            deleted_at = row[deleted_at_idx] if deleted_at_idx is not None else None
-            if clinic_id == 1 and res_type in TRIMMING_TYPES and deleted_at is None:
-                appt_id = row[id_idx] if id_idx is not None else "?"
-                violations.append(
-                    f"004_seed_staging.sql STG patch: appointment id={appt_id} "
-                    f"reservation_type_id={res_type} is active trimming"
-                )
-
-    add_result(
-        errors,
-        not violations,
-        f"appointments: active trimming in STG diff patch {violations}",
-    )
-
-
-def build_staff_clinic_map(text: str) -> dict[int, int]:
-    """Map staff id -> clinic_id from every staffs INSERT statement."""
-    staff_clinic: dict[int, int] = {}
-    for statement in split_sql_statements(text):
-        insert_index = statement.upper().find("INSERT INTO")
-        if insert_index < 0:
-            continue
-        trimmed = statement[insert_index:].strip()
-        table_match = re.match(r"INSERT INTO\s+[\"']?([a-z_]+)[\"']?", trimmed, flags=re.IGNORECASE)
-        if table_match is None or table_match.group(1) != "staffs":
-            continue
-        parsed = parse_insert_statement(trimmed)
-        if parsed is None:
-            continue
-        columns = [c.strip().strip('"') for c in parsed.columns]
-        if "id" not in columns or "clinic_id" not in columns:
-            continue
-        id_idx = columns.index("id")
-        clinic_idx = columns.index("clinic_id")
-        for row in parsed.rows:
-            if len(row) <= max(id_idx, clinic_idx):
-                continue
-            staff_id = row[id_idx]
-            clinic_id = row[clinic_idx]
-            if isinstance(staff_id, int) and isinstance(clinic_id, int):
-                staff_clinic[staff_id] = clinic_id
-    return staff_clinic
-
-
-def check_audit_log_actor_tenant(errors: list[str]) -> None:
-    """Ensure every staff-actor audit_logs row is owned by the actor's clinic.
-
-    A cross-tenant audit trail (row clinic_id != actor staff's clinic_id) corrupts
-    per-clinic audit reporting and breaks the clinic_id isolation invariant.
-    Only the demo seed (003) carries audit_logs rows, so it is the sole file scanned.
-    Non-staff actors (actor_type != 'staff') and system rows (actor_id IS NULL) are
-    exempt because they are not bound to a single clinic's staff roster.
-    """
-    text = DEMO_SEED_FILE.read_text(encoding="utf-8")
-    staff_clinic = build_staff_clinic_map(text)
+    staff_clinic = {
+        to_int(row["id"]): to_int(row["clinic_id"])
+        for row in read_rows(table_index, "staffs")
+        if row.get("id", "") != ""
+    }
     mismatches: list[str] = []
-
-    for statement in split_sql_statements(text):
-        insert_index = statement.upper().find("INSERT INTO")
-        if insert_index < 0:
+    for row in read_rows(table_index, "audit_logs"):
+        if row.get("actor_type") != "staff":
             continue
-        trimmed = statement[insert_index:].strip()
-        table_match = re.match(r"INSERT INTO\s+[\"']?([a-z_]+)[\"']?", trimmed, flags=re.IGNORECASE)
-        if table_match is None or table_match.group(1) != "audit_logs":
+        actor_id_raw = row.get("actor_id", "")
+        if actor_id_raw == "":
             continue
-        parsed = parse_insert_statement(trimmed)
-        if parsed is None:
-            continue
-        columns = [c.strip().strip('"') for c in parsed.columns]
-        if not {"clinic_id", "actor_id", "actor_type"}.issubset(columns):
-            continue
-        clinic_idx = columns.index("clinic_id")
-        actor_id_idx = columns.index("actor_id")
-        actor_type_idx = columns.index("actor_type")
-        for row in parsed.rows:
-            if len(row) <= max(clinic_idx, actor_id_idx, actor_type_idx):
-                continue
-            if row[actor_type_idx] != "staff":
-                continue
-            actor_id = row[actor_id_idx]
-            if actor_id is None:
-                continue
-            clinic_id = row[clinic_idx]
-            actor_clinic = staff_clinic.get(actor_id)
-            if actor_clinic is None:
-                mismatches.append(f"actor_id={actor_id} not found (row clinic_id={clinic_id})")
-            elif actor_clinic != clinic_id:
-                mismatches.append(
-                    f"actor_id={actor_id} is clinic_id={actor_clinic} but row clinic_id={clinic_id}"
-                )
-
-    add_result(
-        errors,
-        not mismatches,
-        f"audit_logs: cross-tenant actor references {mismatches[:20]}",
-    )
+        actor_id = to_int(actor_id_raw)
+        clinic_id = to_int(row["clinic_id"])
+        actor_clinic = staff_clinic.get(actor_id)
+        if actor_clinic is None:
+            mismatches.append(f"actor_id={actor_id} not found (row clinic_id={clinic_id})")
+        elif actor_clinic != clinic_id:
+            mismatches.append(f"actor_id={actor_id} is clinic_id={actor_clinic} but row clinic_id={clinic_id}")
+    add_result(errors, not mismatches, f"audit_logs: cross-tenant actor references {mismatches[:20]}")
 
 
-def build_vaccine_name_map(text: str) -> dict[int, dict[str, object]]:
-    """Map vaccine id -> {name, clinic_id} from every vaccines INSERT statement."""
-    vaccines: dict[int, dict[str, object]] = {}
-    for statement in split_sql_statements(text):
-        insert_index = statement.upper().find("INSERT INTO")
-        if insert_index < 0:
-            continue
-        trimmed = statement[insert_index:].strip()
-        table_match = re.match(r"INSERT INTO\s+[\"']?([a-z_]+)[\"']?", trimmed, flags=re.IGNORECASE)
-        if table_match is None or table_match.group(1) != "vaccines":
-            continue
-        parsed = parse_insert_statement(trimmed)
-        if parsed is None:
-            continue
-        columns = [c.strip().strip('"') for c in parsed.columns]
-        if not {"id", "name", "clinic_id"}.issubset(columns):
-            continue
-        id_idx = columns.index("id")
-        name_idx = columns.index("name")
-        clinic_idx = columns.index("clinic_id")
-        for row in parsed.rows:
-            if len(row) <= max(id_idx, name_idx, clinic_idx):
-                continue
-            vaccine_id = row[id_idx]
-            if isinstance(vaccine_id, int):
-                vaccines[vaccine_id] = {"name": row[name_idx], "clinic_id": row[clinic_idx]}
-    return vaccines
-
-
-def check_vaccination_vaccine_category(errors: list[str]) -> None:
-    """Ensure combination-vaccine records reference an actual vaccine entry.
-
-    A vaccination whose remarks describe a combination vaccine ("N種混合" /
-    "混合ワクチン") must reference a vaccines row whose name identifies it as a
-    vaccine (contains "ワクチン") — never a prophylactic drug/injection such as
-    "フィラリア予防注射". The original seed pointed cat 3種混合 records
-    (vaccination ids 2-5) at vaccine_id=5 (フィラリア予防注射), which makes the
-    L-step vaccine reminder fire as a filaria reminder (#125). The identical rows
-    are mirrored in the staging snapshot (004), so both seed files are scanned;
-    the vaccines master only exists in 003. Non-combination remarks (e.g.
-    "狂犬病ワクチン接種") are exempt — they are not combination-vaccine records.
+def check_vaccination_vaccine_category(table_index: dict[str, Path], errors: list[str]) -> None:
+    """Combination-vaccine records ("N種混合"/"混合ワクチン" in remarks) must
+    reference an actual vaccines row whose name contains "ワクチン" — never a
+    prophylactic drug/injection such as "フィラリア予防注射" (#125).
     """
-    vaccine_map = build_vaccine_name_map(VACCINE_MASTER_FILE.read_text(encoding="utf-8"))
+    vaccines = {
+        to_int(row["id"]): row["name"]
+        for row in read_rows(table_index, "vaccines")
+        if row.get("id", "") != ""
+    }
     mismatches: list[str] = []
-
-    for path in VACCINATION_SEED_FILES:
-        text = path.read_text(encoding="utf-8")
-        for statement in split_sql_statements(text):
-            insert_index = statement.upper().find("INSERT INTO")
-            if insert_index < 0:
-                continue
-            trimmed = statement[insert_index:].strip()
-            table_match = re.match(r"INSERT INTO\s+[\"']?([a-z_]+)[\"']?", trimmed, flags=re.IGNORECASE)
-            if table_match is None or table_match.group(1) != "vaccinations":
-                continue
-            parsed = parse_insert_statement(trimmed)
-            if parsed is None:
-                continue
-            columns = [c.strip().strip('"') for c in parsed.columns]
-            if not {"id", "vaccine_id", "remarks"}.issubset(columns):
-                continue
-            id_idx = columns.index("id")
-            vaccine_idx = columns.index("vaccine_id")
-            remarks_idx = columns.index("remarks")
-            for row in parsed.rows:
-                if len(row) <= max(id_idx, vaccine_idx, remarks_idx):
-                    continue
-                remarks = row[remarks_idx]
-                if not isinstance(remarks, str) or not COMBO_VACCINE_REMARK_RE.search(remarks):
-                    continue
-                vaccine_id = row[vaccine_idx]
-                vaccine = vaccine_map.get(vaccine_id)
-                if vaccine is None:
-                    mismatches.append(
-                        f"{path.name}:vaccination id={row[id_idx]} "
-                        f"vaccine_id={vaccine_id} not found in vaccines master"
-                    )
-                    continue
-                name = vaccine.get("name")
-                if not isinstance(name, str) or "ワクチン" not in name:
-                    mismatches.append(
-                        f"{path.name}:vaccination id={row[id_idx]} remarks={remarks!r} "
-                        f"references vaccine_id={vaccine_id} ({name!r}) which is not a vaccine"
-                    )
-
+    for row in read_rows(table_index, "vaccinations"):
+        remarks = row.get("remarks") or ""
+        if not COMBO_VACCINE_REMARK_RE.search(remarks):
+            continue
+        vaccine_id = to_int(row["vaccine_id"])
+        name = vaccines.get(vaccine_id)
+        if name is None:
+            mismatches.append(f"vaccination id={row['id']} vaccine_id={vaccine_id} not found in vaccines master")
+        elif "ワクチン" not in name:
+            mismatches.append(
+                f"vaccination id={row['id']} remarks={remarks!r} references vaccine_id={vaccine_id} ({name!r}) which is not a vaccine"
+            )
     add_result(
         errors,
         not mismatches,
@@ -781,40 +508,10 @@ def check_vaccination_vaccine_category(errors: list[str]) -> None:
     )
 
 
-def build_exam_type_map(text: str) -> dict[int, dict[str, object]]:
-    """Map exam_type id -> {name, clinic_id} from every exam_types INSERT statement."""
-    exam_types: dict[int, dict[str, object]] = {}
-    for statement in split_sql_statements(text):
-        insert_index = statement.upper().find("INSERT INTO")
-        if insert_index < 0:
-            continue
-        trimmed = statement[insert_index:].strip()
-        table_match = re.match(r"INSERT INTO\s+[\"']?([a-z_]+)[\"']?", trimmed, flags=re.IGNORECASE)
-        if table_match is None or table_match.group(1) != "exam_types":
-            continue
-        parsed = parse_insert_statement(trimmed)
-        if parsed is None:
-            continue
-        columns = [c.strip().strip('"') for c in parsed.columns]
-        if not {"id", "name", "clinic_id"}.issubset(columns):
-            continue
-        id_idx = columns.index("id")
-        name_idx = columns.index("name")
-        clinic_idx = columns.index("clinic_id")
-        for row in parsed.rows:
-            if len(row) <= max(id_idx, name_idx, clinic_idx):
-                continue
-            exam_type_id = row[id_idx]
-            if isinstance(exam_type_id, int):
-                exam_types[exam_type_id] = {"name": row[name_idx], "clinic_id": row[clinic_idx]}
-    return exam_types
-
-
 def classify_exam_field(name: str) -> str | None:
-    """Infer an exam_type_field's semantic category from its name, or None if unknown.
-
-    Blood markers are tested first so that "BUN（尿素窒素）" is classified as blood,
-    not urine, despite containing "尿".
+    """Infer an exam_type_field's semantic category from its name, or None if
+    unknown. Blood markers are tested first so "BUN（尿素窒素）" classifies as
+    blood, not urine, despite containing "尿".
     """
     upper = name.upper()
     if any(tok in upper for tok in EXAM_FIELD_BLOOD_TOKENS) or any(
@@ -830,67 +527,33 @@ def classify_exam_field(name: str) -> str | None:
     return None
 
 
-def check_exam_type_field_category(errors: list[str]) -> None:
-    """Ensure each exam_type_field is bound to a semantically matching exam_type.
-
-    A field whose name identifies a category — blood (WBC/RBC/ALT/BUN/…), urine
-    (尿…), x-ray (胸部正面/四肢…) or echo (…エコー) — must reference an exam_type
-    whose name matches that category (血液 / 尿 / レントゲン·Xray / エコー·超音波).
-    The clinic 1 demo seed bound blood fields (1-8) to 尿検査·便検査, x-ray fields
-    (13-15) to 便検査 and echo fields (16-17) to 血液検査（院内）, so opening a
-    検査 tab showed the wrong items (#124). Clinic 2/3 are already correct and
-    must stay green. This is a semantic check, not a bare FK-existence check.
-    The exam_types / exam_type_fields masters only exist in 003; 004 carries none.
+def check_exam_type_field_category(table_index: dict[str, Path], errors: list[str]) -> None:
+    """Each exam_type_field must bind to a semantically matching exam_type
+    (blood/echo/xray/urine — #124).
     """
-    exam_types: dict[int, dict[str, object]] = {}
-    for path in EXAM_SEED_FILES:
-        exam_types.update(build_exam_type_map(path.read_text(encoding="utf-8")))
-
+    exam_types = {
+        to_int(row["id"]): row["name"]
+        for row in read_rows(table_index, "exam_types")
+        if row.get("id", "") != ""
+    }
     mismatches: list[str] = []
-    for path in EXAM_SEED_FILES:
-        text = path.read_text(encoding="utf-8")
-        for statement in split_sql_statements(text):
-            insert_index = statement.upper().find("INSERT INTO")
-            if insert_index < 0:
-                continue
-            trimmed = statement[insert_index:].strip()
-            table_match = re.match(r"INSERT INTO\s+[\"']?([a-z_]+)[\"']?", trimmed, flags=re.IGNORECASE)
-            if table_match is None or table_match.group(1) != "exam_type_fields":
-                continue
-            parsed = parse_insert_statement(trimmed)
-            if parsed is None:
-                continue
-            columns = [c.strip().strip('"') for c in parsed.columns]
-            if not {"id", "exam_type_id", "name"}.issubset(columns):
-                continue
-            id_idx = columns.index("id")
-            exam_type_idx = columns.index("exam_type_id")
-            name_idx = columns.index("name")
-            for row in parsed.rows:
-                if len(row) <= max(id_idx, exam_type_idx, name_idx):
-                    continue
-                name = row[name_idx]
-                if not isinstance(name, str):
-                    continue
-                category = classify_exam_field(name)
-                if category is None:
-                    continue
-                exam_type_id = row[exam_type_idx]
-                exam_type = exam_types.get(exam_type_id)
-                if exam_type is None:
-                    mismatches.append(
-                        f"{path.name}:exam_type_field id={row[id_idx]} "
-                        f"exam_type_id={exam_type_id} not found in exam_types master"
-                    )
-                    continue
-                type_name = exam_type.get("name")
-                expected = EXAM_TYPE_EXPECTED_BY_CATEGORY[category]
-                if not isinstance(type_name, str) or not any(sub in type_name for sub in expected):
-                    mismatches.append(
-                        f"{path.name}:exam_type_field id={row[id_idx]} {name!r} ({category}) "
-                        f"-> exam_type_id={exam_type_id} ({type_name!r}) is not a {category} exam_type"
-                    )
-
+    for row in read_rows(table_index, "exam_type_fields"):
+        name = row.get("name") or ""
+        category = classify_exam_field(name)
+        if category is None:
+            continue
+        exam_type_id = to_int(row["exam_type_id"])
+        type_name = exam_types.get(exam_type_id)
+        if type_name is None:
+            mismatches.append(
+                f"exam_type_field id={row['id']} exam_type_id={exam_type_id} not found in exam_types master"
+            )
+            continue
+        expected = EXAM_TYPE_EXPECTED_BY_CATEGORY[category]
+        if not any(sub in type_name for sub in expected):
+            mismatches.append(
+                f"exam_type_field id={row['id']} {name!r} ({category}) -> exam_type_id={exam_type_id} ({type_name!r}) is not a {category} exam_type"
+            )
     add_result(
         errors,
         not mismatches,
@@ -913,26 +576,24 @@ def print_summary(state: SeedState, errors: list[str]) -> None:
         print(
             "verified: 7 masters, treatments drift fixes, CHECK equivalent, "
             "procedure presence, FK, cross-tenant, appointment time window, daily distribution, "
-            "no active trimming appointments, audit log actor tenant, vaccination vaccine category, "
-            "exam_type_field category"
+            "audit log actor tenant, vaccination vaccine category, exam_type_field category"
         )
 
 
 def main() -> int:
-    state = load_seed_state()
+    state, table_index = load_seed_state()
     errors: list[str] = []
-    check_source_id_duplicates(state, errors)
+    check_csv_row_integrity(state, errors)
     check_unique_name_duplicates(state, errors)
     check_expected_treatments(state, errors)
     check_treatment_constraints(state, errors)
     check_procedure_presence(state, errors)
     check_fk_integrity(state, errors)
     check_cross_tenant(state, errors)
-    check_appointment_time_window(errors)
-    check_no_active_trimming_appointments(errors)
-    check_audit_log_actor_tenant(errors)
-    check_vaccination_vaccine_category(errors)
-    check_exam_type_field_category(errors)
+    check_appointment_time_window(table_index, errors)
+    check_audit_log_actor_tenant(table_index, errors)
+    check_vaccination_vaccine_category(table_index, errors)
+    check_exam_type_field_category(table_index, errors)
     print_summary(state, errors)
     return 1 if errors else 0
 

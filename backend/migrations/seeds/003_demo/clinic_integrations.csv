@@ -1,0 +1,5 @@
+id,clinic_id,service,key_name,key_value,created_at,updated_at
+1,1,lstep,line_channel_access_token,pwMi3yP6jhRa0xbmnR0IPEcE5l+OIp21a7ia3hmoiuFSCvqkR5Tmmfm6fLoSTB1Bt7uQjAe9NN7fZ+LBDtNKLGnrqBrjDmhTnws9PVxQKLyinomNzUAb61KADX7NJmFBfEsLQQ9VmlU+tMJcWh+zswdB04t89/1O/w1cDnyilFU=,2026-07-06 14:59:40.511971+09,2026-07-06 14:59:40.882499+09
+2,1,lstep,line_channel_secret,5344ef84eb7072b5894f7e087db28827,2026-07-06 14:59:40.511971+09,2026-07-06 14:59:40.882499+09
+3,1,lstep,liff_id,2009755581-w5NOA3EW,2026-07-06 14:59:40.511971+09,2026-07-06 14:59:40.882499+09
+4,1,lstep,line_account_name,テスト-八王子,2026-07-06 14:59:40.511971+09,2026-07-06 14:59:40.882499+09

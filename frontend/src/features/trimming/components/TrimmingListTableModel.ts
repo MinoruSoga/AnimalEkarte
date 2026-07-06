@@ -1,8 +1,8 @@
 // TrimmingListTable のフィルタ定義 (非コンポーネント)。コンポーネントファイルから分離して
 // react-refresh/only-export-components 違反を解消する。
 import { Calendar, CircleDot, PawPrint, User } from "lucide-react";
-import { CONDITIONS_NO_EMPTY, CONDITIONS_WITH_EMPTY } from "@/components/shared/NotionFilter/types";
-import type { FilterProperty } from "@/components/shared/NotionFilter/types";
+import { CONDITIONS_NO_EMPTY, CONDITIONS_WITH_EMPTY } from "@/components/shared/PropertyFilter/types";
+import type { FilterProperty } from "@/components/shared/PropertyFilter/types";
 
 const TRIMMING_STATIC_FILTER_PROPERTIES: FilterProperty[] = [
   {

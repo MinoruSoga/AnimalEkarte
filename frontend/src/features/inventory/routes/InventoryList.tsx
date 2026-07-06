@@ -14,14 +14,14 @@ import type {
   FilterProperty,
   ActiveFilter,
   SortProperty,
-} from "@/components/shared/NotionFilter/types";
-import { CONDITIONS_NO_EMPTY } from "@/components/shared/NotionFilter/types";
+} from "@/components/shared/PropertyFilter/types";
+import { CONDITIONS_NO_EMPTY } from "@/components/shared/PropertyFilter/types";
 
 // Internal
 import { paths } from "@/config/paths";
 import { TableCell } from "@/components/ui/table";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
-import { NotionFilter } from "@/components/shared/NotionFilter/NotionFilter";
+import { PropertyFilter } from "@/components/shared/PropertyFilter/PropertyFilter";
 import { DataTable, DESIGN_TABLE_HEADER_ROW, DESIGN_TABLE_HEADER_CELL } from "@/components/shared/DataTable/DataTable";
 import { DataTableRow } from "@/components/shared/DataTable/DataTableRow";
 import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
@@ -279,7 +279,7 @@ export function InventoryList() {
         ) : null}
 
         {/* Search & Filters */}
-        <NotionFilter
+        <PropertyFilter
           properties={INVENTORY_FILTER_PROPERTIES}
           activeFilters={activeFilters}
           onFilterChange={setActiveFilters}

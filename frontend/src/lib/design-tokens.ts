@@ -38,14 +38,14 @@ export const PALETTE = {
   pickerDefaultBlue: "#3B82F6",
 
   /* ── Brand (hospital main color) ── */
-  /** Brand primary — DESIGN.md structural blue */
-  brand: "#0075DE",
-  /** Brand hover — slightly darker */
-  brandHover: "#005BAB",
+  /** Brand primary — docs/DESIGN_SYSTEM.md §2.1 {colors.primary} (teal, AE product override of DESIGN.md's Notion blue) */
+  brand: "#038B94",
+  /** Brand hover/pressed — docs/DESIGN_SYSTEM.md §2.1 {colors.primary-active} */
+  brandHover: "#027078",
   /** Brand light background */
-  brandLight: "#E7F2FD",
+  brandLight: "#E1F3F4",
   /** Brand dark text (on light bg) */
-  brandDark: "#004D91",
+  brandDark: "#025F66",
 
   /** Border – light (table cell, card) */
   borderLight: "rgba(0,0,0,0.09)",
@@ -264,19 +264,35 @@ export const C = {
   bgLight:       "bg-[rgba(0,0,0,0.09)]",
 
   /* ── Brand (Hospital teal) ── */
-  textBrand:     "text-[#0075DE]",
-  bgBrand:       "bg-[#0075DE]",
-  bgBrand10:     "bg-[#0075DE]/10",
-  bgBrand8:      "bg-[#0075DE]/8",
-  bgBrandDot:    "bg-[#0075DE]",
-  hoverBgBrand:  "hover:bg-[#005BAB]",
-  focusRingBrand:"focus:ring-[#0075DE]",
+  textBrand:     "text-[#038B94]",
+  bgBrand:       "bg-[#038B94]",
+  bgBrand10:     "bg-[#038B94]/10",
+  bgBrand8:      "bg-[#038B94]/8",
+  bgBrand5:      "bg-[#038B94]/5",
+  bgBrandDot:    "bg-[#038B94]",
+  hoverBgBrand:  "hover:bg-[#027078]",
+  hoverBgBrand5: "hover:bg-[#038B94]/5",
+  /** Hover text — matches PALETTE.brandHover */
+  hoverTextBrand: "hover:text-[#027078]",
+  focusRingBrand:"focus:ring-[#038B94]",
   /** Focus ring (40% opacity) — use for form inputs matching the manual sidebar search field */
-  focusRingBrand40: "focus:ring-[#0075DE]/40",
-  borderBrand:   "border-[#0075DE]",
-  borderLBrand:  "border-l-[#0075DE]",
+  focusRingBrand40: "focus:ring-[#038B94]/40",
+  borderBrand:   "border-[#038B94]",
+  borderLBrand:  "border-l-[#038B94]",
+  /** Light brand border for outline/badge use — matches legacy borderAccentLight/borderAccentBadge weight */
+  borderBrandLight: "border-[#038B94]/30",
   /** Tailwind accent-color utility (checkbox/radio) — brand teal */
-  accentBrand:   "accent-[#0075DE]",
+  accentBrand:   "accent-[#038B94]",
+  /* Brand light background — matches PALETTE.brandLight (#E1F3F4), replaces legacy bgAccentLight family */
+  bgBrandLight:   "bg-[#E1F3F4]",
+  bgBrandLight8:  "bg-[#E1F3F4]/8",
+  bgBrandLight30: "bg-[#E1F3F4]/30",
+  bgBrandLight40: "bg-[#E1F3F4]/40",
+  bgBrandLight50: "bg-[#E1F3F4]/50",
+  hoverBgBrandLight:   "hover:bg-[#E1F3F4]",
+  hoverBgBrandLight60: "hover:bg-[#E1F3F4]/60",
+  /** Darker brand text for contrast on bgBrandLight — matches PALETTE.brandDark (#025F66), replaces legacy textAccentDark on brand-light surfaces */
+  textBrandDark: "text-[#025F66]",
 
   /* ── Border ── */
   borderLight:   "border-[rgba(0,0,0,0.09)]",
@@ -740,7 +756,18 @@ export const LAYOUT = {
     h:             "h-[53px]",
   },
 
-  /** 
+  /**
+   * PageLayout content max-width presets — single source of truth for the
+   * `maxWidth` prop so list pages and clinical detail pages don't drift.
+   * `full`    一覧・カルテ詳細など、テーブルやタブで画面幅を使い切るページ
+   * `default` 設定・単票フォーム系ページ（PageLayout の暗黙デフォルト）
+   */
+  pageContentMaxWidth: {
+    full:    "max-w-full",
+    default: "max-w-[1440px]",
+  },
+
+  /**
    * Full height flex container pattern.
    * flex-1: Fills the remaining space.
    * min-h-0: Overrides min-height: auto to allow the container to shrink and enable internal scrolling.
@@ -924,7 +951,7 @@ export const STYLE = {
   sidePeekCancelBtn:
     `px-4 py-[7px] text-base ${C.text65} ${C.hoverBgLight} rounded-[3px] transition-colors cursor-pointer`,
   sidePeekSaveBtn:
-    `px-5 py-[7px] text-base text-white ${C.bgAccent} ${C.bgAccentHover} rounded-[3px] transition-colors cursor-pointer shadow-[0_1px_2px_rgba(0,0,0,0.1)]`,
+    `px-5 py-[7px] text-base text-white ${C.bgBrand} ${C.hoverBgBrand} rounded-[3px] transition-colors cursor-pointer shadow-[0_1px_2px_rgba(0,0,0,0.1)]`,
 
   /* ── Notion Page Icon ── */
   pageIcon:

@@ -10,7 +10,7 @@ import { handleApiError } from "@/lib/handle-api-error";
 
 // Types
 import type { UseMutationResult } from "@tanstack/react-query";
-import type { ActiveFilter, ActiveSort } from "@/components/shared/NotionFilter/types";
+import type { ActiveFilter, ActiveSort } from "@/components/shared/PropertyFilter/types";
 
 // ─────────────────────────────────────────────────
 // Types
@@ -38,7 +38,7 @@ interface UseMasterCRUDOptions<T extends MasterEntity> {
   searchFilter?: (item: T, term: string) => boolean;
 
   /**
-   * Custom filter application for NotionFilter activeFilters.
+   * Custom filter application for PropertyFilter activeFilters.
    * Return true if item matches all filters. Defaults to isActive status filter.
    */
   activeFilterApply?: (item: T, filters: ActiveFilter[]) => boolean;
@@ -177,7 +177,7 @@ export function useMasterCRUD<T extends MasterEntity>({
   const filteredItems = useMemo(() => {
     let items = data ?? [];
 
-    // NotionFilter activeFilters 適用
+    // PropertyFilter activeFilters 適用
     if (activeFilters.length > 0) {
       items = items.filter((item) => activeFilterApply(item, activeFilters));
     }

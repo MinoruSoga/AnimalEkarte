@@ -237,7 +237,12 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
 
   if (notFound) {
     return (
-      <PageLayout title="カルテ" onBack={handleBack} icon={<HeartPulse className={`${ICON.page} ${C.text}`} />}>
+      <PageLayout
+        title="カルテ"
+        onBack={handleBack}
+        icon={<HeartPulse className={`${ICON.page} ${C.text}`} />}
+        maxWidth={LAYOUT.pageContentMaxWidth.full}
+      >
         <ErrorFallback message="カルテが見つかりません" />
       </PageLayout>
     );
@@ -257,7 +262,7 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
       title={recordId ? "カルテ編集" : "カルテ入力"}
       onBack={handleBack}
       resource={ResourceMedicalRecords}
-      maxWidth="max-w-[1440px]"
+      maxWidth={LAYOUT.pageContentMaxWidth.full}
       scrollContainerRef={scrollContainerRef}
     >
       <NavigationBlocker when={isDirty} />

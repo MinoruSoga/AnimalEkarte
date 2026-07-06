@@ -97,6 +97,8 @@ erDiagram
 
 > [!NOTE]
 > **2026-07-04 追記**: 増分マイグレーション `005`〜`012` は同日中に `001_init.sql`（DDL）/ `003_seed_demo.sql`（歯科検診暫定 seed DML）へ再統合され、独立ファイルとしては存在しません（§4.3 参照）。ファイル構成が変わっただけで物理テーブル定義そのものは変化していないため、以下の判定結果・テーブル総数は本追記時点でも有効です。
+>
+> **2026-07-06 追記**: 2026-07-04 の再統合後、受付ヘッダー テレメトリ（change-ui.md Phase 2）用に増分マイグレーション `005_add_appointment_checked_in_at.sql`（`appointments.checked_in_at` カラム追加）が新設されていましたが、同日中にこれも `001_init.sql` の `appointments` テーブル定義へ再統合し、独立ファイルとしては存在しません（§4.3 参照）。新規テーブル追加ではなく既存テーブルへの単一カラム追加のため、テーブル総数(108)への影響はありません。
 
 | 項目 | 結果 | 判定 |
 |:---|:---|:---|
@@ -121,7 +123,7 @@ erDiagram
 - 互換注記:
   - `docker compose` 実行時、`.env.local` にて `DB_USER` / `DB_PASSWORD` / `DB_NAME` などの環境変数を読み込んでおり、検証は正常に成功しました。
 
-### 4.3 スキーマ更新履歴（001-004 統合 + 005〜012 増分 + 2026-07-04 再統合）
+### 4.3 スキーマ更新履歴（001-004 統合 + 005〜012 増分 + 2026-07-04 再統合 + 2026-07-06 再統合）
 
 2026-06-26 に、かつて独立した増分ファイル (旧 005-012) として管理されていたスキーマ・シード変更を `001_init.sql` および `003_seed_demo.sql` へ統合しました。
 その後、新たな機能追加に伴い増分マイグレーション 005〜012 が再び追加されていましたが、2026-07-04 にこれらを再度 `001_init.sql`（DDL）および `003_seed_demo.sql`（歯科検診パッケージの暫定 seed DML のみ）へ統合し、独立ファイルとしての 005〜012 は削除しました。
@@ -165,6 +167,11 @@ erDiagram
   - `clinic_settings.closing_am_start` (time, デフォルト 09:00) を定義済み。
 - **臨床結果テーブルの複合 FK 追加 (BE-refactor R3-7/D13 / 旧 012 → 001_init.sql に統合)**
   - `checkup_type_fields` に `UNIQUE(id, clinic_id)`、`checkup_field_results` の `checkup_type_field_id` を `(checkup_type_field_id, clinic_id)` 複合 FK（`ON DELETE SET NULL` 列指定）へ置換済み。
+
+以下は 2026-07-06 の再統合時点で `001_init.sql` へ畳み込まれた変更の論理的な記録です（参照用、当時の独立ファイル 005 は存在しません）。
+
+- **受付ヘッダー テレメトリ用 checked_in_at 追加 (change-ui.md Phase 2 / 旧 005_add_appointment_checked_in_at.sql → 001_init.sql に統合)**
+  - `appointments.checked_in_at` (timestamptz, NULL可) を定義済み。`updated_at` は autoUpdateTime のため予約編集全般でリセットされ待ち時間算出に流用できず、checked_in ステータス遷移時刻専用カラムとして新設したもの。
 
 ### 4.1 継続理由を明示する対象
 

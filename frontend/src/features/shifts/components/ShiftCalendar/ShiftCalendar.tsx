@@ -185,7 +185,7 @@ export const ShiftCalendar = memo(function ShiftCalendar({
                 : isSun
                   ? C.danger
                   : isSat
-                    ? C.accent
+                    ? C.textBrand
                     : C.text70;
               const isClickable = !!onDateHeaderClick && canCreate;
               return (

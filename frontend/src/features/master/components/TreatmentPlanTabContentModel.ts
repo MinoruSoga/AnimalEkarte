@@ -1,4 +1,4 @@
-import type { ActiveFilter } from "@/components/shared/NotionFilter/types";
+import type { ActiveFilter } from "@/components/shared/PropertyFilter/types";
 import type { TreatmentItem } from "@/lib/transforms/treatment";
 import { normalizeKana } from "@/lib/normalize-kana";
 

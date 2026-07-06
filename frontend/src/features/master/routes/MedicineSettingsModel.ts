@@ -1,4 +1,4 @@
-import type { ActiveFilter } from "@/components/shared/NotionFilter/types";
+import type { ActiveFilter } from "@/components/shared/PropertyFilter/types";
 import type { CreateMedicineRequest, UpdateMedicineRequest } from "@/types/medicine";
 import type { Medicine } from "@/types";
 

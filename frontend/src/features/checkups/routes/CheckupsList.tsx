@@ -11,7 +11,7 @@ import { AlertCircle, Calendar, ClipboardCheck, Plus } from "lucide-react";
 import { TableCell } from "@/components/ui/table";
 import { CheckupAlertBadge } from "../components/CheckupAlertBadge";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
-import { NotionFilter } from "@/components/shared/NotionFilter/NotionFilter";
+import { PropertyFilter } from "@/components/shared/PropertyFilter/PropertyFilter";
 import { DataTable, DESIGN_TABLE_HEADER_ROW, DESIGN_TABLE_HEADER_CELL } from "@/components/shared/DataTable/DataTable";
 import { DataTableRow } from "@/components/shared/DataTable/DataTableRow";
 import { SortableHeader } from "@/components/shared/SortableHeader/SortableHeader";
@@ -29,7 +29,7 @@ import { useGetCheckups } from "../api/get-checkups";
 import { todayISODate, addDaysISO } from "../lib/today-iso";
 
 // Types
-import type { FilterProperty, ActiveFilter, SortProperty } from "@/components/shared/NotionFilter/types";
+import type { FilterProperty, ActiveFilter, SortProperty } from "@/components/shared/PropertyFilter/types";
 import { ResourceCheckups } from "@/types/generated/models";
 
 // rendering-hoist-jsx: 静的定数をモジュールスコープに
@@ -231,7 +231,7 @@ export function CheckupsList() {
       }
     >
       <div className="flex flex-col gap-4">
-        <NotionFilter
+        <PropertyFilter
           properties={FILTER_PROPERTIES}
           activeFilters={activeFilters}
           onFilterChange={setActiveFilters}

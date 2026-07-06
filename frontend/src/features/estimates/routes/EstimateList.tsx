@@ -10,7 +10,7 @@ import { formatCurrency } from "@/utils/format/number";
 import { Plus, FileText, Trash2, ExternalLink, CircleDot, Calendar } from "lucide-react";
 import { TableCell } from "@/components/ui/table";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
-import { NotionFilter } from "@/components/shared/NotionFilter/NotionFilter";
+import { PropertyFilter } from "@/components/shared/PropertyFilter/PropertyFilter";
 import { DataTable, DESIGN_TABLE_HEADER_ROW, DESIGN_TABLE_HEADER_CELL } from "@/components/shared/DataTable/DataTable";
 import { DataTableRow } from "@/components/shared/DataTable/DataTableRow";
 import { Pagination } from "@/components/shared/Pagination/Pagination";
@@ -27,8 +27,8 @@ import type {
   ActiveFilter,
   SortProperty,
   ActiveSort,
-} from "@/components/shared/NotionFilter/types";
-import { CONDITIONS_NO_EMPTY } from "@/components/shared/NotionFilter/types";
+} from "@/components/shared/PropertyFilter/types";
+import { CONDITIONS_NO_EMPTY } from "@/components/shared/PropertyFilter/types";
 import { ResourceEstimates } from "@/types/generated/models";
 
 // rendering-hoist-jsx: 静的定義はモジュール定数に巻き上げ
@@ -255,7 +255,7 @@ export function EstimateList() {
       maxWidth="max-w-full"
     >
       <div className="flex flex-col gap-4">
-        <NotionFilter
+        <PropertyFilter
           properties={FILTER_PROPERTIES}
           activeFilters={activeFilters}
           onFilterChange={setActiveFilters}

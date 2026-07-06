@@ -1,7 +1,7 @@
 import { useDeferredValue, useMemo, useState } from "react";
 import { DataTable, DESIGN_TABLE_HEADER_ROW, DESIGN_TABLE_HEADER_CELL } from "@/components/shared/DataTable/DataTable";
-import { NotionFilter } from "@/components/shared/NotionFilter/NotionFilter";
-import type { ActiveFilter } from "@/components/shared/NotionFilter/types";
+import { PropertyFilter } from "@/components/shared/PropertyFilter/PropertyFilter";
+import type { ActiveFilter } from "@/components/shared/PropertyFilter/types";
 import { MASTER_STATUS_FILTER } from "../constants/styles";
 import {
   useGetTrimmingCourses,
@@ -35,7 +35,7 @@ export function TrimmingCourseTab({ onEditTargetChange, canEdit }: TrimmingCours
 
   return (
     <div className="flex flex-col gap-4">
-      <NotionFilter
+      <PropertyFilter
         properties={[MASTER_STATUS_FILTER]}
         activeFilters={activeFilters}
         onFilterChange={setActiveFilters}
@@ -83,7 +83,7 @@ export function TrimmingOptionTab({ onEditTargetChange, canEdit }: TrimmingOptio
 
   return (
     <div className="flex flex-col gap-4">
-      <NotionFilter
+      <PropertyFilter
         properties={[MASTER_STATUS_FILTER]}
         activeFilters={activeFilters}
         onFilterChange={setActiveFilters}

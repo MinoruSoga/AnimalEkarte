@@ -1,9 +1,13 @@
 #!/usr/bin/env bash
 # scripts/verify_seed_matches_stg_dump_full.sh
 #
-# 機械的証明: seed(001-004) が STG dump と全テーブルで一致することを確認する。
+# 機械的証明: seed(001_init.sql + 002/003/004 CSV バンドル) が STG dump と全テーブルで
+# 一致することを確認する。
 #
-# DB-A: 001_init.sql → 002_seed_master.sql → 003_seed_demo.sql → 004_seed_staging.sql を適用
+# DB-A: 001_init.sql (DDL) を適用 → seeds/{002_master,003_demo,004_staging}/*.csv を
+#       manifest.json のテーブル順・固定バンドル順 (002→003→004) で \copy ロード
+#       （2026-07 の stub SQL 削除後は 002-004 に .sql ファイルが存在しないため、
+#       cmd/migrate と同じ CSV ロード経路をこのスクリプト内で再現する）
 # DB-B: 001_init.sql のスキーマ + dump の INSERT 文のみ適用
 #       (session_replication_role='replica' で FK 順序を無視, schema_migrations はスキップ)
 #
@@ -19,7 +23,8 @@
 #   accounts.password_hash
 #   clinic_integrations.key_value
 #
-# 前提: Docker が起動していること, prodData/stg_5-21/ekarte が存在すること
+# 前提: Docker が起動していること, prodData/stg_5-21/ekarte が存在すること, jq がインストール済みであること
+#       (seeds/<bundle>/manifest.json のテーブル順パースに使用)
 #
 # 使い方:
 #   bash scripts/verify_seed_matches_stg_dump_full.sh [DUMP_FILE]
@@ -96,6 +101,14 @@ if [[ "${PARSE_ONLY:-0}" == "1" ]]; then
   exit 0
 fi
 
+if ! command -v jq > /dev/null 2>&1; then
+  echo "ERROR: jq が見つかりません。seeds/<bundle>/manifest.json のパースに必要です（brew install jq 等）。" >&2
+  exit 1
+fi
+
+SEEDS_DIR="$MIGRATION_DIR/seeds"
+BUNDLE_ORDER=(002_master 003_demo 004_staging)
+
 # ---------------------------------------------------------------------------
 # 1. Start container
 # ---------------------------------------------------------------------------
@@ -124,18 +137,31 @@ $PSQL_Q postgres -c "CREATE DATABASE ${DB_A};"
 $PSQL_Q postgres -c "CREATE DATABASE ${DB_B};"
 
 # ---------------------------------------------------------------------------
-# 3. DB-A: apply migrations 001→004
+# 3. DB-A: 001_init.sql (DDL) + seed バンドル (002_master→003_demo→004_staging) CSVロード
+#    2026-07 の stub SQL 削除後は 002-004 に .sql が無いため、cmd/migrate の
+#    applyCSVBundle と同じ「manifest.json のテーブル順で \copy」をここで再現する。
+#    \copy はテーブル名を manifest.json の値からそのまま使う（外部入力ではなく
+#    リポジトリにコミット済みの自分自身の manifest のみを読む）。
 # ---------------------------------------------------------------------------
-echo "[3/5] DB-A: applying 001→004 migrations..."
-for sql in \
-  "$MIGRATION_DIR/001_init.sql" \
-  "$MIGRATION_DIR/002_seed_master.sql" \
-  "$MIGRATION_DIR/003_seed_demo.sql" \
-  "$MIGRATION_DIR/004_seed_staging.sql"
-do
-  printf "      %-32s" "$(basename "$sql")"
-  $PSQL_Q "$DB_A" < "$sql"
-  echo "OK"
+echo "[3/5] DB-A: applying 001_init.sql + seed bundles..."
+printf "      %-32s" "001_init.sql"
+$PSQL_Q "$DB_A" < "$MIGRATION_DIR/001_init.sql"
+echo "OK"
+
+for bundle in "${BUNDLE_ORDER[@]}"; do
+  manifest="$SEEDS_DIR/$bundle/manifest.json"
+  if [[ ! -f "$manifest" ]]; then
+    echo "ERROR: manifest not found: $manifest" >&2
+    exit 1
+  fi
+
+  while IFS=$'\t' read -r table csvfile; do
+    [[ -z "$table" ]] && continue
+    csvpath="$SEEDS_DIR/$bundle/$csvfile"
+    printf "      %-12s %-40s" "$bundle" "$table"
+    $PSQL_Q "$DB_A" -c "\copy public.\"${table}\" FROM STDIN WITH (FORMAT csv, HEADER true)" < "$csvpath"
+    echo "OK"
+  done < <(jq -r '.tables[] | [.table, .csvFile] | @tsv' "$manifest")
 done
 
 # ---------------------------------------------------------------------------

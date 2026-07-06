@@ -50,7 +50,7 @@ const TYPE_SELECT_ITEMS = (
 
 function TypeIcon({ type }: { type: CarePlanItemType }) {
     if (type === "food") return <Utensils className={`${ICON.action} ${C.textDiscount} shrink-0`} />;
-    if (type === "medicine") return <Pill className={`${ICON.action} ${C.accent} shrink-0`} />;
+    if (type === "medicine") return <Pill className={`${ICON.action} ${C.textBrand} shrink-0`} />;
     if (type === "treatment") return <Stethoscope className={`${ICON.action} ${C.textStatusPurple} shrink-0`} />;
     if (type === "instruction") return <ClipboardList className={`${ICON.action} ${C.textStatusGreen} shrink-0`} />;
     return <MoreHorizontal className={`${ICON.action} ${C.text40} shrink-0`} />;
@@ -123,7 +123,7 @@ function EditRow({ item, onSave, onCancel, isSaving }: EditRowProps) {
     }, [name, type, timing, onSave]);
 
     return (
-        <div className={`flex flex-col gap-2 p-3 ${C.bgAccent5} rounded-lg border ${C.borderAccentLight}`}>
+        <div className={`flex flex-col gap-2 p-3 ${C.bgBrand5} rounded-lg border ${C.borderBrandLight}`}>
             <div className="flex gap-2 items-center">
                 <Select value={type} onValueChange={(v) => setType(v as CarePlanItemType)}>
                     <SelectTrigger className="w-28 h-8 text-xs">

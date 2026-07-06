@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { toast } from "sonner";
-import { C, STYLE } from "@/lib/design-tokens";
+import { BADGE, C, STYLE } from "@/lib/design-tokens";
 import { Button } from "@/components/ui/button";
 import {
   useGetTagCodeMappings,
@@ -44,7 +44,7 @@ function NotEnteredBadge() {
 function ConfiguredBadge() {
   return (
     <span
-      className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${C.bgAccentLight8} ${C.accent}`}
+      className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${BADGE.greenNoBorder}`}
     >
       設定済
     </span>

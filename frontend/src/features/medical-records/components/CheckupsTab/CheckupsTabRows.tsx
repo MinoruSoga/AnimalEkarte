@@ -4,7 +4,7 @@ import { Check, Pencil, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DeleteIconButton } from "@/components/shared/DeleteIconButton/DeleteIconButton";
 import { FormFieldError } from "@/components/shared/FormFieldError/FormFieldError";
-import { NotionDatePicker } from "@/components/shared/NotionDatePicker/NotionDatePicker";
+import { DatePicker } from "@/components/shared/DatePicker/DatePicker";
 import { CheckupAlertBadge } from "@/features/checkups";
 import { C, ICON, STYLE } from "@/lib/design-tokens";
 import type { StaffItem } from "@/hooks/use-staffs";
@@ -56,7 +56,7 @@ export const CheckupEditRow = memo(function CheckupEditRow({
   return (
     <tr className={`border-b ${C.borderLight} ${C.bgNotice40}`}>
       <td className="px-3 py-2">
-        <NotionDatePicker
+        <DatePicker
           value={form.date ?? ""}
           onChange={(value) => handleChange("date", value)}
           placeholder="日付"
@@ -71,7 +71,7 @@ export const CheckupEditRow = memo(function CheckupEditRow({
         />
       </td>
       <td className="px-3 py-2">
-        <NotionDatePicker
+        <DatePicker
           value={form.next_date ?? ""}
           onChange={(value) => handleChange("next_date", value || null)}
           placeholder="次回日"
@@ -208,7 +208,7 @@ export function CheckupAddRow({
   return (
     <div className={`flex flex-wrap items-start gap-2 px-3 py-2 border-t ${C.borderLight} ${C.bgPage30}`}>
       <div className="flex flex-col">
-        <NotionDatePicker
+        <DatePicker
           value={addForm.date}
           onChange={(value) => onChange("date", value)}
           placeholder="日付"
@@ -225,7 +225,7 @@ export function CheckupAddRow({
         />
         <FormFieldError message={errors.checkup_type_id} />
       </div>
-      <NotionDatePicker
+      <DatePicker
         value={addForm.next_date}
         onChange={(value) => onChange("next_date", value)}
         placeholder="次回日"

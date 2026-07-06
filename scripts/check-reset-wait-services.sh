@@ -2,8 +2,11 @@
 # scripts/check-reset-wait-services.sh
 #
 # `make reset` の `docker compose up ... --wait` が待機対象として
-# 長寿命サービス (db migrate backend frontend) を明示し、one-shot の
+# 長寿命サービス (db backend frontend) を明示し、one-shot の
 # codegen を含めないことを保証する静的契約チェック。
+#
+# migration は専用の migrate サービスではなく backend の entrypoint 内で
+# 実行されるため、待機対象サービスに migrate は存在しない。
 #
 # 背景:
 #   codegen は `restart: "no"`・healthcheck なし・依存先なしの one-shot で、
@@ -23,7 +26,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 MAKEFILE="$SCRIPT_DIR/../Makefile"
 
-REQUIRED_SERVICES=(db migrate backend frontend)
+REQUIRED_SERVICES=(db backend frontend)
 FORBIDDEN_SERVICES=(codegen)
 
 if [[ ! -f "$MAKEFILE" ]]; then

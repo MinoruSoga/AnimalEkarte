@@ -17,7 +17,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { PageLayout } from '@/components/shared/PageLayout/PageLayout';
-import { NotionDatePicker } from '@/components/shared/NotionDatePicker/NotionDatePicker';
+import { DatePicker } from '@/components/shared/DatePicker/DatePicker';
 import { NavigationBlocker } from '@/components/shared/NavigationBlocker';
 import { NumberInput } from '@/components/shared/NumberInput/NumberInput';
 import { FormFieldError } from '@/components/shared/FormFieldError';
@@ -100,7 +100,7 @@ const BasicInfoSection = memo(function BasicInfoSection({
         <Label htmlFor="validUntil" className={`text-sm font-medium ${C.text}`}>
           有効期限
         </Label>
-        <NotionDatePicker
+        <DatePicker
           id="validUntil"
           value={validUntil ? validUntil.slice(0, 10) : ''}
           onChange={(v) => onChange('validUntil', v)}

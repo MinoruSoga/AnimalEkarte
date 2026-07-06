@@ -10,7 +10,7 @@ import { C, ICON } from "@/lib/design-tokens";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { PatientInfoCard } from "@/components/shared/PatientInfoCard";
 import { SubmitButton } from "@/components/shared/Form/SubmitButton";
-import { NotionDatePicker } from "@/components/shared/NotionDatePicker/NotionDatePicker";
+import { DatePicker } from "@/components/shared/DatePicker/DatePicker";
 import { FormFieldError } from "@/components/shared/FormFieldError/FormFieldError";
 import { LoadingFallback } from "@/components/shared/DataStates";
 import { Label } from "@/components/ui/label";
@@ -88,7 +88,7 @@ export function CheckupForm() {
               <Label htmlFor="checkup-date">
                 実施日<span className={`${C.textRequired} ml-1`}>*</span>
               </Label>
-              <NotionDatePicker
+              <DatePicker
                 id="checkup-date"
                 value={form.date}
                 onChange={setDate}
@@ -118,7 +118,7 @@ export function CheckupForm() {
             {/* 次回予定日 */}
             <div className="space-y-2">
               <Label htmlFor="checkup-next-date">次回予定日</Label>
-              <NotionDatePicker
+              <DatePicker
                 id="checkup-next-date"
                 value={form.nextDate}
                 onChange={setNextDate}

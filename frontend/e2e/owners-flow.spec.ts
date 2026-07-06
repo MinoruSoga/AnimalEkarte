@@ -38,7 +38,7 @@ test.describe('飼主フロー E2E', () => {
       await owners.gotoList();
       await expect(owners.listHeading()).toBeVisible();
 
-      // NotionFilter: 検索トグルボタンをクリックして入力欄を表示
+      // PropertyFilter: 検索トグルボタンをクリックして入力欄を表示
       await page.getByLabel('検索').click();
       const searchInput = owners.searchInput();
       await expect(searchInput).toBeVisible();
@@ -56,7 +56,7 @@ test.describe('飼主フロー E2E', () => {
       await owners.gotoList();
       await expect(owners.listHeading()).toBeVisible();
 
-      // NotionFilter: 検索トグルボタンをクリックして入力欄を表示
+      // PropertyFilter: 検索トグルボタンをクリックして入力欄を表示
       await page.getByLabel('検索').click();
       const searchInput = owners.searchInput();
       await expect(searchInput).toBeVisible();

@@ -106,7 +106,7 @@ export const ImageGalleryGroup = memo(function ImageGalleryGroup({
                 ) : null}
               </div>
               <p
-                className={`text-sm font-medium truncate transition-colors ${C.text} ${C.hoverTextAccent}`}
+                className={`text-sm font-medium truncate transition-colors ${C.text} ${C.hoverTextBrand}`}
               >
                 {img.name}
               </p>

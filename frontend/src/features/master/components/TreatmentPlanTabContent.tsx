@@ -2,8 +2,8 @@ import { useCallback, useDeferredValue, useMemo, useState } from "react";
 import { DndContext, closestCenter } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { DataTable, DESIGN_TABLE_HEADER_ROW, DESIGN_TABLE_HEADER_CELL } from "@/components/shared/DataTable/DataTable";
-import { NotionFilter } from "@/components/shared/NotionFilter/NotionFilter";
-import type { ActiveFilter } from "@/components/shared/NotionFilter/types";
+import { PropertyFilter } from "@/components/shared/PropertyFilter/PropertyFilter";
+import type { ActiveFilter } from "@/components/shared/PropertyFilter/types";
 import { useSortableList } from "@/hooks/use-sortable-list";
 import type { TreatmentItem } from "@/lib/transforms/treatment";
 import { MASTER_STATUS_FILTER } from "../constants/styles";
@@ -75,7 +75,7 @@ export function TreatmentPlanTabContent({
 
   return (
     <div className="flex flex-col gap-4">
-      <NotionFilter
+      <PropertyFilter
         properties={[MASTER_STATUS_FILTER]}
         activeFilters={activeFilters}
         onFilterChange={setActiveFilters}

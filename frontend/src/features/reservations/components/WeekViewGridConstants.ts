@@ -17,7 +17,7 @@ export const WHILE_DRAG_FULL = {
 export const WHILE_DRAG_REDUCED = { zIndex: 50 } as const;
 
 export const STATUS_DOT_STYLE: Partial<Record<ReservationStatus, { color: string; label: string }>> = {
-  checked_in: { color: C.bgAccent, label: "受付済" },
+  checked_in: { color: C.bgBrandDot, label: "受付済" },
   in_consultation: { color: C.bgStatusPurpleDot, label: "診療中" },
   accounting: { color: C.bgDiscount, label: "会計待ち" },
   completed: { color: C.bgStatusGrayMedium, label: "完了" },

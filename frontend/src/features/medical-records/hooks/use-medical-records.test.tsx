@@ -5,7 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { http, HttpResponse } from "msw";
 import { server } from "@/testing/mocks/node";
 import { useMedicalRecordsList } from "./use-medical-records";
-import type { ActiveFilter } from "@/components/shared/NotionFilter/types";
+import type { ActiveFilter } from "@/components/shared/PropertyFilter/types";
 
 function createWrapper() {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -25,7 +25,7 @@ function mockList() {
   return () => capturedUrl;
 }
 
-// BUG-B1: NotionFilter の ActiveFilter → server-side query 変換の回帰防止
+// BUG-B1: PropertyFilter の ActiveFilter → server-side query 変換の回帰防止
 describe("useMedicalRecordsList", () => {
   it("診療日フィルタを start_date/end_date に変換する", async () => {
     const getUrl = mockList();

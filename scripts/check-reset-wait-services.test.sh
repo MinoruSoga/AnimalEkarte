@@ -56,26 +56,26 @@ run_case() {
 # 1. 正しい wait-set: 明示サービス列 + codegen 除外 → 通る
 run_case "good-explicit-services" 0 'reset:
 	$(DC) down -v
-	$(DC) up -d --build --wait --wait-timeout 1200 db migrate backend frontend
+	$(DC) up -d --build --wait --wait-timeout 1200 db backend frontend
 
 migrate:
-	$(DC) run --rm migrate'
+	$(DC) run --rm --entrypoint go backend run ./cmd/migrate'
 
 # 2. one-shot codegen を wait 対象に混入 → reject
 run_case "bad-includes-codegen" 1 'reset:
 	$(DC) down -v
-	$(DC) up -d --build --wait --wait-timeout 1200 db migrate backend frontend codegen
+	$(DC) up -d --build --wait --wait-timeout 1200 db backend frontend codegen
 
 migrate:
-	$(DC) run --rm migrate'
+	$(DC) run --rm --entrypoint go backend run ./cmd/migrate'
 
 # 3. 必須サービス (frontend) 欠落 → reject
 run_case "bad-missing-required" 1 'reset:
 	$(DC) down -v
-	$(DC) up -d --build --wait --wait-timeout 1200 db migrate backend
+	$(DC) up -d --build --wait --wait-timeout 1200 db backend
 
 migrate:
-	$(DC) run --rm migrate'
+	$(DC) run --rm --entrypoint go backend run ./cmd/migrate'
 
 # 4. 裸の up --wait（明示サービス列なし = 全サービス対象）→ reject
 run_case "bad-bare-up-wait" 1 'reset:
@@ -83,34 +83,34 @@ run_case "bad-bare-up-wait" 1 'reset:
 	$(DC) up -d --build --wait --wait-timeout 1200
 
 migrate:
-	$(DC) run --rm migrate'
+	$(DC) run --rm --entrypoint go backend run ./cmd/migrate'
 
 # 5. reset レシピに up --wait 自体が無い → reject
 run_case "bad-no-wait-invocation" 1 'reset:
 	$(DC) down -v
-	$(DC) up -d db migrate backend frontend
+	$(DC) up -d db backend frontend
 
 migrate:
-	$(DC) run --rm migrate'
+	$(DC) run --rm --entrypoint go backend run ./cmd/migrate'
 
 # 6. 行継続 `\` で codegen を後続物理行に逃がす silent bypass → reject
 #    継続行を畳まないと wait 行抽出時に codegen を見逃すため、ここで防ぐ。
 run_case "bad-continuation-line-codegen" 1 'reset:
 	$(DC) down -v
 	$(DC) up -d --build --wait --wait-timeout 1200 \
-	  db migrate backend frontend codegen
+	  db backend frontend codegen
 
 migrate:
-	$(DC) run --rm migrate'
+	$(DC) run --rm --entrypoint go backend run ./cmd/migrate'
 
 # 7. 行継続 `\` を使った正しい複数行 wait-set → 通る（継続畳み込みの false-positive 防止）
 run_case "good-continuation-line" 0 'reset:
 	$(DC) down -v
 	$(DC) up -d --build --wait --wait-timeout 1200 \
-	  db migrate backend frontend
+	  db backend frontend
 
 migrate:
-	$(DC) run --rm migrate'
+	$(DC) run --rm --entrypoint go backend run ./cmd/migrate'
 
 echo "----"
 if [[ "$failures" -gt 0 ]]; then

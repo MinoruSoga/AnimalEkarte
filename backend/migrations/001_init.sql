@@ -1321,6 +1321,7 @@ CREATE TABLE appointments (
     updated_at         timestamptz          NOT NULL DEFAULT now(),
     deleted_at         timestamptz,
     line_customer_id   bigint                        REFERENCES line_customers(id) ON DELETE SET NULL,
+    checked_in_at      timestamptz,                                    -- 受付ヘッダー テレメトリ(change-ui.md Phase 2): updated_at は autoUpdateTime のため予約編集全般でリセットされ待ち時間算出に流用できない。checked_in ステータス遷移時刻専用カラム
     CONSTRAINT chk_reservation_times CHECK (end_time >= start_time)
 );
 

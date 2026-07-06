@@ -3,7 +3,7 @@ import {
   CONDITIONS_NO_EMPTY,
   type ActiveFilter,
   type FilterProperty,
-} from "@/components/shared/NotionFilter/types";
+} from "@/components/shared/PropertyFilter/types";
 import { MASTER_STATUS_FILTER } from "../constants/styles";
 import type { Occupation } from "../api/occupations";
 import type { PermissionGroup } from "../api/permission-groups";
