@@ -37,7 +37,7 @@ func dumpAllBundles(ctx context.Context, pool *pgxpool.Pool, logger *slog.Logger
 
 func dumpBundle(ctx context.Context, pool *pgxpool.Pool, logger *slog.Logger, bundle string, tables []string) error {
 	dir := filepath.Join(seedsRootDir, bundle)
-	if err := os.MkdirAll(dir, 0o755); err != nil {
+	if err := os.MkdirAll(dir, 0o750); err != nil {
 		return fmt.Errorf("failed to create bundle dir %s: %w", dir, err)
 	}
 
@@ -60,7 +60,7 @@ func dumpBundle(ctx context.Context, pool *pgxpool.Pool, logger *slog.Logger, bu
 	if err != nil {
 		return fmt.Errorf("failed to marshal manifest: %w", err)
 	}
-	if err := os.WriteFile(manifestPath, append(data, '\n'), 0o644); err != nil {
+	if err := os.WriteFile(manifestPath, append(data, '\n'), 0o600); err != nil {
 		return fmt.Errorf("failed to write %s: %w", manifestPath, err)
 	}
 	return nil

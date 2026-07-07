@@ -118,16 +118,18 @@ func walkMigrationsForCascade(t *testing.T) map[string]int {
 // "ON DELETE CASCADE" occurrence count must match the reviewed allowlist. A floor guards
 // against a vacuous pass if the migrations directory glob silently breaks.
 //
-// Floor rationale (2026-07-04): backend/migrations/ was consolidated from 12 files down to
-// 4 (001_init.sql + 002/003/004 seed files — see docs/ERD.md §4.3). The floor tracks the
-// current known minimum file count, not an arbitrary buffer; it must be revisited whenever
-// migrations are consolidated or the directory's file count otherwise legitimately shrinks.
+// Floor rationale (2026-07-07): backend/migrations/*.sql was further reduced to a single
+// file, 001_init.sql, once the 002/003/004 seed data moved from stub SELECT-1 *.sql files
+// to CSV bundles under migrations/seeds/ (cmd/seed-export; see that package's doc comment).
+// The floor tracks the current known minimum .sql file count (1), not an arbitrary buffer;
+// it must be revisited whenever migrations are consolidated/split or the directory's .sql
+// file count otherwise legitimately changes.
 func TestMigrationCascadeInventory_NoUnreviewedCascade(t *testing.T) {
 	found := walkMigrationsForCascade(t)
 
-	if len(found) < 4 {
-		t.Fatalf("only %d migration file(s) found; directory read likely broken (would vacuously "+
-			"pass). Expected multiple .sql files under %s.", len(found), migrationsDir)
+	if len(found) < 1 {
+		t.Fatalf("no migration file(s) found; directory read likely broken (would vacuously "+
+			"pass). Expected at least one .sql file under %s.", migrationsDir)
 	}
 
 	for _, v := range reconcileMigrationCascade(found, migrationCascadeAllowlist) {

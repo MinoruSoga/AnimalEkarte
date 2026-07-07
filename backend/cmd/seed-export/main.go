@@ -92,7 +92,7 @@ func run(ctx context.Context, logger *slog.Logger) error {
 	// Best-effort cleanup even on failure paths below, so a crashed run
 	// doesn't leave seed_export_tmp occupying the DB for the next attempt.
 	defer func() {
-		if err := dropTmpDatabase(context.Background(), maintPool, logger); err != nil {
+		if err := dropTmpDatabase(ctx, maintPool, logger); err != nil {
 			logger.Error("failed to drop disposable database on cleanup", slog.String("error", err.Error()))
 		}
 	}()
