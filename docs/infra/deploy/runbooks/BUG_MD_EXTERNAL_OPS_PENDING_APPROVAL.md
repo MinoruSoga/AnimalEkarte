@@ -35,14 +35,14 @@
 
 ```
 1. C-1-1: シークレットローテーション（PlanetScale DB / JWT_SECRET /
-          INTEGRATION_ENCRYPTION_KEY / LINE）→ §1
-2. C-1-2: .env.staging の git 追跡解除 + Issue #97 本文の実値削除 → §3
+          INTEGRATION_ENCRYPTION_KEY）→ §1  ⏳ 未実施
+2. C-1-2: .env.staging の git 追跡解除 → §3  ✅ 完了（6e34e684）
+3. Issue #97 本文の実値削除 → §3  ⏳ 未実施
 ```
 
-1→2 の順序を守ること。§1 でロールする前に `.env.staging` を untrack すると、
-ローカル開発者が新しい値を受け取れなくなる（`.env.staging` は `.gitignore` 済みで
-untrack 後もローカルには残るが、リポジトリ経由での値共有手段がなくなるため、
-ローテーション後の新値は別途安全な経路（1Password 等）で共有すること）。
+`.env.staging` の untrack（2）は完了済みだが、ローテーション（1）は未実施のまま残っている。
+`.env.staging` は `.gitignore` 済みでローカルには残るが、untrack 済みのためリポジトリ経由での
+値共有手段はもう無い。ローテーション後の新値は別途安全な経路（1Password 等）で共有すること。
 
 **DEPRECATED（ECS ロールバック時のみ・通常は実施不要）**:
 
@@ -56,9 +56,12 @@ untrack 後もローカルには残るが、リポジトリ経由での値共有
 
 ## 1. C-1: シークレットローテーション（Cloudflare / PlanetScale 経路）
 
-**前提**: 現在 `.env.staging` は git 追跡されたままで、`DB_PASSWORD` / `JWT_SECRET` /
-`INTEGRATION_ENCRYPTION_KEY` を平文で含む（`git show HEAD:.env.staging` でキー名のみ確認済み。
-LINE 系キーは含まれていない）。Issue #97 本文にも実値記載の指摘がある。ローテーション自体は
+**前提**: `.env.staging` は `6e34e684` で git 追跡解除済み（ローカルには残置）。ただし
+untrack 前の履歴コミットには `DB_PASSWORD` / `JWT_SECRET` / `INTEGRATION_ENCRYPTION_KEY` が
+平文で残っている（`git show HEAD~1:.env.staging` 等でキー名のみ確認可能。LINE 系キーは
+含まれていない）。untrack はこれらの値を無効化しない — ローテーションが未了である限り、
+過去コミットに残る値は依然有効な認証情報として扱うこと。Issue #97 本文にも実値記載の
+指摘がある。ローテーション自体は
 `migration-cloudflare.md` Phase 4/5 で確立済みの運用パターン（`pscale role reset-default` +
 `wrangler secret put`）を踏襲する。C-1 の確認された漏洩スコープは **DB_PASSWORD /
 JWT_SECRET / INTEGRATION_ENCRYPTION_KEY の3点のみ**（§1.1〜§1.4）。LINE 系は対象外（§1.5 参照）。

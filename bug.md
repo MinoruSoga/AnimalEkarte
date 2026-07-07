@@ -20,7 +20,7 @@
 | C-1 シークレットローテーション／#97 実値削除 | ⏳ **ユーザー実施要（credential-impacting）** | [ランブック §1](docs/infra/deploy/runbooks/BUG_MD_EXTERNAL_OPS_PENDING_APPROVAL.md) |
 | #189 締め後訂正の可視化バッジ | 🚫 **BLOCKED（PO 未決）** | 下記 |
 
-> **C-1 検証（2026-07-06）**: `.env.staging` の git 追跡解除（`git rm --cached`）はコード側で実施済み・コミット待ち。
+> **C-1 検証（2026-07-06）**: `.env.staging` の git 追跡解除は `6e34e684` で untrack 済み。
 > **未解決**: 平文値そのもののローテーション（PlanetScale DB パスワード・`JWT_SECRET`・`INTEGRATION_ENCRYPTION_KEY` の3点。
 > `.env.staging` に LINE 系キーは含まれておらず C-1 のスコープ外 — ランブック §1.5 参照）は未実施。
 > untrack は「今後の新規コミットに平文が乗らないこと」を保証するのみで、**過去 16 コミット分の履歴には現行の平文値がなお残存する** —
