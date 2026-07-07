@@ -15,7 +15,7 @@
   `checkup_field_results`、ENUM 型付き子フィールド・閾値機構・歯科垂直スライス）を後続実装。
 
 #160 は案B（Checkup 拡張）を「二重管理になる」と却下したが、#211 が実質的に案Bを実装したため、
-同じ「歯科健診の歯石付着度」が両系統に存在する正面衝突が現実化した（bug.md M-4）。
+同じ「歯科健診の歯石付着度」が両系統に存在する正面衝突が現実化した（2026-07-02 クローズ済み Issue 仕様適合監査で検出）。
 
 ## Decision
 
@@ -46,5 +46,5 @@ migration 010 と整合する。exam 系マッピングは汎用検査機構へ�
 
 - Issue #160（Examination マッピング採用 → 本 ADR で決定変更）
 - Issue #211（Checkup パッケージ実装）
-- bug.md M-4（クローズ済み Issue 仕様適合監査 2026-07-02）
+- クローズ済み Issue 仕様適合監査（2026-07-02実施）
 - `backend/migrations/010_add_checkup_packages.sql`

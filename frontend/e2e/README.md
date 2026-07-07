@@ -17,7 +17,7 @@ End-to-end tests for Animal Ekarte using Playwright.
 | `clinical-smoke.spec.ts` | 受付/顧客集計/カルテ管理/入院管理/トリミング/検査/予防接種/定期健診 各ページ smoke |
 | `clinical-flows.spec.ts` | カルテ管理 一覧/検索/行クリック詳細・ペット選択画面 |
 | `medical-records-create.spec.ts` | /medical-records/new?petId=1 直接 URL アクセスで新規カルテ入力フォーム表示確認 |
-| `medical-records-pagination-sort.spec.ts` | /medical-records ページネーション(page=2 遷移)・列ソート(飼主名 desc→asc, URL 状態)・ステータスフィルタ(確定済, PropertyFilter) — bug.md B-1 follow-up (AC-3) |
+| `medical-records-pagination-sort.spec.ts` | /medical-records ページネーション(page=2 遷移)・列ソート(飼主名 desc→asc, URL 状態)・ステータスフィルタ(確定済, PropertyFilter) — `c80d9dc1` follow-up (AC-3) |
 | `trimming-flow.spec.ts` | /trimming 一覧表示・新規登録ペット選択・/trimming/new?petId=1 フォーム表示 |
 | `hospitalization-flow.spec.ts` | /hospitalization 一覧リストビュー・新規登録遷移・ステータスタブ切り替え |
 | `vaccinations-flow.spec.ts` | /vaccinations 一覧表示・検索フィルタ・新規登録遷移・行クリック詳細遷移 |
