@@ -27,7 +27,7 @@ func setupEstimateRepoTestDB(t *testing.T) *gorm.DB {
 }
 
 // makeEstimate は repo.Create 経由で見積書を作成する（Create メソッド自体もカバー対象にする）。
-func makeEstimate(t *testing.T, db *gorm.DB, clinicID uint64, ownerID uint64, status model.EstimateStatus) *model.Estimate {
+func makeEstimate(t *testing.T, db *gorm.DB, clinicID, ownerID uint64, status model.EstimateStatus) *model.Estimate {
 	t.Helper()
 	e := &model.Estimate{
 		ClinicID: clinicID,
