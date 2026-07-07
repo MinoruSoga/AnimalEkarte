@@ -52,6 +52,10 @@ var bundleTables = map[string][]string{
 		"diagnosis_types",
 		"diagnosis_names",
 		"checkup_types",
+		// checkup_type_fields の旧 seed（003_seed_demo.sql J-12b）は DO $$ ブロック内
+		// INSERT だったため、トップレベル INSERT INTO 走査ベースの初回検証から漏れた。
+		// FK 親は clinics / checkup_types（いずれも上に列挙済み）。
+		"checkup_type_fields",
 		"chief_complaint_types",
 		"inquiry_templates",
 		"pets",
@@ -120,8 +124,10 @@ var bundleOrder = []string{"002_master", "003_demo", "004_staging"}
 // totalSeedTableCount is a guard-rail constant checked at runtime against
 // len(bundleTables flattened) so a future hand-edit that drops or duplicates
 // a table entry fails loudly instead of silently shipping an incomplete
-// export. 90 is the verified unique seeded-table count (5 + 84 + 1) — not
+// export. 91 is the verified unique seeded-table count (5 + 85 + 1) — not
 // 139, which was the sum of raw INSERT-touched-table counts per file before
 // dedup, and not the 108 CREATE TABLE count in 001_init.sql (which includes
-// tables no seed file ever populates).
-const totalSeedTableCount = 90
+// tables no seed file ever populates). The original count of 90 missed
+// checkup_type_fields, whose old seed lived inside a DO $$ block (J-12b) that
+// the top-level INSERT INTO scan did not see.
+const totalSeedTableCount = 91

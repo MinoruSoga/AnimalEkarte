@@ -118,6 +118,10 @@
       "csvFile": "checkup_types.csv"
     },
     {
+      "table": "checkup_type_fields",
+      "csvFile": "checkup_type_fields.csv"
+    },
+    {
       "table": "chief_complaint_types",
       "csvFile": "chief_complaint_types.csv"
     },
