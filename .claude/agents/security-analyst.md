@@ -28,7 +28,7 @@ model: opus
 ## 技術スタック
 
 - Backend: Go 1.25 / Gin / GORM
-- Frontend: React 19 / TypeScript 5.7
+- Frontend: React 19 / TypeScript 6.0
 - Security Tools: gosec, pnpm audit, GitHub Advanced Security
 - Standards: OWASP Top 10, CWE, CVE
 

@@ -8,7 +8,7 @@ AnimalEkarte プロジェクトの Claude Code 設定概要。
 |----------|----------|---------|
 | **Configuration** | `.claude/settings.json` | permissions, hooks, env |
 | **Rules** | `.claude/rules/` | 1 auto-loaded rule file (claude-code-usage.md) |
-| **Hooks** | `.claude/hooks/` | 17 Node.js/shell hooks (ECC準拠 JSON protocol) |
+| **Hooks** | `.claude/hooks/` | 20 Node.js/shell hooks (ECC準拠 JSON protocol) |
 | **Memory** | `~/.claude/projects/.../memory/` | persistent knowledge files |
 | **Commands** | `.claude/docs/commands-guide.md` | Slash commands usage guide & use cases |
 | **Workflows** | `.claude/docs/workflows/` | Development workflow guides |
@@ -20,7 +20,7 @@ AnimalEkarte プロジェクトの Claude Code 設定概要。
 ┌─────────────────────────────────────┐
 │  Claude Code Session                │
 ├─────────────────────────────────────┤
-│  Agent Team (22 agents)             │
+│  Agent Team (24 agents)             │
 │  - architect (Opus)                 │
 │  - planner (Opus)                   │
 │  - security-analyst (Opus)          │
@@ -89,13 +89,16 @@ AnimalEkarte プロジェクトの Claude Code 設定概要。
 ### Hooks (Node.js, JSON protocol)
 - `hooks/pre-bash-block-dangerous.js`: Block rm -rf /, dd, mkfs (exit 2)
 - `hooks/pre-bash-block-no-verify.js`: Block --no-verify / --no-gpg-sign (exit 2)
+- `hooks/pre-bash-block-env-read.js`: Block shell reads of .env files (cat/grep/sed gap, exit 2)
 - `hooks/pre-bash-commit-quality.js`: Commit quality gate — secrets, commit msg (exit 2)
 - `hooks/pre-bash-git-push-reminder.js`: Warn before git push (stderr)
 - `hooks/pre-write-large-file-block.js`: Block 800+ line files (exit 2)
 - `hooks/pre-edit-config-protection.js`: Warn on linter/formatter config edits
+- `hooks/pre-edit-migration-guard.js`: Warn when modifying applied backend/migrations/*.sql (checksum mismatch risk)
 - `hooks/post-edit-console-warn.js`: Detect console.log (stderr warning)
 - `hooks/post-edit-file-size-warn.js`: Warn when file exceeds 500/800 lines
 - `hooks/post-edit-format-go.js`: Auto gofmt via Docker (non-blocking)
+- `hooks/post-edit-lint-go.js`: Scoped golangci-lint via Docker after .go edits (non-blocking)
 - `hooks/post-edit-typecheck-ts.js`: Auto tsc --noEmit via Docker (non-blocking)
 - `hooks/pre-compact-save-state.js`: Save git state before compaction
 - `hooks/stop-save-progress.js`: Save session progress on stop

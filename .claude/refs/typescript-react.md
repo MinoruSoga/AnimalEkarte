@@ -6,7 +6,7 @@ globs: ["frontend/src/**/*.{ts,tsx}"]
 
 # TypeScript / React 19 Rules
 
-React 19 + TypeScript 5.7 project standards.
+React 19 + TypeScript 6.0 project standards.
 
 ## Core Rules
 

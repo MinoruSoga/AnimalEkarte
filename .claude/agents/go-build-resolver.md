@@ -9,6 +9,11 @@ model: sonnet
 
 Go のビルドエラー・`go vet`・`golangci-lint` の問題を**最小差分**で解決する。リファクタリング・アーキテクチャ変更は行わない。
 
+> **起動条件**: 本エージェントはユーザーがビルド修復を依頼した文脈（`/go-build` 等）でのみ起動する。
+> その依頼には全体 build/vet/lint の実行が内包されるため、以下の診断コマンドを実行してよい。
+> ビルド修復以外の文脈で自発的に全体ビルド・lint を実行しないこと（CLAUDE.md の自動実行禁止リスト）。
+> golangci-lint は `--max-same-issues 0 --max-issues-per-linter 0` で cap 解除して実行する（cap 隠蔽の罠）。
+
 ## 診断コマンド（Docker 経由）
 
 ```bash

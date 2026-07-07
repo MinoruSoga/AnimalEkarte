@@ -1,8 +1,8 @@
-# Frontend — React 19 / TypeScript 5.7
+# Frontend — React 19 / TypeScript 6.0
 
 ## Stack
 
-React 19 / TypeScript 5.7 / Vite 6 / Tailwind CSS 4 / shadcn/ui
+React 19 / TypeScript 6.0 / Vite 8 / Tailwind CSS 4 / shadcn/ui
 
 ## Type Safety (MANDATORY)
 

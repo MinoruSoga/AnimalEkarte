@@ -21,11 +21,11 @@ origin: ECC (adapted for AnimalEkarte)
 ```bash
 # ❌ ローカル直接実行（禁止）
 pnpm build
-go test ./...
+go test ./internal/service/...
 
 # ✅ Docker Compose 経由（必須）
-docker compose exec frontend pnpm build
-docker compose exec backend go test ./...
+docker compose exec frontend pnpm build   # ※全体 build 自体も自動実行禁止 — ユーザーに依頼
+docker compose exec backend go test ./internal/service/...
 ```
 
 ## よく使うコマンド
@@ -41,6 +41,8 @@ docker compose exec frontend pnpm lint
 docker compose exec frontend pnpm test:run
 docker compose exec frontend pnpm build
 docker compose exec frontend npx tsc --noEmit
+# ⚠️ 上4つは CLAUDE.md の自動実行禁止コマンド。ユーザーに手動実行を依頼するか、
+#    スコープ限定版（`npx eslint <ファイル>` / `npx vitest run <spec>`）を使う
 
 # Backend
 docker compose exec backend go test ./...

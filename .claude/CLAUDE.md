@@ -46,7 +46,7 @@
 
 | Item | Details |
 |------|---------|
-| Frontend | React 19 / TypeScript 5.7 / Vite 6 / Tailwind CSS 4 / shadcn/ui |
+| Frontend | React 19 / TypeScript 6.0 / Vite 8 / Tailwind CSS 4 / shadcn/ui |
 | Backend | Go 1.25 / Gin / GORM |
 | Database | PostgreSQL 18 (Docker: postgres:18-alpine) |
 

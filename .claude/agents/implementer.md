@@ -35,7 +35,7 @@ model: sonnet
 
 ## 技術スタック
 
-- Frontend: React 19 / TypeScript 5.7 / Vite 6 / Tailwind CSS 4 / shadcn/ui / React Router 7
+- Frontend: React 19 / TypeScript 6.0 / Vite 8 / Tailwind CSS 4 / shadcn/ui / React Router 7
 - Backend: Go 1.25 / Gin / GORM / PostgreSQL 18
 - Architecture: Layered (handler → service → repository) + Feature-Based (FE)
 - Testing: Vitest + MSW (FE) / go test (BE)

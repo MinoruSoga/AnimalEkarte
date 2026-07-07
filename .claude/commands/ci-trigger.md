@@ -33,7 +33,7 @@ docker compose exec frontend pnpm test:run
 docker compose exec frontend pnpm lint
 
 # Security
-docker compose exec backend gosec ./...
+# gosec は本プロジェクト未導入（CI の security-scan.yml は agentshield のみ）— 導入してから実行する
 docker compose exec frontend pnpm audit
 ```
 

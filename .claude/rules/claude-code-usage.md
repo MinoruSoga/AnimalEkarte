@@ -19,7 +19,8 @@
 | `go-expert` | Go idiom・パフォーマンス | sonnet |
 | `go-reviewer` | Go コードレビュー | sonnet |
 | `go-build-resolver` | Go ビルドエラー・go vet 解決 | sonnet |
-| `typescript-reviewer` | TS/React コードレビュー | sonnet |
+| `typescript-reviewer` | TS/React コードレビュー（型・アーキ・design-tokens） | sonnet |
+| `react-reviewer` | React フック正確性・a11y（typescript-reviewer と排他レーン） | sonnet |
 | `build-error-resolver` | TypeScript ビルドエラー・型エラー解決 | sonnet |
 | `implementer` | 機能実装 | sonnet |
 | `refactor-cleaner` | リファクタリング | sonnet |

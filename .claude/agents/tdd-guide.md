@@ -82,12 +82,14 @@ func TestOwnerService_GetOwner(t *testing.T) {
 }
 ```
 
-### テスト実行
+### テスト実行（RED/GREEN ループは対象パッケージに限定）
 ```bash
-docker compose exec backend go test ./... -v
-docker compose exec backend go test ./... -cover
-docker compose exec backend go test ./... -race  # レースコンディション検出
+docker compose exec backend go test ./internal/<対象パッケージ>/... -v
+docker compose exec backend go test ./internal/<対象パッケージ>/... -cover
+docker compose exec backend go test ./internal/<対象パッケージ>/... -race  # レースコンディション検出
 ```
+
+全体 `go test ./...` は自動実行禁止（CLAUDE.md）— 最終確認が必要ならユーザーに実行を依頼する。
 
 ## TypeScript/React テスト（Frontend）
 
@@ -129,11 +131,13 @@ describe('OwnersList', () => {
 })
 ```
 
-### テスト実行
+### テスト実行（RED/GREEN ループは対象 spec に限定）
 ```bash
-docker compose exec frontend pnpm test:run
-docker compose exec frontend pnpm test:coverage
+docker compose exec frontend npx vitest run <対象specファイル>
 ```
+
+全体 `pnpm test:run` / `pnpm test:coverage` は自動実行禁止（CLAUDE.md）— 最終確認はユーザーに実行を依頼する。
+注意: `pnpm test:run -- <path>` の `--` は全件実行になる罠あり — 必ず `npx vitest run <path>` を使う。
 
 ## 必須テストケース
 

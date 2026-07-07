@@ -32,11 +32,13 @@ it('should return expected result when given valid input', () => {
 
 ### テストコマンド
 
-| 種別 | ツール | コマンド |
-|------|--------|---------|
-| ユニット (FE) | Vitest + Testing Library + MSW | `docker compose exec frontend pnpm test:run` |
-| カバレッジ (FE) | Vitest | `docker compose exec frontend pnpm test:coverage` |
-| ユニット (BE) | go test + testify | `docker compose exec backend go test ./... -v` |
+| 種別 | ツール | スコープ限定（自動実行可） | 全体（ユーザー手動実行） |
+|------|--------|--------------------------|------------------------|
+| ユニット (FE) | Vitest + Testing Library + MSW | `docker compose exec frontend npx vitest run <spec>` | `pnpm test:run` |
+| カバレッジ (FE) | Vitest | — | `pnpm test:coverage` |
+| ユニット (BE) | go test + testify | `docker compose exec backend go test ./internal/<pkg>/... -v` | `go test ./... -v` |
+
+全体コマンドは CLAUDE.md の自動実行禁止リスト — 生成後の全体確認はユーザーに実行を依頼する。
 
 E2Eは `e2e-design` コマンド / `docs/testing/E2E_TESTING_GUIDE.md` を参照
 
