@@ -2,6 +2,7 @@
 
 > **作成日**: 2026-07-05 | **対象**: Staging 環境（us-east-1）の全リソース
 > **前提調査**: [research-cloudflare.html](research-cloudflare.html)（2026-07-04 再調査版）
+> **人間タスク一覧**: [todo-me.html](todo-me.html)（未完了かつ人間操作が必要な項目を依存順・優先度別にチェックリスト化）
 > **ステータス**: 実行中 — **Phase 4 完了（P4-1〜P4-9、2026-07-05 試行12確定）**。**Phase 5（CI/CD 置換）コード完了（2026-07-06。P5-1/P5-3/P5-4 実装・コミット `4a9ad331` 確定。P5-2（Secrets登録）/P5-5（2回連続成功確認）は人間タスク待ち・BLOCKED(genuine)）**。**Phase 6（監視・ログ・通知）— P6-1〜P6-3 完了（2026-07-06）・P6-4 調査完了/genuine BLOCKED（2026-07-07、Cloudflareにアカウント全体のドル建て支出アラート機構が存在しないため実装不可と判明）・P6-5 棚卸し完了（2026-07-07、AWS CloudWatch依存6項目中、代替不能は1件のみ=#4 RDS PostgreSQLログのCloudWatch Logsエクスポート↔PlanetScale側の同等性・未検証BLOCKED、他5件はPASS/N/A）**。
 > Phase 0〜3 は完了（P2-4/P2-5 画像データ移行実行・P3-6/P3-7 データ本切替は人間判断待ち）。
 > トラフィック切替（P1-2 NS 切替・Phase 7）は未実施。現行 `api.stg.noah-karte.com` は AWS ECS 経路（夜間停止等で 503 になり得る）、Cloudflare 検証経路は `*.workers.dev`（2026-07-06 時点 `/health` 200 確認済み。P6着手セッションではdeployしていないため前回記録を維持）。詳細は「実施記録」の 2026-07-06 セクション参照
