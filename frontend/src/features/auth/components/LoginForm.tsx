@@ -23,7 +23,12 @@ interface DemoCredential {
   isSystemAdmin?: boolean;
 }
 
-const SHOW_DEMO = import.meta.env.DEV || import.meta.env.VITE_SHOW_DEMO_ACCOUNTS === "true";
+// M-10 (#91): Vercel Production では __VERCEL_ENV__ 一次ガードで他フラグに関わらず false にする。
+// ロジックは computeShowDemoAccounts (show-demo-accounts.ts) と同一 — 定数畳み込み維持のためインライン化。
+// export はテスト用（本番バンドルの tree-shake には影響しない — 参照は test 側 dynamic import のみ）。
+export const SHOW_DEMO =
+  __VERCEL_ENV__ !== "production" &&
+  (import.meta.env.DEV || import.meta.env.VITE_SHOW_DEMO_ACCOUNTS === "true");
 
 const DEMO_ACCOUNTS: readonly DemoCredential[] = SHOW_DEMO ? [
   // システム管理者（全医院）
