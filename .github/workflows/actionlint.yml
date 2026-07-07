@@ -21,3 +21,8 @@ jobs:
         run: |
           bash <(curl -Ls https://raw.githubusercontent.com/rhysd/actionlint/v1.7.12/scripts/download-actionlint.bash) 1.7.12
           ./actionlint
+      # actionlint は構文・式のみを検査しバージョンドリフトを検出しない（#195 回帰の教訓）。
+      # 同一 action の複数バージョン混在はこのスクリプトで機械的に fail させる。
+      - name: Check actions version drift
+        shell: bash
+        run: bash scripts/check-actions-version-drift.sh
