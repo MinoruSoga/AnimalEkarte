@@ -5555,63 +5555,6 @@ components:
         deleted_at:
           type: string
           format: date-time
-    Payments:
-      type: object
-      description: payments schema
-      properties:
-        id:
-          type: integer
-          format: int64
-        billing_id:
-          type: integer
-          format: int64
-        subtotal:
-          type: integer
-          format: int64
-        tax_total:
-          type: integer
-          format: int64
-        total_amount:
-          type: integer
-          format: int64
-        insurance_name:
-          type: string
-        insurance_ratio:
-          type: number
-          format: double
-        insurance_amount:
-          type: integer
-          format: int64
-        discount_amount:
-          type: integer
-          format: int64
-        billing_amount:
-          type: integer
-          format: int64
-        received_amount:
-          type: integer
-          format: int64
-        change_amount:
-          type: integer
-          format: int64
-        method:
-          type: string
-          enum:
-            - cash
-            - credit_card
-            - electronic_money
-        paid_by:
-          type: integer
-          format: int64
-        created_at:
-          type: string
-          format: date-time
-        updated_at:
-          type: string
-          format: date-time
-        deleted_at:
-          type: string
-          format: date-time
     ClinicHoliday:
       type: object
       description: clinic_holidays schema
