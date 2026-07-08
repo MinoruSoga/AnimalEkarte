@@ -7124,6 +7124,79 @@ components:
               priority:
                 type: integer
                 minimum: 1
+    # ─── Lstep tag config (自動タグ付与ルール管理) ─────────────────────
+    LstepAutoManagedPrefix:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        prefix:
+          type: string
+        category:
+          type: string
+        description:
+          type: string
+          nullable: true
+    CreateLstepAutoManagedPrefixRequest:
+      type: object
+      required: [prefix, category]
+      properties:
+        prefix:
+          type: string
+        category:
+          type: string
+        description:
+          type: string
+          nullable: true
+    LstepConditionTagMapping:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        condition_code:
+          type: string
+        tag_name:
+          type: string
+        description:
+          type: string
+          nullable: true
+    CreateLstepConditionTagMappingRequest:
+      type: object
+      required: [condition_code, tag_name]
+      properties:
+        condition_code:
+          type: string
+        tag_name:
+          type: string
+        description:
+          type: string
+          nullable: true
+    LstepSendPurposeTagPrefix:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        purpose:
+          type: string
+        tag_prefix:
+          type: string
+        description:
+          type: string
+          nullable: true
+    CreateLstepSendPurposeTagPrefixRequest:
+      type: object
+      required: [purpose, tag_prefix]
+      properties:
+        purpose:
+          type: string
+        tag_prefix:
+          type: string
+        description:
+          type: string
+          nullable: true
   responses:
     BadRequest:
       description: バリデーションエラー
@@ -18451,6 +18524,214 @@ paths:
           $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  # ─── Lstep tag config (BE-refactor G1-2 Phase C) ───────────────────
+  /lstep-tag-config/auto-managed-prefixes:
+    get:
+      operationId: listLstepAutoManagedPrefixes
+      summary: 自動管理タグプレフィックス一覧
+      description: hospital-settings view 権限が必要。
+      tags: [LstepTagConfig]
+      responses:
+        '200':
+          description: プレフィックス一覧
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/LstepAutoManagedPrefix'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    post:
+      operationId: createLstepAutoManagedPrefix
+      summary: 自動管理タグプレフィックス作成
+      description: hospital-settings create 権限が必要。
+      tags: [LstepTagConfig]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateLstepAutoManagedPrefixRequest'
+      responses:
+        '201':
+          description: 作成成功
+          headers:
+            Location:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LstepAutoManagedPrefix'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /lstep-tag-config/auto-managed-prefixes/{id}:
+    delete:
+      operationId: deleteLstepAutoManagedPrefix
+      summary: 自動管理タグプレフィックス削除
+      description: hospital-settings delete 権限が必要。
+      tags: [LstepTagConfig]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '204':
+          description: 削除成功
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /lstep-tag-config/condition-tag-mappings:
+    get:
+      operationId: listLstepConditionTagMappings
+      summary: 条件タグマッピング一覧
+      description: hospital-settings view 権限が必要。
+      tags: [LstepTagConfig]
+      responses:
+        '200':
+          description: マッピング一覧
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/LstepConditionTagMapping'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    post:
+      operationId: createLstepConditionTagMapping
+      summary: 条件タグマッピング作成
+      description: hospital-settings create 権限が必要。
+      tags: [LstepTagConfig]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateLstepConditionTagMappingRequest'
+      responses:
+        '201':
+          description: 作成成功
+          headers:
+            Location:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LstepConditionTagMapping'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /lstep-tag-config/condition-tag-mappings/{id}:
+    delete:
+      operationId: deleteLstepConditionTagMapping
+      summary: 条件タグマッピング削除
+      description: hospital-settings delete 権限が必要。
+      tags: [LstepTagConfig]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '204':
+          description: 削除成功
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /lstep-tag-config/send-purpose-tag-prefixes:
+    get:
+      operationId: listLstepSendPurposeTagPrefixes
+      summary: 送信目的タグプレフィックス一覧
+      description: hospital-settings view 権限が必要。
+      tags: [LstepTagConfig]
+      responses:
+        '200':
+          description: プレフィックス一覧
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/LstepSendPurposeTagPrefix'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    post:
+      operationId: createLstepSendPurposeTagPrefix
+      summary: 送信目的タグプレフィックス作成
+      description: hospital-settings create 権限が必要。
+      tags: [LstepTagConfig]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateLstepSendPurposeTagPrefixRequest'
+      responses:
+        '201':
+          description: 作成成功
+          headers:
+            Location:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LstepSendPurposeTagPrefix'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /lstep-tag-config/send-purpose-tag-prefixes/{id}:
+    delete:
+      operationId: deleteLstepSendPurposeTagPrefix
+      summary: 送信目的タグプレフィックス削除
+      description: hospital-settings delete 権限が必要。
+      tags: [LstepTagConfig]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '204':
+          description: 削除成功
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
         '500':
           $ref: '#/components/responses/InternalError'
   /manual/articles/{category}/{slug}/versions:
