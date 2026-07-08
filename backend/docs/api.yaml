@@ -6452,9 +6452,13 @@ paths:
           $ref: '#/components/responses/NotFound'
         '500':
           $ref: '#/components/responses/InternalError'
-    delete:
-      operationId: deleteAccounting
-      summary: 会計削除
+  /accountings/{id}/cancel:
+    post:
+      operationId: cancelAccounting
+      summary: 会計キャンセル（論理削除）
+      description: |
+        会計を論理削除（status=cancelled）する。BUG-371 / #118 により、ハード DELETE は廃止され
+        本エンドポイントに統合された。監査ログを記録する。
       tags: [Accountings]
       parameters:
         - name: id
@@ -6465,7 +6469,56 @@ paths:
             format: int64
       responses:
         '204':
-          description: 削除成功
+          description: キャンセル成功
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /accountings/{id}/credit-correction:
+    post:
+      operationId: correctCreditPayment
+      summary: クレジット（カード）金額の確定後訂正
+      description: 確定済み会計のカード系決済手段1件の金額を訂正する（#189）。理由は必須。
+      tags: [Accountings]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [method, amount, reason]
+              properties:
+                method:
+                  type: string
+                  enum: [credit_card, electronic_money]
+                amount:
+                  type: integer
+                  format: int64
+                  minimum: 1
+                reason:
+                  type: string
+                memo:
+                  type: string
+      responses:
+        '200':
+          description: 訂正成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Billing'
+        '400':
+          $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
