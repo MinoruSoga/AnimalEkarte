@@ -27,18 +27,13 @@ func (s *lstepTagSyncService) SyncFoodPurchaseTag(ctx context.Context, clinicID,
 	// itemCodes が空でも HasFoodPurchaseByOwnerSince は category='food' にフォールバック
 	itemCodes := extractTagCodes(mappings, model.CodeTypeMerchandiseItem)
 
-	optOut, owner, err := s.checkOptOut(ctx, clinicID, ownerID)
+	lineUserID, ok, err := s.resolveSyncTargetOwner(ctx, clinicID, ownerID, LtvFoodPurchaseTag)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to check opt-out for food purchase tag", "error", err)
-		return apperrors.Wrap(err, "failed to check opt-out")
+		return err
 	}
-	if optOut {
+	if !ok {
 		return nil
 	}
-	if owner.LineUserID == nil || *owner.LineUserID == "" {
-		return nil
-	}
-	lineUserID := *owner.LineUserID
 
 	thresholds, err := s.settingsSvc.GetHealthPreventionThresholds(ctx, clinicID)
 	if err != nil {
@@ -62,23 +57,12 @@ func (s *lstepTagSyncService) SyncFoodPurchaseTag(ctx context.Context, clinicID,
 
 	apiFailed := false
 	if hasPurchase {
-		if addErr := client.AddTag(ctx, lineUserID, LtvFoodPurchaseTag); addErr != nil {
-			slog.ErrorContext(ctx, "failed to add food purchase tag", "error", addErr)
-			s.notifyAPIFailure(ctx, client, clinicID, ownerID, lineUserID)
-			return apperrors.Wrap(addErr, "failed to add food purchase tag")
-		}
-		if err := s.tagCacheRepo.UpsertTag(ctx, clinicID, ownerID, LtvFoodPurchaseTag, "auto", "購入済"); err != nil {
-			slog.WarnContext(ctx, "failed to upsert tag cache (non-fatal)", "tag", LtvFoodPurchaseTag, "owner_id", ownerID, "error", err)
+		if err := s.applyTagState(ctx, client, clinicID, ownerID, lineUserID, LtvFoodPurchaseTag, "food purchase", "購入済", true); err != nil {
+			return err
 		}
 	} else {
-		if delErr := client.RemoveTag(ctx, lineUserID, LtvFoodPurchaseTag); delErr != nil {
-			slog.ErrorContext(ctx, "failed to remove food purchase tag", "error", delErr)
-			s.notifyAPIFailure(ctx, client, clinicID, ownerID, lineUserID)
+		if err := s.applyTagState(ctx, client, clinicID, ownerID, lineUserID, LtvFoodPurchaseTag, "food purchase", "購入済", false); err != nil {
 			apiFailed = true
-		} else {
-			if err := s.tagCacheRepo.DeleteTag(ctx, clinicID, ownerID, LtvFoodPurchaseTag); err != nil {
-				slog.WarnContext(ctx, "failed to delete tag cache (non-fatal)", "tag", LtvFoodPurchaseTag, "owner_id", ownerID, "error", err)
-			}
 		}
 	}
 	if !apiFailed {
