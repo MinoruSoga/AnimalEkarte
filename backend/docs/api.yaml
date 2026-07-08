@@ -3712,6 +3712,41 @@ components:
           format: int32
           nullable: true
 
+    # ─── MedicalRecordAddendum (カルテ追記・訂正履歴) ─────────────────────────
+    MedicalRecordAddendum:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        medical_record_id:
+          type: integer
+          format: int64
+        clinic_id:
+          type: integer
+          format: int64
+        author_user_id:
+          type: integer
+          format: int64
+        before_text:
+          type: string
+        after_text:
+          type: string
+        reason:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+
+    CreateMedicalRecordAddendumRequest:
+      type: object
+      required: [after_text, reason]
+      properties:
+        after_text:
+          type: string
+        reason:
+          type: string
+
     # ─── DailyRecord (入院日次記録) ───────────────────────────────────────────
     DailyRecord:
       type: object
@@ -14627,6 +14662,65 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '404':
           $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  # ─── MedicalRecordAddenda (カルテ追記・訂正履歴) ────────────────
+  /medical-records/{id}/addenda:
+    get:
+      operationId: listMedicalRecordAddenda
+      summary: カルテ追記・訂正履歴一覧
+      tags: [MedicalRecords]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: カルテID
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: 追記履歴一覧
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/MedicalRecordAddendum'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    post:
+      operationId: createMedicalRecordAddendum
+      summary: カルテ追記・訂正を作成
+      tags: [MedicalRecords]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: カルテID
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateMedicalRecordAddendumRequest'
+      responses:
+        '201':
+          description: 作成成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MedicalRecordAddendum'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
         '500':
           $ref: '#/components/responses/InternalError'
 
