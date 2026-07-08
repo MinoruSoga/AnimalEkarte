@@ -6280,6 +6280,283 @@ components:
       properties:
         signed_url:
           type: string
+    # ─── Lab imports / reports (外部検査機器連携) ──────────────────────
+    LabImportResultRow:
+      type: object
+      properties:
+        old_pet_key:
+          type: string
+        old_chart_key:
+          type: string
+        old_row_key:
+          type: string
+        exam_date:
+          type: string
+        exam_code:
+          type: string
+        exam_name:
+          type: string
+        item_name:
+          type: string
+        display_value:
+          type: string
+        reference_value:
+          type: string
+    LabImportPreviewRequest:
+      type: object
+      required: [source_type]
+      properties:
+        source_type:
+          type: string
+        source_fingerprint:
+          type: string
+        result_rows:
+          type: array
+          items:
+            $ref: '#/components/schemas/LabImportResultRow'
+    LabImportPreviewResponse:
+      type: object
+      properties:
+        row_count:
+          type: integer
+        mapping_warnings:
+          type: array
+          items:
+            type: string
+        blocked_reasons:
+          type: array
+          items:
+            type: string
+    LabExamItemInput:
+      type: object
+      properties:
+        name:
+          type: string
+        inspection_value:
+          type: string
+        unit:
+          type: string
+        reference_value:
+          type: string
+        ref_min:
+          type: number
+          format: double
+          nullable: true
+        ref_max:
+          type: number
+          format: double
+          nullable: true
+        sort_order:
+          type: integer
+    LabImportCommitRequest:
+      type: object
+      required: [batch]
+      description: clinic_id はリクエストボディで受け取らず JWT コンテキストから注入する。
+      properties:
+        batch:
+          type: object
+          required: [source_type]
+          properties:
+            source_type:
+              type: string
+              description: Phase 3 制約により fixture 以外は 400。
+            source_fingerprint:
+              type: string
+            received_at:
+              type: string
+              format: date-time
+            result_rows:
+              type: array
+              items:
+                $ref: '#/components/schemas/LabImportResultRow'
+        inputs:
+          type: array
+          items:
+            type: object
+            required: [exam_type_id, date]
+            properties:
+              pet_id:
+                type: integer
+                format: int64
+                nullable: true
+              medical_record_id:
+                type: integer
+                format: int64
+                nullable: true
+              exam_type_id:
+                type: integer
+                format: int64
+              date:
+                type: string
+                format: date
+              machine:
+                type: string
+              items:
+                type: array
+                items:
+                  $ref: '#/components/schemas/LabExamItemInput'
+    LabImportCommitResponse:
+      type: object
+      properties:
+        job_id:
+          type: string
+        persisted_count:
+          type: integer
+        duplicate_count:
+          type: integer
+        needs_review_count:
+          type: integer
+        failed_count:
+          type: integer
+    LabImportJob:
+      type: object
+      properties:
+        id:
+          type: string
+        clinic_id:
+          type: string
+        source_type:
+          type: string
+        source_fingerprint:
+          type: string
+        status:
+          type: string
+        row_count:
+          type: integer
+        persisted_count:
+          type: integer
+        duplicate_count:
+          type: integer
+        needs_review_count:
+          type: integer
+        failed_count:
+          type: integer
+        error_code:
+          type: string
+          nullable: true
+        started_at:
+          type: string
+          format: date-time
+          nullable: true
+        finished_at:
+          type: string
+          format: date-time
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    LabImportEvent:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        clinic_id:
+          type: string
+        job_id:
+          type: string
+        event_type:
+          type: string
+        from_status:
+          type: string
+          nullable: true
+        to_status:
+          type: string
+          nullable: true
+        row_count:
+          type: integer
+        persisted_count:
+          type: integer
+        duplicate_count:
+          type: integer
+        needs_review_count:
+          type: integer
+        error_code:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+    LabExamReportSummary:
+      type: object
+      description: PII-safe — owner 名・pet 名・result_summary を含まない。
+      properties:
+        exam_id:
+          type: integer
+          format: int64
+        clinic_id:
+          type: string
+        job_id:
+          type: string
+          nullable: true
+        date:
+          type: string
+        exam_type_name:
+          type: string
+        status:
+          type: string
+        result_count:
+          type: integer
+        abnormal_count:
+          type: integer
+        machine:
+          type: string
+        created_at:
+          type: string
+    LabExamResultItem:
+      type: object
+      properties:
+        name:
+          type: string
+        inspection_value:
+          type: string
+        unit:
+          type: string
+        reference_value:
+          type: string
+    LabExamReportDetail:
+      type: object
+      description: PII-safe — owner 名・pet 名・raw デバイスペイロードを含まない。result_summary は Phase 4B.1 決定2により省略。
+      properties:
+        exam_id:
+          type: integer
+          format: int64
+        clinic_id:
+          type: string
+        job_id:
+          type: string
+          nullable: true
+        pet_id:
+          type: integer
+          format: int64
+          nullable: true
+        medical_record_id:
+          type: integer
+          format: int64
+          nullable: true
+        doctor_id:
+          type: integer
+          format: int64
+          nullable: true
+        date:
+          type: string
+        exam_type_name:
+          type: string
+        status:
+          type: string
+        machine:
+          type: string
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/LabExamResultItem'
+        created_at:
+          type: string
+        updated_at:
+          type: string
   responses:
     BadRequest:
       description: バリデーションエラー
@@ -16761,6 +17038,169 @@ paths:
       responses:
         '204':
           description: 削除成功
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  # ─── Lab imports / reports (BE-refactor G1-2 Phase C) ──────────────
+  /lab-imports/preview:
+    post:
+      operationId: postLabImportPreview
+      summary: 検査取込バッチのプレビュー(DB書き込みなし)
+      description: ResourceLabImport create 権限が必要。PHI・接続情報・raw デバイスペイロードは受け付けない。
+      tags: [LabImports]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LabImportPreviewRequest'
+      responses:
+        '200':
+          description: プレビュー結果
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LabImportPreviewResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /lab-imports:
+    post:
+      operationId: postLabImportCommit
+      summary: 検査取込バッチのコミット(exams + job を永続化)
+      description: ResourceLabImport create 権限が必要。source_type=fixture 以外は 400(Phase 3 制約)。
+      tags: [LabImports]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LabImportCommitRequest'
+      responses:
+        '201':
+          description: コミット成功
+          headers:
+            Location:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LabImportCommitResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /lab-imports/{job_id}:
+    get:
+      operationId: getLabImportJob
+      summary: 検査取込ジョブ詳細取得
+      description: ResourceLabImport view 権限が必要。
+      tags: [LabImports]
+      parameters:
+        - name: job_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: ジョブ詳細
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LabImportJob'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /lab-imports/{job_id}/events:
+    get:
+      operationId: listLabImportEvents
+      summary: 検査取込ジョブのイベント一覧(作成昇順)
+      description: ResourceLabImport view 権限が必要。
+      tags: [LabImports]
+      parameters:
+        - name: job_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: イベント一覧
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/LabImportEvent'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /lab-reports/jobs/{job_id}/summaries:
+    get:
+      operationId: getLabJobReportSummaries
+      summary: ジョブに紐づく検査サマリ一覧(PII-safe)
+      description: ResourceLabImport view 権限が必要(Phase 4B.1 決定3)。
+      tags: [LabReports]
+      parameters:
+        - name: job_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: 検査サマリ一覧
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/LabExamReportSummary'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /lab-reports/exams/{exam_id}:
+    get:
+      operationId: getLabExamReport
+      summary: 検査詳細取得(PII-safe)
+      description: ResourceLabImport view 権限が必要(Phase 4B.1 決定3)。
+      tags: [LabReports]
+      parameters:
+        - name: exam_id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: 検査詳細
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LabExamReportDetail'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '404':
