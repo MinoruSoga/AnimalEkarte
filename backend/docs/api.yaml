@@ -6788,6 +6788,342 @@ components:
           nullable: true
         sort_order:
           type: integer
+    # ─── Lstep settings / analytics (LINE公式アカウント連携) ───────────
+    LstepSettings:
+      type: object
+      description: GET レスポンス。センシティブ値(APIキー・トークン等)はマスク済み。
+      properties:
+        lstep_api_key_masked:
+          type: string
+        lstep_base_url:
+          type: string
+        line_channel_access_token_masked:
+          type: string
+        line_channel_secret_masked:
+          type: string
+        liff_id:
+          type: string
+        line_account_name:
+          type: string
+        is_configured:
+          type: boolean
+        last_updated_at:
+          type: string
+          format: date-time
+          nullable: true
+        is_sync_enabled:
+          type: boolean
+        sync_enabled_at:
+          type: string
+          format: date-time
+          nullable: true
+        cpm_version:
+          type: string
+        dormant_prevention_180_days:
+          type: integer
+        dormant_prevention_210_days:
+          type: integer
+        dormant_prevention_240_days:
+          type: integer
+        dormant_prevention_365_days:
+          type: integer
+        cpm_v2_coming_threshold:
+          type: integer
+        cpm_v2_good_threshold:
+          type: integer
+        cpm_v2_family_threshold:
+          type: integer
+        cpm_v2_noah_threshold:
+          type: integer
+        cpm_v1_dormant_days:
+          type: integer
+        cpm_v1_noah_days:
+          type: integer
+        cpm_v1_noah_annual_visits:
+          type: integer
+        cpm_v1_noah_ltv:
+          type: integer
+          format: int64
+        cpm_v1_core_days:
+          type: integer
+        cpm_v1_core_annual_visits:
+          type: integer
+        cpm_v1_core_ltv:
+          type: integer
+          format: int64
+        cpm_v1_spot_min_amount:
+          type: integer
+          format: int64
+        cpm_v1_spot_inactive_days:
+          type: integer
+        cpm_v1_growing_max_days:
+          type: integer
+        cpm_v1_growing_min_visits:
+          type: integer
+        cpm_v1_growing_max_visits:
+          type: integer
+        cpm_v1_ltv_break_low:
+          type: integer
+          format: int64
+        health_prevention_lookback_days:
+          type: integer
+        vaccine_deadline_days:
+          type: integer
+    UpdateLstepSettingsRequest:
+      type: object
+      description: PATCH リクエスト。文字列フィールドは空文字="変更なし"。数値フィールドは null="変更なし"。
+      properties:
+        lstep_api_key:
+          type: string
+        lstep_base_url:
+          type: string
+        line_channel_access_token:
+          type: string
+        line_channel_secret:
+          type: string
+        liff_id:
+          type: string
+        line_account_name:
+          type: string
+        is_sync_enabled:
+          type: boolean
+          nullable: true
+        cpm_version:
+          type: string
+          nullable: true
+        dormant_prevention_180_days:
+          type: integer
+          nullable: true
+        dormant_prevention_210_days:
+          type: integer
+          nullable: true
+        dormant_prevention_240_days:
+          type: integer
+          nullable: true
+        dormant_prevention_365_days:
+          type: integer
+          nullable: true
+        cpm_v2_coming_threshold:
+          type: integer
+          nullable: true
+        cpm_v2_good_threshold:
+          type: integer
+          nullable: true
+        cpm_v2_family_threshold:
+          type: integer
+          nullable: true
+        cpm_v2_noah_threshold:
+          type: integer
+          nullable: true
+        cpm_v1_dormant_days:
+          type: integer
+          nullable: true
+        cpm_v1_noah_days:
+          type: integer
+          nullable: true
+        cpm_v1_noah_annual_visits:
+          type: integer
+          nullable: true
+        cpm_v1_noah_ltv:
+          type: integer
+          format: int64
+          nullable: true
+        cpm_v1_core_days:
+          type: integer
+          nullable: true
+        cpm_v1_core_annual_visits:
+          type: integer
+          nullable: true
+        cpm_v1_core_ltv:
+          type: integer
+          format: int64
+          nullable: true
+        cpm_v1_spot_min_amount:
+          type: integer
+          format: int64
+          nullable: true
+        cpm_v1_spot_inactive_days:
+          type: integer
+          nullable: true
+        cpm_v1_growing_max_days:
+          type: integer
+          nullable: true
+        cpm_v1_growing_min_visits:
+          type: integer
+          nullable: true
+        cpm_v1_growing_max_visits:
+          type: integer
+          nullable: true
+        cpm_v1_ltv_break_low:
+          type: integer
+          format: int64
+          nullable: true
+        health_prevention_lookback_days:
+          type: integer
+          nullable: true
+        vaccine_deadline_days:
+          type: integer
+          nullable: true
+    LstepConnectionTestResult:
+      type: object
+      properties:
+        lstep_ok:
+          type: boolean
+        lstep_error:
+          type: string
+        line_ok:
+          type: boolean
+        line_error:
+          type: string
+    LstepTagSummaryItem:
+      type: object
+      properties:
+        tag_name:
+          type: string
+        owner_count:
+          type: integer
+          format: int64
+        category:
+          type: string
+    LstepTagSummaryResponse:
+      type: object
+      properties:
+        tags:
+          type: array
+          items:
+            $ref: '#/components/schemas/LstepTagSummaryItem'
+        total_owners_with_lstep:
+          type: integer
+          format: int64
+        as_of:
+          type: string
+          format: date-time
+    LstepTagOwnerItem:
+      type: object
+      properties:
+        owner_id:
+          type: string
+        owner_name:
+          type: string
+        line_user_id_masked:
+          type: string
+          nullable: true
+        last_visit_date:
+          type: string
+          nullable: true
+        all_tags:
+          type: array
+          items:
+            type: string
+        reason:
+          type: string
+          nullable: true
+    LstepTagOwnerListResponse:
+      type: object
+      properties:
+        owners:
+          type: array
+          items:
+            $ref: '#/components/schemas/LstepTagOwnerItem'
+        total:
+          type: integer
+          format: int64
+        page:
+          type: integer
+        per_page:
+          type: integer
+    LstepDeliveryTriggerSummary:
+      type: object
+      properties:
+        scheduled:
+          type: integer
+          format: int64
+        fired:
+          type: integer
+          format: int64
+        excluded:
+          type: integer
+          format: int64
+        failed:
+          type: integer
+          format: int64
+        suppressed_by_priority:
+          type: integer
+          format: int64
+        excluded_reason_breakdown:
+          type: object
+          additionalProperties:
+            type: integer
+            format: int64
+    LstepDeliveryTriggerLogItem:
+      type: object
+      properties:
+        id:
+          type: string
+        owner_id:
+          type: string
+        owner_name:
+          type: string
+        trigger_type:
+          type: string
+        scheduled_at:
+          type: string
+          format: date-time
+        status:
+          type: string
+        fired_at:
+          type: string
+          format: date-time
+          nullable: true
+        excluded_reason:
+          type: string
+          nullable: true
+    LstepDeliveryTriggerLogsPage:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/LstepDeliveryTriggerLogItem'
+        total:
+          type: integer
+          format: int64
+        page:
+          type: integer
+        per_page:
+          type: integer
+    LstepTriggerPriorityItem:
+      type: object
+      properties:
+        trigger_type:
+          type: string
+        priority:
+          type: integer
+    LstepTriggerPriorityListResponse:
+      type: object
+      properties:
+        clinic_id:
+          type: string
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/LstepTriggerPriorityItem'
+    UpdateLstepTriggerPrioritiesRequest:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          minItems: 1
+          items:
+            type: object
+            required: [trigger_type, priority]
+            properties:
+              trigger_type:
+                type: string
+              priority:
+                type: integer
+                minimum: 1
   responses:
     BadRequest:
       description: バリデーションエラー
@@ -17849,6 +18185,272 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '404':
           $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  # ─── Lstep settings / analytics (BE-refactor G1-2 Phase C) ─────────
+  # /clinics/{clinic_id}/lstep-settings・/clinics/{clinic_id}/lstep/* エイリアスは
+  # 同一ハンドラの重複登録(Phase B の death エイリアスと同様)のため意図的に未記載。
+  /lstep-settings:
+    get:
+      operationId: getLstepSettings
+      summary: Lステップ・LINE連携設定取得
+      description: hospital-settings view 権限が必要。
+      tags: [LstepSettings]
+      responses:
+        '200':
+          description: 設定(センシティブ値マスク済み)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LstepSettings'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    patch:
+      operationId: updateLstepSettings
+      summary: Lステップ・LINE連携設定更新
+      description: hospital-settings edit 権限が必要。
+      tags: [LstepSettings]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateLstepSettingsRequest'
+      responses:
+        '200':
+          description: 更新後の設定
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LstepSettings'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    delete:
+      operationId: deleteLstepSettings
+      summary: Lステップ・LINE連携設定削除
+      description: hospital-settings delete 権限が必要。
+      tags: [LstepSettings]
+      responses:
+        '204':
+          description: 削除成功
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /lstep-settings/test-connection:
+    post:
+      operationId: testLstepConnection
+      summary: Lステップ・LINE接続疎通確認
+      description: hospital-settings view 権限が必要。
+      tags: [LstepSettings]
+      responses:
+        '200':
+          description: 疎通確認結果
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LstepConnectionTestResult'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /lstep/tag-summary:
+    get:
+      operationId: getLstepTagSummary
+      summary: タグ別飼い主数集計(BE-020)
+      description: lstep-analytics view 権限が必要。
+      tags: [LstepSettings]
+      responses:
+        '200':
+          description: タグ別集計
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LstepTagSummaryResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /lstep/owners:
+    get:
+      operationId: searchLstepOwnersByTag
+      summary: タグで飼い主を絞り込み(BE-020)
+      description: lstep-analytics view 権限が必要。format=csv で CSV ダウンロード(RFC 5987 ファイル名エンコード)。
+      tags: [LstepSettings]
+      parameters:
+        - name: tag
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: q
+          in: query
+          required: false
+          description: 飼い主名の部分一致検索
+          schema:
+            type: string
+        - name: format
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [csv]
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+        - name: per_page
+          in: query
+          required: false
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: 飼い主一覧(format=csv 時は text/csv)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LstepTagOwnerListResponse'
+            text/csv:
+              schema:
+                type: string
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /lstep/delivery-monitor/summary:
+    get:
+      operationId: getLstepDeliveryTriggerSummary
+      summary: 配信トリガー状態別集計(FEAT-384)
+      description: lstep-analytics view 権限が必要。from/to 省略時は当日(JST)。
+      tags: [LstepSettings]
+      parameters:
+        - name: from
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+        - name: to
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+        - name: trigger_type
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: トリガー状態別集計
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LstepDeliveryTriggerSummary'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /lstep/delivery-monitor/logs:
+    get:
+      operationId: getLstepDeliveryTriggerLogs
+      summary: 配信トリガーログ一覧(ページング, FEAT-384)
+      description: lstep-analytics view 権限が必要。from/to 省略時は当日(JST)。
+      tags: [LstepSettings]
+      parameters:
+        - name: from
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+        - name: to
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+        - name: trigger_type
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+        - name: per_page
+          in: query
+          required: false
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: 配信トリガーログ一覧
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LstepDeliveryTriggerLogsPage'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /lstep/trigger-priorities:
+    get:
+      operationId: getLstepTriggerPriorities
+      summary: 配信トリガー優先順位一覧(Q23)
+      description: hospital-settings view 権限が必要。
+      tags: [LstepSettings]
+      responses:
+        '200':
+          description: 優先順位一覧
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LstepTriggerPriorityListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    patch:
+      operationId: updateLstepTriggerPriorities
+      summary: 配信トリガー優先順位一括更新(Q23)
+      description: hospital-settings edit 権限が必要。
+      tags: [LstepSettings]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateLstepTriggerPrioritiesRequest'
+      responses:
+        '200':
+          description: 更新成功
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
         '500':
           $ref: '#/components/responses/InternalError'
   /manual/articles/{category}/{slug}/versions:
