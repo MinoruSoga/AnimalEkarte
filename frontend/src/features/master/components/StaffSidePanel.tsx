@@ -18,7 +18,7 @@ import { StaffClinicsSection, StaffExcludedReservationTypesSection, StaffPermiss
 import {
   staffToFormData,
   type StaffFormData,
-} from "./StaffSidePanelModel";
+} from "./staff-side-panel-model";
 import { useEditableIdSelection } from "./StaffSidePanelSelection";
 
 interface StaffSidePanelProps {

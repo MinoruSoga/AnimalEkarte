@@ -10,7 +10,7 @@ import type { DiagnosisName, DiagnosisType } from "../api/diagnosis";
 import {
   diagnosisNameToFormData,
   type DiagnosisNameFormData,
-} from "./DiagnosisSidePanelModel";
+} from "./diagnosis-side-panel-model";
 
 interface DiagnosisNameSidePanelProps {
   item: DiagnosisName | null;

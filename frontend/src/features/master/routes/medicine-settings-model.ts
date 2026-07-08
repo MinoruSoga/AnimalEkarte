@@ -2,7 +2,7 @@ import type { ActiveFilter } from "@/components/shared/PropertyFilter/types";
 import type { CreateMedicineRequest, UpdateMedicineRequest } from "@/types/medicine";
 import type { Medicine } from "@/types";
 
-import type { MedicineFormData } from "../components/MedicineSidePanelModel";
+import type { MedicineFormData } from "../components/medicine-side-panel-model";
 import { normalizeKana } from "@/lib/normalize-kana";
 
 export interface MedicineGroups {

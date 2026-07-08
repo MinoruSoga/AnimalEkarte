@@ -13,7 +13,7 @@ import { MasterTabPage } from "../components/MasterTabPage";
 import type {
   CourseFormData,
   OptionFormData,
-} from "../components/TrimmingSidePanelModel";
+} from "../components/trimming-side-panel-model";
 import {
   useCreateTrimmingCourse,
   useCreateTrimmingOption,
@@ -33,7 +33,7 @@ import {
   buildTrimmingOptionUpdateRequest,
   TRIMMING_TABS,
   toTrimmingTabValue,
-} from "./TrimmingSettingsModel";
+} from "./trimming-settings-model";
 
 export function TrimmingSettings() {
   const { canEdit, canDelete } = usePermission(ResourceMasterTrimming);

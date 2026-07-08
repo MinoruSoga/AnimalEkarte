@@ -12,12 +12,12 @@ import { C, LAYOUT } from "@/lib/design-tokens";
 import type { PermissionGroup } from "../api/permission-groups";
 import { MASTER_INPUT_CLASS } from "../constants/styles";
 import { PermissionRuleTable } from "./PermissionRuleTable";
-import type { PermissionRuleField } from "./PermissionRuleTableModel";
+import type { PermissionRuleField } from "./permission-rule-table-model";
 import {
   permissionGroupToFormData,
   type PermissionGroupFormData,
   updatePermissionRule,
-} from "./PermissionGroupSidePanelModel";
+} from "./permission-group-side-panel-model";
 
 interface PermissionGroupSidePanelProps {
   item: PermissionGroup | null;

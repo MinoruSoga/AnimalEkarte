@@ -10,7 +10,7 @@ import { CombinablePill } from "./TrimmingTabRows";
 import {
   trimmingOptionToFormData,
   type OptionFormData,
-} from "./TrimmingSidePanelModel";
+} from "./trimming-side-panel-model";
 
 interface TrimmingOptionSidePanelProps {
   item: TrimmingOption | null;

@@ -12,7 +12,7 @@ import { useMasterSave } from "../hooks/use-master-save";
 import { usePermission } from "@/hooks/use-permission";
 import { MasterCRUDPage } from "../components/MasterCRUDPage";
 import { StaffSidePanel } from "../components/StaffSidePanel";
-import type { StaffFormData } from "../components/StaffSidePanelModel";
+import type { StaffFormData } from "../components/staff-side-panel-model";
 import {
   useGetStaffs,
   useCreateStaff,
@@ -36,7 +36,7 @@ import {
   buildStaffUpdateRequest,
   filterStaffByMasterFilters,
   searchStaff,
-} from "./StaffSettingsModel";
+} from "./staff-settings-model";
 import { ResourceMasterStaff } from "@/types/generated/models";
 
 // ─────────────────────────────────────────────────

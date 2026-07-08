@@ -8,7 +8,7 @@ import type { TrimmingCourseType } from "../api/trimming-course-type";
 import {
   trimmingCourseTypeToFormData,
   type TrimmingCourseTypeFormData,
-} from "./TrimmingCourseTypeSidePanelModel";
+} from "./trimming-course-type-side-panel-model";
 
 interface TrimmingCourseTypeSidePanelProps {
   item: TrimmingCourseType | null;

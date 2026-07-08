@@ -4,7 +4,7 @@ import {
   buildPaymentSplitRequests,
   createInitialPaymentSplits,
   getCorrectableCardPayments,
-} from "../AccountingDetailModel";
+} from "../accounting-detail-model";
 import type { PaymentSplitDraft } from "../../components/PaymentCard";
 import type { Accounting } from "../../types";
 

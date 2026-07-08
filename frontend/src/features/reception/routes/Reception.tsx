@@ -29,7 +29,7 @@ import type { ReceptionAppointment } from "../api/types";
 import { useReceptionKanban } from "../hooks/use-reception-kanban";
 import { RECEPTION_TELEMETRY_PHASE2_ENABLED, useReceptionTelemetry } from "../hooks/use-reception-telemetry";
 import { ReceptionDetailModal, ReservationFormModal } from "./ReceptionLazyModals";
-import { NO_ADD_BUTTON_COLUMNS } from "./ReceptionModel";
+import { NO_ADD_BUTTON_COLUMNS } from "./reception-model";
 import { useReceptionDragHandlers } from "./useReceptionDragHandlers";
 import { useReceptionModalHandlers } from "./useReceptionModalHandlers";
 

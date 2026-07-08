@@ -25,7 +25,7 @@ import {
   EMPTY_VITALS_ADD_FORM,
   parseVitalsNumber,
   type VitalsAddFormState,
-} from "./VitalsTabTableModel";
+} from "./vitals-tab-table-model";
 
 interface VitalsTabProps {
   medicalRecordId: string;

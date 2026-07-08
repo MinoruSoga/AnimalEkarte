@@ -21,7 +21,7 @@ import {
   LAST_VISIT_BUCKET_OPTIONS,
   PERIOD_PRESET_OPTIONS,
   SORT_OPTIONS_BY_TAB,
-} from "./AggregationFilterPanelModel";
+} from "./aggregation-filter-panel-model";
 
 interface FilterSectionProps {
   params: AggregationParams;

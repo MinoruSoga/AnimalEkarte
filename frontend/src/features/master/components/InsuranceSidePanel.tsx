@@ -15,7 +15,7 @@ import { MASTER_INPUT_CLASS } from "../constants/styles";
 import {
   insuranceToFormData,
   type InsuranceFormData,
-} from "./InsuranceSidePanelModel";
+} from "./insurance-side-panel-model";
 
 interface InsuranceSidePanelProps {
   item: Insurance | null;

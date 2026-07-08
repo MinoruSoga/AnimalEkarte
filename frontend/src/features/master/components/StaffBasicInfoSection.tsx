@@ -7,7 +7,7 @@ import { C, STYLE } from "@/lib/design-tokens";
 import type { Staff } from "../api/staffs";
 import type { Occupation } from "../api/occupations";
 import { MASTER_INPUT_CLASS } from "../constants/styles";
-import type { StaffFormData } from "./StaffSidePanelModel";
+import type { StaffFormData } from "./staff-side-panel-model";
 
 interface StaffBasicInfoSectionProps {
   item: Staff | null;

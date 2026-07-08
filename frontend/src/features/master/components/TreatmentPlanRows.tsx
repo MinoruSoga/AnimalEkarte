@@ -9,7 +9,7 @@ import { TableCell } from "@/components/ui/table";
 import { C, ICON } from "@/lib/design-tokens";
 import type { TreatmentItem } from "@/lib/transforms/treatment";
 
-import type { TreatmentTreeItem, TreatmentVirtualRow } from "./TreatmentPlanTabContentModel";
+import type { TreatmentTreeItem, TreatmentVirtualRow } from "./treatment-plan-tab-content-model";
 
 interface TreatmentPlanRowProps {
   row: TreatmentVirtualRow;

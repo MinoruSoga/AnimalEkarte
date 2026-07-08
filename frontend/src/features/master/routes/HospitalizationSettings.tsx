@@ -14,11 +14,11 @@ import { MasterCRUDPage } from "../components/MasterCRUDPage";
 import { useGetAllHospitalizationPlans, useCreateHospitalizationPlan, useUpdateHospitalizationPlan, useDeleteHospitalizationPlan, BODY_SIZE_LABELS, BILLING_UNIT_LABELS } from "../api/hospitalization-plans";
 import type { HospitalizationPlan, CreateHospitalizationPlanRequest, UpdateHospitalizationPlanRequest } from "../api/hospitalization-plans";
 import { HospitalizationSidePanel } from "../components/HospitalizationSidePanel";
-import type { HospitalizationFormData } from "../components/HospitalizationSidePanelModel";
+import type { HospitalizationFormData } from "../components/hospitalization-side-panel-model";
 import {
   buildHospitalizationCreateRequest,
   buildHospitalizationUpdateRequest,
-} from "./HospitalizationSettingsModel";
+} from "./hospitalization-settings-model";
 import { ResourceMasterHospitalization } from "@/types/generated/models";
 
 const COLUMNS = [

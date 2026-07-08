@@ -1,5 +1,5 @@
 import type { TreatmentFormData } from "../components/TreatmentItemSidePanel";
-import type { TreatmentTabConfig } from "../components/TreatmentPlanTabContentModel";
+import type { TreatmentTabConfig } from "../components/treatment-plan-tab-content-model";
 import type { TreatmentItem } from "@/lib/transforms/treatment";
 import type {
   CreateCheckupTypeRequest,

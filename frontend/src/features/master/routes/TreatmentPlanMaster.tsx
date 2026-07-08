@@ -36,7 +36,7 @@ import {
   buildVaccineUpdateRequest,
   TREATMENT_PLAN_TABS,
   toTreatmentPlanTabValue,
-} from "./TreatmentPlanMasterModel";
+} from "./treatment-plan-master-model";
 
 // API hooks
 import { useGetAllConsultations, useCreateConsultation, useUpdateConsultation, useDeleteConsultation, useReorderConsultations } from "../api/consultations";

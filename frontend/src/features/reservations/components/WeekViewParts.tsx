@@ -6,11 +6,11 @@ import { C } from "@/lib/design-tokens";
 import type { Reservation } from "@/types";
 
 import { DayColumn } from "./WeekViewDayColumn";
-import { HOUR_HEIGHT, HOURS, WEEK_DAYS, type ReservationTypeColor } from "./WeekViewGridConstants";
+import { HOUR_HEIGHT, HOURS, WEEK_DAYS, type ReservationTypeColor } from "./week-view-grid-constants";
 
 const INITIAL_SCROLL_HOUR = 9;
 
-export type { ReservationTypeColor } from "./WeekViewGridConstants";
+export type { ReservationTypeColor } from "./week-view-grid-constants";
 
 interface WeekViewGridProps {
   startDate: Date;

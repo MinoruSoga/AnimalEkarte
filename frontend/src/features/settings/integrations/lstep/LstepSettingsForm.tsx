@@ -12,7 +12,7 @@ import {
   useTestLineMessagingConnection,
   useDeleteLstepSettings,
 } from "./hooks/useLstepSettings";
-import { buildLstepSettingsRequest } from "./LstepSettingsFormRequest";
+import { buildLstepSettingsRequest } from "./lstep-settings-form-request";
 import {
   LstepActionFooter,
   LstepConfiguredSummary,

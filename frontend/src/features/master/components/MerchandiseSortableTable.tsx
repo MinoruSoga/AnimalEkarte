@@ -13,7 +13,7 @@ import type { FrontendMerchandiseItem } from "../api/merchandise-items";
 import {
   formatMerchandiseTaxRate,
   MERCHANDISE_CATEGORY_LABELS,
-} from "./MerchandiseSidePanelModel";
+} from "./merchandise-side-panel-model";
 import { MerchandiseRowOverlay } from "./MerchandiseRowOverlay";
 
 const TABLE_COLUMNS = [

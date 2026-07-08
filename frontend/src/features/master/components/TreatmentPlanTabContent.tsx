@@ -14,7 +14,7 @@ import {
   buildTreatmentRows,
   buildTreatmentTree,
   filterTreatmentRoots,
-} from "./TreatmentPlanTabContentModel";
+} from "./treatment-plan-tab-content-model";
 
 interface TreatmentPlanTabContentProps extends TreatmentTabConfig {
   onEditTargetChange: (value: TreatmentItem | "new" | null) => void;

@@ -15,11 +15,11 @@ import type {
 } from "../api/merchandise-items";
 import { MerchandiseSidePanel } from "../components/MerchandiseSidePanel";
 import { MerchandiseSortableTable } from "../components/MerchandiseSortableTable";
-import type { MerchandiseFormData } from "../components/MerchandiseSidePanelModel";
+import type { MerchandiseFormData } from "../components/merchandise-side-panel-model";
 import {
   buildMerchandiseCreateRequest,
   buildMerchandiseUpdateRequest,
-} from "./MerchandiseItemSettingsModel";
+} from "./merchandise-item-settings-model";
 import { ResourceMasterMerchandise } from "@/types/generated/models";
 import { usePermission } from "@/hooks/use-permission";
 

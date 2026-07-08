@@ -25,7 +25,7 @@ import { correctCreditPayment } from "../api/correct-credit-payment";
 import {
   getCorrectableCardPayments,
   type CorrectableCardMethod,
-} from "../routes/AccountingDetailModel";
+} from "../routes/accounting-detail-model";
 import type { Accounting } from "../types";
 
 const CARD_METHOD_LABELS: Record<CorrectableCardMethod, string> = {

@@ -24,12 +24,12 @@ import {
   TrimmingLeftColumn,
   TrimmingMiddleColumn,
   TrimmingRightColumn,
-} from "../components/TrimmingFormColumns.ts";
+} from "../components/trimming-form-columns";
 import { useTrimmingForm } from "../hooks/use-trimming-form";
 import type { TrimmingFormData } from "@/types/trimming";
 import { ResourceTrimming } from "@/types/generated/models";
 import { ConfirmDialog, MasterSelectModal } from "./TrimmingLazyModals";
-import { TRIMMING_FORM_ID, TRIMMING_PRIORITY_FIELDS } from "./TrimmingFormModel";
+import { TRIMMING_FORM_ID, TRIMMING_PRIORITY_FIELDS } from "./trimming-form-model";
 import { useTrimmingHistory } from "./useTrimmingHistory";
 
 // ─── メインコンポーネント ────────────────────────────────────────────────────

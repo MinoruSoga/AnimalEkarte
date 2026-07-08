@@ -9,7 +9,7 @@ import { MasterLink } from "@/components/shared/MasterLink";
 import { MasterSelectTrigger } from "@/components/shared/MasterSelectModal";
 import { C, ICON } from "@/lib/design-tokens";
 
-import type { TrimmingLeftColumnProps } from "./TrimmingFormColumnTypes";
+import type { TrimmingLeftColumnProps } from "./trimming-form-column-types";
 import { TrimmingImageUploadField } from "./TrimmingImageUploadField";
 
 export const TrimmingLeftColumn = memo(function TrimmingLeftColumn({

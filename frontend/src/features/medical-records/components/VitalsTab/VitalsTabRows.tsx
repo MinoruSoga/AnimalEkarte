@@ -15,7 +15,7 @@ import {
   formatRecordedAt,
   parseVitalsNumber,
   type VitalsAddFormState,
-} from "./VitalsTabTableModel";
+} from "./vitals-tab-table-model";
 
 interface VitalsDisplayRowProps {
   vital: Vital;

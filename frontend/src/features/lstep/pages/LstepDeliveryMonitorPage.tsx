@@ -15,7 +15,7 @@ import {
   DeliverySummaryCards,
 } from "./LstepDeliveryMonitorPageParts";
 import { DeliveryLogsTable } from "./LstepDeliveryMonitorLogsTable";
-import { getTodayDateString } from "./LstepDeliveryMonitorPageModel";
+import { getTodayDateString } from "./lstep-delivery-monitor-page-model";
 
 export function LstepDeliveryMonitorPage() {
   const queryClient = useQueryClient();

@@ -12,7 +12,7 @@ import type {
   Staff,
   UpdateStaffRequest,
 } from "../api/staffs";
-import type { StaffFormData } from "../components/StaffSidePanelModel";
+import type { StaffFormData } from "../components/staff-side-panel-model";
 import { normalizeKana } from "@/lib/normalize-kana";
 
 export function buildStaffIds(staffs: Staff[] | undefined): string[] {

@@ -1,7 +1,7 @@
 import { PALETTE } from "@/lib/design-tokens";
 
 import type { PermissionGroup } from "../api/permission-groups";
-import type { PermissionRule, PermissionRuleField } from "./PermissionRuleTableModel";
+import type { PermissionRule, PermissionRuleField } from "./permission-rule-table-model";
 
 export interface PermissionGroupFormData {
   name: string;

@@ -12,7 +12,7 @@ import { FormFieldError } from "@/components/shared/FormFieldError";
 import { SubmitButton } from "@/components/shared/Form/SubmitButton";
 import { C, ICON, LAYOUT, STYLE } from "@/lib/design-tokens";
 import type { Clinic } from "../api/clinics";
-import type { ClinicFormData } from "./ClinicMasterSettingsModel";
+import type { ClinicFormData } from "./clinic-master-settings-model";
 
 const PROP_INPUT_CLASS = `w-full bg-transparent text-sm ${C.text} outline-none border-none px-1.5 py-0.5 rounded-[3px] ${C.hoverBgLight} ${C.focusBgLight} transition-colors ${C.textPlaceholder}`;
 

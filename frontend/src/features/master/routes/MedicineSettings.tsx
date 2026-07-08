@@ -26,7 +26,7 @@ import {
   buildMedicineUpdateRequest,
   getCategoryMedicines,
   isCategoryMedicine,
-} from "./MedicineSettingsModel";
+} from "./medicine-settings-model";
 
 // Internal – feature API (direct import, no barrel)
 import { useGetAllMedicines, useCreateMedicine, useUpdateMedicine, useDeleteMedicine, useReorderMedicines } from "../api/medicines";

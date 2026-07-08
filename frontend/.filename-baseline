@@ -1,0 +1,17 @@
+# FE-refactor.md「R-F3: features 配下ファイル名規則の機械強制」ratchet baseline
+# （scripts/check-feature-filename-convention.mjs が参照）。
+#
+# src/features/** 配下の非コンポーネント .ts（.tsx は対象外）で、basename に
+# 大文字を含むもの（kebab-case 非準拠）の合計件数を1行の数値で記録する。
+#
+# R-F3-S1 で PascalCase *Model.ts 53件 + 同種4件を kebab-case にリネーム済み。
+# 残存する違反20件は R-F3-S2 以降で対応する既知の債務（camelCase hook 15件・
+# StaffSidePanelSelection.ts 1件・PascalCase 名の test.ts 4件）であり、
+# 遡って fail させることはせず、件数が baseline を超えて増えていないかだけを検査する。
+#
+# 2026-07-09 実測（node scripts/check-feature-filename-convention.mjs で算出、
+# 現在の src/features/** 全件スキャン）: 20
+#
+# 更新規則: 件数が減った場合はこの値を実測値まで引き下げてよい（ratchet を締める）。
+# 増えた場合は、新規 PascalCase .ts の追加自体の要否を再検討すること。
+20

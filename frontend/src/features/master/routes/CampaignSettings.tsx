@@ -12,7 +12,7 @@ import { useMasterCRUD } from "../hooks/use-master-crud";
 import { useMasterSave } from "../hooks/use-master-save";
 import { MasterCRUDPage } from "../components/MasterCRUDPage";
 import { CampaignSidePanel } from "../components/CampaignSidePanel";
-import type { CampaignFormData } from "../components/CampaignSidePanelModel";
+import type { CampaignFormData } from "../components/campaign-side-panel-model";
 import {
   useGetCampaigns,
   useCreateCampaign,
@@ -20,7 +20,7 @@ import {
   useDeleteCampaign,
 } from "../api/campaign";
 import type { CreateCampaignRequest, Campaign, UpdateCampaignRequest } from "../api/campaign";
-import { buildCampaignCreateRequest, buildCampaignUpdateRequest } from "./CampaignSettingsModel";
+import { buildCampaignCreateRequest, buildCampaignUpdateRequest } from "./campaign-settings-model";
 import { ResourceAccounting } from "@/types/generated/models";
 
 // ─── Constants ───

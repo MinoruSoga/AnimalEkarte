@@ -3,7 +3,7 @@ import type {
   UpdatePermissionGroupRequest,
   UpdatePermissionGroupRulesRequest,
 } from "../api/permission-groups";
-import type { PermissionGroupFormData } from "../components/PermissionGroupSidePanelModel";
+import type { PermissionGroupFormData } from "../components/permission-group-side-panel-model";
 
 export function buildPermissionGroupCreateRequest(
   data: PermissionGroupFormData,

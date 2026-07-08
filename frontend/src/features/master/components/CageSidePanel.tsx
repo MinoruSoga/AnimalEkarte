@@ -11,7 +11,7 @@ import {
   CAGE_TYPE_OPTIONS,
   cageToFormData,
   type CageFormData,
-} from "./CageSidePanelModel";
+} from "./cage-side-panel-model";
 
 interface CageSidePanelProps {
   item: Cage | null;

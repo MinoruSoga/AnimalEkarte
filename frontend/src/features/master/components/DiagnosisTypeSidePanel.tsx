@@ -8,7 +8,7 @@ import type { DiagnosisType } from "../api/diagnosis";
 import {
   diagnosisTypeToFormData,
   type DiagnosisTypeFormData,
-} from "./DiagnosisSidePanelModel";
+} from "./diagnosis-side-panel-model";
 
 interface DiagnosisTypeSidePanelProps {
   item: DiagnosisType | null;

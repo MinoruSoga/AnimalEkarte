@@ -4,7 +4,7 @@ import { C, ICON, STYLE } from "@/lib/design-tokens";
 import type { StaffItem } from "@/hooks/use-staffs";
 import type { CheckupTypeItem } from "@/hooks/use-treatment-master";
 import type { Checkup, UpdateCheckupInput } from "../../api/checkups";
-import type { AddCheckupFormState } from "./CheckupsTabTableModel";
+import type { AddCheckupFormState } from "./checkups-tab-table-model";
 import { CheckupAddRow, CheckupDisplayRow, CheckupEditRow } from "./CheckupsTabRows";
 
 export { LstepStatusBadge, type LstepStatus } from "./CheckupsTabBadges";

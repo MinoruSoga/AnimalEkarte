@@ -10,7 +10,7 @@ import { getUnbilledItems } from "../api/get-unbilled-items";
 import { useGetUngroupedSameDay } from "../api/get-ungrouped-items";
 import type { PaymentSplitDraft } from "../components/PaymentCard";
 import type { Accounting, AccountingItem, PaymentInfo } from "../types";
-import { createInitialPaymentSplits } from "./AccountingDetailModel";
+import { createInitialPaymentSplits } from "./accounting-detail-model";
 
 interface UseAccountingDetailStateArgs {
   accountingId?: string;

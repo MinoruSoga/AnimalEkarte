@@ -1,5 +1,5 @@
 import { formatDate } from "@/utils/format/date";
-import { fromVisitTypeValue } from "../routes/MedicalRecordFormModel";
+import { fromVisitTypeValue } from "../routes/medical-record-form-model";
 import type { BackendMedicalRecord } from "./types";
 import type { InterviewHistoryItem } from "../types";
 import type { RecommendationReason } from "../constants/recommendation-reason";

@@ -8,7 +8,7 @@ import type { PaymentMethod } from "../api/payment-method-master";
 import {
   paymentMethodToFormData,
   type PaymentMethodFormData,
-} from "./PaymentMethodSidePanelModel";
+} from "./payment-method-side-panel-model";
 
 interface PaymentMethodSidePanelProps {
   item: PaymentMethod | null;

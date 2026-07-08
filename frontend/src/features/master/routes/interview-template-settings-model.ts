@@ -2,7 +2,7 @@ import type {
   CreateInquiryTemplateRequest,
   UpdateInquiryTemplateRequest,
 } from "../api/inquiry-templates";
-import type { InterviewTemplateFormData } from "../components/InterviewTemplateSidePanelModel";
+import type { InterviewTemplateFormData } from "../components/interview-template-side-panel-model";
 
 export function buildInterviewTemplateCreateRequest(
   data: InterviewTemplateFormData,

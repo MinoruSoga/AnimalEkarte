@@ -2,7 +2,7 @@ import type {
   CreateMerchandiseItemRequest,
   UpdateMerchandiseItemRequest,
 } from "../api/merchandise-items";
-import type { MerchandiseFormData } from "../components/MerchandiseSidePanelModel";
+import type { MerchandiseFormData } from "../components/merchandise-side-panel-model";
 
 export function buildMerchandiseCreateRequest(
   data: MerchandiseFormData,

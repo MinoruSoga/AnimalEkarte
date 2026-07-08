@@ -11,11 +11,11 @@ import { useGetAllCages, useCreateCage, useUpdateCage, useDeleteCage, useReorder
 import type { Cage, CreateCageRequest, UpdateCageRequest } from "../api/cages";
 import { CageSidePanel } from "../components/CageSidePanel";
 import { CageSortableTable } from "../components/CageSortableTable";
-import type { CageFormData } from "../components/CageSidePanelModel";
+import type { CageFormData } from "../components/cage-side-panel-model";
 import {
   buildCageCreateRequest,
   buildCageUpdateRequest,
-} from "./CageSettingsModel";
+} from "./cage-settings-model";
 import { ResourceMasterHospitalization } from "@/types/generated/models";
 import { usePermission } from "@/hooks/use-permission";
 

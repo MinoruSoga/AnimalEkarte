@@ -7,7 +7,7 @@ import {
   TriggerStatusLabels,
   TriggerTypeLabels,
 } from "../constants/trigger-types";
-import { formatDeliveryMonitorDatetime } from "./LstepDeliveryMonitorPageModel";
+import { formatDeliveryMonitorDatetime } from "./lstep-delivery-monitor-page-model";
 
 interface DeliveryLogsTableProps {
   logsPage: DeliveryTriggerLogsPageResponse | undefined;

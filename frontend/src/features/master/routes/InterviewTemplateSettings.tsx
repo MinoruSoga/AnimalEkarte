@@ -13,7 +13,7 @@ import { useMasterCRUD } from "../hooks/use-master-crud";
 import { useMasterSave } from "../hooks/use-master-save";
 import { MasterCRUDPage } from "../components/MasterCRUDPage";
 import { InterviewTemplateSidePanel } from "../components/InterviewTemplateSidePanel";
-import type { InterviewTemplateFormData } from "../components/InterviewTemplateSidePanelModel";
+import type { InterviewTemplateFormData } from "../components/interview-template-side-panel-model";
 import { useGetInquiryTemplates, useCreateInquiryTemplate, useUpdateInquiryTemplate, useDeleteInquiryTemplate } from "../api/inquiry-templates";
 import type {
   InquiryTemplate,
@@ -23,7 +23,7 @@ import type {
 import {
   buildInterviewTemplateCreateRequest,
   buildInterviewTemplateUpdateRequest,
-} from "./InterviewTemplateSettingsModel";
+} from "./interview-template-settings-model";
 import { ResourceMasterMedical } from "@/types/generated/models";
 
 // BUG-042: Map English snake_case category codes to Japanese labels

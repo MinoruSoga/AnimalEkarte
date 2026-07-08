@@ -1,7 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
-import { TrimmingRightColumn, type TrimmingHistoryItem } from "./TrimmingFormColumns";
+import { TrimmingRightColumn, type TrimmingHistoryItem } from "./trimming-form-columns";
 
 describe("TrimmingRightColumn", () => {
   it("履歴クリック時にコース・オプション・使用シャンプー・使用リボン・備考をコピー対象に含める", async () => {

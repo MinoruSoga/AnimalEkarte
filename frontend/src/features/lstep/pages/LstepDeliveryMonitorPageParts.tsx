@@ -16,7 +16,7 @@ import {
   TriggerStatusLabels,
   TriggerTypeLabels,
 } from "../constants/trigger-types";
-import { DELIVERY_STATUS_CARDS } from "./LstepDeliveryMonitorPageModel";
+import { DELIVERY_STATUS_CARDS } from "./lstep-delivery-monitor-page-model";
 
 interface DeliveryMonitorFiltersProps {
   from: string;

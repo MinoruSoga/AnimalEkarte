@@ -34,7 +34,7 @@ import {
   type BusinessHours,
   type BusinessHoursByWeekday,
 } from "./LineReservationSettingsFormSections";
-import { asJsonb, toDisplayTime, toStorageTime } from "./LineReservationSettingsFormModel";
+import { asJsonb, toDisplayTime, toStorageTime } from "./line-reservation-settings-form-model";
 
 // ── SettingsForm ──────────────────────────────────────────────────────────────
 

@@ -12,7 +12,7 @@ import { useMasterCRUD } from "../hooks/use-master-crud";
 import { useMasterSave } from "../hooks/use-master-save";
 import { MasterCRUDPage } from "../components/MasterCRUDPage";
 import { PaymentMethodSidePanel } from "../components/PaymentMethodSidePanel";
-import type { PaymentMethodFormData } from "../components/PaymentMethodSidePanelModel";
+import type { PaymentMethodFormData } from "../components/payment-method-side-panel-model";
 import {
   useGetPaymentMethods,
   useCreatePaymentMethod,
@@ -27,7 +27,7 @@ import type {
 import {
   buildPaymentMethodCreateRequest,
   buildPaymentMethodUpdateRequest,
-} from "./PaymentMethodSettingsModel";
+} from "./payment-method-settings-model";
 import { ResourcePaymentMethod } from "@/types/generated/models";
 
 // ─── Constants ───

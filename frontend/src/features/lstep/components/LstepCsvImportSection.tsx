@@ -10,7 +10,7 @@ import { formatJSTDateTimeLocal } from "@/lib/jst-date";
 
 import { useGetLstepCsvImports } from "../api/get-lstep-csv-imports";
 import { uploadFriendAttributesCsv } from "../api/upload-friend-attributes-csv";
-import { CSV_STATUS_LABELS } from "./LstepAnalyticsModel";
+import { CSV_STATUS_LABELS } from "./lstep-analytics-model";
 
 export function CsvImportSection() {
   return (

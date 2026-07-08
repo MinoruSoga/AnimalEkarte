@@ -14,7 +14,7 @@ import {
   TRIMMING_COURSE_COLUMNS,
   TRIMMING_OPTION_COLUMNS,
   filterTrimmingItems,
-} from "./TrimmingTabsModel";
+} from "./trimming-tabs-model";
 
 interface TrimmingCourseTabProps {
   onEditTargetChange: (value: TrimmingCourse | "new" | null) => void;

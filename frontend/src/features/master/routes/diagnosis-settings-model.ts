@@ -1,7 +1,7 @@
 import type {
   DiagnosisNameFormData,
   DiagnosisTypeFormData,
-} from "../components/DiagnosisSidePanelModel";
+} from "../components/diagnosis-side-panel-model";
 import type {
   CreateDiagnosisNameRequest,
   CreateDiagnosisTypeRequest,

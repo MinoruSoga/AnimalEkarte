@@ -14,7 +14,7 @@ import { MASTER_INPUT_CLASS } from "../constants/styles";
 import {
   interviewTemplateToFormData,
   type InterviewTemplateFormData,
-} from "./InterviewTemplateSidePanelModel";
+} from "./interview-template-side-panel-model";
 
 interface InterviewTemplateSidePanelProps {
   item: InquiryTemplate | null;

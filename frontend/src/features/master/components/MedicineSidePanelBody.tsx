@@ -5,7 +5,7 @@ import { MasterSidePanel } from "@/components/shared/SidePeek";
 import { LAYOUT } from "@/lib/design-tokens";
 import type { Medicine } from "@/types";
 
-import { medicineToFormData, type MedicineFormData } from "./MedicineSidePanelModel";
+import { medicineToFormData, type MedicineFormData } from "./medicine-side-panel-model";
 import {
   MedicineBasicFlagsSection,
   MedicineDetailSection,

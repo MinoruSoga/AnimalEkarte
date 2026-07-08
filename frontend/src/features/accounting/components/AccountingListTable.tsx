@@ -20,7 +20,7 @@ import { C, ICON } from "@/lib/design-tokens";
 import { formatCurrency } from "@/utils/format/number";
 import { getAccountingStatusColor } from "@/utils/status-helpers";
 import type { Accounting as AccountingType, AccountingStatus, PaymentMethod } from "../types";
-import { calculateAccountingTotal } from "./AccountingListTableModel";
+import { calculateAccountingTotal } from "./accounting-list-table-model";
 
 const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
   cash: "現金",

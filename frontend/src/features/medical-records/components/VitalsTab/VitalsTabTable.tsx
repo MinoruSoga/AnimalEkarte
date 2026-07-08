@@ -4,7 +4,7 @@ import { C, ICON, STYLE } from "@/lib/design-tokens";
 import type { UpdateVitalInput, Vital } from "../../types";
 
 import { VitalsAddRow, VitalsDisplayRow, VitalsEditRow } from "./VitalsTabRows";
-import type { VitalsAddFormState } from "./VitalsTabTableModel";
+import type { VitalsAddFormState } from "./vitals-tab-table-model";
 
 // DESIGN.md ex-data-table-cell: header は canvas-soft 背景 + eyebrow 相当タイポグラフィ（STYLE.sectionLabel）。
 const TABLE_HEADER = (

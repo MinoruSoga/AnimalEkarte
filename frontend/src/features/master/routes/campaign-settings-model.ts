@@ -1,5 +1,5 @@
 import type { CreateCampaignRequest, UpdateCampaignRequest } from "../api/campaign";
-import type { CampaignFormData } from "../components/CampaignSidePanelModel";
+import type { CampaignFormData } from "../components/campaign-side-panel-model";
 
 export function buildCampaignCreateRequest(data: CampaignFormData): CreateCampaignRequest {
   return {

@@ -8,7 +8,7 @@ import { useMasterCRUD } from "../hooks/use-master-crud";
 import { useMasterSave } from "../hooks/use-master-save";
 import { MasterCRUDPage } from "../components/MasterCRUDPage";
 import { AnimalSpeciesSidePanel } from "../components/AnimalSpeciesSidePanel";
-import type { AnimalSpeciesFormData } from "../components/AnimalSpeciesSidePanelModel";
+import type { AnimalSpeciesFormData } from "../components/animal-species-side-panel-model";
 import {
   ANIMAL_SPECIES_COLUMNS,
   AnimalSpeciesSortableTable,
@@ -19,7 +19,7 @@ import type { AnimalSpecies, CreateAnimalSpeciesRequest, UpdateAnimalSpeciesRequ
 import {
   buildAnimalSpeciesCreateRequest,
   buildAnimalSpeciesUpdateRequest,
-} from "./AnimalSpeciesSettingsModel";
+} from "./animal-species-settings-model";
 import { ResourceMasterAnimalSpecies } from "@/types/generated/models";
 
 export function AnimalSpeciesSettings() {

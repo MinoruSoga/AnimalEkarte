@@ -22,7 +22,7 @@ import {
   MedicalRecordPrintArea,
 } from "../components/MedicalRecordFormActions";
 import { OwnerSearchModal, StaffSelectionModal, VitalsModal } from "./MedicalRecordLazyModals";
-import { MEDICAL_RECORD_TAB_ITEMS } from "./MedicalRecordFormModel";
+import { MEDICAL_RECORD_TAB_ITEMS } from "./medical-record-form-model";
 import { useMedicalRecordDirtyFields } from "./useMedicalRecordDirtyFields";
 import { useMedicalRecordPostSave } from "./useMedicalRecordPostSave";
 import { useMedicalRecordForm } from "../hooks/use-medical-record-form";

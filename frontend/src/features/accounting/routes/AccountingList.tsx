@@ -25,7 +25,7 @@ import { LoadingFallback, ErrorFallback } from "@/components/shared/DataStates";
 
 // Relative
 import { AccountingListTable } from "../components/AccountingListTable";
-import { calculateAccountingTotal } from "../components/AccountingListTableModel";
+import { calculateAccountingTotal } from "../components/accounting-list-table-model";
 import { DailyAccountingTab } from "../components/DailyAccountingTab";
 import { useGetAccountings } from "../api/get-accountings";
 import type { AccountingFilters } from "../api/get-accountings";

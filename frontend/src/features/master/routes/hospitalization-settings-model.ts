@@ -2,7 +2,7 @@ import type {
   CreateHospitalizationPlanRequest,
   UpdateHospitalizationPlanRequest,
 } from "../api/hospitalization-plans";
-import type { HospitalizationFormData } from "../components/HospitalizationSidePanelModel";
+import type { HospitalizationFormData } from "../components/hospitalization-side-panel-model";
 
 export function buildHospitalizationCreateRequest(
   data: HospitalizationFormData,

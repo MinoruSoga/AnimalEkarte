@@ -9,7 +9,7 @@ import { UnifiedTabs, UnifiedTabsContent } from "@/components/shared/UnifiedTabs
 import type {
   DiagnosisNameFormData,
   DiagnosisTypeFormData,
-} from "../components/DiagnosisSidePanelModel";
+} from "../components/diagnosis-side-panel-model";
 import { DiagnosisDeleteDialogs } from "../components/DiagnosisDeleteDialogs";
 import { DiagnosisSettingsSidePanels } from "../components/DiagnosisSettingsSidePanels";
 import { DiagnosisNameTab, DiagnosisTypeTab } from "../components/DiagnosisTabs";
@@ -21,7 +21,7 @@ import {
   buildDiagnosisTypeUpdateRequest,
   DIAGNOSIS_TABS,
   toDiagnosisTabValue,
-} from "./DiagnosisSettingsModel";
+} from "./diagnosis-settings-model";
 import {
   useCreateDiagnosisName,
   useCreateDiagnosisType,

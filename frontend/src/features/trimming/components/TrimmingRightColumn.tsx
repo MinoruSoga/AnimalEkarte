@@ -5,7 +5,7 @@ import { HistoryFilterPanel } from "@/components/shared/HistoryFilterPanel";
 import { LoadingFallback } from "@/components/shared/DataStates";
 import { C } from "@/lib/design-tokens";
 
-import type { TrimmingRightColumnProps } from "./TrimmingFormColumnTypes";
+import type { TrimmingRightColumnProps } from "./trimming-form-column-types";
 
 export const TrimmingRightColumn = memo(function TrimmingRightColumn({
   sortedHistory,

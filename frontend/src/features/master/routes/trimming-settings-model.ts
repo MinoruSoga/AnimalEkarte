@@ -1,7 +1,7 @@
 import type {
   CourseFormData,
   OptionFormData,
-} from "../components/TrimmingSidePanelModel";
+} from "../components/trimming-side-panel-model";
 import type {
   CreateTrimmingCourseRequest,
   CreateTrimmingOptionRequest,

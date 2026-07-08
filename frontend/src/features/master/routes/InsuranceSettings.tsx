@@ -12,13 +12,13 @@ import { useMasterCRUD } from "../hooks/use-master-crud";
 import { useMasterSave } from "../hooks/use-master-save";
 import { MasterCRUDPage } from "../components/MasterCRUDPage";
 import { InsuranceSidePanel } from "../components/InsuranceSidePanel";
-import type { InsuranceFormData } from "../components/InsuranceSidePanelModel";
+import type { InsuranceFormData } from "../components/insurance-side-panel-model";
 import { useGetAllInsurances, useCreateInsurance, useUpdateInsurance, useDeleteInsurance } from "../api/insurances";
 import type { Insurance, CreateInsuranceRequest, UpdateInsuranceRequest } from "../api/insurances";
 import {
   buildInsuranceCreateRequest,
   buildInsuranceUpdateRequest,
-} from "./InsuranceSettingsModel";
+} from "./insurance-settings-model";
 import { ResourceMasterInsurance } from "@/types/generated/models";
 
 const COLUMNS = [

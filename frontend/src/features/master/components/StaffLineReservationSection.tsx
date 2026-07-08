@@ -7,7 +7,7 @@ import { PropertyRow } from "@/components/shared/SidePeek";
 import { C, ICON, PALETTE, STYLE } from "@/lib/design-tokens";
 
 import { MASTER_INPUT_CLASS } from "../constants/styles";
-import type { StaffFormData } from "./StaffSidePanelModel";
+import type { StaffFormData } from "./staff-side-panel-model";
 
 const STAFF_TYPE_SELECT_ITEMS = (
   <>

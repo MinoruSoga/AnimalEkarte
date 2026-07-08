@@ -12,7 +12,7 @@ import { useMasterCRUD } from "../hooks/use-master-crud";
 import { useMasterSave } from "../hooks/use-master-save";
 import { MasterCRUDPage } from "../components/MasterCRUDPage";
 import { ChiefComplaintSidePanel } from "../components/ChiefComplaintSidePanel";
-import type { ChiefComplaintFormData } from "../components/ChiefComplaintSidePanelModel";
+import type { ChiefComplaintFormData } from "../components/chief-complaint-side-panel-model";
 import { useGetChiefComplaintTypes, useCreateChiefComplaintType, useUpdateChiefComplaintType, useDeleteChiefComplaintType } from "../api/chief-complaint-types";
 import type {
   ChiefComplaintType,
@@ -22,7 +22,7 @@ import type {
 import {
   buildChiefComplaintCreateRequest,
   buildChiefComplaintUpdateRequest,
-} from "./ChiefComplaintSettingsModel";
+} from "./chief-complaint-settings-model";
 import { ResourceMasterMedical } from "@/types/generated/models";
 
 const COLUMNS = [

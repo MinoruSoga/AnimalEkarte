@@ -8,7 +8,7 @@ import {
   RESOURCE_LABELS,
   type PermissionRule,
   type PermissionRuleField,
-} from "./PermissionRuleTableModel";
+} from "./permission-rule-table-model";
 
 interface PermissionRuleTableRowProps {
   resource: string;

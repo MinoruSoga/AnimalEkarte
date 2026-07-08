@@ -17,7 +17,7 @@ import {
   DEFAULT_CLINIC_FORM_DATA,
   clinicToFormData,
   type ClinicFormData,
-} from "../components/ClinicMasterSettingsModel";
+} from "../components/clinic-master-settings-model";
 import {
   useCreateClinic,
   useDeleteClinic,

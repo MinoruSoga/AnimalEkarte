@@ -16,7 +16,7 @@ import {
   buildDiagnosisTypeNameMap,
   filterDiagnosisNamesBySearch,
   filterDiagnosisTypesBySearch,
-} from "./DiagnosisTabsModel";
+} from "./diagnosis-tabs-model";
 import { DiagnosisSortableTable } from "./DiagnosisSortableTable";
 
 interface DiagnosisTypeTabProps {

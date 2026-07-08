@@ -32,7 +32,7 @@ import { usePermission } from "@/hooks/use-permission";
 import { ResourceTrimming } from "@/types/generated/models";
 import { handleApiError } from "@/lib/handle-api-error";
 import { TrimmingListTable } from "../components/TrimmingListTable";
-import { buildTrimmingDynamicFilterProperties } from "../components/TrimmingListTableModel";
+import { buildTrimmingDynamicFilterProperties } from "../components/trimming-list-table-model";
 
 export function TrimmingList() {
   const navigate = useNavigate();

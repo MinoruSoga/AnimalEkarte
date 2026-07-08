@@ -8,7 +8,7 @@ import type { AnimalSpecies } from "../api/animal-species";
 import {
   animalSpeciesToFormData,
   type AnimalSpeciesFormData,
-} from "./AnimalSpeciesSidePanelModel";
+} from "./animal-species-side-panel-model";
 
 interface AnimalSpeciesSidePanelProps {
   item: AnimalSpecies | null;

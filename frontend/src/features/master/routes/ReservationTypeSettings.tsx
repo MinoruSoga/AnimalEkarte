@@ -38,7 +38,7 @@ import {
   buildReservationTypeUpdateRequest,
   getActiveReservationTypeGroupOptions,
   matchesReservationTypeSearch,
-} from "./ReservationTypeSettingsModel";
+} from "./reservation-type-settings-model";
 
 // ─────────────────────────────────────────────────────────────────
 // ReservationTypeSettings

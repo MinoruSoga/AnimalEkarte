@@ -17,7 +17,7 @@ import {
   TARGET_SIZE_EMPTY_VALUE,
   trimmingCourseToFormData,
   type CourseFormData,
-} from "./TrimmingSidePanelModel";
+} from "./trimming-side-panel-model";
 
 interface TrimmingCourseSidePanelProps {
   item: TrimmingCourse | null;

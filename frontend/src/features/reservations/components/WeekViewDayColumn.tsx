@@ -12,7 +12,7 @@ import {
   HOUR_HEIGHT,
   HOURS,
   type ReservationTypeColor,
-} from "./WeekViewGridConstants";
+} from "./week-view-grid-constants";
 
 interface DayColumnProps {
   date: Date;

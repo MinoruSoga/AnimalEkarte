@@ -14,7 +14,7 @@ import {
   CAGE_SIZE_LABELS,
   CAGE_TYPE_LABELS,
   formatCagePrice,
-} from "./CageSidePanelModel";
+} from "./cage-side-panel-model";
 import { CageRowOverlay } from "./CageRowOverlay";
 
 const TABLE_COLUMNS = [

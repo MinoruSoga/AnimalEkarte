@@ -16,7 +16,7 @@ import {
 import {
   hospitalizationToFormData,
   type HospitalizationFormData,
-} from "./HospitalizationSidePanelModel";
+} from "./hospitalization-side-panel-model";
 
 interface HospitalizationSidePanelProps {
   item: HospitalizationPlan | null;

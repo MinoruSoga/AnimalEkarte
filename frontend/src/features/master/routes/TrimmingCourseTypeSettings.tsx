@@ -13,7 +13,7 @@ import { useMasterCRUD } from "../hooks/use-master-crud";
 import { useMasterSave } from "../hooks/use-master-save";
 import { MasterCRUDPage } from "../components/MasterCRUDPage";
 import { TrimmingCourseTypeSidePanel } from "../components/TrimmingCourseTypeSidePanel";
-import type { TrimmingCourseTypeFormData } from "../components/TrimmingCourseTypeSidePanelModel";
+import type { TrimmingCourseTypeFormData } from "../components/trimming-course-type-side-panel-model";
 import {
   useGetTrimmingCourseTypes,
   useCreateTrimmingCourseType,
@@ -28,7 +28,7 @@ import type {
 import {
   buildTrimmingCourseTypeCreateRequest,
   buildTrimmingCourseTypeUpdateRequest,
-} from "./TrimmingCourseTypeSettingsModel";
+} from "./trimming-course-type-settings-model";
 
 // ─── Constants ───
 const COLUMNS = [

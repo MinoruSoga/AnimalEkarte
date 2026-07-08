@@ -2,7 +2,7 @@ import type {
   CreateAnimalSpeciesRequest,
   UpdateAnimalSpeciesRequest,
 } from "../api/animal-species";
-import type { AnimalSpeciesFormData } from "../components/AnimalSpeciesSidePanelModel";
+import type { AnimalSpeciesFormData } from "../components/animal-species-side-panel-model";
 
 export function buildAnimalSpeciesCreateRequest(
   data: AnimalSpeciesFormData,

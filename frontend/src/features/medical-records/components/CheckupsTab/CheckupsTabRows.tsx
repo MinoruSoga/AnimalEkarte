@@ -11,7 +11,7 @@ import type { StaffItem } from "@/hooks/use-staffs";
 import type { CheckupTypeItem } from "@/hooks/use-treatment-master";
 
 import type { Checkup, UpdateCheckupInput } from "../../api/checkups";
-import type { AddCheckupFormState } from "./CheckupsTabTableModel";
+import type { AddCheckupFormState } from "./checkups-tab-table-model";
 
 interface CheckupEditRowProps {
   checkup: Checkup;

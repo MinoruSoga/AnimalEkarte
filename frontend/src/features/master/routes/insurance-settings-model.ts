@@ -2,7 +2,7 @@ import type {
   CreateInsuranceRequest,
   UpdateInsuranceRequest,
 } from "../api/insurances";
-import type { InsuranceFormData } from "../components/InsuranceSidePanelModel";
+import type { InsuranceFormData } from "../components/insurance-side-panel-model";
 
 export function buildInsuranceCreateRequest(
   data: InsuranceFormData,

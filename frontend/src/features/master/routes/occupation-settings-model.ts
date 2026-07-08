@@ -2,7 +2,7 @@ import type {
   CreateOccupationRequest,
   UpdateOccupationRequest,
 } from "../api/occupations";
-import type { OccupationFormData } from "../components/OccupationSidePanelModel";
+import type { OccupationFormData } from "../components/occupation-side-panel-model";
 
 export function buildOccupationCreateRequest(
   data: OccupationFormData,

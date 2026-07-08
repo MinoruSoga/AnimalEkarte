@@ -10,7 +10,7 @@ import { SearchableSelect } from "@/components/ui/searchable-select";
 import { C, ICON, STYLE } from "@/lib/design-tokens";
 import type { Medicine } from "@/types";
 
-import type { MedicineFormData } from "./MedicineSidePanelModel";
+import type { MedicineFormData } from "./medicine-side-panel-model";
 
 const DOSAGE_FORM_SELECT_ITEMS = (
   <>

@@ -4,4 +4,4 @@ export { TrimmingRightColumn } from "./TrimmingRightColumn";
 export type {
   TrimmingHistoryItem,
   TrimmingMasterItem,
-} from "./TrimmingFormColumnTypes";
+} from "./trimming-form-column-types";

@@ -13,7 +13,7 @@ import {
   WHILE_DRAG_FULL,
   WHILE_DRAG_REDUCED,
   type ReservationTypeColor,
-} from "./WeekViewGridConstants";
+} from "./week-view-grid-constants";
 
 interface AppointmentCardProps {
   appointment: Reservation;

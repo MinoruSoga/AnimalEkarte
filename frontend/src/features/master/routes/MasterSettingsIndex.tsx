@@ -11,8 +11,8 @@ import {
   GROUP_CARD_CONFIG,
   isGroupCardKey,
   MASTER_SECTIONS,
-} from "./MasterSettingsIndexModel";
-import type { MasterCardKey, SectionDef } from "./MasterSettingsIndexModel";
+} from "./master-settings-index-model";
+import type { MasterCardKey, SectionDef } from "./master-settings-index-model";
 
 // Internal
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";

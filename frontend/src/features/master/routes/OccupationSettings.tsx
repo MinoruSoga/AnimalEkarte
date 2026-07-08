@@ -14,11 +14,11 @@ import { MasterCRUDPage } from "../components/MasterCRUDPage";
 import { useGetAllOccupations, useCreateOccupation, useUpdateOccupation, useDeleteOccupation } from "../api/occupations";
 import type { Occupation, CreateOccupationRequest, UpdateOccupationRequest } from "../api/occupations";
 import { OccupationSidePanel } from "../components/OccupationSidePanel";
-import type { OccupationFormData } from "../components/OccupationSidePanelModel";
+import type { OccupationFormData } from "../components/occupation-side-panel-model";
 import {
   buildOccupationCreateRequest,
   buildOccupationUpdateRequest,
-} from "./OccupationSettingsModel";
+} from "./occupation-settings-model";
 import { ResourceMasterStaff } from "@/types/generated/models";
 
 // ─── Constants ───
