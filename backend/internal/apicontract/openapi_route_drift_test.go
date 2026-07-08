@@ -53,66 +53,57 @@ const handlerDir = "../handler"
 
 // ─── knownRouteDrifts allowlist ──────────────────────────────────────────────────────
 //
-// 導入時点(2026-07-09、G1-1/G1-2 Phase A-C・G1-3 完了後の現 HEAD)の実測残差を pin する
-// （旧監査の 203/23 という数字は Phase A-C 完了後の現状を反映していないため使わず、本ゲート
-// 導入時に実際に AST 列挙し直した — missing 98 件 / phantom 4 件、内訳は下記）。新規 missing/phantom
-// の混入、既存エントリの解消(stale)はいずれも fail させる。
+// 導入時点(2026-07-09、G1-1/G1-2 Phase A-C・G1-3 完了後の現 HEAD)の実測残差を pin した
+// （旧監査の 203/23 という数字は Phase A-C 完了後の現状を反映していないため使わず、導入時に
+// 実際に AST 列挙し直した — missing 98 件 / phantom 4 件）。同一コミット内で BE-refactor.md
+// Phase D-1（owner-nested/canonical lstep-line パス文書化）を実施した結果、missing は
+// 98 → 15 に減少した（内訳は下記）。新規 missing/phantom の混入、既存エントリの解消(stale)は
+// いずれも fail させる。
 //
-// 内訳(missing 98 = 1 + 13 + 18 + 3 + 63、phantom 4 = 1 + 3):
+// 内訳(missing 82 = 1 + 12 + 3 + 3 + 63、phantom 4 = 1 + 3):
 //   - /health ↔ /api/v1/health: yaml が絶対パスとして記載していない相対規約の齟齬。missing 1 +
-//     phantom 1(下記コメント参照)。
-//   - owner-nested（/clinics/{clinic_id}/owners/{id}/... co グループ）lstep/line: 13件
-//     （063d6431 が名指しした Phase D-1 候補そのもの）
-//   - canonical /owners/{id}/... の同ファミリー lstep/line: 18件（同じく Phase D-1 候補。
-//     063d6431 は co グループしか名指ししていなかったが、対応する非ネスト版も同時に未文書化）
+//     phantom 1(下記コメント参照)。Phase D-1 スコープ外のため今回は解消しない。
+//   - Phase D-1 完了後残存する同一ハンドラの意図的未記載エイリアス: owner-nested co-group 12件
+//     + canonical family 3件 = 15件。すべて「別のパスで既に文書化済みの同一ハンドラの重複登録」
+//     であり、Phase B の death エイリアスと同型の precedent（各エントリのコメントで文書化先を
+//     明記）。
 //   - /clinics/{clinic_id} の GET/PATCH/DELETE: clinic_handler.go 実装が :clinic_id を使うのに対し
 //     api.yaml は同じ操作を /clinics/{id} として記載(パラメータ名のみの drift)。missing 3件 +
 //     phantom 3件(下記 knownPhantomInSpec)が対になる。G1-2 の「パラメータ名差異 3 件除外後」に
-//     該当する既知ペア。
+//     該当する既知ペア。Phase D-1/D-2/D-3 スコープ外のため今回は解消しない。
 //   - 上記以外の63件: G1-2(実装済み203件未記載)のうち Phase A-C でまだ手が回っていない残差
 //     （checkups 系・masters GET {id} 系・reservation-staffs ファミリー・lstep clinic-nested
-//     read 系・webhook 等）。本シリーズの D-1/D-2/D-3 スコープ外のため今回は削減しない。
-//
-// Phase D-1 完了時に owner-nested(13) + canonical(18) = 31件をこの中から削ること。
+//     read 系・webhook 等）。本シリーズの D-1/D-2/D-3 いずれのスコープでもないため今回は手を
+//     付けていない(導入時からそのまま残存)。
 
 var knownMissingFromSpec = map[string]bool{
 	// /health は yaml が絶対パスとして記載していない相対規約の齟齬（doc comment 参照）。
 	"GET /health": true,
 
-	// --- Phase D-1 candidate: owner-nested (co group) lstep/line, 13件 (063d6431) ---
-	"DELETE /api/v1/clinics/{clinic_id}/owners/{id}/lstep-opt-out":         true,
-	"DELETE /api/v1/clinics/{clinic_id}/owners/{id}/lstep/tags/{tag_name}": true,
-	"GET /api/v1/clinics/{clinic_id}/owners/{id}/line/send-logs":           true,
-	"GET /api/v1/clinics/{clinic_id}/owners/{id}/lstep/friend-attributes":  true,
-	"GET /api/v1/clinics/{clinic_id}/owners/{id}/lstep/tags":               true,
-	"PATCH /api/v1/clinics/{clinic_id}/owners/{id}/delivery-caution":       true,
-	"PATCH /api/v1/clinics/{clinic_id}/owners/{id}/delivery-exclusion":     true,
-	"PATCH /api/v1/clinics/{clinic_id}/owners/{id}/line-id-confirm":        true,
-	"PATCH /api/v1/clinics/{clinic_id}/owners/{id}/line-user-id":           true,
-	"PATCH /api/v1/clinics/{clinic_id}/owners/{id}/transfer-status":        true,
-	"POST /api/v1/clinics/{clinic_id}/owners/{id}/line/send":               true,
-	"POST /api/v1/clinics/{clinic_id}/owners/{id}/lstep-opt-out":           true,
-	"POST /api/v1/clinics/{clinic_id}/owners/{id}/lstep/tags":              true,
+	// --- Phase D-1 (完了): owner-nested (co group) lstep/line, 13件中12件は canonical 側と
+	// 同一ハンドラの重複登録のため意図的に未記載のまま(死んだエイリアスの precedent と同型)。
+	// GET .../lstep/friend-attributes のみ co-group 限定の実装(canonical 対応なし)だったため
+	// /clinics/{clinic_id}/owners/{id}/lstep/friend-attributes として実際に文書化した
+	// (api.yaml 側を参照。missing から除外済み)。
+	"DELETE /api/v1/clinics/{clinic_id}/owners/{id}/lstep-opt-out":         true, // alias of documented POST/DELETE /owners/{id}/lstep-opt-out
+	"DELETE /api/v1/clinics/{clinic_id}/owners/{id}/lstep/tags/{tag_name}": true, // alias of documented DELETE /owners/{id}/lstep/tags/{tag_name}
+	"GET /api/v1/clinics/{clinic_id}/owners/{id}/line/send-logs":           true, // alias of documented GET /owners/{id}/line/send-logs
+	"GET /api/v1/clinics/{clinic_id}/owners/{id}/lstep/tags":               true, // alias of documented GET /owners/{id}/lstep/tags
+	"PATCH /api/v1/clinics/{clinic_id}/owners/{id}/delivery-caution":       true, // alias of documented PATCH /owners/{id}/delivery-caution
+	"PATCH /api/v1/clinics/{clinic_id}/owners/{id}/delivery-exclusion":     true, // alias of documented PATCH /owners/{id}/delivery-exclusion
+	"PATCH /api/v1/clinics/{clinic_id}/owners/{id}/line-id-confirm":        true, // alias of documented PATCH /owners/{id}/line-id-confirm
+	"PATCH /api/v1/clinics/{clinic_id}/owners/{id}/line-user-id":           true, // alias of documented PATCH /owners/{id}/line-user-id
+	"PATCH /api/v1/clinics/{clinic_id}/owners/{id}/transfer-status":        true, // alias of documented PATCH /owners/{id}/transfer-status
+	"POST /api/v1/clinics/{clinic_id}/owners/{id}/line/send":               true, // alias of documented POST /owners/{id}/line/send
+	"POST /api/v1/clinics/{clinic_id}/owners/{id}/lstep-opt-out":           true, // alias of documented POST /owners/{id}/lstep-opt-out
+	"POST /api/v1/clinics/{clinic_id}/owners/{id}/lstep/tags":              true, // alias of documented POST /owners/{id}/lstep/tags
 
-	// --- Phase D-1 candidate: canonical /owners/{id} lstep/line (same family, non-nested), 18件 ---
-	"DELETE /api/v1/owners/{id}/line":                  true,
-	"DELETE /api/v1/owners/{id}/lstep-opt-out":         true,
-	"DELETE /api/v1/owners/{id}/lstep/tags/{tag_name}": true,
-	"GET /api/v1/owners/{id}/line/send-logs":           true,
-	"GET /api/v1/owners/{id}/lstep/send-history":       true,
-	"GET /api/v1/owners/{id}/lstep/tags":               true,
-	"PATCH /api/v1/owners/{id}/delivery-caution":       true,
-	"PATCH /api/v1/owners/{id}/delivery-exclusion":     true,
-	"PATCH /api/v1/owners/{id}/line":                   true,
-	"PATCH /api/v1/owners/{id}/line-id-confirm":        true,
-	"PATCH /api/v1/owners/{id}/line-user-id":           true,
-	"PATCH /api/v1/owners/{id}/lstep/opt-out":          true,
-	"PATCH /api/v1/owners/{id}/transfer-status":        true,
-	"POST /api/v1/owners/{id}/line/link-token":         true,
-	"POST /api/v1/owners/{id}/line/send":               true,
-	"POST /api/v1/owners/{id}/lstep-opt-out":           true,
-	"POST /api/v1/owners/{id}/lstep/send":              true,
-	"POST /api/v1/owners/{id}/lstep/tags":              true,
+	// --- Phase D-1 (完了): canonical /owners/{id} lstep/line family — 15/18 documented in
+	// api.yaml; the remaining 3 are same-handler aliases of a documented sibling path and stay
+	// intentionally omitted (same precedent as the Phase B death alias elsewhere in this file).
+	"PATCH /api/v1/owners/{id}/line":             true, // ISSUE-001 alias of documented PATCH /owners/{id}/line-user-id
+	"POST /api/v1/owners/{id}/lstep/send":        true, // ISSUE-002 alias of documented POST /owners/{id}/line/send
+	"GET /api/v1/owners/{id}/lstep/send-history": true, // ISSUE-002 alias of documented GET /owners/{id}/line/send-logs
 
 	// --- clinic_handler.go :clinic_id vs api.yaml {id} param-name-only drift, 3件 (pairs with knownPhantomInSpec) ---
 	"DELETE /api/v1/clinics/{clinic_id}": true,

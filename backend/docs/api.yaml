@@ -386,6 +386,195 @@ components:
           type: string
         name_kana:
           type: string
+    # ─── Owner lstep/line management (BE-refactor.md Phase D-1) ─────────
+    PatchOwnerLineUserIdRequest:
+      type: object
+      properties:
+        line_user_id:
+          type: string
+          nullable: true
+          description: LINE User ID。null で連携解除。
+    PatchOwnerDeliveryExclusionRequest:
+      type: object
+      properties:
+        excluded:
+          type: boolean
+          default: false
+          description: Go 側は non-pointer bool・binding required なし。未送信は false 扱い。
+        reason:
+          type: string
+          maxLength: 100
+          nullable: true
+    PatchOwnerDeliveryCautionRequest:
+      type: object
+      properties:
+        caution:
+          type: boolean
+          default: false
+          description: Go 側は non-pointer bool・binding required なし。未送信は false 扱い。
+        reason:
+          type: string
+          maxLength: 100
+    PatchOwnerTransferStatusRequest:
+      type: object
+      properties:
+        is_transferred:
+          type: boolean
+          default: false
+          description: Go 側は non-pointer bool・binding required なし。未送信は false 扱い。
+    PostOwnerLstepOptOutRequest:
+      type: object
+      properties:
+        reason:
+          type: string
+    PatchOwnerLstepOptOutRequest:
+      type: object
+      properties:
+        opt_out:
+          type: boolean
+          default: false
+          description: true でオプトアウト、false でオプトイン（ISSUE-001 統合エンドポイント）。Go 側は non-pointer bool・binding required なし。
+        reason:
+          type: string
+    PostOwnerLstepTagRequest:
+      type: object
+      required: [tag_name]
+      properties:
+        tag_name:
+          type: string
+          pattern: '^[a-zA-Z0-9_\-]{1,100}$'
+        reason:
+          type: string
+    LstepOwnerTagsResponse:
+      type: object
+      properties:
+        line_user_id:
+          type: string
+          nullable: true
+        is_linked:
+          type: boolean
+        lstep_opt_out:
+          type: boolean
+        tags:
+          type: array
+          items:
+            type: string
+        fetched_at:
+          type: string
+          format: date-time
+    LstepAddTagResponse:
+      type: object
+      properties:
+        tag_name:
+          type: string
+        added:
+          type: boolean
+    LineSendRequest:
+      type: object
+      required: [message_type]
+      properties:
+        message_type:
+          type: string
+          description: text/image/pdf（image/pdf は image_url/pdf_url へ正規化される）
+        text:
+          type: string
+          maxLength: 500
+          description: message_type=text の場合、500文字以内
+        file_id:
+          type: integer
+          format: int64
+          nullable: true
+        file_name:
+          type: string
+        purpose:
+          type: string
+          description: 未指定時は "other"
+    LineSendResponse:
+      type: object
+      properties:
+        sent:
+          type: boolean
+        sent_at:
+          type: string
+          format: date-time
+        tag_added:
+          type: string
+    LineSendLogItem:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        message_type:
+          type: string
+        content_summary:
+          type: string
+        status:
+          type: string
+        error_message:
+          type: string
+          nullable: true
+        sent_at:
+          type: string
+          format: date-time
+    LineSendLogListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/LineSendLogItem'
+    LineLinkTokenResponse:
+      type: object
+      properties:
+        token:
+          type: string
+        expires_at:
+          type: string
+          format: date-time
+        liff_url:
+          type: string
+    LstepFriendAttributeSnapshot:
+      type: object
+      description: 飼主の最新 Lステップ友だち属性スナップショット（FEAT-385）
+      properties:
+        id:
+          type: string
+        line_user_id:
+          type: string
+        display_name:
+          type: string
+          nullable: true
+        registered_at:
+          type: string
+          format: date-time
+          nullable: true
+        tags:
+          description: 生の JSON（構造はLステップ側スキーマ依存）
+        scenarios:
+          description: 生の JSON（構造はLステップ側スキーマ依存）
+        traffic_source:
+          type: string
+          nullable: true
+        block_status:
+          type: string
+          nullable: true
+        last_message_at:
+          type: string
+          format: date-time
+          nullable: true
+        snapshot_taken_at:
+          type: string
+          format: date-time
+        csv_import_id:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
     Pet:
       type: object
       required: [owner_id, name, animal_species_id]
@@ -7787,6 +7976,510 @@ paths:
       responses:
         '204':
           description: 削除成功
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  # ─── Owner lstep/line management (BE-refactor.md Phase D-1) ─────────
+  # owner_handler.go / lstep_lifecycle_handler.go / lstep_tag_handler.go / line_send_handler.go /
+  # line_link_handler.go, all registered under handler.go:144 registerOwnerRoutesWithAuth
+  # (canonical /owners/:id group). PATCH /owners/{id}/line (ISSUE-001 alias of line-user-id),
+  # POST /owners/{id}/lstep/send と GET /owners/{id}/lstep/send-history (ISSUE-002 aliases of
+  # line/send・line/send-logs) は同一ハンドラの重複登録のため意図的に未記載
+  # (Phase B の death エイリアスと同様の precedent)。
+  /owners/{id}/line-user-id:
+    patch:
+      operationId: patchOwnerLineUserId
+      summary: LINE User ID 連携・解除
+      description: BE-005。owners edit 権限が必要。ISSUE-001 のエイリアス PATCH /owners/{id}/line は未記載(同一ハンドラ)。
+      tags: [Owners]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchOwnerLineUserIdRequest'
+      responses:
+        '204':
+          description: 連携・解除成功
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /owners/{id}/line:
+    delete:
+      operationId: deleteOwnerLine
+      summary: LINE User ID 連携解除
+      description: ISSUE-001。owners delete 権限が必要。
+      tags: [Owners]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '204':
+          description: 解除成功
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /owners/{id}/lstep-opt-out:
+    post:
+      operationId: postOwnerLstepOptOut
+      summary: Lステップ配信オプトアウト（旧エンドポイント）
+      description: BE-017。owners edit 権限が必要。ISSUE-001 の統合エンドポイント PATCH /owners/{id}/lstep/opt-out も参照。
+      tags: [Owners]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PostOwnerLstepOptOutRequest'
+      responses:
+        '204':
+          description: オプトアウト成功
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    delete:
+      operationId: deleteOwnerLstepOptOut
+      summary: Lステップ配信オプトイン（旧エンドポイント）
+      description: BE-017。owners edit 権限が必要。
+      tags: [Owners]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '204':
+          description: オプトイン成功
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /owners/{id}/lstep/opt-out:
+    patch:
+      operationId: patchOwnerLstepOptOut
+      summary: Lステップ配信オプトアウト/オプトイン（統合エンドポイント）
+      description: ISSUE-001。owners edit 権限が必要。opt_out:true でオプトアウト、false でオプトイン。
+      tags: [Owners]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchOwnerLstepOptOutRequest'
+      responses:
+        '204':
+          description: 更新成功
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /owners/{id}/delivery-exclusion:
+    patch:
+      operationId: patchOwnerDeliveryExclusion
+      summary: 配信除外フラグ更新
+      description: FEAT-381。owners edit 権限が必要。
+      tags: [Owners]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchOwnerDeliveryExclusionRequest'
+      responses:
+        '200':
+          description: 更新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Owner'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /owners/{id}/delivery-caution:
+    patch:
+      operationId: patchOwnerDeliveryCaution
+      summary: 配信注意フラグ更新
+      description: FEAT-381-2。owners edit 権限が必要。
+      tags: [Owners]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchOwnerDeliveryCautionRequest'
+      responses:
+        '200':
+          description: 更新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Owner'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /owners/{id}/transfer-status:
+    patch:
+      operationId: patchOwnerTransferStatus
+      summary: 転院フラグ更新
+      description: FEAT-381。owners edit 権限が必要。
+      tags: [Owners]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchOwnerTransferStatusRequest'
+      responses:
+        '200':
+          description: 更新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Owner'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /owners/{id}/line-id-confirm:
+    patch:
+      operationId: patchOwnerLineIdConfirm
+      summary: LINE ID 紐付け確認日時を現在時刻に設定
+      description: FEAT-381。owners edit 権限が必要。
+      tags: [Owners]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: 更新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Owner'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /owners/{id}/lstep/tags:
+    get:
+      operationId: getOwnerLstepTags
+      summary: 飼主のLステップタグ一覧
+      description: BE-019。owners view 権限が必要。LINE未連携時は 200 + tags:[] を返す。
+      tags: [Owners]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: タグ一覧
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LstepOwnerTagsResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    post:
+      operationId: postOwnerLstepTag
+      summary: 飼主にLステップタグを手動付与
+      description: BE-019。owners edit 権限が必要。tag_name は英数字・アンダースコア・ハイフンのみ(1〜100文字)。
+      tags: [Owners]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PostOwnerLstepTagRequest'
+      responses:
+        '200':
+          description: 付与成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LstepAddTagResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /owners/{id}/lstep/tags/{tag_name}:
+    delete:
+      operationId: deleteOwnerLstepTag
+      summary: 飼主からLステップタグを手動解除
+      description: BE-019。owners delete 権限が必要。存在しないタグでも冪等に 204 を返す。
+      tags: [Owners]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+        - name: tag_name
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: 解除成功(冪等)
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /owners/{id}/line/send:
+    post:
+      operationId: postOwnerLineSend
+      summary: LINE個別送信
+      description: BE-013。owners edit 権限が必要。ISSUE-002 のエイリアス POST /owners/{id}/lstep/send は未記載(同一ハンドラ)。
+      tags: [Owners]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LineSendRequest'
+      responses:
+        '200':
+          description: 送信成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LineSendResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /owners/{id}/line/send-logs:
+    get:
+      operationId: getOwnerLineSendLogs
+      summary: LINE個別送信履歴一覧
+      description: BE-013。owners view 権限が必要。ISSUE-002 のエイリアス GET /owners/{id}/lstep/send-history は未記載(同一ハンドラ)。
+      tags: [Owners]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: 送信履歴一覧
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LineSendLogListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /owners/{id}/line/link-token:
+    post:
+      operationId: generateOwnerLineLinkToken
+      summary: 飼い主向け LINE 連携トークン発行
+      description: BE-021。owners edit 権限が必要。
+      tags: [Owners]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '201':
+          description: 発行成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LineLinkTokenResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /clinics/{clinic_id}/owners/{id}/lstep/friend-attributes:
+    get:
+      operationId: getLstepOwnerFriendAttributes
+      summary: 飼主の最新 Lステップ友だち属性
+      description: |
+        FEAT-385。lstep-analytics view 権限が必要。handler.go:178 の
+        co := rg.Group("/clinics/:clinic_id/owners") 配下でのみ登録される(canonical
+        /owners/{id} 側に対応するエンドポイントは存在しない)。:clinic_id URL パラメータは
+        JWT の extractClinicID から取得する clinic_id の識別子として無視される。
+      tags: [Owners]
+      parameters:
+        - name: clinic_id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: 友だち属性スナップショット
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LstepFriendAttributeSnapshot'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -18981,15 +19674,10 @@ paths:
   # 重複登録のため意図的に未記載(Phase B の death エイリアスと同様)。
   # csv-imports・analytics はクリニックネスト形が唯一の実装(非ネスト版は存在しない)。
   #
-  # 意図的未記載(範囲外・別 Phase 候補): GET /clinics/{clinic_id}/owners/{id}/lstep/friend-attributes
-  # (lstep_analytics_handler.go の GetLstepOwnerFriendAttributes、handler.go:192 の
-  # co := rg.Group("/clinics/:clinic_id/owners") 配下で登録)は本 Phase C の対象families
-  # 一覧(Objective/Scope)に含まれていなかったため未記載。同じ co グループには他にも
-  # line-user-id・delivery-exclusion・delivery-caution・transfer-status・line-id-confirm・
-  # lstep-opt-out・lstep/tags・line/send・line/send-logs 等、api.yaml に一切未記載の
-  # owner ネスト lstep/line 管理系オペレーションが計13件存在する。これらは実装 Register*Routes
-  # を正とする観点では今回と同種の欠落だが、Objective で明示列挙されたスコープ外のため、
-  # 独立した follow-up(Phase D 候補)として別途起票することを推奨する。
+  # BE-refactor.md Phase D-1 で解消済み: GET /clinics/{clinic_id}/owners/{id}/lstep/friend-attributes
+  # と、同じ co := rg.Group("/clinics/:clinic_id/owners")（handler.go:178）配下の owner ネスト
+  # lstep/line 管理系オペレーション13件、および対応する canonical /owners/{id}/... 側18件は
+  # 「/owners/{id}」セクション（本ファイル上部）に追補済み。
   /lstep-tag-code-mappings:
     get:
       operationId: listLstepTagCodeMappings
