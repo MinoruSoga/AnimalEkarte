@@ -18869,6 +18869,16 @@ paths:
   # /clinics/{clinic_id}/lstep-tag-code-mappings エイリアスは同一ハンドラの
   # 重複登録のため意図的に未記載(Phase B の death エイリアスと同様)。
   # csv-imports・analytics はクリニックネスト形が唯一の実装(非ネスト版は存在しない)。
+  #
+  # 意図的未記載(範囲外・別 Phase 候補): GET /clinics/{clinic_id}/owners/{id}/lstep/friend-attributes
+  # (lstep_analytics_handler.go の GetLstepOwnerFriendAttributes、handler.go:192 の
+  # co := rg.Group("/clinics/:clinic_id/owners") 配下で登録)は本 Phase C の対象families
+  # 一覧(Objective/Scope)に含まれていなかったため未記載。同じ co グループには他にも
+  # line-user-id・delivery-exclusion・delivery-caution・transfer-status・line-id-confirm・
+  # lstep-opt-out・lstep/tags・line/send・line/send-logs 等、api.yaml に一切未記載の
+  # owner ネスト lstep/line 管理系オペレーションが計13件存在する。これらは実装 Register*Routes
+  # を正とする観点では今回と同種の欠落だが、Objective で明示列挙されたスコープ外のため、
+  # 独立した follow-up(Phase D 候補)として別途起票することを推奨する。
   /lstep-tag-code-mappings:
     get:
       operationId: listLstepTagCodeMappings
