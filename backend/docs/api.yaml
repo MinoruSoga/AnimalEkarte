@@ -7293,6 +7293,178 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '500':
           $ref: '#/components/responses/InternalError'
+  /payment-methods:
+    get:
+      operationId: listPaymentMethods
+      summary: 支払方法一覧
+      tags: [PaymentMethods]
+      responses:
+        '200':
+          description: 支払方法一覧
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PaymentMethodMaster'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    post:
+      operationId: createPaymentMethod
+      summary: 支払方法作成
+      tags: [PaymentMethods]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name:
+                  type: string
+                display_order:
+                  type: integer
+      responses:
+        '201':
+          description: 作成成功
+          headers:
+            Location:
+              description: 作成されたリソースのURL
+              schema:
+                type: string
+                format: uri
+                example: /payment-methods/1
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentMethodMaster'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /payment-methods/reorder:
+    patch:
+      operationId: reorderPaymentMethods
+      summary: 支払方法並べ替え
+      tags: [PaymentMethods]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MasterReorderRequest'
+      responses:
+        '204':
+          description: No Content
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /payment-methods/{id}:
+    get:
+      operationId: getPaymentMethod
+      summary: 支払方法取得
+      tags: [PaymentMethods]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: 支払方法
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentMethodMaster'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    patch:
+      operationId: updatePaymentMethod
+      summary: 支払方法更新
+      tags: [PaymentMethods]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                display_order:
+                  type: integer
+                is_active:
+                  type: boolean
+      responses:
+        '200':
+          description: 更新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentMethodMaster'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    delete:
+      operationId: deletePaymentMethod
+      summary: 支払方法削除
+      tags: [PaymentMethods]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '204':
+          description: No Content
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalError'
   /trimmings:
     get:
       operationId: listTrimmings
