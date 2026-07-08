@@ -5276,6 +5276,535 @@ components:
         created_at:
           type: string
           format: date-time
+    # ─────────────────────────────────────────────────────────────
+    # G1-2 Phase A: 会計系リソースファミリー追補（payment-methods / cash-register /
+    # closing-settings / billing-items / reports/monthly）
+    PaymentMethodMaster:
+      type: object
+      description: 支払方法マスタ
+      properties:
+        id:
+          type: integer
+          format: int64
+          readOnly: true
+        clinic_id:
+          type: integer
+          format: int64
+          readOnly: true
+        name:
+          type: string
+        display_order:
+          type: integer
+        is_active:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+    CashRegisterClose:
+      type: object
+      description: レジ締め記録
+      properties:
+        id:
+          type: integer
+          format: int64
+          readOnly: true
+        clinic_id:
+          type: integer
+          format: int64
+          readOnly: true
+        close_date:
+          type: string
+          format: date-time
+        period:
+          type: string
+          enum: [am, pm, emg]
+        theoretical_cash:
+          type: integer
+          format: int64
+        actual_cash:
+          type: integer
+          format: int64
+        cash_difference:
+          type: integer
+          format: int64
+        category_breakdown:
+          type: object
+          description: カテゴリ別内訳（JSON）
+        memo:
+          type: string
+        closed_by:
+          type: integer
+          format: int64
+          nullable: true
+        closed_at:
+          type: string
+          format: date-time
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+    CashRegisterPreview:
+      type: object
+      description: レジ締めプレビュー（締め実行前の集計）
+      properties:
+        date:
+          type: string
+          format: date
+        period:
+          type: string
+          enum: [am, pm, emg]
+        period_start:
+          type: string
+        period_end:
+          type: string
+        is_already_closed:
+          type: boolean
+        is_holiday:
+          type: boolean
+        aggregate:
+          type: object
+          properties:
+            categories:
+              type: object
+              description: カテゴリ別・支払方法別の金額マップ
+              additionalProperties:
+                type: object
+                additionalProperties:
+                  type: integer
+                  format: int64
+            payment_methods:
+              type: array
+              items:
+                $ref: '#/components/schemas/PaymentMethodMaster'
+            theoretical_cash:
+              type: integer
+              format: int64
+            tax_breakdown:
+              type: object
+              properties:
+                standard:
+                  type: object
+                  properties:
+                    taxable_amount:
+                      type: integer
+                      format: int64
+                    tax_amount:
+                      type: integer
+                      format: int64
+                reduced:
+                  type: object
+                  properties:
+                    taxable_amount:
+                      type: integer
+                      format: int64
+                    tax_amount:
+                      type: integer
+                      format: int64
+        billing_details:
+          type: array
+          items:
+            type: object
+            properties:
+              billing_id:
+                type: integer
+                format: int64
+              paid_at:
+                type: string
+                description: ISO8601 文字列
+              owner_name:
+                type: string
+              pet_name:
+                type: string
+              is_hospitalization:
+                type: boolean
+              category:
+                type: string
+              payment_method_id:
+                type: integer
+                format: int64
+                nullable: true
+              payment_method_name:
+                type: string
+              billing_amount:
+                type: integer
+                format: int64
+              refund_amount:
+                type: integer
+                format: int64
+              net_amount:
+                type: integer
+                format: int64
+    ClinicSettings:
+      type: object
+      description: 医院設定（締め時間等）
+      properties:
+        clinic_id:
+          type: integer
+          format: int64
+          readOnly: true
+        closing_am_pm_boundary:
+          type: string
+          example: "12:00"
+        closing_weekday_end:
+          type: string
+          example: "19:00"
+        closing_sunday_end:
+          type: string
+          example: "17:00"
+        closed_weekdays:
+          type: array
+          items:
+            type: integer
+          description: 定休日（0=日曜〜6=土曜）
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+    ClosingSpecialPeriod:
+      type: object
+      description: 締め時間特別期間（連休・GW等の一時変更）
+      required: [start_date, end_date, am_pm_boundary, pm_end]
+      properties:
+        id:
+          type: integer
+          format: int64
+          readOnly: true
+        clinic_id:
+          type: integer
+          format: int64
+          readOnly: true
+        start_date:
+          type: string
+          format: date
+        end_date:
+          type: string
+          format: date
+        am_pm_boundary:
+          type: string
+          example: "12:00"
+        pm_end:
+          type: string
+          example: "19:00"
+        note:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+    ClosingSettingsFull:
+      type: object
+      description: 締め設定取得レスポンス（本体 + 特別期間一覧）
+      properties:
+        settings:
+          $ref: '#/components/schemas/ClinicSettings'
+        special_periods:
+          type: array
+          items:
+            $ref: '#/components/schemas/ClosingSpecialPeriod'
+    UnpaidOwnerAggregate:
+      type: object
+      properties:
+        owner_id:
+          type: integer
+          format: int64
+        owner_name:
+          type: string
+        count:
+          type: integer
+          format: int64
+        total_amount:
+          type: integer
+          format: int64
+        oldest_scheduled:
+          type: string
+          format: date
+        latest_scheduled:
+          type: string
+          format: date
+    UnpaidByOwnerResponse:
+      description: 月末未納者一覧（group_by=owner、既定値）
+      allOf:
+        - $ref: '#/components/schemas/PaginatedResponse'
+        - type: object
+          properties:
+            data:
+              type: array
+              items:
+                $ref: '#/components/schemas/UnpaidOwnerAggregate'
+            summary:
+              type: object
+              properties:
+                total_amount:
+                  type: integer
+                  format: int64
+                billing_count:
+                  type: integer
+                  format: int64
+                owner_count:
+                  type: integer
+                  format: int64
+    UnpaidByBillingResponse:
+      description: 月末未納者一覧（group_by=billing）
+      allOf:
+        - $ref: '#/components/schemas/PaginatedResponse'
+        - type: object
+          properties:
+            data:
+              type: array
+              items:
+                $ref: '#/components/schemas/Billing'
+    OwnerUnpaidBalance:
+      type: object
+      description: 飼主未納残高（会計画面表示用 #182）
+      properties:
+        unpaid_total:
+          type: integer
+          format: int64
+        unpaid_count:
+          type: integer
+          format: int64
+    MonthlyUnpaidOwnerPet:
+      type: object
+      properties:
+        owner_id:
+          type: integer
+          format: int64
+        owner_name:
+          type: string
+        pet_id:
+          type: integer
+          format: int64
+          nullable: true
+        pet_name:
+          type: string
+        prev_month_carryover:
+          type: integer
+          format: int64
+        current_month_unpaid:
+          type: integer
+          format: int64
+        next_month_carryover:
+          type: integer
+          format: int64
+    MonthlyUnpaidCarryoverResponse:
+      description: 月次未納繰越集計（#114）
+      allOf:
+        - $ref: '#/components/schemas/PaginatedResponse'
+        - type: object
+          properties:
+            data:
+              type: array
+              items:
+                $ref: '#/components/schemas/MonthlyUnpaidOwnerPet'
+            summary:
+              type: object
+              properties:
+                prev_month_carryover:
+                  type: integer
+                  format: int64
+                current_month_unpaid:
+                  type: integer
+                  format: int64
+                next_month_carryover:
+                  type: integer
+                  format: int64
+    DailySummary:
+      type: object
+      description: レジ締め日次集計（BUG-368）
+      properties:
+        payment_totals:
+          type: array
+          items:
+            type: object
+            properties:
+              method:
+                type: string
+              total:
+                type: integer
+                format: int64
+        category_totals:
+          type: array
+          items:
+            type: object
+            properties:
+              category:
+                type: string
+              total:
+                type: integer
+                format: int64
+        billing_count:
+          type: integer
+          format: int64
+        grand_total:
+          type: integer
+          format: int64
+    DailySummaryForClinics:
+      type: object
+      description: 拠点別日次集計（clinic_ids 複数指定時 #86）
+      properties:
+        per_clinic:
+          type: array
+          items:
+            type: object
+            properties:
+              clinic_id:
+                type: integer
+                format: int64
+              summary:
+                $ref: '#/components/schemas/DailySummary'
+    MonthlyReport:
+      type: object
+      description: 月次売上レポート
+      properties:
+        year:
+          type: integer
+        month:
+          type: integer
+        start_date:
+          type: string
+          format: date
+        end_date:
+          type: string
+          format: date
+        summary:
+          type: object
+          properties:
+            working_days:
+              type: integer
+            total_billings:
+              type: integer
+              format: int64
+            total_amount:
+              type: integer
+              format: int64
+            total_refund:
+              type: integer
+              format: int64
+            net_amount:
+              type: integer
+              format: int64
+            by_payment_method:
+              type: object
+              additionalProperties:
+                type: integer
+                format: int64
+            by_category:
+              type: object
+              additionalProperties:
+                type: integer
+                format: int64
+            tax_breakdown:
+              type: object
+              properties:
+                standard:
+                  type: object
+                  properties:
+                    taxable_amount:
+                      type: integer
+                      format: int64
+                    tax_amount:
+                      type: integer
+                      format: int64
+                reduced:
+                  type: object
+                  properties:
+                    taxable_amount:
+                      type: integer
+                      format: int64
+                    tax_amount:
+                      type: integer
+                      format: int64
+        daily_details:
+          type: array
+          items:
+            type: object
+            properties:
+              date:
+                type: string
+                format: date
+              weekday:
+                type: string
+              am_count:
+                type: integer
+                format: int64
+              am_net:
+                type: integer
+                format: int64
+              pm_count:
+                type: integer
+                format: int64
+              pm_net:
+                type: integer
+                format: int64
+              day_net:
+                type: integer
+                format: int64
+              refund:
+                type: integer
+                format: int64
+              am_closed:
+                type: boolean
+              pm_closed:
+                type: boolean
+              is_holiday:
+                type: boolean
+    DiscountSuggestion:
+      type: object
+      properties:
+        type:
+          type: string
+          enum: [campaign, owner]
+        campaign_id:
+          type: integer
+          format: int64
+          nullable: true
+        name:
+          type: string
+        discount_type:
+          type: string
+          enum: [rate, amount, ""]
+        discount_value:
+          type: number
+          format: double
+        amount:
+          type: integer
+          format: int64
+    DiscountSuggestionsResponse:
+      type: object
+      properties:
+        suggestions:
+          type: array
+          items:
+            $ref: '#/components/schemas/DiscountSuggestion'
+    UngroupedSameDaySummary:
+      type: object
+      description: 同日同ペットの未会計対象化項目件数（#77 取り残し警告）
+      properties:
+        medical_record_count:
+          type: integer
+          format: int64
+        trimming_count:
+          type: integer
+          format: int64
+        has_ungrouped:
+          type: boolean
   responses:
     BadRequest:
       description: バリデーションエラー
@@ -6600,6 +7129,168 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /accountings/unpaid:
+    get:
+      operationId: listUnpaidBillings
+      summary: 月末未納者一覧
+      description: |
+        BUG-370 / #120: start_date・end_date は必須。group_by で集計単位を切り替える
+        （既定値 owner）。owner: 飼主別集計＋サマリー。billing: 会計単位一覧（PaginatedResponse<Billing>）。
+      tags: [Accountings]
+      parameters:
+        - name: start_date
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+        - name: end_date
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+        - name: group_by
+          in: query
+          schema:
+            type: string
+            enum: [owner, billing]
+            default: owner
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        '200':
+          description: 未納者一覧（group_by で応答形が切り替わる）
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/UnpaidByOwnerResponse'
+                  - $ref: '#/components/schemas/UnpaidByBillingResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /accountings/unpaid-balance:
+    get:
+      operationId: getOwnerUnpaidBalance
+      summary: 飼主未納残高
+      description: 会計画面表示用（#182）。owner_id は必須。
+      tags: [Accountings]
+      parameters:
+        - name: owner_id
+          in: query
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: 未納残高
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OwnerUnpaidBalance'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /accountings/unpaid-monthly:
+    get:
+      operationId: getUnpaidMonthlySummary
+      summary: 月次未納繰越集計
+      description: '#114: year・month は必須。'
+      tags: [Accountings]
+      parameters:
+        - name: year
+          in: query
+          required: true
+          schema:
+            type: integer
+        - name: month
+          in: query
+          required: true
+          schema:
+            type: integer
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        '200':
+          description: 月次未納繰越集計
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MonthlyUnpaidCarryoverResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /accountings/daily-summary:
+    get:
+      operationId: getDailySummary
+      summary: レジ締め日次集計
+      description: |
+        BUG-368。clinic_ids が単一（未指定含む）の場合は DailySummary、複数指定時は
+        DailySummaryForClinics（#86 段階3 論点4=2）を返す。
+      tags: [Accountings]
+      parameters:
+        - name: date
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+        - name: clinic_ids
+          in: query
+          required: false
+          description: 拠点横断閲覧用のカンマ区切りclinic_id一覧。未指定時はログイン中の医院のみ。
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 日次集計（clinic_ids 指定数で応答形が切り替わる）
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/DailySummary'
+                  - $ref: '#/components/schemas/DailySummaryForClinics'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
         '500':
           $ref: '#/components/responses/InternalError'
   /trimmings:
