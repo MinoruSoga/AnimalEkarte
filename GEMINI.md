@@ -16,7 +16,7 @@ You operate as a senior software engineer. Adhere to the **"Flat Thinking"** pri
 
 | Component | Stack |
 |-----------|-------|
-| Frontend  | React 19, TypeScript 5.7, Vite 6, Tailwind CSS 4, shadcn/ui |
+| Frontend  | React 19, TypeScript 6.0, Vite 8, Tailwind CSS 4, shadcn/ui |
 | Backend   | Go 1.25, Gin, GORM |
 | Database  | PostgreSQL 18 |
 | Infra     | Docker Compose |
@@ -67,7 +67,8 @@ docker compose exec backend go test ./...
 
 ### React 19 Patterns
 - **Ref as Prop**: Use `ref` directly as a prop; do not use `forwardRef`.
-- **`useTransition`**: Standard for managing pending states in complex forms.
+- **`useActionState`**: Standard for all form submissions (including complex controlled forms — controlled fields via `useState`, submit/validation/pending via `useActionState`). Reference: `use-owner-form.ts`.
+- **`useTransition`**: For **non-form** async updates only (list refetch, navigation, delete). Do NOT use it for form submission.
 - **`useDeferredValue`**: Use for non-urgent updates like search filters.
 - **`memo()`**: Use to break re-render boundaries in large forms (e.g., `OwnerForm.tsx`). Shared components (`DataTable`, `PropertyFilter`, `Pagination`, `SidePeekPanel`) are already wrapped with `memo()`.
 - **Conditional Rendering**: Always use ternary `condition ? <Component /> : null`. Never use `&&`.

@@ -116,25 +116,27 @@ const OwnerSection = memo(function OwnerSection({ onChange }: Props) { ... });
 <OwnerSection onChange={handleChange} />
 ```
 
-#### useTransition not working with complex form
+#### Form freezes or allows double-submission
 **Error**: `Form still freezes or allows double-submission`
 
-**Fix**:
+**Fix** (forms use `useActionState`; `useTransition` is for non-form async only):
 ```typescript
-// ❌ Wrong
+// ❌ Wrong: manual pending management (can forget finally, reset leaks on error)
 const [isPending, setIsPending] = useState(false);
 const handleSave = async () => {
   setIsPending(true);
-  try { await save(); } finally { setIsPending(false); }  // Can forget finally!
+  try { await save(); } finally { setIsPending(false); }
 }
 
-// ✅ Correct
-const [isPending, startTransition] = useTransition();
-const handleSave = () => {
-  startTransition(async () => {
-    await save();  // Automatically manages isPending
-  });
-}
+// ✅ Correct: useActionState drives submit + pending
+const [formState, formAction, isPending] = useActionState(
+  async (_prev, _formData) => {
+    await save();  // isPending is managed automatically
+    return { success: true, timestamp: Date.now() };
+  },
+  INITIAL_ACTION_STATE
+);
+// <form action={formAction}> ... <SubmitButton /> </form>
 ```
 
 #### TypeScript any type
@@ -184,8 +186,8 @@ import { PetCard } from '@/features/pets/components/PetCard';
 
 // ✅ Correct
 // app/pages/OwnerWithPetsPage.tsx
-import { OwnersList } from '@/features/owners/routes/OwnersList';
-import { PetCard } from '@/features/pets/components/PetCard';
+import { OwnersList } from '@/features/owners';
+import { PetCard } from '@/features/pets';
 // Pass PetCard as prop to OwnersList (dependency inversion)
 <OwnersList petComponent={PetCard} />
 ```

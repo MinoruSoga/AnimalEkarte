@@ -142,8 +142,8 @@ frontend/src/
 | `lazy()` + `Suspense` の遅延ロード | `routes/OwnerForm.tsx` | `PetEditModal` |
 | 静的 JSX のモジュール定数化 | `routes/OwnerForm.tsx` | `PET_TABLE_HEADER` |
 | `useDeferredValue` による検索遅延 | `routes/OwnersList.tsx` | `deferredSearchTerm` |
-| `useTransition` による pending 管理 | `hooks/useOwnerForm.ts` | `startSaveTransition` |
-| `useState(() => ...)` lazy init | `hooks/useOwnerForm.ts` | `mapOwnerToFormData` |
+| `useActionState` による送信・pending 管理 | `hooks/use-owner-form.ts` | `formAction`, `isPending` |
+| `useState(() => ...)` lazy init | `hooks/use-owner-form.ts` | `mapOwnerToFormData` |
 | API 由来 JSX の `useMemo` キャッシュ | `components/PetEditModal.tsx` | `animalSpeciesSelectItems` |
 | `Promise.all` による並列フェッチ | `loaders.ts` | `ownersLoader` |
 | `? (...) : null` 条件レンダー | `routes/OwnersList.tsx` | `pet.status ?` |
@@ -161,7 +161,7 @@ frontend/src/
 | 対象 | 規則 | 例 |
 |------|------|-----|
 | コンポーネント | PascalCase.tsx | `OwnerForm.tsx` |
-| hooks | use-xxx.ts / useXxx.ts | `useOwnerForm.ts` |
+| hooks | kebab-case.ts（ファイル）／ `useXxx`（シンボル） | `use-owner-form.ts` exports `useOwnerForm` |
 | API ファイル | kebab-case.ts | `get-owners.ts`, `create-owner.ts` |
 | ユーティリティ | kebab-case.ts | `format-date.ts` |
 | ディレクトリ | kebab-case | `medical-records/` |
@@ -176,7 +176,7 @@ frontend/src/
 | feature 間 import | app/pages/ で合成（props 注入） |
 | `export *` | 明示的 named export |
 | `&&` 条件レンダー | `? (...) : null` |
-| barrel index 経由 import | 直接ファイル import |
+| feature 外からの deep import（`@/features/xxx/routes/...` 等） | feature の index.ts 経由（`@/features/xxx`） |
 | `useOwners` 等（動詞省略） | `useGetOwners`（動詞 + エンティティ） |
 | `localStorage` に token 保存 | httpOnly Cookie + `withCredentials: true` |
 

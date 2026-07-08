@@ -84,12 +84,13 @@ docker compose exec frontend pnpm lint
 ```
 
 **Rules to follow:**
-- ✅ useTransition for complex forms (not useState + setIsPending)
+- ✅ useActionState for all forms (not useState + setIsPending, not useTransition)
+- ✅ useTransition for non-form async only (list refetch / nav / delete)
 - ✅ memo() + useCallback for form sections
 - ✅ useDeferredValue for search filters
 - ✅ Type safety: unknown + type guard (no any)
 - ✅ Ternary operator for conditionals (not &&)
-- ✅ Direct file imports (not barrel export *)
+- ✅ Cross-feature imports via feature `index.ts` (barrel); intra-feature imports direct; never `export *`
 - ✅ models.ts → transforms.ts → feature types
 - ❌ FC type, forwardRef
 - ❌ Feature-to-feature imports

@@ -24,7 +24,7 @@
   - Include context in logs: `slog.InfoContext(ctx, ...)`.
 
 ## TypeScript (Frontend) Rules
-- **Tech Stack**: React 19, TypeScript 5.7, Tailwind CSS 4, shadcn/ui.
+- **Tech Stack**: React 19, TypeScript 6.0, Vite 8, Tailwind CSS 4, shadcn/ui.
 - **Architecture (Feature-Based + Dependency Inversion)**:
   - **Structure**:
     ```
@@ -49,7 +49,8 @@
   - **Dependency Inversion**: Features must NOT import from each other. If a page needs logic from multiple features, compose them in `src/app/pages/` and pass dependencies via props.
 - **React 19 Patterns**:
   - **Refs**: Use `ref` as a prop directly. **DO NOT use `forwardRef`**.
-  - **Transitions**: Use `useTransition` (`isPending`, `startTransition`) as the standard for managing async/form pending states.
+  - **Forms**: Use `useActionState` as the standard for all form submissions, including complex controlled forms (controlled fields via `useState`, submit/validation/pending via `useActionState`). Reference: `use-owner-form.ts`.
+  - **Transitions**: Use `useTransition` (`isPending`, `startTransition`) only for **non-form** async updates (list refetch, navigation, delete). Do NOT use it for form submission.
   - **Conditional Rendering**: Always use ternary `condition ? <Component /> : null`. **DO NOT use `&&`**.
   - **Memoization**: Use `memo()` for large components (like form sections) to prevent unnecessary re-renders. Ensure props (handlers) are stabilized with `useCallback`.
 - **State Management**:

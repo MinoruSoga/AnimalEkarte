@@ -2,8 +2,12 @@
 
 ## 概要
 
-React 19 + TypeScript 5.7 + Vite 6 + Tailwind CSS 4 のフロントエンド開発規約。
+React 19 + TypeScript 6.0 + Vite 8 + Tailwind CSS 4 のフロントエンド開発規約。
 Bulletproof-Reactアーキテクチャに準拠する。
+
+> **正本（SSOT）**: 本ファイルは人間向けの詳細規約である。矛盾が生じた場合の優先順位は
+> **① 実コード → ② `frontend/CLAUDE.md`・ネスト `CLAUDE.md`（エージェント正本） → ③ 本ファイル**。
+> 本ファイルを編集する際は、必ず実コードと `frontend/CLAUDE.md` に照合して整合させること。
 
 ---
 
@@ -197,10 +201,9 @@ export function OwnerForm({ petMutations }: OwnerFormProps) { ... }
 
 // ✅ app/pages/OwnerFormPage.tsx
 // app 層なので両 feature を import 可能。実装を注入する。
-import { OwnerForm } from "@/features/owners/routes/OwnerForm";
-import { createPet, useCreatePet } from "@/features/pets/api/create-pet";
-import { useUpdatePet } from "@/features/pets/api/update-pet";
-import { useDeletePet } from "@/features/pets/api/delete-pet";
+// feature 外からは必ず barrel（index.ts）経由 — deep import 禁止（Feature Indexing）
+import { OwnerForm } from "@/features/owners";
+import { createPet, useCreatePet, useUpdatePet, useDeletePet } from "@/features/pets";
 
 export function OwnerFormPage() {
   const { mutate: createPetMutate } = useCreatePet();
@@ -253,7 +256,7 @@ features/[feature-name]/
 │   │   └── index.ts
 │   └── ...
 ├── hooks/                      # ビジネスロジック・UI状態管理
-│   ├── use[Entity]Form.ts      # フォーム状態（useTransitionでAPI書き込み管理）
+│   ├── use[Entity]Form.ts      # フォーム状態（useActionStateで送信・pending管理）
 │   └── ...
 ├── routes/                     # ★ ページコンポーネント（app/routes/ではなくここに配置）
 │   ├── [Entity]List.tsx        # 一覧ページ（router から直接 import）
@@ -303,8 +306,8 @@ features/owners/
 │   │                           # js-cache-function-results: useMemo でJSXキャッシュ
 │   └── index.ts
 ├── hooks/
-│   ├── useOwnerForm.ts         # フォーム状態・ペットCRUD・保存ロジック
-│   │                           # rerender-lazy-state-init / rerender-transitions
+│   ├── use-owner-form.ts       # フォーム状態・ペットCRUD・保存ロジック（useActionState）
+│   │                           # rerender-lazy-state-init
 │   └── index.ts
 ├── routes/
 │   ├── OwnerForm.tsx           # feature コンポーネント（router から直接 import しない）
@@ -342,7 +345,7 @@ import { AuthProvider } from "@/features/auth";
 
 /* bundle-dynamic-imports: ログインページは未認証ユーザー専用。認証済みバンドルに含めない */
 const Login = lazy(() =>
-  import("@/features/auth/routes/Login").then((m) => ({ default: m.Login })),
+  import("@/features/auth").then((m) => ({ default: m.Login })),
 );
 
 export const router = createBrowserRouter([
@@ -376,9 +379,9 @@ export const router = createBrowserRouter([
       },
 
       // ── Owners ───────────────────────────────────────────────────
-      // ★ barrel index 経由でなく直接ファイル import（bundle-barrel-imports）
-      // ★ 単一 feature: features/[feature]/routes/ から直接 import
-      // ★ cross-feature合成: app/pages/ の合成ページを import
+      // ★ feature 外（app/routes・app/pages）からの import は必ず barrel（@/features/owners）経由
+      // ★ lazy 動的 import も feature 外からは barrel 経由（実測: app/routes 全件 barrel・deep import 0件）
+      // ★ cross-feature 合成ページ（owners + pets 等）は app/pages/ から import
       {
         path: "/owners",
         errorElement: <RouteErrorBoundary />,
@@ -386,11 +389,11 @@ export const router = createBrowserRouter([
           {
             index: true,
             lazy: async () => {
-              const [{ OwnersList }, { ownersLoader }] = await Promise.all([
-                import("@/features/owners/routes/OwnersList"),
-                import("@/features/owners/loaders"),
+              const [{ OwnersListPage }, { ownersLoader }] = await Promise.all([
+                import("@/app/pages/OwnersListPage"),
+                import("@/features/owners"),        // ✅ barrel から loader を取得
               ]);
-              return { Component: OwnersList, loader: ownersLoader };
+              return { Component: OwnersListPage, loader: ownersLoader };
             },
           },
           {
@@ -406,7 +409,7 @@ export const router = createBrowserRouter([
             lazy: async () => {
               const [{ OwnerFormPage }, { ownerLoader }] = await Promise.all([
                 import("@/app/pages/OwnerFormPage"),
-                import("@/features/owners/loaders"),
+                import("@/features/owners"),        // ✅ barrel から loader を取得
               ]);
               return { Component: OwnerFormPage, loader: ownerLoader };
             },
@@ -422,9 +425,7 @@ export const router = createBrowserRouter([
           {
             index: true,
             lazy: async () => {
-              const { MedicalRecords } = await import(
-                "@/features/medical-records/routes/MedicalRecords"
-              );
+              const { MedicalRecords } = await import("@/features/medical-records");
               return { Component: MedicalRecords };
             },
           },
@@ -657,7 +658,7 @@ export const useCreatePet = () => {
 };
 ```
 
-**パターン B（複雑なフォーム）**: `useTransition` と組み合わせる場合は API ファイルに生関数のみ、mutation は hooks/ に集約
+**パターン B（複雑なフォーム）**: フォームフックは API ファイルに生関数のみを置き、送信は hooks/ の `useActionState` に集約
 
 ```typescript
 // features/owners/api/create-owner.ts — 生関数のみ export
@@ -669,7 +670,7 @@ export const createOwner = async (data: CreateOwnerRequest): Promise<Owner> => {
   const { data: responseData } = await axios.post<BackendOwner>("/v1/owners", data);
   return transformOwner(responseData);
 };
-// ※ useMutation は hooks/useOwnerForm.ts が useTransition 内で管理する
+// ※ 送信は hooks/use-owner-form.ts が useActionState 内で呼び出す
 ```
 
 ##### loaders.ts パターン（React Router Data Mode）
@@ -721,7 +722,7 @@ export const ownersLoader = async (): Promise<OwnersLoaderData> => {
 |---------|------|-----|
 | `api/get-xxx.ts` | React Query の useQuery hook + 生フェッチ関数 | `getOwners`, `useGetOwners` |
 | `api/create-xxx.ts` | 生 mutation 関数（+ 簡単な場合は useMutation hook） | `createOwner`, `useCreatePet` |
-| `hooks/useXxxForm.ts` | フォーム状態・useTransition・ビジネスロジック | `useOwnerForm`, `useHospitalizationForm` |
+| `hooks/use-xxx-form.ts` | フォーム状態・useActionState 送信・ビジネスロジック | `useOwnerForm`, `useHospitalizationForm` |
 
 #### Feature API実装例（features/owners/api/get-owners.ts）
 
@@ -833,93 +834,101 @@ const OwnerInfoSection = memo(function OwnerInfoSection({ data, onChange }: Prop
 export const PatientCard = memo(({ patient }) => {});  // ❌ (props が毎回変わるなら無意味)
 ```
 
-### 2.2 フォーム管理：useTransition（実プロジェクト標準）vs useActionState
+### 2.2 フォーム管理：useActionState（フォーム標準）+ useTransition（非フォーム非同期）
 
-このプロジェクトの複雑なフォーム（多フィールド、ペット CRUD 等）は **`useTransition` + カスタム hook** で実装する。
-`useActionState` は HTML `<form action={...}>` パターンに適しているが、制御コンポーネントには不向き。
+このプロジェクトの**フォームは複雑・単純を問わず `useActionState` を標準**とする（`frontend/CLAUDE.md` MANDATORY）。
+多フィールドの制御フォームでも、フィールド状態は `useState`、送信・バリデーション・pending は `useActionState` で管理する。
+参照実装は `features/owners/hooks/use-owner-form.ts`（飼主 + ペット CRUD の複雑フォーム）。
 
-#### 実プロジェクト標準: `useTransition` + カスタム hook（`useOwnerForm.ts` の参照実装）
+`useTransition` は**フォーム送信には使わない**。リスト再取得・ナビゲーション・削除など、フォーム外の非ブロッキング非同期更新の pending 管理に限定する（例: `OwnersList.tsx`, `use-reception-kanban.ts`, `use-master-crud.ts`）。
+
+#### 標準: `useState`（制御フィールド）+ `useActionState`（送信・バリデーション・pending）
 
 ```typescript
-// features/xxx/hooks/useXxxForm.ts
-import { useState, useTransition, useCallback } from "react";
+// features/xxx/hooks/use-xxx-form.ts
+import { useState, useActionState, useCallback } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import type { ActionState } from "@/types/form";
+import { INITIAL_ACTION_STATE } from "@/types/form";
 
 export function useXxxForm(id?: string, initialData?: Xxx) {
-  const [isSavePending, startSaveTransition] = useTransition();
   const queryClient = useQueryClient();
 
-  // ✅ lazy init: mapToFormData は初回レンダーのみ実行
+  // ✅ 制御フィールドは useState + lazy init（mapToFormData は初回レンダーのみ）
   const [formData, setFormData] = useState<XxxFormData>(
     () => initialData ? mapToFormData(initialData) : DEFAULT_DATA
   );
-  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   // ✅ functional setState で deps なし → useCallback が安定
   const handleInputChange = useCallback((field: string, value: string | boolean) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   }, []);
 
-  const handleSave = useCallback(() => {
-    startSaveTransition(async () => {
+  // ✅ 送信・バリデーション・pending は useActionState に集約
+  const [formState, formAction, isPending] = useActionState(
+    async (_prev: ActionState, _formData: FormData): Promise<ActionState> => {
+      const errors: Record<string, string> = {};
+      if (!formData.name.trim()) errors.name = "名前を入力してください";
+      if (Object.keys(errors).length > 0) {
+        return { success: false, fieldErrors: errors, timestamp: Date.now() };
+      }
       try {
         if (id) {
           await updateXxx(id, buildUpdateRequest(formData));
         } else {
           await createXxx(buildCreateRequest(formData));
         }
-        queryClient.invalidateQueries({ queryKey: ["xxxs"] });
+        await queryClient.invalidateQueries({ queryKey: ["xxxs"] });
         toast.success("保存しました");
-      } catch {
-        toast.error("保存に失敗しました");
+        return { success: true, timestamp: Date.now() };
+      } catch (error) {
+        handleApiError(error, "保存");
+        return { success: false, timestamp: Date.now() };
       }
-    });
-  }, [id, formData, queryClient]);
+    },
+    INITIAL_ACTION_STATE
+  );
 
-  return { formData, fieldErrors, isSavePending, handleInputChange, handleSave };
+  return { formData, isPending, handleInputChange, formAction, formState };
 }
 ```
 
-#### React 19 useActionState（シンプルなフォームのみ適用）
+```typescript
+// 呼び出し側（route/component）— <form action={formAction}> で駆動
+<form action={formAction}>
+  {/* ✅ ? : null （&& 禁止） */}
+  {formState.fieldErrors?.name ? <p className="text-red-600">{formState.fieldErrors.name}</p> : null}
+  <Input name="name" value={formData.name} onChange={(e) => handleInputChange("name", e.target.value)} />
+  <SubmitButton>保存</SubmitButton>  {/* useFormStatus で pending を取得（§2.3） */}
+</form>
+```
 
-非制御コンポーネント（`FormData` でフィールドを読み取る）専用。
-ペット CRUD のような複雑な状態管理には使わない。
+#### 単純フォーム（非制御）も `useActionState`
+
+単一フィールドの作成フォーム等は、`useState` を省き `FormData` から直接読み取る。手法は同一（`useActionState`）。
 
 ```typescript
-import { useActionState } from "react";
-
-interface FormState { errors: Record<string, string> | null }
-
-export function SimpleForm() {
-  const [state, formAction, isPending] = useActionState<FormState, FormData>(
-    async (_, formData) => {
-      const name = formData.get("name") as string;
-      if (!name) return { errors: { name: "名前は必須です" } };
-      await createXxx({ name });
-      return { errors: null };
-    },
-    { errors: null }
-  );
-
-  return (
-    <form action={formAction}>
-      {/* ✅ ? : null （&& 禁止） */}
-      {state.errors?.name ? <p className="text-red-600">{state.errors.name}</p> : null}
-      <Input name="name" />
-      <Button type="submit" disabled={isPending}>
-        {isPending ? "保存中..." : "保存"}
-      </Button>
-    </form>
-  );
-}
+const [state, formAction, isPending] = useActionState<ActionState, FormData>(
+  async (_, formData) => {
+    const name = formData.get("name") as string;
+    if (!name) return { success: false, fieldErrors: { name: "名前は必須です" }, timestamp: Date.now() };
+    await createXxx({ name });
+    return { success: true, timestamp: Date.now() };
+  },
+  INITIAL_ACTION_STATE
+);
 ```
 
 **使い分けガイド:**
 
-| フォームの複雑さ | 手法 |
+| ケース | 手法 |
 |---|---|
-| 多フィールド・ペットCRUD・相互依存バリデーション | `useTransition` + `hooks/useXxxForm.ts` |
-| 単一フィールド・シンプルな作成フォーム | `useActionState` |
+| フォーム送信全般（多フィールド制御フォーム含む） | `useActionState`（制御フィールドは `useState` 併用） |
+| 単一フィールド・非制御の作成フォーム | `useActionState`（`FormData` 読み取り） |
+| フォーム外の非同期更新（リスト再取得・ナビゲーション・削除の pending） | `useTransition` |
+
+> ⚠️ `useTransition` + カスタム hook でフォーム送信を管理するのは**旧パターン**であり禁止。
+> 既存コードは全て `useActionState` へ移行済み（`use-owner-form.ts` 他 9 フォームフック）。
 
 ### 2.3 useFormStatus（送信ボタン）
 
@@ -1166,8 +1175,8 @@ export * from "./OwnerList";
 export { getOwners } from "./get-owners";
 export { createOwner } from "./create-owner";
 
-// ✅ 直接import
-import { OwnerCard } from "@/features/owners/components/OwnerCard";
+// ✅ feature 外からは barrel（index.ts）経由で named import
+import { OwnerCard } from "@/features/owners";
 ```
 
 ### 3.5 Import順序
@@ -1495,46 +1504,52 @@ function Status({ status }: { status: Status }) {
 
 命名規則: `use + 動詞/名詞`（例: `useOwnerForm`, `useHospitalizationList`）
 
-**実プロジェクトのフォーム hook パターン（`useTransition` 使用）:**
+**実プロジェクトのフォーム hook パターン（`useActionState` 使用）:**
+
+制御フィールドは `useState`、送信・バリデーション・pending は `useActionState` に集約する（詳細な参照実装は §2.2 と `features/owners/hooks/use-owner-form.ts`）。
 
 ```typescript
-// features/owners/hooks/useOwnerForm.ts
-import { useState, useTransition, useCallback } from "react";
+// features/owners/hooks/use-owner-form.ts
+import { useState, useActionState, useCallback } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import type { ActionState } from "@/types/form";
+import { INITIAL_ACTION_STATE } from "@/types/form";
 
 export function useOwnerForm(id?: string, initialOwner?: Owner) {
-  const [isSavePending, startSaveTransition] = useTransition(); // ← setIsPending より正確
   const queryClient = useQueryClient();
 
   // ✅ lazy init: 高コストなマッピングは初回のみ実行
   const [ownerData, setOwnerData] = useState<OwnerData>(
     () => initialOwner ? mapOwnerToFormData(initialOwner) : DEFAULT_OWNER_DATA
   );
-  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   // ✅ functional setState → deps なし → useCallback が stable
   const handleInputChange = useCallback((field: string, value: string | boolean) => {
     setOwnerData(prev => ({ ...prev, [field]: value }));
   }, []);
 
-  const handleSave = useCallback(() => {
-    startSaveTransition(async () => {
+  // ✅ 送信・バリデーション・pending は useActionState に集約
+  const [formState, formAction, isPending] = useActionState(
+    async (_prev: ActionState, _formData: FormData): Promise<ActionState> => {
       try {
         if (id) {
           await updateOwner(id, buildUpdateRequest(ownerData));
         } else {
           await createOwner(buildCreateRequest(ownerData));
         }
-        queryClient.invalidateQueries({ queryKey: ["owners"] });
+        await queryClient.invalidateQueries({ queryKey: ["owners"] });
         toast.success("保存しました");
-      } catch {
-        toast.error("保存に失敗しました");
+        return { success: true, timestamp: Date.now() };
+      } catch (error) {
+        handleApiError(error, "保存");
+        return { success: false, timestamp: Date.now() };
       }
-    });
-  }, [id, ownerData, queryClient]);
+    },
+    INITIAL_ACTION_STATE
+  );
 
-  return { ownerData, fieldErrors, isSavePending, handleInputChange, handleSave };
+  return { ownerData, formState, isPending, handleInputChange, formAction };
 }
 ```
 
@@ -1543,7 +1558,7 @@ export function useOwnerForm(id?: string, initialOwner?: Owner) {
 | 手法 | 問題点 |
 |---|---|
 | `useState(false)` + `setIsPending(true/false)` | try-finally で手動管理が必要、エラー時の reset 漏れリスク |
-| `useTransition` | React が pending 状態を自動管理、UI の中断・再開も正確に処理 |
+| `useActionState`（フォーム送信）/ `useTransition`（フォーム外の非同期） | React が pending 状態を自動管理、reset 漏れが構造的に起きない |
 
 ### 5.2 依存配列
 
@@ -1769,8 +1784,8 @@ src/
 │       │       ├── OwnerCard.test.tsx  # 同階層に配置
 │       │       └── index.ts
 │       └── hooks/
-│           ├── useOwnerForm.ts
-│           └── useOwnerForm.test.ts  # 同階層に配置
+│           ├── use-owner-form.ts
+│           └── use-owner-form.test.ts  # 同階層に配置
 └── testing/
     ├── setup.ts                  # テスト共通設定
     ├── server/                   # MSW handlers
@@ -1863,8 +1878,8 @@ describe("Button", () => {
 | API query hook を `useOwners` と命名（動詞省略） | 命名規則違反 | `useGetOwners`（`useGet` + エンティティ名） |
 | loader 内で `queryClient.prefetchQuery` を使う | このプロジェクトは直接 axios + `useLoaderData` パターン | `axios.get()` で直接フェッチして返す |
 | `localStorage` に token を保存 | XSS で盗まれる | httpOnly Cookie + `withCredentials: true` |
-| mutation の pending を `useState(false)` + `setIsPending` で管理 | try-finally でのリセット漏れリスク | `useTransition` の `isSavePending` を使う |
-| `useActionState` を複雑なフォームに使う | 制御コンポーネントと相性が悪い | `useTransition` + `hooks/useXxxForm.ts` |
+| フォーム送信の pending を `useState(false)` + `setIsPending` で管理 | try-finally でのリセット漏れリスク | `useActionState` の `isPending` を使う（フォーム外の非同期は `useTransition`） |
+| `useTransition` + カスタム hook でフォーム送信を管理 | 旧パターン。`useActionState` に全移行済み | `useActionState`（制御フィールドは `useState` 併用・§2.2） |
 
 ---
 
@@ -1901,8 +1916,8 @@ describe("Button", () => {
 ### React 19機能の活用
 | 機能 | 用途 | 備考 |
 |------|------|------|
-| `useTransition` | **複雑フォームの pending 管理**（プロジェクト標準） | `hooks/useXxxForm.ts` + `startSaveTransition` |
-| `useActionState` | シンプルな非制御フォーム（FormData を使う場合のみ） | 制御コンポーネントには使わない |
+| `useActionState` | **全フォーム送信の標準**（複雑な制御フォーム含む） | `hooks/use-xxx-form.ts`。制御フィールドは `useState` 併用 |
+| `useTransition` | フォーム外の非同期更新の pending 管理（リスト再取得・ナビゲーション・削除） | フォーム送信には使わない |
 | `useOptimistic` | 楽観的UI更新（カンバン・タスク管理など） | |
 | `ref as prop` | コンポーネント簡素化（`forwardRef` 不要） | |
 | `useFormStatus` | サブミット状態の管理（フォームの子コンポーネント内） | |
@@ -2221,12 +2236,12 @@ const failedCount = results.filter(r => r.status === "rejected").length;
 - [ ] `useCallback` の deps にオブジェクト全体を入れていないか（primitive を抽出）
 - [ ] `useState` の初期値は高コストな場合 `() => ...` の lazy init 形式か
 - [ ] 検索/フィルタは `useDeferredValue` で UI ブロッキングを防いでいるか
-- [ ] API ミューテーションは `useTransition` で pending 状態を管理しているか
+- [ ] フォーム送信は `useActionState`（`isPending`）、フォーム外の非同期更新（リスト再取得・削除・ナビゲーション）は `useTransition` で pending 管理しているか
 - [ ] 重いモーダル/ダイアログは `lazy()` + `Suspense` で遅延ロードしているか
 - [ ] static な JSX（enum 由来の SelectItem 一覧等）はモジュール定数に巻き上げているか（`rendering-hoist-jsx`）
 - [ ] API 由来の JSX リストは `useMemo([list])` でキャッシュしているか（`js-cache-function-results`）
 - [ ] 条件付きレンダリングはすべて `? (...) : null` 形式か（`&&` は使わない）
-- [ ] barrel index 経由ではなく直接ファイルから import しているか
+- [ ] feature 間の import は `index.ts`（barrel）経由か（deep import 禁止・§1.3）。barrel には re-export のみを置き実装ロジックを混ぜない（tree-shaking を阻害しない）
 - [ ] loader 内で独立したフェッチは `Promise.all` で並列化しているか
 
 ---

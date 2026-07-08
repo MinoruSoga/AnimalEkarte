@@ -44,11 +44,12 @@ Quick links to coding pattern implementations. Refer to memory files for detaile
 
 ### Core Patterns
 
-1. **useTransition for Forms**
-   - Complex forms: use useTransition for pending state
-   - `const [isPending, startTransition] = useTransition()`
-   - `startTransition(async () => { await saveOwner(formData) })`
-   - Prevents double-submission, shows loading state
+1. **useActionState for Forms**
+   - All forms (including complex controlled forms): use useActionState for submit + pending
+   - Controlled fields via `useState`; submit/validation/pending via `useActionState`
+   - `const [formState, formAction, isPending] = useActionState(action, INITIAL_ACTION_STATE)`
+   - `<form action={formAction}>` + `SubmitButton` — prevents double-submission, shows loading state
+   - `useTransition` is for **non-form** async only (list refetch / nav / delete)
 
 2. **memo() + useCallback Composition**
    - Break large forms into memoized sections
