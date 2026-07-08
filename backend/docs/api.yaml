@@ -7465,6 +7465,162 @@ paths:
           $ref: '#/components/responses/Conflict'
         '500':
           $ref: '#/components/responses/InternalError'
+  /cash-register/preview:
+    get:
+      operationId: getCashRegisterPreview
+      summary: レジ締めプレビュー
+      description: 締め実行前の集計を返す（実際の締め処理は行わない）。
+      tags: [CashRegister]
+      parameters:
+        - name: date
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+        - name: period
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [am, pm, emg]
+      responses:
+        '200':
+          description: プレビュー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CashRegisterPreview'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /cash-register/closes:
+    get:
+      operationId: listCashRegisterCloses
+      summary: レジ締め履歴一覧
+      tags: [CashRegister]
+      parameters:
+        - name: start_date
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: end_date
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        '200':
+          description: レジ締め履歴一覧
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PaginatedResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/CashRegisterClose'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    post:
+      operationId: closeCashRegister
+      summary: レジ締め実行
+      tags: [CashRegister]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [date, period]
+              properties:
+                date:
+                  type: string
+                  format: date
+                period:
+                  type: string
+                  enum: [am, pm, emg]
+                actual_cash:
+                  type: integer
+                  format: int64
+                memo:
+                  type: string
+      responses:
+        '201':
+          description: 締め成功
+          headers:
+            Location:
+              description: 作成されたリソースのURL
+              schema:
+                type: string
+                format: uri
+                example: /api/v1/cash-register/closes/1
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CashRegisterClose'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /cash-register/closes/{id}:
+    get:
+      operationId: getCashRegisterClose
+      summary: レジ締め履歴取得
+      tags: [CashRegister]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: レジ締め履歴
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CashRegisterClose'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
   /trimmings:
     get:
       operationId: listTrimmings
