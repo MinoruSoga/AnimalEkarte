@@ -29,18 +29,13 @@ func (s *lstepTagSyncService) SyncVaccineDeadlineTag(ctx context.Context, clinic
 //
 //nolint:gocritic // hugeParam: thresholds は HealthPreventionThresholds を値型で受ける
 func (s *lstepTagSyncService) syncVaccineDeadlineTagImpl(ctx context.Context, clinicID, ownerID uint64, thresholds model.HealthPreventionThresholds) error {
-	optOut, owner, err := s.checkOptOut(ctx, clinicID, ownerID)
+	lineUserID, ok, err := s.resolveSyncTargetOwner(ctx, clinicID, ownerID, PrevVaccineDeadlineTag)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to check opt-out for vaccine deadline tag", "error", err)
-		return apperrors.Wrap(err, "failed to check opt-out")
+		return err
 	}
-	if optOut {
+	if !ok {
 		return nil
 	}
-	if owner.LineUserID == nil || *owner.LineUserID == "" {
-		return nil
-	}
-	lineUserID := *owner.LineUserID
 
 	vaccinations, err := s.vacRepo.FindByOwner(ctx, clinicID, ownerID)
 	if err != nil {
@@ -74,29 +69,19 @@ func (s *lstepTagSyncService) syncVaccineDeadlineTagImpl(ctx context.Context, cl
 		return nil
 	}
 
+	vaccineReason := ""
+	if earliestNextDate != nil {
+		vaccineReason = fmt.Sprintf("次回期限: %s", earliestNextDate.Format("2006-01-02"))
+	}
+
 	apiFailed := false
 	if deadlineSoon {
-		if addErr := client.AddTag(ctx, lineUserID, PrevVaccineDeadlineTag); addErr != nil {
-			slog.ErrorContext(ctx, "failed to add vaccine deadline tag", "error", addErr)
-			s.notifyAPIFailure(ctx, client, clinicID, ownerID, lineUserID)
-			return apperrors.Wrap(addErr, "failed to add vaccine deadline tag")
-		}
-		vaccineReason := ""
-		if earliestNextDate != nil {
-			vaccineReason = fmt.Sprintf("次回期限: %s", earliestNextDate.Format("2006-01-02"))
-		}
-		if cacheErr := s.tagCacheRepo.UpsertTag(ctx, clinicID, ownerID, PrevVaccineDeadlineTag, "auto", vaccineReason); cacheErr != nil {
-			slog.ErrorContext(ctx, "failed to upsert vaccine deadline tag cache", "error", cacheErr)
+		if err := s.applyTagState(ctx, client, clinicID, ownerID, lineUserID, PrevVaccineDeadlineTag, "vaccine deadline", vaccineReason, true); err != nil {
+			return err
 		}
 	} else {
-		if delErr := client.RemoveTag(ctx, lineUserID, PrevVaccineDeadlineTag); delErr != nil {
-			slog.ErrorContext(ctx, "failed to remove vaccine deadline tag", "error", delErr)
-			s.notifyAPIFailure(ctx, client, clinicID, ownerID, lineUserID)
+		if err := s.applyTagState(ctx, client, clinicID, ownerID, lineUserID, PrevVaccineDeadlineTag, "vaccine deadline", vaccineReason, false); err != nil {
 			apiFailed = true
-		} else {
-			if err := s.tagCacheRepo.DeleteTag(ctx, clinicID, ownerID, PrevVaccineDeadlineTag); err != nil {
-				slog.WarnContext(ctx, "failed to delete tag cache (non-fatal)", "tag", PrevVaccineDeadlineTag, "owner_id", ownerID, "error", err)
-			}
 		}
 	}
 
