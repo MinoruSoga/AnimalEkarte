@@ -4828,6 +4828,58 @@ components:
         updated_at:
           type: string
           format: date-time
+
+    ExamItemsResponse:
+      type: object
+      description: GET/PUT /examinations/{id}/items のレスポンスエンベロープ
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/ExamResults'
+
+    UpsertExamItemRequest:
+      type: object
+      description: >-
+        検査項目 1 行分。status / is_abnormal はサーバ側で ref_min/ref_max から導出するため
+        受け付けない。
+      required: [name]
+      properties:
+        exam_type_field_id:
+          type: integer
+          format: int64
+          nullable: true
+        name:
+          type: string
+        inspection_value:
+          type: string
+        normal_value:
+          type: string
+        unit:
+          type: string
+        reference_value:
+          type: string
+        ref_min:
+          type: number
+          format: double
+          nullable: true
+        ref_max:
+          type: number
+          format: double
+          nullable: true
+        sort_order:
+          type: integer
+          format: int32
+
+    ReplaceExamItemsRequest:
+      type: object
+      description: items 省略時は空配列として扱う（全削除と等価）
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/UpsertExamItemRequest'
+
     VitalRecords:
       type: object
       description: vital_records schema
@@ -9115,6 +9167,60 @@ paths:
           $ref: '#/components/responses/NotFound'
         '500':
           $ref: '#/components/responses/InternalError'
+
+  # ─── Examination items (検査項目明細) ──────────────────────────
+  /examinations/{id}/items:
+    get:
+      operationId: listExaminationItems
+      summary: 検査項目一覧を取得
+      tags: [Examinations]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: {type: integer, format: int64}
+      responses:
+        '200':
+          description: 検査項目一覧
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExamItemsResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    put:
+      operationId: replaceExaminationItems
+      summary: 検査項目を一括置換（既存全削除→一括登録）
+      tags: [Examinations]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: {type: integer, format: int64}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReplaceExamItemsRequest'
+      responses:
+        '200':
+          description: 置換成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExamItemsResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
   /vaccinations:
     get:
       operationId: listVaccinations
