@@ -756,9 +756,9 @@ export const useGetOwners = () => {
 
 ```typescript
 // Routes（ページコンポーネント）
-// ★ このindex.ts は存在するが、外部からのimportは index.ts 経由でなく直接ファイルを参照する
-//    import { OwnersList } from "@/features/owners/routes/OwnersList"  ← 正しい
-//    import { OwnersList } from "@/features/owners"                     ← 禁止（barrel import）
+// ★ 外部からの import は必ずこの index.ts（barrel）経由で行う（Feature Indexing — MANDATORY）
+//    import { OwnersList } from "@/features/owners"                     ← 正しい（barrel import）
+//    import { OwnersList } from "@/features/owners/routes/OwnersList"  ← 禁止（deep import）
 export { OwnerForm } from "./routes/OwnerForm";
 export { OwnersList } from "./routes/OwnersList";
 
@@ -768,8 +768,9 @@ export { useOwnerForm } from "./hooks/useOwnerForm";
 // Components（外部公開が必要なもののみ）
 export { PetEditModal } from "./components/PetEditModal";
 
-// ※ loaders は router.tsx から直接 import する
-// import { ownersLoader, ownerLoader } from "@/features/owners/loaders";
+// loaders も同じ index.ts から公開し、呼び出し元（router.tsx 等）は barrel 経由で import する
+export { ownersLoader, ownerLoader } from "./loaders";
+// import { ownersLoader, ownerLoader } from "@/features/owners";  ← router.tsx 側の呼び出し例
 ```
 
 #### main.tsx
