@@ -37,14 +37,16 @@ components:
     # ─── Summary schemas (Preload用の軽量オブジェクト) ──────────────
     OwnerSummary:
       type: object
-      description: 飼主サマリー（Preload時のみ含まれる）
+      description: |
+        飼主サマリー（Preload時のみ含まれる）。BE-refactor.md Phase D-2: 全3消費者
+        （PetSummary.owner / MedicalRecord.owner / Hospitalization.owner）が共有する
+        toOwnerSummary() の実ワイヤ形（id・name のみ）に合わせた。旧 owner_name/phone は
+        ワイヤに存在しない phantom フィールドだったため削除。
       properties:
         id:
           type: integer
           format: int64
-        owner_name:
-          type: string
-        phone:
+        name:
           type: string
     AnimalSpeciesSummary:
       type: object
@@ -57,7 +59,11 @@ components:
           type: string
     PetSummary:
       type: object
-      description: ペットサマリー（Preload時のみ含まれる）
+      description: |
+        ペットサマリー（Preload時のみ含まれる）。BE-refactor.md Phase D-2: 実ワイヤ形
+        petSummaryResponse（6消費者共通: MedicalRecord/Hospitalization/Reservation/
+        Trimming/Vaccination/Examination の pet フィールド）に合わせ、phantom だった
+        breed を削除し weight・status を追加。
       properties:
         id:
           type: integer
@@ -66,8 +72,13 @@ components:
           type: string
         pet_number:
           type: string
-        breed:
+        weight:
+          type: number
+          format: double
+          nullable: true
+        status:
           type: string
+          description: alive/deceased（死亡ペット判定向け。空の場合あり）
         animal_species:
           $ref: '#/components/schemas/AnimalSpeciesSummary'
           nullable: true
@@ -366,6 +377,42 @@ components:
             - member
             - deceased
             - transferred
+        line_id_confirmed_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: FEAT-381。LINE ID 紐付け確認日時。
+        line_id_confirmed_by:
+          type: integer
+          format: int64
+          nullable: true
+          description: FEAT-381。確認操作を行ったスタッフID。
+        delivery_excluded:
+          type: boolean
+          default: false
+          description: FEAT-381。配信除外フラグ。
+        delivery_excluded_reason:
+          type: string
+          nullable: true
+        delivery_caution:
+          type: boolean
+          default: false
+          description: FEAT-381-2。配信注意フラグ。
+        delivery_caution_reason:
+          type: string
+          nullable: true
+        is_transferred:
+          type: boolean
+          default: false
+          description: FEAT-381。転院フラグ。
+        transfer_at:
+          type: string
+          format: date-time
+          nullable: true
+        dm_preference:
+          type: boolean
+          nullable: true
+          description: '#158 レガシーEMR準拠。DM送付希望。'
         created_at:
           type: string
           format: date-time
@@ -379,13 +426,113 @@ components:
           description: クリニックID
         pets:
           type: array
-          description: ペット一覧（Preload時のみ含まれる）
+          description: |
+            ペット一覧（Preload時のみ含まれる）。BE-refactor.md Phase D-2: 実ワイヤは
+            petInOwnerResponse であり、GET /pets/{id} が返す完全な Pet とは異なる形
+            (owner フィールドが無い等)のため専用スキーマ OwnerPetSummary を参照する。
           items:
-            $ref: '#/components/schemas/Pet'
+            $ref: '#/components/schemas/OwnerPetSummary'
+    # ─── Owner.pets の実ワイヤ形(Phase D-2) ──────────────────────────────
+    OwnerPetSummary:
+      type: object
+      description: Owner.pets 配下でのみ使用される petInOwnerResponse の実ワイヤ形。
+      properties:
+        id:
+          type: integer
+          format: int64
+        owner_id:
+          type: integer
+          format: int64
+        animal_species_id:
+          type: integer
+          format: int64
+        pet_number:
+          type: string
         name:
           type: string
-        name_kana:
+        pet_name_kana:
           type: string
+        gender:
+          type: string
+          enum: [male, female, unknown]
+        status:
+          type: string
+          enum: [alive, deceased]
+        birth_date:
+          type: string
+          format: date
+          nullable: true
+        breed:
+          type: string
+        color:
+          type: string
+        blood_type:
+          type: string
+          nullable: true
+        microchip_number:
+          type: string
+          nullable: true
+        danger_level:
+          type: string
+          enum: [low, medium, high]
+        weight:
+          type: number
+          format: double
+          nullable: true
+        neutered_date:
+          type: string
+          format: date
+          nullable: true
+        acquisition_type:
+          type: string
+          enum: [purchased, transferred, rescued, other]
+          nullable: true
+        food:
+          type: string
+        environment:
+          type: string
+        last_visit:
+          type: string
+          format: date
+          nullable: true
+        insurance_id:
+          type: integer
+          format: int64
+          nullable: true
+        remarks:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+        animal_species:
+          type: object
+          nullable: true
+          properties:
+            id:
+              type: integer
+              format: int64
+            name:
+              type: string
+            sort_order:
+              type: integer
+        insurance:
+          type: object
+          nullable: true
+          properties:
+            id:
+              type: integer
+              format: int64
+            name:
+              type: string
+            coverage_rate:
+              type: integer
+            contact_phone:
+              type: string
     # ─── Owner lstep/line management (BE-refactor.md Phase D-1) ─────────
     PatchOwnerLineUserIdRequest:
       type: object
@@ -1152,10 +1299,6 @@ components:
           type: integer
           format: int64
           nullable: true
-        reservation_appointment_id:
-          type: integer
-          format: int64
-          nullable: true
         status:
           type: string
           enum:
@@ -1200,18 +1343,37 @@ components:
           description: 担当医師情報（Preload時のみ含まれる）
           nullable: true
         inquiry:
-          $ref: '#/components/schemas/Inquiry'
-          description: 問診情報（Preload時のみ含まれる）
+          $ref: '#/components/schemas/MedicalRecordInquirySummary'
+          description: |
+            問診情報（Preload時のみ含まれる）。BE-refactor.md Phase D-2: 実ワイヤは
+            inquirySummaryResponse(id・chief_complaint のみ)であり、旧記載の
+            $ref Inquiry(全フィールド)は phantom だった。
           nullable: true
         appointment_id:
           type: integer
           format: int64
+          nullable: true
         version:
           type: integer
           format: int32
-        entered_by:
+          description: |
+            楽観的ロック用バージョン番号。PATCH リクエストでのみ送信される
+            (updateMedicalRecordRequest.Version)。レスポンス側では返却されない
+            (medicalRecordResponse に Version フィールドは存在しない) — この schema は
+            request/response 兼用のため残置。BE-refactor.md Phase D-2 で確認済み。
+    # ─── MedicalRecord.inquiry の軽量サマリー(Phase D-2) ────────────────
+    MedicalRecordInquirySummary:
+      type: object
+      description: |
+        カルテ一覧/詳細に埋め込まれる問診の要約(inquirySummaryResponse)。
+        全フィールドが必要な場合は /medical-records/{id}/addenda 等、問診専用
+        エンドポイントの Inquiry スキーマを参照する。
+      properties:
+        id:
           type: integer
           format: int64
+        chief_complaint:
+          type: string
     Hospitalization:
       type: object
       required: [owner_id, pet_id, hospitalization_type, start_date, end_date]
