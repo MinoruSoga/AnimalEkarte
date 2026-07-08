@@ -3659,6 +3659,80 @@ components:
           type: string
           nullable: true
 
+    # ─── CheckupFieldResult (#211 健診パッケージ型付き結果値) ─────────────────
+    CheckupFieldResult:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        checkup_id:
+          type: integer
+          format: int64
+        checkup_type_field_id:
+          type: integer
+          format: int64
+          nullable: true
+        field_name:
+          type: string
+        field_type:
+          type: string
+        unit:
+          type: string
+        value_number:
+          type: number
+          format: double
+          nullable: true
+        value_text:
+          type: string
+        value_bool:
+          type: boolean
+          nullable: true
+        value_list:
+          type: array
+          items:
+            type: string
+        is_abnormal:
+          type: boolean
+        status:
+          type: string
+        sort_order:
+          type: integer
+          format: int32
+
+    UpsertCheckupFieldResultRequest:
+      type: object
+      required: [checkup_type_field_id]
+      properties:
+        checkup_type_field_id:
+          type: integer
+          format: int64
+        value_number:
+          type: number
+          format: double
+          nullable: true
+        value_text:
+          type: string
+        value_bool:
+          type: boolean
+          nullable: true
+        value_list:
+          type: array
+          items:
+            type: string
+
+    ReplaceCheckupFieldResultsRequest:
+      type: object
+      description: >-
+        results 省略（キー無し／null）はサーバ側で必須エラーになる。空配列 [] の明示送信は
+        意図的な全削除として扱われる（#211 偶発全消去防止）。
+      properties:
+        results:
+          type: array
+          maxItems: 200
+          items:
+            $ref: '#/components/schemas/UpsertCheckupFieldResultRequest'
+
     # ─── Prescription (処方薬記録 LSTEP-BE-009) ───────────────────────────────
     Prescription:
       type: object
@@ -14532,6 +14606,81 @@ paths:
       responses:
         '204':
           description: 削除成功
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  # ─── Checkup field-results (#211 健診パッケージ型付き結果値) ────
+  /medical-records/{id}/checkups/{checkupId}/field-results:
+    get:
+      operationId: listCheckupFieldResults
+      summary: 健診結果値一覧
+      tags: [MedicalRecords]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: カルテID
+          schema:
+            type: integer
+            format: int64
+        - name: checkupId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: 健診結果値一覧
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CheckupFieldResult'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    put:
+      operationId: replaceCheckupFieldResults
+      summary: 健診結果値を一括置換（既存全削除→一括登録）
+      tags: [MedicalRecords]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: カルテID
+          schema:
+            type: integer
+            format: int64
+        - name: checkupId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReplaceCheckupFieldResultsRequest'
+      responses:
+        '200':
+          description: 置換成功
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CheckupFieldResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '404':
