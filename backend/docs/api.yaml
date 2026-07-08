@@ -13504,42 +13504,13 @@ paths:
       responses:
         '501':
           description: 未実装
-  /line/reservation-settings:
+  /clinics/{clinic_id}/line-reservation-settings:
     get:
-      tags:
-        - LINE予約設定
-      summary: LINE予約設定一覧取得
-      responses:
-        '200':
-          description: OK
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/LineReservationSetting'
-    post:
-      tags:
-        - LINE予約設定
-      summary: LINE予約設定作成
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/LineReservationSetting'
-      responses:
-        '201':
-          description: Created
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/LineReservationSetting'
-  /line/reservation-settings/{id}:
-    get:
-      tags:
-        - LINE予約設定
+      operationId: getLineReservationSetting
+      summary: LINE予約設定取得
+      tags: [LINE予約設定]
       parameters:
-        - name: id
+        - name: clinic_id
           in: path
           required: true
           schema:
@@ -13547,129 +13518,138 @@ paths:
             format: int64
       responses:
         '200':
-          description: OK
+          description: LINE予約設定
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/LineReservationSetting'
-    put:
-      tags:
-        - LINE予約設定
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: integer
-            format: int64
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/LineReservationSetting'
-      responses:
-        '200':
-          description: OK
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/LineReservationSetting'
-    delete:
-      tags:
-        - LINE予約設定
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: integer
-            format: int64
-      responses:
         '204':
-          description: No Content
-  /line/customers:
-    get:
-      tags:
-        - LINE顧客
-      summary: LINE顧客一覧取得
+          description: 未設定
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    put:
+      operationId: saveLineReservationSetting
+      summary: LINE予約設定作成・更新（Upsert）
+      description: クリニックに設定が未存在なら作成(201)、既存なら更新(200)する。
+      tags: [LINE予約設定]
+      parameters:
+        - name: clinic_id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LineReservationSetting'
       responses:
         '200':
-          description: OK
+          description: 更新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LineReservationSetting'
+        '201':
+          description: 作成成功
+          headers:
+            Location:
+              description: 作成されたリソースのURL
+              schema:
+                type: string
+                format: uri
+                example: /v1/clinics/1/line-reservation-settings
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LineReservationSetting'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /clinics/{clinic_id}/line-customers:
+    get:
+      operationId: listLineCustomers
+      summary: LINE顧客一覧取得
+      tags: [LINE顧客]
+      parameters:
+        - name: clinic_id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: LINE顧客一覧
           content:
             application/json:
               schema:
                 type: array
                 items:
                   $ref: '#/components/schemas/LineCustomer'
-    post:
-      tags:
-        - LINE顧客
-      summary: LINE顧客作成
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/LineCustomer'
-      responses:
-        '201':
-          description: Created
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/LineCustomer'
-  /line/customers/{id}:
-    get:
-      tags:
-        - LINE顧客
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /clinics/{clinic_id}/line-customers/{customerId}/link-owner:
+    patch:
+      operationId: linkOwnerToLineCustomer
+      summary: LINE顧客と飼主の紐付け
+      tags: [LINE顧客]
       parameters:
-        - name: id
+        - name: clinic_id
           in: path
           required: true
           schema:
             type: integer
             format: int64
-      responses:
-        '200':
-          description: OK
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/LineCustomer'
-    put:
-      tags:
-        - LINE顧客
-      parameters:
-        - name: id
+        - name: customerId
           in: path
           required: true
           schema:
             type: integer
             format: int64
       requestBody:
+        required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/LineCustomer'
+              type: object
+              properties:
+                owner_id:
+                  type: integer
+                  format: int64
+                  nullable: true
       responses:
         '200':
-          description: OK
+          description: 紐付け成功
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/LineCustomer'
-    delete:
-      tags:
-        - LINE顧客
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: integer
-            format: int64
-      responses:
-        '204':
-          description: No Content
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
   /shift-templates:
     get:
       tags:
