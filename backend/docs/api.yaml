@@ -3659,6 +3659,59 @@ components:
           type: string
           nullable: true
 
+    # ─── Prescription (処方薬記録 LSTEP-BE-009) ───────────────────────────────
+    Prescription:
+      type: object
+      properties:
+        id:
+          type: string
+          description: uint64 を文字列化して配信
+        clinic_id:
+          type: string
+        owner_id:
+          type: string
+        pet_id:
+          type: string
+          nullable: true
+        medical_record_id:
+          type: string
+          nullable: true
+        prescribed_at:
+          type: string
+          format: date
+        duration_days:
+          type: integer
+          format: int32
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    CreatePrescriptionRequest:
+      type: object
+      required: [date, duration_days]
+      properties:
+        date:
+          type: string
+          format: date
+        duration_days:
+          type: integer
+          format: int32
+
+    UpdatePrescriptionRequest:
+      type: object
+      properties:
+        date:
+          type: string
+          format: date
+          nullable: true
+        duration_days:
+          type: integer
+          format: int32
+          nullable: true
+
     # ─── DailyRecord (入院日次記録) ───────────────────────────────────────────
     DailyRecord:
       type: object
@@ -14436,6 +14489,132 @@ paths:
             type: integer
             format: int64
         - name: checkupId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '204':
+          description: 削除成功
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  # ─── Prescriptions (処方薬記録・カルテネスト LSTEP-BE-009) ────────
+  /medical-records/{id}/prescriptions:
+    get:
+      operationId: listPrescriptions
+      summary: 処方薬記録一覧
+      tags: [MedicalRecords]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: カルテID
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: 処方薬記録一覧
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Prescription'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    post:
+      operationId: createPrescription
+      summary: 処方薬記録作成
+      tags: [MedicalRecords]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: カルテID
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreatePrescriptionRequest'
+      responses:
+        '201':
+          description: 作成成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Prescription'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /medical-records/{id}/prescriptions/{prescriptionId}:
+    patch:
+      operationId: updatePrescription
+      summary: 処方薬記録更新
+      tags: [MedicalRecords]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: カルテID
+          schema:
+            type: integer
+            format: int64
+        - name: prescriptionId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdatePrescriptionRequest'
+      responses:
+        '200':
+          description: 更新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Prescription'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    delete:
+      operationId: deletePrescription
+      summary: 処方薬記録削除（soft delete）
+      tags: [MedicalRecords]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: カルテID
+          schema:
+            type: integer
+            format: int64
+        - name: prescriptionId
           in: path
           required: true
           schema:
