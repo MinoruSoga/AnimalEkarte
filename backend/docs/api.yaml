@@ -140,24 +140,54 @@ components:
           type: number
           format: float
           description: 数量（小数点1桁まで許容）
+        discount_rate:
+          type: number
+          format: double
+        discount_amount:
+          type: integer
+          format: int64
+        subtotal:
+          type: integer
+          format: int64
+          readOnly: true
+          description: 割引後金額（単価×数量−割引額、負値は0クランプ。レスポンス生成時に算出）
+        tax_type:
+          type: string
+          enum: [included, excluded, exempt]
         tax_rate:
           type: number
           format: double
+        tax_amount:
+          type: integer
+          format: int64
+          readOnly: true
+          description: 課税区分に応じて算出した税額
         is_insurance_applicable:
           type: boolean
         source:
           type: string
-          enum: [medical_record, hospitalization, manual]
+          enum: [medical_record, hospitalization, manual, trimming]
+        treatment_id:
+          type: integer
+          format: int64
+          nullable: true
+        appointment_id:
+          type: integer
+          format: int64
+          nullable: true
+        trimming_course_id:
+          type: integer
+          format: int64
+          nullable: true
+        trimming_option_id:
+          type: integer
+          format: int64
+          nullable: true
         sort_order:
           type: integer
         created_at:
           type: string
           format: date-time
-        deleted_at:
-          type: string
-          format: date-time
-          nullable: true
-          description: 削除日時（ソフトデリート）
     Payment:
       type: object
       description: 支払情報（会計精算時のみ含まれる）
@@ -199,12 +229,63 @@ components:
           format: int64
         method:
           type: string
-          enum: [cash, credit_card, electronic_money]
+          enum: [cash, credit_card, electronic_money, bank_transfer]
           description: 支払方法
+        paid_by:
+          type: integer
+          format: int64
+          nullable: true
+          description: 対応スタッフID
+        paid_by_name:
+          type: string
+          readOnly: true
+          description: 対応スタッフ名（Preload時のみ埋まる。未設定時は空文字）
         created_at:
           type: string
           format: date-time
         updated_at:
+          type: string
+          format: date-time
+    PaymentSplit:
+      type: object
+      description: 1会計に対する支払い手段ごとの内訳（混在会計では複数存在）
+      properties:
+        id:
+          type: integer
+          format: int64
+        clinic_id:
+          type: integer
+          format: int64
+        billing_id:
+          type: integer
+          format: int64
+        method:
+          type: string
+          enum: [cash, credit_card, electronic_money, bank_transfer]
+          description: 支払方法（内訳ごとの一次情報）
+        payment_method_id:
+          type: integer
+          format: int64
+          nullable: true
+        amount:
+          type: integer
+          format: int64
+        received_amount:
+          type: integer
+          format: int64
+        change_amount:
+          type: integer
+          format: int64
+        paid_by:
+          type: integer
+          format: int64
+          nullable: true
+          description: 対応スタッフID
+        paid_by_name:
+          type: string
+          readOnly: true
+          description: 対応スタッフ名（Preload時のみ埋まる。未設定時は空文字）
+        created_at:
           type: string
           format: date-time
     # ─────────────────────────────────────────────────────────────
@@ -296,11 +377,6 @@ components:
         clinic_id:
           type: integer
           description: クリニックID
-        deleted_at:
-          type: string
-          format: date-time
-          nullable: true
-          description: 削除日時（ソフトデリート）
         pets:
           type: array
           description: ペット一覧（Preload時のみ含まれる）
@@ -355,6 +431,12 @@ components:
           type: string
         color:
           type: string
+        blood_type:
+          type: string
+          nullable: true
+        microchip_number:
+          type: string
+          nullable: true
         weight:
           type: number
           format: double
@@ -397,11 +479,6 @@ components:
           type: string
           format: date-time
           readOnly: true
-        deleted_at:
-          type: string
-          format: date-time
-          nullable: true
-          description: 削除日時（ソフトデリート）
         animal_species:
           type: object
           description: 種別情報（Preload時のみ含まれる）
@@ -895,6 +972,24 @@ components:
           enum:
             - draft
             - finalized
+        accounting_id:
+          type: integer
+          format: int64
+          nullable: true
+          readOnly: true
+          description: 紐づく会計ID（Billing が存在する場合のみ）
+        visit_count:
+          type: integer
+          format: int64
+          readOnly: true
+          description: 同一飼主・ペットの累計来院回数（呼び出し元で算出）
+        next_visit_recommended_date:
+          type: string
+          format: date
+          nullable: true
+        recommendation_reason:
+          type: string
+          nullable: true
         created_at:
           type: string
           format: date-time
@@ -903,11 +998,6 @@ components:
           type: string
           format: date-time
           readOnly: true
-        deleted_at:
-          type: string
-          format: date-time
-          nullable: true
-          description: 削除日時（ソフトデリート）
         owner:
           $ref: '#/components/schemas/OwnerSummary'
           description: 飼主情報（Preload時のみ含まれる）
@@ -1041,10 +1131,13 @@ components:
           nullable: true
         subtotal:
           type: integer
+          format: int64
         tax_total:
           type: integer
+          format: int64
         total_amount:
           type: integer
+          format: int64
         has_insurance:
           type: boolean
         status:
@@ -1063,6 +1156,11 @@ components:
           nullable: true
         memo:
           type: string
+        total_refunded_amount:
+          type: integer
+          format: int64
+          readOnly: true
+          description: 総返金額（FindAll のサブクエリで集計する仮想フィールド）
         created_at:
           type: string
           format: date-time
@@ -1071,19 +1169,26 @@ components:
           type: string
           format: date-time
           readOnly: true
-        deleted_at:
-          type: string
-          format: date-time
-          nullable: true
-          description: 削除日時（ソフトデリート）
         owner:
-          $ref: '#/components/schemas/OwnerSummary'
-          description: 飼主情報（Preload時のみ含まれる）
+          type: object
+          description: 飼主情報（Preload時のみ含まれる。会計画面向けの軽量表現で OwnerSummary とは別形）
           nullable: true
+          properties:
+            id:
+              type: integer
+              format: int64
+            name:
+              type: string
         pet:
-          $ref: '#/components/schemas/PetSummary'
-          description: ペット情報（Preload時のみ含まれる）
+          type: object
+          description: ペット情報（Preload時のみ含まれる。会計画面向けの軽量表現で PetSummary とは別形）
           nullable: true
+          properties:
+            id:
+              type: integer
+              format: int64
+            name:
+              type: string
         items:
           type: array
           description: 会計明細（Preload時のみ含まれる）
@@ -1096,6 +1201,12 @@ components:
           readOnly: true
           items:
             $ref: '#/components/schemas/Payment'
+        payment_splits:
+          type: array
+          description: 支払い手段内訳（混在会計。Preload時のみ含まれる）
+          readOnly: true
+          items:
+            $ref: '#/components/schemas/PaymentSplit'
         refunds:
           type: array
           description: 返金情報（Preload時のみ含まれる）
