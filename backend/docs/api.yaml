@@ -7964,6 +7964,7 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '500':
           $ref: '#/components/responses/InternalError'
+  /billing-items:
     post:
       operationId: createBillingItem
       summary: 会計明細作成
