@@ -695,6 +695,74 @@ components:
           type: boolean
           nullable: true
 
+    # ─── Pet death lifecycle (BE-017) ─────────────────────────────────────────
+    PatchPetDeathRequest:
+      type: object
+      required: [deceased_at]
+      properties:
+        deceased_at:
+          type: string
+          format: date
+        reason:
+          type: string
+
+    # ─── Pet first-visit / treatment-history (#158 飼主レポート) ──────────────
+    PetFirstVisit:
+      type: object
+      properties:
+        first_visit_date:
+          type: string
+          format: date-time
+          nullable: true
+          description: 最古の有効カルテ date 由来の派生値。カルテが無い場合は null（捏造しない）
+
+    PetTreatmentHistoryItem:
+      type: object
+      properties:
+        id:
+          type: string
+        medical_record_id:
+          type: string
+        date:
+          type: string
+          format: date-time
+          nullable: true
+          description: medical_records.date 由来の診療日
+        item_type:
+          type: string
+        content:
+          type: string
+        memo:
+          type: string
+        admin_route:
+          type: string
+        quantity:
+          type: number
+          format: double
+        unit_price:
+          type: integer
+          format: int64
+        status:
+          type: string
+        medicine_id:
+          type: string
+          nullable: true
+        medicine_name:
+          type: string
+          nullable: true
+        procedure_id:
+          type: string
+          nullable: true
+        procedure_name:
+          type: string
+          nullable: true
+        anesthesia:
+          type: string
+          nullable: true
+        is_surgery:
+          type: boolean
+          nullable: true
+
     ReservationAppointment:
       type: object
       required: [start_time, end_time, reservation_type_id]
@@ -6682,6 +6750,139 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '404':
           $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  # ─── Pet death lifecycle (BE-017) ──────────────────────────────
+  /pets/{id}/death:
+    patch:
+      operationId: patchPetDeath
+      summary: ペット死亡を記録（CPM タグ再同期）
+      tags: [Pets]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchPetDeathRequest'
+      responses:
+        '204':
+          description: 記録成功
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    delete:
+      operationId: deletePetDeath
+      summary: ペット死亡記録を取り消し（CPM タグ再同期）
+      tags: [Pets]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '204':
+          description: 取消成功
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  # ─── Pet first-visit / treatment-history (#158 飼主レポート) ──
+  /pets/{id}/first-visit:
+    get:
+      operationId: getPetFirstVisit
+      summary: ペット初診日（最古カルテ date 由来の派生値）
+      tags: [Pets]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: 初診日
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PetFirstVisit'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /pets/{id}/treatment-history:
+    get:
+      operationId: listPetTreatmentHistory
+      summary: ペット横断治療履歴（投薬/処置）
+      tags: [Pets]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+        - name: item_type
+          in: query
+          description: medicine / procedure / consultation / other / all（省略時は all）
+          schema:
+            type: string
+        - name: anesthesia_only
+          in: query
+          schema:
+            type: boolean
+        - name: is_surgery
+          in: query
+          schema:
+            type: boolean
+      responses:
+        '200':
+          description: 治療履歴一覧
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PaginatedResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/PetTreatmentHistoryItem'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
         '500':
           $ref: '#/components/responses/InternalError'
 
