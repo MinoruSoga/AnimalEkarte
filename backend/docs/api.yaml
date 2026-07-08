@@ -7900,6 +7900,264 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '500':
           $ref: '#/components/responses/InternalError'
+  /billing-items/unbilled:
+    get:
+      operationId: getUnbilledItems
+      summary: 未会計対象明細一覧
+      tags: [BillingItems]
+      parameters:
+        - name: pet_id
+          in: query
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: 未会計対象明細一覧
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/BillingItem'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /billing-items/ungrouped-same-day:
+    get:
+      operationId: getUngroupedSameDay
+      summary: 同日同ペット取り残し警告
+      description: '#77: 同日同ペットの未会計対象化項目件数（診察・トリミング）を返す。'
+      tags: [BillingItems]
+      parameters:
+        - name: pet_id
+          in: query
+          required: true
+          schema:
+            type: integer
+            format: int64
+        - name: date
+          in: query
+          required: false
+          description: 未指定時は当日（サーバーローカルタイムゾーン）
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: 取り残し件数
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UngroupedSameDaySummary'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    post:
+      operationId: createBillingItem
+      summary: 会計明細作成
+      tags: [BillingItems]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [billing_id, name]
+              properties:
+                billing_id:
+                  type: integer
+                  format: int64
+                category:
+                  type: string
+                  enum: [examination, test, procedure, surgery, medicine, food, goods, other, vaccine, trimming, hotel, training]
+                name:
+                  type: string
+                unit_price:
+                  type: integer
+                  format: int64
+                quantity:
+                  type: number
+                  format: float
+                discount_rate:
+                  type: number
+                  format: float
+                discount_amount:
+                  type: integer
+                  format: int64
+                tax_type:
+                  type: string
+                  enum: [included, excluded, exempt]
+                tax_rate:
+                  type: number
+                  format: double
+                is_insurance_applicable:
+                  type: boolean
+                source:
+                  type: string
+                  enum: [medical_record, manual, hospitalization, trimming]
+                treatment_id:
+                  type: integer
+                  format: int64
+                  nullable: true
+                appointment_id:
+                  type: integer
+                  format: int64
+                  nullable: true
+                trimming_course_id:
+                  type: integer
+                  format: int64
+                  nullable: true
+                trimming_option_id:
+                  type: integer
+                  format: int64
+                  nullable: true
+                merchandise_item_id:
+                  type: integer
+                  format: int64
+                  nullable: true
+                sort_order:
+                  type: integer
+      responses:
+        '201':
+          description: 作成成功
+          headers:
+            Location:
+              description: 作成されたリソースのURL
+              schema:
+                type: string
+                format: uri
+                example: /api/v1/billing/1/items/1
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BillingItem'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /billing-items/{id}:
+    patch:
+      operationId: updateBillingItem
+      summary: 会計明細更新
+      tags: [BillingItems]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                unit_price:
+                  type: integer
+                  format: int64
+                quantity:
+                  type: number
+                  format: float
+                discount_rate:
+                  type: number
+                  format: float
+                discount_amount:
+                  type: integer
+                  format: int64
+                tax_type:
+                  type: string
+                  enum: [included, excluded, exempt]
+                tax_rate:
+                  type: number
+                  format: double
+                is_insurance_applicable:
+                  type: boolean
+      responses:
+        '200':
+          description: 更新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BillingItem'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    delete:
+      operationId: deleteBillingItem
+      summary: 会計明細削除
+      tags: [BillingItems]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '204':
+          description: No Content
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /billing-items/{id}/discount-suggestions:
+    get:
+      operationId: getBillingItemDiscountSuggestions
+      summary: 明細の割引候補取得
+      description: '#81 Q-I: 指定明細に適用可能なキャンペーン割引・飼主割引の候補を返す。'
+      tags: [BillingItems]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: 会計明細ID
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: 割引候補一覧
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DiscountSuggestionsResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
   /trimmings:
     get:
       operationId: listTrimmings
