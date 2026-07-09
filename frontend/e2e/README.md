@@ -148,7 +148,7 @@ used in `owners-search.spec.ts`, `accounting-smoke.spec.ts`, and `reservations-s
 `filterCalendarAppointments` (filters out `cancelled`, keeps `no_show`) is unit-tested in:
 
 ```
-frontend/src/features/reservations/routes/__tests__/ReservationManagement.filter.test.ts
+frontend/src/features/reservations/routes/__tests__/reservation-management.filter.test.ts
 ```
 
 E2E validation of this filter would require seeding appointments for the current calendar week —

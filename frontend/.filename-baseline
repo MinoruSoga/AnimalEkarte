@@ -11,14 +11,13 @@
 # （api/components/hooks/routes/__tests__）へ平坦化し、camelCase フック4件を
 # kebab-case に統一済み（4件解消、8→4）。
 #
-# 残存する違反4件は R-F3-S4 以降で対応する既知の債務（PascalCase 名の *.test.ts 4件:
-# AccountingDetailModel.test.ts, LoginForm.demo-guard.test.ts, ManualContent.test.ts,
-# ReservationManagement.filter.test.ts）であり、遡って fail させることはせず、
-# 件数が baseline を超えて増えていないかだけを検査する。
+# R-F3-S8 で残存4件（AccountingDetailModel.test.ts, LoginForm.demo-guard.test.ts,
+# ManualContent.test.ts, ReservationManagement.filter.test.ts）を kebab-case に
+# リネームし解消済み（4件解消、4→0）。R-F3 の filename ratchet はこれで完全クローズ。
 #
 # 2026-07-09 実測（node scripts/check-feature-filename-convention.mjs で算出、
-# 現在の src/features/** 全件スキャン）: 4
+# 現在の src/features/** 全件スキャン）: 0
 #
-# 更新規則: 件数が減った場合はこの値を実測値まで引き下げてよい（ratchet を締める）。
-# 増えた場合は、新規 PascalCase .ts の追加自体の要否を再検討すること。
-4
+# 更新規則: 新規 PascalCase .ts が src/features/** に追加された場合、baseline 0 により
+# 即 FAIL する（ratchet 締め後）。追加の要否自体を再検討すること。
+0
