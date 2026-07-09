@@ -432,12 +432,14 @@ base.go に GORM スコープを追加: `// medicalRecordTenantScope は clinic_
 docker compose exec backend go test ./internal/repository/ -run 'TestChiefComplaint|TestConsultation|TestDiagnosis|TestInventory|TestMedicine|TestProcedure|TestMedicalRecordImage|TestMedicalRecordTenantScope' -count=1
 ```
 
-### G3-5. handler 層に「YYYY-MM-DD 優先→RFC3339 フォールバック」日付パースが二重実装(エラー衛生ドリフトあり)
+### G3-5. handler 層に「YYYY-MM-DD 優先→RFC3339 フォールバック」日付パースが二重実装(エラー衛生ドリフトあり) — **第一段 CLOSED（2026-07-09）**
 
 - **ID**: `dup-handler-date-parse`
 - **重要度**: P3 / **工数目安**: S / **挙動変更**: なし（挙動保存）
 - **対象ファイル**: internal/handler/date.go (16-42); internal/handler/handler_date_helpers.go (8-29); internal/handler/vaccination_request.go (78-88)
 - **依存関係**: 第二段(文言統一)のみ behaviorChange トラックへ分離
+- **ステータス**: ✅ **第一段 CLOSED** — `parseFlexibleDate(s string) (time.Time, error)`(date.go)を新設し、`jsonDate.UnmarshalJSON`/`parseDate` を委譲化。`handler_date_helpers.go` を削除し date.go へ統合。両者のエラーメッセージ(jsonDate=汎用文言 / parseDate=`invalid date format: %s` の入力値エコー)は完全維持。契約テスト `date_test.go` 新設(TestJsonDate/TestParseDate)。go-reviewer / security-reviewer ともに Approve(CRITICAL/HIGH 0)。コミット `e3ccc7e3`
+- **第二段（未着手・別トラック behaviorChange）**: parseDate のエラーから入力値エコーを除去し jsonDate と同一の汎用文言へ統一(#97 類例のクローズ)。vaccination_request.go / inventory_request.go / reservation_type_request.go の呼び出し側エラーラッピング文言(`invalid date: %v` 等)も本トラックで見直し対象。
 
 **証拠(現HEAD検証済み)**
 
