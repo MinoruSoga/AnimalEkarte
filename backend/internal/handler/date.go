@@ -2,7 +2,6 @@ package handler
 
 import (
 	"errors"
-	"fmt"
 	"strings"
 	"time"
 
@@ -12,6 +11,11 @@ import (
 // errFlexibleDateParse は parseFlexibleDate 内部の sentinel error。
 // Go 標準ライブラリの parse エラー文字列を呼び出し元に漏洩させないために使用する。
 var errFlexibleDateParse = errors.New("flexible date parse failed")
+
+// flexibleDateInvalidInputMsg は日付パース失敗時にクライアントへ返す汎用メッセージ。
+// 不正な入力値そのもの（Go内部のparseエラー文字列や生の入力）を露出させないため、
+// jsonDate.UnmarshalJSON と parseDate の両方がこの定数を共有する。
+const flexibleDateInvalidInputMsg = "日付の形式が正しくありません（YYYY-MM-DD または RFC3339 形式を使用してください）"
 
 // parseFlexibleDate は YYYY-MM-DD（time.Local）または RFC3339 形式の日付文字列を
 // time.Time に変換する共通コア。jsonDate.UnmarshalJSON と parseDate の両方から使用される。
@@ -41,7 +45,7 @@ func (d *jsonDate) UnmarshalJSON(data []byte) error {
 	t, err := parseFlexibleDate(s)
 	if err != nil {
 		// Go内部のエラー文字列を漏洩させないため、汎用メッセージを返す
-		return apperrors.WrapInvalidInput("日付の形式が正しくありません（YYYY-MM-DD または RFC3339 形式を使用してください）")
+		return apperrors.WrapInvalidInput(flexibleDateInvalidInputMsg)
 	}
 	d.Time = t
 	return nil
@@ -66,8 +70,8 @@ func parseDate(dateStr *string) (*time.Time, error) {
 
 	t, err := parseFlexibleDate(*dateStr)
 	if err != nil {
-		// 呼び出し側の既存契約を維持するため、入力値をエコーする
-		return nil, fmt.Errorf("invalid date format: %s", *dateStr)
+		// Go内部のエラー文字列・入力値を漏洩させないため、jsonDate と同一の汎用メッセージを返す
+		return nil, apperrors.WrapInvalidInput(flexibleDateInvalidInputMsg)
 	}
 	return &t, nil
 }

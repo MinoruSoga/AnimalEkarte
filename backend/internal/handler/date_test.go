@@ -53,7 +53,7 @@ func TestJsonDate(t *testing.T) {
 			if tt.wantErr {
 				require.Error(t, err)
 				assert.True(t, apperrors.IsInvalidInput(err))
-				assert.Equal(t, "日付の形式が正しくありません（YYYY-MM-DD または RFC3339 形式を使用してください）: invalid input", err.Error())
+				assert.Equal(t, flexibleDateInvalidInputMsg+": "+apperrors.ErrInvalidInput.Error(), err.Error())
 				return
 			}
 
@@ -86,11 +86,13 @@ func TestParseDate(t *testing.T) {
 		assert.True(t, time.Date(2026, 7, 9, 12, 34, 56, 0, time.UTC).Equal(*got))
 	})
 
-	t.Run("不正な形式は入力値をエコーしたエラーを返す", func(t *testing.T) {
+	t.Run("不正な形式は入力値を含まない汎用エラーを返す", func(t *testing.T) {
 		s := "not-a-date"
 		got, err := parseDate(&s)
 		require.Error(t, err)
 		assert.Nil(t, got)
-		assert.EqualError(t, err, "invalid date format: not-a-date")
+		assert.True(t, apperrors.IsInvalidInput(err))
+		assert.NotContains(t, err.Error(), "not-a-date")
+		assert.Equal(t, flexibleDateInvalidInputMsg+": "+apperrors.ErrInvalidInput.Error(), err.Error())
 	})
 }

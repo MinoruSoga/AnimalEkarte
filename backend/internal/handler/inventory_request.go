@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"fmt"
 	"net/url"
 
 	"github.com/animal-ekarte/backend/internal/model"
@@ -49,11 +48,11 @@ type createInventoryRequest struct {
 func (r *createInventoryRequest) toServiceInput() (*service.CreateInventoryInput, error) {
 	expiryDate, err := parseDate(r.ExpiryDate)
 	if err != nil {
-		return nil, fmt.Errorf("invalid expiry_date: %w", err)
+		return nil, err
 	}
 	lastRestocked, err := parseDate(r.LastRestocked)
 	if err != nil {
-		return nil, fmt.Errorf("invalid last_restocked: %w", err)
+		return nil, err
 	}
 	return &service.CreateInventoryInput{
 		Name:          r.Name,
@@ -96,11 +95,11 @@ func (r *updateInventoryRequest) toServiceInput() (*service.UpdateInventoryInput
 	}
 	expiryDate, err := parseDate(r.ExpiryDate)
 	if err != nil {
-		return nil, fmt.Errorf("invalid expiry_date: %w", err)
+		return nil, err
 	}
 	lastRestocked, err := parseDate(r.LastRestocked)
 	if err != nil {
-		return nil, fmt.Errorf("invalid last_restocked: %w", err)
+		return nil, err
 	}
 	return &service.UpdateInventoryInput{
 		Name:          r.Name,

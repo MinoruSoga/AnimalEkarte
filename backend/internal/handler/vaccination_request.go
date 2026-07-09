@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"fmt"
 	"net/url"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
@@ -77,7 +76,7 @@ type createVaccinationRequest struct {
 func (r *createVaccinationRequest) toServiceInput() (*service.CreateVaccinationInput, error) {
 	date, err := parseDate(r.Date)
 	if err != nil {
-		return nil, apperrors.WrapInvalidInput(fmt.Sprintf("invalid date: %v", err))
+		return nil, err
 	}
 	if date == nil {
 		return nil, apperrors.WrapInvalidInput("date is required")
@@ -85,7 +84,7 @@ func (r *createVaccinationRequest) toServiceInput() (*service.CreateVaccinationI
 
 	nextDate, err := parseDate(r.NextDate)
 	if err != nil {
-		return nil, apperrors.WrapInvalidInput(fmt.Sprintf("invalid next_date: %v", err))
+		return nil, err
 	}
 
 	var nextScheduleType *model.NextScheduleType
@@ -132,12 +131,12 @@ type updateVaccinationRequest struct {
 func (r *updateVaccinationRequest) toServiceInput() (*service.UpdateVaccinationInput, error) {
 	date, err := parseDate(r.Date)
 	if err != nil {
-		return nil, apperrors.WrapInvalidInput(fmt.Sprintf("invalid date: %v", err))
+		return nil, err
 	}
 
 	nextDate, err := parseDate(r.NextDate)
 	if err != nil {
-		return nil, apperrors.WrapInvalidInput(fmt.Sprintf("invalid next_date: %v", err))
+		return nil, err
 	}
 
 	input := &service.UpdateVaccinationInput{
