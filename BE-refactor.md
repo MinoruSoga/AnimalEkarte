@@ -701,12 +701,13 @@ docker compose exec backend go test ./internal/repository/ -count=1
 
 ## G7. パフォーマンス (N+1・インデックス・クエリ効率)
 
-### G7-1. LIFF GetAvailableDates の日付ループN+1: シフト/休憩/当日予約/職種ガードを日毎・スタッフ毎に個別クエリ(既定30日×5名で1リクエスト最大約570クエリ)
+### G7-1. LIFF GetAvailableDates の日付ループN+1: シフト/休憩/当日予約/職種ガードを日毎・スタッフ毎に個別クエリ(既定30日×5名で1リクエスト最大約570クエリ) — **CLOSED（2026-07-09）**
 
 - **ID**: `liff-available-dates-nplus1`
 - **重要度**: P1 / **工数目安**: M / **挙動変更**: なし（挙動保存）
 - **対象ファイル**: internal/service/available_dates.go (109-196); internal/service/liff_service_availability_slots.go (13-68); internal/service/liff_service_availability.go (35-37,119-139); internal/repository/appointment_admin_repository.go (52-73); internal/repository/reservation_schedule_repository.go (17-20,76-87)
 - **依存関係**: なし。R2-4(実施済)とは別軸。FE変更不要(レスポンス形状不変)
+- **ステータス**: ✅ **CLOSED** — 実装手順(1)〜(5)を実施。ReservationScheduleRepository.FindAllByStaffIDsAndDateRange(複数スタッフ×期間のシフトエントリ一括取得)、ReservationAdminRepository.FindTimeRangesByDateRange(Preloadなしid/doctor_id/start_time/end_time/statusのみの軽量版)、ReservationTypeOccupationRepository.CountWorkingStaffByReservationTypeIDs(GROUP BY se.dateでの日次出勤数バッチ集計)の3新規repositoryメソッドを追加。liffService.buildAvailableDatesStaffInputsFnが予約受付期間全体を3クエリでプリフェッチし、日毎はDB問い合わせ不要な純関数buildStaffSlotInputsFromWindow(マップ参照のみ)を返すクロージャに置換。窓計算はbookingWindowDates()としてavailable_dates.goへ抽出しCalcAvailableDatesと共有。エラー致命度は旧実装を踏襲(シフト/休憩プリフェッチ失敗は非致命的・当日予約プリフェッチ失敗は致命的)。単日パスのGetAvailableTimesは無変更(buildStaffSlotInputsのまま)。GetAvailableDatesは事前テスト0件だったためliff_service_availability_dates_test.go新設+3repositoryメソッドのDB実行テストを追加。`docker compose exec backend go test ./internal/service/ -run 'TestCalcAvailableDates|TestBuildStaffSlotInputs|TestGetAvailable' -count=1` と `go test ./internal/repository/ -run 'TestReservationSchedule|TestReservationTypeOccupation' -count=1` 全PASS。go vet(全リポジトリ)/gofmt差分なし。go-reviewer/security-reviewer/clinic-isolation-auditor三者ともApprove(CRITICAL/HIGH/MEDIUM 0、raw SQLパラメータ化・clinic_id境界を個別検証済み)。コミット `755f3e42`
 
 **証拠(現HEAD検証済み)**
 
@@ -750,12 +751,13 @@ checkup_sync_service_preview.go:46 `for i := range rows {` → :75-76 `if hasLin
 docker compose exec backend go test ./internal/service/ -run 'TestCheckupSyncService_PreviewCheckupSync' -count=1 && docker compose exec backend go test ./internal/repository/ -run 'TestLstepTagCache' -count=1
 ```
 
-### G7-3. 月次レポート/レジ締め集計の completed_at 述語が非sargable(AT TIME ZONE 式適用)で partial index を無効化 — 同一関数内のCTE形式と2形式混在
+### G7-3. 月次レポート/レジ締め集計の completed_at 述語が非sargable(AT TIME ZONE 式適用)で partial index を無効化 — 同一関数内のCTE形式と2形式混在 — **CLOSED（2026-07-09）**
 
 - **ID**: `reports-completed-at-non-sargable`
 - **重要度**: P2 / **工数目安**: S / **挙動変更**: なし（挙動保存）
 - **対象ファイル**: internal/repository/accounting_repository_reports_monthly.go (154-155,177-178); internal/repository/accounting_repository_reports_close.go (97-98,162-163); internal/config/config.go (104-105)
 - **依存関係**: 前提=DSN TimeZone=Asia/Tokyo 固定(config.go:104)。この前提が崩れる変更とは排他
+- **ステータス**: ✅ **CLOSED** — monthly.go 2箇所(税率別集計・会計件数)、close.go 2箇所(個別会計一覧CTE・税率別集計)を `completed_at AT TIME ZONE 'Asia/Tokyo' >= ?/< ?` から CTE本体と同型の `completed_at >= ?/< ?` に統一。close.go の書き換え2箇所は既存 cArgs と同様に `.In(time.Local)` を揃えた。等価性は temp-revert 方式ではなく pre/post 比較で実証: 変更前に `TestAccountingRepository_GetMonthlyReport_*`(BillingCount/TaxBreakdown 具体値アサート込み)・`TestAccountingRepository_GetCloseAggregate_*`(BillingDetails/TaxBreakdown 具体値アサート込み)全11本が GREEN であることを確認 → 述語変更 → 同一テスト群が同一アサートのまま再度全PASS(結果不変を実証)。TO_CHAR(...AT TIME ZONE...) による日付文字列 GROUP BY 出力(monthly.go:40,61,92)はフィルタ述語ではなくフォーマット用途のため対象外・無変更。go vet / gofmt 差分なし。コミット `904b0bc2`
 
 **証拠(現HEAD検証済み)**
 
@@ -774,11 +776,12 @@ accounting_repository_reports_monthly.go:154-155 `Where("billings.completed_at A
 docker compose exec backend go test ./internal/repository/ -run 'TestGetMonthlyReport|TestGetCloseAggregate|TestAccountingRepository_Reports' -count=1
 ```
 
-### G7-4. checkups(clinic_id,date)/(clinic_id,next_date)・vaccinations(clinic_id,date) の複合インデックス欠落 — 日付レンジ一覧/期限アラートの主要WHERE句と不整合
+### G7-4. checkups(clinic_id,date)/(clinic_id,next_date)・vaccinations(clinic_id,date) の複合インデックス欠落 — 日付レンジ一覧/期限アラートの主要WHERE句と不整合 — **CLOSED（2026-07-09）**
 
 - **ID**: `checkups-vaccinations-missing-composite-index`
 - **重要度**: P3 / **工数目安**: S / **挙動変更**: なし（挙動保存）
 - **対象ファイル**: internal/repository/checkup_repository.go (44-70,107-124); internal/repository/vaccination_repository.go (35-70); migrations/001_init.sql (2258-2264,2400)
+- **ステータス**: ✅ **CLOSED** — 新規migration `migrations/002_add_checkup_vaccination_indexes.sql` で3本追加: `idx_checkups_clinic_date`(clinic_id,date)・`idx_checkups_clinic_next_date`(clinic_id,next_date, next_date IS NOT NULL)・`idx_vaccinations_clinic_date`(clinic_id,date)。3本とも既存 idx_billings_clinic_date 等と同じ partial index(`WHERE deleted_at IS NULL`)流儀。001_init.sql は適用済みのため追記せず新規ファイルで追加(checksum mismatch回避、migrations/CLAUDE.md準拠)。checkup_repository.go/vaccination_repository.go のクエリ形状は既に clinic_id+date/next_date で正しく、インデックスのみが欠落していたためリポジトリコード変更なし。既存単列 idx_checkups_clinic_id/idx_vaccinations_clinic_id は複合の prefix に包含されるため DROP 候補だが、EXPLAIN確認後の別コミットに先送り(本コミットは追加のみ)。`docker compose exec backend go test ./internal/repository/ -run 'TestCheckupRepository|TestVaccinationRepository' -count=1` PASS。CASCADE lint(`TestMigrationCascadeInventory_NoUnreviewedCascade`/`TestReconcileMigrationCascade_Analyzer`)PASS(CASCADE定義なし)。STG適用はdb_reset不要(新規migration追加のみ)。コミット `dd3f31b8`
 - **依存関係**: STGは新規migration適用のみ(db_reset不要)。checkup-list-unbounded の是正と独立だが同時に入れると効果測定しやすい
 
 **証拠(現HEAD検証済み)**
@@ -798,12 +801,13 @@ checkup_repository.go:53-65 は clinicScope + `q.Where("date >= ?", ...)` / `q.W
 docker compose exec backend go test ./internal/repository/ -run 'TestCheckupRepository|TestVaccinationRepository' -count=1
 ```
 
-### G7-5. BulkAddOwnerTag が既存バッチAPI FindByIDs を使わず per-owner FindByID ループ(PERF-04コメントと実装が乖離)
+### G7-5. BulkAddOwnerTag が既存バッチAPI FindByIDs を使わず per-owner FindByID ループ(PERF-04コメントと実装が乖離) — **CLOSED（2026-07-09）**
 
 - **ID**: `bulk-add-tag-findbyids-unused`
 - **重要度**: P3 / **工数目安**: S / **挙動変更**: なし（挙動保存）
 - **対象ファイル**: internal/service/lstep_tag_service.go (302-313); internal/repository/owner_repository.go (42-44)
 - **依存関係**: なし
+- **ステータス**: ✅ **CLOSED** — ループを `s.ownerRepo.FindByIDs(ctx, clinicID, ownerIDs)` に置換し map[uint64]*model.Owner を構築。取得できなかったID(要求−取得の集合差)は ownerIDs 順に走査して従来と同じ順序で FailedOwnerIDs へ追加。エッジケース(FindByIDs 自体が失敗)も挙動保存: 旧 per-owner ループは NotFound/DBエラーを区別せず当該 owner を FailedOwnerIDs に積み処理継続していたため、FindByIDs 失敗時も早期returnせずログのみで続行し全 ownerIDs を FailedOwnerIDs に積む(新規テスト `TestBulkAddOwnerTag_FindByIDsError` で固定)。PERF-04コメントを実装に一致させた。`docker compose exec backend go test ./internal/service/ -run TestBulkAddOwnerTag -count=1` 全PASS(既存 MixedResults はモックフック `findByIDFn`→`findByIDsFn` に追随)。go vet / gofmt 差分なし。コミット `93867fcc`
 
 **証拠(現HEAD検証済み)**
 
