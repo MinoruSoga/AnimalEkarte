@@ -63,6 +63,8 @@ func (s *lstepTagSyncService) resolveSyncTargetOwner(ctx context.Context, clinic
 func (s *lstepTagSyncService) resolveSyncTarget(ctx context.Context, clinicID, ownerID uint64, tagLabel string) (string, bool, error) {
 	skip, err := s.shouldSkipSync(ctx, clinicID)
 	if err != nil {
+		// shouldSkipSync が既に apperrors.Wrap 済みのため、ここでは再ラップしない（G3-1 P2a）。
+		slog.ErrorContext(ctx, "failed to check lstep sync enabled", "error", err, "tag", tagLabel, "clinic_id", clinicID)
 		return "", false, err
 	}
 	if skip {
@@ -78,7 +80,7 @@ func (s *lstepTagSyncService) resolveSyncTarget(ctx context.Context, clinicID, o
 func (s *lstepTagSyncService) applyTagState(ctx context.Context, client lstep.Client, clinicID, ownerID uint64, lineUserID, tag, actionLabel, reason string, desired bool) error {
 	if desired {
 		if addErr := client.AddTag(ctx, lineUserID, tag); addErr != nil {
-			slog.ErrorContext(ctx, "failed to add "+actionLabel+" tag", "error", addErr)
+			slog.ErrorContext(ctx, "failed to add "+actionLabel+" tag", "error", addErr, "tag", tag)
 			s.notifyAPIFailure(ctx, client, clinicID, ownerID, lineUserID)
 			return apperrors.Wrap(addErr, "failed to add "+actionLabel+" tag")
 		}
@@ -88,7 +90,7 @@ func (s *lstepTagSyncService) applyTagState(ctx context.Context, client lstep.Cl
 		return nil
 	}
 	if delErr := client.RemoveTag(ctx, lineUserID, tag); delErr != nil {
-		slog.ErrorContext(ctx, "failed to remove "+actionLabel+" tag", "error", delErr)
+		slog.ErrorContext(ctx, "failed to remove "+actionLabel+" tag", "error", delErr, "tag", tag)
 		s.notifyAPIFailure(ctx, client, clinicID, ownerID, lineUserID)
 		return apperrors.Wrap(delErr, "failed to remove "+actionLabel+" tag")
 	}
