@@ -19,8 +19,8 @@ type LstepFriendAttributeSnapshotRepository interface {
 	BulkCreate(ctx context.Context, snapshots []*model.LstepFriendAttributeSnapshot) error
 	// FindLatestByOwner はクリニックスコープで指定 LINE ユーザーの最新スナップショットを返す。
 	FindLatestByOwner(ctx context.Context, clinicID uint64, lineUserID string) (*model.LstepFriendAttributeSnapshot, error)
-	// ListByClinicAndDateRange はクリニックスコープで期間内スナップショット一覧を返す。
-	ListByClinicAndDateRange(ctx context.Context, clinicID uint64, since, until time.Time) ([]*model.LstepFriendAttributeSnapshot, error)
+	// FindAllByClinicAndDateRange はクリニックスコープで期間内スナップショット一覧を返す。
+	FindAllByClinicAndDateRange(ctx context.Context, clinicID uint64, since, until time.Time) ([]*model.LstepFriendAttributeSnapshot, error)
 }
 
 type lstepFriendAttributeSnapshotRepository struct{ db *gorm.DB }
@@ -62,7 +62,7 @@ func (r *lstepFriendAttributeSnapshotRepository) FindLatestByOwner(ctx context.C
 	return &snapshot, nil
 }
 
-func (r *lstepFriendAttributeSnapshotRepository) ListByClinicAndDateRange(ctx context.Context, clinicID uint64, since, until time.Time) ([]*model.LstepFriendAttributeSnapshot, error) {
+func (r *lstepFriendAttributeSnapshotRepository) FindAllByClinicAndDateRange(ctx context.Context, clinicID uint64, since, until time.Time) ([]*model.LstepFriendAttributeSnapshot, error) {
 	var snapshots []*model.LstepFriendAttributeSnapshot
 	err := r.db.WithContext(ctx).
 		Where("clinic_id = ? AND snapshot_taken_at >= ? AND snapshot_taken_at < ?", clinicID, since, until).

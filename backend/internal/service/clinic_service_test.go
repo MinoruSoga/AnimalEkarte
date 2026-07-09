@@ -137,7 +137,7 @@ func (m *mockClinicRepository) FindByID(ctx context.Context, id uint64) (*model.
 	return nil, nil
 }
 
-func (m *mockClinicRepository) GetCompany(ctx context.Context) (*model.Company, error) {
+func (m *mockClinicRepository) FindCompany(ctx context.Context) (*model.Company, error) {
 	return m.getCompanyFn(ctx)
 }
 

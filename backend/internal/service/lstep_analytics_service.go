@@ -67,7 +67,7 @@ func NewLstepAnalyticsService(
 }
 
 func (s *lstepAnalyticsService) GetDeliveryHistoryByOwner(ctx context.Context, clinicID, ownerID uint64, from, to time.Time) ([]model.LstepDeliveryTriggerLog, error) {
-	logs, err := s.triggerLogRepo.ListByOwnerAndDateRange(ctx, clinicID, ownerID, from, to)
+	logs, err := s.triggerLogRepo.FindAllByOwnerAndDateRange(ctx, clinicID, ownerID, from, to)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to list delivery trigger logs by owner", "error", err, "owner_id", ownerID)
 		return nil, apperrors.Wrap(err, "failed to list delivery history by owner")

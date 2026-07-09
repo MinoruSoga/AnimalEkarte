@@ -6,7 +6,7 @@ package repository
 //   - BulkCreate は UNIQUE(clinic_id, line_user_id, snapshot_taken_at) 衝突時は静かにスキップする（DoNothing）。
 //   - FindLatestByOwner は clinic_id + line_user_id スコープで snapshot_taken_at 最新の1件を返す。
 //   - FindLatestByOwner は該当なしで NotFound を返す。
-//   - ListByClinicAndDateRange は期間・clinic_id で正しく分離される。
+//   - FindAllByClinicAndDateRange は期間・clinic_id で正しく分離される。
 
 import (
 	"context"
@@ -152,7 +152,7 @@ func TestLstepFriendAttributeSnapshotRepository_FindLatestByOwner(t *testing.T) 
 	})
 }
 
-func TestLstepFriendAttributeSnapshotRepository_ListByClinicAndDateRange(t *testing.T) {
+func TestLstepFriendAttributeSnapshotRepository_FindAllByClinicAndDateRange(t *testing.T) {
 	db := setupLstepFriendAttributeSnapshotTestDB(t)
 	repo := NewLstepFriendAttributeSnapshotRepository(db)
 	ctx := context.Background()
@@ -167,7 +167,7 @@ func TestLstepFriendAttributeSnapshotRepository_ListByClinicAndDateRange(t *test
 	makeFriendAttributeSnapshot(t, db, clinicA, "U-after-range", time.Date(2026, 7, 1, 0, 0, 0, 0, time.UTC))   // 範囲外（後、until は排他的）
 	makeFriendAttributeSnapshot(t, db, clinicB, "U-other-clinic", time.Date(2026, 6, 10, 0, 0, 0, 0, time.UTC)) // 別クリニック
 
-	snapshots, err := repo.ListByClinicAndDateRange(ctx, clinicA, since, until)
+	snapshots, err := repo.FindAllByClinicAndDateRange(ctx, clinicA, since, until)
 	require.NoError(t, err)
 	require.Len(t, snapshots, 2)
 	assert.Equal(t, inRange1.ID, snapshots[0].ID, "snapshot_taken_at 昇順で返るべき")

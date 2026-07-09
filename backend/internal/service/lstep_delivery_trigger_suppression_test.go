@@ -43,7 +43,7 @@ func (m *suppressionMockTriggerLogRepository) CountSuppressedByPriorityDateRange
 func (m *suppressionMockTriggerLogRepository) FindByDateRangeWithFilters(_ context.Context, _ uint64, _, _ time.Time, _, _ string, _, _ int) ([]repository.DeliveryTriggerLogRow, int64, error) {
 	return nil, 0, nil
 }
-func (m *suppressionMockTriggerLogRepository) ListByOwnerAndDateRange(_ context.Context, _, _ uint64, _, _ time.Time) ([]model.LstepDeliveryTriggerLog, error) {
+func (m *suppressionMockTriggerLogRepository) FindAllByOwnerAndDateRange(_ context.Context, _, _ uint64, _, _ time.Time) ([]model.LstepDeliveryTriggerLog, error) {
 	return nil, nil
 }
 func (m *suppressionMockTriggerLogRepository) CountByTypeAndStatus(_ context.Context, _ uint64, _, _ time.Time) ([]repository.DeliveryStatsRow, error) {

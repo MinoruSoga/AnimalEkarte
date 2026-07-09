@@ -43,7 +43,7 @@ func (m *mockLstepCsvImportRepo) FindByID(ctx context.Context, clinicID uint64, 
 	}
 	return nil, nil
 }
-func (m *mockLstepCsvImportRepo) ListByClinic(ctx context.Context, clinicID uint64, limit int) ([]*model.LstepCsvImport, error) {
+func (m *mockLstepCsvImportRepo) FindAllByClinicID(ctx context.Context, clinicID uint64, limit int) ([]*model.LstepCsvImport, error) {
 	if m.listByClinicFn != nil {
 		return m.listByClinicFn(ctx, clinicID, limit)
 	}

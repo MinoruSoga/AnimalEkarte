@@ -150,7 +150,7 @@ func (s *chronicConditionService) Delete(ctx context.Context, clinicID, petID, i
 }
 
 func (s *chronicConditionService) syncTags(ctx context.Context, clinicID, ownerID uint64) {
-	codes, err := s.repo.GetActiveConditionCodesByOwner(ctx, clinicID, ownerID)
+	codes, err := s.repo.FindActiveConditionCodesByOwner(ctx, clinicID, ownerID)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to get active condition codes", "error", err)
 		return

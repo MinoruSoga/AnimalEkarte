@@ -14,7 +14,7 @@ type ClinicRepository interface {
 	FindAll(ctx context.Context) ([]model.Clinic, error)
 	FindByStaffID(ctx context.Context, staffID uint64) ([]model.Clinic, error)
 	FindByID(ctx context.Context, id uint64) (*model.Clinic, error)
-	GetCompany(ctx context.Context) (*model.Company, error)
+	FindCompany(ctx context.Context) (*model.Company, error)
 	Create(ctx context.Context, clinic *model.Clinic) error
 	Update(ctx context.Context, id uint64, fields map[string]any) error
 	Delete(ctx context.Context, id uint64) error
@@ -68,7 +68,7 @@ func (r *clinicRepository) FindByID(ctx context.Context, id uint64) (*model.Clin
 	return &clinic, nil
 }
 
-func (r *clinicRepository) GetCompany(ctx context.Context) (*model.Company, error) {
+func (r *clinicRepository) FindCompany(ctx context.Context) (*model.Company, error) {
 	var company model.Company
 	err := r.db.WithContext(ctx).First(&company).Error
 	if err != nil {

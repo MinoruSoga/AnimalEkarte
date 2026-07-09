@@ -18,8 +18,8 @@ type LstepCsvImportRepository interface {
 	Update(ctx context.Context, imp *model.LstepCsvImport) error
 	// FindByID はクリニックスコープで ID に一致するインポート履歴を返す。
 	FindByID(ctx context.Context, clinicID uint64, id uuid.UUID) (*model.LstepCsvImport, error)
-	// ListByClinic はクリニックスコープで最新順にインポート履歴一覧を返す。
-	ListByClinic(ctx context.Context, clinicID uint64, limit int) ([]*model.LstepCsvImport, error)
+	// FindAllByClinicID はクリニックスコープで最新順にインポート履歴一覧を返す。
+	FindAllByClinicID(ctx context.Context, clinicID uint64, limit int) ([]*model.LstepCsvImport, error)
 }
 
 type lstepCsvImportRepository struct{ db *gorm.DB }
@@ -72,7 +72,7 @@ func (r *lstepCsvImportRepository) FindByID(ctx context.Context, clinicID uint64
 	return &imp, nil
 }
 
-func (r *lstepCsvImportRepository) ListByClinic(ctx context.Context, clinicID uint64, limit int) ([]*model.LstepCsvImport, error) {
+func (r *lstepCsvImportRepository) FindAllByClinicID(ctx context.Context, clinicID uint64, limit int) ([]*model.LstepCsvImport, error) {
 	var imports []*model.LstepCsvImport
 	err := r.db.WithContext(ctx).
 		Where("clinic_id = ?", clinicID).

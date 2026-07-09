@@ -123,7 +123,7 @@ func TestClinicRepository_FindByID(t *testing.T) {
 	})
 }
 
-func TestClinicRepository_GetCompany(t *testing.T) {
+func TestClinicRepository_FindCompany(t *testing.T) {
 	db := setupClinicTestDB(t)
 	repo := NewClinicRepository(db)
 	ctx := context.Background()
@@ -135,7 +135,7 @@ func TestClinicRepository_GetCompany(t *testing.T) {
 		require.NoError(t, db.WithContext(ctx).Create(&model.Company{Name: "初期法人"}).Error)
 	}
 
-	got, err := repo.GetCompany(ctx)
+	got, err := repo.FindCompany(ctx)
 	require.NoError(t, err)
 	require.NotNil(t, got)
 	assert.NotEmpty(t, got.Name)

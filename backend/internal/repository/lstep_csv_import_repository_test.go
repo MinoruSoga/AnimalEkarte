@@ -6,7 +6,7 @@ package repository
 //   - Create は新規インポート履歴を作成し UUID を採番する。
 //   - Update は clinic_id が一致する場合のみ反映される（不一致は静かに no-op）。
 //   - FindByID は clinic_id スコープで分離され、該当なしは NotFound を返す。
-//   - ListByClinic は imported_at DESC NULLS LAST 順・limit・clinic_id 分離を守る。
+//   - FindAllByClinicID は imported_at DESC NULLS LAST 順・limit・clinic_id 分離を守る。
 
 import (
 	"context"
@@ -117,7 +117,7 @@ func TestLstepCsvImportRepository_FindByID(t *testing.T) {
 	})
 }
 
-func TestLstepCsvImportRepository_ListByClinic(t *testing.T) {
+func TestLstepCsvImportRepository_FindAllByClinicID(t *testing.T) {
 	db := setupLstepCsvImportTestDB(t)
 	repo := NewLstepCsvImportRepository(db)
 	ctx := context.Background()
@@ -137,7 +137,7 @@ func TestLstepCsvImportRepository_ListByClinic(t *testing.T) {
 	require.NoError(t, repo.Create(ctx, otherClinicImp))
 
 	t.Run("imported_at DESC NULLS LAST の順で clinic_id 分離される", func(t *testing.T) {
-		results, err := repo.ListByClinic(ctx, clinicA, 10)
+		results, err := repo.FindAllByClinicID(ctx, clinicA, 10)
 		require.NoError(t, err)
 		require.Len(t, results, 3)
 		assert.Equal(t, "new.csv", results[0].FileName, "最新の imported_at が先頭")
@@ -146,14 +146,14 @@ func TestLstepCsvImportRepository_ListByClinic(t *testing.T) {
 	})
 
 	t.Run("limit で件数を制限する", func(t *testing.T) {
-		results, err := repo.ListByClinic(ctx, clinicA, 1)
+		results, err := repo.FindAllByClinicID(ctx, clinicA, 1)
 		require.NoError(t, err)
 		require.Len(t, results, 1)
 		assert.Equal(t, "new.csv", results[0].FileName)
 	})
 
 	t.Run("別クリニックの履歴は含まれない", func(t *testing.T) {
-		results, err := repo.ListByClinic(ctx, clinicB, 10)
+		results, err := repo.FindAllByClinicID(ctx, clinicB, 10)
 		require.NoError(t, err)
 		require.Len(t, results, 1)
 		assert.Equal(t, "other.csv", results[0].FileName)

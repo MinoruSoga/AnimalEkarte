@@ -57,7 +57,7 @@ func (m *mockPetChronicConditionRepository) Delete(ctx context.Context, clinicID
 	return nil
 }
 
-func (m *mockPetChronicConditionRepository) GetActiveConditionCodesByOwner(ctx context.Context, clinicID, ownerID uint64) ([]string, error) {
+func (m *mockPetChronicConditionRepository) FindActiveConditionCodesByOwner(ctx context.Context, clinicID, ownerID uint64) ([]string, error) {
 	if m.getActiveConditionCodesByOwnerFn != nil {
 		return m.getActiveConditionCodesByOwnerFn(ctx, clinicID, ownerID)
 	}
@@ -340,12 +340,12 @@ func TestChronicConditionService_Update_ReloadError(t *testing.T) {
 }
 
 // TestChronicConditionService_SyncTags_BestEffort は syncTags が best-effort であり、
-// GetActiveConditionCodesByOwner / SyncChronicConditionTags のエラーが呼び出し元の
+// FindActiveConditionCodesByOwner / SyncChronicConditionTags のエラーが呼び出し元の
 // Create/Update/Delete の成功結果に伝播しないことを検証する（患者記録操作を失敗させない設計）。
 func TestChronicConditionService_SyncTags_BestEffort(t *testing.T) {
 	ctx := context.Background()
 
-	t.Run("GetActiveConditionCodesByOwner error does not fail Create", func(t *testing.T) {
+	t.Run("FindActiveConditionCodesByOwner error does not fail Create", func(t *testing.T) {
 		petRepo := &mockPetRepository{
 			findByIDFn: func(_ context.Context, clinicID, id uint64) (*model.Pet, error) {
 				return &model.Pet{ID: id, ClinicID: clinicID, OwnerID: 500}, nil

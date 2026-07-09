@@ -93,7 +93,7 @@ func (s *lstepTriggerPriorityService) UpdatePriorities(ctx context.Context, clin
 }
 
 func (s *lstepTriggerPriorityService) GetPriorityFor(ctx context.Context, clinicID uint64, triggerType string) (int, error) {
-	p, err := s.repo.GetPriority(ctx, clinicID, triggerType)
+	p, err := s.repo.FindPriorityByTriggerType(ctx, clinicID, triggerType)
 	if err == nil {
 		return p, nil
 	}

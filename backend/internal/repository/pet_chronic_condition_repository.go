@@ -17,8 +17,8 @@ type PetChronicConditionRepository interface {
 	Create(ctx context.Context, record *model.PetChronicCondition) error
 	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error
 	Delete(ctx context.Context, clinicID, id uint64) error
-	// GetActiveConditionCodesByOwner は飼い主の全生存ペットのアクティブ疾患コードを返す。
-	GetActiveConditionCodesByOwner(ctx context.Context, clinicID, ownerID uint64) ([]string, error)
+	// FindActiveConditionCodesByOwner は飼い主の全生存ペットのアクティブ疾患コードを返す。
+	FindActiveConditionCodesByOwner(ctx context.Context, clinicID, ownerID uint64) ([]string, error)
 }
 
 type petChronicConditionRepository struct {
@@ -78,7 +78,7 @@ func (r *petChronicConditionRepository) Delete(ctx context.Context, clinicID, id
 	return nil
 }
 
-func (r *petChronicConditionRepository) GetActiveConditionCodesByOwner(ctx context.Context, clinicID, ownerID uint64) ([]string, error) {
+func (r *petChronicConditionRepository) FindActiveConditionCodesByOwner(ctx context.Context, clinicID, ownerID uint64) ([]string, error) {
 	var codes []string
 	err := r.db.WithContext(ctx).Raw(`
 SELECT DISTINCT pcc.condition_code

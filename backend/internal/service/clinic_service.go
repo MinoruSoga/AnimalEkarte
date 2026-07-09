@@ -224,7 +224,7 @@ func (s *clinicService) GetClinicByID(ctx context.Context, id uint64) (*model.Cl
 }
 
 func (s *clinicService) CreateClinic(ctx context.Context, input *CreateClinicInput) (*model.Clinic, error) {
-	company, err := s.repo.GetCompany(ctx)
+	company, err := s.repo.FindCompany(ctx)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to get company", "error", err)
 		return nil, apperrors.Wrap(err, "failed to get company")

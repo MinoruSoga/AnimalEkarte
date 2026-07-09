@@ -195,7 +195,7 @@ func (s *lstepCsvImportService) GetByID(ctx context.Context, clinicID uint64, id
 }
 
 func (s *lstepCsvImportService) ListByClinic(ctx context.Context, clinicID uint64, limit int) ([]*model.LstepCsvImport, error) {
-	imports, err := s.csvImportRepo.ListByClinic(ctx, clinicID, limit)
+	imports, err := s.csvImportRepo.FindAllByClinicID(ctx, clinicID, limit)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to list csv imports", "error", err, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to list csv imports")

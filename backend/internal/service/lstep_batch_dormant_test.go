@@ -88,7 +88,7 @@ func (m *dormantMockClinicRepository) FindByStaffID(_ context.Context, _ uint64)
 func (m *dormantMockClinicRepository) FindByID(_ context.Context, _ uint64) (*model.Clinic, error) {
 	return nil, nil
 }
-func (m *dormantMockClinicRepository) GetCompany(_ context.Context) (*model.Company, error) {
+func (m *dormantMockClinicRepository) FindCompany(_ context.Context) (*model.Company, error) {
 	return nil, nil
 }
 func (m *dormantMockClinicRepository) Create(_ context.Context, _ *model.Clinic) error { return nil }

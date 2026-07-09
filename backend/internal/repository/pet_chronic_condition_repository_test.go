@@ -194,7 +194,7 @@ func TestPetChronicConditionRepository_Delete(t *testing.T) {
 	})
 }
 
-func TestPetChronicConditionRepository_GetActiveConditionCodesByOwner(t *testing.T) {
+func TestPetChronicConditionRepository_FindActiveConditionCodesByOwner(t *testing.T) {
 	// KNOWN BUG (Phase 4 discovery 2026-07-03, out of scope for this test-coverage task):
 	// model.PetChronicCondition.IsActive is tagged `gorm:"not null;default:true"`. GORM's Create()
 	// omits a field from the generated INSERT when its Go value equals the type's zero value AND
@@ -233,7 +233,7 @@ func TestPetChronicConditionRepository_GetActiveConditionCodesByOwner(t *testing
 	otherPet := makeSpeciesAndPet(t, db, clinicB, otherOwner.ID, "別クリニックペット(疾患)")
 	makeChronicCondition(t, db, clinicB, otherPet.ID, "OTH", "別クリニック疾患", time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC), true)
 
-	got, err := repo.GetActiveConditionCodesByOwner(ctx, clinicA, owner.ID)
+	got, err := repo.FindActiveConditionCodesByOwner(ctx, clinicA, owner.ID)
 	require.NoError(t, err)
 	assert.Equal(t, []string{"CKD", "DM"}, got, "DISTINCT + ORDER BY condition_code、非アクティブ/削除済み/死亡ペット/別クリニックは除外")
 }

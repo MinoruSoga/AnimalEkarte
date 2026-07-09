@@ -7,7 +7,7 @@ package repository
 //   - UpsertBatch は (clinic_id, trigger_type) の UNIQUE 制約に対する ON CONFLICT DO UPDATE で、
 //     初回は新規作成、2回目以降は priority のみ更新する（重複行を作らない）。
 //   - UpsertBatch は渡された items の ClinicID を引数 clinicID で強制的に上書きする。
-//   - GetPriority は該当なしで NotFound を返し、clinic_id で分離される。
+//   - FindPriorityByTriggerType は該当なしで NotFound を返し、clinic_id で分離される。
 
 import (
 	"context"
@@ -94,7 +94,7 @@ func TestLstepTriggerPriorityRepository_UpsertBatch(t *testing.T) {
 			Where("clinic_id = ? AND trigger_type = ?", 2, "dormant_365d").Count(&count).Error)
 		assert.Equal(t, int64(1), count, "重複行が作られてはならない")
 
-		priority, err := repo.GetPriority(ctx, 2, "dormant_365d")
+		priority, err := repo.FindPriorityByTriggerType(ctx, 2, "dormant_365d")
 		require.NoError(t, err)
 		assert.Equal(t, 1, priority, "priorityは最新値に更新されるべき")
 	})
@@ -115,7 +115,7 @@ func TestLstepTriggerPriorityRepository_UpsertBatch(t *testing.T) {
 	})
 }
 
-func TestLstepTriggerPriorityRepository_GetPriority(t *testing.T) {
+func TestLstepTriggerPriorityRepository_FindPriorityByTriggerType(t *testing.T) {
 	db := setupLstepTriggerPriorityTestDB(t)
 	repo := NewLstepTriggerPriorityRepository(db)
 	ctx := context.Background()
@@ -125,19 +125,19 @@ func TestLstepTriggerPriorityRepository_GetPriority(t *testing.T) {
 	}))
 
 	t.Run("存在する優先度を返す", func(t *testing.T) {
-		priority, err := repo.GetPriority(ctx, 1, "checkup_followup")
+		priority, err := repo.FindPriorityByTriggerType(ctx, 1, "checkup_followup")
 		require.NoError(t, err)
 		assert.Equal(t, 3, priority)
 	})
 
 	t.Run("存在しないtrigger_typeはNotFoundを返す", func(t *testing.T) {
-		_, err := repo.GetPriority(ctx, 1, "nonexistent-trigger")
+		_, err := repo.FindPriorityByTriggerType(ctx, 1, "nonexistent-trigger")
 		require.Error(t, err)
 		assert.True(t, apperrors.IsNotFound(err))
 	})
 
 	t.Run("別クリニックのtrigger_typeは見えない（clinic_id分離）", func(t *testing.T) {
-		_, err := repo.GetPriority(ctx, 2, "checkup_followup")
+		_, err := repo.FindPriorityByTriggerType(ctx, 2, "checkup_followup")
 		require.Error(t, err)
 		assert.True(t, apperrors.IsNotFound(err))
 	})

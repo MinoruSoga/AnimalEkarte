@@ -33,7 +33,7 @@ func (m *mockTriggerPriorityRepo) UpsertBatch(ctx context.Context, clinicID uint
 	return nil
 }
 
-func (m *mockTriggerPriorityRepo) GetPriority(ctx context.Context, clinicID uint64, triggerType string) (int, error) {
+func (m *mockTriggerPriorityRepo) FindPriorityByTriggerType(ctx context.Context, clinicID uint64, triggerType string) (int, error) {
 	if m.getPriorityFn != nil {
 		return m.getPriorityFn(ctx, clinicID, triggerType)
 	}

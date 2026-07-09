@@ -343,7 +343,7 @@ func TestLstepDeliveryTriggerLogRepository_FindByDateRangeWithFilters(t *testing
 	})
 }
 
-func TestLstepDeliveryTriggerLogRepository_ListByOwnerAndDateRange(t *testing.T) {
+func TestLstepDeliveryTriggerLogRepository_FindAllByOwnerAndDateRange(t *testing.T) {
 	db := setupLstepDeliveryTriggerLogTestDB(t)
 	repo := NewLstepDeliveryTriggerLogRepository(db)
 	ctx := context.Background()
@@ -358,7 +358,7 @@ func TestLstepDeliveryTriggerLogRepository_ListByOwnerAndDateRange(t *testing.T)
 	makeDeliveryTriggerLog(t, db, clinicA, ownerB, model.TriggerTypeBirthdayMessage, model.TriggerStatusFired, time.Date(2026, 6, 10, 9, 0, 0, 0, time.UTC)) // 別飼主
 	makeDeliveryTriggerLog(t, db, clinicB, ownerA, model.TriggerTypeBirthdayMessage, model.TriggerStatusFired, time.Date(2026, 6, 10, 9, 0, 0, 0, time.UTC)) // 別クリニック
 
-	logs, err := repo.ListByOwnerAndDateRange(ctx, clinicA, ownerA, from, to)
+	logs, err := repo.FindAllByOwnerAndDateRange(ctx, clinicA, ownerA, from, to)
 	require.NoError(t, err)
 	require.Len(t, logs, 2)
 	assert.Equal(t, recent.ID, logs[0].ID, "scheduled_at 降順で返るべき")
