@@ -94,8 +94,10 @@ func (r *accountingRepository) GetCloseAggregate(ctx context.Context, input GetC
 			SELECT id, completed_at, owner_id, pet_id, hospitalization_id
 			FROM billings
 			WHERE clinic_id = ? AND deleted_at IS NULL AND status = ?
-			  AND completed_at AT TIME ZONE 'Asia/Tokyo' >= ?
-			  AND completed_at AT TIME ZONE 'Asia/Tokyo' < ?
+			  -- G7-3: sargable な直接比較に統一(CTE本体と同型)。DSN TimeZone=Asia/Tokyo 固定(config.go)のため
+			  -- timestamptz 直接比較と AT TIME ZONE 'Asia/Tokyo' 経由比較は同一瞬間を指し、結果は不変。
+			  AND completed_at >= ?
+			  AND completed_at < ?
 		),
 		refund_totals AS (
 			SELECT billing_id, COALESCE(SUM(amount), 0) AS refund_amount
@@ -126,7 +128,7 @@ func (r *accountingRepository) GetCloseAggregate(ctx context.Context, input GetC
 		LEFT JOIN pets p ON p.id = cb.pet_id AND p.deleted_at IS NULL
 		LEFT JOIN refund_totals rt ON rt.billing_id = cb.id
 		ORDER BY cb.completed_at ASC
-	`, input.ClinicID, model.BillingStatusCompleted, input.PeriodStart, input.PeriodEnd).
+	`, input.ClinicID, model.BillingStatusCompleted, input.PeriodStart.In(time.Local), input.PeriodEnd.In(time.Local)).
 		Scan(&detailRows).Error; err != nil {
 		return nil, apperrors.Wrap(err, "failed to get billing details for close")
 	}
@@ -159,8 +161,9 @@ func (r *accountingRepository) GetCloseAggregate(ctx context.Context, input GetC
 		Joins("JOIN billings ON billings.id = billing_items.billing_id AND billings.deleted_at IS NULL").
 		Where("billings.clinic_id = ? AND billing_items.deleted_at IS NULL", input.ClinicID).
 		Where("billings.status = ?", model.BillingStatusCompleted).
-		Where("billings.completed_at AT TIME ZONE 'Asia/Tokyo' >= ?", input.PeriodStart).
-		Where("billings.completed_at AT TIME ZONE 'Asia/Tokyo' < ?", input.PeriodEnd).
+		// G7-3: sargable な直接比較に統一(idx_billings_clinic_completed_at partial index を使えるようにする)。
+		Where("billings.completed_at >= ?", input.PeriodStart.In(time.Local)).
+		Where("billings.completed_at < ?", input.PeriodEnd.In(time.Local)).
 		Select(
 			"ROUND(billing_items.tax_rate * 100)::bigint AS tax_rate," +
 				" COALESCE(SUM(ROUND(billing_items.unit_price * billing_items.quantity::numeric)), 0) AS taxable_amount," +

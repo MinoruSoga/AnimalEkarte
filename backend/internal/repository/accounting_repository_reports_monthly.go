@@ -151,8 +151,10 @@ func (r *accountingRepository) GetMonthlyReportByPeriod(ctx context.Context, cli
 		Joins("JOIN billings ON billings.id = billing_items.billing_id AND billings.deleted_at IS NULL").
 		Where("billings.clinic_id = ? AND billing_items.deleted_at IS NULL", clinicID).
 		Where("billings.status = ?", model.BillingStatusCompleted).
-		Where("billings.completed_at AT TIME ZONE 'Asia/Tokyo' >= ?", start).
-		Where("billings.completed_at AT TIME ZONE 'Asia/Tokyo' < ?", end).
+		// G7-3: sargable な直接比較に統一(CTE本体と同型)。DSN TimeZone=Asia/Tokyo 固定(config.go)のため
+		// timestamptz 直接比較と AT TIME ZONE 'Asia/Tokyo' 経由比較は同一瞬間を指し、結果は不変。
+		Where("billings.completed_at >= ?", start).
+		Where("billings.completed_at < ?", end).
 		Select(
 			"ROUND(billing_items.tax_rate * 100)::bigint AS tax_rate," +
 				" COALESCE(SUM(ROUND(billing_items.unit_price * billing_items.quantity::numeric)), 0) AS taxable_amount," +
@@ -174,8 +176,9 @@ func (r *accountingRepository) GetMonthlyReportByPeriod(ctx context.Context, cli
 		Model(&model.Billing{}).
 		Scopes(clinicScope(clinicID)).
 		Where("status = ?", model.BillingStatusCompleted).
-		Where("completed_at AT TIME ZONE 'Asia/Tokyo' >= ?", start).
-		Where("completed_at AT TIME ZONE 'Asia/Tokyo' < ?", end).
+		// G7-3: sargable な直接比較に統一(idx_billings_clinic_completed_at partial index を使えるようにする)。
+		Where("completed_at >= ?", start).
+		Where("completed_at < ?", end).
 		Count(&billingCount).Error; err != nil {
 		return nil, apperrors.Wrap(err, "failed to count monthly billings")
 	}
