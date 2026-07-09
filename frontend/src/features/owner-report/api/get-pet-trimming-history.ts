@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
-import { transformTrimming, type TrimmingUI } from "@/features/trimming";
+import { transformTrimming, type TrimmingUI } from "@/lib/transforms/trimming";
 import type { TrimmingListResponse } from "@/types/trimming";
 
 /**

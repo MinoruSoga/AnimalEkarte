@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { transformExamination } from "./transforms";
-import type { BackendExamination, BackendExamResult } from "./types";
+import { transformExamination } from "./examination";
+import type { Examination as BackendExamination, ExamResult as BackendExamResult } from "@/types/generated/models";
 
 const minimal: BackendExamination = {
   id: 1,

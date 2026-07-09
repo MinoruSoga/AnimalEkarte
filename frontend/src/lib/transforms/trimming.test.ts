@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { transformTrimming } from "./transforms";
+import { transformTrimming } from "./trimming";
 import type { BackendTrimming } from "@/types/trimming";
 
 /** BackendTrimming の最小スタブ（BE-119: appointments ベース） */

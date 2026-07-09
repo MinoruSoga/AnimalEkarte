@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 import type { Examination } from "@/types/generated/models";
-import { transformExamResult, type ExamResult } from "@/features/examinations";
+import { transformExamResult, type ExamResult } from "@/lib/transforms/examination";
 
 /**
  * 医療記録（カルテ）画面用の検査グループ ViewModel。
