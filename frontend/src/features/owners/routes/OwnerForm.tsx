@@ -26,10 +26,6 @@ import { ResourceOwners } from "@/types/generated/models";
 const PetEditModal = lazy(() =>
   import("../components/PetEditModal").then(m => ({ default: m.PetEditModal }))
 );
-// Lazy-loaded — 編集モードでのみ必要、新規登録画面のバンドルから切り離す
-const OwnerAccountingHistory = lazy(() =>
-  import("@/features/accounting").then(m => ({ default: m.OwnerAccountingHistory }))
-);
 
 // rendering-hoist-jsx: アクセシビリティ用定数をモジュールレベルに巻き上げ（毎レンダー再生成を回避）
 const OWNER_FIELD_ID_MAP: Record<string, string> = {
@@ -44,9 +40,10 @@ const OWNER_PRIORITY_FIELDS = ["ownerName", "ownerNameKana", "phone", "email", "
 interface OwnerFormProps {
   petMutations?: PetMutations;
   lineSection?: React.ReactNode;
+  accountingSection?: React.ReactNode;
 }
 
-export function OwnerForm({ petMutations, lineSection }: OwnerFormProps = {}) {
+export function OwnerForm({ petMutations, lineSection, accountingSection }: OwnerFormProps = {}) {
   const navigate = useNavigate();
   const { id: ownerId } = useParams();
   const { canEdit, canCreate, canDelete } = usePermission("owners");
@@ -255,8 +252,8 @@ export function OwnerForm({ petMutations, lineSection }: OwnerFormProps = {}) {
           />
         </fieldset>
 
-        {/* 会計履歴セクション（編集モード + accounting:view 権限保有時のみ表示） */}
-        {isEdit && ownerId && canViewAccounting ? (
+        {/* 会計履歴セクション（編集モード + accounting:view 権限保有 + app層からの注入時のみ表示） */}
+        {isEdit && ownerId && canViewAccounting && accountingSection ? (
           <div className="mb-4 space-y-3">
             <div className="flex items-center justify-between">
               <h2 className={`text-sm font-bold ${C.text} flex items-center gap-2`}>
@@ -265,7 +262,7 @@ export function OwnerForm({ petMutations, lineSection }: OwnerFormProps = {}) {
               </h2>
             </div>
             <Suspense fallback={null}>
-              <OwnerAccountingHistory ownerId={ownerId} />
+              {accountingSection}
             </Suspense>
           </div>
         ) : null}

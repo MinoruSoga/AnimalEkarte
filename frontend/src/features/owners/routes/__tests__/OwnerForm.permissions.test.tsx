@@ -82,17 +82,20 @@ function renderOwnerForm(options: {
     ...ownerBaseGrants,
     ...(canViewAccounting ? [["accounting", "view"] as PermGrant] : []),
   ];
+  // accountingSection は app 層 (OwnerFormPage) が注入する DI 契約のスタブ。
+  // 表示可否の検証対象はあくまで OwnerForm 内の isEdit/canViewAccounting/accountingSection 有無。
+  const accountingSection = canViewAccounting ? <div data-testid="accounting-stub" /> : undefined;
   // /owners/new を /owners/:id より先に置く (static match 優先)
   const router = createMemoryRouter(
     [
       {
         path: "/owners/new",
-        element: <Suspense fallback={null}><OwnerForm /></Suspense>,
+        element: <Suspense fallback={null}><OwnerForm accountingSection={accountingSection} /></Suspense>,
         loader: () => ({ owner: undefined }),
       },
       {
         path: "/owners/:id",
-        element: <Suspense fallback={null}><OwnerForm /></Suspense>,
+        element: <Suspense fallback={null}><OwnerForm accountingSection={accountingSection} /></Suspense>,
         loader: () => ({ owner: mockOwner }),
       },
     ],

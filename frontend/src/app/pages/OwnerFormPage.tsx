@@ -3,7 +3,7 @@
  * owners feature と pets feature と line-reservation feature を app層でのみ合成し、
  * feature 間 import を排除する。
  */
-import { useState } from "react";
+import { useState, lazy } from "react";
 import { useParams } from "react-router";
 import { Send } from "lucide-react";
 
@@ -20,6 +20,12 @@ import { useAuth } from "@/hooks/use-auth";
 import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
 import { ICON } from "@/lib/design-tokens";
 import type { PetMutations } from "@/types/pet";
+
+// Lazy-loaded — 編集モードでのみ必要、新規登録画面のバンドルから切り離す。
+// feature 間 import (owners → accounting) を避けるため app 層でのみ import する。
+const OwnerAccountingHistory = lazy(() =>
+  import("@/features/accounting").then(m => ({ default: m.OwnerAccountingHistory }))
+);
 
 export function OwnerFormPage() {
   const { id: ownerId } = useParams();
@@ -44,6 +50,11 @@ export function OwnerFormPage() {
     deletePetMutate: (id, { onSuccess, onError }) =>
       deletePetMutate(id, { onSuccess, onError }),
   };
+
+  // 会計履歴セクション（編集モード=ownerIdがある時のみ意味がある。表示可否は OwnerForm 側の権限判定に委ねる）
+  const accountingSection = ownerId ? (
+    <OwnerAccountingHistory ownerId={ownerId} />
+  ) : null;
 
   // LINE連携セクション（編集モード=ownerIdがある時のみ意味がある）
   const lineSection = ownerId ? (
@@ -70,5 +81,11 @@ export function OwnerFormPage() {
     </div>
   ) : null;
 
-  return <OwnerForm petMutations={petMutations} lineSection={lineSection} />;
+  return (
+    <OwnerForm
+      petMutations={petMutations}
+      lineSection={lineSection}
+      accountingSection={accountingSection}
+    />
+  );
 }
