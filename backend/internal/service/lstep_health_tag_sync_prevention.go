@@ -14,11 +14,6 @@ func (s *lstepTagSyncService) SyncFilariaTag(ctx context.Context, clinicID, owne
 	if s.tagCodeRepo == nil {
 		return nil
 	}
-	if skip, err := s.shouldSkipSync(ctx, clinicID); err != nil {
-		return err
-	} else if skip {
-		return nil
-	}
 
 	mappings, err := s.tagCodeRepo.FindByClinicIDAndTagName(ctx, clinicID, PrevFilariaTag)
 	if err != nil {
@@ -31,7 +26,7 @@ func (s *lstepTagSyncService) SyncFilariaTag(ctx context.Context, clinicID, owne
 		return nil
 	}
 
-	lineUserID, ok, err := s.resolveSyncTargetOwner(ctx, clinicID, ownerID, PrevFilariaTag)
+	lineUserID, ok, err := s.resolveSyncTarget(ctx, clinicID, ownerID, PrevFilariaTag)
 	if err != nil {
 		return err
 	}
@@ -128,11 +123,6 @@ func (s *lstepTagSyncService) SyncFleaTickTag(ctx context.Context, clinicID, own
 	if s.tagCodeRepo == nil || s.billingItemRepo == nil {
 		return nil
 	}
-	if skip, err := s.shouldSkipSync(ctx, clinicID); err != nil {
-		return err
-	} else if skip {
-		return nil
-	}
 
 	mappings, err := s.tagCodeRepo.FindByClinicIDAndTagName(ctx, clinicID, PrevFleaTickTag)
 	if err != nil {
@@ -144,7 +134,7 @@ func (s *lstepTagSyncService) SyncFleaTickTag(ctx context.Context, clinicID, own
 		return nil
 	}
 
-	lineUserID, ok, err := s.resolveSyncTargetOwner(ctx, clinicID, ownerID, PrevFleaTickTag)
+	lineUserID, ok, err := s.resolveSyncTarget(ctx, clinicID, ownerID, PrevFleaTickTag)
 	if err != nil {
 		return err
 	}
