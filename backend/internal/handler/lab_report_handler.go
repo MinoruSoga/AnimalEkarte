@@ -30,7 +30,7 @@ func (h *Handler) GetLabJobReportSummaries(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, summaries)
+	c.JSON(http.StatusOK, mapSlice(summaries, toLabExamReportSummaryResponse))
 }
 
 // GetLabExamReport godoc
@@ -55,7 +55,7 @@ func (h *Handler) GetLabExamReport(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, detail)
+	c.JSON(http.StatusOK, toLabExamReportDetailResponse(detail))
 }
 
 // RegisterLabReportRoutes は lab report エンドポイントのルートを登録する。

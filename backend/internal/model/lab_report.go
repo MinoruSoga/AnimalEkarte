@@ -18,48 +18,48 @@ type LabReportFilter struct {
 // result_summary は PHI 分類未確認のため除外する（Phase 4B.1 決定2）。
 // owner 名・pet 名・raw 検査値は含めない。
 type LabExamReportSummary struct {
-	ExamID        uint64     `json:"exam_id"`
-	ClinicID      string     `json:"clinic_id"`
-	JobID         *uuid.UUID `json:"job_id,omitempty"`
-	Date          string     `json:"date"`
-	ExamTypeName  string     `json:"exam_type_name"`
-	Status        string     `json:"status"`
-	ResultCount   int        `json:"result_count"`
-	AbnormalCount int        `json:"abnormal_count"`
-	Machine       string     `json:"machine"`
-	CreatedAt     string     `json:"created_at"`
+	ExamID        uint64
+	ClinicID      string
+	JobID         *uuid.UUID
+	Date          string
+	ExamTypeName  string
+	Status        string
+	ResultCount   int
+	AbnormalCount int
+	Machine       string
+	CreatedAt     string
 }
 
 // LabExamReportDetail は GetExamReport の詳細 DTO。
 // result_summary は PHI 分類未確認のため omitempty NULL（Phase 4B.1 決定2）。
 // owner 名・pet 名・raw デバイスペイロードは含めない。
 type LabExamReportDetail struct {
-	ExamID          uint64              `json:"exam_id"`
-	ClinicID        string              `json:"clinic_id"`
-	JobID           *uuid.UUID          `json:"job_id,omitempty"`
-	PetID           *uint64             `json:"pet_id,omitempty"`
-	MedicalRecordID *uint64             `json:"medical_record_id,omitempty"`
-	DoctorID        *uint64             `json:"doctor_id,omitempty"`
-	Date            string              `json:"date"`
-	ExamTypeName    string              `json:"exam_type_name"`
-	Status          string              `json:"status"`
-	Machine         string              `json:"machine"`
-	Items           []LabExamResultItem `json:"items"`
-	CreatedAt       string              `json:"created_at"`
-	UpdatedAt       string              `json:"updated_at"`
+	ExamID          uint64
+	ClinicID        string
+	JobID           *uuid.UUID
+	PetID           *uint64
+	MedicalRecordID *uint64
+	DoctorID        *uint64
+	Date            string
+	ExamTypeName    string
+	Status          string
+	Machine         string
+	Items           []LabExamResultItem
+	CreatedAt       string
+	UpdatedAt       string
 }
 
 // LabExamResultItem は LabExamReportDetail の検査結果 1 件。
 // 定量値・定性値・参照値を含む。raw デバイスペイロードは含めない。
 type LabExamResultItem struct {
-	Name            string   `json:"name"`
-	InspectionValue string   `json:"inspection_value"`
-	NormalValue     string   `json:"normal_value"`
-	Unit            string   `json:"unit"`
-	ReferenceValue  string   `json:"reference_value"`
-	RefMin          *float64 `json:"ref_min,omitempty"`
-	RefMax          *float64 `json:"ref_max,omitempty"`
-	IsAbnormal      bool     `json:"is_abnormal"`
-	Status          string   `json:"status"`
-	SortOrder       int      `json:"sort_order"`
+	Name            string
+	InspectionValue string
+	NormalValue     string
+	Unit            string
+	ReferenceValue  string
+	RefMin          *float64
+	RefMax          *float64
+	IsAbnormal      bool
+	Status          string
+	SortOrder       int
 }
