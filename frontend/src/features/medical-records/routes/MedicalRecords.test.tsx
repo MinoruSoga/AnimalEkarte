@@ -25,7 +25,7 @@ vi.mock("@/hooks/use-staffs", () => ({
   useGetStaffs: vi.fn(() => ({ data: [] })),
 }));
 
-vi.mock("@/features/owners", () => ({
+vi.mock("@/hooks/use-animal-species", () => ({
   useAnimalSpecies: vi.fn(() => ({ activeSpecies: [], allSpecies: [] })),
 }));
 

@@ -37,7 +37,7 @@ import { useMedicalRecordsList } from "../hooks/use-medical-records";
 import type { MedicalRecordSortKey } from "../api/get-medical-records";
 import { useDeleteMedicalRecord } from "../api/delete-medical-record";
 import { usePermission } from "@/hooks/use-permission";
-import { useAnimalSpecies } from "@/features/owners";
+import { useAnimalSpecies } from "@/hooks/use-animal-species";
 
 // Types
 import type {

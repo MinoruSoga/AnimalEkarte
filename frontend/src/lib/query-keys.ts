@@ -25,3 +25,9 @@ export const queryKeys = {
     category: (name: string) => ["masters", name] as const,
   },
 } as const;
+
+/**
+ * 認証ユーザー情報 (/me) の query key。
+ * auth feature の useGetMe と、権限変更後の invalidateQueries（master 等）で共有する。
+ */
+export const ME_QUERY_KEY = ["me"] as const;

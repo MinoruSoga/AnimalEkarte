@@ -82,6 +82,7 @@ export function useGetPet(petId: string) {
 | ファイル | 参照元 feature 数 | 用途 |
 |---------|-----------------|------|
 | `use-pet.ts` | 18 | ペット情報取得（accounting / trimming / medical-records 他） |
+| `use-animal-species.ts` | 2 | 動物種マスタ取得（owners / medical-records） |
 | `use-pet-selection.ts` | 4 | ペット選択ロジック（examinations / trimming / hospitalization 他） |
 | `use-pet-selection-page.ts` | 4 | ペット選択ページパターン（accounting / trimming / medical-records 他） |
 | `use-owner.ts` | 3 | オーナー情報取得（medical-records / owners） |
