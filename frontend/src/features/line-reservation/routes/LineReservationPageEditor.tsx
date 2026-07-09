@@ -11,6 +11,18 @@ import { Textarea } from "@/components/ui/textarea";
 import { useGetLineReservationSetting } from "../api/get-line-reservation-setting";
 import { updateLineReservationSetting } from "../api/update-line-reservation-setting";
 import type { ReservationSetting } from "../api/types";
+import {
+  asJsonb,
+  isStringArray,
+  isBusinessHours,
+  isBreakHourArray,
+  isBusinessHoursByWeekday,
+} from "../components/line-reservation-settings-form-model";
+import type {
+  BusinessHours,
+  BreakHour,
+  BusinessHoursByWeekday,
+} from "../components/LineReservationSettingsFormSections";
 
 // ── Page Editor Form ──
 
@@ -73,12 +85,20 @@ function PageEditorForm({ setting, clinicId }: PageEditorFormProps) {
           reservation_notice: merged.reservation_notice,
           cancel_notice: merged.cancel_notice,
           privacy_policy: merged.privacy_policy,
-          closed_weekdays: merged.closed_weekdays,
-          closed_dates: merged.closed_dates,
+          closed_weekdays: asJsonb<string[]>(merged.closed_weekdays, [], isStringArray),
+          closed_dates: asJsonb<string[]>(merged.closed_dates, [], isStringArray),
           national_holiday_closed: merged.national_holiday_closed,
-          business_hours: merged.business_hours,
-          business_hours_by_weekday: merged.business_hours_by_weekday,
-          break_hours: merged.break_hours,
+          business_hours: asJsonb<BusinessHours>(
+            merged.business_hours,
+            { start: "0900", end: "1900" },
+            isBusinessHours,
+          ),
+          // optional フィールド: 未設定(null/undefined)はそのまま送出しない(PUT時にキー省略、挙動保存)
+          business_hours_by_weekday:
+            merged.business_hours_by_weekday == null
+              ? undefined
+              : asJsonb<BusinessHoursByWeekday>(merged.business_hours_by_weekday, {}, isBusinessHoursByWeekday),
+          break_hours: asJsonb<BreakHour[]>(merged.break_hours, [], isBreakHourArray),
           daily_limit: merged.daily_limit,
           monthly_limit: merged.monthly_limit,
           booking_window_max_days: merged.booking_window_max_days,

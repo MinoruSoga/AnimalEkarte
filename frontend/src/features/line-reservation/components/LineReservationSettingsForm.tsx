@@ -34,7 +34,15 @@ import {
   type BusinessHours,
   type BusinessHoursByWeekday,
 } from "./LineReservationSettingsFormSections";
-import { asJsonb, toDisplayTime, toStorageTime } from "./line-reservation-settings-form-model";
+import {
+  asJsonb,
+  isStringArray,
+  isBusinessHours,
+  isBreakHourArray,
+  isBusinessHoursByWeekday,
+  toDisplayTime,
+  toStorageTime,
+} from "./line-reservation-settings-form-model";
 
 // ── SettingsForm ──────────────────────────────────────────────────────────────
 
@@ -54,23 +62,27 @@ export function LineReservationSettingsForm({ setting, clinicId }: SettingsFormP
 
   // JSONB フィールド（lazy init — 初回レンダー時のみパース）
   const [closedWeekdays, setClosedWeekdays] = useState<string[]>(
-    () => asJsonb<string[]>(setting.closed_weekdays, []),
+    () => asJsonb<string[]>(setting.closed_weekdays, [], isStringArray),
   );
   const [businessHours, setBusinessHours] = useState<BusinessHours>(
-    () => asJsonb<BusinessHours>(setting.business_hours, { start: "0900", end: "1900" }),
+    () => asJsonb<BusinessHours>(setting.business_hours, { start: "0900", end: "1900" }, isBusinessHours),
   );
   const [breakHours, setBreakHours] = useState<BreakHour[]>(
-    () => asJsonb<BreakHour[]>(setting.break_hours, []),
+    () => asJsonb<BreakHour[]>(setting.break_hours, [], isBreakHourArray),
   );
   const [closedDates, setClosedDates] = useState<string[]>(
-    () => asJsonb<string[]>(setting.closed_dates, []),
+    () => asJsonb<string[]>(setting.closed_dates, [], isStringArray),
   );
   const [enableWeekdayHours, setEnableWeekdayHours] = useState(() => {
-    const parsed = asJsonb<BusinessHoursByWeekday>(setting.business_hours_by_weekday, {});
+    const parsed = asJsonb<BusinessHoursByWeekday>(
+      setting.business_hours_by_weekday,
+      {},
+      isBusinessHoursByWeekday,
+    );
     return Object.keys(parsed).length > 0;
   });
   const [weekdayHours, setWeekdayHours] = useState<BusinessHoursByWeekday>(
-    () => asJsonb<BusinessHoursByWeekday>(setting.business_hours_by_weekday, {}),
+    () => asJsonb<BusinessHoursByWeekday>(setting.business_hours_by_weekday, {}, isBusinessHoursByWeekday),
   );
 
   // ハンドラ（useCallback で安定化）
@@ -96,12 +108,13 @@ export function LineReservationSettingsForm({ setting, clinicId }: SettingsFormP
       reservation_notice: setting.reservation_notice,
       cancel_notice: setting.cancel_notice,
       privacy_policy: setting.privacy_policy,
-      // JSONB: 実行時はオブジェクト/配列。tygo の型定義は `string` だが axios が正しくシリアライズする
-      closed_weekdays: closedWeekdays as unknown as string,
-      closed_dates: closedDates as unknown as string,
-      business_hours: businessHours as unknown as string,
-      business_hours_by_weekday: (enableWeekdayHours ? weekdayHours : {}) as unknown as string,
-      break_hours: breakHours as unknown as string,
+      // JSONB: 実行時はオブジェクト/配列。tygo の型定義は `string` だが
+      // UpdateLineReservationSettingRequest 側で実行時型に上書きしているためキャスト不要
+      closed_weekdays: closedWeekdays,
+      closed_dates: closedDates,
+      business_hours: businessHours,
+      business_hours_by_weekday: enableWeekdayHours ? weekdayHours : {},
+      break_hours: breakHours,
       daily_limit: setting.daily_limit,
       monthly_limit: setting.monthly_limit,
       booking_window_max_days: Number(formData.get("booking_window_max_days")),
