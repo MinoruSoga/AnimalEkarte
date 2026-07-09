@@ -3,7 +3,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { addHours } from "date-fns";
 import { toast } from "sonner";
 
-import { useUpdateReservation } from "@/features/reservations";
+import { useUpdateReservation } from "@/hooks/use-update-reservation";
 import {
   buildJSTWallDateTime,
   formatJSTWallDate,

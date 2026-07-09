@@ -99,3 +99,4 @@ export function useGetPet(petId: string) {
 | `use-examinations.ts` | 2 | 検査記録一覧取得（examinations / medical-records） |
 | `use-update-examination.ts` | 2 | 検査記録更新 mutation（examinations / medical-records） |
 | `use-cash-register-closes.ts` | 2 | レジ締め一覧取得（cash-register / accounting の締め後編集判定） |
+| `use-update-reservation.ts` | 2 | 予約更新 mutation（reservations / reception のモーダル編集保存） |

@@ -12,7 +12,7 @@ vi.mock("sonner", () => ({
   toast: { success: vi.fn() },
 }));
 
-vi.mock("@/features/reservations", () => ({
+vi.mock("@/hooks/use-update-reservation", () => ({
   useUpdateReservation: () => ({
     mutate: updateReservationMock,
   }),

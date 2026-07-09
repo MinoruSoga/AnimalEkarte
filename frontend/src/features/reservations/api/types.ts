@@ -26,19 +26,6 @@ export interface CreateReservationRequest {
   reservation_route?: ReservationRoute;
 }
 
-/**
- * 予約更新リクエスト
- * models.ts の Appointment から導出
- */
-export interface UpdateReservationRequest {
-  start_time?: string;
-  end_time?: string;
-  pet_id?: number;
-  owner_id?: number;
-  visit_type?: string;
-  reservation_type_id?: number;
-  doctor_id?: number;
-  is_designated?: boolean;
-  status?: string;
-  notes?: string;
-}
+// R-F2-S12: UpdateReservationRequest は src/hooks/use-update-reservation.ts へ単一ソース化。
+// ここは feature 内既存 import (`./types`) を壊さないための re-export（S8 パターン踏襲）。
+export type { UpdateReservationRequest } from "@/hooks/use-update-reservation";
