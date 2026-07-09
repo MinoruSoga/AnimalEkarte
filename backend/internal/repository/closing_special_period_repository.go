@@ -61,7 +61,7 @@ func (r *closingSpecialPeriodRepository) FindByDate(ctx context.Context, clinicI
 		Where("start_date <= ? AND end_date >= ?", date, date).
 		First(&p).Error
 	if err != nil {
-		wrapped := apperrors.FromGORM(err, "closing_special_period", date.Format("2006-01-02"))
+		wrapped := apperrors.FromGORM(err, "closing_special_period", date.Format(time.DateOnly))
 		if errors.Is(wrapped, apperrors.ErrNotFound) {
 			return nil, nil
 		}

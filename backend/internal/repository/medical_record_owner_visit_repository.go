@@ -73,7 +73,7 @@ func (r *medicalRecordRepository) FindOwnerVisitSummary(ctx context.Context, cli
 
 // FindOwnersByFirstVisitDate は初回来院日（MIN(date)）が targetDate と一致する飼い主IDリストを返す（FEAT-383）。
 func (r *medicalRecordRepository) FindOwnersByFirstVisitDate(ctx context.Context, clinicID uint64, targetDate time.Time) ([]uint64, error) {
-	target := targetDate.In(time.Local).Format("2006-01-02")
+	target := targetDate.In(time.Local).Format(time.DateOnly)
 	type row struct{ OwnerID uint64 }
 	var rows []row
 	err := r.db.WithContext(ctx).
@@ -96,7 +96,7 @@ func (r *medicalRecordRepository) FindOwnersByFirstVisitDate(ctx context.Context
 
 // FindOwnersByLastVisitDays は最終来院日が asOf から exactDays 日前の飼い主IDリストを返す（FEAT-383）。
 func (r *medicalRecordRepository) FindOwnersByLastVisitDays(ctx context.Context, clinicID uint64, exactDays int, asOf time.Time) ([]uint64, error) {
-	target := asOf.In(time.Local).AddDate(0, 0, -exactDays).Format("2006-01-02")
+	target := asOf.In(time.Local).AddDate(0, 0, -exactDays).Format(time.DateOnly)
 	type row struct{ OwnerID uint64 }
 	var rows []row
 	err := r.db.WithContext(ctx).
@@ -121,7 +121,7 @@ func (r *medicalRecordRepository) FindOwnersByLastVisitDays(ctx context.Context,
 // NOTE: P4 規約逸脱 (GORM Scopes 未使用) だが clinic_id を WHERE 句に二重指定して横テナント漏洩を防ぐ。
 // リファクタ時に clinic_id WHERE のいずれか一方を削除しないこと (M-5 / AUDIT-2026-05-06 参照)。
 func (r *medicalRecordRepository) FindOwnersByNextVisitRecommended(ctx context.Context, clinicID uint64, targetDate time.Time) ([]uint64, error) {
-	target := targetDate.In(time.Local).Format("2006-01-02")
+	target := targetDate.In(time.Local).Format(time.DateOnly)
 	type row struct{ OwnerID uint64 }
 	var rows []row
 	// 飼い主ごとに最新カルテ（MAX(id)）を取得し、その next_visit_recommended_date が targetDate のものを抽出。

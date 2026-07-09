@@ -53,7 +53,7 @@ func (r *shiftEntryRepository) FindAll(ctx context.Context, clinicID uint64, fil
 		}
 		start := t
 		end := t.AddDate(0, 1, 0)
-		q = q.Where("date >= ? AND date < ?", start.Format("2006-01-02"), end.Format("2006-01-02"))
+		q = q.Where("date >= ? AND date < ?", start.Format(time.DateOnly), end.Format(time.DateOnly))
 	}
 	if filter.StaffID != nil {
 		q = q.Where("staff_id = ?", *filter.StaffID)
@@ -84,7 +84,7 @@ func (r *shiftEntryRepository) Create(ctx context.Context, entry *model.ShiftEnt
 		// PostgreSQL UNIQUE違反 (23505)
 		if isUniqueConstraintErr(err) {
 			return apperrors.WrapAlreadyExists("shift_entry",
-				fmt.Sprintf("staff_id=%d date=%s", entry.StaffID, entry.Date.Format("2006-01-02")))
+				fmt.Sprintf("staff_id=%d date=%s", entry.StaffID, entry.Date.Format(time.DateOnly)))
 		}
 		return apperrors.FromGORM(err, "shift_entry", "")
 	}
@@ -154,7 +154,7 @@ func (r *shiftEntryRepository) ExistsByStaffID(ctx context.Context, clinicID, st
 // FindOnDutyStaffs は指定日にシフトが登録されているスタッフ一覧を返す (BUG-344)
 func (r *shiftEntryRepository) FindOnDutyStaffs(ctx context.Context, clinicID uint64, date time.Time) ([]model.Staff, error) {
 	var staffs []model.Staff
-	dateStr := date.Format("2006-01-02")
+	dateStr := date.Format(time.DateOnly)
 	// shift_entries テーブルは deleted_at カラムを持たない（論理削除なし）
 	// 勤務日の絞り込みは JOIN 条件の shift_entries.clinic_id で担保する。
 	err := dbOrTx(ctx, r.db).

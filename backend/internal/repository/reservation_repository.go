@@ -482,7 +482,7 @@ func appointmentDayRange(date time.Time) (start, end time.Time) {
 }
 
 func parseJSTDate(value string) (time.Time, error) {
-	t, err := time.ParseInLocation("2006-01-02", value, config.JST)
+	t, err := time.ParseInLocation(time.DateOnly, value, config.JST)
 	if err != nil {
 		return time.Time{}, apperrors.WrapInvalidInput("date must be YYYY-MM-DD format")
 	}

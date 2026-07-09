@@ -98,11 +98,11 @@ func (r *checkupSyncRepository) FindCheckupSyncPreview(ctx context.Context, para
 	var having []string
 	if params.LastVisitBefore != nil {
 		having = append(having, "MAX(mr.date) <= ?")
-		args = append(args, params.LastVisitBefore.Format("2006-01-02"))
+		args = append(args, params.LastVisitBefore.Format(time.DateOnly))
 	}
 	if params.LastVisitAfter != nil {
 		having = append(having, "MAX(mr.date) >= ?")
-		args = append(args, params.LastVisitAfter.Format("2006-01-02"))
+		args = append(args, params.LastVisitAfter.Format(time.DateOnly))
 	}
 
 	// ISSUE-009: 年齢フィルタ — 生存ペットの年齢レンジで包含判定（誰か1匹でもレンジに該当すれば対象）。
@@ -128,11 +128,11 @@ func (r *checkupSyncRepository) FindCheckupSyncPreview(ctx context.Context, para
 	// ISSUE-009: 最終健診実施日フィルタ。checkups は medical_records 経由で owner と紐づける。
 	if params.LastCheckupBefore != nil {
 		having = append(having, "(SELECT MAX(cf.date) FROM checkups cf INNER JOIN medical_records mrf ON mrf.id = cf.medical_record_id AND mrf.deleted_at IS NULL WHERE cf.clinic_id = o.clinic_id AND cf.deleted_at IS NULL AND mrf.owner_id = o.id) <= ?")
-		args = append(args, params.LastCheckupBefore.Format("2006-01-02"))
+		args = append(args, params.LastCheckupBefore.Format(time.DateOnly))
 	}
 	if params.LastCheckupAfter != nil {
 		having = append(having, "(SELECT MAX(cf.date) FROM checkups cf INNER JOIN medical_records mrf ON mrf.id = cf.medical_record_id AND mrf.deleted_at IS NULL WHERE cf.clinic_id = o.clinic_id AND cf.deleted_at IS NULL AND mrf.owner_id = o.id) >= ?")
-		args = append(args, params.LastCheckupAfter.Format("2006-01-02"))
+		args = append(args, params.LastCheckupAfter.Format(time.DateOnly))
 	}
 
 	havingClause := ""

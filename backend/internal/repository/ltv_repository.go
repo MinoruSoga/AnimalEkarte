@@ -275,11 +275,11 @@ func (r *ltvRepository) calculateDateRange(params *FindOwnerLTVParams) (fromDate
 	// from/to が明示的に指定されている場合はそれを優先（優先度1）
 	if params.From != nil && params.To != nil {
 		// YYYY-MM-DD 形式をパース（エラーを明示的に処理）
-		from, err := time.ParseInLocation("2006-01-02", *params.From, time.Local)
+		from, err := time.ParseInLocation(time.DateOnly, *params.From, time.Local)
 		if err != nil {
 			return nil, nil, apperrors.Wrap(err, fmt.Sprintf("invalid From date format: %s (expected YYYY-MM-DD)", *params.From))
 		}
-		to, err := time.ParseInLocation("2006-01-02", *params.To, time.Local)
+		to, err := time.ParseInLocation(time.DateOnly, *params.To, time.Local)
 		if err != nil {
 			return nil, nil, apperrors.Wrap(err, fmt.Sprintf("invalid To date format: %s (expected YYYY-MM-DD)", *params.To))
 		}

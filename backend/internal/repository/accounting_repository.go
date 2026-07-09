@@ -321,7 +321,7 @@ func (r *accountingRepository) CompleteAccountingAppointments(ctx context.Contex
 			Where("DATE(start_time AT TIME ZONE 'Asia/Tokyo') = DATE(? AT TIME ZONE 'Asia/Tokyo')", scheduledDate).
 			Update("status", model.ReservationStatusCompleted)
 		if result.Error != nil {
-			return totalAffected, apperrors.FromGORM(result.Error, "reservation", fmt.Sprintf("clinic=%d owner=%d pet=%d scheduled_date=%s", clinicID, *ownerID, *petID, scheduledDate.Format("2006-01-02")))
+			return totalAffected, apperrors.FromGORM(result.Error, "reservation", fmt.Sprintf("clinic=%d owner=%d pet=%d scheduled_date=%s", clinicID, *ownerID, *petID, scheduledDate.Format(time.DateOnly)))
 		}
 		totalAffected += result.RowsAffected
 	}

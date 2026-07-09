@@ -42,7 +42,7 @@ func (r *reservationScheduleRepository) FindAllByMonth(ctx context.Context, clin
 	err = r.db.WithContext(ctx).
 		Scopes(clinicScope(clinicID)).
 		Where("staff_id = ? AND date >= ? AND date < ?",
-			staffID, start.Format("2006-01-02"), end.Format("2006-01-02")).
+			staffID, start.Format(time.DateOnly), end.Format(time.DateOnly)).
 		Order("date ASC").
 		Find(&entries).Error
 	if err != nil {
@@ -62,7 +62,7 @@ func (r *reservationScheduleRepository) FindAllByStaffIDsAndDateRange(ctx contex
 	err := r.db.WithContext(ctx).
 		Scopes(clinicScope(clinicID)).
 		Where("staff_id IN ? AND date >= ? AND date < ?",
-			staffIDs, from.Format("2006-01-02"), to.Format("2006-01-02")).
+			staffIDs, from.Format(time.DateOnly), to.Format(time.DateOnly)).
 		Order("date ASC").
 		Find(&entries).Error
 	if err != nil {
@@ -99,10 +99,10 @@ func (r *reservationScheduleRepository) FindAllByDate(ctx context.Context, clini
 	err := r.db.WithContext(ctx).
 		Scopes(clinicScope(clinicID)).
 		Where("staff_id = ? AND date = ?",
-			staffID, date.Format("2006-01-02")).
+			staffID, date.Format(time.DateOnly)).
 		First(&entry).Error
 	if err != nil {
-		return nil, apperrors.FromGORM(err, "shift_entry", fmt.Sprintf("staff=%d date=%s", staffID, date.Format("2006-01-02")))
+		return nil, apperrors.FromGORM(err, "shift_entry", fmt.Sprintf("staff=%d date=%s", staffID, date.Format(time.DateOnly)))
 	}
 	return &entry, nil
 }
@@ -114,7 +114,7 @@ func (r *reservationScheduleRepository) Save(ctx context.Context, clinicID uint6
 		var existing model.ShiftEntry
 		err := tx.Scopes(clinicScope(entry.ClinicID)).
 			Where("staff_id = ? AND date = ?",
-				entry.StaffID, entry.Date.Format("2006-01-02")).
+				entry.StaffID, entry.Date.Format(time.DateOnly)).
 			First(&existing).Error
 
 		if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
@@ -165,13 +165,13 @@ func (r *reservationScheduleRepository) Delete(ctx context.Context, clinicID, st
 	result := r.db.WithContext(ctx).
 		Scopes(clinicScope(clinicID)).
 		Where("staff_id = ? AND date = ?",
-			staffID, date.Format("2006-01-02")).
+			staffID, date.Format(time.DateOnly)).
 		Delete(&model.ShiftEntry{})
 	if result.Error != nil {
-		return apperrors.FromGORM(result.Error, "schedule_entry", fmt.Sprintf("staff=%d date=%s", staffID, date.Format("2006-01-02")))
+		return apperrors.FromGORM(result.Error, "schedule_entry", fmt.Sprintf("staff=%d date=%s", staffID, date.Format(time.DateOnly)))
 	}
 	if result.RowsAffected == 0 {
-		return apperrors.WrapNotFound("shift_entry", fmt.Sprintf("staff=%d date=%s", staffID, date.Format("2006-01-02")))
+		return apperrors.WrapNotFound("shift_entry", fmt.Sprintf("staff=%d date=%s", staffID, date.Format(time.DateOnly)))
 	}
 	return nil
 }

@@ -106,7 +106,7 @@ func (r *accountingRepository) GetMonthlyReportByPeriod(ctx context.Context, cli
 	if err := r.db.WithContext(ctx).
 		Table("cash_register_closes").
 		Where("clinic_id = ? AND deleted_at IS NULL", clinicID).
-		Where("close_date >= ? AND close_date < ?", start.Format("2006-01-02"), end.Format("2006-01-02")).
+		Where("close_date >= ? AND close_date < ?", start.Format(time.DateOnly), end.Format(time.DateOnly)).
 		Select("close_date::text AS close_date, period").
 		Scan(&closeRows).Error; err != nil {
 		return nil, apperrors.Wrap(err, "failed to get cash register closes for monthly report")

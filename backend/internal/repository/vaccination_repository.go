@@ -118,7 +118,7 @@ func (r *vaccinationRepository) Delete(ctx context.Context, clinicID, id uint64)
 // FindOwnersByVaccineDeadline はワクチン次回接種日（next_date）が targetDate の飼い主IDリストを返す（FEAT-383）。
 // pets テーブルを JOIN し、生存ペット経由で飼い主IDを取得する。
 func (r *vaccinationRepository) FindOwnersByVaccineDeadline(ctx context.Context, clinicID uint64, targetDate time.Time) ([]uint64, error) {
-	target := targetDate.Format("2006-01-02")
+	target := targetDate.Format(time.DateOnly)
 	type row struct{ OwnerID uint64 }
 	var rows []row
 	err := r.db.WithContext(ctx).

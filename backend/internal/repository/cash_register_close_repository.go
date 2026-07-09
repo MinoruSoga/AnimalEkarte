@@ -82,7 +82,7 @@ func (r *cashRegisterCloseRepository) HasCloseOnDate(ctx context.Context, clinic
 	err := r.db.WithContext(ctx).
 		Model(&model.CashRegisterClose{}).
 		Scopes(clinicScope(clinicID)).
-		Where("close_date = ?", date.Format("2006-01-02")).
+		Where("close_date = ?", date.Format(time.DateOnly)).
 		Count(&count).Error
 	if err != nil {
 		return false, apperrors.Wrap(err, "failed to check close on date")

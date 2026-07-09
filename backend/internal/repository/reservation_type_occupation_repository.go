@@ -26,7 +26,7 @@ type ReservationTypeOccupationRepository interface {
 	// shift_type が 'off' / 'paid_leave' 以外のスタッフのみカウント
 	CountWorkingStaffByReservationTypeID(ctx context.Context, clinicID, reservationTypeID uint64, date time.Time) (int64, error)
 	// CountWorkingStaffByReservationTypeIDs は複数日分の出勤スタッフ数を1クエリでまとめて返す(G7-1: 日付ループN+1回避)。
-	// 戻り値のキーは "2006-01-02" 形式(JST)。シフトが無い日はキーとして存在しない(0扱い)。dates が空なら空map即返し。
+	// 戻り値のキーは time.DateOnly 形式(JST)。シフトが無い日はキーとして存在しない(0扱い)。dates が空なら空map即返し。
 	CountWorkingStaffByReservationTypeIDs(ctx context.Context, clinicID, reservationTypeID uint64, dates []time.Time) (map[string]int64, error)
 }
 
@@ -99,7 +99,7 @@ func (r *reservationTypeOccupationRepository) CountWorkingStaffByReservationType
 	ctx context.Context, clinicID, reservationTypeID uint64, date time.Time,
 ) (int64, error) {
 	// JST 日付文字列で shift_entries.date と比較する
-	dateStr := date.In(config.JST).Format("2006-01-02")
+	dateStr := date.In(config.JST).Format(time.DateOnly)
 	var count int64
 	err := r.db.WithContext(ctx).Raw(`
 		SELECT COUNT(DISTINCT se.staff_id)
@@ -127,7 +127,7 @@ func (r *reservationTypeOccupationRepository) CountWorkingStaffByReservationType
 	}
 	dateStrs := make([]string, len(dates))
 	for i, d := range dates {
-		dateStrs[i] = d.In(config.JST).Format("2006-01-02")
+		dateStrs[i] = d.In(config.JST).Format(time.DateOnly)
 	}
 	type row struct {
 		Date  string `gorm:"column:date"`

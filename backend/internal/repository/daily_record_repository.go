@@ -54,7 +54,7 @@ func (r *dailyRecordRepository) FindByHospitalizationIDAndDate(ctx context.Conte
 		Preload("StaffNotes").
 		First(&record).Error
 	if err != nil {
-		return nil, apperrors.FromGORM(err, "daily_record", fmt.Sprintf("%d/%s", hospitalizationID, date.Format("2006-01-02")))
+		return nil, apperrors.FromGORM(err, "daily_record", fmt.Sprintf("%d/%s", hospitalizationID, date.Format(time.DateOnly)))
 	}
 	return &record, nil
 }
