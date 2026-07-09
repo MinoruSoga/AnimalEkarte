@@ -28,7 +28,7 @@ vi.mock("@/hooks/use-title", () => ({
   useTitle: vi.fn(),
 }));
 
-vi.mock("@/hooks/use-postal-code-lookup", () => ({
+vi.mock("../../hooks/use-postal-code-lookup", () => ({
   usePostalCodeLookup: () => ({ lookup: vi.fn() }),
 }));
 

@@ -72,7 +72,6 @@ export function useGetPet(petId: string) {
 | `use-sortable-data.ts` | ドラッグ&ドロップ並べ替えデータ管理 |
 | `use-sortable-list.ts` | ソータブルリスト UI ロジック |
 | `use-reduced-motion.ts` | `prefers-reduced-motion` メディアクエリ |
-| `use-postal-code-lookup.ts` | 郵便番号→住所変換 |
 | `use-staff-validation.ts` | スタッフバリデーション共有ロジック |
 | `use-reservation-type-color-map.ts` | 予約タイプカラーマッピング |
 | `use-clinic-scope.ts` | #86 拠点横断表示: URL ?clinics= driven の医院スコープ管理（selectedClinicIds / handleToggleClinic / clinicNameById） |
@@ -104,3 +103,4 @@ export function useGetPet(petId: string) {
 | `use-create-reservation.ts` | 2 | 予約作成 mutation（reservations / medical-records のカルテ自動作成） |
 | `use-record-pet-death.ts` | 2 | ペット死亡記録 mutation（owners / pets の PetDeceasedRecordButton→PetDeceasedDialog） |
 | `use-revoke-pet-death.ts` | 2 | ペット死亡記録解除 mutation（owners / pets の PetDeceasedRecordButton→PetDeceasedBanner） |
+| `use-clinic-tax-rates.ts` | 2 | 病院マスタ消費税率取得（accounting-reports / accounting の AccountingDocument） |

@@ -5,6 +5,7 @@ import { ja } from "date-fns/locale";
 
 // Internal
 import { C } from "@/lib/design-tokens";
+import { useClinicTaxRates } from "@/hooks/use-clinic-tax-rates";
 // #190: セクション定数 — R-F2-S9 で src/config/ へ抽出
 import {
   DOCUMENT_SECTION_KEYS,
@@ -81,8 +82,7 @@ export const AccountingDocument = memo(function AccountingDocument({ accounting,
     [],
   );
 
-  const reducedRate = clinic?.reducedTaxRate ?? 0.08;
-  const standardRate = clinic?.standardTaxRate ?? 0.1;
+  const { standardTaxRate: standardRate, reducedTaxRate: reducedRate } = useClinicTaxRates();
 
   const taxBreakdown = useMemo(() => {
     const stdItems = accounting.items.filter(i => approxEqual(i.taxRate, standardRate));

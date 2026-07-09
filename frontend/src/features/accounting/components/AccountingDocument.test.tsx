@@ -8,6 +8,12 @@ import {
 import type { Accounting, PaymentInfo } from "../types";
 import { AccountingDocument, type ClinicInfo } from "./AccountingDocument";
 
+// R-F4: AccountingDocument は useClinicTaxRates() 経由で useAuth() に依存する。
+// 税率自体はどのテストも検証しないため、フォールバック既定値（10%/8%）を使う。
+vi.mock("@/hooks/use-auth", () => ({
+  useAuth: () => ({ user: null }),
+}));
+
 const ACCOUNTING: Accounting = {
   id: "A-001",
   clinicId: "1",
