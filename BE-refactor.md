@@ -725,12 +725,13 @@ LIFF予約カレンダーは飼い主向けの最頻アクセス経路であり�
 docker compose exec backend go test ./internal/service/ -run 'TestCalcAvailableDates|TestBuildStaffSlotInputs|TestGetAvailable' -count=1 && docker compose exec backend go test ./internal/repository/ -run 'TestReservationSchedule|TestReservationTypeOccupation' -count=1
 ```
 
-### G7-2. 健診同期プレビューのタグキャッシュN+1: LINE連携飼主N人ごとに FindByOwner を1回(プレビュー行はLIMITなし全件)
+### G7-2. 健診同期プレビューのタグキャッシュN+1: LINE連携飼主N人ごとに FindByOwner を1回(プレビュー行はLIMITなし全件) — **CLOSED（2026-07-09）**
 
 - **ID**: `checkup-sync-preview-tagcache-nplus1`
 - **重要度**: P2 / **工数目安**: S / **挙動変更**: なし（挙動保存）
 - **対象ファイル**: internal/service/checkup_sync_service_preview.go (46-88); internal/repository/lstep_tag_cache_repository.go (39-47,115); internal/repository/checkup_sync_repository.go (74-149)
 - **依存関係**: なし。エラーパスの粒度変更のみテストで仕様固定が必要
+- **ステータス**: ✅ **CLOSED** — LstepTagCacheRepository に `FindByOwners(ctx, clinicID, ownerIDs) (map[uint64][]*model.LstepTagCache, error)` を新設(ownerIDs空なら空map即返し・WHERE clinic_id = ? AND owner_id IN ?)。PreviewCheckupSync はループ前に LINE連携済み owner_id を収集し1クエリで一括取得、ループ内はマップ参照に変更。エラーパスの粒度差(per-owner失敗→全員失敗)は実装手順どおりテストで仕様固定: `TestCheckupSyncService_PreviewCheckupSync_TagCacheLookupError` を2 owner・一括失敗ケースに書き換え。独立した3つのテストモック(`mockLstepTagCacheRepository`/`mockTagCacheRepoForDelivery`/`mockTagCacheSummaryRepo`)全てに `FindByOwners` を追加し `go vet ./...` で取りこぼしゼロを確認。DB実行の repository テスト `TestLstepTagCacheRepository_FindByOwners` を新規追加(owner_id別集約・clinic_id分離・空引数即返しの3ケース)。`docker compose exec backend go test ./internal/service/ -run 'TestCheckupSync' -count=1` と `go test ./internal/repository/ -run 'TestLstepTagCacheRepository_FindByOwners' -count=1` 全PASS。go vet(全リポジトリ) / gofmt 差分なし。コミット `f6ebc0c7`
 
 **証拠(現HEAD検証済み)**
 
