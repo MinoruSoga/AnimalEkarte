@@ -56,28 +56,14 @@ func (r *hospitalizationPlanRepository) Create(ctx context.Context, plan *model.
 }
 
 func (r *hospitalizationPlanRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.HospitalizationPlan, error) {
-	result := r.db.WithContext(ctx).
-		Model(&model.HospitalizationPlan{}).
-		Scopes(clinicScope(clinicID)).Where("id = ?", id).
-		Updates(fields)
-	if result.Error != nil {
-		return nil, apperrors.FromGORM(result.Error, "hospitalization_plan", fmt.Sprintf("%d", id))
-	}
-	if result.RowsAffected == 0 {
-		return nil, apperrors.WrapNotFound("hospitalization_plan", fmt.Sprintf("%d", id))
+	if err := updateScopedByID(ctx, r.db, &model.HospitalizationPlan{}, "hospitalization_plan", clinicID, id, fields); err != nil {
+		return nil, err
 	}
 	return r.FindByID(ctx, clinicID, id)
 }
 
 func (r *hospitalizationPlanRepository) Delete(ctx context.Context, clinicID, id uint64) error {
-	result := r.db.WithContext(ctx).Scopes(clinicScope(clinicID)).Where("id = ?", id).Delete(&model.HospitalizationPlan{})
-	if result.Error != nil {
-		return apperrors.FromGORM(result.Error, "hospitalization_plan", fmt.Sprintf("%d", id))
-	}
-	if result.RowsAffected == 0 {
-		return apperrors.WrapNotFound("hospitalization_plan", fmt.Sprintf("%d", id))
-	}
-	return nil
+	return deleteScopedByID(ctx, r.db, &model.HospitalizationPlan{}, "hospitalization_plan", clinicID, id)
 }
 
 // CountUsageByHospitalizationPlanID は指定入院プランを参照する care_plan_items の件数を返す（BUG-105）。

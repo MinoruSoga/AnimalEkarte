@@ -105,30 +105,14 @@ func (r *vaccinationRepository) Create(ctx context.Context, vaccination *model.V
 }
 
 func (r *vaccinationRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Vaccination, error) {
-	result := r.db.WithContext(ctx).
-		Model(&model.Vaccination{}).
-		Scopes(clinicScope(clinicID)).Where("id = ?", id).
-		Updates(fields)
-	if result.Error != nil {
-		return nil, apperrors.FromGORM(result.Error, "vaccination", fmt.Sprintf("%d", id))
-	}
-	if result.RowsAffected == 0 {
-		return nil, apperrors.WrapNotFound("vaccination", fmt.Sprintf("%d", id))
+	if err := updateScopedByID(ctx, r.db, &model.Vaccination{}, "vaccination", clinicID, id, fields); err != nil {
+		return nil, err
 	}
 	return r.FindByID(ctx, clinicID, id)
 }
 
 func (r *vaccinationRepository) Delete(ctx context.Context, clinicID, id uint64) error {
-	result := r.db.WithContext(ctx).
-		Scopes(clinicScope(clinicID)).Where("id = ?", id).
-		Delete(&model.Vaccination{})
-	if result.Error != nil {
-		return apperrors.FromGORM(result.Error, "vaccination", fmt.Sprintf("%d", id))
-	}
-	if result.RowsAffected == 0 {
-		return apperrors.WrapNotFound("vaccination", fmt.Sprintf("%d", id))
-	}
-	return nil
+	return deleteScopedByID(ctx, r.db, &model.Vaccination{}, "vaccination", clinicID, id)
 }
 
 // FindOwnersByVaccineDeadline はワクチン次回接種日（next_date）が targetDate の飼い主IDリストを返す（FEAT-383）。

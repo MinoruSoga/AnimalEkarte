@@ -208,28 +208,11 @@ func escapeLike(s string) string {
 }
 
 func (r *ownerRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
-	result := r.db.WithContext(ctx).
-		Model(&model.Owner{}).
-		Scopes(clinicScope(clinicID)).Where("id = ?", id).
-		Updates(fields)
-	if result.Error != nil {
-		return apperrors.FromGORM(result.Error, "owner", fmt.Sprintf("%d", id))
-	}
-	if result.RowsAffected == 0 {
-		return apperrors.WrapNotFound("owner", fmt.Sprintf("%d", id))
-	}
-	return nil
+	return updateScopedByID(ctx, r.db, &model.Owner{}, "owner", clinicID, id, fields)
 }
 
 func (r *ownerRepository) Delete(ctx context.Context, clinicID, id uint64) error {
-	result := r.db.WithContext(ctx).Scopes(clinicScope(clinicID)).Where("id = ?", id).Delete(&model.Owner{})
-	if result.Error != nil {
-		return apperrors.FromGORM(result.Error, "owner", fmt.Sprintf("%d", id))
-	}
-	if result.RowsAffected == 0 {
-		return apperrors.WrapNotFound("owner", fmt.Sprintf("%d", id))
-	}
-	return nil
+	return deleteScopedByID(ctx, r.db, &model.Owner{}, "owner", clinicID, id)
 }
 
 // CountPetsByOwnerID は指定されたオーナーに紐付いているペット数を返す
