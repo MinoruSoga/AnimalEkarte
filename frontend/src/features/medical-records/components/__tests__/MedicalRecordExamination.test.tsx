@@ -5,7 +5,7 @@ import userEvent from "@testing-library/user-event";
 import { MedicalRecordExamination } from "../MedicalRecordExamination";
 import { useGetRecordExaminations } from "../../api/get-record-examinations";
 import type { ExamGroup } from "../../api/get-record-examinations";
-import type { ExamResult } from "@/features/examinations";
+import type { ExamResult } from "@/lib/transforms/examination";
 
 vi.mock("../../api/get-record-examinations");
 

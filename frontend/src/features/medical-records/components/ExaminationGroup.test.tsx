@@ -3,7 +3,7 @@ import { render, screen } from "@testing-library/react";
 
 import { ExaminationGroup } from "./ExaminationGroup";
 import type { ExamGroup } from "../api/get-record-examinations";
-import type { ExamResult } from "@/features/examinations";
+import type { ExamResult } from "@/lib/transforms/examination";
 import { STYLE } from "@/lib/design-tokens";
 
 // shared transformExamResult が返す ViewModel 形状をフィクスチャに使う。
