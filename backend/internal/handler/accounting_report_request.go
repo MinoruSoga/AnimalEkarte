@@ -5,10 +5,9 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/animal-ekarte/backend/internal/config"
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 )
-
-var monthlyReportJST = time.FixedZone("Asia/Tokyo", 9*60*60)
 
 type monthlyReportQuery struct {
 	Year      string
@@ -59,11 +58,11 @@ func (q monthlyReportQuery) toPeriod() (startDate, endDate time.Time, err error)
 	if q.StartDate == "" || q.EndDate == "" {
 		return time.Time{}, time.Time{}, apperrors.WrapInvalidInput("start_date と end_date は両方指定してください")
 	}
-	startDate, err = time.ParseInLocation("2006-01-02", q.StartDate, monthlyReportJST)
+	startDate, err = time.ParseInLocation("2006-01-02", q.StartDate, config.JST)
 	if err != nil {
 		return time.Time{}, time.Time{}, apperrors.WrapInvalidInput("start_date は YYYY-MM-DD 形式で指定してください")
 	}
-	endDate, err = time.ParseInLocation("2006-01-02", q.EndDate, monthlyReportJST)
+	endDate, err = time.ParseInLocation("2006-01-02", q.EndDate, config.JST)
 	if err != nil {
 		return time.Time{}, time.Time{}, apperrors.WrapInvalidInput("end_date は YYYY-MM-DD 形式で指定してください")
 	}

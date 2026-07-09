@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/animal-ekarte/backend/internal/config"
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
@@ -119,7 +120,7 @@ func TestGetAvailableDates_BuildAvailableDatesStaffInputsFn(t *testing.T) {
 			},
 		}
 		doctorID1 := uint64(1)
-		resvStart := time.Date(minDate.Year(), minDate.Month(), minDate.Day(), 10, 0, 0, 0, jstLocation)
+		resvStart := time.Date(minDate.Year(), minDate.Month(), minDate.Day(), 10, 0, 0, 0, config.JST)
 		adminRepo := &mockLiffAdminRepository{
 			findTimeRangesByDateRangeFn: func(_ context.Context, _ uint64, from, to time.Time) ([]model.Reservation, error) {
 				assert.True(t, from.Equal(minDate))

@@ -9,6 +9,7 @@ import (
 
 	holiday "github.com/holiday-jp/holiday_jp-go"
 
+	"github.com/animal-ekarte/backend/internal/config"
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
 )
@@ -138,7 +139,7 @@ func (s *liffService) applyOccupationGuard(ctx context.Context, clinicID, typeID
 		if !r.Available {
 			continue
 		}
-		date, err := time.ParseInLocation("2006-01-02", r.Date, jstLocation)
+		date, err := time.ParseInLocation("2006-01-02", r.Date, config.JST)
 		if err != nil {
 			slog.ErrorContext(ctx, "failed to parse date", "error", err)
 			return apperrors.Wrap(err, "failed to parse date")
@@ -189,7 +190,7 @@ func (s *liffService) GetAvailableTimes(ctx context.Context, clinicID, typeID, s
 	if err != nil {
 		slog.WarnContext(ctx, "failed to parse available dates settings, using defaults", "error", err)
 	}
-	dateJST := date.In(jstLocation)
+	dateJST := date.In(config.JST)
 	dateStr := dateJST.Format("2006-01-02")
 	wd := int(dateJST.Weekday())
 	closedWeekdaySet := make(map[int]struct{}, len(datesSettings.ClosedWeekdays))
@@ -320,7 +321,7 @@ func filterSlotsByCapacity(
 	date time.Time,
 	maxConcurrent int,
 ) ([]TimeSlot, error) {
-	dateJST := date.In(jstLocation)
+	dateJST := date.In(config.JST)
 
 	type slotStart struct {
 		slot      TimeSlot
@@ -334,7 +335,7 @@ func filterSlotsByCapacity(
 		}
 		startTime := time.Date(
 			dateJST.Year(), dateJST.Month(), dateJST.Day(),
-			startMin/60, startMin%60, 0, 0, jstLocation,
+			startMin/60, startMin%60, 0, 0, config.JST,
 		)
 		valid = append(valid, slotStart{slot: slot, startTime: startTime})
 	}

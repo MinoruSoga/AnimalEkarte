@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/animal-ekarte/backend/internal/config"
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
@@ -23,7 +24,7 @@ func TestFilterApplicableAvailableSlots_WeeklyAndSpecific(t *testing.T) {
 	monday := int8(1)
 	tuesday := int8(2)
 	specificDate := time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC)
-	date := time.Date(2026, 6, 1, 0, 0, 0, 0, jstLocation)
+	date := time.Date(2026, 6, 1, 0, 0, 0, 0, config.JST)
 
 	result := filterApplicableAvailableSlots([]model.ReservationTypeAvailableSlot{
 		{AvailableType: model.AvailableSlotTypeWeekly, DayOfWeek: &monday, StartTime: "09:45", IsActive: true},
@@ -41,7 +42,7 @@ func TestFilterApplicableAvailableSlots_WeeklyAndSpecific(t *testing.T) {
 // 営業時間内の登録時刻は重複追加されず、営業時間外の登録時刻は追加される。
 func TestMergeAvailableTimeSlots(t *testing.T) {
 	monday := int8(1)
-	date := time.Date(2026, 6, 1, 0, 0, 0, 0, jstLocation) // Monday
+	date := time.Date(2026, 6, 1, 0, 0, 0, 0, config.JST) // Monday
 
 	t.Run("営業時間外の時刻のみ追加される", func(t *testing.T) {
 		slots := []TimeSlot{
@@ -92,7 +93,7 @@ func TestMergeAvailableTimeSlots(t *testing.T) {
 }
 
 func TestFilterSlotsByCapacity(t *testing.T) {
-	date := time.Date(2026, 6, 1, 0, 0, 0, 0, jstLocation)
+	date := time.Date(2026, 6, 1, 0, 0, 0, 0, config.JST)
 	slots := []TimeSlot{
 		{StartTime: "0900", EndTime: "0930"},
 		{StartTime: "1000", EndTime: "1030"},
@@ -144,7 +145,7 @@ func (m *mockBatchCapacityCounter) CountByTypeAndStartTimes(ctx context.Context,
 // 場合に、日付ごとの全スロットが単一クエリで処理され（N+1解消）、per-slot 経路と同一のフィルタ結果に
 // なることを固定する（BE-refactor.md R2-4 / D8）。
 func TestFilterSlotsByCapacity_BatchPath(t *testing.T) {
-	date := time.Date(2026, 6, 1, 0, 0, 0, 0, jstLocation)
+	date := time.Date(2026, 6, 1, 0, 0, 0, 0, config.JST)
 	slots := []TimeSlot{
 		{StartTime: "0900", EndTime: "0930"},
 		{StartTime: "1000", EndTime: "1030"},
@@ -152,7 +153,7 @@ func TestFilterSlotsByCapacity_BatchPath(t *testing.T) {
 	}
 
 	t.Run("1クエリで全スロットを判定し、per-slotと同じ結果を返す", func(t *testing.T) {
-		nineAM := time.Date(2026, 6, 1, 9, 0, 0, 0, jstLocation)
+		nineAM := time.Date(2026, 6, 1, 9, 0, 0, 0, config.JST)
 		mock := &mockBatchCapacityCounter{
 			batchFn: func(_ context.Context, _, _ uint64, _ []time.Time, _ *uint64) (map[int64]int64, error) {
 				// 09:00 のみ満員（2件）、他は 0 件

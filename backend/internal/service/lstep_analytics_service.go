@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/animal-ekarte/backend/internal/config"
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/repository"
@@ -76,11 +77,11 @@ func (s *lstepAnalyticsService) GetDeliveryHistoryByOwner(ctx context.Context, c
 }
 
 func (s *lstepAnalyticsService) GetMonthlyDeliveryStats(ctx context.Context, clinicID uint64, yearMonth string) (*MonthlyDeliveryStats, error) {
-	t, err := time.ParseInLocation("2006-01", yearMonth, jst)
+	t, err := time.ParseInLocation("2006-01", yearMonth, config.JST)
 	if err != nil {
 		return nil, apperrors.WrapInvalidInput("invalid year_month format: " + yearMonth)
 	}
-	from := time.Date(t.Year(), t.Month(), 1, 0, 0, 0, 0, jst)
+	from := time.Date(t.Year(), t.Month(), 1, 0, 0, 0, 0, config.JST)
 	until := from.AddDate(0, 1, 0)
 
 	rows, err := s.triggerLogRepo.CountByTypeAndStatus(ctx, clinicID, from, until)
@@ -95,11 +96,11 @@ func (s *lstepAnalyticsService) GetVisitConversionSummary(ctx context.Context, c
 	if days < 1 {
 		return nil, apperrors.WrapInvalidInput("days は 1 以上で指定してください")
 	}
-	t, err := time.ParseInLocation("2006-01", yearMonth, jst)
+	t, err := time.ParseInLocation("2006-01", yearMonth, config.JST)
 	if err != nil {
 		return nil, apperrors.WrapInvalidInput("invalid year_month format: " + yearMonth)
 	}
-	from := time.Date(t.Year(), t.Month(), 1, 0, 0, 0, 0, jst)
+	from := time.Date(t.Year(), t.Month(), 1, 0, 0, 0, 0, config.JST)
 	until := from.AddDate(0, 1, 0)
 
 	rows, err := s.triggerLogRepo.CountVisitConversionsByType(ctx, clinicID, from, until, days)

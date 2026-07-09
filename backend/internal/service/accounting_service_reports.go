@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/animal-ekarte/backend/internal/config"
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/repository"
@@ -16,9 +17,8 @@ func (s *accountingService) GetMonthlyUnpaidCarryover(ctx context.Context, clini
 	if month < 1 || month > 12 {
 		return nil, 0, repository.MonthlyUnpaidSummary{}, apperrors.WrapInvalidInput("month must be between 1 and 12")
 	}
-	jst := time.FixedZone("Asia/Tokyo", 9*60*60)
-	firstDay := time.Date(year, time.Month(month), 1, 0, 0, 0, 0, jst).Format("2006-01-02")
-	lastDay := time.Date(year, time.Month(month+1), 0, 0, 0, 0, 0, jst).Format("2006-01-02")
+	firstDay := time.Date(year, time.Month(month), 1, 0, 0, 0, 0, config.JST).Format("2006-01-02")
+	lastDay := time.Date(year, time.Month(month+1), 0, 0, 0, 0, 0, config.JST).Format("2006-01-02")
 
 	items, total, summary, err := s.repo.FindMonthlyUnpaidCarryover(ctx, clinicID, firstDay, lastDay, page, limit)
 	if err != nil {
@@ -119,8 +119,7 @@ func parseDailySummaryDate(dateStr string) (time.Time, error) {
 	if dateStr == "" {
 		dateStr = time.Now().In(time.Local).Format("2006-01-02")
 	}
-	jst := time.FixedZone("Asia/Tokyo", 9*60*60)
-	date, err := time.ParseInLocation("2006-01-02", dateStr, jst)
+	date, err := time.ParseInLocation("2006-01-02", dateStr, config.JST)
 	if err != nil {
 		return time.Time{}, apperrors.WrapInvalidInput("date must be YYYY-MM-DD")
 	}

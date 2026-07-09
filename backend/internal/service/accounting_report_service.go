@@ -9,13 +9,11 @@ import (
 	"math"
 	"time"
 
+	"github.com/animal-ekarte/backend/internal/config"
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/repository"
 )
-
-// jst は日本標準時（UTC+9）のタイムゾーン定数
-var jst = time.FixedZone("Asia/Tokyo", 9*60*60)
 
 // ---- レスポンス型（フロントエンド期待形式） ----
 
@@ -330,7 +328,7 @@ func (s *accountingReportService) GetMonthly(ctx context.Context, clinicID uint6
 		return nil, apperrors.Wrap(err, "failed to validate month")
 	}
 
-	startDate := time.Date(year, time.Month(month), 1, 0, 0, 0, 0, jst)
+	startDate := time.Date(year, time.Month(month), 1, 0, 0, 0, 0, config.JST)
 	endDate := startDate.AddDate(0, 1, -1)
 	raw, err := s.repo.GetMonthlyReport(ctx, clinicID, year, month)
 	if err != nil {
@@ -391,7 +389,7 @@ func (s *accountingReportService) buildHolidaySet(ctx context.Context, clinicID 
 	holidaySet := make(map[string]bool)
 	startStr := startDate.Format("2006-01-02")
 	endStr := endDate.Format("2006-01-02")
-	for cursor := time.Date(startDate.Year(), startDate.Month(), 1, 0, 0, 0, 0, jst); !cursor.After(endDate); cursor = cursor.AddDate(0, 1, 0) {
+	for cursor := time.Date(startDate.Year(), startDate.Month(), 1, 0, 0, 0, 0, config.JST); !cursor.After(endDate); cursor = cursor.AddDate(0, 1, 0) {
 		yearMonth := fmt.Sprintf("%04d-%02d", cursor.Year(), cursor.Month())
 		holidays, err := s.holidayRepo.FindAllByYearMonth(ctx, clinicID, yearMonth)
 		if err != nil {

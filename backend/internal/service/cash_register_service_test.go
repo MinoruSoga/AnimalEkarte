@@ -9,6 +9,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
+	"github.com/animal-ekarte/backend/internal/config"
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/repository"
@@ -808,7 +809,7 @@ func TestCashRegisterService_IsDateClosed(t *testing.T) {
 // TestResolvePeriodRange は period→集計期間（JST）の算出を検証する。
 // #150 で追加した emg は PM 締め終了〜翌日0時を対象とする。
 func TestResolvePeriodRange(t *testing.T) {
-	dateJST := time.Date(2026, 4, 20, 0, 0, 0, 0, jstLocation)
+	dateJST := time.Date(2026, 4, 20, 0, 0, 0, 0, config.JST)
 	schedule := &DaySchedule{AmPmBoundary: "14:00", PmEnd: "18:30", AmStart: "09:00"}
 
 	tests := []struct {
@@ -821,20 +822,20 @@ func TestResolvePeriodRange(t *testing.T) {
 		{
 			name:      "am: am_start(9:00)〜AM/PM境界（#215: 0時開始ではない）",
 			period:    "am",
-			wantStart: time.Date(2026, 4, 20, 9, 0, 0, 0, jstLocation),
-			wantEnd:   time.Date(2026, 4, 20, 14, 0, 0, 0, jstLocation),
+			wantStart: time.Date(2026, 4, 20, 9, 0, 0, 0, config.JST),
+			wantEnd:   time.Date(2026, 4, 20, 14, 0, 0, 0, config.JST),
 		},
 		{
 			name:      "pm: 境界〜PM締め終了",
 			period:    "pm",
-			wantStart: time.Date(2026, 4, 20, 14, 0, 0, 0, jstLocation),
-			wantEnd:   time.Date(2026, 4, 20, 18, 30, 0, 0, jstLocation),
+			wantStart: time.Date(2026, 4, 20, 14, 0, 0, 0, config.JST),
+			wantEnd:   time.Date(2026, 4, 20, 18, 30, 0, 0, config.JST),
 		},
 		{
 			name:      "emg: PM締め終了〜翌日am_start（#215 越日レンジ・PM終了と連続）",
 			period:    "emg",
-			wantStart: time.Date(2026, 4, 20, 18, 30, 0, 0, jstLocation),
-			wantEnd:   time.Date(2026, 4, 21, 9, 0, 0, 0, jstLocation),
+			wantStart: time.Date(2026, 4, 20, 18, 30, 0, 0, config.JST),
+			wantEnd:   time.Date(2026, 4, 21, 9, 0, 0, 0, config.JST),
 		},
 		{
 			name:    "エラー: 不正な period",
@@ -861,7 +862,7 @@ func TestResolvePeriodRange(t *testing.T) {
 // 深夜 0:00〜am_start の緊急会計は「前日の EMG」に、am_start 以降は「当日の AM」に計上される。
 func TestResolvePeriodRange_CrossMidnightEMG(t *testing.T) {
 	schedule := &DaySchedule{AmPmBoundary: "14:00", PmEnd: "18:30", AmStart: "09:00"}
-	day := time.Date(2026, 4, 20, 0, 0, 0, 0, jstLocation)
+	day := time.Date(2026, 4, 20, 0, 0, 0, 0, config.JST)
 
 	// 集計クエリは completed_at >= start AND < end の終端排他（GetCloseAggregate）
 	contains := func(start, end, at time.Time) bool {
@@ -874,18 +875,18 @@ func TestResolvePeriodRange_CrossMidnightEMG(t *testing.T) {
 	assert.NoError(t, err)
 
 	t.Run("当日23:00の会計は当日EMGに計上される", func(t *testing.T) {
-		at := time.Date(2026, 4, 20, 23, 0, 0, 0, jstLocation)
+		at := time.Date(2026, 4, 20, 23, 0, 0, 0, config.JST)
 		assert.True(t, contains(emgStart, emgEnd, at))
 	})
 
 	t.Run("翌朝7:00の会計は前日EMGに計上される（翌日AMに流入しない）", func(t *testing.T) {
-		at := time.Date(2026, 4, 21, 7, 0, 0, 0, jstLocation)
+		at := time.Date(2026, 4, 21, 7, 0, 0, 0, config.JST)
 		assert.True(t, contains(emgStart, emgEnd, at), "前日EMGレンジに含まれる")
 		assert.False(t, contains(nextAmStart, nextAmEnd, at), "翌日AMレンジには含まれない")
 	})
 
 	t.Run("翌朝9:00ちょうどは翌日AM（EMG終端は排他）", func(t *testing.T) {
-		at := time.Date(2026, 4, 21, 9, 0, 0, 0, jstLocation)
+		at := time.Date(2026, 4, 21, 9, 0, 0, 0, config.JST)
 		assert.False(t, contains(emgStart, emgEnd, at))
 		assert.True(t, contains(nextAmStart, nextAmEnd, at))
 	})

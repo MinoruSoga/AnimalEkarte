@@ -8,19 +8,10 @@ import (
 
 	"gorm.io/gorm"
 
+	"github.com/animal-ekarte/backend/internal/config"
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
 )
-
-// jstLoc は起動時に一度だけロードする JST タイムゾーン。
-// tzdata 欠落時は起動時に panic して早期発見できる（_ エラー握りつぶし禁止の規約に準拠）。
-var jstLoc = func() *time.Location {
-	loc, err := time.LoadLocation("Asia/Tokyo")
-	if err != nil {
-		panic(fmt.Sprintf("failed to load JST timezone: %v", err))
-	}
-	return loc
-}()
 
 // ReservationTypeOccupationRepository は職種紐付けの永続化インターフェース
 type ReservationTypeOccupationRepository interface {
@@ -108,7 +99,7 @@ func (r *reservationTypeOccupationRepository) CountWorkingStaffByReservationType
 	ctx context.Context, clinicID, reservationTypeID uint64, date time.Time,
 ) (int64, error) {
 	// JST 日付文字列で shift_entries.date と比較する
-	dateStr := date.In(jstLoc).Format("2006-01-02")
+	dateStr := date.In(config.JST).Format("2006-01-02")
 	var count int64
 	err := r.db.WithContext(ctx).Raw(`
 		SELECT COUNT(DISTINCT se.staff_id)
@@ -136,7 +127,7 @@ func (r *reservationTypeOccupationRepository) CountWorkingStaffByReservationType
 	}
 	dateStrs := make([]string, len(dates))
 	for i, d := range dates {
-		dateStrs[i] = d.In(jstLoc).Format("2006-01-02")
+		dateStrs[i] = d.In(config.JST).Format("2006-01-02")
 	}
 	type row struct {
 		Date  string `gorm:"column:date"`

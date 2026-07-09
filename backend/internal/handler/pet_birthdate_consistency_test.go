@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/animal-ekarte/backend/internal/config"
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
@@ -20,7 +21,7 @@ import (
 func withJSTLocal(t *testing.T) {
 	t.Helper()
 	orig := time.Local
-	time.Local = time.FixedZone("Asia/Tokyo", 9*60*60)
+	time.Local = config.JST
 	t.Cleanup(func() { time.Local = orig })
 }
 

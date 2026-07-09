@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/animal-ekarte/backend/internal/config"
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/repository"
 )
@@ -20,8 +21,8 @@ func validateReservationTypeAvailableTime(
 	if err := validateTimeRange(start, end); err != nil {
 		return err
 	}
-	startTime := start.In(jstLocation).Format("15:04")
-	endTime := end.In(jstLocation).Format("15:04")
+	startTime := start.In(config.JST).Format("15:04")
+	endTime := end.In(config.JST).Format("15:04")
 
 	if unavailableRepo != nil {
 		unavailableTimes, err := unavailableRepo.FindAll(ctx, clinicID, reservationTypeID)

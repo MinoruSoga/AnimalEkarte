@@ -10,6 +10,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
+	"github.com/animal-ekarte/backend/internal/config"
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/repository"
@@ -418,7 +419,7 @@ func TestAccountingReportService_GetMonthlyByPeriod(t *testing.T) {
 // start>end の拒否と 367 日上限（無制限スキャン防止）が回帰しないことを保証する。
 // 366 日差はちょうど境界で許可、367 日差で拒否となる。
 func TestValidateReportPeriod(t *testing.T) {
-	base := time.Date(2026, 1, 1, 0, 0, 0, 0, jst)
+	base := time.Date(2026, 1, 1, 0, 0, 0, 0, config.JST)
 	cases := []struct {
 		name      string
 		start     time.Time
@@ -473,8 +474,8 @@ func TestAccountingReportService_GetMonthlyByPeriod_ValidationError(t *testing.T
 		&mockPaymentMethodMasterRepository{},
 		&mockClinicHolidayRepository{},
 	)
-	start := time.Date(2026, 5, 1, 0, 0, 0, 0, jst)
-	end := time.Date(2026, 4, 1, 0, 0, 0, 0, jst) // start > end
+	start := time.Date(2026, 5, 1, 0, 0, 0, 0, config.JST)
+	end := time.Date(2026, 4, 1, 0, 0, 0, 0, config.JST) // start > end
 
 	got, err := svc.GetMonthlyByPeriod(context.Background(), 1, start, end)
 
@@ -498,8 +499,8 @@ func TestAccountingReportService_GetMonthlyByPeriod_RepoError(t *testing.T) {
 			return []model.ClinicHoliday{}, nil
 		}},
 	)
-	start := time.Date(2026, 4, 1, 0, 0, 0, 0, jst)
-	end := time.Date(2026, 4, 2, 0, 0, 0, 0, jst)
+	start := time.Date(2026, 4, 1, 0, 0, 0, 0, config.JST)
+	end := time.Date(2026, 4, 2, 0, 0, 0, 0, config.JST)
 
 	got, err := svc.GetMonthlyByPeriod(context.Background(), 1, start, end)
 
@@ -632,8 +633,8 @@ func TestAccountingReportService_ExportMonthlyCSVByPeriod(t *testing.T) {
 				return []model.ClinicHoliday{}, nil
 			}},
 		)
-		start := time.Date(2026, 4, 1, 0, 0, 0, 0, jst)
-		end := time.Date(2026, 4, 2, 0, 0, 0, 0, jst)
+		start := time.Date(2026, 4, 1, 0, 0, 0, 0, config.JST)
+		end := time.Date(2026, 4, 2, 0, 0, 0, 0, config.JST)
 
 		got, err := svc.ExportMonthlyCSVByPeriod(context.Background(), 1, start, end)
 
@@ -648,8 +649,8 @@ func TestAccountingReportService_ExportMonthlyCSVByPeriod(t *testing.T) {
 			&mockPaymentMethodMasterRepository{},
 			&mockClinicHolidayRepository{},
 		)
-		start := time.Date(2026, 5, 1, 0, 0, 0, 0, jst)
-		end := time.Date(2026, 4, 1, 0, 0, 0, 0, jst) // start > end で validateReportPeriod が拒否
+		start := time.Date(2026, 5, 1, 0, 0, 0, 0, config.JST)
+		end := time.Date(2026, 4, 1, 0, 0, 0, 0, config.JST) // start > end で validateReportPeriod が拒否
 
 		got, err := svc.ExportMonthlyCSVByPeriod(context.Background(), 1, start, end)
 

@@ -7,6 +7,7 @@ import (
 
 	holiday "github.com/holiday-jp/holiday_jp-go"
 
+	"github.com/animal-ekarte/backend/internal/config"
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
@@ -83,8 +84,8 @@ func orEmptyJSONArray(b []byte) []byte {
 // bookingWindowDates は BookingWindowMinDays/MaxDays から予約受付期間 [minDate, maxDate]（JST日付・時刻0時）を計算する。
 // CalcAvailableDates と GetAvailableDates のプリフェッチ経路が同一の窓計算を共有するために抽出した（G7-1）。
 func bookingWindowDates(settings AvailableDatesSettings) (minDate, maxDate time.Time) {
-	now := time.Now().In(jstLocation)
-	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, jstLocation)
+	now := time.Now().In(config.JST)
+	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, config.JST)
 	minDate = today.AddDate(0, 0, settings.BookingWindowMinDays)
 	maxDate = today.AddDate(0, 0, settings.BookingWindowMaxDays)
 	return minDate, maxDate
@@ -217,14 +218,3 @@ func checkDayOption(option string, weekday int) bool {
 		return true
 	}
 }
-
-// jstLocation は JST タイムゾーン (Asia/Tokyo) のキャッシュ済みインスタンス。
-// パッケージ初期化時に 1 回だけ time.LoadLocation を呼び出す。
-// LoadLocation が失敗した場合は固定オフセット +09:00 のフォールバックを使用。
-var jstLocation = func() *time.Location {
-	loc, err := time.LoadLocation("Asia/Tokyo")
-	if err != nil {
-		return time.FixedZone("JST", 9*60*60)
-	}
-	return loc
-}()

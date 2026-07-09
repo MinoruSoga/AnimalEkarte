@@ -10,6 +10,7 @@ import (
 
 	holiday "github.com/holiday-jp/holiday_jp-go"
 
+	"github.com/animal-ekarte/backend/internal/config"
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/repository"
@@ -231,7 +232,7 @@ func (v *reservationValidators) ValidateAndCreate(ctx context.Context, input *Cr
 // - 休憩時間と重複（break_hours）
 // エラーは apperrors.WrapInvalidInput で 400 を返す。
 func validateBusinessRules(settings *model.LineReservationSetting, date time.Time, startTime, endTime string) error {
-	loc := jstLocation
+	loc := config.JST
 	now := time.Now().In(loc)
 	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, loc)
 	dateStart := time.Date(date.Year(), date.Month(), date.Day(), 0, 0, 0, 0, loc)
@@ -332,7 +333,7 @@ func toDateTime(date time.Time, hhmm string) (time.Time, error) {
 	}
 	h := mins / 60
 	m := mins % 60
-	return time.Date(date.Year(), date.Month(), date.Day(), h, m, 0, 0, jstLocation), nil
+	return time.Date(date.Year(), date.Month(), date.Day(), h, m, 0, 0, config.JST), nil
 }
 
 // generateConfirmationNumber は "R-YYYYMMDD-XXXX" 形式の確認番号を生成する。

@@ -8,6 +8,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
+	"github.com/animal-ekarte/backend/internal/config"
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/repository"
@@ -193,8 +194,8 @@ func TestLstepAnalyticsService_GetDeliveryHistoryByOwner(t *testing.T) {
 
 func TestLstepAnalyticsService_GetMonthlyDeliveryStats(t *testing.T) {
 	t.Run("yearMonth パース + JST 月境界で repo 呼び出し", func(t *testing.T) {
-		expectedFrom := time.Date(2026, 5, 1, 0, 0, 0, 0, jst)
-		expectedUntil := time.Date(2026, 6, 1, 0, 0, 0, 0, jst)
+		expectedFrom := time.Date(2026, 5, 1, 0, 0, 0, 0, config.JST)
+		expectedUntil := time.Date(2026, 6, 1, 0, 0, 0, 0, config.JST)
 
 		triggerRepo := &mockAnalyticsTriggerLogRepo{
 			countByTypeAndStatusFn: func(ctx context.Context, clinicID uint64, from, to time.Time) ([]repository.DeliveryStatsRow, error) {
@@ -360,8 +361,8 @@ func TestCalculateRate(t *testing.T) {
 
 func TestLstepAnalyticsService_GetVisitConversionSummary(t *testing.T) {
 	t.Run("yearMonth + days を使って repo 集計を呼び、率を計算する", func(t *testing.T) {
-		expectedFrom := time.Date(2026, 5, 1, 0, 0, 0, 0, jst)
-		expectedUntil := time.Date(2026, 6, 1, 0, 0, 0, 0, jst)
+		expectedFrom := time.Date(2026, 5, 1, 0, 0, 0, 0, config.JST)
+		expectedUntil := time.Date(2026, 6, 1, 0, 0, 0, 0, config.JST)
 		triggerRepo := &mockAnalyticsTriggerLogRepo{
 			countVisitConvByTypeFn: func(ctx context.Context, clinicID uint64, from, to time.Time, days int) ([]repository.VisitConversionRow, error) {
 				assert.Equal(t, uint64(100), clinicID)

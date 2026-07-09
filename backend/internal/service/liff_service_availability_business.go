@@ -5,6 +5,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/animal-ekarte/backend/internal/config"
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
 )
@@ -37,7 +38,7 @@ func parseBusinessHoursForDate(setting *model.LineReservationSetting, date time.
 	if len(setting.BusinessHoursByWeekday) > 0 {
 		var byWeekday map[string]BusinessHours
 		if err := json.Unmarshal(setting.BusinessHoursByWeekday, &byWeekday); err == nil {
-			key := strconv.Itoa(int(date.In(jstLocation).Weekday()))
+			key := strconv.Itoa(int(date.In(config.JST).Weekday()))
 			if wdBH, ok := byWeekday[key]; ok {
 				bh = wdBH
 			}

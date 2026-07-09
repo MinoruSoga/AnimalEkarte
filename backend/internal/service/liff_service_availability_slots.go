@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/animal-ekarte/backend/internal/config"
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
 )
@@ -123,7 +124,7 @@ func (s *liffService) buildAvailableDatesStaffInputsFn(
 	}
 	reservationsByDate := map[string][]model.Reservation{}
 	for i := range reservations {
-		dateStr := reservations[i].StartTime.In(jstLocation).Format("2006-01-02")
+		dateStr := reservations[i].StartTime.In(config.JST).Format("2006-01-02")
 		reservationsByDate[dateStr] = append(reservationsByDate[dateStr], reservations[i])
 	}
 

@@ -8,14 +8,15 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
+	"github.com/animal-ekarte/backend/internal/config"
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
 func TestValidateReservationTypeAvailableTime(t *testing.T) {
 	// 2026-05-04 is a Monday
-	start := time.Date(2026, 5, 4, 10, 0, 0, 0, jstLocation)
-	end := time.Date(2026, 5, 4, 10, 30, 0, 0, jstLocation)
+	start := time.Date(2026, 5, 4, 10, 0, 0, 0, config.JST)
+	end := time.Date(2026, 5, 4, 10, 30, 0, 0, config.JST)
 	dayOfWeekMonday := int8(1)
 
 	t.Run("reservationTypeID zero: noop", func(t *testing.T) {
@@ -91,7 +92,7 @@ func TestValidateReservationTypeAvailableTime(t *testing.T) {
 	})
 
 	t.Run("specific-date unavailable time overlapping requested range: invalid input", func(t *testing.T) {
-		specificDate := time.Date(2026, 5, 4, 0, 0, 0, 0, jstLocation)
+		specificDate := time.Date(2026, 5, 4, 0, 0, 0, 0, config.JST)
 		repo := &mockUnavailableTimeRepository{
 			findAllFn: func(_ context.Context, _, _ uint64) ([]model.ReservationTypeUnavailableTime, error) {
 				return []model.ReservationTypeUnavailableTime{

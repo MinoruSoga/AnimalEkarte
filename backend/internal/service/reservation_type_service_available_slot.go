@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/animal-ekarte/backend/internal/config"
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
 )
@@ -135,7 +136,7 @@ func hasActiveAvailableSlots(slots []model.ReservationTypeAvailableSlot) bool {
 }
 
 func filterApplicableAvailableSlots(slots []model.ReservationTypeAvailableSlot, date time.Time) []model.ReservationTypeAvailableSlot {
-	dateJST := date.In(jstLocation)
+	dateJST := date.In(config.JST)
 	dateStr := dateJST.Format("2006-01-02")
 	dayOfWeek := int8(dateJST.Weekday()) //nolint:gosec // Weekday() は 0-6 を返すため int8 に安全に収まる
 	result := make([]model.ReservationTypeAvailableSlot, 0, len(slots))

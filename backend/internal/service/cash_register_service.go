@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/animal-ekarte/backend/internal/config"
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/repository"
@@ -170,7 +171,7 @@ func (s *cashRegisterService) fetchAggregate(ctx context.Context, clinicID uint6
 		return nil, apperrors.Wrap(err, "failed to resolve schedule")
 	}
 
-	dateJST := time.Date(date.Year(), date.Month(), date.Day(), 0, 0, 0, 0, jstLocation)
+	dateJST := time.Date(date.Year(), date.Month(), date.Day(), 0, 0, 0, 0, config.JST)
 
 	periodStart, periodEnd, err := resolvePeriodRange(dateJST, period, schedule)
 	if err != nil {
@@ -414,9 +415,9 @@ func resolvePeriodRange(dateJST time.Time, period string, schedule *DaySchedule)
 		return time.Time{}, time.Time{}, apperrors.WrapInvalidInput("am_start の形式が正しくありません")
 	}
 
-	boundary := time.Date(dateJST.Year(), dateJST.Month(), dateJST.Day(), boundaryH, boundaryM, 0, 0, jstLocation)
-	pmEnd := time.Date(dateJST.Year(), dateJST.Month(), dateJST.Day(), pmEndH, pmEndM, 0, 0, jstLocation)
-	amStart := time.Date(dateJST.Year(), dateJST.Month(), dateJST.Day(), amStartH, amStartM, 0, 0, jstLocation)
+	boundary := time.Date(dateJST.Year(), dateJST.Month(), dateJST.Day(), boundaryH, boundaryM, 0, 0, config.JST)
+	pmEnd := time.Date(dateJST.Year(), dateJST.Month(), dateJST.Day(), pmEndH, pmEndM, 0, 0, config.JST)
+	amStart := time.Date(dateJST.Year(), dateJST.Month(), dateJST.Day(), amStartH, amStartM, 0, 0, config.JST)
 	if !amStart.Before(boundary) {
 		// 逆転設定は空レンジ集計を silent に返すより設定不正として fail-loud にする
 		return time.Time{}, time.Time{}, apperrors.WrapInvalidInput("am_start は am_pm_boundary より前に設定してください")

@@ -8,6 +8,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
+	"github.com/animal-ekarte/backend/internal/config"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/repository"
 )
@@ -647,10 +648,10 @@ func TestGetAlerts_RejectsInvalidWithinDays(t *testing.T) {
 }
 
 func TestGetAlerts_SeparatesOverdueAndUpcoming(t *testing.T) {
-	fixedNow := time.Date(2026, 5, 6, 12, 0, 0, 0, jstLocation)
-	yesterdayJST := time.Date(2026, 5, 5, 0, 0, 0, 0, jstLocation)
-	todayJST := time.Date(2026, 5, 6, 0, 0, 0, 0, jstLocation)
-	inThirtyJST := time.Date(2026, 6, 5, 0, 0, 0, 0, jstLocation)
+	fixedNow := time.Date(2026, 5, 6, 12, 0, 0, 0, config.JST)
+	yesterdayJST := time.Date(2026, 5, 5, 0, 0, 0, 0, config.JST)
+	todayJST := time.Date(2026, 5, 6, 0, 0, 0, 0, config.JST)
+	inThirtyJST := time.Date(2026, 6, 5, 0, 0, 0, 0, config.JST)
 
 	repo := &mockCheckupRepository{
 		findAlertsFn: func(_ context.Context, _ uint64, _ int) ([]model.Checkup, error) {
@@ -681,7 +682,7 @@ func TestGetAlerts_NilNextDateExcluded(t *testing.T) {
 	}
 	svc := NewCheckupService(repo, &mockMedicalRecordRepository{}, okCheckupTypeRepo(), nil, nil)
 	svc.(*checkupService).nowFn = func() time.Time {
-		return time.Date(2026, 5, 6, 12, 0, 0, 0, jstLocation)
+		return time.Date(2026, 5, 6, 12, 0, 0, 0, config.JST)
 	}
 
 	result, err := svc.GetAlerts(context.Background(), 1, 30)
@@ -698,7 +699,7 @@ func TestGetAlerts_PropagatesRepositoryError(t *testing.T) {
 	}
 	svc := NewCheckupService(repo, &mockMedicalRecordRepository{}, okCheckupTypeRepo(), nil, nil)
 	svc.(*checkupService).nowFn = func() time.Time {
-		return time.Date(2026, 5, 6, 12, 0, 0, 0, jstLocation)
+		return time.Date(2026, 5, 6, 12, 0, 0, 0, config.JST)
 	}
 
 	result, err := svc.GetAlerts(context.Background(), 1, 30)
@@ -712,7 +713,7 @@ func TestGetAlerts_JSTLateNight_TodayIsCorrectJSTDate(t *testing.T) {
 	//   → next_date (2026-05-05 00:00 UTC) は today と等しいので Before = false → Upcoming (誤)
 	// 新実装 (JST 基準): today = 2026-05-06 00:00 JST = 2026-05-05 15:00 UTC
 	//   → next_date (2026-05-05 00:00 UTC) < today → Overdue (正)
-	jstLateNight := time.Date(2026, 5, 6, 3, 0, 0, 0, jstLocation)
+	jstLateNight := time.Date(2026, 5, 6, 3, 0, 0, 0, config.JST)
 	may5UTC := time.Date(2026, 5, 5, 0, 0, 0, 0, time.UTC)
 
 	repo := &mockCheckupRepository{

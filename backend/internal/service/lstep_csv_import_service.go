@@ -14,6 +14,7 @@ import (
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 
+	"github.com/animal-ekarte/backend/internal/config"
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/repository"
@@ -132,7 +133,7 @@ func (s *lstepCsvImportService) ImportFriendAttributesCSV(ctx context.Context, c
 	}
 
 	// 7. データ行ループ — スナップショット収集
-	now := time.Now().In(jst)
+	now := time.Now().In(config.JST)
 	dataRows := allRecords[1:]
 	snapshots := make([]*model.LstepFriendAttributeSnapshot, 0, len(dataRows))
 	var errEntries []csvImportErrorEntry

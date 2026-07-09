@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/animal-ekarte/backend/internal/config"
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
 )
@@ -247,7 +248,7 @@ func TestReservationAdminService_Create(t *testing.T) {
 }
 
 func TestReservationAdminService_Create_RejectsFullReservationTypeCapacity(t *testing.T) {
-	start := time.Date(2026, 6, 1, 10, 0, 0, 0, jstLocation)
+	start := time.Date(2026, 6, 1, 10, 0, 0, 0, config.JST)
 	maxConcurrent := 2
 	createCalled := false
 	resRepo := &mockReservationRepository{
@@ -332,7 +333,7 @@ func TestReservationAdminService_Create_RejectsExcludedStaff(t *testing.T) {
 }
 
 func TestReservationAdminService_Create_RejectsUnavailableTime(t *testing.T) {
-	start := time.Date(2026, 6, 1, 10, 30, 0, 0, jstLocation)
+	start := time.Date(2026, 6, 1, 10, 30, 0, 0, config.JST)
 	end := start.Add(30 * time.Minute)
 	specificDate := time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC)
 	resRepo := &mockReservationRepository{

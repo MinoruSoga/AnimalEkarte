@@ -8,6 +8,18 @@ import (
 
 const JapanTimeZone = "Asia/Tokyo"
 
+// JST is the process-wide cached JST *time.Location, loaded once at package
+// init. tzdata is embedded via the blank import above, so LoadLocation cannot
+// fail in practice; a failure here indicates a broken build and should panic
+// immediately rather than be silently re-derived differently at each call site.
+var JST = func() *time.Location {
+	loc, err := time.LoadLocation(JapanTimeZone)
+	if err != nil {
+		panic(fmt.Sprintf("failed to load %s timezone: %v", JapanTimeZone, err))
+	}
+	return loc
+}()
+
 func ConfigureTimeZone() error {
 	loc, err := time.LoadLocation(JapanTimeZone)
 	if err != nil {

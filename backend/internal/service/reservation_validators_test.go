@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/animal-ekarte/backend/internal/config"
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
 )
@@ -30,8 +31,8 @@ func newSettingForValidation() *model.LineReservationSetting {
 
 // dateInDays は今日から n 日後の 00:00 JST を返す。
 func dateInDays(n int) time.Time {
-	now := time.Now().In(jstLocation)
-	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, jstLocation)
+	now := time.Now().In(config.JST)
+	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, config.JST)
 	return today.AddDate(0, 0, n)
 }
 

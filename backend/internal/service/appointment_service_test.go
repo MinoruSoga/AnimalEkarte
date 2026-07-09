@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/animal-ekarte/backend/internal/config"
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
 )
@@ -435,7 +436,7 @@ func TestReservationService_Create(t *testing.T) {
 }
 
 func TestReservationService_Create_RejectsFullReservationTypeCapacity(t *testing.T) {
-	start := time.Date(2026, 6, 1, 10, 0, 0, 0, jstLocation)
+	start := time.Date(2026, 6, 1, 10, 0, 0, 0, config.JST)
 	maxConcurrent := 2
 	createCalled := false
 	repo := &mockReservationRepository{
@@ -516,7 +517,7 @@ func TestReservationService_Create_RejectsIncapableStaff(t *testing.T) {
 }
 
 func TestReservationService_Create_RejectsUnavailableTime(t *testing.T) {
-	start := time.Date(2026, 6, 1, 10, 30, 0, 0, jstLocation)
+	start := time.Date(2026, 6, 1, 10, 30, 0, 0, config.JST)
 	end := start.Add(30 * time.Minute)
 	specificDate := time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC)
 	repo := &mockReservationRepository{
@@ -555,7 +556,7 @@ func TestReservationService_Create_RejectsUnavailableTime(t *testing.T) {
 }
 
 func TestReservationService_Create_SkipsBookingConstraintsForInConsultation(t *testing.T) {
-	start := time.Date(2026, 6, 1, 10, 30, 0, 0, jstLocation)
+	start := time.Date(2026, 6, 1, 10, 30, 0, 0, config.JST)
 	end := start.Add(30 * time.Minute)
 	specificDate := time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC)
 	created := false
@@ -674,7 +675,7 @@ func TestReservationService_Update(t *testing.T) {
 }
 
 func TestReservationService_Update_RejectsFullReservationTypeCapacity(t *testing.T) {
-	start := time.Date(2026, 6, 1, 10, 0, 0, 0, jstLocation)
+	start := time.Date(2026, 6, 1, 10, 0, 0, 0, config.JST)
 	nextStart := start.Add(time.Hour)
 	maxConcurrent := 2
 	updateCalled := false
@@ -789,7 +790,7 @@ func TestReservationService_Update_CheckedInStampsCheckedInAt(t *testing.T) {
 // 非ステータス更新（時刻変更のみ等）では checked_in_at に触れないことを保証する。
 // UpdatedAt(autoUpdateTime) を待ち時間算出に流用してはならないという仕様の裏返しの検証。
 func TestReservationService_Update_NonStatusUpdateLeavesCheckedInAtUntouched(t *testing.T) {
-	newStart := time.Date(2026, 7, 5, 10, 0, 0, 0, jstLocation)
+	newStart := time.Date(2026, 7, 5, 10, 0, 0, 0, config.JST)
 	newEnd := newStart.Add(30 * time.Minute)
 	var capturedFields map[string]any
 	repo := &mockReservationRepository{
@@ -923,7 +924,7 @@ func TestReservationService_Update_RejectsLineCheckedInWithoutOwnerPet(t *testin
 }
 
 func TestReservationService_Update_RejectsUnavailableTimeWhenTimeChanges(t *testing.T) {
-	start := time.Date(2026, 6, 1, 10, 30, 0, 0, jstLocation)
+	start := time.Date(2026, 6, 1, 10, 30, 0, 0, config.JST)
 	end := start.Add(30 * time.Minute)
 	specificDate := time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC)
 	repo := &mockReservationRepository{
@@ -934,8 +935,8 @@ func TestReservationService_Update_RejectsUnavailableTimeWhenTimeChanges(t *test
 				ID:                id,
 				ClinicID:          clinicID,
 				ReservationTypeID: 5,
-				StartTime:         time.Date(2026, 6, 1, 9, 0, 0, 0, jstLocation),
-				EndTime:           time.Date(2026, 6, 1, 9, 30, 0, 0, jstLocation),
+				StartTime:         time.Date(2026, 6, 1, 9, 0, 0, 0, config.JST),
+				EndTime:           time.Date(2026, 6, 1, 9, 30, 0, 0, config.JST),
 			}, nil
 		},
 		updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Reservation, error) {

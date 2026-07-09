@@ -7,6 +7,7 @@ import (
 
 	"gorm.io/gorm"
 
+	"github.com/animal-ekarte/backend/internal/config"
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
 )
@@ -474,14 +475,14 @@ func (r *reservationRepository) HasReservationByOwnerInRange(ctx context.Context
 }
 
 func appointmentDayRange(date time.Time) (start, end time.Time) {
-	dateJST := date.In(jstLoc)
+	dateJST := date.In(config.JST)
 	start = time.Date(dateJST.Year(), dateJST.Month(), dateJST.Day(), 0, 0, 0, 0, dateJST.Location())
 	end = start.AddDate(0, 0, 1)
 	return start, end
 }
 
 func parseJSTDate(value string) (time.Time, error) {
-	t, err := time.ParseInLocation("2006-01-02", value, jstLoc)
+	t, err := time.ParseInLocation("2006-01-02", value, config.JST)
 	if err != nil {
 		return time.Time{}, apperrors.WrapInvalidInput("date must be YYYY-MM-DD format")
 	}

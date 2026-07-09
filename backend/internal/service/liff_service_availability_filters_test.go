@@ -6,6 +6,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
+	"github.com/animal-ekarte/backend/internal/config"
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
@@ -13,8 +14,8 @@ import (
 
 func TestFilterApplicableUnavailableTimes(t *testing.T) {
 	// 2026-04-15 は水曜日 (Weekday()==3)
-	targetDate := time.Date(2026, 4, 15, 10, 0, 0, 0, jstLocation)
-	otherDate := time.Date(2026, 4, 16, 10, 0, 0, 0, jstLocation)
+	targetDate := time.Date(2026, 4, 15, 10, 0, 0, 0, config.JST)
+	otherDate := time.Date(2026, 4, 16, 10, 0, 0, 0, config.JST)
 	wednesday := int8(3)
 	thursday := int8(4)
 

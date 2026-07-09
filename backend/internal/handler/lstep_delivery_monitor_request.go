@@ -5,6 +5,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/animal-ekarte/backend/internal/config"
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/service"
 )
@@ -78,16 +79,15 @@ func (q *lstepDeliveryMonitorQuery) toLogsServiceInput() *service.GetDeliveryMon
 }
 
 func parseLstepDeliveryMonitorDateRange(values url.Values, now time.Time) (from, to time.Time, err error) {
-	jst := time.FixedZone("Asia/Tokyo", 9*60*60)
-	defaultDate := now.In(jst).Format("2006-01-02")
+	defaultDate := now.In(config.JST).Format("2006-01-02")
 	fromStr := lstepDeliveryMonitorQueryDefault(values, "from", defaultDate)
 	toStr := lstepDeliveryMonitorQueryDefault(values, "to", defaultDate)
 
-	from, err = time.ParseInLocation("2006-01-02", fromStr, jst)
+	from, err = time.ParseInLocation("2006-01-02", fromStr, config.JST)
 	if err != nil {
 		return time.Time{}, time.Time{}, apperrors.WrapInvalidInput("from は YYYY-MM-DD 形式で指定してください")
 	}
-	to, err = time.ParseInLocation("2006-01-02", toStr, jst)
+	to, err = time.ParseInLocation("2006-01-02", toStr, config.JST)
 	if err != nil {
 		return time.Time{}, time.Time{}, apperrors.WrapInvalidInput("to は YYYY-MM-DD 形式で指定してください")
 	}

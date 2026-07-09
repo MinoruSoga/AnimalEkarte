@@ -13,6 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
 
+	"github.com/animal-ekarte/backend/internal/config"
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
 )
@@ -173,8 +174,8 @@ func TestReservationTypeOccupationRepository_CountWorkingStaffByReservationTypeI
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 
-	// jstLoc は本パッケージ内で reservation_type_occupation_repository.go が公開する非公開変数（同一パッケージのため参照可）。
-	date := time.Date(2026, 6, 15, 0, 0, 0, 0, jstLoc)
+	// config.JST は本パッケージ内で reservation_type_occupation_repository.go が公開する非公開変数（同一パッケージのため参照可）。
+	date := time.Date(2026, 6, 15, 0, 0, 0, 0, config.JST)
 
 	rtA := makeReservationTypeLinked(t, db, clinicA, "出勤集計対象区分", nil, nil)
 	occA := makeOccupation(t, db, clinicA, "出勤集計対象職種")
@@ -196,7 +197,7 @@ func TestReservationTypeOccupationRepository_CountWorkingStaffByReservationTypeI
 	})
 
 	t.Run("該当日にシフトが無い日は0件", func(t *testing.T) {
-		otherDate := time.Date(2026, 6, 16, 0, 0, 0, 0, jstLoc)
+		otherDate := time.Date(2026, 6, 16, 0, 0, 0, 0, config.JST)
 		count, err := repo.CountWorkingStaffByReservationTypeID(ctx, clinicA, rtA.ID, otherDate)
 		require.NoError(t, err)
 		assert.Equal(t, int64(0), count)
@@ -217,9 +218,9 @@ func TestReservationTypeOccupationRepository_CountWorkingStaffByReservationTypeI
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 
-	dateA := time.Date(2026, 6, 15, 0, 0, 0, 0, jstLoc)
-	dateB := time.Date(2026, 6, 16, 0, 0, 0, 0, jstLoc)
-	dateNoShift := time.Date(2026, 6, 17, 0, 0, 0, 0, jstLoc)
+	dateA := time.Date(2026, 6, 15, 0, 0, 0, 0, config.JST)
+	dateB := time.Date(2026, 6, 16, 0, 0, 0, 0, config.JST)
+	dateNoShift := time.Date(2026, 6, 17, 0, 0, 0, 0, config.JST)
 
 	rtA := makeReservationTypeLinked(t, db, clinicA, "バッチ集計対象区分", nil, nil)
 	occA := makeOccupation(t, db, clinicA, "バッチ集計対象職種")
