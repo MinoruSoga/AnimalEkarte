@@ -968,10 +968,11 @@ MedicalRecord/Checkup/LstepSettings/LstepTagSync/LstepLifecycle/LstepTag が New
 docker compose exec backend go test ./internal/service/... -count=1
 ```
 
-### G9-2. 環境変数読取がconfig.Load外に分散（STORAGE_TYPE/S3_BUCKET/S3_REGION/TRUSTED_PROXY_CIDR/LOG_LEVEL/CORS_ALLOWED_ORIGIN）し、S3系の起動時検証に漏れがある
+### G9-2. 環境変数読取がconfig.Load外に分散（STORAGE_TYPE/S3_BUCKET/S3_REGION/TRUSTED_PROXY_CIDR/LOG_LEVEL/CORS_ALLOWED_ORIGIN）し、S3系の起動時検証に漏れがある — **CLOSED（2026-07-10）**
 
 - **ID**: `env-config-consolidation`
 - **重要度**: P3 / **工数目安**: S / **挙動変更**: なし（挙動保存）
+- **ステータス**: ✅ **CLOSED** — コミット `c903ab3b`。Config に6フィールド追加、TRUSTED_PROXY_CIDR(release必須)とSTORAGE_TYPE=s3時のS3_BUCKET/S3_REGION必須検証をValidate()へ移設（fail-fast結果は同一、発火タイミングが早まるのみ）。middleware.CORS()はallowedOriginを引数化。S3SharedBucket検証追加は挙動変更のためスコープ外のまま維持。
 - **対象ファイル**: cmd/api/main.go (27,51-56,131,171-177,269); internal/middleware/cors.go (13-18); internal/config/config.go (47-100)
 
 **証拠(現HEAD検証済み)**
@@ -1003,10 +1004,11 @@ config.Load/Validate が設定の単一窓口である設計（config.go）に�
 docker compose exec backend go test ./internal/config/ ./internal/middleware/ -count=1
 ```
 
-### G9-3. main.goの3バッチgoroutineがタイマーループをコピペ重複し、JST取得イディオムも3様（FixedZone×2 / 素のtime.Now×1）
+### G9-3. main.goの3バッチgoroutineがタイマーループをコピペ重複し、JST取得イディオムも3様（FixedZone×2 / 素のtime.Now×1） — **CLOSED（2026-07-10）**
 
 - **ID**: `batch-scheduler-dedup-tz`
 - **重要度**: P3 / **工数目安**: S / **挙動変更**: なし（挙動保存）
+- **ステータス**: ✅ **CLOSED** — コミット `72d64ae7`。`cmd/api/batch_scheduler.go` に `runScheduled`/`hourlyTick`/`dailyAt2AM` を抽出、3 goroutine を呼び出し3行へ置換。JST は `time.Local`（ConfigureTimeZone 済み）に統一、`FixedZone("Asia/Tokyo"` 残存は `backend/cmd/` で0件。`TestRunScheduled`/`TestHourlyTick`/`TestDailyAt2AM` 新設。
 - **対象ファイル**: cmd/api/main.go (197-259); internal/config/timezone.go (11-18)
 
 **証拠(現HEAD検証済み)**
