@@ -1,5 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { summarizeCategoryTotals } from "./category-breakdown";
+import { transformCashRegisterClose } from "@/lib/transforms/cash-register";
+import type { CashRegisterClose as BackendCashRegisterClose } from "@/types/generated/models";
 
 describe("summarizeCategoryTotals", () => {
   it("sums payment-method amounts per category and groups them by display category", () => {
@@ -49,5 +51,27 @@ describe("summarizeCategoryTotals", () => {
       categories: { food: { 現金: 1200, broken: "x", missing: null } },
     };
     expect(summarizeCategoryTotals(breakdown)).toEqual([{ label: "フード", total: 1200 }]);
+  });
+
+  it("accepts transformCashRegisterClose's unknown-typed categoryBreakdown output as-is (R-F6-S3)", () => {
+    const backendClose: BackendCashRegisterClose = {
+      id: 1,
+      clinic_id: 1,
+      close_date: "2026-07-10",
+      period: "am",
+      theoretical_cash: 10000,
+      actual_cash: 10000,
+      cash_difference: 0,
+      category_breakdown: { categories: { examination: { 現金: 3000 } } },
+      memo: "",
+      closed_at: "2026-07-10T09:00:00Z",
+      created_at: "2026-07-10T09:00:00Z",
+      updated_at: "2026-07-10T09:00:00Z",
+    };
+
+    const result = transformCashRegisterClose(backendClose);
+    const totals = summarizeCategoryTotals(result.categoryBreakdown);
+
+    expect(totals).toContainEqual({ label: "診療", total: 3000 });
   });
 });

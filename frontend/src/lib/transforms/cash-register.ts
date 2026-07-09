@@ -11,7 +11,7 @@ export function transformCashRegisterClose(raw: BackendCashRegisterClose) {
     theoreticalCash: raw.theoretical_cash,
     actualCash: raw.actual_cash,
     cashDifference: raw.cash_difference,
-    categoryBreakdown: raw.category_breakdown,
+    categoryBreakdown: raw.category_breakdown as unknown,
     memo: raw.memo,
     closedBy: raw.closed_by ?? null,
     closedByStaffName: raw.closed_by_staff?.name ?? undefined,
