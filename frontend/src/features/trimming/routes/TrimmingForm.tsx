@@ -14,7 +14,7 @@ import { FormFieldError } from "@/components/shared/FormFieldError/FormFieldErro
 import { NavigationBlocker } from "@/components/shared/NavigationBlocker";
 import { LoadingFallback, ErrorFallback } from "@/components/shared/DataStates";
 import { useMasterItems } from "@/hooks/use-master-items";
-import { useGetTrimmingCourseTypes } from "@/features/master";
+import { useGetTrimmingCourseTypes } from "@/hooks/use-trimming-course-types";
 import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
 import { paths } from "@/config/paths";
 import { usePermission } from "@/hooks/use-permission";

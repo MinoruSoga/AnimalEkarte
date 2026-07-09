@@ -1,10 +1,15 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import { handleApiError } from "@/lib/handle-api-error";
-import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 import type { TrimmingCourseType as ModelTrimmingCourseType } from "@/types/generated/models";
+import {
+  TRIMMING_COURSE_TYPES_QUERY_KEY,
+  useGetTrimmingCourseTypes,
+  transformTrimmingCourseType,
+  type TrimmingCourseType,
+} from "@/hooks/use-trimming-course-types";
 
-const TRIMMING_COURSE_TYPES_QUERY_KEY = ["masters", "trimming-course-types"] as const;
+export { useGetTrimmingCourseTypes, type TrimmingCourseType };
 
 // ─────────────────────────────────────────────────
 // Request types
@@ -21,28 +26,8 @@ export type CreateTrimmingCourseTypeRequest = Pick<TrimmingCourseTypeRequestBase
 export type UpdateTrimmingCourseTypeRequest = Partial<TrimmingCourseTypeRequestBase>;
 
 // ─────────────────────────────────────────────────
-// Transform
-// ─────────────────────────────────────────────────
-
-function transformTrimmingCourseType(data: ModelTrimmingCourseType) {
-  return {
-    id: String(data.id),
-    name: data.name,
-    isActive: data.is_active,
-    sortOrder: data.sort_order,
-  };
-}
-
-export type TrimmingCourseType = ReturnType<typeof transformTrimmingCourseType>;
-
-// ─────────────────────────────────────────────────
 // API functions
 // ─────────────────────────────────────────────────
-
-const getTrimmingCourseTypes = async (): Promise<TrimmingCourseType[]> => {
-  const { data } = await axios.get<ModelTrimmingCourseType[]>("/v1/masters/trimming-course-types");
-  return data.map(transformTrimmingCourseType);
-};
 
 const createTrimmingCourseType = async (
   req: CreateTrimmingCourseTypeRequest,
@@ -74,16 +59,8 @@ const reorderTrimmingCourseTypes = async (ids: number[]): Promise<void> => {
 };
 
 // ─────────────────────────────────────────────────
-// Query hooks
+// Mutation hooks
 // ─────────────────────────────────────────────────
-
-export const useGetTrimmingCourseTypes = () =>
-  useQuery({
-    queryKey: TRIMMING_COURSE_TYPES_QUERY_KEY,
-    queryFn: getTrimmingCourseTypes,
-    staleTime: QUERY_STALE_TIMES.STATIC,
-    gcTime: QUERY_GC_TIMES.LONG,
-  });
 
 export const useCreateTrimmingCourseType = () => {
   const queryClient = useQueryClient();

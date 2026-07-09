@@ -93,3 +93,4 @@ export function useGetPet(petId: string) {
 | `use-staffs.ts` | 2 | スタッフ一覧取得（reception / medical-records） |
 | `use-clinic-holidays.ts` | 複数 | クリニック休診日取得 |
 | `use-owner-line-tags.ts` | 3+ | LINE/LSTEP タグ取得（owners / medical-records / reservations / shared） |
+| `use-trimming-course-types.ts` | 2 | トリミングコース種別マスタ（master / trimming） |
