@@ -30,7 +30,7 @@
 | FD1 | ~~feature間直接依存（cross-feature import）禁止パターン違反~~ **解消済み（R-F2, CLOSED 2026-07-09）** | 26 feature中12 featureで38件（25ファイル）→ 0件（意図的例外1件） | R-F2-S1〜S18（18コミット）で全25件対応方針を実施。最終監査は[R-F2完了ログ](#r-f2-完了ログcloseD-2026-07-09)参照 |
 | FD2 | ディレクトリ構造・命名規則逸脱 | 約101件（*Model.ts等57件、hooks配置ミス11件、feature構造逸脱3件、その他） | 単発ミスでなく定着した「非公式ローカル規約」化。新規参加者・AIエージェントが誤って模倣するリスク |
 | FD3 | ~~src/hooks/配置ミス~~ **解消済み（R-F4, CLOSED 2026-07-09）** | 2件 → 0件 | R-F4（commit `b8dccb77`）でAccountingDocumentのuseClinicTaxRates SSOT統一とuse-postal-code-lookupのfeatures/owners/hooks/移設を実施。詳細は[R-F4完了ログ](#r-f4-完了ログcloseD-2026-07-09)参照 |
-| FD4 | Design Tokens残存hex（機械監査の盲点） | 2件 | design-system-audit.mjsの正規表現（引用符付きhex）をすり抜ける10進rgba表記 |
+| FD4 | ~~Design Tokens残存hex（機械監査の盲点）~~ **解消済み（R-F5, CLOSED 2026-07-09）** | 2件 → 0件 | design-system-audit.mjsの正規表現（引用符付きhex）をすり抜ける10進rgba表記。R-F5（commit `e372e272`）で解消。詳細は[R-F5完了ログ](#r-f5-完了ログcloseD-2026-07-09)参照 |
 | FD5 | 型安全性の構造的ギャップ | 4件+lintゲート未強化 | anyは0件だが`as unknown as T`等の無検証キャストが実質同じ危険を生んでいる。1件は19ルートに影響 |
 | FD6 | ~~CODING_RULES.md記載内容の自己矛盾~~ **解消済み（R-F1, CLOSED 2026-07-09、監査PASS・コード変更なし）** | 1件（ドキュメントのみ）→ 0件（先行是正済みを監査確認） | 実害無し。将来の誤学習・誤実装のリスク。詳細は[R-F1完了ログ](#r-f1-完了ログcloseD-2026-07-09)参照 |
 | FD7 | ファイル・コンポーネントサイズ超過 | 400-800行帯13ファイル | 複数責務が単一関数/コンポーネントに平坦に同居。プロジェクト自身のCODING_RULES.md基準にも抵触 |
@@ -75,7 +75,7 @@
   ```
   両loadersとも`import("@/features/owners")`（barrel経由）から取得しており、app層でのdeep importは0件。
 - **NULバイト調査**（R-F4完了ログの候補記載事項）: `python3 -c "open('FE-refactor.md','rb').read().find(b'\x00')"`でoffset 74925に1件検出。周辺文脈（R-F20節、BUG-067系NULLバイト障害の説明文）から、`` `\x00` ``という文字列表記が意図されていた箇所に生のNULバイト1バイトが混入していたものと判明。除去可能と判断し、当該バイトをテキスト表記`\x00`（4文字）へ置換して修正した（本完了ログ作成と同一コミットに含む）。
-- **次エピック候補**（既出、変更なし）: R-F5（`TagOwnerListDrawer.tsx`/`ShiftTemplateSettingsParts.tsx`のlegacy rgba直書き2件、FD4）。
+- **次エピック候補**: R-F5は完了（CLOSED 2026-07-09、commit `e372e272`、[R-F5完了ログ](#r-f5-完了ログcloseD-2026-07-09)参照）。
 
 #### R-F2. feature間直接依存（cross-feature import）38件の解消（FD1）— 規模 L
 
@@ -235,7 +235,7 @@
   Test Files  25 passed (25)
        Tests  230 passed | 3 skipped (233)
   ```
-- **次エピック候補**（本スライス外、R-F2完了ログの候補を更新）: R-F1-FD6（CODING_RULES.md自己矛盾の監査クローズ、既整合の可能性）、R-F5（`TagOwnerListDrawer.tsx`/`ShiftTemplateSettingsParts.tsx`のlegacy rgba直書き2件、FD4）。
+- **次エピック候補**（本スライス外、R-F2完了ログの候補を更新）: R-F1（FD6）・R-F5（FD4）はいずれも完了（CLOSED 2026-07-09、commit `592b1eb4`/`e372e272`）。詳細は各完了ログ（[R-F1](#r-f1-完了ログcloseD-2026-07-09)・[R-F5](#r-f5-完了ログcloseD-2026-07-09)）参照。
 
 #### R-F5. Design Tokens残存hex 2件の是正（FD4）— 規模 S
 
@@ -248,6 +248,33 @@
   2. `ShiftTemplateSettingsParts.tsx:191`の`placeholder:text-[rgba(55,53,47,0.15)]`を`${C.textPlaceholderFaint}`に置換する。
   3. 併せて`design-system-audit.mjs`のC3正規表現を、引用符付きhexだけでなく既知のlegacy 10進rgba値（`55,53,47`等）にも拡張することを検討する（このスクリプト自体の拡張は本計画の付随的推奨であり、必須項目ではない）。
 - **検証**: 該当コンポーネントの表示（divideの区切り線、placeholderの薄さ）が変更前後で視覚的に同一であることを目視確認する。`docker compose exec frontend pnpm design-audit`を実行しC1/C3/C5が引き続き0件であることを確認する。
+
+#### R-F5 完了ログ（CLOSED, 2026-07-09）
+
+- **ステータス**: **CLOSED**（完了日 2026-07-09、commit `e372e272`、単一スライス、直前HEAD `592b1eb4`）
+- **実施内容**:
+  1. `TagOwnerListDrawer.tsx:135` — `className="divide-y divide-[rgba(55,53,47,0.09)]"` を `` className={`divide-y ${C.divideDivider}`} `` に置換。
+  2. `ShiftTemplateSettingsParts.tsx:191` — `placeholder:text-[rgba(55,53,47,0.15)]` を `${C.textPlaceholderFaint}` に置換（`${C.text}`の後段に追加する形）。
+  両ファイルとも`C`は既にimport済みのため追加import不要。置換のみでレイアウト・ロジック変更なし。
+- **最終検証**（実測、本追記時点で再実行し一致確認済み）:
+  ```
+  $ rg 'rgba\(55,53,47' frontend/src/features --glob '*.{ts,tsx}'
+  （0件・exit 1）
+
+  $ docker compose exec -T frontend npx vitest run src/features/lstep src/features/shifts
+  Test Files  4 passed (4)
+       Tests  54 passed (54)
+
+  $ docker compose exec -T frontend pnpm design-audit
+  design-system-audit: C1 legacy accent — 0 件
+  design-system-audit: C3 route表面 hex 直書き — 0 件
+  design-system-audit: C5 非 brand colorVariant — 0 件
+  design-system-audit: PASS — 違反 0 件
+  ```
+- **スコープ外残存**: `features/master/PATTERNS.md:342`の同型rgba記載はドキュメント内のコード例であり、実行コードではないため是正対象外（変更なし）。
+- **レビュー記録**: typescript-reviewer **Approve**（CRITICAL/HIGH 0件）。MEDIUM所見1件（`C.divideDivider`/`C.textPlaceholderFaint`は色基盤が旧アクセント`#37352F`系からink基準`rgba(0,0,0,...)`系に変わる。不透明度9%/15%は完全一致）——design-tokens.ts内の他定数（`borderLight`/`bgHover`/`bgLight`等）も同じ「legacy `#37352F`→ink `0,0,0`統一」方針を既に採用済みであり、意図的なトークン統一と判断しブロック不要とした。
+- **付随推奨（未実施）**: `design-system-audit.mjs`のC3正規表現をlegacy 10進rgba値（`55,53,47`等）にも拡張する検討（本計画の手順3、任意・次エピック外）。
+- **次エピック候補**: R-F6（FD5 型安全性・lintゲート、規模M）。
 
 ---
 
