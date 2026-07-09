@@ -31,6 +31,7 @@ jobs:
       frontend: ${{ steps.filter.outputs.frontend }}
       codegen: ${{ steps.filter.outputs.codegen }}
       migrations: ${{ steps.filter.outputs.migrations }}
+      worker: ${{ steps.filter.outputs.worker }}
     steps:
       - name: Checkout
         uses: actions/checkout@v7.0.0
@@ -50,6 +51,10 @@ jobs:
               - 'frontend/src/types/generated/**'
             migrations:
               - 'backend/migrations/*.sql'
+            worker:
+              - 'backend/worker/**'
+              - 'package.json'
+              - 'pnpm-lock.yaml'
 
   # ──────────────────────────────────────────────
   # C-1 再発防止: gitleaks によるシークレット漏洩スキャン。
@@ -534,6 +539,37 @@ jobs:
           path: frontend/coverage
           if-no-files-found: ignore
           retention-days: 14
+
+  # ──────────────────────────────────────────────
+  # G10-6: backend/worker/*.ts (Cloudflare Worker の migrate 認証・レスポンス整形ロジック)
+  # の unit test。crypto.subtle.timingSafeEqual の実挙動を検証するため vitest-pool-workers
+  # (workerd ランタイム) 上で実行する — 素の Node vitest では当該 API が存在しない。
+  # ──────────────────────────────────────────────
+  worker:
+    name: Worker Tests
+    needs: changes
+    if: needs.changes.outputs.worker == 'true'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7.0.0
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Install root dependencies
+        run: pnpm install
+
+      - name: Run worker tests
+        run: pnpm run test:worker
 
   # ──────────────────────────────────────────────
   # Codegen: Go model → TypeScript 型の同期チェック

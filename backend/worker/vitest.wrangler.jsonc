@@ -1,0 +1,10 @@
+// G10-6: minimal wrangler config used ONLY by vitest-pool-workers (backend/worker/vitest.config.ts).
+// Intentionally excludes containers/durable_objects/hyperdrive/r2_buckets/secrets — those live in
+// ../wrangler.jsonc (the real deploy config) and are irrelevant to the pure-function unit tests
+// this config backs. Only compatibility_date/flags matter here, to get a real workerd runtime.
+{
+  "name": "animalekarte-worker-test",
+  "compatibility_date": "2026-07-05",
+  "compatibility_flags": ["nodejs_compat_v2"],
+  "main": "./index.ts"
+}
