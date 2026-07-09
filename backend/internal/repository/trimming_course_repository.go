@@ -53,28 +53,14 @@ func (r *trimmingCourseRepository) Create(ctx context.Context, course *model.Tri
 }
 
 func (r *trimmingCourseRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.TrimmingCourse, error) {
-	result := r.db.WithContext(ctx).
-		Model(&model.TrimmingCourse{}).
-		Scopes(clinicScope(clinicID)).Where("id = ?", id).
-		Updates(fields)
-	if result.Error != nil {
-		return nil, apperrors.FromGORM(result.Error, "trimming_course", fmt.Sprintf("%d", id))
-	}
-	if result.RowsAffected == 0 {
-		return nil, apperrors.WrapNotFound("trimming_course", fmt.Sprintf("%d", id))
+	if err := updateScopedByID(ctx, r.db, &model.TrimmingCourse{}, "trimming_course", clinicID, id, fields); err != nil {
+		return nil, err
 	}
 	return r.FindByID(ctx, clinicID, id)
 }
 
 func (r *trimmingCourseRepository) Delete(ctx context.Context, clinicID, id uint64) error {
-	result := r.db.WithContext(ctx).Scopes(clinicScope(clinicID)).Where("id = ?", id).Delete(&model.TrimmingCourse{})
-	if result.Error != nil {
-		return apperrors.FromGORM(result.Error, "trimming_course", fmt.Sprintf("%d", id))
-	}
-	if result.RowsAffected == 0 {
-		return apperrors.WrapNotFound("trimming_course", fmt.Sprintf("%d", id))
-	}
-	return nil
+	return deleteScopedByID(ctx, r.db, &model.TrimmingCourse{}, "trimming_course", clinicID, id)
 }
 
 // CountUsageByTrimmingCourseID は指定コースを使用しているトリミング詳細数を返す（BUG-111）

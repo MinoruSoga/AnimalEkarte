@@ -59,28 +59,14 @@ func (r *inquiryTemplateRepository) Create(ctx context.Context, template *model.
 }
 
 func (r *inquiryTemplateRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.InquiryTemplate, error) {
-	result := r.db.WithContext(ctx).
-		Model(&model.InquiryTemplate{}).
-		Scopes(clinicScope(clinicID)).Where("id = ?", id).
-		Updates(fields)
-	if result.Error != nil {
-		return nil, apperrors.FromGORM(result.Error, "inquiry_template", fmt.Sprintf("%d", id))
-	}
-	if result.RowsAffected == 0 {
-		return nil, apperrors.WrapNotFound("inquiry_template", fmt.Sprintf("%d", id))
+	if err := updateScopedByID(ctx, r.db, &model.InquiryTemplate{}, "inquiry_template", clinicID, id, fields); err != nil {
+		return nil, err
 	}
 	return r.FindByID(ctx, clinicID, id)
 }
 
 func (r *inquiryTemplateRepository) Delete(ctx context.Context, clinicID, id uint64) error {
-	result := r.db.WithContext(ctx).Scopes(clinicScope(clinicID)).Where("id = ?", id).Delete(&model.InquiryTemplate{})
-	if result.Error != nil {
-		return apperrors.FromGORM(result.Error, "inquiry_template", fmt.Sprintf("%d", id))
-	}
-	if result.RowsAffected == 0 {
-		return apperrors.WrapNotFound("inquiry_template", fmt.Sprintf("%d", id))
-	}
-	return nil
+	return deleteScopedByID(ctx, r.db, &model.InquiryTemplate{}, "inquiry_template", clinicID, id)
 }
 
 // 現スキーマに inquiry_template_id を参照する FK テーブルが存在しないため常に 0 を返す。

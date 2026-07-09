@@ -54,28 +54,14 @@ func (r *insuranceRepository) Create(ctx context.Context, insurance *model.Insur
 }
 
 func (r *insuranceRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Insurance, error) {
-	result := r.db.WithContext(ctx).
-		Model(&model.Insurance{}).
-		Scopes(clinicScope(clinicID)).Where("id = ?", id).
-		Updates(fields)
-	if result.Error != nil {
-		return nil, apperrors.FromGORM(result.Error, "insurance", fmt.Sprintf("%d", id))
-	}
-	if result.RowsAffected == 0 {
-		return nil, apperrors.WrapNotFound("insurance", fmt.Sprintf("%d", id))
+	if err := updateScopedByID(ctx, r.db, &model.Insurance{}, "insurance", clinicID, id, fields); err != nil {
+		return nil, err
 	}
 	return r.FindByID(ctx, clinicID, id)
 }
 
 func (r *insuranceRepository) Delete(ctx context.Context, clinicID, id uint64) error {
-	result := r.db.WithContext(ctx).Scopes(clinicScope(clinicID)).Where("id = ?", id).Delete(&model.Insurance{})
-	if result.Error != nil {
-		return apperrors.FromGORM(result.Error, "insurance", fmt.Sprintf("%d", id))
-	}
-	if result.RowsAffected == 0 {
-		return apperrors.WrapNotFound("insurance", fmt.Sprintf("%d", id))
-	}
-	return nil
+	return deleteScopedByID(ctx, r.db, &model.Insurance{}, "insurance", clinicID, id)
 }
 
 // CountUsageByInsuranceID は指定保険を参照しているペット数を返す（BUG-110）

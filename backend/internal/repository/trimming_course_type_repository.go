@@ -59,32 +59,14 @@ func (r *trimmingCourseTypeRepository) Create(ctx context.Context, m *model.Trim
 }
 
 func (r *trimmingCourseTypeRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.TrimmingCourseType, error) {
-	result := r.db.WithContext(ctx).
-		Model(&model.TrimmingCourseType{}).
-		Scopes(clinicScope(clinicID)).
-		Where("id = ?", id).
-		Updates(fields)
-	if result.Error != nil {
-		return nil, apperrors.FromGORM(result.Error, "trimming_course_type", fmt.Sprintf("%d", id))
-	}
-	if result.RowsAffected == 0 {
-		return nil, apperrors.WrapNotFound("trimming_course_type", fmt.Sprintf("%d", id))
+	if err := updateScopedByID(ctx, r.db, &model.TrimmingCourseType{}, "trimming_course_type", clinicID, id, fields); err != nil {
+		return nil, err
 	}
 	return r.FindByID(ctx, clinicID, id)
 }
 
 func (r *trimmingCourseTypeRepository) Delete(ctx context.Context, clinicID, id uint64) error {
-	result := r.db.WithContext(ctx).
-		Scopes(clinicScope(clinicID)).
-		Where("id = ?", id).
-		Delete(&model.TrimmingCourseType{})
-	if result.Error != nil {
-		return apperrors.FromGORM(result.Error, "trimming_course_type", fmt.Sprintf("%d", id))
-	}
-	if result.RowsAffected == 0 {
-		return apperrors.WrapNotFound("trimming_course_type", fmt.Sprintf("%d", id))
-	}
-	return nil
+	return deleteScopedByID(ctx, r.db, &model.TrimmingCourseType{}, "trimming_course_type", clinicID, id)
 }
 
 // CountUsageByCourseTypeID は指定種別を参照している trimming_courses の件数を返す。

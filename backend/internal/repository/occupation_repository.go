@@ -59,28 +59,14 @@ func (r *occupationRepository) Create(ctx context.Context, occupation *model.Occ
 }
 
 func (r *occupationRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Occupation, error) {
-	result := r.db.WithContext(ctx).
-		Model(&model.Occupation{}).
-		Scopes(clinicScope(clinicID)).Where("id = ?", id).
-		Updates(fields)
-	if result.Error != nil {
-		return nil, apperrors.FromGORM(result.Error, "occupation", fmt.Sprintf("%d", id))
-	}
-	if result.RowsAffected == 0 {
-		return nil, apperrors.WrapNotFound("occupation", fmt.Sprintf("%d", id))
+	if err := updateScopedByID(ctx, r.db, &model.Occupation{}, "occupation", clinicID, id, fields); err != nil {
+		return nil, err
 	}
 	return r.FindByID(ctx, clinicID, id)
 }
 
 func (r *occupationRepository) Delete(ctx context.Context, clinicID, id uint64) error {
-	result := r.db.WithContext(ctx).Scopes(clinicScope(clinicID)).Where("id = ?", id).Delete(&model.Occupation{})
-	if result.Error != nil {
-		return apperrors.FromGORM(result.Error, "occupation", fmt.Sprintf("%d", id))
-	}
-	if result.RowsAffected == 0 {
-		return apperrors.WrapNotFound("occupation", fmt.Sprintf("%d", id))
-	}
-	return nil
+	return deleteScopedByID(ctx, r.db, &model.Occupation{}, "occupation", clinicID, id)
 }
 
 // CountUsageByOccupationID は指定役職を参照しているスタッフ数を返す（BUG-112）
