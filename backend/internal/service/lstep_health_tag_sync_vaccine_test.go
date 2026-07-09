@@ -54,6 +54,7 @@ func TestSyncVaccineDeadlineTagImpl_ClientInteraction(t *testing.T) {
 
 	t.Run("returns wrapped error when checkOptOut fails", func(t *testing.T) {
 		svc := &lstepTagSyncService{
+			settingsSvc: &mockLstepSettingsService{isSyncEnabledFn: func(_ context.Context, _ uint64) (bool, error) { return true, nil }},
 			ownerRepo: &mockOwnerRepository{
 				findByIDFn: func(_ context.Context, _, _ uint64) (*model.Owner, error) { return nil, errors.New("db error") },
 			},
@@ -64,6 +65,7 @@ func TestSyncVaccineDeadlineTagImpl_ClientInteraction(t *testing.T) {
 
 	t.Run("returns wrapped error when vacRepo.FindByOwner fails", func(t *testing.T) {
 		svc := &lstepTagSyncService{
+			settingsSvc: &mockLstepSettingsService{isSyncEnabledFn: func(_ context.Context, _ uint64) (bool, error) { return true, nil }},
 			ownerRepo: &mockOwnerRepository{
 				findByIDFn: func(_ context.Context, _, id uint64) (*model.Owner, error) {
 					return &model.Owner{ID: id, LineUserID: &lineUID}, nil
@@ -83,6 +85,7 @@ func TestSyncVaccineDeadlineTagImpl_ClientInteraction(t *testing.T) {
 		var addedTag, upsertedTag, upsertedReason string
 		client := &mockLstepAPIClient{addTagFn: func(_ context.Context, _, tagName string) error { addedTag = tagName; return nil }}
 		svc := &lstepTagSyncService{
+			settingsSvc: &mockLstepSettingsService{isSyncEnabledFn: func(_ context.Context, _ uint64) (bool, error) { return true, nil }},
 			ownerRepo: &mockOwnerRepository{
 				findByIDFn: func(_ context.Context, _, id uint64) (*model.Owner, error) {
 					return &model.Owner{ID: id, LineUserID: &lineUID}, nil
@@ -113,6 +116,7 @@ func TestSyncVaccineDeadlineTagImpl_ClientInteraction(t *testing.T) {
 	t.Run("deadline soon: AddTag failure is wrapped and returned", func(t *testing.T) {
 		client := &mockLstepAPIClient{addTagFn: func(_ context.Context, _, _ string) error { return errors.New("api error") }}
 		svc := &lstepTagSyncService{
+			settingsSvc: &mockLstepSettingsService{isSyncEnabledFn: func(_ context.Context, _ uint64) (bool, error) { return true, nil }},
 			ownerRepo: &mockOwnerRepository{
 				findByIDFn: func(_ context.Context, _, id uint64) (*model.Owner, error) {
 					return &model.Owner{ID: id, LineUserID: &lineUID}, nil
@@ -134,6 +138,7 @@ func TestSyncVaccineDeadlineTagImpl_ClientInteraction(t *testing.T) {
 		var removedTag, deletedTag string
 		client := &mockLstepAPIClient{removeTagFn: func(_ context.Context, _, tagName string) error { removedTag = tagName; return nil }}
 		svc := &lstepTagSyncService{
+			settingsSvc: &mockLstepSettingsService{isSyncEnabledFn: func(_ context.Context, _ uint64) (bool, error) { return true, nil }},
 			ownerRepo: &mockOwnerRepository{
 				findByIDFn: func(_ context.Context, _, id uint64) (*model.Owner, error) {
 					return &model.Owner{ID: id, LineUserID: &lineUID}, nil
@@ -161,6 +166,7 @@ func TestSyncVaccineDeadlineTagImpl_ClientInteraction(t *testing.T) {
 	t.Run("no deadline soon: RemoveTag failure is non-fatal (notifies API failure, no error returned)", func(t *testing.T) {
 		client := &mockLstepAPIClient{removeTagFn: func(_ context.Context, _, _ string) error { return errors.New("api error") }}
 		svc := &lstepTagSyncService{
+			settingsSvc: &mockLstepSettingsService{isSyncEnabledFn: func(_ context.Context, _ uint64) (bool, error) { return true, nil }},
 			ownerRepo: &mockOwnerRepository{
 				findByIDFn: func(_ context.Context, _, id uint64) (*model.Owner, error) {
 					return &model.Owner{ID: id, LineUserID: &lineUID}, nil

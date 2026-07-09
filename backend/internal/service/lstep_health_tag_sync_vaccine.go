@@ -12,11 +12,6 @@ import (
 
 // SyncVaccineDeadlineTag はワクチン次回予定日が VaccineDeadlineDays 以内なら PREV_ワクチン期限 を同期する（FEAT-379）。
 func (s *lstepTagSyncService) SyncVaccineDeadlineTag(ctx context.Context, clinicID, ownerID uint64) error {
-	if skip, err := s.shouldSkipSync(ctx, clinicID); err != nil {
-		return err
-	} else if skip {
-		return nil
-	}
 	thresholds, err := s.settingsSvc.GetHealthPreventionThresholds(ctx, clinicID)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to get health prevention thresholds for vaccine deadline tag", "error", err, "clinic_id", clinicID)
@@ -29,7 +24,7 @@ func (s *lstepTagSyncService) SyncVaccineDeadlineTag(ctx context.Context, clinic
 //
 //nolint:gocritic // hugeParam: thresholds は HealthPreventionThresholds を値型で受ける
 func (s *lstepTagSyncService) syncVaccineDeadlineTagImpl(ctx context.Context, clinicID, ownerID uint64, thresholds model.HealthPreventionThresholds) error {
-	lineUserID, ok, err := s.resolveSyncTargetOwner(ctx, clinicID, ownerID, PrevVaccineDeadlineTag)
+	lineUserID, ok, err := s.resolveSyncTarget(ctx, clinicID, ownerID, PrevVaccineDeadlineTag)
 	if err != nil {
 		return err
 	}
