@@ -3,7 +3,7 @@ import { toast } from "sonner";
 import { handleApiError } from "@/lib/handle-api-error";
 import { C, STYLE } from "@/lib/design-tokens";
 import { Button } from "@/components/ui/button";
-import { TriggerTypeLabels } from "@/features/lstep";
+import { TriggerTypeLabels } from "@/config/lstep-trigger-types";
 import {
   useGetTriggerPriorities,
   useUpdateTriggerPriorities,

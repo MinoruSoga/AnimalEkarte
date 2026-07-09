@@ -5,6 +5,11 @@ import { ja } from "date-fns/locale";
 
 // Internal
 import { C } from "@/lib/design-tokens";
+// #190: セクション定数 — R-F2-S9 で src/config/ へ抽出
+import {
+  DOCUMENT_SECTION_KEYS,
+  type DocumentSectionKey,
+} from "@/config/accounting-document-sections";
 
 // Types
 import type { Accounting, PaymentInfo } from "../types";
@@ -13,25 +18,6 @@ type DocumentPaymentInfo = Pick<
   PaymentInfo,
   "totalAmount" | "insuranceAmount" | "billingAmount" | "receivedAmount" | "changeAmount"
 >;
-
-// #190: セクション定数 — index.ts 経由で公開
-export const DOCUMENT_SECTION_KEYS = [
-  "clinic_header",
-  "owner_pet_info",
-  "items_table",
-  "payment_summary",
-  "footer_note",
-] as const;
-
-export type DocumentSectionKey = (typeof DOCUMENT_SECTION_KEYS)[number];
-
-export const DOCUMENT_SECTION_LABELS: Record<DocumentSectionKey, string> = {
-  clinic_header: "病院情報ヘッダー",
-  owner_pet_info: "飼主・ペット情報",
-  items_table: "明細テーブル",
-  payment_summary: "お会計サマリー",
-  footer_note: "備考・フッター",
-};
 
 export interface ClinicInfo {
   name?: string;

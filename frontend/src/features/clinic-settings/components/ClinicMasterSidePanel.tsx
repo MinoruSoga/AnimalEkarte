@@ -5,7 +5,7 @@ import {
   DOCUMENT_SECTION_KEYS,
   DOCUMENT_SECTION_LABELS,
   type DocumentSectionKey,
-} from "@/features/accounting";
+} from "@/config/accounting-document-sections";
 
 import { DeleteIconButton } from "@/components/shared/DeleteIconButton/DeleteIconButton";
 import { FormFieldError } from "@/components/shared/FormFieldError";
