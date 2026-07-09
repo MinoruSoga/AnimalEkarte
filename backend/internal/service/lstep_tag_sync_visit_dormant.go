@@ -21,23 +21,13 @@ func (s *lstepTagSyncService) SyncDormantTags(ctx context.Context, clinicID, own
 
 // SyncDormantTagsWithThresholds は事前取得済みの閾値を使って dormant タグを差分同期する（PERF-2 N+1 解消用）。
 func (s *lstepTagSyncService) SyncDormantTagsWithThresholds(ctx context.Context, clinicID, ownerID uint64, daysSinceLastVisit int, thresholds model.DormantThresholds) error {
-	if skip, err := s.shouldSkipSync(ctx, clinicID); err != nil {
-		return err
-	} else if skip {
-		return nil
-	}
-	optOut, owner, err := s.checkOptOut(ctx, clinicID, ownerID)
+	lineUserID, ok, err := s.resolveSyncTarget(ctx, clinicID, ownerID, "dormant")
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to check opt-out for dormant tag sync", "error", err)
-		return apperrors.Wrap(err, "failed to check opt-out")
+		return err
 	}
-	if optOut {
+	if !ok {
 		return nil
 	}
-	if owner.LineUserID == nil || *owner.LineUserID == "" {
-		return nil
-	}
-	lineUserID := *owner.LineUserID
 
 	client, err := s.buildClient(ctx, clinicID)
 	if err != nil {
@@ -73,26 +63,14 @@ func (s *lstepTagSyncService) SyncDormantTagsWithThresholds(ctx context.Context,
 	apiFailed := false
 	for _, c := range cached {
 		if isDormantTag(c.TagName) && c.TagName != targetTag {
-			if delErr := client.RemoveTag(ctx, lineUserID, c.TagName); delErr != nil {
-				slog.ErrorContext(ctx, "failed to remove stale dormant tag", "error", delErr, "tag", c.TagName)
-				s.notifyAPIFailure(ctx, client, clinicID, ownerID, lineUserID)
+			if err := s.applyTagState(ctx, client, clinicID, ownerID, lineUserID, c.TagName, "dormant", "", false); err != nil {
 				apiFailed = true
-			} else {
-				if delCacheErr := s.tagCacheRepo.DeleteTag(ctx, clinicID, ownerID, c.TagName); delCacheErr != nil {
-					slog.WarnContext(ctx, "failed to delete tag from cache (best-effort)", "error", delCacheErr, "owner_id", ownerID, "tag", c.TagName)
-				}
 			}
 		}
 		// cpm_dormant は 240d 未満の場合に削除する
 		if c.TagName == "cpm_dormant" && !needsCpmDormant {
-			if delErr := client.RemoveTag(ctx, lineUserID, "cpm_dormant"); delErr != nil {
-				slog.ErrorContext(ctx, "failed to remove stale cpm_dormant tag", "error", delErr)
-				s.notifyAPIFailure(ctx, client, clinicID, ownerID, lineUserID)
+			if err := s.applyTagState(ctx, client, clinicID, ownerID, lineUserID, "cpm_dormant", "cpm dormant", "", false); err != nil {
 				apiFailed = true
-			} else {
-				if delCacheErr := s.tagCacheRepo.DeleteTag(ctx, clinicID, ownerID, "cpm_dormant"); delCacheErr != nil {
-					slog.WarnContext(ctx, "failed to delete tag from cache (best-effort)", "error", delCacheErr, "owner_id", ownerID, "tag", "cpm_dormant")
-				}
 			}
 		}
 	}
@@ -104,23 +82,14 @@ func (s *lstepTagSyncService) SyncDormantTagsWithThresholds(ctx context.Context,
 		return nil
 	}
 
-	if addErr := client.AddTag(ctx, lineUserID, targetTag); addErr != nil {
-		slog.ErrorContext(ctx, "failed to add dormant tag", "error", addErr, "tag", targetTag)
-		s.notifyAPIFailure(ctx, client, clinicID, ownerID, lineUserID)
-		return apperrors.Wrap(addErr, "failed to add dormant tag")
-	}
-	if upsertErr := s.tagCacheRepo.UpsertTag(ctx, clinicID, ownerID, targetTag, "auto", ""); upsertErr != nil {
-		slog.ErrorContext(ctx, "failed to upsert dormant tag cache", "error", upsertErr)
+	if err := s.applyTagState(ctx, client, clinicID, ownerID, lineUserID, targetTag, "dormant", "", true); err != nil {
+		return err
 	}
 
 	// 240日以上の場合は cpm_dormant も付与する
 	if needsCpmDormant {
-		if addErr := client.AddTag(ctx, lineUserID, "cpm_dormant"); addErr != nil {
-			slog.ErrorContext(ctx, "failed to add cpm_dormant tag", "error", addErr)
-			s.notifyAPIFailure(ctx, client, clinicID, ownerID, lineUserID)
-			return apperrors.Wrap(addErr, "failed to add cpm_dormant tag")
-		} else if upsertErr := s.tagCacheRepo.UpsertTag(ctx, clinicID, ownerID, "cpm_dormant", "auto", ""); upsertErr != nil {
-			slog.ErrorContext(ctx, "failed to upsert cpm_dormant tag cache", "error", upsertErr)
+		if err := s.applyTagState(ctx, client, clinicID, ownerID, lineUserID, "cpm_dormant", "cpm dormant", "", true); err != nil {
+			return err
 		}
 	}
 	if !apiFailed {
@@ -153,23 +122,13 @@ func visitDormantTagsForDays(days int) []string {
 }
 
 func (s *lstepTagSyncService) SyncVisitDormantTags(ctx context.Context, clinicID, ownerID uint64, daysSinceLastVisit int) error {
-	if skip, err := s.shouldSkipSync(ctx, clinicID); err != nil {
-		return err
-	} else if skip {
-		return nil
-	}
-	optOut, owner, err := s.checkOptOut(ctx, clinicID, ownerID)
+	lineUserID, ok, err := s.resolveSyncTarget(ctx, clinicID, ownerID, "VISIT dormant")
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to check opt-out for VISIT dormant tag sync", "error", err)
-		return apperrors.Wrap(err, "failed to check opt-out")
+		return err
 	}
-	if optOut {
+	if !ok {
 		return nil
 	}
-	if owner.LineUserID == nil || *owner.LineUserID == "" {
-		return nil
-	}
-	lineUserID := *owner.LineUserID
 
 	client, err := s.buildClient(ctx, clinicID)
 	if err != nil {
@@ -206,24 +165,14 @@ func (s *lstepTagSyncService) SyncVisitDormantTags(ctx context.Context, clinicID
 		shouldHave := daysSinceLastVisit > th.days
 		_, hasCached := cachedSet[th.tag]
 		if shouldHave {
-			if addErr := client.AddTag(ctx, lineUserID, th.tag); addErr != nil {
-				slog.ErrorContext(ctx, "failed to add VISIT dormant tag", "error", addErr, "tag", th.tag)
-				s.notifyAPIFailure(ctx, client, clinicID, ownerID, lineUserID)
+			if err := s.applyTagState(ctx, client, clinicID, ownerID, lineUserID, th.tag, "VISIT dormant", "", true); err != nil {
 				apiFailed = true
 				continue
-			}
-			if cacheErr := s.tagCacheRepo.UpsertTag(ctx, clinicID, ownerID, th.tag, "auto", ""); cacheErr != nil {
-				slog.ErrorContext(ctx, "failed to upsert VISIT dormant tag cache", "error", cacheErr, "tag", th.tag)
 			}
 		} else if hasCached {
-			if delErr := client.RemoveTag(ctx, lineUserID, th.tag); delErr != nil {
-				slog.ErrorContext(ctx, "failed to remove VISIT dormant tag", "error", delErr, "tag", th.tag)
-				s.notifyAPIFailure(ctx, client, clinicID, ownerID, lineUserID)
+			if err := s.applyTagState(ctx, client, clinicID, ownerID, lineUserID, th.tag, "VISIT dormant", "", false); err != nil {
 				apiFailed = true
 				continue
-			}
-			if delCacheErr := s.tagCacheRepo.DeleteTag(ctx, clinicID, ownerID, th.tag); delCacheErr != nil {
-				slog.WarnContext(ctx, "failed to delete tag from cache (best-effort)", "error", delCacheErr, "owner_id", ownerID, "tag", th.tag)
 			}
 		}
 	}
