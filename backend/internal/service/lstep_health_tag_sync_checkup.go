@@ -92,7 +92,7 @@ func (s *lstepTagSyncService) SyncHealthcheckTagsWithMappings(ctx context.Contex
 
 	apiFailed := false
 	if hasHealthcheck {
-		doneReason := fmt.Sprintf("最終健診: %s", lastCheckupDate.Format("2006-01-02"))
+		doneReason := fmt.Sprintf("最終健診: %s", lastCheckupDate.Format(time.DateOnly))
 		if err := s.applyTagState(ctx, client, clinicID, ownerID, lineUserID, HlthHealthcheckDoneTag, "healthcheck done", doneReason, true); err != nil {
 			return err
 		}

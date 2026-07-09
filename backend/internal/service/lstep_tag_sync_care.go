@@ -75,7 +75,7 @@ func (s *lstepTagSyncService) SyncPrescriptionTag(ctx context.Context, clinicID,
 		}
 		return nil
 	}
-	newTag := tagPrefixRefillDue + latestRefillDue.Format("2006-01-02")
+	newTag := tagPrefixRefillDue + latestRefillDue.Format(time.DateOnly)
 	if err := s.applyTagState(ctx, client, clinicID, ownerID, lineUserID, newTag, "refill_due", "", true); err != nil {
 		return err
 	}

@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"log/slog"
+	"time"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
@@ -188,7 +189,7 @@ func (s *medicalRecordService) findExistingRecordByAppointment(
 	if record == nil || record.AppointmentID == nil || record.PetID == nil {
 		return nil
 	}
-	dateStr := record.Date.Format("2006-01-02")
+	dateStr := record.Date.Format(time.DateOnly)
 	records, _, err := s.repo.FindAll(ctx, []uint64{clinicID}, repository.MedicalRecordListFilters{
 		PetID:     record.PetID,
 		StartDate: &dateStr,

@@ -147,7 +147,7 @@ func (s *accountingService) CorrectCreditPayment(ctx context.Context, input *Cor
 			slog.WarnContext(txCtx, "credit correction on closed period",
 				slog.Uint64("clinic_id", input.ClinicID),
 				slog.Uint64("billing_id", input.BillingID),
-				slog.String("scheduled_date", billing.ScheduledDate.Format("2006-01-02")))
+				slog.String("scheduled_date", billing.ScheduledDate.Format(time.DateOnly)))
 		}
 
 		// 監査ログ（fail-closed: 失敗時は tx をロールバックし訂正ごと無効にする。BE-refactor.md R1-2・#211 パターン踏襲）
@@ -191,7 +191,7 @@ func (s *accountingService) logCreditCorrection(ctx context.Context, input *Corr
 	// M-2: 締め済み期間への訂正は監査エントリで可視化する（対象締めの識別子として予定日を記録）。
 	if input.IsPostClose {
 		metadata["post_close"] = true
-		metadata["post_close_date"] = scheduledDate.Format("2006-01-02")
+		metadata["post_close_date"] = scheduledDate.Format(time.DateOnly)
 	}
 	if err := s.auditTx.LogEntryTx(ctx, &AuditLogInput{
 		ClinicID:   &input.ClinicID,

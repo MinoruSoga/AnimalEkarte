@@ -17,8 +17,8 @@ func (s *accountingService) GetMonthlyUnpaidCarryover(ctx context.Context, clini
 	if month < 1 || month > 12 {
 		return nil, 0, repository.MonthlyUnpaidSummary{}, apperrors.WrapInvalidInput("month must be between 1 and 12")
 	}
-	firstDay := time.Date(year, time.Month(month), 1, 0, 0, 0, 0, config.JST).Format("2006-01-02")
-	lastDay := time.Date(year, time.Month(month+1), 0, 0, 0, 0, 0, config.JST).Format("2006-01-02")
+	firstDay := time.Date(year, time.Month(month), 1, 0, 0, 0, 0, config.JST).Format(time.DateOnly)
+	lastDay := time.Date(year, time.Month(month+1), 0, 0, 0, 0, 0, config.JST).Format(time.DateOnly)
 
 	items, total, summary, err := s.repo.FindMonthlyUnpaidCarryover(ctx, clinicID, firstDay, lastDay, page, limit)
 	if err != nil {
@@ -117,9 +117,9 @@ func (s *accountingService) Cancel(ctx context.Context, clinicID, id uint64, act
 // parseDailySummaryDate は dateStr（空なら今日）を JST でパースする共通ヘルパー。
 func parseDailySummaryDate(dateStr string) (time.Time, error) {
 	if dateStr == "" {
-		dateStr = time.Now().In(time.Local).Format("2006-01-02")
+		dateStr = time.Now().In(time.Local).Format(time.DateOnly)
 	}
-	date, err := time.ParseInLocation("2006-01-02", dateStr, config.JST)
+	date, err := time.ParseInLocation(time.DateOnly, dateStr, config.JST)
 	if err != nil {
 		return time.Time{}, apperrors.WrapInvalidInput("date must be YYYY-MM-DD")
 	}

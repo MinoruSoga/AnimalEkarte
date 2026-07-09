@@ -66,7 +66,7 @@ func (s *lstepTagSyncService) syncVaccineDeadlineTagImpl(ctx context.Context, cl
 
 	vaccineReason := ""
 	if earliestNextDate != nil {
-		vaccineReason = fmt.Sprintf("次回期限: %s", earliestNextDate.Format("2006-01-02"))
+		vaccineReason = fmt.Sprintf("次回期限: %s", earliestNextDate.Format(time.DateOnly))
 	}
 
 	apiFailed := false

@@ -139,7 +139,7 @@ func (s *liffService) applyOccupationGuard(ctx context.Context, clinicID, typeID
 		if !r.Available {
 			continue
 		}
-		date, err := time.ParseInLocation("2006-01-02", r.Date, config.JST)
+		date, err := time.ParseInLocation(time.DateOnly, r.Date, config.JST)
 		if err != nil {
 			slog.ErrorContext(ctx, "failed to parse date", "error", err)
 			return apperrors.Wrap(err, "failed to parse date")
@@ -191,7 +191,7 @@ func (s *liffService) GetAvailableTimes(ctx context.Context, clinicID, typeID, s
 		slog.WarnContext(ctx, "failed to parse available dates settings, using defaults", "error", err)
 	}
 	dateJST := date.In(config.JST)
-	dateStr := dateJST.Format("2006-01-02")
+	dateStr := dateJST.Format(time.DateOnly)
 	wd := int(dateJST.Weekday())
 	closedWeekdaySet := make(map[int]struct{}, len(datesSettings.ClosedWeekdays))
 	for _, w := range datesSettings.ClosedWeekdays {

@@ -4,6 +4,7 @@ import (
 	"context"
 	"log/slog"
 	"strings"
+	"time"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 )
@@ -60,7 +61,7 @@ func (s *lstepTagSyncService) SyncNextVisitTag(ctx context.Context, clinicID, ow
 		}
 		return nil
 	}
-	newTag := tagPrefixNextVisit + latest.NextVisitRecommendedDate.Format("2006-01-02")
+	newTag := tagPrefixNextVisit + latest.NextVisitRecommendedDate.Format(time.DateOnly)
 	if err := s.applyTagState(ctx, client, clinicID, ownerID, lineUserID, newTag, "next visit", "", true); err != nil {
 		return err
 	}

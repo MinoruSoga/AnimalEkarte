@@ -125,7 +125,7 @@ func validateUnavailableTimeNotOverlaps(existing []model.ReservationTypeUnavaila
 			if input.SpecificDate == nil || existing[i].SpecificDate == nil {
 				continue
 			}
-			if existing[i].SpecificDate.In(time.Local).Format("2006-01-02") != input.SpecificDate.In(time.Local).Format("2006-01-02") {
+			if existing[i].SpecificDate.In(time.Local).Format(time.DateOnly) != input.SpecificDate.In(time.Local).Format(time.DateOnly) {
 				continue
 			}
 		}

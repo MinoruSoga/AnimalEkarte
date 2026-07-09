@@ -101,7 +101,7 @@ func (s *liffService) buildAvailableDatesStaffInputsFn(
 	} else {
 		entryIDs := make([]uint64, 0, len(entries))
 		for i := range entries {
-			dateStr := entries[i].Date.Format("2006-01-02")
+			dateStr := entries[i].Date.Format(time.DateOnly)
 			if entriesByDateStaff[dateStr] == nil {
 				entriesByDateStaff[dateStr] = map[uint64]*model.ShiftEntry{}
 			}
@@ -124,7 +124,7 @@ func (s *liffService) buildAvailableDatesStaffInputsFn(
 	}
 	reservationsByDate := map[string][]model.Reservation{}
 	for i := range reservations {
-		dateStr := reservations[i].StartTime.In(config.JST).Format("2006-01-02")
+		dateStr := reservations[i].StartTime.In(config.JST).Format(time.DateOnly)
 		reservationsByDate[dateStr] = append(reservationsByDate[dateStr], reservations[i])
 	}
 
@@ -144,7 +144,7 @@ func buildStaffSlotInputsFromWindow(
 	breaksByEntry map[uint64][]model.ShiftEntryBreak,
 	reservationsByDate map[string][]model.Reservation,
 ) []StaffSlotInput {
-	dateStr := date.Format("2006-01-02")
+	dateStr := date.Format(time.DateOnly)
 	dayResv := reservationsByDate[dateStr]
 	staffEntries := entriesByDateStaff[dateStr]
 

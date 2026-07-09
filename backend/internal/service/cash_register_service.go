@@ -227,7 +227,7 @@ func (s *cashRegisterService) GetPreview(ctx context.Context, clinicID uint64, d
 	if dateStr == "" {
 		return nil, apperrors.WrapInvalidInput("date クエリパラメータは必須です")
 	}
-	date, err := time.ParseInLocation("2006-01-02", dateStr, time.Local)
+	date, err := time.ParseInLocation(time.DateOnly, dateStr, time.Local)
 	if err != nil {
 		return nil, apperrors.WrapInvalidInput("date は YYYY-MM-DD 形式で指定してください")
 	}
@@ -295,7 +295,7 @@ func (s *cashRegisterService) GetPreview(ctx context.Context, clinicID uint64, d
 	taxSummary := buildTaxBreakdown(agg.TaxBreakdown, agg.TaxRates)
 
 	return &CashRegisterPreview{
-		Date:            date.In(time.Local).Format("2006-01-02"),
+		Date:            date.In(time.Local).Format(time.DateOnly),
 		Period:          period,
 		PeriodStart:     agg.PeriodStart.In(time.Local).Format(time.RFC3339),
 		PeriodEnd:       agg.PeriodEnd.In(time.Local).Format(time.RFC3339),
@@ -362,7 +362,7 @@ func (s *cashRegisterService) Close(ctx context.Context, clinicID uint64, input 
 
 	slog.InfoContext(ctx, "cash register closed",
 		slog.Uint64("clinic_id", clinicID),
-		slog.String("date", input.Date.Format("2006-01-02")),
+		slog.String("date", input.Date.Format(time.DateOnly)),
 		slog.String("period", input.Period),
 		slog.Int64("theoretical_cash", agg.TheoreticalCash),
 		slog.Int64("actual_cash", input.ActualCash))

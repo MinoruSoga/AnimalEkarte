@@ -64,7 +64,7 @@ func vaccineTagNames(vac *model.Vaccination) []string {
 	if vac.Vaccine == nil {
 		return nil
 	}
-	date := vac.Date.Format("2006-01-02")
+	date := vac.Date.Format(time.DateOnly)
 	var tags []string
 
 	species := vac.Vaccine.Species
@@ -165,7 +165,7 @@ func buildLatestVaccineTagSet(vaccinations []model.Vaccination) map[string]struc
 	}
 	tagSet := make(map[string]struct{}, len(latestByPrefix))
 	for prefix, date := range latestByPrefix {
-		tagSet[prefix+date.Format("2006-01-02")] = struct{}{}
+		tagSet[prefix+date.Format(time.DateOnly)] = struct{}{}
 	}
 	return tagSet
 }

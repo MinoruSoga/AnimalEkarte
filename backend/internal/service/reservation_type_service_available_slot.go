@@ -118,7 +118,7 @@ func validateAvailableSlotNotDuplicated(existing []model.ReservationTypeAvailabl
 			}
 		case model.AvailableSlotTypeSpecific:
 			if input.SpecificDate != nil && existing[i].SpecificDate != nil &&
-				existing[i].SpecificDate.In(time.Local).Format("2006-01-02") == input.SpecificDate.In(time.Local).Format("2006-01-02") {
+				existing[i].SpecificDate.In(time.Local).Format(time.DateOnly) == input.SpecificDate.In(time.Local).Format(time.DateOnly) {
 				return apperrors.WrapConflict("指定した予約可能枠は既に登録されています")
 			}
 		}
@@ -137,7 +137,7 @@ func hasActiveAvailableSlots(slots []model.ReservationTypeAvailableSlot) bool {
 
 func filterApplicableAvailableSlots(slots []model.ReservationTypeAvailableSlot, date time.Time) []model.ReservationTypeAvailableSlot {
 	dateJST := date.In(config.JST)
-	dateStr := dateJST.Format("2006-01-02")
+	dateStr := dateJST.Format(time.DateOnly)
 	dayOfWeek := int8(dateJST.Weekday()) //nolint:gosec // Weekday() は 0-6 を返すため int8 に安全に収まる
 	result := make([]model.ReservationTypeAvailableSlot, 0, len(slots))
 	for i := range slots {
@@ -150,7 +150,7 @@ func filterApplicableAvailableSlots(slots []model.ReservationTypeAvailableSlot, 
 				result = append(result, slots[i])
 			}
 		case model.AvailableSlotTypeSpecific:
-			if slots[i].SpecificDate != nil && slots[i].SpecificDate.In(time.Local).Format("2006-01-02") == dateStr {
+			if slots[i].SpecificDate != nil && slots[i].SpecificDate.In(time.Local).Format(time.DateOnly) == dateStr {
 				result = append(result, slots[i])
 			}
 		}

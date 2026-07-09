@@ -172,11 +172,11 @@ func (s *closingSettingsService) UpdateStandard(ctx context.Context, clinicID ui
 }
 
 func (s *closingSettingsService) CreateSpecialPeriod(ctx context.Context, clinicID uint64, input *CreateSpecialPeriodInput) (*model.ClosingSpecialPeriod, error) {
-	startDate, err := time.ParseInLocation("2006-01-02", input.StartDate, time.Local)
+	startDate, err := time.ParseInLocation(time.DateOnly, input.StartDate, time.Local)
 	if err != nil {
 		return nil, apperrors.WrapInvalidInput("start_date は YYYY-MM-DD 形式で指定してください")
 	}
-	endDate, err := time.ParseInLocation("2006-01-02", input.EndDate, time.Local)
+	endDate, err := time.ParseInLocation(time.DateOnly, input.EndDate, time.Local)
 	if err != nil {
 		return nil, apperrors.WrapInvalidInput("end_date は YYYY-MM-DD 形式で指定してください")
 	}
@@ -239,7 +239,7 @@ func (s *closingSettingsService) UpdateSpecialPeriod(ctx context.Context, clinic
 	endDate := current.EndDate
 	var parsedStart, parsedEnd *time.Time
 	if input.StartDate != nil {
-		t, err := time.ParseInLocation("2006-01-02", *input.StartDate, time.Local)
+		t, err := time.ParseInLocation(time.DateOnly, *input.StartDate, time.Local)
 		if err != nil {
 			return nil, apperrors.WrapInvalidInput("start_date は YYYY-MM-DD 形式で指定してください")
 		}
@@ -247,7 +247,7 @@ func (s *closingSettingsService) UpdateSpecialPeriod(ctx context.Context, clinic
 		startDate = t
 	}
 	if input.EndDate != nil {
-		t, err := time.ParseInLocation("2006-01-02", *input.EndDate, time.Local)
+		t, err := time.ParseInLocation(time.DateOnly, *input.EndDate, time.Local)
 		if err != nil {
 			return nil, apperrors.WrapInvalidInput("end_date は YYYY-MM-DD 形式で指定してください")
 		}
@@ -352,9 +352,9 @@ func (s *closingSettingsService) ResolveSchedule(ctx context.Context, clinicID u
 			slog.ErrorContext(ctx, "failed to find clinic holidays", "error", err, "clinic_id", clinicID)
 			return nil, apperrors.Wrap(err, "failed to find clinic holidays")
 		}
-		dateStr := date.Format("2006-01-02")
+		dateStr := date.Format(time.DateOnly)
 		for _, h := range holidays {
-			if h.Date.Format("2006-01-02") == dateStr {
+			if h.Date.Format(time.DateOnly) == dateStr {
 				isHoliday = true
 				break
 			}

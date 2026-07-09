@@ -13,7 +13,7 @@ import (
 )
 
 func purposeTagNameFromPrefixes(purpose string, t time.Time, prefixes []*model.LstepSendPurposeTagPrefix) string {
-	date := t.Format("2006-01-02")
+	date := t.Format(time.DateOnly)
 	for _, p := range prefixes {
 		if p.Purpose == purpose {
 			return p.TagPrefix + date

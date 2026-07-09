@@ -195,7 +195,7 @@ func buildMonthlyReportResponse(
 	workingDays := 0
 
 	for d := startDate; !d.After(endDate); d = d.AddDate(0, 0, 1) {
-		dateStr := d.Format("2006-01-02")
+		dateStr := d.Format(time.DateOnly)
 		isHoliday := holidaySet[dateStr]
 
 		agg := dailyMap[dateStr]
@@ -236,8 +236,8 @@ func buildMonthlyReportResponse(
 	return &MonthlyReportResponse{
 		Year:         year,
 		Month:        month,
-		StartDate:    startDate.Format("2006-01-02"),
-		EndDate:      endDate.Format("2006-01-02"),
+		StartDate:    startDate.Format(time.DateOnly),
+		EndDate:      endDate.Format(time.DateOnly),
 		Summary:      summary,
 		DailyDetails: dailyDetails,
 	}
@@ -387,8 +387,8 @@ func (s *accountingReportService) buildReportResponse(
 
 func (s *accountingReportService) buildHolidaySet(ctx context.Context, clinicID uint64, startDate, endDate time.Time) (map[string]bool, error) {
 	holidaySet := make(map[string]bool)
-	startStr := startDate.Format("2006-01-02")
-	endStr := endDate.Format("2006-01-02")
+	startStr := startDate.Format(time.DateOnly)
+	endStr := endDate.Format(time.DateOnly)
 	for cursor := time.Date(startDate.Year(), startDate.Month(), 1, 0, 0, 0, 0, config.JST); !cursor.After(endDate); cursor = cursor.AddDate(0, 1, 0) {
 		yearMonth := fmt.Sprintf("%04d-%02d", cursor.Year(), cursor.Month())
 		holidays, err := s.holidayRepo.FindAllByYearMonth(ctx, clinicID, yearMonth)
@@ -397,7 +397,7 @@ func (s *accountingReportService) buildHolidaySet(ctx context.Context, clinicID 
 			return nil, apperrors.Wrap(err, "failed to get clinic holidays")
 		}
 		for _, h := range holidays {
-			date := h.Date.Format("2006-01-02")
+			date := h.Date.Format(time.DateOnly)
 			if date >= startStr && date <= endStr {
 				holidaySet[date] = true
 			}

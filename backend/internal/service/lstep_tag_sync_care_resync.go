@@ -90,7 +90,7 @@ func buildLatestCheckupTagSet(checkups []model.Checkup) map[string]struct{} {
 		tagSet[fmt.Sprintf("%s%d_%s", tagPrefixCheckupDone, typeID, date.Format("2006-01"))] = struct{}{}
 	}
 	if latestNext != nil {
-		tagSet[tagPrefixNextCheckup+latestNext.Format("2006-01-02")] = struct{}{}
+		tagSet[tagPrefixNextCheckup+latestNext.Format(time.DateOnly)] = struct{}{}
 	}
 	return tagSet
 }

@@ -241,10 +241,10 @@ func validateBusinessRules(settings *model.LineReservationSetting, date time.Tim
 	minDate := today.AddDate(0, 0, settings.BookingWindowMinDays)
 	maxDate := today.AddDate(0, 0, settings.BookingWindowMaxDays)
 	if dateStart.Before(minDate) {
-		return apperrors.WrapInvalidInput(fmt.Sprintf("予約可能日は %s 以降です", minDate.Format("2006-01-02")))
+		return apperrors.WrapInvalidInput(fmt.Sprintf("予約可能日は %s 以降です", minDate.Format(time.DateOnly)))
 	}
 	if dateStart.After(maxDate) {
-		return apperrors.WrapInvalidInput(fmt.Sprintf("予約可能日は %s 以前です", maxDate.Format("2006-01-02")))
+		return apperrors.WrapInvalidInput(fmt.Sprintf("予約可能日は %s 以前です", maxDate.Format(time.DateOnly)))
 	}
 
 	// 2. 休業曜日
@@ -264,7 +264,7 @@ func validateBusinessRules(settings *model.LineReservationSetting, date time.Tim
 	if len(settings.ClosedDates) > 0 {
 		var closedDates []string
 		if err := json.Unmarshal(settings.ClosedDates, &closedDates); err == nil {
-			dateStr := dateStart.Format("2006-01-02")
+			dateStr := dateStart.Format(time.DateOnly)
 			for _, cd := range closedDates {
 				if cd == dateStr {
 					return apperrors.WrapInvalidInput("指定日は休業日のため予約できません")

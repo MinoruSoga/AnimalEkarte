@@ -13,7 +13,7 @@ import (
 
 // AvailableDateResult は1日分の空き状況を表す。
 type AvailableDateResult struct {
-	Date      string // "2006-01-02"
+	Date      string // time.DateOnly
 	Weekday   int    // 0=Sun, 1=Mon, ..., 6=Sat
 	Available bool
 	Reason    string // "closed" | "holiday" | "staff_off" | "no_slots" | ""
@@ -21,8 +21,8 @@ type AvailableDateResult struct {
 
 // BookingWindow は予約受付期間を表す。
 type BookingWindow struct {
-	Start string // "2006-01-02"
-	End   string // "2006-01-02"
+	Start string // time.DateOnly
+	End   string // time.DateOnly
 }
 
 // AvailableDatesInput は空き日付計算の入力。
@@ -38,7 +38,7 @@ type AvailableDatesInput struct {
 // AvailableDatesSettings は空き日付計算に必要な設定項目。
 type AvailableDatesSettings struct {
 	ClosedWeekdays        []int    // 0=Sun,...,6=Sat
-	ClosedDates           []string // "2006-01-02"
+	ClosedDates           []string // time.DateOnly
 	NationalHolidayClosed bool
 	BookingWindowMinDays  int
 	BookingWindowMaxDays  int
@@ -96,8 +96,8 @@ func CalcAvailableDates(ctx context.Context, input *AvailableDatesInput) ([]Avai
 	minDate, maxDate := bookingWindowDates(input.Settings)
 
 	window := BookingWindow{
-		Start: minDate.Format("2006-01-02"),
-		End:   maxDate.Format("2006-01-02"),
+		Start: minDate.Format(time.DateOnly),
+		End:   maxDate.Format(time.DateOnly),
 	}
 
 	// 休業日セット
@@ -114,7 +114,7 @@ func CalcAvailableDates(ctx context.Context, input *AvailableDatesInput) ([]Avai
 	results := make([]AvailableDateResult, 0, input.Settings.BookingWindowMaxDays)
 
 	for d := minDate; !d.After(maxDate); d = d.AddDate(0, 0, 1) {
-		dateStr := d.Format("2006-01-02")
+		dateStr := d.Format(time.DateOnly)
 		wd := int(d.Weekday()) // 0=Sun,...,6=Sat
 
 		result := AvailableDateResult{

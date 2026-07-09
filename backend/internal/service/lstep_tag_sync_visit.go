@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"log/slog"
+	"time"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/repository"
@@ -84,10 +85,10 @@ func (s *lstepTagSyncService) SyncVisitCompletionTags(ctx context.Context, clini
 func buildVisitTags(summary *repository.OwnerVisitSummary, ltv int64) []string {
 	var tags []string
 	if summary.FirstVisitAt != nil {
-		tags = append(tags, "first_visit_"+summary.FirstVisitAt.Format("2006-01-02"))
+		tags = append(tags, "first_visit_"+summary.FirstVisitAt.Format(time.DateOnly))
 	}
 	if summary.LastVisitAt != nil {
-		tags = append(tags, "last_visit_"+summary.LastVisitAt.Format("2006-01-02"))
+		tags = append(tags, "last_visit_"+summary.LastVisitAt.Format(time.DateOnly))
 	}
 	tags = append(tags, ltvBracketTag(ltv), visitCountAnnualTag(summary.AnnualCount))
 	return tags

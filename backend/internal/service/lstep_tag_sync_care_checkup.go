@@ -55,7 +55,7 @@ func (s *lstepTagSyncService) SyncCheckupTag(ctx context.Context, clinicID, owne
 
 	// next_checkup_YYYY-MM-DD タグを付与（設定時のみ）
 	if nextDate != nil {
-		nextTag := tagPrefixNextCheckup + nextDate.Format("2006-01-02")
+		nextTag := tagPrefixNextCheckup + nextDate.Format(time.DateOnly)
 		if err := s.applyTagState(ctx, client, clinicID, ownerID, lineUserID, nextTag, "next_checkup", "", true); err != nil {
 			return err
 		}
