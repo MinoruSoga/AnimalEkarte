@@ -312,12 +312,12 @@ docker compose exec backend go test ./internal/service/ -run 'TestLstep' -count=
 docker compose exec backend go test ./internal/service/ -run 'TestRun.*AllClinics|TestLstepBatch|TestDetect' -count=1
 ```
 
-### G3-3. repository 層で clinic スコープ付き Update/Delete の「Updates→RowsAffected==0→NotFound」ブロックが約 30 リポジトリに逐語コピー(Reorder は既にヘルパ化済みの片割れ)
+### G3-3. repository 層で clinic スコープ付き Update/Delete の「Updates→RowsAffected==0→NotFound」ブロックが約 30 リポジトリに逐語コピー(Reorder は既にヘルパ化済みの片割れ) — **CLOSED（2026-07-09）**
 
 - **ID**: `dup-repo-scoped-update-delete`
-- **重要度**: P3 / **工数目安**: M / **挙動変更**: なし（挙動保存）
-- **対象ファイル**: internal/repository/helpers.go (12-54 (既存 reorder ヘルパ=前例)); internal/repository/cage_repository.go (58-81); internal/repository/exam_type_repository.go (59-82); internal/repository/chief_complaint_repository.go (61-73, 93-102); internal/repository/vaccination_repository.go (Update/Delete 該当箇所)
-- **依存関係**: なし。dbortx_inventory_lint_test.go の allowlist は対象外 repo に触れない限り不変
+- **重要度**: P3 / **工数目安**: M / **挙動変更**: なし（挙動保存・実証済み）
+- **ステータス**: ✅ **CLOSED** — `updateScopedByID`/`deleteScopedByID`(helpers.go)を新設し、対象20リポジトリのUpdate/Deleteを委譲に置換。コミット `061b79b6`(helper新設)→`212aafbd`(batch1)→`56ba497d`(batch2)→`1bad754c`(batch3)→`ceab1e31`(batch4)
+- **依存関係**: なし。dbortx_inventory_lint_test.go の allowlist は対象外 repo に触れないため不変（実測: diffに `dbOrTx` 文字列の増減なし）
 
 **証拠(現HEAD検証済み)**
 
@@ -327,9 +327,37 @@ cage_repository.go:58-70 `func (r *cageRepository) Update(ctx context.Context, c
 
 P4(clinicScope 必須)+P9(FromGORM)+「RowsAffected==0→NotFound」のテナント隔離・エラー写像契約が約 30 repo に逐語コピーされている。この契約はスコープ述語や NotFound 写像を変える際に全箇所同期必須(過去のクロステナント監査 72e8887c/b3638d5e はまさにこのクラスの横断修正)。Reorder のみヘルパ化済みで対称性が欠けている。
 
-**実装手順**
+**実装内容**
 
-helpers.go に reorderByClinicID と同型の 2 ヘルパを追加: `func updateScopedByID(ctx context.Context, db *gorm.DB, m any, resource string, clinicID, id uint64, fields map[string]any) error`(Model(m).Scopes(clinicScope).Where id.Updates→FromGORM→RowsAffected==0→WrapNotFound)と `func deleteScopedByID(ctx context.Context, db *gorm.DB, m any, resource string, clinicID, id uint64) error`。呼び出し側は `if err := updateScopedByID(...); err != nil { return nil, err }\nreturn r.FindByID(ctx, clinicID, id)` の 2 行に置換(FindByID の Preload 差(exam_type の Items 等)は refetch を呼び出し側に残すことで保存)。対象は dbOrTx=0 かつ定型一致の master/業務 repo(cage/exam_type/chief_complaint/checkup_type/consultation/insurance/occupation/inquiry_template/trimming_*/merchandise_item/payment_method_master/procedure/medicine/vaccine/hospitalization_plan/reservation_type_group/vital/vaccination/owner(戻り値 error のみ変種) 等、機械的に diff 一致を確認しながら 1 コミット 5-8 ファイル)。除外: medical_record(RowsAffected==0→WrapConflict 変種)・treatment(subquery 隔離)・dbOrTx 参加 repo(accounting/billing_item/staff/reservation 等は tx 意味論があるため現状維持)。P4 コンプライアンススキャンとの整合は Reorder 前例と同じく helper 内 clinicScope を正とし、helpers.go の doc コメントに P4/P9 準拠を明記。
+`helpers.go` に `reorderByClinicID` と同型の2ヘルパを追加:
+`func updateScopedByID(ctx context.Context, db *gorm.DB, m any, resource string, clinicID, id uint64, fields map[string]any) error`(`Model(m).Scopes(clinicScope(clinicID)).Where("id = ?", id).Updates(fields)` → `FromGORM` → `RowsAffected==0` → `WrapNotFound`)と `func deleteScopedByID(ctx context.Context, db *gorm.DB, m any, resource string, clinicID, id uint64) error`(同型のDelete版)。呼び出し側は `if err := updateScopedByID(...); err != nil { return nil, err }\nreturn r.FindByID(ctx, clinicID, id)` の2行(Preload付きrefetchは呼び出し側の責務として保存)、または `owner` のような error-only変種は `return updateScopedByID(...)` の1行に置換。
+
+対象20リポジトリを4バッチに分けて実施:
+- batch1(`212aafbd`): cage / exam_type / chief_complaint / checkup_type / consultation
+- batch2(`56ba497d`): insurance / occupation / inquiry_template / trimming_option / trimming_course_type / trimming_course
+- batch3(`1bad754c`): merchandise_item / payment_method_master / procedure / medicine / vaccine
+- batch4(`ceab1e31`): hospitalization_plan / reservation_type_group / vaccination / owner(error-only変種、FindByID refetchなし)
+
+**意図的除外テーブル(移行不可・変更不要)**
+
+| ファイル | 理由 |
+|---|---|
+| `vital_repository.go` | Update Where に `deleted_at IS NULL` 述語を含む変種 |
+| `pet_repository.go` | Update RowsAffected==0 後に Count 分岐する変種 |
+| `medical_record_repository.go` | RowsAffected==0→`WrapConflict` 変種(NotFound でない) |
+| `treatment_repository.go` | subquery 隔離のため定型と不一致 |
+| dbOrTx 参加 repo(accounting/billing_item/staff/reservation 等 16 ファイル) | tx 意味論があり `r.db` 直渡し不可 |
+| BE リスト外の canonical 一致 repo(hospitalization/estimate/inventory/diagnosis 等) | スコープ最小化(本 Closure では対象外) |
+
+**検証結果**
+
+- helper契約テスト: `TestUpdateScopedByID`/`TestDeleteScopedByID`(成功・NotFound・別クリニック隔離の3パターン)全PASS
+- 20リポジトリのスコープ限定回帰 + `TestPreloadClinicScope`/`TestDbOrTx` 全PASS(下記コマンド)
+- `internal/repository` パッケージ全体(全リポジトリ)の回帰 108.688s 全PASS(既存機能に影響なし)
+- 除外ファイル(vital/pet/medical_record/treatment)への変更ゼロを `git diff --stat` で確認、旧インラインパターン(`Scopes(clinicScope(clinicID)).Where("id = ?", id).\n\tUpdates`)は対象20ファイルから `rg` で0件確認(完全消失)
+- go-reviewer: **Approve**(CRITICAL/HIGH/MEDIUM 0件。20リポジトリ全件で resource文字列・エラー写像・FindByID refetch契約の完全一致を確認)
+- clinic-isolation-auditor: **Approve**(CRITICAL/HIGH/MEDIUM 0件。`clinicScope` バイパス経路なし、Preload契約は本diffで無変更、owner/vaccinationの変種も隔離契約は他repoと同一と確認)
+- 両レビューで検出された「複数テストをまとめて実行すると非決定的にFAILする」事象は、`helpers.go`変更前後で同一再現する既存のテスト分離問題(共有DBプール上のclinicID衝突)であり、本G3-3の欠陥ではない(別チケット追跡を推奨・下記Harness Improvement Feedback参照)
 
 **検証コマンド(スコープ限定)**
 ```
