@@ -19,11 +19,6 @@ func (s *lstepTagSyncService) SyncHealthcheckTagsWithMappings(ctx context.Contex
 	if s.tagCodeRepo == nil {
 		return nil
 	}
-	if skip, err := s.shouldSkipSync(ctx, clinicID); err != nil {
-		return err
-	} else if skip {
-		return nil
-	}
 
 	// PERF-03: Use cached mappings if provided, otherwise fetch (fallback)
 	var mappings []*model.LstepTagCodeMapping
@@ -42,7 +37,7 @@ func (s *lstepTagSyncService) SyncHealthcheckTagsWithMappings(ctx context.Contex
 		return nil
 	}
 
-	lineUserID, ok, err := s.resolveSyncTargetOwner(ctx, clinicID, ownerID, HlthHealthcheckDoneTag)
+	lineUserID, ok, err := s.resolveSyncTarget(ctx, clinicID, ownerID, HlthHealthcheckDoneTag)
 	if err != nil {
 		return err
 	}
@@ -123,11 +118,6 @@ func (s *lstepTagSyncService) SyncAnnual4CheckupTag(ctx context.Context, clinicI
 	if s.tagCodeRepo == nil {
 		return nil
 	}
-	if skip, err := s.shouldSkipSync(ctx, clinicID); err != nil {
-		return err
-	} else if skip {
-		return nil
-	}
 
 	mappings, err := s.tagCodeRepo.FindByClinicIDAndTagName(ctx, clinicID, HlthHealthcheckDoneTag)
 	if err != nil {
@@ -139,7 +129,7 @@ func (s *lstepTagSyncService) SyncAnnual4CheckupTag(ctx context.Context, clinicI
 		return nil
 	}
 
-	lineUserID, ok, err := s.resolveSyncTargetOwner(ctx, clinicID, ownerID, HlthAnnual4CheckupTag)
+	lineUserID, ok, err := s.resolveSyncTarget(ctx, clinicID, ownerID, HlthAnnual4CheckupTag)
 	if err != nil {
 		return err
 	}
