@@ -424,7 +424,7 @@ func TestGetOnDutyStaffs(t *testing.T) {
 			svc: &mockShiftEntryService{
 				getOnDutyStaffsFn: func(_ context.Context, clinicID uint64, date time.Time) ([]model.Staff, error) {
 					assert.Equal(t, uint64(1), clinicID)
-					assert.Equal(t, "2026-05-28", date.Format(shiftDateLayout))
+					assert.Equal(t, "2026-05-28", date.Format(time.DateOnly))
 					return []model.Staff{{ID: 1, Name: "山田太郎"}}, nil
 				},
 			},

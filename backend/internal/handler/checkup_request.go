@@ -19,14 +19,14 @@ type createCheckupRequest struct {
 }
 
 func (r createCheckupRequest) toServiceInput(clinicID uint64) (*service.CreateCheckupInput, error) {
-	date, err := time.ParseInLocation("2006-01-02", r.Date, time.Local)
+	date, err := time.ParseInLocation(time.DateOnly, r.Date, time.Local)
 	if err != nil {
 		return nil, apperrors.WrapInvalidInput("date must be YYYY-MM-DD format")
 	}
 
 	var nextDate *time.Time
 	if r.NextDate != nil && *r.NextDate != "" {
-		nd, err := time.ParseInLocation("2006-01-02", *r.NextDate, time.Local)
+		nd, err := time.ParseInLocation(time.DateOnly, *r.NextDate, time.Local)
 		if err != nil {
 			return nil, apperrors.WrapInvalidInput("next_date must be YYYY-MM-DD format")
 		}
@@ -57,7 +57,7 @@ type updateCheckupRequest struct {
 func (r updateCheckupRequest) toServiceInput() (*service.UpdateCheckupInput, error) {
 	var updateDate *time.Time
 	if r.Date != nil && *r.Date != "" {
-		d, err := time.ParseInLocation("2006-01-02", *r.Date, time.Local)
+		d, err := time.ParseInLocation(time.DateOnly, *r.Date, time.Local)
 		if err != nil {
 			return nil, apperrors.WrapInvalidInput("date must be YYYY-MM-DD format")
 		}
@@ -66,7 +66,7 @@ func (r updateCheckupRequest) toServiceInput() (*service.UpdateCheckupInput, err
 
 	var updateNextDate *time.Time
 	if r.NextDate != nil && *r.NextDate != "" {
-		nd, err := time.ParseInLocation("2006-01-02", *r.NextDate, time.Local)
+		nd, err := time.ParseInLocation(time.DateOnly, *r.NextDate, time.Local)
 		if err != nil {
 			return nil, apperrors.WrapInvalidInput("next_date must be YYYY-MM-DD format")
 		}

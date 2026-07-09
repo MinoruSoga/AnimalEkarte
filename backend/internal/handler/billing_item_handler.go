@@ -133,7 +133,7 @@ func parseUngroupedDate(s string) time.Time {
 	if s == "" {
 		return time.Now().In(time.Local)
 	}
-	t, err := time.ParseInLocation("2006-01-02", s, time.Local)
+	t, err := time.ParseInLocation(time.DateOnly, s, time.Local)
 	if err != nil {
 		return time.Now().In(time.Local)
 	}

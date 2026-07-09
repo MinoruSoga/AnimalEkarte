@@ -51,14 +51,14 @@ func toShiftResponse(s *model.ShiftEntry) shiftResponse {
 		ID:        strconv.FormatUint(s.ID, 10),
 		ClinicID:  strconv.FormatUint(s.ClinicID, 10),
 		StaffID:   strconv.FormatUint(s.StaffID, 10),
-		Date:      s.Date.In(time.Local).Format("2006-01-02"),
+		Date:      s.Date.In(time.Local).Format(time.DateOnly),
 		ShiftType: s.ShiftType,
 		StartTime: startTime,
 		EndTime:   endTime,
 		Notes:     s.Notes,
 		Breaks:    breaks,
-		CreatedAt: s.CreatedAt.In(time.Local).Format("2006-01-02T15:04:05Z07:00"),
-		UpdatedAt: s.UpdatedAt.In(time.Local).Format("2006-01-02T15:04:05Z07:00"),
+		CreatedAt: s.CreatedAt.In(time.Local).Format(time.RFC3339),
+		UpdatedAt: s.UpdatedAt.In(time.Local).Format(time.RFC3339),
 	}
 	if s.Staff.ID != 0 {
 		r.StaffName = s.Staff.Name

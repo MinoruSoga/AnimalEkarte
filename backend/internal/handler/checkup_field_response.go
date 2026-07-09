@@ -90,7 +90,7 @@ type petCheckupResultResponse struct {
 func toPetCheckupResultResponse(r *model.CheckupFieldResult) petCheckupResultResponse {
 	resp := petCheckupResultResponse{checkupFieldResultResponse: toCheckupFieldResultResponse(r)}
 	if r.Checkup != nil {
-		resp.Date = r.Checkup.Date.In(time.Local).Format("2006-01-02")
+		resp.Date = r.Checkup.Date.In(time.Local).Format(time.DateOnly)
 		resp.CheckupTypeID = r.Checkup.CheckupTypeID
 		if r.Checkup.CheckupType != nil {
 			resp.CheckupTypeName = r.Checkup.CheckupType.Name

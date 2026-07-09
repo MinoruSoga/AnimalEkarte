@@ -21,7 +21,7 @@ const flexibleDateInvalidInputMsg = "日付の形式が正しくありません�
 // time.Time に変換する共通コア。jsonDate.UnmarshalJSON と parseDate の両方から使用される。
 func parseFlexibleDate(s string) (time.Time, error) {
 	// YYYY-MM-DD を優先
-	if t, err := time.ParseInLocation("2006-01-02", s, time.Local); err == nil {
+	if t, err := time.ParseInLocation(time.DateOnly, s, time.Local); err == nil {
 		return t, nil
 	}
 	// フォールバック: RFC3339

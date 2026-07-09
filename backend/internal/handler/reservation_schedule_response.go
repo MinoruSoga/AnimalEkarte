@@ -36,7 +36,7 @@ func toScheduleEntryResponse(e *service.ScheduleEntry) scheduleEntryResponse {
 		ID:        e.Entry.ID,
 		ClinicID:  e.Entry.ClinicID,
 		StaffID:   e.Entry.StaffID,
-		Date:      e.Entry.Date.In(time.Local).Format("2006-01-02"),
+		Date:      e.Entry.Date.In(time.Local).Format(time.DateOnly),
 		ShiftType: string(e.Entry.ShiftType),
 		WorkStart: e.Entry.StartTime,
 		WorkEnd:   e.Entry.EndTime,

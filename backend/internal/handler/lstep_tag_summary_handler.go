@@ -105,7 +105,7 @@ func (h *Handler) SearchLstepOwnersByTag(c *gin.Context) {
 		return
 	}
 	if query.isCSV() {
-		date := time.Now().In(time.Local).Format("2006-01-02")
+		date := time.Now().In(time.Local).Format(time.DateOnly)
 		filename := fmt.Sprintf("lstep-%s-%s.csv", query.TagName, date)
 		c.Header("Content-Type", "text/csv; charset=utf-8")
 		// RFC 5987: 日本語タグ名を含むファイル名の文字化けを防ぐ（#179 ③）。

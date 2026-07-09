@@ -58,11 +58,11 @@ func (q monthlyReportQuery) toPeriod() (startDate, endDate time.Time, err error)
 	if q.StartDate == "" || q.EndDate == "" {
 		return time.Time{}, time.Time{}, apperrors.WrapInvalidInput("start_date と end_date は両方指定してください")
 	}
-	startDate, err = time.ParseInLocation("2006-01-02", q.StartDate, config.JST)
+	startDate, err = time.ParseInLocation(time.DateOnly, q.StartDate, config.JST)
 	if err != nil {
 		return time.Time{}, time.Time{}, apperrors.WrapInvalidInput("start_date は YYYY-MM-DD 形式で指定してください")
 	}
-	endDate, err = time.ParseInLocation("2006-01-02", q.EndDate, config.JST)
+	endDate, err = time.ParseInLocation(time.DateOnly, q.EndDate, config.JST)
 	if err != nil {
 		return time.Time{}, time.Time{}, apperrors.WrapInvalidInput("end_date は YYYY-MM-DD 形式で指定してください")
 	}

@@ -75,7 +75,7 @@ func (q liffAvailableTimesQuery) toServiceFilters() (liffAvailableTimesFilters, 
 	if err != nil {
 		return liffAvailableTimesFilters{}, err
 	}
-	date, err := time.ParseInLocation("2006-01-02", q.Date, time.Local)
+	date, err := time.ParseInLocation(time.DateOnly, q.Date, time.Local)
 	if err != nil {
 		return liffAvailableTimesFilters{}, apperrors.WrapInvalidInput("invalid date: must be YYYY-MM-DD")
 	}
@@ -101,7 +101,7 @@ type liffCreateReservationRequest struct {
 }
 
 func (r *liffCreateReservationRequest) toServiceInput() (*service.CreateReservationInput, error) {
-	date, err := time.ParseInLocation("2006-01-02", r.Date, time.Local)
+	date, err := time.ParseInLocation(time.DateOnly, r.Date, time.Local)
 	if err != nil {
 		return nil, fmt.Errorf("invalid date: must be YYYY-MM-DD")
 	}

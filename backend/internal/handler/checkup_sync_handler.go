@@ -77,11 +77,11 @@ func toCheckupSyncPreviewOwnerResponse(o *service.CheckupSyncPreviewOwner) check
 		AnnualVisitCount:    o.AnnualVisitCount,
 	}
 	if o.LastVisitDate != nil {
-		s := o.LastVisitDate.In(time.Local).Format("2006-01-02")
+		s := o.LastVisitDate.In(time.Local).Format(time.DateOnly)
 		r.LastVisitDate = &s
 	}
 	if o.LastCheckupDate != nil {
-		s := o.LastCheckupDate.In(time.Local).Format("2006-01-02")
+		s := o.LastCheckupDate.In(time.Local).Format(time.DateOnly)
 		r.LastCheckupDate = &s
 	}
 	return r

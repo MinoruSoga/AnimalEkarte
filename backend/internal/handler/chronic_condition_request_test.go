@@ -1,6 +1,9 @@
 package handler
 
-import "testing"
+import (
+	"testing"
+	"time"
+)
 
 func TestCreateChronicConditionRequest_ToServiceInput(t *testing.T) {
 	notes := "requires monitoring"
@@ -24,7 +27,7 @@ func TestCreateChronicConditionRequest_ToServiceInput(t *testing.T) {
 	if input.ConditionName != req.ConditionName {
 		t.Errorf("ConditionName = %q, want %q", input.ConditionName, req.ConditionName)
 	}
-	if got := input.DiagnosedAt.Format(chronicConditionDateLayout); got != req.DiagnosedAt {
+	if got := input.DiagnosedAt.Format(time.DateOnly); got != req.DiagnosedAt {
 		t.Errorf("DiagnosedAt = %q, want %q", got, req.DiagnosedAt)
 	}
 	if input.Notes == nil || *input.Notes != notes {
@@ -89,7 +92,7 @@ func TestUpdateChronicConditionRequest_ToServiceInput(t *testing.T) {
 	if input.ConditionName == nil || *input.ConditionName != conditionName {
 		t.Errorf("ConditionName = %v, want %q", input.ConditionName, conditionName)
 	}
-	if input.DiagnosedAt == nil || input.DiagnosedAt.Format(chronicConditionDateLayout) != diagnosedAt {
+	if input.DiagnosedAt == nil || input.DiagnosedAt.Format(time.DateOnly) != diagnosedAt {
 		t.Errorf("DiagnosedAt = %v, want %q", input.DiagnosedAt, diagnosedAt)
 	}
 	if input.Notes == nil || *input.Notes != notes {

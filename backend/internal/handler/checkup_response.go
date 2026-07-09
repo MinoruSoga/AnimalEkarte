@@ -30,13 +30,13 @@ func toCheckupResponse(c *model.Checkup) checkupResponse {
 		ID:              strconv.FormatUint(c.ID, 10),
 		MedicalRecordID: strconv.FormatUint(c.MedicalRecordID, 10),
 		CheckupTypeID:   strconv.FormatUint(c.CheckupTypeID, 10),
-		Date:            c.Date.In(time.Local).Format("2006-01-02"),
+		Date:            c.Date.In(time.Local).Format(time.DateOnly),
 		Result:          c.Result,
 		CreatedAt:       c.CreatedAt.In(time.Local).Format(time.RFC3339),
 		UpdatedAt:       c.UpdatedAt.In(time.Local).Format(time.RFC3339),
 	}
 	if c.NextDate != nil {
-		nd := c.NextDate.In(time.Local).Format("2006-01-02")
+		nd := c.NextDate.In(time.Local).Format(time.DateOnly)
 		r.NextDate = &nd
 	}
 	if c.PetID != nil {
@@ -79,11 +79,11 @@ func toCheckupGlobalResponse(c *model.Checkup) checkupGlobalResponse {
 		ID:              strconv.FormatUint(c.ID, 10),
 		MedicalRecordID: strconv.FormatUint(c.MedicalRecordID, 10),
 		CheckupTypeID:   strconv.FormatUint(c.CheckupTypeID, 10),
-		Date:            c.Date.In(time.Local).Format("2006-01-02"),
+		Date:            c.Date.In(time.Local).Format(time.DateOnly),
 		Result:          c.Result,
 	}
 	if c.NextDate != nil {
-		nd := c.NextDate.In(time.Local).Format("2006-01-02")
+		nd := c.NextDate.In(time.Local).Format(time.DateOnly)
 		r.NextDate = &nd
 	}
 	if c.PetID != nil {
@@ -151,7 +151,7 @@ func toCheckupAlertItemResponse(c *model.Checkup, today time.Time) checkupAlertI
 	nextDateStr := ""
 	var days int
 	if c.NextDate != nil {
-		nextDateStr = c.NextDate.In(time.Local).Format("2006-01-02")
+		nextDateStr = c.NextDate.In(time.Local).Format(time.DateOnly)
 		diff := int(c.NextDate.Sub(today).Hours() / 24)
 		if diff < 0 {
 			days = -diff
@@ -165,7 +165,7 @@ func toCheckupAlertItemResponse(c *model.Checkup, today time.Time) checkupAlertI
 		PetName:         petName,
 		OwnerName:       ownerName,
 		CheckupTypeName: checkupTypeName,
-		LastCheckupDate: c.Date.In(time.Local).Format("2006-01-02"),
+		LastCheckupDate: c.Date.In(time.Local).Format(time.DateOnly),
 		NextDate:        nextDateStr,
 		Days:            days,
 	}

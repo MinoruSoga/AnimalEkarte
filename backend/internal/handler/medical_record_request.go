@@ -224,7 +224,7 @@ func (r *createMedicalRecordRequest) recordDate() (time.Time, error) {
 	case r.Date != nil:
 		return *r.Date, nil
 	case r.VisitDate != nil && *r.VisitDate != "":
-		parsed, err := time.ParseInLocation("2006-01-02", *r.VisitDate, time.Local)
+		parsed, err := time.ParseInLocation(time.DateOnly, *r.VisitDate, time.Local)
 		if err != nil {
 			return time.Time{}, apperrors.WrapInvalidInput("invalid visit_date format (expected YYYY-MM-DD)")
 		}
@@ -238,7 +238,7 @@ func (r *createMedicalRecordRequest) nextVisitDate(recordDate time.Time) (*time.
 	if r.NextVisitRecommendedDate == nil || *r.NextVisitRecommendedDate == "" {
 		return nil, nil
 	}
-	parsed, err := time.ParseInLocation("2006-01-02", *r.NextVisitRecommendedDate, time.Local)
+	parsed, err := time.ParseInLocation(time.DateOnly, *r.NextVisitRecommendedDate, time.Local)
 	if err != nil {
 		return nil, apperrors.WrapInvalidInput("invalid next_visit_recommended_date format (expected YYYY-MM-DD)")
 	}
@@ -318,7 +318,7 @@ func (r updateMedicalRecordRequest) toServiceInput(actorID uint64) (service.Upda
 		if *r.NextVisitRecommendedDate == "" {
 			clearNextVisit = true // 空文字 = 明示的クリア → DB を NULL にする
 		} else {
-			parsed, err := time.ParseInLocation("2006-01-02", *r.NextVisitRecommendedDate, time.Local)
+			parsed, err := time.ParseInLocation(time.DateOnly, *r.NextVisitRecommendedDate, time.Local)
 			if err != nil {
 				return service.UpdateMedicalRecordInput{}, apperrors.WrapInvalidInput("invalid next_visit_recommended_date format (expected YYYY-MM-DD)")
 			}

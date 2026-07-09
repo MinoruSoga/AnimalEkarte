@@ -3,6 +3,7 @@ package handler
 import (
 	"net/url"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 
@@ -90,7 +91,7 @@ func TestOnDutyStaffsQuery_ToDate(t *testing.T) {
 				return
 			}
 			assert.NoError(t, err)
-			assert.Equal(t, tt.query.Date, date.Format(shiftDateLayout))
+			assert.Equal(t, tt.query.Date, date.Format(time.DateOnly))
 		})
 	}
 }
@@ -146,7 +147,7 @@ func TestCreateShiftRequest_ToServiceInput(t *testing.T) {
 	if input.StaffID != req.StaffID {
 		t.Errorf("StaffID = %d, want %d", input.StaffID, req.StaffID)
 	}
-	if got := input.Date.Format(shiftDateLayout); got != req.Date {
+	if got := input.Date.Format(time.DateOnly); got != req.Date {
 		t.Errorf("Date = %q, want %q", got, req.Date)
 	}
 	if input.StartTime == nil || *input.StartTime != req.StartTime {

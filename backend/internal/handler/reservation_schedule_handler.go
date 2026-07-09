@@ -41,7 +41,7 @@ func (h *Handler) UpsertReservationSchedule(c *gin.Context) {
 		return
 	}
 	dateStr := c.Param("date")
-	date, err := time.ParseInLocation("2006-01-02", dateStr, time.Local)
+	date, err := time.ParseInLocation(time.DateOnly, dateStr, time.Local)
 	if err != nil {
 		RespondError(c, apperrors.WrapInvalidInput("date must be YYYY-MM-DD format"))
 		return
@@ -77,7 +77,7 @@ func (h *Handler) DeleteReservationSchedule(c *gin.Context) {
 		return
 	}
 	dateStr := c.Param("date")
-	date, err := time.ParseInLocation("2006-01-02", dateStr, time.Local)
+	date, err := time.ParseInLocation(time.DateOnly, dateStr, time.Local)
 	if err != nil {
 		RespondError(c, apperrors.WrapInvalidInput("date must be YYYY-MM-DD format"))
 		return

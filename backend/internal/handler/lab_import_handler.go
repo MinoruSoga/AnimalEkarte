@@ -256,7 +256,7 @@ func toExamInputs(clinicID uint64, reqs []labExamInputReq) ([]service.LabExamPer
 		if r.Date == "" {
 			return nil, apperrors.WrapInvalidInput(fmt.Sprintf("inputs[%d].date は必須です", i))
 		}
-		d, err := time.Parse("2006-01-02", r.Date)
+		d, err := time.Parse(time.DateOnly, r.Date)
 		if err != nil {
 			return nil, apperrors.WrapInvalidInput(fmt.Sprintf("inputs[%d].date は YYYY-MM-DD 形式で指定してください", i))
 		}

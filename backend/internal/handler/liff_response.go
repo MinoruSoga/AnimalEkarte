@@ -183,7 +183,7 @@ func toLiffProfileResponse(c *model.LineCustomer) liffProfileResponse {
 func toLiffReservationResponse(r *model.Reservation) liffReservationResponse {
 	res := liffReservationResponse{
 		ID:        r.ID,
-		Date:      r.StartTime.In(time.Local).Format("2006-01-02"),
+		Date:      r.StartTime.In(time.Local).Format(time.DateOnly),
 		StartTime: r.StartTime.In(time.Local).Format("15:04"),
 		EndTime:   r.EndTime.In(time.Local).Format("15:04"),
 		Status:    string(r.Status),

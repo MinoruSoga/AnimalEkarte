@@ -3,6 +3,7 @@ package handler
 import (
 	"net/url"
 	"testing"
+	"time"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 )
@@ -66,10 +67,10 @@ func TestListCashRegisterClosesQuery_ToServiceFilters(t *testing.T) {
 		t.Fatalf("toServiceFilters returned error: %v", err)
 	}
 
-	if filters.StartDate == nil || filters.StartDate.Format(cashRegisterDateLayout) != "2026-05-01" {
+	if filters.StartDate == nil || filters.StartDate.Format(time.DateOnly) != "2026-05-01" {
 		t.Fatalf("StartDate = %v, want 2026-05-01", filters.StartDate)
 	}
-	if filters.EndDate == nil || filters.EndDate.Format(cashRegisterDateLayout) != "2026-05-31" {
+	if filters.EndDate == nil || filters.EndDate.Format(time.DateOnly) != "2026-05-31" {
 		t.Fatalf("EndDate = %v, want 2026-05-31", filters.EndDate)
 	}
 }
@@ -112,7 +113,7 @@ func TestCloseCashRegisterRequest_ToServiceInput(t *testing.T) {
 		t.Fatalf("toServiceInput() error = %v", err)
 	}
 
-	if got := input.Date.Format(cashRegisterDateLayout); got != req.Date {
+	if got := input.Date.Format(time.DateOnly); got != req.Date {
 		t.Errorf("Date = %q, want %q", got, req.Date)
 	}
 	if input.Period != req.Period {

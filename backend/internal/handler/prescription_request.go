@@ -13,7 +13,7 @@ type createPrescriptionRequest struct {
 }
 
 func (r createPrescriptionRequest) toServiceInput() (*service.CreatePrescriptionInput, error) {
-	date, err := time.ParseInLocation("2006-01-02", r.Date, time.Local)
+	date, err := time.ParseInLocation(time.DateOnly, r.Date, time.Local)
 	if err != nil {
 		return nil, apperrors.WrapInvalidInput("date must be YYYY-MM-DD format")
 	}
@@ -32,7 +32,7 @@ type updatePrescriptionRequest struct {
 func (r updatePrescriptionRequest) toServiceInput() (*service.UpdatePrescriptionInput, error) {
 	var updateDate *time.Time
 	if r.Date != nil && *r.Date != "" {
-		date, err := time.ParseInLocation("2006-01-02", *r.Date, time.Local)
+		date, err := time.ParseInLocation(time.DateOnly, *r.Date, time.Local)
 		if err != nil {
 			return nil, apperrors.WrapInvalidInput("date must be YYYY-MM-DD format")
 		}

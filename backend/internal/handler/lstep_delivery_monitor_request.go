@@ -79,15 +79,15 @@ func (q *lstepDeliveryMonitorQuery) toLogsServiceInput() *service.GetDeliveryMon
 }
 
 func parseLstepDeliveryMonitorDateRange(values url.Values, now time.Time) (from, to time.Time, err error) {
-	defaultDate := now.In(config.JST).Format("2006-01-02")
+	defaultDate := now.In(config.JST).Format(time.DateOnly)
 	fromStr := lstepDeliveryMonitorQueryDefault(values, "from", defaultDate)
 	toStr := lstepDeliveryMonitorQueryDefault(values, "to", defaultDate)
 
-	from, err = time.ParseInLocation("2006-01-02", fromStr, config.JST)
+	from, err = time.ParseInLocation(time.DateOnly, fromStr, config.JST)
 	if err != nil {
 		return time.Time{}, time.Time{}, apperrors.WrapInvalidInput("from は YYYY-MM-DD 形式で指定してください")
 	}
-	to, err = time.ParseInLocation("2006-01-02", toStr, config.JST)
+	to, err = time.ParseInLocation(time.DateOnly, toStr, config.JST)
 	if err != nil {
 		return time.Time{}, time.Time{}, apperrors.WrapInvalidInput("to は YYYY-MM-DD 形式で指定してください")
 	}

@@ -30,7 +30,7 @@ func (h *Handler) ListReservationsAdmin(c *gin.Context) {
 		c.JSON(http.StatusOK, list)
 
 	case "day":
-		date, err := time.ParseInLocation("2006-01-02", query.Date, time.Local)
+		date, err := time.ParseInLocation(time.DateOnly, query.Date, time.Local)
 		if err != nil {
 			RespondError(c, apperrors.WrapInvalidInput("date must be YYYY-MM-DD format for day view"))
 			return

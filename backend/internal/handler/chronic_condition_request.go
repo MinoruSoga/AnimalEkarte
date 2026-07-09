@@ -7,8 +7,6 @@ import (
 	"github.com/animal-ekarte/backend/internal/service"
 )
 
-const chronicConditionDateLayout = "2006-01-02"
-
 type createChronicConditionRequest struct {
 	ConditionCode string  `json:"condition_code" binding:"required"`
 	ConditionName string  `json:"condition_name" binding:"required"`
@@ -18,7 +16,7 @@ type createChronicConditionRequest struct {
 }
 
 func (r createChronicConditionRequest) toServiceInput() (service.CreateChronicConditionInput, error) {
-	diagnosedAt, err := time.ParseInLocation(chronicConditionDateLayout, r.DiagnosedAt, time.Local)
+	diagnosedAt, err := time.ParseInLocation(time.DateOnly, r.DiagnosedAt, time.Local)
 	if err != nil {
 		return service.CreateChronicConditionInput{}, fmt.Errorf("diagnosed_at must be YYYY-MM-DD")
 	}
@@ -54,7 +52,7 @@ func (r updateChronicConditionRequest) toServiceInput() (service.UpdateChronicCo
 	}
 
 	if r.DiagnosedAt != nil {
-		diagnosedAt, err := time.ParseInLocation(chronicConditionDateLayout, *r.DiagnosedAt, time.Local)
+		diagnosedAt, err := time.ParseInLocation(time.DateOnly, *r.DiagnosedAt, time.Local)
 		if err != nil {
 			return service.UpdateChronicConditionInput{}, fmt.Errorf("diagnosed_at must be YYYY-MM-DD")
 		}
