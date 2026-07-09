@@ -5,7 +5,8 @@ import { useMedicalRecordForm } from "./use-medical-record-form";
 import { useGetPet } from "@/hooks/use-pet";
 import { useGetOwner } from "@/hooks/use-owner";
 import { useGetReservationTypesGrouped } from "@/hooks/use-reservation-types";
-import { useCreateReservation, useGetReservations } from "@/features/reservations";
+import { useCreateReservation } from "@/hooks/use-create-reservation";
+import { useGetReservations } from "@/hooks/use-get-reservations";
 import { useCreateMedicalRecord } from "../api/create-medical-record";
 
 // ──────────────────────────────────────────────────────────
@@ -49,8 +50,10 @@ vi.mock("@/hooks/use-owner", () => ({ useGetOwner: vi.fn(() => noData) }));
 const mockUseGetMedicalRecord = vi.fn(() => noData);
 vi.mock("../api/get-medical-record", () => ({ useGetMedicalRecord: (...args: unknown[]) => mockUseGetMedicalRecord(...args) }));
 vi.mock("../api/create-medical-record", () => ({ useCreateMedicalRecord: vi.fn(() => noMutation) }));
-vi.mock("@/features/reservations", () => ({
+vi.mock("@/hooks/use-create-reservation", () => ({
   useCreateReservation: vi.fn(() => noMutation),
+}));
+vi.mock("@/hooks/use-get-reservations", () => ({
   useGetReservations: vi.fn(() => ({ data: [], isLoading: false })),
 }));
 vi.mock("../api/update-medical-record", () => ({ useUpdateMedicalRecord: () => noMutation }));

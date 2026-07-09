@@ -100,3 +100,5 @@ export function useGetPet(petId: string) {
 | `use-update-examination.ts` | 2 | 検査記録更新 mutation（examinations / medical-records） |
 | `use-cash-register-closes.ts` | 2 | レジ締め一覧取得（cash-register / accounting の締め後編集判定） |
 | `use-update-reservation.ts` | 2 | 予約更新 mutation（reservations / reception のモーダル編集保存） |
+| `use-get-reservations.ts` | 2 | 予約一覧取得（reservations / medical-records の当日予約再利用判定） |
+| `use-create-reservation.ts` | 2 | 予約作成 mutation（reservations / medical-records のカルテ自動作成） |
