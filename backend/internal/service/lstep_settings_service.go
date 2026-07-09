@@ -101,6 +101,29 @@ type LstepConnectionTestResult struct {
 	LineError  string `json:"line_error,omitempty"`
 }
 
+func buildLstepSettingsResponse(kvMap map[string]string, lastUpdated *time.Time) *LstepSettingsResponse {
+	mask := func(v string) string {
+		if v == "" {
+			return ""
+		}
+		return crypto.MaskValue(v)
+	}
+	apiKey := kvMap[model.IntegrationKeyLstepAPIKey]
+	token := kvMap[model.IntegrationKeyLineChannelAccessToken]
+	secret := kvMap[model.IntegrationKeyLineChannelSecret]
+	isConfigured := apiKey != "" || token != ""
+	return &LstepSettingsResponse{
+		LstepAPIKeyMasked:            mask(apiKey),
+		LstepBaseURL:                 kvMap[model.IntegrationKeyLstepBaseURL],
+		LineChannelAccessTokenMasked: mask(token),
+		LineChannelSecretMasked:      mask(secret),
+		LiffID:                       kvMap[model.IntegrationKeyLiffID],
+		LineAccountName:              kvMap[model.IntegrationKeyLineAccountName],
+		IsConfigured:                 isConfigured,
+		LastUpdatedAt:                lastUpdated,
+	}
+}
+
 // LstepSettingsService は Lステップ/LINE連携設定の管理インターフェース。
 type LstepSettingsService interface {
 	GetSettings(ctx context.Context, clinicID uint64) (*LstepSettingsResponse, error)
@@ -245,29 +268,6 @@ func (s *lstepSettingsService) GetSettings(ctx context.Context, clinicID uint64)
 	}
 
 	return resp, nil
-}
-
-func buildLstepSettingsResponse(kvMap map[string]string, lastUpdated *time.Time) *LstepSettingsResponse {
-	mask := func(v string) string {
-		if v == "" {
-			return ""
-		}
-		return crypto.MaskValue(v)
-	}
-	apiKey := kvMap[model.IntegrationKeyLstepAPIKey]
-	token := kvMap[model.IntegrationKeyLineChannelAccessToken]
-	secret := kvMap[model.IntegrationKeyLineChannelSecret]
-	isConfigured := apiKey != "" || token != ""
-	return &LstepSettingsResponse{
-		LstepAPIKeyMasked:            mask(apiKey),
-		LstepBaseURL:                 kvMap[model.IntegrationKeyLstepBaseURL],
-		LineChannelAccessTokenMasked: mask(token),
-		LineChannelSecretMasked:      mask(secret),
-		LiffID:                       kvMap[model.IntegrationKeyLiffID],
-		LineAccountName:              kvMap[model.IntegrationKeyLineAccountName],
-		IsConfigured:                 isConfigured,
-		LastUpdatedAt:                lastUpdated,
-	}
 }
 
 func (s *lstepSettingsService) UpdateSettings(ctx context.Context, clinicID uint64, input *UpdateLstepSettingsInput, actorID *uint64) (*LstepSettingsResponse, error) {

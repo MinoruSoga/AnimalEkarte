@@ -28,6 +28,26 @@ type UpdateChronicConditionInput struct {
 	IsActive      *bool      `json:"is_active"`
 }
 
+func buildChronicConditionUpdateFields(input UpdateChronicConditionInput) map[string]any {
+	fields := make(map[string]any)
+	if input.ConditionCode != nil {
+		fields["condition_code"] = *input.ConditionCode
+	}
+	if input.ConditionName != nil {
+		fields["condition_name"] = *input.ConditionName
+	}
+	if input.DiagnosedAt != nil {
+		fields["diagnosed_at"] = *input.DiagnosedAt
+	}
+	if input.Notes != nil {
+		fields["notes"] = *input.Notes
+	}
+	if input.IsActive != nil {
+		fields["is_active"] = *input.IsActive
+	}
+	return fields
+}
+
 // ChronicConditionService は慢性疾患フラグの業務ロジックインターフェース（BE-012）。
 type ChronicConditionService interface {
 	List(ctx context.Context, clinicID, petID uint64) ([]model.PetChronicCondition, error)
@@ -138,24 +158,4 @@ func (s *chronicConditionService) syncTags(ctx context.Context, clinicID, ownerI
 	if err := s.tagSyncSvc.SyncChronicConditionTags(ctx, clinicID, ownerID, codes); err != nil {
 		slog.WarnContext(ctx, "failed to sync chronic condition tags (non-fatal)", "owner_id", ownerID, "error", err)
 	}
-}
-
-func buildChronicConditionUpdateFields(input UpdateChronicConditionInput) map[string]any {
-	fields := make(map[string]any)
-	if input.ConditionCode != nil {
-		fields["condition_code"] = *input.ConditionCode
-	}
-	if input.ConditionName != nil {
-		fields["condition_name"] = *input.ConditionName
-	}
-	if input.DiagnosedAt != nil {
-		fields["diagnosed_at"] = *input.DiagnosedAt
-	}
-	if input.Notes != nil {
-		fields["notes"] = *input.Notes
-	}
-	if input.IsActive != nil {
-		fields["is_active"] = *input.IsActive
-	}
-	return fields
 }

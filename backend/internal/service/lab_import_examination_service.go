@@ -71,6 +71,29 @@ type LabExamPersistResult struct {
 // DB 注意: exam_results.exam_id に複合 index が存在しない場合、
 // 大量バッチでの ReplaceItemsByExamID はテーブルスキャンになる。
 // Phase 2 以前に `idx_exam_results_exam_id` migration を適用すること。
+// buildExamResults は LabExamItemInput スライスを model.ExamResult スライスへ変換する。
+// status / is_abnormal はサービス層で計算し、呼び出し元から受け付けない（信頼境界保護）。
+// 定性値（ParseFloat 不能な文字列）は (normal, false) として格納される。
+func buildExamResults(examID uint64, items []LabExamItemInput) []model.ExamResult {
+	out := make([]model.ExamResult, 0, len(items))
+	for _, item := range items {
+		status, isAbnormal := computeExamResultStatus(item.InspectionValue, item.RefMin, item.RefMax)
+		out = append(out, model.ExamResult{
+			ExamID:          examID,
+			Name:            item.Name,
+			InspectionValue: item.InspectionValue,
+			Unit:            item.Unit,
+			ReferenceValue:  item.ReferenceValue,
+			RefMin:          item.RefMin,
+			RefMax:          item.RefMax,
+			IsAbnormal:      isAbnormal,
+			Status:          status,
+			SortOrder:       item.SortOrder,
+		})
+	}
+	return out
+}
+
 type LabImportExaminationService interface {
 	// PersistExam は変換済み lab exam 1 件を exams + exam_results へ保存する。
 	// 重複の場合は Duplicate=true を返し行を保存しない（関数エラーなし）。
@@ -226,27 +249,4 @@ func (s *labImportExaminationService) PersistBatch(ctx context.Context, inputs [
 		results = append(results, res)
 	}
 	return results, nil
-}
-
-// buildExamResults は LabExamItemInput スライスを model.ExamResult スライスへ変換する。
-// status / is_abnormal はサービス層で計算し、呼び出し元から受け付けない（信頼境界保護）。
-// 定性値（ParseFloat 不能な文字列）は (normal, false) として格納される。
-func buildExamResults(examID uint64, items []LabExamItemInput) []model.ExamResult {
-	out := make([]model.ExamResult, 0, len(items))
-	for _, item := range items {
-		status, isAbnormal := computeExamResultStatus(item.InspectionValue, item.RefMin, item.RefMax)
-		out = append(out, model.ExamResult{
-			ExamID:          examID,
-			Name:            item.Name,
-			InspectionValue: item.InspectionValue,
-			Unit:            item.Unit,
-			ReferenceValue:  item.ReferenceValue,
-			RefMin:          item.RefMin,
-			RefMax:          item.RefMax,
-			IsAbnormal:      isAbnormal,
-			Status:          status,
-			SortOrder:       item.SortOrder,
-		})
-	}
-	return out
 }

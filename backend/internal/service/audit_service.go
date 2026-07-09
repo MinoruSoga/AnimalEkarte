@@ -9,6 +9,23 @@ import (
 	"github.com/animal-ekarte/backend/internal/repository"
 )
 
+// buildAuditLog は AuditLogInput を model.AuditLog に変換する（LogEntry / LogEntryTx 共通の buildFunc）。
+func buildAuditLog(input *AuditLogInput) *model.AuditLog {
+	return &model.AuditLog{
+		ClinicID:   input.ClinicID,
+		ActorID:    input.ActorID,
+		ActorType:  input.ActorType,
+		Action:     input.Action,
+		Resource:   input.Resource,
+		ResourceID: input.ResourceID,
+		OldValue:   repository.MarshalAuditJSON(input.OldValue),
+		NewValue:   repository.MarshalAuditJSON(input.NewValue),
+		Metadata:   repository.MarshalAuditJSON(input.Metadata),
+		IPAddress:  input.IPAddress,
+		UserAgent:  input.UserAgent,
+	}
+}
+
 type AuditService interface {
 	Log(ctx context.Context, log *model.AuditLog) error
 	LogEntry(ctx context.Context, input *AuditLogInput) error
@@ -69,23 +86,6 @@ type auditService struct {
 // service.go の auditSvc.(AuditTxLogger) アサーションが、将来 concrete 型が変わった際に
 // ランタイム panic でなくビルドエラーで検出されるようにする。
 var _ AuditTxLogger = (*auditService)(nil)
-
-// buildAuditLog は AuditLogInput を model.AuditLog に変換する（LogEntry / LogEntryTx 共通の buildFunc）。
-func buildAuditLog(input *AuditLogInput) *model.AuditLog {
-	return &model.AuditLog{
-		ClinicID:   input.ClinicID,
-		ActorID:    input.ActorID,
-		ActorType:  input.ActorType,
-		Action:     input.Action,
-		Resource:   input.Resource,
-		ResourceID: input.ResourceID,
-		OldValue:   repository.MarshalAuditJSON(input.OldValue),
-		NewValue:   repository.MarshalAuditJSON(input.NewValue),
-		Metadata:   repository.MarshalAuditJSON(input.Metadata),
-		IPAddress:  input.IPAddress,
-		UserAgent:  input.UserAgent,
-	}
-}
 
 func validateAuditLog(log *model.AuditLog) error {
 	if log == nil {
