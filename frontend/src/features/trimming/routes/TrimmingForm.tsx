@@ -30,7 +30,7 @@ import type { TrimmingFormData } from "@/types/trimming";
 import { ResourceTrimming } from "@/types/generated/models";
 import { ConfirmDialog, MasterSelectModal } from "./TrimmingLazyModals";
 import { TRIMMING_FORM_ID, TRIMMING_PRIORITY_FIELDS } from "./trimming-form-model";
-import { useTrimmingHistory } from "./useTrimmingHistory";
+import { useTrimmingHistory } from "../hooks/use-trimming-history";
 
 // ─── メインコンポーネント ────────────────────────────────────────────────────
 

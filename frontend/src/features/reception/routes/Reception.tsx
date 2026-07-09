@@ -30,8 +30,8 @@ import { useReceptionKanban } from "../hooks/use-reception-kanban";
 import { RECEPTION_TELEMETRY_PHASE2_ENABLED, useReceptionTelemetry } from "../hooks/use-reception-telemetry";
 import { ReceptionDetailModal, ReservationFormModal } from "./ReceptionLazyModals";
 import { NO_ADD_BUTTON_COLUMNS } from "./reception-model";
-import { useReceptionDragHandlers } from "./useReceptionDragHandlers";
-import { useReceptionModalHandlers } from "./useReceptionModalHandlers";
+import { useReceptionDragHandlers } from "../hooks/use-reception-drag-handlers";
+import { useReceptionModalHandlers } from "../hooks/use-reception-modal-handlers";
 
 export function Reception() {
     const navigate = useNavigate();

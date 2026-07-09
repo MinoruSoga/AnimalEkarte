@@ -8,7 +8,7 @@ import { C, ICON, PALETTE, STYLE } from "@/lib/design-tokens";
 import { LstepTagAddDialog } from "./LstepTagAddDialog";
 import { LstepTagList } from "./LstepTagList";
 import { LstepTagRemoveInline } from "./LstepTagRemoveInline";
-import type { LineIdFormState } from "./use-line-integration-card-state";
+import type { LineIdFormState } from "../hooks/use-line-integration-card-state";
 
 export function LineIntegrationCardFrame({ children }: { children: React.ReactNode }) {
   return (

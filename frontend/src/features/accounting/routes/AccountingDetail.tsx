@@ -18,10 +18,10 @@ import {
   UngroupedItemsWarningBanner,
 } from "../components/AccountingDetailPanels";
 import { CreditCorrectionDialog } from "../components/CreditCorrectionDialog";
-import { useAccountingCompletionAction } from "./useAccountingCompletionAction";
-import { useAccountingDetailState } from "./useAccountingDetailState";
-import { useAccountingItemActions } from "./useAccountingItemActions";
-import { useAccountingSettlementActions } from "./useAccountingSettlementActions";
+import { useAccountingCompletionAction } from "../hooks/use-accounting-completion-action";
+import { useAccountingDetailState } from "../hooks/use-accounting-detail-state";
+import { useAccountingItemActions } from "../hooks/use-accounting-item-actions";
+import { useAccountingSettlementActions } from "../hooks/use-accounting-settlement-actions";
 import type { AccountingItem } from "../types";
 import { ResourceAccounting, ResourceAccountingCancel, ResourceAccountingPostCloseEdit } from "@/types/generated/models";
 import { useGetCashRegisterCloses } from "@/features/cash-register";

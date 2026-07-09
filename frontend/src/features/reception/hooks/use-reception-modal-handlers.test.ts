@@ -1,7 +1,7 @@
 import { act, renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { useReceptionModalHandlers } from "./useReceptionModalHandlers";
+import { useReceptionModalHandlers } from "./use-reception-modal-handlers";
 import type { ReceptionAppointment } from "../api/types";
 
 const { updateReservationMock } = vi.hoisted(() => ({

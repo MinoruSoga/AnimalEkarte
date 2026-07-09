@@ -20,7 +20,7 @@ import { useMasterSave } from "../hooks/use-master-save";
 import { MedicineDeleteDialog } from "../components/MedicineDeleteDialog";
 import { MedicineSidePanel, type MedicineFormData } from "../components/MedicineSidePanel";
 import { MedicineTableSection } from "../components/MedicineTableSection";
-import { useMedicineTableState } from "../components/useMedicineTableState";
+import { useMedicineTableState } from "../hooks/use-medicine-table-state";
 import {
   buildMedicineCreateRequest,
   buildMedicineUpdateRequest,

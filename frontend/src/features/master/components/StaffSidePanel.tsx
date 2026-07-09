@@ -19,7 +19,7 @@ import {
   staffToFormData,
   type StaffFormData,
 } from "./staff-side-panel-model";
-import { useEditableIdSelection } from "./StaffSidePanelSelection";
+import { useEditableIdSelection } from "../hooks/use-editable-id-selection";
 
 interface StaffSidePanelProps {
   item: Staff | null;

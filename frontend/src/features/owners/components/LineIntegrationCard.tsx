@@ -17,7 +17,7 @@ import {
   UnlinkedLineIdForm,
   UnlinkedStatusRow,
 } from "./LineIntegrationCardParts";
-import { useLineIntegrationCardState } from "./use-line-integration-card-state";
+import { useLineIntegrationCardState } from "../hooks/use-line-integration-card-state";
 
 interface LineIntegrationCardProps {
   ownerId: string;

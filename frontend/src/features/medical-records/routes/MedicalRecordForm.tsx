@@ -23,8 +23,8 @@ import {
 } from "../components/MedicalRecordFormActions";
 import { OwnerSearchModal, StaffSelectionModal, VitalsModal } from "./MedicalRecordLazyModals";
 import { MEDICAL_RECORD_TAB_ITEMS } from "./medical-record-form-model";
-import { useMedicalRecordDirtyFields } from "./useMedicalRecordDirtyFields";
-import { useMedicalRecordPostSave } from "./useMedicalRecordPostSave";
+import { useMedicalRecordDirtyFields } from "../hooks/use-medical-record-dirty-fields";
+import { useMedicalRecordPostSave } from "../hooks/use-medical-record-post-save";
 import { useMedicalRecordForm } from "../hooks/use-medical-record-form";
 import { useGetMedicalRecord } from "../api/get-medical-record";
 import { useGetPetMedicalHistory } from "../api/get-medical-records";
