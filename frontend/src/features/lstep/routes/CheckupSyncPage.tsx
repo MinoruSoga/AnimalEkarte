@@ -7,9 +7,9 @@ import { useGetCheckupSyncPreview } from "../api/get-checkup-sync-preview";
 import { useCreateCheckupSync } from "../api/create-checkup-sync";
 import type { CheckupSyncResult } from "../api/create-checkup-sync";
 import type { CheckupSyncParams, CheckupType } from "../api/get-checkup-sync-preview";
-import { CheckupSyncFilterForm } from "./CheckupSyncFilterForm";
-import { CheckupSyncPreviewTable } from "./CheckupSyncPreviewTable";
-import { CheckupSyncConfirmDialog } from "./CheckupSyncConfirmDialog";
+import { CheckupSyncFilterForm } from "../components/CheckupSyncFilterForm";
+import { CheckupSyncPreviewTable } from "../components/CheckupSyncPreviewTable";
+import { CheckupSyncConfirmDialog } from "../components/CheckupSyncConfirmDialog";
 import { todayJSTISO } from "@/lib/jst-date";
 
 function buildDefaultTagName(checkupType: CheckupType): string {

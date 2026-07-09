@@ -1,7 +1,7 @@
 // CPM (Customer Portfolio Management) ステージの共有定義。
 // backend service.CPMStage*（"cpm_encounter" 等）と値域を一致させる。
 //
-// 集計・分析 (features/aggregation) と健診対象者抽出 (features/lstep/checkup-sync) の
+// 集計・分析 (features/aggregation) と健診対象者抽出 (features/lstep/routes/CheckupSyncPage) の
 // 双方がこの単一定義を参照し、セグメントのラベル drift を防ぐ（ISSUE-180）。
 // ※ feature をまたぐ共有のため lib に置く。feature 内へ deep import しないこと。
 

@@ -1,5 +1,5 @@
-export { LstepTagManagementPage } from "./pages/LstepTagManagementPage";
-export { CheckupSyncPage } from "./checkup-sync/CheckupSyncPage";
-export { LstepDeliveryMonitorPage } from "./pages/LstepDeliveryMonitorPage";
-export { LstepAnalyticsPage } from "./pages/LstepAnalyticsPage";
+export { LstepTagManagementPage } from "./routes/LstepTagManagementPage";
+export { CheckupSyncPage } from "./routes/CheckupSyncPage";
+export { LstepDeliveryMonitorPage } from "./routes/LstepDeliveryMonitorPage";
+export { LstepAnalyticsPage } from "./routes/LstepAnalyticsPage";
 export { TriggerTypeLabels } from "./constants/trigger-types";
