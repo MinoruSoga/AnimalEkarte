@@ -62,7 +62,7 @@ func (h *Handler) RegisterLineReservationRoutes(rg *gin.RouterGroup) {
 // RegisterLiffRoutes はLIFF公開APIのルートを登録する（LINE IDトークン認証）。
 // ctx はレートリミッタークリーンアップゴルーチンのライフタイム管理に使用する。
 func (h *Handler) RegisterLiffRoutes(ctx context.Context, r *gin.Engine) {
-	liffAuth := middleware.LiffAuth(h.repos.LineCustomerMgr, h.repos.LineReservationSetting)
+	liffAuth := middleware.LiffAuth(h.liffCustomerLookup, h.liffSettingLookup)
 
 	// LIFF公開エンドポイントへのレートリミット（IPアドレスベース）
 	// /link: 10回/分（アカウント紐付けは高頻度アクセス不要）

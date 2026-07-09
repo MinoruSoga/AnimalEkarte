@@ -19,7 +19,13 @@ import (
 func TestNew(t *testing.T) {
 	cfg := &config.Config{JWTSecret: "test-secret"}
 	svc := &service.Services{}
-	repos := &repository.Repositories{}
+	// nil *gorm.DB は問題ない — このテストは identity 配線のみ検証し、メソッドは呼び出さない。
+	customerLookup := repository.NewLineCustomerRepository(nil)
+	settingLookup := repository.NewLineReservationSettingRepository(nil)
+	repos := &repository.Repositories{
+		LineCustomerMgr:        customerLookup,
+		LineReservationSetting: settingLookup,
+	}
 	uploader := &mockMedicalRecordImageUploader{}
 
 	h := New(cfg, svc, repos, uploader)
@@ -27,7 +33,8 @@ func TestNew(t *testing.T) {
 	require.NotNil(t, h)
 	assert.Same(t, cfg, h.cfg)
 	assert.Same(t, svc, h.svc)
-	assert.Same(t, repos, h.repos)
+	assert.Same(t, customerLookup, h.liffCustomerLookup)
+	assert.Same(t, settingLookup, h.liffSettingLookup)
 	assert.Same(t, uploader, h.uploader)
 }
 

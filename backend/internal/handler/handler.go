@@ -16,15 +16,22 @@ import (
 
 // Handler はHTTPハンドラーのルートコンテナ
 type Handler struct {
-	cfg      *config.Config
-	svc      *service.Services
-	repos    *repository.Repositories
-	uploader infra.FileUploader
+	cfg                *config.Config
+	svc                *service.Services
+	liffCustomerLookup middleware.LineCustomerLookup
+	liffSettingLookup  middleware.LineReservationSettingLookup
+	uploader           infra.FileUploader
 }
 
 // New はHandlerを初期化して返す
+// P14: repos は LiffAuth 用の narrow interface 2 件のみを抽出して保持する（全 repository 集約は保持しない）。
 func New(cfg *config.Config, svc *service.Services, repos *repository.Repositories, uploader infra.FileUploader) *Handler {
-	return &Handler{cfg: cfg, svc: svc, repos: repos, uploader: uploader}
+	h := &Handler{cfg: cfg, svc: svc, uploader: uploader}
+	if repos != nil {
+		h.liffCustomerLookup = repos.LineCustomerMgr
+		h.liffSettingLookup = repos.LineReservationSetting
+	}
+	return h
 }
 
 // PaginatedResponse はページネーション付きレスポンスの共通構造
