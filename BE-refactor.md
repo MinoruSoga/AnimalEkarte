@@ -649,12 +649,13 @@ docker compose exec backend go test ./internal/service/ -run 'TestChronicConditi
 
 ## G6. Repository層規約・トランザクション機構整理
 
-### G6-1. P16 命名規約からの逸脱 6 メソッド (Get*/List*) が repository interface に残存
+### G6-1. P16 命名規約からの逸脱 6 メソッド (Get*/List*) が repository interface に残存 — **CLOSED（2026-07-09）**
 
 - **ID**: `p16-naming-drift`
 - **重要度**: P3 / **工数目安**: M / **挙動変更**: なし（挙動保存）
 - **対象ファイル**: internal/repository/clinic_repository.go (17, 71); internal/repository/lstep_trigger_priority_repository.go (21, 60); internal/repository/pet_chronic_condition_repository.go (21, 81); internal/repository/lstep_csv_import_repository.go (22, 75); internal/repository/lstep_friend_attribute_snapshot_repository.go (23, 65); internal/repository/lstep_delivery_trigger_log_repository.go (53, 226)
 - **依存関係**: なし
+- **ステータス**: ✅ **CLOSED** — 6メソッドを機械的リネーム: GetCompany→FindCompany、GetPriority→FindPriorityByTriggerType、GetActiveConditionCodesByOwner→FindActiveConditionCodesByOwner、ListByClinic→FindAllByClinicID、ListByClinicAndDateRange→FindAllByClinicAndDateRange、ListByOwnerAndDateRange→FindAllByOwnerAndDateRange。同名だが別レイヤーの符合(`Handler.GetCompany`、`LstepCsvImportService.ListByClinic`は P16 対象外のため未変更)は grep で個別に検証し除外。accounting の Get*Report/Get*Summary/GetCloseAggregate は集計レポート専用として P16 対象外と判断(実装手順の「一括判断」に従い、対象ファイルリストに元々含まれていないため変更せず)。`docker compose exec backend go build ./internal/repository/ ./internal/service/ ./internal/handler/` 成功、`docker compose exec backend go test ./internal/service/ -run 'TestLstep|TestClinic|TestPetChronic' -count=1` PASS、スコープ限定で `go test ./internal/repository/ -run 'TestClinicRepository|TestLstepTriggerPriorityRepository|TestPetChronicConditionRepository|TestLstepCsvImportRepository|TestLstepFriendAttributeSnapshotRepository|TestLstepDeliveryTriggerLogRepository' -count=1` も PASS。go vet / gofmt 差分なし。コミット `deeabb23`
 
 **証拠(現HEAD検証済み)**
 
