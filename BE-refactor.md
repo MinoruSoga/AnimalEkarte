@@ -464,12 +464,13 @@ docker compose exec backend gofmt -l internal/handler/date.go internal/handler/d
 
 ## G4. Handler層 P1-P18 規約準拠
 
-### G4-1. P7逸脱: lab_report_handler が service 戻り値(model 層 DTO)を toXxxResponse 変換なしで c.JSON 直返し
+### G4-1. P7逸脱: lab_report_handler が service 戻り値(model 層 DTO)を toXxxResponse 変換なしで c.JSON 直返し — **CLOSED（2026-07-09）**
 
 - **ID**: `p7-lab-report-model-dto-passthrough`
 - **重要度**: P3 / **工数目安**: S / **挙動変更**: なし（挙動保存）
-- **対象ファイル**: internal/handler/lab_report_handler.go (28-33,53-58); internal/model/lab_report.go (20-65)
+- **対象ファイル**: internal/handler/lab_report_handler.go (28-33,53-58); internal/handler/lab_report_response.go(新規); internal/model/lab_report.go (20-65)
 - **依存関係**: なし
+- **ステータス**: ✅ **CLOSED** — internal/handler/lab_report_response.go を新規作成し、labExamReportSummaryResponse/labExamReportDetailResponse/labExamResultItemResponse を model 側の旧 json タグと完全同一タグで定義。toLabExamReportSummaryResponse/toLabExamReportDetailResponse/toLabExamResultItemResponse(P18命名)は 1:1 フィールドコピーのみ(変換ロジック追加なし)。lab_report_handler.go:33 は `mapSlice(summaries, toLabExamReportSummaryResponse)`、:58 は `toLabExamReportDetailResponse(detail)` 経由に変更。model/lab_report.go の LabExamReportSummary/LabExamReportDetail/LabExamResultItem から json タグを削除(LabReportFilter は diff なし・無変更を確認)。lab_report_handler_test.go の ExactFieldAllowlist/PII/Happy-path/omitempty テスト17本全て PASS(wire 形状不変を実証)、service 層 TestLabReportQuery 系14本 PASS。go vet クリーン、gofmt 差分なし。go-reviewer(Approve・CRITICAL/HIGH/MEDIUM 0)/ security-reviewer(CRITICAL/HIGH/MEDIUM 0、PII allowlist フィールド完全一致を逐語確認)。コミット `689e9506`
 
 **証拠(現HEAD検証済み)**
 
