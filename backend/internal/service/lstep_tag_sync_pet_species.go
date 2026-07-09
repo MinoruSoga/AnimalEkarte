@@ -53,23 +53,13 @@ func hasSeniorPet(pets []model.Pet, now time.Time) bool {
 
 // SyncPetSpeciesTags は飼い主の生存ペット種別タグ（PET_犬あり / PET_猫あり）を同期する（FEAT-377）。
 func (s *lstepTagSyncService) SyncPetSpeciesTags(ctx context.Context, clinicID, ownerID uint64) error {
-	if skip, err := s.shouldSkipSync(ctx, clinicID); err != nil {
-		return err
-	} else if skip {
-		return nil
-	}
-	optOut, owner, err := s.checkOptOut(ctx, clinicID, ownerID)
+	lineUserID, ok, err := s.resolveSyncTarget(ctx, clinicID, ownerID, "PET species")
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to check opt-out for PET species tags sync", "error", err)
-		return apperrors.Wrap(err, "failed to check opt-out")
+		return err
 	}
-	if optOut {
+	if !ok {
 		return nil
 	}
-	if owner.LineUserID == nil || *owner.LineUserID == "" {
-		return nil
-	}
-	lineUserID := *owner.LineUserID
 
 	pets, err := s.petRepo.FindLivingByOwner(ctx, clinicID, ownerID)
 	if err != nil {
@@ -99,26 +89,9 @@ func (s *lstepTagSyncService) SyncPetSpeciesTags(ctx context.Context, clinicID, 
 		{tagDog, hasDog},
 		{tagCat, hasCat},
 	} {
-		if entry.have {
-			if addErr := client.AddTag(ctx, lineUserID, entry.tag); addErr != nil {
-				slog.ErrorContext(ctx, "failed to add PET species tag", "error", addErr, "tag", entry.tag)
-				s.notifyAPIFailure(ctx, client, clinicID, ownerID, lineUserID)
-				apiFailed = true
-				continue
-			}
-			if cacheErr := s.tagCacheRepo.UpsertTag(ctx, clinicID, ownerID, entry.tag, "auto", ""); cacheErr != nil {
-				slog.ErrorContext(ctx, "failed to upsert PET species tag cache", "error", cacheErr)
-			}
-		} else {
-			if delErr := client.RemoveTag(ctx, lineUserID, entry.tag); delErr != nil {
-				slog.ErrorContext(ctx, "failed to remove PET species tag", "error", delErr, "tag", entry.tag)
-				s.notifyAPIFailure(ctx, client, clinicID, ownerID, lineUserID)
-				apiFailed = true
-				continue
-			}
-			if delCacheErr := s.tagCacheRepo.DeleteTag(ctx, clinicID, ownerID, entry.tag); delCacheErr != nil {
-				slog.WarnContext(ctx, "failed to delete tag from cache (best-effort)", "error", delCacheErr, "owner_id", ownerID, "tag", entry.tag)
-			}
+		if err := s.applyTagState(ctx, client, clinicID, ownerID, lineUserID, entry.tag, "PET species", "", entry.have); err != nil {
+			apiFailed = true
+			continue
 		}
 	}
 
