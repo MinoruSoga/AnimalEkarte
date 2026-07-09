@@ -46,8 +46,8 @@ backend/
 ├── migrations/              # DBマイグレーション
 ├── docs/                    # APIドキュメント（手動管理）
 ├── .golangci.yml            # リンター設定
-├── Dockerfile               # 本番用
-├── Dockerfile.dev           # 開発用
+├── Dockerfile.dev           # 開発用（docker compose が参照）
+├── Dockerfile.production    # 本番用（ECS + Cloudflare Container デプロイが参照）
 ├── entrypoint.sh            # コンテナ起動スクリプト
 ├── .air.toml                # ホットリロード設定
 ├── go.mod                   # 依存関係
