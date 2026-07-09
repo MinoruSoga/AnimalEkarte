@@ -56,14 +56,9 @@ func (s *lstepTagSyncService) SyncLTVTopPercent(ctx context.Context, clinicID ui
 		lineUserID := *owner.LineUserID
 		_, isTop := topOwnerIDs[owner.ID]
 		if isTop {
-			if addErr := client.AddTag(ctx, lineUserID, ltvTop20Tag); addErr != nil {
-				slog.ErrorContext(ctx, "SyncLTVTopPercent: failed to add tag", "owner_id", owner.ID, "error", addErr)
-				s.notifyAPIFailure(ctx, client, clinicID, owner.ID, lineUserID)
-				errs = append(errs, apperrors.Wrap(addErr, fmt.Sprintf("failed to add LTV top20 tag for owner %d", owner.ID)))
+			if err := s.applyTagState(ctx, client, clinicID, owner.ID, lineUserID, ltvTop20Tag, "LTV top20", "", true); err != nil {
+				errs = append(errs, err)
 				continue
-			}
-			if cacheErr := s.tagCacheRepo.UpsertTag(ctx, clinicID, owner.ID, ltvTop20Tag, "auto", ""); cacheErr != nil {
-				slog.ErrorContext(ctx, "SyncLTVTopPercent: failed to upsert tag cache", "owner_id", owner.ID, "error", cacheErr)
 			}
 		} else {
 			cached, cacheErr := s.tagCacheRepo.FindByOwner(ctx, clinicID, owner.ID)
@@ -84,14 +79,9 @@ func (s *lstepTagSyncService) SyncLTVTopPercent(ctx context.Context, clinicID ui
 				count++
 				continue
 			}
-			if delErr := client.RemoveTag(ctx, lineUserID, ltvTop20Tag); delErr != nil {
-				slog.ErrorContext(ctx, "SyncLTVTopPercent: failed to remove tag", "owner_id", owner.ID, "error", delErr)
-				s.notifyAPIFailure(ctx, client, clinicID, owner.ID, lineUserID)
-				errs = append(errs, apperrors.Wrap(delErr, fmt.Sprintf("failed to remove LTV top20 tag for owner %d", owner.ID)))
+			if err := s.applyTagState(ctx, client, clinicID, owner.ID, lineUserID, ltvTop20Tag, "LTV top20", "", false); err != nil {
+				errs = append(errs, err)
 				continue
-			}
-			if delCacheErr := s.tagCacheRepo.DeleteTag(ctx, clinicID, owner.ID, ltvTop20Tag); delCacheErr != nil {
-				slog.ErrorContext(ctx, "SyncLTVTopPercent: failed to delete tag cache", "owner_id", owner.ID, "error", delCacheErr)
 			}
 		}
 		s.notifyAPISuccess(ctx, client, clinicID, owner.ID, lineUserID)
