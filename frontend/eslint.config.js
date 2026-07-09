@@ -27,7 +27,7 @@ export default tseslint.config(
         "warn",
         { argsIgnorePattern: "^_", varsIgnorePattern: "^_" },
       ],
-      "@typescript-eslint/no-explicit-any": "warn",
+      "@typescript-eslint/no-explicit-any": "error",
       // Relax strict rules for common patterns
       "react-hooks/set-state-in-effect": "warn",
       "react-hooks/purity": "warn",
