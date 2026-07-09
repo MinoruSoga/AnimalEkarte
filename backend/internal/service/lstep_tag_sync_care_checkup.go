@@ -13,23 +13,13 @@ import (
 // SyncCheckupTag は健診記録の作成・更新時に checkup_done_{typeID}_{YYYY-MM}/next_checkup_* タグを同期する（BE-008）。
 // 同一健診種別の古い checkup_done タグを解除してから新タグを付与する。next_checkup_* は最新1件のみ。
 func (s *lstepTagSyncService) SyncCheckupTag(ctx context.Context, clinicID, ownerID, checkupTypeID uint64, checkupDate time.Time, nextDate *time.Time) error {
-	if skip, err := s.shouldSkipSync(ctx, clinicID); err != nil {
-		return err
-	} else if skip {
-		return nil
-	}
-	optOut, owner, err := s.checkOptOut(ctx, clinicID, ownerID)
+	lineUserID, ok, err := s.resolveSyncTarget(ctx, clinicID, ownerID, "checkup")
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to check opt-out for checkup tag sync", "error", err)
-		return apperrors.Wrap(err, "failed to check opt-out")
+		return err
 	}
-	if optOut {
+	if !ok {
 		return nil
 	}
-	if owner.LineUserID == nil || *owner.LineUserID == "" {
-		return nil
-	}
-	lineUserID := *owner.LineUserID
 
 	client, err := s.buildClient(ctx, clinicID)
 	if err != nil {
@@ -50,39 +40,24 @@ func (s *lstepTagSyncService) SyncCheckupTag(ctx context.Context, clinicID, owne
 	apiFailed := false
 	for _, c := range cached {
 		if strings.HasPrefix(c.TagName, stalePrefix) || strings.HasPrefix(c.TagName, tagPrefixNextCheckup) {
-			if delErr := client.RemoveTag(ctx, lineUserID, c.TagName); delErr != nil {
-				slog.ErrorContext(ctx, "failed to remove stale checkup tag", "error", delErr, "tag", c.TagName)
-				s.notifyAPIFailure(ctx, client, clinicID, ownerID, lineUserID)
+			if err := s.applyTagState(ctx, client, clinicID, ownerID, lineUserID, c.TagName, "checkup", "", false); err != nil {
 				apiFailed = true
 				continue
-			}
-			if delErr := s.tagCacheRepo.DeleteTag(ctx, clinicID, ownerID, c.TagName); delErr != nil {
-				slog.ErrorContext(ctx, "failed to delete checkup tag cache", "error", delErr, "tag", c.TagName)
 			}
 		}
 	}
 
 	// checkup_done_{typeID}_{YYYY-MM} タグを付与
 	checkupTag := fmt.Sprintf("%s%d_%s", tagPrefixCheckupDone, checkupTypeID, checkupDate.Format("2006-01"))
-	if addErr := client.AddTag(ctx, lineUserID, checkupTag); addErr != nil {
-		slog.ErrorContext(ctx, "failed to add checkup tag", "error", addErr, "tag", checkupTag)
-		s.notifyAPIFailure(ctx, client, clinicID, ownerID, lineUserID)
-		return apperrors.Wrap(addErr, "failed to add checkup tag")
-	}
-	if upsertErr := s.tagCacheRepo.UpsertTag(ctx, clinicID, ownerID, checkupTag, "auto", ""); upsertErr != nil {
-		slog.ErrorContext(ctx, "failed to upsert checkup tag cache", "error", upsertErr)
+	if err := s.applyTagState(ctx, client, clinicID, ownerID, lineUserID, checkupTag, "checkup", "", true); err != nil {
+		return err
 	}
 
 	// next_checkup_YYYY-MM-DD タグを付与（設定時のみ）
 	if nextDate != nil {
 		nextTag := tagPrefixNextCheckup + nextDate.Format("2006-01-02")
-		if addErr := client.AddTag(ctx, lineUserID, nextTag); addErr != nil {
-			slog.ErrorContext(ctx, "failed to add next_checkup tag", "error", addErr, "tag", nextTag)
-			s.notifyAPIFailure(ctx, client, clinicID, ownerID, lineUserID)
-			return apperrors.Wrap(addErr, "failed to add next_checkup tag")
-		}
-		if upsertErr := s.tagCacheRepo.UpsertTag(ctx, clinicID, ownerID, nextTag, "auto", ""); upsertErr != nil {
-			slog.ErrorContext(ctx, "failed to upsert next_checkup tag cache", "error", upsertErr)
+		if err := s.applyTagState(ctx, client, clinicID, ownerID, lineUserID, nextTag, "next_checkup", "", true); err != nil {
+			return err
 		}
 	}
 
