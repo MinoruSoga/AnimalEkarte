@@ -58,9 +58,8 @@ npm-debug.log*
 # Go
 backend/tmp/
 backend/uploads/
-# Compiled cmd binaries (e.g. `go build ./cmd/X` drops backend/X). Never commit.
-backend/seed-old-db
-backend/stage-import
+# Compiled cmd binaries: consolidated into backend/.gitignore (/migrate, /seed-old-db,
+# /stage-import, /lstep-migrate) to avoid drift between root and backend/ ignore lists.
 
 # Terraform
 *.tfplan

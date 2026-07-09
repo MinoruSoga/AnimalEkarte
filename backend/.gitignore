@@ -1,3 +1,7 @@
 # compiled binary (Air hot-reload output)
 /api
+# Compiled cmd binaries (e.g. `go build ./cmd/X` drops backend/X). Never commit.
 /lstep-migrate
+/migrate
+/seed-old-db
+/stage-import
