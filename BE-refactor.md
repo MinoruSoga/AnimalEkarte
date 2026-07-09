@@ -829,10 +829,11 @@ docker compose exec backend go test ./internal/service/ -run TestBulkAddOwnerTag
 
 ## G8. Go設計イディオム (ジェネリクス・定数集約)
 
-### G8-1. マスタ系 repository の FindByID/Update/Delete がトークン同一のまま24〜31ファイルに複製 — Go 1.25 ジェネリクスで helpers.go に畳める
+### G8-1. マスタ系 repository の FindByID/Update/Delete がトークン同一のまま24〜31ファイルに複製 — Go 1.25 ジェネリクスで helpers.go に畳める — **CLOSED（2026-07-10）**
 
 - **ID**: `repo-master-crud-generic-fold`
 - **重要度**: P2 / **工数目安**: L / **挙動変更**: なし（挙動保存）
+- **ステータス**: ✅ **CLOSED** — Update/Delete は G3-3 で既に `updateScopedByID`/`deleteScopedByID` に委譲済み（本チケットでは再実装せず）。残スコープの FindByID インライン畳み込みを `findByIDScoped[T]` ジェネリクスヘルパー新設で実施。Preload 付き FindByID（P3.1 契約）・dbOrTx 参加 repo は対象外として除外。対象18ファイル（diagnosis_repository.go は diagnosisNameRepository のみ、diagnosisTypeRepository は Preload のため除外）を2 batch に分割: cage/checkup_type/chief_complaint/consultation/diagnosis_name/hospitalization_plan/inquiry_template/insurance/inventory_item（コミット `0fe8fe78`）、medicine/merchandise_item/occupation/procedure/reservation_type_group/reservation_type_liff/trimming_course/trimming_option/vaccine（コミット `d09cfa4c`）。`TestFindByIDScoped`（成功/NotFound/クロステナント）新設、interface シグネチャ・mock・service層は無変更。`docker compose exec backend go test ./internal/repository/ -count=1` 両batch後 ok、`go vet ./...` 両batch後 exit 0。
 - **対象ファイル**: internal/repository/vaccine_repository.go (43-82); internal/repository/medicine_repository.go (121-129); internal/repository/procedure_repository.go (69-77); internal/repository/cage_repository.go (72-80); internal/repository/insurance_repository.go (70-78); internal/repository/helpers.go (14-32)
 - **依存関係**: なし。既存 preload lint / master-fk write lint は Preload・service シグネチャ非変更のため影響なし
 
@@ -872,10 +873,11 @@ func deleteScoped[T any](db *gorm.DB, resource string, clinicID, id uint64) erro
 docker compose exec backend go test ./internal/repository/ -count=1
 ```
 
-### G8-2. JST タイムゾーンの導出が4方式×8箇所に分裂（time.FixedZone("Asia/Tokyo", 9*60*60) マジックオフセット6箇所 + LoadLocation 2箇所 + config.ConfigureTimeZone）
+### G8-2. JST タイムゾーンの導出が4方式×8箇所に分裂（time.FixedZone("Asia/Tokyo", 9*60*60) マジックオフセット6箇所 + LoadLocation 2箇所 + config.ConfigureTimeZone） — **CLOSED（2026-07-10）**
 
 - **ID**: `jst-location-derivation-scatter`
 - **重要度**: P3 / **工数目安**: S / **挙動変更**: なし（挙動保存）
+- **ステータス**: ✅ **CLOSED** — `config.JST` を新設し8サイトの再導出（accounting_report_service.go / accounting_report_request.go / lstep_delivery_monitor_request.go / lstep_batch_delivery.go / accounting_service_reports.go×2 / reservation_type_occupation_repository.go / available_dates.go）を置換。コミット `ecaac5ec`（Session 3 以前に実装済み、本 Epic では DOC-G8 としてクローズ記録のみ）。`cmd/api/main.go:199,222` の FixedZone 残存は G9-3 スコープへ引き継ぎ。
 - **対象ファイル**: internal/config/timezone.go (9-18); internal/service/accounting_report_service.go (18); internal/service/accounting_service_reports.go (19, 122); internal/service/lstep_batch_delivery.go (45); internal/handler/accounting_report_request.go (11); internal/handler/lstep_delivery_monitor_request.go (81); internal/repository/reservation_type_occupation_repository.go (16-23); internal/service/available_dates.go (215-224)
 - **依存関係**: なし
 
@@ -905,10 +907,11 @@ func ConfigureTimeZone() error {
 docker compose exec backend go test ./internal/service/ -run 'TestAccountingReport|TestLstep|TestAvailableDates' -count=1
 ```
 
-### G8-3. 日付レイアウト "2006-01-02" が非テストコード259箇所にリテラル散在し、同値の file-local 定数3種 + time.DateOnly 2箇所と表記が分裂
+### G8-3. 日付レイアウト "2006-01-02" が非テストコード259箇所にリテラル散在し、同値の file-local 定数3種 + time.DateOnly 2箇所と表記が分裂 — **CLOSED（2026-07-10）**
 
 - **ID**: `date-layout-literal-scatter`
 - **重要度**: P3 / **工数目安**: M / **挙動変更**: なし（挙動保存）
+- **ステータス**: ✅ **CLOSED** — handler → service → repository の3コミットで `time.DateOnly`/`time.RFC3339` へ統一。コミット `2d5c180d`（handler）/ `9bae5e8a`（service）/ `bcc34d5d`（repository）。3 file-local 定数（shiftDateLayout/chronicConditionDateLayout/cashRegisterDateLayout）削除済み。本 Epic では DOC-G8 としてクローズ記録のみ。
 - **対象ファイル**: internal/handler/shift_request.go (11); internal/handler/chronic_condition_request.go (10); internal/handler/cash_register_request.go (11); internal/service/lab_report_query_service.go (91, 129); internal/handler/shift_response.go (60-61)
 - **依存関係**: jst-location-derivation-scatter と同一ファイルに触れるため同時期に実施すると conflict が減る（順序任意）
 
