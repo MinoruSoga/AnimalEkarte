@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
@@ -627,12 +628,14 @@ func TestBulkAddOwnerTag_MixedResults(t *testing.T) {
 	}
 	upsertCallCount := 0
 	ownerRepo := &mockOwnerRepository{
-		findByIDFn: func(_ context.Context, _, id uint64) (*model.Owner, error) {
-			o, ok := owners[id]
-			if !ok {
-				return nil, errors.New("not found")
+		findByIDsFn: func(_ context.Context, _ uint64, ids []uint64) ([]*model.Owner, error) {
+			found := make([]*model.Owner, 0, len(ids))
+			for _, id := range ids {
+				if o, ok := owners[id]; ok {
+					found = append(found, o)
+				}
 			}
-			return o, nil
+			return found, nil
 		},
 	}
 	tagCache := &mockLstepTagCacheRepository{
@@ -656,4 +659,29 @@ func TestBulkAddOwnerTag_MixedResults(t *testing.T) {
 	assert.Equal(t, 1, res.SkippedCount)
 	assert.Equal(t, []uint64{4}, res.FailedOwnerIDs)
 	assert.Equal(t, 2, upsertCallCount)
+}
+
+// TestBulkAddOwnerTag_FindByIDsError は G7-5 で per-owner FindByID ループから一括 FindByIDs に
+// 置換した際の挙動保存を固定する: 旧実装は per-owner の取得失敗(NotFoundに限らずDBエラーも含む)を
+// 呼出元へエラーとして伝播せず、その owner を FailedOwnerIDs に積んで処理を継続していた。
+// FindByIDs 自体が失敗した場合も同じく非致命的(全 ownerIDs が FailedOwnerIDs に積まれ、
+// BulkAddOwnerTag 自体は成功として audit ログまで完走する)ことを検証する。
+func TestBulkAddOwnerTag_FindByIDsError(t *testing.T) {
+	ownerRepo := &mockOwnerRepository{
+		findByIDsFn: func(_ context.Context, _ uint64, _ []uint64) ([]*model.Owner, error) {
+			return nil, errors.New("db error")
+		},
+	}
+	settingsSvc := &mockLstepSettingsService{
+		getRawCredentialsFn: func(_ context.Context, _ uint64) (string, string, string, error) {
+			return "test-api-key", "http://example.invalid", "", nil
+		},
+	}
+	svc := NewLstepTagService(settingsSvc, ownerRepo, &mockLstepTagCacheRepository{}, &mockAuditService{}, nil)
+	res, err := svc.BulkAddOwnerTag(context.Background(), 1, []uint64{1, 2}, "manual_tag", nil)
+	require.NoError(t, err, "FindByIDs失敗は呼出元へエラー伝播しない(旧per-owner挙動を保存)")
+	require.NotNil(t, res)
+	assert.Equal(t, 0, res.SyncedCount)
+	assert.Equal(t, 0, res.SkippedCount)
+	assert.Equal(t, []uint64{1, 2}, res.FailedOwnerIDs, "全ownerIDsがFailedOwnerIDsに積まれる")
 }

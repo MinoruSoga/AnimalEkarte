@@ -299,17 +299,26 @@ func (s *lstepTagService) BulkAddOwnerTag(ctx context.Context, clinicID uint64, 
 
 	result := &BulkAddOwnerTagResult{FailedOwnerIDs: []uint64{}}
 
-	// PERF-04: Cache owners in memory to avoid N+1 queries (1 per owner → 1 total)
-	// Build owner map: fetch all owners upfront
-	ownerMap := make(map[uint64]*model.Owner)
+	// PERF-04/G7-5: FindByIDs でオーナーを一括取得し N+1 を解消する(1 total)。
+	// 挙動保存: 旧 per-owner FindByID ループはDBエラーもNotFoundと区別せず当該ownerIDをFailedOwnerIDsに
+	// 積んで処理を継続していた(呼出元にエラーを伝播しない)。FindByIDs自体が失敗した場合も同じ挙動とするため、
+	// ここでは早期returnせずログのみ行い、ownerMapを空のまま後続へ進める(=全ownerIDが「取得できなかったID」
+	// として扱われ、下の集合差ループでFailedOwnerIDsに積まれる)。
+	owners, err := s.ownerRepo.FindByIDs(ctx, clinicID, ownerIDs)
+	if err != nil {
+		slog.ErrorContext(ctx, "bulk tag: failed to bulk find owners", "error", err)
+	}
+	ownerMap := make(map[uint64]*model.Owner, len(owners))
+	for _, owner := range owners {
+		ownerMap[owner.ID] = owner
+	}
+	// 要求 - 取得の集合差を ownerIDs の順に判定し、FailedOwnerIDs への追加順を従来の per-owner
+	// NotFound 処理と同じ ownerIDs 順に保つ。
 	for _, ownerID := range ownerIDs {
-		owner, findErr := s.ownerRepo.FindByID(ctx, clinicID, ownerID)
-		if findErr != nil {
+		if _, ok := ownerMap[ownerID]; !ok {
 			slog.ErrorContext(ctx, "bulk tag: owner not found", "owner_id", ownerID)
 			result.FailedOwnerIDs = append(result.FailedOwnerIDs, ownerID)
-			continue
 		}
-		ownerMap[ownerID] = owner
 	}
 
 	// Process owners from cache
