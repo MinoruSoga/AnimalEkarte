@@ -11,7 +11,7 @@ import {
   useTestLstepConnection,
   useTestLineMessagingConnection,
   useDeleteLstepSettings,
-} from "./hooks/useLstepSettings";
+} from "../hooks/use-lstep-settings";
 import { buildLstepSettingsRequest } from "./lstep-settings-form-request";
 import {
   LstepActionFooter,

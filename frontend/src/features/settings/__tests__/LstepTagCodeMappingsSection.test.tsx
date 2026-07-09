@@ -5,8 +5,8 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter } from "react-router";
 import { http, HttpResponse } from "msw";
 import { server } from "@/testing/mocks/node";
-import { LstepTagCodeMappingsSection } from "../LstepTagCodeMappingsSection";
-import type { TagCodeMappingItem } from "../hooks/useLstepTagCodeMappings";
+import { LstepTagCodeMappingsSection } from "../components/LstepTagCodeMappingsSection";
+import type { TagCodeMappingItem } from "../hooks/use-lstep-tag-code-mappings";
 
 const CLINIC_ID = "clinic-test-1";
 

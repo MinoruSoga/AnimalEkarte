@@ -12,12 +12,12 @@ import {
   useGetSendPurposeTagPrefixes,
   useCreateSendPurposeTagPrefix,
   useDeleteSendPurposeTagPrefix,
-} from "./hooks/useLstepTagConfig";
+} from "../hooks/use-lstep-tag-config";
 import type {
   AutoManagedPrefix,
   ConditionTagMapping,
   SendPurposeTagPrefix,
-} from "./hooks/useLstepTagConfig";
+} from "../hooks/use-lstep-tag-config";
 
 // ─────────────────────────────────────────────────
 // DeleteButton

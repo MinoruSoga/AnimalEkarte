@@ -5,8 +5,8 @@ import { Button } from "@/components/ui/button";
 import {
   useGetTagCodeMappings,
   usePutTagCodeMappingsForTag,
-} from "./hooks/useLstepTagCodeMappings";
-import type { TagCodeMappingItem, PutMappingEntry } from "./hooks/useLstepTagCodeMappings";
+} from "../hooks/use-lstep-tag-code-mappings";
+import type { TagCodeMappingItem, PutMappingEntry } from "../hooks/use-lstep-tag-code-mappings";
 
 // 判定コードを設定可能なタグ名一覧（backend service.ConfigurableTagNames と同期）
 const CONFIGURABLE_TAG_NAMES = [

@@ -1,6 +1,6 @@
 import { C } from "@/lib/design-tokens";
 import { formatJSTDate } from "@/lib/jst-date";
-import type { LstepSettingsResponse } from "./hooks/useLstepSettings";
+import type { LstepSettingsResponse } from "../hooks/use-lstep-settings";
 
 function formatSyncDate(iso: string): string {
   const [year, month, day] = formatJSTDate(iso).split("-");

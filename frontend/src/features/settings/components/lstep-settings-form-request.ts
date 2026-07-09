@@ -1,4 +1,4 @@
-import type { LstepSettingsRequest } from "./hooks/useLstepSettings";
+import type { LstepSettingsRequest } from "../hooks/use-lstep-settings";
 
 const SECRET_FIELDS = [
   "lstep_api_key",

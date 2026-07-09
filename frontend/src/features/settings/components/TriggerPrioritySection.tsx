@@ -7,8 +7,8 @@ import { TriggerTypeLabels } from "@/features/lstep";
 import {
   useGetTriggerPriorities,
   useUpdateTriggerPriorities,
-} from "./hooks/useTriggerPriorities";
-import type { TriggerPriorityItem } from "./hooks/useTriggerPriorities";
+} from "../hooks/use-trigger-priorities";
+import type { TriggerPriorityItem } from "../hooks/use-trigger-priorities";
 
 function sortItems(items: TriggerPriorityItem[]): TriggerPriorityItem[] {
   return [...items].sort((a, b) => {

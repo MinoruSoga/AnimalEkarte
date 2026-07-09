@@ -5,8 +5,8 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router';
 import { http, HttpResponse } from 'msw';
 import { server } from '@/testing/mocks/node';
-import { LstepSettingsForm } from '../LstepSettingsForm';
-import type { LstepSettingsResponse } from '../hooks/useLstepSettings';
+import { LstepSettingsForm } from '../components/LstepSettingsForm';
+import type { LstepSettingsResponse } from '../hooks/use-lstep-settings';
 
 const CLINIC_ID = 'clinic-test-1';
 

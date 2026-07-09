@@ -7,14 +7,18 @@
 # R-F3-S1 で PascalCase *Model.ts 53件 + 同種4件を kebab-case にリネーム済み。
 # R-F3-S2 で hooks/ 外に置かれたカスタムフック11件 + StaffSidePanelSelection.ts 1件を
 # 各 feature の hooks/ へ移動しつつ kebab-case に統一済み（12件解消、20→8）。
+# R-F3-S3 で settings/integrations/lstep/ を標準 feature 構成
+# （api/components/hooks/routes/__tests__）へ平坦化し、camelCase フック4件を
+# kebab-case に統一済み（4件解消、8→4）。
 #
-# 残存する違反8件は R-F3-S3 以降で対応する既知の債務（settings/lstep hooks 内の
-# camelCase 4件・PascalCase 名の test.ts 4件）であり、遡って fail させることはせず、
+# 残存する違反4件は R-F3-S4 以降で対応する既知の債務（PascalCase 名の *.test.ts 4件:
+# AccountingDetailModel.test.ts, LoginForm.demo-guard.test.ts, ManualContent.test.ts,
+# ReservationManagement.filter.test.ts）であり、遡って fail させることはせず、
 # 件数が baseline を超えて増えていないかだけを検査する。
 #
 # 2026-07-09 実測（node scripts/check-feature-filename-convention.mjs で算出、
-# 現在の src/features/** 全件スキャン）: 8
+# 現在の src/features/** 全件スキャン）: 4
 #
 # 更新規則: 件数が減った場合はこの値を実測値まで引き下げてよい（ratchet を締める）。
 # 増えた場合は、新規 PascalCase .ts の追加自体の要否を再検討すること。
-8
+4

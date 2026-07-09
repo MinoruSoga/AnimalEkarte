@@ -5,8 +5,8 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router';
 import { http, HttpResponse } from 'msw';
 import { server } from '@/testing/mocks/node';
-import { TriggerPrioritySection } from '../TriggerPrioritySection';
-import type { TriggerPriorityListResponse } from '../hooks/useTriggerPriorities';
+import { TriggerPrioritySection } from '../components/TriggerPrioritySection';
+import type { TriggerPriorityListResponse } from '../hooks/use-trigger-priorities';
 
 const CLINIC_ID = 'clinic-test-1';
 

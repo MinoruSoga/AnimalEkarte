@@ -5,7 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter } from "react-router";
 import { http, HttpResponse } from "msw";
 import { server } from "@/testing/mocks/node";
-import { LstepTagConfigSection } from "../LstepTagConfigSection";
+import { LstepTagConfigSection } from "../components/LstepTagConfigSection";
 
 function createWrapper() {
   const queryClient = new QueryClient({

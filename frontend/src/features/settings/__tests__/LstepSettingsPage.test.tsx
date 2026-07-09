@@ -9,27 +9,27 @@ vi.mock("@/hooks/use-auth", () => ({
   }),
 }));
 
-vi.mock("../LstepSettingsForm", () => ({
+vi.mock("../components/LstepSettingsForm", () => ({
   LstepSettingsForm: () => <div data-testid="lstep-settings-form" />,
 }));
 
-vi.mock("../TriggerPrioritySection", () => ({
+vi.mock("../components/TriggerPrioritySection", () => ({
   TriggerPrioritySection: () => <div data-testid="trigger-priority-section" />,
 }));
 
-vi.mock("../LstepTagCodeMappingsSection", () => ({
+vi.mock("../components/LstepTagCodeMappingsSection", () => ({
   LstepTagCodeMappingsSection: () => (
     <div data-testid="lstep-tag-code-mappings-section" />
   ),
 }));
 
-vi.mock("../LstepTagConfigSection", () => ({
+vi.mock("../components/LstepTagConfigSection", () => ({
   LstepTagConfigSection: () => (
     <div data-testid="lstep-tag-config-section" />
   ),
 }));
 
-import { LstepSettingsPage } from "../LstepSettingsPage";
+import { LstepSettingsPage } from "../routes/LstepSettingsPage";
 
 describe("LstepSettingsPage", () => {
   beforeEach(() => {

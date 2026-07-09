@@ -1,5 +1,5 @@
 import { C, STYLE } from "@/lib/design-tokens";
-import type { LstepSettingsResponse } from "./hooks/useLstepSettings";
+import type { LstepSettingsResponse } from "../hooks/use-lstep-settings";
 
 interface PasswordFieldProps {
   id: string;
