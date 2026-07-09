@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
 	"strings"
 
@@ -13,20 +12,11 @@ import (
 
 // SyncPetBasicInfoTags は全生存ペットの基本情報タグを同期する（BE-005）。
 func (s *lstepTagSyncService) SyncPetBasicInfoTags(ctx context.Context, clinicID, ownerID uint64) error {
-	if skip, err := s.shouldSkipSync(ctx, clinicID); err != nil {
-		return err
-	} else if skip {
-		return nil
-	}
-	optOut, owner, err := s.checkOptOut(ctx, clinicID, ownerID)
+	lineUserID, ok, err := s.resolveSyncTarget(ctx, clinicID, ownerID, "pet basic info")
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to check opt-out for pet basic info tags", "error", err)
-		return apperrors.Wrap(err, "failed to check opt-out")
+		return err
 	}
-	if optOut {
-		return nil
-	}
-	if owner.LineUserID == nil || *owner.LineUserID == "" {
+	if !ok {
 		return nil
 	}
 
@@ -63,8 +53,6 @@ func (s *lstepTagSyncService) SyncPetBasicInfoTags(ctx context.Context, clinicID
 		return nil
 	}
 
-	lineUserID := *owner.LineUserID
-
 	oldSet := make(map[string]struct{})
 	for _, c := range cachedTags {
 		if isPetBasicInfoTagWithPrefixes(c.TagName, c1Prefixes) {
@@ -83,14 +71,8 @@ func (s *lstepTagSyncService) SyncPetBasicInfoTags(ctx context.Context, clinicID
 		if _, keep := newSet[old]; keep {
 			continue
 		}
-		if delErr := client.RemoveTag(ctx, lineUserID, old); delErr != nil {
-			slog.ErrorContext(ctx, "failed to remove stale pet basic info tag", "error", delErr, "tag", old)
-			s.notifyAPIFailure(ctx, client, clinicID, ownerID, lineUserID)
+		if err := s.applyTagState(ctx, client, clinicID, ownerID, lineUserID, old, "pet basic info", "", false); err != nil {
 			apiFailed = true
-		} else {
-			if delCacheErr := s.tagCacheRepo.DeleteTag(ctx, clinicID, ownerID, old); delCacheErr != nil {
-				slog.WarnContext(ctx, "failed to delete tag from cache (best-effort)", "error", delCacheErr, "owner_id", ownerID, "tag", old)
-			}
 		}
 	}
 
@@ -99,13 +81,8 @@ func (s *lstepTagSyncService) SyncPetBasicInfoTags(ctx context.Context, clinicID
 		if _, exists := oldSet[tag]; exists {
 			continue
 		}
-		if addErr := client.AddTag(ctx, lineUserID, tag); addErr != nil {
-			slog.ErrorContext(ctx, "failed to add pet basic info tag", "error", addErr, "tag", tag)
-			s.notifyAPIFailure(ctx, client, clinicID, ownerID, lineUserID)
-			return apperrors.Wrap(addErr, fmt.Sprintf("failed to add pet basic info tag %s", tag))
-		}
-		if cacheErr := s.tagCacheRepo.UpsertTag(ctx, clinicID, ownerID, tag, "auto", ""); cacheErr != nil {
-			slog.ErrorContext(ctx, "failed to upsert pet basic info tag cache", "error", cacheErr, "tag", tag)
+		if err := s.applyTagState(ctx, client, clinicID, ownerID, lineUserID, tag, "pet basic info", "", true); err != nil {
+			return err
 		}
 	}
 	if !apiFailed {
