@@ -40,7 +40,7 @@ vi.mock("../api/get-pet-trimming-history", () => ({
 vi.mock("../api/get-pet-first-visit", () => ({
   useGetPetFirstVisit: hooks.useGetPetFirstVisit,
 }));
-vi.mock("@/features/checkups", () => ({
+vi.mock("@/hooks/use-pet-checkup-results", () => ({
   useGetPetCheckupResults: hooks.useGetPetCheckupResults,
 }));
 

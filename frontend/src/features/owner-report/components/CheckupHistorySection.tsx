@@ -1,7 +1,7 @@
 import { C } from "@/lib/design-tokens";
 import { usePermission } from "@/hooks/use-permission";
 import { ResourceCheckups } from "@/types/generated/models";
-import { useGetPetCheckupResults, type PetCheckupResult } from "@/features/checkups";
+import { useGetPetCheckupResults, type PetCheckupResult } from "@/hooks/use-pet-checkup-results";
 import { ReportSection } from "./ReportSection";
 
 interface CheckupHistorySectionProps {

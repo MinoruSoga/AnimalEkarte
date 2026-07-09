@@ -10,7 +10,7 @@ const hooks = vi.hoisted(() => ({
 }));
 
 vi.mock("@/hooks/use-permission", () => ({ usePermission: hooks.usePermission }));
-vi.mock("@/features/checkups", () => ({
+vi.mock("@/hooks/use-pet-checkup-results", () => ({
   useGetPetCheckupResults: hooks.useGetPetCheckupResults,
 }));
 

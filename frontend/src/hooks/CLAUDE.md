@@ -95,3 +95,4 @@ export function useGetPet(petId: string) {
 | `use-owner-line-tags.ts` | 3+ | LINE/LSTEP タグ取得（owners / medical-records / reservations / shared） |
 | `use-trimming-course-types.ts` | 2 | トリミングコース種別マスタ（master / trimming） |
 | `use-pet-vaccinations.ts` | 2 | ペット別予防接種履歴取得（medical-records / owner-report） |
+| `use-pet-checkup-results.ts` | 2 | ペット別健診結果取得（checkups / owner-report） |
