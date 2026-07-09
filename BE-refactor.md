@@ -1171,7 +1171,7 @@ docker compose exec backend go test ./cmd/stage-import/... ./cmd/seed-old-db/...
 
 - **ID**: `worker-migrate-auth-untested`
 - **重要度**: P3 / **工数目安**: M / **挙動変更**: なし（挙動保存）
-- **ステータス**: 🟡 **実装済み・未CLOSED** — コミット `dc4f2ed8`。migrate-exec.test.ts（AAA・8ケース）+ vitest.config.ts/vitest.wrangler.jsonc（vitest-pool-workers 用・containers/DO を含まない最小 wrangler 設定）+ ci.yml worker job 新設。**未検証**: `pnpm install`（ルートレベル、本セッションの自動実行範囲外）が必要なため `pnpm run test:worker` を実行できていない。devDependencies のバージョン（vitest ^3.2.4 / @cloudflare/vitest-pool-workers ^0.9.4）は wrangler 4.107.0 との実際の互換性を registry で確認できていない。次回セッション/ユーザー手動で `pnpm install && pnpm run test:worker` を実行し、PASS したら本項目を CLOSED に更新すること。
+- **ステータス**: 🟡 **実装済み・未CLOSED** — コミット `dc4f2ed8`。migrate-exec.test.ts（AAA・8ケース）+ vitest.config.ts/vitest.wrangler.jsonc（vitest-pool-workers 用・containers/DO を含まない最小 wrangler 設定）+ ci.yml worker job 新設。**未検証・BLOCKED（2026-07-10 Session 4 確認）**: `.claude/settings.json` の `permissions.deny` に `Bash(pnpm:*)` がハード指定されており（ask ではなく deny）、Claude Code セッションからは `pnpm install`/`pnpm run test:worker` を一切実行できない。project CLAUDE.md の「npm/go commands prohibited locally」とも整合するハード制約であり、タスクプロンプト側が主張する「G10-6 のみ例外でルート pnpm 実行可」は本セッションの実ハーネス設定では認可されない（Harness Improvement Feedback 参照）。devDependencies のバージョン（vitest ^3.2.4 / @cloudflare/vitest-pool-workers ^0.9.4）も wrangler 4.107.0 との実際の互換性を registry 上で未確認のまま。**ユーザー手動実行が必須**: `pnpm install && pnpm run test:worker`（リポジトリルートで）。PASS したら本項目を CLOSED に更新すること。
 - **対象ファイル**: worker/migrate-exec.ts (1-51); worker/index.ts (169-197)
 
 **証拠(現HEAD検証済み)**
@@ -1194,11 +1194,12 @@ pnpm vitest run backend/worker  # 依存導入後。CI 配線は actionlint .git
 
 ## G11. テスト負債解消 (DB実行テスト追加)
 
-### G11-1. 実効権限集約SQL FindAllEffectivePermissionsByStaffID がDB実行テストゼロ(全テストがmock)
+### G11-1. 実効権限集約SQL FindAllEffectivePermissionsByStaffID がDB実行テストゼロ(全テストがmock) — **CLOSED（2026-07-10）**
 
 - **ID**: `test-effective-permissions-sql-untested`
 - **重要度**: P1 / **工数目安**: M / **挙動変更**: なし（挙動保存）
 - **対象ファイル**: internal/repository/permission_group_repository.go (140-173); internal/repository/permission_group_staff_clinic_isolation_test.go (44-80)
+- **ステータス**: ✅ **CLOSED** — コミット `d8c5e858`。新規 `internal/repository/permission_group_effective_permissions_test.go` に7サブテスト追加（実装手順の6件 + database-reviewer/security-reviewer 双方が独立に推奨した「同一resourceでactive/inactiveグループのルールが競合」ケースを追加）。`go test ./internal/repository/ -run TestPermissionGroupRepository_FindAllEffectivePermissions -count=1` 7/7 PASS。**RED実証済み**: `pg.is_active = true` と `pg.clinic_id = ?` 述語をそれぞれ一時的に削除→該当サブテストが確実に失敗することを確認後、元の実装に復元（`git diff` でゼロ差分確認済み）。production code（permission_group_repository.go）は未変更。go-reviewer + database-reviewer + security-reviewer の3レビューとも CRITICAL/HIGH 0（security-reviewer が production code側の別論点 H-1『`UpdateStaffGroups` の staff_id 単位 DELETE が多施設所属スタッフの他クリニックグループ紐付けを意図せず削除しうる』を発見したが、これは本チケットの対象範囲外＝挙動保存の repository *_test.go 追加のみという制約上、別チケット化してフォローアップとする）。
 
 **証拠(現HEAD検証済み)**
 
