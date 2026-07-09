@@ -23,16 +23,10 @@ import (
 	"strings"
 
 	"github.com/animal-ekarte/backend/internal/config"
+	"github.com/animal-ekarte/backend/internal/dbconn"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
-
-// localHosts is the set of DB_HOST values safe for local seed.
-var localHosts = map[string]bool{
-	"db":        true,
-	"localhost": true,
-	"127.0.0.1": true,
-}
 
 // ManifestEntry is one entry in new-schema-import-manifest.json.
 type ManifestEntry struct {
@@ -127,21 +121,15 @@ func run(logger *slog.Logger) error {
 		return fmt.Errorf("timezone configuration failed: %w", err)
 	}
 
-	dbHost := os.Getenv("DB_HOST")
-	dbPort := os.Getenv("DB_PORT")
-	dbUser := os.Getenv("DB_USER")
-	dbPassword := os.Getenv("DB_PASSWORD")
 	dbName := os.Getenv("DB_NAME")
-
-	if dbHost == "" || dbUser == "" || dbPassword == "" || dbName == "" {
+	conn, err := dbconn.FromEnv()
+	if err != nil || dbName == "" {
 		return fmt.Errorf("missing required DB env vars (DB_HOST, DB_USER, DB_PASSWORD, DB_NAME)")
 	}
-	if dbPort == "" {
-		dbPort = "5432"
-	}
+	dbHost := conn.Host
 
 	// Local-only safety guard
-	if !localHosts[dbHost] {
+	if !dbconn.IsLocalHost(dbHost) {
 		return fmt.Errorf(
 			"SAFETY: DB_HOST=%q is not a known local host — refusing to seed against non-local DB",
 			dbHost,
@@ -173,14 +161,7 @@ func run(logger *slog.Logger) error {
 		slog.Int("totalRows", manifest.TotalRows),
 	)
 
-	sslMode := os.Getenv("DB_SSL_MODE")
-	if sslMode == "" {
-		sslMode = "disable"
-	}
-	connStr := fmt.Sprintf(
-		"host=%s port=%s user=%s password=%s dbname=%s sslmode=%s TimeZone=%s",
-		dbHost, dbPort, dbUser, dbPassword, dbName, sslMode, config.JapanTimeZone,
-	)
+	connStr := conn.DSN(dbName)
 
 	ctx := context.Background()
 	pool, err := pgxpool.New(ctx, connStr)

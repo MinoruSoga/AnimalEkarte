@@ -14,6 +14,7 @@ import (
 	_ "github.com/lib/pq"
 
 	"github.com/animal-ekarte/backend/internal/config"
+	"github.com/animal-ekarte/backend/internal/dbconn"
 	"github.com/animal-ekarte/backend/internal/seedbundle"
 )
 
@@ -41,37 +42,21 @@ func run(logger *slog.Logger) error {
 		return fmt.Errorf("timezone configuration failed: %w", err)
 	}
 
-	// 環境変数から DB 接続情報を取得
-	dbHost := os.Getenv("DB_HOST")
-	dbPort := os.Getenv("DB_PORT")
-	dbUser := os.Getenv("DB_USER")
-	dbPassword := os.Getenv("DB_PASSWORD")
+	// 環境変数から DB 接続情報を取得（DB_NAME はこのツール固有の必須項目のため個別チェック）
+	conn, err := dbconn.FromEnv()
 	dbName := os.Getenv("DB_NAME")
-
-	if dbHost == "" || dbUser == "" || dbPassword == "" || dbName == "" {
+	if err != nil || dbName == "" {
 		logger.Error("Missing required environment variables",
-			slog.String("DB_HOST", dbHost),
-			slog.String("DB_USER", dbUser),
-			slog.Bool("DB_PASSWORD_SET", dbPassword != ""),
+			slog.String("DB_HOST", conn.Host),
+			slog.String("DB_USER", conn.User),
+			slog.Bool("DB_PASSWORD_SET", conn.Password != ""),
 			slog.String("DB_NAME", dbName))
 		return fmt.Errorf("missing required environment variables")
 	}
-
-	if dbPort == "" {
-		dbPort = "5432"
-	}
-
-	// SSL mode を取得
-	sslMode := os.Getenv("DB_SSL_MODE")
-	if sslMode == "" {
-		sslMode = "disable"
-	}
+	dbHost := conn.Host
 
 	// PostgreSQL 接続文字列を構築
-	connStr := fmt.Sprintf(
-		"host=%s port=%s user=%s password=%s dbname=%s sslmode=%s TimeZone=%s",
-		dbHost, dbPort, dbUser, dbPassword, dbName, sslMode, config.JapanTimeZone,
-	)
+	connStr := conn.DSN(dbName)
 
 	// DB に接続
 	db, err := sql.Open("postgres", connStr)

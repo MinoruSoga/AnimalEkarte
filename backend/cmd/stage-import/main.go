@@ -39,6 +39,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/animal-ekarte/backend/internal/config"
+	"github.com/animal-ekarte/backend/internal/dbconn"
 )
 
 // targetEnumTypes are the AnimalEkarte enum types used by imported columns. They
@@ -53,17 +54,6 @@ var targetEnumTypes = []string{
 	"billing_status",
 	"item_category",
 	"tax_type",
-}
-
-// localHosts is the set of TARGET DB_HOST values safe for a local import. A
-// non-local target is refused so this tool can never write to staging/prod.
-// Includes IPv6 loopback forms in case localhost resolves to ::1.
-var localHosts = map[string]bool{
-	"db":        true,
-	"localhost": true,
-	"127.0.0.1": true,
-	"::1":       true,
-	"[::1]":     true,
 }
 
 // importableStatuses are the only mapping_status values written to本テーブル.
@@ -162,8 +152,8 @@ func run(logger *slog.Logger) error {
 	}
 
 	logger.Info("connected",
-		slog.String("target_host", target.host), slog.String("target_db", target.name),
-		slog.String("stage_host", stage.host), slog.String("stage_db", stage.name),
+		slog.String("target_host", target.Host), slog.String("target_db", target.name),
+		slog.String("stage_host", stage.Host), slog.String("stage_db", stage.name),
 		slog.Bool("apply", opt.apply))
 
 	// Resolve target-side ids needed for NOT NULL columns the stage doesn't carry.
@@ -209,16 +199,17 @@ func run(logger *slog.Logger) error {
 	return nil
 }
 
-// dsn holds a parsed connection target.
+// dsn holds a parsed connection target: dbconn.ConnParams (host/port/user/
+// password/sslmode, shared machinery) plus the target database name, which
+// stage-import alone needs to carry separately since it juggles two DSNs
+// (target DB_NAME vs stage STAGE_DB_NAME) built from the same ConnParams shape.
 type dsn struct {
-	host, port, user, password, name, sslMode string
+	dbconn.ConnParams
+	name string
 }
 
 func (d dsn) connString() string {
-	return fmt.Sprintf(
-		"host=%s port=%s user=%s password=%s dbname=%s sslmode=%s TimeZone=%s",
-		d.host, d.port, d.user, d.password, d.name, d.sslMode, config.JapanTimeZone,
-	)
+	return d.ConnParams.DSN(d.name)
 }
 
 // connStringReadOnly opens the stage connection in read-only transaction mode so
@@ -229,26 +220,20 @@ func (d dsn) connStringReadOnly() string {
 
 // targetDSN reads the target connection from env and enforces the local-host guard.
 func targetDSN() (dsn, error) {
-	d := dsn{
-		host:     os.Getenv("DB_HOST"),
-		port:     envOr("DB_PORT", "5432"),
-		user:     os.Getenv("DB_USER"),
-		password: os.Getenv("DB_PASSWORD"),
-		name:     os.Getenv("DB_NAME"),
-		sslMode:  envOr("DB_SSL_MODE", "disable"),
-	}
-	if d.host == "" || d.user == "" || d.password == "" || d.name == "" {
+	conn, err := dbconn.FromEnv()
+	name := os.Getenv("DB_NAME")
+	if err != nil || name == "" {
 		return dsn{}, fmt.Errorf("missing required target env (DB_HOST, DB_USER, DB_PASSWORD, DB_NAME)")
 	}
-	if err := guardLocalTarget(d.host); err != nil {
+	if err := guardLocalTarget(conn.Host); err != nil {
 		return dsn{}, err
 	}
-	return d, nil
+	return dsn{ConnParams: conn, name: name}, nil
 }
 
 // guardLocalTarget refuses any non-local target host. Extracted for testability.
 func guardLocalTarget(host string) error {
-	if !localHosts[host] {
+	if !dbconn.IsLocalHost(host) {
 		return fmt.Errorf("SAFETY: target DB_HOST=%q is not a known local host — refusing to import into a non-local DB", host)
 	}
 	return nil
@@ -258,20 +243,15 @@ func guardLocalTarget(host string) error {
 // docker-compose.postgres.yml (trust auth, db ani_legacy).
 func stageDSN() dsn {
 	return dsn{
-		host:     envOr("STAGE_DB_HOST", "old-db-postgres"),
-		port:     envOr("STAGE_DB_PORT", "5432"),
-		user:     envOr("STAGE_DB_USER", "postgres"),
-		password: os.Getenv("STAGE_DB_PASSWORD"),
-		name:     envOr("STAGE_DB_NAME", "ani_legacy"),
-		sslMode:  envOr("STAGE_DB_SSL_MODE", "disable"),
+		ConnParams: dbconn.ConnParams{
+			Host:     dbconn.EnvOr("STAGE_DB_HOST", "old-db-postgres"),
+			Port:     dbconn.EnvOr("STAGE_DB_PORT", "5432"),
+			User:     dbconn.EnvOr("STAGE_DB_USER", "postgres"),
+			Password: os.Getenv("STAGE_DB_PASSWORD"),
+			SSLMode:  dbconn.EnvOr("STAGE_DB_SSL_MODE", "disable"),
+		},
+		name: dbconn.EnvOr("STAGE_DB_NAME", "ani_legacy"),
 	}
-}
-
-func envOr(key, fallback string) string {
-	if v := os.Getenv(key); v != "" {
-		return v
-	}
-	return fallback
 }
 
 // statusInClause builds the SQL `mapping_status IN (...)` fragment for the

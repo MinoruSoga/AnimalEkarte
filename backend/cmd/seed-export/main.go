@@ -35,19 +35,12 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/animal-ekarte/backend/internal/config"
+	"github.com/animal-ekarte/backend/internal/dbconn"
 )
 
 // tmpDBName is the disposable database this tool always operates against.
 // Never derived from user/env input — see package doc.
 const tmpDBName = "seed_export_tmp"
-
-// localHosts is the set of DB_HOST values this tool is allowed to touch.
-// Mirrors cmd/seed-old-db's guard.
-var localHosts = map[string]bool{
-	"db":        true,
-	"localhost": true,
-	"127.0.0.1": true,
-}
 
 // seedsRootDir is where bundle directories (CSV + manifest.json) are written,
 // relative to the backend module root this binary is run from.
@@ -66,21 +59,21 @@ func run(ctx context.Context, logger *slog.Logger) error {
 		return fmt.Errorf("timezone configuration failed: %w", err)
 	}
 
-	conn, err := readConnParams()
+	conn, err := dbconn.FromEnv()
 	if err != nil {
 		return err
 	}
 
-	if !localHosts[conn.host] {
+	if !dbconn.IsLocalHost(conn.Host) {
 		return fmt.Errorf(
 			"SAFETY: DB_HOST=%q is not a known local host — refusing to create/drop %s against a non-local DB",
-			conn.host, tmpDBName,
+			conn.Host, tmpDBName,
 		)
 	}
 
-	logger.Info("Preparing disposable export database", slog.String("db", tmpDBName), slog.String("host", conn.host))
+	logger.Info("Preparing disposable export database", slog.String("db", tmpDBName), slog.String("host", conn.Host))
 
-	maintPool, err := pgxpool.New(ctx, conn.dsn("postgres"))
+	maintPool, err := pgxpool.New(ctx, conn.DSN("postgres"))
 	if err != nil {
 		return fmt.Errorf("failed to connect to maintenance db: %w", err)
 	}
@@ -102,7 +95,7 @@ func run(ctx context.Context, logger *slog.Logger) error {
 		return fmt.Errorf("failed to apply migrations to %s: %w", tmpDBName, err)
 	}
 
-	tmpPool, err := pgxpool.New(ctx, conn.dsn(tmpDBName))
+	tmpPool, err := pgxpool.New(ctx, conn.DSN(tmpDBName))
 	if err != nil {
 		return fmt.Errorf("failed to connect to %s: %w", tmpDBName, err)
 	}
@@ -114,37 +107,6 @@ func run(ctx context.Context, logger *slog.Logger) error {
 
 	logger.Info("✓ seed-export completed", slog.String("output", seedsRootDir))
 	return nil
-}
-
-type connParams struct {
-	host, port, user, password, sslMode string
-}
-
-func readConnParams() (connParams, error) {
-	c := connParams{
-		host:     os.Getenv("DB_HOST"),
-		port:     os.Getenv("DB_PORT"),
-		user:     os.Getenv("DB_USER"),
-		password: os.Getenv("DB_PASSWORD"),
-		sslMode:  os.Getenv("DB_SSL_MODE"),
-	}
-	if c.host == "" || c.user == "" || c.password == "" {
-		return c, fmt.Errorf("missing required DB env vars (DB_HOST, DB_USER, DB_PASSWORD)")
-	}
-	if c.port == "" {
-		c.port = "5432"
-	}
-	if c.sslMode == "" {
-		c.sslMode = "disable"
-	}
-	return c, nil
-}
-
-func (c connParams) dsn(dbname string) string {
-	return fmt.Sprintf(
-		"host=%s port=%s user=%s password=%s dbname=%s sslmode=%s TimeZone=%s",
-		c.host, c.port, c.user, c.password, dbname, c.sslMode, config.JapanTimeZone,
-	)
 }
 
 // recreateTmpDatabase drops (if present, WITH FORCE so lingering connections
@@ -175,14 +137,14 @@ func dropTmpDatabase(ctx context.Context, maintPool *pgxpool.Pool, logger *slog.
 // deliberate: seed-export must never reimplement "apply 001-004", it must
 // reuse the exact same code path every other environment uses, so the
 // disposable DB ends up in a state indistinguishable from a real fresh apply.
-func applyMigrationsToTmpDB(ctx context.Context, conn connParams, logger *slog.Logger) error {
+func applyMigrationsToTmpDB(ctx context.Context, conn dbconn.ConnParams, logger *slog.Logger) error {
 	cmd := exec.CommandContext(ctx, "go", "run", "./cmd/migrate")
 	cmd.Env = append(os.Environ(),
-		"DB_HOST="+conn.host,
-		"DB_PORT="+conn.port,
-		"DB_USER="+conn.user,
-		"DB_PASSWORD="+conn.password,
-		"DB_SSL_MODE="+conn.sslMode,
+		"DB_HOST="+conn.Host,
+		"DB_PORT="+conn.Port,
+		"DB_USER="+conn.User,
+		"DB_PASSWORD="+conn.Password,
+		"DB_SSL_MODE="+conn.SSLMode,
 		"DB_NAME="+tmpDBName,
 		"DB_RESET=false",
 	)

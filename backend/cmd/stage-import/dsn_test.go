@@ -3,10 +3,12 @@ package main
 import (
 	"strings"
 	"testing"
+
+	"github.com/animal-ekarte/backend/internal/dbconn"
 )
 
 func TestConnStringIncludesAllFields(t *testing.T) {
-	d := dsn{host: "db", port: "5432", user: "u", password: "p", name: "n", sslMode: "disable"}
+	d := dsn{ConnParams: dbconn.ConnParams{Host: "db", Port: "5432", User: "u", Password: "p", SSLMode: "disable"}, name: "n"}
 	got := d.connString()
 	for _, want := range []string{"host=db", "port=5432", "user=u", "password=p", "dbname=n", "sslmode=disable"} {
 		if !strings.Contains(got, want) {
@@ -16,7 +18,7 @@ func TestConnStringIncludesAllFields(t *testing.T) {
 }
 
 func TestConnStringReadOnlyForcesReadOnlyTransaction(t *testing.T) {
-	d := dsn{host: "db", port: "5432", user: "u", password: "p", name: "n", sslMode: "disable"}
+	d := dsn{ConnParams: dbconn.ConnParams{Host: "db", Port: "5432", User: "u", Password: "p", SSLMode: "disable"}, name: "n"}
 	got := d.connStringReadOnly()
 	if !strings.HasPrefix(got, d.connString()) {
 		t.Fatalf("connStringReadOnly() must extend connString(), got %q", got)
@@ -28,15 +30,15 @@ func TestConnStringReadOnlyForcesReadOnlyTransaction(t *testing.T) {
 
 func TestEnvOrReturnsEnvValueWhenSet(t *testing.T) {
 	t.Setenv("STAGE_IMPORT_TEST_KEY", "custom")
-	if got := envOr("STAGE_IMPORT_TEST_KEY", "fallback"); got != "custom" {
-		t.Fatalf("envOr = %q, want %q", got, "custom")
+	if got := dbconn.EnvOr("STAGE_IMPORT_TEST_KEY", "fallback"); got != "custom" {
+		t.Fatalf("EnvOr = %q, want %q", got, "custom")
 	}
 }
 
 func TestEnvOrReturnsFallbackWhenUnset(t *testing.T) {
 	t.Setenv("STAGE_IMPORT_TEST_KEY_UNSET", "")
-	if got := envOr("STAGE_IMPORT_TEST_KEY_UNSET", "fallback"); got != "fallback" {
-		t.Fatalf("envOr = %q, want %q", got, "fallback")
+	if got := dbconn.EnvOr("STAGE_IMPORT_TEST_KEY_UNSET", "fallback"); got != "fallback" {
+		t.Fatalf("EnvOr = %q, want %q", got, "fallback")
 	}
 }
 
@@ -79,11 +81,11 @@ func TestTargetDSNAcceptsLocalHostAndAppliesDefaults(t *testing.T) {
 	if err != nil {
 		t.Fatalf("targetDSN() unexpected error: %v", err)
 	}
-	if got.port != "5432" {
-		t.Errorf("targetDSN().port = %q, want default 5432", got.port)
+	if got.Port != "5432" {
+		t.Errorf("targetDSN().Port = %q, want default 5432", got.Port)
 	}
-	if got.sslMode != "disable" {
-		t.Errorf("targetDSN().sslMode = %q, want default disable", got.sslMode)
+	if got.SSLMode != "disable" {
+		t.Errorf("targetDSN().SSLMode = %q, want default disable", got.SSLMode)
 	}
 }
 
@@ -93,20 +95,20 @@ func TestStageDSNAppliesDefaults(t *testing.T) {
 	}
 
 	got := stageDSN()
-	if got.host != "old-db-postgres" {
-		t.Errorf("stageDSN().host = %q, want default old-db-postgres", got.host)
+	if got.Host != "old-db-postgres" {
+		t.Errorf("stageDSN().Host = %q, want default old-db-postgres", got.Host)
 	}
-	if got.port != "5432" {
-		t.Errorf("stageDSN().port = %q, want default 5432", got.port)
+	if got.Port != "5432" {
+		t.Errorf("stageDSN().Port = %q, want default 5432", got.Port)
 	}
-	if got.user != "postgres" {
-		t.Errorf("stageDSN().user = %q, want default postgres", got.user)
+	if got.User != "postgres" {
+		t.Errorf("stageDSN().User = %q, want default postgres", got.User)
 	}
 	if got.name != "ani_legacy" {
 		t.Errorf("stageDSN().name = %q, want default ani_legacy", got.name)
 	}
-	if got.sslMode != "disable" {
-		t.Errorf("stageDSN().sslMode = %q, want default disable", got.sslMode)
+	if got.SSLMode != "disable" {
+		t.Errorf("stageDSN().SSLMode = %q, want default disable", got.SSLMode)
 	}
 }
 
@@ -117,7 +119,7 @@ func TestStageDSNHonoursEnvOverrides(t *testing.T) {
 	t.Setenv("STAGE_DB_NAME", "custom-db")
 
 	got := stageDSN()
-	if got.host != "custom-host" || got.port != "5433" || got.user != "custom-user" || got.name != "custom-db" {
+	if got.Host != "custom-host" || got.Port != "5433" || got.User != "custom-user" || got.name != "custom-db" {
 		t.Fatalf("stageDSN() = %+v, want overrides applied", got)
 	}
 }
