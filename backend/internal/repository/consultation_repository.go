@@ -40,12 +40,7 @@ func (r *consultationRepository) FindAll(ctx context.Context, clinicID uint64) (
 }
 
 func (r *consultationRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Consultation, error) {
-	var consultation model.Consultation
-	err := r.db.WithContext(ctx).Scopes(clinicScope(clinicID)).Where("id = ?", id).First(&consultation).Error
-	if err != nil {
-		return nil, apperrors.FromGORM(err, "consultation", fmt.Sprintf("%d", id))
-	}
-	return &consultation, nil
+	return findByIDScoped[model.Consultation](ctx, r.db, "consultation", clinicID, id)
 }
 
 func (r *consultationRepository) Create(ctx context.Context, consultation *model.Consultation) error {

@@ -188,13 +188,7 @@ func (r *diagnosisNameRepository) FindAllByFilter(ctx context.Context, clinicID 
 }
 
 func (r *diagnosisNameRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.DiagnosisName, error) {
-	var name model.DiagnosisName
-	err := r.db.WithContext(ctx).
-		Scopes(clinicScope(clinicID)).Where("id = ?", id).First(&name).Error
-	if err != nil {
-		return nil, apperrors.FromGORM(err, "diagnosis_name", fmt.Sprintf("%d", id))
-	}
-	return &name, nil
+	return findByIDScoped[model.DiagnosisName](ctx, r.db, "diagnosis_name", clinicID, id)
 }
 
 func (r *diagnosisNameRepository) Create(ctx context.Context, name *model.DiagnosisName) error {

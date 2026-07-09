@@ -55,12 +55,7 @@ func (r *inventoryRepository) FindAll(ctx context.Context, clinicID uint64, cate
 }
 
 func (r *inventoryRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.InventoryItem, error) {
-	var item model.InventoryItem
-	err := r.db.WithContext(ctx).Scopes(clinicScope(clinicID)).Where("id = ?", id).First(&item).Error
-	if err != nil {
-		return nil, apperrors.FromGORM(err, "inventory_item", fmt.Sprintf("%d", id))
-	}
-	return &item, nil
+	return findByIDScoped[model.InventoryItem](ctx, r.db, "inventory_item", clinicID, id)
 }
 
 func (r *inventoryRepository) Create(ctx context.Context, clinicID uint64, item *model.InventoryItem) error {

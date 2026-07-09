@@ -3,7 +3,6 @@ package repository
 
 import (
 	"context"
-	"fmt"
 
 	"gorm.io/gorm"
 
@@ -42,12 +41,7 @@ func (r *chiefComplaintTypeRepository) FindAll(ctx context.Context, clinicID uin
 }
 
 func (r *chiefComplaintTypeRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.ChiefComplaintType, error) {
-	var category model.ChiefComplaintType
-	err := r.db.WithContext(ctx).Scopes(clinicScope(clinicID)).Where("id = ?", id).First(&category).Error
-	if err != nil {
-		return nil, apperrors.FromGORM(err, "chief_complaint_type", fmt.Sprintf("%d", id))
-	}
-	return &category, nil
+	return findByIDScoped[model.ChiefComplaintType](ctx, r.db, "chief_complaint_type", clinicID, id)
 }
 
 func (r *chiefComplaintTypeRepository) Create(ctx context.Context, category *model.ChiefComplaintType) error {

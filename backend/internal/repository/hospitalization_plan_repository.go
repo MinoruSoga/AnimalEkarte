@@ -3,7 +3,6 @@ package repository
 
 import (
 	"context"
-	"fmt"
 
 	"gorm.io/gorm"
 
@@ -39,12 +38,7 @@ func (r *hospitalizationPlanRepository) FindAll(ctx context.Context, clinicID ui
 }
 
 func (r *hospitalizationPlanRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.HospitalizationPlan, error) {
-	var plan model.HospitalizationPlan
-	err := r.db.WithContext(ctx).Scopes(clinicScope(clinicID)).Where("id = ?", id).First(&plan).Error
-	if err != nil {
-		return nil, apperrors.FromGORM(err, "hospitalization_plan", fmt.Sprintf("%d", id))
-	}
-	return &plan, nil
+	return findByIDScoped[model.HospitalizationPlan](ctx, r.db, "hospitalization_plan", clinicID, id)
 }
 
 func (r *hospitalizationPlanRepository) Create(ctx context.Context, plan *model.HospitalizationPlan) error {

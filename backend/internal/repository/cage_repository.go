@@ -3,7 +3,6 @@ package repository
 
 import (
 	"context"
-	"fmt"
 
 	"gorm.io/gorm"
 
@@ -40,12 +39,7 @@ func (r *cageRepository) FindAll(ctx context.Context, clinicID uint64, cageType 
 }
 
 func (r *cageRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Cage, error) {
-	var cage model.Cage
-	err := r.db.WithContext(ctx).Scopes(clinicScope(clinicID)).Where("id = ?", id).First(&cage).Error
-	if err != nil {
-		return nil, apperrors.FromGORM(err, "cage", fmt.Sprintf("%d", id))
-	}
-	return &cage, nil
+	return findByIDScoped[model.Cage](ctx, r.db, "cage", clinicID, id)
 }
 
 func (r *cageRepository) Create(ctx context.Context, cage *model.Cage) error {

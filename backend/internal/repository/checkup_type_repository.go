@@ -3,7 +3,6 @@ package repository
 
 import (
 	"context"
-	"fmt"
 
 	"gorm.io/gorm"
 
@@ -40,12 +39,7 @@ func (r *checkupTypeRepository) FindAll(ctx context.Context, clinicID uint64) ([
 }
 
 func (r *checkupTypeRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.CheckupType, error) {
-	var checkupType model.CheckupType
-	err := r.db.WithContext(ctx).Scopes(clinicScope(clinicID)).Where("id = ?", id).First(&checkupType).Error
-	if err != nil {
-		return nil, apperrors.FromGORM(err, "checkup_type", fmt.Sprintf("%d", id))
-	}
-	return &checkupType, nil
+	return findByIDScoped[model.CheckupType](ctx, r.db, "checkup_type", clinicID, id)
 }
 
 func (r *checkupTypeRepository) Create(ctx context.Context, checkupType *model.CheckupType) error {

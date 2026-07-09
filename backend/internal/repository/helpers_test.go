@@ -164,6 +164,39 @@ func TestUpdateScopedByID(t *testing.T) {
 	})
 }
 
+func TestFindByIDScoped(t *testing.T) {
+	db := setupHelpersTestDB(t)
+	ctx := context.Background()
+
+	t.Run("clinic内の対象idを取得できる", func(t *testing.T) {
+		const clinicID = uint64(5)
+		rec := &model.ChiefComplaintType{ClinicID: clinicID, Name: "target"}
+		require.NoError(t, db.Create(rec).Error)
+
+		got, err := findByIDScoped[model.ChiefComplaintType](ctx, db, "chief_complaint_type", clinicID, rec.ID)
+		require.NoError(t, err)
+		assert.Equal(t, rec.ID, got.ID)
+		assert.Equal(t, "target", got.Name)
+	})
+
+	t.Run("存在しないidはNotFoundを返す", func(t *testing.T) {
+		const clinicID = uint64(6)
+		_, err := findByIDScoped[model.ChiefComplaintType](ctx, db, "chief_complaint_type", clinicID, 9_999_995)
+		require.Error(t, err)
+		assert.True(t, apperrors.IsNotFound(err))
+	})
+
+	t.Run("別クリニックのidはNotFoundを返す", func(t *testing.T) {
+		const clinicA, clinicB = uint64(31), uint64(32)
+		foreign := &model.ChiefComplaintType{ClinicID: clinicB, Name: "foreign3"}
+		require.NoError(t, db.Create(foreign).Error)
+
+		_, err := findByIDScoped[model.ChiefComplaintType](ctx, db, "chief_complaint_type", clinicA, foreign.ID)
+		require.Error(t, err)
+		assert.True(t, apperrors.IsNotFound(err))
+	})
+}
+
 func TestDeleteScopedByID(t *testing.T) {
 	db := setupHelpersTestDB(t)
 	ctx := context.Background()

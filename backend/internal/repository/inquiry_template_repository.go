@@ -3,7 +3,6 @@ package repository
 
 import (
 	"context"
-	"fmt"
 
 	"gorm.io/gorm"
 
@@ -42,12 +41,7 @@ func (r *inquiryTemplateRepository) FindAll(ctx context.Context, clinicID uint64
 }
 
 func (r *inquiryTemplateRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.InquiryTemplate, error) {
-	var template model.InquiryTemplate
-	err := r.db.WithContext(ctx).Scopes(clinicScope(clinicID)).Where("id = ?", id).First(&template).Error
-	if err != nil {
-		return nil, apperrors.FromGORM(err, "inquiry_template", fmt.Sprintf("%d", id))
-	}
-	return &template, nil
+	return findByIDScoped[model.InquiryTemplate](ctx, r.db, "inquiry_template", clinicID, id)
 }
 
 func (r *inquiryTemplateRepository) Create(ctx context.Context, template *model.InquiryTemplate) error {

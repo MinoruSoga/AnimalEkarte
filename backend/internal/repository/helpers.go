@@ -53,6 +53,17 @@ func reorderGlobal(ctx context.Context, db *gorm.DB, model any, resource string,
 	return nil
 }
 
+// findByIDScoped はマスタ/業務テーブルの clinic スコープ付き FindByID を実行する汎用ヘルパー。
+// P4(clinicScope 必須)+P9(FromGORM) のテナント隔離契約を集約する。
+// Preload が必要な呼び出し側は本ヘルパーの対象外（呼び出し元で個別実装する）。
+func findByIDScoped[T any](ctx context.Context, db *gorm.DB, resource string, clinicID, id uint64) (*T, error) {
+	var record T
+	if err := db.WithContext(ctx).Scopes(clinicScope(clinicID)).Where("id = ?", id).First(&record).Error; err != nil {
+		return nil, apperrors.FromGORM(err, resource, fmt.Sprintf("%d", id))
+	}
+	return &record, nil
+}
+
 // updateScopedByID はマスタ/業務テーブルの clinic スコープ付き Update を実行する汎用ヘルパー。
 // P4(clinicScope 必須)+P9(FromGORM)+RowsAffected==0→WrapNotFound のテナント隔離契約を集約する。
 // Preload 付き refetch が必要な呼び出し側は本関数の成功後に自身で FindByID を呼ぶこと（挙動保存のため refetch はここでは行わない）。
