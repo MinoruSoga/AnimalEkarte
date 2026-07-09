@@ -1047,10 +1047,11 @@ docker compose exec backend go vet ./cmd/api/... && docker compose exec backend 
 
 ## G10. cmd/・スクリプト・リポジトリ衛生
 
-### G10-1. 13.9MB のコンパイル済み migrate バイナリが git 追跡下 + ビルド成果物の ignore 網羅漏れ
+### G10-1. 13.9MB のコンパイル済み migrate バイナリが git 追跡下 + ビルド成果物の ignore 網羅漏れ — **CLOSED（2026-07-10）**
 
 - **ID**: `tracked-migrate-binary`
 - **重要度**: P2 / **工数目安**: S / **挙動変更**: なし（挙動保存）
+- **ステータス**: ✅ **CLOSED** — コミット `77f1d059`。`git rm --cached backend/migrate`、4バイナリ（migrate/lstep-migrate/seed-old-db/stage-import）を backend/.gitignore に集約、backend/.dockerignore にも追加。
 - **対象ファイル**: migrate (binary (13,947,250 bytes)); .gitignore (1-3); .dockerignore (39-41)
 
 **証拠(現HEAD検証済み)**
@@ -1070,10 +1071,11 @@ docker compose exec backend go vet ./cmd/api/... && docker compose exec backend 
 git ls-files backend/migrate | wc -l  # 0 になること && git check-ignore backend/migrate backend/seed-old-db backend/stage-import && echo ignored-ok
 ```
 
-### G10-2. 未参照の backend/Dockerfile が「本番用」を自称し実際の本番構成と乖離（デプロイ footgun）
+### G10-2. 未参照の backend/Dockerfile が「本番用」を自称し実際の本番構成と乖離（デプロイ footgun） — **CLOSED（2026-07-10）**
 
 - **ID**: `stale-root-dockerfile`
 - **重要度**: P2 / **工数目安**: S / **挙動変更**: なし（挙動保存）
+- **ステータス**: ✅ **CLOSED** — コミット `1746bcb4`/`788809de`。backend/Dockerfile 削除、README.md のディレクトリ構造記述を実態（Dockerfile.dev/Dockerfile.production）に修正。
 - **対象ファイル**: Dockerfile (1-23); README.md (49)
 
 **証拠(現HEAD検証済み)**
@@ -1093,10 +1095,11 @@ backend/Dockerfile:1-10 「# 本番用 Dockerfile（マルチステージビル�
 grep -rn 'backend/Dockerfile[^.]' --include='*.yml' --include='*.yaml' --include='*.md' --include='*.sh' . | grep -v node_modules ; test ! -f backend/Dockerfile && echo deleted-ok
 ```
 
-### G10-3. performance-tests.yml のプロファイリングは API ではなく profile.go 自身のアイドルプロセスを計測しており成果物が無意味
+### G10-3. performance-tests.yml のプロファイリングは API ではなく profile.go 自身のアイドルプロセスを計測しており成果物が無意味 — **CLOSED（2026-07-10）**
 
 - **ID**: `ci-self-profiling-meaningless`
 - **重要度**: P2 / **工数目安**: S / **挙動変更**: なし（挙動保存）
+- **ステータス**: ✅ **CLOSED** — コミット `3f692a73`/`4452b854`。`profiling` job を丸ごと削除（残存ステップも profiling 専用の無意味な準備工程だったため）、scripts/profile.go 削除、summary job の needs/echo から profiling 参照除去。
 - **対象ファイル**: scripts/profile.go (12-55); ../.github/workflows/performance-tests.yml (151-216)
 
 **証拠(現HEAD検証済み)**
@@ -1116,10 +1119,11 @@ performance-tests.yml:151-152 で「Start Docker services: docker compose up -d 
 grep -rn 'profile.go' .github/workflows/ backend/ --include='*.yml' --include='*.go' | grep -v _test  # 参照残ゼロ確認。ワークフロー構文は actionlint .github/workflows/performance-tests.yml
 ```
 
-### G10-4. 役目を終えた一回限りの codemod (fix_p8_wrap.py / fix_p11_slog.py) の残置 — 再実行はコンパイル破壊リスク
+### G10-4. 役目を終えた一回限りの codemod (fix_p8_wrap.py / fix_p11_slog.py) の残置 — 再実行はコンパイル破壊リスク — **CLOSED（2026-07-10）**
 
 - **ID**: `oneoff-codemod-scripts-retire`
 - **重要度**: P3 / **工数目安**: S / **挙動変更**: なし（挙動保存）
+- **ステータス**: ✅ **CLOSED** — コミット `f578dbff`。2スクリプト削除、backend/scripts/ は空になり消滅（3人目の住人 profile.go は G10-3 で先に削除済み）。
 - **対象ファイル**: scripts/fix_p11_slog.py (1-97); scripts/fix_p8_wrap.py (1-209)
 
 **証拠(現HEAD検証済み)**
@@ -1139,10 +1143,11 @@ scripts/fix_p11_slog.py:2-9 「P11 compliance fixer: insert slog.ErrorContext be
 grep -rn 'fix_p8\|fix_p11' . --include='*.yml' --include='*.md' --include='Makefile' | grep -v node_modules | grep -v docs/archive  # 参照残ゼロ確認
 ```
 
-### G10-5. DB 接続 DSN 構築・env 読取・localHosts 安全ガードが cmd 4 ツールに重複しガード内容がドリフト済み
+### G10-5. DB 接続 DSN 構築・env 読取・localHosts 安全ガードが cmd 4 ツールに重複しガード内容がドリフト済み — **CLOSED（2026-07-10）**
 
 - **ID**: `cmd-dsn-localhosts-duplication`
 - **重要度**: P3 / **工数目安**: M / **挙動変更**: なし（挙動保存）
+- **ステータス**: ✅ **CLOSED** — コミット `cc2bec85`。internal/dbconn 新設（ConnParams/FromEnv/DSN/IsLocalHost/EnvOr）、4ツール（migrate/seed-export/stage-import/seed-old-db）を委譲に置換。localHosts は stage-import の5要素superset（::1/[::1]含む）に統一。DSN文字列出力はdsn_test.goの期待値（アサーション値）変更ゼロで確認。quoteLiteral/pqLiteral 統合は計画通りスコープ外のまま。
 - **対象ファイル**: cmd/migrate/main.go (45-74); cmd/seed-export/main.go (44-50, 119-148); cmd/stage-import/main.go (61-67, 213-275, 297-299); cmd/seed-old-db/main.go (30-35, 130-146, 181)
 
 **証拠(現HEAD検証済み)**
@@ -1162,10 +1167,11 @@ grep -rn 'fix_p8\|fix_p11' . --include='*.yml' --include='*.md' --include='Makef
 docker compose exec backend go test ./cmd/stage-import/... ./cmd/seed-old-db/... ./cmd/migrate/... ./internal/dbconn/... -count=1
 ```
 
-### G10-6. worker/migrate-exec.ts は「unit test 容易性のため分離」と明記されながらテストが 0 本（STG 稼働中の migrate 認証ゲート）
+### G10-6. worker/migrate-exec.ts は「unit test 容易性のため分離」と明記されながらテストが 0 本（STG 稼働中の migrate 認証ゲート） — **実装済み・検証保留（2026-07-10）**
 
 - **ID**: `worker-migrate-auth-untested`
 - **重要度**: P3 / **工数目安**: M / **挙動変更**: なし（挙動保存）
+- **ステータス**: 🟡 **実装済み・未CLOSED** — コミット `dc4f2ed8`。migrate-exec.test.ts（AAA・8ケース）+ vitest.config.ts/vitest.wrangler.jsonc（vitest-pool-workers 用・containers/DO を含まない最小 wrangler 設定）+ ci.yml worker job 新設。**未検証**: `pnpm install`（ルートレベル、本セッションの自動実行範囲外）が必要なため `pnpm run test:worker` を実行できていない。devDependencies のバージョン（vitest ^3.2.4 / @cloudflare/vitest-pool-workers ^0.9.4）は wrangler 4.107.0 との実際の互換性を registry で確認できていない。次回セッション/ユーザー手動で `pnpm install && pnpm run test:worker` を実行し、PASS したら本項目を CLOSED に更新すること。
 - **対象ファイル**: worker/migrate-exec.ts (1-51); worker/index.ts (169-197)
 
 **証拠(現HEAD検証済み)**
