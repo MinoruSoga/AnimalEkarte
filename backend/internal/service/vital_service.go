@@ -218,6 +218,7 @@ func (s *vitalService) Delete(ctx context.Context, clinicID, medicalRecordID, vi
 	}
 	oldValue := extractVitalImportantFields(existing)
 	if err := s.repo.Delete(ctx, clinicID, vitalID); err != nil {
+		slog.ErrorContext(ctx, "failed to delete vital record", "error", err, "clinic_id", clinicID, "vital_id", vitalID)
 		return apperrors.Wrap(err, "failed to delete vital record")
 	}
 	slog.InfoContext(ctx, "vital deleted",

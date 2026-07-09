@@ -107,6 +107,7 @@ func (s *liffService) CancelReservation(ctx context.Context, clinicID, customerI
 	}
 
 	if err := s.adminRepo.CancelByID(ctx, clinicID, customerID, reservationID); err != nil {
+		slog.ErrorContext(ctx, "failed to cancel reservation", "error", err, "clinic_id", clinicID, "reservation_id", reservationID)
 		return apperrors.Wrap(err, "failed to cancel reservation")
 	}
 

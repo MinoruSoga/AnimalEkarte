@@ -292,6 +292,7 @@ func (s *checkupService) Delete(ctx context.Context, clinicID, medicalRecordID, 
 		return apperrors.WrapConflict("確定済みカルテのため健診記録は削除できません")
 	}
 	if err := s.repo.Delete(ctx, clinicID, checkupID); err != nil {
+		slog.ErrorContext(ctx, "failed to delete checkup", "error", err, "clinic_id", clinicID, "checkup_id", checkupID)
 		return apperrors.Wrap(err, "failed to delete checkup")
 	}
 	slog.InfoContext(ctx, "checkup deleted",

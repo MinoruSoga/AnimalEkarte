@@ -98,6 +98,7 @@ func (s *medicalRecordImageService) Delete(ctx context.Context, clinicID, medica
 		return apperrors.WrapNotFound("medical_record_image", "not found in this medical record")
 	}
 	if err := s.repo.Delete(ctx, clinicID, imageID); err != nil {
+		slog.ErrorContext(ctx, "failed to delete record image", "error", err, "clinic_id", clinicID, "image_id", imageID)
 		return apperrors.Wrap(err, "failed to delete record image")
 	}
 	slog.InfoContext(ctx, "record image deleted", slog.Uint64("image_id", imageID))

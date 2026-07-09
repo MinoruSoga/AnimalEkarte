@@ -158,6 +158,7 @@ func (s *prescriptionService) Delete(ctx context.Context, clinicID, medicalRecor
 		return apperrors.WrapConflict("確定済みの診療記録の処方は削除できません")
 	}
 	if err := s.repo.Delete(ctx, clinicID, prescriptionID); err != nil {
+		slog.ErrorContext(ctx, "failed to delete prescription", "error", err, "clinic_id", clinicID, "prescription_id", prescriptionID)
 		return apperrors.Wrap(err, "failed to delete prescription")
 	}
 	slog.InfoContext(ctx, "prescription deleted",

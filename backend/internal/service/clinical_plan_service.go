@@ -157,6 +157,7 @@ func (s *clinicalPlanService) Delete(ctx context.Context, clinicID, medicalRecor
 		return apperrors.Wrap(err, "failed to get clinical plan")
 	}
 	if err := s.repo.Delete(ctx, clinicID, plan.ID); err != nil {
+		slog.ErrorContext(ctx, "failed to delete clinical plan", "error", err, "clinic_id", clinicID, "clinical_plan_id", plan.ID)
 		return apperrors.Wrap(err, "failed to delete clinical plan")
 	}
 	slog.InfoContext(ctx, "clinical_plan deleted",

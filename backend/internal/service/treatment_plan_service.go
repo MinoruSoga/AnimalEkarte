@@ -175,6 +175,7 @@ func (s *treatmentPlanService) Delete(ctx context.Context, clinicID, id uint64) 
 		return apperrors.Wrap(err, "failed to find treatment plan")
 	}
 	if err := s.repo.Delete(ctx, clinicID, id); err != nil {
+		slog.ErrorContext(ctx, "failed to delete treatment plan", "error", err, "clinic_id", clinicID, "treatment_plan_id", id)
 		return apperrors.Wrap(err, "failed to delete treatment plan")
 	}
 	slog.InfoContext(ctx, "treatment plan deleted", slog.Uint64("clinic_id", clinicID), slog.Uint64("treatment_plan_id", id))

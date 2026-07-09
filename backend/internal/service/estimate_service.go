@@ -215,12 +215,14 @@ func (s *estimateService) Delete(ctx context.Context, clinicID, id uint64) error
 	}
 	count, err := s.repo.CountItemsByEstimateID(ctx, clinicID, id)
 	if err != nil {
+		slog.ErrorContext(ctx, "failed to check estimate item dependencies", "error", err, "clinic_id", clinicID, "estimate_id", id)
 		return apperrors.Wrap(err, "failed to check estimate item dependencies")
 	}
 	if count > 0 {
 		return apperrors.WrapConflict("この見積書には明細が登録されているため削除できません")
 	}
 	if err := s.repo.Delete(ctx, clinicID, id); err != nil {
+		slog.ErrorContext(ctx, "failed to delete estimate", "error", err, "clinic_id", clinicID, "estimate_id", id)
 		return apperrors.Wrap(err, "failed to delete estimate")
 	}
 	slog.InfoContext(ctx, "estimate deleted",
