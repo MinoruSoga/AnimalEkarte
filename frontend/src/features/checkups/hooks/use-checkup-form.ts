@@ -4,7 +4,10 @@ import { toast } from "sonner";
 import { handleApiError } from "@/lib/handle-api-error";
 import { paths } from "@/config/paths";
 import { useGetPet } from "@/hooks/use-pet";
-import { axios } from "@/lib/axios";
+import {
+  createCheckupOnMedicalRecord,
+  createMedicalRecordForCheckup,
+} from "../api/create-checkup-medical-record";
 import { useGetCheckupTypeFields } from "../api/get-checkup-type-fields";
 import { replaceCheckupFieldResults } from "../api/replace-checkup-field-results";
 import { buildCheckupResultsPayload, type CheckupFieldValue } from "../components/DynamicCheckupFields";
@@ -70,23 +73,20 @@ export function useCheckupForm() {
 
       try {
         // 1. カルテを作成（checkupのサブリソース登録に medical_record_id が必須）
-        const { data: medicalRecord } = await axios.post<{ id: string }>("/v1/medical-records", {
+        const medicalRecord = await createMedicalRecordForCheckup({
           pet_id: pet.id,
           owner_id: pet.ownerId,
           visit_date: formData.date,
         });
 
         // 2. 作成したカルテに健診記録を登録
-        const { data: checkup } = await axios.post<{ id: string }>(
-          `/v1/medical-records/${medicalRecord.id}/checkups`,
-          {
-            checkup_type_id: Number(formData.checkupTypeId),
-            date: formData.date,
-            ...(formData.nextDate ? { next_date: formData.nextDate } : {}),
-            ...(formData.doctorId ? { doctor_id: Number(formData.doctorId) } : {}),
-            ...(formData.result ? { result: formData.result } : {}),
-          },
-        );
+        const checkup = await createCheckupOnMedicalRecord(medicalRecord.id, {
+          checkup_type_id: Number(formData.checkupTypeId),
+          date: formData.date,
+          ...(formData.nextDate ? { next_date: formData.nextDate } : {}),
+          ...(formData.doctorId ? { doctor_id: Number(formData.doctorId) } : {}),
+          ...(formData.result ? { result: formData.result } : {}),
+        });
 
         // 3. #211 健診パッケージの型付き結果値を保存（入力がある場合のみ）。
         const resultsPayload = buildCheckupResultsPayload(checkupFields, fieldValues);

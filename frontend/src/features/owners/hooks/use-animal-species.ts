@@ -1,7 +1,5 @@
 import { useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { axios } from "@/lib/axios";
-import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
+import { useGetAnimalSpecies } from "../api/get-animal-species";
 import type { AnimalSpecies as BackendAnimalSpecies } from "@/types/generated/models";
 
 interface AnimalSpeciesOption extends BackendAnimalSpecies {
@@ -16,17 +14,7 @@ interface AnimalSpeciesOption extends BackendAnimalSpecies {
  * BUG-321: 削除済み動物種の表示状態を確定化
  */
 export const useAnimalSpecies = (opts?: { includeInactive?: boolean }) => {
-  const { data: allSpecies, isLoading, isError, error } = useQuery({
-    queryKey: ["masters", "animal-species", opts?.includeInactive ? "all" : "active"],
-    queryFn: async () => {
-      const { data } = await axios.get<BackendAnimalSpecies[]>(
-        "/v1/masters/animal-species"
-      );
-      return data;
-    },
-    staleTime: QUERY_STALE_TIMES.STATIC,
-    gcTime: QUERY_GC_TIMES.LONG,
-  });
+  const { data: allSpecies, isLoading, isError, error } = useGetAnimalSpecies(opts);
 
   // 編集モード時に削除済み種類を判別し、ラベル付与
   const speciesOptions = useMemo<AnimalSpeciesOption[]>(() => {
