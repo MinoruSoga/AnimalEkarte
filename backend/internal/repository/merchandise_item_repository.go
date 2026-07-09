@@ -61,16 +61,8 @@ func (r *merchandiseItemRepository) Create(ctx context.Context, item *model.Merc
 }
 
 func (r *merchandiseItemRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.MerchandiseItem, error) {
-	result := r.db.WithContext(ctx).
-		Model(&model.MerchandiseItem{}).
-		Scopes(clinicScope(clinicID)).
-		Where("id = ?", id).
-		Updates(fields)
-	if result.Error != nil {
-		return nil, apperrors.FromGORM(result.Error, "merchandise_item", fmt.Sprintf("%d", id))
-	}
-	if result.RowsAffected == 0 {
-		return nil, apperrors.WrapNotFound("merchandise_item", fmt.Sprintf("%d", id))
+	if err := updateScopedByID(ctx, r.db, &model.MerchandiseItem{}, "merchandise_item", clinicID, id, fields); err != nil {
+		return nil, err
 	}
 	return r.FindByID(ctx, clinicID, id)
 }
@@ -104,12 +96,5 @@ func (r *merchandiseItemRepository) CountUsageByMerchandiseItemID(ctx context.Co
 }
 
 func (r *merchandiseItemRepository) Delete(ctx context.Context, clinicID, id uint64) error {
-	result := r.db.WithContext(ctx).Scopes(clinicScope(clinicID)).Where("id = ?", id).Delete(&model.MerchandiseItem{})
-	if result.Error != nil {
-		return apperrors.FromGORM(result.Error, "merchandise_item", fmt.Sprintf("%d", id))
-	}
-	if result.RowsAffected == 0 {
-		return apperrors.WrapNotFound("merchandise_item", fmt.Sprintf("%d", id))
-	}
-	return nil
+	return deleteScopedByID(ctx, r.db, &model.MerchandiseItem{}, "merchandise_item", clinicID, id)
 }

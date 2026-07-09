@@ -59,32 +59,14 @@ func (r *paymentMethodMasterRepository) Create(ctx context.Context, m *model.Pay
 }
 
 func (r *paymentMethodMasterRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.PaymentMethodMaster, error) {
-	result := r.db.WithContext(ctx).
-		Model(&model.PaymentMethodMaster{}).
-		Scopes(clinicScope(clinicID)).
-		Where("id = ?", id).
-		Updates(fields)
-	if result.Error != nil {
-		return nil, apperrors.FromGORM(result.Error, "payment_method", fmt.Sprintf("%d", id))
-	}
-	if result.RowsAffected == 0 {
-		return nil, apperrors.WrapNotFound("payment_method", fmt.Sprintf("%d", id))
+	if err := updateScopedByID(ctx, r.db, &model.PaymentMethodMaster{}, "payment_method", clinicID, id, fields); err != nil {
+		return nil, err
 	}
 	return r.FindByID(ctx, clinicID, id)
 }
 
 func (r *paymentMethodMasterRepository) Delete(ctx context.Context, clinicID, id uint64) error {
-	result := r.db.WithContext(ctx).
-		Scopes(clinicScope(clinicID)).
-		Where("id = ?", id).
-		Delete(&model.PaymentMethodMaster{})
-	if result.Error != nil {
-		return apperrors.FromGORM(result.Error, "payment_method", fmt.Sprintf("%d", id))
-	}
-	if result.RowsAffected == 0 {
-		return apperrors.WrapNotFound("payment_method", fmt.Sprintf("%d", id))
-	}
-	return nil
+	return deleteScopedByID(ctx, r.db, &model.PaymentMethodMaster{}, "payment_method", clinicID, id)
 }
 
 // CountUsageByPaymentMethodID は指定した支払方法を参照している payments の件数を返す。

@@ -100,16 +100,8 @@ func (r *medicineRepository) Create(ctx context.Context, medicine *model.Medicin
 }
 
 func (r *medicineRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Medicine, error) {
-	result := r.db.WithContext(ctx).
-		Model(&model.Medicine{}).
-		Scopes(clinicScope(clinicID)).
-		Where("id = ?", id).
-		Updates(fields)
-	if result.Error != nil {
-		return nil, apperrors.FromGORM(result.Error, "medicine", fmt.Sprintf("%d", id))
-	}
-	if result.RowsAffected == 0 {
-		return nil, apperrors.WrapNotFound("medicine", fmt.Sprintf("%d", id))
+	if err := updateScopedByID(ctx, r.db, &model.Medicine{}, "medicine", clinicID, id, fields); err != nil {
+		return nil, err
 	}
 	return r.FindByID(ctx, clinicID, id)
 }
@@ -119,12 +111,5 @@ func (r *medicineRepository) Reorder(ctx context.Context, clinicID uint64, ids [
 }
 
 func (r *medicineRepository) Delete(ctx context.Context, clinicID, id uint64) error {
-	result := r.db.WithContext(ctx).Scopes(clinicScope(clinicID)).Where("id = ?", id).Delete(&model.Medicine{})
-	if result.Error != nil {
-		return apperrors.FromGORM(result.Error, "medicine", fmt.Sprintf("%d", id))
-	}
-	if result.RowsAffected == 0 {
-		return apperrors.WrapNotFound("medicine", fmt.Sprintf("%d", id))
-	}
-	return nil
+	return deleteScopedByID(ctx, r.db, &model.Medicine{}, "medicine", clinicID, id)
 }

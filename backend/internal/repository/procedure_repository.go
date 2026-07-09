@@ -53,28 +53,14 @@ func (r *procedureRepository) Create(ctx context.Context, procedure *model.Proce
 }
 
 func (r *procedureRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Procedure, error) {
-	result := r.db.WithContext(ctx).
-		Model(&model.Procedure{}).
-		Scopes(clinicScope(clinicID)).Where("id = ?", id).
-		Updates(fields)
-	if result.Error != nil {
-		return nil, apperrors.FromGORM(result.Error, "procedure", fmt.Sprintf("%d", id))
-	}
-	if result.RowsAffected == 0 {
-		return nil, apperrors.WrapNotFound("procedure", fmt.Sprintf("%d", id))
+	if err := updateScopedByID(ctx, r.db, &model.Procedure{}, "procedure", clinicID, id, fields); err != nil {
+		return nil, err
 	}
 	return r.FindByID(ctx, clinicID, id)
 }
 
 func (r *procedureRepository) Delete(ctx context.Context, clinicID, id uint64) error {
-	result := r.db.WithContext(ctx).Scopes(clinicScope(clinicID)).Where("id = ?", id).Delete(&model.Procedure{})
-	if result.Error != nil {
-		return apperrors.FromGORM(result.Error, "procedure", fmt.Sprintf("%d", id))
-	}
-	if result.RowsAffected == 0 {
-		return apperrors.WrapNotFound("procedure", fmt.Sprintf("%d", id))
-	}
-	return nil
+	return deleteScopedByID(ctx, r.db, &model.Procedure{}, "procedure", clinicID, id)
 }
 
 // CountUsageByProcedureID は treatments と care_plan_items で参照されている件数の合計を返す（BUG-107）
