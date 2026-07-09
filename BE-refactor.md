@@ -556,11 +556,12 @@ docker compose exec backend go test ./internal/handler/ -run 'TestRegisterRoutes
 
 ## G5. Service層 P1-P18 規約準拠
 
-### G5-1. P11違反: 業務レコード系サービスのDelete/Create書込エラーパス11箇所でslog.ErrorContext欠落
+### G5-1. P11違反: 業務レコード系サービスのDelete/Create書込エラーパス11箇所でslog.ErrorContext欠落 — **CLOSED（2026-07-09）**
 
 - **ID**: `p11-slog-gap-business-delete-paths`
 - **重要度**: P2 / **工数目安**: S / **挙動変更**: なし（挙動保存）
 - **対象ファイル**: internal/service/prescription_service.go (160-162); internal/service/vital_service.go (220-222); internal/service/checkup_service.go (294-296); internal/service/vaccination_service.go (206-208); internal/service/clinical_plan_service.go (159-161); internal/service/medical_record_image_service.go (100-102); internal/service/estimate_service.go (216-224); internal/service/treatment_plan_service.go (177-179); internal/service/liff_service_reservations.go (109-111); internal/service/staff_clinic_assignment_service.go (35-37)
+- **ステータス**: ✅ **CLOSED** — 10ファイル11箇所の repo.Delete/CountItemsByEstimateID/repo.Create エラーブロック先頭に、各ファイル既存の slog.ErrorContext キー体系("error", err, "clinic_id", clinicID, "<entity>_id", id)で1行追加。wrap メッセージ文言は無変更。`docker compose exec backend go test ./internal/service/ -run 'TestPrescription|TestVital|TestCheckup|TestVaccination|TestClinicalPlan|TestMedicalRecordImage|TestEstimate|TestTreatmentPlan|TestLiff|TestStaffClinicAssignment' -count=1` PASS。go vet / gofmt 差分なし。コミット `3eca7ef2`
 
 **証拠(現HEAD検証済み)**
 
@@ -611,11 +612,12 @@ P11 (MANDATORY, .claude/refs/gin-architecture-compliance.md L229-247) は repo �
 docker compose exec backend go test ./internal/service/ -run 'TestPrescription|TestVital|TestCheckup|TestVaccination|TestClinicalPlan|TestMedicalRecordImage|TestEstimate|TestTreatmentPlan|TestLiff|TestStaffClinicAssignment' -count=1
 ```
 
-### G5-2. P13違反: buildFuncがinterface/struct/Newより後に定義されている4ファイル
+### G5-2. P13違反: buildFuncがinterface/struct/Newより後に定義されている4ファイル — **CLOSED（2026-07-09）**
 
 - **ID**: `p13-buildfunc-order-4-files`
 - **重要度**: P3 / **工数目安**: S / **挙動変更**: なし（挙動保存）
 - **対象ファイル**: internal/service/chronic_condition_service.go (32,39,46,143); internal/service/audit_service.go (12,64,74,121); internal/service/lstep_settings_service.go (105,128,140,250); internal/service/lab_import_examination_service.go (74,97,103,234)
+- **ステータス**: ✅ **CLOSED** — 純粋なコード移動のみ(シグネチャ・本文変更なし)。buildChronicConditionUpdateFields を chronic_condition_service.go の interface 直前へ、buildAuditLog を audit_service.go の interface 直前へ(`var _ AuditTxLogger = (*auditService)(nil)` は struct 直下のまま維持)、buildLstepSettingsResponse を lstep_settings_service.go の interface 直前へ、buildExamResults を lab_import_examination_service.go の interface 直前へ移動。computeExamResultStatus は examination_service.go 側の定義のため本ファイル内の後方参照ではなく移動対象外。`docker compose exec backend go test ./internal/service/ -run 'TestChronicCondition|TestAudit|TestLstepSettings|TestLabImport' -count=1` PASS。go vet / gofmt 差分なし。diff は4ファイルとも insertions==deletions(コード移動のみを裏付け)。コミット `5c7434aa`
 
 **証拠(現HEAD検証済み)**
 
