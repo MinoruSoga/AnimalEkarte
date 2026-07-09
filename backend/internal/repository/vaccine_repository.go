@@ -41,12 +41,7 @@ func (r *vaccineRepository) FindAll(ctx context.Context, clinicID uint64, specie
 }
 
 func (r *vaccineRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Vaccine, error) {
-	var vaccine model.Vaccine
-	err := r.db.WithContext(ctx).Scopes(clinicScope(clinicID)).Where("id = ?", id).First(&vaccine).Error
-	if err != nil {
-		return nil, apperrors.FromGORM(err, "vaccine", fmt.Sprintf("%d", id))
-	}
-	return &vaccine, nil
+	return findByIDScoped[model.Vaccine](ctx, r.db, "vaccine", clinicID, id)
 }
 
 func (r *vaccineRepository) Create(ctx context.Context, vaccine *model.Vaccine) error {

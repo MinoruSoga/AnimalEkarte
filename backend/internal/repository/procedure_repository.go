@@ -37,12 +37,7 @@ func (r *procedureRepository) FindAll(ctx context.Context, clinicID uint64) ([]m
 }
 
 func (r *procedureRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Procedure, error) {
-	var procedure model.Procedure
-	err := r.db.WithContext(ctx).Scopes(clinicScope(clinicID)).Where("id = ?", id).First(&procedure).Error
-	if err != nil {
-		return nil, apperrors.FromGORM(err, "procedure", fmt.Sprintf("%d", id))
-	}
-	return &procedure, nil
+	return findByIDScoped[model.Procedure](ctx, r.db, "procedure", clinicID, id)
 }
 
 func (r *procedureRepository) Create(ctx context.Context, procedure *model.Procedure) error {

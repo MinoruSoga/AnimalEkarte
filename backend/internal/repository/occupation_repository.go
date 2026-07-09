@@ -3,7 +3,6 @@ package repository
 
 import (
 	"context"
-	"fmt"
 
 	"gorm.io/gorm"
 
@@ -42,12 +41,7 @@ func (r *occupationRepository) FindAll(ctx context.Context, clinicID uint64) ([]
 }
 
 func (r *occupationRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Occupation, error) {
-	var occupation model.Occupation
-	err := r.db.WithContext(ctx).Scopes(clinicScope(clinicID)).Where("id = ?", id).First(&occupation).Error
-	if err != nil {
-		return nil, apperrors.FromGORM(err, "occupation", fmt.Sprintf("%d", id))
-	}
-	return &occupation, nil
+	return findByIDScoped[model.Occupation](ctx, r.db, "occupation", clinicID, id)
 }
 
 func (r *occupationRepository) Create(ctx context.Context, occupation *model.Occupation) error {

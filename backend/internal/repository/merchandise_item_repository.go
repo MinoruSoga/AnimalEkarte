@@ -3,7 +3,6 @@ package repository
 
 import (
 	"context"
-	"fmt"
 
 	"gorm.io/gorm"
 
@@ -44,13 +43,7 @@ func (r *merchandiseItemRepository) FindAll(ctx context.Context, clinicID uint64
 }
 
 func (r *merchandiseItemRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.MerchandiseItem, error) {
-	var item model.MerchandiseItem
-	err := r.db.WithContext(ctx).
-		Scopes(clinicScope(clinicID)).Where("id = ?", id).First(&item).Error
-	if err != nil {
-		return nil, apperrors.FromGORM(err, "merchandise_item", fmt.Sprintf("%d", id))
-	}
-	return &item, nil
+	return findByIDScoped[model.MerchandiseItem](ctx, r.db, "merchandise_item", clinicID, id)
 }
 
 func (r *merchandiseItemRepository) Create(ctx context.Context, item *model.MerchandiseItem) error {

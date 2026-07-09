@@ -2,7 +2,6 @@ package repository
 
 import (
 	"context"
-	"fmt"
 
 	"gorm.io/gorm"
 
@@ -37,12 +36,7 @@ func (r *trimmingOptionRepository) FindAll(ctx context.Context, clinicID uint64)
 }
 
 func (r *trimmingOptionRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.TrimmingOption, error) {
-	var option model.TrimmingOption
-	err := r.db.WithContext(ctx).Scopes(clinicScope(clinicID)).Where("id = ?", id).First(&option).Error
-	if err != nil {
-		return nil, apperrors.FromGORM(err, "trimming_option", fmt.Sprintf("%d", id))
-	}
-	return &option, nil
+	return findByIDScoped[model.TrimmingOption](ctx, r.db, "trimming_option", clinicID, id)
 }
 
 func (r *trimmingOptionRepository) Create(ctx context.Context, option *model.TrimmingOption) error {

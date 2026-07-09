@@ -2,7 +2,6 @@ package repository
 
 import (
 	"context"
-	"fmt"
 
 	"gorm.io/gorm"
 
@@ -37,12 +36,7 @@ func (r *trimmingCourseRepository) FindAll(ctx context.Context, clinicID uint64)
 }
 
 func (r *trimmingCourseRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.TrimmingCourse, error) {
-	var course model.TrimmingCourse
-	err := r.db.WithContext(ctx).Scopes(clinicScope(clinicID)).Where("id = ?", id).First(&course).Error
-	if err != nil {
-		return nil, apperrors.FromGORM(err, "trimming_course", fmt.Sprintf("%d", id))
-	}
-	return &course, nil
+	return findByIDScoped[model.TrimmingCourse](ctx, r.db, "trimming_course", clinicID, id)
 }
 
 func (r *trimmingCourseRepository) Create(ctx context.Context, course *model.TrimmingCourse) error {

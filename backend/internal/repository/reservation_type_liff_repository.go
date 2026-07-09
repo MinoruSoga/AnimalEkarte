@@ -43,12 +43,7 @@ func (r *reservationTypeLiffRepository) FindAll(ctx context.Context, clinicID ui
 }
 
 func (r *reservationTypeLiffRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.ReservationType, error) {
-	var st model.ReservationType
-	err := r.db.WithContext(ctx).Scopes(clinicScope(clinicID)).Where("id = ?", id).First(&st).Error
-	if err != nil {
-		return nil, apperrors.FromGORM(err, "reservation_type_liff", fmt.Sprintf("%d", id))
-	}
-	return &st, nil
+	return findByIDScoped[model.ReservationType](ctx, r.db, "reservation_type_liff", clinicID, id)
 }
 
 func (r *reservationTypeLiffRepository) CountChildrenByParentID(ctx context.Context, clinicID, parentID uint64) (int64, error) {

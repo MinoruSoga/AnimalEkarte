@@ -3,7 +3,6 @@ package repository
 
 import (
 	"context"
-	"fmt"
 
 	"gorm.io/gorm"
 
@@ -49,13 +48,7 @@ func (r *medicineRepository) FindAll(ctx context.Context, clinicID uint64, page,
 }
 
 func (r *medicineRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Medicine, error) {
-	var medicine model.Medicine
-	err := r.db.WithContext(ctx).
-		Scopes(clinicScope(clinicID)).Where("id = ?", id).First(&medicine).Error
-	if err != nil {
-		return nil, apperrors.FromGORM(err, "medicine", fmt.Sprintf("%d", id))
-	}
-	return &medicine, nil
+	return findByIDScoped[model.Medicine](ctx, r.db, "medicine", clinicID, id)
 }
 
 // CountUsageByMedicineID は treatments と care_plan_items で参照されている件数の合計を返す（BUG-108）

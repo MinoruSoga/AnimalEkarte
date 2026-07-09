@@ -2,7 +2,6 @@ package repository
 
 import (
 	"context"
-	"fmt"
 
 	"gorm.io/gorm"
 
@@ -38,11 +37,7 @@ func (r *reservationTypeGroupRepository) FindAll(ctx context.Context, clinicID u
 }
 
 func (r *reservationTypeGroupRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.ReservationTypeGroup, error) {
-	var g model.ReservationTypeGroup
-	if err := r.db.WithContext(ctx).Scopes(clinicScope(clinicID)).Where("id = ?", id).First(&g).Error; err != nil {
-		return nil, apperrors.FromGORM(err, "reservation_type_group", fmt.Sprintf("%d", id))
-	}
-	return &g, nil
+	return findByIDScoped[model.ReservationTypeGroup](ctx, r.db, "reservation_type_group", clinicID, id)
 }
 
 func (r *reservationTypeGroupRepository) CountUsageByReservationTypeGroupID(ctx context.Context, clinicID, groupID uint64) (int64, error) {
