@@ -8,6 +8,7 @@ import type {
   ReservationFormData,
   NavigationState,
 } from "../types";
+import type { ReservationCreateMutations } from "@/types/reservation-create-mutations";
 
 import { useGetReservations } from "../api/get-reservations";
 import { useReservationActions } from "./use-reservation-actions";
@@ -22,9 +23,10 @@ interface UseReservationManagementParams {
   days: 5 | 7;
   /** #86: 拠点横断表示。複数医院IDのとき clinic_ids をAPIに送信する */
   clinicIds?: string[];
+  createMutations: ReservationCreateMutations;
 }
 
-export function useReservationManagement({ currentDate, view, days, clinicIds }: UseReservationManagementParams) {
+export function useReservationManagement({ currentDate, view, days, clinicIds, createMutations }: UseReservationManagementParams) {
   const navigate = useNavigate();
   const location = useLocation();
   const locationFrom = (location.state as NavigationState | null)?.from ?? null;
@@ -92,6 +94,7 @@ export function useReservationManagement({ currentDate, view, days, clinicIds }:
     handleCloseDetail,
     locationFrom,
     navigate,
+    createMutations,
   });
 
   const handleDelete = useCallback((reservation: Reservation) => {

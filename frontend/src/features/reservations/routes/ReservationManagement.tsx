@@ -11,6 +11,7 @@ import { ResourceReservations } from "@/types/generated/models";
 import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 import { toJSTWallDate } from "@/lib/jst-date";
+import type { ReservationCreateMutations } from "@/types/reservation-create-mutations";
 import type { CalendarView, Reservation } from "../types";
 
 /** #116: キャンセル済み予約をカレンダーから非表示にする */
@@ -43,7 +44,11 @@ const VIEW_NAV_NEXT: Record<CalendarView, (d: Date) => Date> = {
   week: (d) => addWeeks(d, 1),
 };
 
-export function ReservationManagement() {
+interface ReservationManagementProps {
+  createMutations: ReservationCreateMutations;
+}
+
+export function ReservationManagement({ createMutations }: ReservationManagementProps) {
   const [currentDate, setCurrentDate] = useState(() => toJSTWallDate(new Date()));
   const { canCreate, canEdit, canDelete } = usePermission("reservations");
   const [view, setView] = useState<CalendarView>("week");
@@ -96,6 +101,7 @@ export function ReservationManagement() {
     view,
     days,
     clinicIds: isMultiClinic ? selectedClinicIds : undefined,
+    createMutations,
   });
 
   // BUG-069: Reservation → ReservationFormData 変換を行うラッパー
