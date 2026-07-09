@@ -96,3 +96,5 @@ export function useGetPet(petId: string) {
 | `use-trimming-course-types.ts` | 2 | トリミングコース種別マスタ（master / trimming） |
 | `use-pet-vaccinations.ts` | 2 | ペット別予防接種履歴取得（medical-records / owner-report） |
 | `use-pet-checkup-results.ts` | 2 | ペット別健診結果取得（checkups / owner-report） |
+| `use-examinations.ts` | 2 | 検査記録一覧取得（examinations / medical-records） |
+| `use-update-examination.ts` | 2 | 検査記録更新 mutation（examinations / medical-records） |

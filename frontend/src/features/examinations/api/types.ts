@@ -17,13 +17,11 @@ export interface CreateExaminationRequest {
   result_summary?: string;
 }
 
-export interface UpdateExaminationRequest {
-  medical_record_id?: number | null;
-  status?: "pending" | "in_progress" | "result_entered" | "completed" | "confirmed";
-  result_summary?: string;
-  machine?: string;
-  date?: string;
-}
+// R-F2-S8: 正本は shared hook (@/hooks/use-update-examination) 側に一本化。
+// ここで独立 interface を定義すると updateMutation.mutateAsync の実体
+// （useUpdateExamination は re-export 経由で hooks 側 mutationFn を使う）との
+// 契約ドリフトをコンパイラが検知できなくなるため re-export とする。
+export type { UpdateExaminationRequest } from "@/hooks/use-update-examination";
 
 /**
  * 検査項目 1 行分の入力（PUT /examinations/:id/items のリクエスト要素）。
