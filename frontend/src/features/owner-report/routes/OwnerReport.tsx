@@ -7,8 +7,8 @@ import { useAuth } from "@/hooks/use-auth";
 import { useTitle } from "@/hooks/use-title";
 import { RequirePermission } from "@/components/shared/RequirePermission";
 import { ResourceMedicalRecords } from "@/types/generated/models";
-import { useGetOwner } from "@/features/owners";
-import { useGetPets } from "@/features/pets";
+import { useGetOwner } from "@/hooks/use-owner";
+import { useGetPets } from "@/hooks/use-pet";
 
 import { OwnerReportPanel } from "../components/OwnerReportPanel";
 import { useGetPetFirstVisit } from "../api/get-pet-first-visit";

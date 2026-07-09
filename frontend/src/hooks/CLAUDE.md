@@ -81,11 +81,11 @@ export function useGetPet(petId: string) {
 
 | ファイル | 参照元 feature 数 | 用途 |
 |---------|-----------------|------|
-| `use-pet.ts` | 18 | ペット情報取得（accounting / trimming / medical-records 他） |
+| `use-pet.ts` | 19 | ペット情報取得（accounting / trimming / medical-records / owner-report 他） |
 | `use-animal-species.ts` | 2 | 動物種マスタ取得（owners / medical-records） |
 | `use-pet-selection.ts` | 4 | ペット選択ロジック（examinations / trimming / hospitalization 他） |
 | `use-pet-selection-page.ts` | 4 | ペット選択ページパターン（accounting / trimming / medical-records 他） |
-| `use-owner.ts` | 3 | オーナー情報取得（medical-records / owners） |
+| `use-owner.ts` | 4 | オーナー情報取得（medical-records / owners / owner-report） |
 | `use-master-items.ts` | 6 | マスターアイテム汎用取得（trimming / examinations 他） |
 | `use-treatment-master.ts` | 3 | 診療マスターデータ（medical-records / shared components） |
 | `use-reservation-types.ts` | 1+ | 予約タイプ＋グループ取得（shared/ReservationFormModal） |
