@@ -73,6 +73,13 @@ func (s *liffService) buildStaffSlotInputs(ctx context.Context, clinicID uint64,
 // エラー処理は元の buildStaffSlotInputs の per-day 実装と同じ致命度を踏襲する:
 //   - シフトエントリ・休憩の取得失敗は非致命的（LIFF-1/LIFF-2 と同様 slog 記録のみ。override なしで続行）。
 //   - 当日予約(reservations)の取得失敗は致命的（元実装が dayResv 取得失敗で即エラーを返していたことに対応）。
+//
+// 影響範囲の変化に注意: 旧実装はスタッフ×日単位でシフト/休憩を取得していたため、1件の失敗は
+// 「その日・そのスタッフのみ override なし」に縮退した。本実装は期間全体を1クエリでまとめて取得するため、
+// 失敗時は期間内の全日・全スタッフが override なし（＝シフト制約を無視して空き扱い）に縮退する
+// （blast radius が per-staff-day → window-wide に拡大）。挙動保存(致命度不変)の範囲内の意図的トレードオフだが、
+// 患者向け予約カレンダーで「本来休みのスタッフが空きに見える」広域劣化に繋がりうるため、この slog.ErrorContext
+// を監視・アラート対象に含めることを推奨する。
 func (s *liffService) buildAvailableDatesStaffInputsFn(
 	ctx context.Context, clinicID uint64, staffs []model.Staff, settings AvailableDatesSettings,
 ) (func(context.Context, time.Time, uint64, uint64) ([]StaffSlotInput, error), error) {

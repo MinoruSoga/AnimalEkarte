@@ -113,43 +113,54 @@ func (s *liffService) GetAvailableDates(ctx context.Context, clinicID, typeID, s
 		return nil, window, err
 	}
 
-	// BE-117: 職種ガード — 職種紐付けが1件以上ある場合のみチェック（0件は後方互換で素通り）
-	occupations, err := s.occupationRepo.FindAll(ctx, clinicID, typeID)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to get occupation guard", "error", err)
-		return nil, window, apperrors.Wrap(err, "failed to get occupation guard")
-	}
-	if len(occupations) > 0 {
-		// G7-1: 日毎の CountWorkingStaffByReservationTypeID 呼出をバッチ版1クエリに集約する。
-		availableDates := make([]time.Time, 0, len(results))
-		for _, r := range results {
-			if !r.Available {
-				continue
-			}
-			date, err := time.ParseInLocation("2006-01-02", r.Date, jstLocation)
-			if err != nil {
-				slog.ErrorContext(ctx, "failed to parse date", "error", err)
-				return nil, window, apperrors.Wrap(err, "failed to parse date")
-			}
-			availableDates = append(availableDates, date)
-		}
-		workingCounts, err := s.occupationRepo.CountWorkingStaffByReservationTypeIDs(ctx, clinicID, typeID, availableDates)
-		if err != nil {
-			slog.ErrorContext(ctx, "failed to count working staff", "error", err)
-			return nil, window, apperrors.Wrap(err, "failed to count working staff")
-		}
-		for i, r := range results {
-			if !r.Available {
-				continue
-			}
-			if workingCounts[r.Date] == 0 {
-				results[i].Available = false
-				results[i].Reason = "staff_off"
-			}
-		}
+	if err := s.applyOccupationGuard(ctx, clinicID, typeID, results); err != nil {
+		return nil, window, err
 	}
 
 	return results, window, nil
+}
+
+// applyOccupationGuard は職種紐付けが1件以上ある場合のみ、対応職種のスタッフが出勤している日かを
+// チェックして results を in-place で更新する（BE-117）。0件（職種紐付けなし）は後方互換で素通り。
+// G7-1: 日毎の CountWorkingStaffByReservationTypeID 呼出をバッチ版1クエリに集約する。
+func (s *liffService) applyOccupationGuard(ctx context.Context, clinicID, typeID uint64, results []AvailableDateResult) error {
+	occupations, err := s.occupationRepo.FindAll(ctx, clinicID, typeID)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to get occupation guard", "error", err)
+		return apperrors.Wrap(err, "failed to get occupation guard")
+	}
+	if len(occupations) == 0 {
+		return nil
+	}
+
+	availableDates := make([]time.Time, 0, len(results))
+	for _, r := range results {
+		if !r.Available {
+			continue
+		}
+		date, err := time.ParseInLocation("2006-01-02", r.Date, jstLocation)
+		if err != nil {
+			slog.ErrorContext(ctx, "failed to parse date", "error", err)
+			return apperrors.Wrap(err, "failed to parse date")
+		}
+		availableDates = append(availableDates, date)
+	}
+
+	workingCounts, err := s.occupationRepo.CountWorkingStaffByReservationTypeIDs(ctx, clinicID, typeID, availableDates)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to count working staff", "error", err)
+		return apperrors.Wrap(err, "failed to count working staff")
+	}
+	for i, r := range results {
+		if !r.Available {
+			continue
+		}
+		if workingCounts[r.Date] == 0 {
+			results[i].Available = false
+			results[i].Reason = "staff_off"
+		}
+	}
+	return nil
 }
 
 // GetAvailableTimes は指定日の予約可能な時間枠一覧を返す。
