@@ -56,28 +56,14 @@ func (r *cageRepository) Create(ctx context.Context, cage *model.Cage) error {
 }
 
 func (r *cageRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Cage, error) {
-	result := r.db.WithContext(ctx).
-		Model(&model.Cage{}).
-		Scopes(clinicScope(clinicID)).Where("id = ?", id).
-		Updates(fields)
-	if result.Error != nil {
-		return nil, apperrors.FromGORM(result.Error, "cage", fmt.Sprintf("%d", id))
-	}
-	if result.RowsAffected == 0 {
-		return nil, apperrors.WrapNotFound("cage", fmt.Sprintf("%d", id))
+	if err := updateScopedByID(ctx, r.db, &model.Cage{}, "cage", clinicID, id, fields); err != nil {
+		return nil, err
 	}
 	return r.FindByID(ctx, clinicID, id)
 }
 
 func (r *cageRepository) Delete(ctx context.Context, clinicID, id uint64) error {
-	result := r.db.WithContext(ctx).Scopes(clinicScope(clinicID)).Where("id = ?", id).Delete(&model.Cage{})
-	if result.Error != nil {
-		return apperrors.FromGORM(result.Error, "cage", fmt.Sprintf("%d", id))
-	}
-	if result.RowsAffected == 0 {
-		return apperrors.WrapNotFound("cage", fmt.Sprintf("%d", id))
-	}
-	return nil
+	return deleteScopedByID(ctx, r.db, &model.Cage{}, "cage", clinicID, id)
 }
 
 // CountUsageByCageID はケージを参照している hospitalizations の件数を返す。
