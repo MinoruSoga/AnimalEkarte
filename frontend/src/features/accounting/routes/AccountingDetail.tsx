@@ -24,7 +24,7 @@ import { useAccountingItemActions } from "../hooks/use-accounting-item-actions";
 import { useAccountingSettlementActions } from "../hooks/use-accounting-settlement-actions";
 import type { AccountingItem } from "../types";
 import { ResourceAccounting, ResourceAccountingCancel, ResourceAccountingPostCloseEdit } from "@/types/generated/models";
-import { useGetCashRegisterCloses } from "@/features/cash-register";
+import { useGetCashRegisterCloses } from "@/hooks/use-cash-register-closes";
 
 interface AccountingDetailProps {
   invoiceRegistrationNumber?: string;

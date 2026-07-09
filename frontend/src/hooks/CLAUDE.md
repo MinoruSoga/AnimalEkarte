@@ -98,3 +98,4 @@ export function useGetPet(petId: string) {
 | `use-pet-checkup-results.ts` | 2 | ペット別健診結果取得（checkups / owner-report） |
 | `use-examinations.ts` | 2 | 検査記録一覧取得（examinations / medical-records） |
 | `use-update-examination.ts` | 2 | 検査記録更新 mutation（examinations / medical-records） |
+| `use-cash-register-closes.ts` | 2 | レジ締め一覧取得（cash-register / accounting の締め後編集判定） |
