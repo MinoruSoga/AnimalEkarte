@@ -25,7 +25,7 @@ const hooks = vi.hoisted(() => ({
 
 vi.mock("@/features/owners", () => ({ useGetOwner: hooks.useGetOwner }));
 vi.mock("@/features/pets", () => ({ useGetPets: hooks.useGetPets }));
-vi.mock("@/features/medical-records", () => ({
+vi.mock("@/hooks/use-pet-vaccinations", () => ({
   useGetPetVaccinations: hooks.useGetPetVaccinations,
 }));
 vi.mock("../api/get-pet-examinations", () => ({

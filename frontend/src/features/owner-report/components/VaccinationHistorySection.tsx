@@ -1,7 +1,7 @@
 import { C } from "@/lib/design-tokens";
 import { usePermission } from "@/hooks/use-permission";
 import { ResourceVaccinations } from "@/types/generated/models";
-import { useGetPetVaccinations } from "@/features/medical-records";
+import { useGetPetVaccinations } from "@/hooks/use-pet-vaccinations";
 import { ReportSection } from "./ReportSection";
 import { HistoryTable } from "./HistoryTable";
 
