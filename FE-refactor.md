@@ -29,7 +29,7 @@
 |---|---|---|---|
 | FD1 | ~~feature間直接依存（cross-feature import）禁止パターン違反~~ **解消済み（R-F2, CLOSED 2026-07-09）** | 26 feature中12 featureで38件（25ファイル）→ 0件（意図的例外1件） | R-F2-S1〜S18（18コミット）で全25件対応方針を実施。最終監査は[R-F2完了ログ](#r-f2-完了ログcloseD-2026-07-09)参照 |
 | FD2 | ディレクトリ構造・命名規則逸脱 | 約101件（*Model.ts等57件、hooks配置ミス11件、feature構造逸脱3件、その他） | 単発ミスでなく定着した「非公式ローカル規約」化。新規参加者・AIエージェントが誤って模倣するリスク |
-| FD3 | src/hooks/配置ミス | 2件 | use-clinic-tax-rates.tsはSSOT（単一の正本）を謳いながら実際には乖離が発生中 |
+| FD3 | ~~src/hooks/配置ミス~~ **解消済み（R-F4, CLOSED 2026-07-09）** | 2件 → 0件 | R-F4（commit `b8dccb77`）でAccountingDocumentのuseClinicTaxRates SSOT統一とuse-postal-code-lookupのfeatures/owners/hooks/移設を実施。詳細は[R-F4完了ログ](#r-f4-完了ログcloseD-2026-07-09)参照 |
 | FD4 | Design Tokens残存hex（機械監査の盲点） | 2件 | design-system-audit.mjsの正規表現（引用符付きhex）をすり抜ける10進rgba表記 |
 | FD5 | 型安全性の構造的ギャップ | 4件+lintゲート未強化 | anyは0件だが`as unknown as T`等の無検証キャストが実質同じ危険を生んでいる。1件は19ルートに影響 |
 | FD6 | CODING_RULES.md記載内容の自己矛盾 | 1件（ドキュメントのみ） | 実害無し。将来の誤学習・誤実装のリスク |
@@ -188,6 +188,34 @@
   2. `frontend/src/hooks/CLAUDE.md`の「Cross-featureデータ系」表に`use-clinic-tax-rates.ts | 2 | 消費税率取得（accounting-reports / accounting・AccountingDocument）`を追記する。
   3. `frontend/src/hooks/use-postal-code-lookup.ts`を`frontend/src/features/owners/hooks/use-postal-code-lookup.ts`へ移動し、`OwnerForm.tsx:11`のimportを相対import（`../hooks/use-postal-code-lookup`）または`@/features/owners`経由（index.tsにexport追加）に変更する。`frontend/src/hooks/CLAUDE.md`の「ユーティリティ系」表から該当エントリを削除する。
 - **検証**: `docker compose exec frontend npx vitest run src/features/accounting src/features/owners`でGREEN確認。AccountingDocument.tsxの税率表示が変更前後で同一であることを目視確認する（フォールバック値が一致するため数値変化は無いはず）。
+
+#### R-F4 完了ログ（CLOSED, 2026-07-09）
+
+- **ステータス**: **CLOSED**（完了日 2026-07-09、commit `b8dccb77`、単一スライス）
+- **実施内容**:
+  1. **AccountingDocument → useClinicTaxRates SSOT統一**: `AccountingDocument.tsx`98-99行目の独自ベタ書き（`clinic?.reducedTaxRate ?? 0.08`/`clinic?.standardTaxRate ?? 0.1`）を廃し、`@/hooks/use-clinic-tax-rates`の`useClinicTaxRates()`から`standardTaxRate`/`reducedTaxRate`を取得する形に統一。フォールバック値は既存と完全一致のため表示挙動は変化なし。
+  2. **use-postal-code-lookup → features/owners/hooks/移設**: 唯一の消費者が`OwnerForm.tsx`のみだったため`src/hooks/use-postal-code-lookup.ts`を`src/features/owners/hooks/use-postal-code-lookup.ts`へ移動し、`OwnerForm.tsx`のimportを追従修正。`frontend/src/hooks/CLAUDE.md`のフック一覧表からも該当エントリを削除。
+- **変更ファイル**（6件、うち1件はrename）:
+  - `frontend/src/features/accounting/components/AccountingDocument.tsx`
+  - `frontend/src/features/accounting/components/AccountingDocument.test.tsx`（スコープ外だが実施した追補: `useClinicTaxRates`の依存チェーン解決のため`use-auth`モックを追加）
+  - `frontend/src/hooks/use-postal-code-lookup.ts` → `frontend/src/features/owners/hooks/use-postal-code-lookup.ts`（rename）
+  - `frontend/src/features/owners/routes/OwnerForm.tsx`
+  - `frontend/src/features/owners/routes/__tests__/OwnerForm.bug373.test.tsx`
+  - `frontend/src/hooks/CLAUDE.md`
+- **最終検証**（実測、本追記時点で再実行し一致確認済み）:
+  ```
+  $ rg '@/hooks/use-postal-code-lookup' frontend/src
+  （0件・exit 1）
+
+  $ rg 'useClinicTaxRates' frontend/src/features/accounting/components/AccountingDocument.tsx
+  import { useClinicTaxRates } from "@/hooks/use-clinic-tax-rates";
+    const { standardTaxRate: standardRate, reducedTaxRate: reducedRate } = useClinicTaxRates();
+
+  $ docker compose exec frontend npx vitest run src/features/accounting src/features/owners
+  Test Files  25 passed (25)
+       Tests  230 passed | 3 skipped (233)
+  ```
+- **次エピック候補**（本スライス外、R-F2完了ログの候補を更新）: R-F1-FD6（CODING_RULES.md自己矛盾の監査クローズ、既整合の可能性）、R-F5（`TagOwnerListDrawer.tsx`/`ShiftTemplateSettingsParts.tsx`のlegacy rgba直書き2件、FD4）。
 
 #### R-F5. Design Tokens残存hex 2件の是正（FD4）— 規模 S
 
