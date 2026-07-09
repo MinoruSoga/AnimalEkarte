@@ -17,7 +17,7 @@
 | Feature Indexing（deep import） | `@/features/xxx/(api\|components\|hooks\|routes\|types\|loaders)` 形式の直接import 0件（52件のbarrel経由importを全数確認、静的・動的・相対パス迂回・エイリアス抜け道いずれも無し） | 規約完全準拠 |
 | React 19パターン逸脱 | `FC<`/`React.FC`/`forwardRef(`/フォーム手動loading管理（`setIsLoading`等）いずれも0件。36ファイルで`useActionState`を正しく使用 | 規約完全準拠 |
 | 条件レンダリング（`&&`）アンチパターン | `{cond && <JSX>}`形式0件。過去の包括是正（commit b7a5a342で68→0件、以降複数の個別是正コミット）が定着し再発なし | 規約完全準拠。ただしESLintでの機械強制（`react/jsx-no-leaked-render`相当）は未導入で手動規律に依存 |
-| any型使用 | 明示的`any`（`: any`/`<any>`/`as any`/`any[]`/`Record<string, any>`）はアプリケーションコードに実質0件。唯一の出現は`src/types/generated/models.ts`（tygo自動生成、19箇所、eslint.config.js ignoreで対象外） | ほぼ完全準拠。ただし回避経路（`as unknown as T`等）に構造的ギャップあり→FD5 |
+| any型使用 | 明示的`any`（`: any`/`<any>`/`as any`/`any[]`/`Record<string, any>`）はアプリケーションコードに実質0件。唯一の出現は`src/types/generated/models.ts`（tygo自動生成、19箇所、eslint.config.js ignoreで対象外） | ほぼ完全準拠。回避経路（`as unknown as T`等）の構造的ギャップはR-F6で解消済み（CLOSED 2026-07-10、FD5参照） |
 | design-system-audit.mjs対象範囲（`src/features/**/routes/**`・`**/pages/**`のhex直書き・legacy accent・colorVariant） | 2026-07-06監査時点0件、CI zero-tolerance gateで新規混入を検知 | 機械監査運用中。本計画では対象外範囲（components/shared、features/**/hooks等）のみ追加監査した→FD4 |
 | eslint-disable根拠コメント | R-F3（既存PR #218）で33件監査・分類済み。`frontend/scripts/check-eslint-disable-rationale.mjs`のratchetで新規増加のみ検知 | 運用中。本計画では再監査しない |
 | UI Design Compliance（84リーフルート） | `docs/UI_DESIGN_COMPLIANCE.md`§2で2026-07-06監査済み・83準拠/1対象外 | 運用中。本計画では再監査しない |
@@ -31,7 +31,7 @@
 | FD2 | ディレクトリ構造・命名規則逸脱 | 約101件（*Model.ts等57件、hooks配置ミス11件、feature構造逸脱3件、その他） | 単発ミスでなく定着した「非公式ローカル規約」化。新規参加者・AIエージェントが誤って模倣するリスク |
 | FD3 | ~~src/hooks/配置ミス~~ **解消済み（R-F4, CLOSED 2026-07-09）** | 2件 → 0件 | R-F4（commit `b8dccb77`）でAccountingDocumentのuseClinicTaxRates SSOT統一とuse-postal-code-lookupのfeatures/owners/hooks/移設を実施。詳細は[R-F4完了ログ](#r-f4-完了ログcloseD-2026-07-09)参照 |
 | FD4 | ~~Design Tokens残存hex（機械監査の盲点）~~ **解消済み（R-F5, CLOSED 2026-07-09）** | 2件 → 0件 | design-system-audit.mjsの正規表現（引用符付きhex）をすり抜ける10進rgba表記。R-F5（commit `e372e272`）で解消。詳細は[R-F5完了ログ](#r-f5-完了ログcloseD-2026-07-09)参照 |
-| FD5 | 型安全性の構造的ギャップ | 4件+lintゲート未強化 | anyは0件だが`as unknown as T`等の無検証キャストが実質同じ危険を生んでいる。1件は19ルートに影響 |
+| FD5 | ~~型安全性の構造的ギャップ~~ **解消済み（R-F6, CLOSED 2026-07-10）** | 4件+lintゲート未強化 → 0件/ゲート化済み | R-F6-S1〜S4（4コミット）で無検証キャスト4件の解消と`no-explicit-any`のlint error格上げを実施。詳細は[R-F6完了ログ](#r-f6-完了ログcloseD-2026-07-10)参照 |
 | FD6 | ~~CODING_RULES.md記載内容の自己矛盾~~ **解消済み（R-F1, CLOSED 2026-07-09、監査PASS・コード変更なし）** | 1件（ドキュメントのみ）→ 0件（先行是正済みを監査確認） | 実害無し。将来の誤学習・誤実装のリスク。詳細は[R-F1完了ログ](#r-f1-完了ログcloseD-2026-07-09)参照 |
 | FD7 | ファイル・コンポーネントサイズ超過 | 400-800行帯13ファイル | 複数責務が単一関数/コンポーネントに平坦に同居。プロジェクト自身のCODING_RULES.md基準にも抵触 |
 | FD8 | テストカバレッジの質的ギャップ | 11件（CRITICAL1・HIGH多数） | 「テストがある/ない」の粗い比率とリスクの高低が一致しない逆転現象あり。過去に複数回バグ修正された箇所が無防備 |
@@ -274,7 +274,7 @@
 - **スコープ外残存**: `features/master/PATTERNS.md:342`の同型rgba記載はドキュメント内のコード例であり、実行コードではないため是正対象外（変更なし）。
 - **レビュー記録**: typescript-reviewer **Approve**（CRITICAL/HIGH 0件）。MEDIUM所見1件（`C.divideDivider`/`C.textPlaceholderFaint`は色基盤が旧アクセント`#37352F`系からink基準`rgba(0,0,0,...)`系に変わる。不透明度9%/15%は完全一致）——design-tokens.ts内の他定数（`borderLight`/`bgHover`/`bgLight`等）も同じ「legacy `#37352F`→ink `0,0,0`統一」方針を既に採用済みであり、意図的なトークン統一と判断しブロック不要とした。
 - **付随推奨（未実施）**: `design-system-audit.mjs`のC3正規表現をlegacy 10進rgba値（`55,53,47`等）にも拡張する検討（本計画の手順3、任意・次エピック外）。
-- **次エピック候補**: R-F6（FD5 型安全性・lintゲート、規模M）。
+- **次エピック候補**: R-F6は完了（CLOSED 2026-07-10、commit `da8933b4`/`9c6fab15`/`8b38402e`/`39eae262`）。詳細は[R-F6完了ログ](#r-f6-完了ログcloseD-2026-07-10)参照。
 
 ---
 
@@ -294,6 +294,50 @@
   3. `cash-register/api/transforms.ts`: `categoryBreakdown: raw.category_breakdown as unknown,`のように明示的に`unknown`へキャストしてから返す（呼び出し側の`summarizeCategoryTotals(raw: unknown)`は既に安全に実装済みのため型注釈のみの修正で完結する）。
   4. `eslint.config.js:30`の`"@typescript-eslint/no-explicit-any"`を`"warn"`から`"error"`へ格上げする（現状違反0件のためregression-safe）。または`package.json`のlint scriptを`eslint . --max-warnings=0`に変更してCIゲート化する。既存の`check-eslint-disable-rationale.mjs`・`design-system-audit.mjs`と同じ「ratchet→zero-tolerance」の運用パターンを踏襲する。
 - **検証**: `docker compose exec frontend npx vitest run src/features/master src/features/line-reservation src/features/cash-register`でGREEN確認。`docker compose exec frontend pnpm run type-check`で型エラーが無いことを確認（全体実行のためユーザー手動、完了報告時にコマンド提示）。lintルール格上げ後は`docker compose exec frontend pnpm run lint`で新規warningが無いことを確認する（同じくユーザー手動）。
+
+#### R-F6 完了ログ（CLOSED, 2026-07-10）
+
+- **ステータス**: **CLOSED**（完了日 2026-07-10、実装スライス R-F6-S1〜S4、全4コミット）
+- **スライス実装ログ**:
+
+  | Slice | commit | 内容 |
+  |---|---|---|
+  | S1 | `da8933b4` | `use-master-save.ts`の`createMutation`/`updateMutation`を`UseMutationResult<T, ...>`で受け取る形に変更し、`onSuccess`内の`savedData as T`無検証キャストを撤去 |
+  | S2 | `9c6fab15` | `LineReservationSettingsFormModel.ts`の`asJsonb`に型ガード引数を追加。書込み側は`UpdateLineReservationSettingRequest`型を新設しJSONBフィールドを型安全に上書き、`closedWeekdays as unknown as string`の二重キャストを撤去。呼び出し元（`LineReservationSettingsForm.tsx`/`PageEditor`）を型変更に追従 |
+  | S3 | `8b38402e` | `lib/transforms/cash-register.ts`の`categoryBreakdown`を`raw.category_breakdown as unknown`へ明示キャストし暗黙any伝播を遮断。回帰テストを`lib`単体テストと`features`統合テストの両方に追加（依存方向は`features → lib`を維持、逆依存が生じないことをレビューで確認） |
+  | S4 | `39eae262` | `eslint.config.js`の`"@typescript-eslint/no-explicit-any"`を`"warn"`から`"error"`へ格上げ。`--max-warnings=0`によるCIゲート化は不採用（既存の`react-refresh`/`react-hooks`系warningまで一括で赤くする副作用を避け、`no-explicit-any`のみ狙い撃ちでゲート化する既存ratchetパターンを踏襲） |
+
+- **最終検証**（実測、本追記時点で再実行し一致確認済み）:
+  ```
+  $ rg 'savedData as T|UseMutationResult<unknown' frontend/src/features/master/hooks/use-master-save.ts
+  （0件・exit 1）
+
+  $ rg 'as unknown as string|value as T|JSON\.parse\(value\) as T' frontend/src/features/line-reservation
+  （0件・exit 1）
+
+  $ rg 'categoryBreakdown: raw\.category_breakdown as unknown' frontend/src/lib/transforms/cash-register.ts
+  categoryBreakdown: raw.category_breakdown as unknown,
+  （1件・意図的unknown化。下流の`summarizeCategoryTotals(raw: unknown)`が安全側で型ガードする設計のため、ここでの`unknown`明示は暗黙any伝播の遮断であり残存負債ではない）
+
+  $ rg '"@typescript-eslint/no-explicit-any": "error"' frontend/eslint.config.js
+  "@typescript-eslint/no-explicit-any": "error",
+  （1件）
+
+  $ docker compose exec -T frontend npx vitest run src/features/master src/features/line-reservation src/features/cash-register src/lib/transforms/cash-register.test.ts
+  Test Files  16 passed (16)
+       Tests  91 passed (91)
+
+  $ docker compose exec -T frontend pnpm run lint
+  ✖ 15 problems (0 errors, 15 warnings)
+  （exit 0）
+  ```
+  フルlintの15件警告はいずれも`react-refresh/only-export-components`・`react-hooks/exhaustive-deps`・`react-hooks/preserve-manual-memoization`・`@typescript-eslint/no-unused-vars`という既存カテゴリであり、`no-explicit-any`格上げに起因する新規errorは0件。S4完了時点でフル`pnpm run lint`が未実施だった検証ギャップは、本DOC作成時の実測で正式にPASS化した。
+- **レビュー記録**: 各スライスともtypescript-reviewer **Approve**（S3は当初lib→features逆依存の疑義が指摘され、修正後にApprove）。
+- **フォローアップ（別チケット・未実施）**:
+  - `use-master-save.ts`自体の単体/regressionテストが欠如（S1、MEDIUM）
+  - `api/types.ts` → `components/`への依存方向が逆（S2、MEDIUM。型安全上の実害はなし）
+  - `additional_fields`にも同種のJSONB無検証キャスト負債が残る（S2、本スライス対象外）
+- **次エピック候補**: **R-F7**（FD11 knip導入、規模 S）。
 
 #### R-F7. knip導入（FD11）— 規模 S
 
