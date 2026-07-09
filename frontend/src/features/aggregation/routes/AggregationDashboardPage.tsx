@@ -8,12 +8,12 @@ import { UnifiedTabs } from "@/components/shared/UnifiedTabs";
 import { C, ICON, STYLE } from "@/lib/design-tokens";
 import { todayJSTISO } from "@/lib/jst-date";
 import type { CPMStage } from "@/lib/cpm-stage";
-import { useGetOwnerAggregations, type AggregationParams } from "./api/get-aggregations";
-import { useGetCPMStageCounts } from "./api/get-cpm-stage-counts";
-import { AggregationFilterPanel } from "./AggregationFilterPanel";
-import { AggregationOwnerTable } from "./AggregationOwnerTable";
-import { CPMStageSummary } from "./CPMStageSummary";
-import { buildCsvContent } from "./aggregation-csv";
+import { useGetOwnerAggregations, type AggregationParams } from "../api/get-aggregations";
+import { useGetCPMStageCounts } from "../api/get-cpm-stage-counts";
+import { AggregationFilterPanel } from "../components/AggregationFilterPanel";
+import { AggregationOwnerTable } from "../components/AggregationOwnerTable";
+import { CPMStageSummary } from "../components/CPMStageSummary";
+import { buildCsvContent } from "../components/aggregation-csv";
 
 // 集計軸は仕様書 §6.2 で revenue / visit / last_visit の3つに固定。
 // 既定タブは売上ランキング (revenue)。それ以外の値は URL に書き込めない。

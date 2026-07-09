@@ -8,8 +8,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { C, STYLE } from "@/lib/design-tokens";
-import type { AggregationOwner } from "./api/get-aggregations";
-import type { AggregationTab } from "./AggregationDashboardPage";
+import type { AggregationOwner } from "../api/get-aggregations";
+import type { AggregationTab } from "../routes/AggregationDashboardPage";
 import { getAggregationOwnerColumns } from "./AggregationOwnerTableColumns";
 
 interface AggregationOwnerTableProps {

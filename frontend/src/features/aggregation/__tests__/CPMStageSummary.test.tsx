@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { CPMStageSummary } from '../CPMStageSummary';
+import { CPMStageSummary } from '../components/CPMStageSummary';
 import type { CPMStageCounts } from '../api/get-cpm-stage-counts';
 
 const counts: CPMStageCounts = {

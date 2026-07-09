@@ -13,8 +13,8 @@ import type {
   AggregationSortField,
   AmountBasis,
   PeriodPreset,
-} from "./api/get-aggregations";
-import type { AggregationTab } from "./AggregationDashboardPage";
+} from "../api/get-aggregations";
+import type { AggregationTab } from "../routes/AggregationDashboardPage";
 import {
   AMOUNT_BASIS_OPTIONS,
   DEFAULT_SORT_BY_TAB,

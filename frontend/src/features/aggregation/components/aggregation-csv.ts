@@ -1,7 +1,7 @@
 import { CPM_STAGE_SHORT_LABELS } from "@/lib/cpm-stage";
 
-import type { AggregationOwner } from "./api/get-aggregations";
-import type { AggregationTab } from "./AggregationDashboardPage";
+import type { AggregationOwner } from "../api/get-aggregations";
+import type { AggregationTab } from "../routes/AggregationDashboardPage";
 
 interface CsvColumnDef {
   header: string;

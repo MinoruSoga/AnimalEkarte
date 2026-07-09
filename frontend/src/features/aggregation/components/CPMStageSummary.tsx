@@ -5,7 +5,7 @@ import {
   type CPMStage,
 } from "@/lib/cpm-stage";
 
-import type { CPMStageCounts } from "./api/get-cpm-stage-counts";
+import type { CPMStageCounts } from "../api/get-cpm-stage-counts";
 
 interface CPMStageSummaryProps {
   counts: CPMStageCounts;

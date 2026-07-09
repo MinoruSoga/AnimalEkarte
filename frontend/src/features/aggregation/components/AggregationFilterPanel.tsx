@@ -1,7 +1,7 @@
 import { C } from "@/lib/design-tokens";
 
-import type { AggregationParams } from "./api/get-aggregations";
-import type { AggregationTab } from "./AggregationDashboardPage";
+import type { AggregationParams } from "../api/get-aggregations";
+import type { AggregationTab } from "../routes/AggregationDashboardPage";
 import {
   AggregationSearchFilter,
   CPMStageFilter,

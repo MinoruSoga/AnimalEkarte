@@ -2,8 +2,8 @@ import type {
   AggregationSortField,
   AmountBasis,
   PeriodPreset,
-} from "./api/get-aggregations";
-import type { AggregationTab } from "./AggregationDashboardPage";
+} from "../api/get-aggregations";
+import type { AggregationTab } from "../routes/AggregationDashboardPage";
 
 export const AMOUNT_BASIS_OPTIONS = [
   { value: "gross_total_amount", label: "売上総額" },

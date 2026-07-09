@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { BrowserRouter } from 'react-router';
-import { AggregationOwnerTable } from '../AggregationOwnerTable';
+import { AggregationOwnerTable } from '../components/AggregationOwnerTable';
 import type { AggregationOwner } from '../api/get-aggregations';
 
 const mockOwners: AggregationOwner[] = [

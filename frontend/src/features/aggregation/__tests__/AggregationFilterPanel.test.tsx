@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { AggregationFilterPanel } from '../AggregationFilterPanel';
+import { AggregationFilterPanel } from '../components/AggregationFilterPanel';
 import type { AggregationParams } from '../api/get-aggregations';
 
 describe('AggregationFilterPanel', () => {
