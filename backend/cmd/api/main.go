@@ -185,68 +185,20 @@ func main() {
 	defer appCancel()
 
 	// LSTEP-BE-014: ノーショウ検知バッチ — 毎時0分に起動し 10/15/20 時 (JST) のみ実行
-	go func() {
-		jst := time.FixedZone("Asia/Tokyo", 9*60*60)
+	// time.Local は main() 冒頭の config.ConfigureTimeZone() で Asia/Tokyo 確定済み（G9-3）
+	go runScheduled(appCtx, "no-show batch", hourlyTick, func(ctx context.Context) error {
 		triggerHours := map[int]bool{10: true, 15: true, 20: true}
-		for {
-			now := time.Now().In(jst)
-			next := now.Truncate(time.Hour).Add(time.Hour)
-			timer := time.NewTimer(next.Sub(now))
-			select {
-			case <-appCtx.Done():
-				timer.Stop()
-				return
-			case <-timer.C:
-				h := time.Now().In(jst).Hour()
-				if triggerHours[h] {
-					if batchErr := svcs.LstepBatch.RunNoShowCheckAllClinics(appCtx); batchErr != nil {
-						logger.Error("no-show batch failed", slog.String("error", batchErr.Error()))
-					}
-				}
-			}
+		if !triggerHours[time.Now().Hour()] {
+			return nil
 		}
-	}()
+		return svcs.LstepBatch.RunNoShowCheckAllClinics(ctx)
+	})
 
 	// LSTEP-BE-004: 休眠検知バッチ — 毎日 02:00 JST に実行
-	go func() {
-		jst := time.FixedZone("Asia/Tokyo", 9*60*60)
-		for {
-			now := time.Now().In(jst)
-			// 翌日の 02:00 JST を計算
-			next := time.Date(now.Year(), now.Month(), now.Day(), 2, 0, 0, 0, jst)
-			if !next.After(now) {
-				next = next.Add(24 * time.Hour)
-			}
-			timer := time.NewTimer(next.Sub(now))
-			select {
-			case <-appCtx.Done():
-				timer.Stop()
-				return
-			case <-timer.C:
-				if batchErr := svcs.LstepBatch.RunDormantDetectionAllClinics(appCtx); batchErr != nil {
-					logger.Error("dormant detection batch failed", slog.String("error", batchErr.Error()))
-				}
-			}
-		}
-	}()
+	go runScheduled(appCtx, "dormant detection batch", dailyAt2AM, svcs.LstepBatch.RunDormantDetectionAllClinics)
 
 	// FEAT-383: 自動配信トリガーバッチ — 毎時0分に起動（10:00 JST 固定）
-	go func() {
-		for {
-			now := time.Now()
-			next := now.Truncate(time.Hour).Add(time.Hour)
-			timer := time.NewTimer(next.Sub(now))
-			select {
-			case <-appCtx.Done():
-				timer.Stop()
-				return
-			case <-timer.C:
-				if batchErr := svcs.LstepBatch.RunDeliveryTriggerBatchAllClinics(appCtx); batchErr != nil {
-					logger.Error("delivery trigger batch failed", slog.String("error", batchErr.Error()))
-				}
-			}
-		}
-	}()
+	go runScheduled(appCtx, "delivery trigger batch", hourlyTick, svcs.LstepBatch.RunDeliveryTriggerBatchAllClinics)
 
 	// ルーター設定
 	r := gin.New()
