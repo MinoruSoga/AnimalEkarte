@@ -288,24 +288,24 @@ docker compose exec backend go test ./internal/repository/ -run 'TestMedicalReco
 docker compose exec backend go test ./internal/service/ -run 'TestLstep' -count=1
 ```
 
-### G3-2. Run*AllClinics 5 関数が「全クリニック走査+IsSyncEnabled ゲート+audit メタデータ記録」の逐語コピー
+### G3-2. Run*AllClinics 5 関数が「全クリニック走査+IsSyncEnabled ゲート+audit メタデータ記録」の逐語コピー — **CLOSED（2026-07-09）**
 
 - **ID**: `dup-lstep-batch-allclinics`
-- **重要度**: P2 / **工数目安**: S / **挙動変更**: なし（挙動保存）
-- **対象ファイル**: internal/service/lstep_batch_dormant.go (48-88); internal/service/lstep_batch_noshow.go (36-77); internal/service/lstep_batch_segmentation.go (10-49, 51-105, 107-147)
-- **依存関係**: なし(dup-lstep-tag-apply と独立に実施可)
+- **重要度**: P2 / **工数目安**: S / **挙動変更**: なし（挙動保存・実証済み）
+- **ステータス**: ✅ **CLOSED** — `runBatchAllClinics` ヘルパ(lstep_batch_service.go)に5関数(dormant/no-show/ltv-top-percent/visit-dormant/health-prevention)を統合。コミット `b89520c3`
+- **依存関係**: なし(dup-lstep-tag-apply=G3-1 と独立に実施済み。G3-1 は既に CLOSED)
 
-**証拠(現HEAD検証済み)**
+**実装内容**
 
-lstep_batch_dormant.go:48-66 `func (s *lstepBatchService) RunDormantDetectionAllClinics(ctx context.Context) error {\n\tclinics, err := s.clinicRepo.FindAll(ctx)\n\tif err != nil {\n\t\tslog.ErrorContext(ctx, "dormant batch: failed to fetch clinics", "error", err)\n\t\treturn apperrors.Wrap(err, "failed to fetch clinics for dormant batch")\n\t}\n\tfor i := range clinics {\n\t\tclinic := &clinics[i]\n\t\tif s.settingsSvc != nil {\n\t\t\tenabled, syncErr := s.settingsSvc.IsSyncEnabled(ctx, clinic.ID)\n\t\t\tif syncErr != nil { ... continue }\n\t\t\tif !enabled { continue }\n\t\t}\n\t\tcount, errs := s.DetectDormantOwners(ctx, clinic.ID)` ≡ lstep_batch_noshow.go:36-56(ラベル文字列 "no-show batch" と内側呼び出しのみ差) ≡ lstep_batch_segmentation.go:10-30("ltv-top-percent batch") / :107-127("health-prevention batch")。末尾の audit 記録も逐語同型: dormant.go:74-84 `if err := s.auditSvc.LogLstepOperationWithMetadata(ctx, clinic.ID, nil,\n\t\t\t\t"batch_dormant_detect", "clinic", &clinic.ID,\n\t\t\t\tmap[string]any{\n\t\t\t\t\t"operation":       "batch_dormant_detect",\n\t\t\t\t\t"processed_count": count,\n\t\t\t\t\t"error_count":     len(errs),\n\t\t\t\t\t"min_days_since":  180,\n\t\t\t\t},\n\t\t\t); err != nil {\n\t\t\t\tslog.WarnContext(ctx, "audit log failed for dormant batch", ...)` ≡ noshow.go:62-73(min_days_since 無しのみ差) ≡ segmentation.go:35-46, :92-103, :133-144。
+`func (s *lstepBatchService) runBatchAllClinics(ctx context.Context, label, auditWarnLabel, syncedSuffix, operation string, extraMeta map[string]any, perClinic func(ctx context.Context, clinicID uint64) (int, []error)) error` を新設: clinicRepo.FindAll→IsSyncEnabled ゲート(err/disabled は continue)→perClinic→partial-errors ログ→count>0 時 InfoContext+LogLstepOperationWithMetadata(`maps.Copy` で extraMeta マージ)。`auditWarnLabel` は「audit log failed for ...」文言のハイフン有無が `label` と異なる(例: `ltv-top-percent batch` vs `ltv top percent batch`)ため独立引数として保持し、バイト級同一を実現。`RunVisitDormantSyncAllClinics` は `syncVisitDormantForClinic(ctx, clinicID) (int, []error)` を先に切り出し、entries 取得失敗時は `(0, nil)` を返すことで元の「当該クリニックを静かに continue（audit記録なし）」を再現。
 
-**問題**
+**検証結果**
 
-5 バッチが operation コード/ラベル/内側 1 呼び出し/追加メタデータ 1 キー以外完全同一。ISSUE-010(audit メタデータ追加)で 5 箇所同時変更された実績があり、IsSyncEnabled ゲートや audit 契約の次の変更でも必ず 5 箇所同期が要る「同期必須」重複の典型。1 箇所の追随漏れは監査ログ欠落として顕在化する。
-
-**実装手順**
-
-lstep_batch_service.go に `func (s *lstepBatchService) runBatchAllClinics(ctx context.Context, label, operation string, extraMeta map[string]any, perClinic func(ctx context.Context, clinicID uint64) (int, []error)) error` を追加: clinicRepo.FindAll→IsSyncEnabled ゲート→perClinic→partial-errors ログ→count>0 時 InfoContext+LogLstepOperationWithMetadata(operation/processed_count/error_count+extraMeta マージ)。5 関数は 3-6 行のラッパに置換(dormant は extraMeta={"min_days_since":180}、RunVisitDormantSyncAllClinics の内側ループは DetectDormantOwners と同型の `syncVisitDormantForClinic(ctx, clinicID) (int, []error)` として先に切り出す)。ログ・audit 文字列は引数経由で現行値を厳密維持(挙動保存)。既存テスト lstep_batch_dormant_test.go(329行)/lstep_batch_noshow_test.go(264行)/lstep_batch_segmentation_test.go(462行) が回帰網。
+- スコープ限定テスト26ケース全PASS: `docker compose exec backend go test ./internal/service/ -run 'TestRun.*AllClinics|TestLstepBatch|TestDetect' -count=1` → `ok`
+- ログ文言・audit operation文字列(`batch_dormant_detect`/`batch_no_show_detect`/`batch_ltv_top_percent`/`batch_visit_dormant`/`batch_health_prevention`)・dormant の `extraMeta={"min_days_since":180}` はすべて移行前と一致(実行ログで実証)
+- go-reviewer: **Approve**(CRITICAL/HIGH 0件。MEDIUM: ラベル引数のstruct化提案は見送り・既存の孤立コメント(dormant.go:46)は本PRスコープ外として残置)
+- silent-failure-hunter: CRITICAL/HIGH 0件。MEDIUM1件(entries取得失敗時にaudit/エラーカウントに何も残らない設計は既存負債であり本リファクタでの新規悪化なし)
+- `TestLstep` 全体回帰PASS
 
 **検証コマンド(スコープ限定)**
 ```
