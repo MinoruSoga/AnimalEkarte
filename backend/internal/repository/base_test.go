@@ -77,7 +77,7 @@ func TestMedicalRecordTenantScope(t *testing.T) {
 	}
 
 	t.Run("指定clinicの有効なmedical_recordに紐づくtreatmentのみJOINで返る", func(t *testing.T) {
-		assert.Equal(t, int64(1), countFor(1), "clinic1の有効treatment1件のみ。deleted_atありのtreatmentは除外")
+		assert.Equal(t, int64(1), countFor(1), "clinic1のtreatment2件のうち、親medical_recordsが論理削除済みの1件はJOINから除外される")
 	})
 
 	t.Run("別clinicを指定すると当該clinicの分だけ返る", func(t *testing.T) {
