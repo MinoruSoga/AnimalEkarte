@@ -519,12 +519,13 @@ P7 は gin.H 直返しを明示的に違反例としている。LIFF 公開 API 
 docker compose exec backend go test ./internal/handler/ -run TestCreateLiffReservation -count=1
 ```
 
-### G4-3. P14周辺負債: Handler ルートコンテナが全 repository 集約(*repository.Repositories)を保持(実使用は LiffAuth 用2リポジトリのみ)
+### G4-3. P14周辺負債: Handler ルートコンテナが全 repository 集約(*repository.Repositories)を保持(実使用は LiffAuth 用2リポジトリのみ) — **CLOSED（2026-07-09）**
 
 - **ID**: `p14-handler-container-repos-field`
 - **重要度**: P3 / **工数目安**: S / **挙動変更**: なし（挙動保存）
 - **対象ファイル**: internal/handler/handler.go (18-28); internal/handler/reservation_line_routes.go (64-65); internal/handler/handler_routes_test.go (26-32); cmd/api/main.go (191)
 - **依存関係**: なし
+- **ステータス**: ✅ **CLOSED** — Handler struct から `repos *repository.Repositories` を削除し、`liffCustomerLookup middleware.LineCustomerLookup` / `liffSettingLookup middleware.LineReservationSettingLookup` の2 narrow field に置換。New は repos != nil ガード付きで2値を抽出代入(シグネチャ不変)。reservation_line_routes.go:65 を `middleware.LiffAuth(h.liffCustomerLookup, h.liffSettingLookup)` に変更。handler_routes_test.go の `repos: &repository.Repositories{}` を削除(未使用 import も除去)。handler_test.go:30 の `assert.Same(t, repos, h.repos)` は narrow field 単位の assert.Same 2本に更新 — ゼロ値 struct だと nil interface 比較で testify が失敗するため、repos.LineCustomerMgr/LineReservationSetting に実コンストラクタ(`repository.NewLineCustomerRepository(nil)` 等、DB 未使用のため nil で安全)を渡し pointer identity を可視化。`docker compose exec backend go test ./internal/handler/ -run '^(TestRegisterRoutes_NoPanic|TestGetLiffProfile|TestGetLiffSettings|TestCreateLiffReservation|TestNew)$' -count=1` 全 PASS。grep `h\.repos` handler パッケージ 0件。go vet / gofmt 差分なし。コミット `5e5754db`
 
 **証拠(現HEAD検証済み)**
 
