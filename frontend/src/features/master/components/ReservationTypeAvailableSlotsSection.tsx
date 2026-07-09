@@ -14,7 +14,7 @@ import {
   AvailableSlotTypeWeekly,
   AvailableSlotTypeSpecific,
 } from "@/types/generated/models";
-import { TIME_SELECT_ITEMS } from "./available-slot-options";
+import { TIME_SELECT_ITEMS } from "./AvailableSlotOptions";
 import type { CreateAvailableSlotRequest } from "../api/reservation-type-available-slots";
 
 const DAY_OF_WEEK_ITEMS = (

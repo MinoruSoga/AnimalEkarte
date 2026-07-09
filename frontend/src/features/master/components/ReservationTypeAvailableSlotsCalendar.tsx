@@ -22,7 +22,7 @@ import {
   useCreateAvailableSlot,
   useDeleteAvailableSlot,
 } from "../api/reservation-type-available-slots";
-import { TIME_SELECT_ITEMS } from "./available-slot-options";
+import { TIME_SELECT_ITEMS } from "./AvailableSlotOptions";
 import type { ReservationTypeAvailableSlot } from "../api/reservation-type-available-slots";
 
 const DAYS_OF_WEEK = ["月", "火", "水", "木", "金", "土", "日"] as const;
