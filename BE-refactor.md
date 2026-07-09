@@ -364,12 +364,13 @@ P4(clinicScope 必須)+P9(FromGORM)+「RowsAffected==0→NotFound」のテナン
 docker compose exec backend go test ./internal/repository/ -run 'TestCage|TestExamType|TestChiefComplaint|TestInsurance|TestVaccination|TestPreloadClinicScope|TestDbOrTx' -count=1
 ```
 
-### G3-4. medical_records 経由テナント隔離 JOIN 断片が 7 リポジトリに逐語散在
+### G3-4. medical_records 経由テナント隔離 JOIN 断片が 7 リポジトリに逐語散在 — **CLOSED（2026-07-09）**
 
 - **ID**: `dup-medrecord-tenant-join`
-- **重要度**: P3 / **工数目安**: S / **挙動変更**: なし（挙動保存）
+- **重要度**: P3 / **工数目安**: S / **挙動変更**: なし（挙動保存・実証済み）
+- **ステータス**: ✅ **CLOSED** — `medicalRecordTenantScope(childTable, clinicID)`(base.go)を新設し、対象7リポジトリの手書き JOIN を `Scopes(...)` 委譲に置換。コミット `edc315e7`(G3-4a: helper新設+契約テスト)→`4c9e686a`(G3-4b: 7箇所置換)→`0f76b71e`(go-reviewer MEDIUM指摘によるテストメッセージ修正)
 - **対象ファイル**: internal/repository/chief_complaint_repository.go (85); internal/repository/consultation_repository.go (108); internal/repository/diagnosis_repository.go (242); internal/repository/inventory_repository.go (152); internal/repository/medicine_repository.go (67); internal/repository/medical_record_image_repository.go (67); internal/repository/procedure_repository.go (86)
-- **依存関係**: dup-repo-scoped-update-delete と同一ファイル群に触れるため同一トラックでの実施が望ましい(技術依存はなし)
+- **依存関係**: dup-repo-scoped-update-delete(G3-3)と同一ファイル群に触れるため同一トラックで実施(G3-3 CLOSED後に着手・技術依存はなし)
 
 **証拠(現HEAD検証済み)**
 
@@ -383,9 +384,52 @@ clinic_id を持たない子テーブル(inquiries/treatments/clinical_plans/med
 
 base.go に GORM スコープを追加: `// medicalRecordTenantScope は clinic_id を持たない medical_record 子テーブルのテナント隔離 JOIN。childTable は呼び出し側リテラルのみ許可。\nfunc medicalRecordTenantScope(childTable string, clinicID uint64) func(*gorm.DB) *gorm.DB { return func(db *gorm.DB) *gorm.DB { return db.Joins("JOIN medical_records ON medical_records.id = "+childTable+".medical_record_id AND medical_records.clinic_id = ? AND medical_records.deleted_at IS NULL", clinicID) } }`。7 箇所を `Scopes(medicalRecordTenantScope("inquiries", clinicID))` 等に置換(childTable はコンパイル時リテラルのみ・doc コメントで SQL 組み立てへの変数流入禁止を明記)。生成 SQL は文字列連結結果が現行と同一のため挙動保存。既存の各 *_test.go / clinic_isolation テストが回帰網。clinic_id 述語なし変種(billing_confirmation_repository.go:32 等、別述語で隔離済みの箇所)は意図が異なるため対象外。
 
+**実装内容**
+
+`base.go` に `medicalRecordTenantScope(childTable string, clinicID uint64) func(*gorm.DB) *gorm.DB` を追加(既存 `clinicScope`/`clinicScopeIn` と同じ「`func(clinicID uint64) func(*gorm.DB) *gorm.DB`」シグネチャ・命名規則に準拠)。`base_test.go` に `TestMedicalRecordTenantScope` を新設し、正 clinic での JOIN 適用・別 clinic 除外・該当 clinic 無しの3契約を検証。
+
+**7 箇所対応表**
+
+| ファイル | メソッド | childTable |
+|---|---|---|
+| chief_complaint_repository.go:78 | CountUsageByChiefComplaintTypeID | `inquiries` |
+| consultation_repository.go:94 | CountUsageByConsultationID | `treatments` |
+| diagnosis_repository.go:242 | CountUsageByDiagnosisNameID | `clinical_plans` |
+| inventory_repository.go:152 | CountUsageByInventoryID(treatment部分のみ) | `treatments` |
+| medicine_repository.go:67 | CountUsageByMedicineID(treatment部分のみ) | `treatments` |
+| procedure_repository.go:72 | CountUsageByProcedureID(treatment部分のみ) | `treatments` |
+| medical_record_image_repository.go:67 | FindByID | `medical_record_images` |
+
+**意図的除外(移行不可・変更不要)**
+
+| ファイル/箇所 | 理由 |
+|---|---|
+| medical_record_image_repository.go: FindByMedicalRecordID(33) | clinic_id が JOIN でなく Where 句側 |
+| medical_record_image_repository.go: Delete(52) | subquery で隔離、JOIN形状ではない |
+| treatment_repository.go | JOIN に clinic_id 述語なし(subquery 隔離) |
+| clinical_plan_repository.go(35) | clinic_id 述語なし |
+| billing_confirmation_repository.go(32) | 別述語で隔離済み |
+| inquiry_repository.go(95) | clinic_id 述語なし |
+| checkup_repository.go(77,93) | 文字列連結・別 SQL 形状 |
+| medicine/procedure の hospitalizations JOIN(care_plan_items側) | medical_records JOIN ではないため対象外 |
+
+**検証結果**
+
+- helper契約テスト: `TestMedicalRecordTenantScope`(正clinic・別clinic・該当なし・medical_records論理削除除外の4パターン)全PASS
+- 7リポジトリのスコープ限定回帰(`TestChiefComplaint|TestConsultation|TestDiagnosis|TestInventory|TestMedicine|TestProcedure|TestMedicalRecordImage|TestMedicalRecordTenantScope`)全PASS。うち `TestChiefComplaintTypeRepository_CountUsageByChiefComplaintTypeID_KnownInquiriesColumnBug`(inquiries.deleted_at列欠落)と `TestProcedureRepository_CountUsageByProcedureID_KnownCarePlanItemsColumnBug`(care_plan_items.deleted_at列欠落)は本リファクタ前から存在する既知のスキーマ不整合で、置換後も同一エラーを再現(=挙動保存)することを確認。helper非起因の既知負債であり別チケット追跡対象
+- 隔離回帰: `TestMedicalRecordImageRepository_FindByID_ClinicIsolation`/`Delete_ClinicIsolation`/`TestPetRepository_Update_ClinicIsolation`(同一ファイル)全PASS
+- 旧インラインパターン(`JOIN medical_records ON medical_records\.id = .* AND medical_records\.clinic_id = \?`)は対象7ファイルから `rg` で0件確認(完全消失)。意図的除外7箇所は `git diff --stat` で無変更を確認
+- go-reviewer: **Approve**(CRITICAL/HIGH 0件。MEDIUM 2件: ①テストのアサーションメッセージが「treatments.deleted_at」を指すかのように誤読を招く表現だった点→`0f76b71e`で修正済み、②`childTable`のコンパイル時リテラル制約を担保する `go/ast` lint が無い点→将来の追加箇所向けフォローアップとして下記に記録・本Closureではブロッキングとせず)
+- clinic-isolation-auditor: **Approve**(CRITICAL/HIGH/MEDIUM 0件。`childTable` は全呼び出しサイトでコンパイル時リテラルのみ、生成SQLは置換前とバイト同一の隔離述語を保持、意図的除外7箇所は無変更、既存の全隔離テストPASSを確認)
+
+**フォローアップ候補(本Closureではスコープ外)**
+
+- go-reviewer提案: `medicalRecordTenantScope` の `childTable` 引数がリテラルのみであることを `preload_clinic_scope_lint_test.go` 同様の `go/ast` ベース lint で機械強制する余地あり(現状はコードレビュー運用のみ)
+- `inquiry_repository.go:95` / `treatment_repository.go` / `clinical_plan_repository.go` / `billing_confirmation_repository.go` に残る「JOIN+WHERE分離型」の別形状隔離パターンも将来的に統合候補だが、SQL文字列のbyte-identical要件を満たす形での統合は別途設計が必要なため本G3-4のスコープ外
+
 **検証コマンド(スコープ限定)**
 ```
-docker compose exec backend go test ./internal/repository/ -run 'TestChiefComplaint|TestConsultation|TestDiagnosis|TestInventory|TestMedicine|TestProcedure|TestMedicalRecordImage' -count=1
+docker compose exec backend go test ./internal/repository/ -run 'TestChiefComplaint|TestConsultation|TestDiagnosis|TestInventory|TestMedicine|TestProcedure|TestMedicalRecordImage|TestMedicalRecordTenantScope' -count=1
 ```
 
 ### G3-5. handler 層に「YYYY-MM-DD 優先→RFC3339 フォールバック」日付パースが二重実装(エラー衛生ドリフトあり)
