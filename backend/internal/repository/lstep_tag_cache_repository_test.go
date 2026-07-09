@@ -4,7 +4,8 @@ package repository
 //
 // 保護する不変条件:
 //   - UpsertTag は (clinic_id, owner_id, tag_name) で UPSERT する（重複行を作らない、reason 空文字は NULL 保存）。
-//   - DeleteTag / DeleteAllByOwner / FindByOwner / CountByTag / FindOwnerIDsByTag は clinic_id で分離される。
+//   - DeleteTag / DeleteAllByOwner / FindByOwner / FindByOwners / CountByTag / FindOwnerIDsByTag は clinic_id で分離される。
+//   - FindByOwners はタグを持たない owner_id をキーとして含めず、ownerIDs 空引数は空mapを即返す。
 //   - TagSummary はタグ名・カテゴリ別の飼い主数集計を返し、totalOwnersWithLstep はタグ保持飼い主の重複排除数。
 //   - FindOwnersByTag は owners.clinic_id + owners.deleted_at IS NULL を満たす飼い主のみ対象とし、
 //     nameQuery 部分一致・ページネーション・タグ一覧付与を行う。
@@ -165,6 +166,40 @@ func TestLstepTagCacheRepository_FindByOwner(t *testing.T) {
 		records, err := repo.FindByOwner(ctx, 1, 999)
 		require.NoError(t, err)
 		assert.Empty(t, records)
+	})
+}
+
+func TestLstepTagCacheRepository_FindByOwners(t *testing.T) {
+	db := setupLstepTagCacheTestDB(t)
+	repo := NewLstepTagCacheRepository(db)
+	ctx := context.Background()
+
+	require.NoError(t, repo.UpsertTag(ctx, 1, 400, "tag-a", "auto", ""))
+	require.NoError(t, repo.UpsertTag(ctx, 1, 400, "tag-b", "auto", ""))
+	require.NoError(t, repo.UpsertTag(ctx, 1, 401, "tag-c", "auto", ""))
+	require.NoError(t, repo.UpsertTag(ctx, 2, 400, "tag-d", "auto", ""))
+
+	t.Run("複数owner_idのタグをowner_id別にまとめて返す", func(t *testing.T) {
+		result, err := repo.FindByOwners(ctx, 1, []uint64{400, 401, 999})
+		require.NoError(t, err)
+		require.Len(t, result[400], 2)
+		require.Len(t, result[401], 1)
+		assert.Equal(t, "tag-c", result[401][0].TagName)
+		_, hasMissing := result[999]
+		assert.False(t, hasMissing, "タグなしowner_idはキーとして存在しない")
+	})
+
+	t.Run("別クリニックのタグは含まれない（clinic_id分離）", func(t *testing.T) {
+		result, err := repo.FindByOwners(ctx, 2, []uint64{400})
+		require.NoError(t, err)
+		require.Len(t, result[400], 1)
+		assert.Equal(t, "tag-d", result[400][0].TagName)
+	})
+
+	t.Run("ownerIDsが空の場合は空mapを即返す", func(t *testing.T) {
+		result, err := repo.FindByOwners(ctx, 1, []uint64{})
+		require.NoError(t, err)
+		assert.Empty(t, result)
 	})
 }
 

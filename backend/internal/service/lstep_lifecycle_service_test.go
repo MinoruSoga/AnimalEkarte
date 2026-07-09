@@ -93,6 +93,7 @@ type mockLstepTagCacheRepository struct {
 	deleteTagFn        func(ctx context.Context, clinicID, ownerID uint64, tagName string) error
 	deleteAllByOwnerFn func(ctx context.Context, clinicID, ownerID uint64) error
 	findByOwnerFn      func(ctx context.Context, clinicID, ownerID uint64) ([]*model.LstepTagCache, error)
+	findByOwnersFn     func(ctx context.Context, clinicID uint64, ownerIDs []uint64) (map[uint64][]*model.LstepTagCache, error)
 	countByTagFn       func(ctx context.Context, clinicID uint64, tagName string) (int64, error)
 }
 
@@ -119,6 +120,12 @@ func (m *mockLstepTagCacheRepository) FindByOwner(ctx context.Context, clinicID,
 		return m.findByOwnerFn(ctx, clinicID, ownerID)
 	}
 	return nil, nil
+}
+func (m *mockLstepTagCacheRepository) FindByOwners(ctx context.Context, clinicID uint64, ownerIDs []uint64) (map[uint64][]*model.LstepTagCache, error) {
+	if m.findByOwnersFn != nil {
+		return m.findByOwnersFn(ctx, clinicID, ownerIDs)
+	}
+	return map[uint64][]*model.LstepTagCache{}, nil
 }
 func (m *mockLstepTagCacheRepository) CountByTag(ctx context.Context, clinicID uint64, tagName string) (int64, error) {
 	if m.countByTagFn != nil {

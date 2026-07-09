@@ -66,9 +66,11 @@ func TestCheckupSyncService_PreviewCheckupSync_ThresholdsError(t *testing.T) {
 }
 
 func TestCheckupSyncService_PreviewCheckupSync_TagCacheLookupError(t *testing.T) {
-	lineID := "U_test"
+	lineID1 := "U_test_1"
+	lineID2 := "U_test_2"
 	rows := []repository.CheckupSyncPreviewRow{
-		{OwnerID: 1, OwnerName: "line-linked", LineUserID: &lineID, LstepOptOut: false, LivingPetCount: 1},
+		{OwnerID: 1, OwnerName: "line-linked-1", LineUserID: &lineID1, LstepOptOut: false, LivingPetCount: 1},
+		{OwnerID: 2, OwnerName: "line-linked-2", LineUserID: &lineID2, LstepOptOut: false, LivingPetCount: 1},
 	}
 	repo := &mockCheckupSyncRepository{
 		findCheckupSyncPreviewFn: func(_ context.Context, _ *repository.FindCheckupSyncPreviewParams) ([]repository.CheckupSyncPreviewRow, error) {
@@ -76,16 +78,18 @@ func TestCheckupSyncService_PreviewCheckupSync_TagCacheLookupError(t *testing.T)
 		},
 	}
 	tagCacheRepo := &mockLstepTagCacheRepository{
-		findByOwnerFn: func(_ context.Context, _, _ uint64) ([]*model.LstepTagCache, error) {
+		findByOwnersFn: func(_ context.Context, _ uint64, _ []uint64) (map[uint64][]*model.LstepTagCache, error) {
 			return nil, errors.New("db error")
 		},
 	}
 	svc := NewCheckupSyncService(repo, &mockOwnerRepository{}, &mockPetRepository{}, tagCacheRepo, &mockLstepSettingsService{}, &mockAuditService{})
 	result, err := svc.PreviewCheckupSync(context.Background(), 1, &PreviewCheckupSyncInput{CheckupType: "annual"}, nil)
-	// Tag cache lookup failure for a line-linked owner is non-fatal: currentTags falls back to
-	// an empty slice and preview continues.
+	// G7-2: タグキャッシュはバッチ取得(FindByOwners)に変更されたため、失敗は per-owner ではなく
+	// 全体に及ぶ。line連携済み全員の currentTags が空スライスにフォールバックし、プレビュー自体は継続する
+	// （この一括失敗時の挙動差は BE-refactor.md G7-2 の実装手順で仕様として固定されている）。
 	assert.NoError(t, err)
-	if assert.NotNil(t, result) && assert.Len(t, result.Owners, 1) {
+	if assert.NotNil(t, result) && assert.Len(t, result.Owners, 2) {
 		assert.Empty(t, result.Owners[0].CurrentTags)
+		assert.Empty(t, result.Owners[1].CurrentTags)
 	}
 }

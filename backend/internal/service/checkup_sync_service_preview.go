@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
+	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/repository"
 )
 
@@ -35,6 +36,22 @@ func (s *checkupSyncService) PreviewCheckupSync(ctx context.Context, clinicID ui
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to get cpm v1 thresholds for checkup preview", "error", err, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to get cpm v1 thresholds")
+	}
+
+	// N+1回避: LINE連携済み owner_id を先に収集し、タグキャッシュを1クエリで一括取得する。
+	lineLinkedOwnerIDs := make([]uint64, 0, len(rows))
+	for i := range rows {
+		row := &rows[i]
+		if row.LineUserID != nil && *row.LineUserID != "" {
+			lineLinkedOwnerIDs = append(lineLinkedOwnerIDs, row.OwnerID)
+		}
+	}
+	tagCacheByOwner, err := s.tagCacheRepo.FindByOwners(ctx, clinicID, lineLinkedOwnerIDs)
+	if err != nil {
+		// 一括取得の失敗は non-fatal: 全員分のタグを空扱いにしてプレビューは継続する
+		// （per-owner版と異なり、失敗が全体に及ぶ点は仕様として G7-2 で固定した挙動差）。
+		slog.ErrorContext(ctx, "failed to batch load tag cache for preview", "error", err, "clinic_id", clinicID)
+		tagCacheByOwner = map[uint64][]*model.LstepTagCache{}
 	}
 
 	owners := make([]CheckupSyncPreviewOwner, 0, len(rows))
@@ -73,15 +90,10 @@ func (s *checkupSyncService) PreviewCheckupSync(ctx context.Context, clinicID ui
 
 		var currentTags []string
 		if hasLine {
-			cached, cacheErr := s.tagCacheRepo.FindByOwner(ctx, clinicID, row.OwnerID)
-			if cacheErr != nil {
-				slog.ErrorContext(ctx, "failed to load tag cache for preview", "error", cacheErr, "owner_id", row.OwnerID)
-				currentTags = []string{}
-			} else {
-				currentTags = make([]string, 0, len(cached))
-				for _, c := range cached {
-					currentTags = append(currentTags, c.TagName)
-				}
+			cached := tagCacheByOwner[row.OwnerID]
+			currentTags = make([]string, 0, len(cached))
+			for _, c := range cached {
+				currentTags = append(currentTags, c.TagName)
 			}
 		} else {
 			currentTags = []string{}

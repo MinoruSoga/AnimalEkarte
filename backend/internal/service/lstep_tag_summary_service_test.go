@@ -33,6 +33,9 @@ func (m *mockTagCacheSummaryRepo) DeleteAllByOwner(_ context.Context, _, _ uint6
 func (m *mockTagCacheSummaryRepo) FindByOwner(_ context.Context, _, _ uint64) ([]*model.LstepTagCache, error) {
 	return nil, nil
 }
+func (m *mockTagCacheSummaryRepo) FindByOwners(_ context.Context, _ uint64, _ []uint64) (map[uint64][]*model.LstepTagCache, error) {
+	return map[uint64][]*model.LstepTagCache{}, nil
+}
 func (m *mockTagCacheSummaryRepo) CountByTag(_ context.Context, _ uint64, _ string) (int64, error) {
 	return 0, nil
 }

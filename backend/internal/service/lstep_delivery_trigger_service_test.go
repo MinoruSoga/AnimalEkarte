@@ -243,6 +243,9 @@ func (m *mockTagCacheRepoForDelivery) FindByOwner(ctx context.Context, clinicID,
 	}
 	return nil, nil
 }
+func (m *mockTagCacheRepoForDelivery) FindByOwners(_ context.Context, _ uint64, _ []uint64) (map[uint64][]*model.LstepTagCache, error) {
+	return map[uint64][]*model.LstepTagCache{}, nil
+}
 func (m *mockTagCacheRepoForDelivery) FindOwnerIDsByTag(ctx context.Context, clinicID uint64, tagName string) ([]uint64, error) {
 	if m.findOwnerIDsByTagFn != nil {
 		return m.findOwnerIDsByTagFn(ctx, clinicID, tagName)
