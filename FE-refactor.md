@@ -32,7 +32,7 @@
 | FD3 | ~~src/hooks/配置ミス~~ **解消済み（R-F4, CLOSED 2026-07-09）** | 2件 → 0件 | R-F4（commit `b8dccb77`）でAccountingDocumentのuseClinicTaxRates SSOT統一とuse-postal-code-lookupのfeatures/owners/hooks/移設を実施。詳細は[R-F4完了ログ](#r-f4-完了ログcloseD-2026-07-09)参照 |
 | FD4 | Design Tokens残存hex（機械監査の盲点） | 2件 | design-system-audit.mjsの正規表現（引用符付きhex）をすり抜ける10進rgba表記 |
 | FD5 | 型安全性の構造的ギャップ | 4件+lintゲート未強化 | anyは0件だが`as unknown as T`等の無検証キャストが実質同じ危険を生んでいる。1件は19ルートに影響 |
-| FD6 | CODING_RULES.md記載内容の自己矛盾 | 1件（ドキュメントのみ） | 実害無し。将来の誤学習・誤実装のリスク |
+| FD6 | ~~CODING_RULES.md記載内容の自己矛盾~~ **解消済み（R-F1, CLOSED 2026-07-09、監査PASS・コード変更なし）** | 1件（ドキュメントのみ）→ 0件（先行是正済みを監査確認） | 実害無し。将来の誤学習・誤実装のリスク。詳細は[R-F1完了ログ](#r-f1-完了ログcloseD-2026-07-09)参照 |
 | FD7 | ファイル・コンポーネントサイズ超過 | 400-800行帯13ファイル | 複数責務が単一関数/コンポーネントに平坦に同居。プロジェクト自身のCODING_RULES.md基準にも抵触 |
 | FD8 | テストカバレッジの質的ギャップ | 11件（CRITICAL1・HIGH多数） | 「テストがある/ない」の粗い比率とリスクの高低が一致しない逆転現象あり。過去に複数回バグ修正された箇所が無防備 |
 | FD9 | アクセシビリティ逸脱 | 53件（代表列挙） | 共有コンポーネント経由で多数画面に伝播する構造的パターン。受付ボードという日常業務中核画面にも波及 |
@@ -56,6 +56,26 @@
   1. 759-761行目の「★」コメントと禁止/正しいの表記を反転させる。`export { OwnersList } from "./routes/OwnersList";`はindex.ts内部の再エクスポート定義として残しつつ、外部からのimportは`import { OwnersList } from "@/features/owners"`（barrel経由）が正、`@/features/owners/routes/OwnersList`へのdeep importが誤、と明記する。
   2. 771-772行目の「loadersはrouter.tsxから直接import」記述を、実態（loadersはfeature側からexportされfeature index.ts経由でも直接でも良い設計上の選択肢である旨）に合わせて修正するか、将来導入時の条件を明示する。
 - **検証**: ドキュメントのみの変更のためコード実行検証は不要。修正後、755-773行目と2068-2095行目を読み比べ、矛盾が解消されていることを目視確認する。
+
+#### R-F1 完了ログ（CLOSED, 2026-07-09）
+
+- **ステータス**: **CLOSED**（完了日 2026-07-09、監査のみ・コード変更なし）
+- **監査結果**: **PASS**。`frontend/CODING_RULES.md` 755–775行目（Feature公開API例）と2084–2112行目（`bundle-feature-indexing`節）を目視照合した結果、両節とも「feature外からのimportはindex.ts（barrel）経由が正、deep importが禁止」で一致していた。上記「現状」節（本タスク着手前の記述、作成日2026-07-07時点）が指摘した759-761行目・771-772行目の矛盾は、本タスク着手前の時点で既に解消されていた（是正の実施元は本タスクの範囲外・履歴未特定。「現状」節は計画作成時点の古い記述として残置し、本完了ログで最新状態を正本化する）。実際の755-775行目は「★」コメント付きでbarrel importを「正しい」・deep importを「禁止」と明記し、771-773行目もloadersを同一index.tsから公開しbarrel経由で呼び出す例のみを記載しており、2084-2112行目の「feature外はbarrel経由・feature内部は直接ファイル指定」の使い分けと矛盾しない。
+- **実施した修正**: なし（`frontend/CODING_RULES.md`は変更不要、先行是正済みのため）。
+- **検証**（実測）:
+  ```
+  $ rg '@/features/[^/]+/(api|components|hooks|routes)/' frontend/src/app
+  （0件・exit 1）
+
+  $ rg -n 'ownersLoader|ownerLoader' frontend/src/app/routes/clinical-general-routes.tsx
+  46:              const [{ OwnersListPage }, { ownersLoader }] = await Promise.all([
+  50:              return { Component: OwnersListPage, loader: ownersLoader };
+  74:              const [{ OwnerFormPage }, { ownerLoader }] = await Promise.all([
+  78:              return { Component: OwnerFormPage, loader: ownerLoader };
+  ```
+  両loadersとも`import("@/features/owners")`（barrel経由）から取得しており、app層でのdeep importは0件。
+- **NULバイト調査**（R-F4完了ログの候補記載事項）: `python3 -c "open('FE-refactor.md','rb').read().find(b'\x00')"`でoffset 74925に1件検出。周辺文脈（R-F20節、BUG-067系NULLバイト障害の説明文）から、`` `\x00` ``という文字列表記が意図されていた箇所に生のNULバイト1バイトが混入していたものと判明。除去可能と判断し、当該バイトをテキスト表記`\x00`（4文字）へ置換して修正した（本完了ログ作成と同一コミットに含む）。
+- **次エピック候補**（既出、変更なし）: R-F5（`TagOwnerListDrawer.tsx`/`ShiftTemplateSettingsParts.tsx`のlegacy rgba直書き2件、FD4）。
 
 #### R-F2. feature間直接依存（cross-feature import）38件の解消（FD1）— 規模 L
 
@@ -454,7 +474,7 @@
 #### R-F20. line-reserve axiosへのNULLバイト対策共有化（FD10）— 規模 M・behavior変更あり
 
 - **現状**: `line-reserve/src/api/liff-api.ts:17-19`が独自axiosインスタンス（`axios.create({ baseURL: API_BASE_URL })`）を持ち、request/response interceptorが一切無い。mainアプリの`src/lib/axios.ts`が持つNULLバイト除去（BUG-067修正）を含む共通防御ロジックが未適用。
-- **failure_scenario**: `ConfirmPage.tsx`の`handleConfirm`が`customer_fields.name/phone/owner_name`・`pets[].name`・`request_text`という自由入力文字列をPOST /api/liff/:clinicId/reservationsへそのまま送信する。ユーザー入力に` `が含まれると（コピペ等由来）、PostgreSQLがNULLバイトを含む文字列を拒否し500エラーになる — mainアプリで既に修正済みのBUG-067と同一クラスの障害が別axiosインスタンス経由で再現しうる。
+- **failure_scenario**: `ConfirmPage.tsx`の`handleConfirm`が`customer_fields.name/phone/owner_name`・`pets[].name`・`request_text`という自由入力文字列をPOST /api/liff/:clinicId/reservationsへそのまま送信する。ユーザー入力に`\x00`が含まれると（コピペ等由来）、PostgreSQLがNULLバイトを含む文字列を拒否し500エラーになる — mainアプリで既に修正済みのBUG-067と同一クラスの障害が別axiosインスタンス経由で再現しうる。
 - **手順**: `frontend/src/lib/axios.ts`のsanitizeNullBytes相当ロジックをReact非依存の共有ユーティリティ（例: `frontend/src/lib/sanitize.ts`）に切り出し、`line-reserve/src/api/liff-api.ts`のhttpClientにrequest interceptorとして追加してPOST/PATCH/PUTボディに適用する。
 - **検証**: NULLバイトを含む文字列でconfirm送信をテストし、500エラーにならず正常にサニタイズされることを確認する（挙動が変わるため`fix:`コミットとして分離することを推奨）。`docker compose exec frontend npx vitest run line-reserve`でGREEN確認。
 
