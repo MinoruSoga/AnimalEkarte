@@ -12,7 +12,7 @@ import { C, STYLE } from "@/lib/design-tokens";
 import { handleApiError } from "@/lib/handle-api-error";
 import type { ActionState } from "@/types/form";
 import { INITIAL_ACTION_STATE } from "@/types/form";
-import { useRecordPetDeath } from "../api/record-pet-death";
+import { useRecordPetDeath } from "@/hooks/use-record-pet-death";
 
 interface PetDeceasedDialogProps {
   open: boolean;

@@ -1,7 +1,7 @@
 import { useState, useRef } from "react";
 import { C } from "@/lib/design-tokens";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
-import { useRevokePetDeath } from "../api/revoke-pet-death";
+import { useRevokePetDeath } from "@/hooks/use-revoke-pet-death";
 
 interface PetDeceasedBannerProps {
   deceasedAt: string;

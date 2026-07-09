@@ -102,3 +102,5 @@ export function useGetPet(petId: string) {
 | `use-update-reservation.ts` | 2 | 予約更新 mutation（reservations / reception のモーダル編集保存） |
 | `use-get-reservations.ts` | 2 | 予約一覧取得（reservations / medical-records の当日予約再利用判定） |
 | `use-create-reservation.ts` | 2 | 予約作成 mutation（reservations / medical-records のカルテ自動作成） |
+| `use-record-pet-death.ts` | 2 | ペット死亡記録 mutation（owners / pets の PetDeceasedRecordButton→PetDeceasedDialog） |
+| `use-revoke-pet-death.ts` | 2 | ペット死亡記録解除 mutation（owners / pets の PetDeceasedRecordButton→PetDeceasedBanner） |

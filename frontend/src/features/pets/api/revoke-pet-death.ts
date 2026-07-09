@@ -1,24 +1,3 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { toast } from "sonner";
-import { axios } from "@/lib/axios";
-import { requireStoredClinicId } from "@/lib/current-clinic";
-import { handleApiError } from "@/lib/handle-api-error";
-
-export function useRevokePetDeath() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async (petId: string) => {
-      const clinicId = requireStoredClinicId();
-      await axios.delete(`/v1/clinics/${clinicId}/pets/${petId}/death`);
-    },
-    onSuccess: (_, petId) => {
-      queryClient.invalidateQueries({ queryKey: ["pet", petId] });
-      queryClient.invalidateQueries({ queryKey: ["pets"] });
-      toast.success("死亡記録を解除しました");
-    },
-    onError: (error) => {
-      handleApiError(error, "死亡記録解除");
-    },
-  });
-}
+// R-F2-S15: useRevokePetDeath は src/hooks/use-revoke-pet-death.ts へ昇格。
+// ここは feature 内既存 import (`./api/revoke-pet-death`) を壊さないための re-export。
+export { useRevokePetDeath } from "@/hooks/use-revoke-pet-death";
