@@ -14,23 +14,13 @@ import (
 // ResyncOwnerCheckupTags は飼い主の生存健診記録から checkup_done_* / next_checkup_* タグを再構築する（ISSUE-004）。
 // 健診の更新・削除後に呼び出すこと。同一健診種別では最新検査日のみ保持。next_checkup は最遠の next_date のみ保持。
 func (s *lstepTagSyncService) ResyncOwnerCheckupTags(ctx context.Context, clinicID, ownerID uint64) error {
-	if skip, err := s.shouldSkipSync(ctx, clinicID); err != nil {
-		return err
-	} else if skip {
-		return nil
-	}
-	optOut, owner, err := s.checkOptOut(ctx, clinicID, ownerID)
+	lineUserID, ok, err := s.resolveSyncTarget(ctx, clinicID, ownerID, "checkup resync")
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to check opt-out for checkup resync", "error", err)
-		return apperrors.Wrap(err, "failed to check opt-out")
+		return err
 	}
-	if optOut {
+	if !ok {
 		return nil
 	}
-	if owner.LineUserID == nil || *owner.LineUserID == "" {
-		return nil
-	}
-	lineUserID := *owner.LineUserID
 
 	client, err := s.buildClient(ctx, clinicID)
 	if err != nil {
@@ -62,25 +52,15 @@ func (s *lstepTagSyncService) ResyncOwnerCheckupTags(ctx context.Context, clinic
 		if _, keep := newTagSet[c.TagName]; keep {
 			continue
 		}
-		if delErr := client.RemoveTag(ctx, lineUserID, c.TagName); delErr != nil {
-			slog.ErrorContext(ctx, "failed to remove stale checkup tag", "error", delErr, "tag", c.TagName)
-			s.notifyAPIFailure(ctx, client, clinicID, ownerID, lineUserID)
+		if err := s.applyTagState(ctx, client, clinicID, ownerID, lineUserID, c.TagName, "checkup resync", "", false); err != nil {
 			apiFailed = true
 			continue
-		}
-		if delErr := s.tagCacheRepo.DeleteTag(ctx, clinicID, ownerID, c.TagName); delErr != nil {
-			slog.ErrorContext(ctx, "failed to delete stale checkup tag cache", "error", delErr, "tag", c.TagName)
 		}
 	}
 
 	for tag := range newTagSet {
-		if addErr := client.AddTag(ctx, lineUserID, tag); addErr != nil {
-			slog.ErrorContext(ctx, "failed to add checkup tag on resync", "error", addErr, "tag", tag)
-			s.notifyAPIFailure(ctx, client, clinicID, ownerID, lineUserID)
-			return apperrors.Wrap(addErr, fmt.Sprintf("failed to add checkup tag %s", tag))
-		}
-		if upsertErr := s.tagCacheRepo.UpsertTag(ctx, clinicID, ownerID, tag, "auto", ""); upsertErr != nil {
-			slog.ErrorContext(ctx, "failed to upsert checkup tag cache on resync", "error", upsertErr, "tag", tag)
+		if err := s.applyTagState(ctx, client, clinicID, ownerID, lineUserID, tag, "checkup resync", "", true); err != nil {
+			return err
 		}
 	}
 	if !apiFailed {
