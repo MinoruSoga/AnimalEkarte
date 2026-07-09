@@ -10,7 +10,7 @@ import { useGetPet } from "@/hooks/use-pet";
 import { usePetSelection } from "@/hooks/use-pet-selection";
 
 import { useGetClinicHolidays } from "@/hooks/use-clinic-holidays";
-import { useGetOwnerLineTags } from "@/features/owners";
+import { useGetOwnerLineTags } from "@/hooks/use-owner-line-tags";
 import { useGetReservation } from "@/features/reservations";
 import type { NewOwnerFormData } from "@/features/reservations";
 

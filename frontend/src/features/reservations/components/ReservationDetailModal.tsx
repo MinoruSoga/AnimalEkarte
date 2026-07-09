@@ -4,7 +4,7 @@ import type { ReactNode } from "react";
 import { format } from "date-fns";
 import { ja } from "date-fns/locale";
 import { Calendar, Clock, Stethoscope, FileText, Pencil, Scissors, Building2, FilePlus2, PawPrint, Tag, AlertTriangle } from "lucide-react";
-import { useGetOwnerLineTags } from "@/features/owners";
+import { useGetOwnerLineTags } from "@/hooks/use-owner-line-tags";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";

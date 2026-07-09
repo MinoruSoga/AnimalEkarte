@@ -35,7 +35,7 @@ import { handleApiError } from "@/lib/handle-api-error";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/use-auth";
 import { usePermission } from "@/hooks/use-permission";
-import { useGetOwnerLineTags } from "@/features/owners";
+import { useGetOwnerLineTags } from "@/hooks/use-owner-line-tags";
 import { NavigationBlocker } from "@/components/shared/NavigationBlocker";
 import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
 import { useTitle } from "@/hooks/use-title";

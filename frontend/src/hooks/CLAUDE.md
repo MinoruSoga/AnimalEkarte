@@ -92,3 +92,4 @@ export function useGetPet(petId: string) {
 | `use-vaccinations.ts` | 2 | ワクチン接種 CRUD（medical-records / vaccinations） |
 | `use-staffs.ts` | 2 | スタッフ一覧取得（reception / medical-records） |
 | `use-clinic-holidays.ts` | 複数 | クリニック休診日取得 |
+| `use-owner-line-tags.ts` | 3+ | LINE/LSTEP タグ取得（owners / medical-records / reservations / shared） |
