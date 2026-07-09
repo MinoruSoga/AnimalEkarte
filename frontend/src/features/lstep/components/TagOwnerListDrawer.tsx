@@ -132,7 +132,7 @@ export function TagOwnerListDrawer({
             ) : owners.length === 0 ? (
               <EmptyState message="対象者が見つかりません" />
             ) : (
-              <ul className="divide-y divide-[rgba(55,53,47,0.09)]">
+              <ul className={`divide-y ${C.divideDivider}`}>
                 {owners.map((owner) => (
                   <li
                     key={owner.owner_id}
