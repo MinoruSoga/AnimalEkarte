@@ -1,6 +1,6 @@
 import { Badge } from "@/components/ui/badge";
 import { C } from "@/lib/design-tokens";
-import { todayISODate, addDaysISO } from "../lib/today-iso";
+import { todayISODate, addDaysISO } from "@/lib/iso-date";
 
 interface CheckupAlertBadgeProps {
   nextDate: string | null | undefined;

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen } from "@testing-library/react";
-import { CheckupAlertBadge } from "../CheckupAlertBadge";
+import { CheckupAlertBadge } from "./CheckupAlertBadge";
 
 const FIXED_DATE = new Date("2026-05-05T12:00:00.000Z");
 

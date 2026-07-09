@@ -1,7 +1,7 @@
 export { CheckupsList } from "./routes/CheckupsList";
 export { CheckupPetSelection } from "./routes/CheckupPetSelection";
 export { CheckupForm } from "./routes/CheckupForm";
-export { CheckupAlertBadge } from "./components/CheckupAlertBadge";
+export { CheckupAlertBadge } from "@/components/shared/CheckupAlertBadge/CheckupAlertBadge";
 
 // #211 健診パッケージ（型付きフィールド機構）
 export { DynamicCheckupFields, buildCheckupResultsPayload } from "./components/DynamicCheckupFields";

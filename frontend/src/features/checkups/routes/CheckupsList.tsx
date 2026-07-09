@@ -9,7 +9,7 @@ import { AlertCircle, Calendar, ClipboardCheck, Plus } from "lucide-react";
 
 // Internal
 import { TableCell } from "@/components/ui/table";
-import { CheckupAlertBadge } from "../components/CheckupAlertBadge";
+import { CheckupAlertBadge } from "@/components/shared/CheckupAlertBadge/CheckupAlertBadge";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { PropertyFilter } from "@/components/shared/PropertyFilter/PropertyFilter";
 import { DataTable, DESIGN_TABLE_HEADER_ROW, DESIGN_TABLE_HEADER_CELL } from "@/components/shared/DataTable/DataTable";
