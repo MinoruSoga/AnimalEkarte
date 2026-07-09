@@ -19,8 +19,8 @@ interface MasterSaveCrud<T extends MasterEntity> {
 
 interface UseMasterSaveOptions<T extends MasterEntity, TForm, TCreate, TUpdate> {
   crud: MasterSaveCrud<T>;
-  createMutation: UseMutationResult<unknown, Error, TCreate>;
-  updateMutation: UseMutationResult<unknown, Error, { id: string; req: TUpdate }>;
+  createMutation: UseMutationResult<T, Error, TCreate>;
+  updateMutation: UseMutationResult<T, Error, { id: string; req: TUpdate }>;
   /** Return error message string to show via toast.error. Return null if valid. */
   validate: (data: TForm) => string | null;
   /** FormData → CreateRequest conversion */
@@ -68,9 +68,8 @@ export function useMasterSave<T extends MasterEntity, TForm, TCreate, TUpdate>({
           updateMutation.mutate(
             { id: editTargetId, req: toUpdateRequest(data) },
             {
-              onSuccess: async (savedData) => {
+              onSuccess: async (saved) => {
                 try {
-                  const saved = savedData as T;
                   if (onSuccess) {
                     await onSuccess(saved, data);
                   }
@@ -85,9 +84,8 @@ export function useMasterSave<T extends MasterEntity, TForm, TCreate, TUpdate>({
           );
         } else {
           createMutation.mutate(toCreateRequest(data), {
-            onSuccess: async (savedData) => {
+            onSuccess: async (saved) => {
               try {
-                const saved = savedData as T;
                 if (onSuccess) {
                   await onSuccess(saved, data);
                 }
