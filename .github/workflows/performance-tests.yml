@@ -119,102 +119,6 @@ jobs:
             jq '.metrics | keys' load-tests/results-endpoints.json >> "$GITHUB_STEP_SUMMARY" || echo "Results parsing failed" >> "$GITHUB_STEP_SUMMARY"
           fi
 
-  profiling:
-    timeout-minutes: 20
-    runs-on: ubuntu-latest
-    name: Backend Profiling (CPU/Memory)
-
-    env:
-      DB_USER: postgres
-      DB_PASSWORD: postgres
-      DB_NAME: animal_ekarte
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v7.0.0
-
-      - name: Set up Go
-        uses: actions/setup-go@v6
-        with:
-          go-version: ${{ env.GO_VERSION }}
-          cache-dependency-path: backend/go.sum
-
-      - name: Create .env.local for CI
-        run: |
-          {
-            echo "DB_USER=postgres"
-            echo "DB_PASSWORD=postgres"
-            echo "DB_NAME=animal_ekarte"
-            echo "JWT_SECRET=${{ secrets.CI_JWT_SECRET || 'ci-test-secret-not-for-prod-use-32chars-min' }}"
-          } > .env.local
-
-      - name: Start Docker services
-        run: docker compose up -d db backend
-
-      - name: Wait for backend health
-        run: |
-          for i in {1..30}; do
-            if curl -f http://localhost:8080/health 2>/dev/null; then
-              echo "Backend is ready"
-              exit 0
-            fi
-            echo "Attempt $i/30: waiting for backend..."
-            sleep 2
-          done
-          exit 1
-
-      - name: Dump Docker logs on failure
-        if: failure()
-        run: |
-          echo "=== backend logs ==="
-          docker compose logs --no-color backend | tail -100
-          echo "=== db logs ==="
-          docker compose logs --no-color db | tail -50
-
-      - name: Run memory profiling
-        run: |
-          cd backend
-          go run scripts/profile.go memory
-          ls -la profile_memory.pprof
-        continue-on-error: true
-
-      - name: Run CPU profiling (10s)
-        run: |
-          cd backend
-          go run scripts/profile.go cpu 10s
-          ls -la profile_cpu.pprof
-        continue-on-error: true
-
-      - name: Run goroutine profiling
-        run: |
-          cd backend
-          go run scripts/profile.go goroutine
-          ls -la profile_goroutines.pprof
-        continue-on-error: true
-
-      - name: Print memory stats
-        run: |
-          cd backend
-          go run scripts/profile.go stats
-        continue-on-error: true
-
-      - name: Upload profiling results
-        uses: actions/upload-artifact@v7
-        if: always()
-        with:
-          name: profiling-results
-          path: backend/profile_*.pprof
-          retention-days: 30
-
-      - name: Analyze memory profile
-        if: always()
-        run: |
-          if [ -f backend/profile_memory.pprof ]; then
-            go tool pprof -top backend/profile_memory.pprof > backend/memory-analysis.txt || true
-            cat backend/memory-analysis.txt
-          fi
-        continue-on-error: true
-
   lighthouse:
     timeout-minutes: 30
     runs-on: ubuntu-latest
@@ -323,7 +227,7 @@ jobs:
             });
 
   summary:
-    needs: [load-test, profiling, lighthouse]
+    needs: [load-test, lighthouse]
     runs-on: ubuntu-latest
     if: always()
     name: Performance Test Summary
@@ -335,7 +239,6 @@ jobs:
             echo "## Performance Test Run Complete"
             echo ""
             echo "- Load Testing: ${{ needs.load-test.result }}"
-            echo "- Backend Profiling: ${{ needs.profiling.result }}"
             echo "- Lighthouse Audit: ${{ needs.lighthouse.result }}"
             echo ""
             echo "Results available in Artifacts"
