@@ -489,12 +489,13 @@ P7「c.JSON にモデルを直接渡さない。必ず変換関数を経由す�
 docker compose exec backend go test ./internal/handler/ -run 'TestGetLabJobReportSummaries|TestGetLabExamReport' -count=1 && docker compose exec backend go test ./internal/service/ -run TestLabReportQuery -count=1
 ```
 
-### G4-2. P7逸脱: CreateLiffReservation 成功レスポンスが gin.H でモデルフィールドを直返し
+### G4-2. P7逸脱: CreateLiffReservation 成功レスポンスが gin.H でモデルフィールドを直返し — **CLOSED（2026-07-09）**
 
 - **ID**: `p7-liff-create-reservation-ginh`
 - **重要度**: P3 / **工数目安**: S / **挙動変更**: なし（挙動保存）
 - **対象ファイル**: internal/handler/liff_handler.go (197-198)
 - **依存関係**: なし
+- **ステータス**: ✅ **CLOSED** — internal/handler/liff_response.go に `liffReservationCreatedResponse{ID uint64 \`json:"id"\`; Notes string \`json:"notes"\`}` と `toLiffReservationCreatedResponse(r *model.Reservation)`(P18命名、1:1フィールドコピーのみ)を新設。既存の一覧用 `liffReservationResponse` とは別型として分離(命名衝突なし)。liff_handler.go:198 を `c.JSON(http.StatusCreated, toLiffReservationCreatedResponse(appt))` に置換、L197 の Location ヘッダは無変更。TestCreateLiffReservation の正常系アサートを `assert.Contains(..., "42")`(部分一致)から `json.Unmarshal` 後の `assert.Equal(map[string]any{"id": float64(42), "notes": ""}, body)`(完全一致)+ Location ヘッダ個別 assert に強化、全9サブテスト PASS。go vet / gofmt クリーン。go-reviewer(Approve・CRITICAL/HIGH/MEDIUM 0、P7/P18準拠確認)/ security-reviewer(CRITICAL/HIGH 0、gin.H 時代と同一の2フィールドのみでモデル全体露出なしを確認)。コミット `a00bf673`
 
 **証拠(現HEAD検証済み)**
 
