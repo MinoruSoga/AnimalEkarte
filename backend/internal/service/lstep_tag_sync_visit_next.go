@@ -12,23 +12,13 @@ import (
 // 最新カルテの next_visit_recommended_date を参照し、古い next_visit_* タグを差し替える。
 // date が nil の場合はすべての next_visit_* タグを削除する。
 func (s *lstepTagSyncService) SyncNextVisitTag(ctx context.Context, clinicID, ownerID uint64) error {
-	if skip, err := s.shouldSkipSync(ctx, clinicID); err != nil {
-		return err
-	} else if skip {
-		return nil
-	}
-	optOut, owner, err := s.checkOptOut(ctx, clinicID, ownerID)
+	lineUserID, ok, err := s.resolveSyncTarget(ctx, clinicID, ownerID, "next visit")
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to check opt-out for next visit tag sync", "error", err)
-		return apperrors.Wrap(err, "failed to check opt-out")
+		return err
 	}
-	if optOut {
+	if !ok {
 		return nil
 	}
-	if owner.LineUserID == nil || *owner.LineUserID == "" {
-		return nil
-	}
-	lineUserID := *owner.LineUserID
 
 	client, err := s.buildClient(ctx, clinicID)
 	if err != nil {
@@ -54,16 +44,12 @@ func (s *lstepTagSyncService) SyncNextVisitTag(ctx context.Context, clinicID, ow
 	}
 	apiFailed := false
 	for _, c := range cached {
-		if strings.HasPrefix(c.TagName, tagPrefixNextVisit) {
-			if delErr := client.RemoveTag(ctx, lineUserID, c.TagName); delErr != nil {
-				slog.ErrorContext(ctx, "failed to remove next_visit tag", "error", delErr, "tag", c.TagName)
-				s.notifyAPIFailure(ctx, client, clinicID, ownerID, lineUserID)
-				apiFailed = true
-				continue
-			}
-			if delErr := s.tagCacheRepo.DeleteTag(ctx, clinicID, ownerID, c.TagName); delErr != nil {
-				slog.ErrorContext(ctx, "failed to delete next_visit tag cache", "error", delErr, "tag", c.TagName)
-			}
+		if !strings.HasPrefix(c.TagName, tagPrefixNextVisit) {
+			continue
+		}
+		if err := s.applyTagState(ctx, client, clinicID, ownerID, lineUserID, c.TagName, "next visit", "", false); err != nil {
+			apiFailed = true
+			continue
 		}
 	}
 
@@ -75,13 +61,8 @@ func (s *lstepTagSyncService) SyncNextVisitTag(ctx context.Context, clinicID, ow
 		return nil
 	}
 	newTag := tagPrefixNextVisit + latest.NextVisitRecommendedDate.Format("2006-01-02")
-	if addErr := client.AddTag(ctx, lineUserID, newTag); addErr != nil {
-		slog.ErrorContext(ctx, "failed to add next_visit tag", "error", addErr, "tag", newTag)
-		s.notifyAPIFailure(ctx, client, clinicID, ownerID, lineUserID)
-		return apperrors.Wrap(addErr, "failed to add next_visit tag")
-	}
-	if upsertErr := s.tagCacheRepo.UpsertTag(ctx, clinicID, ownerID, newTag, "auto", ""); upsertErr != nil {
-		slog.ErrorContext(ctx, "failed to upsert next_visit tag cache", "error", upsertErr)
+	if err := s.applyTagState(ctx, client, clinicID, ownerID, lineUserID, newTag, "next visit", "", true); err != nil {
+		return err
 	}
 	if !apiFailed {
 		s.notifyAPISuccess(ctx, client, clinicID, ownerID, lineUserID)
