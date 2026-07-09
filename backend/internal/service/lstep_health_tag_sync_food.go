@@ -13,11 +13,6 @@ func (s *lstepTagSyncService) SyncFoodPurchaseTag(ctx context.Context, clinicID,
 	if s.tagCodeRepo == nil || s.billingItemRepo == nil {
 		return nil
 	}
-	if skip, err := s.shouldSkipSync(ctx, clinicID); err != nil {
-		return err
-	} else if skip {
-		return nil
-	}
 
 	mappings, err := s.tagCodeRepo.FindByClinicIDAndTagName(ctx, clinicID, LtvFoodPurchaseTag)
 	if err != nil {
@@ -27,7 +22,7 @@ func (s *lstepTagSyncService) SyncFoodPurchaseTag(ctx context.Context, clinicID,
 	// itemCodes が空でも HasFoodPurchaseByOwnerSince は category='food' にフォールバック
 	itemCodes := extractTagCodes(mappings, model.CodeTypeMerchandiseItem)
 
-	lineUserID, ok, err := s.resolveSyncTargetOwner(ctx, clinicID, ownerID, LtvFoodPurchaseTag)
+	lineUserID, ok, err := s.resolveSyncTarget(ctx, clinicID, ownerID, LtvFoodPurchaseTag)
 	if err != nil {
 		return err
 	}
