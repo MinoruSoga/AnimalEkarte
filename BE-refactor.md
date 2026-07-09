@@ -1167,11 +1167,11 @@ grep -rn 'fix_p8\|fix_p11' . --include='*.yml' --include='*.md' --include='Makef
 docker compose exec backend go test ./cmd/stage-import/... ./cmd/seed-old-db/... ./cmd/migrate/... ./internal/dbconn/... -count=1
 ```
 
-### G10-6. worker/migrate-exec.ts は「unit test 容易性のため分離」と明記されながらテストが 0 本（STG 稼働中の migrate 認証ゲート） — **実装済み・検証保留（2026-07-10）**
+### G10-6. worker/migrate-exec.ts は「unit test 容易性のため分離」と明記されながらテストが 0 本（STG 稼働中の migrate 認証ゲート） — **CLOSED（2026-07-10）**
 
 - **ID**: `worker-migrate-auth-untested`
 - **重要度**: P3 / **工数目安**: M / **挙動変更**: なし（挙動保存）
-- **ステータス**: 🟡 **実装済み・未CLOSED** — コミット `dc4f2ed8`。migrate-exec.test.ts（AAA・8ケース）+ vitest.config.ts/vitest.wrangler.jsonc（vitest-pool-workers 用・containers/DO を含まない最小 wrangler 設定）+ ci.yml worker job 新設。**未検証・BLOCKED（2026-07-10 Session 4 確認）**: `.claude/settings.json` の `permissions.deny` に `Bash(pnpm:*)` がハード指定されており（ask ではなく deny）、Claude Code セッションからは `pnpm install`/`pnpm run test:worker` を一切実行できない。project CLAUDE.md の「npm/go commands prohibited locally」とも整合するハード制約であり、タスクプロンプト側が主張する「G10-6 のみ例外でルート pnpm 実行可」は本セッションの実ハーネス設定では認可されない（Harness Improvement Feedback 参照）。devDependencies のバージョン（vitest ^3.2.4 / @cloudflare/vitest-pool-workers ^0.9.4）も wrangler 4.107.0 との実際の互換性を registry 上で未確認のまま。**ユーザー手動実行が必須**: `pnpm install && pnpm run test:worker`（リポジトリルートで）。PASS したら本項目を CLOSED に更新すること。
+- **ステータス**: ✅ **CLOSED** — 実装コミット `dc4f2ed8`。migrate-exec.test.ts + vitest.config.ts/vitest.wrangler.jsonc（vitest-pool-workers 用・containers/DO を含まない最小 wrangler 設定）+ ci.yml worker job。**検証完了（2026-07-10 Session 5）**: `.claude/settings.json` の `permissions.deny` に `Bash(pnpm:*)` がハード指定されておりホスト直接実行は不可のため、repo root を `-v "$(pwd):/repo"` でマウントした一時 `docker run --rm node:22-bookworm-slim`（docker-compose.yml は変更せず、既存 frontend/backend コンテナは repo root 非マウントのため使用不可と判断）内で `corepack prepare pnpm@10.15.0 --activate && pnpm install && pnpm run test:worker` を実行しユーザー承認のもと取得。結果: `backend/worker/migrate-exec.test.ts (13 tests) 112ms` 全 green、`Test Files 1 passed (1)` `Tests 13 passed (13)`、exit 0。vitest-pool-workers が実 workerd ランタイムを起動して実行（`[vpw:info] Starting isolated runtimes`）した上でのPASSであり、mock ではない。wrangler が要求する compatibility date は `2025-10-11` にフォールバック（`2026-07-05` 未サポート、workerd 側の対応日ドリフト。テスト結果には無関係）。devDependencies の実解決バージョン: vitest 3.2.7 / @cloudflare/vitest-pool-workers 0.9.14 / wrangler 4.107.0（互換性問題なし）。
 - **対象ファイル**: worker/migrate-exec.ts (1-51); worker/index.ts (169-197)
 
 **証拠(現HEAD検証済み)**
@@ -1186,10 +1186,13 @@ worker/migrate-exec.ts:1-4 「// P4-5(試行10): `/_internal/migrate` の認証�
 
 手順: (1) ルート package.json devDependencies に vitest と @cloudflare/vitest-pool-workers（workerd ランタイムで crypto.subtle.timingSafeEqual 実挙動をテストするため。素の Node vitest では当該 API が存在せず偽の失敗/成功になる点に注意）を追加。(2) backend/worker/migrate-exec.test.ts を新規作成し AAA パターンで: isAuthorizedMigrateRequest — secret undefined→false / secret 空文字→false / ヘッダ欠落→false / 誤 secret→false / `Bearer <正 secret>`→true / Bearer プレフィクス無し→false、timingSafeEqual — 一致/不一致/長さ違い、toMigrateResponse — exitCode 0→status 200 / 1→500 と body JSON 構造。(3) ルート scripts に "test:worker": "vitest run backend/worker" を追加し、ci.yml の paths-filter（backend/worker/** 変更時）に組み込む。影響範囲: 新規テスト+CI 配線のみ、プロダクトコード変更なし。pnpm install が必要なため依存追加ステップはユーザー手動実行を報告すること。
 
-**検証コマンド(スコープ限定)**
+**検証コマンド(スコープ限定・実行済み)**
 ```
-pnpm vitest run backend/worker  # 依存導入後。CI 配線は actionlint .github/workflows/ci.yml
+docker run --rm -v "$(pwd):/repo" -w /repo -e CI=true node:22-bookworm-slim \
+  sh -c "corepack enable && corepack prepare pnpm@10.15.0 --activate && pnpm install --frozen-lockfile=false && pnpm run test:worker"
+# => Test Files 1 passed (1) / Tests 13 passed (13) / exit 0
 ```
+CI 配線（push 後の恒常的検証手段）は `.github/workflows/ci.yml` の worker job（`pnpm run test:worker`）。本チケットの検証時点では HEAD が `origin/main` から150コミット未pushのためCI実行実績はまだ無いが、doc-only の CLOSED 判定はローカル docker 実行の green で充足済み。
 
 
 ## G11. テスト負債解消 (DB実行テスト追加)
