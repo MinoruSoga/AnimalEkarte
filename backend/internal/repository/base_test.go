@@ -13,6 +13,7 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -28,6 +29,64 @@ func setupBaseTestDB(t *testing.T) *gorm.DB {
 	require.NoError(t, db.AutoMigrate(&model.ClinicIntegration{}))
 	db.Exec("TRUNCATE TABLE clinic_integrations CASCADE")
 	return db
+}
+
+// setupMedicalRecordTenantScopeTestDB は medicalRecordTenantScope 検証用に
+// medical_records / treatments を用意する（他リポジトリの CountUsageByXxxID と同じ JOIN 形状）。
+func setupMedicalRecordTenantScopeTestDB(t *testing.T) *gorm.DB {
+	t.Helper()
+	db := setupTestDB(t)
+	db.Exec("TRUNCATE TABLE treatments CASCADE")
+	db.Exec("TRUNCATE TABLE medical_records CASCADE")
+	return db
+}
+
+func TestMedicalRecordTenantScope(t *testing.T) {
+	db := setupMedicalRecordTenantScopeTestDB(t)
+	ctx := context.Background()
+
+	makeMedicalRecord := func(clinicID uint64, deleted bool) *model.MedicalRecord {
+		mr := &model.MedicalRecord{ClinicID: clinicID, RecordNo: "R-1", Date: time.Now()}
+		require.NoError(t, db.WithContext(ctx).Create(mr).Error)
+		if deleted {
+			require.NoError(t, db.WithContext(ctx).Delete(mr).Error)
+		}
+		return mr
+	}
+	makeTreatment := func(medicalRecordID uint64) *model.Treatment {
+		tr := &model.Treatment{MedicalRecordID: medicalRecordID}
+		require.NoError(t, db.WithContext(ctx).Create(tr).Error)
+		return tr
+	}
+
+	// clinic 1: 有効な medical_record 1件 + ソフトデリート済み medical_record 1件
+	mrA := makeMedicalRecord(1, false)
+	makeTreatment(mrA.ID)
+	mrADeleted := makeMedicalRecord(1, true)
+	makeTreatment(mrADeleted.ID)
+	// clinic 2: 有効な medical_record 1件
+	mrB := makeMedicalRecord(2, false)
+	makeTreatment(mrB.ID)
+
+	countFor := func(clinicID uint64) int64 {
+		var count int64
+		require.NoError(t, db.WithContext(ctx).Model(&model.Treatment{}).
+			Scopes(medicalRecordTenantScope("treatments", clinicID)).
+			Count(&count).Error)
+		return count
+	}
+
+	t.Run("指定clinicの有効なmedical_recordに紐づくtreatmentのみJOINで返る", func(t *testing.T) {
+		assert.Equal(t, int64(1), countFor(1), "clinic1の有効treatment1件のみ。deleted_atありのtreatmentは除外")
+	})
+
+	t.Run("別clinicを指定すると当該clinicの分だけ返る", func(t *testing.T) {
+		assert.Equal(t, int64(1), countFor(2))
+	})
+
+	t.Run("該当clinicが無ければ0件", func(t *testing.T) {
+		assert.Equal(t, int64(0), countFor(999))
+	})
 }
 
 func TestClinicScope(t *testing.T) {
