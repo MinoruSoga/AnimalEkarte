@@ -195,7 +195,7 @@ func (h *Handler) CreateLiffReservation(c *gin.Context) {
 		return
 	}
 	c.Header("Location", fmt.Sprintf("/api/v1/reservations/%d", appt.ID))
-	c.JSON(http.StatusCreated, gin.H{"id": appt.ID, "notes": appt.Notes})
+	c.JSON(http.StatusCreated, toLiffReservationCreatedResponse(appt))
 }
 
 // GetLiffTrimmingCourses はLIFF向けトリミングコース一覧を返す。

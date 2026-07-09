@@ -209,6 +209,20 @@ func toLiffReservationResponse(r *model.Reservation) liffReservationResponse {
 	return res
 }
 
+// liffReservationCreatedResponse はLIFF予約作成（201）専用レスポンス。
+// 一覧用の liffReservationResponse とは別型（id/notes の2フィールドのみ露出）。
+type liffReservationCreatedResponse struct {
+	ID    uint64 `json:"id"`
+	Notes string `json:"notes"`
+}
+
+func toLiffReservationCreatedResponse(r *model.Reservation) liffReservationCreatedResponse {
+	return liffReservationCreatedResponse{
+		ID:    r.ID,
+		Notes: r.Notes,
+	}
+}
+
 // liffTrimmingCourseResponse はLIFF向けトリミングコースレスポンス。
 type liffTrimmingCourseResponse struct {
 	ID          uint64 `json:"id"`

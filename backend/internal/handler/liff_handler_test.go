@@ -574,7 +574,11 @@ func TestCreateLiffReservation(t *testing.T) {
 		})
 		w := doLiffRequest(t, newLiffRouter(h, true), http.MethodPost, "/api/liff/3/reservations", validBody)
 		assert.Equal(t, http.StatusCreated, w.Code)
-		assert.Contains(t, w.Body.String(), "42")
+		assert.Equal(t, "/api/v1/reservations/42", w.Header().Get("Location"))
+
+		var body map[string]any
+		require.NoError(t, json.Unmarshal(w.Body.Bytes(), &body))
+		assert.Equal(t, map[string]any{"id": float64(42), "notes": ""}, body)
 	})
 
 	t.Run("customerID が context にない → 401", func(t *testing.T) {
