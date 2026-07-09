@@ -22,9 +22,12 @@ import (
 )
 
 func main() {
+	// 設定読み込み（ロガー初期化より先に行い、LOG_LEVEL を含む全設定を config.Config に一元化する）
+	cfg := config.Load()
+
 	// ロガー初期化
 	logLevel := slog.LevelInfo
-	if os.Getenv("LOG_LEVEL") == "debug" {
+	if cfg.LogLevel == "debug" {
 		logLevel = slog.LevelDebug
 	}
 	logger.Init(logger.Config{
@@ -39,21 +42,13 @@ func main() {
 		os.Exit(1)
 	}
 
-	// 設定読み込み
-	cfg := config.Load()
+	// H2: TRUSTED_PROXY_CIDR（release必須）・STORAGE_TYPE=s3 時の S3_BUCKET/S3_REGION 必須検証は
+	// cfg.Validate() に集約済み（G9-2）
 	if err := cfg.Validate(); err != nil {
 		slog.Error("config validation failed", slog.String("error", err.Error()))
 		os.Exit(1)
 	}
 	gin.SetMode(cfg.GinMode)
-
-	// H2: Validate TRUSTED_PROXY_CIDR early to prevent deferred cleanup skip
-	if cfg.GinMode == "release" {
-		if os.Getenv("TRUSTED_PROXY_CIDR") == "" {
-			slog.Error("TRUSTED_PROXY_CIDR is required in production (rate-limit bypass risk)")
-			os.Exit(1)
-		}
-	}
 
 	// DB接続
 	db, err := repository.NewDB(cfg)
@@ -128,7 +123,7 @@ func main() {
 
 	// 共有ファイルストレージ初期化（STORAGE_TYPE=s3 で S3、それ以外はローカル）
 	var sharedStorage infra.FileStorage
-	if os.Getenv("STORAGE_TYPE") == "s3" {
+	if cfg.StorageType == "s3" {
 		s3fs, err := infra.NewS3FileStorage(context.Background(), cfg.S3SharedBucket, cfg.S3SharedRegion, cfg.S3Endpoint)
 		if err != nil {
 			logger.Error("failed to initialize S3FileStorage", slog.String("error", err.Error()))
@@ -168,20 +163,15 @@ func main() {
 
 	// ファイルアップローダー初期化（STORAGE_TYPE=s3 で S3、それ以外はローカル）
 	var uploader infra.FileUploader
-	if os.Getenv("STORAGE_TYPE") == "s3" {
-		s3Bucket := os.Getenv("S3_BUCKET")
-		s3Region := os.Getenv("S3_REGION")
-		if s3Bucket == "" || s3Region == "" {
-			logger.Error("S3_BUCKET and S3_REGION are required when STORAGE_TYPE=s3")
-			os.Exit(1)
-		}
-		s3Up, err := infra.NewS3Uploader(context.Background(), s3Bucket, s3Region, cfg.S3Endpoint)
+	if cfg.StorageType == "s3" {
+		// S3_BUCKET/S3_REGION 必須検証は cfg.Validate() で起動時に済んでいる（G9-2）
+		s3Up, err := infra.NewS3Uploader(context.Background(), cfg.S3Bucket, cfg.S3Region, cfg.S3Endpoint)
 		if err != nil {
 			logger.Error("failed to initialize S3 uploader", slog.String("error", err.Error()))
 			os.Exit(1)
 		}
 		uploader = s3Up
-		logger.Info("file uploader: S3", slog.String("bucket", s3Bucket), slog.String("region", s3Region))
+		logger.Info("file uploader: S3", slog.String("bucket", cfg.S3Bucket), slog.String("region", cfg.S3Region))
 	} else {
 		uploader = infra.NewLocalUploader("/app/uploads", "/uploads")
 		logger.Info("file uploader: local filesystem")
@@ -261,13 +251,13 @@ func main() {
 	// ルーター設定
 	r := gin.New()
 	// H2: Set trusted proxies to prevent rate-limit bypass via X-Forwarded-For spoofing
-	// TRUSTED_PROXY_CIDR validation is done earlier (line 46-50), so only build list here
+	// TRUSTED_PROXY_CIDR validation is done earlier via cfg.Validate(), so only build list here
 	var trustedProxies []string
 	if cfg.GinMode == "release" {
 		// Production: trust ALB CIDR
 		// e.g., TRUSTED_PROXY_CIDR="10.0.0.0/8" for AWS ALB in private subnet
-		if albCidr := os.Getenv("TRUSTED_PROXY_CIDR"); albCidr != "" {
-			trustedProxies = []string{albCidr}
+		if cfg.TrustedProxyCIDR != "" {
+			trustedProxies = []string{cfg.TrustedProxyCIDR}
 			slog.Info("rate-limit: trusting ALB CIDR")
 		}
 	} else {
@@ -281,7 +271,7 @@ func main() {
 	r.Use(gin.Recovery())
 	r.Use(middleware.SecurityHeaders(cfg.GinMode == "release"))
 	r.Use(middleware.RequestID())
-	r.Use(middleware.CORS())
+	r.Use(middleware.CORS(cfg.CORSAllowedOrigin))
 	r.Use(middleware.RequestLoggingMiddleware())
 	// BUG-067: POST/PATCH/PUT ボディから NULL バイトを除去（PostgreSQL エラー防止）
 	r.Use(middleware.SanitizeNullBytes())

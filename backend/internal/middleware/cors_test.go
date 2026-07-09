@@ -11,10 +11,9 @@ import (
 
 func TestCORS_DefaultOrigins(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	t.Setenv("CORS_ALLOWED_ORIGIN", "")
 
 	router := gin.New()
-	router.Use(CORS())
+	router.Use(CORS(""))
 	router.GET("/test", func(c *gin.Context) {
 		c.String(http.StatusOK, "ok")
 	})
@@ -56,10 +55,9 @@ func TestCORS_DefaultOrigins(t *testing.T) {
 
 func TestCORS_CustomOrigins(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	t.Setenv("CORS_ALLOWED_ORIGIN", "https://example.com,https://app.example.com")
 
 	router := gin.New()
-	router.Use(CORS())
+	router.Use(CORS("https://example.com,https://app.example.com"))
 	router.GET("/test", func(c *gin.Context) {
 		c.String(http.StatusOK, "ok")
 	})

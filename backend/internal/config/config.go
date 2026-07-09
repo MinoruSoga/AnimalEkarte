@@ -42,6 +42,22 @@ type Config struct {
 	// S3Endpoint はカスタム S3 互換エンドポイント（Cloudflare R2 等）。
 	// 空文字（既定）の場合は AWS S3 のリージョナルエンドポイント・バーチャルホスト形式を維持する。
 	S3Endpoint string
+
+	// StorageType はファイルアップロード先を切り替える ("s3" または空文字=ローカル)。
+	StorageType string
+	// S3Bucket/S3Region はアップローダー用 S3 バケット（StorageType=s3 のとき必須）。
+	// shared_files 用の S3SharedBucket/S3SharedRegion とは別設定。
+	S3Bucket string
+	S3Region string
+
+	// TrustedProxyCIDR は release モードで rate-limit バイパス防止のため必須の ALB CIDR。
+	TrustedProxyCIDR string
+
+	// LogLevel はロガー初期化時のレベル切り替えに使用する ("debug" でデバッグレベル)。
+	LogLevel string
+
+	// CORSAllowedOrigin は CORS 許可オリジン（カンマ区切り）。空文字ならミドルウェア側で開発既定値を適用する。
+	CORSAllowedOrigin string
 }
 
 func Load() *Config {
@@ -69,6 +85,16 @@ func Load() *Config {
 		S3SharedBucket:           os.Getenv("S3_SHARED_BUCKET"),
 		S3SharedRegion:           getEnv("S3_SHARED_REGION", "ap-northeast-1"),
 		S3Endpoint:               os.Getenv("S3_ENDPOINT"),
+
+		StorageType: os.Getenv("STORAGE_TYPE"),
+		S3Bucket:    os.Getenv("S3_BUCKET"),
+		S3Region:    os.Getenv("S3_REGION"),
+
+		TrustedProxyCIDR: os.Getenv("TRUSTED_PROXY_CIDR"),
+
+		LogLevel: os.Getenv("LOG_LEVEL"),
+
+		CORSAllowedOrigin: os.Getenv("CORS_ALLOWED_ORIGIN"),
 	}
 }
 
@@ -78,8 +104,14 @@ func (c *Config) Validate() error {
 	if c.JWTSecret == "dev-secret-change-me" {
 		return fmt.Errorf("dev default JWT_SECRET is prohibited; set a secure value via the JWT_SECRET environment variable")
 	}
+	if c.StorageType == "s3" && (c.S3Bucket == "" || c.S3Region == "") {
+		return fmt.Errorf("S3_BUCKET and S3_REGION are required when STORAGE_TYPE=s3")
+	}
 	if c.GinMode != "release" {
 		return nil
+	}
+	if c.TrustedProxyCIDR == "" {
+		return fmt.Errorf("TRUSTED_PROXY_CIDR is required in production (rate-limit bypass risk)")
 	}
 	if c.JWTSecret == "" {
 		return fmt.Errorf("JWT_SECRET must be explicitly set in release mode")

@@ -12,6 +12,7 @@ func baseReleaseConfigForValidateTest() *Config {
 		DBPass:                   "secure-db-password",
 		SMTPPort:                 "587",
 		IntegrationEncryptionKey: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+		TrustedProxyCIDR:         "10.0.0.0/8",
 	}
 }
 
@@ -35,6 +36,12 @@ func TestConfigLoad(t *testing.T) {
 	t.Setenv("S3_SHARED_BUCKET", "bucket")
 	t.Setenv("S3_SHARED_REGION", "us-east-1")
 	t.Setenv("S3_ENDPOINT", "https://example.r2.cloudflarestorage.com")
+	t.Setenv("STORAGE_TYPE", "s3")
+	t.Setenv("S3_BUCKET", "upload-bucket")
+	t.Setenv("S3_REGION", "ap-northeast-1")
+	t.Setenv("TRUSTED_PROXY_CIDR", "10.0.0.0/8")
+	t.Setenv("LOG_LEVEL", "debug")
+	t.Setenv("CORS_ALLOWED_ORIGIN", "https://example.com")
 
 	cfg := Load()
 
@@ -94,6 +101,24 @@ func TestConfigLoad(t *testing.T) {
 	}
 	if cfg.S3Endpoint != "https://example.r2.cloudflarestorage.com" {
 		t.Errorf("S3Endpoint = %s, want https://example.r2.cloudflarestorage.com", cfg.S3Endpoint)
+	}
+	if cfg.StorageType != "s3" {
+		t.Errorf("StorageType = %s, want s3", cfg.StorageType)
+	}
+	if cfg.S3Bucket != "upload-bucket" {
+		t.Errorf("S3Bucket = %s, want upload-bucket", cfg.S3Bucket)
+	}
+	if cfg.S3Region != "ap-northeast-1" {
+		t.Errorf("S3Region = %s, want ap-northeast-1", cfg.S3Region)
+	}
+	if cfg.TrustedProxyCIDR != "10.0.0.0/8" {
+		t.Errorf("TrustedProxyCIDR = %s, want 10.0.0.0/8", cfg.TrustedProxyCIDR)
+	}
+	if cfg.LogLevel != "debug" {
+		t.Errorf("LogLevel = %s, want debug", cfg.LogLevel)
+	}
+	if cfg.CORSAllowedOrigin != "https://example.com" {
+		t.Errorf("CORSAllowedOrigin = %s, want https://example.com", cfg.CORSAllowedOrigin)
 	}
 }
 
@@ -191,5 +216,59 @@ func TestConfigValidate_DebugModeBypassesReleaseChecks(t *testing.T) {
 	}
 	if err := cfg.Validate(); err != nil {
 		t.Fatalf("Validate() error = %v", err)
+	}
+}
+
+func TestConfigValidate_ReleaseRequiresTrustedProxyCIDR(t *testing.T) {
+	cfg := baseReleaseConfigForValidateTest()
+	cfg.TrustedProxyCIDR = ""
+	err := cfg.Validate()
+	if err == nil || !strings.Contains(err.Error(), "TRUSTED_PROXY_CIDR is required in production") {
+		t.Fatalf("expected error for empty TRUSTED_PROXY_CIDR in release mode, got %v", err)
+	}
+}
+
+func TestConfigValidate_StorageTypeS3RequiresBucketAndRegion(t *testing.T) {
+	tests := []struct {
+		name      string
+		ginMode   string
+		s3Bucket  string
+		s3Region  string
+		wantError bool
+	}{
+		{"debugモードでもBucket欠落はエラー", "debug", "", "ap-northeast-1", true},
+		{"debugモードでもRegion欠落はエラー", "debug", "bucket", "", true},
+		{"debugモードでBucket/Region両方あればOK", "debug", "bucket", "ap-northeast-1", false},
+		{"releaseモードでもBucket/Region両方あればOK", "release", "bucket", "ap-northeast-1", false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Setenv("LIFF_MOCK", "")
+			var cfg *Config
+			if tt.ginMode == "release" {
+				cfg = baseReleaseConfigForValidateTest()
+			} else {
+				cfg = &Config{GinMode: tt.ginMode, JWTSecret: "secure-jwt-secret"}
+			}
+			cfg.StorageType = "s3"
+			cfg.S3Bucket = tt.s3Bucket
+			cfg.S3Region = tt.s3Region
+
+			err := cfg.Validate()
+
+			if tt.wantError && (err == nil || !strings.Contains(err.Error(), "S3_BUCKET and S3_REGION are required")) {
+				t.Fatalf("expected S3_BUCKET/S3_REGION error, got %v", err)
+			}
+			if !tt.wantError && err != nil {
+				t.Fatalf("Validate() error = %v, want nil", err)
+			}
+		})
+	}
+}
+
+func TestConfigValidate_StorageTypeNonS3SkipsBucketRegionCheck(t *testing.T) {
+	cfg := &Config{GinMode: "debug", JWTSecret: "secure-jwt-secret", StorageType: "local"}
+	if err := cfg.Validate(); err != nil {
+		t.Fatalf("Validate() error = %v, want nil", err)
 	}
 }

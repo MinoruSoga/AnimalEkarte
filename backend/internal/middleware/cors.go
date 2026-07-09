@@ -1,17 +1,15 @@
 package middleware
 
 import (
-	"os"
 	"strings"
 
 	"github.com/gin-gonic/gin"
 )
 
 // CORS はCORSヘッダーを設定するミドルウェア。
-// 許可オリジンは環境変数 CORS_ALLOWED_ORIGIN にカンマ区切りで指定する。
+// allowedOrigin は許可オリジンのカンマ区切り文字列（呼び出し側が config.CORSAllowedOrigin を注入する）。
 // 例: http://localhost:3000,http://localhost:3001,https://reserve.noah-karte.com,https://liff.line.me
-func CORS() gin.HandlerFunc {
-	allowedOrigin := os.Getenv("CORS_ALLOWED_ORIGIN")
+func CORS(allowedOrigin string) gin.HandlerFunc {
 	if allowedOrigin == "" {
 		// 開発環境デフォルト: 管理画面 + LIFF App (localhost:3001) + LINE内ブラウザ
 		allowedOrigin = "http://localhost:3000,http://localhost:3001,https://liff.line.me"
