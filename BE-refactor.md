@@ -432,14 +432,15 @@ base.go に GORM スコープを追加: `// medicalRecordTenantScope は clinic_
 docker compose exec backend go test ./internal/repository/ -run 'TestChiefComplaint|TestConsultation|TestDiagnosis|TestInventory|TestMedicine|TestProcedure|TestMedicalRecordImage|TestMedicalRecordTenantScope' -count=1
 ```
 
-### G3-5. handler 層に「YYYY-MM-DD 優先→RFC3339 フォールバック」日付パースが二重実装(エラー衛生ドリフトあり) — **第一段 CLOSED（2026-07-09）**
+### G3-5. handler 層に「YYYY-MM-DD 優先→RFC3339 フォールバック」日付パースが二重実装(エラー衛生ドリフトあり) — **CLOSED（第一段+第二段 完了・2026-07-09）**
 
 - **ID**: `dup-handler-date-parse`
-- **重要度**: P3 / **工数目安**: S / **挙動変更**: なし（挙動保存）
-- **対象ファイル**: internal/handler/date.go (16-42); internal/handler/handler_date_helpers.go (8-29); internal/handler/vaccination_request.go (78-88)
-- **依存関係**: 第二段(文言統一)のみ behaviorChange トラックへ分離
-- **ステータス**: ✅ **第一段 CLOSED** — `parseFlexibleDate(s string) (time.Time, error)`(date.go)を新設し、`jsonDate.UnmarshalJSON`/`parseDate` を委譲化。`handler_date_helpers.go` を削除し date.go へ統合。両者のエラーメッセージ(jsonDate=汎用文言 / parseDate=`invalid date format: %s` の入力値エコー)は完全維持。契約テスト `date_test.go` 新設(TestJsonDate/TestParseDate)。go-reviewer / security-reviewer ともに Approve(CRITICAL/HIGH 0)。コミット `e3ccc7e3`
-- **第二段（未着手・別トラック behaviorChange）**: parseDate のエラーから入力値エコーを除去し jsonDate と同一の汎用文言へ統一(#97 類例のクローズ)。vaccination_request.go / inventory_request.go / reservation_type_request.go の呼び出し側エラーラッピング文言(`invalid date: %v` 等)も本トラックで見直し対象。
+- **重要度**: P3 / **工数目安**: S / **挙動変更**: 第一段=なし（挙動保存） / 第二段=あり（behaviorChange・意図的セキュリティ改善）
+- **対象ファイル**: internal/handler/date.go; internal/handler/date_test.go; internal/handler/vaccination_request.go; internal/handler/vaccination_request_test.go; internal/handler/inventory_request.go; internal/handler/inventory_request_test.go; internal/handler/reservation_type_request.go(無変更確認のみ)
+- **依存関係**: なし
+- **ステータス**: ✅ **CLOSED（全段完了）**
+  - **第一段**（挙動保存）: `parseFlexibleDate(s string) (time.Time, error)`(date.go)を新設し、`jsonDate.UnmarshalJSON`/`parseDate` を委譲化。`handler_date_helpers.go` を削除し date.go へ統合。両者のエラーメッセージ(jsonDate=汎用文言 / parseDate=`invalid date format: %s` の入力値エコー)は完全維持。契約テスト `date_test.go` 新設(TestJsonDate/TestParseDate)。go-reviewer / security-reviewer ともに Approve(CRITICAL/HIGH 0)。コミット `e3ccc7e3`
+  - **第二段**（behaviorChange・#97 類例のクローズ）: date.go に共通定数 `flexibleDateInvalidInputMsg` を新設し、`jsonDate.UnmarshalJSON`/`parseDate` の両方が共有。parseDate 失敗時の `fmt.Errorf("invalid date format: %s", *dateStr)`（入力値エコー）を廃止し `apperrors.WrapInvalidInput(flexibleDateInvalidInputMsg)` に統一。呼び出し側 vaccination_request.go(4箇所)/inventory_request.go(4箇所)の `fmt.Sprintf("invalid date: %v", err)` / `fmt.Errorf("invalid expiry_date: %w", err)` 等のラッピングを廃止し `return nil, err` の bare 伝播に統一(parseDate が既に正しく型付けされた InvalidInput エラーを返すため)。reservation_type_request.go は元々 bare 伝播済みのため無変更(diff なしを確認)。テストは `date_test.go`(TestParseDate 不正系で `apperrors.IsInvalidInput` + `NotContains(input)` 検証、jsonDate と同一メッセージを定数参照で検証)、`vaccination_request_test.go`/`inventory_request_test.go`(テーブル駆動で create/update × 各日付フィールド全組み合わせの非露出を検証)を更新。go-reviewer(Warning・CRITICAL/HIGH 0、MEDIUM=テストカバレッジ拡充を同コミットで解消済み) / security-reviewer(Approve・CRITICAL/HIGH 0)。コミット `42aa6b4f`
 
 **証拠(現HEAD検証済み)**
 
@@ -453,9 +454,11 @@ date.go:21-32 (jsonDate.UnmarshalJSON) `// YYYY-MM-DD を優先\n\tif t, err := 
 
 挙動保存の第一段: date.go に共通コア `func parseFlexibleDate(s string) (time.Time, error)`(YYYY-MM-DD→RFC3339 の現行チェーン、失敗時は sentinel error)を切り出し、jsonDate.UnmarshalJSON と parseDate の両方をコア委譲に書き換える。各ラッパの現行エラーメッセージ(jsonDate=汎用文言 / parseDate=`invalid date format: %s`)は文字通り維持し応答互換を保つ。handler_date_helpers.go は date.go へ統合し削除(パッケージ内 1 ファイルに日付パースを集約)。第二段(behaviorChange=true・別トラック): parseDate のエラーから入力値エコーを除去し jsonDate と同一の汎用文言へ統一(#97 類例のクローズ)。
 
-**検証コマンド(スコープ限定)**
+**検証コマンド(スコープ限定・第二段で実行・PASS)**
 ```
-docker compose exec backend go test ./internal/handler/ -run 'TestParseDate|TestJsonDate|TestVaccination|TestInventory|TestReservationType' -count=1
+docker compose exec backend go test ./internal/handler/ -run 'TestParseDate|TestJsonDate|TestCreateInventoryRequest|TestInventoryRequest|TestCreateVaccinationRequest|TestVaccinationRequest|TestUpdateVaccinationRequest|TestUpdateInventoryRequest|TestCreateUnavailableTimeRequest' -count=1
+docker compose exec backend go vet ./internal/handler/...
+docker compose exec backend gofmt -l internal/handler/date.go internal/handler/date_test.go internal/handler/vaccination_request.go internal/handler/vaccination_request_test.go internal/handler/inventory_request.go internal/handler/inventory_request_test.go
 ```
 
 
