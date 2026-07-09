@@ -124,3 +124,81 @@ func TestReorderGlobal(t *testing.T) {
 		assert.Equal(t, 99, reloaded.SortOrder, "トランザクション全体がロールバックされる")
 	})
 }
+
+func TestUpdateScopedByID(t *testing.T) {
+	db := setupHelpersTestDB(t)
+	ctx := context.Background()
+
+	t.Run("clinic内の対象idを更新できる", func(t *testing.T) {
+		const clinicID = uint64(1)
+		rec := &model.ChiefComplaintType{ClinicID: clinicID, Name: "before"}
+		require.NoError(t, db.Create(rec).Error)
+
+		err := updateScopedByID(ctx, db, &model.ChiefComplaintType{}, "chief_complaint_type", clinicID, rec.ID, map[string]any{"name": "after"})
+		require.NoError(t, err)
+
+		var reloaded model.ChiefComplaintType
+		require.NoError(t, db.First(&reloaded, rec.ID).Error)
+		assert.Equal(t, "after", reloaded.Name)
+	})
+
+	t.Run("存在しないidはWrapNotFoundを返す", func(t *testing.T) {
+		const clinicID = uint64(2)
+		err := updateScopedByID(ctx, db, &model.ChiefComplaintType{}, "chief_complaint_type", clinicID, 9_999_997, map[string]any{"name": "x"})
+		require.Error(t, err)
+		assert.True(t, apperrors.IsNotFound(err))
+	})
+
+	t.Run("別クリニックのidはWrapNotFoundを返し更新されない", func(t *testing.T) {
+		const clinicA, clinicB = uint64(11), uint64(12)
+		foreign := &model.ChiefComplaintType{ClinicID: clinicB, Name: "foreign"}
+		require.NoError(t, db.Create(foreign).Error)
+
+		err := updateScopedByID(ctx, db, &model.ChiefComplaintType{}, "chief_complaint_type", clinicA, foreign.ID, map[string]any{"name": "hacked"})
+		require.Error(t, err)
+		assert.True(t, apperrors.IsNotFound(err))
+
+		var reloaded model.ChiefComplaintType
+		require.NoError(t, db.First(&reloaded, foreign.ID).Error)
+		assert.Equal(t, "foreign", reloaded.Name, "別クリニックのレコードは変更されない")
+	})
+}
+
+func TestDeleteScopedByID(t *testing.T) {
+	db := setupHelpersTestDB(t)
+	ctx := context.Background()
+
+	t.Run("clinic内の対象idを削除できる", func(t *testing.T) {
+		const clinicID = uint64(3)
+		rec := &model.ChiefComplaintType{ClinicID: clinicID, Name: "to-delete"}
+		require.NoError(t, db.Create(rec).Error)
+
+		err := deleteScopedByID(ctx, db, &model.ChiefComplaintType{}, "chief_complaint_type", clinicID, rec.ID)
+		require.NoError(t, err)
+
+		var count int64
+		require.NoError(t, db.Model(&model.ChiefComplaintType{}).Where("id = ?", rec.ID).Count(&count).Error)
+		assert.Equal(t, int64(0), count, "ソフトデリートされ通常クエリでは見えなくなる")
+	})
+
+	t.Run("存在しないidはWrapNotFoundを返す", func(t *testing.T) {
+		const clinicID = uint64(4)
+		err := deleteScopedByID(ctx, db, &model.ChiefComplaintType{}, "chief_complaint_type", clinicID, 9_999_996)
+		require.Error(t, err)
+		assert.True(t, apperrors.IsNotFound(err))
+	})
+
+	t.Run("別クリニックのidはWrapNotFoundを返し削除されない", func(t *testing.T) {
+		const clinicA, clinicB = uint64(21), uint64(22)
+		foreign := &model.ChiefComplaintType{ClinicID: clinicB, Name: "foreign2"}
+		require.NoError(t, db.Create(foreign).Error)
+
+		err := deleteScopedByID(ctx, db, &model.ChiefComplaintType{}, "chief_complaint_type", clinicA, foreign.ID)
+		require.Error(t, err)
+		assert.True(t, apperrors.IsNotFound(err))
+
+		var count int64
+		require.NoError(t, db.Model(&model.ChiefComplaintType{}).Where("id = ?", foreign.ID).Count(&count).Error)
+		assert.Equal(t, int64(1), count, "別クリニックのレコードは削除されない")
+	})
+}
