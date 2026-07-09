@@ -45,44 +45,13 @@ func (s *lstepBatchService) DetectDormantOwners(ctx context.Context, clinicID ui
 
 // RunLTVTopPercentSyncAllClinics は全クリニックに対して LTV 上位 20% タグを同期する（FEAT-377）。
 
+// RunDormantDetectionAllClinics は全クリニックに対して休眠飼い主検知を実行する（02:00 JST cron）。
+// runBatchAllClinics に処理を委譲する。ISSUE-010: 処理件数・エラー件数・閾値(min_days_since)を
+// audit メタデータとして永続化し、閾値は後から判定基準を再現できるよう含める。
 func (s *lstepBatchService) RunDormantDetectionAllClinics(ctx context.Context) error {
-	clinics, err := s.clinicRepo.FindAll(ctx)
-	if err != nil {
-		slog.ErrorContext(ctx, "dormant batch: failed to fetch clinics", "error", err)
-		return apperrors.Wrap(err, "failed to fetch clinics for dormant batch")
-	}
-
-	for i := range clinics {
-		clinic := &clinics[i]
-		if s.settingsSvc != nil {
-			enabled, syncErr := s.settingsSvc.IsSyncEnabled(ctx, clinic.ID)
-			if syncErr != nil {
-				slog.ErrorContext(ctx, "dormant batch: failed to check sync enabled", "clinic_id", clinic.ID, "error", syncErr)
-				continue
-			}
-			if !enabled {
-				continue
-			}
-		}
-		count, errs := s.DetectDormantOwners(ctx, clinic.ID)
-		if len(errs) > 0 {
-			slog.ErrorContext(ctx, "dormant batch: partial errors", "clinic_id", clinic.ID, "error_count", len(errs))
-		}
-		if count > 0 {
-			slog.InfoContext(ctx, "dormant batch: synced dormant tags", "clinic_id", clinic.ID, "count", count)
-			// ISSUE-010: 処理件数・エラー件数・閾値を永続化する。閾値は後から判定基準を再現できるよう含める。
-			if err := s.auditSvc.LogLstepOperationWithMetadata(ctx, clinic.ID, nil,
-				"batch_dormant_detect", "clinic", &clinic.ID,
-				map[string]any{
-					"operation":       "batch_dormant_detect",
-					"processed_count": count,
-					"error_count":     len(errs),
-					"min_days_since":  180,
-				},
-			); err != nil {
-				slog.WarnContext(ctx, "audit log failed for dormant batch", "error", err, "clinic_id", clinic.ID)
-			}
-		}
-	}
-	return nil
+	return s.runBatchAllClinics(ctx,
+		"dormant batch", "dormant batch", "synced dormant tags", "batch_dormant_detect",
+		map[string]any{"min_days_since": 180},
+		s.DetectDormantOwners,
+	)
 }

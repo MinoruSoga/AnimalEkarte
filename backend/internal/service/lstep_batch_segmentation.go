@@ -8,140 +8,51 @@ import (
 )
 
 func (s *lstepBatchService) RunLTVTopPercentSyncAllClinics(ctx context.Context) error {
-	clinics, err := s.clinicRepo.FindAll(ctx)
-	if err != nil {
-		slog.ErrorContext(ctx, "ltv-top-percent batch: failed to fetch clinics", "error", err)
-		return apperrors.Wrap(err, "failed to fetch clinics for ltv-top-percent batch")
-	}
+	return s.runBatchAllClinics(ctx,
+		"ltv-top-percent batch", "ltv top percent batch", "synced ltv tags", "batch_ltv_top_percent",
+		nil,
+		s.tagSyncSvc.SyncLTVTopPercent,
+	)
+}
 
-	for i := range clinics {
-		clinic := &clinics[i]
-		if s.settingsSvc != nil {
-			enabled, syncErr := s.settingsSvc.IsSyncEnabled(ctx, clinic.ID)
-			if syncErr != nil {
-				slog.ErrorContext(ctx, "ltv-top-percent batch: failed to check sync enabled", "clinic_id", clinic.ID, "error", syncErr)
-				continue
-			}
-			if !enabled {
-				continue
-			}
-		}
-		count, errs := s.tagSyncSvc.SyncLTVTopPercent(ctx, clinic.ID)
-		if len(errs) > 0 {
-			slog.ErrorContext(ctx, "ltv-top-percent batch: partial errors", "clinic_id", clinic.ID, "error_count", len(errs))
-		}
-		if count > 0 {
-			slog.InfoContext(ctx, "ltv-top-percent batch: synced ltv tags", "clinic_id", clinic.ID, "count", count)
-			if err := s.auditSvc.LogLstepOperationWithMetadata(ctx, clinic.ID, nil,
-				"batch_ltv_top_percent", "clinic", &clinic.ID,
-				map[string]any{
-					"operation":       "batch_ltv_top_percent",
-					"processed_count": count,
-					"error_count":     len(errs),
-				},
-			); err != nil {
-				slog.WarnContext(ctx, "audit log failed for ltv top percent batch", "error", err, "clinic_id", clinic.ID)
-			}
-		}
+// syncVisitDormantForClinic は 1 クリニック分の VISIT_* タグ同期を行う（G3-2 切り出し）。
+// entries 取得に失敗した場合は当該クリニックをログのみで静かにスキップする（挙動保存）。
+func (s *lstepBatchService) syncVisitDormantForClinic(ctx context.Context, clinicID uint64) (int, []error) {
+	const minDaysSince = 120
+	entries, findErr := s.medRecordRepo.FindDormantOwnerEntries(ctx, clinicID, minDaysSince)
+	if findErr != nil {
+		slog.ErrorContext(ctx, "visit-dormant batch: failed to find entries", "clinic_id", clinicID, "error", findErr)
+		return 0, nil
 	}
-	return nil
+	count := 0
+	var errs []error
+	for _, entry := range entries {
+		if tagErr := s.tagSyncSvc.SyncVisitDormantTags(ctx, clinicID, entry.OwnerID, entry.DaysSince); tagErr != nil {
+			slog.ErrorContext(ctx, "visit-dormant batch: failed to sync tag", "clinic_id", clinicID, "owner_id", entry.OwnerID, "error", tagErr)
+			errs = append(errs, apperrors.Wrap(tagErr, "failed to sync visit dormant tag"))
+			continue
+		}
+		count++
+	}
+	return count, errs
 }
 
 // RunVisitDormantSyncAllClinics は全クリニックに対して VISIT_* タグを同期する（FEAT-377）。
 func (s *lstepBatchService) RunVisitDormantSyncAllClinics(ctx context.Context) error {
-	const minDaysSince = 120
-	clinics, err := s.clinicRepo.FindAll(ctx)
-	if err != nil {
-		slog.ErrorContext(ctx, "visit-dormant batch: failed to fetch clinics", "error", err)
-		return apperrors.Wrap(err, "failed to fetch clinics for visit-dormant batch")
-	}
-
-	for i := range clinics {
-		clinic := &clinics[i]
-		if s.settingsSvc != nil {
-			enabled, syncErr := s.settingsSvc.IsSyncEnabled(ctx, clinic.ID)
-			if syncErr != nil {
-				slog.ErrorContext(ctx, "visit-dormant batch: failed to check sync enabled", "clinic_id", clinic.ID, "error", syncErr)
-				continue
-			}
-			if !enabled {
-				continue
-			}
-		}
-		entries, findErr := s.medRecordRepo.FindDormantOwnerEntries(ctx, clinic.ID, minDaysSince)
-		if findErr != nil {
-			slog.ErrorContext(ctx, "visit-dormant batch: failed to find entries", "clinic_id", clinic.ID, "error", findErr)
-			continue
-		}
-		count := 0
-		var errs []error
-		for _, entry := range entries {
-			if tagErr := s.tagSyncSvc.SyncVisitDormantTags(ctx, clinic.ID, entry.OwnerID, entry.DaysSince); tagErr != nil {
-				slog.ErrorContext(ctx, "visit-dormant batch: failed to sync tag", "clinic_id", clinic.ID, "owner_id", entry.OwnerID, "error", tagErr)
-				errs = append(errs, apperrors.Wrap(tagErr, "failed to sync visit dormant tag"))
-				continue
-			}
-			count++
-		}
-		if len(errs) > 0 {
-			slog.ErrorContext(ctx, "visit-dormant batch: partial errors", "clinic_id", clinic.ID, "error_count", len(errs))
-		}
-		if count > 0 {
-			slog.InfoContext(ctx, "visit-dormant batch: synced visit tags", "clinic_id", clinic.ID, "count", count)
-			if err := s.auditSvc.LogLstepOperationWithMetadata(ctx, clinic.ID, nil,
-				"batch_visit_dormant", "clinic", &clinic.ID,
-				map[string]any{
-					"operation":       "batch_visit_dormant",
-					"processed_count": count,
-					"error_count":     len(errs),
-				},
-			); err != nil {
-				slog.WarnContext(ctx, "audit log failed for visit dormant batch", "error", err, "clinic_id", clinic.ID)
-			}
-		}
-	}
-	return nil
+	return s.runBatchAllClinics(ctx,
+		"visit-dormant batch", "visit dormant batch", "synced visit tags", "batch_visit_dormant",
+		nil,
+		s.syncVisitDormantForClinic,
+	)
 }
 
 // RunHealthPreventionTagSyncAllClinics は全クリニックに対して健診・予防・物販タグを同期する（FEAT-379）。
 func (s *lstepBatchService) RunHealthPreventionTagSyncAllClinics(ctx context.Context) error {
-	clinics, err := s.clinicRepo.FindAll(ctx)
-	if err != nil {
-		slog.ErrorContext(ctx, "health-prevention batch: failed to fetch clinics", "error", err)
-		return apperrors.Wrap(err, "failed to fetch clinics for health-prevention batch")
-	}
-
-	for i := range clinics {
-		clinic := &clinics[i]
-		if s.settingsSvc != nil {
-			enabled, syncErr := s.settingsSvc.IsSyncEnabled(ctx, clinic.ID)
-			if syncErr != nil {
-				slog.ErrorContext(ctx, "health-prevention batch: failed to check sync enabled", "clinic_id", clinic.ID, "error", syncErr)
-				continue
-			}
-			if !enabled {
-				continue
-			}
-		}
-		count, errs := s.tagSyncSvc.SyncHealthPreventionTagsForClinic(ctx, clinic.ID)
-		if len(errs) > 0 {
-			slog.ErrorContext(ctx, "health-prevention batch: partial errors", "clinic_id", clinic.ID, "error_count", len(errs))
-		}
-		if count > 0 {
-			slog.InfoContext(ctx, "health-prevention batch: synced tags", "clinic_id", clinic.ID, "count", count)
-			if err := s.auditSvc.LogLstepOperationWithMetadata(ctx, clinic.ID, nil,
-				"batch_health_prevention", "clinic", &clinic.ID,
-				map[string]any{
-					"operation":       "batch_health_prevention",
-					"processed_count": count,
-					"error_count":     len(errs),
-				},
-			); err != nil {
-				slog.WarnContext(ctx, "audit log failed for health prevention batch", "error", err, "clinic_id", clinic.ID)
-			}
-		}
-	}
-	return nil
+	return s.runBatchAllClinics(ctx,
+		"health-prevention batch", "health prevention batch", "synced tags", "batch_health_prevention",
+		nil,
+		s.tagSyncSvc.SyncHealthPreventionTagsForClinic,
+	)
 }
 
 // runDeliveryTriggersForClinic は 1 クリニック分の全配信トリガーバッチを実行する（FEAT-383）。
