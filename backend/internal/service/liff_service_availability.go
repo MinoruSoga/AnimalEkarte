@@ -32,9 +32,25 @@ func (s *liffService) GetAvailableDates(ctx context.Context, clinicID, typeID, s
 		return nil, BookingWindow{}, err
 	}
 
-	staffInputsFn := func(ctx context.Context, date time.Time, _ uint64, _ uint64) ([]StaffSlotInput, error) {
-		return s.buildStaffSlotInputs(ctx, clinicID, visibleStaffs, date)
+	datesSettings, err := ParseAvailableDatesSettings(
+		setting.ClosedWeekdays,
+		setting.ClosedDates,
+		setting.NationalHolidayClosed,
+		setting.BookingWindowMinDays,
+		setting.BookingWindowMaxDays,
+		setting.CalendarMonths,
+		string(course.ReservationDayOption),
+	)
+	if err != nil {
+		slog.WarnContext(ctx, "failed to parse available dates settings, using defaults", "error", err)
 	}
+
+	// G7-1: 日付ループN+1解消 — シフト/休憩/当日予約を予約受付期間の範囲でまとめてプリフェッチする。
+	staffInputsFn, err := s.buildAvailableDatesStaffInputsFn(ctx, clinicID, visibleStaffs, datesSettings)
+	if err != nil {
+		return nil, BookingWindow{}, err
+	}
+
 	slotSettingsFn := func(date time.Time) TimeSlotsInput {
 		// 一覧表示パスは既存挙動を維持し break_hours 破損時のエラーを無視する（意図的・スコープ外。
 		// parseBusinessHoursForDate のコメント参照。書込パスの fail-closed 化のみ D10/F-2 対象）。
@@ -85,19 +101,6 @@ func (s *liffService) GetAvailableDates(ctx context.Context, clinicID, typeID, s
 		}
 	}
 
-	datesSettings, err := ParseAvailableDatesSettings(
-		setting.ClosedWeekdays,
-		setting.ClosedDates,
-		setting.NationalHolidayClosed,
-		setting.BookingWindowMinDays,
-		setting.BookingWindowMaxDays,
-		setting.CalendarMonths,
-		string(course.ReservationDayOption),
-	)
-	if err != nil {
-		slog.WarnContext(ctx, "failed to parse available dates settings, using defaults", "error", err)
-	}
-
 	results, window, err := CalcAvailableDates(ctx, &AvailableDatesInput{
 		Settings:       datesSettings,
 		TypeID:         typeID,
@@ -117,7 +120,9 @@ func (s *liffService) GetAvailableDates(ctx context.Context, clinicID, typeID, s
 		return nil, window, apperrors.Wrap(err, "failed to get occupation guard")
 	}
 	if len(occupations) > 0 {
-		for i, r := range results {
+		// G7-1: 日毎の CountWorkingStaffByReservationTypeID 呼出をバッチ版1クエリに集約する。
+		availableDates := make([]time.Time, 0, len(results))
+		for _, r := range results {
 			if !r.Available {
 				continue
 			}
@@ -126,12 +131,18 @@ func (s *liffService) GetAvailableDates(ctx context.Context, clinicID, typeID, s
 				slog.ErrorContext(ctx, "failed to parse date", "error", err)
 				return nil, window, apperrors.Wrap(err, "failed to parse date")
 			}
-			count, err := s.occupationRepo.CountWorkingStaffByReservationTypeID(ctx, clinicID, typeID, date)
-			if err != nil {
-				slog.ErrorContext(ctx, "failed to count working staff", "error", err)
-				return nil, window, apperrors.Wrap(err, "failed to count working staff")
+			availableDates = append(availableDates, date)
+		}
+		workingCounts, err := s.occupationRepo.CountWorkingStaffByReservationTypeIDs(ctx, clinicID, typeID, availableDates)
+		if err != nil {
+			slog.ErrorContext(ctx, "failed to count working staff", "error", err)
+			return nil, window, apperrors.Wrap(err, "failed to count working staff")
+		}
+		for i, r := range results {
+			if !r.Available {
+				continue
 			}
-			if count == 0 {
+			if workingCounts[r.Date] == 0 {
 				results[i].Available = false
 				results[i].Reason = "staff_off"
 			}

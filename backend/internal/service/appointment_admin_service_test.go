@@ -19,13 +19,14 @@ import (
 // ---- ReservationAdmin モック ----
 
 type mockReservationAdminRepository struct {
-	findByMonthFn      func(ctx context.Context, clinicID uint64, year int, month time.Month) ([]model.Reservation, error)
-	findByDayFn        func(ctx context.Context, clinicID uint64, date time.Time) ([]model.Reservation, error)
-	createFn           func(ctx context.Context, r *model.Reservation) error
-	softDeleteFn       func(ctx context.Context, clinicID, id uint64) error
-	findByCustomerIDFn func(ctx context.Context, clinicID, customerID uint64) ([]model.Reservation, error)
-	cancelByIDFn       func(ctx context.Context, clinicID, customerID, id uint64) error
-	findByIDForNotify  func(ctx context.Context, clinicID, id uint64) (*model.Reservation, error)
+	findByMonthFn               func(ctx context.Context, clinicID uint64, year int, month time.Month) ([]model.Reservation, error)
+	findByDayFn                 func(ctx context.Context, clinicID uint64, date time.Time) ([]model.Reservation, error)
+	createFn                    func(ctx context.Context, r *model.Reservation) error
+	softDeleteFn                func(ctx context.Context, clinicID, id uint64) error
+	findByCustomerIDFn          func(ctx context.Context, clinicID, customerID uint64) ([]model.Reservation, error)
+	cancelByIDFn                func(ctx context.Context, clinicID, customerID, id uint64) error
+	findByIDForNotify           func(ctx context.Context, clinicID, id uint64) (*model.Reservation, error)
+	findTimeRangesByDateRangeFn func(ctx context.Context, clinicID uint64, from, to time.Time) ([]model.Reservation, error)
 }
 
 func (m *mockReservationAdminRepository) FindAllByMonth(ctx context.Context, clinicID uint64, year int, month time.Month) ([]model.Reservation, error) {
@@ -33,6 +34,12 @@ func (m *mockReservationAdminRepository) FindAllByMonth(ctx context.Context, cli
 }
 func (m *mockReservationAdminRepository) FindAllByDay(ctx context.Context, clinicID uint64, date time.Time) ([]model.Reservation, error) {
 	return m.findByDayFn(ctx, clinicID, date)
+}
+func (m *mockReservationAdminRepository) FindTimeRangesByDateRange(ctx context.Context, clinicID uint64, from, to time.Time) ([]model.Reservation, error) {
+	if m.findTimeRangesByDateRangeFn != nil {
+		return m.findTimeRangesByDateRangeFn(ctx, clinicID, from, to)
+	}
+	return nil, nil
 }
 func (m *mockReservationAdminRepository) Create(ctx context.Context, r *model.Reservation) error {
 	if m.createFn != nil {

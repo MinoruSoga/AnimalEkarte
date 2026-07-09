@@ -15,6 +15,9 @@ import (
 type ReservationAdminRepository interface {
 	FindAllByMonth(ctx context.Context, clinicID uint64, year int, month time.Month) ([]model.Reservation, error)
 	FindAllByDay(ctx context.Context, clinicID uint64, date time.Time) ([]model.Reservation, error)
+	// FindTimeRangesByDateRange は [from, to) 半開区間の予約から id/doctor_id/start_time/end_time/status のみを
+	// Preload なしで一括取得する(G7-1: 日付ループN+1回避のプリフェッチ用軽量クエリ)。
+	FindTimeRangesByDateRange(ctx context.Context, clinicID uint64, from, to time.Time) ([]model.Reservation, error)
 	Create(ctx context.Context, r *model.Reservation) error
 	SoftDelete(ctx context.Context, clinicID, id uint64) error
 	// LIFF用
@@ -64,6 +67,22 @@ func (r *reservationAdminRepository) FindAllByDay(ctx context.Context, clinicID 
 		Preload("Pet", "deleted_at IS NULL").
 		Scopes(clinicScope(clinicID)).
 		Where("start_time >= ? AND start_time < ?", start, end).
+		Order("start_time ASC").
+		Find(&items).Error
+	if err != nil {
+		return nil, apperrors.FromGORM(err, "appointment", "")
+	}
+	return items, nil
+}
+
+// FindTimeRangesByDateRange は日付範囲計算専用の軽量クエリ。slot 計算は Status/DoctorID/StartTime/EndTime
+// しか使わないため、FindAllByDay の6 Preload を伴わない Select 限定版として提供する(G7-1)。
+func (r *reservationAdminRepository) FindTimeRangesByDateRange(ctx context.Context, clinicID uint64, from, to time.Time) ([]model.Reservation, error) {
+	items := make([]model.Reservation, 0)
+	err := r.db.WithContext(ctx).
+		Select("id", "doctor_id", "start_time", "end_time", "status").
+		Scopes(clinicScope(clinicID)).
+		Where("start_time >= ? AND start_time < ?", from, to).
 		Order("start_time ASC").
 		Find(&items).Error
 	if err != nil {

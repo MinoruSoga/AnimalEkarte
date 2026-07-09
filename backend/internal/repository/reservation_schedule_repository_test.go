@@ -121,6 +121,58 @@ func TestReservationScheduleRepository_FindAllBreaksByEntryIDs(t *testing.T) {
 	})
 }
 
+// TestReservationScheduleRepository_FindAllByStaffIDsAndDateRange は G7-1(LIFF日付ループN+1解消)の
+// プリフェッチ用バッチメソッドを検証する。
+func TestReservationScheduleRepository_FindAllByStaffIDsAndDateRange(t *testing.T) {
+	db := setupReservationScheduleCRUDTestDB(t)
+	repo := NewReservationScheduleRepository(db)
+	ctx := context.Background()
+	const clinicA = uint64(1)
+	const clinicB = uint64(2)
+
+	staff1 := makeDoctor(t, db, clinicA, "スタッフ1")
+	staff2 := makeDoctor(t, db, clinicA, "スタッフ2")
+	otherClinicStaff := makeDoctor(t, db, clinicB, "他院スタッフ")
+
+	inRange1 := time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC)
+	inRange2 := time.Date(2026, 6, 5, 0, 0, 0, 0, time.UTC)
+	outOfRange := time.Date(2026, 7, 1, 0, 0, 0, 0, time.UTC)
+
+	makeShiftEntry(t, db, clinicA, staff1.ID, inRange1)
+	makeShiftEntry(t, db, clinicA, staff2.ID, inRange2)
+	makeShiftEntry(t, db, clinicA, staff1.ID, outOfRange)
+	makeShiftEntry(t, db, clinicB, otherClinicStaff.ID, inRange1)
+
+	from := time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC)
+	to := time.Date(2026, 6, 30, 0, 0, 0, 0, time.UTC)
+
+	t.Run("複数スタッフの期間内シフトを1クエリでまとめて返す", func(t *testing.T) {
+		entries, err := repo.FindAllByStaffIDsAndDateRange(ctx, clinicA, []uint64{staff1.ID, staff2.ID}, from, to)
+		require.NoError(t, err)
+		require.Len(t, entries, 2, "範囲内かつ同クリニックの2件のみ(範囲外1件・別クリニック1件は除外)")
+	})
+
+	t.Run("toは排他的上限（指定日そのものは含まれない）", func(t *testing.T) {
+		entries, err := repo.FindAllByStaffIDsAndDateRange(ctx, clinicA, []uint64{staff1.ID}, from, outOfRange)
+		require.NoError(t, err)
+		for _, e := range entries {
+			assert.False(t, e.Date.Equal(outOfRange), "to日付そのものは半開区間の外")
+		}
+	})
+
+	t.Run("staffIDsが空の場合は空スライスを即返す", func(t *testing.T) {
+		entries, err := repo.FindAllByStaffIDsAndDateRange(ctx, clinicA, []uint64{}, from, to)
+		require.NoError(t, err)
+		assert.Empty(t, entries)
+	})
+
+	t.Run("別クリニックIDでは0件（clinic_id分離）", func(t *testing.T) {
+		entries, err := repo.FindAllByStaffIDsAndDateRange(ctx, clinicB, []uint64{staff1.ID, staff2.ID}, from, to)
+		require.NoError(t, err)
+		assert.Empty(t, entries)
+	})
+}
+
 func TestReservationScheduleRepository_Save_CreatesNewEntry(t *testing.T) {
 	db := setupReservationScheduleCRUDTestDB(t)
 	repo := NewReservationScheduleRepository(db)

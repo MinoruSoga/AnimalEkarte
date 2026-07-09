@@ -55,6 +55,14 @@ func (m *mockOccupationLinkRepo) CountWorkingStaffByReservationTypeID(_ context.
 	return 1, nil
 }
 
+func (m *mockOccupationLinkRepo) CountWorkingStaffByReservationTypeIDs(_ context.Context, _, _ uint64, dates []time.Time) (map[string]int64, error) {
+	result := make(map[string]int64, len(dates))
+	for _, d := range dates {
+		result[d.Format("2006-01-02")] = 1
+	}
+	return result, nil
+}
+
 func newOccupationLinkTestService(
 	repo *mockReservationTypeRepository,
 	occRepo *mockOccupationLinkRepo,

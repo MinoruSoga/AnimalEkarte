@@ -83,6 +83,9 @@ func (m *delegateMockReservationAdminRepository) FindAllByDay(ctx context.Contex
 	}
 	return nil, nil
 }
+func (m *delegateMockReservationAdminRepository) FindTimeRangesByDateRange(_ context.Context, _ uint64, _, _ time.Time) ([]model.Reservation, error) {
+	return nil, nil
+}
 func (m *delegateMockReservationAdminRepository) Create(_ context.Context, _ *model.Reservation) error {
 	return nil
 }

@@ -133,6 +133,50 @@ func TestReservationAdminRepository_FindAllByDay(t *testing.T) {
 	})
 }
 
+// TestReservationAdminRepository_FindTimeRangesByDateRange は G7-1(LIFF日付ループN+1解消)の
+// プリフェッチ用軽量クエリを検証する。FindAllByDay と異なり Preload を伴わない。
+func TestReservationAdminRepository_FindTimeRangesByDateRange(t *testing.T) {
+	db := setupReservationAdminTestDB(t)
+	repo := NewReservationAdminRepository(db)
+	ctx := context.Background()
+
+	const clinicA, clinicB = uint64(1), uint64(2)
+
+	owner := makeOwner(t, db, clinicA, "飼主・範囲予約")
+	pet := makeSpeciesAndPet(t, db, clinicA, owner.ID, "範囲予約犬")
+	doctor := makeDoctor(t, db, clinicA, "範囲予約医師")
+
+	rangeStart := time.Date(2026, 6, 15, 0, 0, 0, 0, time.UTC)
+	rangeEnd := time.Date(2026, 6, 17, 0, 0, 0, 0, time.UTC)
+	inRange := makeAdminReservationAt(t, db, clinicA, rangeStart.Add(3*time.Hour), &owner.ID, &pet.ID, &doctor.ID, nil)
+	makeAdminReservationAt(t, db, clinicA, rangeEnd, nil, nil, nil, nil)                     // to は排他的上限のため範囲外
+	makeAdminReservationAt(t, db, clinicA, rangeStart.AddDate(0, -1, 0), nil, nil, nil, nil) // 範囲より前
+	makeAdminReservationAt(t, db, clinicB, rangeStart.Add(3*time.Hour), nil, nil, nil, nil)  // 別クリニック
+
+	t.Run("範囲内・同クリニックの予約のみ返し、Preloadは行わない（軽量フィールドのみ）", func(t *testing.T) {
+		got, err := repo.FindTimeRangesByDateRange(ctx, clinicA, rangeStart, rangeEnd)
+		require.NoError(t, err)
+		require.Len(t, got, 1)
+		assert.Equal(t, inRange.ID, got[0].ID)
+		require.NotNil(t, got[0].DoctorID)
+		assert.Equal(t, doctor.ID, *got[0].DoctorID)
+		assert.Nil(t, got[0].Owner, "FindAllByDay と異なりOwnerはPreloadしない")
+		assert.Nil(t, got[0].Pet, "FindAllByDay と異なりPetはPreloadしない")
+	})
+
+	t.Run("別クリニックIDでは0件（clinic_id分離）", func(t *testing.T) {
+		got, err := repo.FindTimeRangesByDateRange(ctx, clinicB, rangeStart, rangeEnd)
+		require.NoError(t, err)
+		require.Len(t, got, 1, "clinicB自身の予約1件のみ")
+	})
+
+	t.Run("該当なしは空スライスを返す", func(t *testing.T) {
+		got, err := repo.FindTimeRangesByDateRange(ctx, clinicA, rangeStart.AddDate(1, 0, 0), rangeEnd.AddDate(1, 0, 0))
+		require.NoError(t, err)
+		assert.Empty(t, got)
+	})
+}
+
 func TestReservationAdminRepository_Create(t *testing.T) {
 	db := setupReservationAdminTestDB(t)
 	repo := NewReservationAdminRepository(db)

@@ -15,6 +15,8 @@ import (
 // ReservationScheduleRepository はスタッフ個人スケジュール（shift_entries + shift_entry_breaks）のデータアクセスインターフェース
 type ReservationScheduleRepository interface {
 	FindAllByMonth(ctx context.Context, clinicID, staffID uint64, month string) ([]model.ShiftEntry, error)
+	// FindAllByStaffIDsAndDateRange は複数スタッフの指定期間内シフトエントリを一括取得する(G7-1: 日付ループN+1回避のプリフェッチ用)。
+	FindAllByStaffIDsAndDateRange(ctx context.Context, clinicID uint64, staffIDs []uint64, from, to time.Time) ([]model.ShiftEntry, error)
 	FindAllBreaksByEntryIDs(ctx context.Context, entryIDs []uint64) (map[uint64][]model.ShiftEntryBreak, error)
 	FindAllByDate(ctx context.Context, clinicID, staffID uint64, date time.Time) (*model.ShiftEntry, error)
 	FindAllBreaksByEntryID(ctx context.Context, entryID uint64) ([]model.ShiftEntryBreak, error)
@@ -47,6 +49,25 @@ func (r *reservationScheduleRepository) FindAllByMonth(ctx context.Context, clin
 		return nil, apperrors.FromGORM(err, "schedule_entry", "")
 	}
 
+	return entries, nil
+}
+
+// FindAllByStaffIDsAndDateRange は [from, to) 半開区間・複数スタッフのシフトエントリを1クエリで返す(G7-1)。
+// staffIDs が空の場合は空スライスを即返す(クエリを発行しない)。
+func (r *reservationScheduleRepository) FindAllByStaffIDsAndDateRange(ctx context.Context, clinicID uint64, staffIDs []uint64, from, to time.Time) ([]model.ShiftEntry, error) {
+	if len(staffIDs) == 0 {
+		return []model.ShiftEntry{}, nil
+	}
+	entries := make([]model.ShiftEntry, 0)
+	err := r.db.WithContext(ctx).
+		Scopes(clinicScope(clinicID)).
+		Where("staff_id IN ? AND date >= ? AND date < ?",
+			staffIDs, from.Format("2006-01-02"), to.Format("2006-01-02")).
+		Order("date ASC").
+		Find(&entries).Error
+	if err != nil {
+		return nil, apperrors.FromGORM(err, "schedule_entry", "")
+	}
 	return entries, nil
 }
 

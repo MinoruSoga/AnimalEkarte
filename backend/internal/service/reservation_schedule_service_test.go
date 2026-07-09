@@ -14,17 +14,25 @@ import (
 
 // mockReservationScheduleRepository は ReservationScheduleRepository のテスト用モック実装
 type mockReservationScheduleRepository struct {
-	findAllByMonthFn          func(ctx context.Context, clinicID, staffID uint64, month string) ([]model.ShiftEntry, error)
-	findAllBreaksByEntryIDsFn func(ctx context.Context, entryIDs []uint64) (map[uint64][]model.ShiftEntryBreak, error)
-	findAllByDateFn           func(ctx context.Context, clinicID, staffID uint64, date time.Time) (*model.ShiftEntry, error)
-	findAllBreaksByEntryIDFn  func(ctx context.Context, entryID uint64) ([]model.ShiftEntryBreak, error)
-	saveFn                    func(ctx context.Context, clinicID uint64, entry *model.ShiftEntry, breaks []model.ShiftEntryBreak) error
-	deleteFn                  func(ctx context.Context, clinicID, staffID uint64, date time.Time) error
+	findAllByMonthFn                func(ctx context.Context, clinicID, staffID uint64, month string) ([]model.ShiftEntry, error)
+	findAllByStaffIDsAndDateRangeFn func(ctx context.Context, clinicID uint64, staffIDs []uint64, from, to time.Time) ([]model.ShiftEntry, error)
+	findAllBreaksByEntryIDsFn       func(ctx context.Context, entryIDs []uint64) (map[uint64][]model.ShiftEntryBreak, error)
+	findAllByDateFn                 func(ctx context.Context, clinicID, staffID uint64, date time.Time) (*model.ShiftEntry, error)
+	findAllBreaksByEntryIDFn        func(ctx context.Context, entryID uint64) ([]model.ShiftEntryBreak, error)
+	saveFn                          func(ctx context.Context, clinicID uint64, entry *model.ShiftEntry, breaks []model.ShiftEntryBreak) error
+	deleteFn                        func(ctx context.Context, clinicID, staffID uint64, date time.Time) error
 }
 
 func (m *mockReservationScheduleRepository) FindAllByMonth(ctx context.Context, clinicID, staffID uint64, month string) ([]model.ShiftEntry, error) {
 	if m.findAllByMonthFn != nil {
 		return m.findAllByMonthFn(ctx, clinicID, staffID, month)
+	}
+	return nil, nil
+}
+
+func (m *mockReservationScheduleRepository) FindAllByStaffIDsAndDateRange(ctx context.Context, clinicID uint64, staffIDs []uint64, from, to time.Time) ([]model.ShiftEntry, error) {
+	if m.findAllByStaffIDsAndDateRangeFn != nil {
+		return m.findAllByStaffIDsAndDateRangeFn(ctx, clinicID, staffIDs, from, to)
 	}
 	return nil, nil
 }

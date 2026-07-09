@@ -80,13 +80,19 @@ func orEmptyJSONArray(b []byte) []byte {
 	return b
 }
 
-// CalcAvailableDates は予約可能な日付一覧を計算して返す。
-func CalcAvailableDates(ctx context.Context, input *AvailableDatesInput) ([]AvailableDateResult, BookingWindow, error) {
+// bookingWindowDates は BookingWindowMinDays/MaxDays から予約受付期間 [minDate, maxDate]（JST日付・時刻0時）を計算する。
+// CalcAvailableDates と GetAvailableDates のプリフェッチ経路が同一の窓計算を共有するために抽出した（G7-1）。
+func bookingWindowDates(settings AvailableDatesSettings) (minDate, maxDate time.Time) {
 	now := time.Now().In(jstLocation)
 	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, jstLocation)
+	minDate = today.AddDate(0, 0, settings.BookingWindowMinDays)
+	maxDate = today.AddDate(0, 0, settings.BookingWindowMaxDays)
+	return minDate, maxDate
+}
 
-	minDate := today.AddDate(0, 0, input.Settings.BookingWindowMinDays)
-	maxDate := today.AddDate(0, 0, input.Settings.BookingWindowMaxDays)
+// CalcAvailableDates は予約可能な日付一覧を計算して返す。
+func CalcAvailableDates(ctx context.Context, input *AvailableDatesInput) ([]AvailableDateResult, BookingWindow, error) {
+	minDate, maxDate := bookingWindowDates(input.Settings)
 
 	window := BookingWindow{
 		Start: minDate.Format("2006-01-02"),

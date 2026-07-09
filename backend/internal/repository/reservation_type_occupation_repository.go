@@ -34,6 +34,9 @@ type ReservationTypeOccupationRepository interface {
 	// CountWorkingStaffByReservationTypeID は指定日に対応職種のスタッフが何人出勤しているかを返す（LIFF 専用）
 	// shift_type が 'off' / 'paid_leave' 以外のスタッフのみカウント
 	CountWorkingStaffByReservationTypeID(ctx context.Context, clinicID, reservationTypeID uint64, date time.Time) (int64, error)
+	// CountWorkingStaffByReservationTypeIDs は複数日分の出勤スタッフ数を1クエリでまとめて返す(G7-1: 日付ループN+1回避)。
+	// 戻り値のキーは "2006-01-02" 形式(JST)。シフトが無い日はキーとして存在しない(0扱い)。dates が空なら空map即返し。
+	CountWorkingStaffByReservationTypeIDs(ctx context.Context, clinicID, reservationTypeID uint64, dates []time.Time) (map[string]int64, error)
 }
 
 type reservationTypeOccupationRepository struct {
@@ -122,4 +125,41 @@ func (r *reservationTypeOccupationRepository) CountWorkingStaffByReservationType
 		return 0, apperrors.FromGORM(err, "count_working_staff", fmt.Sprintf("type=%d date=%s", reservationTypeID, dateStr))
 	}
 	return count, nil
+}
+
+func (r *reservationTypeOccupationRepository) CountWorkingStaffByReservationTypeIDs(
+	ctx context.Context, clinicID, reservationTypeID uint64, dates []time.Time,
+) (map[string]int64, error) {
+	result := make(map[string]int64, len(dates))
+	if len(dates) == 0 {
+		return result, nil
+	}
+	dateStrs := make([]string, len(dates))
+	for i, d := range dates {
+		dateStrs[i] = d.In(jstLoc).Format("2006-01-02")
+	}
+	type row struct {
+		Date  string `gorm:"column:date"`
+		Count int64  `gorm:"column:cnt"`
+	}
+	var rows []row
+	err := r.db.WithContext(ctx).Raw(`
+		SELECT se.date::text AS date, COUNT(DISTINCT se.staff_id) AS cnt
+		FROM reservation_type_occupations rto
+		JOIN staffs s ON s.occupation_id = rto.occupation_id AND s.deleted_at IS NULL
+		JOIN shift_entries se ON se.staff_id = s.id
+			AND se.clinic_id = ?
+			AND se.date IN ?
+			AND se.shift_type NOT IN ('off', 'paid_leave')
+		WHERE rto.clinic_id = ?
+		  AND rto.reservation_type_id = ?
+		GROUP BY se.date
+	`, clinicID, dateStrs, clinicID, reservationTypeID).Scan(&rows).Error
+	if err != nil {
+		return nil, apperrors.FromGORM(err, "count_working_staff_batch", fmt.Sprintf("type=%d", reservationTypeID))
+	}
+	for _, rw := range rows {
+		result[rw.Date] = rw.Count
+	}
+	return result, nil
 }

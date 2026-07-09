@@ -208,3 +208,52 @@ func TestReservationTypeOccupationRepository_CountWorkingStaffByReservationTypeI
 		assert.Equal(t, int64(0), count)
 	})
 }
+
+// TestReservationTypeOccupationRepository_CountWorkingStaffByReservationTypeIDs は G7-1(LIFF日付ループ
+// N+1解消)のバッチ版を検証する。単日版と同じ off/paid_leave除外・clinic_id隔離ロジックを複数日分まとめて確認する。
+func TestReservationTypeOccupationRepository_CountWorkingStaffByReservationTypeIDs(t *testing.T) {
+	db := setupReservationTypeOccupationTestDB(t)
+	repo := NewReservationTypeOccupationRepository(db)
+	ctx := context.Background()
+	const clinicA, clinicB = uint64(1), uint64(2)
+
+	dateA := time.Date(2026, 6, 15, 0, 0, 0, 0, jstLoc)
+	dateB := time.Date(2026, 6, 16, 0, 0, 0, 0, jstLoc)
+	dateNoShift := time.Date(2026, 6, 17, 0, 0, 0, 0, jstLoc)
+
+	rtA := makeReservationTypeLinked(t, db, clinicA, "バッチ集計対象区分", nil, nil)
+	occA := makeOccupation(t, db, clinicA, "バッチ集計対象職種")
+	makeReservationTypeOccupationLink(t, db, clinicA, rtA.ID, occA.ID)
+
+	workingA := makeStaffWithOccupation(t, db, clinicA, occA.ID, "dateA出勤スタッフ")
+	makeShiftEntryWithType(t, db, clinicA, workingA.ID, dateA, model.ShiftTypeFull)
+
+	working1B := makeStaffWithOccupation(t, db, clinicA, occA.ID, "dateB出勤スタッフ1")
+	makeShiftEntryWithType(t, db, clinicA, working1B.ID, dateB, model.ShiftTypeFull)
+	working2B := makeStaffWithOccupation(t, db, clinicA, occA.ID, "dateB出勤スタッフ2")
+	makeShiftEntryWithType(t, db, clinicA, working2B.ID, dateB, model.ShiftTypeMorning)
+
+	off := makeStaffWithOccupation(t, db, clinicA, occA.ID, "dateB休日スタッフ")
+	makeShiftEntryWithType(t, db, clinicA, off.ID, dateB, model.ShiftTypeOff)
+
+	t.Run("複数日分の出勤スタッフ数を1クエリでまとめて返す", func(t *testing.T) {
+		result, err := repo.CountWorkingStaffByReservationTypeIDs(ctx, clinicA, rtA.ID, []time.Time{dateA, dateB, dateNoShift})
+		require.NoError(t, err)
+		assert.Equal(t, int64(1), result[dateA.Format("2006-01-02")], "dateAは1名(off/paid_leave対象なし)")
+		assert.Equal(t, int64(2), result[dateB.Format("2006-01-02")], "dateBはoff除く2名")
+		_, hasNoShiftKey := result[dateNoShift.Format("2006-01-02")]
+		assert.False(t, hasNoShiftKey, "シフトが無い日はキーとして存在しない(0扱い)")
+	})
+
+	t.Run("別クリニックIDでは空map（clinic_id 隔離）", func(t *testing.T) {
+		result, err := repo.CountWorkingStaffByReservationTypeIDs(ctx, clinicB, rtA.ID, []time.Time{dateA, dateB})
+		require.NoError(t, err)
+		assert.Empty(t, result)
+	})
+
+	t.Run("datesが空の場合は空mapを即返す", func(t *testing.T) {
+		result, err := repo.CountWorkingStaffByReservationTypeIDs(ctx, clinicA, rtA.ID, []time.Time{})
+		require.NoError(t, err)
+		assert.Empty(t, result)
+	})
+}
