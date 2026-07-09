@@ -239,7 +239,7 @@ func (r *diagnosisNameRepository) CountUsageByDiagnosisNameID(ctx context.Contex
 	var count int64
 	if err := r.db.WithContext(ctx).
 		Model(&model.ClinicalPlan{}).
-		Joins("JOIN medical_records ON medical_records.id = clinical_plans.medical_record_id AND medical_records.clinic_id = ? AND medical_records.deleted_at IS NULL", clinicID).
+		Scopes(medicalRecordTenantScope("clinical_plans", clinicID)).
 		Where("(clinical_plans.diagnosis_name_id = ? OR clinical_plans.diagnosis_2_name_id = ?) AND clinical_plans.deleted_at IS NULL", diagnosisNameID, diagnosisNameID).
 		Count(&count).Error; err != nil {
 		return 0, apperrors.FromGORM(err, "clinical_plan", "")

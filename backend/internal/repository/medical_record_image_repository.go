@@ -64,7 +64,7 @@ func (r *medicalRecordImageRepository) Delete(ctx context.Context, clinicID, id 
 func (r *medicalRecordImageRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.MedicalRecordImage, error) {
 	var image model.MedicalRecordImage
 	err := r.db.WithContext(ctx).
-		Joins("JOIN medical_records ON medical_records.id = medical_record_images.medical_record_id AND medical_records.clinic_id = ? AND medical_records.deleted_at IS NULL", clinicID).
+		Scopes(medicalRecordTenantScope("medical_record_images", clinicID)).
 		Where("medical_record_images.id = ?", id).
 		Preload("Staff", "deleted_at IS NULL").
 		First(&image).Error

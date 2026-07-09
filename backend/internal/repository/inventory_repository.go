@@ -149,7 +149,7 @@ func (r *inventoryRepository) CountUsageByInventoryID(ctx context.Context, clini
 	// treatments は clinic_id を直接持たないため medical_records を JOIN してテナント分離
 	if err := r.db.WithContext(ctx).
 		Model(&model.Treatment{}).
-		Joins("JOIN medical_records ON medical_records.id = treatments.medical_record_id AND medical_records.clinic_id = ? AND medical_records.deleted_at IS NULL", clinicID).
+		Scopes(medicalRecordTenantScope("treatments", clinicID)).
 		Where("treatments.inventory_id = ? AND treatments.deleted_at IS NULL", inventoryID).
 		Count(&treatmentCount).Error; err != nil {
 		return 0, apperrors.FromGORM(err, "inventory_item", fmt.Sprintf("%d", inventoryID))

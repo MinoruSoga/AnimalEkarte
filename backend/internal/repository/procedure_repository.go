@@ -69,7 +69,7 @@ func (r *procedureRepository) CountUsageByProcedureID(ctx context.Context, clini
 	var treatmentCount, carePlanCount int64
 	if err := r.db.WithContext(ctx).
 		Model(&model.Treatment{}).
-		Joins("JOIN medical_records ON medical_records.id = treatments.medical_record_id AND medical_records.clinic_id = ? AND medical_records.deleted_at IS NULL", clinicID).
+		Scopes(medicalRecordTenantScope("treatments", clinicID)).
 		Where("treatments.procedure_id = ? AND treatments.deleted_at IS NULL", procedureID).
 		Count(&treatmentCount).Error; err != nil {
 		return 0, apperrors.FromGORM(err, "treatment", "")
