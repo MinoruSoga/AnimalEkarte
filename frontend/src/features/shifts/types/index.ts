@@ -18,13 +18,6 @@ export type ShiftType =
   | typeof ShiftTypeOff
   | typeof ShiftTypePaidLeave;
 
-/** 休憩時間 */
-export interface ShiftBreak {
-  id: string;
-  break_start: string;
-  break_end: string;
-}
-
 /** UI-facing shift (string IDs — post-transform) */
 export type { Shift } from "../api/transforms";
 
@@ -71,7 +64,7 @@ export interface ShiftStaff {
 // ─── シフトテンプレート型 ────────────────────────────────────────────────
 
 /** バックエンド ShiftTemplateBreak の UI 型 */
-export interface ShiftTemplateBreak {
+interface ShiftTemplateBreak {
   id: string;
   shift_template_id: string;
   break_start: string;

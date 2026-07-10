@@ -85,7 +85,7 @@ export interface BulkReorderTreatmentsInput {
 // ── BillingConfirmation (会計医師確認) ──────────────────────────────────────
 
 /** 会計医師確認ステータス @see {@link import("@/types/generated/models").ConfirmationStatus} */
-export type ConfirmationStatus = 'pending' | 'confirmed' | 'returned';
+type ConfirmationStatus = 'pending' | 'confirmed' | 'returned';
 
 /** 会計医師確認レコード */
 export interface BillingConfirmation {

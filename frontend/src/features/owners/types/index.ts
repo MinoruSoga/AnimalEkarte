@@ -7,13 +7,12 @@
  * @see {@link import("@/types/generated/models").MembershipType} — Backend enum (英語値)
  */
 export const PET_GENDER_VALUES = ["雄", "雌", "不明"] as const;
-export type PetGender = (typeof PET_GENDER_VALUES)[number];
 
 export const ACQUISITION_TYPE_VALUES = ["購入", "譲渡", "保護", "その他"] as const;
-export type AcquisitionType = (typeof ACQUISITION_TYPE_VALUES)[number];
+type AcquisitionType = (typeof ACQUISITION_TYPE_VALUES)[number];
 
 export const DANGER_LEVEL_VALUES = ["低", "中", "高"] as const;
-export type DangerLevel = (typeof DANGER_LEVEL_VALUES)[number];
+type DangerLevel = (typeof DANGER_LEVEL_VALUES)[number];
 
 // Owner-related type constants and definitions
 export const MEMBERSHIP_TYPE_VALUES = ["非会員", "会員", "退亡者", "他診/準"] as const;
