@@ -122,8 +122,9 @@ function AutoManagedPrefixesSection() {
 
       <div className="flex gap-2 items-end">
         <div className="flex flex-col gap-1">
-          <label className={`text-xs ${C.text50}`}>プレフィックス</label>
+          <label htmlFor="amp-prefix" className={`text-xs ${C.text50}`}>プレフィックス</label>
           <input
+            id="amp-prefix"
             type="text"
             value={prefix}
             onChange={(e) => setPrefix(e.target.value)}
@@ -132,8 +133,9 @@ function AutoManagedPrefixesSection() {
           />
         </div>
         <div className="flex flex-col gap-1">
-          <label className={`text-xs ${C.text50}`}>カテゴリ</label>
+          <label htmlFor="amp-category" className={`text-xs ${C.text50}`}>カテゴリ</label>
           <input
+            id="amp-category"
             type="text"
             value={category}
             onChange={(e) => setCategory(e.target.value)}
@@ -227,8 +229,9 @@ function ConditionTagMappingsSection() {
 
       <div className="flex gap-2 items-end">
         <div className="flex flex-col gap-1">
-          <label className={`text-xs ${C.text50}`}>疾患コード</label>
+          <label htmlFor="ctm-condition-code" className={`text-xs ${C.text50}`}>疾患コード</label>
           <input
+            id="ctm-condition-code"
             type="text"
             value={conditionCode}
             onChange={(e) => setConditionCode(e.target.value)}
@@ -237,8 +240,9 @@ function ConditionTagMappingsSection() {
           />
         </div>
         <div className="flex flex-col gap-1">
-          <label className={`text-xs ${C.text50}`}>タグ名</label>
+          <label htmlFor="ctm-tag-name" className={`text-xs ${C.text50}`}>タグ名</label>
           <input
+            id="ctm-tag-name"
             type="text"
             value={tagName}
             onChange={(e) => setTagName(e.target.value)}
@@ -332,8 +336,9 @@ function SendPurposeTagPrefixesSection() {
 
       <div className="flex gap-2 items-end">
         <div className="flex flex-col gap-1">
-          <label className={`text-xs ${C.text50}`}>送信目的</label>
+          <label htmlFor="sp-purpose" className={`text-xs ${C.text50}`}>送信目的</label>
           <input
+            id="sp-purpose"
             type="text"
             value={purpose}
             onChange={(e) => setPurpose(e.target.value)}
@@ -342,8 +347,9 @@ function SendPurposeTagPrefixesSection() {
           />
         </div>
         <div className="flex flex-col gap-1">
-          <label className={`text-xs ${C.text50}`}>タグプレフィックス</label>
+          <label htmlFor="sp-tag-prefix" className={`text-xs ${C.text50}`}>タグプレフィックス</label>
           <input
+            id="sp-tag-prefix"
             type="text"
             value={tagPrefix}
             onChange={(e) => setTagPrefix(e.target.value)}

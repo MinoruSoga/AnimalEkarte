@@ -150,8 +150,9 @@ export function CheckupSyncFilterForm({
 
         {/* 動物種 */}
         <div className="space-y-1.5">
-          <label className={STYLE.formLabel}>動物種（任意）</label>
+          <label htmlFor="species" className={STYLE.formLabel}>動物種（任意）</label>
           <input
+            id="species"
             type="text"
             name="species"
             placeholder="例: dog, cat"
@@ -161,8 +162,9 @@ export function CheckupSyncFilterForm({
 
         {/* 最終来院日 from */}
         <div className="space-y-1.5">
-          <label className={STYLE.formLabel}>最終来院日（以降・任意）</label>
+          <label htmlFor="last_visit_after" className={STYLE.formLabel}>最終来院日（以降・任意）</label>
           <input
+            id="last_visit_after"
             type="date"
             name="last_visit_after"
             className={`w-full ${STYLE.formInput} border rounded-[4px] px-3`}
@@ -171,8 +173,9 @@ export function CheckupSyncFilterForm({
 
         {/* 最終来院日 to */}
         <div className="space-y-1.5">
-          <label className={STYLE.formLabel}>最終来院日（以前・任意）</label>
+          <label htmlFor="last_visit_before" className={STYLE.formLabel}>最終来院日（以前・任意）</label>
           <input
+            id="last_visit_before"
             type="date"
             name="last_visit_before"
             className={`w-full ${STYLE.formInput} border rounded-[4px] px-3`}
@@ -181,8 +184,9 @@ export function CheckupSyncFilterForm({
 
         {/* ISSUE-009: 年齢（最小） */}
         <div className="space-y-1.5">
-          <label className={STYLE.formLabel}>年齢 最小（任意・歳）</label>
+          <label htmlFor="min_age_years" className={STYLE.formLabel}>年齢 最小（任意・歳）</label>
           <input
+            id="min_age_years"
             type="number"
             name="min_age_years"
             min={0}
@@ -194,8 +198,9 @@ export function CheckupSyncFilterForm({
 
         {/* ISSUE-009: 年齢（最大） */}
         <div className="space-y-1.5">
-          <label className={STYLE.formLabel}>年齢 最大（任意・歳）</label>
+          <label htmlFor="max_age_years" className={STYLE.formLabel}>年齢 最大（任意・歳）</label>
           <input
+            id="max_age_years"
             type="number"
             name="max_age_years"
             min={0}
@@ -240,8 +245,9 @@ export function CheckupSyncFilterForm({
 
         {/* ISSUE-009: 累計診療費（最小） */}
         <div className="space-y-1.5">
-          <label className={STYLE.formLabel}>累計診療費（最小・円）</label>
+          <label htmlFor="min_total_amount" className={STYLE.formLabel}>累計診療費（最小・円）</label>
           <input
+            id="min_total_amount"
             type="number"
             name="min_total_amount"
             min={0}
@@ -253,8 +259,9 @@ export function CheckupSyncFilterForm({
 
         {/* ISSUE-009: 年間来院回数（最小） */}
         <div className="space-y-1.5">
-          <label className={STYLE.formLabel}>年間来院回数（最小・回）</label>
+          <label htmlFor="min_annual_visit_count" className={STYLE.formLabel}>年間来院回数（最小・回）</label>
           <input
+            id="min_annual_visit_count"
             type="number"
             name="min_annual_visit_count"
             min={0}
@@ -266,8 +273,9 @@ export function CheckupSyncFilterForm({
 
         {/* ISSUE-009: 最終健診実施日 from */}
         <div className="space-y-1.5">
-          <label className={STYLE.formLabel}>最終健診実施日（以降・任意）</label>
+          <label htmlFor="last_checkup_after" className={STYLE.formLabel}>最終健診実施日（以降・任意）</label>
           <input
+            id="last_checkup_after"
             type="date"
             name="last_checkup_after"
             className={`w-full ${STYLE.formInput} border rounded-[4px] px-3`}
@@ -276,8 +284,9 @@ export function CheckupSyncFilterForm({
 
         {/* ISSUE-009: 最終健診実施日 to */}
         <div className="space-y-1.5">
-          <label className={STYLE.formLabel}>最終健診実施日（以前・任意）</label>
+          <label htmlFor="last_checkup_before" className={STYLE.formLabel}>最終健診実施日（以前・任意）</label>
           <input
+            id="last_checkup_before"
             type="date"
             name="last_checkup_before"
             className={`w-full ${STYLE.formInput} border rounded-[4px] px-3`}

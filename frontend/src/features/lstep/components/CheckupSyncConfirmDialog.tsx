@@ -57,11 +57,12 @@ export function CheckupSyncConfirmDialog({
         <div className="space-y-4 py-1">
           {/* タグ名入力 */}
           <div className="space-y-1.5">
-            <label className={STYLE.formLabel}>
+            <label htmlFor="checkup-sync-tag-name" className={STYLE.formLabel}>
               付与するタグ名
               <span className={`ml-1 ${C.textRequired}`}>*</span>
             </label>
             <input
+              id="checkup-sync-tag-name"
               type="text"
               value={tagName}
               onChange={(e) => onTagNameChange(e.target.value)}

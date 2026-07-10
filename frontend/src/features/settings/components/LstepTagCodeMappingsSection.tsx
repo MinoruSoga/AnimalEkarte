@@ -110,8 +110,9 @@ function EntryEditRow({
   return (
     <div className="flex gap-2 items-end">
       <div className="flex flex-col gap-1 w-36 shrink-0">
-        <label className={`text-xs ${C.text60}`}>コード種別</label>
+        <label htmlFor={`code-type-${entry.id}`} className={`text-xs ${C.text60}`}>コード種別</label>
         <input
+          id={`code-type-${entry.id}`}
           type="text"
           value={entry.code_type}
           onChange={(e) => onChange({ ...entry, code_type: e.target.value })}
@@ -120,8 +121,9 @@ function EntryEditRow({
         />
       </div>
       <div className="flex flex-col gap-1 flex-1">
-        <label className={`text-xs ${C.text60}`}>コード（カンマ区切り）</label>
+        <label htmlFor={`codes-text-${entry.id}`} className={`text-xs ${C.text60}`}>コード（カンマ区切り）</label>
         <input
+          id={`codes-text-${entry.id}`}
           type="text"
           value={entry.codes_text}
           onChange={(e) => onChange({ ...entry, codes_text: e.target.value })}
