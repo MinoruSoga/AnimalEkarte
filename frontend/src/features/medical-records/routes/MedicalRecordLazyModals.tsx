@@ -11,3 +11,7 @@ export const VitalsModal = lazy(() =>
 export const OwnerSearchModal = lazy(() =>
   import("@/components/shared/OwnerSearchModal/OwnerSearchModal").then((m) => ({ default: m.OwnerSearchModal })),
 );
+
+export const ExaminationImportDialog = lazy(() =>
+  import("../components/ExaminationImportDialog").then((m) => ({ default: m.ExaminationImportDialog })),
+);

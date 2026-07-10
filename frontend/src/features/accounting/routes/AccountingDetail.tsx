@@ -1,4 +1,4 @@
-import { useState, useMemo, memo, useTransition } from "react";
+import { useState, useMemo, memo, useTransition, lazy, Suspense } from "react";
 import { useParams, useNavigate, useLocation } from "react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
@@ -17,7 +17,6 @@ import {
   ReadOnlyAccountingBanner,
   UngroupedItemsWarningBanner,
 } from "../components/AccountingDetailPanels";
-import { CreditCorrectionDialog } from "../components/CreditCorrectionDialog";
 import { useAccountingCompletionAction } from "../hooks/use-accounting-completion-action";
 import { useAccountingDetailState } from "../hooks/use-accounting-detail-state";
 import { useAccountingItemActions } from "../hooks/use-accounting-item-actions";
@@ -25,6 +24,10 @@ import { useAccountingSettlementActions } from "../hooks/use-accounting-settleme
 import type { AccountingItem } from "../types";
 import { ResourceAccounting, ResourceAccountingCancel, ResourceAccountingPostCloseEdit } from "@/types/generated/models";
 import { useGetCashRegisterCloses } from "@/hooks/use-cash-register-closes";
+
+const CreditCorrectionDialog = lazy(() =>
+  import("../components/CreditCorrectionDialog").then((m) => ({ default: m.CreditCorrectionDialog })),
+);
 
 interface AccountingDetailProps {
   invoiceRegistrationNumber?: string;
@@ -206,7 +209,9 @@ export const AccountingDetail = memo(function AccountingDetail({ invoiceRegistra
               CreditCorrectionDialog は確定済み(completed)かつカード支払いが無ければ自動で null を返す。 */}
           {id && canPostCloseEdit ? (
             <div className="px-4 pb-4">
-              <CreditCorrectionDialog accounting={accounting} isPostClose={isScheduledDateClosed} />
+              <Suspense fallback={null}>
+                <CreditCorrectionDialog accounting={accounting} isPostClose={isScheduledDateClosed} />
+              </Suspense>
             </div>
           ) : null}
 
