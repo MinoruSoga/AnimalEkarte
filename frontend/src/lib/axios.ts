@@ -1,27 +1,8 @@
 import Axios, { type InternalAxiosRequestConfig, type AxiosError } from "axios";
 import { getStoredClinicId } from "@/lib/current-clinic";
+import { sanitizeNullBytes } from "@/lib/sanitize";
 
 const API_URL = import.meta.env.VITE_API_URL || "/api";
-
-/**
- * BUG-067: NULL バイト（\u0000）を再帰的に除去する。
- * PostgreSQL は NULL バイトを含む文字列を受け付けないため 500 エラーになる。
- */
-function sanitizeNullBytes(value: unknown): unknown {
-  if (typeof value === "string") {
-    // eslint-disable-next-line no-control-regex -- NULL バイト除去のため意図的に制御文字を使用
-    return value.replace(/\u0000/g, "");
-  }
-  if (Array.isArray(value)) {
-    return value.map(sanitizeNullBytes);
-  }
-  if (value !== null && typeof value === "object") {
-    return Object.fromEntries(
-      Object.entries(value as Record<string, unknown>).map(([k, v]) => [k, sanitizeNullBytes(v)])
-    );
-  }
-  return value;
-}
 
 function safeFromPath(path: string): string {
   if (path === "") {

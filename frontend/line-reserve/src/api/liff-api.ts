@@ -1,4 +1,4 @@
-import axios from 'axios';
+import axios, { type InternalAxiosRequestConfig } from 'axios';
 import type {
   LiffSettings,
   LiffProfile,
@@ -13,10 +13,23 @@ import type {
   TrimmingOption,
 } from '../types/models';
 import { API_BASE_URL } from '../lib/liff-config';
+import { sanitizeNullBytes } from '@/lib/sanitize';
 
 const httpClient = axios.create({
   baseURL: API_BASE_URL,
 });
+
+// R-F20: BUG-067 と同一クラスの障害を防ぐため、POST/PATCH/PUT のリクエストボディから
+// NULL バイトを除去する（メインアプリの axios.ts と同じサニタイズロジックを共有利用）。
+function sanitizeRequestBody(config: InternalAxiosRequestConfig): InternalAxiosRequestConfig {
+  const method = config.method?.toLowerCase();
+  if ((method === 'post' || method === 'patch' || method === 'put') && config.data) {
+    config.data = sanitizeNullBytes(config.data);
+  }
+  return config;
+}
+
+httpClient.interceptors.request.use(sanitizeRequestBody);
 
 function authHeaders(idToken: string) {
   return { Authorization: `Bearer ${idToken}` };
