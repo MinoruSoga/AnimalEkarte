@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { C } from "@/lib/design-tokens";
+import { calcAgeAt } from "@/lib/calc-age";
 import { PetDeceasedDialog } from "./PetDeceasedDialog";
 import { PetDeceasedBanner } from "./PetDeceasedBanner";
 
@@ -13,19 +14,6 @@ interface PetDeceasedRecordButtonProps {
   canEdit?: boolean;
 }
 
-export function calcAge(birthDate: string): string {
-  const birth = new Date(birthDate);
-  const now = new Date();
-  let age = now.getFullYear() - birth.getFullYear();
-  const hasBirthdayPassed =
-    now.getMonth() > birth.getMonth() ||
-    (now.getMonth() === birth.getMonth() && now.getDate() >= birth.getDate());
-  if (!hasBirthdayPassed) {
-    age -= 1;
-  }
-  return `${Math.max(0, age)}歳`;
-}
-
 export function PetDeceasedRecordButton({
   petId,
   petName,
@@ -37,7 +25,7 @@ export function PetDeceasedRecordButton({
 }: PetDeceasedRecordButtonProps) {
   const [dialogOpen, setDialogOpen] = useState(false);
 
-  const petAge = birthDate ? calcAge(birthDate) : undefined;
+  const petAge = birthDate ? `${calcAgeAt(new Date(), birthDate)}歳` : undefined;
 
   if (deceasedAt) {
     return (

@@ -1,5 +1,6 @@
 import { useState, useRef } from "react";
 import { C } from "@/lib/design-tokens";
+import { calcAgeAt } from "@/lib/calc-age";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { useRevokePetDeath } from "@/hooks/use-revoke-pet-death";
 
@@ -8,20 +9,6 @@ interface PetDeceasedBannerProps {
   birthDate?: string;
   petId: string;
   canEdit?: boolean;
-}
-
-export function calcAge(deceasedAt: string, birthDate: string): number {
-  const deceased = new Date(deceasedAt);
-  const birth = new Date(birthDate);
-  let age = deceased.getFullYear() - birth.getFullYear();
-  const hasBirthdayPassed =
-    deceased.getMonth() > birth.getMonth() ||
-    (deceased.getMonth() === birth.getMonth() &&
-      deceased.getDate() >= birth.getDate());
-  if (!hasBirthdayPassed) {
-    age -= 1;
-  }
-  return Math.max(0, age);
 }
 
 function formatDeceasedDate(deceasedAt: string): string {
@@ -42,7 +29,7 @@ export function PetDeceasedBanner({
   const revokeButtonRef = useRef<HTMLButtonElement>(null);
   const mutation = useRevokePetDeath();
 
-  const age = birthDate ? calcAge(deceasedAt, birthDate) : null;
+  const age = birthDate ? calcAgeAt(deceasedAt, birthDate) : null;
   const formattedDate = formatDeceasedDate(deceasedAt);
 
   const handleRevokeConfirm = () => {

@@ -12,8 +12,6 @@
 
 | 項目 | 理由 |
 |------|------|
-| R-F17 統合フェーズ（`calcAgeAt` 共通化） | 挙動変更を伴うため別 `fix:` |
-| master `useMasterSave` の validationError サイレント握りつぶし | 回帰テストで固定済み。修正は別チケット |
 | `dangerouslySetInnerHTML` / PrintPortal XSS 監査 | セキュリティレビュー別途 |
 | クリニック切替時の React Query `clinic_id` キャッシュ境界 | 未検証（要調査） |
 | FE zod と Backend バリデーションの二重管理 | architect 判断が必要 |
