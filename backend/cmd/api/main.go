@@ -87,23 +87,9 @@ func main() {
 		FrontendURL: cfg.FrontendURL,
 	}, integrationCipher)
 
-	svcs.LstepSettings = service.NewLstepSettingsService(repos.LstepSettings, repos.LstepSyncSettings, integrationCipher, svcs.Audit, repos.ClinicSettings)
-	svcs.LstepTagSync = service.NewLstepTagSyncService(
-		svcs.LstepSettings,
-		repos.Owner,
-		repos.Vaccination,
-		repos.MedicalRecord,
-		repos.Accounting,
-		repos.LstepTagCache,
-		repos.Pet,
-		repos.Prescription,
-		repos.Checkup,
-		repos.Reservation,
-		repos.LstepSyncErrorCounter,
-		repos.LstepTagCodeMapping,
-		repos.BillingItem,
-		repos.LstepTagConfig,
-	)
+	// X-2: LstepSettings / LstepTagSync は NewServices が integrationCipher で正しく構築済み
+	// （service.go 参照）。ここでの再構築は不要かつ、Owner/Pet/Accounting/Vaccination/
+	// Prescription/Aggregation が保持する既存インスタンスと二重化するだけなので削除した。
 	svcs.LstepLifecycle = service.NewLstepLifecycleService(
 		svcs.LstepSettings,
 		repos.Owner,
