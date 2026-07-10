@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import type { PageType, LiffSettings, LiffProfile, CustomerInfo } from './types/models';
 import { liffApi } from './api/liff-api';
-import { useLiff } from './hooks/use-liff';
+import { useLiff } from '@/shared-liff/use-liff';
 import { useReservationFlow } from './hooks/use-reservation-flow';
 import { getClinicId } from './lib/liff-config';
 

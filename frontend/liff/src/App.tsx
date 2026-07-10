@@ -1,4 +1,4 @@
-import { useLiff } from './hooks/use-liff';
+import { useLiff } from '@/shared-liff/use-liff';
 import { LIFF_ID } from './lib/liff-config';
 import { LoadingPage } from './pages/LoadingPage';
 import { ErrorPage } from './pages/ErrorPage';

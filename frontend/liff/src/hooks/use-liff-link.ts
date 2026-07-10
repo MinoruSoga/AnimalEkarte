@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useLiff } from './use-liff';
+import { useLiff } from '@/shared-liff/use-liff';
 import { LIFF_ID, LIFF_MOCK } from '../lib/liff-config';
 import { linkLineAccount, LiffApiError } from '../api/liff-api';
 
