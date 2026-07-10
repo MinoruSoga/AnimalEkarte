@@ -7,7 +7,7 @@
 - **URLパターン**: 
   - 新規登録: `/owners/new`
   - 編集: `/owners/:id`
-- **アクセス権限**: 認証済ユーザー全員（操作権限は `usePermission` で制御）
+- **アクセス権限**: 新規登録 (`/owners/new`) は `owners:create` を要求する `RequirePermission` ルートガードあり。編集 (`/owners/:id`) は親ルート `/owners` の `owners:view` ガードのみを継承し、保存可否（`fieldset disabled`）は `usePermission` によるコンポーネント内制御。
 
 ---
 
@@ -32,9 +32,13 @@ Notion スタイルの 4 カラムグリッドを採用し、臨床現場での�
 | **行動・安全属性** | **危険度 (`danger_level`)**: 咬癖や攻撃性がある場合、`高 / 中 / 低` で設定。一覧画面で警告が表示されます。 |
 | **医療背景** | 常用フード、飼育環境（室内/屋外）、加入保険（マスタ選択）。 |
 
-### 1.3 LINE/Lステップ連携セクション (編集時のみ)
+- **飼主変更 (BUG-373)**: `PetEditModal` からペットの紐付け先飼主を変更可能（`PATCH /api/v1/pets/:id` の `owner_id`）。変更先飼主の値引率/会員区分が現飼主と異なる場合、会計金額への影響を警告する確認モーダルを挟んでから確定する。
+
+### 1.3 LINE/Lステップ連携セクション (編集時のみ、`LineIntegrationCard`)
 - **紐付け状況**: LINE User ID の取得状態をリアルタイム表示。
-- **配信制御**: 「配信除外」スイッチによる、リマインドの一時停止機能。
+- **配信除外**: 「配信除外」スイッチによる、リマインドの一時停止機能（`PATCH /clinics/:clinicId/owners/:id/delivery-exclusion`）。
+- **配信注意フラグ**: リマインドを止めずに注意喚起のみ行うフラグ＋理由メモ（`PATCH /clinics/:clinicId/owners/:id/delivery-caution`）。配信除外とは独立した別スイッチ。
+- **転院ステータス**: 転院済みフラグの切替（`PATCH /clinics/:clinicId/owners/:id/transfer-status`）。
 - **個別メッセージ送信**: 
     - **`LineSendPanel`**: サイドパネルから特定の飼い主へ直接 LINE メッセージを送信。
     - **ファイル共有**: 血液検査結果などの PDF や画像をアップロードし、LINE 経由で共有可能（**`shared_files`** ストレージ連携）。
@@ -75,5 +79,8 @@ Notion スタイルの 4 カラムグリッドを採用し、臨床現場での�
 | GET | `/api/v1/clinics/:clinicId/owners/:id/line/send-logs` | LINEメッセージ送信履歴取得（`pending` 行がある間は5秒間隔でポーリング） | `owners` | `view` |
 | PATCH | `/api/v1/clinics/:clinicId/owners/:id/line-user-id` | LINE User ID の手動設定・解除 | `owners` | `edit` |
 | PATCH | `/api/v1/clinics/:clinicId/owners/:id/line-id-confirm` | LINE ID 確認の記録 | `owners` | `edit` |
+| PATCH | `/api/v1/clinics/:clinicId/owners/:id/delivery-exclusion` | 配信除外フラグの切替 | `owners` | `edit` |
+| PATCH | `/api/v1/clinics/:clinicId/owners/:id/delivery-caution` | 配信注意フラグ・理由の切替 | `owners` | `edit` |
+| PATCH | `/api/v1/clinics/:clinicId/owners/:id/transfer-status` | 転院ステータスの切替 | `owners` | `edit` |
 
 ---

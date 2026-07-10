@@ -116,7 +116,9 @@ while IFS= read -r doc; do
       # CamelCase コンポーネント/型名 or use* フック名
       in_allowlist "$w" && continue
       checked_tokens=$((checked_tokens + 1))
-      if ! grep -qF "$w" "$CORPUS"; then
+      # -w: 単語境界一致。部分文字列一致だと「実在しない PetSelectionPage が
+      # 実在する usePetSelectionPage の内部にマッチしてすり抜ける」ため必須。
+      if ! grep -qwF "$w" "$CORPUS"; then
         fail "$rel: シンボル \`$w\` がソースコードに存在しない"
       fi
     elif [[ "$w" =~ ^[a-zA-Z0-9_-]+\.(ts|tsx|go|mjs)$ ]]; then
@@ -160,7 +162,7 @@ check_number() {
 if [[ -f "$ROOT/backend/migrations/001_init.sql" ]]; then
   tables="$(grep -c '^CREATE TABLE' "$ROOT/backend/migrations/001_init.sql" || true)"
   check_number "テーブル数" "$tables" '全[^0-9]{0,6}[0-9]+[^0-9]{0,6}テーブル|[0-9]+ Tables' \
-    "$ROOT/docs/ERD.md" "$ROOT/docs/README.md" "$ROOT/docs/SPECIFICATION.md"
+    "$ROOT/docs/ERD.md" "$ROOT/docs/README.md" "$ROOT/docs/SPECIFICATION.md" "$DOCS_SCREENS/README.md"
   check_number "テーブル数" "$tables" '[0-9]+ テーブル' \
     "$ROOT/docs/architecture.md"
 fi
@@ -169,7 +171,7 @@ fi
 if [[ -f "$ROOT/backend/internal/model/permission.go" ]]; then
   resources="$(grep -cE '^	Resource[A-Za-z0-9]+ +Resource += ' "$ROOT/backend/internal/model/permission.go" || true)"
   check_number "権限リソース数" "$resources" '[0-9]+ ?種類のリソース|[0-9]+ Resources|全[^0-9]{0,4}[0-9]+[^0-9]{0,4}リソース' \
-    "$ROOT/docs/AUTH.md" "$ROOT/docs/README.md"
+    "$ROOT/docs/AUTH.md" "$ROOT/docs/README.md" "$DOCS_SCREENS/README.md"
 fi
 
 # 3c. ハンドラー数（正 = *_handler.go のファイル数）

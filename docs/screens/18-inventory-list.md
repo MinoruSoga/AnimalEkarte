@@ -40,6 +40,6 @@
 | メソッド | エンドポイント | 用途 | 必須権限 | 必須アクション |
 |:---|:---|:---|:---|:---|
 | GET | `/api/v1/inventory` | 条件に応じた在庫一覧の取得 | `inventory` | `view` |
-| DELETE | `/api/v1/inventory/:id` | 在庫品目の論理削除 | `inventory` | `delete` |
+| DELETE | `/api/v1/inventory/:id` | 在庫品目の論理削除（バックエンドには実装済みだが、`InventoryList`/`InventoryForm` に削除UIは未実装のため現状フロントエンドから未呼出） | `inventory` | `delete` |
 
 ---

@@ -6,7 +6,7 @@
 - **画面の目的**: 診療記録、入院、トリミング、会計等の各機能において、新規データ作成の対象となるペットを検索・特定するための中間ページ。
 - **URLパターン**: `/:feature/select-pet`
   - 例: `/medical-records/select-pet`, `/hospitalization/select-pet` 等
-- **アクセス権限**: 認証済ユーザー全員（操作権限は `usePermission` で制御）
+- **アクセス権限**: 遷移元機能の `<Resource>:create` 権限（`RequirePermission` によるルートガード）。例: `/medical-records/select-pet` は `ResourceMedicalRecords` の `create` アクションを要求。
 
 ---
 
@@ -31,13 +31,16 @@ Notionスタイルのプロパティ編集UIを採用し、入力と同時に結
 
 | カラム | 説明 |
 |:---|:---|
-| **飼主No / 氏名** | 飼い主の基本情報。 |
+| **飼主No / 飼主名** | 飼い主の基本情報（別カラム）。 |
 | **ペット番号** | クリニック独自の患者番号。 |
-| **ペット名 / 生死** | 生存/死亡ステータスをバッジで表示（死亡時は行がグレーアウト）。 |
-| **種別 / 生年月日** | 基本属性。 |
+| **ペット名** | ペットの名称。 |
+| **生死** | 生存/死亡ステータスをバッジで表示（死亡時は行がグレーアウト）。 |
+| **種** | 動物種別。 |
+| **生年月日** | 基本属性。 |
 | **体重** | 最新の計測値。 |
 | **環境** | 室内/室外等の飼育環境。 |
 | **前回来院** | 最終診療日。 |
+| **操作** | 選択ボタン（死亡ペットは「選択不可」表示で無効化）。 |
 
 ---
 
@@ -55,8 +58,9 @@ Notionスタイルのプロパティ編集UIを採用し、入力と同時に結
 ## 技術仕様
 
 ### 使用コンポーネント
-- **`PetSelectionPage`**: 合成用コンテナ。
-- **`usePetSelectionPage`**: 検索フィルタリングとナビゲーションのコアロジック。
+- 機能ごとの合成用コンテナ（例: `MedicalRecordPetSelection`, `HospitalizationPetSelection`, `AccountingPetSelection` 等、7 機能に個別実装）が以下を組み合わせる。
+- **`PetSelectionSearchForm`**: 検索条件パネル。
+- **`usePetSelectionPage`**: 検索フィルタリングとナビゲーションのコアロジック（`frontend/src/hooks/use-pet-selection-page.ts`）。
 - **`PetSelectionResultsTable`**: `memo` 化された高速な一覧表示部品。
 
 ### API連携

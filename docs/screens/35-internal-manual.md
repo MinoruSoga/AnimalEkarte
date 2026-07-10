@@ -50,7 +50,7 @@
 |:---|:---|:---|:---|:---|
 | GET | `/api/v1/manual/articles` | 記事メタデータの一覧取得 | `manual-edit` | `view` |
 | GET | `/api/v1/manual/articles/:category/:slug` | 特定の記事（コンテンツ）の取得 | `manual-edit` | `view` |
-| GET | `/api/v1/manual/articles/:category/:slug/versions` | 特定の記事のバージョン履歴一覧取得 | `manual-edit` | `view` |
+| GET | `/api/v1/manual/articles/:category/:slug/versions` | 特定の記事のバージョン履歴一覧取得（BE実装済みだがフロントエンドからは未呼出） | `manual-edit` | `view` |
 | PUT | `/api/v1/manual/articles/:category/:slug` | 記事の追加・更新 | `manual-edit` | `edit` |
 | DELETE | `/api/v1/manual/articles/:category/:slug` | 記事の削除 | `manual-edit` | `delete` |
 

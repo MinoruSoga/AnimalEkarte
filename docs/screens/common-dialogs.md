@@ -8,15 +8,16 @@
 ## 1. 臨床安全・ナビゲーション
 
 ### 1.1 患者情報カード (`PatientInfoCard`)
-全診療・入院画面の最上部に常駐する「単一の真実」。
+トリミング・定期健診・検査・入院・予防接種の各フォーム画面上部に常駐する「単一の真実」（`features/trimming`, `features/checkups`, `features/examinations`, `features/hospitalization`, `features/vaccinations`）。
 - **臨床アラート**: 死亡 (`deceased`) ステータスを【死亡】バッジで強調。
 - **属性表示**: 名前、年齢、性別、最新体重、担当医、保険、次回来院予定。
 - **クイックアクション**: 飼主名クリックでの `OwnerSearchModal` 起動（付け替え）、担当医クリックでの変更。
+- **例外**: カルテ画面（06-medical-records-form.md）は `PatientInfoCard` を使わず、専用の `MedicalRecordStickyHeader` が同等の飼主/担当医クリック導線を独自実装している。
 
 ### 1.2 離脱防止ガード (`NavigationBlocker`)
-React Router 7 の機能を活用し、入力データの損失を物理的に防ぎます。
+React Router 7 の `useBlocker` を活用し、入力データの損失を物理的に防ぎます。
 - **トリガー**: フォーム変更（`isDirty`）がある状態でのページ離脱。
-- **挙動**: ブラウザのネイティブまたはカスタムダイアログで「変更を破棄しますか？」を確認。
+- **挙動**: SPA内遷移はカスタム`ConfirmDialog`（`NavigationBlocker`自身）で確認。タブを閉じる/リロード等のブラウザレベル離脱はネイティブの `beforeunload` ダイアログで確認（こちらは併用する `useUnsavedChanges` フックが担当し、`NavigationBlocker` 単体の機能ではない）。
 
 ---
 
@@ -29,10 +30,11 @@ React Router 7 の機能を活用し、入力データの損失を物理的に�
 
 ### 2.2 飼主検索・付け替え (`OwnerSearchModal`)
 既存カルテの飼主を誤って登録した場合や、譲渡時の変更に使用します。
-- **安全確認**: 会員区分や値引率が異なる飼主への変更時、金額変動の警告ダイアログを表示。
+- **安全確認**: `OwnerSearchModal` 自身は選択のたびに汎用の「飼主を変更しますか？」確認を無条件で表示する（値引率・会員区分の差異は判定しない）。会員区分・値引率が異なる場合の金額変動警告（BUG-373）は呼び出し元（`OwnerForm.tsx` の `handlePetChangeOwner`）側の別ロジックであり、`OwnerSearchModal` の機能ではない。
 
 ### 2.3 担当医選択 (`StaffSelectionModal`)
 稼働中（在職）スタッフを職種別にグルーピングし、名前検索で臨床担当者を割り当てます。
+- **注**: 実装は `features/medical-records/components/StaffSelectionModal.tsx` にあり、現状カルテ画面（`MedicalRecordForm`）専用。他画面から共有利用されているコンポーネントではない。
 
 ---
 
@@ -51,6 +53,6 @@ Notion の操作感を踏襲したボーダーレス入力。
 ## 4. 技術仕様 (Common Standards)
 
 - **アクセシビリティ**: 全てのモーダルは WAI-ARIA 準拠。`ESC` キーでの終了、フォーカストラップを完備。
-- **パフォーマンス**: 頻繁に再描画される親画面の影響を避けるため、主要な共有部品は全て `memo()` 化されています。
+- **パフォーマンス**: 頻繁に再描画される親画面の影響を避けるため、主要なモーダル・カード系部品（`PatientInfoCard`, `OwnerSearchModal`, `TreatmentSearchDialog`, `StaffSelectionModal`, `PropertyFilter` 等）は `memo()` 化されています。ただし本ページで扱う `PropertyInput` と `NavigationBlocker` は非 `memo()`。
 
 ---

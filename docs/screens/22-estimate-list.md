@@ -38,7 +38,7 @@
 
 ### 3.1 描画の最適化
 - **遅延フィルタリング**: `useDeferredValue` により、多数の見積履歴を検索する際も軽快な入力を維持。
-- **透過インジケータ**: フィルタ処理中は `FilteringIndicator` により状態を通知。
+- **削除の非同期処理**: 削除確定は `useTransition` でラップし、`ConfirmDialog` の `isPending` によりボタンの二重クリックを防止（`FilteringIndicator` は本画面では未使用）。
 
 ### API連携
 | メソッド | エンドポイント | 用途 | 必須権限 | 必須アクション |

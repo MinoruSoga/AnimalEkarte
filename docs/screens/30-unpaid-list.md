@@ -47,7 +47,7 @@
 |:---|:---|:---|:---|:---|
 | GET | `/api/v1/accountings/unpaid` | 基準日・単位に応じた未納データの集計取得 | `accounting` | `view` |
 | GET | `/api/v1/accountings/unpaid-monthly` | 月次未納繰越集計の取得 | `accounting` | `view` |
-| GET | `/api/v1/accountings/unpaid-balance` | 特定飼主の未入金残高と件数の取得 | `accounting` | `view` |
+| GET | `/api/v1/accountings/unpaid-balance` | 特定飼主の未入金残高と件数の取得（本画面からは未呼出。実際は会計詳細画面 `/accounting/:id` の `OwnerUnpaidBalanceCard` から呼び出される） | `accounting` | `view` |
 
 ---
 
