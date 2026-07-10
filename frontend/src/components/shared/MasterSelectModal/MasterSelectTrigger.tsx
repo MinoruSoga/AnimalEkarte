@@ -31,10 +31,11 @@ export const MasterSelectTrigger = memo(function MasterSelectTrigger({
     // --- Selected state ---
     if (variant === "block") {
       return (
-        <div
+        <button
           id={id}
+          type="button"
           onClick={onClick}
-          className={`p-3 border ${C.borderPrimary} ${C.bgPage} rounded-md cursor-pointer ${C.hoverBgPage} transition-colors`}
+          className={`w-full p-3 border ${C.borderPrimary} ${C.bgPage} rounded-md cursor-pointer ${C.hoverBgPage} transition-colors text-left`}
         >
           <div className="flex items-center justify-between">
             <div>
@@ -52,16 +53,17 @@ export const MasterSelectTrigger = memo(function MasterSelectTrigger({
               <ChevronRight className={`${ICON.xs}`} />
             </div>
           </div>
-        </div>
+        </button>
       );
     }
 
     // inline variant
     return (
-      <div
+      <button
         id={id}
+        type="button"
         onClick={onClick}
-        className={`h-11 px-3 border ${C.borderPrimary} ${C.bgPage} rounded-md cursor-pointer ${C.hoverBgPage} transition-colors flex items-center justify-between`}
+        className={`w-full h-11 px-3 border ${C.borderPrimary} ${C.bgPage} rounded-md cursor-pointer ${C.hoverBgPage} transition-colors flex items-center justify-between text-left`}
       >
         <div className="flex items-center gap-2 min-w-0">
           <span className={`text-sm ${C.text} truncate`}>
@@ -77,7 +79,7 @@ export const MasterSelectTrigger = memo(function MasterSelectTrigger({
           <span>変更</span>
           <ChevronRight className={`${ICON.xs}`} />
         </div>
-      </div>
+      </button>
     );
   }
 

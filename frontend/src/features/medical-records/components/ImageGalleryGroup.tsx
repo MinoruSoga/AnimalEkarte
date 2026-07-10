@@ -63,8 +63,18 @@ export const ImageGalleryGroup = memo(function ImageGalleryGroup({
           return (
             <div
               key={img.id}
+              role="button"
+              tabIndex={0}
+              aria-label={`${img.name}を開く`}
               className="flex flex-col gap-1 w-[160px] group relative cursor-pointer"
               onClick={() => handleImageClick(img.src)}
+              onKeyDown={(e) => {
+                if (e.target !== e.currentTarget) return;
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  handleImageClick(img.src);
+                }
+              }}
             >
               <div
                 className={`h-[160px] w-full ${C.bgPage} border ${C.borderMedium} flex items-center justify-center rounded-sm ${C.hoverBorderMedium40} transition-colors overflow-hidden relative`}

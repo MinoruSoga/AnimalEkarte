@@ -121,13 +121,14 @@ export const PatientInfoCard = memo(function PatientInfoCard({
           <div className="flex flex-col gap-0 min-w-[60px]">
             <span className={`text-sm ${C.text60}`}>{reservationTypeLabel}</span>
             {onReservationTypeClick ? (
-              <div
-                className={`flex items-center gap-1 cursor-pointer ${C.hoverBgPage} rounded px-1 -ml-1 transition-colors`}
+              <button
+                type="button"
                 onClick={onReservationTypeClick}
+                className={`flex items-center gap-1 cursor-pointer ${C.hoverBgPage} rounded px-1 -ml-1 transition-colors`}
               >
                 <span className={`text-sm font-medium ${C.text}`}>{reservationType}</span>
                 <ChevronDown className={`${ICON.xs} ${C.text40}`} />
-              </div>
+              </button>
             ) : (
               <span className={`text-sm font-medium ${C.text} px-1 -ml-1`}>{reservationType}</span>
             )}

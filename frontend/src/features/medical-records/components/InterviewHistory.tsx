@@ -69,8 +69,18 @@ export const InterviewHistory = memo(function InterviewHistory({
             return (
               <div
                 key={item.id}
+                role="button"
+                tabIndex={0}
+                aria-expanded={isExpanded}
                 className={`p-3 transition-colors group cursor-pointer ${isExpanded ? C.bgPage30 : C.hoverBgPageHalf}`}
                 onClick={() => toggleExpand(item.id)}
+                onKeyDown={(e) => {
+                  if (e.target !== e.currentTarget) return;
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    toggleExpand(item.id);
+                  }
+                }}
               >
                 <div className="flex items-start justify-between mb-1">
                   <div className="flex items-center gap-2">

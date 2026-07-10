@@ -139,6 +139,13 @@ export const AppointmentCard = memo(function AppointmentCard({
       {...listeners}
       className="cursor-grab active:cursor-grabbing group touch-none"
       onClick={() => onCardClick(appointment)}
+      onKeyDown={(e) => {
+        if (e.target !== e.currentTarget) return;
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onCardClick(appointment);
+        }
+      }}
     >
       <Card className={`w-full ${C.hoverBgPage} transition-colors border ${C.borderLight} rounded-md shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_0px_rgba(0,0,0,0.06)]`}>
         <CardContent className="p-[13px] space-y-[9px]">

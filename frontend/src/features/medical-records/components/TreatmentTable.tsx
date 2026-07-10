@@ -126,16 +126,24 @@ export const TreatmentTable = memo(function TreatmentTable({
                   disabled={disabled}
                 />
               </Cell>
-              <Cell
-                align="center"
-                onClick={disabled ? undefined : () => onUpdate(item.id, "is_insurance", !item.is_insurance)}
-                className={disabled ? undefined : `cursor-pointer ${C.hoverBgPage}`}
-              >
-                {item.is_insurance ? (
-                  <Circle className={`${ICON.action} ${C.textRedIcon}`} />
-                ) : (
-                  <X className={`${ICON.action} ${C.text25}`} />
-                )}
+              <Cell align="center">
+                <button
+                  type="button"
+                  aria-pressed={item.is_insurance}
+                  aria-label="保険適用"
+                  disabled={disabled}
+                  onClick={() => onUpdate(item.id, "is_insurance", !item.is_insurance)}
+                  className={cn(
+                    "h-full w-full flex items-center justify-center",
+                    disabled ? "cursor-not-allowed opacity-60" : `cursor-pointer ${C.hoverBgPage}`
+                  )}
+                >
+                  {item.is_insurance ? (
+                    <Circle className={`${ICON.action} ${C.textRedIcon}`} />
+                  ) : (
+                    <X className={`${ICON.action} ${C.text25}`} />
+                  )}
+                </button>
               </Cell>
               <Cell>
                 {/* BUG-072: 単価は0以上の整数・上限9億円 */}

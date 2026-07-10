@@ -93,9 +93,10 @@ export const MonthView = memo(function MonthView({ currentDate, appointments, on
                     const colorStyle = getReservationTypeColor(app.type, dynamicColorMap);
                     const isClassNameColor = typeof colorStyle === "string";
                     return (
-                    <div
+                    <button
                         key={app.id}
-                        className={`text-sm px-2 py-1.5 rounded border cursor-pointer hover:opacity-80 leading-tight ${isClassNameColor ? colorStyle : ""}`}
+                        type="button"
+                        className={`block w-full text-left text-sm px-2 py-1.5 rounded border cursor-pointer hover:opacity-80 leading-tight ${isClassNameColor ? colorStyle : ""}`}
                         style={isClassNameColor ? undefined : (colorStyle as React.CSSProperties)}
                         onClick={(e) => {
                             e.stopPropagation();
@@ -112,7 +113,7 @@ export const MonthView = memo(function MonthView({ currentDate, appointments, on
                         <div className="text-[11px] opacity-70 truncate mt-0.5">
                             {app.ownerName}{app.doctor ? ` / ${app.doctor}` : ""}
                         </div>
-                    </div>
+                    </button>
                     );
                 })}
                 {dayAppointments.length > 4 ? (
