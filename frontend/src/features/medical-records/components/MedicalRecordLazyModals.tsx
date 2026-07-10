@@ -1,11 +1,11 @@
 import { lazy } from "react";
 
 export const StaffSelectionModal = lazy(() =>
-  import("../components/StaffSelectionModal").then((m) => ({ default: m.StaffSelectionModal })),
+  import("./StaffSelectionModal").then((m) => ({ default: m.StaffSelectionModal })),
 );
 
 export const VitalsModal = lazy(() =>
-  import("../components/VitalsModal").then((m) => ({ default: m.VitalsModal })),
+  import("./VitalsModal").then((m) => ({ default: m.VitalsModal })),
 );
 
 export const OwnerSearchModal = lazy(() =>
@@ -13,5 +13,5 @@ export const OwnerSearchModal = lazy(() =>
 );
 
 export const ExaminationImportDialog = lazy(() =>
-  import("../components/ExaminationImportDialog").then((m) => ({ default: m.ExaminationImportDialog })),
+  import("./ExaminationImportDialog").then((m) => ({ default: m.ExaminationImportDialog })),
 );

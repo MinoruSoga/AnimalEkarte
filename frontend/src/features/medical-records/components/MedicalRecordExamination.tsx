@@ -8,7 +8,7 @@ import { normalizedIncludes } from "@/lib/normalize-kana";
 import { useGetRecordExaminations } from "../api/get-record-examinations";
 import { ExaminationFilter } from "./ExaminationFilter";
 import { ExaminationGroup } from "./ExaminationGroup";
-import { ExaminationImportDialog } from "../routes/MedicalRecordLazyModals";
+import { ExaminationImportDialog } from "./MedicalRecordLazyModals";
 import { C } from "@/lib/design-tokens";
 
 interface MedicalRecordExaminationProps {

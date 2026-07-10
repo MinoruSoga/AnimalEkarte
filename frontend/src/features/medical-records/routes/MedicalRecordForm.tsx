@@ -21,7 +21,7 @@ import {
   MedicalRecordFloatingActions,
   MedicalRecordPrintArea,
 } from "../components/MedicalRecordFormActions";
-import { OwnerSearchModal, StaffSelectionModal, VitalsModal } from "./MedicalRecordLazyModals";
+import { OwnerSearchModal, StaffSelectionModal, VitalsModal } from "../components/MedicalRecordLazyModals";
 import { MEDICAL_RECORD_TAB_ITEMS } from "./medical-record-form-model";
 import { useMedicalRecordDirtyFields } from "../hooks/use-medical-record-dirty-fields";
 import { useMedicalRecordFormModals } from "../hooks/use-medical-record-form-modals";
