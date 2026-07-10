@@ -1,5 +1,5 @@
 // React/Framework
-import { useState, useCallback, useMemo, memo, Fragment } from "react";
+import { useState, useCallback, useMemo, useDeferredValue, memo, Fragment } from "react";
 
 // External
 import { Check } from "lucide-react";
@@ -46,6 +46,7 @@ export const ReservationTypePickerDialog = memo(function ReservationTypePickerDi
 }: ReservationTypePickerDialogProps) {
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
+  const deferredSearchTerm = useDeferredValue(searchTerm);
 
   const handleOpenChange = useCallback(
     (next: boolean) => {
@@ -70,7 +71,7 @@ export const ReservationTypePickerDialog = memo(function ReservationTypePickerDi
 
   // 検索語 + カテゴリで絞り込み、グループ構造を保持
   const filteredGroups = useMemo(() => {
-    const term = normalizeKana(searchTerm.trim()).toLowerCase();
+    const term = normalizeKana(deferredSearchTerm.trim()).toLowerCase();
     return groups
       .filter((g) => activeCategory === null || g.label === activeCategory)
       .map((g) => ({
@@ -78,7 +79,7 @@ export const ReservationTypePickerDialog = memo(function ReservationTypePickerDi
         items: term ? g.items.filter((it) => normalizeKana(it.name).toLowerCase().includes(term)) : g.items,
       }))
       .filter((g) => g.items.length > 0);
-  }, [groups, activeCategory, searchTerm]);
+  }, [groups, activeCategory, deferredSearchTerm]);
 
   const hasResults = filteredGroups.length > 0;
 

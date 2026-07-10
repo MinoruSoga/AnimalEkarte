@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, memo } from "react";
+import { useState, useMemo, useCallback, useDeferredValue, memo } from "react";
 import { Check } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { EmptyState } from "@/components/shared/DataStates";
@@ -40,12 +40,13 @@ export const MasterSelectModal = memo(function MasterSelectModal({
   matchBy = "name",
 }: MasterSelectModalProps) {
   const [searchTerm, setSearchTerm] = useState("");
+  const deferredSearchTerm = useDeferredValue(searchTerm);
 
   const filtered = useMemo(() => {
-    if (!searchTerm) return items;
-    const normalizedTerm = normalizeKana(searchTerm).toLowerCase();
+    if (!deferredSearchTerm) return items;
+    const normalizedTerm = normalizeKana(deferredSearchTerm).toLowerCase();
     return items.filter((item) => normalizeKana(item.name).toLowerCase().includes(normalizedTerm));
-  }, [items, searchTerm]);
+  }, [items, deferredSearchTerm]);
 
   const handleSelect = useCallback(
     (item: MasterItem) => {

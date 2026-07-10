@@ -1,11 +1,12 @@
 // React/Framework
-import { useState, useCallback, useMemo, memo, Fragment } from "react";
+import { useState, useCallback, useMemo, useDeferredValue, memo, Fragment } from "react";
 
 // Internal
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { EmptyState } from "@/components/shared/DataStates";
 import { ClearableSearchInput } from "@/components/shared/ClearableSearchInput";
 import { CategoryChipsFilter } from "@/components/shared/CategoryChipsFilter";
+import { FilteringIndicator } from "@/components/shared/FilteringIndicator/FilteringIndicator";
 import { C } from "@/lib/design-tokens";
 import { normalizeKana } from "@/lib/normalize-kana";
 import {
@@ -41,6 +42,8 @@ export const TreatmentSearchDialog = memo(function TreatmentSearchDialog({
 }: TreatmentSearchDialogProps) {
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
+  const deferredSearchTerm = useDeferredValue(searchTerm);
+  const isFiltering = searchTerm !== deferredSearchTerm;
 
   // Fetch master data from APIs
   const { data: consultations = [] } = useGetAllConsultations();
@@ -89,13 +92,13 @@ export const TreatmentSearchDialog = memo(function TreatmentSearchDialog({
 
   // Filter items by search term and category（カタカナ・ひらがな非区別）
   const filteredItems = useMemo(() => {
-    const normalizedTerm = searchTerm ? normalizeKana(searchTerm).toLowerCase() : "";
+    const normalizedTerm = deferredSearchTerm ? normalizeKana(deferredSearchTerm).toLowerCase() : "";
     return TREATMENT_MASTER.filter((item) => {
-      const matchesSearch = !searchTerm || normalizeKana(item.name).toLowerCase().includes(normalizedTerm);
+      const matchesSearch = !deferredSearchTerm || normalizeKana(item.name).toLowerCase().includes(normalizedTerm);
       const matchesCategory = !activeCategory || item.category === activeCategory;
       return matchesSearch && matchesCategory;
     });
-  }, [TREATMENT_MASTER, searchTerm, activeCategory]);
+  }, [TREATMENT_MASTER, deferredSearchTerm, activeCategory]);
 
   // Group filtered items by category
   const groupedItems = useMemo(() => {
@@ -148,7 +151,7 @@ export const TreatmentSearchDialog = memo(function TreatmentSearchDialog({
         />
 
         {/* Item List */}
-        <div className="flex-1 overflow-y-auto space-y-1 pr-1 max-h-[400px]">
+        <FilteringIndicator isFiltering={isFiltering} className="flex-1 overflow-y-auto space-y-1 pr-1 max-h-[400px]">
           {filteredItems.length === 0 ? (
             <EmptyState message="該当する治療プランが見つかりません。" />
           ) : (
@@ -185,7 +188,7 @@ export const TreatmentSearchDialog = memo(function TreatmentSearchDialog({
               );
             })
           )}
-        </div>
+        </FilteringIndicator>
       </DialogContent>
     </Dialog>
   );
