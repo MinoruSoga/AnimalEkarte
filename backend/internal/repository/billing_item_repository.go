@@ -141,7 +141,7 @@ func (r *billingItemRepository) HasItemByOwnerSince(ctx context.Context, clinicI
 }
 
 // FindOwnersByCategoryPurchaseDate は指定カテゴリの最終購入日が purchaseDate と一致する飼い主IDリストを返す（FEAT-383）。
-// billings.issued_at::date の MAX が purchaseDate と一致する飼い主を返す。
+// billings.completed_at::date の MAX が purchaseDate と一致する飼い主を返す。
 func (r *billingItemRepository) FindOwnersByCategoryPurchaseDate(ctx context.Context, clinicID uint64, category string, purchaseDate time.Time) ([]uint64, error) {
 	target := purchaseDate.Format(time.DateOnly)
 	type row struct{ OwnerID uint64 }
