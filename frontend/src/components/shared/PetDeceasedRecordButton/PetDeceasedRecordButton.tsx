@@ -13,7 +13,7 @@ interface PetDeceasedRecordButtonProps {
   canEdit?: boolean;
 }
 
-function calcAge(birthDate: string): string {
+export function calcAge(birthDate: string): string {
   const birth = new Date(birthDate);
   const now = new Date();
   let age = now.getFullYear() - birth.getFullYear();

@@ -10,7 +10,7 @@ interface PetDeceasedBannerProps {
   canEdit?: boolean;
 }
 
-function calcAge(deceasedAt: string, birthDate: string): number {
+export function calcAge(deceasedAt: string, birthDate: string): number {
   const deceased = new Date(deceasedAt);
   const birth = new Date(birthDate);
   let age = deceased.getFullYear() - birth.getFullYear();
