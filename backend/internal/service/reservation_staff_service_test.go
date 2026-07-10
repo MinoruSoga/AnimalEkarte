@@ -663,6 +663,30 @@ func TestReservationStaffService_Update_FindExcludedAfterUpdateError(t *testing.
 	assert.Nil(t, excluded)
 }
 
+// TestReservationStaffService_Update_TransactorError は BE-refactor.md X-8 の judgment call
+// （Update を WithTx で括る）の配線を検証する。修正前は Update が s.transactor.WithTx を
+// 一切呼ばなかったため、withTxErr を設定しても無視されて Update は成功していた（この場合 RED）。
+func TestReservationStaffService_Update_TransactorError(t *testing.T) {
+	name := "トランザクションエラー"
+	repo := &mockReservationStaffRepository{
+		findByIDFn: func(_ context.Context, _, id uint64) (*model.Staff, error) {
+			return &model.Staff{ID: id}, nil
+		},
+		updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) error {
+			t.Fatal("transactor.WithTx がエラーを返す場合、repo.Update は呼ばれてはならない")
+			return nil
+		},
+	}
+	transactor := &mockTransactor{withTxErr: errors.New("tx error")}
+	svc := newTestReservationStaffService(repo, transactor)
+
+	staff, excluded, err := svc.Update(context.Background(), 1, 1, &UpdateReservationStaffInput{Name: &name})
+
+	assert.Error(t, err)
+	assert.Nil(t, staff)
+	assert.Nil(t, excluded)
+}
+
 func TestReservationStaffService_PatchStatus_Success(t *testing.T) {
 	repo := &mockReservationStaffRepository{
 		findByIDFn: func(_ context.Context, _, id uint64) (*model.Staff, error) {

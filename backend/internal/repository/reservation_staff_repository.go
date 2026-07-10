@@ -63,9 +63,15 @@ func (r *reservationStaffRepository) FindByID(ctx context.Context, clinicID, id 
 	return &staff, nil
 }
 
-// Create はスタッフ + StaffClinicAssignment をトランザクションで作成する
+// Create はスタッフ + StaffClinicAssignment をトランザクションで作成する。
+// BE-refactor.md X-8: dbOrTx(ctx, r.db).Transaction(...) にすることで、ambient tx（例:
+// reservationStaffService.Create の Transactor.WithTx）があればそのネスト tx（SAVEPOINT）
+// として参加する。過去は r.db.WithContext(ctx).Transaction(...) で常に独立した新規 tx を
+// 開始しており、ambient tx が UpdateExcludedReservationTypes の失敗で rollback しても
+// 本メソッドの staff/assignment 作成は既にコミット済みのため巻き戻らなかった
+// （除外コース未設定のまま孤児スタッフが残る部分コミットのバグ）。
 func (r *reservationStaffRepository) Create(ctx context.Context, staff *model.Staff, clinicID uint64) error {
-	if err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	if err := dbOrTx(ctx, r.db).Transaction(func(tx *gorm.DB) error {
 		if err := tx.Create(staff).Error; err != nil {
 			return apperrors.FromGORM(err, "reservation_staff", "")
 		}
@@ -84,8 +90,10 @@ func (r *reservationStaffRepository) Create(ctx context.Context, staff *model.St
 	return nil
 }
 
+// BE-refactor.md X-8: dbOrTx(ctx, r.db) にすることで、reservationStaffService.Update が
+// Transactor.WithTx で本メソッドと UpdateExcludedReservationTypes を括った場合に同一 tx へ参加する。
 func (r *reservationStaffRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
-	result := r.db.WithContext(ctx).
+	result := dbOrTx(ctx, r.db).
 		Model(&model.Staff{}).
 		Scopes(clinicScope(clinicID)).
 		Where("id = ?", id).
@@ -99,8 +107,9 @@ func (r *reservationStaffRepository) Update(ctx context.Context, clinicID, id ui
 	return nil
 }
 
+// BE-refactor.md X-8: dbOrTx(ctx, r.db) で ambient tx 参加を統一する（他の write メソッドと対称）。
 func (r *reservationStaffRepository) Delete(ctx context.Context, clinicID, id uint64) error {
-	result := r.db.WithContext(ctx).
+	result := dbOrTx(ctx, r.db).
 		Joins("JOIN staff_clinic_assignments sca ON sca.staff_id = staffs.id AND sca.clinic_id = ?", clinicID).
 		Where("staffs.id = ?", id).
 		Delete(&model.Staff{})
@@ -126,8 +135,10 @@ func (r *reservationStaffRepository) CountUsageByStaffID(ctx context.Context, cl
 	return count, nil
 }
 
+// BE-refactor.md X-8: dbOrTx(ctx, r.db).Transaction(...) で ambient tx 参加を統一する
+// （Create/UpdateExcludedReservationTypes/UpdateReservationCapabilities と対称）。
 func (r *reservationStaffRepository) UpdateSortOrder(ctx context.Context, clinicID, id uint64, direction string) error {
-	if err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	if err := dbOrTx(ctx, r.db).Transaction(func(tx *gorm.DB) error {
 		var target model.Staff
 		err := tx.
 			Joins("JOIN staff_clinic_assignments sca ON sca.staff_id = staffs.id AND sca.clinic_id = ?", clinicID).
@@ -211,9 +222,11 @@ func (r *reservationStaffRepository) UpdateExcludedReservationTypes(ctx context.
 	// staff_reservation_exclusions は自前 clinic_id を持たないため、ここで型IDの所有権を
 	// 確認しなければ別クリニックの予約区分IDを書き込めてしまう（UpdateReservationCapabilities と対称）。
 	// スタッフ所有権は呼び出し側（service/handler）で検証済み。検証は DELETE 前に行い部分書き込みを防ぐ。
+	// BE-refactor.md X-8: dbOrTx(ctx, r.db) にすることで、この所有権検証読み取りも後続の書込と
+	// 同一 ambient tx 内で行われる（ambient tx 内で先行コミットされた ReservationType の変更も見える）。
 	if len(courseIDs) > 0 {
 		var count int64
-		if err := r.db.WithContext(ctx).
+		if err := dbOrTx(ctx, r.db).
 			Model(&model.ReservationType{}).
 			Where("clinic_id = ? AND id IN ? AND deleted_at IS NULL", clinicID, courseIDs).
 			Count(&count).Error; err != nil {
@@ -223,7 +236,11 @@ func (r *reservationStaffRepository) UpdateExcludedReservationTypes(ctx context.
 			return apperrors.WrapInvalidInput("reservation_type_ids contains invalid reservation type")
 		}
 	}
-	if err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	// BE-refactor.md X-8: dbOrTx(ctx, r.db).Transaction(...) にすることで、ambient tx があれば
+	// そのネスト tx（SAVEPOINT）として参加する。過去は r.db.WithContext(ctx).Transaction(...) で
+	// 常に独立した新規 tx を開始しており、reservationStaffService.Create の外側 WithTx が rollback
+	// しても本メソッドの DELETE→INSERT は既にコミット済みのため巻き戻らなかった。
+	if err := dbOrTx(ctx, r.db).Transaction(func(tx *gorm.DB) error {
 		// 既存を全削除
 		if err := tx.Where("staff_id = ?", staffID).Delete(&model.StaffReservationExclusion{}).Error; err != nil {
 			return apperrors.FromGORM(err, "staff_reservation_exclusion", fmt.Sprintf("%d", staffID))
@@ -280,9 +297,11 @@ func (r *reservationStaffRepository) UpdateReservationCapabilities(ctx context.C
 	if _, err := r.FindByID(ctx, clinicID, staffID); err != nil {
 		return err
 	}
+	// BE-refactor.md X-8: dbOrTx(ctx, r.db) にすることで、この所有権検証読み取りも後続の書込と
+	// 同一 ambient tx 内で行われる（UpdateExcludedReservationTypes と対称）。
 	if len(typeIDs) > 0 {
 		var count int64
-		if err := r.db.WithContext(ctx).
+		if err := dbOrTx(ctx, r.db).
 			Model(&model.ReservationType{}).
 			Where("clinic_id = ? AND id IN ? AND deleted_at IS NULL", clinicID, typeIDs).
 			Count(&count).Error; err != nil {
@@ -292,7 +311,9 @@ func (r *reservationStaffRepository) UpdateReservationCapabilities(ctx context.C
 			return apperrors.WrapInvalidInput("reservation_type_ids contains invalid reservation type")
 		}
 	}
-	if err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	// BE-refactor.md X-8: dbOrTx(ctx, r.db).Transaction(...) で ambient tx 参加を統一する
+	// （UpdateExcludedReservationTypes と対称）。
+	if err := dbOrTx(ctx, r.db).Transaction(func(tx *gorm.DB) error {
 		if err := tx.Where("clinic_id = ? AND staff_id = ?", clinicID, staffID).Delete(&model.StaffReservationCapability{}).Error; err != nil {
 			return apperrors.FromGORM(err, "staff_reservation_capability", fmt.Sprintf("%d", staffID))
 		}

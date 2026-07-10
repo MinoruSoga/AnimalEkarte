@@ -155,18 +155,27 @@ func (s *reservationStaffService) Update(ctx context.Context, clinicID, id uint6
 		return nil, nil, apperrors.Wrap(err, "failed to verify reservation staff ownership")
 	}
 
-	fields := buildReservationStaffUpdate(input)
-	if len(fields) > 0 {
-		if err := s.repo.Update(ctx, clinicID, id, fields); err != nil {
-			slog.ErrorContext(ctx, "failed to update reservation staff", "error", err, "id", id, "clinic_id", clinicID)
-			return nil, nil, apperrors.Wrap(err, "failed to update reservation staff")
+	// BE-refactor.md X-8: staff 本体更新 + 除外コース置換を WithTx で括り原子化する（Create と対称）。
+	// 括らないと、fields 更新が成功し UpdateExcludedReservationTypes が失敗した場合に
+	// staff 側の変更（名前/種別/表示可否等）だけがコミットされ、除外コースは古いまま残る
+	// 非原子な部分更新になる。
+	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
+		fields := buildReservationStaffUpdate(input)
+		if len(fields) > 0 {
+			if err := s.repo.Update(txCtx, clinicID, id, fields); err != nil {
+				slog.ErrorContext(txCtx, "failed to update reservation staff", "error", err, "id", id, "clinic_id", clinicID)
+				return apperrors.Wrap(err, "failed to update reservation staff")
+			}
 		}
-	}
-	if input.ExcludedTypeIDs != nil {
-		if err := s.repo.UpdateExcludedReservationTypes(ctx, clinicID, id, *input.ExcludedTypeIDs); err != nil {
-			slog.ErrorContext(ctx, "failed to update excluded courses", "error", err, "id", id, "clinic_id", clinicID)
-			return nil, nil, apperrors.Wrap(err, "failed to update excluded courses")
+		if input.ExcludedTypeIDs != nil {
+			if err := s.repo.UpdateExcludedReservationTypes(txCtx, clinicID, id, *input.ExcludedTypeIDs); err != nil {
+				slog.ErrorContext(txCtx, "failed to update excluded courses", "error", err, "id", id, "clinic_id", clinicID)
+				return apperrors.Wrap(err, "failed to update excluded courses")
+			}
 		}
+		return nil
+	}); err != nil {
+		return nil, nil, apperrors.Wrap(err, "failed to update reservation staff")
 	}
 	updated, err := s.repo.FindByID(ctx, clinicID, id)
 	if err != nil {
