@@ -19,7 +19,7 @@
 | 本編 — **CLOSED（アーカイブ）** | 32件 | G3-1〜G3-5, G4-1〜3, G5-1〜2, G6-1, G7-1〜5, G8-1〜3, G9-2〜3, G10-1〜6, G11-1〜5 |
 | Appendix A（挙動変更・別トラック） | 18件 | 変更なし |
 | Appendix B/C/D | 参照用 | 変更なし |
-| レビュー由来フォローアップ（未登録・別チケット推奨） | 2件 | H-1, H-2 |
+| レビュー由来フォローアップ（未登録・別チケット推奨） | 3件 | H-1, H-2, H-3 |
 
 ## このドキュメントの使い方（ClaudeCode 向け）
 
@@ -97,6 +97,7 @@ G12-1 → G12-2
 |---|---|---|---|
 | H-1 | `UpdateStaffGroups` の staff_id 単位 DELETE が多施設所属スタッフの他クリニックグループ紐付けを意図せず削除しうる | G11-1 security-reviewer | HIGH — 別チケット化推奨 |
 | H-2 | `UpdateExcludedReservationTypes`（reservation_staff_repository.go）の DELETE が `staff_id` のみでスコープされ `clinic_id` を含まない一方、INSERT は呼び出しクリニックの型IDのみ。`staff_reservation_exclusions` テーブル自体に `clinic_id` 列が無いため、多施設所属スタッフに対しては clinic A の正当な操作が clinic B の除外設定行を無警告で全削除する（H-1 と同型のクロステナント破壊）。兄弟の `UpdateReservationCapabilities`/`staff_reservation_capabilities` は自前 `clinic_id` 列を持ち `Where("clinic_id = ? AND staff_id = ?")` で正しくスコープされており非対称。 | G11-4 security-reviewer（`UpdateReservationCapabilities` との比較監査で発見） | HIGH — 別チケット化推奨（`staff_reservation_exclusions` への `clinic_id` 列追加 or DELETE を真の差分更新へ変更、要 migration） |
+| H-3 | `billing_items.category` に索引が無く、`FindOwnersByCategoryPurchaseDate`（Lstep FEAT-383 配信ターゲティング、バッチ/cron想定）が `category = ?` 述語 + `billings` join で Seq Scan リスク。テーブル成長に伴い悪化。既存索引は `merchandise_item_id`/`treatment_id`/`appointment_id`/`trimming_course_id`/`trimming_option_id`/`billing_id`/`deleted_at` のみで `category` は対象外。`idx_billings_clinic_completed_at` も `WHERE status='completed'` の部分索引でこの3クエリ（status述語なし）はカバーしない。 | G11-5 database-reviewer | MEDIUM（パフォーマンス、要 migration・別チケット推奨: `CREATE INDEX idx_billing_items_category ON billing_items(category) WHERE deleted_at IS NULL`） |
 
 ---
 
