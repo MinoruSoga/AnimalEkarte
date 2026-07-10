@@ -7733,6 +7733,685 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/LstepVisitConversionRow'
+    # ─── G1-2 residual (checkups global/alerts/pet-results) ───────────────────
+    CheckupTypeField:
+      type: object
+      description: 健診パッケージのフィールド定義（FE 動的フォーム構築用）
+      properties:
+        id:
+          type: integer
+          format: int64
+        checkup_type_id:
+          type: integer
+          format: int64
+        name:
+          type: string
+        field_type:
+          type: string
+        unit:
+          type: string
+        min_value:
+          type: number
+          format: double
+          nullable: true
+        max_value:
+          type: number
+          format: double
+          nullable: true
+        options:
+          type: array
+          items: {}
+          description: field_type=select 等の選択肢一覧（実装は json.RawMessage）
+        is_provisional:
+          type: boolean
+        sort_order:
+          type: integer
+          format: int32
+    CheckupGlobal:
+      type: object
+      description: クリニック横断の健診記録一覧レスポンス（MedicalRecord.Pet.Owner を含む）
+      properties:
+        id:
+          type: string
+        medical_record_id:
+          type: string
+        checkup_type_id:
+          type: string
+        pet_id:
+          type: string
+          nullable: true
+        date:
+          type: string
+          format: date
+        next_date:
+          type: string
+          format: date
+          nullable: true
+        doctor_id:
+          type: string
+          nullable: true
+        result:
+          type: string
+        checkup_type:
+          $ref: '#/components/schemas/CheckupType'
+        doctor:
+          $ref: '#/components/schemas/StaffSummary'
+        pet_name:
+          type: string
+        owner_name:
+          type: string
+        owner_id:
+          type: string
+          nullable: true
+    CheckupAlertItem:
+      type: object
+      properties:
+        checkup_id:
+          type: integer
+          format: int64
+        pet_id:
+          type: integer
+          format: int64
+        pet_name:
+          type: string
+        owner_name:
+          type: string
+        checkup_type_name:
+          type: string
+        last_checkup_date:
+          type: string
+          format: date
+        next_date:
+          type: string
+          format: date
+        days:
+          type: integer
+          description: overdue は経過日数（正）、upcoming は残り日数（正）
+    CheckupAlertCategory:
+      type: object
+      properties:
+        count:
+          type: integer
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/CheckupAlertItem'
+    CheckupAlerts:
+      type: object
+      properties:
+        overdue:
+          $ref: '#/components/schemas/CheckupAlertCategory'
+        upcoming:
+          $ref: '#/components/schemas/CheckupAlertCategory'
+    PetCheckupResult:
+      description: 飼い主レポート用に親 checkup の日付・パッケージ名を付与した結果レスポンス（#211）
+      allOf:
+        - $ref: '#/components/schemas/CheckupFieldResult'
+        - type: object
+          properties:
+            date:
+              type: string
+              format: date
+            checkup_type_id:
+              type: integer
+              format: int64
+            checkup_type_name:
+              type: string
+    # ─── CheckupSync (BE-004 健診リマインダー一括タグ付与) ─────────────────────
+    CheckupSyncPreviewOwner:
+      type: object
+      properties:
+        owner_id:
+          type: string
+        owner_name:
+          type: string
+        pet_names:
+          type: array
+          items:
+            type: string
+        last_visit_date:
+          type: string
+          format: date
+          nullable: true
+        has_line:
+          type: boolean
+        is_opt_out:
+          type: boolean
+        has_living_pet:
+          type: boolean
+        exclusion_reason:
+          type: string
+          nullable: true
+        current_tags:
+          type: array
+          items:
+            type: string
+        min_pet_age_years:
+          type: integer
+          nullable: true
+        max_pet_age_years:
+          type: integer
+          nullable: true
+        has_chronic_condition:
+          type: boolean
+        cpm_stage:
+          type: string
+        total_amount:
+          type: integer
+          format: int64
+        annual_visit_count:
+          type: integer
+          format: int64
+        last_checkup_date:
+          type: string
+          format: date
+          nullable: true
+    CheckupSyncPreview:
+      type: object
+      properties:
+        owners:
+          type: array
+          items:
+            $ref: '#/components/schemas/CheckupSyncPreviewOwner'
+        total_count:
+          type: integer
+        eligible_count:
+          type: integer
+        line_linked_count:
+          type: integer
+        opt_out_count:
+          type: integer
+        no_living_pet_count:
+          type: integer
+    CreateCheckupSyncRequest:
+      type: object
+      required: [checkup_type, owner_ids, tag_name]
+      properties:
+        checkup_type:
+          type: string
+        owner_ids:
+          type: array
+          items:
+            type: string
+          minItems: 1
+        tag_name:
+          type: string
+    CheckupSyncResult:
+      type: object
+      properties:
+        success_count:
+          type: integer
+        skipped_count:
+          type: integer
+        failed_count:
+          type: integer
+        failed_owner_ids:
+          type: array
+          items:
+            type: string
+    # ─── Owner Aggregation (BE-010 顧客集計) ───────────────────────────────────
+    OwnerAggregation:
+      type: object
+      properties:
+        owner_id:
+          type: string
+        owner_name:
+          type: string
+        total_amount:
+          type: integer
+          format: int64
+        total_fee:
+          type: integer
+          format: int64
+          description: total_amount の FE 向けエイリアス
+        total_visit_count:
+          type: integer
+          format: int64
+        annual_visit_count:
+          type: integer
+          format: int64
+        last_visit_date:
+          type: string
+          format: date
+          nullable: true
+        first_visit_date:
+          type: string
+          format: date
+          nullable: true
+        annual_amount:
+          type: integer
+          format: int64
+          nullable: true
+        billing_count:
+          type: integer
+          format: int64
+          nullable: true
+        period_visit_count:
+          type: integer
+          format: int64
+          nullable: true
+        days_since_last_visit:
+          type: integer
+          nullable: true
+        last_visit_bucket:
+          type: string
+          nullable: true
+        cpm_stage:
+          type: string
+    OwnerAggregationList:
+      type: object
+      properties:
+        total:
+          type: integer
+        page:
+          type: integer
+        per_page:
+          type: integer
+        owners:
+          type: array
+          items:
+            $ref: '#/components/schemas/OwnerAggregation'
+    # ─── ReservationStaff (TASK-RES-012/013 LINE予約スタッフ・スケジュール管理) ─
+    ExcludedCourse:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        name:
+          type: string
+    ReservationStaff:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        name:
+          type: string
+        is_active:
+          type: boolean
+        sort_order:
+          type: integer
+        staff_type:
+          type: string
+          enum: [doctor, nurse, groomer, other]
+        reservation_visible:
+          type: boolean
+        reservation_comment:
+          type: string
+        reservation_image_url:
+          type: string
+        excluded_courses:
+          type: array
+          items:
+            $ref: '#/components/schemas/ExcludedCourse'
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    CreateReservationStaffRequest:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+        staff_type:
+          type: string
+          enum: [doctor, nurse, groomer, other]
+        reservation_visible:
+          type: boolean
+        reservation_comment:
+          type: string
+        sort_order:
+          type: integer
+        excluded_type_ids:
+          type: array
+          items:
+            type: integer
+            format: int64
+    UpdateReservationStaffRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          nullable: true
+        staff_type:
+          type: string
+          enum: [doctor, nurse, groomer, other]
+          nullable: true
+        reservation_visible:
+          type: boolean
+          nullable: true
+        reservation_comment:
+          type: string
+          nullable: true
+        sort_order:
+          type: integer
+          nullable: true
+        excluded_type_ids:
+          type: array
+          items:
+            type: integer
+            format: int64
+          nullable: true
+    PatchReservationStaffStatusRequest:
+      type: object
+      properties:
+        is_active:
+          type: boolean
+    PatchReservationStaffSortOrderRequest:
+      type: object
+      required: [direction]
+      properties:
+        direction:
+          type: string
+          enum: [up, down]
+    ReservationStaffSchedule:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        clinic_id:
+          type: integer
+          format: int64
+        staff_id:
+          type: integer
+          format: int64
+        date:
+          type: string
+          format: date
+        shift_type:
+          type: string
+          enum: [full, morning, afternoon, off, paid_leave]
+        work_start:
+          type: string
+          nullable: true
+        work_end:
+          type: string
+          nullable: true
+        note:
+          type: string
+        breaks:
+          type: array
+          items:
+            $ref: '#/components/schemas/ShiftEntryBreak'
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    UpsertReservationStaffScheduleRequest:
+      type: object
+      required: [shift_type]
+      properties:
+        shift_type:
+          type: string
+          enum: [full, morning, afternoon, off, paid_leave]
+        work_start:
+          type: string
+          nullable: true
+        work_end:
+          type: string
+          nullable: true
+        breaks:
+          type: array
+          items:
+            type: object
+            required: [start, end]
+            properties:
+              start:
+                type: string
+              end:
+                type: string
+    # ─── Reservation admin (TASK-RES-014 LINE予約管理・院内管理画面) ───────────
+    ReservationSummary:
+      type: object
+      description: 月表示用サマリ
+      properties:
+        id:
+          type: integer
+          format: int64
+        start_time:
+          type: string
+          format: date-time
+        end_time:
+          type: string
+          format: date-time
+        customer_name:
+          type: string
+        course_short_name:
+          type: string
+        staff_name:
+          type: string
+        is_staff_delegated:
+          type: boolean
+        source:
+          type: string
+        status:
+          type: string
+    ReservationDetail:
+      type: object
+      description: 日表示用詳細
+      properties:
+        id:
+          type: integer
+          format: int64
+        start_time:
+          type: string
+          format: date-time
+        end_time:
+          type: string
+          format: date-time
+        owner_id:
+          type: integer
+          format: int64
+          nullable: true
+        pet_id:
+          type: integer
+          format: int64
+          nullable: true
+        visit_type:
+          type: string
+        reservation_type_id:
+          type: integer
+          format: int64
+        doctor_id:
+          type: integer
+          format: int64
+          nullable: true
+        is_designated:
+          type: boolean
+        is_staff_delegated:
+          type: boolean
+        source:
+          type: string
+        status:
+          type: string
+        notes:
+          type: string
+        customer_fields:
+          type: object
+          additionalProperties: true
+          nullable: true
+        line_customer_id:
+          type: integer
+          format: int64
+          nullable: true
+        customer_name:
+          type: string
+        course_short_name:
+          type: string
+        staff_name:
+          type: string
+        created_by:
+          type: integer
+          format: int64
+          nullable: true
+        created_by_name:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    CreateReservationAdminRequest:
+      type: object
+      required: [start_time, end_time, reservation_type_id]
+      properties:
+        start_time:
+          type: string
+          format: date-time
+        end_time:
+          type: string
+          format: date-time
+        owner_id:
+          type: integer
+          format: int64
+          nullable: true
+        pet_id:
+          type: integer
+          format: int64
+          nullable: true
+        visit_type:
+          type: string
+        reservation_type_id:
+          type: integer
+          format: int64
+        doctor_id:
+          type: integer
+          format: int64
+          nullable: true
+        is_designated:
+          type: boolean
+        notes:
+          type: string
+        line_customer_id:
+          type: integer
+          format: int64
+          nullable: true
+        is_staff_delegated:
+          type: boolean
+        customer_fields:
+          type: object
+          additionalProperties: true
+          nullable: true
+    PatchReservationRouteRequest:
+      type: object
+      properties:
+        route:
+          type: string
+          maxLength: 20
+          enum: [line, phone, reception, exam_room, record_shortcut]
+    # ─── MedicineDoseParam (#201 B-2c 投与量計算パラメータ) ────────────────────
+    MedicineDoseParam:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        clinic_id:
+          type: integer
+          format: int64
+        medicine_id:
+          type: integer
+          format: int64
+        species:
+          type: string
+          enum: [dog, cat]
+        dose_basis:
+          type: string
+          enum: [per_administration, per_day]
+        dose_per_kg:
+          type: number
+          format: double
+        min_mg_per_kg:
+          type: number
+          format: double
+          nullable: true
+        max_mg_per_kg:
+          type: number
+          format: double
+          nullable: true
+        absolute_max_dose:
+          type: number
+          format: double
+          nullable: true
+        rounding_step:
+          type: number
+          format: double
+          nullable: true
+        rounding_mode:
+          type: string
+          enum: [up, down, nearest]
+          nullable: true
+        notes:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    UpsertMedicineDoseParamRequest:
+      type: object
+      required: [dose_per_kg]
+      description: species は URL path から受け取るため body には含めない。PUT セマンティクス（全列置換）。
+      properties:
+        dose_basis:
+          type: string
+          enum: [per_administration, per_day]
+        dose_per_kg:
+          type: number
+          format: double
+        min_mg_per_kg:
+          type: number
+          format: double
+          nullable: true
+        max_mg_per_kg:
+          type: number
+          format: double
+          nullable: true
+        absolute_max_dose:
+          type: number
+          format: double
+          nullable: true
+        rounding_step:
+          type: number
+          format: double
+          nullable: true
+        rounding_mode:
+          type: string
+          enum: [up, down, nearest]
+          nullable: true
+        notes:
+          type: string
+    # ─── Hospitalization discharge-with-billing ────────────────────────────────
+    DischargeWithBillingRequest:
+      type: object
+      required: [discharge_date]
+      properties:
+        discharge_date:
+          type: string
+          format: date-time
+        create_accounting:
+          type: boolean
+    DischargeWithBillingResult:
+      type: object
+      properties:
+        hospitalization_id:
+          type: integer
+          format: int64
+        accounting_id:
+          type: integer
+          format: int64
+          nullable: true
+        status:
+          type: string
   responses:
     BadRequest:
       description: バリデーションエラー
@@ -8555,6 +9234,101 @@ paths:
           $ref: '#/components/responses/NotFound'
         '500':
           $ref: '#/components/responses/InternalError'
+  /clinics/{clinic_id}/owners/aggregations:
+    get:
+      operationId: listOwnerAggregation
+      summary: 顧客集計一覧（累計診療費・来院回数）
+      description: BE-010。累計診療費・来院回数でソート・フィルタ可能な顧客集計一覧。
+      tags: [Owners]
+      parameters:
+        - name: clinic_id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+        - name: sort
+          in: query
+          schema:
+            type: string
+        - name: order
+          in: query
+          schema:
+            type: string
+            enum: [asc, desc]
+            default: desc
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: per_page
+          in: query
+          schema:
+            type: integer
+            default: 50
+        - name: min_total_amount
+          in: query
+          schema:
+            type: integer
+            format: int64
+        - name: max_total_amount
+          in: query
+          schema:
+            type: integer
+            format: int64
+        - name: min_visit_count
+          in: query
+          schema:
+            type: integer
+            format: int64
+        - name: max_visit_count
+          in: query
+          schema:
+            type: integer
+            format: int64
+        - name: line_linked
+          in: query
+          schema:
+            type: string
+            enum: ["true", "false"]
+        - name: year
+          in: query
+          schema:
+            type: integer
+        - name: from
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: to
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: search
+          in: query
+          schema:
+            type: string
+        - name: cpm_stage
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 顧客集計一覧
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OwnerAggregationList'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
   /clinics/{clinic_id}/owners/{id}/lstep/friend-attributes:
     get:
       operationId: getLstepOwnerFriendAttributes
@@ -9108,6 +9882,46 @@ paths:
           $ref: '#/components/responses/Conflict'
         '500':
           $ref: '#/components/responses/InternalError'
+  /reservations/available-times:
+    get:
+      operationId: getReservationAvailableTimes
+      summary: 予約可能時間枠一覧
+      tags: [Reservations]
+      parameters:
+        - name: reservation_type_id
+          in: query
+          required: true
+          schema:
+            type: integer
+            format: int64
+        - name: staff_id
+          in: query
+          schema:
+            type: integer
+            format: int64
+        - name: date
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: 予約可能時間枠一覧
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/LiffTimeSlot'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
   /reservations/{id}:
     get:
       operationId: getReservation
@@ -9183,6 +9997,42 @@ paths:
       responses:
         '204':
           description: 削除成功
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /reservations/{id}/reservation-route:
+    patch:
+      operationId: patchReservationReservationRoute
+      summary: 予約経路を更新
+      description: FEAT-381-2。
+      tags: [Reservations]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchReservationRouteRequest'
+      responses:
+        '200':
+          description: 更新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReservationAppointment'
+        '400':
+          $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -9356,6 +10206,46 @@ paths:
           $ref: '#/components/responses/NotFound'
         '500':
           $ref: '#/components/responses/InternalError'
+  /medical-records/{id}/recommendation-reason:
+    patch:
+      operationId: patchMedicalRecordRecommendationReason
+      summary: 受診推奨理由を更新
+      description: FEAT-381-2。reason は revisit/checkup/prevention/exam のいずれか、または空文字（未設定）。
+      tags: [MedicalRecords]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason:
+                  type: string
+                  maxLength: 100
+      responses:
+        '200':
+          description: 更新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MedicalRecord'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
   /hospitalizations:
     get:
       operationId: listHospitalizations
@@ -9517,6 +10407,41 @@ paths:
       responses:
         '204':
           description: 削除成功
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /hospitalizations/{id}/discharge-with-billing:
+    post:
+      operationId: dischargeWithBilling
+      summary: 退院処理+会計作成
+      tags: [Hospitalizations]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DischargeWithBillingRequest'
+      responses:
+        '200':
+          description: 退院処理成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DischargeWithBillingResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -11876,6 +12801,32 @@ paths:
         '500':
           $ref: '#/components/responses/InternalError'
   /masters/staffs/{id}:
+    get:
+      operationId: getStaff
+      summary: スタッフ取得
+      tags: [Masters]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: スタッフ取得
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Staff'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
     patch:
       operationId: updateStaff
       summary: スタッフ更新
@@ -12434,6 +13385,32 @@ paths:
         '500':
           $ref: '#/components/responses/InternalError'
   /masters/cages/{id}:
+    get:
+      operationId: getCage
+      summary: ケージ取得
+      tags: [Masters]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: ケージ取得
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Cage'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
     patch:
       operationId: updateCage
       summary: ケージ更新
@@ -12581,6 +13558,32 @@ paths:
         '500':
           $ref: '#/components/responses/InternalError'
   /masters/medicines/{id}:
+    get:
+      operationId: getMedicine
+      summary: 薬剤取得
+      tags: [Masters]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: 薬剤取得
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Medicine'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
     patch:
       operationId: updateMedicine
       summary: 薬剤更新
@@ -12626,6 +13629,107 @@ paths:
           schema:
             type: integer
             format: int64
+      responses:
+        '204':
+          description: 削除成功
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /masters/medicines/{id}/dose-params:
+    get:
+      operationId: listMedicineDoseParams
+      summary: 薬剤の種別投与量パラメータ一覧
+      description: 薬剤×種（dog/cat）ごとの mg/kg 投与量計算パラメータ（#201 B-2c）。
+      tags: [Masters]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: 薬剤ID
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: 投与量パラメータ一覧
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/MedicineDoseParam'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /masters/medicines/{id}/dose-params/{species}:
+    put:
+      operationId: upsertMedicineDoseParam
+      summary: 薬剤×種の投与量パラメータを作成/全列置換
+      description: 存在しない (薬剤, 種) の組み合わせは新規作成、存在する場合は idempotent に全列置換する。
+      tags: [Masters]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: 薬剤ID
+          schema:
+            type: integer
+            format: int64
+        - name: species
+          in: path
+          required: true
+          schema:
+            type: string
+            enum: [dog, cat]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpsertMedicineDoseParamRequest'
+      responses:
+        '200':
+          description: 作成/置換成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MedicineDoseParam'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    delete:
+      operationId: deleteMedicineDoseParam
+      summary: 薬剤×種の投与量パラメータを削除
+      tags: [Masters]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: 薬剤ID
+          schema:
+            type: integer
+            format: int64
+        - name: species
+          in: path
+          required: true
+          schema:
+            type: string
+            enum: [dog, cat]
       responses:
         '204':
           description: 削除成功
@@ -12735,6 +13839,32 @@ paths:
         '500':
           $ref: '#/components/responses/InternalError'
   /masters/vaccines/{id}:
+    get:
+      operationId: getVaccine
+      summary: ワクチン取得
+      tags: [Masters]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: ワクチン取得
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Vaccine'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
     patch:
       operationId: updateVaccine
       summary: ワクチン更新
@@ -12883,6 +14013,32 @@ paths:
         '500':
           $ref: '#/components/responses/InternalError'
   /masters/insurances/{id}:
+    get:
+      operationId: getInsurance
+      summary: 保険取得
+      tags: [Masters]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: 保険取得
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Insurance'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
     patch:
       operationId: updateInsurance
       summary: 保険更新
@@ -13650,6 +14806,32 @@ paths:
         '500':
           $ref: '#/components/responses/InternalError'
   /masters/consultations/{id}:
+    get:
+      operationId: getConsultation
+      summary: 診察項目取得
+      tags: [Masters]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: 診察項目取得
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Consultation'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
     patch:
       operationId: updateConsultation
       summary: 診察項目更新
@@ -13798,6 +14980,32 @@ paths:
         '500':
           $ref: '#/components/responses/InternalError'
   /masters/procedures/{id}:
+    get:
+      operationId: getProcedure
+      summary: 処置項目取得
+      tags: [Masters]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: 処置項目取得
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Procedure'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
     patch:
       operationId: updateProcedure
       summary: 処置項目更新
@@ -13945,6 +15153,32 @@ paths:
         '500':
           $ref: '#/components/responses/InternalError'
   /masters/hospitalization-plans/{id}:
+    get:
+      operationId: getHospitalizationPlan
+      summary: 入院プラン取得
+      tags: [Masters]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: 入院プラン取得
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HospitalizationPlan'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
     patch:
       operationId: updateHospitalizationPlan
       summary: 入院プラン更新
@@ -14093,6 +15327,32 @@ paths:
         '500':
           $ref: '#/components/responses/InternalError'
   /masters/trimming-courses/{id}:
+    get:
+      operationId: getTrimmingCourse
+      summary: トリミングコース取得
+      tags: [Masters]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: トリミングコース取得
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TrimmingCourse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
     patch:
       operationId: updateTrimmingCourse
       summary: トリミングコース更新
@@ -14402,6 +15662,32 @@ paths:
         '500':
           $ref: '#/components/responses/InternalError'
   /masters/trimming-options/{id}:
+    get:
+      operationId: getTrimmingOption
+      summary: トリミングオプション取得
+      tags: [Masters]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: トリミングオプション取得
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TrimmingOption'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
     patch:
       operationId: updateTrimmingOption
       summary: トリミングオプション更新
@@ -14550,6 +15836,32 @@ paths:
         '500':
           $ref: '#/components/responses/InternalError'
   /masters/examination-types/{id}:
+    get:
+      operationId: getExaminationType
+      summary: 検査種別取得
+      tags: [Masters]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: 検査種別取得
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExaminationType'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
     patch:
       operationId: updateExaminationType
       summary: 検査種別更新
@@ -14698,6 +16010,32 @@ paths:
         '500':
           $ref: '#/components/responses/InternalError'
   /masters/diagnosis-types/{id}:
+    get:
+      operationId: getDiagnosisType
+      summary: 診断カテゴリ取得
+      tags: [Masters]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: 診断カテゴリ取得
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DiagnosisCategory'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
     patch:
       operationId: updateDiagnosisCategory
       summary: 診断カテゴリ更新
@@ -14817,6 +16155,37 @@ paths:
           $ref: '#/components/responses/Conflict'
         '500':
           $ref: '#/components/responses/InternalError'
+  /masters/diagnosis-names/all:
+    get:
+      operationId: listDiagnosisNamesAll
+      summary: 診断名一覧（ページネーションなし）
+      description: |
+        有効な診断名の全件を返す（FE のプルダウン用途）。
+        `type_id` 指定時は該当カテゴリのみ、未指定時は全件を返す。
+      tags: [Masters]
+      parameters:
+        - name: type_id
+          in: query
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: 診断名一覧
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DiagnosisName'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
   /masters/diagnosis-names/reorder:
     patch:
       operationId: reorderDiagnosisNames
@@ -14854,6 +16223,32 @@ paths:
         '500':
           $ref: '#/components/responses/InternalError'
   /masters/diagnosis-names/{id}:
+    get:
+      operationId: getDiagnosisName
+      summary: 診断名取得
+      tags: [Masters]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: 診断名取得
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DiagnosisName'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
     patch:
       operationId: updateDiagnosisName
       summary: 診断名更新
@@ -15002,6 +16397,32 @@ paths:
         '500':
           $ref: '#/components/responses/InternalError'
   /masters/checkup-types/{id}:
+    get:
+      operationId: getCheckupType
+      summary: 健診種別取得
+      tags: [Masters]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: 健診種別取得
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CheckupType'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
     patch:
       operationId: updateCheckupType
       summary: 健診種別更新
@@ -15056,6 +16477,35 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /masters/checkup-types/{id}/fields:
+    get:
+      operationId: listCheckupTypeFields
+      summary: 健診パッケージのフィールド定義一覧
+      description: FE の動的フォーム構築用。
+      tags: [Masters]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: 健診種別ID
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: フィールド定義一覧
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CheckupTypeField'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
         '500':
           $ref: '#/components/responses/InternalError'
   /masters/occupations:
@@ -15149,6 +16599,32 @@ paths:
         '500':
           $ref: '#/components/responses/InternalError'
   /masters/occupations/{id}:
+    get:
+      operationId: getOccupation
+      summary: 職種取得
+      tags: [Masters]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: 職種取得
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Occupation'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
     patch:
       operationId: updateOccupation
       summary: 職種更新
@@ -15297,6 +16773,32 @@ paths:
         '500':
           $ref: '#/components/responses/InternalError'
   /masters/merchandise-items/{id}:
+    get:
+      operationId: getMerchandiseItem
+      summary: 物販マスタ取得
+      tags: [Masters]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: 物販マスタ取得
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MerchandiseItem'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
     patch:
       operationId: updateMerchandiseItem
       summary: 物販マスタ更新
@@ -15430,6 +16932,36 @@ paths:
           $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /shifts/on-duty-staffs:
+    get:
+      operationId: getOnDutyStaffs
+      summary: 指定日に出勤しているスタッフ一覧
+      description: BUG-344。
+      tags: [Shifts]
+      parameters:
+        - name: date
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: 出勤スタッフ一覧
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/StaffSummary'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
         '500':
           $ref: '#/components/responses/InternalError'
   /shifts/{id}:
@@ -15864,6 +17396,39 @@ paths:
         '500':
           $ref: '#/components/responses/InternalError'
   /masters/staffs/{id}/permission-groups:
+    get:
+      operationId: getStaffPermissionGroups
+      summary: スタッフに割り当てられた権限グループID一覧を取得
+      description: master-permission の view 権限を持つユーザーのみ実行可能。
+      tags: [PermissionGroups]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: 割当済みグループID一覧
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  group_ids:
+                    type: array
+                    items:
+                      type: integer
+                      format: int64
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
     put:
       operationId: setStaffPermissionGroups
       summary: スタッフへの権限グループ割当（全置換）
@@ -16010,6 +17575,32 @@ paths:
         '500':
           $ref: '#/components/responses/InternalError'
   /masters/animal-species/{id}:
+    get:
+      operationId: getAnimalSpecies
+      summary: 動物種取得
+      tags: [Masters]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: 動物種取得
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AnimalSpecies'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
     patch:
       operationId: updateAnimalSpecies
       summary: 動物種更新
@@ -16849,6 +18440,51 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '500':
           $ref: '#/components/responses/InternalError'
+  /medical-records/{id}/images/upload:
+    post:
+      operationId: uploadMedicalRecordImage
+      summary: 診療画像ファイルアップロード
+      description: multipart/form-data。フォームフィールド名は `file`。
+      tags: [MedicalRecords]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+      responses:
+        '201':
+          description: アップロード成功
+          headers:
+            Location:
+              description: 作成されたリソースのURL
+              schema:
+                type: string
+                format: uri
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MedicalRecordImage'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
   /medical-records/{id}/images/{imageId}:
     delete:
       operationId: deleteMedicalRecordImage
@@ -17075,6 +18711,111 @@ paths:
         '500':
           $ref: '#/components/responses/InternalError'
 
+  # ─── Checkups (クリニック横断) ────────────────────────────────
+  /checkups:
+    get:
+      operationId: listGlobalCheckups
+      summary: クリニック横断の健診記録一覧
+      description: MedicalRecord.Pet.Owner を含む一覧。実装はページネーション形式だが常に全件を1ページで返す。
+      tags: [Checkups]
+      parameters:
+        - name: start_date
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: end_date
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: next_start_date
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: next_end_date
+          in: query
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: 健診記録一覧
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/PaginatedResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/CheckupGlobal'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /checkups/alerts:
+    get:
+      operationId: getCheckupAlerts
+      summary: 健診期限アラート集計
+      tags: [Checkups]
+      parameters:
+        - name: within_days
+          in: query
+          description: 期限までの残り/超過日数の閾値（既定30）
+          schema:
+            type: integer
+            default: 30
+      responses:
+        '200':
+          description: アラート集計
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CheckupAlerts'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /checkups/field-results:
+    get:
+      operationId: listPetCheckupResults
+      summary: pet 単位の健診結果値一覧（飼い主レポート用）
+      description: '#211: 親 checkup の日付・パッケージ名を付与した結果値一覧。'
+      tags: [Checkups]
+      parameters:
+        - name: pet_id
+          in: query
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: 健診結果値一覧
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PetCheckupResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
   # ─── Medical Records nested: checkups ────────────────────────
   /medical-records/{id}/checkups:
     get:
@@ -18158,6 +19899,498 @@ paths:
       responses:
         '501':
           description: 未実装
+  # ─── LINE予約管理: スタッフ (TASK-RES-012) ────────────────────────────────
+  /clinics/{clinic_id}/reservation-staffs:
+    get:
+      operationId: listReservationStaffs
+      summary: LINE予約管理用 スタッフ一覧
+      tags:
+        - LINE予約管理
+      parameters:
+        - name: clinic_id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: スタッフ一覧
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ReservationStaff'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    post:
+      operationId: createReservationStaff
+      summary: LINE予約管理用 スタッフ作成
+      tags:
+        - LINE予約管理
+      parameters:
+        - name: clinic_id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateReservationStaffRequest'
+      responses:
+        '201':
+          description: 作成成功
+          headers:
+            Location:
+              schema:
+                type: string
+                format: uri
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReservationStaff'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /clinics/{clinic_id}/reservation-staffs/{staffId}:
+    put:
+      operationId: updateReservationStaff
+      summary: LINE予約管理用 スタッフ更新
+      tags:
+        - LINE予約管理
+      parameters:
+        - name: clinic_id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+        - name: staffId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateReservationStaffRequest'
+      responses:
+        '200':
+          description: 更新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReservationStaff'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    delete:
+      operationId: deleteReservationStaff
+      summary: LINE予約管理用 スタッフ削除
+      tags:
+        - LINE予約管理
+      parameters:
+        - name: clinic_id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+        - name: staffId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '204':
+          description: 削除成功
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /clinics/{clinic_id}/reservation-staffs/{staffId}/status:
+    patch:
+      operationId: patchReservationStaffStatus
+      summary: LINE予約管理用 スタッフ有効/無効切替
+      tags:
+        - LINE予約管理
+      parameters:
+        - name: clinic_id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+        - name: staffId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchReservationStaffStatusRequest'
+      responses:
+        '200':
+          description: 更新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReservationStaff'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /clinics/{clinic_id}/reservation-staffs/{staffId}/sort-order:
+    patch:
+      operationId: patchReservationStaffSortOrder
+      summary: LINE予約管理用 スタッフ並び順更新
+      tags:
+        - LINE予約管理
+      parameters:
+        - name: clinic_id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+        - name: staffId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchReservationStaffSortOrderRequest'
+      responses:
+        '204':
+          description: 並び順更新成功
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /clinics/{clinic_id}/reservation-staffs/{staffId}/image:
+    post:
+      operationId: uploadReservationStaffImage
+      summary: LINE予約管理用 スタッフ画像アップロード
+      description: 現在は未実装（v2スコープ）
+      tags:
+        - LINE予約管理
+      parameters:
+        - name: clinic_id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+        - name: staffId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '501':
+          description: 未実装
+  # ─── LINE予約管理: スタッフ個人スケジュール (TASK-RES-013) ────────────────
+  /clinics/{clinic_id}/reservation-staffs/{staffId}/schedules:
+    get:
+      operationId: listReservationSchedules
+      summary: スタッフ個人スケジュール月次一覧
+      tags:
+        - LINE予約管理
+      parameters:
+        - name: clinic_id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+        - name: staffId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+        - name: month
+          in: query
+          description: YYYY-MM（省略時は当月）
+          schema:
+            type: string
+      responses:
+        '200':
+          description: スケジュール一覧
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ReservationStaffSchedule'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /clinics/{clinic_id}/reservation-staffs/{staffId}/schedules/{date}:
+    put:
+      operationId: upsertReservationSchedule
+      summary: スタッフ個人スケジュールを日付単位で作成/更新
+      tags:
+        - LINE予約管理
+      parameters:
+        - name: clinic_id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+        - name: staffId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+        - name: date
+          in: path
+          required: true
+          schema:
+            type: string
+            format: date
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpsertReservationStaffScheduleRequest'
+      responses:
+        '200':
+          description: 更新成功（既存エントリを更新）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReservationStaffSchedule'
+        '201':
+          description: 作成成功（新規エントリ）
+          headers:
+            Location:
+              schema:
+                type: string
+                format: uri
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReservationStaffSchedule'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    delete:
+      operationId: deleteReservationSchedule
+      summary: スタッフ個人スケジュールを削除
+      tags:
+        - LINE予約管理
+      parameters:
+        - name: clinic_id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+        - name: staffId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+        - name: date
+          in: path
+          required: true
+          schema:
+            type: string
+            format: date
+      responses:
+        '204':
+          description: 削除成功
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  # ─── LINE予約管理: 予約管理（院内管理画面） (TASK-RES-014) ─────────────────
+  /clinics/{clinic_id}/reservations:
+    get:
+      operationId: listReservationsAdmin
+      summary: 院内管理画面用 予約一覧（月表示/日表示）
+      description: |
+        `view=month`（既定）は `date`（YYYY-MM）指定月のサマリ一覧、
+        `view=day` は `date`（YYYY-MM-DD）指定日の詳細一覧を返す。
+      tags:
+        - LINE予約管理
+      parameters:
+        - name: clinic_id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+        - name: view
+          in: query
+          schema:
+            type: string
+            enum: [month, day]
+            default: month
+        - name: date
+          in: query
+          description: view=month は YYYY-MM、view=day は YYYY-MM-DD（省略時は当月/当日）
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 予約一覧（view に応じて要素型が異なる）
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - type: array
+                    items:
+                      $ref: '#/components/schemas/ReservationSummary'
+                  - type: array
+                    items:
+                      $ref: '#/components/schemas/ReservationDetail'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    post:
+      operationId: createReservationAdmin
+      summary: 院内管理画面用 予約作成
+      tags:
+        - LINE予約管理
+      parameters:
+        - name: clinic_id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateReservationAdminRequest'
+      responses:
+        '201':
+          description: 作成成功
+          headers:
+            Location:
+              schema:
+                type: string
+                format: uri
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReservationDetail'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /clinics/{clinic_id}/reservations/{reservationId}:
+    delete:
+      operationId: deleteReservationAdmin
+      summary: 院内管理画面用 予約削除
+      tags:
+        - LINE予約管理
+      parameters:
+        - name: clinic_id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+        - name: reservationId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '204':
+          description: 削除成功
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
   /clinics/{clinic_id}/line-reservation-settings:
     get:
       operationId: getLineReservationSetting
@@ -19527,6 +21760,124 @@ paths:
           $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /clinics/{clinic_id}/lstep/checkup-sync/preview:
+    get:
+      operationId: getCheckupSyncPreview
+      summary: 健診同期タグ付与の対象者プレビュー
+      description: BE-004。健診リマインダー配信対象となる飼い主のプレビュー一覧を返す。
+      tags: [LstepSettings]
+      parameters:
+        - name: clinic_id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+        - name: checkup_type
+          in: query
+          schema:
+            type: string
+        - name: species
+          in: query
+          schema:
+            type: string
+        - name: cpm_stage
+          in: query
+          schema:
+            type: string
+            enum: [cpm_encounter, cpm_growing, cpm_core, cpm_spot, cpm_noah, cpm_dormant]
+        - name: last_visit_before
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: last_visit_after
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: min_age_years
+          in: query
+          schema:
+            type: integer
+        - name: max_age_years
+          in: query
+          schema:
+            type: integer
+        - name: has_chronic_condition
+          in: query
+          schema:
+            type: string
+            enum: ["true", "false"]
+        - name: min_total_amount
+          in: query
+          schema:
+            type: integer
+            format: int64
+        - name: min_annual_visit_count
+          in: query
+          schema:
+            type: integer
+            format: int64
+        - name: last_checkup_before
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: last_checkup_after
+          in: query
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: プレビュー結果
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CheckupSyncPreview'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /clinics/{clinic_id}/lstep/checkup-sync:
+    post:
+      operationId: createCheckupSync
+      summary: 選択した飼い主に健診リマインダータグを一括付与
+      description: BE-004。
+      tags: [LstepSettings]
+      parameters:
+        - name: clinic_id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateCheckupSyncRequest'
+      responses:
+        '200':
+          description: 一括付与結果
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CheckupSyncResult'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
         '500':
           $ref: '#/components/responses/InternalError'
   /lstep/trigger-priorities:

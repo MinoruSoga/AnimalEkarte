@@ -60,7 +60,7 @@ const handlerDir = "../handler"
 // 98 → 15 に減少した（内訳は下記）。新規 missing/phantom の混入、既存エントリの解消(stale)は
 // いずれも fail させる。
 //
-// 内訳(missing 82 = 1 + 12 + 3 + 3 + 63、phantom 4 = 1 + 3):
+// 内訳(missing 34 = 1 + 12 + 3 + 3 + 15、phantom 4 = 1 + 3):
 //   - /health ↔ /api/v1/health: yaml が絶対パスとして記載していない相対規約の齟齬。missing 1 +
 //     phantom 1(下記コメント参照)。Phase D-1 スコープ外のため今回は解消しない。
 //   - Phase D-1 完了後残存する同一ハンドラの意図的未記載エイリアス: owner-nested co-group 12件
@@ -71,10 +71,17 @@ const handlerDir = "../handler"
 //     api.yaml は同じ操作を /clinics/{id} として記載(パラメータ名のみの drift)。missing 3件 +
 //     phantom 3件(下記 knownPhantomInSpec)が対になる。G1-2 の「パラメータ名差異 3 件除外後」に
 //     該当する既知ペア。Phase D-1/D-2/D-3 スコープ外のため今回は解消しない。
-//   - 上記以外の63件: G1-2(実装済み203件未記載)のうち Phase A-C でまだ手が回っていない残差
-//     （checkups 系・masters GET {id} 系・reservation-staffs ファミリー・lstep clinic-nested
-//     read 系・webhook 等）。本シリーズの D-1/D-2/D-3 いずれのスコープでもないため今回は手を
-//     付けていない(導入時からそのまま残存)。
+//   - G1-2 residual フォローアップ(2026-07-10)で残り 15 件: lstep-settings / lstep-tag-code-mappings /
+//     lstep/delivery-monitor / lstep/tag-summary / lstep/owners / lstep/trigger-priorities /
+//     pets/{id}/death の "/clinics/:clinic_id/..." エイリアス14件は、Phase D-1 と同型の
+//     「別のパスで既に文書化済みの同一ハンドラの重複登録」と判明したため意図的に未記載のまま
+//     とした（各エントリのコメントで文書化先を明記）。POST /api/line/webhook はエイリアスでは
+//     ないが、parseOpenAPIOperations の "/api/liff" 限定の絶対パス判定を拡張しないと正しく
+//     文書化できないため（下記コメント参照）同様に未記載のまま残した。同フォローアップで残 63 件
+//     のうち上記 15 件を除いた 48 件（checkups 系・masters GET {id} 系・reservation-staffs ファミリー・
+//     clinic-nested reservations 系・checkup-sync・owners/aggregations・medical-records
+//     recommendation-reason/images-upload・shifts/on-duty-staffs・hospitalizations
+//     discharge-with-billing・/api/line/webhook）は docs/api.yaml に実際に文書化した。
 
 var knownMissingFromSpec = map[string]bool{
 	// /health は yaml が絶対パスとして記載していない相対規約の齟齬（doc comment 参照）。
@@ -110,70 +117,40 @@ var knownMissingFromSpec = map[string]bool{
 	"GET /api/v1/clinics/{clinic_id}":    true,
 	"PATCH /api/v1/clinics/{clinic_id}":  true,
 
-	// --- G1-2 residual not touched by this series (out of D-1/D-2/D-3 scope), 63件 ---
-	"DELETE /api/v1/clinics/{clinic_id}/lstep-settings":                                true,
-	"DELETE /api/v1/clinics/{clinic_id}/pets/{id}/death":                               true,
-	"DELETE /api/v1/clinics/{clinic_id}/reservation-staffs/{staffId}":                  true,
-	"DELETE /api/v1/clinics/{clinic_id}/reservation-staffs/{staffId}/schedules/{date}": true,
-	"DELETE /api/v1/clinics/{clinic_id}/reservations/{reservationId}":                  true,
-	"DELETE /api/v1/masters/medicines/{id}/dose-params/{species}":                      true,
-	"GET /api/v1/checkups":                                                          true,
-	"GET /api/v1/checkups/alerts":                                                   true,
-	"GET /api/v1/checkups/field-results":                                            true,
-	"GET /api/v1/clinics/{clinic_id}/lstep-settings":                                true,
-	"GET /api/v1/clinics/{clinic_id}/lstep-tag-code-mappings":                       true,
-	"GET /api/v1/clinics/{clinic_id}/lstep/checkup-sync/preview":                    true,
-	"GET /api/v1/clinics/{clinic_id}/lstep/delivery-monitor/logs":                   true,
-	"GET /api/v1/clinics/{clinic_id}/lstep/delivery-monitor/summary":                true,
-	"GET /api/v1/clinics/{clinic_id}/lstep/owners":                                  true,
-	"GET /api/v1/clinics/{clinic_id}/lstep/tag-summary":                             true,
-	"GET /api/v1/clinics/{clinic_id}/lstep/trigger-priorities":                      true,
-	"GET /api/v1/clinics/{clinic_id}/owners/aggregations":                           true,
-	"GET /api/v1/clinics/{clinic_id}/reservation-staffs":                            true,
-	"GET /api/v1/clinics/{clinic_id}/reservation-staffs/{staffId}/schedules":        true,
-	"GET /api/v1/clinics/{clinic_id}/reservations":                                  true,
-	"GET /api/v1/masters/animal-species/{id}":                                       true,
-	"GET /api/v1/masters/cages/{id}":                                                true,
-	"GET /api/v1/masters/checkup-types/{id}":                                        true,
-	"GET /api/v1/masters/checkup-types/{id}/fields":                                 true,
-	"GET /api/v1/masters/consultations/{id}":                                        true,
-	"GET /api/v1/masters/diagnosis-names/{id}":                                      true,
-	"GET /api/v1/masters/diagnosis-names/all":                                       true,
-	"GET /api/v1/masters/diagnosis-types/{id}":                                      true,
-	"GET /api/v1/masters/examination-types/{id}":                                    true,
-	"GET /api/v1/masters/hospitalization-plans/{id}":                                true,
-	"GET /api/v1/masters/insurances/{id}":                                           true,
-	"GET /api/v1/masters/medicines/{id}":                                            true,
-	"GET /api/v1/masters/medicines/{id}/dose-params":                                true,
-	"GET /api/v1/masters/merchandise-items/{id}":                                    true,
-	"GET /api/v1/masters/occupations/{id}":                                          true,
-	"GET /api/v1/masters/procedures/{id}":                                           true,
-	"GET /api/v1/masters/staffs/{id}":                                               true,
-	"GET /api/v1/masters/staffs/{id}/permission-groups":                             true,
-	"GET /api/v1/masters/trimming-courses/{id}":                                     true,
-	"GET /api/v1/masters/trimming-options/{id}":                                     true,
-	"GET /api/v1/masters/vaccines/{id}":                                             true,
-	"GET /api/v1/reservations/available-times":                                      true,
-	"GET /api/v1/shifts/on-duty-staffs":                                             true,
-	"PATCH /api/v1/clinics/{clinic_id}/lstep-settings":                              true,
-	"PATCH /api/v1/clinics/{clinic_id}/lstep/trigger-priorities":                    true,
-	"PATCH /api/v1/clinics/{clinic_id}/pets/{id}/death":                             true,
-	"PATCH /api/v1/clinics/{clinic_id}/reservation-staffs/{staffId}/sort-order":     true,
-	"PATCH /api/v1/clinics/{clinic_id}/reservation-staffs/{staffId}/status":         true,
-	"PATCH /api/v1/medical-records/{id}/recommendation-reason":                      true,
-	"PATCH /api/v1/reservations/{id}/reservation-route":                             true,
-	"POST /api/line/webhook":                                                        true,
-	"POST /api/v1/clinics/{clinic_id}/lstep-settings/test-connection":               true,
-	"POST /api/v1/clinics/{clinic_id}/lstep/checkup-sync":                           true,
-	"POST /api/v1/clinics/{clinic_id}/reservation-staffs":                           true,
-	"POST /api/v1/clinics/{clinic_id}/reservation-staffs/{staffId}/image":           true,
-	"POST /api/v1/clinics/{clinic_id}/reservations":                                 true,
-	"POST /api/v1/hospitalizations/{id}/discharge-with-billing":                     true,
-	"POST /api/v1/medical-records/{id}/images/upload":                               true,
-	"PUT /api/v1/clinics/{clinic_id}/lstep-tag-code-mappings/{tag_name}":            true,
-	"PUT /api/v1/clinics/{clinic_id}/reservation-staffs/{staffId}":                  true,
-	"PUT /api/v1/clinics/{clinic_id}/reservation-staffs/{staffId}/schedules/{date}": true,
-	"PUT /api/v1/masters/medicines/{id}/dose-params/{species}":                      true,
+	// --- G1-2 residual follow-up (2026-07-10): audited the 63 entries pinned above against the
+	// actual Go route registrations. 14 of them turned out to be the exact same
+	// "duplicate registration of an already-documented handler" pattern as the Phase D-1 aliases
+	// above (lstep_settings_handler.go / lstep_tag_code_mapping_handler.go / lstep_delivery_monitor_handler.go /
+	// lstep_tag_summary_handler.go / lstep_trigger_priority_handler.go each register BOTH a canonical
+	// group AND a "/clinics/:clinic_id/..." alias group calling the identical handlers; pet_handler.go
+	// does the same for /pets/:id/death vs /clinics/:clinic_id/pets/:id/death). Those 14 stay
+	// intentionally undocumented below with "alias of documented X" comments, matching precedent.
+	// Of the remaining 49, 48 had no alternate registration and are now documented for real in
+	// docs/api.yaml (checkups 系・masters GET {id} 系・reservation-staffs ファミリー・
+	// clinic-nested reservations 系・checkup-sync・owners/aggregations・medical-records
+	// recommendation-reason/images-upload・shifts/on-duty-staffs・hospitalizations
+	// discharge-with-billing). "POST /api/line/webhook" is left pinned below: parseOpenAPIOperations
+	// (below) only special-cases the "/api/liff" prefix as an already-absolute path key (per the
+	// LIFF servers-collision note above); a literal "/api/line/webhook" path key would get "/api/v1"
+	// prepended like any other relative key, producing a phantom "/api/v1/api/line/webhook" that
+	// doesn't match the real route. Documenting it correctly requires extending that hardcoded
+	// prefix check to also cover "/api/line", which is a parsing-logic change outside this
+	// docs-only series' scope (ground rule: only remove now-resolved entries from this allowlist).
+	"POST /api/line/webhook":                                             true, // needs parseOpenAPIOperations prefix-check extension (see comment above); not an alias
+	"DELETE /api/v1/clinics/{clinic_id}/lstep-settings":                  true, // alias of documented DELETE /lstep-settings
+	"DELETE /api/v1/clinics/{clinic_id}/pets/{id}/death":                 true, // alias of documented DELETE /pets/{id}/death
+	"GET /api/v1/clinics/{clinic_id}/lstep-settings":                     true, // alias of documented GET /lstep-settings
+	"GET /api/v1/clinics/{clinic_id}/lstep-tag-code-mappings":            true, // alias of documented GET /lstep-tag-code-mappings
+	"GET /api/v1/clinics/{clinic_id}/lstep/delivery-monitor/logs":        true, // alias of documented GET /lstep/delivery-monitor/logs
+	"GET /api/v1/clinics/{clinic_id}/lstep/delivery-monitor/summary":     true, // alias of documented GET /lstep/delivery-monitor/summary
+	"GET /api/v1/clinics/{clinic_id}/lstep/owners":                       true, // alias of documented GET /lstep/owners
+	"GET /api/v1/clinics/{clinic_id}/lstep/tag-summary":                  true, // alias of documented GET /lstep/tag-summary
+	"GET /api/v1/clinics/{clinic_id}/lstep/trigger-priorities":           true, // alias of documented GET /lstep/trigger-priorities
+	"PATCH /api/v1/clinics/{clinic_id}/lstep-settings":                   true, // alias of documented PATCH /lstep-settings
+	"PATCH /api/v1/clinics/{clinic_id}/lstep/trigger-priorities":         true, // alias of documented PATCH /lstep/trigger-priorities
+	"PATCH /api/v1/clinics/{clinic_id}/pets/{id}/death":                  true, // alias of documented PATCH /pets/{id}/death
+	"POST /api/v1/clinics/{clinic_id}/lstep-settings/test-connection":    true, // alias of documented POST /lstep-settings/test-connection
+	"PUT /api/v1/clinics/{clinic_id}/lstep-tag-code-mappings/{tag_name}": true, // alias of documented PUT /lstep-tag-code-mappings/{tag_name}
 }
 
 var knownPhantomInSpec = map[string]bool{
