@@ -14,7 +14,7 @@ import { createBillingItem } from "../api/create-billing-item";
 import type { PaymentSplitRequest } from "../api/types";
 import type { PaymentSplitDraft } from "../components/PaymentCard";
 import type { Accounting, AccountingItem, PaymentInfo, PaymentMethod } from "../types";
-import { buildPaymentSplitRequests, type AccountingFormState } from "../routes/accounting-detail-model";
+import { buildPaymentSplitRequests, type AccountingFormState } from "../components/accounting-detail-model";
 
 interface AccountingCalculation {
   subtotal: number;
