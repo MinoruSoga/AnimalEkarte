@@ -1,13 +1,14 @@
-# BE-refactor.md — バックエンド リファクタリング計画（Appendix A / H フォローアップのみ残存）
+# BE-refactor.md — バックエンド リファクタリング計画（唯一の正本）
 
-> 残るのは Appendix A 5件（X-14〜X-18、P3中心）と、レビュー由来フォローアップ H-1〜H-7（別チケット化推奨）のみ。
-> 本編（挙動保存トラック）および Appendix A の CLOSED 済み項目は本ファイルから削除済み（詳細は git log 参照）。
+> 本ファイルが唯一の正本である。`BE-refactor-v2.md`（2026-07-10作成、当時「旧 BE-refactor.md は参照のみ・編集禁止」と規定していた）は
+> 2026-07-11 に §2/§3 の R0〜R21 全項目を現 HEAD で再実測し、DONE 項目は本ファイルへ再掲せず（詳細は `git log` 参照）、
+> OPEN 項目のみを本ファイル新設の「挙動保存残件」節へ統合したうえで `git rm` 済み。v2 の「旧 BE-refactor.md 編集禁止」規定は本統合をもって破棄する。
 > X-9（resv-slot-phantom-toctou）・X-10（mr-version-check-not-atomic）・finalize-child-write-race は挙動変更トラックとして実装完了・CLOSED（詳細は git log 参照）。
-> 前提: backend は 2026-07-02 完遂の D1-D13/R1-R3 計画で一度系統的にリファクタ済み・複数回の監査で well-maintained と判定済みのコードベースである。
+> 前提: backend は複数回の系統的リファクタと監査で well-maintained と判定済みのコードベースである。
 
 ## 監査の方法と信頼性
 
-- 対象: `backend/` 配下全体。15次元で並列監査 → 敵対的検証。
+- 対象: `backend/` 配下全体。15次元で並列監査 → 敵対的検証（Appendix A・H）。R 系は 2026-07-11 に現 HEAD で個別再実測（ファイル存在・grep・scoped `go test`）。
 - 本編（挙動保存）と Appendix A（挙動変更・別トラック）に分離。CLOSED 済みの完了履歴は本ファイルから削除済み。
 
 ## サマリー
@@ -15,7 +16,11 @@
 | 区分 | 件数 | 内訳 |
 |---|---|---|
 | Appendix A（挙動変更・別トラック） | 5件 | X-14〜X-18 |
-| レビュー由来フォローアップ（未登録・別チケット推奨） | 8件 | H-1, H-2, H-3, H-4, H-5, H-6, H-7, H-8 |
+| レビュー由来フォローアップ（未登録・別チケット推奨） | 8件 | H-1〜H-8 |
+| 挙動保存残件（旧 BE-refactor-v2 R系・OPENのみ） | 6件 | R10〜R15 |
+| 別トラック残件（旧 BE-refactor-v2 §4・未着手） | 4件 | G6-2, F3, F6, B-2 |
+
+**旧 BE-refactor-v2.md の R1〜R9・R16〜R21（15件）は 2026-07-11 の現 HEAD 実測で完了確認済み**（`docker compose exec backend go test ./internal/repository/ ...` 等の scoped 実行で該当テストが全て PASS）。実装の詳細手順・コミット履歴は `git log` を参照。R16〜R19（api.yaml の masters/reservation-staffs/reservations/shifts/checkups/pets/medical-records/hospitalizations/owners/lstep/LINE webhook 系オペレーション文書化）は v2 が想定した番号順の別コミット群ではなく「G1-2 residual follow-up (2026-07-10)」という一括作業で達成されており、`internal/apicontract` の route drift gate は現在 PASS（allowlist 残存は意図的 pin のみ）。
 
 ### レビュー由来フォローアップ（本編未登録）
 
@@ -34,39 +39,32 @@
 
 ## Appendix A: 挙動変更を伴う項目（別トラック・PO/責任者判断を要する）
 
-以下8件は監査で実在を確認した defect だが、修正すると HTTP レスポンス・DB書込結果・権限判定・API契約のいずれかが観測可能な形で変わる。このため本計画（挙動保存リファクタ）の実行対象からは外し、個別 Issue として起票のうえ別トラックで扱うことを推奨する。severity 順に記載。
+以下5件は監査で実在を確認した defect だが、修正すると HTTP レスポンス・DB書込結果・権限判定・API契約のいずれかが観測可能な形で変わる。このため本計画（挙動保存リファクタ）の実行対象からは外し、個別 Issue として起票のうえ別トラックで扱うことを推奨する。severity 順に記載。
 
-### X-14. master-FK write allowlistのknown-unguarded約47エントリにisolation test不在(名簿上も『NO dedicated isolation test』と明記)
+### X-14. master-FK write allowlistのknown-unguarded残28エントリにisolation test不在
 
 - **ID**: `test-known-unguarded-master-fk-isolation-tests`
 - **重要度**: P2 / **工数目安**: L
-- **対象ファイル**: internal/service/master_fk_write_inventory_lint_test.go (143-208)
+- **対象ファイル**: internal/service/master_fk_write_inventory_lint_test.go
 - **依存関係**: 各エントリのガード実装(挙動変更)が先行必須。テストのみ先行するとCIがREDになる
 
-**証拠(現HEAD検証済み)**
+**証拠(現HEAD実測: 2026-07-11)**
 
-master_fk_write_inventory_lint_test.go:143-145「// statusKnownUnguarded: reviewed; NO dedicated isolation test confirms ownership\n statusKnownUnguarded masterFKWriteStatus = "known-unguarded"」。エントリ例(同:191-192)「{"accountingService.Update", statusKnownUnguarded, []string{"PaymentMethodID"}, "PaymentMethodID resolved via clinic system_key→ID map (resolvePaymentMethodMasterID); not a FindByID guard and no isolation test — verify rejection of explicit foreign IDs."},\n{"billingItemService.CreateItem", statusKnownUnguarded, []string{"MerchandiseItemID", "TrimmingCourseID", "TrimmingOptionID"}, "all three FKs persisted directly without FindByID (billing_item_service.go:230)."}」。repository/CLAUDE.mdの規約は「正本ガード = 各サイトの runtime isolation test」だが、これらのエントリにはその正本ガードが存在しない。
+`grep -cE '^\s*\{"[A-Za-z]+\.[A-Za-z]+", statusKnownUnguarded,' backend/internal/service/master_fk_write_inventory_lint_test.go` → **28件**。残クラスタ: `billingItemService.CreateItem`(MerchandiseItemID残・DEAD field注記), `inquiryService.Save`, `labImportExaminationService.PersistBatch/PersistExam`, `labResultImportService.Commit`, `liffService.CreateReservation`(TrimmingCourseID/OptionID残), `medicalRecordService.CreateSubRecords`, `medicineService.Create/Update`(InventoryID/ParentID), `ownerService.CreateWithPets`・`petService.Create/Update`(InsuranceID), `reservationAdminService.Create`・`reservationService.Create/Update`・`reservationStaffService.Create/Update`(ExcludedTypeIDs)・`reservationTypeService.Create/Update`(GroupID)・`reservationValidators.ValidateAndCreate`, `staffService.Create/CreateWithAccount/Update`(OccupationID), `treatmentService.Create/Update`(InventoryID残), `trimmingCourseService.Update`(CourseTypeID)・`trimmingService.Create/Update`(CourseID/OptionIDs)。
 
 **問題**
 
-review網羅性gateは『名簿に載せる』ことしか担保せず(同ファイル冒頭に明記)、known-unguardedのまま滞留しているwrite経路はクロステナントmaster FK書き込みが実際に拒否されるかを誰も検証していない。会計ドメイン(accountingService.Update / billingItemService.CreateItem)を含む点が特に優先度が高い。テストを書くとRED(ガード自体が無い)になるため、これはガード実装を伴う挙動変更トラック。
+review網羅性gateは『名簿に載せる』ことしか担保せず(同ファイル冒頭に明記)、known-unguardedのまま滞留しているwrite経路はクロステナントmaster FK書き込みが実際に拒否されるかを誰も検証していない。
 
 **対応方針(挙動変更を伴うため要PO/責任者判断のうえ別トラックで実施)**
 
-別トラック(挙動変更)として段階実施。優先順: (1)会計: accountingService.Update PaymentMethodID / billingItemService.CreateItem の3FK — service層にFindByID(clinicID,…)ガード追加後、internal/repository/または既存cross_tenant_master_fk_write_test.goパターンで『別クリニックFK指定→apperrors.WrapInvalidInput/NotFound拒否』テストを追加、allowlistエントリをguardedへ更新。(2)campaign TargetItemIDs(repo ReplaceTargets unscoped)。(3)carePlanItem HospitalizationPlanID / hospitalization CageID。(4)self-ref ParentID群(checkupType/consultation/examType)。各バッチはTestMasterFKWriteInventoryのstatus突合がgateになるため、allowlist更新漏れはCIで検出される。一括ではなくドメイン毎に1PRずつ、STGデータ監査(既存越境データの有無)を先行させること(R1-3の教訓)。
-
-**進捗(Session 6, 2026-07-11時点)**
-
-バッチ(3) carePlanItem HospitalizationPlanID / hospitalization CageID が完了。`carePlanItemService.validateMasterFKs` に `hospPlanRepo.FindByID(ctx, clinicID, HospitalizationPlanID)` を追加(medicine/procedureと同一エラークラス)、`hospitalizationService.Create/Update` に `repos.Cage.FindByID(ctx, clinicID, CageID)` を追加(CageID非nil時)。isolation test 4件追加: `TestCarePlanItemService_Create_RejectsCrossClinicHospitalizationPlanFK` / `TestCarePlanItemService_Update_RejectsCrossClinicHospitalizationPlanFK` / `TestHospitalizationService_Create_RejectsCrossClinicCageFK` / `TestHospitalizationService_Update_RejectsCrossClinicCageFK`(いずれも `internal/service/cross_tenant_master_fk_write_test.go`)。allowlist該当4エントリを `statusKnownUnguarded` → `statusGuarded` に更新。ガード実装を一時的に無効化した状態でこれら4テストがREDになることを確認済み(regressionを実際に検出する回帰テストであることの確認)。
-
-**残件数の実測訂正**: 本セクション記載の見積り(約47)および過去に参照された「42」という数値は、直近の並行バッチ(X-11〜X-13等)によるallowlist変動を反映しておらずいずれも不正確だった。実測(`grep -c statusKnownUnguarded`)は本バッチ着手前 **46件**、本バッチ完了後 **42件**(-4、対象4エントリのみ)。優先順(2)campaign TargetItemIDs は既にallowlist上 `statusGuarded`(X-5で先行完了済み、本文の優先順メモが古い)。残る対象は主に(1)会計・(4)self-ref ParentID群および reservation/staff/treatment/trimming 等の残 known-unguarded 42件。
+別トラック(挙動変更)としてドメイン毎に1PRずつ段階実施: service層にFindByID(clinicID,…)ガード追加 → 既存 `cross_tenant_master_fk_write_test.go` パターンで「別クリニックFK指定→apperrors.WrapInvalidInput/NotFound拒否」テストを追加 → allowlistエントリをguardedへ更新。各バッチはTestMasterFKWriteInventoryのstatus突合がgateになるためallowlist更新漏れはCIで検出される。STGデータ監査(既存越境データの有無)を先行させること。これまでの実施バッチ（会計/campaign/self-ref ParentID群等）の実装詳細・件数推移はコミット履歴(`git log --oneline -- backend/internal/service/master_fk_write_inventory_lint_test.go`)を参照し、本ファイルには残件のみを保持する。**本セクションは残28件が存在するためCLOSEDではない。**
 
 **検証コマンド(スコープ限定)**
 ```
 docker compose exec backend go test ./internal/service/ -run TestMasterFKWriteInventory -count=1
 docker compose exec backend go test ./internal/service/ -run '_Rejects' -count=1
 ```
-(旧記載の `./internal/repository/ -run TestCrossTenantMasterFKWrite` はパス・テスト名とも現HEADと不一致だったため訂正。isolation testは `internal/service/cross_tenant_master_fk_write_test.go` にあり、対象テスト関数名は `TestCrossTenantMasterFKWrite` ではなく個々のサービス別 `Test*_*Rejects*` 群。)
 
 ### X-15. P6逸脱: 状態トグル系 DELETE 4ルートが "delete" ではなく "edit" 権限でゲート(免除根拠コメントなし)
 
@@ -185,3 +183,143 @@ docker compose exec backend go test ./internal/service/ -run TestPasswordResetSe
 ```
 
 ---
+
+## 挙動保存残件（旧 BE-refactor-v2 R系・OPENのみ）
+
+以下6件は 2026-07-10 作成の `BE-refactor-v2.md`（R0〜R21・全項目挙動保存）のうち、2026-07-11 に現 HEAD で再実測して未着手（OPEN）と確認したものだけを移植した。R1〜R9・R16〜R21 は完了確認済みのため移植していない（詳細は `git log` 参照）。
+
+### R10. G7-1が残した孤児メソッド CountWorkingStaffByReservationTypeID の削除
+
+- **ID**: `dead-count-working-staff-singular`
+- **重要度**: P3 / **工数目安**: S
+- **対象ファイル**: internal/repository/reservation_type_occupation_repository.go（interface宣言:27, 実装:98）、同 `_test.go:171`、internal/service/reservation_type_service_test.go・liff_service_mock_test.go・reservation_type_service_occupation_test.go（mock 3箇所）
+- **依存関係**: なし（単独削除可能）
+
+**証拠(現HEAD実測: 2026-07-11)**
+
+`grep -rn 'CountWorkingStaffByReservationTypeID\b' backend/internal --include='*.go' | grep -v _test.go` は repository のinterface宣言・実装のみがヒットし、本番呼び出し元は0件（`liff_service_availability.go:150`はバッチ版`CountWorkingStaffByReservationTypeIDs`（複数形）のみを呼ぶ）。G7-1（`755f3e42`）が本番呼び出しをバッチ版へ切替えた結果の孤児メソッドが、v2作成時点(2026-07-10)から未削除のまま現HEADにも残存している。
+
+**対応方針**
+
+interface宣言・実装・専用repositoryテスト（`reservation_type_occupation_repository_test.go:171`）・service層mock3箇所の該当メソッドを削除する。複数形`...TypeIDs`（バッチ版）は現役のため絶対に触らない。削除前に上記grepを再実行し単数形の残存参照が0件になることを確認する。
+
+**検証コマンド(スコープ限定)**
+```
+grep -rn 'CountWorkingStaffByReservationTypeID\b' backend/internal --include='*.go' | grep -v '_test.go'
+docker compose exec backend go test ./internal/repository/ -run TestReservationTypeOccupation -count=1
+docker compose exec backend go test ./internal/service/ -run 'TestLiff' -count=1
+```
+
+### R11. lstep_csv_helpers.go の複合日時リテラル1件を time.DateTime へ統一
+
+- **ID**: `lstep-csv-datetime-const`
+- **重要度**: P3 / **工数目安**: XS
+- **対象ファイル**: internal/service/lstep_csv_helpers.go:108
+- **依存関係**: なし
+
+**証拠(現HEAD実測)**
+
+`csvDateFormats`（:105-111）の3番目の要素が `"2006-01-02 15:04:05"` のリテラル文字列のまま（Go 1.20+ の `time.DateTime` と完全一致）。隣接する `time.DateOnly`（:106）とは不統一。v2作成時点から未修正。
+
+**対応方針**
+
+`:108` のリテラルを `time.DateTime` に置換（値同一・挙動不変）。`:109-110` の真の複合レイアウトは触らない。
+
+**検証コマンド(スコープ限定)**
+```
+docker compose exec backend go test ./internal/service/ -run 'Csv' -count=1
+```
+
+### R12. ConfigureTimeZone の JST 再導出を config.JST 再利用に統一
+
+- **ID**: `configuretimezone-jst-reuse`
+- **重要度**: P3 / **工数目安**: XS
+- **対象ファイル**: internal/config/timezone.go:23-30
+- **依存関係**: なし
+
+**証拠(現HEAD実測)**
+
+`ConfigureTimeZone()` が `time.LoadLocation(JapanTimeZone)` を独自に再実行しており、package init で panic-fail-fast 済みでキャッシュされている `JST` 変数（:14-20）を再利用していない。ドキュメントコメント（:11-14）が「各呼び出し箇所で再導出せずキャッシュ済み JST を使え」と明記した直後の関数がそれに反する。v2作成時点から未修正。
+
+**対応方針（シグネチャ・戻り値型不変）**
+```go
+func ConfigureTimeZone() error {
+    time.Local = JST
+    return nil
+}
+```
+`fmt` import が他で未使用になる場合は整理する。
+
+**検証コマンド(スコープ限定)**
+```
+docker compose exec backend go test ./internal/config/ -count=1
+```
+
+### R13. G3-3未完遂分: 業務repoのUpdate系を updateScopedByID へ統合
+
+- **ID**: `repo-update-helper-consolidation`
+- **重要度**: P3 / **工数目安**: M
+- **対象ファイル(12サイト)**: estimate_repository.go:81 / checkup_repository.go:149 / inventory_repository.go:72 / diagnosis_repository.go:70,202 / examination_repository.go:111 / permission_group_repository.go:72 / reservation_type_liff_repository.go:68 / reservation_staff_repository.go:87 / closing_special_period_repository.go:80 / shift_entry_repository.go:94 / reservation_repository.go:170 / accounting_repository.go:214
+- **依存関係**: 保護テスト（accounting_complete_appointments_test.go 等）は現HEADで実装済み
+
+**証拠(現HEAD実測: 2026-07-11)**
+
+上記12サイトを実読した結果、全サイトが `updateScopedByID`（helpers.go:70）を未使用で、マスタ系19 repo（cage/checkup_type/consultation/exam_type/vaccine 等）で使われているのと同型の手書きボディ（clinicScope + Where(id) + Updates + FromGORM + RowsAffected==0→WrapNotFound）が残存する。v2作成時点(2026-07-10)から未着手のまま。
+
+**対応方針**
+
+各サイトを機械的にヘルパ呼び出しへ置換する。dbOrTx変種（inventory/examination/reservation_staff/shift_entry/accounting）は `updateScopedByID(dbOrTx(ctx, r.db), ...)` の形で ambient tx 参加を維持する。置換前に既存ボディとヘルパの挙動を①RowsAffected==0の扱い ②更新後再取得(FindByID)の有無とPreload ③Select/Omit句の有無 が完全一致するサイトのみ置換すること。除外（触ってはならない）: treatment/care_plan_item/clinical_plan（サブクエリ隔離）、billing_item（JOINスコープ）、medical_record_repository.goのUpdate（draft-status条件+Conflict変換）、reservation_type_liffのDelete（FK-conflict変換）、pet_chronic_condition_repository.go（本ファイル下部「別トラック残件」F3参照 — RowsAffected検査が無いため置換は挙動変更になる）。
+
+**検証コマンド(スコープ限定)**
+```
+docker compose exec backend go test ./internal/repository/ -count=1
+```
+
+### R14. G3-3未完遂分: 業務repoのDelete系を deleteScopedByID へ統合
+
+- **ID**: `repo-delete-helper-consolidation`
+- **重要度**: P3 / **工数目安**: S
+- **対象ファイル(5サイト)**: estimate_repository.go:95 / checkup_repository.go:164 / inventory_repository.go:87 / medical_record_repository.go:238 / appointment_admin_repository.go:101（SoftDelete）
+- **依存関係**: R13と同一ファイル群のため直後に実施推奨
+
+**証拠・問題・対応方針**: R13と同一の統合・同一の手順・同一の除外リスト。**注意**: `medical_record_repository.go:238` の Delete は `Where("id = ? AND status = ?", id, model.MedicalRecordStatusDraft)` の追加述語を持つためヘルパ対象外の可能性が高い — 置換前に必ず実体を読むこと（現HEAD実測: draft条件は Update 側にも同型で存在することを確認済み）。
+
+**検証コマンド(スコープ限定)**
+```
+docker compose exec backend go test ./internal/repository/ -count=1
+```
+
+### R15. api.yaml: Billing スキーマに medical_record ネストプロパティを追記
+
+- **ID**: `openapi-billing-medical-record-property`
+- **重要度**: P3 / **工数目安**: XS
+- **対象ファイル**: backend/docs/api.yaml（Billingスキーマ、現HEAD: :1472-1571 付近）
+- **依存関係**: なし
+
+**証拠(現HEAD実測)**
+
+model `accounting.go` の `MedicalRecord *MedicalRecord json:"medical_record,omitempty"`（Preload時のみ直列化）に対応するプロパティが Billing スキーマに存在しない。owner/pet/items/payments/payment_splits/refunds は追記済みだが medical_record のみ欠落。
+
+**対応方針**
+
+Billing スキーマに `medical_record`（nullable, readOnly, description: Preload 時のみ）を、既存の owner/pet と同様の入れ子オブジェクトまたは `$ref` で追記する。実装コードは触らない。
+
+**検証コマンド(スコープ限定)**
+```
+docker compose exec backend go test ./internal/apicontract/ -count=1
+```
+
+---
+
+## 別トラック残件（旧 BE-refactor-v2 §4・未着手・記録のみ）
+
+以下は挙動変更または PO 判断を要するため本計画では実行しない。実行者はこの節に一切手を付けないこと。
+
+| ID | 内容 | 現HEAD状態(2026-07-11実測) |
+|---|---|---|
+| G6-2 | repo内部tx13ファイルのdbOrTx化 + tx規約CLAUDE.md追記 | ブロッカーだった旧Appendix Aのtx非参加3件（X-9/X-10/finalize-child-write-race）はCLOSED済みだが、G6-2自体の対象13ファイルの特定・変換は未着手・未検証 |
+| F3 | `pet_chronic_condition_repository.go:61,71` の Update/Delete に RowsAffected==0→NotFound 検査が無い（パッケージ内で唯一） | 現HEADでも検査なしのまま残存を確認。ヘルパ統合は「無言成功→NotFound」への挙動変更になるためPO判断が前提 |
+| F6 | 死にコード群（`LstepTagService.BulkAddOwnerTag`、`SyncPetSpeciesTags`、`SyncSeniorTag`、`FindOwnersByCategoryPurchaseDate` 等）のkeep/delete判断 | 現HEADで全メソッドの存在を確認。Lstep Write API一時停止(2026-05)由来の意図的休眠の可能性がありオーナーの機能ロードマップ判断待ち |
+| B-2 | Preload read-lint未登録の3マスタ | modelにGORM associationが無く構文的に登録不能（設計変更が前提）。対象ファイル未特定のため次回着手時に再調査要 |
+
+（`G9-1`: main.go二段階DIの単一化は現HEADで完了確認済み — `cmd/api/main.go:95`「G9-1: 旧・二段階DIを単一段階に統合」。この表からは除外し、記録済み扱いとする。）
