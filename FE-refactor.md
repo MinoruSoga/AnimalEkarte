@@ -1,6 +1,7 @@
 # フロントエンド リファクタリング計画
 
 - **作成日**: 2026-07-07
+- **更新日**: 2026-07-10 — R-F1〜R-F8（CLOSED）のタスク定義・完了ログ・§1解消済みFD行を本文から削除し、未対応バックログ（R-F3・R-F9〜R-F25）のみの正本に再構成した。**R-F1〜R-F8は完了のため本文から削除。履歴は git で参照**（commit `2acd7854`以前に全文が残る）。
 - **対象**: `frontend/` の3アプリ全体 — `src/`（メインアプリ・1113 .ts/.tsxファイル・26 feature）＋ `liff/`（11ファイル）＋ `line-reserve/`（30ファイル）
 - **スタック**: React 19 / TypeScript 6.0 / Vite 8 / Tailwind CSS 4 / shadcn/ui / TanStack Query
 - **性格**: 全項目 **behavior-preserving（挙動保存）** を原則とする負債返済計画である。振る舞いを変える修正が必要な項目（一部のバリデーション追加等）は該当箇所に明記し、別コミット（`fix:`）として分離する。本計画自体はコード変更を行わない設計書であり、実装は本計画をもとに別途着手する。
@@ -8,7 +9,7 @@
 
 ---
 
-## 1. 現状評価（2026-07-07 実測）
+## 1. 現状評価（2026-07-07 実測、CLOSED分は2026-07-09/10完了）
 
 ### 健全な点（是正不要と判断する根拠）
 
@@ -17,164 +18,31 @@
 | Feature Indexing（deep import） | `@/features/xxx/(api\|components\|hooks\|routes\|types\|loaders)` 形式の直接import 0件（52件のbarrel経由importを全数確認、静的・動的・相対パス迂回・エイリアス抜け道いずれも無し） | 規約完全準拠 |
 | React 19パターン逸脱 | `FC<`/`React.FC`/`forwardRef(`/フォーム手動loading管理（`setIsLoading`等）いずれも0件。36ファイルで`useActionState`を正しく使用 | 規約完全準拠 |
 | 条件レンダリング（`&&`）アンチパターン | `{cond && <JSX>}`形式0件。過去の包括是正（commit b7a5a342で68→0件、以降複数の個別是正コミット）が定着し再発なし | 規約完全準拠。ただしESLintでの機械強制（`react/jsx-no-leaked-render`相当）は未導入で手動規律に依存 |
-| any型使用 | 明示的`any`（`: any`/`<any>`/`as any`/`any[]`/`Record<string, any>`）はアプリケーションコードに実質0件。唯一の出現は`src/types/generated/models.ts`（tygo自動生成、19箇所、eslint.config.js ignoreで対象外） | ほぼ完全準拠。回避経路（`as unknown as T`等）の構造的ギャップはR-F6で解消済み（CLOSED 2026-07-10、FD5参照） |
-| design-system-audit.mjs対象範囲（`src/features/**/routes/**`・`**/pages/**`のhex直書き・legacy accent・colorVariant） | 2026-07-06監査時点0件、CI zero-tolerance gateで新規混入を検知 | 機械監査運用中。本計画では対象外範囲（components/shared、features/**/hooks等）のみ追加監査した→FD4 |
+| any型使用 | 明示的`any`（`: any`/`<any>`/`as any`/`any[]`/`Record<string, any>`）はアプリケーションコードに実質0件。唯一の出現は`src/types/generated/models.ts`（tygo自動生成、19箇所、eslint.config.js ignoreで対象外） | ほぼ完全準拠 |
+| design-system-audit.mjs対象範囲（`src/features/**/routes/**`・`**/pages/**`のhex直書き・legacy accent・colorVariant） | 2026-07-06監査時点0件、CI zero-tolerance gateで新規混入を検知 | 機械監査運用中 |
 | eslint-disable根拠コメント | R-F3（既存PR #218）で33件監査・分類済み。`frontend/scripts/check-eslint-disable-rationale.mjs`のratchetで新規増加のみ検知 | 運用中。本計画では再監査しない |
 | UI Design Compliance（84リーフルート） | `docs/UI_DESIGN_COMPLIANCE.md`§2で2026-07-06監査済み・83準拠/1対象外 | 運用中。本計画では再監査しない |
-| frontendカバレッジratchet | `frontend/.coverage-baseline`（43.78%、2026-07-05 arm済み）で低下をCI検知 | 運用中。底上げ自体は本計画の対象外（FD8はratchetでは捕捉できない質的ギャップを扱う） |
+| frontendカバレッジratchet | `frontend/.coverage-baseline`（43.78%、2026-07-05 arm済み）で低下をCI検知 | 運用中 |
+| R-F1〜R-F8（FD1・FD3・FD4・FD5・FD6・FD11・FD12行メモ化） | 全項目CLOSED（完了日2026-07-09/10） | 完了。詳細は git 履歴（commit `2acd7854`以前）参照 |
 
 ### 残存する負債
 
 | FD# | 負債 | 規模の目安 | リスク |
 |---|---|---|---|
-| FD1 | ~~feature間直接依存（cross-feature import）禁止パターン違反~~ **解消済み（R-F2, CLOSED 2026-07-09）** | 26 feature中12 featureで38件（25ファイル）→ 0件（意図的例外1件） | R-F2-S1〜S18（18コミット）で全25件対応方針を実施。最終監査は[R-F2完了ログ](#r-f2-完了ログcloseD-2026-07-09)参照 |
 | FD2 | ディレクトリ構造・命名規則逸脱 | 約101件（*Model.ts等57件、hooks配置ミス11件、feature構造逸脱3件、その他） | 単発ミスでなく定着した「非公式ローカル規約」化。新規参加者・AIエージェントが誤って模倣するリスク |
-| FD3 | ~~src/hooks/配置ミス~~ **解消済み（R-F4, CLOSED 2026-07-09）** | 2件 → 0件 | R-F4（commit `b8dccb77`）でAccountingDocumentのuseClinicTaxRates SSOT統一とuse-postal-code-lookupのfeatures/owners/hooks/移設を実施。詳細は[R-F4完了ログ](#r-f4-完了ログcloseD-2026-07-09)参照 |
-| FD4 | ~~Design Tokens残存hex（機械監査の盲点）~~ **解消済み（R-F5, CLOSED 2026-07-09）** | 2件 → 0件 | design-system-audit.mjsの正規表現（引用符付きhex）をすり抜ける10進rgba表記。R-F5（commit `e372e272`）で解消。詳細は[R-F5完了ログ](#r-f5-完了ログcloseD-2026-07-09)参照 |
-| FD5 | ~~型安全性の構造的ギャップ~~ **解消済み（R-F6, CLOSED 2026-07-10）** | 4件+lintゲート未強化 → 0件/ゲート化済み | R-F6-S1〜S4（4コミット）で無検証キャスト4件の解消と`no-explicit-any`のlint error格上げを実施。詳細は[R-F6完了ログ](#r-f6-完了ログcloseD-2026-07-10)参照 |
-| FD6 | ~~CODING_RULES.md記載内容の自己矛盾~~ **解消済み（R-F1, CLOSED 2026-07-09、監査PASS・コード変更なし）** | 1件（ドキュメントのみ）→ 0件（先行是正済みを監査確認） | 実害無し。将来の誤学習・誤実装のリスク。詳細は[R-F1完了ログ](#r-f1-完了ログcloseD-2026-07-09)参照 |
 | FD7 | ファイル・コンポーネントサイズ超過 | 400-800行帯13ファイル | 複数責務が単一関数/コンポーネントに平坦に同居。プロジェクト自身のCODING_RULES.md基準にも抵触 |
 | FD8 | テストカバレッジの質的ギャップ | 11件（CRITICAL1・HIGH多数） | 「テストがある/ない」の粗い比率とリスクの高低が一致しない逆転現象あり。過去に複数回バグ修正された箇所が無防備 |
 | FD9 | アクセシビリティ逸脱 | 53件（代表列挙） | 共有コンポーネント経由で多数画面に伝播する構造的パターン。受付ボードという日常業務中核画面にも波及 |
 | FD10 | liff/line-reserveアプリ固有の規約逸脱 | 8件 | mainアプリで既に修正済みの障害クラス（BUG-067）が別アプリで再現しうる実害あり |
-| FD11 | ~~未使用コード検出基盤（knip）の欠落~~ **解消済み（R-F7, CLOSED 2026-07-10）** | 1件 → 稼働化済み（棚卸し227件は別チケット） | R-F7（commit `5fe32a64`）でdevDependency・script・CI non-blockingステップを導入し稼働化。詳細は[R-F7完了ログ](#r-f7-完了ログcloseD-2026-07-10)参照 |
-| FD12 | パフォーマンスパターン欠如（memo/useDeferredValue/lazy）— 行メモ化領域は**解消済み（R-F8, CLOSED 2026-07-10）**、useDeferredValue・lazy化は未着手 | 代表10件 → 行メモ化3件解消（R-F8, CLOSED 2026-07-10）。useDeferredValue/lazyはR-F9/R-F10残 | 主要一覧画面は模範的だが、横展開されていない周辺領域に集中。行メモ化領域はR-F8で解消済み、詳細は[R-F8完了ログ](#r-f8-完了ログcloseD-2026-07-10)参照。useDeferredValue・lazy領域は同種のリスクが残存 |
+| FD12 | パフォーマンスパターン欠如（残: useDeferredValue・lazy。行メモ化領域はR-F8で解消済み） | 代表10件中 useDeferredValue3件・lazy3件が未着手 | 主要一覧画面は模範的だが、横展開されていない周辺領域に集中 |
 
 ---
 
-## 2. フェーズ計画
+## 2. 未対応タスク一覧
 
-規模: S=半日以内 / M=1日 / L=2-3日。各R-F項目は独立コミットとする。
+規模: S=半日以内 / M=1日 / L=2-3日。各R-F項目は独立コミットとする。旧Phase番号は着手順の参考として見出しに残す（完了Phaseの見出しは除去済み）。
 
 ### Phase 1: ドキュメント・命名規則・配置の是正（低リスク・機械的）
-
-#### R-F1. CODING_RULES.md自己矛盾の是正（FD6）— 規模 S
-
-- **現状**: `frontend/CODING_RULES.md` 755-773行目「Feature公開API例」節が、同ファイル2068-2095行目（`bundle-feature-indexing`節）および`frontend/CLAUDE.md`・`frontend/src/features/CLAUDE.md`のFeature Indexing規約と逆のことを「正しい」と明記している。具体的には759-761行目が「外部からのimportはindex.ts経由でなく直接ファイルを参照する（`@/features/owners/routes/OwnersList` ← 正しい／`@/features/owners` ← 禁止）」と書いており、実際の規約・実コード（`src/app/routes/*.tsx`全11ファイルはbarrel経由の`await import("@/features/xxx")`のみを採用）と正反対である。771-772行目の「loadersはrouter.tsxから直接import」という記述も、実際にloadersがapp/routes配下で使われていない現状（grep 0件）と整合していない。
-- **あるべき姿**: 755-773行目のコード例が2068-2095行目・実コードの実態と一致していること。
-- **手順**:
-  1. 759-761行目の「★」コメントと禁止/正しいの表記を反転させる。`export { OwnersList } from "./routes/OwnersList";`はindex.ts内部の再エクスポート定義として残しつつ、外部からのimportは`import { OwnersList } from "@/features/owners"`（barrel経由）が正、`@/features/owners/routes/OwnersList`へのdeep importが誤、と明記する。
-  2. 771-772行目の「loadersはrouter.tsxから直接import」記述を、実態（loadersはfeature側からexportされfeature index.ts経由でも直接でも良い設計上の選択肢である旨）に合わせて修正するか、将来導入時の条件を明示する。
-- **検証**: ドキュメントのみの変更のためコード実行検証は不要。修正後、755-773行目と2068-2095行目を読み比べ、矛盾が解消されていることを目視確認する。
-
-#### R-F1 完了ログ（CLOSED, 2026-07-09）
-
-- **ステータス**: **CLOSED**（完了日 2026-07-09、監査のみ・コード変更なし）
-- **監査結果**: **PASS**。`frontend/CODING_RULES.md` 755–775行目（Feature公開API例）と2084–2112行目（`bundle-feature-indexing`節）を目視照合した結果、両節とも「feature外からのimportはindex.ts（barrel）経由が正、deep importが禁止」で一致していた。上記「現状」節（本タスク着手前の記述、作成日2026-07-07時点）が指摘した759-761行目・771-772行目の矛盾は、本タスク着手前の時点で既に解消されていた（是正の実施元は本タスクの範囲外・履歴未特定。「現状」節は計画作成時点の古い記述として残置し、本完了ログで最新状態を正本化する）。実際の755-775行目は「★」コメント付きでbarrel importを「正しい」・deep importを「禁止」と明記し、771-773行目もloadersを同一index.tsから公開しbarrel経由で呼び出す例のみを記載しており、2084-2112行目の「feature外はbarrel経由・feature内部は直接ファイル指定」の使い分けと矛盾しない。
-- **実施した修正**: なし（`frontend/CODING_RULES.md`は変更不要、先行是正済みのため）。
-- **検証**（実測）:
-  ```
-  $ rg '@/features/[^/]+/(api|components|hooks|routes)/' frontend/src/app
-  （0件・exit 1）
-
-  $ rg -n 'ownersLoader|ownerLoader' frontend/src/app/routes/clinical-general-routes.tsx
-  46:              const [{ OwnersListPage }, { ownersLoader }] = await Promise.all([
-  50:              return { Component: OwnersListPage, loader: ownersLoader };
-  74:              const [{ OwnerFormPage }, { ownerLoader }] = await Promise.all([
-  78:              return { Component: OwnerFormPage, loader: ownerLoader };
-  ```
-  両loadersとも`import("@/features/owners")`（barrel経由）から取得しており、app層でのdeep importは0件。
-- **NULバイト調査**（R-F4完了ログの候補記載事項）: `python3 -c "open('FE-refactor.md','rb').read().find(b'\x00')"`でoffset 74925に1件検出。周辺文脈（R-F20節、BUG-067系NULLバイト障害の説明文）から、`` `\x00` ``という文字列表記が意図されていた箇所に生のNULバイト1バイトが混入していたものと判明。除去可能と判断し、当該バイトをテキスト表記`\x00`（4文字）へ置換して修正した（本完了ログ作成と同一コミットに含む）。
-- **次エピック候補**: R-F5は完了（CLOSED 2026-07-09、commit `e372e272`、[R-F5完了ログ](#r-f5-完了ログcloseD-2026-07-09)参照）。
-
-#### R-F2. feature間直接依存（cross-feature import）38件の解消（FD1）— 規模 L
-
-- **現状**: `frontend/CODING_RULES.md` 1.2節「feature間の直接importは禁止。cross-feature合成が必要な場合はapp/pages/XxxPage.tsxで依存逆転により合成する」に対し、26 feature中12 featureで計38件（25ファイル）の直接import違反がある。特にmedical-records（9件）とowner-report（13件）が「何でも読みに行くハブ」と化している。一方で`app/pages/AccountingDetailPage.tsx`（accounting+master）と`app/pages/OwnerFormPage.tsx`（owners+pets+line-reservation、`lineSection`propによるスロット注入）という模範実装が既に存在するにもかかわらず、同じ画面の実装内で合成層をすり抜けて元featureが直接参照するケースが複数ある。
-- **あるべき姿**: feature間の依存は(a) 既存の合成層（app/pages/）へのprops注入、(b) 複数feature共有データは`src/hooks/`への昇格、(c) 純粋なドメイン定数は`src/types/`または`src/config/`への抽出、のいずれかで解消され、feature同士が直接importしない状態。
-- **対象ファイル一覧（全25件）**:
-
-| # | ファイル | 参照先feature | 対応方針 |
-|---|---|---|---|
-| 1 | `features/accounting/routes/AccountingDetail.tsx:27` | cash-register (`useGetCashRegisterCloses`) | 既存`app/pages/AccountingDetailPage.tsx`でprops注入 |
-| 2 | `features/clinic-settings/components/ClinicMasterSidePanel.tsx:4-8` | accounting (`DOCUMENT_SECTION_KEYS`等) | `src/types/`or`src/config/`へ定数抽出、双方がそこから参照 |
-| 3 | `features/master/api/permission-groups.ts:5` | auth (`ME_QUERY_KEY`) | `src/hooks/`or`src/config/query-keys.ts`へ昇格 |
-| 4 | `features/medical-records/components/CheckupsTab/CheckupsTabRows.tsx:8` | checkups (`CheckupAlertBadge`) | presentationalなら`src/components/shared/`へ昇格。domain依存があれば新設`app/pages/MedicalRecordFormPage.tsx`でrender-prop注入 |
-| 5 | `features/medical-records/components/ExaminationImportDialog.tsx:13` | examinations (`useGetExaminations`, `useUpdateExamination`) | `src/hooks/`へ昇格 or 新設page層でprops注入 |
-| 6 | `features/medical-records/hooks/use-medical-record-form.ts:11` | reservations (`useCreateReservation`, `useGetReservations`) | 新設`app/pages/MedicalRecordFormPage.tsx`経由でprops注入（フックが大きいため、まずreservations依存部分を薄いadapter関数に切り出す） |
-| 7 | `features/medical-records/hooks/use-medical-record-auto-create.ts:7` | reservations（型のみ、`.id`のみ使用） | `{ id: string }`の最小構造型を自前定義するか`@/types`の共通型使用 |
-| 8 | `features/medical-records/api/get-record-examinations.ts:5` | examinations (`transformExamResult`, `ExamResult`) | `src/lib/`or`src/types/`へ共有変換ユーティリティとして抽出 |
-| 9 | `features/medical-records/routes/MedicalRecords.tsx:40` | owners (`useAnimalSpecies`) | `src/hooks/use-animal-species.ts`へ昇格 |
-| 10 | `features/medical-records/routes/MedicalRecordForm.tsx:38` | owners (`useGetOwnerLineTags`) | `src/hooks/`へ昇格（reservationsからも参照されており実質共有フック、#12参照） |
-| 11 | `features/medical-records/components/ExaminationGroup.test.tsx:6` | examinations（テストのみ、型） | #8の修正で自動解消 |
-| 12 | `features/medical-records/components/__tests__/MedicalRecordExamination.test.tsx:8` | examinations（テストのみ、型） | #8の修正で自動解消 |
-| 13 | `features/owner-report/components/VaccinationHistorySection.tsx:4` | medical-records (`useGetPetVaccinations`) | `src/hooks/`へ統合（既存`use-vaccinations.ts`と同種） |
-| 14 | `features/owner-report/components/CheckupHistorySection.tsx:4` | checkups (`useGetPetCheckupResults`) | `src/hooks/`へ昇格 or 新設page層でprops注入 |
-| 15 | `features/owner-report/routes/OwnerReport.tsx:10-11` | owners (`useGetOwner`), pets (`useGetPets`) | `OwnerFormPage.tsx`を模範に新設`app/pages/OwnerReportPage.tsx`で合成 |
-| 16 | `features/owner-report/__tests__/OwnerReport.test.tsx:28,43` | medical-records, checkups（テストのみ、モック） | #13・#14の修正で自動解消 |
-| 17 | `features/owner-report/api/get-pet-trimming-history.ts:4` | trimming (`transformTrimming`) | `src/lib/`or`src/types/`へ共有変換ユーティリティ抽出 |
-| 18 | `features/owner-report/api/get-pet-examinations.ts:4` | examinations (`transformExamination`) | 同上（#8と合わせて一括対応可） |
-| 19 | `features/owners/components/PetEditModalFieldSections.tsx:12` | pets (`PetDeceasedRecordButton`) | `OwnerFormPage.tsx`既存の`petMutations`注入パターンを拡張、またはUI専用なら`src/components/shared/`へ昇格 |
-| 20 | `features/owners/routes/OwnerForm.tsx:30-31` | accounting (lazy import, `OwnerAccountingHistory`) | `OwnerFormPage.tsx`の`lineSection`と同じ手法で`accountingSection`propを新設 |
-| 21 | `features/reception/routes/useReceptionModalHandlers.ts:6` | reservations (`useUpdateReservation`) | 新設`app/pages/ReceptionPage.tsx`でprops注入、または`src/hooks/`昇格 |
-| 22 | `features/reservations/components/ReservationDetailModal.tsx:7` | owners (`useGetOwnerLineTags`) | `src/hooks/`へ昇格（#10と統合） |
-| 23 | `features/reservations/hooks/use-reservation-actions.ts:6-7` | owners (`createOwner`), pets (`createPet`) | 新設`app/pages/ReservationsPage.tsx`でmutation注入オブジェクトを組み立てて渡す |
-| 24 | `features/settings/integrations/lstep/TriggerPrioritySection.tsx:6` | lstep (`TriggerTypeLabels`) | ラベル定数なら`src/types/`or`src/config/`へ抽出 |
-| 25 | `features/trimming/routes/TrimmingForm.tsx:17` | master (`useGetTrimmingCourseTypes`) | `src/hooks/`へ昇格（同ファイルが既に`use-master-items`を共有経由で使用済み、統合先を揃える） |
-
-- **手順**:
-  1. 上記25件を「(a) 昇格すべき共有フック/型」「(b) app/pages/合成層でprops注入すべきもの」「(c) 純粋定数として抽出すべきもの」の3分類に仕分ける（表の「対応方針」列が仕分け結果）。
-  2. 分類(a)（#3, #4, #5, #9, #10・#22統合, #13, #14, #17, #18, #25）から着手する。`src/hooks/`への移設は機械的（import元の付け替えのみ）で、既存の`frontend/src/hooks/CLAUDE.md`「Cross-featureデータ系」表への追記を伴う。
-  3. 分類(c)（#2, #24）は共有定数を`src/types/`or`src/config/`へ抽出し、両feature側からそちらを参照する形に変更する。
-  4. 分類(b)（#1, #6, #7, #15, #19, #20, #21, #23）は新設`app/pages/XxxPage.tsx`または既存合成層の拡張が必要なため個別に設計判断を伴う。特に#6（use-medical-record-form.ts）と#23（use-reservation-actions.ts）は影響範囲が大きいため最後に着手する。
-  5. #11, #12, #16はテストのみの依存であり、対応する本体側の修正（#8, #13, #14）が完了すれば自動的に解消する。個別対応は不要。
-  6. 各ファイル修正ごとに既存テストGREEN維持を確認する。
-- **検証**: `docker compose exec frontend npx vitest run <該当feature配下パス>`（`--`を挟むと全件実行になる罠に注意、`frontend/CLAUDE.md`「Scoped Test Verification」参照）。修正後に`grep -rn "@/features/" frontend/src/features/<修正済みfeature>`を再実行し、自feature以外への参照が消えていることを確認する。
-
-#### R-F2 完了ログ（CLOSED, 2026-07-09）
-
-- **ステータス**: **CLOSED**（完了日 2026-07-09、実装スライス R-F2-S1〜S18、全18コミット）
-- **最終検証**（実測、本追記時点で再実行し一致確認済み）:
-  ```
-  $ rg '@/features/' frontend/src/features --glob '*.{ts,tsx}'
-  frontend/src/features/accounting/routes/__tests__/AccountingRouteGuards.test.tsx:16:vi.mock("@/features/accounting", ...)
-  frontend/src/features/accounting/routes/__tests__/AccountingRouteGuards.test.tsx:23:vi.mock("@/features/cash-register", ...)
-  frontend/src/features/accounting/routes/__tests__/AccountingRouteGuards.test.tsx:27:vi.mock("@/features/accounting-reports", ...)
-  ```
-  25件の対象（下表）は全てS1〜S18で解消。残存する3行は後述の**意図的例外**であり、cross-feature import違反ではない。
-
-- **意図的例外**: `features/accounting/routes/__tests__/AccountingRouteGuards.test.tsx`の`vi.mock("@/features/accounting")`等3行は、route guardのテストがルーティング上隣接する他featureのbarrel exportをモックするために`vi.mock`のモジュール指定子として`@/features/xxx`文字列を使用しているものであり、プロダクションコードからの実importではない。route guardテストの性質上、対象featureのbarrel全体をモック対象にする必要があるため、この形は妥当な設計であり是正対象としない。
-
-- **実装パターン要約**（25件の対応方針は以下5パターンに収斂した）:
-
-  | パターン | 内容 | 該当# |
-  |---|---|---|
-  | (a) hooks昇格 | feature間で共有されるquery/mutation hookを`src/hooks/`へ昇格 | #1, #3, #4, #5, #9, #10, #13, #14, #21, #22, #25 |
-  | (b) lib transform昇格 | 変換ユーティリティを`src/lib/transforms/`へ昇格 | #8, #17, #18 |
-  | (c) config定数抽出 | 共有定数を`src/types/`or`src/config/`へ抽出 | #2, #24 |
-  | (d) shared component昇格 | UI専用コンポーネントを`src/components/shared/`へ昇格 | #4（CheckupAlertBadge）, #19（PetDeceasedRecordButtonクラスタ） |
-  | (e) app/pages DI | 既存/新設のapp/pages/XxxPage.tsxでprops・mutation注入により合成 | #6, #7, #15, #16, #20, #23 |
-
-  ※ #7は型依存のみのため最小構造型の自前定義（DIというより型デカップリング）、#11・#12はテスト専用の依存で#8修正時に一部自動解消、最終的にS18で個別修正。
-
-- **スライス実装ログ**（commit hashは`git log --oneline --grep='R-F2-S'`で実測。全18コミットは`main`へpushではなく直接コミット済み、pushはRepo運用ポリシーに従い別途）:
-
-  | Slice | commit | 対象# | 内容 | パターン |
-  |---|---|---|---|---|
-  | S1 | `e550e330` | #3, #9 | `ME_QUERY_KEY`/`useAnimalSpecies`を共有hooksへ昇格 | (a) |
-  | S2 | `299a7718` | #10, #22 | `useGetOwnerLineTags`を共有hooksへ昇格 | (a) |
-  | S3 | `e8ad5aef` | #25 | `useGetTrimmingCourseTypes`を共有hooksへ昇格 | (a) |
-  | S4 | `5176495c` | #13 | `useGetPetVaccinations`を共有hooksへ昇格 | (a) |
-  | S5 | `d9c3e79f` | #14 | `useGetPetCheckupResults`を共有hooksへ昇格 | (a) |
-  | S6 | `4331156a` | #8, #17, #18 | trimming/examination変換を`src/lib/transforms/`へ昇格 | (b) |
-  | S7 | `77d1f06c` | #4 | `CheckupAlertBadge`を`src/components/shared/`へ昇格 | (d) |
-  | S8 | `6aa37753` | #5 | examination hooks（`useGetExaminations`/`useUpdateExamination`）を共有hooksへ昇格 | (a) |
-  | S9 | `d5e9fe1b` | #2, #24 | 共有定数を`src/config/`へ抽出 | (c) |
-  | S10 | `61bfe8a8` | #7 | medical-record auto-createをreservations型から型デカップリング | (e) |
-  | S11 | `a4db9fcc` | #1 | `useGetCashRegisterCloses`を共有hooksへ昇格 | (a) |
-  | S12 | `5fcf6170` | #21 | `useUpdateReservation`を共有hooksへ昇格 | (a) |
-  | S13 | `15808d68` | #6 | reservation query/create hooksを共有hooksへ昇格し`use-medical-record-form.ts`から直接依存を除去 | (a)/(e) |
-  | S14 | `f8fd49fb` | #15, #16 | `OwnerReport.tsx`をowner/pet共有hooksへ差し替え（テスト#16も同時解消） | (e) |
-  | S15 | `1365987e` | #19 | `PetDeceasedRecordButton`クラスタを`src/components/shared/`へ昇格 | (d) |
-  | S16 | `62dfad1d` | #23 | `ReservationsPage`経由でowner/pet作成関数をDI注入 | (e) |
-  | S17 | `fd8139f6` | #20 | `OwnerFormPage`に`accountingSection`propを新設しDI注入 | (e) |
-  | S18 | `35d6f039` | #11, #12 | examinationsテストの型参照を共有`ExamResult`型へ付け替え | (b) |
-
-- **新設/拡張app/pages一覧**:
-  - `app/pages/ReservationsPage.tsx`（新設、S16。owner/pet作成mutationのDIコンテナ）
-  - `app/pages/OwnerFormPage.tsx`（拡張、S17。既存の`lineSection`スロットに加え`accountingSection`propを新設）
-  - 既存の模範実装（変更なし）: `app/pages/AccountingDetailPage.tsx`
-
-- **テストimportドリフトの教訓（S18）**: S6でproductionコードの`features/medical-records/api/get-record-examinations.ts`は`@/lib/transforms/examination`（共有先）を参照するよう更新されたが、同じ変換結果を検証する2つのテストファイル（`ExaminationGroup.test.tsx`、`MedicalRecordExamination.test.tsx`）はS6完了後も`@/features/examinations`から`ExamResult`型を直接importしたまま取り残されていた。production側のimport付け替えだけでは、同一シンボルをテスト側が別経路（旧feature）から参照し続けるケースを機械的に検知できない——`rg '@/features/' frontend/src/features`の再実行で初めて発覚した。**教訓**: featureからの型/関数の昇格時は、同一ファイルの`.test.ts(x)`だけでなく、他feature配下にある関連テストファイルのimportも`rg`で横断確認する必要がある。
 
 #### R-F3. ディレクトリ構造・命名規則の是正（FD2）— 規模 L
 
@@ -197,271 +65,9 @@
   7. **`available-slot-options.tsx`**: `AvailableSlotOptions.tsx`にリネームするか、利用箇所が単一であれば当該コンポーネントファイル内にインライン化して独立ファイルを削除する。
 - **検証**: リネーム・移動のたびに`docker compose exec frontend npx vitest run <該当feature>`でGREEN維持を確認する。型エラーが出ないことを`docker compose exec frontend pnpm run type-check`で確認する（全体実行はユーザー手動、完了報告時にコマンド提示）。settings/lstep/aggregationの構造変更後は該当featureのimport元（router定義等）を`grep -rn "features/settings\|features/lstep\|features/aggregation" frontend/src/app`で確認し、パス変更が無いこと（index.ts経由のため変更不要のはず）を確かめる。
 
-#### R-F4. src/hooks/配置ミス2件の是正（FD3）— 規模 S
-
-- **現状**:
-  1. `src/hooks/use-clinic-tax-rates.ts`のdocstring（14-25行目）は「明細兼領収書（AccountingDocument）と同一の正本…を参照し、月次集計レポートを含む全帳票で税率表記を一貫させる」と明言している。しかし実際に参照しているのは`accounting-reports`feature3ファイル（`AccountingReportsPage.tsx`/`MonthlySummaryCards.tsx`/`MonthlyReportPrintArea.tsx`）のみで、docstringが名指しする`src/features/accounting/components/AccountingDocument.tsx`はこのフックをimportせず、98-99行目で`clinic?.reducedTaxRate ?? 0.08`/`clinic?.standardTaxRate ?? 0.1`を独自にベタ書きしている。加えてこのフックは`frontend/src/hooks/CLAUDE.md`のフック一覧表に未掲載で、棚卸し対象から漏れていた。
-  2. `src/hooks/use-postal-code-lookup.ts`（zipcloud郵便番号検索）は実際の参照元が`owners/routes/OwnerForm.tsx:11`の1ファイルのみで、`frontend/src/hooks/CLAUDE.md`の「ユーティリティ系」表の他13エントリが全て2 feature以上で実利用されているのと異なり、cross-feature利用の実態がない。同CLAUDE.md 7-8行目「特定feature専用のフックはfeatures/xxx/hooks/に配置する」に反する。
-- **あるべき姿**: use-clinic-tax-ratesが名実ともに「単一の正本」として全消費者から参照されている状態、use-postal-code-lookupが利用実態に即した配置になっている状態。
-- **手順**:
-  1. `src/features/accounting/components/AccountingDocument.tsx`98-99行目を`const { standardTaxRate, reducedTaxRate } = useClinicTaxRates();`に置き換え、`@/hooks/use-clinic-tax-rates`からimportする（既存のフォールバック値0.1/0.08と完全一致するため振る舞いは変わらない）。
-  2. `frontend/src/hooks/CLAUDE.md`の「Cross-featureデータ系」表に`use-clinic-tax-rates.ts | 2 | 消費税率取得（accounting-reports / accounting・AccountingDocument）`を追記する。
-  3. `frontend/src/hooks/use-postal-code-lookup.ts`を`frontend/src/features/owners/hooks/use-postal-code-lookup.ts`へ移動し、`OwnerForm.tsx:11`のimportを相対import（`../hooks/use-postal-code-lookup`）または`@/features/owners`経由（index.tsにexport追加）に変更する。`frontend/src/hooks/CLAUDE.md`の「ユーティリティ系」表から該当エントリを削除する。
-- **検証**: `docker compose exec frontend npx vitest run src/features/accounting src/features/owners`でGREEN確認。AccountingDocument.tsxの税率表示が変更前後で同一であることを目視確認する（フォールバック値が一致するため数値変化は無いはず）。
-
-#### R-F4 完了ログ（CLOSED, 2026-07-09）
-
-- **ステータス**: **CLOSED**（完了日 2026-07-09、commit `b8dccb77`、単一スライス）
-- **実施内容**:
-  1. **AccountingDocument → useClinicTaxRates SSOT統一**: `AccountingDocument.tsx`98-99行目の独自ベタ書き（`clinic?.reducedTaxRate ?? 0.08`/`clinic?.standardTaxRate ?? 0.1`）を廃し、`@/hooks/use-clinic-tax-rates`の`useClinicTaxRates()`から`standardTaxRate`/`reducedTaxRate`を取得する形に統一。フォールバック値は既存と完全一致のため表示挙動は変化なし。
-  2. **use-postal-code-lookup → features/owners/hooks/移設**: 唯一の消費者が`OwnerForm.tsx`のみだったため`src/hooks/use-postal-code-lookup.ts`を`src/features/owners/hooks/use-postal-code-lookup.ts`へ移動し、`OwnerForm.tsx`のimportを追従修正。`frontend/src/hooks/CLAUDE.md`のフック一覧表からも該当エントリを削除。
-- **変更ファイル**（6件、うち1件はrename）:
-  - `frontend/src/features/accounting/components/AccountingDocument.tsx`
-  - `frontend/src/features/accounting/components/AccountingDocument.test.tsx`（スコープ外だが実施した追補: `useClinicTaxRates`の依存チェーン解決のため`use-auth`モックを追加）
-  - `frontend/src/hooks/use-postal-code-lookup.ts` → `frontend/src/features/owners/hooks/use-postal-code-lookup.ts`（rename）
-  - `frontend/src/features/owners/routes/OwnerForm.tsx`
-  - `frontend/src/features/owners/routes/__tests__/OwnerForm.bug373.test.tsx`
-  - `frontend/src/hooks/CLAUDE.md`
-- **最終検証**（実測、本追記時点で再実行し一致確認済み）:
-  ```
-  $ rg '@/hooks/use-postal-code-lookup' frontend/src
-  （0件・exit 1）
-
-  $ rg 'useClinicTaxRates' frontend/src/features/accounting/components/AccountingDocument.tsx
-  import { useClinicTaxRates } from "@/hooks/use-clinic-tax-rates";
-    const { standardTaxRate: standardRate, reducedTaxRate: reducedRate } = useClinicTaxRates();
-
-  $ docker compose exec frontend npx vitest run src/features/accounting src/features/owners
-  Test Files  25 passed (25)
-       Tests  230 passed | 3 skipped (233)
-  ```
-- **次エピック候補**（本スライス外、R-F2完了ログの候補を更新）: R-F1（FD6）・R-F5（FD4）はいずれも完了（CLOSED 2026-07-09、commit `592b1eb4`/`e372e272`）。詳細は各完了ログ（[R-F1](#r-f1-完了ログcloseD-2026-07-09)・[R-F5](#r-f5-完了ログcloseD-2026-07-09)）参照。
-
-#### R-F5. Design Tokens残存hex 2件の是正（FD4）— 規模 S
-
-- **現状**: `design-system-audit.mjs`の正規表現（`['"`]#[0-9A-Fa-f]{3,8}['"`]`、引用符付きhexのみ検出）をすり抜ける形で、`frontend/CLAUDE.md`が「❌ 禁止」の実例として明示するlegacy hex `#37352F`の10進rgba等価値が2箇所で直書きされている。
-  1. `frontend/src/features/lstep/components/TagOwnerListDrawer.tsx:135` — `<ul className="divide-y divide-[rgba(55,53,47,0.09)]">`（同ファイルは既に`import { C, STYLE, ICON } from "@/lib/design-tokens";`済み）。
-  2. `frontend/src/features/shifts/components/ShiftTemplateSettingsParts.tsx:191` — `placeholder:text-[rgba(55,53,47,0.15)]`（同ファイルは既に`import { C, LAYOUT, STYLE } from "@/lib/design-tokens";`済み）。
-- **あるべき姿**: 両ファイルとも既存のdesign-tokens値（`C.divideDivider`/`C.textPlaceholderFaint`）を参照し、hex/rgba直書きが無い状態。
-- **手順**:
-  1. `TagOwnerListDrawer.tsx:135`の`divide-y divide-[rgba(55,53,47,0.09)]`を`` `divide-y ${C.divideDivider}` ``に置換する（`C.divideDivider`は`divide-[rgba(0,0,0,0.09)]`で同じ9%不透明度、現行トークンのink基準色`0,0,0`に統一）。classNameは通常文字列のため`` className={`divide-y ${C.divideDivider}`} ``へ変更する。
-  2. `ShiftTemplateSettingsParts.tsx:191`の`placeholder:text-[rgba(55,53,47,0.15)]`を`${C.textPlaceholderFaint}`に置換する。
-  3. 併せて`design-system-audit.mjs`のC3正規表現を、引用符付きhexだけでなく既知のlegacy 10進rgba値（`55,53,47`等）にも拡張することを検討する（このスクリプト自体の拡張は本計画の付随的推奨であり、必須項目ではない）。
-- **検証**: 該当コンポーネントの表示（divideの区切り線、placeholderの薄さ）が変更前後で視覚的に同一であることを目視確認する。`docker compose exec frontend pnpm design-audit`を実行しC1/C3/C5が引き続き0件であることを確認する。
-
-#### R-F5 完了ログ（CLOSED, 2026-07-09）
-
-- **ステータス**: **CLOSED**（完了日 2026-07-09、commit `e372e272`、単一スライス、直前HEAD `592b1eb4`）
-- **実施内容**:
-  1. `TagOwnerListDrawer.tsx:135` — `className="divide-y divide-[rgba(55,53,47,0.09)]"` を `` className={`divide-y ${C.divideDivider}`} `` に置換。
-  2. `ShiftTemplateSettingsParts.tsx:191` — `placeholder:text-[rgba(55,53,47,0.15)]` を `${C.textPlaceholderFaint}` に置換（`${C.text}`の後段に追加する形）。
-  両ファイルとも`C`は既にimport済みのため追加import不要。置換のみでレイアウト・ロジック変更なし。
-- **最終検証**（実測、本追記時点で再実行し一致確認済み）:
-  ```
-  $ rg 'rgba\(55,53,47' frontend/src/features --glob '*.{ts,tsx}'
-  （0件・exit 1）
-
-  $ docker compose exec -T frontend npx vitest run src/features/lstep src/features/shifts
-  Test Files  4 passed (4)
-       Tests  54 passed (54)
-
-  $ docker compose exec -T frontend pnpm design-audit
-  design-system-audit: C1 legacy accent — 0 件
-  design-system-audit: C3 route表面 hex 直書き — 0 件
-  design-system-audit: C5 非 brand colorVariant — 0 件
-  design-system-audit: PASS — 違反 0 件
-  ```
-- **スコープ外残存**: `features/master/PATTERNS.md:342`の同型rgba記載はドキュメント内のコード例であり、実行コードではないため是正対象外（変更なし）。
-- **レビュー記録**: typescript-reviewer **Approve**（CRITICAL/HIGH 0件）。MEDIUM所見1件（`C.divideDivider`/`C.textPlaceholderFaint`は色基盤が旧アクセント`#37352F`系からink基準`rgba(0,0,0,...)`系に変わる。不透明度9%/15%は完全一致）——design-tokens.ts内の他定数（`borderLight`/`bgHover`/`bgLight`等）も同じ「legacy `#37352F`→ink `0,0,0`統一」方針を既に採用済みであり、意図的なトークン統一と判断しブロック不要とした。
-- **付随推奨（未実施）**: `design-system-audit.mjs`のC3正規表現をlegacy 10進rgba値（`55,53,47`等）にも拡張する検討（本計画の手順3、任意・次エピック外）。
-- **次エピック候補**: R-F6は完了（CLOSED 2026-07-10、commit `da8933b4`/`9c6fab15`/`8b38402e`/`39eae262`）。詳細は[R-F6完了ログ](#r-f6-完了ログcloseD-2026-07-10)参照。
-
----
-
-### Phase 2: 型安全性・未使用コード検出基盤
-
-#### R-F6. 型安全性の構造的ギャップ解消とlintゲート格上げ（FD5）— 規模 M
-
-- **現状**: 明示的`any`は0件だが、`unknown`経由の無検証キャスト（`as unknown as T`）や暗黙的any伝播が4件存在する。加えて`@typescript-eslint/no-explicit-any`がeslint.config.js上`"warn"`のままCIの`pnpm run lint`（`eslint .`、`--max-warnings`指定なし）にゲート化されておらず、将来anyが新規混入しても機械的に検知されない。
-  1. `frontend/src/features/master/hooks/use-master-save.ts:22-23,73,90` — `createMutation`/`updateMutation`を`UseMutationResult<unknown, ...>`で受け取り、`onSuccess`内で`savedData as T`と型ガード無しでキャストしている。呼び出し元は19ルート（MasterCRUDPage.tsx等マスタ設定ページ全体）。
-  2. `frontend/src/features/line-reservation/components/LineReservationSettingsFormModel.ts:4-14` — `asJsonb<T>(value: unknown, fallback: T): T`が構造検証なしに`value as T`で無条件キャストしており、`closed_weekdays`/`business_hours`/`break_hours`/`closed_dates`/`business_hours_by_weekday`の5つのJSONBフィールドが実質any化している。加えて書込み側（`LineReservationSettingsForm.tsx:100-104`）でも`closedWeekdays as unknown as string`という逆方向の二重キャストがある。
-  3. `frontend/src/features/cash-register/api/transforms.ts:13` — generated modelの`category_breakdown`（any型、JSONB由来）をそのままtransform関数の返り値プロパティへ代入しており、公開型`CashRegisterClose.categoryBreakdown`が暗黙にanyへ伝播する（grepで`any`キーワードが現れないまま型システムに穴が開く不可視パターン）。
-  4. `frontend/eslint.config.js:30` — `"@typescript-eslint/no-explicit-any": "warn"`のまま、CIにフェイルセーフが無い。
-- **あるべき姿**: unknown値は必ず型ガードを経由してから使用され、公開型にanyが暗黙伝播しない状態。any禁止ルールが新規混入を機械的に検知する状態。
-- **手順**:
-  1. `use-master-save.ts`: 呼び出し側が渡す`createMutation`/`updateMutation`の型引数を`UseMutationResult<T, Error, TCreate>`のように具体型で受け取れるよう`UseMasterSaveOptions`のジェネリック制約を変更し、`onSuccess`内の`savedData as T`を削除する。互換性維持が必要な場合は最低限`'id' in savedData`等のランタイム型ガードを追加してからキャストする。
-  2. `LineReservationSettingsFormModel.ts`: `asJsonb`に型ガード関数引数を追加（`asJsonb<T>(value: unknown, fallback: T, isT: (v: unknown) => v is T): T`）し、各呼び出し箇所で`Array.isArray`や構造チェックを渡す。書込み側は、tygo生成型の`string /* []byte */`宣言が実態（object/array）と乖離しているため、該当フィールドのみ上書きする専用リクエスト型（例: `type UpdateLineReservationSettingRequest = Omit<LineReservationSetting, 'closed_weekdays'|...> & { closed_weekdays: string[]; ... }`）を定義し、`as unknown as string`を撤去する。
-  3. `cash-register/api/transforms.ts`: `categoryBreakdown: raw.category_breakdown as unknown,`のように明示的に`unknown`へキャストしてから返す（呼び出し側の`summarizeCategoryTotals(raw: unknown)`は既に安全に実装済みのため型注釈のみの修正で完結する）。
-  4. `eslint.config.js:30`の`"@typescript-eslint/no-explicit-any"`を`"warn"`から`"error"`へ格上げする（現状違反0件のためregression-safe）。または`package.json`のlint scriptを`eslint . --max-warnings=0`に変更してCIゲート化する。既存の`check-eslint-disable-rationale.mjs`・`design-system-audit.mjs`と同じ「ratchet→zero-tolerance」の運用パターンを踏襲する。
-- **検証**: `docker compose exec frontend npx vitest run src/features/master src/features/line-reservation src/features/cash-register`でGREEN確認。`docker compose exec frontend pnpm run type-check`で型エラーが無いことを確認（全体実行のためユーザー手動、完了報告時にコマンド提示）。lintルール格上げ後は`docker compose exec frontend pnpm run lint`で新規warningが無いことを確認する（同じくユーザー手動）。
-
-#### R-F6 完了ログ（CLOSED, 2026-07-10）
-
-- **ステータス**: **CLOSED**（完了日 2026-07-10、実装スライス R-F6-S1〜S4、全4コミット）
-- **スライス実装ログ**:
-
-  | Slice | commit | 内容 |
-  |---|---|---|
-  | S1 | `da8933b4` | `use-master-save.ts`の`createMutation`/`updateMutation`を`UseMutationResult<T, ...>`で受け取る形に変更し、`onSuccess`内の`savedData as T`無検証キャストを撤去 |
-  | S2 | `9c6fab15` | `LineReservationSettingsFormModel.ts`の`asJsonb`に型ガード引数を追加。書込み側は`UpdateLineReservationSettingRequest`型を新設しJSONBフィールドを型安全に上書き、`closedWeekdays as unknown as string`の二重キャストを撤去。呼び出し元（`LineReservationSettingsForm.tsx`/`PageEditor`）を型変更に追従 |
-  | S3 | `8b38402e` | `lib/transforms/cash-register.ts`の`categoryBreakdown`を`raw.category_breakdown as unknown`へ明示キャストし暗黙any伝播を遮断。回帰テストを`lib`単体テストと`features`統合テストの両方に追加（依存方向は`features → lib`を維持、逆依存が生じないことをレビューで確認） |
-  | S4 | `39eae262` | `eslint.config.js`の`"@typescript-eslint/no-explicit-any"`を`"warn"`から`"error"`へ格上げ。`--max-warnings=0`によるCIゲート化は不採用（既存の`react-refresh`/`react-hooks`系warningまで一括で赤くする副作用を避け、`no-explicit-any`のみ狙い撃ちでゲート化する既存ratchetパターンを踏襲） |
-
-- **最終検証**（実測、本追記時点で再実行し一致確認済み）:
-  ```
-  $ rg 'savedData as T|UseMutationResult<unknown' frontend/src/features/master/hooks/use-master-save.ts
-  （0件・exit 1）
-
-  $ rg 'as unknown as string|value as T|JSON\.parse\(value\) as T' frontend/src/features/line-reservation
-  （0件・exit 1）
-
-  $ rg 'categoryBreakdown: raw\.category_breakdown as unknown' frontend/src/lib/transforms/cash-register.ts
-  categoryBreakdown: raw.category_breakdown as unknown,
-  （1件・意図的unknown化。下流の`summarizeCategoryTotals(raw: unknown)`が安全側で型ガードする設計のため、ここでの`unknown`明示は暗黙any伝播の遮断であり残存負債ではない）
-
-  $ rg '"@typescript-eslint/no-explicit-any": "error"' frontend/eslint.config.js
-  "@typescript-eslint/no-explicit-any": "error",
-  （1件）
-
-  $ docker compose exec -T frontend npx vitest run src/features/master src/features/line-reservation src/features/cash-register src/lib/transforms/cash-register.test.ts
-  Test Files  16 passed (16)
-       Tests  91 passed (91)
-
-  $ docker compose exec -T frontend pnpm run lint
-  ✖ 15 problems (0 errors, 15 warnings)
-  （exit 0）
-  ```
-  フルlintの15件警告はいずれも`react-refresh/only-export-components`・`react-hooks/exhaustive-deps`・`react-hooks/preserve-manual-memoization`・`@typescript-eslint/no-unused-vars`という既存カテゴリであり、`no-explicit-any`格上げに起因する新規errorは0件。S4完了時点でフル`pnpm run lint`が未実施だった検証ギャップは、本DOC作成時の実測で正式にPASS化した。
-- **レビュー記録**: 各スライスともtypescript-reviewer **Approve**（S3は当初lib→features逆依存の疑義が指摘され、修正後にApprove）。
-- **フォローアップ（別チケット・未実施）**:
-  - `use-master-save.ts`自体の単体/regressionテストが欠如（S1、MEDIUM）
-  - `api/types.ts` → `components/`への依存方向が逆（S2、MEDIUM。型安全上の実害はなし）
-  - `additional_fields`にも同種のJSONB無検証キャスト負債が残る（S2、本スライス対象外）
-- **次エピック候補**: R-F7は完了（CLOSED 2026-07-10、commit `5fe32a64`）。詳細は[R-F7完了ログ](#r-f7-完了ログcloseD-2026-07-10)参照。
-
-#### R-F7. knip導入（FD11）— 規模 S
-
-- **現状**: `frontend/knip.json`は存在する（2026-06-01 commit f52d8effで追加、entry/project/ignore定義済み）が、`knip`自体が`package.json`のdevDependenciesに無く、scriptsにも実行コマンドが無く、`.github/workflows/*.yml`全体にも"knip"の文字列が存在しない。設定だけ作られ一度も稼働していない。
-- **あるべき姿**: knipが実際にCIで実行され、未使用export/file/dependencyを検出できる状態。
-- **手順**:
-  1. `docker compose exec frontend pnpm add -D knip`でdevDependenciesに追加する。
-  2. `package.json`のscriptsに`"unused": "knip"`（または`"knip --reporter compact"`）を追加する。
-  3. `.github/workflows/ci.yml`にknip実行ステップを追加する。いきなりfailさせると誤検知で赤くなるため、まずはnon-blockingで導入し、既存のunused export/file/dependencyを洗い出してから段階的にgate化する（既存のcoverage ratchet・eslint-disable ratchetと同じ2段階導入パターン）。
-  4. 導入後に一度全件スキャンし、既存のunused exports/filesを棚卸しして別チケット化する（本計画のスコープには含めない。knipが動く状態にすることが本項目のゴール）。
-- **検証**: `docker compose exec frontend pnpm run unused`（または導入したscript名）を実行しエラー無く完走することを確認する。CI上でも同様に実行され結果がJob Summary等に出力されることを確認する。
-
-#### R-F7 完了ログ（CLOSED, 2026-07-10）
-
-- **ステータス**: **CLOSED**（完了日 2026-07-10、commit `5fe32a64`、親コミット `dd76a7f1`）
-- **実施内容**:
-  - `frontend/package.json`: `knip@^6.25.0`をdevDependenciesに追加、`"unused": "knip --reporter compact --no-exit-code"`をscriptsに追加（`pnpm-lock.yaml`同時更新）
-  - `.github/workflows/ci.yml`: frontend jobのLintステップ直後・Buildステップ直前に`Knip unused scan (non-gating)`ステップを追加（`continue-on-error: true`、`pnpm run unused | tee -a "$GITHUB_STEP_SUMMARY"`）
-  - `frontend/knip.json`は変更なし（既存のentry/project/ignore定義のまま初回実行が完走したため設定調整は不要だった）
-- **初回スキャン結果**（実測、本追記時点で再実行し一致確認済み）:
-  ```
-  $ docker compose exec -T frontend pnpm run unused
-
-  Unused files (3)
-  src/features/owners/api/get-animal-species.ts
-  src/features/pets/api/record-pet-death.ts
-  src/features/pets/api/revoke-pet-death.ts
-  Unused dependencies (1)
-  package.json: jsonwebtoken
-  Unused devDependencies (1)
-  package.json: chrome-launcher, lighthouse, tailwindcss
-  Unused exports (143)
-  Unused exported types (76)
-  Duplicate exports (1)
-  src/components/shared/UnifiedTabs.tsx: UnifiedTabs, default
-  （exit 0）
-  ```
-- **false-positive疑いの調査記録**（コード変更なし、結論のみ）:
-  - `chrome-launcher`/`lighthouse`: `frontend/scripts/lighthouse-audit.js:13-14`が`import lighthouse from 'lighthouse'`/`import * as chromeLauncher from 'chrome-launcher'`で使用している。`knip.json`の`entry`は`src/main.tsx`・`liff/src/main.tsx`・`line-reserve/src/main.tsx`の3つのみで`scripts/**`を走査対象に含んでいないため、knipから見えず未使用判定されている可能性が高い。**削除しないこと**。フォローアップ: `knip.json`の`entry`に`scripts/lighthouse-audit.js`を追加する検討（本エピックのスコープ外）。
-  - `tailwindcss`: 実行時は`frontend/vite.config.ts:4,108`が`@tailwindcss/vite`（別パッケージ）をimportしてプラグイン登録しているが、`tailwindcss`本体は`frontend/src/index.css:1`の`@import "tailwindcss";`というCSS内importで消費されている。knipはCSSの`@import`によるnpmパッケージ利用を依存関係として検出できない構造的盲点があるため、これも未使用判定は誤検知の可能性が高い。**削除前に要確認**（Tailwind CSS 4のCSS-firstアーキテクチャでは`tailwindcss`パッケージそのものがCSS経由の必須依存であり、除去するとビルドが壊れる）。
-- **棚卸し一覧**（修正対象外・別チケット）:
-  - Unused files 3件（`get-animal-species.ts`/`record-pet-death.ts`/`revoke-pet-death.ts`）
-  - Unused dependencies: `jsonwebtoken`
-  - Unused exports 143件・Unused exported types 76件（feature別内訳は本追記では省略、次回棚卸しチケットで一覧化）
-  - Duplicate exports: `UnifiedTabs.tsx`（named export `UnifiedTabs`と`default`の二重公開）
-- **検証コマンド再実行**（本追記時点で再確認済み）:
-  ```
-  $ rg '"knip"' frontend/package.json
-      "knip": "^6.25.0",
-
-  $ rg '"unused": "knip' frontend/package.json
-      "unused": "knip --reporter compact --no-exit-code"
-
-  $ rg -A3 'Knip unused scan' .github/workflows/ci.yml
-        - name: Knip unused scan (non-gating)
-          continue-on-error: true
-          working-directory: frontend
-          run: pnpm run unused | tee -a "$GITHUB_STEP_SUMMARY"
-  ```
-- **レビュー記録**: 設定導入のみのため専門エージェントレビューは省略（`pnpm run unused`のexit 0出力で代替、本DOC作成時に再実行し一致確認）。
-- **フォローアップ（別チケット・未実施）**:
-  - `knip.json`の`entry`に`scripts/lighthouse-audit.js`を追加し、`chrome-launcher`/`lighthouse`のfalse-positiveを解消する検討
-  - Unused exports 143件・Unused exported types 76件の段階的解消
-  - `jsonwebtoken`依存の実使用有無の確認と削除判断
-  - `UnifiedTabs.tsx`のduplicate exports解消（named/defaultのどちらかに統一）
-  - knip CIステップのfailゲート化（第2段階、既存のcoverage ratchet・eslint-disable ratchetと同型の運用に揃える）
-- **次エピック候補**: R-F8は完了（CLOSED 2026-07-10、commit `8c6b45d4`/`dfef3f87`/`f01b74cf`）。詳細は[R-F8完了ログ](#r-f8-完了ログcloseD-2026-07-10)参照。次候補: **R-F9**（FD12 useDeferredValue欠如、規模 S）。
-
 ---
 
 ### Phase 3: パフォーマンス（中リスク・視覚的変化なし）
-
-#### R-F8. 行コンポーネント未メモ化の是正（FD12の一部）— 規模 M
-
-- **現状**: 主要な一覧画面（owners/estimates/checkups/examinations/inventory/hospitalization/vaccinations/trimming/accounting）は既にCODING_RULES.md「memo化コンテナ+useDeferredValue+クライアントページング」パターンに高水準で準拠している一方、その模範パターンが横展開されていない周辺領域で行未メモ化が見つかった。
-  1. `frontend/src/features/lstep/checkup-sync/CheckupSyncPreviewTable.tsx:19-164`（map: 112-158） — LSTEP健診案内配信の対象者プレビューテーブルがowners配列全体を行レベルメモ化なしでmapしており、ページネーションも無い。フィルタ条件合致オーナーは容易に100件を超える。
-  2. `frontend/src/features/lstep/components/TagOwnerListDrawer.tsx:66-69,136-161` — LINEタグ対象者一覧ドロワーが`per_page: 200`で最大200件を一括取得し、`<li>`をメモ化なしでレンダリングしている。
-  3. `frontend/src/features/master/components/MedicineTableRows.tsx:40,129` / `MedicineTable.tsx:99-107,118-126` — 薬剤マスタ設定の行コンポーネント`SortableMedicineRow`/`MedicineCategoryHeaderRow`が`React.memo`でラップされておらず、`useSortable`（dnd-kit）を伴う全行がドラッグ操作のたびに再レンダーされうる。実運用で100〜数百SKUに達する薬剤マスタかつdnd-kit配下のため他リストより効果が大きい。
-- **あるべき姿**: 行コンポーネントが`memo()`でラップされ、親の再レンダーから独立している状態。
-- **手順**:
-  1. `CheckupSyncPreviewTable.tsx`: 行部分を`const CheckupSyncPreviewRow = memo(function CheckupSyncPreviewRow({ owner, selected, eligible, onToggle }) {...})`として切り出し、`owners.map((owner) => <CheckupSyncPreviewRow key={owner.owner_id} .../>)`に変更する。`onToggle`は`handleRowToggle`を`useCallback`化した上でowner_idを引数に渡す形にする。
-  2. `TagOwnerListDrawer.tsx`: `<li>`の中身を`const TagOwnerListItem = memo(function TagOwnerListItem({ owner }: { owner: LstepTagOwner }) {...})`として切り出す。
-  3. `MedicineTableRows.tsx`: `export const SortableMedicineRow = memo(function SortableMedicineRow({ medicine, onEdit, grouped, canEdit }: Props) {...});`および`MedicineCategoryHeaderRow`も同様にmemoでラップする。`onEdit`が呼び出し元（`useMedicineTableState`/`MedicineSettings`）で安定した参照か確認し、不安定なら`useCallback`化する。
-- **検証**: 各修正後、React DevTools Profilerで対象行の再レンダー回数が親の状態変化時に増えないことを確認する（`.claude/refs/performance-rules.md`参照）。`docker compose exec frontend npx vitest run <該当feature>`でGREEN確認。挙動（表示内容・クリック操作）が変更前後で同一であることを手動確認する。
-
-#### R-F8 完了ログ（CLOSED, 2026-07-10）
-
-- **ステータス**: **CLOSED**（完了日 2026-07-10、実装スライス R-F8-S1〜S3、全3コミット）
-- **スライス実装ログ**:
-
-  | Slice | commit | 変更ファイル | 内容 |
-  |---|---|---|---|
-  | S1 | `8c6b45d4` | `CheckupSyncPreviewTable.tsx` | `CheckupSyncPreviewRow`をmemo化。`selectedIds`（Set）を直接depsに使うとmemoが無効化されるため`useRef`で同期し、`handleRowToggle`のdepsを`onSelectionChange`のみに絞った |
-  | S2 | `dfef3f87` | `TagOwnerListDrawer.tsx` | `TagOwnerListItem`をmemo化。propsは`owner`単一・callbackなしのためuseCallback不要。`useGetLstepTagOwners`はselect変換を挟まずQuery cache参照がそのまま安定するため追加対応不要だった |
-  | S3 | `f01b74cf` | `MedicineTableRows.tsx` + `MedicineSettings.tsx` | `SortableMedicineRow`/`MedicineCategoryHeaderRow`をmemo化。`handleEdit`/`handleCreate`のdepsを`[medicineCrud]`から`[medicineCrud.handleEdit]`/`[medicineCrud.handleNew]`へ絞ったが、react-reviewer初回パスで`useSidePeekDirty()`が毎レンダー新規オブジェクトを返す→`dirtyGuard`→`useMasterCRUD`内`confirmDiscard`→`handleEdit`/`handleNew`という連鎖不安定を検出（HIGH, Block）。`MedicineSettings.tsx`内に`dirtyGuard = useMemo(() => ({ confirmDiscard: dirty.confirmDiscard }), [dirty.confirmDiscard])`を追加し局所的に解消 |
-
-- **教訓**: memoが効くかはpropsの由来を1段ずつ遡って確認する必要がある。コールバック自体の`useCallback`化だけでなく、（1）データ取得層の変換（selectオプション等でQuery cache参照が壊れていないか）、（2）Setなど参照の変わりやすいコレクション型がdepsに直接入っていないか、（3）カスタムhookの返却オブジェクト自体が毎レンダー新規生成されていないか（`useSidePeekDirty`→`dirtyGuard`→`useMasterCRUD`のように、目的の関数自体は`useCallback`で安定していても、それを包む戻り値オブジェクトが非メモ化だと連鎖的にmemoを無効化する）を段階的にチェックする。
-- **最終検証**（本追記時点で再実行し一致確認済み）:
-  ```
-  $ rg 'CheckupSyncPreviewRow = memo' frontend/src/features/lstep/components/CheckupSyncPreviewTable.tsx
-  const CheckupSyncPreviewRow = memo(function CheckupSyncPreviewRow({
-  （1件）
-
-  $ rg 'TagOwnerListItem = memo' frontend/src/features/lstep/components/TagOwnerListDrawer.tsx
-  const TagOwnerListItem = memo(function TagOwnerListItem({
-  （1件）
-
-  $ rg 'export const (SortableMedicineRow|MedicineCategoryHeaderRow) = memo' frontend/src/features/master/components/MedicineTableRows.tsx
-  export const MedicineCategoryHeaderRow = memo(function MedicineCategoryHeaderRow({
-  export const SortableMedicineRow = memo(function SortableMedicineRow({
-  （2件）
-
-  $ docker compose exec -T frontend npx vitest run src/features/lstep
-  Test Files  3 passed (3)
-       Tests  45 passed (45)
-
-  $ docker compose exec -T frontend npx vitest run src/features/master
-  Test Files  7 passed (7)
-       Tests  39 passed (39)
-  ```
-  （S1/S2対象ファイルの実パスは`frontend/src/features/lstep/checkup-sync/`ではなく`frontend/src/features/lstep/components/`配下。過去ログの記載揺れであり、実装自体に影響はない）
-- **レビュー記録**: S1/S2はreact-reviewer **Approve**。S3は初回**Block**（HIGH: `useSidePeekDirty`起因のdirtyGuard連鎖不安定）→`dirtyGuard`のuseMemo修正後**Approve**、続けてtypescript-reviewerも**Approve**。
-- **スコープ外の判断**: S3の根本原因である`use-side-peek-dirty.ts`（14マスタ画面が共有）および`use-master-crud.ts`は変更していない。修正は`MedicineSettings.tsx`内の`dirtyGuard`useMemoに局所化し、他13画面への影響を避けた。他画面の行コンポーネントは現状memo化されていないため、この不安定パターンは潜在的だが顕在化していない（将来他画面をmemo化する際は同様のuseMemo対応が必要になる可能性がある）。
-- **次エピック候補**: **R-F9**（FD12 useDeferredValue欠如、規模 S）。
 
 #### R-F9. useDeferredValue欠如の是正（FD12の一部）— 規模 S
 
@@ -715,33 +321,31 @@
 3. **検証はscopedで自走**し、フルの`pnpm lint`/`pnpm test:run`/`pnpm build`/`pnpm type-check`（全体）はプロジェクトルールに従いユーザー手動（完了報告時にコマンド提示）。
 4. **コミット粒度は1項目1コミット**（R-F番号をメッセージに含める）。commit前にHEAD確認・パス限定stage（並行セッション対策）。
 5. **subagent・grepの結果は再検証してから採用する**。本計画の策定時にも、13軸監査結果のうち複数件（knip未運用・PropertyRow label未関連付け・CODING_RULES.md自己矛盾・AppointmentCardキーボード操作不能）を実コード読み合わせで裏付け確認した上で採用している。実装時も同様に、着手前に該当ファイルを実際にReadしてから修正すること。
-6. **R-F2（cross-feature import解消）とR-F3（ディレクトリ構造是正）は依存関係に注意**: R-F3でファイル移動を行うと、R-F2のファイルパス参照がずれる可能性がある。実施順序はPhase順（R-F3が先、R-F2はその後）を推奨するが、両方が同一ファイルに触れる場合は1コミットにまとめてもよい。
+6. **R-F3は独立して着手可能**: cross-feature import解消（R-F2）は完了済みのため、R-F3（ディレクトリ構造是正）はファイルパス依存の懸念なく単独で着手できる。
+7. **memo化の参照安定性は3段階チェック**（コールバックの`useCallback`化／Setなど参照が変わりやすいコレクションをdepsに直接入れない／カスタムhookの戻り値オブジェクト自体が毎レンダー新規生成されていないか）で確認する（R-F8の教訓）。
+8. **feature間で共有フック/型を昇格する際は、他feature配下の関連テストファイルのimportも`rg`で横断確認する**（R-F2-S18の教訓。production側のimport付け替えだけではテストが旧経路の参照に取り残されるケースを機械的に検知できない）。
 
 ---
 
-## 5. 全体見積もりと完了条件
+## 5. 推奨着手順・見積もり（未対応17件）
 
-| フェーズ | 項目数 | 規模合計（目安） |
-|---|---|---|
-| Phase 1（ドキュメント・命名規則・配置） | R-F1〜R-F5（5項目） | S+L+L+S+S ≒ 5日 |
-| Phase 2（型安全性・検出基盤） | R-F6〜R-F7（2項目） | M+S ≒ 1.5日 |
-| Phase 3（パフォーマンス） | R-F8〜R-F10（3項目） | M+S+S ≒ 2日 |
-| Phase 4（アクセシビリティ） | R-F11〜R-F13（3項目） | M+M+S ≒ 2.5日 |
-| Phase 5（テストカバレッジ） | R-F14〜R-F18（5項目） | M+M+S+S+M ≒ 3.5日 |
-| Phase 6（ファイルサイズ） | R-F19（13ファイル、独立コミット） | L ≒ 3-4日（分散可能） |
-| Phase 7（liff/line-reserve） | R-F20〜R-F25（6項目） | M+M+L+L+M+S ≒ 5日 |
+| 旧Phase | 項目 | 項目数 | 規模合計（目安） |
+|---|---|---|---|
+| Phase 1（ディレクトリ構造） | R-F3（1項目） | 1 | L ≒ 2-3日 |
+| Phase 3（パフォーマンス） | R-F9・R-F10（2項目） | 2 | S+S ≒ 1日 |
+| Phase 4（アクセシビリティ） | R-F11〜R-F13（3項目） | 3 | M+M+S ≒ 2.5日 |
+| Phase 5（テストカバレッジ） | R-F14〜R-F18（5項目） | 5 | M+M+S+S+M ≒ 3.5日 |
+| Phase 6（ファイルサイズ） | R-F19（13ファイル、独立コミット） | 1 | L ≒ 3-4日（分散可能） |
+| Phase 7（liff/line-reserve） | R-F20〜R-F25（6項目） | 6 | M+M+L+L+M+S ≒ 5日 |
 
-**推奨着手順**: Phase 1（低リスク機械的作業で足場を整える）→ Phase 2（型安全性・検出基盤）→ Phase 3（パフォーマンス、視覚変化なし）→ Phase 5の CRITICAL項目（R-F14を先行、回帰リスクが最も高いため）→ Phase 4（アクセシビリティ、UI変更を伴うため慎重に）→ Phase 5残り→ Phase 6（体力に応じて）→ Phase 7（liff/line-reserve、R-F23のみ方針決定を待つ）。
+**次の実装スライス**: **R-F9**（useDeferredValue欠如の是正、規模S、視覚的変化なし）。
 
-**完了条件**:
-- feature間直接import違反（`@/features/`への自feature外参照）が0件
-- `*Model.ts`等のPascalCase非コンポーネントファイル命名違反が0件、settings/lstep/aggregationが標準構成（api/components/hooks/routes/types）に揃っている
-- `src/hooks/`配下の全フックが`frontend/src/hooks/CLAUDE.md`のフック一覧表に記載され、参照実態と配置が一致している
-- `design-system-audit.mjs`のC3正規表現盲点（10進rgba）が0件
-- `@typescript-eslint/no-explicit-any`が`error`（またはlintスクリプトが`--max-warnings=0`）でCIゲート化されている
-- knipがCIで実行され、少なくとも非blocking可視化として稼働している
-- PropertyRow経由の22ファイルでlabel-input関連付けが機能している
-- 受付ボード（AppointmentCard）を含む主要な疑似ボタンがキーボード操作可能
-- vaccinations次回接種日計算・master共有CRUD状態機械・薬剤マスタ純粋関数にユニットテストが存在する
-- line-reserveの予約作成フローがNULLバイト対策済みaxiosインスタンスを使用し、API失敗時に再試行導線を持つ
-- liff/line-reserveのuse-liff.tsが単一実装に統合されている
+**推奨着手順**: R-F9 → R-F10（Phase3、視覚変化なしで低リスク）→ R-F3（Phase1、規模Lだが独立着手可能なので並行して着手可）→ R-F14（Phase5 CRITICAL、回帰リスクが最も高いため優先）→ R-F11〜R-F13（Phase4、アクセシビリティ・UI変更を伴うため慎重に）→ R-F15〜R-F18（Phase5残り）→ R-F19（Phase6、体力に応じて分散）→ R-F20〜R-F25（Phase7、R-F23のみ方針決定を待つ）。
+
+**残る完了条件**（既存の完了条件のうちR-F1〜R-F8分は達成済みのため除外、未達分のみ）:
+- `*Model.ts`等のPascalCase非コンポーネントファイル命名違反が0件、settings/lstep/aggregationが標準構成（api/components/hooks/routes/types）に揃っている（R-F3）
+- PropertyRow経由の22ファイルでlabel-input関連付けが機能している（R-F11）
+- 受付ボード（AppointmentCard）を含む主要な疑似ボタンがキーボード操作可能（R-F12）
+- vaccinations次回接種日計算・master共有CRUD状態機械・薬剤マスタ純粋関数にユニットテストが存在する（R-F14〜R-F16）
+- line-reserveの予約作成フローがNULLバイト対策済みaxiosインスタンスを使用し、API失敗時に再試行導線を持つ（R-F20・R-F22）
+- liff/line-reserveのuse-liff.tsが単一実装に統合されている（R-F21）
