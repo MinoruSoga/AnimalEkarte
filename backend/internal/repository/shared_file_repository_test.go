@@ -6,10 +6,10 @@ package repository
 // 検証観点: 正常系、clinic_id 隔離、deleted_at IS NULL 除外、NotFound ラップ、期限切れ抽出。
 //
 // 実装上の注意（テストで明示的に固定する）:
-//   model.SharedFile.DeletedAt は *time.Time であり gorm.DeletedAt ではないため、
-//   GORM のソフトデリート機構は働かない。Delete() は実際には物理削除（DELETE 文）であり、
-//   deleted_at IS NULL 条件はアプリケーションが手動で付与しているフィルタに過ぎない。
-//   このテストでは deleted_at を直接更新して「ソフトデリート済み扱い」を再現する。
+//   model.SharedFile.DeletedAt は gorm.DeletedAt のため、GORM の自動ソフトデリート機構が
+//   Delete() 発行時に発火する（UPDATE ... SET deleted_at = ... であり物理 DELETE ではない）。
+//   別クリニックからの Delete は RowsAffected == 0 を検知して NotFound を返す
+//   （appointment_admin_repository.go の SoftDelete と同型パターン）。
 
 import (
 	"context"
@@ -87,8 +87,8 @@ func TestSharedFileRepository_Create_FindByID(t *testing.T) {
 		assert.True(t, apperrors.IsNotFound(err))
 
 		var raw model.SharedFile
-		require.NoError(t, db.WithContext(ctx).Where("id = ?", softDeleted.ID).First(&raw).Error)
-		require.NotNil(t, raw.DeletedAt, "行自体は物理削除されず残る")
+		require.NoError(t, db.WithContext(ctx).Unscoped().Where("id = ?", softDeleted.ID).First(&raw).Error)
+		assert.True(t, raw.DeletedAt.Valid, "行自体は物理削除されず残る")
 	})
 }
 
@@ -137,8 +137,10 @@ func TestSharedFileRepository_Delete(t *testing.T) {
 
 	f := makeSharedFile(t, repo, clinicA, "to-delete.pdf")
 
-	t.Run("別クリニックからの削除は対象0件でもエラーにならない（RowsAffected未検証の実装）", func(t *testing.T) {
-		require.NoError(t, repo.Delete(ctx, clinicB, f.ID))
+	t.Run("別クリニックからの削除は RowsAffected==0 を検知して NotFound を返す", func(t *testing.T) {
+		err := repo.Delete(ctx, clinicB, f.ID)
+		require.Error(t, err)
+		assert.True(t, apperrors.IsNotFound(err))
 
 		// 実際にはまだ削除されていないことを確認する
 		got, err := repo.FindByID(ctx, clinicA, f.ID)
@@ -146,16 +148,16 @@ func TestSharedFileRepository_Delete(t *testing.T) {
 		assert.Equal(t, f.ID, got.ID)
 	})
 
-	t.Run("正常系: 自クリニックからの削除で物理削除される", func(t *testing.T) {
+	t.Run("正常系: 自クリニックからの削除でソフトデリートされる（行は残る）", func(t *testing.T) {
 		require.NoError(t, repo.Delete(ctx, clinicA, f.ID))
 
 		_, err := repo.FindByID(ctx, clinicA, f.ID)
 		require.Error(t, err)
 		assert.True(t, apperrors.IsNotFound(err))
 
-		var count int64
-		require.NoError(t, db.WithContext(ctx).Model(&model.SharedFile{}).Where("id = ?", f.ID).Count(&count).Error)
-		assert.Equal(t, int64(0), count, "Delete は物理削除であるため行自体が消える")
+		var raw model.SharedFile
+		require.NoError(t, db.WithContext(ctx).Unscoped().Where("id = ?", f.ID).First(&raw).Error)
+		assert.True(t, raw.DeletedAt.Valid, "Delete はソフトデリートであり行自体は残る")
 	})
 }
 

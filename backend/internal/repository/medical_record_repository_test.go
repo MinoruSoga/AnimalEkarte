@@ -457,6 +457,55 @@ func TestMedicalRecordRepository_FindByID(t *testing.T) {
 	})
 }
 
+// TestMedicalRecordRepository_LockDraftByID は X-11 finalize-child-write-race fix の
+// LockDraftByID の基本挙動（clinic_id 隔離・存在確認・status に関わらずロック取得できること）を
+// 検証する（並行ロック挙動そのものの実証は medical_record_finalize_lock_concurrency_test.go）。
+func TestMedicalRecordRepository_LockDraftByID(t *testing.T) {
+	db := setupMedicalRecordListTestDB(t)
+	repo := NewMedicalRecordRepository(db)
+	ctx := context.Background()
+	const clinicA, clinicB = uint64(1), uint64(2)
+
+	ownerA := makeOwner(t, db, clinicA, "LockDraftByID飼主")
+	petA := makeSpeciesAndPet(t, db, clinicA, ownerA.ID, "LockDraftByIDペット")
+	draftRec := makeFullMedicalRecord(t, db, &model.MedicalRecord{
+		ClinicID: clinicA, RecordNo: "LDB-001", Date: time.Now(), OwnerID: &ownerA.ID, PetID: &petA.ID,
+		Status: model.MedicalRecordStatusDraft,
+	})
+	finalizedRec := makeFullMedicalRecord(t, db, &model.MedicalRecord{
+		ClinicID: clinicA, RecordNo: "LDB-002", Date: time.Now(), OwnerID: &ownerA.ID, PetID: &petA.ID,
+		Status: model.MedicalRecordStatusFinalized,
+	})
+
+	t.Run("同一医院からは draft レコードを取得できる", func(t *testing.T) {
+		got, err := repo.LockDraftByID(ctx, clinicA, draftRec.ID)
+		require.NoError(t, err)
+		require.NotNil(t, got)
+		assert.Equal(t, draftRec.ID, got.ID)
+		assert.Equal(t, model.MedicalRecordStatusDraft, got.Status)
+	})
+
+	t.Run("status に関わらずロック取得できる（finalized も返す。判定は呼び出し元）", func(t *testing.T) {
+		got, err := repo.LockDraftByID(ctx, clinicA, finalizedRec.ID)
+		require.NoError(t, err)
+		require.NotNil(t, got)
+		assert.Equal(t, finalizedRec.ID, got.ID)
+		assert.Equal(t, model.MedicalRecordStatusFinalized, got.Status)
+	})
+
+	t.Run("他院からは NotFound（clinic_id 越境防止）", func(t *testing.T) {
+		_, err := repo.LockDraftByID(ctx, clinicB, draftRec.ID)
+		require.Error(t, err)
+		assert.True(t, apperrors.IsNotFound(err), "エラーは NotFound であるべき: %v", err)
+	})
+
+	t.Run("存在しない ID は NotFound", func(t *testing.T) {
+		_, err := repo.LockDraftByID(ctx, clinicA, uint64(999999))
+		require.Error(t, err)
+		assert.True(t, apperrors.IsNotFound(err))
+	})
+}
+
 // TestMedicalRecordRepository_FindByIDForClinics はマルチクリニック横断取得の
 // clinic_id 隔離（許可リスト外は拒否）を検証する。
 func TestMedicalRecordRepository_FindByIDForClinics(t *testing.T) {

@@ -185,6 +185,11 @@ func (m *mockMedRecordRepoForDelivery) Update(_ context.Context, _, _ uint64, _ 
 	return nil, nil
 }
 func (m *mockMedRecordRepoForDelivery) Delete(_ context.Context, _, _ uint64) error { return nil }
+
+// LockDraftByID は X-11 finalize-lock テスト用に FindByID と同じ挙動へ委譲する。
+func (m *mockMedRecordRepoForDelivery) LockDraftByID(ctx context.Context, clinicID, id uint64) (*model.MedicalRecord, error) {
+	return m.FindByID(ctx, clinicID, id)
+}
 func (m *mockMedRecordRepoForDelivery) CountByPetID(_ context.Context, _, _ uint64) (int64, error) {
 	return 0, nil
 }

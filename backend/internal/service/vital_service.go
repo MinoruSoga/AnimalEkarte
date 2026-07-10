@@ -79,11 +79,14 @@ type vitalService struct {
 	repo              repository.VitalRepository
 	medicalRecordRepo repository.MedicalRecordRepository
 	auditService      AuditService
+	transactor        repository.Transactor
 }
 
-// NewVitalService はVitalServiceを初期化して返す
-func NewVitalService(repo repository.VitalRepository, medicalRecordRepo repository.MedicalRecordRepository, auditService AuditService) VitalService {
-	return &vitalService{repo: repo, medicalRecordRepo: medicalRecordRepo, auditService: auditService}
+// NewVitalService はVitalServiceを初期化して返す。transactor は BE-refactor.md X-11
+// （確定と子書込の競合防止）のため、子書込を LockDraftByID の行ロックと同一トランザクションに
+// 収める目的で注入する。
+func NewVitalService(repo repository.VitalRepository, medicalRecordRepo repository.MedicalRecordRepository, auditService AuditService, transactor repository.Transactor) VitalService {
+	return &vitalService{repo: repo, medicalRecordRepo: medicalRecordRepo, auditService: auditService, transactor: transactor}
 }
 
 func (s *vitalService) List(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.VitalRecord, error) {
@@ -103,16 +106,6 @@ func (s *vitalService) Create(ctx context.Context, medicalRecordID uint64, input
 		return nil, apperrors.WrapInvalidInput(ErrMsgAtLeastOneField)
 	}
 
-	// HC-006: 親カルテが確定済みの場合は作成拒否
-	parent, err := s.medicalRecordRepo.FindByID(ctx, input.ClinicID, medicalRecordID)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to find medical record", "error", err)
-		return nil, apperrors.Wrap(err, "failed to find medical record")
-	}
-	if parent.Status == model.MedicalRecordStatusFinalized {
-		return nil, apperrors.WrapConflict("確定済みカルテにバイタルを追加できません")
-	}
-
 	vital := &model.VitalRecord{
 		ClinicID:        input.ClinicID,
 		PetID:           input.PetID,
@@ -126,10 +119,27 @@ func (s *vitalService) Create(ctx context.Context, medicalRecordID uint64, input
 		WeightUnit:      weightUnitOrDefault(input.WeightUnit),
 		Notes:           input.Notes,
 	}
-	if err := s.repo.Create(ctx, vital); err != nil {
-		slog.ErrorContext(ctx, "failed to create vital record", "error", err)
-		return nil, apperrors.Wrap(err, "failed to create vital record")
+
+	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
+		// HC-006 + BE-refactor.md X-11: 親カルテが確定済みの場合は作成拒否。LockDraftByID の
+		// 行ロックで finalize と直列化し、確定と同時のバイタル追加が確定済みカルテに混入する競合を防ぐ。
+		parent, err := s.medicalRecordRepo.LockDraftByID(txCtx, input.ClinicID, medicalRecordID)
+		if err != nil {
+			slog.ErrorContext(txCtx, "failed to find medical record", "error", err)
+			return apperrors.Wrap(err, "failed to find medical record")
+		}
+		if parent.Status == model.MedicalRecordStatusFinalized {
+			return apperrors.WrapConflict("確定済みカルテにバイタルを追加できません")
+		}
+		if err := s.repo.Create(txCtx, vital); err != nil {
+			slog.ErrorContext(txCtx, "failed to create vital record", "error", err)
+			return apperrors.Wrap(err, "failed to create vital record")
+		}
+		return nil
+	}); err != nil {
+		return nil, err
 	}
+
 	slog.InfoContext(ctx, "vital created",
 		slog.Uint64("vital_id", vital.ID),
 		slog.Uint64("medical_record_id", medicalRecordID))
@@ -159,23 +169,32 @@ func (s *vitalService) Update(ctx context.Context, clinicID, medicalRecordID, vi
 	if existing.MedicalRecordID == nil || *existing.MedicalRecordID != medicalRecordID {
 		return nil, apperrors.WrapNotFound("vital", "not found in medical record")
 	}
-	parent, err := s.medicalRecordRepo.FindByID(ctx, clinicID, medicalRecordID)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to find medical record", "error", err)
-		return nil, apperrors.Wrap(err, "failed to find medical record")
-	}
-	if parent.Status == model.MedicalRecordStatusFinalized {
-		return nil, apperrors.WrapConflict("確定済みカルテのバイタルは編集できません")
+
+	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
+		// BE-refactor.md X-11: LockDraftByID の行ロックで finalize と直列化し、確定と同時の
+		// バイタル編集が確定済みカルテに混入する競合を防ぐ。
+		parent, err := s.medicalRecordRepo.LockDraftByID(txCtx, clinicID, medicalRecordID)
+		if err != nil {
+			slog.ErrorContext(txCtx, "failed to find medical record", "error", err)
+			return apperrors.Wrap(err, "failed to find medical record")
+		}
+		if parent.Status == model.MedicalRecordStatusFinalized {
+			return apperrors.WrapConflict("確定済みカルテのバイタルは編集できません")
+		}
+
+		fields := buildVitalUpdate(input)
+		if len(fields) == 0 {
+			return apperrors.WrapInvalidInput("at least one field must be provided")
+		}
+		if err := s.repo.Update(txCtx, clinicID, vitalID, fields); err != nil {
+			slog.ErrorContext(txCtx, "failed to update vital record", "error", err)
+			return apperrors.Wrap(err, "failed to update vital record")
+		}
+		return nil
+	}); err != nil {
+		return nil, err
 	}
 
-	fields := buildVitalUpdate(input)
-	if len(fields) == 0 {
-		return nil, apperrors.WrapInvalidInput("at least one field must be provided")
-	}
-	if err := s.repo.Update(ctx, clinicID, vitalID, fields); err != nil {
-		slog.ErrorContext(ctx, "failed to update vital record", "error", err)
-		return nil, apperrors.Wrap(err, "failed to update vital record")
-	}
 	slog.InfoContext(ctx, "vital updated",
 		slog.Uint64("clinic_id", clinicID),
 		slog.Uint64("vital_id", vitalID),
@@ -208,19 +227,28 @@ func (s *vitalService) Delete(ctx context.Context, clinicID, medicalRecordID, vi
 	if existing.MedicalRecordID == nil || *existing.MedicalRecordID != medicalRecordID {
 		return apperrors.WrapNotFound("vital", "not found in medical record")
 	}
-	parent, err := s.medicalRecordRepo.FindByID(ctx, clinicID, medicalRecordID)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to find medical record", "error", err)
-		return apperrors.Wrap(err, "failed to find medical record")
+
+	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
+		// BE-refactor.md X-11: LockDraftByID の行ロックで finalize と直列化し、確定と同時の
+		// バイタル削除が確定済みカルテに混入する競合を防ぐ。
+		parent, err := s.medicalRecordRepo.LockDraftByID(txCtx, clinicID, medicalRecordID)
+		if err != nil {
+			slog.ErrorContext(txCtx, "failed to find medical record", "error", err)
+			return apperrors.Wrap(err, "failed to find medical record")
+		}
+		if parent.Status == model.MedicalRecordStatusFinalized {
+			return apperrors.WrapConflict("確定済みカルテのバイタルは削除できません")
+		}
+		if err := s.repo.Delete(txCtx, clinicID, vitalID); err != nil {
+			slog.ErrorContext(txCtx, "failed to delete vital record", "error", err, "clinic_id", clinicID, "vital_id", vitalID)
+			return apperrors.Wrap(err, "failed to delete vital record")
+		}
+		return nil
+	}); err != nil {
+		return err
 	}
-	if parent.Status == model.MedicalRecordStatusFinalized {
-		return apperrors.WrapConflict("確定済みカルテのバイタルは削除できません")
-	}
+
 	oldValue := extractVitalImportantFields(existing)
-	if err := s.repo.Delete(ctx, clinicID, vitalID); err != nil {
-		slog.ErrorContext(ctx, "failed to delete vital record", "error", err, "clinic_id", clinicID, "vital_id", vitalID)
-		return apperrors.Wrap(err, "failed to delete vital record")
-	}
 	slog.InfoContext(ctx, "vital deleted",
 		slog.Uint64("clinic_id", clinicID),
 		slog.Uint64("vital_id", vitalID),

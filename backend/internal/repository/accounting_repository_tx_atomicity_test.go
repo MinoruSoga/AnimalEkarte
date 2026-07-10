@@ -204,6 +204,156 @@ func TestAccountingRepository_SavePaymentSplits_CommitsWithinAmbientTx(t *testin
 	assert.EqualValues(t, 1, count, "commit 後は payment_splits に行が永続化される")
 }
 
+// ─── CompleteAccountingAppointments（BE-refactor.md X-12: billing 確定と appointment ────
+// 完了化の部分コミット修正） ──────────────────────────────────────────────
+
+// TestAccountingRepository_CompleteAccountingAppointments_RollsBackWhenAmbientTxFails は、
+// billing の status 更新（Update）と appointment 完了化（CompleteAccountingAppointments）を
+// 同一 ambient tx 内で行った場合、後続失敗で両方がロールバックされることを検証する。
+//
+// バグ時（CompleteAccountingAppointments が r.db.WithContext(ctx) 直参照で dbOrTx 非参加）は
+// 別セッションで即コミットされるため、billing の Update はロールバックされても appointment の
+// 完了化だけは残ってしまう（このテストでは逆に、Update 側が正しく tx 参加している前提のもと
+// CompleteAccountingAppointments 側が非参加だと reloadAppointmentStatus が Completed のまま
+// FAIL する——旧 X-12 failure mode の反対方向だが、本質は同じ「一部だけ確定する部分コミット」）。
+func TestAccountingRepository_CompleteAccountingAppointments_RollsBackWhenAmbientTxFails(t *testing.T) {
+	db := setupTestDB(t)
+	ctx := context.Background()
+	const clinicA = uint64(1)
+
+	billing := &model.Billing{
+		ClinicID:      clinicA,
+		TotalAmount:   5000,
+		Status:        model.BillingStatusWaiting,
+		ScheduledDate: time.Date(2026, 7, 1, 0, 0, 0, 0, time.UTC),
+	}
+	require.NoError(t, db.WithContext(ctx).Create(billing).Error)
+
+	owner := makeOwner(t, db, clinicA, "X-12ロールバック飼主")
+	pet := makeSpeciesAndPet(t, db, clinicA, owner.ID, "X-12ロールバックペット")
+	appt := makeAccountingAppointment(t, db, clinicA, &owner.ID, &pet.ID, model.ReservationStatusPending,
+		time.Date(2026, 7, 1, 3, 0, 0, 0, time.UTC))
+	mr := makeMedicalRecordForAppointment(t, db, clinicA, appt.ID, "MR-X12-rollback")
+
+	repo := NewAccountingRepository(db)
+	tx := NewTransactor(db)
+
+	txErr := tx.WithTx(ctx, func(txCtx context.Context) error {
+		if _, err := repo.Update(txCtx, clinicA, billing.ID, map[string]any{"status": model.BillingStatusCompleted}); err != nil {
+			return err
+		}
+		if _, err := repo.CompleteAccountingAppointments(txCtx, clinicA, &mr.ID, nil, nil, time.Time{}); err != nil {
+			return err
+		}
+		return errSentinelAccountingTx
+	})
+	require.Error(t, txErr)
+	require.ErrorIs(t, txErr, errSentinelAccountingTx)
+
+	var reloadedBilling model.Billing
+	require.NoError(t, db.WithContext(ctx).First(&reloadedBilling, billing.ID).Error)
+	assert.Equal(t, model.BillingStatusWaiting, reloadedBilling.Status,
+		"ambient tx 失敗時、billing の status 更新はロールバックされる")
+
+	assert.Equal(t, model.ReservationStatusPending, reloadAppointmentStatus(t, db, appt.ID),
+		"ambient tx 失敗時、CompleteAccountingAppointments による appointment 完了化もロールバックされる"+
+			"（X-12 旧 failure mode = billing 確定済み・appointment 完了化のみ失敗の部分コミットが再現しないことの証明）。"+
+			"バグ時（r.db.WithContext(ctx) 直参照）は独立セッションで即コミットするため Completed のままとなり FAIL する")
+}
+
+func TestAccountingRepository_CompleteAccountingAppointments_CommitsWithinAmbientTx(t *testing.T) {
+	db := setupTestDB(t)
+	ctx := context.Background()
+	const clinicA = uint64(1)
+
+	billing := &model.Billing{
+		ClinicID:      clinicA,
+		TotalAmount:   5000,
+		Status:        model.BillingStatusWaiting,
+		ScheduledDate: time.Date(2026, 7, 1, 0, 0, 0, 0, time.UTC),
+	}
+	require.NoError(t, db.WithContext(ctx).Create(billing).Error)
+
+	owner := makeOwner(t, db, clinicA, "X-12コミット飼主")
+	pet := makeSpeciesAndPet(t, db, clinicA, owner.ID, "X-12コミットペット")
+	appt := makeAccountingAppointment(t, db, clinicA, &owner.ID, &pet.ID, model.ReservationStatusPending,
+		time.Date(2026, 7, 1, 3, 0, 0, 0, time.UTC))
+	mr := makeMedicalRecordForAppointment(t, db, clinicA, appt.ID, "MR-X12-commit")
+
+	repo := NewAccountingRepository(db)
+	tx := NewTransactor(db)
+
+	require.NoError(t, tx.WithTx(ctx, func(txCtx context.Context) error {
+		if _, err := repo.Update(txCtx, clinicA, billing.ID, map[string]any{"status": model.BillingStatusCompleted}); err != nil {
+			return err
+		}
+		_, err := repo.CompleteAccountingAppointments(txCtx, clinicA, &mr.ID, nil, nil, time.Time{})
+		return err
+	}))
+
+	var reloadedBilling model.Billing
+	require.NoError(t, db.WithContext(ctx).First(&reloadedBilling, billing.ID).Error)
+	assert.Equal(t, model.BillingStatusCompleted, reloadedBilling.Status, "commit 後は billing status が永続化される")
+	assert.Equal(t, model.ReservationStatusCompleted, reloadAppointmentStatus(t, db, appt.ID), "commit 後は appointment も完了化される")
+}
+
+// TestAccountingRepository_Create_RollsBackWhenAmbientTxFails は、accounting_service_core.Create
+// の X-12 修正（repo.Create + CompleteAccountingAppointments を単一 tx で括る）の repo 側前提を検証する。
+// バグ時（Create が r.db.WithContext(ctx) 直参照で dbOrTx 非参加）は billing の INSERT が独立
+// セッションで即コミットされるため、後続失敗時も billing 行が残ってしまう（旧 X-12 Create failure mode:
+// medical_record_id が NULL の手動会計・トリミング会計はリトライで二重 billing を作りうる）。
+func TestAccountingRepository_Create_RollsBackWhenAmbientTxFails(t *testing.T) {
+	db := setupTestDB(t)
+	ctx := context.Background()
+	const clinicA = uint64(1)
+
+	repo := NewAccountingRepository(db)
+	tx := NewTransactor(db)
+
+	billing := &model.Billing{
+		TotalAmount:   3000,
+		Status:        model.BillingStatusCompleted,
+		ScheduledDate: time.Date(2026, 7, 1, 0, 0, 0, 0, time.UTC),
+	}
+
+	txErr := tx.WithTx(ctx, func(txCtx context.Context) error {
+		if err := repo.Create(txCtx, clinicA, billing); err != nil {
+			return err
+		}
+		return errSentinelAccountingTx
+	})
+	require.Error(t, txErr)
+	require.ErrorIs(t, txErr, errSentinelAccountingTx)
+
+	var count int64
+	db.Model(&model.Billing{}).Where("clinic_id = ? AND total_amount = ?", clinicA, int64(3000)).Count(&count)
+	assert.EqualValues(t, 0, count,
+		"ambient tx 失敗時、Create による billing 新規作成はロールバックされる（X-12 の二重billingリスク根絶）")
+}
+
+func TestAccountingRepository_Create_CommitsWithinAmbientTx(t *testing.T) {
+	db := setupTestDB(t)
+	ctx := context.Background()
+	const clinicA = uint64(1)
+
+	repo := NewAccountingRepository(db)
+	tx := NewTransactor(db)
+
+	billing := &model.Billing{
+		TotalAmount:   3000,
+		Status:        model.BillingStatusCompleted,
+		ScheduledDate: time.Date(2026, 7, 1, 0, 0, 0, 0, time.UTC),
+	}
+
+	require.NoError(t, tx.WithTx(ctx, func(txCtx context.Context) error {
+		return repo.Create(txCtx, clinicA, billing)
+	}))
+
+	var count int64
+	db.Model(&model.Billing{}).Where("clinic_id = ? AND total_amount = ?", clinicA, int64(3000)).Count(&count)
+	assert.EqualValues(t, 1, count, "commit 後は billing が永続化される")
+}
+
 // ─── LockAndFindByID（FOR UPDATE が ambient tx をまたいで実際に排他するか） ──────────
 //
 // 設計メモ: 当初は「同一 tx 内で billings.status を未コミット更新した直後に

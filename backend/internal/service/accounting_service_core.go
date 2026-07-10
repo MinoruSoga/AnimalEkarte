@@ -70,6 +70,30 @@ func (s *accountingService) Create(ctx context.Context, input *CreateAccountingI
 		CompletedAt:       input.CompletedAt,
 		Memo:              input.Memo,
 	}
+	// BE-refactor.md X-12: 会計完了(completed)での Create は billing 作成と appointment 完了化を
+	// 単一 tx に統合する。従来は repo.Create のコミット後に tx 外で completeAccountingAppointments
+	// を呼んでおり、後者のみ失敗すると billing が確定済みのまま残った（部分コミット）。
+	// completed でない Create（waiting 等）は appointment 完了化を伴わないため従来どおり tx 不要。
+	if billing.Status == model.BillingStatusCompleted {
+		if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
+			if err := s.repo.Create(txCtx, input.ClinicID, billing); err != nil {
+				slog.ErrorContext(txCtx, "failed to create accounting", "error", err)
+				return apperrors.Wrap(err, "failed to create accounting")
+			}
+			if err := s.completeAccountingAppointments(txCtx, input.ClinicID, billing); err != nil {
+				return apperrors.Wrap(err, "failed to complete accounting appointments during create")
+			}
+			return nil
+		}); err != nil {
+			return nil, apperrors.Wrap(err, "failed to create accounting in transaction")
+		}
+		slog.InfoContext(ctx, "accounting created",
+			slog.Uint64("billing_id", billing.ID),
+			slog.Uint64("clinic_id", input.ClinicID))
+		s.syncCPMStageTag(ctx, input.ClinicID, billing)
+		return billing, nil
+	}
+
 	if err := s.repo.Create(ctx, input.ClinicID, billing); err != nil {
 		slog.ErrorContext(ctx, "failed to create accounting", "error", err)
 		return nil, apperrors.Wrap(err, "failed to create accounting")
@@ -77,12 +101,6 @@ func (s *accountingService) Create(ctx context.Context, input *CreateAccountingI
 	slog.InfoContext(ctx, "accounting created",
 		slog.Uint64("billing_id", billing.ID),
 		slog.Uint64("clinic_id", input.ClinicID))
-	if billing.Status == model.BillingStatusCompleted {
-		if err := s.completeAccountingAppointments(ctx, input.ClinicID, billing); err != nil {
-			return nil, apperrors.Wrap(err, "failed to complete accounting appointments during create")
-		}
-		s.syncCPMStageTag(ctx, input.ClinicID, billing)
-	}
 	return billing, nil
 }
 
@@ -145,13 +163,22 @@ func (s *accountingService) Update(ctx context.Context, input *UpdateAccountingI
 	// 従来は fields 更新が tx 外、payment upsert が独立 tx、監査が tx 外 best-effort の三系統に分かれており、
 	// 途中失敗時に部分コミット（例: fields 更新は成功したが payment upsert のみ失敗）が起こり得た。
 	// 統合後は「本体書込（fields/payment）と締め後編集監査が原子」になる（refund/CorrectCreditPayment と同型）。
+	// BE-refactor.md X-12: fields が status=completed を含む場合（buildAccountingUpdate は
+	// input.Status != nil を必ず fields["status"] に反映するため、この分岐に入るなら fields は
+	// 必ず非空 = s.repo.Update が必ず呼ばれる）、tx 内で得られる updatedBilling を使って
+	// appointment 完了化も同一 tx に含める。従来は WithTx コミット後・tx 外の ctx で
+	// completeAccountingAppointments を呼んでおり、これのみ失敗すると billing は completed で
+	// 確定済みのまま部分コミットになった。
+	var updatedBilling *model.Billing
 	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
 		// Billing 本体の更新
 		if len(fields) > 0 {
-			if _, err := s.repo.Update(txCtx, input.ClinicID, input.ID, fields); err != nil {
+			b, err := s.repo.Update(txCtx, input.ClinicID, input.ID, fields)
+			if err != nil {
 				slog.ErrorContext(txCtx, "failed to update accounting", "error", err)
 				return apperrors.Wrap(err, "failed to update accounting")
 			}
+			updatedBilling = b
 		}
 
 		// Payment upsert（支払フィールドが含まれている場合）
@@ -176,6 +203,13 @@ func (s *accountingService) Update(ctx context.Context, input *UpdateAccountingI
 				return err
 			}
 		}
+
+		// X-12: 判定は再読込後の accounting ではなく input.Status ベース（tx 内では fields 適用済みのため同値）。
+		if input.Status != nil && *input.Status == model.BillingStatusCompleted {
+			if err := s.completeAccountingAppointments(txCtx, input.ClinicID, updatedBilling); err != nil {
+				return apperrors.Wrap(err, "failed to complete accounting appointments during update")
+			}
+		}
 		return nil
 	}); err != nil {
 		return nil, apperrors.Wrap(err, "failed to update accounting in transaction")
@@ -192,10 +226,8 @@ func (s *accountingService) Update(ctx context.Context, input *UpdateAccountingI
 		slog.Uint64("billing_id", accounting.ID),
 		slog.Uint64("clinic_id", input.ClinicID))
 
+	// syncCPMStageTag は外部 LSTEP 同期のため従来どおり tx 外 best-effort を維持する（X-12 対応方針）。
 	if input.Status != nil && *input.Status == model.BillingStatusCompleted {
-		if err := s.completeAccountingAppointments(ctx, input.ClinicID, accounting); err != nil {
-			return nil, apperrors.Wrap(err, "failed to complete accounting appointments during update")
-		}
 		s.syncCPMStageTag(ctx, input.ClinicID, accounting)
 	}
 	return accounting, nil

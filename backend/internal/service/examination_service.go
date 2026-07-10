@@ -149,26 +149,6 @@ func (s *examinationService) GetByID(ctx context.Context, clinicID, id uint64) (
 }
 
 func (s *examinationService) Create(ctx context.Context, clinicID uint64, input *CreateExaminationInput) (*model.Examination, error) {
-	// HC-005: 親カルテが確定済みの場合は作成拒否
-	if input.MedicalRecordID != nil {
-		parent, err := s.medRec.FindByID(ctx, clinicID, *input.MedicalRecordID)
-		if err != nil {
-			slog.ErrorContext(ctx, "failed to find medical record", "error", err)
-			return nil, apperrors.Wrap(err, "failed to find medical record")
-		}
-		if parent.Status == model.MedicalRecordStatusFinalized {
-			return nil, apperrors.WrapConflict("確定済みカルテに検査を追加できません")
-		}
-	}
-
-	// クロステナント write 防止: 別 clinic の exam_type を紐付けると、その exam_type が持つ
-	// 異常値判定の基準値/単位（exam_type_fields）が検査記録に混入する（#124 同型）。所有権を検証する。
-	if input.ExamTypeID != 0 {
-		if _, err := s.examTypeRepo.FindByID(ctx, clinicID, input.ExamTypeID); err != nil {
-			return nil, apperrors.Wrap(err, "failed to verify exam type ownership")
-		}
-	}
-
 	status := input.Status
 	if status == "" {
 		status = model.ExaminationStatusPending
@@ -184,10 +164,39 @@ func (s *examinationService) Create(ctx context.Context, clinicID uint64, input 
 		Machine:         input.Machine,
 		Status:          status,
 	}
-	if err := s.repo.Create(ctx, exam); err != nil {
-		slog.ErrorContext(ctx, "failed to create examination", "error", err)
-		return nil, apperrors.Wrap(err, "failed to create examination")
+
+	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
+		// HC-005 + BE-refactor.md X-11: 親カルテが確定済みの場合は作成拒否。LockDraftByID の
+		// 行ロックで finalize（medical_record_repository.Update の draft-only WHERE）と直列化し、
+		// 確定と同時の検査追加が確定済みカルテに混入する競合を防ぐ。
+		if input.MedicalRecordID != nil {
+			parent, err := s.medRec.LockDraftByID(txCtx, clinicID, *input.MedicalRecordID)
+			if err != nil {
+				slog.ErrorContext(txCtx, "failed to find medical record", "error", err)
+				return apperrors.Wrap(err, "failed to find medical record")
+			}
+			if parent.Status == model.MedicalRecordStatusFinalized {
+				return apperrors.WrapConflict("確定済みカルテに検査を追加できません")
+			}
+		}
+
+		// クロステナント write 防止: 別 clinic の exam_type を紐付けると、その exam_type が持つ
+		// 異常値判定の基準値/単位（exam_type_fields）が検査記録に混入する（#124 同型）。所有権を検証する。
+		if input.ExamTypeID != 0 {
+			if _, err := s.examTypeRepo.FindByID(txCtx, clinicID, input.ExamTypeID); err != nil {
+				return apperrors.Wrap(err, "failed to verify exam type ownership")
+			}
+		}
+
+		if err := s.repo.Create(txCtx, exam); err != nil {
+			slog.ErrorContext(txCtx, "failed to create examination", "error", err)
+			return apperrors.Wrap(err, "failed to create examination")
+		}
+		return nil
+	}); err != nil {
+		return nil, err
 	}
+
 	slog.InfoContext(ctx, "examination created", slog.Uint64("clinic_id", clinicID), slog.Uint64("examination_id", exam.ID))
 	return exam, nil
 }
@@ -202,34 +211,43 @@ func (s *examinationService) Update(ctx context.Context, clinicID, id uint64, in
 		return nil, apperrors.WrapInvalidInput("確定済みの検査は編集できません")
 	}
 
-	// HC-003: 親カルテが確定済みの場合は編集拒否
-	if existing.MedicalRecordID != nil {
-		parent, err := s.medRec.FindByID(ctx, clinicID, *existing.MedicalRecordID)
+	var exam *model.Examination
+	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
+		// HC-003 + BE-refactor.md X-11: 親カルテが確定済みの場合は編集拒否。LockDraftByID の
+		// 行ロックで finalize と直列化し、確定と同時の検査編集が確定済みカルテに混入する競合を防ぐ。
+		if existing.MedicalRecordID != nil {
+			parent, err := s.medRec.LockDraftByID(txCtx, clinicID, *existing.MedicalRecordID)
+			if err != nil {
+				slog.ErrorContext(txCtx, "failed to find medical record", "error", err)
+				return apperrors.Wrap(err, "failed to find medical record")
+			}
+			if parent.Status == model.MedicalRecordStatusFinalized {
+				return apperrors.WrapConflict("確定済みカルテの検査は編集できません")
+			}
+		}
+
+		// クロステナント write 防止: 貼り替え先 exam_type が caller の clinic に属することを検証する。
+		if input.ExamTypeID != nil {
+			if _, err := s.examTypeRepo.FindByID(txCtx, clinicID, *input.ExamTypeID); err != nil {
+				return apperrors.Wrap(err, "failed to verify exam type ownership")
+			}
+		}
+
+		fields := buildExaminationUpdate(input)
+		if len(fields) == 0 {
+			return apperrors.WrapInvalidInput("at least one field must be provided")
+		}
+		updated, err := s.repo.Update(txCtx, clinicID, id, fields)
 		if err != nil {
-			slog.ErrorContext(ctx, "failed to find medical record", "error", err)
-			return nil, apperrors.Wrap(err, "failed to find medical record")
+			slog.ErrorContext(txCtx, "failed to update examination", "error", err)
+			return apperrors.Wrap(err, "failed to update examination")
 		}
-		if parent.Status == model.MedicalRecordStatusFinalized {
-			return nil, apperrors.WrapConflict("確定済みカルテの検査は編集できません")
-		}
+		exam = updated
+		return nil
+	}); err != nil {
+		return nil, err
 	}
 
-	// クロステナント write 防止: 貼り替え先 exam_type が caller の clinic に属することを検証する。
-	if input.ExamTypeID != nil {
-		if _, err := s.examTypeRepo.FindByID(ctx, clinicID, *input.ExamTypeID); err != nil {
-			return nil, apperrors.Wrap(err, "failed to verify exam type ownership")
-		}
-	}
-
-	fields := buildExaminationUpdate(input)
-	if len(fields) == 0 {
-		return nil, apperrors.WrapInvalidInput("at least one field must be provided")
-	}
-	exam, err := s.repo.Update(ctx, clinicID, id, fields)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to update examination", "error", err)
-		return nil, apperrors.Wrap(err, "failed to update examination")
-	}
 	slog.InfoContext(ctx, "examination updated", slog.Uint64("clinic_id", clinicID), slog.Uint64("examination_id", id))
 	return exam, nil
 }

@@ -36,6 +36,11 @@ func (m *mockCheckupResultMedicalRecordRepository) FindByID(ctx context.Context,
 	return &model.MedicalRecord{ID: id, ClinicID: clinicID, Status: model.MedicalRecordStatusDraft}, nil
 }
 
+// LockDraftByID は X-11 finalize-lock テスト用に FindByID と同じ挙動へ委譲する。
+func (m *mockCheckupResultMedicalRecordRepository) LockDraftByID(ctx context.Context, clinicID, id uint64) (*model.MedicalRecord, error) {
+	return m.FindByID(ctx, clinicID, id)
+}
+
 type mockCheckupTypeFieldRepository struct {
 	repository.CheckupTypeFieldRepository
 	findByCheckupTypeIDFn func(ctx context.Context, clinicID, checkupTypeID uint64) ([]model.CheckupTypeField, error)
@@ -354,13 +359,16 @@ func TestCheckupFieldResultService_ReplaceForCheckup(t *testing.T) {
 	})
 
 	t.Run("parent medical record find error", func(t *testing.T) {
+		// X-11: parent status チェックは s.transactor.WithTx 内の先頭（field validation の後）に
+		// 移動したため、fieldRepo と transactor も到達可能な状態で構成する必要がある。
 		checkupRepo := &mockCheckupResultCheckupRepository{}
 		medRepo := &mockCheckupResultMedicalRecordRepository{
 			findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
 				return nil, errors.New("db error")
 			},
 		}
-		svc := NewCheckupFieldResultService(checkupRepo, medRepo, nil, nil, nil, nil)
+		fieldRepo := &mockCheckupTypeFieldRepository{}
+		svc := NewCheckupFieldResultService(checkupRepo, medRepo, fieldRepo, nil, nil, &mockCheckupTransactor{})
 		_, err := svc.ReplaceForCheckup(ctx, 1, 10, 50, nil, []UpsertCheckupFieldResultInput{})
 		assert.Error(t, err)
 	})
@@ -372,9 +380,11 @@ func TestCheckupFieldResultService_ReplaceForCheckup(t *testing.T) {
 				return &model.MedicalRecord{ID: id, ClinicID: clinicID, Status: model.MedicalRecordStatusFinalized}, nil
 			},
 		}
-		svc := NewCheckupFieldResultService(checkupRepo, medRepo, nil, nil, nil, nil)
+		fieldRepo := &mockCheckupTypeFieldRepository{}
+		svc := NewCheckupFieldResultService(checkupRepo, medRepo, fieldRepo, nil, nil, &mockCheckupTransactor{})
 		_, err := svc.ReplaceForCheckup(ctx, 1, 10, 50, nil, []UpsertCheckupFieldResultInput{})
 		assert.Error(t, err)
+		assert.True(t, apperrors.IsConflict(err))
 	})
 
 	t.Run("fieldRepo error", func(t *testing.T) {

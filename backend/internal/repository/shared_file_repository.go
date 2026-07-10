@@ -60,12 +60,15 @@ func (r *sharedFileRepository) FindAll(ctx context.Context, clinicID uint64) ([]
 }
 
 func (r *sharedFileRepository) Delete(ctx context.Context, clinicID, id uint64) error {
-	err := r.db.WithContext(ctx).
+	result := r.db.WithContext(ctx).
 		Scopes(clinicScope(clinicID)).
 		Where("id = ? AND deleted_at IS NULL", id).
-		Delete(&model.SharedFile{}).Error
-	if err != nil {
-		return apperrors.FromGORM(err, "shared_file", fmt.Sprintf("%d", id))
+		Delete(&model.SharedFile{})
+	if result.Error != nil {
+		return apperrors.FromGORM(result.Error, "shared_file", fmt.Sprintf("%d", id))
+	}
+	if result.RowsAffected == 0 {
+		return apperrors.WrapNotFound("shared_file", fmt.Sprintf("%d", id))
 	}
 	return nil
 }

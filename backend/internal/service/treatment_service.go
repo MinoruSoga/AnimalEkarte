@@ -216,17 +216,6 @@ func (s *treatmentService) Create(ctx context.Context, clinicID, medicalRecordID
 		status = s
 	}
 
-	// テナント所有権 + 確定ロック検証（Update/Delete と対称化・healthcare review CRITICAL）。
-	// treatments は自前 clinic_id を持たず medical_records 経由で隔離するため、所有権を Create でも明示検証する。
-	parent, err := s.repos.MedicalRecord.FindByID(ctx, clinicID, medicalRecordID)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to verify medical record ownership", "error", err)
-		return nil, apperrors.Wrap(err, "failed to verify medical record ownership")
-	}
-	if parent.Status == model.MedicalRecordStatusFinalized {
-		return nil, apperrors.WrapConflict("確定済みカルテには治療を追加できません")
-	}
-
 	// クロステナント write 防止: request 由来の clinic-scoped マスタFK
 	// (medicine/procedure/consultation) が caller の clinic に属することを検証する。
 	// 別 clinic のマスタ参照は NotFound で遮断し #124/#125 同型の mislink を防ぐ。
@@ -238,7 +227,20 @@ func (s *treatmentService) Create(ctx context.Context, clinicID, medicalRecordID
 	var doseEval *SavedDoseEvaluation
 
 	// ─── Transaction ───
-	err = s.repos.Transaction(ctx, func(txRepos *repository.Repositories) error {
+	err := s.repos.Transaction(ctx, func(txRepos *repository.Repositories) error {
+		// テナント所有権 + 確定ロック検証（Update/Delete と対称化・healthcare review CRITICAL）。
+		// treatments は自前 clinic_id を持たず medical_records 経由で隔離するため、所有権を Create でも明示検証する。
+		// BE-refactor.md X-11: LockDraftByID の行ロックで finalize（medical_record_repository.Update の
+		// draft-only WHERE）と直列化し、確定と同時の治療追加が確定済みカルテに混入する競合を防ぐ。
+		parent, err := txRepos.MedicalRecord.LockDraftByID(ctx, clinicID, medicalRecordID)
+		if err != nil {
+			slog.ErrorContext(ctx, "failed to verify medical record ownership", "error", err)
+			return apperrors.Wrap(err, "failed to verify medical record ownership")
+		}
+		if parent.Status == model.MedicalRecordStatusFinalized {
+			return apperrors.WrapConflict("確定済みカルテには治療を追加できません")
+		}
+
 		treatment = &model.Treatment{
 			MedicalRecordID: medicalRecordID,
 			ItemType:        input.ItemType,

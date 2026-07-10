@@ -52,11 +52,14 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"account_repository.go|accountRepository.FindByEmail": {},
 	"account_repository.go|accountRepository.FindByID":    {},
 	"account_repository.go|accountRepository.Update":      {},
-	// accounting (R1-1 money-path atomicity)
-	"accounting_repository.go|accountingRepository.LockAndFindByID":   {},
-	"accounting_repository.go|accountingRepository.SavePayment":       {},
-	"accounting_repository.go|accountingRepository.SavePaymentSplits": {},
-	"accounting_repository.go|accountingRepository.Update":            {},
+	// accounting (R1-1 money-path atomicity; Create/CompleteAccountingAppointments added for
+	// BE-refactor.md X-12 billing-complete-appt-post-tx atomicity fix)
+	"accounting_repository.go|accountingRepository.CompleteAccountingAppointments": {},
+	"accounting_repository.go|accountingRepository.Create":                         {},
+	"accounting_repository.go|accountingRepository.LockAndFindByID":                {},
+	"accounting_repository.go|accountingRepository.SavePayment":                    {},
+	"accounting_repository.go|accountingRepository.SavePaymentSplits":              {},
+	"accounting_repository.go|accountingRepository.Update":                         {},
 	// audit (#211 tx-internal)
 	"audit_repository.go|auditRepository.CreateTx": {},
 	// billing_item (R1-1)
@@ -73,19 +76,29 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	// checkup_field (#211 tx-internal replace)
 	"checkup_field_repository.go|checkupFieldResultRepository.FindByCheckupID":   {},
 	"checkup_field_repository.go|checkupFieldResultRepository.ReplaceForCheckup": {},
-	// examination (BE-refactor.md R1-2 tx-internal replace)
+	// examination (BE-refactor.md R1-2 tx-internal replace; Create/FindByID/Update added for X-11
+	// finalize-child-write-race — must join the LockDraftByID ambient tx or the FK check on
+	// examinations.medical_record_id deadlocks against the FOR UPDATE row lock)
+	"examination_repository.go|examinationRepository.Create":               {},
 	"examination_repository.go|examinationRepository.FindAllItemsByExamID": {},
+	"examination_repository.go|examinationRepository.FindByID":             {},
 	"examination_repository.go|examinationRepository.ReplaceItemsByExamID": {},
+	"examination_repository.go|examinationRepository.Update":               {},
 	// medical_record_addendum
 	"medical_record_addendum_repository.go|medicalRecordAddendumRepository.Create":                {},
 	"medical_record_addendum_repository.go|medicalRecordAddendumRepository.FindByID":              {},
 	"medical_record_addendum_repository.go|medicalRecordAddendumRepository.FindByMedicalRecordID": {},
+	// medical_record (X-11 Appendix-A finalize-child-write-race fix)
+	"medical_record_repository.go|medicalRecordRepository.LockDraftByID": {},
 	// medicine_dose_param (R1-2 dose-param tx)
 	"medicine_dose_param_repository.go|medicineDoseParamRepository.Create":                   {},
 	"medicine_dose_param_repository.go|medicineDoseParamRepository.Delete":                   {},
 	"medicine_dose_param_repository.go|medicineDoseParamRepository.FindByMedicineAndSpecies": {},
 	"medicine_dose_param_repository.go|medicineDoseParamRepository.FindByMedicineID":         {},
 	"medicine_dose_param_repository.go|medicineDoseParamRepository.Update":                   {},
+	// prescription (X-11 Appendix-A finalize-child-write-race fix — same FK-deadlock rationale as examination)
+	"prescription_repository.go|prescriptionRepository.Create": {},
+	"prescription_repository.go|prescriptionRepository.Update": {},
 	// refund (R1-1 TOCTOU)
 	"refund_repository.go|refundRepository.Create":                         {},
 	"refund_repository.go|refundRepository.SumByBillingID":                 {},
@@ -146,6 +159,10 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"trimming_repository.go|appointmentTrimmingDetailRepository.FindByAppointmentID": {},
 	"trimming_repository.go|appointmentTrimmingDetailRepository.SetOptions":          {},
 	"trimming_repository.go|appointmentTrimmingDetailRepository.Update":              {},
+	// vital (X-11 Appendix-A finalize-child-write-race fix — same FK-deadlock rationale as examination)
+	"vital_repository.go|vitalRepository.Create": {},
+	"vital_repository.go|vitalRepository.Update": {},
+	"vital_repository.go|vitalRepository.Delete": {},
 	// G6-2 (BE-refactor.md tx-mechanism-consolidation): repo-internal r.db.WithContext(ctx).Transaction
 	// → dbOrTx(ctx, r.db).Transaction conversion, no ambient-tx caller into any of these (verified per-file).
 	"lstep_tag_cache_repository.go|lstepTagCacheRepository.BulkReplaceOwnerTags":        {},

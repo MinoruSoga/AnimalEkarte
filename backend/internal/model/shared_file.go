@@ -1,21 +1,25 @@
 package model
 
-import "time"
+import (
+	"time"
+
+	"gorm.io/gorm"
+)
 
 // SharedFile はLINE個別送信用にアップロードされたファイルのメタデータ。
 type SharedFile struct {
-	ID         uint64     `gorm:"primaryKey"     json:"id"`
-	ClinicID   uint64     `gorm:"not null"       json:"clinic_id"`
-	OwnerID    *uint64    `json:"owner_id"`
-	UploadedBy uint64     `gorm:"not null"       json:"uploaded_by"`
-	FileType   string     `gorm:"not null"       json:"file_type"`
-	FileName   string     `gorm:"not null"       json:"file_name"`
-	FileKey    string     `gorm:"not null"       json:"-"` // S3キーは公開しない
-	FileSize   int64      `gorm:"not null"       json:"file_size"`
-	Purpose    string     `gorm:"not null"       json:"purpose"`
-	ExpiresAt  *time.Time `json:"expires_at"`
-	CreatedAt  time.Time  `gorm:"autoCreateTime" json:"created_at"`
-	DeletedAt  *time.Time `gorm:"index"          json:"deleted_at"`
+	ID         uint64         `gorm:"primaryKey"     json:"id"`
+	ClinicID   uint64         `gorm:"not null"       json:"clinic_id"`
+	OwnerID    *uint64        `json:"owner_id"`
+	UploadedBy uint64         `gorm:"not null"       json:"uploaded_by"`
+	FileType   string         `gorm:"not null"       json:"file_type"`
+	FileName   string         `gorm:"not null"       json:"file_name"`
+	FileKey    string         `gorm:"not null"       json:"-"` // S3キーは公開しない
+	FileSize   int64          `gorm:"not null"       json:"file_size"`
+	Purpose    string         `gorm:"not null"       json:"purpose"`
+	ExpiresAt  *time.Time     `json:"expires_at"`
+	CreatedAt  time.Time      `gorm:"autoCreateTime" json:"created_at"`
+	DeletedAt  gorm.DeletedAt `gorm:"index"          json:"-"`
 }
 
 func (SharedFile) TableName() string { return "shared_files" }

@@ -73,7 +73,7 @@ func (r *examinationRepository) FindAll(ctx context.Context, clinicID uint64, pe
 
 func (r *examinationRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Examination, error) {
 	var exam model.Examination
-	err := r.db.WithContext(ctx).
+	err := dbOrTx(ctx, r.db).
 		Where("exams.id = ? AND exams.clinic_id = ?", id, clinicID).
 		Preload("ExaminationType", "clinic_id = ? AND deleted_at IS NULL", clinicID).Preload("Pet", "deleted_at IS NULL").Preload("Pet.Owner", "deleted_at IS NULL").Preload("Doctor", "deleted_at IS NULL").Preload("Items").
 		First(&exam).Error
@@ -100,16 +100,21 @@ func (r *examinationRepository) FindByJobID(ctx context.Context, clinicID uint64
 	return exams, nil
 }
 
+// Create は dbOrTx(ctx, r.db) で ambient tx に参加する（BE-refactor.md X-11）。
+// LockDraftByID の行ロック保持 tx 内から呼ばれた場合、別コネクションで INSERT すると
+// examinations.medical_record_id の FK 制約チェックが同一行への FOR UPDATE ロックと
+// デッドロックする（FK チェックは FOR KEY SHARE を要求し FOR UPDATE と競合するため）。
 func (r *examinationRepository) Create(ctx context.Context, exam *model.Examination) error {
-	err := r.db.WithContext(ctx).Create(exam).Error
+	err := dbOrTx(ctx, r.db).Create(exam).Error
 	if err != nil {
 		return apperrors.FromGORM(err, "exam", "")
 	}
 	return nil
 }
 
+// Update は dbOrTx(ctx, r.db) で ambient tx に参加する（Create と同じ理由、BE-refactor.md X-11）。
 func (r *examinationRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Examination, error) {
-	result := r.db.WithContext(ctx).
+	result := dbOrTx(ctx, r.db).
 		Model(&model.Examination{}).
 		Scopes(clinicScope(clinicID)).Where("id = ?", id).
 		Updates(fields)

@@ -195,9 +195,12 @@ func (r *accountingRepository) LockAndFindByID(ctx context.Context, clinicID, id
 	return &billing, nil
 }
 
+// BE-refactor.md X-12: 会計完了(completed)時、Create は accounting_service_core.Create の
+// Transactor.WithTx から txCtx 付きで呼ばれ、後続の CompleteAccountingAppointments と単一 tx に
+// 参加する（dbOrTx が無ければ従来どおり db.WithContext(ctx) と等価・挙動保存）。
 func (r *accountingRepository) Create(ctx context.Context, clinicID uint64, accounting *model.Billing) error {
 	accounting.ClinicID = clinicID
-	if err := r.db.WithContext(ctx).Create(accounting).Error; err != nil {
+	if err := dbOrTx(ctx, r.db).Create(accounting).Error; err != nil {
 		if isUniqueConstraintErr(err) {
 			return apperrors.WrapAlreadyExists("billing", accounting.ScheduledDate.String())
 		}
@@ -309,12 +312,16 @@ func (r *accountingRepository) SavePaymentSplits(ctx context.Context, splits []m
 	return nil
 }
 
+// BE-refactor.md X-12: accounting_service_core.Create/Update の Transactor.WithTx から txCtx
+// 付きで呼ばれ、billing 本体の書込（Create/Update）と同一 tx に参加する。dbOrTx が無ければ
+// 従来どおり db.WithContext(ctx) と等価（挙動保存）。medical_record サブクエリも読み取り一貫性
+// のため dbOrTx に揃える（同一 tx 内の書込に対する読み取りを ambient tx から行う）。
 func (r *accountingRepository) CompleteAccountingAppointments(ctx context.Context, clinicID uint64, medicalRecordID, ownerID, petID *uint64, scheduledDate time.Time) (int64, error) {
 	var totalAffected int64
 
 	// (1) 同日同一ペットの会計待ち(accounting)予約を完了化する（トリミング + 受付カンバンで会計待ちに進めた診察）。
 	if ownerID != nil && petID != nil && !scheduledDate.IsZero() {
-		result := r.db.WithContext(ctx).
+		result := dbOrTx(ctx, r.db).
 			Model(&model.Reservation{}).
 			Where("clinic_id = ? AND owner_id = ? AND pet_id = ? AND status = ? AND deleted_at IS NULL",
 				clinicID, *ownerID, *petID, model.ReservationStatusAccounting).
@@ -330,12 +337,12 @@ func (r *accountingRepository) CompleteAccountingAppointments(ctx context.Contex
 	//     診察は billing_confirmation の医師確認だけで会計可能なため、受付カンバンで会計待ち(accounting)に
 	//     進めずに会計すると (1) の条件に合致せず、会計後も診察カードが受付ボードに残る。これを防ぐ。
 	if medicalRecordID != nil {
-		result := r.db.WithContext(ctx).
+		result := dbOrTx(ctx, r.db).
 			Model(&model.Reservation{}).
 			Where("clinic_id = ? AND deleted_at IS NULL", clinicID).
 			Where("status NOT IN ?", []model.ReservationStatus{model.ReservationStatusCompleted, model.ReservationStatusCancelled, model.ReservationStatusNoShow}).
 			Where("id IN (?)",
-				r.db.Model(&model.MedicalRecord{}).
+				dbOrTx(ctx, r.db).Model(&model.MedicalRecord{}).
 					Select("appointment_id").
 					Where("id = ? AND clinic_id = ? AND appointment_id IS NOT NULL AND deleted_at IS NULL", *medicalRecordID, clinicID)).
 			Update("status", model.ReservationStatusCompleted)

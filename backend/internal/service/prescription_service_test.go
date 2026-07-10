@@ -105,7 +105,7 @@ func TestPrescriptionService_List(t *testing.T) {
 					return tt.prescriptions, tt.repoErr
 				},
 			}
-			svc := NewPrescriptionService(repo, &mockMedicalRecordRepository{}, nil)
+			svc := NewPrescriptionService(repo, &mockMedicalRecordRepository{}, nil, &mockCheckupTransactor{})
 
 			prescriptions, err := svc.List(context.Background(), 1, tt.medicalRecordID)
 
@@ -146,7 +146,7 @@ func TestPrescriptionService_GetByID(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockPrescriptionRepository{findByIDFn: tt.findByIDFn}
-			svc := NewPrescriptionService(repo, &mockMedicalRecordRepository{}, nil)
+			svc := NewPrescriptionService(repo, &mockMedicalRecordRepository{}, nil, &mockCheckupTransactor{})
 
 			prescription, err := svc.GetByID(context.Background(), 1, 5)
 
@@ -190,7 +190,7 @@ func TestPrescriptionService_Create_MedicalRecordLookupError(t *testing.T) {
 			return nil, errors.New("db error")
 		},
 	}
-	svc := NewPrescriptionService(&mockPrescriptionRepository{}, medRecordRepo, nil)
+	svc := NewPrescriptionService(&mockPrescriptionRepository{}, medRecordRepo, nil, &mockCheckupTransactor{})
 
 	result, err := svc.Create(context.Background(), 1, 2, &CreatePrescriptionInput{DurationDays: 7})
 
@@ -204,7 +204,7 @@ func TestPrescriptionService_Create_NoOwnerRejected(t *testing.T) {
 			return &model.MedicalRecord{OwnerID: nil}, nil
 		},
 	}
-	svc := NewPrescriptionService(&mockPrescriptionRepository{}, medRecordRepo, nil)
+	svc := NewPrescriptionService(&mockPrescriptionRepository{}, medRecordRepo, nil, &mockCheckupTransactor{})
 
 	result, err := svc.Create(context.Background(), 1, 2, &CreatePrescriptionInput{DurationDays: 7})
 
@@ -219,7 +219,7 @@ func TestPrescriptionService_Create_FinalizedRejected(t *testing.T) {
 			return &model.MedicalRecord{OwnerID: &ownerID, Status: model.MedicalRecordStatusFinalized}, nil
 		},
 	}
-	svc := NewPrescriptionService(&mockPrescriptionRepository{}, medRecordRepo, nil)
+	svc := NewPrescriptionService(&mockPrescriptionRepository{}, medRecordRepo, nil, &mockCheckupTransactor{})
 
 	result, err := svc.Create(context.Background(), 1, 2, &CreatePrescriptionInput{DurationDays: 7})
 
@@ -240,7 +240,7 @@ func TestPrescriptionService_Create_RepositoryError(t *testing.T) {
 			return errors.New("db error")
 		},
 	}
-	svc := NewPrescriptionService(repo, medRecordRepo, nil)
+	svc := NewPrescriptionService(repo, medRecordRepo, nil, &mockCheckupTransactor{})
 
 	result, err := svc.Create(context.Background(), 1, 2, &CreatePrescriptionInput{DurationDays: 7})
 
@@ -257,7 +257,7 @@ func TestPrescriptionService_Update_FindByIDError(t *testing.T) {
 			return nil, errors.New("db error")
 		},
 	}
-	svc := NewPrescriptionService(repo, &mockMedicalRecordRepository{}, nil)
+	svc := NewPrescriptionService(repo, &mockMedicalRecordRepository{}, nil, &mockCheckupTransactor{})
 
 	result, err := svc.Update(context.Background(), 1, 2, 3, &UpdatePrescriptionInput{DurationDays: &durationDays})
 
@@ -273,7 +273,7 @@ func TestPrescriptionService_Update_MedicalRecordMismatch(t *testing.T) {
 			return &model.Prescription{ID: 3, MedicalRecordID: &otherMedicalRecordID}, nil
 		},
 	}
-	svc := NewPrescriptionService(repo, &mockMedicalRecordRepository{}, nil)
+	svc := NewPrescriptionService(repo, &mockMedicalRecordRepository{}, nil, &mockCheckupTransactor{})
 
 	result, err := svc.Update(context.Background(), 1, 2, 3, &UpdatePrescriptionInput{DurationDays: &durationDays})
 
@@ -289,7 +289,7 @@ func TestPrescriptionService_Update_NilMedicalRecordID(t *testing.T) {
 			return &model.Prescription{ID: 3, MedicalRecordID: nil}, nil
 		},
 	}
-	svc := NewPrescriptionService(repo, &mockMedicalRecordRepository{}, nil)
+	svc := NewPrescriptionService(repo, &mockMedicalRecordRepository{}, nil, &mockCheckupTransactor{})
 
 	result, err := svc.Update(context.Background(), 1, 2, 3, &UpdatePrescriptionInput{DurationDays: &durationDays})
 
@@ -311,7 +311,7 @@ func TestPrescriptionService_Update_MedicalRecordLookupError(t *testing.T) {
 			return nil, errors.New("db error")
 		},
 	}
-	svc := NewPrescriptionService(repo, medRecordRepo, nil)
+	svc := NewPrescriptionService(repo, medRecordRepo, nil, &mockCheckupTransactor{})
 
 	result, err := svc.Update(context.Background(), 1, medicalRecordID, 3, &UpdatePrescriptionInput{DurationDays: &durationDays})
 
@@ -332,7 +332,7 @@ func TestPrescriptionService_Update_FinalizedRejected(t *testing.T) {
 			return &model.MedicalRecord{Status: model.MedicalRecordStatusFinalized}, nil
 		},
 	}
-	svc := NewPrescriptionService(repo, medRecordRepo, nil)
+	svc := NewPrescriptionService(repo, medRecordRepo, nil, &mockCheckupTransactor{})
 
 	result, err := svc.Update(context.Background(), 1, medicalRecordID, 3, &UpdatePrescriptionInput{DurationDays: &durationDays})
 
@@ -353,7 +353,7 @@ func TestPrescriptionService_Update_NoFieldsProvided(t *testing.T) {
 			return &model.MedicalRecord{Status: model.MedicalRecordStatusDraft}, nil
 		},
 	}
-	svc := NewPrescriptionService(repo, medRecordRepo, nil)
+	svc := NewPrescriptionService(repo, medRecordRepo, nil, &mockCheckupTransactor{})
 
 	result, err := svc.Update(context.Background(), 1, medicalRecordID, 3, &UpdatePrescriptionInput{})
 
@@ -378,7 +378,7 @@ func TestPrescriptionService_Update_RepositoryUpdateError(t *testing.T) {
 			return &model.MedicalRecord{Status: model.MedicalRecordStatusDraft}, nil
 		},
 	}
-	svc := NewPrescriptionService(repo, medRecordRepo, nil)
+	svc := NewPrescriptionService(repo, medRecordRepo, nil, &mockCheckupTransactor{})
 
 	result, err := svc.Update(context.Background(), 1, medicalRecordID, 3, &UpdatePrescriptionInput{DurationDays: &durationDays})
 
@@ -407,7 +407,7 @@ func TestPrescriptionService_Update_FindByIDAfterUpdateError(t *testing.T) {
 			return &model.MedicalRecord{Status: model.MedicalRecordStatusDraft}, nil
 		},
 	}
-	svc := NewPrescriptionService(repo, medRecordRepo, nil)
+	svc := NewPrescriptionService(repo, medRecordRepo, nil, &mockCheckupTransactor{})
 
 	result, err := svc.Update(context.Background(), 1, medicalRecordID, 3, &UpdatePrescriptionInput{DurationDays: &durationDays})
 
@@ -423,7 +423,7 @@ func TestPrescriptionService_Delete_FindByIDError(t *testing.T) {
 			return nil, errors.New("db error")
 		},
 	}
-	svc := NewPrescriptionService(repo, &mockMedicalRecordRepository{}, nil)
+	svc := NewPrescriptionService(repo, &mockMedicalRecordRepository{}, nil, &mockCheckupTransactor{})
 
 	err := svc.Delete(context.Background(), 1, 2, 3)
 
@@ -437,7 +437,7 @@ func TestPrescriptionService_Delete_MedicalRecordMismatch(t *testing.T) {
 			return &model.Prescription{ID: 3, MedicalRecordID: &otherMedicalRecordID}, nil
 		},
 	}
-	svc := NewPrescriptionService(repo, &mockMedicalRecordRepository{}, nil)
+	svc := NewPrescriptionService(repo, &mockMedicalRecordRepository{}, nil, &mockCheckupTransactor{})
 
 	err := svc.Delete(context.Background(), 1, 2, 3)
 
@@ -457,7 +457,7 @@ func TestPrescriptionService_Delete_MedicalRecordLookupError(t *testing.T) {
 			return nil, errors.New("db error")
 		},
 	}
-	svc := NewPrescriptionService(repo, medRecordRepo, nil)
+	svc := NewPrescriptionService(repo, medRecordRepo, nil, &mockCheckupTransactor{})
 
 	err := svc.Delete(context.Background(), 1, medicalRecordID, 3)
 
@@ -476,7 +476,7 @@ func TestPrescriptionService_Delete_FinalizedRejected(t *testing.T) {
 			return &model.MedicalRecord{Status: model.MedicalRecordStatusFinalized}, nil
 		},
 	}
-	svc := NewPrescriptionService(repo, medRecordRepo, nil)
+	svc := NewPrescriptionService(repo, medRecordRepo, nil, &mockCheckupTransactor{})
 
 	err := svc.Delete(context.Background(), 1, medicalRecordID, 3)
 
@@ -499,7 +499,7 @@ func TestPrescriptionService_Delete_RepositoryError(t *testing.T) {
 			return &model.MedicalRecord{Status: model.MedicalRecordStatusDraft}, nil
 		},
 	}
-	svc := NewPrescriptionService(repo, medRecordRepo, nil)
+	svc := NewPrescriptionService(repo, medRecordRepo, nil, &mockCheckupTransactor{})
 
 	err := svc.Delete(context.Background(), 1, medicalRecordID, 3)
 
@@ -522,7 +522,7 @@ func TestPrescriptionService_syncPrescriptionTag_NilTagSyncSvc(t *testing.T) {
 			return &model.MedicalRecord{OwnerID: &ownerID, Status: model.MedicalRecordStatusDraft}, nil
 		},
 	}
-	svc := NewPrescriptionService(repo, medRecordRepo, nil)
+	svc := NewPrescriptionService(repo, medRecordRepo, nil, &mockCheckupTransactor{})
 
 	result, err := svc.Create(context.Background(), 1, 2, &CreatePrescriptionInput{DurationDays: 7})
 
@@ -553,7 +553,7 @@ func TestPrescriptionService_Create_SyncsPrescriptionTagBestEffort(t *testing.T)
 			return errors.New("sync failed")
 		},
 	}
-	svc := NewPrescriptionService(repo, medRecordRepo, tagSync)
+	svc := NewPrescriptionService(repo, medRecordRepo, tagSync, &mockCheckupTransactor{})
 
 	result, err := svc.Create(context.Background(), 1, 2, &CreatePrescriptionInput{
 		PrescribedAt: time.Date(2026, 5, 27, 0, 0, 0, 0, time.UTC),
@@ -587,7 +587,7 @@ func TestPrescriptionService_Update_SyncsPrescriptionTagAfterUpdate(t *testing.T
 			return nil
 		},
 	}
-	svc := NewPrescriptionService(repo, &mockMedicalRecordRepository{}, tagSync)
+	svc := NewPrescriptionService(repo, &mockMedicalRecordRepository{}, tagSync, &mockCheckupTransactor{})
 	durationDays := 21
 
 	result, err := svc.Update(context.Background(), 1, medicalRecordID, 30, &UpdatePrescriptionInput{DurationDays: &durationDays})
@@ -619,7 +619,7 @@ func TestPrescriptionService_Delete_SyncsPrescriptionTagAfterDelete(t *testing.T
 			return nil
 		},
 	}
-	svc := NewPrescriptionService(repo, &mockMedicalRecordRepository{}, tagSync)
+	svc := NewPrescriptionService(repo, &mockMedicalRecordRepository{}, tagSync, &mockCheckupTransactor{})
 
 	err := svc.Delete(context.Background(), 1, medicalRecordID, 30)
 

@@ -163,6 +163,11 @@ func (m *mockMedicalRecordRepositoryForExam) DeleteDraftByAppointmentID(_ contex
 	return nil
 }
 
+// LockDraftByID は X-11 finalize-lock テスト用に FindByID と同じ挙動へ委譲する。
+func (m *mockMedicalRecordRepositoryForExam) LockDraftByID(ctx context.Context, clinicID, id uint64) (*model.MedicalRecord, error) {
+	return m.FindByID(ctx, clinicID, id)
+}
+
 func TestExaminationService_List(t *testing.T) {
 	petID := uint64(5)
 	ownerID := uint64(2)
@@ -458,7 +463,7 @@ func TestExaminationService_Create(t *testing.T) {
 					return nil, tt.examTypeErr
 				}}
 			}
-			svc := NewExaminationService(repo, medRec, examTypeRepo, nil, nil)
+			svc := NewExaminationService(repo, medRec, examTypeRepo, nil, &mockCheckupTransactor{})
 
 			exam, err := svc.Create(context.Background(), tt.clinicID, tt.input)
 
@@ -605,7 +610,7 @@ func TestExaminationService_Update(t *testing.T) {
 					return nil, tt.examTypeErr
 				}}
 			}
-			svc := NewExaminationService(repo, medRec, examTypeRepo, nil, nil)
+			svc := NewExaminationService(repo, medRec, examTypeRepo, nil, &mockCheckupTransactor{})
 
 			exam, err := svc.Update(context.Background(), 1, 1, tt.input)
 

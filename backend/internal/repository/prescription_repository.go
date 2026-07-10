@@ -64,16 +64,21 @@ func (r *prescriptionRepository) FindActiveByOwner(ctx context.Context, clinicID
 	return prescriptions, nil
 }
 
+// Create は dbOrTx(ctx, r.db) で ambient tx に参加する（BE-refactor.md X-11）。
+// LockDraftByID の行ロック保持 tx 内から呼ばれた場合、別コネクションで INSERT すると
+// prescriptions.medical_record_id の FK 制約チェックが同一行への FOR UPDATE ロックと
+// デッドロックする（FK チェックは FOR KEY SHARE を要求し FOR UPDATE と競合するため）。
 func (r *prescriptionRepository) Create(ctx context.Context, prescription *model.Prescription) error {
-	err := r.db.WithContext(ctx).Create(prescription).Error
+	err := dbOrTx(ctx, r.db).Create(prescription).Error
 	if err != nil {
 		return apperrors.FromGORM(err, "prescription", "")
 	}
 	return nil
 }
 
+// Update は dbOrTx(ctx, r.db) で ambient tx に参加する（Create と同じ理由、BE-refactor.md X-11）。
 func (r *prescriptionRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
-	result := r.db.WithContext(ctx).
+	result := dbOrTx(ctx, r.db).
 		Model(&model.Prescription{}).
 		Scopes(clinicScope(clinicID)).
 		Where("id = ?", id).

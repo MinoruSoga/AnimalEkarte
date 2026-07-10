@@ -91,7 +91,7 @@ func TestVitalService_List(t *testing.T) {
 					return tt.repoVitals, tt.repoErr
 				},
 			}
-			svc := NewVitalService(repo, &mockMedicalRecordRepository{}, nil)
+			svc := NewVitalService(repo, &mockMedicalRecordRepository{}, nil, &mockCheckupTransactor{})
 
 			vitals, err := svc.List(context.Background(), 1, tt.medicalRecordID)
 
@@ -247,7 +247,7 @@ func TestVitalService_Create(t *testing.T) {
 					}, nil
 				},
 			}
-			svc := NewVitalService(repo, medRecordRepo, nil)
+			svc := NewVitalService(repo, medRecordRepo, nil, &mockCheckupTransactor{})
 
 			vital, err := svc.Create(context.Background(), tt.medicalRecordID, tt.input)
 
@@ -420,7 +420,7 @@ func TestVitalService_Update(t *testing.T) {
 					return tt.parentRecord, tt.parentErr
 				},
 			}
-			svc := NewVitalService(repo, mrRepo, nil)
+			svc := NewVitalService(repo, mrRepo, nil, &mockCheckupTransactor{})
 
 			vital, err := svc.Update(context.Background(), tt.clinicID, tt.medicalRecordID, tt.vitalID, tt.input)
 
@@ -538,7 +538,7 @@ func TestVitalService_Delete(t *testing.T) {
 					return tt.parentRecord, tt.parentErr
 				},
 			}
-			svc := NewVitalService(repo, mrRepo, nil)
+			svc := NewVitalService(repo, mrRepo, nil, &mockCheckupTransactor{})
 
 			err := svc.Delete(context.Background(), tt.clinicID, tt.medicalRecordID, tt.vitalID)
 
@@ -580,7 +580,7 @@ func TestVitalService_Create_AuditLog(t *testing.T) {
 			}, nil
 		},
 	}
-	svc := NewVitalService(repo, medRecordRepo, auditSvc)
+	svc := NewVitalService(repo, medRecordRepo, auditSvc, &mockCheckupTransactor{})
 
 	input := &CreateVitalInput{
 		ClinicID:    1,
@@ -628,7 +628,7 @@ func TestVitalService_Update_AuditLog(t *testing.T) {
 			return &model.MedicalRecord{ID: 77, Status: model.MedicalRecordStatusDraft}, nil
 		},
 	}
-	svc := NewVitalService(repo, mrRepo, auditSvc)
+	svc := NewVitalService(repo, mrRepo, auditSvc, &mockCheckupTransactor{})
 
 	staffID := uint64(20)
 	_, err := svc.Update(context.Background(), 1, 77, 55, &UpdateVitalInput{
@@ -661,7 +661,7 @@ func TestVitalService_Delete_AuditLog(t *testing.T) {
 			return &model.MedicalRecord{ID: 77, Status: model.MedicalRecordStatusDraft}, nil
 		},
 	}
-	svc := NewVitalService(repo, mrRepo, auditSvc)
+	svc := NewVitalService(repo, mrRepo, auditSvc, &mockCheckupTransactor{})
 
 	err := svc.Delete(context.Background(), 1, 77, 55)
 	assert.NoError(t, err)
@@ -689,7 +689,7 @@ func TestVitalService_AuditFailure_NonFatal(t *testing.T) {
 			}, nil
 		},
 	}
-	svc := NewVitalService(repo, medRecordRepo, auditSvc)
+	svc := NewVitalService(repo, medRecordRepo, auditSvc, &mockCheckupTransactor{})
 
 	input := &CreateVitalInput{
 		ClinicID:    1,

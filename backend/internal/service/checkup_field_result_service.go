@@ -125,19 +125,17 @@ func (s *checkupFieldResultService) ReplaceForCheckup(ctx context.Context, clini
 		return nil, err
 	}
 
-	// 親カルテ確定済みなら編集拒否（checkup Create/Update と対称）。
-	parent, err := s.medicalRecordRepo.FindByID(ctx, clinicID, medicalRecordID)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to find medical record", "error", err)
-		return nil, apperrors.Wrap(err, "failed to find medical record")
-	}
-	if parent.Status == model.MedicalRecordStatusFinalized {
-		return nil, apperrors.WrapConflict("確定済みカルテのため健診結果は編集できません")
-	}
-
 	// #124 同型ガード: request の checkup_type_field_id が caller の clinic に属する
 	// 当該 checkup_type のフィールドであることを検証する。別 clinic / 別パッケージの
 	// フィールドを紐付けると、そのフィールドの定義（型・基準値・選択肢）が結果に誤適用される。
+	//
+	// X-11 の意図的な trade-off（go-reviewer 指摘）: 親カルテ確定済みチェックは
+	// s.transactor.WithTx 内（この後段）に移動したため、本チェックより後に評価される。
+	// 「確定済みカルテ」かつ「所有権不正な checkup_type_field_id」の両方に該当する request は、
+	// 旧実装では WrapConflict（確定済み）を返したが、本実装では WrapInvalidInput（フィールド不正）
+	// を返す（優先順位が入れ替わる）。いずれの分岐でも書込は拒否されるため安全性への影響はないが、
+	// LockDraftByID の行ロック保持時間を最小化する（DB に依存しない検証を先に済ませてからロックする）
+	// ため意図的に許容した順序変更である。
 	fields, err := s.fieldRepo.FindByCheckupTypeID(ctx, clinicID, checkup.CheckupTypeID)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to load checkup type fields", "error", err, "checkup_type_id", checkup.CheckupTypeID, "clinic_id", clinicID)
@@ -197,6 +195,18 @@ func (s *checkupFieldResultService) ReplaceForCheckup(ctx context.Context, clini
 	// 「スナップショット↔削除」TOCTOU 窓も同時に解消する。
 	var saved []model.CheckupFieldResult
 	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
+		// 親カルテ確定済みなら編集拒否（checkup Create/Update と対称）。BE-refactor.md X-11:
+		// LockDraftByID の行ロックで finalize と直列化し、確定と同時の健診結果編集が確定済みカルテに
+		// 混入する競合を防ぐ。
+		parent, err := s.medicalRecordRepo.LockDraftByID(txCtx, clinicID, medicalRecordID)
+		if err != nil {
+			slog.ErrorContext(txCtx, "failed to find medical record", "error", err)
+			return apperrors.Wrap(err, "failed to find medical record")
+		}
+		if parent.Status == model.MedicalRecordStatusFinalized {
+			return apperrors.WrapConflict("確定済みカルテのため健診結果は編集できません")
+		}
+
 		existing, err := s.resultRepo.FindByCheckupID(txCtx, clinicID, checkupID)
 		if err != nil {
 			slog.ErrorContext(txCtx, "failed to snapshot existing checkup field results before replace", "error", err, "checkup_id", checkupID, "clinic_id", clinicID)
