@@ -16,7 +16,7 @@ import { CPMStageSummary } from "../components/CPMStageSummary";
 import { buildCsvContent } from "../components/aggregation-csv";
 import type { AggregationTab } from "../components/aggregation-filter-panel-model";
 
-export const DEFAULT_AGGREGATION_TAB: AggregationTab = "revenue";
+const DEFAULT_AGGREGATION_TAB: AggregationTab = "revenue";
 
 const AGGREGATION_TABS: readonly AggregationTab[] = ["revenue", "visit", "last_visit"] as const;
 

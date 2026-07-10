@@ -522,10 +522,9 @@ jobs:
         working-directory: frontend
         run: pnpm run lint
 
-      # FE-refactor.md R-F7: knip 未使用コード可視化（non-gating）。第1段階は棚卸しのみで
-      # findings があっても --no-exit-code により exit 0。fail ゲート化は別エピック（第2段階）。
-      - name: Knip unused scan (non-gating)
-        continue-on-error: true
+      # FE-refactor-v2.md FE-R17: knip 未使用コード検出をgating化（R-F7 第2段階）。
+      # findings があれば knip 自体が非0 exit するため、このステップが fail する。
+      - name: Knip unused scan
         working-directory: frontend
         run: pnpm run unused | tee -a "$GITHUB_STEP_SUMMARY"
 
