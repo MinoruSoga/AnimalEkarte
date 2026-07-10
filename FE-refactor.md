@@ -37,7 +37,7 @@
 | FD8 | テストカバレッジの質的ギャップ | 11件（CRITICAL1・HIGH多数） | 「テストがある/ない」の粗い比率とリスクの高低が一致しない逆転現象あり。過去に複数回バグ修正された箇所が無防備 |
 | FD9 | アクセシビリティ逸脱 | 53件（代表列挙） | 共有コンポーネント経由で多数画面に伝播する構造的パターン。受付ボードという日常業務中核画面にも波及 |
 | FD10 | liff/line-reserveアプリ固有の規約逸脱 | 8件 | mainアプリで既に修正済みの障害クラス（BUG-067）が別アプリで再現しうる実害あり |
-| FD11 | 未使用コード検出基盤（knip）の欠落 | 1件 | 設定だけ作られ一度も稼働していない |
+| FD11 | ~~未使用コード検出基盤（knip）の欠落~~ **解消済み（R-F7, CLOSED 2026-07-10）** | 1件 → 稼働化済み（棚卸し227件は別チケット） | R-F7（commit `5fe32a64`）でdevDependency・script・CI non-blockingステップを導入し稼働化。詳細は[R-F7完了ログ](#r-f7-完了ログcloseD-2026-07-10)参照 |
 | FD12 | パフォーマンスパターン欠如（memo/useDeferredValue/lazy） | 代表10件 | 主要一覧画面は模範的だが、横展開されていない周辺領域に集中 |
 
 ---
@@ -337,7 +337,7 @@
   - `use-master-save.ts`自体の単体/regressionテストが欠如（S1、MEDIUM）
   - `api/types.ts` → `components/`への依存方向が逆（S2、MEDIUM。型安全上の実害はなし）
   - `additional_fields`にも同種のJSONB無検証キャスト負債が残る（S2、本スライス対象外）
-- **次エピック候補**: **R-F7**（FD11 knip導入、規模 S）。
+- **次エピック候補**: R-F7は完了（CLOSED 2026-07-10、commit `5fe32a64`）。詳細は[R-F7完了ログ](#r-f7-完了ログcloseD-2026-07-10)参照。
 
 #### R-F7. knip導入（FD11）— 規模 S
 
@@ -349,6 +349,62 @@
   3. `.github/workflows/ci.yml`にknip実行ステップを追加する。いきなりfailさせると誤検知で赤くなるため、まずはnon-blockingで導入し、既存のunused export/file/dependencyを洗い出してから段階的にgate化する（既存のcoverage ratchet・eslint-disable ratchetと同じ2段階導入パターン）。
   4. 導入後に一度全件スキャンし、既存のunused exports/filesを棚卸しして別チケット化する（本計画のスコープには含めない。knipが動く状態にすることが本項目のゴール）。
 - **検証**: `docker compose exec frontend pnpm run unused`（または導入したscript名）を実行しエラー無く完走することを確認する。CI上でも同様に実行され結果がJob Summary等に出力されることを確認する。
+
+#### R-F7 完了ログ（CLOSED, 2026-07-10）
+
+- **ステータス**: **CLOSED**（完了日 2026-07-10、commit `5fe32a64`、親コミット `dd76a7f1`）
+- **実施内容**:
+  - `frontend/package.json`: `knip@^6.25.0`をdevDependenciesに追加、`"unused": "knip --reporter compact --no-exit-code"`をscriptsに追加（`pnpm-lock.yaml`同時更新）
+  - `.github/workflows/ci.yml`: frontend jobのLintステップ直後・Buildステップ直前に`Knip unused scan (non-gating)`ステップを追加（`continue-on-error: true`、`pnpm run unused | tee -a "$GITHUB_STEP_SUMMARY"`）
+  - `frontend/knip.json`は変更なし（既存のentry/project/ignore定義のまま初回実行が完走したため設定調整は不要だった）
+- **初回スキャン結果**（実測、本追記時点で再実行し一致確認済み）:
+  ```
+  $ docker compose exec -T frontend pnpm run unused
+
+  Unused files (3)
+  src/features/owners/api/get-animal-species.ts
+  src/features/pets/api/record-pet-death.ts
+  src/features/pets/api/revoke-pet-death.ts
+  Unused dependencies (1)
+  package.json: jsonwebtoken
+  Unused devDependencies (1)
+  package.json: chrome-launcher, lighthouse, tailwindcss
+  Unused exports (143)
+  Unused exported types (76)
+  Duplicate exports (1)
+  src/components/shared/UnifiedTabs.tsx: UnifiedTabs, default
+  （exit 0）
+  ```
+- **false-positive疑いの調査記録**（コード変更なし、結論のみ）:
+  - `chrome-launcher`/`lighthouse`: `frontend/scripts/lighthouse-audit.js:13-14`が`import lighthouse from 'lighthouse'`/`import * as chromeLauncher from 'chrome-launcher'`で使用している。`knip.json`の`entry`は`src/main.tsx`・`liff/src/main.tsx`・`line-reserve/src/main.tsx`の3つのみで`scripts/**`を走査対象に含んでいないため、knipから見えず未使用判定されている可能性が高い。**削除しないこと**。フォローアップ: `knip.json`の`entry`に`scripts/lighthouse-audit.js`を追加する検討（本エピックのスコープ外）。
+  - `tailwindcss`: 実行時は`frontend/vite.config.ts:4,108`が`@tailwindcss/vite`（別パッケージ）をimportしてプラグイン登録しているが、`tailwindcss`本体は`frontend/src/index.css:1`の`@import "tailwindcss";`というCSS内importで消費されている。knipはCSSの`@import`によるnpmパッケージ利用を依存関係として検出できない構造的盲点があるため、これも未使用判定は誤検知の可能性が高い。**削除前に要確認**（Tailwind CSS 4のCSS-firstアーキテクチャでは`tailwindcss`パッケージそのものがCSS経由の必須依存であり、除去するとビルドが壊れる）。
+- **棚卸し一覧**（修正対象外・別チケット）:
+  - Unused files 3件（`get-animal-species.ts`/`record-pet-death.ts`/`revoke-pet-death.ts`）
+  - Unused dependencies: `jsonwebtoken`
+  - Unused exports 143件・Unused exported types 76件（feature別内訳は本追記では省略、次回棚卸しチケットで一覧化）
+  - Duplicate exports: `UnifiedTabs.tsx`（named export `UnifiedTabs`と`default`の二重公開）
+- **検証コマンド再実行**（本追記時点で再確認済み）:
+  ```
+  $ rg '"knip"' frontend/package.json
+      "knip": "^6.25.0",
+
+  $ rg '"unused": "knip' frontend/package.json
+      "unused": "knip --reporter compact --no-exit-code"
+
+  $ rg -A3 'Knip unused scan' .github/workflows/ci.yml
+        - name: Knip unused scan (non-gating)
+          continue-on-error: true
+          working-directory: frontend
+          run: pnpm run unused | tee -a "$GITHUB_STEP_SUMMARY"
+  ```
+- **レビュー記録**: 設定導入のみのため専門エージェントレビューは省略（`pnpm run unused`のexit 0出力で代替、本DOC作成時に再実行し一致確認）。
+- **フォローアップ（別チケット・未実施）**:
+  - `knip.json`の`entry`に`scripts/lighthouse-audit.js`を追加し、`chrome-launcher`/`lighthouse`のfalse-positiveを解消する検討
+  - Unused exports 143件・Unused exported types 76件の段階的解消
+  - `jsonwebtoken`依存の実使用有無の確認と削除判断
+  - `UnifiedTabs.tsx`のduplicate exports解消（named/defaultのどちらかに統一）
+  - knip CIステップのfailゲート化（第2段階、既存のcoverage ratchet・eslint-disable ratchetと同型の運用に揃える）
+- **次エピック候補**: **R-F8**（FD12 行コンポーネント未メモ化、規模 M）。
 
 ---
 
