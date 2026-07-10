@@ -1,33 +1,98 @@
-# BE-refactor.md — バックエンド リファクタリング計画 (2026-07-08)
+# BE-refactor.md — バックエンド リファクタリング計画 (2026-07-10 時点・作業一時停止)
 
 > **本ドキュメントは ClaudeCode エージェントが読んで直接着手するための実行計画である。**
-> 前提: backend は 2026-07-02 完遂の D1-D13/R1-R3 計画で一度系統的にリファクタ済み・複数回の監査で well-maintained と判定済みのコードベースである。今回はそれ以降に実測ベースで発見された**実在する**負債のみを対象とする（推測・investigative overreach は排除済み）。
+> **2026-07-10 時点で Epic 作業を一時停止。** 対応済み 28 件の詳細は下記「進捗チェックポイント」に集約し、本編からは削除した。再開時は「推奨実行順」から着手すること。
+> 前提: backend は 2026-07-02 完遂の D1-D13/R1-R3 計画で一度系統的にリファクタ済み・複数回の監査で well-maintained と判定済みのコードベースである。今回はそれ以降に実測ベースで発見された**実在する**負債のみを対象とする。
 
 ## 監査の方法と信頼性
 
-- 対象: `backend/` 配下全体（`internal/handler` 256・`internal/service` 195・`internal/repository` 104 の非テストファイル、`cmd/` 7ツール、`worker/`、`docs/`、`migrations/`、周辺設定）。テスト552本、カバレッジ baseline 89.9%。
-- 手法: 15次元（Handler/Service/Repository の P1-P18 準拠、構造的重複、大型ファイル分割、サイレント障害、tx境界/TOCTOU、クリニック間データ分離、パフォーマンス、テスト負債、cmd/周辺ツール、API契約整合、model/DDL整合、Go設計イディオム、周辺パッケージ）で並列監査し、全 79 件の所見それぞれを**敵対的検証**（対象コードを現HEADで再読し、証拠の逐語一致・既に修正済みでないか・意図的設計でないか・提案が挙動を変えないかを個別に再判定。重要度 P1 は独立した2レンズで検証）にかけた。
-- 結果: 全79件が「現存する実在の負債」と確認された（REFUTED・ALREADY_FIXED は0件）。うち **46件は挙動保存（behavior-preserving）** でこのドキュメントの本編対象、**18件は修正すると外部から観測可能な挙動が変わる**ため Appendix A に分離した（このドキュメントは**コード変更を伴わない計画書**であり、Appendix A は着手前に PO/責任者判断を要する別トラックとして記録するに留める）。
-
-## このドキュメントの使い方（ClaudeCode 向け）
-
-1. **本編（1章〜14章 = G1〜G14）は全て挙動保存**。既存テストを事前に緑確認 → リファクタ → 同じテストが緑のままであることを確認する、という順序を厳守すること。各項目に付けた「検証コマンド」はスコープ限定（`docker compose exec backend go test ./internal/xxx/ -run ... -count=1` 等）であり、フルスイート（`go test ./...`）は自動実行禁止（`.claude/CLAUDE.md` の Auto-Execution Prohibited Commands を参照）。
-2. 1項目 = 1コミットを基本とする。`dependencies` フィールドに明記された前後関係がある場合はその順序を守ること。
-3. 各グループ内の番号順は実装難易度・依存関係を考慮した推奨順であり、絶対的な実行順ではない。ただし G6 の tx-mechanism-consolidation は Appendix A の tx-*-nonparticipation 3件の対応後に一括置換するのが安全（コメントに明記）。
-4. **Appendix A（挙動変更トラック）は本計画の実行対象ではない**。着手する場合は各項目を個別の Issue/PR として起票し、PO 判断・STGデータ監査・段階的ロールアウトを経ること（過去の R1-3 break_hours 教訓を踏襲）。特に `sanitize-multipart-binary-corruption` と `lstep-nilcipher-stale-di` は P1（バイナリ破壊・復号不能な資格情報の本番使用）であり、リファクタ待ちにせず速やかな別トラックでの検証を推奨する。
-5. Appendix B は「既に把握済みで今回あえて対象外とした」項目の現状確認結果、Appendix C/D は監査で確認できた健全領域・閾値未満の観察であり、いずれも今回のアクション対象ではない（再監査時の重複作業防止のために記録する）。
+- 対象: `backend/` 配下全体。テスト552本、カバレッジ baseline 89.9%（監査時点）。
+- 手法: 15次元で並列監査 → 敵対的検証。全79件所見のうち **46件が挙動保存（本編）**、**18件が挙動変更（Appendix A）**。
+- **進捗（2026-07-10）**: 本編 46件中 **28件 CLOSED**、**18件 残**（うち **2件 BLOCKED**）。Epic HEAD: `a1429497`。
 
 ## サマリー
 
 | 区分 | 件数 | 内訳 |
 |---|---|---|
-| 本編（挙動保存・G1〜G14） | 46件 | P1: 1 / P2: 16 / P3: 29 |
-| Appendix A（挙動変更・別トラック） | 18件 | P1: 5 / P2: 9 / P3: 4 |
-| Appendix B（既知残存・状態確認のみ） | 2件 | preload lint 3マスタ未登録 / (pwreset は Appendix A へ統合) |
-| クリーン確認領域 (Appendix C) | 14次元 137項目 |
-| 閾値未満の観察 (Appendix D) | 79項目 |
+| 本編（挙動保存）— **残タスク** | **18件** | P1: 1 / P2: 9 / P3: 8 |
+| 本編 — **CLOSED（アーカイブ）** | 28件 | G3-1〜G3-5, G4-1〜3, G5-1〜2, G6-1, G7-1〜5, G8-1〜3, G9-2〜3, G10-1〜6, G11-1 |
+| Appendix A（挙動変更・別トラック） | 18件 | 変更なし |
+| Appendix B/C/D | 参照用 | 変更なし |
+
+## このドキュメントの使い方（ClaudeCode 向け）
+
+1. **本編残タスクは全て挙動保存**。既存テストを事前に緑確認 → リファクタ/テスト追加 → 同じテストが緑のままであることを確認。検証はスコープ限定（`docker compose exec backend go test ./internal/xxx/ -run ... -count=1`）。フル `go test ./...` 禁止。
+2. **worker/root pnpm 検証**: ホスト `Bash(pnpm:*)` は `.claude/settings.json` で deny。`docker run --rm -v "$(pwd):/repo" -w /repo node:22-bookworm-slim` 内で `corepack enable && corepack prepare pnpm@10.15.0 --activate && pnpm install && pnpm run test:worker`（G10-6 で実証済み）。
+3. 1項目 = 1コミット。`.claude/settings.json` はステージしない。
+4. **Appendix A は本計画の実行対象外**（PO判断・別トラック）。
+5. 完了した項目は本ファイルから削除し、進捗チェックポイント表のみ更新する運用。
 
 ---
+
+## 進捗チェックポイント（CLOSED — 2026-07-10）
+
+| ID | 項目 | 最終コミット |
+|---|---|---|
+| G3-1 | lstep タグ同期 DRY | Phase 1–7 + H1a–H1d 完遂 |
+| G3-2 | Run*AllClinics 統合 | `b89520c3` |
+| G3-3 | updateScopedByID/deleteScopedByID | `061b79b6` 〜 `ceab1e31` |
+| G3-4 | medicalRecordTenantScope | `edc315e7` 〜 `0f76b71e` |
+| G3-5 | 日付パース共通化 | 全段完了 |
+| G4-1 | lab_report P7 | `689e9506` |
+| G4-2 | LIFF Create P7 | `a00bf673` |
+| G4-3 | Handler narrow DI | `5e5754db` |
+| G5-1 | P11 slog 11箇所 | `3eca7ef2` |
+| G5-2 | P13 buildFunc 移動 | `5c7434aa` |
+| G6-1 | P16 Get*/List* リネーム | （Session 2） |
+| G7-1 | LIFF N+1 | `755f3e42` |
+| G7-2 | 健診プレビュー N+1 | `f6ebc0c7` |
+| G7-3 | completed_at sargable | `904b0bc2` |
+| G7-4 | checkup/vaccination index | `dd3f31b8` |
+| G7-5 | BulkAddOwnerTag FindByIDs | `93867fcc` |
+| G8-1 | findByIDScoped | `0fe8fe78`, `d09cfa4c` |
+| G8-2 | config.JST | `ecaac5ec` |
+| G8-3 | time.DateOnly/RFC3339 | `2d5c180d`, `9bae5e8a`, `bcc34d5d` |
+| G9-2 | env → Config | `c903ab3b` |
+| G9-3 | batch scheduler dedup | `72d64ae7` |
+| G10-1 | migrate binary untrack | Session 3 |
+| G10-2 | Dockerfile 削除 | Session 3 |
+| G10-3 | CI profiling 削除 | Session 3 |
+| G10-4 | codemod 削除 | Session 3 |
+| G10-5 | internal/dbconn | Session 3 |
+| G10-6 | migrate-exec worker tests | `dc4f2ed8` 実装, `a1429497` CLOSED |
+| G11-1 | effective permissions SQL tests | `d8c5e858` |
+
+---
+
+## 推奨実行順（残タスク — 再開時）
+
+```
+G11-2 → G11-3 → G11-4 → G11-5 → DOC-G11
+→ G12-1 → G12-2
+→ G13-1 → G14-1
+→ G1-4 → G1-1 → G1-3 → G1-2(Phase A→C) → G1-5 → G1-6 → DOC-G1
+→ G2-1 → G2-2 → DOC-G2
+→ G6-2（BLOCKED 解消後）
+→ G9-1（BLOCKED 解消後）
+→ Final gate
+```
+
+### BLOCKED（Appendix A 依存 — 本編着手不可）
+
+| 本編 ID | 依存 Appendix A ID | 理由 |
+|---|---|---|
+| G6-2 | tx-medicine-inventory / tx-clinic-create / tx-reservation-staff | tx 非参加3件修正後に一括置換 |
+| G9-1 | lstep-nilcipher-stale-di | 二段階 DI 統合の前提 |
+
+### レビュー由来フォローアップ（本編未登録）
+
+| ID | 内容 | 発見元 | 優先度 |
+|---|---|---|---|
+| H-1 | `UpdateStaffGroups` の staff_id 単位 DELETE が多施設所属スタッフの他クリニックグループ紐付けを意図せず削除しうる | G11-1 security-reviewer | HIGH — 別チケット化推奨 |
+
+---
+
+# 残タスク（本編）
 
 ## G1. 契約・ドキュメント整合性 (docs/api.yaml 他)
 
@@ -239,440 +304,7 @@ docker compose exec backend go test ./internal/repository/ -run 'TestMedicalReco
 ```
 
 
-## G3. 構造的重複の解消 (DRY)
-
-### G3-1. lstep タグ同期 19 ファイルで「対象解決プロローグ」と「タグ付与/解除ブロック」がコピペ横展開 — **移行完了(意図的例外あり)**
-
-- **ID**: `dup-lstep-tag-apply`
-- **重要度**: P2 / **工数目安**: L / **挙動変更**: なし（挙動保存）
-- **ステータス**: ✅ **CLOSED** — Phase 1–7 + H1a–H1d 完遂。`resolveSyncTarget`/`applyTagState`(lstep_tag_sync_api.go) への統一移行が pet/visit/care/vaccine/food/checkup/prevention 全系統で完了(2026-07-09 Closure 監査で再検証済み)。
-- **依存関係**: なし(dup-lstep-batch-allclinics=G3-2 と独立、G3-2 は未着手のまま)
-
-**完了フェーズ表**
-
-| フェーズ | 対象系統 | 代表コミット |
-|---|---|---|
-| Phase 1 | food (lstep_tag_sync_pet_*.go 系ヘルパ新設含む) | `d41a6fa3` |
-| Phase 2 | vaccine | `096c60b8` |
-| Phase 3–5a-5e | pet 系(basic/species/senior/animal classification 等) | `a35aa166`(push未) 他 |
-| Phase 6 | visit 系(dormant/next/completion/cpm) | (会話サマリー記載、個別コミット未追跡) |
-| Phase 7 | care 系(chronic/resync/checkup) | (会話サマリー記載、個別コミット未追跡) |
-| H1a | health: food | `623e8664` |
-| H1b | health: vaccine deadline(+ test fixture) | `5bca008c` |
-| H1c | health: checkup | `acfcd28a` |
-| H1d | health: prevention(filaria/flea-tick) | `f1aab64e` |
-
-**意図的例外テーブル(移行不可・変更不要)**
-
-| ファイル | 契約 | 理由 |
-|---|---|---|
-| `lstep_tag_sync_pet_exclusion.go` | standalone `shouldSkipSync` + inline `client.AddTag/RemoveTag`(配信注意タグ `exclTagDeliveryCaution`) | `checkOptOut` を呼ぶと LstepOptOut 飼い主を誤 skip するため `resolveSyncTarget` 不可。配信注意タグは `notifyAPIFailure` を意図的に省略するため inline 維持(Phase 5d 契約) |
-| `lstep_tag_sync_visit_ltv.go` | standalone `shouldSkipSync` + per-owner ループ | clinic batch 型で `resolveSyncTarget` の owner 単位パターンが不適用(Phase 6e 契約) |
-| `lstep_health_tag_sync_batch.go` | standalone `shouldSkipSync`(clinic 単位) | health-prevention batch エントリの clinic 単位ゲートであり owner 単位 `resolveSyncTarget` 対象外 |
-
-**2026-07-09 Closure 監査 — 機械的再検証結果**
-
-- `resolveSyncTargetOwner(` 呼び出し: `lstep_tag_sync_api.go` の定義(46行)+ `resolveSyncTarget` 内呼び出し(71行)の 2 箇所のみ。他ファイル 0 件 → PASS
-- `resolveSyncTarget(` 使用: pet/visit/care/vaccine/health(food/vaccine/checkup/prevention) 全 22 サイト + api.go 定義 1 箇所、全て意図した owner-level sync メソッド → PASS
-- standalone `shouldSkipSync` prod 残存: 上記 3 例外ファイル + `lstep_tag_sync_api.go`(resolveSyncTarget 内部呼び出し・コメント)+ `lstep_tag_sync_service.go`(関数定義)のみ。例外以外の未移行 0 件 → PASS
-- inline `client.AddTag`/`RemoveTag`: `lstep_tag_sync_pet_exclusion.go`(配信注意タグ)+ `lstep_tag_sync_api.go`(共有ヘルパ本体)のみ。他 `lstep_tag_sync_*.go` に直書き 0 件 → PASS
-- `TestLstep` 回帰: `ok  	github.com/animal-ekarte/backend/internal/service	0.100s` → PASS
-
-**既知の P2 フォローアップ(別チケット・本 Closure では未着手)**
-
-- `resolveSyncTarget` 内 `shouldSkipSync` エラーの `apperrors.Wrap`/slog ラップ統一
-- `applyTagState` 失敗ログへの具体的タグ名の追加(現状ログに tag 名が欠落しているケースあり)
-
-**検証コマンド(スコープ限定)**
-```
-docker compose exec backend go test ./internal/service/ -run 'TestLstep' -count=1
-```
-
-### G3-2. Run*AllClinics 5 関数が「全クリニック走査+IsSyncEnabled ゲート+audit メタデータ記録」の逐語コピー — **CLOSED（2026-07-09）**
-
-- **ID**: `dup-lstep-batch-allclinics`
-- **重要度**: P2 / **工数目安**: S / **挙動変更**: なし（挙動保存・実証済み）
-- **ステータス**: ✅ **CLOSED** — `runBatchAllClinics` ヘルパ(lstep_batch_service.go)に5関数(dormant/no-show/ltv-top-percent/visit-dormant/health-prevention)を統合。コミット `b89520c3`
-- **依存関係**: なし(dup-lstep-tag-apply=G3-1 と独立に実施済み。G3-1 は既に CLOSED)
-
-**実装内容**
-
-`func (s *lstepBatchService) runBatchAllClinics(ctx context.Context, label, auditWarnLabel, syncedSuffix, operation string, extraMeta map[string]any, perClinic func(ctx context.Context, clinicID uint64) (int, []error)) error` を新設: clinicRepo.FindAll→IsSyncEnabled ゲート(err/disabled は continue)→perClinic→partial-errors ログ→count>0 時 InfoContext+LogLstepOperationWithMetadata(`maps.Copy` で extraMeta マージ)。`auditWarnLabel` は「audit log failed for ...」文言のハイフン有無が `label` と異なる(例: `ltv-top-percent batch` vs `ltv top percent batch`)ため独立引数として保持し、バイト級同一を実現。`RunVisitDormantSyncAllClinics` は `syncVisitDormantForClinic(ctx, clinicID) (int, []error)` を先に切り出し、entries 取得失敗時は `(0, nil)` を返すことで元の「当該クリニックを静かに continue（audit記録なし）」を再現。
-
-**検証結果**
-
-- スコープ限定テスト26ケース全PASS: `docker compose exec backend go test ./internal/service/ -run 'TestRun.*AllClinics|TestLstepBatch|TestDetect' -count=1` → `ok`
-- ログ文言・audit operation文字列(`batch_dormant_detect`/`batch_no_show_detect`/`batch_ltv_top_percent`/`batch_visit_dormant`/`batch_health_prevention`)・dormant の `extraMeta={"min_days_since":180}` はすべて移行前と一致(実行ログで実証)
-- go-reviewer: **Approve**(CRITICAL/HIGH 0件。MEDIUM: ラベル引数のstruct化提案は見送り・既存の孤立コメント(dormant.go:46)は本PRスコープ外として残置)
-- silent-failure-hunter: CRITICAL/HIGH 0件。MEDIUM1件(entries取得失敗時にaudit/エラーカウントに何も残らない設計は既存負債であり本リファクタでの新規悪化なし)
-- `TestLstep` 全体回帰PASS
-
-**検証コマンド(スコープ限定)**
-```
-docker compose exec backend go test ./internal/service/ -run 'TestRun.*AllClinics|TestLstepBatch|TestDetect' -count=1
-```
-
-### G3-3. repository 層で clinic スコープ付き Update/Delete の「Updates→RowsAffected==0→NotFound」ブロックが約 30 リポジトリに逐語コピー(Reorder は既にヘルパ化済みの片割れ) — **CLOSED（2026-07-09）**
-
-- **ID**: `dup-repo-scoped-update-delete`
-- **重要度**: P3 / **工数目安**: M / **挙動変更**: なし（挙動保存・実証済み）
-- **ステータス**: ✅ **CLOSED** — `updateScopedByID`/`deleteScopedByID`(helpers.go)を新設し、対象20リポジトリのUpdate/Deleteを委譲に置換。コミット `061b79b6`(helper新設)→`212aafbd`(batch1)→`56ba497d`(batch2)→`1bad754c`(batch3)→`ceab1e31`(batch4)
-- **依存関係**: なし。dbortx_inventory_lint_test.go の allowlist は対象外 repo に触れないため不変（実測: diffに `dbOrTx` 文字列の増減なし）
-
-**証拠(現HEAD検証済み)**
-
-cage_repository.go:58-70 `func (r *cageRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Cage, error) {\n\tresult := r.db.WithContext(ctx).\n\t\tModel(&model.Cage{}).\n\t\tScopes(clinicScope(clinicID)).Where("id = ?", id).\n\t\tUpdates(fields)\n\tif result.Error != nil {\n\t\treturn nil, apperrors.FromGORM(result.Error, "cage", fmt.Sprintf("%d", id))\n\t}\n\tif result.RowsAffected == 0 {\n\t\treturn nil, apperrors.WrapNotFound("cage", fmt.Sprintf("%d", id))\n\t}\n\treturn r.FindByID(ctx, clinicID, id)\n}` ≡ exam_type_repository.go:59-71(model/リソース名のみ差) ≡ chief_complaint_repository.go:61-73 ≡ insurance/occupation/inquiry_template/trimming_option/merchandise_item/vaccination(diff 検証済み・逐語一致)。Delete も同型: exam_type_repository.go:73-82 `result := r.db.WithContext(ctx).Scopes(clinicScope(clinicID)).Where("id = ?", id).Delete(&model.ExaminationType{})\n\tif result.Error != nil { return apperrors.FromGORM(...) }\n\tif result.RowsAffected == 0 { return apperrors.WrapNotFound(...) }` — `Where("id = ?", id).Delete(&model.` パターンは 26 ファイル、`Updates(fields)` は 58 ファイルに存在(うち dbOrTx=0 の定型 master 系が大多数)。同レイヤの Reorder は helpers.go:14 `func reorderByClinicID(ctx context.Context, db *gorm.DB, model any, resource string, clinicID uint64, ids []uint64) error` として既に折り畳み済み(24 repo が使用)で、Update/Delete だけ未抽出。
-
-**問題**
-
-P4(clinicScope 必須)+P9(FromGORM)+「RowsAffected==0→NotFound」のテナント隔離・エラー写像契約が約 30 repo に逐語コピーされている。この契約はスコープ述語や NotFound 写像を変える際に全箇所同期必須(過去のクロステナント監査 72e8887c/b3638d5e はまさにこのクラスの横断修正)。Reorder のみヘルパ化済みで対称性が欠けている。
-
-**実装内容**
-
-`helpers.go` に `reorderByClinicID` と同型の2ヘルパを追加:
-`func updateScopedByID(ctx context.Context, db *gorm.DB, m any, resource string, clinicID, id uint64, fields map[string]any) error`(`Model(m).Scopes(clinicScope(clinicID)).Where("id = ?", id).Updates(fields)` → `FromGORM` → `RowsAffected==0` → `WrapNotFound`)と `func deleteScopedByID(ctx context.Context, db *gorm.DB, m any, resource string, clinicID, id uint64) error`(同型のDelete版)。呼び出し側は `if err := updateScopedByID(...); err != nil { return nil, err }\nreturn r.FindByID(ctx, clinicID, id)` の2行(Preload付きrefetchは呼び出し側の責務として保存)、または `owner` のような error-only変種は `return updateScopedByID(...)` の1行に置換。
-
-対象20リポジトリを4バッチに分けて実施:
-- batch1(`212aafbd`): cage / exam_type / chief_complaint / checkup_type / consultation
-- batch2(`56ba497d`): insurance / occupation / inquiry_template / trimming_option / trimming_course_type / trimming_course
-- batch3(`1bad754c`): merchandise_item / payment_method_master / procedure / medicine / vaccine
-- batch4(`ceab1e31`): hospitalization_plan / reservation_type_group / vaccination / owner(error-only変種、FindByID refetchなし)
-
-**意図的除外テーブル(移行不可・変更不要)**
-
-| ファイル | 理由 |
-|---|---|
-| `vital_repository.go` | Update Where に `deleted_at IS NULL` 述語を含む変種 |
-| `pet_repository.go` | Update RowsAffected==0 後に Count 分岐する変種 |
-| `medical_record_repository.go` | RowsAffected==0→`WrapConflict` 変種(NotFound でない) |
-| `treatment_repository.go` | subquery 隔離のため定型と不一致 |
-| dbOrTx 参加 repo(accounting/billing_item/staff/reservation 等 16 ファイル) | tx 意味論があり `r.db` 直渡し不可 |
-| BE リスト外の canonical 一致 repo(hospitalization/estimate/inventory/diagnosis 等) | スコープ最小化(本 Closure では対象外) |
-
-**検証結果**
-
-- helper契約テスト: `TestUpdateScopedByID`/`TestDeleteScopedByID`(成功・NotFound・別クリニック隔離の3パターン)全PASS
-- 20リポジトリのスコープ限定回帰 + `TestPreloadClinicScope`/`TestDbOrTx` 全PASS(下記コマンド)
-- `internal/repository` パッケージ全体(全リポジトリ)の回帰 108.688s 全PASS(既存機能に影響なし)
-- 除外ファイル(vital/pet/medical_record/treatment)への変更ゼロを `git diff --stat` で確認、旧インラインパターン(`Scopes(clinicScope(clinicID)).Where("id = ?", id).\n\tUpdates`)は対象20ファイルから `rg` で0件確認(完全消失)
-- go-reviewer: **Approve**(CRITICAL/HIGH/MEDIUM 0件。20リポジトリ全件で resource文字列・エラー写像・FindByID refetch契約の完全一致を確認)
-- clinic-isolation-auditor: **Approve**(CRITICAL/HIGH/MEDIUM 0件。`clinicScope` バイパス経路なし、Preload契約は本diffで無変更、owner/vaccinationの変種も隔離契約は他repoと同一と確認)
-- 両レビューで検出された「複数テストをまとめて実行すると非決定的にFAILする」事象は、`helpers.go`変更前後で同一再現する既存のテスト分離問題(共有DBプール上のclinicID衝突)であり、本G3-3の欠陥ではない(別チケット追跡を推奨・下記Harness Improvement Feedback参照)
-
-**検証コマンド(スコープ限定)**
-```
-docker compose exec backend go test ./internal/repository/ -run 'TestCage|TestExamType|TestChiefComplaint|TestInsurance|TestVaccination|TestPreloadClinicScope|TestDbOrTx' -count=1
-```
-
-### G3-4. medical_records 経由テナント隔離 JOIN 断片が 7 リポジトリに逐語散在 — **CLOSED（2026-07-09）**
-
-- **ID**: `dup-medrecord-tenant-join`
-- **重要度**: P3 / **工数目安**: S / **挙動変更**: なし（挙動保存・実証済み）
-- **ステータス**: ✅ **CLOSED** — `medicalRecordTenantScope(childTable, clinicID)`(base.go)を新設し、対象7リポジトリの手書き JOIN を `Scopes(...)` 委譲に置換。コミット `edc315e7`(G3-4a: helper新設+契約テスト)→`4c9e686a`(G3-4b: 7箇所置換)→`0f76b71e`(go-reviewer MEDIUM指摘によるテストメッセージ修正)
-- **対象ファイル**: internal/repository/chief_complaint_repository.go (85); internal/repository/consultation_repository.go (108); internal/repository/diagnosis_repository.go (242); internal/repository/inventory_repository.go (152); internal/repository/medicine_repository.go (67); internal/repository/medical_record_image_repository.go (67); internal/repository/procedure_repository.go (86)
-- **依存関係**: dup-repo-scoped-update-delete(G3-3)と同一ファイル群に触れるため同一トラックで実施(G3-3 CLOSED後に着手・技術依存はなし)
-
-**証拠(現HEAD検証済み)**
-
-7 箇所が子テーブル名以外逐語一致: chief_complaint_repository.go:85 `Joins("JOIN medical_records ON medical_records.id = inquiries.medical_record_id AND medical_records.clinic_id = ? AND medical_records.deleted_at IS NULL", clinicID).` / consultation_repository.go:108・inventory_repository.go:152・medicine_repository.go:67・procedure_repository.go:86 は `= treatments.medical_record_id` で同文 / diagnosis_repository.go:242 は `= clinical_plans.medical_record_id` / medical_record_image_repository.go:67 は `= medical_record_images.medical_record_id`。いずれも CountUsage 系のテナント隔離述語(clinic_id + deleted_at)であり、直上コメント(例: chief_complaint_repository.go:79-80 「inquiries テーブルは clinic_id を持たないため medical_records を JOIN してテナント分離する」)も同旨の複製。
-
-**問題**
-
-clinic_id を持たない子テーブル(inquiries/treatments/clinical_plans/medical_record_images)のテナント隔離を担う SQL 断片が 7 箇所に手書き複製されている。隔離述語(clinic_id / deleted_at)の形を変える場合は全箇所同期必須で、1 箇所の書き漏れがクロステナント read 漏洩クラス(#124/#125 と同系)に直結する。Preload 側は P3.1 lint で機械強制済みだが、手書き Joins はどのゲートも見ていない。
-
-**実装手順**
-
-base.go に GORM スコープを追加: `// medicalRecordTenantScope は clinic_id を持たない medical_record 子テーブルのテナント隔離 JOIN。childTable は呼び出し側リテラルのみ許可。\nfunc medicalRecordTenantScope(childTable string, clinicID uint64) func(*gorm.DB) *gorm.DB { return func(db *gorm.DB) *gorm.DB { return db.Joins("JOIN medical_records ON medical_records.id = "+childTable+".medical_record_id AND medical_records.clinic_id = ? AND medical_records.deleted_at IS NULL", clinicID) } }`。7 箇所を `Scopes(medicalRecordTenantScope("inquiries", clinicID))` 等に置換(childTable はコンパイル時リテラルのみ・doc コメントで SQL 組み立てへの変数流入禁止を明記)。生成 SQL は文字列連結結果が現行と同一のため挙動保存。既存の各 *_test.go / clinic_isolation テストが回帰網。clinic_id 述語なし変種(billing_confirmation_repository.go:32 等、別述語で隔離済みの箇所)は意図が異なるため対象外。
-
-**実装内容**
-
-`base.go` に `medicalRecordTenantScope(childTable string, clinicID uint64) func(*gorm.DB) *gorm.DB` を追加(既存 `clinicScope`/`clinicScopeIn` と同じ「`func(clinicID uint64) func(*gorm.DB) *gorm.DB`」シグネチャ・命名規則に準拠)。`base_test.go` に `TestMedicalRecordTenantScope` を新設し、正 clinic での JOIN 適用・別 clinic 除外・該当 clinic 無しの3契約を検証。
-
-**7 箇所対応表**
-
-| ファイル | メソッド | childTable |
-|---|---|---|
-| chief_complaint_repository.go:78 | CountUsageByChiefComplaintTypeID | `inquiries` |
-| consultation_repository.go:94 | CountUsageByConsultationID | `treatments` |
-| diagnosis_repository.go:242 | CountUsageByDiagnosisNameID | `clinical_plans` |
-| inventory_repository.go:152 | CountUsageByInventoryID(treatment部分のみ) | `treatments` |
-| medicine_repository.go:67 | CountUsageByMedicineID(treatment部分のみ) | `treatments` |
-| procedure_repository.go:72 | CountUsageByProcedureID(treatment部分のみ) | `treatments` |
-| medical_record_image_repository.go:67 | FindByID | `medical_record_images` |
-
-**意図的除外(移行不可・変更不要)**
-
-| ファイル/箇所 | 理由 |
-|---|---|
-| medical_record_image_repository.go: FindByMedicalRecordID(33) | clinic_id が JOIN でなく Where 句側 |
-| medical_record_image_repository.go: Delete(52) | subquery で隔離、JOIN形状ではない |
-| treatment_repository.go | JOIN に clinic_id 述語なし(subquery 隔離) |
-| clinical_plan_repository.go(35) | clinic_id 述語なし |
-| billing_confirmation_repository.go(32) | 別述語で隔離済み |
-| inquiry_repository.go(95) | clinic_id 述語なし |
-| checkup_repository.go(77,93) | 文字列連結・別 SQL 形状 |
-| medicine/procedure の hospitalizations JOIN(care_plan_items側) | medical_records JOIN ではないため対象外 |
-
-**検証結果**
-
-- helper契約テスト: `TestMedicalRecordTenantScope`(正clinic・別clinic・該当なし・medical_records論理削除除外の4パターン)全PASS
-- 7リポジトリのスコープ限定回帰(`TestChiefComplaint|TestConsultation|TestDiagnosis|TestInventory|TestMedicine|TestProcedure|TestMedicalRecordImage|TestMedicalRecordTenantScope`)全PASS。うち `TestChiefComplaintTypeRepository_CountUsageByChiefComplaintTypeID_KnownInquiriesColumnBug`(inquiries.deleted_at列欠落)と `TestProcedureRepository_CountUsageByProcedureID_KnownCarePlanItemsColumnBug`(care_plan_items.deleted_at列欠落)は本リファクタ前から存在する既知のスキーマ不整合で、置換後も同一エラーを再現(=挙動保存)することを確認。helper非起因の既知負債であり別チケット追跡対象
-- 隔離回帰: `TestMedicalRecordImageRepository_FindByID_ClinicIsolation`/`Delete_ClinicIsolation`/`TestPetRepository_Update_ClinicIsolation`(同一ファイル)全PASS
-- 旧インラインパターン(`JOIN medical_records ON medical_records\.id = .* AND medical_records\.clinic_id = \?`)は対象7ファイルから `rg` で0件確認(完全消失)。意図的除外7箇所は `git diff --stat` で無変更を確認
-- go-reviewer: **Approve**(CRITICAL/HIGH 0件。MEDIUM 2件: ①テストのアサーションメッセージが「treatments.deleted_at」を指すかのように誤読を招く表現だった点→`0f76b71e`で修正済み、②`childTable`のコンパイル時リテラル制約を担保する `go/ast` lint が無い点→将来の追加箇所向けフォローアップとして下記に記録・本Closureではブロッキングとせず)
-- clinic-isolation-auditor: **Approve**(CRITICAL/HIGH/MEDIUM 0件。`childTable` は全呼び出しサイトでコンパイル時リテラルのみ、生成SQLは置換前とバイト同一の隔離述語を保持、意図的除外7箇所は無変更、既存の全隔離テストPASSを確認)
-
-**フォローアップ候補(本Closureではスコープ外)**
-
-- go-reviewer提案: `medicalRecordTenantScope` の `childTable` 引数がリテラルのみであることを `preload_clinic_scope_lint_test.go` 同様の `go/ast` ベース lint で機械強制する余地あり(現状はコードレビュー運用のみ)
-- `inquiry_repository.go:95` / `treatment_repository.go` / `clinical_plan_repository.go` / `billing_confirmation_repository.go` に残る「JOIN+WHERE分離型」の別形状隔離パターンも将来的に統合候補だが、SQL文字列のbyte-identical要件を満たす形での統合は別途設計が必要なため本G3-4のスコープ外
-
-**検証コマンド(スコープ限定)**
-```
-docker compose exec backend go test ./internal/repository/ -run 'TestChiefComplaint|TestConsultation|TestDiagnosis|TestInventory|TestMedicine|TestProcedure|TestMedicalRecordImage|TestMedicalRecordTenantScope' -count=1
-```
-
-### G3-5. handler 層に「YYYY-MM-DD 優先→RFC3339 フォールバック」日付パースが二重実装(エラー衛生ドリフトあり) — **CLOSED（第一段+第二段 完了・2026-07-09）**
-
-- **ID**: `dup-handler-date-parse`
-- **重要度**: P3 / **工数目安**: S / **挙動変更**: 第一段=なし（挙動保存） / 第二段=あり（behaviorChange・意図的セキュリティ改善）
-- **対象ファイル**: internal/handler/date.go; internal/handler/date_test.go; internal/handler/vaccination_request.go; internal/handler/vaccination_request_test.go; internal/handler/inventory_request.go; internal/handler/inventory_request_test.go; internal/handler/reservation_type_request.go(無変更確認のみ)
-- **依存関係**: なし
-- **ステータス**: ✅ **CLOSED（全段完了）**
-  - **第一段**（挙動保存）: `parseFlexibleDate(s string) (time.Time, error)`(date.go)を新設し、`jsonDate.UnmarshalJSON`/`parseDate` を委譲化。`handler_date_helpers.go` を削除し date.go へ統合。両者のエラーメッセージ(jsonDate=汎用文言 / parseDate=`invalid date format: %s` の入力値エコー)は完全維持。契約テスト `date_test.go` 新設(TestJsonDate/TestParseDate)。go-reviewer / security-reviewer ともに Approve(CRITICAL/HIGH 0)。コミット `e3ccc7e3`
-  - **第二段**（behaviorChange・#97 類例のクローズ）: date.go に共通定数 `flexibleDateInvalidInputMsg` を新設し、`jsonDate.UnmarshalJSON`/`parseDate` の両方が共有。parseDate 失敗時の `fmt.Errorf("invalid date format: %s", *dateStr)`（入力値エコー）を廃止し `apperrors.WrapInvalidInput(flexibleDateInvalidInputMsg)` に統一。呼び出し側 vaccination_request.go(4箇所)/inventory_request.go(4箇所)の `fmt.Sprintf("invalid date: %v", err)` / `fmt.Errorf("invalid expiry_date: %w", err)` 等のラッピングを廃止し `return nil, err` の bare 伝播に統一(parseDate が既に正しく型付けされた InvalidInput エラーを返すため)。reservation_type_request.go は元々 bare 伝播済みのため無変更(diff なしを確認)。テストは `date_test.go`(TestParseDate 不正系で `apperrors.IsInvalidInput` + `NotContains(input)` 検証、jsonDate と同一メッセージを定数参照で検証)、`vaccination_request_test.go`/`inventory_request_test.go`(テーブル駆動で create/update × 各日付フィールド全組み合わせの非露出を検証)を更新。go-reviewer(Warning・CRITICAL/HIGH 0、MEDIUM=テストカバレッジ拡充を同コミットで解消済み) / security-reviewer(Approve・CRITICAL/HIGH 0)。コミット `42aa6b4f`
-
-**証拠(現HEAD検証済み)**
-
-date.go:21-32 (jsonDate.UnmarshalJSON) `// YYYY-MM-DD を優先\n\tif t, err := time.ParseInLocation("2006-01-02", s, time.Local); err == nil {\n\t\td.Time = t\n\t\treturn nil\n\t}\n\t// フォールバック: RFC3339\n\tif t, err := time.Parse(time.RFC3339, s); err == nil {\n\t\td.Time = t\n\t\treturn nil\n\t}\n\t// Go内部のエラー文字列を漏洩させないため、汎用メッセージを返す\n\treturn apperrors.WrapInvalidInput("日付の形式が正しくありません...")` と handler_date_helpers.go:16-28 (parseDate) `// フォーマット1: YYYY-MM-DD\n\tt, err := time.ParseInLocation("2006-01-02", *dateStr, time.Local)\n\tif err == nil { return &t, nil }\n\t// フォーマット2: RFC3339\n\tt, err = time.Parse(time.RFC3339, *dateStr)\n\tif err == nil { return &t, nil }\n\treturn nil, fmt.Errorf("invalid date format: %s", *dateStr)` が同一パースチェーンの二重実装。ドリフト: parseDate は入力実値をエラーにエコーし、vaccination_request.go:78-81 `date, err := parseDate(r.Date)\n\tif err != nil {\n\t\treturn nil, apperrors.WrapInvalidInput(fmt.Sprintf("invalid date: %v", err))\n\t}` 経由でクライアント応答へ露出する(jsonDate 側は date.go:31 のコメントどおり意図的に汎用メッセージ化済み — #97 本文実値露出と同クラスの非対称)。
-
-**問題**
-
-同一 wire 契約(YYYY-MM-DD または RFC3339 のリクエスト日付)の受理ロジックが 2 実装に分裂し、受理形式を変える際は両方の同期変更が必須。さらにエラー衛生方針(入力値エコーの可否)が実装間で既に乖離しており、片方だけ直す事故の温床。parseDate 利用は inventory_request.go(4)/reservation_type_request.go(2)/vaccination_request.go(4) の 10 サイト。
-
-**実装手順**
-
-挙動保存の第一段: date.go に共通コア `func parseFlexibleDate(s string) (time.Time, error)`(YYYY-MM-DD→RFC3339 の現行チェーン、失敗時は sentinel error)を切り出し、jsonDate.UnmarshalJSON と parseDate の両方をコア委譲に書き換える。各ラッパの現行エラーメッセージ(jsonDate=汎用文言 / parseDate=`invalid date format: %s`)は文字通り維持し応答互換を保つ。handler_date_helpers.go は date.go へ統合し削除(パッケージ内 1 ファイルに日付パースを集約)。第二段(behaviorChange=true・別トラック): parseDate のエラーから入力値エコーを除去し jsonDate と同一の汎用文言へ統一(#97 類例のクローズ)。
-
-**検証コマンド(スコープ限定・第二段で実行・PASS)**
-```
-docker compose exec backend go test ./internal/handler/ -run 'TestParseDate|TestJsonDate|TestCreateInventoryRequest|TestInventoryRequest|TestCreateVaccinationRequest|TestVaccinationRequest|TestUpdateVaccinationRequest|TestUpdateInventoryRequest|TestCreateUnavailableTimeRequest' -count=1
-docker compose exec backend go vet ./internal/handler/...
-docker compose exec backend gofmt -l internal/handler/date.go internal/handler/date_test.go internal/handler/vaccination_request.go internal/handler/vaccination_request_test.go internal/handler/inventory_request.go internal/handler/inventory_request_test.go
-```
-
-
-## G4. Handler層 P1-P18 規約準拠
-
-### G4-1. P7逸脱: lab_report_handler が service 戻り値(model 層 DTO)を toXxxResponse 変換なしで c.JSON 直返し — **CLOSED（2026-07-09）**
-
-- **ID**: `p7-lab-report-model-dto-passthrough`
-- **重要度**: P3 / **工数目安**: S / **挙動変更**: なし（挙動保存）
-- **対象ファイル**: internal/handler/lab_report_handler.go (28-33,53-58); internal/handler/lab_report_response.go(新規); internal/model/lab_report.go (20-65)
-- **依存関係**: なし
-- **ステータス**: ✅ **CLOSED** — internal/handler/lab_report_response.go を新規作成し、labExamReportSummaryResponse/labExamReportDetailResponse/labExamResultItemResponse を model 側の旧 json タグと完全同一タグで定義。toLabExamReportSummaryResponse/toLabExamReportDetailResponse/toLabExamResultItemResponse(P18命名)は 1:1 フィールドコピーのみ(変換ロジック追加なし)。lab_report_handler.go:33 は `mapSlice(summaries, toLabExamReportSummaryResponse)`、:58 は `toLabExamReportDetailResponse(detail)` 経由に変更。model/lab_report.go の LabExamReportSummary/LabExamReportDetail/LabExamResultItem から json タグを削除(LabReportFilter は diff なし・無変更を確認)。lab_report_handler_test.go の ExactFieldAllowlist/PII/Happy-path/omitempty テスト17本全て PASS(wire 形状不変を実証)、service 層 TestLabReportQuery 系14本 PASS。go vet クリーン、gofmt 差分なし。go-reviewer(Approve・CRITICAL/HIGH/MEDIUM 0)/ security-reviewer(CRITICAL/HIGH/MEDIUM 0、PII allowlist フィールド完全一致を逐語確認)。コミット `689e9506`
-
-**証拠(現HEAD検証済み)**
-
-internal/handler/lab_report_handler.go:28-33: `summaries, err := h.svc.LabReportQuery.ListJobReportSummaries(c.Request.Context(), clinicID, jobID)` → `c.JSON(http.StatusOK, summaries)`。同53-58: `detail, err := h.svc.LabReportQuery.GetExamReport(...)` → `c.JSON(http.StatusOK, detail)`。戻り値型は internal/service/lab_report_query_service.go:30 `ListJobReportSummaries(...) ([]model.LabExamReportSummary, error)` / 同33 `GetExamReport(...) (*model.LabExamReportDetail, error)`。ワイヤ形式は internal/model/lab_report.go:20-31 `type LabExamReportSummary struct { ExamID uint64 `json:"exam_id"` ... }` として model 層の json タグで定義。handler 直上コメント(lab_report_handler.go の PII-safe 設計注記と model/lab_report.go:17-35 の DTO doc)は PII 除外設計を記すのみで、handler 変換省略の根拠記載はない。
-
-**問題**
-
-P7「c.JSON にモデルを直接渡さない。必ず変換関数を経由する」の残存逸脱。レスポンス契約(json タグ)が handler/*_response.go ではなく model 層に漏れており、accounting 系が repository 集計 DTO ですら toDailySummaryResponse 等で handler 変換している(accounting_response.go:30-164)のと非対称。model DTO のフィールド変更が意図せず API レスポンス形状を変える経路が開いている。PII-safe 設計自体は文書化済みで正当。
-
-**実装手順**
-
-挙動保存。手順: (1) internal/handler/lab_report_response.go を新規作成し、labExamReportSummaryResponse / labExamReportDetailResponse / labExamResultItemResponse を model/lab_report.go:20-65 の json タグと完全同一タグで定義、toLabExamReportSummaryResponse / toLabExamReportDetailResponse を実装(P18命名)。(2) lab_report_handler.go:33 を変換経由(summaries は値スライスのためループまたは mapSlice 適合形)に、:58 を `c.JSON(http.StatusOK, toLabExamReportDetailResponse(detail))` に変更。(3) internal/model/lab_report.go の LabExamReportSummary/LabExamReportDetail/LabExamResultItem から json タグを削除しワイヤ定義を handler 側へ一本化(LabReportFilter はタグなしのため対象外)。(4) 既存の lab_report_handler_test.go の 200 系テストが json キーを検証していることを確認し wire 同一を担保。影響範囲: handler/model と両者のテストのみ、wire 不変。
-
-**検証コマンド(スコープ限定)**
-```
-docker compose exec backend go test ./internal/handler/ -run 'TestGetLabJobReportSummaries|TestGetLabExamReport' -count=1 && docker compose exec backend go test ./internal/service/ -run TestLabReportQuery -count=1
-```
-
-### G4-2. P7逸脱: CreateLiffReservation 成功レスポンスが gin.H でモデルフィールドを直返し — **CLOSED（2026-07-09）**
-
-- **ID**: `p7-liff-create-reservation-ginh`
-- **重要度**: P3 / **工数目安**: S / **挙動変更**: なし（挙動保存）
-- **対象ファイル**: internal/handler/liff_handler.go (197-198)
-- **依存関係**: なし
-- **ステータス**: ✅ **CLOSED** — internal/handler/liff_response.go に `liffReservationCreatedResponse{ID uint64 \`json:"id"\`; Notes string \`json:"notes"\`}` と `toLiffReservationCreatedResponse(r *model.Reservation)`(P18命名、1:1フィールドコピーのみ)を新設。既存の一覧用 `liffReservationResponse` とは別型として分離(命名衝突なし)。liff_handler.go:198 を `c.JSON(http.StatusCreated, toLiffReservationCreatedResponse(appt))` に置換、L197 の Location ヘッダは無変更。TestCreateLiffReservation の正常系アサートを `assert.Contains(..., "42")`(部分一致)から `json.Unmarshal` 後の `assert.Equal(map[string]any{"id": float64(42), "notes": ""}, body)`(完全一致)+ Location ヘッダ個別 assert に強化、全9サブテスト PASS。go vet / gofmt クリーン。go-reviewer(Approve・CRITICAL/HIGH/MEDIUM 0、P7/P18準拠確認)/ security-reviewer(CRITICAL/HIGH 0、gin.H 時代と同一の2フィールドのみでモデル全体露出なしを確認)。コミット `a00bf673`
-
-**証拠(現HEAD検証済み)**
-
-internal/handler/liff_handler.go:197-198:
-```go
-c.Header("Location", fmt.Sprintf("/api/v1/reservations/%d", appt.ID))
-c.JSON(http.StatusCreated, gin.H{"id": appt.ID, "notes": appt.Notes})
-```
-appt は internal/service/liff_service.go:21 `CreateReservation(...) (*model.Reservation, error)` の戻り値でモデル(Notes は internal/model/reservation.go:50 で string 型)。liff_handler 内の他エンドポイントは全て toLiffXxxResponse / typed struct 経由(liff_handler.go:62,83,116,141,214,230,252 で確認)で、成功系 gin.H はここのみ。前後30行に免除コメントなし。リポジトリ内先例: internal/handler/staff_response.go:96 「旧 gin.H{"...": ids} を P7 準拠の typed struct に置き換える（JSON 表現は同一）」。
-
-**問題**
-
-P7 は gin.H 直返しを明示的に違反例としている。LIFF 公開 API の免除は P5(認証)の免除であり P7 の免除ではない。型なし map のためフィールド追加・改名時のコンパイル時検査が効かず、レスポンス契約がコード上の型として存在しない。
-
-**実装手順**
-
-挙動保存。手順: (1) liff 系 response 定義ファイルに `type liffReservationCreatedResponse struct { ID uint64 `json:"id"`; Notes string `json:"notes"` }` と `func toLiffReservationCreatedResponse(appt *model.Reservation) liffReservationCreatedResponse` を追加。(2) liff_handler.go:198 を `c.JSON(http.StatusCreated, toLiffReservationCreatedResponse(appt))` に置換。json キーは "id"/"notes" のまま wire 不変。(3) TestCreateLiffReservation でレスポンス形状不変を確認。
-
-**検証コマンド(スコープ限定)**
-```
-docker compose exec backend go test ./internal/handler/ -run TestCreateLiffReservation -count=1
-```
-
-### G4-3. P14周辺負債: Handler ルートコンテナが全 repository 集約(*repository.Repositories)を保持(実使用は LiffAuth 用2リポジトリのみ) — **CLOSED（2026-07-09）**
-
-- **ID**: `p14-handler-container-repos-field`
-- **重要度**: P3 / **工数目安**: S / **挙動変更**: なし（挙動保存）
-- **対象ファイル**: internal/handler/handler.go (18-28); internal/handler/reservation_line_routes.go (64-65); internal/handler/handler_routes_test.go (26-32); cmd/api/main.go (191)
-- **依存関係**: なし
-- **ステータス**: ✅ **CLOSED** — Handler struct から `repos *repository.Repositories` を削除し、`liffCustomerLookup middleware.LineCustomerLookup` / `liffSettingLookup middleware.LineReservationSettingLookup` の2 narrow field に置換。New は repos != nil ガード付きで2値を抽出代入(シグネチャ不変)。reservation_line_routes.go:65 を `middleware.LiffAuth(h.liffCustomerLookup, h.liffSettingLookup)` に変更。handler_routes_test.go の `repos: &repository.Repositories{}` を削除(未使用 import も除去)。handler_test.go:30 の `assert.Same(t, repos, h.repos)` は narrow field 単位の assert.Same 2本に更新 — ゼロ値 struct だと nil interface 比較で testify が失敗するため、repos.LineCustomerMgr/LineReservationSetting に実コンストラクタ(`repository.NewLineCustomerRepository(nil)` 等、DB 未使用のため nil で安全)を渡し pointer identity を可視化。`docker compose exec backend go test ./internal/handler/ -run '^(TestRegisterRoutes_NoPanic|TestGetLiffProfile|TestGetLiffSettings|TestCreateLiffReservation|TestNew)$' -count=1` 全 PASS。grep `h\.repos` handler パッケージ 0件。go vet / gofmt 差分なし。コミット `5e5754db`
-
-**証拠(現HEAD検証済み)**
-
-internal/handler/handler.go:18-23:
-```go
-type Handler struct {
-	cfg      *config.Config
-	svc      *service.Services
-	repos    *repository.Repositories
-	uploader infra.FileUploader
-}
-```
-h.repos の全参照は internal/handler/reservation_line_routes.go:65 の1箇所のみ: `liffAuth := middleware.LiffAuth(h.repos.LineCustomerMgr, h.repos.LineReservationSetting)`(handler 非テスト256ファイル grep 全走査で確認)。middleware.LiffAuth は既に narrow interface を受ける設計: internal/middleware/liff_auth.go:49 `func LiffAuth(lookup LineCustomerLookup, settingLookup LineReservationSettingLookup) gin.HandlerFunc`。リクエスト処理 handler メソッドからの h.repos 呼び出しは0件。
-
-**問題**
-
-P14「handler struct は svc XxxService のみを持つ。repo フィールドは禁止」に対し、ルートコンテナが全リポジトリへのアクセス経路を常時保持。現状の実害は0(middleware DI 配線のみ)だが、任意の handler メソッドが `h.repos.X.FindAll(...)` と service 層をバイパスできる構造的余地が残り、P14 遵守をコードレビュー頼みにしている。middleware 側が narrow interface のため、必要な2依存だけ保持すれば全 repo 集約は不要。
-
-**実装手順**
-
-挙動保存。手順: (1) internal/handler/handler.go の Handler struct から `repos *repository.Repositories` を削除し、`liffCustomerLookup middleware.LineCustomerLookup` と `liffSettingLookup middleware.LineReservationSettingLookup` の2フィールドを追加。(2) New のシグネチャは維持し、本体で `liffCustomerLookup: repos.LineCustomerMgr, liffSettingLookup: repos.LineReservationSetting` を代入(repos が nil の場合に備え nil ガード付き代入。非テスト呼出は cmd/api/main.go:191 の1箇所で常に非nil)。(3) reservation_line_routes.go:65 を `middleware.LiffAuth(h.liffCustomerLookup, h.liffSettingLookup)` に変更。(4) internal/handler/handler_routes_test.go:30 の `repos: &repository.Repositories{}` を削除(新フィールドは nil のままで可 — LiffAuth はクロージャ返却のみで構築時に lookup を deref しないためルート登録は panic しない)。影響範囲: handler.go / reservation_line_routes.go / handler_routes_test.go の3ファイル(+必要なら cmd/api/main.go)。他テストは &Handler{svc: ...} 直構築のため無影響。
-
-**検証コマンド(スコープ限定)**
-```
-docker compose exec backend go test ./internal/handler/ -run 'TestRegisterRoutes_NoPanic|TestGetLiffProfile|TestGetLiffSettings' -count=1
-```
-
-
-## G5. Service層 P1-P18 規約準拠
-
-### G5-1. P11違反: 業務レコード系サービスのDelete/Create書込エラーパス11箇所でslog.ErrorContext欠落 — **CLOSED（2026-07-09）**
-
-- **ID**: `p11-slog-gap-business-delete-paths`
-- **重要度**: P2 / **工数目安**: S / **挙動変更**: なし（挙動保存）
-- **対象ファイル**: internal/service/prescription_service.go (160-162); internal/service/vital_service.go (220-222); internal/service/checkup_service.go (294-296); internal/service/vaccination_service.go (206-208); internal/service/clinical_plan_service.go (159-161); internal/service/medical_record_image_service.go (100-102); internal/service/estimate_service.go (216-224); internal/service/treatment_plan_service.go (177-179); internal/service/liff_service_reservations.go (109-111); internal/service/staff_clinic_assignment_service.go (35-37)
-- **ステータス**: ✅ **CLOSED** — 10ファイル11箇所の repo.Delete/CountItemsByEstimateID/repo.Create エラーブロック先頭に、各ファイル既存の slog.ErrorContext キー体系("error", err, "clinic_id", clinicID, "<entity>_id", id)で1行追加。wrap メッセージ文言は無変更。`docker compose exec backend go test ./internal/service/ -run 'TestPrescription|TestVital|TestCheckup|TestVaccination|TestClinicalPlan|TestMedicalRecordImage|TestEstimate|TestTreatmentPlan|TestLiff|TestStaffClinicAssignment' -count=1` PASS。go vet / gofmt 差分なし。コミット `3eca7ef2`
-
-**証拠(現HEAD検証済み)**
-
-prescription_service.go:160-162:
-```go
-if err := s.repo.Delete(ctx, clinicID, prescriptionID); err != nil {
-    return apperrors.Wrap(err, "failed to delete prescription")
-}
-```
-vital_service.go:220-222:
-```go
-if err := s.repo.Delete(ctx, clinicID, vitalID); err != nil {
-    return apperrors.Wrap(err, "failed to delete vital record")
-}
-```
-estimate_service.go:216-218 (依存チェックのDB読取エラーも同様):
-```go
-count, err := s.repo.CountItemsByEstimateID(ctx, clinicID, id)
-if err != nil {
-    return apperrors.Wrap(err, "failed to check estimate item dependencies")
-}
-```
-liff_service_reservations.go:109-111:
-```go
-if err := s.adminRepo.CancelByID(ctx, clinicID, customerID, reservationID); err != nil {
-    return apperrors.Wrap(err, "failed to cancel reservation")
-}
-```
-staff_clinic_assignment_service.go:34-37:
-```go
-func (s *staffClinicAssignmentService) Create(ctx context.Context, assignment *model.StaffClinicAssignment) error {
-    if err := s.repo.Create(ctx, assignment); err != nil {
-        return apperrors.Wrap(err, "failed to create staff clinic assignment")
-    }
-```
-他: checkup_service.go:295 / vaccination_service.go:207 / clinical_plan_service.go:160 / medical_record_image_service.go:101 / treatment_plan_service.go:178 / estimate_service.go:224。対照としてマスタ系は全件準拠 (例 reservation_type_service_core.go:160-163 は repo.Delete エラー前に slog.ErrorContext あり)。RespondError (handler/response.go:16) はサーバ側ログを一切出力しないため、これらのDB書込障害はログ痕跡ゼロで500になる。
-
-**問題**
-
-P11 (MANDATORY, .claude/refs/gin-architecture-compliance.md L229-247) は repo 起因のインフラエラーのリターン前に slog.ErrorContext を要求する。除外対象は WrapInvalidInput / NotFound存在確認 / WrapConflict のみで、FindByID通過後の repo.Delete / Create / CountUsage の失敗は除外に該当しない。マスタ系サービス約25ファイルは全件準拠している一方、カルテ配下サブレコード(処方・バイタル・健診・ワクチン接種・診療計画・画像)と見積・治療計画・LIFF予約キャンセル・スタッフ医院割当の書込パスだけが欠落しており、レイヤ内で診断可能性が非対称。ハンドラの RespondError もログを出さないため障害調査時に手掛かりが残らない。
-
-**実装手順**
-
-各ファイルの該当 if err ブロック先頭に、同ファイル既存の slog.InfoContext と同じキー体系 ("error", err, "clinic_id", clinicID, "<entity>_id", id) で slog.ErrorContext を1行追加する。手順: (1) prescription_service.go:160 / vital_service.go:220 / checkup_service.go:294 / vaccination_service.go:206 / clinical_plan_service.go:159 / medical_record_image_service.go:100 / treatment_plan_service.go:177 の repo.Delete エラーブロック 7箇所、(2) estimate_service.go:217(CountItemsByEstimateID) と :223(repo.Delete) の2箇所、(3) liff_service_reservations.go:109 CancelByID、(4) staff_clinic_assignment_service.go:35 repo.Create。既存メッセージ文字列は変更しない(テストがエラーメッセージをアサートしている可能性があるため wrap 文言据え置き)。ログ追加のみでAPI応答・戻り値は不変。影響範囲: internal/service の10ファイルのみ、interface変更なし。
-
-**検証コマンド(スコープ限定)**
-```
-docker compose exec backend go test ./internal/service/ -run 'TestPrescription|TestVital|TestCheckup|TestVaccination|TestClinicalPlan|TestMedicalRecordImage|TestEstimate|TestTreatmentPlan|TestLiff|TestStaffClinicAssignment' -count=1
-```
-
-### G5-2. P13違反: buildFuncがinterface/struct/Newより後に定義されている4ファイル — **CLOSED（2026-07-09）**
-
-- **ID**: `p13-buildfunc-order-4-files`
-- **重要度**: P3 / **工数目安**: S / **挙動変更**: なし（挙動保存）
-- **対象ファイル**: internal/service/chronic_condition_service.go (32,39,46,143); internal/service/audit_service.go (12,64,74,121); internal/service/lstep_settings_service.go (105,128,140,250); internal/service/lab_import_examination_service.go (74,97,103,234)
-- **ステータス**: ✅ **CLOSED** — 純粋なコード移動のみ(シグネチャ・本文変更なし)。buildChronicConditionUpdateFields を chronic_condition_service.go の interface 直前へ、buildAuditLog を audit_service.go の interface 直前へ(`var _ AuditTxLogger = (*auditService)(nil)` は struct 直下のまま維持)、buildLstepSettingsResponse を lstep_settings_service.go の interface 直前へ、buildExamResults を lab_import_examination_service.go の interface 直前へ移動。computeExamResultStatus は examination_service.go 側の定義のため本ファイル内の後方参照ではなく移動対象外。`docker compose exec backend go test ./internal/service/ -run 'TestChronicCondition|TestAudit|TestLstepSettings|TestLabImport' -count=1` PASS。go vet / gofmt 差分なし。diff は4ファイルとも insertions==deletions(コード移動のみを裏付け)。コミット `5c7434aa`
-
-**証拠(現HEAD検証済み)**
-
-P13 の必須順序は const → buildFunc → interface → struct → New → methods (.claude/refs/gin-architecture-compliance.md L273-292)。chronic_condition_service.go は interface(L32)/struct(L39)/New(L46) の後の L143 に典型的 buildFunc がある:
-```go
-func buildChronicConditionUpdateFields(input UpdateChronicConditionInput) map[string]any {
-    fields := make(map[string]any)
-```
-audit_service.go は interface(L12)/struct(L64) の後 L74 に buildFunc (自らドキュメントコメントで buildFunc と宣言):
-```go
-// buildAuditLog は AuditLogInput を model.AuditLog に変換する（LogEntry / LogEntryTx 共通の buildFunc）。
-func buildAuditLog(input *AuditLogInput) *model.AuditLog {
-```
-lstep_settings_service.go:250 buildLstepSettingsResponse は New(L140) より後、lab_import_examination_service.go:234 buildExamResults は New(L103) より後。4ファイルとも配置を正当化するコメントは無し(buildAuditLog直上コメントは変換内容の説明のみ、buildExamResults直上コメントは信頼境界の説明のみで配置には言及しない)。
-
-**問題**
-
-P13 は service 層 MANDATORY パターン (backend/internal/service/CLAUDE.md L64-73) だが golangci-lint に順序チェックのlinterが無く、この4ファイルだけがドリフトしている(残り191ファイルは準拠)。レビュー時の探索コスト増と、新規ファイルがこれらを手本にした際の違反伝播が負債。
-
-**実装手順**
-
-純粋なコード移動のみ(シグネチャ・本文変更禁止)。(1) chronic_condition_service.go: buildChronicConditionUpdateFields(L143-)をL32のinterface宣言の直前へ移動。(2) audit_service.go: buildAuditLog(L74-)をL12のAuditService interface直前へ移動。`var _ AuditTxLogger = (*auditService)(nil)` (L71, #211コンパイル時保証)はauditService struct直下に残す。(3) lstep_settings_service.go: buildLstepSettingsResponse(L250-)をLstepSettingsService interface(L105)直前へ。(4) lab_import_examination_service.go: buildExamResults(L234-)と、それが呼ぶcomputeExamResultStatusが後方にある場合は一緒にinterface(L74)直前へ移動(未定義参照はGoでは問題ないが可読性のためペア移動)。ドキュメントコメントは関数と一体で移動する。
-
-**検証コマンド(スコープ限定)**
-```
-docker compose exec backend go test ./internal/service/ -run 'TestChronicCondition|TestAudit|TestLstepSettings|TestLabImport' -count=1
-```
-
-
 ## G6. Repository層規約・トランザクション機構整理
-
-### G6-1. P16 命名規約からの逸脱 6 メソッド (Get*/List*) が repository interface に残存 — **CLOSED（2026-07-09）**
-
-- **ID**: `p16-naming-drift`
-- **重要度**: P3 / **工数目安**: M / **挙動変更**: なし（挙動保存）
-- **対象ファイル**: internal/repository/clinic_repository.go (17, 71); internal/repository/lstep_trigger_priority_repository.go (21, 60); internal/repository/pet_chronic_condition_repository.go (21, 81); internal/repository/lstep_csv_import_repository.go (22, 75); internal/repository/lstep_friend_attribute_snapshot_repository.go (23, 65); internal/repository/lstep_delivery_trigger_log_repository.go (53, 226)
-- **依存関係**: なし
-- **ステータス**: ✅ **CLOSED** — 6メソッドを機械的リネーム: GetCompany→FindCompany、GetPriority→FindPriorityByTriggerType、GetActiveConditionCodesByOwner→FindActiveConditionCodesByOwner、ListByClinic→FindAllByClinicID、ListByClinicAndDateRange→FindAllByClinicAndDateRange、ListByOwnerAndDateRange→FindAllByOwnerAndDateRange。同名だが別レイヤーの符合(`Handler.GetCompany`、`LstepCsvImportService.ListByClinic`は P16 対象外のため未変更)は grep で個別に検証し除外。accounting の Get*Report/Get*Summary/GetCloseAggregate は集計レポート専用として P16 対象外と判断(実装手順の「一括判断」に従い、対象ファイルリストに元々含まれていないため変更せず)。`docker compose exec backend go build ./internal/repository/ ./internal/service/ ./internal/handler/` 成功、`docker compose exec backend go test ./internal/service/ -run 'TestLstep|TestClinic|TestPetChronic' -count=1` PASS、スコープ限定で `go test ./internal/repository/ -run 'TestClinicRepository|TestLstepTriggerPriorityRepository|TestPetChronicConditionRepository|TestLstepCsvImportRepository|TestLstepFriendAttributeSnapshotRepository|TestLstepDeliveryTriggerLogRepository' -count=1` も PASS。go vet / gofmt 差分なし。コミット `deeabb23`
-
-**証拠(現HEAD検証済み)**
-
-clinic_repository.go:17「GetCompany(ctx context.Context) (*model.Company, error)」、lstep_trigger_priority_repository.go:21「GetPriority(ctx context.Context, clinicID uint64, triggerType string) (int, error)」、pet_chronic_condition_repository.go:21「GetActiveConditionCodesByOwner(ctx context.Context, clinicID, ownerID uint64) ([]string, error)」、lstep_csv_import_repository.go:22「ListByClinic(ctx context.Context, clinicID uint64, limit int) ([]*model.LstepCsvImport, error)」、lstep_friend_attribute_snapshot_repository.go:23「ListByClinicAndDateRange(...)」、lstep_delivery_trigger_log_repository.go:53「ListByOwnerAndDateRange(...)」。repository/CLAUDE.md P16「FindAll / FindByClinicID ← 一覧（GetAll, List, Fetch は違反）/ FindByID ← 単件（GetByID, Get, Find は違反）」。なお accounting_repository.go:41-45 の GetDailySummary/GetCloseAggregate/GetMonthlyReport(ByPeriod) は entity fetch でなく集計レポート専用のため P16 の適用対象かは規約解釈の余地あり（P16 例示は entity CRUD のみ）。
-
-**問題**
-
-P16 は 2026-04 の be_p16_naming_sync で全体同期済みのはずだが、entity/値 fetch 系 6 メソッドが Get*/List* のまま残存しており、grep ベースの規約チェック・新規実装時の模倣元として一貫性を損なう。機械的リネームで解消可能な純粋な命名負債。
-
-**実装手順**
-
-機械的リネーム（interface 宣言・実装・service 呼出・mock を同時変更）: GetCompany→FindCompany、GetPriority→FindPriorityByTriggerType、GetActiveConditionCodesByOwner→FindActiveConditionCodesByOwner、ListByClinic→FindAllByClinicID、ListByClinicAndDateRange→FindAllByClinicAndDateRange、ListByOwnerAndDateRange→FindAllByOwnerAndDateRange。手順: (1) 各 repo ファイルで interface+実装をリネーム → (2) grep で service/mock の呼出を全件更新 → (3) コンパイルで取りこぼし検出。accounting の Get*Report/Get*Summary/GetCloseAggregate 3+1 件はレポート集計であり P16 の対象外と整理するか含めるかを実装時に一括判断（含める場合は Aggregate*/Summarize* でなく FindDailySummary 等へ）。
-
-**検証コマンド(スコープ限定)**
-```
-docker compose exec backend go build ./internal/repository/ ./internal/service/ ./internal/handler/ && docker compose exec backend go test ./internal/service/ -run 'TestLstep|TestClinic|TestPetChronic' -count=1
-```
 
 ### G6-2. tx 参加機構が実質5系統併存し、ctx 方式は repo 側 dbOrTx 未採用時に静かに非参加となる — 機構の棚卸しと標準化・ガード整備
 
@@ -696,240 +328,6 @@ docker compose exec backend go build ./internal/repository/ ./internal/service/ 
 **検証コマンド(スコープ限定)**
 ```
 docker compose exec backend go test ./internal/repository/ -count=1
-```
-
-
-## G7. パフォーマンス (N+1・インデックス・クエリ効率)
-
-### G7-1. LIFF GetAvailableDates の日付ループN+1: シフト/休憩/当日予約/職種ガードを日毎・スタッフ毎に個別クエリ(既定30日×5名で1リクエスト最大約570クエリ) — **CLOSED（2026-07-09）**
-
-- **ID**: `liff-available-dates-nplus1`
-- **重要度**: P1 / **工数目安**: M / **挙動変更**: なし（挙動保存）
-- **対象ファイル**: internal/service/available_dates.go (109-196); internal/service/liff_service_availability_slots.go (13-68); internal/service/liff_service_availability.go (35-37,119-139); internal/repository/appointment_admin_repository.go (52-73); internal/repository/reservation_schedule_repository.go (17-20,76-87)
-- **依存関係**: なし。R2-4(実施済)とは別軸。FE変更不要(レスポンス形状不変)
-- **ステータス**: ✅ **CLOSED** — 実装手順(1)〜(5)を実施。ReservationScheduleRepository.FindAllByStaffIDsAndDateRange(複数スタッフ×期間のシフトエントリ一括取得)、ReservationAdminRepository.FindTimeRangesByDateRange(Preloadなしid/doctor_id/start_time/end_time/statusのみの軽量版)、ReservationTypeOccupationRepository.CountWorkingStaffByReservationTypeIDs(GROUP BY se.dateでの日次出勤数バッチ集計)の3新規repositoryメソッドを追加。liffService.buildAvailableDatesStaffInputsFnが予約受付期間全体を3クエリでプリフェッチし、日毎はDB問い合わせ不要な純関数buildStaffSlotInputsFromWindow(マップ参照のみ)を返すクロージャに置換。窓計算はbookingWindowDates()としてavailable_dates.goへ抽出しCalcAvailableDatesと共有。エラー致命度は旧実装を踏襲(シフト/休憩プリフェッチ失敗は非致命的・当日予約プリフェッチ失敗は致命的)。単日パスのGetAvailableTimesは無変更(buildStaffSlotInputsのまま)。GetAvailableDatesは事前テスト0件だったためliff_service_availability_dates_test.go新設+3repositoryメソッドのDB実行テストを追加。`docker compose exec backend go test ./internal/service/ -run 'TestCalcAvailableDates|TestBuildStaffSlotInputs|TestGetAvailable' -count=1` と `go test ./internal/repository/ -run 'TestReservationSchedule|TestReservationTypeOccupation' -count=1` 全PASS。go vet(全リポジトリ)/gofmt差分なし。go-reviewer/security-reviewer/clinic-isolation-auditor三者ともApprove(CRITICAL/HIGH/MEDIUM 0、raw SQLパラメータ化・clinic_id境界を個別検証済み)。コミット `755f3e42`
-
-**証拠(現HEAD検証済み)**
-
-available_dates.go:109 `for d := minDate; !d.After(maxDate); d = d.AddDate(0, 0, 1) {` → :152 `staffInputs, err := input.StaffInputsFn(ctx, d, input.TypeID, input.StaffID)` が開催日ごとに liff_service_availability.go:35-37 の closure 経由で buildStaffSlotInputs を呼ぶ。buildStaffSlotInputs は liff_service_availability_slots.go:15 `dayResv, err := s.adminRepo.FindAllByDay(ctx, clinicID, date)`(コメント:14「当日の全予約を一括取得（N+1回避）」は日内のみのバッチ)、:26 `entry, err := s.scheduleRepo.FindAllByDate(ctx, clinicID, staffs[i].ID, date)`(スタッフ毎)、:32 `breaks, brkErr := s.scheduleRepo.FindAllBreaksByEntryID(ctx, entry.ID)`(エントリ毎)。FindAllByDay は appointment_admin_repository.go:59-64 で `Preload("ReservationType"...).Preload("Doctor"...).Preload("CreatedByStaff"...).Preload("LineCustomer").Preload("Owner"...).Preload("Pet"...)` の6 Preload を伴うが、slot計算は Status/DoctorID/StartTime/EndTime しか使わない(:53-63)。さらに liff_service_availability.go:120-138 で available な日付ごとに :129 `count, err := s.occupationRepo.CountWorkingStaffByReservationTypeID(ctx, clinicID, typeID, date)`。1リクエストのクエリ数 = 日数D×(1+Preload6+スタッフS×2) + 職種ガード≤D。booking_window_max_days 既定30(001_init.sql:2598)・S=5 で 30×17+30≈540。R2-4(D8)で解消済みなのは slot容量カウントのみ(liff_service_availability.go:64-66 コメント「日付間の反復は CalcAvailableDates の制御下にあり残る」)で、シフト/休憩/予約/職種の日付軸N+1は未着手。
-
-**問題**
-
-LIFF予約カレンダーは飼い主向けの最頻アクセス経路であり、1画面表示で数百クエリはRDS負荷・p95レイテンシに直結する。shift_entries は UNIQUE(clinic_id, staff_id, date)(001_init.sql:2016 uk_shift_staff_date)で範囲一括取得が容易、休憩は既にバッチAPI FindAllBreaksByEntryIDs(reservation_schedule_repository.go:18)が存在するのに未使用で、インフラは揃っているのに呼出構造だけがN+1のまま。
-
-**実装手順**
-
-挙動保存のプリフェッチ化。(1) ReservationScheduleRepository に FindAllByStaffIDsAndDateRange(ctx, clinicID uint64, staffIDs []uint64, from, to time.Time) ([]model.ShiftEntry, error) を追加(WHERE staff_id IN ? AND date >= ? AND date < ? + clinicScope。FindAllByMonth :31-51 と同型)。(2) 既存 FindAllBreaksByEntryIDs で全エントリの休憩を1クエリ取得。(3) reservationAdminRepository に Preload なしの軽量 FindTimeRangesByDateRange(ctx, clinicID, from, to)(Select: id, doctor_id, start_time, end_time, status のみ)を追加。(4) GetAvailableDates(liff_service_availability.go:17)で CalcAvailableDates 呼出前に minDate/maxDate ぶんを3クエリでプリフェッチし map[dateStr] 化、staffInputsFn closure をマップ参照に差し替え。buildStaffSlotInputs はプリフェッチ済みデータを受ける buildStaffSlotInputsFromWindow に分離し、単日パス GetAvailableTimes(:197)は従来メソッド維持(挙動不変)。(5) 職種ガードは CountWorkingStaffByReservationTypeIDs(ctx, clinicID, typeID, dates []time.Time) (map[string]int64) を追加し GROUP BY se.date で1クエリ化(reservation_type_occupation_repository.go:104-125 のSQLに GROUP BY 追加)。minDate/maxDate は CalcAvailableDates 内で再計算しているため、窓計算ヘルパー(BookingWindowMinDays/MaxDays→from,to)を available_dates.go に抽出して両者で共有する。既存テスト TestCalcAvailableDates / TestBuildStaffSlotInputs を先に緑確認→リファクタ→緑維持。
-
-**検証コマンド(スコープ限定)**
-```
-docker compose exec backend go test ./internal/service/ -run 'TestCalcAvailableDates|TestBuildStaffSlotInputs|TestGetAvailable' -count=1 && docker compose exec backend go test ./internal/repository/ -run 'TestReservationSchedule|TestReservationTypeOccupation' -count=1
-```
-
-### G7-2. 健診同期プレビューのタグキャッシュN+1: LINE連携飼主N人ごとに FindByOwner を1回(プレビュー行はLIMITなし全件) — **CLOSED（2026-07-09）**
-
-- **ID**: `checkup-sync-preview-tagcache-nplus1`
-- **重要度**: P2 / **工数目安**: S / **挙動変更**: なし（挙動保存）
-- **対象ファイル**: internal/service/checkup_sync_service_preview.go (46-88); internal/repository/lstep_tag_cache_repository.go (39-47,115); internal/repository/checkup_sync_repository.go (74-149)
-- **依存関係**: なし。エラーパスの粒度変更のみテストで仕様固定が必要
-- **ステータス**: ✅ **CLOSED** — LstepTagCacheRepository に `FindByOwners(ctx, clinicID, ownerIDs) (map[uint64][]*model.LstepTagCache, error)` を新設(ownerIDs空なら空map即返し・WHERE clinic_id = ? AND owner_id IN ?)。PreviewCheckupSync はループ前に LINE連携済み owner_id を収集し1クエリで一括取得、ループ内はマップ参照に変更。エラーパスの粒度差(per-owner失敗→全員失敗)は実装手順どおりテストで仕様固定: `TestCheckupSyncService_PreviewCheckupSync_TagCacheLookupError` を2 owner・一括失敗ケースに書き換え。独立した3つのテストモック(`mockLstepTagCacheRepository`/`mockTagCacheRepoForDelivery`/`mockTagCacheSummaryRepo`)全てに `FindByOwners` を追加し `go vet ./...` で取りこぼしゼロを確認。DB実行の repository テスト `TestLstepTagCacheRepository_FindByOwners` を新規追加(owner_id別集約・clinic_id分離・空引数即返しの3ケース)。`docker compose exec backend go test ./internal/service/ -run 'TestCheckupSync' -count=1` と `go test ./internal/repository/ -run 'TestLstepTagCacheRepository_FindByOwners' -count=1` 全PASS。go vet(全リポジトリ) / gofmt 差分なし。コミット `f6ebc0c7`
-
-**証拠(現HEAD検証済み)**
-
-checkup_sync_service_preview.go:46 `for i := range rows {` → :75-76 `if hasLine {\n\t\t\tcached, cacheErr := s.tagCacheRepo.FindByOwner(ctx, clinicID, row.OwnerID)`。rows は FindCheckupSyncPreview(checkup_sync_repository.go:74)由来で LIMIT なし(同ファイルに Limit 出現なし・grep確認)＝フィルタ該当の全飼主。LINE連携飼主N人のクリニックで 1+N クエリ/リクエスト(N=3000なら3001)。LstepTagCacheRepository のインターフェース(lstep_tag_cache_repository.go:39-47)には単件 FindByOwner のみでバッチ版が無い。idx_lstep_tag_cache_owner (clinic_id, owner_id)(001_init.sql:393)は IN 一括を支える。
-
-**問題**
-
-管理画面のプレビューは配信前に何度も条件を変えて叩く操作であり、飼主数に線形なクエリ数はクリニック成長とともに悪化する。バッチ取得への構造(複合インデックス・map返却の同型API前例 FindAllBreaksByEntryIDs)は既にあり、呼出形状だけがN+1。
-
-**実装手順**
-
-(1) LstepTagCacheRepository に FindByOwners(ctx context.Context, clinicID uint64, ownerIDs []uint64) (map[uint64][]*model.LstepTagCache, error) を追加(len==0 で空map即返し・WHERE clinic_id = ? AND owner_id IN ?。reservation_schedule_repository.go:53-66 FindAllBreaksByEntryIDs と同型)。(2) PreviewCheckupSync でループ前に hasLine 判定を先に回して該当 OwnerID を収集→一括取得→ループ内はマップ参照。(3) エラーパスの挙動差に注意: 現状は per-owner 失敗時に該当飼主のみ空タグ+slog(:77-79)。一括版では失敗時に全員空タグ+slog になる — 成功パスは挙動同一、エラーパスのみの差なので既存テスト TestCheckupSyncService_PreviewCheckupSync_TagCacheLookupError を一括失敗ケースに書き換えて仕様として固定する。(4) 同型の per-owner FindByOwner ループを持つ lstep_tag_sync_visit_ltv.go:69 等のバッチジョブへの展開は別追跡(外部API律速のため効果小)。
-
-**検証コマンド(スコープ限定)**
-```
-docker compose exec backend go test ./internal/service/ -run 'TestCheckupSyncService_PreviewCheckupSync' -count=1 && docker compose exec backend go test ./internal/repository/ -run 'TestLstepTagCache' -count=1
-```
-
-### G7-3. 月次レポート/レジ締め集計の completed_at 述語が非sargable(AT TIME ZONE 式適用)で partial index を無効化 — 同一関数内のCTE形式と2形式混在 — **CLOSED（2026-07-09）**
-
-- **ID**: `reports-completed-at-non-sargable`
-- **重要度**: P2 / **工数目安**: S / **挙動変更**: なし（挙動保存）
-- **対象ファイル**: internal/repository/accounting_repository_reports_monthly.go (154-155,177-178); internal/repository/accounting_repository_reports_close.go (97-98,162-163); internal/config/config.go (104-105)
-- **依存関係**: 前提=DSN TimeZone=Asia/Tokyo 固定(config.go:104)。この前提が崩れる変更とは排他
-- **ステータス**: ✅ **CLOSED** — monthly.go 2箇所(税率別集計・会計件数)、close.go 2箇所(個別会計一覧CTE・税率別集計)を `completed_at AT TIME ZONE 'Asia/Tokyo' >= ?/< ?` から CTE本体と同型の `completed_at >= ?/< ?` に統一。close.go の書き換え2箇所は既存 cArgs と同様に `.In(time.Local)` を揃えた。等価性は temp-revert 方式ではなく pre/post 比較で実証: 変更前に `TestAccountingRepository_GetMonthlyReport_*`(BillingCount/TaxBreakdown 具体値アサート込み)・`TestAccountingRepository_GetCloseAggregate_*`(BillingDetails/TaxBreakdown 具体値アサート込み)全11本が GREEN であることを確認 → 述語変更 → 同一テスト群が同一アサートのまま再度全PASS(結果不変を実証)。TO_CHAR(...AT TIME ZONE...) による日付文字列 GROUP BY 出力(monthly.go:40,61,92)はフィルタ述語ではなくフォーマット用途のため対象外・無変更。go vet / gofmt 差分なし。コミット `904b0bc2`
-
-**証拠(現HEAD検証済み)**
-
-accounting_repository_reports_monthly.go:154-155 `Where("billings.completed_at AT TIME ZONE 'Asia/Tokyo' >= ?", start).\n\t\tWhere("billings.completed_at AT TIME ZONE 'Asia/Tokyo' < ?", end).`(税率別集計)と :177-178(会計件数Count)、accounting_repository_reports_close.go:97-98(個別会計一覧CTE)・:162-163(税率別集計)が completed_at 列に式を適用。一方、同じ関数の期間本体は monthly.go:26-27 / close.go:23-24 で `AND completed_at >= ?\n\t\t  AND completed_at < ?` と直接比較。001_init.sql:2364-2367 `-- PERF-01: 月次レポート・締め集計最適化\nCREATE INDEX idx_billings_clinic_completed_at\n  ON billings(clinic_id, completed_at)\n  WHERE deleted_at IS NULL AND status = 'completed';` — 式適用側はこの complete_at レンジスキャンを使えず、clinic の全 completed 会計を履歴比例でスキャンする。セッションTZは config.go:104-105 `"host=%s port=%s user=%s password=%s dbname=%s sslmode=%s TimeZone=%s", ... JapanTimeZone`(=Asia/Tokyo, timezone.go:9)で固定。
-
-**問題**
-
-月次レポート・締めプレビュー/確定は毎日の運用経路。会計履歴が積み上がるほど式適用側4クエリだけ線形劣化する。さらに同一集計内で期間述語が2形式混在しており、集計本体(payment/category/refund)と明細/税率で「同じ期間」の判定方法が異なるのは保守上も危うい(現構成では DSN TimeZone=Asia/Tokyo 固定のため両者は同値)。
-
-**実装手順**
-
-(1) まず既存テスト(accounting_repository_reports_monthly_test.go / reports_close 系)に「AT TIME ZONE 形式と直接比較形式で件数・合計が一致する」assert を追加して現挙動を固定。(2) 4箇所を CTE と同じ `completed_at >= ? AND completed_at < ?` に書き換え(monthly は start/end、close は input.PeriodStart/PeriodEnd をそのまま渡す。close.go:19 の cArgs と同様に .In(time.Local) を揃える)。(3) 挙動保存の根拠: セッション TimeZone=Asia/Tokyo が DSN で固定されているため timestamptz 直接比較と AT TIME ZONE 'Asia/Tokyo' 経由比較は同一瞬間を指す — この前提を書き換え箇所のコメントに明記する。テスト先行(temp-revert RED方式)で等価性を実証してから述語を統一すること。
-
-**検証コマンド(スコープ限定)**
-```
-docker compose exec backend go test ./internal/repository/ -run 'TestGetMonthlyReport|TestGetCloseAggregate|TestAccountingRepository_Reports' -count=1
-```
-
-### G7-4. checkups(clinic_id,date)/(clinic_id,next_date)・vaccinations(clinic_id,date) の複合インデックス欠落 — 日付レンジ一覧/期限アラートの主要WHERE句と不整合 — **CLOSED（2026-07-09）**
-
-- **ID**: `checkups-vaccinations-missing-composite-index`
-- **重要度**: P3 / **工数目安**: S / **挙動変更**: なし（挙動保存）
-- **対象ファイル**: internal/repository/checkup_repository.go (44-70,107-124); internal/repository/vaccination_repository.go (35-70); migrations/001_init.sql (2258-2264,2400)
-- **ステータス**: ✅ **CLOSED** — 新規migration `migrations/002_add_checkup_vaccination_indexes.sql` で3本追加: `idx_checkups_clinic_date`(clinic_id,date)・`idx_checkups_clinic_next_date`(clinic_id,next_date, next_date IS NOT NULL)・`idx_vaccinations_clinic_date`(clinic_id,date)。3本とも既存 idx_billings_clinic_date 等と同じ partial index(`WHERE deleted_at IS NULL`)流儀。001_init.sql は適用済みのため追記せず新規ファイルで追加(checksum mismatch回避、migrations/CLAUDE.md準拠)。checkup_repository.go/vaccination_repository.go のクエリ形状は既に clinic_id+date/next_date で正しく、インデックスのみが欠落していたためリポジトリコード変更なし。既存単列 idx_checkups_clinic_id/idx_vaccinations_clinic_id は複合の prefix に包含されるため DROP 候補だが、EXPLAIN確認後の別コミットに先送り(本コミットは追加のみ)。`docker compose exec backend go test ./internal/repository/ -run 'TestCheckupRepository|TestVaccinationRepository' -count=1` PASS。CASCADE lint(`TestMigrationCascadeInventory_NoUnreviewedCascade`/`TestReconcileMigrationCascade_Analyzer`)PASS(CASCADE定義なし)。STG適用はdb_reset不要(新規migration追加のみ)。コミット `dd3f31b8`
-- **依存関係**: STGは新規migration適用のみ(db_reset不要)。checkup-list-unbounded の是正と独立だが同時に入れると効果測定しやすい
-
-**証拠(現HEAD検証済み)**
-
-checkup_repository.go:53-65 は clinicScope + `q.Where("date >= ?", ...)` / `q.Where("next_date >= ?", ...)` + `Order("date DESC")`、:116-118 FindAlerts は `Where("next_date IS NOT NULL").\n\t\tWhere("next_date <= ?", upperBound).\n\t\tOrder("next_date ASC")`。vaccination_repository.go:45-50 は `q.Where("vaccinations.date >= ?", ...)` + :65 `Order("vaccinations.date DESC...")`。対して 001_init.sql の該当インデックスは :2400 `CREATE INDEX idx_checkups_clinic_id ON checkups(clinic_id);` :2262-2264(medical_record_id/pet_id/checkup_type_id 単列) :2258 `CREATE INDEX idx_vaccinations_clinic_id ON vaccinations(clinic_id);` のみで、clinic_id+date 複合が無い。同型の一覧クエリを持つ medical_records(:2330 idx_medical_records_clinic_date)・billings(:2352 idx_billings_clinic_date)・appointments(:2317 idx_appointments_clinic_date)には複合が既設で、checkups/vaccinations だけ欠けている。
-
-**問題**
-
-健診一覧(日付/次回日フィルタ)・期限アラート・ワクチン接種歴一覧はレコードが診療とともに単調増加するテーブルへの日付レンジ+ソートクエリ。単列 clinic_id インデックスでは クリニック全行フェッチ+ソートになり履歴比例で劣化する。既存スキーマの設計意図(主要トランザクションテーブルは clinic+date 複合)とも不整合。
-
-**実装手順**
-
-新規マイグレーションファイル(002_add_checkup_vaccination_indexes.sql — 適用済み001への追記は checksum mismatch のため禁止、migrations/CLAUDE.md 準拠)で3本追加: `CREATE INDEX idx_checkups_clinic_date ON checkups(clinic_id, date) WHERE deleted_at IS NULL;` / `CREATE INDEX idx_checkups_clinic_next_date ON checkups(clinic_id, next_date) WHERE deleted_at IS NULL AND next_date IS NOT NULL;` / `CREATE INDEX idx_vaccinations_clinic_date ON vaccinations(clinic_id, date) WHERE deleted_at IS NULL;`(partial 条件は既存 idx_billings_clinic_date 等の流儀に合わせる)。既存単列 idx_checkups_clinic_id / idx_vaccinations_clinic_id は複合が prefix を包含するため DROP 候補だが、削除は EXPLAIN での利用確認後に別コミットで行う(まず追加のみ)。CASCADE lint / migration CI(R3-1)の通過を確認。
-
-**検証コマンド(スコープ限定)**
-```
-docker compose exec backend go test ./internal/repository/ -run 'TestCheckupRepository|TestVaccinationRepository' -count=1
-```
-
-### G7-5. BulkAddOwnerTag が既存バッチAPI FindByIDs を使わず per-owner FindByID ループ(PERF-04コメントと実装が乖離) — **CLOSED（2026-07-09）**
-
-- **ID**: `bulk-add-tag-findbyids-unused`
-- **重要度**: P3 / **工数目安**: S / **挙動変更**: なし（挙動保存）
-- **対象ファイル**: internal/service/lstep_tag_service.go (302-313); internal/repository/owner_repository.go (42-44)
-- **依存関係**: なし
-- **ステータス**: ✅ **CLOSED** — ループを `s.ownerRepo.FindByIDs(ctx, clinicID, ownerIDs)` に置換し map[uint64]*model.Owner を構築。取得できなかったID(要求−取得の集合差)は ownerIDs 順に走査して従来と同じ順序で FailedOwnerIDs へ追加。エッジケース(FindByIDs 自体が失敗)も挙動保存: 旧 per-owner ループは NotFound/DBエラーを区別せず当該 owner を FailedOwnerIDs に積み処理継続していたため、FindByIDs 失敗時も早期returnせずログのみで続行し全 ownerIDs を FailedOwnerIDs に積む(新規テスト `TestBulkAddOwnerTag_FindByIDsError` で固定)。PERF-04コメントを実装に一致させた。`docker compose exec backend go test ./internal/service/ -run TestBulkAddOwnerTag -count=1` 全PASS(既存 MixedResults はモックフック `findByIDFn`→`findByIDsFn` に追随)。go vet / gofmt 差分なし。コミット `93867fcc`
-
-**証拠(現HEAD検証済み)**
-
-lstep_tag_service.go:302-306 `// PERF-04: Cache owners in memory to avoid N+1 queries (1 per owner → 1 total)\n\t// Build owner map: fetch all owners upfront\n\townerMap := make(map[uint64]*model.Owner)\n\tfor _, ownerID := range ownerIDs {\n\t\towner, findErr := s.ownerRepo.FindByID(ctx, clinicID, ownerID)` — コメントは「1 total」を謳うが実装は ownerIDs 1件につき1クエリのまま。owner_repository.go:42-44 には `// FindByIDs は複数 ID でオーナーを一括取得する（タグ一括同期の N+1 解消用）。\n\t// Preload なしの軽量クエリ。` と、まさにこの用途向けのバッチAPIが既存だが本メソッドでは未使用。
-
-**問題**
-
-N+1が実在する上に、PERF-04コメントが「解消済み」と誤認させる負債(過去監査の「grep額面信用禁止」教訓の実例)。もっとも本経路は owner ごとの外部 Lstep API 呼び出し(:328 client.AddTag)が支配的なため実効インパクトは小さい — 主目的はコメントと実装の整合回復。
-
-**実装手順**
-
-(1) ループを `owners, err := s.ownerRepo.FindByIDs(ctx, clinicID, ownerIDs)` に置換し map[uint64]*model.Owner を構築。(2) 取得できなかったID(要求 - 取得の集合差)を従来どおり slog + result.FailedOwnerIDs へ追加して挙動保存(現状 :307-311 の per-owner NotFound 処理と同結果)。順序依存に注意: FailedOwnerIDs への追加順が ownerIDs 順になるよう集合差判定は ownerIDs を走査して行う。(3) PERF-04 コメントを実装に一致させる。
-
-**検証コマンド(スコープ限定)**
-```
-docker compose exec backend go test ./internal/service/ -run TestBulkAddOwnerTag -count=1
-```
-
-
-## G8. Go設計イディオム (ジェネリクス・定数集約)
-
-### G8-1. マスタ系 repository の FindByID/Update/Delete がトークン同一のまま24〜31ファイルに複製 — Go 1.25 ジェネリクスで helpers.go に畳める — **CLOSED（2026-07-10）**
-
-- **ID**: `repo-master-crud-generic-fold`
-- **重要度**: P2 / **工数目安**: L / **挙動変更**: なし（挙動保存）
-- **ステータス**: ✅ **CLOSED** — Update/Delete は G3-3 で既に `updateScopedByID`/`deleteScopedByID` に委譲済み（本チケットでは再実装せず）。残スコープの FindByID インライン畳み込みを `findByIDScoped[T]` ジェネリクスヘルパー新設で実施。Preload 付き FindByID（P3.1 契約）・dbOrTx 参加 repo は対象外として除外。対象18ファイル（diagnosis_repository.go は diagnosisNameRepository のみ、diagnosisTypeRepository は Preload のため除外）を2 batch に分割: cage/checkup_type/chief_complaint/consultation/diagnosis_name/hospitalization_plan/inquiry_template/insurance/inventory_item（コミット `0fe8fe78`）、medicine/merchandise_item/occupation/procedure/reservation_type_group/reservation_type_liff/trimming_course/trimming_option/vaccine（コミット `d09cfa4c`）。`TestFindByIDScoped`（成功/NotFound/クロステナント）新設、interface シグネチャ・mock・service層は無変更。`docker compose exec backend go test ./internal/repository/ -count=1` 両batch後 ok、`go vet ./...` 両batch後 exit 0。
-- **対象ファイル**: internal/repository/vaccine_repository.go (43-82); internal/repository/medicine_repository.go (121-129); internal/repository/procedure_repository.go (69-77); internal/repository/cage_repository.go (72-80); internal/repository/insurance_repository.go (70-78); internal/repository/helpers.go (14-32)
-- **依存関係**: なし。既存 preload lint / master-fk write lint は Preload・service シグネチャ非変更のため影響なし
-
-**証拠(現HEAD検証済み)**
-
-Delete はモデル型とリソース名文字列以外バイト同一。vaccine_repository.go:73-82:
-```go
-func (r *vaccineRepository) Delete(ctx context.Context, clinicID, id uint64) error {
-	result := r.db.WithContext(ctx).Scopes(clinicScope(clinicID)).Where("id = ?", id).Delete(&model.Vaccine{})
-	if result.Error != nil {
-		return apperrors.FromGORM(result.Error, "vaccine", fmt.Sprintf("%d", id))
-	}
-	if result.RowsAffected == 0 {
-		return apperrors.WrapNotFound("vaccine", fmt.Sprintf("%d", id))
-	}
-	return nil
-}
-```
-medicine_repository.go:122 / procedure_repository.go:70 / cage_repository.go:73 / insurance_repository.go:71 も `result := r.db.WithContext(ctx).Scopes(clinicScope(clinicID)).Where("id = ?", id).Delete(&model.Xxx{})` で完全同型。定量: この Delete 完全一致が24ファイル、`Scopes(clinicScope(clinicID)).Where("id = ?", id)` を含むファイル35、Update 末尾の `return r.FindByID(ctx, clinicID, id)` パターンが31箇所。既に helpers.go:14 `func reorderByClinicID(ctx context.Context, db *gorm.DB, model any, resource string, clinicID uint64, ids []uint64) error` が「リソース名文字列を渡す共有ヘルパー」の先例を確立済み。
-
-**問題**
-
-P4（Update/Delete への clinicScope 必須）は read-Preload lint と違い静的機械強制が無く、レビュー・runtime isolation test 頼み。24〜31個の手書きコピーは新規マスタ追加のたびに clinicScope / RowsAffected==0→WrapNotFound / FromGORM の3点セットを手で再現させる構造で、1点でも落とすとクロステナント更新/削除（過去に実バグ化したクラス）に直結する。重複量も実測で約 500-700 行。
-
-**実装手順**
-
-挙動保存。手順: (1) internal/repository/helpers.go（または新規 internal/repository/crud_helpers.go）に reorderByClinicID と同スタイルのジェネリクスヘルパーを追加:
-```go
-func findByIDScoped[T any](db *gorm.DB, resource string, clinicID, id uint64) (*T, error)
-func updateScopedFields[T any](db *gorm.DB, resource string, clinicID, id uint64, fields map[string]any) error // RowsAffected==0 → WrapNotFound
-func deleteScoped[T any](db *gorm.DB, resource string, clinicID, id uint64) error
-```
-第1引数は呼び出し側が `r.db.WithContext(ctx)` を渡す（dbOrTx を使う repo はそれを渡す）— 各 repo の現在の db ハンドル選択を変えないことで挙動保存を担保。(2) Delete バイト同一の24ファイルから機械的に置換開始（vaccine/medicine/procedure/cage/insurance/consultation 等のマスタ系）。(3) Update は「Updates(fields)→RowsAffected==0→WrapNotFound→FindByID再取得」の31箇所のうち、FindByID に Preload や追加ロジックが無いものだけ `updateScopedFields` + 既存 `r.FindByID` 呼び出しの2行に畳む。差分のある repo（Preload付きFindByID・soft delete特殊処理・JOINスコープ repo）は対象外とし、無理に一般化しない。(4) per-repo interface（P16命名・mock seam）とメソッドシグネチャは一切変更しない — 畳むのはメソッド本体のみ。よって service 層・mock・テストは無変更。(5) 1バッチ=5〜10 repo 単位でコミットし、都度 repository パッケージのテストで検証。
-
-**検証コマンド(スコープ限定)**
-```
-docker compose exec backend go test ./internal/repository/ -count=1
-```
-
-### G8-2. JST タイムゾーンの導出が4方式×8箇所に分裂（time.FixedZone("Asia/Tokyo", 9*60*60) マジックオフセット6箇所 + LoadLocation 2箇所 + config.ConfigureTimeZone） — **CLOSED（2026-07-10）**
-
-- **ID**: `jst-location-derivation-scatter`
-- **重要度**: P3 / **工数目安**: S / **挙動変更**: なし（挙動保存）
-- **ステータス**: ✅ **CLOSED** — `config.JST` を新設し8サイトの再導出（accounting_report_service.go / accounting_report_request.go / lstep_delivery_monitor_request.go / lstep_batch_delivery.go / accounting_service_reports.go×2 / reservation_type_occupation_repository.go / available_dates.go）を置換。コミット `ecaac5ec`（Session 3 以前に実装済み、本 Epic では DOC-G8 としてクローズ記録のみ）。`cmd/api/main.go:199,222` の FixedZone 残存は G9-3 スコープへ引き継ぎ。
-- **対象ファイル**: internal/config/timezone.go (9-18); internal/service/accounting_report_service.go (18); internal/service/accounting_service_reports.go (19, 122); internal/service/lstep_batch_delivery.go (45); internal/handler/accounting_report_request.go (11); internal/handler/lstep_delivery_monitor_request.go (81); internal/repository/reservation_type_occupation_repository.go (16-23); internal/service/available_dates.go (215-224)
-- **依存関係**: なし
-
-**証拠(現HEAD検証済み)**
-
-正本は config/timezone.go:9-16:
-```go
-const JapanTimeZone = "Asia/Tokyo"
-
-func ConfigureTimeZone() error {
-	loc, err := time.LoadLocation(JapanTimeZone)
-	...
-	time.Local = loc
-```
-（cmd/api/main.go:37 ほか全6 cmd が起動時に呼ぶ = time.Local は常に JST）にもかかわらず、accounting_report_service.go:18 `var jst = time.FixedZone("Asia/Tokyo", 9*60*60)`、accounting_report_request.go:11 `var monthlyReportJST = time.FixedZone("Asia/Tokyo", 9*60*60)`、lstep_delivery_monitor_request.go:81 / lstep_batch_delivery.go:45 / accounting_service_reports.go:19,122 の関数ローカル `jst := time.FixedZone("Asia/Tokyo", 9*60*60)`、reservation_type_occupation_repository.go:17-22 `var jstLoc = func() *time.Location { loc, err := time.LoadLocation("Asia/Tokyo"); if err != nil { panic(...) }; return loc }()`、available_dates.go:218-224 `var jstLocation = func() *time.Location { loc, err := time.LoadLocation("Asia/Tokyo"); if err != nil { return time.FixedZone("JST", 9*60*60) }; return loc }()` — 同一概念が var/ローカル/即時関数、panic/フォールバック/エラー不能と、命名も失敗時挙動もバラバラに8回再導出されている。
-
-**問題**
-
-マジックナンバー 9*60*60 が6箇所に散在し、失敗時セマンティクスが3種（panic / silent fallback / 失敗不能）に割れている。tzdata は config/timezone.go:6 で埋め込み済み（`_ "time/tzdata"`）なので LoadLocation 失敗ケースの防御コードは全て到達不能なのに各所で別々に書かれている。将来「JSTを参照する処理」を触るたびにどの導出を真似るべきか判断が必要になる。
-
-**実装手順**
-
-挙動保存（JST は DST 無しのため FixedZone(+9h) と LoadLocation("Asia/Tokyo") は wall-clock 完全同値。ただし置換前に各サイトの Format verb に zone略称 "MST" が無いことを確認する — 現状 "2006-01-02" 系と RFC3339("Z07:00"→+09:00) のみで略称出力なし）。手順: (1) config/timezone.go に `var JST = func() *time.Location { ... }()`（LoadLocation + tzdata埋め込み済みなので失敗時 panic で早期発見）をエクスポート。(2) 上記8サイトの再導出を `config.JST` 参照に置換し、ローカル var jst / jstLoc / jstLocation / monthlyReportJST を削除。(3) handler/service/repository → config の import 方向は既存（config.BcryptCost 等で service が config を import 済み）なので循環なし。影響範囲: 上記7ファイルのみ。
-
-**検証コマンド(スコープ限定)**
-```
-docker compose exec backend go test ./internal/service/ -run 'TestAccountingReport|TestLstep|TestAvailableDates' -count=1
-```
-
-### G8-3. 日付レイアウト "2006-01-02" が非テストコード259箇所にリテラル散在し、同値の file-local 定数3種 + time.DateOnly 2箇所と表記が分裂 — **CLOSED（2026-07-10）**
-
-- **ID**: `date-layout-literal-scatter`
-- **重要度**: P3 / **工数目安**: M / **挙動変更**: なし（挙動保存）
-- **ステータス**: ✅ **CLOSED** — handler → service → repository の3コミットで `time.DateOnly`/`time.RFC3339` へ統一。コミット `2d5c180d`（handler）/ `9bae5e8a`（service）/ `bcc34d5d`（repository）。3 file-local 定数（shiftDateLayout/chronicConditionDateLayout/cashRegisterDateLayout）削除済み。本 Epic では DOC-G8 としてクローズ記録のみ。
-- **対象ファイル**: internal/handler/shift_request.go (11); internal/handler/chronic_condition_request.go (10); internal/handler/cash_register_request.go (11); internal/service/lab_report_query_service.go (91, 129); internal/handler/shift_response.go (60-61)
-- **依存関係**: jst-location-derivation-scatter と同一ファイルに触れるため同時期に実施すると conflict が減る（順序任意）
-
-**証拠(現HEAD検証済み)**
-
-同一レイアウトが3表記に分裂: (a) リテラル259箇所・79ファイル（例 handler/lstep_delivery_monitor_request.go:82 `defaultDate := now.In(jst).Format("2006-01-02")`）。(b) file-local 定数の再宣言3種 — shift_request.go:11 `const shiftDateLayout = "2006-01-02"`、chronic_condition_request.go:10 `const chronicConditionDateLayout = "2006-01-02"`、cash_register_request.go:11 `const cashRegisterDateLayout = "2006-01-02"`。(c) stdlib 定数はわずか2箇所 — lab_report_query_service.go:91 `Date: e.Date.Format(time.DateOnly),`。付随して shift_response.go:60-61 は RFC3339 をリテラル再表記: `CreatedAt: s.CreatedAt.In(time.Local).Format("2006-01-02T15:04:05Z07:00"),`（= time.RFC3339 と同値）。
-
-**問題**
-
-Go 1.20+ の time.DateOnly（値は "2006-01-02" と完全一致）が存在するのに、同値文字列が259回タイプされ、3ファイルは同値定数を別名で再発明している。レイアウト文字列は typo しても compile も lint も通らず実行時に壊れるクラスで、canonical 表記1つに寄せることが typo-drift の構造的防止になる。時刻フォーマットは apicontract の date-format drift gate の監視対象でもあり、表記統一は同 gate の可読性にも寄与する。
-
-**実装手順**
-
-挙動保存（time.DateOnly == "2006-01-02"、time.RFC3339 == "2006-01-02T15:04:05Z07:00" の同値置換）。手順: (1) 機械置換: `Format("2006-01-02")` / `Parse("2006-01-02", ...)` / `ParseInLocation("2006-01-02", ...)` の "2006-01-02" を time.DateOnly に、shift_response.go:60-61 の RFC3339 リテラルを time.RFC3339 に置換（sed 後に目視レビュー。"2006-01-02 15:04:05" 等の複合レイアウトは対象外として残す）。(2) shiftDateLayout / chronicConditionDateLayout / cashRegisterDateLayout の3定数を削除し参照を time.DateOnly へ。(3) time 未import のファイルは goimports で解決。(4) パッケージ単位（handler → service → repository）で3コミットに分割。(5) 完了判定: `grep -rn '"2006-01-02"' backend/internal --include='*.go' | grep -v _test` が複合レイアウト以外 0 件。テストファイル内の同リテラルは任意（本計画のスコープ外で可）。
-
-**検証コマンド(スコープ限定)**
-```
-docker compose exec backend go test ./internal/handler/ -count=1 && docker compose exec backend go test ./internal/service/ -count=1
 ```
 
 
@@ -968,258 +366,8 @@ MedicalRecord/Checkup/LstepSettings/LstepTagSync/LstepLifecycle/LstepTag が New
 docker compose exec backend go test ./internal/service/... -count=1
 ```
 
-### G9-2. 環境変数読取がconfig.Load外に分散（STORAGE_TYPE/S3_BUCKET/S3_REGION/TRUSTED_PROXY_CIDR/LOG_LEVEL/CORS_ALLOWED_ORIGIN）し、S3系の起動時検証に漏れがある — **CLOSED（2026-07-10）**
-
-- **ID**: `env-config-consolidation`
-- **重要度**: P3 / **工数目安**: S / **挙動変更**: なし（挙動保存）
-- **ステータス**: ✅ **CLOSED** — コミット `c903ab3b`。Config に6フィールド追加、TRUSTED_PROXY_CIDR(release必須)とSTORAGE_TYPE=s3時のS3_BUCKET/S3_REGION必須検証をValidate()へ移設（fail-fast結果は同一、発火タイミングが早まるのみ）。middleware.CORS()はallowedOriginを引数化。S3SharedBucket検証追加は挙動変更のためスコープ外のまま維持。
-- **対象ファイル**: cmd/api/main.go (27,51-56,131,171-177,269); internal/middleware/cors.go (13-18); internal/config/config.go (47-100)
-
-**証拠(現HEAD検証済み)**
-
-cmd/api/main.go:171-177:
-	if os.Getenv("STORAGE_TYPE") == "s3" {
-		s3Bucket := os.Getenv("S3_BUCKET")
-		s3Region := os.Getenv("S3_REGION")
-		if s3Bucket == "" || s3Region == "" {
-			logger.Error("S3_BUCKET and S3_REGION are required when STORAGE_TYPE=s3")
-			os.Exit(1)
-
-cmd/api/main.go:132: s3fs, err := infra.NewS3FileStorage(context.Background(), cfg.S3SharedBucket, cfg.S3SharedRegion, cfg.S3Endpoint)
-（cfg.S3SharedBucket が空でも Validate/この分岐は通過し、最初のアップロードまで検出されない）
-
-internal/middleware/cors.go:14: allowedOrigin := os.Getenv("CORS_ALLOWED_ORIGIN")
-cmd/api/main.go:52: if os.Getenv("TRUSTED_PROXY_CIDR") == "" {
-
-**問題**
-
-config.Load/Validate が設定の単一窓口である設計（config.go）に対し、6変数が main.go/cors.go/liff_auth.go で直接 os.Getenv され、必須性検証（TRUSTED_PROXY_CIDR release必須、S3_BUCKET/S3_REGION の STORAGE_TYPE=s3 時必須）が main.go に分散している。また STORAGE_TYPE=s3 のとき S3_SHARED_BUCKET（shared_files用）は未検証で、空のまま S3 クライアントが生成され実行時初回アップロードまで失敗が遅延する。
-
-**実装手順**
-
-手順: (1) Config に StorageType/S3Bucket/S3Region/TrustedProxyCIDR/LogLevel/CORSAllowedOrigin フィールドを追加し Load で読取。(2) main.go:52-56（TRUSTED_PROXY_CIDR release検証）と main.go:174-177（S3_BUCKET/S3_REGION検証）を Validate 内へ移設（検証内容・失敗時exitは同一のため挙動保存）。(3) middleware.CORS() を CORS(allowedOrigins string) に変更し main.go から cfg 値を注入（デフォルト値ロジックは Load 側へ移動）。liff_auth.go:52 の LIFF_MOCK は release ガード付きで現状維持可。(4) config_validate_test.go にケース追加。任意の追加（挙動変更のため別判断）: StorageType=="s3" 時の S3SharedBucket 非空検証を Validate に追加すると起動時 fail-fast になる。
-
-**検証コマンド(スコープ限定)**
-```
-docker compose exec backend go test ./internal/config/ ./internal/middleware/ -count=1
-```
-
-### G9-3. main.goの3バッチgoroutineがタイマーループをコピペ重複し、JST取得イディオムも3様（FixedZone×2 / 素のtime.Now×1） — **CLOSED（2026-07-10）**
-
-- **ID**: `batch-scheduler-dedup-tz`
-- **重要度**: P3 / **工数目安**: S / **挙動変更**: なし（挙動保存）
-- **ステータス**: ✅ **CLOSED** — コミット `72d64ae7`。`cmd/api/batch_scheduler.go` に `runScheduled`/`hourlyTick`/`dailyAt2AM` を抽出、3 goroutine を呼び出し3行へ置換。JST は `time.Local`（ConfigureTimeZone 済み）に統一、`FixedZone("Asia/Tokyo"` 残存は `backend/cmd/` で0件。`TestRunScheduled`/`TestHourlyTick`/`TestDailyAt2AM` 新設。
-- **対象ファイル**: cmd/api/main.go (197-259); internal/config/timezone.go (11-18)
-
-**証拠(現HEAD検証済み)**
-
-cmd/api/main.go:198-199:
-	go func() {
-		jst := time.FixedZone("Asia/Tokyo", 9*60*60)
-（221-222 で同一の FixedZone を再定義）
-
-main.go:244-247:
-	go func() {
-		for {
-			now := time.Now()
-			next := now.Truncate(time.Hour).Add(time.Hour)
-（3本目のみロケーション指定なし）
-
-internal/config/timezone.go:12-16:
-	loc, err := time.LoadLocation(JapanTimeZone)
-	...
-	time.Local = loc
-（main.go:37 で起動時に time.Local=Asia/Tokyo 確定済みのため FixedZone 再定義は冗長）
-
-**問題**
-
-select{ctx.Done/timer.C} + Truncate/翌日02:00計算のスケジューラループが3回コピペされ、JSTの取得方法が time.FixedZone 手書き（tzdata の Asia/Tokyo と定義が二重化）と暗黙の time.Local で揺れている。日本は現行DSTなしのため挙動差は生じないが、4本目のバッチ追加時に再びコピペされる構造。
-
-**実装手順**
-
-手順: (1) cmd/api/batch_scheduler.go を新設し、runScheduled(ctx context.Context, name string, nextFire func(time.Time) time.Time, task func(context.Context) error) を抽出（timer生成・select・エラーログ logger.Error(name+" failed", ...) を共通化。ログメッセージは既存3種の文字列を維持）。(2) nextFire 実装2種: 毎時0分 = now.Truncate(time.Hour).Add(time.Hour)、毎日02:00 = 既存 main.go:226-229 のロジックをそのまま移設。(3) JST は time.FixedZone をやめ time.Local を使用（main.go:37 の ConfigureTimeZone 成功後のみ到達するため等価。10/15/20時判定 main.go:210-211 も同様）。(4) main.go の3 goroutine を runScheduled 呼び出し3行に置換。トリガー時刻・エラー時継続の挙動は完全維持。
-
-**検証コマンド(スコープ限定)**
-```
-docker compose exec backend go vet ./cmd/api/... && docker compose exec backend go test ./internal/config/ -run TestConfigureTimeZone -count=1
-```
-
-
-## G10. cmd/・スクリプト・リポジトリ衛生
-
-### G10-1. 13.9MB のコンパイル済み migrate バイナリが git 追跡下 + ビルド成果物の ignore 網羅漏れ — **CLOSED（2026-07-10）**
-
-- **ID**: `tracked-migrate-binary`
-- **重要度**: P2 / **工数目安**: S / **挙動変更**: なし（挙動保存）
-- **ステータス**: ✅ **CLOSED** — コミット `77f1d059`。`git rm --cached backend/migrate`、4バイナリ（migrate/lstep-migrate/seed-old-db/stage-import）を backend/.gitignore に集約、backend/.dockerignore にも追加。
-- **対象ファイル**: migrate (binary (13,947,250 bytes)); .gitignore (1-3); .dockerignore (39-41)
-
-**証拠(現HEAD検証済み)**
-
-`git ls-files backend/migrate` → `backend/migrate`（追跡下）。`git cat-file -s HEAD:backend/migrate` → 13947250。`file backend/migrate` → "ELF 64-bit LSB executable, ARM aarch64 ... with debug_info, not stripped"。混入コミット: 0090d345 2026-07-06 "feat(backend): seed SQL→CSV migration & backend refactor Phase0 完了"。backend/.gitignore:1-3 は「# compiled binary (Air hot-reload output)\n/api\n/lstep-migrate」のみで /migrate が無く、ルート .gitignore も backend/seed-old-db (.gitignore:62)・backend/stage-import (.gitignore:63) はあるが backend/migrate が無い（`git check-ignore backend/migrate` exit=1）。さらに backend/.dockerignore:39-41 は「# Local build artifacts / helper files\napi\nFK_DEPENDENCY_CHECK_ROADMAP.md」のみで migrate/lstep-migrate(17MB)/seed-old-db(13MB)/stage-import(13.8MB) が全て未除外。ECS デプロイは backend/ をコンテキストにビルドする: .github/workflows/backend-deploy-ecs.yml:119-125 「docker buildx build --platform linux/amd64 -f backend/Dockerfile.production ... ./backend」+ Dockerfile.production:16 「COPY . .」。
-
-**問題**
-
-誰も参照しないローカルビルド成果物（ARM64 バイナリ。本番は amd64 をソースからビルド: Dockerfile.production:19-28）が全 clone/CI checkout に 13.9MB を恒久課金する。再ビルドの度に 13MB のバイナリ diff が git status に現れ、誤 commit を再誘発する。加えて .dockerignore 漏れにより毎デプロイのビルドコンテキスト転送と builder レイヤーに約 58MB の無関係な旧バイナリが混入する。同種バイナリ4本中2本ずつが別ファイルの ignore に分散している非対称性（backend/.gitignore vs ルート .gitignore）が今回のすり抜けの根因。
-
-**実装手順**
-
-手順: (1) `git rm --cached backend/migrate`（作業ツリーには残す）。(2) backend/.gitignore に `/migrate` `/seed-old-db` `/stage-import` を追記し、cmd/ 配下 7 ツールのバイナリ名を1ファイルに集約（ルート .gitignore:62-63 の backend/seed-old-db・backend/stage-import 行は重複になるので削除可）。(3) backend/.dockerignore の「Local build artifacts」節に `migrate` `lstep-migrate` `seed-old-db` `stage-import` を追記。(4) commit（type: chore）。注意: git 履歴からの完全除去（filter-repo）は force-push を要するため対象外 — 追跡解除のみで将来分を止める。影響範囲: ビルド/デプロイのコード経路は一切変わらない（Dockerfile.production はソースからビルド、worker exec はイメージ内 /app/migrate を使用）。
-
-**検証コマンド(スコープ限定)**
-```
-git ls-files backend/migrate | wc -l  # 0 になること && git check-ignore backend/migrate backend/seed-old-db backend/stage-import && echo ignored-ok
-```
-
-### G10-2. 未参照の backend/Dockerfile が「本番用」を自称し実際の本番構成と乖離（デプロイ footgun） — **CLOSED（2026-07-10）**
-
-- **ID**: `stale-root-dockerfile`
-- **重要度**: P2 / **工数目安**: S / **挙動変更**: なし（挙動保存）
-- **ステータス**: ✅ **CLOSED** — コミット `1746bcb4`/`788809de`。backend/Dockerfile 削除、README.md のディレクトリ構造記述を実態（Dockerfile.dev/Dockerfile.production）に修正。
-- **対象ファイル**: Dockerfile (1-23); README.md (49)
-
-**証拠(現HEAD検証済み)**
-
-backend/Dockerfile:1-10 「# 本番用 Dockerfile（マルチステージビルド）\nFROM golang:1.25-alpine AS builder\n...\nCOPY go.mod ./\nRUN go mod download && go mod tidy\n...\nRUN CGO_ENABLED=0 GOOS=linux go build -o /app/main ./cmd/api」。参照実態: compose 全ファイルは Dockerfile.dev（docker-compose.yml:28,57 / docker-compose.stage-import.yml:29 / docker-compose.seed-old-db.yml:16）、デプロイは Dockerfile.production（backend-deploy-ecs.yml:121「-f backend/Dockerfile.production」）で、backend/Dockerfile を参照する compose/CI は 0 件。乖離の実体: (a) go.sum を COPY せず `go mod tidy` をビルド内実行＝lock 無視の非再現ビルド（Dockerfile.production:12「COPY go.mod go.sum ./」と対照的）、(b) migrate バイナリと migrations/ を含まないため本番起動フロー（migrate→api）が成立しない（Dockerfile.production:25-28,52 と対照的）、(c) 非rootユーザー/HEALTHCHECK 無し。backend/README.md:49 「├── Dockerfile               # 本番用」がこの誤ラベルを文書側でも再生産している。
-
-**問題**
-
-`docker build backend/`（-f 省略時のデフォルト）はこの stale なファイルを拾う。「本番用」ラベルに従って触った作業者が、実際の本番イメージ（Dockerfile.production）と別物を検証・修正する事故経路になる。3種 Dockerfile のうち1種が完全な死に体で、乖離チェック（#195 で導入した drift check の思想）の対象面積を無駄に増やしている。
-
-**実装手順**
-
-手順: (1) `git rm backend/Dockerfile`。(2) backend/README.md:49 のディレクトリ構造記述を実態（Dockerfile.dev=開発 / Dockerfile.production=本番 ECS+Cloudflare Container）に更新。(3) リポジトリ全体を `grep -rn 'backend/Dockerfile[^.]'` で最終確認（現時点で compose/CI/docs に参照なしを確認済み。docs/tasks/closed/ 内の言及は frontend/Dockerfile のみ）。影響範囲: どのビルドパイプラインも参照していないため削除は挙動保存。代替案（残す場合）は Dockerfile.production と同内容へ整合させる必要があるが、二重管理になるだけなので削除を推奨。
-
-**検証コマンド(スコープ限定)**
-```
-grep -rn 'backend/Dockerfile[^.]' --include='*.yml' --include='*.yaml' --include='*.md' --include='*.sh' . | grep -v node_modules ; test ! -f backend/Dockerfile && echo deleted-ok
-```
-
-### G10-3. performance-tests.yml のプロファイリングは API ではなく profile.go 自身のアイドルプロセスを計測しており成果物が無意味 — **CLOSED（2026-07-10）**
-
-- **ID**: `ci-self-profiling-meaningless`
-- **重要度**: P2 / **工数目安**: S / **挙動変更**: なし（挙動保存）
-- **ステータス**: ✅ **CLOSED** — コミット `3f692a73`/`4452b854`。`profiling` job を丸ごと削除（残存ステップも profiling 専用の無意味な準備工程だったため）、scripts/profile.go 削除、summary job の needs/echo から profiling 参照除去。
-- **対象ファイル**: scripts/profile.go (12-55); ../.github/workflows/performance-tests.yml (151-216)
-
-**証拠(現HEAD検証済み)**
-
-performance-tests.yml:151-152 で「Start Docker services: docker compose up -d db backend」と backend コンテナを起動した後、performance-tests.yml:174-178 「Run memory profiling: cd backend / go run scripts/profile.go memory」をランナーホスト側で実行する。scripts/profile.go:12-31 の実装は「func MemoryProfile(filename string) error { f, err := os.Create(filename) ... runtime.GC() ... pprof.WriteHeapProfile(f) }」であり、runtime/pprof は呼び出し元プロセス自身のヒープしか書けない。CPU も同様: scripts/profile.go:46-52 「pprof.StartCPUProfile(f) ... time.Sleep(duration)」＝起動直後の CLI が10秒 sleep する間の自プロセスを計測。つまり Docker 内で稼働する API とは無関係な、起動したての `go run` プロセスのプロファイルが取れるだけ。それを performance-tests.yml:201-207 が artifact（retention-days: 30）としてアップロードし、209-215 「Analyze memory profile: go tool pprof -top backend/profile_memory.pprof」で解析まで行う。
-
-**問題**
-
-「バックエンドのメモリ/CPU/ゴルーチンをプロファイルしている」ように見える CI ステップ一式が、実際には計測値ゼロの成果物を30日保存し続けている。パフォーマンス調査時にこの artifact を信じると誤診に直結する（監視の偽陽性ならぬ『計測の偽実在』）。backend を docker compose で起動するコストも無駄になっている。
-
-**実装手順**
-
-挙動保存の最小案: (1) performance-tests.yml の 4 ステップ（Run memory profiling / Run CPU profiling / Run goroutine profiling / Print memory stats: 174-199行）と Upload profiling results / Analyze memory profile（201-216行）を削除。(2) scripts/profile.go を削除（参照はこのワークフローのみであることを確認済み）。(3) 同 job で backend 起動が他ステップ（load-test 等）に不要なら Start Docker services も削除。代替案（真のプロファイルが要る場合・別トラック）: cmd/api に GIN_MODE=debug 限定で net/http/pprof を公開し `curl :8080/debug/pprof/heap` を取得する — これは API の公開面が増える behaviorChange=true の別提案として扱うこと。影響範囲: CI のみ。アプリ実行時挙動への影響なし。
-
-**検証コマンド(スコープ限定)**
-```
-grep -rn 'profile.go' .github/workflows/ backend/ --include='*.yml' --include='*.go' | grep -v _test  # 参照残ゼロ確認。ワークフロー構文は actionlint .github/workflows/performance-tests.yml
-```
-
-### G10-4. 役目を終えた一回限りの codemod (fix_p8_wrap.py / fix_p11_slog.py) の残置 — 再実行はコンパイル破壊リスク — **CLOSED（2026-07-10）**
-
-- **ID**: `oneoff-codemod-scripts-retire`
-- **重要度**: P3 / **工数目安**: S / **挙動変更**: なし（挙動保存）
-- **ステータス**: ✅ **CLOSED** — コミット `f578dbff`。2スクリプト削除、backend/scripts/ は空になり消滅（3人目の住人 profile.go は G10-3 で先に削除済み）。
-- **対象ファイル**: scripts/fix_p11_slog.py (1-97); scripts/fix_p8_wrap.py (1-209)
-
-**証拠(現HEAD検証済み)**
-
-scripts/fix_p11_slog.py:2-9 「P11 compliance fixer: insert slog.ErrorContext before every apperrors.Wrap in service files」、scripts/fix_p8_wrap.py:3 「P8 compliance fixer: replace bare `return X, err` with apperrors.Wrap in service files」。いずれも internal/service を正規表現で一括書き換えする使い捨てスクリプト（fix_p11_slog.py:16 「SERVICE_DIR = os.path.join(os.path.dirname(__file__), "../internal/service")」）。Makefile / .github/ / backend/docs からの参照は grep で 0 件（performance-tests.yml が参照するのは profile.go のみ）。fix_p11_slog.py:69 は「slog_line = f'{indent}slog.ErrorContext(ctx, "{msg}", "error", err)'」を ctx 変数の存在確認なしに挿入するため、ctx を持たない関数に対して再実行するとコンパイル不能なコードを生成する。P8/P11 の一括是正は完了済み（現行 service 層は規約準拠、golangci-lint ゲート稼働中）。
-
-**問題**
-
-完了済み一括修正の regex-codemod が実行可能な状態で残ると、将来の作業者（または自動エージェント）が「P11 fixer がある」と誤って再実行し、機械的挿入による破壊・レビューノイズを生む。git 履歴に完全な形で残るため、リポジトリに置き続ける保守上の利得はない。削除して困る運用シナリオ: 同種の一括是正を再度行う場合だが、その際は当時のコード状態に合わせて書き直しが必要であり、履歴からの復元（`git log --follow -- backend/scripts/fix_p11_slog.py`）で十分。
-
-**実装手順**
-
-手順: (1) `git rm backend/scripts/fix_p8_wrap.py backend/scripts/fix_p11_slog.py`。(2) commit message に「一括是正完了済み・履歴参照で復元可」と復元手順（対象コミットハッシュ）を明記。scripts/profile.go は finding ci-self-profiling-meaningless 側で処理するため、両方実施後 backend/scripts/ は空になる → ディレクトリごと削除。影響範囲: どこからも参照されていないため削除は挙動保存。
-
-**検証コマンド(スコープ限定)**
-```
-grep -rn 'fix_p8\|fix_p11' . --include='*.yml' --include='*.md' --include='Makefile' | grep -v node_modules | grep -v docs/archive  # 参照残ゼロ確認
-```
-
-### G10-5. DB 接続 DSN 構築・env 読取・localHosts 安全ガードが cmd 4 ツールに重複しガード内容がドリフト済み — **CLOSED（2026-07-10）**
-
-- **ID**: `cmd-dsn-localhosts-duplication`
-- **重要度**: P3 / **工数目安**: M / **挙動変更**: なし（挙動保存）
-- **ステータス**: ✅ **CLOSED** — コミット `cc2bec85`。internal/dbconn 新設（ConnParams/FromEnv/DSN/IsLocalHost/EnvOr）、4ツール（migrate/seed-export/stage-import/seed-old-db）を委譲に置換。localHosts は stage-import の5要素superset（::1/[::1]含む）に統一。DSN文字列出力はdsn_test.goの期待値（アサーション値）変更ゼロで確認。quoteLiteral/pqLiteral 統合は計画通りスコープ外のまま。
-- **対象ファイル**: cmd/migrate/main.go (45-74); cmd/seed-export/main.go (44-50, 119-148); cmd/stage-import/main.go (61-67, 213-275, 297-299); cmd/seed-old-db/main.go (30-35, 130-146, 181)
-
-**証拠(現HEAD検証済み)**
-
-同一 DSN フォーマット文字列が4箇所: cmd/migrate/main.go:71-74 「connStr := fmt.Sprintf(\n\t\t"host=%s port=%s user=%s password=%s dbname=%s sslmode=%s TimeZone=%s",\n\t\tdbHost, dbPort, dbUser, dbPassword, dbName, sslMode, config.JapanTimeZone,\n\t)」、cmd/seed-export/main.go:143-148 (connParams.dsn)、cmd/stage-import/main.go:217-222 (dsn.connString)、cmd/seed-old-db/main.go:181。env 読取＋デフォルト（port 5432 / sslmode disable）も各所で再実装（migrate:60-68, seed-export:123-141 readConnParams, stage-import:231-247 targetDSN+envOr, seed-old-db:130-143）。localHosts ガードは3実装でドリフト済み: cmd/seed-old-db/main.go:31-35 と cmd/seed-export/main.go:46-50 は「"db": true, "localhost": true, "127.0.0.1": true」の3要素、cmd/stage-import/main.go:61-67 のみ「"::1": true, "[::1]": true」を追加した5要素（コメント: "Includes IPv6 loopback forms in case localhost resolves to ::1"）。さらに SQL リテラルエスケープが cmd/migrate/csvbundle.go:158-160 quoteLiteral と cmd/stage-import/main.go:297-299 pqLiteral で同一実装。
-
-**問題**
-
-接続パラメータ仕様（TimeZone 付与・デフォルト値・必須変数）と安全ガード（非ローカル DB 拒否 = 本番誤爆防止の要）が4ツールにコピペ分散しており、stage-import だけ IPv6 対応が入った実ドリフトが既に発生している。localhost が ::1 に解決される環境では seed-old-db / seed-export のガードが false negative で拒否する（安全側だが、修正が3箇所必要になる構造が負債）。次に DSN 仕様が変わる時（例: sslrootcert 追加）に修正漏れが起きる。
-
-**実装手順**
-
-手順: (1) 新規パッケージ internal/dbconn を作成: `type ConnParams struct{ Host, Port, User, Password, SSLMode string }`、`FromEnv() (ConnParams, error)`（必須 = DB_HOST/DB_USER/DB_PASSWORD、デフォルト = port 5432 / sslmode disable）、`func (c ConnParams) DSN(dbname string) string`（TimeZone=config.JapanTimeZone 固定）、`func IsLocalHost(host string) bool`（stage-import の5要素 superset を正とする — ::1 は loopback の別表記でありガード意味論は等価）。(2) 4ツールを順に置換: seed-export（connParams/readConnParams/localHosts 削除）→ stage-import（dsn.connString の host/port/user/password/sslMode 部と localHosts/envOr を置換。connStringReadOnly の " default_transaction_read_only=on" 付加と DB_NAME 必須チェックはツール側に残す）→ seed-old-db → migrate（DB_NAME 必須チェックはツール側に残す）。(3) quoteLiteral/pqLiteral は2箇所・各3行のため統合は任意（統合するなら internal/dbconn ではなく各ツール残置を推奨 — cmd/migrate は本番バイナリ、stage-import は dev 専用で依存を増やさない）。(4) 各ツールの既存テスト（stage-import/dsn_test.go 等）を新パッケージに追随させ、dbconn 自体に FromEnv/DSN/IsLocalHost の table-driven テストを追加。影響範囲: cmd 4ツール + 新規1パッケージ。DSN 文字列出力はバイト単位で不変であること（既存 dsn_test.go の期待値変更ゼロ）を完了条件とする。
-
-**検証コマンド(スコープ限定)**
-```
-docker compose exec backend go test ./cmd/stage-import/... ./cmd/seed-old-db/... ./cmd/migrate/... ./internal/dbconn/... -count=1
-```
-
-### G10-6. worker/migrate-exec.ts は「unit test 容易性のため分離」と明記されながらテストが 0 本（STG 稼働中の migrate 認証ゲート） — **CLOSED（2026-07-10）**
-
-- **ID**: `worker-migrate-auth-untested`
-- **重要度**: P3 / **工数目安**: M / **挙動変更**: なし（挙動保存）
-- **ステータス**: ✅ **CLOSED** — 実装コミット `dc4f2ed8`。migrate-exec.test.ts + vitest.config.ts/vitest.wrangler.jsonc（vitest-pool-workers 用・containers/DO を含まない最小 wrangler 設定）+ ci.yml worker job。**検証完了（2026-07-10 Session 5）**: `.claude/settings.json` の `permissions.deny` に `Bash(pnpm:*)` がハード指定されておりホスト直接実行は不可のため、repo root を `-v "$(pwd):/repo"` でマウントした一時 `docker run --rm node:22-bookworm-slim`（docker-compose.yml は変更せず、既存 frontend/backend コンテナは repo root 非マウントのため使用不可と判断）内で `corepack prepare pnpm@10.15.0 --activate && pnpm install && pnpm run test:worker` を実行しユーザー承認のもと取得。結果: `backend/worker/migrate-exec.test.ts (13 tests) 112ms` 全 green、`Test Files 1 passed (1)` `Tests 13 passed (13)`、exit 0。vitest-pool-workers が実 workerd ランタイムを起動して実行（`[vpw:info] Starting isolated runtimes`）した上でのPASSであり、mock ではない。wrangler が要求する compatibility date は `2025-10-11` にフォールバック（`2026-07-05` 未サポート、workerd 側の対応日ドリフト。テスト結果には無関係）。devDependencies の実解決バージョン: vitest 3.2.7 / @cloudflare/vitest-pool-workers 0.9.14 / wrangler 4.107.0（互換性問題なし）。
-- **対象ファイル**: worker/migrate-exec.ts (1-51); worker/index.ts (169-197)
-
-**証拠(現HEAD検証済み)**
-
-worker/migrate-exec.ts:1-4 「// P4-5(試行10): `/_internal/migrate` の認証・レスポンス整形ロジック。... ここでは Worker の fetch() から呼べる純粋関数のみを置く(unit test容易性のため分離)」— しかし backend/worker/ には index.ts と migrate-exec.ts の2ファイルのみでテストファイルが存在しない（`ls backend/worker/*.test.ts` → no matches）。この純粋関数群は本物の認証境界: migrate-exec.ts:33-40 「export function isAuthorizedMigrateRequest(request: Request, secret: string | undefined): boolean { if (!secret) { return false; } const authHeader = request.headers.get("Authorization") ?? ""; const expected = `Bearer ${secret}`; return timingSafeEqual(authHeader, expected); }」が worker/index.ts:179 で /_internal/migrate（リモート migration 実行）を守っており、この経路は既に STG 本線（.github/workflows/backend-deploy.yml:22 「WORKER_URL: https://animalekarte-stg-api.baritech-soga.workers.dev」）。ルート package.json にテストランナー未導入（scripts は harness:*/deploy:*/cf:* のみ、devDependencies は wrangler のみ）。
-
-**問題**
-
-「テストのために分離した」と自己宣言したモジュールが未テストのまま STG 稼働に入った。secret 未設定→fail-closed、長さ不一致→false、Bearer プレフィクス検証、exitCode→HTTP status 変換（0→200/非0→500）という仕様が全てコメント上の主張のみで、リグレッション検知手段がない。timingSafeEqual は Cloudflare 独自拡張 crypto.subtle.timingSafeEqual（migrate-exec.ts:13-15 のコメント参照）に依存しており、wrangler/workerd 更新での破壊も検知できない。
-
-**実装手順**
-
-手順: (1) ルート package.json devDependencies に vitest と @cloudflare/vitest-pool-workers（workerd ランタイムで crypto.subtle.timingSafeEqual 実挙動をテストするため。素の Node vitest では当該 API が存在せず偽の失敗/成功になる点に注意）を追加。(2) backend/worker/migrate-exec.test.ts を新規作成し AAA パターンで: isAuthorizedMigrateRequest — secret undefined→false / secret 空文字→false / ヘッダ欠落→false / 誤 secret→false / `Bearer <正 secret>`→true / Bearer プレフィクス無し→false、timingSafeEqual — 一致/不一致/長さ違い、toMigrateResponse — exitCode 0→status 200 / 1→500 と body JSON 構造。(3) ルート scripts に "test:worker": "vitest run backend/worker" を追加し、ci.yml の paths-filter（backend/worker/** 変更時）に組み込む。影響範囲: 新規テスト+CI 配線のみ、プロダクトコード変更なし。pnpm install が必要なため依存追加ステップはユーザー手動実行を報告すること。
-
-**検証コマンド(スコープ限定・実行済み)**
-```
-docker run --rm -v "$(pwd):/repo" -w /repo -e CI=true node:22-bookworm-slim \
-  sh -c "corepack enable && corepack prepare pnpm@10.15.0 --activate && pnpm install --frozen-lockfile=false && pnpm run test:worker"
-# => Test Files 1 passed (1) / Tests 13 passed (13) / exit 0
-```
-CI 配線（push 後の恒常的検証手段）は `.github/workflows/ci.yml` の worker job（`pnpm run test:worker`）。本チケットの検証時点では HEAD が `origin/main` から150コミット未pushのためCI実行実績はまだ無いが、doc-only の CLOSED 判定はローカル docker 実行の green で充足済み。
-
 
 ## G11. テスト負債解消 (DB実行テスト追加)
-
-### G11-1. 実効権限集約SQL FindAllEffectivePermissionsByStaffID がDB実行テストゼロ(全テストがmock) — **CLOSED（2026-07-10）**
-
-- **ID**: `test-effective-permissions-sql-untested`
-- **重要度**: P1 / **工数目安**: M / **挙動変更**: なし（挙動保存）
-- **対象ファイル**: internal/repository/permission_group_repository.go (140-173); internal/repository/permission_group_staff_clinic_isolation_test.go (44-80)
-- **ステータス**: ✅ **CLOSED** — コミット `d8c5e858`。新規 `internal/repository/permission_group_effective_permissions_test.go` に7サブテスト追加（実装手順の6件 + database-reviewer/security-reviewer 双方が独立に推奨した「同一resourceでactive/inactiveグループのルールが競合」ケースを追加）。`go test ./internal/repository/ -run TestPermissionGroupRepository_FindAllEffectivePermissions -count=1` 7/7 PASS。**RED実証済み**: `pg.is_active = true` と `pg.clinic_id = ?` 述語をそれぞれ一時的に削除→該当サブテストが確実に失敗することを確認後、元の実装に復元（`git diff` でゼロ差分確認済み）。production code（permission_group_repository.go）は未変更。go-reviewer + database-reviewer + security-reviewer の3レビューとも CRITICAL/HIGH 0（security-reviewer が production code側の別論点 H-1『`UpdateStaffGroups` の staff_id 単位 DELETE が多施設所属スタッフの他クリニックグループ紐付けを意図せず削除しうる』を発見したが、これは本チケットの対象範囲外＝挙動保存の repository *_test.go 追加のみという制約上、別チケット化してフォローアップとする）。
-
-**証拠(現HEAD検証済み)**
-
-permission_group_repository.go:143-144「// clinicID パラメータで検索範囲を制限し、マルチクリニック昇格を防止（High-7）。\nfunc (r *permissionGroupRepository) FindAllEffectivePermissionsByStaffID(ctx context.Context, staffID, clinicID uint64) ([]model.PermissionGroupRule, error)」。実体はraw SQL(同:151-166)「SELECT pgr.resource, bool_or(pgr.can_view) AS can_view, ... JOIN permission_groups pg ON pg.id = spg.group_id AND pg.deleted_at IS NULL AND pg.is_active = true AND pg.clinic_id = ? ... GROUP BY pgr.resource」。テスト参照はservice層mock定義のみ4件(service/clinic_service_test.go:101, service/permission_group_service_test.go:54, service/staff_service_permissions_test.go:45, service/staff_service_test.go:230)。repository層テストはUpdateStaffGroupsのisolationのみ(permission_group_staff_clinic_isolation_test.go:44「func TestPermissionGroupRepository_UpdateStaffGroups_ClinicIsolation」)で、本メソッドをDBで実行するテストは0件。呼び出し元はhandler/auth_me_response.go:133とhandler/clinic_handler.go:66(GetEffectivePermissions経由)で認可情報の正本。
-
-**問題**
-
-認可の実効権限を計算するSQL(bool_or合成・is_active/deleted_at除外・pg.clinic_id述語によるHigh-7マルチクリニック昇格防止)が一度もDBで実行されずCIカバレッジ0。SQLの述語1つの退行(例: is_active条件の脱落、clinic_id述語の脱落)を検出するテストが存在せず、セキュリティ上最も回帰コストが高い箇所がmock-onlyになっている。
-
-**実装手順**
-
-新規ファイル internal/repository/permission_group_effective_permissions_test.go を追加(setupTestDB + isolation_test_helpers_test.go の既存ヘルパーを流用)。検証テストを1件ずつ: (1)複数グループ所属時のbool_or合成: グループAがcan_view=false/グループBがcan_view=true → 合成結果true、can_delete両方false → false。(2)is_active=falseグループのルールが集約から除外される。(3)deleted_at IS NOT NULL(ソフトデリート済み)グループのルールが除外される。(4)クリニック隔離(High-7): staffがクリニックA/B両方のグループに所属する状態で clinicID=A 指定時にBのルールが混入しない。(5)所属グループなしstaff → 空スライス。(6)resource毎のGROUP BY: 2グループが同一resourceと別resourceを持つ場合の行数と値。既存のTestPermissionGroupRepository_UpdateStaffGroups_ClinicIsolationのfixture構築パターン(同ファイル44-80行)を踏襲する。
-
-**検証コマンド(スコープ限定)**
-```
-docker compose exec backend go test ./internal/repository/ -run TestPermissionGroupRepository_FindAllEffectivePermissions -count=1
-```
 
 ### G11-2. 会計完了→予約完了化 CompleteAccountingAppointments(JST日付境界+サブクエリUPDATE×2)がDB実行テストゼロ
 
@@ -1436,9 +584,6 @@ resolvePaymentMethodMasterID の相互整合チェックを検証する isolatio
 ```
 docker compose exec backend go test ./internal/service/ -run TestMasterFKWriteInventory -v
 ```
-
----
-
 ## Appendix A: 挙動変更を伴う項目（別トラック・PO/責任者判断を要する）
 
 以下18件は監査で実在を確認した defect だが、修正すると HTTP レスポンス・DB書込結果・権限判定・API契約のいずれかが観測可能な形で変わる。このため本計画（挙動保存リファクタ）の実行対象からは外し、個別 Issue として起票のうえ別トラックで扱うことを推奨する。severity 順に記載。
@@ -1967,7 +1112,7 @@ docker compose exec backend go test ./internal/service/ -run TestPasswordResetSe
 - cmd/seed-old-db: 存廃判定 = 当面 KEEP。cmd/stage-import/main.go:5 が「the deprecated direct old-db seeder」と明記する後継関係だが、old_db 本番データ移行が未完のため stage パイプライン不通時の TSV 直投入 fallback として運用価値が残る。本番移行完了後に docker-compose.seed-old-db.yml と併せて廃止再判定（transform.go 962行の keep 判定は維持）
 - cmd/lstep-migrate: 存廃判定 = KEEP。clinic-id 指定・dry-run・rate-limit・resume-from を備えた運用 CLI で、新規クリニックの Lstep オンボーディング時に再利用される性質のもの。一回限りツールではない
 - cmd/stage-import / cmd/seed-export の安全設計は良好: 非ローカルホスト拒否・stage 接続 read-only (default_transaction_read_only=on)・--apply と --confirm-local-destroy の二重フラグ・使い捨て DB 名ハードコード。テストも dsn_test/plan_test/integration_test 等で担保
-- worker/index.ts: 薄いプロキシ + /_internal/migrate の設計コメント充実（DB_RESET 非注入・exec への最小権限 env subset・XFF 偽装対策・タイムアウト付き exec）。構造は clean（残課題はテストのみ = finding worker-migrate-auth-untested）
+- worker/index.ts: 薄いプロキシ + /_internal/migrate の設計コメント充実（DB_RESET 非注入・exec への最小権限 env subset・XFF 偽装対策・タイムアウト付き exec）。構造は clean（migrate-exec テストは G10-6 CLOSED（`a1429497`））
 - entrypoint.sh (11行): set -e で migrate 失敗時に air を起動しない fail-fast 設計、コメントあり。clean
 - .air.toml / Dockerfile.dev / tygo.yaml / wrangler.jsonc: 整合確認済み。Dockerfile.dev の golangci-lint v2.11.4 は CI と整合（コメントで ci.yml と相互参照）。tygo.yaml は ci.yml:557-562 の codegen drift check から現役参照
 - backend/api 33MB ELF・lstep-migrate 17MB・seed-old-db/stage-import バイナリ・coverage.out・tmp/・.wrangler/ は全て gitignore 済みの未追跡ローカル成果物（唯一の例外が追跡下の backend/migrate = finding tracked-migrate-binary）。「正体不明のエントリ backend/api」の正体 = cmd/api の手動 go build 成果物（ELF ARM64、gitignore 済み、無害）
