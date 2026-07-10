@@ -45,7 +45,7 @@ function buildReservationParams(filters?: ReservationFilters): Record<string, st
   return params;
 }
 
-export const getReservations = async (filters?: ReservationFilters): Promise<Reservation[]> => {
+const getReservations = async (filters?: ReservationFilters): Promise<Reservation[]> => {
   const { data } = await axios.get<ReservationsListResponse>("/v1/reservations", {
     params: buildReservationParams(filters),
   });

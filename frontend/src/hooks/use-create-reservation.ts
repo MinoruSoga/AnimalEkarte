@@ -24,7 +24,7 @@ export interface CreateReservationRequest {
   reservation_route?: ReservationRoute;
 }
 
-export const createReservation = async (
+const createReservation = async (
   req: CreateReservationRequest
 ): Promise<Reservation> => {
   const { data } = await axios.post<BackendReservation>(

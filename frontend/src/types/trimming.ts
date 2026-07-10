@@ -11,20 +11,20 @@ import type { ReservationRoute } from "@/features/reservations";
 // -------------------------------------------------------
 
 /** トリミング予約詳細の option summary */
-export interface TrimmingOptionSummary {
+interface TrimmingOptionSummary {
   id: number;
   name: string;
 }
 
 /** トリミングコース summary */
-export interface TrimmingCourseSummary {
+interface TrimmingCourseSummary {
   id: number;
   name: string;
   price: number;
 }
 
 /** ペット情報 summary（関連レコード） */
-export interface PetSummary {
+interface PetSummary {
   id: number;
   name: string;
   pet_number?: string;
@@ -34,7 +34,7 @@ export interface PetSummary {
 }
 
 /** スタッフ情報 summary（関連レコード） */
-export interface StaffSummary {
+interface StaffSummary {
   id: number;
   name: string;
 }

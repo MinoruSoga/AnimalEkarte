@@ -109,7 +109,7 @@ export interface PetSelection {
   isNew?: boolean;   // true = 自由入力で追加した新規ペット
 }
 
-export interface CustomerFields {
+interface CustomerFields {
   customer_name?: string;
   phone?: string;
   owner_name?: string;

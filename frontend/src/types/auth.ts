@@ -11,7 +11,7 @@ export type { Resource };
 export type ResourceAction = "view" | "create" | "edit" | "delete";
 
 /** 1リソースに対する CRUD 権限 */
-export interface ResourcePermission {
+interface ResourcePermission {
   view: boolean;
   create: boolean;
   edit: boolean;
@@ -19,7 +19,7 @@ export interface ResourcePermission {
 }
 
 /** resource → CRUD（バックエンドが UNION 計算済みのフラット実効権限） */
-export type ResourcePermissions = Record<string, ResourcePermission>;
+type ResourcePermissions = Record<string, ResourcePermission>;
 
 /** @see {@link import("@/types/generated/models").StaffClinicAssignment} */
 export interface ClinicMembership {

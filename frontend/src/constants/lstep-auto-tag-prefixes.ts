@@ -3,7 +3,7 @@
 // FE-REOPEN-002: BE の完全一致+前方一致ロジックに合わせて更新。
 // この定数はクロス feature インポートを避けるため src/constants/ に配置する（features/ 配下禁止）。
 
-export const LSTEP_AUTO_TAG_ENTRIES = [
+const LSTEP_AUTO_TAG_ENTRIES = [
   // prefix entries (trailing _) — 新仕様タグ (FEAT-377/378: 日本語・接頭辞付き)
   "CPM_", "LTV_", "VISIT_", "PET_", "EXCL_",
   // prefix entries (trailing _) — 既存タグ (snake_case 英語)

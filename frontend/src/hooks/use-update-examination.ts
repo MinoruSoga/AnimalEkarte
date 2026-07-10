@@ -16,7 +16,7 @@ export interface UpdateExaminationRequest {
   date?: string;
 }
 
-export const updateExamination = async (
+const updateExamination = async (
   id: string,
   req: UpdateExaminationRequest,
 ): Promise<ExaminationRecord> => {

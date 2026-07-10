@@ -1,7 +1,7 @@
 import { format } from "date-fns";
 import type { ReservationTypeUnavailableTime } from "@/features/master";
 
-export function generateTimeOptions(): string[] {
+function generateTimeOptions(): string[] {
   const times: string[] = [];
   for (let h = 0; h < 24; h++) {
     times.push(`${h}:00`);
@@ -14,7 +14,7 @@ export function generateTimeOptions(): string[] {
 
 export const TIME_OPTIONS = generateTimeOptions();
 
-export function timeToMinutes(time: string): number {
+function timeToMinutes(time: string): number {
   const [hours, minutes] = time.split(":").map(Number);
   return hours * 60 + minutes;
 }

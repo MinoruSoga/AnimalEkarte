@@ -17,7 +17,7 @@ import { ReservationFormFields } from "./ReservationFormFields";
 
 export type OwnerMode = "existing" | "new";
 export type MobilePanel = "search" | "form";
-export type LstepStatus = "synced" | "not-linked" | "opt-out" | undefined;
+type LstepStatus = "synced" | "not-linked" | "opt-out" | undefined;
 
 interface ReservationModalHeaderProps {
   isEditMode: boolean;

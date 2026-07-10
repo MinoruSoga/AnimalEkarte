@@ -50,12 +50,12 @@ export interface PetListResponse {
  * useOwnerForm への依存性注入インターフェース
  * owners feature が pets feature を直接 import しないための DI
  */
-export interface PetMutationCallbacks {
+interface PetMutationCallbacks {
   onSuccess: () => void;
   onError: (error?: unknown) => void;
 }
 
-export interface PetCreateCallbacks {
+interface PetCreateCallbacks {
   onSuccess: (data: Pet) => void;
   onError: (error?: unknown) => void;
 }

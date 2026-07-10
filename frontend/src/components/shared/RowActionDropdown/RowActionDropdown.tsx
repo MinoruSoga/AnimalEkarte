@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { MoreHorizontal } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
-export interface RowActionDropdownAction {
+interface RowActionDropdownAction {
   label: string;
   icon?: React.ElementType;
   onClick: () => void;

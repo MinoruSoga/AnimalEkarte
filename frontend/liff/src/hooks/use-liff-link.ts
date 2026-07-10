@@ -3,7 +3,7 @@ import { useLiff } from './use-liff';
 import { LIFF_ID, LIFF_MOCK } from '../lib/liff-config';
 import { linkLineAccount, LiffApiError } from '../api/liff-api';
 
-export type LinkStatus = 'loading' | 'linking' | 'success' | 'conflict' | 'expired' | 'error';
+type LinkStatus = 'loading' | 'linking' | 'success' | 'conflict' | 'expired' | 'error';
 
 interface UseLiffLinkResult {
   status: LinkStatus;

@@ -29,8 +29,6 @@ const healthCardResponseSchema = z.object({
   pets: z.array(petHealthCardSchema),
 });
 
-export type PetVaccineRecord = z.infer<typeof petVaccineRecordSchema>;
-export type PetHealthCard = z.infer<typeof petHealthCardSchema>;
 export type HealthCardResponse = z.infer<typeof healthCardResponseSchema>;
 
 export async function linkLineAccount(

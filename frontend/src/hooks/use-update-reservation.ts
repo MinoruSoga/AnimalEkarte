@@ -22,7 +22,7 @@ export interface UpdateReservationRequest {
   notes?: string;
 }
 
-export const updateReservation = async (
+const updateReservation = async (
   id: string,
   req: UpdateReservationRequest
 ): Promise<Reservation> => {

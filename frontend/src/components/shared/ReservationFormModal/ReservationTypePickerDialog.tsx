@@ -14,7 +14,7 @@ import { C, ICON } from "@/lib/design-tokens";
 import { normalizeKana } from "@/lib/normalize-kana";
 
 // --- Types ---
-export interface ReservationTypePickerItem {
+interface ReservationTypePickerItem {
   id: string;
   name: string;
   color: string;

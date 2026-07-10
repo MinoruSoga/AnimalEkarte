@@ -6,7 +6,7 @@ function pad(value: number): string {
   return String(value).padStart(2, '0');
 }
 
-export function toJSTWallDate(date: Date = new Date()): Date {
+function toJSTWallDate(date: Date = new Date()): Date {
   return new Date(date.getTime() + JST_OFFSET_MS);
 }
 

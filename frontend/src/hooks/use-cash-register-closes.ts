@@ -24,7 +24,7 @@ export interface CashRegisterClosesResponse {
   total: number;
 }
 
-export const getCashRegisterCloses = async (
+const getCashRegisterCloses = async (
   params?: GetCashRegisterClosesParams,
 ): Promise<CashRegisterClosesResponse> => {
   const { data } = await axios.get<BackendCashRegisterClosesResponse>("/v1/cash-register/closes", {

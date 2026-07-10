@@ -36,7 +36,7 @@ export const DATE_PRESETS: DatePreset[] = [
   { label: "直近30日", type: "last_n_days", n: 30 },
 ];
 
-export function resolveRelativeDate(
+function resolveRelativeDate(
   point: RelativePoint,
   unit: RelativeUnit,
 ): { from: Date; to: Date } {

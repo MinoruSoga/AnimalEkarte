@@ -8,7 +8,7 @@ import type {
 } from "../api/types";
 import type { HospitalizationFormData } from "../types";
 
-export const DEFAULT_HOSPITALIZATION_DAYS = 7;
+const DEFAULT_HOSPITALIZATION_DAYS = 7;
 
 export const DEFAULT_TREATMENT_PLANS: TreatmentPlan[] = [
   {
@@ -35,7 +35,7 @@ export const DEFAULT_TREATMENT_PLANS: TreatmentPlan[] = [
   },
 ];
 
-export function getDefaultHospitalizationEndDate() {
+function getDefaultHospitalizationEndDate() {
   const endDate = toJSTWallDate(new Date());
   endDate.setDate(endDate.getDate() + DEFAULT_HOSPITALIZATION_DAYS);
   return formatJSTWallDate(endDate);

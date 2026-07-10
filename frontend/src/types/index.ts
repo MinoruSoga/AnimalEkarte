@@ -9,7 +9,7 @@ import type { Resource } from "./generated/models";
  */
 
 // --- Re-exports for convenience ---
-export type { Owner, CreateOwnerRequest, UpdateOwnerRequest } from './owner';
+export type { Owner } from './owner';
 export type { Pet } from "@/lib/transforms/pet";
 export type { Medicine } from "@/lib/transforms/medicine";
 // ExamResult / ExaminationRecord は examination feature 固有の view model のため、
@@ -22,7 +22,6 @@ export type { Reservation } from "@/features/reservations";
 export type { Hospitalization } from "@/features/hospitalization";
 export type { MedicalRecord } from "@/features/medical-records";
 import type { ReceptionAppointment } from "@/features/reception";
-export type { ReceptionAppointment };
 
 
 export interface MenuItem {
@@ -95,72 +94,6 @@ export interface NavigationState {
 // --- Feature UI Types ---
 // Reservation は @/features/reservations から re-export 済み
 // Hospitalization は @/features/hospitalization から re-export 済み
-
-/**
- * フロントエンドケアプラン項目型（UI 表示用 - camelCase フィールド）
- * CarePlanDialog, CarePlanItemRow 等で使用
- */
-export type CarePlanItemType = "food" | "medicine" | "treatment" | "instruction" | "item";
-export type CarePlanItemStatus = "active" | "completed" | "discontinued";
-export type CarePlanTiming = "morning" | "noon" | "night";
-
-export interface CarePlanItem {
-  id: string;
-  hospitalizationId: string;
-  type: CarePlanItemType;
-  name: string;
-  description: string;
-  timing: CarePlanTiming[];
-  status: CarePlanItemStatus;
-  notes: string;
-  medicineId?: string | null;
-  procedureId?: string | null;
-  hospitalizationPlanId?: string | null;
-  unitPrice?: number;
-  masterId?: string | null;
-  category?: string;
-  sortOrder?: number;
-  createdAt?: string;
-  updatedAt?: string;
-}
-
-/** ケアログの種別 */
-export type CareLogType = "food" | "medicine" | "treatment" | "other" | "excretion";
-
-/**
- * フロントエンドデイリーレコード型（UI 表示用）
- * DailyRecord["vitals"], DailyRecord["careLogs"] アクセスのために必要
- */
-export interface DailyRecord {
-  id: string;
-  hospitalizationId: string;
-  date: string;
-  vitals: Array<{
-    id: string;
-    time: string;
-    temperature?: number;
-    heartRate?: number;
-    respirationRate?: number;
-    weight?: number;
-    notes?: string;
-    staff?: string;
-  }>;
-  careLogs: Array<{
-    id: string;
-    time: string;
-    type: CareLogType;
-    status?: string;
-    value?: string;
-    notes?: string;
-    staff?: string;
-  }>;
-  staffNotes: Array<{
-    id: string;
-    time: string;
-    content: string;
-    staff?: string;
-  }>;
-}
 
 // MedicalRecord は @/features/medical-records から re-export 済み
 

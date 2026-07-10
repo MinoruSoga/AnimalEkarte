@@ -1,6 +1,6 @@
 import type { ColumnData } from "@/types";
 
-export interface TelemetryLongestWait {
+interface TelemetryLongestWait {
   minutes: number;
   petName: string;
 }

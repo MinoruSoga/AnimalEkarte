@@ -14,7 +14,7 @@ function formatDate(iso?: string): string {
 }
 
 // 履歴 UI 向け transform。`medical-records/api/transforms.ts` の同名関数とは別物。
-export function transformToHistoryItem(v: Vaccination) {
+function transformToHistoryItem(v: Vaccination) {
   return {
     id: v.id,
     name: v.vaccine?.name ?? `ワクチン(ID:${v.vaccine_id})`,

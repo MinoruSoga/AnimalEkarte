@@ -17,7 +17,7 @@ export interface ExaminationFilters {
   petId?: string;
 }
 
-export const getExaminations = async (
+const getExaminations = async (
   filters?: ExaminationFilters,
 ): Promise<ExaminationRecord[]> => {
   const params: Record<string, string> = {};
