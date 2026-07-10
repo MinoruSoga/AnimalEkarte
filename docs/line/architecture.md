@@ -5,7 +5,11 @@
 > **タイミング**: 同期フローの実装・確認時。
 
 > **Animal Ekarte**: LINE プラットフォームを活用した顧客体験の最大化
-> **最新更新**: 2026-06-12
+> **最新更新**: 2026-07-10
+
+---
+
+> **注記 (2026-07-10)**: Lステップへの Write API（タグ付与・タグ解除・プロパティ更新）は現在一時停止中（noop）。判定ロジック・アプリ内 DB 更新・監査ログは通常どおり継続するが、Lステップ側の実タグは書き換わらない。詳細: [`docs/infra/deploy/LSTEP_WRITE_API_PAUSE.md`](../infra/deploy/LSTEP_WRITE_API_PAUSE.md)
 
 ---
 
@@ -20,7 +24,7 @@
 
 ### 1.2 Lステップ連携 (Outbound / CRM)
 - **目的**: 病院側から「最適な情報」を自動で届ける。
-- **技術**: Go Goroutine (非同期同期) + L-Step API + Messaging API。
+- **技術**: リクエスト内の同期処理（診察確定等のイベントに対する best-effort 呼び出し）+ L-Step API + Messaging API。
 - **フロー**: 会計や診察などのイベントをトリガーに、Lステップ側のタグを書き換え、シナリオを起動。
 
 ---
@@ -35,21 +39,21 @@
 
 ---
 
-## 3. リアルタイム・イベント同期
+## 3. イベント同期のライフサイクル
 
-バックエンドにおける同期処理のライフサイクルです。
+診察確定などのイベントに対し、同一リクエスト内で同期的に best-effort 実行されます（別プロセス/goroutine のワーカーではない）。
 
 ```mermaid
 sequenceDiagram
-    participant MR as Medical Record (Go)
-    participant Worker as Sync Worker (Internal)
+    participant MR as Medical Record Service (Go)
+    participant Sync as Tag Sync (同一プロセス内・同期呼び出し)
     participant LS as L-Step API
     
-    MR->>Worker: 診察完了イベント (Async)
-    Worker->>Worker: 顧客状態再計算 (CPM/VISIT)
-    Worker->>LS: タグ付与/解除リクエスト
-    LS-->>Worker: HTTP 200 OK
-    Worker->>Worker: 実行ログ記録 (lstep_delivery_trigger_log)
+    MR->>Sync: 診察完了イベント (同期呼び出し, best-effort)
+    Sync->>Sync: 顧客状態再計算 (CPM/VISIT)
+    Sync->>LS: タグ付与/解除リクエスト（Write API 一時停止中は noop）
+    LS-->>Sync: HTTP 200 OK（Write API 稼働時のみ）
+    Sync->>Sync: 実行ログ記録 (lstep_delivery_trigger_log)
 ```
 
 ---

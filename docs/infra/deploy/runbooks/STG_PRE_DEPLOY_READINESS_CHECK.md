@@ -5,7 +5,7 @@
 > **タイミング**: 本番反映前の最終検証時。
 
 > **Animal Ekarte**: 安全かつ確実なステージング反映と本番昇格のための手順
-> **最新更新**: 2026-06-12 | **ステータス**: 推奨運用手順
+> **最新更新**: 2026-07-10 | **ステータス**: 推奨運用手順
 
 ---
 
@@ -32,14 +32,18 @@
 ## 3. フェーズ 2: デプロイ実行 (Deploy)
 
 ### 3.1 DB リセットとマイグレーション
-大規模なスキーマ変更を伴う場合、初回デプロイのみ `DB_RESET=true` を指定して実行します。
+大規模なスキーマ変更を伴う場合、初回デプロイのみ DB リセットを指定して実行します。
 
-- **実行コマンド (GitHub Actions)**:
-  `gh workflow run backend-deploy.yml --ref staging -f db_reset=true`
-
+- **Cloudflare 正系統（`backend-deploy.yml`）**: `workflow_dispatch` に `db_reset` 入力は存在しない。
+  DB リセット要否は `.env.staging` の `DB_RESET` 値、または `infra/scripts/cf-run-migrate.sh` が叩く
+  Worker 側 migrate 経路の実装に従う（本ランブック執筆時点で push トリガー起動のみ）。
+  実行コマンド: `gh workflow run backend-deploy.yml --ref staging`
+- **旧 AWS ECS ロールバック経路（`backend-deploy-ecs.yml`）**: `workflow_dispatch` の `db_reset` 入力で明示指定可能。
+  `gh workflow run backend-deploy-ecs.yml --ref staging -f db_reset=true`
 - **監視項目**:
-  - `aws logs tail` で `001_init.sql` の適用と `002_master`/`003_demo`/`004_staging` seed バンドルのロード成功を確認（`Migration summary` / `Seed bundle summary` ログ）。
-  - Checksum mismatch エラー、`detected legacy seed migration key(s)` エラーが発生していないか。
+  - Cloudflare 正系統: Worker の migrate レスポンス（`POST /_internal/migrate` の exit code）と `/health` ポーリング結果を確認。
+  - 旧 ECS 経路: `aws logs tail` で `001_init.sql` の適用と `002_master`/`003_demo`/`004_staging` seed バンドルのロード成功を確認（`Migration summary` / `Seed bundle summary` ログ）。
+  - いずれの経路でも Checksum mismatch エラー、`detected legacy seed migration key(s)` エラーが発生していないか確認する。
 - **シード突合検証**: `bash scripts/verify_seed_matches_stg_dump_full.sh` → exit 0 確認 (seed が STG dump と全テーブルで一致すること)。
 
 ---
@@ -47,8 +51,8 @@
 ## 4. フェーズ 3: 最終検証 (Post-Deploy Check)
 
 ### 4.1 ヘルスチェック
-- [ ] `GET /health` -> `200 OK` (ALB 直接および CloudFront 経由)。
-- [ ] ECS サービスのタスク実行数 (`runningCount`) が期待値と一致しているか。
+- [ ] `GET /health` -> `200 OK`（Cloudflare 正系統: workers.dev 経由。旧 ECS ロールバック経路使用時のみ ALB 直接および CloudFront 経由も確認）。
+- [ ] 旧 ECS ロールバック経路を使用した場合のみ: ECS サービスのタスク実行数 (`runningCount`) が期待値と一致しているか。
 
 ### 4.2 スモークテスト (CRUD Smoke Test)
 [スモークテスト手順書](../CRUD-SMOKE-TEST.md) に従い、以下の基本導線をブラウザで確認します。
@@ -75,7 +79,7 @@
 ### リリース記録 (YYYY-MM-DD)
 - **対象 Commit**: [sha]
 - **スモークテスト結果**: PASS / FAIL
-- **CloudWatch エラーログ**: 0 件
+- **エラーログ**: 0 件（Cloudflare 正系統は Workers Logs、旧 ECS ロールバック経路使用時は CloudWatch）
 - **特記事項**: [なし/あり]
 ```
 

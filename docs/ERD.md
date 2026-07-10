@@ -5,7 +5,7 @@
 > **タイミング**: スキーマ変更・DB設計判断時。
 
 > **Animal Ekarte**: 高精度・高整合な動物病院データモデル
-> **バージョン**: v31.26 | **最新更新**: 2026-07-04 | **状態**: Production Ready (108 Tables Verified)
+> **バージョン**: v31.26 | **最新更新**: 2026-07-10 | **状態**: Production Ready (108 Tables Verified)
 
 ---
 
@@ -99,6 +99,8 @@ erDiagram
 > **2026-07-04 追記**: 増分マイグレーション `005`〜`012` は同日中に `001_init.sql`（DDL）/ `003_seed_demo.sql`（歯科検診暫定 seed DML）へ再統合され、独立ファイルとしては存在しません（§4.3 参照）。ファイル構成が変わっただけで物理テーブル定義そのものは変化していないため、以下の判定結果・テーブル総数は本追記時点でも有効です。
 >
 > **2026-07-06 追記**: 2026-07-04 の再統合後、受付ヘッダー テレメトリ（change-ui.md Phase 2）用に増分マイグレーション `005_add_appointment_checked_in_at.sql`（`appointments.checked_in_at` カラム追加）が新設されていましたが、同日中にこれも `001_init.sql` の `appointments` テーブル定義へ再統合し、独立ファイルとしては存在しません（§4.3 参照）。新規テーブル追加ではなく既存テーブルへの単一カラム追加のため、テーブル総数(108)への影響はありません。
+>
+> **2026-07-10 追記**: seed データの実体が SQL から CSV へ移行しました。旧 `002_seed_master.sql` / `003_seed_demo.sql` / `004_seed_staging.sql`（`SELECT 1;` の no-op スタブ）は削除済みで、現在は `backend/migrations/seeds/{002_master,003_demo,004_staging}/*.csv` + `manifest.json` というディレクトリ構成のみが存在します（`backend/migrations/CLAUDE.md` 参照）。また `002_add_checkup_vaccination_indexes.sql`（checkups/vaccinations の `clinic_id`+日付 複合インデックス追加、`CREATE TABLE` なし）が新設されています。いずれもテーブル追加を伴わないため、テーブル総数(108)は不変です（§4.3 のファイル一覧を参照）。
 
 | 項目 | 結果 | 判定 |
 |:---|:---|:---|
@@ -127,10 +129,11 @@ erDiagram
 
 2026-06-26 に、かつて独立した増分ファイル (旧 005-012) として管理されていたスキーマ・シード変更を `001_init.sql` および `003_seed_demo.sql` へ統合しました。
 その後、新たな機能追加に伴い増分マイグレーション 005〜012 が再び追加されていましたが、2026-07-04 にこれらを再度 `001_init.sql`（DDL）および `003_seed_demo.sql`（歯科検診パッケージの暫定 seed DML のみ）へ統合し、独立ファイルとしての 005〜012 は削除しました。
-現行マイグレーションは以下の 4 ファイルです（`backend/migrations/`）。
+現行マイグレーションは以下の構成です（`backend/migrations/`、2026-07-10 時点）。
 
 - `001_init.sql`（初期スキーマ・108 テーブル）
-- `002_seed_master.sql`、`003_seed_demo.sql`、`004_seed_staging.sql`（シード）
+- `002_add_checkup_vaccination_indexes.sql`（checkups/vaccinations の `clinic_id`+日付 複合インデックス追加。`CREATE TABLE` なし）
+- `seeds/002_master/`、`seeds/003_demo/`、`seeds/004_staging/`（各 `*.csv` + `manifest.json` のシードバンドル。SQL ファイルではない）
 
 以下は 2026-06-26 の統合時点で `001_init.sql` / `003_seed_demo.sql` へ畳み込まれた変更の論理的な記録です（参照用、当時の独立ファイルは存在しません）。
 

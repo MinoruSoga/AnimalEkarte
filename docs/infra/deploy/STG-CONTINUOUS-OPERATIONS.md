@@ -5,9 +5,16 @@
 > **タイミング**: 日次/週次/月次の定期運用時。
 
 > **Animal Ekarte**: STG 環境の日常・定期運用のための検査・監視・メンテナンスチェックリスト
-> **最新更新**: 2026-05-27 | **目的**: 本番リリース間の STG 環境安定稼働確保
+> **最新更新**: 2026-07-10 | **目的**: 本番リリース間の STG 環境安定稼働確保
 
 ---
+
+> **注記(2026-07-10)**: バックエンドの正系統は Cloudflare Workers + Containers + PlanetScale Postgres
+> （`backend-deploy.yml`）へ移行済み。本ドキュメントの ECS/CloudWatch/RDS ベースの手順（§2.2, §2.3,
+> §4.1〜4.3, §6 のトラブルシューティング診断コマンド）は、旧 AWS ECS ロールバック経路
+> （`backend-deploy-ecs.yml`、`workflow_dispatch` のみ）にのみ適用される。Cloudflare 正系統向けの
+> 同等の日次/週次/月次運用手順（Workers Logs 監視等）は未文書化 — 現状のギャップとして
+> `migration-cloudflare.md` Phase 6 の記録を参照すること。§1・§2.1・§3・§5 は経路に依存せず有効。
 
 ## 1. 目的と対象読者
 

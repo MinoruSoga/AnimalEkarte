@@ -26,7 +26,7 @@
 
 ## 管理リソース（主要カテゴリ）
 
-- **医療**: `medical-records`, `exams`, `vaccinations`, `hospitalization`
+- **医療**: `medical-records`, `examinations`, `vaccinations`, `hospitalization`
 - **フロント**: `reception`, `owners`, `reservations`
 - **経営**: `accounting`, `cash-register-close`, `accounting-reports`
 - **マーケ**: `lstep-analytics`
@@ -40,15 +40,16 @@
 権限グループの設定変更は、該当グループに所属する全スタッフに即時反映されます。ログイン中のユーザーに対しては、次回のページ遷移または API リクエスト時に権限の再評価が行われます。
 
 ### 2. デフォルトグループの提供
-新規院開設時など、標準的な「獣医師」「看護師」用の権限セットがテンプレートとして提供されます。
+新規院開設時に「執行」（全権限）と「一般」の 2 グループが自動作成されます（`clinic_service.go`）。
 
 ---
 
 ## 技術仕様
 
 ### 使用コンポーネント
-- **`PermissionMatrixTable`**: リソース × アクションの格子状入力コンポーネント。
-- **`GroupAssignmentInfo`**: 当該グループに現在所属しているスタッフの一覧表示。
+- **`PermissionGroupSettings`**: メインページ（`MasterCRUDPage` ベース、ドラッグによる並び替え対応）。
+- **`PermissionGroupSidePanel`**: グループ名・カラー・権限ルールの編集パネル（`MasterSidePanel` ベース）。
+- **`PermissionRuleTable`**: リソース × アクションのチェックボックス格子入力コンポーネント。
 
 ### API連携
 | メソッド | エンドポイント | 用途 | 必須権限 | 必須アクション |

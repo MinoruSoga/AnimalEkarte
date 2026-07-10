@@ -5,7 +5,7 @@
 > **タイミング**: STGデータの分類判断・cleanup時。
 
 > **Animal Ekarte**: ステージング環境におけるデモ・テストデータの作成から廃棄までの完全ガイド
-> **最新更新**: 2026-05-26 | **ステータス**: STG-001 インシデント対応済
+> **最新更新**: 2026-07-10 | **ステータス**: STG-001 インシデント対応済
 
 ---
 
@@ -154,10 +154,10 @@ curl -s "${API_V1}/clinics/${TEST_CLINIC_ID}" \
 
 ### 4.2 削除完了記録
 
-削除後、以下を CloudWatch ログまたは audit_logs テーブルで確認：
+削除後、以下を audit_logs テーブル（または旧 ECS ロールバック経路使用時は CloudWatch ログ）で確認：
 
 ```bash
-# 監査ログ確認
+# 監査ログ確認（旧 ECS ロールバック経路のみ。Cloudflare 正系統は Workers Logs を参照）
 aws logs tail /ecs/animalekarte-stg --follow --region us-east-1 \
   | grep -E "DELETE|SOFT_DELETE" | tail -20
 
@@ -165,7 +165,7 @@ aws logs tail /ecs/animalekarte-stg --follow --region us-east-1 \
 # 2026-05-26T16:30:45.123Z staff_id=admin resource=staff resource_id=test-staff-123 action=DELETE
 ```
 
-記録内容（docs/tasks/closed/{ISSUE}.md または CloudWatch):
+記録内容（docs/tasks/closed/{ISSUE}.md または audit_logs / CloudWatch):
 - 削除日時（JST）
 - 削除した レコード種別 + ID + 件数
 - 削除操作者（staff_id または CI/CD job）
@@ -243,11 +243,12 @@ docker run -e DB_RESET=true backend:latest
 ```
 
 #### GitHub Actions CI/CD
-`.github/workflows/backend-deploy.yml` の `workflow_dispatch` 入力 `db_reset` で明示指定します
-（push トリガー時は `.env.staging` の `DB_RESET` 値がそのまま使用されます）。
+Cloudflare 正系統の `.github/workflows/backend-deploy.yml` には `db_reset` の `workflow_dispatch` 入力は
+**存在しない**（push トリガー時は `.env.staging` の `DB_RESET` 値がそのまま使用される想定）。
+`db_reset` を明示指定できるのは旧 AWS ECS ロールバック経路 `.github/workflows/backend-deploy-ecs.yml` のみ:
 
 ```bash
-gh workflow run backend-deploy.yml --ref staging -f db_reset=true
+gh workflow run backend-deploy-ecs.yml --ref staging -f db_reset=true
 ```
 
 ### 7.4 DB_RESET 実行前のチェックリスト
@@ -258,11 +259,11 @@ gh workflow run backend-deploy.yml --ref staging -f db_reset=true
   - demo account 設定変更（パスワード等）を記録したか
 - [ ] 他のエンジニアが staging で作業中でないことを確認（Slack 確認）
 - [ ] 本番への反映予定日時を確認（リセット予定時刻と重複しないか）
-- [ ] CloudWatch ログを取得（変更前の state 記録）
+- [ ] ログを取得（変更前の state 記録。旧 ECS ロールバック経路使用時は CloudWatch）
 
 **実行後**:
 - [ ] API ヘルスチェック `/health` で 200 OK 確認
-- [ ] migration logs を CloudWatch で確認（004 までの full execution）
+- [ ] migration logs を確認（004 までの full execution。旧 ECS ロールバック経路使用時は CloudWatch、Cloudflare 正系統は migrate レスポンス/Workers Logs）
 - [ ] seed data（system_admin group, clinic id=1）が再生成されたことを確認
 - [ ] demo accounts でログイン可能か確認
 - [ ] スモークテストを再実行（一度のみ）
@@ -386,5 +387,5 @@ jobs:
 - **[CRUD スモークテスト](./CRUD-SMOKE-TEST.md)**: テスト実行手順、ステータスコード期待値、cleanup 手順
 - **[CI/CD パイプライン](./CI-CD-PIPELINE.md)**: デプロイ自動化フロー
 - **[本番反映前チェック](./runbooks/STG_PRE_DEPLOY_READINESS_CHECK.md)**: リリース前最終検証
-- AWS RDS: `animalekarte-stg` PostgreSQL cluster（AWS console）
-- CloudWatch Logs: `/ecs/animalekarte-stg` ロググループ
+- DB: PlanetScale Postgres（Cloudflare 正系統。旧 AWS RDS `animalekarte-stg` cluster はロールバック経路のみ）
+- ログ: Cloudflare Workers Logs（正系統） / CloudWatch Logs `/ecs/animalekarte-stg`（旧 ECS ロールバック経路のみ）

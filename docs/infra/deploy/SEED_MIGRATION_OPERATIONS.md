@@ -4,7 +4,7 @@
 > **読者**: 開発者。
 > **タイミング**: seed/migration変更時。
 
-更新日: 2026-07-06
+更新日: 2026-07-10
 
 ## 前提
 
@@ -24,7 +24,7 @@
 - seed master 差し替えは静的 grep だけでは不十分で、**fresh DB apply** まで通して初めて `(clinic_id, name)` の実衝突を検知できた。この教訓が CSV 移行時の「正データ=DBダンプ・静的パース禁止」の根拠になっている。
 - 今回の demo/master 差し替えは **DB reset 前提** で判断した。既存 DB にそのまま上書き適用する前提ではない。
 - ローカル復旧で必要だったのは `make reset` 相当の DB 再構築であり、`make db` は `psql` 接続用コマンドであって reset ではない。
-- STG で適用済み migration/seed を編集して反映する場合、`backend-deploy.yml` の `db_reset=true` が必要になる可能性が高い。**stub SQL 削除自体も 002〜004 の記録キーを変える破壊的変更のため、既に適用済みの環境（STG 等）へは `db_reset=true` が必須**（旧キーが残った状態で新バイナリを起動すると fail-fast する）。
+- STG で適用済み migration/seed を編集して反映する場合、DB リセットが必要になる可能性が高い。**stub SQL 削除自体も 002〜004 の記録キーを変える破壊的変更のため、既に適用済みの環境（STG 等）へは DB リセットが必須**（旧キーが残った状態で新バイナリを起動すると fail-fast する）。Cloudflare 正系統の `backend-deploy.yml` には `db_reset` の `workflow_dispatch` 入力は存在しない（`.env.staging` の `DB_RESET` 値に従う想定）。明示指定できるのは旧 AWS ECS ロールバック経路 `backend-deploy-ecs.yml` の `-f db_reset=true` のみ。
 
 ## CSV シードバンドルの再生成（seed データ内容を変更する場合）
 

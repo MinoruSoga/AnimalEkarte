@@ -5,7 +5,7 @@
 > **タイミング**: デプロイ運用開始時。
 
 > **Animal Ekarte**: ステージング・本番環境へのデプロイと安定稼働のためのガイド
-> **最新更新**: 2026-06-12 | **ステータス**: 完全自動デプロイ稼働中
+> **最新更新**: 2026-07-10 | **ステータス**: 完全自動デプロイ稼働中
 
 ---
 
@@ -13,8 +13,8 @@
 
 | 環境 | Frontend URL | API Base URL | インフラ管理 |
 |:---|:---|:---|:---|
-| **Staging** | [stg.noah-karte.com](https://stg.noah-karte.com) | [api.stg.noah-karte.com/api](https://api.stg.noah-karte.com/api) | AWS (us-east-1) / Vercel |
-| **Production** | [noah-karte.com](https://noah-karte.com) | [api.noah-karte.com/api](https://api.noah-karte.com/api) | 同上 |
+| **Staging** | [stg.noah-karte.com](https://stg.noah-karte.com) | [api.stg.noah-karte.com/api](https://api.stg.noah-karte.com/api) | Backend: Cloudflare Workers + Containers（正系統。旧 AWS ECS/RDS はロールバック専用で残置） / Frontend: Vercel |
+| **Production** | [noah-karte.com](https://noah-karte.com) | [api.noah-karte.com/api](https://api.noah-karte.com/api) | 本番向けバックエンド自動デプロイワークフローは未整備（`migration-cloudflare.md` Phase 7/8 未完了）。Frontend のみ `frontend-deploy.yml` で自動デプロイ対象 |
 
 ---
 
@@ -43,9 +43,11 @@
 
 ## 3. クイック・コマンドリファレンス
 
-運用中によく使用する AWS CLI コマンドです。
+> **注記(2026-07-10)**: §3.1/3.2 の AWS CLI コマンドは、Cloudflare 正系統（`backend-deploy.yml`）
+> ではなく旧 AWS ECS/RDS ロールバック経路（`backend-deploy-ecs.yml`、`workflow_dispatch` のみ）
+> にのみ適用される。通常運用では実施不要。§3.3/3.4 は Cloudflare 正系統でもそのまま有効。
 
-### 3.1 サービス状態の確認
+### 3.1 サービス状態の確認（ECS ロールバック経路のみ）
 ```bash
 export AWS_PROFILE=AnimalEkarte
 
@@ -57,7 +59,7 @@ aws ecs describe-services \
   --query 'services[0].{status,runningCount,desiredCount}'
 ```
 
-### 3.2 ログのリアルタイム監視
+### 3.2 ログのリアルタイム監視（ECS ロールバック経路のみ）
 ```bash
 # Backend API の標準出力をフォロー
 aws logs tail /ecs/animalekarte-stg --follow --region us-east-1
@@ -82,6 +84,11 @@ gh workflow run stg-smoke.yml
 ---
 
 ## 4. デプロイ後のロールバック判定フレームワーク
+
+> **注記(2026-07-10)**: §4.1 の手順1（`/health`）と §4.3 は Cloudflare 正系統でもそのまま有効。
+> §4.1 の手順2〜4（ECS desiredCount / CloudWatch / ALB）は旧 AWS ECS ロールバック経路にのみ適用される。
+> Cloudflare Workers + Containers 側の同等監視手順（Workers Logs 等）は未文書化 — 現状のギャップとして
+> `migration-cloudflare.md` Phase 6 の記録を参照すること。
 
 ### 4.1 ヘルスチェック手順
 
@@ -176,7 +183,7 @@ gh workflow run stg-smoke.yml
 
 - [デプロイ手順書 (CI-CD-PIPELINE.md)](./CI-CD-PIPELINE.md)：自動デプロイ・手動トリガー・ロールバック手順
 - [スモークテスト手順 (CRUD-SMOKE-TEST.md)](./CRUD-SMOKE-TEST.md)：CRUD 全操作・FK保護検証・権限テスト
-- AWS CloudWatch: `/ecs/animalekarte-stg` ロググループ
-- SSM Parameter Store: API 認証情報（team lead のみアクセス可）
+- AWS CloudWatch: `/ecs/animalekarte-stg` ロググループ（旧 ECS ロールバック経路のみ）
+- SSM Parameter Store: API 認証情報（旧 ECS ロールバック経路のみ。Cloudflare 正系統は `wrangler secret` / GitHub Encrypted Secrets）
 
 ---

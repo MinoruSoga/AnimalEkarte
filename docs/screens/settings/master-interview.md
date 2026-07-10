@@ -10,34 +10,29 @@
 ## 画面構成
 
 ### 1. テンプレート一覧
-- **カテゴリ分類**: 「初診問診」「再診所見」「検査説明」「手術同意事項」等の用途別。
-- **検索**: タイトルや本文内容による全文検索。
-- **ソート**: 使用頻度に応じた表示順の管理。
+- **カテゴリ分類**: `chief_complaint`(主訴)、`history`(既往歴)、`current_medications`(現在の投薬)、`notes`(メモ/備考) を日本語ラベルに変換して表示（`INQUIRY_CATEGORY_LABELS`、未知の値は生の文字列を表示）。カテゴリは自由入力のためこれ以外の値も登録可能。
+- **検索**: タイトルおよびカテゴリ文字列による部分一致（本文内容は検索対象外）。
+- **並び順**: 登録順（ドラッグ並び替え・使用頻度によるソートは未実装）。
 
 ### 2. 詳細編集サイドパネル (`SidePeekPanel`)
 - **タイトル**: 選択時に表示される短い名称。
-- **本文 (Markdown対応)**: 
-    - カルテに挿入される文章の本体。
-    - `# 症状`, `## 経過` 等の構造化されたテンプレートを定義可能。
-- **挿入先カテゴリ**: 特定の臨床フェーズ（問診、診断、経過等）に自動的に紐付けるためのタグ付け。
+- **カテゴリ**: 自由入力のテキストフィールド（`<input type="text">`）。事前定義された選択肢はない。
+- **テンプレート内容**: プレーンテキストの `<textarea>`。Markdown記法の特別な解釈・レンダリングは行われない。
 
 ---
 
 ## 主要な機能
 
-### 1. 臨床記録の標準化
-獣医師がテンプレートを選択するだけで、あらかじめ定義された質問項目や観察ポイントがカルテに展開されます。これにより、情報の記載漏れを防止し、チーム内でのカルテ品質を均一化します。
-
-### 2. インテリジェント・サジェスト
-初診カルテの作成時には「初診問診」カテゴリのテンプレートを最上位に提案するなど、業務の文脈に応じた動的な候補提示をサポートします。
+### 1. 現状（本設定画面のスコープ）
+本画面は問診テンプレートのCRUD管理のみを提供する。`frontend/src/features/medical-records/` 配下のカルテ入力UIから `inquiry-templates` API・`useMasterItems("inquiryTemplate")` を呼び出す実装は現時点で存在せず、登録したテンプレートをカルテへ自動挿入する機能・臨床フェーズに応じた動的サジェスト機能は未実装（`frontend/src/hooks/use-master-items.ts` の `inquiryTemplate` キーはマップ定義のみで呼び出し元なし）。
 
 ---
 
 ## 技術仕様
 
 ### 使用コンポーネント
-- **`RichTextTemplateEditor`**: Markdown 記法をサポートする簡易テキスト編集エリア。
-- **`PropInput`**: カテゴリやタイトルの編集。
+- **`InterviewTemplateSettings`**: メインページ。
+- **`InterviewTemplateSidePanel`**: タイトル・カテゴリ（テキスト入力）・内容（`<textarea>`）の編集パネル。
 
 ### API連携
 | メソッド | エンドポイント | 用途 | 必須権限 | 必須アクション |
@@ -45,9 +40,11 @@
 | GET | `/api/v1/masters/inquiry-templates` | 登録済みテンプレートの取得 | `master-medical` | `view` |
 | GET | `/api/v1/masters/inquiry-templates/:id` | 特定のテンプレート情報の取得 | `master-medical` | `view` |
 | POST | `/api/v1/masters/inquiry-templates` | 新規テンプレートの保存 | `master-medical` | `create` |
-| PATCH | `/api/v1/masters/inquiry-templates/:id` | 本文やカテゴリ、順序の更新 | `master-medical` | `edit` |
+| PATCH | `/api/v1/masters/inquiry-templates/:id` | タイトル・カテゴリ・本文・ステータスの更新 | `master-medical` | `edit` |
 | DELETE | `/api/v1/masters/inquiry-templates/:id` | テンプレートの削除 | `master-medical` | `delete` |
 | PATCH | `/api/v1/masters/inquiry-templates/reorder` | 表示順の一括保存 | `master-medical` | `edit` |
+
+**注記**: `reorder` エンドポイントおよび対応する `useReorderInquiryTemplates` フック（`frontend/src/features/master/api/inquiry-templates.ts`）は存在するが、`InterviewTemplateSettings` はドラッグ並び替えUIを持たず（1.「並び順」参照）、呼び出し元は存在しない。
 
 ---
 

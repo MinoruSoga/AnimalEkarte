@@ -1,7 +1,7 @@
 # 予約区分マスタ 仕様書 (Reservation Types)
 
 ## 概要
-- **画面 of Purpose**: 診察、ワクチン、手術、トリミング等の予約枠（スロット）の定義と、LINE 予約への公開設定。
+- **画面の目的**: 診察、ワクチン、手術、トリミング等の予約枠（スロット）の定義と、LINE 予約への公開設定。
 - **URLパターン**: `/settings/reservation-type`
 - **アクセス権限**: 予約管理権限が必要（`ResourceMasterReservationType`）
 
@@ -10,7 +10,7 @@
 ## 1. 画面構成
 
 ### 1.1 予約区分一覧
-- **区分グループ**: 「一般診療」「トリミング」「特殊枠」等の大分類。
+- **区分グループ（`ReservationTypeGroup`）**: 院ごとに自由入力できるグループ（名称・色・並び順を独自に登録。固定の3分類ではない）。予約区分自体は `category` フィールドで `general`（一般）/`trimming`（トリミング）の2値のみを持つ。
 - **表示項目**: 名称、標準所要時間、カレンダー色、LINE 公開状況。
 
 ### 1.2 詳細編集サイドパネル (`SidePeekPanel`)
@@ -62,5 +62,11 @@
 | GET | `/api/v1/masters/reservation-types/:id/occupations` | 対応職種の取得 | `master-reservation-type` | `view` |
 | POST | `/api/v1/masters/reservation-types/:id/occupations` | 対応職種の紐付け | `master-reservation-type` | `edit` |
 | DELETE | `/api/v1/masters/reservation-types/:id/occupations/:occupation_id` | 対応職種の解除 | `master-reservation-type` | `delete` |
+| GET | `/api/v1/masters/reservation-type-groups` | 区分グループ一覧の取得 | `master-reservation-type` | `view` |
+| POST | `/api/v1/masters/reservation-type-groups` | 区分グループの作成 | `master-reservation-type` | `create` |
+| GET | `/api/v1/masters/reservation-type-groups/:id` | 区分グループ詳細の取得 | `master-reservation-type` | `view` |
+| PATCH | `/api/v1/masters/reservation-type-groups/:id` | 区分グループの更新 | `master-reservation-type` | `edit` |
+| DELETE | `/api/v1/masters/reservation-type-groups/:id` | 区分グループの削除 | `master-reservation-type` | `delete` |
+| PATCH | `/api/v1/masters/reservation-type-groups/reorder` | 区分グループ表示順の一括保存 | `master-reservation-type` | `edit` |
 
 ---

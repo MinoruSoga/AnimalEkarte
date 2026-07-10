@@ -5,7 +5,7 @@
 > **タイミング**: E2Eテストの実行・追加時。
 
 > **Animal Ekarte**: Playwright を活用した、主要業務フローの自動検証
-> **最新更新**: 2026-06-12
+> **最新更新**: 2026-07-10
 
 ---
 
@@ -42,19 +42,20 @@
 ```bash
 # 環境変数のセット（playwright.config.ts が参照する変数名。未設定時は http://localhost:3003 が既定）
 export PLAYWRIGHT_TEST_BASE_URL=http://localhost:3003
-export TEST_ADMIN_USER=admin@example.com
 ```
+ログイン認証情報は環境変数ではなく `frontend/e2e/helpers/auth.ts` の `loginAsDemoAdmin` にハードコードされたデモ管理者（`admin@noavet.jp` / `password`）を使用する。認証状態のキャッシュ先パスのみ `E2E_AUTH_STATE_PATH`（既定 `/tmp/animal-ekarte-demo-admin-storage-state.json`）で上書き可能。
 
 ### 3.2 実行
+frontend コンテナは Alpine ベースで Playwright の Chromium を起動できないため、公式 Playwright Docker イメージを使う `frontend/scripts/run-e2e.sh` で実行する（CI の `.github/workflows/e2e.yml` も同スクリプトを使用）。
 ```bash
 # 全ての E2E シナリオを実行 (Headless)
-docker compose exec frontend pnpm test:e2e
+cd frontend && ./scripts/run-e2e.sh
 
 # 特定の機能（例：会計）に絞って実行
-docker compose exec frontend pnpm test:e2e e2e/accounting-flow.spec.ts
+./scripts/run-e2e.sh e2e/accounting-flow.spec.ts
 
-# UI モードで動作を確認しながら実行
-docker compose exec frontend pnpm test:e2e --ui
+# Headed モードで動作を確認しながら実行（ディスプレイ環境が必要）
+./scripts/run-e2e.sh --headed
 ```
 
 ---
@@ -79,7 +80,8 @@ Playwright は実際の LINE アプリ内 LIFF 起動（`liff.init()` / `liff.is
 - 対象アプリ: `frontend/line-reserve/`（LINE予約）・`frontend/liff/`（診察券連携・健康カード）
 - 前提: 実機（iOS/Android）の LINE アプリ、対象クリニックの LIFF ID が STG/本番環境に設定済みであること
 - ローカル/CI では `VITE_LIFF_MOCK=true` によるモック起動のみ検証可能（`use-liff.ts` / `use-liff-link.ts` の
-  単体テストでカバー — `line-reserve/src/pages/*.test.tsx`, `liff/src/hooks/use-liff-link.test.ts`）
+  単体テストでカバー — `frontend/src/shared-liff/use-liff.test.ts`（R-F21 で liff/line-reserve 間の重複実装を統合済みの共有フック）,
+  `liff/src/hooks/use-liff-link.test.ts`）
 
 ### 5.2 line-reserve: 予約作成フロー
 

@@ -5,7 +5,7 @@
 > **タイミング**: オンボーディング時、または層をまたぐ設計判断が必要な実装前。
 
 > **Animal Ekarte**: 高信頼・高拡張な動物病院管理システム
-> **最新更新**: 2026-06-12 | **ステータス**: Production Ready
+> **最新更新**: 2026-07-10 | **ステータス**: Production Ready
 
 ---
 
@@ -62,7 +62,7 @@
 ## 4. インフラ・デプロイ構成
 
 ### 技術スタック
-- **Runtime**: ECS Fargate (Go), Vercel (React)
+- **Runtime**: Cloudflare Workers + Containers (Go。`backend-deploy.yml` による自動デプロイ先。ECS Fargate は `backend-deploy-ecs.yml` によるロールバック専用), Vercel (React)
 - **Database**: RDS PostgreSQL 18
 - **Storage**: AWS S3 (領収書、検査結果、証明書)
 - **Messaging**: LINE Messaging API / Lステップ API

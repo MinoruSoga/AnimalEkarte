@@ -20,9 +20,10 @@
 | **ステータス** | `scheduled`, `fired`, `excluded`, `failed` の 4 状態。 |
 | **判定理由** | `excluded` の場合、なぜ配信がスキップされたか（例：死亡ガード、スタッフ除外、重複回避）。 |
 
-### 1.2 高度な検索・フィルタ (`NotionFilter`)
-- **ステータス別**: 失敗（failed）のみを抽出して再送検討等に使用。
-- **オーナー名検索**: 特定の顧客にリマインドが正しくスケジュールされているか確認。
+### 1.2 検索・フィルタ (`DeliveryMonitorFilters`)
+- **期間**: 予定/実行日時の From-To 絞り込み。
+- **トリガー種別**: `first_visit_followup_3d` 等のトリガーコードでの絞り込み。
+- **ステータス**: `scheduled`/`fired`/`excluded`/`failed` による絞り込み（失敗のみ抽出して再送検討等に使用）。
 
 ---
 
@@ -43,13 +44,13 @@
 
 ### 構成コンポーネント
 - **`LstepDeliveryMonitorPage`**: メイン監視ページ。
-- **`StatusBadge`**: 各ステータスを意味的なカラーで表示。
+- **`DeliveryMonitorFilters`**: 期間・トリガー種別・ステータスの検索フィルタ。
+- **`LstepDeliveryMonitorLogsTable`**: 配信ログの一覧テーブル（ステータスは `BADGE` デザイントークンで色分け表示）。
 
 ### API連携
 | メソッド | エンドポイント | 用途 | 必須権限 | 必須アクション |
 |:---|:---|:---|:---|:---|
 | GET | `/api/v1/clinics/:clinic_id/lstep/delivery-monitor/summary` | 期間別配信サマリの取得 | `lstep-analytics` | `view` |
 | GET | `/api/v1/clinics/:clinic_id/lstep/delivery-monitor/logs` | 配信ログ履歴の取得 | `lstep-analytics` | `view` |
-| GET | `/api/v1/clinics/:clinic_id/lstep/trigger-priorities` | 現在の優先順位設定の参照 | `hospital-settings` | `view` |
 
 ---

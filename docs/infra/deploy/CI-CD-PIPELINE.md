@@ -4,8 +4,8 @@
 > **読者**: 運用者・新規参加者。
 > **タイミング**: パイプライン理解時・手動操作時。
 
-> **Animal Ekarte**: GitHub Actions と AWS/Vercel による自動デプロイ
-> **最新更新**: 2026-07-04 | **ステータス**: 完全自動化運用中
+> **Animal Ekarte**: GitHub Actions と Cloudflare/Vercel による自動デプロイ（バックエンドの旧 AWS ECS 経路はロールバック専用）
+> **最新更新**: 2026-07-10 | **ステータス**: 完全自動化運用中
 
 ---
 
@@ -23,7 +23,7 @@
 
 ---
 
-## 2. バックエンド・パイプライン (AWS ECS)
+## 2. バックエンド・パイプライン (AWS ECS ロールバック専用経路)
 
 ### 2.1 実行ステップ
 1.  **JST営業時間外検知**: JST 08:00–22:00 外の場合はデプロイ後 30 分で自動停止する `delayed-stop` ジョブを起動。
@@ -75,8 +75,10 @@ aws ecs update-service --cluster animalekarte-stg-cluster \
   --task-definition animalekarte-stg-api:<PREVIOUS_REVISION>
 ```
 
-### 4.3 STG 環境の手動停止
-`delayed-stop` ジョブの 30 分待機を待たず即座に停止したい場合:
+### 4.3 STG 環境の手動停止（旧 AWS ECS/RDS 経路・DEPRECATED）
+`staging-stop.yml` はファイル冒頭で DEPRECATED と明記されている：Cloudflare Containers は
+scale-to-zero のため夜間停止スケジューラ自体が不要。Phase 8（AWS 廃止）完了後に削除予定。
+旧 ECS/RDS ロールバック経路を使用中に緊急停止したい場合のみ実行する:
 ```bash
 gh workflow run staging-stop.yml --ref staging
 ```
@@ -85,7 +87,7 @@ gh workflow run staging-stop.yml --ref staging
 
 ## 5. セキュリティと認証
 
-- **秘密情報の分離**: `JWT_SECRET` やデータベース接続情報は GitHub には置かず、AWS SSM Parameter Store に厳重に保管されています。
-- **OIDC 連携**: リポジトリオーナー `MinoruSoga` の特定リポジトリからのアクセスのみを許可する信頼関係ポリシーを適用済みです。
+- **Cloudflare 正系統**: `JWT_SECRET` やデータベース接続情報は `wrangler secret put` で Cloudflare 側に投入し、`MIGRATE_RUN_SECRET`/`CLOUDFLARE_API_TOKEN` 等は GitHub Encrypted Secrets で管理する。SSM Parameter Store は使用しない。
+- **AWS ECS ロールバック経路（旧経路）**: `JWT_SECRET` やデータベース接続情報は GitHub には置かず、AWS SSM Parameter Store に保管されている。OIDC 連携（リポジトリオーナー `MinoruSoga` の特定リポジトリからのアクセスのみを許可する信頼関係ポリシー）も同経路のみで使用する。
 
 ---

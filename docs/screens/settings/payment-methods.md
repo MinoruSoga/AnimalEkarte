@@ -31,8 +31,8 @@
 ## 技術仕様
 
 ### 使用コンポーネント
-- **`PropInput`**: 決済手段名の編集。
-- **`NotionStatusPill`**: 有効/無効のトグル切り替え。
+- **`PaymentMethodSidePanel`**: `MasterSidePanel` による決済手段名の編集。
+- **`StatusToggleButton`**: 有効/無効のトグル切り替え。
 
 ### API連携
 | メソッド | エンドポイント | 用途 | 必須権限 | 必須アクション |

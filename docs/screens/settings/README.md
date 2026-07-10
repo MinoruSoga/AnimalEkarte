@@ -24,7 +24,7 @@
 | **主訴種別** | [master-chief-complaint.md](./master-chief-complaint.md) | 診察理由の大分類（消化器、皮膚等）。 |
 | **薬剤** | [master-medicine.md](./master-medicine.md) | 薬品名、剤形、単価、在庫連携設定。 |
 | **診断・病名** | [master-diagnosis.md](./master-diagnosis.md) | 疾患カテゴリと正式病名の体系的定義。 |
-| **検査項目** | [master-examinations.md](./master-examinations.md) | 数値検査の単位および動物種別正常値範囲。 |
+| **検査項目** | [master-examinations.md](./master-examinations.md) | 検査プランの名称・価格・課税区分（診療項目マスタと同一UIを共有）。 |
 | **問診/定型文**| [master-interview.md](./master-interview.md) | カルテ入力を効率化する各種テンプレート。 |
 | **ケージ** | [master-cage.md](./master-cage.md) | 入院室の番号、サイズ、収容タイプ。 |
 | **入院プラン** | [master-hospitalization-plan.md](./master-hospitalization-plan.md) | 入院・宿泊の単価と初期ケアタスク定義。 |
@@ -36,7 +36,7 @@
 | マスタ名 | 仕様書 | 概要 |
 |:---|:---|:---|
 | **トリミングコース種別** | [master-trimming-course-type.md](./master-trimming-course-type.md) | シャンプー・カット等、コースカテゴリの分類を管理。 |
-| **トリミング** | [master-trimming.md](./master-trimming.md) | コース・オプションの定義と、犬種別の料金表。 |
+| **トリミング** | [master-trimming.md](./master-trimming.md) | コース・オプションの定義（価格は対象サイズ区分のみ、犬種別ではない）。 |
 | **予約区分** | [master-reservation-type.md](./master-reservation-type.md) | 診察、手術等の予約枠と LINE 公開設定。 |
 | **シフトパターン**| [master-shift-template.md](./master-shift-template.md) | よく使う勤務時間と休憩時間のテンプレート。 |
 
@@ -48,7 +48,7 @@
 |:---|:---|:---|
 | **締め時間** | [closing-time-settings.md](./closing-time-settings.md) | AM/PM 境界、日界、休診日の管理。 |
 | **支払方法** | [payment-methods.md](./payment-methods.md) | 現金、カード、QR 等の決済手段。 |
-| **保険** | [master-insurance.md](./master-insurance.md) | 窓口精算に対応するペット保険の負担率設定。 |
+| **保険** | [master-insurance.md](./master-insurance.md) | ペット保険名称・補償率の管理（会計計算への連動は未実装）。 |
 | **割引キャンペーン** | [master-campaigns.md](./master-campaigns.md) | 会計割引ルールの期間・対象カテゴリ/商品設定。 |
 | **販売商品** | [master-merchandise.md](./master-merchandise.md) | 療法食、ケア用品等の販売品。 |
 | **LINE ページ** | [master-pages.md](./master-pages.md) | 飼い主向け予約画面の案内文言カスタマイズ。 |
@@ -57,7 +57,7 @@
 
 ## 技術的な共通事項
 
-- **Notion スタイル編集**: 全てのマスタは `SidePeekPanel` と `PropInput` を使用した、リストを離れない直感的な編集体験を提供します。
+- **Notion スタイル編集**: 各マスタは `MasterSidePanel`（`SidePeekPanel` ベース）と `PropertyRow`/`PropertyInput` を使用した、リストを離れない直感的な編集体験を提供します。
 - **認可ガード**: 個別のマスタに対し、`ResourceMasterMedical` や `ResourceMasterStaff` 等の独立した権限チェックがバックエンドで実行されます。
 
 ---

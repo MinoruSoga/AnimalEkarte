@@ -15,13 +15,15 @@
 | セクション名 | 管理対象（リンク） |
 |:---|:---|
 | **基本設定** | [医院情報](./19-clinic-settings.md)、[動物種類マスタ](./settings/master-animal-species.md) |
-| **カルテ** | [診療項目](./settings/master-treatment.md)、[診断マスタ](./settings/master-diagnosis.md)、[問診テンプレート](./settings/master-interview.md)、[薬剤マスタ](./settings/master-medicine.md)、[検査項目定義](./settings/master-examinations.md) |
-| **予約・シフト** | [予約区分マスタ](./settings/master-reservation-type.md)、[シフトパターン](./settings/master-shift-template.md)、[LINE予約設定](./28-line-reservation.md) |
-| **入院・ケージ** | [入院プラン](./settings/master-hospitalization-plan.md)、[ケージマスタ](./settings/master-cage.md) |
-| **トリミング** | [トリミングマスタ](./settings/master-trimming.md)、[トリミングコース種別](./settings/master-trimming-course-type.md) |
-| **会計・分析** | [商品マスタ](./settings/master-merchandise.md)、[保険マスタ](./settings/master-insurance.md)、[割引キャンペーン](./settings/master-campaigns.md)、[支払方法](./settings/payment-methods.md)、[締め時間設定](./settings/closing-time-settings.md) |
-| **外部連携** | [Lステップ連携設定](./31-lstep-integration.md) |
-| **スタッフ・権限** | [スタッフ管理](./settings/master-staff.md)、[権限グループ設定](./settings/master-permission-group.md) |
+| **カルテ** | [診療項目](./settings/master-treatment.md)（[検査項目定義](./settings/master-examinations.md)は診療項目のタブ内で管理）、[診断マスタ](./settings/master-diagnosis.md)、[問診テンプレート](./settings/master-interview.md)、[主訴種別](./settings/master-chief-complaint.md)、[薬剤マスタ](./settings/master-medicine.md) |
+| **予約管理マスタ** | [予約区分マスタ](./settings/master-reservation-type.md) |
+| **入院・ケージ管理** | [入院プラン](./settings/master-hospitalization-plan.md)、[ケージマスタ](./settings/master-cage.md) |
+| **トリミング関連** | [トリミングマスタ](./settings/master-trimming.md)、[トリミングコース種別](./settings/master-trimming-course-type.md) |
+| **会計・商品** | [商品マスタ](./settings/master-merchandise.md)、[保険マスタ](./settings/master-insurance.md)、[支払方法](./settings/payment-methods.md)、[締め時間設定](./settings/closing-time-settings.md) |
+| **スタッフ・権限** | [スタッフ管理](./settings/master-staff.md)、[職種マスタ](./settings/master-occupation.md)、[権限グループ設定](./settings/master-permission-group.md) |
+| **シフト管理** | [シフトパターン](./settings/master-shift-template.md) |
+
+> 補足: [割引キャンペーン](./settings/master-campaigns.md)（`/settings/campaigns`）はルートは存在するがこのポータルのカードには含まれない。[LINE予約設定](./28-line-reservation.md)（`/line-reservation`）と [Lステップ連携設定](./31-lstep-integration.md) はサイドバーの別セクションから遷移する。
 
 ---
 
@@ -41,11 +43,11 @@
 ## 技術仕様
 
 ### 権限制御 (RBAC)
-ポータル画面自体は全ユーザーが閲覧可能ですが、個別のマスタへのアクセスおよび操作権限は、`ResourceMasterMedical`, `ResourceMasterStaff`, `ResourceMasterTrimming` 等のリソースキーに基づき、バックエンドのハンドラー層で厳格に認可チェック（RequiredPermission）が適用されます。
+ポータル画面自体は全ユーザーが閲覧可能ですが、個別のマスタへのアクセスおよび操作権限は、`ResourceMasterMedical`, `ResourceMasterStaff`, `ResourceMasterTrimming` 等のリソースキーに基づき、バックエンドのハンドラー層で厳格に認可チェック（`RequirePermission`）が適用されます。
 
 ### 使用コンポーネント
 - **`MasterSettingsIndex`**: メインコンテナ。
-- **`MasterCategorySection`**: セクション別のグループ表示部品。
-- **`MasterCard`**: 個別マスタへのリンク・サマリ表示部品。
+- **`PermissionFilteredSection`**: セクション別のグループ表示部品。権限のないマスタを持つセクションはフィルタされる。
+- **`PermissionFilteredCard`** / **`CardRow`**: 個別マスタへのリンク・サマリ表示部品。
 
 ---

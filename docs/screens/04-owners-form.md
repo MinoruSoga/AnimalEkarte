@@ -3,7 +3,7 @@
 ![飼主登録画面](./images/04-owners-form.png)
 
 ## 概要
-- **画面 of Purpose**: 飼い主基本情報および、紐付く全てのペット（患者）情報の一元管理。
+- **画面の目的**: 飼い主基本情報および、紐付く全てのペット（患者）情報の一元管理。
 - **URLパターン**: 
   - 新規登録: `/owners/new`
   - 編集: `/owners/:id`
@@ -30,7 +30,7 @@ Notion スタイルの 4 カラムグリッドを採用し、臨床現場での�
 | **臨床ステータス** | **生存 (`alive`) / 死亡 (`deceased`)**。死亡時は日付と理由を記録。 |
 | **身体的特徴** | 毛色、最新体重（カルテ同期）、不妊・去勢の有無と実施日。 |
 | **行動・安全属性** | **危険度 (`danger_level`)**: 咬癖や攻撃性がある場合、`高 / 中 / 低` で設定。一覧画面で警告が表示されます。 |
-| **医療背景** | アクティブな**慢性疾患**のリスト管理、常用フード、飼育環境（室内/屋外）。 |
+| **医療背景** | 常用フード、飼育環境（室内/屋外）、加入保険（マスタ選択）。 |
 
 ### 1.3 LINE/Lステップ連携セクション (編集時のみ)
 - **紐付け状況**: LINE User ID の取得状態をリアルタイム表示。
@@ -38,6 +38,9 @@ Notion スタイルの 4 カラムグリッドを採用し、臨床現場での�
 - **個別メッセージ送信**: 
     - **`LineSendPanel`**: サイドパネルから特定の飼い主へ直接 LINE メッセージを送信。
     - **ファイル共有**: 血液検査結果などの PDF や画像をアップロードし、LINE 経由で共有可能（**`shared_files`** ストレージ連携）。
+
+### 1.4 会計履歴セクション（編集時のみ）
+- 該当飼主の会計履歴を一覧表示。`accounting` の閲覧権限を持つユーザーにのみ表示されます（権限がない場合、見出しごと非表示）。
 
 ---
 
@@ -68,8 +71,9 @@ Notion スタイルの 4 カラムグリッドを採用し、臨床現場での�
 | PATCH | `/api/v1/owners/:id` | 飼主基本情報の更新 | `owners` | `edit` |
 | PATCH | `/api/v1/pets/:id` | ペット単体の属性変更 | `owners` | `edit` |
 | POST | `/api/v1/shared-files` | LINE 共有用ファイルのアップロード | `owners` or `medical-records` | `edit` (or `create`/`edit`) |
-| POST | `/api/v1/owners/:id/line/send` | LINE個別メッセージ送信 | `owners` | `edit` |
-| GET | `/api/v1/owners/:id/line/send-logs` | LINEメッセージ送信履歴取得 | `owners` | `view` |
-| POST | `/api/v1/owners/:id/line/link-token` | 飼い主紐付けトークン発行 | `owners` | `edit` |
+| POST | `/api/v1/clinics/:clinicId/owners/:id/line/send` | LINE個別メッセージ送信 | `owners` | `edit` |
+| GET | `/api/v1/clinics/:clinicId/owners/:id/line/send-logs` | LINEメッセージ送信履歴取得（`pending` 行がある間は5秒間隔でポーリング） | `owners` | `view` |
+| PATCH | `/api/v1/clinics/:clinicId/owners/:id/line-user-id` | LINE User ID の手動設定・解除 | `owners` | `edit` |
+| PATCH | `/api/v1/clinics/:clinicId/owners/:id/line-id-confirm` | LINE ID 確認の記録 | `owners` | `edit` |
 
 ---

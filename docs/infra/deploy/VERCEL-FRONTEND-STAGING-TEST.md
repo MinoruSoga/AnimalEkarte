@@ -5,7 +5,7 @@
 > **タイミング**: デプロイ直後のFE確認時。
 
 > **Animal Ekarte**: Vercel デプロイ完了後のフロントエンド・UI・API 連携の検証手順
-> **最新更新**: 2026-05-27 | **目的**: 本番リリース前のフロントエンド稼働確認
+> **最新更新**: 2026-07-10 | **目的**: 本番リリース前のフロントエンド稼働確認
 
 ---
 
@@ -61,7 +61,7 @@
    - [ ] "Animal Ekarte" ロゴが表示される
 
 **失敗時アクション**:
-- Page 読み込み > 10 秒 → [§7.4 CloudFront キャッシュ無効化](#74-cloudfront-キャッシュ無効化) を確認
+- Page 読み込み > 10 秒 → [§7.4 Vercel キャッシュ無効化](#74-vercel-キャッシュ無効化) を確認
 - White screen / CSS なし → Build error 発生の可能性。[トラブルシューティング](#7-トラブルシューティング) へ。
 
 ---
@@ -228,8 +228,8 @@ DevTools → Network タブで、API リクエストの **Time** 列を確認。
 - API レスポンスタイム < 2s（通常は 100-500ms）
 
 **異常基準**:
-- レスポンスタイム > 5s → Database query 遅延 / Backend リソース不足。CloudWatch ログで確認。
-- Connection timeout → Backend インスタンス停止。ECS status 確認。
+- レスポンスタイム > 5s → Database query 遅延 / Backend リソース不足。ログで確認（Cloudflare 正系統は Workers Logs、旧 ECS ロールバック経路は CloudWatch）。
+- Connection timeout → Backend 停止。Cloudflare 正系統は `/health` 疎通確認、旧 ECS ロールバック経路は ECS status 確認。
 
 ---
 
@@ -269,7 +269,7 @@ DevTools → Network タブで、API リクエストの **Time** 列を確認。
    - `200 but blank` → CSS 内容が空
 
 **対処**:
-- [§7.4 CloudFront キャッシュ無効化](#74-cloudfront-キャッシュ無効化) を実施
+- [§7.4 Vercel キャッシュ無効化](#74-vercel-キャッシュ無効化) を実施
 - ブラウザキャッシュクリア: Ctrl+Shift+Delete / Cmd+Shift+Delete
 - Vercel deployment ページを再チェック（Status = `Ready` 確認）
 
@@ -293,25 +293,19 @@ curl -s https://api.stg.noah-karte.com/health | jq '.status'
 
 ---
 
-### 7.4 CloudFront キャッシュ無効化
+### 7.4 Vercel キャッシュ無効化
 
-Vercel デプロイ直後に CSS/JS が古いバージョンで配信される場合、CloudFront キャッシュを無効化。
+> **訂正(2026-07-10)**: `docs/infra/INFRA_ARCHITECTURE.md` の構成図が示す通り、CloudFront は
+> バックエンド API（`api.noah-karte.com`）専用であり、Vercel フロントエンド（`stg.noah-karte.com`）は
+> CloudFront を経由しない。旧「CloudFront キャッシュ無効化」の記述はアーキテクチャと矛盾していたため訂正する。
 
-```bash
-export AWS_PROFILE=AnimalEkarte
-
-# CloudFront distribution ID を確認（Team Lead から確認）
-DIST_ID="<CloudFront-Distribution-ID>"
-
-# キャッシュ無効化
-aws cloudfront create-invalidation \
-  --distribution-id ${DIST_ID} \
-  --paths "/*"
-```
+Vercel デプロイ直後に CSS/JS が古いバージョンで配信される場合、Vercel はビルド成果物をコンテンツハッシュ付き
+ファイル名で配信するためサーバ側キャッシュの明示的無効化は通常不要。古いバージョンが表示される場合は、
+まずブラウザキャッシュのクリア、または Vercel ダッシュボードで最新デプロイが `Promote to Production` /
+対象環境に正しく反映されているかを確認する。
 
 **期待結果**:
-- `Id` が返される（無効化リクエスト ID）
-- 数分後に最新アセットが配信される
+- ブラウザキャッシュクリア後、最新アセットが配信される
 
 ---
 

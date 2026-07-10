@@ -65,4 +65,4 @@
 
 ---
 
-**最新更新**: 2026-07-03 | **ステータス**: All Sync with Implementation (108 Tables / 34 Resources)
+**最新更新**: 2026-07-10 | **ステータス**: All Sync with Implementation (108 Tables / 34 Resources)

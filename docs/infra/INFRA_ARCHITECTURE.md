@@ -5,9 +5,17 @@
 > **タイミング**: AWS/Vercel構成を把握したい時。
 
 > **Animal Ekarte**: AWS / Vercel を活用した高可用・低コストなクラウド基盤
-> **最新更新**: 2026-06-12 | **対象環境**: Staging / Production
+> **最新更新**: 2026-07-10 | **対象環境**: Staging / Production
 
 ---
+
+> ⚠️ **移行中の注記（2026-07-10 時点）**: STG バックエンドの CI/CD デプロイ先は Cloudflare Workers + Containers
+> （`.github/workflows/backend-deploy.yml`、`staging` ブランチ push トリガー）に置き換わっている（Phase 5、2026-07-06）。
+> DB は RDS ではなく PlanetScale Postgres へ直結。ただし DNS 切替（NS切替・Phase 7）は未実施のため、
+> `api.stg.noah-karte.com` の実トラフィックは本章が記述する AWS 構成（ECS/ALB/RDS）を引き続き経由している。
+> AWS ECS への手動デプロイは `backend-deploy-ecs.yml`（`workflow_dispatch` 限定）に残置され、Phase 7〜8（AWS 廃止）
+> 完了までのロールバック/並行経路として運用中。移行の最新状況はリポジトリ直下 `migration-cloudflare.md` を参照。
+> 以下は現時点で実トラフィックを担う AWS 側構成の記述。
 
 ## 1. 全体構成図
 
@@ -63,7 +71,7 @@ flowchart TB
 
 | 変数名 | 必須 | 用途 |
 |:---|:---:|:---|
-| `DATABASE_URL` | ✅ | RDS インスタンス接続（PostgreSQL 18）。 |
+| `DB_HOST` / `DB_PORT` / `DB_USER` / `DB_PASSWORD` / `DB_NAME` / `DB_SSL_MODE` | ✅ | RDS インスタンス接続（PostgreSQL 18）。接続文字列ではなく個別変数で構成（`DATABASE_URL` という単一変数は実装に存在しない）。 |
 | `JWT_SECRET` | ✅ | セッション署名用秘密鍵（32文字以上のユニーク文字列）。 |
 | `INTEGRATION_ENCRYPTION_KEY` | ✅ | 病院別 API キー保護用の AES-256 暗号化キー。 |
 | `STORAGE_TYPE` | ✅ | `s3` (Production/STG) または `local` (Dev)。 |

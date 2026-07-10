@@ -18,15 +18,15 @@
 
 ## 2. ハイブリッド保存ロジック (Hybrid Sync)
 
-カルテは 9 つのタブに分かれた膨大なデータを扱うため、以下の 2 段階で保存を実行します。
+カルテは 9 つのタブ（問診 / 診察・治療プラン / 治療 / 予防接種 / 定期健診 / 検査 / 画像 / 見積書 / 会計(医師確認)）に分かれた膨大なデータを扱うため、「カルテ本体」と「タブ別サブデータ」を独立して保存します。
 
 1.  **メイン保存**:
     - 主訴、カテゴリ、担当医、ステータス、来院種別、推奨再診日などの「カルテ本体」の属性を保存 (`PATCH /v1/medical-records/:id`)。
-2.  **タブ別サブデータ同期**:
-    - メイン保存の成功をトリガーに、**現在アクティブなタブ**の内容を個別に API 通信して同期。
-    - **処置・処方 (Tab 3)**: `PUT /v1/medical-records/:id/treatments` で一括更新。
-    - **バイタル (Tab 2)**: `POST /v1/medical-records/:id/vitals` で記録。
-    - **検査 (Tab 6)**: `POST /v1/examinations`（body に `medical_record_id` を指定）で登録。
+2.  **タブ別サブデータの即時保存**:
+    - メイン保存の成否とは独立して、各タブ内の操作（追加・編集・削除）が発生した時点で即座に個別 API へ送信されます（メイン保存完了を待つゲート処理ではありません）。
+    - **治療 (Tab 3)**: 項目の追加・更新・削除はそれぞれ `POST`/`PATCH`/`DELETE /v1/medical-records/:id/treatments(/:treatmentId)`。ドラッグ&ドロップでの並び替えのみ `PUT /v1/medical-records/:id/treatments` で一括更新。
+    - **バイタル**: タブではなく `VitalsModal`（モーダルダイアログ）から `POST /v1/medical-records/:id/vitals` で記録。
+    - **検査 (Tab 6)**: 新規検査は `/examinations/new` 画面で作成し、カルテの検査タブでは既存の検査記録を「取り込み」ダイアログ経由で `PATCH`（`medical_record_id` を設定）し紐付けます。
 
 ---
 
@@ -56,8 +56,9 @@
 | メソッド | エンドポイント | 用途 | 必須権限 | 必須アクション |
 |:---|:---|:---|:---|:---|
 | PATCH | `/api/v1/medical-records/:id` | カルテ本体の属性を保存・更新 | `medical-records` | `edit` |
-| PUT | `/api/v1/medical-records/:id/treatments` | 処置・処方明細の一括更新 | `medical-records` | `edit` |
-| POST | `/api/v1/medical-records/:id/vitals` | バイタル測定結果の記録 | `medical-records` | `edit` |
-| POST | `/api/v1/examinations` | 新規検査オーダーの登録 | `examinations` | `create` |
+| POST/PATCH/DELETE | `/api/v1/medical-records/:id/treatments(/:treatmentId)` | 治療明細の個別追加・更新・削除 | `medical-records` | `edit` |
+| PUT | `/api/v1/medical-records/:id/treatments` | 治療明細の並び替え（一括） | `medical-records` | `edit` |
+| POST | `/api/v1/medical-records/:id/vitals` | バイタル測定結果の記録（`VitalsModal`） | `medical-records` | `edit` |
+| PATCH | `/api/v1/examinations/:id` | 既存検査記録をカルテへ紐付け（取り込み） | `examinations` | `edit` |
 
 ---

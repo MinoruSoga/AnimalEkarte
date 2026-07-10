@@ -45,7 +45,6 @@
 | メソッド | エンドポイント | 用途 | 必須権限 | 必須アクション |
 |:---|:---|:---|:---|:---|
 | GET | `/api/v1/shifts` | 指定月のスタッフ全員のシフトの取得 | `shifts` | `view` |
-| GET | `/api/v1/shifts/on-duty-staffs` | 稼働中スタッフ一覧の取得 | `shifts` | `view` |
 | POST | `/api/v1/shifts` | 新規シフト（単日）の登録 | `shifts` | `create` |
 | PATCH | `/api/v1/shifts/:id` | 既存シフトおよび休憩時間の更新 | `shifts` | `edit` |
 | DELETE | `/api/v1/shifts/:id` | シフトの削除 | `shifts` | `delete` |

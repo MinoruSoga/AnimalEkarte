@@ -5,7 +5,7 @@
 > **タイミング**: システム概要を把握したい時。
 
 > **Animal Ekarte**: 動物病院向け統合カルテ・経営管理システム
-> **最新更新**: 2026-06-12 | **ステータス**: Production Ready (Code-Synced)
+> **最新更新**: 2026-07-10 | **ステータス**: Production Ready (Code-Synced)
 
 ---
 

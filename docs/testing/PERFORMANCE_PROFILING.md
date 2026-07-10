@@ -5,7 +5,7 @@
 > **タイミング**: パフォーマンス調査時。
 
 > **Animal Ekarte**: 大規模データ下での高速な操作性の維持
-> **最新更新**: 2026-06-12
+> **最新更新**: 2026-07-10
 
 ---
 
@@ -34,13 +34,7 @@ React DevTools の **Profiler** タブを使用して、不要な再描画（Re-
 - **対策**: `memo()`, `useCallback`, `useMemo` によるコンポーネントの保護。
 
 ### 3.2 バックエンド (Go)
-`pprof` を使用して CPU およびメモリ消費の激しい処理を特定します。バックエンドは HTTP の `/debug/pprof` エンドポイントを公開していません。プロファイルは CLI ツール `backend/scripts/profile.go`（`profile [memory|cpu|goroutine|stats]`）で取得し、`profile_cpu.pprof` などの `*.pprof` ファイルを出力します。
-```bash
-# CPU プロファイルを取得（backend/scripts/profile.go の cpu サブコマンド。引数で取得秒数を指定可）
-#   出力例: profile_cpu.pprof
-# 取得後、可視化:
-go tool pprof -http=:8081 profile_cpu.pprof
-```
+CLI ツール `backend/scripts/profile.go` は CI ランナーのホスト自身（起動したての別プロセス）をプロファイリングしており、稼働中の dockerized backend の実測になっていなかったため 2026-07-10 に削除済み（commit `3f692a73`）。バックエンドは HTTP の `/debug/pprof` エンドポイントも公開していない。現時点で稼働中の backend プロセスに対する専用プロファイリング手段は存在しない（`net/http/pprof` を `GIN_MODE=debug` 時のみ有効化する案は未実装）。
 
 ### 3.3 データベース (PostgreSQL)
 `EXPLAIN ANALYZE` を使用して、集計クエリのインデックス効力を検証します。
@@ -60,7 +54,7 @@ go tool pprof -http=:8081 profile_cpu.pprof
 
 ## 4. 負荷テスト (Load Testing)
 
-`k6` を使用し、想定される同時接続数（最大50名）での安定稼働を検証します。
+`k6` を使用し、突発的な負荷増加（`load-tests/k6-spike-test.js` は 5 秒で 100 ユーザーへ急増するスパイクを想定）に対する安定稼働を検証します。定常負荷（50 ユーザー、p95 500ms 以下）は `load-tests/k6-api-endpoints.js` で別途検証します。
 ```bash
 # 負荷テストの実行
 k6 run load-tests/k6-spike-test.js

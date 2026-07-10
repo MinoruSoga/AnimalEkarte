@@ -3,22 +3,21 @@
 ## 概要
 - **画面の目的**: 飼い主が操作する LINE 予約アプリ（LIFF）内の各画面に表示される文言、ポリシー、およびデザイン補助情報の管理。
 - **URLパターン**: `/line-reservation/page-editor`
-- **アクセス権限**: 医院管理者権限が必要（`ResourceHospitalSettings`）
+- **アクセス権限**: フロントエンドのルートガードは予約管理権限（`ResourceReservations` = `reservations`、`frontend/src/app/routes/operations-routes.tsx:53-56`）。一方、保存先API（`PUT /clinics/:clinic_id/line-reservation-settings`）は `ResourceHospitalSettings`（`hospital-settings`）の `edit` 権限を要求する（`backend/internal/handler/reservation_line_routes.go:21-22`）。画面には到達できても医院設定権限がなければ保存に失敗し得る点に注意。
 
 ---
 
 ## 画面構成
 
-### 1. ページセクション選択
-LIFF アプリ内の主要な 4 つのフェーズを個別に編集可能です。
-- **トップ (Portal)**: 病院の挨拶、本日の診療に関する重要告知。
-- **メニュー選択 (Course)**: 診療、ワクチン、トリミング等の補足説明。
-- **確認 (Confirmation)**: キャンセル規定、当日の持ち物の案内。
-- **完了 (Finish)**: 予約確定後のアクション（「外でお待ちください」等）の指示。
+### 1. コンテンツ編集フォーム（単一ページ）
+`LineReservationPageEditor` は LIFF フェーズ別のタブ切り替えではなく、5つのテキストエリアを縦に並べた単一フォーム。セクション選択UI・`PageSectionTabs` のようなコンポーネントは存在しない（`frontend/src/features/line-reservation/routes/LineReservationPageEditor.tsx:34-65`）。
+- **ヘッダーテキスト (`header_text`)**: LINE予約ページのヘッダーに表示するテキスト。
+- **予約時の注意事項 (`reservation_notice`)**: 予約時に顧客に表示する注意事項。
+- **キャンセル時の注意事項 (`cancel_notice`)**: キャンセル時に表示する注意事項。
+- **プライバシーポリシー (`privacy_policy`)**: 個人情報の取り扱いに関する説明。
+- **リクエスト例 (`request_example`)**: 予約リクエストの記入例。
 
-### 2. コンテンツ編集エリア
-- **見出し (`header_text`)**: 各画面の最上部に強調表示されるテキスト。
-- **案内・注釈文**: 飼い主向けの本文・注釈は `reservation_notice`（予約時の案内）、`cancel_notice`（キャンセル規定）、`privacy_policy`（免責・プライバシー）、`request_example`（入力例）の各フィールドで編集する。`body_text` / `footer_text` という単一フィールドは存在しない（`line_reservation_settings` 実装基準）。
+`body_text` / `footer_text` という単一フィールドは存在しない（`line_reservation_settings` 実装基準）。
 
 ---
 
@@ -35,8 +34,7 @@ LIFF アプリ内の主要な 4 つのフェーズを個別に編集可能です
 ## 技術仕様
 
 ### 使用コンポーネント
-- **`PageSectionTabs`**: セクション間の高速切り替え。
-- **`PropTextarea`**: 複数行の案内文入力。
+- **`LineReservationPageEditor`**: メインページ。`Textarea`（shadcn/ui）5個を縦並びで配置した単一フォーム。
 
 ### API連携
 | メソッド | エンドポイント | 用途 | 必須権限 | 必須アクション |

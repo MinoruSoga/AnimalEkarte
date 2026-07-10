@@ -1,7 +1,7 @@
 # 医院マスタ設定 仕様書 (Clinic Master Settings)
 
 ## 概要
-- **画面 of Purpose**: システムを利用する各拠点（本院・分院）の基本情報、連絡先、およびインボイス制度に対応した各種パラメータの一元管理。
+- **画面の目的**: システムを利用する各拠点（本院・分院）の基本情報、連絡先、およびインボイス制度に対応した各種パラメータの一元管理。
 - **URLパターン**: `/settings/clinic`
 - **アクセス権限**: 医院管理者権限が必要（`ResourceHospitalSettings`）
 
@@ -11,14 +11,12 @@
 
 ### 1.1 医院一覧テーブル
 登録されている全拠点のリスト。
-- **表示項目**: 院名、電話番号、住所、稼働ステータス。
+- **表示項目**: 院名、電話番号、メール、ステータス。
 
-### 1.2 詳細編集サイドパネル (`SidePeekPanel`)
-- **基本情報**: 院名、院長名（帳票印字用）、住所、電話/FAX。
-- **会計・税務設定**: 
-    - **インボイス登録番号**: 明細書・領収書に必須の T 番号。
-    - **標準/軽減税率**: 院内での計算基準となる税率の定義。
-- **ロゴ・ブランディング**: 帳票のヘッダーに表示される病院ロゴのアップロード。
+### 1.2 詳細編集サイドパネル (`ClinicMasterSidePanel`)
+- **基本情報**: 院名、住所、電話/FAX番号、登録番号、院長名、メール、Webサイト。
+- **消費税率**: 通常課税・軽減税率の定義。
+- **明細兼領収書設定**: ロゴ表示・登録番号警告の表示可否をトグルで切替（ロゴ画像自体のアップロード機能はこの画面には無い）。
 
 ---
 
@@ -36,17 +34,16 @@
 
 ### 使用コンポーネント
 - **`ClinicMasterSettings`**: メインページ。
-- **`SidePeekPanel`**: コンテキストを維持した詳細編集。
-- **`ImageUploader`**: 病院ロゴの S3 へのセキュアなアップロード（署名付き URL 利用）。
+- **`ClinicMasterList`**: 医院一覧テーブル。
+- **`ClinicMasterSidePanel`**: コンテキストを維持した詳細編集パネル。
 
 ### API連携
 | メソッド | エンドポイント | 用途 | 必須権限 | 必須アクション |
 |:---|:---|:---|:---|:---|
-| GET | `/api/v1/clinics` | 所属グループ内の医院一覧取得 | `hospital-settings` | `view` |
-| GET | `/api/v1/clinics/:clinic_id` | 特定の医院詳細情報の取得 | `hospital-settings` | `view` |
+| GET | `/api/v1/clinics` | 所属グループ内の医院一覧取得（詳細パネルも一覧データから参照） | `hospital-settings` | `view` |
 | POST | `/api/v1/clinics` | 新規拠点の開設 | `hospital-settings` | `create` |
 | PATCH | `/api/v1/clinics/:clinic_id` | 拠点情報の更新 | `hospital-settings` | `edit` |
-| DELETE | `/api/v1/clinics/:clinic_id` | 拠点情報の削除（論理削除） | `hospital-settings` | `delete` |
+| DELETE | `/api/v1/clinics/:clinic_id` | 拠点情報の削除（物理削除。参照中のデータが残る場合は 409 で拒否） | `hospital-settings` | `delete` |
 
 ---
 

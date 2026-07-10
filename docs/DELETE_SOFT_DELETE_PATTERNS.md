@@ -5,7 +5,7 @@
 > **タイミング**: 削除/論理削除の機能を実装する時。
 
 > **Animal Ekarte**: Hard Delete と Soft Delete の使い分け、FK 制約との関係、実装時チェックリスト
-> **最新更新**: 2026-06-12 | **目的**: STG-001 の根本原因解消と今後の実装指針
+> **最新更新**: 2026-07-10 | **目的**: STG-001 の根本原因解消と今後の実装指針
 
 ---
 
@@ -69,10 +69,11 @@
 ## 4. Soft Delete が妥当なケース
 
 ### 4.1 監査対象データ
-- **医療記録（medical_records / vital_records / addendums）**
+- **医療記録（medical_records / vital_records）**
   - 診療実績、投薬履歴、検査結果
   - コンプライアンス要件で削除履歴が必須
   - UI では削除済みを非表示だが、内部 API では trackable
+  - `medical_record_addenda`（追記）は `deleted_at` カラムを持たない Append-only（削除メソッド自体が存在しない）。Soft Delete 対象ではない
 
 - **会計データ（billings / billing_items / accounting）**
   - 領収書・請求書実績の追跡
@@ -90,7 +91,7 @@
 
 - **Clinic Settings**
   - マルチテナント環境で clinic 単位の設定変更
-  - Soft Delete で変更履歴を保持（監査目的）
+  - `clinic_settings` は `clinic_id` を主キーとする単一行構成で `deleted_at` カラムを持たない。UPDATE による上書きのみで、Soft Delete による変更履歴保持は行われていない
 
 ---
 
@@ -342,7 +343,7 @@ func (r *Repo) DeleteParentWithSoftDeletedChildren(ctx context.Context,
 - **並行競合時の無監査物理削除の防止 (READ COMMITTED 対策)**: 置換（Replace）処理において、削除判定を「スナップショット時の事前取得件数」ではなく、DELETE文実行後の実際の `RowsAffected` (物理削除数) を用いて監査ログ作成の要否をゲートします。これにより、READ COMMITTED 分離レベル下で事前取得時点では 0 件であっても、直後に並行処理でコミットされた新規データを削除してしまい、監査ログが出力されない（無監査物理削除）という競合を防ぎます。
 - **移行ステータス**:
   - `checkup_field_results` (完了 / `statusAuditedTxInternal`): ambient tx を用いてトランザクション内で削除と監査を実施。実行時テスト `checkup_field_result_tx_atomicity_test.go` により担保。
-  - `exam_results` (未完了 / `statusPendingMigration`): 独自トランザクションで物理削除を実行しているため、呼び出し元の ambient tx に連動していない。今後 `checkup_field_results` と同様に ambient tx 対応へ移行予定。
+  - `exam_results` (完了 / `statusAuditedTxInternal`): `examinationRepository.ReplaceItemsByExamID` が `dbOrTx` ambient tx を用いてトランザクション内で削除と監査を実施するよう移行済み。実行時テスト `examination_repository_tx_atomicity_test.go` により担保。
 
 ---
 

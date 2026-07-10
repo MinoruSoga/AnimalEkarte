@@ -50,7 +50,7 @@
 2. 空の `lineUserID` が `ErrUserNotFound` を返す既存挙動は維持する
 3. write 系 API の unit test / integration smoke を追加または更新する
 4. STG で少数のテスト LINE User ID に対して Add/Remove/SetProperty を確認する
-5. CloudWatch logs と Lステップ管理画面で write 結果を照合する
+5. ログ（Cloudflare 正系統は Workers Logs、旧 AWS ECS ロールバック経路は CloudWatch logs）と Lステップ管理画面で write 結果を照合する
 
 ---
 

@@ -5,7 +5,7 @@
 > **タイミング**: デプロイ直後の手動確認時。
 
 > **Animal Ekarte**: デプロイ直後の基本動作とデータ整合性の最終確認
-> **最新更新**: 2026-05-26 | **目的**: 本番リリース前の最終デプロイ検証
+> **最新更新**: 2026-07-10 | **目的**: 本番リリース前の最終デプロイ検証
 
 ---
 
@@ -187,7 +187,7 @@ curl -X DELETE "${API_V1}/masters/staffs/${TEST_STAFF_ID}" \
 - タイムスタンプが操作時刻と一致するか
 
 ```bash
-# 例: CloudWatch Logs でエラー確認
+# 例: CloudWatch Logs でエラー確認（旧 ECS ロールバック経路使用時のみ。Cloudflare 正系統は Workers Logs を参照）
 aws logs tail /ecs/animalekarte-stg --follow --region us-east-1 | grep -i error
 ```
 
@@ -212,7 +212,7 @@ aws logs tail /ecs/animalekarte-stg --follow --region us-east-1 | grep -i error
 ### 6.3 Cleanup タイムライン
 1. テスト完了直後: CLI での削除実行
 2. 削除確認: GET で 404 or リスト外を確認（API 層）
-3. 監査ログ確認: DELETE アクション記録を CloudWatch で確認
+3. 監査ログ確認: DELETE アクション記録を audit_logs テーブル（旧 ECS ロールバック経路使用時は CloudWatch）で確認
 4. レポート作成: 削除したレコード数・操作者・タイムスタンプをログに記録
 
 ---
@@ -226,7 +226,7 @@ aws logs tail /ecs/animalekarte-stg --follow --region us-east-1 | grep -i error
 | 权限エラー（期待外） | 403 / 401 | 認証情報確認、キャッシュクリア |
 | FK 保護失敗（409 でなく 400/500） | 400 / 500 | **即座にロールバック** |
 | 404（レコード存在が期待） | 404 | 入力データ確認、test データ状態確認 |
-| 5xx エラー | 500+ | **即座にロールバック**、CloudWatch ログ確認 |
+| 5xx エラー | 500+ | **即座にロールバック**、ログ確認（Cloudflare 正系統は Workers Logs、旧 ECS ロールバック経路は CloudWatch） |
 | 監査ログ未記録 | (実行済も記録なし) | DB トランザクション確認、ロールバック判断 |
 
 詳細は `docs/infra/deploy/README.md` §4 のロールバック判定基準を参照してください。
