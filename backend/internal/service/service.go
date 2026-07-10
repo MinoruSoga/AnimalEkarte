@@ -1,6 +1,7 @@
 package service
 
 import (
+	"github.com/animal-ekarte/backend/internal/infra"
 	"github.com/animal-ekarte/backend/internal/infra/crypto"
 	"github.com/animal-ekarte/backend/internal/repository"
 )
@@ -141,7 +142,7 @@ type Services struct {
 // cipher は LINE 認証情報（line_channel_secret / line_access_token）の暗号化に使う（H-4）。
 // nil の場合は暗号化なしで動作する（開発環境で INTEGRATION_ENCRYPTION_KEY 未設定時）。
 // lstep 連携と同一の cipher を再利用する。
-func NewServices(repos *repository.Repositories, notifCfg *ReservationNotificationConfig, cipher *crypto.AESGCMCipher) *Services {
+func NewServices(repos *repository.Repositories, notifCfg *ReservationNotificationConfig, cipher *crypto.AESGCMCipher, sharedStorage infra.FileStorage) *Services {
 	notifier := NewReservationNotificationService(notifCfg, repos.LineReservationSetting, cipher)
 	auditSvc := NewAuditService(repos.Audit)
 	// auditTxLogger: 具象 *auditService は tx 内監査の LogEntryTx も実装する（#211）。
@@ -195,6 +196,34 @@ func NewServices(repos *repository.Repositories, notifCfg *ReservationNotificati
 	// lab import (Phase 3): 同一 jobSvc インスタンスを LabImportJob/LabResultImport で共有する。
 	labImportJobSvc := NewLabImportJobService(repos.LabImportJob, repos.LabImportEvent)
 
+	// G9-1: 旧 main.go 二段階DI（NewServices 呼び出し後の再構築ブロック）をここに統合。
+	// main.go 由来の元の構築順序をそのまま保持する。
+	sharedFileSvc := NewSharedFileService(repos.SharedFile, repos.Owner, sharedStorage)
+	// LSTEP-BE-012: 慢性疾患フラグ
+	chronicConditionSvc := NewChronicConditionService(repos.ChronicCondition, repos.Pet, lstepTagSyncSvc)
+	// LSTEP-BE-013: LINE個別送信
+	lineSendSvc := NewLineSendService(lstepSettingsSvc, repos.Owner, sharedFileSvc, repos.LstepTagCache, auditSvc, repos.LineSendLog, repos.LstepTagConfig)
+	// LSTEP-BE-021: LINE User ID 自動取得・飼い主紐付け
+	lineLinkSvc := NewLineLinkService(repos.Owner, repos.LineLinkToken, repos.LineReservationSetting, auditSvc, cipher)
+	// LSTEP-BE-020: タグ集計・タグ別飼い主検索
+	lstepTagSummarySvc := NewLstepTagSummaryService(repos.LstepTagCache)
+	// LSTEP-BE-004: 健診対象者抽出・一括タグ連携
+	checkupSyncSvc := NewCheckupSyncService(repos.CheckupSync, repos.Owner, repos.Pet, repos.LstepTagCache, lstepSettingsSvc, auditSvc)
+	// FEAT-384: 自動配信トリガー監視
+	lstepDeliveryMonitorSvc := NewLstepDeliveryMonitorService(repos.LstepDeliveryTriggerLog)
+	// Q23: トリガー優先順位設定
+	lstepTriggerPrioritySvc := NewLstepTriggerPriorityService(repos.LstepTriggerPriority)
+	// FEAT-383: 自動配信トリガー（LstepBatch / MedicalRecord / Checkup より先に初期化）
+	lstepDeliveryTriggerSvc := NewLstepDeliveryTriggerService(repos.Owner, repos.MedicalRecord, repos.Vaccination, repos.BillingItem, repos.Pet, repos.LstepTagCache, repos.LstepDeliveryTriggerLog, lstepSettingsSvc, lstepTriggerPrioritySvc)
+	// FEAT-383: イベントフック注入（LstepDeliveryTrigger 確定後に構築）
+	medicalRecordSvc := NewMedicalRecordService(repos.MedicalRecord, repos.Owner, repos.Pet, repos.Inquiry, repos.ClinicalPlan, repos.LineCustomerMgr, repos.Reservation, lstepDeliveryTriggerSvc, auditSvc, lstepTagSyncSvc)
+	checkupSvc := NewCheckupService(repos.Checkup, repos.MedicalRecord, repos.CheckupType, lstepDeliveryTriggerSvc, lstepTagSyncSvc)
+	// LSTEP-BE-014: ノーショウ検知バッチ（LstepDeliveryTrigger 確定後に初期化）
+	lstepBatchSvc := NewLstepBatchService(repos.Reservation, lstepTagSyncSvc, repos.Clinic, repos.MedicalRecord, auditSvc, lstepSettingsSvc, lstepDeliveryTriggerSvc)
+	// FEAT-385: Lステップ CSV インポート・分析
+	lstepCsvImportSvc := NewLstepCsvImportService(repos.DB(), repos.LstepCsvImport, repos.LstepFriendAttributeSnapshot, repos.Owner)
+	lstepAnalyticsSvc := NewLstepAnalyticsService(repos.Owner, repos.LstepDeliveryTriggerLog, repos.LstepFriendAttributeSnapshot)
+
 	return &Services{
 		Account:               NewAccountService(repos.Account),
 		StaffClinicAssignment: NewStaffClinicAssignmentService(repos.StaffClinicAssignment),
@@ -203,7 +232,7 @@ func NewServices(repos *repository.Repositories, notifCfg *ReservationNotificati
 		Owner:                 NewOwnerService(repos.Owner, lstepTagSyncSvc, auditSvc),
 		Pet:                   NewPetService(repos.Pet, repos.Owner, repos.Insurance, repos.MedicalRecord, lstepTagSyncSvc),
 		Reservation:           NewReservationServiceWithAvailabilityAndType(repos.Reservation, repos.ReservationType, tx, repos.ReservationStaff, repos.ReservationTypeUnavailableTime, repos.ReservationTypeAvailableSlot),
-		MedicalRecord:         NewMedicalRecordService(repos.MedicalRecord, repos.Owner, repos.Pet, repos.Inquiry, repos.ClinicalPlan, repos.LineCustomerMgr, repos.Reservation, nil, auditSvc, lstepTagSyncSvc),
+		MedicalRecord:         medicalRecordSvc,
 		MedicalRecordAddendum: NewMedicalRecordAddendumService(repos.MedicalRecordAddendum, repos.MedicalRecord, auditSvc),
 		Hospitalization:       NewHospitalizationService(repos),
 		Accounting:            NewAccountingService(repos.Accounting, lstepTagSyncSvc, tx, auditTxLogger, repos.PaymentMethodMaster),
@@ -261,7 +290,7 @@ func NewServices(repos *repository.Repositories, notifCfg *ReservationNotificati
 		DailyRecord:                    NewDailyRecordService(repos.DailyRecord),
 		MedicalRecordImage:             NewMedicalRecordImageService(repos.MedicalRecordImage, repos.MedicalRecord),
 		ClinicalPlan:                   NewClinicalPlanService(repos.ClinicalPlan, repos.MedicalRecord, repos.DiagnosisType, repos.DiagnosisName),
-		Checkup:                        NewCheckupService(repos.Checkup, repos.MedicalRecord, repos.CheckupType, nil, lstepTagSyncSvc),
+		Checkup:                        checkupSvc,
 		CheckupFieldResult:             NewCheckupFieldResultService(repos.Checkup, repos.MedicalRecord, repos.CheckupTypeField, repos.CheckupFieldResult, auditTxLogger, tx),
 		Estimate:                       NewEstimateService(repos.Estimate),
 		ManualArticle:                  NewManualArticleService(repos.ManualArticle),
@@ -290,8 +319,20 @@ func NewServices(repos *repository.Repositories, notifCfg *ReservationNotificati
 		LstepTagSync:              lstepTagSyncSvc,
 		LstepLifecycle:            lstepLifecycleSvc,
 		LstepTag:                  NewLstepTagService(lstepSettingsSvc, repos.Owner, repos.LstepTagCache, auditSvc, repos.LstepTagConfig),
+		SharedFile:                sharedFileSvc,
+		ChronicCondition:          chronicConditionSvc,
+		LineSend:                  lineSendSvc,
+		LstepBatch:                lstepBatchSvc,
+		LstepDeliveryTrigger:      lstepDeliveryTriggerSvc,
+		LstepTriggerPriority:      lstepTriggerPrioritySvc,
 		LstepTagCodeMapping:       NewLstepTagCodeMappingService(repos.LstepTagCodeMapping),
 		LstepTagConfig:            NewLstepTagConfigService(repos.LstepTagConfig),
+		LineLink:                  lineLinkSvc,
+		LstepTagSummary:           lstepTagSummarySvc,
+		CheckupSync:               checkupSyncSvc,
+		LstepDeliveryMonitor:      lstepDeliveryMonitorSvc,
+		LstepCsvImport:            lstepCsvImportSvc,
+		LstepAnalytics:            lstepAnalyticsSvc,
 		Liff: NewLiffServiceWithType(
 			repos.LineReservationSetting,
 			repos.ReservationTypeLiff,

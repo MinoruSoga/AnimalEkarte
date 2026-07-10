@@ -77,37 +77,8 @@ func main() {
 		logger.Info("INTEGRATION_ENCRYPTION_KEY not set: running without encryption (dev mode)")
 	}
 
-	// サービス初期化
-	svcs := service.NewServices(repos, &service.ReservationNotificationConfig{
-		SMTPHost:    cfg.SMTPHost,
-		SMTPPort:    cfg.SMTPPort,
-		SMTPUser:    cfg.SMTPUser,
-		SMTPPass:    cfg.SMTPPass,
-		SMTPFrom:    cfg.SMTPFrom,
-		FrontendURL: cfg.FrontendURL,
-	}, integrationCipher)
-
-	// X-2: LstepSettings / LstepTagSync は NewServices が integrationCipher で正しく構築済み
-	// （service.go 参照）。ここでの再構築は不要かつ、Owner/Pet/Accounting/Vaccination/
-	// Prescription/Aggregation が保持する既存インスタンスと二重化するだけなので削除した。
-	svcs.LstepLifecycle = service.NewLstepLifecycleService(
-		svcs.LstepSettings,
-		repos.Owner,
-		repos.Pet,
-		repos.LstepTagCache,
-		svcs.LstepTagSync,
-		svcs.Audit,
-		repos.LstepTagConfig,
-	)
-	svcs.LstepTag = service.NewLstepTagService(
-		svcs.LstepSettings,
-		repos.Owner,
-		repos.LstepTagCache,
-		svcs.Audit,
-		repos.LstepTagConfig,
-	)
-
 	// 共有ファイルストレージ初期化（STORAGE_TYPE=s3 で S3、それ以外はローカル）
+	// NewServices に渡すため NewServices 呼び出しより前に初期化する（G9-1）。
 	var sharedStorage infra.FileStorage
 	if cfg.StorageType == "s3" {
 		s3fs, err := infra.NewS3FileStorage(context.Background(), cfg.S3SharedBucket, cfg.S3SharedRegion, cfg.S3Endpoint)
@@ -121,31 +92,19 @@ func main() {
 		sharedStorage = infra.NewLocalFileStorage("/app/uploads/shared", "http://localhost:"+cfg.Port+"/uploads/shared")
 		logger.Info("shared file storage: local filesystem")
 	}
-	svcs.SharedFile = service.NewSharedFileService(repos.SharedFile, repos.Owner, sharedStorage)
-	// LSTEP-BE-012: 慢性疾患フラグ
-	svcs.ChronicCondition = service.NewChronicConditionService(repos.ChronicCondition, repos.Pet, svcs.LstepTagSync)
-	// LSTEP-BE-013: LINE個別送信
-	svcs.LineSend = service.NewLineSendService(svcs.LstepSettings, repos.Owner, svcs.SharedFile, repos.LstepTagCache, svcs.Audit, repos.LineSendLog, repos.LstepTagConfig)
-	// LSTEP-BE-021: LINE User ID 自動取得・飼い主紐付け
-	svcs.LineLink = service.NewLineLinkService(repos.Owner, repos.LineLinkToken, repos.LineReservationSetting, svcs.Audit, integrationCipher)
-	// LSTEP-BE-020: タグ集計・タグ別飼い主検索
-	svcs.LstepTagSummary = service.NewLstepTagSummaryService(repos.LstepTagCache)
-	// LSTEP-BE-004: 健診対象者抽出・一括タグ連携
-	svcs.CheckupSync = service.NewCheckupSyncService(repos.CheckupSync, repos.Owner, repos.Pet, repos.LstepTagCache, svcs.LstepSettings, svcs.Audit)
-	// FEAT-384: 自動配信トリガー監視
-	svcs.LstepDeliveryMonitor = service.NewLstepDeliveryMonitorService(repos.LstepDeliveryTriggerLog)
-	// Q23: トリガー優先順位設定
-	svcs.LstepTriggerPriority = service.NewLstepTriggerPriorityService(repos.LstepTriggerPriority)
-	// FEAT-383: 自動配信トリガー（LstepBatch / MedicalRecord / Checkup より先に初期化）
-	svcs.LstepDeliveryTrigger = service.NewLstepDeliveryTriggerService(repos.Owner, repos.MedicalRecord, repos.Vaccination, repos.BillingItem, repos.Pet, repos.LstepTagCache, repos.LstepDeliveryTriggerLog, svcs.LstepSettings, svcs.LstepTriggerPriority)
-	// FEAT-383: イベントフック注入（LstepDeliveryTrigger 確定後に再初期化）
-	svcs.MedicalRecord = service.NewMedicalRecordService(repos.MedicalRecord, repos.Owner, repos.Pet, repos.Inquiry, repos.ClinicalPlan, repos.LineCustomerMgr, repos.Reservation, svcs.LstepDeliveryTrigger, svcs.Audit, svcs.LstepTagSync)
-	svcs.Checkup = service.NewCheckupService(repos.Checkup, repos.MedicalRecord, repos.CheckupType, svcs.LstepDeliveryTrigger, svcs.LstepTagSync)
-	// LSTEP-BE-014: ノーショウ検知バッチ（LstepDeliveryTrigger 確定後に初期化）
-	svcs.LstepBatch = service.NewLstepBatchService(repos.Reservation, svcs.LstepTagSync, repos.Clinic, repos.MedicalRecord, svcs.Audit, svcs.LstepSettings, svcs.LstepDeliveryTrigger)
-	// FEAT-385: Lステップ CSV インポート・分析
-	svcs.LstepCsvImport = service.NewLstepCsvImportService(repos.DB(), repos.LstepCsvImport, repos.LstepFriendAttributeSnapshot, repos.Owner)
-	svcs.LstepAnalytics = service.NewLstepAnalyticsService(repos.Owner, repos.LstepDeliveryTriggerLog, repos.LstepFriendAttributeSnapshot)
+
+	// サービス初期化（G9-1: 旧・二段階DIを単一段階に統合。LstepLifecycle/LstepTag/SharedFile/
+	// ChronicCondition/LineSend/LineLink/LstepTagSummary/CheckupSync/LstepDeliveryMonitor/
+	// LstepTriggerPriority/LstepDeliveryTrigger/MedicalRecord/Checkup/LstepBatch/LstepCsvImport/
+	// LstepAnalytics はすべて service.NewServices 内で一括構築される）
+	svcs := service.NewServices(repos, &service.ReservationNotificationConfig{
+		SMTPHost:    cfg.SMTPHost,
+		SMTPPort:    cfg.SMTPPort,
+		SMTPUser:    cfg.SMTPUser,
+		SMTPPass:    cfg.SMTPPass,
+		SMTPFrom:    cfg.SMTPFrom,
+		FrontendURL: cfg.FrontendURL,
+	}, integrationCipher, sharedStorage)
 
 	// ファイルアップローダー初期化（STORAGE_TYPE=s3 で S3、それ以外はローカル）
 	var uploader infra.FileUploader

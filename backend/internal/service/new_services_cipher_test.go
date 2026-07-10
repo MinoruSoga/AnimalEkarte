@@ -37,7 +37,7 @@ func TestNewServices_OwnerUsesInjectedCipherForLstepDecryption(t *testing.T) {
 		LstepSyncSettings: &mockLstepSyncSettingsRepository{},
 	}
 
-	svcs := NewServices(repos, &ReservationNotificationConfig{}, cipher)
+	svcs := NewServices(repos, &ReservationNotificationConfig{}, cipher, nil)
 
 	// Owner の tagSyncSvc が保持する settingsSvc は NewServices が公開する
 	// svcs.LstepSettings と同一インスタンスでなければならない（DI 一貫性）。
