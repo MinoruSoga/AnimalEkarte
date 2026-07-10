@@ -41,7 +41,7 @@ function transformCage(data: ModelCage) {
 
 export type Cage = ReturnType<typeof transformCage>;
 
-export const getAllCages = async (): Promise<Cage[]> => {
+const getAllCages = async (): Promise<Cage[]> => {
   const { data } = await axios.get<ModelCage[]>("/v1/masters/cages");
   return data.map(transformCage);
 };
@@ -55,12 +55,7 @@ export const useGetAllCages = () => {
   });
 };
 
-export const getCageById = async (id: string): Promise<Cage> => {
-  const { data } = await axios.get<ModelCage>(`/v1/masters/cages/${id}`);
-  return transformCage(data);
-};
-
-export const createCage = async (req: CreateCageRequest): Promise<Cage> => {
+const createCage = async (req: CreateCageRequest): Promise<Cage> => {
   const { data } = await axios.post<ModelCage>("/v1/masters/cages", req);
   return transformCage(data);
 };
@@ -76,7 +71,7 @@ export const useCreateCage = () => {
   });
 };
 
-export const updateCage = async (id: string, req: UpdateCageRequest): Promise<Cage> => {
+const updateCage = async (id: string, req: UpdateCageRequest): Promise<Cage> => {
   const { data } = await axios.patch<ModelCage>(`/v1/masters/cages/${id}`, req);
   return transformCage(data);
 };
@@ -93,13 +88,13 @@ export const useUpdateCage = () => {
   });
 };
 
-export const deleteCage = async (id: string): Promise<void> => {
+const deleteCage = async (id: string): Promise<void> => {
   await axios.delete(`/v1/masters/cages/${id}`);
 };
 
 export type ReorderCagesRequest = { ids: number[] };
 
-export const reorderCages = async (req: ReorderCagesRequest): Promise<void> => {
+const reorderCages = async (req: ReorderCagesRequest): Promise<void> => {
   await axios.patch("/v1/masters/cages/reorder", req);
 };
 

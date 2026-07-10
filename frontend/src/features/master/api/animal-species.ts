@@ -32,7 +32,7 @@ export type CreateAnimalSpeciesRequest = Omit<
 
 export type UpdateAnimalSpeciesRequest = Partial<CreateAnimalSpeciesRequest>;
 
-export type ReorderAnimalSpeciesRequest = { ids: number[] };
+type ReorderAnimalSpeciesRequest = { ids: number[] };
 
 // ─────────────────────────────────────────────────
 // Query key
@@ -44,14 +44,14 @@ const ANIMAL_SPECIES_KEY = ["masters", "animal-species"] as const;
 // API functions
 // ─────────────────────────────────────────────────
 
-export async function listAnimalSpecies(): Promise<AnimalSpecies[]> {
+async function listAnimalSpecies(): Promise<AnimalSpecies[]> {
   const { data } = await axios.get<ModelAnimalSpecies[]>(
     "/v1/masters/animal-species",
   );
   return data.map(transformAnimalSpecies);
 }
 
-export async function createAnimalSpecies(
+async function createAnimalSpecies(
   req: CreateAnimalSpeciesRequest,
 ): Promise<AnimalSpecies> {
   const { data } = await axios.post<ModelAnimalSpecies>(
@@ -61,7 +61,7 @@ export async function createAnimalSpecies(
   return transformAnimalSpecies(data);
 }
 
-export async function updateAnimalSpecies(
+async function updateAnimalSpecies(
   id: string,
   req: UpdateAnimalSpeciesRequest,
 ): Promise<AnimalSpecies> {
@@ -72,11 +72,11 @@ export async function updateAnimalSpecies(
   return transformAnimalSpecies(data);
 }
 
-export async function deleteAnimalSpecies(id: string): Promise<void> {
+async function deleteAnimalSpecies(id: string): Promise<void> {
   await axios.delete(`/v1/masters/animal-species/${id}`);
 }
 
-export async function reorderAnimalSpecies(
+async function reorderAnimalSpecies(
   req: ReorderAnimalSpeciesRequest,
 ): Promise<void> {
   await axios.patch("/v1/masters/animal-species/reorder", req);

@@ -62,7 +62,7 @@ const CLINICS_QUERY_KEY = ["clinics"] as const;
 // API functions
 // ─────────────────────────────────────────────────
 
-export async function listClinics(): Promise<TransformedClinic[]> {
+async function listClinics(): Promise<TransformedClinic[]> {
   // BUG-378: 医院マスタ管理画面では staff_clinic_assignments に紐づかない
   // クリニックも含めて全件を返す必要があるため scope=all を指定する。
   // バックエンド側で hospital-settings.can_view 権限が必要。
@@ -72,14 +72,14 @@ export async function listClinics(): Promise<TransformedClinic[]> {
   return data.map(transformClinic);
 }
 
-export async function createClinic(
+async function createClinic(
   req: CreateClinicRequest,
 ): Promise<TransformedClinic> {
   const { data } = await axios.post<BackendClinic>("/v1/clinics", req);
   return transformClinic(data);
 }
 
-export async function updateClinic(
+async function updateClinic(
   id: number,
   req: UpdateClinicRequest,
 ): Promise<TransformedClinic> {
@@ -87,7 +87,7 @@ export async function updateClinic(
   return transformClinic(data);
 }
 
-export async function deleteClinic(id: number): Promise<void> {
+async function deleteClinic(id: number): Promise<void> {
   await axios.delete(`/v1/clinics/${id}`);
 }
 

@@ -12,7 +12,7 @@ function transformImageGalleryItem(img: MedicalRecordImage) {
     mimeType: img.mime_type || undefined,
   };
 }
-export type ImageGalleryItem = ReturnType<typeof transformImageGalleryItem>;
+type ImageGalleryItem = ReturnType<typeof transformImageGalleryItem>;
 
 function transformImageGalleryGroup(g: { groupId: number; date: string; images: ImageGalleryItem[] }) {
   return {

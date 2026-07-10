@@ -25,7 +25,7 @@ export interface AccountingFilters {
   clinicIds?: string[];
 }
 
-export const getAccountings = async (
+const getAccountings = async (
   filters?: AccountingFilters,
 ): Promise<Accounting[]> => {
   const params: Record<string, string> = {};

@@ -5,7 +5,7 @@ import type { BillingRefund } from "@/types/generated/models";
 import { transformToRefund } from "./transforms";
 import type { Refund } from "./transforms";
 
-export const getRefunds = async (billingId: string): Promise<Refund[]> => {
+const getRefunds = async (billingId: string): Promise<Refund[]> => {
   const { data } = await axios.get<BillingRefund[]>(
     `/v1/accountings/${billingId}/refunds`,
   );

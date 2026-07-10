@@ -15,7 +15,7 @@ import type { ManualCategory } from "../lib/manual-index";
 
 import type { ManualArticleOverride } from "./get-manual-articles";
 
-export interface UpsertManualArticleParams {
+interface UpsertManualArticleParams {
   category: ManualCategory;
   slug: string;
   title: string;
@@ -24,7 +24,7 @@ export interface UpsertManualArticleParams {
   body_markdown: string;
 }
 
-export async function upsertManualArticle(params: UpsertManualArticleParams): Promise<ManualArticleOverride> {
+async function upsertManualArticle(params: UpsertManualArticleParams): Promise<ManualArticleOverride> {
   const { category, slug, ...body } = params;
   const { data } = await axios.put<ManualArticleOverride>(
     `/v1/manual/articles/${category}/${slug}`,

@@ -17,7 +17,7 @@ export interface HospitalizationFilters {
   endDate?: string;   // YYYY-MM-DD
 }
 
-export const getHospitalizations = async (filters?: HospitalizationFilters): Promise<Hospitalization[]> => {
+const getHospitalizations = async (filters?: HospitalizationFilters): Promise<Hospitalization[]> => {
   const params: Record<string, string> = {};
   if (filters?.startDate) params.start_date = filters.startDate;
   if (filters?.endDate) params.end_date = filters.endDate;

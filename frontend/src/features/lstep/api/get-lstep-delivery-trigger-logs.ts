@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import { requireStoredClinicId } from "@/lib/current-clinic";
 
-export interface DeliveryTriggerLogItem {
+interface DeliveryTriggerLogItem {
   id: string;
   owner_id: string;
   owner_name: string;

@@ -25,7 +25,7 @@ interface BackendMonthlyReportSummary {
   tax_breakdown: BackendMonthlyTaxBreakdownSummary;
 }
 
-export interface BackendDailyReportDetail {
+interface BackendDailyReportDetail {
   date: string;
   weekday: string;
   am_count: number;
@@ -73,7 +73,7 @@ function transformMonthlyReportSummary(raw: BackendMonthlyReportSummary) {
   };
 }
 
-export function transformDailyReportDetail(raw: BackendDailyReportDetail) {
+function transformDailyReportDetail(raw: BackendDailyReportDetail) {
   return {
     date: raw.date,
     weekday: raw.weekday,
@@ -125,7 +125,7 @@ function toQueryKey(params: MonthlyReportParams) {
 
 // ── API functions ────────────────────────────────────────────────────────────
 
-export const getMonthlyReport = async (params: MonthlyReportParams): Promise<MonthlyReportResponse> => {
+const getMonthlyReport = async (params: MonthlyReportParams): Promise<MonthlyReportResponse> => {
   const { data } = await axios.get<BackendMonthlyReportResponse>("/v1/reports/monthly", {
     params: toRequestParams(params),
   });

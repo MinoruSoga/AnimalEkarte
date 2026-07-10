@@ -4,7 +4,7 @@ import { handleApiError } from "@/lib/handle-api-error";
 import { transformExamination, type ExaminationRecord } from "./transforms";
 import type { BackendExamination, CreateExaminationRequest } from "./types";
 
-export const createExamination = async (
+const createExamination = async (
   req: CreateExaminationRequest
 ): Promise<ExaminationRecord> => {
   const { data } = await axios.post<BackendExamination>(

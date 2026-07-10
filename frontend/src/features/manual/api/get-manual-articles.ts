@@ -29,7 +29,7 @@ interface ListResponse {
   data: ManualArticleOverride[];
 }
 
-export async function getManualArticleOverrides(): Promise<ManualArticleOverride[]> {
+async function getManualArticleOverrides(): Promise<ManualArticleOverride[]> {
   try {
     const { data } = await axios.get<ListResponse>("/v1/manual/articles");
     return data.data;

@@ -5,7 +5,7 @@ import { transformCheckupGlobal } from "./transforms";
 import type { BackendCheckupGlobal, CheckupFilters } from "./types";
 import type { CheckupRecord } from "./transforms";
 
-export const getCheckups = async (filters?: CheckupFilters): Promise<CheckupRecord[]> => {
+const getCheckups = async (filters?: CheckupFilters): Promise<CheckupRecord[]> => {
   const params: Record<string, string> = {};
   if (filters?.startDate) params.start_date = filters.startDate;
   if (filters?.endDate) params.end_date = filters.endDate;

@@ -15,7 +15,7 @@ const CONSULTATIONS_QUERY_KEY = ["masters", "consultations"] as const;
 
 export type { ConsultationItem };
 
-export const getAllConsultations = async (): Promise<ConsultationItem[]> => {
+const getAllConsultations = async (): Promise<ConsultationItem[]> => {
   const { data } = await axios.get<Consultation[]>("/v1/masters/consultations");
   return data.map(transformConsultation);
 };

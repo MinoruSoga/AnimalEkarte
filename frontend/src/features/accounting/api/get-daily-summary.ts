@@ -3,12 +3,12 @@ import { useQuery } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 
-export interface DailySummaryPaymentTotal {
+interface DailySummaryPaymentTotal {
   method: string;
   total: number;
 }
 
-export interface DailySummaryCategoryTotal {
+interface DailySummaryCategoryTotal {
   category: string;
   total: number;
 }

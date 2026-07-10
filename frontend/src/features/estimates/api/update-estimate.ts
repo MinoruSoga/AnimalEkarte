@@ -11,7 +11,7 @@ interface UpdateEstimateParams {
   data: UpdateEstimateRequest;
 }
 
-export async function updateEstimate({ id, data }: UpdateEstimateParams): Promise<Estimate> {
+async function updateEstimate({ id, data }: UpdateEstimateParams): Promise<Estimate> {
   const { data: responseData } = await axios.patch<BackendEstimate>(`/v1/estimates/${id}`, data);
   return transformEstimate(responseData);
 }

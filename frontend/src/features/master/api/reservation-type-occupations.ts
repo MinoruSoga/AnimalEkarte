@@ -28,13 +28,6 @@ function transformReservationTypeOccupation(
 export type ReservationTypeOccupation = ReturnType<typeof transformReservationTypeOccupation>;
 
 // ─────────────────────────────────────────────────
-// Request types
-// ─────────────────────────────────────────────────
-
-export type LinkOccupationRequest = { occupation_id: number };
-export type UnlinkOccupationRequest = { id: number };
-
-// ─────────────────────────────────────────────────
 // Query keys
 // ─────────────────────────────────────────────────
 

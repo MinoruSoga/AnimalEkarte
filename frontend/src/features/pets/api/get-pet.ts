@@ -5,7 +5,7 @@ import type { Pet } from "@/types";
 import { transformBackendPetToFrontend } from "@/lib/transforms/pet";
 import type { Pet as BackendPet } from "@/types/generated/models";
 
-export const getPet = async (id: string): Promise<Pet> => {
+const getPet = async (id: string): Promise<Pet> => {
   const { data } = await axios.get<BackendPet>(`/v1/pets/${id}`);
   return transformBackendPetToFrontend(data);
 };

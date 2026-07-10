@@ -107,7 +107,7 @@ export function parseNormalRange(normalValue: string): { refMin?: number; refMax
  * GET /v1/masters/examination-types/:id — 検査種別の詳細（items=exam_type_fields 含む）を取得する。
  * 検査フォームで「検査項目テーブルのテンプレ」を組み立てるために使う。
  */
-export const getExamTypeFields = async (id: string): Promise<ExamTypeFieldRow[]> => {
+const getExamTypeFields = async (id: string): Promise<ExamTypeFieldRow[]> => {
   const { data } = await axios.get<ExaminationType>(`/v1/masters/examination-types/${id}`);
   const items = data.items ?? [];
   return items

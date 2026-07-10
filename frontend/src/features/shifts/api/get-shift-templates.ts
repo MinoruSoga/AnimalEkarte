@@ -56,7 +56,7 @@ function transformTemplate(d: RawTemplate): ShiftTemplate {
   };
 }
 
-export async function getShiftTemplates(): Promise<ShiftTemplate[]> {
+async function getShiftTemplates(): Promise<ShiftTemplate[]> {
   const { data } = await axios.get<RawTemplate[]>("/v1/shift-templates");
   return (data ?? []).map(transformTemplate);
 }

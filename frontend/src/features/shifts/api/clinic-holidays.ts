@@ -17,7 +17,7 @@ const clinicHolidayKeys = {
 };
 
 // GET /v1/clinic-holidays?year_month=YYYY-MM
-export const getClinicHolidays = async (yearMonth?: string): Promise<ClinicHoliday[]> => {
+const getClinicHolidays = async (yearMonth?: string): Promise<ClinicHoliday[]> => {
   const params: Record<string, string> = {};
   if (yearMonth) params.year_month = yearMonth;
   const { data } = await axios.get<ClinicHoliday[]>("/v1/clinic-holidays", { params });

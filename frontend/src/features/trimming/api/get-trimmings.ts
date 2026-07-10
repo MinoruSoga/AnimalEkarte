@@ -12,7 +12,7 @@ export interface TrimmingFilters {
   enabled?: boolean;
 }
 
-export const getTrimmings = async (filters?: TrimmingFilters): Promise<TrimmingUI[]> => {
+const getTrimmings = async (filters?: TrimmingFilters): Promise<TrimmingUI[]> => {
   const params: Record<string, string | number> = { page: 1, limit: 100 };
   if (filters?.startDate) params.start_date = filters.startDate;
   if (filters?.endDate) params.end_date = filters.endDate;

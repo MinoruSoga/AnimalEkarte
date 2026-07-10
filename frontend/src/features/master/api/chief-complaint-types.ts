@@ -47,14 +47,14 @@ const CHIEF_COMPLAINT_TYPES_QUERY_KEY = ["masters", "chief-complaint-types"] as 
 // API functions
 // ─────────────────────────────────────────────────
 
-export async function listChiefComplaintTypes(): Promise<ChiefComplaintType[]> {
+async function listChiefComplaintTypes(): Promise<ChiefComplaintType[]> {
   const { data } = await axios.get<ModelChiefComplaintType[]>(
     "/v1/masters/chief-complaint-types"
   );
   return data.map(transformChiefComplaintType);
 }
 
-export async function createChiefComplaintType(
+async function createChiefComplaintType(
   req: CreateChiefComplaintTypeRequest
 ): Promise<ChiefComplaintType> {
   const { data } = await axios.post<ModelChiefComplaintType>(
@@ -64,7 +64,7 @@ export async function createChiefComplaintType(
   return transformChiefComplaintType(data);
 }
 
-export async function updateChiefComplaintType(
+async function updateChiefComplaintType(
   id: string,
   req: UpdateChiefComplaintTypeRequest
 ): Promise<ChiefComplaintType> {
@@ -75,7 +75,7 @@ export async function updateChiefComplaintType(
   return transformChiefComplaintType(data);
 }
 
-export async function deleteChiefComplaintType(id: string): Promise<void> {
+async function deleteChiefComplaintType(id: string): Promise<void> {
   await axios.delete(`/v1/masters/chief-complaint-types/${id}`);
 }
 
@@ -124,9 +124,5 @@ export function useDeleteChiefComplaintType() {
     },
     onError: (error) => handleApiError(error, "削除"),
   });
-}
-
-export async function reorderChiefComplaintTypes(ids: number[]): Promise<void> {
-  await axios.patch("/v1/masters/chief-complaint-types/reorder", { ids });
 }
 

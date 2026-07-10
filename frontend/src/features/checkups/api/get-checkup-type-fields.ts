@@ -4,7 +4,7 @@ import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 
 // #211 健診パッケージのフィールド型。BE model.CheckupFieldType と一致させる。
 // （generated/models.ts は make codegen 後に追従。本 feature では自前型を真実源とする。）
-export type CheckupFieldType =
+type CheckupFieldType =
   | "number"
   | "single_select"
   | "multi_select"
@@ -12,7 +12,7 @@ export type CheckupFieldType =
   | "checklist"
   | "text";
 
-export interface CheckupFieldOption {
+interface CheckupFieldOption {
   value: string;
   label: string;
 }
@@ -60,7 +60,7 @@ function transform(f: CheckupTypeFieldApi): CheckupTypeFieldRow {
 }
 
 // GET /v1/masters/checkup-types/:id/fields
-export const getCheckupTypeFields = async (
+const getCheckupTypeFields = async (
   checkupTypeId: string,
 ): Promise<CheckupTypeFieldRow[]> => {
   const { data } = await axios.get<CheckupTypeFieldApi[]>(

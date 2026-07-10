@@ -5,7 +5,7 @@ import { handleApiError } from "@/lib/handle-api-error";
 import { transformVaccination } from "./transforms";
 import type { BackendVaccination, CreateVaccinationRequest } from "./types";
 
-export const createVaccination = async (
+const createVaccination = async (
   req: CreateVaccinationRequest
 ): Promise<VaccinationRecord> => {
   const { data } = await axios.post<BackendVaccination>(

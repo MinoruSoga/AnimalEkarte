@@ -3,7 +3,7 @@ import { axios } from "@/lib/axios";
 import { handleApiError } from "@/lib/handle-api-error";
 import type { LineCustomer } from "./types";
 
-export async function updateOwnerLink(
+async function updateOwnerLink(
   clinicId: string,
   customerId: number,
   ownerID: number | null,

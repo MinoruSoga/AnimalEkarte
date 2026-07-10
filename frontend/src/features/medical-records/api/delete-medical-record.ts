@@ -2,7 +2,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import { handleApiError } from "@/lib/handle-api-error";
 
-export const deleteMedicalRecord = async (id: string): Promise<void> => {
+const deleteMedicalRecord = async (id: string): Promise<void> => {
   await axios.delete(`/v1/medical-records/${id}`);
 };
 

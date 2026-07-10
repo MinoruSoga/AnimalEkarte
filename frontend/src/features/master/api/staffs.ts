@@ -78,12 +78,12 @@ export const STAFFS_QUERY_KEY = ["masters", "staffs"] as const;
 // API functions
 // ─────────────────────────────────────────────────
 
-export async function listStaffs(): Promise<Staff[]> {
+async function listStaffs(): Promise<Staff[]> {
   const { data } = await axios.get<ModelStaff[]>("/v1/masters/staffs");
   return data.map(transformStaff);
 }
 
-export async function createStaff(req: CreateStaffRequest): Promise<Staff> {
+async function createStaff(req: CreateStaffRequest): Promise<Staff> {
   const payload = {
     ...req,
     occupation_id: req.occupation_id ? Number(req.occupation_id) : undefined,
@@ -92,7 +92,7 @@ export async function createStaff(req: CreateStaffRequest): Promise<Staff> {
   return transformStaff(data);
 }
 
-export async function updateStaff(
+async function updateStaff(
   id: string,
   req: UpdateStaffRequest,
 ): Promise<Staff> {
@@ -107,12 +107,8 @@ export async function updateStaff(
   return transformStaff(data);
 }
 
-export async function deleteStaff(id: string): Promise<void> {
+async function deleteStaff(id: string): Promise<void> {
   await axios.delete(`/v1/masters/staffs/${id}`);
-}
-
-export async function reorderStaffs(ids: number[]): Promise<void> {
-  await axios.patch("/v1/masters/staffs/reorder", { ids });
 }
 
 // ─────────────────────────────────────────────────

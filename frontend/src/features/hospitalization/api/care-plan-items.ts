@@ -10,7 +10,7 @@ import { handleApiError } from "@/lib/handle-api-error";
 
 // Backend API types (snake_case, matches care_plan_item_response.go / model/hospitalization.go)
 export type CarePlanItemType = 'food' | 'medicine' | 'treatment' | 'instruction' | 'item';
-export type CarePlanItemStatus = 'active' | 'completed' | 'discontinued';
+type CarePlanItemStatus = 'active' | 'completed' | 'discontinued';
 export type CarePlanTiming = 'morning' | 'noon' | 'night';
 
 export interface CarePlanItem {
@@ -64,7 +64,7 @@ export interface UpdateCarePlanItemInput {
 
 // ---- Query Keys ----
 
-export const carePlanItemKeys = {
+const carePlanItemKeys = {
     all: (hospitalizationId: string) =>
         ["hospitalizations", hospitalizationId, "care-plan-items"] as const,
 };

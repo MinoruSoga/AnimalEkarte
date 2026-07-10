@@ -23,7 +23,7 @@ interface BackendCashRegisterAggregateSummary {
   tax_breakdown: BackendCashRegisterTaxBreakdown;
 }
 
-export interface BackendCloseBillingDetail {
+interface BackendCloseBillingDetail {
   billing_id: number;
   paid_at: string;
   owner_name: string;
@@ -69,7 +69,7 @@ function transformAggregateSummary(raw: BackendCashRegisterAggregateSummary) {
   };
 }
 
-export function transformCloseBillingDetail(raw: BackendCloseBillingDetail) {
+function transformCloseBillingDetail(raw: BackendCloseBillingDetail) {
   return {
     billingId: raw.billing_id,
     paidAt: raw.paid_at,
@@ -105,7 +105,7 @@ export type ClosePreviewResult = ReturnType<typeof transformClosePreviewResult>;
 
 // ── API functions ────────────────────────────────────────────────────────────
 
-export const getCashRegisterPreview = async (
+const getCashRegisterPreview = async (
   date: string,
   period: CashRegisterPeriod,
 ): Promise<ClosePreviewResult> => {

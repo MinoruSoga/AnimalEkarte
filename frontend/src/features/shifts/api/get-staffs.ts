@@ -9,7 +9,7 @@ interface BackendStaff {
   is_active: boolean;
 }
 
-export async function getStaffsForShift(): Promise<ShiftStaff[]> {
+async function getStaffsForShift(): Promise<ShiftStaff[]> {
   const { data } = await axios.get<BackendStaff[]>("/v1/masters/staffs");
   return (data ?? [])
     .filter((s) => s.is_active)

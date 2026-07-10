@@ -21,8 +21,6 @@ export interface ExamGroup {
   items: ExamResult[];
 }
 
-export type ExamGroupItem = ExamResult;
-
 function transformExamGroup(exam: Examination): ExamGroup {
   return {
     id: exam.id,

@@ -15,7 +15,7 @@ const CHECKUP_TYPES_QUERY_KEY = ["masters", "checkup-types"] as const;
 
 export type { CheckupTypeItem };
 
-export const getAllCheckupTypes = async (): Promise<CheckupTypeItem[]> => {
+const getAllCheckupTypes = async (): Promise<CheckupTypeItem[]> => {
   const { data } = await axios.get<CheckupType[]>("/v1/masters/checkup-types");
   return data.map(transformCheckupType);
 };

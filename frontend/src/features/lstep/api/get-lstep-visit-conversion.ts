@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import { requireStoredClinicId } from "@/lib/current-clinic";
 
-export interface VisitConversionRow {
+interface VisitConversionRow {
   trigger_type: string;
   delivered_count: number;
   visited_count: number;

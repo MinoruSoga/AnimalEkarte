@@ -51,19 +51,19 @@ const INQUIRY_TEMPLATES_QUERY_KEY = ["masters", "inquiry-templates"] as const;
 // API functions
 // ─────────────────────────────────────────────────
 
-export async function listInquiryTemplates(): Promise<InquiryTemplate[]> {
+async function listInquiryTemplates(): Promise<InquiryTemplate[]> {
   const { data } = await axios.get<ModelInquiryTemplate[]>("/v1/masters/inquiry-templates");
   return data.map(transformInquiryTemplate);
 }
 
-export async function createInquiryTemplate(
+async function createInquiryTemplate(
   req: CreateInquiryTemplateRequest
 ): Promise<InquiryTemplate> {
   const { data } = await axios.post<ModelInquiryTemplate>("/v1/masters/inquiry-templates", req);
   return transformInquiryTemplate(data);
 }
 
-export async function updateInquiryTemplate(
+async function updateInquiryTemplate(
   id: string,
   req: UpdateInquiryTemplateRequest
 ): Promise<InquiryTemplate> {
@@ -74,7 +74,7 @@ export async function updateInquiryTemplate(
   return transformInquiryTemplate(data);
 }
 
-export async function deleteInquiryTemplate(id: string): Promise<void> {
+async function deleteInquiryTemplate(id: string): Promise<void> {
   await axios.delete(`/v1/masters/inquiry-templates/${id}`);
 }
 
@@ -123,9 +123,5 @@ export function useDeleteInquiryTemplate() {
     },
     onError: (error) => handleApiError(error, "削除"),
   });
-}
-
-export async function reorderInquiryTemplates(ids: number[]): Promise<void> {
-  await axios.patch("/v1/masters/inquiry-templates/reorder", { ids });
 }
 

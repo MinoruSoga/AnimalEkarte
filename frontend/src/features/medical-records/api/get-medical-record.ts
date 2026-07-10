@@ -5,7 +5,7 @@ import { transformMedicalRecord } from "./transforms";
 import type { MedicalRecord } from "./transforms";
 import type { BackendMedicalRecord } from "./types";
 
-export const getMedicalRecord = async (id: string): Promise<MedicalRecord> => {
+const getMedicalRecord = async (id: string): Promise<MedicalRecord> => {
   const { data } = await axios.get<BackendMedicalRecord>(
     `/v1/medical-records/${id}`
   );

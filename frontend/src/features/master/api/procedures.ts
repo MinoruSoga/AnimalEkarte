@@ -15,7 +15,7 @@ const PROCEDURES_QUERY_KEY = ["masters", "procedures"] as const;
 
 export type { ProcedureItem };
 
-export const getAllProcedures = async (): Promise<ProcedureItem[]> => {
+const getAllProcedures = async (): Promise<ProcedureItem[]> => {
   const { data } = await axios.get<Procedure[]>("/v1/masters/procedures");
   return data.map(transformProcedure);
 };

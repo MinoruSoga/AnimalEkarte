@@ -9,9 +9,9 @@ function transformChiefComplaintType(item: ModelChiefComplaintType) {
     name: item.name,
   };
 }
-export type ChiefComplaintType = ReturnType<typeof transformChiefComplaintType>;
+type ChiefComplaintType = ReturnType<typeof transformChiefComplaintType>;
 
-export const getChiefComplaintTypes = async (): Promise<ChiefComplaintType[]> => {
+const getChiefComplaintTypes = async (): Promise<ChiefComplaintType[]> => {
   const { data } = await axios.get<ModelChiefComplaintType[]>("/v1/masters/chief-complaint-types");
   return data.map(transformChiefComplaintType);
 };

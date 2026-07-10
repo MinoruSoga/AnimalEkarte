@@ -11,7 +11,7 @@ export interface ClosingHoliday {
   updated_at: string;
 }
 
-export interface CreateHolidayRequest {
+interface CreateHolidayRequest {
   date: string;
   reason?: string;
 }
@@ -23,12 +23,12 @@ const getHolidays = async (): Promise<ClosingHoliday[]> => {
   return data;
 };
 
-export const createHoliday = async (req: CreateHolidayRequest): Promise<ClosingHoliday> => {
+const createHoliday = async (req: CreateHolidayRequest): Promise<ClosingHoliday> => {
   const { data } = await axios.post<ClosingHoliday>("/v1/closing-settings/holidays", req);
   return data;
 };
 
-export const deleteHoliday = async (date: string): Promise<void> => {
+const deleteHoliday = async (date: string): Promise<void> => {
   await axios.delete(`/v1/closing-settings/holidays/${date}`);
 };
 

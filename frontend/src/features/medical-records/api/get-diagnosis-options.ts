@@ -16,7 +16,7 @@ function transformDiagnosisTypeOption(item: DiagnosisType) {
     name: item.name,
   };
 }
-export type DiagnosisTypeOption = ReturnType<typeof transformDiagnosisTypeOption>;
+type DiagnosisTypeOption = ReturnType<typeof transformDiagnosisTypeOption>;
 
 function transformDiagnosisNameOption(item: DiagnosisName) {
   return {
@@ -26,7 +26,7 @@ function transformDiagnosisNameOption(item: DiagnosisName) {
 }
 export type DiagnosisNameOption = ReturnType<typeof transformDiagnosisNameOption>;
 
-export const getDiagnosisTypes = async (): Promise<DiagnosisTypeOption[]> => {
+const getDiagnosisTypes = async (): Promise<DiagnosisTypeOption[]> => {
   const { data } = await axios.get<DiagnosisType[] | PaginatedResponse<DiagnosisType>>(
     "/v1/masters/diagnosis-types",
     { params: { limit: 100 } },
@@ -35,7 +35,7 @@ export const getDiagnosisTypes = async (): Promise<DiagnosisTypeOption[]> => {
   return items.map(transformDiagnosisTypeOption);
 };
 
-export const getDiagnosisNames = async (typeId?: number | null): Promise<DiagnosisNameOption[]> => {
+const getDiagnosisNames = async (typeId?: number | null): Promise<DiagnosisNameOption[]> => {
   const params: Record<string, unknown> = { limit: 100 };
   if (typeId) params.type_id = typeId;
   const { data } = await axios.get<DiagnosisName[] | PaginatedResponse<DiagnosisName>>(

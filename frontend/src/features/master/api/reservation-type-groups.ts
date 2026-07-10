@@ -27,7 +27,7 @@ export type ReservationTypeGroup = ReturnType<typeof transformReservationTypeGro
 // Query keys
 // ─────────────────────────────────────────────────
 
-export const RESERVATION_CATEGORY_GROUPS_QUERY_KEY = ["masters", "reservation-type-groups"] as const;
+const RESERVATION_CATEGORY_GROUPS_QUERY_KEY = ["masters", "reservation-type-groups"] as const;
 
 // ─────────────────────────────────────────────────
 // Request types (derived from models.ts)
@@ -43,22 +43,18 @@ export type UpdateReservationTypeGroupRequest = Partial<
   Pick<ModelReservationTypeGroup, "name" | "color" | "sort_order" | "is_active">
 >;
 
-export type ReorderReservationTypeGroupRequest = {
-  ids: number[];
-};
-
 // ─────────────────────────────────────────────────
 // API functions
 // ─────────────────────────────────────────────────
 
-export async function listReservationTypeGroups(): Promise<ReservationTypeGroup[]> {
+async function listReservationTypeGroups(): Promise<ReservationTypeGroup[]> {
   const { data } = await axios.get<ModelReservationTypeGroup[]>(
     "/v1/masters/reservation-type-groups",
   );
   return data.map(transformReservationTypeGroup);
 }
 
-export async function createReservationTypeGroup(
+async function createReservationTypeGroup(
   req: CreateReservationTypeGroupRequest,
 ): Promise<ReservationTypeGroup> {
   const { data } = await axios.post<ModelReservationTypeGroup>(
@@ -68,7 +64,7 @@ export async function createReservationTypeGroup(
   return transformReservationTypeGroup(data);
 }
 
-export async function updateReservationTypeGroup(
+async function updateReservationTypeGroup(
   id: string,
   req: UpdateReservationTypeGroupRequest,
 ): Promise<ReservationTypeGroup> {
@@ -79,14 +75,8 @@ export async function updateReservationTypeGroup(
   return transformReservationTypeGroup(data);
 }
 
-export async function deleteReservationTypeGroup(id: string): Promise<void> {
+async function deleteReservationTypeGroup(id: string): Promise<void> {
   await axios.delete(`/v1/masters/reservation-type-groups/${id}`);
-}
-
-export async function reorderReservationTypeGroups(
-  req: ReorderReservationTypeGroupRequest,
-): Promise<void> {
-  await axios.patch("/v1/masters/reservation-type-groups/reorder", req);
 }
 
 // ─────────────────────────────────────────────────

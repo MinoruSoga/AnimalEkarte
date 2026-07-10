@@ -3,7 +3,7 @@ import { axios } from "@/lib/axios";
 import { handleApiError } from "@/lib/handle-api-error";
 import type { UpdateShiftTemplateInput, ShiftTemplate } from "../types";
 
-export async function updateShiftTemplate(id: string, input: UpdateShiftTemplateInput): Promise<ShiftTemplate> {
+async function updateShiftTemplate(id: string, input: UpdateShiftTemplateInput): Promise<ShiftTemplate> {
   const { data } = await axios.patch<ShiftTemplate>(`/v1/shift-templates/${id}`, input);
   return data;
 }

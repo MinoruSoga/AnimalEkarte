@@ -16,7 +16,7 @@ interface InventoryListResponse {
   limit: number;
 }
 
-export function transformInventoryItem(raw: BackendInventoryItem) {
+function transformInventoryItem(raw: BackendInventoryItem) {
   return {
     id: String(raw.id ?? 0),
     clinicId: String(raw.clinic_id ?? 0),
@@ -37,7 +37,7 @@ export function transformInventoryItem(raw: BackendInventoryItem) {
 
 export type InventoryItem = ReturnType<typeof transformInventoryItem>;
 
-export const getInventoryItems = async (params?: GetInventoryItemsParams): Promise<InventoryItem[]> => {
+const getInventoryItems = async (params?: GetInventoryItemsParams): Promise<InventoryItem[]> => {
   const { data } = await axios.get<InventoryListResponse>("/v1/inventory", { params });
   return data.data.map(transformInventoryItem);
 };
@@ -51,7 +51,7 @@ export const useGetInventoryItems = (params?: GetInventoryItemsParams) => {
   });
 };
 
-export const getInventoryItem = async (id: string): Promise<InventoryItem> => {
+const getInventoryItem = async (id: string): Promise<InventoryItem> => {
   const { data } = await axios.get<BackendInventoryItem>(`/v1/inventory/${id}`);
   return transformInventoryItem(data);
 };
@@ -66,7 +66,7 @@ export const useGetInventoryItem = (id: string) => {
   });
 };
 
-export const createInventoryItem = async (req: CreateInventoryItemRequest): Promise<InventoryItem> => {
+const createInventoryItem = async (req: CreateInventoryItemRequest): Promise<InventoryItem> => {
   const { data } = await axios.post<BackendInventoryItem>("/v1/inventory", req);
   return transformInventoryItem(data);
 };
@@ -82,7 +82,7 @@ export const useCreateInventoryItem = () => {
   });
 };
 
-export const updateInventoryItem = async (id: string, req: UpdateInventoryItemRequest): Promise<InventoryItem> => {
+const updateInventoryItem = async (id: string, req: UpdateInventoryItemRequest): Promise<InventoryItem> => {
   const { data } = await axios.patch<BackendInventoryItem>(`/v1/inventory/${id}`, req);
   return transformInventoryItem(data);
 };
@@ -96,8 +96,4 @@ export const useUpdateInventoryItem = () => {
     },
     onError: (error) => handleApiError(error, "在庫更新"),
   });
-};
-
-export const deleteInventoryItem = async (id: string): Promise<void> => {
-  await axios.delete(`/v1/inventory/${id}`);
 };

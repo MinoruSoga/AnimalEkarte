@@ -15,7 +15,7 @@ const EXAM_TYPES_QUERY_KEY = ["masters", "examination-types"] as const;
 
 export type { ExamTypeField };
 
-export const getAllExaminationTypes = async (): Promise<ExamTypeField[]> => {
+const getAllExaminationTypes = async (): Promise<ExamTypeField[]> => {
   const { data } = await axios.get<ExaminationType[]>("/v1/masters/examination-types");
   return data.map(transformExaminationType);
 };

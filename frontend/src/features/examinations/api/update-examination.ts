@@ -3,6 +3,5 @@
 // 注意: このモジュールの UpdateExaminationRequest は shared hook 内の narrow 定義。
 // feature 内部の正本は ./types.ts の同名 interface（BE 契約は同一）。
 export {
-  updateExamination,
   useUpdateExamination,
 } from "@/hooks/use-update-examination";

@@ -19,7 +19,7 @@ export interface OwnerUnpaidBalance {
  * Backend: GET /v1/accountings/unpaid-balance?owner_id=...
  * 残高定義は未納者一覧(#120)/月次繰越(#114)と同一（status=waiting 合計）。
  */
-export const getOwnerUnpaidBalance = async (ownerId: string): Promise<OwnerUnpaidBalance> => {
+const getOwnerUnpaidBalance = async (ownerId: string): Promise<OwnerUnpaidBalance> => {
   const { data } = await axios.get<BackendOwnerUnpaidBalance>("/v1/accountings/unpaid-balance", {
     params: { owner_id: ownerId },
   });

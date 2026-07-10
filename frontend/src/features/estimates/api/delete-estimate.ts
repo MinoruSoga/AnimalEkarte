@@ -3,7 +3,7 @@ import { toast } from 'sonner';
 import { axios } from '@/lib/axios';
 import { handleApiError } from '@/lib/handle-api-error';
 
-export async function deleteEstimate(id: string): Promise<void> {
+async function deleteEstimate(id: string): Promise<void> {
   await axios.delete(`/v1/estimates/${id}`);
 }
 

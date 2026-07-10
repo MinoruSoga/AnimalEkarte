@@ -5,7 +5,7 @@ import { transformMedicalRecord } from "./transforms";
 import type { MedicalRecord } from "./transforms";
 import type { BackendMedicalRecord, UpdateMedicalRecordRequest } from "./types";
 
-export const updateMedicalRecord = async (
+const updateMedicalRecord = async (
   id: string,
   req: UpdateMedicalRecordRequest
 ): Promise<MedicalRecord> => {

@@ -67,7 +67,6 @@ export type ReservationType = ReturnType<typeof transformReservationType>;
 export type {
   CreateReservationTypeRequest,
   UpdateReservationTypeRequest,
-  ReorderReservationTypeRequest,
 } from "@/types/reservation-type";
 
 // ─────────────────────────────────────────────────
@@ -95,14 +94,14 @@ export async function listReservationTypes(): Promise<ReservationType[]> {
   return result;
 }
 
-export async function createReservationType(
+async function createReservationType(
   req: CreateReservationTypeRequest,
 ): Promise<ReservationType> {
   const { data } = await axios.post<ModelReservationType>("/v1/masters/reservation-types", req);
   return transformReservationType(data);
 }
 
-export async function updateReservationType(
+async function updateReservationType(
   id: string,
   req: UpdateReservationTypeRequest,
 ): Promise<ReservationType> {
@@ -113,11 +112,11 @@ export async function updateReservationType(
   return transformReservationType(data);
 }
 
-export async function deleteReservationType(id: string): Promise<void> {
+async function deleteReservationType(id: string): Promise<void> {
   await axios.delete(`/v1/masters/reservation-types/${id}`);
 }
 
-export async function reorderReservationTypes(
+async function reorderReservationTypes(
   req: ReorderReservationTypeRequest,
 ): Promise<void> {
   await axios.patch("/v1/masters/reservation-types/reorder", req);

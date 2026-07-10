@@ -5,7 +5,7 @@ import type { Pet } from "@/types";
 import { transformBackendPetToFrontend } from "@/lib/transforms/pet";
 import type { PetListResponse } from "@/types/pet";
 
-export const getPets = async (ownerId?: string): Promise<Pet[]> => {
+const getPets = async (ownerId?: string): Promise<Pet[]> => {
   const params = ownerId ? { owner_id: ownerId } : {};
   const { data } = await axios.get<PetListResponse>("/v1/pets", { params });
   return data.data.map(transformBackendPetToFrontend);

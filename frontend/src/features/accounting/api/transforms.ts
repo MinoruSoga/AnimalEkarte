@@ -55,8 +55,6 @@ function buildPaymentInfo(data: BackendAccounting) {
   };
 }
 
-export type PaymentInfo = NonNullable<ReturnType<typeof buildPaymentInfo>>;
-
 export function transformToRefund(r: BillingRefund & { refunded_by_name?: string }) {
   return {
     id: String(r.id ?? 0),

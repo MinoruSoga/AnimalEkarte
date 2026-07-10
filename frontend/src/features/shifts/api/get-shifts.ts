@@ -10,7 +10,7 @@ export interface GetShiftsParams {
   staff_id?: string;
 }
 
-export async function getShifts(params: GetShiftsParams): Promise<Shift[]> {
+async function getShifts(params: GetShiftsParams): Promise<Shift[]> {
   const query = new URLSearchParams();
   if (params.date) query.set("date", params.date);
   if (params.staff_id) query.set("staff_id", params.staff_id);

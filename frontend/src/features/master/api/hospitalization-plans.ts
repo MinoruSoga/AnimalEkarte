@@ -11,15 +11,6 @@ import {
   BillingUnitPerNight,
 } from "@/types/generated/models";
 
-// Re-export enum constants for use in components
-export {
-  BodySizeSmall,
-  BodySizeMedium,
-  BodySizeLarge,
-  BillingUnitPerDay,
-  BillingUnitPerNight,
-};
-
 // ─────────────────────────────────────────────────
 // Request types (derived from models.ts)
 // ─────────────────────────────────────────────────
@@ -90,21 +81,21 @@ export type HospitalizationPlan = ReturnType<typeof transformHospitalizationPlan
 
 const ENDPOINT = "/v1/masters/hospitalization-plans";
 
-export const getAllHospitalizationPlans = async (): Promise<
+const getAllHospitalizationPlans = async (): Promise<
   HospitalizationPlan[]
 > => {
   const { data } = await axios.get<ModelHospitalizationPlan[]>(ENDPOINT);
   return data.map(transformHospitalizationPlan);
 };
 
-export const createHospitalizationPlan = async (
+const createHospitalizationPlan = async (
   req: CreateHospitalizationPlanRequest,
 ): Promise<HospitalizationPlan> => {
   const { data } = await axios.post<ModelHospitalizationPlan>(ENDPOINT, req);
   return transformHospitalizationPlan(data);
 };
 
-export const updateHospitalizationPlan = async (
+const updateHospitalizationPlan = async (
   id: string,
   req: UpdateHospitalizationPlanRequest,
 ): Promise<HospitalizationPlan> => {
@@ -115,7 +106,7 @@ export const updateHospitalizationPlan = async (
   return transformHospitalizationPlan(data);
 };
 
-export const deleteHospitalizationPlan = async (id: string): Promise<void> => {
+const deleteHospitalizationPlan = async (id: string): Promise<void> => {
   await axios.delete(`${ENDPOINT}/${id}`);
 };
 
@@ -171,9 +162,5 @@ export const useDeleteHospitalizationPlan = () => {
     },
     onError: (error) => handleApiError(error, "削除"),
   });
-};
-
-export const reorderHospitalizationPlans = async (ids: number[]): Promise<void> => {
-  await axios.patch(`${ENDPOINT}/reorder`, { ids });
 };
 

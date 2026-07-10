@@ -19,7 +19,7 @@ export function todayISO(): string {
 }
 
 /** 指定日の予約を当日受付用カラム配列として取得 */
-export async function getReception(date: string): Promise<ReceptionColumn[]> {
+async function getReception(date: string): Promise<ReceptionColumn[]> {
   const { data } = await axios.get<ReservationsResponse>(
     "/v1/reservations",
     { params: { date, limit: 100 } },

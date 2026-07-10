@@ -10,7 +10,7 @@ export interface VaccinationFilters {
   endDate?: string; // YYYY-MM-DD
 }
 
-export const getVaccinations = async (
+const getVaccinations = async (
   filters?: VaccinationFilters,
 ): Promise<VaccinationRecord[]> => {
   const params: Record<string, string> = {};

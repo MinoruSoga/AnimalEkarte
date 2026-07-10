@@ -5,7 +5,7 @@ import { transformHospitalization } from "./transforms";
 import type { Hospitalization } from "./transforms";
 import type { BackendHospitalization } from "./types";
 
-export const getHospitalization = async (
+const getHospitalization = async (
   id: string
 ): Promise<Hospitalization> => {
   const { data } = await axios.get<BackendHospitalization>(
@@ -24,7 +24,7 @@ export const useGetHospitalization = (id: string) => {
   });
 };
 
-export const getHospitalizationRaw = async (
+const getHospitalizationRaw = async (
   id: string
 ): Promise<BackendHospitalization> => {
   const { data } = await axios.get<BackendHospitalization>(

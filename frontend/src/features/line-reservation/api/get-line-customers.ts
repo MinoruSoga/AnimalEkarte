@@ -3,7 +3,7 @@ import { axios } from "@/lib/axios";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 import type { LineCustomer } from "./types";
 
-export async function getLineCustomers(clinicId: string): Promise<LineCustomer[]> {
+async function getLineCustomers(clinicId: string): Promise<LineCustomer[]> {
   const { data } = await axios.get<LineCustomer[]>(
     `/v1/clinics/${clinicId}/line-customers`
   );

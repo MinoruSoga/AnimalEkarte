@@ -165,9 +165,6 @@ export function useCreateStaffNote(hospitalizationId: string, date: string) {
 
 export type {
     ApiDailyRecord,
-    ApiVitalRecord,
-    ApiCareLog,
-    ApiStaffNote,
     CreateVitalRecordRequest,
     CreateCareLogRequest,
     CreateStaffNoteRequest,

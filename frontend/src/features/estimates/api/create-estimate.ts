@@ -6,7 +6,7 @@ import type { Estimate } from '../types';
 import { transformEstimate } from './transforms';
 import type { BackendEstimate, CreateEstimateRequest } from './types';
 
-export async function createEstimate(req: CreateEstimateRequest): Promise<Estimate> {
+async function createEstimate(req: CreateEstimateRequest): Promise<Estimate> {
   const { data } = await axios.post<BackendEstimate>('/v1/estimates', req);
   return transformEstimate(data);
 }

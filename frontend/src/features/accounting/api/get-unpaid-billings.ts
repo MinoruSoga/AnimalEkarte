@@ -16,7 +16,7 @@ export interface UnpaidOwner {
   latest_scheduled: string;
 }
 
-export interface UnpaidSummary {
+interface UnpaidSummary {
   total_amount: number;
   billing_count: number;
   owner_count: number;
@@ -103,7 +103,7 @@ export const useGetUnpaidByBilling = (params: UnpaidQueryParams) => {
 
 // #114: 月次未納繰越集計
 
-export interface MonthlyUnpaidOwnerPet {
+interface MonthlyUnpaidOwnerPet {
   owner_id: number;
   owner_name: string;
   pet_id?: number;
@@ -113,7 +113,7 @@ export interface MonthlyUnpaidOwnerPet {
   next_month_carryover: number;
 }
 
-export interface MonthlyUnpaidSummary {
+interface MonthlyUnpaidSummary {
   prev_month_carryover: number;
   current_month_unpaid: number;
   next_month_carryover: number;

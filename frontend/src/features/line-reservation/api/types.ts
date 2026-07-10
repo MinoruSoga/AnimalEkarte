@@ -6,7 +6,6 @@ import type {
 } from "../components/LineReservationSettingsFormSections";
 
 // ── Re-export backend types ──
-export type { LineReservationSetting };
 export type { LineCustomerModel as LineCustomer };
 // Backward-compat aliases
 export type ReservationSetting = LineReservationSetting;

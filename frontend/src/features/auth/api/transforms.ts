@@ -45,7 +45,7 @@ const resourcePermissionSchema = z.object({
   delete: z.boolean(),
 });
 
-export const backendMeResponseSchema = z.object({
+const backendMeResponseSchema = z.object({
   id: z.string(),
   email: z.string(),
   display_name: z.string(),

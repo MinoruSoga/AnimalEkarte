@@ -2,7 +2,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import { handleApiError } from "@/lib/handle-api-error";
 
-export async function reorderShiftTemplates(ids: number[]): Promise<void> {
+async function reorderShiftTemplates(ids: number[]): Promise<void> {
   await axios.patch("/v1/shift-templates/reorder", { ids });
 }
 

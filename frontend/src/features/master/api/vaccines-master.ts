@@ -15,7 +15,7 @@ const VACCINES_MASTER_QUERY_KEY = ["masters", "vaccines"] as const;
 
 export type { VaccineItem };
 
-export const getAllVaccinesMaster = async (): Promise<VaccineItem[]> => {
+const getAllVaccinesMaster = async (): Promise<VaccineItem[]> => {
   const { data } = await axios.get<Vaccine[]>("/v1/masters/vaccines");
   return data.map(transformVaccine);
 };

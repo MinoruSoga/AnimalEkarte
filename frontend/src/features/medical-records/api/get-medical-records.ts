@@ -47,7 +47,7 @@ export interface MedicalRecordsResult {
 const DEFAULT_PAGE = 1;
 const DEFAULT_LIMIT = 20;
 
-export const getMedicalRecords = async (
+const getMedicalRecords = async (
   filters?: MedicalRecordFilters,
 ): Promise<MedicalRecordsResult> => {
   const params: Record<string, string | number> = {

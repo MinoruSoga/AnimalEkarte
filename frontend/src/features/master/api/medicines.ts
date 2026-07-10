@@ -9,7 +9,7 @@ import type { CreateMedicineRequest, UpdateMedicineRequest, ReorderMedicinesRequ
 
 const MEDICINES_QUERY_KEY = ["masters", "medicines"] as const;
 
-export const getAllMedicines = async (): Promise<Medicine[]> => {
+const getAllMedicines = async (): Promise<Medicine[]> => {
   const { data } = await axios.get<MedicineModel[]>("/v1/masters/medicines");
   return (data ?? []).map(transformBackendMedicineToFrontend);
 };
@@ -23,12 +23,7 @@ export const useGetAllMedicines = () => {
   });
 };
 
-export const getMedicineById = async (id: string): Promise<Medicine> => {
-  const { data } = await axios.get<MedicineModel>(`/v1/masters/medicines/${id}`);
-  return transformBackendMedicineToFrontend(data);
-};
-
-export const createMedicine = async (req: CreateMedicineRequest): Promise<Medicine> => {
+const createMedicine = async (req: CreateMedicineRequest): Promise<Medicine> => {
   const { data } = await axios.post<MedicineModel>("/v1/masters/medicines", req);
   return transformBackendMedicineToFrontend(data);
 };
@@ -44,7 +39,7 @@ export const useCreateMedicine = () => {
   });
 };
 
-export const updateMedicine = async (id: string, req: UpdateMedicineRequest): Promise<Medicine> => {
+const updateMedicine = async (id: string, req: UpdateMedicineRequest): Promise<Medicine> => {
   const { data } = await axios.patch<MedicineModel>(`/v1/masters/medicines/${id}`, req);
   return transformBackendMedicineToFrontend(data);
 };
@@ -61,7 +56,7 @@ export const useUpdateMedicine = () => {
   });
 };
 
-export const deleteMedicine = async (id: string): Promise<void> => {
+const deleteMedicine = async (id: string): Promise<void> => {
   await axios.delete(`/v1/masters/medicines/${id}`);
 };
 
@@ -76,7 +71,7 @@ export const useDeleteMedicine = () => {
   });
 };
 
-export const reorderMedicines = async (req: ReorderMedicinesRequest): Promise<void> => {
+const reorderMedicines = async (req: ReorderMedicinesRequest): Promise<void> => {
   await axios.patch("/v1/masters/medicines/reorder", req);
 };
 

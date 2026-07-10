@@ -50,7 +50,7 @@ export interface UpdateClinicalPlanInput {
 
 // ── Fetch ─────────────────────────────────────────────────────────────
 
-export const getClinicalPlan = async (medicalRecordId: string): Promise<ClinicalPlan> => {
+const getClinicalPlan = async (medicalRecordId: string): Promise<ClinicalPlan> => {
   const { data } = await axios.get<Parameters<typeof transformClinicalPlan>[0]>(
     `/v1/medical-records/${medicalRecordId}/clinical-plan`
   );

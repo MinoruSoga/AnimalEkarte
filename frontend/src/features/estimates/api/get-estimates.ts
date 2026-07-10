@@ -20,7 +20,7 @@ interface EstimatesResult {
   limit: number;
 }
 
-export async function getEstimates(params?: GetEstimatesParams): Promise<EstimatesResult> {
+async function getEstimates(params?: GetEstimatesParams): Promise<EstimatesResult> {
   const { data } = await axios.get<EstimateListResponse>('/v1/estimates', { params });
   return {
     data: data.data.map(transformEstimate),

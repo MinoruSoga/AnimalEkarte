@@ -16,7 +16,7 @@ import type {
 
 // ── Fetch ─────────────────────────────────────────────────────────────
 
-export const getTreatments = async (medicalRecordId: string): Promise<Treatment[]> => {
+const getTreatments = async (medicalRecordId: string): Promise<Treatment[]> => {
   const { data } = await axios.get<Treatment[]>(
     `/v1/medical-records/${medicalRecordId}/treatments`
   );
