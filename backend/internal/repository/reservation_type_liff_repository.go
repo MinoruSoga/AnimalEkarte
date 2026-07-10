@@ -96,7 +96,7 @@ func (r *reservationTypeLiffRepository) Delete(ctx context.Context, clinicID, id
 }
 
 func (r *reservationTypeLiffRepository) UpdateSortOrder(ctx context.Context, clinicID, id uint64, direction string) error {
-	if err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	if err := dbOrTx(ctx, r.db).Transaction(func(tx *gorm.DB) error {
 		var target model.ReservationType
 		if err := tx.Scopes(clinicScope(clinicID)).Where("id = ?", id).First(&target).Error; err != nil {
 			return apperrors.FromGORM(err, "reservation_type_liff", fmt.Sprintf("%d", id))

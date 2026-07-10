@@ -263,7 +263,7 @@ func (r *lstepTagCacheRepository) FindOwnerIDsByTag(ctx context.Context, clinicI
 }
 
 func (r *lstepTagCacheRepository) BulkReplaceOwnerTags(ctx context.Context, clinicID, ownerID uint64, tags []TagEntry) error {
-	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	err := dbOrTx(ctx, r.db).Transaction(func(tx *gorm.DB) error {
 		if err := tx.Where("clinic_id = ? AND owner_id = ?", clinicID, ownerID).
 			Delete(&model.LstepTagCache{}).Error; err != nil {
 			return apperrors.FromGORM(err, "lstep_tag_cache", fmt.Sprintf("owner=%d delete", ownerID))

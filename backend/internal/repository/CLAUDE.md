@@ -155,6 +155,44 @@ type VaccineRepository interface {
 GetAll(...)  GetByID(...)  List(...)  Fetch(...)
 ```
 
+## Tx 参加機構の使い分け (MANDATORY)
+
+トランザクション参加機構は目的別に2系統ある。**両者の統一は out of scope**（YAGNI — 単一 repo 内の
+複数ステップと複数 repo を跨ぐ協調 tx は要件が異なる）。
+
+1. **ctx-txKey 方式**（`transactor.go` の `Transactor.WithTx` + `base.go` の `dbOrTx`）:
+   service が単一〜少数 repo をまたいで tx 境界を作る場合に使う。`WithTx` が `ctx` に tx を埋め込み、
+   各 repo メソッドは `dbOrTx(ctx, r.db)` で ambient tx があればそれに、無ければ通常の `r.db` に乗る。
+2. **repo-swap 方式**（`repositories.go` の `Repositories.Transaction`）:
+   `treatment_service.go` / `hospitalization_service.go` が使う、複数 repo を横断する協調 tx 向け。
+   tx にバインドされた `*Repositories`（`txRepos`）を丸ごと差し替えるため ctx には伝播しない
+   （`AuditTxLogger` 等 ctx-txKey 前提の機構とは参加できない点に注意 — 詳細は `treatment_service.go` コメント参照）。
+
+**repo 内部の複数ステップ tx**（1 repo メソッド内で複数クエリを原子化する場合）は
+`dbOrTx(ctx, r.db).Transaction(func(tx *gorm.DB) error {...})` に標準化する（R1-1 パターン、
+`accounting_repository.go` が precedent）。`r.db.WithContext(ctx).Transaction(...)` は ambient tx
+（① の `WithTx`）に非参加のまま静かに独立トランザクションになるため使わない。
+
+```go
+// ✅ ambient tx があれば参加、無ければ独立トランザクション
+func (r *xxxRepository) ReplaceItems(ctx context.Context, id uint64, items []Item) error {
+    return dbOrTx(ctx, r.db).Transaction(func(tx *gorm.DB) error {
+        // ...
+    })
+}
+
+// ❌ 常に独立トランザクション — ① の WithTx から呼ばれても ambient tx に非参加のまま
+func (r *xxxRepository) ReplaceItems(ctx context.Context, id uint64, items []Item) error {
+    return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+        // ...
+    })
+}
+```
+
+新規 repo は最初から全メソッドを `dbOrTx` で書く。既存の静的 lint 化（go/ast による
+service→repo 呼び出しのタint 追跡）は false-positive/negative が多く断念済み — 正本ガードは
+各リポジトリの rollback runtime test（`*_repository_test.go` の tx-atomicity テスト）。
+
 ## テストヘルパー: DROP+CREATE 系は setupIsolatedTestDB を使う (MANDATORY)
 
 `*_test.go` の setup ヘルパーがテーブル/ENUM 型を `DROP TABLE`/`DROP TYPE` → 再作成する場合、

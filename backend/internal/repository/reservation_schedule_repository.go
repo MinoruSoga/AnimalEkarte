@@ -109,7 +109,7 @@ func (r *reservationScheduleRepository) FindAllByDate(ctx context.Context, clini
 
 // Save は ShiftEntry と ShiftEntryBreaks をトランザクションで upsert する
 func (r *reservationScheduleRepository) Save(ctx context.Context, clinicID uint64, entry *model.ShiftEntry, breaks []model.ShiftEntryBreak) error {
-	if err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	if err := dbOrTx(ctx, r.db).Transaction(func(tx *gorm.DB) error {
 		// 既存エントリを検索
 		var existing model.ShiftEntry
 		err := tx.Scopes(clinicScope(entry.ClinicID)).

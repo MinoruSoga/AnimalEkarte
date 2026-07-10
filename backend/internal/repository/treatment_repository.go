@@ -184,7 +184,7 @@ func (r *treatmentRepository) Delete(ctx context.Context, clinicID, id uint64) e
 }
 
 func (r *treatmentRepository) BulkUpdateSortOrder(ctx context.Context, updates []TreatmentSortUpdate) error {
-	if err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	if err := dbOrTx(ctx, r.db).Transaction(func(tx *gorm.DB) error {
 		for _, u := range updates {
 			result := tx.Model(&model.Treatment{}).
 				Where("treatments.id = ? AND treatments.deleted_at IS NULL AND treatments.medical_record_id IN (SELECT id FROM medical_records WHERE clinic_id = ?)", u.ID, u.ClinicID).

@@ -90,7 +90,7 @@ func (r *shiftTemplateRepository) Delete(ctx context.Context, clinicID, id uint6
 }
 
 func (r *shiftTemplateRepository) UpdateBreaks(ctx context.Context, templateID uint64, breaks []model.ShiftTemplateBreak) error {
-	if err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	if err := dbOrTx(ctx, r.db).Transaction(func(tx *gorm.DB) error {
 		if err := tx.Where("shift_template_id = ?", templateID).Delete(&model.ShiftTemplateBreak{}).Error; err != nil {
 			return apperrors.FromGORM(err, "shift_template_break", fmt.Sprintf("%d", templateID))
 		}

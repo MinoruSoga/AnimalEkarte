@@ -69,6 +69,7 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	// campaign
 	"campaign_repository.go|campaignRepository.FindAllApplicableForItem": {},
 	"campaign_repository.go|campaignRepository.FindApplicableForItem":    {},
+	"campaign_repository.go|campaignRepository.ReplaceTargets":           {}, // G6-2 repo-internal tx replace
 	// checkup_field (#211 tx-internal replace)
 	"checkup_field_repository.go|checkupFieldResultRepository.FindByCheckupID":   {},
 	"checkup_field_repository.go|checkupFieldResultRepository.ReplaceForCheckup": {},
@@ -138,11 +139,59 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"shift_entry_repository.go|shiftEntryRepository.FindByID":         {},
 	"shift_entry_repository.go|shiftEntryRepository.FindOnDutyStaffs": {},
 	"shift_entry_repository.go|shiftEntryRepository.Update":           {},
+	"shift_entry_repository.go|shiftEntryRepository.ReplaceBreaks":    {}, // G6-2 repo-internal tx replace
 	// trimming detail (uniform dbOrTx)
 	"trimming_repository.go|appointmentTrimmingDetailRepository.Create":              {},
 	"trimming_repository.go|appointmentTrimmingDetailRepository.FindByAppointmentID": {},
 	"trimming_repository.go|appointmentTrimmingDetailRepository.SetOptions":          {},
 	"trimming_repository.go|appointmentTrimmingDetailRepository.Update":              {},
+	// G6-2 (BE-refactor.md tx-mechanism-consolidation): repo-internal r.db.WithContext(ctx).Transaction
+	// → dbOrTx(ctx, r.db).Transaction conversion, no ambient-tx caller into any of these (verified per-file).
+	"lstep_tag_cache_repository.go|lstepTagCacheRepository.BulkReplaceOwnerTags":        {},
+	"manual_article_repository.go|manualArticleRepository.Upsert":                       {},
+	"owner_repository.go|ownerRepository.CreateWithPets":                                {},
+	"reservation_schedule_repository.go|reservationScheduleRepository.Save":             {},
+	"reservation_type_liff_repository.go|reservationTypeLiffRepository.UpdateSortOrder": {},
+	"shift_template_repository.go|shiftTemplateRepository.UpdateBreaks":                 {},
+	"treatment_repository.go|treatmentRepository.BulkUpdateSortOrder":                   {},
+	// X-6 (Appendix-A tx-atomicity fix, commit d7eff8c8): medicine/inventory repo-internal
+	// r.db.WithContext(ctx).Transaction → dbOrTx(ctx, r.db).Transaction. Allowlist backfill
+	// discovered during G6-2 (X-6 landed without registering these).
+	"medicine_repository.go|medicineRepository.Create":                            {},
+	"medicine_repository.go|medicineRepository.Update":                            {},
+	"medicine_repository.go|medicineRepository.Delete":                            {},
+	"medicine_repository.go|medicineRepository.FindAll":                           {},
+	"medicine_repository.go|medicineRepository.FindByID":                          {},
+	"medicine_repository.go|medicineRepository.CountChildrenByParentID":           {},
+	"medicine_repository.go|medicineRepository.CountUsageByMedicineID":            {},
+	"inventory_repository.go|inventoryRepository.Create":                          {},
+	"inventory_repository.go|inventoryRepository.Update":                          {},
+	"inventory_repository.go|inventoryRepository.Delete":                          {},
+	"inventory_repository.go|inventoryRepository.FindAll":                         {},
+	"inventory_repository.go|inventoryRepository.FindByID":                        {},
+	"inventory_repository.go|inventoryRepository.DecreaseStock":                   {},
+	"inventory_repository.go|inventoryRepository.CountUsageByInventoryID":         {},
+	"inventory_repository.go|inventoryRepository.UpdateNameByMedicineCategory":    {},
+	"inventory_repository.go|inventoryRepository.DeleteByNameAndMedicineCategory": {},
+	// X-7 (Appendix-A tx-atomicity fix, commit 2a7a4dfc): clinic/permission_group repo-internal
+	// tx conversion. Allowlist backfill discovered during G6-2 (X-7 landed without registering these).
+	"clinic_repository.go|clinicRepository.Create":                               {},
+	"clinic_repository.go|clinicRepository.Update":                               {},
+	"clinic_repository.go|clinicRepository.Delete":                               {},
+	"clinic_repository.go|clinicRepository.FindByID":                             {},
+	"clinic_repository.go|clinicRepository.FindCompany":                          {},
+	"permission_group_repository.go|permissionGroupRepository.Create":            {},
+	"permission_group_repository.go|permissionGroupRepository.Reorder":           {},
+	"permission_group_repository.go|permissionGroupRepository.UpdateRules":       {},
+	"permission_group_repository.go|permissionGroupRepository.UpdateStaffGroups": {},
+	// X-8 (Appendix-A tx-atomicity fix, commit 1e2d483c): reservation_staff repo-internal tx
+	// conversion. Allowlist backfill discovered during G6-2 (X-8 landed without registering these).
+	"reservation_staff_repository.go|reservationStaffRepository.Create":                         {},
+	"reservation_staff_repository.go|reservationStaffRepository.Update":                         {},
+	"reservation_staff_repository.go|reservationStaffRepository.Delete":                         {},
+	"reservation_staff_repository.go|reservationStaffRepository.UpdateSortOrder":                {},
+	"reservation_staff_repository.go|reservationStaffRepository.UpdateExcludedReservationTypes": {},
+	"reservation_staff_repository.go|reservationStaffRepository.UpdateReservationCapabilities":  {},
 }
 
 // funcUsesDBOrTx reports whether a function body contains a call to dbOrTx(...).

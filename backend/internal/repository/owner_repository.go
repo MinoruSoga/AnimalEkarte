@@ -170,7 +170,7 @@ func (r *ownerRepository) FindByNameAndPhone(ctx context.Context, clinicID uint6
 }
 
 func (r *ownerRepository) CreateWithPets(ctx context.Context, owner *model.Owner, pets []model.Pet) error {
-	if err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	if err := dbOrTx(ctx, r.db).Transaction(func(tx *gorm.DB) error {
 		// 1. 飼主を作成
 		if err := tx.Create(owner).Error; err != nil {
 			if isUniqueConstraintErr(err) {
