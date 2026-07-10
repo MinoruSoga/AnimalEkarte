@@ -13,9 +13,9 @@
 
 | 区分 | 件数 | 内訳 |
 |---|---|---|
-| 本編（挙動保存）— 残タスク | **14件** | P1: 1 / P2: 8 / P3: 5 |
+| 本編（挙動保存）— 残タスク | **10件** | P1: 1 / P2: 5 / P3: 4 |
 | Appendix A（挙動変更・別トラック） | 18件 | X-1〜X-18 |
-| レビュー由来フォローアップ（未登録・別チケット推奨） | 3件 | H-1, H-2, H-3 |
+| レビュー由来フォローアップ（未登録・別チケット推奨） | 5件 | H-1, H-2, H-3, H-4, H-5 |
 
 ## このドキュメントの使い方（ClaudeCode 向け）
 
@@ -30,8 +30,7 @@
 ## 推奨実行順（残タスク — 再開時）
 
 ```
-G12-1 → G12-2
-→ G13-1 → G14-1
+[G12-1 → G12-2 → G13-1 → G14-1: CLOSED 2026-07-10]
 → G1-4 → G1-1 → G1-3 → G1-2(Phase A→C) → G1-5 → G1-6 → DOC-G1
 → G2-1 → G2-2 → DOC-G2
 → G6-2（BLOCKED 解消後）
@@ -53,6 +52,8 @@ G12-1 → G12-2
 | H-1 | `UpdateStaffGroups` の staff_id 単位 DELETE が多施設所属スタッフの他クリニックグループ紐付けを意図せず削除しうる | G11-1 security-reviewer | HIGH — 別チケット化推奨 |
 | H-2 | `UpdateExcludedReservationTypes`（reservation_staff_repository.go）の DELETE が `staff_id` のみでスコープされ `clinic_id` を含まない一方、INSERT は呼び出しクリニックの型IDのみ。`staff_reservation_exclusions` テーブル自体に `clinic_id` 列が無いため、多施設所属スタッフに対しては clinic A の正当な操作が clinic B の除外設定行を無警告で全削除する（H-1 と同型のクロステナント破壊）。兄弟の `UpdateReservationCapabilities`/`staff_reservation_capabilities` は自前 `clinic_id` 列を持ち `Where("clinic_id = ? AND staff_id = ?")` で正しくスコープされており非対称。 | G11-4 security-reviewer（`UpdateReservationCapabilities` との比較監査で発見） | HIGH — 別チケット化推奨（`staff_reservation_exclusions` への `clinic_id` 列追加 or DELETE を真の差分更新へ変更、要 migration） |
 | H-3 | `billing_items.category` に索引が無く、`FindOwnersByCategoryPurchaseDate`（Lstep FEAT-383 配信ターゲティング、バッチ/cron想定）が `category = ?` 述語 + `billings` join で Seq Scan リスク。テーブル成長に伴い悪化。既存索引は `merchandise_item_id`/`treatment_id`/`appointment_id`/`trimming_course_id`/`trimming_option_id`/`billing_id`/`deleted_at` のみで `category` は対象外。`idx_billings_clinic_completed_at` も `WHERE status='completed'` の部分索引でこの3クエリ（status述語なし）はカバーしない。 | G11-5 database-reviewer | MEDIUM（パフォーマンス、要 migration・別チケット推奨: `CREATE INDEX idx_billing_items_category ON billing_items(category) WHERE deleted_at IS NULL`） |
+| H-4 | `audit_logs.clinic_id` が Go では `*uint64`（nil許容）だが DDL では `bigint NOT NULL REFERENCES clinics(id)`。Go 側の nil 許容がコンパイル時には検出されない実行時 NULL 制約違反クラス（INSERT 失敗）を許す。 | G12-1 schema_drift nullability check（新設） | MEDIUM（要 migration or model 修正・別チケット推奨: audit_service.go の validateAuditLog が実運用上 nil を弾いている前提を型で保証するか、DB 側制約と model を整合） |
+| H-5 | `lstep_csv_imports.uploaded_by_user_id` が Go では `*uint64`（nil許容）だが DDL では `bigint NOT NULL REFERENCES accounts(id)`。H-4 と同型のクラス。 | G12-1 schema_drift nullability check（新設） | MEDIUM（要 migration or model 修正・別チケット推奨） |
 
 ---
 
@@ -331,128 +332,6 @@ docker compose exec backend go test ./internal/service/... -count=1
 ```
 
 
-## G12. model/DDL・テストスキーマ整合
-
-### G12-1. schema_drift_test の allModels() が 107 モデル中 72 のみ登録（AuditLog/PaymentSplit 等 35 欠落）・NOT NULL 非検査・カスタム型は isEnumLike で素通り
-
-- **ID**: `drift-test-coverage-gap`
-- **重要度**: P2 / **工数目安**: M / **挙動変更**: なし（挙動保存）
-- **対象ファイル**: internal/model/schema_drift_test.go (37-119); internal/model/schema_drift_test.go (313-343); internal/model/schema_drift_test.go (365-375)
-- **依存関係**: 手順(2)は audit-ip-inet-model-drift の解消と相互依存（先に検出網を入れると CI が正しく RED になる）
-
-**証拠(現HEAD検証済み)**
-
-schema_drift_test.go:37-39 `// allModels は全GORMモデルを列挙する。\n// 新しいモデル追加時はここに追記すること。` — 手動保守で強制なし。TableName() 実装は 107 型（grep 実測）に対し allModels() は 72 型。欠落35型: AuditLog, PaymentSplit, CheckupFieldResult, CheckupTypeField, MedicalRecordAddendum, MedicineDoseParam, PetChronicCondition, PasswordResetToken, TokenBlacklist, LineLinkToken, LineSendLog, SharedFile, TrimmingCourseType, ManualArticle, ManualArticleVersion, Campaign, CampaignTargetCategory, CampaignTargetItem, ClinicIntegration, LabImportJob, LabImportEvent, ReservationTypeAvailableSlot, ReservationTypeOccupation, ReservationTypeUnavailableTime, Lstep系12型。型比較も :324-327 `// ENUM型はtext/enum両方あり得るので、Goが string ベースなら許容\nif isEnumLike(goCategory) || isEnumLike(dbCategory) {\n    continue\n}` により inet/uuid 等の PG 組込型 vs text の不一致を許容し、NOT NULL/デフォルト値は一切比較しない（:206 コメント通り列存在+型カテゴリのみ）。CI では ci.yml の Schema drift check ステップが 001_init.sql 適用済み ekarte_db に対して実行されるが、audit_logs の inet 乖離（audit-ip-inet-model-drift）は上記2つの盲点（未登録+isEnumLike）の両方に該当し検出不能。
-
-**問題**
-
-モデル↔DDL整合の唯一の機械ゲートに系統的な穴が3つある: (1) 登録漏れ35型（監査・会計 payment_splits・健診結果を含む）、(2) pointer フィールド vs NOT NULL 列という実行時 NULL 制約違反クラスを未検査、(3) isEnumLike が PG 組込非デフォルト型（inet 等）の乖離を握り潰す。実際に audit_logs の乖離がこの3盲点の陰に隠れた。手動列挙はこのリポジトリが他所で確立済みの exhaustiveness lint パターン（audit_taxonomy_exhaustiveness_test.go / master_fk_write_inventory_lint_test.go の go:embed+go/ast 双方向突合）に反する。
-
-**実装手順**
-
-挙動保存（テスト基盤のみ）。手順: (1) internal/model/schema_drift_test.go に go/ast ベースの exhaustiveness 検査を追加: internal/model/*.go を走査し TableName() string を実装する全 struct を列挙、allModels() の型集合と双方向突合（欠落/余剰で fail）。lstep_migration_progress のようにモデルが存在しないDBテーブルは対象外のまま。(2) allModels() に欠落35型を追記（この時点で AuditLog の乖離が顕在化するので、audit-ip-inet-model-drift の修正とセットで green 化する）。(3) 型比較強化: pgTypeCategory に 'inet'→'inet' 等の PG 組込型を明示カテゴリ化し、isEnumLike の許容集合から外す。(4) nullability 検査を追加: migrator.ColumnTypes の Nullable() と Go フィールドの pointer 性を比較し、「Go=pointer かつ DB=NOT NULL(デフォルト無し)」を drift として報告（逆方向 DB=nullable かつ Go=非pointer は read 時 NULL scan エラークラスなので警告リストに）。誤検知が出た列は根拠コメント付き allowlist で pin する。影響範囲: schema_drift_test.go 1ファイル+allModels 追記。
-
-**検証コマンド(スコープ限定)**
-```
-docker compose exec backend go test ./internal/model/ -run 'TestSchemaDrift|TestAllModelsExhaustive' -v
-```
-
-### G12-2. setupSharedTestSchema の手書き ENUM 複製が 001_init.sql から乖離 — item_source に 'trimming' が無く、トリミング会計明細の永続化経路が統合テスト不能
-
-- **ID**: `test-enum-copy-drift`
-- **重要度**: P2 / **工数目安**: S / **挙動変更**: なし（挙動保存）
-- **対象ファイル**: internal/repository/ltv_repository_test.go (1385-1478); migrations/001_init.sql (108); internal/repository/billing_item_repository.go (258-278)
-- **依存関係**: なし
-
-**証拠(現HEAD検証済み)**
-
-001_init.sql:108 `CREATE TYPE item_source AS ENUM ('medical_record', 'manual', 'hospitalization', 'trimming');` に対し、ltv_repository_test.go:1433 の手書き複製は `{"item_source", "CREATE TYPE item_source AS ENUM ('medical_record', 'manual', 'hospitalization')"}` で 'trimming' が欠落。production コードは billing_item_repository.go:271 `Source:                model.ItemSourceTrimming,` で当該値を組み立て、会計作成時に billing_items.source='trimming' として永続化される。さらに 001 の CREATE TYPE 54 型に対しテスト側は 50 型で、campaign_discount_type / checkup_field_type / lab_import_job_status / lab_import_source_type の4型が欠落（comm 実測。checkup_field_type は real-DDL 専用ヘルパーが自前作成するため実害は item_source が最大）。ltv_repository_test.go:1389-1390 のコメント `//（001_init.sql の 46 型 + 009 #201 薬量計算の 4 型）` も現状54型と不一致。なお :1456-1462 の DO ブロックは IF NOT EXISTS ガードのため、テスト側文字列を直しても既存 ekarte_db_test には反映されない点に注意。
-
-**問題**
-
-テストDB（ekarte_db_test）のスキーマ正本が 001_init.sql ではなく手書き複製+AutoMigrate で、既に値レベルの乖離が実在する。source='trimming' を INSERT する統合テストは書いた瞬間に enum 違反で失敗するため、トリミング→会計連携の永続化経路（#73/#77）は repository 統合テストで担保不能。将来 001 に enum 値を追加するたびに同じサイレント乖離が再発する構造。
-
-**実装手順**
-
-挙動保存（テスト基盤のみ）。手順: (1) ltv_repository_test.go の enumTypes 文字列を 001_init.sql と一致させる（item_source に 'trimming' 追加、campaign_discount_type / lab_import_job_status / lab_import_source_type を追加。checkup_field_type は real-DDL trio の DROP+CREATE と衝突しないことを checkup_field_repository_test.go 側で確認の上追加判断）。(2) 再発防止 lint を新設: internal/repository/test_schema_enum_parity_test.go — migration_cascade_lint_test.go と同じ相対パス読取で 001_init.sql の CREATE TYPE 定義（複数行対応で正規化）を抽出し、enumTypes の定義文字列と完全一致比較（欠落・値差分で fail。テスト専用型があれば根拠コメント付き allowlist）。(3) IF NOT EXISTS ガード対策: setupSharedTestSchema に「既存型の値集合が定義と不一致なら DROP TYPE ... CASCADE→再作成」を追加するか、最低限 README/コメントで ekarte_db_test の DROP DATABASE 再作成を案内。(4) :1389 の型数コメントを実数に修正。影響範囲: internal/repository のテストヘルパーのみ。
-
-**検証コマンド(スコープ限定)**
-```
-docker compose exec backend go test ./internal/repository/ -run 'TestTestSchemaEnumParity|TestBillingItemRepository' -count=1
-```
-
-
-## G13. サイレント障害の解消
-
-### G13-1. lab import 補償トランザクション(failed 遷移)の失敗が無ログで破棄され、job が非終端状態で stuck しても観測不能
-
-- **ID**: `lab-import-compensation-unlogged`
-- **重要度**: P3 / **工数目安**: S / **挙動変更**: なし（挙動保存）
-- **対象ファイル**: internal/service/lab_result_import_service.go (124-134)
-- **依存関係**: なし
-
-**証拠(現HEAD検証済み)**
-
-internal/service/lab_result_import_service.go:125-133:
-	if err != nil {
-		// context キャンセル等のシステムエラー: job を failed に遷移させてから返す。
-		// ctx は既にキャンセル済みのため、補償トランザクションには新しいコンテキストを使う。
-		errMsg := err.Error()
-		cleanupCtx, cleanupCancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
-		defer cleanupCancel()
-		_, _ = s.jobSvc.TransitionStatus(cleanupCtx, clinicID, jobID, model.LabImportJobStatusFailed,
-			TransitionCounts{RowCount: len(inputs), ErrorCode: ptr("context_cancelled"), ErrorMessage: &errMsg})
-		return nil, apperrors.Wrap(err, "lab import batch interrupted")
-
-コメントは cleanupCtx 採用理由のみで、エラー破棄の正当化コメント・nolint は無い。対照的に同ファイルの終端遷移(172-177行)は失敗を slog.ErrorContext で記録し「永続化は完了しているため、エラーはログのみで返さない。」と根拠コメント付き:
-	if _, err := s.jobSvc.TransitionStatus(ctx, clinicID, jobID, termStatus, finalCounts); err != nil {
-		slog.ErrorContext(ctx, "lab result import: failed to transition to terminal status", ...
-
-**問題**
-
-補償遷移(→failed)自体が失敗した場合(DB 断・5s タイムアウト超過)、job は mapped 等の非終端状態で恒久 stuck するが、その事実がどこにも記録されない。主エラーは呼び出し元へ返るため利用者はリトライできるが、stuck job の存在は運用側から完全に不可視。同一ファイル内で終端遷移だけログする非対称は、過去監査(F-1/LIFF-1/2)で是正してきた P11 観測性方針とも不整合。
-
-**実装手順**
-
-挙動保存のログ追加のみ。internal/service/lab_result_import_service.go:131 を以下に変更:
-	if _, compErr := s.jobSvc.TransitionStatus(cleanupCtx, clinicID, jobID, model.LabImportJobStatusFailed,
-		TransitionCounts{RowCount: len(inputs), ErrorCode: ptr("context_cancelled"), ErrorMessage: &errMsg}); compErr != nil {
-		slog.ErrorContext(cleanupCtx, "lab result import: failed to transition to failed (compensation)",
-			"error", compErr, "job_id", jobID)
-		// 主エラーを優先して返す(挙動不変)。job は非終端で残るため jobID から追跡する。
-	}
-lab_result_import_service_test.go に PersistBatch 失敗+TransitionStatus(failed) 失敗を注入する mock ケースを追加し、戻り値が従来どおり "lab import batch interrupted" の wrap であることを固定する。
-
-**検証コマンド(スコープ限定)**
-```
-docker compose exec backend go test ./internal/service/ -run 'TestLabResultImportService_Commit' -count=1
-```
-
-
-## G14. マスタFK write allowlistドキュメント精度
-
-### G14-1. masterFKWriteAllowlist の accountingService.Update エントリが実装と乖離（既にguarded相当）
-
-- **ID**: `accounting-update-allowlist-stale-status`
-- **重要度**: P3 / **工数目安**: S / **挙動変更**: なし（挙動保存）
-- **対象ファイル**: internal/service/master_fk_write_inventory_lint_test.go (191); internal/service/accounting_service_builders.go (21-43); internal/service/accounting_service_core.go (118-141)
-
-**証拠(現HEAD検証済み)**
-
-allowlist(191行目): `{"accountingService.Update", statusKnownUnguarded, []string{"PaymentMethodID"}, "...not a FindByID guard and no isolation test — verify rejection of explicit foreign IDs."}`。しかし accounting_service_builders.go:37-40 は `if existing != nil && *existing != id { return nil, apperrors.WrapInvalidInput(...) }` で、clinic-scoped な systemKeyToID（accounting_service_core.go:118 `s.loadPaymentMethodSystemKeyToID(ctx, input.ClinicID)`）に解決した id と request の明示 PaymentMethodID が不一致なら拒否しており、定義文（lint冒頭コメント）の『guarded = ownership validation (FindByID(...) or equivalent) covers ALL master FKs』の “or equivalent” に該当する挙動を既に持つ。
-
-**問題**
-
-allowlist の status は『レビュー俎上に乗ったか』の記録であり、この記録自体が実態（既にguard相当のロジックが存在）を過小評価している。将来の監査者がこの記録を信じて『まだ未対応』と誤認し、実際により緊急度の高い他の known-unguarded 項目（billing_item/campaign 等）への注意が薄まるリスクがある。gate自体はcorrectnessを保証しないため、記録の正確性が唯一の防波堤。
-
-**実装手順**
-
-resolvePaymentMethodMasterID の相互整合チェックを検証する isolation test（別クリニックの payment_method_id を明示指定した Update が 400 で拒否されることを確認）を internal/service/cross_tenant_master_fk_write_test.go に追加し、GREEN化後に allowlist 191行目の status を `statusGuarded` に更新して reason を『resolvePaymentMethodMasterID の mismatch 拒否ロジックで validated; test: TestAccountingService_Update_RejectsForeignPaymentMethodID』に書き換える。
-
-**検証コマンド(スコープ限定)**
-```
-docker compose exec backend go test ./internal/service/ -run TestMasterFKWriteInventory -v
-```
 ## Appendix A: 挙動変更を伴う項目（別トラック・PO/責任者判断を要する）
 
 以下18件は監査で実在を確認した defect だが、修正すると HTTP レスポンス・DB書込結果・権限判定・API契約のいずれかが観測可能な形で変わる。このため本計画（挙動保存リファクタ）の実行対象からは外し、個別 Issue として起票のうえ別トラックで扱うことを推奨する。severity 順に記載。
