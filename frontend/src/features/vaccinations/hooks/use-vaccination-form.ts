@@ -48,7 +48,7 @@ const DEFAULT_FORM: VaccinationFormState = {
 };
 
 // BUG-026: calculate next date based on vaccination date and schedule type
-function calculateNextDate(vaccinationDate: string, scheduleType: string): string {
+export function calculateNextDate(vaccinationDate: string, scheduleType: string): string {
   if (!vaccinationDate || scheduleType === "other") return "";
   const date = new Date(vaccinationDate + "T00:00:00");
   if (isNaN(date.getTime())) return "";
