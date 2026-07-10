@@ -1,7 +1,8 @@
 # BE-refactor.md — バックエンド リファクタリング計画（Appendix A / H フォローアップのみ残存）
 
 > **本編（挙動保存トラック、G1/G2/G6/G9/G12/G13/G14 の全17件）は 2026-07-10 に完遂（Epic CLOSED）。**
-> 残るのは Appendix A（挙動変更・別トラック、PO判断待ち）14件と、レビュー由来フォローアップ H-1〜H-7（別チケット化推奨）のみ。
+> Appendix A は P1 4件（X-1, X-3, X-4, X-5）が 2026-07-10 の Session 1（本 Run）で CLOSED。
+> 残るのは Appendix A 10件（X-9〜X-18、P2/P3）と、レビュー由来フォローアップ H-1〜H-7（別チケット化推奨）のみ。
 > 前提: backend は 2026-07-02 完遂の D1-D13/R1-R3 計画で一度系統的にリファクタ済み・複数回の監査で well-maintained と判定済みのコードベースである。
 
 ## 監査の方法と信頼性
@@ -14,7 +15,7 @@
 | 区分 | 件数 | 内訳 |
 |---|---|---|
 | 本編（挙動保存） | **0件 — CLOSED 2026-07-10** | 全17件完遂（詳細は本ファイル履歴 / git log 参照） |
-| Appendix A（挙動変更・別トラック） | 14件 | X-1, X-3〜X-5, X-9〜X-18 |
+| Appendix A（挙動変更・別トラック） | 10件 | X-9〜X-18（P1 4件 X-1/X-3/X-4/X-5 は Session 1 で CLOSED） |
 | レビュー由来フォローアップ（未登録・別チケット推奨） | 7件 | H-1, H-2, H-3, H-4, H-5, H-6, H-7 |
 
 ## 本編 CLOSED 履歴（2026-07-10）
@@ -31,6 +32,22 @@ X-2 / X-6 / X-7 / X-8（Appendix A、G6-2/G9-1 の BLOCKED 解消を目的にユ
   2026-07-10、RED→GREEN 実証 + security-reviewer 独立レビュー(CRITICAL/HIGH 0件)を経て CLOSED
 G6-2 → G9-1: BLOCKED 解消後 2026-07-10 に実装・CLOSED（tx機構の残り9ファイル一括置換+CLAUDE.md規約追加、
   main.go 二段階DI統合）。G9-1 は go-reviewer 独立レビュー Approve。
+Appendix A Session 1（P1 Wave、ユーザー承認済み挙動変更トラック）: 2026-07-10、X-1 / X-3 / X-4 / X-5 の4件を
+  RED→GREEN実証 + 独立 security-reviewer レビュー(CRITICAL/HIGH 0件、X-3 は healthcare-reviewer advisory も実施・
+  ブロッキング懸念なし)を経て CLOSED。
+  X-1 (cbae4838): SanitizeNullBytes の Content-Type 判定を allowlist(application/json のみ)ではなく
+    binary-type blocklist(multipart/form-data, application/octet-stream)に変更。初回実装は allowlist 案だったが
+    security-reviewer が c.ShouldBindJSON の Content-Type 非依存パースとの相互作用でJSON経路のサニタイズが
+    弱まるHIGHを指摘し、blocklistへ修正のうえCLOSED。
+  X-4 + X-5 (8ecb61e0、同一コミット — cross_tenant_master_fk_write_test.go/master_fk_write_inventory_lint_test.go/
+    service.go を共有編集していたため1コミットに統合): billingItemService.CreateItem の
+    TrimmingCourseID/TrimmingOptionID、campaignService.Create/Update の TargetItemIDs にクリニック所有権
+    FindByID ガードを追加。billingItemService.CreateItem の MerchandiseItemID はこの書込経路で未使用
+    （dead field）と判明し allowlist を known-unguarded・PARTIAL 注記のまま維持（out of scope、正しい判断）。
+  X-3 (48db0430): model.AuditLog.IPAddress を string→*string 化、audit_service.go に空文字→nil正規化を追加し
+    inet 列への INSERT 失敗(22P02)を解消。ClinicID は *uint64 のまま gorm:"not null" タグのみ追加（H-4 の
+    根本解消はスコープ外・下表参照）。audit_real_ddl_test.go を新設し AutoMigrate 製の乖離テストスキーマを
+    実DDLベースに置換。
 ```
 
 ### レビュー由来フォローアップ（本編未登録）
@@ -40,7 +57,7 @@ G6-2 → G9-1: BLOCKED 解消後 2026-07-10 に実装・CLOSED（tx機構の残�
 | H-1 | `UpdateStaffGroups` の staff_id 単位 DELETE が多施設所属スタッフの他クリニックグループ紐付けを意図せず削除しうる | G11-1 security-reviewer | HIGH — 別チケット化推奨 |
 | H-2 | `UpdateExcludedReservationTypes`（reservation_staff_repository.go）の DELETE が `staff_id` のみでスコープされ `clinic_id` を含まない一方、INSERT は呼び出しクリニックの型IDのみ。`staff_reservation_exclusions` テーブル自体に `clinic_id` 列が無いため、多施設所属スタッフに対しては clinic A の正当な操作が clinic B の除外設定行を無警告で全削除する（H-1 と同型のクロステナント破壊）。兄弟の `UpdateReservationCapabilities`/`staff_reservation_capabilities` は自前 `clinic_id` 列を持ち `Where("clinic_id = ? AND staff_id = ?")` で正しくスコープされており非対称。 | G11-4 security-reviewer（`UpdateReservationCapabilities` との比較監査で発見） | HIGH — 別チケット化推奨（`staff_reservation_exclusions` への `clinic_id` 列追加 or DELETE を真の差分更新へ変更、要 migration） |
 | H-3 | `billing_items.category` に索引が無く、`FindOwnersByCategoryPurchaseDate`（Lstep FEAT-383 配信ターゲティング、バッチ/cron想定）が `category = ?` 述語 + `billings` join で Seq Scan リスク。テーブル成長に伴い悪化。既存索引は `merchandise_item_id`/`treatment_id`/`appointment_id`/`trimming_course_id`/`trimming_option_id`/`billing_id`/`deleted_at` のみで `category` は対象外。`idx_billings_clinic_completed_at` も `WHERE status='completed'` の部分索引でこの3クエリ（status述語なし）はカバーしない。 | G11-5 database-reviewer | MEDIUM（パフォーマンス、要 migration・別チケット推奨: `CREATE INDEX idx_billing_items_category ON billing_items(category) WHERE deleted_at IS NULL`） |
-| H-4 | `audit_logs.clinic_id` が Go では `*uint64`（nil許容）だが DDL では `bigint NOT NULL REFERENCES clinics(id)`。Go 側の nil 許容がコンパイル時には検出されない実行時 NULL 制約違反クラス（INSERT 失敗）を許す。 | G12-1 schema_drift nullability check（新設） | MEDIUM（要 migration or model 修正・別チケット推奨: audit_service.go の validateAuditLog が実運用上 nil を弾いている前提を型で保証するか、DB 側制約と model を整合） |
+| H-4 | `audit_logs.clinic_id` が Go では `*uint64`（nil許容）だが DDL では `bigint NOT NULL REFERENCES clinics(id)`。Go 側の nil 許容がコンパイル時には検出されない実行時 NULL 制約違反クラス（INSERT 失敗）を許す。**PARTIAL（2026-07-10, X-3）**: `gorm:"not null"` タグを追加し DB 制約をモデルに明示、`audit_real_ddl_test.go` で NOT NULL 違反(23502)を実DDLで固定。ただし Go 型は `*uint64` のまま（コンパイル時保証は未達成、X-3 のスコープ外と明示決定 — `AuditLogInput`/呼出6箇所への波及を避けるため）。security-reviewer 確認: 実防御は `validateAuditLog`（既存・nil/0 を実行前に拒否）であり gorm タグ自体は現状どの AutoMigrate 呼び出しからも参照されない decoration。 | G12-1 schema_drift nullability check（新設） | LOW（残作業は型を `uint64` 非ポインタ化するのみ・完全解消は別チケット推奨） |
 | H-5 | `lstep_csv_imports.uploaded_by_user_id` が Go では `*uint64`（nil許容）だが DDL では `bigint NOT NULL REFERENCES accounts(id)`。H-4 と同型のクラス。 | G12-1 schema_drift nullability check（新設） | MEDIUM（要 migration or model 修正・別チケット推奨） |
 | H-6 | `backend/CODING_RULES.md` の §3.2/§5.1/§5.4/§6.1/§6.3 に、G1-6 で是正した README.md と同型の forbidden-pattern 教材コード（生の `gin.H{"error":...}` レスポンス、`uuid.UUID` ベースの `FindByID` シグネチャ例 — 実際は全モデル `uint64` PK、sentinel-error `errors.Is` 例示で `apperrors.FromGORM`/`RespondError` 未使用）が残存。§6 に `RequirePermission`/P5 ルートゲーティングの言及が一切ない。G1-6 の対象範囲（ディレクトリツリーのみ）を超える約400行規模の書き直しのため別ユニット化推奨。 | G1-6 実装エージェント | MEDIUM（オンボーディング文書の質・別チケット推奨） |
 | H-7 | `reservationStaffService.Update` の所有権確認読み取り(`s.GetByID`)が tx 外で行われ、確認〜更新の間にスタッフが削除されると TOCTOU の窓が生じる。X-8 の修正対象（fields 更新+除外設定置換の原子性）とは独立した既存の設計であり、X-8 は悪化させていない（security-reviewer 確認済み）。低頻度の管理操作のため実害は限定的。 | X-8 security-reviewer | LOW（別チケット化検討・優先度低） |
@@ -49,134 +66,9 @@ G6-2 → G9-1: BLOCKED 解消後 2026-07-10 に実装・CLOSED（tx機構の残�
 
 ## Appendix A: 挙動変更を伴う項目（別トラック・PO/責任者判断を要する）
 
-以下14件は監査で実在を確認した defect だが、修正すると HTTP レスポンス・DB書込結果・権限判定・API契約のいずれかが観測可能な形で変わる。このため本計画（挙動保存リファクタ）の実行対象からは外し、個別 Issue として起票のうえ別トラックで扱うことを推奨する。severity 順に記載。
+以下10件は監査で実在を確認した defect だが、修正すると HTTP レスポンス・DB書込結果・権限判定・API契約のいずれかが観測可能な形で変わる。このため本計画（挙動保存リファクタ）の実行対象からは外し、個別 Issue として起票のうえ別トラックで扱うことを推奨する。severity 順に記載。
 
-（X-2 lstep-nilcipher-stale-di / X-6 tx-medicine-inventory-nonparticipation / X-7 tx-clinic-create-nonparticipation / X-8 tx-reservation-staff-nonparticipation は 2026-07-10、G6-2/G9-1 の BLOCKED 解消を目的にユーザー承認済みスコープとして RED→GREEN 実証 + security-reviewer 独立レビュー(CRITICAL/HIGH 0件)を経て CLOSED。）
-
-**特に優先度が高い1件（P1・データ破損系）**:
-- `X-1 sanitize-multipart-binary-corruption`: カルテ画像・共有ファイルアップロードのバイナリが保存時に破壊される可能性（2026-03-31 導入以来のクラス）。
-
-**マルチテナント書込ガード欠落（P1・#124/#125 と同型）**:
-- `X-4 billing-item-trimming-fk-unguarded` / `X-5 campaign-target-item-fk-unguarded`
-
-**監査ログ整合性（P1）**:
-- `X-3 audit-ip-inet-model-drift`: 本番DDL(inet列)とmodel(string)の型不一致により、複数の監査ログ書込経路が実行時に失敗しうる。
-### X-1. SanitizeNullBytesがmultipart/form-dataを含む全POST/PUT/PATCHボディにbytes.Mapを適用しバイナリアップロードを破壊する
-
-- **ID**: `sanitize-multipart-binary-corruption`
-- **重要度**: P1 / **工数目安**: S
-- **対象ファイル**: internal/middleware/sanitize_null_bytes.go (25-70); cmd/api/main.go (286-287); internal/handler/medical_record_image_handler.go (124)
-
-**証拠(現HEAD検証済み)**
-
-internal/middleware/sanitize_null_bytes.go:26-31:
-	return func(c *gin.Context) {
-		method := c.Request.Method
-		if method != http.MethodPost && method != http.MethodPatch && method != http.MethodPut {
-			c.Next()
-			return
-		}
-（Content-Type による除外は一切ない）
-
-sanitize_null_bytes.go:47-58:
-		sanitized := bytes.Map(func(r rune) rune {
-			switch {
-			case r == 0x00: // NULL バイト
-				return -1
-			...
-			case r >= 0x0E && r <= 0x1F: // SO〜US
-				return -1
-
-cmd/api/main.go:286-287:
-	// BUG-067: POST/PATCH/PUT ボディから NULL バイトを除去（PostgreSQL エラー防止）
-	r.Use(middleware.SanitizeNullBytes())
-
-internal/handler/medical_record_image_handler.go:124: file, fileHeader, err := c.Request.FormFile("file")
-
-frontend/src/features/medical-records/api/medical-record-images.ts:17-22 は new FormData() + axios.post(multipart/form-data) で生Fileを送信する。
-
-**問題**
-
-bytes.Map はボディを UTF-8 コードポイント列として解釈する。バイナリ（JPEG の 0xFF 0xD8、PNG シグネチャ等）は不正 UTF-8 として各バイトが U+FFFD（3バイト EF BF BD）に置換され、さらに PNG シグネチャの 0x1A は除去レンジ（0x0E-0x1F）に該当してドロップされる。カルテ画像アップロード（POST /medical-records/:id/images/upload）、共有ファイル（shared_file_handler.go:48）、Lステップ CSV インポート（Shift-JIS の場合）が全てこのグローバル middleware（main.go:287、ルート登録前に Use）を通過するため、保存されるバイナリは原理的に原本と一致しない。臨床記録画像の破壊 = データ損失リスク。middleware は 2026-03-31（0234bf8a）、画像ハンドラは 2026-04-11 以降に追加されており、導入以来この経路にバイナリ忠実性のテストは存在しない（sanitize_null_bytes_test.go は application/json のみ）。
-
-**対応方針(挙動変更を伴うため要PO/責任者判断のうえ別トラックで実施)**
-
-手順: (1) RED test 先行 — internal/middleware/sanitize_null_bytes_test.go に Content-Type: multipart/form-data で PNG シグネチャ [0x89,0x50,0x4E,0x47,0x0D,0x0A,0x1A,0x0A] を含むボディを通し、バイト完全一致を検証するケースを追加（現実装で FAIL することを確認 = 破壊の実証）。(2) SanitizeNullBytes 冒頭に Content-Type ガードを追加: strings.HasPrefix(ct, "application/json") の場合のみサニタイズし、それ以外（multipart/form-data, application/octet-stream 等）は素通しする（BUG-067 の対象は JSON テキストのため意図保存）。(3) 既存 JSON ケースのテストが GREEN のままであることを確認。(4) 実機確認として staging で画像アップロード→ダウンロードのバイト一致を手動検証（破壊が確認された場合、既存アップロード済み画像の破損調査は別トラック起票）。影響範囲: multipart を使う3エンドポイントのアップロード忠実性。
-
-**検証コマンド(スコープ限定)**
-```
-docker compose exec backend go test ./internal/middleware/ -run TestSanitizeNullBytes -count=1
-```
-
-### X-3. audit_logs.ip_address が DDL では inet、model では string — 空文字書込は実DDLで INSERT 失敗し、AutoMigrate製テストスキーマがそれを隠蔽
-
-- **ID**: `audit-ip-inet-model-drift`
-- **重要度**: P1 / **工数目安**: M
-- **対象ファイル**: internal/model/audit_log.go (9-27); migrations/001_init.sql (2543-2563); internal/service/audit_service.go (171-296); internal/service/examination_service.go (341-364); internal/repository/audit_repository_test.go (22-29)
-- **依存関係**: drift-test-nullability-gap と同根（あちらは検出網、こちらは実体修正）。同時に着手する場合は本件の real-DDL テストを先に入れる
-
-**証拠(現HEAD検証済み)**
-
-DDL (migrations/001_init.sql:2545,2553): `clinic_id    bigint       NOT NULL REFERENCES clinics(id) ON DELETE RESTRICT,` / `ip_address   inet         NULL,`。model (internal/model/audit_log.go:11,22): `ClinicID   *uint64         \`json:"clinic_id"\`` / `IPAddress string          \`json:"user_agent"\`の直上、`IPAddress string          \`json:"ip_address"\``（gormタグ無し=INSERTに常に含まれる）。IPAddress を設定しない書込経路が多数: audit_service.go:184-193 LogLstepOperationWithMetadata / :209-219 LogMedicalRecordChange / :236-247 LogVitalChange / :285-295 LogAddendumCreate、および fail-closed tx 監査 examination_service.go:345-359 の LogEntryTx（AuditLogInput に IPAddress 未設定）。PostgreSQL では `''::inet` は 22P02 invalid input syntax であり、空文字パラメータの inet 列への INSERT は失敗する。一方テストは audit_repository_test.go:25 `require.NoError(t, db.AutoMigrate(&model.AuditLog{}))` で string→text 列のスキーマを自前生成するため通過し、同 :56 `t.Run("clinic_id / actor_id が nil のシステム操作でも作成できる", ...)` は実DDLの clinic_id NOT NULL では不可能な挙動をテストとして固定している（ClinicID=nil は service 層 validateAuditLog audit_service.go:94-96 が拒否するため運用上は到達しないが、テストスキーマと実DDLの乖離の証左）。
-
-**問題**
-
-監査ログ書込の実行時整合が実DDLに対して未検証。ip_address が実DDL通り inet なら、(a) ベストエフォート監査（LSTEP/カルテ/バイタル/追記/薬量逸脱等）は slog.Warn で握り潰され監査証跡がサイレント消失（例: line_link_service.go:182-184）、(b) fail-closed tx 監査（#211 exam/checkup replace）は監査INSERT失敗→tx rollback→PUT が 500 になる。552本のテストは ekarte_db_test（AutoMigrate製・ip_address=text/clinic_id nullable）で走るため、この乖離クラスをどのテストも検出できない。医療システムの監査証跡要件（audit_logs は削除禁止テーブル）に直結する。
-
-**対応方針(挙動変更を伴うため要PO/責任者判断のうえ別トラックで実施)**
-
-手順: (1) まず実挙動を確定する再現テストを追加: internal/repository/audit_real_ddl_test.go を新設し、checkup_field_cascade_test.go と同じ手法で 001_init.sql の audit_logs DDL 原文（inet/NOT NULL含む）からテーブルを再作成（setupIsolatedTestDB 使用）し、IPAddress="" の repo.Create が失敗するか検証する（RED想定）。(2) 失敗が確認されたら bug トラックへ: model.AuditLog.IPAddress を `*string` 化し buildAuditLog（audit_service.go:74-88）で空文字→nil 正規化（inet 列へは NULL が入る）。LogAuthLogin/LogClinicSwitch の string 引数シグネチャは維持し内部で変換。JSON応答互換が必要なら handler/response 変換で nil→"" を維持（現状 audit_logs の read API は無く影響は限定的 — audit_repository.go は Create/CreateTx のみ）。(3) ClinicID には `gorm:"not null"` を付与しテストスキーマを実DDLの NOT NULL に整合させ、audit_repository_test.go の nil-clinic テストは「repo単体は通るが実DDLでは不可」という現状固定をやめ、real-DDL テスト側で NOT NULL 違反を検証する形に書き換える。(4) 既存 AutoMigrate ベースの setupAuditTestDB は real-DDL 版に置換。影響範囲: model/audit_log.go・service/audit_service.go・repository/audit_repository_test.go のみ（migration 不要 — DDL 側は正とする）。
-
-**検証コマンド(スコープ限定)**
-```
-docker compose exec backend go test ./internal/repository/ -run 'TestAuditRepository|TestAuditLogRealDDL' -count=1 && docker compose exec backend go test ./internal/service/ -run TestAuditService -count=1
-```
-
-### X-4. billingItemService.CreateItem が trimming_course_id/trimming_option_id を未検証で永続化
-
-- **ID**: `billing-item-trimming-fk-unguarded`
-- **重要度**: P1 / **工数目安**: M
-- **対象ファイル**: internal/service/billing_item_service.go (167-231); internal/service/master_fk_write_inventory_lint_test.go (192)
-
-**証拠(現HEAD検証済み)**
-
-billing_item_service.go:220-231: `item := &model.BillingItem{ ... TrimmingCourseID: input.TrimmingCourseID, TrimmingOptionID: input.TrimmingOptionID, ... }` の直前に billing のテナント所有権確認 (`s.billingRepo.FindByID(ctx, input.ClinicID, input.BillingID)`) はあるが、TrimmingCourseID/TrimmingOptionID 自体の所有権検証は無い。master_fk_write_inventory_lint_test.go:192 が自己申告で `{"billingItemService.CreateItem", statusKnownUnguarded, []string{"MerchandiseItemID", "TrimmingCourseID", "TrimmingOptionID"}, "all three FKs persisted directly without FindByID (billing_item_service.go:230)."}` と記録済み。
-
-**問題**
-
-P3.1 write側の原則（『正本は各サイトのruntime isolation test』）に反し、他クリニックの trimming_course_id/trimming_option_id を明細に紐付け可能。billing_item は clinic_id を自前で持たず billings 経由スコープのため、書込時点で検証しないと以後の CountUsageByTrimmingCourseID 等のクロステナント集計汚染・データ整合性破壊につながる（#124/#125 と同型のクラス）。read側 Preload は model に TrimmingCourse/TrimmingOption 関連が定義されていないため直接の情報漏洩は未確認だが、write-side 整合性違反は独立した問題。
-
-**対応方針(挙動変更を伴うため要PO/責任者判断のうえ別トラックで実施)**
-
-billing_item_service.go の CreateItem で input.TrimmingCourseID/TrimmingOptionID が非nilの場合、既存の trimmingCourseRepo.FindByID(ctx, input.ClinicID, *id) / trimmingOptionRepo.FindByID 相当（未配線なら repository に追加）で所有権検証してから item に設定する（examinationService.ReplaceItems の #124 修正パターンに倣う）。cross_tenant_master_fk_write_test.go に `TestBillingItemService_CreateItem_RejectsCrossClinicTrimmingFK` を追加し、GREEN化後に allowlist の該当行を `statusGuarded` へ更新する。
-
-**検証コマンド(スコープ限定)**
-```
-docker compose exec backend go test ./internal/service/ -run TestBillingItemService -v
-```
-
-### X-5. campaignService.Create/Update が campaign_target_items.merchandise_item_id を未検証で永続化
-
-- **ID**: `campaign-target-item-fk-unguarded`
-- **重要度**: P1 / **工数目安**: M
-- **対象ファイル**: internal/service/campaign_service.go (83-89,204-233,235-283); internal/repository/campaign_repository.go (40-70)
-
-**証拠(現HEAD検証済み)**
-
-campaign_service.go:83-89 `buildCampaignTargetItems(itemIDs []uint64) []model.CampaignTargetItem { ... targets = append(targets, model.CampaignTargetItem{MerchandiseItemID: id}) ... }` は id の所有権を検証せず、Create(224行目 `TargetItems: buildCampaignTargetItems(input.TargetItemIDs)`)・Update(272行目 `s.repo.ReplaceTargets(ctx, id, cats, itemIDs)`) の双方で無検証のまま merchandise_item_id を書き込む。model.CampaignTargetItem（campaign.go:52-58）は clinic_id 列を持たない純粋な junction。
-
-**問題**
-
-他クリニックの merchandise_item_id をキャンペーン対象に紐付け可能（テナント越境ID混入）。CalculateItemCampaignDiscount のマッチングロジックが誤発火し、割引適用の整合性が壊れる。read Preload(`Preload("TargetItems")`)自体は merchandise item 本体を展開しないため直接の名称/価格漏洩はないが、write-side 整合性違反として P3.1 の対象クラスに該当する。
-
-**対応方針(挙動変更を伴うため要PO/責任者判断のうえ別トラックで実施)**
-
-campaignService.Create/Update で input.TargetItemIDs の各要素を merchandiseItemRepo.FindByID(ctx, clinicID, id)（または既存の CountByIDs 一括検証）でクリニック所有権を確認してから buildCampaignTargetItems に渡す。repository.CampaignRepository に検証済みIDのみ受け付ける契約を明記し、cross_tenant_master_fk_write_test.go に isolation test を追加後、allowlist の 2 行を `statusGuarded` に更新する。
-
-**検証コマンド(スコープ限定)**
-```
-docker compose exec backend go test ./internal/service/ -run TestCampaignService -v
-```
+（X-2 lstep-nilcipher-stale-di / X-6 tx-medicine-inventory-nonparticipation / X-7 tx-clinic-create-nonparticipation / X-8 tx-reservation-staff-nonparticipation は 2026-07-10、G6-2/G9-1 の BLOCKED 解消を目的にユーザー承認済みスコープとして RED→GREEN 実証 + security-reviewer 独立レビュー(CRITICAL/HIGH 0件)を経て CLOSED。P1 4件 X-1 sanitize-multipart-binary-corruption / X-3 audit-ip-inet-model-drift / X-4 billing-item-trimming-fk-unguarded / X-5 campaign-target-item-fk-unguarded は 2026-07-10 の Session 1 で同様に CLOSED — 詳細は上の「本編 CLOSED 履歴」ブロック参照。残るのは P2/P3 の 10件。）
 
 ### X-9. 予約枠競合チェックの SELECT FOR UPDATE は空枠のファントム挿入を防げず、同時予約で重複/超過予約が成立する
 
