@@ -1,4 +1,4 @@
-import { memo, useCallback, useRef } from "react";
+import { memo, useCallback, useEffect, useRef } from "react";
 
 import { C, STYLE, PALETTE } from "@/lib/design-tokens";
 import type { CheckupSyncPreviewOwner } from "../api/get-checkup-sync-preview";
@@ -99,7 +99,9 @@ export function CheckupSyncPreviewTable({
   );
 
   const selectedIdsRef = useRef(selectedIds);
-  selectedIdsRef.current = selectedIds;
+  useEffect(() => {
+    selectedIdsRef.current = selectedIds;
+  }, [selectedIds]);
 
   const handleRowToggle = useCallback(
     (ownerId: string, checked: boolean) => {
