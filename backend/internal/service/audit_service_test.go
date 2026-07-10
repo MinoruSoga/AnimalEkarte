@@ -62,7 +62,9 @@ func TestAuditService_LogEntry(t *testing.T) {
 	assert.Equal(t, "staff", repo.lastLogged.ActorType)
 	assert.Equal(t, "update", repo.lastLogged.Action)
 	assert.Equal(t, "permission_group", repo.lastLogged.Resource)
-	assert.Equal(t, "127.0.0.1", repo.lastLogged.IPAddress)
+	if assert.NotNil(t, repo.lastLogged.IPAddress) {
+		assert.Equal(t, "127.0.0.1", *repo.lastLogged.IPAddress)
+	}
 	assert.NotNil(t, repo.lastLogged.OldValue)
 	assert.NotNil(t, repo.lastLogged.NewValue)
 }
@@ -558,7 +560,9 @@ func TestAuditService_LogClinicSwitch_StaffActor(t *testing.T) {
 	if assert.NotNil(t, repo.lastLogged.ClinicID) {
 		assert.Equal(t, toClinicID, *repo.lastLogged.ClinicID)
 	}
-	assert.Equal(t, "192.168.1.1", repo.lastLogged.IPAddress)
+	if assert.NotNil(t, repo.lastLogged.IPAddress) {
+		assert.Equal(t, "192.168.1.1", *repo.lastLogged.IPAddress)
+	}
 	assert.Equal(t, "Mozilla/5.0", repo.lastLogged.UserAgent)
 
 	var oldVal, newVal map[string]any

@@ -9,6 +9,17 @@ import (
 	"github.com/animal-ekarte/backend/internal/repository"
 )
 
+// normalizeIPAddress は空文字列を nil に正規化する（X-3）。audit_logs.ip_address は実DDLで
+// inet NULL のため、空文字列をそのまま INSERT すると 22P02 (invalid_text_representation) になる。
+// IPAddress を一度もセットしない呼び出し元（LogLstepOperationWithMetadata 等）のゼロ値も含め、
+// model.AuditLog を組み立てる箇所はすべて本関数を経由させる。
+func normalizeIPAddress(ip string) *string {
+	if ip == "" {
+		return nil
+	}
+	return &ip
+}
+
 // buildAuditLog は AuditLogInput を model.AuditLog に変換する（LogEntry / LogEntryTx 共通の buildFunc）。
 func buildAuditLog(input *AuditLogInput) *model.AuditLog {
 	return &model.AuditLog{
@@ -21,7 +32,7 @@ func buildAuditLog(input *AuditLogInput) *model.AuditLog {
 		OldValue:   repository.MarshalAuditJSON(input.OldValue),
 		NewValue:   repository.MarshalAuditJSON(input.NewValue),
 		Metadata:   repository.MarshalAuditJSON(input.Metadata),
-		IPAddress:  input.IPAddress,
+		IPAddress:  normalizeIPAddress(input.IPAddress),
 		UserAgent:  input.UserAgent,
 	}
 }
@@ -160,7 +171,7 @@ func (s *auditService) LogAuthLogin(ctx context.Context, clinicID, staffID *uint
 		ActorType: model.AuditActorTypeStaff,
 		Action:    action,
 		Resource:  "auth",
-		IPAddress: ipAddress,
+		IPAddress: normalizeIPAddress(ipAddress),
 		UserAgent: userAgent,
 	}
 	return s.Log(ctx, log)
@@ -263,7 +274,7 @@ func (s *auditService) LogClinicSwitch(ctx context.Context, actorID *uint64, fro
 		Resource:  "auth",
 		OldValue:  repository.MarshalAuditJSON(oldValue),
 		NewValue:  repository.MarshalAuditJSON(newValue),
-		IPAddress: ipAddress,
+		IPAddress: normalizeIPAddress(ipAddress),
 		UserAgent: userAgent,
 	}
 	return s.Log(ctx, log)

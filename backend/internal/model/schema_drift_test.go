@@ -250,10 +250,13 @@ func extractGormType(tag string) string {
 // allowlist。エントリを追加する際は、根拠となる Issue 番号を必ず併記すること。
 // 実修正が完了したら該当エントリを削除し、検査を再度有効化すること。
 var knownSchemaDriftAllowlist = map[string]string{
-	// X-3 (audit-ip-inet-model-drift): audit_logs.ip_address は DB=inet, Go=string(text) で型不一致。
-	// G12-1 で AuditLog を allModels() の網羅性検査対象に加えたことで顕在化した。
-	// 型不一致自体の実修正（Go側をnetip.Addr等に変更する、またはDB側をtextに変更する）は
-	// X-3 の範囲であり、このユニット（exhaustiveness gate 追加）の範囲外。
+	// X-3 (audit-ip-inet-model-drift): audit_logs.ip_address は DB=inet, Go=*string(text) で
+	// 型カテゴリ不一致（pgTypeCategory は "inet" と "text" を区別する）。
+	// X-3 では IPAddress を string→*string に変更し、空文字列が ''::inet として INSERT され
+	// 22P02 になる本来の欠陥（NULL許容性の欠如）を解消した。型カテゴリそのものの一致
+	// （Go側をnetip.Addr等に変更する、またはDB側をtextに変更する）は本ユニットのスコープ外
+	// として意図的に見送り、allowlist を維持する（*string でも PostgreSQL 側で text→inet の
+	// 暗黙キャストが機能するため実害はない。実測は audit_real_ddl_test.go 参照）。
 	"AuditLog.ip_address": "X-3",
 }
 
@@ -268,9 +271,13 @@ var knownSchemaDriftAllowlist = map[string]string{
 // 実修正（Go側を非pointerにする、または業務要件次第でDB側をNULL許容にする）は別issue化すること。
 var knownNullabilityDriftAllowlist = map[string]string{
 	// AuditLog.ClinicID は Go=*uint64 だが audit_logs.clinic_id は NOT NULL REFERENCES clinics(id)。
-	// システム操作等 clinic_id が無いケースを見越してポインタ化されたと推測されるが、
-	// 現行DB制約はNULLを許容していない。要件の再確認が必要（G12-1発見、未issue化）。
-	"AuditLog.clinic_id": "G12-1で発見。DB制約はNOT NULL、Go側は*uint64。要件確認要（未issue化）",
+	// X-3 (audit-ip-inet-model-drift) で意図的に維持: service.validateAuditLog（audit_service.go）が
+	// 永続化前に非nil/非ゼロを検証する経路を持ち、呼び出し元が検証前の構造体を一時的に組み立てる
+	// 余地を残すため、DB の NOT NULL 制約を最終防衛線として Go 側は pointer のまま
+	// gorm:"not null" タグのみ付与した（このチェックは Go 型の pointer 性のみを見るため、タグの
+	// 有無に関わらず引き続き allowlist が必要）。DB レベルの拒否は
+	// TestAuditLogRealDDL_NilClinicIDFails（internal/repository/audit_real_ddl_test.go）で保証。
+	"AuditLog.clinic_id": "X-3: DB制約(NOT NULL)を最終防衛線とし、Go側は*uint64+gorm:not nullを維持（意図的）",
 
 	// LstepCsvImport.UploadedByUserID は Go=*uint64 だが
 	// lstep_csv_imports.uploaded_by_user_id は NOT NULL REFERENCES accounts(id)。

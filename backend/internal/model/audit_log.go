@@ -7,8 +7,11 @@ import (
 
 // AuditLog は権限変更・認証操作の記録。削除禁止テーブル。
 type AuditLog struct {
-	ID         uint64          `gorm:"primaryKey"   json:"id"`
-	ClinicID   *uint64         `json:"clinic_id"`
+	ID uint64 `gorm:"primaryKey"   json:"id"`
+	// ClinicID は実DDLで bigint NOT NULL REFERENCES clinics(id)（X-3）。Go 型は *uint64 のまま維持する
+	// — サービス層 validateAuditLog（audit_service.go）が永続化前に非nil/非ゼロを検証する経路を持ち、
+	// 呼び出し元が検証前の構造体を一時的に組み立てる余地を残すため（DB制約が最終防衛線）。
+	ClinicID   *uint64         `gorm:"not null"     json:"clinic_id"`
 	ActorID    *uint64         `json:"actor_id"`
 	ActorType  string          `gorm:"not null"     json:"actor_type"`
 	Action     string          `gorm:"not null"     json:"action"`
@@ -18,10 +21,12 @@ type AuditLog struct {
 	NewValue   json.RawMessage `gorm:"type:jsonb"   json:"new_value"`
 	// Metadata は LSTEP 操作の件数・抽出条件を保存する多次元メタデータ（ISSUE-010）。
 	// resource_id 単一 ID では表現できない情報（例: 健診対象抽出のフィルタ条件 + 件数集計）を JSON で永続化する。
-	Metadata  json.RawMessage `gorm:"type:jsonb"   json:"metadata"`
-	IPAddress string          `json:"ip_address"`
-	UserAgent string          `json:"user_agent"`
-	CreatedAt time.Time       `json:"created_at"`
+	Metadata json.RawMessage `gorm:"type:jsonb"   json:"metadata"`
+	// IPAddress は実DDLで inet NULL（X-3）。空文字列は `''::inet` として 22P02 になるため、
+	// 未設定/空を表す値は Go の nil として保持する（*string、"" ではない）。
+	IPAddress *string   `json:"ip_address"`
+	UserAgent string    `json:"user_agent"`
+	CreatedAt time.Time `json:"created_at"`
 }
 
 func (AuditLog) TableName() string { return "audit_logs" }

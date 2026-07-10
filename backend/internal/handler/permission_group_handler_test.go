@@ -110,6 +110,10 @@ func (m *mockAuditServiceForPG) Log(ctx context.Context, log *model.AuditLog) er
 func (m *mockAuditServiceForPG) LogEntry(ctx context.Context, input *service.AuditLogInput) error {
 	m.lastLogEntry = input // #122: capture for testing
 	if m.logFn != nil {
+		var ipAddress *string
+		if input.IPAddress != "" {
+			ipAddress = &input.IPAddress
+		}
 		return m.logFn(ctx, &model.AuditLog{
 			ClinicID:   input.ClinicID,
 			ActorID:    input.ActorID,
@@ -117,7 +121,7 @@ func (m *mockAuditServiceForPG) LogEntry(ctx context.Context, input *service.Aud
 			Action:     input.Action,
 			Resource:   input.Resource,
 			ResourceID: input.ResourceID,
-			IPAddress:  input.IPAddress,
+			IPAddress:  ipAddress,
 			UserAgent:  input.UserAgent,
 		})
 	}

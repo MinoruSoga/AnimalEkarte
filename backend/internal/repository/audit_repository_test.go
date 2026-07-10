@@ -20,12 +20,14 @@ import (
 )
 
 // setupAuditTestDB は audit_logs テーブルを整備する（依存する他テーブルなし）。
+//
+// X-3 (audit-ip-inet-model-drift): 従来は db.AutoMigrate(&model.AuditLog{}) で
+// audit_logs.ip_address(実DDL=inet) から `text` カラムを生成していたため、本番で発生する
+// `”::inet` の 22P02 エラーをこのテストスイートが検出できなかった。setupAuditRealDDLTestDB
+// （audit_real_ddl_test.go）に委譲し、001_init.sql の実 DDL でテーブルを再作成する。
 func setupAuditTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
-	db := setupTestDB(t)
-	require.NoError(t, db.AutoMigrate(&model.AuditLog{}))
-	db.Exec("TRUNCATE TABLE audit_logs CASCADE")
-	return db
+	return setupAuditRealDDLTestDB(t)
 }
 
 func uint64Ptr(v uint64) *uint64 { return &v }
@@ -52,15 +54,19 @@ func TestAuditRepository_Create(t *testing.T) {
 		assert.Equal(t, model.AuditActionAuthLoginSuccess, got.Action)
 	})
 
-	t.Run("clinic_id / actor_id が nil のシステム操作でも作成できる", func(t *testing.T) {
+	t.Run("actor_id が nil のシステム操作でも作成できる（clinic_id は必須）", func(t *testing.T) {
+		// X-3: audit_logs.clinic_id は実DDLで NOT NULL。actor_id=nil（システム操作）は
+		// actor_consistency_check(actor_type='system' AND actor_id IS NULL) を満たすため許容される。
+		// clinic_id=nil を許容しないことは TestAuditLogRealDDL_NilClinicIDFails（audit_real_ddl_test.go）
+		// が実DDLレベルで検証する。
 		log := &model.AuditLog{
+			ClinicID:  uint64Ptr(1),
 			ActorType: model.AuditActorTypeSystem,
 			Action:    model.AuditActionLstepTagSyncBulk,
 			Resource:  "lstep",
 		}
 		require.NoError(t, repo.Create(ctx, log))
 		assert.NotZero(t, log.ID)
-		assert.Nil(t, log.ClinicID)
 		assert.Nil(t, log.ActorID)
 	})
 }
@@ -73,6 +79,7 @@ func TestAuditRepository_CreateTx_NoAmbientTx(t *testing.T) {
 	ctx := context.Background()
 
 	log := &model.AuditLog{
+		ClinicID:  uint64Ptr(1),
 		ActorType: model.AuditActorTypeSystem,
 		Action:    model.AuditActionBillingRefundCreate,
 		Resource:  "billing_refund",
@@ -96,6 +103,8 @@ func TestAuditRepository_CreateTx_AmbientTxCommit(t *testing.T) {
 	var createdID uint64
 	err := transactor.WithTx(ctx, func(txCtx context.Context) error {
 		log := &model.AuditLog{
+			ClinicID:  uint64Ptr(1),
+			ActorID:   uint64Ptr(10),
 			ActorType: model.AuditActorTypeStaff,
 			Action:    model.AuditActionCheckupFieldResultReplace,
 			Resource:  model.AuditResourceCheckupFieldResult,
@@ -126,6 +135,8 @@ func TestAuditRepository_CreateTx_AmbientTxRollback(t *testing.T) {
 	forcedErr := errors.New("simulated downstream failure after audit write")
 	err := transactor.WithTx(ctx, func(txCtx context.Context) error {
 		log := &model.AuditLog{
+			ClinicID:  uint64Ptr(1),
+			ActorID:   uint64Ptr(10),
 			ActorType: model.AuditActorTypeStaff,
 			Action:    model.AuditActionBillingCancel,
 			Resource:  "billing",
