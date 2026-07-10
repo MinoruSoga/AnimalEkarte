@@ -38,7 +38,7 @@
 | FD9 | アクセシビリティ逸脱 | 53件（代表列挙） | 共有コンポーネント経由で多数画面に伝播する構造的パターン。受付ボードという日常業務中核画面にも波及 |
 | FD10 | liff/line-reserveアプリ固有の規約逸脱 | 8件 | mainアプリで既に修正済みの障害クラス（BUG-067）が別アプリで再現しうる実害あり |
 | FD11 | ~~未使用コード検出基盤（knip）の欠落~~ **解消済み（R-F7, CLOSED 2026-07-10）** | 1件 → 稼働化済み（棚卸し227件は別チケット） | R-F7（commit `5fe32a64`）でdevDependency・script・CI non-blockingステップを導入し稼働化。詳細は[R-F7完了ログ](#r-f7-完了ログcloseD-2026-07-10)参照 |
-| FD12 | パフォーマンスパターン欠如（memo/useDeferredValue/lazy） | 代表10件 | 主要一覧画面は模範的だが、横展開されていない周辺領域に集中 |
+| FD12 | パフォーマンスパターン欠如（memo/useDeferredValue/lazy）— 行メモ化領域は**解消済み（R-F8, CLOSED 2026-07-10）**、useDeferredValue・lazy化は未着手 | 代表10件 → 行メモ化3件解消（R-F8, CLOSED 2026-07-10）。useDeferredValue/lazyはR-F9/R-F10残 | 主要一覧画面は模範的だが、横展開されていない周辺領域に集中。行メモ化領域はR-F8で解消済み、詳細は[R-F8完了ログ](#r-f8-完了ログcloseD-2026-07-10)参照。useDeferredValue・lazy領域は同種のリスクが残存 |
 
 ---
 
@@ -404,7 +404,7 @@
   - `jsonwebtoken`依存の実使用有無の確認と削除判断
   - `UnifiedTabs.tsx`のduplicate exports解消（named/defaultのどちらかに統一）
   - knip CIステップのfailゲート化（第2段階、既存のcoverage ratchet・eslint-disable ratchetと同型の運用に揃える）
-- **次エピック候補**: **R-F8**（FD12 行コンポーネント未メモ化、規模 M）。
+- **次エピック候補**: R-F8は完了（CLOSED 2026-07-10、commit `8c6b45d4`/`dfef3f87`/`f01b74cf`）。詳細は[R-F8完了ログ](#r-f8-完了ログcloseD-2026-07-10)参照。次候補: **R-F9**（FD12 useDeferredValue欠如、規模 S）。
 
 ---
 
@@ -422,6 +422,46 @@
   2. `TagOwnerListDrawer.tsx`: `<li>`の中身を`const TagOwnerListItem = memo(function TagOwnerListItem({ owner }: { owner: LstepTagOwner }) {...})`として切り出す。
   3. `MedicineTableRows.tsx`: `export const SortableMedicineRow = memo(function SortableMedicineRow({ medicine, onEdit, grouped, canEdit }: Props) {...});`および`MedicineCategoryHeaderRow`も同様にmemoでラップする。`onEdit`が呼び出し元（`useMedicineTableState`/`MedicineSettings`）で安定した参照か確認し、不安定なら`useCallback`化する。
 - **検証**: 各修正後、React DevTools Profilerで対象行の再レンダー回数が親の状態変化時に増えないことを確認する（`.claude/refs/performance-rules.md`参照）。`docker compose exec frontend npx vitest run <該当feature>`でGREEN確認。挙動（表示内容・クリック操作）が変更前後で同一であることを手動確認する。
+
+#### R-F8 完了ログ（CLOSED, 2026-07-10）
+
+- **ステータス**: **CLOSED**（完了日 2026-07-10、実装スライス R-F8-S1〜S3、全3コミット）
+- **スライス実装ログ**:
+
+  | Slice | commit | 変更ファイル | 内容 |
+  |---|---|---|---|
+  | S1 | `8c6b45d4` | `CheckupSyncPreviewTable.tsx` | `CheckupSyncPreviewRow`をmemo化。`selectedIds`（Set）を直接depsに使うとmemoが無効化されるため`useRef`で同期し、`handleRowToggle`のdepsを`onSelectionChange`のみに絞った |
+  | S2 | `dfef3f87` | `TagOwnerListDrawer.tsx` | `TagOwnerListItem`をmemo化。propsは`owner`単一・callbackなしのためuseCallback不要。`useGetLstepTagOwners`はselect変換を挟まずQuery cache参照がそのまま安定するため追加対応不要だった |
+  | S3 | `f01b74cf` | `MedicineTableRows.tsx` + `MedicineSettings.tsx` | `SortableMedicineRow`/`MedicineCategoryHeaderRow`をmemo化。`handleEdit`/`handleCreate`のdepsを`[medicineCrud]`から`[medicineCrud.handleEdit]`/`[medicineCrud.handleNew]`へ絞ったが、react-reviewer初回パスで`useSidePeekDirty()`が毎レンダー新規オブジェクトを返す→`dirtyGuard`→`useMasterCRUD`内`confirmDiscard`→`handleEdit`/`handleNew`という連鎖不安定を検出（HIGH, Block）。`MedicineSettings.tsx`内に`dirtyGuard = useMemo(() => ({ confirmDiscard: dirty.confirmDiscard }), [dirty.confirmDiscard])`を追加し局所的に解消 |
+
+- **教訓**: memoが効くかはpropsの由来を1段ずつ遡って確認する必要がある。コールバック自体の`useCallback`化だけでなく、（1）データ取得層の変換（selectオプション等でQuery cache参照が壊れていないか）、（2）Setなど参照の変わりやすいコレクション型がdepsに直接入っていないか、（3）カスタムhookの返却オブジェクト自体が毎レンダー新規生成されていないか（`useSidePeekDirty`→`dirtyGuard`→`useMasterCRUD`のように、目的の関数自体は`useCallback`で安定していても、それを包む戻り値オブジェクトが非メモ化だと連鎖的にmemoを無効化する）を段階的にチェックする。
+- **最終検証**（本追記時点で再実行し一致確認済み）:
+  ```
+  $ rg 'CheckupSyncPreviewRow = memo' frontend/src/features/lstep/components/CheckupSyncPreviewTable.tsx
+  const CheckupSyncPreviewRow = memo(function CheckupSyncPreviewRow({
+  （1件）
+
+  $ rg 'TagOwnerListItem = memo' frontend/src/features/lstep/components/TagOwnerListDrawer.tsx
+  const TagOwnerListItem = memo(function TagOwnerListItem({
+  （1件）
+
+  $ rg 'export const (SortableMedicineRow|MedicineCategoryHeaderRow) = memo' frontend/src/features/master/components/MedicineTableRows.tsx
+  export const MedicineCategoryHeaderRow = memo(function MedicineCategoryHeaderRow({
+  export const SortableMedicineRow = memo(function SortableMedicineRow({
+  （2件）
+
+  $ docker compose exec -T frontend npx vitest run src/features/lstep
+  Test Files  3 passed (3)
+       Tests  45 passed (45)
+
+  $ docker compose exec -T frontend npx vitest run src/features/master
+  Test Files  7 passed (7)
+       Tests  39 passed (39)
+  ```
+  （S1/S2対象ファイルの実パスは`frontend/src/features/lstep/checkup-sync/`ではなく`frontend/src/features/lstep/components/`配下。過去ログの記載揺れであり、実装自体に影響はない）
+- **レビュー記録**: S1/S2はreact-reviewer **Approve**。S3は初回**Block**（HIGH: `useSidePeekDirty`起因のdirtyGuard連鎖不安定）→`dirtyGuard`のuseMemo修正後**Approve**、続けてtypescript-reviewerも**Approve**。
+- **スコープ外の判断**: S3の根本原因である`use-side-peek-dirty.ts`（14マスタ画面が共有）および`use-master-crud.ts`は変更していない。修正は`MedicineSettings.tsx`内の`dirtyGuard`useMemoに局所化し、他13画面への影響を避けた。他画面の行コンポーネントは現状memo化されていないため、この不安定パターンは潜在的だが顕在化していない（将来他画面をmemo化する際は同様のuseMemo対応が必要になる可能性がある）。
+- **次エピック候補**: **R-F9**（FD12 useDeferredValue欠如、規模 S）。
 
 #### R-F9. useDeferredValue欠如の是正（FD12の一部）— 規模 S
 
