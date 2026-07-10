@@ -13,9 +13,9 @@
 
 | 区分 | 件数 | 内訳 |
 |---|---|---|
-| 本編（挙動保存）— 残タスク | **10件** | P1: 1 / P2: 5 / P3: 4 |
+| 本編（挙動保存）— 残タスク | **2件** | P2: 2（いずれも Appendix A 依存の BLOCKED） |
 | Appendix A（挙動変更・別トラック） | 18件 | X-1〜X-18 |
-| レビュー由来フォローアップ（未登録・別チケット推奨） | 5件 | H-1, H-2, H-3, H-4, H-5 |
+| レビュー由来フォローアップ（未登録・別チケット推奨） | 6件 | H-1, H-2, H-3, H-4, H-5, H-6 |
 
 ## このドキュメントの使い方（ClaudeCode 向け）
 
@@ -31,10 +31,12 @@
 
 ```
 [G12-1 → G12-2 → G13-1 → G14-1: CLOSED 2026-07-10]
-→ G1-4 → G1-1 → G1-3 → G1-2(Phase A→C) → G1-5 → G1-6 → DOC-G1
-→ G2-1 → G2-2 → DOC-G2
-→ G6-2（BLOCKED 解消後）
-→ G9-1（BLOCKED 解消後）
+[G1-1 → G1-4: 発見時点で既に 2026-07-09 の前セッションで CLOSED 済みだったと判明（本ファイル未更新のstaleな記載）]
+[G1-2: 前セッションで 203→82 まで既完了、残差63件中48件を2026-07-10に追加完了。残る15件（14件は同一ハンドラのエイリアス重複登録・1件はopenapi_route_drift_test.goのパース制約でPOST /api/line/webhookが未文書化）はinternal/apicontract/openapi_route_drift_test.goのallowlistにコメント付きでpin。CLOSED]
+[G1-5 → G1-6: CLOSED 2026-07-10]
+[G2-1 → G2-2: 発見時点で既に 2026-07-09 の前セッションで CLOSED 済みだったと判明。CLOSED]
+→ G6-2（BLOCKED — Appendix A 依存）
+→ G9-1（BLOCKED — Appendix A 依存）
 → Final gate
 ```
 
@@ -54,220 +56,11 @@
 | H-3 | `billing_items.category` に索引が無く、`FindOwnersByCategoryPurchaseDate`（Lstep FEAT-383 配信ターゲティング、バッチ/cron想定）が `category = ?` 述語 + `billings` join で Seq Scan リスク。テーブル成長に伴い悪化。既存索引は `merchandise_item_id`/`treatment_id`/`appointment_id`/`trimming_course_id`/`trimming_option_id`/`billing_id`/`deleted_at` のみで `category` は対象外。`idx_billings_clinic_completed_at` も `WHERE status='completed'` の部分索引でこの3クエリ（status述語なし）はカバーしない。 | G11-5 database-reviewer | MEDIUM（パフォーマンス、要 migration・別チケット推奨: `CREATE INDEX idx_billing_items_category ON billing_items(category) WHERE deleted_at IS NULL`） |
 | H-4 | `audit_logs.clinic_id` が Go では `*uint64`（nil許容）だが DDL では `bigint NOT NULL REFERENCES clinics(id)`。Go 側の nil 許容がコンパイル時には検出されない実行時 NULL 制約違反クラス（INSERT 失敗）を許す。 | G12-1 schema_drift nullability check（新設） | MEDIUM（要 migration or model 修正・別チケット推奨: audit_service.go の validateAuditLog が実運用上 nil を弾いている前提を型で保証するか、DB 側制約と model を整合） |
 | H-5 | `lstep_csv_imports.uploaded_by_user_id` が Go では `*uint64`（nil許容）だが DDL では `bigint NOT NULL REFERENCES accounts(id)`。H-4 と同型のクラス。 | G12-1 schema_drift nullability check（新設） | MEDIUM（要 migration or model 修正・別チケット推奨） |
+| H-6 | `backend/CODING_RULES.md` の §3.2/§5.1/§5.4/§6.1/§6.3 に、G1-6 で是正した README.md と同型の forbidden-pattern 教材コード（生の `gin.H{"error":...}` レスポンス、`uuid.UUID` ベースの `FindByID` シグネチャ例 — 実際は全モデル `uint64` PK、sentinel-error `errors.Is` 例示で `apperrors.FromGORM`/`RespondError` 未使用）が残存。§6 に `RequirePermission`/P5 ルートゲーティングの言及が一切ない。G1-6 の対象範囲（ディレクトリツリーのみ）を超える約400行規模の書き直しのため別ユニット化推奨。 | G1-6 実装エージェント | MEDIUM（オンボーディング文書の質・別チケット推奨） |
 
 ---
 
 # 残タスク（本編）
-
-## G1. 契約・ドキュメント整合性 (docs/api.yaml 他)
-
-### G1-1. api.yaml に実装に存在しない/廃止済みエンドポイント定義が23オペレーション残存(うち1件は誤配置による OpenAPI 構造違反)
-
-- **ID**: `api-yaml-phantom-endpoints`
-- **重要度**: P1 / **工数目安**: M / **挙動変更**: なし（挙動保存）
-- **対象ファイル**: docs/api.yaml (6455-6476, 11342-11361, 13454-13620, 13620-13680, 13906-13990); internal/handler/handler.go (284-285)
-- **依存関係**: なし(単独実行可)
-
-**証拠(現HEAD検証済み)**
-
-docs/api.yaml:6455-6457 は `delete:\n      operationId: deleteAccounting\n      summary: 会計削除` を定義するが、internal/handler/handler.go:284-285 は `// BUG-371 / #118: DELETE は廃止し論理削除 (POST /:id/cancel) に統合。専用権限 accounting-cancel を使用する。` `accountings.POST("/:id/cancel", h.RequirePermission(string(model.ResourceAccountingCancel), "edit"), h.CancelAccounting)` — DELETE ルートは登録されていない。docs/api.yaml:13906 `  /staffs/reservation-exclusions:` と 13620 `  /accounting/billing-refunds:` は Go ソース全体 grep で 0 ヒット(該当ハンドラ・サービス・モデル一切なし)の純粋 phantom。13537 `  /line/customers:` は実装では reservation_line_routes.go:57-59 `customers := clinics.Group("/line-customers")` (= /clinics/{clinic_id}/line-customers、GET+PATCH のみ)であり、文書化された /line/customers の POST/PUT/DELETE は存在しない。さらに docs/api.yaml:11342-11347 では `deletePermissionGroup` が `/masters/permission-groups/reorder` パス配下に誤配置され、path template に無い `- name: id\n          in: path\n          required: true` を宣言(OpenAPI 仕様違反。実装 permission_group_handler.go:24 は `masters.DELETE("/permission-groups/:id", ...)`)。
-
-**問題**
-
-info.description が「Implementation Synced v3.1.0」と主張する契約文書に、意図的に廃止された危険操作(会計 DELETE=BUG-371 で論理削除へ統合)や全く存在しないリソースファミリーが記載されており、FE/PO/外部連携がこれを信じて設計すると実装と衝突する。deletePermissionGroup の誤配置は OpenAPI バリデータすら通らない構造バグで、api.yaml が機械検証なしに手動編集されている証左。
-
-**実装手順**
-
-全て docs/api.yaml の削除・移動のみ(実装変更なし)。手順: (1) /accountings/{id} の delete: ブロック(6455-6476)を削除し、代わりに実装済みの POST /accountings/{id}/cancel・POST /accountings/{id}/credit-correction を追記(finding api-yaml-missing-operations と同時でも可)。(2) 11342-11361 の delete: ブロックを `/masters/permission-groups/{id}` パス配下へ移動。(3) /staffs/reservation-exclusions と /staffs/reservation-exclusions/{id} の全オペレーション、/accounting/billing-refunds と /accounting/billing-refunds/{id} の全オペレーションを削除(billing-refunds は実装済みの /accountings/{id}/refunds が既に 6477 に文書化済みで重複兼 phantom)。(4) /line/customers・/line/customers/{id}・/line/reservation-settings・/line/reservation-settings/{id} を削除し、実装形 /clinics/{clinic_id}/line-customers (GET, PATCH {customerId}/link-owner)・/clinics/{clinic_id}/line-reservation-settings (GET, PUT) へ置換。(5) LineCustomer/LineReservationSetting/BillingRefund スキーマ自体は実装モデルが存在するため残す。注意: format: date プロパティを増減させると internal/apicontract の date-format gate の床値/allowlist に影響しうるため、編集後にスコープ付きテストで確認する。
-
-**検証コマンド(スコープ限定)**
-```
-docker compose exec backend go test ./internal/apicontract/ -count=1
-```
-
-### G1-2. 実装済み477オペレーション中203件(43%)が api.yaml に未記載 — payment-methods/closing-settings/cash-register/manual/lstep/LIFF 等のリソースファミリー丸ごと欠落
-
-- **ID**: `api-yaml-missing-operations`
-- **重要度**: P2 / **工数目安**: L / **挙動変更**: なし（挙動保存）
-- **対象ファイル**: docs/api.yaml (5318-13988); internal/handler/payment_method_master_handler.go (130-138); internal/handler/handler.go (48-137)
-- **依存関係**: apicontract-route-drift-gate を先に入れると段階実施が安全になる(必須ではない)
-
-**証拠(現HEAD検証済み)**
-
-静的ルート解決(internal/handler 全 Register*Routes の Group/verb リテラルを AST 追跡、未解決 0 件)で実装 477 オペレーション vs api.yaml paths 297 オペレーション。実装のみ 203 件(パラメータ名差異 3 件除外後)。例: internal/handler/payment_method_master_handler.go:130-137 `pm := rg.Group("/payment-methods")` 配下の GET/POST/PATCH /reorder/GET :id/PATCH :id/DELETE :id 全 6 オペレーションが grep `"  /payment-methods"` 0 ヒットで丸ごと未記載。同様に /closing-settings(8)・/cash-register(4)・/manual/articles(5)・/billing-items(6)・/shared-files(5)・/lab-imports・/lab-reports・lstep 系(40+)・/api/liff/{clinicId} 系(13)・/medical-records/{id}/prescriptions|addenda|checkups 系・/pets/{id}/chronic-conditions|death|first-visit|treatment-history が欠落。docs/README.md:13 は「手動で管理するOpenAPI 3.0仕様ファイル。エンドポイントの追加・変更時は合わせて更新する」と規定するがプロセスが破綻している。
-
-**問題**
-
-api.yaml info.description(docs/api.yaml:5)が「Implementation Synced v3.1.0」を掲げつつカバレッジが 57% しかなく、契約文書としての信頼性が失われている。date-format drift gate(internal/apicontract)は api.yaml に書かれたものしか検査できないため、未記載の 43% は既存の契約検査の射程外になっている(検査基盤の実効性を蝕む)。
-
-**実装手順**
-
-挙動保存のドキュメント追補。203 件を一括で書くのは非現実的なのでリソースファミリー単位で段階化する: Phase A(会計系=臨床・金銭に直結): /accountings サブアクション(cancel/credit-correction/unpaid/unpaid-balance/unpaid-monthly/daily-summary)、/payment-methods 全 6、/cash-register 4、/closing-settings 8、/billing-items 6、/reports/monthly 2。Phase B(カルテ系): /medical-records/{id}/prescriptions・addenda・checkups/field-results、/pets/{id}/chronic-conditions・death・first-visit・treatment-history、/examinations/{id}/items、/masters/* の GET {id} 系。Phase C(連携系): lstep 全般、/api/liff/{clinicId}(servers が /api/v1 固定のため liff は別 servers エントリまたは絶対パスで記載)、/manual、/shared-files、/lab-imports、/lab-reports。各 Phase で既存スキーマ($ref)を再利用し、レスポンス形は対応する *_response.go の json タグから起こす。apicontract-route-drift-gate finding のゲートを先に導入して現状 203 件を allowlist に pin すれば、Phase 間の逆行(新規未記載追加)を CI で防げる。
-
-**検証コマンド(スコープ限定)**
-```
-docker compose exec backend go test ./internal/apicontract/ -count=1
-```
-
-### G1-3. レスポンススキーマのフィールド・enum drift — Payment.method に bank_transfer 欠落(#127)、payment_method_id/paid_by 欠落(#128)、Billing に total_refunded_amount 等欠落・非直列化 deleted_at を記載
-
-- **ID**: `api-yaml-schema-field-enum-drift`
-- **重要度**: P2 / **工数目安**: M / **挙動変更**: なし（挙動保存）
-- **対象ファイル**: docs/api.yaml (161-209, 874-964); internal/model/accounting.go (29-34, 62-92, 141-167)
-- **依存関係**: なし
-
-**証拠(現HEAD検証済み)**
-
-docs/api.yaml:200-202 `method:\n          type: string\n          enum: [cash, credit_card, electronic_money]` に対し internal/model/accounting.go:33 `PaymentMethodCash ... PaymentMethodBankTransfer    PaymentMethod = "bank_transfer" // #127: 銀行振込` — enum に bank_transfer が無い。model/accounting.go:159 `PaymentMethodID *uint64 \`... json:"payment_method_id,omitempty"\`` と :160 `PaidBy *uint64 ... json:"paid_by"` は Payment スキーマ(161-209)に無い。Billing 側: model/accounting.go:82 `TotalRefundedAmount int64 \`gorm:"-" json:"total_refunded_amount"\`` と :91 `PaymentSplits []PaymentSplit ... json:"payment_splits,omitempty"` と :87 `MedicalRecord *MedicalRecord ... json:"medical_record,omitempty"` が Billing スキーマ(874-964)に無い。逆に api.yaml:934-938 は `deleted_at:\n          type: string\n          format: date-time\n          nullable: true` を記載するが model/accounting.go:77 は `DeletedAt gorm.DeletedAt \`... json:"-"\`` で wire に一切出ない phantom フィールド。
-
-**問題**
-
-会計ドメイン(金銭)の wire 契約が文書と一致しない。enum 欠落は FE が bank_transfer 支払いを未知値として扱う設計ミスを誘発しうる。payment_method_id は Method との dual-maintain 運用(model/accounting.go:154-158 のコメントで PO 判断 B として長期維持が明記)された正式フィールドであり、文書に無いのは契約情報の欠損。deleted_at の phantom 記載は「文書にあるフィールドが来ない」という逆方向 drift で消費側の混乱源。
-
-**実装手順**
-
-docs/api.yaml のみ修正(実装変更なし)。(1) Payment schema(161-209): method enum に bank_transfer を追加、payment_method_id (integer, format: int64, nullable) と paid_by (integer, format: int64, nullable) と paid_by_staff ($ref StaffSummary 相当, readOnly, nullable) を追加。(2) Billing schema(874-964): total_refunded_amount (integer, readOnly, description: 返金累計・FindAll サブクエリ集計) と payment_splits (array, readOnly) と medical_record (nullable, Preload 時のみ) を追加し、deleted_at プロパティ(934-938)を削除。(3) 同型の drift が他スキーマにもある可能性が高いので、会計系を直したあと Owner/Pet/MedicalRecord スキーマを *_response.go・model の json タグと突合して同一 PR 内で棚卸しする(date 系フィールドの format は既存 allowlist に pin 済みのため型を変えないこと)。
-
-**検証コマンド(スコープ限定)**
-```
-docker compose exec backend go test ./internal/apicontract/ -count=1
-```
-
-### G1-4. internal/apicontract を date-format 以外へ拡張: ルートインベントリ drift gate(実装ルート ↔ api.yaml paths の突合)の新設
-
-- **ID**: `apicontract-route-inventory-gate`
-- **重要度**: P2 / **工数目安**: M / **挙動変更**: なし（挙動保存）
-- **対象ファイル**: internal/apicontract/doc.go (1-9); internal/apicontract/openapi_date_format_drift_test.go (45-77, 217-245)
-- **依存関係**: なし(先行導入すると api-yaml-missing-operations の段階実施が安全になる)
-
-**証拠(現HEAD検証済み)**
-
-internal/apicontract/doc.go:2-5 「Package apicontract holds API-contract invariant checks that cross-reference the hand-maintained OpenAPI spec (docs/api.yaml) against the Go handler layer. It intentionally lives in its own package ... so the checks read handler *source* via os.ReadFile + go/ast」— 枠組みは複数の invariant を前提に設計済みだが、現存する検査は date-format 1 次元のみ。今回の監査で全 477 ルートが internal/handler 内の Group()/GET()/POST()/... の静的文字列リテラルだけで 100% 解決できること(未解決 0 件・handler 外のルート登録 0 件)を実証済みで、AST ベースのルート列挙は既存 openapi_date_format_drift_test.go:192-215 の walkHandlerResponseDrifts と同じ构造で実装可能。allowlist+床値+stale 検出のパターンは同ファイル 56-75(knownDateFormatDrifts)と 219-245(reconcileDateFormatDrift)で確立済み。
-
-**問題**
-
-api.yaml と実装の乖離(203 未記載 + 23 phantom)は手動メンテ(docs/README.md:13)が破綻した結果であり、一度修正しても再発を防ぐ機構が無い。既存 gate の設計(allowlist に現状を pin して新規混入と stale を fail させる)がこのクラスにそのまま適用できる。
-
-**実装手順**
-
-新規ファイル internal/apicontract/openapi_route_drift_test.go を追加。(1) ルート列挙: internal/handler の非テスト .go を go/parser で読み、*Handler メソッド内の `X := Y.Group("lit")` 代入と `X.GET("lit", ...)` 系呼び出し、`h.RegisterXxx(v)` の呼び出しグラフを RegisterRoutes から辿ってフルパスを解決(handler.go:50 起点、liff は r.Group("/api/liff/:clinicId") 起点)。:param は {param} へ正規化。(2) api.yaml 側: 既存の yaml.v3 パースを流用し paths 直下の (method, path) を servers prefix /api/v1 で絶対化して収集。(3) 差分を knownRouteDrifts allowlist(方向別: missingFromSpec / phantomInSpec)と reconcile し、新規・解消・件数変化を fail。パラメータ名差異は shape 正規化({} 化)で吸収するか別 allowlist にする。(4) 床値ガード: 実装ルート数 < 400 または yaml オペレーション数 < 250 で fatal(空振り防止)。(5) 初期 allowlist は導入時点の実測(現 HEAD なら missing 203 / phantom 23)を pin し、finding api-yaml-phantom-endpoints / api-yaml-missing-operations の各 Phase 完了ごとにエントリを削る。オプション: kin-openapi の Loader+Validate を smoke test として追加すれば deletePermissionGroup 誤配置のような構造違反も CI で検出できる(依存追加が必要なため別判断で可)。
-
-**検証コマンド(スコープ限定)**
-```
-docker compose exec backend go test ./internal/apicontract/ -run TestOpenAPIRouteDrift -count=1
-```
-
-### G1-5. docs/postman-collection.json と docs/api-examples.md がプロトタイプ期(2026-01-26)の遺物 — UUID ID・APIキー認証・存在しないエンドポイント・誤った HTTP verb を案内
-
-- **ID**: `stale-prototype-example-docs`
-- **重要度**: P2 / **工数目安**: S / **挙動変更**: なし（挙動保存）
-- **対象ファイル**: docs/postman-collection.json (8-40, 149-170, 356-381); docs/api-examples.md (7-13, 68-78, 114-119, 231-236); docs/README.md (5-9)
-- **依存関係**: なし
-
-**証拠(現HEAD検証済み)**
-
-docs/postman-collection.json:29-31 `"key": "petId",\n      "value": "87a6e7a4-8b70-44b7-b7b5-e0b7e3b4e2bd"` — 現行 API の ID は uint64(model/accounting.go:63 等)で UUID ではない。同 8-14 の auth は `"type": "apikey" ... "value": "YOUR_API_KEY"` だが現行認証は HttpOnly Cookie + Bearer JWT(api.yaml:8-19、auth_handler.go:19-21)。api-examples.md:117 `curl -X GET "http://localhost:8080/api/v1/medical-records/paginated?..."` — `paginated` は internal/handler 全 grep 0 ヒットの存在しないエンドポイント。api-examples.md:71 `curl -X PUT "http://localhost:8080/api/v1/pets/{pet_id}"` — 実装は pet_handler.go:149 `pets.PATCH("/:id", ...)` で PUT ルートは無い。api-examples.md:236 「UUID形式のIDを使用」・235「APIキーは必須」はいずれも虚偽。両ファイルは git log 上 2026-01-26(1fd36aff)以降一度も更新されず、Makefile/.github/backend 内のどこからも参照されず、docs/README.md:5-9 のファイル構成一覧(README.md と api.yaml のみ)にも載っていない。
-
-**問題**
-
-リポジトリ内に「実行すると全て失敗する」使用例文書が正本のふりをして残っており、新規参加者や外部連携先が拾うと確実に誤導される。メンテ対象としても docs/README.md が正本一覧から既に除外している=誰も維持する意思がない。
-
-**実装手順**
-
-削除が最小コスト・挙動保存: docs/postman-collection.json と docs/api-examples.md を git rm する(参照 0 件を確認済みのため安全)。Postman コレクションが将来必要になれば api.yaml から openapi-to-postman で自動生成できるため手書き資産を残す価値は無い。docs/README.md のファイル構成(5-9 行)は既に 2 ファイル構成として書かれているので変更不要。ドキュメント削除のみのためランタイム検証は不要。
-
-**検証コマンド(スコープ限定)**
-```
-ls backend/docs/ (README.md と api.yaml のみになることを確認)
-```
-
-### G1-6. backend/README.md の CRUD 追加手順が現行必須規約(P5/P7/RespondError/SQL migration)に違反するコードを教示、README/CODING_RULES のディレクトリ構成が実態(apicontract/infra/seedbundle・cmd 7 サブディレクトリ)と乖離
-
-- **ID**: `onboarding-docs-teach-forbidden-patterns`
-- **重要度**: P3 / **工数目安**: M / **挙動変更**: なし（挙動保存）
-- **対象ファイル**: README.md (16-55, 100-110, 116-244); CODING_RULES.md (14-67)
-- **依存関係**: なし
-
-**証拠(現HEAD検証済み)**
-
-backend/README.md:218-225 の推奨ハンドラ例 `c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})` と `c.JSON(http.StatusOK, owners)`(モデル直返し)は、internal/handler/CLAUDE.md の P7「❌ Direct model or gin.H」・P12「❌ c.JSON(http.StatusBadRequest, gin.H{...})」で明示禁止されたパターンそのもの。README.md:234-235 `v1.GET("/owners", h.GetOwners)` は RequirePermission 無しで、P5「全ルートに付与必須 (AUDIT-H2 2026-05-09)」に違反する登録例。README.md:132 `ID uuid.UUID \`json:"id" gorm:"type:uuid;primary_key;default:uuid_generate_v4()"\`` — 実モデルは全て uint64 autoIncrement(model/accounting.go:63)。README.md:243 `db.AutoMigrate(&model.Pet{}, &model.Owner{})` を手順として指示するが、実運用は migrations/ SQL 管理(001_init.sql)で AutoMigrate 追加は手順として誤り。README.md:44-45 は存在しない `internal/validation/` を記載し、実在する apicontract/infra/seedbundle/middleware 配下の実態と不一致。README.md:109 `| PUT | /api/v1/pets/:id |` — 実装は PATCH(pet_handler.go:149)。CODING_RULES.md:16-17 は cmd/ 配下を api/ のみと記載するが実際は api/coverage-ratchet/lstep-migrate/migrate/seed-export/seed-old-db/stage-import の 7 つ、CODING_RULES.md:20-53 の internal/ 一覧に apicontract/infra/seedbundle が無い。
-
-**問題**
-
-オンボーディング文書がレビューゲート(P1-P18)と正反対のコードを「追加手順」として教えており、新規実装者・外部エージェントがこれに従うと必ずレビューで差し戻される。ディレクトリ構成の欠落は「apicontract/seedbundle は正式パッケージではない」という誤認を生む。規約正本(.claude/CLAUDE.md・各層 CLAUDE.md)は正しいため実害は差し戻しコストに留まるが、文書間矛盾として残す理由が無い。
-
-**実装手順**
-
-挙動保存のドキュメント修正。(1) backend/README.md:116-244 の「新しいCRUD機能の追加手順」を丸ごと削除し、CODING_RULES.md と internal/*/CLAUDE.md への参照 1 段落に置換(パターンの二重管理を解消 — 教材コードの重複保守は PRODUCT_PHILOSOPHY の二重管理禁止と同型)。(2) README.md:16-55 と CODING_RULES.md:14-67 のディレクトリツリーを実態に同期: internal/ に apicontract(API契約検査)/infra/seedbundle を追記、internal/validation を削除、cmd/ 7 サブディレクトリを列挙、migrations/ の例を 001_init.sql 形式へ。(3) README.md:100-110 のエンドポイント表は PUT→PATCH に直すか「docs/api.yaml 参照」1 行に置換。(4) README.md:8 の Gin v1.10 を go.mod 実測 v1.12.0 へ。ドキュメントのみのためランタイム検証不要。
-
-**検証コマンド(スコープ限定)**
-```
-検証不要(ドキュメントのみ)。grep -n 'internal/validation' backend/README.md が 0 件になること
-```
-
-
-## G2. 大型ファイルの責務分割
-
-### G2-1. treatment_service.go(668行・service層最大): 保存時dose再検証サブシステムが CRUD と同居 — treatment_dose_save.go へ抽出
-
-- **ID**: `td-treatment-dose-save-extract`
-- **重要度**: P3 / **工数目安**: S / **挙動変更**: なし（挙動保存）
-- **対象ファイル**: internal/service/treatment_service.go (513-645)
-- **依存関係**: なし
-
-**証拠(現HEAD検証済み)**
-
-internal/service/treatment_service.go:513-524:
-// ─── #201 B-2: 保存時 dose 再検証 ──────────────────────────────────────────────
-
-// evaluateDoseForSave は medicine 明細の保存時 BE 再検証を行う（healthcare HIGH-3/HIGH-4）。
-...
-func (s *treatmentService) evaluateDoseForSave(
-同 587行 func (s *treatmentService) resolveDoseWeight(...)、618行 func (s *treatmentService) auditDoseDeviationTx(...)。dose 純ロジックは既に dose_calc.go / dose_revalidation.go / dose_validators.go に分離済みで（doseSnapshotColumns 等は dose_revalidation.go:166-199）、テストも treatment_dose_save_test.go:2 「treatment_dose_save_test.go — #201 B-2: treatment 保存時 BE 再検証の統合テスト。」として独立ファイル化済み。実装側だけが treatment_service.go に残っている。
-
-**問題**
-
-treatment CRUD オーケストレーションと #201 投薬量安全サブシステム（species解決→体重解決→再検証→逸脱audit）という2責務の同居。チーム自身がテストを treatment_dose_save_test.go として別ユニット扱いしており、実装ファイルの構成だけが追随していない。668行は service 層非テスト最大で、dose ブロック約130行を出すと CRUD 部が~535行の単一責務になる。
-
-**実装手順**
-
-同一パッケージ内の純粋なファイル移動（挙動保存・シグネチャ不変）。手順: 1) internal/service/treatment_dose_save.go を新設（既存テストファイル名と対に）。2) treatment_service.go の 513-645行（セクションコメント「─── #201 B-2: 保存時 dose 再検証 ───」・evaluateDoseForSave・resolveDoseWeight・auditDoseDeviationTx）を逐語移動。メソッドレシーバ *treatmentService のまま。3) import 調整: fmt は resolveDoseWeight のみが使うため新ファイルへ、maps/strconv 等は残留側で使用継続を確認して整理。4) テストは同一パッケージのため変更不要。依存の向き: 新ファイル→dose_revalidation.go/dose_calc.go（既存と同じ）、treatment_service.go→新ファイル（同一パッケージ内メソッド呼び出し）。
-
-**検証コマンド(スコープ限定)**
-```
-docker compose exec backend go test ./internal/service/ -run 'TestTreatmentService' -count=1
-```
-
-### G2-2. medical_record_repository.go(490行): 臨床CRUD と Lステップ/CPM向け飼主来院集計クエリ群の2消費者ドメイン同居 — ファイル分割候補
-
-- **ID**: `td-medrec-repo-owner-visit-split`
-- **重要度**: P3 / **工数目安**: M / **挙動変更**: なし（挙動保存）
-- **対象ファイル**: internal/repository/medical_record_repository.go (14-26, 74-88, 338-490)
-- **依存関係**: なし（インターフェース合成まで行う場合も呼び出し元変更ゼロ）
-
-**証拠(現HEAD検証済み)**
-
-internal/repository/medical_record_repository.go:74-80:
-	// FindOwnerVisitSummary は飼い主の初回/最終診療日・年間来院数を集計して返す（Lステップ同期用）。
-	FindOwnerVisitSummary(ctx context.Context, clinicID, ownerID uint64) (*OwnerVisitSummary, error)
-	// FindLatestByOwner は飼い主の最新カルテを返す（Lステップ次回来院推奨日タグ同期用）。
-...
-	// FindDormantOwnerEntries は最終来院から minDaysSince 日以上経過した飼い主一覧を返す（バッチ処理用）。
-— 実装 338-490行（FindLatestByOwner/FindOwnerVisitSummary/FindOwnersByFirstVisitDate/FindOwnersByLastVisitDays/FindOwnersByNextVisitRecommended/FindDormantOwnerEntries）の呼び出し元は lstep_batch_segmentation.go / lstep_tag_sync_visit*.go / lstep_batch_dormant.go / lstep_delivery_trigger_methods.go 等ほぼ全て lstep_* サービス。リポジトリ自身に前例あり: reservation_repository.go:20-75 は ReservationCRUDRepository/ReservationSlotRepository/ReservationQueryRepository の3サブインターフェース合成で消費者別に整理済み。
-
-**問題**
-
-臨床カルテ CRUD（FindAll/FindByID/Create/Update/Delete/Count系）とマーケティング系バッチ集計（Lステップタグ同期・FEAT-383 リマインド・休眠検知）という独立した消費者ドメインが1ファイル・1インターフェースに同居。reservation_repository.go が確立したサブインターフェース合成イディオムと非対称。
-
-**実装手順**
-
-挙動保存のファイル分割（最小案）: 1) internal/repository/medical_record_owner_visit_repository.go を新設し、型 OwnerVisitSummary/DormantOwnerEntry（14-26行）と実装 FindLatestByOwner/FindOwnerVisitSummary/FindOwnersByFirstVisitDate/FindOwnersByLastVisitDays/FindOwnersByNextVisitRecommended/FindDormantOwnerEntries（338-490行）を逐語移動（レシーバ *medicalRecordRepository のまま）。FindOwnersByNextVisitRecommended の M-5 ガードコメント（433-434行「リファクタ時に clinic_id WHERE のいずれか一方を削除しないこと」）と clinic_id 二重指定 Raw SQL は一字も変えず移す。2) 任意の追加ステップ: reservation_repository.go:20-75 の前例に倣い MedicalRecordCRUDRepository + MedicalRecordOwnerVisitRepository をサブインターフェース化して MedicalRecordRepository で合成（呼び出し元シグネチャ不変）。3) テストは medical_record_repository_test.go に残置で可（同一パッケージ）。任意で該当 Test 関数を新 _test.go へ機械移動。
-
-**検証コマンド(スコープ限定)**
-```
-docker compose exec backend go test ./internal/repository/ -run 'TestMedicalRecordRepository' -count=1
-```
-
 
 ## G6. Repository層規約・トランザクション機構整理
 
