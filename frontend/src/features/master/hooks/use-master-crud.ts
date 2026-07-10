@@ -88,7 +88,7 @@ export interface UseMasterCRUDReturn<T extends MasterEntity> {
 // Default search filter
 // ─────────────────────────────────────────────────
 
-function defaultSearchFilter<T extends MasterEntity>(item: T, term: string): boolean {
+export function defaultSearchFilter<T extends MasterEntity>(item: T, term: string): boolean {
   if ("name" in item && typeof item.name === "string") {
     return normalizeKana(item.name).toLowerCase().includes(term);
   }
@@ -99,7 +99,7 @@ function defaultSearchFilter<T extends MasterEntity>(item: T, term: string): boo
 // Default active filter application (isActive status)
 // ─────────────────────────────────────────────────
 
-function defaultActiveFilterApply<T extends MasterEntity>(item: T, filters: ActiveFilter[]): boolean {
+export function defaultActiveFilterApply<T extends MasterEntity>(item: T, filters: ActiveFilter[]): boolean {
   const record = item as Record<string, unknown>;
   for (const filter of filters) {
     if (filter.key === "status" && typeof filter.value === "string") {
@@ -133,7 +133,7 @@ function defaultActiveFilterApply<T extends MasterEntity>(item: T, filters: Acti
 // Default sort comparator
 // ─────────────────────────────────────────────────
 
-function applySorts<T extends MasterEntity>(items: T[], sorts: ActiveSort[]): T[] {
+export function applySorts<T extends MasterEntity>(items: T[], sorts: ActiveSort[]): T[] {
   if (sorts.length === 0) return items;
   const sorted = [...items];
   sorted.sort((a, b) => {
