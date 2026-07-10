@@ -166,6 +166,7 @@ export function LineDeliveryControls({
             disabled={!owner || isUpdatingDeliveryExclusion}
             className={`${STYLE.formInput} flex-1 rounded-md px-3`}
             placeholder="除外理由（任意・100文字以内）"
+            aria-label="配信除外理由"
             defaultValue={owner?.deliveryExcludedReason ?? ""}
           />
           <Button
@@ -217,6 +218,7 @@ export function LineDeliveryControls({
               disabled={!owner || isUpdatingDeliveryCaution}
               className={`${STYLE.formInput} flex-1 rounded-md px-3`}
               placeholder="注意理由（任意・100文字以内）"
+              aria-label="配信注意事項の理由"
               defaultValue={owner?.deliveryCautionReason ?? ""}
             />
             <Button

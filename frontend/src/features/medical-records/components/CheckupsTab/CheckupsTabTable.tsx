@@ -13,12 +13,12 @@ export { LstepStatusBadge, type LstepStatus } from "./CheckupsTabBadges";
 const TABLE_HEADER = (
   <thead>
     <tr className={`border-b ${C.borderLight} ${C.bgPage} h-11`}>
-      <th className={`px-3 text-left ${STYLE.sectionLabel} w-32`}>日付</th>
-      <th className={`px-3 text-left ${STYLE.sectionLabel} w-40`}>健診種別</th>
-      <th className={`px-3 text-left ${STYLE.sectionLabel} w-32`}>次回予定日</th>
-      <th className={`px-3 text-left ${STYLE.sectionLabel} w-32`}>担当医</th>
-      <th className={`px-3 text-left ${STYLE.sectionLabel}`}>結果</th>
-      <th className={`px-2 text-right ${STYLE.sectionLabel} w-24`}>操作</th>
+      <th scope="col" className={`px-3 text-left ${STYLE.sectionLabel} w-32`}>日付</th>
+      <th scope="col" className={`px-3 text-left ${STYLE.sectionLabel} w-40`}>健診種別</th>
+      <th scope="col" className={`px-3 text-left ${STYLE.sectionLabel} w-32`}>次回予定日</th>
+      <th scope="col" className={`px-3 text-left ${STYLE.sectionLabel} w-32`}>担当医</th>
+      <th scope="col" className={`px-3 text-left ${STYLE.sectionLabel}`}>結果</th>
+      <th scope="col" className={`px-2 text-right ${STYLE.sectionLabel} w-24`}>操作</th>
     </tr>
   </thead>
 );

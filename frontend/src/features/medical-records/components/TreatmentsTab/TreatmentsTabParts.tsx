@@ -8,16 +8,16 @@ import { TreatmentRow } from "./TreatmentRow";
 const TABLE_HEADER = (
   <thead>
     <tr className={`border-b ${C.borderLight} ${C.bgPage} h-11`}>
-      <th className={`px-3 text-left ${STYLE.sectionLabel} w-10`}></th>
-      <th className={`px-3 text-left ${STYLE.sectionLabel} w-24`}>種別</th>
-      <th className={`px-3 text-left ${STYLE.sectionLabel}`}>内容</th>
-      <th className={`px-3 text-center ${STYLE.sectionLabel} w-16`}>保険</th>
-      <th className={`px-3 text-right ${STYLE.sectionLabel} w-28`}>単価</th>
-      <th className={`px-3 text-right ${STYLE.sectionLabel} w-20`}>数量</th>
-      <th className={`px-3 text-right ${STYLE.sectionLabel} w-28`}>値引き</th>
-      <th className={`px-3 text-right ${STYLE.sectionLabel} w-28`}>小計</th>
-      <th className={`px-3 text-left ${STYLE.sectionLabel}`}>メモ</th>
-      <th className={`px-2 text-right ${STYLE.sectionLabel} w-28`}></th>
+      <th scope="col" className={`px-3 text-left ${STYLE.sectionLabel} w-10`}></th>
+      <th scope="col" className={`px-3 text-left ${STYLE.sectionLabel} w-24`}>種別</th>
+      <th scope="col" className={`px-3 text-left ${STYLE.sectionLabel}`}>内容</th>
+      <th scope="col" className={`px-3 text-center ${STYLE.sectionLabel} w-16`}>保険</th>
+      <th scope="col" className={`px-3 text-right ${STYLE.sectionLabel} w-28`}>単価</th>
+      <th scope="col" className={`px-3 text-right ${STYLE.sectionLabel} w-20`}>数量</th>
+      <th scope="col" className={`px-3 text-right ${STYLE.sectionLabel} w-28`}>値引き</th>
+      <th scope="col" className={`px-3 text-right ${STYLE.sectionLabel} w-28`}>小計</th>
+      <th scope="col" className={`px-3 text-left ${STYLE.sectionLabel}`}>メモ</th>
+      <th scope="col" className={`px-2 text-right ${STYLE.sectionLabel} w-28`}></th>
     </tr>
   </thead>
 );
@@ -170,6 +170,7 @@ export function TreatmentAddControls({
             if (event.key === "Enter") onSubmit();
             if (event.key === "Escape") onCancel();
           }}
+          aria-label="治療内容"
           className={`flex-1 h-8 text-sm border ${C.borderMedium} rounded-[3px] px-2 ${C.bgWhite} ${C.text} outline-none ${C.focusBorderAccent}`}
         />
         <Button

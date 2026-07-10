@@ -92,6 +92,7 @@ export const CheckupEditRow = memo(function CheckupEditRow({
           value={form.result ?? ""}
           onChange={(e) => handleChange("result", e.target.value)}
           placeholder="結果を入力..."
+          aria-label={`結果 (${checkup.date})`}
           className={`h-8 text-sm border ${C.borderMedium} rounded-[3px] px-2 ${C.bgWhite} ${C.text} outline-none ${C.focusBorderAccent} w-full`}
         />
       </td>
@@ -247,6 +248,7 @@ export function CheckupAddRow({
           if (e.key === "Enter") onSubmit();
           if (e.key === "Escape") onCancel();
         }}
+        aria-label="結果"
         className={`flex-1 min-w-[160px] h-8 text-sm border ${C.borderMedium} rounded-[3px] px-2 ${C.bgWhite} ${C.text} outline-none ${C.focusBorderAccent}`}
       />
       <Button
