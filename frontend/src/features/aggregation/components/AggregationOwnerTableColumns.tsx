@@ -7,7 +7,7 @@ import { CPM_STAGE_SHORT_LABELS, type CPMStage } from "@/lib/cpm-stage";
 import type { AggregationOwner, LastVisitBucket } from "../api/get-aggregations";
 import type { AggregationTab } from "../routes/AggregationDashboardPage";
 
-export interface AggregationOwnerColumn {
+interface AggregationOwnerColumn {
   key: string;
   label: string;
   width?: string;

@@ -1,1 +1,1 @@
-export { useGetOwnerLineTags, type OwnerLineStatus } from "@/hooks/use-owner-line-tags";
+export { useGetOwnerLineTags } from "@/hooks/use-owner-line-tags";

@@ -3,7 +3,7 @@ import type { ChangeEvent } from "react";
 import type { SortOrder } from "@/types";
 import type { TrimmingFormData } from "@/types/trimming";
 
-export interface TrimmingMasterItem {
+interface TrimmingMasterItem {
   id: string;
   name: string;
   price?: number;

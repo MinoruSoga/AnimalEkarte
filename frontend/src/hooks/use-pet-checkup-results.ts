@@ -6,7 +6,7 @@ import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 // features/checkups/api/get-checkup-type-fields.ts の同名 narrow union と実体は同一契約。
 // shared hook は @/features/* に依存できないためローカルに再定義する
 // （generated/models.ts の CheckupFieldType は string 型で緩いため使用しない）。
-export type CheckupFieldType =
+type CheckupFieldType =
   | "number"
   | "single_select"
   | "multi_select"

@@ -37,16 +37,6 @@ export type CreatePetRequest =
 export type UpdatePetRequest = Partial<PetWritable>;
 
 /**
- * ペット一覧APIレスポンス型
- */
-export interface PetListResponse {
-  data: BackendPet[];
-  total: number;
-  page: number;
-  limit: number;
-}
-
-/**
  * useOwnerForm への依存性注入インターフェース
  * owners feature が pets feature を直接 import しないための DI
  */

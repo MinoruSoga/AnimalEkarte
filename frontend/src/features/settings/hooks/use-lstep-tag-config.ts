@@ -17,9 +17,6 @@ export type {
   AutoManagedPrefix,
   ConditionTagMapping,
   SendPurposeTagPrefix,
-  CreateAutoManagedPrefixRequest,
-  CreateConditionTagMappingRequest,
-  CreateSendPurposeTagPrefixRequest,
 } from "../api/lstep-tag-config";
 
 // ─────────────────────────────────────────────────

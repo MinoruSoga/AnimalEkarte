@@ -20,7 +20,7 @@ interface AsyncMutation<TVariables, TData> {
 }
 
 /** 呼び出し元が保持する予約の最小参照。id 以外は auto-create で不要。 */
-export interface ReusableAppointmentRef {
+interface ReusableAppointmentRef {
   id: string;
 }
 
@@ -29,7 +29,7 @@ export interface ReusableAppointmentRef {
  * BE 契約は features/reservations/api/types.ts の CreateReservationRequest と同一。
  * medical-records は reservations feature に依存しないためローカル定義する（S5 教訓: DRY より依存方向優先）。
  */
-export interface MedicalRecordAppointmentCreateRequest {
+interface MedicalRecordAppointmentCreateRequest {
   pet_id: number;
   owner_id: number;
   start_time: string;

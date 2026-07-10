@@ -12,7 +12,7 @@ import type { CarePlanItem, CarePlanItemType, CarePlanTiming } from "../../api/c
 
 // ---- Static constants ----
 
-export const TYPE_OPTIONS: { value: CarePlanItemType; label: string }[] = [
+const TYPE_OPTIONS: { value: CarePlanItemType; label: string }[] = [
     { value: "food", label: "食事" },
     { value: "medicine", label: "投薬" },
     { value: "treatment", label: "処置・検査" },

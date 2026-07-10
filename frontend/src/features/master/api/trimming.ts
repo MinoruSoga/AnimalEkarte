@@ -112,14 +112,14 @@ const TRIMMING_OPTIONS_KEY = ["masters", "trimming-options"] as const;
 // API functions - TrimmingCourse
 // ─────────────────────────────────────────────────
 
-export async function listTrimmingCourses(): Promise<TrimmingCourse[]> {
+async function listTrimmingCourses(): Promise<TrimmingCourse[]> {
   const { data } = await axios.get<ModelTrimmingCourse[]>(
     "/v1/masters/trimming-courses",
   );
   return data.map(transformTrimmingCourse);
 }
 
-export async function createTrimmingCourse(
+async function createTrimmingCourse(
   req: CreateTrimmingCourseRequest,
 ): Promise<TrimmingCourse> {
   const { data } = await axios.post<ModelTrimmingCourse>(
@@ -129,7 +129,7 @@ export async function createTrimmingCourse(
   return transformTrimmingCourse(data);
 }
 
-export async function updateTrimmingCourse(
+async function updateTrimmingCourse(
   id: string,
   req: UpdateTrimmingCourseRequest,
 ): Promise<TrimmingCourse> {
@@ -140,26 +140,22 @@ export async function updateTrimmingCourse(
   return transformTrimmingCourse(data);
 }
 
-export async function deleteTrimmingCourse(id: string): Promise<void> {
+async function deleteTrimmingCourse(id: string): Promise<void> {
   await axios.delete(`/v1/masters/trimming-courses/${id}`);
-}
-
-export async function reorderTrimmingCourses(ids: number[]): Promise<void> {
-  await axios.patch("/v1/masters/trimming-courses/reorder", { ids });
 }
 
 // ─────────────────────────────────────────────────
 // API functions - TrimmingOption
 // ─────────────────────────────────────────────────
 
-export async function listTrimmingOptions(): Promise<TrimmingOption[]> {
+async function listTrimmingOptions(): Promise<TrimmingOption[]> {
   const { data } = await axios.get<ModelTrimmingOption[]>(
     "/v1/masters/trimming-options",
   );
   return data.map(transformTrimmingOption);
 }
 
-export async function createTrimmingOption(
+async function createTrimmingOption(
   req: CreateTrimmingOptionRequest,
 ): Promise<TrimmingOption> {
   const { data } = await axios.post<ModelTrimmingOption>(
@@ -169,7 +165,7 @@ export async function createTrimmingOption(
   return transformTrimmingOption(data);
 }
 
-export async function updateTrimmingOption(
+async function updateTrimmingOption(
   id: string,
   req: UpdateTrimmingOptionRequest,
 ): Promise<TrimmingOption> {
@@ -180,12 +176,8 @@ export async function updateTrimmingOption(
   return transformTrimmingOption(data);
 }
 
-export async function deleteTrimmingOption(id: string): Promise<void> {
+async function deleteTrimmingOption(id: string): Promise<void> {
   await axios.delete(`/v1/masters/trimming-options/${id}`);
-}
-
-export async function reorderTrimmingOptions(ids: number[]): Promise<void> {
-  await axios.patch("/v1/masters/trimming-options/reorder", { ids });
 }
 
 // ─────────────────────────────────────────────────

@@ -1,7 +1,1 @@
 export { LstepSettingsPage } from "./routes/LstepSettingsPage";
-export type { TagCodeMappingItem, PutTagCodeMappingsRequest } from "./hooks/use-lstep-tag-code-mappings";
-export type {
-  AutoManagedPrefix,
-  ConditionTagMapping,
-  SendPurposeTagPrefix,
-} from "./hooks/use-lstep-tag-config";
