@@ -41,6 +41,8 @@ export function MyReservationsPage({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [cancellingId, setCancellingId] = useState<number | null>(null);
+  const [confirmingId, setConfirmingId] = useState<number | null>(null);
+  const [cancelError, setCancelError] = useState<{ id: number; message: string } | null>(null);
 
   useEffect(() => {
     // マウント時 + clinicId/idToken 変更時に読み込み中フラグを立てる（フェッチ開始の同期処理）。
@@ -59,10 +61,18 @@ export function MyReservationsPage({
       });
   }, [clinicId, idToken]);
 
-  const handleCancel = async (id: number) => {
-    const confirmed = window.confirm('この予約をキャンセルしますか？');
-    if (!confirmed) return;
+  const handleCancelRequest = (id: number) => {
+    setCancelError(null);
+    setConfirmingId(id);
+  };
 
+  const handleCancelDismiss = () => {
+    setConfirmingId(null);
+  };
+
+  const handleCancelConfirm = async (id: number) => {
+    setConfirmingId(null);
+    setCancelError(null);
     setCancellingId(id);
     try {
       await liffApi.cancelReservation(clinicId, id, idToken);
@@ -70,7 +80,7 @@ export function MyReservationsPage({
         prev.map(r => r.id === id ? { ...r, status: 'cancelled' as const } : r)
       );
     } catch {
-      alert('キャンセルに失敗しました。もう一度お試しください。');
+      setCancelError({ id, message: 'キャンセルに失敗しました。もう一度お試しください。' });
     } finally {
       setCancellingId(null);
     }
@@ -130,14 +140,44 @@ export function MyReservationsPage({
 
                   {reservation.status === 'confirmed' ? (
                     <div className="mt-3 pt-3 border-t border-gray-100">
-                      <button
-                        type="button"
-                        onClick={() => handleCancel(reservation.id)}
-                        disabled={cancellingId === reservation.id}
-                        className="text-sm text-red-500 hover:text-red-700 disabled:opacity-50"
-                      >
-                        {cancellingId === reservation.id ? 'キャンセル中...' : 'キャンセルする'}
-                      </button>
+                      {confirmingId === reservation.id ? (
+                        <div className="space-y-2">
+                          <p className="text-sm text-noah-text">本当にキャンセルしますか？</p>
+                          <div className="flex gap-2">
+                            <button
+                              type="button"
+                              onClick={() => handleCancelConfirm(reservation.id)}
+                              disabled={cancellingId === reservation.id}
+                              className="text-sm text-white bg-red-500 hover:bg-red-600 disabled:opacity-50 px-3 py-1.5 rounded-lg"
+                            >
+                              {cancellingId === reservation.id ? 'キャンセル中...' : 'はい、キャンセルする'}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={handleCancelDismiss}
+                              disabled={cancellingId === reservation.id}
+                              className="text-sm text-noah-text-sub hover:text-noah-text disabled:opacity-50 px-3 py-1.5 rounded-lg border border-gray-200"
+                            >
+                              いいえ
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => handleCancelRequest(reservation.id)}
+                          disabled={cancellingId === reservation.id}
+                          className="text-sm text-red-500 hover:text-red-700 disabled:opacity-50"
+                        >
+                          キャンセルする
+                        </button>
+                      )}
+
+                      {cancelError?.id === reservation.id ? (
+                        <div className="mt-2 bg-red-50 border border-red-200 rounded-lg px-4 py-3">
+                          <p className="text-sm text-red-700" role="alert">{cancelError.message}</p>
+                        </div>
+                      ) : null}
                     </div>
                   ) : null}
                 </div>
