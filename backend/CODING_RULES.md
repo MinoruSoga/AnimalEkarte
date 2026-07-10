@@ -14,20 +14,31 @@ Go 1.25 / Gin / GORM のバックエンド開発規約。
 ```
 backend/
 ├── cmd/
-│   └── api/
-│       └── main.go             # エントリーポイント
+│   ├── api/                    # メインAPIサーバー エントリーポイント
+│   ├── migrate/                # SQLマイグレーション適用
+│   ├── coverage-ratchet/       # カバレッジ低下防止（BE-refactor.md R3-5）
+│   ├── seed-export/            # seed CSV エクスポート（migrations/seeds/ 用）
+│   ├── seed-old-db/            # 旧DB TSV ローカル投入（開発専用）
+│   ├── stage-import/           # 旧DB移行データの本テーブル取り込み
+│   └── lstep-migrate/          # Lステップ連携データ移行
 │
 ├── internal/                   # 内部パッケージ（外部からimport不可）
+│   ├── apicontract/            # OpenAPI (docs/api.yaml) とルート実装の整合性テスト
+│   │
 │   ├── config/
 │   │   └── config.go           # 環境変数・設定読み込み
 │   │
+│   ├── dbconn/                 # DB接続確立
+│   │
 │   ├── errors/
-│   │   └── errors.go           # センチネルエラー定義
+│   │   └── errors.go           # apperrors（センチネルエラー・FromGORM・Wrap）
 │   │
 │   ├── handler/                # HTTPハンドラ（プレゼンテーション層）
 │   │   ├── owner_handler.go
 │   │   ├── pet_handler.go
 │   │   └── ...
+│   │
+│   ├── infra/                  # 外部インフラ連携（ファイルストレージ、LINE、暗号化等）
 │   │
 │   ├── service/                # ビジネスロジック（ユースケース層）
 │   │   ├── owner_service.go
@@ -49,12 +60,14 @@ backend/
 │   │   ├── cors.go
 │   │   └── logging.go
 │   │
+│   ├── seedbundle/             # seedデータのバンドル定義
+│   │
 │   └── logger/                 # ロガー設定
 │       └── logger.go
 │
-├── migrations/                 # DBマイグレーション
-│   ├── 001_create_owners.sql
-│   ├── 002_create_pets.sql
+├── migrations/                 # DBマイグレーション（SQL、番号付き。AutoMigrate は使用しない）
+│   ├── 001_init.sql
+│   ├── 002_add_checkup_vaccination_indexes.sql
 │   └── ...
 │
 ├── docs/                       # APIドキュメント

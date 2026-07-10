@@ -5,7 +5,7 @@
 ## 技術スタック
 
 - **言語**: Go 1.25
-- **フレームワーク**: Gin v1.10
+- **フレームワーク**: Gin v1.12
 - **ORM**: GORM v1.30
 - **データベース**: PostgreSQL 18
 - **API仕様**: OpenAPI 3.0（手動管理: `docs/api.yaml`）
@@ -18,41 +18,38 @@
 ```
 backend/
 ├── cmd/
-│   └── api/
-│       └── main.go          # エントリーポイント
-├── internal/
-│   ├── config/
-│   │   └── config.go        # 環境設定
-│   ├── errors/
-│   │   └── errors.go        # エラー定義（センチネルエラー）
-│   ├── handler/
-│   │   ├── handler.go       # ルーティング・共通ハンドラー
-│   │   └── pet.go           # ペットCRUDハンドラー
-│   ├── logger/
-│   │   └── logger.go        # slog構造化ロガー
-│   ├── middleware/
-│   │   └── *.go             # ミドルウェア（認証、CORS等）
-│   ├── model/
-│   │   └── pet.go           # データモデル・リクエスト型
-│   ├── repository/
-│   │   ├── db.go            # DB接続
-│   │   ├── repository.go    # リポジトリ基底
-│   │   └── pet.go           # ペットリポジトリ
-│   ├── service/
-│   │   ├── service.go       # サービス基底
-│   │   └── pet.go           # ペットビジネスロジック
-│   └── validation/
-│       └── *.go             # バリデーション
-├── migrations/              # DBマイグレーション
-├── docs/                    # APIドキュメント（手動管理）
-├── .golangci.yml            # リンター設定
-├── Dockerfile.dev           # 開発用（docker compose が参照）
-├── Dockerfile.production    # 本番用（ECS + Cloudflare Container デプロイが参照）
-├── entrypoint.sh            # コンテナ起動スクリプト
-├── .air.toml                # ホットリロード設定
-├── go.mod                   # 依存関係
-└── go.sum                   # 依存関係ロック
+│   ├── api/               # メインAPIサーバー エントリーポイント
+│   ├── migrate/           # SQLマイグレーション適用
+│   ├── coverage-ratchet/  # カバレッジ低下防止（BE-refactor.md R3-5）
+│   ├── seed-export/       # seed CSV エクスポート（migrations/seeds/ 用）
+│   ├── seed-old-db/       # 旧DB TSV ローカル投入（開発専用）
+│   ├── stage-import/      # 旧DB移行データの本テーブル取り込み
+│   └── lstep-migrate/     # Lステップ連携データ移行
+├── internal/              # 内部パッケージ（外部からimport不可）
+│   ├── apicontract/       # OpenAPI (docs/api.yaml) とルート実装の整合性テスト
+│   ├── config/            # 環境変数・設定読み込み
+│   ├── dbconn/            # DB接続確立
+│   ├── errors/            # apperrors（センチネルエラー・FromGORM・Wrap）
+│   ├── handler/           # HTTPハンドラ（プレゼンテーション層）
+│   ├── infra/             # 外部インフラ連携（ファイルストレージ、LINE、暗号化等）
+│   ├── logger/            # slog構造化ロガー
+│   ├── middleware/        # ミドルウェア（認証、CORS等）
+│   ├── model/             # データモデル・リクエスト型
+│   ├── repository/        # データアクセス層
+│   ├── seedbundle/        # seedデータのバンドル定義
+│   └── service/           # ビジネスロジック層
+├── migrations/            # DBマイグレーション（SQL、番号付き）
+├── docs/                  # APIドキュメント（api.yaml、手動管理）
+├── .golangci.yml          # リンター設定
+├── Dockerfile.dev         # 開発用（docker compose が参照）
+├── Dockerfile.production  # 本番用（ECS + Cloudflare Container デプロイが参照）
+├── entrypoint.sh          # コンテナ起動スクリプト
+├── .air.toml              # ホットリロード設定
+├── go.mod                 # 依存関係
+└── go.sum                 # 依存関係ロック
 ```
+
+各層の詳細な実装ルールは `internal/handler/CLAUDE.md`、`internal/service/CLAUDE.md`、`internal/repository/CLAUDE.md` を参照。
 
 ## 開発環境セットアップ
 
@@ -106,8 +103,10 @@ air -c .air.toml
 | GET | /api/v1/pets | ペット一覧取得 |
 | GET | /api/v1/pets/:id | ペット詳細取得 |
 | POST | /api/v1/pets | ペット新規登録 |
-| PUT | /api/v1/pets/:id | ペット情報更新 |
+| PATCH | /api/v1/pets/:id | ペット情報更新 |
 | DELETE | /api/v1/pets/:id | ペット削除 |
+
+上記は代表例。全エンドポイントは `docs/api.yaml`（OpenAPI 3.0、手動管理）を参照。
 
 ## API ドキュメント
 
@@ -115,139 +114,21 @@ API 仕様は `docs/api.yaml`（OpenAPI 3.0）で手動管理。
 
 ## 新しいCRUD機能の追加手順
 
-### 1. モデル作成
+Handler → Service → Repository の各層の実装規約（エラーハンドリング、レスポンス形式、
+`RequirePermission` によるルート保護、命名規則等）は `CODING_RULES.md` と各層の
+`internal/handler/CLAUDE.md` / `internal/service/CLAUDE.md` / `internal/repository/CLAUDE.md`
+（P1–P18 準拠チェックリスト）を参照。手順のコード例をここに重複記載しない
+（重複した手順ドキュメントは二重管理となり `docs/PRODUCT_PHILOSOPHY.md` の原則に反する）。
 
-`internal/model/` に新しいモデルファイルを作成:
+概略の流れ:
 
-```go
-// internal/model/owner.go
-package model
-
-import (
-    "time"
-    "github.com/google/uuid"
-)
-
-type Owner struct {
-    ID        uuid.UUID `json:"id" gorm:"type:uuid;primary_key;default:uuid_generate_v4()"`
-    Name      string    `json:"name" gorm:"size:100;not null"`
-    Phone     string    `json:"phone" gorm:"size:20"`
-    Email     string    `json:"email" gorm:"size:255"`
-    CreatedAt time.Time `json:"created_at"`
-    UpdatedAt time.Time `json:"updated_at"`
-}
-
-type CreateOwnerRequest struct {
-    Name  string `json:"name" binding:"required"`
-    Phone string `json:"phone"`
-    Email string `json:"email"`
-}
-```
-
-### 2. リポジトリ作成
-
-`internal/repository/` にリポジトリを作成:
-
-```go
-// internal/repository/owner.go
-package repository
-
-import (
-    "github.com/animal-ekarte/backend/internal/model"
-    "github.com/google/uuid"
-)
-
-func (r *Repository) GetAllOwners() ([]model.Owner, error) {
-    var owners []model.Owner
-    result := r.db.Find(&owners)
-    return owners, result.Error
-}
-
-func (r *Repository) CreateOwner(owner *model.Owner) error {
-    return r.db.Create(owner).Error
-}
-// ... 他のCRUDメソッド
-```
-
-### 3. サービス作成
-
-`internal/service/` にビジネスロジックを作成:
-
-```go
-// internal/service/owner.go
-package service
-
-import "github.com/animal-ekarte/backend/internal/model"
-
-func (s *Service) GetAllOwners() ([]model.Owner, error) {
-    return s.repo.GetAllOwners()
-}
-
-func (s *Service) CreateOwner(req *model.CreateOwnerRequest) (*model.Owner, error) {
-    owner := &model.Owner{
-        Name:  req.Name,
-        Phone: req.Phone,
-        Email: req.Email,
-    }
-    err := s.repo.CreateOwner(owner)
-    return owner, err
-}
-```
-
-### 4. ハンドラー作成
-
-`internal/handler/` にハンドラーを作成:
-
-```go
-// internal/handler/owner.go
-package handler
-
-import (
-    "net/http"
-    "github.com/animal-ekarte/backend/internal/model"
-    "github.com/gin-gonic/gin"
-)
-
-// GetOwners godoc
-// @Summary 飼い主一覧取得
-// @Description 登録されている飼い主の一覧を取得します
-// @Tags owners
-// @Produce json
-// @Success 200 {array} model.Owner
-// @Router /owners [get]
-func (h *Handler) GetOwners(c *gin.Context) {
-    owners, err := h.svc.GetAllOwners()
-    if err != nil {
-        c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-        return
-    }
-    c.JSON(http.StatusOK, owners)
-}
-```
-
-### 5. ルート登録
-
-`internal/handler/handler.go` の `RegisterRoutes` にルートを追加:
-
-```go
-// Owners CRUD
-v1.GET("/owners", h.GetOwners)
-v1.POST("/owners", h.CreateOwner)
-```
-
-### 6. マイグレーション
-
-`cmd/api/main.go` の `AutoMigrate` にモデルを追加:
-
-```go
-db.AutoMigrate(&model.Pet{}, &model.Owner{})
-```
-
-### 7. 型生成（tygo）
-
-```bash
-make codegen
-```
+1. `internal/model/` にモデルを追加（主キーは `uint64` autoincrement、`ClinicID` を含める）
+2. `migrations/` に SQL マイグレーションファイルを追加（`AutoMigrate` は使用しない）
+3. `internal/repository/` にリポジトリを追加（`apperrors.FromGORM` でエラー変換）
+4. `internal/service/` にビジネスロジックを追加（`apperrors.Wrap` でエラーラップ）
+5. `internal/handler/` にハンドラーを追加（`RespondError` でエラー応答、`toXxxResponse()` でレスポンス変換）
+6. ルート登録時に全ルートへ `RequirePermission` を付与
+7. `docs/api.yaml` を更新し、`make codegen` で型生成
 
 ## テスト
 
@@ -299,16 +180,14 @@ if err != nil {
     return nil, apperrors.Wrap(err, "failed to get pet")
 }
 
-// NotFound エラー
-return nil, apperrors.WrapNotFound("pet", id.String())
+// NotFound エラー（Repository層は apperrors.FromGORM を使用）
+return nil, apperrors.WrapNotFound("pet", fmt.Sprintf("%d", id))
 
 // バリデーションエラー
 return nil, apperrors.WrapInvalidInput("pet name is required")
 
-// エラー判定
-if apperrors.IsNotFound(err) {
-    c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
-}
+// Handler層はエラーの種類を問わず RespondError に委譲する
+RespondError(c, err)
 ```
 
 ### 構造化ログ（slog）
@@ -320,7 +199,7 @@ import "log/slog"
 slog.Info("server starting", slog.String("port", cfg.Port))
 
 // コンテキスト付きログ
-slog.InfoContext(ctx, "pet created", slog.String("pet_id", pet.ID.String()))
+slog.InfoContext(ctx, "pet created", slog.Uint64("pet_id", pet.ID))
 slog.ErrorContext(ctx, "failed to create pet", slog.String("error", err.Error()))
 ```
 
@@ -333,10 +212,10 @@ slog.ErrorContext(ctx, "failed to create pet", slog.String("error", err.Error())
 func (s *Service) GetPetByID(ctx context.Context, id string) (*model.Pet, error)
 
 // Repository層
-func (r *Repository) GetPetByID(ctx context.Context, id uuid.UUID) (*model.Pet, error) {
+func (r *Repository) GetPetByID(ctx context.Context, id uint64) (*model.Pet, error) {
     var pet model.Pet
     result := r.db.WithContext(ctx).First(&pet, "id = ?", id)
-    return &pet, result.Error
+    return &pet, apperrors.FromGORM(result.Error, "pet", fmt.Sprintf("%d", id))
 }
 ```
 
