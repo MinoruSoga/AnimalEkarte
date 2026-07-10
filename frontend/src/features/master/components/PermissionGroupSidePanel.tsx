@@ -129,6 +129,7 @@ export const PermissionGroupSidePanel = memo(function PermissionGroupSidePanel({
         <div className="flex items-center gap-3">
           <input
             type="color"
+            aria-label="カラー"
             className={`${LAYOUT.colorInputMedium} ${C.borderMedium}`}
             value={formData.color}
             onChange={(event) => handleColorChange(event.target.value)}

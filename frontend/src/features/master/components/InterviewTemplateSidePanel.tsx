@@ -98,6 +98,7 @@ export const InterviewTemplateSidePanel = memo(function InterviewTemplateSidePan
       <PropertyRow label="カテゴリ">
         <input
           type="text"
+          aria-label="カテゴリ"
           className={MASTER_INPUT_CLASS}
           value={formData.category}
           onChange={handleCategoryChange}

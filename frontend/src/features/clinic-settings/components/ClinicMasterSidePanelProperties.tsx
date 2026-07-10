@@ -45,6 +45,7 @@ export function ClinicTextProperty({
     <PropertyRow label={label}>
       <input
         type={type}
+        aria-label={label}
         className={PROP_INPUT_CLASS}
         value={value}
         onChange={(e) => onChange(e.target.value)}
@@ -71,6 +72,7 @@ export function ClinicTaxRateProperty({
           min={0}
           max={100}
           step={1}
+          aria-label={label}
           className={`${PROP_INPUT_CLASS} w-20`}
           value={Math.round(value * 100)}
           onChange={(e) => onChange(Number(e.target.value) / 100)}

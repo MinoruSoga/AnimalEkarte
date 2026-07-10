@@ -184,6 +184,7 @@ export const PropertyFilter = memo(function PropertyFilter({
             value={searchTerm ?? ""}
             onChange={(e) => onSearchChange(e.target.value)}
             placeholder={searchPlaceholder}
+            aria-label={searchPlaceholder}
             className={STYLE.searchInput}
             autoFocus
           />

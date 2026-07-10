@@ -36,6 +36,7 @@ export function StaffLineReservationSection({
       <PropertyRow label="LINE表示名">
         <input
           type="text"
+          aria-label="LINE表示名"
           className={MASTER_INPUT_CLASS}
           value={formData.reservationDisplayName}
           onChange={(event) => setFormDataDirty((prev) => ({ ...prev, reservationDisplayName: event.target.value }))}
@@ -65,6 +66,7 @@ export function StaffLineReservationSection({
       <PropertyRow label="LINE説明文">
         <input
           type="text"
+          aria-label="LINE説明文"
           className={MASTER_INPUT_CLASS}
           value={formData.reservationComment}
           onChange={(event) => setFormDataDirty((prev) => ({ ...prev, reservationComment: event.target.value }))}
@@ -75,6 +77,7 @@ export function StaffLineReservationSection({
       <PropertyRow label="画像URL">
         <input
           type="text"
+          aria-label="画像URL"
           className={MASTER_INPUT_CLASS}
           value={formData.reservationImageUrl}
           onChange={(event) => setFormDataDirty((prev) => ({ ...prev, reservationImageUrl: event.target.value }))}

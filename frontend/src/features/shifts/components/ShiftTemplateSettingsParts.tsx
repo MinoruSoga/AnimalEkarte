@@ -188,6 +188,7 @@ export const ShiftTemplateSidePanel = memo(function ShiftTemplateSidePanel({
           <div className="pb-1 mb-4">
             <input
               type="text"
+              aria-label="テンプレート名"
               className={`w-full bg-transparent ${C.text} ${C.textPlaceholderFaint} outline-none border-none p-0`}
               style={{
                 fontSize: LAYOUT.pageTitle.fontSize,

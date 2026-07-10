@@ -67,6 +67,7 @@ export function ShiftTemplateProperties({
             <PropertyRow label="開始時刻">
               <PropInput
                 type="time"
+                ariaLabel="開始時刻"
                 value={formData.start_time}
                 onChange={(v) => onField("start_time", v)}
               />
@@ -74,6 +75,7 @@ export function ShiftTemplateProperties({
             <PropertyRow label="終了時刻">
               <PropInput
                 type="time"
+                ariaLabel="終了時刻"
                 value={formData.end_time}
                 onChange={(v) => onField("end_time", v)}
               />
@@ -83,6 +85,7 @@ export function ShiftTemplateProperties({
 
         <PropertyRow label="メモ">
           <PropInput
+            ariaLabel="メモ"
             value={formData.notes}
             onChange={(v) => onField("notes", v)}
             placeholder="補足情報など"
@@ -181,15 +184,18 @@ function PropInput({
   onChange,
   placeholder,
   type = "text",
+  ariaLabel,
 }: {
   value: string;
   onChange: (v: string) => void;
   placeholder?: string;
   type?: string;
+  ariaLabel?: string;
 }) {
   return (
     <input
       type={type}
+      aria-label={ariaLabel}
       className={`w-full bg-transparent text-sm ${C.text} outline-none border-none px-1.5 py-0.5 rounded-[3px] ${C.hoverBgLight} transition-colors ${C.textPlaceholder}`}
       value={value}
       onChange={(e) => onChange(e.target.value)}

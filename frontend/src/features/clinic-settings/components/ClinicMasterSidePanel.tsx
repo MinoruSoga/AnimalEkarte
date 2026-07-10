@@ -82,6 +82,7 @@ export function ClinicMasterSidePanel({
                   value={formData.name}
                   onChange={(e) => setFormData((prev) => ({ ...prev, name: e.target.value }))}
                   placeholder="無題"
+                  aria-label="無題"
                 />
                 <FormFieldError message={nameError} />
               </div>

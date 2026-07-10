@@ -172,6 +172,7 @@ export const TrimmingCourseSidePanel = memo(function TrimmingCourseSidePanel({
           <input
             type="number"
             min={0}
+            aria-label="単価(税込)"
             className={`w-32 bg-transparent text-base ${C.text} outline-none border-none ${LAYOUT.inputCompact} ${C.hoverBgLight} ${C.focusBgLight} transition-colors ${C.textPlaceholder}`}
             value={formData.price}
             onChange={handlePriceChange}

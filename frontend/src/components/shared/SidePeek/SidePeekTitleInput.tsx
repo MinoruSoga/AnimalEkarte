@@ -56,6 +56,7 @@ export const SidePeekTitleInput = memo(function SidePeekTitleInput({
         onChange={(e) => onChange(e.target.value)}
         onKeyDown={handleKeyDown}
         placeholder={placeholder}
+        aria-label={placeholder}
         autoFocus={autoFocus}
         maxLength={maxLength}
         aria-invalid={!!error}

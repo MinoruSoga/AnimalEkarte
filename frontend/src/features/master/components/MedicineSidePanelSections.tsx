@@ -93,6 +93,7 @@ export function MedicinePriceTaxSection({
             <input
               type="number"
               min={0}
+              aria-label="単価(税込)"
               value={formData.price}
               onChange={(event) => setFormDataDirty((prev) => ({ ...prev, price: Number(event.target.value) }))}
               placeholder="0"

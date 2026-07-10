@@ -177,6 +177,7 @@ export function ReservationTypeUnavailableTimesSection({ clinicId, reservationTy
           ) : (
             <input
               type="date"
+              aria-label="特定日"
               value={form.specificDate}
               onChange={(e) => handleFieldChange("specificDate", e.target.value)}
               className={`rounded-[3px] border ${C.borderMedium} px-2 py-1 text-sm ${C.text} ${C.bgWhite}`}

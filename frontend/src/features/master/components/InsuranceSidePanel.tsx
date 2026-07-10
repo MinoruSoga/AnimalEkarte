@@ -103,6 +103,7 @@ export const InsuranceSidePanel = memo(function InsuranceSidePanel({
           type="number"
           min={0}
           max={100}
+          aria-label="補償率(%)"
           className={MASTER_INPUT_CLASS}
           value={formData.coverageRate}
           onChange={handleCoverageRateChange}
@@ -112,6 +113,7 @@ export const InsuranceSidePanel = memo(function InsuranceSidePanel({
       <PropertyRow label="連絡先">
         <input
           type="tel"
+          aria-label="連絡先"
           className={MASTER_INPUT_CLASS}
           value={formData.contactPhone}
           onChange={handleContactPhoneChange}
