@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react';
 import axios from 'axios';
 import liff from '@line/liff';
+import { z } from 'zod';
 import type { ReservationFlow } from '../types/models';
 import { liffApi } from '../api/liff-api';
 import { LIFF_MOCK } from '../lib/liff-config';
@@ -9,11 +10,11 @@ import { PrimaryButton } from '../components/PrimaryButton';
 import { BackButton } from '../components/BackButton';
 import { formatJapaneseDate } from '../lib/jst-date';
 
-interface SlotTakenResponse {
-  error: string;
-  code: string;
-  redirect_step: number;
-}
+const slotTakenResponseSchema = z.object({
+  error: z.string().optional(),
+  code: z.string().optional(),
+  redirect_step: z.number().optional(),
+});
 
 interface ConfirmPageProps {
   clinicId: string;
@@ -123,9 +124,9 @@ export function ConfirmPage({
       onConfirm(reservation.id, reservation.notes);
     } catch (err: unknown) {
       if (axios.isAxiosError(err) && err.response?.status === 409) {
-        const data = err.response.data as SlotTakenResponse;
-        const message = data.error || '選択された時間枠は既に予約が入っています。';
-        const redirectStep = data.redirect_step || 4;
+        const parsed = slotTakenResponseSchema.safeParse(err.response.data);
+        const message = (parsed.success && parsed.data.error) || '選択された時間枠は既に予約が入っています。';
+        const redirectStep = (parsed.success && parsed.data.redirect_step) || 4;
         onSlotTaken(message, redirectStep);
         return;
       }

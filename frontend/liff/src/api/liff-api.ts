@@ -1,3 +1,4 @@
+import { z } from 'zod';
 import { API_BASE_URL } from '../lib/liff-config';
 
 export class LiffApiError extends Error {
@@ -7,26 +8,30 @@ export class LiffApiError extends Error {
   }
 }
 
-export interface PetVaccineRecord {
-  vaccine_name: string;
-  vaccinated_at: string;
-  next_due_at: string | null;
-}
+const petVaccineRecordSchema = z.object({
+  vaccine_name: z.string(),
+  vaccinated_at: z.string(),
+  next_due_at: z.string().nullable(),
+});
 
-export interface PetHealthCard {
-  pet_id: string;
-  pet_name: string;
-  species: string;
-  breed: string;
-  next_recommended_visit_date: string | null;
-  vaccines: PetVaccineRecord[];
-  last_visit_date: string | null;
-}
+const petHealthCardSchema = z.object({
+  pet_id: z.string(),
+  pet_name: z.string(),
+  species: z.string(),
+  breed: z.string(),
+  next_recommended_visit_date: z.string().nullable(),
+  vaccines: z.array(petVaccineRecordSchema),
+  last_visit_date: z.string().nullable(),
+});
 
-export interface HealthCardResponse {
-  owner_name: string;
-  pets: PetHealthCard[];
-}
+const healthCardResponseSchema = z.object({
+  owner_name: z.string(),
+  pets: z.array(petHealthCardSchema),
+});
+
+export type PetVaccineRecord = z.infer<typeof petVaccineRecordSchema>;
+export type PetHealthCard = z.infer<typeof petHealthCardSchema>;
+export type HealthCardResponse = z.infer<typeof healthCardResponseSchema>;
 
 export async function linkLineAccount(
   clinicId: string,
@@ -59,5 +64,12 @@ export async function fetchHealthCard(idToken: string, clinicId: string): Promis
     throw new Error(`HealthCard fetch failed: ${res.status}`);
   }
 
-  return res.json() as Promise<HealthCardResponse>;
+  const json: unknown = await res.json();
+  const parsed = healthCardResponseSchema.safeParse(json);
+  if (!parsed.success) {
+    console.error('[fetchHealthCard] invalid response shape:', parsed.error);
+    throw new Error('HealthCard response validation failed');
+  }
+
+  return parsed.data;
 }
