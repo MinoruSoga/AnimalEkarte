@@ -175,6 +175,8 @@ type masterFKWriteEntry struct {
 var masterFKWriteAllowlist = []masterFKWriteEntry{
 	// ── guarded (FindByID ownership check covers every master FK; most have runtime isolation tests) ──
 	{"accountingService.Update", statusGuarded, []string{"PaymentMethodID"}, "resolvePaymentMethodMasterID の mismatch 拒否ロジックで validated; test: TestAccountingService_Update_RejectsForeignPaymentMethodID"},
+	{"campaignService.Create", statusGuarded, []string{"TargetItemIDs"}, "campaign_service.go: validateOwnedMerchandiseItemIDs loops merchandiseItemRepo.FindByID(ctx, clinicID, id) over every TargetItemIDs entry (X-5); test: TestCampaignService_Create_RejectsCrossClinicTargetItemFK"},
+	{"campaignService.Update", statusGuarded, []string{"TargetItemIDs"}, "as Create — validateOwnedMerchandiseItemIDs guards *input.TargetItemIDs before ReplaceTargets (X-5); test: TestCampaignService_Update_RejectsCrossClinicTargetItemFK"},
 	{"checkupFieldResultService.ReplaceForCheckup", statusGuarded, []string{"CheckupTypeFieldID"}, "checkup_field_result_service.go: each CheckupTypeFieldID validated within the owned checkup_type's fields (#124 同型, #211); test in checkup_field_result_service_test.go"},
 	{"checkupService.Create", statusGuarded, []string{"CheckupTypeID"}, "checkup_service.go: checkupTypeRepo.FindByID(ctx, clinicID, CheckupTypeID); test in cross_tenant_master_fk_write_test.go"},
 	{"checkupService.Update", statusGuarded, []string{"CheckupTypeID"}, "checkup_service.go:223 checkupTypeRepo.FindByID(ctx, clinicID, *CheckupTypeID)"},
@@ -189,9 +191,7 @@ var masterFKWriteAllowlist = []masterFKWriteEntry{
 	{"vaccinationService.Update", statusGuarded, []string{"VaccineID"}, "vaccineRepo.FindByID when non-nil (03bf1cb5); test present"},
 
 	// ── known-unguarded: at least one master FK persisted without an ownership check (residual P1) ──
-	{"billingItemService.CreateItem", statusKnownUnguarded, []string{"MerchandiseItemID", "TrimmingCourseID", "TrimmingOptionID"}, "all three FKs persisted directly without FindByID (billing_item_service.go:230)."},
-	{"campaignService.Create", statusKnownUnguarded, []string{"TargetItemIDs"}, "TargetItemIDs → campaign_target_items.merchandise_item_id persisted without merchandise ownership check (repo ReplaceTargets is unscoped)."},
-	{"campaignService.Update", statusKnownUnguarded, []string{"TargetItemIDs"}, "as Create — TargetItemIDs (merchandise) not ownership-checked."},
+	{"billingItemService.CreateItem", statusKnownUnguarded, []string{"MerchandiseItemID", "TrimmingCourseID", "TrimmingOptionID"}, "PARTIAL (X-4): TrimmingCourseID/TrimmingOptionID now guarded via trimmingCourseRepo/trimmingOptionRepo.FindByID(ctx, clinicID, id) before persist; test: TestBillingItemService_CreateItem_RejectsCrossClinicTrimmingFK. MerchandiseItemID remains unguarded but is a DEAD field for this write path — CreateItem never assigns input.MerchandiseItemID onto model.BillingItem (billing_item_service.go, item struct literal), so it carries no actual cross-tenant persistence risk today; out of scope for X-4."},
 	{"carePlanItemService.Create", statusKnownUnguarded, []string{"HospitalizationPlanID", "MedicineID", "ProcedureID"}, "PARTIAL: medicine/procedure guarded (validateMasterFKs); HospitalizationPlanID written without FindByID."},
 	{"carePlanItemService.Update", statusKnownUnguarded, []string{"HospitalizationPlanID", "MedicineID", "ProcedureID"}, "PARTIAL: as Create — HospitalizationPlanID unguarded."},
 	{"checkupTypeService.Create", statusKnownUnguarded, []string{"ParentID"}, "self-ref checkup_type parent_id not validated (FindByID parent)."},

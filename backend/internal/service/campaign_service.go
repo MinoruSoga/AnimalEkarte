@@ -175,12 +175,25 @@ type CampaignService interface {
 }
 
 type campaignService struct {
-	repo repository.CampaignRepository
+	repo                repository.CampaignRepository
+	merchandiseItemRepo repository.MerchandiseItemRepository
 }
 
 // NewCampaignService は CampaignService を初期化して返す
-func NewCampaignService(repo repository.CampaignRepository) CampaignService {
-	return &campaignService{repo: repo}
+func NewCampaignService(repo repository.CampaignRepository, merchandiseItemRepo repository.MerchandiseItemRepository) CampaignService {
+	return &campaignService{repo: repo, merchandiseItemRepo: merchandiseItemRepo}
+}
+
+// validateOwnedMerchandiseItemIDs は request 由来の TargetItemIDs (clinic-scoped マスタFK) の
+// 所有権を検証する。別 clinic の商品IDを campaign_target_items に紐付けられると、割引マッチング
+// (CalculateItemCampaignDiscount) がクロステナントで汚染される (#124/#125 同型)。
+func (s *campaignService) validateOwnedMerchandiseItemIDs(ctx context.Context, clinicID uint64, itemIDs []uint64) error {
+	for _, id := range itemIDs {
+		if _, err := s.merchandiseItemRepo.FindByID(ctx, clinicID, id); err != nil {
+			return apperrors.Wrap(err, "failed to verify merchandise item ownership")
+		}
+	}
+	return nil
 }
 
 func (s *campaignService) List(ctx context.Context, clinicID uint64) ([]model.Campaign, error) {
@@ -209,6 +222,9 @@ func (s *campaignService) Create(ctx context.Context, clinicID uint64, input *Cr
 		return nil, err
 	}
 	if err := validateCampaignDiscount(input.DiscountType, input.DiscountValue); err != nil {
+		return nil, err
+	}
+	if err := s.validateOwnedMerchandiseItemIDs(ctx, clinicID, input.TargetItemIDs); err != nil {
 		return nil, err
 	}
 	m := &model.Campaign{
@@ -262,6 +278,11 @@ func (s *campaignService) Update(ctx context.Context, clinicID, id uint64, input
 	cats, itemIDs, hasTargets := resolveCampaignTargets(current, input)
 	if len(fields) == 0 && !hasTargets {
 		return nil, apperrors.WrapInvalidInput(ErrMsgAtLeastOneField)
+	}
+	if input.TargetItemIDs != nil {
+		if err := s.validateOwnedMerchandiseItemIDs(ctx, clinicID, *input.TargetItemIDs); err != nil {
+			return nil, err
+		}
 	}
 	if len(fields) > 0 {
 		if _, err := s.repo.Update(ctx, clinicID, id, fields); err != nil {

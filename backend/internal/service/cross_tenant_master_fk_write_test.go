@@ -19,6 +19,7 @@ package service
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 
@@ -62,6 +63,18 @@ func okExamTypeRepo() repository.ExamTypeRepository {
 func okCheckupTypeRepo() repository.CheckupTypeRepository {
 	return &mockCheckupTypeRepository{findByIDFn: func(_ context.Context, _, id uint64) (*model.CheckupType, error) {
 		return &model.CheckupType{ID: id}, nil
+	}}
+}
+
+func okTrimmingCourseRepo() repository.TrimmingCourseRepository {
+	return &mockTrimmingCourseRepository{findByIDFn: func(_ context.Context, _, id uint64) (*model.TrimmingCourse, error) {
+		return &model.TrimmingCourse{ID: id}, nil
+	}}
+}
+
+func okTrimmingOptionRepo() repository.TrimmingOptionRepository {
+	return &mockTrimmingOptionRepository{findByIDFn: func(_ context.Context, _, id uint64) (*model.TrimmingOption, error) {
+		return &model.TrimmingOption{ID: id}, nil
 	}}
 }
 
@@ -504,6 +517,92 @@ func TestCheckupService_Create_RejectsCrossClinicCheckupType(t *testing.T) {
 	})
 }
 
+func rejectTrimmingCourseRepo(ownedID uint64) repository.TrimmingCourseRepository {
+	return &mockTrimmingCourseRepository{findByIDFn: func(_ context.Context, _, id uint64) (*model.TrimmingCourse, error) {
+		if id != ownedID {
+			return nil, apperrors.WrapNotFound("trimming_course", "foreign")
+		}
+		return &model.TrimmingCourse{ID: id}, nil
+	}}
+}
+
+func rejectTrimmingOptionRepo(ownedID uint64) repository.TrimmingOptionRepository {
+	return &mockTrimmingOptionRepository{findByIDFn: func(_ context.Context, _, id uint64) (*model.TrimmingOption, error) {
+		if id != ownedID {
+			return nil, apperrors.WrapNotFound("trimming_option", "foreign")
+		}
+		return &model.TrimmingOption{ID: id}, nil
+	}}
+}
+
+// ── billing_item (P1, X-4): trimming_course_id / trimming_option_id ──
+
+func TestBillingItemService_CreateItem_RejectsCrossClinicTrimmingFK(t *testing.T) {
+	const clinicID = uint64(1)
+	const billingID = uint64(10)
+	const ownedCourseID = uint64(300)
+	const foreignCourseID = uint64(999)
+	const ownedOptionID = uint64(400)
+	const foreignOptionID = uint64(998)
+
+	newSvc := func(created *bool, courseRepo repository.TrimmingCourseRepository, optionRepo repository.TrimmingOptionRepository) BillingItemService {
+		repo := defaultMockBillingItemRepo()
+		repo.createFn = func(_ context.Context, item *model.BillingItem) error { *created = true; item.ID = 1; return nil }
+		billingRepo := &mockAccountingRepository{findByIDFn: func(_ context.Context, _, id uint64) (*model.Billing, error) {
+			return &model.Billing{ID: id}, nil
+		}}
+		return NewBillingItemService(repo, billingRepo, defaultMockTreatmentRepo(), &mockTransactor{}, courseRepo, optionRepo)
+	}
+
+	baseInput := func() *CreateBillingItemInput {
+		return &CreateBillingItemInput{
+			ClinicID:  clinicID,
+			BillingID: billingID,
+			Category:  string(model.ItemCategoryProcedure),
+			Name:      "トリミング",
+			UnitPrice: 5000,
+			Quantity:  1,
+		}
+	}
+
+	t.Run("rejects cross-clinic trimming_course_id and does not persist", func(t *testing.T) {
+		created := false
+		svc := newSvc(&created, rejectTrimmingCourseRepo(ownedCourseID), okTrimmingOptionRepo())
+		foreign := foreignCourseID
+		input := baseInput()
+		input.TrimmingCourseID = &foreign
+		out, err := svc.CreateItem(context.Background(), input)
+		assert.Error(t, err)
+		assert.Nil(t, out)
+		assert.False(t, created, "billing item must NOT be persisted referencing another clinic's trimming course")
+	})
+
+	t.Run("rejects cross-clinic trimming_option_id and does not persist", func(t *testing.T) {
+		created := false
+		svc := newSvc(&created, okTrimmingCourseRepo(), rejectTrimmingOptionRepo(ownedOptionID))
+		foreign := foreignOptionID
+		input := baseInput()
+		input.TrimmingOptionID = &foreign
+		out, err := svc.CreateItem(context.Background(), input)
+		assert.Error(t, err)
+		assert.Nil(t, out)
+		assert.False(t, created, "billing item must NOT be persisted referencing another clinic's trimming option")
+	})
+
+	t.Run("accepts same-clinic trimming_course_id/trimming_option_id (no false-reject)", func(t *testing.T) {
+		created := false
+		svc := newSvc(&created, rejectTrimmingCourseRepo(ownedCourseID), rejectTrimmingOptionRepo(ownedOptionID))
+		owned1, owned2 := ownedCourseID, ownedOptionID
+		input := baseInput()
+		input.TrimmingCourseID = &owned1
+		input.TrimmingOptionID = &owned2
+		out, err := svc.CreateItem(context.Background(), input)
+		assert.NoError(t, err)
+		assert.NotNil(t, out)
+		assert.True(t, created)
+	})
+}
+
 func rejectDiagnosisNameRepo(ownedID uint64) repository.DiagnosisNameRepository {
 	return &mockDiagnosisNameRepository{findByIDFn: func(_ context.Context, _, id uint64) (*model.DiagnosisName, error) {
 		if id != ownedID {
@@ -593,6 +692,103 @@ func TestAccountingService_Update_RejectsForeignPaymentMethodID(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NotNil(t, out)
 		assert.True(t, saved)
+	})
+}
+
+func rejectMerchandiseItemRepo(ownedID uint64) repository.MerchandiseItemRepository {
+	return &mockMerchandiseItemRepository{findByIDFn: func(_ context.Context, _, id uint64) (*model.MerchandiseItem, error) {
+		if id != ownedID {
+			return nil, apperrors.WrapNotFound("merchandise_item", "foreign")
+		}
+		return &model.MerchandiseItem{ID: id}, nil
+	}}
+}
+
+// ── campaign (target-item FK): TargetItemIDs → campaign_target_items.merchandise_item_id ──
+
+func TestCampaignService_Create_RejectsCrossClinicTargetItemFK(t *testing.T) {
+	const clinicID = uint64(1)
+	const ownedItemID = uint64(10)
+	const foreignItemID = uint64(999)
+
+	newSvc := func(created *bool) CampaignService {
+		repo := &mockCampaignRepository{
+			createFn: func(_ context.Context, m *model.Campaign) (*model.Campaign, error) {
+				*created = true
+				m.ID = 1
+				return m, nil
+			},
+		}
+		return NewCampaignService(repo, rejectMerchandiseItemRepo(ownedItemID))
+	}
+
+	baseInput := func(itemID uint64) *CreateCampaignInput {
+		return &CreateCampaignInput{
+			Name:          "Autumn Sale",
+			StartDate:     time.Now(),
+			EndDate:       time.Now().Add(24 * time.Hour),
+			DiscountType:  model.CampaignDiscountTypeRate,
+			DiscountValue: 10.0,
+			TargetItemIDs: []uint64{itemID},
+		}
+	}
+
+	t.Run("rejects cross-clinic target_item_id and does not persist", func(t *testing.T) {
+		created := false
+		svc := newSvc(&created)
+		out, err := svc.Create(context.Background(), clinicID, baseInput(foreignItemID))
+		assert.Error(t, err)
+		assert.Nil(t, out)
+		assert.False(t, created, "campaign must NOT be persisted referencing another clinic's merchandise item")
+	})
+
+	t.Run("accepts same-clinic target_item_id (no false-reject)", func(t *testing.T) {
+		created := false
+		svc := newSvc(&created)
+		out, err := svc.Create(context.Background(), clinicID, baseInput(ownedItemID))
+		assert.NoError(t, err)
+		assert.NotNil(t, out)
+		assert.True(t, created)
+	})
+}
+
+func TestCampaignService_Update_RejectsCrossClinicTargetItemFK(t *testing.T) {
+	const clinicID = uint64(1)
+	const ownedItemID = uint64(10)
+	const foreignItemID = uint64(999)
+
+	newSvc := func(replaced *bool) CampaignService {
+		current := &model.Campaign{ID: 100, ClinicID: clinicID}
+		repo := &mockCampaignRepository{
+			findByIDFn: func(_ context.Context, _, _ uint64) (*model.Campaign, error) {
+				return current, nil
+			},
+			replaceTargetsFn: func(_ context.Context, _ uint64, _ []model.ItemCategory, _ []uint64) error {
+				*replaced = true
+				return nil
+			},
+		}
+		return NewCampaignService(repo, rejectMerchandiseItemRepo(ownedItemID))
+	}
+
+	t.Run("rejects cross-clinic target_item_id on update and does not persist", func(t *testing.T) {
+		replaced := false
+		svc := newSvc(&replaced)
+		ids := []uint64{foreignItemID}
+		out, err := svc.Update(context.Background(), clinicID, 100, &UpdateCampaignInput{TargetItemIDs: &ids})
+		assert.Error(t, err)
+		assert.Nil(t, out)
+		assert.False(t, replaced, "campaign targets must NOT be replaced referencing another clinic's merchandise item")
+	})
+
+	t.Run("accepts same-clinic target_item_id (no false-reject)", func(t *testing.T) {
+		replaced := false
+		svc := newSvc(&replaced)
+		ids := []uint64{ownedItemID}
+		out, err := svc.Update(context.Background(), clinicID, 100, &UpdateCampaignInput{TargetItemIDs: &ids})
+		assert.NoError(t, err)
+		assert.NotNil(t, out)
+		assert.True(t, replaced)
 	})
 }
 

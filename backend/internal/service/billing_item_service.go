@@ -106,12 +106,14 @@ type UngroupedSameDaySummary struct {
 }
 
 type billingItemService struct {
-	repo          repository.BillingItemRepository
-	billingRepo   repository.AccountingRepository
-	treatmentRepo repository.TreatmentRepository
-	transactor    repository.Transactor
-	campaignRepo  repository.CampaignRepository // #81 段階2b: nil の場合は自動割引なし
-	ownerRepo     repository.OwnerRepository    // #81 段階2b: 飼主割引取得用
+	repo               repository.BillingItemRepository
+	billingRepo        repository.AccountingRepository
+	treatmentRepo      repository.TreatmentRepository
+	transactor         repository.Transactor
+	trimmingCourseRepo repository.TrimmingCourseRepository // X-4: クロステナント write 防止用の所有権検証
+	trimmingOptionRepo repository.TrimmingOptionRepository // X-4: クロステナント write 防止用の所有権検証
+	campaignRepo       repository.CampaignRepository       // #81 段階2b: nil の場合は自動割引なし
+	ownerRepo          repository.OwnerRepository          // #81 段階2b: 飼主割引取得用
 }
 
 type unbilledTrimmingItemFinder interface {
@@ -123,13 +125,13 @@ type ungroupedTrimmingCounter interface {
 }
 
 // NewBillingItemService は BillingItemService を初期化して返す（キャンペーン自動割引なし）
-func NewBillingItemService(repo repository.BillingItemRepository, billingRepo repository.AccountingRepository, treatmentRepo repository.TreatmentRepository, transactor repository.Transactor) BillingItemService {
-	return &billingItemService{repo: repo, billingRepo: billingRepo, treatmentRepo: treatmentRepo, transactor: transactor}
+func NewBillingItemService(repo repository.BillingItemRepository, billingRepo repository.AccountingRepository, treatmentRepo repository.TreatmentRepository, transactor repository.Transactor, trimmingCourseRepo repository.TrimmingCourseRepository, trimmingOptionRepo repository.TrimmingOptionRepository) BillingItemService {
+	return &billingItemService{repo: repo, billingRepo: billingRepo, treatmentRepo: treatmentRepo, transactor: transactor, trimmingCourseRepo: trimmingCourseRepo, trimmingOptionRepo: trimmingOptionRepo}
 }
 
 // NewBillingItemServiceWithCampaign は #81 段階2b: キャンペーン/飼主割引の自動適用を有効にした BillingItemService を返す。
-func NewBillingItemServiceWithCampaign(repo repository.BillingItemRepository, billingRepo repository.AccountingRepository, treatmentRepo repository.TreatmentRepository, transactor repository.Transactor, campaignRepo repository.CampaignRepository, ownerRepo repository.OwnerRepository) BillingItemService {
-	return &billingItemService{repo: repo, billingRepo: billingRepo, treatmentRepo: treatmentRepo, transactor: transactor, campaignRepo: campaignRepo, ownerRepo: ownerRepo}
+func NewBillingItemServiceWithCampaign(repo repository.BillingItemRepository, billingRepo repository.AccountingRepository, treatmentRepo repository.TreatmentRepository, transactor repository.Transactor, trimmingCourseRepo repository.TrimmingCourseRepository, trimmingOptionRepo repository.TrimmingOptionRepository, campaignRepo repository.CampaignRepository, ownerRepo repository.OwnerRepository) BillingItemService {
+	return &billingItemService{repo: repo, billingRepo: billingRepo, treatmentRepo: treatmentRepo, transactor: transactor, trimmingCourseRepo: trimmingCourseRepo, trimmingOptionRepo: trimmingOptionRepo, campaignRepo: campaignRepo, ownerRepo: ownerRepo}
 }
 
 // resolveOwnerDiscountRate は会計に紐付く飼主の割引率を返す。ownerRepo 未配線または取得失敗は 0。
@@ -182,6 +184,21 @@ func (s *billingItemService) CreateItem(ctx context.Context, input *CreateBillin
 	if _, err := s.billingRepo.FindByID(ctx, input.ClinicID, input.BillingID); err != nil {
 		slog.ErrorContext(ctx, "billing not found or belongs to different clinic", "error", err)
 		return nil, apperrors.Wrap(err, "billing not found or belongs to different clinic")
+	}
+
+	// X-4: クロステナント write 防止: trimming_course_id/trimming_option_id が
+	// caller の clinic に属することを検証する(#124/#125 と同型の master FK 所有権チェック)。
+	if input.TrimmingCourseID != nil {
+		if _, err := s.trimmingCourseRepo.FindByID(ctx, input.ClinicID, *input.TrimmingCourseID); err != nil {
+			slog.ErrorContext(ctx, "trimming course not found or belongs to different clinic", "error", err)
+			return nil, apperrors.Wrap(err, "failed to verify trimming course ownership")
+		}
+	}
+	if input.TrimmingOptionID != nil {
+		if _, err := s.trimmingOptionRepo.FindByID(ctx, input.ClinicID, *input.TrimmingOptionID); err != nil {
+			slog.ErrorContext(ctx, "trimming option not found or belongs to different clinic", "error", err)
+			return nil, apperrors.Wrap(err, "failed to verify trimming option ownership")
+		}
 	}
 
 	// カテゴリバリデーション

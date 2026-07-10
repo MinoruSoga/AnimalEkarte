@@ -97,7 +97,7 @@ func TestCampaignService_List(t *testing.T) {
 				return []model.Campaign{{ID: 1, ClinicID: clinicID}}, nil
 			},
 		}
-		svc := NewCampaignService(repo)
+		svc := NewCampaignService(repo, &mockMerchandiseItemRepository{})
 		res, err := svc.List(ctx, 1)
 		assert.NoError(t, err)
 		assert.Len(t, res, 1)
@@ -109,7 +109,7 @@ func TestCampaignService_List(t *testing.T) {
 				return nil, errors.New("db error")
 			},
 		}
-		svc := NewCampaignService(repo)
+		svc := NewCampaignService(repo, &mockMerchandiseItemRepository{})
 		res, err := svc.List(ctx, 1)
 		assert.Error(t, err)
 		assert.Nil(t, res)
@@ -125,7 +125,7 @@ func TestCampaignService_GetByID(t *testing.T) {
 				return &model.Campaign{ID: id, ClinicID: clinicID}, nil
 			},
 		}
-		svc := NewCampaignService(repo)
+		svc := NewCampaignService(repo, &mockMerchandiseItemRepository{})
 		res, err := svc.GetByID(ctx, 1, 100)
 		assert.NoError(t, err)
 		assert.Equal(t, uint64(100), res.ID)
@@ -137,7 +137,7 @@ func TestCampaignService_GetByID(t *testing.T) {
 				return nil, errors.New("db error")
 			},
 		}
-		svc := NewCampaignService(repo)
+		svc := NewCampaignService(repo, &mockMerchandiseItemRepository{})
 		res, err := svc.GetByID(ctx, 1, 100)
 		assert.Error(t, err)
 		assert.Nil(t, res)
@@ -154,7 +154,7 @@ func TestCampaignService_Create(t *testing.T) {
 				return m, nil
 			},
 		}
-		svc := NewCampaignService(repo)
+		svc := NewCampaignService(repo, &mockMerchandiseItemRepository{})
 		input := &CreateCampaignInput{
 			Name:             "Autumn Sale",
 			StartDate:        time.Now(),
@@ -172,7 +172,7 @@ func TestCampaignService_Create(t *testing.T) {
 	})
 
 	t.Run("invalid name", func(t *testing.T) {
-		svc := NewCampaignService(&mockCampaignRepository{})
+		svc := NewCampaignService(&mockCampaignRepository{}, &mockMerchandiseItemRepository{})
 		input := &CreateCampaignInput{
 			Name: "",
 		}
@@ -181,7 +181,7 @@ func TestCampaignService_Create(t *testing.T) {
 	})
 
 	t.Run("invalid period", func(t *testing.T) {
-		svc := NewCampaignService(&mockCampaignRepository{})
+		svc := NewCampaignService(&mockCampaignRepository{}, &mockMerchandiseItemRepository{})
 		input := &CreateCampaignInput{
 			Name:      "Bad Period",
 			StartDate: time.Now().Add(24 * time.Hour),
@@ -192,7 +192,7 @@ func TestCampaignService_Create(t *testing.T) {
 	})
 
 	t.Run("invalid rate discount", func(t *testing.T) {
-		svc := NewCampaignService(&mockCampaignRepository{})
+		svc := NewCampaignService(&mockCampaignRepository{}, &mockMerchandiseItemRepository{})
 		input := &CreateCampaignInput{
 			Name:          "Bad Discount",
 			DiscountType:  model.CampaignDiscountTypeRate,
@@ -203,7 +203,7 @@ func TestCampaignService_Create(t *testing.T) {
 	})
 
 	t.Run("invalid amount discount", func(t *testing.T) {
-		svc := NewCampaignService(&mockCampaignRepository{})
+		svc := NewCampaignService(&mockCampaignRepository{}, &mockMerchandiseItemRepository{})
 		input := &CreateCampaignInput{
 			Name:          "Bad Discount",
 			DiscountType:  model.CampaignDiscountTypeAmount,
@@ -214,7 +214,7 @@ func TestCampaignService_Create(t *testing.T) {
 	})
 
 	t.Run("invalid discount type", func(t *testing.T) {
-		svc := NewCampaignService(&mockCampaignRepository{})
+		svc := NewCampaignService(&mockCampaignRepository{}, &mockMerchandiseItemRepository{})
 		input := &CreateCampaignInput{
 			Name:          "Bad Discount",
 			DiscountType:  "invalid",
@@ -230,7 +230,7 @@ func TestCampaignService_Create(t *testing.T) {
 				return nil, errors.New("db error")
 			},
 		}
-		svc := NewCampaignService(repo)
+		svc := NewCampaignService(repo, &mockMerchandiseItemRepository{})
 		input := &CreateCampaignInput{
 			Name:          "DB Error Test",
 			DiscountType:  model.CampaignDiscountTypeAmount,
@@ -264,7 +264,7 @@ func TestCampaignService_Update(t *testing.T) {
 				return current, nil
 			},
 		}
-		svc := NewCampaignService(repo)
+		svc := NewCampaignService(repo, &mockMerchandiseItemRepository{})
 		newName := "Updated"
 		input := &UpdateCampaignInput{
 			Name: &newName,
@@ -274,7 +274,7 @@ func TestCampaignService_Update(t *testing.T) {
 	})
 
 	t.Run("nil input", func(t *testing.T) {
-		svc := NewCampaignService(&mockCampaignRepository{})
+		svc := NewCampaignService(&mockCampaignRepository{}, &mockMerchandiseItemRepository{})
 		_, err := svc.Update(ctx, 1, 100, nil)
 		assert.Error(t, err)
 	})
@@ -286,7 +286,7 @@ func TestCampaignService_Update(t *testing.T) {
 				return current, nil
 			},
 		}
-		svc := NewCampaignService(repo)
+		svc := NewCampaignService(repo, &mockMerchandiseItemRepository{})
 		input := &UpdateCampaignInput{}
 		_, err := svc.Update(ctx, 1, 100, input)
 		assert.Error(t, err)
@@ -299,7 +299,7 @@ func TestCampaignService_Update(t *testing.T) {
 				return current, nil
 			},
 		}
-		svc := NewCampaignService(repo)
+		svc := NewCampaignService(repo, &mockMerchandiseItemRepository{})
 		badName := ""
 		input := &UpdateCampaignInput{Name: &badName}
 		_, err := svc.Update(ctx, 1, 100, input)
@@ -318,7 +318,7 @@ func TestCampaignService_Update(t *testing.T) {
 				return nil
 			},
 		}
-		svc := NewCampaignService(repo)
+		svc := NewCampaignService(repo, &mockMerchandiseItemRepository{})
 		cats := []model.ItemCategory{model.ItemCategoryFood}
 		ids := []uint64{20}
 		input := &UpdateCampaignInput{
@@ -339,7 +339,7 @@ func TestCampaignService_Update(t *testing.T) {
 				return errors.New("db error")
 			},
 		}
-		svc := NewCampaignService(repo)
+		svc := NewCampaignService(repo, &mockMerchandiseItemRepository{})
 		cats := []model.ItemCategory{model.ItemCategoryFood}
 		input := &UpdateCampaignInput{
 			TargetCategories: &cats,
@@ -361,7 +361,7 @@ func TestCampaignService_Delete(t *testing.T) {
 				return nil
 			},
 		}
-		svc := NewCampaignService(repo)
+		svc := NewCampaignService(repo, &mockMerchandiseItemRepository{})
 		err := svc.Delete(ctx, 1, 100)
 		assert.NoError(t, err)
 	})
@@ -372,7 +372,7 @@ func TestCampaignService_Delete(t *testing.T) {
 				return nil, errors.New("not found")
 			},
 		}
-		svc := NewCampaignService(repo)
+		svc := NewCampaignService(repo, &mockMerchandiseItemRepository{})
 		err := svc.Delete(ctx, 1, 100)
 		assert.Error(t, err)
 	})
@@ -386,7 +386,7 @@ func TestCampaignService_Delete(t *testing.T) {
 				return errors.New("db delete error")
 			},
 		}
-		svc := NewCampaignService(repo)
+		svc := NewCampaignService(repo, &mockMerchandiseItemRepository{})
 		err := svc.Delete(ctx, 1, 100)
 		assert.Error(t, err)
 	})
@@ -402,13 +402,13 @@ func TestCampaignService_Reorder(t *testing.T) {
 				return nil
 			},
 		}
-		svc := NewCampaignService(repo)
+		svc := NewCampaignService(repo, &mockMerchandiseItemRepository{})
 		err := svc.Reorder(ctx, 1, []uint64{3, 2, 1})
 		assert.NoError(t, err)
 	})
 
 	t.Run("empty IDs error", func(t *testing.T) {
-		svc := NewCampaignService(&mockCampaignRepository{})
+		svc := NewCampaignService(&mockCampaignRepository{}, &mockMerchandiseItemRepository{})
 		err := svc.Reorder(ctx, 1, []uint64{})
 		assert.Error(t, err)
 	})
@@ -419,7 +419,7 @@ func TestCampaignService_Reorder(t *testing.T) {
 				return errors.New("db error")
 			},
 		}
-		svc := NewCampaignService(repo)
+		svc := NewCampaignService(repo, &mockMerchandiseItemRepository{})
 		err := svc.Reorder(ctx, 1, []uint64{1})
 		assert.Error(t, err)
 	})
@@ -630,7 +630,7 @@ func TestCampaignService_Update_AdditionalBranches(t *testing.T) {
 				return nil, errors.New("not found")
 			},
 		}
-		svc := NewCampaignService(repo)
+		svc := NewCampaignService(repo, &mockMerchandiseItemRepository{})
 		newName := "x"
 		_, err := svc.Update(ctx, 1, 100, &UpdateCampaignInput{Name: &newName})
 		assert.Error(t, err)
@@ -643,7 +643,7 @@ func TestCampaignService_Update_AdditionalBranches(t *testing.T) {
 				return current, nil
 			},
 		}
-		svc := NewCampaignService(repo)
+		svc := NewCampaignService(repo, &mockMerchandiseItemRepository{})
 		badEnd := current.StartDate.Add(-time.Hour)
 		_, err := svc.Update(ctx, 1, 100, &UpdateCampaignInput{EndDate: &badEnd})
 		assert.Error(t, err)
@@ -656,7 +656,7 @@ func TestCampaignService_Update_AdditionalBranches(t *testing.T) {
 				return current, nil
 			},
 		}
-		svc := NewCampaignService(repo)
+		svc := NewCampaignService(repo, &mockMerchandiseItemRepository{})
 		badVal := 200.0
 		_, err := svc.Update(ctx, 1, 100, &UpdateCampaignInput{DiscountValue: &badVal})
 		assert.Error(t, err)
@@ -672,7 +672,7 @@ func TestCampaignService_Update_AdditionalBranches(t *testing.T) {
 				return nil, errors.New("db error")
 			},
 		}
-		svc := NewCampaignService(repo)
+		svc := NewCampaignService(repo, &mockMerchandiseItemRepository{})
 		newName := "x"
 		_, err := svc.Update(ctx, 1, 100, &UpdateCampaignInput{Name: &newName})
 		assert.Error(t, err)
@@ -693,7 +693,7 @@ func TestCampaignService_Update_AdditionalBranches(t *testing.T) {
 				return current, nil
 			},
 		}
-		svc := NewCampaignService(repo)
+		svc := NewCampaignService(repo, &mockMerchandiseItemRepository{})
 		newName := "x"
 		_, err := svc.Update(ctx, 1, 100, &UpdateCampaignInput{Name: &newName})
 		assert.Error(t, err)
