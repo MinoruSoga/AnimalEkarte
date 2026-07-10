@@ -13,9 +13,9 @@
 
 | 区分 | 件数 | 内訳 |
 |---|---|---|
-| 本編（挙動保存）— 残タスク | **2件** | P2: 2（いずれも Appendix A 依存の BLOCKED） |
-| Appendix A（挙動変更・別トラック） | 18件 | X-1〜X-18 |
-| レビュー由来フォローアップ（未登録・別チケット推奨） | 6件 | H-1, H-2, H-3, H-4, H-5, H-6 |
+| 本編（挙動保存）— 残タスク | **2件** | P2: 2（BLOCKED 解消済み、未着手） |
+| Appendix A（挙動変更・別トラック） | 14件 | X-1, X-3〜X-5, X-9〜X-18（X-2/X-6/X-7/X-8 は 2026-07-10 に CLOSED） |
+| レビュー由来フォローアップ（未登録・別チケット推奨） | 7件 | H-1, H-2, H-3, H-4, H-5, H-6, H-7 |
 
 ## このドキュメントの使い方（ClaudeCode 向け）
 
@@ -35,17 +35,11 @@
 [G1-2: 前セッションで 203→82 まで既完了、残差63件中48件を2026-07-10に追加完了。残る15件（14件は同一ハンドラのエイリアス重複登録・1件はopenapi_route_drift_test.goのパース制約でPOST /api/line/webhookが未文書化）はinternal/apicontract/openapi_route_drift_test.goのallowlistにコメント付きでpin。CLOSED]
 [G1-5 → G1-6: CLOSED 2026-07-10]
 [G2-1 → G2-2: 発見時点で既に 2026-07-09 の前セッションで CLOSED 済みだったと判明。CLOSED]
-→ G6-2（BLOCKED — Appendix A 依存）
-→ G9-1（BLOCKED — Appendix A 依存）
+[X-2/X-6/X-7/X-8: 2026-07-10 に RED→GREEN 実証 + security-reviewer 独立レビュー(CRITICAL/HIGH 0件)を経て CLOSED。BLOCKED 解消]
+→ G6-2（着手可能 — tx-medicine-inventory/tx-clinic-create/tx-reservation-staff 解消済み。残る対象は G6-2 本文「③repo内部独立tx 13ファイル」のうち X-6/X-7/X-8 未カバーの9ファイル: campaign/lstep_tag_cache/manual_article/owner/reservation_schedule/reservation_type_liff/shift_entry/shift_template/treatment）
+→ G9-1（着手可能 — lstep-nilcipher-stale-di 解消済み）
 → Final gate
 ```
-
-### BLOCKED（Appendix A 依存 — 本編着手不可）
-
-| 本編 ID | 依存 Appendix A ID | 理由 |
-|---|---|---|
-| G6-2 | tx-medicine-inventory / tx-clinic-create / tx-reservation-staff | tx 非参加3件修正後に一括置換 |
-| G9-1 | lstep-nilcipher-stale-di | 二段階 DI 統合の前提 |
 
 ### レビュー由来フォローアップ（本編未登録）
 
@@ -57,6 +51,7 @@
 | H-4 | `audit_logs.clinic_id` が Go では `*uint64`（nil許容）だが DDL では `bigint NOT NULL REFERENCES clinics(id)`。Go 側の nil 許容がコンパイル時には検出されない実行時 NULL 制約違反クラス（INSERT 失敗）を許す。 | G12-1 schema_drift nullability check（新設） | MEDIUM（要 migration or model 修正・別チケット推奨: audit_service.go の validateAuditLog が実運用上 nil を弾いている前提を型で保証するか、DB 側制約と model を整合） |
 | H-5 | `lstep_csv_imports.uploaded_by_user_id` が Go では `*uint64`（nil許容）だが DDL では `bigint NOT NULL REFERENCES accounts(id)`。H-4 と同型のクラス。 | G12-1 schema_drift nullability check（新設） | MEDIUM（要 migration or model 修正・別チケット推奨） |
 | H-6 | `backend/CODING_RULES.md` の §3.2/§5.1/§5.4/§6.1/§6.3 に、G1-6 で是正した README.md と同型の forbidden-pattern 教材コード（生の `gin.H{"error":...}` レスポンス、`uuid.UUID` ベースの `FindByID` シグネチャ例 — 実際は全モデル `uint64` PK、sentinel-error `errors.Is` 例示で `apperrors.FromGORM`/`RespondError` 未使用）が残存。§6 に `RequirePermission`/P5 ルートゲーティングの言及が一切ない。G1-6 の対象範囲（ディレクトリツリーのみ）を超える約400行規模の書き直しのため別ユニット化推奨。 | G1-6 実装エージェント | MEDIUM（オンボーディング文書の質・別チケット推奨） |
+| H-7 | `reservationStaffService.Update` の所有権確認読み取り(`s.GetByID`)が tx 外で行われ、確認〜更新の間にスタッフが削除されると TOCTOU の窓が生じる。X-8 の修正対象（fields 更新+除外設定置換の原子性）とは独立した既存の設計であり、X-8 は悪化させていない（security-reviewer 確認済み）。低頻度の管理操作のため実害は限定的。 | X-8 security-reviewer | LOW（別チケット化検討・優先度低） |
 
 ---
 
@@ -127,11 +122,12 @@ docker compose exec backend go test ./internal/service/... -count=1
 
 ## Appendix A: 挙動変更を伴う項目（別トラック・PO/責任者判断を要する）
 
-以下18件は監査で実在を確認した defect だが、修正すると HTTP レスポンス・DB書込結果・権限判定・API契約のいずれかが観測可能な形で変わる。このため本計画（挙動保存リファクタ）の実行対象からは外し、個別 Issue として起票のうえ別トラックで扱うことを推奨する。severity 順に記載。
+以下14件は監査で実在を確認した defect だが、修正すると HTTP レスポンス・DB書込結果・権限判定・API契約のいずれかが観測可能な形で変わる。このため本計画（挙動保存リファクタ）の実行対象からは外し、個別 Issue として起票のうえ別トラックで扱うことを推奨する。severity 順に記載。
 
-**特に優先度が高い2件（P1・データ破損/資格情報系）**:
+（X-2 lstep-nilcipher-stale-di / X-6 tx-medicine-inventory-nonparticipation / X-7 tx-clinic-create-nonparticipation / X-8 tx-reservation-staff-nonparticipation は 2026-07-10、G6-2/G9-1 の BLOCKED 解消を目的にユーザー承認済みスコープとして RED→GREEN 実証 + security-reviewer 独立レビュー(CRITICAL/HIGH 0件)を経て CLOSED。）
+
+**特に優先度が高い1件（P1・データ破損系）**:
 - `X-1 sanitize-multipart-binary-corruption`: カルテ画像・共有ファイルアップロードのバイナリが保存時に破壊される可能性（2026-03-31 導入以来のクラス）。
-- `X-2 lstep-nilcipher-stale-di`: 本番で6サービスが復号不能な nil cipher 経路を参照し続けている DI 配線バグ。
 
 **マルチテナント書込ガード欠落（P1・#124/#125 と同型）**:
 - `X-4 billing-item-trimming-fk-unguarded` / `X-5 campaign-target-item-fk-unguarded`
@@ -183,48 +179,6 @@ bytes.Map はボディを UTF-8 コードポイント列として解釈する。
 **検証コマンド(スコープ限定)**
 ```
 docker compose exec backend go test ./internal/middleware/ -run TestSanitizeNullBytes -count=1
-```
-
-### X-2. NewServicesがnil cipherでLstepSettingsを構築し、main.goの上書きが6サービスに波及しない（本番で復号不能な資格情報を使用）
-
-- **ID**: `lstep-nilcipher-stale-di`
-- **重要度**: P1 / **工数目安**: S
-- **対象ファイル**: internal/service/service.go (190-192,203-204,209,245,287-288); cmd/api/main.go (95-96); internal/service/lstep_settings_credentials.go (19-25); internal/service/lstep_tag_sync_service.go (281-302)
-
-**証拠(現HEAD検証済み)**
-
-internal/service/service.go:190-192:
-	// LSTEP services initialization with nil cipher (production code in main.go will override with encrypted cipher)
-	lstepSettingsSvc := NewLstepSettingsService(repos.LstepSettings, repos.LstepSyncSettings, nil, auditSvc, repos.ClinicSettings)
-	lstepTagSyncSvc := NewLstepTagSyncService(lstepSettingsSvc, repos.Owner, ...)
-
-service.go:203: Owner: NewOwnerService(repos.Owner, lstepTagSyncSvc, auditSvc),
-service.go:204: Pet: NewPetService(repos.Pet, repos.Owner, repos.Insurance, repos.MedicalRecord, lstepTagSyncSvc),
-service.go:209: Accounting: NewAccountingService(repos.Accounting, lstepTagSyncSvc, tx, auditTxLogger, repos.PaymentMethodMaster),
-service.go:245: Vaccination: NewVaccinationService(repos.Vaccination, repos.Vaccine, lstepTagSyncSvc),
-service.go:287: Prescription: NewPrescriptionService(repos.Prescription, repos.MedicalRecord, lstepTagSyncSvc),
-service.go:288: Aggregation: NewAggregationService(repos.Ltv, repos.LstepTagCache, repos.LstepTagConfig, lstepSettingsSvc),
-
-cmd/api/main.go:95: svcs.LstepSettings = service.NewLstepSettingsService(repos.LstepSettings, repos.LstepSyncSettings, integrationCipher, svcs.Audit, repos.ClinicSettings)
-
-internal/service/lstep_settings_credentials.go:20-22:
-func (s *lstepSettingsService) decrypt(keyName, value string) (string, error) {
-	if s.cipher == nil || !model.IsEncryptedKey(keyName) {
-		return value, nil
-
-lstep_tag_sync_service.go:294/301: apiKey, baseURL, _, err := s.settingsSvc.GetRawCredentials(ctx, clinicID) ... return lstep.NewClient(apiKey, baseURL), nil
-
-**問題**
-
-main.goの再配線はServicesコンテナのフィールドを差し替えるだけで、NewServices内でローカル変数 lstepTagSyncSvc / lstepSettingsSvc をコンストラクタ注入済みの Owner/Pet/Accounting/Vaccination/Prescription/Aggregation の6サービスには波及しない。これらは本番でも cipher=nil の LstepSettingsService を参照し続け、decrypt が暗号文をそのまま返すため、Owner更新等を起点とするタグ同期は暗号文をAPIキーとして lstep.NewClient に渡す。現在は Lステップ write API 一時停止（AddTag/RemoveTag noop）でマスクされているが、GetUserTags/GetUser 経路と write 再開時に顕在化する。開発環境は cipher が全経路 nil のためテストで検出不能。service.go:190 のコメント自体が「main.goが上書きする」という誤った前提を記録している。
-
-**対応方針(挙動変更を伴うため要PO/責任者判断のうえ別トラックで実施)**
-
-手順: (1) internal/service/service.go:191 の第3引数 nil を NewServices が既に受け取っている cipher に変更（同関数は line 279 で LineReservationSetting に同じ cipher を渡しており非対称が解消される）。(2) これにより cmd/api/main.go:95-96 の svcs.LstepSettings / svcs.LstepTagSync 再構築は引数が完全同一となり冗長化するため削除し、main.go:112-127 の LstepLifecycle/LstepTag 再構築も削除（finding two-phase-di-consolidation と同時実施可）。(3) RED test: internal/service に NewServices へ非nil cipherを渡した時 Services.LstepSettings 経由の decrypt が復号することを確認するテストを追加し、修正前に Owner 経路の settingsSvc が nil cipher であることを実証する。影響範囲: lstep タグ同期の全起点サービス（本番のみ挙動変化）。
-
-**検証コマンド(スコープ限定)**
-```
-docker compose exec backend go test ./internal/service/ -run 'TestNewServices|TestLstepSettings' -count=1
 ```
 
 ### X-3. audit_logs.ip_address が DDL では inet、model では string — 空文字書込は実DDLで INSERT 失敗し、AutoMigrate製テストスキーマがそれを隠蔽
@@ -295,78 +249,6 @@ campaignService.Create/Update で input.TargetItemIDs の各要素を merchandis
 **検証コマンド(スコープ限定)**
 ```
 docker compose exec backend go test ./internal/service/ -run TestCampaignService -v
-```
-
-### X-6. medicine/inventory repository の全 write が r.db 直参照で Transactor.WithTx に非参加 — BUG-429/R1-2 の原子性・fail-closed 監査が実際には効いていない
-
-- **ID**: `tx-medicine-inventory-nonparticipation`
-- **重要度**: P1 / **工数目安**: M
-- **対象ファイル**: internal/repository/medicine_repository.go (94-130); internal/repository/inventory_repository.go (66-76, 120-143); internal/service/medicine_service.go (266-298, 407-431, 482-494)
-- **依存関係**: なし（tx-mechanism-consolidation の一部を先行実施する形）
-
-**証拠(現HEAD検証済み)**
-
-medicine_service.go:266-269「// BUG-429: 薬剤作成と在庫アイテム自動作成をトランザクションでアトミックに実行\n// BE-refactor.md R1-2 (D1): per_weight 有効化監査も同一 tx に統合する（fail-closed）。\nif err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {\n    if err := s.repo.Create(txCtx, medicine); err != nil {」に対し、medicine_repository.go:94-95「func (r *medicineRepository) Create(ctx context.Context, medicine *model.Medicine) error {\n    err := r.db.WithContext(ctx).Create(medicine).Error」、inventory_repository.go:66-68「func (r *inventoryRepository) Create(ctx context.Context, clinicID uint64, item *model.InventoryItem) error {\n    item.ClinicID = clinicID\n    err := r.db.WithContext(ctx).Create(item).Error」。両 repo は dbOrTx を一切使わない（ファイル全体 grep で dbOrTx 0件）。さらに medicine_service.go:307-309 は「// BE-refactor.md R1-2: 呼び出し元の ambient tx に参加する LogEntryTx を使う。失敗時は呼び出し元の\n// WithTx が rollback し、薬剤作成/更新自体も無効になる（#211/refund パターン踏襲）。」と主張するが、薬剤/在庫の書込は tx 外の autocommit で先に確定するため rollback されない。Update 経路 (medicine_service.go:407-410 コメント「fields 更新・連携在庫名同期・per_weight 有効化監査を単一 tx に統合する」) と Delete 経路 (482-486 コメント「BUG-429: 薬剤削除と連携在庫削除をトランザクションでアトミックに実行」) も同様に medicine_repository.Update(:103)/Delete(:122)・inventory UpdateNameByMedicineCategory(:134)/DeleteByNameAndMedicineCategory(:121) が r.db 直参照。
-
-**問題**
-
-Transactor.WithTx は ctx に txKey を積むだけで、repo 側が dbOrTx(ctx, r.db) を使わない限り tx に参加しない (transactor.go:28-42, base.go:30-35)。medicine_service の 3 つの WithTx ブロック（Create/Update/Delete）はコメントで原子性と fail-closed 監査（#201 per_weight は安全クリティカル設定）を明言しているが、実際は薬剤・在庫の各書込が独立 autocommit で確定する。①在庫作成失敗時に薬剤だけ残る（BUG-429 の再発）、②per_weight 有効化監査の書込失敗時に監査なしで薬剤が per_weight 化される（fail-closed 破れ、R1-2 の意図に対する回帰相当）、③薬剤名変更と在庫名同期の不整合、が起こり得る。#213(KR-4) と同型の tx 非参加クラスで、accounting は R1-1(D2) で修正済みだが medicine/inventory は漏れている。
-
-**対応方針(挙動変更を伴うため要PO/責任者判断のうえ別トラックで実施)**
-
-手順: (1) internal/repository/medicine_repository.go の全メソッド（FindAll/FindByID/CountUsageByMedicineID/CountChildrenByParentID/Create/Update/Delete）の r.db.WithContext(ctx) を dbOrTx(ctx, r.db) に置換。Update は末尾で r.FindByID を呼ぶため（:114）、FindByID も dbOrTx 化しないと tx 内で更新前の stale 値を返す点に注意。Reorder(:117-118) は reorderByClinicID(ctx, r.db, ...) のままで可（ambient tx 呼出なし）。(2) internal/repository/inventory_repository.go の Create/Update/Delete/FindByID/UpdateNameByMedicineCategory/DeleteByNameAndMedicineCategory を同様に dbOrTx 化（DecreaseStock/FindAll/CountUsageByInventoryID は現状 tx 外呼出のみだが一括変換して統一可）。ambient tx が無い場合 dbOrTx は db.WithContext(ctx) と完全等価のため既存経路は挙動保存。(3) 回帰防止として internal/service/ に DB 付き rollback テストを追加（既存 audit_tx 検証 fe04b460 の temp-revert RED パターン踏襲）: per_weight 有効化時に auditTx を失敗させ、medicines/inventory_items に行が残らないことを assert。(4) 影響範囲: medicine_service / inventory_service（他に両 repo を使う service を grep で確認: prescription 系が medicine FindByID を読む程度で read のみ）。
-
-**検証コマンド(スコープ限定)**
-```
-docker compose exec backend go test ./internal/service/ -run 'TestMedicine' -count=1 && docker compose exec backend go test ./internal/repository/ -run 'TestMedicine|TestInventory' -count=1
-```
-
-### X-7. CreateClinic の WithTx 内で clinic_repository.Create / permission_group_repository.Create が tx 非参加 — デフォルト権限グループなしの孤児クリニックが生成しうる
-
-- **ID**: `tx-clinic-create-nonparticipation`
-- **重要度**: P2 / **工数目安**: S
-- **対象ファイル**: internal/service/clinic_service.go (252-287); internal/repository/clinic_repository.go (80-89); internal/repository/permission_group_repository.go (64-70)
-- **依存関係**: なし
-
-**証拠(現HEAD検証済み)**
-
-clinic_service.go:252-253「if err := s.transactor.WithTx(ctx, func(ctx context.Context) error {\n    if err := s.repo.Create(ctx, clinic); err != nil {」→ :275「if err := s.permissionGroupRepo.Create(ctx, group); err != nil {」（執行/一般の2デフォルトPG作成）。しかし clinic_repository.go:80-81「func (r *clinicRepository) Create(ctx context.Context, clinic *model.Clinic) error {\n    err := r.db.WithContext(ctx).Create(clinic).Error」、permission_group_repository.go:64-65「func (r *permissionGroupRepository) Create(ctx context.Context, group *model.PermissionGroup) error {\n    err := r.db.WithContext(ctx).Create(group).Error」— 両ファイルとも dbOrTx 0件。clinic_repository は P4 clinicScope の例外ファイル（repository/CLAUDE.md:117-118）だがそれは tx 参加とは無関係。
-
-**問題**
-
-WithTx で括った意図（クリニック本体 + デフォルト権限グループ2件の原子作成）が実装上機能していない。3 write が独立 autocommit のため、PG 作成が1件目/2件目で失敗するとデフォルト権限グループの無い（または片方だけの）クリニックが残り、以後そのクリニックのスタッフ登録時に権限グループ選択肢が欠落する運用不整合となる。低頻度の管理操作だが復旧は手動 DB 修正になる。
-
-**対応方針(挙動変更を伴うため要PO/責任者判断のうえ別トラックで実施)**
-
-手順: (1) clinic_repository.go の Create/Update/FindByID/GetCompany を dbOrTx(ctx, r.db) 化（Delete は内部 tx 持ちのため dbOrTx(ctx, r.db).Transaction へ — R1-1 パターン accounting_repository.go:298 と同型。ただし Delete は ambient tx 呼出が現状無いので置換のみで挙動保存）。(2) permission_group_repository.go の Create を dbOrTx 化（同ファイルの他メソッドも一括変換可、UpdateRules/UpdateStaffGroups/Reorder の内部 tx は dbOrTx().Transaction 化）。(3) rollback テスト: permissionGroupRepo.Create を2件目で失敗させ clinics 行が残らないことを assert。影響範囲: clinic_service / permission_group_service。
-
-**検証コマンド(スコープ限定)**
-```
-docker compose exec backend go test ./internal/service/ -run 'TestClinic|TestPermissionGroup' -count=1 && docker compose exec backend go test ./internal/repository/ -run 'TestPermissionGroup' -count=1
-```
-
-### X-8. reservation_staff_service.Create の外側 WithTx が無効 — repo.Create / UpdateExcludedReservationTypes がそれぞれ独立 r.db 内部 tx を張る
-
-- **ID**: `tx-reservation-staff-nonparticipation`
-- **重要度**: P2 / **工数目安**: M
-- **対象ファイル**: internal/service/reservation_staff_service.go (125-139, 151-185); internal/repository/reservation_staff_repository.go (67-85, 210-250)
-- **依存関係**: なし
-
-**証拠(現HEAD検証済み)**
-
-reservation_staff_service.go:125-131「if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {\n    if err := s.repo.Create(txCtx, staff, clinicID); err != nil {\n...\n        if err := s.repo.UpdateExcludedReservationTypes(txCtx, clinicID, staff.ID, input.ExcludedTypeIDs); err != nil {」に対し、reservation_staff_repository.go:68「if err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {」（Create: staff+assignment を自前 tx で作成）、:226「if err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {」（UpdateExcludedReservationTypes: DELETE→INSERT を自前 tx で実行）。どちらも r.db 起点のため外側 WithTx の tx とは別セッション。ファイル全体で dbOrTx 0件。なお Update 経路 (service:151-185) はそもそも WithTx で括られておらず、staff 更新 (:160) と除外区分置換 (:166) が非原子。
-
-**問題**
-
-外側 WithTx の意図（スタッフ作成と除外予約区分設定の原子化）が実装上機能していない。staff+assignment 作成が確定した後に UpdateExcludedReservationTypes が失敗すると、除外設定なしのスタッフが残り WithTx の rollback は何も巻き戻さない（除外設定漏れ＝本来受けられない予約区分で予約可能になる運用不整合）。各内部 tx 単体は原子なので部分行断片は残らないが、2 操作間の原子性が無い。#213/R1-1(D2) と同じ「r.db 直参照による tx 非参加」クラス。
-
-**対応方針(挙動変更を伴うため要PO/責任者判断のうえ別トラックで実施)**
-
-手順: (1) reservation_staff_repository.go の Create(:68)・UpdateExcludedReservationTypes(:226)・UpdateReservationCapabilities(対称実装)・UpdateSortOrder(:130) の r.db.WithContext(ctx).Transaction を dbOrTx(ctx, r.db).Transaction に置換（accounting_repository.go:288-298 の R1-1 コメント付き先例と同型。ambient tx があれば SAVEPOINT ネストで参加、無ければ従来どおり独立 tx = 挙動保存）。UpdateExcludedReservationTypes 冒頭の所有権検証 read (:216) も dbOrTx 化して同一 tx 内で読む。(2) 単発 write の Update(:88)/Delete(:103) も dbOrTx 化して統一。(3) service 側 Update (:151-185) の staff 更新+除外置換を Create と同様に WithTx で括るかは挙動変更トラックで判断（現状原子性の主張コメントは無い）。(4) rollback テスト: Create 内で UpdateExcludedReservationTypes を失敗させ staffs/staff_clinic_assignments に行が残らないことを assert。
-
-**検証コマンド(スコープ限定)**
-```
-docker compose exec backend go test ./internal/service/ -run 'TestReservationStaff' -count=1 && docker compose exec backend go test ./internal/repository/ -run 'TestReservationStaff' -count=1
 ```
 
 ### X-9. 予約枠競合チェックの SELECT FOR UPDATE は空枠のファントム挿入を防げず、同時予約で重複/超過予約が成立する
