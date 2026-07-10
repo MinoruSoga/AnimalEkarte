@@ -1,8 +1,8 @@
-import { useState, useEffect } from 'react';
-import type { Reservation } from '../types/models';
+import { useCallback, useState } from 'react';
 import { liffApi } from '../api/liff-api';
 import { BackButton } from '../components/BackButton';
 import { formatJSTApplicationDate } from '../lib/jst-date';
+import { useFetchState } from '@/shared-liff/use-fetch-state';
 
 interface MyReservationsPageProps {
   clinicId: string;
@@ -37,29 +37,17 @@ export function MyReservationsPage({
   idToken,
   onBack,
 }: MyReservationsPageProps) {
-  const [reservations, setReservations] = useState<Reservation[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [cancellingId, setCancellingId] = useState<number | null>(null);
   const [confirmingId, setConfirmingId] = useState<number | null>(null);
   const [cancelError, setCancelError] = useState<{ id: number; message: string } | null>(null);
 
-  useEffect(() => {
-    // マウント時 + clinicId/idToken 変更時に読み込み中フラグを立てる（フェッチ開始の同期処理）。
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setLoading(true);
-    liffApi.getMyReservations(clinicId, idToken)
-      .then(data => {
-        setReservations(data);
-        setError(null);
-      })
-      .catch(() => {
-        setError('予約一覧の取得に失敗しました');
-      })
-      .finally(() => {
-        setLoading(false);
-      });
-  }, [clinicId, idToken]);
+  const fetcher = useCallback(() => liffApi.getMyReservations(clinicId, idToken), [clinicId, idToken]);
+  // R-F22/R-F23: ステータス別メッセージ解決と再試行導線を共通フックに統合。
+  // setReservations は cancel 成功時のローカルな楽観的更新にも使う。
+  const { data: reservations, loading, error, retry, setData: setReservations } = useFetchState(
+    fetcher,
+    '予約一覧の取得',
+  );
 
   const handleCancelRequest = (id: number) => {
     setCancelError(null);
@@ -77,7 +65,7 @@ export function MyReservationsPage({
     try {
       await liffApi.cancelReservation(clinicId, id, idToken);
       setReservations(prev =>
-        prev.map(r => r.id === id ? { ...r, status: 'cancelled' as const } : r)
+        (prev ?? []).map(r => r.id === id ? { ...r, status: 'cancelled' as const } : r)
       );
     } catch {
       setCancelError({ id, message: 'キャンセルに失敗しました。もう一度お試しください。' });
@@ -100,8 +88,19 @@ export function MyReservationsPage({
               <div className="text-noah-text-sub">読み込み中...</div>
             </div>
           ) : error ? (
-            <div className="py-8 text-center text-red-500">{error}</div>
-          ) : reservations.length === 0 ? (
+            <div className="py-8 text-center text-red-500">
+              <p role="alert">{error.message}</p>
+              {error.canRetry ? (
+                <button
+                  type="button"
+                  onClick={retry}
+                  className="mt-3 text-sm font-medium text-noah-teal-dark underline"
+                >
+                  再試行
+                </button>
+              ) : null}
+            </div>
+          ) : !reservations || reservations.length === 0 ? (
             <div className="py-12 text-center text-noah-text-sub">
               <p className="text-4xl mb-3" aria-hidden="true">📅</p>
               <p>予約はありません</p>

@@ -59,16 +59,47 @@ describe('TimeSelectPage（R-F4: 予約作成フロー・枠選択ステップ�
     expect(await screen.findByText('この日の空き時間はありません')).toBeInTheDocument();
   });
 
-  it('API失敗時は「空き時間の取得に失敗しました」を表示する', async () => {
+  it('API失敗(5xx)時はサーバーエラーメッセージと再試行ボタンを表示する（R-F22）', async () => {
     server.use(
       http.get('/api/liff/:clinicId/available-times', () => HttpResponse.json(null, { status: 500 })),
     );
 
     render(<TimeSelectPage {...BASE_PROPS} onSelect={vi.fn()} onBack={vi.fn()} />);
 
-    expect(await screen.findByText('空き時間の取得に失敗しました')).toBeInTheDocument();
+    expect(await screen.findByRole('alert')).toHaveTextContent('サーバーエラーが発生しました');
+    expect(screen.getByRole('button', { name: '再試行' })).toBeInTheDocument();
     await waitFor(() => {
       expect(screen.queryByText('読み込み中...')).not.toBeInTheDocument();
     });
+  });
+
+  it('API失敗(401)時は再ログインを促すメッセージを表示し、再試行ボタンは出さない（R-F22）', async () => {
+    server.use(
+      http.get('/api/liff/:clinicId/available-times', () => HttpResponse.json(null, { status: 401 })),
+    );
+
+    render(<TimeSelectPage {...BASE_PROPS} onSelect={vi.fn()} onBack={vi.fn()} />);
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('LINEアプリを再起動して開き直してください');
+    expect(screen.queryByRole('button', { name: '再試行' })).not.toBeInTheDocument();
+  });
+
+  it('再試行ボタンをクリックすると空き時間を再取得する（R-F22/R-F23）', async () => {
+    const user = userEvent.setup();
+    let callCount = 0;
+    server.use(
+      http.get('/api/liff/:clinicId/available-times', () => {
+        callCount += 1;
+        if (callCount === 1) return HttpResponse.json(null, { status: 500 });
+        return HttpResponse.json([{ start_time: '1000', end_time: '1030' }]);
+      }),
+    );
+
+    render(<TimeSelectPage {...BASE_PROPS} onSelect={vi.fn()} onBack={vi.fn()} />);
+
+    await user.click(await screen.findByRole('button', { name: '再試行' }));
+
+    expect(await screen.findByText(/10:00/)).toBeInTheDocument();
+    expect(callCount).toBe(2);
   });
 });

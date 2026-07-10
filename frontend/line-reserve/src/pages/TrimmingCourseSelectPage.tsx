@@ -1,9 +1,9 @@
-import { useState, useEffect } from 'react';
-import type { TrimmingCourse } from '../types/models';
+import { useCallback } from 'react';
 import { liffApi } from '../api/liff-api';
 import { ProgressDots } from '../components/ProgressDots';
 import { ListItem } from '../components/ListItem';
 import { BackButton } from '../components/BackButton';
+import { useFetchState } from '@/shared-liff/use-fetch-state';
 
 interface TrimmingCourseSelectPageProps {
   clinicId: string;
@@ -18,23 +18,9 @@ function formatPrice(price: number | null): string {
 }
 
 export function TrimmingCourseSelectPage({ clinicId, idToken, onSelect, onBack }: TrimmingCourseSelectPageProps) {
-  const [courses, setCourses] = useState<TrimmingCourse[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    liffApi.getTrimmingCourses(clinicId, idToken)
-      .then(data => {
-        setCourses(data);
-        setError(null);
-      })
-      .catch(() => {
-        setError('トリミングコースの取得に失敗しました');
-      })
-      .finally(() => {
-        setLoading(false);
-      });
-  }, [clinicId, idToken]);
+  const fetcher = useCallback(() => liffApi.getTrimmingCourses(clinicId, idToken), [clinicId, idToken]);
+  // R-F22/R-F23: ステータス別メッセージ解決と再試行導線を共通フックに統合。
+  const { data: courses, loading, error, retry } = useFetchState(fetcher, 'トリミングコースの取得');
 
   return (
     <div className="min-h-screen bg-noah-teal-light flex flex-col">
@@ -52,10 +38,21 @@ export function TrimmingCourseSelectPage({ clinicId, idToken, onSelect, onBack }
               <div className="text-noah-text-sub">読み込み中...</div>
             </div>
           ) : error ? (
-            <div className="px-4 py-8 text-center text-red-500">{error}</div>
+            <div className="px-4 py-8 text-center text-red-500">
+              <p role="alert">{error.message}</p>
+              {error.canRetry ? (
+                <button
+                  type="button"
+                  onClick={retry}
+                  className="mt-3 text-sm font-medium text-noah-teal-dark underline"
+                >
+                  再試行
+                </button>
+              ) : null}
+            </div>
           ) : (
             <div className="bg-white border-t border-gray-200">
-              {courses.map(course => (
+              {(courses ?? []).map(course => (
                 <ListItem
                   key={course.id}
                   onClick={() => onSelect(course.id, course.name)}

@@ -1,8 +1,8 @@
-import { useState, useEffect } from 'react';
-import type { AvailableTime } from '../types/models';
+import { useCallback } from 'react';
 import { liffApi } from '../api/liff-api';
 import { ProgressDots } from '../components/ProgressDots';
 import { BackButton } from '../components/BackButton';
+import { useFetchState } from '@/shared-liff/use-fetch-state';
 
 interface TimeSelectPageProps {
   clinicId: string;
@@ -28,23 +28,12 @@ export function TimeSelectPage({
   onSelect,
   onBack,
 }: TimeSelectPageProps) {
-  const [times, setTimes] = useState<AvailableTime[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    liffApi.getAvailableTimes(clinicId, courseId, staffId, date, idToken)
-      .then(data => {
-        setTimes(data);
-        setError(null);
-      })
-      .catch(() => {
-        setError('空き時間の取得に失敗しました');
-      })
-      .finally(() => {
-        setLoading(false);
-      });
-  }, [clinicId, courseId, staffId, date, idToken]);
+  const fetcher = useCallback(
+    () => liffApi.getAvailableTimes(clinicId, courseId, staffId, date, idToken),
+    [clinicId, courseId, staffId, date, idToken],
+  );
+  // R-F22/R-F23: ステータス別メッセージ解決と再試行導線を共通フックに統合。
+  const { data: times, loading, error, retry } = useFetchState(fetcher, '空き時間の取得');
 
   return (
     <div className="min-h-screen bg-noah-teal-light flex flex-col">
@@ -62,8 +51,19 @@ export function TimeSelectPage({
               <div className="text-noah-text-sub">読み込み中...</div>
             </div>
           ) : error ? (
-            <div className="px-4 py-8 text-center text-red-500">{error}</div>
-          ) : times.length === 0 ? (
+            <div className="px-4 py-8 text-center text-red-500">
+              <p role="alert">{error.message}</p>
+              {error.canRetry ? (
+                <button
+                  type="button"
+                  onClick={retry}
+                  className="mt-3 text-sm font-medium text-noah-teal-dark underline"
+                >
+                  再試行
+                </button>
+              ) : null}
+            </div>
+          ) : !times || times.length === 0 ? (
             <div className="px-4 py-8 text-center text-noah-text-sub">
               この日の空き時間はありません
             </div>

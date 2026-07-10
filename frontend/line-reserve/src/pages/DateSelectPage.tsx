@@ -1,11 +1,11 @@
-import { useState, useEffect } from 'react';
-import type { AvailableDate } from '../types/models';
+import { useCallback } from 'react';
 import { liffApi } from '../api/liff-api';
 import { ProgressDots } from '../components/ProgressDots';
 import { PrimaryButton } from '../components/PrimaryButton';
 import { BackButton } from '../components/BackButton';
 import { Calendar } from '../components/Calendar';
 import { formatJapaneseDate } from '../lib/jst-date';
+import { useFetchState } from '@/shared-liff/use-fetch-state';
 
 interface DateSelectPageProps {
   clinicId: string;
@@ -30,23 +30,12 @@ export function DateSelectPage({
   onNext,
   onBack,
 }: DateSelectPageProps) {
-  const [availableDates, setAvailableDates] = useState<AvailableDate[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    liffApi.getAvailableDates(clinicId, courseId, staffId, idToken)
-      .then(data => {
-        setAvailableDates(data);
-        setError(null);
-      })
-      .catch(() => {
-        setError('空き日程の取得に失敗しました');
-      })
-      .finally(() => {
-        setLoading(false);
-      });
-  }, [clinicId, courseId, staffId, idToken]);
+  const fetcher = useCallback(
+    () => liffApi.getAvailableDates(clinicId, courseId, staffId, idToken),
+    [clinicId, courseId, staffId, idToken],
+  );
+  // R-F22/R-F23: ステータス別メッセージ解決と再試行導線を共通フックに統合。
+  const { data: availableDates, loading, error, retry } = useFetchState(fetcher, '空き日程の取得');
 
   const formatSelectedDate = (date: string): string => {
     return formatJapaneseDate(date);
@@ -68,10 +57,21 @@ export function DateSelectPage({
               <div className="text-noah-text-sub">読み込み中...</div>
             </div>
           ) : error ? (
-            <div className="py-8 text-center text-red-500">{error}</div>
+            <div className="py-8 text-center text-red-500">
+              <p role="alert">{error.message}</p>
+              {error.canRetry ? (
+                <button
+                  type="button"
+                  onClick={retry}
+                  className="mt-3 text-sm font-medium text-noah-teal-dark underline"
+                >
+                  再試行
+                </button>
+              ) : null}
+            </div>
           ) : (
             <Calendar
-              availableDates={availableDates}
+              availableDates={availableDates ?? []}
               selectedDate={selectedDate}
               onSelect={onSelect}
               bookingWindow={bookingWindow}

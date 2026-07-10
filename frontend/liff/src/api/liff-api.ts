@@ -61,7 +61,9 @@ export async function fetchHealthCard(idToken: string, clinicId: string): Promis
   if (!res.ok) {
     const text = await res.text().catch(() => '');
     console.error('[fetchHealthCard] error:', res.status, text);
-    throw new Error(`HealthCard fetch failed: ${res.status}`);
+    // R-F22: status を保持した LiffApiError に統一し、呼び出し側でステータスコード別の
+    // エラーメッセージ・再試行可否を判定できるようにする（linkLineAccount と同じ規約）。
+    throw new LiffApiError(res.status, `HealthCard fetch failed: ${res.status}`);
   }
 
   const json: unknown = await res.json();
