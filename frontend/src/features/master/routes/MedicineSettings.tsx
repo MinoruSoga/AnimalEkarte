@@ -58,12 +58,20 @@ export function MedicineSettings() {
   const dirty = useSidePeekDirty();
   const handleDirtyChange = useCallback((d: boolean) => { if (d) dirty.markDirty(); else dirty.markClean(); }, [dirty]);
 
+  // R-F8-S3: useSidePeekDirty は毎レンダー新規オブジェクトを返す（confirmDiscard 自体は安定）。
+  // dirtyGuard を confirmDiscard だけに絞って安定化し、medicineCrud.handleEdit/handleNew の
+  // 参照安定性（→ 行コンポーネント memo() の実効性）を確保する。
+  const dirtyGuard = useMemo(
+    () => ({ confirmDiscard: dirty.confirmDiscard }),
+    [dirty.confirmDiscard],
+  );
+
   // ── FR1: useMasterCRUD (editTarget state only; deletion modal kept external) ──
   const medicineCrud = useMasterCRUD<Medicine>({
     data: medicines,
     deleteMutation,
     entityLabel: "薬品",
-    dirtyGuard: dirty,
+    dirtyGuard,
   });
 
   // ── Derived: editTarget → selectedMedicine / isEditing / isCategory ──
@@ -93,12 +101,12 @@ export function MedicineSettings() {
   const handleEdit = useCallback((medicine: Medicine) => {
     setDefaultParentId(undefined);
     medicineCrud.handleEdit(medicine);
-  }, [medicineCrud]);
+  }, [medicineCrud.handleEdit]);
 
   const handleCreate = useCallback((parentId?: string) => {
     setDefaultParentId(parentId);
     medicineCrud.handleNew();
-  }, [medicineCrud]);
+  }, [medicineCrud.handleNew]);
 
   // ── startSaveTransition wrapper for useMasterSave ──
   const [, startSaveTransition] = useTransition();

@@ -1,3 +1,4 @@
+import { memo } from "react";
 import ChevronRight from "lucide-react/dist/esm/icons/chevron-right";
 import GripVertical from "lucide-react/dist/esm/icons/grip-vertical";
 import Maximize2 from "lucide-react/dist/esm/icons/maximize-2";
@@ -37,7 +38,7 @@ interface MedicineCategoryHeaderRowProps {
   onCreate: (parentId?: string) => void;
 }
 
-export function MedicineCategoryHeaderRow({
+export const MedicineCategoryHeaderRow = memo(function MedicineCategoryHeaderRow({
   parentId,
   header,
   itemCount,
@@ -124,9 +125,9 @@ export function MedicineCategoryHeaderRow({
       </TableCell>
     </TableRow>
   );
-}
+});
 
-export function SortableMedicineRow({
+export const SortableMedicineRow = memo(function SortableMedicineRow({
   medicine,
   onEdit,
   grouped,
@@ -174,7 +175,7 @@ export function SortableMedicineRow({
       </TableCell>
     </SortableDataTableRow>
   );
-}
+});
 
 interface MedicineRowOverlayProps {
   medicine: Medicine;
