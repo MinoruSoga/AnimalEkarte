@@ -24,6 +24,7 @@ import {
 import { OwnerSearchModal, StaffSelectionModal, VitalsModal } from "./MedicalRecordLazyModals";
 import { MEDICAL_RECORD_TAB_ITEMS } from "./medical-record-form-model";
 import { useMedicalRecordDirtyFields } from "../hooks/use-medical-record-dirty-fields";
+import { useMedicalRecordFormModals } from "../hooks/use-medical-record-form-modals";
 import { useMedicalRecordPostSave } from "../hooks/use-medical-record-post-save";
 import { useMedicalRecordForm } from "../hooks/use-medical-record-form";
 import { useGetMedicalRecord } from "../api/get-medical-record";
@@ -140,11 +141,20 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
 
   // ローカル状態: 担当者（hookに追加するまでの暫定）
   const [staffName, setStaffName] = useState(() => user?.displayName ?? "");
-  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
-  const [isVitalsOpen, setIsVitalsOpen] = useState(false);
-  const [isPrinting, setIsPrinting] = useState(false);
-  const [isStaffModalOpen, setIsStaffModalOpen] = useState(false);
-  const [isOwnerSearchOpen, setIsOwnerSearchOpen] = useState(false);
+  const {
+    isDeleteConfirmOpen,
+    setIsDeleteConfirmOpen,
+    isVitalsOpen,
+    setIsVitalsOpen,
+    isPrinting,
+    isStaffModalOpen,
+    isOwnerSearchOpen,
+    setIsOwnerSearchOpen,
+    handleStaffModalOpenChange,
+    handleOpenStaffModal,
+    handleOpenOwnerSearch,
+    handlePrintClick,
+  } = useMedicalRecordFormModals();
   // 一度マウントしたタブを記録してhide/show方式で管理
   const [mountedTabs, setMountedTabs] = useState<Set<string>>(() => new Set(["問診"]));
 
@@ -214,26 +224,6 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
       handleChangeDoctor(newStaffId, newStaffName);
     }
   }, [recordId, handleChangeDoctor, setStaffName]);
-
-  const handleStaffModalOpenChange = useCallback((open: boolean) => {
-    setIsStaffModalOpen(open);
-  }, []);
-
-  const handleOpenStaffModal = useCallback(() => {
-    setIsStaffModalOpen(true);
-  }, []);
-
-  const handleOpenOwnerSearch = useCallback(() => {
-    setIsOwnerSearchOpen(true);
-  }, []);
-
-  const handlePrintClick = useCallback(() => {
-    setIsPrinting(true);
-    setTimeout(() => {
-      window.print();
-      setIsPrinting(false);
-    }, 100);
-  }, []);
 
   if (notFound) {
     return (
