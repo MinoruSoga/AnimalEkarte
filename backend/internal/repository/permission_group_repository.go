@@ -61,8 +61,13 @@ func (r *permissionGroupRepository) FindByID(ctx context.Context, clinicID, id u
 	return &group, nil
 }
 
+// BE-refactor.md X-7: dbOrTx で ambient tx に参加する。clinic_service.CreateClinic は
+// clinic 作成 + デフォルト権限グループ2件の作成を transactor.WithTx で包むが、Create が
+// r.db.WithContext(ctx) のまま tx 非参加だと、2件目の作成が失敗しても1件目は既に
+// オートコミット済みで WithTx のロールバックが効かず、デフォルト権限グループが片方だけの
+// 孤児クリニックが生成しうるバグがあった。
 func (r *permissionGroupRepository) Create(ctx context.Context, group *model.PermissionGroup) error {
-	err := r.db.WithContext(ctx).Create(group).Error
+	err := dbOrTx(ctx, r.db).Create(group).Error
 	if err != nil {
 		return apperrors.FromGORM(err, "permission_group", "")
 	}
@@ -98,8 +103,10 @@ func (r *permissionGroupRepository) Delete(ctx context.Context, clinicID, id uin
 }
 
 // UpdateRules はトランザクション内で権限グループの全ルールを置き換える（全削除→再挿入）
+// BE-refactor.md X-7: dbOrTx(ctx, r.db).Transaction(...) にすることで ambient tx があれば
+// SAVEPOINT として参加する（Create と同じ tx 参加方針、R1-1 と同一パターン）。
 func (r *permissionGroupRepository) UpdateRules(ctx context.Context, groupID uint64, rules []model.PermissionGroupRule) error {
-	if err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	if err := dbOrTx(ctx, r.db).Transaction(func(tx *gorm.DB) error {
 		// 既存ルールを全削除（物理削除してユニーク制約重複を防止）
 		if err := tx.Unscoped().Where("group_id = ?", groupID).Delete(&model.PermissionGroupRule{}).Error; err != nil {
 			return apperrors.FromGORM(err, "permission_group_rule", "")
@@ -205,7 +212,7 @@ func (r *permissionGroupRepository) UpdateStaffGroups(ctx context.Context, clini
 	// スタッフ所有権は呼び出し側（handler verifyStaffClinicMembership）で検証済み。検証は DELETE 前に行い部分書き込みを防ぐ。
 	if len(groupIDs) > 0 {
 		var count int64
-		if err := r.db.WithContext(ctx).
+		if err := dbOrTx(ctx, r.db).
 			Model(&model.PermissionGroup{}).
 			Where("clinic_id = ? AND id IN ? AND deleted_at IS NULL", clinicID, groupIDs).
 			Count(&count).Error; err != nil {
@@ -215,7 +222,8 @@ func (r *permissionGroupRepository) UpdateStaffGroups(ctx context.Context, clini
 			return apperrors.WrapInvalidInput("group_ids contains invalid permission group")
 		}
 	}
-	if err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	// BE-refactor.md X-7: dbOrTx(ctx, r.db).Transaction(...) で ambient tx があれば SAVEPOINT として参加する。
+	if err := dbOrTx(ctx, r.db).Transaction(func(tx *gorm.DB) error {
 		// 既存の紐付けを全削除
 		if err := tx.Where("staff_id = ?", staffID).Delete(&model.StaffPermissionGroup{}).Error; err != nil {
 			return apperrors.FromGORM(err, "staff_permission_group", fmt.Sprintf("staff:%d", staffID))
@@ -239,8 +247,9 @@ func (r *permissionGroupRepository) UpdateStaffGroups(ctx context.Context, clini
 
 // Reorder は指定されたIDリストの順序でソート順を更新する。
 // GORM の論理削除は Model 呼び出しで自動適用されないため、明示的に deleted_at IS NULL を指定する。
+// BE-refactor.md X-7: dbOrTx(ctx, r.db).Transaction(...) で ambient tx があれば SAVEPOINT として参加する。
 func (r *permissionGroupRepository) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
-	if err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	if err := dbOrTx(ctx, r.db).Transaction(func(tx *gorm.DB) error {
 		for i, id := range ids {
 			result := tx.Model(&model.PermissionGroup{}).
 				Scopes(clinicScope(clinicID)).Where("id = ? AND deleted_at IS NULL", id).
