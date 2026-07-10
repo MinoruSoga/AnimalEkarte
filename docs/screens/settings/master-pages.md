@@ -10,7 +10,7 @@
 ## 画面構成
 
 ### 1. コンテンツ編集フォーム（単一ページ）
-`LineReservationPageEditor` は LIFF フェーズ別のタブ切り替えではなく、5つのテキストエリアを縦に並べた単一フォーム。セクション選択UI・`PageSectionTabs` のようなコンポーネントは存在しない（`frontend/src/features/line-reservation/routes/LineReservationPageEditor.tsx:34-65`）。
+`LineReservationPageEditor` は LIFF フェーズ別のタブ切り替えではなく、5つのテキストエリアを縦に並べた単一フォーム。セクション選択UI（フェーズ別タブ切替コンポーネント）は存在しない（`frontend/src/features/line-reservation/routes/LineReservationPageEditor.tsx:34-65`）。
 - **ヘッダーテキスト (`header_text`)**: LINE予約ページのヘッダーに表示するテキスト。
 - **予約時の注意事項 (`reservation_notice`)**: 予約時に顧客に表示する注意事項。
 - **キャンセル時の注意事項 (`cancel_notice`)**: キャンセル時に表示する注意事項。

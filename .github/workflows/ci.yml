@@ -120,6 +120,27 @@ jobs:
         run: bash scripts/check-ci-step-order.test.sh
 
   # ──────────────────────────────────────────────
+  # docs シンボル/数値ドリフト: docs/screens + DESIGN_SYSTEM.md が言及する
+  # コンポーネント名・フック名・ソースファイル名の実在と、宣言数値
+  # （テーブル数/権限リソース数/ハンドラー数/配信トリガー数/画面数）の
+  # 実装一致を機械強制する（docs 全数同期 99943aaa の再発防止。
+  # 実在しない `NotionFilter` 等 20 件超が手動監査で検出された経緯）。
+  # 純テキスト検査・依存ゼロのため全イベント無条件で走らせる。
+  # ──────────────────────────────────────────────
+  docs-symbol-drift:
+    name: Docs Symbol Drift Guardrail
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7.0.0
+
+      - name: Verify docs symbols and declared counts against implementation
+        run: bash scripts/check-docs-symbol-drift.sh
+
+      - name: Self-test the docs drift guardrail
+        run: bash scripts/check-docs-symbol-drift.test.sh
+
+  # ──────────────────────────────────────────────
   # eslint-disable 根拠コメント ratchet: 根拠コメント（` -- 理由`）の無い
   # eslint-disable が新規に増えていないかを検査する（FE-refactor.md「eslint-disable
   # 根拠コメントの機械強制」・R-F3 の追跡）。plugin 依存を追加せず plain Node script

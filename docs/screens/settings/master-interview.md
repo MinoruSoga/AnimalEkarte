@@ -44,7 +44,7 @@
 | DELETE | `/api/v1/masters/inquiry-templates/:id` | テンプレートの削除 | `master-medical` | `delete` |
 | PATCH | `/api/v1/masters/inquiry-templates/reorder` | 表示順の一括保存 | `master-medical` | `edit` |
 
-**注記**: `reorder` エンドポイントおよび対応する `useReorderInquiryTemplates` フック（`frontend/src/features/master/api/inquiry-templates.ts`）は存在するが、`InterviewTemplateSettings` はドラッグ並び替えUIを持たず（1.「並び順」参照）、呼び出し元は存在しない。
+**注記**: `reorder` エンドポイントはバックエンドに存在するが、`InterviewTemplateSettings` はドラッグ並び替えUIを持たず（1.「並び順」参照）、FE からは未呼出（対応する FE フックは FE-R3 のデッドコード削除で撤去済み）。
 
 ---
 

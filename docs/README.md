@@ -56,12 +56,13 @@
 
 ## 📦 運用とテスト
 
-- **[infra/deploy/README.md](infra/deploy/README.md)**: AWS ステージング環境の運用・デプロイガイド。
+- **[infra/deploy/README.md](infra/deploy/README.md)**: ステージング環境の運用・デプロイガイド（Cloudflare 正系統 / AWS ECS はロールバック専用）。
 - **[testing/SECTION_14_MANUAL_TEST_GUIDE.md](testing/SECTION_14_MANUAL_TEST_GUIDE.md)**: ブラウザによる詳細な手動検証シナリオ。
 - **[FUNCTIONAL_TEST_REPORT.md](FUNCTIONAL_TEST_REPORT.md)**: **【全機能検証記録】** 2,000 項目以上の詳細チェックリスト。
 - **[DEPLOYMENT_CHECKLIST.md](DEPLOYMENT_CHECKLIST.md)**: 本番リリース前の統合チェックリスト。
 - **[ci-policy.md](ci-policy.md)**: CI ワークフローの決定事項記録（Actions バージョン統一方針など）。
 - **[coverage-policy.md](coverage-policy.md)**: テストカバレッジ ratchet 方式の運用ポリシー。
+- **docs ドリフトゲート**: `scripts/check-docs-symbol-drift.sh`（CI の docs-symbol-drift ジョブ）が、screens/ 系ドキュメントの言及シンボル実在と宣言数値（テーブル数・リソース数等）の実装一致を機械検査する。
 
 ---
 

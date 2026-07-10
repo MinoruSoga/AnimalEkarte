@@ -113,7 +113,7 @@ DESIGN.md Do's/Don'ts に従い、以下は **CTA・構造フィルには使用�
 
 ## 3. Typography / タイポグラフィ
 
-DESIGN.md `typography:` フロントマターに準拠。フォントファミリーは **`NotionInter`**（フォールバック: `Inter, -apple-system, system-ui, "Segoe UI", Helvetica, Arial`）。単一ファミリーで display から eyebrow まで担う。OpenType `lnum` / `locl` を body / heading に適用。
+DESIGN.md `typography:` フロントマターに準拠。実装のフォントファミリーは **`'Inter', 'Noto Sans JP'`**（フォールバック: `-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`。`frontend/src/styles/globals.css:143`）。単一スタックで display から eyebrow まで担う。
 
 ### 3.1 Hierarchy
 
@@ -136,7 +136,7 @@ DESIGN.md `typography:` フロントマターに準拠。フォントファミ�
 - 見出しは weight 700 + サイズに応じたネガティブ tracking — display は特に tight
 - 本文は 1.5 line-height で document 可読性を確保
 - 表現の主レバーは **700 見出し vs 400 本文** のコントラスト。装飾タイポグラフィは使わない
-- `NotionInter` 非利用環境では Inter + 上表の letter-spacing を明示適用（デフォルト tracking より緩く見える）
+- Inter 非利用環境（フォールバック時）では上表の letter-spacing を明示適用（デフォルト tracking より緩く見える）
 
 ### 3.3 タブレットファースト拡大
 

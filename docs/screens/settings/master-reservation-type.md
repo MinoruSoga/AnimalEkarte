@@ -42,7 +42,7 @@
 ### 3.1 構成コンポーネント
 - **`ReservationTypeSettings`**: メインコンテナ。
 - **`ColorPicker`**: 意味的カラーパレットからの選択。
-- **`TimeDurationInput`**: 時間枠の数値入力（ステップ制御）。
+- **所要時間入力**: `PropertyRow`「所要時間（分）」内の標準 number input（5〜480 分。step 属性による刻み制御はなし）。
 
 ### API連携
 | メソッド | エンドポイント | 用途 | 必須権限 | 必須アクション |
