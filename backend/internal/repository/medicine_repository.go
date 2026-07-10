@@ -32,7 +32,7 @@ func (r *medicineRepository) FindAll(ctx context.Context, clinicID uint64, page,
 	var total int64
 
 	buildBase := func() *gorm.DB {
-		return r.db.WithContext(ctx).Model(&model.Medicine{}).Scopes(clinicScope(clinicID))
+		return dbOrTx(ctx, r.db).Model(&model.Medicine{}).Scopes(clinicScope(clinicID))
 	}
 
 	if err := buildBase().Count(&total).Error; err != nil {
@@ -48,21 +48,21 @@ func (r *medicineRepository) FindAll(ctx context.Context, clinicID uint64, page,
 }
 
 func (r *medicineRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Medicine, error) {
-	return findByIDScoped[model.Medicine](ctx, r.db, "medicine", clinicID, id)
+	return findByIDScoped[model.Medicine](ctx, dbOrTx(ctx, r.db), "medicine", clinicID, id)
 }
 
 // CountUsageByMedicineID は treatments と care_plan_items で参照されている件数の合計を返す（BUG-108）
 // clinic_id フィルタを JOIN で適用しテナント分離を保証する（BUG-377）
 func (r *medicineRepository) CountUsageByMedicineID(ctx context.Context, clinicID, medicineID uint64) (int64, error) {
 	var treatmentCount, carePlanCount int64
-	if err := r.db.WithContext(ctx).
+	if err := dbOrTx(ctx, r.db).
 		Model(&model.Treatment{}).
 		Scopes(medicalRecordTenantScope("treatments", clinicID)).
 		Where("treatments.medicine_id = ? AND treatments.deleted_at IS NULL", medicineID).
 		Count(&treatmentCount).Error; err != nil {
 		return 0, apperrors.FromGORM(err, "treatment", "")
 	}
-	if err := r.db.WithContext(ctx).
+	if err := dbOrTx(ctx, r.db).
 		Model(&model.CarePlanItem{}).
 		Joins("JOIN hospitalizations ON hospitalizations.id = care_plan_items.hospitalization_id AND hospitalizations.clinic_id = ? AND hospitalizations.deleted_at IS NULL", clinicID).
 		Where("care_plan_items.medicine_id = ? AND care_plan_items.deleted_at IS NULL", medicineID).
@@ -74,7 +74,7 @@ func (r *medicineRepository) CountUsageByMedicineID(ctx context.Context, clinicI
 
 func (r *medicineRepository) CountChildrenByParentID(ctx context.Context, clinicID, parentID uint64) (int64, error) {
 	var count int64
-	if err := r.db.WithContext(ctx).
+	if err := dbOrTx(ctx, r.db).
 		Model(&model.Medicine{}).
 		Scopes(clinicScope(clinicID)).
 		Where("parent_id = ? AND deleted_at IS NULL", parentID).
@@ -85,7 +85,7 @@ func (r *medicineRepository) CountChildrenByParentID(ctx context.Context, clinic
 }
 
 func (r *medicineRepository) Create(ctx context.Context, medicine *model.Medicine) error {
-	err := r.db.WithContext(ctx).Create(medicine).Error
+	err := dbOrTx(ctx, r.db).Create(medicine).Error
 	if err != nil {
 		return apperrors.FromGORM(err, "medicine", "")
 	}
@@ -93,7 +93,7 @@ func (r *medicineRepository) Create(ctx context.Context, medicine *model.Medicin
 }
 
 func (r *medicineRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Medicine, error) {
-	if err := updateScopedByID(ctx, r.db, &model.Medicine{}, "medicine", clinicID, id, fields); err != nil {
+	if err := updateScopedByID(ctx, dbOrTx(ctx, r.db), &model.Medicine{}, "medicine", clinicID, id, fields); err != nil {
 		return nil, err
 	}
 	return r.FindByID(ctx, clinicID, id)
@@ -104,5 +104,5 @@ func (r *medicineRepository) Reorder(ctx context.Context, clinicID uint64, ids [
 }
 
 func (r *medicineRepository) Delete(ctx context.Context, clinicID, id uint64) error {
-	return deleteScopedByID(ctx, r.db, &model.Medicine{}, "medicine", clinicID, id)
+	return deleteScopedByID(ctx, dbOrTx(ctx, r.db), &model.Medicine{}, "medicine", clinicID, id)
 }

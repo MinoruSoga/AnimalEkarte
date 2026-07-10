@@ -38,7 +38,7 @@ func (r *inventoryRepository) FindAll(ctx context.Context, clinicID uint64, cate
 	items := make([]model.InventoryItem, 0)
 	var total int64
 
-	q := r.db.WithContext(ctx).Model(&model.InventoryItem{}).Scopes(clinicScope(clinicID))
+	q := dbOrTx(ctx, r.db).Model(&model.InventoryItem{}).Scopes(clinicScope(clinicID))
 	if category != nil {
 		q = q.Where("category = ?", *category)
 	}
@@ -55,12 +55,12 @@ func (r *inventoryRepository) FindAll(ctx context.Context, clinicID uint64, cate
 }
 
 func (r *inventoryRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.InventoryItem, error) {
-	return findByIDScoped[model.InventoryItem](ctx, r.db, "inventory_item", clinicID, id)
+	return findByIDScoped[model.InventoryItem](ctx, dbOrTx(ctx, r.db), "inventory_item", clinicID, id)
 }
 
 func (r *inventoryRepository) Create(ctx context.Context, clinicID uint64, item *model.InventoryItem) error {
 	item.ClinicID = clinicID
-	err := r.db.WithContext(ctx).Create(item).Error
+	err := dbOrTx(ctx, r.db).Create(item).Error
 	if err != nil {
 		if isUniqueConstraintErr(err) {
 			return apperrors.WrapAlreadyExists("inventory_item", item.Name)
@@ -71,7 +71,7 @@ func (r *inventoryRepository) Create(ctx context.Context, clinicID uint64, item 
 }
 
 func (r *inventoryRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.InventoryItem, error) {
-	result := r.db.WithContext(ctx).
+	result := dbOrTx(ctx, r.db).
 		Model(&model.InventoryItem{}).
 		Scopes(clinicScope(clinicID)).Where("id = ?", id).
 		Updates(fields)
@@ -85,7 +85,7 @@ func (r *inventoryRepository) Update(ctx context.Context, clinicID, id uint64, f
 }
 
 func (r *inventoryRepository) Delete(ctx context.Context, clinicID, id uint64) error {
-	result := r.db.WithContext(ctx).Scopes(clinicScope(clinicID)).Where("id = ?", id).Delete(&model.InventoryItem{})
+	result := dbOrTx(ctx, r.db).Scopes(clinicScope(clinicID)).Where("id = ?", id).Delete(&model.InventoryItem{})
 	if result.Error != nil {
 		return apperrors.FromGORM(result.Error, "inventory_item", fmt.Sprintf("%d", id))
 	}
@@ -96,7 +96,7 @@ func (r *inventoryRepository) Delete(ctx context.Context, clinicID, id uint64) e
 }
 
 func (r *inventoryRepository) DecreaseStock(ctx context.Context, id uint64, quantity float64) error {
-	result := r.db.WithContext(ctx).
+	result := dbOrTx(ctx, r.db).
 		Model(&model.InventoryItem{}).
 		Where("id = ?", id).
 		UpdateColumn("quantity", gorm.Expr("quantity - ?", int(quantity)))
@@ -113,7 +113,7 @@ func (r *inventoryRepository) DecreaseStock(ctx context.Context, id uint64, quan
 // (clinic_id, name, category=medicine) で特定して削除する（BUG-381）。
 // マッチなしは no-op（エラーなし）で返す。複数マッチは全件削除。
 func (r *inventoryRepository) DeleteByNameAndMedicineCategory(ctx context.Context, clinicID uint64, name string) error {
-	result := r.db.WithContext(ctx).
+	result := dbOrTx(ctx, r.db).
 		Scopes(clinicScope(clinicID)).
 		Where("name = ? AND category = ?", name, model.InventoryCategoryMedicine).
 		Delete(&model.InventoryItem{})
@@ -126,7 +126,7 @@ func (r *inventoryRepository) DeleteByNameAndMedicineCategory(ctx context.Contex
 // UpdateNameByMedicineCategory は TASK-215 で薬剤名変更時に連携在庫の name を同期する。
 // (clinic_id, oldName, category=medicine) にマッチするレコードを newName に更新する（マッチなしは no-op）。
 func (r *inventoryRepository) UpdateNameByMedicineCategory(ctx context.Context, clinicID uint64, oldName, newName string) error {
-	result := r.db.WithContext(ctx).
+	result := dbOrTx(ctx, r.db).
 		Model(&model.InventoryItem{}).
 		Scopes(clinicScope(clinicID)).
 		Where("name = ? AND category = ?", oldName, model.InventoryCategoryMedicine).
@@ -142,7 +142,7 @@ func (r *inventoryRepository) UpdateNameByMedicineCategory(ctx context.Context, 
 func (r *inventoryRepository) CountUsageByInventoryID(ctx context.Context, clinicID, inventoryID uint64) (int64, error) {
 	var treatmentCount, vaccineCount, medicineCount int64
 	// treatments は clinic_id を直接持たないため medical_records を JOIN してテナント分離
-	if err := r.db.WithContext(ctx).
+	if err := dbOrTx(ctx, r.db).
 		Model(&model.Treatment{}).
 		Scopes(medicalRecordTenantScope("treatments", clinicID)).
 		Where("treatments.inventory_id = ? AND treatments.deleted_at IS NULL", inventoryID).
@@ -150,7 +150,7 @@ func (r *inventoryRepository) CountUsageByInventoryID(ctx context.Context, clini
 		return 0, apperrors.FromGORM(err, "inventory_item", fmt.Sprintf("%d", inventoryID))
 	}
 	// vaccines は clinic_id を直接持つ
-	if err := r.db.WithContext(ctx).
+	if err := dbOrTx(ctx, r.db).
 		Model(&model.Vaccine{}).
 		Scopes(clinicScope(clinicID)).
 		Where("inventory_id = ? AND deleted_at IS NULL", inventoryID).
@@ -158,7 +158,7 @@ func (r *inventoryRepository) CountUsageByInventoryID(ctx context.Context, clini
 		return 0, apperrors.FromGORM(err, "inventory_item", fmt.Sprintf("%d", inventoryID))
 	}
 	// medicines は clinic_id を直接持つ
-	if err := r.db.WithContext(ctx).
+	if err := dbOrTx(ctx, r.db).
 		Model(&model.Medicine{}).
 		Scopes(clinicScope(clinicID)).
 		Where("inventory_id = ? AND deleted_at IS NULL", inventoryID).
