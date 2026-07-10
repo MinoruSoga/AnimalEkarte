@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/table";
 import { C, STYLE } from "@/lib/design-tokens";
 import type { AggregationOwner } from "../api/get-aggregations";
-import type { AggregationTab } from "../routes/AggregationDashboardPage";
+import type { AggregationTab } from "./aggregation-filter-panel-model";
 import { getAggregationOwnerColumns } from "./AggregationOwnerTableColumns";
 
 interface AggregationOwnerTableProps {

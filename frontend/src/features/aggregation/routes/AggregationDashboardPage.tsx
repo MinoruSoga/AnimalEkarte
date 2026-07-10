@@ -14,10 +14,7 @@ import { AggregationFilterPanel } from "../components/AggregationFilterPanel";
 import { AggregationOwnerTable } from "../components/AggregationOwnerTable";
 import { CPMStageSummary } from "../components/CPMStageSummary";
 import { buildCsvContent } from "../components/aggregation-csv";
-
-// 集計軸は仕様書 §6.2 で revenue / visit / last_visit の3つに固定。
-// 既定タブは売上ランキング (revenue)。それ以外の値は URL に書き込めない。
-export type AggregationTab = "revenue" | "visit" | "last_visit";
+import type { AggregationTab } from "../components/aggregation-filter-panel-model";
 
 export const DEFAULT_AGGREGATION_TAB: AggregationTab = "revenue";
 

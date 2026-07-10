@@ -5,7 +5,7 @@ import { BADGE, C } from "@/lib/design-tokens";
 import { CPM_STAGE_SHORT_LABELS, type CPMStage } from "@/lib/cpm-stage";
 
 import type { AggregationOwner, LastVisitBucket } from "../api/get-aggregations";
-import type { AggregationTab } from "../routes/AggregationDashboardPage";
+import type { AggregationTab } from "./aggregation-filter-panel-model";
 
 interface AggregationOwnerColumn {
   key: string;

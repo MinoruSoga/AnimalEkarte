@@ -3,7 +3,10 @@ import type {
   AmountBasis,
   PeriodPreset,
 } from "../api/get-aggregations";
-import type { AggregationTab } from "../routes/AggregationDashboardPage";
+
+// 集計軸は仕様書 §6.2 で revenue / visit / last_visit の3つに固定。
+// 既定タブは売上ランキング (revenue)。それ以外の値は URL に書き込めない。
+export type AggregationTab = "revenue" | "visit" | "last_visit";
 
 export const AMOUNT_BASIS_OPTIONS = [
   { value: "gross_total_amount", label: "売上総額" },

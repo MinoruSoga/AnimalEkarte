@@ -14,7 +14,7 @@ import type {
   AmountBasis,
   PeriodPreset,
 } from "../api/get-aggregations";
-import type { AggregationTab } from "../routes/AggregationDashboardPage";
+import type { AggregationTab } from "./aggregation-filter-panel-model";
 import {
   AMOUNT_BASIS_OPTIONS,
   DEFAULT_SORT_BY_TAB,

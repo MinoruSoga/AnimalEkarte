@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { buildCsvContent } from '../components/aggregation-csv';
 import type { AggregationOwner } from '../api/get-aggregations';
-import type { AggregationTab } from '../routes/AggregationDashboardPage';
+import type { AggregationTab } from '../components/aggregation-filter-panel-model';
 
 const baseOwner: AggregationOwner = {
   owner_id: 'o1',
