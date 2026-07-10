@@ -26,6 +26,10 @@ type BillingItemRepository interface {
 	HasFoodPurchaseByOwnerSince(ctx context.Context, clinicID, ownerID uint64, since time.Time, names []string) (bool, error)
 	// FindOwnersByCategoryPurchaseDate は指定カテゴリの最終購入日が purchaseDate と一致する飼い主IDリストを返す（FEAT-383）。
 	FindOwnersByCategoryPurchaseDate(ctx context.Context, clinicID uint64, category string, purchaseDate time.Time) ([]uint64, error)
+	// FindUnbilledTrimmingItemsByPetID は指定ペットの未請求トリミングコース/オプションを返す(#77)。
+	FindUnbilledTrimmingItemsByPetID(ctx context.Context, clinicID, petID uint64) ([]model.BillingItem, error)
+	// CountNonAccountingTrimmingByPetAndDate は同日同ペットの「未会計対象化」トリミング appointment 件数を返す(#77)。
+	CountNonAccountingTrimmingByPetAndDate(ctx context.Context, clinicID, petID uint64, date time.Time) (int64, error)
 }
 
 type billingItemRepository struct{ db *gorm.DB }

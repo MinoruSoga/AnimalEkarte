@@ -62,6 +62,12 @@ func (m *mockBillingItemRepository) HasFoodPurchaseByOwnerSince(ctx context.Cont
 func (m *mockBillingItemRepository) FindOwnersByCategoryPurchaseDate(_ context.Context, _ uint64, _ string, _ time.Time) ([]uint64, error) {
 	return nil, nil
 }
+func (m *mockBillingItemRepository) FindUnbilledTrimmingItemsByPetID(_ context.Context, _, _ uint64) ([]model.BillingItem, error) {
+	return nil, nil
+}
+func (m *mockBillingItemRepository) CountNonAccountingTrimmingByPetAndDate(_ context.Context, _, _ uint64, _ time.Time) (int64, error) {
+	return 0, nil
+}
 
 func defaultMockBillingItemRepo() *mockBillingItemRepository {
 	return &mockBillingItemRepository{
