@@ -1,5 +1,61 @@
+import { memo, useCallback, useRef } from "react";
+
 import { C, STYLE, PALETTE } from "@/lib/design-tokens";
 import type { CheckupSyncPreviewOwner } from "../api/get-checkup-sync-preview";
+
+interface CheckupSyncPreviewRowProps {
+  owner: CheckupSyncPreviewOwner;
+  eligible: boolean;
+  selected: boolean;
+  onToggle: (ownerId: string, checked: boolean) => void;
+}
+
+const CheckupSyncPreviewRow = memo(function CheckupSyncPreviewRow({
+  owner,
+  eligible,
+  selected,
+  onToggle,
+}: CheckupSyncPreviewRowProps) {
+  return (
+    <tr className={`${STYLE.tableRow} ${eligible ? "" : "opacity-50"}`}>
+      <td className="px-4">
+        <input
+          type="checkbox"
+          checked={selected}
+          onChange={(e) => onToggle(owner.owner_id, e.target.checked)}
+          disabled={!eligible}
+          className={`size-4 cursor-pointer ${C.accentBrand} disabled:cursor-not-allowed`}
+          aria-label={`${owner.owner_name}を選択`}
+        />
+      </td>
+      <td className={`${STYLE.tableCell} px-4`}>{owner.owner_name}</td>
+      <td className={`${STYLE.tableCell} px-4 ${C.text70}`}>
+        {owner.pet_names.join(", ") || "—"}
+      </td>
+      <td className={`${STYLE.tableCell} px-4 ${C.text70}`}>
+        {owner.last_visit_date ? owner.last_visit_date : "—"}
+      </td>
+      <td className="px-4 py-2.5">
+        {owner.has_line ? (
+          <span
+            className="inline-flex items-center gap-1 text-sm font-medium rounded-full px-2 py-0.5"
+            style={{
+              color: PALETTE.lineGreen,
+              backgroundColor: `${PALETTE.lineGreen}1A`,
+            }}
+          >
+            LINE連携済
+          </span>
+        ) : (
+          <span className={`text-sm ${C.textStatusGray}`}>未連携</span>
+        )}
+      </td>
+      <td className={`px-4 py-2.5 text-sm ${C.danger}`}>
+        {owner.exclusion_reason ?? null}
+      </td>
+    </tr>
+  );
+});
 
 interface CheckupSyncPreviewTableProps {
   owners: CheckupSyncPreviewOwner[];
@@ -31,23 +87,32 @@ export function CheckupSyncPreviewTable({
     eligibleOwners.length > 0 &&
     eligibleOwners.every((o) => selectedIds.has(o.owner_id));
 
-  function handleSelectAll(checked: boolean) {
-    if (checked) {
-      onSelectionChange(new Set(eligibleOwners.map((o) => o.owner_id)));
-    } else {
-      onSelectionChange(new Set());
-    }
-  }
+  const handleSelectAll = useCallback(
+    (checked: boolean) => {
+      if (checked) {
+        onSelectionChange(new Set(eligibleOwners.map((o) => o.owner_id)));
+      } else {
+        onSelectionChange(new Set());
+      }
+    },
+    [eligibleOwners, onSelectionChange],
+  );
 
-  function handleRowToggle(ownerId: string, checked: boolean) {
-    const next = new Set(selectedIds);
-    if (checked) {
-      next.add(ownerId);
-    } else {
-      next.delete(ownerId);
-    }
-    onSelectionChange(next);
-  }
+  const selectedIdsRef = useRef(selectedIds);
+  selectedIdsRef.current = selectedIds;
+
+  const handleRowToggle = useCallback(
+    (ownerId: string, checked: boolean) => {
+      const next = new Set(selectedIdsRef.current);
+      if (checked) {
+        next.add(ownerId);
+      } else {
+        next.delete(ownerId);
+      }
+      onSelectionChange(next);
+    },
+    [onSelectionChange],
+  );
 
   const lineUnlinkedCount = totalCount - lineLinkedCount;
 
@@ -109,53 +174,15 @@ export function CheckupSyncPreviewTable({
                 </td>
               </tr>
             ) : null}
-            {owners.map((owner) => {
-              const eligible = isEligible(owner);
-              return (
-                <tr
-                  key={owner.owner_id}
-                  className={`${STYLE.tableRow} ${eligible ? "" : "opacity-50"}`}
-                >
-                  <td className="px-4">
-                    <input
-                      type="checkbox"
-                      checked={selectedIds.has(owner.owner_id)}
-                      onChange={(e) =>
-                        handleRowToggle(owner.owner_id, e.target.checked)
-                      }
-                      disabled={!eligible}
-                      className={`size-4 cursor-pointer ${C.accentBrand} disabled:cursor-not-allowed`}
-                      aria-label={`${owner.owner_name}を選択`}
-                    />
-                  </td>
-                  <td className={`${STYLE.tableCell} px-4`}>{owner.owner_name}</td>
-                  <td className={`${STYLE.tableCell} px-4 ${C.text70}`}>
-                    {owner.pet_names.join(", ") || "—"}
-                  </td>
-                  <td className={`${STYLE.tableCell} px-4 ${C.text70}`}>
-                    {owner.last_visit_date ? owner.last_visit_date : "—"}
-                  </td>
-                  <td className="px-4 py-2.5">
-                    {owner.has_line ? (
-                      <span
-                        className="inline-flex items-center gap-1 text-sm font-medium rounded-full px-2 py-0.5"
-                        style={{
-                          color: PALETTE.lineGreen,
-                          backgroundColor: `${PALETTE.lineGreen}1A`,
-                        }}
-                      >
-                        LINE連携済
-                      </span>
-                    ) : (
-                      <span className={`text-sm ${C.textStatusGray}`}>未連携</span>
-                    )}
-                  </td>
-                  <td className={`px-4 py-2.5 text-sm ${C.danger}`}>
-                    {owner.exclusion_reason ?? null}
-                  </td>
-                </tr>
-              );
-            })}
+            {owners.map((owner) => (
+              <CheckupSyncPreviewRow
+                key={owner.owner_id}
+                owner={owner}
+                eligible={isEligible(owner)}
+                selected={selectedIds.has(owner.owner_id)}
+                onToggle={handleRowToggle}
+              />
+            ))}
           </tbody>
         </table>
       </div>
