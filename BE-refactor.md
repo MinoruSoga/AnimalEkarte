@@ -1,8 +1,8 @@
 # BE-refactor.md — バックエンド リファクタリング計画（Appendix A / H フォローアップのみ残存）
 
-> **本編（挙動保存トラック、G1/G2/G6/G9/G12/G13/G14 の全17件）は 2026-07-10 に完遂（Epic CLOSED）。**
-> Appendix A は P1 4件（X-1, X-3, X-4, X-5）が 2026-07-10 の Session 1（本 Run）で CLOSED。
-> 残るのは Appendix A 10件（X-9〜X-18、P2/P3）と、レビュー由来フォローアップ H-1〜H-7（別チケット化推奨）のみ。
+> 残るのは Appendix A 8件（X-11〜X-18、P3中心）と、レビュー由来フォローアップ H-1〜H-7（別チケット化推奨）のみ。
+> 本編（挙動保存トラック）および Appendix A の CLOSED 済み項目は本ファイルから削除済み（詳細は git log 参照）。
+> X-9（resv-slot-phantom-toctou）・X-10（mr-version-check-not-atomic）は挙動変更トラックとして実装完了・CLOSED（詳細は git log 参照）。
 > 前提: backend は 2026-07-02 完遂の D1-D13/R1-R3 計画で一度系統的にリファクタ済み・複数回の監査で well-maintained と判定済みのコードベースである。
 
 ## 監査の方法と信頼性
@@ -14,41 +14,8 @@
 
 | 区分 | 件数 | 内訳 |
 |---|---|---|
-| 本編（挙動保存） | **0件 — CLOSED 2026-07-10** | 全17件完遂（詳細は本ファイル履歴 / git log 参照） |
-| Appendix A（挙動変更・別トラック） | 10件 | X-9〜X-18（P1 4件 X-1/X-3/X-4/X-5 は Session 1 で CLOSED） |
+| Appendix A（挙動変更・別トラック） | 8件 | X-11〜X-18 |
 | レビュー由来フォローアップ（未登録・別チケット推奨） | 7件 | H-1, H-2, H-3, H-4, H-5, H-6, H-7 |
-
-## 本編 CLOSED 履歴（2026-07-10）
-
-```
-G12-1 → G12-2 → G13-1 → G14-1: 2026-07-10 実装・CLOSED（allModels exhaustiveness gate / item_source enum parity gate /
-  lab import 補償ログ / accountingService.Update allowlist精度修正）
-G1-1 / G1-3 / G1-4 / G2-1 / G2-2: 2026-07-09 の前セッションで既に CLOSED 済みだったと判明（本ファイル未更新のstaleな記載を本セッションで是正）
-G1-2: 前セッションで 203→82 まで既完了、残差63件中48件を2026-07-10に追加完了。残る15件（14件は同一ハンドラのエイリアス
-  重複登録・1件はPOST /api/line/webhookのパース制約）は internal/apicontract/openapi_route_drift_test.go の
-  allowlist にコメント付きでpin。CLOSED
-G1-5 / G1-6: 2026-07-10 実装・CLOSED（stale prototype docs 削除 / onboarding docs 是正）
-X-2 / X-6 / X-7 / X-8（Appendix A、G6-2/G9-1 の BLOCKED 解消を目的にユーザー承認済みスコープとして本 Run に含めた）:
-  2026-07-10、RED→GREEN 実証 + security-reviewer 独立レビュー(CRITICAL/HIGH 0件)を経て CLOSED
-G6-2 → G9-1: BLOCKED 解消後 2026-07-10 に実装・CLOSED（tx機構の残り9ファイル一括置換+CLAUDE.md規約追加、
-  main.go 二段階DI統合）。G9-1 は go-reviewer 独立レビュー Approve。
-Appendix A Session 1（P1 Wave、ユーザー承認済み挙動変更トラック）: 2026-07-10、X-1 / X-3 / X-4 / X-5 の4件を
-  RED→GREEN実証 + 独立 security-reviewer レビュー(CRITICAL/HIGH 0件、X-3 は healthcare-reviewer advisory も実施・
-  ブロッキング懸念なし)を経て CLOSED。
-  X-1 (cbae4838): SanitizeNullBytes の Content-Type 判定を allowlist(application/json のみ)ではなく
-    binary-type blocklist(multipart/form-data, application/octet-stream)に変更。初回実装は allowlist 案だったが
-    security-reviewer が c.ShouldBindJSON の Content-Type 非依存パースとの相互作用でJSON経路のサニタイズが
-    弱まるHIGHを指摘し、blocklistへ修正のうえCLOSED。
-  X-4 + X-5 (8ecb61e0、同一コミット — cross_tenant_master_fk_write_test.go/master_fk_write_inventory_lint_test.go/
-    service.go を共有編集していたため1コミットに統合): billingItemService.CreateItem の
-    TrimmingCourseID/TrimmingOptionID、campaignService.Create/Update の TargetItemIDs にクリニック所有権
-    FindByID ガードを追加。billingItemService.CreateItem の MerchandiseItemID はこの書込経路で未使用
-    （dead field）と判明し allowlist を known-unguarded・PARTIAL 注記のまま維持（out of scope、正しい判断）。
-  X-3 (48db0430): model.AuditLog.IPAddress を string→*string 化、audit_service.go に空文字→nil正規化を追加し
-    inet 列への INSERT 失敗(22P02)を解消。ClinicID は *uint64 のまま gorm:"not null" タグのみ追加（H-4 の
-    根本解消はスコープ外・下表参照）。audit_real_ddl_test.go を新設し AutoMigrate 製の乖離テストスキーマを
-    実DDLベースに置換。
-```
 
 ### レビュー由来フォローアップ（本編未登録）
 
@@ -57,7 +24,7 @@ Appendix A Session 1（P1 Wave、ユーザー承認済み挙動変更トラッ�
 | H-1 | `UpdateStaffGroups` の staff_id 単位 DELETE が多施設所属スタッフの他クリニックグループ紐付けを意図せず削除しうる | G11-1 security-reviewer | HIGH — 別チケット化推奨 |
 | H-2 | `UpdateExcludedReservationTypes`（reservation_staff_repository.go）の DELETE が `staff_id` のみでスコープされ `clinic_id` を含まない一方、INSERT は呼び出しクリニックの型IDのみ。`staff_reservation_exclusions` テーブル自体に `clinic_id` 列が無いため、多施設所属スタッフに対しては clinic A の正当な操作が clinic B の除外設定行を無警告で全削除する（H-1 と同型のクロステナント破壊）。兄弟の `UpdateReservationCapabilities`/`staff_reservation_capabilities` は自前 `clinic_id` 列を持ち `Where("clinic_id = ? AND staff_id = ?")` で正しくスコープされており非対称。 | G11-4 security-reviewer（`UpdateReservationCapabilities` との比較監査で発見） | HIGH — 別チケット化推奨（`staff_reservation_exclusions` への `clinic_id` 列追加 or DELETE を真の差分更新へ変更、要 migration） |
 | H-3 | `billing_items.category` に索引が無く、`FindOwnersByCategoryPurchaseDate`（Lstep FEAT-383 配信ターゲティング、バッチ/cron想定）が `category = ?` 述語 + `billings` join で Seq Scan リスク。テーブル成長に伴い悪化。既存索引は `merchandise_item_id`/`treatment_id`/`appointment_id`/`trimming_course_id`/`trimming_option_id`/`billing_id`/`deleted_at` のみで `category` は対象外。`idx_billings_clinic_completed_at` も `WHERE status='completed'` の部分索引でこの3クエリ（status述語なし）はカバーしない。 | G11-5 database-reviewer | MEDIUM（パフォーマンス、要 migration・別チケット推奨: `CREATE INDEX idx_billing_items_category ON billing_items(category) WHERE deleted_at IS NULL`） |
-| H-4 | `audit_logs.clinic_id` が Go では `*uint64`（nil許容）だが DDL では `bigint NOT NULL REFERENCES clinics(id)`。Go 側の nil 許容がコンパイル時には検出されない実行時 NULL 制約違反クラス（INSERT 失敗）を許す。**PARTIAL（2026-07-10, X-3）**: `gorm:"not null"` タグを追加し DB 制約をモデルに明示、`audit_real_ddl_test.go` で NOT NULL 違反(23502)を実DDLで固定。ただし Go 型は `*uint64` のまま（コンパイル時保証は未達成、X-3 のスコープ外と明示決定 — `AuditLogInput`/呼出6箇所への波及を避けるため）。security-reviewer 確認: 実防御は `validateAuditLog`（既存・nil/0 を実行前に拒否）であり gorm タグ自体は現状どの AutoMigrate 呼び出しからも参照されない decoration。 | G12-1 schema_drift nullability check（新設） | LOW（残作業は型を `uint64` 非ポインタ化するのみ・完全解消は別チケット推奨） |
+| H-4 | `audit_logs.clinic_id` が Go では `*uint64`（nil許容）だが DDL では `bigint NOT NULL REFERENCES clinics(id)`。`gorm:"not null"` と実DDLテストは済だが、Go 型は `*uint64` のまま（コンパイル時保証なし）。実防御は `validateAuditLog`（nil/0 拒否）。 | G12-1 schema_drift nullability check | LOW（残作業は型を `uint64` 非ポインタ化するのみ・別チケット推奨） |
 | H-5 | `lstep_csv_imports.uploaded_by_user_id` が Go では `*uint64`（nil許容）だが DDL では `bigint NOT NULL REFERENCES accounts(id)`。H-4 と同型のクラス。 | G12-1 schema_drift nullability check（新設） | MEDIUM（要 migration or model 修正・別チケット推奨） |
 | H-6 | `backend/CODING_RULES.md` の §3.2/§5.1/§5.4/§6.1/§6.3 に、G1-6 で是正した README.md と同型の forbidden-pattern 教材コード（生の `gin.H{"error":...}` レスポンス、`uuid.UUID` ベースの `FindByID` シグネチャ例 — 実際は全モデル `uint64` PK、sentinel-error `errors.Is` 例示で `apperrors.FromGORM`/`RespondError` 未使用）が残存。§6 に `RequirePermission`/P5 ルートゲーティングの言及が一切ない。G1-6 の対象範囲（ディレクトリツリーのみ）を超える約400行規模の書き直しのため別ユニット化推奨。 | G1-6 実装エージェント | MEDIUM（オンボーディング文書の質・別チケット推奨） |
 | H-7 | `reservationStaffService.Update` の所有権確認読み取り(`s.GetByID`)が tx 外で行われ、確認〜更新の間にスタッフが削除されると TOCTOU の窓が生じる。X-8 の修正対象（fields 更新+除外設定置換の原子性）とは独立した既存の設計であり、X-8 は悪化させていない（security-reviewer 確認済み）。低頻度の管理操作のため実害は限定的。 | X-8 security-reviewer | LOW（別チケット化検討・優先度低） |
@@ -66,57 +33,7 @@ Appendix A Session 1（P1 Wave、ユーザー承認済み挙動変更トラッ�
 
 ## Appendix A: 挙動変更を伴う項目（別トラック・PO/責任者判断を要する）
 
-以下10件は監査で実在を確認した defect だが、修正すると HTTP レスポンス・DB書込結果・権限判定・API契約のいずれかが観測可能な形で変わる。このため本計画（挙動保存リファクタ）の実行対象からは外し、個別 Issue として起票のうえ別トラックで扱うことを推奨する。severity 順に記載。
-
-（X-2 lstep-nilcipher-stale-di / X-6 tx-medicine-inventory-nonparticipation / X-7 tx-clinic-create-nonparticipation / X-8 tx-reservation-staff-nonparticipation は 2026-07-10、G6-2/G9-1 の BLOCKED 解消を目的にユーザー承認済みスコープとして RED→GREEN 実証 + security-reviewer 独立レビュー(CRITICAL/HIGH 0件)を経て CLOSED。P1 4件 X-1 sanitize-multipart-binary-corruption / X-3 audit-ip-inet-model-drift / X-4 billing-item-trimming-fk-unguarded / X-5 campaign-target-item-fk-unguarded は 2026-07-10 の Session 1 で同様に CLOSED — 詳細は上の「本編 CLOSED 履歴」ブロック参照。残るのは P2/P3 の 10件。）
-
-### X-9. 予約枠競合チェックの SELECT FOR UPDATE は空枠のファントム挿入を防げず、同時予約で重複/超過予約が成立する
-
-- **ID**: `resv-slot-phantom-toctou`
-- **重要度**: P2 / **工数目安**: M
-- **対象ファイル**: internal/repository/reservation_repository.go (294-316); internal/service/reservation_capacity.go (33-59); internal/service/reservation_service.go (208-221); internal/service/reservation_validators.go (92-139); migrations/001_init.sql (2692-2695)
-- **依存関係**: なし。dbortx_inventory_lint_test.go の allowlist 更新を同一コミットで行うこと
-
-**証拠(現HEAD検証済み)**
-
-reservation_repository.go:301-309 `err := dbOrTx(ctx, r.db).Raw(`\n\t\tSELECT id FROM appointments\n\t\tWHERE clinic_id = ?\n\t\t  AND deleted_at IS NULL\n\t\t  AND status NOT IN ('cancelled')\n\t\t  AND start_time < ?\n\t\t  AND end_time > ?\n\t\t  AND (? = 0 OR id != ?)\n\t\tFOR UPDATE`` — FOR UPDATE は既存行のみロックし、条件に合致する行が 0 件（空枠）の場合は何もロックしない。型別容量は reservation_capacity.go:51 `count, err := reservationRepo.CountByTypeAndStartTime(ctx, clinicID, reservationTypeID, startTime, excludeID)` の素の COUNT（FOR UPDATE すら無し、reservation_repository.go:318-329）。DB バックストップは migrations/001_init.sql:2693-2695 `CREATE UNIQUE INDEX uk_appointment_staff_time ON appointments (clinic_id, doctor_id, start_time) WHERE deleted_at IS NULL AND status != 'cancelled';` のみで、(a) doctor_id が NULL の容量枠予約、(b) 同一医師の start_time が異なる時間重複（10:00-10:30 vs 10:15-10:45）、(c) MaxConcurrent 上限の型別容量は表現できない。reservation_service.go:208-210 のコメント「SELECT FOR UPDATE + トランザクションで競合を防止」は空枠ケースでは成立しない。
-
-**問題**
-
-check-then-act（競合カウント→INSERT）で、READ COMMITTED のスナップショット外で並行 tx が INSERT した行は数えられずロックもできない（ファントム）。空き枠に対する同時 2 リクエスト（LINE 予約は不特定多数から到達）が双方 0 件/上限未満と判定し双方 INSERT → 医師二重予約・出勤医師数超過・予約区分 MaxConcurrent 超過が成立する。既存 FOR UPDATE は「既存行がある場合の直列化」しか提供せず、コメントが主張する防止保証と実装が乖離している。
-
-**対応方針(挙動変更を伴うため要PO/責任者判断のうえ別トラックで実施)**
-
-1) ReservationRepository に `AcquireBookingLock(ctx context.Context, clinicID uint64) error` を新設し `SELECT pg_advisory_xact_lock(hashtextextended('appointments:' || ?::text, 0))`（clinic 単位のトランザクションスコープ advisory lock、dbOrTx 参加）を実装。2) reservation_service.go の Create(WithTx 内先頭・enforceBookingConstraints 時のみ)・updateWithConflictCheck(WithTx 内先頭)、reservation_validators.go ValidateAndCreate(WithTx 内先頭) の 3 箇所で競合チェック前に取得。3) dbortx_inventory_lint_test.go の allowlist に新メソッドを登録。4) 並行性テストを internal/repository/ に追加（2 goroutine が同一空枠を同時予約し、ちょうど 1 件だけ成功することを実 DB で検証。ltv_repository_test.go:1562 の advisory lock 利用が参考）。clinic 単位ロックで粒度が粗い懸念は、予約書込レートが clinic あたり低頻度のため許容（過剰な粒度細分化は不要）。
-
-**検証コマンド(スコープ限定)**
-```
-docker compose exec backend go test ./internal/repository/ -run 'TestReservation|TestDBOrTxInventory' -count=1 && docker compose exec backend go test ./internal/service/ -run TestReservation -count=1
-```
-
-### X-10. カルテ楽観ロックの version 照合が UPDATE の WHERE に含まれず、並行 draft 編集で lost update が成立する
-
-- **ID**: `mr-version-check-not-atomic`
-- **重要度**: P2 / **工数目安**: S
-- **対象ファイル**: internal/service/medical_record_crud.go (214-264); internal/repository/medical_record_repository.go (236-250)
-- **依存関係**: なし
-
-**証拠(現HEAD検証済み)**
-
-medical_record_crud.go:230-233 「// version が指定されている場合は一致確認\n\tif input.Version != nil && existing.Version != *input.Version {\n\t\treturn nil, apperrors.WrapConflict("他のユーザーがこのカルテを変更しました。再読み込みしてください")\n\t}」→ 同 254 行 `fields["version"] = existing.Version + 1` → repo 側 medical_record_repository.go:237-241 「result := r.db.WithContext(ctx).\n\t\tModel(&model.MedicalRecord{}).\n\t\tScopes(clinicScope(clinicID)).\n\t\tWhere("id = ? AND status = ?", id, model.MedicalRecordStatusDraft).\n\t\tUpdates(fields)」— WHERE は id+clinic+status のみで version 述語が無い。service 層の一致確認は tx 外の FindByID(216 行) 読取に対する check-then-act。
-
-**問題**
-
-2 名のスタッフが同一 version=N を読んで同時に更新すると、両者とも service 層チェックを通過し、両 UPDATE が WHERE(id, status=draft) にマッチして成功する。後勝ちがフィールドを黙って上書きし、かつ両者とも version=N+1 を書くため、以後のクライアントも競合を検出できない（楽観ロックの目的である lost update 防止が並行時に機能しない）。status=draft 述語は finalize 済みへの編集は原子的に防いでいるが、draft 同士の競合は防げない。
-
-**対応方針(挙動変更を伴うため要PO/責任者判断のうえ別トラックで実施)**
-
-1) medical_record_repository.go の Update シグネチャに `expectedVersion *uint64`（または fields とは別引数）を追加し、非 nil 時に `Where("version = ?", *expectedVersion)` を付与。2) RowsAffected==0 の場合、tx 内で status を再読して「not draft」（既存 Conflict メッセージ維持）と「version 不一致」（既存の『他のユーザーがこのカルテを変更しました』メッセージ）を区別して返す。3) medical_record_crud.go:214-264 の Update から service 層 version 照合を repo 述語に一本化（input.Version==nil の従来挙動＝照合なしは保存）。4) 並行 2 goroutine で同一 version から同時更新し片方だけ成功するテストを internal/repository/ に追加。呼出面: medical_record repo Update の他呼出箇所のシグネチャ追随が必要（grep で確認のこと）。
-
-**検証コマンド(スコープ限定)**
-```
-docker compose exec backend go test ./internal/repository/ -run TestMedicalRecord -count=1 && docker compose exec backend go test ./internal/service/ -run TestMedicalRecord -count=1
-```
+以下8件は監査で実在を確認した defect だが、修正すると HTTP レスポンス・DB書込結果・権限判定・API契約のいずれかが観測可能な形で変わる。このため本計画（挙動保存リファクタ）の実行対象からは外し、個別 Issue として起票のうえ別トラックで扱うことを推奨する。severity 順に記載。
 
 ### X-11. カルテ確定ロック(HC-003/005/006)の親 status チェックが子エンティティ書込と非原子で、確定と同時の子追加/編集が確定済カルテに混入しうる
 

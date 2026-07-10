@@ -46,7 +46,11 @@ type MedicalRecordRepository interface {
 	// FindByIDForClinics は複数医院スコープでカルテを1件取得する (#86 詳細画面拠点横断)。clinicIDs はハンドラ層で所属検証済みであること。
 	FindByIDForClinics(ctx context.Context, clinicIDs []uint64, id uint64) (*model.MedicalRecord, error)
 	Create(ctx context.Context, record *model.MedicalRecord) error
-	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.MedicalRecord, error)
+	// Update は clinicID+id+status=draft でカルテを更新する。expectedVersion が非 nil の場合、
+	// WHERE に version 述語を追加し（BE-refactor.md X-10: 楽観ロックの原子化）、RowsAffected==0
+	// を「他のユーザーが変更した」（version不一致）と「確定済みで編集不可」（not draft）に区別する。
+	// expectedVersion が nil の場合は従来どおり version 述語なし（照合スキップ）。
+	Update(ctx context.Context, clinicID, id uint64, fields map[string]any, expectedVersion *int) (*model.MedicalRecord, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
 	// DeleteDraftByAppointmentID は予約に紐づく draft カルテを論理削除する (#83 Q10)
 	DeleteDraftByAppointmentID(ctx context.Context, clinicID, appointmentID uint64) error
@@ -219,16 +223,35 @@ func (r *medicalRecordRepository) Create(ctx context.Context, record *model.Medi
 	return nil
 }
 
-func (r *medicalRecordRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.MedicalRecord, error) {
-	result := r.db.WithContext(ctx).
+// Update は BE-refactor.md X-10 のとおり、expectedVersion が非 nil の場合に WHERE へ
+// version 述語を追加して楽観ロックを UPDATE と原子化する。RowsAffected==0 になった場合、
+// version 述語を追加していたときだけ現在の status を再読して理由を区別する
+// （draft のまま = version不一致、draft でない = 従来どおり not-draft）。再読自体が
+// 失敗した場合は情報を出し過ぎないよう従来の not-draft Conflict にフォールバックする。
+func (r *medicalRecordRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any, expectedVersion *int) (*model.MedicalRecord, error) {
+	q := r.db.WithContext(ctx).
 		Model(&model.MedicalRecord{}).
 		Scopes(clinicScope(clinicID)).
-		Where("id = ? AND status = ?", id, model.MedicalRecordStatusDraft).
-		Updates(fields)
+		Where("id = ? AND status = ?", id, model.MedicalRecordStatusDraft)
+	if expectedVersion != nil {
+		q = q.Where("version = ?", *expectedVersion)
+	}
+	result := q.Updates(fields)
 	if result.Error != nil {
 		return nil, apperrors.FromGORM(result.Error, "medical_record", fmt.Sprintf("%d", id))
 	}
 	if result.RowsAffected == 0 {
+		if expectedVersion != nil {
+			var current model.MedicalRecord
+			err := r.db.WithContext(ctx).
+				Model(&model.MedicalRecord{}).
+				Scopes(clinicScope(clinicID)).
+				Where("id = ?", id).
+				First(&current).Error
+			if err == nil && current.Status == model.MedicalRecordStatusDraft {
+				return nil, apperrors.WrapConflict("他のユーザーがこのカルテを変更しました。再読み込みしてください")
+			}
+		}
 		// status != draft（finalized or already being updated）
 		return nil, apperrors.WrapConflict("medical_record is not in draft status")
 	}

@@ -35,6 +35,9 @@ func (m *batchMockReservationRepo) Update(ctx context.Context, clinicID, id uint
 	return &model.Reservation{}, nil
 }
 func (m *batchMockReservationRepo) Delete(_ context.Context, _, _ uint64) error { return nil }
+func (m *batchMockReservationRepo) AcquireBookingLock(_ context.Context, _ uint64) error {
+	return nil
+}
 func (m *batchMockReservationRepo) LockAndFindByID(_ context.Context, _, _ uint64) (*model.Reservation, error) {
 	return nil, nil
 }
@@ -93,7 +96,7 @@ func (m *batchMockMedRecordRepo) FindByIDForClinics(_ context.Context, _ []uint6
 	return nil, nil
 }
 func (m *batchMockMedRecordRepo) Create(_ context.Context, _ *model.MedicalRecord) error { return nil }
-func (m *batchMockMedRecordRepo) Update(_ context.Context, _, _ uint64, _ map[string]any) (*model.MedicalRecord, error) {
+func (m *batchMockMedRecordRepo) Update(_ context.Context, _, _ uint64, _ map[string]any, _ *int) (*model.MedicalRecord, error) {
 	return nil, nil
 }
 func (m *batchMockMedRecordRepo) Delete(_ context.Context, _, _ uint64) error { return nil }

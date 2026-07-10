@@ -37,7 +37,7 @@ func (m *mockMedRecordRepoForLstepVisit) FindByIDForClinics(_ context.Context, _
 func (m *mockMedRecordRepoForLstepVisit) Create(_ context.Context, _ *model.MedicalRecord) error {
 	return nil
 }
-func (m *mockMedRecordRepoForLstepVisit) Update(_ context.Context, _, _ uint64, _ map[string]any) (*model.MedicalRecord, error) {
+func (m *mockMedRecordRepoForLstepVisit) Update(_ context.Context, _, _ uint64, _ map[string]any, _ *int) (*model.MedicalRecord, error) {
 	return nil, nil
 }
 func (m *mockMedRecordRepoForLstepVisit) Delete(_ context.Context, _, _ uint64) error { return nil }

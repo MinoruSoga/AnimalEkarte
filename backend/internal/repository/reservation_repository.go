@@ -31,9 +31,23 @@ type ReservationCRUDRepository interface {
 	Delete(ctx context.Context, clinicID, id uint64) error
 }
 
-// ReservationSlotRepository はトランザクション内の競合チェック操作（4 メソッド）。
+// ReservationSlotRepository はトランザクション内の競合チェック操作（5 メソッド）。
 // dbOrTx でコンテキストの tx を自動使用。reservation_service で使用。
 type ReservationSlotRepository interface {
+	// AcquireBookingLock は clinic 単位の pg_advisory_xact_lock を取得する（BE-refactor.md X-9）。
+	// CountConflicts/CountByTypeAndStartTime の SELECT FOR UPDATE は条件に合致する既存行が
+	// 0 件（空枠）の場合は何もロックしないため、空き枠への同時予約がファントムで両方成功しうる。
+	// WithTx トランザクションの先頭でこの advisory lock を取得することで、同一 clinic の
+	// 予約競合チェック→INSERT を直列化する。トランザクション終了時に自動解放される
+	// （pg_advisory_xact_lock はセッションではなくトランザクションスコープ）。
+	// 【不変条件・デッドロック防止】appointments 行に対する行ロック（LockAndFindByID/
+	// HasDoctorConflict/CountConflicts 等の SELECT FOR UPDATE）を取得する前に、同一
+	// トランザクション内で必ず本メソッドを先頭で呼ぶこと。逆順（行ロック取得後に advisory
+	// lock を取得）を許すと、2つのトランザクションが互いの advisory lock/行ロックを待ち合う
+	// AB-BA デッドロックが理論上成立しうる（現在の3呼び出し元 reservation_service.go の
+	// Create/updateWithConflictCheck・reservation_validators.go の ValidateAndCreate は
+	// いずれもこの順序を守っている）。
+	AcquireBookingLock(ctx context.Context, clinicID uint64) error
 	// LockAndFindByID は FOR UPDATE で予約を行ロック取得する（updateWithConflictCheck 用）。
 	LockAndFindByID(ctx context.Context, clinicID, id uint64) (*model.Reservation, error)
 	// HasDoctorConflict は指定医師の時間枠重複を SELECT FOR UPDATE でチェックする。
@@ -227,6 +241,22 @@ func (r *reservationRepository) CountMedicalRecordsByReservationID(ctx context.C
 		return 0, apperrors.FromGORM(err, "medical_record", "")
 	}
 	return count, nil
+}
+
+// AcquireBookingLock は clinic 単位の pg_advisory_xact_lock を取得する（BE-refactor.md X-9）。
+// hashtextextended で "appointments:{clinicID}" をハッシュ化した bigint をロックキーに使う。
+// pg_advisory_xact_lock はトランザクションスコープのため、呼び出し元の WithTx がコミット/
+// ロールバックした時点で自動解放される（明示的な unlock 不要）。dbOrTx でトランザクション
+// 内の ambient tx に参加する。
+func (r *reservationRepository) AcquireBookingLock(ctx context.Context, clinicID uint64) error {
+	lockKey := fmt.Sprintf("appointments:%d", clinicID)
+	if err := dbOrTx(ctx, r.db).Exec(
+		"SELECT pg_advisory_xact_lock(hashtextextended(?, 0))",
+		lockKey,
+	).Error; err != nil {
+		return apperrors.Wrap(err, "failed to acquire booking lock")
+	}
+	return nil
 }
 
 // LockAndFindByID は FOR UPDATE で予約を行ロック取得する。

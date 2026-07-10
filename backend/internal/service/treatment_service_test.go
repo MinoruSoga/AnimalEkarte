@@ -35,7 +35,7 @@ func (m *mockMedicalRecordRepoForTreatment) FindByIDForClinics(_ context.Context
 func (m *mockMedicalRecordRepoForTreatment) Create(_ context.Context, _ *model.MedicalRecord) error {
 	return nil
 }
-func (m *mockMedicalRecordRepoForTreatment) Update(_ context.Context, _, _ uint64, _ map[string]any) (*model.MedicalRecord, error) {
+func (m *mockMedicalRecordRepoForTreatment) Update(_ context.Context, _, _ uint64, _ map[string]any, _ *int) (*model.MedicalRecord, error) {
 	return &model.MedicalRecord{}, nil
 }
 func (m *mockMedicalRecordRepoForTreatment) Delete(_ context.Context, _, _ uint64) error {

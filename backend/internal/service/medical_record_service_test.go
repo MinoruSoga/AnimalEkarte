@@ -50,7 +50,7 @@ func (m *mockMedicalRecordRepository) Create(ctx context.Context, record *model.
 	return m.createFn(ctx, record)
 }
 
-func (m *mockMedicalRecordRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.MedicalRecord, error) {
+func (m *mockMedicalRecordRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any, _ *int) (*model.MedicalRecord, error) {
 	if m.updateFieldsFn != nil {
 		return m.updateFieldsFn(ctx, clinicID, id, fields)
 	}
@@ -1334,7 +1334,7 @@ func TestAutoCreateFromReservation_BUG386(t *testing.T) {
 }
 
 // mockReservationRepoForMedicalRecord は MedicalRecord テスト用 ReservationRepository モック。
-// FindByID のみカスタマイズ可能。他の 16 メソッドは noop スタブ。
+// FindByID のみカスタマイズ可能。他の 17 メソッドは noop スタブ。
 type mockReservationRepoForMedicalRecord struct {
 	findByIDFn        func(ctx context.Context, clinicID, id uint64) (*model.Reservation, error)
 	updateFn          func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Reservation, error)
@@ -1364,6 +1364,9 @@ func (m *mockReservationRepoForMedicalRecord) Update(ctx context.Context, clinic
 	return nil, nil
 }
 func (m *mockReservationRepoForMedicalRecord) Delete(_ context.Context, _, _ uint64) error {
+	return nil
+}
+func (m *mockReservationRepoForMedicalRecord) AcquireBookingLock(_ context.Context, _ uint64) error {
 	return nil
 }
 func (m *mockReservationRepoForMedicalRecord) LockAndFindByID(_ context.Context, _, _ uint64) (*model.Reservation, error) {

@@ -31,7 +31,7 @@ func (m *dormantMockMedicalRecordRepository) FindByIDForClinics(_ context.Contex
 func (m *dormantMockMedicalRecordRepository) Create(_ context.Context, _ *model.MedicalRecord) error {
 	return nil
 }
-func (m *dormantMockMedicalRecordRepository) Update(_ context.Context, _, _ uint64, _ map[string]any) (*model.MedicalRecord, error) {
+func (m *dormantMockMedicalRecordRepository) Update(_ context.Context, _, _ uint64, _ map[string]any, _ *int) (*model.MedicalRecord, error) {
 	return nil, nil
 }
 func (m *dormantMockMedicalRecordRepository) Delete(_ context.Context, _, _ uint64) error { return nil }

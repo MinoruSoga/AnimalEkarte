@@ -228,11 +228,6 @@ func (s *medicalRecordService) Update(ctx context.Context, clinicID, id uint64, 
 		return nil, apperrors.WrapConflict("確定済みカルテは編集できません。訂正追記 (addendum) を使用してください")
 	}
 
-	// version が指定されている場合は一致確認
-	if input.Version != nil && existing.Version != *input.Version {
-		return nil, apperrors.WrapConflict("他のユーザーがこのカルテを変更しました。再読み込みしてください")
-	}
-
 	// owner_id 変更時: クリニック所属確認
 	if input.OwnerID != nil {
 		if _, err := s.ownerRepo.FindByID(ctx, clinicID, *input.OwnerID); err != nil {
@@ -251,14 +246,19 @@ func (s *medicalRecordService) Update(ctx context.Context, clinicID, id uint64, 
 	if len(fields) == 0 {
 		return nil, apperrors.WrapInvalidInput("at least one field must be provided")
 	}
-	// バージョンをインクリメント
-	fields["version"] = existing.Version + 1
+	// バージョンをインクリメント（input.Version 指定時はそれを起点にする。BE-refactor.md X-10:
+	// version 一致確認は repo.Update の WHERE 述語に一本化したため、ここでの事前チェックは行わない）
+	nextVersion := existing.Version + 1
+	if input.Version != nil {
+		nextVersion = *input.Version + 1
+	}
+	fields["version"] = nextVersion
 
 	// 監査 diff は更新前に取得（finalize 検出のため）
 	wasFinalized := existing.Status == model.MedicalRecordStatusFinalized
 	isBecomingFinalized := input.Status != nil && *input.Status == model.MedicalRecordStatusFinalized && !wasFinalized
 
-	record, err := s.repo.Update(ctx, clinicID, id, fields)
+	record, err := s.repo.Update(ctx, clinicID, id, fields, input.Version)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to update medical record", "error", err)
 		return nil, apperrors.Wrap(err, "failed to update medical record")
@@ -352,9 +352,10 @@ func (s *medicalRecordService) UpdateRecommendationReason(
 		reasonValue = input.Reason
 	}
 
+	// バージョン照合なし（このメソッドの入力に version が存在しないため従来どおり）
 	record, err := s.repo.Update(ctx, clinicID, id, map[string]any{
 		colRecommendationReason: reasonValue,
-	})
+	}, nil)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to update recommendation_reason", "error", err, "id", id, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to update recommendation_reason")

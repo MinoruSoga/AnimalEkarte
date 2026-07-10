@@ -99,7 +99,7 @@ func (m *mockMedicalRecordRepositoryForExam) Create(ctx context.Context, record 
 	return nil
 }
 
-func (m *mockMedicalRecordRepositoryForExam) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.MedicalRecord, error) {
+func (m *mockMedicalRecordRepositoryForExam) Update(ctx context.Context, clinicID, id uint64, fields map[string]any, _ *int) (*model.MedicalRecord, error) {
 	return nil, nil
 }
 

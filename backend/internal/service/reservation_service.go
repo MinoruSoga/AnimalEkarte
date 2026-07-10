@@ -208,8 +208,13 @@ func (s *reservationService) Create(ctx context.Context, input *CreateManualRese
 	// SELECT FOR UPDATE + トランザクションで競合を防止
 	// LINE予約・電子カルテ予約・管理者手動予約すべてで同一テーブルを使用するため、
 	// アプリケーションレベルでの排他制御が必要
+	// BE-refactor.md X-9: 空き枠（既存行 0 件）は SELECT FOR UPDATE が何もロックしないため、
+	// AcquireBookingLock（clinic 単位 advisory xact lock）で競合チェック～INSERT を直列化する。
 	if err := s.tx.WithTx(ctx, func(ctx context.Context) error {
 		if enforceBookingConstraints {
+			if err := s.repo.AcquireBookingLock(ctx, reservation.ClinicID); err != nil {
+				return err
+			}
 			if err := checkSlotConflict(ctx, s.repo, reservation.ClinicID, reservation.DoctorID, reservation.StartTime, reservation.EndTime, nil); err != nil {
 				return err
 			}
@@ -355,6 +360,11 @@ func validateLineReservationCheckedInLink(current *model.Reservation, input *Upd
 func (s *reservationService) updateWithConflictCheck(ctx context.Context, clinicID, id uint64, fields map[string]any, input *UpdateReservationInput) (*model.Reservation, error) {
 	var result *model.Reservation
 	if err := s.tx.WithTx(ctx, func(ctx context.Context) error {
+		// BE-refactor.md X-9: 空き枠への同時更新（別予約への時刻変更等）もファントムの対象
+		// のため、competing な Create と同じ advisory lock で直列化する。
+		if err := s.repo.AcquireBookingLock(ctx, clinicID); err != nil {
+			return err
+		}
 		// 現在の予約を行ロックで取得（競合チェックの基準値として使用）
 		current, err := s.repo.LockAndFindByID(ctx, clinicID, id)
 		if err != nil {

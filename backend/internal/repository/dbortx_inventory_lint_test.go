@@ -91,6 +91,7 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"refund_repository.go|refundRepository.SumByBillingID":                 {},
 	"refund_repository.go|refundRepository.SumByBillingIDAndPaymentMethod": {},
 	// reservation (uniform dbOrTx)
+	"reservation_repository.go|reservationRepository.AcquireBookingLock":                 {}, // X-9 (Appendix-A phantom-booking fix)
 	"reservation_repository.go|reservationRepository.CountByCustomerAndDateRange":        {},
 	"reservation_repository.go|reservationRepository.CountByDateAndSource":               {},
 	"reservation_repository.go|reservationRepository.CountByTypeAndStartTime":            {},

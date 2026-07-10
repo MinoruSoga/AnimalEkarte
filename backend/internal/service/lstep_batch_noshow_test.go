@@ -38,6 +38,9 @@ func (m *noShowMockReservationRepository) Update(ctx context.Context, clinicID, 
 	return &model.Reservation{ID: id}, nil
 }
 func (m *noShowMockReservationRepository) Delete(_ context.Context, _, _ uint64) error { return nil }
+func (m *noShowMockReservationRepository) AcquireBookingLock(_ context.Context, _ uint64) error {
+	return nil
+}
 func (m *noShowMockReservationRepository) LockAndFindByID(_ context.Context, _, _ uint64) (*model.Reservation, error) {
 	return nil, nil
 }

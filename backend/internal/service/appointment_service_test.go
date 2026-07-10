@@ -70,6 +70,10 @@ func (m *mockReservationRepository) CountMedicalRecordsByReservationID(ctx conte
 	return 0, nil
 }
 
+func (m *mockReservationRepository) AcquireBookingLock(_ context.Context, _ uint64) error {
+	return nil
+}
+
 func (m *mockReservationRepository) LockAndFindByID(ctx context.Context, clinicID, id uint64) (*model.Reservation, error) {
 	if m.lockAndFindByIDFn != nil {
 		return m.lockAndFindByIDFn(ctx, clinicID, id)

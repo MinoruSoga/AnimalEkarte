@@ -412,6 +412,10 @@ func (m *mockLiffReservationRepository) CountMedicalRecordsByReservationID(_ con
 	return 0, nil
 }
 
+func (m *mockLiffReservationRepository) AcquireBookingLock(_ context.Context, _ uint64) error {
+	return nil
+}
+
 func (m *mockLiffReservationRepository) LockAndFindByID(_ context.Context, _, _ uint64) (*model.Reservation, error) {
 	return nil, apperrors.ErrNotFound
 }

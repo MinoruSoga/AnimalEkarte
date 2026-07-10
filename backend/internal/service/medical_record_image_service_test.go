@@ -40,7 +40,7 @@ func (m *mockMedicalRecordRepositoryForImage) FindAll(_ context.Context, _ []uin
 func (m *mockMedicalRecordRepositoryForImage) Create(_ context.Context, _ *model.MedicalRecord) error {
 	return nil
 }
-func (m *mockMedicalRecordRepositoryForImage) Update(_ context.Context, _, _ uint64, _ map[string]any) (*model.MedicalRecord, error) {
+func (m *mockMedicalRecordRepositoryForImage) Update(_ context.Context, _, _ uint64, _ map[string]any, _ *int) (*model.MedicalRecord, error) {
 	return nil, nil
 }
 func (m *mockMedicalRecordRepositoryForImage) Delete(_ context.Context, _, _ uint64) error {

@@ -91,6 +91,12 @@ func (v *reservationValidators) ValidateAndCreate(ctx context.Context, input *Cr
 
 	var result *model.Reservation
 	if err := v.tx.WithTx(ctx, func(ctx context.Context) error {
+		// BE-refactor.md X-9: LINE予約は不特定多数から到達するため、空き枠への同時アクセスが
+		// 最も起こりやすい経路。AcquireBookingLock（clinic 単位 advisory xact lock）で
+		// 競合チェック～INSERT を直列化する。
+		if err := v.repo.AcquireBookingLock(ctx, input.ClinicID); err != nil {
+			return err
+		}
 		// 時間枠を SELECT FOR UPDATE でロック
 		startDT, err := toDateTime(input.Date, input.StartTime)
 		if err != nil {
