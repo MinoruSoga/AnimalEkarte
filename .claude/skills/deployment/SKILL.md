@@ -1,11 +1,11 @@
 ---
 name: Deployment
-description: バックエンド(AWS ECS)・フロントエンド(Vercel)へのアプリケーションデプロイ。両方とも GitHub Actions 経由で自動化。
+description: バックエンド(Cloudflare Workers + Containers。ECS は backend-deploy-ecs.yml によるロールバック専用)・フロントエンド(Vercel)へのアプリケーションデプロイ。両方とも GitHub Actions 経由で自動化。
 ---
 
 # デプロイメントスキル
 
-> AnimalEkarte は **バックエンドを AWS ECS**、**フロントエンドを Vercel** にデプロイ。両方とも GitHub Actions ワークフロー経由で自動化（`backend-deploy.yml` / `frontend-deploy.yml`）。
+> AnimalEkarte は **バックエンドを Cloudflare Workers + Containers**、**フロントエンドを Vercel** にデプロイ。両方とも GitHub Actions ワークフロー経由で自動化（`backend-deploy.yml` / `frontend-deploy.yml`）。AWS ECS はロールバック専用経路（`backend-deploy-ecs.yml`・DEPRECATED）として残存。
 
 ## このスキルを使用するタイミング
 
@@ -16,7 +16,8 @@ description: バックエンド(AWS ECS)・フロントエンド(Vercel)への�
 ## デプロイフロー（実際）
 
 ```
-Backend:  git push → backend-deploy.yml → Docker Build → ECR Push → ECS Deploy → migrate task run
+Backend:  git push → backend-deploy.yml → wrangler deploy → migrate（Cloudflare Workers + Containers）
+          ※ ECS ロールバックは backend-deploy-ecs.yml (workflow_dispatch・DEPRECATED)
 Frontend: git push → frontend-deploy.yml → vercel pull → vercel build → vercel deploy（VERCEL_TOKEN使用）
 ```
 
@@ -25,8 +26,8 @@ Frontend: git push → frontend-deploy.yml → vercel pull → vercel build → 
 デプロイは **GitHub Actions で自動実行**（`scripts/deploy.sh` は存在しない）。
 
 ```bash
-# ステージング: main ブランチへの push で自動デプロイ（backend/frontend 両方）
-git push origin main
+# ステージング: staging ブランチへの push で自動デプロイ（backend/** / frontend/** 変更時。frontend は production push でも発火）
+git push origin staging
 
 # 手動トリガー (workflow_dispatch)
 # GitHub Actions → backend-deploy.yml / frontend-deploy.yml → Run workflow
@@ -44,10 +45,10 @@ gh run watch
 ## 重要な注意事項
 
 - 必ずステージングで検証してから本番へ
-- ECS タスク定義のロールバックは AWS Console または `aws ecs update-service`
+- バックエンドのロールバックは `backend-deploy-ecs.yml`（workflow_dispatch）経由の ECS 切り戻し（手順は platforms/aws.md）
 - デプロイ後はモニタリングダッシュボードを確認
 
 ## プラットフォーム参照
 
-- AWS ECS（バックエンド）: [platforms/aws.md](./platforms/aws.md)
+- AWS ECS（バックエンドのロールバック専用・DEPRECATED）: [platforms/aws.md](./platforms/aws.md)
 - フロントエンドは Vercel（`.github/workflows/frontend-deploy.yml`）にデプロイ。AWS 対象外。

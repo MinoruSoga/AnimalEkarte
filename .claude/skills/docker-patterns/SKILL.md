@@ -35,6 +35,7 @@ docker compose exec backend go test ./internal/service/...
 make up          # docker compose up -d
 make down        # docker compose down
 make logs        # docker compose logs -f
+# ⚠️ 上3つは CLAUDE.md の自動実行禁止コマンド（docker compose up/down/logs）。ユーザーに手動実行を依頼する
 
 # Frontend
 docker compose exec frontend pnpm lint
@@ -52,11 +53,12 @@ docker compose exec backend golangci-lint run ./...
 # ⚠️ CLAUDE.md の自動実行禁止コマンド。ユーザーに手動実行を依頼するか、スコープ限定版を使う
 
 # Database
-docker compose exec db psql -U postgres -d ekarte_dev
+make db  # = docker compose exec db sh -c 'psql -U $POSTGRES_USER -d $POSTGRES_DB'
 # ⚠️ CLAUDE.md の自動実行禁止コマンド。ユーザーに手動実行を依頼するか、スコープ限定版を使う
 
 # CodeGen（Go モデル → TypeScript 型）
 make codegen
+# ⚠️ CLAUDE.md の自動実行禁止コマンド。ユーザーに手動実行を依頼する
 ```
 
 ## ヘルスチェック・トラブルシューティング
@@ -76,7 +78,7 @@ docker compose exec backend sh
 
 # ネットワーク確認
 docker network ls
-docker network inspect ekarte_default
+docker network inspect ekarte-network
 
 # ボリューム確認
 docker volume ls
@@ -90,6 +92,7 @@ docker volume ls
 docker compose down -v
 # ⚠️ CLAUDE.md の自動実行禁止コマンド。ユーザーに手動実行を依頼するか、スコープ限定版を使う
 docker compose up -d
+# ⚠️ CLAUDE.md の自動実行禁止コマンド。ユーザーに手動実行を依頼する
 ```
 
 ### ポート競合
@@ -97,7 +100,7 @@ docker compose up -d
 # 使用中のポートを確認
 lsof -i :3003
 lsof -i :8080
-lsof -i :5432
+lsof -i :5434  # db はホスト 5434 → コンテナ 5432 にマップ
 
 # 停止後に再起動
 make down
@@ -139,7 +142,7 @@ RUN go mod download      # 依存を先にキャッシュ
 COPY . .
 RUN CGO_ENABLED=0 go build -o app ./cmd/api
 
-FROM alpine:3.20
+FROM alpine:3.21
 WORKDIR /app
 RUN apk add --no-cache ca-certificates tzdata
 COPY --from=builder /app/app .
@@ -186,7 +189,7 @@ RUN addgroup -g 1000 appuser && adduser -D -u 1000 -G appuser appuser
 USER appuser
 
 # ✅ 最小イメージ（attack surface 削減）
-FROM alpine:3.20  # debian/ubuntu より小さい
+FROM alpine:3.21  # debian/ubuntu より小さい
 
 # ✅ .dockerignore で機密ファイル除外
 .env
@@ -203,7 +206,7 @@ node_modules
 make up       # 全サービス起動
 make down     # 全サービス停止
 make logs     # ログ表示（follow）
-make db       # DB マイグレーション実行
+make db       # DB接続（psql）。マイグレーションは make migrate
 make codegen  # Go モデル → TS 型生成
 make clean    # キャッシュクリア + 再ビルド
 make test-front  # フロントエンドテスト

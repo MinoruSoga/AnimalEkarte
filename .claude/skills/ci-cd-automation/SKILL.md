@@ -13,7 +13,8 @@ description: このプロジェクトの GitHub Actions CI/CD 構成の把握と
 | ファイル | 役割 |
 |---------|------|
 | `ci.yml` | メイン CI（下記ジョブ構成） |
-| `backend-deploy.yml` | Backend の AWS ECS デプロイ（`db_reset` input あり） |
+| `backend-deploy.yml` | Backend の Cloudflare Workers + Containers デプロイ |
+| `backend-deploy-ecs.yml` | ECS ロールバック専用（DEPRECATED・workflow_dispatch のみ・`db_reset` input あり） |
 | `frontend-deploy.yml` | Frontend デプロイ |
 | `e2e.yml` | E2E テスト |
 | `security-scan.yml` | agentshield（エージェント設定の監査。Go コードスキャナではない） |
@@ -62,7 +63,8 @@ gh run view <run-id> --json jobs
 
 ### 3. golangci-lint の件数 cap に注意
 
-`.golangci.yml` の `max-same-issues` / `max-issues-per-linter` により**件数が過少表示される**（11件目以降が隠れる）。完全な件数確認は cap 解除で行う:
+現行の `backend/.golangci.yml` は `max-issues-per-linter: 0 / max-same-issues: 0`（cap 解除済み・2026-06-30対応）。
+ただし cap が再導入された場合や古いブランチでは `max-same-issues` / `max-issues-per-linter` により**件数が過少表示される**（11件目以降が隠れる）ため、完全な件数確認では cap 解除を明示付与する:
 
 ```bash
 --max-same-issues 0 --max-issues-per-linter 0
@@ -84,13 +86,17 @@ docker compose exec -T backend sh -c 'GOLANGCI_LINT_CACHE=/tmp/glc-$RANDOM golan
 
 ### 5. DB 依存テストの fresh-DB ゲート
 
-warm-DB（前 run のテーブル残存）でローカル PASS しても CI の fresh DB で FAIL する。seed / migration / ENUM を変更した場合はテスト DB を作り直して1回走らせる。
+warm-DB（前 run のテーブル残存）でローカル PASS しても CI の fresh DB で FAIL する。seed / migration / ENUM を変更した場合はテスト DB を作り直して1回走らせる（DB再作成は自動実行禁止コマンドに該当するためユーザーに手動実行を依頼する）。
 （出典: memory ops_golangci_lint_cap_and_reconcile_20260630）
 
 ## ワークフロー変更時の注意
 
 - **バージョン統一**: Actions のバージョンはリポジトリ全体で統一されている（setup-node v6 等）。1ファイルだけ上げない（出典: memory infra002_github_actions_unification_complete — 「value の DRY ≠ actions の DRY」）
 - **drift スキャンは `with:` / `env:` / `working-directory:` も対象**（出典: memory feedback_workflow_with_param_drift）
+- **actionlint はバージョンドリフトを検出しない**。「actionlint が通った＝Actions バージョン統一が保たれている」は誤り。ドリフト検査の正本は `scripts/check-actions-version-drift.sh`（actionlint.yml に組込済）
+- **新規ワークフロー追加は既存の「統一済み」状態を静かに壊す**。新規 yml 追加時は既存と同じ action バージョン（@v6 系）か必ず突合する（backend-deploy.yml に setup-node@v4 が混入し #195 が回帰した実例）
+
+  （出典: memory closed_issue_reaudit_20260707 / commit 2d8ab41d）
 - **production 起動条件（env）変更は CI workflow にも波及**する。`.github/workflows/` の env を同時更新（出典: memory feedback_config_change_ci_propagation）
 - workflow ファイル変更後は actionlint.yml が走る（paths フィルタあり — 見かけ green に注意）
 

@@ -39,6 +39,17 @@ description: Gitコミットメッセージを生成。git commit、コミット
 - **Co-Authored-By 行は付けない**（2026-05-04 確定。グローバル規約より優先）。過去コミットに残る署名は無視してよい
 （出典: memory feedback_co_authored_by_drift）
 
+## 並行セッション環境でのコミット安全則
+
+このリポジトリは複数 Claude セッションが同一 working tree を共有することがある。
+
+- **commit 直前に `git log -1` / `git status` で、自分の add 以降に HEAD が動いていないか確認する**。動いていれば別セッションに割り込まれている（ステージ済みファイルが他セッションのコミットに混入した実例あり）
+- **stage は必ず自分の変更パスに限定する**（`git add <明示パス>`）。working tree に無関係な変更が混在している前提で動く
+- **doc の「一部だけコミット」指示では `git diff --cached --stat` の規模を想定と比較する**。想定より大きければ無関係な未コミット書き直しが道連れになっている——独断でコミットせずユーザーに確認する
+- 別セッションが push 済みの混在コミットは reset/rebase で分離しない（公開履歴の破壊）
+
+（出典: memory feedback_concurrent_session_commit_collision / feedback_doc_commit_structural_bleed_20260709 / be_refactor_execution_20260702）
+
 ## Example
 
 ```

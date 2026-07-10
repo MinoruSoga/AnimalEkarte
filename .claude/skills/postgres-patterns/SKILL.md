@@ -174,7 +174,7 @@ docker compose exec db psql -U postgres -d ekarte_dev -c \
 
 ```
 適用済み migration の編集は禁止（checksum mismatch → db_reset が必要になる）
-変更は常に最終番号+1 の incremental migration として追加（012 まで採番済み。migration-seed-safety スキル参照）
+変更は常に最終番号+1 の incremental migration として追加（現行は 002 まで採番済み。実行前に `ls backend/migrations/*.sql` で最新番号を確認する。migration-seed-safety スキル参照）
 ```
 
 ```sql

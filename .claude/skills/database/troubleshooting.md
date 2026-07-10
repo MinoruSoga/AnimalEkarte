@@ -2,6 +2,8 @@
 
 > AnimalEkarte は GORM v2 + PostgreSQL 18 + Raw SQL マイグレーション。
 
+> ⚠️ 本ファイルのコマンドの大半（`docker compose restart` / `down -v` / `up -d` / `docker system prune` / `psql` 直実行 / `make codegen`）は CLAUDE.md の自動実行禁止コマンド。実行はユーザーに手動依頼する。
+
 ## よくある問題と解決策
 
 ### 1. 接続エラー
@@ -17,7 +19,7 @@ docker compose ps db
 docker compose restart db
 
 # 接続確認
-docker compose exec db psql -U postgres -d animalekarte -c "\conninfo"
+docker compose exec db psql -U "$DB_USER" -d "$DB_NAME" -c "\conninfo"
 
 # 環境変数確認（backend コンテナ内）
 docker compose exec backend env | grep DB
@@ -37,15 +39,16 @@ docker compose exec backend env | grep DB
 **対処手順**:
 ```bash
 # 1. 現在のスキーマ確認
-docker compose exec db psql -U postgres -d animalekarte -c "\dt"
+docker compose exec db psql -U "$DB_USER" -d "$DB_NAME" -c "\dt"
 
 # 2. 失敗箇所を特定してSQLを修正
-# backend/migrations/001_init.sql を編集
+# （適用済み migration の編集は禁止 — checksum mismatch。最終番号+1 の新規ファイルで修正）
 
 # 3. 開発環境: DB をリセットして再適用
+#    適用は backend の migration ランナー（backend/cmd/migrate、schema_migrations + checksum 管理）が行う
+#    （/migrations は db コンテナにマウントされていないため psql での直接適用は不可）
 docker compose down -v   # ボリューム削除
-docker compose up -d db
-docker compose exec db psql -U postgres -d animalekarte -f /migrations/001_init.sql
+docker compose up -d     # backend 起動時に migration ランナーが適用
 
 # 4. GORM モデル変更を codegen に反映
 make codegen
@@ -64,7 +67,7 @@ make codegen
 **対処**:
 ```bash
 # DB の実際のスキーマを確認
-docker compose exec db psql -U postgres -d animalekarte -c "\d table_name"
+docker compose exec db psql -U "$DB_USER" -d "$DB_NAME" -c "\d table_name"
 
 # backend/migrations/001_init.sql と GORM モデルを突き合わせて修正
 # モデル変更後は codegen 実行
@@ -85,14 +88,16 @@ EXPLAIN ANALYZE SELECT * FROM pets WHERE owner_id = 1;
 -- インデックス確認
 \di+ pets
 
--- スロークエリ確認
+-- スロークエリ確認（pg_stat_statements 拡張の有効化が前提。`\dx` で確認）
 SELECT query, mean_exec_time FROM pg_stat_statements ORDER BY mean_exec_time DESC LIMIT 10;
 ```
 
 **対処**:
 ```sql
 -- インデックス追加（最終番号+1 の新規 migration で追加。適用済みファイルへの追記は禁止 — checksum mismatch）
-CREATE INDEX CONCURRENTLY idx_pets_owner_id ON pets(owner_id);
+-- migration ランナーは tx 内実行のため migration 内では CONCURRENTLY 不可。
+-- 通常の CREATE INDEX を使用（実例: 002_add_checkup_vaccination_indexes.sql）
+CREATE INDEX idx_pets_owner_id ON pets(owner_id);
 ```
 
 ---
@@ -131,7 +136,7 @@ docker system df
 docker system prune -f
 
 # PostgreSQL VACUUM
-docker compose exec db psql -U postgres -d animalekarte -c "VACUUM FULL;"
+docker compose exec db psql -U "$DB_USER" -d "$DB_NAME" -c "VACUUM FULL;"
 ```
 
 ---
@@ -142,10 +147,10 @@ docker compose exec db psql -U postgres -d animalekarte -c "VACUUM FULL;"
 
 ```bash
 # バックアップ作成
-docker compose exec db pg_dump -U postgres animalekarte > backup_$(date +%Y%m%d).sql
+docker compose exec db pg_dump -U "$DB_USER" "$DB_NAME" > backup_$(date +%Y%m%d).sql
 
 # 復元
-docker compose exec -T db psql -U postgres -d animalekarte < backup_20260101.sql
+docker compose exec -T db psql -U "$DB_USER" -d "$DB_NAME" < backup_20260101.sql
 ```
 
 ### 開発環境の完全リセット

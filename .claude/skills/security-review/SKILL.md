@@ -91,17 +91,32 @@ db.Where(fmt.Sprintf("name = '%s'", userInput)).Find(&owners)
 ## 4. 認証・認可
 
 ```go
-// ✅ middleware で全ルートに認証チェック
-router.Use(middleware.AuthRequired())
-router.Use(middleware.ClinicScope()) // clinic_id によるスコープ
+// ✅ middleware で全ルートに認証チェック（実在 API: backend/internal/middleware/auth.go:30）
+// clinic_id スコープは Auth middleware 内で c.Set("clinic_id", ...) される
+// （ClinicScope という middleware は存在しない）
+router.Use(middleware.Auth(secret, isProduction, auditSvc, staffSvc))
 
 // ✅ Handler で clinic_id を middleware から取得（ユーザー入力信用禁止）
-clinicID := c.GetUint64("clinic_id") // middleware が設定した値
-ownerID := c.GetUint64("owner_id")   // middleware が設定した値
+clinicID := c.GetString("clinic_id") // context 値は string（auth.go が c.Set("clinic_id", string) している）。uint64 が必要なら strconv.ParseUint
+userID := c.GetString("user_id")     // middleware が設定した値
 
 // ❌ ユーザー入力から clinic_id を取得（禁止）
 clinicID, _ := strconv.ParseUint(c.Query("clinic_id"), 10, 64)
 ```
+
+## 認可・検証ロジックのエラーパスは fail-closed
+
+```go
+// ❌ 検証用データの取得エラーを握り潰すと検証が vacuous pass する（CRITICAL 実例）
+ids, err := repo.FindAllGroupIDsByStaffID(ctx, staffID)
+if err != nil { ids = nil } // → 自己参照ガードが空集合で素通り
+// ✅ 取得失敗はエラーで拒否（fail-closed）
+if err != nil { return apperrors.Wrap(...) }
+```
+
+チェック: 認可・ガード判定の入力取得が error 時に「空集合＋続行」になっていないか。同型として、parse 失敗の `continue`（fail-open）もバリデーション素通りを起こす。
+
+（出典: memory be_second_lens_audit_20260630 / F-3 CRITICAL 修正 76cb562f）
 
 ## 5. XSS 対策（React）
 
@@ -154,7 +169,7 @@ RespondError(c, err) // 内部エラーはログに記録、ユーザーには�
 
 ```bash
 # Go: gosec 静的分析
-docker compose exec backend gosec ./...
+docker compose exec backend gosec ./...  # 未導入 — 導入後のみ実行可
 
 # TypeScript: 依存関係の脆弱性
 docker compose exec frontend pnpm audit --audit-level=high

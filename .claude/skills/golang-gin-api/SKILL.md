@@ -32,7 +32,7 @@ myapp/
 │   ├── middleware/          # Auth, CORS, logging, rate limiting
 │   ├── config/              # Configuration
 │   ├── logger/              # slog structured logging
-│   └── db/                  # DB connection management
+│   └── dbconn/              # DB connection management（実プロジェクトのディレクトリ名）
 └── go.mod
 ```
 

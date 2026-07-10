@@ -74,7 +74,8 @@ make codegen
 
 ```
 NNN_description.sql
-例: 001_init.sql, 002_seed_master.sql
+例: 001_init.sql, 002_add_checkup_vaccination_indexes.sql
+（seed は backend/migrations/seeds/ 配下の CSV バンドル）
 ```
 
 ## クエリ最適化

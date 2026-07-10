@@ -34,9 +34,20 @@ eval(untrustedCode)
 // 安全: JSON パース + 検証後に使用
 const data = JSON.parse(userInput)
 
-// 安全: URL検証
-const safeUrl = userInput.startsWith('http') ? userInput : '/default'
-<img src={sanitize(userProvidedUrl)} />
+// 安全: URL検証（new URL + origin/プロトコル allowlist。
+// 文字列 prefix 判定（"http" で始まるか等）は http://evil.com を通す不十分な検証なので禁止）
+const ALLOWED_ORIGINS = ['https://api.example.com']
+const toSafeUrl = (userInput: string): string => {
+  try {
+    const url = new URL(userInput)
+    return url.protocol === 'https:' && ALLOWED_ORIGINS.includes(url.origin)
+      ? url.href
+      : '/default'
+  } catch {
+    return '/default' // パース不能な入力は既定値へ
+  }
+}
+<img src={toSafeUrl(userProvidedUrl)} />
 ```
 
 ### 2. CSRF（クロスサイト要求偽造）対策
@@ -131,6 +142,9 @@ export const Card = React.memo(({ content, onClick }: Props) => {
 ```
 
 #### フォーム入力のサニタイズ
+
+> **DOMPurify は本プロジェクト未導入**（package.json に無し）。dangerouslySetInnerHTML を新規導入する場合のみ依存追加とセットで使用。
+
 ```typescript
 import DOMPurify from 'dompurify'
 
@@ -157,7 +171,7 @@ const isAllowed = ALLOWED_SCRIPTS.includes(scriptUrl)
 ### XSS 対策
 - [ ] dangerouslySetInnerHTML 使用なし
 - [ ] ユーザー入力は自動エスケープ
-- [ ] DOMPurify で HTML フィルタリング
+- [ ] DOMPurify で HTML フィルタリング（**DOMPurify は本プロジェクト未導入**。dangerouslySetInnerHTML を新規導入する場合のみ依存追加とセットで使用）
 - [ ] iframe の信頼済みソースのみ
 
 ### CSRF 対策

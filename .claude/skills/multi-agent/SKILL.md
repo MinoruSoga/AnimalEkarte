@@ -188,6 +188,14 @@ combined = merge_search_results(results)
 - レビュアー間で判定が割れたら、脆弱寄りに倒して自分で再精査する
 （出典: memory cross_tenant_read_idor_audit_20260629 / be_refactor_systematic_20260630 / preload_clinic_scope_lint_p0_20260630）
 
+## fork / named agent の再開と成果物検証
+
+- **再開は SendMessage で agent id/name を `to` に指定する**。同じ `name` で `Agent` を新規呼び出しすると、文脈を一切引き継がない別エージェントが生成される（監査データを失った実例あり）
+- **fork の完了報告は妥当性を検証してから信用する**: tool_uses:0・所要2.5秒など実態と不整合な値なら成果物の実体（`wc -l` 等）を確認する。0 バイトのまま「完了」報告が返った実例あり
+- 大きな執筆・集約タスクを fork に投げたら、完了直後に成果物ファイルを必ず検証する
+
+（出典: memory feedback_fork_resume_requires_sendmessage）
+
 ## 参照
 
 - [How We Built Our Multi-Agent Research System](https://www.anthropic.com/engineering/multi-agent-research-system)

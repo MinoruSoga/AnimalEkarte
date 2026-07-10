@@ -1,6 +1,6 @@
 ---
 name: migration-seed-safety
-description: backend/migrations/ の新規作成・編集、およびseed(002/003/004)の差し替え作業における安全ガードレール。CASCADE DELETE禁止・clinic_idスコープ・checksum mismatch回避・クロステナントID衝突チェックを網羅。migration/seedファイルに触れる際に使用。
+description: backend/migrations/ の新規作成・編集、およびseedバンドル（backend/migrations/seeds/{002_master,003_demo,004_staging}/*.csv + manifest.json）の差し替え作業における安全ガードレール。CASCADE DELETE禁止・clinic_idスコープ・checksum mismatch回避・クロステナントID衝突チェックを網羅。migration/seedファイルに触れる際に使用。
 ---
 
 # Migration / Seed Safety
@@ -17,7 +17,7 @@ description: backend/migrations/ の新規作成・編集、およびseed(002/00
 ## いつ発動するか
 
 - `backend/migrations/*.sql` の新規作成・編集
-- seed（`002_seed_master.sql` / `003_seed_demo.sql` / `004_seed_staging.sql`）の内容変更
+- seedバンドル（`backend/migrations/seeds/002_master|003_demo|004_staging/*.csv` と `manifest.json`）の内容変更。CSV は手編集せず `backend/cmd/seed-export` で使い捨て DB から dump して再生成するのが正規手順
 
 ## 必須チェックリスト（新規migrationファイル作成時）
 
@@ -38,6 +38,8 @@ description: backend/migrations/ の新規作成・編集、およびseed(002/00
    （出典: memory seed_lowid_remap_xtenant_regression / seed_master_update_startup_crash_revert）
 7. **CI を通っても migrate の実走を仮定しない — ローカル fresh-DB 実適用が正本**: 現行 ci.yml は main 向け PR も対象だが、paths-filter で migration ジョブが skip され得るうえ、通常 CI は fresh DB への全 migration 適用を保証しない（過去には main 向け PR が Backend CI 対象外で未検証のまま merge された実例あり）。seed/migration 変更は merge 前に `docker compose down -v && up -d db && run --rm backend go run ./cmd/migrate` で ERROR ゼロを確認（ユーザー承認の上で）
    （出典: memory seed_lowid_remap_xtenant_regression。CI 対象ブランチは .github/workflows/ci.yml を正とする）
+8. **CSV は実 DB の COPY dump が正本** — INSERT 文の静的レビューという概念は廃止済み。verify_seed.py は CSV を直接検証する
+9. **seed のフォーマット移送（SQL→CSV 等）はテーブル単位の全数突合が必須**: 旧ソースの INSERT 対象テーブル一覧と新ソースのファイル一覧を diff で機械突合する。目視移送では欠落する（SQL→CSV 移行で checkup_type_fields が丸ごと欠落した実例）。復元は `git show <旧commit>:<旧ファイル>` を正本にする。（出典: memory closed_issue_reaudit_20260707 修正 3e9c449f / seed_csv_migration_20260706）
 
 ## checksum mismatchからの復旧
 

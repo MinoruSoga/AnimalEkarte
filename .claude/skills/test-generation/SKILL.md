@@ -125,6 +125,9 @@ func TestCreateOwner(t *testing.T) {
 - トランザクション成功・失敗
 
 #### モック生成例
+
+> **mockery は本プロジェクト未導入**（go.mod/Makefile に無し）。既存テストは testify + 実 DB（setupTestDB）+ 手書き fn-field モックが正本。mockery 導入は別途依存追加が必要。
+
 ```go
 // mockery によるモック自動生成
 type OwnerRepository interface {
@@ -170,7 +173,8 @@ describe('OwnerCard', () => {
 
 #### ユーザーインタラクション テスト
 ```typescript
-import { render, screen, userEvent } from '@testing-library/react'
+import { render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { OwnerForm } from './OwnerForm'
 
 test('submits form with valid data', async () => {
@@ -274,8 +278,8 @@ func TestCreateOwnerAPI(t *testing.T) {
 ### 4. テストカバレッジ
 
 ```bash
-# Coverage レポート生成
-docker compose exec backend go test -coverprofile=coverage.out ./...
+# Coverage レポート生成（スコープ限定 — 全体カバレッジ計測はユーザー手動実行。CLAUDE.md 禁止コマンド）
+docker compose exec backend go test -coverprofile=coverage.out ./internal/<対象パッケージ>/...
 docker compose exec backend go tool cover -html=coverage.out
 
 # 目標: 80% 以上

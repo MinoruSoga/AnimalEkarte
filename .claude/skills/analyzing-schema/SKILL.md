@@ -10,7 +10,7 @@ description: データベーススキーマの分析・マイグレーション�
 ## Overview
 
 Go/GORM + PostgreSQL 環境に特化したデータベーススキーマ分析スキル。
-AnimalEkarte プロジェクトの103テーブル構成（正確な数は backend/migrations/001_init.sql を正とする）を理解し、スキーマ変更・マイグレーション・モデル定義を支援する。
+AnimalEkarte プロジェクトのテーブル構成は backend/migrations/001_init.sql を正とする（2026-07時点で約110テーブル）。これを理解し、スキーマ変更・マイグレーション・モデル定義を支援する。
 
 ## When to Use
 

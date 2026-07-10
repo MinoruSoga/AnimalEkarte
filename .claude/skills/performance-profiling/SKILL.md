@@ -154,7 +154,8 @@ export function MyComponent() {
 
 #### Lighthouse スコア
 ```bash
-docker compose exec frontend pnpm exec lighthouse
+# 対象 URL を明示して実行（フロントのホストポートは 3003）
+docker compose exec frontend pnpm exec lighthouse http://localhost:3003 --output html
 ```
 
 **Core Web Vitals:**
@@ -164,9 +165,12 @@ docker compose exec frontend pnpm exec lighthouse
 
 ### 3. バンドルサイズ分析
 
+⚠️ `pnpm build` は CLAUDE.md の自動実行禁止コマンド。ユーザーに手動実行を依頼する
+
 ```bash
 docker compose exec frontend pnpm build
 docker compose exec frontend npx source-map-explorer 'dist/**/*.js'
+# ※ source-map-explorer は依存未登録。使う場合は導入をユーザーに確認する
 ```
 
 **最適化:**
@@ -218,7 +222,7 @@ LCP:                < 2.5s
 INP:                < 200ms
 CLS:                < 0.1
 バンドルサイズ:     < 200KB (gzip)
-首回塁タイム:       < 3s
+初回表示タイム:     < 3s
 ```
 
 ## チェックリスト

@@ -6,7 +6,7 @@ origin: ECC (adapted for AnimalEkarte)
 
 # Go テストパターン
 
-このプロジェクト（Go 1.25 / testify / gomock）で使用するテストパターン。
+このプロジェクト（Go 1.25 / testify assert + 手書き fn-field モック）で使用するテストパターン。
 
 ## When to Activate
 
@@ -32,30 +32,44 @@ backend/internal/
 
 ## Table-Driven Tests（必須パターン）
 
+モックは**手書き fn-field 差し替え型**（実例: `backend/internal/service/liff_service_mock_test.go`）。testify/mock の `m.On(...)` / `mock.Anything` / `AssertExpectations` は使わない。
+
 ```go
-package service_test
+package service
 
 import (
     "context"
     "testing"
     "github.com/stretchr/testify/assert"
-    "github.com/stretchr/testify/mock"
 )
+
+// 手書き fn-field モック: 各テストケースで必要な fn だけ差し替える
+type mockOwnerRepository struct {
+    getByIDFn func(ctx context.Context, id uint) (*model.Owner, error)
+}
+
+func (m *mockOwnerRepository) GetByID(ctx context.Context, id uint) (*model.Owner, error) {
+    if m.getByIDFn != nil {
+        return m.getByIDFn(ctx, id)
+    }
+    return nil, apperrors.ErrNotFound
+}
 
 func TestOwnerService_GetOwner(t *testing.T) {
     tests := []struct {
         name    string
         id      uint
-        mockFn  func(*MockOwnerRepository)
+        repo    *mockOwnerRepository
         want    *model.Owner
         wantErr error
     }{
         {
             name: "正常: オーナー取得成功",
             id:   1,
-            mockFn: func(m *MockOwnerRepository) {
-                m.On("GetByID", mock.Anything, uint(1)).
-                    Return(&model.Owner{ID: 1, Name: "佐藤太郎"}, nil)
+            repo: &mockOwnerRepository{
+                getByIDFn: func(_ context.Context, _ uint) (*model.Owner, error) {
+                    return &model.Owner{ID: 1, Name: "佐藤太郎"}, nil
+                },
             },
             want:    &model.Owner{ID: 1, Name: "佐藤太郎"},
             wantErr: nil,
@@ -63,9 +77,10 @@ func TestOwnerService_GetOwner(t *testing.T) {
         {
             name: "エラー: 存在しないオーナー",
             id:   999,
-            mockFn: func(m *MockOwnerRepository) {
-                m.On("GetByID", mock.Anything, uint(999)).
-                    Return(nil, apperrors.ErrNotFound)
+            repo: &mockOwnerRepository{
+                getByIDFn: func(_ context.Context, _ uint) (*model.Owner, error) {
+                    return nil, apperrors.ErrNotFound
+                },
             },
             want:    nil,
             wantErr: apperrors.ErrNotFound,
@@ -75,9 +90,7 @@ func TestOwnerService_GetOwner(t *testing.T) {
     for _, tt := range tests {
         t.Run(tt.name, func(t *testing.T) {
             // Arrange
-            mockRepo := new(MockOwnerRepository)
-            tt.mockFn(mockRepo)
-            svc := NewOwnerService(mockRepo)
+            svc := NewOwnerService(tt.repo)
 
             // Act
             got, err := svc.GetOwner(context.Background(), tt.id)
@@ -90,7 +103,6 @@ func TestOwnerService_GetOwner(t *testing.T) {
                 assert.NoError(t, err)
                 assert.Equal(t, tt.want, got)
             }
-            mockRepo.AssertExpectations(t)
         })
     }
 }
@@ -101,7 +113,7 @@ func TestOwnerService_GetOwner(t *testing.T) {
 ```go
 func TestOwnerRepository_GetByID(t *testing.T) {
     // テスト DB を使用（Docker の test DB）
-    db := testutil.NewTestDB(t)
+    db := setupTestDB(t)  // 各 repository テスト共通ヘルパ（testutil パッケージは存在しない）
 
     tests := []struct {
         name      string
@@ -135,29 +147,43 @@ func TestOwnerRepository_GetByID(t *testing.T) {
 ## Handler テスト
 
 ```go
+// service も同じ手書き fn-field モック形式
+type mockOwnerService struct {
+    getOwnerFn func(ctx context.Context, id uint) (*model.Owner, error)
+}
+
+func (m *mockOwnerService) GetOwner(ctx context.Context, id uint) (*model.Owner, error) {
+    if m.getOwnerFn != nil {
+        return m.getOwnerFn(ctx, id)
+    }
+    return nil, apperrors.ErrNotFound
+}
+
 func TestOwnerHandler_GetOwner(t *testing.T) {
     tests := []struct {
         name       string
         ownerID    string
-        mockFn     func(*MockOwnerService)
+        svc        *mockOwnerService
         wantStatus int
         wantBody   string
     }{
         {
             name:    "正常: 200 OK",
             ownerID: "1",
-            mockFn: func(m *MockOwnerService) {
-                m.On("GetOwner", mock.Anything, uint(1)).
-                    Return(&model.Owner{ID: 1, Name: "佐藤太郎"}, nil)
+            svc: &mockOwnerService{
+                getOwnerFn: func(_ context.Context, _ uint) (*model.Owner, error) {
+                    return &model.Owner{ID: 1, Name: "佐藤太郎"}, nil
+                },
             },
             wantStatus: http.StatusOK,
         },
         {
             name:    "エラー: 404 Not Found",
             ownerID: "999",
-            mockFn: func(m *MockOwnerService) {
-                m.On("GetOwner", mock.Anything, uint(999)).
-                    Return(nil, apperrors.ErrNotFound)
+            svc: &mockOwnerService{
+                getOwnerFn: func(_ context.Context, _ uint) (*model.Owner, error) {
+                    return nil, apperrors.ErrNotFound
+                },
             },
             wantStatus: http.StatusNotFound,
         },
@@ -166,9 +192,7 @@ func TestOwnerHandler_GetOwner(t *testing.T) {
     for _, tt := range tests {
         t.Run(tt.name, func(t *testing.T) {
             // Arrange
-            mockSvc := new(MockOwnerService)
-            tt.mockFn(mockSvc)
-            h := NewOwnerHandler(mockSvc)
+            h := NewOwnerHandler(tt.svc)
 
             w := httptest.NewRecorder()
             c, _ := gin.CreateTestContext(w)
@@ -180,7 +204,6 @@ func TestOwnerHandler_GetOwner(t *testing.T) {
 
             // Assert
             assert.Equal(t, tt.wantStatus, w.Code)
-            mockSvc.AssertExpectations(t)
         })
     }
 }
@@ -247,9 +270,21 @@ svc.GetOwner(context.TODO(), 1) // context.Background() を使う
 // ✅ テストは独立
 func TestOwnerService_GetOwner(t *testing.T) {
     // 各テストで新しい mock を作成
-    mockRepo := new(MockOwnerRepository)
+    mockRepo := &mockOwnerRepository{}
 }
 ```
+
+## 判定ロジックの struct リテラルテストは全フィールド明示（暗黙ゼロ値禁止）
+
+CPM/タグ/ステージ判定系のテストケースでは、判定に関与しうる**全フィールドを明示的にセット**する。「関係ない」フィールドも `AnnualVisitCount: 0` と明示する。暗黙ゼロ値依存テストは条件追加時に本筋と無関係な FAIL を起こす。ゼロを書く場合も「意味的にゼロが正しいか」で判断する（0 来院で LTV 5000 は矛盾）。
+
+（出典: memory feedback_implicit_zero_test_fragility / be_second_lens_audit_20260630）
+
+## 置換系（Replace/Upsert）テストは seed step を先置きする
+
+`ReplaceForX` 型のテストで既存行 seed を忘れると `deleted=0` で暗黙 PASS/FAIL する罠がある。削除・置換を検証するテストは Arrange で必ず対象行を seed してから Act する。
+
+（出典: memory issue211_audit_tx_atomicity_verify_20260630 / commit fe04b460）
 
 ## インベントリ lint テスト（実績パターン）
 

@@ -18,13 +18,13 @@ description: commit/push 前のスコープ限定ローカル検証ゲート。�
 1. **frontend 実行可否の判定**: 現在のモデルが Haiku かを確認する。Haiku限定で `pnpm` コマンドの自動実行が許可されている。Opus/Sonnetはユーザーに手動実行を依頼する（出典: memory feedback_pnpm_haiku）
 2. **backend lint（スコープ限定）**:
    ```bash
-   GOLANGCI_LINT_CACHE=/tmp/glc-$RANDOM docker compose run --rm --no-deps -T \
+   docker compose run --rm --no-deps -T -e GOLANGCI_LINT_CACHE=/tmp/glc-$RANDOM \
      --entrypoint golangci-lint backend run ./internal/service/...
    ```
    `--entrypoint` での上書きが必須（`entrypoint.sh` は渡されたコマンドを無視する。出典: ops_backend_scoped_lint_entrypoint_override）。キャッシュは毎回フレッシュ化する（stale cacheは偽の0件を返す。出典: ops_golangci_lint_stale_cache_false_zero）
 3. **backend build/vet/test（スコープ限定）**:
    ```bash
-   docker compose exec backend go build ./...
+   docker compose exec backend go build ./internal/<対象パッケージ>/...
    docker compose exec backend go vet ./internal/service/...
    docker compose exec backend go test ./internal/service/...
    ```
@@ -36,16 +36,22 @@ description: commit/push 前のスコープ限定ローカル検証ゲート。�
 6. **codegen影響の確認**: modelやAPIスキーマを変更した場合は `make codegen` 実行後 `git diff` で差分をユーザーに確認依頼する（`make codegen` 自体は自動実行禁止コマンド）
 7. **frontend（スコープ限定）**:
    ```bash
-   npx vitest run src/features/xxx
+   docker compose exec frontend npx vitest run src/features/xxx
    ```
    `pnpm test:run --` は罠——全件実行になる（出典: feedback_frontend_verify_harness_gotchas）
+
+## 検証の罠（実績由来）
+
+- **lint の「全件直した」判定は cap 解除フラグ付きで行う**: `--max-same-issues 0 --max-issues-per-linter 0` を明示付与する。cap が有効な設定では件数が隠蔽される（実 11 件が 10 件表示され、10 件直しても 11 件目が後出しした実例。現行 backend/.golangci.yml は解除済みだがフラグ明示はドリフト耐性がある）。（出典: memory ops_golangci_lint_cap_and_reconcile_20260630）
+- **post-edit-typecheck-ts.js の exit 2 には false-positive がある**: 出力が `DB_USER variable is not set` 等の docker compose env 警告のみで `error TS` 行が無ければ実エラーではない。`grep -cE 'error TS'` の有無で判定する。（出典: memory feedback_frontend_verify_harness_gotchas）
+- **PostToolUse formatter hook が日本語コメントを行折返しで破壊しコンパイルを壊すことがある**。編集後は touched package を `go build ./internal/<pkg>/...` で必ず確認する。（出典: memory cross_tenant_write_audit_20260629）
 
 ## 良い例・悪い例
 
 ✅ 良い例（スコープ限定・実行結果を報告）:
 ```
 backend/internal/service/billing_service.go を変更したので検証した:
-$ docker compose exec backend go build ./...          → OK
+$ docker compose exec backend go build ./internal/service/... → OK
 $ docker compose exec backend go vet ./internal/service/...  → OK
 $ docker compose exec backend go test ./internal/service/... → PASS (12 tests)
 $ docker compose exec backend gofmt -l internal/service/billing_service.go → (差分なし)

@@ -108,7 +108,7 @@ err := validate.Struct(req)
 
 SQLインジェクション対策の詳細は上記 A1 のパラメータ化例を参照。LIKE 検索も同様に安全化する:
 ```go
-db.Where("name LIKE ?", "%"+name+"%").Find(&users)
+db.Where("name LIKE ?", "%"+escapeLike(name)+"%").Find(&users)  // escapeLike（owner_repository.go）で % / _ をエスケープ（プロジェクト標準）
 ```
 
 ## 出力形式

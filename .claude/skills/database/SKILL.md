@@ -1,5 +1,5 @@
 ---
-name: Database Management
+name: database
 description: PostgreSQL操作、マイグレーション、最適化
 ---
 
@@ -13,19 +13,16 @@ description: PostgreSQL操作、マイグレーション、最適化
 
 ## 基本コマンド
 
-### マイグレーション（Raw SQL、リリース前直接編集運用）
+### マイグレーション（Raw SQL・新規採番）
 
 > ⚠️ 以下の `psql` 直接実行は CLAUDE.md の自動実行禁止コマンド。ユーザーに手動実行を依頼する。
 
+適用は backend の migration ランナー（`backend/cmd/migrate`、schema_migrations + checksum 管理）が行う
+（`/migrations` は db コンテナにマウントされていないため psql での直接適用は不可）。
+
 ```bash
-# マイグレーションファイルを直接編集（リリース前のみ）
-# backend/migrations/001_init.sql
-
-# コンテナ内で psql を使って手動適用
-docker compose exec db psql -U postgres -d animalekarte -f /migrations/001_init.sql
-
 # 接続確認
-docker compose exec db psql -U postgres -d animalekarte -c "\dt"
+docker compose exec db psql -U "$DB_USER" -d "$DB_NAME" -c "\dt"
 ```
 
 ### データベース操作
@@ -34,13 +31,13 @@ docker compose exec db psql -U postgres -d animalekarte -c "\dt"
 
 ```bash
 # psql 接続
-docker compose exec db psql -U postgres -d animalekarte
+docker compose exec db psql -U "$DB_USER" -d "$DB_NAME"
 
 # バックアップ
-docker compose exec db pg_dump -U postgres animalekarte > backup.sql
+docker compose exec db pg_dump -U "$DB_USER" "$DB_NAME" > backup.sql
 
 # リストア
-docker compose exec db psql -U postgres -d animalekarte < backup.sql
+docker compose exec db psql -U "$DB_USER" -d "$DB_NAME" < backup.sql
 ```
 
 ## 命名規則
@@ -51,10 +48,10 @@ docker compose exec db psql -U postgres -d animalekarte < backup.sql
 
 ## 重要な注意事項
 
-- スキーマ変更は `backend/migrations/001_init.sql` を直接編集（リリース前運用）
+- 適用済み migration の編集は禁止（checksum mismatch を招く）。最終番号+1 の新規ファイルで追加（migration-seed-safety スキル参照）
 - GORM モデル変更後は `make codegen` で `models.ts` を再生成
 - 破壊的変更は段階的に実施
-- インデックスは `CREATE INDEX CONCURRENTLY` を使用
+- migration ランナーは tx 内実行のため migration 内では `CREATE INDEX CONCURRENTLY` 不可。通常の `CREATE INDEX` を使用（実例: 002_add_checkup_vaccination_indexes.sql）
 
 ## 詳細リファレンス
 

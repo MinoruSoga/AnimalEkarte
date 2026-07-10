@@ -38,7 +38,7 @@ backend/
 ├── cmd/api/main.go              # エントリーポイント + DI配線（唯一の汚い場所）
 ├── internal/
 │   ├── handler/                 # HTTP受付層
-│   │   ├── handler.go           # Handler struct・extractClinicID・RespondError・parseBindError
+│   │   ├── handler.go / context_helpers.go / response.go / bind_errors.go  # Handler struct・extractClinicID・RespondError・parseBindError
 │   │   ├── owner_handler.go     # RegisterOwnerRoutes(rg) + CRUD handlers
 │   │   ├── owner_request.go     # createOwnerRequest / updateOwnerRequest（binding struct）
 │   │   ├── owner_response.go    # ownerResponse + toOwnerResponse()
@@ -479,6 +479,8 @@ h.RegisterPetRoutes(api)
 | `handler` から `repository` を直接呼ぶ | service層をバイパスする | 必ずservice層を経由する |
 
 ## Reference Files
+
+> ⚠️ references/ は upstream 汎用版（usecase/domain 命名・SQLC・DI container・testcontainers 前提）。本体 Core Rules と矛盾する箇所は**本体が正**。特に dependency-injection.md の「DI Container Pattern」は本プロジェクトでは禁止（Core Rule 4: di/container.go は作らない）。
 
 - **[references/layer-separation.md](references/layer-separation.md)** — 層の責務詳細・アンチパターン
 - **[references/repository-pattern.md](references/repository-pattern.md)** — GORM、トランザクション、クエリパターン

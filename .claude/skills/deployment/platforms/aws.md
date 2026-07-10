@@ -1,6 +1,6 @@
 # AWS デプロイメントガイド（AnimalEkarte 実態）
 
-> このプロジェクトの AWS デプロイは **GitHub Actions ワークフロー**（`.github/workflows/backend-deploy.yml`）が実行する。
+> このプロジェクトの AWS デプロイは **GitHub Actions ワークフロー**（`.github/workflows/backend-deploy-ecs.yml`）が実行する（DEPRECATED: 通常デプロイは Cloudflare = backend-deploy.yml。本ファイルは ECS ロールバック専用手順）。
 > CodePipeline / CodeBuild は使用していない。手動での `aws` CLI 操作は調査・障害対応目的に限定する。
 
 ## 使用サービス
@@ -18,7 +18,7 @@
 
 ```
 git push (staging ブランチ, backend/** 変更)
-  → GitHub Actions (backend-deploy.yml)
+  → GitHub Actions (backend-deploy-ecs.yml)
     → OIDC で AWS 認証 (aws-actions/configure-aws-credentials, role-to-assume)
     → ECR ログイン・Docker イメージビルド & push
     → RDS 停止状態なら起動 (preflight)
@@ -54,10 +54,10 @@ permissions:
 git push origin staging
 
 # 手動トリガー（DB リセットが必要な場合など）
-# GitHub Actions → backend-deploy.yml → Run workflow → db_reset: true/false
+# GitHub Actions → backend-deploy-ecs.yml → Run workflow → db_reset: true/false
 
 # CI ステータス確認
-gh run list --workflow=backend-deploy.yml
+gh run list --workflow=backend-deploy-ecs.yml
 gh run watch
 ```
 
@@ -107,7 +107,7 @@ aws ecs describe-services \
 
 ## ステージングのコスト最適化（実装済み）
 
-- 営業時間外 (JST 08:00-22:00 の外) にデプロイした場合、デプロイ完了 30 分後に ECS `desiredCount=0` / RDS 停止を自動実行（`backend-deploy.yml` の `delayed-stop` job）。
+- 営業時間外 (JST 08:00-22:00 の外) にデプロイした場合、デプロイ完了 30 分後に ECS `desiredCount=0` / RDS 停止を自動実行（`backend-deploy-ecs.yml` の `delayed-stop` job）。
 - デプロイ時に RDS が停止していれば自動起動（`rds-preflight` step）。
 
 ## 注意事項

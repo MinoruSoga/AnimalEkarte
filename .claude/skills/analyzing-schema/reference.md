@@ -2,7 +2,7 @@
 
 ## テーブル一覧
 
-テーブル数は103（`backend/migrations/001_init.sql` を正とする）。個別テーブルの列挙は
+テーブル数は `backend/migrations/001_init.sql` を正とする（2026-07時点で約110テーブル）。個別テーブルの列挙は
 マイグレーション追加のたびに陳腐化するため、このファイルでは行わない。最新の正確な
 テーブル・カラム構成は必ず `backend/migrations/001_init.sql`（および以降の migration
 ファイル）を直接確認すること。
@@ -29,21 +29,21 @@ find backend/internal/model -name "*.go" -type f
 # 特定モデルの構造確認
 grep -A 20 "type Pet struct" backend/internal/model/pet.go
 
-# マイグレーションファイル
-find backend -path "*/migrations/*.go" -type f
+# マイグレーションファイル（Go マイグレーションは存在しない。Raw SQL のみ）
+ls backend/migrations/*.sql
 
 # AutoMigrate呼び出し確認
 grep -rn "AutoMigrate" backend/
 ```
 
+> 注: 本番適用は `backend/cmd/migrate`（Raw SQL + schema_migrations checksum）。AutoMigrate はテストコードのみ。
+
 ## PostgreSQL接続情報
 
 ```
 Host: localhost
-Port: 5432
-Database: ekarte_db
-User: ekarte_user
-Password: ekarte_password
+Port: 5434（ホスト側。docker-compose "5434:5432"。コンテナ内は db:5432）
+Database / User / Password: `.env` の DB_NAME / DB_USER / DB_PASSWORD を参照（値をセッションに読み込まない）
 ```
 
 MCP PostgreSQLサーバー経由でクエリ実行可能（local opt-in only。CLAUDE.md方針により

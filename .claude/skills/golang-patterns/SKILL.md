@@ -30,7 +30,7 @@ func (h *OwnerHandler) GetOwner(c *gin.Context) {
         RespondError(c, err)
         return
     }
-    c.JSON(http.StatusOK, owner)
+    c.JSON(http.StatusOK, toOwnerResponse(owner)) // model 直接返却禁止（golang-gin-clean-arch Core Rule 3）
 }
 ```
 
@@ -48,11 +48,14 @@ func (s *OwnerService) GetOwner(ctx context.Context, id uint) (*model.Owner, err
 ```
 
 ### Repository（データアクセス層）
+
+clinicID は構造体フィールドに保持せず、**メソッド引数で毎回受け取る**（実コード準拠: `backend/internal/repository/owner_repository.go`）。
+
 ```go
-func (r *OwnerRepository) GetByID(ctx context.Context, id uint) (*model.Owner, error) {
+func (r *ownerRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Owner, error) {
     var owner model.Owner
     if err := r.db.WithContext(ctx).
-        Where("clinic_id = ? AND id = ?", r.clinicID, id).
+        Where("clinic_id = ? AND id = ?", clinicID, id).
         First(&owner).Error; err != nil {
         return nil, apperrors.FromGORM(err, "owner", fmt.Sprintf("%d", id))
     }
@@ -110,38 +113,52 @@ func buildOwnerUpdateFields(input UpdateOwnerInput) map[string]any {
     return fields
 }
 
-// Repository: Updates で部分更新
-func (r *OwnerRepository) UpdateFields(ctx context.Context, id uint, fields map[string]any) (*model.Owner, error) {
-    var owner model.Owner
-    return &owner, r.db.WithContext(ctx).
+// Repository: Updates で部分更新（clinicID はメソッド引数で受け取る）
+// ⚠️ Updates(...).First(...) のステートメントチェーンは GORM のステートメント再利用で挙動不定。
+//    Updates 実行後に別クエリ（FindByID）で取得し直す。
+func (r *ownerRepository) UpdateFields(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Owner, error) {
+    result := r.db.WithContext(ctx).
         Model(&model.Owner{}).
-        Where("clinic_id = ? AND id = ?", r.clinicID, id).
-        Updates(fields).
-        First(&owner).Error
+        Where("clinic_id = ? AND id = ?", clinicID, id).
+        Updates(fields)
+    if result.Error != nil {
+        return nil, apperrors.Wrap(result.Error, "update owner")
+    }
+    if result.RowsAffected == 0 {
+        return nil, apperrors.WrapNotFound("owner", fmt.Sprintf("%d", id))
+    }
+    return r.FindByID(ctx, clinicID, id) // 別クエリで再取得
 }
 ```
 
 ## 並行処理（errgroup）
 
+**適用条件**: 同一トランザクションが必要な書き込み（CreateWithPets 等）には使用禁止 — tx 内順次 Create が正（golang-gin-clean-arch 参照）。**読み取り専用の独立フェッチにのみ使う**。
+
 ```go
 import "golang.org/x/sync/errgroup"
 
-func (s *OwnerService) CreateWithPets(ctx context.Context, input CreateOwnerInput) error {
-    owner, err := s.repo.CreateOwner(ctx, &model.Owner{Name: input.Name})
-    if err != nil {
-        return apperrors.Wrap(err, "failed to create owner")
-    }
-
+// ✅ 読み取り専用の独立フェッチを並列化
+func (s *OwnerService) GetOwnerSummary(ctx context.Context, clinicID, id uint64) (*OwnerSummary, error) {
+    var (
+        owner        *model.Owner
+        reservations []model.Reservation
+    )
     g, ctx := errgroup.WithContext(ctx)
-    for _, pet := range input.Pets {
-        g.Go(func() error {
-            return s.petRepo.Create(ctx, &model.Pet{OwnerID: owner.ID, Name: pet.Name})
-        })
-    }
+    g.Go(func() error {
+        var err error
+        owner, err = s.repo.FindByID(ctx, clinicID, id)
+        return err
+    })
+    g.Go(func() error {
+        var err error
+        reservations, err = s.reservationRepo.FindByOwnerID(ctx, clinicID, id)
+        return err
+    })
     if err := g.Wait(); err != nil {
-        return apperrors.Wrap(err, "failed to create pets")
+        return nil, apperrors.Wrap(err, "failed to fetch owner summary")
     }
-    return nil
+    return &OwnerSummary{Owner: owner, Reservations: reservations}, nil
 }
 ```
 

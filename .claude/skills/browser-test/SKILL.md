@@ -1,6 +1,6 @@
 ---
 name: browser-test
-description: Chrome DevTools MCPを使ったブラウザ機能テスト。docs/testing/SECTION_14_MANUAL_TEST_GUIDE.mdのセクションを実行し結果を更新する。Haikuモデルでコスト効率よく実行。
+description: Chrome DevTools MCPを使ったブラウザ機能テスト。docs/testing/SECTION_14_MANUAL_TEST_GUIDE.mdのシナリオを実行し、結果をテスト結果レポートとして出力する。Haikuモデルでコスト効率よく実行。
 ---
 
 # ブラウザ機能テスト スキル
@@ -8,12 +8,12 @@ description: Chrome DevTools MCPを使ったブラウザ機能テスト。docs/t
 ## 使い方
 
 ```
-/browser-test <セクション番号 or 機能名>
+/browser-test <ガイド章番号 or ドメイン名>
 例:
-  /browser-test 1          # Section 1: 飼主・ペット管理
-  /browser-test 14         # Section 14: マスタ設定
-  /browser-test owners     # 飼主管理
-  /browser-test 1-3        # Section 1〜3 まとめて実行
+  /browser-test 2.1          # 2.1 外来フロー（予約〜受付〜診察）
+  /browser-test accounting   # 2.2 会計・経営管理
+  /browser-test crm          # 2.3 CRM・Lステップ連携
+  /browser-test 3            # 3. 品質ガード・セキュリティ
 ```
 
 ---
@@ -22,9 +22,9 @@ description: Chrome DevTools MCPを使ったブラウザ機能テスト。docs/t
 
 このスキルが呼ばれたら、**以下の手順を必ず守れ**：
 
-1. `docs/testing/SECTION_14_MANUAL_TEST_GUIDE.md` から対象セクションのテスト項目を読み込む
+1. `docs/testing/SECTION_14_MANUAL_TEST_GUIDE.md`（正本）から該当ドメインのシナリオ（番号付き手順）を読み込む
 2. **`Agent` ツールを `model: "haiku"` で起動**し、ブラウザテストを委譲する
-3. Haiku Agent の結果を受け取り、`docs/testing/SECTION_14_MANUAL_TEST_GUIDE.md` を更新する
+3. Haiku Agent の結果を受け取り、テスト結果レポートとして出力する（ガイドに項目表・結果列は存在しないため、ガイド自体は更新しない）
 
 > 旧 FULL_DOMAIN_SCENARIO_TEST_GUIDE.md は廃止済み。手動シナリオは SECTION_14_MANUAL_TEST_GUIDE.md、E2Eは E2E_TESTING_GUIDE.md を参照
 
@@ -43,13 +43,18 @@ Chrome DevTools MCP を使って指定されたテスト項目を実行し、結
 
 ## テスト環境
 - URL: http://localhost:3003
-- テストアカウント: admin@example.com
+- テストアカウント: 下記（正本: docs/testing/SECTION_14_MANUAL_TEST_GUIDE.md 4章）
+  | 役割 | ログイン ID | 用途 |
+  |------|------------|------|
+  | 管理者 | admin@example.com | マスタ設定、権限、会計レポート |
+  | 獣医師 | doctor@example.com | カルテ、検査、処方の臨床フロー |
+  | 受付/看護 | staff@example.com | 受付、会計、入院ケアの日常業務 |
 - パスワード: password
 - ブラウザ: Chrome（Chrome DevTools MCP 経由）
 
 ## テスト対象
 {SECTION_TITLE}
-{TEST_ITEMS_TABLE}
+{SCENARIO_STEPS}  ← ガイドの該当ドメインの番号付き手順シナリオを転記
 
 ## 実行手順
 
@@ -66,10 +71,10 @@ Chrome DevTools MCP を使って指定されたテスト項目を実行し、結
 5. mcp__chrome-devtools__wait_for でダッシュボード表示を待機
 
 ### Step 3: テスト実行
-各テスト項目について以下を実行：
+各シナリオ手順について以下を実行：
 
 1. **ナビゲーション**: テスト対象ページに移動
-2. **操作実行**: テスト項目の操作を実行
+2. **操作実行**: シナリオ手順の操作を実行
 3. **結果確認**: 期待動作と実際の動作を比較
 4. **ネットワーク確認**: 必要に応じて mcp__chrome-devtools__get_network_request で API レスポンスを確認
 5. **コンソール確認**: mcp__chrome-devtools__list_console_messages でエラーがないか確認
@@ -83,9 +88,9 @@ Chrome DevTools MCP を使って指定されたテスト項目を実行し、結
 ## テスト結果: {SECTION_TITLE}
 実行日時: {DATETIME}
 
-| テスト項目 | 結果 | 備考 |
-|-----------|------|------|
-| {item1} | OK/NG/Partial/N/A | {観察内容} |
+| シナリオ手順 | 結果 | 備考 |
+|-------------|------|------|
+| {step1} | OK/NG/Partial/N/A | {観察内容} |
 ...
 
 ### 発見したバグ（NG 項目）
@@ -100,7 +105,6 @@ Chrome DevTools MCP を使って指定されたテスト項目を実行し、結
 - 操作の間は必ず mcp__chrome-devtools__wait_for で応答を待つ（タイムアウト: 5000ms）
 - API 呼び出しが含まれるテストは mcp__chrome-devtools__get_network_request でステータスコードを確認
 - エラーが出た場合はスクリーンショットを取得してから次のテストへ進む
-- 「--」（未テスト）項目はスキップしてよい
 - N/A は実装・データが存在しない場合のみ使用
 ```
 
@@ -110,37 +114,24 @@ Chrome DevTools MCP を使って指定されたテスト項目を実行し、結
 
 Haiku Agent の結果を受け取った後：
 
-1. **テストレポートを更新**する
-   - `docs/testing/SECTION_14_MANUAL_TEST_GUIDE.md` の該当セクションの結果列を更新
+1. **テスト結果レポートを出力**する
+   - 結果はガイド（`docs/testing/SECTION_14_MANUAL_TEST_GUIDE.md`）の更新ではなく、テスト結果レポートとして出力する（ガイドに項目表・結果列は存在しない。ガイド冒頭の日付表記は「最新更新」であり、テスト結果では書き換えない）
    - NG 項目は `docs/tasks/open/` にバグチケットを作成（BUG-XXX 形式。クラッシュ報告は BUG- プレフィックスのファイル名で出力。サブディレクトリは作らない）
-   - レポート冒頭の「最終更新」日付を更新
 
 2. **サマリを表示**する
    ```
-   ## テスト完了: Section {N} - {セクション名}
+   ## テスト完了: {ガイド章} - {ドメイン名}
    - OK: X件 / NG: Y件 / Partial: Z件
    - 新規バグ: BUG-XXX（あれば）
    ```
 
 ---
 
-## セクション対応表
+## ドメイン対応表（正本: docs/testing/SECTION_14_MANUAL_TEST_GUIDE.md の章構成）
 
-| 引数 | セクション | パス |
-|------|-----------|------|
-| 1, owners | 飼主・ペット管理 | /owners |
-| 2, reservations | 予約管理 | /reservations |
-| 3, dashboard | ダッシュボード | / |
-| 4, medical-records | カルテ管理 | /medical-records |
-| 5, examinations | 検査管理 | /examinations |
-| 6, accounting | 会計管理 | /accounting |
-| 7, hospitalization | 入院・ホテル管理 | /hospitalization |
-| 8, vaccinations | 予防接種管理 | /vaccinations |
-| 9, trimming | トリミング管理 | /trimming |
-| 10, checkups | 定期健診 | /checkups |
-| 11, inventory | 在庫管理 | /inventory |
-| 12, estimates | 見積管理 | /estimates |
-| 13, shifts | シフト管理 | /shifts |
-| 14, settings | マスタ設定 | /settings |
-| 15, rbac | アカウント・権限管理 | /accounts |
-| 16, auth | 認証 | /login |
+| 引数 | ガイド章 | 内容 | 主なパス |
+|------|---------|------|---------|
+| 2.1, outpatient | 2.1 外来フロー（予約〜受付〜診察） | 予約作成・当日受付・カルテ入力・次回来院設定 | /reservations, / |
+| 2.2, accounting | 2.2 会計・経営管理 | 会計精算・レジ締め・月次レポート | /accounting/close, /accounting/reports |
+| 2.3, crm | 2.3 CRM・Lステップ連携 | タグ管理・対象者抽出・個別送信 | /settings/lstep/tags, /lstep/checkup-sync |
+| 3, security | 3. 品質ガード・セキュリティ | RBAC 権限ガード・削除保護(FK)・離脱防止 | 各画面横断 |

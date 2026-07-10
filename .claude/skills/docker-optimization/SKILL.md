@@ -97,12 +97,15 @@ CMD ["./app"]
 
 ### 5. React Frontend 最適化
 
+> 本プロジェクトのフロントエンド本番は Vercel デプロイ（Nginx イメージは使用しない）。以下は汎用パターン。
+
 ```dockerfile
 # ビルドステージ
 FROM node:24-alpine AS builder
 WORKDIR /app
 COPY package.json pnpm-lock.yaml ./
-RUN pnpm install --frozen-lockfile --prod
+RUN corepack enable && pnpm install --frozen-lockfile
+# ※ --prod は devDependencies(vite/tsc) を除外するため後続の pnpm build が失敗する
 
 COPY . .
 RUN pnpm build
@@ -124,7 +127,7 @@ CMD ["nginx", "-g", "daemon off;"]
 - [ ] 不要ファイル除外（.dockerignore）
 - [ ] キャッシュクリア実装
 - [ ] Non-root ユーザー使用
-- [ ] イメージサイズ < 200MB
+- [ ] イメージサイズ目標: Backend < 50MB / Frontend < 100MB（パフォーマンス目標と同一値）
 - [ ] セキュリティスキャン (trivy)
 
 ## パフォーマンス目標

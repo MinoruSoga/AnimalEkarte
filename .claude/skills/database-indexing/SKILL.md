@@ -118,6 +118,8 @@ WHERE o.clinic_id = 1;
 
 ## インデックス設計パターン
 
+> 実スキーマは `backend/migrations/001_init.sql` を正とする（以下は実在テーブル・カラムに基づく実例）。
+
 ### 所有権テーブル（マルチテナント）
 
 ```sql
@@ -130,21 +132,27 @@ CREATE INDEX idx_owners_created_at ON owners(clinic_id, created_at DESC);
 CREATE INDEX idx_pets_owner_id ON pets(owner_id);
 CREATE INDEX idx_pets_clinic_owner ON pets(clinic_id, owner_id);
 
--- vaccinations テーブル
-CREATE INDEX idx_vaccinations_pet_id ON vaccinations(pet_id);
-CREATE INDEX idx_vaccinations_clinic_date ON vaccinations(clinic_id, recorded_at DESC);
+-- vaccinations テーブル（実例: 002_add_checkup_vaccination_indexes.sql）
+CREATE INDEX idx_vaccinations_clinic_date
+  ON vaccinations(clinic_id, date)
+  WHERE deleted_at IS NULL;
 ```
 
 ### タイムシリーズデータ（予約・記録）
 
 ```sql
--- reservations テーブル
-CREATE INDEX idx_reservations_clinic_date ON reservations(clinic_id, reservation_date);
-CREATE INDEX idx_reservations_status ON reservations(clinic_id, status)
-WHERE cancelled_at IS NULL;
+-- appointments テーブル（予約。実例: 001_init.sql）
+CREATE INDEX idx_appointments_clinic_date
+  ON appointments(clinic_id, start_time)
+  WHERE deleted_at IS NULL;
+CREATE INDEX idx_appointments_clinic_status
+  ON appointments(clinic_id, status)
+  WHERE deleted_at IS NULL;
 
--- medical_records テーブル
-CREATE INDEX idx_records_pet_date ON medical_records(pet_id, record_date DESC);
+-- medical_records テーブル（実例: 001_init.sql）
+CREATE INDEX idx_medical_records_clinic_date
+  ON medical_records(clinic_id, date DESC)
+  WHERE deleted_at IS NULL;
 ```
 
 ## 監視・メンテナンス

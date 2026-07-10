@@ -19,26 +19,26 @@ origin: ECC (adapted for AnimalEkarte)
 
 ```
 # ✅ 正しい URL 設計
-GET    /v1/owners                    # 一覧取得
-GET    /v1/owners/:id                # 単体取得
-POST   /v1/owners                    # 作成
-PATCH  /v1/owners/:id                # 部分更新
-DELETE /v1/owners/:id                # 削除
+GET    /api/v1/owners                    # 一覧取得
+GET    /api/v1/owners/:id                # 単体取得
+POST   /api/v1/owners                    # 作成
+PATCH  /api/v1/owners/:id                # 部分更新
+DELETE /api/v1/owners/:id                # 削除
 
 # サブリソース
-GET    /v1/owners/:id/pets           # オーナーのペット一覧
-POST   /v1/owners/:id/pets           # ペット追加
+GET    /api/v1/owners/:id/pets           # オーナーのペット一覧
+POST   /api/v1/owners/:id/pets           # ペット追加
 
 # アクション（動詞は最小限）
-POST   /v1/owners/:id/activate       # アクティベート
-POST   /v1/invoices/:id/pay          # 支払い処理
+POST   /api/v1/owners/:id/activate       # アクティベート
+POST   /api/v1/invoices/:id/pay          # 支払い処理
 ```
 
 ```
 # ❌ 禁止パターン
-GET    /v1/getOwners                 # 動詞をURL に含める
-GET    /v1/owner                     # 単数形
-GET    /v1/owner_list                # snake_case
+GET    /api/v1/getOwners                 # 動詞をURL に含める
+GET    /api/v1/owner                     # 単数形
+GET    /api/v1/owner_list                # snake_case
 ```
 
 ## HTTP メソッドと Status Code
@@ -59,9 +59,13 @@ GET    /v1/owner_list                # snake_case
 ## Gin ハンドラーパターン
 
 ```go
-// GET /v1/owners
+// GET /api/v1/owners
 func (h *OwnerHandler) List(c *gin.Context) {
-    clinicID := c.GetUint64("clinic_id")
+    clinicID, ok := extractClinicID(c)
+    if !ok {
+        return // extractClinicID がエラーレスポンス済み
+    }
+    // ※ 拠点横断の一覧は resolveListClinicIDs(c) を使う
     page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
     limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
 
@@ -79,7 +83,7 @@ func (h *OwnerHandler) List(c *gin.Context) {
     })
 }
 
-// POST /v1/owners
+// POST /api/v1/owners
 func (h *OwnerHandler) Create(c *gin.Context) {
     var req CreateOwnerRequest
     if err := c.ShouldBindJSON(&req); err != nil {
@@ -87,7 +91,10 @@ func (h *OwnerHandler) Create(c *gin.Context) {
         return
     }
 
-    clinicID := c.GetUint64("clinic_id")
+    clinicID, ok := extractClinicID(c)
+    if !ok {
+        return
+    }
     owner, err := h.service.CreateOwner(c.Request.Context(), clinicID, req)
     if err != nil {
         RespondError(c, err)
@@ -113,11 +120,11 @@ type ListOwnersResponse struct {
 ### エラーレスポンス（統一フォーマット）
 ```json
 {
-    "code": "NOT_FOUND",
-    "message": "Resource not found",
-    "timestamp": "2026-04-07T12:00:00Z"
+    "error": "リソースが見つかりません"
 }
 ```
+
+> `RespondError`（backend/internal/handler/response.go）が status ごとに `gin.H{"error": msg}` を返す（実装準拠。code/timestamp フィールドは存在しない）。
 
 ## Request Validation
 

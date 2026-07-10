@@ -61,9 +61,9 @@
 
 - [ ] `any` 型なし
 - [ ] `FC` / `forwardRef` なし
-- [ ] barrel index 経由 import なし
+- [ ] feature 外部からの import は `features/xxx/index.ts`（barrel）経由 / feature 内部での自己 barrel import なし（正本: frontend/src/features/CLAUDE.md）
 - [ ] 条件レンダー `? ... : null`（`&&` 禁止）
-- [ ] `useTransition` で pending 管理（`useState(false)` + `setIsPending` 禁止）
+- [ ] フォームは `useActionState`（isPending 内蔵）、非フォームの遷移は `useTransition`。`useState(false)` + `setIsPending` 禁止（正本: frontend/CLAUDE.md）
 - [ ] 型は `models.ts` から導出（手書き interface 禁止）
 
 ## 依存関係

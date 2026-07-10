@@ -48,6 +48,12 @@ ls docs/tasks/pending/*.md 2>/dev/null | sort
 - **完了条件**: チェックリスト項目
 - **必要な変更**: 具体的なコード変更指示
 
+### タスクファイル記載の実測再検証（着手前必須）
+
+タスクファイルの行番号・「現状のコード」・残タスク認識は起票時点のスナップショットであり陳腐化前提。着手前に現行コードを grep/Read で突合し、既に解消済みの項目は「陳腐化・実測訂正」として報告する。タスク本文の「Context 要約」と「行番号・Constraints」が食い違ったら後者（実コード）を優先する。
+
+（出典: memory be_refactor_execution_20260702 / closed_issue_reaudit_20260707 / issue_g3_1_phase1_food_lstep_tag_helpers_20260709）
+
 ### 1.3 依存関係チェック
 
 - `Related` と「依存関係」セクションに記載された前提タスクが `docs/tasks/closed/` に存在するか確認
@@ -104,9 +110,9 @@ ls docs/archive/frontend-issues/closed/*XXX*.md 2>/dev/null
 |---|---------|---------|
 | 1 | `memo()` + `useCallback` でセクション分割 | 大型フォーム・リスト行 |
 | 2 | `useDeferredValue` で検索フィルタ遅延 | フィルタ・検索入力 |
-| 3 | `useTransition` で pending 管理 | API 書き込み（保存・削除） |
+| 3 | フォーム送信は `useActionState`（isPending 内蔵）。`useTransition` はリスト再取得・ナビ・削除等の非フォーム操作のみ | フォーム送信 / 非フォーム操作の pending 管理 |
 | 4 | `lazy()` + `Suspense` で遅延ロード | 重いモーダル・ダイアログ |
-| 5 | 直接ファイル import（barrel 禁止） | 全 import |
+| 5 | feature 外部からの import は barrel（`features/xxx/index.ts`）必須。直接 import が正当なのは feature 内部の相対 import と lazy 動的 import のみ | 全 import |
 | 6 | 三項演算子 `? ... : null`（`&&` 禁止） | 条件レンダー |
 | 7 | `useState(() => ...)` lazy init | 高コストな初期化 |
 | 8 | 静的 JSX はモジュール定数に巻き上げ | Select 選択肢、テーブルヘッダ等 |
@@ -116,7 +122,7 @@ ls docs/archive/frontend-issues/closed/*XXX*.md 2>/dev/null
 **追加禁止チェック:**
 - `any` 型 → `unknown` + 型ガード
 - `FC` / `forwardRef` → 関数宣言 + ref as prop
-- `useState(false)` + `setIsPending` → `useTransition`
+- `useState(false)` + `setIsPending` → `useActionState`（フォーム送信）/ `useTransition`（非フォーム操作）
 - 型は `models.ts` から `Omit`/`Partial` で導出（手書き interface 禁止）
 - `console.log` → 削除
 
@@ -160,9 +166,9 @@ make codegen
 **FE の場合:**
 - [ ] `any` 型なし
 - [ ] `FC` / `forwardRef` なし
-- [ ] barrel index 経由 import なし
+- [ ] feature 外部への deep import なし（barrel 経由か確認）
 - [ ] `&&` 条件レンダーなし（三項演算子を使用）
-- [ ] `useTransition` で pending 管理（`useState(false)` + `setIsPending` なし）
+- [ ] フォーム送信は `useActionState`、非フォーム操作の pending は `useTransition`（`useState(false)` + `setIsPending` なし）
 - [ ] 型は `models.ts` から導出
 - [ ] `console.log` なし
 - [ ] feature 間 import なし
@@ -183,7 +189,7 @@ make codegen
 docker compose exec frontend npx vitest run src/features/<対象feature>
 
 # BE の場合 — 変更したパッケージに限定
-docker compose exec backend go build ./...
+docker compose exec backend go build ./internal/<対象パッケージ>/...
 docker compose exec backend go vet ./internal/<対象パッケージ>/...
 docker compose exec backend go test ./internal/<対象パッケージ>/...
 ```
