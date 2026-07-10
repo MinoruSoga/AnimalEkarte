@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"regexp"
 	"strings"
 	"sync"
 	"testing"
@@ -1382,86 +1383,234 @@ func setupIsolatedTestDB(t *testing.T) *gorm.DB {
 	return db
 }
 
+// testSchemaEnumType is one hand-maintained ENUM type double used by setupSharedTestSchema.
+// Kept as a package-level type/var (rather than a func-local literal) so
+// test_schema_enum_parity_test.go (G12-2) can compare it against 001_init.sql directly instead
+// of re-parsing Go source via go/ast.
+type testSchemaEnumType struct {
+	name   string
+	create string
+}
+
+// sharedTestSchemaEnumTypes hand-duplicates every PostgreSQL ENUM type from 001_init.sql
+// (54 types total, 2026-07-04 consolidated migration + 009 #201 薬量計算 4 型を含む）。
+// model.Medicine が calculation_type を持つため、本 setup を使う全テストの medicines
+// AutoMigrate に medicine_calculation_type が必須（欠落で CREATE TABLE 失敗）。
+//
+// G12-2 (BE-refactor.md): this list previously drifted from 001_init.sql — item_source was
+// missing 'trimming' (blocking any integration test that persists a trimming billing_items
+// row via billing_item_repository.go's Source: model.ItemSourceTrimming) and 4 whole types
+// were absent. test_schema_enum_parity_test.go now gates this list against 001_init.sql on
+// every `go test ./internal/repository/...` run so it cannot silently drift again.
+//
+// checkup_field_type is included here even though checkup_field_repository_test.go (and its
+// sibling _cascade_test.go/_composite_fk_test.go) also DROP+CREATE it: those three helpers run
+// on setupIsolatedTestDB (a throw-away connection per call, see repository/CLAUDE.md), and no
+// setupTestDB-based (shared-connection) test AutoMigrates CheckupTypeField/CheckupFieldResult,
+// so there is no column depending on this type via the shared connection. Package tests never
+// run in parallel (no t.Parallel() in this package), so the isolated helpers' own DROP+CREATE
+// cannot race this one either — adding it here is a no-op once created, not a collision.
+var sharedTestSchemaEnumTypes = []testSchemaEnumType{
+	// ペット関連
+	{"pet_status", "CREATE TYPE pet_status AS ENUM ('alive', 'deceased')"},
+	{"pet_gender", "CREATE TYPE pet_gender AS ENUM ('male', 'female', 'unknown')"},
+	{"acquisition_type", "CREATE TYPE acquisition_type AS ENUM ('purchased', 'transferred', 'rescued', 'other')"},
+	{"danger_level", "CREATE TYPE danger_level AS ENUM ('low', 'medium', 'high')"},
+	{"membership_type", "CREATE TYPE membership_type AS ENUM ('non_member', 'member', 'deceased', 'transferred')"},
+	// マスタ共通
+	{"inventory_category", "CREATE TYPE inventory_category AS ENUM ('medicine', 'consumable', 'food', 'other')"},
+	{"inventory_status", "CREATE TYPE inventory_status AS ENUM ('sufficient', 'low', 'out_of_stock')"},
+	{"dosage_form", "CREATE TYPE dosage_form AS ENUM ('tablet', 'liquid', 'injection', 'topical', 'powder')"},
+	{"medicine_unit", "CREATE TYPE medicine_unit AS ENUM ('per_tablet', 'per_ml', 'per_dose', 'per_gram')"},
+	// #201 薬量自動計算（migration 009）: medicines.calculation_type + medicine_dose_params 用
+	{"medicine_calculation_type", "CREATE TYPE medicine_calculation_type AS ENUM ('none', 'per_weight')"},
+	{"medicine_dose_basis", "CREATE TYPE medicine_dose_basis AS ENUM ('per_administration', 'per_day')"},
+	{"medicine_rounding_mode", "CREATE TYPE medicine_rounding_mode AS ENUM ('up', 'down', 'nearest')"},
+	{"medicine_dose_species", "CREATE TYPE medicine_dose_species AS ENUM ('dog', 'cat')"},
+	{"cage_type", "CREATE TYPE cage_type AS ENUM ('icu', 'dog', 'cat', 'general')"},
+	{"cage_size", "CREATE TYPE cage_size AS ENUM ('small', 'medium', 'large')"},
+	{"body_size", "CREATE TYPE body_size AS ENUM ('small', 'medium', 'large')"},
+	{"billing_unit", "CREATE TYPE billing_unit AS ENUM ('per_day', 'per_night')"},
+	{"target_size", "CREATE TYPE target_size AS ENUM ('small', 'medium', 'large', 'cat')"},
+	{"anesthesia_type", "CREATE TYPE anesthesia_type AS ENUM ('none', 'local', 'sedation', 'general')"},
+	{"vaccine_species", "CREATE TYPE vaccine_species AS ENUM ('dog', 'cat', 'both')"},
+	// 電子カルテ関連
+	{"medical_record_status", "CREATE TYPE medical_record_status AS ENUM ('draft', 'finalized')"},
+	{"treatment_item_type", "CREATE TYPE treatment_item_type AS ENUM ('consultation', 'procedure', 'medicine', 'other')"},
+	{"treatment_status", "CREATE TYPE treatment_status AS ENUM ('pending', 'completed', 'not_applicable')"},
+	{"exam_status", "CREATE TYPE exam_status AS ENUM ('pending', 'in_progress', 'result_entered', 'completed', 'confirmed')"},
+	{"exam_result_status", "CREATE TYPE exam_result_status AS ENUM ('normal', 'high', 'low')"},
+	{"next_schedule_type", "CREATE TYPE next_schedule_type AS ENUM ('3weeks', '4weeks', '1year', 'other')"},
+	{"appetite_level", "CREATE TYPE appetite_level AS ENUM ('normal', 'increased', 'decreased', 'none')"},
+	{"water_intake_level", "CREATE TYPE water_intake_level AS ENUM ('normal', 'increased', 'decreased', 'none')"},
+	{"medical_image_type", "CREATE TYPE medical_image_type AS ENUM ('xray', 'echo', 'photo', 'endoscope', 'ct', 'mri', 'microscope', 'other')"},
+	{"estimate_status", "CREATE TYPE estimate_status AS ENUM ('draft', 'sent', 'approved', 'rejected')"},
+	{"confirmation_status", "CREATE TYPE confirmation_status AS ENUM ('pending', 'confirmed', 'returned')"},
+	{"item_category", "CREATE TYPE item_category AS ENUM ('examination', 'test', 'procedure', 'surgery', 'medicine', 'food', 'goods', 'other', 'vaccine', 'trimming', 'hotel', 'training')"},
+	// G12-2: 'trimming' was missing — billing_item_repository.go:271 persists
+	// Source: model.ItemSourceTrimming, so its integration path was untestable under this schema.
+	{"item_source", "CREATE TYPE item_source AS ENUM ('medical_record', 'manual', 'hospitalization', 'trimming')"},
+	{"campaign_discount_type", "CREATE TYPE campaign_discount_type AS ENUM ('rate', 'amount')"},
+	// 予約・会計・入院関連
+	{"visit_type", "CREATE TYPE visit_type AS ENUM ('first', 'revisit')"},
+	{"reservation_status", "CREATE TYPE reservation_status AS ENUM ('confirmed', 'pending', 'cancelled', 'checked_in', 'in_consultation', 'accounting', 'completed', 'no_show')"},
+	{"staff_type", "CREATE TYPE staff_type AS ENUM ('doctor', 'nurse', 'trimmer', 'resource')"},
+	{"reservation_source", "CREATE TYPE reservation_source AS ENUM ('manual', 'line')"},
+	{"billing_status", "CREATE TYPE billing_status AS ENUM ('waiting', 'completed', 'cancelled', 'pending')"},
+	{"hospitalization_type", "CREATE TYPE hospitalization_type AS ENUM ('hospitalization', 'hotel')"},
+	{"hospitalization_status", "CREATE TYPE hospitalization_status AS ENUM ('admitted', 'discharged', 'reserved')"},
+	{"care_plan_type", "CREATE TYPE care_plan_type AS ENUM ('food', 'medicine', 'treatment', 'instruction', 'item')"},
+	{"care_plan_status", "CREATE TYPE care_plan_status AS ENUM ('active', 'completed', 'discontinued')"},
+	{"care_log_type", "CREATE TYPE care_log_type AS ENUM ('food', 'excretion', 'medicine', 'treatment', 'other')"},
+	{"care_log_status", "CREATE TYPE care_log_status AS ENUM ('completed', 'partial', 'skipped')"},
+	{"plan_timing", "CREATE TYPE plan_timing AS ENUM ('morning', 'noon', 'night')"},
+	{"body_weight_unit", "CREATE TYPE body_weight_unit AS ENUM ('Kg', 'g')"},
+	// トリミング・シフト関連
+	{"reservation_type_category", "CREATE TYPE reservation_type_category AS ENUM ('general', 'trimming')"},
+	{"payment_method", "CREATE TYPE payment_method AS ENUM ('cash', 'credit_card', 'electronic_money', 'bank_transfer')"},
+	{"shift_type", "CREATE TYPE shift_type AS ENUM ('full', 'morning', 'afternoon', 'off', 'paid_leave')"},
+	{"tax_type", "CREATE TYPE tax_type AS ENUM ('included', 'excluded', 'exempt')"},
+	// lab_import（検査結果取込ジョブ）関連
+	{"lab_import_job_status", "CREATE TYPE lab_import_job_status AS ENUM ('received', 'validated', 'mapped', 'persisted', 'duplicate', 'needs_review', 'failed')"},
+	{"lab_import_source_type", "CREATE TYPE lab_import_source_type AS ENUM ('fixture', 'drwan', 'manual')"},
+	// #211 健診パッケージ（migration 010 → 001_init.sql 統合済み）
+	{"checkup_field_type", "CREATE TYPE checkup_field_type AS ENUM ('number', 'single_select', 'multi_select', 'boolean', 'checklist', 'text')"},
+}
+
+// enumValueRe extracts the ordered list of quoted ENUM value literals out of a
+// "CREATE TYPE ... AS ENUM ('a', 'b', ...)" definition string.
+var enumValueRe = regexp.MustCompile(`'[^']*'`)
+
+// reconcileEnumTypeDefinition self-heals a stale ekarte_db_test so sharedTestSchemaEnumTypes
+// edits (G12-2: e.g. item_source lacking 'trimming') take effect without a manual DB reset. A
+// previous IF NOT EXISTS guard silently kept stale definitions forever once a type had been
+// created once in the test DB.
+//
+// It prefers the non-destructive path: if the existing value set is an unchanged, order-preserving
+// prefix of the new definition (a pure append — the only kind of drift this task actually hit),
+// it widens the type in place with ALTER TYPE ... ADD VALUE. An earlier version of this function
+// unconditionally did DROP TYPE ... CASCADE + recreate for any mismatch; verified empirically
+// (scoped test run) that this transiently breaks any already-provisioned column of the type —
+// billing_item_lstep_queries_test.go / billing_item_repository_tx_atomicity_test.go both assume
+// billing_items.source already exists and do not themselves AutoMigrate(&model.BillingItem{}),
+// so a blanket CASCADE drop leaves them broken until some other test file happens to run its own
+// AutoMigrate first. ALTER TYPE ADD VALUE avoids that class of collateral breakage entirely.
+//
+// DROP+recreate remains the fallback for genuinely incompatible drift (reordered/removed/renamed
+// values) — none of the 54 types hit that case for G12-2, but a future migration edit could.
+func reconcileEnumTypeDefinition(db *gorm.DB, name, create string) error {
+	var existing []string
+	if err := db.Raw(`
+		SELECT e.enumlabel FROM pg_type t
+		JOIN pg_enum e ON t.oid = e.enumtypid
+		WHERE t.typname = ?
+		ORDER BY e.enumsortorder`, name).Scan(&existing).Error; err != nil {
+		return fmt.Errorf("failed to inspect existing ENUM %s: %w", name, err)
+	}
+
+	expected := enumValueRe.FindAllString(create, -1)
+
+	if len(existing) == 0 {
+		if err := db.Exec(create).Error; err != nil {
+			return fmt.Errorf("failed to create ENUM type %s: %w", name, err)
+		}
+		return nil
+	}
+
+	if enumValuesEqual(existing, expected) {
+		return nil
+	}
+
+	if appended, ok := enumAppendedValues(existing, expected); ok {
+		for _, v := range appended {
+			if err := db.Exec(fmt.Sprintf("ALTER TYPE %s ADD VALUE IF NOT EXISTS %s", name, v)).Error; err != nil {
+				return fmt.Errorf("failed to widen ENUM type %s with value %s: %w", name, v, err)
+			}
+		}
+		return nil
+	}
+
+	if err := db.Exec(fmt.Sprintf("DROP TYPE IF EXISTS %s CASCADE", name)).Error; err != nil {
+		return fmt.Errorf("failed to drop stale ENUM type %s: %w", name, err)
+	}
+	if err := db.Exec(create).Error; err != nil {
+		return fmt.Errorf("failed to create ENUM type %s: %w", name, err)
+	}
+	return nil
+}
+
+// enumValuesEqual reports whether existing (unquoted labels from pg_enum) exactly matches
+// expectedQuoted (quoted literals extracted from a CREATE TYPE string), in the same order.
+func enumValuesEqual(existing, expectedQuoted []string) bool {
+	if len(existing) != len(expectedQuoted) {
+		return false
+	}
+	for i, v := range expectedQuoted {
+		if "'"+existing[i]+"'" != v {
+			return false
+		}
+	}
+	return true
+}
+
+// enumAppendedValues reports whether expectedQuoted equals existing with one or more values
+// appended at the end (an order-preserving prefix match), returning just the appended
+// (still-quoted) values in order. Returns ok=false for any reorder/removal/rename.
+func enumAppendedValues(existing, expectedQuoted []string) (appended []string, ok bool) {
+	if len(expectedQuoted) <= len(existing) {
+		return nil, false
+	}
+	for i, v := range existing {
+		if "'"+v+"'" != expectedQuoted[i] {
+			return nil, false
+		}
+	}
+	return expectedQuoted[len(existing):], true
+}
+
+// TestEnumValuesEqual_TestEnumAppendedValues pins reconcileEnumTypeDefinition's pure helpers —
+// the logic that decides between a non-destructive ALTER TYPE ADD VALUE and a destructive
+// DROP+recreate (G12-2).
+func TestEnumValuesEqual_TestEnumAppendedValues(t *testing.T) {
+	t.Run("enumValuesEqual: identical values match", func(t *testing.T) {
+		assert.True(t, enumValuesEqual([]string{"manual", "trimming"}, []string{"'manual'", "'trimming'"}))
+	})
+	t.Run("enumValuesEqual: different length does not match", func(t *testing.T) {
+		assert.False(t, enumValuesEqual([]string{"manual"}, []string{"'manual'", "'trimming'"}))
+	})
+	t.Run("enumValuesEqual: same length different value does not match", func(t *testing.T) {
+		assert.False(t, enumValuesEqual([]string{"manual", "hospitalization"}, []string{"'manual'", "'trimming'"}))
+	})
+
+	t.Run("enumAppendedValues: pure trailing append is detected (item_source G12-2 case)", func(t *testing.T) {
+		appended, ok := enumAppendedValues(
+			[]string{"medical_record", "manual", "hospitalization"},
+			[]string{"'medical_record'", "'manual'", "'hospitalization'", "'trimming'"},
+		)
+		assert.True(t, ok)
+		assert.Equal(t, []string{"'trimming'"}, appended)
+	})
+	t.Run("enumAppendedValues: no new values is not an append", func(t *testing.T) {
+		_, ok := enumAppendedValues([]string{"a", "b"}, []string{"'a'", "'b'"})
+		assert.False(t, ok)
+	})
+	t.Run("enumAppendedValues: reordered values is not a pure append", func(t *testing.T) {
+		_, ok := enumAppendedValues([]string{"a", "b"}, []string{"'b'", "'a'", "'c'"})
+		assert.False(t, ok)
+	})
+	t.Run("enumAppendedValues: removed value is not a pure append", func(t *testing.T) {
+		_, ok := enumAppendedValues([]string{"a", "b"}, []string{"'a'"})
+		assert.False(t, ok)
+	})
+}
+
 // setupSharedTestSchema は PostgreSQL カスタム ENUM 型の作成とベースモデルの AutoMigrate を行います。
 // setupTestDB から sharedTestSchemaOnce 経由でプロセス全体につき一度だけ呼ばれます。
 func setupSharedTestSchema(db *gorm.DB) error {
-	// AutoMigrate の前に、PostgreSQL カスタム ENUM 型を作成
-	// （001_init.sql の 46 型 + 009 #201 薬量計算の 4 型）。
-	// model.Medicine が calculation_type を持つため、本 setup を使う全テストの
-	// medicines AutoMigrate に medicine_calculation_type が必須（欠落で CREATE TABLE 失敗）。
-	// DROP TYPE IF EXISTS → CREATE TYPE の順序で、既存型を削除してから再作成
-	enumTypes := []struct {
-		name   string
-		create string
-	}{
-		// ペット関連
-		{"pet_status", "CREATE TYPE pet_status AS ENUM ('alive', 'deceased')"},
-		{"pet_gender", "CREATE TYPE pet_gender AS ENUM ('male', 'female', 'unknown')"},
-		{"acquisition_type", "CREATE TYPE acquisition_type AS ENUM ('purchased', 'transferred', 'rescued', 'other')"},
-		{"danger_level", "CREATE TYPE danger_level AS ENUM ('low', 'medium', 'high')"},
-		{"membership_type", "CREATE TYPE membership_type AS ENUM ('non_member', 'member', 'deceased', 'transferred')"},
-		// マスタ共通
-		{"inventory_category", "CREATE TYPE inventory_category AS ENUM ('medicine', 'consumable', 'food', 'other')"},
-		{"inventory_status", "CREATE TYPE inventory_status AS ENUM ('sufficient', 'low', 'out_of_stock')"},
-		{"dosage_form", "CREATE TYPE dosage_form AS ENUM ('tablet', 'liquid', 'injection', 'topical', 'powder')"},
-		{"medicine_unit", "CREATE TYPE medicine_unit AS ENUM ('per_tablet', 'per_ml', 'per_dose', 'per_gram')"},
-		// #201 薬量自動計算（migration 009）: medicines.calculation_type + medicine_dose_params 用
-		{"medicine_calculation_type", "CREATE TYPE medicine_calculation_type AS ENUM ('none', 'per_weight')"},
-		{"medicine_dose_basis", "CREATE TYPE medicine_dose_basis AS ENUM ('per_administration', 'per_day')"},
-		{"medicine_rounding_mode", "CREATE TYPE medicine_rounding_mode AS ENUM ('up', 'down', 'nearest')"},
-		{"medicine_dose_species", "CREATE TYPE medicine_dose_species AS ENUM ('dog', 'cat')"},
-		{"cage_type", "CREATE TYPE cage_type AS ENUM ('icu', 'dog', 'cat', 'general')"},
-		{"cage_size", "CREATE TYPE cage_size AS ENUM ('small', 'medium', 'large')"},
-		{"body_size", "CREATE TYPE body_size AS ENUM ('small', 'medium', 'large')"},
-		{"billing_unit", "CREATE TYPE billing_unit AS ENUM ('per_day', 'per_night')"},
-		{"target_size", "CREATE TYPE target_size AS ENUM ('small', 'medium', 'large', 'cat')"},
-		{"anesthesia_type", "CREATE TYPE anesthesia_type AS ENUM ('none', 'local', 'sedation', 'general')"},
-		{"vaccine_species", "CREATE TYPE vaccine_species AS ENUM ('dog', 'cat', 'both')"},
-		// 電子カルテ関連
-		{"medical_record_status", "CREATE TYPE medical_record_status AS ENUM ('draft', 'finalized')"},
-		{"treatment_item_type", "CREATE TYPE treatment_item_type AS ENUM ('consultation', 'procedure', 'medicine', 'other')"},
-		{"treatment_status", "CREATE TYPE treatment_status AS ENUM ('pending', 'completed', 'not_applicable')"},
-		{"exam_status", "CREATE TYPE exam_status AS ENUM ('pending', 'in_progress', 'result_entered', 'completed', 'confirmed')"},
-		{"exam_result_status", "CREATE TYPE exam_result_status AS ENUM ('normal', 'high', 'low')"},
-		{"next_schedule_type", "CREATE TYPE next_schedule_type AS ENUM ('3weeks', '4weeks', '1year', 'other')"},
-		{"appetite_level", "CREATE TYPE appetite_level AS ENUM ('normal', 'increased', 'decreased', 'none')"},
-		{"water_intake_level", "CREATE TYPE water_intake_level AS ENUM ('normal', 'increased', 'decreased', 'none')"},
-		{"medical_image_type", "CREATE TYPE medical_image_type AS ENUM ('xray', 'echo', 'photo', 'endoscope', 'ct', 'mri', 'microscope', 'other')"},
-		{"estimate_status", "CREATE TYPE estimate_status AS ENUM ('draft', 'sent', 'approved', 'rejected')"},
-		{"confirmation_status", "CREATE TYPE confirmation_status AS ENUM ('pending', 'confirmed', 'returned')"},
-		{"item_category", "CREATE TYPE item_category AS ENUM ('examination', 'test', 'procedure', 'surgery', 'medicine', 'food', 'goods', 'other', 'vaccine', 'trimming', 'hotel', 'training')"},
-		{"item_source", "CREATE TYPE item_source AS ENUM ('medical_record', 'manual', 'hospitalization')"},
-		// 予約・会計・入院関連
-		{"visit_type", "CREATE TYPE visit_type AS ENUM ('first', 'revisit')"},
-		{"reservation_status", "CREATE TYPE reservation_status AS ENUM ('confirmed', 'pending', 'cancelled', 'checked_in', 'in_consultation', 'accounting', 'completed', 'no_show')"},
-		{"staff_type", "CREATE TYPE staff_type AS ENUM ('doctor', 'nurse', 'trimmer', 'resource')"},
-		{"reservation_source", "CREATE TYPE reservation_source AS ENUM ('manual', 'line')"},
-		{"billing_status", "CREATE TYPE billing_status AS ENUM ('waiting', 'completed', 'cancelled', 'pending')"},
-		{"hospitalization_type", "CREATE TYPE hospitalization_type AS ENUM ('hospitalization', 'hotel')"},
-		{"hospitalization_status", "CREATE TYPE hospitalization_status AS ENUM ('admitted', 'discharged', 'reserved')"},
-		{"care_plan_type", "CREATE TYPE care_plan_type AS ENUM ('food', 'medicine', 'treatment', 'instruction', 'item')"},
-		{"care_plan_status", "CREATE TYPE care_plan_status AS ENUM ('active', 'completed', 'discontinued')"},
-		{"care_log_type", "CREATE TYPE care_log_type AS ENUM ('food', 'excretion', 'medicine', 'treatment', 'other')"},
-		{"care_log_status", "CREATE TYPE care_log_status AS ENUM ('completed', 'partial', 'skipped')"},
-		{"plan_timing", "CREATE TYPE plan_timing AS ENUM ('morning', 'noon', 'night')"},
-		{"body_weight_unit", "CREATE TYPE body_weight_unit AS ENUM ('Kg', 'g')"},
-		// トリミング・シフト関連
-		{"reservation_type_category", "CREATE TYPE reservation_type_category AS ENUM ('general', 'trimming')"},
-		{"payment_method", "CREATE TYPE payment_method AS ENUM ('cash', 'credit_card', 'electronic_money', 'bank_transfer')"},
-		{"shift_type", "CREATE TYPE shift_type AS ENUM ('full', 'morning', 'afternoon', 'off', 'paid_leave')"},
-		{"tax_type", "CREATE TYPE tax_type AS ENUM ('included', 'excluded', 'exempt')"},
-	}
-	for _, et := range enumTypes {
-		query := fmt.Sprintf(`
-DO $$
-BEGIN
-    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = '%s') THEN
-        %s;
-    END IF;
-END
-$$;`, et.name, et.create)
-		if err := db.Exec(query).Error; err != nil {
-			return fmt.Errorf("failed to create ENUM type %s: %w", et.name, err)
+	// AutoMigrate の前に、PostgreSQL カスタム ENUM 型を作成する（sharedTestSchemaEnumTypes 参照）。
+	for _, et := range sharedTestSchemaEnumTypes {
+		if err := reconcileEnumTypeDefinition(db, et.name, et.create); err != nil {
+			return err
 		}
 	}
 
