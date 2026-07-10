@@ -5,7 +5,6 @@ export { OwnerForm } from "./routes/OwnerForm";
 export { ownersLoader, ownerLoader } from "./loaders";
 export { useGetOwner } from "./api/get-owner";
 export { LineIntegrationCard } from "./components/LineIntegrationCard";
-export { useCreateLstepBulkTag } from "./api/create-lstep-bulk-tag";
 export { LineSendPanel } from "./components/LineSendPanel";
 export { useGetLineSendHistory } from "./api/get-line-send-history";
 export { useSendLineMessage } from "./api/send-line-message";

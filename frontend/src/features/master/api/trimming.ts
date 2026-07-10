@@ -235,16 +235,6 @@ export function useDeleteTrimmingCourse() {
   });
 }
 
-export function useReorderTrimmingCourses() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (ids: number[]) => reorderTrimmingCourses(ids),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: TRIMMING_COURSES_KEY });
-    },
-    onError: (error) => handleApiError(error, "並び替え"),
-  });
-}
 
 // ─────────────────────────────────────────────────
 // TanStack Query hooks - TrimmingOption
@@ -293,13 +283,3 @@ export function useDeleteTrimmingOption() {
   });
 }
 
-export function useReorderTrimmingOptions() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (ids: number[]) => reorderTrimmingOptions(ids),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: TRIMMING_OPTIONS_KEY });
-    },
-    onError: (error) => handleApiError(error, "並び替え"),
-  });
-}

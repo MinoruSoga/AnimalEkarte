@@ -9,12 +9,12 @@ interface AnimalSpeciesOption extends BackendAnimalSpecies {
   isInactive?: boolean;
 }
 
-export const getAnimalSpecies = async (): Promise<BackendAnimalSpecies[]> => {
+const getAnimalSpecies = async (): Promise<BackendAnimalSpecies[]> => {
   const { data } = await axios.get<BackendAnimalSpecies[]>("/v1/masters/animal-species");
   return data;
 };
 
-export const useGetAnimalSpecies = (opts?: { includeInactive?: boolean }) => {
+const useGetAnimalSpecies = (opts?: { includeInactive?: boolean }) => {
   return useQuery({
     queryKey: ["masters", "animal-species", opts?.includeInactive ? "all" : "active"],
     queryFn: getAnimalSpecies,

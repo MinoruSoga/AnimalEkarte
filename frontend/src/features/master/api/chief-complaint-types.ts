@@ -130,13 +130,3 @@ export async function reorderChiefComplaintTypes(ids: number[]): Promise<void> {
   await axios.patch("/v1/masters/chief-complaint-types/reorder", { ids });
 }
 
-export function useReorderChiefComplaintTypes() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (ids: number[]) => reorderChiefComplaintTypes(ids),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: CHIEF_COMPLAINT_TYPES_QUERY_KEY });
-    },
-    onError: (error) => handleApiError(error, "並び替え"),
-  });
-}

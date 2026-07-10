@@ -84,10 +84,6 @@ const deleteCampaign = async (id: string): Promise<void> => {
   await axios.delete(`/v1/masters/campaigns/${id}`);
 };
 
-const reorderCampaigns = async (ids: number[]): Promise<void> => {
-  await axios.patch("/v1/masters/campaigns/reorder", { ids });
-};
-
 // ─────────────────────────────────────────────────
 // Query hooks
 // ─────────────────────────────────────────────────
@@ -127,11 +123,3 @@ export const useDeleteCampaign = () => {
   });
 };
 
-export const useReorderCampaigns = () => {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (ids: number[]) => reorderCampaigns(ids),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: CAMPAIGNS_QUERY_KEY }),
-    onError: (error) => handleApiError(error, "並び替え"),
-  });
-};

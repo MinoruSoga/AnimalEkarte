@@ -54,9 +54,6 @@ const deleteTrimmingCourseType = async (id: string): Promise<void> => {
   await axios.delete(`/v1/masters/trimming-course-types/${id}`);
 };
 
-const reorderTrimmingCourseTypes = async (ids: number[]): Promise<void> => {
-  await axios.patch("/v1/masters/trimming-course-types/reorder", { ids });
-};
 
 // ─────────────────────────────────────────────────
 // Mutation hooks
@@ -90,11 +87,3 @@ export const useDeleteTrimmingCourseType = () => {
   });
 };
 
-export const useReorderTrimmingCourseTypes = () => {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (ids: number[]) => reorderTrimmingCourseTypes(ids),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: TRIMMING_COURSE_TYPES_QUERY_KEY }),
-    onError: (error) => handleApiError(error, "並び替え"),
-  });
-};

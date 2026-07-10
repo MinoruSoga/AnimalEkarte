@@ -104,18 +104,6 @@ export interface PaymentSplitInfo {
   paidByName?: string;
 }
 
-/** @see {@link import("@/types/generated/models").BillingRefund} */
-export interface Refund {
-  id: string;
-  billingId: string;
-  amount: number;
-  reason: string;
-  refundedBy: number | null;
-  refundedByName: string;
-  refundedAt: string;
-  createdAt: string;
-}
-
 /** @see {@link import("@/types/generated/models").Billing} */
 export interface Accounting {
   id: string;

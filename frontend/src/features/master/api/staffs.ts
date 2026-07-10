@@ -162,16 +162,6 @@ export function useDeleteStaff() {
   });
 }
 
-export function useReorderStaffs() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (ids: number[]) => reorderStaffs(ids),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: STAFFS_QUERY_KEY });
-    },
-    onError: (error) => handleApiError(error, "並び替え"),
-  });
-}
 
 // ─────────────────────────────────────────────────
 // Re-exports: 呼び出し元の "../api/staffs" 単一 import 経路を維持するため、
@@ -192,8 +182,6 @@ export {
 export type { ClinicSummary } from "./staff-clinics";
 
 export {
-  useGetStaffExcludedReservationTypes,
-  useUpdateStaffExcludedReservationTypes,
   useGetStaffCapableReservationTypes,
   useUpdateStaffCapableReservationTypes,
 } from "./staff-reservation-types";

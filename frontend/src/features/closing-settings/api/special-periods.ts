@@ -29,17 +29,6 @@ export const createSpecialPeriod = async (
   return res;
 };
 
-export const updateSpecialPeriod = async (
-  id: number,
-  data: UpdateSpecialPeriodRequest,
-): Promise<ClosingSpecialPeriod> => {
-  const { data: res } = await axios.patch<ClosingSpecialPeriod>(
-    `/v1/closing-settings/special-periods/${id}`,
-    data,
-  );
-  return res;
-};
-
 export const deleteSpecialPeriod = async (id: number): Promise<void> => {
   await axios.delete(`/v1/closing-settings/special-periods/${id}`);
 };
@@ -50,16 +39,6 @@ export const useCreateSpecialPeriod = () => {
     mutationFn: createSpecialPeriod,
     onSuccess: () => qc.invalidateQueries({ queryKey: ["closing-settings"] }),
     onError: (error) => handleApiError(error, "特別期間の追加"),
-  });
-};
-
-export const useUpdateSpecialPeriod = () => {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: ({ id, data }: { id: number; data: UpdateSpecialPeriodRequest }) =>
-      updateSpecialPeriod(id, data),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["closing-settings"] }),
-    onError: (error) => handleApiError(error, "特別期間の更新"),
   });
 };
 
