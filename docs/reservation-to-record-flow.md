@@ -594,11 +594,11 @@ LINE予約で `owner_id` / `pet_id` が未確定の場合、受付済みにす�
 
 ### Phase 1: 導線の統一
 
-- 受付カードの category 判定を `reservation_types.category` に変更
+- 受付カードの category 判定を `reservation_types.category` に変更（完了 — `use-reception-modal-handlers.ts` が `reservationCategory` で遷移先を判定）
 - 通常カルテ一覧からの作成で appointment を作る／既存 appointment に紐付ける（完了）
 - トリミング一覧からの作成で appointment が受付に反映されることを保証する（完了）
 - トリミング一覧からの作成では seed ID に依存せず、active な `trimming` 予約区分を使う（完了）
-- 作成後に `reception` query を無効化する
+- 作成後に `reception` query を無効化する（完了 — `create-trimming.ts` / `create-medical-record.ts` が `invalidateQueries({queryKey: ["reception"]})` を実装済み）
 
 ### Phase 2: 院内予約フォームの空き枠対応
 

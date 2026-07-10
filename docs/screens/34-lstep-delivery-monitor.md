@@ -18,7 +18,7 @@
 | **対象飼主** | メッセージ送信対象のオーナー名。 |
 | **トリガー種別** | `first_visit_followup_3d`, `dormant_prevention_365d` 等のコード。 |
 | **ステータス** | `scheduled`, `fired`, `excluded`, `failed` の 4 状態。 |
-| **判定理由** | `excluded` の場合、なぜ配信がスキップされたか（例：死亡ガード、スタッフ除外、重複回避）。 |
+| **判定理由** | `excluded` の場合、なぜ配信がスキップされたか（実値: `delivery_excluded_flag`＝飼主の配信除外設定、`no_line_user_id`＝LINE 未連携、`excl_tag_delivery_stop`＝配信停止タグ）。 |
 
 ### 1.2 検索・フィルタ (`DeliveryMonitorFilters`)
 - **期間**: 予定/実行日時の From-To 絞り込み。
@@ -30,13 +30,15 @@
 ## 2. 主要な監視ロジック
 
 ### 2.1 自動除外ガード (Auto-Exclusion)
-配信直前にバックエンドが以下のチェックを行い、不適切な送信を自動で阻止します。
-1.  **死亡ガード**: ペットが亡くなっている場合。
-2.  **オプトアウト**: 飼主が LINE 連携を解除、または配信停止設定にしている場合。
-3.  **重複回避 (De-duplication)**: 同日に優先度の高い別の配信がある場合。
+配信直前にバックエンド（`checkExclusion`）が以下のチェックを行い、不適切な送信を `excluded` として自動で阻止します。
+1.  **配信除外フラグ**: 飼主に配信除外設定がある場合（`delivery_excluded_flag`）。
+2.  **LINE 未連携**: 飼主に LINE ユーザー ID が紐付いていない場合（`no_line_user_id`）。
+3.  **配信停止タグ**: 飼主に配信停止タグが付与されている場合（`excl_tag_delivery_stop`）。
+
+なお、ペットの死亡はこの直前チェックではなくライフサイクル処理（`HandlePetDeath` によるタグ除去・全頭死亡時の Lステップ全タグ削除）を通じて配信対象から外れる仕組みです。
 
 ### 2.2 優先順位制御 (Priority Suppression)
-`lstep_trigger_priorities` マスタの設定に基づき、低優先度のトリガーは `excluded` (理由: `suppressed_by_priority`) として処理されます。
+`lstep_trigger_priorities` マスタの設定に基づき、同日に優先度の高い別トリガーがある場合、低優先度のトリガーはログの `suppressed_by_priority` フラグ（+`suppression_reason`）が立てられ配信されません（`excluded_reason` とは別カラムで管理）。
 
 ---
 

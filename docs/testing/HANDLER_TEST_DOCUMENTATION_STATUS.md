@@ -5,7 +5,7 @@
 > **タイミング**: ハンドラーテスト方針の確認時。
 
 > **Animal Ekarte**: バックエンドハンドラー（`backend/internal/handler/*_handler.go`・88 ファイル）の検証状態
-> **最新更新**: 2026-06-12 | **全体カバレッジ**: 未検証（実測には手動で `make test-cover` / `go test ./internal/handler/... -cover` が必要）
+> **最新更新**: 2026-07-11 | **全体カバレッジ**: backend 総計は CI の coverage-ratchet が自動計測・低下検知（baseline 89.9%、`backend/.coverage-baseline` / [coverage-policy.md](../coverage-policy.md) 参照）。handler パッケージ単体の内訳の実測には手動で `make test-cover` / `go test ./internal/handler/... -cover` が必要
 
 ---
 

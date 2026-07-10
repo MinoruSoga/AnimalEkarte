@@ -67,14 +67,14 @@
 | メソッド | エンドポイント | 用途 | 必須権限 | 必須アクション |
 |:---|:---|:---|:---|:---|
 | GET | `/api/v1/checkups` | 条件に応じた健診履歴の一括取得 | `checkups` | `view` |
-| GET | `/api/v1/checkups/alerts` | 期限切れ・間近の件数サマリ取得 | `checkups` | `view` |
+| GET | `/api/v1/checkups/alerts` | 期限切れ・間近の件数サマリ取得（バックエンドに実装済みだが本画面からは未呼出。画面上のアラート表示は `CheckupAlertBadge` が行単位で算出） | `checkups` | `view` |
 | GET | `/api/v1/checkups/field-results` | ペット単位の健診結果（レポート用）取得 | `checkups` | `view` |
 | POST | `/api/v1/medical-records` | Path B におけるベースカルテの自動生成 | `medical-records` | `create` |
 | GET | `/api/v1/medical-records/:id/checkups` | カルテに紐付く健診レコード一覧の取得 | `medical-records` | `view` |
 | POST | `/api/v1/medical-records/:id/checkups` | カルテに紐付く新規健診レコードの保存 | `medical-records` | `create` |
 | PATCH | `/api/v1/medical-records/:id/checkups/:checkupId` | 健診レコードの更新 | `medical-records` | `edit` |
 | DELETE | `/api/v1/medical-records/:id/checkups/:checkupId` | 健診レコードの削除 | `medical-records` | `delete` |
-| GET | `/api/v1/medical-records/:id/checkups/:checkupId/field-results` | 健診パッケージの結果値の取得 | `medical-records` | `view` |
+| GET | `/api/v1/medical-records/:id/checkups/:checkupId/field-results` | 健診パッケージの結果値の取得（バックエンドに実装済みだがフロントエンドからは未呼出） | `medical-records` | `view` |
 | PUT | `/api/v1/medical-records/:id/checkups/:checkupId/field-results` | 健診パッケージの結果値の一括更新 | `medical-records` | `edit` |
 
 ---

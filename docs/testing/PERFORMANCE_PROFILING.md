@@ -32,6 +32,7 @@
 React DevTools の **Profiler** タブを使用して、不要な再描画（Re-render）を特定します。
 - **重点監視**: `medical-records`, `accounting`, `reception` の各フォーム。
 - **対策**: `memo()`, `useCallback`, `useMemo` によるコンポーネントの保護。
+- **CI 自動監査**: `.github/workflows/performance-tests.yml` の `lighthouse` ジョブが `frontend/scripts/lighthouse-audit.js` で Lighthouse 監査を実行する（§2 の画面表示系 KPI の自動計測手段）。
 
 ### 3.2 バックエンド (Go)
 CLI ツール `backend/scripts/profile.go` は CI ランナーのホスト自身（起動したての別プロセス）をプロファイリングしており、稼働中の dockerized backend の実測になっていなかったため 2026-07-10 に削除済み（commit `3f692a73`）。バックエンドは HTTP の `/debug/pprof` エンドポイントも公開していない。現時点で稼働中の backend プロセスに対する専用プロファイリング手段は存在しない（`net/http/pprof` を `GIN_MODE=debug` 時のみ有効化する案は未実装）。
