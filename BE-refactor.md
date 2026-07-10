@@ -1,44 +1,36 @@
-# BE-refactor.md — バックエンド リファクタリング計画（未対応タスク）
+# BE-refactor.md — バックエンド リファクタリング計画（Appendix A / H フォローアップのみ残存）
 
-> **本ドキュメントは ClaudeCode エージェントが読んで直接着手するための実行計画である。未対応タスクのみを収録する。**
-> 再開時は「推奨実行順」から着手すること。
-> 前提: backend は 2026-07-02 完遂の D1-D13/R1-R3 計画で一度系統的にリファクタ済み・複数回の監査で well-maintained と判定済みのコードベースである。今回はそれ以降（2026-07-02 以降）に実測ベースで発見された**実在する**負債のみを対象とする。
+> **本編（挙動保存トラック、G1/G2/G6/G9/G12/G13/G14 の全17件）は 2026-07-10 に完遂（Epic CLOSED）。**
+> 残るのは Appendix A（挙動変更・別トラック、PO判断待ち）14件と、レビュー由来フォローアップ H-1〜H-7（別チケット化推奨）のみ。
+> 前提: backend は 2026-07-02 完遂の D1-D13/R1-R3 計画で一度系統的にリファクタ済み・複数回の監査で well-maintained と判定済みのコードベースである。
 
 ## 監査の方法と信頼性
 
 - 対象: `backend/` 配下全体。15次元で並列監査 → 敵対的検証。
-- 本編（挙動保存）と Appendix A（挙動変更・別トラック）に分離。CLOSED 済みの完了履歴は本ファイルから削除済み — 未対応分のみを収録する。
+- 本編（挙動保存）と Appendix A（挙動変更・別トラック）に分離。CLOSED 済みの完了履歴は本ファイルから削除済み。
 
 ## サマリー
 
 | 区分 | 件数 | 内訳 |
 |---|---|---|
-| 本編（挙動保存）— 残タスク | **2件** | P2: 2（BLOCKED 解消済み、未着手） |
-| Appendix A（挙動変更・別トラック） | 14件 | X-1, X-3〜X-5, X-9〜X-18（X-2/X-6/X-7/X-8 は 2026-07-10 に CLOSED） |
+| 本編（挙動保存） | **0件 — CLOSED 2026-07-10** | 全17件完遂（詳細は本ファイル履歴 / git log 参照） |
+| Appendix A（挙動変更・別トラック） | 14件 | X-1, X-3〜X-5, X-9〜X-18 |
 | レビュー由来フォローアップ（未登録・別チケット推奨） | 7件 | H-1, H-2, H-3, H-4, H-5, H-6, H-7 |
 
-## このドキュメントの使い方（ClaudeCode 向け）
-
-1. **本編残タスクは全て挙動保存**。既存テストを事前に緑確認 → リファクタ/テスト追加 → 同じテストが緑のままであることを確認。検証はスコープ限定（`docker compose exec backend go test ./internal/xxx/ -run ... -count=1`）。フル `go test ./...` 禁止。
-2. **worker/root pnpm 検証**: ホスト `Bash(pnpm:*)` は `.claude/settings.json` で deny。`docker run --rm -v "$(pwd):/repo" -w /repo node:22-bookworm-slim` 内で `corepack enable && corepack prepare pnpm@10.15.0 --activate && pnpm install && pnpm run test:worker`（G10-6 で実証済み）。
-3. 1項目 = 1コミット。`.claude/settings.json` はステージしない。
-4. **Appendix A は本計画の実行対象外**（PO判断・別トラック）。
-5. 完了した項目は本ファイルから削除する運用。
-
----
-
-## 推奨実行順（残タスク — 再開時）
+## 本編 CLOSED 履歴（2026-07-10）
 
 ```
-[G12-1 → G12-2 → G13-1 → G14-1: CLOSED 2026-07-10]
-[G1-1 → G1-4: 発見時点で既に 2026-07-09 の前セッションで CLOSED 済みだったと判明（本ファイル未更新のstaleな記載）]
-[G1-2: 前セッションで 203→82 まで既完了、残差63件中48件を2026-07-10に追加完了。残る15件（14件は同一ハンドラのエイリアス重複登録・1件はopenapi_route_drift_test.goのパース制約でPOST /api/line/webhookが未文書化）はinternal/apicontract/openapi_route_drift_test.goのallowlistにコメント付きでpin。CLOSED]
-[G1-5 → G1-6: CLOSED 2026-07-10]
-[G2-1 → G2-2: 発見時点で既に 2026-07-09 の前セッションで CLOSED 済みだったと判明。CLOSED]
-[X-2/X-6/X-7/X-8: 2026-07-10 に RED→GREEN 実証 + security-reviewer 独立レビュー(CRITICAL/HIGH 0件)を経て CLOSED。BLOCKED 解消]
-→ G6-2（着手可能 — tx-medicine-inventory/tx-clinic-create/tx-reservation-staff 解消済み。残る対象は G6-2 本文「③repo内部独立tx 13ファイル」のうち X-6/X-7/X-8 未カバーの9ファイル: campaign/lstep_tag_cache/manual_article/owner/reservation_schedule/reservation_type_liff/shift_entry/shift_template/treatment）
-→ G9-1（着手可能 — lstep-nilcipher-stale-di 解消済み）
-→ Final gate
+G12-1 → G12-2 → G13-1 → G14-1: 2026-07-10 実装・CLOSED（allModels exhaustiveness gate / item_source enum parity gate /
+  lab import 補償ログ / accountingService.Update allowlist精度修正）
+G1-1 / G1-3 / G1-4 / G2-1 / G2-2: 2026-07-09 の前セッションで既に CLOSED 済みだったと判明（本ファイル未更新のstaleな記載を本セッションで是正）
+G1-2: 前セッションで 203→82 まで既完了、残差63件中48件を2026-07-10に追加完了。残る15件（14件は同一ハンドラのエイリアス
+  重複登録・1件はPOST /api/line/webhookのパース制約）は internal/apicontract/openapi_route_drift_test.go の
+  allowlist にコメント付きでpin。CLOSED
+G1-5 / G1-6: 2026-07-10 実装・CLOSED（stale prototype docs 削除 / onboarding docs 是正）
+X-2 / X-6 / X-7 / X-8（Appendix A、G6-2/G9-1 の BLOCKED 解消を目的にユーザー承認済みスコープとして本 Run に含めた）:
+  2026-07-10、RED→GREEN 実証 + security-reviewer 独立レビュー(CRITICAL/HIGH 0件)を経て CLOSED
+G6-2 → G9-1: BLOCKED 解消後 2026-07-10 に実装・CLOSED（tx機構の残り9ファイル一括置換+CLAUDE.md規約追加、
+  main.go 二段階DI統合）。G9-1 は go-reviewer 独立レビュー Approve。
 ```
 
 ### レビュー由来フォローアップ（本編未登録）
@@ -54,71 +46,6 @@
 | H-7 | `reservationStaffService.Update` の所有権確認読み取り(`s.GetByID`)が tx 外で行われ、確認〜更新の間にスタッフが削除されると TOCTOU の窓が生じる。X-8 の修正対象（fields 更新+除外設定置換の原子性）とは独立した既存の設計であり、X-8 は悪化させていない（security-reviewer 確認済み）。低頻度の管理操作のため実害は限定的。 | X-8 security-reviewer | LOW（別チケット化検討・優先度低） |
 
 ---
-
-# 残タスク（本編）
-
-## G6. Repository層規約・トランザクション機構整理
-
-### G6-2. tx 参加機構が実質5系統併存し、ctx 方式は repo 側 dbOrTx 未採用時に静かに非参加となる — 機構の棚卸しと標準化・ガード整備
-
-- **ID**: `tx-mechanism-consolidation`
-- **重要度**: P2 / **工数目安**: M / **挙動変更**: なし（挙動保存）
-- **対象ファイル**: internal/repository/transactor.go (11-42); internal/repository/base.go (27-35); internal/repository/repositories.go (236-251); internal/repository/audit_repository.go (14-47); internal/repository/helpers.go (12-54); internal/repository/CLAUDE.md (1-183)
-- **依存関係**: tx-medicine-inventory-nonparticipation / tx-clinic-create-nonparticipation / tx-reservation-staff-nonparticipation の修正後に (2) の一括置換を実施（同一ファイル競合回避）
-
-**証拠(現HEAD検証済み)**
-
-機構の実測棚卸し: ①ctx-txKey 方式 = transactor.go:28-31「func (t *gormTransactor) WithTx(ctx context.Context, fn func(ctx context.Context) error) error {\n    if err := t.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {\n        return fn(context.WithValue(ctx, txKey{}, tx))」+ base.go:30-35 dbOrTx。dbOrTx 採用 repo は 104 非テストファイル中 18 のみ（grep 実測）。service 側 WithTx 呼出は 27 箇所/14 service。②repo-swap 方式 = repositories.go:243-245「if err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {\n    txRepos := NewRepositories(tx)\n    return fn(txRepos)」（treatment_service.go:242/377・hospitalization_service.go:281 が使用。TransactionFn テストフック付き）。③repo 内部独立 tx = r.db.WithContext(ctx).Transaction が campaign:92/clinic:103/lstep_tag_cache:244/manual_article:60/owner:173/permission_group:102,218,243/reservation_schedule:91/reservation_staff:68,130,226,295/reservation_type_liff:104/shift_entry:122/shift_template:93/treatment:187 の13ファイル。④SAVEPOINT 参加型内部 tx = dbOrTx(ctx, r.db).Transaction が accounting:298/checkup_field:110/examination:180/staff:143/trimming:85（accounting_repository.go:288-289 に R1-1 根拠コメント）。⑤補助 = audit_repository.go:31/42 の Create/CreateTx 二本立て・helpers.go:14,36 の db 引数+内部 tx。
-
-**問題**
-
-①の ctx 方式は「repo が dbOrTx を使っていること」が暗黙の前提だが、これを強制する仕組みが無く、違反してもコンパイル・テスト・lint のどれも落ちない（silent non-participation）。実際に accounting(R1-1/D2 で修正済み)→今回 medicine/inventory・clinic/permission_group・reservation_staff と同一障害クラスが繰り返し発生しており、構造的な再発様式が確立してしまっている。また①と②が service 層で無方針に併存し、新規 service 実装時にどちらを使うべきか・repo 側に何が要求されるかが CLAUDE.md に明文化されていない（repository/CLAUDE.md は P2/P3/P4/P9/P16 のみで tx 規約の記載ゼロ）。
-
-**実装手順**
-
-挙動保存トラック: (1) internal/repository/CLAUDE.md に tx 規約セクションを追加 —「Transactor.WithTx 配下で呼ばれる repo メソッドは dbOrTx(ctx, r.db) 必須 / repo 内部 tx は dbOrTx(ctx, r.db).Transaction (R1-1 パターン) を標準 / 新規 repo は全メソッド dbOrTx で書く」を accounting_repository.go:288-289 の先例参照付きで明記。(2) ③の残 13 ファイルの r.db.WithContext(ctx).Transaction を dbOrTx(ctx, r.db).Transaction へ機械置換（ambient tx 呼出が現存しないことは本監査で確認済みのため挙動保存。reservation_staff は tx-reservation-staff-nonparticipation で先行）。(3) ①②の統合は行わない — ②は全 repo が自動参加する点で機能的に堅牢であり、treatment/hospitalization の複雑な多 repo tx に適合している。拙速な統一は YAGNI。ただし「新規はどちらを選ぶか」の判断基準（単一〜少数 repo なら①、多 repo 横断なら②）を CLAUDE.md に記す。(4) 静的 lint（service WithTx ブロック内呼出の taint 追跡）は master_fk_write_inventory_lint_test.go 冒頭で静的追跡を断念した同じ理由（呼出し越しのデータフロー解析が go/ast 単体では偽陰性/偽陽性多発）で作らない。正本ガードは F1-F3 で追加する rollback runtime テスト。
-
-**検証コマンド(スコープ限定)**
-```
-docker compose exec backend go test ./internal/repository/ -count=1
-```
-
-
-## G9. 周辺パッケージ・DI組立の整理
-
-### G9-1. main.goの二段階DI（NewServices後に約20サービスを再構築/追加配線）を単一段階に統合
-
-- **ID**: `two-phase-di-consolidation`
-- **重要度**: P2 / **工数目安**: M / **挙動変更**: なし（挙動保存）
-- **対象ファイル**: cmd/api/main.go (86-167); internal/service/service.go (190-193,206,264)
-- **依存関係**: lstep-nilcipher-stale-di を先に完了させること
-
-**証拠(現HEAD検証済み)**
-
-cmd/api/main.go:158-162:
-	// FEAT-383: 自動配信トリガー（LstepBatch / MedicalRecord / Checkup より先に初期化）
-	svcs.LstepDeliveryTrigger = service.NewLstepDeliveryTriggerService(repos.Owner, repos.MedicalRecord, ...)
-	// FEAT-383: イベントフック注入（LstepDeliveryTrigger 確定後に再初期化）
-	svcs.MedicalRecord = service.NewMedicalRecordService(repos.MedicalRecord, repos.Owner, repos.Pet, repos.Inquiry, repos.ClinicalPlan, repos.LineCustomerMgr, repos.Reservation, svcs.LstepDeliveryTrigger, svcs.Audit, svcs.LstepTagSync)
-	svcs.Checkup = service.NewCheckupService(repos.Checkup, repos.MedicalRecord, repos.CheckupType, svcs.LstepDeliveryTrigger, svcs.LstepTagSync)
-
-internal/service/service.go:206: MedicalRecord: NewMedicalRecordService(..., repos.Reservation, nil, auditSvc, lstepTagSyncSvc),
-service.go:264: Checkup: NewCheckupService(repos.Checkup, repos.MedicalRecord, repos.CheckupType, nil, lstepTagSyncSvc),
-（NewServices が nil トリガーで構築 → main.go が捨てて再構築する二重構築）
-
-**問題**
-
-MedicalRecord/Checkup/LstepSettings/LstepTagSync/LstepLifecycle/LstepTag が NewServices と main.go で二重構築され、「LstepDeliveryTrigger 確定後に再初期化」等の順序制約コメントが main.go に散在する。この構造が finding lstep-nilcipher-stale-di（部分上書きによる stale 参照）の温床であり、今後 lstep 依存サービスを追加するたびに同型の取りこぼしが再発し得る。main.go の配線ブロック（86-167行）のうち infra 依存が必要なのは SharedFile/LineSend（FileStorage 経由）のみで、残りは repos とサービス相互参照だけで構築可能。
-
-**実装手順**
-
-前提: lstep-nilcipher-stale-di を先に修正。手順: (1) service.NewServices のシグネチャに sharedStorage infra.FileStorage を追加（main.go は STORAGE_TYPE 分岐で構築した storage を渡す。import 方向は service→infra で既存 crypto import と同じため循環なし）。(2) main.go:95-167 で構築している LstepTriggerPriority → LstepDeliveryTrigger → MedicalRecord/Checkup → LstepBatch → SharedFile/ChronicCondition/LineSend/LineLink/LstepTagSummary/CheckupSync/LstepDeliveryMonitor/LstepCsvImport/LstepAnalytics を NewServices 内へ依存順に移設し、service.go:206/264 の nil トリガー仮構築を排除して一回構築にする。(3) main.go は logger/config/DB/cipher/storage/uploader の infra 構築と handler.New 呼び出しのみ残す。(4) 既存 service 層テスト全体で回帰確認。挙動保存（構築結果のグラフは修正後と同一）。
-
-**検証コマンド(スコープ限定)**
-```
-docker compose exec backend go test ./internal/service/... -count=1
-```
-
 
 ## Appendix A: 挙動変更を伴う項目（別トラック・PO/責任者判断を要する）
 
