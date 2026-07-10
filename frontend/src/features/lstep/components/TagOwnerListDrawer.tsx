@@ -1,4 +1,4 @@
-import { useState, useCallback, useTransition } from "react";
+import { memo, useState, useCallback, useTransition } from "react";
 import { Link } from "react-router";
 import { Download, Trash2 } from "lucide-react";
 import {
@@ -13,6 +13,7 @@ import { EmptyState } from "@/components/shared/DataStates";
 import { handleApiError } from "@/lib/handle-api-error";
 import { isAutoManagedTag } from "@/constants/lstep-auto-tag-prefixes";
 import { useGetLstepTagOwners, fetchAllLstepTagOwners } from "../api/get-lstep-tag-owners";
+import type { LstepTagOwner } from "../api/get-lstep-tag-owners";
 import { BulkTagRemoveDialog } from "./BulkTagRemoveDialog";
 
 interface TagOwnerListDrawerProps {
@@ -51,6 +52,38 @@ function downloadCsv(content: string, filename: string): void {
   link.click();
   URL.revokeObjectURL(url);
 }
+
+const TagOwnerListItem = memo(function TagOwnerListItem({
+  owner,
+}: {
+  owner: LstepTagOwner;
+}) {
+  return (
+    <li
+      className={`flex items-center justify-between px-4 py-3 ${C.hoverBgPageHalf} transition-colors`}
+    >
+      <div className="flex flex-col gap-0.5 min-w-0">
+        <span className={`text-sm font-medium ${C.text} truncate`}>
+          {owner.owner_name}
+        </span>
+        <span className={`text-xs ${C.text50}`}>
+          最終来院: {formatDate(owner.last_visit_date)}
+        </span>
+        {owner.reason ? (
+          <span className={`text-xs ${C.text50} truncate`}>
+            判定理由: {owner.reason}
+          </span>
+        ) : null}
+      </div>
+      <Link
+        to={`/owners/${owner.owner_id}`}
+        className={`shrink-0 ml-3 text-xs ${C.textBrand} hover:underline whitespace-nowrap`}
+      >
+        カルテを開く
+      </Link>
+    </li>
+  );
+});
 
 export function TagOwnerListDrawer({
   open,
@@ -134,30 +167,7 @@ export function TagOwnerListDrawer({
             ) : (
               <ul className={`divide-y ${C.divideDivider}`}>
                 {owners.map((owner) => (
-                  <li
-                    key={owner.owner_id}
-                    className={`flex items-center justify-between px-4 py-3 ${C.hoverBgPageHalf} transition-colors`}
-                  >
-                    <div className="flex flex-col gap-0.5 min-w-0">
-                      <span className={`text-sm font-medium ${C.text} truncate`}>
-                        {owner.owner_name}
-                      </span>
-                      <span className={`text-xs ${C.text50}`}>
-                        最終来院: {formatDate(owner.last_visit_date)}
-                      </span>
-                      {owner.reason ? (
-                        <span className={`text-xs ${C.text50} truncate`}>
-                          判定理由: {owner.reason}
-                        </span>
-                      ) : null}
-                    </div>
-                    <Link
-                      to={`/owners/${owner.owner_id}`}
-                      className={`shrink-0 ml-3 text-xs ${C.textBrand} hover:underline whitespace-nowrap`}
-                    >
-                      カルテを開く
-                    </Link>
-                  </li>
+                  <TagOwnerListItem key={owner.owner_id} owner={owner} />
                 ))}
               </ul>
             )}
