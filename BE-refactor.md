@@ -1,23 +1,25 @@
 # BE-refactor.md — バックエンド リファクタリング計画 (2026-07-10 時点・作業一時停止)
 
 > **本ドキュメントは ClaudeCode エージェントが読んで直接着手するための実行計画である。**
-> **2026-07-10 時点で Epic 作業を一時停止。** 対応済み 28 件の詳細は下記「進捗チェックポイント」に集約し、本編からは削除した。再開時は「推奨実行順」から着手すること。
+> **2026-07-10 時点で Epic 作業を一時停止。** 対応済み 32 件の詳細は下記「進捗チェックポイント」に集約し、本編からは削除した。再開時は「推奨実行順」から着手すること。
 > 前提: backend は 2026-07-02 完遂の D1-D13/R1-R3 計画で一度系統的にリファクタ済み・複数回の監査で well-maintained と判定済みのコードベースである。今回はそれ以降に実測ベースで発見された**実在する**負債のみを対象とする。
 
 ## 監査の方法と信頼性
 
 - 対象: `backend/` 配下全体。テスト552本、カバレッジ baseline 89.9%（監査時点）。
 - 手法: 15次元で並列監査 → 敵対的検証。全79件所見のうち **46件が挙動保存（本編）**、**18件が挙動変更（Appendix A）**。
-- **進捗（2026-07-10）**: 本編 46件中 **28件 CLOSED**、**18件 残**（うち **2件 BLOCKED**）。Epic HEAD: `a1429497`。
+- **進捗（2026-07-10）**: 本編 46件中 **32件 CLOSED**、**14件 残**（うち **2件 BLOCKED**）。Epic HEAD: `5722e22f`（G11-2〜G11-5 CLOSED）。
+- **G11-4 レビューで新規発見（H-2）**: `UpdateExcludedReservationTypes` に H-1 と同型のクロステナントDELETE破壊バグ。本編・Appendix Aいずれにも未登録のため「レビュー由来フォローアップ」表に追記（別チケット化推奨、本Epicの実行対象外）。
 
 ## サマリー
 
 | 区分 | 件数 | 内訳 |
 |---|---|---|
-| 本編（挙動保存）— **残タスク** | **18件** | P1: 1 / P2: 9 / P3: 8 |
-| 本編 — **CLOSED（アーカイブ）** | 28件 | G3-1〜G3-5, G4-1〜3, G5-1〜2, G6-1, G7-1〜5, G8-1〜3, G9-2〜3, G10-1〜6, G11-1 |
+| 本編（挙動保存）— **残タスク** | **14件** | P1: 1 / P2: 8 / P3: 5 |
+| 本編 — **CLOSED（アーカイブ）** | 32件 | G3-1〜G3-5, G4-1〜3, G5-1〜2, G6-1, G7-1〜5, G8-1〜3, G9-2〜3, G10-1〜6, G11-1〜5 |
 | Appendix A（挙動変更・別トラック） | 18件 | 変更なし |
 | Appendix B/C/D | 参照用 | 変更なし |
+| レビュー由来フォローアップ（未登録・別チケット推奨） | 2件 | H-1, H-2 |
 
 ## このドキュメントの使い方（ClaudeCode 向け）
 
@@ -61,14 +63,17 @@
 | G10-5 | internal/dbconn | Session 3 |
 | G10-6 | migrate-exec worker tests | `dc4f2ed8` 実装, `a1429497` CLOSED |
 | G11-1 | effective permissions SQL tests | `d8c5e858` |
+| G11-2 | CompleteAccountingAppointments SQL tests | `dd76a7f1`, 強化 `0c4134f7` |
+| G11-3 | FindUnbilledTrimmingItemsByPetID/CountNonAccountingTrimming tests | `9375b264` |
+| G11-4 | UpdateReservationCapabilities isolation test | `696ab204` |
+| G11-5 | Lstep購買クエリ3本 tests + completed_atコメント修正 | `3ffb60ec`, `5722e22f` |
 
 ---
 
 ## 推奨実行順（残タスク — 再開時）
 
 ```
-G11-2 → G11-3 → G11-4 → G11-5 → DOC-G11
-→ G12-1 → G12-2
+G12-1 → G12-2
 → G13-1 → G14-1
 → G1-4 → G1-1 → G1-3 → G1-2(Phase A→C) → G1-5 → G1-6 → DOC-G1
 → G2-1 → G2-2 → DOC-G2
@@ -76,6 +81,8 @@ G11-2 → G11-3 → G11-4 → G11-5 → DOC-G11
 → G9-1（BLOCKED 解消後）
 → Final gate
 ```
+
+**G11 フェーズは 2026-07-10 Session 6 で完遂・CLOSED**（G11-2〜G11-5、下記チェックポイント参照）。
 
 ### BLOCKED（Appendix A 依存 — 本編着手不可）
 
@@ -89,6 +96,7 @@ G11-2 → G11-3 → G11-4 → G11-5 → DOC-G11
 | ID | 内容 | 発見元 | 優先度 |
 |---|---|---|---|
 | H-1 | `UpdateStaffGroups` の staff_id 単位 DELETE が多施設所属スタッフの他クリニックグループ紐付けを意図せず削除しうる | G11-1 security-reviewer | HIGH — 別チケット化推奨 |
+| H-2 | `UpdateExcludedReservationTypes`（reservation_staff_repository.go）の DELETE が `staff_id` のみでスコープされ `clinic_id` を含まない一方、INSERT は呼び出しクリニックの型IDのみ。`staff_reservation_exclusions` テーブル自体に `clinic_id` 列が無いため、多施設所属スタッフに対しては clinic A の正当な操作が clinic B の除外設定行を無警告で全削除する（H-1 と同型のクロステナント破壊）。兄弟の `UpdateReservationCapabilities`/`staff_reservation_capabilities` は自前 `clinic_id` 列を持ち `Where("clinic_id = ? AND staff_id = ?")` で正しくスコープされており非対称。 | G11-4 security-reviewer（`UpdateReservationCapabilities` との比較監査で発見） | HIGH — 別チケット化推奨（`staff_reservation_exclusions` への `clinic_id` 列追加 or DELETE を真の差分更新へ変更、要 migration） |
 
 ---
 
@@ -364,101 +372,6 @@ MedicalRecord/Checkup/LstepSettings/LstepTagSync/LstepLifecycle/LstepTag が New
 **検証コマンド(スコープ限定)**
 ```
 docker compose exec backend go test ./internal/service/... -count=1
-```
-
-
-## G11. テスト負債解消 (DB実行テスト追加)
-
-### G11-2. 会計完了→予約完了化 CompleteAccountingAppointments(JST日付境界+サブクエリUPDATE×2)がDB実行テストゼロ
-
-- **ID**: `test-complete-accounting-appointments-sql-untested`
-- **重要度**: P2 / **工数目安**: M / **挙動変更**: なし（挙動保存）
-- **対象ファイル**: internal/repository/accounting_repository.go (312-349); internal/service/accounting_service_test.go (579-609)
-
-**証拠(現HEAD検証済み)**
-
-accounting_repository.go:312-321「func (r *accountingRepository) CompleteAccountingAppointments(...) ... Where("DATE(start_time AT TIME ZONE 'Asia/Tokyo') = DATE(? AT TIME ZONE 'Asia/Tokyo')", scheduledDate).Update("status", model.ReservationStatusCompleted)」および同:332-341のmedical_record_id経由サブクエリUPDATE「Where("status NOT IN ?", []model.ReservationStatus{...Completed, ...Cancelled, ...NoShow}).Where("id IN (?)", r.db.Model(&model.MedicalRecord{}).Select("appointment_id").Where("id = ? AND clinic_id = ? AND appointment_id IS NOT NULL AND deleted_at IS NULL", *medicalRecordID, clinicID))」。テストはservice層のmock呼び出し検証のみ: accounting_service_test.go:584-607「called := false ... completeApptsFn: func(...) { called = true ... } ... assert.True(t, called, "CompleteAccountingAppointments が呼ばれること")」。repository層の*_test.goに本メソッドの呼び出しは0件(grep確認)。
-
-**問題**
-
-会計完了時に受付ボードのorphanカード残留を防ぐ#77対策の中核SQL。JSTタイムゾーン日付境界比較・サブクエリIN・status遷移except条件という退行しやすい要素が3つ揃っているのに、SQLセマンティクスを検証するテストが無くmockの呼び出し有無しか確認していない。UTC/JST境界(前日15:00 UTC=JST 0:00)の判定ミスやサブクエリのclinic_id述語脱落が既存テストでは検出不能。
-
-**実装手順**
-
-新規ファイル internal/repository/accounting_complete_appointments_test.go を追加(setupTestDB使用)。検証テストを1件ずつ: (1)経路(1): 同日同ペットstatus=accountingの予約がcompletedになる。(2)経路(1)除外: 別日/別ペット/別クリニック/status≠accounting/deleted_atありの予約は変更されない。(3)JST日付境界: start_timeがUTC 前日15:00(=JST当日0:00)の予約が同日扱いで完了化、UTC当日14:59(=JST当日23:59)も同日、UTC当日15:00(=JST翌日0:00)は対象外。(4)経路(2): medicalRecordID経由でstatus=reserved等の非完了予約が完了化される。(5)経路(2)除外: completed/cancelled/no_showは触らない、別クリニックの同ID medical_recordのappointment_idは更新されない(クリニック隔離)。(6)戻り値totalAffectedが両経路の合算になる。(7)ownerID/petID/medicalRecordIDがnilの縮退経路。
-
-**検証コマンド(スコープ限定)**
-```
-docker compose exec backend go test ./internal/repository/ -run TestAccountingRepository_CompleteAccountingAppointments -count=1
-```
-
-### G11-3. トリミング未請求明細取得 FindUnbilledTrimmingItemsByPetID(UNION ALL+NOT EXISTS 70行raw SQL)がDB実行テストゼロ
-
-- **ID**: `test-unbilled-trimming-raw-sql-untested`
-- **重要度**: P2 / **工数目安**: M / **挙動変更**: なし（挙動保存）
-- **対象ファイル**: internal/repository/billing_item_repository.go (183-301)
-
-**証拠(現HEAD検証済み)**
-
-billing_item_repository.go:183「func (r *billingItemRepository) FindUnbilledTrimmingItemsByPetID(ctx context.Context, clinicID, petID uint64) ([]model.BillingItem, error)」— 実体は同:194-253のraw SQL。コース側とオプション側のUNION ALL、各枝に請求済み除外のNOT EXISTS(同:212-220)「AND NOT EXISTS (SELECT 1 FROM billing_items bi JOIN billings b ON b.id = bi.billing_id AND b.deleted_at IS NULL WHERE bi.appointment_id = a.id AND bi.trimming_course_id = tc.id AND bi.deleted_at IS NULL AND b.status != ?)」、価格0除外「AND COALESCE(tc.price, 0) > 0」(同:211)、ORDER BY sort_order合成(同:249)。隣接するCountNonAccountingTrimmingByPetAndDate(同:283-296)もJST日付境界「Where("DATE(appointments.start_time AT TIME ZONE 'Asia/Tokyo') = DATE(? AT TIME ZONE 'Asia/Tokyo')", date)」を含む。両メソッドともrepository *_test.goでの呼び出し0件(grep確認)、service層参照はbilling_item_service.go:361とmock経由テストのみ。
-
-**問題**
-
-会計×トリミングの金額起点となるクエリ(会計画面への未請求コース/オプション自動取り込み)が一度もDBで実行されない。NOT EXISTSの結合条件(bi.trimming_course_id vs bi.trimming_option_id の枝別対応)、cancelled請求のみ存在する場合の再取得、UNION後の並び順という間違えやすい仕様がテストで固定されていない。
-
-**実装手順**
-
-新規ファイル internal/repository/billing_item_trimming_test.go を追加(setupTestDB使用)。検証テストを1件ずつ: (1)status=accountingのトリミング予約でコース+オプション2件が結合結果に出る(件数・name・unit_price・TrimmingCourseID/TrimmingOptionIDの枝別セット)。(2)並び順: コース(sort_order=0)→オプション(100+ato.sort_order)昇順。(3)請求済み除外: 有効なbillingに同一appointment_id+course_idのbilling_itemが存在すると除外される。(4)cancelled請求のみの場合は再取得対象になる(b.status != cancelled条件)。(5)price=0/NULLのコース・オプションは除外。(6)クリニック/ペット/status≠accounting/カテゴリ≠trimmingの除外。(7)CountNonAccountingTrimmingByPetAndDate: JST日付境界(UTC前日15:00)と対象status(accounting/completed/cancelled以外)の判定。
-
-**検証コマンド(スコープ限定)**
-```
-docker compose exec backend go test ./internal/repository/ -run 'TestBillingItemRepository_(FindUnbilledTrimmingItems|CountNonAccountingTrimming)' -count=1
-```
-
-### G11-4. UpdateReservationCapabilitiesの越境ガードにisolation test無し(兄弟のUpdateExcludedReservationTypesには有り)
-
-- **ID**: `test-capability-write-isolation-asymmetry`
-- **重要度**: P2 / **工数目安**: S / **挙動変更**: なし（挙動保存）
-- **対象ファイル**: internal/repository/reservation_staff_repository.go (279-318); internal/repository/reservation_staff_exclusion_clinic_isolation_test.go (40-80)
-
-**証拠(現HEAD検証済み)**
-
-reservation_staff_repository.go:283-293にガード実装あり「if len(typeIDs) > 0 { var count int64; if err := r.db.WithContext(ctx).Model(&model.ReservationType{}).Where("clinic_id = ? AND id IN ? AND deleted_at IS NULL", clinicID, typeIDs).Count(&count)... if count != int64(len(typeIDs)) { return apperrors.WrapInvalidInput("reservation_type_ids contains invalid reservation type") } }」。しかしテスト参照はservice層mock5件のみ(liff_service_availability_staff_test.go:67等)でrepository実行テスト0件。一方、同一パターンの兄弟メソッドには専用isolation testが存在: reservation_staff_exclusion_clinic_isolation_test.go:40「func TestReservationStaffRepository_UpdateExcludedReservationTypes_ClinicIsolation」(別クリニックtypeB.ID拒否/自クリニック許可/混在拒否の3ケース)。repository/CLAUDE.mdの「正本ガード = 各サイトの runtime isolation test」方針に対し兄弟間で非対称。
-
-**問題**
-
-ガード自体は実装済みだが、その有効性を動作で証明するテストが無い。将来のリファクタでcount検証が脱落してもCIは緑のまま。exclusion側に既に確立したテストパターンがあるため追加コストは小さい。
-
-**実装手順**
-
-新規ファイル internal/repository/reservation_staff_capability_write_clinic_isolation_test.go を追加。reservation_staff_exclusion_clinic_isolation_test.go:40-80の構造をそのまま踏襲し UpdateReservationCapabilities で3ケース: (1)clinicA権限でclinicBのtypeB.IDを指定→WrapInvalidInputエラーかつstaff_reservation_capabilities未挿入、(2)自クリニックtypeA.ID→成功、(3)混在[typeA.ID, typeB.ID]→エラーかつ部分挿入なし(DELETE前検証の確認)。同テスト内にSupportsReservationType(同:320-330)の正/負1ケースずつを同乗させ、LIFF予約ゲートの読み取りも実DBで固定する。
-
-**検証コマンド(スコープ限定)**
-```
-docker compose exec backend go test ./internal/repository/ -run TestReservationStaffRepository_UpdateReservationCapabilities_ClinicIsolation -count=1
-```
-
-### G11-5. Lstep配信ターゲティング用購買クエリ3本(HasItemByOwnerSince等)がDB実行テストゼロ+docコメントとSQLの乖離
-
-- **ID**: `test-lstep-purchase-queries-untested`
-- **重要度**: P3 / **工数目安**: M / **挙動変更**: なし（挙動保存）
-- **対象ファイル**: internal/repository/billing_item_repository.go (123-181)
-
-**証拠(現HEAD検証済み)**
-
-billing_item_repository.go:139-141「// FindOwnersByCategoryPurchaseDate は指定カテゴリの最終購入日が purchaseDate と一致する飼い主IDリストを返す（FEAT-383）。\n// billings.issued_at::date の MAX が purchaseDate と一致する飼い主を返す。」に対しSQL実体(同:154)は「HAVING MAX(billings.completed_at::date) = ?::date」でissued_atではなくcompleted_atを使用(コメントとSQLが乖離)。HasItemByOwnerSince(同:123-137)/HasFoodPurchaseByOwnerSince(同:166-181)もJOIN billings+completed_at>=sinceのクエリだが、3本ともrepository *_test.goでの呼び出し0件(grep確認)、テスト参照はservice層mockのみ。
-
-**問題**
-
-FEAT-383系のフード切れ・再購入リマインド配信のターゲット抽出条件がDBで検証されておらず、しかもdocコメント(issued_at)とSQL(completed_at)が食い違ったまま仕様が宙に浮いている。テストで正しい基準日カラムを固定しない限り、どちらが仕様か将来の読者が判別できない。
-
-**実装手順**
-
-まずFEAT-383の経緯からcompleted_at基準が正であることを確認し、billing_item_repository.go:140のコメントをcompleted_atに修正(コメントのみ・挙動不変)。次にinternal/repository/billing_item_lstep_queries_test.goを追加し1件ずつ: (1)HasItemByOwnerSince: names一致+completed_at>=sinceでtrue、since前のみ/名前不一致/別owner/別クリニック/soft-deleted billingでfalse、names空でクエリ発行なしのfalse。(2)FindOwnersByCategoryPurchaseDate: MAX(completed_at::date)が指定日に一致するownerのみ返る(同ownerがより新しい購買を持つと除外される=HAVING MAXの本質)。(3)HasFoodPurchaseByOwnerSince: names指定時はname IN、未指定時はcategory=foodへフォールバックする分岐。
-
-**検証コマンド(スコープ限定)**
-```
-docker compose exec backend go test ./internal/repository/ -run 'TestBillingItemRepository_(HasItemByOwnerSince|FindOwnersByCategoryPurchaseDate|HasFoodPurchaseByOwnerSince)' -count=1
 ```
 
 
