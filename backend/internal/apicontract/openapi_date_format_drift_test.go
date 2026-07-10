@@ -72,6 +72,22 @@ var knownDateFormatDrifts = map[string]int{
 	"treatment_response.go|date":             1,
 	"vaccination_response.go|date":           1,
 	"vaccination_response.go|next_date":      1,
+
+	// pet_response.go|first_visit_date: benign json-name collision, NOT a real drift.
+	// docs/api.yaml declares two unrelated `first_visit_date` properties: `PetFirstVisit`
+	// (line ~1126, `format: date-time`, correctly backed by pet_response.go's
+	// petFirstVisitResponse.FirstVisitDate *time.Time) and the newer owner-aggregation
+	// schema (line ~7977, `format: date`, correctly backed by aggregation_handler.go's
+	// FirstVisitDate *string, already date-only — see aggregation_handler_test.go:163).
+	// dateOnly-prop parsing (parseOpenAPIDateOnlyProps) and the handler AST scan
+	// (analyzeResponseFileDateDrift) both key by bare json tag name only, not by schema/
+	// struct identity, so the new `format: date` property makes the matcher pick up
+	// pet_response.go's *unrelated*, pre-existing, correctly date-time-typed field as if
+	// it were drift against the new date-only schema. It isn't: pet_response.go never
+	// serves the aggregation endpoint, and aggregation_handler.go already serves date-only
+	// correctly. Pinned here rather than reworking the matcher to be schema-scoped (would
+	// require ownership tracking not worth it for one collision).
+	"pet_response.go|first_visit_date": 1,
 }
 
 func driftKey(file, jsonName string) string { return file + "|" + jsonName }
