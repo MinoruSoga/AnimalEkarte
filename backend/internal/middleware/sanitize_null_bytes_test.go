@@ -3,6 +3,7 @@ package middleware
 import (
 	"bytes"
 	"io"
+	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -193,4 +194,87 @@ func TestSanitizeNullBytes_ContentLength(t *testing.T) {
 		assert.Equal(t, expectedBody, string(gotBytes))
 		assert.Equal(t, int64(len(expectedBody)), c.Request.ContentLength)
 	})
+}
+
+// X-1: multipart/form-data のバイナリボディはサニタイズ対象外とし、
+// バイト単位で無変更のまま後続ハンドラに渡す必要がある。
+// PNG シグネチャ（0x89 0x50 0x4E 0x47 0x0D 0x0A 0x1A 0x0A）の 0x1A は
+// 制御文字除去範囲（0x0E-0x1F）に含まれるため、対象外にしないと画像が破損する。
+func TestSanitizeNullBytes_MultipartBinaryUntouched(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	pngSignature := []byte{0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A}
+
+	var buf bytes.Buffer
+	mw := multipart.NewWriter(&buf)
+	part, err := mw.CreateFormFile("file", "signature.png")
+	require.NoError(t, err)
+	_, err = part.Write(pngSignature)
+	require.NoError(t, err)
+	require.NoError(t, mw.Close())
+
+	originalBody := buf.Bytes()
+	// 送信前にコピーを保持しておく（ミドルウェアが originalBody を書き換えないことの確認用）
+	wantBody := append([]byte(nil), originalBody...)
+
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+
+	req, err := http.NewRequest(http.MethodPost, "/medical-records/1/images/upload", bytes.NewReader(originalBody))
+	require.NoError(t, err)
+	req.Header.Set("Content-Type", mw.FormDataContentType())
+	req.ContentLength = int64(len(originalBody))
+	c.Request = req
+
+	handler := SanitizeNullBytes()
+	handler(c)
+
+	gotBody, readErr := io.ReadAll(c.Request.Body)
+	require.NoError(t, readErr)
+
+	assert.Equal(t, wantBody, gotBody, "multipart body must pass through byte-exact (PNG signature must not be corrupted)")
+}
+
+// X-1 (security review follow-up): allowlist 方式（application/json のみサニタイズ）だと、
+// c.ShouldBindJSON が Content-Type を無視して常に JSON としてボディを解釈するため、
+// Content-Type を省略・誤指定したリクエストが NULL バイトを含んだまま素通りし、
+// BUG-067 が再発する。blocklist 方式（バイナリ系のみ除外）でこれを防いでいることを検証する。
+func TestSanitizeNullBytes_NonJSONContentTypeStillSanitized(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	tests := []struct {
+		name        string
+		contentType string
+	}{
+		{name: "Content-Type: text/plain でも除去される", contentType: "text/plain"},
+		{name: "Content-Type 未指定でも除去される", contentType: ""},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Arrange
+			body := []byte("{\x00\"name\":\"田中\x00太郎\"}")
+			wantBody := `{"name":"田中太郎"}`
+
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+
+			req, err := http.NewRequest(http.MethodPost, "/test", bytes.NewReader(body))
+			require.NoError(t, err)
+			if tt.contentType != "" {
+				req.Header.Set("Content-Type", tt.contentType)
+			}
+			req.ContentLength = int64(len(body))
+			c.Request = req
+
+			// Act
+			handler := SanitizeNullBytes()
+			handler(c)
+
+			// Assert
+			gotBytes, readErr := io.ReadAll(c.Request.Body)
+			require.NoError(t, readErr)
+			assert.Equal(t, wantBody, string(gotBytes))
+		})
+	}
 }
