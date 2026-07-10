@@ -1,100 +1,21 @@
 import { memo, useMemo, useCallback, useState } from "react";
 import { isBefore, startOfDay, format } from "date-fns";
-import { ja } from "date-fns/locale";
-import { C, ICON } from "@/lib/design-tokens";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { FormFieldError } from "@/components/shared/FormFieldError";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { SearchableSelect, type SearchableSelectOption } from "@/components/ui/searchable-select";
-import { ReservationTypePickerDialog, type ReservationTypePickerGroup } from "@/components/shared/ReservationFormModal/ReservationTypePickerDialog";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Calendar } from "@/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Calendar as CalendarIcon, Clock, ArrowRight, ChevronDown } from "lucide-react";
-import { cn } from "@/lib/utils";
 import { useMasterItems } from "@/hooks/use-master-items";
 import { getCurrentClinicId, useGetReservationTypesGrouped, useGetOnDutyStaffs, useGetReservationStaffs, useGetReservationAvailableTimes } from "@/hooks/use-reservation-types";
-import { useGetUnavailableTimes, type ReservationTypeUnavailableTime } from "@/features/master";
-import { MasterLink } from "@/components/shared/MasterLink";
+import { useGetUnavailableTimes } from "@/features/master";
 import { toJSTWallDate } from "@/lib/jst-date";
-import { isOneOf } from "@/lib/type-utils";
+import type { SearchableSelectOption } from "@/components/ui/searchable-select";
+import type { ReservationTypePickerGroup } from "@/components/shared/ReservationFormModal/ReservationTypePickerDialog";
 import type { Reservation } from "@/types";
-
-const TRIGGER_CLASS =
-  `h-9 text-sm bg-white ${C.borderMediumLight} ${C.text} ${C.hoverBgSubtle} transition-colors`;
-
-const VISIT_TYPE_VALUES = ["first", "revisit"] as const;
-
-function generateTimeOptions(): string[] {
-  const times: string[] = [];
-  for (let h = 0; h < 24; h++) {
-    times.push(`${h}:00`);
-    times.push(`${h}:15`);
-    times.push(`${h}:30`);
-    times.push(`${h}:45`);
-  }
-  return times;
-}
-
-const TIME_OPTIONS = generateTimeOptions();
-
-function timeToMinutes(time: string): number {
-  const [hours, minutes] = time.split(":").map(Number);
-  return hours * 60 + minutes;
-}
-
-function slotTimeToSelectValue(time: string): string {
-  if (time.includes(":")) return time.replace(/^0/, "");
-  const hour = Number(time.slice(0, 2));
-  const minute = time.slice(2, 4);
-  return `${hour}:${minute}`;
-}
-
-function getApplicableUnavailableTimes(
-  times: ReservationTypeUnavailableTime[],
-  date: Date | undefined,
-): ReservationTypeUnavailableTime[] {
-  if (!date) return [];
-  const dateStr = format(date, "yyyy-MM-dd");
-  const specific = times.filter(
-    (time) => time.unavailableType === "specific" && time.specificDate === dateStr,
-  );
-  if (specific.length > 0) return specific;
-  const dayOfWeek = date.getDay();
-  return times.filter(
-    (time) => time.unavailableType === "weekly" && time.dayOfWeek === dayOfWeek,
-  );
-}
-
-function isStartTimeUnavailable(time: string, unavailableTimes: ReservationTypeUnavailableTime[]): boolean {
-  const minutes = timeToMinutes(time);
-  return unavailableTimes.some(
-    (unavailableTime) =>
-      minutes >= timeToMinutes(unavailableTime.startTime) &&
-      minutes < timeToMinutes(unavailableTime.endTime),
-  );
-}
-
-interface FieldLabelProps {
-  children: React.ReactNode;
-  required?: boolean;
-  trailing?: React.ReactNode;
-}
-
-function FieldLabel({ children, required, trailing }: FieldLabelProps) {
-  return (
-    <div className="flex items-center justify-between gap-2">
-      <Label className={`text-[12px] ${C.text40} tracking-wide font-medium`}>
-        {children}
-        {required ? (
-          <span style={{ color: C.danger }} className="ml-1" aria-hidden="true">*</span>
-        ) : null}
-      </Label>
-      {trailing ? <div>{trailing}</div> : null}
-    </div>
-  );
-}
+import {
+  getApplicableUnavailableTimes,
+  isStartTimeUnavailable,
+  slotTimeToSelectValue,
+  TIME_OPTIONS,
+} from "./reservation-time-utils";
+import { ReservationDateTimeFields } from "./ReservationDateTimeFields";
+import { ReservationTypeAndStaffFields } from "./ReservationTypeAndStaffFields";
+import { ReservationNotesField } from "./ReservationNotesField";
 
 interface ReservationFormFieldsProps {
   formData: Partial<Reservation>;
@@ -231,265 +152,29 @@ export const ReservationFormFields = memo(function ReservationFormFields({
   return (
     <div className="space-y-4">
       {/* Date + Time Group */}
-      <div className={`rounded-lg border ${C.bgSubtle} p-3 space-y-3 ${C.borderMediumLight}`}>
-        <div className="space-y-1.5">
-          <FieldLabel required>日付</FieldLabel>
-          <Popover>
-            <PopoverTrigger asChild>
-              <button
-                type="button"
-                className={cn(
-                  `flex h-9 w-full items-center justify-between rounded border px-3 py-1 text-sm transition-colors ${C.borderMediumLight} ${C.text} bg-white ${C.hoverBgSubtle}`,
-                  !formData.start && C.text40
-                )}
-              >
-                <span className="flex items-center">
-                  <CalendarIcon className={`mr-2 ${ICON.action}`} />
-                  {formData.start ? (
-                    format(formData.start, "yyyy/MM/dd (E)", { locale: ja })
-                  ) : (
-                    <span>日付を選択</span>
-                  )}
-                </span>
-              </button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0">
-              <Calendar
-                mode="single"
-                selected={formData.start}
-                onSelect={(date) => {
-                  if (!date) return;
-                  const newStart = new Date(date);
-                  const newEnd = new Date(date);
+      <ReservationDateTimeFields
+        formData={formData}
+        onChange={onChange}
+        validationErrors={validationErrors}
+        isCalendarDateDisabled={isCalendarDateDisabled}
+        handleMonthChange={handleMonthChange}
+        startTimeOptions={startTimeOptions}
+        availableTimeSlotMap={availableTimeSlotMap}
+      />
 
-                  if (formData.start) {
-                    newStart.setHours(formData.start.getHours(), formData.start.getMinutes());
-                  }
-                  if (formData.end) {
-                    newEnd.setHours(formData.end.getHours(), formData.end.getMinutes());
-                  }
+      <ReservationTypeAndStaffFields
+        formData={formData}
+        onChange={onChange}
+        validationErrors={validationErrors}
+        typePickerOpen={typePickerOpen}
+        setTypePickerOpen={setTypePickerOpen}
+        reservationTypePickerGroups={reservationTypePickerGroups}
+        selectedReservationType={selectedReservationType}
+        staffSelectOptions={staffSelectOptions}
+        staffEmptyMessage={staffEmptyMessage}
+      />
 
-                  onChange({ ...formData, start: newStart, end: newEnd });
-                }}
-                disabled={isCalendarDateDisabled}
-                onMonthChange={handleMonthChange}
-                autoFocus
-              />
-            </PopoverContent>
-          </Popover>
-          {validationErrors?.date ? (
-            <FormFieldError id="res-date-error" message={validationErrors.date} />
-          ) : null}
-        </div>
-
-        <div className="space-y-1.5">
-          <div className={`flex items-center gap-2 text-[12px] ${C.text40} tracking-wide font-medium`}>
-            <Clock className={ICON.action} />
-            時間
-            <span style={{ color: C.danger }} className="ml-0.5" aria-hidden="true">*</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <Select
-              value={formData.start ? format(formData.start, "H:mm") : "10:00"}
-              onValueChange={(v) => {
-                if (!formData.start) return;
-                const [h, m] = v.split(":").map(Number);
-                const newStart = new Date(formData.start);
-                newStart.setHours(h, m);
-                const nextData: Partial<Reservation> = { ...formData, start: newStart };
-                const slotEnd = availableTimeSlotMap?.get(v);
-                if (slotEnd && formData.end) {
-                  const [endHour, endMinute] = slotEnd.split(":").map(Number);
-                  const newEnd = new Date(formData.end);
-                  newEnd.setHours(endHour, endMinute);
-                  nextData.end = newEnd;
-                }
-                onChange(nextData);
-              }}
-            >
-              <SelectTrigger data-testid="res-start-time-trigger" className={TRIGGER_CLASS}>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent className="max-h-[200px]">
-                {startTimeOptions.map((time) => (
-                  <SelectItem key={time} value={time}>
-                    {time}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <ArrowRight className={`${ICON.action} ${C.text40} flex-shrink-0`} />
-            <Select
-              value={formData.end ? format(formData.end, "H:mm") : "11:00"}
-              onValueChange={(v) => {
-                if (!formData.end) return;
-                const [h, m] = v.split(":").map(Number);
-                const newEnd = new Date(formData.end);
-                newEnd.setHours(h, m);
-                onChange({ ...formData, end: newEnd });
-              }}
-            >
-              <SelectTrigger data-testid="res-end-time-trigger" className={TRIGGER_CLASS}>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent className="max-h-[200px]">
-                {TIME_OPTIONS.map((time) => (
-                  <SelectItem key={time} value={time}>
-                    {time}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          {validationErrors?.time ? (
-            <FormFieldError id="res-time-error" message={validationErrors.time} />
-          ) : null}
-        </div>
-      </div>
-
-      <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-1.5">
-          <FieldLabel
-            required
-            trailing={
-              <MasterLink
-                category="reservationType"
-                label="編集"
-                className="text-[11px]"
-              />
-            }
-          >
-            予約区分
-          </FieldLabel>
-          {/* BUG-341/scroll: サブダイアログ選択(カテゴリチップ + カードリスト)。Dialog 自身の
-              scroll-lock で wheel スクロールが確実に動作する(popover-in-dialog の wheel ブロック回避) */}
-          <button
-            type="button"
-            data-testid="res-type-trigger"
-            onClick={() => setTypePickerOpen(true)}
-            aria-invalid={Boolean(validationErrors?.type)}
-            className={cn(
-              "flex h-9 w-full items-center justify-between gap-2 rounded-md border bg-white px-3 text-sm transition-colors",
-              C.borderMediumLight,
-              C.hoverBgSubtle,
-              validationErrors?.type && C.borderDanger,
-            )}
-          >
-            {selectedReservationType ? (
-              <span className="flex min-w-0 items-center gap-2">
-                <span
-                  className="size-3 shrink-0 rounded-full"
-                  style={{ backgroundColor: selectedReservationType.color }}
-                />
-                <span className={cn("line-clamp-1", C.text)}>{selectedReservationType.name}</span>
-              </span>
-            ) : (
-              <span className={C.text40}>選択してください</span>
-            )}
-            <ChevronDown className={cn("size-4 shrink-0 opacity-50", C.text)} />
-          </button>
-          <ReservationTypePickerDialog
-            open={typePickerOpen}
-            onOpenChange={setTypePickerOpen}
-            groups={reservationTypePickerGroups}
-            selectedId={formData.type || ""}
-            onSelect={(id) => onChange({ ...formData, type: id })}
-          />
-          {validationErrors?.type ? (
-            <FormFieldError id="res-type-error" message={validationErrors.type} />
-          ) : null}
-        </div>
-        <div className="space-y-1.5">
-          <FieldLabel>来院区分</FieldLabel>
-          <RadioGroup
-            value={formData.visitType || ""}
-            onValueChange={(v: string) => {
-              if (isOneOf(v, VISIT_TYPE_VALUES)) {
-                onChange({ ...formData, visitType: v });
-              }
-            }}
-            className="flex gap-2 pt-1"
-          >
-            <div className="flex-1">
-              <RadioGroupItem value="first" id="first" className="sr-only" />
-              <Label
-                htmlFor="first"
-                className={cn(
-                  `block h-9 rounded-full border-2 px-3 py-1.5 text-center text-sm font-medium cursor-pointer transition-colors ${C.text}`,
-                  formData.visitType === "first"
-                    ? `${C.borderDanger} ${C.bgDanger8}`
-                    : `${C.borderMediumLight} bg-white ${C.hoverBgSubtle}`
-                )}
-              >
-                初診
-              </Label>
-            </div>
-            <div className="flex-1">
-              <RadioGroupItem value="revisit" id="revisit" className="sr-only" />
-              <Label
-                htmlFor="revisit"
-                className={cn(
-                  `block h-9 rounded-full border-2 px-3 py-1.5 text-center text-sm font-medium cursor-pointer transition-colors ${C.text}`,
-                  formData.visitType === "revisit"
-                    ? `${C.borderBrand} ${C.bgBrand8}`
-                    : `${C.borderMediumLight} bg-white ${C.hoverBgSubtle}`
-                )}
-              >
-                再診
-              </Label>
-            </div>
-          </RadioGroup>
-        </div>
-      </div>
-
-      <div className="space-y-1.5">
-        <FieldLabel
-          trailing={
-            <MasterLink
-              category="staff"
-              label="編集"
-              className="text-[11px]"
-            />
-          }
-        >
-          担当者
-        </FieldLabel>
-        <SearchableSelect
-          value={formData.doctor || ""}
-          onValueChange={(v) => onChange({ ...formData, doctor: v })}
-          options={staffSelectOptions}
-          placeholder="選択してください"
-          searchPlaceholder="スタッフ名で検索..."
-          emptyMessage={staffEmptyMessage}
-          triggerTestId="res-staff-trigger"
-        />
-      </div>
-
-      <div className="space-y-1.5">
-        <FieldLabel>メモ</FieldLabel>
-        <Textarea
-          value={formData.notes || ""}
-          onChange={(e) => onChange({ ...formData, notes: e.target.value })}
-          placeholder="詳細や備考を入力..."
-          className={`min-h-[80px] text-sm resize-none bg-white ${C.borderMedium} ${C.text} ${C.textPlaceholder} ${C.focusRingMedium}`}
-        />
-      </div>
-
-      <div className="space-y-1.5">
-        <FieldLabel>予約ソース</FieldLabel>
-        <Select
-          value={formData.source || "manual"}
-          onValueChange={(v: string) => onChange({ ...formData, source: v as "manual" | "line" })}
-        >
-          <SelectTrigger className={TRIGGER_CLASS}>
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="manual">手動予約</SelectItem>
-            <SelectItem value="line">LINE予約</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
+      <ReservationNotesField formData={formData} onChange={onChange} />
     </div>
   );
 });
