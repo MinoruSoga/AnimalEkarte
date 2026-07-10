@@ -11,6 +11,12 @@
     "line-reserve/src/**/*.{ts,tsx}"
   ],
   "ignore": [
-    "src/types/generated/**"
+    "src/types/generated/**",
+    "src/components/ui/**"
+  ],
+  "ignoreDependencies": [
+    "tailwindcss",
+    "chrome-launcher",
+    "lighthouse"
   ]
 }
