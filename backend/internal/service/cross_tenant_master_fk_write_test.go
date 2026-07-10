@@ -42,6 +42,12 @@ func okProcedureRepo() repository.ProcedureRepository {
 	}}
 }
 
+func okHospitalizationPlanRepo() repository.HospitalizationPlanRepository {
+	return &mockHospitalizationPlanRepository{findByIDFn: func(_ context.Context, _, id uint64) (*model.HospitalizationPlan, error) {
+		return &model.HospitalizationPlan{ID: id}, nil
+	}}
+}
+
 func okConsultationRepo() repository.ConsultationRepository {
 	return &mockConsultationRepository{findByIDFn: func(_ context.Context, _, id uint64) (*model.Consultation, error) {
 		return &model.Consultation{ID: id}, nil
@@ -107,6 +113,24 @@ func rejectProcedureRepo(ownedID uint64) repository.ProcedureRepository {
 			return nil, apperrors.WrapNotFound("procedure", "foreign")
 		}
 		return &model.Procedure{ID: id}, nil
+	}}
+}
+
+func rejectHospitalizationPlanRepo(ownedID uint64) repository.HospitalizationPlanRepository {
+	return &mockHospitalizationPlanRepository{findByIDFn: func(_ context.Context, _, id uint64) (*model.HospitalizationPlan, error) {
+		if id != ownedID {
+			return nil, apperrors.WrapNotFound("hospitalization_plan", "foreign")
+		}
+		return &model.HospitalizationPlan{ID: id}, nil
+	}}
+}
+
+func rejectCageRepo(ownedID uint64) repository.CageRepository {
+	return &mockCageRepository{findByIDFn: func(_ context.Context, _, id uint64) (*model.Cage, error) {
+		if id != ownedID {
+			return nil, apperrors.WrapNotFound("cage", "foreign")
+		}
+		return &model.Cage{ID: id}, nil
 	}}
 }
 
@@ -293,7 +317,7 @@ func TestExaminationService_Create_RejectsCrossClinicExamType(t *testing.T) {
 		repo := &mockExaminationRepository{
 			createFn: func(_ context.Context, _ *model.Examination) error { *created = true; return nil },
 		}
-		return NewExaminationService(repo, &mockMedicalRecordRepositoryForExam{}, rejectExamTypeRepo(ownedExamTypeID), nil, nil)
+		return NewExaminationService(repo, &mockMedicalRecordRepositoryForExam{}, rejectExamTypeRepo(ownedExamTypeID), nil, &mockCheckupTransactor{})
 	}
 
 	t.Run("rejects cross-clinic exam_type_id and does not persist", func(t *testing.T) {
@@ -330,7 +354,7 @@ func TestExaminationService_Update_RejectsCrossClinicExamType(t *testing.T) {
 				return &model.Examination{ID: 1}, nil
 			},
 		}
-		return NewExaminationService(repo, &mockMedicalRecordRepositoryForExam{}, rejectExamTypeRepo(ownedExamTypeID), nil, nil)
+		return NewExaminationService(repo, &mockMedicalRecordRepositoryForExam{}, rejectExamTypeRepo(ownedExamTypeID), nil, &mockCheckupTransactor{})
 	}
 
 	t.Run("rejects cross-clinic exam_type_id on update and does not persist", func(t *testing.T) {
@@ -358,7 +382,7 @@ func TestCarePlanItemService_Create_RejectsCrossClinicMasterFK(t *testing.T) {
 				return &model.CarePlanItem{ID: itemID}, nil
 			},
 		}
-		return NewCarePlanItemService(repo, okHospRepoForCarePlan(), rejectMedicineRepo(ownedMedicineID), okProcedureRepo())
+		return NewCarePlanItemService(repo, okHospRepoForCarePlan(), rejectMedicineRepo(ownedMedicineID), okProcedureRepo(), okHospitalizationPlanRepo())
 	}
 
 	t.Run("rejects cross-clinic medicine_id and does not persist", func(t *testing.T) {
@@ -398,7 +422,7 @@ func TestCarePlanItemService_Update_RejectsCrossClinicMasterFK(t *testing.T) {
 			},
 			updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) error { *updated = true; return nil },
 		}
-		return NewCarePlanItemService(repo, okHospRepoForCarePlan(), rejectMedicineRepo(ownedMedicineID), okProcedureRepo())
+		return NewCarePlanItemService(repo, okHospRepoForCarePlan(), rejectMedicineRepo(ownedMedicineID), okProcedureRepo(), okHospitalizationPlanRepo())
 	}
 
 	t.Run("rejects cross-clinic medicine_id on update and does not persist", func(t *testing.T) {
@@ -409,6 +433,168 @@ func TestCarePlanItemService_Update_RejectsCrossClinicMasterFK(t *testing.T) {
 		assert.Error(t, err)
 		assert.Nil(t, out)
 		assert.False(t, updated, "care plan item must NOT be updated to reference another clinic's medicine")
+	})
+}
+
+// ── care_plan_item (X-14): hospitalization_plan_id ──
+
+func TestCarePlanItemService_Create_RejectsCrossClinicHospitalizationPlanFK(t *testing.T) {
+	const clinicID = uint64(1)
+	const ownedPlanID = uint64(10)
+	const foreignPlanID = uint64(999)
+
+	newSvc := func(created *bool) CarePlanItemService {
+		repo := &mockCarePlanItemRepository{
+			createFn: func(_ context.Context, _ *model.CarePlanItem) error { *created = true; return nil },
+			findByIDFn: func(_ context.Context, _, itemID uint64) (*model.CarePlanItem, error) {
+				return &model.CarePlanItem{ID: itemID}, nil
+			},
+		}
+		return NewCarePlanItemService(repo, okHospRepoForCarePlan(), okMedicineRepo(), okProcedureRepo(), rejectHospitalizationPlanRepo(ownedPlanID))
+	}
+
+	t.Run("rejects cross-clinic hospitalization_plan_id and does not persist", func(t *testing.T) {
+		created := false
+		svc := newSvc(&created)
+		foreign := foreignPlanID
+		out, err := svc.Create(context.Background(), clinicID, 1, &CreateCarePlanItemInput{
+			Type: string(model.CarePlanTypeFood), Name: "x", HospitalizationPlanID: &foreign,
+		})
+		assert.Error(t, err)
+		assert.Nil(t, out)
+		assert.False(t, created, "care plan item must NOT be persisted referencing another clinic's hospitalization plan")
+	})
+
+	t.Run("accepts same-clinic hospitalization_plan_id (no false-reject)", func(t *testing.T) {
+		created := false
+		svc := newSvc(&created)
+		owned := ownedPlanID
+		out, err := svc.Create(context.Background(), clinicID, 1, &CreateCarePlanItemInput{
+			Type: string(model.CarePlanTypeFood), Name: "x", HospitalizationPlanID: &owned,
+		})
+		assert.NoError(t, err)
+		assert.NotNil(t, out)
+		assert.True(t, created)
+	})
+}
+
+func TestCarePlanItemService_Update_RejectsCrossClinicHospitalizationPlanFK(t *testing.T) {
+	const clinicID = uint64(1)
+	const ownedPlanID = uint64(10)
+	const foreignPlanID = uint64(999)
+
+	newSvc := func(updated *bool) CarePlanItemService {
+		repo := &mockCarePlanItemRepository{
+			findByIDFn: func(_ context.Context, _, itemID uint64) (*model.CarePlanItem, error) {
+				return &model.CarePlanItem{ID: itemID, HospitalizationID: 1}, nil
+			},
+			updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) error { *updated = true; return nil },
+		}
+		return NewCarePlanItemService(repo, okHospRepoForCarePlan(), okMedicineRepo(), okProcedureRepo(), rejectHospitalizationPlanRepo(ownedPlanID))
+	}
+
+	t.Run("rejects cross-clinic hospitalization_plan_id on update and does not persist", func(t *testing.T) {
+		updated := false
+		svc := newSvc(&updated)
+		foreign := foreignPlanID
+		out, err := svc.Update(context.Background(), clinicID, 1, 1, &UpdateCarePlanItemInput{HospitalizationPlanID: &foreign})
+		assert.Error(t, err)
+		assert.Nil(t, out)
+		assert.False(t, updated, "care plan item must NOT be updated to reference another clinic's hospitalization plan")
+	})
+
+	t.Run("accepts same-clinic hospitalization_plan_id (no false-reject)", func(t *testing.T) {
+		updated := false
+		svc := newSvc(&updated)
+		owned := ownedPlanID
+		out, err := svc.Update(context.Background(), clinicID, 1, 1, &UpdateCarePlanItemInput{HospitalizationPlanID: &owned})
+		assert.NoError(t, err)
+		assert.NotNil(t, out)
+		assert.True(t, updated)
+	})
+}
+
+// ── hospitalization (X-14): cage_id ──
+
+func TestHospitalizationService_Create_RejectsCrossClinicCageFK(t *testing.T) {
+	const clinicID = uint64(1)
+	const ownedCageID = uint64(10)
+	const foreignCageID = uint64(999)
+
+	newSvc := func(created *bool) HospitalizationService {
+		repo := &mockHospitalizationRepository{
+			createFn: func(_ context.Context, _ *model.Hospitalization) error { *created = true; return nil },
+		}
+		return NewHospitalizationService(&repository.Repositories{
+			Hospitalization: repo,
+			Cage:            rejectCageRepo(ownedCageID),
+		})
+	}
+
+	t.Run("rejects cross-clinic cage_id and does not persist", func(t *testing.T) {
+		created := false
+		svc := newSvc(&created)
+		foreign := foreignCageID
+		out, err := svc.Create(context.Background(), clinicID, &CreateHospitalizationInput{
+			OwnerID: 2, PetID: 5, CageID: &foreign,
+		})
+		assert.Error(t, err)
+		assert.Nil(t, out)
+		assert.False(t, created, "hospitalization must NOT be persisted referencing another clinic's cage")
+	})
+
+	t.Run("accepts same-clinic cage_id (no false-reject)", func(t *testing.T) {
+		created := false
+		svc := newSvc(&created)
+		owned := ownedCageID
+		out, err := svc.Create(context.Background(), clinicID, &CreateHospitalizationInput{
+			OwnerID: 2, PetID: 5, CageID: &owned,
+		})
+		assert.NoError(t, err)
+		assert.NotNil(t, out)
+		assert.True(t, created)
+	})
+}
+
+func TestHospitalizationService_Update_RejectsCrossClinicCageFK(t *testing.T) {
+	const clinicID = uint64(1)
+	const ownedCageID = uint64(10)
+	const foreignCageID = uint64(999)
+
+	newSvc := func(updated *bool) HospitalizationService {
+		repo := &mockHospitalizationRepository{
+			findByIDFn: func(_ context.Context, _, id uint64) (*model.Hospitalization, error) {
+				return &model.Hospitalization{ID: id, ClinicID: clinicID}, nil
+			},
+			updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Hospitalization, error) {
+				*updated = true
+				return &model.Hospitalization{ID: 1, ClinicID: clinicID}, nil
+			},
+		}
+		return NewHospitalizationService(&repository.Repositories{
+			Hospitalization: repo,
+			Cage:            rejectCageRepo(ownedCageID),
+		})
+	}
+
+	t.Run("rejects cross-clinic cage_id on update and does not persist", func(t *testing.T) {
+		updated := false
+		svc := newSvc(&updated)
+		foreign := foreignCageID
+		out, err := svc.Update(context.Background(), clinicID, 1, &UpdateHospitalizationInput{CageID: &foreign})
+		assert.Error(t, err)
+		assert.Nil(t, out)
+		assert.False(t, updated, "hospitalization must NOT be updated to reference another clinic's cage")
+	})
+
+	t.Run("accepts same-clinic cage_id (no false-reject)", func(t *testing.T) {
+		updated := false
+		svc := newSvc(&updated)
+		owned := ownedCageID
+		out, err := svc.Update(context.Background(), clinicID, 1, &UpdateHospitalizationInput{CageID: &owned})
+		assert.NoError(t, err)
+		assert.NotNil(t, out)
+		assert.True(t, updated)
 	})
 }
 

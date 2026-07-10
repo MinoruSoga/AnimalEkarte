@@ -1,8 +1,8 @@
 # BE-refactor.md — バックエンド リファクタリング計画（Appendix A / H フォローアップのみ残存）
 
-> 残るのは Appendix A 8件（X-11〜X-18、P3中心）と、レビュー由来フォローアップ H-1〜H-7（別チケット化推奨）のみ。
+> 残るのは Appendix A 5件（X-14〜X-18、P3中心）と、レビュー由来フォローアップ H-1〜H-7（別チケット化推奨）のみ。
 > 本編（挙動保存トラック）および Appendix A の CLOSED 済み項目は本ファイルから削除済み（詳細は git log 参照）。
-> X-9（resv-slot-phantom-toctou）・X-10（mr-version-check-not-atomic）は挙動変更トラックとして実装完了・CLOSED（詳細は git log 参照）。
+> X-9（resv-slot-phantom-toctou）・X-10（mr-version-check-not-atomic）・finalize-child-write-race は挙動変更トラックとして実装完了・CLOSED（詳細は git log 参照）。
 > 前提: backend は 2026-07-02 完遂の D1-D13/R1-R3 計画で一度系統的にリファクタ済み・複数回の監査で well-maintained と判定済みのコードベースである。
 
 ## 監査の方法と信頼性
@@ -14,8 +14,8 @@
 
 | 区分 | 件数 | 内訳 |
 |---|---|---|
-| Appendix A（挙動変更・別トラック） | 8件 | X-11〜X-18 |
-| レビュー由来フォローアップ（未登録・別チケット推奨） | 7件 | H-1, H-2, H-3, H-4, H-5, H-6, H-7 |
+| Appendix A（挙動変更・別トラック） | 5件 | X-14〜X-18 |
+| レビュー由来フォローアップ（未登録・別チケット推奨） | 8件 | H-1, H-2, H-3, H-4, H-5, H-6, H-7, H-8 |
 
 ### レビュー由来フォローアップ（本編未登録）
 
@@ -28,84 +28,13 @@
 | H-5 | `lstep_csv_imports.uploaded_by_user_id` が Go では `*uint64`（nil許容）だが DDL では `bigint NOT NULL REFERENCES accounts(id)`。H-4 と同型のクラス。 | G12-1 schema_drift nullability check（新設） | MEDIUM（要 migration or model 修正・別チケット推奨） |
 | H-6 | `backend/CODING_RULES.md` の §3.2/§5.1/§5.4/§6.1/§6.3 に、G1-6 で是正した README.md と同型の forbidden-pattern 教材コード（生の `gin.H{"error":...}` レスポンス、`uuid.UUID` ベースの `FindByID` シグネチャ例 — 実際は全モデル `uint64` PK、sentinel-error `errors.Is` 例示で `apperrors.FromGORM`/`RespondError` 未使用）が残存。§6 に `RequirePermission`/P5 ルートゲーティングの言及が一切ない。G1-6 の対象範囲（ディレクトリツリーのみ）を超える約400行規模の書き直しのため別ユニット化推奨。 | G1-6 実装エージェント | MEDIUM（オンボーディング文書の質・別チケット推奨） |
 | H-7 | `reservationStaffService.Update` の所有権確認読み取り(`s.GetByID`)が tx 外で行われ、確認〜更新の間にスタッフが削除されると TOCTOU の窓が生じる。X-8 の修正対象（fields 更新+除外設定置換の原子性）とは独立した既存の設計であり、X-8 は悪化させていない（security-reviewer 確認済み）。低頻度の管理操作のため実害は限定的。 | X-8 security-reviewer | LOW（別チケット化検討・優先度低） |
+| H-8 | finalize-child-write-race の修正は treatment.Create／examination.Create・Update／vital.Create・Update・Delete／checkup_field_result.ReplaceForCheckup の5経路のみ `LockDraftByID` 行ロックで保護した。同一クラスの check-then-act（親カルテ確定済みチェックが素の `FindByID` で tx 外・無ロック）が `treatment_service.go` の Update・Delete、`examination_service.go` の Delete、`prescription_service.go` の Delete に残存する（対応方針: 同じ `LockDraftByID` + 子書込 tx パターンを適用。examination/prescription の Delete は現在 `Transactor.WithTx` 未使用のため新規導入が必要）。HC-003/005/006 は "invariant" と定義されている以上、一部経路のみの保護は invariant の完全復元とは言えない。加えて `treatment_service.go` の `BulkUpdateSortOrder`（465行）は確定ステータスの gate 自体が無い（clinic 所有権確認のみで finalize チェックなし）ため、確定済みカルテでも治療の並び順を無条件に変更できる — race というより欠落した業務ルールチェックで、他の残存項目より単純だが影響は同型（security-reviewer 発見）。 | finalize-child-write-race healthcare-reviewer / security-reviewer（2026-07-11 セッション） | HIGH — 別チケット化推奨（silent close 不可、必ず追跡すること） |
 
 ---
 
 ## Appendix A: 挙動変更を伴う項目（別トラック・PO/責任者判断を要する）
 
 以下8件は監査で実在を確認した defect だが、修正すると HTTP レスポンス・DB書込結果・権限判定・API契約のいずれかが観測可能な形で変わる。このため本計画（挙動保存リファクタ）の実行対象からは外し、個別 Issue として起票のうえ別トラックで扱うことを推奨する。severity 順に記載。
-
-### X-11. カルテ確定ロック(HC-003/005/006)の親 status チェックが子エンティティ書込と非原子で、確定と同時の子追加/編集が確定済カルテに混入しうる
-
-- **ID**: `finalize-child-write-race`
-- **重要度**: P3 / **工数目安**: L
-- **対象ファイル**: internal/service/treatment_service.go (220-303); internal/service/examination_service.go (152-160); internal/service/vital_service.go (106-113); internal/service/prescription_service.go (83-84); internal/service/checkup_field_result_service.go (128-135); internal/repository/medical_record_repository.go (236-248)
-- **依存関係**: resv-slot-phantom-toctou と同じく dbortx_inventory_lint_test.go allowlist 更新を伴う。5 サービス横断のため実装は 2 コミット以上に分割推奨
-
-**証拠(現HEAD検証済み)**
-
-treatment_service.go:222-229 「parent, err := s.repos.MedicalRecord.FindByID(ctx, clinicID, medicalRecordID)\n\t...\n\tif parent.Status == model.MedicalRecordStatusFinalized {\n\t\treturn nil, apperrors.WrapConflict("確定済みカルテには治療を追加できません")\n\t}」— 素の FindByID（無ロック・tx 外）でチェックした後、242 行 `err = s.repos.Transaction(ctx, func(txRepos *repository.Repositories) error {` の別 tx で子 INSERT。examination_service.go:159-160・vital_service.go:112-113・prescription_service.go:83-84・checkup_field_result_service.go:134-135 も同型（FindByID→status チェック→書込、親行ロックなし）。finalize 側 medical_record_repository.go:240 の `Where("id = ? AND status = ?", id, model.MedicalRecordStatusDraft)` はカルテ本体のみ原子化し、子テーブルには波及しない。
-
-**問題**
-
-T1(子追加) が parent.Status=draft を確認 → T2(finalize) がコミット → T1 の子 INSERT がコミット、の順序が可能で、確定済み（改変ロック済み）カルテに監査上 finalize 後の子レコードが追記なし(addendum 経由でなく)で混入する。確定ロックは臨床データの改竄追跡性の要の不変条件（HC-003/005/006・EXAM-001）だが、その並行時の強制が check-then-act のみ。競合窓はミリ秒級で発生頻度は低いものの、発生時は silent で検出手段がない。
-
-**対応方針(挙動変更を伴うため要PO/責任者判断のうえ別トラックで実施)**
-
-挙動変更トラック。1) medical_record_repository.go に `LockDraftByID(ctx, clinicID, id) (*model.MedicalRecord, error)`（dbOrTx + `Clauses(clause.Locking{Strength: "UPDATE"})` + status 返却）を新設し dbortx lint allowlist に登録。2) 子書込 5 サービス（treatment/examination/vital/prescription/checkup_field_result — treatment は既存 repos.Transaction 内へ、他は Transactor.WithTx 導入）で、tx 内先頭に LockDraftByID → finalized なら既存と同一メッセージの Conflict を返し、子書込を同一 tx 内へ移す。finalize 側 UPDATE は同一行への行ロックを要求するため、子 tx 保持中の finalize は自然に待機し順序整合する（finalize 側の変更は不要）。3) 並行テスト（finalize と子追加を同時実行し、finalize 後の子混入ゼロを検証）を 1 サービス分（treatment）追加し、残りはパターン踏襲。段階導入可: まず treatment/examination（金額・検査値を持つ高リスク 2 系統）のみでも価値がある。
-
-**検証コマンド(スコープ限定)**
-```
-docker compose exec backend go test ./internal/service/ -run 'TestTreatment|TestExamination' -count=1 && docker compose exec backend go test ./internal/repository/ -run TestDBOrTxInventory -count=1
-```
-
-### X-12. 会計 Create/Update の会計完了時 appointment 完了化が tx 外で、部分コミット（billing 確定済み・予約カード残留/エラー返却）が起こる
-
-- **ID**: `billing-complete-appt-post-tx`
-- **重要度**: P3 / **工数目安**: M
-- **対象ファイル**: internal/service/accounting_service_core.go (80-86, 195-200, 251-267); internal/repository/accounting_repository.go (312-349)
-- **依存関係**: dbortx_inventory_lint_test.go allowlist 更新を同一コミットで行うこと
-
-**証拠(現HEAD検証済み)**
-
-accounting_service_core.go:195-198 「if input.Status != nil && *input.Status == model.BillingStatusCompleted {\n\t\tif err := s.completeAccountingAppointments(ctx, input.ClinicID, accounting); err != nil {\n\t\t\treturn nil, apperrors.Wrap(err, "failed to complete accounting appointments during update")\n\t\t}」— 148-182 行の WithTx（fields/payment/splits/監査を R1-2 で原子化済み）がコミットした後に、tx 外の ctx で呼ばれる。repo 側 accounting_repository.go:317 `result := r.db.WithContext(ctx).` / 333 行も同じく r.db 直参照で dbOrTx 非参加。Create 側も同型: accounting_service_core.go:80-83 「if billing.Status == model.BillingStatusCompleted {\n\t\tif err := s.completeAccountingAppointments(ctx, input.ClinicID, billing); err != nil {\n\t\t\treturn nil, apperrors.Wrap(err, "failed to complete accounting appointments during create")」— billing Create(73 行) コミット後に失敗するとエラーを返すが billing は残る。
-
-**問題**
-
-会計確定は WithTx でコミット済みなのに appointment 完了化が失敗すると、(a) 呼出元にはエラーが返り操作全体が失敗に見えるが billing は completed で確定済み（Update 側）、(b) Create 側は billing が残ったままエラーになり、medical_record_id NULL のトリミング/手動会計ではリトライで二重 billing を作れる（idx_billings_medical_record_id_unique は medical_record_id 非 NULL のみバックストップ）。R1-2 が塞いだ「三系統分裂の部分コミット」と同型の残余が、同一ユースケースの後段に残っている。
-
-**対応方針(挙動変更を伴うため要PO/責任者判断のうえ別トラックで実施)**
-
-挙動変更トラック（失敗時の原子性が変わる）。1) accounting_repository.go の CompleteAccountingAppointments 内 2 箇所（317, 333 行）を dbOrTx(ctx, r.db) に変更し dbortx lint allowlist に登録。2) Update 側: 呼出を WithTx クロージャ末尾（logPostCloseEdit の後）へ移動し txCtx で呼ぶ。判定は input.Status ベースに変更（現在は再読後 accounting を使うが、tx 内では fields 適用済みのため同値）。3) Create 側: repo.Create + completeAccountingAppointments を Transactor.WithTx で括る（Billing Create は既に単文なので repo 変更不要、Create が dbOrTx 未参加なら参加化）。4) syncCPMStageTag は外部 LSTEP 同期なので従来どおり tx 外 best-effort を維持。5) accounting_repository_tx_atomicity_test.go に「appointment 完了化失敗で billing 更新もロールバックする」ケースを追加。
-
-**検証コマンド(スコープ限定)**
-```
-docker compose exec backend go test ./internal/repository/ -run 'TestAccounting.*Atomicity|TestDBOrTxInventory' -count=1 && docker compose exec backend go test ./internal/service/ -run TestAccounting -count=1
-```
-
-### X-13. SharedFile.DeletedAt が *time.Time のため repo.Delete が物理 DELETE — DDL/読取述語/ログ文言のソフトデリート意図と不整合
-
-- **ID**: `sharedfile-harddelete-vs-softdelete-intent`
-- **重要度**: P2 / **工数目安**: S
-- **対象ファイル**: internal/model/shared_file.go (18); internal/repository/shared_file_repository.go (62-71); internal/service/shared_file_service.go (133-175); migrations/001_init.sql (1250-1272)
-- **依存関係**: なし
-
-**証拠(現HEAD検証済み)**
-
-model (shared_file.go:18): `DeletedAt  *time.Time \`gorm:"index"          json:"deleted_at"\`` — gorm.DeletedAt でないため GORM のソフトデリートは発火せず、shared_file_repository.go:62-66 の `Delete(&model.SharedFile{})` は物理 DELETE を発行する。一方で意図はソフトデリート: DDL は deleted_at 列を持ち（001_init.sql:1262）部分インデックス `WHERE deleted_at IS NULL`（:1269-1271）を張り、読取は全て手動述語 `Where("deleted_at IS NULL")`（repo :41,:53,:76）、service のエラーログは `"failed to soft-delete shared file"`（shared_file_service.go:144）/`"failed to soft-delete expired shared file"`（:171）と明記。同型の LstepTagCodeMapping は SoftDelete メソッドで `Update("deleted_at", now)` を明示実装しており（lstep_tag_code_mapping_repository.go:81-98）、SharedFile だけ意図と実装が食い違う。
-
-**問題**
-
-LINE個別送信ファイルのメタデータ（誰がどの飼主向けに何をアップロードしたか）が削除・期限切れクリーンアップ時に物理消去され、deleted_at 列・部分インデックス・読取述語が全て死んでいる。監査・追跡可能性の設計意図（業務データは deleted_at を持つ: migrations/CLAUDE.md 必須チェック）に反する。ソフトデリート化は挙動変更（行が残る・一意/容量特性が変わる）のため別トラック。
-
-**対応方針(挙動変更を伴うため要PO/責任者判断のうえ別トラックで実施)**
-
-behaviorChange トラック。選択肢を PO 判断可能な形で提示: 案A（意図に合わせる）= DeletedAt を gorm.DeletedAt に変更（json:"-" 化で API から deleted_at フィールドが消える点は要確認 — 現状 json:"deleted_at" を露出）。repo の手動 `deleted_at IS NULL` 述語は GORM 自動述語と重複するが無害なので残置可。FindExpired のクリーンアップが物理削除を意図するなら Unscoped().Delete を明示。案B（実装に合わせる）= ハードデリートを正と決め、model から DeletedAt を除去し新規 migration で列と部分インデックスを drop、service のログ文言を hard-delete に修正。どちらでも「意図と実装の一致」を repository テスト（Delete 後に Unscoped 検索で行の有無を検証）で固定する。影響範囲: model/shared_file.go・repository/shared_file_repository.go・service/shared_file_service.go（案Bのみ migrations 追加）。
-
-**検証コマンド(スコープ限定)**
-```
-docker compose exec backend go test ./internal/repository/ -run TestSharedFile -count=1 && docker compose exec backend go test ./internal/service/ -run TestSharedFile -count=1
-```
 
 ### X-14. master-FK write allowlistのknown-unguarded約47エントリにisolation test不在(名簿上も『NO dedicated isolation test』と明記)
 
@@ -116,7 +45,7 @@ docker compose exec backend go test ./internal/repository/ -run TestSharedFile -
 
 **証拠(現HEAD検証済み)**
 
-master_fk_write_inventory_lint_test.go:143-145「// statusKnownUnguarded: reviewed; NO dedicated isolation test confirms ownership\n statusKnownUnguarded masterFKWriteStatus = "known-unguarded"」。エントリ例(同:191-192)「{"accountingService.Update", statusKnownUnguarded, []string{"PaymentMethodID"}, "PaymentMethodID resolved via clinic system_key→ID map (resolvePaymentMethodMasterID); not a FindByID guard and no isolation test — verify rejection of explicit foreign IDs."},\n{"billingItemService.CreateItem", statusKnownUnguarded, []string{"MerchandiseItemID", "TrimmingCourseID", "TrimmingOptionID"}, "all three FKs persisted directly without FindByID (billing_item_service.go:230)."}」。grep計測でstatusKnownUnguarded言及49行(定義2行を除き約47エントリ)。repository/CLAUDE.mdの規約は「正本ガード = 各サイトの runtime isolation test」だが、これらのエントリにはその正本ガードが存在しない。
+master_fk_write_inventory_lint_test.go:143-145「// statusKnownUnguarded: reviewed; NO dedicated isolation test confirms ownership\n statusKnownUnguarded masterFKWriteStatus = "known-unguarded"」。エントリ例(同:191-192)「{"accountingService.Update", statusKnownUnguarded, []string{"PaymentMethodID"}, "PaymentMethodID resolved via clinic system_key→ID map (resolvePaymentMethodMasterID); not a FindByID guard and no isolation test — verify rejection of explicit foreign IDs."},\n{"billingItemService.CreateItem", statusKnownUnguarded, []string{"MerchandiseItemID", "TrimmingCourseID", "TrimmingOptionID"}, "all three FKs persisted directly without FindByID (billing_item_service.go:230)."}」。repository/CLAUDE.mdの規約は「正本ガード = 各サイトの runtime isolation test」だが、これらのエントリにはその正本ガードが存在しない。
 
 **問題**
 
@@ -126,10 +55,18 @@ review網羅性gateは『名簿に載せる』ことしか担保せず(同ファ
 
 別トラック(挙動変更)として段階実施。優先順: (1)会計: accountingService.Update PaymentMethodID / billingItemService.CreateItem の3FK — service層にFindByID(clinicID,…)ガード追加後、internal/repository/または既存cross_tenant_master_fk_write_test.goパターンで『別クリニックFK指定→apperrors.WrapInvalidInput/NotFound拒否』テストを追加、allowlistエントリをguardedへ更新。(2)campaign TargetItemIDs(repo ReplaceTargets unscoped)。(3)carePlanItem HospitalizationPlanID / hospitalization CageID。(4)self-ref ParentID群(checkupType/consultation/examType)。各バッチはTestMasterFKWriteInventoryのstatus突合がgateになるため、allowlist更新漏れはCIで検出される。一括ではなくドメイン毎に1PRずつ、STGデータ監査(既存越境データの有無)を先行させること(R1-3の教訓)。
 
+**進捗(Session 6, 2026-07-11時点)**
+
+バッチ(3) carePlanItem HospitalizationPlanID / hospitalization CageID が完了。`carePlanItemService.validateMasterFKs` に `hospPlanRepo.FindByID(ctx, clinicID, HospitalizationPlanID)` を追加(medicine/procedureと同一エラークラス)、`hospitalizationService.Create/Update` に `repos.Cage.FindByID(ctx, clinicID, CageID)` を追加(CageID非nil時)。isolation test 4件追加: `TestCarePlanItemService_Create_RejectsCrossClinicHospitalizationPlanFK` / `TestCarePlanItemService_Update_RejectsCrossClinicHospitalizationPlanFK` / `TestHospitalizationService_Create_RejectsCrossClinicCageFK` / `TestHospitalizationService_Update_RejectsCrossClinicCageFK`(いずれも `internal/service/cross_tenant_master_fk_write_test.go`)。allowlist該当4エントリを `statusKnownUnguarded` → `statusGuarded` に更新。ガード実装を一時的に無効化した状態でこれら4テストがREDになることを確認済み(regressionを実際に検出する回帰テストであることの確認)。
+
+**残件数の実測訂正**: 本セクション記載の見積り(約47)および過去に参照された「42」という数値は、直近の並行バッチ(X-11〜X-13等)によるallowlist変動を反映しておらずいずれも不正確だった。実測(`grep -c statusKnownUnguarded`)は本バッチ着手前 **46件**、本バッチ完了後 **42件**(-4、対象4エントリのみ)。優先順(2)campaign TargetItemIDs は既にallowlist上 `statusGuarded`(X-5で先行完了済み、本文の優先順メモが古い)。残る対象は主に(1)会計・(4)self-ref ParentID群および reservation/staff/treatment/trimming 等の残 known-unguarded 42件。
+
 **検証コマンド(スコープ限定)**
 ```
-docker compose exec backend go test ./internal/service/ -run TestMasterFKWriteInventory -count=1 && docker compose exec backend go test ./internal/repository/ -run TestCrossTenantMasterFKWrite -count=1
+docker compose exec backend go test ./internal/service/ -run TestMasterFKWriteInventory -count=1
+docker compose exec backend go test ./internal/service/ -run '_Rejects' -count=1
 ```
+(旧記載の `./internal/repository/ -run TestCrossTenantMasterFKWrite` はパス・テスト名とも現HEADと不一致だったため訂正。isolation testは `internal/service/cross_tenant_master_fk_write_test.go` にあり、対象テスト関数名は `TestCrossTenantMasterFKWrite` ではなく個々のサービス別 `Test*_*Rejects*` 群。)
 
 ### X-15. P6逸脱: 状態トグル系 DELETE 4ルートが "delete" ではなく "edit" 権限でゲート(免除根拠コメントなし)
 

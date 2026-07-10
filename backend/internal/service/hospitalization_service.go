@@ -166,6 +166,15 @@ func (s *hospitalizationService) Create(ctx context.Context, clinicID uint64, in
 		insuranceCompanyName = input.InsuranceCompanyName
 		insuranceNumber = input.InsuranceNumber
 	}
+
+	// クロステナント write 防止: request 由来の cage マスタが caller の clinic に属することを検証する。
+	if input.CageID != nil {
+		if _, err := s.repos.Cage.FindByID(ctx, clinicID, *input.CageID); err != nil {
+			slog.ErrorContext(ctx, "failed to verify cage ownership", "error", err)
+			return nil, apperrors.Wrap(err, "failed to verify cage ownership")
+		}
+	}
+
 	hospitalization := &model.Hospitalization{
 		ClinicID:             clinicID,
 		OwnerID:              input.OwnerID,
@@ -200,6 +209,15 @@ func (s *hospitalizationService) Update(ctx context.Context, clinicID, id uint64
 		slog.ErrorContext(ctx, "failed to find hospitalization", "error", err)
 		return nil, apperrors.Wrap(err, "failed to find hospitalization")
 	}
+
+	// クロステナント write 防止: 貼り替え先 cage マスタの所有権を検証する。
+	if input.CageID != nil {
+		if _, err := s.repos.Cage.FindByID(ctx, clinicID, *input.CageID); err != nil {
+			slog.ErrorContext(ctx, "failed to verify cage ownership", "error", err)
+			return nil, apperrors.Wrap(err, "failed to verify cage ownership")
+		}
+	}
+
 	fields := buildHospitalizationUpdate(input)
 	if len(fields) == 0 {
 		return nil, apperrors.WrapInvalidInput("at least one field must be provided")

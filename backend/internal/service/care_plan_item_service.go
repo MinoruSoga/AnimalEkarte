@@ -98,16 +98,17 @@ type carePlanItemService struct {
 	hospRepo      repository.HospitalizationRepository
 	medicineRepo  repository.MedicineRepository
 	procedureRepo repository.ProcedureRepository
+	hospPlanRepo  repository.HospitalizationPlanRepository
 }
 
 // NewCarePlanItemService は CarePlanItemService を初期化して返す
-func NewCarePlanItemService(repo repository.CarePlanItemRepository, hospRepo repository.HospitalizationRepository, medicineRepo repository.MedicineRepository, procedureRepo repository.ProcedureRepository) CarePlanItemService {
-	return &carePlanItemService{repo: repo, hospRepo: hospRepo, medicineRepo: medicineRepo, procedureRepo: procedureRepo}
+func NewCarePlanItemService(repo repository.CarePlanItemRepository, hospRepo repository.HospitalizationRepository, medicineRepo repository.MedicineRepository, procedureRepo repository.ProcedureRepository, hospPlanRepo repository.HospitalizationPlanRepository) CarePlanItemService {
+	return &carePlanItemService{repo: repo, hospRepo: hospRepo, medicineRepo: medicineRepo, procedureRepo: procedureRepo, hospPlanRepo: hospPlanRepo}
 }
 
-// validateMasterFKs は request 由来の clinic-scoped マスタFK (medicine/procedure) の所有権を
-// 検証する。別 clinic のマスタ参照は NotFound で遮断し入院ケアの cross-tenant mislink を防ぐ。
-func (s *carePlanItemService) validateMasterFKs(ctx context.Context, clinicID uint64, medicineID, procedureID *uint64) error {
+// validateMasterFKs は request 由来の clinic-scoped マスタFK (medicine/procedure/hospitalization_plan)
+// の所有権を検証する。別 clinic のマスタ参照は NotFound で遮断し入院ケアの cross-tenant mislink を防ぐ。
+func (s *carePlanItemService) validateMasterFKs(ctx context.Context, clinicID uint64, medicineID, procedureID, hospitalizationPlanID *uint64) error {
 	if medicineID != nil {
 		if _, err := s.medicineRepo.FindByID(ctx, clinicID, *medicineID); err != nil {
 			return apperrors.Wrap(err, "failed to verify medicine ownership")
@@ -116,6 +117,11 @@ func (s *carePlanItemService) validateMasterFKs(ctx context.Context, clinicID ui
 	if procedureID != nil {
 		if _, err := s.procedureRepo.FindByID(ctx, clinicID, *procedureID); err != nil {
 			return apperrors.Wrap(err, "failed to verify procedure ownership")
+		}
+	}
+	if hospitalizationPlanID != nil {
+		if _, err := s.hospPlanRepo.FindByID(ctx, clinicID, *hospitalizationPlanID); err != nil {
+			return apperrors.Wrap(err, "failed to verify hospitalization plan ownership")
 		}
 	}
 	return nil
@@ -153,8 +159,8 @@ func (s *carePlanItemService) Create(ctx context.Context, clinicID, hospitalizat
 		return nil, apperrors.Wrap(err, "failed to verify hospitalization ownership")
 	}
 
-	// クロステナント write 防止: medicine/procedure マスタが caller の clinic に属することを検証する。
-	if err := s.validateMasterFKs(ctx, clinicID, input.MedicineID, input.ProcedureID); err != nil {
+	// クロステナント write 防止: medicine/procedure/hospitalization_plan マスタが caller の clinic に属することを検証する。
+	if err := s.validateMasterFKs(ctx, clinicID, input.MedicineID, input.ProcedureID, input.HospitalizationPlanID); err != nil {
 		return nil, err
 	}
 
@@ -213,8 +219,8 @@ func (s *carePlanItemService) Update(ctx context.Context, clinicID, hospitalizat
 		}
 	}
 
-	// クロステナント write 防止: 貼り替え先 medicine/procedure マスタの所有権を検証する。
-	if err := s.validateMasterFKs(ctx, clinicID, input.MedicineID, input.ProcedureID); err != nil {
+	// クロステナント write 防止: 貼り替え先 medicine/procedure/hospitalization_plan マスタの所有権を検証する。
+	if err := s.validateMasterFKs(ctx, clinicID, input.MedicineID, input.ProcedureID, input.HospitalizationPlanID); err != nil {
 		return nil, err
 	}
 
