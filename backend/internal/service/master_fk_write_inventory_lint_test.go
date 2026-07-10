@@ -174,6 +174,7 @@ type masterFKWriteEntry struct {
 // REMINDER: status is a human review record. The gate does NOT verify it (see file header).
 var masterFKWriteAllowlist = []masterFKWriteEntry{
 	// ── guarded (FindByID ownership check covers every master FK; most have runtime isolation tests) ──
+	{"accountingService.Update", statusGuarded, []string{"PaymentMethodID"}, "resolvePaymentMethodMasterID の mismatch 拒否ロジックで validated; test: TestAccountingService_Update_RejectsForeignPaymentMethodID"},
 	{"checkupFieldResultService.ReplaceForCheckup", statusGuarded, []string{"CheckupTypeFieldID"}, "checkup_field_result_service.go: each CheckupTypeFieldID validated within the owned checkup_type's fields (#124 同型, #211); test in checkup_field_result_service_test.go"},
 	{"checkupService.Create", statusGuarded, []string{"CheckupTypeID"}, "checkup_service.go: checkupTypeRepo.FindByID(ctx, clinicID, CheckupTypeID); test in cross_tenant_master_fk_write_test.go"},
 	{"checkupService.Update", statusGuarded, []string{"CheckupTypeID"}, "checkup_service.go:223 checkupTypeRepo.FindByID(ctx, clinicID, *CheckupTypeID)"},
@@ -188,7 +189,6 @@ var masterFKWriteAllowlist = []masterFKWriteEntry{
 	{"vaccinationService.Update", statusGuarded, []string{"VaccineID"}, "vaccineRepo.FindByID when non-nil (03bf1cb5); test present"},
 
 	// ── known-unguarded: at least one master FK persisted without an ownership check (residual P1) ──
-	{"accountingService.Update", statusKnownUnguarded, []string{"PaymentMethodID"}, "PaymentMethodID resolved via clinic system_key→ID map (resolvePaymentMethodMasterID); not a FindByID guard and no isolation test — verify rejection of explicit foreign IDs."},
 	{"billingItemService.CreateItem", statusKnownUnguarded, []string{"MerchandiseItemID", "TrimmingCourseID", "TrimmingOptionID"}, "all three FKs persisted directly without FindByID (billing_item_service.go:230)."},
 	{"campaignService.Create", statusKnownUnguarded, []string{"TargetItemIDs"}, "TargetItemIDs → campaign_target_items.merchandise_item_id persisted without merchandise ownership check (repo ReplaceTargets is unscoped)."},
 	{"campaignService.Update", statusKnownUnguarded, []string{"TargetItemIDs"}, "as Create — TargetItemIDs (merchandise) not ownership-checked."},
