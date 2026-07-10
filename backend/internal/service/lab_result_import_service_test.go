@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -656,6 +657,49 @@ func TestLabResultImportService_Commit_ContextCancelledDuringPersist(t *testing.
 	}
 	if job.Status != model.LabImportJobStatusFailed {
 		t.Errorf("expected job status=failed after cancellation cleanup, got %s", job.Status)
+	}
+}
+
+// TestLabResultImportService_Commit_ContextCancelledDuringPersist_CompensationTransitionAlsoFails
+// verifies that when PersistBatch is interrupted by a cancelled context AND the compensating
+// "failed" transition itself also fails (e.g. DB outage), Commit still returns the original
+// primary error unchanged (behavior-preserving: the compensation-failure is only logged, never
+// allowed to shadow or replace the primary error).
+func TestLabResultImportService_Commit_ContextCancelledDuringPersist_CompensationTransitionAlsoFails(t *testing.T) {
+	jobSvc := newStubLabJobService()
+	jobSvc.transErr = errors.New("db outage on compensation transition")
+	jobSvc.transErrFor = model.LabImportJobStatusFailed
+	examSvc := &stubLabExamService{} // PersistBatch checks ctx.Err() before each row
+	svc := NewLabResultImportService(jobSvc, examSvc)
+
+	batch := syntheticFixtureBatch(1)
+	inputs := []LabExamPersistInput{{ClinicID: 1, ExamTypeID: 1, Date: time.Now()}}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel() // pre-cancel so the first PersistBatch loop iteration observes ctx.Err() != nil
+
+	_, err := svc.Commit(ctx, 1, batch, inputs)
+	if err == nil {
+		t.Fatal("expected error when context is cancelled during PersistBatch")
+	}
+	if !strings.Contains(err.Error(), "lab import batch interrupted") {
+		t.Errorf("expected primary error wrapped as 'lab import batch interrupted', got: %v", err)
+	}
+	if errors.Is(err, jobSvc.transErr) {
+		t.Errorf("returned error must not be (or wrap) the compensation-transition error, got: %v", err)
+	}
+
+	// the job must have been created but stays stuck in a non-terminal state (e.g. "mapped")
+	// because the compensating transition to "failed" itself failed.
+	var job *model.LabImportJob
+	for _, j := range jobSvc.jobs {
+		job = j
+	}
+	if job == nil {
+		t.Fatal("expected job to have been created before cancellation was observed")
+	}
+	if job.Status == model.LabImportJobStatusFailed {
+		t.Errorf("expected job to remain stuck in a non-terminal status when compensation transition fails, got %s", job.Status)
 	}
 }
 

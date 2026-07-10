@@ -128,8 +128,12 @@ func (s *labResultImportService) Commit(ctx context.Context, clinicID uint64, ba
 		errMsg := err.Error()
 		cleanupCtx, cleanupCancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
 		defer cleanupCancel()
-		_, _ = s.jobSvc.TransitionStatus(cleanupCtx, clinicID, jobID, model.LabImportJobStatusFailed,
-			TransitionCounts{RowCount: len(inputs), ErrorCode: ptr("context_cancelled"), ErrorMessage: &errMsg})
+		if _, compErr := s.jobSvc.TransitionStatus(cleanupCtx, clinicID, jobID, model.LabImportJobStatusFailed,
+			TransitionCounts{RowCount: len(inputs), ErrorCode: ptr("context_cancelled"), ErrorMessage: &errMsg}); compErr != nil {
+			slog.ErrorContext(cleanupCtx, "lab result import: failed to transition to failed (compensation)",
+				"error", compErr, "job_id", jobID)
+			// 主エラーを優先して返す(挙動不変)。job は非終端で残るため jobID から追跡する。
+		}
 		return nil, apperrors.Wrap(err, "lab import batch interrupted")
 	}
 
