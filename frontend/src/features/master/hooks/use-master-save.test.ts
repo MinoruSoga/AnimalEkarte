@@ -66,6 +66,8 @@ describe("useMasterSave", () => {
 
     expect(result.current.validationError).toBe("名称は必須です");
     expect(createMutate).not.toHaveBeenCalled();
+    expect(toast.error).toHaveBeenCalledWith("名称は必須です");
+    expect(toast.error).toHaveBeenCalledTimes(1);
   });
 
   it("validate成功時はvalidationErrorをクリアする", () => {
@@ -86,9 +88,12 @@ describe("useMasterSave", () => {
 
     act(() => result.current.handleSave({ name: "" }));
     expect(result.current.validationError).toBe("名称は必須です");
+    expect(toast.error).toHaveBeenCalledTimes(1);
 
     act(() => result.current.handleSave({ name: "有効な名称" }));
     expect(result.current.validationError).toBeNull();
+    // validate成功時は追加のtoast.errorは呼ばれない(失敗時の1回のみ)
+    expect(toast.error).toHaveBeenCalledTimes(1);
   });
 
   it("(b) editTargetId===nullの場合はcreateMutation経路を通る", () => {

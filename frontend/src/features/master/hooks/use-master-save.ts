@@ -59,6 +59,7 @@ export function useMasterSave<T extends MasterEntity, TForm, TCreate, TUpdate>({
       const error = validate(data);
       if (error) {
         setValidationError(error);
+        toast.error(error);
         return;
       }
       setValidationError(null);

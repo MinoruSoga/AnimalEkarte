@@ -1,8 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, act } from "@testing-library/react";
+import { toast } from "sonner";
 import { StaffSettings } from "./StaffSettings";
 import type { Staff } from "../api/staffs";
 import type { StaffFormData } from "../components/staff-side-panel-model";
+
+vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 
 // ──────────────────────────────────────────────────────────
 // R-F18: StaffSettings の validate() は「新規=email/password 必須」
@@ -10,8 +13,7 @@ import type { StaffFormData } from "../components/staff-side-panel-model";
 // この判定が反転・欠落すると、新規登録がノーガードで通ってしまう、または
 // 編集のたびにパスワード再入力を強制してしまう。
 // useMasterSave.handleSave は validate 失敗時に createMutation/updateMutation を
-// 呼ばずに黙って return するだけ（トースト等のユーザー通知は行われない — 既存の
-// サイレント失敗。本テストはこの現状挙動を固定する）。
+// 呼ばずに toast.error(error) でユーザーに通知して return する。
 // ──────────────────────────────────────────────────────────
 
 const { mockCreateMutate, mockUpdateMutate } = vi.hoisted(() => ({
@@ -105,23 +107,26 @@ describe("StaffSettings validate() — 新規/編集判定", () => {
   beforeEach(() => {
     mockCreateMutate.mockClear();
     mockUpdateMutate.mockClear();
+    vi.mocked(toast.error).mockClear();
     latestProps = null;
   });
 
-  it("新規登録: email が空の場合 createMutation を呼ばない", () => {
+  it("新規登録: email が空の場合 createMutation を呼ばずtoast.errorで通知する", () => {
     render(<StaffSettings />);
     act(() => latestProps!.crud.setEditTarget("new"));
     act(() => latestProps!.handleSave(baseFormData({ email: "", password: `password123` })));
 
     expect(mockCreateMutate).not.toHaveBeenCalled();
+    expect(toast.error).toHaveBeenCalledWith("メールアドレスは必須です");
   });
 
-  it("新規登録: password が8文字未満の場合 createMutation を呼ばない", () => {
+  it("新規登録: password が8文字未満の場合 createMutation を呼ばずtoast.errorで通知する", () => {
     render(<StaffSettings />);
     act(() => latestProps!.crud.setEditTarget("new"));
     act(() => latestProps!.handleSave(baseFormData({ email: "new@example.com", password: "short1" })));
 
     expect(mockCreateMutate).not.toHaveBeenCalled();
+    expect(toast.error).toHaveBeenCalledWith("パスワードは8文字以上で入力してください");
   });
 
   it("新規登録: email + 8文字以上の password が揃えば createMutation を呼ぶ", () => {
@@ -144,11 +149,12 @@ describe("StaffSettings validate() — 新規/編集判定", () => {
     expect(mockCreateMutate).not.toHaveBeenCalled();
   });
 
-  it("編集: name が空の場合は新規/編集を問わず updateMutation を呼ばない", () => {
+  it("編集: name が空の場合は新規/編集を問わず updateMutation を呼ばずtoast.errorで通知する", () => {
     render(<StaffSettings />);
     act(() => latestProps!.crud.setEditTarget(makeStaff()));
     act(() => latestProps!.handleSave(baseFormData({ name: "   ", email: "", password: "" })));
 
     expect(mockUpdateMutate).not.toHaveBeenCalled();
+    expect(toast.error).toHaveBeenCalledWith("氏名は必須です");
   });
 });
