@@ -1,6 +1,6 @@
 // React/Framework
-import { type ReactNode, useState, useCallback, useDeferredValue, useMemo, useEffect } from "react";
-import { useNavigate, useSearchParams } from "react-router";
+import { useState, useCallback, useDeferredValue, useMemo, useEffect } from "react";
+import { useNavigate } from "react-router";
 
 // Auth
 import { useClinicScope } from "@/hooks/use-clinic-scope";
@@ -17,7 +17,6 @@ import { paths } from "@/config/paths";
 import { TableCell } from "@/components/ui/table";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { PropertyFilter } from "@/components/shared/PropertyFilter/PropertyFilter";
-import { SortableHeader } from "@/components/shared/SortableHeader/SortableHeader";
 import { DataTable } from "@/components/shared/DataTable/DataTable";
 import { DataTableRow } from "@/components/shared/DataTable/DataTableRow";
 import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
@@ -34,10 +33,11 @@ import { useStaffValidation } from "@/hooks/use-staff-validation";
 
 // Relative
 import { useMedicalRecordsList } from "../hooks/use-medical-records";
-import type { MedicalRecordSortKey } from "../api/get-medical-records";
+import { useMedicalRecordsUrlState } from "../hooks/use-medical-records-url-state";
 import { useDeleteMedicalRecord } from "../api/delete-medical-record";
 import { usePermission } from "@/hooks/use-permission";
 import { useAnimalSpecies } from "@/hooks/use-animal-species";
+import { useMedicalRecordsColumns } from "./medical-records-columns";
 
 // Types
 import type {
@@ -75,15 +75,6 @@ const STATIC_FILTER_PROPERTIES: FilterProperty[] = [
   },
 ];
 
-// B-1 follow-up: 列ソート server 化。BE が許可する4キー（medical_record_repository.go の
-// medicalRecordSortColumns）のみ SortableHeader を表示する。種/主訴/関連/担当医は非対応（follow-up）。
-const SORTABLE_COLUMN_LABELS: Record<MedicalRecordSortKey, string> = {
-  date: "診療日",
-  owner_name: "飼主名",
-  pet_name: "ペット名",
-  status: "ステータス",
-};
-
 const CLINIC_TOGGLE_RESET_PARAMS = ["page"] as const;
 
 // DESIGN.md ex-data-table-cell: header は canvas-soft 背景 + eyebrow 相当タイポグラフィ（12px/600/tracking）。
@@ -94,7 +85,6 @@ const MEDICAL_RECORDS_HEADER_CELL = `${STYLE.sectionLabel} h-11`;
 
 export function MedicalRecords() {
   const navigate = useNavigate();
-  const [searchParams, setSearchParams] = useSearchParams();
   const { canCreate, canEdit, canDelete } = usePermission("medical-records");
   const {
     assignedClinics,
@@ -126,49 +116,14 @@ export function MedicalRecords() {
 
   // rerender-derived-state-no-effect: 検索/フィルタが変わったら1ページ目へリセット（useEffect不使用）
   const resetKey = `${deferredSearch}|${JSON.stringify(activeFilters)}`;
-  const [prevResetKey, setPrevResetKey] = useState(resetKey);
-  const rawUrlPage = Number(searchParams.get("page"));
-  const urlPage = Number.isFinite(rawUrlPage) && rawUrlPage > 0 ? Math.floor(rawUrlPage) : 1;
-  let currentPage = urlPage;
-  if (prevResetKey !== resetKey) {
-    setPrevResetKey(resetKey);
-    currentPage = 1;
-  }
-
-  // B-1 follow-up: 列ソート server 化。URL ?sort=&order= で状態を保持する（page と同様に共有可能にする）。
-  const rawSort = searchParams.get("sort");
-  const sortKey: MedicalRecordSortKey | undefined =
-    rawSort === "date" || rawSort === "owner_name" || rawSort === "pet_name" || rawSort === "status"
-      ? rawSort
-      : undefined;
-  const sortOrder: "asc" | "desc" = searchParams.get("order") === "asc" ? "asc" : "desc";
-
-  const handleSortToggle = useCallback((key: MedicalRecordSortKey) => {
-    setSearchParams((prev) => {
-      const next = new URLSearchParams(prev);
-      const currentSort = next.get("sort");
-      const currentOrder = next.get("order") === "asc" ? "asc" : "desc";
-      if (currentSort !== key) {
-        next.set("sort", key);
-        next.set("order", "desc");
-      } else if (currentOrder === "desc") {
-        next.set("order", "asc");
-      } else {
-        next.delete("sort");
-        next.delete("order");
-      }
-      next.delete("page");
-      return next;
-    }, { replace: true });
-  }, [setSearchParams]);
-
-  const directionForSort = useCallback(
-    (key: MedicalRecordSortKey): "ascending" | "descending" | "none" => {
-      if (sortKey !== key) return "none";
-      return sortOrder === "asc" ? "ascending" : "descending";
-    },
-    [sortKey, sortOrder],
-  );
+  const {
+    currentPage,
+    sortKey,
+    sortOrder,
+    handleSortToggle,
+    directionForSort,
+    handlePageChange,
+  } = useMedicalRecordsUrlState(resetKey);
 
   const clinicIdsForApi = isMultiClinic ? selectedClinicIds : undefined;
   const { records, total, isLoading, isError } = useMedicalRecordsList({
@@ -182,18 +137,6 @@ export function MedicalRecords() {
   });
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
-
-  const handlePageChange = useCallback((page: number) => {
-    setSearchParams((prev) => {
-      const next = new URLSearchParams(prev);
-      if (page <= 1) {
-        next.delete("page");
-      } else {
-        next.set("page", String(page));
-      }
-      return next;
-    }, { replace: true });
-  }, [setSearchParams]);
 
   // BUG-B1: server-side フィルタで件数が減り currentPage が範囲外になった場合、最終ページへ補正
   useEffect(() => {
@@ -221,28 +164,11 @@ export function MedicalRecords() {
 
   const showClinicColumn = isMultiClinic;
 
-  // rendering-hoist-jsx 対象外: directionFor/onToggle が sortKey/sortOrder に依存するため
-  // COLUMNS 自体を useMemo でメモ化し、ソート状態変化時のみ再生成する。
-  const sortableHeader = useCallback((key: MedicalRecordSortKey) => (
-    <SortableHeader
-      label={SORTABLE_COLUMN_LABELS[key]}
-      direction={directionForSort(key)}
-      onToggle={() => handleSortToggle(key)}
-    />
-  ), [directionForSort, handleSortToggle]);
-
-  const COLUMNS = useMemo<{ header: ReactNode; className?: string; align?: "left" | "center" | "right" }[]>(() => [
-    { header: sortableHeader("date"), className: "w-[120px]" },
-    { header: sortableHeader("owner_name") },
-    { header: sortableHeader("pet_name") },
-    { header: "種", className: "w-[80px] hidden lg:table-cell" },
-    { header: "主訴" },
-    { header: "関連", className: "w-[100px] hidden lg:table-cell" },
-    { header: "担当医", className: "w-[100px]" },
-    { header: sortableHeader("status"), className: "w-[100px]" },
-    ...(showClinicColumn ? [{ header: "医院", className: "w-[120px] hidden lg:table-cell" }] : []),
-    { header: "操作", className: "w-[100px]", align: "right" as const },
-  ], [showClinicColumn, sortableHeader]);
+  const COLUMNS = useMedicalRecordsColumns({
+    showClinicColumn,
+    directionForSort,
+    onSortToggle: handleSortToggle,
+  });
 
   if (isLoading) return <LoadingFallback />;
   if (isError) return <ErrorFallback />;
