@@ -43,7 +43,7 @@
 | POST | `/api/v1/masters/chief-complaint-types` | 新規カテゴリの作成 | `master-medical` | `create` |
 | PATCH | `/api/v1/masters/chief-complaint-types/:id` | 名称・説明・ステータスの更新 | `master-medical` | `edit` |
 | DELETE | `/api/v1/masters/chief-complaint-types/:id` | カテゴリの削除 | `master-medical` | `delete` |
-| PATCH | `/api/v1/masters/chief-complaint-types/reorder` | 表示順の一括保存 | `master-medical` | `edit` |
+| PATCH | `/api/v1/masters/chief-complaint-types/reorder` | 表示順の一括保存（BE実装済みだが本画面からは未呼出） | `master-medical` | `edit` |
 
 ---
 

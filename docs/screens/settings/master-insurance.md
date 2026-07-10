@@ -41,7 +41,7 @@
 | POST | `/api/v1/masters/insurances` | 新規保険会社の登録 | `master-insurance` | `create` |
 | PATCH | `/api/v1/masters/insurances/:id` | 設定内容の更新 | `master-insurance` | `edit` |
 | DELETE | `/api/v1/masters/insurances/:id` | 保険会社の削除 | `master-insurance` | `delete` |
-| PATCH | `/api/v1/masters/insurances/reorder` | 表示順序の一括保存 | `master-insurance` | `edit` |
+| PATCH | `/api/v1/masters/insurances/reorder` | 表示順序の一括保存（BE実装済みだが本画面からは未呼出） | `master-insurance` | `edit` |
 
 ---
 

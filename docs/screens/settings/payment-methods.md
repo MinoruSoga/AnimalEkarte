@@ -42,7 +42,7 @@
 | POST | `/api/v1/payment-methods` | 新規支払方法の作成 | `master-payment-method` | `create` |
 | PATCH | `/api/v1/payment-methods/:id` | 名称やステータスの更新 | `master-payment-method` | `edit` |
 | DELETE | `/api/v1/payment-methods/:id` | 支払方法の削除 | `master-payment-method` | `delete` |
-| PATCH | `/api/v1/payment-methods/reorder` | 表示順の一括保存 | `master-payment-method` | `edit` |
+| PATCH | `/api/v1/payment-methods/reorder` | 表示順の一括保存（BE実装済みだが本画面からは未呼出） | `master-payment-method` | `edit` |
 
 
 ---

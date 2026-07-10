@@ -45,7 +45,7 @@
 | POST | `/api/v1/masters/hospitalization-plans` | 新規入院プランの登録 | `master-hospitalization` | `create` |
 | PATCH | `/api/v1/masters/hospitalization-plans/:id` | 名称・体格・料金単位・単価・課税区分の更新 | `master-hospitalization` | `edit` |
 | DELETE | `/api/v1/masters/hospitalization-plans/:id` | 入院プランの削除 | `master-hospitalization` | `delete` |
-| PATCH | `/api/v1/masters/hospitalization-plans/reorder` | 表示順序の一括保存 | `master-hospitalization` | `edit` |
+| PATCH | `/api/v1/masters/hospitalization-plans/reorder` | 表示順序の一括保存（BE実装済みだが本画面からは未呼出） | `master-hospitalization` | `edit` |
 
 ---
 

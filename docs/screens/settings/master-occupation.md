@@ -11,7 +11,7 @@
 
 ### 1.1 職種一覧
 - **項目**: 職種名、説明、有効ステータス。
-- **並び替え**: シフト管理やスタッフ選択時の優先順位を管理するため、ドラッグ操作による表示順の変更に対応。
+- **並び順**: モデルに `sort_order` フィールドは存在するが、画面上のドラッグ並び替え UI は未実装（一覧は登録順で表示）。
 
 ### 1.2 詳細編集サイドパネル (`SidePeekPanel`)
 - **職種名**: 例：「院長」「チーフトリマー」「AHT（動物看護師）」。
@@ -43,9 +43,9 @@
 | GET | `/api/v1/masters/occupations` | 定義済み職種の一覧取得 | `master-staff` | `view` |
 | GET | `/api/v1/masters/occupations/:id` | 特定の職種詳細の取得 | `master-staff` | `view` |
 | POST | `/api/v1/masters/occupations` | 新規職種の追加 | `master-staff` | `create` |
-| PATCH | `/api/v1/masters/occupations/:id` | 属性やカテゴリの更新 | `master-staff` | `edit` |
+| PATCH | `/api/v1/masters/occupations/:id` | 名称・説明・ステータスの更新 | `master-staff` | `edit` |
 | DELETE | `/api/v1/masters/occupations/:id` | 職種の削除 | `master-staff` | `delete` |
-| PATCH | `/api/v1/masters/occupations/reorder` | 表示順序の一括保存 | `master-staff` | `edit` |
+| PATCH | `/api/v1/masters/occupations/reorder` | 表示順序の一括保存（BE実装済みだが本画面からは未呼出） | `master-staff` | `edit` |
 
 ---
 

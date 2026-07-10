@@ -48,7 +48,7 @@
 | PATCH | `/api/v1/closing-settings` | 境界時刻の更新 | `closing-settings` | `edit` |
 | GET | `/api/v1/closing-settings/special-periods` | 登録済み例外期間の一覧取得 | `closing-settings` | `view` |
 | POST | `/api/v1/closing-settings/special-periods` | 新規例外期間の登録 | `closing-settings` | `create` |
-| PATCH | `/api/v1/closing-settings/special-periods/:id` | 例外期間の更新 | `closing-settings` | `edit` |
+| PATCH | `/api/v1/closing-settings/special-periods/:id` | 例外期間の更新（BE実装済みだが編集UIは未実装のため未呼出。変更は削除+再登録で運用） | `closing-settings` | `edit` |
 | DELETE | `/api/v1/closing-settings/special-periods/:id` | 例外期間の削除 | `closing-settings` | `delete` |
 | GET | `/api/v1/closing-settings/holidays` | 休診日一覧の取得 | `closing-settings` | `view` |
 | POST | `/api/v1/closing-settings/holidays` | 休診日の登録 | `closing-settings` | `create` |

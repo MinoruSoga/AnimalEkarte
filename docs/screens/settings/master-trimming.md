@@ -46,13 +46,13 @@
 | POST | `/api/v1/masters/trimming-courses` | 基本コースの作成 | `master-trimming` | `create` |
 | PATCH | `/api/v1/masters/trimming-courses/:id` | コース情報の更新 | `master-trimming` | `edit` |
 | DELETE | `/api/v1/masters/trimming-courses/:id` | コースの削除 | `master-trimming` | `delete` |
-| PATCH | `/api/v1/masters/trimming-courses/reorder` | コース表示順の一括保存 | `master-trimming` | `edit` |
+| PATCH | `/api/v1/masters/trimming-courses/reorder` | コース表示順の一括保存（BE実装済みだが本画面からは未呼出） | `master-trimming` | `edit` |
 | GET | `/api/v1/masters/trimming-options` | オプション項目の一覧取得 | `master-trimming` | `view` |
 | GET | `/api/v1/masters/trimming-options/:id` | 特定のオプション項目詳細の取得 | `master-trimming` | `view` |
 | POST | `/api/v1/masters/trimming-options` | オプション項目の作成 | `master-trimming` | `create` |
 | PATCH | `/api/v1/masters/trimming-options/:id` | オプション項目の更新 | `master-trimming` | `edit` |
 | DELETE | `/api/v1/masters/trimming-options/:id` | オプション項目の削除 | `master-trimming` | `delete` |
-| PATCH | `/api/v1/masters/trimming-options/reorder` | オプション表示順の一括保存 | `master-trimming` | `edit` |
+| PATCH | `/api/v1/masters/trimming-options/reorder` | オプション表示順の一括保存（BE実装済みだが本画面からは未呼出） | `master-trimming` | `edit` |
 
 ---
 

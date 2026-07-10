@@ -29,7 +29,7 @@
 | POST | `/api/v1/masters/trimming-course-types` | コース種別を追加 | `master-trimming` | `create` |
 | PATCH | `/api/v1/masters/trimming-course-types/:id` | コース種別情報を更新 | `master-trimming` | `edit` |
 | DELETE | `/api/v1/masters/trimming-course-types/:id` | コース種別を削除 | `master-trimming` | `delete` |
-| PATCH | `/api/v1/masters/trimming-course-types/reorder` | 種別の表示順を一括保存 | `master-trimming` | `edit` |
+| PATCH | `/api/v1/masters/trimming-course-types/reorder` | 種別の表示順を一括保存（BE実装済みだが本画面からは未呼出） | `master-trimming` | `edit` |
 
 
 ### 関連画面

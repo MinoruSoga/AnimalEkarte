@@ -12,7 +12,7 @@
 ### 1.1 一覧
 - **一覧項目**: キャンペーン名、期間、割引値、ステータス、編集アクション。
 - **対象範囲検索**: キャンペーン名での文字列検索。
-- **並び替え**: ドラッグ＆ドロップで表示順を変更し保存。
+- **並び順**: 画面上のドラッグ並び替え UI は未実装（バックエンドの `reorder` API は存在するが未使用）。
 
 ### 1.2 編集パネル (`SidePeekPanel`)
 - **名称**: キャンペーン名（必須）。
@@ -47,5 +47,5 @@
 | POST | `/api/v1/masters/campaigns` | キャンペーン作成 | `accounting` | `create` |
 | PATCH | `/api/v1/masters/campaigns/:id` | キャンペーン更新 | `accounting` | `edit` |
 | DELETE | `/api/v1/masters/campaigns/:id` | キャンペーン削除 | `accounting` | `delete` |
-| PATCH | `/api/v1/masters/campaigns/reorder` | キャンペーンの表示順一括保存 | `accounting` | `edit` |
+| PATCH | `/api/v1/masters/campaigns/reorder` | キャンペーンの表示順一括保存（BE実装済みだが本画面からは未呼出） | `accounting` | `edit` |
 
