@@ -208,6 +208,40 @@ func TestAccountingRepository_CompleteAccountingAppointments(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, int64(0), affected, "別クリニックからは medical_record が見つからず対象外")
 		assert.Equal(t, model.ReservationStatusPending, reloadAppointmentStatus(t, db, apptA.ID), "clinic Aの予約は変更されない")
+
+		// 多重防御: medical_record.clinic_id は呼び出し側クリニックと一致するが、
+		// appointment_id が指す先が別クリニックの予約というFKドリフトを想定したケース。
+		// サービス層の書込経路は常にクリニック隔離済みの予約参照から appointment_id を設定するため
+		// 本来到達しないが、外側 Where("clinic_id = ?", clinicID)（Reservation側）が
+		// 独立した防御層として機能することを証明する（repository/CLAUDE.md P3.1の「正本ガード=runtime isolation test」方針）。
+		petFKDrift := makeSpeciesAndPet(t, db, clinicA, owner.ID, "FKドリフトペット")
+		apptFKDrift := makeAccountingAppointment(t, db, clinicA, &owner.ID, &petFKDrift.ID, model.ReservationStatusPending,
+			time.Date(2026, 6, 10, 3, 0, 0, 0, time.UTC)) // clinic A 所属の予約
+		mrFKDrift := makeMedicalRecordForAppointment(t, db, clinicB, apptFKDrift.ID, "MR-G11-2-fk-drift") // clinic_id=B だが appointment は clinic A
+
+		affected, err = repo.CompleteAccountingAppointments(ctx, clinicB, &mrFKDrift.ID, nil, nil, time.Time{})
+		require.NoError(t, err)
+		assert.Equal(t, int64(0), affected, "medical_record.clinic_id一致でもappointment自体が別クリニックなら外側clinic_id述語で拒否される")
+		assert.Equal(t, model.ReservationStatusPending, reloadAppointmentStatus(t, db, apptFKDrift.ID), "clinic Aの予約は変更されない")
+
+		// サブクエリ述語: appointment_id IS NULL の medical_record は対象外（エラーにもならない）。
+		mrNoAppointment := &model.MedicalRecord{ClinicID: clinicA, RecordNo: "MR-G11-2-no-appt", Date: time.Date(2026, 6, 10, 0, 0, 0, 0, time.UTC)}
+		require.NoError(t, db.WithContext(ctx).Create(mrNoAppointment).Error)
+		affected, err = repo.CompleteAccountingAppointments(ctx, clinicA, &mrNoAppointment.ID, nil, nil, time.Time{})
+		require.NoError(t, err)
+		assert.Equal(t, int64(0), affected, "appointment_idがnilのmedical_recordは対象外")
+
+		// サブクエリ述語: soft-delete済みmedical_recordは対象外（deleted_at IS NULL）。
+		petDeletedMR := makeSpeciesAndPet(t, db, clinicA, owner.ID, "削除カルテペット")
+		apptDeletedMR := makeAccountingAppointment(t, db, clinicA, &owner.ID, &petDeletedMR.ID, model.ReservationStatusPending,
+			time.Date(2026, 6, 10, 3, 0, 0, 0, time.UTC))
+		mrDeleted := makeMedicalRecordForAppointment(t, db, clinicA, apptDeletedMR.ID, "MR-G11-2-soft-deleted")
+		require.NoError(t, db.Delete(&model.MedicalRecord{}, mrDeleted.ID).Error)
+
+		affected, err = repo.CompleteAccountingAppointments(ctx, clinicA, &mrDeleted.ID, nil, nil, time.Time{})
+		require.NoError(t, err)
+		assert.Equal(t, int64(0), affected, "soft-delete済みmedical_recordは対象外")
+		assert.Equal(t, model.ReservationStatusPending, reloadAppointmentStatus(t, db, apptDeletedMR.ID))
 	})
 
 	t.Run("totalAffectedは経路1と経路2の合算になる", func(t *testing.T) {
