@@ -29,10 +29,27 @@ servers:
     description: 開発環境
 components:
   securitySchemes:
+    CookieAuth:
+      type: apiKey
+      in: cookie
+      name: access_token
+      description: |
+        主要な認証メカニズム。`POST /login` 成功時に Set-Cookie で発行される
+        HttpOnly な JWT（MaxAge=15min）。middleware/auth.go は Cookie を優先して読み取り、
+        Authorization ヘッダはフォールバック。
+    RefreshCookie:
+      type: apiKey
+      in: cookie
+      name: refresh_token
+      description: |
+        `POST /auth/refresh` 専用の HttpOnly な JWT（Path=/auth/refresh、MaxAge=7days）。
+        Token Rotation により毎回置換される。
     BearerAuth:
       type: http
       scheme: bearer
       bearerFormat: JWT
+      description: |
+        後方互換のフォールバック。Cookie が利用不可な環境（CLI クライアント等）向け。
   schemas:
     # ─── Summary schemas (Preload用の軽量オブジェクト) ──────────────
     OwnerSummary:
@@ -8450,6 +8467,7 @@ components:
           schema:
             $ref: '#/components/schemas/ErrorResponse'
 security:
+  - CookieAuth: []
   - BearerAuth: []
 paths:
   /login:
@@ -8525,6 +8543,8 @@ paths:
         httpOnly Cookie の refresh_token を使って新しい access_token を発行する。
         トークンローテーション（旧 refresh_token の無効化）も実施する。
       tags: [Auth]
+      security:
+        - RefreshCookie: []
       responses:
         '200':
           description: トークン再発行成功。新しい access_token / refresh_token を Cookie でセット。

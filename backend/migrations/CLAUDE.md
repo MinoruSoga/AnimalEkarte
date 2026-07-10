@@ -39,12 +39,12 @@ docker compose exec db psql ...  # 直接 SQL 実行
 
 `001_init.sql` の checksum mismatch が出たローカル環境は、`docs/infra/deploy/LOCAL_DB_RESET.md` の手順で DB volume を再構築する。
 
-## seed データは CSV が正、SQL は 001 のみ（2026-07 stub 削除）
+## seed データは CSV が正、SQL は DDL のみ（2026-07 stub 削除）
 
-`backend/migrations/` に存在する `.sql` は `001_init.sql`（DDL 専用）のみ。002/003/004 の stub SQL ファイル（`SELECT 1;` の no-op）は削除済みで、実体は `backend/migrations/seeds/{002_master,003_demo,004_staging}/*.csv` + `manifest.json` というディレクトリだけになった。
+`backend/migrations/` に存在する `.sql` は DDL 専用の `001_init.sql` と `002_add_checkup_vaccination_indexes.sql`（2026-07-09 新設、インデックスのみ）の 2 つ。旧 002/003/004 の seed stub SQL ファイル（`SELECT 1;` の no-op）は削除済みで、seed の実体は `backend/migrations/seeds/{002_master,003_demo,004_staging}/*.csv` + `manifest.json` というディレクトリだけになった。
 
-- **cmd/migrate は二段フェーズ構成**: ①`*.sql`（実質 001_init.sql のみ）を昇順適用 → ②`internal/seedbundle.BundleOrder`（`002_master → 003_demo → 004_staging`固定順）で CSV バンドルを pgx `COPY FROM STDIN` ロード（`backend/cmd/migrate/csvbundle.go`）。DDL 失敗時は seed フェーズへ進まない
-- **schema_migrations の記録キー**: DDL は従来通りファイル名（`001_init.sql`）。seed バンドルは `internal/seedbundle.BundleMigrationKey(bundleDir)` が返す `"seeds/<bundle>"`（例: `seeds/002_master`）— stub SQL ファイル名には二度と紐付かない。fresh DB 適用後の正しい終了状態は `schema_migrations` に 4 行（`001_init.sql` + `seeds/002_master` + `seeds/003_demo` + `seeds/004_staging`）
+- **cmd/migrate は二段フェーズ構成**: ①`*.sql`（DDL: 001 と 002）を昇順適用 → ②`internal/seedbundle.BundleOrder`（`002_master → 003_demo → 004_staging`固定順）で CSV バンドルを pgx `COPY FROM STDIN` ロード（`backend/cmd/migrate/csvbundle.go`）。DDL 失敗時は seed フェーズへ進まない
+- **schema_migrations の記録キー**: DDL は従来通りファイル名（`001_init.sql` 等）。seed バンドルは `internal/seedbundle.BundleMigrationKey(bundleDir)` が返す `"seeds/<bundle>"`（例: `seeds/002_master`）— stub SQL ファイル名には二度と紐付かない。fresh DB 適用後の正しい終了状態は `schema_migrations` に 5 行（`001_init.sql` + `002_add_checkup_vaccination_indexes.sql` + `seeds/002_master` + `seeds/003_demo` + `seeds/004_staging`）
 - seed バンドルの checksum（`bundleChecksum`）は manifest.json + 全 CSV ファイルの内容を合成したもの。CSV だけの編集でも、既に適用済みの DB では通常の migration ファイル編集と同じ checksum mismatch ガードが働く
 - COPY はシーケンスを進めないため、テーブルロード後に自動 setval される（`advanceSerialSequence`）
 - **旧形式（stub SQL 時代）からの移行は非対応**: `schema_migrations` に `002_seed_master.sql` 等の旧キーが残っている DB を現行バイナリで起動すると `detectLegacySeedKeys` が fail-fast する。対処は `db_reset` またはボリューム再構築のみ（in-place 移行は実装しない）
