@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
+import { QUERY_STALE_TIMES } from "@/lib/react-query";
 
 export interface UngroupedSameDaySummary {
   medicalRecordCount: number;
@@ -30,5 +31,5 @@ export const useGetUngroupedSameDay = (petId: string, date: string, enabled: boo
     queryKey: ["accounting-ungrouped", petId, date],
     queryFn: () => getUngroupedSameDay(petId, date),
     enabled: enabled && !!petId,
-    staleTime: 30_000,
+    staleTime: QUERY_STALE_TIMES.SHORT,
   });

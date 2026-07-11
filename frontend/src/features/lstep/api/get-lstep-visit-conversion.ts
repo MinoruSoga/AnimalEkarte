@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import { requireStoredClinicId } from "@/lib/current-clinic";
+import { QUERY_STALE_TIMES } from "@/lib/react-query";
 
 interface VisitConversionRow {
   trigger_type: string;
@@ -29,7 +30,7 @@ export function useGetLstepVisitConversion(yearMonth: string, days = 30) {
       );
       return data;
     },
-    staleTime: 5 * 60 * 1000,
+    staleTime: QUERY_STALE_TIMES.MEDIUM,
     enabled: !!yearMonth && days > 0,
   });
 }

@@ -2,6 +2,7 @@ import { useQueries } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import { requireStoredClinicId } from "@/lib/current-clinic";
 import { CPM_STAGES, type CPMStage } from "@/lib/cpm-stage";
+import { QUERY_STALE_TIMES } from "@/lib/react-query";
 import type { AggregationParams, AggregationResponse } from "./get-aggregations";
 
 export type CPMStageCounts = Record<CPMStage, number>;
@@ -52,7 +53,7 @@ export function useGetCPMStageCounts(
         );
         return data.total;
       },
-      staleTime: 5 * 60 * 1000,
+      staleTime: QUERY_STALE_TIMES.MEDIUM,
     })),
   });
 

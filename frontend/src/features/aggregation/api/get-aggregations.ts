@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import { requireStoredClinicId } from "@/lib/current-clinic";
 import type { CPMStage } from "@/lib/cpm-stage";
+import { QUERY_STALE_TIMES } from "@/lib/react-query";
 
 // Type definitions for aggregation features.
 // 仕様 §4.1〜4.3 / §5.2 の sort 値を canonical とする。
@@ -102,6 +103,6 @@ export function useGetOwnerAggregations(params: AggregationParams) {
       );
       return data;
     },
-    staleTime: 5 * 60 * 1000,
+    staleTime: QUERY_STALE_TIMES.MEDIUM,
   });
 }

@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import { requireStoredClinicId } from "@/lib/current-clinic";
+import { QUERY_STALE_TIMES } from "@/lib/react-query";
 
 export interface LstepTagSummaryItem {
   tag_name: string;
@@ -25,6 +26,6 @@ export function useGetLstepTagSummary() {
       );
       return data;
     },
-    staleTime: 5 * 60 * 1000, // 5分キャッシュ
+    staleTime: QUERY_STALE_TIMES.MEDIUM, // 5分キャッシュ
   });
 }

@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
+import { QUERY_STALE_TIMES } from "@/lib/react-query";
 
 export interface DiscountSuggestion {
   type: "campaign" | "owner";
@@ -27,5 +28,5 @@ export const useGetBillingItemDiscountSuggestions = (itemId: string | undefined,
     queryKey: ["billing-item-discount-suggestions", itemId],
     queryFn: () => getDiscountSuggestions(itemId!),
     enabled: enabled && itemId !== undefined,
-    staleTime: 30_000,
+    staleTime: QUERY_STALE_TIMES.SHORT,
   });

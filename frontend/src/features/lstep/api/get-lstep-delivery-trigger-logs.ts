@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import { requireStoredClinicId } from "@/lib/current-clinic";
+import { QUERY_STALE_TIMES } from "@/lib/react-query";
 
 interface DeliveryTriggerLogItem {
   id: string;
@@ -47,6 +48,6 @@ export function useGetLstepDeliveryTriggerLogs(
       );
       return data;
     },
-    staleTime: 60 * 1000, // 1分キャッシュ
+    staleTime: QUERY_STALE_TIMES.MINUTE, // 1分キャッシュ
   });
 }

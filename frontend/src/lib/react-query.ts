@@ -16,6 +16,12 @@ export const queryClient = new QueryClient({
 
 // リソース別キャッシング戦略
 export const QUERY_STALE_TIMES = {
+  // 極短期: 会計の一時集計・提案系（FE3-7 新設。値は既存直値のまま）
+  SHORT: 30_000,           // 30秒
+
+  // 短期: lstep配信トリガー系（FE3-7 新設。値は既存直値のまま）
+  MINUTE: 60 * 1000,       // 1分
+
   // 低頻度変更: 飼主・ペット・マスタ等
   STATIC: 30 * 60 * 1000,  // 30分
 
