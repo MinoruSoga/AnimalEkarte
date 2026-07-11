@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { PrimaryButton } from '../components/PrimaryButton';
 import type { ReservationFlow } from '../types/models';
-import { formatJapaneseDate } from '../lib/jst-date';
+import { formatJapaneseDate } from '@/shared-liff/jst-date';
 
 interface CompletePageProps {
   reservationId: number;

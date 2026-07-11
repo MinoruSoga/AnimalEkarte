@@ -1,7 +1,7 @@
 import { useCallback, useState } from 'react';
 import { liffApi } from '../api/liff-api';
 import { BackButton } from '../components/BackButton';
-import { formatJSTApplicationDate } from '../lib/jst-date';
+import { formatJSTApplicationDate } from '@/shared-liff/jst-date';
 import { useFetchState } from '@/shared-liff/use-fetch-state';
 
 interface MyReservationsPageProps {

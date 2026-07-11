@@ -4,7 +4,7 @@ import { ProgressDots } from '../components/ProgressDots';
 import { PrimaryButton } from '../components/PrimaryButton';
 import { BackButton } from '../components/BackButton';
 import { Calendar } from '../components/Calendar';
-import { formatJapaneseDate } from '../lib/jst-date';
+import { formatJapaneseDate } from '@/shared-liff/jst-date';
 import { useFetchState } from '@/shared-liff/use-fetch-state';
 
 interface DateSelectPageProps {

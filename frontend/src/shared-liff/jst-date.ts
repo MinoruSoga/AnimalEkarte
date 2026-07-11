@@ -1,3 +1,12 @@
+// FE4-10: line-reserve/src/lib/jst-date.ts から逐語移動（main の src/lib/jst-date.ts と
+// アルゴリズムが重複していた・line-reserve だけ日付系で唯一テストが無かったため統合）。
+//
+// parse 契約: "YYYY-MM-DD" → Date の解釈は UTC 深夜（この shared-liff 版・line-reserve 系）と
+// ローカル正午（src/components/shared/DatePicker/DatePickerModel.ts の parseLocalDate・main 系）
+// の 2 契約が併存する。相互交換は日付ズレを起こすため禁止。formatJapaneseDate はこのファイルの
+// UTC getter 実装であり、main 側 utils/format/date.ts の formatJapaneseDate（FE4-8・ローカル
+// getter・シグネチャも Date 引数で異なる）とは契約が異なるため統合しない。
+
 const JST_OFFSET_MS = 9 * 60 * 60 * 1000;
 
 const WEEK_DAYS = ['日', '月', '火', '水', '木', '金', '土'] as const;

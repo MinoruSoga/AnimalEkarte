@@ -8,7 +8,7 @@ import { LIFF_MOCK } from '../lib/liff-config';
 import { ProgressDots } from '../components/ProgressDots';
 import { PrimaryButton } from '../components/PrimaryButton';
 import { BackButton } from '../components/BackButton';
-import { formatJapaneseDate } from '../lib/jst-date';
+import { formatJapaneseDate } from '@/shared-liff/jst-date';
 
 const slotTakenResponseSchema = z.object({
   error: z.string().optional(),
