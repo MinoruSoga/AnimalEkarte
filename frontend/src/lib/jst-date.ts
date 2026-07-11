@@ -67,7 +67,7 @@ export function jstNowISOString(): string {
   return formatJSTOffsetDateTime(new Date());
 }
 
-export function formatJSTOffsetDateTime(value: Date | string): string {
+function formatJSTOffsetDateTime(value: Date | string): string {
   const jstDate = toJSTParts(value);
   return `${jstDate.getUTCFullYear()}-${padDatePart(jstDate.getUTCMonth() + 1)}-${padDatePart(jstDate.getUTCDate())}T${padDatePart(jstDate.getUTCHours())}:${padDatePart(jstDate.getUTCMinutes())}:${padDatePart(jstDate.getUTCSeconds())}.${String(jstDate.getUTCMilliseconds()).padStart(3, "0")}+09:00`;
 }

@@ -4,7 +4,6 @@ import {
   buildJSTWallDateTime,
   formatJSTDate,
   formatJSTDateTimeLocal,
-  formatJSTOffsetDateTime,
   formatJSTTime,
   jstDateStartISOString,
   jstDateTimeLocalToISOString,
@@ -41,10 +40,6 @@ describe("jst-date", () => {
 
   it("datetime-local の値を JST オフセット付き ISO 文字列にする", () => {
     expect(jstDateTimeLocalToISOString("2026-06-01T09:45")).toBe("2026-06-01T09:45:00+09:00");
-  });
-
-  it("instant を JST オフセット付き ISO 文字列にする", () => {
-    expect(formatJSTOffsetDateTime("2026-06-01T00:45:00.123Z")).toBe("2026-06-01T09:45:00.123+09:00");
   });
 
   it("instant を datetime-local 用の JST 壁時計文字列にする", () => {

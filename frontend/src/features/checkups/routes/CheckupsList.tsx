@@ -26,7 +26,7 @@ import { usePermission } from "@/hooks/use-permission";
 import { formatDate } from "@/utils/format/date";
 import { paths } from "@/config/paths";
 import { useGetCheckups } from "../api/get-checkups";
-import { todayISODate, addDaysISO } from "../lib/today-iso";
+import { todayISODate, addDaysISO } from "@/lib/iso-date";
 
 // Types
 import type { FilterProperty, ActiveFilter, SortProperty } from "@/components/shared/PropertyFilter/types";
