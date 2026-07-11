@@ -153,6 +153,28 @@ describe("FEAT-374: switchClinic", () => {
     expect(reloadSpy).toHaveBeenCalledOnce();
   });
 
+  it("FE5-3: switchClinic 成功パスで reload 前に queryClient.clear() を呼ぶ（将来 SPA 化への防壁）", async () => {
+    const callOrder: string[] = [];
+    mockQueryClient.clear.mockImplementation(() => {
+      callOrder.push("clear");
+    });
+    reloadSpy.mockImplementation(() => {
+      callOrder.push("reload");
+    });
+
+    await renderWithAuth(
+      <ClinicSwitcher targetClinicId={CLINIC_B} label="switch-to-b" />,
+    );
+
+    await act(async () => {
+      screen.getByText("switch-to-b").click();
+    });
+
+    expect(mockQueryClient.clear).toHaveBeenCalledOnce();
+    expect(reloadSpy).toHaveBeenCalledOnce();
+    expect(callOrder).toEqual(["clear", "reload"]);
+  });
+
   it("現在と同じ clinicId への切り替えは no-op", async () => {
     await renderWithAuth(
       <ClinicSwitcher targetClinicId={CLINIC_A} label="switch-to-same" />,

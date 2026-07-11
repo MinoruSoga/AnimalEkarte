@@ -115,10 +115,15 @@ export function AuthProvider({ children }: AuthProviderProps) {
       if (!isMember) return;
       // 1. localStorage 更新（リロード後に axios interceptor が新 clinic_id を送信する）
       saveClinicToStorage(clinicId);
-      // 2. フルリロードで全データ（React Query + React Router loader）を新クリニックで再取得
+      // 2. FE5-3: reload 前に React Query キャッシュを破棄する。
+      //    現状は reload 1 行が安全性の全てを担っており、将来切替を SPA 化した際に
+      //    clinic id を含まないクエリキー（accountings/medical-records 等）が
+      //    旧クリニックのキャッシュを漏らす防壁として先に明示しておく。
+      queryClient.clear();
+      // 3. フルリロードで全データ（React Query + React Router loader）を新クリニックで再取得
       window.location.reload();
     },
-    [user, currentClinicId],
+    [user, currentClinicId, queryClient],
   );
 
   const hasPermission = useCallback(
