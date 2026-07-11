@@ -2,6 +2,8 @@ import { PALETTE } from "@/lib/design-tokens";
 import { todayJSTISO, toJSTWallDate } from "@/lib/jst-date";
 
 import type { DeliveryStatsRow } from "../api/get-lstep-delivery-stats";
+// FE4-12: 正本は trigger-types.ts の TriggerStatusLabels（内容同一）。参照名は既存流儀の STATUS_LABELS を維持。
+export { TriggerStatusLabels as STATUS_LABELS } from "../constants/trigger-types";
 
 export function currentYearMonth(): string {
   return todayJSTISO().slice(0, 7);
@@ -21,13 +23,6 @@ export function generateMonthOptions(count = 12): { value: string; label: string
 
 export const STATS_STATUSES = ["fired", "excluded", "failed", "scheduled"] as const;
 export type StatsStatus = (typeof STATS_STATUSES)[number];
-
-export const STATUS_LABELS: Record<StatsStatus, string> = {
-  fired: "送信済",
-  excluded: "除外",
-  failed: "失敗",
-  scheduled: "予定",
-};
 
 export const STATUS_COLORS: Record<StatsStatus, string> = {
   fired: PALETTE.successGreen,
