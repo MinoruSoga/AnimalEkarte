@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router";
 import { BarChart3, Download, Printer, Settings } from "lucide-react";
 import { toast } from "sonner";
 import { C, ICON, LAYOUT } from "@/lib/design-tokens";
+import { paths } from "@/config/paths";
 import { handleApiError } from "@/lib/handle-api-error";
 import { usePermission } from "@/hooks/use-permission";
 import { useCurrentClinicName } from "@/hooks/use-current-clinic-name";
@@ -61,7 +62,7 @@ export function AccountingReportsPage() {
 
   const handleDrillDown = useCallback(
     (date: string) => {
-      navigate(`/accounting/close/history?date=${encodeURIComponent(date)}`);
+      navigate(`${paths.accounting.closeHistory.getHref()}?date=${encodeURIComponent(date)}`);
     },
     [navigate],
   );
@@ -258,7 +259,7 @@ export function AccountingReportsPage() {
                 {/* #179 ②: 税率設定（病院マスタ）への導線。権限保持時のみ表示し印刷面からは除外 */}
                 {canViewClinicSettings ? (
                   <Link
-                    to="/settings/clinic"
+                    to={paths.settings.clinic.getHref()}
                     className={`flex items-center gap-1 text-sm ${C.text60} ${C.hoverText} underline-offset-2 hover:underline print:hidden`}
                   >
                     <Settings className="size-3.5" />

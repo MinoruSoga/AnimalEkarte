@@ -1,6 +1,7 @@
 import Axios, { type InternalAxiosRequestConfig, type AxiosError } from "axios";
 import { getStoredClinicId } from "@/lib/current-clinic";
 import { sanitizeNullBytes } from "@/lib/sanitize";
+import { paths } from "@/config/paths";
 
 const API_URL = import.meta.env.VITE_API_URL || "/api";
 
@@ -128,7 +129,7 @@ axios.interceptors.response.use(
         window.location.pathname !== "/login"
       ) {
         const from = encodeURIComponent(safeFromPath(`${window.location.pathname}${window.location.search}`));
-        window.location.href = `/login?from=${from}`;
+        window.location.href = `${paths.auth.login.getHref()}?from=${from}`;
       }
       return Promise.reject(error);
     }
@@ -154,7 +155,7 @@ axios.interceptors.response.use(
       processQueue(refreshError as AxiosError);
       if (window.location.pathname !== "/login") {
         const from = encodeURIComponent(safeFromPath(`${window.location.pathname}${window.location.search}`));
-        window.location.href = `/login?from=${from}`;
+        window.location.href = `${paths.auth.login.getHref()}?from=${from}`;
       }
       return Promise.reject(refreshError);
     } finally {

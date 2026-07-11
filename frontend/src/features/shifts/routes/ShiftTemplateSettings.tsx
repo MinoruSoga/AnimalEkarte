@@ -10,6 +10,7 @@ import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { useSidePeekDirty } from "@/hooks/use-side-peek-dirty";
 import { useSortableList } from "@/hooks/use-sortable-list";
 import { C } from "@/lib/design-tokens";
+import { paths } from "@/config/paths";
 import { ShiftTypeOff, ShiftTypePaidLeave } from "@/types/generated/models";
 import { useCreateShiftTemplate } from "../api/create-shift-template";
 import { useDeleteShiftTemplate } from "../api/delete-shift-template";
@@ -151,7 +152,7 @@ export function ShiftTemplateSettings() {
         <PageLayout
           title="シフトテンプレートマスタ"
           icon={<Calendar className="size-5" />}
-          onBack={() => navigate("/settings")}
+          onBack={() => navigate(paths.settings.getHref())}
           maxWidth="max-w-full"
         >
           <ShiftTemplateToolbar count={orderedItems.length} onCreate={handleCreate} />

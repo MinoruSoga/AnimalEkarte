@@ -3,6 +3,7 @@ import { Link } from "react-router";
 
 import { BADGE, C } from "@/lib/design-tokens";
 import { CPM_STAGE_SHORT_LABELS, type CPMStage } from "@/lib/cpm-stage";
+import { paths } from "@/config/paths";
 
 import type { AggregationOwner, LastVisitBucket } from "../api/get-aggregations";
 import type { AggregationTab } from "./aggregation-filter-panel-model";
@@ -65,7 +66,7 @@ const OWNER_NAME_COLUMN: AggregationOwnerColumn = {
   label: "飼主名",
   render: (owner) => (
     <Link
-      to={`/owners/${owner.owner_id}`}
+      to={paths.owners.detail.getHref(owner.owner_id)}
       className={`${C.text} hover:underline decoration-dotted underline-offset-2`}
       onClick={(e) => e.stopPropagation()}
     >

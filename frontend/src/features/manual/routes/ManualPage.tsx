@@ -15,6 +15,7 @@ import { Menu, X, Printer, Edit2 } from "lucide-react";
 
 import { C } from "@/lib/design-tokens";
 import { EmptyState } from "@/components/shared/DataStates";
+import { paths } from "@/config/paths";
 
 import "../manual-print.css";
 
@@ -94,7 +95,7 @@ export function ManualPage() {
     const fallback =
       viewMode === "screens" ? screenArticles[0] : workflowArticles[0];
     if (fallback) {
-      return <Navigate to={`/manual/${fallback.category}/${fallback.slug}`} replace />;
+      return <Navigate to={paths.manual.article.getHref(fallback.category, fallback.slug)} replace />;
     }
   }
 

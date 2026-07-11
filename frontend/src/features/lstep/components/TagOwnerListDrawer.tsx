@@ -12,6 +12,7 @@ import { C, STYLE, ICON } from "@/lib/design-tokens";
 import { EmptyState } from "@/components/shared/DataStates";
 import { handleApiError } from "@/lib/handle-api-error";
 import { isAutoManagedTag } from "@/constants/lstep-auto-tag-prefixes";
+import { paths } from "@/config/paths";
 import { useGetLstepTagOwners, fetchAllLstepTagOwners } from "../api/get-lstep-tag-owners";
 import type { LstepTagOwner } from "../api/get-lstep-tag-owners";
 import { BulkTagRemoveDialog } from "./BulkTagRemoveDialog";
@@ -76,7 +77,7 @@ const TagOwnerListItem = memo(function TagOwnerListItem({
         ) : null}
       </div>
       <Link
-        to={`/owners/${owner.owner_id}`}
+        to={paths.owners.detail.getHref(owner.owner_id)}
         className={`shrink-0 ml-3 text-xs ${C.textBrand} hover:underline whitespace-nowrap`}
       >
         カルテを開く
