@@ -106,26 +106,11 @@ export interface CreateTrimmingRequest {
 
 /**
  * トリミング更新リクエスト（PATCH /v1/trimmings/:id — 全フィールドoptional）
+ * FE3-6: CreateTrimmingRequest からフィールド集合が完全一致（3 フィールド除く）だったため
+ * 手書き二重定義を廃し派生型化。値・フィールド集合は変更していない。
  * handler/trimming_request.go の updateTrimmingRequest に対応
  */
-export interface UpdateTrimmingRequest {
-  start_time?: string;
-  end_time?: string;
-  pet_id?: number | null;
-  staff_id?: number | null;
-  status?: string;
-  course_id?: number | null;
-  style_request?: string;
-  bw?: number | null;
-  bw_unit?: string;
-  bt?: number | null;
-  used_shampoo?: string;
-  used_ribbon?: string;
-  remarks?: string;
-  style_image?: string;
-  completed_image?: string;
-  option_ids?: number[];
-}
+export type UpdateTrimmingRequest = Omit<CreateTrimmingRequest, "appointment_id" | "reservation_type_id" | "reservation_route">;
 
 // -------------------------------------------------------
 // List Response
