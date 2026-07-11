@@ -74,33 +74,34 @@ func (s *accountingService) Create(ctx context.Context, input *CreateAccountingI
 	// 単一 tx に統合する。従来は repo.Create のコミット後に tx 外で completeAccountingAppointments
 	// を呼んでおり、後者のみ失敗すると billing が確定済みのまま残った（部分コミット）。
 	// completed でない Create（waiting 等）は appointment 完了化を伴わないため従来どおり tx 不要。
+	createBilling := func(cctx context.Context) error {
+		if err := s.repo.Create(cctx, input.ClinicID, billing); err != nil {
+			slog.ErrorContext(cctx, "failed to create accounting", "error", err)
+			return apperrors.Wrap(err, "failed to create accounting")
+		}
+		return nil
+	}
 	if billing.Status == model.BillingStatusCompleted {
 		if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
-			if err := s.repo.Create(txCtx, input.ClinicID, billing); err != nil {
-				slog.ErrorContext(txCtx, "failed to create accounting", "error", err)
-				return apperrors.Wrap(err, "failed to create accounting")
+			if err := createBilling(txCtx); err != nil {
+				return err
 			}
 			if err := s.completeAccountingAppointments(txCtx, input.ClinicID, billing); err != nil {
 				return apperrors.Wrap(err, "failed to complete accounting appointments during create")
 			}
 			return nil
 		}); err != nil {
-			return nil, apperrors.Wrap(err, "failed to create accounting in transaction")
+			return nil, err //nolint:wrapcheck // 閉包内で文脈付き wrap 済み（"in transaction" の同義二重ラップを廃止）
 		}
-		slog.InfoContext(ctx, "accounting created",
-			slog.Uint64("billing_id", billing.ID),
-			slog.Uint64("clinic_id", input.ClinicID))
-		s.syncCPMStageTag(ctx, input.ClinicID, billing)
-		return billing, nil
-	}
-
-	if err := s.repo.Create(ctx, input.ClinicID, billing); err != nil {
-		slog.ErrorContext(ctx, "failed to create accounting", "error", err)
-		return nil, apperrors.Wrap(err, "failed to create accounting")
+	} else if err := createBilling(ctx); err != nil {
+		return nil, err //nolint:wrapcheck // createBilling 内で wrap 済み
 	}
 	slog.InfoContext(ctx, "accounting created",
 		slog.Uint64("billing_id", billing.ID),
 		slog.Uint64("clinic_id", input.ClinicID))
+	if billing.Status == model.BillingStatusCompleted {
+		s.syncCPMStageTag(ctx, input.ClinicID, billing)
+	}
 	return billing, nil
 }
 
