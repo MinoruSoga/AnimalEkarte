@@ -40,18 +40,17 @@ func makeOwner(t *testing.T, db *gorm.DB, clinicID uint64, name string) *model.O
 	return o
 }
 
-// makeBilling はテスト用の Billing を作成する。
+// makeBilling はテスト用の Billing を作成する。makeBillingWith（billing_test_fixtures_test.go）への thin wrapper。
 func makeBilling(t *testing.T, db *gorm.DB, clinicID uint64, ownerID, petID *uint64, amount int64, status model.BillingStatus, scheduledDate time.Time) {
 	t.Helper()
-	b := &model.Billing{
+	makeBillingWith(t, db, billingFixtureOpts{
 		ClinicID:      clinicID,
 		OwnerID:       ownerID,
 		PetID:         petID,
 		TotalAmount:   amount,
 		Status:        status,
 		ScheduledDate: scheduledDate,
-	}
-	require.NoError(t, db.WithContext(context.Background()).Create(b).Error)
+	})
 }
 
 // makeSpeciesAndPet はテスト用の AnimalSpecies と Pet を作成して返す。

@@ -27,16 +27,15 @@ import (
 
 // makeBillingForRefund は billing_refunds の FK を満たす最小 Billing を作成して返す。
 // ownerID / petID は nil — FK 制約違反なし（makeBillingRet と同パターン）。
+// makeBillingWith（billing_test_fixtures_test.go）への thin wrapper。
 func makeBillingForRefund(t *testing.T, db *gorm.DB, clinicID uint64) *model.Billing {
 	t.Helper()
-	b := &model.Billing{
+	return makeBillingWith(t, db, billingFixtureOpts{
 		ClinicID:      clinicID,
 		TotalAmount:   10000,
 		Status:        model.BillingStatusCompleted,
 		ScheduledDate: time.Date(2026, 7, 1, 0, 0, 0, 0, time.UTC),
-	}
-	require.NoError(t, db.WithContext(context.Background()).Create(b).Error)
-	return b
+	})
 }
 
 // TestRefundRepository_Create_RollsBackWhenAmbientTxFails は

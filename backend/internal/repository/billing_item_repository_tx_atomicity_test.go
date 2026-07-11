@@ -27,16 +27,16 @@ import (
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
+// makeBillingForItemTx は billing_item tx-atomicity テスト用の最小 Billing を作成する。
+// makeBillingWith（billing_test_fixtures_test.go）への thin wrapper。
 func makeBillingForItemTx(t *testing.T, db *gorm.DB, clinicID uint64) *model.Billing {
 	t.Helper()
-	b := &model.Billing{
+	return makeBillingWith(t, db, billingFixtureOpts{
 		ClinicID:      clinicID,
 		TotalAmount:   0,
 		Status:        model.BillingStatusWaiting,
 		ScheduledDate: time.Date(2026, 7, 1, 0, 0, 0, 0, time.UTC),
-	}
-	require.NoError(t, db.WithContext(context.Background()).Create(b).Error)
-	return b
+	})
 }
 
 var errSentinelBillingItemTx = errors.New("simulated post-write failure in ambient tx")

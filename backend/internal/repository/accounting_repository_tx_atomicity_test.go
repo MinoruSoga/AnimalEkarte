@@ -39,16 +39,15 @@ import (
 
 // makeBillingForAccountingTx は payments/payment_splits 系テスト用の最小 Billing を作成する。
 // payment_splits FK を満たすため clinic_id を明示する。ownerID/petID は nil（FK 制約違反なし）。
+// makeBillingWith（billing_test_fixtures_test.go）への thin wrapper。
 func makeBillingForAccountingTx(t *testing.T, db *gorm.DB, clinicID uint64) *model.Billing {
 	t.Helper()
-	b := &model.Billing{
+	return makeBillingWith(t, db, billingFixtureOpts{
 		ClinicID:      clinicID,
 		TotalAmount:   8000,
 		Status:        model.BillingStatusCompleted,
 		ScheduledDate: time.Date(2026, 7, 1, 0, 0, 0, 0, time.UTC),
-	}
-	require.NoError(t, db.WithContext(context.Background()).Create(b).Error)
-	return b
+	})
 }
 
 // ─── Update（Cancel の tx 化により新たに txCtx 付きで呼ばれるようになった経路） ──────────

@@ -97,11 +97,14 @@ func attachTrimmingOption(t *testing.T, db *gorm.DB, appointmentID, optionID uin
 	require.NoError(t, db.WithContext(context.Background()).Create(o).Error)
 }
 
+// makeTrimmingBilling は makeBillingWith（billing_test_fixtures_test.go）への thin wrapper。
 func makeTrimmingBilling(t *testing.T, db *gorm.DB, clinicID uint64, status model.BillingStatus) *model.Billing {
 	t.Helper()
-	b := &model.Billing{ClinicID: clinicID, Status: status, ScheduledDate: time.Date(2026, 6, 10, 0, 0, 0, 0, time.UTC)}
-	require.NoError(t, db.WithContext(context.Background()).Create(b).Error)
-	return b
+	return makeBillingWith(t, db, billingFixtureOpts{
+		ClinicID:      clinicID,
+		Status:        status,
+		ScheduledDate: time.Date(2026, 6, 10, 0, 0, 0, 0, time.UTC),
+	})
 }
 
 func makeTrimmingBillingItem(t *testing.T, db *gorm.DB, billingID, appointmentID uint64, courseID, optionID *uint64) *model.BillingItem {

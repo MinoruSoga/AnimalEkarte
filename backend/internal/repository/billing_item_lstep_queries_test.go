@@ -212,14 +212,13 @@ func TestBillingItemRepository_HasFoodPurchaseByOwnerSince(t *testing.T) {
 }
 
 // makeTrimmingBillingWithCompletedAt は completed_at を指定した billing を作成する（owner_id は未設定）。
+// makeBillingWith（billing_test_fixtures_test.go）への thin wrapper。
 func makeTrimmingBillingWithCompletedAt(t *testing.T, db *gorm.DB, clinicID uint64, status model.BillingStatus, completedAt time.Time) *model.Billing {
 	t.Helper()
-	b := &model.Billing{
+	return makeBillingWith(t, db, billingFixtureOpts{
 		ClinicID:      clinicID,
 		Status:        status,
 		ScheduledDate: completedAt,
 		CompletedAt:   &completedAt,
-	}
-	require.NoError(t, db.WithContext(context.Background()).Create(b).Error)
-	return b
+	})
 }

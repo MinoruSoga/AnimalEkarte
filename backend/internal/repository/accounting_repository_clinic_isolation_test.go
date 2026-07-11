@@ -40,18 +40,17 @@ func setupAccountingIsolationTestDB(t *testing.T) *gorm.DB {
 // makeBillingRet は指定 clinicID の最小 Billing を作成して返す。
 // makeBilling は戻り値なしのため clinic_id 隔離テスト用に別途定義する。
 // ownerID / petID は nil — FK 制約違反なし。
+// makeBillingWith（billing_test_fixtures_test.go）への thin wrapper。
 //
 //nolint:unparam // clinicID は将来の隔離テスト拡張のため引数として保持する
 func makeBillingRet(t *testing.T, db *gorm.DB, clinicID uint64) *model.Billing {
 	t.Helper()
-	b := &model.Billing{
+	return makeBillingWith(t, db, billingFixtureOpts{
 		ClinicID:      clinicID,
 		TotalAmount:   1000,
 		Status:        model.BillingStatusWaiting,
 		ScheduledDate: time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC),
-	}
-	require.NoError(t, db.WithContext(context.Background()).Create(b).Error)
-	return b
+	})
 }
 
 // TestAccountingRepository_FindByID_ClinicIsolation は
