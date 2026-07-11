@@ -7,7 +7,7 @@ import { INITIAL_ACTION_STATE } from "@/types/form";
 import { transformCreatePetRequest, PET_STATUS_REVERSE_MAP } from "@/lib/transforms/pet";
 import type { CreateOwnerRequest, UpdateOwnerRequest, Owner } from "@/types/owner";
 import type { PetMutations } from "@/types/pet";
-import type { OwnerData, PetFormData, MembershipType } from "../types";
+import type { OwnerData, PetFormData, MembershipTypeLabel } from "../types";
 import { createOwner } from "../api/create-owner";
 import { updateOwner } from "../api/update-owner";
 import { usePetFormListState } from "./use-pet-form-list-state";
@@ -23,7 +23,7 @@ const DEFAULT_OWNER_DATA: OwnerData = {
   ownerId: "",
   postalCode: "",
   company: "",
-  membershipType: "非会員" as MembershipType,
+  membershipType: "非会員" as MembershipTypeLabel,
   ownerName: "",
   address1: "",
   ownerNameKana: "",
@@ -43,7 +43,7 @@ function mapOwnerToFormData(owner: Owner): OwnerData {
     ownerId: owner.id,
     postalCode: owner.postalCode,
     company: owner.company,
-    membershipType: (owner.membershipType as MembershipType) || "非会員",
+    membershipType: (owner.membershipType as MembershipTypeLabel) || "非会員",
     ownerName: owner.ownerName,
     address1: owner.address1,
     ownerNameKana: owner.ownerNameKana || "",

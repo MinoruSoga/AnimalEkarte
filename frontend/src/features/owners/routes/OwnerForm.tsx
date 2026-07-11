@@ -18,7 +18,7 @@ import { OwnerInfoSection } from "../components/OwnerInfoSection";
 import { OwnerPetsSection } from "../components/OwnerPetsSection";
 import { useOwnerForm } from "../hooks/use-owner-form";
 import type { PetMutations } from "@/types/pet";
-import type { OwnerData, MembershipType } from "../types";
+import type { OwnerData, MembershipTypeLabel } from "../types";
 import type { OwnerLoaderData } from "../loaders";
 import { ResourceOwners } from "@/types/generated/models";
 
@@ -187,7 +187,7 @@ export function OwnerForm({ petMutations, lineSection, accountingSection }: Owne
   }, []);
 
   // MembershipTypeButtons の onChange prop を安定化（handleInputChange が stable なので依存なし）
-  const handleMembershipChange = useCallback((type: MembershipType) => {
+  const handleMembershipChange = useCallback((type: MembershipTypeLabel) => {
     handleInputChange("membershipType", type);
   }, [handleInputChange]);
 

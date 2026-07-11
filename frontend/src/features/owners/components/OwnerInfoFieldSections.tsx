@@ -11,11 +11,11 @@ import { NumberInput } from "@/components/shared/NumberInput/NumberInput";
 import { C, STYLE } from "@/lib/design-tokens";
 import { toJSTWallDate } from "@/lib/jst-date";
 import type { ClinicMembership } from "@/types/auth";
-import { MEMBERSHIP_TYPE_VALUES, type MembershipType, type OwnerData } from "../types";
+import { MEMBERSHIP_TYPE_VALUES, type MembershipTypeLabel, type OwnerData } from "../types";
 
 interface MembershipTypeButtonsProps {
-  value: MembershipType;
-  onChange: (type: MembershipType) => void;
+  value: MembershipTypeLabel;
+  onChange: (type: MembershipTypeLabel) => void;
 }
 
 const MembershipTypeButtons = memo(function MembershipTypeButtons({
@@ -359,7 +359,7 @@ export function OwnerAddressFields({
 
 interface OwnerMembershipFieldsProps extends OwnerFieldSectionProps {
   canEditDiscount: boolean;
-  onMembershipChange: (type: MembershipType) => void;
+  onMembershipChange: (type: MembershipTypeLabel) => void;
 }
 
 export function OwnerMembershipFields({

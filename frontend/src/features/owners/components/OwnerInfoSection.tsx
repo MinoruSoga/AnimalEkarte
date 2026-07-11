@@ -1,6 +1,6 @@
 import { memo } from "react";
 import type { ClinicMembership } from "@/types/auth";
-import type { MembershipType, OwnerData } from "../types";
+import type { MembershipTypeLabel, OwnerData } from "../types";
 import { OwnerAddressFields, OwnerBasicFields, OwnerMembershipFields } from "./OwnerInfoFieldSections";
 
 interface OwnerInfoSectionProps {
@@ -14,7 +14,7 @@ interface OwnerInfoSectionProps {
   currentClinicId?: string | null;
   onChange: (field: string, value: string | boolean | number | null | undefined) => void;
   onClearError: (field: string) => void;
-  onMembershipChange: (type: MembershipType) => void;
+  onMembershipChange: (type: MembershipTypeLabel) => void;
   onPostalCodeLookup: (postalCodeField: string, addressField: string) => void;
 }
 

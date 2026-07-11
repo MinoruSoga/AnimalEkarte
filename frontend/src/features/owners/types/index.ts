@@ -1,7 +1,8 @@
 /**
  * Owners feature types (UI-facing: 日本語ラベル値)
- * Note: PetGender/AcquisitionType/DangerLevel/MembershipType は UI 表示用日本語値。
+ * Note: PetGender/AcquisitionType/DangerLevel/MembershipTypeLabel は UI 表示用日本語値。
  * models.ts の英語 enum 値（male/female/unknown 等）とは異なる。
+ * FE3-4: 生成型 `MembershipType`（wire 値）と同名衝突していたため `MembershipTypeLabel` へ改名。
  * Backend ↔ Frontend の変換は transform 関数が担当。
  * @see {@link import("@/types/generated/models").PetGender} — Backend enum (英語値)
  * @see {@link import("@/types/generated/models").MembershipType} — Backend enum (英語値)
@@ -16,7 +17,7 @@ type DangerLevel = (typeof DANGER_LEVEL_VALUES)[number];
 
 // Owner-related type constants and definitions
 export const MEMBERSHIP_TYPE_VALUES = ["非会員", "会員", "退亡者", "他診/準"] as const;
-export type MembershipType = (typeof MEMBERSHIP_TYPE_VALUES)[number];
+export type MembershipTypeLabel = (typeof MEMBERSHIP_TYPE_VALUES)[number];
 
 export interface PetFormData {
   id: string;
@@ -56,7 +57,7 @@ export interface OwnerData {
   ownerId: string;
   postalCode: string;
   company: string;
-  membershipType: MembershipType;
+  membershipType: MembershipTypeLabel;
   ownerName: string;
   address1: string;
   ownerNameKana: string;
