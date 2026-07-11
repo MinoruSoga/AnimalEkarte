@@ -22,6 +22,7 @@ import { formatCurrency } from "@/utils/format/number";
 import { useGetAccountings } from "../api/get-accountings";
 import { useGetDailySummary } from "../api/get-daily-summary";
 import type { ClinicDailySummaryItem, DailySummary, PerClinicDailySummaryResponse } from "../api/get-daily-summary";
+import type { PaymentMethod } from "../types";
 
 import { DailyPrintArea } from "./DailyAccountingPrintArea";
 import { SummaryCard } from "./DailyAccountingTabParts";
@@ -153,7 +154,7 @@ export function DailyAccountingTab({
               {summary.payment_totals.map((pt) => (
                 <SummaryCard
                   key={pt.method}
-                  label={PAYMENT_METHOD_LABELS[pt.method] ?? pt.method}
+                  label={PAYMENT_METHOD_LABELS[pt.method as PaymentMethod] ?? pt.method}
                   value={formatCurrency(pt.total)}
                 />
               ))}
@@ -172,7 +173,7 @@ export function DailyAccountingTab({
                     {cs.summary.payment_totals.map((pt) => (
                       <SummaryCard
                         key={pt.method}
-                        label={PAYMENT_METHOD_LABELS[pt.method] ?? pt.method}
+                        label={PAYMENT_METHOD_LABELS[pt.method as PaymentMethod] ?? pt.method}
                         value={formatCurrency(pt.total)}
                       />
                     ))}

@@ -7,10 +7,10 @@ import { toast } from "sonner";
 import { paths } from "@/config/paths";
 import { handleApiError } from "@/lib/handle-api-error";
 import { queryKeys } from "@/lib/query-keys";
-import type { PaymentMethod } from "@/types/generated/models";
 
 import { cancelAccounting } from "../api/cancel-accounting";
 import { createRefund } from "../api/create-refund";
+import type { PaymentMethod } from "../types";
 
 interface UseAccountingSettlementActionsParams {
   accountingId: string | undefined;

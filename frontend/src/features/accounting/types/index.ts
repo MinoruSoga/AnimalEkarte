@@ -2,58 +2,35 @@
  * Accounting feature types (UI-facing: camelCase, string IDs)
  * Backend types: {@link Billing}, {@link BillingItem}, {@link Payment} from models.ts
  */
-import {
-  BillingStatusWaiting,
-  BillingStatusCompleted,
-  BillingStatusCancelled,
-  BillingStatusPending,
-  PaymentMethodCash,
-  PaymentMethodCreditCard,
-  PaymentMethodElectronicMoney,
-  PaymentMethodBankTransfer,
-  ItemCategoryExamination,
-  ItemCategoryTest,
-  ItemCategoryProcedure,
-  ItemCategorySurgery,
-  ItemCategoryMedicine,
-  ItemCategoryFood,
-  ItemCategoryGoods,
-  ItemCategoryOther,
-  ItemCategoryTrimming,
-  ItemCategoryVaccine,
-  ItemCategoryHotel,
-  ItemCategoryTraining,
-} from "@/types/generated/models";
 import type { TaxType } from "@/types/generated/models";
 
-/** @see {@link import("@/types/generated/models").BillingStatus} */
-export type AccountingStatus =
-  | typeof BillingStatusWaiting
-  | typeof BillingStatusCompleted
-  | typeof BillingStatusCancelled
-  | typeof BillingStatusPending;
+/**
+ * 手書き literal union（FE4-1）。
+ * tygo 生成定数は `export const X: BillingStatus = "waiting"` 形式（BillingStatus = string）のため
+ * `typeof 生成定数` は string に退化する（型安全性が失われる）。生成側は編集禁止のため、
+ * 手書き literal union + ランタイム値集合の drift テスト（./union-drift.test.ts）で
+ * 生成定数の値集合との一致を機械固定する。
+ * @see {@link import("@/types/generated/models").BillingStatus}
+ */
+export type AccountingStatus = "waiting" | "pending" | "completed" | "cancelled";
 
-/** @see {@link import("@/types/generated/models").PaymentMethod} */
-export type PaymentMethod =
-  | typeof PaymentMethodCash
-  | typeof PaymentMethodCreditCard
-  | typeof PaymentMethodElectronicMoney
-  | typeof PaymentMethodBankTransfer;
+/** 手書き literal union（FE4-1・上記 AccountingStatus と同じ理由）。@see {@link import("@/types/generated/models").PaymentMethod} */
+export type PaymentMethod = "cash" | "credit_card" | "electronic_money" | "bank_transfer";
 
-/** @see {@link import("@/types/generated/models").ItemCategory} */
+/** 手書き literal union（FE4-1・上記 AccountingStatus と同じ理由）。@see {@link import("@/types/generated/models").ItemCategory} */
 export type ItemCategory =
-  | typeof ItemCategoryExamination
-  | typeof ItemCategoryTest
-  | typeof ItemCategoryProcedure
-  | typeof ItemCategorySurgery
-  | typeof ItemCategoryMedicine
-  | typeof ItemCategoryFood
-  | typeof ItemCategoryGoods
-  | typeof ItemCategoryOther
-  | typeof ItemCategoryTrimming
-  | typeof ItemCategoryVaccine
-  | typeof ItemCategoryHotel
-  | typeof ItemCategoryTraining;
+  | "examination"
+  | "test"
+  | "procedure"
+  | "surgery"
+  | "medicine"
+  | "food"
+  | "goods"
+  | "other"
+  | "trimming"
+  | "vaccine"
+  | "hotel"
+  | "training";
 
 /** @see {@link import("@/types/generated/models").BillingItem} */
 export interface AccountingItem {

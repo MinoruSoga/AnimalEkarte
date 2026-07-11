@@ -14,7 +14,8 @@ import type { TaxType } from "@/types/generated/models";
 import { useGetBillingItemDiscountSuggestions } from "../api/get-discount-suggestions";
 import type { AccountingItem, ItemCategory } from "../types";
 
-export const CATEGORY_LABELS: Record<ItemCategory, string> = {
+// FE4-1: vaccine/hotel/training を意図的に含まない部分集合マップ（既存 fallback `?? item.category` 済み）
+export const CATEGORY_LABELS: Partial<Record<ItemCategory, string>> = {
   examination: "診察",
   test: "検査",
   procedure: "処置",

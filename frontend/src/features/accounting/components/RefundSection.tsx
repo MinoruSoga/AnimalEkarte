@@ -10,10 +10,9 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { C, ICON } from "@/lib/design-tokens";
 import { formatJSTDate } from "@/lib/jst-date";
-import type { PaymentMethod } from "@/types/generated/models";
 
 import { useGetRefunds } from "../api/get-refunds";
-import type { PaymentSplitInfo } from "../types";
+import type { PaymentMethod, PaymentSplitInfo } from "../types";
 import { PAYMENT_METHOD_LABELS } from "./daily-accounting-utils";
 
 const NO_PAYMENT_METHOD = "none";
@@ -188,7 +187,7 @@ export const RefundSection = memo(function RefundSection({
                     ¥{r.amount.toLocaleString()}
                   </td>
                   <td className={`px-3 py-2 text-xs ${C.text50}`}>
-                    {r.paymentMethod ? (PAYMENT_METHOD_LABELS[r.paymentMethod] ?? r.paymentMethod) : "-"}
+                    {r.paymentMethod ? (PAYMENT_METHOD_LABELS[r.paymentMethod as PaymentMethod] ?? r.paymentMethod) : "-"}
                   </td>
                   <td className={`px-3 py-2 ${C.text50} truncate max-w-[120px]`}>
                     {r.reason || "-"}
