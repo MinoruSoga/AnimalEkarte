@@ -2,6 +2,7 @@ package handler
 
 import (
 	"encoding/json"
+	"fmt"
 	"time"
 
 	"github.com/animal-ekarte/backend/internal/model"
@@ -221,6 +222,54 @@ func toLiffReservationCreatedResponse(r *model.Reservation) liffReservationCreat
 		ID:    r.ID,
 		Notes: r.Notes,
 	}
+}
+
+// liffHealthCardVaccineResponse はLIFF向け健康手帳ワクチン接種履歴レスポンス。
+type liffHealthCardVaccineResponse struct {
+	VaccineName  string     `json:"vaccine_name"`
+	VaccinatedAt time.Time  `json:"vaccinated_at"`
+	NextDueAt    *time.Time `json:"next_due_at"`
+}
+
+// liffHealthCardPetResponse はLIFF向け健康手帳ペットレスポンス。
+type liffHealthCardPetResponse struct {
+	PetID                    string                          `json:"pet_id"`
+	PetName                  string                          `json:"pet_name"`
+	Species                  string                          `json:"species"`
+	Breed                    string                          `json:"breed"`
+	NextRecommendedVisitDate *time.Time                      `json:"next_recommended_visit_date"`
+	Vaccines                 []liffHealthCardVaccineResponse `json:"vaccines"`
+	LastVisitDate            *time.Time                      `json:"last_visit_date"`
+}
+
+// liffHealthCardResponse はLIFF向け健康手帳レスポンス。
+type liffHealthCardResponse struct {
+	OwnerName string                      `json:"owner_name"`
+	Pets      []liffHealthCardPetResponse `json:"pets"`
+}
+
+func toLiffHealthCardResponse(r *service.HealthCardResult) liffHealthCardResponse {
+	pets := make([]liffHealthCardPetResponse, 0, len(r.Pets))
+	for _, p := range r.Pets {
+		vaccines := make([]liffHealthCardVaccineResponse, 0, len(p.Vaccines))
+		for _, v := range p.Vaccines {
+			vaccines = append(vaccines, liffHealthCardVaccineResponse{
+				VaccineName:  v.VaccineName,
+				VaccinatedAt: localTime(v.VaccinatedAt),
+				NextDueAt:    localTimePtr(v.NextDueAt),
+			})
+		}
+		pets = append(pets, liffHealthCardPetResponse{
+			PetID:                    fmt.Sprintf("%d", p.PetID),
+			PetName:                  p.PetName,
+			Species:                  p.Species,
+			Breed:                    p.Breed,
+			NextRecommendedVisitDate: localTimePtr(p.NextRecommendedVisitDate),
+			Vaccines:                 vaccines,
+			LastVisitDate:            localTimePtr(p.LastVisitDate),
+		})
+	}
+	return liffHealthCardResponse{OwnerName: r.OwnerName, Pets: pets}
 }
 
 // liffTrimmingCourseResponse はLIFF向けトリミングコースレスポンス。

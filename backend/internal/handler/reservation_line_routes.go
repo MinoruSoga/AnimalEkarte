@@ -90,4 +90,5 @@ func (h *Handler) RegisterLiffRoutes(ctx context.Context, r *gin.Engine) {
 	authed.POST("/reservations", h.CreateLiffReservation)
 	authed.GET("/my-reservations", middleware.LiffRateLimit(liffRateLimitStore, 30), h.GetLiffMyReservations)
 	authed.DELETE("/my-reservations/:id", h.CancelLiffReservation)
+	authed.GET("/health-card", h.GetLiffHealthCard)
 }

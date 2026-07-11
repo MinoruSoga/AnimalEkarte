@@ -252,6 +252,26 @@ func (h *Handler) GetLiffMyReservations(c *gin.Context) {
 	c.JSON(http.StatusOK, resp)
 }
 
+// GetLiffHealthCard はLIFF健康手帳データを返す。
+// GET /api/liff/:clinicId/health-card
+func (h *Handler) GetLiffHealthCard(c *gin.Context) {
+	clinicID, ok := parseIDParam(c, "clinicId")
+	if !ok {
+		return
+	}
+	customerID, ok := middleware.ExtractLiffCustomerID(c)
+	if !ok {
+		RespondError(c, apperrors.WrapUnauthorized("missing customer id"))
+		return
+	}
+	result, err := h.svc.Liff.GetHealthCard(c.Request.Context(), clinicID, customerID)
+	if err != nil {
+		RespondError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, toLiffHealthCardResponse(result))
+}
+
 // CancelLiffReservation は予約をキャンセルする。
 // DELETE /api/liff/:clinicId/my-reservations/:id
 func (h *Handler) CancelLiffReservation(c *gin.Context) {

@@ -7178,6 +7178,53 @@ components:
           additionalProperties: true
         owner:
           $ref: '#/components/schemas/LiffProfileOwner'
+    LiffHealthCardVaccine:
+      type: object
+      properties:
+        vaccine_name:
+          type: string
+        vaccinated_at:
+          type: string
+          format: date-time
+        next_due_at:
+          type: string
+          format: date-time
+          nullable: true
+      required: [vaccine_name, vaccinated_at, next_due_at]
+    LiffHealthCardPet:
+      type: object
+      properties:
+        pet_id:
+          type: string
+        pet_name:
+          type: string
+        species:
+          type: string
+        breed:
+          type: string
+        next_recommended_visit_date:
+          type: string
+          format: date-time
+          nullable: true
+        vaccines:
+          type: array
+          items:
+            $ref: '#/components/schemas/LiffHealthCardVaccine'
+        last_visit_date:
+          type: string
+          format: date-time
+          nullable: true
+      required: [pet_id, pet_name, species, breed, next_recommended_visit_date, vaccines, last_visit_date]
+    LiffHealthCardResponse:
+      type: object
+      properties:
+        owner_name:
+          type: string
+        pets:
+          type: array
+          items:
+            $ref: '#/components/schemas/LiffHealthCardPet'
+      required: [owner_name, pets]
     LiffTrimmingCourse:
       type: object
       properties:
@@ -21230,6 +21277,33 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/LiffProfile'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /api/liff/{clinicId}/health-card:
+    servers:
+      - url: http://localhost:8080
+        description: LIFF公開API(Engine直下、/api/v1 プレフィックス無し)
+    get:
+      operationId: getLiffHealthCard
+      summary: LIFF向け健康手帳取得
+      description: LINE IDトークン認証(middleware.LiffAuth)が必要。Owner未紐付の場合はowner_name（表示名フォールバック）+ pets:[] を返す。
+      tags: [LIFF]
+      parameters:
+        - name: clinicId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: 健康手帳データ
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LiffHealthCardResponse'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '500':

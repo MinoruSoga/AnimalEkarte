@@ -38,6 +38,7 @@ type mockLiffService struct {
 	createReservationFn  func(ctx context.Context, clinicID, customerID uint64, input *service.CreateReservationInput) (*model.Reservation, error)
 	getMyReservationsFn  func(ctx context.Context, clinicID, customerID uint64) ([]model.Reservation, error)
 	cancelReservationFn  func(ctx context.Context, clinicID, customerID, reservationID uint64) error
+	getHealthCardFn      func(ctx context.Context, clinicID, customerID uint64) (*service.HealthCardResult, error)
 }
 
 func (m *mockLiffService) GetSettings(ctx context.Context, clinicID uint64) (*model.LineReservationSetting, error) {
@@ -117,6 +118,13 @@ func (m *mockLiffService) CancelReservation(ctx context.Context, clinicID, custo
 	return nil
 }
 
+func (m *mockLiffService) GetHealthCard(ctx context.Context, clinicID, customerID uint64) (*service.HealthCardResult, error) {
+	if m.getHealthCardFn != nil {
+		return m.getHealthCardFn(ctx, clinicID, customerID)
+	}
+	return &service.HealthCardResult{Pets: []service.PetHealthCard{}}, nil
+}
+
 // ================================================================
 // テスト用ヘルパー
 // ================================================================
@@ -155,6 +163,7 @@ func newLiffRouter(h *Handler, withCustomer bool) *gin.Engine {
 	liff.POST("/reservations", h.CreateLiffReservation)
 	liff.GET("/my-reservations", h.GetLiffMyReservations)
 	liff.DELETE("/my-reservations/:id", h.CancelLiffReservation)
+	liff.GET("/health-card", h.GetLiffHealthCard)
 	return r
 }
 
@@ -752,5 +761,105 @@ func TestCancelLiffReservation(t *testing.T) {
 		})
 		w := doLiffRequest(t, newLiffRouter(h, true), http.MethodDelete, "/api/liff/3/my-reservations/10", nil)
 		assert.Equal(t, http.StatusInternalServerError, w.Code)
+	})
+}
+
+// ================================================================
+// GetLiffHealthCard テスト
+// ================================================================
+
+func TestGetLiffHealthCard(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	t.Run("正常系: 200 + 健康手帳データ（pet_id は文字列、nullable フィールドは明示 null）", func(t *testing.T) {
+		vaccinatedAt := time.Date(2026, 3, 1, 0, 0, 0, 0, time.UTC)
+		h := newLiffHandler(&mockLiffService{
+			getHealthCardFn: func(_ context.Context, clinicID, customerID uint64) (*service.HealthCardResult, error) {
+				assert.Equal(t, uint64(3), clinicID)
+				assert.Equal(t, uint64(1), customerID)
+				return &service.HealthCardResult{
+					OwnerName: "田中太郎",
+					Pets: []service.PetHealthCard{
+						{
+							PetID:                    10,
+							PetName:                  "ポチ",
+							Species:                  "犬",
+							Breed:                    "柴犬",
+							NextRecommendedVisitDate: nil,
+							LastVisitDate:            nil,
+							Vaccines: []service.VaccineRecord{
+								{VaccineName: "狂犬病", VaccinatedAt: vaccinatedAt, NextDueAt: nil},
+							},
+						},
+					},
+				}, nil
+			},
+		})
+		w := doLiffRequest(t, newLiffRouter(h, true), http.MethodGet, "/api/liff/3/health-card", nil)
+		require.Equal(t, http.StatusOK, w.Code)
+
+		var body map[string]any
+		require.NoError(t, json.Unmarshal(w.Body.Bytes(), &body))
+		assert.Equal(t, "田中太郎", body["owner_name"])
+
+		pets, ok := body["pets"].([]any)
+		require.True(t, ok)
+		require.Len(t, pets, 1)
+		pet, ok := pets[0].(map[string]any)
+		require.True(t, ok)
+
+		// pet_id は数値ではなく文字列でシリアライズされる（uint64精度落ち対策）
+		petID, ok := pet["pet_id"].(string)
+		require.True(t, ok, "pet_id should be a JSON string, got %T", pet["pet_id"])
+		assert.Equal(t, "10", petID)
+		assert.Equal(t, "ポチ", pet["pet_name"])
+		assert.Equal(t, "犬", pet["species"])
+		assert.Equal(t, "柴犬", pet["breed"])
+
+		// nullable フィールドはキー省略ではなく明示 null であること
+		nextVisitVal, hasNextVisit := pet["next_recommended_visit_date"]
+		assert.True(t, hasNextVisit, "next_recommended_visit_date key must be present")
+		assert.Nil(t, nextVisitVal)
+
+		lastVisitVal, hasLastVisit := pet["last_visit_date"]
+		assert.True(t, hasLastVisit, "last_visit_date key must be present")
+		assert.Nil(t, lastVisitVal)
+
+		vaccines, ok := pet["vaccines"].([]any)
+		require.True(t, ok)
+		require.Len(t, vaccines, 1)
+		vaccine, ok := vaccines[0].(map[string]any)
+		require.True(t, ok)
+		assert.Equal(t, "狂犬病", vaccine["vaccine_name"])
+		nextDueVal, hasNextDue := vaccine["next_due_at"]
+		assert.True(t, hasNextDue, "next_due_at key must be present")
+		assert.Nil(t, nextDueVal)
+
+		// raw body でも null が省略されず出力されていることを確認
+		assert.Contains(t, w.Body.String(), `"next_due_at":null`)
+		assert.Contains(t, w.Body.String(), `"next_recommended_visit_date":null`)
+		assert.Contains(t, w.Body.String(), `"last_visit_date":null`)
+	})
+
+	t.Run("customerID が context にない → 401", func(t *testing.T) {
+		h := newLiffHandler(&mockLiffService{})
+		w := doLiffRequest(t, newLiffRouter(h, false), http.MethodGet, "/api/liff/3/health-card", nil)
+		assert.Equal(t, http.StatusUnauthorized, w.Code)
+	})
+
+	t.Run("サービスエラー → 500", func(t *testing.T) {
+		h := newLiffHandler(&mockLiffService{
+			getHealthCardFn: func(_ context.Context, _, _ uint64) (*service.HealthCardResult, error) {
+				return nil, errors.New("internal error")
+			},
+		})
+		w := doLiffRequest(t, newLiffRouter(h, true), http.MethodGet, "/api/liff/3/health-card", nil)
+		assert.Equal(t, http.StatusInternalServerError, w.Code)
+	})
+
+	t.Run("clinicId が数値でない → 400", func(t *testing.T) {
+		h := newLiffHandler(&mockLiffService{})
+		w := doLiffRequest(t, newLiffRouter(h, true), http.MethodGet, "/api/liff/abc/health-card", nil)
+		assert.Equal(t, http.StatusBadRequest, w.Code)
 	})
 }
