@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, afterEach } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { PatientContextHeader } from "../PatientContextHeader";
@@ -43,6 +43,28 @@ describe("PatientContextHeader", () => {
     // <span class="truncate"> と <div role="tooltip"> の両方に同テキストが出るため getAllByText で確認
     const elements = screen.getAllByText(/2020-01-01生/);
     expect(elements.length).toBeGreaterThan(0);
+  });
+
+  describe("年齢表示の特性テスト（FE3-9: calcAgePartsAt 統合前後で出力を1文字も変えない）", () => {
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it("誕生日 2026-01-15・基準日 2026-07-11 → 「5ヶ月」（1歳未満は年表記を省略する現行フォーマット）", () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date("2026-07-11T12:00:00+09:00"));
+      render(<PatientContextHeader {...baseProps} birthDate="2026-01-15" />);
+      const elements = screen.getAllByText("2026-01-15生（5ヶ月）");
+      expect(elements.length).toBeGreaterThan(0);
+    });
+
+    it("誕生日 2020-07-10・基準日 2026-07-11 → 「6歳0ヶ月」（現行実装の実測値。月0でも「Xヶ月」は省略しない）", () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date("2026-07-11T12:00:00+09:00"));
+      render(<PatientContextHeader {...baseProps} birthDate="2020-07-10" />);
+      const elements = screen.getAllByText("2020-07-10生（6歳0ヶ月）");
+      expect(elements.length).toBeGreaterThan(0);
+    });
   });
 
   it("weight があれば Nkg 形式で表示される", () => {
