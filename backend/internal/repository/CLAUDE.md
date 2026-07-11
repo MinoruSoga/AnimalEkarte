@@ -190,8 +190,16 @@ func (r *xxxRepository) ReplaceItems(ctx context.Context, id uint64, items []Ite
 ```
 
 新規 repo は最初から全メソッドを `dbOrTx` で書く。既存の静的 lint 化（go/ast による
-service→repo 呼び出しのタint 追跡）は false-positive/negative が多く断念済み — 正本ガードは
+service→repo 呼び出しの taint 追跡）は false-positive/negative が多く断念済み — 正本ガードは
 各リポジトリの rollback runtime test（`*_repository_test.go` の tx-atomicity テスト）。
+
+**enforcement（BE-refactor.md R22）**: 「現在 `dbOrTx` を使うメソッド集合」の regression 検出は
+`dbortx_inventory_lint_test.go`（`TestDBOrTxInventory_MatchesAllowlist` 等）が、監査ログ書込の
+tx 参加は `audit_tx_inventory_lint_test.go`（`TestClinicalResultAuditTxInventory_MatchesAllowlist` 等）が
+それぞれ inventory 方式（現状の使用箇所集合を allowlist と双方向突合）で担う。いずれも「参加漏れ」
+（WithTx 内で呼ばれるのに `dbOrTx` を使っていないメソッド）自体は検出しない（taint 解析断念のため） —
+正本は上記の rollback/atomicity runtime test。`reorderByClinicID`/`reorderGlobal`（`helpers.go`）は
+BE-refactor.md R23 で `dbOrTx` 化済み（reorder ヘルパーが repo 内部 tx 生イディオムを使う最後の箇所だった）。
 
 ## テストヘルパー: DROP+CREATE 系は setupIsolatedTestDB を使う (MANDATORY)
 

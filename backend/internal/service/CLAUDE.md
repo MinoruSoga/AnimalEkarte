@@ -83,3 +83,23 @@ type UpdateVaccineInput struct { ... }
 type VaccineCreateRequest struct { ... }  // 順序逆
 type CreateVaccineParams struct { ... }   // Params は違反
 ```
+
+## カルテ子エンティティ書込（MANDATORY）
+
+カルテ（`medical_record`）の子エンティティ（treatment / examination / vital / prescription /
+checkup_field_result）への書込は、確定(finalize)と子エンティティ書込が競合するレースを防ぐため、
+以下の不変条件を必ず守る（BE-refactor.md X-11 由来）:
+
+1. tx 内で `medicalRecordRepo.LockByIDForUpdate(ctx, clinicID, medicalRecordID)`（BE-refactor.md
+   R31 で `LockDraftByID` からリネーム）を呼び、返却された `record.Status` を確認してから
+   finalized チェックを行う。**名前に反して status 不問で行ロックする** — finalized 判定は
+   呼び出し側（service）の責務であり、ロック取得自体は draft 限定ではない。
+2. 子 repo（treatment/examination/vital/prescription/checkup_field_result）の Create/Update は
+   `dbOrTx(ctx, r.db)` で ambient tx に参加させる。参加させないと、`LockByIDForUpdate` の
+   `FOR UPDATE` 行ロックと子テーブルの `medical_record_id` FK チェックがデッドロックする。
+
+既存 5 サービス（`treatment_service.go` / `examination_service.go` / `vital_service.go` /
+`prescription_service.go` / `checkup_field_result_service.go`）が先例。検証は
+`medical_record_finalize_lock_concurrency_test.go`（`LockByIDForUpdate` の行ロック自体の並行性）
+と、個別 repo の tx atomicity test（`examination_repository_tx_atomicity_test.go` /
+`checkup_field_result_tx_atomicity_test.go` 等）が担う。
