@@ -215,6 +215,16 @@ export const PALETTE = {
   hoverBgInput:      "hover:bg-[rgba(242,241,238,0.5)]",
   /** Input/select/textarea focus border (primary 24%) */
   focusBorderInput:  "focus:border-[rgba(0,0,0,0.24)]",
+  /**
+   * Input/select/textarea focus border — legacy accent (#2383E2) rgb 表記。
+   * FE3-1: 値は変更せず既存直値をトークン化しただけ。正しい色への修正は別途デザイン判断。
+   */
+  focusBorderLegacyAccent: "focus:border-[rgba(35,131,226,0.57)]",
+  /**
+   * Input/select/textarea focus ring — legacy accent (#2383E2) rgb 表記。
+   * FE3-1: 値は変更せず既存直値をトークン化しただけ。正しい色への修正は別途デザイン判断。
+   */
+  focusRingLegacyAccent: "focus:shadow-[0_0_0_1px_rgba(35,131,226,0.35)]",
 } as const;
 
 /* ================================================================== */
@@ -845,6 +855,13 @@ export const LAYOUT = {
 /*     Reusable className strings for recurring UI patterns.           */
 /* ================================================================== */
 
+/**
+ * FE3-1: sidePeekSaveBtn 埋め込み分と ShiftTemplateSettingsParts.tsx の保存ボタンで
+ * 共有するピルボタンの影。STYLE オブジェクト内は自己参照できないため、
+ * 定義前のモジュールスコープ定数として保持し STYLE.pillShadow から再輸出する。
+ */
+const PILL_SHADOW = "shadow-[0_1px_2px_rgba(0,0,0,0.1)]";
+
 export const STYLE = {
   /* ── Page / Section ─ */
   page:            `${C.bgPage} overflow-hidden`,
@@ -951,7 +968,7 @@ export const STYLE = {
   sidePeekCancelBtn:
     `px-4 py-[7px] text-base ${C.text65} ${C.hoverBgLight} rounded-[3px] transition-colors cursor-pointer`,
   sidePeekSaveBtn:
-    `px-5 py-[7px] text-base text-white ${C.bgBrand} ${C.hoverBgBrand} rounded-[3px] transition-colors cursor-pointer shadow-[0_1px_2px_rgba(0,0,0,0.1)]`,
+    `px-5 py-[7px] text-base text-white ${C.bgBrand} ${C.hoverBgBrand} rounded-[3px] transition-colors cursor-pointer ${PILL_SHADOW}`,
 
   /* ── Notion Page Icon ── */
   pageIcon:
@@ -1010,6 +1027,19 @@ export const STYLE = {
 
   /* ── Drag Overlay ── */
   dragOverlayShadow: "shadow-[0_4px_16px_rgba(0,0,0,0.12)]",
+  /**
+   * Week view ドラッグ中プレビューの box-shadow 生値（framer motion の
+   * whileDrag style prop 用。className ではなく inline style として使うため
+   * `shadow-[...]` の Tailwind ラッパーは付けない）。dragOverlayShadow とは値が
+   * 異なるため統合しない。FE3-1: 値は既存直値のまま。
+   */
+  dragPreviewShadowLarge: "0 10px 30px rgba(0,0,0,0.15)",
+  /** 予約カード（AppointmentCard）の二重影。FE3-1: 値は既存直値のまま。 */
+  cardShadow: "shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_0px_rgba(0,0,0,0.06)]",
+  /** ピルボタンの影（sidePeekSaveBtn と ShiftTemplateSettingsParts.tsx で共有）。 */
+  pillShadow: PILL_SHADOW,
+  /** Layout のナビゲーション進捗バー brand グロー（#038B94）。FE3-1: 値は既存直値のまま。 */
+  brandGlow: "shadow-[0_0_8px_rgba(3,139,148,0.5)]",
 
   /* ── Table Row Hover (FG1 compliance) ── */
   /** Standard table row hover — use instead of hardcoded hover:bg-gray-50 */

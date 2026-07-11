@@ -1,7 +1,7 @@
 import { Navigate, Outlet, useLocation, useNavigation } from "react-router";
 import { Sidebar } from "./Sidebar";
 import { useAuth } from "@/hooks/use-auth";
-import { C } from "@/lib/design-tokens";
+import { C, STYLE } from "@/lib/design-tokens";
 import { paths } from "@/config/paths";
 
 export function Layout() {
@@ -23,7 +23,7 @@ export function Layout() {
       {/* Global Navigation Progress Bar */}
       {isNavigating ? (
         <div className="fixed top-0 left-0 right-0 z-[9999] h-[2px] bg-transparent overflow-hidden">
-          <div className={`h-full ${C.bgBrand} animate-progress-indeterminate origin-left shadow-[0_0_8px_rgba(3,139,148,0.5)]`} />
+          <div className={`h-full ${C.bgBrand} animate-progress-indeterminate origin-left ${STYLE.brandGlow}`} />
         </div>
       ) : null}
 

@@ -1,6 +1,6 @@
 import type React from "react";
 
-import { C } from "@/lib/design-tokens";
+import { C, STYLE } from "@/lib/design-tokens";
 import type { Reservation, ReservationStatus } from "@/types";
 
 export const HOUR_HEIGHT = 160;
@@ -11,7 +11,7 @@ export const WHILE_DRAG_FULL = {
   zIndex: 50,
   scale: 1.02,
   opacity: 0.9,
-  boxShadow: "0 10px 30px rgba(0,0,0,0.15)",
+  boxShadow: STYLE.dragPreviewShadowLarge,
 } as const;
 
 export const WHILE_DRAG_REDUCED = { zIndex: 50 } as const;

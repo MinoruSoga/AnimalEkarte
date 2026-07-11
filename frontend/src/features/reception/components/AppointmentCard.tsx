@@ -21,7 +21,7 @@ import BedDouble from "lucide-react/dist/esm/icons/bed-double";
 // Internal
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { C, ICON } from "@/lib/design-tokens";
+import { C, ICON, STYLE } from "@/lib/design-tokens";
 import { getVisitTypeColor } from "@/utils/constants/status-colors";
 
 // Types
@@ -147,7 +147,7 @@ export const AppointmentCard = memo(function AppointmentCard({
         }
       }}
     >
-      <Card className={`w-full ${C.hoverBgPage} transition-colors border ${C.borderLight} rounded-md shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_0px_rgba(0,0,0,0.06)]`}>
+      <Card className={`w-full ${C.hoverBgPage} transition-colors border ${C.borderLight} rounded-md ${STYLE.cardShadow}`}>
         <CardContent className="p-[13px] space-y-[9px]">
           <div className="flex items-start justify-between gap-2">
             <div className={`flex items-center gap-1.5 ${C.text60} min-w-0`}>

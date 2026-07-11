@@ -1,6 +1,7 @@
 import * as React from "react";
 
 import { cn } from "./utils";
+import { PALETTE } from "@/lib/design-tokens";
 
 function Textarea({ className, ...props }: React.ComponentProps<"textarea">) {
   return (
@@ -8,8 +9,8 @@ function Textarea({ className, ...props }: React.ComponentProps<"textarea">) {
       data-slot="textarea"
       className={cn(
         "resize-none border-input placeholder:text-muted-foreground flex field-sizing-content min-h-16 w-full rounded-xs border bg-transparent px-3 py-2 text-sm transition-colors outline-none disabled:cursor-not-allowed disabled:opacity-50",
-        "hover:bg-[rgba(242,241,238,0.5)]",
-        "focus:bg-white focus:border-[rgba(35,131,226,0.57)] focus:shadow-[0_0_0_1px_rgba(35,131,226,0.35)]",
+        PALETTE.hoverBgInput,
+        `focus:bg-white ${PALETTE.focusBorderLegacyAccent} ${PALETTE.focusRingLegacyAccent}`,
         "aria-invalid:border-destructive aria-invalid:bg-destructive/5",
         className,
       )}
