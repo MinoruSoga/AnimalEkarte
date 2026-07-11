@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
+import { HISTORY_FETCH_LIMIT } from "@/config/fetch-limits";
 import { toJSTWallDate } from "@/lib/jst-date";
 
 /** 治療履歴の絞り込み。#158: 投薬=medicine / 手術・処置=procedure / 治療=all。 */
@@ -97,7 +98,7 @@ const getPetTreatmentHistory = async (
   filter: TreatmentHistoryFilter,
   options: TreatmentHistoryOptions = {},
 ): Promise<PetTreatmentHistoryItem[]> => {
-  const params: Record<string, string | number | boolean> = { limit: 100 };
+  const params: Record<string, string | number | boolean> = { limit: HISTORY_FETCH_LIMIT };
   if (filter !== "all") params.item_type = filter;
   if (options.anesthesiaOnly) params.anesthesia_only = true;
   if (options.isSurgery) params.is_surgery = true;

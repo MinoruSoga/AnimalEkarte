@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
+import { HISTORY_FETCH_LIMIT } from "@/config/fetch-limits";
 import type { TrimmingUI } from "@/types";
 import { transformTrimming } from "./transforms";
 import type { TrimmingListResponse } from "@/types/trimming";
@@ -13,7 +14,7 @@ export interface TrimmingFilters {
 }
 
 const getTrimmings = async (filters?: TrimmingFilters): Promise<TrimmingUI[]> => {
-  const params: Record<string, string | number> = { page: 1, limit: 100 };
+  const params: Record<string, string | number> = { page: 1, limit: HISTORY_FETCH_LIMIT };
   if (filters?.startDate) params.start_date = filters.startDate;
   if (filters?.endDate) params.end_date = filters.endDate;
   if (filters?.petId) params.pet_id = filters.petId;

@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import { requireStoredClinicId } from "@/lib/current-clinic";
+import { HISTORY_FETCH_LIMIT } from "@/config/fetch-limits";
 
 export interface LstepTagOwner {
   owner_id: string;
@@ -44,7 +45,7 @@ export async function fetchAllLstepTagOwners(
   ownerCount: number
 ): Promise<LstepTagOwner[]> {
   const clinicId = requireStoredClinicId();
-  const perPage = 100;
+  const perPage = HISTORY_FETCH_LIMIT;
   const totalPages = Math.max(1, Math.ceil(ownerCount / perPage));
   const owners: LstepTagOwner[] = [];
 

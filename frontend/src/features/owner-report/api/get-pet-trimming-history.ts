@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
+import { HISTORY_FETCH_LIMIT } from "@/config/fetch-limits";
 import { transformTrimming, type TrimmingUI } from "@/lib/transforms/trimming";
 import type { TrimmingListResponse } from "@/types/trimming";
 
@@ -23,7 +24,7 @@ export function selectCompletedTrimmingHistory(items: TrimmingUI[]): TrimmingUI[
  */
 const getPetTrimmingHistory = async (petId: string): Promise<TrimmingUI[]> => {
   const { data } = await axios.get<TrimmingListResponse>("/v1/trimmings", {
-    params: { pet_id: Number(petId), page: 1, limit: 100 },
+    params: { pet_id: Number(petId), page: 1, limit: HISTORY_FETCH_LIMIT },
   });
   return selectCompletedTrimmingHistory((data.data ?? []).map(transformTrimming));
 };

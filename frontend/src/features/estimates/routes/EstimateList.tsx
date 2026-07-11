@@ -169,7 +169,6 @@ export function EstimateList() {
 
   // rerender-transitions: ページネーション状態管理
   const pagination = usePagination(filtered, {
-    pageSize: 20,
     resetKey: deferredSearch,
   });
 
