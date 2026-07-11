@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo, use } from "react";
+import { useState, useCallback, useMemo, use, useEffect } from "react";
 import type { ReactNode } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -70,6 +70,20 @@ export function AuthProvider({ children }: AuthProviderProps) {
   }
 
   const queryClient = useQueryClient();
+
+  // FE5-2: マルチタブ穴 — 他タブでクリニックが切り替わった場合、
+  // このタブは storage イベントを検知するまで旧クリニック画面のまま。
+  // axios はリクエスト毎に localStorage の clinic を読むため、以後の書き込みが
+  // 誤テナントで永続化されうる。他タブ由来の変更を検知したらフルリロードで揃える。
+  useEffect(() => {
+    function handleStorage(event: StorageEvent): void {
+      if (event.key === CURRENT_CLINIC_STORAGE_KEY) {
+        window.location.reload();
+      }
+    }
+    window.addEventListener("storage", handleStorage);
+    return () => window.removeEventListener("storage", handleStorage);
+  }, []);
 
   const login = useCallback(async (email: string, password: string) => {
     const result = await loginApi(email, password);

@@ -207,6 +207,53 @@ describe("FEAT-374: logout でクリニック状態をクリア", () => {
   });
 });
 
+describe("FE5-2: マルチタブ storage イベント検知で reload", () => {
+  let reloadSpy: ReturnType<typeof vi.fn>;
+
+  beforeEach(() => {
+    localStorage.clear();
+    mockQueryClient.clear.mockClear();
+    reloadSpy = vi.fn();
+    Object.defineProperty(window, "location", {
+      configurable: true,
+      writable: true,
+      value: { ...window.location, reload: reloadSpy },
+    });
+  });
+
+  it("他タブで CURRENT_CLINIC_STORAGE_KEY が変更された storage イベントを検知すると reload する", async () => {
+    await renderWithAuth(<div />);
+
+    await act(async () => {
+      window.dispatchEvent(
+        new StorageEvent("storage", {
+          key: STORAGE_KEY,
+          oldValue: CLINIC_A,
+          newValue: CLINIC_B,
+        }),
+      );
+    });
+
+    expect(reloadSpy).toHaveBeenCalledOnce();
+  });
+
+  it("無関係な key の storage イベントでは reload しない", async () => {
+    await renderWithAuth(<div />);
+
+    await act(async () => {
+      window.dispatchEvent(
+        new StorageEvent("storage", {
+          key: "some-other-key",
+          oldValue: "a",
+          newValue: "b",
+        }),
+      );
+    });
+
+    expect(reloadSpy).not.toHaveBeenCalled();
+  });
+});
+
 describe("FEAT-374: 通常スタッフのクリニック切り替え制限（ユニット検証）", () => {
   it("staff ユーザーは所属外クリニック ID を clinics に持たない", () => {
     const isMember = MOCK_STAFF.clinics.some(
