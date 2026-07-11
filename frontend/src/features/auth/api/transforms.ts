@@ -56,7 +56,9 @@ const backendMeResponseSchema = z.object({
   main_clinic_id: z.string(),
   // clinic は /me レスポンスのメイン医院詳細。未所属の場合は null
   clinic: meClinicInfoSchema.nullable().optional(),
-  clinics: z.array(clinicMembershipSchema),
+  // BE MeResponse.Clinics は `json:"clinics,omitempty"`（未所属時は省略され得る）。
+  // FE5-1: 必須配列のままだと所属クリニック 0 件のスタッフで /me parse が throw していた。
+  clinics: z.array(clinicMembershipSchema).default([]),
   // permissions: resource → CRUD（BEがUNION計算済みのフラット構造）
   permissions: z.record(z.string(), resourcePermissionSchema),
 });
