@@ -1,16 +1,5 @@
 import type { BackendEstimate, BackendEstimateItem } from './types';
-import type {
-  EstimateStatusDraft,
-  EstimateStatusSent,
-  EstimateStatusApproved,
-  EstimateStatusRejected,
-} from "@/types/generated/models";
-
-type EstimateStatus =
-  | typeof EstimateStatusDraft
-  | typeof EstimateStatusSent
-  | typeof EstimateStatusApproved
-  | typeof EstimateStatusRejected;
+import type { EstimateStatus } from '../types';
 
 function transformEstimateItem(item: BackendEstimateItem) {
   return {
