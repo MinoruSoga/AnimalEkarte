@@ -13,6 +13,7 @@ import type {
   UpdateStaffRequest,
 } from "../api/staffs";
 import type { StaffFormData } from "../components/staff-side-panel-model";
+import type { StaffType } from "@/types/generated/models";
 import { normalizeKana } from "@/lib/normalize-kana";
 
 export function buildStaffIds(staffs: Staff[] | undefined): string[] {
@@ -84,7 +85,8 @@ export function buildStaffCreateRequest(data: StaffFormData): CreateStaffRequest
     password: data.password,
     license_number: data.licenseNumber || undefined,
     occupation_id: data.jobTitleId ?? undefined,
-    staff_type: data.staffType,
+    // FE6-2: staffType は Select（StaffType の値域のみ）で選択されるため実行時は常に安全。
+    staff_type: data.staffType as StaffType,
     reservation_display_name: data.reservationDisplayName || undefined,
     reservation_visible: data.reservationVisible,
     reservation_comment: data.reservationComment || undefined,
@@ -99,7 +101,8 @@ export function buildStaffUpdateRequest(data: StaffFormData): UpdateStaffRequest
     is_active: data.isActive,
     occupation_id: data.jobTitleId ?? undefined,
     password: data.password || undefined,
-    staff_type: data.staffType,
+    // FE6-2: staffType は Select（StaffType の値域のみ）で選択されるため実行時は常に安全。
+    staff_type: data.staffType as StaffType,
     reservation_display_name: data.reservationDisplayName || undefined,
     reservation_visible: data.reservationVisible,
     reservation_comment: data.reservationComment || undefined,

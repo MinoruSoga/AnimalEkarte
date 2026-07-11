@@ -4,6 +4,7 @@ import type { Medicine } from "@/types";
 
 import type { MedicineFormData } from "../components/medicine-side-panel-model";
 import { normalizeKana } from "@/lib/normalize-kana";
+import type { DosageForm, MedicineUnit } from "@/types/generated/models";
 
 export interface MedicineGroups {
   groupedMedicines: Map<string, { header: Medicine; items: Medicine[] }>;
@@ -130,8 +131,11 @@ export function buildMedicineCreateRequest(
   const effectivePrice = isCategory ? 0 : data.price;
   return {
     name: data.name,
-    dosage_form: data.dosageForm || undefined,
-    medicine_unit: data.medicineUnit || undefined,
+    // FE6-2: dosageForm/medicineUnit は shadcn Select（DOSAGE_FORM_SELECT_ITEMS /
+    // MEDICINE_UNIT_SELECT_ITEMS）でのみ選択可能な文字列のため、実行時は常に DosageForm /
+    // MedicineUnit の値域に収まる。Radix の onValueChange が string 型で公開するためキャストする。
+    dosage_form: (data.dosageForm || undefined) as DosageForm | undefined,
+    medicine_unit: (data.medicineUnit || undefined) as MedicineUnit | undefined,
     price: effectivePrice,
     description: data.description,
     is_active: data.isActive,
@@ -154,8 +158,11 @@ export function buildMedicineUpdateRequest({
   const effectivePrice = isCategory ? 0 : data.price;
   const request: UpdateMedicineRequest = {
     name: data.name,
-    dosage_form: data.dosageForm || undefined,
-    medicine_unit: data.medicineUnit || undefined,
+    // FE6-2: dosageForm/medicineUnit は shadcn Select（DOSAGE_FORM_SELECT_ITEMS /
+    // MEDICINE_UNIT_SELECT_ITEMS）でのみ選択可能な文字列のため、実行時は常に DosageForm /
+    // MedicineUnit の値域に収まる。Radix の onValueChange が string 型で公開するためキャストする。
+    dosage_form: (data.dosageForm || undefined) as DosageForm | undefined,
+    medicine_unit: (data.medicineUnit || undefined) as MedicineUnit | undefined,
     price: effectivePrice,
     description: data.description,
     is_active: data.isActive,

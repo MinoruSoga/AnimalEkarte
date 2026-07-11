@@ -1,4 +1,9 @@
-import type { Pet as BackendPet } from "@/types/generated/models";
+import type {
+  Pet as BackendPet,
+  PetGender,
+  AcquisitionType,
+  DangerLevel,
+} from "@/types/generated/models";
 import { jstDateStartISOString } from "@/lib/jst-date";
 import type { CreatePetRequest, UpdatePetRequest } from "@/types/pet";
 
@@ -19,13 +24,14 @@ const PET_GENDER_MAP: Record<string, string> = {
   unknown: "不明",
 };
 
-const PET_GENDER_REVERSE_MAP: Record<string, string> = {
+// FE6-2: REVERSE_MAP の値は生成型の値域に収まる文字列のみ（PET_GENDER_MAP のキー = 逆写像元）。
+const PET_GENDER_REVERSE_MAP: Record<string, PetGender> = {
   "雄": "male",
   "雌": "female",
   "不明": "unknown",
 };
 
-const ACQUISITION_TYPE_REVERSE_MAP: Record<string, string> = {
+const ACQUISITION_TYPE_REVERSE_MAP: Record<string, AcquisitionType> = {
   "購入": "purchased",
   "譲渡": "transferred",
   "保護": "rescued",
@@ -39,7 +45,7 @@ const ACQUISITION_TYPE_MAP: Record<string, string> = {
   other: "その他",
 };
 
-const DANGER_LEVEL_REVERSE_MAP: Record<string, string> = {
+const DANGER_LEVEL_REVERSE_MAP: Record<string, DangerLevel> = {
   "低": "low",
   "中": "medium",
   "高": "high",

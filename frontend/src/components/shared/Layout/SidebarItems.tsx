@@ -4,6 +4,7 @@ import { ChevronDown } from "lucide-react";
 import { memo, useState, type MouseEvent } from "react";
 import { Link, useLocation, useNavigate } from "react-router";
 import { usePermission } from "@/hooks/use-permission";
+import type { Resource } from "@/types/generated/models";
 
 interface SidebarItemProps {
   item: MenuItem;
@@ -127,7 +128,10 @@ export const SidebarItemWithPermission = memo(function SidebarItemWithPermission
   collapsed = false,
   level = 0,
 }: SidebarItemWithPermissionProps) {
-  const { canView } = usePermission(item.resource ?? "");
+  // FE6-2: item.resource は任意（権限不要メニュー項目もある）。React のフック呼び出し順序を
+  // 崩さずに常に usePermission を呼ぶための sentinel。下の item.resource !== undefined ガードが
+  // 実際の権限判定を制御するため、"" は Resource マップに存在しない安全なダミー値として扱われる。
+  const { canView } = usePermission((item.resource ?? "") as Resource);
   if (item.resource !== undefined && !canView) return null;
 
   return <SidebarItem item={item} collapsed={collapsed} level={level} />;

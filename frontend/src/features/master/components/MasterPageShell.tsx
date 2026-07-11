@@ -48,7 +48,8 @@ export const MasterPageShell = memo(function MasterPageShell({
 }: MasterPageShellProps) {
   const navigate = useNavigate();
   // BUG-124: resource が指定されている場合、create 権限がないなら「新規登録」ボタンを非表示
-  const { canCreate } = usePermission(resource ?? "");
+  // FE6-2: resource は任意。フック呼び出し順序維持のための sentinel（"" は未定義扱い）。
+  const { canCreate } = usePermission((resource ?? "") as Resource);
 
   return (
     <div className="flex h-full">
