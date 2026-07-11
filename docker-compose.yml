@@ -36,6 +36,7 @@ services:
     volumes:
       - ./backend:/app
       - go_mod_cache:/go/pkg/mod
+      - go_build_cache:/root/.cache/go-build
     env_file:
       - .env.local
     environment:
@@ -102,6 +103,8 @@ volumes:
     name: ekarte-frontend-node-modules
   go_mod_cache:
     name: ekarte-go-mod-cache
+  go_build_cache:
+    name: ekarte-go-build-cache
 
 networks:
   ekarte-network:
