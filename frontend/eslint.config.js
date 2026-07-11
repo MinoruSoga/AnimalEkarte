@@ -32,6 +32,38 @@ export default tseslint.config(
       "react-hooks/set-state-in-effect": "warn",
       "react-hooks/purity": "warn",
       "react-hooks/preserve-manual-memoization": "warn",
+      // FE5-4: XSS 再発防止ガード（FE-refactor.md §4.1 — dangerouslySetInnerHTML 監査 CLOSED の再発防止）
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector: "JSXAttribute[name.name='dangerouslySetInnerHTML']",
+          message:
+            "dangerouslySetInnerHTML は禁止。生 HTML が必要な場合は DOMPurify 等でサニタイズしたうえでレビューを通すこと。",
+        },
+      ],
+      "no-restricted-properties": [
+        "error",
+        {
+          object: "document",
+          property: "write",
+          message: "document.write は禁止。React の宣言的レンダリングを使うこと。",
+        },
+        {
+          property: "innerHTML",
+          message:
+            "innerHTML への代入は禁止。React の JSX を使うか、生 HTML が必須なら DOMPurify でサニタイズすること。",
+        },
+        {
+          property: "outerHTML",
+          message:
+            "outerHTML への代入は禁止。React の JSX を使うか、生 HTML が必須なら DOMPurify でサニタイズすること。",
+        },
+        {
+          property: "insertAdjacentHTML",
+          message:
+            "insertAdjacentHTML は禁止。React の JSX を使うか、生 HTML が必須なら DOMPurify でサニタイズすること。",
+        },
+      ],
     },
   },
   {
