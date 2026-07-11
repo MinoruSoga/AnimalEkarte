@@ -6,6 +6,11 @@ dist/
 *.log
 README.md
 
+# シークレットや環境固有値をイメージへ焼き込まない(backend/.dockerignore と対称化)
+.env
+.env.*
+!.env.production.example
+
 # Test sources and test artifacts are not needed in the deployed image
 tests/
 *.spec.ts
