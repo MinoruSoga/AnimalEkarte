@@ -303,6 +303,7 @@ export const ShiftFormDialog = memo(function ShiftFormDialog({
                 <div key={i} className="flex items-center gap-2">
                   <Input
                     type="time"
+                    aria-label={`休憩${i + 1} 開始時刻`}
                     value={b.break_start}
                     onChange={(e) => setBreaks((prev) => prev.map((br, j) => j === i ? { ...br, break_start: e.target.value } : br))}
                     className="flex-1"
@@ -310,6 +311,7 @@ export const ShiftFormDialog = memo(function ShiftFormDialog({
                   <span className={`text-xs ${C.text50}`}>〜</span>
                   <Input
                     type="time"
+                    aria-label={`休憩${i + 1} 終了時刻`}
                     value={b.break_end}
                     onChange={(e) => setBreaks((prev) => prev.map((br, j) => j === i ? { ...br, break_end: e.target.value } : br))}
                     className="flex-1"

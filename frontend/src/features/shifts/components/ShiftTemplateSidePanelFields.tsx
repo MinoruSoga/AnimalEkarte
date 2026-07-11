@@ -137,6 +137,7 @@ function BreakEditor({
         <div key={i} className="flex items-center gap-2 mb-2">
           <Input
             type="time"
+            aria-label={`休憩${i + 1} 開始時刻`}
             value={b.break_start}
             onChange={(e) => onBreakChange(i, "break_start", e.target.value)}
             className="flex-1 h-8 text-sm"
@@ -144,6 +145,7 @@ function BreakEditor({
           <span className={`text-xs ${C.text50}`}>〜</span>
           <Input
             type="time"
+            aria-label={`休憩${i + 1} 終了時刻`}
             value={b.break_end}
             onChange={(e) => onBreakChange(i, "break_end", e.target.value)}
             className="flex-1 h-8 text-sm"
