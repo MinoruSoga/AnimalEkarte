@@ -221,6 +221,12 @@ func (s *medicineService) Create(ctx context.Context, clinicID uint64, input *Cr
 	if err := validateRequiredName(input.Name); err != nil {
 		return nil, apperrors.Wrap(err, "failed to validate required name")
 	}
+	if err := s.validateParentOwnership(ctx, clinicID, input.ParentID); err != nil {
+		return nil, err
+	}
+	if err := s.validateInventoryOwnership(ctx, clinicID, input.InventoryID); err != nil {
+		return nil, err
+	}
 
 	// #201 投与量計算設定の書込検証（default-deny / per_weight 誤設定拒否）。
 	calcType := resolveCalculationType(input.CalculationType)
@@ -387,6 +393,13 @@ func (s *medicineService) Update(ctx context.Context, clinicID, id uint64, input
 		}
 	}
 
+	if err := s.validateParentOwnership(ctx, clinicID, input.ParentID); err != nil {
+		return nil, err
+	}
+	if err := s.validateInventoryOwnership(ctx, clinicID, input.InventoryID); err != nil {
+		return nil, err
+	}
+
 	fields := buildMedicineUpdate(input)
 	if len(fields) == 0 {
 		return nil, apperrors.WrapInvalidInput(ErrMsgAtLeastOneField)
@@ -499,5 +512,31 @@ func (s *medicineService) Delete(ctx context.Context, clinicID, id uint64) error
 		slog.Uint64("clinic_id", clinicID),
 		slog.Uint64("medicine_id", id),
 	)
+	return nil
+}
+
+// validateParentOwnership verifies a request-supplied self-ref parent_id belongs to the
+// caller's clinic before it is persisted (X-14 self-ref master FK guard batch U2).
+func (s *medicineService) validateParentOwnership(ctx context.Context, clinicID uint64, parentID *uint64) error {
+	if parentID == nil {
+		return nil
+	}
+	if _, err := s.repo.FindByID(ctx, clinicID, *parentID); err != nil {
+		slog.ErrorContext(ctx, "failed to verify parent medicine ownership", "error", err, "parent_id", *parentID, "clinic_id", clinicID)
+		return apperrors.Wrap(err, "failed to verify parent medicine ownership")
+	}
+	return nil
+}
+
+// validateInventoryOwnership verifies a request-supplied inventory_id belongs to the
+// caller's clinic before it is persisted (X-14 master FK guard batch U2).
+func (s *medicineService) validateInventoryOwnership(ctx context.Context, clinicID uint64, inventoryID *uint64) error {
+	if inventoryID == nil {
+		return nil
+	}
+	if _, err := s.inventoryRepo.FindByID(ctx, clinicID, *inventoryID); err != nil {
+		slog.ErrorContext(ctx, "failed to verify inventory ownership", "error", err, "inventory_id", *inventoryID, "clinic_id", clinicID)
+		return apperrors.Wrap(err, "failed to verify inventory ownership")
+	}
 	return nil
 }

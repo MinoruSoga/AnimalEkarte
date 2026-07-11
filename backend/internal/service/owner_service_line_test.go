@@ -125,7 +125,7 @@ func TestOwnerServiceLine_LinkLineUserID(t *testing.T) {
 				findByLineUserIDFn: tt.findByLineUserIDFn,
 				updateLineUserIDFn: tt.updateLineUserIDFn,
 			}
-			svc := NewOwnerService(repo, &mockLstepTagSyncService{}, tt.auditSvc)
+			svc := NewOwnerService(repo, nil, &mockLstepTagSyncService{}, tt.auditSvc)
 
 			err := svc.LinkLineUserID(context.Background(), 1, 10, tt.lineUserID, tt.actorUserID)
 
@@ -178,7 +178,7 @@ func TestOwnerServiceLine_ConfirmLineID_AuditLogging(t *testing.T) {
 					return nil
 				},
 			}
-			svc := NewOwnerService(repo, &mockLstepTagSyncService{}, tt.auditSvc)
+			svc := NewOwnerService(repo, nil, &mockLstepTagSyncService{}, tt.auditSvc)
 
 			owner, err := svc.ConfirmLineID(context.Background(), 1, 10, tt.actorUserID)
 			assert.NoError(t, err)

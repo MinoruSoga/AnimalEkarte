@@ -48,7 +48,7 @@ func TestCreateSubRecords(t *testing.T) {
 				return &model.ClinicalPlan{ID: 1}, nil
 			},
 		}
-		svc := &medicalRecordService{inquiryRepo: inquiryRepo, clinicalPlanRepo: clinicalPlanRepo}
+		svc := &medicalRecordService{inquiryRepo: inquiryRepo, clinicalPlanRepo: clinicalPlanRepo, chiefComplaintTypeRepo: okChiefComplaintTypeRepo()}
 
 		svc.CreateSubRecords(context.Background(), 1, 10, CreateSubRecordsInput{
 			ChiefComplaintTypeID: &typeID,
@@ -182,7 +182,12 @@ func TestCreateSubRecords(t *testing.T) {
 				return nil
 			},
 		}
-		svc := &medicalRecordService{inquiryRepo: &mockInquiryRepository{}, clinicalPlanRepo: clinicalPlanRepo}
+		svc := &medicalRecordService{
+			inquiryRepo:      &mockInquiryRepository{},
+			clinicalPlanRepo: clinicalPlanRepo,
+			diagTypeRepo:     okDiagnosisTypeRepo(),
+			diagNameRepo:     okDiagnosisNameRepo(),
+		}
 
 		svc.CreateSubRecords(context.Background(), 1, 10, CreateSubRecordsInput{
 			Plan:                 strPtr("policy"),

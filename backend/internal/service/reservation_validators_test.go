@@ -248,7 +248,7 @@ func TestReservationValidators_ValidateAndCreate_MapsCapacityConflict(t *testing
 			return &model.ReservationType{ID: id, ClinicID: clinicID, MaxConcurrent: &maxConcurrent}, nil
 		},
 	}
-	validators := NewReservationValidators(&mockTransactor{}, repo, typeRepo)
+	validators := NewReservationValidators(&mockTransactor{}, repo, typeRepo, okTrimmingCourseRepo(), okTrimmingOptionRepo())
 
 	result, err := validators.ValidateAndCreate(context.Background(), &CreateReservationInput{
 		ClinicID:          1,

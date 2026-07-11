@@ -12,22 +12,34 @@ func (s *medicalRecordService) CreateSubRecords(ctx context.Context, clinicID, r
 	// 1. inquiry: 入力がある場合のみ upsert する。
 	// 既存 appointment の再オープン時に空入力で既存問診を上書きしない。
 	if hasInquirySubRecordInput(input) {
-		inquiry := &model.Inquiry{
-			MedicalRecordID: recordID,
-		}
+		skipInquiry := false
 		if input.ChiefComplaintTypeID != nil {
-			inquiry.ChiefComplaintTypeID = input.ChiefComplaintTypeID
+			if _, err := s.chiefComplaintTypeRepo.FindByID(ctx, clinicID, *input.ChiefComplaintTypeID); err != nil {
+				slog.WarnContext(ctx, "createSubRecords: failed to verify chief complaint type ownership; skipping inquiry upsert",
+					slog.Uint64("medical_record_id", recordID),
+					slog.Uint64("chief_complaint_type_id", *input.ChiefComplaintTypeID),
+					slog.String("error", err.Error()))
+				skipInquiry = true
+			}
 		}
-		if input.ChiefComplaint != nil {
-			inquiry.ChiefComplaint = *input.ChiefComplaint
-		}
-		if input.Notes != nil {
-			inquiry.Notes = *input.Notes
-		}
-		if _, err := s.inquiryRepo.SaveByMedicalRecordID(ctx, clinicID, inquiry); err != nil {
-			slog.WarnContext(ctx, "createSubRecords: failed to upsert inquiry",
-				slog.Uint64("medical_record_id", recordID),
-				slog.String("error", err.Error()))
+		if !skipInquiry {
+			inquiry := &model.Inquiry{
+				MedicalRecordID: recordID,
+			}
+			if input.ChiefComplaintTypeID != nil {
+				inquiry.ChiefComplaintTypeID = input.ChiefComplaintTypeID
+			}
+			if input.ChiefComplaint != nil {
+				inquiry.ChiefComplaint = *input.ChiefComplaint
+			}
+			if input.Notes != nil {
+				inquiry.Notes = *input.Notes
+			}
+			if _, err := s.inquiryRepo.SaveByMedicalRecordID(ctx, clinicID, inquiry); err != nil {
+				slog.WarnContext(ctx, "createSubRecords: failed to upsert inquiry",
+					slog.Uint64("medical_record_id", recordID),
+					slog.String("error", err.Error()))
+			}
 		}
 	}
 
@@ -49,6 +61,13 @@ func (s *medicalRecordService) CreateSubRecords(ctx context.Context, clinicID, r
 		}
 	}
 	if input.Plan != nil || input.Assessment != nil || input.Diagnosis1CategoryID != nil || input.Diagnosis1NameID != nil {
+		if err := s.validateCreateSubRecordDiagnosisFKs(ctx, clinicID, input); err != nil {
+			slog.WarnContext(ctx, "createSubRecords: failed to verify diagnosis FK ownership; skipping clinical plan update",
+				slog.Uint64("medical_record_id", recordID),
+				slog.String("error", err.Error()))
+			return
+		}
+
 		fields := map[string]any{}
 		if input.Plan != nil {
 			fields["treatment_policy"] = *input.Plan
@@ -74,6 +93,27 @@ func (s *medicalRecordService) CreateSubRecords(ctx context.Context, clinicID, r
 				slog.String("error", err.Error()))
 		}
 	}
+}
+
+// validateCreateSubRecordDiagnosisFKs は clinicalPlanService.validateDiagnosisFKs と同型の
+// clinic-scoped 所有権検証を CreateSubRecords の best-effort パスに複製したもの（最小差分の
+// ため ClinicalPlanService は注入しない）。非 nil の診断 FK のみ検証する。
+func (s *medicalRecordService) validateCreateSubRecordDiagnosisFKs(ctx context.Context, clinicID uint64, input CreateSubRecordsInput) error {
+	for _, typeID := range []*uint64{input.Diagnosis1CategoryID, input.Diagnosis2CategoryID} {
+		if typeID != nil {
+			if _, err := s.diagTypeRepo.FindByID(ctx, clinicID, *typeID); err != nil {
+				return apperrors.Wrap(err, "failed to verify diagnosis type ownership")
+			}
+		}
+	}
+	for _, nameID := range []*uint64{input.Diagnosis1NameID, input.Diagnosis2NameID} {
+		if nameID != nil {
+			if _, err := s.diagNameRepo.FindByID(ctx, clinicID, *nameID); err != nil {
+				return apperrors.Wrap(err, "failed to verify diagnosis name ownership")
+			}
+		}
+	}
+	return nil
 }
 
 func hasInquirySubRecordInput(input CreateSubRecordsInput) bool {

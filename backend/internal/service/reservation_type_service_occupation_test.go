@@ -68,7 +68,7 @@ func newOccupationLinkTestService(
 	occRepo *mockOccupationLinkRepo,
 	baseOccRepo *mockBaseOccupationRepo,
 ) ReservationTypeService {
-	return NewReservationTypeService(repo, &mockUnavailableTimeRepository{}, occRepo, baseOccRepo)
+	return NewReservationTypeService(repo, &mockUnavailableTimeRepository{}, occRepo, baseOccRepo, nil)
 }
 
 // ---- ListOccupations ----

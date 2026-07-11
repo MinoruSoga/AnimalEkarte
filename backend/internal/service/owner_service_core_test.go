@@ -50,7 +50,7 @@ func TestOwnerService_GetByIDForClinics(t *testing.T) {
 					return tt.repoOwner, tt.repoErr
 				},
 			}
-			svc := NewOwnerService(repo, &mockLstepTagSyncService{}, nil)
+			svc := NewOwnerService(repo, nil, &mockLstepTagSyncService{}, nil)
 
 			owner, err := svc.GetByIDForClinics(context.Background(), []uint64{1, 2}, 10)
 
@@ -85,7 +85,7 @@ func TestOwnerService_CreateWithPets_UniquenessAndSyncBranches(t *testing.T) {
 				return errors.New("should not be called")
 			},
 		}
-		svc := NewOwnerService(repo, &mockLstepTagSyncService{}, nil)
+		svc := NewOwnerService(repo, nil, &mockLstepTagSyncService{}, nil)
 		input := baseInput()
 		owner, err := svc.CreateWithPets(context.Background(), 1, &input)
 		assert.Error(t, err)
@@ -99,7 +99,7 @@ func TestOwnerService_CreateWithPets_UniquenessAndSyncBranches(t *testing.T) {
 				return nil, errors.New("db error")
 			},
 		}
-		svc := NewOwnerService(repo, &mockLstepTagSyncService{}, nil)
+		svc := NewOwnerService(repo, nil, &mockLstepTagSyncService{}, nil)
 		input := baseInput()
 		owner, err := svc.CreateWithPets(context.Background(), 1, &input)
 		assert.Error(t, err)
@@ -112,7 +112,7 @@ func TestOwnerService_CreateWithPets_UniquenessAndSyncBranches(t *testing.T) {
 				return &model.Owner{ID: 999}, nil
 			},
 		}
-		svc := NewOwnerService(repo, &mockLstepTagSyncService{}, nil)
+		svc := NewOwnerService(repo, nil, &mockLstepTagSyncService{}, nil)
 		input := baseInput()
 		owner, err := svc.CreateWithPets(context.Background(), 1, &input)
 		assert.Error(t, err)
@@ -126,7 +126,7 @@ func TestOwnerService_CreateWithPets_UniquenessAndSyncBranches(t *testing.T) {
 				return nil, errors.New("db error")
 			},
 		}
-		svc := NewOwnerService(repo, &mockLstepTagSyncService{}, nil)
+		svc := NewOwnerService(repo, nil, &mockLstepTagSyncService{}, nil)
 		input := baseInput()
 		owner, err := svc.CreateWithPets(context.Background(), 1, &input)
 		assert.Error(t, err)
@@ -140,7 +140,7 @@ func TestOwnerService_CreateWithPets_UniquenessAndSyncBranches(t *testing.T) {
 				return nil
 			},
 		}
-		svc := NewOwnerService(repo, nil, nil)
+		svc := NewOwnerService(repo, nil, nil, nil)
 		input := baseInput()
 		owner, err := svc.CreateWithPets(context.Background(), 1, &input)
 		assert.NoError(t, err)
@@ -159,7 +159,7 @@ func TestOwnerService_Update_AdditionalBranches(t *testing.T) {
 				return nil, apperrors.WrapNotFound("owner", "1")
 			},
 		}
-		svc := NewOwnerService(repo, &mockLstepTagSyncService{}, nil)
+		svc := NewOwnerService(repo, nil, &mockLstepTagSyncService{}, nil)
 		name := "更新"
 		_, err := svc.Update(ctx, 1, 1, &UpdateOwnerInput{OwnerName: &name})
 		assert.Error(t, err)
@@ -172,7 +172,7 @@ func TestOwnerService_Update_AdditionalBranches(t *testing.T) {
 				return &model.Owner{ID: 1, ClinicID: 1}, nil
 			},
 		}
-		svc := NewOwnerService(repo, &mockLstepTagSyncService{}, nil)
+		svc := NewOwnerService(repo, nil, &mockLstepTagSyncService{}, nil)
 		badRate := 150.0
 		_, err := svc.Update(ctx, 1, 1, &UpdateOwnerInput{DiscountRate: &badRate})
 		assert.Error(t, err)
@@ -184,7 +184,7 @@ func TestOwnerService_Update_AdditionalBranches(t *testing.T) {
 				return &model.Owner{ID: 1, ClinicID: 1}, nil
 			},
 		}
-		svc := NewOwnerService(repo, &mockLstepTagSyncService{}, nil)
+		svc := NewOwnerService(repo, nil, &mockLstepTagSyncService{}, nil)
 		_, err := svc.Update(ctx, 1, 1, &UpdateOwnerInput{})
 		assert.Error(t, err)
 		assert.True(t, apperrors.IsInvalidInput(err))
@@ -199,7 +199,7 @@ func TestOwnerService_Update_AdditionalBranches(t *testing.T) {
 				return &model.Owner{ID: 999}, nil
 			},
 		}
-		svc := NewOwnerService(repo, &mockLstepTagSyncService{}, nil)
+		svc := NewOwnerService(repo, nil, &mockLstepTagSyncService{}, nil)
 		email := "conflict@example.com"
 		_, err := svc.Update(ctx, 1, 1, &UpdateOwnerInput{Email: &email})
 		assert.Error(t, err)
@@ -220,7 +220,7 @@ func TestOwnerService_Update_AdditionalBranches(t *testing.T) {
 				return nil
 			},
 		}
-		svc := NewOwnerService(repo, &mockLstepTagSyncService{}, nil)
+		svc := NewOwnerService(repo, nil, &mockLstepTagSyncService{}, nil)
 		email := "same@example.com"
 		owner, err := svc.Update(ctx, 1, 1, &UpdateOwnerInput{Email: &email})
 		assert.NoError(t, err)
@@ -236,7 +236,7 @@ func TestOwnerService_Update_AdditionalBranches(t *testing.T) {
 				return nil, errors.New("db error")
 			},
 		}
-		svc := NewOwnerService(repo, &mockLstepTagSyncService{}, nil)
+		svc := NewOwnerService(repo, nil, &mockLstepTagSyncService{}, nil)
 		email := "err@example.com"
 		_, err := svc.Update(ctx, 1, 1, &UpdateOwnerInput{Email: &email})
 		assert.Error(t, err)
@@ -251,7 +251,7 @@ func TestOwnerService_Update_AdditionalBranches(t *testing.T) {
 				return &model.Owner{ID: 999}, nil
 			},
 		}
-		svc := NewOwnerService(repo, &mockLstepTagSyncService{}, nil)
+		svc := NewOwnerService(repo, nil, &mockLstepTagSyncService{}, nil)
 		phone := "090-0000-0000"
 		_, err := svc.Update(ctx, 1, 1, &UpdateOwnerInput{Phone: &phone})
 		assert.Error(t, err)
@@ -267,7 +267,7 @@ func TestOwnerService_Update_AdditionalBranches(t *testing.T) {
 				return nil, errors.New("db error")
 			},
 		}
-		svc := NewOwnerService(repo, &mockLstepTagSyncService{}, nil)
+		svc := NewOwnerService(repo, nil, &mockLstepTagSyncService{}, nil)
 		phone := "090-0000-0000"
 		_, err := svc.Update(ctx, 1, 1, &UpdateOwnerInput{Phone: &phone})
 		assert.Error(t, err)
@@ -282,7 +282,7 @@ func TestOwnerService_Update_AdditionalBranches(t *testing.T) {
 				return errors.New("db error")
 			},
 		}
-		svc := NewOwnerService(repo, &mockLstepTagSyncService{}, nil)
+		svc := NewOwnerService(repo, nil, &mockLstepTagSyncService{}, nil)
 		name := "更新後"
 		_, err := svc.Update(ctx, 1, 1, &UpdateOwnerInput{OwnerName: &name})
 		assert.Error(t, err)
@@ -302,7 +302,7 @@ func TestOwnerService_Update_AdditionalBranches(t *testing.T) {
 				return nil
 			},
 		}
-		svc := NewOwnerService(repo, &mockLstepTagSyncService{}, nil)
+		svc := NewOwnerService(repo, nil, &mockLstepTagSyncService{}, nil)
 		name := "更新後"
 		owner, err := svc.Update(ctx, 1, 1, &UpdateOwnerInput{OwnerName: &name})
 		assert.Error(t, err)
@@ -318,7 +318,7 @@ func TestOwnerService_Delete_FindByIDError(t *testing.T) {
 			return nil, apperrors.WrapNotFound("owner", "999")
 		},
 	}
-	svc := NewOwnerService(repo, &mockLstepTagSyncService{}, nil)
+	svc := NewOwnerService(repo, nil, &mockLstepTagSyncService{}, nil)
 	err := svc.Delete(context.Background(), 1, 999)
 	assert.Error(t, err)
 	assert.True(t, apperrors.IsNotFound(err))
@@ -342,7 +342,7 @@ func TestOwnerService_ReloadOwner_ErrorBranchViaUpdateDeliveryExclusion(t *testi
 			return nil
 		},
 	}
-	svc := NewOwnerService(repo, &mockLstepTagSyncService{}, nil)
+	svc := NewOwnerService(repo, nil, &mockLstepTagSyncService{}, nil)
 	owner, err := svc.UpdateDeliveryExclusion(context.Background(), 1, 10, UpdateDeliveryExclusionInput{Excluded: true})
 	assert.Error(t, err)
 	assert.Nil(t, owner)

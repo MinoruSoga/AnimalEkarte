@@ -45,7 +45,7 @@ func TestMedicalRecordService_DeleteDraftFromReservation(t *testing.T) {
 				return nil
 			},
 		}
-		svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, nil, nil)
+		svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
 
 		svc.DeleteDraftFromReservation(context.Background(), 3, 77)
 
@@ -61,7 +61,7 @@ func TestMedicalRecordService_DeleteDraftFromReservation(t *testing.T) {
 				return errors.New("db error")
 			},
 		}
-		svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, nil, nil)
+		svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
 
 		assert.NotPanics(t, func() {
 			svc.DeleteDraftFromReservation(context.Background(), 3, 77)
@@ -78,7 +78,7 @@ func TestMedicalRecordService_fallbackFirstVisitCheck(t *testing.T) {
 		repo := &mockMedicalRecordRepository{
 			countByOwnerIDFn: func(_ context.Context, _, _ uint64) (int64, error) { return 0, nil },
 		}
-		svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, nil, nil)
+		svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
 		impl, ok := svc.(*medicalRecordService)
 		require.True(t, ok)
 
@@ -89,7 +89,7 @@ func TestMedicalRecordService_fallbackFirstVisitCheck(t *testing.T) {
 		repo := &mockMedicalRecordRepository{
 			countByOwnerIDFn: func(_ context.Context, _, _ uint64) (int64, error) { return 3, nil },
 		}
-		svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, nil, nil)
+		svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
 		impl := svc.(*medicalRecordService)
 
 		assert.False(t, impl.fallbackFirstVisitCheck(context.Background(), 1, 10))
@@ -101,7 +101,7 @@ func TestMedicalRecordService_fallbackFirstVisitCheck(t *testing.T) {
 				return 0, errors.New("db error")
 			},
 		}
-		svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, nil, nil)
+		svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
 		impl := svc.(*medicalRecordService)
 
 		assert.False(t, impl.fallbackFirstVisitCheck(context.Background(), 1, 10))
@@ -119,7 +119,7 @@ func TestAutoCreateFromReservation_AdditionalBranches(t *testing.T) {
 	doctorID := uint64(99)
 
 	t.Run("reservation が nil の場合はパニックせず即座にスキップする", func(t *testing.T) {
-		svc := NewMedicalRecordService(&mockMedicalRecordRepository{}, nil, nil, nil, nil, nil, nil, nil, nil)
+		svc := NewMedicalRecordService(&mockMedicalRecordRepository{}, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
 		assert.NotPanics(t, func() {
 			svc.AutoCreateFromReservation(context.Background(), 1, nil)
 		})
@@ -136,7 +136,7 @@ func TestAutoCreateFromReservation_AdditionalBranches(t *testing.T) {
 				return nil
 			},
 		}
-		svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, nil, nil)
+		svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
 		appt := &model.Reservation{ID: 1, ClinicID: 1, StartTime: now, OwnerID: &ownerID, PetID: &petID}
 
 		svc.AutoCreateFromReservation(context.Background(), 1, appt)
@@ -154,7 +154,7 @@ func TestAutoCreateFromReservation_AdditionalBranches(t *testing.T) {
 				return nil
 			},
 		}
-		svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, nil, nil)
+		svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
 		appt := &model.Reservation{ID: 1, ClinicID: 1, StartTime: now, OwnerID: &ownerID, PetID: &petID}
 
 		svc.AutoCreateFromReservation(context.Background(), 1, appt)
@@ -180,7 +180,7 @@ func TestAutoCreateFromReservation_AdditionalBranches(t *testing.T) {
 				return &model.ClinicalPlan{ID: 1}, nil
 			},
 		}
-		svc := NewMedicalRecordService(repo, nil, nil, nil, clinicalPlanRepo, nil, nil, nil, nil)
+		svc := NewMedicalRecordService(repo, nil, nil, nil, clinicalPlanRepo, nil, nil, nil, nil, nil, nil, nil)
 		appt := &model.Reservation{
 			ID: 1, ClinicID: 1, StartTime: now,
 			OwnerID: &ownerID, PetID: &petID, DoctorID: &doctorID,
@@ -208,7 +208,7 @@ func TestAutoCreateFromReservation_AdditionalBranches(t *testing.T) {
 				return errors.New("db error")
 			},
 		}
-		svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, nil, nil)
+		svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
 		appt := &model.Reservation{ID: 1, ClinicID: 1, StartTime: now, OwnerID: &ownerID, PetID: &petID}
 
 		assert.NotPanics(t, func() {

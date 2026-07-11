@@ -123,6 +123,7 @@ type staffService struct {
 	shiftEntryRepo      repository.ShiftEntryRepository
 	permissionGroupRepo repository.PermissionGroupRepository
 	resStaffRepo        repository.ReservationStaffRepository
+	occupationRepo      repository.OccupationRepository
 	tx                  repository.Transactor
 }
 
@@ -134,6 +135,7 @@ func NewStaffService(
 	shiftEntryRepo repository.ShiftEntryRepository,
 	permissionGroupRepo repository.PermissionGroupRepository,
 	resStaffRepo repository.ReservationStaffRepository,
+	occupationRepo repository.OccupationRepository,
 	tx repository.Transactor,
 ) StaffService {
 	return &staffService{
@@ -144,6 +146,7 @@ func NewStaffService(
 		shiftEntryRepo:      shiftEntryRepo,
 		permissionGroupRepo: permissionGroupRepo,
 		resStaffRepo:        resStaffRepo,
+		occupationRepo:      occupationRepo,
 		tx:                  tx,
 	}
 }

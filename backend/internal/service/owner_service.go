@@ -163,11 +163,12 @@ type OwnerService interface {
 // --- Implementation ---
 
 type ownerService struct {
-	repo       repository.OwnerRepository
-	tagSyncSvc LstepTagSyncService
-	auditSvc   AuditService
+	repo          repository.OwnerRepository
+	insuranceRepo repository.InsuranceRepository
+	tagSyncSvc    LstepTagSyncService
+	auditSvc      AuditService
 }
 
-func NewOwnerService(repo repository.OwnerRepository, tagSyncSvc LstepTagSyncService, auditSvc AuditService) OwnerService {
-	return &ownerService{repo: repo, tagSyncSvc: tagSyncSvc, auditSvc: auditSvc}
+func NewOwnerService(repo repository.OwnerRepository, insuranceRepo repository.InsuranceRepository, tagSyncSvc LstepTagSyncService, auditSvc AuditService) OwnerService {
+	return &ownerService{repo: repo, insuranceRepo: insuranceRepo, tagSyncSvc: tagSyncSvc, auditSvc: auditSvc}
 }

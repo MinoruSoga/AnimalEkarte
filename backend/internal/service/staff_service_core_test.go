@@ -195,7 +195,7 @@ func newCoreStaffService(
 	shiftEntryRepo *coreMockShiftEntryRepository,
 	tx repository.Transactor,
 ) StaffService {
-	return NewStaffService(repo, accountRepo, assignmentRepo, reservationRepo, shiftEntryRepo, nil, nil, tx)
+	return NewStaffService(repo, accountRepo, assignmentRepo, reservationRepo, shiftEntryRepo, nil, nil, nil, tx)
 }
 
 // ---- Create ----

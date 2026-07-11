@@ -61,14 +61,28 @@ type CreateReservationInput struct {
 }
 
 type reservationValidators struct {
-	tx       repository.Transactor
-	repo     repository.ReservationRepository
-	typeRepo reservationTypeFinder
+	tx                 repository.Transactor
+	repo               repository.ReservationRepository
+	typeRepo           reservationTypeFinder
+	trimmingCourseRepo repository.TrimmingCourseRepository
+	trimmingOptionRepo repository.TrimmingOptionRepository
 }
 
 // NewReservationValidators はバリデーターを初期化して返す。
-func NewReservationValidators(tx repository.Transactor, repo repository.ReservationRepository, typeRepo reservationTypeFinder) ReservationValidators {
-	return &reservationValidators{tx: tx, repo: repo, typeRepo: typeRepo}
+func NewReservationValidators(
+	tx repository.Transactor,
+	repo repository.ReservationRepository,
+	typeRepo reservationTypeFinder,
+	trimmingCourseRepo repository.TrimmingCourseRepository,
+	trimmingOptionRepo repository.TrimmingOptionRepository,
+) ReservationValidators {
+	return &reservationValidators{
+		tx:                 tx,
+		repo:               repo,
+		typeRepo:           typeRepo,
+		trimmingCourseRepo: trimmingCourseRepo,
+		trimmingOptionRepo: trimmingOptionRepo,
+	}
 }
 
 func (v *reservationValidators) ValidateAndCreate(ctx context.Context, input *CreateReservationInput) (*model.Reservation, error) {
@@ -87,6 +101,31 @@ func (v *reservationValidators) ValidateAndCreate(ctx context.Context, input *Cr
 	// 直接 API を叩かれても無効な予約を受け付けないようにする。
 	if err := validateBusinessRules(settings, input.Date, input.StartTime, input.EndTime); err != nil {
 		return nil, apperrors.Wrap(err, "failed to validate business rules")
+	}
+
+	// X-14/U6a: クロステナント write 防止: ReservationTypeID / TrimmingCourseID /
+	// TrimmingOptionIDs が caller の clinic に属することを、INSERT 前(tx 開始前)に
+	// 検証する(billing_item_service.go と同型の master FK 所有権チェック)。所有権失敗は
+	// best-effort に落とさず hard fail とし、orphan appointment を作らない。
+	if v.typeRepo != nil {
+		if _, err := v.typeRepo.FindByID(ctx, input.ClinicID, input.ReservationTypeID); err != nil {
+			slog.ErrorContext(ctx, "reservation type not found or belongs to different clinic", "error", err)
+			return nil, apperrors.Wrap(err, "failed to verify reservation type ownership")
+		}
+	}
+	if v.trimmingCourseRepo != nil && input.TrimmingCourseID != nil {
+		if _, err := v.trimmingCourseRepo.FindByID(ctx, input.ClinicID, *input.TrimmingCourseID); err != nil {
+			slog.ErrorContext(ctx, "trimming course not found or belongs to different clinic", "error", err)
+			return nil, apperrors.Wrap(err, "failed to verify trimming course ownership")
+		}
+	}
+	if v.trimmingOptionRepo != nil {
+		for _, optionID := range input.TrimmingOptionIDs {
+			if _, err := v.trimmingOptionRepo.FindByID(ctx, input.ClinicID, optionID); err != nil {
+				slog.ErrorContext(ctx, "trimming option not found or belongs to different clinic", "error", err)
+				return nil, apperrors.Wrap(err, "failed to verify trimming option ownership")
+			}
+		}
 	}
 
 	var result *model.Reservation

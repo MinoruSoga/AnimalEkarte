@@ -28,6 +28,9 @@ func (s *staffService) CreateWithAccount(ctx context.Context, input *CreateStaff
 	if input.ClinicID == 0 {
 		return nil, apperrors.WrapInvalidInput("clinic_id is required")
 	}
+	if err := s.validateOccupationOwnership(ctx, input.ClinicID, input.OccupationID); err != nil {
+		return nil, err
+	}
 	name := strings.TrimSpace(input.Name)
 
 	// パスワードバリデーション（email が指定されている場合は必須）

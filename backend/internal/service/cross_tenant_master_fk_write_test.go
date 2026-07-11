@@ -21,6 +21,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
@@ -96,6 +97,24 @@ func okDiagnosisNameRepo() repository.DiagnosisNameRepository {
 	}}
 }
 
+func okChiefComplaintTypeRepo() repository.ChiefComplaintTypeRepository {
+	return &mockChiefComplaintTypeRepository{findByIDFn: func(_ context.Context, _, id uint64) (*model.ChiefComplaintType, error) {
+		return &model.ChiefComplaintType{ID: id}, nil
+	}}
+}
+
+// okInventoryRepo also wires a no-op createFn: medicineService.Create unconditionally
+// creates a linked InventoryItem (BUG-320) regardless of the ParentID/InventoryID guards
+// under test here, and mockInventoryRepository.Create has no nil-createFn guard.
+func okInventoryRepo() repository.InventoryRepository {
+	return &mockInventoryRepository{
+		findByIDFn: func(_ context.Context, _, id uint64) (*model.InventoryItem, error) {
+			return &model.InventoryItem{ID: id}, nil
+		},
+		createFn: func(_ context.Context, _ uint64, _ *model.InventoryItem) error { return nil },
+	}
+}
+
 // rejectByForeignID returns a clinic-scoped FindByID stub: it returns the row for
 // ownedID and NotFound for anything else, mimicking real FindByID(ctx, clinicID, id).
 func rejectMedicineRepo(ownedID uint64) repository.MedicineRepository {
@@ -131,6 +150,40 @@ func rejectCageRepo(ownedID uint64) repository.CageRepository {
 			return nil, apperrors.WrapNotFound("cage", "foreign")
 		}
 		return &model.Cage{ID: id}, nil
+	}}
+}
+
+func rejectInsuranceRepo(ownedID uint64) repository.InsuranceRepository {
+	return &mockInsuranceRepository{findByIDFn: func(_ context.Context, _, id uint64) (*model.Insurance, error) {
+		if id != ownedID {
+			return nil, apperrors.WrapNotFound("insurance", "foreign")
+		}
+		return &model.Insurance{ID: id}, nil
+	}}
+}
+
+// rejectInventoryRepo also wires a no-op createFn for the same BUG-320 reason as
+// okInventoryRepo above — the "accepts same-clinic" sub-tests reach the auto-create step.
+func rejectInventoryRepo(ownedID uint64) repository.InventoryRepository {
+	return &mockInventoryRepository{
+		findByIDFn: func(_ context.Context, _, id uint64) (*model.InventoryItem, error) {
+			if id != ownedID {
+				return nil, apperrors.WrapNotFound("inventory_item", "foreign")
+			}
+			return &model.InventoryItem{ID: id}, nil
+		},
+		createFn: func(_ context.Context, _ uint64, _ *model.InventoryItem) error { return nil },
+	}
+}
+
+// rejectOccupationRepo mirrors rejectInventoryRepo for staffService.OccupationID (X-14 U7).
+// mockOccupationRepository is defined in occupation_service_test.go (same package).
+func rejectOccupationRepo(ownedID uint64) repository.OccupationRepository {
+	return &mockOccupationRepository{findByIDFn: func(_ context.Context, _, id uint64) (*model.Occupation, error) {
+		if id != ownedID {
+			return nil, apperrors.WrapNotFound("occupation", "foreign")
+		}
+		return &model.Occupation{ID: id}, nil
 	}}
 }
 
@@ -789,6 +842,217 @@ func TestBillingItemService_CreateItem_RejectsCrossClinicTrimmingFK(t *testing.T
 	})
 }
 
+// ── reservationValidators.ValidateAndCreate / liffService.CreateReservation
+//    (X-14/U6a): ReservationTypeID / TrimmingCourseID / TrimmingOptionIDs ──
+
+func TestReservationValidators_ValidateAndCreate_RejectsCrossClinicReservationType(t *testing.T) {
+	const clinicID = uint64(1)
+	const ownedTypeID = uint64(50)
+	const foreignTypeID = uint64(999)
+
+	typeRepo := mockReservationTypeFinder{
+		findByIDFn: func(_ context.Context, _, id uint64) (*model.ReservationType, error) {
+			if id != ownedTypeID {
+				return nil, apperrors.WrapNotFound("reservation_type", "foreign")
+			}
+			return &model.ReservationType{ID: id}, nil
+		},
+	}
+
+	newSvc := func(created *bool) ReservationValidators {
+		repo := &mockReservationRepository{
+			createFn: func(_ context.Context, _ *model.Reservation) error {
+				*created = true
+				return nil
+			},
+		}
+		return NewReservationValidators(&mockTransactor{}, repo, typeRepo, okTrimmingCourseRepo(), okTrimmingOptionRepo())
+	}
+
+	baseInput := func(typeID uint64) *CreateReservationInput {
+		return &CreateReservationInput{
+			ClinicID:          clinicID,
+			CustomerID:        2,
+			ReservationTypeID: typeID,
+			StaffID:           10,
+			Date:              dateInDays(3),
+			StartTime:         "1000",
+			EndTime:           "1015",
+			Settings:          newSettingForValidation(),
+		}
+	}
+
+	t.Run("rejects cross-clinic reservation_type_id and does not persist", func(t *testing.T) {
+		created := false
+		validators := newSvc(&created)
+		out, err := validators.ValidateAndCreate(context.Background(), baseInput(foreignTypeID))
+		assert.Error(t, err)
+		assert.Nil(t, out)
+		assert.False(t, created, "reservation must NOT be persisted referencing another clinic's reservation type")
+	})
+
+	t.Run("accepts same-clinic reservation_type_id (no false-reject)", func(t *testing.T) {
+		created := false
+		validators := newSvc(&created)
+		out, err := validators.ValidateAndCreate(context.Background(), baseInput(ownedTypeID))
+		assert.NoError(t, err)
+		assert.NotNil(t, out)
+		assert.True(t, created)
+	})
+}
+
+func TestReservationValidators_ValidateAndCreate_RejectsCrossClinicTrimmingFK(t *testing.T) {
+	const clinicID = uint64(1)
+	const ownedTypeID = uint64(50)
+	const ownedCourseID = uint64(300)
+	const foreignCourseID = uint64(999)
+	const ownedOptionID = uint64(400)
+	const foreignOptionID = uint64(998)
+
+	typeRepo := mockReservationTypeFinder{
+		findByIDFn: func(_ context.Context, _, id uint64) (*model.ReservationType, error) {
+			return &model.ReservationType{ID: id}, nil
+		},
+	}
+
+	newSvc := func(created *bool, courseRepo repository.TrimmingCourseRepository, optionRepo repository.TrimmingOptionRepository) ReservationValidators {
+		repo := &mockReservationRepository{
+			createFn: func(_ context.Context, _ *model.Reservation) error {
+				*created = true
+				return nil
+			},
+		}
+		return NewReservationValidators(&mockTransactor{}, repo, typeRepo, courseRepo, optionRepo)
+	}
+
+	baseInput := func() *CreateReservationInput {
+		return &CreateReservationInput{
+			ClinicID:          clinicID,
+			CustomerID:        2,
+			ReservationTypeID: ownedTypeID,
+			StaffID:           10,
+			Date:              dateInDays(3),
+			StartTime:         "1000",
+			EndTime:           "1015",
+			Settings:          newSettingForValidation(),
+		}
+	}
+
+	t.Run("rejects cross-clinic trimming_course_id and does not persist", func(t *testing.T) {
+		created := false
+		validators := newSvc(&created, rejectTrimmingCourseRepo(ownedCourseID), okTrimmingOptionRepo())
+		foreign := foreignCourseID
+		input := baseInput()
+		input.TrimmingCourseID = &foreign
+		out, err := validators.ValidateAndCreate(context.Background(), input)
+		assert.Error(t, err)
+		assert.Nil(t, out)
+		assert.False(t, created, "reservation must NOT be persisted referencing another clinic's trimming course")
+	})
+
+	t.Run("rejects cross-clinic trimming_option_ids and does not persist", func(t *testing.T) {
+		created := false
+		validators := newSvc(&created, okTrimmingCourseRepo(), rejectTrimmingOptionRepo(ownedOptionID))
+		input := baseInput()
+		input.TrimmingOptionIDs = []uint64{ownedOptionID, foreignOptionID}
+		out, err := validators.ValidateAndCreate(context.Background(), input)
+		assert.Error(t, err)
+		assert.Nil(t, out)
+		assert.False(t, created, "reservation must NOT be persisted referencing another clinic's trimming option")
+	})
+
+	t.Run("accepts same-clinic trimming_course_id/trimming_option_ids (no false-reject)", func(t *testing.T) {
+		created := false
+		validators := newSvc(&created, rejectTrimmingCourseRepo(ownedCourseID), rejectTrimmingOptionRepo(ownedOptionID))
+		owned := ownedCourseID
+		input := baseInput()
+		input.TrimmingCourseID = &owned
+		input.TrimmingOptionIDs = []uint64{ownedOptionID}
+		out, err := validators.ValidateAndCreate(context.Background(), input)
+		assert.NoError(t, err)
+		assert.NotNil(t, out)
+		assert.True(t, created)
+	})
+}
+
+// TestLiffService_CreateReservation_RejectsCrossClinicTrimmingFK は liff 経由でも
+// ValidateAndCreate の所有権ガードが効き、appointment が永続化されないことを検証する
+// (U6a: liffService は validators に委譲するのみで、ガード本体は validators 側にある)。
+func TestLiffService_CreateReservation_RejectsCrossClinicTrimmingFK(t *testing.T) {
+	const clinicID = uint64(3)
+	const customerID = uint64(1)
+	const ownedCourseID = uint64(300)
+	const foreignCourseID = uint64(999)
+
+	typeRepo := mockReservationTypeFinder{
+		findByIDFn: func(_ context.Context, _, id uint64) (*model.ReservationType, error) {
+			return &model.ReservationType{ID: id}, nil
+		},
+	}
+
+	newSvc := func(created *bool, courseRepo repository.TrimmingCourseRepository) *liffService {
+		reservationRepo := &mockReservationRepository{
+			createFn: func(_ context.Context, _ *model.Reservation) error {
+				*created = true
+				return nil
+			},
+		}
+		return &liffService{
+			settingRepo: &mockLiffSettingRepository{
+				findByClinicIDFn: func(_ context.Context, _ uint64) (*model.LineReservationSetting, error) {
+					return newSettingForValidation(), nil
+				},
+			},
+			customerRepo: &mockLiffCustomerRepository{
+				findByIDFn: func(_ context.Context, _, _ uint64) (*model.LineCustomer, error) {
+					return &model.LineCustomer{ID: customerID}, nil
+				},
+			},
+			ownerRepo:          nil,
+			reservationRepo:    reservationRepo,
+			trimmingDetailRepo: &mockTrimmingDetailRepository{},
+			notifier:           nil,
+			validators:         NewReservationValidators(&mockTransactor{}, reservationRepo, typeRepo, courseRepo, okTrimmingOptionRepo()),
+		}
+	}
+
+	baseInput := func() *CreateReservationInput {
+		return &CreateReservationInput{
+			ReservationTypeID: 1,
+			StaffID:           10,
+			Date:              dateInDays(3),
+			StartTime:         "1000",
+			EndTime:           "1015",
+		}
+	}
+
+	t.Run("rejects cross-clinic trimming course and does not create appointment", func(t *testing.T) {
+		created := false
+		svc := newSvc(&created, rejectTrimmingCourseRepo(ownedCourseID))
+		foreign := foreignCourseID
+		input := baseInput()
+		input.TrimmingCourseID = &foreign
+
+		out, err := svc.CreateReservation(context.Background(), clinicID, customerID, input)
+		assert.Error(t, err)
+		assert.Nil(t, out)
+		assert.False(t, created, "appointment must NOT be persisted referencing another clinic's trimming course")
+	})
+
+	t.Run("accepts same-clinic trimming course (no false-reject)", func(t *testing.T) {
+		created := false
+		svc := newSvc(&created, rejectTrimmingCourseRepo(ownedCourseID))
+		owned := ownedCourseID
+		input := baseInput()
+		input.TrimmingCourseID = &owned
+
+		out, err := svc.CreateReservation(context.Background(), clinicID, customerID, input)
+		assert.NoError(t, err)
+		assert.NotNil(t, out)
+		assert.True(t, created)
+	})
+}
+
 func rejectDiagnosisNameRepo(ownedID uint64) repository.DiagnosisNameRepository {
 	return &mockDiagnosisNameRepository{findByIDFn: func(_ context.Context, _, id uint64) (*model.DiagnosisName, error) {
 		if id != ownedID {
@@ -1438,6 +1702,1087 @@ func TestVaccineService_Update_RejectsCrossClinicParentFK(t *testing.T) {
 		svc := newSvc(&updated)
 		owned := ownedParentID
 		out, err := svc.Update(context.Background(), clinicID, entityID, &UpdateVaccineInput{ParentID: &owned})
+		assert.NoError(t, err)
+		assert.NotNil(t, out)
+		assert.True(t, updated)
+	})
+}
+
+// ── X-14 batch U2: medicineService self-ref ParentID + InventoryID (InventoryItem) ──
+//
+// Unlike the five self-ref-only services above, medicineService.Create unconditionally
+// creates a linked InventoryItem in the same tx (BUG-320), so its own repo/inventoryRepo
+// mocks need createFn wired even in the "rejects" tests' shared okInventoryRepo/
+// okMedicineRepo-shaped setup — see okInventoryRepo/rejectInventoryRepo above.
+
+func TestMedicineService_Create_RejectsCrossClinicParentFK(t *testing.T) {
+	const clinicID = uint64(1)
+	const ownedParentID = uint64(10)
+	const foreignParentID = uint64(999)
+
+	newSvc := func(created *bool) MedicineService {
+		repo := &mockMedicineRepository{
+			findByIDFn: func(_ context.Context, _, id uint64) (*model.Medicine, error) {
+				if id != ownedParentID {
+					return nil, apperrors.WrapNotFound("medicine", "foreign")
+				}
+				return &model.Medicine{ID: id}, nil
+			},
+			createFn: func(_ context.Context, medicine *model.Medicine) error {
+				*created = true
+				medicine.ID = 1
+				return nil
+			},
+		}
+		return NewMedicineService(repo, okInventoryRepo(), &mockTransactor{})
+	}
+
+	t.Run("rejects cross-clinic parent_id and does not persist", func(t *testing.T) {
+		created := false
+		svc := newSvc(&created)
+		foreign := foreignParentID
+		out, err := svc.Create(context.Background(), clinicID, &CreateMedicineInput{Name: "x", ParentID: &foreign})
+		assert.Error(t, err)
+		assert.Nil(t, out)
+		assert.False(t, created, "medicine must NOT be persisted referencing another clinic's parent medicine")
+	})
+
+	t.Run("accepts same-clinic parent_id (no false-reject)", func(t *testing.T) {
+		created := false
+		svc := newSvc(&created)
+		owned := ownedParentID
+		out, err := svc.Create(context.Background(), clinicID, &CreateMedicineInput{Name: "x", ParentID: &owned})
+		assert.NoError(t, err)
+		assert.NotNil(t, out)
+		assert.True(t, created)
+	})
+}
+
+func TestMedicineService_Update_RejectsCrossClinicParentFK(t *testing.T) {
+	const clinicID = uint64(1)
+	const entityID = uint64(1)
+	const ownedParentID = uint64(10)
+	const foreignParentID = uint64(999)
+
+	newSvc := func(updated *bool) MedicineService {
+		repo := &mockMedicineRepository{
+			findByIDFn: func(_ context.Context, _, id uint64) (*model.Medicine, error) {
+				if id == entityID || id == ownedParentID {
+					return &model.Medicine{ID: id}, nil
+				}
+				return nil, apperrors.WrapNotFound("medicine", "foreign")
+			},
+			updateFieldsFn: func(_ context.Context, _, id uint64, _ map[string]any) (*model.Medicine, error) {
+				*updated = true
+				return &model.Medicine{ID: id}, nil
+			},
+		}
+		return NewMedicineService(repo, &mockInventoryRepository{}, &mockTransactor{})
+	}
+
+	t.Run("rejects cross-clinic parent_id and does not persist", func(t *testing.T) {
+		updated := false
+		svc := newSvc(&updated)
+		foreign := foreignParentID
+		out, err := svc.Update(context.Background(), clinicID, entityID, &UpdateMedicineInput{ParentID: &foreign})
+		assert.Error(t, err)
+		assert.Nil(t, out)
+		assert.False(t, updated, "medicine must NOT be updated to reference another clinic's parent medicine")
+	})
+
+	t.Run("accepts same-clinic parent_id (no false-reject)", func(t *testing.T) {
+		updated := false
+		svc := newSvc(&updated)
+		owned := ownedParentID
+		out, err := svc.Update(context.Background(), clinicID, entityID, &UpdateMedicineInput{ParentID: &owned})
+		assert.NoError(t, err)
+		assert.NotNil(t, out)
+		assert.True(t, updated)
+	})
+}
+
+func TestMedicineService_Create_RejectsCrossClinicInventoryFK(t *testing.T) {
+	const clinicID = uint64(1)
+	const ownedInventoryID = uint64(20)
+	const foreignInventoryID = uint64(888)
+
+	newSvc := func(created *bool, inventoryRepo repository.InventoryRepository) MedicineService {
+		repo := &mockMedicineRepository{
+			createFn: func(_ context.Context, medicine *model.Medicine) error {
+				*created = true
+				medicine.ID = 1
+				return nil
+			},
+		}
+		return NewMedicineService(repo, inventoryRepo, &mockTransactor{})
+	}
+
+	t.Run("rejects cross-clinic inventory_id and does not persist", func(t *testing.T) {
+		created := false
+		svc := newSvc(&created, rejectInventoryRepo(ownedInventoryID))
+		foreign := foreignInventoryID
+		out, err := svc.Create(context.Background(), clinicID, &CreateMedicineInput{Name: "x", InventoryID: &foreign})
+		assert.Error(t, err)
+		assert.Nil(t, out)
+		assert.False(t, created, "medicine must NOT be persisted referencing another clinic's inventory item")
+	})
+
+	t.Run("accepts same-clinic inventory_id (no false-reject)", func(t *testing.T) {
+		created := false
+		svc := newSvc(&created, rejectInventoryRepo(ownedInventoryID))
+		owned := ownedInventoryID
+		out, err := svc.Create(context.Background(), clinicID, &CreateMedicineInput{Name: "x", InventoryID: &owned})
+		assert.NoError(t, err)
+		assert.NotNil(t, out)
+		assert.True(t, created)
+	})
+}
+
+func TestMedicineService_Update_RejectsCrossClinicInventoryFK(t *testing.T) {
+	const clinicID = uint64(1)
+	const entityID = uint64(1)
+	const ownedInventoryID = uint64(20)
+	const foreignInventoryID = uint64(888)
+
+	newSvc := func(updated *bool, inventoryRepo repository.InventoryRepository) MedicineService {
+		repo := &mockMedicineRepository{
+			findByIDFn: func(_ context.Context, _, id uint64) (*model.Medicine, error) {
+				return &model.Medicine{ID: id}, nil
+			},
+			updateFieldsFn: func(_ context.Context, _, id uint64, _ map[string]any) (*model.Medicine, error) {
+				*updated = true
+				return &model.Medicine{ID: id}, nil
+			},
+		}
+		return NewMedicineService(repo, inventoryRepo, &mockTransactor{})
+	}
+
+	t.Run("rejects cross-clinic inventory_id and does not persist", func(t *testing.T) {
+		updated := false
+		svc := newSvc(&updated, rejectInventoryRepo(ownedInventoryID))
+		foreign := foreignInventoryID
+		out, err := svc.Update(context.Background(), clinicID, entityID, &UpdateMedicineInput{InventoryID: &foreign})
+		assert.Error(t, err)
+		assert.Nil(t, out)
+		assert.False(t, updated, "medicine must NOT be updated to reference another clinic's inventory item")
+	})
+
+	t.Run("accepts same-clinic inventory_id (no false-reject)", func(t *testing.T) {
+		updated := false
+		svc := newSvc(&updated, rejectInventoryRepo(ownedInventoryID))
+		owned := ownedInventoryID
+		out, err := svc.Update(context.Background(), clinicID, entityID, &UpdateMedicineInput{InventoryID: &owned})
+		assert.NoError(t, err)
+		assert.NotNil(t, out)
+		assert.True(t, updated)
+	})
+}
+
+// ── lab import (X-14 batch U3): ExamTypeID ──
+//
+// labImportExaminationService.PersistExam/PersistBatch and labResultImportService.Commit
+// persisted a request-derived ExamTypeID without verifying it belongs to the caller's
+// clinic (same class as examinationService.Create, #124). Guard: examTypeRepo.FindByID
+// (ctx, clinicID, ExamTypeID) before dup-check/create, mirroring examination_service.go.
+// stubExamRepo/stubDupChecker/newStubLabJobService/syntheticFixtureBatch are shared
+// package-level test helpers from lab_import_examination_service_test.go and
+// lab_result_import_service_test.go.
+
+func TestLabImportExaminationService_PersistExam_RejectsCrossClinicExamType(t *testing.T) {
+	const clinicID = uint64(1)
+	const ownedExamTypeID = uint64(10)
+	const foreignExamTypeID = uint64(999)
+
+	newSvc := func(examRepo *stubExamRepo) LabImportExaminationService {
+		return NewLabImportExaminationService(examRepo, &stubDupChecker{}, rejectExamTypeRepo(ownedExamTypeID))
+	}
+
+	t.Run("rejects cross-clinic exam_type_id and does not persist", func(t *testing.T) {
+		examRepo := newStubExamRepo()
+		svc := newSvc(examRepo)
+		out, err := svc.PersistExam(context.Background(), LabExamPersistInput{
+			ClinicID:   clinicID,
+			ExamTypeID: foreignExamTypeID,
+			Date:       time.Now(),
+			JobID:      uuid.New(),
+		})
+		assert.Error(t, err)
+		assert.Nil(t, out)
+		assert.Empty(t, examRepo.exams, "lab import exam must NOT be persisted referencing another clinic's exam_type")
+	})
+
+	t.Run("accepts same-clinic exam_type_id (no false-reject)", func(t *testing.T) {
+		examRepo := newStubExamRepo()
+		svc := newSvc(examRepo)
+		out, err := svc.PersistExam(context.Background(), LabExamPersistInput{
+			ClinicID:   clinicID,
+			ExamTypeID: ownedExamTypeID,
+			Date:       time.Now(),
+			JobID:      uuid.New(),
+		})
+		assert.NoError(t, err)
+		assert.NotNil(t, out)
+		assert.Len(t, examRepo.exams, 1)
+	})
+}
+
+func TestLabImportExaminationService_PersistBatch_RejectsCrossClinicExamType(t *testing.T) {
+	const clinicID = uint64(1)
+	const ownedExamTypeID = uint64(10)
+	const foreignExamTypeID = uint64(999)
+
+	examRepo := newStubExamRepo()
+	svc := NewLabImportExaminationService(examRepo, &stubDupChecker{}, rejectExamTypeRepo(ownedExamTypeID))
+
+	jobID := uuid.New()
+	inputs := []LabExamPersistInput{
+		{ClinicID: clinicID, ExamTypeID: foreignExamTypeID, Date: time.Now(), JobID: jobID},
+		{ClinicID: clinicID, ExamTypeID: ownedExamTypeID, Date: time.Now(), JobID: jobID},
+	}
+
+	results, err := svc.PersistBatch(context.Background(), inputs)
+	assert.NoError(t, err)
+	assert.Len(t, results, 2)
+
+	assert.Error(t, results[0].RowError, "foreign exam_type_id row must be recorded as RowError")
+	assert.NoError(t, results[1].RowError, "same-clinic exam_type_id row must NOT be rejected")
+	assert.Len(t, examRepo.exams, 1, "only the same-clinic row must be persisted")
+}
+
+func TestLabResultImportService_Commit_RejectsCrossClinicExamType(t *testing.T) {
+	const clinicID = uint64(1)
+	const ownedExamTypeID = uint64(10)
+	const foreignExamTypeID = uint64(999)
+
+	jobSvc := newStubLabJobService()
+	examRepo := newStubExamRepo()
+	examSvc := NewLabImportExaminationService(examRepo, &stubDupChecker{}, rejectExamTypeRepo(ownedExamTypeID))
+	svc := NewLabResultImportService(jobSvc, examSvc)
+
+	batch := syntheticFixtureBatch(1)
+	inputs := []LabExamPersistInput{
+		{ClinicID: clinicID, ExamTypeID: foreignExamTypeID, Date: time.Now()},
+	}
+
+	resp, err := svc.Commit(context.Background(), clinicID, batch, inputs)
+	assert.NoError(t, err, "Commit must not return a function-level error for a per-row rejection")
+	assert.Equal(t, 1, resp.FailedCount, "foreign exam_type_id row must be counted as failed, not persisted")
+	assert.Equal(t, 0, resp.PersistedCount)
+	assert.Empty(t, examRepo.exams, "no exam must be persisted for the foreign exam_type_id row")
+}
+
+// ── X-14 batch U4: inquiryService.Save / medicalRecordService.CreateSubRecords ──
+//
+// inquiryService.Save persisted a request-derived ChiefComplaintTypeID without verifying
+// clinic ownership (inquiry_service.go). medicalRecordService.CreateSubRecords carries the
+// same hole for ChiefComplaintTypeID plus four diagnosis FKs, bypassing
+// clinicalPlanService's validateDiagnosisFKs entirely (medical_record_subrecords.go).
+
+func rejectChiefComplaintTypeRepo(ownedID uint64) repository.ChiefComplaintTypeRepository {
+	return &mockChiefComplaintTypeRepository{findByIDFn: func(_ context.Context, _, id uint64) (*model.ChiefComplaintType, error) {
+		if id != ownedID {
+			return nil, apperrors.WrapNotFound("chief_complaint_type", "foreign")
+		}
+		return &model.ChiefComplaintType{ID: id}, nil
+	}}
+}
+
+func TestInquiryService_Save_RejectsCrossClinicChiefComplaintType(t *testing.T) {
+	const clinicID = uint64(1)
+	const ownedTypeID = uint64(10)
+	const foreignTypeID = uint64(999)
+
+	newSvc := func(saved *bool) InquiryService {
+		repo := &mockInquiryRepository{
+			upsertFn: func(_ context.Context, _ uint64, inquiry *model.Inquiry) (*model.Inquiry, error) {
+				*saved = true
+				return inquiry, nil
+			},
+		}
+		return NewInquiryService(repo, rejectChiefComplaintTypeRepo(ownedTypeID))
+	}
+
+	t.Run("rejects cross-clinic chief_complaint_type_id and does not persist", func(t *testing.T) {
+		saved := false
+		svc := newSvc(&saved)
+		foreign := foreignTypeID
+		out, err := svc.Save(context.Background(), UpsertInquiryInput{
+			ClinicID: clinicID, MedicalRecordID: 1, ChiefComplaintTypeID: &foreign,
+		})
+		assert.Error(t, err)
+		assert.Nil(t, out)
+		assert.False(t, saved, "inquiry must NOT be persisted referencing another clinic's chief complaint type")
+	})
+
+	t.Run("accepts same-clinic chief_complaint_type_id (no false-reject)", func(t *testing.T) {
+		saved := false
+		svc := newSvc(&saved)
+		owned := ownedTypeID
+		out, err := svc.Save(context.Background(), UpsertInquiryInput{
+			ClinicID: clinicID, MedicalRecordID: 1, ChiefComplaintTypeID: &owned,
+		})
+		assert.NoError(t, err)
+		assert.NotNil(t, out)
+		assert.True(t, saved)
+	})
+}
+
+func TestMedicalRecordService_CreateSubRecords_RejectsCrossClinicChiefComplaintType(t *testing.T) {
+	const clinicID = uint64(1)
+	const ownedTypeID = uint64(10)
+	const foreignTypeID = uint64(999)
+
+	newSvc := func(saved *bool) *medicalRecordService {
+		inquiryRepo := &mockInquiryRepository{
+			upsertFn: func(_ context.Context, _ uint64, inquiry *model.Inquiry) (*model.Inquiry, error) {
+				*saved = true
+				return inquiry, nil
+			},
+		}
+		clinicalPlanRepo := &mockClinicalPlanRepository{
+			findByMedicalRecordIDFn: func(_ context.Context, _, mrID uint64) (*model.ClinicalPlan, error) {
+				return &model.ClinicalPlan{ID: 1, MedicalRecordID: mrID}, nil
+			},
+		}
+		return &medicalRecordService{
+			inquiryRepo:            inquiryRepo,
+			clinicalPlanRepo:       clinicalPlanRepo,
+			chiefComplaintTypeRepo: rejectChiefComplaintTypeRepo(ownedTypeID),
+			diagTypeRepo:           okDiagnosisTypeRepo(),
+			diagNameRepo:           okDiagnosisNameRepo(),
+		}
+	}
+
+	t.Run("rejects cross-clinic chief_complaint_type_id and does not upsert inquiry", func(t *testing.T) {
+		saved := false
+		svc := newSvc(&saved)
+		foreign := foreignTypeID
+		svc.CreateSubRecords(context.Background(), clinicID, 1, CreateSubRecordsInput{ChiefComplaintTypeID: &foreign})
+		assert.False(t, saved, "inquiry must NOT be persisted referencing another clinic's chief complaint type")
+	})
+
+	t.Run("accepts same-clinic chief_complaint_type_id (no false-reject)", func(t *testing.T) {
+		saved := false
+		svc := newSvc(&saved)
+		owned := ownedTypeID
+		svc.CreateSubRecords(context.Background(), clinicID, 1, CreateSubRecordsInput{ChiefComplaintTypeID: &owned})
+		assert.True(t, saved)
+	})
+}
+
+func TestMedicalRecordService_CreateSubRecords_RejectsCrossClinicDiagnosisFK(t *testing.T) {
+	const clinicID = uint64(1)
+	const ownedTypeID = uint64(10)
+	const foreignTypeID = uint64(999)
+
+	newSvc := func(updated *bool) *medicalRecordService {
+		clinicalPlanRepo := &mockClinicalPlanRepository{
+			findByMedicalRecordIDFn: func(_ context.Context, _, mrID uint64) (*model.ClinicalPlan, error) {
+				return &model.ClinicalPlan{ID: 1, MedicalRecordID: mrID}, nil
+			},
+			updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) error {
+				*updated = true
+				return nil
+			},
+		}
+		return &medicalRecordService{
+			inquiryRepo:            &mockInquiryRepository{},
+			clinicalPlanRepo:       clinicalPlanRepo,
+			chiefComplaintTypeRepo: okChiefComplaintTypeRepo(),
+			diagTypeRepo:           rejectDiagnosisTypeRepo(ownedTypeID),
+			diagNameRepo:           okDiagnosisNameRepo(),
+		}
+	}
+
+	t.Run("rejects cross-clinic diagnosis_1_category_id and does not update clinical plan", func(t *testing.T) {
+		updated := false
+		svc := newSvc(&updated)
+		foreign := foreignTypeID
+		svc.CreateSubRecords(context.Background(), clinicID, 1, CreateSubRecordsInput{Diagnosis1CategoryID: &foreign})
+		assert.False(t, updated, "clinical plan must NOT be updated to reference another clinic's diagnosis type")
+	})
+
+	t.Run("accepts same-clinic diagnosis_1_category_id (no false-reject)", func(t *testing.T) {
+		updated := false
+		svc := newSvc(&updated)
+		owned := ownedTypeID
+		svc.CreateSubRecords(context.Background(), clinicID, 1, CreateSubRecordsInput{Diagnosis1CategoryID: &owned})
+		assert.True(t, updated)
+	})
+}
+
+func TestMedicalRecordService_CreateSubRecords_RejectsCrossClinicDiagnosisNameFK(t *testing.T) {
+	const clinicID = uint64(1)
+	const ownedNameID = uint64(20)
+	const foreignNameID = uint64(888)
+
+	newSvc := func(updated *bool) *medicalRecordService {
+		clinicalPlanRepo := &mockClinicalPlanRepository{
+			findByMedicalRecordIDFn: func(_ context.Context, _, mrID uint64) (*model.ClinicalPlan, error) {
+				return &model.ClinicalPlan{ID: 1, MedicalRecordID: mrID}, nil
+			},
+			updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) error {
+				*updated = true
+				return nil
+			},
+		}
+		return &medicalRecordService{
+			inquiryRepo:            &mockInquiryRepository{},
+			clinicalPlanRepo:       clinicalPlanRepo,
+			chiefComplaintTypeRepo: okChiefComplaintTypeRepo(),
+			diagTypeRepo:           okDiagnosisTypeRepo(),
+			diagNameRepo:           rejectDiagnosisNameRepo(ownedNameID),
+		}
+	}
+
+	t.Run("rejects cross-clinic diagnosis_1_name_id and does not update clinical plan", func(t *testing.T) {
+		updated := false
+		svc := newSvc(&updated)
+		foreign := foreignNameID
+		svc.CreateSubRecords(context.Background(), clinicID, 1, CreateSubRecordsInput{Diagnosis1NameID: &foreign})
+		assert.False(t, updated, "clinical plan must NOT be updated to reference another clinic's diagnosis name")
+	})
+
+	t.Run("accepts same-clinic diagnosis_1_name_id (no false-reject)", func(t *testing.T) {
+		updated := false
+		svc := newSvc(&updated)
+		owned := ownedNameID
+		svc.CreateSubRecords(context.Background(), clinicID, 1, CreateSubRecordsInput{Diagnosis1NameID: &owned})
+		assert.True(t, updated)
+	})
+}
+
+// ── owner/pet InsuranceID (X-14 batch U5) ──
+//
+// ownerService.CreateWithPets persisted a nested, request-derived InsuranceID
+// (input.Pets[i].InsuranceID) without verifying it belongs to the caller's clinic —
+// buildOwnerPetModels maps it straight onto model.Pet. Guard: insuranceRepo.FindByID
+// (ctx, clinicID, InsuranceID) for every pet before repo.CreateWithPets.
+//
+// petService.Create/Update already carry the same FindByID guard (pet_service.go);
+// they lacked a DEDICATED isolation test distinguishing same-clinic vs cross-clinic
+// IDs (TestPetService_Update_InsuranceValidation above always returns NotFound
+// regardless of ID). These tests supply that missing runtime evidence so the
+// allowlist can move from known-unguarded to guarded.
+
+func TestOwnerService_CreateWithPets_RejectsCrossClinicInsuranceID(t *testing.T) {
+	const clinicID = uint64(1)
+	const ownedInsuranceID = uint64(20)
+	const foreignInsuranceID = uint64(888)
+
+	newSvc := func(created *bool, insuranceRepo repository.InsuranceRepository) OwnerService {
+		repo := &mockOwnerRepository{
+			createWithPetsFn: func(_ context.Context, owner *model.Owner, _ []model.Pet) error {
+				*created = true
+				owner.ID = 1
+				return nil
+			},
+		}
+		return NewOwnerService(repo, insuranceRepo, &mockLstepTagSyncService{}, nil)
+	}
+
+	t.Run("rejects cross-clinic nested insurance_id and does not persist owner or pets", func(t *testing.T) {
+		created := false
+		svc := newSvc(&created, rejectInsuranceRepo(ownedInsuranceID))
+		foreign := foreignInsuranceID
+		input := &CreateOwnerInput{
+			OwnerName: "テスト 太郎",
+			Pets: []CreatePetForOwnerInput{
+				{Name: "ポチ", AnimalSpeciesID: 1, InsuranceID: &foreign},
+			},
+		}
+		out, err := svc.CreateWithPets(context.Background(), clinicID, input)
+		assert.Error(t, err)
+		assert.Nil(t, out)
+		assert.False(t, created, "owner/pets must NOT be persisted with a nested cross-clinic insurance_id")
+	})
+
+	t.Run("accepts same-clinic nested insurance_id (no false-reject)", func(t *testing.T) {
+		created := false
+		svc := newSvc(&created, rejectInsuranceRepo(ownedInsuranceID))
+		owned := ownedInsuranceID
+		input := &CreateOwnerInput{
+			OwnerName: "テスト 太郎",
+			Pets: []CreatePetForOwnerInput{
+				{Name: "ポチ", AnimalSpeciesID: 1, InsuranceID: &owned},
+			},
+		}
+		out, err := svc.CreateWithPets(context.Background(), clinicID, input)
+		assert.NoError(t, err)
+		assert.NotNil(t, out)
+		assert.True(t, created)
+	})
+}
+
+func TestPetService_Create_RejectsCrossClinicInsuranceID(t *testing.T) {
+	const clinicID = uint64(1)
+	const ownedInsuranceID = uint64(20)
+	const foreignInsuranceID = uint64(888)
+
+	insuranceRepoFor := func(ownedID uint64) *mockInsuranceRepository {
+		return &mockInsuranceRepository{
+			findByIDFn: func(_ context.Context, _, id uint64) (*model.Insurance, error) {
+				if id != ownedID {
+					return nil, apperrors.WrapNotFound("insurance", "foreign")
+				}
+				return &model.Insurance{ID: id}, nil
+			},
+		}
+	}
+
+	newSvc := func(created *bool) PetService {
+		repo := &mockPetRepository{
+			createFn: func(_ context.Context, pet *model.Pet) error {
+				*created = true
+				pet.ID = 1
+				return nil
+			},
+		}
+		return newPetSvc(repo, defaultOwnerRepo(), insuranceRepoFor(ownedInsuranceID), defaultMedicalRecordRepo())
+	}
+
+	t.Run("rejects cross-clinic insurance_id and does not persist", func(t *testing.T) {
+		created := false
+		svc := newSvc(&created)
+		foreign := foreignInsuranceID
+		out, err := svc.Create(context.Background(), clinicID, &CreatePetInput{Name: "ポチ", OwnerID: 5, InsuranceID: &foreign})
+		assert.Error(t, err)
+		assert.Nil(t, out)
+		assert.False(t, created, "pet must NOT be persisted referencing another clinic's insurance")
+	})
+
+	t.Run("accepts same-clinic insurance_id (no false-reject)", func(t *testing.T) {
+		created := false
+		svc := newSvc(&created)
+		owned := ownedInsuranceID
+		out, err := svc.Create(context.Background(), clinicID, &CreatePetInput{Name: "ポチ", OwnerID: 5, InsuranceID: &owned})
+		assert.NoError(t, err)
+		assert.NotNil(t, out)
+		assert.True(t, created)
+	})
+}
+
+func TestPetService_Update_RejectsCrossClinicInsuranceID(t *testing.T) {
+	const clinicID = uint64(1)
+	const petID = uint64(1)
+	const ownedInsuranceID = uint64(20)
+	const foreignInsuranceID = uint64(888)
+
+	insuranceRepoFor := func(ownedID uint64) *mockInsuranceRepository {
+		return &mockInsuranceRepository{
+			findByIDFn: func(_ context.Context, _, id uint64) (*model.Insurance, error) {
+				if id != ownedID {
+					return nil, apperrors.WrapNotFound("insurance", "foreign")
+				}
+				return &model.Insurance{ID: id}, nil
+			},
+		}
+	}
+
+	newSvc := func(updated *bool) PetService {
+		repo := &mockPetRepository{
+			findByIDFn: func(_ context.Context, _, id uint64) (*model.Pet, error) {
+				return &model.Pet{ID: id, ClinicID: clinicID}, nil
+			},
+			updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) error {
+				*updated = true
+				return nil
+			},
+		}
+		return newPetSvc(repo, defaultOwnerRepo(), insuranceRepoFor(ownedInsuranceID), defaultMedicalRecordRepo())
+	}
+
+	t.Run("rejects cross-clinic insurance_id and does not persist", func(t *testing.T) {
+		updated := false
+		svc := newSvc(&updated)
+		foreign := ptrUint64(foreignInsuranceID)
+		out, err := svc.Update(context.Background(), clinicID, petID, &UpdatePetInput{InsuranceID: &foreign})
+		assert.Error(t, err)
+		assert.Nil(t, out)
+		assert.False(t, updated, "pet must NOT be updated to reference another clinic's insurance")
+	})
+
+	t.Run("accepts same-clinic insurance_id (no false-reject)", func(t *testing.T) {
+		updated := false
+		svc := newSvc(&updated)
+		owned := ptrUint64(ownedInsuranceID)
+		out, err := svc.Update(context.Background(), clinicID, petID, &UpdatePetInput{InsuranceID: &owned})
+		assert.NoError(t, err)
+		assert.NotNil(t, out)
+		assert.True(t, updated)
+	})
+
+	t.Run("NULL clear (&nil) is not subject to the ownership guard", func(t *testing.T) {
+		updated := false
+		svc := newSvc(&updated)
+		var nilInsurance *uint64
+		out, err := svc.Update(context.Background(), clinicID, petID, &UpdatePetInput{InsuranceID: &nilInsurance})
+		assert.NoError(t, err)
+		assert.NotNil(t, out)
+		assert.True(t, updated)
+	})
+}
+
+// ── reservationAdminService.Create / reservationService.Create+Update /
+//    reservationTypeService.Create+Update (X-14/U6b): ReservationTypeID / GroupID ──
+//
+// U6a closed the LINE-reservation path (reservationValidators/liffService). U6b closes
+// the remaining reservation cluster: admin manual booking, electronic-karte booking
+// (including the "shortcut" routes that skip capacity checks), and the reservation-type
+// master itself (GroupID — ParentID was already guarded).
+
+func TestReservationAdminService_Create_RejectsCrossClinicReservationType(t *testing.T) {
+	const clinicID = uint64(1)
+	const ownedTypeID = uint64(50)
+	const foreignTypeID = uint64(999)
+	start := time.Date(2026, 6, 1, 10, 0, 0, 0, time.UTC)
+
+	typeRepo := mockReservationTypeFinder{
+		findByIDFn: func(_ context.Context, gotClinicID, id uint64) (*model.ReservationType, error) {
+			if gotClinicID != clinicID || id != ownedTypeID {
+				return nil, apperrors.WrapNotFound("reservation_type", "foreign")
+			}
+			return &model.ReservationType{ID: id, ClinicID: clinicID}, nil
+		},
+	}
+
+	newSvc := func(created *bool) ReservationAdminService {
+		resRepo := &mockReservationRepository{
+			createFn: func(_ context.Context, _ *model.Reservation) error {
+				*created = true
+				return nil
+			},
+		}
+		return NewReservationAdminServiceWithAvailabilityAndType(
+			&mockReservationAdminRepository{}, resRepo, typeRepo, &mockTransactor{}, nil, nil,
+		)
+	}
+
+	baseInput := func(typeID uint64) *CreateReservationAdminInput {
+		return &CreateReservationAdminInput{
+			StartTime:         start,
+			EndTime:           start.Add(30 * time.Minute),
+			ReservationTypeID: typeID,
+		}
+	}
+
+	t.Run("rejects cross-clinic reservation_type_id and does not persist", func(t *testing.T) {
+		created := false
+		svc := newSvc(&created)
+		out, err := svc.Create(context.Background(), clinicID, baseInput(foreignTypeID))
+		assert.Error(t, err)
+		assert.Nil(t, out)
+		assert.False(t, created, "admin reservation must NOT be persisted referencing another clinic's reservation type")
+	})
+
+	t.Run("accepts same-clinic reservation_type_id (no false-reject)", func(t *testing.T) {
+		created := false
+		svc := newSvc(&created)
+		out, err := svc.Create(context.Background(), clinicID, baseInput(ownedTypeID))
+		assert.NoError(t, err)
+		assert.NotNil(t, out)
+		assert.True(t, created)
+	})
+}
+
+func TestReservationService_Create_RejectsCrossClinicReservationType(t *testing.T) {
+	const clinicID = uint64(1)
+	const ownedTypeID = uint64(50)
+	const foreignTypeID = uint64(999)
+	start := time.Date(2026, 6, 1, 10, 0, 0, 0, time.UTC)
+
+	typeRepo := mockReservationTypeFinder{
+		findByIDFn: func(_ context.Context, gotClinicID, id uint64) (*model.ReservationType, error) {
+			if gotClinicID != clinicID || id != ownedTypeID {
+				return nil, apperrors.WrapNotFound("reservation_type", "foreign")
+			}
+			return &model.ReservationType{ID: id, ClinicID: clinicID}, nil
+		},
+	}
+
+	newSvc := func(created *bool) ReservationService {
+		repo := &mockReservationRepository{
+			createFn: func(_ context.Context, _ *model.Reservation) error {
+				*created = true
+				return nil
+			},
+		}
+		return NewReservationServiceWithAvailabilityAndType(repo, typeRepo, &mockTransactor{}, nil, nil)
+	}
+
+	baseInput := func(typeID uint64, route *string, status model.ReservationStatus) *CreateManualReservationInput {
+		return &CreateManualReservationInput{
+			ClinicID:          clinicID,
+			StartTime:         start,
+			EndTime:           start.Add(30 * time.Minute),
+			ReservationTypeID: typeID,
+			Status:            status,
+			ReservationRoute:  route,
+		}
+	}
+
+	// shortcut 経路(reception/exam_room/record_shortcut)は enforceBookingConstraints=false
+	// となり容量チェック(FindByID)がスキップされる経路 — U6b で塞いだ真の穴。
+	routes := []*string{ptrString("reception"), ptrString("exam_room"), ptrString("record_shortcut")}
+	for _, route := range routes {
+		t.Run("rejects cross-clinic reservation_type_id via shortcut route "+*route, func(t *testing.T) {
+			created := false
+			svc := newSvc(&created)
+			out, err := svc.Create(context.Background(), baseInput(foreignTypeID, route, model.ReservationStatusPending))
+			assert.Error(t, err)
+			assert.Nil(t, out)
+			assert.False(t, created, "reservation must NOT be persisted via shortcut route referencing another clinic's reservation type")
+		})
+
+		t.Run("accepts same-clinic reservation_type_id via shortcut route "+*route+" (no false-reject)", func(t *testing.T) {
+			created := false
+			svc := newSvc(&created)
+			out, err := svc.Create(context.Background(), baseInput(ownedTypeID, route, model.ReservationStatusPending))
+			assert.NoError(t, err)
+			assert.NotNil(t, out)
+			assert.True(t, created)
+		})
+	}
+
+	t.Run("rejects cross-clinic reservation_type_id via normal (enforced) route", func(t *testing.T) {
+		created := false
+		svc := newSvc(&created)
+		out, err := svc.Create(context.Background(), baseInput(foreignTypeID, nil, model.ReservationStatusPending))
+		assert.Error(t, err)
+		assert.Nil(t, out)
+		assert.False(t, created)
+	})
+}
+
+func TestReservationService_Update_RejectsCrossClinicReservationType(t *testing.T) {
+	const clinicID = uint64(1)
+	const reservationID = uint64(7)
+	const ownedTypeID = uint64(50)
+	const foreignTypeID = uint64(999)
+	start := time.Date(2026, 6, 1, 10, 0, 0, 0, time.UTC)
+
+	typeRepo := mockReservationTypeFinder{
+		findByIDFn: func(_ context.Context, gotClinicID, id uint64) (*model.ReservationType, error) {
+			if gotClinicID != clinicID || id != ownedTypeID {
+				return nil, apperrors.WrapNotFound("reservation_type", "foreign")
+			}
+			return &model.ReservationType{ID: id, ClinicID: clinicID}, nil
+		},
+	}
+
+	newSvc := func(updated *bool) ReservationService {
+		repo := &mockReservationRepository{
+			findByIDFn: func(_ context.Context, gotClinicID, id uint64) (*model.Reservation, error) {
+				return &model.Reservation{ID: id, ClinicID: gotClinicID, StartTime: start, EndTime: start.Add(30 * time.Minute), ReservationTypeID: ownedTypeID}, nil
+			},
+			lockAndFindByIDFn: func(_ context.Context, gotClinicID, id uint64) (*model.Reservation, error) {
+				return &model.Reservation{ID: id, ClinicID: gotClinicID, StartTime: start, EndTime: start.Add(30 * time.Minute), ReservationTypeID: ownedTypeID}, nil
+			},
+			updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Reservation, error) {
+				*updated = true
+				return &model.Reservation{ID: reservationID, ClinicID: clinicID}, nil
+			},
+		}
+		return NewReservationServiceWithAvailabilityAndType(repo, typeRepo, &mockTransactor{}, nil, nil)
+	}
+
+	t.Run("rejects cross-clinic reservation_type_id and does not persist", func(t *testing.T) {
+		updated := false
+		svc := newSvc(&updated)
+		foreign := foreignTypeID
+		out, err := svc.Update(context.Background(), clinicID, reservationID, &UpdateReservationInput{ReservationTypeID: &foreign})
+		assert.Error(t, err)
+		assert.Nil(t, out)
+		assert.False(t, updated, "reservation must NOT be updated to reference another clinic's reservation type")
+	})
+
+	t.Run("accepts same-clinic reservation_type_id (no false-reject)", func(t *testing.T) {
+		updated := false
+		svc := newSvc(&updated)
+		owned := ownedTypeID
+		out, err := svc.Update(context.Background(), clinicID, reservationID, &UpdateReservationInput{ReservationTypeID: &owned})
+		assert.NoError(t, err)
+		assert.NotNil(t, out)
+		assert.True(t, updated)
+	})
+}
+
+func TestReservationTypeService_Create_RejectsCrossClinicGroupID(t *testing.T) {
+	const clinicID = uint64(1)
+	const ownedGroupID = uint64(20)
+	const foreignGroupID = uint64(999)
+
+	groupRepoFor := func() repository.ReservationTypeGroupRepository {
+		return &mockReservationTypeGroupRepository{
+			findByIDFn: func(_ context.Context, gotClinicID, id uint64) (*model.ReservationTypeGroup, error) {
+				if gotClinicID != clinicID || id != ownedGroupID {
+					return nil, apperrors.WrapNotFound("reservation_type_group", "foreign")
+				}
+				return &model.ReservationTypeGroup{ID: id, ClinicID: clinicID}, nil
+			},
+		}
+	}
+
+	newSvc := func(created *bool) ReservationTypeService {
+		repo := &mockReservationTypeRepository{
+			createFn: func(_ context.Context, _ *model.ReservationType) error {
+				*created = true
+				return nil
+			},
+		}
+		return NewReservationTypeService(repo, &mockUnavailableTimeRepository{}, &mockOccupationRepoForRType{}, &mockBaseOccupationRepo{}, groupRepoFor())
+	}
+
+	t.Run("rejects cross-clinic group_id and does not persist", func(t *testing.T) {
+		created := false
+		svc := newSvc(&created)
+		foreign := foreignGroupID
+		out, err := svc.Create(context.Background(), clinicID, &CreateReservationTypeInput{Name: "診察", GroupID: &foreign})
+		assert.Error(t, err)
+		assert.Nil(t, out)
+		assert.False(t, created, "reservation type must NOT be persisted referencing another clinic's group")
+	})
+
+	t.Run("accepts same-clinic group_id (no false-reject)", func(t *testing.T) {
+		created := false
+		svc := newSvc(&created)
+		owned := ownedGroupID
+		out, err := svc.Create(context.Background(), clinicID, &CreateReservationTypeInput{Name: "診察", GroupID: &owned})
+		assert.NoError(t, err)
+		assert.NotNil(t, out)
+		assert.True(t, created)
+	})
+}
+
+func TestReservationTypeService_Update_RejectsCrossClinicGroupID(t *testing.T) {
+	const clinicID = uint64(1)
+	const reservationTypeID = uint64(5)
+	const ownedGroupID = uint64(20)
+	const foreignGroupID = uint64(999)
+
+	groupRepoFor := func() repository.ReservationTypeGroupRepository {
+		return &mockReservationTypeGroupRepository{
+			findByIDFn: func(_ context.Context, gotClinicID, id uint64) (*model.ReservationTypeGroup, error) {
+				if gotClinicID != clinicID || id != ownedGroupID {
+					return nil, apperrors.WrapNotFound("reservation_type_group", "foreign")
+				}
+				return &model.ReservationTypeGroup{ID: id, ClinicID: clinicID}, nil
+			},
+		}
+	}
+
+	newSvc := func(updated *bool) ReservationTypeService {
+		repo := &mockReservationTypeRepository{
+			findByIDFn: func(_ context.Context, gotClinicID, id uint64) (*model.ReservationType, error) {
+				return &model.ReservationType{ID: id, ClinicID: gotClinicID}, nil
+			},
+			updateFn: func(_ context.Context, gotClinicID, id uint64, _ map[string]any) (*model.ReservationType, error) {
+				*updated = true
+				return &model.ReservationType{ID: id, ClinicID: gotClinicID}, nil
+			},
+		}
+		return NewReservationTypeService(repo, &mockUnavailableTimeRepository{}, &mockOccupationRepoForRType{}, &mockBaseOccupationRepo{}, groupRepoFor())
+	}
+
+	t.Run("rejects cross-clinic group_id and does not persist", func(t *testing.T) {
+		updated := false
+		svc := newSvc(&updated)
+		foreign := foreignGroupID
+		out, err := svc.Update(context.Background(), clinicID, reservationTypeID, &UpdateReservationTypeInput{GroupID: &foreign})
+		assert.Error(t, err)
+		assert.Nil(t, out)
+		assert.False(t, updated, "reservation type must NOT be updated to reference another clinic's group")
+	})
+
+	t.Run("accepts same-clinic group_id (no false-reject)", func(t *testing.T) {
+		updated := false
+		svc := newSvc(&updated)
+		owned := ownedGroupID
+		out, err := svc.Update(context.Background(), clinicID, reservationTypeID, &UpdateReservationTypeInput{GroupID: &owned})
+		assert.NoError(t, err)
+		assert.NotNil(t, out)
+		assert.True(t, updated)
+	})
+}
+
+// TestReservationTypeService_Update_RejectsCrossClinicParentID は ParentID の
+// 所有権ガード(validateReservationTypeParent、既存実装)にクロステナント isolation の
+// 実証テストを追加する(X-14: 「実装済みだが証拠不足」パターン。GroupID と対称)。
+func TestReservationTypeService_Update_RejectsCrossClinicParentID(t *testing.T) {
+	const clinicID = uint64(1)
+	const reservationTypeID = uint64(5)
+	const ownedParentID = uint64(30)
+	const foreignParentID = uint64(999)
+
+	newSvc := func(updated *bool) ReservationTypeService {
+		repo := &mockReservationTypeRepository{
+			findByIDFn: func(_ context.Context, gotClinicID, id uint64) (*model.ReservationType, error) {
+				if id == reservationTypeID {
+					return &model.ReservationType{ID: id, ClinicID: gotClinicID}, nil
+				}
+				if gotClinicID != clinicID || id != ownedParentID {
+					return nil, apperrors.WrapNotFound("reservation_type", "foreign")
+				}
+				return &model.ReservationType{ID: id, ClinicID: clinicID}, nil
+			},
+			updateFn: func(_ context.Context, gotClinicID, id uint64, _ map[string]any) (*model.ReservationType, error) {
+				*updated = true
+				return &model.ReservationType{ID: id, ClinicID: gotClinicID}, nil
+			},
+		}
+		return NewReservationTypeService(repo, &mockUnavailableTimeRepository{}, &mockOccupationRepoForRType{}, &mockBaseOccupationRepo{}, nil)
+	}
+
+	t.Run("rejects cross-clinic parent_id and does not persist", func(t *testing.T) {
+		updated := false
+		svc := newSvc(&updated)
+		foreign := foreignParentID
+		out, err := svc.Update(context.Background(), clinicID, reservationTypeID, &UpdateReservationTypeInput{ParentID: &foreign})
+		assert.Error(t, err)
+		assert.Nil(t, out)
+		assert.False(t, updated, "reservation type must NOT be updated to reference another clinic's parent")
+	})
+
+	t.Run("accepts same-clinic parent_id (no false-reject)", func(t *testing.T) {
+		updated := false
+		svc := newSvc(&updated)
+		owned := ownedParentID
+		out, err := svc.Update(context.Background(), clinicID, reservationTypeID, &UpdateReservationTypeInput{ParentID: &owned})
+		assert.NoError(t, err)
+		assert.NotNil(t, out)
+		assert.True(t, updated)
+	})
+}
+
+// ── staffService (X-14 batch U7): OccupationID ──
+//
+// staffService.Create/CreateWithAccount/Update persisted a request-derived OccupationID
+// without verifying it belongs to the caller's clinic. Guard: occupationRepo.FindByID
+// (ctx, clinicID, OccupationID) before persist, mirroring medicineService's
+// validateInventoryOwnership (X-14 batch U2). occupationRepo is now a mandatory
+// NewStaffService dependency (see staff_service_core.go validateOccupationOwnership).
+
+func TestStaffService_Create_RejectsCrossClinicOccupationID(t *testing.T) {
+	const clinicID = uint64(1)
+	const ownedOccupationID = uint64(10)
+	const foreignOccupationID = uint64(999)
+
+	newSvc := func(created *bool, occupationRepo repository.OccupationRepository) StaffService {
+		repo := &mockStaffRepository{
+			createFn: func(_ context.Context, staff *model.Staff) error {
+				*created = true
+				staff.ID = 1
+				return nil
+			},
+		}
+		return NewStaffService(repo, &mockAccountForStaff{}, &mockAssignmentForStaff{}, &mockReservationForStaff{}, &mockShiftEntryForStaff{}, &mockPermissionGroupForStaff{}, &mockResStaffForStaff{}, occupationRepo, noopTransactor{})
+	}
+
+	t.Run("rejects cross-clinic occupation_id and does not persist", func(t *testing.T) {
+		created := false
+		svc := newSvc(&created, rejectOccupationRepo(ownedOccupationID))
+		foreign := foreignOccupationID
+		out, err := svc.Create(context.Background(), &CreateStaffInput{ClinicID: clinicID, Name: "x", OccupationID: &foreign})
+		assert.Error(t, err)
+		assert.Nil(t, out)
+		assert.False(t, created, "staff must NOT be persisted referencing another clinic's occupation")
+	})
+
+	t.Run("accepts same-clinic occupation_id (no false-reject)", func(t *testing.T) {
+		created := false
+		svc := newSvc(&created, rejectOccupationRepo(ownedOccupationID))
+		owned := ownedOccupationID
+		out, err := svc.Create(context.Background(), &CreateStaffInput{ClinicID: clinicID, Name: "x", OccupationID: &owned})
+		assert.NoError(t, err)
+		assert.NotNil(t, out)
+		assert.True(t, created)
+	})
+}
+
+func TestStaffService_CreateWithAccount_RejectsCrossClinicOccupationID(t *testing.T) {
+	const clinicID = uint64(1)
+	const ownedOccupationID = uint64(10)
+	const foreignOccupationID = uint64(999)
+
+	newSvc := func(created *bool, occupationRepo repository.OccupationRepository) StaffService {
+		repo := &mockStaffRepository{
+			createFn: func(_ context.Context, staff *model.Staff) error {
+				*created = true
+				staff.ID = 1
+				return nil
+			},
+		}
+		accountRepo := &mockAccountForStaff{
+			findByEmailFn: func(_ context.Context, _ string) (*model.Account, error) {
+				return nil, apperrors.WrapNotFound("account", "email")
+			},
+			createFn: func(_ context.Context, account *model.Account) error {
+				account.ID = 1
+				return nil
+			},
+		}
+		return NewStaffService(repo, accountRepo, &mockAssignmentForStaff{}, &mockReservationForStaff{}, &mockShiftEntryForStaff{}, &mockPermissionGroupForStaff{}, &mockResStaffForStaff{}, occupationRepo, noopTransactor{})
+	}
+
+	t.Run("rejects cross-clinic occupation_id and does not persist", func(t *testing.T) {
+		created := false
+		svc := newSvc(&created, rejectOccupationRepo(ownedOccupationID))
+		foreign := foreignOccupationID
+		out, err := svc.CreateWithAccount(context.Background(), &CreateStaffWithAccountInput{
+			ClinicID: clinicID, Name: "x", Email: "u@example.com", Password: "Password1!", OccupationID: &foreign,
+		})
+		assert.Error(t, err)
+		assert.Nil(t, out)
+		assert.False(t, created, "staff must NOT be persisted referencing another clinic's occupation")
+	})
+
+	t.Run("accepts same-clinic occupation_id (no false-reject)", func(t *testing.T) {
+		created := false
+		svc := newSvc(&created, rejectOccupationRepo(ownedOccupationID))
+		owned := ownedOccupationID
+		out, err := svc.CreateWithAccount(context.Background(), &CreateStaffWithAccountInput{
+			ClinicID: clinicID, Name: "x", Email: "u@example.com", Password: "Password1!", OccupationID: &owned,
+		})
+		assert.NoError(t, err)
+		assert.NotNil(t, out)
+		assert.True(t, created)
+	})
+}
+
+func TestStaffService_Update_RejectsCrossClinicOccupationID(t *testing.T) {
+	const clinicID = uint64(1)
+	const staffID = uint64(1)
+	const ownedOccupationID = uint64(10)
+	const foreignOccupationID = uint64(999)
+
+	newSvc := func(updated *bool, occupationRepo repository.OccupationRepository) StaffService {
+		repo := &mockStaffRepository{
+			findByIDFn: func(_ context.Context, id uint64) (*model.Staff, error) {
+				return &model.Staff{ID: id, ClinicID: clinicID}, nil
+			},
+			updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) error {
+				*updated = true
+				return nil
+			},
+		}
+		return NewStaffService(repo, &mockAccountForStaff{}, &mockAssignmentForStaff{}, &mockReservationForStaff{}, &mockShiftEntryForStaff{}, &mockPermissionGroupForStaff{}, &mockResStaffForStaff{}, occupationRepo, noopTransactor{})
+	}
+
+	t.Run("rejects cross-clinic occupation_id and does not persist", func(t *testing.T) {
+		updated := false
+		svc := newSvc(&updated, rejectOccupationRepo(ownedOccupationID))
+		foreign := foreignOccupationID
+		out, err := svc.Update(context.Background(), clinicID, staffID, &UpdateStaffInput{OccupationID: &foreign})
+		assert.Error(t, err)
+		assert.Nil(t, out)
+		assert.False(t, updated, "staff must NOT be updated to reference another clinic's occupation")
+	})
+
+	t.Run("accepts same-clinic occupation_id (no false-reject)", func(t *testing.T) {
+		updated := false
+		svc := newSvc(&updated, rejectOccupationRepo(ownedOccupationID))
+		owned := ownedOccupationID
+		out, err := svc.Update(context.Background(), clinicID, staffID, &UpdateStaffInput{OccupationID: &owned})
 		assert.NoError(t, err)
 		assert.NotNil(t, out)
 		assert.True(t, updated)

@@ -287,7 +287,7 @@ func (noopTransactor) WithTx(ctx context.Context, fn func(context.Context) error
 }
 
 func newTestStaffService(repo *mockStaffRepository) StaffService {
-	return NewStaffService(repo, &mockAccountForStaff{}, &mockAssignmentForStaff{}, &mockReservationForStaff{}, &mockShiftEntryForStaff{}, &mockPermissionGroupForStaff{}, &mockResStaffForStaff{}, noopTransactor{})
+	return NewStaffService(repo, &mockAccountForStaff{}, &mockAssignmentForStaff{}, &mockReservationForStaff{}, &mockShiftEntryForStaff{}, &mockPermissionGroupForStaff{}, &mockResStaffForStaff{}, nil, noopTransactor{})
 }
 
 func TestStaffService_List(t *testing.T) {
@@ -535,7 +535,7 @@ func TestStaffService_SetClinicAssignments_UpdatesPrimaryClinicID(t *testing.T) 
 			return nil
 		},
 	}
-	svc := NewStaffService(repo, &mockAccountForStaff{}, assignmentRepo, &mockReservationForStaff{}, &mockShiftEntryForStaff{}, &mockPermissionGroupForStaff{}, &mockResStaffForStaff{}, noopTransactor{})
+	svc := NewStaffService(repo, &mockAccountForStaff{}, assignmentRepo, &mockReservationForStaff{}, &mockShiftEntryForStaff{}, &mockPermissionGroupForStaff{}, &mockResStaffForStaff{}, nil, noopTransactor{})
 
 	err := svc.SetClinicAssignments(context.Background(), 10, []uint64{2, 4})
 
@@ -554,7 +554,7 @@ func TestStaffService_SetClinicAssignments_RequiresClinicIDs(t *testing.T) {
 			return nil
 		},
 	}
-	svc := NewStaffService(repo, &mockAccountForStaff{}, &mockAssignmentForStaff{}, &mockReservationForStaff{}, &mockShiftEntryForStaff{}, &mockPermissionGroupForStaff{}, &mockResStaffForStaff{}, noopTransactor{})
+	svc := NewStaffService(repo, &mockAccountForStaff{}, &mockAssignmentForStaff{}, &mockReservationForStaff{}, &mockShiftEntryForStaff{}, &mockPermissionGroupForStaff{}, &mockResStaffForStaff{}, nil, noopTransactor{})
 
 	err := svc.SetClinicAssignments(context.Background(), 10, nil)
 
@@ -820,7 +820,7 @@ func TestStaffService_Delete(t *testing.T) {
 					return tt.shiftExists, tt.checkShiftErr
 				},
 			}
-			svc := NewStaffService(repo, &mockAccountForStaff{}, &mockAssignmentForStaff{}, reservationRepo, shiftRepo, &mockPermissionGroupForStaff{}, &mockResStaffForStaff{}, noopTransactor{})
+			svc := NewStaffService(repo, &mockAccountForStaff{}, &mockAssignmentForStaff{}, reservationRepo, shiftRepo, &mockPermissionGroupForStaff{}, &mockResStaffForStaff{}, nil, noopTransactor{})
 
 			err := svc.Delete(context.Background(), tt.clinicID, tt.id)
 

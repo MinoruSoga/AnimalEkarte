@@ -138,7 +138,7 @@ func TestStaffService_CreateWithAccount_EmailUniquenessCheckError(t *testing.T) 
 			return nil, errors.New("db error")
 		},
 	}
-	svc := NewStaffService(&mockStaffRepository{}, accountRepo, &mockAssignmentForStaff{}, &mockReservationForStaff{}, &mockShiftEntryForStaff{}, &mockPermissionGroupForStaff{}, &mockResStaffForStaff{}, noopTransactor{})
+	svc := NewStaffService(&mockStaffRepository{}, accountRepo, &mockAssignmentForStaff{}, &mockReservationForStaff{}, &mockShiftEntryForStaff{}, &mockPermissionGroupForStaff{}, &mockResStaffForStaff{}, nil, noopTransactor{})
 
 	staff, err := svc.CreateWithAccount(context.Background(), &CreateStaffWithAccountInput{
 		ClinicID: 1, Name: "スタッフ", Email: "a@example.com", Password: "Passw0rd1",
@@ -154,7 +154,7 @@ func TestStaffService_CreateWithAccount_EmailAlreadyExists(t *testing.T) {
 			return &model.Account{ID: 99, Email: email}, nil
 		},
 	}
-	svc := NewStaffService(&mockStaffRepository{}, accountRepo, &mockAssignmentForStaff{}, &mockReservationForStaff{}, &mockShiftEntryForStaff{}, &mockPermissionGroupForStaff{}, &mockResStaffForStaff{}, noopTransactor{})
+	svc := NewStaffService(&mockStaffRepository{}, accountRepo, &mockAssignmentForStaff{}, &mockReservationForStaff{}, &mockShiftEntryForStaff{}, &mockPermissionGroupForStaff{}, &mockResStaffForStaff{}, nil, noopTransactor{})
 
 	staff, err := svc.CreateWithAccount(context.Background(), &CreateStaffWithAccountInput{
 		ClinicID: 1, Name: "スタッフ", Email: "dup@example.com", Password: "Passw0rd1",
@@ -204,7 +204,7 @@ func TestStaffService_CreateWithAccount_Success(t *testing.T) {
 			return nil
 		},
 	}
-	svc := NewStaffService(staffRepo, accountRepo, assignmentRepo, &mockReservationForStaff{}, &mockShiftEntryForStaff{}, &mockPermissionGroupForStaff{}, &mockResStaffForStaff{}, noopTransactor{})
+	svc := NewStaffService(staffRepo, accountRepo, assignmentRepo, &mockReservationForStaff{}, &mockShiftEntryForStaff{}, &mockPermissionGroupForStaff{}, &mockResStaffForStaff{}, nil, noopTransactor{})
 
 	staff, err := svc.CreateWithAccount(context.Background(), &CreateStaffWithAccountInput{
 		ClinicID: 1,
@@ -262,7 +262,7 @@ func TestStaffService_CreateWithAccount_TxFailures(t *testing.T) {
 		accountRepo := &mockAccountForStaff{
 			createFn: func(_ context.Context, _ *model.Account) error { return errors.New("db error") },
 		}
-		svc := NewStaffService(&mockStaffRepository{}, accountRepo, &mockAssignmentForStaff{}, &mockReservationForStaff{}, &mockShiftEntryForStaff{}, &mockPermissionGroupForStaff{}, &mockResStaffForStaff{}, noopTransactor{})
+		svc := NewStaffService(&mockStaffRepository{}, accountRepo, &mockAssignmentForStaff{}, &mockReservationForStaff{}, &mockShiftEntryForStaff{}, &mockPermissionGroupForStaff{}, &mockResStaffForStaff{}, nil, noopTransactor{})
 
 		staff, err := svc.CreateWithAccount(context.Background(), baseInput)
 
@@ -274,7 +274,7 @@ func TestStaffService_CreateWithAccount_TxFailures(t *testing.T) {
 		staffRepo := &mockStaffRepository{
 			createFn: func(_ context.Context, _ *model.Staff) error { return errors.New("db error") },
 		}
-		svc := NewStaffService(staffRepo, &mockAccountForStaff{}, &mockAssignmentForStaff{}, &mockReservationForStaff{}, &mockShiftEntryForStaff{}, &mockPermissionGroupForStaff{}, &mockResStaffForStaff{}, noopTransactor{})
+		svc := NewStaffService(staffRepo, &mockAccountForStaff{}, &mockAssignmentForStaff{}, &mockReservationForStaff{}, &mockShiftEntryForStaff{}, &mockPermissionGroupForStaff{}, &mockResStaffForStaff{}, nil, noopTransactor{})
 
 		staff, err := svc.CreateWithAccount(context.Background(), baseInput)
 
@@ -292,7 +292,7 @@ func TestStaffService_CreateWithAccount_TxFailures(t *testing.T) {
 		assignmentRepo := &mockAssignmentForStaff{
 			createFn: func(_ context.Context, _ *model.StaffClinicAssignment) error { return errors.New("db error") },
 		}
-		svc := NewStaffService(staffRepo, &mockAccountForStaff{}, assignmentRepo, &mockReservationForStaff{}, &mockShiftEntryForStaff{}, &mockPermissionGroupForStaff{}, &mockResStaffForStaff{}, noopTransactor{})
+		svc := NewStaffService(staffRepo, &mockAccountForStaff{}, assignmentRepo, &mockReservationForStaff{}, &mockShiftEntryForStaff{}, &mockPermissionGroupForStaff{}, &mockResStaffForStaff{}, nil, noopTransactor{})
 
 		staff, err := svc.CreateWithAccount(context.Background(), baseInput)
 
@@ -341,7 +341,7 @@ func TestStaffService_UpdatePassword(t *testing.T) {
 					return nil
 				},
 			}
-			svc := NewStaffService(&mockStaffRepository{}, accountRepo, &mockAssignmentForStaff{}, &mockReservationForStaff{}, &mockShiftEntryForStaff{}, &mockPermissionGroupForStaff{}, &mockResStaffForStaff{}, noopTransactor{})
+			svc := NewStaffService(&mockStaffRepository{}, accountRepo, &mockAssignmentForStaff{}, &mockReservationForStaff{}, &mockShiftEntryForStaff{}, &mockPermissionGroupForStaff{}, &mockResStaffForStaff{}, nil, noopTransactor{})
 
 			err := svc.UpdatePassword(context.Background(), 1, tt.newPassword)
 
@@ -362,7 +362,7 @@ func TestStaffService_SetClinicAssignments_ErrorBranches(t *testing.T) {
 		assignmentRepo := &mockAssignmentForStaff{
 			deleteByStaffIDFn: func(_ context.Context, _ uint64) error { return errors.New("db error") },
 		}
-		svc := NewStaffService(&mockStaffRepository{}, &mockAccountForStaff{}, assignmentRepo, &mockReservationForStaff{}, &mockShiftEntryForStaff{}, &mockPermissionGroupForStaff{}, &mockResStaffForStaff{}, noopTransactor{})
+		svc := NewStaffService(&mockStaffRepository{}, &mockAccountForStaff{}, assignmentRepo, &mockReservationForStaff{}, &mockShiftEntryForStaff{}, &mockPermissionGroupForStaff{}, &mockResStaffForStaff{}, nil, noopTransactor{})
 
 		err := svc.SetClinicAssignments(context.Background(), 10, []uint64{1})
 
@@ -373,7 +373,7 @@ func TestStaffService_SetClinicAssignments_ErrorBranches(t *testing.T) {
 		assignmentRepo := &mockAssignmentForStaff{
 			createFn: func(_ context.Context, _ *model.StaffClinicAssignment) error { return errors.New("db error") },
 		}
-		svc := NewStaffService(&mockStaffRepository{}, &mockAccountForStaff{}, assignmentRepo, &mockReservationForStaff{}, &mockShiftEntryForStaff{}, &mockPermissionGroupForStaff{}, &mockResStaffForStaff{}, noopTransactor{})
+		svc := NewStaffService(&mockStaffRepository{}, &mockAccountForStaff{}, assignmentRepo, &mockReservationForStaff{}, &mockShiftEntryForStaff{}, &mockPermissionGroupForStaff{}, &mockResStaffForStaff{}, nil, noopTransactor{})
 
 		err := svc.SetClinicAssignments(context.Background(), 10, []uint64{1, 2})
 
@@ -384,7 +384,7 @@ func TestStaffService_SetClinicAssignments_ErrorBranches(t *testing.T) {
 		staffRepo := &mockStaffRepository{
 			updatePrimaryFn: func(_ context.Context, _, _ uint64) error { return errors.New("db error") },
 		}
-		svc := NewStaffService(staffRepo, &mockAccountForStaff{}, &mockAssignmentForStaff{}, &mockReservationForStaff{}, &mockShiftEntryForStaff{}, &mockPermissionGroupForStaff{}, &mockResStaffForStaff{}, noopTransactor{})
+		svc := NewStaffService(staffRepo, &mockAccountForStaff{}, &mockAssignmentForStaff{}, &mockReservationForStaff{}, &mockShiftEntryForStaff{}, &mockPermissionGroupForStaff{}, &mockResStaffForStaff{}, nil, noopTransactor{})
 
 		err := svc.SetClinicAssignments(context.Background(), 10, []uint64{1})
 
@@ -414,7 +414,7 @@ func TestStaffService_VerifyClinicMembership(t *testing.T) {
 					return tt.count, tt.countErr
 				},
 			}
-			svc := NewStaffService(&mockStaffRepository{}, &mockAccountForStaff{}, assignmentRepo, &mockReservationForStaff{}, &mockShiftEntryForStaff{}, &mockPermissionGroupForStaff{}, &mockResStaffForStaff{}, noopTransactor{})
+			svc := NewStaffService(&mockStaffRepository{}, &mockAccountForStaff{}, assignmentRepo, &mockReservationForStaff{}, &mockShiftEntryForStaff{}, &mockPermissionGroupForStaff{}, &mockResStaffForStaff{}, nil, noopTransactor{})
 
 			err := svc.VerifyClinicMembership(context.Background(), 10, 1)
 

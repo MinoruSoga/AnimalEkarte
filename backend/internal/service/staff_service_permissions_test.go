@@ -138,6 +138,7 @@ func newTestStaffServiceForPermissions(
 		&mockShiftEntryForStaff{},
 		permRepo,
 		resRepo,
+		nil,
 		noopTransactor{},
 	)
 }

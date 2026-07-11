@@ -129,13 +129,18 @@ type reservationTypeService struct {
 	availableSlotRepo   repository.ReservationTypeAvailableSlotRepository
 	occupationRepo      repository.ReservationTypeOccupationRepository
 	baseOccupationRepo  repository.OccupationRepository
+	groupRepo           repository.ReservationTypeGroupRepository
 }
 
+// BE-refactor.md X-14/U6b: groupRepo は GroupID のクロステナント write 防止(FindByID
+// 所有権検証)に使う。variadic availableSlotRepo より前の必須引数として追加し(全呼び出し元更新)、
+// 未設定(nil)の場合は既存の trimmingCourseRepo 等と同型の nil 許容パターンでチェックをスキップする。
 func NewReservationTypeService(
 	repo repository.ReservationTypeRepository,
 	unavailableTimeRepo repository.ReservationTypeUnavailableTimeRepository,
 	occupationRepo repository.ReservationTypeOccupationRepository,
 	baseOccupationRepo repository.OccupationRepository,
+	groupRepo repository.ReservationTypeGroupRepository,
 	availableSlotRepo ...repository.ReservationTypeAvailableSlotRepository,
 ) ReservationTypeService {
 	var slotRepo repository.ReservationTypeAvailableSlotRepository
@@ -148,5 +153,6 @@ func NewReservationTypeService(
 		availableSlotRepo:   slotRepo,
 		occupationRepo:      occupationRepo,
 		baseOccupationRepo:  baseOccupationRepo,
+		groupRepo:           groupRepo,
 	}
 }

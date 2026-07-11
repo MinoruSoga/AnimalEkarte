@@ -198,7 +198,7 @@ func (m *mockBaseOccupationRepo) CountUsageByOccupationID(_ context.Context, _, 
 }
 
 func newTestReservationTypeService(repo *mockReservationTypeRepository) ReservationTypeService {
-	return NewReservationTypeService(repo, &mockUnavailableTimeRepository{}, &mockOccupationRepoForRType{}, &mockBaseOccupationRepo{})
+	return NewReservationTypeService(repo, &mockUnavailableTimeRepository{}, &mockOccupationRepoForRType{}, &mockBaseOccupationRepo{}, nil)
 }
 
 // mockAvailableSlotRepoForRType is a minimal ReservationTypeAvailableSlotRepository
@@ -236,6 +236,7 @@ func TestNewReservationTypeService_WithAvailableSlotRepo(t *testing.T) {
 			&mockUnavailableTimeRepository{},
 			&mockOccupationRepoForRType{},
 			&mockBaseOccupationRepo{},
+			nil,
 			slotRepo,
 		)
 
@@ -252,6 +253,7 @@ func TestNewReservationTypeService_WithAvailableSlotRepo(t *testing.T) {
 			&mockUnavailableTimeRepository{},
 			&mockOccupationRepoForRType{},
 			&mockBaseOccupationRepo{},
+			nil,
 		)
 		concrete, ok := svc.(*reservationTypeService)
 		require.True(t, ok)
@@ -708,7 +710,7 @@ func TestReservationTypeService_Reorder(t *testing.T) {
 func TestReservationTypeService_DeleteUnavailableTime(t *testing.T) {
 	t.Run("正常: FindByID → Delete が呼ばれる", func(t *testing.T) {
 		unavailableRepo := &mockUnavailableTimeRepository{}
-		svc := NewReservationTypeService(&mockReservationTypeRepository{}, unavailableRepo, &mockOccupationRepoForRType{}, &mockBaseOccupationRepo{})
+		svc := NewReservationTypeService(&mockReservationTypeRepository{}, unavailableRepo, &mockOccupationRepoForRType{}, &mockBaseOccupationRepo{}, nil)
 
 		err := svc.DeleteUnavailableTime(context.Background(), 1, 10, 5)
 
@@ -721,7 +723,7 @@ func TestReservationTypeService_DeleteUnavailableTime(t *testing.T) {
 				return nil, apperrors.WrapNotFound("reservation_type", "10")
 			},
 		}
-		svc := NewReservationTypeService(repo, &mockUnavailableTimeRepository{}, &mockOccupationRepoForRType{}, &mockBaseOccupationRepo{})
+		svc := NewReservationTypeService(repo, &mockUnavailableTimeRepository{}, &mockOccupationRepoForRType{}, &mockBaseOccupationRepo{}, nil)
 
 		err := svc.DeleteUnavailableTime(context.Background(), 1, 10, 5)
 
@@ -735,7 +737,7 @@ func TestReservationTypeService_DeleteUnavailableTime(t *testing.T) {
 				return nil, apperrors.WrapNotFound("reservation_type_unavailable_time", "5")
 			},
 		}
-		svc := NewReservationTypeService(&mockReservationTypeRepository{}, unavailableRepo, &mockOccupationRepoForRType{}, &mockBaseOccupationRepo{})
+		svc := NewReservationTypeService(&mockReservationTypeRepository{}, unavailableRepo, &mockOccupationRepoForRType{}, &mockBaseOccupationRepo{}, nil)
 
 		err := svc.DeleteUnavailableTime(context.Background(), 1, 10, 5)
 
@@ -749,7 +751,7 @@ func TestReservationTypeService_DeleteUnavailableTime(t *testing.T) {
 				return errors.New("db error")
 			},
 		}
-		svc := NewReservationTypeService(&mockReservationTypeRepository{}, unavailableRepo, &mockOccupationRepoForRType{}, &mockBaseOccupationRepo{})
+		svc := NewReservationTypeService(&mockReservationTypeRepository{}, unavailableRepo, &mockOccupationRepoForRType{}, &mockBaseOccupationRepo{}, nil)
 
 		err := svc.DeleteUnavailableTime(context.Background(), 1, 10, 5)
 

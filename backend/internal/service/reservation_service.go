@@ -188,6 +188,17 @@ func (s *reservationService) Create(ctx context.Context, input *CreateManualRese
 	if err := validateTimeRange(input.StartTime, input.EndTime); err != nil {
 		return nil, err
 	}
+	// BE-refactor.md X-14/U6b: クロステナント write 防止。reception/exam_room/record_shortcut
+	// 等の shortcut 経路や確定済みステータスでは enforceBookingConstraints=false となり、
+	// 下の checkReservationTypeCapacity(容量チェック内の FindByID)がスキップされるため、
+	// ReservationTypeID の所有権検証は経路・ステータスに関わらず常にここで行う
+	// (reservation_validators.go の typeRepo と同型の nil 許容パターン)。
+	if s.typeRepo != nil {
+		if _, err := s.typeRepo.FindByID(ctx, input.ClinicID, input.ReservationTypeID); err != nil {
+			slog.ErrorContext(ctx, "reservation type not found or belongs to different clinic", "error", err)
+			return nil, apperrors.Wrap(err, "failed to verify reservation type ownership")
+		}
+	}
 	reservation := &model.Reservation{
 		ClinicID:          input.ClinicID,
 		StartTime:         input.StartTime,

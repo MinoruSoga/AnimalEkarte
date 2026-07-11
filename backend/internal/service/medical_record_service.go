@@ -90,16 +90,19 @@ type CreateSubRecordsInput struct {
 }
 
 type medicalRecordService struct {
-	repo                 repository.MedicalRecordRepository
-	ownerRepo            repository.OwnerRepository
-	petRepo              repository.PetRepository
-	inquiryRepo          repository.InquiryRepository
-	clinicalPlanRepo     repository.ClinicalPlanRepository
-	lineCustomerRepo     repository.LineCustomerRepository
-	reservationRepo      repository.ReservationRepository
-	lstepDeliveryTrigger LstepDeliveryTriggerService
-	auditService         AuditService
-	tagSyncSvc           LstepTagSyncService
+	repo                   repository.MedicalRecordRepository
+	ownerRepo              repository.OwnerRepository
+	petRepo                repository.PetRepository
+	inquiryRepo            repository.InquiryRepository
+	clinicalPlanRepo       repository.ClinicalPlanRepository
+	chiefComplaintTypeRepo repository.ChiefComplaintTypeRepository
+	diagTypeRepo           repository.DiagnosisTypeRepository
+	diagNameRepo           repository.DiagnosisNameRepository
+	lineCustomerRepo       repository.LineCustomerRepository
+	reservationRepo        repository.ReservationRepository
+	lstepDeliveryTrigger   LstepDeliveryTriggerService
+	auditService           AuditService
+	tagSyncSvc             LstepTagSyncService
 }
 
 func NewMedicalRecordService(
@@ -108,6 +111,9 @@ func NewMedicalRecordService(
 	petRepo repository.PetRepository,
 	inquiryRepo repository.InquiryRepository,
 	clinicalPlanRepo repository.ClinicalPlanRepository,
+	chiefComplaintTypeRepo repository.ChiefComplaintTypeRepository,
+	diagTypeRepo repository.DiagnosisTypeRepository,
+	diagNameRepo repository.DiagnosisNameRepository,
 	lineCustomerRepo repository.LineCustomerRepository,
 	reservationRepo repository.ReservationRepository,
 	lstepDeliveryTrigger LstepDeliveryTriggerService,
@@ -119,15 +125,18 @@ func NewMedicalRecordService(
 		syncSvc = tagSyncSvc[0]
 	}
 	return &medicalRecordService{
-		repo:                 repo,
-		ownerRepo:            ownerRepo,
-		petRepo:              petRepo,
-		inquiryRepo:          inquiryRepo,
-		clinicalPlanRepo:     clinicalPlanRepo,
-		lineCustomerRepo:     lineCustomerRepo,
-		reservationRepo:      reservationRepo,
-		lstepDeliveryTrigger: lstepDeliveryTrigger,
-		auditService:         auditService,
-		tagSyncSvc:           syncSvc,
+		repo:                   repo,
+		ownerRepo:              ownerRepo,
+		petRepo:                petRepo,
+		inquiryRepo:            inquiryRepo,
+		clinicalPlanRepo:       clinicalPlanRepo,
+		chiefComplaintTypeRepo: chiefComplaintTypeRepo,
+		diagTypeRepo:           diagTypeRepo,
+		diagNameRepo:           diagNameRepo,
+		lineCustomerRepo:       lineCustomerRepo,
+		reservationRepo:        reservationRepo,
+		lstepDeliveryTrigger:   lstepDeliveryTrigger,
+		auditService:           auditService,
+		tagSyncSvc:             syncSvc,
 	}
 }

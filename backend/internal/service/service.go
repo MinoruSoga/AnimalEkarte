@@ -174,6 +174,7 @@ func NewServices(repos *repository.Repositories, notifCfg *ReservationNotificati
 		repos.ReservationTypeUnavailableTime,
 		repos.ReservationTypeOccupation,
 		repos.Occupation,
+		repos.ReservationTypeGroup,
 		repos.ReservationTypeAvailableSlot,
 	)
 
@@ -183,7 +184,7 @@ func NewServices(repos *repository.Repositories, notifCfg *ReservationNotificati
 
 	// staffSvc は StaffService（StaffCoreService / StaffAccountService / StaffPermissionService の合成）を実装する。
 	// 同一インスタンスを4フィールドに割り当てることで余分な初期化を避ける。
-	staffSvc := NewStaffService(repos.Staff, repos.Account, repos.StaffClinicAssignment, repos.Reservation, repos.ShiftEntry, repos.PermissionGroup, repos.ReservationStaff, tx)
+	staffSvc := NewStaffService(repos.Staff, repos.Account, repos.StaffClinicAssignment, repos.Reservation, repos.ShiftEntry, repos.PermissionGroup, repos.ReservationStaff, repos.Occupation, tx)
 
 	// resStaffSvc は ReservationStaffService（Core + Exclusion の合成）を実装する。
 	resStaffSvc := NewReservationStaffService(repos.ReservationStaff, tx)
@@ -216,7 +217,7 @@ func NewServices(repos *repository.Repositories, notifCfg *ReservationNotificati
 	// FEAT-383: 自動配信トリガー（LstepBatch / MedicalRecord / Checkup より先に初期化）
 	lstepDeliveryTriggerSvc := NewLstepDeliveryTriggerService(repos.Owner, repos.MedicalRecord, repos.Vaccination, repos.BillingItem, repos.Pet, repos.LstepTagCache, repos.LstepDeliveryTriggerLog, lstepSettingsSvc, lstepTriggerPrioritySvc)
 	// FEAT-383: イベントフック注入（LstepDeliveryTrigger 確定後に構築）
-	medicalRecordSvc := NewMedicalRecordService(repos.MedicalRecord, repos.Owner, repos.Pet, repos.Inquiry, repos.ClinicalPlan, repos.LineCustomerMgr, repos.Reservation, lstepDeliveryTriggerSvc, auditSvc, lstepTagSyncSvc)
+	medicalRecordSvc := NewMedicalRecordService(repos.MedicalRecord, repos.Owner, repos.Pet, repos.Inquiry, repos.ClinicalPlan, repos.ChiefComplaintType, repos.DiagnosisType, repos.DiagnosisName, repos.LineCustomerMgr, repos.Reservation, lstepDeliveryTriggerSvc, auditSvc, lstepTagSyncSvc)
 	checkupSvc := NewCheckupService(repos.Checkup, repos.MedicalRecord, repos.CheckupType, lstepDeliveryTriggerSvc, lstepTagSyncSvc)
 	// LSTEP-BE-014: ノーショウ検知バッチ（LstepDeliveryTrigger 確定後に初期化）
 	lstepBatchSvc := NewLstepBatchService(repos.Reservation, lstepTagSyncSvc, repos.Clinic, repos.MedicalRecord, auditSvc, lstepSettingsSvc, lstepDeliveryTriggerSvc)
@@ -229,7 +230,7 @@ func NewServices(repos *repository.Repositories, notifCfg *ReservationNotificati
 		StaffClinicAssignment: NewStaffClinicAssignmentService(repos.StaffClinicAssignment),
 		Audit:                 auditSvc,
 		AnimalSpecies:         NewAnimalSpeciesService(repos.AnimalSpecies, repos.Pet),
-		Owner:                 NewOwnerService(repos.Owner, lstepTagSyncSvc, auditSvc),
+		Owner:                 NewOwnerService(repos.Owner, repos.Insurance, lstepTagSyncSvc, auditSvc),
 		Pet:                   NewPetService(repos.Pet, repos.Owner, repos.Insurance, repos.MedicalRecord, lstepTagSyncSvc),
 		Reservation:           NewReservationServiceWithAvailabilityAndType(repos.Reservation, repos.ReservationType, tx, repos.ReservationStaff, repos.ReservationTypeUnavailableTime, repos.ReservationTypeAvailableSlot),
 		MedicalRecord:         medicalRecordSvc,
@@ -274,7 +275,7 @@ func NewServices(repos *repository.Repositories, notifCfg *ReservationNotificati
 		Vaccination:                    NewVaccinationService(repos.Vaccination, repos.Vaccine, lstepTagSyncSvc),
 		Occupation:                     NewOccupationService(repos.Occupation),
 		ChiefComplaintType:             NewChiefComplaintTypeService(repos.ChiefComplaintType),
-		Inquiry:                        NewInquiryService(repos.Inquiry),
+		Inquiry:                        NewInquiryService(repos.Inquiry, repos.ChiefComplaintType),
 		InquiryTemplate:                NewInquiryTemplateService(repos.InquiryTemplate),
 		Company:                        NewCompanyService(repos.Company),
 		PermissionGroup:                permissionGroupSvc,
@@ -360,6 +361,7 @@ func NewServices(repos *repository.Repositories, notifCfg *ReservationNotificati
 			NewLabImportExaminationService(
 				repos.Examination,
 				repository.NewLabImportDuplicateCheckerDB(repos.DB()),
+				repos.ExaminationType,
 			),
 		),
 		LabAudit:       NewLabAuditLogger(auditSvc),

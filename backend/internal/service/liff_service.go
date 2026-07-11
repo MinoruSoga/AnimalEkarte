@@ -112,7 +112,7 @@ func NewLiffServiceWithType(
 		reservationRepo:     reservationRepo,
 		customerRepo:        customerRepo,
 		ownerRepo:           ownerRepo,
-		validators:          NewReservationValidators(tx, reservationRepo, typeRepo),
+		validators:          NewReservationValidators(tx, reservationRepo, typeRepo, trimmingCourseRepo, trimmingOptionRepo),
 		notifier:            notifier,
 		unavailableTimeRepo: unavailableTimeRepo,
 		availableSlotRepo:   availableSlotRepo,

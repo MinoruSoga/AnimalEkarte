@@ -118,18 +118,21 @@ type LabImportDuplicateChecker interface {
 
 // labImportExaminationService は LabImportExaminationService の実装。
 type labImportExaminationService struct {
-	examRepo   repository.ExaminationRepository
-	dupChecker LabImportDuplicateChecker
+	examRepo     repository.ExaminationRepository
+	dupChecker   LabImportDuplicateChecker
+	examTypeRepo repository.ExamTypeRepository
 }
 
 // NewLabImportExaminationService は LabImportExaminationService を初期化して返す。
 func NewLabImportExaminationService(
 	examRepo repository.ExaminationRepository,
 	dupChecker LabImportDuplicateChecker,
+	examTypeRepo repository.ExamTypeRepository,
 ) LabImportExaminationService {
 	return &labImportExaminationService{
-		examRepo:   examRepo,
-		dupChecker: dupChecker,
+		examRepo:     examRepo,
+		dupChecker:   dupChecker,
+		examTypeRepo: examTypeRepo,
 	}
 }
 
@@ -142,6 +145,17 @@ func (s *labImportExaminationService) PersistExam(ctx context.Context, input Lab
 	}
 	if input.Date.IsZero() {
 		return nil, apperrors.WrapInvalidInput("date is required")
+	}
+
+	// クロステナント write 防止: 別 clinic の exam_type を紐付けると、その exam_type が持つ
+	// 異常値判定の基準値/単位（exam_type_fields）が検査記録に混入する（#124 同型）。所有権を検証する。
+	if _, err := s.examTypeRepo.FindByID(ctx, input.ClinicID, input.ExamTypeID); err != nil {
+		slog.ErrorContext(ctx, "failed to verify exam type ownership",
+			"error", err,
+			"exam_type_id", input.ExamTypeID,
+			"clinic_id", input.ClinicID,
+		)
+		return nil, apperrors.Wrap(err, "failed to verify exam type ownership")
 	}
 
 	dup, err := s.dupChecker.IsDuplicate(ctx, input.ClinicID, input.ExamTypeID, input.Date, input.PetID)

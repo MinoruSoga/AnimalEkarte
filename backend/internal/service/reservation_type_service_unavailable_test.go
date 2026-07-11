@@ -31,7 +31,7 @@ func TestReservationTypeService_ListUnavailableTimes(t *testing.T) {
 				return want, nil
 			},
 		}
-		svc := NewReservationTypeService(&mockReservationTypeRepository{}, unavailableRepo, &mockOccupationRepoForRType{}, &mockBaseOccupationRepo{})
+		svc := NewReservationTypeService(&mockReservationTypeRepository{}, unavailableRepo, &mockOccupationRepoForRType{}, &mockBaseOccupationRepo{}, nil)
 
 		got, err := svc.ListUnavailableTimes(context.Background(), clinicID, reservationTypeID)
 
@@ -45,7 +45,7 @@ func TestReservationTypeService_ListUnavailableTimes(t *testing.T) {
 				return nil, apperrors.WrapNotFound("reservation_type", "10")
 			},
 		}
-		svc := NewReservationTypeService(repo, &mockUnavailableTimeRepository{}, &mockOccupationRepoForRType{}, &mockBaseOccupationRepo{})
+		svc := NewReservationTypeService(repo, &mockUnavailableTimeRepository{}, &mockOccupationRepoForRType{}, &mockBaseOccupationRepo{}, nil)
 
 		_, err := svc.ListUnavailableTimes(context.Background(), 1, 10)
 
@@ -59,7 +59,7 @@ func TestReservationTypeService_ListUnavailableTimes(t *testing.T) {
 				return nil, errors.New("db error")
 			},
 		}
-		svc := NewReservationTypeService(&mockReservationTypeRepository{}, unavailableRepo, &mockOccupationRepoForRType{}, &mockBaseOccupationRepo{})
+		svc := NewReservationTypeService(&mockReservationTypeRepository{}, unavailableRepo, &mockOccupationRepoForRType{}, &mockBaseOccupationRepo{}, nil)
 
 		_, err := svc.ListUnavailableTimes(context.Background(), 1, 10)
 
@@ -81,7 +81,7 @@ func TestReservationTypeService_CreateUnavailableTime(t *testing.T) {
 				return nil
 			},
 		}
-		svc := NewReservationTypeService(&mockReservationTypeRepository{}, unavailableRepo, &mockOccupationRepoForRType{}, &mockBaseOccupationRepo{})
+		svc := NewReservationTypeService(&mockReservationTypeRepository{}, unavailableRepo, &mockOccupationRepoForRType{}, &mockBaseOccupationRepo{}, nil)
 
 		got, err := svc.CreateUnavailableTime(context.Background(), 1, 10, CreateUnavailableTimeInput{
 			UnavailableType: string(model.UnavailableTypeWeekly),
@@ -100,7 +100,7 @@ func TestReservationTypeService_CreateUnavailableTime(t *testing.T) {
 
 	t.Run("creates specific unavailable time successfully", func(t *testing.T) {
 		unavailableRepo := &mockUnavailableTimeRepository{}
-		svc := NewReservationTypeService(&mockReservationTypeRepository{}, unavailableRepo, &mockOccupationRepoForRType{}, &mockBaseOccupationRepo{})
+		svc := NewReservationTypeService(&mockReservationTypeRepository{}, unavailableRepo, &mockOccupationRepoForRType{}, &mockBaseOccupationRepo{}, nil)
 
 		got, err := svc.CreateUnavailableTime(context.Background(), 1, 10, CreateUnavailableTimeInput{
 			UnavailableType: string(model.UnavailableTypeSpecific),
@@ -120,7 +120,7 @@ func TestReservationTypeService_CreateUnavailableTime(t *testing.T) {
 				return nil, apperrors.WrapNotFound("reservation_type", "10")
 			},
 		}
-		svc := NewReservationTypeService(repo, &mockUnavailableTimeRepository{}, &mockOccupationRepoForRType{}, &mockBaseOccupationRepo{})
+		svc := NewReservationTypeService(repo, &mockUnavailableTimeRepository{}, &mockOccupationRepoForRType{}, &mockBaseOccupationRepo{}, nil)
 
 		_, err := svc.CreateUnavailableTime(context.Background(), 1, 10, CreateUnavailableTimeInput{
 			UnavailableType: string(model.UnavailableTypeWeekly),
@@ -134,7 +134,7 @@ func TestReservationTypeService_CreateUnavailableTime(t *testing.T) {
 	})
 
 	t.Run("returns invalid input for validation failure", func(t *testing.T) {
-		svc := NewReservationTypeService(&mockReservationTypeRepository{}, &mockUnavailableTimeRepository{}, &mockOccupationRepoForRType{}, &mockBaseOccupationRepo{})
+		svc := NewReservationTypeService(&mockReservationTypeRepository{}, &mockUnavailableTimeRepository{}, &mockOccupationRepoForRType{}, &mockBaseOccupationRepo{}, nil)
 
 		_, err := svc.CreateUnavailableTime(context.Background(), 1, 10, CreateUnavailableTimeInput{
 			UnavailableType: string(model.UnavailableTypeWeekly),
@@ -153,7 +153,7 @@ func TestReservationTypeService_CreateUnavailableTime(t *testing.T) {
 				return nil, errors.New("db error")
 			},
 		}
-		svc := NewReservationTypeService(&mockReservationTypeRepository{}, unavailableRepo, &mockOccupationRepoForRType{}, &mockBaseOccupationRepo{})
+		svc := NewReservationTypeService(&mockReservationTypeRepository{}, unavailableRepo, &mockOccupationRepoForRType{}, &mockBaseOccupationRepo{}, nil)
 
 		_, err := svc.CreateUnavailableTime(context.Background(), 1, 10, CreateUnavailableTimeInput{
 			UnavailableType: string(model.UnavailableTypeWeekly),
@@ -173,7 +173,7 @@ func TestReservationTypeService_CreateUnavailableTime(t *testing.T) {
 				}, nil
 			},
 		}
-		svc := NewReservationTypeService(&mockReservationTypeRepository{}, unavailableRepo, &mockOccupationRepoForRType{}, &mockBaseOccupationRepo{})
+		svc := NewReservationTypeService(&mockReservationTypeRepository{}, unavailableRepo, &mockOccupationRepoForRType{}, &mockBaseOccupationRepo{}, nil)
 
 		_, err := svc.CreateUnavailableTime(context.Background(), 1, 10, CreateUnavailableTimeInput{
 			UnavailableType: string(model.UnavailableTypeWeekly),
@@ -192,7 +192,7 @@ func TestReservationTypeService_CreateUnavailableTime(t *testing.T) {
 				return errors.New("db error")
 			},
 		}
-		svc := NewReservationTypeService(&mockReservationTypeRepository{}, unavailableRepo, &mockOccupationRepoForRType{}, &mockBaseOccupationRepo{})
+		svc := NewReservationTypeService(&mockReservationTypeRepository{}, unavailableRepo, &mockOccupationRepoForRType{}, &mockBaseOccupationRepo{}, nil)
 
 		_, err := svc.CreateUnavailableTime(context.Background(), 1, 10, CreateUnavailableTimeInput{
 			UnavailableType: string(model.UnavailableTypeWeekly),
