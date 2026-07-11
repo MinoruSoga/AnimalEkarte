@@ -4,6 +4,7 @@
  */
 import { z } from "zod";
 import type { AuthUser, AuthClinic } from "../types";
+import type { MeResponse } from "@/types/generated/handler-responses";
 
 const clinicMembershipSchema = z.object({
   clinic_id: z.string(),
@@ -64,6 +65,16 @@ const backendMeResponseSchema = z.object({
 });
 
 export type BackendMeResponse = z.infer<typeof backendMeResponseSchema>;
+
+// FE6-5: BE/FE の完全な形状一致（`satisfies z.ZodType<MeResponse>`）は要求しない —
+// このスキーマは意図的に BE の実際の wire 形状より寛容（occupation/clinic への
+// .nullable() 許容・avatar_url の受理は防御的パースであり、BE が将来 null を送るように
+// なっても FE は落ちない）。代わりに「BE が実際に約束する形状は必ずこのスキーマの入力として
+// 受理される」ことを型チェックで固定する — M1（BE の optional 化に FE が追随し損ねて
+// parse が throw する退行）のようなケースを検知するのが目的。
+// MeResponse が backendMeResponseSchema の入力形状と非互換なら、この行が型エラーになる。
+const _meResponseIsParsable: MeResponse extends z.input<typeof backendMeResponseSchema> ? true : never = true;
+void _meResponseIsParsable;
 
 function mapMeClinicInfo(raw: z.infer<typeof meClinicInfoSchema>): AuthClinic {
   return {

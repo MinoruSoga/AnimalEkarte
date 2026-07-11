@@ -621,10 +621,12 @@ jobs:
         working-directory: backend
         run: |
           mkdir -p "$GITHUB_WORKSPACE/tygo-output"
-          sed 's|/output/models.ts|'"$GITHUB_WORKSPACE"'/tygo-output/models.ts|' tygo.yaml > tygo-ci.yaml
+          # FE6-5: handler-responses.ts（MeResponse 等）を追加生成するため sed を2置換に拡張。
+          sed -e 's|/output/models.ts|'"$GITHUB_WORKSPACE"'/tygo-output/models.ts|' -e 's|/output/handler-responses.ts|'"$GITHUB_WORKSPACE"'/tygo-output/handler-responses.ts|' tygo.yaml > tygo-ci.yaml
           # FE6-1: tygo@latest は生成物の再現性を損なうため具体バージョンに pin（現行安定版 v0.2.21）。
           go run github.com/gzuidhof/tygo@v0.2.21 generate --config tygo-ci.yaml
           cp "$GITHUB_WORKSPACE/tygo-output/models.ts" ../frontend/src/types/generated/models.ts
+          cp "$GITHUB_WORKSPACE/tygo-output/handler-responses.ts" ../frontend/src/types/generated/handler-responses.ts
 
       - name: Check for drift
         run: |

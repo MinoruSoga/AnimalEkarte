@@ -92,7 +92,8 @@ services:
       - ./backend:/app
       - ./frontend:/frontend
     # FE6-1: tygo@latest は生成物の再現性を損なうため具体バージョンに pin（現行安定版 v0.2.21）。
-    command: /bin/sh -c "cd /app && sed 's|/output/models.ts|/frontend/src/types/generated/models.ts|' tygo.yaml > /tmp/tygo-ci.yaml && go run github.com/gzuidhof/tygo@v0.2.21 generate --config /tmp/tygo-ci.yaml"
+    # FE6-5: handler-responses.ts（MeResponse 等）を追加生成するため sed を2置換に拡張。
+    command: /bin/sh -c "cd /app && sed -e 's|/output/models.ts|/frontend/src/types/generated/models.ts|' -e 's|/output/handler-responses.ts|/frontend/src/types/generated/handler-responses.ts|' tygo.yaml > /tmp/tygo-ci.yaml && go run github.com/gzuidhof/tygo@v0.2.21 generate --config /tmp/tygo-ci.yaml"
 
 volumes:
   postgres_data:
