@@ -27,8 +27,11 @@ export const useUpdateVaccination = () => {
       id: string;
       req: UpdateVaccinationRequest;
     }) => updateVaccination(id, req),
-    onSuccess: () => {
+    onSuccess: (_data, { id }) => {
       queryClient.invalidateQueries({ queryKey: ["vaccinations"] });
+      // FE4-6 fix: detail クエリの実キーは ["vaccination", id]（単数形）。
+      // list prefix invalidation はこれを包含しないため、更新後も詳細画面が stale のまま残っていた。
+      queryClient.invalidateQueries({ queryKey: ["vaccination", id] });
     },
     onError: (error) => handleApiError(error, "ワクチン接種更新"),
   });

@@ -34,8 +34,12 @@ export const useUpdateExamination = () => {
   return useMutation({
     mutationFn: ({ id, req }: { id: string; req: UpdateExaminationRequest }) =>
       updateExamination(id, req),
-    onSuccess: () => {
+    onSuccess: (_data, { id }) => {
       queryClient.invalidateQueries({ queryKey: ["examinations"] });
+      // FE4-6 fix: detail クエリの実キーは ["examination", id]（単数形。features/examinations/api/get-examination.ts）。
+      // list prefix invalidation はこれを包含しないため、更新後も詳細画面が stale のまま残っていた
+      // （先例: update-examination-items.ts:26-27 は既に両方を invalidate している）。
+      queryClient.invalidateQueries({ queryKey: ["examination", id] });
     },
     onError: (error) => handleApiError(error, "検査更新"),
   });

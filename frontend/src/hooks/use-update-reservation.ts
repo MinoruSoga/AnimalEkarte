@@ -45,9 +45,13 @@ export const useUpdateReservation = () => {
   return useMutation({
     mutationFn: ({ id, req }: { id: string; req: UpdateReservationRequest }) =>
       updateReservation(id, req),
-    onSuccess: () => {
+    onSuccess: (_data, { id }) => {
       queryClient.invalidateQueries({ queryKey: ["reservations"] });
       queryClient.invalidateQueries({ queryKey: ["reception"] });
+      // FE4-6 fix: detail クエリの実キーは ["reservation", id]（単数形。features/reservations/api/get-reservation.ts）。
+      // list prefix invalidation はこれを包含しないため、更新後も詳細画面が stale のまま残っていた
+      // （先例: update-reservation-route.ts:27-28 は既に両方を invalidate している）。
+      queryClient.invalidateQueries({ queryKey: ["reservation", id] });
     },
     onError: (error) => handleApiError(error, "予約更新"),
   });
