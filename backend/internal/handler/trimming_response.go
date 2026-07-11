@@ -45,8 +45,12 @@ type TrimmingResponse struct {
 	CreatedAt      time.Time `json:"created_at"`
 	UpdatedAt      time.Time `json:"updated_at"`
 	// リレーション
-	Pet     *petSummaryResponse             `json:"pet,omitempty"`
-	Staff   *staffSummaryResponse           `json:"staff,omitempty"`
+	// FE7-2: Pet/Staff は petSummaryResponse/staffSummaryResponse（11+18箇所で共有される
+	// 非公開型）を参照しており tygo が解決できないため tstype:"-" で生成対象から除外する
+	// （JSON wire 形状・json タグは無変更 — 実際のレスポンスには pet/staff は引き続き含まれる。
+	// 生成型 TrimmingResponse のみこの2フィールドを欠く）。
+	Pet     *petSummaryResponse             `json:"pet,omitempty" tstype:"-"`
+	Staff   *staffSummaryResponse           `json:"staff,omitempty" tstype:"-"`
 	Course  *TrimmingCourseSummaryResponse  `json:"course,omitempty"`
 	Options []TrimmingOptionSummaryResponse `json:"options"`
 }

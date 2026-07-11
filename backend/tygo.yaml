@@ -35,11 +35,13 @@ packages:
     # handler パッケージの他ファイルは大半が非公開 response struct（P7 準拠の意図的設計 —
     # 187/194 が非公開）であり tygo は export 済み型のみ処理するため、対象を
     # auth_response.go のみに絞る（無関係な型の巻き込みを避ける）。
-    # BackendTrimming（trimming_response.go の trimmingResponse）は非公開のため対象外
-    # — 生成するには Go 側で型を export する必要があり、これは本ラウンドの
-    # 「tygo.yaml/codegen のみ許可・backend 本番コード編集は不可」の範囲外。BLOCKED として
-    # FE-refactor.md に記録する。
-    include_files: ["auth_response.go"]
+    # FE7-1/FE7-2: BackendTrimming BLOCKED 解消。trimming_response.go の
+    # TrimmingResponse/TrimmingCourseSummaryResponse/TrimmingOptionSummaryResponse を export 済み
+    # （json タグは不変・wire 形状は無変更）。Pet/Staff フィールドが参照する
+    # petSummaryResponse/staffSummaryResponse は 11+18 箇所で共有される広範な型のため
+    # 今回は export しない — tygo は未 export 参照フィールドを `any` にフォールバックする
+    # （型安全性は部分的だが、フラットなトリミング詳細フィールド群は完全に型付けされる）。
+    include_files: ["auth_response.go", "trimming_response.go"]
     enum_style: "union"
     type_mappings:
       time.Time: "string"
