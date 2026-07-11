@@ -4,8 +4,8 @@ import {
   buildPaymentSplitRequests,
   createInitialPaymentSplits,
   getCorrectableCardPayments,
-} from "../../components/accounting-detail-model";
-import type { PaymentSplitDraft } from "../../components/PaymentCard";
+} from "../accounting-detail-model";
+import type { PaymentSplitDraft } from "../PaymentCard";
 import type { Accounting } from "../../types";
 
 describe("buildPaymentSplitRequests (#188 お釣り上書き payload 契約)", () => {
