@@ -78,16 +78,8 @@ func (r *closingSpecialPeriodRepository) Create(ctx context.Context, p *model.Cl
 }
 
 func (r *closingSpecialPeriodRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.ClosingSpecialPeriod, error) {
-	result := r.db.WithContext(ctx).
-		Model(&model.ClosingSpecialPeriod{}).
-		Scopes(clinicScope(clinicID)).
-		Where("id = ?", id).
-		Updates(fields)
-	if result.Error != nil {
-		return nil, apperrors.FromGORM(result.Error, "closing_special_period", fmt.Sprintf("%d", id))
-	}
-	if result.RowsAffected == 0 {
-		return nil, apperrors.WrapNotFound("closing_special_period", fmt.Sprintf("%d", id))
+	if err := updateScopedByID(ctx, r.db, &model.ClosingSpecialPeriod{}, "closing_special_period", clinicID, id, fields); err != nil {
+		return nil, err
 	}
 	var p model.ClosingSpecialPeriod
 	if err := r.db.WithContext(ctx).

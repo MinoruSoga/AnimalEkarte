@@ -71,15 +71,8 @@ func (r *inventoryRepository) Create(ctx context.Context, clinicID uint64, item 
 }
 
 func (r *inventoryRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.InventoryItem, error) {
-	result := dbOrTx(ctx, r.db).
-		Model(&model.InventoryItem{}).
-		Scopes(clinicScope(clinicID)).Where("id = ?", id).
-		Updates(fields)
-	if result.Error != nil {
-		return nil, apperrors.FromGORM(result.Error, "inventory_item", fmt.Sprintf("%d", id))
-	}
-	if result.RowsAffected == 0 {
-		return nil, apperrors.WrapNotFound("inventory_item", fmt.Sprintf("%d", id))
+	if err := updateScopedByID(ctx, dbOrTx(ctx, r.db), &model.InventoryItem{}, "inventory_item", clinicID, id, fields); err != nil {
+		return nil, err
 	}
 	return r.FindByID(ctx, clinicID, id)
 }

@@ -92,17 +92,7 @@ func (r *shiftEntryRepository) Create(ctx context.Context, entry *model.ShiftEnt
 }
 
 func (r *shiftEntryRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
-	result := dbOrTx(ctx, r.db).
-		Model(&model.ShiftEntry{}).
-		Scopes(clinicScope(clinicID)).Where("id = ?", id).
-		Updates(fields)
-	if result.Error != nil {
-		return apperrors.FromGORM(result.Error, "shift_entry", strconv.FormatUint(id, 10))
-	}
-	if result.RowsAffected == 0 {
-		return apperrors.WrapNotFound("shift_entry", strconv.FormatUint(id, 10))
-	}
-	return nil
+	return updateScopedByID(ctx, dbOrTx(ctx, r.db), &model.ShiftEntry{}, "shift_entry", clinicID, id, fields)
 }
 
 func (r *shiftEntryRepository) Delete(ctx context.Context, clinicID, id uint64) error {

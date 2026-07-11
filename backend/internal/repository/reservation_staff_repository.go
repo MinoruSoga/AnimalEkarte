@@ -93,18 +93,7 @@ func (r *reservationStaffRepository) Create(ctx context.Context, staff *model.St
 // BE-refactor.md X-8: dbOrTx(ctx, r.db) にすることで、reservationStaffService.Update が
 // Transactor.WithTx で本メソッドと UpdateExcludedReservationTypes を括った場合に同一 tx へ参加する。
 func (r *reservationStaffRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
-	result := dbOrTx(ctx, r.db).
-		Model(&model.Staff{}).
-		Scopes(clinicScope(clinicID)).
-		Where("id = ?", id).
-		Updates(fields)
-	if result.Error != nil {
-		return apperrors.FromGORM(result.Error, "reservation_staff", fmt.Sprintf("%d", id))
-	}
-	if result.RowsAffected == 0 {
-		return apperrors.WrapNotFound("reservation_staff", fmt.Sprintf("%d", id))
-	}
-	return nil
+	return updateScopedByID(ctx, dbOrTx(ctx, r.db), &model.Staff{}, "reservation_staff", clinicID, id, fields)
 }
 
 // BE-refactor.md X-8: dbOrTx(ctx, r.db) で ambient tx 参加を統一する（他の write メソッドと対称）。

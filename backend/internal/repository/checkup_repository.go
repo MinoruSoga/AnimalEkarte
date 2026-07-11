@@ -147,18 +147,7 @@ func (r *checkupRepository) Create(ctx context.Context, checkup *model.Checkup) 
 }
 
 func (r *checkupRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
-	result := r.db.WithContext(ctx).
-		Model(&model.Checkup{}).
-		Scopes(clinicScope(clinicID)).
-		Where("id = ?", id).
-		Updates(fields)
-	if result.Error != nil {
-		return apperrors.FromGORM(result.Error, "checkup", fmt.Sprintf("%d", id))
-	}
-	if result.RowsAffected == 0 {
-		return apperrors.WrapNotFound("checkup", fmt.Sprintf("%d", id))
-	}
-	return nil
+	return updateScopedByID(ctx, r.db, &model.Checkup{}, "checkup", clinicID, id, fields)
 }
 
 func (r *checkupRepository) Delete(ctx context.Context, clinicID, id uint64) error {

@@ -68,15 +68,8 @@ func (r *diagnosisTypeRepository) Create(ctx context.Context, category *model.Di
 }
 
 func (r *diagnosisTypeRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.DiagnosisType, error) {
-	result := r.db.WithContext(ctx).
-		Model(&model.DiagnosisType{}).
-		Scopes(clinicScope(clinicID)).Where("id = ?", id).
-		Updates(fields)
-	if result.Error != nil {
-		return nil, apperrors.FromGORM(result.Error, "diagnosis_type", fmt.Sprintf("%d", id))
-	}
-	if result.RowsAffected == 0 {
-		return nil, apperrors.WrapNotFound("diagnosis_type", fmt.Sprintf("%d", id))
+	if err := updateScopedByID(ctx, r.db, &model.DiagnosisType{}, "diagnosis_type", clinicID, id, fields); err != nil {
+		return nil, err
 	}
 	return r.FindByID(ctx, clinicID, id)
 }
@@ -200,15 +193,8 @@ func (r *diagnosisNameRepository) Create(ctx context.Context, name *model.Diagno
 }
 
 func (r *diagnosisNameRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.DiagnosisName, error) {
-	result := r.db.WithContext(ctx).
-		Model(&model.DiagnosisName{}).
-		Scopes(clinicScope(clinicID)).Where("id = ?", id).
-		Updates(fields)
-	if result.Error != nil {
-		return nil, apperrors.FromGORM(result.Error, "diagnosis_name", fmt.Sprintf("%d", id))
-	}
-	if result.RowsAffected == 0 {
-		return nil, apperrors.WrapNotFound("diagnosis_name", fmt.Sprintf("%d", id))
+	if err := updateScopedByID(ctx, r.db, &model.DiagnosisName{}, "diagnosis_name", clinicID, id, fields); err != nil {
+		return nil, err
 	}
 	return r.FindByID(ctx, clinicID, id)
 }

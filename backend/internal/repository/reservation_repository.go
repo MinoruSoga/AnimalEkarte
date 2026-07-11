@@ -182,15 +182,8 @@ func (r *reservationRepository) Create(ctx context.Context, reservation *model.R
 }
 
 func (r *reservationRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Reservation, error) {
-	result := dbOrTx(ctx, r.db).
-		Model(&model.Reservation{}).
-		Scopes(clinicScope(clinicID)).Where("id = ?", id).
-		Updates(fields)
-	if result.Error != nil {
-		return nil, apperrors.FromGORM(result.Error, "reservation", fmt.Sprintf("%d", id))
-	}
-	if result.RowsAffected == 0 {
-		return nil, apperrors.WrapNotFound("reservation", fmt.Sprintf("%d", id))
+	if err := updateScopedByID(ctx, dbOrTx(ctx, r.db), &model.Reservation{}, "reservation", clinicID, id, fields); err != nil {
+		return nil, err
 	}
 	return r.FindByID(ctx, clinicID, id)
 }

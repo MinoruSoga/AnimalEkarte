@@ -75,15 +75,8 @@ func (r *permissionGroupRepository) Create(ctx context.Context, group *model.Per
 }
 
 func (r *permissionGroupRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.PermissionGroup, error) {
-	result := r.db.WithContext(ctx).
-		Model(&model.PermissionGroup{}).
-		Scopes(clinicScope(clinicID)).Where("id = ?", id).
-		Updates(fields)
-	if result.Error != nil {
-		return nil, apperrors.FromGORM(result.Error, "permission_group", fmt.Sprintf("%d", id))
-	}
-	if result.RowsAffected == 0 {
-		return nil, apperrors.WrapNotFound("permission_group", fmt.Sprintf("%d", id))
+	if err := updateScopedByID(ctx, r.db, &model.PermissionGroup{}, "permission_group", clinicID, id, fields); err != nil {
+		return nil, err
 	}
 	return r.FindByID(ctx, clinicID, id)
 }

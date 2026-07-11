@@ -79,17 +79,7 @@ func (r *estimateRepository) Create(ctx context.Context, estimate *model.Estimat
 }
 
 func (r *estimateRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
-	result := r.db.WithContext(ctx).
-		Model(&model.Estimate{}).
-		Scopes(clinicScope(clinicID)).Where("id = ?", id).
-		Updates(fields)
-	if result.Error != nil {
-		return apperrors.FromGORM(result.Error, "estimate", fmt.Sprintf("%d", id))
-	}
-	if result.RowsAffected == 0 {
-		return apperrors.WrapNotFound("estimate", fmt.Sprintf("%d", id))
-	}
-	return nil
+	return updateScopedByID(ctx, r.db, &model.Estimate{}, "estimate", clinicID, id, fields)
 }
 
 func (r *estimateRepository) Delete(ctx context.Context, clinicID, id uint64) error {

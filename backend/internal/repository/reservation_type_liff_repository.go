@@ -66,15 +66,8 @@ func (r *reservationTypeLiffRepository) Create(ctx context.Context, st *model.Re
 }
 
 func (r *reservationTypeLiffRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.ReservationType, error) {
-	result := r.db.WithContext(ctx).
-		Model(&model.ReservationType{}).
-		Scopes(clinicScope(clinicID)).Where("id = ?", id).
-		Updates(fields)
-	if result.Error != nil {
-		return nil, apperrors.FromGORM(result.Error, "reservation_type_liff", fmt.Sprintf("%d", id))
-	}
-	if result.RowsAffected == 0 {
-		return nil, apperrors.WrapNotFound("reservation_type_liff", fmt.Sprintf("%d", id))
+	if err := updateScopedByID(ctx, r.db, &model.ReservationType{}, "reservation_type_liff", clinicID, id, fields); err != nil {
+		return nil, err
 	}
 	return r.FindByID(ctx, clinicID, id)
 }

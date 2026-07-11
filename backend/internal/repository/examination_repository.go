@@ -114,15 +114,8 @@ func (r *examinationRepository) Create(ctx context.Context, exam *model.Examinat
 
 // Update は dbOrTx(ctx, r.db) で ambient tx に参加する（Create と同じ理由、BE-refactor.md X-11）。
 func (r *examinationRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Examination, error) {
-	result := dbOrTx(ctx, r.db).
-		Model(&model.Examination{}).
-		Scopes(clinicScope(clinicID)).Where("id = ?", id).
-		Updates(fields)
-	if result.Error != nil {
-		return nil, apperrors.FromGORM(result.Error, "exam", fmt.Sprintf("%d", id))
-	}
-	if result.RowsAffected == 0 {
-		return nil, apperrors.WrapNotFound("exam", fmt.Sprintf("%d", id))
+	if err := updateScopedByID(ctx, dbOrTx(ctx, r.db), &model.Examination{}, "exam", clinicID, id, fields); err != nil {
+		return nil, err
 	}
 	return r.FindByID(ctx, clinicID, id)
 }
