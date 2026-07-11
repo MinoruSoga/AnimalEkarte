@@ -69,18 +69,22 @@ func NewClinicalPlanService(repo repository.ClinicalPlanRepository, medRec repos
 // (diagnosis_type ×2 / diagnosis_name ×2) の所有権を検証する。別 clinic の診断分類を
 // 患者の診断記録へ縫い付ける cross-tenant mislink を NotFound で遮断する。
 func (s *clinicalPlanService) validateDiagnosisFKs(ctx context.Context, clinicID uint64, input *UpdateClinicalPlanInput) error {
+	findDiagType := func(actx context.Context, cid, mid uint64) error {
+		_, err := s.diagTypeRepo.FindByID(actx, cid, mid)
+		return err
+	}
 	for _, typeID := range []*uint64{input.DiagnosisTypeID, input.Diagnosis2CategoryID} {
-		if typeID != nil {
-			if _, err := s.diagTypeRepo.FindByID(ctx, clinicID, *typeID); err != nil {
-				return apperrors.Wrap(err, "failed to verify diagnosis type ownership")
-			}
+		if err := validateOwnedMasterFK(ctx, "diagnosis type", clinicID, typeID, findDiagType); err != nil {
+			return err
 		}
 	}
+	findDiagName := func(actx context.Context, cid, mid uint64) error {
+		_, err := s.diagNameRepo.FindByID(actx, cid, mid)
+		return err
+	}
 	for _, nameID := range []*uint64{input.DiagnosisNameID, input.Diagnosis2NameID} {
-		if nameID != nil {
-			if _, err := s.diagNameRepo.FindByID(ctx, clinicID, *nameID); err != nil {
-				return apperrors.Wrap(err, "failed to verify diagnosis name ownership")
-			}
+		if err := validateOwnedMasterFK(ctx, "diagnosis name", clinicID, nameID, findDiagName); err != nil {
+			return err
 		}
 	}
 	return nil

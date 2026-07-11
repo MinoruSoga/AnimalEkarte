@@ -518,25 +518,19 @@ func (s *medicineService) Delete(ctx context.Context, clinicID, id uint64) error
 // validateParentOwnership verifies a request-supplied self-ref parent_id belongs to the
 // caller's clinic before it is persisted (X-14 self-ref master FK guard batch U2).
 func (s *medicineService) validateParentOwnership(ctx context.Context, clinicID uint64, parentID *uint64) error {
-	if parentID == nil {
-		return nil
-	}
-	if _, err := s.repo.FindByID(ctx, clinicID, *parentID); err != nil {
-		slog.ErrorContext(ctx, "failed to verify parent medicine ownership", "error", err, "parent_id", *parentID, "clinic_id", clinicID)
-		return apperrors.Wrap(err, "failed to verify parent medicine ownership")
-	}
-	return nil
+	return validateOwnedMasterFK(ctx, "parent medicine", clinicID, parentID,
+		func(actx context.Context, cid, mid uint64) error {
+			_, err := s.repo.FindByID(actx, cid, mid)
+			return err
+		})
 }
 
 // validateInventoryOwnership verifies a request-supplied inventory_id belongs to the
 // caller's clinic before it is persisted (X-14 master FK guard batch U2).
 func (s *medicineService) validateInventoryOwnership(ctx context.Context, clinicID uint64, inventoryID *uint64) error {
-	if inventoryID == nil {
-		return nil
-	}
-	if _, err := s.inventoryRepo.FindByID(ctx, clinicID, *inventoryID); err != nil {
-		slog.ErrorContext(ctx, "failed to verify inventory ownership", "error", err, "inventory_id", *inventoryID, "clinic_id", clinicID)
-		return apperrors.Wrap(err, "failed to verify inventory ownership")
-	}
-	return nil
+	return validateOwnedMasterFK(ctx, "inventory", clinicID, inventoryID,
+		func(actx context.Context, cid, mid uint64) error {
+			_, err := s.inventoryRepo.FindByID(actx, cid, mid)
+			return err
+		})
 }

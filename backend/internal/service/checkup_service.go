@@ -221,10 +221,12 @@ func (s *checkupService) Update(ctx context.Context, clinicID, medicalRecordID, 
 		return nil, apperrors.WrapConflict("確定済みカルテのため健診記録は編集できません")
 	}
 	// クロステナント write 防止: 貼り替え先 checkup_type の所有権を検証する。
-	if input.CheckupTypeID != nil {
-		if _, err := s.checkupTypeRepo.FindByID(ctx, clinicID, *input.CheckupTypeID); err != nil {
-			return nil, apperrors.Wrap(err, "failed to verify checkup type ownership")
-		}
+	if err := validateOwnedMasterFK(ctx, "checkup type", clinicID, input.CheckupTypeID,
+		func(actx context.Context, cid, mid uint64) error {
+			_, err := s.checkupTypeRepo.FindByID(actx, cid, mid)
+			return err
+		}); err != nil {
+		return nil, err
 	}
 	fields := buildCheckupUpdate(input)
 	if len(fields) == 0 {

@@ -253,12 +253,9 @@ func (s *procedureService) Reorder(ctx context.Context, clinicID uint64, ids []u
 // validateParentOwnership verifies a request-supplied parent_id belongs to the caller's
 // clinic before it is persisted (X-14 self-ref master FK guard).
 func (s *procedureService) validateParentOwnership(ctx context.Context, clinicID uint64, parentID *uint64) error {
-	if parentID == nil {
-		return nil
-	}
-	if _, err := s.repo.FindByID(ctx, clinicID, *parentID); err != nil {
-		slog.ErrorContext(ctx, "failed to verify parent procedure ownership", "error", err, "parent_id", *parentID, "clinic_id", clinicID)
-		return apperrors.Wrap(err, "failed to verify parent procedure ownership")
-	}
-	return nil
+	return validateOwnedMasterFK(ctx, "parent procedure", clinicID, parentID,
+		func(actx context.Context, cid, mid uint64) error {
+			_, err := s.repo.FindByID(actx, cid, mid)
+			return err
+		})
 }

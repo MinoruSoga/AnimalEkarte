@@ -35,13 +35,12 @@ func NewInquiryService(repo repository.InquiryRepository, chiefComplaintTypeRepo
 
 // Save は medical_record_id に対応する問診を upsert する。
 func (s *inquiryService) Save(ctx context.Context, input UpsertInquiryInput) (*model.Inquiry, error) {
-	if input.ChiefComplaintTypeID != nil {
-		if _, err := s.chiefComplaintTypeRepo.FindByID(ctx, input.ClinicID, *input.ChiefComplaintTypeID); err != nil {
-			slog.ErrorContext(ctx, "failed to verify chief complaint type ownership",
-				slog.Uint64("chief_complaint_type_id", *input.ChiefComplaintTypeID),
-				slog.String("error", err.Error()))
-			return nil, apperrors.Wrap(err, "failed to verify chief complaint type ownership")
-		}
+	if err := validateOwnedMasterFK(ctx, "chief complaint type", input.ClinicID, input.ChiefComplaintTypeID,
+		func(actx context.Context, cid, mid uint64) error {
+			_, err := s.chiefComplaintTypeRepo.FindByID(actx, cid, mid)
+			return err
+		}); err != nil {
+		return nil, err
 	}
 
 	inquiry := &model.Inquiry{

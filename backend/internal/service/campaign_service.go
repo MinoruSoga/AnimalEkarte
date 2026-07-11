@@ -188,12 +188,11 @@ func NewCampaignService(repo repository.CampaignRepository, merchandiseItemRepo 
 // 所有権を検証する。別 clinic の商品IDを campaign_target_items に紐付けられると、割引マッチング
 // (CalculateItemCampaignDiscount) がクロステナントで汚染される (#124/#125 同型)。
 func (s *campaignService) validateOwnedMerchandiseItemIDs(ctx context.Context, clinicID uint64, itemIDs []uint64) error {
-	for _, id := range itemIDs {
-		if _, err := s.merchandiseItemRepo.FindByID(ctx, clinicID, id); err != nil {
-			return apperrors.Wrap(err, "failed to verify merchandise item ownership")
-		}
-	}
-	return nil
+	return validateOwnedMasterFKs(ctx, "merchandise item", clinicID, itemIDs,
+		func(actx context.Context, cid, mid uint64) error {
+			_, err := s.merchandiseItemRepo.FindByID(actx, cid, mid)
+			return err
+		})
 }
 
 func (s *campaignService) List(ctx context.Context, clinicID uint64) ([]model.Campaign, error) {

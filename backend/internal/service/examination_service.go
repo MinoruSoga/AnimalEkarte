@@ -227,10 +227,12 @@ func (s *examinationService) Update(ctx context.Context, clinicID, id uint64, in
 		}
 
 		// クロステナント write 防止: 貼り替え先 exam_type が caller の clinic に属することを検証する。
-		if input.ExamTypeID != nil {
-			if _, err := s.examTypeRepo.FindByID(txCtx, clinicID, *input.ExamTypeID); err != nil {
-				return apperrors.Wrap(err, "failed to verify exam type ownership")
-			}
+		if err := validateOwnedMasterFK(txCtx, "exam type", clinicID, input.ExamTypeID,
+			func(actx context.Context, cid, mid uint64) error {
+				_, err := s.examTypeRepo.FindByID(actx, cid, mid)
+				return err
+			}); err != nil {
+			return err
 		}
 
 		fields := buildExaminationUpdate(input)

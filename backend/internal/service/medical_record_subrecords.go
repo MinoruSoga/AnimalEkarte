@@ -99,18 +99,22 @@ func (s *medicalRecordService) CreateSubRecords(ctx context.Context, clinicID, r
 // clinic-scoped 所有権検証を CreateSubRecords の best-effort パスに複製したもの（最小差分の
 // ため ClinicalPlanService は注入しない）。非 nil の診断 FK のみ検証する。
 func (s *medicalRecordService) validateCreateSubRecordDiagnosisFKs(ctx context.Context, clinicID uint64, input CreateSubRecordsInput) error {
+	findDiagType := func(actx context.Context, cid, mid uint64) error {
+		_, err := s.diagTypeRepo.FindByID(actx, cid, mid)
+		return err
+	}
 	for _, typeID := range []*uint64{input.Diagnosis1CategoryID, input.Diagnosis2CategoryID} {
-		if typeID != nil {
-			if _, err := s.diagTypeRepo.FindByID(ctx, clinicID, *typeID); err != nil {
-				return apperrors.Wrap(err, "failed to verify diagnosis type ownership")
-			}
+		if err := validateOwnedMasterFK(ctx, "diagnosis type", clinicID, typeID, findDiagType); err != nil {
+			return err
 		}
 	}
+	findDiagName := func(actx context.Context, cid, mid uint64) error {
+		_, err := s.diagNameRepo.FindByID(actx, cid, mid)
+		return err
+	}
 	for _, nameID := range []*uint64{input.Diagnosis1NameID, input.Diagnosis2NameID} {
-		if nameID != nil {
-			if _, err := s.diagNameRepo.FindByID(ctx, clinicID, *nameID); err != nil {
-				return apperrors.Wrap(err, "failed to verify diagnosis name ownership")
-			}
+		if err := validateOwnedMasterFK(ctx, "diagnosis name", clinicID, nameID, findDiagName); err != nil {
+			return err
 		}
 	}
 	return nil

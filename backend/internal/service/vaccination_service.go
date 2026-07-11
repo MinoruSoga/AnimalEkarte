@@ -178,10 +178,12 @@ func (s *vaccinationService) Update(ctx context.Context, clinicID, id uint64, in
 		return nil, apperrors.Wrap(err, "failed to find vaccination")
 	}
 	// クロステナント write 防止: 貼り替え先の vaccine が caller の clinic に属することを検証する。
-	if input.VaccineID != nil {
-		if _, err := s.vaccineRepo.FindByID(ctx, clinicID, *input.VaccineID); err != nil {
-			return nil, apperrors.Wrap(err, "failed to verify vaccine ownership")
-		}
+	if err := validateOwnedMasterFK(ctx, "vaccine", clinicID, input.VaccineID,
+		func(actx context.Context, cid, mid uint64) error {
+			_, err := s.vaccineRepo.FindByID(actx, cid, mid)
+			return err
+		}); err != nil {
+		return nil, err
 	}
 	fields := buildVaccinationUpdate(input)
 	if len(fields) == 0 {

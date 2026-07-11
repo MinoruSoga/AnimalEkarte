@@ -109,22 +109,25 @@ func NewCarePlanItemService(repo repository.CarePlanItemRepository, hospRepo rep
 // validateMasterFKs は request 由来の clinic-scoped マスタFK (medicine/procedure/hospitalization_plan)
 // の所有権を検証する。別 clinic のマスタ参照は NotFound で遮断し入院ケアの cross-tenant mislink を防ぐ。
 func (s *carePlanItemService) validateMasterFKs(ctx context.Context, clinicID uint64, medicineID, procedureID, hospitalizationPlanID *uint64) error {
-	if medicineID != nil {
-		if _, err := s.medicineRepo.FindByID(ctx, clinicID, *medicineID); err != nil {
-			return apperrors.Wrap(err, "failed to verify medicine ownership")
-		}
+	if err := validateOwnedMasterFK(ctx, "medicine", clinicID, medicineID,
+		func(actx context.Context, cid, mid uint64) error {
+			_, err := s.medicineRepo.FindByID(actx, cid, mid)
+			return err
+		}); err != nil {
+		return err
 	}
-	if procedureID != nil {
-		if _, err := s.procedureRepo.FindByID(ctx, clinicID, *procedureID); err != nil {
-			return apperrors.Wrap(err, "failed to verify procedure ownership")
-		}
+	if err := validateOwnedMasterFK(ctx, "procedure", clinicID, procedureID,
+		func(actx context.Context, cid, mid uint64) error {
+			_, err := s.procedureRepo.FindByID(actx, cid, mid)
+			return err
+		}); err != nil {
+		return err
 	}
-	if hospitalizationPlanID != nil {
-		if _, err := s.hospPlanRepo.FindByID(ctx, clinicID, *hospitalizationPlanID); err != nil {
-			return apperrors.Wrap(err, "failed to verify hospitalization plan ownership")
-		}
-	}
-	return nil
+	return validateOwnedMasterFK(ctx, "hospitalization plan", clinicID, hospitalizationPlanID,
+		func(actx context.Context, cid, mid uint64) error {
+			_, err := s.hospPlanRepo.FindByID(actx, cid, mid)
+			return err
+		})
 }
 
 func (s *carePlanItemService) List(ctx context.Context, clinicID, hospitalizationID uint64) ([]model.CarePlanItem, error) {

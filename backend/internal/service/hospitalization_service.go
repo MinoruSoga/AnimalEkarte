@@ -168,11 +168,12 @@ func (s *hospitalizationService) Create(ctx context.Context, clinicID uint64, in
 	}
 
 	// クロステナント write 防止: request 由来の cage マスタが caller の clinic に属することを検証する。
-	if input.CageID != nil {
-		if _, err := s.repos.Cage.FindByID(ctx, clinicID, *input.CageID); err != nil {
-			slog.ErrorContext(ctx, "failed to verify cage ownership", "error", err)
-			return nil, apperrors.Wrap(err, "failed to verify cage ownership")
-		}
+	if err := validateOwnedMasterFK(ctx, "cage", clinicID, input.CageID,
+		func(actx context.Context, cid, mid uint64) error {
+			_, err := s.repos.Cage.FindByID(actx, cid, mid)
+			return err
+		}); err != nil {
+		return nil, err
 	}
 
 	hospitalization := &model.Hospitalization{
@@ -211,11 +212,12 @@ func (s *hospitalizationService) Update(ctx context.Context, clinicID, id uint64
 	}
 
 	// クロステナント write 防止: 貼り替え先 cage マスタの所有権を検証する。
-	if input.CageID != nil {
-		if _, err := s.repos.Cage.FindByID(ctx, clinicID, *input.CageID); err != nil {
-			slog.ErrorContext(ctx, "failed to verify cage ownership", "error", err)
-			return nil, apperrors.Wrap(err, "failed to verify cage ownership")
-		}
+	if err := validateOwnedMasterFK(ctx, "cage", clinicID, input.CageID,
+		func(actx context.Context, cid, mid uint64) error {
+			_, err := s.repos.Cage.FindByID(actx, cid, mid)
+			return err
+		}); err != nil {
+		return nil, err
 	}
 
 	fields := buildHospitalizationUpdate(input)

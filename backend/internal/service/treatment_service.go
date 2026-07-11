@@ -493,20 +493,26 @@ func (s *treatmentService) BulkUpdateSortOrder(ctx context.Context, clinicID, me
 // write 前に明示確認しないと cross-tenant の mislink（#124/#125 同型）を作れてしまう。
 // 別 clinic のマスタ参照は repo の FindByID が NotFound を返し write を遮断する。
 func (s *treatmentService) validateTreatmentMasterFKs(ctx context.Context, clinicID uint64, medicineID, procedureID, consultationID *uint64) error {
-	if medicineID != nil {
-		if _, err := s.repos.Medicine.FindByID(ctx, clinicID, *medicineID); err != nil {
-			return apperrors.Wrap(err, "failed to verify medicine ownership")
-		}
+	if err := validateOwnedMasterFK(ctx, "medicine", clinicID, medicineID,
+		func(actx context.Context, cid, mid uint64) error {
+			_, err := s.repos.Medicine.FindByID(actx, cid, mid)
+			return err
+		}); err != nil {
+		return err
 	}
-	if procedureID != nil {
-		if _, err := s.repos.Procedure.FindByID(ctx, clinicID, *procedureID); err != nil {
-			return apperrors.Wrap(err, "failed to verify procedure ownership")
-		}
+	if err := validateOwnedMasterFK(ctx, "procedure", clinicID, procedureID,
+		func(actx context.Context, cid, mid uint64) error {
+			_, err := s.repos.Procedure.FindByID(actx, cid, mid)
+			return err
+		}); err != nil {
+		return err
 	}
-	if consultationID != nil {
-		if _, err := s.repos.Consultation.FindByID(ctx, clinicID, *consultationID); err != nil {
-			return apperrors.Wrap(err, "failed to verify consultation ownership")
-		}
+	if err := validateOwnedMasterFK(ctx, "consultation", clinicID, consultationID,
+		func(actx context.Context, cid, mid uint64) error {
+			_, err := s.repos.Consultation.FindByID(actx, cid, mid)
+			return err
+		}); err != nil {
+		return err
 	}
 	return nil
 }
