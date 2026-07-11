@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { DeleteIconButton } from "@/components/shared/DeleteIconButton/DeleteIconButton";
 
 // Relative
-import { TypeIcon, StatusBadge, TimingBadges } from "./badges";
+import { TypeIcon, StatusBadge, TimingBadges } from "./CarePlanBadges";
 
 // Types
 import type { CarePlanItem } from "../../api/care-plan-items";

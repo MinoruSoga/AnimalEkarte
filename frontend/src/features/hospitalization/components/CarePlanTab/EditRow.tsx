@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 // Relative
-import { TYPE_SELECT_ITEMS, TIMING_OPTIONS } from "./badges";
+import { TYPE_SELECT_ITEMS, TIMING_OPTIONS } from "./CarePlanBadges";
 
 // Types
 import type { CarePlanItem, CarePlanItemType, CarePlanTiming, UpdateCarePlanItemInput } from "../../api/care-plan-items";
