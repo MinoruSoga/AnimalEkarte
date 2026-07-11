@@ -156,8 +156,6 @@ export function useAccountingCompletionAction({
           });
           setCompletedPayment(paymentInfo);
           queryClient.invalidateQueries({ queryKey: ["accountings"] });
-          queryClient.invalidateQueries({ queryKey: ["accounting", accountingId] });
-          queryClient.invalidateQueries({ queryKey: ["accounting-detail", accountingId] });
           toast.success("会計を完了しました");
         }
         return { success: true, timestamp: Date.now() };
