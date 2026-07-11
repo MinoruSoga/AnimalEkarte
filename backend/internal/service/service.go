@@ -352,6 +352,7 @@ func NewServices(repos *repository.Repositories, notifCfg *ReservationNotificati
 			repos.TrimmingCourse,
 			repos.TrimmingOption,
 			repos.AppointmentTrimmingDetail,
+			repos.Vaccination,
 		),
 		TokenBlacklist: NewTokenBlacklistService(repos.TokenBlacklist),
 		// lab import (Phase 3–4)

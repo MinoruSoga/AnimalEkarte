@@ -21,6 +21,7 @@ type LiffService interface {
 	CreateReservation(ctx context.Context, clinicID, customerID uint64, input *CreateReservationInput) (*model.Reservation, error)
 	GetMyReservations(ctx context.Context, clinicID, customerID uint64) ([]model.Reservation, error)
 	CancelReservation(ctx context.Context, clinicID, customerID, reservationID uint64) error
+	GetHealthCard(ctx context.Context, clinicID, customerID uint64) (*HealthCardResult, error)
 }
 
 type liffService struct {
@@ -41,6 +42,7 @@ type liffService struct {
 	trimmingCourseRepo  repository.TrimmingCourseRepository            // BE-120
 	trimmingOptionRepo  repository.TrimmingOptionRepository            // BE-120
 	trimmingDetailRepo  repository.AppointmentTrimmingDetailRepository // BE-120
+	vaccinationRepo     repository.VaccinationRepository
 }
 
 // NewLiffService はLIFFサービスを初期化して返す。
@@ -61,6 +63,7 @@ func NewLiffService(
 	trimmingCourseRepo repository.TrimmingCourseRepository,
 	trimmingOptionRepo repository.TrimmingOptionRepository,
 	trimmingDetailRepo repository.AppointmentTrimmingDetailRepository,
+	vaccinationRepo repository.VaccinationRepository,
 ) LiffService {
 	return NewLiffServiceWithType(
 		settingRepo,
@@ -80,6 +83,7 @@ func NewLiffService(
 		trimmingCourseRepo,
 		trimmingOptionRepo,
 		trimmingDetailRepo,
+		vaccinationRepo,
 	)
 }
 
@@ -101,6 +105,7 @@ func NewLiffServiceWithType(
 	trimmingCourseRepo repository.TrimmingCourseRepository,
 	trimmingOptionRepo repository.TrimmingOptionRepository,
 	trimmingDetailRepo repository.AppointmentTrimmingDetailRepository,
+	vaccinationRepo repository.VaccinationRepository,
 ) LiffService {
 	return &liffService{
 		settingRepo:         settingRepo,
@@ -120,5 +125,6 @@ func NewLiffServiceWithType(
 		trimmingCourseRepo:  trimmingCourseRepo,
 		trimmingOptionRepo:  trimmingOptionRepo,
 		trimmingDetailRepo:  trimmingDetailRepo,
+		vaccinationRepo:     vaccinationRepo,
 	}
 }
