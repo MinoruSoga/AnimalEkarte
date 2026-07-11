@@ -182,9 +182,13 @@ build-prod:
 GOLANGCI_LINT_VERSION := v2.11.4
 
 # リンター実行（Go）- CI と同一の公式イメージを使用
+# module cache は backend dev コンテナと共用（ekarte-go-mod-cache）。golangci-lint 自体の
+# キャッシュ（/root/.cache）はバージョン固有形式のため GOCACHE とは混ぜず専用 volume に分離する。
 lint:
 	docker run --rm \
 		-v $(PWD)/backend:/app \
+		-v ekarte-go-mod-cache:/go/pkg/mod \
+		-v ekarte-golangci-cache:/root/.cache \
 		-w /app \
 		golangci/golangci-lint:$(GOLANGCI_LINT_VERSION) \
 		golangci-lint run
@@ -193,6 +197,8 @@ lint:
 lint-fix:
 	docker run --rm \
 		-v $(PWD)/backend:/app \
+		-v ekarte-go-mod-cache:/go/pkg/mod \
+		-v ekarte-golangci-cache:/root/.cache \
 		-w /app \
 		golangci/golangci-lint:$(GOLANGCI_LINT_VERSION) \
 		golangci-lint run --fix
@@ -260,6 +266,8 @@ ci-local:
 	@echo "=== [5/9] Backend: lint ==="
 	docker run --rm \
 		-v $(PWD)/backend:/app \
+		-v ekarte-go-mod-cache:/go/pkg/mod \
+		-v ekarte-golangci-cache:/root/.cache \
 		-w /app \
 		golangci/golangci-lint:$(GOLANGCI_LINT_VERSION) \
 		golangci-lint run
