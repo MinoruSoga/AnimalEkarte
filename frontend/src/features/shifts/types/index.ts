@@ -2,21 +2,14 @@
  * Shifts feature types
  * Backend types: {@link ShiftEntry}, {@link ShiftType as BackendShiftType} from models.ts
  */
-import {
-  ShiftTypeFull,
-  ShiftTypeMorning,
-  ShiftTypeAfternoon,
-  ShiftTypeOff,
-  ShiftTypePaidLeave,
-} from "@/types/generated/models";
-
-/** ShiftType — models.ts const 値と一致する union 型（型安全性のため union 維持） */
-export type ShiftType =
-  | typeof ShiftTypeFull
-  | typeof ShiftTypeMorning
-  | typeof ShiftTypeAfternoon
-  | typeof ShiftTypeOff
-  | typeof ShiftTypePaidLeave;
+/**
+ * 手書き literal union（FE4-3）。
+ * tygo 生成定数は `export const X: ShiftType = "full"` 形式（ShiftType = string）のため
+ * `typeof 生成定数` は string に退化する（旧 JSDoc の「型安全性のため union 維持」という記述は
+ * 実態に反していた）。生成側は編集禁止のため、手書き literal union +
+ * ランタイム値集合の drift テスト（./union-drift.test.ts）で生成定数の値集合との一致を機械固定する。
+ */
+export type ShiftType = "full" | "morning" | "afternoon" | "off" | "paid_leave";
 
 /** UI-facing shift (string IDs — post-transform) */
 export type { Shift } from "../api/transforms";
@@ -47,11 +40,11 @@ export interface UpdateShiftInput {
 }
 
 export const SHIFT_TYPE_LABELS: Record<ShiftType, string> = {
-  [ShiftTypeFull]: "全日",
-  [ShiftTypeMorning]: "午前",
-  [ShiftTypeAfternoon]: "午後",
-  [ShiftTypeOff]: "休日",
-  [ShiftTypePaidLeave]: "有休",
+  full: "全日",
+  morning: "午前",
+  afternoon: "午後",
+  off: "休日",
+  paid_leave: "有休",
 };
 
 

@@ -1,22 +1,15 @@
 import { memo, useCallback } from "react";
 import { C } from "@/lib/design-tokens";
-import {
-  ShiftTypeFull,
-  ShiftTypeMorning,
-  ShiftTypeAfternoon,
-  ShiftTypeOff,
-  ShiftTypePaidLeave,
-} from "@/types/generated/models";
 import type { Shift, ShiftType } from "../../types";
 import { SHIFT_TYPE_LABELS } from "../../types";
 
 // rendering-hoist-jsx: 静的カラーマップはモジュール定数に巻き上げ（ShiftCell 専用）
 const SHIFT_TYPE_COLORS: Record<ShiftType, string> = {
-  [ShiftTypeFull]:      `${C.bgBrandLight} ${C.textBrandDark} ${C.borderBrandLight}`,
-  [ShiftTypeMorning]:   `${C.bgStatusGreen} ${C.textStatusGreen} ${C.borderStatusGreenAlt}`,
-  [ShiftTypeAfternoon]: `${C.bgStatusGreen} ${C.textStatusGreen} ${C.borderStatusGreenAlt}`,
-  [ShiftTypeOff]:       `${C.bgStatusGray} ${C.textStatusGray} ${C.borderMuted}`,
-  [ShiftTypePaidLeave]: `${C.bgStatusPurple} ${C.textStatusPurple} ${C.borderPurpleLight}`,
+  full:       `${C.bgBrandLight} ${C.textBrandDark} ${C.borderBrandLight}`,
+  morning:    `${C.bgStatusGreen} ${C.textStatusGreen} ${C.borderStatusGreenAlt}`,
+  afternoon:  `${C.bgStatusGreen} ${C.textStatusGreen} ${C.borderStatusGreenAlt}`,
+  off:        `${C.bgStatusGray} ${C.textStatusGray} ${C.borderMuted}`,
+  paid_leave: `${C.bgStatusPurple} ${C.textStatusPurple} ${C.borderPurpleLight}`,
 };
 
 interface ShiftCellProps {
