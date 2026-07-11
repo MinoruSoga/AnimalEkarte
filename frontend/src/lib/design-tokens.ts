@@ -52,13 +52,6 @@ export const PALETTE = {
   /** Border – medium (input, divider) */
   borderMedium: "rgba(0,0,0,0.16)",
 
-  /** Hover overlay – light */
-  hoverLight: "rgba(0,0,0,0.04)",
-  /** Hover overlay – medium */
-  hoverMedium: "rgba(0,0,0,0.08)",
-  /** Hover overlay – used for scrollbar thumb hover */
-  hoverStrong: "rgba(0,0,0,0.35)",
-
   /** Skeleton / light background fill (6% primary) */
   bgSkeleton: "rgba(0,0,0,0.06)",
   /** Semi-transparent white (80%) — toggle dot on active chart buttons */
@@ -66,20 +59,9 @@ export const PALETTE = {
 
   /** DESIGN.md primary blue accent */
   accent: "#0075DE",
-  /** Accent hover */
-  accentHover: "#005BAB",
-  /** Accent light background (status pill) */
-  accentLight: "#E7F2FD",
-  /** Accent dark text */
-  accentDark: "#004D91",
 
   /** Destructive / danger — BUG-084: #C0392B (contrast 7.1:1 on white, WCAG AA) */
   danger: "#C0392B",
-
-  /** Notion red (required markers, validation) */
-  notionRed: "#E03E3E",
-  /** Red icon (alert circle) */
-  redIcon: "#EA3323",
 
   /** Muted foreground (= mutedBadge text) */
   muted: "#787774",
@@ -87,15 +69,12 @@ export const PALETTE = {
   mutedBg: "#F1F0EE",
 
   /* ── Status semantic ── */
-  statusGreenText: "#0F7B6C",
-  statusGreenBg: "#DDEDEA",
   /**
    * Gray medium (#9B9A97)
    * Canonical value for: statusGrayText, bgStatusGrayMedium, dotGray
    * Used as text color for muted status, solid bg for dot fills, chart legend dots.
    */
   grayMedium: "#9B9A97",
-  statusGrayBg: "#EBECED",
   /**
    * Gray light (#E3E2E0)
    * Canonical value for: statusInactiveBg, grayTagBg, mutedBorder
@@ -103,68 +82,8 @@ export const PALETTE = {
    */
   grayLight: "#E3E2E0",
 
-  /* ── Cost summary (Material palette) ── */
-  costBlueBg: "#E3F2FD",
-  costBlueText: "#1565C0",
-  costGreenBg: "#E8F5E9",
-  costGreenText: "#2E7D32",
-
   /* ── Success / Emerald green (会計リンク等) ── */
   successGreen: "#10B981",
-  successGreenHover: "#059669",
-
-  /* ── Notion Yellow / Notice (注意・アラート) ── */
-  noticeBg: "#FDECC8",
-  noticeBorder: "#F2DBA7",
-  noticeText: "#C29243",
-
-  /* ── Notion Red — light badge bg ── */
-  redLightBg: "#FFE2DD",
-
-  /* ── Notion Orange ── */
-  /** Notion orange — also used as discount/financial text color */
-  notionOrange: "#D9730D",
-  /** Notion orange light — also used as discount/financial bg */
-  notionOrangeLight: "#FAEBDD",
-
-  /* ── Notion Purple — lighter border ── */
-  purpleBorderLight: "#D6C6E1",
-
-  /* ── Warning (yellow) ── */
-  warningBg:     "#FFF3CD",
-  warningIcon:   "#B58105",
-  warningText:   "#856404",
-  warningBar:    "#F2AC57",
-
-  /** 健診「期限間近」バッジ専用の黄土色（#158 系の warning トークンとは意図的に別配色） */
-  checkupDueSoonBg:   "#F0D070",
-  checkupDueSoonText: "#7A5C00",
-
-  /* ── Notion purple — 診療中ステータス ── */
-  statusPurpleText: "#6940A5",
-  statusPurpleBg:   "#EEE0F7",
-  /** Slightly darker purple bg for hover states */
-  statusPurpleBgDark: "#E4D0F2",
-
-  /* ── Notion Accent-light badge border ── */
-  accentBadgeBorder: "#B8D4E3",
-
-  /* ── Notion Brown — 入院 reservation card ── */
-  brownBg:     "#EEE0DA",
-  brownText:   "#64473A",
-  brownBorder: "#DFD0C8",
-
-  /* ── Notion Pink — テル reservation card ── */
-  pinkBg:      "#F5E0E9",
-  pinkText:    "#AD1A72",
-  pinkBorder:  "#ECCBDA",
-
-  /* ── Muted badge ── */
-  /** Muted badge bg (slightly warmer than mutedBg) */
-  mutedBadgeBg:     "#F1F1EF",
-
-  /* ── Red badge border ── */
-  redBadgeBorder: "#F5CBC4",
 
   /* ── Orange badge border ── */
   borderOrangeBadge: "#F0C9A8",
@@ -185,20 +104,10 @@ export const PALETTE = {
   /* ── Master settings default colors (DB-configurable) ── */
   /** Default gray for badge when no color set */
   defaultGray: "#6B7280",
-  /** Default blue for reservation category when no color set */
-  defaultBlue: "#3B82F6",
-  /** Light border for unselected items (Tailwind gray-200) */
-  borderUnselected: "#e5e7eb",
-
-  /* ── Medical accent blue (karte / hospitalization) ── */
-  /** Medical accent blue — use the single structural accent for focus/active states */
-  medicalBlue: "#0075DE",
 
   /* ── Chart colors (Recharts / VitalsGraph) ── */
   /** Chart: temperature line */
   chartTemperature: "#E07B54",
-  /** Chart: heart rate line */
-  chartHeartRate: "#000000",
   /** Chart: respiratory rate line */
   chartRespiratory: "#9C6EDE",
   /** Chart: body weight line */
@@ -209,12 +118,8 @@ export const PALETTE = {
   chartAxisText: "#9B9B97",
 
   /* ── UI Primitive (checkbox, input, select, textarea) ── */
-  /** Notion checkbox unchecked border */
-  borderCheckbox:    "border-[#D3D1CB]",
   /** Input/select/textarea hover bg (warm neutral) */
   hoverBgInput:      "hover:bg-[rgba(242,241,238,0.5)]",
-  /** Input/select/textarea focus border (primary 24%) */
-  focusBorderInput:  "focus:border-[rgba(0,0,0,0.24)]",
   /**
    * Input/select/textarea focus border — legacy accent (#2383E2) rgb 表記。
    * FE3-1: 値は変更せず既存直値をトークン化しただけ。正しい色への修正は別途デザイン判断。
@@ -871,16 +776,10 @@ export const STYLE = {
   /* ── Form Header ── */
   formHeader:
     `sticky top-0 z-10 ${C.bgPage} border-b ${C.borderLight} px-4 flex items-center justify-between gap-2 h-[53px]`,
-  formHeaderTitle: `text-base ${C.text} leading-tight`,
-  formHeaderDesc:  `text-base ${C.text50} mt-0.5`,
 
   /* ── Primary Button ── */
-  btnPrimary:
-    `${C.bgAccent} ${C.bgAccentHover} ${C.textWhite} h-11 px-4 text-base shadow-none border-transparent rounded-[4px] transition-colors`,
   btnGhost:
     `${C.text60} ${C.hoverText} hover:bg-transparent`,
-  btnAccent:
-    `${C.textWhite} ${C.bgAccent} ${C.bgAccentHover} h-11 px-4 text-base rounded-[4px] transition-colors shadow-none border-transparent`,
   btnDanger:
     `${C.bgDanger} ${C.textWhite} ${C.hoverBgDanger90} h-11 px-4 text-base rounded-[4px] transition-colors shadow-none border-transparent`,
   btnOutline:
@@ -939,8 +838,6 @@ export const STYLE = {
   /* ── Notion Property Row ── */
   propertyRow:
     `flex gap-2 py-2 px-2 -mx-2 rounded-[3px] ${C.hoverBgLight} transition-colors min-h-[40px]`,
-  propertyLabel:
-    `w-[140px] shrink-0 text-base ${C.text65} select-none truncate`,
   propertyInput:
     `w-full bg-transparent text-base ${C.text} outline-none border-none px-1.5 py-0.5 rounded-[3px] ${C.hoverBgLight} ${C.focusBgLight} transition-colors ${C.textPlaceholder}`,
 
@@ -957,8 +854,6 @@ export const STYLE = {
   iconBtn32: `size-8 flex items-center justify-center rounded-[3px] transition-colors`,
   /** 28px アイコンボタン基底クラス (サイドバー・TreatmentRow) */
   iconBtn28: `size-7 flex items-center justify-center rounded-[3px] transition-colors`,
-  /** 24px アイコンボタン基底クラス (BUG-322) */
-  iconBtn24: `size-6 flex items-center justify-center rounded-[3px] transition-colors`,
   /** 20px アイコンボタン基底クラス (折りたたみトグル等) */
   iconBtn20: `size-5 flex items-center justify-center rounded-[3px] transition-colors`,
   sidePeekBody:
@@ -973,10 +868,6 @@ export const STYLE = {
   /* ── Notion Page Icon ── */
   pageIcon:
     `size-[38px] flex items-center justify-center rounded-[3px] ${C.bgPage} ${C.text45}`,
-
-  /* ── Notion "more" dropdown shadow ── */
-  dropdownShadow:
-    "bg-white rounded-[4px] shadow-[var(--notion-shadow)]",
 
   /* ── Select Trigger (compact, side peek) ── */
   selectCompact:
@@ -1013,9 +904,6 @@ export const STYLE = {
     `text-base ${C.text70}`,
   formInput:
     `h-11 text-base bg-white ${C.borderMedium} ${C.text}`,
-  /** Lighter border + hover variant — use for SelectTrigger in reservation/form fields */
-  formInputLight:
-    `h-11 text-base bg-white ${C.borderMediumLight} ${C.text} ${C.hoverBgSubtle} transition-colors`,
   /** Error ring for form inputs — use with conditional classnames */
   formInputError:
     `ring-2 ring-[#C0392B]/30 ${C.borderDanger}`,
