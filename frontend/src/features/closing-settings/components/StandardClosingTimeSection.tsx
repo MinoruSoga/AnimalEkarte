@@ -4,22 +4,13 @@ import { C, STYLE } from "@/lib/design-tokens";
 import { SubmitButton } from "@/components/shared/Form/SubmitButton";
 import { handleApiError } from "@/lib/handle-api-error";
 import type { ClinicSettings } from "@/types/generated/models";
+import { DAY_OF_WEEK_LABELS as WEEKDAY_LABELS } from "@/constants/day-of-week";
 import { updateClosingSettings } from "../api/update-closing-settings";
 import {
   computeClosingTimeRanges,
   formatRangeText,
   toTimeInputValue,
 } from "../lib/closing-time-ranges";
-
-const WEEKDAY_LABELS: Record<number, string> = {
-  0: "日",
-  1: "月",
-  2: "火",
-  3: "水",
-  4: "木",
-  5: "金",
-  6: "土",
-};
 
 // 時間帯プレビューの行定義（key は ClosingTimeRanges のキーと一致）。
 const PERIOD_ROWS = [

@@ -3,6 +3,7 @@ import { Trash2, Plus, Clock } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { SubmitButton } from "@/components/shared/Form/SubmitButton";
 import { C, STYLE, ICON } from "@/lib/design-tokens";
+import { DAY_OF_WEEK_LABELS } from "@/constants/day-of-week";
 import {
   useGetUnavailableTimes,
   useCreateUnavailableTime,
@@ -29,10 +30,6 @@ const DAY_OF_WEEK_ITEMS = (
     <SelectItem value="6">土曜日</SelectItem>
   </>
 );
-
-const DAY_OF_WEEK_LABELS: Record<number, string> = {
-  0: "日", 1: "月", 2: "火", 3: "水", 4: "木", 5: "金", 6: "土",
-};
 
 /** 30分刻みの時刻選択肢 "HH:MM" */
 const TIME_OPTIONS: string[] = [];
