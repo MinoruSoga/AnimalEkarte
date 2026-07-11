@@ -1,7 +1,9 @@
 import { memo } from "react";
 import type { ClinicMembership } from "@/types/auth";
 import type { MembershipTypeLabel, OwnerData } from "../types";
-import { OwnerAddressFields, OwnerBasicFields, OwnerMembershipFields } from "./OwnerInfoFieldSections";
+import { OwnerAddressFields } from "./OwnerAddressFields";
+import { OwnerBasicFields } from "./OwnerBasicFields";
+import { OwnerMembershipFields } from "./OwnerMembershipFields";
 
 interface OwnerInfoSectionProps {
   ownerData: OwnerData;
