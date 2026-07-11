@@ -1788,14 +1788,15 @@ src/
 │           └── use-owner-form.test.ts  # 同階層に配置
 └── testing/
     ├── setup.ts                  # テスト共通設定
-    ├── server/                   # MSW handlers
-    └── utils.tsx                 # テストユーティリティ
+    ├── mocks/                    # MSW handlers
+    └── utils.tsx                 # テストユーティリティ (createTestWrapper 等)
 ```
 
 **ルール:**
 - テストファイル名: `[対象ファイル名].test.ts(x)`
-- コンポーネントディレクトリ内に同梱
-- `__tests__/` ディレクトリは使用しない
+- 新規テストは同階層への co-located 配置を推奨する
+- 既存の `__tests__/` 配置（FE4-17 時点で 53 ファイル）は許容する。一括移動は行わない
+  （移動コストが可読性向上に見合わないため。新規追加時のみ co-located を選ぶ）
 
 ### 8.2 テスト例
 
