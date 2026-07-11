@@ -14,16 +14,9 @@ import type { PaymentMethod } from "@/types/generated/models";
 
 import { useGetRefunds } from "../api/get-refunds";
 import type { PaymentSplitInfo } from "../types";
+import { PAYMENT_METHOD_LABELS } from "./daily-accounting-utils";
 
 const NO_PAYMENT_METHOD = "none";
-
-// 会計 payment_splits.method (ENUM) と同体系の支払方法ラベル。
-const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
-  cash: "現金",
-  credit_card: "カード",
-  electronic_money: "電子マネー",
-  bank_transfer: "銀行振込",
-};
 
 interface RefundSectionProps {
   accountingId: string;

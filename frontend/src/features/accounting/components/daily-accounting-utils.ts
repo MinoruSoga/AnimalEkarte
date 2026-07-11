@@ -1,7 +1,8 @@
-import type { Accounting, AccountingItem } from "../types";
+import type { Accounting, AccountingItem, PaymentMethod } from "../types";
 
 // ── 定数 ────────────────────────────────────────────────────────
-export const PAYMENT_METHOD_LABELS: Record<string, string> = {
+// FE3-10: RefundSection.tsx のローカル複製（値同一）を統合。
+export const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
   cash: "現金",
   credit_card: "カード",
   electronic_money: "電子マネー",
