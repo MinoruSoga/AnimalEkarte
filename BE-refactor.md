@@ -282,6 +282,22 @@ docker compose exec backend go test ./internal/repository/ -count=1   # DB 必�
 - **リスク / 戻し方**: U2-U7 増分の様式差の見落とし → 着手時 grep 全件処理 + 文言維持ルールで担保。`git reset --hard HEAD~1`。
 - **依存**: R0（Phase 3 の中で最後に実施 — 対象ファイルが最多のため）
 
+**実施結果（統合/スキップ全サイト表・go-reviewer指摘によるトレーサビリティ追記）**: 着手時 grep は `failed to verify.*ownership` 等で過剰マッチするため、以下5基準で個別判定した（1つでも外れたらスキップ）: ①パラメータが optional `*uint64`/`[]uint64` で nil-skip ②clinic-scoped マスタへの FindByID 検証 ③wrap 文言が `failed to verify <entity> ownership` に厳密一致 ④fatal（エラーをそのまま返す） ⑤戻り値が単一 `error`。
+
+統合（16サイト・validators.go の共有ヘルパー経由）: `exam_type_service.go`(parent exam type) / `medicine_service.go`(parent medicine, inventory) / `checkup_type_service.go`(parent checkup type) / `consultation_service.go`(parent consultation) / `procedure_service.go`(parent procedure) / `vaccine_service.go`(parent vaccine) / `campaign_service.go`(merchandise item, slice版) / `clinical_plan_service.go`(diagnosis type/name) / `medical_record_subrecords.go`(diagnosis type/name の fatal helper 本体のみ) / `inquiry_service.go`(chief complaint type) / `care_plan_item_service.go`(medicine/procedure/hospitalization plan) / `treatment_service.go`(medicine/procedure/consultation) / `hospitalization_service.go`(cage ×2) / `examination_service.go`(exam type, Update のみ) / `checkup_service.go`(checkup type, Update のみ) / `vaccination_service.go`(vaccine, Update のみ)。
+
+スキップ（理由付き・いずれも既存挙動のまま未変更）:
+- `examination_service.go`(Create)・`vaccination_service.go`(Create)・`checkup_service.go`(Create)・`lab_import_examination_service.go`・`reservation_validators.go`(reservation type)・`reservation_service.go` — 基準①違反（必須 `uint64` で zero-guard、optional FK ではない）
+- `billing_item_service.go`(trimming course/option)・`reservation_validators.go`(trimming course/options)・`reservation_type_service_core.go`(reservation type group) — 基準③違反（既存 slog 文言が `"...not found or belongs to different clinic"` で wrap 文言と不一致。書き換えるとログ文言変更＝許容範囲外）
+- `reservation_staff_service.go`(4箇所) — 基準②/⑤違反（更新対象そのものの確認であり request 由来マスタ FK ではない。一部 3-tuple 戻り値）
+- `treatment_service.go`(medical record ownership ×2)・`care_plan_item_service.go`(hospitalization ownership) — 基準②違反（親/トランザクション内エンティティであり clinic-scoped マスタではない）
+- `staff_service_core.go`(occupation) — 基準③違反（`WrapInternalServerError` の nil-repo 分岐が混在し単純な find-then-wrap 構造ではない）
+- `medical_record_subrecords.go:18,65`（呼び出しサイト自体） — 基準④違反（`slog.WarnContext` + skip の non-fatal 経路。fatal helper 本体は統合したがこの呼び出し元は意図的に未変更）
+
+entity 文言（wrap/slog とも旧実装からバイト同一維持）: `parent medicine` / `inventory` / `exam type` / `cage` / `parent exam type` / `merchandise item` / `diagnosis type` / `diagnosis name` / `parent checkup type` / `parent vaccine` / `parent consultation` / `parent procedure` / `chief complaint type` / `medicine` / `procedure` / `hospitalization plan` / `vaccine` / `consultation` / `checkup type`。
+
+既知の限界（go-reviewer MEDIUM指摘）: `medical_record_subrecords.go` の non-fatal 呼び出しサイトは、統合先 helper が常に `slog.ErrorContext` を発するため、既存の `slog.WarnContext`（skip 時ログ）と合わせて ERROR+WARN の二重ログになる。制御フロー・HTTPレスポンス・DB書込結果への影響はないが、ログレベル不整合として次期整理候補（本項目のスコープ外）。
+
 ### R31. LockDraftByID を実態に合う名前へリネーム ✅ DONE (1eb09d2b)
 
 - **対象**（計画時実測: 21 ファイル・69 ヒット — `grep -rn 'LockDraftByID' backend/internal --include='*.go'` で着手時に再列挙）: 定義 `medical_record_repository.go:345` + interface 宣言、service 呼び出し 5 サイト（treatment/examination/vital/prescription/checkup_field_result）、FK デッドロック根拠コメントでの言及 3 repo ファイル（examination/prescription/vital_repository.go）、`dbortx_inventory_lint_test.go` の台帳キー、repo テスト 2 ファイル（`medical_record_repository_test.go`・専用並行テスト `medical_record_finalize_lock_concurrency_test.go` — テスト関数名にも旧名が含まれるため関数名ごと更新）、service テスト内 mock 約 10 ファイル
