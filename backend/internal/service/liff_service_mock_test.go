@@ -585,12 +585,6 @@ func (m *mockLiffOccupationRepository) Create(_ context.Context, _ *model.Reserv
 	return nil
 }
 func (m *mockLiffOccupationRepository) Delete(_ context.Context, _, _, _ uint64) error { return nil }
-func (m *mockLiffOccupationRepository) CountWorkingStaffByReservationTypeID(ctx context.Context, clinicID, reservationTypeID uint64, date time.Time) (int64, error) {
-	if m.countByStaffIDFn != nil {
-		return m.countByStaffIDFn(ctx, clinicID, reservationTypeID, date)
-	}
-	return 1, nil // デフォルト: 1人出勤（予約可能）
-}
 func (m *mockLiffOccupationRepository) CountWorkingStaffByReservationTypeIDs(ctx context.Context, clinicID, reservationTypeID uint64, dates []time.Time) (map[string]int64, error) {
 	if m.countByStaffIDsFn != nil {
 		return m.countByStaffIDsFn(ctx, clinicID, reservationTypeID, dates)

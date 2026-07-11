@@ -2,7 +2,7 @@ package repository
 
 // reservation_type_occupation_repository_test.go
 // ReservationTypeOccupationRepository（予約区分×職種の中間テーブル）の CRUD・Occupation Preload の
-// clinic_id 隔離・CountWorkingStaffByReservationTypeID の raw SQL 集計を実 DB で検証する。
+// clinic_id 隔離・CountWorkingStaffByReservationTypeIDs の raw SQL 集計を実 DB で検証する。
 
 import (
 	"context"
@@ -165,48 +165,6 @@ func TestReservationTypeOccupationRepository_Delete(t *testing.T) {
 		err := repo.Delete(ctx, clinicA, rtA.ID, occA.ID)
 		assert.Error(t, err)
 		assert.True(t, apperrors.IsNotFound(err))
-	})
-}
-
-func TestReservationTypeOccupationRepository_CountWorkingStaffByReservationTypeID(t *testing.T) {
-	db := setupReservationTypeOccupationTestDB(t)
-	repo := NewReservationTypeOccupationRepository(db)
-	ctx := context.Background()
-	const clinicA, clinicB = uint64(1), uint64(2)
-
-	// config.JST は本パッケージ内で reservation_type_occupation_repository.go が公開する非公開変数（同一パッケージのため参照可）。
-	date := time.Date(2026, 6, 15, 0, 0, 0, 0, config.JST)
-
-	rtA := makeReservationTypeLinked(t, db, clinicA, "出勤集計対象区分", nil, nil)
-	occA := makeOccupation(t, db, clinicA, "出勤集計対象職種")
-	makeReservationTypeOccupationLink(t, db, clinicA, rtA.ID, occA.ID)
-
-	working := makeStaffWithOccupation(t, db, clinicA, occA.ID, "出勤スタッフ")
-	makeShiftEntryWithType(t, db, clinicA, working.ID, date, model.ShiftTypeFull)
-
-	off := makeStaffWithOccupation(t, db, clinicA, occA.ID, "休日スタッフ")
-	makeShiftEntryWithType(t, db, clinicA, off.ID, date, model.ShiftTypeOff)
-
-	paidLeave := makeStaffWithOccupation(t, db, clinicA, occA.ID, "有給スタッフ")
-	makeShiftEntryWithType(t, db, clinicA, paidLeave.ID, date, model.ShiftTypePaidLeave)
-
-	t.Run("off/paid_leaveを除いた出勤スタッフのみカウントされる", func(t *testing.T) {
-		count, err := repo.CountWorkingStaffByReservationTypeID(ctx, clinicA, rtA.ID, date)
-		require.NoError(t, err)
-		assert.Equal(t, int64(1), count)
-	})
-
-	t.Run("該当日にシフトが無い日は0件", func(t *testing.T) {
-		otherDate := time.Date(2026, 6, 16, 0, 0, 0, 0, config.JST)
-		count, err := repo.CountWorkingStaffByReservationTypeID(ctx, clinicA, rtA.ID, otherDate)
-		require.NoError(t, err)
-		assert.Equal(t, int64(0), count)
-	})
-
-	t.Run("別クリニックIDでは0件（clinic_id 隔離）", func(t *testing.T) {
-		count, err := repo.CountWorkingStaffByReservationTypeID(ctx, clinicB, rtA.ID, date)
-		require.NoError(t, err)
-		assert.Equal(t, int64(0), count)
 	})
 }
 

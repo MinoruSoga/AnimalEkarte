@@ -51,10 +51,6 @@ func (m *mockOccupationLinkRepo) Delete(ctx context.Context, clinicID, reservati
 	return nil
 }
 
-func (m *mockOccupationLinkRepo) CountWorkingStaffByReservationTypeID(_ context.Context, _, _ uint64, _ time.Time) (int64, error) {
-	return 1, nil
-}
-
 func (m *mockOccupationLinkRepo) CountWorkingStaffByReservationTypeIDs(_ context.Context, _, _ uint64, dates []time.Time) (map[string]int64, error) {
 	result := make(map[string]int64, len(dates))
 	for _, d := range dates {

@@ -123,7 +123,7 @@ func (s *liffService) GetAvailableDates(ctx context.Context, clinicID, typeID, s
 
 // applyOccupationGuard は職種紐付けが1件以上ある場合のみ、対応職種のスタッフが出勤している日かを
 // チェックして results を in-place で更新する（BE-117）。0件（職種紐付けなし）は後方互換で素通り。
-// G7-1: 日毎の CountWorkingStaffByReservationTypeID 呼出をバッチ版1クエリに集約する。
+// G7-1: 日毎のカウント呼出をバッチ版1クエリに集約する。
 func (s *liffService) applyOccupationGuard(ctx context.Context, clinicID, typeID uint64, results []AvailableDateResult) error {
 	occupations, err := s.occupationRepo.FindAll(ctx, clinicID, typeID)
 	if err != nil {

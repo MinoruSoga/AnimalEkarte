@@ -22,9 +22,6 @@ type ReservationTypeOccupationRepository interface {
 	Create(ctx context.Context, o *model.ReservationTypeOccupation) error
 	// Delete は物理削除（論理削除なし）
 	Delete(ctx context.Context, clinicID, reservationTypeID, occupationID uint64) error
-	// CountWorkingStaffByReservationTypeID は指定日に対応職種のスタッフが何人出勤しているかを返す（LIFF 専用）
-	// shift_type が 'off' / 'paid_leave' 以外のスタッフのみカウント
-	CountWorkingStaffByReservationTypeID(ctx context.Context, clinicID, reservationTypeID uint64, date time.Time) (int64, error)
 	// CountWorkingStaffByReservationTypeIDs は複数日分の出勤スタッフ数を1クエリでまとめて返す(G7-1: 日付ループN+1回避)。
 	// 戻り値のキーは time.DateOnly 形式(JST)。シフトが無い日はキーとして存在しない(0扱い)。dates が空なら空map即返し。
 	CountWorkingStaffByReservationTypeIDs(ctx context.Context, clinicID, reservationTypeID uint64, dates []time.Time) (map[string]int64, error)
@@ -93,29 +90,6 @@ func (r *reservationTypeOccupationRepository) Delete(
 		return apperrors.FromGORM(gorm.ErrRecordNotFound, "reservation_type_occupation", fmt.Sprintf("type=%d occ=%d", reservationTypeID, occupationID))
 	}
 	return nil
-}
-
-func (r *reservationTypeOccupationRepository) CountWorkingStaffByReservationTypeID(
-	ctx context.Context, clinicID, reservationTypeID uint64, date time.Time,
-) (int64, error) {
-	// JST 日付文字列で shift_entries.date と比較する
-	dateStr := date.In(config.JST).Format(time.DateOnly)
-	var count int64
-	err := r.db.WithContext(ctx).Raw(`
-		SELECT COUNT(DISTINCT se.staff_id)
-		FROM reservation_type_occupations rto
-		JOIN staffs s ON s.occupation_id = rto.occupation_id AND s.deleted_at IS NULL
-		JOIN shift_entries se ON se.staff_id = s.id
-			AND se.clinic_id = ?
-			AND se.date = ?
-			AND se.shift_type NOT IN ('off', 'paid_leave')
-		WHERE rto.clinic_id = ?
-		  AND rto.reservation_type_id = ?
-	`, clinicID, dateStr, clinicID, reservationTypeID).Scan(&count).Error
-	if err != nil {
-		return 0, apperrors.FromGORM(err, "count_working_staff", fmt.Sprintf("type=%d date=%s", reservationTypeID, dateStr))
-	}
-	return count, nil
 }
 
 func (r *reservationTypeOccupationRepository) CountWorkingStaffByReservationTypeIDs(
