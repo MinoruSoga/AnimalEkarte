@@ -1,6 +1,7 @@
 import { useState, useRef } from "react";
 import { C } from "@/lib/design-tokens";
 import { calcAgeAt } from "@/lib/calc-age";
+import { toJSTWallDate } from "@/lib/jst-date";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { useRevokePetDeath } from "@/hooks/use-revoke-pet-death";
 
@@ -11,8 +12,11 @@ interface PetDeceasedBannerProps {
   canEdit?: boolean;
 }
 
+// FE4-9 fix: `new Date(deceasedAt)` の後にブラウザローカル TZ の getter で整形していたため、
+// 非 JST ブラウザでは前日が表示されるバグがあった。toJSTWallDate で JST 壁時計へ変換してから
+// 整形する（曜日表示なしの現行フォーマットはそのまま維持）。
 function formatDeceasedDate(deceasedAt: string): string {
-  const d = new Date(deceasedAt);
+  const d = toJSTWallDate(deceasedAt);
   const yyyy = d.getFullYear();
   const mm = d.getMonth() + 1;
   const dd = d.getDate();
