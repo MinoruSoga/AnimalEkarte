@@ -90,7 +90,7 @@ const DemoAccount = memo(function DemoAccount({
 });
 
 /* ---- Shared input classes (padding-x set per field to avoid conflict) ---- */
-// Figma実測: fontSize=15px, height=~48px, bg=rgba(242,241,238,0.6), borderRadius=3px
+// Figma実測: fontSize=15px, height=~48px, bg=warm neutral 60%透過（PALETTE.hoverBgInput相当の色調）, borderRadius=3px
 const INPUT_BASE = `w-full h-[48px] text-base rounded-[3px] ${C.bgInputLogin} border ${C.borderMedium} ${C.text} ${C.textPlaceholder} outline-none transition-all focus:ring-2 ${C.focusRingBrand} focus:border-transparent disabled:opacity-60`;
 
 /* ---- Login Form ---- */
