@@ -25,7 +25,7 @@ function renderWithClinicId() {
 
 describe('PetHealthPage（R-F22/R-F23: 共通フェッチ状態管理・ステータス別エラー）', () => {
   it('取得後は飼い主名を表示する', async () => {
-    server.use(http.get('/v1/liff/health-card', () => HttpResponse.json(healthCard)));
+    server.use(http.get('/api/liff/:clinicId/health-card', () => HttpResponse.json(healthCard)));
 
     renderWithClinicId();
 
@@ -33,7 +33,7 @@ describe('PetHealthPage（R-F22/R-F23: 共通フェッチ状態管理・ステ�
   });
 
   it('API失敗(5xx)時はサーバーエラーメッセージと再試行ボタンを表示する', async () => {
-    server.use(http.get('/v1/liff/health-card', () => HttpResponse.json(null, { status: 500 })));
+    server.use(http.get('/api/liff/:clinicId/health-card', () => HttpResponse.json(null, { status: 500 })));
 
     renderWithClinicId();
 
@@ -42,7 +42,7 @@ describe('PetHealthPage（R-F22/R-F23: 共通フェッチ状態管理・ステ�
   });
 
   it('API失敗(401)時は再ログインメッセージを表示し、再試行ボタンは出さない', async () => {
-    server.use(http.get('/v1/liff/health-card', () => HttpResponse.json(null, { status: 401 })));
+    server.use(http.get('/api/liff/:clinicId/health-card', () => HttpResponse.json(null, { status: 401 })));
 
     renderWithClinicId();
 
@@ -54,7 +54,7 @@ describe('PetHealthPage（R-F22/R-F23: 共通フェッチ状態管理・ステ�
     const user = userEvent.setup();
     let callCount = 0;
     server.use(
-      http.get('/v1/liff/health-card', () => {
+      http.get('/api/liff/:clinicId/health-card', () => {
         callCount += 1;
         if (callCount === 1) return HttpResponse.json(null, { status: 500 });
         return HttpResponse.json(healthCard);

@@ -48,11 +48,10 @@ export async function linkLineAccount(
 }
 
 export async function fetchHealthCard(idToken: string, clinicId: string): Promise<HealthCardResponse> {
-  const res = await fetch(`${API_BASE_URL}/v1/liff/health-card`, {
+  const res = await fetch(`${API_BASE_URL}/api/liff/${encodeURIComponent(clinicId)}/health-card`, {
     method: 'GET',
     headers: {
       'Authorization': `Bearer ${idToken}`,
-      'X-Clinic-ID': clinicId,
     },
   });
 
