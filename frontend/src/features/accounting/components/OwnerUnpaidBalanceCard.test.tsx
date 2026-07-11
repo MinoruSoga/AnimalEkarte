@@ -1,18 +1,13 @@
 import { describe, it, expect } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { http, HttpResponse } from "msw";
 import { server } from "@/testing/mocks/node";
+import { createTestWrapper } from "@/testing/utils";
 
 import { OwnerUnpaidBalanceCard } from "./OwnerUnpaidBalanceCard";
 
 function renderCard(ownerId: string) {
-  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  return render(
-    <QueryClientProvider client={qc}>
-      <OwnerUnpaidBalanceCard ownerId={ownerId} />
-    </QueryClientProvider>,
-  );
+  return render(<OwnerUnpaidBalanceCard ownerId={ownerId} />, { wrapper: createTestWrapper() });
 }
 
 describe("OwnerUnpaidBalanceCard 未納残高表示 (#182)", () => {

@@ -1,9 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { MemoryRouter } from "react-router";
 import { http, HttpResponse } from "msw";
 import { server } from "@/testing/mocks/node";
+import { createTestWrapper } from "@/testing/utils";
 import { CategorySidePanel } from "./ReservationTypeSidePanel";
 import type { ReservationType } from "../api/reservation-types";
 
@@ -39,14 +38,7 @@ function makeType(overrides: Partial<ReservationType>): ReservationType {
 }
 
 function createWrapper() {
-  const queryClient = new QueryClient({
-    defaultOptions: { queries: { retry: false } },
-  });
-  return ({ children }: { children: React.ReactNode }) => (
-    <MemoryRouter>
-      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
-    </MemoryRouter>
-  );
+  return createTestWrapper({ router: true });
 }
 
 const noop = vi.fn();

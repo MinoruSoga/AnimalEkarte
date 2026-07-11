@@ -1,24 +1,16 @@
 import { describe, expect, it, afterEach } from "vitest";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { ja } from "date-fns/locale";
 import { http, HttpResponse } from "msw";
-import { MemoryRouter } from "react-router";
 import { server } from "@/testing/mocks/node";
+import { createTestWrapper } from "@/testing/utils";
 import { toJSTWallDate } from "@/lib/jst-date";
 import { ReservationTypeAvailableSlotsCalendar } from "./ReservationTypeAvailableSlotsCalendar";
 
 function createWrapper() {
-  const queryClient = new QueryClient({
-    defaultOptions: { queries: { retry: false } },
-  });
-  return ({ children }: { children: React.ReactNode }) => (
-    <MemoryRouter>
-      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
-    </MemoryRouter>
-  );
+  return createTestWrapper({ router: true });
 }
 
 afterEach(() => {

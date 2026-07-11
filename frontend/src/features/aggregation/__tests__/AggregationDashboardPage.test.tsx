@@ -1,10 +1,9 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { MemoryRouter } from 'react-router';
 import { http, HttpResponse } from 'msw';
 import { server } from '@/testing/mocks/node';
+import { createTestWrapper } from '@/testing/utils';
 import { AggregationDashboardPage } from '../routes/AggregationDashboardPage';
 import type { AggregationResponse } from '../api/get-aggregations';
 
@@ -44,17 +43,8 @@ const mockResponse: AggregationResponse = {
   total: 2,
 };
 
-const createWrapper = (initialEntries: string[] = ["/aggregation"]) => {
-  const queryClient = new QueryClient({
-    defaultOptions: { queries: { retry: false } },
-  });
-
-  return ({ children }: { children: React.ReactNode }) => (
-    <QueryClientProvider client={queryClient}>
-      <MemoryRouter initialEntries={initialEntries}>{children}</MemoryRouter>
-    </QueryClientProvider>
-  );
-};
+const createWrapper = (initialEntries: string[] = ["/aggregation"]) =>
+  createTestWrapper({ initialEntries });
 
 describe('AggregationDashboardPage', () => {
   beforeEach(() => {

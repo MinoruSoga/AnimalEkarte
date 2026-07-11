@@ -1,9 +1,8 @@
-import type { ReactNode } from "react";
 import { describe, it, expect } from "vitest";
 import { renderHook, waitFor } from "@testing-library/react";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { http, HttpResponse } from "msw";
 import { server } from "@/testing/mocks/node";
+import { createTestWrapper } from "@/testing/utils";
 import { useGetMedicalRecords } from "./get-medical-records";
 import type { BackendMedicalRecord } from "./types";
 
@@ -22,12 +21,7 @@ function makeBackendRecord(id: number): BackendMedicalRecord {
   };
 }
 
-function createWrapper() {
-  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  return ({ children }: { children: ReactNode }) => (
-    <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
-  );
-}
+const createWrapper = createTestWrapper;
 
 // BUG-B1 回帰防止: page/limit が常に送信され、旧DB由来を含む全件へページングできること
 describe("useGetMedicalRecords", () => {

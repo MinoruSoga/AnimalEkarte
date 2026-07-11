@@ -1,10 +1,9 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { MemoryRouter } from 'react-router';
 import { http, HttpResponse } from 'msw';
 import { server } from '@/testing/mocks/node';
+import { createTestWrapper } from '@/testing/utils';
 import { TriggerPrioritySection } from '../components/TriggerPrioritySection';
 import type { TriggerPriorityListResponse } from '../hooks/use-trigger-priorities';
 
@@ -27,16 +26,7 @@ function setupGetHandler(data: TriggerPriorityListResponse = sampleResponse) {
   );
 }
 
-function createWrapper() {
-  const queryClient = new QueryClient({
-    defaultOptions: { queries: { retry: false } },
-  });
-  return ({ children }: { children: React.ReactNode }) => (
-    <QueryClientProvider client={queryClient}>
-      <MemoryRouter>{children}</MemoryRouter>
-    </QueryClientProvider>
-  );
-}
+const createWrapper = () => createTestWrapper({ router: true });
 
 async function renderAndWait(data: TriggerPriorityListResponse = sampleResponse) {
   setupGetHandler(data);

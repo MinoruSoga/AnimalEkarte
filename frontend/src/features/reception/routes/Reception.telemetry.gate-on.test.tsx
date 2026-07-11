@@ -1,7 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { MemoryRouter } from "react-router";
+import { createTestWrapper } from "@/testing/utils";
 import type { ColumnData } from "@/types";
 import { Reception } from "./Reception";
 
@@ -73,14 +72,7 @@ vi.mock("../hooks/use-reception-kanban", () => ({
 }));
 
 function renderReception() {
-  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  return render(
-    <QueryClientProvider client={queryClient}>
-      <MemoryRouter>
-        <Reception />
-      </MemoryRouter>
-    </QueryClientProvider>,
-  );
+  return render(<Reception />, { wrapper: createTestWrapper({ router: true }) });
 }
 
 describe("Reception — テレメトリ配線（Phase 2 ゲート ON、フォローアップ後の想定挙動）", () => {

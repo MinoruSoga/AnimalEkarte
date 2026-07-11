@@ -1,9 +1,8 @@
-import type { ReactNode } from "react";
 import { describe, it, expect } from "vitest";
 import { renderHook, waitFor } from "@testing-library/react";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { http, HttpResponse } from "msw";
 import { server } from "@/testing/mocks/node";
+import { createTestWrapper } from "@/testing/utils";
 import { useGetPetExaminations } from "./get-pet-examinations";
 
 function makeBackendExam(id: number, status: string, typeName: string) {
@@ -16,12 +15,7 @@ function makeBackendExam(id: number, status: string, typeName: string) {
   };
 }
 
-function createWrapper() {
-  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  return ({ children }: { children: ReactNode }) => (
-    <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
-  );
-}
+const createWrapper = createTestWrapper;
 
 describe("useGetPetExaminations (#158 下書き除外)", () => {
   it("依頼中/検査中を除外し、結果入力済み/完了/確定のみ日付順で返す", async () => {

@@ -1,19 +1,11 @@
-import type { ReactNode } from 'react';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { renderHook, waitFor } from '@testing-library/react';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { http, HttpResponse } from 'msw';
 import { server } from '@/testing/mocks/node';
+import { createTestWrapper } from '@/testing/utils';
 import { useGetOwnerAggregations, type AggregationResponse } from '../api/get-aggregations';
 
-const createWrapper = () => {
-  const queryClient = new QueryClient({
-    defaultOptions: { queries: { retry: false } },
-  });
-  return ({ children }: { children: ReactNode }) => (
-    <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
-  );
-};
+const createWrapper = createTestWrapper;
 
 const mockResponse: AggregationResponse = {
   owners: [

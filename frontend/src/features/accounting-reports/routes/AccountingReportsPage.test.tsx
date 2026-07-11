@@ -12,10 +12,9 @@ vi.mock("@/hooks/use-auth", () => ({
   }),
 }));
 
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { MemoryRouter } from "react-router";
 import { http, HttpResponse } from "msw";
 import { server } from "@/testing/mocks/node";
+import { createTestWrapper } from "@/testing/utils";
 
 import { AccountingReportsPage } from "./AccountingReportsPage";
 
@@ -57,14 +56,9 @@ const MONTHLY = {
 };
 
 function renderPage() {
-  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  return render(
-    <QueryClientProvider client={qc}>
-      <MemoryRouter initialEntries={["/accounting/reports"]}>
-        <AccountingReportsPage />
-      </MemoryRouter>
-    </QueryClientProvider>,
-  );
+  return render(<AccountingReportsPage />, {
+    wrapper: createTestWrapper({ initialEntries: ["/accounting/reports"] }),
+  });
 }
 
 describe("AccountingReportsPage 印刷 / PDF出力 (#184) + 操作UI除外 (#179 ④-a)", () => {

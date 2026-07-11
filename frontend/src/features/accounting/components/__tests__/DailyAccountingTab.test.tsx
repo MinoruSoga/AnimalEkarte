@@ -9,10 +9,9 @@ vi.mock("@/hooks/use-auth", () => ({
   }),
 }));
 import userEvent from "@testing-library/user-event";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { MemoryRouter } from "react-router";
 import { http, HttpResponse } from "msw";
 import { server } from "@/testing/mocks/node";
+import { createTestWrapper } from "@/testing/utils";
 
 import { DailyAccountingTab } from "../DailyAccountingTab";
 
@@ -96,14 +95,9 @@ const DAILY_SUMMARY = {
 };
 
 function renderTab(initialUrl = `/accounting?tab=daily&daily_date=${TODAY}`) {
-  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  return render(
-    <QueryClientProvider client={qc}>
-      <MemoryRouter initialEntries={[initialUrl]}>
-        <DailyAccountingTab />
-      </MemoryRouter>
-    </QueryClientProvider>,
-  );
+  return render(<DailyAccountingTab />, {
+    wrapper: createTestWrapper({ initialEntries: [initialUrl] }),
+  });
 }
 
 describe("DailyAccountingTab", () => {

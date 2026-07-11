@@ -1,22 +1,14 @@
-import type { ReactNode } from 'react';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { renderHook, waitFor } from '@testing-library/react';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { http, HttpResponse } from 'msw';
 import { server } from '@/testing/mocks/node';
+import { createTestWrapper } from '@/testing/utils';
 import {
   useGetCPMStageCounts,
   toCPMCountBaseParams,
 } from '../api/get-cpm-stage-counts';
 
-const createWrapper = () => {
-  const queryClient = new QueryClient({
-    defaultOptions: { queries: { retry: false } },
-  });
-  return ({ children }: { children: ReactNode }) => (
-    <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
-  );
-};
+const createWrapper = createTestWrapper;
 
 // per_page=1 でも total は母集団全体を返す前提の固定 total。
 const SEGMENT_TOTALS: Record<string, number> = {

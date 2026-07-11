@@ -1,18 +1,12 @@
-import type { ReactNode } from "react";
 import { describe, it, expect } from "vitest";
 import { renderHook, waitFor } from "@testing-library/react";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { http, HttpResponse } from "msw";
 import { server } from "@/testing/mocks/node";
+import { createTestWrapper } from "@/testing/utils";
 import { useMedicalRecordsList } from "./use-medical-records";
 import type { ActiveFilter } from "@/components/shared/PropertyFilter/types";
 
-function createWrapper() {
-  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  return ({ children }: { children: ReactNode }) => (
-    <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
-  );
-}
+const createWrapper = createTestWrapper;
 
 function mockList() {
   let capturedUrl: URL | undefined;

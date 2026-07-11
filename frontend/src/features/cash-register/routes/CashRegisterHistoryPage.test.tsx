@@ -1,10 +1,9 @@
 import { describe, it, expect, afterEach, vi } from "vitest";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { MemoryRouter } from "react-router";
 import { http, HttpResponse } from "msw";
 import { server } from "@/testing/mocks/node";
+import { createTestWrapper } from "@/testing/utils";
 import type { CashRegisterClose } from "@/types/generated/models";
 import { CashRegisterHistoryPage } from "./CashRegisterHistoryPage";
 
@@ -49,16 +48,10 @@ const makeClose = (
 
 const mockCloses = [makeClose(1, "2026-06-15", "am"), makeClose(2, "2026-06-20", "pm")];
 
-const renderPage = (initialEntry: string) => {
-  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  return render(
-    <QueryClientProvider client={queryClient}>
-      <MemoryRouter initialEntries={[initialEntry]}>
-        <CashRegisterHistoryPage />
-      </MemoryRouter>
-    </QueryClientProvider>,
-  );
-};
+const renderPage = (initialEntry: string) =>
+  render(<CashRegisterHistoryPage />, {
+    wrapper: createTestWrapper({ initialEntries: [initialEntry] }),
+  });
 
 const stubCloses = (closes: CashRegisterClose[]) => {
   server.use(

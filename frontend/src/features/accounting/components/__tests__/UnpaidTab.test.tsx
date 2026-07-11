@@ -10,22 +10,16 @@ vi.mock("@/hooks/use-auth", () => ({
 }));
 
 import userEvent from "@testing-library/user-event";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { MemoryRouter } from "react-router";
 import { http, HttpResponse } from "msw";
 import { server } from "@/testing/mocks/node";
+import { createTestWrapper } from "@/testing/utils";
 
 import { UnpaidTab } from "../UnpaidTab";
 
 function renderTab(initialSearch = "") {
-  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  return render(
-    <QueryClientProvider client={qc}>
-      <MemoryRouter initialEntries={[`/?${initialSearch}`]}>
-        <UnpaidTab />
-      </MemoryRouter>
-    </QueryClientProvider>,
-  );
+  return render(<UnpaidTab />, {
+    wrapper: createTestWrapper({ initialEntries: [`/?${initialSearch}`] }),
+  });
 }
 
 const MONTHLY_RESPONSE = {

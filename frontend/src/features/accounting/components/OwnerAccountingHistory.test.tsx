@@ -1,10 +1,10 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { MemoryRouter, useSearchParams } from "react-router";
+import { useSearchParams } from "react-router";
 import { http, HttpResponse } from "msw";
 import { server } from "@/testing/mocks/node";
+import { createTestWrapper } from "@/testing/utils";
 
 import { OwnerAccountingHistory } from "./OwnerAccountingHistory";
 import type { BackendAccounting } from "../api/types";
@@ -105,16 +105,8 @@ const cancelledFixture: BackendAccounting = makeBackendAccounting({
   pet: { id: 11, name: "ハチ", animal_species: { id: 1, name: "犬" } },
 });
 
-const createWrapper = (initialEntries?: string[]) => {
-  const queryClient = new QueryClient({
-    defaultOptions: { queries: { retry: false } },
-  });
-  return ({ children }: { children: React.ReactNode }) => (
-    <QueryClientProvider client={queryClient}>
-      <MemoryRouter initialEntries={initialEntries ?? ["/"]}>{children}</MemoryRouter>
-    </QueryClientProvider>
-  );
-};
+const createWrapper = (initialEntries?: string[]) =>
+  createTestWrapper({ initialEntries: initialEntries ?? ["/"] });
 
 /** PAGE_SIZE=10 を超えるフィクスチャを生成する。日付は 2026-04-01 から連番。 */
 const makePaginationFixtures = (n: number): BackendAccounting[] =>

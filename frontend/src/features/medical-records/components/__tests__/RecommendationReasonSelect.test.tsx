@@ -1,10 +1,9 @@
 import { describe, it, expect, afterEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { MemoryRouter } from "react-router";
 import { http, HttpResponse } from "msw";
 import { server } from "@/testing/mocks/node";
+import { createTestWrapper } from "@/testing/utils";
 import { RecommendationReasonSelect } from "../RecommendationReasonSelect";
 import type { RecommendationReason } from "../../constants/recommendation-reason";
 
@@ -26,14 +25,7 @@ const minimalMedicalRecordApiResponse = {
 };
 
 function createWrapper() {
-  const queryClient = new QueryClient({
-    defaultOptions: { queries: { retry: false } },
-  });
-  return ({ children }: { children: React.ReactNode }) => (
-    <QueryClientProvider client={queryClient}>
-      <MemoryRouter>{children}</MemoryRouter>
-    </QueryClientProvider>
-  );
+  return createTestWrapper({ router: true });
 }
 
 function renderSelect(value: RecommendationReason | null, disabled = false) {

@@ -1,9 +1,9 @@
 import { describe, it, expect } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { http, HttpResponse } from "msw";
 import { server } from "@/testing/mocks/node";
+import { createTestWrapper } from "@/testing/utils";
 
 import { CreditCorrectionDialog } from "../CreditCorrectionDialog";
 import type { Accounting } from "../../types";
@@ -18,12 +18,9 @@ function makeAccounting(overrides: Partial<Accounting>): Accounting {
 }
 
 function renderDialog(accounting: Accounting, isPostClose = false) {
-  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  return render(
-    <QueryClientProvider client={qc}>
-      <CreditCorrectionDialog accounting={accounting} isPostClose={isPostClose} />
-    </QueryClientProvider>,
-  );
+  return render(<CreditCorrectionDialog accounting={accounting} isPostClose={isPostClose} />, {
+    wrapper: createTestWrapper(),
+  });
 }
 
 describe("CreditCorrectionDialog 表示ゲート (#189)", () => {
