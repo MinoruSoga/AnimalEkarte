@@ -24,7 +24,13 @@ const (
 	TriggerTypeFoodRefillReminder   TriggerType = "food_refill_reminder"
 	TriggerTypeFirstVisitWelcome    TriggerType = "first_visit_welcome"
 	TriggerTypeCheckupFollowUp      TriggerType = "checkup_followup"
+)
 
+// FE6-1: tygo の detectEnumGroup は 1 つの const() ブロック（1 GenDecl）につき
+// 先頭定数の型のみを基準にグループ化するため、TriggerType/TriggerStatus が
+// 同一ブロックに混在していると後発の TriggerStatus が enum_style: "union" の対象から
+// 脱落する。ブロックを分離するだけで両方が正しく union 化される（値・型・エクスポートは不変）。
+const (
 	TriggerStatusScheduled TriggerStatus = "scheduled"
 	TriggerStatusFired     TriggerStatus = "fired"
 	TriggerStatusExcluded  TriggerStatus = "excluded"

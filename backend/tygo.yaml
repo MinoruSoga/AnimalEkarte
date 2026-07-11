@@ -1,6 +1,18 @@
 packages:
   - path: "github.com/animal-ekarte/backend/internal/model"
     output_path: "/output/models.ts"
+    # FE6-1: 生成定数の型 widen（typeof 定数 が string に潰れ「退化 union」化する問題）を解消。
+    # union は const 宣言の値自体は維持したまま、型を `export type X = typeof A | typeof B | ...` の
+    # 真の literal union として再出力する（値エクスポートに破壊的変更なし）。
+    enum_style: "union"
+    # FE6-1: lab_report.go の3型（LabExamReportSummary/Detail/ResultItem）は P7 準拠で
+    # json タグが handler 側の非公開 response struct（lab_report_response.go）へ移設済みのため、
+    # model パッケージ自体の構造体には json タグが無い。tygo は無タグ時に Go フィールド名を
+    # そのまま出力する（PascalCase）ため、ここに含めると実際の wire 形式（snake_case）と
+    # 一致しない誤った型が生成される。現状 FE 側に消費者が 0 件であることを確認済み
+    # （2026-07-11 grep 実測）。将来必要になった場合は FE6-5 と同じ手法
+    # （handler レスポンス struct を export してパッケージ追加生成）で対応すること。
+    exclude_files: ["lab_report.go"]
     type_mappings:
       time.Time: "string"
       gorm.DeletedAt: "string | null"
