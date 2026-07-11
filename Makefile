@@ -173,10 +173,11 @@ restart-api:
 restart-front:
 	$(DC) restart frontend
 
-# 本番ビルド
+# 本番ビルド（backend のみ。FE の本番配信は Vercel(frontend-deploy.yml)が担い、
+# frontend/Dockerfile は「本番」と称する dev サーバイメージという矛盾があったため
+# IR-12 A案で削除済み。dev 環境のイメージビルドは frontend/Dockerfile.dev のまま）
 build-prod:
 	docker build -t animal-ekarte-api:latest ./backend
-	docker build -t animal-ekarte-front:latest ./frontend
 
 # golangci-lint バージョン（CI と同一）
 GOLANGCI_LINT_VERSION := v2.11.4
