@@ -1,29 +1,21 @@
 /**
  * トリミング API 型定義（BE-119: appointments ベース）
  *
- * NOTE: BackendTrimming はハンドラの trimmingResponse DTO であり、
- * models.ts の Go モデルとは別物。make codegen では更新されない。
+ * FE7-3: BackendTrimming は tygo 生成の TrimmingResponse
+ * （handler/trimming_response.go の TrimmingResponse に対応・FE7-1/FE7-2 で export/codegen 化）
+ * を継承する。pet/staff の2フィールドのみ手書き — 生成型はこの2フィールドが参照する
+ * petSummaryResponse/staffSummaryResponse（11+18箇所で共有される非公開型）を
+ * tygo が解決できないため tstype:"-" で生成対象から除外されている（BE の json タグ・
+ * wire 形状自体は不変。フィールドは実際のレスポンスに引き続き含まれる）。
  */
 import type { ReservationRoute } from "@/features/reservations";
+import type { TrimmingResponse } from "@/types/generated/handler-responses";
 
 // -------------------------------------------------------
 // Backend Response DTO (trimming_response.go に対応)
 // -------------------------------------------------------
 
-/** トリミング予約詳細の option summary */
-interface TrimmingOptionSummary {
-  id: number;
-  name: string;
-}
-
-/** トリミングコース summary */
-interface TrimmingCourseSummary {
-  id: number;
-  name: string;
-  price: number;
-}
-
-/** ペット情報 summary（関連レコード） */
+/** ペット情報 summary（関連レコード。生成型が tstype:"-" で除外しているため手書き維持） */
 interface PetSummary {
   id: number;
   name: string;
@@ -33,7 +25,7 @@ interface PetSummary {
   owner?: { id: number; name: string } | null;
 }
 
-/** スタッフ情報 summary（関連レコード） */
+/** スタッフ情報 summary（関連レコード。生成型が tstype:"-" で除外しているため手書き維持） */
 interface StaffSummary {
   id: number;
   name: string;
@@ -41,37 +33,13 @@ interface StaffSummary {
 
 /**
  * トリミング予約 API レスポンス DTO
- * handler/trimming_response.go の trimmingResponse に対応
+ * handler/trimming_response.go の TrimmingResponse に対応。
+ * id/clinic_id/status/course/options 等のフラットフィールドは生成型を継承するため
+ * BE 側の形状変更（フィールド追加・optional 化等）は type-check で検知できる。
  */
-export interface BackendTrimming {
-  id: number;
-  clinic_id: number;
-  reservation_type_id: number;
-  start_time: string;
-  end_time: string;
-  pet_id?: number | null;
-  staff_id?: number | null;
-  status: string;
-  source: string;
-  // トリミング詳細（appointment_trimming_details から flat 化）
-  has_detail: boolean;
-  course_id?: number | null;
-  style_request: string;
-  bw?: number | null;
-  bw_unit: string;
-  bt?: number | null;
-  used_shampoo: string;
-  used_ribbon: string;
-  remarks: string;
-  style_image: string;
-  completed_image: string;
-  created_at: string;
-  updated_at: string;
-  // リレーション
+export interface BackendTrimming extends TrimmingResponse {
   pet?: PetSummary | null;
   staff?: StaffSummary | null;
-  course?: TrimmingCourseSummary | null;
-  options: TrimmingOptionSummary[];
 }
 
 // -------------------------------------------------------
