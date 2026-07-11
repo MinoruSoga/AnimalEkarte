@@ -1,4 +1,5 @@
 import type { Medicine as BackendMedicine } from "@/types/generated/models";
+import type { ReorderRequest } from "@/types/form";
 
 /**
  * サーバー側で自動生成されるフィールド（リクエストに含めない）
@@ -37,6 +38,4 @@ export type UpdateMedicineRequest = Partial<MedicineWritable> & {
  * 薬剤並び替えリクエスト
  * models.ts に対応フィールドなし → 手書き
  */
-export interface ReorderMedicinesRequest {
-  ids: number[];
-}
+export type ReorderMedicinesRequest = ReorderRequest;

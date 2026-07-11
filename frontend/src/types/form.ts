@@ -1,4 +1,13 @@
 /**
+ * FE3-5: 並び替えリクエストの共通形状。ReorderDiagnosisTypeRequest / ReorderDiagnosisNameRequest /
+ * ReorderMedicinesRequest / ReorderReservationTypeRequest / ReorderTreatmentRequest が
+ * 全て同一形状 `{ ids: number[] }` だったため統合。各型名は import 互換のためエイリアスとして残す。
+ */
+export interface ReorderRequest {
+  ids: number[];
+}
+
+/**
  * Standard state for React 19 useActionState hooks.
  * Ensures consistent handling of success, global errors, and field-level validation errors.
  */

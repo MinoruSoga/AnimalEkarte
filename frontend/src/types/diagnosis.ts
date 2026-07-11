@@ -2,6 +2,7 @@ import type {
   DiagnosisType as ModelDiagnosisType,
   DiagnosisName as ModelDiagnosisName,
 } from "@/types/generated/models";
+import type { ReorderRequest } from "@/types/form";
 
 // Server-managed fields excluded from request types
 type CategoryServerFields = "id" | "clinic_id" | "created_at" | "updated_at" | "names";
@@ -33,10 +34,6 @@ export type UpdateDiagnosisNameRequest =
 // Reorder request types (models.ts に対応フィールドなし → 手書き)
 // ─────────────────────────────────────────────────
 
-export interface ReorderDiagnosisTypeRequest {
-  ids: number[];
-}
+export type ReorderDiagnosisTypeRequest = ReorderRequest;
 
-export interface ReorderDiagnosisNameRequest {
-  ids: number[];
-}
+export type ReorderDiagnosisNameRequest = ReorderRequest;
