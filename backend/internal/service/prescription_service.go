@@ -87,6 +87,7 @@ func (s *prescriptionService) Create(ctx context.Context, clinicID, medicalRecor
 		// 処方追加が確定済みカルテに混入する競合を防ぐ。
 		mr, err := s.medRecordRepo.LockDraftByID(txCtx, clinicID, medicalRecordID)
 		if err != nil {
+			slog.ErrorContext(txCtx, "failed to get medical record", "error", err)
 			return apperrors.Wrap(err, "failed to get medical record")
 		}
 		if mr.OwnerID == nil {
@@ -132,6 +133,7 @@ func (s *prescriptionService) Update(ctx context.Context, clinicID, medicalRecor
 		// 処方編集が確定済みカルテに混入する競合を防ぐ。
 		mr, err := s.medRecordRepo.LockDraftByID(txCtx, clinicID, medicalRecordID)
 		if err != nil {
+			slog.ErrorContext(txCtx, "failed to get medical record", "error", err)
 			return apperrors.Wrap(err, "failed to get medical record")
 		}
 		if mr != nil && mr.Status == model.MedicalRecordStatusFinalized {
