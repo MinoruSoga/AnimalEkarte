@@ -20,6 +20,9 @@ services:
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
       interval: 30s
+      # start_interval は start_period とセットでないとコンテナ作成が拒否される
+      # (Engine 制約。config --quiet では検出されず、E2E CI の fresh create で露呈)
+      start_period: 30s
       start_interval: 5s
       timeout: 5s
       retries: 5
