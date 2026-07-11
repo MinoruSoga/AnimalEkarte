@@ -22,6 +22,7 @@ services:
     volumes:
       - ./backend:/app
       - go_mod_cache:/go/pkg/mod
+      - go_build_cache:/root/.cache/go-build
       # Mount old_db output read-only. Path is resolved from the env var at
       # compose invocation time (set by the Makefile or caller).
       - ${OLD_DB_MIGRATION_OUTPUT_DIR:-/tmp/old-db-data-not-set}:/old-db-data:ro

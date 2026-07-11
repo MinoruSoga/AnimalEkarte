@@ -36,6 +36,7 @@ services:
     volumes:
       - ./backend:/app
       - go_mod_cache:/go/pkg/mod
+      - go_build_cache:/root/.cache/go-build
     env_file:
       - .env.local
     environment:
