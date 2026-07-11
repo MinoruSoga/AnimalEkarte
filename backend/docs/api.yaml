@@ -1557,6 +1557,17 @@ components:
               format: int64
             name:
               type: string
+        medical_record:
+          type: object
+          description: 診療記録（Preload時のみ含まれる。会計画面向けの軽量表現）
+          nullable: true
+          readOnly: true
+          properties:
+            id:
+              type: integer
+              format: int64
+            record_no:
+              type: string
         items:
           type: array
           description: 会計明細（Preload時のみ含まれる）
