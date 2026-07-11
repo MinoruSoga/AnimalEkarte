@@ -77,13 +77,13 @@ type MedicalRecordRepository interface {
 	FindOwnersByNextVisitRecommended(ctx context.Context, clinicID uint64, targetDate time.Time) ([]uint64, error)
 	// CountByOwnerID は飼い主に紐付く有効カルテ数を返す（初診判定用: FEAT-383 Phase 2）。
 	CountByOwnerID(ctx context.Context, clinicID, ownerID uint64) (int64, error)
-	// LockDraftByID は FOR UPDATE でカルテを行ロック取得する（BE-refactor.md X-11:
+	// LockByIDForUpdate は FOR UPDATE でカルテを行ロック取得する（BE-refactor.md X-11:
 	// 確定(finalize)と子エンティティ書込の競合防止）。treatment/examination/vital/prescription/
 	// checkup_field_result の各サービスが子書込トランザクションの先頭で呼び出し、返却された
 	// record.Status を確認する。dbOrTx 経由で ambient tx（Transactor.WithTx / Repositories.Transaction）
 	// に参加する必要があり、参加しないと FOR UPDATE ロックが単一 SELECT 文の終了と同時に解放され、
 	// 確定との直列化が機能しない。
-	LockDraftByID(ctx context.Context, clinicID, id uint64) (*model.MedicalRecord, error)
+	LockByIDForUpdate(ctx context.Context, clinicID, id uint64) (*model.MedicalRecord, error)
 }
 
 type medicalRecordRepository struct {
@@ -330,12 +330,12 @@ func (r *medicalRecordRepository) CountByOwnerID(ctx context.Context, clinicID, 
 	return count, nil
 }
 
-// LockDraftByID は FOR UPDATE でカルテを行ロック取得する（BE-refactor.md X-11: finalize-child-write-race）。
+// LockByIDForUpdate は FOR UPDATE でカルテを行ロック取得する（BE-refactor.md X-11: finalize-child-write-race）。
 // dbOrTx(ctx, r.db) で ambient tx に参加する（accounting_repository.go の LockAndFindByID と同型）。
 // 参加しないと FOR UPDATE ロックは単一 SELECT 文の終了と同時に解放され、確定(finalize)との
 // 直列化が機能しない。ステータスに関わらずロック取得後の record を返し、finalized 判定は呼び出し元
 // （各サービスの子書込トランザクション）に委ねる。
-func (r *medicalRecordRepository) LockDraftByID(ctx context.Context, clinicID, id uint64) (*model.MedicalRecord, error) {
+func (r *medicalRecordRepository) LockByIDForUpdate(ctx context.Context, clinicID, id uint64) (*model.MedicalRecord, error) {
 	var record model.MedicalRecord
 	err := dbOrTx(ctx, r.db).
 		Scopes(clinicScope(clinicID)).

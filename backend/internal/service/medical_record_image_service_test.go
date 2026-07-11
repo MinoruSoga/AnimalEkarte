@@ -81,8 +81,8 @@ func (m *mockMedicalRecordRepositoryForImage) DeleteDraftByAppointmentID(_ conte
 	return nil
 }
 
-// LockDraftByID は X-11 finalize-lock テスト用に FindByID と同じ挙動へ委譲する。
-func (m *mockMedicalRecordRepositoryForImage) LockDraftByID(ctx context.Context, clinicID, id uint64) (*model.MedicalRecord, error) {
+// LockByIDForUpdate は X-11 finalize-lock テスト用に FindByID と同じ挙動へ委譲する。
+func (m *mockMedicalRecordRepositoryForImage) LockByIDForUpdate(ctx context.Context, clinicID, id uint64) (*model.MedicalRecord, error) {
 	return m.FindByID(ctx, clinicID, id)
 }
 

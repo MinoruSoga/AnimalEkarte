@@ -39,8 +39,8 @@ func (m *dormantMockMedicalRecordRepository) DeleteDraftByAppointmentID(_ contex
 	return nil
 }
 
-// LockDraftByID は X-11 finalize-lock テスト用に FindByID と同じ挙動へ委譲する。
-func (m *dormantMockMedicalRecordRepository) LockDraftByID(ctx context.Context, clinicID, id uint64) (*model.MedicalRecord, error) {
+// LockByIDForUpdate は X-11 finalize-lock テスト用に FindByID と同じ挙動へ委譲する。
+func (m *dormantMockMedicalRecordRepository) LockByIDForUpdate(ctx context.Context, clinicID, id uint64) (*model.MedicalRecord, error) {
 	return m.FindByID(ctx, clinicID, id)
 }
 func (m *dormantMockMedicalRecordRepository) CountByPetID(_ context.Context, _, _ uint64) (int64, error) {

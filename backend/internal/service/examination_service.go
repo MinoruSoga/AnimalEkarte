@@ -166,11 +166,11 @@ func (s *examinationService) Create(ctx context.Context, clinicID uint64, input 
 	}
 
 	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
-		// HC-005 + BE-refactor.md X-11: 親カルテが確定済みの場合は作成拒否。LockDraftByID の
+		// HC-005 + BE-refactor.md X-11: 親カルテが確定済みの場合は作成拒否。LockByIDForUpdate の
 		// 行ロックで finalize（medical_record_repository.Update の draft-only WHERE）と直列化し、
 		// 確定と同時の検査追加が確定済みカルテに混入する競合を防ぐ。
 		if input.MedicalRecordID != nil {
-			parent, err := s.medRec.LockDraftByID(txCtx, clinicID, *input.MedicalRecordID)
+			parent, err := s.medRec.LockByIDForUpdate(txCtx, clinicID, *input.MedicalRecordID)
 			if err != nil {
 				slog.ErrorContext(txCtx, "failed to find medical record", "error", err)
 				return apperrors.Wrap(err, "failed to find medical record")
@@ -213,10 +213,10 @@ func (s *examinationService) Update(ctx context.Context, clinicID, id uint64, in
 
 	var exam *model.Examination
 	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
-		// HC-003 + BE-refactor.md X-11: 親カルテが確定済みの場合は編集拒否。LockDraftByID の
+		// HC-003 + BE-refactor.md X-11: 親カルテが確定済みの場合は編集拒否。LockByIDForUpdate の
 		// 行ロックで finalize と直列化し、確定と同時の検査編集が確定済みカルテに混入する競合を防ぐ。
 		if existing.MedicalRecordID != nil {
-			parent, err := s.medRec.LockDraftByID(txCtx, clinicID, *existing.MedicalRecordID)
+			parent, err := s.medRec.LockByIDForUpdate(txCtx, clinicID, *existing.MedicalRecordID)
 			if err != nil {
 				slog.ErrorContext(txCtx, "failed to find medical record", "error", err)
 				return apperrors.Wrap(err, "failed to find medical record")

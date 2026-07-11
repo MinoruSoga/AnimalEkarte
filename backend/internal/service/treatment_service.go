@@ -230,9 +230,9 @@ func (s *treatmentService) Create(ctx context.Context, clinicID, medicalRecordID
 	err := s.repos.Transaction(ctx, func(txRepos *repository.Repositories) error {
 		// テナント所有権 + 確定ロック検証（Update/Delete と対称化・healthcare review CRITICAL）。
 		// treatments は自前 clinic_id を持たず medical_records 経由で隔離するため、所有権を Create でも明示検証する。
-		// BE-refactor.md X-11: LockDraftByID の行ロックで finalize（medical_record_repository.Update の
+		// BE-refactor.md X-11: LockByIDForUpdate の行ロックで finalize（medical_record_repository.Update の
 		// draft-only WHERE）と直列化し、確定と同時の治療追加が確定済みカルテに混入する競合を防ぐ。
-		parent, err := txRepos.MedicalRecord.LockDraftByID(ctx, clinicID, medicalRecordID)
+		parent, err := txRepos.MedicalRecord.LockByIDForUpdate(ctx, clinicID, medicalRecordID)
 		if err != nil {
 			slog.ErrorContext(ctx, "failed to verify medical record ownership", "error", err)
 			return apperrors.Wrap(err, "failed to verify medical record ownership")

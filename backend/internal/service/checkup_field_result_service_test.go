@@ -36,8 +36,8 @@ func (m *mockCheckupResultMedicalRecordRepository) FindByID(ctx context.Context,
 	return &model.MedicalRecord{ID: id, ClinicID: clinicID, Status: model.MedicalRecordStatusDraft}, nil
 }
 
-// LockDraftByID は X-11 finalize-lock テスト用に FindByID と同じ挙動へ委譲する。
-func (m *mockCheckupResultMedicalRecordRepository) LockDraftByID(ctx context.Context, clinicID, id uint64) (*model.MedicalRecord, error) {
+// LockByIDForUpdate は X-11 finalize-lock テスト用に FindByID と同じ挙動へ委譲する。
+func (m *mockCheckupResultMedicalRecordRepository) LockByIDForUpdate(ctx context.Context, clinicID, id uint64) (*model.MedicalRecord, error) {
 	return m.FindByID(ctx, clinicID, id)
 }
 

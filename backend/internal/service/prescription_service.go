@@ -51,7 +51,7 @@ type prescriptionService struct {
 }
 
 // NewPrescriptionService は PrescriptionService の実装を返す。transactor は BE-refactor.md X-11
-// （確定と子書込の競合防止）のため、子書込を LockDraftByID の行ロックと同一トランザクションに
+// （確定と子書込の競合防止）のため、子書込を LockByIDForUpdate の行ロックと同一トランザクションに
 // 収める目的で注入する。
 func NewPrescriptionService(repo repository.PrescriptionRepository, medRecordRepo repository.MedicalRecordRepository, tagSyncSvc LstepTagSyncService, transactor repository.Transactor) PrescriptionService {
 	return &prescriptionService{repo: repo, medRecordRepo: medRecordRepo, tagSyncSvc: tagSyncSvc, transactor: transactor}
@@ -83,9 +83,9 @@ func (s *prescriptionService) Create(ctx context.Context, clinicID, medicalRecor
 	}
 
 	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
-		// BE-refactor.md X-11: LockDraftByID の行ロックで finalize と直列化し、確定と同時の
+		// BE-refactor.md X-11: LockByIDForUpdate の行ロックで finalize と直列化し、確定と同時の
 		// 処方追加が確定済みカルテに混入する競合を防ぐ。
-		mr, err := s.medRecordRepo.LockDraftByID(txCtx, clinicID, medicalRecordID)
+		mr, err := s.medRecordRepo.LockByIDForUpdate(txCtx, clinicID, medicalRecordID)
 		if err != nil {
 			slog.ErrorContext(txCtx, "failed to get medical record", "error", err)
 			return apperrors.Wrap(err, "failed to get medical record")
@@ -129,9 +129,9 @@ func (s *prescriptionService) Update(ctx context.Context, clinicID, medicalRecor
 
 	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
 		// Prevent updating prescriptions for finalized medical records.
-		// BE-refactor.md X-11: LockDraftByID の行ロックで finalize と直列化し、確定と同時の
+		// BE-refactor.md X-11: LockByIDForUpdate の行ロックで finalize と直列化し、確定と同時の
 		// 処方編集が確定済みカルテに混入する競合を防ぐ。
-		mr, err := s.medRecordRepo.LockDraftByID(txCtx, clinicID, medicalRecordID)
+		mr, err := s.medRecordRepo.LockByIDForUpdate(txCtx, clinicID, medicalRecordID)
 		if err != nil {
 			slog.ErrorContext(txCtx, "failed to get medical record", "error", err)
 			return apperrors.Wrap(err, "failed to get medical record")

@@ -77,7 +77,7 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"checkup_field_repository.go|checkupFieldResultRepository.FindByCheckupID":   {},
 	"checkup_field_repository.go|checkupFieldResultRepository.ReplaceForCheckup": {},
 	// examination (BE-refactor.md R1-2 tx-internal replace; Create/FindByID/Update added for X-11
-	// finalize-child-write-race — must join the LockDraftByID ambient tx or the FK check on
+	// finalize-child-write-race — must join the LockByIDForUpdate ambient tx or the FK check on
 	// examinations.medical_record_id deadlocks against the FOR UPDATE row lock)
 	"examination_repository.go|examinationRepository.Create":               {},
 	"examination_repository.go|examinationRepository.FindAllItemsByExamID": {},
@@ -89,7 +89,7 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"medical_record_addendum_repository.go|medicalRecordAddendumRepository.FindByID":              {},
 	"medical_record_addendum_repository.go|medicalRecordAddendumRepository.FindByMedicalRecordID": {},
 	// medical_record (X-11 Appendix-A finalize-child-write-race fix)
-	"medical_record_repository.go|medicalRecordRepository.LockDraftByID": {},
+	"medical_record_repository.go|medicalRecordRepository.LockByIDForUpdate": {},
 	// medicine_dose_param (R1-2 dose-param tx)
 	"medicine_dose_param_repository.go|medicineDoseParamRepository.Create":                   {},
 	"medicine_dose_param_repository.go|medicineDoseParamRepository.Delete":                   {},

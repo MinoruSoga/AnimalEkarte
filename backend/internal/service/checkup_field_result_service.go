@@ -134,7 +134,7 @@ func (s *checkupFieldResultService) ReplaceForCheckup(ctx context.Context, clini
 	// 「確定済みカルテ」かつ「所有権不正な checkup_type_field_id」の両方に該当する request は、
 	// 旧実装では WrapConflict（確定済み）を返したが、本実装では WrapInvalidInput（フィールド不正）
 	// を返す（優先順位が入れ替わる）。いずれの分岐でも書込は拒否されるため安全性への影響はないが、
-	// LockDraftByID の行ロック保持時間を最小化する（DB に依存しない検証を先に済ませてからロックする）
+	// LockByIDForUpdate の行ロック保持時間を最小化する（DB に依存しない検証を先に済ませてからロックする）
 	// ため意図的に許容した順序変更である。
 	fields, err := s.fieldRepo.FindByCheckupTypeID(ctx, clinicID, checkup.CheckupTypeID)
 	if err != nil {
@@ -196,9 +196,9 @@ func (s *checkupFieldResultService) ReplaceForCheckup(ctx context.Context, clini
 	var saved []model.CheckupFieldResult
 	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
 		// 親カルテ確定済みなら編集拒否（checkup Create/Update と対称）。BE-refactor.md X-11:
-		// LockDraftByID の行ロックで finalize と直列化し、確定と同時の健診結果編集が確定済みカルテに
+		// LockByIDForUpdate の行ロックで finalize と直列化し、確定と同時の健診結果編集が確定済みカルテに
 		// 混入する競合を防ぐ。
-		parent, err := s.medicalRecordRepo.LockDraftByID(txCtx, clinicID, medicalRecordID)
+		parent, err := s.medicalRecordRepo.LockByIDForUpdate(txCtx, clinicID, medicalRecordID)
 		if err != nil {
 			slog.ErrorContext(txCtx, "failed to find medical record", "error", err)
 			return apperrors.Wrap(err, "failed to find medical record")

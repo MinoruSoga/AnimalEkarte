@@ -7,23 +7,23 @@ package repository
 // （X-10 で原子化済み）で行われる。子エンティティ（treatment 等）の追加は、旧実装では
 // tx 外の素の FindByID で親カルテの status を確認していたため、確認直後に別リクエストが
 // 確定を commit すると、確定済みカルテへの子追加がすり抜ける check-then-act レースがあった。
-// LockDraftByID は FOR UPDATE でカルテ行をロックし、finalize の UPDATE と直列化することで
+// LockByIDForUpdate は FOR UPDATE でカルテ行をロックし、finalize の UPDATE と直列化することで
 // これを塞ぐ（同一行への UPDATE は postgres の行ロックにより FOR UPDATE 保持者の commit/rollback
 // までブロックされる）。
 //
 // 子書込 tx の構築は treatment_service.go 実コードと同じ repo-swap 機構（Repositories.Transaction /
 // NewRepositories(tx)）を使う。ctx-txKey 機構（Transactor.WithTx）と treatmentRepository を
 // 混在させると、txRepos を経由しない treatmentRepository.Create が別コネクションで INSERT し、
-// FK チェック（FOR KEY SHARE）が LockDraftByID の FOR UPDATE と自己デッドロックする
+// FK チェック（FOR KEY SHARE）が LockByIDForUpdate の FOR UPDATE と自己デッドロックする
 // （検証中に実際に踏んだ失敗モード。repo-swap は txRepos.MedicalRecord/txRepos.Treatment が
 // 同一 tx-bound *gorm.DB を共有するためこの問題が起きない）。
 //
-// 検証方法（順方向）: 子書込トランザクション（LockDraftByID → 意図的な待機 → Treatment.Create）
+// 検証方法（順方向）: 子書込トランザクション（LockByIDForUpdate → 意図的な待機 → Treatment.Create）
 // が行ロックを保持している間、並行する finalize の UPDATE が完全にブロックされ、子書込
 // トランザクションのコミット後にのみ finalize が完了することを実 DB のロック挙動で証明する
 // （reservation_booking_lock_concurrency_test.go の X-9 パターンを踏襲）。
 //
-// 検証方法（逆方向）: finalize が先に commit した場合、子書込 tx が LockDraftByID 取得時点で
+// 検証方法（逆方向）: finalize が先に commit した場合、子書込 tx が LockByIDForUpdate 取得時点で
 // 既に finalized を観測し、Treatment が作成されないことを検証する。
 
 import (
@@ -38,11 +38,11 @@ import (
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
-// TestMedicalRecordRepository_LockDraftByID_SerializesFinalizeAgainstChildWrite は X-11 の
-// 受け入れ条件（順方向）: 子書込 tx が LockDraftByID の行ロックを保持している間、並行する
+// TestMedicalRecordRepository_LockByIDForUpdate_SerializesFinalizeAgainstChildWrite は X-11 の
+// 受け入れ条件（順方向）: 子書込 tx が LockByIDForUpdate の行ロックを保持している間、並行する
 // finalize の UPDATE がブロックされ続け、子書込 tx の commit（ロック解放）後にのみ finalize が
 // 完了することを検証する。
-func TestMedicalRecordRepository_LockDraftByID_SerializesFinalizeAgainstChildWrite(t *testing.T) {
+func TestMedicalRecordRepository_LockByIDForUpdate_SerializesFinalizeAgainstChildWrite(t *testing.T) {
 	db := setupTestDB(t)
 	require.NoError(t, db.AutoMigrate(&model.AnimalSpecies{}, &model.Pet{}))
 
@@ -71,7 +71,7 @@ func TestMedicalRecordRepository_LockDraftByID_SerializesFinalizeAgainstChildWri
 	go func() {
 		defer close(childDone)
 		childErr = repos.Transaction(context.Background(), func(txRepos *Repositories) error {
-			parent, err := txRepos.MedicalRecord.LockDraftByID(context.Background(), clinicID, mr.ID)
+			parent, err := txRepos.MedicalRecord.LockByIDForUpdate(context.Background(), clinicID, mr.ID)
 			if err != nil {
 				return err
 			}
@@ -120,11 +120,11 @@ func TestMedicalRecordRepository_LockDraftByID_SerializesFinalizeAgainstChildWri
 	assert.Equal(t, model.MedicalRecordStatusFinalized, final.Status, "カルテは確定済みになっているべき")
 }
 
-// TestMedicalRecordRepository_LockDraftByID_ChildWriteRejectedAfterFinalizeCommits は X-11 の
-// 受け入れ条件（逆方向）: finalize が先に commit した場合、子書込 tx が LockDraftByID 取得時点で
+// TestMedicalRecordRepository_LockByIDForUpdate_ChildWriteRejectedAfterFinalizeCommits は X-11 の
+// 受け入れ条件（逆方向）: finalize が先に commit した場合、子書込 tx が LockByIDForUpdate 取得時点で
 // 既に status=finalized を観測し、Treatment が作成されず Conflict を返すことを検証する
 // （旧・check-then-act のみの failure mode が再現しないことの確認）。
-func TestMedicalRecordRepository_LockDraftByID_ChildWriteRejectedAfterFinalizeCommits(t *testing.T) {
+func TestMedicalRecordRepository_LockByIDForUpdate_ChildWriteRejectedAfterFinalizeCommits(t *testing.T) {
 	db := setupTestDB(t)
 	require.NoError(t, db.AutoMigrate(&model.AnimalSpecies{}, &model.Pet{}))
 
@@ -149,7 +149,7 @@ func TestMedicalRecordRepository_LockDraftByID_ChildWriteRejectedAfterFinalizeCo
 	require.NoError(t, err)
 
 	childErr := repos.Transaction(ctx, func(txRepos *Repositories) error {
-		parent, err := txRepos.MedicalRecord.LockDraftByID(ctx, clinicID, mr.ID)
+		parent, err := txRepos.MedicalRecord.LockByIDForUpdate(ctx, clinicID, mr.ID)
 		if err != nil {
 			return err
 		}

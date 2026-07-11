@@ -53,7 +53,7 @@ func (r *vitalRepository) FindByID(ctx context.Context, clinicID, id uint64) (*m
 }
 
 // Create は dbOrTx(ctx, r.db) で ambient tx に参加する（BE-refactor.md X-11）。
-// LockDraftByID の行ロック保持 tx 内から呼ばれた場合、別コネクションで INSERT すると
+// LockByIDForUpdate の行ロック保持 tx 内から呼ばれた場合、別コネクションで INSERT すると
 // vital_records.medical_record_id の FK 制約チェックが同一行への FOR UPDATE ロックと
 // デッドロックする（FK チェックは FOR KEY SHARE を要求し FOR UPDATE と競合するため）。
 func (r *vitalRepository) Create(ctx context.Context, vital *model.VitalRecord) error {
