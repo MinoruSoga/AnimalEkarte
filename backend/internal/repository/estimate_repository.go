@@ -83,14 +83,7 @@ func (r *estimateRepository) Update(ctx context.Context, clinicID, id uint64, fi
 }
 
 func (r *estimateRepository) Delete(ctx context.Context, clinicID, id uint64) error {
-	result := r.db.WithContext(ctx).Scopes(clinicScope(clinicID)).Where("id = ?", id).Delete(&model.Estimate{})
-	if result.Error != nil {
-		return apperrors.FromGORM(result.Error, "estimate", fmt.Sprintf("%d", id))
-	}
-	if result.RowsAffected == 0 {
-		return apperrors.WrapNotFound("estimate", fmt.Sprintf("%d", id))
-	}
-	return nil
+	return deleteScopedByID(ctx, r.db, &model.Estimate{}, "estimate", clinicID, id)
 }
 
 // CountItemsByEstimateID は見積書に紐付く明細行の件数を返す（BUG-201）

@@ -151,15 +151,5 @@ func (r *checkupRepository) Update(ctx context.Context, clinicID, id uint64, fie
 }
 
 func (r *checkupRepository) Delete(ctx context.Context, clinicID, id uint64) error {
-	result := r.db.WithContext(ctx).
-		Scopes(clinicScope(clinicID)).
-		Where("id = ?", id).
-		Delete(&model.Checkup{})
-	if result.Error != nil {
-		return apperrors.FromGORM(result.Error, "checkup", fmt.Sprintf("%d", id))
-	}
-	if result.RowsAffected == 0 {
-		return apperrors.WrapNotFound("checkup", fmt.Sprintf("%d", id))
-	}
-	return nil
+	return deleteScopedByID(ctx, r.db, &model.Checkup{}, "checkup", clinicID, id)
 }

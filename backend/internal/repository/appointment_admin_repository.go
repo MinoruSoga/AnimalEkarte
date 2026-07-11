@@ -99,15 +99,7 @@ func (r *reservationAdminRepository) Create(ctx context.Context, ra *model.Reser
 }
 
 func (r *reservationAdminRepository) SoftDelete(ctx context.Context, clinicID, id uint64) error {
-	result := r.db.WithContext(ctx).
-		Scopes(clinicScope(clinicID)).Where("id = ?", id).Delete(&model.Reservation{})
-	if result.Error != nil {
-		return apperrors.FromGORM(result.Error, "appointment", fmt.Sprintf("%d", id))
-	}
-	if result.RowsAffected == 0 {
-		return apperrors.WrapNotFound("appointment", fmt.Sprintf("%d", id))
-	}
-	return nil
+	return deleteScopedByID(ctx, r.db, &model.Reservation{}, "appointment", clinicID, id)
 }
 
 func (r *reservationAdminRepository) FindAllByCustomerID(ctx context.Context, clinicID, customerID uint64) ([]model.Reservation, error) {

@@ -267,14 +267,7 @@ func (r *medicalRecordRepository) Update(ctx context.Context, clinicID, id uint6
 }
 
 func (r *medicalRecordRepository) Delete(ctx context.Context, clinicID, id uint64) error {
-	result := r.db.WithContext(ctx).Scopes(clinicScope(clinicID)).Where("id = ?", id).Delete(&model.MedicalRecord{})
-	if result.Error != nil {
-		return apperrors.FromGORM(result.Error, "medical_record", fmt.Sprintf("%d", id))
-	}
-	if result.RowsAffected == 0 {
-		return apperrors.WrapNotFound("medical_record", fmt.Sprintf("%d", id))
-	}
-	return nil
+	return deleteScopedByID(ctx, r.db, &model.MedicalRecord{}, "medical_record", clinicID, id)
 }
 
 // DeleteDraftByAppointmentID は予約(appointment_id)に紐づく draft カルテを論理削除する (#83 Q10)。

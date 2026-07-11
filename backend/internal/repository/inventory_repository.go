@@ -78,14 +78,7 @@ func (r *inventoryRepository) Update(ctx context.Context, clinicID, id uint64, f
 }
 
 func (r *inventoryRepository) Delete(ctx context.Context, clinicID, id uint64) error {
-	result := dbOrTx(ctx, r.db).Scopes(clinicScope(clinicID)).Where("id = ?", id).Delete(&model.InventoryItem{})
-	if result.Error != nil {
-		return apperrors.FromGORM(result.Error, "inventory_item", fmt.Sprintf("%d", id))
-	}
-	if result.RowsAffected == 0 {
-		return apperrors.WrapNotFound("inventory_item", fmt.Sprintf("%d", id))
-	}
-	return nil
+	return deleteScopedByID(ctx, dbOrTx(ctx, r.db), &model.InventoryItem{}, "inventory_item", clinicID, id)
 }
 
 func (r *inventoryRepository) DecreaseStock(ctx context.Context, id uint64, quantity float64) error {
