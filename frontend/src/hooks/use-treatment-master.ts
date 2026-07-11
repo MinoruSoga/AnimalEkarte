@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
+import { queryKeys } from "@/lib/query-keys";
 import {
   transformVaccine,
   transformCheckupType,
@@ -30,7 +31,7 @@ export type { VaccineItem, CheckupTypeItem, ConsultationItem, ProcedureItem };
 
 export function useGetAllVaccinesMaster() {
   return useQuery({
-    queryKey: ["masters", "vaccines"] as const,
+    queryKey: queryKeys.masters.category("vaccines"),
     queryFn: async (): Promise<VaccineItem[]> => {
       const { data } = await axios.get<Vaccine[]>("/v1/masters/vaccines");
       return data.map(transformVaccine);
@@ -42,7 +43,7 @@ export function useGetAllVaccinesMaster() {
 
 export function useGetAllCheckupTypes() {
   return useQuery({
-    queryKey: ["masters", "checkup-types"] as const,
+    queryKey: queryKeys.masters.category("checkup-types"),
     queryFn: async (): Promise<CheckupTypeItem[]> => {
       const { data } = await axios.get<CheckupType[]>("/v1/masters/checkup-types");
       return data.map(transformCheckupType);
@@ -54,7 +55,7 @@ export function useGetAllCheckupTypes() {
 
 export function useGetAllConsultations() {
   return useQuery({
-    queryKey: ["masters", "consultations"] as const,
+    queryKey: queryKeys.masters.category("consultations"),
     queryFn: async (): Promise<ConsultationItem[]> => {
       const { data } = await axios.get<Consultation[]>("/v1/masters/consultations");
       return data.map(transformConsultation);
@@ -66,7 +67,7 @@ export function useGetAllConsultations() {
 
 export function useGetAllProcedures() {
   return useQuery({
-    queryKey: ["masters", "procedures"] as const,
+    queryKey: queryKeys.masters.category("procedures"),
     queryFn: async (): Promise<ProcedureItem[]> => {
       const { data } = await axios.get<Procedure[]>("/v1/masters/procedures");
       return data.map(transformProcedure);

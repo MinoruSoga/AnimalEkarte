@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
+import { queryKeys } from "@/lib/query-keys";
 import type { DiagnosisType, DiagnosisName } from "@/types/generated/models";
 
 interface PaginatedResponse<T> {
@@ -48,7 +49,7 @@ const getDiagnosisNames = async (typeId?: number | null): Promise<DiagnosisNameO
 
 export const useGetDiagnosisTypes = () =>
   useQuery({
-    queryKey: ["masters", "diagnosis-types"],
+    queryKey: queryKeys.masters.category("diagnosis-types"),
     queryFn: getDiagnosisTypes,
     staleTime: QUERY_STALE_TIMES.STATIC,
     gcTime: QUERY_GC_TIMES.LONG,

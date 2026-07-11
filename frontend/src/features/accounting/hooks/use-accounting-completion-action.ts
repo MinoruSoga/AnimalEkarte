@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { paths } from "@/config/paths";
 import { handleApiError } from "@/lib/handle-api-error";
 import { jstDateStartISOString, jstNowISOString } from "@/lib/jst-date";
+import { queryKeys } from "@/lib/query-keys";
 
 import { createAccounting } from "../api/create-accounting";
 import { updateAccounting } from "../api/update-accounting";
@@ -135,7 +136,7 @@ export function useAccountingCompletionAction({
             completed_at: jstNowISOString(),
             post_close_reason: postCloseReason || undefined,
           });
-          queryClient.invalidateQueries({ queryKey: ["accountings"] });
+          queryClient.invalidateQueries({ queryKey: queryKeys.accountings.all() });
           toast.success("会計を登録・完了しました");
           navigate(paths.accounting.detail.getHref(created.id));
         } else {
@@ -155,7 +156,7 @@ export function useAccountingCompletionAction({
             post_close_reason: postCloseReason || undefined,
           });
           setCompletedPayment(paymentInfo);
-          queryClient.invalidateQueries({ queryKey: ["accountings"] });
+          queryClient.invalidateQueries({ queryKey: queryKeys.accountings.all() });
           toast.success("会計を完了しました");
         }
         return { success: true, timestamp: Date.now() };

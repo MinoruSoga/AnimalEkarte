@@ -5,6 +5,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import { handleApiError } from "@/lib/handle-api-error";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
+import { queryKeys } from "@/lib/query-keys";
 
 // Relative
 import type { BillingConfirmation, ReturnBillingConfirmationInput } from "../types";
@@ -47,7 +48,7 @@ export function useCreateBillingConfirmation(medicalRecordId: string) {
       });
       // Invalidate accountings list cache so new billing appears immediately
       void queryClient.invalidateQueries({
-        queryKey: ["accountings"],
+        queryKey: queryKeys.accountings.all(),
       });
     },
     onError: (error) => handleApiError(error, "会計確認"),
@@ -75,7 +76,7 @@ export function useCreateBillingReturn(medicalRecordId: string, userId: number) 
       });
       // Invalidate accountings list cache in case billing status changes
       void queryClient.invalidateQueries({
-        queryKey: ["accountings"],
+        queryKey: queryKeys.accountings.all(),
       });
     },
     onError: (error) => handleApiError(error, "会計差戻"),
