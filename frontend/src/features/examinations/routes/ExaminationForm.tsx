@@ -184,7 +184,8 @@ export function ExaminationForm() {
       maxWidth="max-w-[1200px]"
       align="left"
     >
-      <NavigationBlocker when={isDirty && !isSaving} />
+      {/* FE6-8: jsx-no-leaked-render は非型認識のため isDirty を boolean と静的に断定できず !! で明示する */}
+      <NavigationBlocker when={!!isDirty && !isSaving} />
       <form action={formAction}>
         <fieldset disabled={!canSubmit} className="border-0 p-0 m-0 min-w-0">
         <div className="flex flex-col gap-4">

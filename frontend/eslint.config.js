@@ -3,6 +3,7 @@ import globals from "globals";
 import tseslint from "typescript-eslint";
 import reactHooks from "eslint-plugin-react-hooks";
 import reactRefresh from "eslint-plugin-react-refresh";
+import react from "eslint-plugin-react";
 
 export default tseslint.config(
   { ignores: ["dist", "node_modules", "coverage", "src/types/generated/**"] },
@@ -16,6 +17,7 @@ export default tseslint.config(
     plugins: {
       "react-hooks": reactHooks,
       "react-refresh": reactRefresh,
+      react,
     },
     rules: {
       ...reactHooks.configs.recommended.rules,
@@ -23,6 +25,10 @@ export default tseslint.config(
         "warn",
         { allowConstantExport: true },
       ],
+      // FE6-8: {cond && <JSX>} は cond が 0 / 空文字のとき意図せず数値・文字列を
+      // レンダリングしてしまう（frontend/CLAUDE.md の Conditional Render 規約）。
+      // recommended セットは入れず、このルールのみ有効化する。現状違反 0 件。
+      "react/jsx-no-leaked-render": "error",
       "@typescript-eslint/no-unused-vars": [
         "warn",
         { argsIgnorePattern: "^_", varsIgnorePattern: "^_" },

@@ -106,7 +106,8 @@ export function InventoryForm() {
       }
       maxWidth="max-w-3xl"
     >
-      <NavigationBlocker when={isDirty && !isPending} />
+      {/* FE6-8: jsx-no-leaked-render は非型認識のため isDirty を boolean と静的に断定できず !! で明示する */}
+      <NavigationBlocker when={!!isDirty && !isPending} />
       <form id={INVENTORY_FORM_ID} action={formAction} onChange={markDirty} className="space-y-6">
         <fieldset disabled={!canSubmit} className="border-0 p-0 m-0 min-w-0">
         <BasicInfoSection

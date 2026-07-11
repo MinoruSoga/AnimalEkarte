@@ -233,12 +233,13 @@ export function OwnersListTable({
               currentClinicId && pet.clinicId && pet.clinicId !== currentClinicId
             );
             return (
+              // FE6-8: jsx-no-leaked-render は非型認識のため各 can* を boolean と静的に断定できず !! で明示する
               <OwnersListRow
                 key={pet.id}
                 pet={pet}
-                canEdit={canEdit && !isOtherClinic}
-                canDelete={canDelete && !isOtherClinic}
-                canReport={canReport && !isOtherClinic}
+                canEdit={!!canEdit && !isOtherClinic}
+                canDelete={!!canDelete && !isOtherClinic}
+                canReport={!!canReport && !isOtherClinic}
                 showClinicColumn={showClinicColumn}
                 clinicNameById={clinicNameById}
                 onRowClick={onRowClick}

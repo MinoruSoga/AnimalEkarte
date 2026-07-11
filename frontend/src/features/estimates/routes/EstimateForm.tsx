@@ -323,7 +323,8 @@ function EstimateFormContent({ id }: { id?: string }) {
       }
       maxWidth="max-w-2xl"
     >
-      <NavigationBlocker when={isDirty && !isPending} />
+      {/* FE6-8: jsx-no-leaked-render は非型認識のため isDirty を boolean と静的に断定できず !! で明示する */}
+      <NavigationBlocker when={!!isDirty && !isPending} />
       <div className={`${C.bgWhite} border ${C.borderLight} rounded-md p-5 space-y-5`}>
         {/* rerender-memo: BasicInfoSection — 金額/テキスト変更では再レンダーしない */}
         <BasicInfoSection
