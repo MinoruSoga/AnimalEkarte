@@ -2,7 +2,15 @@
 // コンポーネントファイル (DatePickerParts.tsx) から分離して
 // react-refresh/only-export-components 違反を解消する。
 import { C } from "@/lib/design-tokens";
+import { formatJSTWallDate } from "@/lib/jst-date";
+import { formatJapaneseDate } from "@/utils/format/date";
 
+/**
+ * FE4-8 parse 契約: "YYYY-MM-DD" → Date の解釈は 2 契約が併存する
+ * （line-reserve/shared-liff = UTC 深夜 parse ⇔ この DatePicker 系 = ローカル正午 parse）。
+ * 相互交換は日付ズレを起こすため禁止（本関数の戻り値を line-reserve 側の
+ * UTC 深夜前提コードへ渡さない・その逆も禁止）。
+ */
 export function parseLocalDate(iso: string): Date | undefined {
   if (!iso) return undefined;
   const [year, month, day] = iso.split("-").map(Number);
@@ -10,20 +18,14 @@ export function parseLocalDate(iso: string): Date | undefined {
   return new Date(year, month - 1, day, 12, 0, 0);
 }
 
+/** FE4-8: lib/jst-date.ts の formatJSTWallDate（ローカル getter・同一契約）へ委譲。 */
 export function formatIso(date: Date): string {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
+  return formatJSTWallDate(date);
 }
 
+/** FE4-8: utils/format/date.ts の formatJapaneseDate（ローカル getter・同一契約）へ委譲。 */
 export function formatDisplay(date: Date): string {
-  const year = date.getFullYear();
-  const month = date.getMonth() + 1;
-  const day = date.getDate();
-  const weekdays = ["日", "月", "火", "水", "木", "金", "土"];
-  const weekday = weekdays[date.getDay()];
-  return `${year}年${month}月${day}日（${weekday}）`;
+  return formatJapaneseDate(date);
 }
 
 export function formatShort(date: Date): string {

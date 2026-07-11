@@ -5,8 +5,7 @@ import { useCallback, useMemo } from "react";
 // Internal
 import { CalendarNavToolbar } from "@/components/shared/CalendarNavToolbar";
 import { formatJSTWallDate } from "@/lib/jst-date";
-
-const WEEK_DAYS = ["日", "月", "火", "水", "木", "金", "土"];
+import { formatJapaneseDate } from "@/utils/format/date";
 
 interface DailyDateNavProps {
     selectedDate: string; // YYYY-MM-DD
@@ -48,10 +47,10 @@ export function DailyDateNav({
         }
     }, [canGoNext, selectedDate, onDateChange]);
 
-    // Format for display: YYYY-MM-DD -> YYYY年M月D日（曜日）
+    // FE4-8: 共有 formatJapaneseDate へ委譲（ローカル getter 由来のため出力同一）
     const displayDate = useMemo(() => {
         const d = new Date(selectedDate + "T00:00:00");
-        return `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日（${WEEK_DAYS[d.getDay()]}）`;
+        return formatJapaneseDate(d);
     }, [selectedDate]);
 
     return (

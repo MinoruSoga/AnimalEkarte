@@ -84,6 +84,13 @@ export function jstDateTimeLocalToISOString(value: string): string {
   return `${date}T${normalizedTime}+09:00`;
 }
 
+/**
+ * FE4-8 parse 契約: "YYYY-MM-DD" → Date の解釈は 2 契約が併存する。
+ * この関数はローカル getter で整形するため、DatePicker 系（ローカル正午 parse。
+ * @see components/shared/DatePicker/DatePickerModel.ts の parseLocalDate）から得た
+ * Date を渡す想定。line-reserve/shared-liff 側の UTC 深夜 parse 由来の Date とは
+ * 契約が異なるため相互交換は日付ズレを起こす（禁止）。
+ */
 export function formatJSTWallDate(date: Date): string {
   return `${date.getFullYear()}-${padDatePart(date.getMonth() + 1)}-${padDatePart(date.getDate())}`;
 }

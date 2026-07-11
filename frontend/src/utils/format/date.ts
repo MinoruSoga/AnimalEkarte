@@ -19,3 +19,20 @@ export function formatDate(dateString: string | undefined | null): string {
     return "-";
   }
 }
+
+const JAPANESE_WEEKDAYS = ["日", "月", "火", "水", "木", "金", "土"];
+
+/**
+ * Date を「Y年M月D日（曜）」形式にフォーマット（月・日は 0 パディングしない）。
+ * FE4-8: DatePickerModel.formatDisplay の逐語移設（ローカル getter 実装）。
+ * "YYYY-MM-DD"→Date の parse 契約は 2 系統併存する（DatePicker=ローカル正午 / line-reserve=UTC 深夜）。
+ * 本関数はローカル getter で整形するため、渡す Date は DatePickerModel.parseLocalDate 等の
+ * ローカル正午 parse から得たものを想定する（line-reserve 側の UTC 深夜 Date を渡すと TZ 依存でずれる）。
+ */
+export function formatJapaneseDate(date: Date): string {
+  const year = date.getFullYear();
+  const month = date.getMonth() + 1;
+  const day = date.getDate();
+  const weekday = JAPANESE_WEEKDAYS[date.getDay()];
+  return `${year}年${month}月${day}日（${weekday}）`;
+}
