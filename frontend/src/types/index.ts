@@ -41,7 +41,11 @@ export interface ColumnData {
 }
 
 // --- Common UI Components ---
-export interface TreatmentPlan {
+// FE6-4: 生成型 @/types/generated/models.ts の TreatmentPlan（backend DTO・snake_case・
+// 数値ID）と名前が衝突していた stale twin。UI-facing（camelCase・string ID）である実体を
+// 明確にするため HospitalizationTreatmentPlan へリネーム（hospitalization feature 専用の
+// 消費者のみ。master/* の TreatmentPlan* コンポーネント名は無関係のため触っていない）。
+export interface HospitalizationTreatmentPlan {
   id: string;
   treatmentContent: string;
   memo: string;

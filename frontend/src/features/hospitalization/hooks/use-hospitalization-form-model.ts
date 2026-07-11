@@ -1,5 +1,5 @@
 import { formatJSTWallDate, jstDateStartISOString, todayJSTISO, toJSTWallDate } from "@/lib/jst-date";
-import type { Pet, TreatmentPlan } from "@/types";
+import type { Pet, HospitalizationTreatmentPlan } from "@/types";
 
 import type {
   CreateHospitalizationRequest,
@@ -10,7 +10,7 @@ import type { HospitalizationFormData } from "../types";
 
 const DEFAULT_HOSPITALIZATION_DAYS = 7;
 
-export const DEFAULT_TREATMENT_PLANS: TreatmentPlan[] = [
+export const DEFAULT_TREATMENT_PLANS: HospitalizationTreatmentPlan[] = [
   {
     id: "1",
     treatmentContent: "adm rate",
@@ -170,7 +170,7 @@ export function mergePetIntoHospitalizationFormData(
   };
 }
 
-export function createEmptyTreatmentPlan(): TreatmentPlan {
+export function createEmptyTreatmentPlan(): HospitalizationTreatmentPlan {
   return {
     id: crypto.randomUUID(),
     treatmentContent: "",
@@ -185,8 +185,8 @@ export function createEmptyTreatmentPlan(): TreatmentPlan {
 }
 
 export function updateTreatmentPlanField(
-  plan: TreatmentPlan,
-  field: keyof TreatmentPlan,
+  plan: HospitalizationTreatmentPlan,
+  field: keyof HospitalizationTreatmentPlan,
   value: string | number | boolean
 ) {
   const updated = { ...plan, [field]: value };

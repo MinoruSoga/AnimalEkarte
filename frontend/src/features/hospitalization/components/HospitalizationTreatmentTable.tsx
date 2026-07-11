@@ -4,14 +4,14 @@ import { Plus, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { DeleteIconButton } from "@/components/shared/DeleteIconButton/DeleteIconButton";
-import { TreatmentPlan } from "@/types";
+import { HospitalizationTreatmentPlan } from "@/types";
 import { H_STYLES } from "../styles";
 
 interface HospitalizationTreatmentTableProps {
-  treatmentPlans: TreatmentPlan[];
+  treatmentPlans: HospitalizationTreatmentPlan[];
   onAdd: () => void;
   onRemove?: (id: string) => void;
-  onUpdate: (id: string, field: keyof TreatmentPlan, value: string | number | boolean) => void;
+  onUpdate: (id: string, field: keyof HospitalizationTreatmentPlan, value: string | number | boolean) => void;
 }
 
 export const HospitalizationTreatmentTable = memo(function HospitalizationTreatmentTable({
