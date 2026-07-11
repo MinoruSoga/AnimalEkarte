@@ -1620,6 +1620,7 @@ func setupSharedTestSchema(db *gorm.DB) error {
 		&model.Billing{},
 		&model.Payment{},
 		&model.BillingRefund{},
+		&model.Treatment{},
 	); err != nil {
 		return fmt.Errorf("failed to migrate test db: %w", err)
 	}
