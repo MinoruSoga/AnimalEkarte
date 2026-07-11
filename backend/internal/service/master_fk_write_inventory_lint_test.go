@@ -196,12 +196,12 @@ var masterFKWriteAllowlist = []masterFKWriteEntry{
 
 	// ── known-unguarded: at least one master FK persisted without an ownership check (residual P1) ──
 	{"billingItemService.CreateItem", statusKnownUnguarded, []string{"MerchandiseItemID", "TrimmingCourseID", "TrimmingOptionID"}, "PARTIAL (X-4): TrimmingCourseID/TrimmingOptionID now guarded via trimmingCourseRepo/trimmingOptionRepo.FindByID(ctx, clinicID, id) before persist; test: TestBillingItemService_CreateItem_RejectsCrossClinicTrimmingFK. MerchandiseItemID remains unguarded but is a DEAD field for this write path — CreateItem never assigns input.MerchandiseItemID onto model.BillingItem (billing_item_service.go, item struct literal), so it carries no actual cross-tenant persistence risk today; out of scope for X-4."},
-	{"checkupTypeService.Create", statusKnownUnguarded, []string{"ParentID"}, "self-ref checkup_type parent_id not validated (FindByID parent)."},
-	{"checkupTypeService.Update", statusKnownUnguarded, []string{"ParentID"}, "self-ref checkup_type parent_id not validated."},
-	{"consultationService.Create", statusKnownUnguarded, []string{"ParentID"}, "self-ref consultation parent_id not validated."},
-	{"consultationService.Update", statusKnownUnguarded, []string{"ParentID"}, "self-ref consultation parent_id not validated."},
-	{"examTypeService.Create", statusKnownUnguarded, []string{"ParentID"}, "self-ref exam_type parent_id not validated."},
-	{"examTypeService.Update", statusKnownUnguarded, []string{"ParentID"}, "self-ref exam_type parent_id not validated."},
+	{"checkupTypeService.Create", statusGuarded, []string{"ParentID"}, "checkup_type_service.go: validateParentOwnership FindByID(ctx, clinicID, *ParentID) before persist (X-14 batch3); test: TestCheckupTypeService_Create_RejectsCrossClinicParentFK"},
+	{"checkupTypeService.Update", statusGuarded, []string{"ParentID"}, "as Create — validateParentOwnership guards *input.ParentID before repo.Update (X-14 batch3); test: TestCheckupTypeService_Update_RejectsCrossClinicParentFK"},
+	{"consultationService.Create", statusGuarded, []string{"ParentID"}, "consultation_service.go: validateParentOwnership FindByID(ctx, clinicID, *ParentID) before persist (X-14 batch3); test: TestConsultationService_Create_RejectsCrossClinicParentFK"},
+	{"consultationService.Update", statusGuarded, []string{"ParentID"}, "as Create — validateParentOwnership guards *input.ParentID before repo.Update (X-14 batch3); test: TestConsultationService_Update_RejectsCrossClinicParentFK"},
+	{"examTypeService.Create", statusGuarded, []string{"ParentID"}, "exam_type_service.go: validateParentOwnership FindByID(ctx, clinicID, *ParentID) before persist (X-14 batch3); test: TestExamTypeService_Create_RejectsCrossClinicParentFK"},
+	{"examTypeService.Update", statusGuarded, []string{"ParentID"}, "as Create — validateParentOwnership guards *input.ParentID before repo.Update (X-14 batch3); test: TestExamTypeService_Update_RejectsCrossClinicParentFK"},
 	{"inquiryService.Save", statusKnownUnguarded, []string{"ChiefComplaintTypeID"}, "ChiefComplaintTypeID set directly without FindByID (inquiry_service.go:41)."},
 	{"labImportExaminationService.PersistBatch", statusKnownUnguarded, []string{"ExamTypeID"}, "lab-import ExamTypeID persisted without clinic ownership check."},
 	{"labImportExaminationService.PersistExam", statusKnownUnguarded, []string{"ExamTypeID"}, "lab-import ExamTypeID persisted without clinic ownership check."},
@@ -213,8 +213,8 @@ var masterFKWriteAllowlist = []masterFKWriteEntry{
 	{"ownerService.CreateWithPets", statusKnownUnguarded, []string{"InsuranceID"}, "InsuranceID (nested pets) persisted without FindByID."},
 	{"petService.Create", statusKnownUnguarded, []string{"InsuranceID"}, "InsuranceID persisted without FindByID (pet_mapper.go)."},
 	{"petService.Update", statusKnownUnguarded, []string{"InsuranceID"}, "InsuranceID persisted without FindByID."},
-	{"procedureService.Create", statusKnownUnguarded, []string{"ParentID"}, "self-ref procedure parent_id not validated."},
-	{"procedureService.Update", statusKnownUnguarded, []string{"ParentID"}, "self-ref procedure parent_id not validated."},
+	{"procedureService.Create", statusGuarded, []string{"ParentID"}, "procedure_service.go: validateParentOwnership FindByID(ctx, clinicID, *ParentID) before persist (X-14 batch3); test: TestProcedureService_Create_RejectsCrossClinicParentFK"},
+	{"procedureService.Update", statusGuarded, []string{"ParentID"}, "as Create — validateParentOwnership guards *input.ParentID before repo.Update (X-14 batch3); test: TestProcedureService_Update_RejectsCrossClinicParentFK"},
 	{"reservationAdminService.Create", statusKnownUnguarded, []string{"ReservationTypeID"}, "admin ReservationTypeID not ownership-checked before persist."},
 	{"reservationService.Create", statusKnownUnguarded, []string{"ReservationTypeID"}, "PARTIAL: ReservationType clinic ownership checked only when a doctor is assigned (capability validator)."},
 	{"reservationService.Update", statusKnownUnguarded, []string{"ReservationTypeID"}, "PARTIAL: as Create — conditional capability validator only."},
@@ -231,8 +231,8 @@ var masterFKWriteAllowlist = []masterFKWriteEntry{
 	{"trimmingCourseService.Update", statusKnownUnguarded, []string{"CourseTypeID"}, "ASYMMETRY: Create guards CourseTypeID but Update writes course_type_id without FindByID (trimming_course_service.go:65)."},
 	{"trimmingService.Create", statusKnownUnguarded, []string{"CourseID", "OptionIDs", "ReservationTypeID"}, "PARTIAL: ReservationType validated; CourseID/OptionIDs persisted without FindByID."},
 	{"trimmingService.Update", statusKnownUnguarded, []string{"CourseID", "OptionIDs"}, "CourseID/OptionIDs persisted without FindByID."},
-	{"vaccineService.Create", statusKnownUnguarded, []string{"ParentID"}, "self-ref vaccine parent_id not validated."},
-	{"vaccineService.Update", statusKnownUnguarded, []string{"ParentID"}, "self-ref vaccine parent_id not validated."},
+	{"vaccineService.Create", statusGuarded, []string{"ParentID"}, "vaccine_service.go: validateParentOwnership FindByID(ctx, clinicID, *ParentID) before persist (X-14 batch3); test: TestVaccineService_Create_RejectsCrossClinicParentFK"},
+	{"vaccineService.Update", statusGuarded, []string{"ParentID"}, "as Create — validateParentOwnership guards *input.ParentID before repo.Update (X-14 batch3); test: TestVaccineService_Update_RejectsCrossClinicParentFK"},
 }
 
 // ───────────────────────────────────────────────────────────────────────────────

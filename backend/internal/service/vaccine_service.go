@@ -118,6 +118,9 @@ func (s *vaccineService) Create(ctx context.Context, clinicID uint64, input *Cre
 			return nil, apperrors.Wrap(err, "failed to validate vaccine species")
 		}
 	}
+	if err := s.validateParentOwnership(ctx, clinicID, input.ParentID); err != nil {
+		return nil, err
+	}
 	var species *model.VaccineSpecies
 	if input.Species != nil {
 		s := model.VaccineSpecies(*input.Species)
@@ -148,6 +151,9 @@ func (s *vaccineService) Update(ctx context.Context, clinicID, id uint64, input 
 	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
 		slog.ErrorContext(ctx, "failed to get vaccine", "error", err, "id", id, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to get vaccine")
+	}
+	if err := s.validateParentOwnership(ctx, clinicID, input.ParentID); err != nil {
+		return nil, err
 	}
 	if err := validateOptionalName(input.Name); err != nil {
 		return nil, apperrors.Wrap(err, "failed to validate optional name")
@@ -210,5 +216,18 @@ func (s *vaccineService) Reorder(ctx context.Context, clinicID uint64, ids []uin
 		return apperrors.Wrap(err, "failed to reorder vaccines")
 	}
 	slog.InfoContext(ctx, "vaccines reordered", slog.Uint64("clinic_id", clinicID), slog.Int("count", len(ids)))
+	return nil
+}
+
+// validateParentOwnership verifies a request-supplied parent_id belongs to the caller's
+// clinic before it is persisted (X-14 self-ref master FK guard).
+func (s *vaccineService) validateParentOwnership(ctx context.Context, clinicID uint64, parentID *uint64) error {
+	if parentID == nil {
+		return nil
+	}
+	if _, err := s.repo.FindByID(ctx, clinicID, *parentID); err != nil {
+		slog.ErrorContext(ctx, "failed to verify parent vaccine ownership", "error", err, "parent_id", *parentID, "clinic_id", clinicID)
+		return apperrors.Wrap(err, "failed to verify parent vaccine ownership")
+	}
 	return nil
 }

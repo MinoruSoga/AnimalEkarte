@@ -135,6 +135,9 @@ func (s *procedureService) Create(ctx context.Context, clinicID uint64, input *C
 			return nil, apperrors.Wrap(err, "failed to validate tax type")
 		}
 	}
+	if err := s.validateParentOwnership(ctx, clinicID, input.ParentID); err != nil {
+		return nil, err
+	}
 	// TaxType 変換: "" の場合はデフォルト "excluded" を使用 (BUG-379)
 	taxType := model.TaxTypeExcluded
 	if input.TaxType != "" {
@@ -175,6 +178,9 @@ func (s *procedureService) Update(ctx context.Context, clinicID, id uint64, inpu
 	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
 		slog.ErrorContext(ctx, "failed to get procedure", "error", err, "id", id, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to get procedure")
+	}
+	if err := s.validateParentOwnership(ctx, clinicID, input.ParentID); err != nil {
+		return nil, err
 	}
 	if err := validateOptionalName(input.Name); err != nil {
 		return nil, apperrors.Wrap(err, "failed to validate optional name")
@@ -241,5 +247,18 @@ func (s *procedureService) Reorder(ctx context.Context, clinicID uint64, ids []u
 		return apperrors.Wrap(err, "failed to reorder procedures")
 	}
 	slog.InfoContext(ctx, "procedures reordered", slog.Uint64("clinic_id", clinicID), slog.Int("count", len(ids)))
+	return nil
+}
+
+// validateParentOwnership verifies a request-supplied parent_id belongs to the caller's
+// clinic before it is persisted (X-14 self-ref master FK guard).
+func (s *procedureService) validateParentOwnership(ctx context.Context, clinicID uint64, parentID *uint64) error {
+	if parentID == nil {
+		return nil
+	}
+	if _, err := s.repo.FindByID(ctx, clinicID, *parentID); err != nil {
+		slog.ErrorContext(ctx, "failed to verify parent procedure ownership", "error", err, "parent_id", *parentID, "clinic_id", clinicID)
+		return apperrors.Wrap(err, "failed to verify parent procedure ownership")
+	}
 	return nil
 }

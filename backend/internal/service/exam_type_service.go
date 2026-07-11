@@ -104,6 +104,9 @@ func (s *examTypeService) Create(ctx context.Context, clinicID uint64, input *Cr
 	if err := validateRequiredName(input.Name); err != nil {
 		return nil, apperrors.Wrap(err, "failed to validate required name")
 	}
+	if err := s.validateParentOwnership(ctx, clinicID, input.ParentID); err != nil {
+		return nil, err
+	}
 	exType := &model.ExaminationType{
 		ClinicID:       clinicID,
 		Name:           input.Name,
@@ -130,6 +133,9 @@ func (s *examTypeService) Update(ctx context.Context, clinicID, id uint64, input
 	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
 		slog.ErrorContext(ctx, "failed to get exam type", "error", err)
 		return nil, apperrors.Wrap(err, "failed to get exam type")
+	}
+	if err := s.validateParentOwnership(ctx, clinicID, input.ParentID); err != nil {
+		return nil, err
 	}
 	if err := validateOptionalName(input.Name); err != nil {
 		return nil, apperrors.Wrap(err, "failed to validate optional name")
@@ -185,5 +191,18 @@ func (s *examTypeService) Reorder(ctx context.Context, clinicID uint64, ids []ui
 	slog.InfoContext(ctx, "exam type reordered",
 		slog.Uint64("clinic_id", clinicID),
 		slog.Int("count", len(ids)))
+	return nil
+}
+
+// validateParentOwnership verifies a request-supplied parent_id belongs to the caller's
+// clinic before it is persisted (X-14 self-ref master FK guard).
+func (s *examTypeService) validateParentOwnership(ctx context.Context, clinicID uint64, parentID *uint64) error {
+	if parentID == nil {
+		return nil
+	}
+	if _, err := s.repo.FindByID(ctx, clinicID, *parentID); err != nil {
+		slog.ErrorContext(ctx, "failed to verify parent exam type ownership", "error", err, "parent_id", *parentID, "clinic_id", clinicID)
+		return apperrors.Wrap(err, "failed to verify parent exam type ownership")
+	}
 	return nil
 }

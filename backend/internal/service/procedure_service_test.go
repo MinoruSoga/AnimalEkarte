@@ -330,6 +330,9 @@ func TestProcedureService_Create(t *testing.T) {
 				createFn: func(_ context.Context, _ *model.Procedure) error {
 					return tt.repoErr
 				},
+				findByIDFn: func(_ context.Context, _, id uint64) (*model.Procedure, error) {
+					return &model.Procedure{ID: id}, nil
+				},
 			}
 			svc := NewProcedureService(repo)
 
