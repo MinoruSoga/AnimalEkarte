@@ -21,10 +21,6 @@ var JST = func() *time.Location {
 }()
 
 func ConfigureTimeZone() error {
-	loc, err := time.LoadLocation(JapanTimeZone)
-	if err != nil {
-		return fmt.Errorf("load %s timezone: %w", JapanTimeZone, err)
-	}
-	time.Local = loc
+	time.Local = JST
 	return nil
 }
