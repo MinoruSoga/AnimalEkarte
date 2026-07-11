@@ -1,5 +1,5 @@
 // React/Framework
-import { memo, Suspense, useCallback, useEffect, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useRef, useState } from "react";
 import { useParams, useNavigate } from "react-router";
 
 // External
@@ -8,7 +8,6 @@ import { HeartPulse } from "lucide-react";
 // Internal
 import { paths } from "@/config/paths";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
-import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 import { C, ICON, LAYOUT } from "@/lib/design-tokens";
 import { LoadingFallback, ErrorFallback } from "@/components/shared/DataStates";
 import { UnifiedTabsRoot } from "@/components/shared/UnifiedTabs";
@@ -17,11 +16,10 @@ import { UnifiedTabsRoot } from "@/components/shared/UnifiedTabs";
 import { MedicalRecordAddenda } from "../components/MedicalRecordAddenda";
 import { MedicalRecordStickyHeader, MedicalRecordTabsArea } from "../components/MedicalRecordFormPanels";
 import {
-  MedicalRecordDeleteDialog,
   MedicalRecordFloatingActions,
   MedicalRecordPrintArea,
 } from "../components/MedicalRecordFormActions";
-import { OwnerSearchModal, StaffSelectionModal, VitalsModal } from "../components/MedicalRecordLazyModals";
+import { MedicalRecordFormModals } from "../components/MedicalRecordFormModals";
 import { MEDICAL_RECORD_TAB_ITEMS } from "./medical-record-form-model";
 import { useMedicalRecordDirtyFields } from "../hooks/use-medical-record-dirty-fields";
 import { useMedicalRecordFormModals } from "../hooks/use-medical-record-form-modals";
@@ -336,55 +334,27 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
         onPrintClick={handlePrintClick}
       />
 
-      <MedicalRecordDeleteDialog
-        open={isDeleteConfirmOpen}
-        petName={selectedPet.name}
+      <MedicalRecordFormModals
+        isDeleteConfirmOpen={isDeleteConfirmOpen}
+        selectedPetName={selectedPet.name}
         isDeleting={isDeleting}
-        onClose={() => setIsDeleteConfirmOpen(false)}
-        onConfirm={handleDeleteConfirm}
-      />
-      {/* Vitals Modal */}
-      <Suspense fallback={null}>
-        {!isNewRecord && recordId ? (
-          <VitalsModal
-            open={isVitalsOpen}
-            onOpenChange={setIsVitalsOpen}
-            medicalRecordId={recordId}
-          />
-        ) : null}
-      </Suspense>
-
-      {/* Staff Selection Modal */}
-      <Suspense fallback={null}>
-        <StaffSelectionModal
-          open={isStaffModalOpen}
-          selectedStaffName={staffName}
-          onSelect={handleSelectStaff}
-          onOpenChange={handleStaffModalOpenChange}
-        />
-      </Suspense>
-
-      {/* Owner Search Modal (edit mode only) */}
-      {!isNewRecord && recordId ? (
-        <Suspense fallback={null}>
-          <OwnerSearchModal
-            open={isOwnerSearchOpen}
-            onOpenChange={setIsOwnerSearchOpen}
-            currentOwnerName={selectedPet?.ownerName}
-            onSelect={requestOwnerChange}
-          />
-        </Suspense>
-      ) : null}
-
-      {/* BUG-373: 飼主変更 確認ダイアログ (discount_rate/membership_type 不一致時のみ表示) */}
-      <ConfirmDialog
-        open={!!pendingOwnerChange}
-        onClose={cancelOwnerChange}
-        onConfirm={confirmOwnerChange}
-        title="飼主変更の確認"
-        description="飼主によって値引率や会員区分が異なるため、今後の会計金額が変動する可能性があります。変更を続行してよろしいですか?"
-        confirmLabel="続行"
-        cancelLabel="キャンセル"
+        onCloseDeleteConfirm={() => setIsDeleteConfirmOpen(false)}
+        onConfirmDelete={handleDeleteConfirm}
+        isNewRecord={isNewRecord}
+        recordId={recordId}
+        isVitalsOpen={isVitalsOpen}
+        onVitalsOpenChange={setIsVitalsOpen}
+        isStaffModalOpen={isStaffModalOpen}
+        staffName={staffName}
+        onSelectStaff={handleSelectStaff}
+        onStaffModalOpenChange={handleStaffModalOpenChange}
+        isOwnerSearchOpen={isOwnerSearchOpen}
+        onOwnerSearchOpenChange={setIsOwnerSearchOpen}
+        selectedPetOwnerName={selectedPet?.ownerName}
+        onSelectOwner={requestOwnerChange}
+        pendingOwnerChange={pendingOwnerChange}
+        onCancelOwnerChange={cancelOwnerChange}
+        onConfirmOwnerChange={confirmOwnerChange}
       />
     </PageLayout>
 
