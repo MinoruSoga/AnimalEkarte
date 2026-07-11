@@ -175,7 +175,7 @@ func (s *reservationStaffService) Update(ctx context.Context, clinicID, id uint6
 		}
 		return nil
 	}); err != nil {
-		return nil, nil, apperrors.Wrap(err, "failed to update reservation staff")
+		return nil, nil, err //nolint:wrapcheck // tx 閉包内の 2 分岐とも文脈付き wrap 済み（同義二重ラップ回避）
 	}
 	updated, err := s.repo.FindByID(ctx, clinicID, id)
 	if err != nil {
