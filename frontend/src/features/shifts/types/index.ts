@@ -2,14 +2,10 @@
  * Shifts feature types
  * Backend types: {@link ShiftEntry}, {@link ShiftType as BackendShiftType} from models.ts
  */
-/**
- * 手書き literal union（FE4-3）。
- * tygo 生成定数は `export const X: ShiftType = "full"` 形式（ShiftType = string）のため
- * `typeof 生成定数` は string に退化する（旧 JSDoc の「型安全性のため union 維持」という記述は
- * 実態に反していた）。生成側は編集禁止のため、手書き literal union +
- * ランタイム値集合の drift テスト（./union-drift.test.ts）で生成定数の値集合との一致を機械固定する。
- */
-export type ShiftType = "full" | "morning" | "afternoon" | "off" | "paid_leave";
+// FE6-3: tygo enum_style: "union"（FE6-1/FE6-2）により生成定数が真の literal union になったため、
+// 手書き union を生成型からの re-export へ移行した。drift テストは union-drift.test.ts から削除済み。
+import type { ShiftType } from "@/types/generated/models";
+export type { ShiftType };
 
 /** UI-facing shift (string IDs — post-transform) */
 export type { Shift } from "../api/transforms";

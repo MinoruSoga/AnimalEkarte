@@ -2,35 +2,17 @@
  * Accounting feature types (UI-facing: camelCase, string IDs)
  * Backend types: {@link Billing}, {@link BillingItem}, {@link Payment} from models.ts
  */
-import type { TaxType } from "@/types/generated/models";
-
-/**
- * 手書き literal union（FE4-1）。
- * tygo 生成定数は `export const X: BillingStatus = "waiting"` 形式（BillingStatus = string）のため
- * `typeof 生成定数` は string に退化する（型安全性が失われる）。生成側は編集禁止のため、
- * 手書き literal union + ランタイム値集合の drift テスト（./union-drift.test.ts）で
- * 生成定数の値集合との一致を機械固定する。
- * @see {@link import("@/types/generated/models").BillingStatus}
- */
-export type AccountingStatus = "waiting" | "pending" | "completed" | "cancelled";
-
-/** 手書き literal union（FE4-1・上記 AccountingStatus と同じ理由）。@see {@link import("@/types/generated/models").PaymentMethod} */
-export type PaymentMethod = "cash" | "credit_card" | "electronic_money" | "bank_transfer";
-
-/** 手書き literal union（FE4-1・上記 AccountingStatus と同じ理由）。@see {@link import("@/types/generated/models").ItemCategory} */
-export type ItemCategory =
-  | "examination"
-  | "test"
-  | "procedure"
-  | "surgery"
-  | "medicine"
-  | "food"
-  | "goods"
-  | "other"
-  | "trimming"
-  | "vaccine"
-  | "hotel"
-  | "training";
+// FE6-3: tygo enum_style: "union"（FE6-1/FE6-2）により生成定数が真の literal union に
+// なったため、手書き union を生成型からの re-export へ移行した。drift テストは不要になり
+// union-drift.test.ts から削除済み。AccountingStatus は生成側の BillingStatus に対応する
+// （FE4-1 当時から名称が分岐していたため as で明示的にリネームして re-export する）。
+import type {
+  TaxType,
+  BillingStatus as AccountingStatus,
+  PaymentMethod,
+  ItemCategory,
+} from "@/types/generated/models";
+export type { AccountingStatus, PaymentMethod, ItemCategory };
 
 /** @see {@link import("@/types/generated/models").BillingItem} */
 export interface AccountingItem {

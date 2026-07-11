@@ -3,13 +3,8 @@
  * Backend types: {@link Estimate as BackendEstimate}, {@link EstimateItem as BackendEstimateItem} from models.ts
  */
 
-/**
- * 手書き literal union（FE4-2）。
- * tygo 生成定数は `export const X: EstimateStatus = "draft"` 形式（EstimateStatus = string）のため
- * `typeof 生成定数` は string に退化する。生成側は編集禁止のため、手書き literal union +
- * ランタイム値集合の drift テスト（./union-drift.test.ts）で生成定数の値集合との一致を機械固定する。
- * @see {@link import("@/types/generated/models").EstimateStatus}
- */
-export type EstimateStatus = "draft" | "sent" | "approved" | "rejected";
+// FE6-3: tygo enum_style: "union"（FE6-1/FE6-2）により生成定数が真の literal union になったため、
+// 手書き union を生成型からの re-export へ移行した。drift テストは union-drift.test.ts から削除済み。
+export type { EstimateStatus } from "@/types/generated/models";
 
 export type { Estimate, EstimateLineItem } from "../api/transforms";

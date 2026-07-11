@@ -1,5 +1,5 @@
 import { ReactNode } from "react";
-import type { Resource } from "./generated/models";
+import type { Resource, VisitType, ReservationStatus } from "./generated/models";
 
 /**
  * 共有UI型定義 (Single Source of Truth)
@@ -57,11 +57,17 @@ export interface TreatmentPlan {
 export const SORT_ORDER_VALUES = ["desc", "asc"] as const;
 export type SortOrder = (typeof SORT_ORDER_VALUES)[number];
 
-export type VisitType = "first" | "revisit";
+// FE6-3: VisitType/ReservationStatus は tygo enum_style: "union"（FE6-1/FE6-2）で
+// 生成定数が真の literal union になったため、生成型からの re-export へ移行した
+// （import は本ファイル冒頭にまとめている）。drift テストは union-drift.test.ts から削除済み。
+export type { VisitType, ReservationStatus };
 export type CalendarView = "month" | "week";
 export const CALENDAR_VIEW_VALUES = ["month", "week"] as const;
 
-export const RESERVATION_STATUS_VALUES = [
+// RESERVATION_STATUS_VALUES は Select 等での選択肢イテレーション用のランタイム値配列。
+// tygo は union 型のみを生成し値配列は生成しないため、明示的な ReservationStatus[] 注釈で
+// 生成型の値域からの逸脱を type-check が検知できるようにしたうえで手書きのまま維持する。
+export const RESERVATION_STATUS_VALUES: readonly ReservationStatus[] = [
   "confirmed",
   "pending",
   "checked_in",
@@ -71,8 +77,6 @@ export const RESERVATION_STATUS_VALUES = [
   "cancelled",
   "no_show",
 ] as const;
-
-export type ReservationStatus = (typeof RESERVATION_STATUS_VALUES)[number];
 
 export const RESERVATION_STATUS_LABELS: Record<ReservationStatus, string> = {
   confirmed: "予約確定",

@@ -4,6 +4,13 @@
  * {@link import("@/types/generated/models").Vital},
  * {@link import("@/types/generated/models").BillingConfirmation} from models.ts
  */
+// FE6-3: tygo enum_style: "union"（FE6-1/FE6-2）により生成定数が真の literal union になったため、
+// 手書き union を生成型からの re-export へ移行した。drift テストは union-drift.test.ts から削除済み。
+import type {
+  TreatmentItemType,
+  BodyWeightUnit,
+} from "@/types/generated/models";
+export type { TreatmentItemType, BodyWeightUnit };
 
 /** Interview (問診) history list item */
 export interface InterviewHistoryItem {
@@ -16,9 +23,6 @@ export interface InterviewHistoryItem {
 }
 
 // ── Treatment (治療明細) ──────────────────────────────────────────────
-
-/** @see {@link import("@/types/generated/models").TreatmentItemType} */
-export type TreatmentItemType = 'consultation' | 'procedure' | 'medicine' | 'other';
 
 export interface Treatment {
   id: string;
@@ -108,8 +112,6 @@ export interface ReturnBillingConfirmationInput {
 }
 
 // ── Vital (バイタル) ──────────────────────────────────────────────────
-
-export type BodyWeightUnit = "Kg" | "g";
 
 export interface Vital {
   id: string;
