@@ -73,6 +73,12 @@ var knownDateFormatDrifts = map[string]int{
 	"vaccination_response.go|date":           1,
 	"vaccination_response.go|next_date":      1,
 
+	// liff_response.go|last_visit_date: FE8-1（LIFF健康手帳, 8cfb49e2）由来の新規 drift。
+	// date-only 化（handler で In(time.Local).Format("2006-01-02")）にするか、api.yaml 側を
+	// format: date-time に直すかは FE contract 判断（PO follow-up）。本エントリは判断が出るまでの
+	// 一時的な既知 drift 記録であり、解消時は削除すること。
+	"liff_response.go|last_visit_date": 1,
+
 	// pet_response.go|first_visit_date: benign json-name collision, NOT a real drift.
 	// docs/api.yaml declares two unrelated `first_visit_date` properties: `PetFirstVisit`
 	// (line ~1126, `format: date-time`, correctly backed by pet_response.go's
