@@ -85,7 +85,7 @@ func makeTrimmingAppointment(t *testing.T, db *gorm.DB, clinicID, petID, reserva
 	return res
 }
 
-func attachTrimmingCourse(t *testing.T, db *gorm.DB, clinicID, appointmentID uint64, courseID uint64) {
+func attachTrimmingCourse(t *testing.T, db *gorm.DB, clinicID, appointmentID, courseID uint64) {
 	t.Helper()
 	d := &model.AppointmentTrimmingDetail{ClinicID: clinicID, AppointmentID: appointmentID, CourseID: &courseID}
 	require.NoError(t, db.WithContext(context.Background()).Create(d).Error)
@@ -270,7 +270,7 @@ func TestBillingItemRepository_FindUnbilledTrimmingItemsByPetID(t *testing.T) {
 		pet := makeSpeciesAndPet(t, db, clinicA, owner.ID, "G11-3ペット6")
 		otherPet := makeSpeciesAndPet(t, db, clinicA, owner.ID, "別ペット")
 		rtTrimming := makeTrimmingReservationType(t, db, clinicA)
-		rtGeneral := makeReservationType(t, db, clinicA) // category=general
+		rtGeneral := makeReservationType(t, db, clinicA) // カテゴリ: general（一般区分）
 
 		otherClinicOwner := makeOwner(t, db, clinicB, "別クリニック飼主")
 		otherClinicPet := makeSpeciesAndPet(t, db, clinicB, otherClinicOwner.ID, "別クリニックペット")
@@ -328,9 +328,9 @@ func TestBillingItemRepository_CountNonAccountingTrimmingByPetAndDate(t *testing
 
 		// 除外: status=accounting（会計待ちに既に進んでいる=取り残しではない）
 		makeTrimmingAppointment(t, db, clinicA, pet.ID, rt.ID, model.ReservationStatusAccounting)
-		// 除外: status=completed
+		// 除外: ステータスが completed
 		makeTrimmingAppointment(t, db, clinicA, pet.ID, rt.ID, model.ReservationStatusCompleted)
-		// 除外: status=cancelled
+		// 除外: ステータスが cancelled
 		makeTrimmingAppointment(t, db, clinicA, pet.ID, rt.ID, model.ReservationStatusCancelled)
 
 		count, err := repo.CountNonAccountingTrimmingByPetAndDate(ctx, clinicA, pet.ID, targetDate)

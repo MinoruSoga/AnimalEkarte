@@ -74,9 +74,9 @@ func assignStaffToGroup(t *testing.T, db *gorm.DB, staffID, groupID uint64) {
 // findRuleByResource はテスト対象メソッドの戻り値から resource で1件検索するテストヘルパー。
 func findRuleByResource(t *testing.T, rules []model.PermissionGroupRule, resource string) model.PermissionGroupRule {
 	t.Helper()
-	for _, r := range rules {
-		if r.Resource == resource {
-			return r
+	for i := range rules {
+		if rules[i].Resource == resource {
+			return rules[i]
 		}
 	}
 	t.Fatalf("resource %q が結果に含まれていない: %+v", resource, rules)

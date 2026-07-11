@@ -56,15 +56,17 @@ func (s *liffService) GetHealthCard(ctx context.Context, clinicID, customerID ui
 		return nil, apperrors.Wrap(err, "failed to get health card")
 	}
 	vaccinesByPet := make(map[uint64][]model.Vaccination, len(vaccinations))
-	for _, v := range vaccinations {
+	for i := range vaccinations {
+		v := &vaccinations[i]
 		if v.PetID == nil {
 			continue
 		}
-		vaccinesByPet[*v.PetID] = append(vaccinesByPet[*v.PetID], v)
+		vaccinesByPet[*v.PetID] = append(vaccinesByPet[*v.PetID], *v)
 	}
 
 	pets := make([]PetHealthCard, 0, len(customer.Owner.Pets))
-	for _, p := range customer.Owner.Pets {
+	for i := range customer.Owner.Pets {
+		p := &customer.Owner.Pets[i]
 		if p.DeceasedAt != nil {
 			continue
 		}
@@ -74,7 +76,8 @@ func (s *liffService) GetHealthCard(ctx context.Context, clinicID, customerID ui
 		}
 		records := vaccinesByPet[p.ID]
 		vaccines := make([]VaccineRecord, 0, len(records))
-		for _, v := range records {
+		for j := range records {
+			v := &records[j]
 			name := ""
 			if v.Vaccine != nil {
 				name = v.Vaccine.Name

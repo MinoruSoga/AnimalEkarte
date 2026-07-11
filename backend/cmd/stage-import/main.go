@@ -209,7 +209,7 @@ type dsn struct {
 }
 
 func (d dsn) connString() string {
-	return d.ConnParams.DSN(d.name)
+	return d.DSN(d.name)
 }
 
 // connStringReadOnly opens the stage connection in read-only transaction mode so

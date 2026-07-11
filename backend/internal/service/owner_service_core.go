@@ -40,7 +40,8 @@ func (s *ownerService) GetByIDForClinics(ctx context.Context, clinicIDs []uint64
 // (X-14 U5)。petService.Create/Update と同型の FindByID ガード。nil InsuranceID
 // はスキップする。
 func (s *ownerService) validateOwnerPetsInsuranceOwnership(ctx context.Context, clinicID uint64, pets []CreatePetForOwnerInput) error {
-	for _, pet := range pets {
+	for i := range pets {
+		pet := &pets[i]
 		if pet.InsuranceID == nil {
 			continue
 		}

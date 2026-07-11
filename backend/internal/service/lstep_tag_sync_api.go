@@ -43,7 +43,7 @@ func (s *lstepTagSyncService) removeStaleTagsByPrefixes(ctx context.Context, cli
 // resolveSyncTargetOwner は飼い主のオプトアウト状態と LINE 連携有無を確認し、
 // 同期先の lineUserID を解決する（ISSUE dup-lstep-tag-apply Phase 1）。
 // ok=false の場合は呼び出し元でスキップする（optOut またはLINE未連携）。
-func (s *lstepTagSyncService) resolveSyncTargetOwner(ctx context.Context, clinicID, ownerID uint64, tagLabel string) (string, bool, error) {
+func (s *lstepTagSyncService) resolveSyncTargetOwner(ctx context.Context, clinicID, ownerID uint64, tagLabel string) (lineUserID string, ok bool, err error) {
 	optOut, owner, err := s.checkOptOut(ctx, clinicID, ownerID)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to check opt-out", "error", err, "tag", tagLabel)
@@ -60,7 +60,7 @@ func (s *lstepTagSyncService) resolveSyncTargetOwner(ctx context.Context, clinic
 
 // resolveSyncTarget は shouldSkipSync（クリニック単位の同期無効判定）を含めた
 // 同期先解決のフル版。Phase 1 では追加のみ（vaccine/checkup 等 Phase 2+ で使用）。
-func (s *lstepTagSyncService) resolveSyncTarget(ctx context.Context, clinicID, ownerID uint64, tagLabel string) (string, bool, error) {
+func (s *lstepTagSyncService) resolveSyncTarget(ctx context.Context, clinicID, ownerID uint64, tagLabel string) (lineUserID string, ok bool, err error) {
 	skip, err := s.shouldSkipSync(ctx, clinicID)
 	if err != nil {
 		// shouldSkipSync が既に apperrors.Wrap 済みのため、ここでは再ラップしない（G3-1 P2a）。

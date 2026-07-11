@@ -669,11 +669,11 @@ func TestOpenAPIRouteDrift_GinParamNormalizer(t *testing.T) {
 
 // TestOpenAPIRouteDrift_Reconciler pins the gate's failure modes on synthetic inputs.
 func TestOpenAPIRouteDrift_Reconciler(t *testing.T) {
-	real := map[string]int{"GET /api/v1/owners": 1, "POST /api/v1/owners": 1}
+	realRoutes := map[string]int{"GET /api/v1/owners": 1, "POST /api/v1/owners": 1}
 	spec := map[string]struct{}{"GET /api/v1/owners": {}, "POST /api/v1/owners": {}}
 
 	t.Run("clean baseline reports nothing", func(t *testing.T) {
-		if v := reconcileRouteDrift(real, spec, nil, nil); len(v) != 0 {
+		if v := reconcileRouteDrift(realRoutes, spec, nil, nil); len(v) != 0 {
 			t.Fatalf("expected 0, got %v", v)
 		}
 	})
@@ -686,7 +686,7 @@ func TestOpenAPIRouteDrift_Reconciler(t *testing.T) {
 	})
 	t.Run("new phantom-in-spec operation fails", func(t *testing.T) {
 		s2 := map[string]struct{}{"GET /api/v1/owners": {}, "POST /api/v1/owners": {}, "DELETE /api/v1/owners/{id}": {}}
-		v := reconcileRouteDrift(real, s2, nil, nil)
+		v := reconcileRouteDrift(realRoutes, s2, nil, nil)
 		if len(v) != 1 || !strings.Contains(v[0], "NEW phantom-in-spec") {
 			t.Fatalf("expected new-phantom violation, got %v", v)
 		}
@@ -699,13 +699,13 @@ func TestOpenAPIRouteDrift_Reconciler(t *testing.T) {
 		}
 	})
 	t.Run("stale missing allowlist entry fails", func(t *testing.T) {
-		v := reconcileRouteDrift(real, spec, map[string]bool{"DELETE /api/v1/owners/{id}": true}, nil)
+		v := reconcileRouteDrift(realRoutes, spec, map[string]bool{"DELETE /api/v1/owners/{id}": true}, nil)
 		if len(v) != 1 || !strings.Contains(v[0], "stale knownMissingFromSpec") {
 			t.Fatalf("expected stale violation, got %v", v)
 		}
 	})
 	t.Run("stale phantom allowlist entry fails", func(t *testing.T) {
-		v := reconcileRouteDrift(real, spec, nil, map[string]bool{"DELETE /api/v1/owners/{id}": true})
+		v := reconcileRouteDrift(realRoutes, spec, nil, map[string]bool{"DELETE /api/v1/owners/{id}": true})
 		if len(v) != 1 || !strings.Contains(v[0], "stale knownPhantomInSpec") {
 			t.Fatalf("expected stale violation, got %v", v)
 		}
