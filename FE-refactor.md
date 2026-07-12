@@ -1,40 +1,41 @@
 # FE-refactor.md — 残バックログ（第 4 期以降）
 
-- **更新日**: 2026-07-12（HEAD `a7e4b7ce` + `44e35b3b` に対し全項目をコード実測で再調査し、意思決定パック化）
-- **完了済み**: FE4-1〜18 / FE5-1〜4 / FE6-1〜9 / FE7-1〜3 / FE8-1〜4 / LinkOwner cross-clinic 検証（`44e35b3b`）。詳細は `git log --grep='FE4-\|FE5-\|FE6-\|FE7-\|FE8-'` が正本
-- **クローズ・PO 決定の記録**: 本書には残さない。正本はメモリ `fe_backlog_decision_pack_20260711.md`（ラベル分岐 Q3-A 現状維持 / iso-date・design-tokens YAGNI / XSS 該当なし / tygo widen 上流解決 等）
+- **更新日**: 2026-07-12（#201 薬量自動計算の FE 実装が完了したため残件 1 をクローズ）
+- **完了済み（本文に残さない・git が正本）**: FE4-1〜18 / FE5-1〜4 / FE6-1〜9 / FE7-1〜3 / FE8-1〜4 / LinkOwner cross-clinic（`44e35b3b`）/ avatar_url 削除（`48c5b084`+`deb9d1bc`）/ meClinicInfoSchema `.default()` 撤去（`fa3a95d0`）/ liff pet_id FormatUint（`aef2d6ff`）/ query-keys registry 全面採用 + ESLint（`git log --grep='FE-R1'`）/ #201 薬量自動計算 FE 実装（5 Phase・型追随・`lib/medicine-dose.ts`・薬マスタ dose-params UI・カルテ TreatmentsTab hard gate）
+- **クローズ・PO 決定の記録**: 本書には残さない。正本はメモリ `fe_backlog_decision_pack_20260711.md`
 - **本書の規約**: 行動可能な未対応タスクのみを記載する。各項目は「判断が必要な点」を明示し、判断が下れば追加調査なしで着手できる粒度にする
+- **#201 フォローアップ（新規発見・別チケット化推奨）**: `backend/internal/handler/treatment_response.go` の `toTreatmentResponse` が `dose_weight_kg`/`dose_amount_mg`/`dose_param_snapshot` 等を JSON に含めていない（DB には保存されるが API 応答に出ない）。そのため保存済み投与量根拠の「丸め前/丸め後 mg」表示はカルテ側の都度再計算プレビューのみで、再読込後に保存済みスナップショットを表示する監査 UI は BE レスポンス追加まで実装できない。BE 変更は本タスクの Out of Scope。
 
 ---
 
-## 残件 2: medical-records `Treatment` の #201 未追随（#201 FE UI の一部として対応）
+## 残件 2: `NextRecommendedVisitDate` 常時 null — PO 判断待ち（選択肢・実コスト確定済み）
+
+（残件 1 は #201 として本更新でクローズ済み。番号は既存メモリ参照との対応を保つためそのまま維持する）
 
 ### 現状（2026-07-12 実測）
 
-- **BE は実装済み**: `model/treatment.go:52-56` に `dose_weight_kg` / `dose_weight_source` / `dose_amount_mg` / `dose_amount_unit` / `dose_param_snapshot`（全て nullable + omitempty）。保存時再検証・逸脱監査（`AuditActionTreatmentDoseDeviation`）も稼働中。
-- **生成型は追随済み**: `types/generated/models.ts:2962-2966` に dose 系フィールドが出力されている。`Medicine.dose_params?: MedicineDoseParam[]`・`MedicineDoseBasis` union も生成済み。
-- **取り残されているのは手書き型のみ**: `features/medical-records/types/index.ts:27` の `Treatment` / `CreateTreatmentInput` / `UpdateTreatmentInput` に dose 系が無い。手書き型が存在する理由は **ID 表現の乖離**（FE は `id: string`、生成型は `id: number`）であり、生成型への単純置換はできない。
+- `liff_service_health_card.go:23` で宣言のみ・未代入。契約上は必須フィールド（`api.yaml:7219` の required に含まれ nullable）。
+- LIFF 健康手帳（`PetHealthPage.tsx`）のペットカードは上から「最終来院日 → **次回来院推奨日（常に「なし」）** → ワクチン記録表」の順で、**ワクチン表には既に列「次回予定日」（`next_due_at`）が表示されている**。つまり現状の画面は「次回来院推奨日: なし」のすぐ下に個別ワクチンの次回日付が並ぶ、という不整合な見え方をしている。
+- 集約元の `GetHealthCard` は `vaccinationRepo.FindByOwner` で `NextDueAt` を既にメモリ上に持っている — 選択肢 (B) の材料は追加クエリなしで揃っている。
 
-### 対応内容（Issue #201 OPEN・FE スコープは issue 本文 L153-215 に確定済み）
+### 選択肢と実コスト
 
-1. 手書き `Treatment` 3 型に dose 系 5 フィールドを追加（nullable・生成型と同名）。
-2. `lib/medicine-dose.ts` 純粋関数を新設（BE と同一計算仕様・table-driven test 必須）。
-3. `TreatmentsTab/`: 薬剤追加時に体重 + species からプリフィル、**丸め前/丸め後 mg を併記**、安全域逸脱の警告 + hard gate、手動上書き round-trip。
-4. `MedicineSidePanel*`: 計算パラメータ（dose_per_kg 等）編集欄を追加（現状は name/price/tax 系のみで**欄が存在しない**）。
+**(A) フィールド削除** — 「ワクチン表の次回予定日で足りる」という判断の場合。
+- タッチ箇所は 6 点で確定: `liff_service_health_card.go:23`（struct フィールド）/ `liff_response.go:240,267`（response 変換）/ `api.yaml:7207` + required 行 `:7219` / `liff-api.ts:22`（zod）/ `PetHealthPage.tsx` の表示 6 行。
+- 注意: api.yaml と Go response の同時変更になるため **OpenAPI Drift Gate**（FE8 で `last_visit_date` の既知 drift を allowlist 記録した経緯 `70f4c298` あり）を通ることを確認してから push。
+- 工数: 最小（1 コミット）。PRODUCT_PHILOSOPHY ②削除に整合。
 
-### 判断が必要な点
+**(B) ワクチン由来で算出** — 「ペット単位のサマリー日付」に価値がある場合。
+- 実装: `GetHealthCard` のペットループ内で `min(NextDueAt where NextDueAt > now)` を代入。追加クエリ・API 変更・FE 変更**すべて不要**（契約は nullable のまま、FE は値が来れば表示する）。実装 ~10 行 + service unit test。
+- 制約を仕様として明記する必要がある: 「ワクチンのみ由来。フィラリア・ノミダニ・健診は含まない」。過去日しか無いペットは null のまま（期限切れを『推奨日』として出すかは別判断 — 出すなら「超過」表示が必要で工数が跳ねる）。
+- リスク: 欄名「次回来院推奨日」が実態「次回ワクチン予定日」より広い約束に見える。**名前を「次回ワクチン予定」に変えるなら (A) との差がほぼ消える**ことに注意。
 
-- 本リファクタ単独で着手しない方針は維持（型追加だけ先行しても UI が無ければ死にフィールド）。**#201 の FE 実装をいつやるかのスケジューリング判断のみ**が残っている。型追加 → UI の順で #201 チケット内で一括実施せよ。
+**(C) 予防スケジュール統合版** — 健康手帳を予防管理のハブにする場合。
+- 既存資産: lstep 側にワクチン期限計算（`hasVaccineDeadlineSoon`・`TriggerVaccineDeadline60/30`・フィラリア/ノミダニ tag sync = H1 トラック）が存在する。ただし全て **owner 単位の「期限が近いか」判定**であり、**pet 単位の「次回日付の算出」ロジックは存在しない** — 転用ではなく新規設計になる。
+- 健診周期はデータ源自体が未定義。工数: 大（プロダクト仕様策定から）。
 
----
+### 推奨と PO への質問
 
-## 残件 3: 低優先（各individually 着手可能）
-
-### 3-3. `NextRecommendedVisitDate` 常時 null — **PO 判断待ち（選択肢確定済み）**
-
-- **実測**: `liff_service_health_card.go:23` で宣言のみ・未代入。FE（`liff/src/pages/PetHealthPage.tsx:99`）は「次回推奨来院日: なし」を常時表示。一方、**同じ関数がワクチン接種記録の `NextDueAt`（次回接種予定日）を既に集約しており**、健康手帳のワクチンカードには次回予定が別途表示されている。
-- **PO に提示すべき選択肢**:
-  - (A) **フィールド削除** — ワクチン次回予定と表示が重複するなら、この欄自体が二重表示。response + FE 表示行を消す（PRODUCT_PHILOSOPHY ②削除。最小工数）。
-  - (B) **ワクチン由来で算出** — `min(未来の NextDueAt)` を次回推奨来院日とする。データは同関数内に既にあり実装は 10 行程度。ただし「ワクチン以外（フィラリア・健診）を含まない」ことを仕様として明記する必要がある。
-  - (C) **完全版** — フィラリア/ノミダニ予防スケジュール・健診周期まで統合。lstep 側に deadline タグ計算資産はあるが、健康手帳への転用は新規設計。工数大。
-- **推奨**: PO への質問は 1 つ — 「この欄は何を約束する欄か」。回答が出るまで現状（null 表示）維持。捏造値の表示だけは絶対にしない。
+- **質問は 1 つ**: 「この欄は飼い主に何を約束する欄か」。回答 → (ワクチン表で十分)=A / (ペット単位の直近予定サマリー)=B / (予防全体の来院管理)=C。
+- **推奨は (A)**。現画面はワクチン次回日を既に表示しており、二重表示欄を null のまま置く価値がない。(B) を選ぶ場合も欄名の再検討（上記リスク）まで含めて決定すること。
+- 回答が出るまで現状（null 表示）維持。捏造値の表示だけは絶対にしない。
