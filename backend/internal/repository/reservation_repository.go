@@ -131,7 +131,7 @@ func (r *reservationRepository) FindAll(ctx context.Context, clinicIDs []uint64,
 	if err := q.Count(&total).Error; err != nil {
 		return nil, 0, apperrors.FromGORM(err, "reservation", "")
 	}
-	if err := q.Preload("Owner", "deleted_at IS NULL").Preload("Pet", "deleted_at IS NULL").Preload("Pet.Owner", "deleted_at IS NULL").Preload("Pet.AnimalSpecies").Preload("ReservationType", "clinic_id IN ? AND deleted_at IS NULL", clinicIDs).Preload("ReservationType.Group", "clinic_id IN ? AND deleted_at IS NULL", clinicIDs).Preload("Doctor", staffAssignedToClinicsCond, clinicIDs).
+	if err := reservationListPreloads(q, clinicIDs, false).
 		Offset((page - 1) * limit).Limit(limit).Order("start_time ASC").Find(&reservations).Error; err != nil {
 		return nil, 0, apperrors.FromGORM(err, "reservation", "")
 	}
@@ -153,20 +153,30 @@ func (r *reservationRepository) findReservationByID(ctx context.Context, clinicI
 		return nil, apperrors.WrapNotFound("reservation", fmt.Sprintf("%d", id))
 	}
 	var reservation model.Reservation
-	err := dbOrTx(ctx, r.db).
-		Preload("Owner", "deleted_at IS NULL").
-		Preload("Pet", "deleted_at IS NULL").
-		Preload("Pet.Owner", "deleted_at IS NULL").
-		Preload("Pet.AnimalSpecies").
-		Preload("ReservationType", "clinic_id IN ? AND deleted_at IS NULL", clinicIDs).
-		Preload("ReservationType.Group", "clinic_id IN ? AND deleted_at IS NULL", clinicIDs).
-		Preload("Doctor", staffAssignedToClinicsCond, clinicIDs).
-		Preload("CreatedByStaff", staffAssignedToClinicsCond, clinicIDs).
+	err := reservationListPreloads(dbOrTx(ctx, r.db), clinicIDs, true).
 		Scopes(clinicScopeIn(clinicIDs)).Where("id = ?", id).First(&reservation).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "reservation", fmt.Sprintf("%d", id))
 	}
 	return &reservation, nil
+}
+
+// reservationListPreloads は予約一覧/単件取得（multi-clinic 版）で共有する preload チェーンを
+// 構築する（BE-refactor.md E-15）。withCreatedByStaff は既存2箇所間の差分（意図不明のため
+// ヘルパー化時に潰さず維持する） — 一覧版は false（CreatedByStaff を含まない）、単件版は
+// true（CreatedByStaff を含む）を渡す。
+func reservationListPreloads(q *gorm.DB, clinicIDs []uint64, withCreatedByStaff bool) *gorm.DB {
+	q = q.Preload("Owner", "deleted_at IS NULL").
+		Preload("Pet", "deleted_at IS NULL").
+		Preload("Pet.Owner", "deleted_at IS NULL").
+		Preload("Pet.AnimalSpecies").
+		Preload("ReservationType", "clinic_id IN ? AND deleted_at IS NULL", clinicIDs).
+		Preload("ReservationType.Group", "clinic_id IN ? AND deleted_at IS NULL", clinicIDs).
+		Preload("Doctor", staffAssignedToClinicsCond, clinicIDs)
+	if withCreatedByStaff {
+		q = q.Preload("CreatedByStaff", staffAssignedToClinicsCond, clinicIDs)
+	}
+	return q
 }
 
 func (r *reservationRepository) Create(ctx context.Context, reservation *model.Reservation) error {
