@@ -61,6 +61,7 @@ func (h *Handler) GenerateLineLinkToken(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
+	// P15例外: link token は単回使用で GET エンドポイントを持たないため Location ヘッダなし
 	c.JSON(http.StatusCreated, toLinkTokenResponse(result))
 }
 

@@ -117,6 +117,10 @@ r.db.Model(&model.Vaccine{}).Where("id = ?", id).Updates(fields)
 **例外（clinicScope 不要）**: `clinic_repository.go`, `company_repository.go`,
 `account_repository.go`, `password_reset_token_repository.go`, `audit_repository.go`
 
+複合述語（`clinic_id = ? AND owner_id = ? AND ...`）を単一 `Where` で書く箇所は
+clinicScope 変換不要（発行 SQL は同一・複合インデックス形状の可読性優先）。
+監査で再フラグしない（BE-refactor.md F-4）。
+
 ## P9: apperrors.FromGORM on GORM errors (MANDATORY)
 
 ```go
@@ -140,6 +144,11 @@ Create / Update / Delete  ← 標準
 CountBy{Xxx}              ← カウント
 CountUsageBy{Xxx}         ← 使用数カウント
 ```
+
+**例外**: 集計レポート系 4 メソッド（`GetCloseAggregate`/`GetMonthlyReport`/
+`GetMonthlyReportByPeriod`/`GetDailySummary`）は行ルックアップでなく集計のため
+`Get*` を許容する（既存 241 の `Find*` と併存。新規の行取得系に `Get*` は
+引き続き禁止、BE-refactor.md F-4）。
 
 ```go
 // ✅
