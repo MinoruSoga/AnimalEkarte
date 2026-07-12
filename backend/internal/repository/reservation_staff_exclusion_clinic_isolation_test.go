@@ -80,3 +80,52 @@ func TestReservationStaffRepository_UpdateExcludedReservationTypes_ClinicIsolati
 		assert.Equal(t, int64(1), countExclusions(staffA.ID), "拒否時に既存の除外設定を破壊してはならない")
 	})
 }
+
+// TestReservationStaffRepository_UpdateExcludedReservationTypes_DeleteScopedToClinic は
+// BE-refactor.md H-2 の回帰テスト。多施設所属スタッフ（staff_clinic_assignments で
+// clinic A/B 双方に所属）が clinic B で正当に持つ除外設定（staff_reservation_exclusions）が、
+// clinic A での保存操作（DELETE + INSERT の全置換）によって無警告で削除されないことを検証する。
+// staff_reservation_exclusions は自前 clinic_id を持たないため、DELETE を
+// staff_id のみでスコープすると（修正前の実装）、clinic を跨いで他クリニック分の
+// 除外設定まで消えてしまう。DELETE を reservation_types の clinic_id サブクエリでスコープすると
+// このテストは PASS する。
+func TestReservationStaffRepository_UpdateExcludedReservationTypes_DeleteScopedToClinic(t *testing.T) {
+	db := setupExclusionIsolationTestDB(t)
+	repo := NewReservationStaffRepository(db)
+	ctx := context.Background()
+
+	const (
+		clinicA = uint64(1)
+		clinicB = uint64(2)
+	)
+
+	// 多施設所属スタッフ: 主所属は clinic A、加えて clinic B にも所属する。
+	staff := makeDoctorAssignedToClinic(t, db, clinicA, "多施設所属スタッフ")
+	require.NoError(t, db.WithContext(ctx).Create(&model.StaffClinicAssignment{
+		StaffID: staff.ID, ClinicID: clinicB,
+	}).Error)
+
+	typeA := makeReservationType(t, db, clinicA)
+	typeB := makeReservationType(t, db, clinicB)
+
+	// clinic B での過去の正当な保存操作を模して、直接 clinic B の予約区分への
+	// 除外設定を紐づけておく（repo.UpdateExcludedReservationTypes(clinicB, ...) を
+	// 経由しても同じ状態になる）。
+	require.NoError(t, db.WithContext(ctx).Create(&model.StaffReservationExclusion{
+		StaffID: staff.ID, ReservationTypeID: typeB.ID,
+	}).Error)
+
+	exclusionExists := func(reservationTypeID uint64) bool {
+		var n int64
+		require.NoError(t, db.Model(&model.StaffReservationExclusion{}).
+			Where("staff_id = ? AND reservation_type_id = ?", staff.ID, reservationTypeID).Count(&n).Error)
+		return n == 1
+	}
+
+	// clinic A での保存操作（clinic A の区分へ差し替え）。
+	err := repo.UpdateExcludedReservationTypes(ctx, clinicA, staff.ID, []uint64{typeA.ID})
+	require.NoError(t, err)
+
+	assert.True(t, exclusionExists(typeB.ID), "clinic B の除外設定は clinic A の保存操作で削除されてはならない")
+	assert.True(t, exclusionExists(typeA.ID), "clinic A の新規除外設定は保存されるべき")
+}

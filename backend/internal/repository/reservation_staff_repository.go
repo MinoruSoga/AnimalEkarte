@@ -230,8 +230,14 @@ func (r *reservationStaffRepository) UpdateExcludedReservationTypes(ctx context.
 	// 常に独立した新規 tx を開始しており、reservationStaffService.Create の外側 WithTx が rollback
 	// しても本メソッドの DELETE→INSERT は既にコミット済みのため巻き戻らなかった。
 	if err := dbOrTx(ctx, r.db).Transaction(func(tx *gorm.DB) error {
-		// 既存を全削除
-		if err := tx.Where("staff_id = ?", staffID).Delete(&model.StaffReservationExclusion{}).Error; err != nil {
+		// BE-refactor.md H-2: staff_reservation_exclusions は自前 clinic_id を持たないため、
+		// staff_id のみで DELETE すると多施設所属スタッフ（staff_clinic_assignments）が
+		// 他クリニックで正当に保持する除外設定まで削除してしまう（UpdateReservationCapabilities
+		// は junction 自体に clinic_id 列を持ち対称に scope 済み — :306 参照）。
+		// reservation_types.clinic_id のサブクエリで削除対象を clinicID にスコープする。
+		subQuery := tx.Model(&model.ReservationType{}).Select("id").Where("clinic_id = ?", clinicID)
+		if err := tx.Where("staff_id = ? AND reservation_type_id IN (?)", staffID, subQuery).
+			Delete(&model.StaffReservationExclusion{}).Error; err != nil {
 			return apperrors.FromGORM(err, "staff_reservation_exclusion", fmt.Sprintf("%d", staffID))
 		}
 		// 新規挿入
