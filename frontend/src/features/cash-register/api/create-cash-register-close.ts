@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import { handleApiError } from "@/lib/handle-api-error";
+import { queryKeys } from "@/lib/query-keys";
 import type { CashRegisterClose as BackendCashRegisterClose } from "@/types/generated/models";
 import type { CashRegisterPeriod } from "../constants";
 import { transformCashRegisterClose } from "./transforms";
@@ -25,8 +26,8 @@ export const useCreateCashRegisterClose = () => {
   return useMutation({
     mutationFn: createCashRegisterClose,
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["cash-register-closes"] });
-      qc.invalidateQueries({ queryKey: ["cash-register-preview"] });
+      qc.invalidateQueries({ queryKey: queryKeys.cashRegister.closes.all() });
+      qc.invalidateQueries({ queryKey: queryKeys.cashRegister.preview.all() });
     },
     onError: (error) => handleApiError(error, "レジ締め作成"),
   });

@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
+import { queryKeys } from "@/lib/query-keys";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 import type { PaymentMethodMaster } from "@/types/generated/models";
 import type { CashRegisterPeriod } from "../constants";
@@ -121,7 +122,7 @@ export const useGetCashRegisterPreview = (
   enabled: boolean,
 ) =>
   useQuery({
-    queryKey: ["cash-register-preview", date, period],
+    queryKey: queryKeys.cashRegister.preview.byDatePeriod(date, period),
     queryFn: () => getCashRegisterPreview(date, period),
     enabled: enabled && !!date,
     staleTime: QUERY_STALE_TIMES.REALTIME,
