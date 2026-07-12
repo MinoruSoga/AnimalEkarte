@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import type { LiffSettings, CustomerInfo } from './types/models';
 
 vi.mock('./api/liff-api', () => ({
@@ -124,6 +124,10 @@ describe('App（FE5-20: ナビゲーション特性テスト）', () => {
     vi.mocked(useLiff).mockReset();
   });
 
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   it('App: clinicId がない場合エラーページを表示する', async () => {
     vi.mocked(getClinicId).mockReturnValue('');
     mockUseLiff();
@@ -198,7 +202,33 @@ describe('App（FE5-20: ナビゲーション特性テスト）', () => {
     expect(alertSpy).not.toHaveBeenCalled();
     // redirectStep=4 → step4（DateSelectPage スタブ）に戻る
     expect(await screen.findByText('next-step4')).toBeInTheDocument();
+  });
 
-    alertSpy.mockRestore();
+  it('App: 枠競合バナーは閉じるボタンでクリアできる', async () => {
+    vi.mocked(getClinicId).mockReturnValue('1');
+    vi.mocked(liffApi.getSettings).mockResolvedValue(SETTINGS);
+    vi.mocked(liffApi.getProfile).mockResolvedValue({
+      line_user_id: 'U1',
+      display_name: 'テストユーザー',
+      additional_fields: {},
+    });
+    mockUseLiff({ idToken: 'mock-token', isReady: true });
+
+    const user = userEvent.setup();
+    render(<App />);
+
+    await user.click(await screen.findByText('新規予約'));
+    await user.click(await screen.findByText('next-step1'));
+    await user.click(await screen.findByText('next-step2'));
+    await user.click(await screen.findByText('next-step3'));
+    await user.click(await screen.findByText('next-step4'));
+    await user.click(await screen.findByText('next-step5'));
+    await user.click(await screen.findByText('next-step6'));
+    await user.click(await screen.findByText('trigger-slot-taken'));
+
+    await screen.findByRole('alert');
+    await user.click(screen.getByRole('button', { name: '閉じる' }));
+
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 });

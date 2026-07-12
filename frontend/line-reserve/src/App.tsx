@@ -90,11 +90,13 @@ export function App() {
   const goTo = useCallback((p: PageType) => setPage(p), []);
 
   const handleNewReservation = useCallback(() => {
+    setNotice(null); // 直前フローの枠競合バナーを持ち越さない
     resetFlow();
     goTo('step1');
   }, [resetFlow, goTo]);
 
   const handleConfirm = useCallback((reservationId: number, notes: string) => {
+    setNotice(null); // 予約成功後は枠競合バナーを残さない
     setCompletedReservationId(reservationId);
     setCompletedNotes(notes);
     goTo('step8');
@@ -115,6 +117,7 @@ export function App() {
   }, [goTo]);
 
   const handleCompleteNewReservation = useCallback(() => {
+    setNotice(null); // 直前フローの枠競合バナーを持ち越さない
     resetFlow();
     goTo('step1');
   }, [resetFlow, goTo]);
