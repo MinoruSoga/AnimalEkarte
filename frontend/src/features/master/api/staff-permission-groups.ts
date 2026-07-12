@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { isAxiosError } from "axios";
 import { axios } from "@/lib/axios";
 import { handleApiError } from "@/lib/handle-api-error";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
@@ -30,9 +31,12 @@ export function useGetAllStaffPermissionGroupMap(staffIds: string[]) {
               `/v1/masters/staffs/${id}/permission-groups`,
             );
             map.set(id, (data.group_ids ?? []).map(String));
-          } catch {
-            // バッチ取得: 個別スタッフの失敗（404含む）はスキップして継続
-            map.set(id, []);
+          } catch (err) {
+            if (isAxiosError(err) && err.response?.status === 404) {
+              map.set(id, []); // 404 = 権限グループ未設定。従来どおり空扱い
+              return;
+            }
+            throw err; // それ以外は query 全体を失敗させる（FE5-16 のグローバル onError がトースト表示）
           }
         }),
       );
