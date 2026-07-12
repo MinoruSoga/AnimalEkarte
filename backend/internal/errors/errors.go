@@ -148,11 +148,6 @@ func WrapBadGateway(message string) error {
 	}
 }
 
-// IsBadGateway は ErrBadGateway かどうかを判定する。
-func IsBadGateway(err error) bool {
-	return errors.Is(err, ErrBadGateway)
-}
-
 // FromGORM は GORM のエラーを AppError に変換する
 func FromGORM(err error, resource, id string) error {
 	if err == nil {

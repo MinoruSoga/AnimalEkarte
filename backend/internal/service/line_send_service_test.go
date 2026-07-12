@@ -355,7 +355,7 @@ func TestSend_TextPushError(t *testing.T) {
 	result, err := svc.Send(context.Background(), 1, &SendLineMessageInput{OwnerID: 1, MessageType: "text", Text: "hi"})
 
 	assert.Error(t, err)
-	assert.True(t, apperrors.IsBadGateway(err))
+	assert.ErrorIs(t, err, apperrors.ErrBadGateway)
 	assert.Nil(t, result)
 	assert.Equal(t, "failed", loggedStatus)
 	assert.NotNil(t, loggedErrMsg)

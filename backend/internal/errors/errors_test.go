@@ -189,16 +189,10 @@ func TestWrapNotImplemented(t *testing.T) {
 func TestWrapBadGateway(t *testing.T) {
 	err := WrapBadGateway("bad gateway message")
 	assert.NotNil(t, err)
-	assert.True(t, IsBadGateway(err))
+	assert.ErrorIs(t, err, ErrBadGateway)
 	var appErr *AppError
 	assert.True(t, errors.As(err, &appErr))
 	assert.Equal(t, "BAD_GATEWAY", appErr.Code)
-}
-
-func TestIsBadGateway(t *testing.T) {
-	assert.True(t, IsBadGateway(ErrBadGateway))
-	assert.True(t, IsBadGateway(Wrap(ErrBadGateway, "context")))
-	assert.False(t, IsBadGateway(ErrNotFound))
 }
 
 func TestFromGORM(t *testing.T) {

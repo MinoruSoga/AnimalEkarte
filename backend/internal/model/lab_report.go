@@ -2,18 +2,6 @@ package model
 
 import "github.com/google/uuid"
 
-// LabReportFilter は LabReportQueryService のリスト/サマリクエリのフィルター入力。
-// nil フィールドはフィルターなしを意味する。
-// PII-safe: owner 情報・pet 名は含めない（ID のみ）。
-type LabReportFilter struct {
-	PetID      *uint64
-	ExamTypeID *uint64
-	Status     *string
-	StartDate  *string // YYYY-MM-DD
-	EndDate    *string // YYYY-MM-DD
-	IsAbnormal *bool   // true: is_abnormal=true の exam_result を持つ exam のみ
-}
-
 // LabExamReportSummary は ListJobReportSummaries / ListExamReports の 1 件。
 // result_summary は PHI 分類未確認のため除外する（Phase 4B.1 決定2）。
 // owner 名・pet 名・raw 検査値は含めない。
