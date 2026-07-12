@@ -217,7 +217,7 @@ func (s *liffService) GetAvailableTimes(ctx context.Context, clinicID, typeID, s
 		return nil, apperrors.Wrap(err, "failed to resolve target staffs")
 	}
 
-	staffInputs, err := s.buildStaffSlotInputs(ctx, clinicID, visibleStaffs, date)
+	staffInputs, err := s.buildStaffSlotInputsForDate(ctx, clinicID, visibleStaffs, date)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to build staff slot inputs", "error", err)
 		return nil, apperrors.Wrap(err, "failed to build staff slot inputs")

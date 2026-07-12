@@ -190,7 +190,9 @@ func TestSyncLTVTopPercent(t *testing.T) {
 				},
 			},
 			tagCacheRepo: &mockLstepTagCacheRepository{
-				findByOwnerFn: func(_ context.Context, _, _ uint64) ([]*model.LstepTagCache, error) { return nil, nil },
+				findByOwnersFn: func(_ context.Context, _ uint64, _ []uint64) (map[uint64][]*model.LstepTagCache, error) {
+					return map[uint64][]*model.LstepTagCache{}, nil
+				},
 			},
 			buildClientFn: func(_ context.Context, _ uint64) (lstep.Client, error) { return client, nil },
 		}
@@ -217,8 +219,8 @@ func TestSyncLTVTopPercent(t *testing.T) {
 				},
 			},
 			tagCacheRepo: &mockLstepTagCacheRepository{
-				findByOwnerFn: func(_ context.Context, _, _ uint64) ([]*model.LstepTagCache, error) {
-					return []*model.LstepTagCache{{TagName: ltvTop20Tag}}, nil
+				findByOwnersFn: func(_ context.Context, _ uint64, _ []uint64) (map[uint64][]*model.LstepTagCache, error) {
+					return map[uint64][]*model.LstepTagCache{2: {{TagName: ltvTop20Tag}}}, nil
 				},
 				deleteTagFn: func(_ context.Context, _, _ uint64, tagName string) error { deletedTag = tagName; return nil },
 			},
@@ -231,7 +233,7 @@ func TestSyncLTVTopPercent(t *testing.T) {
 		assert.Equal(t, ltvTop20Tag, deletedTag)
 	})
 
-	t.Run("tagCacheRepo.FindByOwner failure for a non-top owner is aggregated", func(t *testing.T) {
+	t.Run("tagCacheRepo.FindByOwners batch failure aborts the sync (fail-closed, not per-owner)", func(t *testing.T) {
 		accountRepo := newCPMAccountingRepository()
 		accountRepo.findOwnersByAnnualRevenueFn = func(_ context.Context, _ uint64) ([]repository.OwnerAnnualRevenue, error) {
 			return nil, nil
@@ -246,7 +248,7 @@ func TestSyncLTVTopPercent(t *testing.T) {
 				},
 			},
 			tagCacheRepo: &mockLstepTagCacheRepository{
-				findByOwnerFn: func(_ context.Context, _, _ uint64) ([]*model.LstepTagCache, error) {
+				findByOwnersFn: func(_ context.Context, _ uint64, _ []uint64) (map[uint64][]*model.LstepTagCache, error) {
 					return nil, errors.New("db error")
 				},
 			},
@@ -272,8 +274,8 @@ func TestSyncLTVTopPercent(t *testing.T) {
 				},
 			},
 			tagCacheRepo: &mockLstepTagCacheRepository{
-				findByOwnerFn: func(_ context.Context, _, _ uint64) ([]*model.LstepTagCache, error) {
-					return []*model.LstepTagCache{{TagName: ltvTop20Tag}}, nil
+				findByOwnersFn: func(_ context.Context, _ uint64, _ []uint64) (map[uint64][]*model.LstepTagCache, error) {
+					return map[uint64][]*model.LstepTagCache{2: {{TagName: ltvTop20Tag}}}, nil
 				},
 			},
 			buildClientFn: func(_ context.Context, _ uint64) (lstep.Client, error) { return client, nil },

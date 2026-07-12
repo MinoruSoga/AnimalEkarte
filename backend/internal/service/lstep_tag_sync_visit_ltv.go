@@ -2,10 +2,10 @@ package service
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
+	"github.com/animal-ekarte/backend/internal/model"
 )
 
 // SyncLTVTopPercent は LTV 上位 20% の飼い主に LTV_上位20 タグを付与し、
@@ -46,6 +46,36 @@ func (s *lstepTagSyncService) SyncLTVTopPercent(ctx context.Context, clinicID ui
 		return 0, nil
 	}
 
+	// N+1回避(PERF-FOLLOWUP-08): タグ解除候補(LINE連携済み・非top)の owner_id を先に収集し、
+	// タグキャッシュを1クエリで一括取得する（checkup_sync_service_preview.go:49 と同型）。
+	// FindAllWithLineUserID はカーソルページング未適用（全件ロード）のため、ページ単位ではなく
+	// このバッチ全体で1回の FindByOwners で足りる。
+	nonTopOwnerIDs := make([]uint64, 0, len(owners))
+	for i := range owners {
+		owner := &owners[i]
+		if owner.LineUserID == nil || *owner.LineUserID == "" {
+			continue
+		}
+		if _, isTop := topOwnerIDs[owner.ID]; isTop {
+			continue
+		}
+		nonTopOwnerIDs = append(nonTopOwnerIDs, owner.ID)
+	}
+	// バッチ取得の失敗は、この関数の他の repo 取得（revenues/owners）と同じ致命度で早期 return する
+	// （per-owner版と異なり、失敗した owner だけを errs に積んで続行することはできない — バッチが
+	// 失敗した場合に「タグなし」として扱うと、実際は保持しているタグを誤って解除しないまま
+	// success 扱いするサイレントな不整合になるため、fail-open にしない）。
+	// nonTopOwnerIDs が空なら呼ばない（無駄なクエリを避ける。tagCacheRepo は nil のまま
+	// map lookup の zero value（空スライス）にフォールバックする）。
+	var tagCacheByOwner map[uint64][]*model.LstepTagCache
+	if len(nonTopOwnerIDs) > 0 {
+		tagCacheByOwner, err = s.tagCacheRepo.FindByOwners(ctx, clinicID, nonTopOwnerIDs)
+		if err != nil {
+			slog.ErrorContext(ctx, "SyncLTVTopPercent: failed to batch load tag cache", "clinic_id", clinicID, "error", err)
+			return 0, []error{apperrors.Wrap(err, "failed to batch load tag cache")}
+		}
+	}
+
 	var errs []error
 	count := 0
 	for i := range owners {
@@ -61,12 +91,7 @@ func (s *lstepTagSyncService) SyncLTVTopPercent(ctx context.Context, clinicID ui
 				continue
 			}
 		} else {
-			cached, cacheErr := s.tagCacheRepo.FindByOwner(ctx, clinicID, owner.ID)
-			if cacheErr != nil {
-				slog.ErrorContext(ctx, "SyncLTVTopPercent: failed to load cache", "owner_id", owner.ID, "error", cacheErr)
-				errs = append(errs, apperrors.Wrap(cacheErr, fmt.Sprintf("failed to load tag cache for owner %d", owner.ID)))
-				continue
-			}
+			cached := tagCacheByOwner[owner.ID]
 			hasTag := false
 			for _, c := range cached {
 				if c.TagName == ltvTop20Tag {

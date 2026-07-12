@@ -371,3 +371,68 @@ func TestPERF3_CreateCheckupSync_BatchFetchesOwners(t *testing.T) {
 	assert.Equal(t, int64(1), got,
 		"CreateCheckupSync は FindByIDs を 1 回だけ呼ぶべき (現在 %d 回)", got)
 }
+
+// ─────────────────────────────────────────────
+// PERF-FOLLOWUP-08 (対象1): SyncLTVTopPercent が
+//   tagCacheRepo.FindByOwner を owner ごとに呼ぶのではなく、
+//   FindByOwners を clinic 単位(非top owner分をまとめて)で1回だけ呼ぶこと。
+//   M1/M2 と同型の *WithMappings hoist パターンの回帰テスト。
+// ─────────────────────────────────────────────
+
+func TestPERFFOLLOWUP08_LTV_TagCacheFetchedOncePerClinic(t *testing.T) {
+	const ownerCount = 3
+	const clinicID = uint64(10)
+
+	lineID := "line-u-ltv-test"
+	owners := make([]model.Owner, ownerCount)
+	for i := range owners {
+		owners[i] = model.Owner{ID: uint64(i + 1), ClinicID: clinicID, LineUserID: &lineID}
+	}
+
+	accountRepo := newCPMAccountingRepository()
+	accountRepo.findOwnersByAnnualRevenueFn = func(_ context.Context, _ uint64) ([]repository.OwnerAnnualRevenue, error) {
+		return nil, nil // topN=0 -> 全owner が非top(タグ解除候補)
+	}
+
+	var findByOwnerCalls int64
+	var findByOwnersCalls int64
+	var lastBatchSize int
+	tagCacheRepo := &mockLstepTagCacheRepository{
+		findByOwnerFn: func(_ context.Context, _, _ uint64) ([]*model.LstepTagCache, error) {
+			atomic.AddInt64(&findByOwnerCalls, 1)
+			return nil, nil
+		},
+		findByOwnersFn: func(_ context.Context, _ uint64, ownerIDs []uint64) (map[uint64][]*model.LstepTagCache, error) {
+			atomic.AddInt64(&findByOwnersCalls, 1)
+			lastBatchSize = len(ownerIDs)
+			return map[uint64][]*model.LstepTagCache{}, nil
+		},
+	}
+
+	client := &mockLstepAPIClient{}
+	svc := &lstepTagSyncService{
+		settingsSvc: &mockLstepSettingsService{},
+		accountRepo: accountRepo,
+		ownerRepo: &mockOwnerRepository{
+			findAllWithLineUserIDFn: func(_ context.Context, _ uint64) ([]model.Owner, error) {
+				return owners, nil
+			},
+		},
+		tagCacheRepo:  tagCacheRepo,
+		buildClientFn: func(_ context.Context, _ uint64) (lstep.Client, error) { return client, nil },
+	}
+
+	count, errs := svc.SyncLTVTopPercent(context.Background(), clinicID)
+	assert.Empty(t, errs)
+	assert.Equal(t, ownerCount, count)
+
+	gotFindByOwner := atomic.LoadInt64(&findByOwnerCalls)
+	gotFindByOwners := atomic.LoadInt64(&findByOwnersCalls)
+	// GREEN 条件: FindByOwner は 0 回、FindByOwners は 1 回 (hoist 後)
+	// RED  条件: FindByOwner が ownerCount 回 (旧実装は owner ごとに再取得)
+	assert.Equal(t, int64(0), gotFindByOwner,
+		"FindByOwner は呼ばれるべきではない (バッチ化後, 現在 %d 回)", gotFindByOwner)
+	assert.Equal(t, int64(1), gotFindByOwners,
+		"FindByOwners は clinic 単位で 1 回だけ呼ばれるべき (現在 %d 回)", gotFindByOwners)
+	assert.Equal(t, ownerCount, lastBatchSize, "バッチは非top owner全件をまとめて要求するべき")
+}

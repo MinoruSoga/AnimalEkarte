@@ -43,10 +43,10 @@ package service
 // Catching that would require call-graph analysis; the syntactic-only scope is a deliberate
 // KISS choice, same as preload_clinic_scope_lint_test.go's substring/identifier heuristic.
 //
-// KNOWN REAL FINDINGS, TRACKED NOT SILENCED: this lint's first run against real source
-// surfaced two genuine, previously-undiscovered N+1 candidates outside the M1/M2/FOLLOWUP-02
-// scope of the task that added this gate (PERF-FOLLOWUP-07 was a test-only addition; fixing
-// unrelated pre-existing N+1s was out of that task's scope):
+// RESOLVED FINDINGS (formerly "KNOWN REAL FINDINGS, TRACKED NOT SILENCED"): this lint's first
+// run against real source surfaced two genuine, previously-undiscovered N+1 candidates outside
+// the M1/M2/FOLLOWUP-02 scope of the task that added this gate (PERF-FOLLOWUP-07 was a
+// test-only addition; fixing unrelated pre-existing N+1s was out of that task's scope):
 //   - lstep_tag_sync_visit_ltv.go SyncLTVTopPercent(): tagCacheRepo.FindByOwner called once
 //     per owner inside a loop over ALL clinic owners — same shape as the fixed M1/M2 bugs.
 //   - liff_service_availability_slots.go buildStaffSlotInputs(): scheduleRepo.FindAllByDate
@@ -54,12 +54,13 @@ package service
 //     clinic staff.
 // Rather than either (a) leaving this gate permanently red — which teaches everyone to
 // ignore a failing gate and blocks it from ever catching a NEW regression — or (b) silently
-// allowlisting them with no trail, both are filed as a tracked follow-up
-// (docs/tasks/open/PERF-FOLLOWUP-08-ltv-staffslots-n1.md) and allowlisted below with a
-// direct reference to that doc. This mirrors the "documented site-exception" discipline
-// preload_clinic_scope_lint_test.go already uses for known-but-deferred gaps: visible in the
-// allowlist comment and in BE_todo.md, not swept under the rug. When PERF-FOLLOWUP-08 lands,
-// delete both entries below and their occurrence pins in TestN1Lint_AllowlistEntriesAreLive.
+// allowlisting them with no trail, both were filed as a tracked follow-up
+// (docs/tasks/closed/perf/PERF-FOLLOWUP-08-ltv-staffslots-n1.md) and temporarily allowlisted
+// with a direct reference to that doc. This mirrored the "documented site-exception"
+// discipline preload_clinic_scope_lint_test.go already uses for known-but-deferred gaps.
+// PERF-FOLLOWUP-08 (2026-07-12) resolved both by hoisting the per-iteration Find call above
+// the loop (see n1Allowlist Category 2 comment below for the concrete fix) — the allowlist
+// entries and their occurrence pins have been removed accordingly.
 
 import (
 	"go/ast"
@@ -108,16 +109,14 @@ var n1Allowlist = map[string]bool{
 	// how many trimming options one reservation can select (small, UI-constrained), not table size.
 	n1AllowlistKey("ValidateAndCreate", "trimmingOptionRepo.FindByID"): true,
 
-	// --- Category 2: tracked pre-existing debt (docs/tasks/open/PERF-FOLLOWUP-08-ltv-staffslots-n1.md) ---
-	// SyncLTVTopPercent loops over ALL clinic owners (ownerRepo.FindAllWithLineUserID) and
-	// re-fetches tagCacheRepo.FindByOwner per owner — same shape as the fixed M1/M2 bugs, but
-	// discovered outside this task's scope. See PERF-FOLLOWUP-08 for the hoist plan.
-	n1AllowlistKey("SyncLTVTopPercent", "tagCacheRepo.FindByOwner"): true,
-	// buildStaffSlotInputs loops over ALL clinic staff and re-fetches schedule/breaks per
-	// staff. Lower severity than the owner-scale finding above (staff count is small/bounded),
-	// but still data-bound. See PERF-FOLLOWUP-08.
-	n1AllowlistKey("buildStaffSlotInputs", "scheduleRepo.FindAllByDate"):          true,
-	n1AllowlistKey("buildStaffSlotInputs", "scheduleRepo.FindAllBreaksByEntryID"): true,
+	// --- Category 2: tracked pre-existing debt ---
+	// (empty) PERF-FOLLOWUP-08 (2026-07-12) resolved both prior entries by hoisting the
+	// per-iteration Find call above the loop: SyncLTVTopPercent now batches via
+	// tagCacheRepo.FindByOwners once per clinic (lstep_tag_sync_visit_ltv.go), and
+	// buildStaffSlotInputs was replaced by buildStaffSlotInputsForDate, which prefetches via
+	// scheduleRepo.FindAllByStaffIDsAndDateRange/FindAllBreaksByEntryIDs (batch methods, not
+	// Find*/loop-body calls, so they don't match this lint's pattern at all) — see
+	// docs/tasks/closed/perf/PERF-FOLLOWUP-08-ltv-staffslots-n1.md.
 }
 
 // analyzeFileN1 parses one Go source file and reports RangeStmt-body Find*/Get* calls not
@@ -398,9 +397,6 @@ func TestN1Lint_AllowlistEntriesAreLive(t *testing.T) {
 	wantOccurrences := map[string]int{
 		n1AllowlistKey("validateOwnerPetsInsuranceOwnership", "insuranceRepo.FindByID"): 1,
 		n1AllowlistKey("ValidateAndCreate", "trimmingOptionRepo.FindByID"):              1,
-		n1AllowlistKey("SyncLTVTopPercent", "tagCacheRepo.FindByOwner"):                 1,
-		n1AllowlistKey("buildStaffSlotInputs", "scheduleRepo.FindAllByDate"):            1,
-		n1AllowlistKey("buildStaffSlotInputs", "scheduleRepo.FindAllBreaksByEntryID"):   1,
 	}
 	if len(n1Allowlist) != len(wantOccurrences) {
 		t.Fatalf("n1Allowlist has %d entries but this test pins %d; keep both lists in sync", len(n1Allowlist), len(wantOccurrences))
