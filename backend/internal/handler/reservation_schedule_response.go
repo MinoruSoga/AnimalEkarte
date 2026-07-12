@@ -42,8 +42,8 @@ func toScheduleEntryResponse(e *service.ScheduleEntry) scheduleEntryResponse {
 		WorkEnd:   e.Entry.EndTime,
 		Note:      e.Entry.Notes,
 		Breaks:    breaks,
-		CreatedAt: e.Entry.CreatedAt.In(time.Local).Format(time.RFC3339),
-		UpdatedAt: e.Entry.UpdatedAt.In(time.Local).Format(time.RFC3339),
+		CreatedAt: localTimeRFC3339(e.Entry.CreatedAt),
+		UpdatedAt: localTimeRFC3339(e.Entry.UpdatedAt),
 	}
 }
 

@@ -31,8 +31,8 @@ func toCheckupResponse(c *model.Checkup) checkupResponse {
 		CheckupTypeID:   strconv.FormatUint(c.CheckupTypeID, 10),
 		Date:            c.Date.In(time.Local).Format(time.DateOnly),
 		Result:          c.Result,
-		CreatedAt:       c.CreatedAt.In(time.Local).Format(time.RFC3339),
-		UpdatedAt:       c.UpdatedAt.In(time.Local).Format(time.RFC3339),
+		CreatedAt:       localTimeRFC3339(c.CreatedAt),
+		UpdatedAt:       localTimeRFC3339(c.UpdatedAt),
 	}
 	if c.NextDate != nil {
 		nd := c.NextDate.In(time.Local).Format(time.DateOnly)

@@ -2,7 +2,6 @@ package handler
 
 import (
 	"net/http"
-	"time"
 
 	"github.com/gin-gonic/gin"
 
@@ -48,7 +47,7 @@ func toLineSendLogResponse(l *model.LineSendLog) lineSendLogResponse {
 		ContentSummary: l.ContentSummary,
 		Status:         l.Status,
 		ErrorMessage:   l.ErrorMessage,
-		SentAt:         l.SentAt.In(time.Local).Format(time.RFC3339),
+		SentAt:         localTimeRFC3339(l.SentAt),
 	}
 }
 
@@ -94,7 +93,7 @@ func (h *Handler) PostLineSend(c *gin.Context) {
 
 	c.JSON(http.StatusOK, lineSendResponse{
 		Sent:     true,
-		SentAt:   result.SentAt.In(time.Local).Format(time.RFC3339),
+		SentAt:   localTimeRFC3339(result.SentAt),
 		TagAdded: result.TagAdded,
 	})
 }

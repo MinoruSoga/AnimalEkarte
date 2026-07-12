@@ -53,7 +53,7 @@ func toTagSummaryResponse(r service.TagSummaryResponse) tagSummaryResponse {
 	return tagSummaryResponse{
 		Tags:                 items,
 		TotalOwnersWithLstep: r.TotalOwnersWithLstep,
-		AsOf:                 r.AsOf.In(time.Local).Format(time.RFC3339),
+		AsOf:                 localTimeRFC3339(r.AsOf),
 	}
 }
 

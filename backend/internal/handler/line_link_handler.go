@@ -3,7 +3,6 @@ package handler
 import (
 	"io"
 	"net/http"
-	"time"
 
 	"github.com/gin-gonic/gin"
 
@@ -21,7 +20,7 @@ type linkTokenResponse struct {
 func toLinkTokenResponse(r *service.LinkTokenResult) linkTokenResponse {
 	return linkTokenResponse{
 		Token:     r.Token,
-		ExpiresAt: r.ExpiresAt.In(time.Local).Format(time.RFC3339),
+		ExpiresAt: localTimeRFC3339(r.ExpiresAt),
 		LiffURL:   r.LiffURL,
 	}
 }

@@ -60,7 +60,7 @@ func toDeliveryTriggerSummaryResponse(s service.DeliveryTriggerSummary) delivery
 func toDeliveryTriggerLogItemResponse(item *service.DeliveryTriggerLogItem) deliveryTriggerLogItemResponse {
 	var firedAt *string
 	if item.FiredAt != nil {
-		s := item.FiredAt.In(time.Local).Format(time.RFC3339)
+		s := localTimeRFC3339(*item.FiredAt)
 		firedAt = &s
 	}
 	return deliveryTriggerLogItemResponse{
@@ -68,7 +68,7 @@ func toDeliveryTriggerLogItemResponse(item *service.DeliveryTriggerLogItem) deli
 		OwnerID:        strconv.FormatUint(item.OwnerID, 10),
 		OwnerName:      item.OwnerName,
 		TriggerType:    item.TriggerType,
-		ScheduledAt:    item.ScheduledAt.In(time.Local).Format(time.RFC3339),
+		ScheduledAt:    localTimeRFC3339(item.ScheduledAt),
 		Status:         item.Status,
 		FiredAt:        firedAt,
 		ExcludedReason: item.ExcludedReason,

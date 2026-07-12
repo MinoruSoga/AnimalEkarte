@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"net/http"
 	"strconv"
-	"time"
 
 	"github.com/gin-gonic/gin"
 
@@ -94,16 +93,16 @@ func toLstepFriendAttributeResponse(m *model.LstepFriendAttributeSnapshot) lstep
 		DisplayName:     m.DisplayName,
 		TrafficSource:   m.TrafficSource,
 		BlockStatus:     m.BlockStatus,
-		SnapshotTakenAt: m.SnapshotTakenAt.In(time.Local).Format(time.RFC3339),
-		CreatedAt:       m.CreatedAt.In(time.Local).Format(time.RFC3339),
-		UpdatedAt:       m.UpdatedAt.In(time.Local).Format(time.RFC3339),
+		SnapshotTakenAt: localTimeRFC3339(m.SnapshotTakenAt),
+		CreatedAt:       localTimeRFC3339(m.CreatedAt),
+		UpdatedAt:       localTimeRFC3339(m.UpdatedAt),
 	}
 	if m.RegisteredAt != nil {
-		s := m.RegisteredAt.In(time.Local).Format(time.RFC3339)
+		s := localTimeRFC3339(*m.RegisteredAt)
 		r.RegisteredAt = &s
 	}
 	if m.LastMessageAt != nil {
-		s := m.LastMessageAt.In(time.Local).Format(time.RFC3339)
+		s := localTimeRFC3339(*m.LastMessageAt)
 		r.LastMessageAt = &s
 	}
 	if len(m.Tags) > 0 {

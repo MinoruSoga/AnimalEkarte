@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
-	"time"
 
 	"github.com/gin-gonic/gin"
 
@@ -38,7 +37,7 @@ func toLstepCsvImportResponse(m *model.LstepCsvImport) lstepCsvImportResponse {
 		SuccessCount: m.SuccessCount,
 		ErrorCount:   m.ErrorCount,
 		Status:       m.Status,
-		CreatedAt:    m.CreatedAt.In(time.Local).Format(time.RFC3339),
+		CreatedAt:    localTimeRFC3339(m.CreatedAt),
 	}
 	uploadedBy := strconv.FormatUint(m.UploadedByUserID, 10)
 	r.UploadedByUserID = &uploadedBy
@@ -46,7 +45,7 @@ func toLstepCsvImportResponse(m *model.LstepCsvImport) lstepCsvImportResponse {
 		r.ErrorLog = json.RawMessage(m.ErrorLog)
 	}
 	if m.ImportedAt != nil {
-		s := m.ImportedAt.In(time.Local).Format(time.RFC3339)
+		s := localTimeRFC3339(*m.ImportedAt)
 		r.ImportedAt = &s
 	}
 	return r

@@ -57,8 +57,8 @@ func toShiftResponse(s *model.ShiftEntry) shiftResponse {
 		EndTime:   endTime,
 		Notes:     s.Notes,
 		Breaks:    breaks,
-		CreatedAt: s.CreatedAt.In(time.Local).Format(time.RFC3339),
-		UpdatedAt: s.UpdatedAt.In(time.Local).Format(time.RFC3339),
+		CreatedAt: localTimeRFC3339(s.CreatedAt),
+		UpdatedAt: localTimeRFC3339(s.UpdatedAt),
 	}
 	if s.Staff.ID != 0 {
 		r.StaffName = s.Staff.Name

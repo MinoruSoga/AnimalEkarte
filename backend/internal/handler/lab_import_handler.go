@@ -171,15 +171,15 @@ func toLabImportJobResponse(j *model.LabImportJob) labImportJobResponse {
 		NeedsReviewCount:  j.NeedsReviewCount,
 		FailedCount:       j.FailedCount,
 		ErrorCode:         j.ErrorCode,
-		CreatedAt:         j.CreatedAt.In(time.Local).Format(time.RFC3339),
-		UpdatedAt:         j.UpdatedAt.In(time.Local).Format(time.RFC3339),
+		CreatedAt:         localTimeRFC3339(j.CreatedAt),
+		UpdatedAt:         localTimeRFC3339(j.UpdatedAt),
 	}
 	if j.StartedAt != nil {
-		s := j.StartedAt.In(time.Local).Format(time.RFC3339)
+		s := localTimeRFC3339(*j.StartedAt)
 		r.StartedAt = &s
 	}
 	if j.FinishedAt != nil {
-		s := j.FinishedAt.In(time.Local).Format(time.RFC3339)
+		s := localTimeRFC3339(*j.FinishedAt)
 		r.FinishedAt = &s
 	}
 	return r
@@ -196,7 +196,7 @@ func toLabImportEventResponse(e *model.LabImportEvent) labImportEventResponse {
 		DuplicateCount:   e.DuplicateCount,
 		NeedsReviewCount: e.NeedsReviewCount,
 		ErrorCode:        e.ErrorCode,
-		CreatedAt:        e.CreatedAt.In(time.Local).Format(time.RFC3339),
+		CreatedAt:        localTimeRFC3339(e.CreatedAt),
 	}
 	if e.FromStatus != nil {
 		s := string(*e.FromStatus)
