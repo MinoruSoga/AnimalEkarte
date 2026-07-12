@@ -21,7 +21,7 @@ func (h *Handler) GetCheckupSyncPreview(c *gin.Context) {
 	q := newCheckupSyncPreviewQuery(c.Request.URL.Query())
 	input, err := q.toServiceInput()
 	if err != nil {
-		RespondError(c, apperrors.WrapInvalidInput(err.Error()))
+		RespondError(c, err)
 		return
 	}
 

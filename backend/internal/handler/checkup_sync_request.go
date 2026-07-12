@@ -6,8 +6,48 @@ import (
 	"strconv"
 	"time"
 
+	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/service"
 )
+
+// parseOptionalDateOnly は空文字なら (nil, nil) を、YYYY-MM-DD 形式でなければ
+// apperrors.WrapInvalidInput を返す（E-1: 4箇所の日付パースブロックの共通化）。
+func parseOptionalDateOnly(s, name string) (*time.Time, error) {
+	if s == "" {
+		return nil, nil
+	}
+	t, err := time.ParseInLocation(time.DateOnly, s, time.Local)
+	if err != nil {
+		return nil, apperrors.WrapInvalidInput(name + " は YYYY-MM-DD 形式で指定してください")
+	}
+	return &t, nil
+}
+
+// parseOptionalNonNegInt は空文字なら (nil, nil) を、0以上の整数でなければ
+// apperrors.WrapInvalidInput を返す（E-1: 年齢フィルタ用の int 版）。
+func parseOptionalNonNegInt(s, name string) (*int, error) {
+	if s == "" {
+		return nil, nil
+	}
+	v, err := strconv.Atoi(s)
+	if err != nil || v < 0 {
+		return nil, apperrors.WrapInvalidInput(name + " は 0 以上の整数で指定してください")
+	}
+	return &v, nil
+}
+
+// parseOptionalNonNegInt64 は空文字なら (nil, nil) を、0以上の整数でなければ
+// apperrors.WrapInvalidInput を返す（E-1: 金額・回数フィルタ用の int64 版）。
+func parseOptionalNonNegInt64(s, name string) (*int64, error) {
+	if s == "" {
+		return nil, nil
+	}
+	v, err := strconv.ParseInt(s, 10, 64)
+	if err != nil || v < 0 {
+		return nil, apperrors.WrapInvalidInput(name + " は 0 以上の整数で指定してください")
+	}
+	return &v, nil
+}
 
 type checkupSyncPreviewQuery struct {
 	CheckupType         string
@@ -48,33 +88,18 @@ func (q *checkupSyncPreviewQuery) toServiceInput() (*service.PreviewCheckupSyncI
 		CPMStage:    q.CPMStage,
 	}
 
-	if q.LastVisitBefore != "" {
-		t, err := time.ParseInLocation(time.DateOnly, q.LastVisitBefore, time.Local)
-		if err != nil {
-			return nil, fmt.Errorf("last_visit_before は YYYY-MM-DD 形式で指定してください")
-		}
-		input.LastVisitBefore = &t
+	var err error
+	if input.LastVisitBefore, err = parseOptionalDateOnly(q.LastVisitBefore, "last_visit_before"); err != nil {
+		return nil, err
 	}
-	if q.LastVisitAfter != "" {
-		t, err := time.ParseInLocation(time.DateOnly, q.LastVisitAfter, time.Local)
-		if err != nil {
-			return nil, fmt.Errorf("last_visit_after は YYYY-MM-DD 形式で指定してください")
-		}
-		input.LastVisitAfter = &t
+	if input.LastVisitAfter, err = parseOptionalDateOnly(q.LastVisitAfter, "last_visit_after"); err != nil {
+		return nil, err
 	}
-	if q.MinAgeYears != "" {
-		v, err := strconv.Atoi(q.MinAgeYears)
-		if err != nil || v < 0 {
-			return nil, fmt.Errorf("min_age_years は 0 以上の整数で指定してください")
-		}
-		input.MinAgeYears = &v
+	if input.MinAgeYears, err = parseOptionalNonNegInt(q.MinAgeYears, "min_age_years"); err != nil {
+		return nil, err
 	}
-	if q.MaxAgeYears != "" {
-		v, err := strconv.Atoi(q.MaxAgeYears)
-		if err != nil || v < 0 {
-			return nil, fmt.Errorf("max_age_years は 0 以上の整数で指定してください")
-		}
-		input.MaxAgeYears = &v
+	if input.MaxAgeYears, err = parseOptionalNonNegInt(q.MaxAgeYears, "max_age_years"); err != nil {
+		return nil, err
 	}
 	if q.HasChronicCondition != "" {
 		switch q.HasChronicCondition {
@@ -85,36 +110,20 @@ func (q *checkupSyncPreviewQuery) toServiceInput() (*service.PreviewCheckupSyncI
 			f := false
 			input.HasChronicCondition = &f
 		default:
-			return nil, fmt.Errorf("has_chronic_condition は true/false で指定してください")
+			return nil, apperrors.WrapInvalidInput("has_chronic_condition は true/false で指定してください")
 		}
 	}
-	if q.MinTotalAmount != "" {
-		v, err := strconv.ParseInt(q.MinTotalAmount, 10, 64)
-		if err != nil || v < 0 {
-			return nil, fmt.Errorf("min_total_amount は 0 以上の整数で指定してください")
-		}
-		input.MinTotalAmount = &v
+	if input.MinTotalAmount, err = parseOptionalNonNegInt64(q.MinTotalAmount, "min_total_amount"); err != nil {
+		return nil, err
 	}
-	if q.MinAnnualVisitCount != "" {
-		v, err := strconv.ParseInt(q.MinAnnualVisitCount, 10, 64)
-		if err != nil || v < 0 {
-			return nil, fmt.Errorf("min_annual_visit_count は 0 以上の整数で指定してください")
-		}
-		input.MinAnnualVisitCount = &v
+	if input.MinAnnualVisitCount, err = parseOptionalNonNegInt64(q.MinAnnualVisitCount, "min_annual_visit_count"); err != nil {
+		return nil, err
 	}
-	if q.LastCheckupBefore != "" {
-		t, err := time.ParseInLocation(time.DateOnly, q.LastCheckupBefore, time.Local)
-		if err != nil {
-			return nil, fmt.Errorf("last_checkup_before は YYYY-MM-DD 形式で指定してください")
-		}
-		input.LastCheckupBefore = &t
+	if input.LastCheckupBefore, err = parseOptionalDateOnly(q.LastCheckupBefore, "last_checkup_before"); err != nil {
+		return nil, err
 	}
-	if q.LastCheckupAfter != "" {
-		t, err := time.ParseInLocation(time.DateOnly, q.LastCheckupAfter, time.Local)
-		if err != nil {
-			return nil, fmt.Errorf("last_checkup_after は YYYY-MM-DD 形式で指定してください")
-		}
-		input.LastCheckupAfter = &t
+	if input.LastCheckupAfter, err = parseOptionalDateOnly(q.LastCheckupAfter, "last_checkup_after"); err != nil {
+		return nil, err
 	}
 	if input.CPMStage != "" {
 		switch input.CPMStage {
@@ -125,7 +134,7 @@ func (q *checkupSyncPreviewQuery) toServiceInput() (*service.PreviewCheckupSyncI
 			string(service.CPMStageNoah),
 			string(service.CPMStageDormant):
 		default:
-			return nil, fmt.Errorf("cpm_stage は cpm_encounter/cpm_growing/cpm_core/cpm_spot/cpm_noah/cpm_dormant のいずれかを指定してください")
+			return nil, apperrors.WrapInvalidInput("cpm_stage は cpm_encounter/cpm_growing/cpm_core/cpm_spot/cpm_noah/cpm_dormant のいずれかを指定してください")
 		}
 	}
 
