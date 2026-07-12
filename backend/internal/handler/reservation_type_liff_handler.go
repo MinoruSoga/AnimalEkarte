@@ -83,8 +83,8 @@ func (h *Handler) DeleteReservationTypeLiff(c *gin.Context) {
 	c.Status(http.StatusNoContent)
 }
 
-// PatchReservationTypeLiffStatus godoc
-func (h *Handler) PatchReservationTypeLiffStatus(c *gin.Context) {
+// UpdateReservationTypeLiffStatus godoc
+func (h *Handler) UpdateReservationTypeLiffStatus(c *gin.Context) {
 	clinicID, ok := extractClinicID(c)
 	if !ok {
 		return
@@ -106,8 +106,8 @@ func (h *Handler) PatchReservationTypeLiffStatus(c *gin.Context) {
 	c.JSON(http.StatusOK, toReservationTypeLiffResponse(st))
 }
 
-// PatchReservationTypeLiffSortOrder godoc
-func (h *Handler) PatchReservationTypeLiffSortOrder(c *gin.Context) {
+// UpdateReservationTypeLiffSortOrder godoc
+func (h *Handler) UpdateReservationTypeLiffSortOrder(c *gin.Context) {
 	clinicID, ok := extractClinicID(c)
 	if !ok {
 		return

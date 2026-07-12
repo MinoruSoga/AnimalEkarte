@@ -179,7 +179,7 @@ func TestPostLineSend(t *testing.T) {
 				tt.setupCtx(c)
 			}
 
-			h.PostLineSend(c)
+			h.SendLineMessage(c)
 
 			assert.Equal(t, tt.wantStatus, w.Code)
 		})

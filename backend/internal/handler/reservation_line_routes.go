@@ -27,8 +27,8 @@ func (h *Handler) RegisterLineReservationRoutes(rg *gin.RouterGroup) {
 	types.POST("", h.RequirePermission(string(model.ResourceMasterReservationType), "create"), h.CreateReservationTypeLiff)
 	types.PUT("/:id", h.RequirePermission(string(model.ResourceMasterReservationType), "edit"), h.UpdateReservationTypeLiff)
 	types.DELETE("/:id", h.RequirePermission(string(model.ResourceMasterReservationType), "delete"), h.DeleteReservationTypeLiff)
-	types.PATCH("/:id/status", h.RequirePermission(string(model.ResourceMasterReservationType), "edit"), h.PatchReservationTypeLiffStatus)
-	types.PATCH("/:id/sort-order", h.RequirePermission(string(model.ResourceMasterReservationType), "edit"), h.PatchReservationTypeLiffSortOrder)
+	types.PATCH("/:id/status", h.RequirePermission(string(model.ResourceMasterReservationType), "edit"), h.UpdateReservationTypeLiffStatus)
+	types.PATCH("/:id/sort-order", h.RequirePermission(string(model.ResourceMasterReservationType), "edit"), h.UpdateReservationTypeLiffSortOrder)
 	types.POST("/:id/image", h.RequirePermission(string(model.ResourceMasterReservationType), "create"), h.UploadReservationTypeLiffImage)
 
 	// TASK-RES-012: スタッフ
@@ -37,8 +37,8 @@ func (h *Handler) RegisterLineReservationRoutes(rg *gin.RouterGroup) {
 	staffs.POST("", h.RequirePermission(string(model.ResourceMasterStaff), "create"), h.CreateReservationStaff)
 	staffs.PUT("/:staffId", h.RequirePermission(string(model.ResourceMasterStaff), "edit"), h.UpdateReservationStaff)
 	staffs.DELETE("/:staffId", h.RequirePermission(string(model.ResourceMasterStaff), "delete"), h.DeleteReservationStaff)
-	staffs.PATCH("/:staffId/status", h.RequirePermission(string(model.ResourceMasterStaff), "edit"), h.PatchReservationStaffStatus)
-	staffs.PATCH("/:staffId/sort-order", h.RequirePermission(string(model.ResourceMasterStaff), "edit"), h.PatchReservationStaffSortOrder)
+	staffs.PATCH("/:staffId/status", h.RequirePermission(string(model.ResourceMasterStaff), "edit"), h.UpdateReservationStaffStatus)
+	staffs.PATCH("/:staffId/sort-order", h.RequirePermission(string(model.ResourceMasterStaff), "edit"), h.UpdateReservationStaffSortOrder)
 	staffs.POST("/:staffId/image", h.RequirePermission(string(model.ResourceMasterStaff), "create"), h.UploadReservationStaffImage)
 
 	// TASK-RES-013: スタッフ個人スケジュール

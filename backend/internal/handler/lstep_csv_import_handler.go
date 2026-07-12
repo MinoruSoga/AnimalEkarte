@@ -59,9 +59,9 @@ func toLstepCsvImportListResponse(imports []*model.LstepCsvImport) []lstepCsvImp
 	return resp
 }
 
-// PostLstepCsvImportFriendAttributes godoc
+// ImportLstepFriendAttributesCsv godoc
 // POST /api/v1/clinics/:clinic_id/lstep/csv-imports/friend-attributes — 友だち属性 CSV インポート（FEAT-385）。
-func (h *Handler) PostLstepCsvImportFriendAttributes(c *gin.Context) {
+func (h *Handler) ImportLstepFriendAttributesCsv(c *gin.Context) {
 	clinicID, ok := extractClinicID(c)
 	if !ok {
 		return
@@ -110,6 +110,6 @@ func (h *Handler) ListLstepCsvImports(c *gin.Context) {
 // RegisterLstepCsvImportRoutes は FEAT-385 CSV インポートのルートを登録する。
 func (h *Handler) RegisterLstepCsvImportRoutes(rg *gin.RouterGroup) {
 	g := rg.Group("/clinics/:clinic_id/lstep/csv-imports")
-	g.POST("/friend-attributes", h.RequirePermission(string(model.ResourceLstepCsvImport), "edit"), h.PostLstepCsvImportFriendAttributes)
+	g.POST("/friend-attributes", h.RequirePermission(string(model.ResourceLstepCsvImport), "edit"), h.ImportLstepFriendAttributesCsv)
 	g.GET("", h.RequirePermission(string(model.ResourceLstepCsvImport), "view"), h.ListLstepCsvImports)
 }

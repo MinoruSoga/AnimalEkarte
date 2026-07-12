@@ -9,8 +9,8 @@ import (
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
-// PostLineSend godoc
-func (h *Handler) PostLineSend(c *gin.Context) {
+// SendLineMessage godoc
+func (h *Handler) SendLineMessage(c *gin.Context) {
 	clinicID, ok := extractClinicID(c)
 	if !ok {
 		return
@@ -70,9 +70,9 @@ func (h *Handler) GetLineSendLogs(c *gin.Context) {
 
 // RegisterLineSendRoutes は LINE 個別送信ルートを /owners/:id 以下に登録する
 func (h *Handler) RegisterLineSendRoutes(owners *gin.RouterGroup) {
-	owners.POST("/:id/line/send", h.RequirePermission(string(model.ResourceOwners), "edit"), h.PostLineSend)
+	owners.POST("/:id/line/send", h.RequirePermission(string(model.ResourceOwners), "edit"), h.SendLineMessage)
 	owners.GET("/:id/line/send-logs", h.RequirePermission(string(model.ResourceOwners), "view"), h.GetLineSendLogs)
 	// ISSUE-002: FE統一エンドポイントのエイリアス
-	owners.POST("/:id/lstep/send", h.RequirePermission(string(model.ResourceOwners), "edit"), h.PostLineSend)
+	owners.POST("/:id/lstep/send", h.RequirePermission(string(model.ResourceOwners), "edit"), h.SendLineMessage)
 	owners.GET("/:id/lstep/send-history", h.RequirePermission(string(model.ResourceOwners), "view"), h.GetLineSendLogs)
 }

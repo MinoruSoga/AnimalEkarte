@@ -901,14 +901,14 @@ func TestDeleteMedicalRecord(t *testing.T) {
 	})
 }
 
-// ---- PatchMedicalRecordRecommendationReason ----
+// ---- UpdateMedicalRecordRecommendationReason ----
 
 func newPatchRecommendationReasonRouter(mrSvc service.MedicalRecordService) *gin.Engine {
 	r := gin.New()
 	h := newHandlerWithMedicalRecordSvc(mrSvc, &mockClinicalPlanService{})
 	r.PATCH("/medical-records/:id/recommendation-reason", func(c *gin.Context) {
 		setClinicID(c)
-	}, h.PatchMedicalRecordRecommendationReason)
+	}, h.UpdateMedicalRecordRecommendationReason)
 	return r
 }
 
@@ -1001,7 +1001,7 @@ func TestPatchMedicalRecordRecommendationReason(t *testing.T) {
 		c.Request = httptest.NewRequest(http.MethodPatch, "/", strings.NewReader(`{"reason":"revisit"}`))
 		c.Request.Header.Set("Content-Type", "application/json")
 		c.Params = gin.Params{{Key: "id", Value: "1"}}
-		h.PatchMedicalRecordRecommendationReason(c)
+		h.UpdateMedicalRecordRecommendationReason(c)
 		assert.Equal(t, http.StatusUnauthorized, w.Code)
 	})
 }

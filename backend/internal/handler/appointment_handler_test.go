@@ -743,12 +743,12 @@ func TestDeleteReservation(t *testing.T) {
 	})
 }
 
-// ---- PatchReservationReservationRoute ----
+// ---- UpdateReservationReservationRoute ----
 
 func newPatchReservationRouteRouter(rSvc service.ReservationService) *gin.Engine {
 	r := gin.New()
 	h := newHandlerWithReservationSvc(rSvc)
-	r.PATCH("/reservations/:id/reservation-route", func(c *gin.Context) { setClinicID(c) }, h.PatchReservationReservationRoute)
+	r.PATCH("/reservations/:id/reservation-route", func(c *gin.Context) { setClinicID(c) }, h.UpdateReservationReservationRoute)
 	return r
 }
 
@@ -839,7 +839,7 @@ func TestPatchReservationReservationRoute(t *testing.T) {
 	t.Run("401 when clinic_id is missing", func(t *testing.T) {
 		r := gin.New()
 		h := newHandlerWithReservationSvc(&mockReservationService{})
-		r.PATCH("/reservations/:id/reservation-route", h.PatchReservationReservationRoute)
+		r.PATCH("/reservations/:id/reservation-route", h.UpdateReservationReservationRoute)
 		w := httptest.NewRecorder()
 		req := httptest.NewRequest(http.MethodPatch, "/reservations/1/reservation-route", bytes.NewReader([]byte(`{"route":"line"}`)))
 		req.Header.Set("Content-Type", "application/json")

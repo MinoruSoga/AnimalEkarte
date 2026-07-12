@@ -373,7 +373,7 @@ func TestDeleteReservationTypeLiff(t *testing.T) {
 	})
 }
 
-// ---- PatchReservationTypeLiffStatus ----
+// ---- UpdateReservationTypeLiffStatus ----
 
 func TestPatchReservationTypeLiffStatus(t *testing.T) {
 	gin.SetMode(gin.TestMode)
@@ -461,18 +461,18 @@ func TestPatchReservationTypeLiffStatus(t *testing.T) {
 			c.Request.Header.Set("Content-Type", "application/json")
 			c.Params = gin.Params{{Key: "id", Value: tt.paramID}}
 			tt.setupCtx(c)
-			h.PatchReservationTypeLiffStatus(c)
+			h.UpdateReservationTypeLiffStatus(c)
 			assert.Equal(t, tt.wantStatus, w.Code)
 		})
 	}
 }
 
-// ---- PatchReservationTypeLiffSortOrder ----
+// ---- UpdateReservationTypeLiffSortOrder ----
 
 func newPatchLiffSortOrderRouter(svc service.ReservationTypeLiffService) *gin.Engine {
 	r := gin.New()
 	h := newHandlerWithReservationTypeLiffSvc(svc)
-	r.PATCH("/reservation-types-liff/:id/sort-order", func(c *gin.Context) { setClinicID(c) }, h.PatchReservationTypeLiffSortOrder)
+	r.PATCH("/reservation-types-liff/:id/sort-order", func(c *gin.Context) { setClinicID(c) }, h.UpdateReservationTypeLiffSortOrder)
 	return r
 }
 
@@ -505,7 +505,7 @@ func TestPatchReservationTypeLiffSortOrder(t *testing.T) {
 		c.Request.Header.Set("Content-Type", "application/json")
 		c.Params = gin.Params{{Key: "id", Value: "1"}}
 		setClinicID(c)
-		h.PatchReservationTypeLiffSortOrder(c)
+		h.UpdateReservationTypeLiffSortOrder(c)
 		assert.Equal(t, http.StatusBadRequest, w.Code)
 	})
 
@@ -517,7 +517,7 @@ func TestPatchReservationTypeLiffSortOrder(t *testing.T) {
 		c.Request = httptest.NewRequest(http.MethodPatch, "/", bytes.NewReader(body))
 		c.Request.Header.Set("Content-Type", "application/json")
 		c.Params = gin.Params{{Key: "id", Value: "1"}}
-		h.PatchReservationTypeLiffSortOrder(c)
+		h.UpdateReservationTypeLiffSortOrder(c)
 		assert.Equal(t, http.StatusUnauthorized, w.Code)
 	})
 
@@ -530,7 +530,7 @@ func TestPatchReservationTypeLiffSortOrder(t *testing.T) {
 		c.Request.Header.Set("Content-Type", "application/json")
 		c.Params = gin.Params{{Key: "id", Value: "abc"}}
 		setClinicID(c)
-		h.PatchReservationTypeLiffSortOrder(c)
+		h.UpdateReservationTypeLiffSortOrder(c)
 		assert.Equal(t, http.StatusBadRequest, w.Code)
 	})
 
@@ -543,7 +543,7 @@ func TestPatchReservationTypeLiffSortOrder(t *testing.T) {
 		c.Request.Header.Set("Content-Type", "application/json")
 		c.Params = gin.Params{{Key: "id", Value: "1"}}
 		setClinicID(c)
-		h.PatchReservationTypeLiffSortOrder(c)
+		h.UpdateReservationTypeLiffSortOrder(c)
 		assert.Equal(t, http.StatusBadRequest, w.Code)
 	})
 
@@ -561,7 +561,7 @@ func TestPatchReservationTypeLiffSortOrder(t *testing.T) {
 		c.Request.Header.Set("Content-Type", "application/json")
 		c.Params = gin.Params{{Key: "id", Value: "1"}}
 		setClinicID(c)
-		h.PatchReservationTypeLiffSortOrder(c)
+		h.UpdateReservationTypeLiffSortOrder(c)
 		assert.Equal(t, http.StatusInternalServerError, w.Code)
 	})
 }

@@ -32,9 +32,9 @@ func (h *Handler) GetOwnerLstepTags(c *gin.Context) {
 	c.JSON(http.StatusOK, toLstepTagsResponse(result))
 }
 
-// PostOwnerLstepTag godoc
+// AddOwnerLstepTag godoc
 // POST /owners/:id/lstep/tags — 飼い主に手動でLステップタグを付与する（BE-019）。
-func (h *Handler) PostOwnerLstepTag(c *gin.Context) {
+func (h *Handler) AddOwnerLstepTag(c *gin.Context) {
 	clinicID, ok := extractClinicID(c)
 	if !ok {
 		return

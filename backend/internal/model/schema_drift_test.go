@@ -280,7 +280,7 @@ var knownNullabilityDriftAllowlist = map[string]string{
 	"AuditLog.clinic_id": "X-3: DB制約(NOT NULL)を最終防衛線とし、Go側は*uint64+gorm:not nullを維持（意図的）",
 
 	// LstepCsvImport.UploadedByUserID pin は H-5 で解消（BE-refactor.md 第4期）。
-	// 供給元（lstep_csv_import_handler.go の PostLstepCsvImportFriendAttributes）を遡って確認した結果、
+	// 供給元（lstep_csv_import_handler.go の ImportLstepFriendAttributesCsv）を遡って確認した結果、
 	// actorID は routegroup 全体に適用済みの middleware.Auth（Auth必須・常にJWTのuser_idを設定）+
 	// extractStaffID（未設定/パース失敗時は即401 RespondError）を経由するため、nilで
 	// ImportFriendAttributesCSV に到達する正当な経路は無い（構造的に非nil保証）。

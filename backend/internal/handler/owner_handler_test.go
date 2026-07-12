@@ -682,7 +682,7 @@ func newPatchDeliveryExclusionRouter(svc service.OwnerService) *gin.Engine {
 	h := newHandlerWithOwnerSvc(svc)
 	r.PATCH("/owners/:id/delivery-exclusion", func(c *gin.Context) {
 		setClinicID(c)
-	}, h.PatchOwnerDeliveryExclusion)
+	}, h.UpdateOwnerDeliveryExclusion)
 	return r
 }
 
@@ -762,7 +762,7 @@ func newPatchDeliveryCautionRouter(svc service.OwnerService) *gin.Engine {
 	h := newHandlerWithOwnerSvc(svc)
 	r.PATCH("/owners/:id/delivery-caution", func(c *gin.Context) {
 		setClinicID(c)
-	}, h.PatchOwnerDeliveryCaution)
+	}, h.UpdateOwnerDeliveryCaution)
 	return r
 }
 
@@ -843,7 +843,7 @@ func newPatchTransferStatusRouter(svc service.OwnerService) *gin.Engine {
 	h := newHandlerWithOwnerSvc(svc)
 	r.PATCH("/owners/:id/transfer-status", func(c *gin.Context) {
 		setClinicID(c)
-	}, h.PatchOwnerTransferStatus)
+	}, h.UpdateOwnerTransferStatus)
 	return r
 }
 
@@ -923,7 +923,7 @@ func newPatchLineIDConfirmRouter(svc service.OwnerService) *gin.Engine {
 	h := newHandlerWithOwnerSvc(svc)
 	r.PATCH("/owners/:id/line-id-confirm", func(c *gin.Context) {
 		setClinicID(c)
-	}, h.PatchOwnerLineIDConfirm)
+	}, h.UpdateOwnerLineIDConfirm)
 	return r
 }
 
@@ -1112,7 +1112,7 @@ func TestUpdateOwner_DiscountRateAuthorization(t *testing.T) {
 	})
 }
 
-// ---- PatchOwnerLineUserID ----
+// ---- UpdateOwnerLineUserID ----
 //
 // c.Status(http.StatusNoContent) は httptest.ResponseRecorder に即時反映されないため
 // gin.Engine 経由でリクエストを送る（DeleteOwner と同様のパターン）。
@@ -1122,7 +1122,7 @@ func newPatchLineUserIDRouter(svc service.OwnerService) *gin.Engine {
 	h := newHandlerWithOwnerSvc(svc)
 	r.PATCH("/owners/:id/line-user-id", func(c *gin.Context) {
 		setClinicID(c)
-	}, h.PatchOwnerLineUserID)
+	}, h.UpdateOwnerLineUserID)
 	return r
 }
 
@@ -1208,7 +1208,7 @@ func TestPatchOwnerLineUserID(t *testing.T) {
 		c.Request = httptest.NewRequest(http.MethodPatch, "/", strings.NewReader(`{"line_user_id":"U1"}`))
 		c.Request.Header.Set("Content-Type", "application/json")
 		c.Params = gin.Params{{Key: "id", Value: "1"}}
-		h.PatchOwnerLineUserID(c)
+		h.UpdateOwnerLineUserID(c)
 		assert.Equal(t, http.StatusUnauthorized, w.Code)
 	})
 }

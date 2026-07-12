@@ -143,9 +143,9 @@ func (h *Handler) UpdateMedicalRecord(c *gin.Context) {
 	c.JSON(http.StatusOK, toMedicalRecordResponse(record))
 }
 
-// PatchMedicalRecordRecommendationReason godoc
+// UpdateMedicalRecordRecommendationReason godoc
 // PATCH /medical-records/:id/recommendation-reason — 受診推奨理由を更新する（FEAT-381-2）。
-func (h *Handler) PatchMedicalRecordRecommendationReason(c *gin.Context) {
+func (h *Handler) UpdateMedicalRecordRecommendationReason(c *gin.Context) {
 	clinicID, ok := extractClinicID(c)
 	if !ok {
 		return

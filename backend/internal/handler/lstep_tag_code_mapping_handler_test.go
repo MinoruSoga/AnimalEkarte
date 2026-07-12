@@ -41,7 +41,7 @@ func newLstepTagCodeMappingsRouter(tagSvc service.LstepTagCodeMappingService, pe
 	h := &Handler{svc: &service.Services{LstepTagCodeMapping: tagSvc, EffectivePermission: permSvc}}
 	r := gin.New()
 	r.GET("/clinics/:clinic_id/lstep-tag-code-mappings", setupCtx, h.RequirePermission(string(model.ResourceHospitalSettings), "view"), h.ListTagCodeMappings)
-	r.PUT("/clinics/:clinic_id/lstep-tag-code-mappings/:tag_name", setupCtx, h.RequirePermission(string(model.ResourceHospitalSettings), "edit"), h.PutTagCodeMappingsForTag)
+	r.PUT("/clinics/:clinic_id/lstep-tag-code-mappings/:tag_name", setupCtx, h.RequirePermission(string(model.ResourceHospitalSettings), "edit"), h.ReplaceTagCodeMappingsForTag)
 	return r
 }
 

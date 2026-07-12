@@ -17,9 +17,9 @@ import (
 // Handler methods
 // ------------------------------------
 
-// PostLabImportPreview godoc
+// PreviewLabImport godoc
 // POST /api/v1/lab-imports/preview — バッチ内容を検証してサマリを返す（DB 書き込みなし）。
-func (h *Handler) PostLabImportPreview(c *gin.Context) {
+func (h *Handler) PreviewLabImport(c *gin.Context) {
 	clinicID, ok := extractClinicID(c)
 	if !ok {
 		return
@@ -68,10 +68,10 @@ func (h *Handler) PostLabImportPreview(c *gin.Context) {
 	c.JSON(http.StatusOK, toLabImportPreviewResponse(preview))
 }
 
-// PostLabImportCommit godoc
+// CommitLabImport godoc
 // POST /api/v1/lab-imports — fixture バッチを commit して exams + job を永続化する。
 // source_type=fixture 以外は 400 を返す（Phase 3 制約）。
-func (h *Handler) PostLabImportCommit(c *gin.Context) {
+func (h *Handler) CommitLabImport(c *gin.Context) {
 	clinicID, ok := extractClinicID(c)
 	if !ok {
 		return
@@ -200,8 +200,8 @@ func errorCategory(err error) model.LabAuditErrorCategory {
 func (h *Handler) RegisterLabImportRoutes(rg *gin.RouterGroup) {
 	g := rg.Group("/lab-imports")
 	perm := h.RequirePermission
-	g.POST("/preview", perm(string(model.ResourceLabImport), "create"), h.PostLabImportPreview)
-	g.POST("", perm(string(model.ResourceLabImport), "create"), h.PostLabImportCommit)
+	g.POST("/preview", perm(string(model.ResourceLabImport), "create"), h.PreviewLabImport)
+	g.POST("", perm(string(model.ResourceLabImport), "create"), h.CommitLabImport)
 	g.GET("/:job_id", perm(string(model.ResourceLabImport), "view"), h.GetLabImportJob)
 	g.GET("/:job_id/events", perm(string(model.ResourceLabImport), "view"), h.ListLabImportEvents)
 }

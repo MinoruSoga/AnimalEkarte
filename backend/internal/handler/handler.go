@@ -167,24 +167,24 @@ func (h *Handler) registerOwnerRoutesWithAuth(rg *gin.RouterGroup) {
 	owners.PATCH("/:id", h.RequirePermission(string(model.ResourceOwners), "edit"), h.UpdateOwner)
 	owners.DELETE("/:id", h.RequirePermission(string(model.ResourceOwners), "delete"), h.DeleteOwner)
 	// BE-005: LINE User ID 連携・解除
-	owners.PATCH("/:id/line-user-id", h.RequirePermission(string(model.ResourceOwners), "edit"), h.PatchOwnerLineUserID)
+	owners.PATCH("/:id/line-user-id", h.RequirePermission(string(model.ResourceOwners), "edit"), h.UpdateOwnerLineUserID)
 	// ISSUE-001: FE統一エンドポイントのエイリアス。co側に無い理由は未文書化（現状維持）
-	owners.PATCH("/:id/line", h.RequirePermission(string(model.ResourceOwners), "edit"), h.PatchOwnerLineUserID)
+	owners.PATCH("/:id/line", h.RequirePermission(string(model.ResourceOwners), "edit"), h.UpdateOwnerLineUserID)
 	// co側に無い理由は未文書化（現状維持）
 	owners.DELETE("/:id/line", h.RequirePermission(string(model.ResourceOwners), "delete"), h.DeleteOwnerLine)
 	// BE-017: Lステップオプトアウト（旧エンドポイント互換保持）
-	owners.POST("/:id/lstep-opt-out", h.RequirePermission(string(model.ResourceOwners), "edit"), h.PostOwnerLstepOptOut)
+	owners.POST("/:id/lstep-opt-out", h.RequirePermission(string(model.ResourceOwners), "edit"), h.UpdateOwnerLstepOptOut)
 	// ISSUE-001: 統合opt-outエンドポイント。co側に無い理由は未文書化（現状維持）
 	owners.PATCH("/:id/lstep/opt-out", h.RequirePermission(string(model.ResourceOwners), "edit"), h.PatchOwnerLstepOptOut)
 	// FEAT-381: 配信除外・転院・LINE ID確認
-	owners.PATCH("/:id/delivery-exclusion", h.RequirePermission(string(model.ResourceOwners), "edit"), h.PatchOwnerDeliveryExclusion)
+	owners.PATCH("/:id/delivery-exclusion", h.RequirePermission(string(model.ResourceOwners), "edit"), h.UpdateOwnerDeliveryExclusion)
 	// FEAT-381-2: 配信注意フラグ
-	owners.PATCH("/:id/delivery-caution", h.RequirePermission(string(model.ResourceOwners), "edit"), h.PatchOwnerDeliveryCaution)
-	owners.PATCH("/:id/transfer-status", h.RequirePermission(string(model.ResourceOwners), "edit"), h.PatchOwnerTransferStatus)
-	owners.PATCH("/:id/line-id-confirm", h.RequirePermission(string(model.ResourceOwners), "edit"), h.PatchOwnerLineIDConfirm)
+	owners.PATCH("/:id/delivery-caution", h.RequirePermission(string(model.ResourceOwners), "edit"), h.UpdateOwnerDeliveryCaution)
+	owners.PATCH("/:id/transfer-status", h.RequirePermission(string(model.ResourceOwners), "edit"), h.UpdateOwnerTransferStatus)
+	owners.PATCH("/:id/line-id-confirm", h.RequirePermission(string(model.ResourceOwners), "edit"), h.UpdateOwnerLineIDConfirm)
 	// BE-019: Lステップタグ CRUD
 	owners.GET("/:id/lstep/tags", h.RequirePermission(string(model.ResourceOwners), "view"), h.GetOwnerLstepTags)
-	owners.POST("/:id/lstep/tags", h.RequirePermission(string(model.ResourceOwners), "edit"), h.PostOwnerLstepTag)
+	owners.POST("/:id/lstep/tags", h.RequirePermission(string(model.ResourceOwners), "edit"), h.AddOwnerLstepTag)
 	owners.DELETE("/:id/lstep/tags/:tag_name", h.RequirePermission(string(model.ResourceOwners), "delete"), h.DeleteOwnerLstepTag)
 	// BE-013: LINE個別送信。owners側は /lstep/send・/lstep/send-history エイリアスを含む4ルート、
 	// co側はそのうち2ルートのみ（下記）— co側に2ルート無い理由は未文書化（現状維持）
@@ -195,16 +195,16 @@ func (h *Handler) registerOwnerRoutesWithAuth(rg *gin.RouterGroup) {
 	// ISSUE-001/ISSUE-002: FE が /clinics/:clinic_id/owners/:id/... プレフィックスで呼ぶルートのエイリアス
 	// extractClinicID は JWT コンテキストから clinic_id を取得するため :clinic_id URL パラムは無視される
 	co := rg.Group("/clinics/:clinic_id/owners")
-	co.PATCH("/:id/line-user-id", h.RequirePermission(string(model.ResourceOwners), "edit"), h.PatchOwnerLineUserID)
-	co.PATCH("/:id/delivery-exclusion", h.RequirePermission(string(model.ResourceOwners), "edit"), h.PatchOwnerDeliveryExclusion)
-	co.PATCH("/:id/delivery-caution", h.RequirePermission(string(model.ResourceOwners), "edit"), h.PatchOwnerDeliveryCaution)
-	co.PATCH("/:id/transfer-status", h.RequirePermission(string(model.ResourceOwners), "edit"), h.PatchOwnerTransferStatus)
-	co.PATCH("/:id/line-id-confirm", h.RequirePermission(string(model.ResourceOwners), "edit"), h.PatchOwnerLineIDConfirm)
-	co.POST("/:id/lstep-opt-out", h.RequirePermission(string(model.ResourceOwners), "edit"), h.PostOwnerLstepOptOut)
+	co.PATCH("/:id/line-user-id", h.RequirePermission(string(model.ResourceOwners), "edit"), h.UpdateOwnerLineUserID)
+	co.PATCH("/:id/delivery-exclusion", h.RequirePermission(string(model.ResourceOwners), "edit"), h.UpdateOwnerDeliveryExclusion)
+	co.PATCH("/:id/delivery-caution", h.RequirePermission(string(model.ResourceOwners), "edit"), h.UpdateOwnerDeliveryCaution)
+	co.PATCH("/:id/transfer-status", h.RequirePermission(string(model.ResourceOwners), "edit"), h.UpdateOwnerTransferStatus)
+	co.PATCH("/:id/line-id-confirm", h.RequirePermission(string(model.ResourceOwners), "edit"), h.UpdateOwnerLineIDConfirm)
+	co.POST("/:id/lstep-opt-out", h.RequirePermission(string(model.ResourceOwners), "edit"), h.UpdateOwnerLstepOptOut)
 	co.GET("/:id/lstep/tags", h.RequirePermission(string(model.ResourceOwners), "view"), h.GetOwnerLstepTags)
-	co.POST("/:id/lstep/tags", h.RequirePermission(string(model.ResourceOwners), "edit"), h.PostOwnerLstepTag)
+	co.POST("/:id/lstep/tags", h.RequirePermission(string(model.ResourceOwners), "edit"), h.AddOwnerLstepTag)
 	co.DELETE("/:id/lstep/tags/:tag_name", h.RequirePermission(string(model.ResourceOwners), "delete"), h.DeleteOwnerLstepTag)
-	co.POST("/:id/line/send", h.RequirePermission(string(model.ResourceOwners), "edit"), h.PostLineSend)
+	co.POST("/:id/line/send", h.RequirePermission(string(model.ResourceOwners), "edit"), h.SendLineMessage)
 	co.GET("/:id/line/send-logs", h.RequirePermission(string(model.ResourceOwners), "view"), h.GetLineSendLogs)
 	// FEAT-385: 飼主の最新 Lステップ友だち属性（owners側に対応ルートなし）
 	co.GET("/:id/lstep/friend-attributes", h.RequirePermission(string(model.ResourceLstepAnalytics), "view"), h.GetLstepOwnerFriendAttributes)
@@ -218,7 +218,7 @@ func (h *Handler) registerMedicalRecordRoutesWithAuth(rg *gin.RouterGroup) {
 	records.POST("", h.RequirePermission(string(model.ResourceMedicalRecords), "create"), h.CreateMedicalRecord)
 	records.PATCH("/:id", h.RequirePermission(string(model.ResourceMedicalRecords), "edit"), h.UpdateMedicalRecord)
 	records.DELETE("/:id", h.RequirePermission(string(model.ResourceMedicalRecords), "delete"), h.DeleteMedicalRecord)
-	records.PATCH("/:id/recommendation-reason", h.RequirePermission(string(model.ResourceMedicalRecords), "edit"), h.PatchMedicalRecordRecommendationReason)
+	records.PATCH("/:id/recommendation-reason", h.RequirePermission(string(model.ResourceMedicalRecords), "edit"), h.UpdateMedicalRecordRecommendationReason)
 
 	h.RegisterVitalRoutes(records)
 	h.RegisterTreatmentRoutes(records)

@@ -28,9 +28,9 @@ func (h *Handler) ListTagCodeMappings(c *gin.Context) {
 	c.JSON(http.StatusOK, toTagCodeMappingListResponse(mappings))
 }
 
-// PutTagCodeMappingsForTag godoc
+// ReplaceTagCodeMappingsForTag godoc
 // PUT /api/v1/lstep-tag-code-mappings/:tag_name
-func (h *Handler) PutTagCodeMappingsForTag(c *gin.Context) {
+func (h *Handler) ReplaceTagCodeMappingsForTag(c *gin.Context) {
 	clinicID, ok := extractClinicID(c)
 	if !ok {
 		return
@@ -71,10 +71,10 @@ func (h *Handler) PutTagCodeMappingsForTag(c *gin.Context) {
 // RegisterLstepTagCodeMappingRoutes はタグコードマッピング設定のルートを登録する。
 func (h *Handler) RegisterLstepTagCodeMappingRoutes(r *gin.RouterGroup) {
 	r.GET("/lstep-tag-code-mappings", h.RequirePermission(string(model.ResourceHospitalSettings), "view"), h.ListTagCodeMappings)
-	r.PUT("/lstep-tag-code-mappings/:tag_name", h.RequirePermission(string(model.ResourceHospitalSettings), "edit"), h.PutTagCodeMappingsForTag)
+	r.PUT("/lstep-tag-code-mappings/:tag_name", h.RequirePermission(string(model.ResourceHospitalSettings), "edit"), h.ReplaceTagCodeMappingsForTag)
 
 	// FE が /clinics/:clinic_id/lstep-tag-code-mappings で呼ぶエイリアス
 	alias := r.Group("/clinics/:clinic_id/lstep-tag-code-mappings")
 	alias.GET("", h.RequirePermission(string(model.ResourceHospitalSettings), "view"), h.ListTagCodeMappings)
-	alias.PUT("/:tag_name", h.RequirePermission(string(model.ResourceHospitalSettings), "edit"), h.PutTagCodeMappingsForTag)
+	alias.PUT("/:tag_name", h.RequirePermission(string(model.ResourceHospitalSettings), "edit"), h.ReplaceTagCodeMappingsForTag)
 }

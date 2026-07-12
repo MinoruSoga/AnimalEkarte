@@ -154,7 +154,7 @@ func (h *Handler) RegisterPetRoutes(rg *gin.RouterGroup) {
 	// #158 飼主レポート: ペットの初診日（最古カルテ date 由来）。カルテ内容由来のため medical-records:view でゲートする。
 	pets.GET("/:id/first-visit", h.RequirePermission(string(model.ResourceMedicalRecords), "view"), h.GetPetFirstVisit)
 	// BE-017: ペット死亡ライフサイクル
-	pets.PATCH("/:id/death", h.RequirePermission(string(model.ResourceOwners), "edit"), h.PatchPetDeath)
+	pets.PATCH("/:id/death", h.RequirePermission(string(model.ResourceOwners), "edit"), h.UpdatePetDeath)
 	// P6 例外: 死亡記録の解除は PATCH 相当の状態トグル（死亡記録を PATCH で付与した状態を戻すだけで、
 	// リソース自体は削除されない）のため、DELETE でも delete ではなく edit を要求する
 	// （BE-refactor.md X-15、PO 決定 2026-07-12）。edit 可・delete 不可の一般ロールでも
@@ -165,7 +165,7 @@ func (h *Handler) RegisterPetRoutes(rg *gin.RouterGroup) {
 
 	// ISSUE-007: FE が /clinics/:clinic_id/pets/:id/death で呼ぶエイリアス
 	clinicPets := rg.Group("/clinics/:clinic_id/pets")
-	clinicPets.PATCH("/:id/death", h.RequirePermission(string(model.ResourceOwners), "edit"), h.PatchPetDeath)
+	clinicPets.PATCH("/:id/death", h.RequirePermission(string(model.ResourceOwners), "edit"), h.UpdatePetDeath)
 	// P6 例外: 上記 pets.DELETE("/:id/death") と同じ理由（BE-refactor.md X-15、PO 決定 2026-07-12）。
 	clinicPets.DELETE("/:id/death", h.RequirePermission(string(model.ResourceOwners), "edit"), h.DeletePetDeath)
 }

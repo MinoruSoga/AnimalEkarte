@@ -8,9 +8,9 @@ import (
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 )
 
-// PatchPetDeath godoc
+// UpdatePetDeath godoc
 // PATCH /pets/:id/death — ペット死亡を記録し CPM タグを再同期する（BE-017）。
-func (h *Handler) PatchPetDeath(c *gin.Context) {
+func (h *Handler) UpdatePetDeath(c *gin.Context) {
 	clinicID, ok := extractClinicID(c)
 	if !ok {
 		return
@@ -53,9 +53,9 @@ func (h *Handler) DeletePetDeath(c *gin.Context) {
 	c.Status(http.StatusNoContent)
 }
 
-// PostOwnerLstepOptOut godoc
+// UpdateOwnerLstepOptOut godoc
 // POST /owners/:id/lstep-opt-out — オーナーの Lステップ配信をオプトアウトする（BE-017）。
-func (h *Handler) PostOwnerLstepOptOut(c *gin.Context) {
+func (h *Handler) UpdateOwnerLstepOptOut(c *gin.Context) {
 	clinicID, ok := extractClinicID(c)
 	if !ok {
 		return

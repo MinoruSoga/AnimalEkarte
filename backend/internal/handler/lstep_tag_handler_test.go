@@ -63,9 +63,9 @@ func newPostOwnerLstepTagRouter(svc service.LstepTagService, withClinicID bool) 
 	r := gin.New()
 	h := newHandlerWithLstepTagSvc(svc)
 	if withClinicID {
-		r.POST("/owners/:id/lstep/tags", func(c *gin.Context) { setClinicID(c); c.Set("user_id", "1") }, h.PostOwnerLstepTag)
+		r.POST("/owners/:id/lstep/tags", func(c *gin.Context) { setClinicID(c); c.Set("user_id", "1") }, h.AddOwnerLstepTag)
 	} else {
-		r.POST("/owners/:id/lstep/tags", h.PostOwnerLstepTag)
+		r.POST("/owners/:id/lstep/tags", h.AddOwnerLstepTag)
 	}
 	return r
 }

@@ -442,7 +442,7 @@ func TestUpdateReservationStaff(t *testing.T) {
 	}
 }
 
-// ---- PatchReservationStaffStatus ----
+// ---- UpdateReservationStaffStatus ----
 
 func TestPatchReservationStaffStatus(t *testing.T) {
 	gin.SetMode(gin.TestMode)
@@ -521,14 +521,14 @@ func TestPatchReservationStaffStatus(t *testing.T) {
 			c.Params = gin.Params{{Key: "staffId", Value: tt.paramID}}
 			tt.setupCtx(c)
 
-			h.PatchReservationStaffStatus(c)
+			h.UpdateReservationStaffStatus(c)
 
 			assert.Equal(t, tt.wantStatus, w.Code)
 		})
 	}
 }
 
-// ---- PatchReservationStaffSortOrder ----
+// ---- UpdateReservationStaffSortOrder ----
 //
 // c.Status(http.StatusNoContent) は httptest.ResponseRecorder に即時反映されないため
 // gin.Engine 経由でリクエストを送る。
@@ -538,7 +538,7 @@ func newPatchSortOrderRouter(svc service.ReservationStaffService) *gin.Engine {
 	h := newHandlerWithReservationStaffSvc(svc)
 	r.PATCH("/reservation-staffs/:staffId/sort-order", func(c *gin.Context) {
 		setClinicID(c)
-	}, h.PatchReservationStaffSortOrder)
+	}, h.UpdateReservationStaffSortOrder)
 	return r
 }
 
@@ -630,7 +630,7 @@ func TestPatchReservationStaffSortOrder(t *testing.T) {
 		c.Request = httptest.NewRequest(http.MethodPatch, "/", strings.NewReader(`{"direction":"up"}`))
 		c.Request.Header.Set("Content-Type", "application/json")
 		c.Params = gin.Params{{Key: "staffId", Value: "3"}}
-		h.PatchReservationStaffSortOrder(c)
+		h.UpdateReservationStaffSortOrder(c)
 		assert.Equal(t, http.StatusUnauthorized, w.Code)
 	})
 }

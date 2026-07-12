@@ -168,7 +168,7 @@ func TestPostLabImportPreview_MissingClinicID_Returns401(t *testing.T) {
 	c.Request.Header.Set("Content-Type", "application/json")
 	// No clinic_id set in context — simulates unauthenticated request
 
-	h.PostLabImportPreview(c)
+	h.PreviewLabImport(c)
 
 	assert.Equal(t, http.StatusUnauthorized, w.Code)
 	assert.Contains(t, w.Body.String(), "error")
@@ -186,7 +186,7 @@ func TestPostLabImportCommit_MissingClinicID_Returns401(t *testing.T) {
 	c.Request.Header.Set("Content-Type", "application/json")
 	// No clinic_id in context
 
-	h.PostLabImportCommit(c)
+	h.CommitLabImport(c)
 
 	assert.Equal(t, http.StatusUnauthorized, w.Code)
 }
@@ -441,7 +441,7 @@ func TestPostLabImportCommit_ClinicID_FromContext_NotBody(t *testing.T) {
 	c.Request.Header.Set("Content-Type", "application/json")
 	setClinicID(c) // clinic_id=1 from context
 
-	h.PostLabImportCommit(c)
+	h.CommitLabImport(c)
 
 	assert.Equal(t, uint64(1), capturedClinicID, "clinic_id must come from JWT context, not request body")
 }
@@ -470,7 +470,7 @@ func TestPostLabImportPreview_Fixture_ReturnsOK(t *testing.T) {
 	c.Request.Header.Set("Content-Type", "application/json")
 	setClinicID(c)
 
-	h.PostLabImportPreview(c)
+	h.PreviewLabImport(c)
 
 	require.Equal(t, http.StatusOK, w.Code)
 	var resp map[string]any
@@ -492,7 +492,7 @@ func TestPostLabImportPreview_DrWan_ReturnsBlockedReasons(t *testing.T) {
 	c.Request.Header.Set("Content-Type", "application/json")
 	setClinicID(c)
 
-	h.PostLabImportPreview(c)
+	h.PreviewLabImport(c)
 
 	require.Equal(t, http.StatusOK, w.Code)
 	var resp map[string]any
@@ -514,7 +514,7 @@ func TestPostLabImportPreview_Manual_ReturnsBlockedReasons(t *testing.T) {
 	c.Request.Header.Set("Content-Type", "application/json")
 	setClinicID(c)
 
-	h.PostLabImportPreview(c)
+	h.PreviewLabImport(c)
 
 	require.Equal(t, http.StatusOK, w.Code)
 	var resp map[string]any
@@ -547,7 +547,7 @@ func TestPostLabImportPreview_NoDBWrite(t *testing.T) {
 	c.Request.Header.Set("Content-Type", "application/json")
 	setClinicID(c)
 
-	h.PostLabImportPreview(c)
+	h.PreviewLabImport(c)
 
 	assert.Equal(t, http.StatusOK, w.Code)
 	assert.False(t, commitCalled, "Preview must not invoke Commit")
@@ -565,7 +565,7 @@ func TestPostLabImportPreview_MissingSourceType_Returns400(t *testing.T) {
 	c.Request.Header.Set("Content-Type", "application/json")
 	setClinicID(c)
 
-	h.PostLabImportPreview(c)
+	h.PreviewLabImport(c)
 
 	assert.Equal(t, http.StatusBadRequest, w.Code)
 }
@@ -581,7 +581,7 @@ func TestPostLabImportPreview_MalformedJSON_Returns400(t *testing.T) {
 	c.Request.Header.Set("Content-Type", "application/json")
 	setClinicID(c)
 
-	h.PostLabImportPreview(c)
+	h.PreviewLabImport(c)
 
 	assert.Equal(t, http.StatusBadRequest, w.Code)
 }
@@ -621,7 +621,7 @@ func TestPostLabImportCommit_Fixture_Returns201(t *testing.T) {
 	c.Request.Header.Set("Content-Type", "application/json")
 	setClinicID(c)
 
-	h.PostLabImportCommit(c)
+	h.CommitLabImport(c)
 
 	require.Equal(t, http.StatusCreated, w.Code)
 	var resp map[string]any
@@ -644,7 +644,7 @@ func TestPostLabImportCommit_DrWan_Returns400(t *testing.T) {
 	c.Request.Header.Set("Content-Type", "application/json")
 	setClinicID(c)
 
-	h.PostLabImportCommit(c)
+	h.CommitLabImport(c)
 
 	assert.Equal(t, http.StatusBadRequest, w.Code)
 	assert.Contains(t, w.Body.String(), "error")
@@ -664,7 +664,7 @@ func TestPostLabImportCommit_Manual_Returns400(t *testing.T) {
 	c.Request.Header.Set("Content-Type", "application/json")
 	setClinicID(c)
 
-	h.PostLabImportCommit(c)
+	h.CommitLabImport(c)
 
 	assert.Equal(t, http.StatusBadRequest, w.Code)
 }
@@ -681,7 +681,7 @@ func TestPostLabImportCommit_MissingBatchSourceType_Returns400(t *testing.T) {
 	c.Request.Header.Set("Content-Type", "application/json")
 	setClinicID(c)
 
-	h.PostLabImportCommit(c)
+	h.CommitLabImport(c)
 
 	assert.Equal(t, http.StatusBadRequest, w.Code)
 }
@@ -703,7 +703,7 @@ func TestPostLabImportCommit_ZeroExamTypeID_Returns400(t *testing.T) {
 	c.Request.Header.Set("Content-Type", "application/json")
 	setClinicID(c)
 
-	h.PostLabImportCommit(c)
+	h.CommitLabImport(c)
 
 	assert.Equal(t, http.StatusBadRequest, w.Code)
 }
@@ -725,7 +725,7 @@ func TestPostLabImportCommit_MissingDate_Returns400(t *testing.T) {
 	c.Request.Header.Set("Content-Type", "application/json")
 	setClinicID(c)
 
-	h.PostLabImportCommit(c)
+	h.CommitLabImport(c)
 
 	assert.Equal(t, http.StatusBadRequest, w.Code)
 }
@@ -747,7 +747,7 @@ func TestPostLabImportCommit_InvalidDateFormat_Returns400(t *testing.T) {
 	c.Request.Header.Set("Content-Type", "application/json")
 	setClinicID(c)
 
-	h.PostLabImportCommit(c)
+	h.CommitLabImport(c)
 
 	assert.Equal(t, http.StatusBadRequest, w.Code)
 }
@@ -769,7 +769,7 @@ func TestPostLabImportCommit_InvalidReceivedAt_Returns400(t *testing.T) {
 	c.Request.Header.Set("Content-Type", "application/json")
 	setClinicID(c)
 
-	h.PostLabImportCommit(c)
+	h.CommitLabImport(c)
 
 	assert.Equal(t, http.StatusBadRequest, w.Code)
 }
@@ -785,7 +785,7 @@ func TestPostLabImportCommit_MalformedJSON_Returns400(t *testing.T) {
 	c.Request.Header.Set("Content-Type", "application/json")
 	setClinicID(c)
 
-	h.PostLabImportCommit(c)
+	h.CommitLabImport(c)
 
 	assert.Equal(t, http.StatusBadRequest, w.Code)
 }
@@ -807,7 +807,7 @@ func TestPostLabImportCommit_JobIDMatchesLocationHeader(t *testing.T) {
 	c.Request.Header.Set("Content-Type", "application/json")
 	setClinicID(c)
 
-	h.PostLabImportCommit(c)
+	h.CommitLabImport(c)
 
 	require.Equal(t, http.StatusCreated, w.Code)
 	var resp map[string]any
@@ -1031,7 +1031,7 @@ func TestPostLabImportPreview_ResponseHasNoRawLabValues(t *testing.T) {
 	c.Request.Header.Set("Content-Type", "application/json")
 	setClinicID(c)
 
-	h.PostLabImportPreview(c)
+	h.PreviewLabImport(c)
 
 	require.Equal(t, http.StatusOK, w.Code)
 	body := w.Body.String()
@@ -1079,7 +1079,7 @@ func TestPostLabImportCommit_Duplicate_ReturnsCommitResponse(t *testing.T) {
 	c.Request.Header.Set("Content-Type", "application/json")
 	setClinicID(c)
 
-	h.PostLabImportCommit(c)
+	h.CommitLabImport(c)
 
 	require.Equal(t, http.StatusCreated, w.Code)
 	var resp map[string]any
@@ -1266,7 +1266,7 @@ func TestPostLabImportPreview_AuditPreviewRequested(t *testing.T) {
 	})
 	c.Request, _ = http.NewRequest(http.MethodPost, "/api/v1/lab-imports/preview", body)
 	c.Request.Header.Set("Content-Type", "application/json")
-	h.PostLabImportPreview(c)
+	h.PreviewLabImport(c)
 
 	assert.Equal(t, http.StatusOK, w.Code)
 	require.Len(t, audit.previewRequested, 1)
@@ -1289,7 +1289,7 @@ func TestPostLabImportPreview_AuditSourceBlocked_DrWan(t *testing.T) {
 	body := jsonBody(map[string]any{"source_type": "drwan"})
 	c.Request, _ = http.NewRequest(http.MethodPost, "/api/v1/lab-imports/preview", body)
 	c.Request.Header.Set("Content-Type", "application/json")
-	h.PostLabImportPreview(c)
+	h.PreviewLabImport(c)
 
 	assert.Equal(t, http.StatusOK, w.Code)
 	require.Len(t, audit.previewRequested, 1, "preview_requested must be emitted")
@@ -1327,7 +1327,7 @@ func TestPostLabImportCommit_AuditCommitRequestedAndSucceeded(t *testing.T) {
 	})
 	c.Request, _ = http.NewRequest(http.MethodPost, "/api/v1/lab-imports", body)
 	c.Request.Header.Set("Content-Type", "application/json")
-	h.PostLabImportCommit(c)
+	h.CommitLabImport(c)
 
 	assert.Equal(t, http.StatusCreated, w.Code)
 	require.Len(t, audit.commitRequested, 1)
@@ -1362,7 +1362,7 @@ func TestPostLabImportCommit_AuditCommitFailed_BlockedSourceType(t *testing.T) {
 	})
 	c.Request, _ = http.NewRequest(http.MethodPost, "/api/v1/lab-imports", body)
 	c.Request.Header.Set("Content-Type", "application/json")
-	h.PostLabImportCommit(c)
+	h.CommitLabImport(c)
 
 	assert.Equal(t, http.StatusBadRequest, w.Code)
 	require.Len(t, audit.commitRequested, 1, "commit_requested must be emitted even on failure")
@@ -1409,7 +1409,7 @@ func TestPostLabImportCommit_AuditPayloadNoPII(t *testing.T) {
 	})
 	c.Request, _ = http.NewRequest(http.MethodPost, "/api/v1/lab-imports", body)
 	c.Request.Header.Set("Content-Type", "application/json")
-	h.PostLabImportCommit(c)
+	h.CommitLabImport(c)
 
 	assert.Equal(t, http.StatusCreated, w.Code)
 	require.Len(t, audit.commitSucceeded, 1)
@@ -1479,7 +1479,7 @@ func TestPostLabImportCommit_AuditCommitFailed_InternalError(t *testing.T) {
 	})
 	c.Request, _ = http.NewRequest(http.MethodPost, "/api/v1/lab-imports", body)
 	c.Request.Header.Set("Content-Type", "application/json")
-	h.PostLabImportCommit(c)
+	h.CommitLabImport(c)
 
 	require.Len(t, audit.commitFailed, 1)
 	assert.Equal(t, model.LabAuditErrorCategoryInternal, audit.commitFailed[0].errorCategory)
@@ -1498,6 +1498,6 @@ func TestPostLabImportPreview_AuditNilSafe(t *testing.T) {
 	c.Request, _ = http.NewRequest(http.MethodPost, "/api/v1/lab-imports/preview", body)
 	c.Request.Header.Set("Content-Type", "application/json")
 
-	assert.NotPanics(t, func() { h.PostLabImportPreview(c) })
+	assert.NotPanics(t, func() { h.PreviewLabImport(c) })
 	assert.Equal(t, http.StatusOK, w.Code)
 }

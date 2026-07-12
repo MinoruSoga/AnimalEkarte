@@ -55,7 +55,7 @@ func newPostCsvImportRouter(csvSvc service.LstepCsvImportService, permSvc servic
 	r.POST("/clinics/:clinic_id/lstep/csv-imports/friend-attributes",
 		setupCtx,
 		h.RequirePermission(string(model.ResourceLstepCsvImport), "edit"),
-		h.PostLstepCsvImportFriendAttributes,
+		h.ImportLstepFriendAttributesCsv,
 	)
 	return r
 }
