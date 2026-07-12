@@ -10,14 +10,26 @@ import (
 )
 
 func (s *lstepTagSyncService) SyncFoodPurchaseTag(ctx context.Context, clinicID, ownerID uint64) error {
+	return s.SyncFoodPurchaseTagWithMappings(ctx, clinicID, ownerID, nil, nil)
+}
+
+// SyncFoodPurchaseTagWithMappings は事前取得済み mappings/thresholds を使って処理する（PERF-M2 N+1 解消用）。
+func (s *lstepTagSyncService) SyncFoodPurchaseTagWithMappings(ctx context.Context, clinicID, ownerID uint64, cachedMappings []*model.LstepTagCodeMapping, cachedThresholds *model.HealthPreventionThresholds) error {
 	if s.tagCodeRepo == nil || s.billingItemRepo == nil {
 		return nil
 	}
 
-	mappings, err := s.tagCodeRepo.FindByClinicIDAndTagName(ctx, clinicID, LtvFoodPurchaseTag)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to find tag code mappings for food purchase tag", "error", err)
-		return apperrors.Wrap(err, "failed to find tag code mappings")
+	// PERF-M2: cachedMappings が提供されている場合は再取得しない（batch からの hoist）。
+	var mappings []*model.LstepTagCodeMapping
+	if cachedMappings != nil {
+		mappings = cachedMappings
+	} else {
+		var err error
+		mappings, err = s.tagCodeRepo.FindByClinicIDAndTagName(ctx, clinicID, LtvFoodPurchaseTag)
+		if err != nil {
+			slog.ErrorContext(ctx, "failed to find tag code mappings for food purchase tag", "error", err)
+			return apperrors.Wrap(err, "failed to find tag code mappings")
+		}
 	}
 	// itemCodes が空でも HasFoodPurchaseByOwnerSince は category='food' にフォールバック
 	itemCodes := extractTagCodes(mappings, model.CodeTypeMerchandiseItem)
@@ -30,10 +42,17 @@ func (s *lstepTagSyncService) SyncFoodPurchaseTag(ctx context.Context, clinicID,
 		return nil
 	}
 
-	thresholds, err := s.settingsSvc.GetHealthPreventionThresholds(ctx, clinicID)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to get health prevention thresholds for food purchase tag", "error", err, "clinic_id", clinicID)
-		return apperrors.Wrap(err, "failed to get health prevention thresholds")
+	// PERF-M2: cachedThresholds が提供されている場合は再取得しない（batch からの hoist）。
+	var thresholds model.HealthPreventionThresholds
+	if cachedThresholds != nil {
+		thresholds = *cachedThresholds
+	} else {
+		var tErr error
+		thresholds, tErr = s.settingsSvc.GetHealthPreventionThresholds(ctx, clinicID)
+		if tErr != nil {
+			slog.ErrorContext(ctx, "failed to get health prevention thresholds for food purchase tag", "error", tErr, "clinic_id", clinicID)
+			return apperrors.Wrap(tErr, "failed to get health prevention thresholds")
+		}
 	}
 	since := time.Now().AddDate(0, 0, -thresholds.LookbackDays)
 	hasPurchase, err := s.billingItemRepo.HasFoodPurchaseByOwnerSince(ctx, clinicID, ownerID, since, itemCodes)

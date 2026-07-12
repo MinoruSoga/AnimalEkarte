@@ -115,14 +115,26 @@ func (s *lstepTagSyncService) SyncHealthcheckTagsWithMappings(ctx context.Contex
 
 // SyncAnnual4CheckupTag は年2回以上来院かつ健診履歴がある飼い主に HLTH_年4回候補 を付与する（FEAT-379）。
 func (s *lstepTagSyncService) SyncAnnual4CheckupTag(ctx context.Context, clinicID, ownerID uint64) error {
+	return s.SyncAnnual4CheckupTagWithMappings(ctx, clinicID, ownerID, nil, nil)
+}
+
+// SyncAnnual4CheckupTagWithMappings は事前取得済み mappings/thresholds を使って処理する（PERF-M1 N+1 解消用）。
+func (s *lstepTagSyncService) SyncAnnual4CheckupTagWithMappings(ctx context.Context, clinicID, ownerID uint64, cachedMappings []*model.LstepTagCodeMapping, cachedThresholds *model.HealthPreventionThresholds) error {
 	if s.tagCodeRepo == nil {
 		return nil
 	}
 
-	mappings, err := s.tagCodeRepo.FindByClinicIDAndTagName(ctx, clinicID, HlthHealthcheckDoneTag)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to find tag code mappings for annual4checkup", "error", err)
-		return apperrors.Wrap(err, "failed to find tag code mappings")
+	// PERF-M1: cachedMappings が提供されている場合は再取得しない（batch からの hoist）。
+	var mappings []*model.LstepTagCodeMapping
+	if cachedMappings != nil {
+		mappings = cachedMappings
+	} else {
+		var err error
+		mappings, err = s.tagCodeRepo.FindByClinicIDAndTagName(ctx, clinicID, HlthHealthcheckDoneTag)
+		if err != nil {
+			slog.ErrorContext(ctx, "failed to find tag code mappings for annual4checkup", "error", err)
+			return apperrors.Wrap(err, "failed to find tag code mappings")
+		}
 	}
 	checkupCodes := extractTagCodes(mappings, model.CodeTypeCheckupType)
 	if len(checkupCodes) == 0 {
@@ -137,10 +149,17 @@ func (s *lstepTagSyncService) SyncAnnual4CheckupTag(ctx context.Context, clinicI
 		return nil
 	}
 
-	thresholds, err := s.settingsSvc.GetHealthPreventionThresholds(ctx, clinicID)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to get health prevention thresholds for annual4checkup tag", "error", err, "clinic_id", clinicID)
-		return apperrors.Wrap(err, "failed to get health prevention thresholds")
+	// PERF-M1: cachedThresholds が提供されている場合は再取得しない（batch からの hoist）。
+	var thresholds model.HealthPreventionThresholds
+	if cachedThresholds != nil {
+		thresholds = *cachedThresholds
+	} else {
+		var tErr error
+		thresholds, tErr = s.settingsSvc.GetHealthPreventionThresholds(ctx, clinicID)
+		if tErr != nil {
+			slog.ErrorContext(ctx, "failed to get health prevention thresholds for annual4checkup tag", "error", tErr, "clinic_id", clinicID)
+			return apperrors.Wrap(tErr, "failed to get health prevention thresholds")
+		}
 	}
 	since := time.Now().AddDate(0, 0, -thresholds.LookbackDays)
 	checkups, err := s.checkupRepo.FindByOwnerID(ctx, clinicID, ownerID)

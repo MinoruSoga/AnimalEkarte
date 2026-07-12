@@ -11,14 +11,26 @@ import (
 )
 
 func (s *lstepTagSyncService) SyncFilariaTag(ctx context.Context, clinicID, ownerID uint64) error {
+	return s.SyncFilariaTagWithMappings(ctx, clinicID, ownerID, nil, nil)
+}
+
+// SyncFilariaTagWithMappings は事前取得済み mappings/thresholds を使って処理する（PERF-M2 N+1 解消用）。
+func (s *lstepTagSyncService) SyncFilariaTagWithMappings(ctx context.Context, clinicID, ownerID uint64, cachedMappings []*model.LstepTagCodeMapping, cachedThresholds *model.HealthPreventionThresholds) error {
 	if s.tagCodeRepo == nil {
 		return nil
 	}
 
-	mappings, err := s.tagCodeRepo.FindByClinicIDAndTagName(ctx, clinicID, PrevFilariaTag)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to find tag code mappings for filaria tag", "error", err)
-		return apperrors.Wrap(err, "failed to find tag code mappings")
+	// PERF-M2: cachedMappings が提供されている場合は再取得しない（batch からの hoist）。
+	var mappings []*model.LstepTagCodeMapping
+	if cachedMappings != nil {
+		mappings = cachedMappings
+	} else {
+		var err error
+		mappings, err = s.tagCodeRepo.FindByClinicIDAndTagName(ctx, clinicID, PrevFilariaTag)
+		if err != nil {
+			slog.ErrorContext(ctx, "failed to find tag code mappings for filaria tag", "error", err)
+			return apperrors.Wrap(err, "failed to find tag code mappings")
+		}
 	}
 	testCodes := extractTagCodes(mappings, model.CodeTypeCheckupType)
 	rxCodes := extractTagCodes(mappings, model.CodeTypePrescription)
@@ -51,10 +63,17 @@ func (s *lstepTagSyncService) SyncFilariaTag(ctx context.Context, clinicID, owne
 		return nil
 	}
 
-	thresholds, err := s.settingsSvc.GetHealthPreventionThresholds(ctx, clinicID)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to get health prevention thresholds for filaria tag", "error", err, "clinic_id", clinicID)
-		return apperrors.Wrap(err, "failed to get health prevention thresholds")
+	// PERF-M2: cachedThresholds が提供されている場合は再取得しない（batch からの hoist）。
+	var thresholds model.HealthPreventionThresholds
+	if cachedThresholds != nil {
+		thresholds = *cachedThresholds
+	} else {
+		var tErr error
+		thresholds, tErr = s.settingsSvc.GetHealthPreventionThresholds(ctx, clinicID)
+		if tErr != nil {
+			slog.ErrorContext(ctx, "failed to get health prevention thresholds for filaria tag", "error", tErr, "clinic_id", clinicID)
+			return apperrors.Wrap(tErr, "failed to get health prevention thresholds")
+		}
 	}
 	since := time.Now().AddDate(0, 0, -thresholds.LookbackDays)
 
@@ -120,14 +139,26 @@ func (s *lstepTagSyncService) SyncFilariaTag(ctx context.Context, clinicID, owne
 // SyncFleaTickTag はノミ・マダニ駆除薬処方に基づき PREV_ノミダニ対象 を同期する（FEAT-379）。
 // 処方実績がなければタグを付与し、あれば解除する。
 func (s *lstepTagSyncService) SyncFleaTickTag(ctx context.Context, clinicID, ownerID uint64) error {
+	return s.SyncFleaTickTagWithMappings(ctx, clinicID, ownerID, nil, nil)
+}
+
+// SyncFleaTickTagWithMappings は事前取得済み mappings/thresholds を使って処理する（PERF-M2 N+1 解消用）。
+func (s *lstepTagSyncService) SyncFleaTickTagWithMappings(ctx context.Context, clinicID, ownerID uint64, cachedMappings []*model.LstepTagCodeMapping, cachedThresholds *model.HealthPreventionThresholds) error {
 	if s.tagCodeRepo == nil || s.billingItemRepo == nil {
 		return nil
 	}
 
-	mappings, err := s.tagCodeRepo.FindByClinicIDAndTagName(ctx, clinicID, PrevFleaTickTag)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to find tag code mappings for flea tick tag", "error", err)
-		return apperrors.Wrap(err, "failed to find tag code mappings")
+	// PERF-M2: cachedMappings が提供されている場合は再取得しない（batch からの hoist）。
+	var mappings []*model.LstepTagCodeMapping
+	if cachedMappings != nil {
+		mappings = cachedMappings
+	} else {
+		var err error
+		mappings, err = s.tagCodeRepo.FindByClinicIDAndTagName(ctx, clinicID, PrevFleaTickTag)
+		if err != nil {
+			slog.ErrorContext(ctx, "failed to find tag code mappings for flea tick tag", "error", err)
+			return apperrors.Wrap(err, "failed to find tag code mappings")
+		}
 	}
 	rxCodes := extractTagCodes(mappings, model.CodeTypePrescription)
 	if len(rxCodes) == 0 {
@@ -142,10 +173,17 @@ func (s *lstepTagSyncService) SyncFleaTickTag(ctx context.Context, clinicID, own
 		return nil
 	}
 
-	thresholds, err := s.settingsSvc.GetHealthPreventionThresholds(ctx, clinicID)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to get health prevention thresholds for flea tick tag", "error", err, "clinic_id", clinicID)
-		return apperrors.Wrap(err, "failed to get health prevention thresholds")
+	// PERF-M2: cachedThresholds が提供されている場合は再取得しない（batch からの hoist）。
+	var thresholds model.HealthPreventionThresholds
+	if cachedThresholds != nil {
+		thresholds = *cachedThresholds
+	} else {
+		var tErr error
+		thresholds, tErr = s.settingsSvc.GetHealthPreventionThresholds(ctx, clinicID)
+		if tErr != nil {
+			slog.ErrorContext(ctx, "failed to get health prevention thresholds for flea tick tag", "error", tErr, "clinic_id", clinicID)
+			return apperrors.Wrap(tErr, "failed to get health prevention thresholds")
+		}
 	}
 	since := time.Now().AddDate(0, 0, -thresholds.LookbackDays)
 	hasRx, err := s.billingItemRepo.HasItemByOwnerSince(ctx, clinicID, ownerID, since, rxCodes)
