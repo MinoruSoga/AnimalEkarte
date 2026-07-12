@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import type { PageType, LiffSettings, LiffProfile, CustomerInfo } from './types/models';
 import { liffApi } from './api/liff-api';
 import { useLiff } from '@/shared-liff/use-liff';
+import { Spinner } from '@/shared-liff/Spinner';
 import { useReservationFlow } from './hooks/use-reservation-flow';
 import { getClinicId } from './lib/liff-config';
 
@@ -135,7 +136,7 @@ export function App() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-noah-teal-light">
         <div className="text-center">
-          <div className="w-8 h-8 border-4 border-noah-teal border-t-transparent rounded-full animate-spin mx-auto mb-3" aria-hidden="true" />
+          <Spinner size="sm" borderColorClassName="border-noah-teal" />
           <p className="text-noah-text-sub text-sm">読み込み中...</p>
         </div>
       </div>

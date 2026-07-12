@@ -1,17 +1,9 @@
 import { useLiffLink } from '../hooks/use-liff-link';
+import { Spinner } from '@/shared-liff/Spinner';
 
 const params = new URLSearchParams(window.location.search);
 const LINK_TOKEN = params.get('token') ?? '';
 const CLINIC_ID = params.get('clinic_id') ?? '';
-
-function Spinner() {
-  return (
-    <div
-      className="w-10 h-10 border-4 border-liff-brand border-t-transparent rounded-full animate-spin mx-auto mb-4"
-      aria-hidden="true"
-    />
-  );
-}
 
 export function LiffLinkPage() {
   const { status, errorMessage } = useLiffLink(CLINIC_ID, LINK_TOKEN);
