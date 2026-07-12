@@ -50,14 +50,28 @@ describe("liffApi（R-F20: NULL バイトサニタイズ）", () => {
   });
 
   it("GET リクエストのボディサニタイズ処理は影響しない（GET には body が無い）", async () => {
+    // FE5-18: 実行時検証（liffSettingsSchema）導入に伴い、models.ts 準拠の完全な
+    // フィクスチャに是正（旧フィクスチャは GET がサニタイズの影響を受けないことのみを
+    // 確認する仮データで、実際の LiffSettings 契約を表していなかった）。
+    const settingsFixture = {
+      liff_id: "123",
+      clinic_name: "テスト病院",
+      header_text: "テスト病院",
+      phone_number: "",
+      status: "running",
+      request_example: "",
+      reservation_notice: "",
+      cancel_notice: "",
+      privacy_policy: "",
+      show_no_staff_option: false,
+      booking_window: 30,
+    };
     server.use(
-      http.get("/api/liff/:clinicId/settings", () =>
-        HttpResponse.json({ clinicName: "テスト病院" }),
-      ),
+      http.get("/api/liff/:clinicId/settings", () => HttpResponse.json(settingsFixture)),
     );
 
     const settings = await liffApi.getSettings("1");
 
-    expect(settings).toEqual({ clinicName: "テスト病院" });
+    expect(settings).toEqual(settingsFixture);
   });
 });
