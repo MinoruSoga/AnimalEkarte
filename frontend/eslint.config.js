@@ -52,6 +52,15 @@ export default tseslint.config(
           message:
             "queryKey に配列リテラルを直書きしない。frontend/src/lib/query-keys.ts の queryKeys ファクトリー（または ME_QUERY_KEY）経由で参照すること。新しいキー形状が必要な場合は queryKeys に追加する。",
         },
+        {
+          // setQueryData/getQueryData/removeQueries/resetQueries/cancelQueries/refetchQueries/
+          // invalidateQueries はキーを { queryKey: [...] } ではなく第一引数の裸配列として
+          // 受け取れるため、上の Property セレクタでは捕捉できない別経路。
+          selector:
+            "CallExpression[callee.property.name=/^(setQueryData|getQueryData|removeQueries|resetQueries|cancelQueries|refetchQueries|invalidateQueries)$/] > ArrayExpression.arguments:first-child",
+          message:
+            "queryKey に配列リテラルを直書きしない。frontend/src/lib/query-keys.ts の queryKeys ファクトリー（または ME_QUERY_KEY）経由で参照すること。",
+        },
       ],
       "no-restricted-properties": [
         "error",

@@ -176,6 +176,13 @@ export const queryKeys = {
   },
 
   // ── checkups (健診) ───────────────────────────────────────────────
+  /**
+   * 既知の第一要素衝突（移行前から存在・本移行が新規に持ち込んだものではない）:
+   * checkups.list(filters) は ["checkups", filtersObj] だが、medicalRecords.checkups(id)
+   * は ["checkups", medicalRecordIdString] であり、どちらも "checkups" を第一要素に持つ
+   * 別エンティティ。invalidateQueries({queryKey:["checkups"]}) の prefix match は両方を
+   * 巻き込む点に注意（現状どちらの mutation もそこまで広く invalidate していないため実害なし）。
+   */
   checkups: {
     list: <F>(filters: F) => ["checkups", filters] as const,
     typeFields: (checkupTypeId: string) => ["checkup-type-fields", checkupTypeId] as const,
