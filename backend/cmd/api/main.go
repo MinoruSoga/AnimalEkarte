@@ -209,5 +209,11 @@ func main() {
 	if err := server.Shutdown(ctx); err != nil {
 		logger.Error("shutdown error", slog.String("error", err.Error()))
 	}
+
+	// PERF-FOLLOWUP-05: パスワードリセットメール送信は fire-and-forget goroutine のため、
+	// server.Shutdown の HTTP drain だけでは goroutine が孤児化する。ここで明示的に drain する。
+	logger.Info("draining in-flight password reset email goroutines...")
+	svcs.PasswordReset.Wait()
+
 	logger.Info("server stopped")
 }

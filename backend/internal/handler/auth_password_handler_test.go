@@ -40,6 +40,8 @@ func (m *mockPasswordResetService) ResetPassword(ctx context.Context, rawToken, 
 	return nil
 }
 
+func (m *mockPasswordResetService) Wait() {}
+
 // ---- test helper ----
 
 func newHandlerWithAuthPasswordSvc(staffSvc service.StaffService, accountSvc service.AccountService, pwResetSvc service.PasswordResetService) *Handler {

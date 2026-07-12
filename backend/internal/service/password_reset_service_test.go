@@ -128,6 +128,73 @@ func TestPasswordResetService_ForgotPassword(t *testing.T) {
 	}
 }
 
+// ---- Wait (PERF-FOLLOWUP-05: shutdown drain) ----
+
+// TestPasswordResetService_Wait_DrainsInFlightEmailGoroutine は、ForgotPassword が起動する
+// fire-and-forget メール送信 goroutine を Wait() が実際に待機することを証明する。
+// 修正前（wg なし）は Wait() 自体が存在せずコンパイル不可 — 本テストは修正と一体で追加する
+// 加算的信頼性修正のため、RED は「Wait 未実装」という形で表現される。
+func TestPasswordResetService_Wait_DrainsInFlightEmailGoroutine(t *testing.T) {
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	require.NoError(t, err)
+	defer ln.Close()
+
+	const serverDelay = 150 * time.Millisecond
+	handled := make(chan struct{})
+	go func() {
+		conn, acceptErr := ln.Accept()
+		if acceptErr != nil {
+			return
+		}
+		defer conn.Close()
+		// SMTP ハンドシェイクを遅延させ、goroutine がまだ実行中の状態を作る。
+		time.Sleep(serverDelay)
+		close(handled)
+	}()
+
+	host, port, splitErr := net.SplitHostPort(ln.Addr().String())
+	require.NoError(t, splitErr)
+
+	accountRepo := &mockAccountRepository{
+		findByEmailFn: func(_ context.Context, email string) (*model.Account, error) {
+			return &model.Account{ID: 1, Email: email}, nil
+		},
+	}
+	tokenRepo := &mockPasswordResetTokenRepository{}
+
+	svc := &passwordResetService{
+		cfg: &PasswordResetConfig{
+			FrontendURL: "https://example.com",
+			SMTPHost:    host,
+			SMTPPort:    port,
+			SMTPFrom:    "noreply@example.com",
+		},
+		accountRepo: accountRepo,
+		tokenRepo:   tokenRepo,
+	}
+
+	require.NoError(t, svc.ForgotPassword(context.Background(), "owner@example.com"))
+
+	select {
+	case <-handled:
+		t.Fatal("background goroutine already finished before Wait() was called — test setup invalid (delay too short), cannot prove drain behavior")
+	default:
+	}
+
+	start := time.Now()
+	svc.Wait()
+	elapsed := time.Since(start)
+
+	select {
+	case <-handled:
+		// OK: サーバ側の遅延処理が完了した後で Wait() が返った。
+	default:
+		t.Fatal("Wait() returned before the in-flight email goroutine finished")
+	}
+	assert.GreaterOrEqual(t, elapsed, serverDelay/2,
+		"Wait() should block roughly until the background SMTP goroutine completes")
+}
+
 // ---- ResetPassword ----
 
 func TestPasswordResetService_ResetPassword(t *testing.T) {
