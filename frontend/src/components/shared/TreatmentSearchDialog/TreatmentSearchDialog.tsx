@@ -14,6 +14,7 @@ import {
   useGetAllProcedures,
   useGetAllVaccinesMaster,
   useGetAllCheckupTypes,
+  useGetAllMedicinesMaster,
 } from "@/hooks/use-treatment-master";
 
 // --- Types ---
@@ -22,6 +23,8 @@ export type TreatmentMasterItem = {
   name: string;
   unitPrice: number;
   category: string;
+  /** #201: category="薬剤" の場合のみ設定。投与量自動計算・medicine_id 紐付けに使う */
+  medicineId?: string;
 };
 
 interface TreatmentSearchDialogProps {
@@ -50,6 +53,7 @@ export const TreatmentSearchDialog = memo(function TreatmentSearchDialog({
   const { data: procedures = [] } = useGetAllProcedures();
   const { data: vaccines = [] } = useGetAllVaccinesMaster();
   const { data: checkupTypes = [] } = useGetAllCheckupTypes();
+  const { data: medicines = [] } = useGetAllMedicinesMaster();
 
   const handleOpenChange = useCallback((nextOpen: boolean) => {
     if (!nextOpen) {
@@ -87,8 +91,16 @@ export const TreatmentSearchDialog = memo(function TreatmentSearchDialog({
       }
     });
 
+    medicines.forEach((m) => {
+      // カテゴリ見出し行（parentId なし・price=0）は選択対象から除外する。
+      const isCategoryPlaceholder = !m.parentId && m.price === 0;
+      if (m.isActive && !isCategoryPlaceholder) {
+        items.push({ id: m.id, name: m.name, unitPrice: m.price, category: "薬剤", medicineId: m.id });
+      }
+    });
+
     return items;
-  }, [consultations, procedures, vaccines, checkupTypes]);
+  }, [consultations, procedures, vaccines, checkupTypes, medicines]);
 
   // Filter items by search term and category（カタカナ・ひらがな非区別）
   const filteredItems = useMemo(() => {

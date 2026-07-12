@@ -8,17 +8,20 @@ import {
   transformConsultation,
   transformProcedure,
 } from "@/lib/transforms/treatment";
+import { transformBackendMedicineToFrontend } from "@/lib/transforms/medicine";
 import type {
   VaccineItem,
   CheckupTypeItem,
   ConsultationItem,
   ProcedureItem,
 } from "@/lib/transforms/treatment";
+import type { Medicine } from "@/lib/transforms/medicine";
 import type {
   Vaccine,
   CheckupType,
   Consultation,
   Procedure,
+  Medicine as MedicineModel,
 } from "@/types/generated/models";
 
 export type { VaccineItem, CheckupTypeItem, ConsultationItem, ProcedureItem };
@@ -71,6 +74,23 @@ export function useGetAllProcedures() {
     queryFn: async (): Promise<ProcedureItem[]> => {
       const { data } = await axios.get<Procedure[]>("/v1/masters/procedures");
       return data.map(transformProcedure);
+    },
+    staleTime: QUERY_STALE_TIMES.STATIC,
+    gcTime: QUERY_GC_TIMES.LONG,
+  });
+}
+
+/**
+ * #201: TreatmentSearchDialog（薬剤カテゴリ）・カルテ投与量プレビューの両方から参照する薬剤マスタ。
+ * queryKey は features/master/api/medicines.ts の useGetAllMedicines と同一
+ * (queryKeys.masters.category("medicines")) にしてキャッシュを共有する。
+ */
+export function useGetAllMedicinesMaster() {
+  return useQuery({
+    queryKey: queryKeys.masters.category("medicines"),
+    queryFn: async (): Promise<Medicine[]> => {
+      const { data } = await axios.get<MedicineModel[]>("/v1/masters/medicines");
+      return data.map(transformBackendMedicineToFrontend);
     },
     staleTime: QUERY_STALE_TIMES.STATIC,
     gcTime: QUERY_GC_TIMES.LONG,

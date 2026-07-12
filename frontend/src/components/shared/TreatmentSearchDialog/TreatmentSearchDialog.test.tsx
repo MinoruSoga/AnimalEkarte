@@ -8,6 +8,7 @@ vi.mock("@/hooks/use-treatment-master", () => ({
   useGetAllProcedures: vi.fn(),
   useGetAllVaccinesMaster: vi.fn(),
   useGetAllCheckupTypes: vi.fn(),
+  useGetAllMedicinesMaster: vi.fn(),
 }));
 
 import {
@@ -15,12 +16,15 @@ import {
   useGetAllProcedures,
   useGetAllVaccinesMaster,
   useGetAllCheckupTypes,
+  useGetAllMedicinesMaster,
 } from "@/hooks/use-treatment-master";
 
 const CONSULTATIONS = [{ id: "1", name: "一般診察", price: 3000, isActive: true }];
 const PROCEDURES = [{ id: "2", name: "点滴処置", price: 2000, isActive: true }];
 const VACCINES = [{ id: "3", name: "混合ワクチン", price: 5000, isActive: true }];
 const CHECKUP_TYPES = [{ id: "4", name: "血液検査", price: 4000, isActive: true }];
+// #201: 薬剤カテゴリ。parentId 未設定・price>0 のためカテゴリ見出し行として除外されない。
+const MEDICINES = [{ id: "5", name: "アモキシシリン", price: 100, isActive: true, parentId: "cat-1" }];
 
 function mockHooksWithData() {
   vi.mocked(useGetAllConsultations).mockReturnValue({
@@ -35,6 +39,9 @@ function mockHooksWithData() {
   vi.mocked(useGetAllCheckupTypes).mockReturnValue({
     data: CHECKUP_TYPES,
   } as ReturnType<typeof useGetAllCheckupTypes>);
+  vi.mocked(useGetAllMedicinesMaster).mockReturnValue({
+    data: MEDICINES,
+  } as unknown as ReturnType<typeof useGetAllMedicinesMaster>);
 }
 
 function renderDialog(overrides?: { onSelect?: (item: unknown) => void }) {
@@ -58,6 +65,28 @@ describe("TreatmentSearchDialog", () => {
     expect(screen.getByText("点滴処置")).toBeInTheDocument();
     expect(screen.getByText("混合ワクチン")).toBeInTheDocument();
     expect(screen.getByText("血液検査")).toBeInTheDocument();
+    expect(screen.getByText("アモキシシリン")).toBeInTheDocument();
+  });
+
+  it("#201: 薬剤選択時は onSelect に medicineId が含まれる", async () => {
+    const user = userEvent.setup();
+    const onSelect = vi.fn();
+    render(<TreatmentSearchDialog open onOpenChange={() => {}} onSelect={onSelect} />);
+
+    await user.click(screen.getByText("アモキシシリン"));
+
+    expect(onSelect).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "5", medicineId: "5", category: "薬剤" }),
+    );
+  });
+
+  it("#201: カテゴリ見出し行（parentId なし・price=0）の薬剤は一覧から除外される", () => {
+    vi.mocked(useGetAllMedicinesMaster).mockReturnValue({
+      data: [{ id: "6", name: "抗生剤カテゴリ", price: 0, isActive: true, parentId: undefined }],
+    } as unknown as ReturnType<typeof useGetAllMedicinesMaster>);
+    renderDialog();
+
+    expect(screen.queryByText("抗生剤カテゴリ")).not.toBeInTheDocument();
   });
 
   it("検索語に一致しない場合、空状態メッセージを表示する", async () => {

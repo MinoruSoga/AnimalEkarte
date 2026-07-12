@@ -1,6 +1,7 @@
 import { Plus, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { C, ICON, STYLE } from "@/lib/design-tokens";
+import type { MedicineDoseContext } from "../../api/medicine-dose-lookup";
 import type { Treatment, TreatmentItemType, UpdateTreatmentInput } from "../../types";
 import { TreatmentRow } from "./TreatmentRow";
 
@@ -51,6 +52,8 @@ interface TreatmentsTableProps {
   onMoveUp: (treatmentId: string) => void;
   onMoveDown: (treatmentId: string) => void;
   onAutoFocusDone: () => void;
+  /** #201: 投与量自動計算プレビューに必要なコンテキスト */
+  doseContext: MedicineDoseContext;
 }
 
 export function TreatmentsTable({
@@ -64,6 +67,7 @@ export function TreatmentsTable({
   onMoveUp,
   onMoveDown,
   onAutoFocusDone,
+  doseContext,
 }: TreatmentsTableProps) {
   return (
     <table className="w-full">
@@ -93,6 +97,7 @@ export function TreatmentsTable({
                 canEditDiscount={canEditDiscount}
                 autoFocusQuantity={autoFocusQuantity}
                 onAutoFocusDone={autoFocusQuantity ? onAutoFocusDone : undefined}
+                doseContext={doseContext}
               />
             );
           })

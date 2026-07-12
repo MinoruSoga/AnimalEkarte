@@ -325,7 +325,11 @@ export function MedicalRecordTabsArea({
       {mountedTabs.has("治療") ? (
         <UnifiedTabsContent value="治療">
           <div className={`${LAYOUT.fullHeight} ${activeTab === "治療" ? "" : "hidden"}`}>
-            <MedicalRecordTreatment medicalRecordId={recordId ?? ""} isNewRecord={isNewRecord} />
+            <MedicalRecordTreatment
+              medicalRecordId={recordId ?? ""}
+              isNewRecord={isNewRecord}
+              petSpecies={selectedPet.species}
+            />
           </div>
         </UnifiedTabsContent>
       ) : null}

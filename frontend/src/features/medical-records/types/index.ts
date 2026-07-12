@@ -42,6 +42,12 @@ export interface Treatment {
   discount_rate: number;
   discount_amount: number;
   sort_order: number;
+  // #201 投与量自動計算の計算根拠スナップショット（全て nullable・BE treatment.go:52-56 に追随）
+  dose_weight_kg?: number | null;
+  dose_weight_source?: string | null;
+  dose_amount_mg?: number | null;
+  dose_amount_unit?: string | null;
+  dose_param_snapshot?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -50,7 +56,10 @@ export interface CreateTreatmentInput {
   item_type: TreatmentItemType;
   consultation_id?: string | null;
   procedure_id?: string | null;
-  medicine_id?: string | null;
+  // ts-review-201 CRITICAL: BE は *uint64（JSON number）を期待する。他の *_id は今のところ
+  // どの呼び出し元からも書き込まれていない（未使用の潜在バグ）ため型を温存するが、#201 で
+  // 実際に書き込む medicine_id だけは正しい書込型（number）に直す。
+  medicine_id?: number | null;
   inventory_id?: string | null;
   unit_price?: number;
   quantity?: number;

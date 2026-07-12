@@ -8,12 +8,15 @@ interface MedicalRecordTreatmentProps {
   medicalRecordId: string;
   isNewRecord?: boolean;
   ownerDiscountRate?: number;
+  /** #201: 投与量自動計算の species 解決に使う free-text ペット種 */
+  petSpecies?: string | null;
 }
 
 export function MedicalRecordTreatment({
   medicalRecordId,
   isNewRecord = false,
   ownerDiscountRate = 0,
+  petSpecies,
 }: MedicalRecordTreatmentProps) {
   if (isNewRecord) {
     return (
@@ -23,5 +26,11 @@ export function MedicalRecordTreatment({
     );
   }
 
-  return <TreatmentsTab medicalRecordId={medicalRecordId} ownerDiscountRate={ownerDiscountRate} />;
+  return (
+    <TreatmentsTab
+      medicalRecordId={medicalRecordId}
+      ownerDiscountRate={ownerDiscountRate}
+      petSpecies={petSpecies}
+    />
+  );
 }
