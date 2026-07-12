@@ -119,7 +119,7 @@ func (r *manualArticleRepository) Delete(ctx context.Context, category model.Man
 		return apperrors.FromGORM(result.Error, "manual_article", fmt.Sprintf("%s/%s", category, slug))
 	}
 	if result.RowsAffected == 0 {
-		return apperrors.FromGORM(gorm.ErrRecordNotFound, "manual_article", fmt.Sprintf("%s/%s", category, slug))
+		return apperrors.WrapNotFound("manual_article", fmt.Sprintf("%s/%s", category, slug))
 	}
 	return nil
 }

@@ -87,7 +87,7 @@ func (r *reservationTypeOccupationRepository) Delete(
 		return apperrors.FromGORM(result.Error, "reservation_type_occupation", fmt.Sprintf("type=%d occ=%d", reservationTypeID, occupationID))
 	}
 	if result.RowsAffected == 0 {
-		return apperrors.FromGORM(gorm.ErrRecordNotFound, "reservation_type_occupation", fmt.Sprintf("type=%d occ=%d", reservationTypeID, occupationID))
+		return apperrors.WrapNotFound("reservation_type_occupation", fmt.Sprintf("type=%d occ=%d", reservationTypeID, occupationID))
 	}
 	return nil
 }
