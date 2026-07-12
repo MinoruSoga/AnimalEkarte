@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import { handleApiError } from "@/lib/handle-api-error";
+import { queryKeys } from "@/lib/query-keys";
 import { transformExamination, type ExaminationRecord } from "./transforms";
 import type { BackendExamination, CreateExaminationRequest } from "./types";
 
@@ -20,7 +21,7 @@ export const useCreateExamination = () => {
   return useMutation({
     mutationFn: createExamination,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["examinations"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.examinations.all() });
     },
     onError: (error) => handleApiError(error, "検査作成"),
   });

@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
+import { queryKeys } from "@/lib/query-keys";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 import { transformExamResult, type ExamResult } from "./transforms";
 import type { ExamItemsResponse } from "./types";
@@ -11,7 +12,7 @@ const getExaminationItems = async (id: string): Promise<ExamResult[]> => {
 
 export const useGetExaminationItems = (id: string) => {
   return useQuery({
-    queryKey: ["examination-items", id],
+    queryKey: queryKeys.examinations.items(id),
     queryFn: () => getExaminationItems(id),
     enabled: !!id,
     staleTime: QUERY_STALE_TIMES.MEDIUM,
