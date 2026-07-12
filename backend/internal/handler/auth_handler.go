@@ -66,12 +66,6 @@ func (h *Handler) Login(c *gin.Context) {
 		return
 	}
 
-	clinicNameMap := make(map[string]string)
-	for i := range allClinics {
-		cl := &allClinics[i]
-		clinicNameMap[strconv.FormatUint(cl.ID, 10)] = cl.Name
-	}
-
 	// Set context values that extractClinicID expects.
 	// calculateEffectivePermissions calls extractClinicID which reads c.Get("clinic_id").
 	// Without these, extractClinicID writes a 401 "missing clinic context" side-effect
@@ -80,7 +74,7 @@ func (h *Handler) Login(c *gin.Context) {
 	c.Set("clinic_id", mainClinicID)
 	c.Set("user_id", strconv.FormatUint(staff.ID, 10))
 
-	permMap := h.calculateEffectivePermissions(c, account.IsSystemAdmin, staff.ID)
+	meResponse := h.buildMeResponse(c, staff, account, mainClinicID, account.IsSystemAdmin, allClinics)
 
 	// 監査ログ: ログイン成功
 	if len(clinicIDs) > 0 {
@@ -92,8 +86,24 @@ func (h *Handler) Login(c *gin.Context) {
 
 	c.JSON(http.StatusOK, LoginResponse{
 		IsSystemAdmin: account.IsSystemAdmin,
-		User:          toMeResponse(staff, account, mainClinicID, clinicNameMap, allClinics, permMap),
+		User:          meResponse,
 	})
+}
+
+// buildMeResponse は取得済みの staff/account/clinics から /me 応答を組み立てる（E-4）。
+// clinics の取得とその失敗時ポリシーは呼び出し元の責務（Login=nil継続 / GetMe=エラー応答）。
+// mainClinicID は呼び出し元で resolveSystemAdminMainClinicID 済みでも未解決でもよい
+// （本関数内でも呼ぶため冪等 — Login は issueAuthCookies 前に解決済みの値を渡す）。
+func (h *Handler) buildMeResponse(c *gin.Context, staff *model.Staff, account *model.Account,
+	mainClinicID string, isSystemAdmin bool, allClinics []model.Clinic) *MeResponse {
+	clinicNameMap := make(map[string]string, len(allClinics))
+	for i := range allClinics {
+		cl := &allClinics[i]
+		clinicNameMap[strconv.FormatUint(cl.ID, 10)] = cl.Name
+	}
+	mainClinicID = resolveSystemAdminMainClinicID(mainClinicID, isSystemAdmin, allClinics)
+	permMap := h.calculateEffectivePermissions(c, isSystemAdmin, staff.ID)
+	return toMeResponse(staff, account, mainClinicID, clinicNameMap, allClinics, permMap)
 }
 
 // Logout godoc
@@ -308,21 +318,11 @@ func (h *Handler) GetMe(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	clinicNameMap := make(map[string]string, len(allClinics))
-	for i := range allClinics {
-		cl := &allClinics[i]
-		clinicNameMap[strconv.FormatUint(cl.ID, 10)] = cl.Name
-	}
 
-	// 実効権限を計算
 	isSystemAdmin := false
 	if account != nil {
 		isSystemAdmin = account.IsSystemAdmin
 	}
 
-	mainClinicIDStr = resolveSystemAdminMainClinicID(mainClinicIDStr, isSystemAdmin, allClinics)
-
-	permMap := h.calculateEffectivePermissions(c, isSystemAdmin, staff.ID)
-
-	c.JSON(http.StatusOK, toMeResponse(staff, account, mainClinicIDStr, clinicNameMap, allClinics, permMap))
+	c.JSON(http.StatusOK, h.buildMeResponse(c, staff, account, mainClinicIDStr, isSystemAdmin, allClinics))
 }
