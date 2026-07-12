@@ -78,8 +78,10 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"checkup_field_repository.go|checkupFieldResultRepository.ReplaceForCheckup": {},
 	// examination (BE-refactor.md R1-2 tx-internal replace; Create/FindByID/Update added for X-11
 	// finalize-child-write-race — must join the LockByIDForUpdate ambient tx or the FK check on
-	// examinations.medical_record_id deadlocks against the FOR UPDATE row lock)
+	// examinations.medical_record_id deadlocks against the FOR UPDATE row lock; Delete added for
+	// H-8d — same finalize-lock race as Update, now WithTx-wrapped in examinationService.Delete)
 	"examination_repository.go|examinationRepository.Create":               {},
+	"examination_repository.go|examinationRepository.Delete":               {},
 	"examination_repository.go|examinationRepository.FindAllItemsByExamID": {},
 	"examination_repository.go|examinationRepository.FindByID":             {},
 	"examination_repository.go|examinationRepository.ReplaceItemsByExamID": {},

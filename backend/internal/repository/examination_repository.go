@@ -120,8 +120,9 @@ func (r *examinationRepository) Update(ctx context.Context, clinicID, id uint64,
 	return r.FindByID(ctx, clinicID, id)
 }
 
+// Delete は dbOrTx(ctx, r.db) で ambient tx に参加する（Create/Update と同じ理由、BE-refactor.md H-8d）。
 func (r *examinationRepository) Delete(ctx context.Context, clinicID, id uint64) error {
-	result := r.db.WithContext(ctx).
+	result := dbOrTx(ctx, r.db).
 		Scopes(clinicScope(clinicID)).Where("id = ?", id).
 		Delete(&model.Examination{})
 	if result.Error != nil {

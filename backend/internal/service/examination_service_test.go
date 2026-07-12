@@ -731,7 +731,7 @@ func TestExaminationService_Delete(t *testing.T) {
 					return &model.MedicalRecord{Status: status}, nil
 				},
 			}
-			svc := NewExaminationService(repo, medRec, okExamTypeRepo(), nil, nil)
+			svc := NewExaminationService(repo, medRec, okExamTypeRepo(), nil, &mockCheckupTransactor{})
 
 			err := svc.Delete(context.Background(), tt.clinicID, tt.id)
 

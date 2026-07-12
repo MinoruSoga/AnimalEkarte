@@ -422,31 +422,38 @@ func (s *examinationService) Delete(ctx context.Context, clinicID, id uint64) er
 		return apperrors.Wrap(err, "failed to find examination")
 	}
 
-	// HC-003: 親カルテが確定済みの場合は削除拒否
-	if existing.MedicalRecordID != nil {
-		parent, err := s.medRec.FindByID(ctx, clinicID, *existing.MedicalRecordID)
+	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
+		// HC-003 + BE-refactor.md H-8d: 親カルテが確定済みの場合は削除拒否。LockByIDForUpdate の
+		// 行ロックで finalize と直列化し、確定と同時の検査削除が確定済みカルテに混入する競合を防ぐ
+		// （Update :215-227 と対称・nil ガード込み）。
+		if existing.MedicalRecordID != nil {
+			parent, err := s.medRec.LockByIDForUpdate(txCtx, clinicID, *existing.MedicalRecordID)
+			if err != nil {
+				slog.ErrorContext(txCtx, "failed to find medical record", "error", err)
+				return apperrors.Wrap(err, "failed to find medical record")
+			}
+			if parent.Status == model.MedicalRecordStatusFinalized {
+				return apperrors.WrapConflict("確定済みカルテの検査は削除できません")
+			}
+		}
+
+		// FK依存チェック: 検査に紐付く検査明細が存在する場合は削除を拒否
+		itemCount, err := s.repo.CountItemsByExamID(txCtx, clinicID, id)
 		if err != nil {
-			slog.ErrorContext(ctx, "failed to find medical record", "error", err)
-			return apperrors.Wrap(err, "failed to find medical record")
+			slog.ErrorContext(txCtx, "failed to check examination item dependencies", "error", err, "id", id, "clinic_id", clinicID)
+			return apperrors.Wrap(err, "failed to check examination item dependencies")
 		}
-		if parent.Status == model.MedicalRecordStatusFinalized {
-			return apperrors.WrapConflict("確定済みカルテの検査は削除できません")
+		if itemCount > 0 {
+			return apperrors.WrapConflict("検査結果が紐付いているため削除できません。先に検査結果を削除してください")
 		}
-	}
 
-	// FK依存チェック: 検査に紐付く検査明細が存在する場合は削除を拒否
-	itemCount, err := s.repo.CountItemsByExamID(ctx, clinicID, id)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to check examination item dependencies", "error", err, "id", id, "clinic_id", clinicID)
-		return apperrors.Wrap(err, "failed to check examination item dependencies")
-	}
-	if itemCount > 0 {
-		return apperrors.WrapConflict("検査結果が紐付いているため削除できません。先に検査結果を削除してください")
-	}
-
-	if err := s.repo.Delete(ctx, clinicID, id); err != nil {
-		slog.ErrorContext(ctx, "failed to delete examination", "error", err, "id", id, "clinic_id", clinicID)
-		return apperrors.Wrap(err, "failed to delete examination")
+		if err := s.repo.Delete(txCtx, clinicID, id); err != nil {
+			slog.ErrorContext(txCtx, "failed to delete examination", "error", err, "id", id, "clinic_id", clinicID)
+			return apperrors.Wrap(err, "failed to delete examination")
+		}
+		return nil
+	}); err != nil {
+		return err
 	}
 
 	slog.InfoContext(ctx, "examination deleted",

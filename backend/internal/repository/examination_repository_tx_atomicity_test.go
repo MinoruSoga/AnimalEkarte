@@ -22,6 +22,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
@@ -107,4 +108,64 @@ func TestExaminationRepository_ReplaceItemsByExamID_CommitsWithinAmbientTx(t *te
 	require.Len(t, after, 1, "commit 後は新 item が永続化される")
 	assert.Equal(t, "Glucose", after[0].Name)
 	assert.Equal(t, "90", after[0].InspectionValue)
+}
+
+// BE-refactor.md H-8d: examinationRepository.Delete が dbOrTx(ctx, r.db) で ambient tx に参加する
+// ことを実証する（examinationService.Delete が finalize ロック確認・FK チェック・Delete を
+// s.transactor.WithTx で束ねるようになったための追加）。ambient tx 内で削除後に後続処理が失敗すると
+// 削除がロールバックし、対象 exam が DB に残存することを確認する。
+//
+//   - temp-revert RED: examination_repository.go の Delete の dbOrTx(ctx, r.db) を r.db.WithContext(ctx)
+//     に戻すと、削除が独立 tx で即 commit され、ambient tx の rollback では巻き戻らない → 削除後の
+//     exam が消えたままになり RollsBack ケースが RED になる。
+func TestExaminationRepository_Delete_RollsBackWhenAmbientTxFails(t *testing.T) {
+	db := setupExaminationTestDB(t)
+	ctx := context.Background()
+	const clinicA = uint64(1)
+
+	et := makeExamTypeMaster(t, db, clinicA, "血液検査（Delete原子性RB）")
+	exam := makeExaminationRec(t, db, &model.Examination{
+		ClinicID: clinicA, ExamTypeID: et.ID, Date: time.Date(2026, 6, 12, 0, 0, 0, 0, time.UTC),
+	})
+
+	repo := NewExaminationRepository(db)
+
+	tx := NewTransactor(db)
+	sentinel := errors.New("simulated post-delete failure")
+	txErr := tx.WithTx(ctx, func(txCtx context.Context) error {
+		if e := repo.Delete(txCtx, clinicA, exam.ID); e != nil {
+			return e
+		}
+		return sentinel // fail-closed: 削除後の後続失敗 → tx を中断
+	})
+	require.Error(t, txErr, "ambient tx 内の後続失敗で WithTx はエラーを返す")
+
+	// 削除はロールバックされ、exam が残存する。
+	found, e := repo.FindByID(ctx, clinicA, exam.ID)
+	require.NoError(t, e, "後続失敗で削除はロールバックされ exam が残存しなければならない（fail-closed）")
+	assert.Equal(t, exam.ID, found.ID)
+}
+
+// ambient tx 内で削除が成功し commit されると exam が永続化され消える（原子コミット）。
+func TestExaminationRepository_Delete_CommitsWithinAmbientTx(t *testing.T) {
+	db := setupExaminationTestDB(t)
+	ctx := context.Background()
+	const clinicA = uint64(1)
+
+	et := makeExamTypeMaster(t, db, clinicA, "血液検査（Delete原子性CM）")
+	exam := makeExaminationRec(t, db, &model.Examination{
+		ClinicID: clinicA, ExamTypeID: et.ID, Date: time.Date(2026, 6, 13, 0, 0, 0, 0, time.UTC),
+	})
+
+	repo := NewExaminationRepository(db)
+
+	tx := NewTransactor(db)
+	txErr := tx.WithTx(ctx, func(txCtx context.Context) error {
+		return repo.Delete(txCtx, clinicA, exam.ID)
+	})
+	require.NoError(t, txErr)
+
+	_, e := repo.FindByID(ctx, clinicA, exam.ID)
+	require.Error(t, e, "commit 後は exam が削除されている")
+	assert.True(t, apperrors.IsNotFound(e))
 }
