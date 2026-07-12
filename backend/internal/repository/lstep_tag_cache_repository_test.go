@@ -203,34 +203,6 @@ func TestLstepTagCacheRepository_FindByOwners(t *testing.T) {
 	})
 }
 
-func TestLstepTagCacheRepository_CountByTag(t *testing.T) {
-	db := setupLstepTagCacheTestDB(t)
-	repo := NewLstepTagCacheRepository(db)
-	ctx := context.Background()
-
-	require.NoError(t, repo.UpsertTag(ctx, 1, 500, "dormant_365d", "auto", ""))
-	require.NoError(t, repo.UpsertTag(ctx, 1, 501, "dormant_365d", "auto", ""))
-	require.NoError(t, repo.UpsertTag(ctx, 2, 502, "dormant_365d", "auto", ""))
-
-	t.Run("該当クリニックのタグ保有数を返す", func(t *testing.T) {
-		count, err := repo.CountByTag(ctx, 1, "dormant_365d")
-		require.NoError(t, err)
-		assert.Equal(t, int64(2), count)
-	})
-
-	t.Run("別クリニックは独立してカウントされる", func(t *testing.T) {
-		count, err := repo.CountByTag(ctx, 2, "dormant_365d")
-		require.NoError(t, err)
-		assert.Equal(t, int64(1), count)
-	})
-
-	t.Run("該当なしは0を返す", func(t *testing.T) {
-		count, err := repo.CountByTag(ctx, 1, "nonexistent-tag")
-		require.NoError(t, err)
-		assert.Equal(t, int64(0), count)
-	})
-}
-
 func TestLstepTagCacheRepository_TagSummary(t *testing.T) {
 	db := setupLstepTagCacheTestDB(t)
 	repo := NewLstepTagCacheRepository(db)

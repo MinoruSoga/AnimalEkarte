@@ -48,8 +48,6 @@ type LstepTagCacheRepository interface {
 	// FindByOwners は複数飼い主のタグキャッシュ一覧を owner_id 別にまとめて返す（N+1回避のバッチ版）。
 	// ownerIDs が空の場合は空mapを即返す。タグを持たない owner_id はキーとして存在しない。
 	FindByOwners(ctx context.Context, clinicID uint64, ownerIDs []uint64) (map[uint64][]*model.LstepTagCache, error)
-	// CountByTag はクリニック内で指定タグを持つ飼い主数を返す。
-	CountByTag(ctx context.Context, clinicID uint64, tagName string) (int64, error)
 	// TagSummary はクリニック内タグ名・カテゴリ別の飼い主数集計を返す。totalOwnersWithLstep はタグを1つ以上持つ飼い主数。
 	TagSummary(ctx context.Context, clinicID uint64) (rows []TagSummaryRow, totalOwnersWithLstep int64, err error)
 	// FindOwnersByTag は指定タグを持つ飼い主をページネーションで返す。nameQuery が空文字以外のとき飼い主名で部分一致フィルタ。
@@ -142,18 +140,6 @@ func (r *lstepTagCacheRepository) FindByOwners(ctx context.Context, clinicID uin
 		result[rec.OwnerID] = append(result[rec.OwnerID], rec)
 	}
 	return result, nil
-}
-
-func (r *lstepTagCacheRepository) CountByTag(ctx context.Context, clinicID uint64, tagName string) (int64, error) {
-	var count int64
-	err := r.db.WithContext(ctx).Model(&model.LstepTagCache{}).
-		Scopes(clinicScope(clinicID)).
-		Where("tag_name = ?", tagName).
-		Count(&count).Error
-	if err != nil {
-		return 0, apperrors.FromGORM(err, "lstep_tag_cache", fmt.Sprintf("tag=%s", tagName))
-	}
-	return count, nil
 }
 
 func (r *lstepTagCacheRepository) TagSummary(ctx context.Context, clinicID uint64) ([]TagSummaryRow, int64, error) {
