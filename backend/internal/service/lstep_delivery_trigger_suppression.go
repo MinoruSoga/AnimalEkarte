@@ -41,7 +41,6 @@ func (s *lstepDeliveryTriggerService) applySuppression(
 
 	// 既存の中で最高優先度（最小値）を持つログを探す
 	bestPri := int(^uint(0) >> 1) // MaxInt
-	var bestLog *model.LstepDeliveryTriggerLog
 	for i := range active {
 		l := &active[i]
 		p, pErr := s.prioritySvc.GetPriorityFor(ctx, clinicID, l.TriggerType)
@@ -50,7 +49,6 @@ func (s *lstepDeliveryTriggerService) applySuppression(
 		}
 		if p < bestPri {
 			bestPri = p
-			bestLog = l
 		}
 	}
 
@@ -68,7 +66,6 @@ func (s *lstepDeliveryTriggerService) applySuppression(
 				return false, apperrors.Wrap(suppErr, "failed to suppress existing trigger log")
 			}
 		}
-		_ = bestLog // suppress "declared but not used" — bestLog is used only for logging context above
 	}
 	// 同優先度または降格完了 → 現在のトリガーは通常通り発火
 	return false, nil
