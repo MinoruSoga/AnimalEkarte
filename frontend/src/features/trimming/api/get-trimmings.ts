@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 import { HISTORY_FETCH_LIMIT } from "@/config/fetch-limits";
+import { queryKeys } from "@/lib/query-keys";
 import type { TrimmingUI } from "@/types";
 import { transformTrimming } from "./transforms";
 import type { TrimmingListResponse } from "@/types/trimming";
@@ -27,7 +28,7 @@ const getTrimmings = async (filters?: TrimmingFilters): Promise<TrimmingUI[]> =>
 
 export const useGetTrimmings = (filters?: TrimmingFilters) => {
   return useQuery({
-    queryKey: ["trimmings", filters],
+    queryKey: queryKeys.trimmings.list(filters),
     queryFn: () => getTrimmings(filters),
     enabled: filters?.enabled ?? true,
     staleTime: QUERY_STALE_TIMES.MEDIUM,

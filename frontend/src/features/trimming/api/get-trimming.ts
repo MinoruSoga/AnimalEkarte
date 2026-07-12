@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 import { HISTORY_FETCH_LIMIT } from "@/config/fetch-limits";
+import { queryKeys } from "@/lib/query-keys";
 import type { TrimmingUI } from "@/types";
 import { transformTrimming } from "./transforms";
 import type { BackendTrimming, TrimmingListResponse } from "@/types/trimming";
@@ -13,7 +14,7 @@ const getTrimming = async (id: string): Promise<TrimmingUI> => {
 
 export const useGetTrimming = (id: string) => {
   return useQuery({
-    queryKey: ["trimming", id],
+    queryKey: queryKeys.trimmings.detail(id),
     queryFn: () => getTrimming(id),
     enabled: !!id,
     staleTime: QUERY_STALE_TIMES.MEDIUM,
@@ -33,7 +34,7 @@ const getTrimmingsByPetId = async (
 
 export const useGetTrimmingsByPetId = (petId: string) => {
   return useQuery({
-    queryKey: ["trimmings", "pet", petId],
+    queryKey: queryKeys.trimmings.byPet(petId),
     queryFn: () => getTrimmingsByPetId(petId),
     enabled: !!petId,
     staleTime: QUERY_STALE_TIMES.MEDIUM,
