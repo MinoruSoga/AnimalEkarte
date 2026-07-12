@@ -170,13 +170,9 @@ func (s *examinationService) Create(ctx context.Context, clinicID uint64, input 
 		// 行ロックで finalize（medical_record_repository.Update の draft-only WHERE）と直列化し、
 		// 確定と同時の検査追加が確定済みカルテに混入する競合を防ぐ。
 		if input.MedicalRecordID != nil {
-			parent, err := s.medRec.LockByIDForUpdate(txCtx, clinicID, *input.MedicalRecordID)
-			if err != nil {
-				slog.ErrorContext(txCtx, "failed to find medical record", "error", err)
-				return apperrors.Wrap(err, "failed to find medical record")
-			}
-			if parent.Status == model.MedicalRecordStatusFinalized {
-				return apperrors.WrapConflict("確定済みカルテに検査を追加できません")
+			if err := lockDraftMedicalRecord(txCtx, s.medRec, clinicID, *input.MedicalRecordID,
+				"failed to find medical record", "確定済みカルテに検査を追加できません"); err != nil {
+				return err
 			}
 		}
 
@@ -216,13 +212,9 @@ func (s *examinationService) Update(ctx context.Context, clinicID, id uint64, in
 		// HC-003 + BE-refactor.md X-11: 親カルテが確定済みの場合は編集拒否。LockByIDForUpdate の
 		// 行ロックで finalize と直列化し、確定と同時の検査編集が確定済みカルテに混入する競合を防ぐ。
 		if existing.MedicalRecordID != nil {
-			parent, err := s.medRec.LockByIDForUpdate(txCtx, clinicID, *existing.MedicalRecordID)
-			if err != nil {
-				slog.ErrorContext(txCtx, "failed to find medical record", "error", err)
-				return apperrors.Wrap(err, "failed to find medical record")
-			}
-			if parent.Status == model.MedicalRecordStatusFinalized {
-				return apperrors.WrapConflict("確定済みカルテの検査は編集できません")
+			if err := lockDraftMedicalRecord(txCtx, s.medRec, clinicID, *existing.MedicalRecordID,
+				"failed to find medical record", "確定済みカルテの検査は編集できません"); err != nil {
+				return err
 			}
 		}
 
@@ -424,13 +416,9 @@ func (s *examinationService) Delete(ctx context.Context, clinicID, id uint64) er
 		// 行ロックで finalize と直列化し、確定と同時の検査削除が確定済みカルテに混入する競合を防ぐ
 		// （Update :215-227 と対称・nil ガード込み）。
 		if existing.MedicalRecordID != nil {
-			parent, err := s.medRec.LockByIDForUpdate(txCtx, clinicID, *existing.MedicalRecordID)
-			if err != nil {
-				slog.ErrorContext(txCtx, "failed to find medical record", "error", err)
-				return apperrors.Wrap(err, "failed to find medical record")
-			}
-			if parent.Status == model.MedicalRecordStatusFinalized {
-				return apperrors.WrapConflict("確定済みカルテの検査は削除できません")
+			if err := lockDraftMedicalRecord(txCtx, s.medRec, clinicID, *existing.MedicalRecordID,
+				"failed to find medical record", "確定済みカルテの検査は削除できません"); err != nil {
+				return err
 			}
 		}
 

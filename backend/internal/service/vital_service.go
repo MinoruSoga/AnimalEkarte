@@ -123,13 +123,9 @@ func (s *vitalService) Create(ctx context.Context, medicalRecordID uint64, input
 	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
 		// HC-006 + BE-refactor.md X-11: 親カルテが確定済みの場合は作成拒否。LockByIDForUpdate の
 		// 行ロックで finalize と直列化し、確定と同時のバイタル追加が確定済みカルテに混入する競合を防ぐ。
-		parent, err := s.medicalRecordRepo.LockByIDForUpdate(txCtx, input.ClinicID, medicalRecordID)
-		if err != nil {
-			slog.ErrorContext(txCtx, "failed to find medical record", "error", err)
-			return apperrors.Wrap(err, "failed to find medical record")
-		}
-		if parent.Status == model.MedicalRecordStatusFinalized {
-			return apperrors.WrapConflict("確定済みカルテにバイタルを追加できません")
+		if err := lockDraftMedicalRecord(txCtx, s.medicalRecordRepo, input.ClinicID, medicalRecordID,
+			"failed to find medical record", "確定済みカルテにバイタルを追加できません"); err != nil {
+			return err
 		}
 		if err := s.repo.Create(txCtx, vital); err != nil {
 			slog.ErrorContext(txCtx, "failed to create vital record", "error", err)
@@ -173,13 +169,9 @@ func (s *vitalService) Update(ctx context.Context, clinicID, medicalRecordID, vi
 	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
 		// BE-refactor.md X-11: LockByIDForUpdate の行ロックで finalize と直列化し、確定と同時の
 		// バイタル編集が確定済みカルテに混入する競合を防ぐ。
-		parent, err := s.medicalRecordRepo.LockByIDForUpdate(txCtx, clinicID, medicalRecordID)
-		if err != nil {
-			slog.ErrorContext(txCtx, "failed to find medical record", "error", err)
-			return apperrors.Wrap(err, "failed to find medical record")
-		}
-		if parent.Status == model.MedicalRecordStatusFinalized {
-			return apperrors.WrapConflict("確定済みカルテのバイタルは編集できません")
+		if err := lockDraftMedicalRecord(txCtx, s.medicalRecordRepo, clinicID, medicalRecordID,
+			"failed to find medical record", "確定済みカルテのバイタルは編集できません"); err != nil {
+			return err
 		}
 
 		fields := buildVitalUpdate(input)
@@ -231,13 +223,9 @@ func (s *vitalService) Delete(ctx context.Context, clinicID, medicalRecordID, vi
 	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
 		// BE-refactor.md X-11: LockByIDForUpdate の行ロックで finalize と直列化し、確定と同時の
 		// バイタル削除が確定済みカルテに混入する競合を防ぐ。
-		parent, err := s.medicalRecordRepo.LockByIDForUpdate(txCtx, clinicID, medicalRecordID)
-		if err != nil {
-			slog.ErrorContext(txCtx, "failed to find medical record", "error", err)
-			return apperrors.Wrap(err, "failed to find medical record")
-		}
-		if parent.Status == model.MedicalRecordStatusFinalized {
-			return apperrors.WrapConflict("確定済みカルテのバイタルは削除できません")
+		if err := lockDraftMedicalRecord(txCtx, s.medicalRecordRepo, clinicID, medicalRecordID,
+			"failed to find medical record", "確定済みカルテのバイタルは削除できません"); err != nil {
+			return err
 		}
 		if err := s.repo.Delete(txCtx, clinicID, vitalID); err != nil {
 			slog.ErrorContext(txCtx, "failed to delete vital record", "error", err, "clinic_id", clinicID, "vital_id", vitalID)

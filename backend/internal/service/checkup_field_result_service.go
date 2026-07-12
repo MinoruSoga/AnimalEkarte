@@ -198,13 +198,9 @@ func (s *checkupFieldResultService) ReplaceForCheckup(ctx context.Context, clini
 		// 親カルテ確定済みなら編集拒否（checkup Create/Update と対称）。BE-refactor.md X-11:
 		// LockByIDForUpdate の行ロックで finalize と直列化し、確定と同時の健診結果編集が確定済みカルテに
 		// 混入する競合を防ぐ。
-		parent, err := s.medicalRecordRepo.LockByIDForUpdate(txCtx, clinicID, medicalRecordID)
-		if err != nil {
-			slog.ErrorContext(txCtx, "failed to find medical record", "error", err)
-			return apperrors.Wrap(err, "failed to find medical record")
-		}
-		if parent.Status == model.MedicalRecordStatusFinalized {
-			return apperrors.WrapConflict("確定済みカルテのため健診結果は編集できません")
+		if err := lockDraftMedicalRecord(txCtx, s.medicalRecordRepo, clinicID, medicalRecordID,
+			"failed to find medical record", "確定済みカルテのため健診結果は編集できません"); err != nil {
+			return err
 		}
 
 		existing, err := s.resultRepo.FindByCheckupID(txCtx, clinicID, checkupID)

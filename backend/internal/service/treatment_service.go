@@ -230,15 +230,10 @@ func (s *treatmentService) Create(ctx context.Context, clinicID, medicalRecordID
 	err := s.repos.Transaction(ctx, func(txRepos *repository.Repositories) error {
 		// テナント所有権 + 確定ロック検証（Update/Delete と対称化・healthcare review CRITICAL）。
 		// treatments は自前 clinic_id を持たず medical_records 経由で隔離するため、所有権を Create でも明示検証する。
-		// BE-refactor.md X-11: LockByIDForUpdate の行ロックで finalize（medical_record_repository.Update の
-		// draft-only WHERE）と直列化し、確定と同時の治療追加が確定済みカルテに混入する競合を防ぐ。
-		parent, err := txRepos.MedicalRecord.LockByIDForUpdate(ctx, clinicID, medicalRecordID)
-		if err != nil {
-			slog.ErrorContext(ctx, "failed to verify medical record ownership", "error", err)
-			return apperrors.Wrap(err, "failed to verify medical record ownership")
-		}
-		if parent.Status == model.MedicalRecordStatusFinalized {
-			return apperrors.WrapConflict("確定済みカルテには治療を追加できません")
+		// BE-refactor.md X-11/E-5: lockDraftMedicalRecord に行ロック+finalizedガードを集約。
+		if err := lockDraftMedicalRecord(ctx, txRepos.MedicalRecord, clinicID, medicalRecordID,
+			"failed to verify medical record ownership", "確定済みカルテには治療を追加できません"); err != nil {
+			return err
 		}
 
 		treatment = &model.Treatment{
@@ -371,16 +366,12 @@ func (s *treatmentService) Update(ctx context.Context, clinicID, medicalRecordID
 	var doseMedicineID uint64
 	if txErr := s.repos.Transaction(ctx, func(txRepos *repository.Repositories) error {
 		// テナント所有権 + 確定ロック検証（Create と対称化・BE-refactor.md H-8a）。
-		// :331-338 の事前チェックは fast-fail として維持しつつ、tx 内でも LockByIDForUpdate
+		// :331-338 の事前チェックは fast-fail として維持しつつ、tx 内でも lockDraftMedicalRecord
 		// の行ロックで finalize と直列化し、チェック通過後〜Update 実行前に finalize が
-		// 割り込むレースを防ぐ。
-		parent, err := txRepos.MedicalRecord.LockByIDForUpdate(ctx, clinicID, medicalRecordID)
-		if err != nil {
-			slog.ErrorContext(ctx, "failed to verify medical record ownership", "error", err)
-			return apperrors.Wrap(err, "failed to verify medical record ownership")
-		}
-		if parent.Status == model.MedicalRecordStatusFinalized {
-			return apperrors.WrapConflict("確定済みカルテの治療は編集できません")
+		// 割り込むレースを防ぐ（BE-refactor.md E-5）。
+		if err := lockDraftMedicalRecord(ctx, txRepos.MedicalRecord, clinicID, medicalRecordID,
+			"failed to verify medical record ownership", "確定済みカルテの治療は編集できません"); err != nil {
+			return err
 		}
 
 		if doseRelevant {
@@ -448,13 +439,9 @@ func (s *treatmentService) Delete(ctx context.Context, clinicID, medicalRecordID
 	// finalized チェックと Delete を同一 tx に束ね、閉包先頭の LockByIDForUpdate の行ロックで
 	// finalize（medical_record_repository.Update の draft-only WHERE）と直列化する。
 	if err := s.repos.Transaction(ctx, func(txRepos *repository.Repositories) error {
-		parent, err := txRepos.MedicalRecord.LockByIDForUpdate(ctx, clinicID, medicalRecordID)
-		if err != nil {
-			slog.ErrorContext(ctx, "failed to verify medical record ownership", "error", err)
-			return apperrors.Wrap(err, "failed to verify medical record ownership")
-		}
-		if parent.Status == model.MedicalRecordStatusFinalized {
-			return apperrors.WrapConflict("確定済みカルテの治療は削除できません")
+		if err := lockDraftMedicalRecord(ctx, txRepos.MedicalRecord, clinicID, medicalRecordID,
+			"failed to verify medical record ownership", "確定済みカルテの治療は削除できません"); err != nil {
+			return err
 		}
 
 		if err := txRepos.Treatment.Delete(ctx, clinicID, treatmentID); err != nil {
@@ -488,13 +475,9 @@ func (s *treatmentService) BulkUpdateSortOrder(ctx context.Context, clinicID, me
 	// テナント所有権確認（LockByIDForUpdate）と finalized チェックを同一 tx に束ね、
 	// 行ロックで finalize（medical_record_repository.Update の draft-only WHERE）と直列化する。
 	if err := s.repos.Transaction(ctx, func(txRepos *repository.Repositories) error {
-		parent, err := txRepos.MedicalRecord.LockByIDForUpdate(ctx, clinicID, medicalRecordID)
-		if err != nil {
-			slog.ErrorContext(ctx, "failed to verify medical record ownership", "error", err)
-			return apperrors.Wrap(err, "failed to verify medical record ownership")
-		}
-		if parent.Status == model.MedicalRecordStatusFinalized {
-			return apperrors.WrapConflict("確定済みカルテの治療は編集できません")
+		if err := lockDraftMedicalRecord(ctx, txRepos.MedicalRecord, clinicID, medicalRecordID,
+			"failed to verify medical record ownership", "確定済みカルテの治療は編集できません"); err != nil {
+			return err
 		}
 
 		if err := txRepos.Treatment.BulkUpdateSortOrder(ctx, updates); err != nil {

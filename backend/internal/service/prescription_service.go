@@ -131,13 +131,9 @@ func (s *prescriptionService) Update(ctx context.Context, clinicID, medicalRecor
 		// Prevent updating prescriptions for finalized medical records.
 		// BE-refactor.md X-11: LockByIDForUpdate の行ロックで finalize と直列化し、確定と同時の
 		// 処方編集が確定済みカルテに混入する競合を防ぐ。
-		mr, err := s.medRecordRepo.LockByIDForUpdate(txCtx, clinicID, medicalRecordID)
-		if err != nil {
-			slog.ErrorContext(txCtx, "failed to get medical record", "error", err)
-			return apperrors.Wrap(err, "failed to get medical record")
-		}
-		if mr != nil && mr.Status == model.MedicalRecordStatusFinalized {
-			return apperrors.WrapConflict("確定済みの診療記録の処方は編集できません")
+		if err := lockDraftMedicalRecord(txCtx, s.medRecordRepo, clinicID, medicalRecordID,
+			"failed to get medical record", "確定済みの診療記録の処方は編集できません"); err != nil {
+			return err
 		}
 		fields := buildPrescriptionUpdate(input)
 		if len(fields) == 0 {
@@ -177,13 +173,9 @@ func (s *prescriptionService) Delete(ctx context.Context, clinicID, medicalRecor
 		// Prevent deleting prescriptions for finalized medical records.
 		// BE-refactor.md H-8e: LockByIDForUpdate の行ロックで finalize と直列化し、確定と同時の
 		// 処方削除が確定済みカルテに混入する競合を防ぐ（Update と対称）。
-		mr, err := s.medRecordRepo.LockByIDForUpdate(txCtx, clinicID, medicalRecordID)
-		if err != nil {
-			slog.ErrorContext(txCtx, "failed to get medical record", "error", err)
-			return apperrors.Wrap(err, "failed to get medical record")
-		}
-		if mr != nil && mr.Status == model.MedicalRecordStatusFinalized {
-			return apperrors.WrapConflict("確定済みの診療記録の処方は削除できません")
+		if err := lockDraftMedicalRecord(txCtx, s.medRecordRepo, clinicID, medicalRecordID,
+			"failed to get medical record", "確定済みの診療記録の処方は削除できません"); err != nil {
+			return err
 		}
 		if err := s.repo.Delete(txCtx, clinicID, prescriptionID); err != nil {
 			slog.ErrorContext(txCtx, "failed to delete prescription", "error", err, "clinic_id", clinicID, "prescription_id", prescriptionID)
