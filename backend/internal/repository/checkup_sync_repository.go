@@ -81,63 +81,11 @@ func (r *checkupSyncRepository) FindCheckupSyncPreview(ctx context.Context, para
 	var args []any
 	args = append(args, model.BillingStatusCompleted, model.BillingStatusCompleted)
 
-	where := "o.clinic_id = ? AND o.deleted_at IS NULL"
-	args = append(args, params.ClinicID)
+	where, whereArgs := buildCheckupSyncWhere(params)
+	args = append(args, whereArgs...)
 
-	if params.Species != "" {
-		// ISSUE-005: 種別判定は生存ペットに限定する（死亡ペットの種別だけで対象化しない）。
-		where += " AND EXISTS (SELECT 1 FROM pets p2 JOIN animal_species sp ON sp.id = p2.animal_species_id WHERE p2.owner_id = o.id AND p2.clinic_id = o.clinic_id AND p2.deleted_at IS NULL AND p2.deceased_at IS NULL AND LOWER(sp.name) = LOWER(?))"
-		args = append(args, params.Species)
-	}
-
-	// ISSUE-009: 慢性疾患フィルタは飼い主単位の EXISTS で WHERE 評価する。
-	if params.HasChronicCondition != nil {
-		if *params.HasChronicCondition {
-			where += " AND EXISTS (SELECT 1 FROM pet_chronic_conditions pcc INNER JOIN pets pp ON pp.id = pcc.pet_id AND pp.deleted_at IS NULL AND pp.deceased_at IS NULL WHERE pp.owner_id = o.id AND pp.clinic_id = o.clinic_id AND pcc.is_active = TRUE AND pcc.deleted_at IS NULL)"
-		} else {
-			where += " AND NOT EXISTS (SELECT 1 FROM pet_chronic_conditions pcc INNER JOIN pets pp ON pp.id = pcc.pet_id AND pp.deleted_at IS NULL AND pp.deceased_at IS NULL WHERE pp.owner_id = o.id AND pp.clinic_id = o.clinic_id AND pcc.is_active = TRUE AND pcc.deleted_at IS NULL)"
-		}
-	}
-
-	var having []string
-	if params.LastVisitBefore != nil {
-		having = append(having, "MAX(mr.date) <= ?")
-		args = append(args, params.LastVisitBefore.Format(time.DateOnly))
-	}
-	if params.LastVisitAfter != nil {
-		having = append(having, "MAX(mr.date) >= ?")
-		args = append(args, params.LastVisitAfter.Format(time.DateOnly))
-	}
-
-	// ISSUE-009: 年齢フィルタ — 生存ペットの年齢レンジで包含判定（誰か1匹でもレンジに該当すれば対象）。
-	// COALESCE で「生存ペット無し / 誕生日未登録」owner も評価できるようにする（マッチしないようなセンチネル値を使う）。
-	if params.MinAgeYears != nil {
-		having = append(having, "COALESCE(MAX(EXTRACT(YEAR FROM AGE(NOW(), p.birth_date))::int) FILTER (WHERE p.deceased_at IS NULL AND p.birth_date IS NOT NULL), -1) >= ?")
-		args = append(args, *params.MinAgeYears)
-	}
-	if params.MaxAgeYears != nil {
-		having = append(having, "COALESCE(MIN(EXTRACT(YEAR FROM AGE(NOW(), p.birth_date))::int) FILTER (WHERE p.deceased_at IS NULL AND p.birth_date IS NOT NULL), 9999) <= ?")
-		args = append(args, *params.MaxAgeYears)
-	}
-	// ISSUE-009: 年間来院回数フィルタ（過去365日の distinct visit 数）。
-	if params.MinAnnualVisitCount != nil {
-		having = append(having, "COUNT(DISTINCT CASE WHEN mr.date >= NOW() - INTERVAL '365 days' THEN mr.date END) >= ?")
-		args = append(args, *params.MinAnnualVisitCount)
-	}
-	// ISSUE-009: 累計診療費フィルタ — billings 集計はスカラー副問い合わせで取得（pets cartesian の影響を回避）。
-	if params.MinTotalAmount != nil {
-		having = append(having, "COALESCE((SELECT SUM(bf.total_amount) FROM billings bf WHERE bf.clinic_id = o.clinic_id AND bf.owner_id = o.id AND bf.status = ? AND bf.deleted_at IS NULL), 0) >= ?")
-		args = append(args, model.BillingStatusCompleted, *params.MinTotalAmount)
-	}
-	// ISSUE-009: 最終健診実施日フィルタ。checkups は medical_records 経由で owner と紐づける。
-	if params.LastCheckupBefore != nil {
-		having = append(having, "(SELECT MAX(cf.date) FROM checkups cf INNER JOIN medical_records mrf ON mrf.id = cf.medical_record_id AND mrf.deleted_at IS NULL WHERE cf.clinic_id = o.clinic_id AND cf.deleted_at IS NULL AND mrf.owner_id = o.id) <= ?")
-		args = append(args, params.LastCheckupBefore.Format(time.DateOnly))
-	}
-	if params.LastCheckupAfter != nil {
-		having = append(having, "(SELECT MAX(cf.date) FROM checkups cf INNER JOIN medical_records mrf ON mrf.id = cf.medical_record_id AND mrf.deleted_at IS NULL WHERE cf.clinic_id = o.clinic_id AND cf.deleted_at IS NULL AND mrf.owner_id = o.id) >= ?")
-		args = append(args, params.LastCheckupAfter.Format(time.DateOnly))
-	}
+	having, havingArgs := buildCheckupSyncHaving(params)
+	args = append(args, havingArgs...)
 
 	havingClause := ""
 	if len(having) > 0 {
@@ -199,4 +147,73 @@ ORDER BY MAX(mr.date) DESC NULLS LAST
 		return nil, apperrors.FromGORM(err, "checkup_sync_preview", "")
 	}
 	return rows, nil
+}
+
+// buildCheckupSyncWhere は WHERE 句の条件文字列とバインド引数を構築する
+// （BE-refactor.md E-13: FindCheckupSyncPreview の位置引数結合を隔離する純粋抽出）。
+func buildCheckupSyncWhere(params *FindCheckupSyncPreviewParams) (string, []any) {
+	where := "o.clinic_id = ? AND o.deleted_at IS NULL"
+	var args []any
+	args = append(args, params.ClinicID)
+
+	if params.Species != "" {
+		// ISSUE-005: 種別判定は生存ペットに限定する（死亡ペットの種別だけで対象化しない）。
+		where += " AND EXISTS (SELECT 1 FROM pets p2 JOIN animal_species sp ON sp.id = p2.animal_species_id WHERE p2.owner_id = o.id AND p2.clinic_id = o.clinic_id AND p2.deleted_at IS NULL AND p2.deceased_at IS NULL AND LOWER(sp.name) = LOWER(?))"
+		args = append(args, params.Species)
+	}
+
+	// ISSUE-009: 慢性疾患フィルタは飼い主単位の EXISTS で WHERE 評価する。
+	if params.HasChronicCondition != nil {
+		if *params.HasChronicCondition {
+			where += " AND EXISTS (SELECT 1 FROM pet_chronic_conditions pcc INNER JOIN pets pp ON pp.id = pcc.pet_id AND pp.deleted_at IS NULL AND pp.deceased_at IS NULL WHERE pp.owner_id = o.id AND pp.clinic_id = o.clinic_id AND pcc.is_active = TRUE AND pcc.deleted_at IS NULL)"
+		} else {
+			where += " AND NOT EXISTS (SELECT 1 FROM pet_chronic_conditions pcc INNER JOIN pets pp ON pp.id = pcc.pet_id AND pp.deleted_at IS NULL AND pp.deceased_at IS NULL WHERE pp.owner_id = o.id AND pp.clinic_id = o.clinic_id AND pcc.is_active = TRUE AND pcc.deleted_at IS NULL)"
+		}
+	}
+	return where, args
+}
+
+// buildCheckupSyncHaving は HAVING 句の条件断片とバインド引数を構築する（BE-refactor.md E-13）。
+func buildCheckupSyncHaving(params *FindCheckupSyncPreviewParams) ([]string, []any) {
+	var having []string
+	var args []any
+	if params.LastVisitBefore != nil {
+		having = append(having, "MAX(mr.date) <= ?")
+		args = append(args, params.LastVisitBefore.Format(time.DateOnly))
+	}
+	if params.LastVisitAfter != nil {
+		having = append(having, "MAX(mr.date) >= ?")
+		args = append(args, params.LastVisitAfter.Format(time.DateOnly))
+	}
+
+	// ISSUE-009: 年齢フィルタ — 生存ペットの年齢レンジで包含判定（誰か1匹でもレンジに該当すれば対象）。
+	// COALESCE で「生存ペット無し / 誕生日未登録」owner も評価できるようにする（マッチしないようなセンチネル値を使う）。
+	if params.MinAgeYears != nil {
+		having = append(having, "COALESCE(MAX(EXTRACT(YEAR FROM AGE(NOW(), p.birth_date))::int) FILTER (WHERE p.deceased_at IS NULL AND p.birth_date IS NOT NULL), -1) >= ?")
+		args = append(args, *params.MinAgeYears)
+	}
+	if params.MaxAgeYears != nil {
+		having = append(having, "COALESCE(MIN(EXTRACT(YEAR FROM AGE(NOW(), p.birth_date))::int) FILTER (WHERE p.deceased_at IS NULL AND p.birth_date IS NOT NULL), 9999) <= ?")
+		args = append(args, *params.MaxAgeYears)
+	}
+	// ISSUE-009: 年間来院回数フィルタ（過去365日の distinct visit 数）。
+	if params.MinAnnualVisitCount != nil {
+		having = append(having, "COUNT(DISTINCT CASE WHEN mr.date >= NOW() - INTERVAL '365 days' THEN mr.date END) >= ?")
+		args = append(args, *params.MinAnnualVisitCount)
+	}
+	// ISSUE-009: 累計診療費フィルタ — billings 集計はスカラー副問い合わせで取得（pets cartesian の影響を回避）。
+	if params.MinTotalAmount != nil {
+		having = append(having, "COALESCE((SELECT SUM(bf.total_amount) FROM billings bf WHERE bf.clinic_id = o.clinic_id AND bf.owner_id = o.id AND bf.status = ? AND bf.deleted_at IS NULL), 0) >= ?")
+		args = append(args, model.BillingStatusCompleted, *params.MinTotalAmount)
+	}
+	// ISSUE-009: 最終健診実施日フィルタ。checkups は medical_records 経由で owner と紐づける。
+	if params.LastCheckupBefore != nil {
+		having = append(having, "(SELECT MAX(cf.date) FROM checkups cf INNER JOIN medical_records mrf ON mrf.id = cf.medical_record_id AND mrf.deleted_at IS NULL WHERE cf.clinic_id = o.clinic_id AND cf.deleted_at IS NULL AND mrf.owner_id = o.id) <= ?")
+		args = append(args, params.LastCheckupBefore.Format(time.DateOnly))
+	}
+	if params.LastCheckupAfter != nil {
+		having = append(having, "(SELECT MAX(cf.date) FROM checkups cf INNER JOIN medical_records mrf ON mrf.id = cf.medical_record_id AND mrf.deleted_at IS NULL WHERE cf.clinic_id = o.clinic_id AND cf.deleted_at IS NULL AND mrf.owner_id = o.id) >= ?")
+		args = append(args, params.LastCheckupAfter.Format(time.DateOnly))
+	}
+	return having, args
 }
