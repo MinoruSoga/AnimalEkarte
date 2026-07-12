@@ -353,6 +353,21 @@ export const TreatmentRow = memo(function TreatmentRow({
             推奨{dosePreview.quantity}（{dosePreview.rawMg.toFixed(1)}→{dosePreview.effectiveDoseMg.toFixed(1)}mg）
           </div>
         ) : null}
+        {/* FE-refactor 残件1: 保存済み投与量スナップショットの read-only 表示（監査目的・上の推奨値とは独立）。
+            保存値が無い行（medicine 以外・per_weight 計算対象外）は非表示。乖離警告は未実装（要件未確定）。 */}
+        {treatment.dose_amount_mg != null ? (
+          <div
+            className={`text-xs ${C.text40} text-right mt-0.5`}
+            title={
+              treatment.dose_weight_source
+                ? `体重出典: ${treatment.dose_weight_source}`
+                : undefined
+            }
+          >
+            保存時{treatment.dose_amount_mg}{treatment.dose_amount_unit ?? "mg"}
+            {treatment.dose_weight_kg != null ? `（体重${treatment.dose_weight_kg}kg）` : ""}
+          </div>
+        ) : null}
       </td>
 
       {/* 値引き */}

@@ -47,7 +47,7 @@ export interface Treatment {
   dose_weight_source?: string | null;
   dose_amount_mg?: number | null;
   dose_amount_unit?: string | null;
-  dose_param_snapshot?: string | null;
+  dose_param_snapshot?: Record<string, unknown> | null;
   created_at: string;
   updated_at: string;
 }
