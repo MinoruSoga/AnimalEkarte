@@ -272,7 +272,7 @@ func TestPasswordResetService_SendResetEmail(t *testing.T) {
 	t.Run("returns nil immediately when SMTP host is not configured", func(t *testing.T) {
 		svc := &passwordResetService{cfg: &PasswordResetConfig{}}
 
-		err := svc.sendResetEmail("owner@example.com", "https://example.com/reset-password?token=abc")
+		err := svc.sendResetEmail(context.Background(), "owner@example.com", "https://example.com/reset-password?token=abc")
 
 		assert.NoError(t, err)
 	})
@@ -294,8 +294,48 @@ func TestPasswordResetService_SendResetEmail(t *testing.T) {
 			SMTPFrom: "noreply@example.com",
 		}}
 
-		sendErr := svc.sendResetEmail("owner@example.com", "https://example.com/reset-password?token=abc")
+		sendErr := svc.sendResetEmail(context.Background(), "owner@example.com", "https://example.com/reset-password?token=abc")
 
 		assert.Error(t, sendErr)
+	})
+
+	t.Run("returns error within ctx deadline when SMTP server accepts but never responds", func(t *testing.T) {
+		ln, err := net.Listen("tcp", "127.0.0.1:0")
+		require.NoError(t, err)
+		defer ln.Close()
+
+		accepted := make(chan struct{})
+		go func() {
+			conn, acceptErr := ln.Accept()
+			if acceptErr != nil {
+				return
+			}
+			defer conn.Close()
+			close(accepted)
+			// 応答を返さず接続だけ保持する（deadline が効いていなければ
+			// 呼び出し元は OS の TCP タイムアウトまで無期限にブロックする）。
+			time.Sleep(5 * time.Second)
+		}()
+
+		host, port, splitErr := net.SplitHostPort(ln.Addr().String())
+		require.NoError(t, splitErr)
+
+		svc := &passwordResetService{cfg: &PasswordResetConfig{
+			SMTPHost: host,
+			SMTPPort: port,
+			SMTPFrom: "noreply@example.com",
+		}}
+
+		ctx, cancel := context.WithTimeout(context.Background(), 300*time.Millisecond)
+		defer cancel()
+
+		start := time.Now()
+		sendErr := svc.sendResetEmail(ctx, "owner@example.com", "https://example.com/reset-password?token=abc")
+		elapsed := time.Since(start)
+
+		<-accepted // サーバ側が実際に接続を受け付けたことを確認（フレーク防止）
+		assert.Error(t, sendErr)
+		assert.Less(t, elapsed, 3*time.Second,
+			"deadline が smtp 送信に伝播していれば OS の TCP タイムアウトを待たずに復帰するはず")
 	})
 }

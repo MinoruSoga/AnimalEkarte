@@ -4,9 +4,11 @@ import (
 	"context"
 	"crypto/rand"
 	"crypto/sha256"
+	"crypto/tls"
 	"encoding/hex"
 	"fmt"
 	"log/slog"
+	"net"
 	"net/smtp"
 	"time"
 
@@ -98,10 +100,10 @@ func (s *passwordResetService) ForgotPassword(ctx context.Context, email string)
 	// メール送信は非同期（fire-and-forget）。リクエスト ctx はすでにキャンセル済みの
 	// 可能性があるため context.Background() + 独立タイムアウトを使用する。
 	resetURL := fmt.Sprintf("%s/reset-password?token=%s", s.cfg.FrontendURL, rawToken)
-	go func() { //nolint:gosec,contextcheck // fire-and-forget: request ctx キャンセル後も送信継続が必要なため context.Background を使用
+	go func() { //nolint:gosec // fire-and-forget: request ctx キャンセル後も送信継続が必要なため context.Background を使用
 		bgCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second) //nolint:gosec // 上記と同理由
 		defer cancel()
-		if sendErr := s.sendResetEmail(email, resetURL); sendErr != nil {
+		if sendErr := s.sendResetEmail(bgCtx, email, resetURL); sendErr != nil {
 			slog.ErrorContext(bgCtx, "failed to send password reset email",
 				slog.String("email", email),
 				slog.String("error", sendErr.Error()))
@@ -175,7 +177,7 @@ func hashToken(rawToken string) string {
 	return hex.EncodeToString(h[:])
 }
 
-func (s *passwordResetService) sendResetEmail(to, resetURL string) error {
+func (s *passwordResetService) sendResetEmail(ctx context.Context, to, resetURL string) error {
 	if s.cfg.SMTPHost == "" {
 		return nil
 	}
@@ -203,7 +205,58 @@ func (s *passwordResetService) sendResetEmail(to, resetURL string) error {
 		auth = smtp.PlainAuth("", s.cfg.SMTPUser, s.cfg.SMTPPass, s.cfg.SMTPHost)
 	}
 
-	if err := smtp.SendMail(addr, auth, from, []string{to}, msg); err != nil {
+	// smtp.SendMail は ctx を受け付けないため deadline が SMTP サーバ無応答時に
+	// 伝播しない（backend/CLAUDE.md X-18）。DialContext + conn.SetDeadline で
+	// net/smtp.SendMail 相当の手順を ctx 対応に手動展開する。
+	conn, err := (&net.Dialer{}).DialContext(ctx, "tcp", addr)
+	if err != nil {
+		return fmt.Errorf("smtp send: %w", err)
+	}
+	defer conn.Close()
+
+	if deadline, ok := ctx.Deadline(); ok {
+		if err := conn.SetDeadline(deadline); err != nil {
+			return fmt.Errorf("smtp send: %w", err)
+		}
+	}
+
+	c, err := smtp.NewClient(conn, s.cfg.SMTPHost)
+	if err != nil {
+		return fmt.Errorf("smtp send: %w", err)
+	}
+	defer c.Close()
+
+	if ok, _ := c.Extension("STARTTLS"); ok {
+		if err := c.StartTLS(&tls.Config{ServerName: s.cfg.SMTPHost}); err != nil {
+			return fmt.Errorf("smtp send: %w", err)
+		}
+	}
+
+	if auth != nil {
+		if err := c.Auth(auth); err != nil {
+			return fmt.Errorf("smtp send: %w", err)
+		}
+	}
+
+	if err := c.Mail(from); err != nil {
+		return fmt.Errorf("smtp send: %w", err)
+	}
+	if err := c.Rcpt(to); err != nil {
+		return fmt.Errorf("smtp send: %w", err)
+	}
+
+	w, err := c.Data()
+	if err != nil {
+		return fmt.Errorf("smtp send: %w", err)
+	}
+	if _, err := w.Write(msg); err != nil {
+		return fmt.Errorf("smtp send: %w", err)
+	}
+	if err := w.Close(); err != nil {
+		return fmt.Errorf("smtp send: %w", err)
+	}
+
+	if err := c.Quit(); err != nil {
 		return fmt.Errorf("smtp send: %w", err)
 	}
 	return nil
