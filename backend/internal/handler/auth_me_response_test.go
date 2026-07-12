@@ -129,6 +129,20 @@ func TestToMeResponse_EffectivePermsPassthrough(t *testing.T) {
 	assert.Equal(t, perms, resp.Permissions)
 }
 
+// TestToMeResponse_NilAccountDoesNotPanic は account が nil（staff に紐付く
+// account 未作成）の場合でも panic せず、Email が空文字になることを検証する。
+func TestToMeResponse_NilAccountDoesNotPanic(t *testing.T) {
+	staff := &model.Staff{ID: 37, Name: "スタッフ"}
+	allClinics := []model.Clinic{{ID: 1, Name: "クリニックA"}}
+
+	require.NotPanics(t, func() {
+		resp := toMeResponse(staff, nil, "1", nil, allClinics, nil)
+
+		require.NotNil(t, resp)
+		assert.Equal(t, "", resp.Email)
+	})
+}
+
 // ---- buildAllPermissions ----
 
 // TestBuildAllPermissions は全リソースに対して全CRUD trueのマップが返ることを検証する。

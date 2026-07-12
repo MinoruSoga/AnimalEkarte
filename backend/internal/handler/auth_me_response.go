@@ -91,9 +91,14 @@ func toMeResponse(staff *model.Staff, account *model.Account, mainClinicID strin
 		staffID = staff.ID
 	}
 
+	email := ""
+	if account != nil {
+		email = account.Email
+	}
+
 	return &MeResponse{
 		ID:            strconv.FormatUint(staffID, 10),
-		Email:         account.Email,
+		Email:         email,
 		DisplayName:   staff.Name,
 		IsSystemAdmin: isSystemAdmin,
 		Occupation:    occupation,
