@@ -55,7 +55,7 @@ func (s *liffService) GetAvailableDates(ctx context.Context, clinicID, typeID, s
 	slotSettingsFn := func(date time.Time) TimeSlotsInput {
 		// 一覧表示パスは既存挙動を維持し break_hours 破損時のエラーを無視する（意図的・スコープ外。
 		// parseBusinessHoursForDate のコメント参照。書込パスの fail-closed 化のみ D10/F-2 対象）。
-		bh, defaultBreaks, _ := parseBusinessHoursForDate(setting, date)
+		bh, defaultBreaks, _ := parseBusinessHoursForDate(ctx, setting, date)
 		return TimeSlotsInput{
 			BusinessHours:     bh,
 			DefaultBreaks:     defaultBreaks,
@@ -225,7 +225,7 @@ func (s *liffService) GetAvailableTimes(ctx context.Context, clinicID, typeID, s
 
 	// 一覧表示パスは既存挙動を維持し break_hours 破損時のエラーを無視する（意図的・スコープ外。
 	// parseBusinessHoursForDate のコメント参照。書込パスの fail-closed 化のみ D10/F-2 対象）。
-	bh, defaultBreaks, _ := parseBusinessHoursForDate(setting, date)
+	bh, defaultBreaks, _ := parseBusinessHoursForDate(ctx, setting, date)
 	input := &TimeSlotsInput{
 		BusinessHours:     bh,
 		DefaultBreaks:     defaultBreaks,

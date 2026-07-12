@@ -1,7 +1,9 @@
 package service
 
 import (
+	"context"
 	"encoding/json"
+	"log/slog"
 	"strconv"
 	"time"
 
@@ -22,7 +24,7 @@ import (
 //     休憩時間帯の予約が誤って確定しうる（従来は breaks=nil にフォールバックし検証がスキップされていた）。
 //   - 空き時間一覧表示パス（liff_service_availability.go）: エラーを無視し breaks=nil で継続する
 //     既存挙動を維持する（意図的・スコープ外。表示系の劣化は LIFF-1/LIFF-2 で別途観測性を確保済み）。
-func parseBusinessHoursForDate(setting *model.LineReservationSetting, date time.Time) (BusinessHours, []BreakPeriod, error) {
+func parseBusinessHoursForDate(ctx context.Context, setting *model.LineReservationSetting, date time.Time) (BusinessHours, []BreakPeriod, error) {
 	var bh BusinessHours
 	if err := json.Unmarshal(setting.BusinessHours, &bh); err != nil {
 		bh = BusinessHours{Start: "0900", End: "1900"}
@@ -42,6 +44,10 @@ func parseBusinessHoursForDate(setting *model.LineReservationSetting, date time.
 			if wdBH, ok := byWeekday[key]; ok {
 				bh = wdBH
 			}
+		} else {
+			// A-3: fail-closed にはしない（表示系で、デフォルト営業時間へのフォールバックが妥当）。
+			// ただし運用から不可視にならないよう Warn ログのみ追加する。
+			slog.WarnContext(ctx, "invalid business_hours_by_weekday json; falling back to default hours", "error", err, "clinic_id", setting.ClinicID)
 		}
 	}
 

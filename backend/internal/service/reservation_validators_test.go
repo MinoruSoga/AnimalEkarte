@@ -154,7 +154,7 @@ func TestValidateBusinessRules(t *testing.T) {
 			if tt.modify != nil {
 				tt.modify(settings)
 			}
-			err := validateBusinessRules(settings, tt.date, tt.startTime, tt.endTime)
+			err := validateBusinessRules(context.Background(), settings, tt.date, tt.startTime, tt.endTime)
 			if tt.wantErr {
 				assert.Error(t, err)
 				assert.True(t, apperrors.IsInvalidInput(err), "expected invalid input error, got %v", err)
@@ -179,7 +179,7 @@ func TestValidateBusinessRules_MalformedBreakHours_FailsClosed(t *testing.T) {
 	settings := newSettingForValidation()
 	settings.BreakHours = []byte(`not-valid-json`)
 
-	err := validateBusinessRules(settings, dateInDays(3), "1000", "1015")
+	err := validateBusinessRules(context.Background(), settings, dateInDays(3), "1000", "1015")
 
 	require.Error(t, err,
 		"break_hours の JSON が破損している場合、休憩時間との重複を検証できないため予約を拒否すべき（fail-closed）。"+
@@ -193,7 +193,7 @@ func TestValidateBusinessRules_MalformedBreakEntry_FailsClosed(t *testing.T) {
 	settings := newSettingForValidation()
 	settings.BreakHours = []byte(`[{"start":"not-a-time","end":"1300"}]`)
 
-	err := validateBusinessRules(settings, dateInDays(3), "1000", "1015")
+	err := validateBusinessRules(context.Background(), settings, dateInDays(3), "1000", "1015")
 
 	require.Error(t, err,
 		"個別休憩エントリの時刻形式が不正な場合、そのエントリの重複判定をスキップせず拒否すべき（fail-closed）")
@@ -211,11 +211,50 @@ func TestValidateBusinessRules_NonDigitHHMMBreakEntry_FailsClosed(t *testing.T) 
 	settings := newSettingForValidation()
 	settings.BreakHours = []byte(`[{"start":"1:00","end":"1300"}]`)
 
-	err := validateBusinessRules(settings, dateInDays(3), "1000", "1015")
+	err := validateBusinessRules(context.Background(), settings, dateInDays(3), "1000", "1015")
 
 	require.Error(t, err,
 		"長さ4文字でも非ASCII数字混入のHHMMは拒否すべき（fail-closed）。"+
 			"byteのunsigned wraparoundでレンジ内に化けると重複判定をすり抜け予約が通ってしまう")
+}
+
+// TestValidateBusinessRules_MalformedClosedWeekdays_FailsClosed は BE-refactor.md A-3 の
+// fail-closed 化を検証する。closed_weekdays の JSON が破損している場合、休業曜日チェックを
+// 検証できないため予約を拒否すべき（break_hours の D10/F-2 と対称）。
+func TestValidateBusinessRules_MalformedClosedWeekdays_FailsClosed(t *testing.T) {
+	settings := newSettingForValidation()
+	settings.ClosedWeekdays = []byte(`not-valid-json`)
+
+	err := validateBusinessRules(context.Background(), settings, dateInDays(3), "1000", "1015")
+
+	require.Error(t, err,
+		"closed_weekdays の JSON が破損している場合、休業曜日チェックを検証できないため予約を"+
+			"拒否すべき（fail-closed）。fail-open（現状バグ）だとチェックがスキップされ休業日に予約が通ってしまう")
+}
+
+// TestValidateBusinessRules_MalformedClosedDates_FailsClosed は closed_dates の JSON が
+// 破損している場合も同様に拒否されることを検証する。
+func TestValidateBusinessRules_MalformedClosedDates_FailsClosed(t *testing.T) {
+	settings := newSettingForValidation()
+	settings.ClosedDates = []byte(`not-valid-json`)
+
+	err := validateBusinessRules(context.Background(), settings, dateInDays(3), "1000", "1015")
+
+	require.Error(t, err,
+		"closed_dates の JSON が破損している場合、休業日チェックを検証できないため拒否すべき（fail-closed）")
+}
+
+// TestValidateBusinessRules_EmptyClosedWeekdaysAndDates_SkipsCheck は未設定（空 JSON 配列）の
+// 場合はチェックをスキップし予約が通ることを検証する（fail-closed 化で「未設定」の現行挙動を
+// 壊していないことのリグレッション防止）。
+func TestValidateBusinessRules_EmptyClosedWeekdaysAndDates_SkipsCheck(t *testing.T) {
+	settings := newSettingForValidation()
+	settings.ClosedWeekdays = []byte(`[]`)
+	settings.ClosedDates = []byte(`[]`)
+
+	err := validateBusinessRules(context.Background(), settings, dateInDays(3), "1000", "1015")
+
+	assert.NoError(t, err)
 }
 
 func TestReservationValidators_ValidateAndCreate_MapsCapacityConflict(t *testing.T) {

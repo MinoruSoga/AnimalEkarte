@@ -99,7 +99,7 @@ func (v *reservationValidators) ValidateAndCreate(ctx context.Context, input *Cr
 	// BUG-LINE-008: 業務時間・予約窓・休業日のサーバーサイド検証。
 	// GET /available-times は正しく除外しているが、POST /reservations は素通りしていた。
 	// 直接 API を叩かれても無効な予約を受け付けないようにする。
-	if err := validateBusinessRules(settings, input.Date, input.StartTime, input.EndTime); err != nil {
+	if err := validateBusinessRules(ctx, settings, input.Date, input.StartTime, input.EndTime); err != nil {
 		return nil, apperrors.Wrap(err, "failed to validate business rules")
 	}
 
@@ -276,7 +276,7 @@ func (v *reservationValidators) ValidateAndCreate(ctx context.Context, input *Cr
 // - 営業時間外（business_hours / business_hours_by_weekday）
 // - 休憩時間と重複（break_hours）
 // エラーは apperrors.WrapInvalidInput で 400 を返す。
-func validateBusinessRules(settings *model.LineReservationSetting, date time.Time, startTime, endTime string) error {
+func validateBusinessRules(ctx context.Context, settings *model.LineReservationSetting, date time.Time, startTime, endTime string) error {
 	loc := config.JST
 	now := time.Now().In(loc)
 	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, loc)
@@ -293,27 +293,33 @@ func validateBusinessRules(settings *model.LineReservationSetting, date time.Tim
 	}
 
 	// 2. 休業曜日
+	// A-3: JSON 破損時は fail-closed（予約拒否）。休業曜日チェックを検証できない状態で
+	// 予約を通すと、休業曜日に予約が誤って確定しうるため（break_hours と対称）。
 	if len(settings.ClosedWeekdays) > 0 {
 		var closedWeekdays []int
-		if err := json.Unmarshal(settings.ClosedWeekdays, &closedWeekdays); err == nil {
-			wd := int(dateStart.Weekday())
-			for _, cwd := range closedWeekdays {
-				if cwd == wd {
-					return apperrors.WrapInvalidInput("指定日は休業曜日のため予約できません")
-				}
+		if err := json.Unmarshal(settings.ClosedWeekdays, &closedWeekdays); err != nil {
+			return apperrors.Wrap(err, "invalid closed_weekdays")
+		}
+		wd := int(dateStart.Weekday())
+		for _, cwd := range closedWeekdays {
+			if cwd == wd {
+				return apperrors.WrapInvalidInput("指定日は休業曜日のため予約できません")
 			}
 		}
 	}
 
 	// 3. 休業日
+	// A-3: JSON 破損時は fail-closed（予約拒否）。休業日チェックを検証できない状態で
+	// 予約を通すと、休業日に予約が誤って確定しうるため（break_hours と対称）。
 	if len(settings.ClosedDates) > 0 {
 		var closedDates []string
-		if err := json.Unmarshal(settings.ClosedDates, &closedDates); err == nil {
-			dateStr := dateStart.Format(time.DateOnly)
-			for _, cd := range closedDates {
-				if cd == dateStr {
-					return apperrors.WrapInvalidInput("指定日は休業日のため予約できません")
-				}
+		if err := json.Unmarshal(settings.ClosedDates, &closedDates); err != nil {
+			return apperrors.Wrap(err, "invalid closed_dates")
+		}
+		dateStr := dateStart.Format(time.DateOnly)
+		for _, cd := range closedDates {
+			if cd == dateStr {
+				return apperrors.WrapInvalidInput("指定日は休業日のため予約できません")
 			}
 		}
 	}
@@ -326,7 +332,7 @@ func validateBusinessRules(settings *model.LineReservationSetting, date time.Tim
 	// 5. 営業時間
 	// D10/F-2: break_hours の unmarshal 失敗は fail-closed（予約拒否）。休憩時間との重複を
 	// 検証できない状態で予約を通すと、休憩時間帯の予約が誤って確定しうるため。
-	bh, breaks, err := parseBusinessHoursForDate(settings, dateStart)
+	bh, breaks, err := parseBusinessHoursForDate(ctx, settings, dateStart)
 	if err != nil {
 		return apperrors.Wrap(err, "invalid break_hours")
 	}
