@@ -17,12 +17,7 @@ func (r *accountingRepository) GetCloseAggregate(ctx context.Context, input GetC
 	// カテゴリは billing_items から1会計1行に集約し、payment_splits と billing_id で結合する。
 	// Cartesian 積を避けるため payment_splits / billing_items を別クエリで集計する
 	cArgs := []any{input.ClinicID, model.BillingStatusCompleted, input.PeriodStart.In(time.Local), input.PeriodEnd.In(time.Local)}
-	completedCTE := `WITH completed_billings AS (
-		SELECT id FROM billings
-		WHERE clinic_id = ? AND deleted_at IS NULL AND status = ?
-		  AND completed_at >= ?
-		  AND completed_at < ?
-	)`
+	completedCTE := completedBillingsCTE("id")
 
 	// Query 1: 支払方法別合計 (payment_splits のみ)
 	type pmRow struct {
@@ -66,13 +61,8 @@ func (r *accountingRepository) GetCloseAggregate(ctx context.Context, input GetC
 	}
 
 	// Query 3: 返金合計
-	var totalRefund int64
-	if err := r.db.WithContext(ctx).Raw(
-		completedCTE+`
-		SELECT COALESCE(SUM(br.amount), 0)
-		FROM billing_refunds br
-		WHERE br.billing_id IN (SELECT id FROM completed_billings)
-		`, cArgs...).Scan(&totalRefund).Error; err != nil {
+	totalRefund, err := r.sumRefundsForCompletedBillings(ctx, input.ClinicID, input.PeriodStart.In(time.Local), input.PeriodEnd.In(time.Local))
+	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to aggregate refunds for close")
 	}
 
@@ -150,33 +140,9 @@ func (r *accountingRepository) GetCloseAggregate(ctx context.Context, input GetC
 	}
 
 	// 税率別集計（billing_items ベース — Cartesian 積なし: payments JOIN 除去済み）
-	type taxRow struct {
-		TaxRate       int64
-		TaxableAmount int64
-		TaxAmount     int64
-	}
-	var taxRows []taxRow
-	if err := r.db.WithContext(ctx).
-		Table("billing_items").
-		Joins("JOIN billings ON billings.id = billing_items.billing_id AND billings.deleted_at IS NULL").
-		Where("billings.clinic_id = ? AND billing_items.deleted_at IS NULL", input.ClinicID).
-		Where("billings.status = ?", model.BillingStatusCompleted).
-		// G7-3: sargable な直接比較に統一(idx_billings_clinic_completed_at partial index を使えるようにする)。
-		Where("billings.completed_at >= ?", input.PeriodStart.In(time.Local)).
-		Where("billings.completed_at < ?", input.PeriodEnd.In(time.Local)).
-		Select(
-			"ROUND(billing_items.tax_rate * 100)::bigint AS tax_rate," +
-				" COALESCE(SUM(ROUND(billing_items.unit_price * billing_items.quantity::numeric)), 0) AS taxable_amount," +
-				" COALESCE(SUM(ROUND(billing_items.unit_price * billing_items.quantity::numeric * billing_items.tax_rate)), 0) AS tax_amount",
-		).
-		Group("billing_items.tax_rate").
-		Scan(&taxRows).Error; err != nil {
+	taxBreakdown, err := r.aggregateTaxBreakdown(ctx, input.ClinicID, input.PeriodStart.In(time.Local), input.PeriodEnd.In(time.Local))
+	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to aggregate tax breakdown for close")
-	}
-
-	taxBreakdown := make([]TaxBreakdownRow, 0, len(taxRows))
-	for _, tr := range taxRows {
-		taxBreakdown = append(taxBreakdown, TaxBreakdownRow(tr))
 	}
 
 	return &CloseAggregateResult{
