@@ -3,6 +3,7 @@ import { toast } from "sonner";
 import { axios } from "@/lib/axios";
 import { getStoredClinicId } from "@/lib/current-clinic";
 import { handleApiError } from "@/lib/handle-api-error";
+import { queryKeys } from "@/lib/query-keys";
 
 interface UpdateOwnerLineBody {
   line_user_id: string;
@@ -41,7 +42,7 @@ export function useUpdateOwnerLine(ownerId: string) {
       return updateOwnerLine(clinicId, ownerId, body);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["owner-line-tags", ownerId] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.ownerLineTags(ownerId) });
       toast.success("LINE IDを設定しました");
     },
     onError: (error) => {
@@ -62,7 +63,7 @@ export function useDeleteOwnerLine(ownerId: string) {
       return unlinkOwnerLine(clinicId, ownerId);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["owner-line-tags", ownerId] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.ownerLineTags(ownerId) });
       toast.success("LINE連携を解除しました");
     },
     onError: (error) => {

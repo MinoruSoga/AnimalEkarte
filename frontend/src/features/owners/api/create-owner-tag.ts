@@ -3,6 +3,7 @@ import { toast } from "sonner";
 import { axios } from "@/lib/axios";
 import { getStoredClinicId } from "@/lib/current-clinic";
 import { handleApiError } from "@/lib/handle-api-error";
+import { queryKeys } from "@/lib/query-keys";
 
 interface CreateOwnerTagBody {
   tag_name: string;
@@ -32,7 +33,7 @@ export function useCreateOwnerTag(ownerId: string) {
       return createOwnerTag(clinicId, ownerId, body);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["owner-line-tags", ownerId] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.ownerLineTags(ownerId) });
       toast.success("タグを付与しました");
     },
     onError: (error) => {

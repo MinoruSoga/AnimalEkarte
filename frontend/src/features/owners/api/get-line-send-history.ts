@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import { getStoredClinicId } from "@/lib/current-clinic";
+import { queryKeys } from "@/lib/query-keys";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 import type { LineSendType } from "./send-line-message";
 
@@ -30,7 +31,7 @@ async function getLineSendHistory(
 export function useGetLineSendHistory(ownerId: string) {
   const clinicId = getStoredClinicId();
   return useQuery({
-    queryKey: ["line-send-history", ownerId],
+    queryKey: queryKeys.lineSendHistory(ownerId),
     queryFn: () => {
       if (clinicId === null) {
         return Promise.reject(new Error("clinic_id is not selected"));

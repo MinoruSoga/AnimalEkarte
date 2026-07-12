@@ -2,6 +2,7 @@ import { useState, useCallback, useActionState, useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { handleApiError } from "@/lib/handle-api-error";
+import { queryKeys } from "@/lib/query-keys";
 import type { ActionState } from "@/types/form";
 import { INITIAL_ACTION_STATE } from "@/types/form";
 import { transformCreatePetRequest, PET_STATUS_REVERSE_MAP } from "@/lib/transforms/pet";
@@ -181,7 +182,7 @@ export function useOwnerForm(
         if (isEdit && id) {
           const updateData: UpdateOwnerRequest = ownerRequestPayload;
           await updateOwner(id, updateData);
-          await queryClient.invalidateQueries({ queryKey: ["owners"] });
+          await queryClient.invalidateQueries({ queryKey: queryKeys.owners.all() });
           toast.success("飼主情報を更新しました");
           return { success: true, timestamp: Date.now() };
         } else {
@@ -191,7 +192,7 @@ export function useOwnerForm(
             clinic_id: ownerData.clinicId ? Number(ownerData.clinicId) : undefined,
           };
           const newOwner = await createOwner(createData);
-          await queryClient.invalidateQueries({ queryKey: ["owners"] });
+          await queryClient.invalidateQueries({ queryKey: queryKeys.owners.all() });
 
           const pendingPets = pets.filter(p => p.isPending && p.animalSpeciesId);
           if (pendingPets.length > 0 && petMutations) {
