@@ -10,6 +10,7 @@ import { toast } from "sonner";
 
 import { axios } from "@/lib/axios";
 import { handleApiError } from "@/lib/handle-api-error";
+import { queryKeys } from "@/lib/query-keys";
 
 import type { ManualCategory } from "../lib/manual-index";
 
@@ -39,7 +40,7 @@ export function useUpsertManualArticle() {
   return useMutation({
     mutationFn: upsertManualArticle,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["manual-articles"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.manualArticles.all() });
       toast.success("マニュアルを保存しました");
     },
     onError: (error) => {
