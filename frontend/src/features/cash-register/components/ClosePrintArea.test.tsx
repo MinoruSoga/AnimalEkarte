@@ -87,4 +87,51 @@ describe("ClosePrintArea (#153 印刷 / PDF出力)", () => {
     // 8500 - 8000 = +500
     expect(within(area).getByText("+500")).toBeInTheDocument();
   });
+
+  // FE5-14: yen() インライン定義を formatCurrency に置換する前の印字固定
+  it("統合テーブルの部門合計・支払方法別金額は ¥ 区切りで出力する", () => {
+    renderPrint({
+      categories: { examination: { 現金: 12345, クレジットカード: 6789 } },
+      billingDetails: [detail({ billingId: 1, category: "examination", billingAmount: 19134, refundAmount: 0, netAmount: 19134 })],
+      theoreticalCash: 19134,
+      actualCash: null,
+    });
+    const area = screen.getByTestId("close-print-area");
+    const summaryTable = within(area).getByText("件数").closest("table")!;
+    const medicalRow = within(summaryTable).getByText("診療").closest("tr")!;
+    expect(within(medicalRow).getByText("¥12,345")).toBeInTheDocument();
+    expect(within(medicalRow).getByText("¥6,789")).toBeInTheDocument();
+    expect(within(medicalRow).getByText("¥19,134")).toBeInTheDocument();
+  });
+
+  it("支払方法データがない部門の金額セルは — を出力する（既定データの外科×クレジットカード）", () => {
+    renderPrint();
+    const area = screen.getByTestId("close-print-area");
+    const summaryTable = within(area).getByText("件数").closest("table")!;
+    const surgeryRow = within(summaryTable).getByText("外科").closest("tr")!;
+    expect(within(surgeryRow).getByText("—")).toBeInTheDocument();
+  });
+
+  it("個別会計明細の返金額は -¥ 表記、0円請求は ¥0、消費税内訳・現金照合も ¥ 区切りで出力する", () => {
+    renderPrint({
+      categories: { examination: { 現金: 8500 } },
+      billingDetails: [
+        detail({ billingId: 1, category: "examination", billingAmount: 0, refundAmount: 0, netAmount: 0 }),
+        detail({ billingId: 2, category: "examination", billingAmount: 8000, refundAmount: 1234, netAmount: 6766 }),
+      ],
+      taxBreakdown: { standard: { taxableAmount: 54321, taxAmount: 5432 }, reduced: { taxableAmount: 1000, taxAmount: 80 } },
+      theoreticalCash: 77777,
+      actualCash: null,
+    });
+    const area = screen.getByTestId("close-print-area");
+    expect(within(area).getAllByText("¥0")).toHaveLength(2);
+    expect(within(area).getByText("¥8,000")).toBeInTheDocument();
+    expect(within(area).getByText("-¥1,234")).toBeInTheDocument();
+    expect(within(area).getByText("¥6,766")).toBeInTheDocument();
+    expect(within(area).getByText("¥54,321")).toBeInTheDocument();
+    expect(within(area).getByText("¥5,432")).toBeInTheDocument();
+    expect(within(area).getByText("¥1,000")).toBeInTheDocument();
+    expect(within(area).getByText("¥80")).toBeInTheDocument();
+    expect(within(area).getByText("¥77,777")).toBeInTheDocument();
+  });
 });

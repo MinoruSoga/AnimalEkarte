@@ -1,5 +1,6 @@
 import { PrintPortal } from "@/components/shared/PrintPortal";
 import { formatJSTTime } from "@/lib/jst-date";
+import { formatCurrency } from "@/utils/format/number";
 import type { PaymentMethodMaster } from "@/types/generated/models";
 import type { CloseBillingDetail } from "../api/get-cash-register-preview";
 import { buildUnifiedClosingRows, buildUnifiedClosingTotals } from "../closing-summary";
@@ -22,8 +23,6 @@ interface ClosePrintAreaProps {
   /** 実際のレジ現金。未入力時は null（差額は出力しない）。 */
   actualCash: number | null;
 }
-
-const yen = (amount: number): string => `¥${amount.toLocaleString()}`;
 
 /**
  * #153: レジ締めサマリーの印刷／PDF出力（ブラウザ「PDFとして保存」）用ビュー。
@@ -82,11 +81,11 @@ export function ClosePrintArea({
               <td className="border border-gray-300 px-1 py-0.5 text-right">{row.count}件</td>
               {paymentMethods.map((pm) => (
                 <td key={pm.id} className="border border-gray-300 px-1 py-0.5 text-right">
-                  {row.byMethod[pm.name] != null ? yen(row.byMethod[pm.name]) : "—"}
+                  {row.byMethod[pm.name] != null ? formatCurrency(row.byMethod[pm.name]) : "—"}
                 </td>
               ))}
               <td className="border border-gray-300 px-1 py-0.5 text-right font-medium">
-                {yen(row.rowTotal)}
+                {formatCurrency(row.rowTotal)}
               </td>
             </tr>
           ))}
@@ -97,11 +96,11 @@ export function ClosePrintArea({
             <td className="border border-gray-400 px-1 py-0.5 text-right">{totals.count}件</td>
             {paymentMethods.map((pm) => (
               <td key={pm.id} className="border border-gray-400 px-1 py-0.5 text-right">
-                {totals.byMethod[pm.name] != null ? yen(totals.byMethod[pm.name]) : "—"}
+                {totals.byMethod[pm.name] != null ? formatCurrency(totals.byMethod[pm.name]) : "—"}
               </td>
             ))}
             <td className="border border-gray-400 px-1 py-0.5 text-right font-bold">
-              {yen(totals.grandTotal)}
+              {formatCurrency(totals.grandTotal)}
             </td>
           </tr>
         </tfoot>
@@ -122,13 +121,13 @@ export function ClosePrintArea({
             <tbody>
               <tr>
                 <td className="border border-gray-300 px-1 py-0.5">標準税率（10%）</td>
-                <td className="border border-gray-300 px-1 py-0.5 text-right">{yen(standard.taxableAmount)}</td>
-                <td className="border border-gray-300 px-1 py-0.5 text-right">{yen(standard.taxAmount)}</td>
+                <td className="border border-gray-300 px-1 py-0.5 text-right">{formatCurrency(standard.taxableAmount)}</td>
+                <td className="border border-gray-300 px-1 py-0.5 text-right">{formatCurrency(standard.taxAmount)}</td>
               </tr>
               <tr>
                 <td className="border border-gray-300 px-1 py-0.5">軽減税率（8%）</td>
-                <td className="border border-gray-300 px-1 py-0.5 text-right">{yen(reduced.taxableAmount)}</td>
-                <td className="border border-gray-300 px-1 py-0.5 text-right">{yen(reduced.taxAmount)}</td>
+                <td className="border border-gray-300 px-1 py-0.5 text-right">{formatCurrency(reduced.taxableAmount)}</td>
+                <td className="border border-gray-300 px-1 py-0.5 text-right">{formatCurrency(reduced.taxAmount)}</td>
               </tr>
             </tbody>
           </table>
@@ -139,13 +138,13 @@ export function ClosePrintArea({
             <tbody>
               <tr>
                 <td className="border border-gray-300 px-1 py-0.5">理論現金</td>
-                <td className="border border-gray-300 px-1 py-0.5 text-right">{yen(theoreticalCash)}</td>
+                <td className="border border-gray-300 px-1 py-0.5 text-right">{formatCurrency(theoreticalCash)}</td>
               </tr>
               {actualCash !== null ? (
                 <>
                   <tr>
                     <td className="border border-gray-300 px-1 py-0.5">実際の現金</td>
-                    <td className="border border-gray-300 px-1 py-0.5 text-right">{yen(actualCash)}</td>
+                    <td className="border border-gray-300 px-1 py-0.5 text-right">{formatCurrency(actualCash)}</td>
                   </tr>
                   <tr className="font-semibold">
                     <td className="border border-gray-400 px-1 py-0.5">差額</td>
@@ -188,11 +187,11 @@ export function ClosePrintArea({
                 {CATEGORY_LABELS[d.category] ?? d.category}
               </td>
               <td className="border border-gray-300 px-1 py-0.5">{d.paymentMethodName}</td>
-              <td className="border border-gray-300 px-1 py-0.5 text-right">{yen(d.billingAmount)}</td>
+              <td className="border border-gray-300 px-1 py-0.5 text-right">{formatCurrency(d.billingAmount)}</td>
               <td className="border border-gray-300 px-1 py-0.5 text-right">
-                {d.refundAmount > 0 ? `-${yen(d.refundAmount)}` : "—"}
+                {d.refundAmount > 0 ? `-${formatCurrency(d.refundAmount)}` : "—"}
               </td>
-              <td className="border border-gray-300 px-1 py-0.5 text-right font-medium">{yen(d.netAmount)}</td>
+              <td className="border border-gray-300 px-1 py-0.5 text-right font-medium">{formatCurrency(d.netAmount)}</td>
             </tr>
           ))}
         </tbody>

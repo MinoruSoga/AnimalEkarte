@@ -2,6 +2,7 @@ import { createPortal } from "react-dom";
 
 import { Z } from "@/lib/design-tokens";
 import { PAYMENT_METHOD_LABELS_SHORT as PAYMENT_METHOD_LABELS } from "@/constants/payment-method";
+import { formatCurrency, formatCurrencyOrDash } from "@/utils/format/number";
 import { CatCell } from "./DailyAccountingTabParts";
 import { formatReceiptNo } from "./daily-accounting-utils";
 import type { RowData, TotalsData } from "./daily-accounting-utils";
@@ -89,7 +90,7 @@ export function DailyPrintArea({ date, rows, totals }: DailyPrintAreaProps) {
                   {paymentLabel}
                 </td>
                 <td className="border border-gray-300 px-1 py-0.5 text-right text-[9pt] font-semibold">
-                  ¥{total.toLocaleString()}
+                  {formatCurrency(total)}
                 </td>
               </tr>
             );
@@ -100,25 +101,25 @@ export function DailyPrintArea({ date, rows, totals }: DailyPrintAreaProps) {
           <tr className="bg-gray-50 font-semibold">
             <td colSpan={3} className="border border-gray-400 px-1 py-0.5 text-[9pt]">病院合計</td>
             <td className="border border-gray-400 px-1 py-0.5 text-right text-[9pt]">
-              {totals.medical > 0 ? `¥${totals.medical.toLocaleString()}` : "-"}
+              {formatCurrencyOrDash(totals.medical)}
             </td>
             <td className="border border-gray-400 px-1 py-0.5 text-right text-[9pt]">
-              {totals.surgery > 0 ? `¥${totals.surgery.toLocaleString()}` : "-"}
+              {formatCurrencyOrDash(totals.surgery)}
             </td>
             <td className="border border-gray-400 px-1 py-0.5 text-right text-[9pt]">
-              {totals.rv > 0 ? `¥${totals.rv.toLocaleString()}` : "-"}
+              {formatCurrencyOrDash(totals.rv)}
             </td>
             <td className="border border-gray-400 px-1 py-0.5 text-right text-[9pt]">
-              {totals.food > 0 ? `¥${totals.food.toLocaleString()}` : "-"}
+              {formatCurrencyOrDash(totals.food)}
             </td>
             <td className="border border-gray-400 px-1 py-0.5 text-center text-[9pt]">-</td>
             <td className="border border-gray-400 px-1 py-0.5 text-center text-[9pt]">-</td>
             <td className="border border-gray-400 px-1 py-0.5 text-right text-[9pt]">
-              {totals.goods > 0 ? `¥${totals.goods.toLocaleString()}` : "-"}
+              {formatCurrencyOrDash(totals.goods)}
             </td>
             <td className="border border-gray-400 px-1 py-0.5 text-[9pt]" />
             <td className="border border-gray-400 px-1 py-0.5 text-right text-[9pt] font-bold">
-              ¥{hospitalTotal.toLocaleString()}
+              {formatCurrency(hospitalTotal)}
             </td>
           </tr>
           {/* トリミング合計行 */}
@@ -129,44 +130,44 @@ export function DailyPrintArea({ date, rows, totals }: DailyPrintAreaProps) {
             <td className="border border-gray-400 px-1 py-0.5 text-center text-[9pt]">-</td>
             <td className="border border-gray-400 px-1 py-0.5 text-center text-[9pt]">-</td>
             <td className="border border-gray-400 px-1 py-0.5 text-right text-[9pt]">
-              {totals.trimming > 0 ? `¥${totals.trimming.toLocaleString()}` : "-"}
+              {formatCurrencyOrDash(totals.trimming)}
             </td>
             <td className="border border-gray-400 px-1 py-0.5 text-right text-[9pt]">
-              {totals.hotel > 0 ? `¥${totals.hotel.toLocaleString()}` : "-"}
+              {formatCurrencyOrDash(totals.hotel)}
             </td>
             <td className="border border-gray-400 px-1 py-0.5 text-center text-[9pt]">-</td>
             <td className="border border-gray-400 px-1 py-0.5 text-[9pt]" />
             <td className="border border-gray-400 px-1 py-0.5 text-right text-[9pt] font-bold">
-              ¥{trimmingTotal.toLocaleString()}
+              {formatCurrency(trimmingTotal)}
             </td>
           </tr>
           {/* 全体合計行 */}
           <tr className="bg-gray-200 font-bold">
             <td colSpan={3} className="border border-gray-400 px-1 py-1 text-[9pt]">全体合計</td>
             <td className="border border-gray-400 px-1 py-1 text-right text-[9pt]">
-              {totals.medical > 0 ? `¥${totals.medical.toLocaleString()}` : "-"}
+              {formatCurrencyOrDash(totals.medical)}
             </td>
             <td className="border border-gray-400 px-1 py-1 text-right text-[9pt]">
-              {totals.surgery > 0 ? `¥${totals.surgery.toLocaleString()}` : "-"}
+              {formatCurrencyOrDash(totals.surgery)}
             </td>
             <td className="border border-gray-400 px-1 py-1 text-right text-[9pt]">
-              {totals.rv > 0 ? `¥${totals.rv.toLocaleString()}` : "-"}
+              {formatCurrencyOrDash(totals.rv)}
             </td>
             <td className="border border-gray-400 px-1 py-1 text-right text-[9pt]">
-              {totals.food > 0 ? `¥${totals.food.toLocaleString()}` : "-"}
+              {formatCurrencyOrDash(totals.food)}
             </td>
             <td className="border border-gray-400 px-1 py-1 text-right text-[9pt]">
-              {totals.trimming > 0 ? `¥${totals.trimming.toLocaleString()}` : "-"}
+              {formatCurrencyOrDash(totals.trimming)}
             </td>
             <td className="border border-gray-400 px-1 py-1 text-right text-[9pt]">
-              {totals.hotel > 0 ? `¥${totals.hotel.toLocaleString()}` : "-"}
+              {formatCurrencyOrDash(totals.hotel)}
             </td>
             <td className="border border-gray-400 px-1 py-1 text-right text-[9pt]">
-              {totals.goods > 0 ? `¥${totals.goods.toLocaleString()}` : "-"}
+              {formatCurrencyOrDash(totals.goods)}
             </td>
             <td className="border border-gray-400 px-1 py-1 text-[9pt]" />
             <td className="border border-gray-400 px-1 py-1 text-right text-[10pt] font-bold">
-              ¥{totals.total.toLocaleString()}
+              {formatCurrency(totals.total)}
             </td>
           </tr>
         </tfoot>
