@@ -277,18 +277,12 @@ func (s *treatmentService) Create(ctx context.Context, clinicID, medicalRecordID
 		}
 
 		// 2. Decrease Stock (if applicable)
-		if input.MedicineID != nil || input.InventoryID != nil {
-			var targetInvID uint64
-			if input.InventoryID != nil {
-				targetInvID = *input.InventoryID
-			} else {
-				targetInvID = *input.MedicineID
-			}
-
-			if targetInvID > 0 {
-				if err := txRepos.Inventory.DecreaseStock(ctx, targetInvID, input.Quantity); err != nil {
-					return apperrors.Wrap(err, "failed to decrease inventory stock")
-				}
+		// BE-refactor.md FOLLOWUP-X14A: MedicineID を inventory id として DecreaseStock へ渡す
+		// フォールバックは書込 IDOR（medicines.id と inventory_items.id の採番衝突で他クリニックの
+		// 在庫を減算しうる）だったため廃止した。減算は InventoryID が明示指定された場合のみ行う。
+		if input.InventoryID != nil && *input.InventoryID > 0 {
+			if err := txRepos.Inventory.DecreaseStock(ctx, *input.InventoryID, input.Quantity); err != nil {
+				return apperrors.Wrap(err, "failed to decrease inventory stock")
 			}
 		}
 

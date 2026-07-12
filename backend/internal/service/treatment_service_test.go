@@ -417,6 +417,110 @@ func TestTreatmentService_Create(t *testing.T) {
 	}
 }
 
+// TestTreatmentService_Create_DecreaseStock は FOLLOWUP-X14A の回帰テスト。
+// medicines.id と inventory_items.id は独立した採番空間の別テーブルであり、
+// DecreaseStock（clinic_id 述語なしで inventory_items.id を直接 UPDATE する）に
+// MedicineID を代用して渡すと、番号が偶然衝突した他クリニックの在庫を減算しうる
+// （クロステナント write IDOR）。在庫減算は InventoryID が明示指定された場合のみ行う。
+func TestTreatmentService_Create_DecreaseStock(t *testing.T) {
+	const (
+		clinicID        = uint64(1)
+		medicalRecordID = uint64(1)
+	)
+	unitPrice := int64(1000)
+	quantity := 2.0
+
+	t.Run("MedicineID only (InventoryID nil): stock is NOT decreased", func(t *testing.T) {
+		// Arrange
+		medicineID := uint64(999) // inventory_items.id としては無関係の値（採番衝突を模擬）
+		called := false
+		treatmentRepo := &mockTreatmentRepository{
+			createFn: func(_ context.Context, _ *model.Treatment) error { return nil },
+		}
+		invRepo := &mockInventoryRepository{
+			decreaseStockFn: func(_ context.Context, _ uint64, _ float64) error {
+				called = true
+				return nil
+			},
+		}
+		repos := &repository.Repositories{
+			Treatment:     treatmentRepo,
+			MedicalRecord: &mockMedicalRecordRepoForTreatment{},
+			Inventory:     invRepo,
+			Medicine:      okMedicineRepo(),
+			Procedure:     okProcedureRepo(),
+			Consultation:  okConsultationRepo(),
+		}
+		repos.TransactionFn = func(_ context.Context, fn func(*repository.Repositories) error) error {
+			return fn(repos)
+		}
+		svc := NewTreatmentService(repos)
+		input := &CreateTreatmentInput{
+			ItemType:   model.TreatmentItemTypeMedicine,
+			MedicineID: &medicineID,
+			UnitPrice:  unitPrice,
+			Quantity:   quantity,
+		}
+
+		// Act
+		treatment, err := svc.Create(context.Background(), clinicID, medicalRecordID, input)
+
+		// Assert
+		assert.NoError(t, err)
+		assert.NotNil(t, treatment)
+		assert.False(t, called, "DecreaseStock must not be called when only MedicineID is set (medicines.id is not an inventory_items.id)")
+	})
+
+	t.Run("InventoryID explicitly set: stock IS decreased for that inventory id", func(t *testing.T) {
+		// Arrange
+		medicineID := uint64(999) // 同時に指定されても DecreaseStock の対象に影響しないことを確認する
+		inventoryID := uint64(42)
+		callCount := 0
+		var gotID uint64
+		var gotQty float64
+		treatmentRepo := &mockTreatmentRepository{
+			createFn: func(_ context.Context, _ *model.Treatment) error { return nil },
+		}
+		invRepo := &mockInventoryRepository{
+			decreaseStockFn: func(_ context.Context, id uint64, qty float64) error {
+				callCount++
+				gotID = id
+				gotQty = qty
+				return nil
+			},
+		}
+		repos := &repository.Repositories{
+			Treatment:     treatmentRepo,
+			MedicalRecord: &mockMedicalRecordRepoForTreatment{},
+			Inventory:     invRepo,
+			Medicine:      okMedicineRepo(),
+			Procedure:     okProcedureRepo(),
+			Consultation:  okConsultationRepo(),
+		}
+		repos.TransactionFn = func(_ context.Context, fn func(*repository.Repositories) error) error {
+			return fn(repos)
+		}
+		svc := NewTreatmentService(repos)
+		input := &CreateTreatmentInput{
+			ItemType:    model.TreatmentItemTypeMedicine,
+			MedicineID:  &medicineID,
+			InventoryID: &inventoryID,
+			UnitPrice:   unitPrice,
+			Quantity:    quantity,
+		}
+
+		// Act
+		treatment, err := svc.Create(context.Background(), clinicID, medicalRecordID, input)
+
+		// Assert
+		assert.NoError(t, err)
+		assert.NotNil(t, treatment)
+		assert.Equal(t, 1, callCount)
+		assert.Equal(t, inventoryID, gotID)
+		assert.Equal(t, quantity, gotQty)
+	})
+}
+
 func TestTreatmentService_Update(t *testing.T) {
 	const clinicID = uint64(1)
 	newUnitPrice := int64(15000)
