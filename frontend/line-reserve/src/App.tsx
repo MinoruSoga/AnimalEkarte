@@ -27,6 +27,8 @@ export function App() {
   const [settings, setSettings] = useState<LiffSettings | null>(null);
   const [profile, setProfile] = useState<LiffProfile | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | undefined>(undefined);
+  // FE5-21: 予約確定時の枠競合をブロッキングダイアログではなくインラインバナーで通知する
+  const [notice, setNotice] = useState<string | null>(null);
 
   // 完了ページ用
   const [completedReservationId, setCompletedReservationId] = useState<number>(0);
@@ -100,7 +102,7 @@ export function App() {
 
   // 予約確定時に時間枠が既に埋まっていた場合のハンドラ
   const handleSlotTaken = useCallback((message: string, redirectStep: number) => {
-    window.alert(message);
+    setNotice(message); // alert の代わりに通知バナー
     const stepMap: Record<number, PageType> = {
       1: 'step1', 2: 'step2', 3: 'step3', 4: 'step4',
       5: 'step5', 6: 'step6', 7: 'step7',
@@ -149,28 +151,26 @@ export function App() {
     return <ErrorPage message="初期化に失敗しました" />;
   }
 
+  let content: React.ReactElement;
+
   if (page === 'top') {
-    return (
+    content = (
       <TopPage
         settings={settings}
         onNewReservation={handleNewReservation}
         onMyReservations={() => goTo('my-reservations')}
       />
     );
-  }
-
-  if (page === 'my-reservations') {
-    return (
+  } else if (page === 'my-reservations') {
+    content = (
       <MyReservationsPage
         clinicId={clinicId}
         idToken={idToken}
         onBack={() => goTo('top')}
       />
     );
-  }
-
-  if (page === 'step1') {
-    return (
+  } else if (page === 'step1') {
+    content = (
       <CustomerInfoPage
         profile={profile}
         initialInfo={flow.customerInfo}
@@ -181,10 +181,8 @@ export function App() {
         onBack={() => goTo('top')}
       />
     );
-  }
-
-  if (page === 'step2') {
-    return (
+  } else if (page === 'step2') {
+    content = (
       <CourseSelectPage
         clinicId={clinicId}
         idToken={idToken}
@@ -199,10 +197,8 @@ export function App() {
         onBack={() => goTo('step1')}
       />
     );
-  }
-
-  if (page === 'step2b') {
-    return (
+  } else if (page === 'step2b') {
+    content = (
       <TrimmingCourseSelectPage
         clinicId={clinicId}
         idToken={idToken}
@@ -213,10 +209,8 @@ export function App() {
         onBack={() => goTo('step2')}
       />
     );
-  }
-
-  if (page === 'step2c') {
-    return (
+  } else if (page === 'step2c') {
+    content = (
       <TrimmingOptionSelectPage
         clinicId={clinicId}
         idToken={idToken}
@@ -228,10 +222,8 @@ export function App() {
         onBack={() => goTo('step2b')}
       />
     );
-  }
-
-  if (page === 'step3') {
-    return (
+  } else if (page === 'step3') {
+    content = (
       <StaffSelectPage
         clinicId={clinicId}
         idToken={idToken}
@@ -244,10 +236,8 @@ export function App() {
         onBack={() => goTo('step2')}
       />
     );
-  }
-
-  if (page === 'step4') {
-    return (
+  } else if (page === 'step4') {
+    content = (
       <DateSelectPage
         clinicId={clinicId}
         idToken={idToken}
@@ -260,10 +250,8 @@ export function App() {
         onBack={() => goTo('step3')}
       />
     );
-  }
-
-  if (page === 'step5') {
-    return (
+  } else if (page === 'step5') {
+    content = (
       <TimeSelectPage
         clinicId={clinicId}
         idToken={idToken}
@@ -277,10 +265,8 @@ export function App() {
         onBack={() => goTo('step4')}
       />
     );
-  }
-
-  if (page === 'step6') {
-    return (
+  } else if (page === 'step6') {
+    content = (
       <RequestPage
         requestExample={settings.request_example}
         initialText={flow.requestText}
@@ -291,10 +277,8 @@ export function App() {
         onBack={() => goTo('step5')}
       />
     );
-  }
-
-  if (page === 'step7') {
-    return (
+  } else if (page === 'step7') {
+    content = (
       <ConfirmPage
         clinicId={clinicId}
         idToken={idToken}
@@ -307,10 +291,8 @@ export function App() {
         onBack={() => goTo('step6')}
       />
     );
-  }
-
-  if (page === 'step8') {
-    return (
+  } else if (page === 'step8') {
+    content = (
       <CompletePage
         reservationId={completedReservationId}
         notes={completedNotes}
@@ -319,7 +301,26 @@ export function App() {
         onNewReservation={handleCompleteNewReservation}
       />
     );
+  } else {
+    content = <ErrorPage />;
   }
 
-  return <ErrorPage />;
+  return (
+    <>
+      {notice !== null ? (
+        <div role="alert" className="mx-4 mt-4 flex items-start justify-between gap-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3">
+          <p className="flex-1 text-sm text-red-700">{notice}</p>
+          <button
+            type="button"
+            onClick={() => setNotice(null)}
+            aria-label="閉じる"
+            className="font-bold leading-none text-red-700"
+          >
+            ×
+          </button>
+        </div>
+      ) : null}
+      {content}
+    </>
+  );
 }
