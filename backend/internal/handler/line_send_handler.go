@@ -9,56 +9,6 @@ import (
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
-// normalizeMessageType は FE から送られる message_type エイリアスをサービス内部値に変換する（ISSUE-002）。
-func normalizeMessageType(t string) string {
-	switch t {
-	case "pdf":
-		return "pdf_url"
-	case "image":
-		return "image_url"
-	default:
-		return t
-	}
-}
-
-type lineSendResponse struct {
-	Sent     bool   `json:"sent"`
-	SentAt   string `json:"sent_at"`
-	TagAdded string `json:"tag_added,omitempty"`
-}
-
-type lineSendLogResponse struct {
-	ID             uint64  `json:"id"`
-	MessageType    string  `json:"message_type"`
-	ContentSummary string  `json:"content_summary"`
-	Status         string  `json:"status"`
-	ErrorMessage   *string `json:"error_message,omitempty"`
-	SentAt         string  `json:"sent_at"`
-}
-
-type lineSendLogListResponse struct {
-	Items []lineSendLogResponse `json:"items"`
-}
-
-func toLineSendLogResponse(l *model.LineSendLog) lineSendLogResponse {
-	return lineSendLogResponse{
-		ID:             l.ID,
-		MessageType:    l.MessageType,
-		ContentSummary: l.ContentSummary,
-		Status:         l.Status,
-		ErrorMessage:   l.ErrorMessage,
-		SentAt:         localTimeRFC3339(l.SentAt),
-	}
-}
-
-func toLineSendLogListResponse(logs []*model.LineSendLog) []lineSendLogResponse {
-	out := make([]lineSendLogResponse, 0, len(logs))
-	for _, l := range logs {
-		out = append(out, toLineSendLogResponse(l))
-	}
-	return out
-}
-
 // PostLineSend godoc
 func (h *Handler) PostLineSend(c *gin.Context) {
 	clinicID, ok := extractClinicID(c)
