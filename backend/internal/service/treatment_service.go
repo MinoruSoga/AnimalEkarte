@@ -217,9 +217,9 @@ func (s *treatmentService) Create(ctx context.Context, clinicID, medicalRecordID
 	}
 
 	// クロステナント write 防止: request 由来の clinic-scoped マスタFK
-	// (medicine/procedure/consultation) が caller の clinic に属することを検証する。
+	// (medicine/procedure/consultation/inventory) が caller の clinic に属することを検証する。
 	// 別 clinic のマスタ参照は NotFound で遮断し #124/#125 同型の mislink を防ぐ。
-	if err := s.validateTreatmentMasterFKs(ctx, clinicID, input.MedicineID, input.ProcedureID, input.ConsultationID); err != nil {
+	if err := s.validateTreatmentMasterFKs(ctx, clinicID, input.MedicineID, input.ProcedureID, input.ConsultationID, input.InventoryID); err != nil {
 		return nil, err
 	}
 
@@ -338,7 +338,7 @@ func (s *treatmentService) Update(ctx context.Context, clinicID, medicalRecordID
 	}
 
 	// クロステナント write 防止: 変更後に貼り替わる clinic-scoped マスタFK の所有権を検証する。
-	if err := s.validateTreatmentMasterFKs(ctx, clinicID, input.MedicineID, input.ProcedureID, input.ConsultationID); err != nil {
+	if err := s.validateTreatmentMasterFKs(ctx, clinicID, input.MedicineID, input.ProcedureID, input.ConsultationID, input.InventoryID); err != nil {
 		return nil, err
 	}
 
@@ -488,11 +488,13 @@ func (s *treatmentService) BulkUpdateSortOrder(ctx context.Context, clinicID, me
 }
 
 // validateTreatmentMasterFKs は request 由来の clinic-scoped マスタFK
-// (medicine/procedure/consultation) の所有権を検証する。treatments は自前 clinic_id を
+// (medicine/procedure/consultation/inventory) の所有権を検証する。treatments は自前 clinic_id を
 // 持たず medical_record 経由で隔離されるため、これらのマスタが別 clinic のものでないことを
 // write 前に明示確認しないと cross-tenant の mislink（#124/#125 同型）を作れてしまう。
 // 別 clinic のマスタ参照は repo の FindByID が NotFound を返し write を遮断する。
-func (s *treatmentService) validateTreatmentMasterFKs(ctx context.Context, clinicID uint64, medicineID, procedureID, consultationID *uint64) error {
+// InventoryID は BE-refactor.md X-14a: DecreaseStock(ctx, targetInvID, qty) が clinicID を
+// 取らないため、write 前の所有権検証が唯一のクロステナント防御線になる。
+func (s *treatmentService) validateTreatmentMasterFKs(ctx context.Context, clinicID uint64, medicineID, procedureID, consultationID, inventoryID *uint64) error {
 	if err := validateOwnedMasterFK(ctx, "medicine", clinicID, medicineID,
 		func(actx context.Context, cid, mid uint64) error {
 			_, err := s.repos.Medicine.FindByID(actx, cid, mid)
@@ -510,6 +512,13 @@ func (s *treatmentService) validateTreatmentMasterFKs(ctx context.Context, clini
 	if err := validateOwnedMasterFK(ctx, "consultation", clinicID, consultationID,
 		func(actx context.Context, cid, mid uint64) error {
 			_, err := s.repos.Consultation.FindByID(actx, cid, mid)
+			return err
+		}); err != nil {
+		return err
+	}
+	if err := validateOwnedMasterFK(ctx, "inventory", clinicID, inventoryID,
+		func(actx context.Context, cid, mid uint64) error {
+			_, err := s.repos.Inventory.FindByID(actx, cid, mid)
 			return err
 		}); err != nil {
 		return err
