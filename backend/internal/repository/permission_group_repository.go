@@ -217,8 +217,14 @@ func (r *permissionGroupRepository) UpdateStaffGroups(ctx context.Context, clini
 	}
 	// BE-refactor.md X-7: dbOrTx(ctx, r.db).Transaction(...) で ambient tx があれば SAVEPOINT として参加する。
 	if err := dbOrTx(ctx, r.db).Transaction(func(tx *gorm.DB) error {
-		// 既存の紐付けを全削除
-		if err := tx.Where("staff_id = ?", staffID).Delete(&model.StaffPermissionGroup{}).Error; err != nil {
+		// 既存の紐付けを全削除（BE-refactor.md H-1: staff_permission_groups は自前 clinic_id を
+		// 持たないため、DELETE を staff_id のみでスコープすると、多施設所属スタッフ（Staff は
+		// staff_clinic_assignments で複数クリニックに所属しうる）の場合、clinicID の属さない
+		// 他クリニック分の紐付けまで無警告で消えてしまう。group 側の clinic_id サブクエリで
+		// clinicID に属する紐付けのみを削除対象にスコープする）。
+		subQuery := tx.Model(&model.PermissionGroup{}).Select("id").Where("clinic_id = ?", clinicID)
+		if err := tx.Where("staff_id = ? AND group_id IN (?)", staffID, subQuery).
+			Delete(&model.StaffPermissionGroup{}).Error; err != nil {
 			return apperrors.FromGORM(err, "staff_permission_group", fmt.Sprintf("staff:%d", staffID))
 		}
 		// 新しい紐付けを挿入

@@ -25,9 +25,9 @@ func setupPermissionGroupStaffIsolationTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
 	db := setupTestDB(t)
 	require.NoError(t, db.AutoMigrate(
-		&model.Staff{}, &model.PermissionGroup{}, &model.StaffPermissionGroup{},
+		&model.Staff{}, &model.StaffClinicAssignment{}, &model.PermissionGroup{}, &model.StaffPermissionGroup{},
 	))
-	db.Exec("TRUNCATE TABLE staff_permission_groups, permission_groups, staffs CASCADE")
+	db.Exec("TRUNCATE TABLE staff_permission_groups, staff_clinic_assignments, permission_groups, staffs CASCADE")
 	return db
 }
 
@@ -81,4 +81,52 @@ func TestPermissionGroupRepository_UpdateStaffGroups_ClinicIsolation(t *testing.
 		require.Error(t, err, "clinic B のグループが混在する場合は全体を拒否すべき")
 		assert.Equal(t, int64(1), countAssignments(staffA.ID), "拒否時に既存の紐付けを破壊してはならない")
 	})
+}
+
+// TestPermissionGroupRepository_UpdateStaffGroups_DeleteScopedToClinic は
+// BE-refactor.md H-1 の回帰テスト。多施設所属スタッフ（staff_clinic_assignments で
+// clinic A/B 双方に所属）が clinic B で正当に紐付けた権限グループが、clinic A での
+// 保存操作（DELETE + INSERT の全置換）によって無警告で削除されないことを検証する。
+// staff_permission_groups は自前 clinic_id を持たないため、DELETE を
+// staff_id のみでスコープすると（修正前の実装）、clinic を跨いで他クリニック分の
+// 紐付けまで消えてしまう。DELETE を group 側の clinic_id サブクエリでスコープすると
+// このテストは PASS する。
+func TestPermissionGroupRepository_UpdateStaffGroups_DeleteScopedToClinic(t *testing.T) {
+	db := setupPermissionGroupStaffIsolationTestDB(t)
+	repo := NewPermissionGroupRepository(db)
+	ctx := context.Background()
+
+	const (
+		clinicA = uint64(1)
+		clinicB = uint64(2)
+	)
+
+	// 多施設所属スタッフ: 主所属は clinic A、加えて clinic B にも所属する。
+	staff := makeDoctorAssignedToClinic(t, db, clinicA, "多施設所属スタッフ")
+	require.NoError(t, db.WithContext(ctx).Create(&model.StaffClinicAssignment{
+		StaffID: staff.ID, ClinicID: clinicB,
+	}).Error)
+
+	groupA := makePermissionGroup(t, db, clinicA, "clinic A グループ")
+	groupB := makePermissionGroup(t, db, clinicB, "clinic B グループ")
+
+	// clinic B での過去の正当な保存操作を模して、直接 clinic B のグループへ紐付けておく
+	// （repo.UpdateStaffGroups(clinicB, ...) を経由しても同じ状態になる）。
+	require.NoError(t, db.WithContext(ctx).Create(&model.StaffPermissionGroup{
+		StaffID: staff.ID, GroupID: groupB.ID,
+	}).Error)
+
+	linkExists := func(groupID uint64) bool {
+		var n int64
+		require.NoError(t, db.Model(&model.StaffPermissionGroup{}).
+			Where("staff_id = ? AND group_id = ?", staff.ID, groupID).Count(&n).Error)
+		return n == 1
+	}
+
+	// clinic A での保存操作（clinic A のグループへ差し替え）。
+	err := repo.UpdateStaffGroups(ctx, clinicA, staff.ID, []uint64{groupA.ID})
+	require.NoError(t, err)
+
+	assert.True(t, linkExists(groupB.ID), "clinic B の紐付けは clinic A の保存操作で削除されてはならない")
+	assert.True(t, linkExists(groupA.ID), "clinic A の新規紐付けは保存されるべき")
 }
