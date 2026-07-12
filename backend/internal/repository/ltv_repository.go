@@ -113,57 +113,10 @@ func (r *ltvRepository) FindOwnerLTV(ctx context.Context, params *FindOwnerLTVPa
 	}
 
 	// 金額式の構築（期間フィルタ付き）
-	var amountExpr string
-	hasPeriodFilter := fromDate != nil && toDate != nil
-	switch amountBasis {
-	case "paid_amount":
-		if hasPeriodFilter {
-			amountExpr = "COALESCE(SUM(CASE WHEN mr.date >= ? AND mr.date <= ? THEN p.billing_amount ELSE 0 END), 0)"
-		} else {
-			amountExpr = "COALESCE(SUM(p.billing_amount), 0)"
-		}
-	case "net_paid_amount":
-		if hasPeriodFilter {
-			amountExpr = "COALESCE(SUM(CASE WHEN mr.date >= ? AND mr.date <= ? THEN p.billing_amount ELSE 0 END) - COALESCE(SUM(CASE WHEN mr.date >= ? AND mr.date <= ? THEN br.amount ELSE 0 END), 0), 0)"
-		} else {
-			amountExpr = "COALESCE(SUM(p.billing_amount) - COALESCE(SUM(br.amount), 0), 0)"
-		}
-	default: // gross_total_amount
-		if hasPeriodFilter {
-			amountExpr = "COALESCE(SUM(CASE WHEN mr.date >= ? AND mr.date <= ? THEN b.total_amount ELSE 0 END), 0)"
-		} else {
-			amountExpr = "COALESCE(SUM(b.total_amount), 0)"
-		}
-	}
-	var amountExprArgs []any
-	if hasPeriodFilter {
-		amountExprArgs = append(amountExprArgs, fromDate, toDate)
-		if amountBasis == "net_paid_amount" {
-			amountExprArgs = append(amountExprArgs, fromDate, toDate)
-		}
-	}
+	amountExpr, amountExprArgs := buildLTVAmountExpr(amountBasis, fromDate, toDate)
 
 	// HAVING句構築
-	var having []string
-	var havingArgs []any
-
-	// 全期間の会計額フィルタ（AGG-BE-001: min_amount/max_amount は期間内）
-	if params.MinTotalAmount != nil {
-		having, havingArgs = appendAmountHaving(having, havingArgs, amountExpr, amountExprArgs, ">=", *params.MinTotalAmount)
-	}
-	if params.MaxTotalAmount != nil {
-		having, havingArgs = appendAmountHaving(having, havingArgs, amountExpr, amountExprArgs, "<=", *params.MaxTotalAmount)
-	}
-
-	// 来院回数フィルタ（AGG-BE-002）
-	if params.MinVisitCount != nil {
-		having = append(having, "COUNT(DISTINCT CASE WHEN (mr.date >= COALESCE(?::date, mr.date) AND mr.date <= COALESCE(?::date, mr.date)) THEN mr.date END) >= ?")
-		havingArgs = append(havingArgs, fromDate, toDate, *params.MinVisitCount)
-	}
-	if params.MaxVisitCount != nil {
-		having = append(having, "COUNT(DISTINCT CASE WHEN (mr.date >= COALESCE(?::date, mr.date) AND mr.date <= COALESCE(?::date, mr.date)) THEN mr.date END) <= ?")
-		havingArgs = append(havingArgs, fromDate, toDate, *params.MaxVisitCount)
-	}
+	having, havingArgs := buildLTVHaving(params, amountExpr, amountExprArgs, fromDate, toDate)
 
 	havingClause := ""
 	if len(having) > 0 {
@@ -248,6 +201,72 @@ ORDER BY %s
 	}
 
 	// Post-processing: フィルタリング（include_zero, include_no_visit）
+	return filterLTVRows(rows, params), nil
+}
+
+// buildLTVAmountExpr は AmountBasis に応じた金額集計式と、その式が要するプレースホルダ引数を
+// 構築する（BE-refactor.md E-12: FindOwnerLTV の位置引数結合を事故源から隔離する純粋抽出）。
+func buildLTVAmountExpr(basis string, from, to *time.Time) (string, []any) {
+	hasPeriodFilter := from != nil && to != nil
+	var amountExpr string
+	switch basis {
+	case "paid_amount":
+		if hasPeriodFilter {
+			amountExpr = "COALESCE(SUM(CASE WHEN mr.date >= ? AND mr.date <= ? THEN p.billing_amount ELSE 0 END), 0)"
+		} else {
+			amountExpr = "COALESCE(SUM(p.billing_amount), 0)"
+		}
+	case "net_paid_amount":
+		if hasPeriodFilter {
+			amountExpr = "COALESCE(SUM(CASE WHEN mr.date >= ? AND mr.date <= ? THEN p.billing_amount ELSE 0 END) - COALESCE(SUM(CASE WHEN mr.date >= ? AND mr.date <= ? THEN br.amount ELSE 0 END), 0), 0)"
+		} else {
+			amountExpr = "COALESCE(SUM(p.billing_amount) - COALESCE(SUM(br.amount), 0), 0)"
+		}
+	default: // gross_total_amount
+		if hasPeriodFilter {
+			amountExpr = "COALESCE(SUM(CASE WHEN mr.date >= ? AND mr.date <= ? THEN b.total_amount ELSE 0 END), 0)"
+		} else {
+			amountExpr = "COALESCE(SUM(b.total_amount), 0)"
+		}
+	}
+	var amountExprArgs []any
+	if hasPeriodFilter {
+		amountExprArgs = append(amountExprArgs, from, to)
+		if basis == "net_paid_amount" {
+			amountExprArgs = append(amountExprArgs, from, to)
+		}
+	}
+	return amountExpr, amountExprArgs
+}
+
+// buildLTVHaving は HAVING 句の条件断片とバインド引数を構築する（BE-refactor.md E-12）。
+func buildLTVHaving(params *FindOwnerLTVParams, amountExpr string, amountExprArgs []any, from, to *time.Time) ([]string, []any) {
+	var having []string
+	var havingArgs []any
+
+	// 全期間の会計額フィルタ（AGG-BE-001: min_amount/max_amount は期間内）
+	if params.MinTotalAmount != nil {
+		having, havingArgs = appendAmountHaving(having, havingArgs, amountExpr, amountExprArgs, ">=", *params.MinTotalAmount)
+	}
+	if params.MaxTotalAmount != nil {
+		having, havingArgs = appendAmountHaving(having, havingArgs, amountExpr, amountExprArgs, "<=", *params.MaxTotalAmount)
+	}
+
+	// 来院回数フィルタ（AGG-BE-002）
+	if params.MinVisitCount != nil {
+		having = append(having, "COUNT(DISTINCT CASE WHEN (mr.date >= COALESCE(?::date, mr.date) AND mr.date <= COALESCE(?::date, mr.date)) THEN mr.date END) >= ?")
+		havingArgs = append(havingArgs, from, to, *params.MinVisitCount)
+	}
+	if params.MaxVisitCount != nil {
+		having = append(having, "COUNT(DISTINCT CASE WHEN (mr.date >= COALESCE(?::date, mr.date) AND mr.date <= COALESCE(?::date, mr.date)) THEN mr.date END) <= ?")
+		havingArgs = append(havingArgs, from, to, *params.MaxVisitCount)
+	}
+	return having, havingArgs
+}
+
+// filterLTVRows は include_zero / include_no_visit / last_visit_bucket の Go 側後段フィルタを
+// 適用する（BE-refactor.md E-12）。
+func filterLTVRows(rows []OwnerLTVRow, params *FindOwnerLTVParams) []OwnerLTVRow {
 	var filtered []OwnerLTVRow
 	for i := range rows {
 		row := &rows[i]
@@ -265,8 +284,7 @@ ORDER BY %s
 		}
 		filtered = append(filtered, *row)
 	}
-
-	return filtered, nil
+	return filtered
 }
 
 // appendAmountHaving はローカル生成した集計式だけを SQL 断片として埋め込み、
