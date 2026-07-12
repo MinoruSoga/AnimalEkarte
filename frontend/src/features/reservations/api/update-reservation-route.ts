@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import { handleApiError } from "@/lib/handle-api-error";
+import { queryKeys } from "@/lib/query-keys";
 import { transformReservation } from "./transforms";
 import type { BackendReservation } from "./types";
 import type { ReservationRoute } from "../constants/reservation-route";
@@ -24,8 +25,8 @@ export function useUpdateReservationRoute(reservationId: string) {
     mutationFn: (body: UpdateReservationRouteBody) =>
       updateReservationRoute(reservationId, body),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["reservations"] });
-      queryClient.invalidateQueries({ queryKey: ["reservation", reservationId] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.reservations.all() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.reservations.detail(reservationId) });
     },
     onError: (error: unknown) => handleApiError(error, "予約経路更新"),
   });
