@@ -55,10 +55,7 @@ func (s *checkupSyncService) PreviewCheckupSync(ctx context.Context, clinicID ui
 	}
 
 	owners := make([]CheckupSyncPreviewOwner, 0, len(rows))
-	lineLinkedCount := 0
-	optOutCount := 0
-	noLivingPetCount := 0
-	eligibleCount := 0
+	var counters checkupPreviewCounters
 
 	for i := range rows {
 		row := &rows[i]
@@ -68,62 +65,104 @@ func (s *checkupSyncService) PreviewCheckupSync(ctx context.Context, clinicID ui
 		if input.CPMStage != "" && string(cpmStage) != input.CPMStage {
 			continue
 		}
-
-		hasLine := row.LineUserID != nil && *row.LineUserID != ""
-		hasLivingPet := row.LivingPetCount > 0
-		if hasLine {
-			lineLinkedCount++
-		}
-		if row.LstepOptOut {
-			optOutCount++
-		}
-		if !hasLivingPet {
-			noLivingPetCount++
-		}
-
-		var petNames []string
-		if row.PetNamesCSV != "" {
-			petNames = strings.Split(row.PetNamesCSV, ",")
-		} else {
-			petNames = []string{}
-		}
-
-		var currentTags []string
-		if hasLine {
-			cached := tagCacheByOwner[row.OwnerID]
-			currentTags = make([]string, 0, len(cached))
-			for _, c := range cached {
-				currentTags = append(currentTags, c.TagName)
-			}
-		} else {
-			currentTags = []string{}
-		}
-
-		exclusionReason := deriveExclusionReason(hasLine, row.LstepOptOut, hasLivingPet)
-		if exclusionReason == nil {
-			eligibleCount++
-		}
-
-		owners = append(owners, CheckupSyncPreviewOwner{
-			OwnerID:             row.OwnerID,
-			OwnerName:           row.OwnerName,
-			PetNames:            petNames,
-			LastVisitDate:       row.LastVisitDate,
-			HasLine:             hasLine,
-			IsOptOut:            row.LstepOptOut,
-			HasLivingPet:        hasLivingPet,
-			ExclusionReason:     exclusionReason,
-			CurrentTags:         currentTags,
-			MinPetAgeYears:      row.MinPetAgeYears,
-			MaxPetAgeYears:      row.MaxPetAgeYears,
-			HasChronicCondition: row.HasChronicCondition,
-			CPMStage:            string(cpmStage),
-			TotalAmount:         row.TotalAmount,
-			AnnualVisitCount:    row.AnnualVisitCount,
-			LastCheckupDate:     row.LastCheckupDate,
-		})
+		owner, delta := buildPreviewOwner(row, cpmStage, tagCacheByOwner)
+		owners = append(owners, owner)
+		counters.LineLinked += delta.LineLinked
+		counters.OptOut += delta.OptOut
+		counters.NoLivingPet += delta.NoLivingPet
+		counters.Eligible += delta.Eligible
 	}
 
+	s.logAndAuditCheckupPreview(ctx, clinicID, actorID, input,
+		len(owners), counters.Eligible, counters.LineLinked, counters.OptOut, counters.NoLivingPet)
+
+	return &PreviewCheckupSyncResult{
+		Owners:           owners,
+		TotalCount:       len(owners),
+		EligibleCount:    counters.Eligible,
+		LineLinkedCount:  counters.LineLinked,
+		OptOutCount:      counters.OptOut,
+		NoLivingPetCount: counters.NoLivingPet,
+	}, nil
+}
+
+// checkupPreviewCounters は PreviewCheckupSync のper-owner分類ループが集計する統計群
+// （BE-refactor.md E-9）。
+type checkupPreviewCounters struct {
+	LineLinked  int
+	OptOut      int
+	NoLivingPet int
+	Eligible    int
+}
+
+// buildPreviewOwner は1オーナー分の行データから CheckupSyncPreviewOwner を構築し、
+// 分類カウンタへの加算量を返す（BE-refactor.md E-9: PreviewCheckupSync のper-owner
+// 分類ループ本体の純粋抽出）。呼び出し元は CPM ステージフィルタで除外されなかった行のみを
+// 渡すこと（フィルタで除外された行はどのカウンタも増加させない、という元の挙動を保つため
+// フィルタ自体はこの関数の外で行う）。
+func buildPreviewOwner(row *repository.CheckupSyncPreviewRow, cpmStage CPMStage, tagCacheByOwner map[uint64][]*model.LstepTagCache) (CheckupSyncPreviewOwner, checkupPreviewCounters) {
+	var counters checkupPreviewCounters
+
+	hasLine := row.LineUserID != nil && *row.LineUserID != ""
+	hasLivingPet := row.LivingPetCount > 0
+	if hasLine {
+		counters.LineLinked++
+	}
+	if row.LstepOptOut {
+		counters.OptOut++
+	}
+	if !hasLivingPet {
+		counters.NoLivingPet++
+	}
+
+	var petNames []string
+	if row.PetNamesCSV != "" {
+		petNames = strings.Split(row.PetNamesCSV, ",")
+	} else {
+		petNames = []string{}
+	}
+
+	var currentTags []string
+	if hasLine {
+		cached := tagCacheByOwner[row.OwnerID]
+		currentTags = make([]string, 0, len(cached))
+		for _, c := range cached {
+			currentTags = append(currentTags, c.TagName)
+		}
+	} else {
+		currentTags = []string{}
+	}
+
+	exclusionReason := deriveExclusionReason(hasLine, row.LstepOptOut, hasLivingPet)
+	if exclusionReason == nil {
+		counters.Eligible++
+	}
+
+	owner := CheckupSyncPreviewOwner{
+		OwnerID:             row.OwnerID,
+		OwnerName:           row.OwnerName,
+		PetNames:            petNames,
+		LastVisitDate:       row.LastVisitDate,
+		HasLine:             hasLine,
+		IsOptOut:            row.LstepOptOut,
+		HasLivingPet:        hasLivingPet,
+		ExclusionReason:     exclusionReason,
+		CurrentTags:         currentTags,
+		MinPetAgeYears:      row.MinPetAgeYears,
+		MaxPetAgeYears:      row.MaxPetAgeYears,
+		HasChronicCondition: row.HasChronicCondition,
+		CPMStage:            string(cpmStage),
+		TotalAmount:         row.TotalAmount,
+		AnnualVisitCount:    row.AnnualVisitCount,
+		LastCheckupDate:     row.LastCheckupDate,
+	}
+	return owner, counters
+}
+
+// logAndAuditCheckupPreview はプレビュー結果の統計を slog + audit_logs に記録する
+// （BE-refactor.md E-9: PreviewCheckupSync の観測性テール抽出）。
+func (s *checkupSyncService) logAndAuditCheckupPreview(ctx context.Context, clinicID uint64, actorID *uint64,
+	input *PreviewCheckupSyncInput, totalCount, eligibleCount, lineLinkedCount, optOutCount, noLivingPetCount int) {
 	// ISSUE-005 / ISSUE-009: 抽出条件と除外理由ごとの件数を残す（監査ログ要件）。
 	slog.InfoContext(ctx, "checkup sync preview extracted",
 		"clinic_id", clinicID,
@@ -139,7 +178,7 @@ func (s *checkupSyncService) PreviewCheckupSync(ctx context.Context, clinicID ui
 		"min_annual_visit_count", input.MinAnnualVisitCount,
 		"last_checkup_before", input.LastCheckupBefore,
 		"last_checkup_after", input.LastCheckupAfter,
-		"total_count", len(owners),
+		"total_count", totalCount,
 		"eligible_count", eligibleCount,
 		"line_linked_count", lineLinkedCount,
 		"opt_out_count", optOutCount,
@@ -151,17 +190,8 @@ func (s *checkupSyncService) PreviewCheckupSync(ctx context.Context, clinicID ui
 	//   よって metadata に集計値・条件をまとめて格納する。
 	if err := s.auditSvc.LogLstepOperationWithMetadata(ctx, clinicID, actorID,
 		"checkup_sync_preview", "owner", nil,
-		buildCheckupSyncPreviewMetadata(input, len(owners), eligibleCount, lineLinkedCount, optOutCount, noLivingPetCount),
+		buildCheckupSyncPreviewMetadata(input, totalCount, eligibleCount, lineLinkedCount, optOutCount, noLivingPetCount),
 	); err != nil {
 		slog.WarnContext(ctx, "audit log failed for checkup sync preview", "error", err, "clinic_id", clinicID)
 	}
-
-	return &PreviewCheckupSyncResult{
-		Owners:           owners,
-		TotalCount:       len(owners),
-		EligibleCount:    eligibleCount,
-		LineLinkedCount:  lineLinkedCount,
-		OptOutCount:      optOutCount,
-		NoLivingPetCount: noLivingPetCount,
-	}, nil
 }
