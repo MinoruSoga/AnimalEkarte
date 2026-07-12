@@ -71,7 +71,7 @@ export const PALETTE = {
   /* ── Status semantic ── */
   /**
    * Gray medium (#9B9A97)
-   * Canonical value for: statusGrayText, bgStatusGrayMedium, dotGray
+   * Canonical value for: statusGrayText, bgStatusGrayMedium
    * Used as text color for muted status, solid bg for dot fills, chart legend dots.
    */
   grayMedium: "#9B9A97",
@@ -87,19 +87,6 @@ export const PALETTE = {
 
   /* ── Orange badge border ── */
   borderOrangeBadge: "#F0C9A8",
-
-  /* ── Service-type dot colors (saturated accents for legend) ── */
-  dotBlue:    "#529CCA",
-  dotGreen:   "#4DAB9A",
-  dotRed:     "#E16F64",
-  dotOrange:  "#E78D3C",
-  dotYellow:  "#DFAB01",
-  dotPurple:  "#9A6DD7",
-  dotPink:    "#D44D8E",
-  dotBrown:   "#937264",
-  /** #9B9A97 — alias of grayMedium; kept here for dot-section readability */
-  dotGray:    "#9B9A97",
-  dotDefault: "#91918E",
 
   /* ── Master settings default colors (DB-configurable) ── */
   /** Default gray for badge when no color set */
@@ -281,10 +268,10 @@ export const C = {
   bgStatusGreenDot:  "bg-[#0F7B6C]",
   borderStatusGreen: "border-[#DDEDEA]",
   hoverBgStatusGreen:"hover:bg-[#DDEDEA]",
-  /** #9B9A97 — PALETTE.grayMedium; see also bgStatusGrayMedium, dotGray */
+  /** #9B9A97 — PALETTE.grayMedium; see also bgStatusGrayMedium */
   textStatusGray:    "text-[#9B9A97]",
   bgStatusGray:      "bg-[#EBECED]",
-  /** #9B9A97 — PALETTE.grayMedium; see also textStatusGray, dotGray */
+  /** #9B9A97 — PALETTE.grayMedium; see also textStatusGray */
   bgStatusGrayMedium:"bg-[#9B9A97]",
   borderStatusGray:  "border-[#EBECED]",
   hoverBgStatusGray: "hover:bg-[#EBECED]",
@@ -431,16 +418,6 @@ export const C = {
   borderAccentBadge: "border-[#B8D4E3]",
   borderAccentBadge50: "border-[#B8D4E3]/50",
 
-  /** Notion Brown — 入院 reservation card */
-  bgBrown:        "bg-[#EEE0DA]",
-  textBrown:      "text-[#64473A]",
-  borderBrown:    "border-[#DFD0C8]",
-
-  /** Notion Pink — ホテル reservation card */
-  bgPink:         "bg-[#F5E0E9]",
-  textPink:       "text-[#AD1A72]",
-  borderPink:     "border-[#ECCBDA]",
-
   /** Notion muted (default fallback badge) */
   bgMuted:        "bg-[#F1F0EE]",
   bgMutedBadge:   "bg-[#F1F1EF]",
@@ -449,9 +426,6 @@ export const C = {
   textMuted:      "text-[#787774]",
   /** #E3E2E0 — PALETTE.grayLight; see also bgInactive, bgGrayTag */
   borderMuted:    "border-[#E3E2E0]",
-
-  /** Reservation-specific blue tint */
-  textAccentBlue: "text-[#0B6E99]",
 
   /** Additional green border for badges */
   borderStatusGreenAlt: "border-[#C3DFC3]",
@@ -495,9 +469,6 @@ export const C = {
   hoverTextStatusGreen:  "hover:text-[#0F7B6C]",
 
   /* ── Service-type / shift specific ── */
-  bgGreenAlt:        "bg-[#DBEDDB]",
-  bgOrangeAlt:       "bg-[#FADEC9]",
-  bgPurpleAlt:       "bg-[#E8DEEE]",
   bgPurpleAlt2:      "bg-[#EBE2F5]",
   textPurpleAlt:     "text-[#5B2D8E]",
   borderPurpleAlt2:  "border-[#EBE2F5]",
@@ -505,18 +476,6 @@ export const C = {
   textGrayTag:       "text-[#55534E]",
   borderGrayTag:     "border-[#D5D4D1]",
   textPaidLeave:     "text-[#7B5B29]",
-
-  /* ── Service-type dot colors (Tailwind) ── */
-  dotBlue:    "bg-[#529CCA]",
-  dotGreen:   "bg-[#4DAB9A]",
-  dotRed:     "bg-[#E16F64]",
-  dotOrange:  "bg-[#E78D3C]",
-  dotYellow:  "bg-[#DFAB01]",
-  dotPurple:  "bg-[#9A6DD7]",
-  dotPink:    "bg-[#D44D8E]",
-  dotBrown:   "bg-[#937264]",
-  dotGray:    "bg-[#9B9A97]",
-  dotDefault: "bg-[#91918E]",
 
   /* ── Medical accent blue (karte / hospitalization) ── */
   bgMedicalBlue:          "bg-[#2EAADC]",
@@ -560,26 +519,11 @@ export const BADGE = {
   /** Notion Yellow — 依頼中, pending, low stock, excretion, 定期健診 */
   yellow:  `${C.bgNotice} ${C.textNotice} ${C.borderNotice}`,
 
-  /* ── Reservation-specific extras ── */
-  /** Notion Blue darker text — 診療 */
-  blueAlt: `${C.bgAccentLight} ${C.textAccentBlue} ${C.borderAccentBadge}`,
-  /** Notion Green (検査 reservation) */
-  greenAlt:`${C.bgGreenAlt} ${C.textStatusGreen} ${C.borderStatusGreenAlt}`,
-  /** Notion Orange lighter — トリミング reservation */
-  orangeAlt: `${C.bgOrangeAlt} ${C.textDiscount} ${C.borderOrangeBadge}`,
-  /** Notion Purple lighter — 予防接種 reservation */
-  purpleAlt: `${C.bgPurpleAlt} ${C.textStatusPurple} ${C.borderPurpleLight}`,
-  /** Notion Brown — 入院 reservation */
-  brown:   `${C.bgBrown} ${C.textBrown} ${C.borderBrown}`,
-  /** Notion Pink — ホテル reservation */
-  pink:    `${C.bgPink} ${C.textPink} ${C.borderPink}`,
   /** Default / fallback */
   muted:   `${C.bgMutedBadge} ${C.textMuted} ${C.borderMuted}`,
 
   /* ── Care Plan (no border) ── */
-  orangeNoBorder: `${C.bgDiscountLight} ${C.textDiscount}`,
   blueNoBorder:   `${C.bgAccentLight} ${C.textAccentDark}`,
-  purpleNoBorder: `${C.bgStatusPurple} ${C.textStatusPurple}`,
   greenNoBorder:  `${C.bgStatusGreen} ${C.textStatusGreen}`,
   grayNoBorder:   `${C.bgStatusGray} ${C.textStatusGray}`,
 
