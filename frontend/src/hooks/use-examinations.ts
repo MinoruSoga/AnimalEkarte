@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
+import { queryKeys } from "@/lib/query-keys";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 import { transformExamination, type ExaminationRecord } from "@/lib/transforms/examination";
 import type { Examination } from "@/types/generated/models";
@@ -36,7 +37,7 @@ const getExaminations = async (
  */
 export const useGetExaminations = (filters?: ExaminationFilters) => {
   return useQuery({
-    queryKey: ["examinations", filters],
+    queryKey: queryKeys.examinations.list(filters),
     queryFn: () => getExaminations(filters),
     staleTime: QUERY_STALE_TIMES.MEDIUM,
     gcTime: QUERY_GC_TIMES.STANDARD,

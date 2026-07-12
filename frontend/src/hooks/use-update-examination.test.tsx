@@ -4,6 +4,7 @@ import { renderHook, waitFor, act } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { http, HttpResponse } from "msw";
 import { server } from "@/testing/mocks/node";
+import { queryKeys } from "@/lib/query-keys";
 import { useUpdateExamination } from "./use-update-examination";
 
 function createWrapper(queryClient: QueryClient) {
@@ -35,7 +36,7 @@ describe("useUpdateExamination (FE4-6)", () => {
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
 
-    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ["examinations"] });
-    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ["examination", "7"] });
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: queryKeys.examinations.all() });
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: queryKeys.examinations.detail("7") });
   });
 });

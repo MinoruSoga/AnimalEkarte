@@ -4,6 +4,7 @@ import { renderHook, waitFor, act } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { http, HttpResponse } from "msw";
 import { server } from "@/testing/mocks/node";
+import { queryKeys } from "@/lib/query-keys";
 import { useUpdateReservation } from "./use-update-reservation";
 
 function createWrapper(queryClient: QueryClient) {
@@ -41,8 +42,8 @@ describe("useUpdateReservation (FE4-6)", () => {
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
 
-    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ["reservations"] });
-    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ["reception"] });
-    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ["reservation", "99"] });
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: queryKeys.reservations.all() });
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: queryKeys.reception.all() });
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: queryKeys.reservations.detail("99") });
   });
 });

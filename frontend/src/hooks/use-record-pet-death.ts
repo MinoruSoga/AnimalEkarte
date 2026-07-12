@@ -3,6 +3,7 @@ import { toast } from "sonner";
 import { axios } from "@/lib/axios";
 import { requireStoredClinicId } from "@/lib/current-clinic";
 import { handleApiError } from "@/lib/handle-api-error";
+import { queryKeys } from "@/lib/query-keys";
 
 interface RecordPetDeathVariables {
   petId: string;
@@ -25,8 +26,8 @@ export function useRecordPetDeath() {
       );
     },
     onSuccess: (_, { petId }) => {
-      queryClient.invalidateQueries({ queryKey: ["pet", petId] });
-      queryClient.invalidateQueries({ queryKey: ["pets"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.pets.detail(petId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.pets.list() });
       toast.success("死亡を記録しました");
     },
     onError: (error) => {

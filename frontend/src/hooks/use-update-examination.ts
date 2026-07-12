@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import { handleApiError } from "@/lib/handle-api-error";
+import { queryKeys } from "@/lib/query-keys";
 import { transformExamination, type ExaminationRecord } from "@/lib/transforms/examination";
 import type { Examination } from "@/types/generated/models";
 
@@ -35,11 +36,11 @@ export const useUpdateExamination = () => {
     mutationFn: ({ id, req }: { id: string; req: UpdateExaminationRequest }) =>
       updateExamination(id, req),
     onSuccess: (_data, { id }) => {
-      queryClient.invalidateQueries({ queryKey: ["examinations"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.examinations.all() });
       // FE4-6 fix: detail クエリの実キーは ["examination", id]（単数形。features/examinations/api/get-examination.ts）。
       // list prefix invalidation はこれを包含しないため、更新後も詳細画面が stale のまま残っていた
       // （先例: update-examination-items.ts:26-27 は既に両方を invalidate している）。
-      queryClient.invalidateQueries({ queryKey: ["examination", id] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.examinations.detail(id) });
     },
     onError: (error) => handleApiError(error, "検査更新"),
   });

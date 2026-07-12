@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
+import { queryKeys } from "@/lib/query-keys";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 import { transformOwner, type OwnerApiResponse } from "@/lib/transforms/owner";
 
@@ -9,7 +10,7 @@ import { transformOwner, type OwnerApiResponse } from "@/lib/transforms/owner";
  */
 export function useGetOwner(id: string) {
   return useQuery({
-    queryKey: ["owners", id],
+    queryKey: queryKeys.owners.detail(id),
     queryFn: async () => {
       const { data } = await axios.get<OwnerApiResponse>(`/v1/owners/${id}`);
       return transformOwner(data);

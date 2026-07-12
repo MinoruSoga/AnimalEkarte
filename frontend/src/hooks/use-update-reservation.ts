@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import { handleApiError } from "@/lib/handle-api-error";
+import { queryKeys } from "@/lib/query-keys";
 import { transformReservation } from "@/lib/transforms/reservation";
 import type { Reservation } from "@/lib/transforms/reservation";
 import type { Reservation as BackendReservation } from "@/types/generated/models";
@@ -46,12 +47,12 @@ export const useUpdateReservation = () => {
     mutationFn: ({ id, req }: { id: string; req: UpdateReservationRequest }) =>
       updateReservation(id, req),
     onSuccess: (_data, { id }) => {
-      queryClient.invalidateQueries({ queryKey: ["reservations"] });
-      queryClient.invalidateQueries({ queryKey: ["reception"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.reservations.all() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.reception.all() });
       // FE4-6 fix: detail クエリの実キーは ["reservation", id]（単数形。features/reservations/api/get-reservation.ts）。
       // list prefix invalidation はこれを包含しないため、更新後も詳細画面が stale のまま残っていた
       // （先例: update-reservation-route.ts:27-28 は既に両方を invalidate している）。
-      queryClient.invalidateQueries({ queryKey: ["reservation", id] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.reservations.detail(id) });
     },
     onError: (error) => handleApiError(error, "予約更新"),
   });

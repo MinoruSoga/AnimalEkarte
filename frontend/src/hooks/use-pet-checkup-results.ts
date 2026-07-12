@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
+import { queryKeys } from "@/lib/query-keys";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 
 // #211 健診パッケージのフィールド型。BE model.CheckupFieldType と一致させる。
@@ -79,7 +80,7 @@ const getPetCheckupResults = async (petId: string): Promise<PetCheckupResult[]> 
  */
 export const useGetPetCheckupResults = (petId?: string) => {
   return useQuery({
-    queryKey: ["pet-checkup-results", "report", petId],
+    queryKey: queryKeys.petCheckupResultsReport(petId!),
     queryFn: () => getPetCheckupResults(petId!),
     enabled: !!petId,
     staleTime: QUERY_STALE_TIMES.MEDIUM,

@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
+import { queryKeys } from "@/lib/query-keys";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 import { transformReservation } from "@/lib/transforms/reservation";
 import type { Reservation } from "@/lib/transforms/reservation";
@@ -60,7 +61,7 @@ const getReservations = async (filters?: ReservationFilters): Promise<Reservatio
  */
 export const useGetReservations = (filters?: ReservationFilters) => {
   return useQuery({
-    queryKey: ["reservations", filters],
+    queryKey: queryKeys.reservations.list(filters),
     queryFn: () => getReservations(filters),
     enabled: filters?.enabled ?? true,
     staleTime: QUERY_STALE_TIMES.REALTIME, // 予約一覧は高頻度変更

@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
+import { queryKeys } from "@/lib/query-keys";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 import type { AnimalSpecies as BackendAnimalSpecies } from "@/types/generated/models";
 
@@ -16,7 +17,7 @@ const getAnimalSpecies = async (): Promise<BackendAnimalSpecies[]> => {
 
 const useGetAnimalSpecies = (opts?: { includeInactive?: boolean }) => {
   return useQuery({
-    queryKey: ["masters", "animal-species", opts?.includeInactive ? "all" : "active"],
+    queryKey: queryKeys.masters.animalSpecies.filtered(!!opts?.includeInactive),
     queryFn: getAnimalSpecies,
     staleTime: QUERY_STALE_TIMES.STATIC,
     gcTime: QUERY_GC_TIMES.LONG,

@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
+import { queryKeys } from "@/lib/query-keys";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 import type { Vaccination } from "@/types/generated/models";
 
@@ -48,7 +49,7 @@ const getPetVaccinations = async (
  */
 export const useGetPetVaccinations = (petId?: string) => {
   return useQuery({
-    queryKey: ["vaccinations", "pet", petId],
+    queryKey: queryKeys.vaccinations.byPet(petId!),
     queryFn: () => getPetVaccinations(petId!),
     enabled: !!petId,
     staleTime: QUERY_STALE_TIMES.MEDIUM,

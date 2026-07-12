@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import { handleApiError } from "@/lib/handle-api-error";
+import { queryKeys } from "@/lib/query-keys";
 import { transformReservation } from "@/lib/transforms/reservation";
 import type { Reservation, ReservationRoute } from "@/lib/transforms/reservation";
 import type { Reservation as BackendReservation } from "@/types/generated/models";
@@ -46,8 +47,8 @@ export const useCreateReservation = () => {
   return useMutation({
     mutationFn: createReservation,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["reservations"] });
-      queryClient.invalidateQueries({ queryKey: ["reception"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.reservations.all() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.reception.all() });
     },
     onError: (error) => handleApiError(error, "予約作成"),
   });

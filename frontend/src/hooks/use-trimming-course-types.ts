@@ -1,9 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
+import { queryKeys } from "@/lib/query-keys";
 import type { TrimmingCourseType as ModelTrimmingCourseType } from "@/types/generated/models";
-
-export const TRIMMING_COURSE_TYPES_QUERY_KEY = ["masters", "trimming-course-types"] as const;
 
 export function transformTrimmingCourseType(data: ModelTrimmingCourseType) {
   return {
@@ -27,7 +26,7 @@ async function getTrimmingCourseTypes(): Promise<TrimmingCourseType[]> {
  */
 export function useGetTrimmingCourseTypes() {
   return useQuery({
-    queryKey: TRIMMING_COURSE_TYPES_QUERY_KEY,
+    queryKey: queryKeys.masters.category("trimming-course-types"),
     queryFn: getTrimmingCourseTypes,
     staleTime: QUERY_STALE_TIMES.STATIC,
     gcTime: QUERY_GC_TIMES.LONG,
