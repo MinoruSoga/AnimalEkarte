@@ -18,6 +18,20 @@ import (
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
+// clearCookie は指定した Cookie を即時失効させる（MaxAge=-1, Value=""）ヘルパー
+// （E-2: Logout の cookie クリアブロックの共通化）。
+func clearCookie(c *gin.Context, name, path string, secure bool, sameSite http.SameSite) {
+	http.SetCookie(c.Writer, &http.Cookie{
+		Name:     name,
+		Value:    "",
+		Path:     path,
+		MaxAge:   -1,
+		HttpOnly: true,
+		Secure:   secure,
+		SameSite: sameSite,
+	})
+}
+
 func newJti() string {
 	var bytes [16]byte
 	if _, err := rand.Read(bytes[:]); err != nil {

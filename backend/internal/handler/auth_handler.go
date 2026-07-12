@@ -112,26 +112,7 @@ func (h *Handler) Logout(c *gin.Context) {
 		}
 	}
 
-	// 監査ログ: ログアウト（ベストエフォート）
-	// extractStaffID/extractClinicID は Auth middleware が設定する user_id/clinic_id を前提とし、
-	// 存在しない場合に 401 レスポンスを書き込む副作用がある。
-	// /logout は保護グループ外（Auth middleware なし）なのでこれらの関数は使用しない。
-	// 代わりに c.Get() で直接チェックし、存在する場合のみ監査ログを記録する。
-	userIDVal, hasUser := c.Get("user_id")
-	clinicIDVal, hasClinic := c.Get("clinic_id")
-	if hasUser && hasClinic {
-		if userIDStr, ok := userIDVal.(string); ok {
-			if clinicIDStr, ok := clinicIDVal.(string); ok {
-				if staffID, err := strconv.ParseUint(userIDStr, 10, 64); err == nil {
-					if clinicID, err := strconv.ParseUint(clinicIDStr, 10, 64); err == nil {
-						if logErr := h.svc.Audit.LogAuthLogin(ctx, &clinicID, &staffID, model.AuditActionAuthLogout, c.ClientIP(), c.Request.Header.Get("User-Agent")); logErr != nil {
-							slog.ErrorContext(ctx, "audit log failed for logout", "staff_id", staffID, "clinic_id", clinicID, "error", logErr)
-						}
-					}
-				}
-			}
-		}
-	}
+	h.auditLogoutBestEffort(c)
 
 	isProduction := h.cfg.GinMode == "release"
 	sameSite := http.SameSiteLaxMode
@@ -139,44 +120,46 @@ func (h *Handler) Logout(c *gin.Context) {
 		sameSite = http.SameSiteNoneMode
 	}
 
-	http.SetCookie(c.Writer, &http.Cookie{
-		Name:     accessTokenCookieName,
-		Value:    "",
-		Path:     "/",
-		MaxAge:   -1,
-		HttpOnly: true,
-		Secure:   isProduction,
-		SameSite: sameSite,
-	})
-	http.SetCookie(c.Writer, &http.Cookie{
-		Name:     legacyCookieName,
-		Value:    "",
-		Path:     "/",
-		MaxAge:   -1,
-		HttpOnly: true,
-		Secure:   isProduction,
-		SameSite: sameSite,
-	})
-	http.SetCookie(c.Writer, &http.Cookie{
-		Name:     refreshTokenCookieName,
-		Value:    "",
-		Path:     "/api/v1/auth/refresh",
-		MaxAge:   -1,
-		HttpOnly: true,
-		Secure:   isProduction,
-		SameSite: sameSite,
-	})
-	http.SetCookie(c.Writer, &http.Cookie{
-		Name:     "prev_clinic_id",
-		Value:    "",
-		Path:     "/",
-		MaxAge:   -1,
-		HttpOnly: true,
-		Secure:   isProduction,
-		SameSite: sameSite,
-	})
+	clearCookie(c, accessTokenCookieName, "/", isProduction, sameSite)
+	clearCookie(c, legacyCookieName, "/", isProduction, sameSite)
+	clearCookie(c, refreshTokenCookieName, "/api/v1/auth/refresh", isProduction, sameSite)
+	clearCookie(c, "prev_clinic_id", "/", isProduction, sameSite)
 
 	c.JSON(http.StatusOK, gin.H{"message": "logged out"})
+}
+
+// auditLogoutBestEffort はログアウト監査ログをベストエフォートで記録する（E-2）。
+// extractStaffID/extractClinicID は Auth middleware が設定する user_id/clinic_id を前提とし、
+// 存在しない場合に 401 レスポンスを書き込む副作用がある。
+// /logout は保護グループ外（Auth middleware なし）なのでこれらの関数は使用しない。
+// 代わりに c.Get() で直接チェックし、存在する場合のみ監査ログを記録する。
+func (h *Handler) auditLogoutBestEffort(c *gin.Context) {
+	userIDVal, hasUser := c.Get("user_id")
+	clinicIDVal, hasClinic := c.Get("clinic_id")
+	if !hasUser || !hasClinic {
+		return
+	}
+	userIDStr, ok := userIDVal.(string)
+	if !ok {
+		return
+	}
+	clinicIDStr, ok := clinicIDVal.(string)
+	if !ok {
+		return
+	}
+	staffID, err := strconv.ParseUint(userIDStr, 10, 64)
+	if err != nil {
+		return
+	}
+	clinicID, err := strconv.ParseUint(clinicIDStr, 10, 64)
+	if err != nil {
+		return
+	}
+
+	ctx := c.Request.Context()
+	if logErr := h.svc.Audit.LogAuthLogin(ctx, &clinicID, &staffID, model.AuditActionAuthLogout, c.ClientIP(), c.Request.Header.Get("User-Agent")); logErr != nil {
+		slog.ErrorContext(ctx, "audit log failed for logout", "staff_id", staffID, "clinic_id", clinicID, "error", logErr)
+	}
 }
 
 // RefreshToken は refresh_token Cookie を検証し、新しい access_token + refresh_token を発行する。
