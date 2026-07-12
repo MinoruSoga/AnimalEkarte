@@ -66,13 +66,15 @@ type TrimmingService interface {
 }
 
 type trimmingService struct {
-	reservation      repository.ReservationRepository
-	reservationType  repository.ReservationTypeRepository
-	reservationStaff repository.ReservationStaffRepository
-	unavailableTime  repository.ReservationTypeUnavailableTimeRepository
-	availableSlot    repository.ReservationTypeAvailableSlotRepository
-	trimmingDetail   repository.AppointmentTrimmingDetailRepository
-	transactor       repository.Transactor
+	reservation        repository.ReservationRepository
+	reservationType    repository.ReservationTypeRepository
+	reservationStaff   repository.ReservationStaffRepository
+	unavailableTime    repository.ReservationTypeUnavailableTimeRepository
+	availableSlot      repository.ReservationTypeAvailableSlotRepository
+	trimmingDetail     repository.AppointmentTrimmingDetailRepository
+	trimmingCourseRepo repository.TrimmingCourseRepository
+	trimmingOptionRepo repository.TrimmingOptionRepository
+	transactor         repository.Transactor
 }
 
 func NewTrimmingService(
@@ -82,16 +84,20 @@ func NewTrimmingService(
 	unavailableTime repository.ReservationTypeUnavailableTimeRepository,
 	availableSlot repository.ReservationTypeAvailableSlotRepository,
 	trimmingDetail repository.AppointmentTrimmingDetailRepository,
+	trimmingCourseRepo repository.TrimmingCourseRepository,
+	trimmingOptionRepo repository.TrimmingOptionRepository,
 	transactor repository.Transactor,
 ) TrimmingService {
 	return &trimmingService{
-		reservation:      reservation,
-		reservationType:  reservationType,
-		reservationStaff: reservationStaff,
-		unavailableTime:  unavailableTime,
-		availableSlot:    availableSlot,
-		trimmingDetail:   trimmingDetail,
-		transactor:       transactor,
+		reservation:        reservation,
+		reservationType:    reservationType,
+		reservationStaff:   reservationStaff,
+		unavailableTime:    unavailableTime,
+		availableSlot:      availableSlot,
+		trimmingDetail:     trimmingDetail,
+		trimmingCourseRepo: trimmingCourseRepo,
+		trimmingOptionRepo: trimmingOptionRepo,
+		transactor:         transactor,
 	}
 }
 
@@ -155,6 +161,9 @@ func (s *trimmingService) Create(ctx context.Context, clinicID uint64, input *Cr
 			return nil, err
 		}
 	} else if err := validateTimeRange(input.StartTime, input.EndTime); err != nil {
+		return nil, err
+	}
+	if err := s.validateTrimmingCourseAndOptions(ctx, clinicID, input.CourseID, input.OptionIDs); err != nil {
 		return nil, err
 	}
 
@@ -229,6 +238,32 @@ func (s *trimmingService) validateTrimmingReservationType(ctx context.Context, c
 	return nil
 }
 
+// validateTrimmingCourseAndOptions は appointment_trimming_detail の CourseID / OptionIDs が
+// caller の clinic に属することを永続化前に検証する（X-14c: reservation_validators.go:116-127 と
+// 同型の 2 repo ガード）。repo が nil（未 DI のテストダブル等）の場合はそのフィールドのガードを
+// スキップする（reservation_staff_capability_validator.go と同型の nil-safe パターン）。
+func (s *trimmingService) validateTrimmingCourseAndOptions(ctx context.Context, clinicID uint64, courseID *uint64, optionIDs []uint64) error {
+	if s.trimmingCourseRepo != nil {
+		if err := validateOwnedMasterFK(ctx, "trimming course", clinicID, courseID,
+			func(actx context.Context, cid, mid uint64) error {
+				_, err := s.trimmingCourseRepo.FindByID(actx, cid, mid)
+				return err
+			}); err != nil {
+			return err
+		}
+	}
+	if s.trimmingOptionRepo != nil {
+		if err := validateOwnedMasterFKs(ctx, "trimming option", clinicID, optionIDs,
+			func(actx context.Context, cid, mid uint64) error {
+				_, err := s.trimmingOptionRepo.FindByID(actx, cid, mid)
+				return err
+			}); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func (s *trimmingService) createDetailForExistingAppointment(
 	ctx context.Context,
 	clinicID uint64,
@@ -269,6 +304,9 @@ func (s *trimmingService) createDetailForExistingAppointment(
 		if err := validateReservationTypeAvailableTime(ctx, s.unavailableTime, clinicID, appt.ReservationTypeID, resolvedStart, resolvedEnd); err != nil {
 			return nil, err
 		}
+	}
+	if err := s.validateTrimmingCourseAndOptions(ctx, clinicID, input.CourseID, input.OptionIDs); err != nil {
+		return nil, err
 	}
 
 	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
@@ -356,6 +394,14 @@ func (s *trimmingService) Update(ctx context.Context, clinicID, id uint64, input
 	}
 	if input.Status != nil {
 		apptFields["status"] = *input.Status
+	}
+
+	var optionIDs []uint64
+	if input.OptionIDs != nil {
+		optionIDs = *input.OptionIDs
+	}
+	if err := s.validateTrimmingCourseAndOptions(ctx, clinicID, input.CourseID, optionIDs); err != nil {
+		return nil, err
 	}
 
 	// appointment → trimming_detail → options の更新を単一トランザクションで実行する。

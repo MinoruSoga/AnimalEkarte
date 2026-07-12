@@ -235,7 +235,7 @@ func newTrimmingTestServiceWithReservationType(
 	detail *mockTrimmingDetailRepository,
 	reservationType *mockTrimmingReservationTypeRepository,
 ) TrimmingService {
-	return NewTrimmingService(reserv, reservationType, nil, nil, nil, detail, &mockTransactor{})
+	return NewTrimmingService(reserv, reservationType, nil, nil, nil, detail, nil, nil, &mockTransactor{})
 }
 
 func newTrimmingTestServiceWithAvailability(
@@ -246,7 +246,7 @@ func newTrimmingTestServiceWithAvailability(
 	unavailableTime repository.ReservationTypeUnavailableTimeRepository,
 	availableSlot repository.ReservationTypeAvailableSlotRepository,
 ) TrimmingService {
-	return NewTrimmingService(reserv, reservationType, reservationStaff, unavailableTime, availableSlot, detail, &mockTransactor{})
+	return NewTrimmingService(reserv, reservationType, reservationStaff, unavailableTime, availableSlot, detail, nil, nil, &mockTransactor{})
 }
 
 // --- tests ---
@@ -459,7 +459,7 @@ func TestTrimmingService_ValidateTrimmingReservationType_NilRepository(t *testin
 		},
 	}
 	// reservationType repository を明示的に nil で渡し、interface が真に nil であることを検証する。
-	svc := NewTrimmingService(reserv, nil, nil, nil, nil, &mockTrimmingDetailRepository{}, &mockTransactor{})
+	svc := NewTrimmingService(reserv, nil, nil, nil, nil, &mockTrimmingDetailRepository{}, nil, nil, &mockTransactor{})
 
 	appt, err := svc.Create(context.Background(), 1, &CreateTrimmingInput{
 		ReservationTypeID: 1,
