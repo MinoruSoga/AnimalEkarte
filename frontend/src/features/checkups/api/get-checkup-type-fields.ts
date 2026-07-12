@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
+import { queryKeys } from "@/lib/query-keys";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 
 // #211 健診パッケージのフィールド型。BE model.CheckupFieldType と一致させる。
@@ -71,7 +72,7 @@ const getCheckupTypeFields = async (
 
 export const useGetCheckupTypeFields = (checkupTypeId: string) => {
   return useQuery({
-    queryKey: ["checkup-type-fields", checkupTypeId],
+    queryKey: queryKeys.checkups.typeFields(checkupTypeId),
     queryFn: () => getCheckupTypeFields(checkupTypeId),
     enabled: !!checkupTypeId,
     staleTime: QUERY_STALE_TIMES.STATIC,

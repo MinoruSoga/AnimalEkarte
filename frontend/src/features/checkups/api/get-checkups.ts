@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
+import { queryKeys } from "@/lib/query-keys";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 import { transformCheckupGlobal } from "./transforms";
 import type { BackendCheckupGlobal, CheckupFilters } from "./types";
@@ -18,7 +19,7 @@ const getCheckups = async (filters?: CheckupFilters): Promise<CheckupRecord[]> =
 
 export const useGetCheckups = (filters?: CheckupFilters) => {
   return useQuery({
-    queryKey: ["checkups", filters],
+    queryKey: queryKeys.checkups.list(filters),
     queryFn: () => getCheckups(filters),
     staleTime: QUERY_STALE_TIMES.MEDIUM,
     gcTime: QUERY_GC_TIMES.STANDARD,
