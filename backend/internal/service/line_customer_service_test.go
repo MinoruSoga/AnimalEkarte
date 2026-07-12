@@ -52,7 +52,7 @@ func (m *mockLineCustomerRepositoryFull) UpdateAdditionalFields(_ context.Contex
 }
 
 func TestNewLineCustomerService(t *testing.T) {
-	svc := NewLineCustomerService(&mockLineCustomerRepositoryFull{})
+	svc := NewLineCustomerService(&mockLineCustomerRepositoryFull{}, &mockLineLinkOwnerRepo{})
 	assert.NotNil(t, svc)
 }
 
@@ -91,7 +91,7 @@ func TestLineCustomerService_List(t *testing.T) {
 					return tt.repoData, tt.repoErr
 				},
 			}
-			svc := NewLineCustomerService(repo)
+			svc := NewLineCustomerService(repo, &mockLineLinkOwnerRepo{})
 
 			customers, err := svc.List(context.Background(), 1)
 
@@ -109,24 +109,31 @@ func TestLineCustomerService_LinkOwner(t *testing.T) {
 	ownerID := uint64(5)
 
 	tests := []struct {
-		name               string
-		id                 uint64
-		ownerID            *uint64
-		findByIDErr        error
-		findByIDSecondErr  error
-		updateOwnerLinkErr error
-		wantErr            bool
-		wantNF             bool
+		name                   string
+		id                     uint64
+		ownerID                *uint64
+		findByIDErr            error
+		findByIDSecondErr      error
+		ownerFindByIDErr       error
+		updateOwnerLinkErr     error
+		wantErr                bool
+		wantNF                 bool
+		wantOwnerLookupCalled  bool
+		wantUpdateOwnerLinkRun bool
 	}{
 		{
-			name:    "links owner successfully",
-			id:      1,
-			ownerID: &ownerID,
+			name:                   "links owner successfully",
+			id:                     1,
+			ownerID:                &ownerID,
+			wantOwnerLookupCalled:  true,
+			wantUpdateOwnerLinkRun: true,
 		},
 		{
-			name:    "unlinks owner when ownerID is nil",
-			id:      1,
-			ownerID: nil,
+			name:                   "unlinks owner when ownerID is nil",
+			id:                     1,
+			ownerID:                nil,
+			wantOwnerLookupCalled:  false,
+			wantUpdateOwnerLinkRun: true,
 		},
 		{
 			name:        "returns not found error when line customer does not exist",
@@ -137,24 +144,41 @@ func TestLineCustomerService_LinkOwner(t *testing.T) {
 			wantNF:      true,
 		},
 		{
-			name:               "returns error when UpdateOwnerLink fails",
-			id:                 1,
-			ownerID:            &ownerID,
-			updateOwnerLinkErr: errors.New("db error"),
-			wantErr:            true,
+			// Regression for FE-refactor.md 残件 3: 他クリニック / 不存在の ownerID は
+			// UpdateOwnerLink を呼ばず NotFound を返すこと（旧挙動は未検証のままリンク成功していた）。
+			name:                  "returns not found error when ownerID belongs to a different clinic",
+			id:                    1,
+			ownerID:               &ownerID,
+			ownerFindByIDErr:      apperrors.WrapNotFound("owner", "5"),
+			wantErr:               true,
+			wantNF:                true,
+			wantOwnerLookupCalled: true,
 		},
 		{
-			name:              "returns error when refetch after link fails",
-			id:                1,
-			ownerID:           &ownerID,
-			findByIDSecondErr: errors.New("db error on refetch"),
-			wantErr:           true,
+			name:                   "returns error when UpdateOwnerLink fails",
+			id:                     1,
+			ownerID:                &ownerID,
+			updateOwnerLinkErr:     errors.New("db error"),
+			wantErr:                true,
+			wantOwnerLookupCalled:  true,
+			wantUpdateOwnerLinkRun: true,
+		},
+		{
+			name:                   "returns error when refetch after link fails",
+			id:                     1,
+			ownerID:                &ownerID,
+			findByIDSecondErr:      errors.New("db error on refetch"),
+			wantErr:                true,
+			wantOwnerLookupCalled:  true,
+			wantUpdateOwnerLinkRun: true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			callCount := 0
+			ownerLookupCalled := false
+			updateOwnerLinkCalled := false
 			repo := &mockLineCustomerRepositoryFull{
 				findByIDFn: func(_ context.Context, _, _ uint64) (*model.LineCustomer, error) {
 					callCount++
@@ -170,12 +194,25 @@ func TestLineCustomerService_LinkOwner(t *testing.T) {
 					return &model.LineCustomer{ID: tt.id, OwnerID: tt.ownerID}, nil
 				},
 				updateOwnerLinkFn: func(_ context.Context, _, _ uint64, _ *uint64) error {
+					updateOwnerLinkCalled = true
 					return tt.updateOwnerLinkErr
 				},
 			}
-			svc := NewLineCustomerService(repo)
+			ownerRepo := &mockLineLinkOwnerRepo{
+				findByIDFn: func(_ context.Context, clinicID, id uint64) (*model.Owner, error) {
+					ownerLookupCalled = true
+					if tt.ownerFindByIDErr != nil {
+						return nil, tt.ownerFindByIDErr
+					}
+					return &model.Owner{ID: id, ClinicID: clinicID}, nil
+				},
+			}
+			svc := NewLineCustomerService(repo, ownerRepo)
 
 			result, err := svc.LinkOwner(context.Background(), 1, tt.id, tt.ownerID)
+
+			assert.Equal(t, tt.wantOwnerLookupCalled, ownerLookupCalled, "owner FindByID call mismatch")
+			assert.Equal(t, tt.wantUpdateOwnerLinkRun, updateOwnerLinkCalled, "UpdateOwnerLink call mismatch")
 
 			if tt.wantErr {
 				assert.Error(t, err)
