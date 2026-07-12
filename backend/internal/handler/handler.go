@@ -148,6 +148,17 @@ func (h *Handler) RegisterRoutes(ctx context.Context, r *gin.Engine) {
 }
 
 // registerOwnerRoutesWithAuth は飼主ルートに RBAC 権限チェックを適用する（BUG-125: CRUD個別ガード）
+//
+// BE-refactor.md F-2 は本関数を table-driven 化する計画だったが、
+// internal/apicontract/openapi_route_drift_test.go の go/ast 静的ウォーカーが
+// owners.PATCH("/literal", ...) 等の呼び出しで method/path が両方リテラル文字列である
+// ことを前提に docs/api.yaml とのドリフト検出を行っており（動的な値は
+// "dynamic path cannot be statically resolved" として unresolved 扱いにし意図的に
+// fail loud する設計 — 同ファイルのコメント参照）、struct スライス + ループへの
+// table 化はこの機械ゲートを恒久的に無効化する。P3.1 の write 側 taint 解析断念と
+// 同じ理由（静的解析の対象外にすると"検証した気にさせる"だけの偽ガードになる）で
+// ゲート側を緩めることは選ばない。よって table-driven 化は行わず、計画の実質的な
+// 意図（エイリアス非対称の理由を明文化する）のみをコメントで果たす。
 func (h *Handler) registerOwnerRoutesWithAuth(rg *gin.RouterGroup) {
 	owners := rg.Group("/owners")
 	owners.GET("", h.RequirePermission(string(model.ResourceOwners), "view"), h.ListOwners)
@@ -157,12 +168,13 @@ func (h *Handler) registerOwnerRoutesWithAuth(rg *gin.RouterGroup) {
 	owners.DELETE("/:id", h.RequirePermission(string(model.ResourceOwners), "delete"), h.DeleteOwner)
 	// BE-005: LINE User ID 連携・解除
 	owners.PATCH("/:id/line-user-id", h.RequirePermission(string(model.ResourceOwners), "edit"), h.PatchOwnerLineUserID)
-	// ISSUE-001: FE統一エンドポイントのエイリアス
+	// ISSUE-001: FE統一エンドポイントのエイリアス。co側に無い理由は未文書化（現状維持）
 	owners.PATCH("/:id/line", h.RequirePermission(string(model.ResourceOwners), "edit"), h.PatchOwnerLineUserID)
+	// co側に無い理由は未文書化（現状維持）
 	owners.DELETE("/:id/line", h.RequirePermission(string(model.ResourceOwners), "delete"), h.DeleteOwnerLine)
 	// BE-017: Lステップオプトアウト（旧エンドポイント互換保持）
 	owners.POST("/:id/lstep-opt-out", h.RequirePermission(string(model.ResourceOwners), "edit"), h.PostOwnerLstepOptOut)
-	// ISSUE-001: 統合opt-outエンドポイント
+	// ISSUE-001: 統合opt-outエンドポイント。co側に無い理由は未文書化（現状維持）
 	owners.PATCH("/:id/lstep/opt-out", h.RequirePermission(string(model.ResourceOwners), "edit"), h.PatchOwnerLstepOptOut)
 	// FEAT-381: 配信除外・転院・LINE ID確認
 	owners.PATCH("/:id/delivery-exclusion", h.RequirePermission(string(model.ResourceOwners), "edit"), h.PatchOwnerDeliveryExclusion)
@@ -174,9 +186,10 @@ func (h *Handler) registerOwnerRoutesWithAuth(rg *gin.RouterGroup) {
 	owners.GET("/:id/lstep/tags", h.RequirePermission(string(model.ResourceOwners), "view"), h.GetOwnerLstepTags)
 	owners.POST("/:id/lstep/tags", h.RequirePermission(string(model.ResourceOwners), "edit"), h.PostOwnerLstepTag)
 	owners.DELETE("/:id/lstep/tags/:tag_name", h.RequirePermission(string(model.ResourceOwners), "delete"), h.DeleteOwnerLstepTag)
-	// BE-013: LINE個別送信
+	// BE-013: LINE個別送信。owners側は /lstep/send・/lstep/send-history エイリアスを含む4ルート、
+	// co側はそのうち2ルートのみ（下記）— co側に2ルート無い理由は未文書化（現状維持）
 	h.RegisterLineSendRoutes(owners)
-	// BE-021: LINE User ID 自動取得・飼い主紐付けトークン発行
+	// BE-021: LINE User ID 自動取得・飼い主紐付けトークン発行。co側に無い理由は未文書化（現状維持）
 	owners.POST("/:id/line/link-token", h.RequirePermission(string(model.ResourceOwners), "edit"), h.GenerateLineLinkToken)
 
 	// ISSUE-001/ISSUE-002: FE が /clinics/:clinic_id/owners/:id/... プレフィックスで呼ぶルートのエイリアス
@@ -193,7 +206,7 @@ func (h *Handler) registerOwnerRoutesWithAuth(rg *gin.RouterGroup) {
 	co.DELETE("/:id/lstep/tags/:tag_name", h.RequirePermission(string(model.ResourceOwners), "delete"), h.DeleteOwnerLstepTag)
 	co.POST("/:id/line/send", h.RequirePermission(string(model.ResourceOwners), "edit"), h.PostLineSend)
 	co.GET("/:id/line/send-logs", h.RequirePermission(string(model.ResourceOwners), "view"), h.GetLineSendLogs)
-	// FEAT-385: 飼主の最新 Lステップ友だち属性
+	// FEAT-385: 飼主の最新 Lステップ友だち属性（owners側に対応ルートなし）
 	co.GET("/:id/lstep/friend-attributes", h.RequirePermission(string(model.ResourceLstepAnalytics), "view"), h.GetLstepOwnerFriendAttributes)
 }
 
