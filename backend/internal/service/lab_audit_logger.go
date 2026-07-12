@@ -113,10 +113,7 @@ func (l *labAuditLogger) LogSourceBlocked(ctx context.Context, clinicID uint64, 
 // logBestEffort は AuditService.LogEntry を呼び出し、失敗時は warn ログを残して無視する。
 // 失敗が lab import フローを中断しないようにするためのベストエフォート設計。
 func (l *labAuditLogger) logBestEffort(ctx context.Context, clinicID uint64, actorID *uint64, action string, metadata map[string]any) {
-	actorType := model.AuditActorTypeSystem
-	if actorID != nil {
-		actorType = model.AuditActorTypeStaff
-	}
+	actorType := auditActorTypeFor(actorID)
 	if err := l.audit.LogEntry(ctx, &AuditLogInput{
 		ClinicID:  &clinicID,
 		ActorID:   actorID,

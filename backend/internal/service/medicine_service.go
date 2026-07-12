@@ -317,10 +317,7 @@ func (s *medicineService) auditPerWeightEnableTx(ctx context.Context, clinicID u
 	if s.auditTx == nil {
 		return nil
 	}
-	actorType := model.AuditActorTypeSystem
-	if actorID != nil {
-		actorType = model.AuditActorTypeStaff
-	}
+	actorType := auditActorTypeFor(actorID)
 	newVal := map[string]any{"calculation_type": string(model.MedicineCalculationTypePerWeight)}
 	if after != nil && after.Strength != nil {
 		newVal["strength"] = *after.Strength

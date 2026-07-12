@@ -119,10 +119,7 @@ func (s *treatmentService) auditDoseDeviationTx(ctx context.Context, txRepos *re
 	if s.auditSvc == nil || eval == nil || !eval.IsDeviation() {
 		return nil
 	}
-	actorType := model.AuditActorTypeSystem
-	if actorID != nil {
-		actorType = model.AuditActorTypeStaff
-	}
+	actorType := auditActorTypeFor(actorID)
 	input := &AuditLogInput{
 		ClinicID:   &clinicID,
 		ActorID:    actorID,

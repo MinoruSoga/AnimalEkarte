@@ -242,10 +242,7 @@ func (s *accountingService) logPostCloseEdit(ctx context.Context, input *UpdateA
 		return nil
 	}
 	billingID := input.ID
-	aType := "system"
-	if input.StaffID != nil {
-		aType = "staff"
-	}
+	aType := auditActorTypeFor(input.StaffID)
 	meta := map[string]any{}
 	if input.PostCloseReason != nil {
 		meta["reason"] = *input.PostCloseReason

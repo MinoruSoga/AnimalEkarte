@@ -113,7 +113,7 @@ func (s *refundService) Create(ctx context.Context, clinicID, billingID uint64, 
 		if err := s.auditTxLogger.LogEntryTx(txCtx, &AuditLogInput{
 			ClinicID:   &clinicID,
 			ActorID:    input.StaffID,
-			ActorType:  "staff",
+			ActorType:  model.AuditActorTypeStaff,
 			Action:     model.AuditActionBillingRefundCreate,
 			Resource:   "billing_refund",
 			ResourceID: &refund.ID,

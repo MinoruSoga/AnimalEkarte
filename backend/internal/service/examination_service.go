@@ -358,10 +358,7 @@ func (s *examinationService) ReplaceItems(ctx context.Context, clinicID, examID 
 		// 件数でなく DELETE の実削除数（deletedCount）に基づく（#211 security MEDIUM-1 と同方針: 並行 INSERT
 		// 競合下でスナップショット 0 件でも実削除>0 を取りこぼさない）。監査書込失敗は tx を rollback する。
 		if deletedCount > 0 {
-			actorType := model.AuditActorTypeSystem
-			if actorID != nil {
-				actorType = model.AuditActorTypeStaff
-			}
+			actorType := auditActorTypeFor(actorID)
 			if err := s.auditTx.LogEntryTx(txCtx, &AuditLogInput{
 				ClinicID:   &clinicID,
 				ActorID:    actorID,

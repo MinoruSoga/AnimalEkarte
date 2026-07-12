@@ -191,10 +191,7 @@ func (s *medicineDoseParamService) auditChangeTx(ctx context.Context, clinicID u
 	if s.auditTx == nil {
 		return nil
 	}
-	actorType := model.AuditActorTypeSystem
-	if actorID != nil {
-		actorType = model.AuditActorTypeStaff
-	}
+	actorType := auditActorTypeFor(actorID)
 	// metadata の species は before/after のいずれか存在する方から取る。
 	species := ""
 	switch {

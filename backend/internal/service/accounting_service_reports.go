@@ -76,10 +76,7 @@ func (s *accountingService) Cancel(ctx context.Context, clinicID, id uint64, act
 	}
 
 	billingID := id
-	aType := "system"
-	if actorID != nil {
-		aType = "staff"
-	}
+	aType := auditActorTypeFor(actorID)
 
 	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
 		fields := map[string]any{"status": model.BillingStatusCancelled}

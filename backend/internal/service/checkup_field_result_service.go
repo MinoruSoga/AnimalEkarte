@@ -225,10 +225,7 @@ func (s *checkupFieldResultService) ReplaceForCheckup(ctx context.Context, clini
 		// スナップショット 0 件でも実削除>0 を取りこぼさず、無監査 hard-delete を残さない）。
 		// 監査書込失敗はエラーを返して tx を rollback する（best-effort ではなく fail-closed）。
 		if deletedCount > 0 {
-			actorType := model.AuditActorTypeSystem
-			if actorID != nil {
-				actorType = model.AuditActorTypeStaff
-			}
+			actorType := auditActorTypeFor(actorID)
 			if err := s.auditTx.LogEntryTx(txCtx, &AuditLogInput{
 				ClinicID:   &clinicID,
 				ActorID:    actorID,

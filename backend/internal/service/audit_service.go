@@ -130,6 +130,14 @@ func validateAuditLog(log *model.AuditLog) error {
 	return nil
 }
 
+// auditActorTypeFor は actorID の有無から監査ログの actor 種別を導出する。
+func auditActorTypeFor(actorID *uint64) string {
+	if actorID != nil {
+		return model.AuditActorTypeStaff
+	}
+	return model.AuditActorTypeSystem
+}
+
 func NewAuditService(repo repository.AuditRepository) AuditService {
 	return &auditService{repo: repo}
 }
@@ -200,10 +208,7 @@ func (s *auditService) LogLstepOperation(ctx context.Context, clinicID uint64, a
 // metadata の JSON シリアライズに失敗した場合でも監査ログ本体（action / resource / resource_id）は保存される
 // （MarshalAuditJSON はベストエフォート: シリアライズ失敗時は nil を返す）。
 func (s *auditService) LogLstepOperationWithMetadata(ctx context.Context, clinicID uint64, actorID *uint64, action, resource string, resourceID *uint64, metadata any) error {
-	actorType := model.AuditActorTypeSystem
-	if actorID != nil {
-		actorType = model.AuditActorTypeStaff
-	}
+	actorType := auditActorTypeFor(actorID)
 	log := &model.AuditLog{
 		ClinicID:   &clinicID,
 		ActorID:    actorID,
@@ -218,10 +223,7 @@ func (s *auditService) LogLstepOperationWithMetadata(ctx context.Context, clinic
 
 // LogMedicalRecordChange は医療カルテの Create/Update/Delete/Finalize 操作を監査ログに記録する（AUDIT-H1）。
 func (s *auditService) LogMedicalRecordChange(ctx context.Context, clinicID uint64, actorID *uint64, action string, recordID uint64, oldValue, newValue map[string]any) error {
-	actorType := model.AuditActorTypeSystem
-	if actorID != nil {
-		actorType = model.AuditActorTypeStaff
-	}
+	actorType := auditActorTypeFor(actorID)
 	var oldJSON, newJSON []byte
 	if oldValue != nil {
 		oldJSON = repository.MarshalAuditJSON(oldValue)
@@ -244,10 +246,7 @@ func (s *auditService) LogMedicalRecordChange(ctx context.Context, clinicID uint
 
 // LogVitalChange はバイタル記録の Create/Update/Delete 操作を監査ログに記録する（AUDIT-H1）。
 func (s *auditService) LogVitalChange(ctx context.Context, clinicID uint64, actorID *uint64, action string, vitalID, medicalRecordID uint64, oldValue, newValue map[string]any) error {
-	actorType := model.AuditActorTypeSystem
-	if actorID != nil {
-		actorType = model.AuditActorTypeStaff
-	}
+	actorType := auditActorTypeFor(actorID)
 	metadata := map[string]any{"medical_record_id": medicalRecordID}
 	var oldJSON, newJSON []byte
 	if oldValue != nil {
@@ -272,10 +271,7 @@ func (s *auditService) LogVitalChange(ctx context.Context, clinicID uint64, acto
 
 // LogClinicSwitch はクリニック切替操作を監査ログに記録する（FEAT-374 Phase 2）。
 func (s *auditService) LogClinicSwitch(ctx context.Context, actorID *uint64, fromClinicID, toClinicID uint64, ipAddress, userAgent string) error {
-	actorType := model.AuditActorTypeSystem
-	if actorID != nil {
-		actorType = model.AuditActorTypeStaff
-	}
+	actorType := auditActorTypeFor(actorID)
 	oldValue := map[string]any{"clinic_id": fromClinicID}
 	newValue := map[string]any{"clinic_id": toClinicID}
 	log := &model.AuditLog{
@@ -294,10 +290,7 @@ func (s *auditService) LogClinicSwitch(ctx context.Context, actorID *uint64, fro
 
 // LogAddendumCreate は医療カルテ追記の Create 操作を監査ログに記録する（AUDIT-H1）。
 func (s *auditService) LogAddendumCreate(ctx context.Context, clinicID uint64, actorID *uint64, addendumID, medicalRecordID uint64, addendum *model.MedicalRecordAddendum) error {
-	actorType := model.AuditActorTypeSystem
-	if actorID != nil {
-		actorType = model.AuditActorTypeStaff
-	}
+	actorType := auditActorTypeFor(actorID)
 	newValue := map[string]any{
 		"before_text":    addendum.BeforeText,
 		"after_text":     addendum.AfterText,

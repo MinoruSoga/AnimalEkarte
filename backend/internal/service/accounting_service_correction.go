@@ -177,10 +177,7 @@ func (s *accountingService) logCreditCorrection(ctx context.Context, input *Corr
 	if s.auditTx == nil {
 		return nil
 	}
-	actorType := model.AuditActorTypeSystem
-	if input.StaffID != nil {
-		actorType = model.AuditActorTypeStaff
-	}
+	actorType := auditActorTypeFor(input.StaffID)
 	billingID := input.BillingID
 	metadata := map[string]any{
 		"reason": input.Reason,
