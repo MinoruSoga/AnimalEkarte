@@ -8,7 +8,6 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
-	"github.com/google/uuid"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/middleware"
@@ -19,6 +18,11 @@ const (
 	accessTokenCookieName  = "access_token"
 	refreshTokenCookieName = "refresh_token"
 	legacyCookieName       = "auth_token"
+
+	// E-3: issueAuthCookies / RefreshToken で重複していた TTL・subject の直値を集約。
+	accessTokenTTL      = 15 * time.Minute
+	refreshTokenTTL     = 7 * 24 * time.Hour
+	refreshTokenSubject = "refresh"
 )
 
 // Login godoc
@@ -185,8 +189,8 @@ func (h *Handler) RefreshToken(c *gin.Context) {
 		return
 	}
 
-	// Subject が "refresh" であることを確認（access_token の流用を防止）
-	if claims.Subject != "refresh" {
+	// Subject が refreshTokenSubject であることを確認（access_token の流用を防止）
+	if claims.Subject != refreshTokenSubject {
 		RespondError(c, apperrors.WrapUnauthorized("invalid token type"))
 		return
 	}
@@ -231,26 +235,6 @@ func (h *Handler) RefreshToken(c *gin.Context) {
 	// resolveClinicInfo で最新割り当てから mainClinicID を再計算（旧 claims の値を引き継がない）
 	mainClinicID, clinicIDs := resolveClinicInfo(assignments)
 
-	// 新しい access_token（15分）
-	expiresAt := time.Now().Add(15 * time.Minute)
-	newAccessClaims := &middleware.JWTClaims{
-		UserID:        claims.UserID,
-		ClinicID:      mainClinicID,
-		IsSystemAdmin: claims.IsSystemAdmin,
-		ClinicIDs:     clinicIDs,
-		RegisteredClaims: jwt.RegisteredClaims{
-			ID:        uuid.NewString(),
-			ExpiresAt: jwt.NewNumericDate(expiresAt),
-			IssuedAt:  jwt.NewNumericDate(time.Now()),
-		},
-	}
-	newAccess := jwt.NewWithClaims(jwt.SigningMethodHS256, newAccessClaims)
-	newAccessStr, signErr := newAccess.SignedString([]byte(h.cfg.JWTSecret))
-	if signErr != nil {
-		RespondError(c, apperrors.Wrap(signErr, "failed to sign access token"))
-		return
-	}
-
 	// Token rotation: 旧 JTI をブラックリストに登録して旧トークンを失効させる（ベストエフォート）。
 	// 失効失敗は回帰させない（新トークン発行は続行）。
 	if claims.ID != "" && claims.ExpiresAt != nil {
@@ -259,50 +243,11 @@ func (h *Handler) RefreshToken(c *gin.Context) {
 		}
 	}
 
-	// 新しい refresh_token（7日、rotation）
-	// 新 JTI を発行してブラックリスト照合を継続可能にする。
-	refreshExpiresAt := time.Now().Add(7 * 24 * time.Hour)
-	newRefreshClaims := &middleware.JWTClaims{
-		UserID:        claims.UserID,
-		ClinicID:      mainClinicID,
-		IsSystemAdmin: claims.IsSystemAdmin,
-		ClinicIDs:     clinicIDs,
-		RegisteredClaims: jwt.RegisteredClaims{
-			ID:        uuid.NewString(),
-			ExpiresAt: jwt.NewNumericDate(refreshExpiresAt),
-			IssuedAt:  jwt.NewNumericDate(time.Now()),
-			Subject:   "refresh",
-		},
-	}
-	newRefresh := jwt.NewWithClaims(jwt.SigningMethodHS256, newRefreshClaims)
-	newRefreshStr, rSignErr := newRefresh.SignedString([]byte(h.cfg.JWTSecret))
-	if rSignErr != nil {
-		RespondError(c, apperrors.Wrap(rSignErr, "failed to sign refresh token"))
+	// 新しい access_token + refresh_token を発行して Cookie にセットする（E-3: ログイン時と同じ発行処理に委譲）。
+	if err := h.issueAuthCookies(c, staff.ID, mainClinicID, claims.IsSystemAdmin, clinicIDs); err != nil {
+		RespondError(c, err)
 		return
 	}
-
-	// Cookie 設定
-	sameSite := http.SameSiteNoneMode
-	secure := true
-
-	http.SetCookie(c.Writer, &http.Cookie{
-		Name:     accessTokenCookieName,
-		Value:    newAccessStr,
-		Path:     "/",
-		MaxAge:   int(time.Until(expiresAt).Seconds()),
-		HttpOnly: true,
-		Secure:   secure,
-		SameSite: sameSite,
-	})
-	http.SetCookie(c.Writer, &http.Cookie{
-		Name:     refreshTokenCookieName,
-		Value:    newRefreshStr,
-		Path:     "/api/v1/auth/refresh",
-		MaxAge:   int(time.Until(refreshExpiresAt).Seconds()),
-		HttpOnly: true,
-		Secure:   secure,
-		SameSite: sameSite,
-	})
 
 	c.JSON(http.StatusOK, gin.H{"message": "token refreshed"})
 }

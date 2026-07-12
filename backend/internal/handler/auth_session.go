@@ -146,7 +146,7 @@ func (h *Handler) issueAuthCookies(c *gin.Context, staffID uint64, mainClinicID 
 		secure = true
 	}
 
-	expiresAt := time.Now().Add(15 * time.Minute)
+	expiresAt := time.Now().Add(accessTokenTTL)
 	claims := &middleware.JWTClaims{
 		UserID:        strconv.FormatUint(staffID, 10),
 		ClinicID:      mainClinicID,
@@ -175,7 +175,7 @@ func (h *Handler) issueAuthCookies(c *gin.Context, staffID uint64, mainClinicID 
 
 	// Refresh Token 発行（7日間有効、token rotation で毎回更新）
 	// jti はサーバーサイド失効（ブラックリスト照合）に使用する。
-	refreshExpiresAt := time.Now().Add(7 * 24 * time.Hour)
+	refreshExpiresAt := time.Now().Add(refreshTokenTTL)
 	refreshClaims := &middleware.JWTClaims{
 		UserID:        strconv.FormatUint(staffID, 10),
 		ClinicID:      mainClinicID,
@@ -185,7 +185,7 @@ func (h *Handler) issueAuthCookies(c *gin.Context, staffID uint64, mainClinicID 
 			ID:        newJti(),
 			ExpiresAt: jwt.NewNumericDate(refreshExpiresAt),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
-			Subject:   "refresh",
+			Subject:   refreshTokenSubject,
 		},
 	}
 	refreshToken := jwt.NewWithClaims(jwt.SigningMethodHS256, refreshClaims)
