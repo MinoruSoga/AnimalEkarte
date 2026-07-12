@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import { todayJSTISO } from "@/lib/jst-date";
+import { queryKeys } from "@/lib/query-keys";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 import { transformReservationsToReceptionColumns } from "./transforms";
 import type { Reservation as BackendReceptionReservation } from "@/types/generated/models";
@@ -30,7 +31,7 @@ async function getReception(date: string): Promise<ReceptionColumn[]> {
 /** 当日の受付用 React Query hook */
 export function useGetReception(date: string = todayISO()) {
   return useQuery({
-    queryKey: ["reception", date],
+    queryKey: queryKeys.reception.byDate(date),
     queryFn: () => getReception(date),
     // 30秒ごとにポーリングしてリアルタイム性を確保
     refetchInterval: 30_000,
