@@ -97,6 +97,34 @@ aws logs tail /ecs/animalekarte-stg \
 
 ---
 
+### 2.4 監査書込失敗 (`audit_write_failed`) 監視（PERF-AUDIT-TX P1）
+
+> `auditService.Log`（`backend/internal/service/audit_service.go`）は `repo.Create` 失敗時に統一キー
+> `audit_write_failed` を `slog.ErrorContext` で記録する（分散していた呼び出し側の既存 Warn ログとは別に、
+> 全 best-effort 監査書込経路を中央 1 箇所で捕捉する）。P2 outbox は見送り決定済みのため、現状はこのログ
+> 検索が監査欠落検知の唯一の手段。
+
+**CloudWatch Logs Insights（旧 AWS ECS ロールバック経路のみ）**:
+
+```
+fields @timestamp, @message
+| filter @message like /audit_write_failed/
+| sort @timestamp desc
+| limit 50
+```
+
+**Workers Logs（Cloudflare 正系統。§2.2/§2.3 と異なりこちらが現行経路 — 運用手順未文書化ギャップの第一歩として本行から追記）**:
+
+```bash
+npx wrangler tail --format pretty --search "audit_write_failed"
+```
+
+**期待結果**: 通常時は 0 件。
+
+**異常基準**: `audit_write_failed` が観測された場合、再開条件（`docs/tasks/closed/perf/PERF-AUDIT-TX-UNIVERSAL-BEST-EFFORT.md` 参照）に従い、月 1 件以上の継続観測があれば outbox 再起案の実測根拠として記録する。
+
+---
+
 ## 3. 週次検査（毎週木曜 9:00）
 
 ### 3.1 Vercel フロントエンド表示確認

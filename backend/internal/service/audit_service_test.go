@@ -1,9 +1,11 @@
 package service
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
+	"log/slog"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -125,6 +127,65 @@ func TestAuditService_LogEntry_Validation(t *testing.T) {
 			assert.Nil(t, repo.lastLogged, "invalid audit input must not reach repository")
 		})
 	}
+}
+
+// TestAuditService_Log_RecordsFailureObservability は PERF-AUDIT-TX P1 の回帰テスト:
+// repo.Create が失敗した際、統一キー "audit_write_failed" が slog.ErrorContext で記録されることを
+// 検証する（STG 日次監視クエリ filter @message like /audit_write_failed/ の前提）。
+// 呼び出し側の分散 Warn ログは対象外・不変（本テストはそれらに触れない）。
+func TestAuditService_Log_RecordsFailureObservability(t *testing.T) {
+	var buf bytes.Buffer
+	prevLogger := slog.Default()
+	slog.SetDefault(slog.New(slog.NewTextHandler(&buf, &slog.HandlerOptions{Level: slog.LevelError})))
+	t.Cleanup(func() { slog.SetDefault(prevLogger) })
+
+	repo := &mockAuditRepository{
+		createFn: func(_ context.Context, _ *model.AuditLog) error {
+			return errors.New("db down")
+		},
+	}
+	svc := NewAuditService(repo)
+	clinicID := uint64(7)
+
+	err := svc.LogEntry(context.Background(), &AuditLogInput{
+		ClinicID:  &clinicID,
+		ActorType: model.AuditActorTypeSystem,
+		Action:    "batch_dormant_detect",
+		Resource:  "clinic",
+	})
+
+	// 戻り値の Wrap 挙動は不変（apperrors.Wrap されたエラーが返る）。
+	assert.Error(t, err)
+
+	out := buf.String()
+	assert.Contains(t, out, "audit_write_failed", "repo.Create 失敗時は統一キーで ErrorContext 記録が必須")
+	assert.Contains(t, out, "level=ERROR")
+	assert.Contains(t, out, "action=batch_dormant_detect")
+	assert.Contains(t, out, "resource=clinic")
+	assert.Contains(t, out, "clinic_id=7")
+}
+
+// TestAuditService_Log_Success_NoFailureLog は成功経路で audit_write_failed が出力されないことの
+// 回帰（誤って常時ログを出すよう実装すると STG 監視クエリがノイズだらけになるため）。
+func TestAuditService_Log_Success_NoFailureLog(t *testing.T) {
+	var buf bytes.Buffer
+	prevLogger := slog.Default()
+	slog.SetDefault(slog.New(slog.NewTextHandler(&buf, &slog.HandlerOptions{Level: slog.LevelError})))
+	t.Cleanup(func() { slog.SetDefault(prevLogger) })
+
+	repo := &mockAuditRepository{}
+	svc := NewAuditService(repo)
+	clinicID := uint64(7)
+
+	err := svc.LogEntry(context.Background(), &AuditLogInput{
+		ClinicID:  &clinicID,
+		ActorType: model.AuditActorTypeSystem,
+		Action:    "batch_dormant_detect",
+		Resource:  "clinic",
+	})
+
+	assert.NoError(t, err)
+	assert.Empty(t, buf.String(), "成功経路では audit_write_failed ログを出さない")
 }
 
 func TestAuditService_LogAuthLogin_RequiresClinicAndStaff(t *testing.T) {

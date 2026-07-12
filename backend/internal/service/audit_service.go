@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"log/slog"
 	"strings"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
@@ -133,12 +134,23 @@ func NewAuditService(repo repository.AuditRepository) AuditService {
 	return &auditService{repo: repo}
 }
 
-// Log は監査ログを記録する
+// Log は監査ログを記録する。
+// repo.Create 失敗時は統一キー "audit_write_failed" で ErrorContext に記録する（PERF-AUDIT-TX P1）。
+// 分散していた呼び出し側の既存 Warn ログはそのまま残す（挙動保存）。ここは best-effort 書込の
+// 全経路が集約する唯一の箇所のため、STG 監視クエリ（STG-CONTINUOUS-OPERATIONS.md）はこのキーのみを見る。
+// 戻り値の Wrap 挙動・呼び出し側のエラーハンドリングは不変。
 func (s *auditService) Log(ctx context.Context, log *model.AuditLog) error {
 	if err := validateAuditLog(log); err != nil {
 		return err
 	}
 	if err := s.repo.Create(ctx, log); err != nil {
+		// validateAuditLog を通過済みのため log.ClinicID は non-nil。
+		slog.ErrorContext(ctx, "audit_write_failed",
+			"action", log.Action,
+			"resource", log.Resource,
+			"clinic_id", *log.ClinicID,
+			"error", err,
+		)
 		return apperrors.Wrap(err, "failed to create audit log")
 	}
 	return nil
