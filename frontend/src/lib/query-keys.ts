@@ -61,6 +61,8 @@ export const queryKeys = {
       filtered: (includeInactive: boolean) =>
         ["masters", "animal-species", includeInactive ? "all" : "active"] as const,
     },
+    /** features/master/api/medicine-dose-params.ts の種別（dog/cat）パラメータ CRUD 用 (#201) */
+    medicineDoseParams: (medicineId: string) => ["masters", "medicines", medicineId, "dose-params"] as const,
     /**
      * get-diagnosis-options.ts の診断名一覧。masters.category とは別シェイプ（第3要素あり）。
      * type_id は診断名 API 上は数値だが、呼び出し元の型 (number | string | null) をそのまま許容する。

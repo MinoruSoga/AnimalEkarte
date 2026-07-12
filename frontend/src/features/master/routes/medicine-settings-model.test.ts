@@ -45,6 +45,10 @@ function makeFormData(overrides: Partial<MedicineFormData> = {}): MedicineFormDa
     taxType: "excluded",
     taxRate: 0.1,
     isNonInsurance: false,
+    calculationType: "none",
+    strength: "",
+    frequencyPerDay: "",
+    defaultDurationDays: "",
     ...overrides,
   };
 }
@@ -410,5 +414,65 @@ describe("buildMedicineUpdateRequest", () => {
 
     expect(request).not.toHaveProperty("clear_parent_id");
     expect(request).not.toHaveProperty("parent_id");
+  });
+});
+
+describe("calculation fields (#201)", () => {
+  it("omits strength/frequency_per_day/default_duration_days when calculationType is none", () => {
+    const data = makeFormData({
+      calculationType: "none",
+      strength: "50",
+      frequencyPerDay: "2",
+      defaultDurationDays: "7",
+    });
+
+    const request = buildMedicineCreateRequest(data, false);
+
+    expect(request.calculation_type).toBe("none");
+    expect(request).not.toHaveProperty("strength");
+    expect(request).not.toHaveProperty("frequency_per_day");
+    expect(request).not.toHaveProperty("default_duration_days");
+  });
+
+  it("includes parsed numeric fields when calculationType is per_weight", () => {
+    const data = makeFormData({
+      calculationType: "per_weight",
+      strength: "50",
+      frequencyPerDay: "2",
+      defaultDurationDays: "7",
+    });
+
+    const request = buildMedicineCreateRequest(data, false);
+
+    expect(request).toMatchObject({
+      calculation_type: "per_weight",
+      strength: 50,
+      frequency_per_day: 2,
+      default_duration_days: 7,
+    });
+  });
+
+  it("omits blank optional numeric fields even when calculationType is per_weight", () => {
+    const data = makeFormData({
+      calculationType: "per_weight",
+      strength: "",
+      frequencyPerDay: "",
+      defaultDurationDays: "",
+    });
+
+    const request = buildMedicineCreateRequest(data, false);
+
+    expect(request).not.toHaveProperty("strength");
+    expect(request).not.toHaveProperty("frequency_per_day");
+    expect(request).not.toHaveProperty("default_duration_days");
+  });
+
+  it("applies the same calculation-field rules to the update request", () => {
+    const data = makeFormData({ calculationType: "per_weight", strength: "12.5" });
+
+    const request = buildMedicineUpdateRequest({ data, isCategory: false, selectedMedicine: null });
+
+    expect(request).toMatchObject({ calculation_type: "per_weight", strength: 12.5 });
+    expect(request).not.toHaveProperty("frequency_per_day");
   });
 });

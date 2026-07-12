@@ -4,7 +4,9 @@ import type { Medicine } from "@/types";
 
 import type { MedicineFormData } from "../components/medicine-side-panel-model";
 import { normalizeKana } from "@/lib/normalize-kana";
+import { parseOptionalNumber } from "@/lib/parse-optional-number";
 import type { DosageForm, MedicineUnit } from "@/types/generated/models";
+import { MedicineCalculationTypeNone } from "@/types/generated/models";
 
 export interface MedicineGroups {
   groupedMedicines: Map<string, { header: Medicine; items: Medicine[] }>;
@@ -124,6 +126,25 @@ export function resolveMedicineDrag({
   };
 }
 
+/** calculation_type=none のときは strength/frequency_per_day/default_duration_days を送らない */
+function buildCalculationFields(data: MedicineFormData) {
+  if (data.calculationType === MedicineCalculationTypeNone) {
+    return { calculation_type: data.calculationType };
+  }
+  return {
+    calculation_type: data.calculationType,
+    ...(parseOptionalNumber(data.strength) !== undefined
+      ? { strength: parseOptionalNumber(data.strength) }
+      : {}),
+    ...(parseOptionalNumber(data.frequencyPerDay) !== undefined
+      ? { frequency_per_day: parseOptionalNumber(data.frequencyPerDay) }
+      : {}),
+    ...(parseOptionalNumber(data.defaultDurationDays) !== undefined
+      ? { default_duration_days: parseOptionalNumber(data.defaultDurationDays) }
+      : {}),
+  };
+}
+
 export function buildMedicineCreateRequest(
   data: MedicineFormData,
   isCategory: boolean
@@ -142,6 +163,7 @@ export function buildMedicineCreateRequest(
     tax_type: data.taxType,
     tax_rate: data.taxRate,
     is_non_insurance: data.isNonInsurance,
+    ...buildCalculationFields(data),
     ...(data.parentId ? { parent_id: Number(data.parentId) } : {}),
   };
 }
@@ -169,6 +191,7 @@ export function buildMedicineUpdateRequest({
     tax_type: data.taxType,
     tax_rate: data.taxRate,
     is_non_insurance: data.isNonInsurance,
+    ...buildCalculationFields(data),
   };
 
   if (data.parentId) {
