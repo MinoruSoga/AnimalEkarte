@@ -481,11 +481,6 @@ func (s *treatmentService) Delete(ctx context.Context, clinicID, medicalRecordID
 }
 
 func (s *treatmentService) BulkUpdateSortOrder(ctx context.Context, clinicID, medicalRecordID uint64, input *BulkUpdateTreatmentsInput) error {
-	// テナント検証: medicalRecordID が clinicID に所属するか確認
-	if _, err := s.repos.MedicalRecord.FindByID(ctx, clinicID, medicalRecordID); err != nil {
-		return apperrors.Wrap(err, "failed to verify medical record ownership")
-	}
-
 	updates := make([]repository.TreatmentSortUpdate, 0, len(input.Treatments))
 	for _, item := range input.Treatments {
 		updates = append(updates, repository.TreatmentSortUpdate{
@@ -495,8 +490,25 @@ func (s *treatmentService) BulkUpdateSortOrder(ctx context.Context, clinicID, me
 		})
 	}
 
-	if err := s.repos.Treatment.BulkUpdateSortOrder(ctx, updates); err != nil {
-		return apperrors.Wrap(err, "failed to bulk update treatment sort order")
+	// HC-004: 親カルテが確定済みの場合は並び順変更を拒否（BE-refactor.md H-8c）。
+	// テナント所有権確認（LockByIDForUpdate）と finalized チェックを同一 tx に束ね、
+	// 行ロックで finalize（medical_record_repository.Update の draft-only WHERE）と直列化する。
+	if err := s.repos.Transaction(ctx, func(txRepos *repository.Repositories) error {
+		parent, err := txRepos.MedicalRecord.LockByIDForUpdate(ctx, clinicID, medicalRecordID)
+		if err != nil {
+			slog.ErrorContext(ctx, "failed to verify medical record ownership", "error", err)
+			return apperrors.Wrap(err, "failed to verify medical record ownership")
+		}
+		if parent.Status == model.MedicalRecordStatusFinalized {
+			return apperrors.WrapConflict("確定済みカルテの治療は編集できません")
+		}
+
+		if err := txRepos.Treatment.BulkUpdateSortOrder(ctx, updates); err != nil {
+			return apperrors.Wrap(err, "failed to bulk update treatment sort order")
+		}
+		return nil
+	}); err != nil {
+		return err
 	}
 
 	slog.InfoContext(ctx, "treatments bulk sort_order updated",

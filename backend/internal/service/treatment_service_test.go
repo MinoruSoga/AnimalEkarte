@@ -672,8 +672,10 @@ func TestTreatmentService_BulkUpdateSortOrder(t *testing.T) {
 		name            string
 		medicalRecordID uint64
 		input           *BulkUpdateTreatmentsInput
+		parentStatus    model.MedicalRecordStatus
 		repoErr         error
 		wantErr         bool
+		wantConflict    bool
 	}{
 		{
 			name:            "bulk updates sort order successfully",
@@ -685,8 +687,9 @@ func TestTreatmentService_BulkUpdateSortOrder(t *testing.T) {
 					{ID: 3, SortOrder: 2},
 				},
 			},
-			repoErr: nil,
-			wantErr: false,
+			parentStatus: model.MedicalRecordStatusDraft,
+			repoErr:      nil,
+			wantErr:      false,
 		},
 		{
 			name:            "returns error when repository fails",
@@ -696,8 +699,9 @@ func TestTreatmentService_BulkUpdateSortOrder(t *testing.T) {
 					{ID: 1, SortOrder: 1},
 				},
 			},
-			repoErr: errors.New("db error"),
-			wantErr: true,
+			parentStatus: model.MedicalRecordStatusDraft,
+			repoErr:      errors.New("db error"),
+			wantErr:      true,
 		},
 		{
 			name:            "handles empty treatments list",
@@ -705,8 +709,22 @@ func TestTreatmentService_BulkUpdateSortOrder(t *testing.T) {
 			input: &BulkUpdateTreatmentsInput{
 				Treatments: []BulkTreatmentItem{},
 			},
-			repoErr: nil,
-			wantErr: false,
+			parentStatus: model.MedicalRecordStatusDraft,
+			repoErr:      nil,
+			wantErr:      false,
+		},
+		{
+			name:            "returns conflict when parent medical record is finalized",
+			medicalRecordID: 1,
+			input: &BulkUpdateTreatmentsInput{
+				Treatments: []BulkTreatmentItem{
+					{ID: 1, SortOrder: 1},
+				},
+			},
+			parentStatus: model.MedicalRecordStatusFinalized,
+			repoErr:      nil,
+			wantErr:      true,
+			wantConflict: true,
 		},
 	}
 
@@ -717,17 +735,29 @@ func TestTreatmentService_BulkUpdateSortOrder(t *testing.T) {
 					return tt.repoErr
 				},
 			}
-			mrRepo := &mockMedicalRecordRepoForTreatment{}
-			svc := NewTreatmentService(&repository.Repositories{
+			mrRepo := &mockMedicalRecordRepoForTreatment{
+				findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
+					return &model.MedicalRecord{Status: tt.parentStatus}, nil
+				},
+			}
+			repos := &repository.Repositories{
 				Treatment:     repo,
 				Inventory:     &mockInventoryRepository{},
 				MedicalRecord: mrRepo,
-			})
+			}
+			// TransactionFn: DB 不要でトランザクションをインライン実行（BE-refactor.md H-8c）
+			repos.TransactionFn = func(_ context.Context, fn func(*repository.Repositories) error) error {
+				return fn(repos)
+			}
+			svc := NewTreatmentService(repos)
 
 			err := svc.BulkUpdateSortOrder(context.Background(), clinicID, tt.medicalRecordID, tt.input)
 
 			if tt.wantErr {
 				assert.Error(t, err)
+				if tt.wantConflict {
+					assert.True(t, apperrors.IsConflict(err), "expected conflict but got: %v", err)
+				}
 			} else {
 				assert.NoError(t, err)
 			}
