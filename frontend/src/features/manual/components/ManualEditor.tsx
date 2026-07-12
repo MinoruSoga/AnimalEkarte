@@ -20,6 +20,9 @@ import { useUpsertManualArticle } from "../api/upsert-manual-article";
 import type { ManualArticle } from "../lib/manual-index";
 import { ManualContent } from "./ManualContent";
 
+/** コピー完了表示を戻すまでの待ち時間 (FE5-6) */
+const COPY_FEEDBACK_RESET_MS = 2000;
+
 type EditorMode = "edit" | "preview" | "split";
 
 interface ManualEditorProps {
@@ -61,7 +64,7 @@ export function ManualEditor({ article, onClose }: ManualEditorProps) {
     try {
       await navigator.clipboard.writeText(full);
       setCopyStatus("copied");
-      window.setTimeout(() => setCopyStatus("idle"), 2000);
+      window.setTimeout(() => setCopyStatus("idle"), COPY_FEEDBACK_RESET_MS);
     } catch {
       // クリップボード権限が無い等のフォールバック: 何もしない
     }

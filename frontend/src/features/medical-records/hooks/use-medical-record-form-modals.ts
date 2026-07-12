@@ -1,5 +1,8 @@
 import { useCallback, useState } from "react";
 
+/** PrintPortal のマウント待ち時間 (FE5-6) */
+const PRINT_PORTAL_MOUNT_DELAY_MS = 100;
+
 /**
  * MedicalRecordForm のモーダル・印刷の開閉状態を集約するフック。
  * バイタル/スタッフ選択/オーナー検索/削除確認/印刷の各 UI 表示フラグを一箇所で管理する。
@@ -28,7 +31,7 @@ export function useMedicalRecordFormModals() {
     setTimeout(() => {
       window.print();
       setIsPrinting(false);
-    }, 100);
+    }, PRINT_PORTAL_MOUNT_DELAY_MS);
   }, []);
 
   return {

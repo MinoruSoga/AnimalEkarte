@@ -1,5 +1,8 @@
 import { useCallback } from "react";
 
+/** zipcloud 郵便番号検索 API のベース URL (FE5-6) */
+const ZIPCLOUD_API_URL = "https://zipcloud.ibsnet.co.jp/api/search";
+
 interface PostalCodeResult {
   prefecture: string;
   city: string;
@@ -36,7 +39,7 @@ export function usePostalCodeLookup() {
 
       try {
         const response = await fetch(
-          `https://zipcloud.ibsnet.co.jp/api/search?zipcode=${cleaned}`,
+          `${ZIPCLOUD_API_URL}?zipcode=${cleaned}`,
         );
         const data: ZipcloudResponse = await response.json();
         const firstResult = data.results?.[0];

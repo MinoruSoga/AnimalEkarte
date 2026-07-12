@@ -3,6 +3,9 @@ import { useLiff } from '@/shared-liff/use-liff';
 import { LIFF_ID, LIFF_MOCK } from '../lib/liff-config';
 import { linkLineAccount, LiffApiError } from '../api/liff-api';
 
+/** モック連携成功を表示するまでの待ち時間 (FE5-6) */
+const LINK_SUCCESS_DISPLAY_MS = 800;
+
 type LinkStatus = 'loading' | 'linking' | 'success' | 'conflict' | 'expired' | 'error';
 
 interface UseLiffLinkResult {
@@ -41,7 +44,7 @@ export function useLiffLink(clinicId: string, linkToken: string): UseLiffLinkRes
     setStatus('linking');
 
     if (LIFF_MOCK) {
-      const timer = setTimeout(() => setStatus('success'), 800);
+      const timer = setTimeout(() => setStatus('success'), LINK_SUCCESS_DISPLAY_MS);
       return () => clearTimeout(timer);
     }
 
