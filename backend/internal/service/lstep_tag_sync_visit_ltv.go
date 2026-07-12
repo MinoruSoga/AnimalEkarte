@@ -65,6 +65,10 @@ func (s *lstepTagSyncService) SyncLTVTopPercent(ctx context.Context, clinicID ui
 	// （per-owner版と異なり、失敗した owner だけを errs に積んで続行することはできない — バッチが
 	// 失敗した場合に「タグなし」として扱うと、実際は保持しているタグを誤って解除しないまま
 	// success 扱いするサイレントな不整合になるため、fail-open にしない）。
+	// blast radius 注意: 旧 per-owner 実装ではキャッシュ取得失敗は非top owner のみに閉じていたが
+	// （top owner 分岐は per-owner cache 取得と独立していたため）、この early return は該当クリニックの
+	// 処理全体（top owner への LTV_上位20 タグ付与も含む）を止める。revenues/owners 取得失敗と同じ
+	// 「関数全体 fail-closed」パターンへ意図的に統一したトレードオフ — 次回 cron サイクルで自己修復される。
 	// nonTopOwnerIDs が空なら呼ばない（無駄なクエリを避ける。tagCacheRepo は nil のまま
 	// map lookup の zero value（空スライス）にフォールバックする）。
 	var tagCacheByOwner map[uint64][]*model.LstepTagCache

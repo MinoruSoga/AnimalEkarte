@@ -21,8 +21,12 @@ import (
 // （予約受付期間全体）と単日ウィンドウでは対象範囲もエラーメッセージも異なるため、共通化は
 // 本タスクのスコープ外（変更を最小に保つ）。
 func (s *liffService) buildStaffSlotInputsForDate(ctx context.Context, clinicID uint64, staffs []model.Staff, date time.Time) ([]StaffSlotInput, error) {
+	// 旧 FindAllByDay と同様、JST の日付境界（00:00〜翌日00:00）へ明示的に truncate する。
+	// date が既に JST 深夜0時である不変条件（handler の time.ParseInLocation 経由）に依存せず、
+	// この関数単体でも正しい1日ウィンドウになるようにする（go-reviewer 指摘・防御的頑健性）。
 	dateJST := date.In(config.JST)
-	windowEnd := dateJST.AddDate(0, 0, 1)
+	dayStart := time.Date(dateJST.Year(), dateJST.Month(), dateJST.Day(), 0, 0, 0, 0, config.JST)
+	windowEnd := dayStart.AddDate(0, 0, 1)
 
 	staffIDs := make([]uint64, len(staffs))
 	for i := range staffs {
@@ -31,7 +35,7 @@ func (s *liffService) buildStaffSlotInputsForDate(ctx context.Context, clinicID 
 
 	entriesByDateStaff := map[string]map[uint64]*model.ShiftEntry{}
 	breaksByEntry := map[uint64][]model.ShiftEntryBreak{}
-	entries, err := s.scheduleRepo.FindAllByStaffIDsAndDateRange(ctx, clinicID, staffIDs, dateJST, windowEnd)
+	entries, err := s.scheduleRepo.FindAllByStaffIDsAndDateRange(ctx, clinicID, staffIDs, dayStart, windowEnd)
 	if err != nil {
 		// LIFF-2 と同様: 取得失敗は観測性のため slog 記録。挙動は従来通り（override なしで続行）。
 		slog.ErrorContext(ctx, "failed to prefetch schedule entries for available times", "error", err)
@@ -55,7 +59,7 @@ func (s *liffService) buildStaffSlotInputsForDate(ctx context.Context, clinicID 
 	}
 
 	// 当日の全予約を一括取得（N+1回避。旧 FindAllByDay の6 Preload を伴わない軽量版）
-	reservations, err := s.adminRepo.FindTimeRangesByDateRange(ctx, clinicID, dateJST, windowEnd)
+	reservations, err := s.adminRepo.FindTimeRangesByDateRange(ctx, clinicID, dayStart, windowEnd)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to get day reservations", "error", err)
 		return nil, apperrors.Wrap(err, "failed to get day reservations")
@@ -66,7 +70,7 @@ func (s *liffService) buildStaffSlotInputsForDate(ctx context.Context, clinicID 
 		reservationsByDate[dateStr] = append(reservationsByDate[dateStr], reservations[i])
 	}
 
-	return buildStaffSlotInputsFromWindow(staffs, dateJST, entriesByDateStaff, breaksByEntry, reservationsByDate), nil
+	return buildStaffSlotInputsFromWindow(staffs, dayStart, entriesByDateStaff, breaksByEntry, reservationsByDate), nil
 }
 
 // buildAvailableDatesStaffInputsFn は GetAvailableDates の予約受付期間全体ぶんのシフト/休憩/当日予約を
