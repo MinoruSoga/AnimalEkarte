@@ -20,13 +20,6 @@ export const PALETTE = {
 
   /** Page / section background */
   bgMain: "#F6F5F4",
-  /** Slightly lighter background (e.g. date-time card) */
-  bgSubtle: "#FFFFFF",
-  /** Active / selected row background in sidebar */
-  bgActive: "#F1F0EE",
-
-  /** White */
-  white: "#ffffff",
 
   /* ── External brand colors ── */
   /** LINE official brand green */
@@ -49,11 +42,7 @@ export const PALETTE = {
 
   /** Border – light (table cell, card) */
   borderLight: "rgba(0,0,0,0.09)",
-  /** Border – medium (input, divider) */
-  borderMedium: "rgba(0,0,0,0.16)",
 
-  /** Skeleton / light background fill (6% primary) */
-  bgSkeleton: "rgba(0,0,0,0.06)",
   /** Semi-transparent white (80%) — toggle dot on active chart buttons */
   whiteAlpha80: "rgba(255,255,255,0.8)",
 
@@ -63,8 +52,6 @@ export const PALETTE = {
   /** Destructive / danger — BUG-084: #C0392B (contrast 7.1:1 on white, WCAG AA) */
   danger: "#C0392B",
 
-  /** Muted foreground (= mutedBadge text) */
-  muted: "#787774",
   /** Muted background */
   mutedBg: "#F1F0EE",
 
@@ -84,9 +71,6 @@ export const PALETTE = {
 
   /* ── Success / Emerald green (会計リンク等) ── */
   successGreen: "#10B981",
-
-  /* ── Orange badge border ── */
-  borderOrangeBadge: "#F0C9A8",
 
   /* ── Master settings default colors (DB-configurable) ── */
   /** Default gray for badge when no color set */
@@ -148,7 +132,6 @@ export const C = {
   /* ── Background ── */
   bgPage:        "bg-[#F6F5F4]",
   bgPage60:      "bg-[#F6F5F4]/60",
-  bgPageHalf:    "bg-[#F6F5F4]/50",
   bgPage30:      "bg-[#F6F5F4]/30",
   bgInputLogin:  "bg-[rgba(242,241,238,0.6)]",
   bgWhite:       "bg-white",
@@ -158,7 +141,6 @@ export const C = {
   bgHoverMd:     "bg-[rgba(0,0,0,0.08)]",
   bgPrimary:     "bg-[#000000]",
   bgPrimary10:   "bg-[#000000]/10",
-  bgPrimary8:    "bg-[#000000]/8",
   bgPrimary5:    "bg-[#000000]/5",
   /** Faint tinted background — skeleton shimmer base */
   bgSkeleton:    "bg-[rgba(0,0,0,0.06)]",
@@ -204,33 +186,19 @@ export const C = {
   borderDivider: "border-[rgba(0,0,0,0.06)]",
   borderPrimary: "border-[#000000]",
   borderPrimary20: "border-[#000000]/20",
-  borderPrimary25: "border-[#000000]/25",
   borderPrimary10: "border-[#000000]/10",
-  borderLPrimary: "border-l-[#000000]",
-  borderBPrimary: "border-b-[#000000]",
   divideDivider: "divide-[rgba(0,0,0,0.09)]",
   divideDividerFaint: "divide-[rgba(0,0,0,0.06)]",
 
   /* ── Accent ── */
-  accent:        "text-[#2383E2]",
   bgAccent:      "bg-[#2383E2]",
   bgAccentHover: "hover:bg-[#1B6EC2]",
   bgAccentLight: "bg-[#D3E5EF]",
   bgAccentLight60: "bg-[#D3E5EF]/60",
-  bgAccent5:     "bg-[#2383E2]/5",
-  bgAccent8:     "bg-[#2383E2]/8",
   textAccentDark:"text-[#183B56]",
   textAccentDark90:"text-[#183B56]/90",
-  borderAccent:  "border-[#2383E2]",
   /** Light accent border for outline accent buttons */
   borderAccentLight: "border-[#2383E2]/30",
-  ringAccent:    "ring-[#2383E2]",
-  ringAccent40:  "ring-[#2383E2]/40",
-  hoverBgAccent5: "hover:bg-[#2383E2]/5",
-  hoverBgAccent8: "hover:bg-[#2383E2]/8",
-  /** Darker accent text on hover — use for outline accent buttons */
-  hoverTextAccent: "hover:text-[#1B6EC2]",
-  hoverBorderAccent40: "hover:border-[#2383E2]/40",
   focusBorderAccent: "focus:border-[#2383E2]",
   focusRingAccent: "focus-visible:ring-[#2383E2]",
   focusRingAccent40: "focus-visible:ring-[#2383E2]/40",
@@ -252,9 +220,6 @@ export const C = {
   /** Outline border for danger/destructive buttons */
   borderDanger:  "border-[#C0392B]/30",
   borderDanger20:"border-[#C0392B]/20",
-  bgDanger4:     "bg-[#C0392B]/4",
-  borderDanger15:"border-[#C0392B]/15",
-  bgDanger20:    "bg-[#C0392B]/20",
   hoverBgDanger90: "hover:bg-[#C0392B]/90",
   decorationDanger50: "decoration-[#C0392B]/50",
 
@@ -286,11 +251,8 @@ export const C = {
 
   /* ── Success / Emerald green (会計リンク等) ── */
   textSuccess:       "text-[#10B981]",
-  bgSuccess:         "bg-[#10B981]",
   bgSuccess10:       "bg-[#10B981]/10",
-  bgSuccessHover:    "hover:bg-[#059669]",
   borderSuccess30:   "border-[#10B981]/30",
-  hoverBgSuccess10:  "hover:bg-[#10B981]/10",
   hoverBgSuccess20:  "hover:bg-[#10B981]/20",
 
   /* ── Notion Yellow / Notice (注意・アラート) ── */
@@ -303,7 +265,6 @@ export const C = {
   /* ── Notion Red (badges) ── */
   textNotionRed:     "text-[#E03E3E]",
   bgRedLight:        "bg-[#FFE2DD]",
-  borderRed30:       "border-[#E03E3E]/30",
   bgNotionRed:       "bg-[#E03E3E]",
 
   /* ── Notion Orange — additional (trimming, financial buttons) ── */
@@ -319,7 +280,6 @@ export const C = {
   textWarningIcon: "text-[#B58105]",
   textWarning:   "text-[#856404]",
   borderWarning20: "border-[#B58105]/20",
-  bgWarningBar:  "bg-[#F2AC57]",
 
   /* ── Discount / Financial orange ── */
   /** 値引き・差引額など財務文書用オレンジ (Notion orange に準拠) */
@@ -333,8 +293,6 @@ export const C = {
   bgStatusPurpleDot: "bg-[#6940A5]",
   borderStatusPurple:"border-[#6940A5]/20",
   hoverBgStatusPurple:"hover:bg-[#EEE0F7]",
-  /** Slightly darker purple hover — use on bg-statusPurple buttons */
-  hoverBgStatusPurpleDark: "hover:bg-[#E4D0F2]",
 
   /* ── Reservation status dot/bg/text (semantic status colors) ── */
   /** 予約確定 (confirmed) — Emerald green */
@@ -390,8 +348,6 @@ export const C = {
   hoverText:     "hover:text-[#000000]",
   hoverText60:   "hover:text-[#000000]/60",
   hoverBorderPrimary30: "hover:border-[#000000]/30",
-  hoverBorderPrimary40: "hover:border-[#000000]/40",
-  hoverBorderMedium: "hover:border-[rgba(0,0,0,0.24)]",
   hoverBorderMedium40: "hover:border-[rgba(0,0,0,0.40)]",
   hoverBgSubtle: "hover:bg-[#F6F5F4]",
 
@@ -403,14 +359,11 @@ export const C = {
   textWhite: "text-white",
 
   /* ── Focus utilities ── */
-  focusBgPage:   "focus:bg-[#F6F5F4]",
   focusBgLight:  "focus:bg-[rgba(0,0,0,0.04)]",
   focusBorderLight: "focus:border-[rgba(0,0,0,0.09)]",
   focusRingMedium: "focus-visible:ring-[rgba(0,0,0,0.16)]",
 
   /* ─ Ring ── */
-  ringPrimary50: "ring-[#000000]/50",
-  ringPrimary40: "ring-[#000000]/40",
   ringPrimary20: "ring-[#000000]/20",
 
   /* ── Notion Accent-light (badge / pill) — for status-helpers ── */
@@ -422,7 +375,6 @@ export const C = {
   bgMuted:        "bg-[#F1F0EE]",
   bgMutedBadge:   "bg-[#F1F1EF]",
   hoverBgMutedBadge: "hover:bg-[#E8E7E4]",
-  bgMutedBadgeActive: "bg-[#E8E7E4]",
   textMuted:      "text-[#787774]",
   /** #E3E2E0 — PALETTE.grayLight; see also bgInactive, bgGrayTag */
   borderMuted:    "border-[#E3E2E0]",
@@ -437,12 +389,7 @@ export const C = {
   borderOrangeBadge: "border-[#F0C9A8]",
 
   /* ── Reception Kanban column opacity variants ── */
-  bgAccentLight8:        "bg-[#D3E5EF]/8",
-  bgAccentLight30:       "bg-[#D3E5EF]/30",
-  bgAccentLight40:       "bg-[#D3E5EF]/40",
   bgAccentLight50:       "bg-[#D3E5EF]/50",
-  hoverBgAccentLight:    "hover:bg-[#D3E5EF]",
-  hoverBgAccentLight60:  "hover:bg-[#D3E5EF]/60",
   textAccentDark60:      "text-[#183B56]/60",
   hoverBgAccentBadge40:  "hover:bg-[#B8D4E3]/40",
   hoverTextAccentDark:   "hover:text-[#183B56]",
@@ -468,23 +415,12 @@ export const C = {
   hoverBgGreenBadge40:   "hover:bg-[#C3DFC3]/40",
   hoverTextStatusGreen:  "hover:text-[#0F7B6C]",
 
-  /* ── Service-type / shift specific ── */
-  bgPurpleAlt2:      "bg-[#EBE2F5]",
-  textPurpleAlt:     "text-[#5B2D8E]",
-  borderPurpleAlt2:  "border-[#EBE2F5]",
-  bgGrayTag:         "bg-[#E3E2E0]",
-  textGrayTag:       "text-[#55534E]",
-  borderGrayTag:     "border-[#D5D4D1]",
-  textPaidLeave:     "text-[#7B5B29]",
-
   /* ── Medical accent blue (karte / hospitalization) ── */
   bgMedicalBlue:          "bg-[#2EAADC]",
   bgMedicalBlue5:         "bg-[#2EAADC]/5",
   textMedicalBlue:        "text-[#2EAADC]",
-  borderMedicalBlue:      "border-[#2EAADC]",
   borderLMedicalBlue:     "border-l-[#2EAADC]",
   hoverBgMedicalBlue90:   "hover:bg-[#2EAADC]/90",
-  hoverBorderMedicalBlue50: "hover:border-[#2EAADC]/50",
   ringMedicalBlue:        "ring-[#2EAADC]",
   focusRingMedicalBlue:   "focus-visible:ring-[#2EAADC]",
 
@@ -610,11 +546,6 @@ export const LAYOUT = {
     labelWPx:      140,
   },
 
-  /* ── Form Header ── */
-  header: {
-    h:             "h-[53px]",
-  },
-
   /**
    * PageLayout content max-width presets — single source of truth for the
    * `maxWidth` prop so list pages and clinical detail pages don't drift.
@@ -633,12 +564,6 @@ export const LAYOUT = {
    * flex-col h-full: Ensures vertical orientation and inheritance.
    */
   fullHeight:      "flex-1 min-h-0 flex flex-col h-full",
-
-  /** 
-   * Technical fix for Flexbox/Grid content overflow.
-   * Forces the element to be able to shrink smaller than its content, enabling 'overflow: auto' to work.
-   */
-  flexShrinkFix:   "min-h-0 min-w-0",
 
   /* ── Touch Targets (tablet-first) ── */
   touch: {
@@ -695,8 +620,6 @@ export const LAYOUT = {
   colorInputSmall:  "w-7 h-7 rounded cursor-pointer border-0 bg-transparent p-0",
   /** Medium color-picker input (w-12 h-12) */
   colorInputMedium: "w-12 h-12 rounded border",
-  /** Small select-width input */
-  selectInputSmall: "w-20 rounded-[3px]",
 } as const;
 
 /* ================================================================== */
@@ -705,8 +628,8 @@ export const LAYOUT = {
 /* ================================================================== */
 
 /**
- * FE3-1: sidePeekSaveBtn 埋め込み分と ShiftTemplateSettingsParts.tsx の保存ボタンで
- * 共有するピルボタンの影。STYLE オブジェクト内は自己参照できないため、
+ * FE3-1: ShiftTemplateSettingsParts.tsx の保存ボタンで使うピルボタンの影。
+ * STYLE オブジェクト内は自己参照できないため、
  * 定義前のモジュールスコープ定数として保持し STYLE.pillShadow から再輸出する。
  */
 const PILL_SHADOW = "shadow-[0_1px_2px_rgba(0,0,0,0.1)]";
@@ -806,8 +729,6 @@ export const STYLE = {
     `flex items-center justify-end gap-2 px-4 py-3 border-t ${C.borderLight} shrink-0`,
   sidePeekCancelBtn:
     `px-4 py-[7px] text-base ${C.text65} ${C.hoverBgLight} rounded-[3px] transition-colors cursor-pointer`,
-  sidePeekSaveBtn:
-    `px-5 py-[7px] text-base text-white ${C.bgBrand} ${C.hoverBgBrand} rounded-[3px] transition-colors cursor-pointer ${PILL_SHADOW}`,
 
   /* ── Notion Page Icon ── */
   pageIcon:
@@ -820,10 +741,6 @@ export const STYLE = {
   /* ── Section heading (uppercase label) ── */
   sectionLabel:
     `text-base ${C.text55} uppercase tracking-wide select-none`,
-
-  /* ── Status Badge ── */
-  badge:
-    "text-base px-2 h-9 font-normal border",
 
   /* ── Ghost Danger (delete buttons in form headers) ── */
   btnDangerGhost:
@@ -886,6 +803,4 @@ export const STYLE = {
 export const TABLE_STYLES = {
   row:          STYLE.tableRow,
   actionButton: STYLE.tableActionBtn,
-  cell:         STYLE.tableCell,
-  cellMono:     STYLE.tableCellMono,
 } as const;
