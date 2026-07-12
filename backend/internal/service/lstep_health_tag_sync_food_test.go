@@ -55,13 +55,13 @@ func TestSyncFoodPurchaseTag_ExtraBranches(t *testing.T) {
 
 	t.Run("noop when tagCodeRepo is nil", func(t *testing.T) {
 		svc := &lstepTagSyncService{}
-		err := svc.SyncFoodPurchaseTag(context.Background(), 1, 10)
+		err := svc.SyncFoodPurchaseTagWithMappings(context.Background(), 1, 10, nil, nil)
 		assert.NoError(t, err)
 	})
 
 	t.Run("noop when billingItemRepo is nil", func(t *testing.T) {
 		svc := &lstepTagSyncService{tagCodeRepo: &mockLstepTagCodeMappingRepository{}}
-		err := svc.SyncFoodPurchaseTag(context.Background(), 1, 10)
+		err := svc.SyncFoodPurchaseTagWithMappings(context.Background(), 1, 10, nil, nil)
 		assert.NoError(t, err)
 	})
 
@@ -71,7 +71,7 @@ func TestSyncFoodPurchaseTag_ExtraBranches(t *testing.T) {
 			billingItemRepo: &foodMockBillingItemRepository{},
 			settingsSvc:     &mockLstepSettingsService{isSyncEnabledFn: func(_ context.Context, _ uint64) (bool, error) { return false, nil }},
 		}
-		err := svc.SyncFoodPurchaseTag(context.Background(), 1, 10)
+		err := svc.SyncFoodPurchaseTagWithMappings(context.Background(), 1, 10, nil, nil)
 		assert.NoError(t, err)
 	})
 
@@ -85,7 +85,7 @@ func TestSyncFoodPurchaseTag_ExtraBranches(t *testing.T) {
 			billingItemRepo: &foodMockBillingItemRepository{},
 			settingsSvc:     &mockLstepSettingsService{},
 		}
-		err := svc.SyncFoodPurchaseTag(context.Background(), 1, 10)
+		err := svc.SyncFoodPurchaseTagWithMappings(context.Background(), 1, 10, nil, nil)
 		assert.Error(t, err)
 	})
 
@@ -100,7 +100,7 @@ func TestSyncFoodPurchaseTag_ExtraBranches(t *testing.T) {
 				},
 			},
 		}
-		err := svc.SyncFoodPurchaseTag(context.Background(), 1, 10)
+		err := svc.SyncFoodPurchaseTagWithMappings(context.Background(), 1, 10, nil, nil)
 		assert.Error(t, err)
 	})
 
@@ -115,7 +115,7 @@ func TestSyncFoodPurchaseTag_ExtraBranches(t *testing.T) {
 				},
 			},
 		}
-		err := svc.SyncFoodPurchaseTag(context.Background(), 1, 10)
+		err := svc.SyncFoodPurchaseTagWithMappings(context.Background(), 1, 10, nil, nil)
 		assert.NoError(t, err)
 	})
 
@@ -130,7 +130,7 @@ func TestSyncFoodPurchaseTag_ExtraBranches(t *testing.T) {
 				},
 			},
 		}
-		err := svc.SyncFoodPurchaseTag(context.Background(), 1, 10)
+		err := svc.SyncFoodPurchaseTagWithMappings(context.Background(), 1, 10, nil, nil)
 		assert.NoError(t, err)
 	})
 
@@ -149,7 +149,7 @@ func TestSyncFoodPurchaseTag_ExtraBranches(t *testing.T) {
 				},
 			},
 		}
-		err := svc.SyncFoodPurchaseTag(context.Background(), 1, 10)
+		err := svc.SyncFoodPurchaseTagWithMappings(context.Background(), 1, 10, nil, nil)
 		assert.Error(t, err)
 	})
 
@@ -166,7 +166,7 @@ func TestSyncFoodPurchaseTag_ExtraBranches(t *testing.T) {
 				},
 			},
 		}
-		err := svc.SyncFoodPurchaseTag(context.Background(), 1, 10)
+		err := svc.SyncFoodPurchaseTagWithMappings(context.Background(), 1, 10, nil, nil)
 		assert.Error(t, err)
 	})
 
@@ -182,7 +182,7 @@ func TestSyncFoodPurchaseTag_ExtraBranches(t *testing.T) {
 			},
 			buildClientFn: func(_ context.Context, _ uint64) (lstep.Client, error) { return nil, nil },
 		}
-		err := svc.SyncFoodPurchaseTag(context.Background(), 1, 10)
+		err := svc.SyncFoodPurchaseTagWithMappings(context.Background(), 1, 10, nil, nil)
 		assert.NoError(t, err)
 	})
 
@@ -201,7 +201,7 @@ func TestSyncFoodPurchaseTag_ExtraBranches(t *testing.T) {
 			},
 			buildClientFn: func(_ context.Context, _ uint64) (lstep.Client, error) { return client, nil },
 		}
-		err := svc.SyncFoodPurchaseTag(context.Background(), 1, 10)
+		err := svc.SyncFoodPurchaseTagWithMappings(context.Background(), 1, 10, nil, nil)
 		assert.NoError(t, err)
 		assert.Equal(t, LtvFoodPurchaseTag, addedTag)
 	})
@@ -221,7 +221,7 @@ func TestSyncFoodPurchaseTag_ExtraBranches(t *testing.T) {
 			},
 			buildClientFn: func(_ context.Context, _ uint64) (lstep.Client, error) { return client, nil },
 		}
-		err := svc.SyncFoodPurchaseTag(context.Background(), 1, 10)
+		err := svc.SyncFoodPurchaseTagWithMappings(context.Background(), 1, 10, nil, nil)
 		assert.Error(t, err)
 	})
 
@@ -240,7 +240,7 @@ func TestSyncFoodPurchaseTag_ExtraBranches(t *testing.T) {
 			},
 			buildClientFn: func(_ context.Context, _ uint64) (lstep.Client, error) { return client, nil },
 		}
-		err := svc.SyncFoodPurchaseTag(context.Background(), 1, 10)
+		err := svc.SyncFoodPurchaseTagWithMappings(context.Background(), 1, 10, nil, nil)
 		assert.NoError(t, err)
 		assert.Equal(t, LtvFoodPurchaseTag, removedTag)
 	})

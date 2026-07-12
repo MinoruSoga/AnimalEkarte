@@ -51,7 +51,7 @@ func TestSyncFilariaTag_ClientCalls(t *testing.T) {
 		svc := buildPreventionTagSvc(tagRepo, ownerRepoReturning(defaultOwnerWithLineID()),
 			checkupRepoWithResult(nil, nil), petRepoWithPets([]model.Pet{dogPet()}, nil), nil, tagCache, client)
 
-		err := svc.SyncFilariaTag(ctx, clinicID, ownerID)
+		err := svc.SyncFilariaTagWithMappings(ctx, clinicID, ownerID, nil, nil)
 		assert.NoError(t, err)
 		assert.Equal(t, PrevFilariaTag, addedTag)
 		assert.Equal(t, PrevFilariaTag, upsertedTag)
@@ -64,7 +64,7 @@ func TestSyncFilariaTag_ClientCalls(t *testing.T) {
 		svc := buildPreventionTagSvc(tagRepo, ownerRepoReturning(defaultOwnerWithLineID()),
 			checkupRepoWithResult(nil, nil), petRepoWithPets([]model.Pet{dogPet()}, nil), nil, &mockLstepTagCacheRepository{}, client)
 
-		err := svc.SyncFilariaTag(ctx, clinicID, ownerID)
+		err := svc.SyncFilariaTagWithMappings(ctx, clinicID, ownerID, nil, nil)
 		assert.Error(t, err)
 	})
 
@@ -77,7 +77,7 @@ func TestSyncFilariaTag_ClientCalls(t *testing.T) {
 		svc := buildPreventionTagSvc(tagRepo, ownerRepoReturning(defaultOwnerWithLineID()),
 			checkupRepoWithResult(checkups, nil), petRepoWithPets([]model.Pet{dogPet()}, nil), nil, &mockLstepTagCacheRepository{}, client)
 
-		err := svc.SyncFilariaTag(ctx, clinicID, ownerID)
+		err := svc.SyncFilariaTagWithMappings(ctx, clinicID, ownerID, nil, nil)
 		assert.NoError(t, err)
 		assert.Equal(t, PrevFilariaTag, removedTag)
 	})
@@ -90,7 +90,7 @@ func TestSyncFilariaTag_ClientCalls(t *testing.T) {
 		svc := buildPreventionTagSvc(tagRepo, ownerRepoReturning(defaultOwnerWithLineID()),
 			checkupRepoWithResult(checkups, nil), petRepoWithPets([]model.Pet{dogPet()}, nil), nil, &mockLstepTagCacheRepository{}, client)
 
-		err := svc.SyncFilariaTag(ctx, clinicID, ownerID)
+		err := svc.SyncFilariaTagWithMappings(ctx, clinicID, ownerID, nil, nil)
 		assert.NoError(t, err)
 	})
 
@@ -101,7 +101,7 @@ func TestSyncFilariaTag_ClientCalls(t *testing.T) {
 			return nil, errors.New("client build failed")
 		}
 
-		err := svc.SyncFilariaTag(ctx, clinicID, ownerID)
+		err := svc.SyncFilariaTagWithMappings(ctx, clinicID, ownerID, nil, nil)
 		assert.Error(t, err)
 	})
 
@@ -115,7 +115,7 @@ func TestSyncFilariaTag_ClientCalls(t *testing.T) {
 			},
 		}
 
-		err := svc.SyncFilariaTag(ctx, clinicID, ownerID)
+		err := svc.SyncFilariaTagWithMappings(ctx, clinicID, ownerID, nil, nil)
 		assert.Error(t, err)
 	})
 }
@@ -137,7 +137,7 @@ func TestSyncFleaTickTag_ClientCalls(t *testing.T) {
 		svc := buildPreventionTagSvc(tagRepo, ownerRepoReturning(defaultOwnerWithLineID()),
 			nil, nil, billingItemRepoReturning(false, false), tagCache, client)
 
-		err := svc.SyncFleaTickTag(ctx, clinicID, ownerID)
+		err := svc.SyncFleaTickTagWithMappings(ctx, clinicID, ownerID, nil, nil)
 		assert.NoError(t, err)
 		assert.Equal(t, PrevFleaTickTag, addedTag)
 		assert.Equal(t, PrevFleaTickTag, upsertedTag)
@@ -150,7 +150,7 @@ func TestSyncFleaTickTag_ClientCalls(t *testing.T) {
 		svc := buildPreventionTagSvc(tagRepo, ownerRepoReturning(defaultOwnerWithLineID()),
 			nil, nil, billingItemRepoReturning(false, false), &mockLstepTagCacheRepository{}, client)
 
-		err := svc.SyncFleaTickTag(ctx, clinicID, ownerID)
+		err := svc.SyncFleaTickTagWithMappings(ctx, clinicID, ownerID, nil, nil)
 		assert.Error(t, err)
 	})
 
@@ -162,7 +162,7 @@ func TestSyncFleaTickTag_ClientCalls(t *testing.T) {
 		svc := buildPreventionTagSvc(tagRepo, ownerRepoReturning(defaultOwnerWithLineID()),
 			nil, nil, billingItemRepoReturning(true, false), &mockLstepTagCacheRepository{}, client)
 
-		err := svc.SyncFleaTickTag(ctx, clinicID, ownerID)
+		err := svc.SyncFleaTickTagWithMappings(ctx, clinicID, ownerID, nil, nil)
 		assert.NoError(t, err)
 		assert.Equal(t, PrevFleaTickTag, removedTag)
 	})
@@ -174,7 +174,7 @@ func TestSyncFleaTickTag_ClientCalls(t *testing.T) {
 		svc := buildPreventionTagSvc(tagRepo, ownerRepoReturning(defaultOwnerWithLineID()),
 			nil, nil, billingItemRepoReturning(true, false), &mockLstepTagCacheRepository{}, client)
 
-		err := svc.SyncFleaTickTag(ctx, clinicID, ownerID)
+		err := svc.SyncFleaTickTagWithMappings(ctx, clinicID, ownerID, nil, nil)
 		assert.NoError(t, err)
 	})
 
@@ -185,7 +185,7 @@ func TestSyncFleaTickTag_ClientCalls(t *testing.T) {
 			return nil, errors.New("client build failed")
 		}
 
-		err := svc.SyncFleaTickTag(ctx, clinicID, ownerID)
+		err := svc.SyncFleaTickTagWithMappings(ctx, clinicID, ownerID, nil, nil)
 		assert.Error(t, err)
 	})
 
@@ -199,7 +199,7 @@ func TestSyncFleaTickTag_ClientCalls(t *testing.T) {
 			},
 		}
 
-		err := svc.SyncFleaTickTag(ctx, clinicID, ownerID)
+		err := svc.SyncFleaTickTagWithMappings(ctx, clinicID, ownerID, nil, nil)
 		assert.Error(t, err)
 	})
 }

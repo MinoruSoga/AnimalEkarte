@@ -10,10 +10,6 @@ import (
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
-func (s *lstepTagSyncService) SyncFilariaTag(ctx context.Context, clinicID, ownerID uint64) error {
-	return s.SyncFilariaTagWithMappings(ctx, clinicID, ownerID, nil, nil)
-}
-
 // SyncFilariaTagWithMappings は事前取得済み mappings/thresholds を使って処理する（PERF-M2 N+1 解消用）。
 func (s *lstepTagSyncService) SyncFilariaTagWithMappings(ctx context.Context, clinicID, ownerID uint64, cachedMappings []*model.LstepTagCodeMapping, cachedThresholds *model.HealthPreventionThresholds) error {
 	if s.tagCodeRepo == nil {
@@ -136,13 +132,8 @@ func (s *lstepTagSyncService) SyncFilariaTagWithMappings(ctx context.Context, cl
 	return nil
 }
 
-// SyncFleaTickTag はノミ・マダニ駆除薬処方に基づき PREV_ノミダニ対象 を同期する（FEAT-379）。
-// 処方実績がなければタグを付与し、あれば解除する。
-func (s *lstepTagSyncService) SyncFleaTickTag(ctx context.Context, clinicID, ownerID uint64) error {
-	return s.SyncFleaTickTagWithMappings(ctx, clinicID, ownerID, nil, nil)
-}
-
-// SyncFleaTickTagWithMappings は事前取得済み mappings/thresholds を使って処理する（PERF-M2 N+1 解消用）。
+// SyncFleaTickTagWithMappings はノミ・マダニ駆除薬処方に基づき PREV_ノミダニ対象 を同期する（FEAT-379）。
+// 処方実績がなければタグを付与し、あれば解除する。事前取得済み mappings/thresholds を使って処理する（PERF-M2 N+1 解消用）。
 func (s *lstepTagSyncService) SyncFleaTickTagWithMappings(ctx context.Context, clinicID, ownerID uint64, cachedMappings []*model.LstepTagCodeMapping, cachedThresholds *model.HealthPreventionThresholds) error {
 	if s.tagCodeRepo == nil || s.billingItemRepo == nil {
 		return nil

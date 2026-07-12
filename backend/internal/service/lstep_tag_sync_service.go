@@ -171,9 +171,6 @@ type LstepTagSyncService interface {
 	// SyncDormantTagsWithThresholds は事前取得済みの閾値を使って dormant タグを同期する（N+1 解消用 PERF-2）。
 	// DetectDormantOwners バッチがループ外で閾値を 1 回取得し、各オーナーに渡す。
 	SyncDormantTagsWithThresholds(ctx context.Context, clinicID, ownerID uint64, daysSinceLastVisit int, thresholds model.DormantThresholds) error
-	// SyncDormantTags は最終来院からの経過日数に基づき dormant_* タグを差分同期する（BE-005）。
-	// daysSinceLastVisit < 0 は来院なしを表す。
-	SyncDormantTags(ctx context.Context, clinicID, ownerID uint64, daysSinceLastVisit int) error
 	// ResyncOwnerVaccineTags は飼い主の生存ワクチン記録から vaccine_* タグを再構築する（ISSUE-004）。
 	// 種別ごとに最新の接種日のみタグを保持する。レコードが0件の場合は全 vaccine_* タグを解除する。
 	ResyncOwnerVaccineTags(ctx context.Context, clinicID, ownerID uint64) error
@@ -193,24 +190,6 @@ type LstepTagSyncService interface {
 	// EXCL_配信停止 タグを同期する（FEAT-377）。
 	// 注: checkOptOut は呼ばない（このメソッド自体が opt-out 判定の実装）。
 	SyncExclusionTags(ctx context.Context, clinicID, ownerID uint64) error
-	// SyncHealthcheckTags は健診履歴に基づき HLTH_健診あり / HLTH_健診未受診 タグを同期する（FEAT-379）。
-	// 判定コードは lstep_tag_code_mappings から取得する。tagCodeRepo が nil の場合は noop。
-	SyncHealthcheckTags(ctx context.Context, clinicID, ownerID uint64) error
-	// SyncAnnual4CheckupTag は年2回以上来院かつ健診履歴がある飼い主に HLTH_年4回候補 タグを付与する（FEAT-379）。
-	// 判定コードは lstep_tag_code_mappings から取得する。tagCodeRepo が nil の場合は noop。
-	SyncAnnual4CheckupTag(ctx context.Context, clinicID, ownerID uint64) error
-	// SyncVaccineDeadlineTag はワクチン次回予定日が VaccineDeadlineDays 以内に迫っている場合
-	// PREV_ワクチン期限 タグを付与し、それ以外は解除する（FEAT-379）。
-	SyncVaccineDeadlineTag(ctx context.Context, clinicID, ownerID uint64) error
-	// SyncFilariaTag はフィラリア検査・予防薬処方履歴に基づき PREV_フィラリア未完了 タグを同期する（FEAT-379）。
-	// 判定コードは lstep_tag_code_mappings から取得する。tagCodeRepo が nil の場合は noop。
-	SyncFilariaTag(ctx context.Context, clinicID, ownerID uint64) error
-	// SyncFleaTickTag はノミ・マダニ駆除薬処方履歴に基づき PREV_ノミダニ対象 タグを同期する（FEAT-379）。
-	// 判定コードは lstep_tag_code_mappings から取得する。tagCodeRepo が nil の場合は noop。
-	SyncFleaTickTag(ctx context.Context, clinicID, ownerID uint64) error
-	// SyncFoodPurchaseTag はフード購入履歴に基づき LTV_フード購入あり タグを同期する（FEAT-379）。
-	// 判定コードは lstep_tag_code_mappings から取得する。tagCodeRepo が nil の場合は noop。
-	SyncFoodPurchaseTag(ctx context.Context, clinicID, ownerID uint64) error
 	// SyncHealthPreventionTagsForClinic は指定クリニックの全飼い主に対して
 	// 健診・予防・物販タグを一括同期する（FEAT-379 バッチエントリポイント）。
 	// 処理件数と個別エラーのスライスを返す（全体は失敗しない）。

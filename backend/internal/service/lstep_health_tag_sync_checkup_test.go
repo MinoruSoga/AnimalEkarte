@@ -193,7 +193,7 @@ func TestSyncAnnual4CheckupTag_ClientCalls(t *testing.T) {
 		svc := buildCheckupTagSvc(tagRepo, ownerRepoReturning(defaultOwnerWithLineID()),
 			checkupRepoWithResult([]model.Checkup{recentCheckup("健診A")}, nil), visitSummaryRepo(2), &mockLstepTagCacheRepository{}, client)
 
-		err := svc.SyncAnnual4CheckupTag(ctx, clinicID, ownerID)
+		err := svc.SyncAnnual4CheckupTagWithMappings(ctx, clinicID, ownerID, nil, nil)
 		assert.NoError(t, err)
 		assert.Equal(t, HlthAnnual4CheckupTag, addedTag)
 	})
@@ -205,7 +205,7 @@ func TestSyncAnnual4CheckupTag_ClientCalls(t *testing.T) {
 		svc := buildCheckupTagSvc(tagRepo, ownerRepoReturning(defaultOwnerWithLineID()),
 			checkupRepoWithResult([]model.Checkup{recentCheckup("健診A")}, nil), visitSummaryRepo(2), &mockLstepTagCacheRepository{}, client)
 
-		err := svc.SyncAnnual4CheckupTag(ctx, clinicID, ownerID)
+		err := svc.SyncAnnual4CheckupTagWithMappings(ctx, clinicID, ownerID, nil, nil)
 		assert.Error(t, err)
 	})
 
@@ -217,7 +217,7 @@ func TestSyncAnnual4CheckupTag_ClientCalls(t *testing.T) {
 		svc := buildCheckupTagSvc(tagRepo, ownerRepoReturning(defaultOwnerWithLineID()),
 			checkupRepoWithResult(nil, nil), visitSummaryRepo(0), &mockLstepTagCacheRepository{}, client)
 
-		err := svc.SyncAnnual4CheckupTag(ctx, clinicID, ownerID)
+		err := svc.SyncAnnual4CheckupTagWithMappings(ctx, clinicID, ownerID, nil, nil)
 		assert.NoError(t, err)
 		assert.Equal(t, HlthAnnual4CheckupTag, removedTag)
 	})
@@ -229,7 +229,7 @@ func TestSyncAnnual4CheckupTag_ClientCalls(t *testing.T) {
 		svc := buildCheckupTagSvc(tagRepo, ownerRepoReturning(defaultOwnerWithLineID()),
 			checkupRepoWithResult(nil, nil), visitSummaryRepo(0), &mockLstepTagCacheRepository{}, client)
 
-		err := svc.SyncAnnual4CheckupTag(ctx, clinicID, ownerID)
+		err := svc.SyncAnnual4CheckupTagWithMappings(ctx, clinicID, ownerID, nil, nil)
 		assert.NoError(t, err)
 	})
 
@@ -240,7 +240,7 @@ func TestSyncAnnual4CheckupTag_ClientCalls(t *testing.T) {
 			return nil, errors.New("client build failed")
 		}
 
-		err := svc.SyncAnnual4CheckupTag(ctx, clinicID, ownerID)
+		err := svc.SyncAnnual4CheckupTagWithMappings(ctx, clinicID, ownerID, nil, nil)
 		assert.Error(t, err)
 	})
 }

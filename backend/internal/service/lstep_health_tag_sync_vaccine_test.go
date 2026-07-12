@@ -15,38 +15,12 @@ import (
 // Note: SyncVaccineDeadlineTag's opt-out / no-line-id / no-deadline / vacRepo-error branches are
 // already covered by TestSyncVaccineDeadlineTag in lstep_health_tag_sync_test.go (which always
 // exercises a nil lstep client). This file focuses on the branches only reachable with a real
-// (mocked) lstep client: AddTag/RemoveTag success & failure, and the outer SyncVaccineDeadlineTag
-// wrapper (thresholds fetch, shouldSkipSync).
-
-func TestSyncVaccineDeadlineTag_OuterWrapper(t *testing.T) {
-	t.Run("skips when sync disabled", func(t *testing.T) {
-		svc := &lstepTagSyncService{
-			settingsSvc: &mockLstepSettingsService{isSyncEnabledFn: func(_ context.Context, _ uint64) (bool, error) { return false, nil }},
-		}
-		err := svc.SyncVaccineDeadlineTag(context.Background(), 1, 10)
-		assert.NoError(t, err)
-	})
-
-	t.Run("returns wrapped error when shouldSkipSync check fails", func(t *testing.T) {
-		svc := &lstepTagSyncService{
-			settingsSvc: &mockLstepSettingsService{isSyncEnabledFn: func(_ context.Context, _ uint64) (bool, error) { return false, errors.New("db error") }},
-		}
-		err := svc.SyncVaccineDeadlineTag(context.Background(), 1, 10)
-		assert.Error(t, err)
-	})
-
-	t.Run("returns wrapped error when thresholds lookup fails", func(t *testing.T) {
-		svc := &lstepTagSyncService{
-			settingsSvc: &mockLstepSettingsService{
-				getHealthPreventionThresholdsFn: func(_ context.Context, _ uint64) (model.HealthPreventionThresholds, error) {
-					return model.HealthPreventionThresholds{}, errors.New("db error")
-				},
-			},
-		}
-		err := svc.SyncVaccineDeadlineTag(context.Background(), 1, 10)
-		assert.Error(t, err)
-	})
-}
+// (mocked) lstep client: AddTag/RemoveTag success & failure.
+//
+// B-3: 旧公開ラッパー SyncVaccineDeadlineTag（thresholds fetch → syncVaccineDeadlineTagImpl 委譲）は
+// 呼び出し元ゼロのため削除済み（batch は syncVaccineDeadlineTagImpl を thresholds 事前取得で直接呼ぶ）。
+// ラッパー固有だった「shouldSkipSync 失敗」「thresholds 取得失敗」の分岐は syncVaccineDeadlineTagImpl の
+// シグネチャ（thresholds を値で受け取る）には存在しないため、対応するテストは削除した。
 
 func TestSyncVaccineDeadlineTagImpl_ClientInteraction(t *testing.T) {
 	lineUID := "U_vaccine_deadline_test"

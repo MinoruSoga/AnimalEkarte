@@ -10,11 +10,7 @@ import (
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
-// SyncHealthcheckTags は健診履歴に基づき HLTH_健診あり / HLTH_健診未受診 を同期する（FEAT-379）。
-func (s *lstepTagSyncService) SyncHealthcheckTags(ctx context.Context, clinicID, ownerID uint64) error {
-	return s.SyncHealthcheckTagsWithMappings(ctx, clinicID, ownerID, nil, nil)
-}
-
+// SyncHealthcheckTagsWithMappings は健診履歴に基づき HLTH_健診あり / HLTH_健診未受診 を同期する（FEAT-379）。
 func (s *lstepTagSyncService) SyncHealthcheckTagsWithMappings(ctx context.Context, clinicID, ownerID uint64, cachedMappings []*model.LstepTagCodeMapping, cachedThresholds *model.HealthPreventionThresholds) error {
 	if s.tagCodeRepo == nil {
 		return nil
@@ -113,12 +109,8 @@ func (s *lstepTagSyncService) SyncHealthcheckTagsWithMappings(ctx context.Contex
 	return nil
 }
 
-// SyncAnnual4CheckupTag は年2回以上来院かつ健診履歴がある飼い主に HLTH_年4回候補 を付与する（FEAT-379）。
-func (s *lstepTagSyncService) SyncAnnual4CheckupTag(ctx context.Context, clinicID, ownerID uint64) error {
-	return s.SyncAnnual4CheckupTagWithMappings(ctx, clinicID, ownerID, nil, nil)
-}
-
-// SyncAnnual4CheckupTagWithMappings は事前取得済み mappings/thresholds を使って処理する（PERF-M1 N+1 解消用）。
+// SyncAnnual4CheckupTagWithMappings は年2回以上来院かつ健診履歴がある飼い主に HLTH_年4回候補 を付与する
+// （FEAT-379）。事前取得済み mappings/thresholds を使って処理する（PERF-M1 N+1 解消用）。
 func (s *lstepTagSyncService) SyncAnnual4CheckupTagWithMappings(ctx context.Context, clinicID, ownerID uint64, cachedMappings []*model.LstepTagCodeMapping, cachedThresholds *model.HealthPreventionThresholds) error {
 	if s.tagCodeRepo == nil {
 		return nil

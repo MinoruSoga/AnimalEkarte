@@ -52,18 +52,20 @@ func TestLstepTagSyncServiceDisabledSyncSkipsBeforeRepositories(t *testing.T) {
 		{name: "SyncCheckupTag", run: func() error { return svc.SyncCheckupTag(ctx, 1, 2, 3, now, nil) }},
 		{name: "SyncPrescriptionTag", run: func() error { return svc.SyncPrescriptionTag(ctx, 1, 2) }},
 		{name: "SyncChronicConditionTags", run: func() error { return svc.SyncChronicConditionTags(ctx, 1, 2, []string{"kidney"}) }},
-		{name: "SyncDormantTags", run: func() error { return svc.SyncDormantTags(ctx, 1, 2, 180) }},
+		{name: "SyncDormantTagsWithThresholds", run: func() error {
+			return svc.SyncDormantTagsWithThresholds(ctx, 1, 2, 180, model.DormantThresholds{})
+		}},
 		{name: "ResyncOwnerVaccineTags", run: func() error { return svc.ResyncOwnerVaccineTags(ctx, 1, 2) }},
 		{name: "ResyncOwnerCheckupTags", run: func() error { return svc.ResyncOwnerCheckupTags(ctx, 1, 2) }},
 		{name: "SyncCPMStageTagV2", run: func() error { return svc.SyncCPMStageTagV2(ctx, 1, 2) }},
 		{name: "SyncVisitDormantTags", run: func() error { return svc.SyncVisitDormantTags(ctx, 1, 2, 120) }},
 		{name: "SyncExclusionTags", run: func() error { return svc.SyncExclusionTags(ctx, 1, 2) }},
-		{name: "SyncHealthcheckTags", run: func() error { return svc.SyncHealthcheckTags(ctx, 1, 2) }},
-		{name: "SyncAnnual4CheckupTag", run: func() error { return svc.SyncAnnual4CheckupTag(ctx, 1, 2) }},
-		{name: "SyncVaccineDeadlineTag", run: func() error { return svc.SyncVaccineDeadlineTag(ctx, 1, 2) }},
-		{name: "SyncFilariaTag", run: func() error { return svc.SyncFilariaTag(ctx, 1, 2) }},
-		{name: "SyncFleaTickTag", run: func() error { return svc.SyncFleaTickTag(ctx, 1, 2) }},
-		{name: "SyncFoodPurchaseTag", run: func() error { return svc.SyncFoodPurchaseTag(ctx, 1, 2) }},
+		// B-3: SyncHealthcheckTags/SyncAnnual4CheckupTag/SyncVaccineDeadlineTag/SyncFilariaTag/
+		// SyncFleaTickTag/SyncFoodPurchaseTag の公開ラッパーは呼び出し元ゼロのため削除済み。
+		// これらの WithMappings 版・syncVaccineDeadlineTagImpl は LstepTagSyncService
+		// interface に含まれないため本テーブル（interface 経由の一括検証）の対象外。
+		// isSyncEnabled=false による早期 skip は各メソッドが共通で呼ぶ resolveSyncTarget の
+		// 責務であり、本テーブルの残り約15メソッドで引き続き検証される。
 	}
 
 	for _, tc := range tests {
@@ -837,40 +839,40 @@ func TestSyncHealthcheckTagsNoopWhenTagCodeRepoNil(t *testing.T) {
 	svc := NewLstepTagSyncService(
 		&mockLstepSettingsService{isSyncEnabledFn: func(_ context.Context, _ uint64) (bool, error) { return true, nil }},
 		nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
-	)
-	assert.NoError(t, svc.SyncHealthcheckTags(context.Background(), 1, 2))
+	).(*lstepTagSyncService)
+	assert.NoError(t, svc.SyncHealthcheckTagsWithMappings(context.Background(), 1, 2, nil, nil))
 }
 
 func TestSyncAnnual4CheckupTagNoopWhenTagCodeRepoNil(t *testing.T) {
 	svc := NewLstepTagSyncService(
 		&mockLstepSettingsService{isSyncEnabledFn: func(_ context.Context, _ uint64) (bool, error) { return true, nil }},
 		nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
-	)
-	assert.NoError(t, svc.SyncAnnual4CheckupTag(context.Background(), 1, 2))
+	).(*lstepTagSyncService)
+	assert.NoError(t, svc.SyncAnnual4CheckupTagWithMappings(context.Background(), 1, 2, nil, nil))
 }
 
 func TestSyncFilariaTagNoopWhenTagCodeRepoNil(t *testing.T) {
 	svc := NewLstepTagSyncService(
 		&mockLstepSettingsService{isSyncEnabledFn: func(_ context.Context, _ uint64) (bool, error) { return true, nil }},
 		nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
-	)
-	assert.NoError(t, svc.SyncFilariaTag(context.Background(), 1, 2))
+	).(*lstepTagSyncService)
+	assert.NoError(t, svc.SyncFilariaTagWithMappings(context.Background(), 1, 2, nil, nil))
 }
 
 func TestSyncFleaTickTagNoopWhenTagCodeRepoNil(t *testing.T) {
 	svc := NewLstepTagSyncService(
 		&mockLstepSettingsService{isSyncEnabledFn: func(_ context.Context, _ uint64) (bool, error) { return true, nil }},
 		nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
-	)
-	assert.NoError(t, svc.SyncFleaTickTag(context.Background(), 1, 2))
+	).(*lstepTagSyncService)
+	assert.NoError(t, svc.SyncFleaTickTagWithMappings(context.Background(), 1, 2, nil, nil))
 }
 
 func TestSyncFoodPurchaseTagNoopWhenTagCodeRepoNil(t *testing.T) {
 	svc := NewLstepTagSyncService(
 		&mockLstepSettingsService{isSyncEnabledFn: func(_ context.Context, _ uint64) (bool, error) { return true, nil }},
 		nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
-	)
-	assert.NoError(t, svc.SyncFoodPurchaseTag(context.Background(), 1, 2))
+	).(*lstepTagSyncService)
+	assert.NoError(t, svc.SyncFoodPurchaseTagWithMappings(context.Background(), 1, 2, nil, nil))
 }
 
 func TestSyncHealthPreventionTagsForClinicDisabledSync(t *testing.T) {

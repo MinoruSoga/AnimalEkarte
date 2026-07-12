@@ -51,38 +51,13 @@ func enabledDormantSettings() *mockLstepSettingsService {
 	}
 }
 
-// ---- SyncDormantTags (wrapper over SyncDormantTagsWithThresholds) ----
-
-func TestSyncDormantTags_ThresholdsFetchError(t *testing.T) {
-	svc := &lstepTagSyncService{
-		settingsSvc: &mockLstepSettingsService{
-			getDormantThresholdsFn: func(_ context.Context, _ uint64) (model.DormantThresholds, error) {
-				return model.DormantThresholds{}, errors.New("db error")
-			},
-		},
-	}
-	err := svc.SyncDormantTags(context.Background(), 1, 2, 180)
-	assert.Error(t, err)
-}
-
-func TestSyncDormantTags_DelegatesToWithThresholds(t *testing.T) {
-	svc := buildDormantTestSvc(
-		&mockLstepSettingsService{
-			isSyncEnabledFn: func(_ context.Context, _ uint64) (bool, error) { return true, nil },
-			getDormantThresholdsFn: func(_ context.Context, _ uint64) (model.DormantThresholds, error) {
-				return dormantTestThresholds(), nil
-			},
-		},
-		ownerRepoReturning(defaultOwnerWithLineID()),
-		&mockLstepTagCacheRepository{},
-		nil,
-		&mockLstepAPIClient{},
-	)
-	err := svc.SyncDormantTags(context.Background(), 1, 2, 100) // below all thresholds -> targetTag ""
-	assert.NoError(t, err)
-}
-
 // ---- SyncDormantTagsWithThresholds ----
+//
+// B-3: 旧公開ラッパー SyncDormantTags（thresholds fetch → SyncDormantTagsWithThresholds 委譲）は
+// 呼び出し元ゼロのため削除済み。ラッパー固有だった「thresholds 取得失敗」の分岐は
+// SyncDormantTagsWithThresholds のシグネチャ（thresholds を値で受け取る）には存在しないため、
+// 対応するテストは削除した。shouldSkipSync 失敗パスは下記
+// TestSyncDormantTagsWithThresholds_ShouldSkipSyncError でカバーされる。
 
 func TestSyncDormantTagsWithThresholds_ShouldSkipSyncError(t *testing.T) {
 	svc := &lstepTagSyncService{

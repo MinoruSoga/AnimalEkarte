@@ -9,11 +9,8 @@ import (
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
-func (s *lstepTagSyncService) SyncFoodPurchaseTag(ctx context.Context, clinicID, ownerID uint64) error {
-	return s.SyncFoodPurchaseTagWithMappings(ctx, clinicID, ownerID, nil, nil)
-}
-
-// SyncFoodPurchaseTagWithMappings は事前取得済み mappings/thresholds を使って処理する（PERF-M2 N+1 解消用）。
+// SyncFoodPurchaseTagWithMappings はフード購入履歴に基づき LTV_フード購入あり タグを同期する（FEAT-379）。
+// 事前取得済み mappings/thresholds を使って処理する（PERF-M2 N+1 解消用）。
 func (s *lstepTagSyncService) SyncFoodPurchaseTagWithMappings(ctx context.Context, clinicID, ownerID uint64, cachedMappings []*model.LstepTagCodeMapping, cachedThresholds *model.HealthPreventionThresholds) error {
 	if s.tagCodeRepo == nil || s.billingItemRepo == nil {
 		return nil
