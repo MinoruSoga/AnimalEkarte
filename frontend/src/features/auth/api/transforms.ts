@@ -27,16 +27,18 @@ const meClinicInfoSchema = z.object({
   // BUG-367: インボイス帳票用
   standard_tax_rate: z.number().default(0.1),
   reduced_tax_rate: z.number().default(0.08),
-  accounting_document_show_logo: z.boolean().default(false),
-  accounting_document_show_registration_warning: z.boolean().default(true),
-  accounting_document_show_item_category: z.boolean().default(true),
-  accounting_document_footer_note: z.string().default(""),
+  // FE-R3-2: BE (auth_response.go) は非ポインタ・omitempty なしで常に送信するため必須化。
+  // .default() は BE のリネームを隠蔽し帳票からロゴ/警告文言が黙って消える逆失敗モードを生む。
+  accounting_document_show_logo: z.boolean(),
+  accounting_document_show_registration_warning: z.boolean(),
+  accounting_document_show_item_category: z.boolean(),
+  accounting_document_footer_note: z.string(),
   // #190: セクション表示/非表示トグルと表示順
-  accounting_document_show_clinic_header: z.boolean().default(true),
-  accounting_document_show_owner_pet_info: z.boolean().default(true),
-  accounting_document_show_items_table: z.boolean().default(true),
-  accounting_document_show_payment_summary: z.boolean().default(true),
-  accounting_document_section_order: z.array(z.string()).default([]),
+  accounting_document_show_clinic_header: z.boolean(),
+  accounting_document_show_owner_pet_info: z.boolean(),
+  accounting_document_show_items_table: z.boolean(),
+  accounting_document_show_payment_summary: z.boolean(),
+  accounting_document_section_order: z.array(z.string()),
 });
 
 const resourcePermissionSchema = z.object({
