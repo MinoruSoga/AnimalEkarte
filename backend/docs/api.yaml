@@ -18745,9 +18745,15 @@ paths:
     get:
       operationId: listGlobalCheckups
       summary: クリニック横断の健診記録一覧
-      description: MedicalRecord.Pet.Owner を含む一覧。実装はページネーション形式だが常に全件を1ページで返す。
+      description: MedicalRecord.Pet.Owner を含む一覧。実サーバページング（page/limit）で返す（X-16②）。
       tags: [Checkups]
       parameters:
+        - name: page
+          in: query
+          schema: {type: integer, default: 1}
+        - name: limit
+          in: query
+          schema: {type: integer, default: 20}
         - name: start_date
           in: query
           schema:
