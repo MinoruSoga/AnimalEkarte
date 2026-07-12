@@ -19,7 +19,9 @@ function saveClinicToStorage(clinicId: string): void {
   try {
     localStorage.setItem(CURRENT_CLINIC_STORAGE_KEY, clinicId);
   } catch (error) {
-    console.warn("[auth] failed to save clinic to localStorage", error);
+    if (import.meta.env.DEV) {
+      console.warn("[auth] failed to save clinic to localStorage", error);
+    }
   }
 }
 
@@ -27,7 +29,9 @@ function removeClinicFromStorage(): void {
   try {
     localStorage.removeItem(CURRENT_CLINIC_STORAGE_KEY);
   } catch (error) {
-    console.warn("[auth] failed to remove clinic from localStorage", error);
+    if (import.meta.env.DEV) {
+      console.warn("[auth] failed to remove clinic from localStorage", error);
+    }
   }
 }
 

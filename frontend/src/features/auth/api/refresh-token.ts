@@ -27,10 +27,14 @@ export async function refreshToken(): Promise<RefreshResponse | null> {
         return null;
       }
       // 5xx: バックエンド障害の可能性
-      console.warn("[auth] refreshToken: unexpected server error", { status });
+      if (import.meta.env.DEV) {
+        console.warn("[auth] refreshToken: unexpected server error", { status });
+      }
     } else if (Axios.isAxiosError(error)) {
       // ネットワーク断
-      console.warn("[auth] refreshToken: network error", { message: error.message });
+      if (import.meta.env.DEV) {
+        console.warn("[auth] refreshToken: network error", { message: error.message });
+      }
     }
     return null;
   }

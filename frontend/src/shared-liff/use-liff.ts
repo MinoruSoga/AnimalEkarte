@@ -43,7 +43,9 @@ export function useLiff(liffId: string): UseLiffReturn {
 
       setIsReady(true);
     }).catch((err: unknown) => {
-      console.error('[useLiff] init failed:', err);
+      if (import.meta.env.DEV) {
+        console.error('[useLiff] init failed:', err);
+      }
       setInitError(true);
       setIsReady(true); // ローディングを解除して ErrorPage へ遷移させる
     });
