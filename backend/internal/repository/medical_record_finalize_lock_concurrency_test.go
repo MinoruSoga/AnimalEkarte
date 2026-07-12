@@ -166,3 +166,106 @@ func TestMedicalRecordRepository_LockByIDForUpdate_ChildWriteRejectedAfterFinali
 	require.NoError(t, db.Model(&model.Treatment{}).Where("medical_record_id = ?", mr.ID).Count(&persistedTreatments).Error)
 	assert.Equal(t, int64(0), persistedTreatments, "確定済みカルテには治療が混入しないべき")
 }
+
+// TestMedicalRecordRepository_LockByIDForUpdate_TreatmentDeleteRejectedAfterFinalizeCommits は
+// H-8f（H-8b の並行性証明）: ChildWriteRejectedAfterFinalizeCommits と同型で、finalize が先に
+// commit した場合、treatment.Delete 経路の tx が LockByIDForUpdate 取得時点で既に
+// status=finalized を観測し、Conflict を返し治療が削除されないことを検証する
+// （treatment_service.go Delete の repo-swap tx を模する）。
+func TestMedicalRecordRepository_LockByIDForUpdate_TreatmentDeleteRejectedAfterFinalizeCommits(t *testing.T) {
+	db := setupTestDB(t)
+	require.NoError(t, db.AutoMigrate(&model.AnimalSpecies{}, &model.Pet{}))
+
+	const clinicID = uint64(90103)
+	owner := makeOwner(t, db, clinicID, "H-8f 太郎")
+	pet := makeSpeciesAndPet(t, db, clinicID, owner.ID, "H-8f ポチ")
+
+	medRecRepo := NewMedicalRecordRepository(db)
+	repos := NewRepositories(db)
+	ctx := context.Background()
+
+	petID := pet.ID
+	mr := &model.MedicalRecord{
+		ClinicID: clinicID,
+		PetID:    &petID,
+		Date:     time.Now(),
+		Status:   model.MedicalRecordStatusDraft,
+	}
+	require.NoError(t, medRecRepo.Create(ctx, mr))
+
+	treatment := &model.Treatment{MedicalRecordID: mr.ID}
+	require.NoError(t, repos.Treatment.Create(ctx, treatment))
+
+	_, err := medRecRepo.Update(ctx, clinicID, mr.ID, map[string]any{"status": model.MedicalRecordStatusFinalized}, nil)
+	require.NoError(t, err)
+
+	childErr := repos.Transaction(ctx, func(txRepos *Repositories) error {
+		parent, err := txRepos.MedicalRecord.LockByIDForUpdate(ctx, clinicID, mr.ID)
+		if err != nil {
+			return err
+		}
+		if parent.Status == model.MedicalRecordStatusFinalized {
+			return apperrors.WrapConflict("確定済みカルテの治療は削除できません")
+		}
+		return txRepos.Treatment.Delete(ctx, clinicID, treatment.ID)
+	})
+
+	require.Error(t, childErr)
+	assert.True(t, apperrors.IsConflict(childErr))
+
+	var persistedTreatments int64
+	require.NoError(t, db.Model(&model.Treatment{}).Where("medical_record_id = ? AND deleted_at IS NULL", mr.ID).Count(&persistedTreatments).Error)
+	assert.Equal(t, int64(1), persistedTreatments, "確定済みカルテの治療は削除されず残存するべき")
+}
+
+// TestMedicalRecordRepository_LockByIDForUpdate_TreatmentBulkSortOrderRejectedAfterFinalizeCommits は
+// H-8f（H-8c の並行性証明）: ChildWriteRejectedAfterFinalizeCommits と同型で、finalize が先に
+// commit した場合、treatment.BulkUpdateSortOrder 経路の tx が LockByIDForUpdate 取得時点で既に
+// status=finalized を観測し、Conflict を返し並び順が変更されないことを検証する
+// （treatment_service.go BulkUpdateSortOrder の repo-swap tx を模する）。
+func TestMedicalRecordRepository_LockByIDForUpdate_TreatmentBulkSortOrderRejectedAfterFinalizeCommits(t *testing.T) {
+	db := setupTestDB(t)
+	require.NoError(t, db.AutoMigrate(&model.AnimalSpecies{}, &model.Pet{}))
+
+	const clinicID = uint64(90104)
+	owner := makeOwner(t, db, clinicID, "H-8f 花子")
+	pet := makeSpeciesAndPet(t, db, clinicID, owner.ID, "H-8f タマ")
+
+	medRecRepo := NewMedicalRecordRepository(db)
+	repos := NewRepositories(db)
+	ctx := context.Background()
+
+	petID := pet.ID
+	mr := &model.MedicalRecord{
+		ClinicID: clinicID,
+		PetID:    &petID,
+		Date:     time.Now(),
+		Status:   model.MedicalRecordStatusDraft,
+	}
+	require.NoError(t, medRecRepo.Create(ctx, mr))
+
+	treatment := &model.Treatment{MedicalRecordID: mr.ID, SortOrder: 0}
+	require.NoError(t, repos.Treatment.Create(ctx, treatment))
+
+	_, err := medRecRepo.Update(ctx, clinicID, mr.ID, map[string]any{"status": model.MedicalRecordStatusFinalized}, nil)
+	require.NoError(t, err)
+
+	updates := []TreatmentSortUpdate{{ID: treatment.ID, ClinicID: clinicID, SortOrder: 99}}
+	childErr := repos.Transaction(ctx, func(txRepos *Repositories) error {
+		parent, err := txRepos.MedicalRecord.LockByIDForUpdate(ctx, clinicID, mr.ID)
+		if err != nil {
+			return err
+		}
+		if parent.Status == model.MedicalRecordStatusFinalized {
+			return apperrors.WrapConflict("確定済みカルテの治療は編集できません")
+		}
+		return txRepos.Treatment.BulkUpdateSortOrder(ctx, updates)
+	})
+
+	require.Error(t, childErr)
+	assert.True(t, apperrors.IsConflict(childErr))
+
+	var persisted model.Treatment
+	require.NoError(t, db.First(&persisted, treatment.ID).Error)
+	assert.Equal(t, 0, persisted.SortOrder, "確定済みカルテの治療は並び順が変更されず残存するべき")
+}
