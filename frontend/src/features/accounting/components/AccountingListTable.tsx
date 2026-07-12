@@ -17,17 +17,11 @@ import { RowActionButton } from "@/components/shared/RowActionButton";
 import { SortableHeader } from "@/components/shared/SortableHeader/SortableHeader";
 import { StatusBadge } from "@/components/shared/StatusBadge/StatusBadge";
 import { C, ICON } from "@/lib/design-tokens";
+import { PAYMENT_METHOD_LABELS } from "@/constants/payment-method";
 import { formatCurrency } from "@/utils/format/number";
 import { getAccountingStatusColor } from "@/utils/status-helpers";
-import type { Accounting as AccountingType, AccountingStatus, PaymentMethod } from "../types";
+import type { Accounting as AccountingType, AccountingStatus } from "../types";
 import { calculateAccountingTotal } from "./accounting-list-table-model";
-
-const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
-  cash: "現金",
-  credit_card: "クレジットカード",
-  electronic_money: "電子マネー",
-  bank_transfer: "銀行振込",
-};
 
 const ACCOUNTING_STATUS_LABELS: Record<AccountingStatus, string> = {
   waiting: "会計待ち",
@@ -61,12 +55,7 @@ const FILTER_PROPERTIES: FilterProperty[] = [
     type: "select",
     icon: CreditCard,
     conditions: CONDITIONS_WITH_EMPTY,
-    options: [
-      { value: "cash", label: "現金" },
-      { value: "credit_card", label: "クレジットカード" },
-      { value: "electronic_money", label: "電子マネー" },
-      { value: "bank_transfer", label: "銀行振込" },
-    ],
+    options: Object.entries(PAYMENT_METHOD_LABELS).map(([value, label]) => ({ value, label })),
   },
 ];
 

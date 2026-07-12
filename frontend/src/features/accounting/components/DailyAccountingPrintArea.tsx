@@ -1,8 +1,9 @@
 import { createPortal } from "react-dom";
 
 import { Z } from "@/lib/design-tokens";
+import { PAYMENT_METHOD_LABELS_SHORT as PAYMENT_METHOD_LABELS } from "@/constants/payment-method";
 import { CatCell } from "./DailyAccountingTabParts";
-import { PAYMENT_METHOD_LABELS, formatReceiptNo } from "./daily-accounting-utils";
+import { formatReceiptNo } from "./daily-accounting-utils";
 import type { RowData, TotalsData } from "./daily-accounting-utils";
 
 interface DailyPrintAreaProps {

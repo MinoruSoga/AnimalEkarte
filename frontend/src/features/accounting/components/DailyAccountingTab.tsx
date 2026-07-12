@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/table";
 import { LoadingFallback, ErrorFallback, EmptyState } from "@/components/shared/DataStates";
 import { C, ICON } from "@/lib/design-tokens";
+import { PAYMENT_METHOD_LABELS_SHORT as PAYMENT_METHOD_LABELS } from "@/constants/payment-method";
 import { todayJSTISO } from "@/lib/jst-date";
 import { formatCurrency } from "@/utils/format/number";
 
@@ -27,7 +28,6 @@ import type { PaymentMethod } from "../types";
 import { DailyPrintArea } from "./DailyAccountingPrintArea";
 import { SummaryCard } from "./DailyAccountingTabParts";
 import {
-  PAYMENT_METHOD_LABELS,
   formatReceiptNo,
   getCategoryBreakdown,
   apportionPayment,

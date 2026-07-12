@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { handleApiError } from "@/lib/handle-api-error";
 import { queryKeys } from "@/lib/query-keys";
 import { C } from "@/lib/design-tokens";
+import { PAYMENT_METHOD_LABELS } from "@/constants/payment-method";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -27,11 +28,6 @@ import {
   type CorrectableCardMethod,
 } from "./accounting-detail-model";
 import type { Accounting } from "../types";
-
-const CARD_METHOD_LABELS: Record<CorrectableCardMethod, string> = {
-  credit_card: "クレジットカード",
-  electronic_money: "電子マネー",
-};
 
 interface CreditCorrectionDialogProps {
   accounting: Accounting;
@@ -143,7 +139,7 @@ export function CreditCorrectionDialog({ accounting, isPostClose = false }: Cred
               >
                 {correctable.map((c) => (
                   <option key={c.method} value={c.method}>
-                    {CARD_METHOD_LABELS[c.method]}
+                    {PAYMENT_METHOD_LABELS[c.method]}
                   </option>
                 ))}
               </select>

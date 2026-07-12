@@ -11,7 +11,7 @@ import { SubmitButton } from "@/components/shared/Form/SubmitButton";
 import { C, ICON } from "@/lib/design-tokens";
 
 import type { PaymentMethod } from "../types";
-import { PAYMENT_METHOD_LABELS } from "./daily-accounting-utils";
+import { PAYMENT_METHOD_LABELS_SHORT as PAYMENT_METHOD_LABELS } from "@/constants/payment-method";
 
 export interface PaymentSplitDraft {
   method: PaymentMethod;
