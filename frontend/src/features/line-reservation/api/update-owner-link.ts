@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import { handleApiError } from "@/lib/handle-api-error";
+import { queryKeys } from "@/lib/query-keys";
 import type { LineCustomer } from "./types";
 
 async function updateOwnerLink(
@@ -26,7 +27,7 @@ export function useUpdateOwnerLink(clinicId: string | null) {
       ownerID: number | null;
     }) => updateOwnerLink(clinicId!, customerId, ownerID),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["line-customers", clinicId] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.lineCustomers(clinicId!) });
     },
     onError: (error) => {
       handleApiError(error, "オーナー紐付け");
