@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { axios } from '@/lib/axios';
+import { queryKeys } from '@/lib/query-keys';
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from '@/lib/react-query';
 import type { Estimate } from '../types';
 import { transformEstimate } from './transforms';
@@ -32,7 +33,7 @@ async function getEstimates(params?: GetEstimatesParams): Promise<EstimatesResul
 
 export function useGetEstimates(params?: GetEstimatesParams) {
   return useQuery({
-    queryKey: ['estimates', params],
+    queryKey: queryKeys.estimates.list(params),
     queryFn: () => getEstimates(params),
     staleTime: QUERY_STALE_TIMES.MEDIUM,
     gcTime: QUERY_GC_TIMES.STANDARD,

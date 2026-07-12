@@ -2,6 +2,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { axios } from '@/lib/axios';
 import { handleApiError } from '@/lib/handle-api-error';
+import { queryKeys } from '@/lib/query-keys';
 import type { Estimate } from '../types';
 import { transformEstimate } from './transforms';
 import type { BackendEstimate, CreateEstimateRequest } from './types';
@@ -17,7 +18,7 @@ export function useCreateEstimate() {
   return useMutation({
     mutationFn: createEstimate,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['estimates'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.estimates.all() });
       toast.success('見積書を作成しました');
     },
     onError: (error) => {
