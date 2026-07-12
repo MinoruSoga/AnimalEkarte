@@ -3759,6 +3759,29 @@ components:
           format: double
         sort_order:
           type: integer
+        dose_weight_kg:
+          type: number
+          format: double
+          nullable: true
+          description: 投与量自動計算(#201)の保存時スナップショット — 使用体重(kg)。medicine 明細の per_weight 計算時のみ値あり
+        dose_weight_source:
+          type: string
+          nullable: true
+          description: 体重の出典（vital_records.id / 時刻 pin）
+        dose_amount_mg:
+          type: number
+          format: double
+          nullable: true
+          description: 実効用量(mg)。丸め後の値
+        dose_amount_unit:
+          type: string
+          nullable: true
+          description: "'mg' | 'ug'"
+        dose_param_snapshot:
+          type: object
+          additionalProperties: true
+          nullable: true
+          description: species/dose_per_kg/strength/丸め設定/計算式版の計算根拠スナップショット
         created_at:
           type: string
           format: date-time
