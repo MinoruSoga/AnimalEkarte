@@ -44,7 +44,7 @@ func TestImportFriendAttributesCSV_Integration_HappyPath(t *testing.T) {
 		"U_unknown_999,未紐付け,2026-05-02,tagX,scenarioX,Web,blocked,2026-05-11 10:00:00",
 	}, "\n")
 
-	imp, err := svc.ImportFriendAttributesCSV(ctx, clinicID, "friend-attributes.csv", strings.NewReader(csv), nil)
+	imp, err := svc.ImportFriendAttributesCSV(ctx, clinicID, "friend-attributes.csv", strings.NewReader(csv), 1)
 	if err != nil {
 		t.Fatalf("ImportFriendAttributesCSV returned error: %v", err)
 	}
@@ -124,7 +124,7 @@ func TestImportFriendAttributesCSV_Integration_InvalidHeaderCreatesFailedImport(
 	)
 
 	csv := "表示名,タグ\n山田太郎,tagA\n"
-	imp, err := svc.ImportFriendAttributesCSV(ctx, clinicID, "invalid-header.csv", strings.NewReader(csv), nil)
+	imp, err := svc.ImportFriendAttributesCSV(ctx, clinicID, "invalid-header.csv", strings.NewReader(csv), 1)
 	if err == nil {
 		t.Fatal("expected invalid header error, got nil")
 	}

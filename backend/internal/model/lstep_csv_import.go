@@ -13,7 +13,7 @@ type LstepCsvImport struct {
 	ClinicID         uint64         `gorm:"column:clinic_id;not null"                                json:"clinic_id"`
 	CsvType          string         `gorm:"column:csv_type;type:varchar(50);not null"                json:"csv_type"`
 	FileName         string         `gorm:"column:file_name;type:varchar(255);not null"              json:"file_name"`
-	UploadedByUserID *uint64        `gorm:"column:uploaded_by_user_id"                               json:"uploaded_by_user_id,omitempty"`
+	UploadedByUserID uint64         `gorm:"column:uploaded_by_user_id;not null"                      json:"uploaded_by_user_id"`
 	RowCount         int            `gorm:"column:row_count;not null;default:0"                      json:"row_count"`
 	SuccessCount     int            `gorm:"column:success_count;not null;default:0"                  json:"success_count"`
 	ErrorCount       int            `gorm:"column:error_count;not null;default:0"                    json:"error_count"`

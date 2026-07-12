@@ -31,7 +31,7 @@ const (
 // LstepCsvImportService は Lステップ CSV インポートサービス（FEAT-385）。
 type LstepCsvImportService interface {
 	// ImportFriendAttributesCSV は Lステップ友だち属性 CSV をインポートし、インポートレコードを返す。
-	ImportFriendAttributesCSV(ctx context.Context, clinicID uint64, fileName string, fileReader io.Reader, uploadedByUserID *uint64) (*model.LstepCsvImport, error)
+	ImportFriendAttributesCSV(ctx context.Context, clinicID uint64, fileName string, fileReader io.Reader, uploadedByUserID uint64) (*model.LstepCsvImport, error)
 	// GetByID はクリニックスコープでインポート履歴を返す。
 	GetByID(ctx context.Context, clinicID uint64, id uuid.UUID) (*model.LstepCsvImport, error)
 	// ListByClinic はクリニックスコープで最新順にインポート履歴一覧を返す。
@@ -60,7 +60,7 @@ func NewLstepCsvImportService(
 	}
 }
 
-func (s *lstepCsvImportService) ImportFriendAttributesCSV(ctx context.Context, clinicID uint64, fileName string, fileReader io.Reader, uploadedByUserID *uint64) (*model.LstepCsvImport, error) {
+func (s *lstepCsvImportService) ImportFriendAttributesCSV(ctx context.Context, clinicID uint64, fileName string, fileReader io.Reader, uploadedByUserID uint64) (*model.LstepCsvImport, error) {
 	// 1. サイズ制限付き読み込み
 	limited := io.LimitReader(fileReader, maxCSVSizeBytes+1)
 	raw, err := io.ReadAll(limited)

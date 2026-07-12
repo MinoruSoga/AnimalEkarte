@@ -40,10 +40,8 @@ func toLstepCsvImportResponse(m *model.LstepCsvImport) lstepCsvImportResponse {
 		Status:       m.Status,
 		CreatedAt:    m.CreatedAt.In(time.Local).Format(time.RFC3339),
 	}
-	if m.UploadedByUserID != nil {
-		s := strconv.FormatUint(*m.UploadedByUserID, 10)
-		r.UploadedByUserID = &s
-	}
+	uploadedBy := strconv.FormatUint(m.UploadedByUserID, 10)
+	r.UploadedByUserID = &uploadedBy
 	if len(m.ErrorLog) > 0 {
 		r.ErrorLog = json.RawMessage(m.ErrorLog)
 	}
@@ -77,12 +75,12 @@ func (h *Handler) PostLstepCsvImportFriendAttributes(c *gin.Context) {
 	}
 	defer file.Close() //nolint:errcheck // deferred Close on multipart file; error is non-actionable
 
-	var actorID *uint64
-	if staffID, ok2 := extractStaffID(c); ok2 {
-		actorID = &staffID
+	staffID, ok2 := extractStaffID(c)
+	if !ok2 {
+		return
 	}
 
-	imp, svcErr := h.svc.LstepCsvImport.ImportFriendAttributesCSV(c.Request.Context(), clinicID, header.Filename, file, actorID)
+	imp, svcErr := h.svc.LstepCsvImport.ImportFriendAttributesCSV(c.Request.Context(), clinicID, header.Filename, file, staffID)
 	if svcErr != nil {
 		RespondError(c, svcErr)
 		return

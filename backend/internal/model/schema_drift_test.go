@@ -279,10 +279,14 @@ var knownNullabilityDriftAllowlist = map[string]string{
 	// TestAuditLogRealDDL_NilClinicIDFails（internal/repository/audit_real_ddl_test.go）で保証。
 	"AuditLog.clinic_id": "X-3: DB制約(NOT NULL)を最終防衛線とし、Go側は*uint64+gorm:not nullを維持（意図的）",
 
-	// LstepCsvImport.UploadedByUserID は Go=*uint64 だが
-	// lstep_csv_imports.uploaded_by_user_id は NOT NULL REFERENCES accounts(id)。
-	// omitempty目的でポインタ化されたと推測されるが、DB制約上は常に必須値。
-	"LstepCsvImport.uploaded_by_user_id": "G12-1で発見。DB制約はNOT NULL、Go側は*uint64。要件確認要（未issue化）",
+	// LstepCsvImport.UploadedByUserID pin は H-5 で解消（BE-refactor.md 第4期）。
+	// 供給元（lstep_csv_import_handler.go の PostLstepCsvImportFriendAttributes）を遡って確認した結果、
+	// actorID は routegroup 全体に適用済みの middleware.Auth（Auth必須・常にJWTのuser_idを設定）+
+	// extractStaffID（未設定/パース失敗時は即401 RespondError）を経由するため、nilで
+	// ImportFriendAttributesCSV に到達する正当な経路は無い（構造的に非nil保証）。
+	// Go側を UploadedByUserID uint64 + gorm:"not null" に変更しDBのNOT NULL制約と一致させたため、
+	// このエントリは stale になり削除（残すと「許容不要な差分」が allowlist に残り続け、将来の
+	// 別カラムでの誤用の温床になる）。
 }
 
 // fieldNullMeta はGoフィールドのNULL許容性判定に必要なメタ情報を保持する。

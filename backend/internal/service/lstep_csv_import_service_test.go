@@ -119,7 +119,7 @@ func TestImportFriendAttributesCSV_FileTooLarge(t *testing.T) {
 		snapshotRepo:  nil,
 		ownerRepo:     nil,
 	}
-	_, err := svc.ImportFriendAttributesCSV(context.Background(), 100, "large.csv", bytes.NewReader(big), nil)
+	_, err := svc.ImportFriendAttributesCSV(context.Background(), 100, "large.csv", bytes.NewReader(big), 1)
 	if err == nil {
 		t.Fatal("expected error for 50MB+ file, got nil")
 	}
@@ -137,7 +137,7 @@ func TestImportFriendAttributesCSV_EmptyFile(t *testing.T) {
 		snapshotRepo:  nil,
 		ownerRepo:     nil,
 	}
-	_, err := svc.ImportFriendAttributesCSV(context.Background(), 100, "empty.csv", strings.NewReader(""), nil)
+	_, err := svc.ImportFriendAttributesCSV(context.Background(), 100, "empty.csv", strings.NewReader(""), 1)
 	if err == nil {
 		t.Fatal("expected error for empty file, got nil")
 	}
@@ -153,7 +153,7 @@ func TestImportFriendAttributesCSV_MismatchedFieldCount(t *testing.T) {
 	svc := &lstepCsvImportService{}
 	csv := "a,b\n1,2,3\n"
 
-	_, err := svc.ImportFriendAttributesCSV(context.Background(), 100, "bad.csv", strings.NewReader(csv), nil)
+	_, err := svc.ImportFriendAttributesCSV(context.Background(), 100, "bad.csv", strings.NewReader(csv), 1)
 
 	require.Error(t, err)
 	assert.True(t, apperrors.IsInvalidInput(err))
@@ -174,7 +174,7 @@ func TestImportFriendAttributesCSV_InvalidHeader_CreateFailedRecordError(t *test
 	svc := &lstepCsvImportService{csvImportRepo: repo}
 	csv := "foo,bar\n1,2\n"
 
-	_, err := svc.ImportFriendAttributesCSV(context.Background(), 100, "bad-header.csv", strings.NewReader(csv), nil)
+	_, err := svc.ImportFriendAttributesCSV(context.Background(), 100, "bad-header.csv", strings.NewReader(csv), 1)
 
 	require.Error(t, err)
 	assert.True(t, apperrors.IsInvalidInput(err))
@@ -192,7 +192,7 @@ func TestImportFriendAttributesCSV_ProcessingRecordCreateError(t *testing.T) {
 	svc := &lstepCsvImportService{csvImportRepo: repo}
 	csv := "line_user_id\nU1\n"
 
-	_, err := svc.ImportFriendAttributesCSV(context.Background(), 100, "valid.csv", strings.NewReader(csv), nil)
+	_, err := svc.ImportFriendAttributesCSV(context.Background(), 100, "valid.csv", strings.NewReader(csv), 1)
 
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to create csv import record")
@@ -219,7 +219,7 @@ func TestImportFriendAttributesCSV_FindOwnersError(t *testing.T) {
 	svc := &lstepCsvImportService{csvImportRepo: repo, ownerRepo: ownerRepo}
 	csv := "line_user_id\nU1\n"
 
-	_, err := svc.ImportFriendAttributesCSV(context.Background(), 100, "valid.csv", strings.NewReader(csv), nil)
+	_, err := svc.ImportFriendAttributesCSV(context.Background(), 100, "valid.csv", strings.NewReader(csv), 1)
 
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to find owners")
