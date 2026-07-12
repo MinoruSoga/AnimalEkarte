@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import { handleApiError } from "@/lib/handle-api-error";
+import { queryKeys } from "@/lib/query-keys";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 import type { BackendInventoryItem, CreateInventoryItemRequest, UpdateInventoryItemRequest } from "./types";
 
@@ -44,7 +45,7 @@ const getInventoryItems = async (params?: GetInventoryItemsParams): Promise<Inve
 
 export const useGetInventoryItems = (params?: GetInventoryItemsParams) => {
   return useQuery({
-    queryKey: ["inventoryItems", params],
+    queryKey: queryKeys.inventoryItems.list(params),
     queryFn: () => getInventoryItems(params),
     staleTime: QUERY_STALE_TIMES.REALTIME,
     gcTime: QUERY_GC_TIMES.STANDARD,
@@ -58,7 +59,7 @@ const getInventoryItem = async (id: string): Promise<InventoryItem> => {
 
 export const useGetInventoryItem = (id: string) => {
   return useQuery({
-    queryKey: ["inventoryItem", id],
+    queryKey: queryKeys.inventoryItems.detail(id),
     queryFn: () => getInventoryItem(id),
     enabled: !!id,
     staleTime: QUERY_STALE_TIMES.REALTIME,
@@ -76,7 +77,7 @@ export const useCreateInventoryItem = () => {
   return useMutation({
     mutationFn: createInventoryItem,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["inventoryItems"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.inventoryItems.all() });
     },
     onError: (error) => handleApiError(error, "在庫作成"),
   });
@@ -92,7 +93,7 @@ export const useUpdateInventoryItem = () => {
   return useMutation({
     mutationFn: ({ id, req }: { id: string; req: UpdateInventoryItemRequest }) => updateInventoryItem(id, req),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["inventoryItems"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.inventoryItems.all() });
     },
     onError: (error) => handleApiError(error, "在庫更新"),
   });
