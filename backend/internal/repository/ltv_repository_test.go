@@ -20,11 +20,6 @@ import (
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
-func TestEscapeLikePattern(t *testing.T) {
-	assert.Equal(t, `100\%\_\\`, escapeLikePattern(`100%_\`))
-	assert.Equal(t, `normal`, escapeLikePattern(`normal`))
-}
-
 func TestQuotePostgresIdentifier(t *testing.T) {
 	tests := []struct {
 		name       string

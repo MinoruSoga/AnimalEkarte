@@ -86,7 +86,7 @@ func (r *ltvRepository) FindOwnerLTV(ctx context.Context, params *FindOwnerLTVPa
 	if params.Search != "" {
 		// translate() で DB 列のカタカナをひらがなに正規化し、NormalizeKana で検索語も統一する。
 		where += " AND translate(o.name, ?, ?) ILIKE ? ESCAPE '\\'"
-		whereArgs = append(whereArgs, kanaSourceChars, kanaTargetChars, "%"+escapeLikePattern(NormalizeKana(params.Search))+"%")
+		whereArgs = append(whereArgs, kanaSourceChars, kanaTargetChars, "%"+escapeLike(NormalizeKana(params.Search))+"%")
 	}
 
 	// 期間決定（AGG-BE-001/002/003）
@@ -263,11 +263,6 @@ func appendAmountHaving(having []string, args []any, amountExpr string, amountEx
 	args = append(args, amountExprArgs...)
 	args = append(args, amount)
 	return having, args
-}
-
-func escapeLikePattern(value string) string {
-	replacer := strings.NewReplacer(`\`, `\\`, `%`, `\%`, `_`, `\_`)
-	return replacer.Replace(value)
 }
 
 // calculateDateRange は year/from/to/period_preset から集計期間を決定する。

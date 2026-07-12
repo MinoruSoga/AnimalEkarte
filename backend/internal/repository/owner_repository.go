@@ -203,14 +203,6 @@ func (r *ownerRepository) CreateWithPets(ctx context.Context, owner *model.Owner
 	return nil
 }
 
-// escapeLike escapes LIKE wildcard characters in s for use with PostgreSQL ILIKE ... ESCAPE '\'.
-func escapeLike(s string) string {
-	s = strings.ReplaceAll(s, `\`, `\\`)
-	s = strings.ReplaceAll(s, `%`, `\%`)
-	s = strings.ReplaceAll(s, `_`, `\_`)
-	return s
-}
-
 func (r *ownerRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
 	return updateScopedByID(ctx, r.db, &model.Owner{}, "owner", clinicID, id, fields)
 }
