@@ -841,6 +841,38 @@ func TestGetLiffHealthCard(t *testing.T) {
 		assert.Contains(t, w.Body.String(), `"last_visit_date":null`)
 	})
 
+	t.Run("正常系: last_visit_date は date-only 文字列で返る（RFC3339 生表示にならない）", func(t *testing.T) {
+		lastVisit := time.Date(2026, 5, 1, 12, 34, 56, 0, time.UTC)
+		h := newLiffHandler(&mockLiffService{
+			getHealthCardFn: func(_ context.Context, _, _ uint64) (*service.HealthCardResult, error) {
+				return &service.HealthCardResult{
+					OwnerName: "田中太郎",
+					Pets: []service.PetHealthCard{
+						{
+							PetID:         10,
+							PetName:       "ポチ",
+							Species:       "犬",
+							Breed:         "柴犬",
+							LastVisitDate: &lastVisit,
+						},
+					},
+				}, nil
+			},
+		})
+		w := doLiffRequest(t, newLiffRouter(h, true), http.MethodGet, "/api/liff/3/health-card", nil)
+		require.Equal(t, http.StatusOK, w.Code)
+
+		var body map[string]any
+		require.NoError(t, json.Unmarshal(w.Body.Bytes(), &body))
+		pets, ok := body["pets"].([]any)
+		require.True(t, ok)
+		require.Len(t, pets, 1)
+		pet, ok := pets[0].(map[string]any)
+		require.True(t, ok)
+
+		assert.Equal(t, "2026-05-01", pet["last_visit_date"], "last_visit_date は YYYY-MM-DD の日付のみで、時刻を含んではならない")
+	})
+
 	t.Run("customerID が context にない → 401", func(t *testing.T) {
 		h := newLiffHandler(&mockLiffService{})
 		w := doLiffRequest(t, newLiffRouter(h, false), http.MethodGet, "/api/liff/3/health-card", nil)

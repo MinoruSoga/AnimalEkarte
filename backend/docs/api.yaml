@@ -7214,7 +7214,7 @@ components:
             $ref: '#/components/schemas/LiffHealthCardVaccine'
         last_visit_date:
           type: string
-          format: date-time
+          format: date
           nullable: true
       required: [pet_id, pet_name, species, breed, next_recommended_visit_date, vaccines, last_visit_date]
     LiffHealthCardResponse:

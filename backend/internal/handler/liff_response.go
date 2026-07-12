@@ -239,7 +239,7 @@ type liffHealthCardPetResponse struct {
 	Breed                    string                          `json:"breed"`
 	NextRecommendedVisitDate *time.Time                      `json:"next_recommended_visit_date"`
 	Vaccines                 []liffHealthCardVaccineResponse `json:"vaccines"`
-	LastVisitDate            *time.Time                      `json:"last_visit_date"`
+	LastVisitDate            *string                         `json:"last_visit_date"`
 }
 
 // liffHealthCardResponse はLIFF向け健康手帳レスポンス。
@@ -259,6 +259,11 @@ func toLiffHealthCardResponse(r *service.HealthCardResult) liffHealthCardRespons
 				NextDueAt:    localTimePtr(v.NextDueAt),
 			})
 		}
+		var lastVisitDate *string
+		if p.LastVisitDate != nil {
+			s := p.LastVisitDate.In(time.Local).Format(time.DateOnly)
+			lastVisitDate = &s
+		}
 		pets = append(pets, liffHealthCardPetResponse{
 			PetID:                    strconv.FormatUint(p.PetID, 10),
 			PetName:                  p.PetName,
@@ -266,7 +271,7 @@ func toLiffHealthCardResponse(r *service.HealthCardResult) liffHealthCardRespons
 			Breed:                    p.Breed,
 			NextRecommendedVisitDate: localTimePtr(p.NextRecommendedVisitDate),
 			Vaccines:                 vaccines,
-			LastVisitDate:            localTimePtr(p.LastVisitDate),
+			LastVisitDate:            lastVisitDate,
 		})
 	}
 	return liffHealthCardResponse{OwnerName: r.OwnerName, Pets: pets}
