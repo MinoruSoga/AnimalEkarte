@@ -376,6 +376,19 @@ func (s *treatmentService) Update(ctx context.Context, clinicID, medicalRecordID
 	var doseEval *SavedDoseEvaluation
 	var doseMedicineID uint64
 	if txErr := s.repos.Transaction(ctx, func(txRepos *repository.Repositories) error {
+		// テナント所有権 + 確定ロック検証（Create と対称化・BE-refactor.md H-8a）。
+		// :331-338 の事前チェックは fast-fail として維持しつつ、tx 内でも LockByIDForUpdate
+		// の行ロックで finalize と直列化し、チェック通過後〜Update 実行前に finalize が
+		// 割り込むレースを防ぐ。
+		parent, err := txRepos.MedicalRecord.LockByIDForUpdate(ctx, clinicID, medicalRecordID)
+		if err != nil {
+			slog.ErrorContext(ctx, "failed to verify medical record ownership", "error", err)
+			return apperrors.Wrap(err, "failed to verify medical record ownership")
+		}
+		if parent.Status == model.MedicalRecordStatusFinalized {
+			return apperrors.WrapConflict("確定済みカルテの治療は編集できません")
+		}
+
 		if doseRelevant {
 			effItemType := existing.ItemType
 			if input.ItemType != nil {
