@@ -396,6 +396,8 @@ jobs:
         run: go build ./...
 
       - name: Lint
+        id: lint
+        continue-on-error: true
         uses: golangci/golangci-lint-action@v9
         with:
           version: v2.11.4
@@ -482,6 +484,18 @@ jobs:
           DB_NAME: ekarte_db
           DB_SSL_MODE: disable
         run: go test ./internal/model/ -run TestSchemaDrift -v
+
+      # 注意: このステップは backend job の最後に置くこと。continue-on-error: true にした
+      # Lint(:398) の実質的なゲートはこの step が担うため、以降に risk 系ステップ（Test/ratchet
+      # 相当）を無条件追加すると check-ci-step-order.sh は検知できず fail-fast マスクが再発する
+      # （scripts/check-ci-step-order.sh は本 step 名を gate/risk いずれとしても認識しない設計）。
+      - name: Verify lint outcome
+        if: always()
+        run: |
+          if [ "${{ steps.lint.outcome }}" != "success" ]; then
+            echo "::error::Lint failed (outcome=${{ steps.lint.outcome }}) — see the Lint step log above."
+            exit 1
+          fi
 
   # ──────────────────────────────────────────────
   # Frontend: build + lint
