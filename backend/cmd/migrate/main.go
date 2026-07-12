@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"database/sql"
+	"errors"
 	"fmt"
 	"log/slog"
 	"os"
@@ -322,7 +323,7 @@ func isAlreadyApplied(db *sql.DB, filename, checksum string) (bool, error) {
 		filename,
 	).Scan(&storedChecksum)
 
-	if err == sql.ErrNoRows {
+	if errors.Is(err, sql.ErrNoRows) {
 		return false, nil
 	}
 	if err != nil {
