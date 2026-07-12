@@ -169,27 +169,6 @@ func TestLstepDeliveryTriggerLogRepository_UpdateStatus(t *testing.T) {
 	})
 }
 
-func TestLstepDeliveryTriggerLogRepository_FindByClinicAndDate(t *testing.T) {
-	db := setupLstepDeliveryTriggerLogTestDB(t)
-	repo := NewLstepDeliveryTriggerLogRepository(db)
-	ctx := context.Background()
-
-	const clinicA, clinicB = uint64(1), uint64(2)
-	target := time.Date(2026, 6, 10, 0, 0, 0, 0, time.UTC)
-
-	early := makeDeliveryTriggerLog(t, db, clinicA, 10, model.TriggerTypeBirthdayMessage, model.TriggerStatusScheduled, target.Add(3*time.Hour))
-	late := makeDeliveryTriggerLog(t, db, clinicA, 11, model.TriggerTypeVaccineDeadline30, model.TriggerStatusScheduled, target.Add(15*time.Hour))
-	makeDeliveryTriggerLog(t, db, clinicA, 12, model.TriggerTypeBirthdayMessage, model.TriggerStatusScheduled, target.AddDate(0, 0, -1).Add(12*time.Hour)) // 前日
-	makeDeliveryTriggerLog(t, db, clinicA, 13, model.TriggerTypeBirthdayMessage, model.TriggerStatusScheduled, target.AddDate(0, 0, 1).Add(1*time.Hour))   // 翌日
-	makeDeliveryTriggerLog(t, db, clinicB, 14, model.TriggerTypeBirthdayMessage, model.TriggerStatusScheduled, target.Add(4*time.Hour))                    // 別クリニック
-
-	logs, err := repo.FindByClinicAndDate(ctx, clinicA, target)
-	require.NoError(t, err)
-	require.Len(t, logs, 2, "対象日・対象クリニックのログのみ返るべき")
-	assert.Equal(t, early.ID, logs[0].ID, "scheduled_at 昇順で返るべき")
-	assert.Equal(t, late.ID, logs[1].ID)
-}
-
 func TestLstepDeliveryTriggerLogRepository_CountByStatusAndDateRange(t *testing.T) {
 	db := setupLstepDeliveryTriggerLogTestDB(t)
 	repo := NewLstepDeliveryTriggerLogRepository(db)

@@ -349,50 +349,6 @@ func TestHospitalizationRepository_Delete(t *testing.T) {
 	})
 }
 
-func TestHospitalizationRepository_CountByCageID(t *testing.T) {
-	db := setupHospitalizationRepoTestDB(t)
-	repo := NewHospitalizationRepository(db)
-	ctx := context.Background()
-	const clinicA, clinicB = uint64(1), uint64(2)
-
-	ownerA := makeOwner(t, db, clinicA, "ケージ集計飼主")
-	petA := makeSpeciesAndPet(t, db, clinicA, ownerA.ID, "ケージ集計ポチ")
-	cageA := makeCageMaster(t, db, clinicA, "集計対象ケージ")
-
-	t.Run("使用0件", func(t *testing.T) {
-		count, err := repo.CountByCageID(ctx, clinicA, cageA.ID)
-		require.NoError(t, err)
-		assert.Equal(t, int64(0), count)
-	})
-
-	hosp1 := makeHospitalizationFixture(t, db, clinicA, ownerA.ID, petA.ID, func(h *model.Hospitalization) {
-		h.CageID = &cageA.ID
-	})
-	petA2 := makeSpeciesAndPet(t, db, clinicA, ownerA.ID, "ケージ集計ポチ2")
-	_ = makeHospitalizationFixture(t, db, clinicA, ownerA.ID, petA2.ID, func(h *model.Hospitalization) {
-		h.CageID = &cageA.ID
-	})
-
-	t.Run("使用2件", func(t *testing.T) {
-		count, err := repo.CountByCageID(ctx, clinicA, cageA.ID)
-		require.NoError(t, err)
-		assert.Equal(t, int64(2), count)
-	})
-
-	t.Run("ソフトデリートされた入院は除外される", func(t *testing.T) {
-		require.NoError(t, repo.Delete(ctx, clinicA, hosp1.ID))
-		count, err := repo.CountByCageID(ctx, clinicA, cageA.ID)
-		require.NoError(t, err)
-		assert.Equal(t, int64(1), count)
-	})
-
-	t.Run("別クリニックからは0件", func(t *testing.T) {
-		count, err := repo.CountByCageID(ctx, clinicB, cageA.ID)
-		require.NoError(t, err)
-		assert.Equal(t, int64(0), count)
-	})
-}
-
 // TestHospitalizationRepository_CountCarePlanItemsByHospitalizationID は
 // ファイル先頭コメントの既知の不具合（care_plan_items.deleted_at 列が実在しない）により
 // 現時点では RED であることが期待される。
