@@ -383,7 +383,11 @@ function XxxSidePanel({ item, onClose, onSave, onDeleteRequest }) {
         <button type="button" onClick={onClose} className={STYLE.sidePeekCancelBtn}>
           キャンセル
         </button>
-        <button type="button" onClick={() => onSave(formData)} className={STYLE.sidePeekSaveBtn}>
+        <button
+          type="button"
+          onClick={() => onSave(formData)}
+          className={`px-5 py-[7px] text-base text-white ${C.bgBrand} ${C.hoverBgBrand} rounded-full transition-colors cursor-pointer ${STYLE.pillShadow}`}
+        >
           保存
         </button>
       </div>
@@ -441,7 +445,7 @@ function PropInput({ value, onChange, placeholder }: {
 | `STYLE.sidePeekBody` | `flex-1 overflow-y-auto` |
 | `STYLE.sidePeekFooter` | `flex items-center justify-end gap-2 px-4 py-3 border-t ${C.borderLight} shrink-0` |
 | `STYLE.sidePeekCancelBtn` | `px-4 py-[7px] text-base ${C.text65} ${C.hoverBgLight} rounded-[3px] transition-colors cursor-pointer` |
-| `STYLE.sidePeekSaveBtn` | `px-5 py-[7px] text-base text-white ${C.bgBrand} ${C.hoverBgBrand} rounded-[3px] transition-colors cursor-pointer shadow-[0_1px_2px_rgba(0,0,0,0.1)]` |
+| （保存ボタン） | 共通トークン化されていない。`px-5 py-[7px] text-base text-white ${C.bgBrand} ${C.hoverBgBrand} rounded-full transition-colors cursor-pointer ${STYLE.pillShadow}` を直書きする（`ShiftTemplateSettingsParts.tsx` の実例を参照。FE5-3 で未使用だった `STYLE.sidePeekSaveBtn` を削除済み） |
 | `STYLE.pageIcon` | `size-[38px] flex items-center justify-center rounded-[3px] ${C.bgPage} ${C.text45}` |
 | `LAYOUT.pageIcon.innerIcon` | `"size-5"` |
 

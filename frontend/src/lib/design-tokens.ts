@@ -801,7 +801,7 @@ export const STYLE = {
   dragPreviewShadowLarge: "0 10px 30px rgba(0,0,0,0.15)",
   /** 予約カード（AppointmentCard）の二重影。FE3-1: 値は既存直値のまま。 */
   cardShadow: "shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_0px_rgba(0,0,0,0.06)]",
-  /** ピルボタンの影（sidePeekSaveBtn と ShiftTemplateSettingsParts.tsx で共有）。 */
+  /** ピルボタンの影（ShiftTemplateSettingsParts.tsx で使用）。 */
   pillShadow: PILL_SHADOW,
   /** Layout のナビゲーション進捗バー brand グロー（#038B94）。FE3-1: 値は既存直値のまま。 */
   brandGlow: "shadow-[0_0_8px_rgba(3,139,148,0.5)]",
