@@ -382,6 +382,57 @@ func TestTreatmentService_Update_RejectsCrossClinicInventoryFK(t *testing.T) {
 	})
 }
 
+// ── trimmingCourseService CourseTypeID (X-14b): Update now mirrors Create's
+// pre-persist courseTypeRepo.FindByID guard (symmetric with Create). ──
+
+func TestTrimmingCourseService_Update_RejectsCrossClinicCourseTypeFK(t *testing.T) {
+	const clinicID = uint64(1)
+	const entityID = uint64(1)
+	const ownedCourseTypeID = uint64(10)
+	const foreignCourseTypeID = uint64(999)
+
+	newSvc := func(updated *bool) TrimmingCourseService {
+		repo := &mockTrimmingCourseRepository{
+			findByIDFn: func(_ context.Context, _, id uint64) (*model.TrimmingCourse, error) {
+				return &model.TrimmingCourse{ID: id}, nil
+			},
+			updateFieldsFn: func(_ context.Context, _, id uint64, _ map[string]any) (*model.TrimmingCourse, error) {
+				*updated = true
+				return &model.TrimmingCourse{ID: id}, nil
+			},
+		}
+		courseTypeRepo := &mockTrimmingCourseTypeRepository{
+			findByIDFn: func(_ context.Context, _, id uint64) (*model.TrimmingCourseType, error) {
+				if id != ownedCourseTypeID {
+					return nil, apperrors.WrapNotFound("trimming_course_type", "foreign")
+				}
+				return &model.TrimmingCourseType{ID: id}, nil
+			},
+		}
+		return NewTrimmingCourseService(repo, courseTypeRepo)
+	}
+
+	t.Run("rejects cross-clinic course_type_id and does not persist", func(t *testing.T) {
+		updated := false
+		svc := newSvc(&updated)
+		foreign := foreignCourseTypeID
+		out, err := svc.Update(context.Background(), clinicID, entityID, &UpdateTrimmingCourseInput{CourseTypeID: &foreign})
+		assert.Error(t, err)
+		assert.Nil(t, out)
+		assert.False(t, updated, "trimming course must NOT be updated to reference another clinic's course type")
+	})
+
+	t.Run("accepts same-clinic course_type_id (no false-reject)", func(t *testing.T) {
+		updated := false
+		svc := newSvc(&updated)
+		owned := ownedCourseTypeID
+		out, err := svc.Update(context.Background(), clinicID, entityID, &UpdateTrimmingCourseInput{CourseTypeID: &owned})
+		assert.NoError(t, err)
+		assert.NotNil(t, out)
+		assert.True(t, updated)
+	})
+}
+
 func rejectVaccineRepo(ownedID uint64) repository.VaccineRepository {
 	return &mockVaccineRepository{findByIDFn: func(_ context.Context, _, id uint64) (*model.Vaccine, error) {
 		if id != ownedID {
