@@ -1,4 +1,15 @@
-import { QueryClient, type DefaultOptions } from "@tanstack/react-query";
+import { QueryClient, QueryCache, type DefaultOptions } from "@tanstack/react-query";
+import { handleApiError } from "@/lib/handle-api-error";
+
+// FE5-16: 個別 UI で処理済みを明示した query は silentError でスキップできる
+declare module "@tanstack/react-query" {
+  interface Register {
+    queryMeta: {
+      silentError?: boolean;
+      errorContext?: string;
+    };
+  }
+}
 
 const queryConfig: DefaultOptions = {
   queries: {
@@ -12,6 +23,12 @@ const queryConfig: DefaultOptions = {
 
 export const queryClient = new QueryClient({
   defaultOptions: queryConfig,
+  queryCache: new QueryCache({
+    onError: (error, query) => {
+      if (query.meta?.silentError) return;
+      handleApiError(error, query.meta?.errorContext ?? "データ取得");
+    },
+  }),
 });
 
 // リソース別キャッシング戦略
