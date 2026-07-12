@@ -315,7 +315,7 @@ func NewServices(repos *repository.Repositories, notifCfg *ReservationNotificati
 		ReservationStaffExclusion: resStaffSvc,
 		ReservationSchedule:       NewReservationScheduleService(repos.ReservationSchedule),
 		ReservationAdmin:          NewReservationAdminServiceWithAvailabilityAndType(repos.ReservationAdmin, repos.Reservation, repos.ReservationType, tx, repos.ReservationStaff, repos.ReservationTypeUnavailableTime, repos.ReservationTypeAvailableSlot),
-		LineCustomer:              NewLineCustomerService(repos.LineCustomerMgr, repos.Owner),
+		LineCustomer:              NewLineCustomerService(repos.LineCustomerMgr),
 		Prescription:              NewPrescriptionService(repos.Prescription, repos.MedicalRecord, lstepTagSyncSvc, tx),
 		Aggregation:               NewAggregationService(repos.Ltv, repos.LstepTagCache, repos.LstepTagConfig, lstepSettingsSvc),
 		LstepSettings:             lstepSettingsSvc,
