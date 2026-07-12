@@ -16,11 +16,12 @@ type LineCustomerService interface {
 }
 
 type lineCustomerService struct {
-	repo repository.LineCustomerRepository
+	repo      repository.LineCustomerRepository
+	ownerRepo repository.OwnerRepository
 }
 
-func NewLineCustomerService(repo repository.LineCustomerRepository) LineCustomerService {
-	return &lineCustomerService{repo: repo}
+func NewLineCustomerService(repo repository.LineCustomerRepository, ownerRepo repository.OwnerRepository) LineCustomerService {
+	return &lineCustomerService{repo: repo, ownerRepo: ownerRepo}
 }
 
 func (s *lineCustomerService) List(ctx context.Context, clinicID uint64) ([]model.LineCustomer, error) {
@@ -36,6 +37,12 @@ func (s *lineCustomerService) LinkOwner(ctx context.Context, clinicID, id uint64
 	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
 		slog.ErrorContext(ctx, "failed to find line customer", "error", err)
 		return nil, apperrors.Wrap(err, "failed to find line customer")
+	}
+	if ownerID != nil {
+		if _, err := s.ownerRepo.FindByID(ctx, clinicID, *ownerID); err != nil {
+			slog.ErrorContext(ctx, "owner not found or different clinic", "error", err, "clinic_id", clinicID, "owner_id", *ownerID)
+			return nil, apperrors.Wrap(err, "owner not found")
+		}
 	}
 	if err := s.repo.UpdateOwnerLink(ctx, clinicID, id, ownerID); err != nil {
 		slog.ErrorContext(ctx, "failed to link owner to reservation customer", "error", err)
