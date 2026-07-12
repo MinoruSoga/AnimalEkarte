@@ -5,6 +5,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { Button } from "@/components/ui/button";
 import { ICON, STYLE } from "@/lib/design-tokens";
+import { queryKeys } from "@/lib/query-keys";
 
 import { useGetLstepDeliveryTriggerLogs } from "../api/get-lstep-delivery-trigger-logs";
 import { useGetLstepDeliveryTriggerSummary } from "../api/get-lstep-delivery-trigger-summary";
@@ -42,8 +43,8 @@ export function LstepDeliveryMonitorPage() {
   const totalPages = logsPage ? Math.max(1, Math.ceil(logsPage.total / logsPage.per_page)) : 1;
 
   const handleRefresh = useCallback(() => {
-    queryClient.invalidateQueries({ queryKey: ["lstep-delivery-trigger-summary"] });
-    queryClient.invalidateQueries({ queryKey: ["lstep-delivery-trigger-logs"] });
+    queryClient.invalidateQueries({ queryKey: queryKeys.lstepDeliveryTriggerSummary.all() });
+    queryClient.invalidateQueries({ queryKey: queryKeys.lstepDeliveryTriggerLogs.all() });
   }, [queryClient]);
 
   const handleFromChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {

@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import { requireStoredClinicId } from "@/lib/current-clinic";
+import { queryKeys } from "@/lib/query-keys";
 import { QUERY_STALE_TIMES } from "@/lib/react-query";
 
 export interface DeliveryTriggerSummaryResponse {
@@ -19,7 +20,7 @@ export function useGetLstepDeliveryTriggerSummary(
   triggerType?: string
 ) {
   return useQuery({
-    queryKey: ["lstep-delivery-trigger-summary", from, to, triggerType ?? ""],
+    queryKey: queryKeys.lstepDeliveryTriggerSummary.summary(from, to, triggerType),
     queryFn: async () => {
       const clinicId = requireStoredClinicId();
       const params = new URLSearchParams({ from, to });

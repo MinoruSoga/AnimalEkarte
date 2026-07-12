@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import { requireStoredClinicId } from "@/lib/current-clinic";
+import { queryKeys } from "@/lib/query-keys";
 import { QUERY_STALE_TIMES } from "@/lib/react-query";
 
 interface DeliveryTriggerLogItem {
@@ -30,14 +31,7 @@ export function useGetLstepDeliveryTriggerLogs(
   page = 1
 ) {
   return useQuery({
-    queryKey: [
-      "lstep-delivery-trigger-logs",
-      from,
-      to,
-      triggerType ?? "",
-      status ?? "",
-      page,
-    ],
+    queryKey: queryKeys.lstepDeliveryTriggerLogs.logs(from, to, triggerType, status, page),
     queryFn: async () => {
       const clinicId = requireStoredClinicId();
       const params = new URLSearchParams({ from, to, page: String(page) });

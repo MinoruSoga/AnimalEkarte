@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import { getStoredClinicId } from "@/lib/current-clinic";
 import type { CPMStage } from "@/lib/cpm-stage";
+import { queryKeys } from "@/lib/query-keys";
 
 export type CheckupType =
   | "annual"
@@ -68,7 +69,7 @@ export function useGetCheckupSyncPreview(params: CheckupSyncParams | null) {
   const clinicId = getStoredClinicId();
 
   return useQuery({
-    queryKey: ["checkup-sync-preview", clinicId, params],
+    queryKey: queryKeys.checkupSyncPreview(clinicId, params),
     queryFn: async () => {
       if (clinicId === null) {
         return Promise.reject(new Error("clinic_id is not selected"));

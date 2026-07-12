@@ -4,6 +4,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { Button } from "@/components/ui/button";
 import { C, ICON, STYLE } from "@/lib/design-tokens";
+import { queryKeys } from "@/lib/query-keys";
 import { usePermission } from "@/hooks/use-permission";
 import { ResourceOwners } from "@/types/generated/models";
 import { useGetLstepTagSummary } from "../api/get-lstep-tag-summary";
@@ -38,7 +39,7 @@ export function LstepTagManagementPage() {
   const tags = useMemo(() => data?.tags ?? [], [data]);
 
   const handleRefresh = useCallback(() => {
-    queryClient.invalidateQueries({ queryKey: ["lstep-tag-summary"] });
+    queryClient.invalidateQueries({ queryKey: queryKeys.lstepTagSummary() });
   }, [queryClient]);
 
   const handleViewOwners = useCallback((tagName: string, ownerCount: number) => {

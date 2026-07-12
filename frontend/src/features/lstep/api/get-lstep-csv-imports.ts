@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import { requireStoredClinicId } from "@/lib/current-clinic";
+import { queryKeys } from "@/lib/query-keys";
 import { QUERY_STALE_TIMES } from "@/lib/react-query";
 
 export interface LstepCsvImportItem {
@@ -20,7 +21,7 @@ export interface LstepCsvImportItem {
 // GET /api/v1/clinics/:clinic_id/lstep/csv-imports?limit=N
 export function useGetLstepCsvImports(limit = 20) {
   return useQuery({
-    queryKey: ["lstep-csv-imports", limit],
+    queryKey: queryKeys.lstepCsvImports.list(limit),
     queryFn: async () => {
       const clinicId = requireStoredClinicId();
       const { data } = await axios.get<LstepCsvImportItem[]>(

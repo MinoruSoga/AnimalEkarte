@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import { requireStoredClinicId } from "@/lib/current-clinic";
 import { HISTORY_FETCH_LIMIT } from "@/config/fetch-limits";
+import { queryKeys } from "@/lib/query-keys";
 
 export interface LstepTagOwner {
   owner_id: string;
@@ -26,7 +27,7 @@ export interface LstepTagOwnersResponse {
 // GET /api/clinics/:clinic_id/lstep/owners
 export function useGetLstepTagOwners(params: LstepTagOwnersParams) {
   return useQuery({
-    queryKey: ["lstep-tag-owners", params],
+    queryKey: queryKeys.lstepTagOwners.list(params),
     queryFn: async () => {
       const clinicId = requireStoredClinicId();
       const { data } = await axios.get<LstepTagOwnersResponse>(

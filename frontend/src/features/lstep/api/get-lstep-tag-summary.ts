@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import { requireStoredClinicId } from "@/lib/current-clinic";
+import { queryKeys } from "@/lib/query-keys";
 import { QUERY_STALE_TIMES } from "@/lib/react-query";
 
 export interface LstepTagSummaryItem {
@@ -18,7 +19,7 @@ export interface LstepTagSummaryResponse {
 // GET /api/clinics/:clinic_id/lstep/tag-summary
 export function useGetLstepTagSummary() {
   return useQuery({
-    queryKey: ["lstep-tag-summary"],
+    queryKey: queryKeys.lstepTagSummary(),
     queryFn: async () => {
       const clinicId = requireStoredClinicId();
       const { data } = await axios.get<LstepTagSummaryResponse>(

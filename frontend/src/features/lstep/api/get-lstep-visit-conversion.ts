@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import { requireStoredClinicId } from "@/lib/current-clinic";
+import { queryKeys } from "@/lib/query-keys";
 import { QUERY_STALE_TIMES } from "@/lib/react-query";
 
 interface VisitConversionRow {
@@ -22,7 +23,7 @@ export interface VisitConversionSummaryResponse {
 // GET /api/v1/clinics/:clinic_id/lstep/analytics/visit-conversion?year_month=YYYY-MM&days=30
 export function useGetLstepVisitConversion(yearMonth: string, days = 30) {
   return useQuery({
-    queryKey: ["lstep-visit-conversion", yearMonth, days],
+    queryKey: queryKeys.lstepVisitConversion(yearMonth, days),
     queryFn: async () => {
       const clinicId = requireStoredClinicId();
       const { data } = await axios.get<VisitConversionSummaryResponse>(

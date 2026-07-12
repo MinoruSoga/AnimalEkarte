@@ -7,6 +7,7 @@ import { C, ICON, PALETTE } from "@/lib/design-tokens";
 import { handleApiError } from "@/lib/handle-api-error";
 import { requireStoredClinicId } from "@/lib/current-clinic";
 import { formatJSTDateTimeLocal } from "@/lib/jst-date";
+import { queryKeys } from "@/lib/query-keys";
 
 import { useGetLstepCsvImports } from "../api/get-lstep-csv-imports";
 import { uploadFriendAttributesCsv } from "../api/upload-friend-attributes-csv";
@@ -48,7 +49,7 @@ function CsvUploadSection() {
       try {
         const clinicId = requireStoredClinicId();
         await uploadFriendAttributesCsv(clinicId, file);
-        queryClient.invalidateQueries({ queryKey: ["lstep-csv-imports"] });
+        queryClient.invalidateQueries({ queryKey: queryKeys.lstepCsvImports.all() });
         return { success: true };
       } catch (err) {
         handleApiError(err, "CSVアップロード");
