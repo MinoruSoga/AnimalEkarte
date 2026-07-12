@@ -160,6 +160,9 @@ func (s *billingItemService) resolveAutoDiscount(ctx context.Context, input *Cre
 	ownerRate := s.resolveOwnerDiscountRate(ctx, input.ClinicID, billing.OwnerID)
 	campaign, cerr := s.campaignRepo.FindApplicableForItem(ctx, input.ClinicID, billing.ScheduledDate, model.ItemCategory(input.Category), input.MerchandiseItemID)
 	if cerr != nil {
+		// A-4: best-effort 継続自体は妥当（自動割引はあくまで補助機能）だが、クエリ障害で
+		// 自動割引が静かに止まると運用から不可視になるため Warn ログを追加する。
+		slog.WarnContext(ctx, "campaign lookup failed; skipping auto discount", "error", cerr, "clinic_id", input.ClinicID, "billing_id", input.BillingID)
 		campaign = nil // best-effort: キャンペーン検索失敗は割引なしで続行
 	}
 	itemSubtotal := int64(float64(input.UnitPrice) * input.Quantity)
