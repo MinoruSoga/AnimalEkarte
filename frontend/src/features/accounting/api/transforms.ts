@@ -1,6 +1,7 @@
 import type { BackendAccounting, BackendAccountingItem } from "./types";
 import type { BillingRefund, Payment, PaymentSplit } from "@/types/generated/models";
 import type { ItemCategory, AccountingStatus, PaymentMethod } from "../types";
+import { DEFAULT_STANDARD_TAX_RATE } from "@/constants/tax";
 
 /** Payment にバックエンドが付与する結合フィールドを加えたローカル拡張型 */
 type PaymentWithStaff = Payment & {
@@ -10,7 +11,7 @@ type PaymentWithStaff = Payment & {
 export function transformAccountingItem(item: BackendAccountingItem) {
   const unitPrice = item.unit_price ?? 0;
   const quantity = item.quantity ?? 1;
-  const taxRate = item.tax_rate ?? 0.1;
+  const taxRate = item.tax_rate ?? DEFAULT_STANDARD_TAX_RATE;
   return {
     id: String(item.id ?? 0),
     category: item.category as ItemCategory,

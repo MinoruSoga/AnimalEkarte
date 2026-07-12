@@ -12,6 +12,7 @@ import { Table, TableBody, TableHead, TableHeader, TableRow } from "@/components
 import { EmptyState } from "@/components/shared/DataStates";
 import { FormFieldError } from "@/components/shared/FormFieldError/FormFieldError";
 import { C, ICON, LAYOUT } from "@/lib/design-tokens";
+import { DEFAULT_STANDARD_TAX_RATE, DEFAULT_REDUCED_TAX_RATE } from "@/constants/tax";
 import type { TaxType } from "@/types/generated/models";
 
 import { useGetAllMerchandiseItems } from "../api/get-merchandise-items";
@@ -223,7 +224,7 @@ export const ItemListCard = memo(function ItemListCard({
                                 ¥{item.unitPrice.toLocaleString()}
                               </td>
                               <td className={`px-3 py-2 text-sm text-right ${C.text50}`}>
-                                {item.taxRate === 0.1 ? "10%" : item.taxRate === 0.08 ? "8%" : `${item.taxRate * 100}%`}
+                                {item.taxRate === DEFAULT_STANDARD_TAX_RATE ? "10%" : item.taxRate === DEFAULT_REDUCED_TAX_RATE ? "8%" : `${item.taxRate * 100}%`}
                               </td>
                             </tr>
                           ))}

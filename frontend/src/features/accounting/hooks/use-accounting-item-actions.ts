@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { handleApiError } from "@/lib/handle-api-error";
 import { queryKeys } from "@/lib/query-keys";
 import type { TaxType } from "@/types/generated/models";
+import { DEFAULT_STANDARD_TAX_RATE } from "@/constants/tax";
 
 import { createBillingItem } from "../api/create-billing-item";
 import { deleteBillingItem } from "../api/delete-billing-item";
@@ -37,7 +38,7 @@ export function useAccountingItemActions({
     (name: string, price: string, category: string, taxRate?: number) => {
       const unitPrice = parseInt(price, 10);
       const qty = 1;
-      const rate = taxRate ?? 0.1;
+      const rate = taxRate ?? DEFAULT_STANDARD_TAX_RATE;
       const tempId = `manual_${crypto.randomUUID()}`;
       const newItem: AccountingItem = {
         id: tempId,

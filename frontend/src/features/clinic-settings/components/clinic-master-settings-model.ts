@@ -1,4 +1,5 @@
 import type { Clinic } from "../api/clinics";
+import { DEFAULT_STANDARD_TAX_RATE, DEFAULT_REDUCED_TAX_RATE } from "@/constants/tax";
 
 export interface ClinicFormData {
   name: string;
@@ -36,8 +37,8 @@ export const DEFAULT_CLINIC_FORM_DATA: ClinicFormData = {
   email: "",
   website: "",
   is_active: true,
-  standard_tax_rate: 0.1,
-  reduced_tax_rate: 0.08,
+  standard_tax_rate: DEFAULT_STANDARD_TAX_RATE,
+  reduced_tax_rate: DEFAULT_REDUCED_TAX_RATE,
   accounting_document_show_logo: false,
   accounting_document_show_registration_warning: true,
   accounting_document_show_item_category: true,
@@ -61,8 +62,8 @@ export function clinicToFormData(item: Clinic): ClinicFormData {
     email: item.email,
     website: item.website,
     is_active: item.isActive,
-    standard_tax_rate: item.standardTaxRate ?? 0.1,
-    reduced_tax_rate: item.reducedTaxRate ?? 0.08,
+    standard_tax_rate: item.standardTaxRate ?? DEFAULT_STANDARD_TAX_RATE,
+    reduced_tax_rate: item.reducedTaxRate ?? DEFAULT_REDUCED_TAX_RATE,
     accounting_document_show_logo: item.accountingDocumentShowLogo,
     accounting_document_show_registration_warning: item.accountingDocumentShowRegistrationWarning,
     accounting_document_show_item_category: item.accountingDocumentShowItemCategory,
