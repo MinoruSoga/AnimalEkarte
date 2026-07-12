@@ -43,6 +43,38 @@ func TestCheckupSyncService_CreateCheckupSync_EmptyOwnerIDs(t *testing.T) {
 	}
 }
 
+// TestCheckupSyncService_CreateCheckupSync_EmptyOwnerIDs_RecordsAudit は PERF-M3 の受入条件を検証する:
+// OwnerIDs が空でも早期 return 前に監査ログが 1 回記録され、owner_count: 0 が metadata に残ること。
+func TestCheckupSyncService_CreateCheckupSync_EmptyOwnerIDs_RecordsAudit(t *testing.T) {
+	spy := &spyCheckupAuditService{}
+	svc := NewCheckupSyncService(
+		&mockCheckupSyncRepository{},
+		&mockOwnerRepository{},
+		&mockPetRepository{},
+		&mockLstepTagCacheRepository{},
+		&mockLstepSettingsService{
+			getRawCredentialsFn: func(_ context.Context, _ uint64) (string, string, string, error) {
+				return "test-key", "https://example.com", "", nil
+			},
+		},
+		spy,
+	)
+	result, err := svc.CreateCheckupSync(context.Background(), 1, CreateCheckupSyncInput{
+		CheckupType: "annual",
+		OwnerIDs:    []uint64{},
+		TagName:     "campaign_2026",
+	}, nil)
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	if assert.True(t, spy.called, "empty OwnerIDs でも監査ログが記録されること") {
+		assert.Equal(t, uint64(1), spy.capturedClinicID)
+		metadata, ok := spy.capturedMetadata.(map[string]any)
+		if assert.True(t, ok, "metadata は map[string]any であること") {
+			assert.Equal(t, 0, metadata["owner_count"])
+		}
+	}
+}
+
 func TestCheckupSyncService_CreateCheckupSync_BuildClientCredentialsError(t *testing.T) {
 	svc := NewCheckupSyncService(
 		&mockCheckupSyncRepository{},

@@ -21,6 +21,18 @@ func (s *checkupSyncService) CreateCheckupSync(ctx context.Context, clinicID uin
 	}
 
 	if len(input.OwnerIDs) == 0 {
+		// PERF-M3: 早期 return でも「誰が・いつ・何を操作したか」の証跡を残す。
+		if auditErr := s.auditSvc.LogLstepOperationWithMetadata(ctx, clinicID, actorID,
+			"checkup_sync", "owner", nil,
+			map[string]any{
+				"operation":    "checkup_sync_execute",
+				"checkup_type": input.CheckupType,
+				"tag_name":     input.TagName,
+				"owner_count":  0,
+			},
+		); auditErr != nil {
+			slog.WarnContext(ctx, "audit log failed for checkup sync execute (empty owner_ids)", "error", auditErr, "clinic_id", clinicID)
+		}
 		return &CreateCheckupSyncResult{FailedOwnerIDs: []uint64{}}, nil
 	}
 
