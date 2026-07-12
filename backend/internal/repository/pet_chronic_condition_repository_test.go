@@ -2,9 +2,9 @@ package repository
 
 // pet_chronic_condition_repository_test.go — PetChronicConditionRepository の統合テスト（BE-012）。
 //
-// 注意: Update/Delete は RowsAffected を検査しない実装のため、存在しない ID / 別クリニックの ID を
-// 渡しても err=nil を返す（NotFound にならない）。これは既存の実装挙動であり本テストではその
-// 挙動をそのまま記録する（production コードは変更しない）。
+// 注意: Update/Delete は updateScopedByID/deleteScopedByID（helpers.go）を使い RowsAffected==0 を
+// NotFound として検査する（F3）。存在しない ID / 別クリニックの ID を渡すと apperrors.IsNotFound
+// な err を返す。
 
 import (
 	"context"
@@ -155,9 +155,9 @@ func TestPetChronicConditionRepository_Update(t *testing.T) {
 		assert.Equal(t, "食物アレルギー", got.ConditionName)
 	})
 
-	t.Run("別クリニックからのUpdateは行を変更しない(RowsAffectedチェック無しのため err=nil)", func(t *testing.T) {
+	t.Run("別クリニックからのUpdateはNotFoundになり行を変更しない", func(t *testing.T) {
 		err := repo.Update(ctx, clinicB, cond.ID, map[string]any{"condition_name": "不正書き換え"})
-		require.NoError(t, err, "現行実装は RowsAffected を検査しないため err は nil")
+		assert.True(t, apperrors.IsNotFound(err), "別クリニックからの Update は RowsAffected==0 で NotFound になるべき")
 
 		got, err := repo.FindByID(ctx, clinicA, cond.ID)
 		require.NoError(t, err)
@@ -183,10 +183,10 @@ func TestPetChronicConditionRepository_Delete(t *testing.T) {
 		assert.True(t, apperrors.IsNotFound(err), "削除後は NotFound になるべき")
 	})
 
-	t.Run("別クリニックからのDeleteは対象行を削除しない", func(t *testing.T) {
+	t.Run("別クリニックからのDeleteはNotFoundになり対象行を削除しない", func(t *testing.T) {
 		cond := makeChronicCondition(t, db, clinicA, pet.ID, "EYE", "白内障", time.Date(2026, 1, 25, 0, 0, 0, 0, time.UTC), true)
 		err := repo.Delete(ctx, clinicB, cond.ID)
-		require.NoError(t, err, "現行実装は RowsAffected を検査しないため err は nil")
+		assert.True(t, apperrors.IsNotFound(err), "別クリニックからの Delete は RowsAffected==0 で NotFound になるべき")
 
 		got, err := repo.FindByID(ctx, clinicA, cond.ID)
 		require.NoError(t, err, "別クリニックからの Delete では削除されないはず")

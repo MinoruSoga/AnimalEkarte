@@ -59,23 +59,11 @@ func (r *petChronicConditionRepository) Create(ctx context.Context, record *mode
 }
 
 func (r *petChronicConditionRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
-	if err := r.db.WithContext(ctx).Model(&model.PetChronicCondition{}).
-		Scopes(clinicScope(clinicID)).
-		Where("id = ?", id).
-		Updates(fields).Error; err != nil {
-		return apperrors.FromGORM(err, "pet_chronic_condition", fmt.Sprintf("%d", id))
-	}
-	return nil
+	return updateScopedByID(ctx, r.db, &model.PetChronicCondition{}, "pet_chronic_condition", clinicID, id, fields)
 }
 
 func (r *petChronicConditionRepository) Delete(ctx context.Context, clinicID, id uint64) error {
-	if err := r.db.WithContext(ctx).
-		Scopes(clinicScope(clinicID)).
-		Where("id = ?", id).
-		Delete(&model.PetChronicCondition{}).Error; err != nil {
-		return apperrors.FromGORM(err, "pet_chronic_condition", fmt.Sprintf("%d", id))
-	}
-	return nil
+	return deleteScopedByID(ctx, r.db, &model.PetChronicCondition{}, "pet_chronic_condition", clinicID, id)
 }
 
 func (r *petChronicConditionRepository) FindActiveConditionCodesByOwner(ctx context.Context, clinicID, ownerID uint64) ([]string, error) {
