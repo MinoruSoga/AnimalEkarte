@@ -2,6 +2,7 @@ import { useQueries } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import { requireStoredClinicId } from "@/lib/current-clinic";
 import { CPM_STAGES, type CPMStage } from "@/lib/cpm-stage";
+import { queryKeys } from "@/lib/query-keys";
 import { QUERY_STALE_TIMES } from "@/lib/react-query";
 import type { AggregationParams, AggregationResponse } from "./get-aggregations";
 
@@ -44,7 +45,7 @@ export function useGetCPMStageCounts(
 
   const queries = useQueries({
     queries: CPM_STAGES.map((stage) => ({
-      queryKey: ["owner-aggregations-cpm-count", stage, baseParams] as const,
+      queryKey: queryKeys.ownerAggregations.cpmStageCounts(stage, baseParams),
       queryFn: async (): Promise<number> => {
         const clinicId = requireStoredClinicId();
         const { data } = await axios.get<AggregationResponse>(

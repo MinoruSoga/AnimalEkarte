@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import { requireStoredClinicId } from "@/lib/current-clinic";
 import type { CPMStage } from "@/lib/cpm-stage";
+import { queryKeys } from "@/lib/query-keys";
 import { QUERY_STALE_TIMES } from "@/lib/react-query";
 
 // Type definitions for aggregation features.
@@ -94,7 +95,7 @@ export interface AggregationResponse {
 // GET /api/clinics/:clinic_id/owners/aggregations
 export function useGetOwnerAggregations(params: AggregationParams) {
   return useQuery({
-    queryKey: ["owner-aggregations", params],
+    queryKey: queryKeys.ownerAggregations.list(params),
     queryFn: async () => {
       const clinicId = requireStoredClinicId();
       const { data } = await axios.get<AggregationResponse>(
