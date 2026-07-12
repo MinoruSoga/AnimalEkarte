@@ -1,7 +1,7 @@
 import { AlertTriangle, EyeOff, Printer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { C, ICON } from "@/lib/design-tokens";
+import { C, ICON, Z_CLASS } from "@/lib/design-tokens";
 import type { TaxType } from "@/types/generated/models";
 import type { Accounting, PaymentMethod } from "../types";
 import { AccountingDocument, type ClinicInfo } from "./AccountingDocument";
@@ -271,7 +271,7 @@ export function AccountingPrintArea({
   if (!accounting.payment) return null;
 
   return (
-    <div className={`hidden print:block fixed inset-0 ${C.bgWhite} z-[9999] p-0 m-0 w-full h-full`}>
+    <div className={`hidden print:block fixed inset-0 ${C.bgWhite} ${Z_CLASS.overlay} p-0 m-0 w-full h-full`}>
       <style type="text/css" media="print">
         {`
           @page { size: auto; margin: 0; }

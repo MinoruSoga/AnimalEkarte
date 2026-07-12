@@ -512,6 +512,22 @@ export const ICON = {
 } as const;
 
 /* ================================================================== */
+/*  3b. Z-Index                                                        */
+/*     最前面系オーバーレイは Z.overlay に統一 (FE5-4)。                  */
+/* ================================================================== */
+
+/** z-index 階層。最前面系オーバーレイは Z.overlay に統一（FE5-4） */
+export const Z = {
+  /** print portal / tooltip / 最前面パネル */
+  overlay: 9999,
+} as const;
+
+/** Tailwind クラス版（任意値クラスは静的文字列である必要があるため定数化） */
+export const Z_CLASS = {
+  overlay: "z-[9999]",
+} as const;
+
+/* ================================================================== */
 /*  4. Layout Dimensions                                               */
 /*     Numeric values for animation targets, style props, etc.         */
 /*     Tailwind class strings for width/height constraints.            */

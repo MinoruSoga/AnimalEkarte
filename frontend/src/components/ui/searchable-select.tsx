@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { Check, ChevronDown } from "lucide-react";
 
 import { cn } from "@/lib/utils";
-import { C, PALETTE } from "@/lib/design-tokens";
+import { C, PALETTE, Z_CLASS } from "@/lib/design-tokens";
 import { normalizedIncludes } from "@/lib/normalize-kana";
 import {
   Command,
@@ -135,7 +135,7 @@ export function SearchableSelect({
       </PopoverTrigger>
       <PopoverContent
         align="start"
-        className={cn("z-[9999] w-[var(--radix-popover-trigger-width)] p-0", contentClassName)}
+        className={cn(`${Z_CLASS.overlay} w-[var(--radix-popover-trigger-width)] p-0`, contentClassName)}
       >
         <Command
           filter={(_value, search, keywords) => {

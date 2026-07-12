@@ -1,5 +1,6 @@
 import { useEffect, useRef, type ReactNode } from "react";
 import { createPortal } from "react-dom";
+import { Z } from "@/lib/design-tokens";
 
 interface PrintPortalProps {
   /**
@@ -87,7 +88,7 @@ export function PrintPortal({
       data-testid={testId}
       data-print-portal=""
       data-print-active={active ? "true" : "false"}
-      style={{ position: "fixed", inset: 0, zIndex: 9999, overflow: "auto", padding: "8mm" }}
+      style={{ position: "fixed", inset: 0, zIndex: Z.overlay, overflow: "auto", padding: "8mm" }}
     >
       <style type="text/css">
         {`

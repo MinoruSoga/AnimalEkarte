@@ -2,7 +2,7 @@ import { HeartPulse, Printer, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SubmitButton } from "@/components/shared/Form/SubmitButton";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
-import { C, ICON } from "@/lib/design-tokens";
+import { C, ICON, Z_CLASS } from "@/lib/design-tokens";
 import { formatJSTDate } from "@/lib/jst-date";
 import { MedicalRecordPrintView } from "./MedicalRecordPrintView";
 import type { Treatment } from "../types";
@@ -150,7 +150,7 @@ export function MedicalRecordPrintArea({
   if (!isPrinting || isNewRecord || !pet) return null;
 
   return (
-    <div className={`hidden print:block fixed inset-0 ${C.bgWhite} z-[9999]`}>
+    <div className={`hidden print:block fixed inset-0 ${C.bgWhite} ${Z_CLASS.overlay}`}>
       <style type="text/css" media="print">
         {`@page { size: A4 portrait; margin: 15mm; } body { margin: 0; -webkit-print-color-adjust: exact; }`}
       </style>

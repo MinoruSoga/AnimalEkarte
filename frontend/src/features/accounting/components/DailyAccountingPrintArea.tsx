@@ -1,5 +1,6 @@
 import { createPortal } from "react-dom";
 
+import { Z } from "@/lib/design-tokens";
 import { CatCell } from "./DailyAccountingTabParts";
 import { PAYMENT_METHOD_LABELS, formatReceiptNo } from "./daily-accounting-utils";
 import type { RowData, TotalsData } from "./daily-accounting-utils";
@@ -19,7 +20,7 @@ export function DailyPrintArea({ date, rows, totals }: DailyPrintAreaProps) {
       hidden
       className="bg-white"
       data-testid="daily-print-area"
-      style={{ position: "fixed", inset: 0, zIndex: 9999, overflow: "auto", padding: "8mm" }}
+      style={{ position: "fixed", inset: 0, zIndex: Z.overlay, overflow: "auto", padding: "8mm" }}
     >
       <style type="text/css">
         {`
