@@ -132,6 +132,13 @@ func (q *checkupSyncPreviewQuery) toServiceInput() (*service.PreviewCheckupSyncI
 	return input, nil
 }
 
+// checkupSyncRequest は一括タグ付与リクエスト。
+type checkupSyncRequest struct {
+	CheckupType string   `json:"checkup_type" binding:"required"`
+	OwnerIDs    []string `json:"owner_ids"    binding:"required,min=1"`
+	TagName     string   `json:"tag_name"     binding:"required"`
+}
+
 func (r checkupSyncRequest) toServiceInput() (service.CreateCheckupSyncInput, error) {
 	if !tagNamePattern.MatchString(r.TagName) {
 		return service.CreateCheckupSyncInput{}, fmt.Errorf("tag_name は英数字・アンダースコア・ハイフンのみ使用可能です（1〜100文字）")
