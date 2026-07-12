@@ -39,12 +39,18 @@ export default tseslint.config(
       "react-hooks/purity": "warn",
       "react-hooks/preserve-manual-memoization": "warn",
       // FE5-4: XSS 再発防止ガード（FE-refactor.md §4.1 — dangerouslySetInnerHTML 監査 CLOSED の再発防止）
+      // FE-R1: query-keys registry 再発防止ガード（FE-refactor.md 残件1 — registry 移行完了後の再発防止）
       "no-restricted-syntax": [
         "error",
         {
           selector: "JSXAttribute[name.name='dangerouslySetInnerHTML']",
           message:
             "dangerouslySetInnerHTML は禁止。生 HTML が必要な場合は DOMPurify 等でサニタイズしたうえでレビューを通すこと。",
+        },
+        {
+          selector: "Property[key.name='queryKey'][value.type='ArrayExpression']",
+          message:
+            "queryKey に配列リテラルを直書きしない。frontend/src/lib/query-keys.ts の queryKeys ファクトリー（または ME_QUERY_KEY）経由で参照すること。新しいキー形状が必要な場合は queryKeys に追加する。",
         },
       ],
       "no-restricted-properties": [
@@ -77,6 +83,20 @@ export default tseslint.config(
     files: ["src/features/auth/hooks/use-auth.tsx"],
     rules: {
       "react-refresh/only-export-components": "off",
+    },
+  },
+  {
+    // FE-R1: queryKey ファクトリーの定義自体はここでのみ配列リテラルを許可する
+    files: ["src/lib/query-keys.ts"],
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector: "JSXAttribute[name.name='dangerouslySetInnerHTML']",
+          message:
+            "dangerouslySetInnerHTML は禁止。生 HTML が必要な場合は DOMPurify 等でサニタイズしたうえでレビューを通すこと。",
+        },
+      ],
     },
   }
 );
