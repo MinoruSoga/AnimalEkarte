@@ -3189,10 +3189,6 @@ components:
           type: string
           nullable: true
           description: スタッフの職種名（occupationsマスタから取得）
-        avatar_url:
-          type: string
-          format: uri
-          nullable: true
         main_clinic_id:
           type: string
           description: "メインクリニックID（string）"
@@ -3513,8 +3509,6 @@ components:
         staff_id:
           type: string
           nullable: true
-        avatar_url:
-          type: string
         status:
           type: string
         created_at:
@@ -3573,9 +3567,6 @@ components:
         staff_id:
           type: integer
           format: int64
-          nullable: true
-        avatar_url:
-          type: string
           nullable: true
         status:
           type: string

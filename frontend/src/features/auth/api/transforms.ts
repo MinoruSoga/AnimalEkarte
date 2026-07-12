@@ -53,7 +53,6 @@ const backendMeResponseSchema = z.object({
   is_system_admin: z.boolean().default(false),
   // occupation は職種マスタ名
   occupation: z.string().nullable().optional(),
-  avatar_url: z.string().nullable().optional(),
   main_clinic_id: z.string(),
   // clinic は /me レスポンスのメイン医院詳細。未所属の場合は null
   clinic: meClinicInfoSchema.nullable().optional(),
@@ -68,8 +67,8 @@ export type BackendMeResponse = z.infer<typeof backendMeResponseSchema>;
 
 // FE6-5: BE/FE の完全な形状一致（`satisfies z.ZodType<MeResponse>`）は要求しない —
 // このスキーマは意図的に BE の実際の wire 形状より寛容（occupation/clinic への
-// .nullable() 許容・avatar_url の受理は防御的パースであり、BE が将来 null を送るように
-// なっても FE は落ちない）。代わりに「BE が実際に約束する形状は必ずこのスキーマの入力として
+// .nullable() 許容は防御的パースであり、BE が将来 null を送るようになっても FE は
+// 落ちない）。代わりに「BE が実際に約束する形状は必ずこのスキーマの入力として
 // 受理される」ことを型チェックで固定する — M1（BE の optional 化に FE が追随し損ねて
 // parse が throw する退行）のようなケースを検知するのが目的。
 // MeResponse が backendMeResponseSchema の入力形状と非互換なら、この行が型エラーになる。
@@ -110,7 +109,6 @@ export function mapMeToAuthUser(raw: unknown): AuthUser {
     email: me.email,
     displayName: me.display_name,
     isSystemAdmin: me.is_system_admin,
-    avatarUrl: me.avatar_url ?? null,
     mainClinicId: me.main_clinic_id,
     clinic: me.clinic ? mapMeClinicInfo(me.clinic) : null,
     clinics: me.clinics.map((c) => ({

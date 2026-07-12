@@ -24,7 +24,6 @@ const { mockQueryClient, MOCK_SYSTEM_ADMIN, MOCK_STAFF } = vi.hoisted(() => {
     email: "sysadmin@example.com",
     displayName: "System Admin",
     isSystemAdmin: true,
-    avatarUrl: null as null,
     mainClinicId: "clinic-a",
     clinic: null as null,
     clinics: [
@@ -38,7 +37,6 @@ const { mockQueryClient, MOCK_SYSTEM_ADMIN, MOCK_STAFF } = vi.hoisted(() => {
     email: "staff@example.com",
     displayName: "田中 太郎",
     isSystemAdmin: false,
-    avatarUrl: null as null,
     mainClinicId: "clinic-a",
     clinic: null as null,
     clinics: [{ clinicId: "clinic-a", clinicName: "八王子院", isMain: true }],

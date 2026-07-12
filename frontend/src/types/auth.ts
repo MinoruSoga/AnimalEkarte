@@ -63,7 +63,6 @@ export interface AuthUser {
   displayName: string;
   /** true の場合、クロスクリニック権限を持つ運営管理者 */
   isSystemAdmin: boolean;
-  avatarUrl: string | null;
   mainClinicId: string;
   /** メイン医院の詳細情報。/me レスポンスから取得。null の場合は未所属 */
   clinic: AuthClinic | null;

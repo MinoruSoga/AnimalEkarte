@@ -34,7 +34,6 @@ function makeUser(clinics: ClinicMembership[]): AuthUser {
     email: "staff@example.com",
     displayName: "テストスタッフ",
     isSystemAdmin: false,
-    avatarUrl: null,
     mainClinicId: CLINIC_ID,
     clinic: null,
     clinics,
