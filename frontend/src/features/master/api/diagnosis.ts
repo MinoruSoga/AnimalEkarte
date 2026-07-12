@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import { handleApiError } from "@/lib/handle-api-error";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
+import { queryKeys } from "@/lib/query-keys";
 import type {
   DiagnosisType as ModelDiagnosisType,
   DiagnosisName as ModelDiagnosisName,
@@ -62,9 +63,6 @@ export type {
 // ─────────────────────────────────────────────────
 // Query keys
 // ─────────────────────────────────────────────────
-
-const DIAGNOSIS_TYPES_KEY = ["masters", "diagnosis-types"] as const;
-const DIAGNOSIS_NAMES_KEY = ["masters", "diagnosis-names"] as const;
 
 // ─────────────────────────────────────────────────
 // API functions - DiagnosisType
@@ -156,7 +154,7 @@ async function reorderDiagnosisNames(
 
 export function useGetDiagnosisTypes() {
   return useQuery({
-    queryKey: DIAGNOSIS_TYPES_KEY,
+    queryKey: queryKeys.masters.category("diagnosis-types"),
     queryFn: listDiagnosisTypes,
     staleTime: QUERY_STALE_TIMES.STATIC, // マスタデータ: 30分キャッシュ
     gcTime: QUERY_GC_TIMES.LONG,
@@ -168,7 +166,7 @@ export function useCreateDiagnosisType() {
   return useMutation({
     mutationFn: createDiagnosisType,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: DIAGNOSIS_TYPES_KEY });
+      queryClient.invalidateQueries({ queryKey: queryKeys.masters.category("diagnosis-types") });
     },
     onError: (error) => handleApiError(error, "作成"),
   });
@@ -180,7 +178,7 @@ export function useUpdateDiagnosisType() {
     mutationFn: ({ id, req }: { id: string; req: UpdateDiagnosisTypeRequest }) =>
       updateDiagnosisType(id, req),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: DIAGNOSIS_TYPES_KEY });
+      queryClient.invalidateQueries({ queryKey: queryKeys.masters.category("diagnosis-types") });
     },
     onError: (error) => handleApiError(error, "更新"),
   });
@@ -191,7 +189,7 @@ export function useDeleteDiagnosisType() {
   return useMutation({
     mutationFn: deleteDiagnosisType,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: DIAGNOSIS_TYPES_KEY });
+      queryClient.invalidateQueries({ queryKey: queryKeys.masters.category("diagnosis-types") });
     },
     onError: (error) => handleApiError(error, "削除"),
   });
@@ -202,7 +200,7 @@ export function useReorderDiagnosisTypes() {
   return useMutation({
     mutationFn: reorderDiagnosisTypes,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: DIAGNOSIS_TYPES_KEY });
+      queryClient.invalidateQueries({ queryKey: queryKeys.masters.category("diagnosis-types") });
     },
     onError: (error) => handleApiError(error, "並び替え"),
   });
@@ -214,7 +212,7 @@ export function useReorderDiagnosisTypes() {
 
 export function useGetDiagnosisNames() {
   return useQuery({
-    queryKey: DIAGNOSIS_NAMES_KEY,
+    queryKey: queryKeys.masters.category("diagnosis-names"),
     queryFn: listDiagnosisNames,
     staleTime: QUERY_STALE_TIMES.STATIC, // マスタデータ: 30分キャッシュ
     gcTime: QUERY_GC_TIMES.LONG,
@@ -226,7 +224,7 @@ export function useCreateDiagnosisName() {
   return useMutation({
     mutationFn: createDiagnosisName,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: DIAGNOSIS_NAMES_KEY });
+      queryClient.invalidateQueries({ queryKey: queryKeys.masters.category("diagnosis-names") });
     },
     onError: (error) => handleApiError(error, "作成"),
   });
@@ -238,7 +236,7 @@ export function useUpdateDiagnosisName() {
     mutationFn: ({ id, req }: { id: string; req: UpdateDiagnosisNameRequest }) =>
       updateDiagnosisName(id, req),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: DIAGNOSIS_NAMES_KEY });
+      queryClient.invalidateQueries({ queryKey: queryKeys.masters.category("diagnosis-names") });
     },
     onError: (error) => handleApiError(error, "更新"),
   });
@@ -249,7 +247,7 @@ export function useDeleteDiagnosisName() {
   return useMutation({
     mutationFn: deleteDiagnosisName,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: DIAGNOSIS_NAMES_KEY });
+      queryClient.invalidateQueries({ queryKey: queryKeys.masters.category("diagnosis-names") });
     },
     onError: (error) => handleApiError(error, "削除"),
   });
@@ -260,7 +258,7 @@ export function useReorderDiagnosisNames() {
   return useMutation({
     mutationFn: reorderDiagnosisNames,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: DIAGNOSIS_NAMES_KEY });
+      queryClient.invalidateQueries({ queryKey: queryKeys.masters.category("diagnosis-names") });
     },
     onError: (error) => handleApiError(error, "並び替え"),
   });

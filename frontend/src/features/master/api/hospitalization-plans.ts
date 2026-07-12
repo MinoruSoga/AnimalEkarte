@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import { handleApiError } from "@/lib/handle-api-error";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
+import { queryKeys } from "@/lib/query-keys";
 import type { BodySize, BillingUnit, HospitalizationPlan as ModelHospitalizationPlan, TaxType } from "@/types/generated/models";
 import {
   BodySizeSmall,
@@ -114,11 +115,9 @@ const deleteHospitalizationPlan = async (id: string): Promise<void> => {
 // React Query Hooks
 // ─────────────────────────────────────────────────
 
-const HOSPITALIZATION_PLANS_QUERY_KEY = ["masters", "hospitalization-plans"] as const;
-
 export const useGetAllHospitalizationPlans = () => {
   return useQuery({
-    queryKey: HOSPITALIZATION_PLANS_QUERY_KEY,
+    queryKey: queryKeys.masters.category("hospitalization-plans"),
     queryFn: getAllHospitalizationPlans,
     staleTime: QUERY_STALE_TIMES.STATIC,
     gcTime: QUERY_GC_TIMES.LONG,
@@ -130,7 +129,7 @@ export const useCreateHospitalizationPlan = () => {
   return useMutation({
     mutationFn: createHospitalizationPlan,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: HOSPITALIZATION_PLANS_QUERY_KEY });
+      queryClient.invalidateQueries({ queryKey: queryKeys.masters.category("hospitalization-plans") });
     },
     onError: (error) => handleApiError(error, "作成"),
   });
@@ -147,7 +146,7 @@ export const useUpdateHospitalizationPlan = () => {
       req: UpdateHospitalizationPlanRequest;
     }) => updateHospitalizationPlan(id, req),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: HOSPITALIZATION_PLANS_QUERY_KEY });
+      queryClient.invalidateQueries({ queryKey: queryKeys.masters.category("hospitalization-plans") });
     },
     onError: (error) => handleApiError(error, "更新"),
   });
@@ -158,7 +157,7 @@ export const useDeleteHospitalizationPlan = () => {
   return useMutation({
     mutationFn: deleteHospitalizationPlan,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: HOSPITALIZATION_PLANS_QUERY_KEY });
+      queryClient.invalidateQueries({ queryKey: queryKeys.masters.category("hospitalization-plans") });
     },
     onError: (error) => handleApiError(error, "削除"),
   });

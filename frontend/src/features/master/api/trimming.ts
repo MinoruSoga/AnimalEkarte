@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import { handleApiError } from "@/lib/handle-api-error";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
+import { queryKeys } from "@/lib/query-keys";
 import type {
   TrimmingCourse as ModelTrimmingCourse,
   TrimmingOption as ModelTrimmingOption,
@@ -105,9 +106,6 @@ export type TrimmingOption = ReturnType<typeof transformTrimmingOption>;
 // ─────────────────────────────────────────────────
 
 // P8: useMasterItems("trimmingCourse") と queryKey を統一（キャッシュ無効化が機能するため）
-const TRIMMING_COURSES_KEY = ["masters", "trimmingCourse"] as const;
-const TRIMMING_OPTIONS_KEY = ["masters", "trimming-options"] as const;
-
 // ─────────────────────────────────────────────────
 // API functions - TrimmingCourse
 // ─────────────────────────────────────────────────
@@ -186,7 +184,7 @@ async function deleteTrimmingOption(id: string): Promise<void> {
 
 export function useGetTrimmingCourses() {
   return useQuery({
-    queryKey: TRIMMING_COURSES_KEY,
+    queryKey: queryKeys.masters.category("trimmingCourse"),
     queryFn: listTrimmingCourses,
     staleTime: QUERY_STALE_TIMES.STATIC,
     gcTime: QUERY_GC_TIMES.LONG,
@@ -198,7 +196,7 @@ export function useCreateTrimmingCourse() {
   return useMutation({
     mutationFn: createTrimmingCourse,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: TRIMMING_COURSES_KEY });
+      queryClient.invalidateQueries({ queryKey: queryKeys.masters.category("trimmingCourse") });
     },
     onError: (error) => handleApiError(error, "作成"),
   });
@@ -210,7 +208,7 @@ export function useUpdateTrimmingCourse() {
     mutationFn: ({ id, req }: { id: string; req: UpdateTrimmingCourseRequest }) =>
       updateTrimmingCourse(id, req),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: TRIMMING_COURSES_KEY });
+      queryClient.invalidateQueries({ queryKey: queryKeys.masters.category("trimmingCourse") });
     },
     onError: (error) => handleApiError(error, "更新"),
   });
@@ -221,7 +219,7 @@ export function useDeleteTrimmingCourse() {
   return useMutation({
     mutationFn: deleteTrimmingCourse,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: TRIMMING_COURSES_KEY });
+      queryClient.invalidateQueries({ queryKey: queryKeys.masters.category("trimmingCourse") });
     },
     onError: (error) => handleApiError(error, "削除"),
   });
@@ -234,7 +232,7 @@ export function useDeleteTrimmingCourse() {
 
 export function useGetTrimmingOptions() {
   return useQuery({
-    queryKey: TRIMMING_OPTIONS_KEY,
+    queryKey: queryKeys.masters.category("trimming-options"),
     queryFn: listTrimmingOptions,
     staleTime: QUERY_STALE_TIMES.STATIC,
     gcTime: QUERY_GC_TIMES.LONG,
@@ -246,7 +244,7 @@ export function useCreateTrimmingOption() {
   return useMutation({
     mutationFn: createTrimmingOption,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: TRIMMING_OPTIONS_KEY });
+      queryClient.invalidateQueries({ queryKey: queryKeys.masters.category("trimming-options") });
     },
     onError: (error) => handleApiError(error, "作成"),
   });
@@ -258,7 +256,7 @@ export function useUpdateTrimmingOption() {
     mutationFn: ({ id, req }: { id: string; req: UpdateTrimmingOptionRequest }) =>
       updateTrimmingOption(id, req),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: TRIMMING_OPTIONS_KEY });
+      queryClient.invalidateQueries({ queryKey: queryKeys.masters.category("trimming-options") });
     },
     onError: (error) => handleApiError(error, "更新"),
   });
@@ -269,7 +267,7 @@ export function useDeleteTrimmingOption() {
   return useMutation({
     mutationFn: deleteTrimmingOption,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: TRIMMING_OPTIONS_KEY });
+      queryClient.invalidateQueries({ queryKey: queryKeys.masters.category("trimming-options") });
     },
     onError: (error) => handleApiError(error, "削除"),
   });

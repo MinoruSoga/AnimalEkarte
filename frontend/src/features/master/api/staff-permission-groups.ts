@@ -2,18 +2,17 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import { handleApiError } from "@/lib/handle-api-error";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
-
-import { STAFFS_QUERY_KEY } from "./staffs";
+import { queryKeys } from "@/lib/query-keys";
 
 // ─────────────────────────────────────────────────
 // Staff Permission Groups API
 // ─────────────────────────────────────────────────
 
 const getAllPermissionGroupMapKey = (staffIds: string[]) =>
-  [...STAFFS_QUERY_KEY, "all-permission-group-map", ...staffIds] as const;
+  queryKeys.staffs.allPermissionGroupMap(staffIds);
 
 const STAFF_PERM_GROUPS_KEY = (staffId: string) =>
-  [...STAFFS_QUERY_KEY, staffId, "permission-groups"] as const;
+  queryKeys.staffs.subResource(staffId, "permission-groups");
 
 /**
  * 全スタッフの権限グループIDマップを一括取得する。

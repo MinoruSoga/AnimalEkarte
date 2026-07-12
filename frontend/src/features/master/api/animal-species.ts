@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import { handleApiError } from "@/lib/handle-api-error";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
+import { queryKeys } from "@/lib/query-keys";
 import type { AnimalSpecies as ModelAnimalSpecies } from "@/types/generated/models";
 
 // ─────────────────────────────────────────────────
@@ -33,12 +34,6 @@ export type CreateAnimalSpeciesRequest = Omit<
 export type UpdateAnimalSpeciesRequest = Partial<CreateAnimalSpeciesRequest>;
 
 type ReorderAnimalSpeciesRequest = { ids: number[] };
-
-// ─────────────────────────────────────────────────
-// Query key
-// ─────────────────────────────────────────────────
-
-const ANIMAL_SPECIES_KEY = ["masters", "animal-species"] as const;
 
 // ─────────────────────────────────────────────────
 // API functions
@@ -88,7 +83,7 @@ async function reorderAnimalSpecies(
 
 export function useGetAnimalSpecies() {
   return useQuery({
-    queryKey: ANIMAL_SPECIES_KEY,
+    queryKey: queryKeys.masters.animalSpecies.all(),
     queryFn: listAnimalSpecies,
     staleTime: QUERY_STALE_TIMES.STATIC,
     gcTime: QUERY_GC_TIMES.LONG,
@@ -100,7 +95,7 @@ export function useCreateAnimalSpecies() {
   return useMutation({
     mutationFn: createAnimalSpecies,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ANIMAL_SPECIES_KEY });
+      queryClient.invalidateQueries({ queryKey: queryKeys.masters.animalSpecies.all() });
     },
     onError: (error) => handleApiError(error, "作成"),
   });
@@ -112,7 +107,7 @@ export function useUpdateAnimalSpecies() {
     mutationFn: ({ id, req }: { id: string; req: UpdateAnimalSpeciesRequest }) =>
       updateAnimalSpecies(id, req),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ANIMAL_SPECIES_KEY });
+      queryClient.invalidateQueries({ queryKey: queryKeys.masters.animalSpecies.all() });
     },
     onError: (error) => handleApiError(error, "更新"),
   });
@@ -123,7 +118,7 @@ export function useDeleteAnimalSpecies() {
   return useMutation({
     mutationFn: deleteAnimalSpecies,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ANIMAL_SPECIES_KEY });
+      queryClient.invalidateQueries({ queryKey: queryKeys.masters.animalSpecies.all() });
     },
     onError: (error) => handleApiError(error, "削除"),
   });
@@ -134,7 +129,7 @@ export function useReorderAnimalSpecies() {
   return useMutation({
     mutationFn: reorderAnimalSpecies,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ANIMAL_SPECIES_KEY });
+      queryClient.invalidateQueries({ queryKey: queryKeys.masters.animalSpecies.all() });
     },
     onError: (error) => handleApiError(error, "並び替え"),
   });

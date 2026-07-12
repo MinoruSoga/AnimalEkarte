@@ -2,18 +2,17 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import { handleApiError } from "@/lib/handle-api-error";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
-
-import { STAFFS_QUERY_KEY } from "./staffs";
+import { queryKeys } from "@/lib/query-keys";
 
 // ─────────────────────────────────────────────────
 // Staff Excluded Service Types API
 // ─────────────────────────────────────────────────
 
 const STAFF_EXCLUDED_ST_KEY = (staffId: string) =>
-  [...STAFFS_QUERY_KEY, staffId, "excluded-reservation-types"] as const;
+  queryKeys.staffs.subResource(staffId, "excluded-reservation-types");
 
 const STAFF_CAPABLE_ST_KEY = (staffId: string) =>
-  [...STAFFS_QUERY_KEY, staffId, "capable-reservation-types"] as const;
+  queryKeys.staffs.subResource(staffId, "capable-reservation-types");
 
 export function useGetStaffCapableReservationTypes(staffId: string | null) {
   return useQuery({

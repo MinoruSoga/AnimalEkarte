@@ -1,9 +1,9 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import { handleApiError } from "@/lib/handle-api-error";
+import { queryKeys } from "@/lib/query-keys";
 import type { TrimmingCourseType as ModelTrimmingCourseType } from "@/types/generated/models";
 import {
-  TRIMMING_COURSE_TYPES_QUERY_KEY,
   useGetTrimmingCourseTypes,
   transformTrimmingCourseType,
   type TrimmingCourseType,
@@ -63,7 +63,7 @@ export const useCreateTrimmingCourseType = () => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: createTrimmingCourseType,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: TRIMMING_COURSE_TYPES_QUERY_KEY }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.masters.category("trimming-course-types") }),
     onError: (error) => handleApiError(error, "作成"),
   });
 };
@@ -73,7 +73,7 @@ export const useUpdateTrimmingCourseType = () => {
   return useMutation({
     mutationFn: ({ id, req }: { id: string; req: UpdateTrimmingCourseTypeRequest }) =>
       updateTrimmingCourseType(id, req),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: TRIMMING_COURSE_TYPES_QUERY_KEY }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.masters.category("trimming-course-types") }),
     onError: (error) => handleApiError(error, "更新"),
   });
 };
@@ -82,7 +82,7 @@ export const useDeleteTrimmingCourseType = () => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: deleteTrimmingCourseType,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: TRIMMING_COURSE_TYPES_QUERY_KEY }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.masters.category("trimming-course-types") }),
     onError: (error) => handleApiError(error, "削除"),
   });
 };

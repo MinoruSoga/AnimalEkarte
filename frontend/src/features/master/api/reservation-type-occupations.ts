@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import { handleApiError } from "@/lib/handle-api-error";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
+import { queryKeys } from "@/lib/query-keys";
 import type { ReservationTypeOccupation as ReservationTypeOccupationRaw } from "@/types/generated/models";
 
 // ─────────────────────────────────────────────────
@@ -31,14 +32,8 @@ export type ReservationTypeOccupation = ReturnType<typeof transformReservationTy
 // Query keys
 // ─────────────────────────────────────────────────
 
-const occupationsKey = (clinicId: string, reservationTypeId: string) => [
-  "masters",
-  "clinics",
-  clinicId,
-  "reservation-types",
-  reservationTypeId,
-  "occupations",
-] as const;
+const occupationsKey = (clinicId: string, reservationTypeId: string) =>
+  queryKeys.masters.reservationTypeSubResource(clinicId, reservationTypeId, "occupations");
 
 // ─────────────────────────────────────────────────
 // API functions

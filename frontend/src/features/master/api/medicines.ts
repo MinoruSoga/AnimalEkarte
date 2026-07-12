@@ -2,12 +2,11 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import { handleApiError } from "@/lib/handle-api-error";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
+import { queryKeys } from "@/lib/query-keys";
 import { transformBackendMedicineToFrontend } from "@/lib/transforms/medicine";
 import type { Medicine } from "@/lib/transforms/medicine";
 import type { Medicine as MedicineModel } from "@/types/generated/models";
 import type { CreateMedicineRequest, UpdateMedicineRequest, ReorderMedicinesRequest } from "@/types/medicine";
-
-const MEDICINES_QUERY_KEY = ["masters", "medicines"] as const;
 
 const getAllMedicines = async (): Promise<Medicine[]> => {
   const { data } = await axios.get<MedicineModel[]>("/v1/masters/medicines");
@@ -16,7 +15,7 @@ const getAllMedicines = async (): Promise<Medicine[]> => {
 
 export const useGetAllMedicines = () => {
   return useQuery({
-    queryKey: MEDICINES_QUERY_KEY,
+    queryKey: queryKeys.masters.category("medicines"),
     queryFn: getAllMedicines,
     staleTime: QUERY_STALE_TIMES.STATIC,
     gcTime: QUERY_GC_TIMES.LONG,
@@ -33,7 +32,7 @@ export const useCreateMedicine = () => {
   return useMutation({
     mutationFn: createMedicine,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: MEDICINES_QUERY_KEY });
+      queryClient.invalidateQueries({ queryKey: queryKeys.masters.category("medicines") });
     },
     onError: (error) => handleApiError(error, "作成"),
   });
@@ -50,7 +49,7 @@ export const useUpdateMedicine = () => {
     mutationFn: ({ id, req }: { id: string; req: UpdateMedicineRequest }) =>
       updateMedicine(id, req),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: MEDICINES_QUERY_KEY });
+      queryClient.invalidateQueries({ queryKey: queryKeys.masters.category("medicines") });
     },
     onError: (error) => handleApiError(error, "更新"),
   });
@@ -65,7 +64,7 @@ export const useDeleteMedicine = () => {
   return useMutation({
     mutationFn: deleteMedicine,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: MEDICINES_QUERY_KEY });
+      queryClient.invalidateQueries({ queryKey: queryKeys.masters.category("medicines") });
     },
     onError: (error) => handleApiError(error, "削除"),
   });
@@ -80,7 +79,7 @@ export const useReorderMedicines = () => {
   return useMutation({
     mutationFn: reorderMedicines,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: MEDICINES_QUERY_KEY });
+      queryClient.invalidateQueries({ queryKey: queryKeys.masters.category("medicines") });
     },
     onError: (error) => handleApiError(error, "並び替え"),
   });

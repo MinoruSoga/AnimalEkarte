@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import { handleApiError } from "@/lib/handle-api-error";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
+import { queryKeys } from "@/lib/query-keys";
 import type { Staff as ModelStaff } from "@/types/generated/models";
 
 // ─────────────────────────────────────────────────
@@ -72,8 +73,6 @@ export type Staff = ReturnType<typeof transformStaff>;
 // Query keys
 // ─────────────────────────────────────────────────
 
-export const STAFFS_QUERY_KEY = ["masters", "staffs"] as const;
-
 // ─────────────────────────────────────────────────
 // API functions
 // ─────────────────────────────────────────────────
@@ -117,7 +116,7 @@ async function deleteStaff(id: string): Promise<void> {
 
 export function useGetStaffs() {
   return useQuery({
-    queryKey: STAFFS_QUERY_KEY,
+    queryKey: queryKeys.masters.category("staffs"),
     queryFn: listStaffs,
     staleTime: QUERY_STALE_TIMES.STATIC,
     gcTime: QUERY_GC_TIMES.LONG,
@@ -129,7 +128,7 @@ export function useCreateStaff() {
   return useMutation({
     mutationFn: createStaff,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: STAFFS_QUERY_KEY });
+      queryClient.invalidateQueries({ queryKey: queryKeys.masters.category("staffs") });
     },
     onError: (error) => handleApiError(error, "作成"),
   });
@@ -141,7 +140,7 @@ export function useUpdateStaff() {
     mutationFn: ({ id, req }: { id: string; req: UpdateStaffRequest }) =>
       updateStaff(id, req),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: STAFFS_QUERY_KEY });
+      queryClient.invalidateQueries({ queryKey: queryKeys.masters.category("staffs") });
     },
     onError: (error) => handleApiError(error, "更新"),
   });
@@ -152,7 +151,7 @@ export function useDeleteStaff() {
   return useMutation({
     mutationFn: deleteStaff,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: STAFFS_QUERY_KEY });
+      queryClient.invalidateQueries({ queryKey: queryKeys.masters.category("staffs") });
     },
     onError: (error) => handleApiError(error, "削除"),
   });

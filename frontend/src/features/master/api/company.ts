@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
+import { queryKeys } from "@/lib/query-keys";
 import type { Company as ModelCompany } from "@/types/generated/models";
 
 // ─────────────────────────────────────────────────
@@ -32,8 +33,6 @@ type Company = ReturnType<typeof transformCompany>;
 // Query keys
 // ─────────────────────────────────────────────────
 
-const COMPANY_QUERY_KEY = ["masters", "company"] as const;
-
 // ─────────────────────────────────────────────────
 // API functions
 // ─────────────────────────────────────────────────
@@ -49,7 +48,7 @@ async function getCompany(): Promise<Company> {
 
 export function useGetCompany() {
   return useQuery({
-    queryKey: COMPANY_QUERY_KEY,
+    queryKey: queryKeys.masters.category("company"),
     queryFn: getCompany,
     staleTime: QUERY_STALE_TIMES.STATIC,
     gcTime: QUERY_GC_TIMES.LONG,

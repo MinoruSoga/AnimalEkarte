@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import { handleApiError } from "@/lib/handle-api-error";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
+import { queryKeys } from "@/lib/query-keys";
 import { transformExaminationType } from "@/lib/transforms/treatment";
 import type { ExamTypeField } from "@/lib/transforms/treatment";
 import type { ExaminationType } from "@/types/generated/models";
@@ -10,8 +11,6 @@ import type {
   UpdateExaminationTypeRequest,
   ReorderTreatmentRequest,
 } from "@/types/treatment";
-
-const EXAM_TYPES_QUERY_KEY = ["masters", "examination-types"] as const;
 
 export type { ExamTypeField };
 
@@ -22,7 +21,7 @@ const getAllExaminationTypes = async (): Promise<ExamTypeField[]> => {
 
 export const useGetAllExaminationTypes = () =>
   useQuery({
-    queryKey: EXAM_TYPES_QUERY_KEY,
+    queryKey: queryKeys.masters.category("examination-types"),
     queryFn: getAllExaminationTypes,
     staleTime: QUERY_STALE_TIMES.STATIC,
     gcTime: QUERY_GC_TIMES.LONG,
@@ -38,7 +37,7 @@ export const useCreateExaminationType = () => {
       );
       return transformExaminationType(data);
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: EXAM_TYPES_QUERY_KEY }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.masters.category("examination-types") }),
     onError: (error) => handleApiError(error, "操作"),
   });
 };
@@ -59,7 +58,7 @@ export const useUpdateExaminationType = () => {
       );
       return transformExaminationType(data);
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: EXAM_TYPES_QUERY_KEY }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.masters.category("examination-types") }),
     onError: (error) => handleApiError(error, "操作"),
   });
 };
@@ -68,7 +67,7 @@ export const useDeleteExaminationType = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => axios.delete(`/v1/masters/examination-types/${id}`),
-    onSuccess: () => qc.invalidateQueries({ queryKey: EXAM_TYPES_QUERY_KEY }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.masters.category("examination-types") }),
     onError: (error) => handleApiError(error, "操作"),
   });
 };
@@ -78,7 +77,7 @@ export const useReorderExaminationTypes = () => {
   return useMutation({
     mutationFn: (req: ReorderTreatmentRequest) =>
       axios.patch("/v1/masters/examination-types/reorder", req),
-    onSuccess: () => qc.invalidateQueries({ queryKey: EXAM_TYPES_QUERY_KEY }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.masters.category("examination-types") }),
     onError: (error) => handleApiError(error, "操作"),
   });
 };

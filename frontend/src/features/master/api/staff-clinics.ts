@@ -2,8 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import { handleApiError } from "@/lib/handle-api-error";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
-
-import { STAFFS_QUERY_KEY } from "./staffs";
+import { queryKeys } from "@/lib/query-keys";
 
 // ─────────────────────────────────────────────────
 // Clinics list (for staff assignment UI)
@@ -14,8 +13,7 @@ export interface ClinicSummary {
   name: string;
 }
 
-const getClinicsListKey = (scope?: "all") =>
-  ["clinics-list", scope ?? "assigned"] as const;
+const getClinicsListKey = (scope?: "all") => queryKeys.clinics.list(scope);
 
 export function useGetClinicsList(scope?: "all") {
   return useQuery({
@@ -38,7 +36,7 @@ export function useGetClinicsList(scope?: "all") {
 // ─────────────────────────────────────────────────
 
 const STAFF_CLINICS_KEY = (staffId: string) =>
-  [...STAFFS_QUERY_KEY, staffId, "clinics"] as const;
+  queryKeys.staffs.subResource(staffId, "clinics");
 
 export function useGetStaffClinics(staffId: string | null) {
   return useQuery({

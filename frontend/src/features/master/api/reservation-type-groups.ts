@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import { handleApiError } from "@/lib/handle-api-error";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
+import { queryKeys } from "@/lib/query-keys";
 import type { ReservationTypeGroup as ModelReservationTypeGroup } from "@/types/generated/models";
 
 // ─────────────────────────────────────────────────
@@ -26,8 +27,6 @@ export type ReservationTypeGroup = ReturnType<typeof transformReservationTypeGro
 // ─────────────────────────────────────────────────
 // Query keys
 // ─────────────────────────────────────────────────
-
-const RESERVATION_CATEGORY_GROUPS_QUERY_KEY = ["masters", "reservation-type-groups"] as const;
 
 // ─────────────────────────────────────────────────
 // Request types (derived from models.ts)
@@ -85,7 +84,7 @@ async function deleteReservationTypeGroup(id: string): Promise<void> {
 
 export function useGetReservationTypeGroups() {
   return useQuery({
-    queryKey: RESERVATION_CATEGORY_GROUPS_QUERY_KEY,
+    queryKey: queryKeys.masters.category("reservation-type-groups"),
     queryFn: listReservationTypeGroups,
     staleTime: QUERY_STALE_TIMES.STATIC,
     gcTime: QUERY_GC_TIMES.LONG,
@@ -97,7 +96,7 @@ export function useCreateReservationTypeGroup() {
   return useMutation({
     mutationFn: createReservationTypeGroup,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: RESERVATION_CATEGORY_GROUPS_QUERY_KEY });
+      queryClient.invalidateQueries({ queryKey: queryKeys.masters.category("reservation-type-groups") });
     },
     onError: (error) => handleApiError(error, "作成"),
   });
@@ -109,7 +108,7 @@ export function useUpdateReservationTypeGroup() {
     mutationFn: ({ id, req }: { id: string; req: UpdateReservationTypeGroupRequest }) =>
       updateReservationTypeGroup(id, req),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: RESERVATION_CATEGORY_GROUPS_QUERY_KEY });
+      queryClient.invalidateQueries({ queryKey: queryKeys.masters.category("reservation-type-groups") });
     },
     onError: (error) => handleApiError(error, "更新"),
   });
@@ -120,7 +119,7 @@ export function useDeleteReservationTypeGroup() {
   return useMutation({
     mutationFn: deleteReservationTypeGroup,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: RESERVATION_CATEGORY_GROUPS_QUERY_KEY });
+      queryClient.invalidateQueries({ queryKey: queryKeys.masters.category("reservation-type-groups") });
     },
     onError: (error) => handleApiError(error, "削除"),
   });

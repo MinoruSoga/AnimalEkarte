@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import { handleApiError } from "@/lib/handle-api-error";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
+import { queryKeys } from "@/lib/query-keys";
 import type { ReservationType as ModelReservationType } from "@/types/generated/models";
 import type {
   CreateReservationTypeRequest,
@@ -73,8 +74,6 @@ export type {
 // Query keys
 // ─────────────────────────────────────────────────
 
-const SERVICE_TYPES_QUERY_KEY = ["masters", "reservation-types"] as const;
-
 // ─────────────────────────────────────────────────
 // API functions
 // ─────────────────────────────────────────────────
@@ -128,7 +127,7 @@ async function reorderReservationTypes(
 
 export function useGetReservationTypes() {
   return useQuery({
-    queryKey: SERVICE_TYPES_QUERY_KEY,
+    queryKey: queryKeys.masters.category("reservation-types"),
     queryFn: listReservationTypes,
     staleTime: QUERY_STALE_TIMES.STATIC,
     gcTime: QUERY_GC_TIMES.LONG,
@@ -140,7 +139,7 @@ export function useCreateReservationType() {
   return useMutation({
     mutationFn: createReservationType,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: SERVICE_TYPES_QUERY_KEY });
+      queryClient.invalidateQueries({ queryKey: queryKeys.masters.category("reservation-types") });
     },
     onError: (error) => handleApiError(error, "作成"),
   });
@@ -152,7 +151,7 @@ export function useUpdateReservationType() {
     mutationFn: ({ id, req }: { id: string; req: UpdateReservationTypeRequest }) =>
       updateReservationType(id, req),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: SERVICE_TYPES_QUERY_KEY });
+      queryClient.invalidateQueries({ queryKey: queryKeys.masters.category("reservation-types") });
     },
     onError: (error) => handleApiError(error, "更新"),
   });
@@ -163,7 +162,7 @@ export function useDeleteReservationType() {
   return useMutation({
     mutationFn: deleteReservationType,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: SERVICE_TYPES_QUERY_KEY });
+      queryClient.invalidateQueries({ queryKey: queryKeys.masters.category("reservation-types") });
     },
     onError: (error) => handleApiError(error, "削除"),
   });
@@ -174,7 +173,7 @@ export function useReorderReservationTypes() {
   return useMutation({
     mutationFn: reorderReservationTypes,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: SERVICE_TYPES_QUERY_KEY });
+      queryClient.invalidateQueries({ queryKey: queryKeys.masters.category("reservation-types") });
     },
     onError: (error) => handleApiError(error, "並び替え"),
   });

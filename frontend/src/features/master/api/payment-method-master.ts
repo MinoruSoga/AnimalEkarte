@@ -2,9 +2,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import { handleApiError } from "@/lib/handle-api-error";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
+import { queryKeys } from "@/lib/query-keys";
 import type { PaymentMethodMaster as ModelPaymentMethodMaster } from "@/types/generated/models";
-
-const PAYMENT_METHODS_QUERY_KEY = ["masters", "payment-methods"] as const;
 
 // ─────────────────────────────────────────────────
 // Request types (derived from models.ts)
@@ -64,7 +63,7 @@ const deletePaymentMethod = async (id: string): Promise<void> => {
 
 export const useGetPaymentMethods = () =>
   useQuery({
-    queryKey: PAYMENT_METHODS_QUERY_KEY,
+    queryKey: queryKeys.masters.category("payment-methods"),
     queryFn: getPaymentMethods,
     staleTime: QUERY_STALE_TIMES.STATIC,
     gcTime: QUERY_GC_TIMES.LONG,
@@ -74,7 +73,7 @@ export const useCreatePaymentMethod = () => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: createPaymentMethod,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: PAYMENT_METHODS_QUERY_KEY }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.masters.category("payment-methods") }),
     onError: (error) => handleApiError(error, "作成"),
   });
 };
@@ -84,7 +83,7 @@ export const useUpdatePaymentMethod = () => {
   return useMutation({
     mutationFn: ({ id, req }: { id: string; req: UpdatePaymentMethodRequest }) =>
       updatePaymentMethod(id, req),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: PAYMENT_METHODS_QUERY_KEY }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.masters.category("payment-methods") }),
     onError: (error) => handleApiError(error, "更新"),
   });
 };
@@ -93,7 +92,7 @@ export const useDeletePaymentMethod = () => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: deletePaymentMethod,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: PAYMENT_METHODS_QUERY_KEY }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.masters.category("payment-methods") }),
     onError: (error) => handleApiError(error, "削除"),
   });
 };

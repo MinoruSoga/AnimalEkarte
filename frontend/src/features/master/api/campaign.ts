@@ -2,8 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import { handleApiError } from "@/lib/handle-api-error";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
-
-const CAMPAIGNS_QUERY_KEY = ["masters", "campaigns"] as const;
+import { queryKeys } from "@/lib/query-keys";
 
 // ─────────────────────────────────────────────────
 // Backend / Request types
@@ -90,7 +89,7 @@ const deleteCampaign = async (id: string): Promise<void> => {
 
 export const useGetCampaigns = () =>
   useQuery({
-    queryKey: CAMPAIGNS_QUERY_KEY,
+    queryKey: queryKeys.masters.category("campaigns"),
     queryFn: getCampaigns,
     staleTime: QUERY_STALE_TIMES.STATIC,
     gcTime: QUERY_GC_TIMES.LONG,
@@ -100,7 +99,7 @@ export const useCreateCampaign = () => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: createCampaign,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: CAMPAIGNS_QUERY_KEY }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.masters.category("campaigns") }),
     onError: (error) => handleApiError(error, "作成"),
   });
 };
@@ -109,7 +108,7 @@ export const useUpdateCampaign = () => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ id, req }: { id: string; req: UpdateCampaignRequest }) => updateCampaign(id, req),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: CAMPAIGNS_QUERY_KEY }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.masters.category("campaigns") }),
     onError: (error) => handleApiError(error, "更新"),
   });
 };
@@ -118,7 +117,7 @@ export const useDeleteCampaign = () => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: deleteCampaign,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: CAMPAIGNS_QUERY_KEY }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.masters.category("campaigns") }),
     onError: (error) => handleApiError(error, "削除"),
   });
 };

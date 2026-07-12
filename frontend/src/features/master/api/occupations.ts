@@ -2,9 +2,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import { handleApiError } from "@/lib/handle-api-error";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
+import { queryKeys } from "@/lib/query-keys";
 import type { Occupation as ModelOccupation } from "@/types/generated/models";
-
-const OCCUPATIONS_QUERY_KEY = ["masters", "occupations"] as const;
 
 // ─────────────────────────────────────────────────
 // Request types (derived from models.ts)
@@ -67,7 +66,7 @@ const deleteOccupation = async (id: string): Promise<void> => {
 
 export const useGetAllOccupations = () => {
   return useQuery({
-    queryKey: OCCUPATIONS_QUERY_KEY,
+    queryKey: queryKeys.masters.category("occupations"),
     queryFn: getAllOccupations,
     staleTime: QUERY_STALE_TIMES.STATIC,
     gcTime: QUERY_GC_TIMES.LONG,
@@ -79,7 +78,7 @@ export const useCreateOccupation = () => {
   return useMutation({
     mutationFn: createOccupation,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: OCCUPATIONS_QUERY_KEY });
+      queryClient.invalidateQueries({ queryKey: queryKeys.masters.category("occupations") });
     },
     onError: (error) => handleApiError(error, "作成"),
   });
@@ -91,7 +90,7 @@ export const useUpdateOccupation = () => {
     mutationFn: ({ id, req }: { id: string; req: UpdateOccupationRequest }) =>
       updateOccupation(id, req),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: OCCUPATIONS_QUERY_KEY });
+      queryClient.invalidateQueries({ queryKey: queryKeys.masters.category("occupations") });
     },
     onError: (error) => handleApiError(error, "更新"),
   });
@@ -102,7 +101,7 @@ export const useDeleteOccupation = () => {
   return useMutation({
     mutationFn: deleteOccupation,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: OCCUPATIONS_QUERY_KEY });
+      queryClient.invalidateQueries({ queryKey: queryKeys.masters.category("occupations") });
     },
     onError: (error) => handleApiError(error, "削除"),
   });

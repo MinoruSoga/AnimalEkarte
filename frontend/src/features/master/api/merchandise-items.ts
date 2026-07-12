@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import { handleApiError } from "@/lib/handle-api-error";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
+import { queryKeys } from "@/lib/query-keys";
 import type { MerchandiseItem } from "@/types/generated/models";
 
 // ─── Transform ────────────────────────────────────────────
@@ -38,8 +39,6 @@ export type { ReorderMerchandiseItemsRequest };
 
 // ─── Queries ──────────────────────────────────────────────
 
-const MERCHANDISE_ITEMS_QUERY_KEY = ["masters", "merchandise-items"] as const;
-
 const getAllMerchandiseItems = async (): Promise<FrontendMerchandiseItem[]> => {
   const { data } = await axios.get<MerchandiseItem[] | { data: MerchandiseItem[] }>("/v1/masters/merchandise-items");
   const items = Array.isArray(data) ? data : data.data;
@@ -48,7 +47,7 @@ const getAllMerchandiseItems = async (): Promise<FrontendMerchandiseItem[]> => {
 
 export const useGetAllMerchandiseItems = () => {
   return useQuery({
-    queryKey: [...MERCHANDISE_ITEMS_QUERY_KEY],
+    queryKey: queryKeys.masters.category("merchandise-items"),
     queryFn: getAllMerchandiseItems,
     staleTime: QUERY_STALE_TIMES.STATIC,
     gcTime: QUERY_GC_TIMES.LONG,
@@ -65,7 +64,7 @@ export const useCreateMerchandiseItem = () => {
       return transformMerchandiseItem(data);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [...MERCHANDISE_ITEMS_QUERY_KEY] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.masters.category("merchandise-items") });
     },
     onError: (error) => handleApiError(error, "作成"),
   });
@@ -79,7 +78,7 @@ export const useUpdateMerchandiseItem = () => {
       return transformMerchandiseItem(data);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [...MERCHANDISE_ITEMS_QUERY_KEY] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.masters.category("merchandise-items") });
     },
     onError: (error) => handleApiError(error, "更新"),
   });
@@ -92,7 +91,7 @@ export const useDeleteMerchandiseItem = () => {
       await axios.delete(`/v1/masters/merchandise-items/${id}`);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [...MERCHANDISE_ITEMS_QUERY_KEY] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.masters.category("merchandise-items") });
     },
     onError: (error) => handleApiError(error, "削除"),
   });
@@ -105,7 +104,7 @@ export const useReorderMerchandiseItems = () => {
       await axios.patch("/v1/masters/merchandise-items/reorder", req);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [...MERCHANDISE_ITEMS_QUERY_KEY] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.masters.category("merchandise-items") });
     },
     onError: (error) => handleApiError(error, "並び替え"),
   });
