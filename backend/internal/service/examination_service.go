@@ -349,28 +349,16 @@ func (s *examinationService) ReplaceItems(ctx context.Context, clinicID, examID 
 		// 実際に削除が発生した場合のみ監査する（純粋な新規挿入は削除を伴わない）。ゲートはスナップショット
 		// 件数でなく DELETE の実削除数（deletedCount）に基づく（#211 security MEDIUM-1 と同方針: 並行 INSERT
 		// 競合下でスナップショット 0 件でも実削除>0 を取りこぼさない）。監査書込失敗は tx を rollback する。
-		if deletedCount > 0 {
-			actorType := auditActorTypeFor(actorID)
-			if err := s.auditTx.LogEntryTx(txCtx, &AuditLogInput{
-				ClinicID:   &clinicID,
-				ActorID:    actorID,
-				ActorType:  actorType,
-				Action:     model.AuditActionExamResultReplace,
-				Resource:   model.AuditResourceExamResult,
-				ResourceID: &examID,
-				OldValue:   extractExamResultsAudit(before),
-				NewValue:   extractExamResultsAudit(saved),
-				Metadata: map[string]any{
-					"exam_id":       examID,
-					"deleted_count": deletedCount,
-					"new_count":     len(saved),
-				},
-			}); err != nil {
-				slog.ErrorContext(txCtx, "audit log failed for examination items replace; rolling back deletion", "error", err, "exam_id", examID, "clinic_id", clinicID)
-				return apperrors.Wrap(err, "failed to write examination items deletion audit")
-			}
-		}
-		return nil
+		return logReplaceDeletionTx(txCtx, s.auditTx, clinicID, actorID, deletedCount,
+			model.AuditActionExamResultReplace, model.AuditResourceExamResult, examID,
+			extractExamResultsAudit(before), extractExamResultsAudit(saved),
+			map[string]any{
+				"exam_id":       examID,
+				"deleted_count": deletedCount,
+				"new_count":     len(saved),
+			},
+			"audit log failed for examination items replace; rolling back deletion",
+			"failed to write examination items deletion audit", "exam_id")
 	}); err != nil {
 		return nil, apperrors.Wrap(err, "failed to replace examination items in transaction")
 	}

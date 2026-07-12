@@ -220,29 +220,17 @@ func (s *checkupFieldResultService) ReplaceForCheckup(ctx context.Context, clini
 		// 件数でなく DELETE の実削除数（deletedCount）に基づく（#211 security MEDIUM-1: 並行 INSERT 競合下で
 		// スナップショット 0 件でも実削除>0 を取りこぼさず、無監査 hard-delete を残さない）。
 		// 監査書込失敗はエラーを返して tx を rollback する（best-effort ではなく fail-closed）。
-		if deletedCount > 0 {
-			actorType := auditActorTypeFor(actorID)
-			if err := s.auditTx.LogEntryTx(txCtx, &AuditLogInput{
-				ClinicID:   &clinicID,
-				ActorID:    actorID,
-				ActorType:  actorType,
-				Action:     model.AuditActionCheckupFieldResultReplace,
-				Resource:   model.AuditResourceCheckupFieldResult,
-				ResourceID: &checkupID,
-				OldValue:   extractCheckupFieldResultsAudit(existing),
-				NewValue:   extractCheckupFieldResultsAudit(saved),
-				Metadata: map[string]any{
-					"medical_record_id": medicalRecordID,
-					"checkup_id":        checkupID,
-					"deleted_count":     deletedCount,
-					"new_count":         len(saved),
-				},
-			}); err != nil {
-				slog.ErrorContext(txCtx, "audit log failed for checkup field results replace; rolling back deletion", "error", err, "checkup_id", checkupID, "clinic_id", clinicID)
-				return apperrors.Wrap(err, "failed to write checkup field results deletion audit")
-			}
-		}
-		return nil
+		return logReplaceDeletionTx(txCtx, s.auditTx, clinicID, actorID, deletedCount,
+			model.AuditActionCheckupFieldResultReplace, model.AuditResourceCheckupFieldResult, checkupID,
+			extractCheckupFieldResultsAudit(existing), extractCheckupFieldResultsAudit(saved),
+			map[string]any{
+				"medical_record_id": medicalRecordID,
+				"checkup_id":        checkupID,
+				"deleted_count":     deletedCount,
+				"new_count":         len(saved),
+			},
+			"audit log failed for checkup field results replace; rolling back deletion",
+			"failed to write checkup field results deletion audit", "checkup_id")
 	}); err != nil {
 		return nil, apperrors.Wrap(err, "failed to replace checkup field results in transaction")
 	}
