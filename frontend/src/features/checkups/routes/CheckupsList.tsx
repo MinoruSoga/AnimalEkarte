@@ -21,7 +21,6 @@ import { RowActionButton } from "@/components/shared/RowActionButton";
 import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
 import { LoadingFallback, ErrorFallback } from "@/components/shared/DataStates";
 import { useSortableData } from "@/hooks/use-sortable-data";
-import { usePagination } from "@/hooks/use-pagination";
 import { usePermission } from "@/hooks/use-permission";
 import { formatDate } from "@/utils/format/date";
 import { paths } from "@/config/paths";
@@ -51,6 +50,9 @@ const FILTER_PROPERTIES: FilterProperty[] = [
     icon: Calendar,
   },
 ];
+
+// X-16②: BE 既定 limit と揃える（query_helpers.go parsePagination の既定値）
+const PAGE_SIZE = 20;
 
 const CHECKUPS_SORT_PROPERTIES: SortProperty[] = [
   { key: "date", label: "実施日" },
@@ -97,9 +99,30 @@ export function CheckupsList() {
     };
   }, [activeFilters]);
 
-  const { data: checkups = [], isLoading, error } = useGetCheckups(filters);
+  // X-16②: 実サーバページング。ページ変更は state で管理し、日付/アラートフィルタが
+  // 変わったら 1 ページ目へ戻す（rerender-derived-state-no-effect: レンダー中に derived state で処理）。
+  const [currentPage, setCurrentPage] = useState(1);
+  const filtersResetKey = JSON.stringify(filters);
+  const [prevFiltersResetKey, setPrevFiltersResetKey] = useState(filtersResetKey);
+  if (prevFiltersResetKey !== filtersResetKey) {
+    setPrevFiltersResetKey(filtersResetKey);
+    setCurrentPage(1);
+  }
 
-  // テキスト検索はクライアントサイドで行う
+  const requestFilters = useMemo(
+    () => ({ ...filters, page: currentPage, limit: PAGE_SIZE }),
+    [filters, currentPage],
+  );
+
+  const { data: checkupsResult, isLoading, error } = useGetCheckups(requestFilters);
+  const checkups = checkupsResult?.data ?? [];
+  const total = checkupsResult?.total ?? 0;
+  const limit = checkupsResult?.limit ?? PAGE_SIZE;
+  const totalPages = Math.max(1, Math.ceil(total / limit));
+  const safePage = Math.min(currentPage, totalPages);
+
+  // テキスト検索・ソートは BE がサーバ側 search/sort パラメータを持たないため、
+  // 取得済みの現在ページ内でクライアントサイドに行う（X-16②の既知トレードオフ）。
   const filteredRecords = useMemo(() => {
     if (!deferredSearch) return checkups;
     const normalizedTerm = normalizeKana(deferredSearch).toLowerCase();
@@ -115,27 +138,23 @@ export function CheckupsList() {
   const { activeSorts, setActiveSorts, toggleSort, directionFor, sortedData } =
     useSortableData(filteredRecords);
 
-  const pagination = usePagination(sortedData, {
-    resetKey: [deferredSearch, JSON.stringify(activeFilters)].join("|"),
-  });
+  const startIndex = total === 0 ? 0 : (safePage - 1) * limit + 1;
+  const endIndex = Math.min(safePage * limit, total);
 
-  // FE-144: URLクエリパラメータからページ番号を読み取る
+  // FE-144: URLクエリパラメータからページ番号を読み取り、ローカル状態と同期
+  // （URLが変わったときのみ。totalPages はサーバ応答後に確定するためクランプが必要）
   const urlPage = Number(searchParams.get("page") ?? 1);
-
-  // FE-144: URLのページ番号とローカル状態を同期（URLが変わったときのみ）
-  // rerender-dependencies: pagination（オブジェクト）を destructure し primitive を deps に使用
-  const { totalPages, currentPage, goToPage } = pagination;
   useEffect(() => {
     const clampedPage = Math.max(1, Math.min(urlPage, totalPages));
     if (clampedPage !== currentPage) {
-      goToPage(clampedPage);
+      setCurrentPage(clampedPage);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [urlPage, totalPages]);
 
   // FE-144: ページ変更時にURLクエリパラメータを更新
   const handlePageChange = useCallback((page: number) => {
-    goToPage(page);
+    setCurrentPage(page);
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev);
       if (page === 1) {
@@ -145,7 +164,7 @@ export function CheckupsList() {
       }
       return next;
     }, { replace: true });
-  }, [goToPage, setSearchParams]);
+  }, [setSearchParams]);
 
   const columns = useMemo(
     () => [
@@ -248,7 +267,7 @@ export function CheckupsList() {
             headerRowClassName={DESIGN_TABLE_HEADER_ROW}
             headerCellClassName={DESIGN_TABLE_HEADER_CELL}
             columns={columns}
-            data={pagination.paginatedData}
+            data={sortedData}
             emptyMessage="定期健診の記録がありません"
             renderRow={(c) => (
               <DataTableRow key={c.id} onClick={canEdit ? () => handleEdit(c.medicalRecordId) : undefined}>
@@ -276,16 +295,16 @@ export function CheckupsList() {
           />
         </FilteringIndicator>
 
-        {pagination.totalPages > 1 ? (
+        {totalPages > 1 ? (
           <Pagination
-            currentPage={pagination.currentPage}
-            totalPages={pagination.totalPages}
-            totalCount={pagination.totalCount}
-            startIndex={pagination.startIndex}
-            endIndex={pagination.endIndex}
+            currentPage={safePage}
+            totalPages={totalPages}
+            totalCount={total}
+            startIndex={startIndex}
+            endIndex={endIndex}
             onPageChange={handlePageChange}
-            onPrev={() => handlePageChange(pagination.currentPage - 1)}
-            onNext={() => handlePageChange(pagination.currentPage + 1)}
+            onPrev={() => handlePageChange(safePage - 1)}
+            onNext={() => handlePageChange(safePage + 1)}
           />
         ) : null}
       </div>

@@ -6,15 +6,42 @@ import { transformCheckupGlobal } from "./transforms";
 import type { BackendCheckupGlobal, CheckupFilters } from "./types";
 import type { CheckupRecord } from "./transforms";
 
-const getCheckups = async (filters?: CheckupFilters): Promise<CheckupRecord[]> => {
-  const params: Record<string, string> = {};
+interface CheckupsListResponse {
+  data: BackendCheckupGlobal[];
+  total: number;
+  page: number;
+  limit: number;
+}
+
+// X-16②: BE が実サーバページング封筒 {data,total,page,limit} を返すようになったため、
+// FE も total を捨てず消費する（先例: medical-records の get-medical-records.ts）。
+export interface CheckupsResult {
+  data: CheckupRecord[];
+  total: number;
+  page: number;
+  limit: number;
+}
+
+const DEFAULT_PAGE = 1;
+const DEFAULT_LIMIT = 20;
+
+const getCheckups = async (filters?: CheckupFilters): Promise<CheckupsResult> => {
+  const params: Record<string, string | number> = {
+    page: filters?.page ?? DEFAULT_PAGE,
+    limit: filters?.limit ?? DEFAULT_LIMIT,
+  };
   if (filters?.startDate) params.start_date = filters.startDate;
   if (filters?.endDate) params.end_date = filters.endDate;
   if (filters?.nextStartDate) params.next_start_date = filters.nextStartDate;
   if (filters?.nextEndDate) params.next_end_date = filters.nextEndDate;
 
-  const { data } = await axios.get<{ data: BackendCheckupGlobal[] }>("/v1/checkups", { params });
-  return (data.data ?? []).map(transformCheckupGlobal);
+  const { data } = await axios.get<CheckupsListResponse>("/v1/checkups", { params });
+  return {
+    data: (data.data ?? []).map(transformCheckupGlobal),
+    total: data.total,
+    page: data.page,
+    limit: data.limit,
+  };
 };
 
 export const useGetCheckups = (filters?: CheckupFilters) => {
