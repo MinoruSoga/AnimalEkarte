@@ -8890,29 +8890,6 @@ paths:
           $ref: '#/components/responses/NotFound'
         '500':
           $ref: '#/components/responses/InternalError'
-    delete:
-      operationId: deleteOwnerLstepOptOut
-      summary: Lステップ配信オプトイン（旧エンドポイント）
-      description: BE-017。owners edit 権限が必要。
-      tags: [Owners]
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: integer
-            format: int64
-      responses:
-        '204':
-          description: オプトイン成功
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '404':
-          $ref: '#/components/responses/NotFound'
-        '500':
-          $ref: '#/components/responses/InternalError'
   /owners/{id}/lstep/opt-out:
     patch:
       operationId: patchOwnerLstepOptOut

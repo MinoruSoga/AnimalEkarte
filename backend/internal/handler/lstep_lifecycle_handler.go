@@ -76,24 +76,6 @@ func (h *Handler) PostOwnerLstepOptOut(c *gin.Context) {
 	c.Status(http.StatusNoContent)
 }
 
-// DeleteOwnerLstepOptOut godoc
-// DELETE /owners/:id/lstep-opt-out — オーナーを Lステップ配信にオプトインする（BE-017）。
-func (h *Handler) DeleteOwnerLstepOptOut(c *gin.Context) {
-	clinicID, ok := extractClinicID(c)
-	if !ok {
-		return
-	}
-	ownerID, ok := parseIDParam(c, "id")
-	if !ok {
-		return
-	}
-	if err := h.svc.LstepLifecycle.HandleOwnerOptIn(c.Request.Context(), clinicID, ownerID); err != nil {
-		RespondError(c, err)
-		return
-	}
-	c.Status(http.StatusNoContent)
-}
-
 // PatchOwnerLstepOptOut godoc
 // PATCH /owners/:id/lstep/opt-out — opt_out:true でオプトアウト、false でオプトインする統合エンドポイント（ISSUE-001）。
 func (h *Handler) PatchOwnerLstepOptOut(c *gin.Context) {

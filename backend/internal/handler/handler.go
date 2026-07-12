@@ -160,9 +160,8 @@ func (h *Handler) registerOwnerRoutesWithAuth(rg *gin.RouterGroup) {
 	// ISSUE-001: FE統一エンドポイントのエイリアス
 	owners.PATCH("/:id/line", h.RequirePermission(string(model.ResourceOwners), "edit"), h.PatchOwnerLineUserID)
 	owners.DELETE("/:id/line", h.RequirePermission(string(model.ResourceOwners), "delete"), h.DeleteOwnerLine)
-	// BE-017: Lステップオプトアウト・オプトイン（旧エンドポイント互換保持）
+	// BE-017: Lステップオプトアウト（旧エンドポイント互換保持）
 	owners.POST("/:id/lstep-opt-out", h.RequirePermission(string(model.ResourceOwners), "edit"), h.PostOwnerLstepOptOut)
-	owners.DELETE("/:id/lstep-opt-out", h.RequirePermission(string(model.ResourceOwners), "edit"), h.DeleteOwnerLstepOptOut)
 	// ISSUE-001: 統合opt-outエンドポイント
 	owners.PATCH("/:id/lstep/opt-out", h.RequirePermission(string(model.ResourceOwners), "edit"), h.PatchOwnerLstepOptOut)
 	// FEAT-381: 配信除外・転院・LINE ID確認
@@ -189,7 +188,6 @@ func (h *Handler) registerOwnerRoutesWithAuth(rg *gin.RouterGroup) {
 	co.PATCH("/:id/transfer-status", h.RequirePermission(string(model.ResourceOwners), "edit"), h.PatchOwnerTransferStatus)
 	co.PATCH("/:id/line-id-confirm", h.RequirePermission(string(model.ResourceOwners), "edit"), h.PatchOwnerLineIDConfirm)
 	co.POST("/:id/lstep-opt-out", h.RequirePermission(string(model.ResourceOwners), "edit"), h.PostOwnerLstepOptOut)
-	co.DELETE("/:id/lstep-opt-out", h.RequirePermission(string(model.ResourceOwners), "edit"), h.DeleteOwnerLstepOptOut)
 	co.GET("/:id/lstep/tags", h.RequirePermission(string(model.ResourceOwners), "view"), h.GetOwnerLstepTags)
 	co.POST("/:id/lstep/tags", h.RequirePermission(string(model.ResourceOwners), "edit"), h.PostOwnerLstepTag)
 	co.DELETE("/:id/lstep/tags/:tag_name", h.RequirePermission(string(model.ResourceOwners), "delete"), h.DeleteOwnerLstepTag)

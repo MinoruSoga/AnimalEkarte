@@ -92,7 +92,6 @@ var knownMissingFromSpec = map[string]bool{
 	// GET .../lstep/friend-attributes のみ co-group 限定の実装(canonical 対応なし)だったため
 	// /clinics/{clinic_id}/owners/{id}/lstep/friend-attributes として実際に文書化した
 	// (api.yaml 側を参照。missing から除外済み)。
-	"DELETE /api/v1/clinics/{clinic_id}/owners/{id}/lstep-opt-out":         true, // alias of documented POST/DELETE /owners/{id}/lstep-opt-out
 	"DELETE /api/v1/clinics/{clinic_id}/owners/{id}/lstep/tags/{tag_name}": true, // alias of documented DELETE /owners/{id}/lstep/tags/{tag_name}
 	"GET /api/v1/clinics/{clinic_id}/owners/{id}/line/send-logs":           true, // alias of documented GET /owners/{id}/line/send-logs
 	"GET /api/v1/clinics/{clinic_id}/owners/{id}/lstep/tags":               true, // alias of documented GET /owners/{id}/lstep/tags

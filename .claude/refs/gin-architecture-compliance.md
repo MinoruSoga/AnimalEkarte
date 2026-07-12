@@ -146,6 +146,13 @@ masters.DELETE("/vaccines/:id", RequirePermission("delete"), h.Delete)
 masters.DELETE("/vaccines/:id", RequirePermission("edit"), h.Delete)
 ```
 
+**例外（PO 決定 2026-07-12・BE-refactor.md X-15）**: `pets.DELETE("/:id/death")` /
+`clinicPets.DELETE("/:id/death")`（`pet_handler.go`）は死亡記録の解除という PATCH 相当の
+状態トグルであり、リソース自体を削除しないため `edit` を要求する。edit 可・delete 不可の
+一般ロールでも「死亡記録を解除」ボタン（FE `PetDeceasedBanner.tsx`、`canEdit` で表示制御）を
+操作できる現行 UX を保つための意図的な例外。新規 DELETE ルートの正当化には使えない
+（この 1 件のみの例外であり、他の DELETE には引き続き `delete` を要求する）。
+
 ---
 
 ## P7: toXxxResponse() conversion in handler (Handler)
