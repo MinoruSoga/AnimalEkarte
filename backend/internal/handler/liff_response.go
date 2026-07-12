@@ -2,7 +2,7 @@ package handler
 
 import (
 	"encoding/json"
-	"fmt"
+	"strconv"
 	"time"
 
 	"github.com/animal-ekarte/backend/internal/model"
@@ -260,7 +260,7 @@ func toLiffHealthCardResponse(r *service.HealthCardResult) liffHealthCardRespons
 			})
 		}
 		pets = append(pets, liffHealthCardPetResponse{
-			PetID:                    fmt.Sprintf("%d", p.PetID),
+			PetID:                    strconv.FormatUint(p.PetID, 10),
 			PetName:                  p.PetName,
 			Species:                  p.Species,
 			Breed:                    p.Breed,
