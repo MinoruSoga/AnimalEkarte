@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
+import { queryKeys } from "@/lib/query-keys";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 import { HISTORY_FETCH_LIMIT } from "@/config/fetch-limits";
 import { transformTrimming, type TrimmingUI } from "@/lib/transforms/trimming";
@@ -31,7 +32,7 @@ const getPetTrimmingHistory = async (petId: string): Promise<TrimmingUI[]> => {
 
 export const useGetPetTrimmingHistory = (petId?: string) => {
   return useQuery({
-    queryKey: ["pet-trimmings", "report", petId],
+    queryKey: queryKeys.petTrimmingHistory(petId!),
     queryFn: () => getPetTrimmingHistory(petId!),
     enabled: !!petId,
     staleTime: QUERY_STALE_TIMES.MEDIUM,

@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
+import { queryKeys } from "@/lib/query-keys";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 import { HISTORY_FETCH_LIMIT } from "@/config/fetch-limits";
 import { toJSTWallDate } from "@/lib/jst-date";
@@ -115,7 +116,7 @@ export const useGetPetTreatmentHistory = (
   options: TreatmentHistoryOptions = {},
 ) => {
   return useQuery({
-    queryKey: ["pet-treatment-history", petId, filter, options],
+    queryKey: queryKeys.petTreatmentHistory(petId!, filter, options),
     queryFn: () => getPetTreatmentHistory(petId!, filter, options),
     enabled: !!petId,
     staleTime: QUERY_STALE_TIMES.MEDIUM,

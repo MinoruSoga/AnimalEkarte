@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
+import { queryKeys } from "@/lib/query-keys";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 
 /** GET /v1/pets/:id/first-visit のレスポンス（バックエンド petFirstVisitResponse に対応）。 */
@@ -15,7 +16,7 @@ interface PetFirstVisitResponse {
  */
 export const useGetPetFirstVisit = (petId: string | undefined) => {
   return useQuery({
-    queryKey: ["pet-first-visit", petId],
+    queryKey: queryKeys.petFirstVisit(petId!),
     queryFn: async (): Promise<string | null> => {
       const { data } = await axios.get<PetFirstVisitResponse>(`/v1/pets/${petId}/first-visit`);
       return data.first_visit_date;
