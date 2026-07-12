@@ -5,6 +5,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 import { handleApiError } from "@/lib/handle-api-error";
+import { queryKeys } from "@/lib/query-keys";
 
 // Relative
 import type {
@@ -25,7 +26,7 @@ const getTreatments = async (medicalRecordId: string): Promise<Treatment[]> => {
 
 export const useGetTreatments = (medicalRecordId: string) => {
   return useQuery({
-    queryKey: ["treatments", medicalRecordId],
+    queryKey: queryKeys.medicalRecords.treatments(medicalRecordId),
     queryFn: () => getTreatments(medicalRecordId),
     enabled: !!medicalRecordId,
     staleTime: QUERY_STALE_TIMES.REALTIME,
@@ -44,7 +45,7 @@ export const useCreateTreatment = (medicalRecordId: string) => {
         .post<Treatment>(`/v1/medical-records/${medicalRecordId}/treatments`, input)
         .then((r) => r.data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["treatments", medicalRecordId] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.medicalRecords.treatments(medicalRecordId) });
     },
     onError: (error) => {
       handleApiError(error, "治療追加");
@@ -66,7 +67,7 @@ export const useUpdateTreatment = (medicalRecordId: string) => {
         )
         .then((r) => r.data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["treatments", medicalRecordId] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.medicalRecords.treatments(medicalRecordId) });
     },
     onError: (error) => {
       handleApiError(error, "治療更新");
@@ -83,7 +84,7 @@ export const useDeleteTreatment = (medicalRecordId: string) => {
     mutationFn: (treatmentId: string) =>
       axios.delete(`/v1/medical-records/${medicalRecordId}/treatments/${treatmentId}`),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["treatments", medicalRecordId] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.medicalRecords.treatments(medicalRecordId) });
     },
     onError: (error) => {
       handleApiError(error, "治療削除");
@@ -111,7 +112,7 @@ export const useReorderTreatments = (medicalRecordId: string) => {
       );
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["treatments", medicalRecordId] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.medicalRecords.treatments(medicalRecordId) });
     },
     onError: (error) => {
       handleApiError(error, "治療並び替え");

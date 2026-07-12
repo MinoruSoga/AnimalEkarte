@@ -5,6 +5,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 import { handleApiError } from "@/lib/handle-api-error";
+import { queryKeys } from "@/lib/query-keys";
 
 // ── Types ──────────────────────────────────────────────────────────────
 
@@ -65,7 +66,7 @@ const getCheckups = async (medicalRecordId: string): Promise<Checkup[]> => {
 
 export const useGetCheckups = (medicalRecordId: string) => {
   return useQuery({
-    queryKey: ["checkups", medicalRecordId],
+    queryKey: queryKeys.medicalRecords.checkups(medicalRecordId),
     queryFn: () => getCheckups(medicalRecordId),
     enabled: !!medicalRecordId,
     staleTime: QUERY_STALE_TIMES.REALTIME,
@@ -84,7 +85,7 @@ export const useCreateCheckup = (medicalRecordId: string) => {
         .post<Checkup>(`/v1/medical-records/${medicalRecordId}/checkups`, input)
         .then((r) => r.data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["checkups", medicalRecordId] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.medicalRecords.checkups(medicalRecordId) });
     },
     onError: (error) => {
       handleApiError(error, "検査結果追加");
@@ -106,7 +107,7 @@ export const useUpdateCheckup = (medicalRecordId: string) => {
         )
         .then((r) => r.data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["checkups", medicalRecordId] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.medicalRecords.checkups(medicalRecordId) });
     },
     onError: (error) => {
       handleApiError(error, "検査結果更新");
@@ -123,7 +124,7 @@ export const useDeleteCheckup = (medicalRecordId: string) => {
     mutationFn: (checkupId: string) =>
       axios.delete(`/v1/medical-records/${medicalRecordId}/checkups/${checkupId}`),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["checkups", medicalRecordId] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.medicalRecords.checkups(medicalRecordId) });
     },
     onError: (error) => {
       handleApiError(error, "検査結果削除");

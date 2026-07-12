@@ -2,6 +2,7 @@ import { useActionState, useEffect, useRef } from "react";
 import type { QueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { handleApiError } from "@/lib/handle-api-error";
+import { queryKeys } from "@/lib/query-keys";
 import type { UpdateMedicalRecordRequest } from "../api/types";
 import type { ActionState } from "@/types/form";
 import { INITIAL_ACTION_STATE } from "@/types/form";
@@ -131,7 +132,7 @@ export function useMedicalRecordSaveAction({
         }
 
         toast.success("保存しました");
-        queryClient.invalidateQueries({ queryKey: ["reception"] });
+        queryClient.invalidateQueries({ queryKey: queryKeys.reception.all() });
         return { success: true, timestamp: Date.now() };
       } catch (error) {
         handleApiError(error, "保存");

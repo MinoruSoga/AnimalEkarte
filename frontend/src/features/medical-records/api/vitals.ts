@@ -5,6 +5,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 import { handleApiError } from "@/lib/handle-api-error";
+import { queryKeys } from "@/lib/query-keys";
 
 // Relative
 import type { Vital, CreateVitalInput, UpdateVitalInput } from "../types";
@@ -20,7 +21,7 @@ const getVitals = async (medicalRecordId: string): Promise<Vital[]> => {
 
 export const useGetVitals = (medicalRecordId: string) => {
   return useQuery({
-    queryKey: ["vitals", medicalRecordId],
+    queryKey: queryKeys.medicalRecords.vitals(medicalRecordId),
     queryFn: () => getVitals(medicalRecordId),
     enabled: !!medicalRecordId,
     staleTime: QUERY_STALE_TIMES.REALTIME,
@@ -39,7 +40,7 @@ export const useCreateVital = (medicalRecordId: string) => {
         .post<Vital>(`/v1/medical-records/${medicalRecordId}/vitals`, input)
         .then((r) => r.data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["vitals", medicalRecordId] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.medicalRecords.vitals(medicalRecordId) });
     },
     onError: (error) => {
       handleApiError(error, "バイタル追加");
@@ -61,7 +62,7 @@ export const useUpdateVital = (medicalRecordId: string) => {
         )
         .then((r) => r.data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["vitals", medicalRecordId] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.medicalRecords.vitals(medicalRecordId) });
     },
     onError: (error) => {
       handleApiError(error, "バイタル更新");
@@ -78,7 +79,7 @@ export const useDeleteVital = (medicalRecordId: string) => {
     mutationFn: (vitalId: string) =>
       axios.delete(`/v1/medical-records/${medicalRecordId}/vitals/${vitalId}`),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["vitals", medicalRecordId] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.medicalRecords.vitals(medicalRecordId) });
     },
     onError: (error) => {
       handleApiError(error, "バイタル削除");

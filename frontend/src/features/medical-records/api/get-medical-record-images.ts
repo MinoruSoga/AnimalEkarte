@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
+import { queryKeys } from "@/lib/query-keys";
 import type { MedicalRecordImage } from "@/types/generated/models";
 
 function transformImageGalleryItem(img: MedicalRecordImage) {
@@ -59,7 +60,7 @@ const getMedicalRecordImages = async (
 
 export const useGetMedicalRecordImages = (medicalRecordId?: string) => {
   return useQuery({
-    queryKey: ["record-images", medicalRecordId],
+    queryKey: queryKeys.medicalRecords.images(medicalRecordId!),
     queryFn: () => getMedicalRecordImages(medicalRecordId!),
     enabled: !!medicalRecordId,
     staleTime: QUERY_STALE_TIMES.MEDIUM,

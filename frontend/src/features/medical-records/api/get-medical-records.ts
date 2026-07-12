@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
+import { queryKeys } from "@/lib/query-keys";
 import { transformMedicalRecord, transformToHistoryItem } from "./transforms";
 import type { MedicalRecord } from "./transforms";
 import type { BackendMedicalRecord } from "./types";
@@ -77,7 +78,7 @@ const getMedicalRecords = async (
 
 export const useGetMedicalRecords = (filters?: MedicalRecordFilters) => {
   return useQuery({
-    queryKey: ["medical-records", filters],
+    queryKey: queryKeys.medicalRecords.list(filters),
     queryFn: () => getMedicalRecords(filters),
     staleTime: QUERY_STALE_TIMES.MEDIUM,
     gcTime: QUERY_GC_TIMES.STANDARD,
@@ -90,7 +91,7 @@ export const useGetPetMedicalHistory = (
   excludeRecordId?: string,
 ): { historyItems: InterviewHistoryItem[]; isLoading: boolean } => {
   const { data, isLoading } = useQuery({
-    queryKey: ["medical-records", "history", petId],
+    queryKey: queryKeys.medicalRecords.history(petId!),
     queryFn: async () => {
       const params: Record<string, string> = { limit: "50", page: "1" };
       if (petId) params.pet_id = petId;

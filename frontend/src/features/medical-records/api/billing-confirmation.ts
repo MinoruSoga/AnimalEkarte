@@ -10,9 +10,6 @@ import { queryKeys } from "@/lib/query-keys";
 // Relative
 import type { BillingConfirmation, ReturnBillingConfirmationInput } from "../types";
 
-const billingConfirmationQueryKey = (medicalRecordId: string) =>
-  ["medical-record", medicalRecordId, "billing-confirmation"] as const;
-
 // GET /v1/medical-records/:id/billing-confirmation
 const getBillingConfirmation = async (medicalRecordId: string): Promise<BillingConfirmation> => {
   const { data } = await axios.get<BillingConfirmation>(
@@ -23,7 +20,7 @@ const getBillingConfirmation = async (medicalRecordId: string): Promise<BillingC
 
 export function useGetBillingConfirmation(medicalRecordId: string) {
   return useQuery({
-    queryKey: billingConfirmationQueryKey(medicalRecordId),
+    queryKey: queryKeys.medicalRecords.billingConfirmation(medicalRecordId),
     queryFn: () => getBillingConfirmation(medicalRecordId),
     enabled: !!medicalRecordId,
     staleTime: QUERY_STALE_TIMES.REALTIME,
@@ -44,7 +41,7 @@ export function useCreateBillingConfirmation(medicalRecordId: string) {
     onSuccess: () => {
       // Invalidate billing-confirmation cache for current medical record
       void queryClient.invalidateQueries({
-        queryKey: billingConfirmationQueryKey(medicalRecordId),
+        queryKey: queryKeys.medicalRecords.billingConfirmation(medicalRecordId),
       });
       // Invalidate accountings list cache so new billing appears immediately
       void queryClient.invalidateQueries({
@@ -72,7 +69,7 @@ export function useCreateBillingReturn(medicalRecordId: string, userId: number) 
     onSuccess: () => {
       // Invalidate billing-confirmation cache for current medical record
       void queryClient.invalidateQueries({
-        queryKey: billingConfirmationQueryKey(medicalRecordId),
+        queryKey: queryKeys.medicalRecords.billingConfirmation(medicalRecordId),
       });
       // Invalidate accountings list cache in case billing status changes
       void queryClient.invalidateQueries({

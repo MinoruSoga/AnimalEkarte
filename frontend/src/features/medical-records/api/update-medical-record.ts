@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import { handleApiError } from "@/lib/handle-api-error";
+import { queryKeys } from "@/lib/query-keys";
 import { transformMedicalRecord } from "./transforms";
 import type { MedicalRecord } from "./transforms";
 import type { BackendMedicalRecord, UpdateMedicalRecordRequest } from "./types";
@@ -23,8 +24,8 @@ export const useUpdateMedicalRecord = () => {
     mutationFn: ({ id, req }: { id: string; req: UpdateMedicalRecordRequest }) =>
       updateMedicalRecord(id, req),
     onSuccess: (_data, { id }) => {
-      queryClient.invalidateQueries({ queryKey: ["medical-records"] });
-      queryClient.invalidateQueries({ queryKey: ["medical-record", id] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.medicalRecords.all() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.medicalRecords.detail(id) });
     },
     onError: (error) => {
       handleApiError(error, "更新");

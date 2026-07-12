@@ -2,6 +2,7 @@ import { useCallback, useTransition } from "react";
 import type { QueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { handleApiError } from "@/lib/handle-api-error";
+import { queryKeys } from "@/lib/query-keys";
 import type { UpdateMedicalRecordRequest } from "../api/types";
 import { toVisitTypeValue } from "./use-medical-record-form-model";
 
@@ -90,7 +91,7 @@ export function useMedicalRecordQuickPatchActions({
             version: existingRecordVersion,
           } as UpdateMedicalRecordRequest,
         });
-        await queryClient.invalidateQueries({ queryKey: ["medical-record", recordId] });
+        await queryClient.invalidateQueries({ queryKey: queryKeys.medicalRecords.detail(recordId) });
         toast.success(newDate ? `次回予定を ${newDate} に設定しました` : "次回予定をクリアしました");
       } catch (error) {
         setNextVisitDate(prev); // rollback
@@ -113,7 +114,7 @@ export function useMedicalRecordQuickPatchActions({
             version: existingRecordVersion,
           } as UpdateMedicalRecordRequest,
         });
-        await queryClient.invalidateQueries({ queryKey: ["medical-record", recordId] });
+        await queryClient.invalidateQueries({ queryKey: queryKeys.medicalRecords.detail(recordId) });
         toast.success(`診察日を ${newDate} に変更しました`);
       } catch (error) {
         handleApiError(error, "診察日変更");

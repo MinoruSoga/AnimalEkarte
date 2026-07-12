@@ -57,7 +57,7 @@ export const useGetDiagnosisTypes = () =>
 
 export const useGetDiagnosisNames = (typeId?: number | null) =>
   useQuery({
-    queryKey: ["masters", "diagnosis-names", typeId ?? null],
+    queryKey: queryKeys.masters.diagnosisNames(typeId),
     queryFn: () => getDiagnosisNames(typeId),
     staleTime: QUERY_STALE_TIMES.STATIC,
     gcTime: QUERY_GC_TIMES.LONG,

@@ -4,6 +4,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 // Internal
 import { axios } from "@/lib/axios";
 import { handleApiError } from "@/lib/handle-api-error";
+import { queryKeys } from "@/lib/query-keys";
 
 // Relative
 import type { MedicalRecordImage } from "@/types/generated/models";
@@ -32,7 +33,7 @@ export const useCreateMedicalRecordImages = (medicalRecordId: string) => {
       Promise.all(files.map((f) => uploadImage(medicalRecordId, f))),
     onSuccess: () => {
       queryClient.invalidateQueries({
-        queryKey: ["record-images", medicalRecordId],
+        queryKey: queryKeys.medicalRecords.images(medicalRecordId),
       });
     },
     onError: (error) => {
@@ -59,7 +60,7 @@ export const useDeleteImage = (medicalRecordId: string) => {
     mutationFn: (imageId: number) => deleteImage(medicalRecordId, imageId),
     onSuccess: () => {
       queryClient.invalidateQueries({
-        queryKey: ["record-images", medicalRecordId],
+        queryKey: queryKeys.medicalRecords.images(medicalRecordId),
       });
     },
     onError: (error) => {

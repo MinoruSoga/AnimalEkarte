@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
+import { queryKeys } from "@/lib/query-keys";
 import type { Examination } from "@/types/generated/models";
 import { transformExamResult, type ExamResult } from "@/lib/transforms/examination";
 
@@ -41,7 +42,7 @@ const getRecordExaminations = async (
 
 export const useGetRecordExaminations = (petId?: string) => {
   return useQuery({
-    queryKey: ["examinations", "pet", petId],
+    queryKey: queryKeys.examinations.byPet(petId!),
     queryFn: () => getRecordExaminations(petId!),
     enabled: !!petId,
     staleTime: QUERY_STALE_TIMES.MEDIUM,

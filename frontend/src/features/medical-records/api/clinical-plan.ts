@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { axios } from "@/lib/axios";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 import { handleApiError } from "@/lib/handle-api-error";
+import { queryKeys } from "@/lib/query-keys";
 
 // ── Types ─────────────────────────────────────────────────────────────
 
@@ -59,7 +60,7 @@ const getClinicalPlan = async (medicalRecordId: string): Promise<ClinicalPlan> =
 
 export const useGetClinicalPlan = (medicalRecordId: string) => {
   return useQuery({
-    queryKey: ["clinical-plan", medicalRecordId],
+    queryKey: queryKeys.medicalRecords.clinicalPlan(medicalRecordId),
     queryFn: () => getClinicalPlan(medicalRecordId),
     enabled: !!medicalRecordId,
     staleTime: QUERY_STALE_TIMES.REALTIME,
@@ -81,7 +82,7 @@ export const useUpdateClinicalPlan = (medicalRecordId: string) => {
         )
         .then((r) => r.data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["clinical-plan", medicalRecordId] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.medicalRecords.clinicalPlan(medicalRecordId) });
       toast.success("保存しました");
     },
     onError: (error) => {
