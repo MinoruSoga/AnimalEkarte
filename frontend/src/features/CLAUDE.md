@@ -14,6 +14,9 @@ features/
     │   └── OwnerForm.tsx
     ├── hooks/
     │   └── use-owners.ts
+    ├── routes/
+    │   └── OwnerForm.tsx   ← ルートコンポーネント（react-router の要素）
+    ├── loaders.ts          ← react-router ローダー（owners のみが使う例外的パターン）
     └── types/
         └── index.ts
 ```

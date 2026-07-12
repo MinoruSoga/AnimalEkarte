@@ -88,6 +88,11 @@ docker compose exec frontend pnpm type-check
 docker compose exec frontend pnpm install
 ```
 
+## Test 配置 (MANDATORY)
+
+- テストはテスト対象ファイルに隣接配置する（`Foo.tsx` → `Foo.test.tsx`、同一ディレクトリ）。
+- `__tests__/` ディレクトリは新設禁止（FE5-23 で全廃済み）。
+
 ## Scoped Test Verification (MANDATORY)
 
 - `docker compose exec frontend pnpm test:run -- <path>` は罠 — `--` 以降のパスがスコープ指定として渡らず全件実行になる。スコープ限定したい場合は必ず `docker compose exec frontend npx vitest run <path>` を使うこと（`.claude/skills/scoped-verification-gates/SKILL.md` と整合）。
