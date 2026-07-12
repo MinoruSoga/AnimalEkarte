@@ -205,6 +205,22 @@ func TestRespondErrorWithExtras_NotFoundEmptyMessageUsesDefault(t *testing.T) {
 	assert.Contains(t, w.Body.String(), "resource not found")
 }
 
+// TestRespondError_NotImplementedIgnoresCustomMessage は WrapNotImplemented(customMsg) の
+// customMsg がレスポンス本文に反映されず、常に固定メッセージ "not implemented" になる
+// ことを検証する（reservation_handler.go 等の既存呼出元の挙動を A-2 の統一で変えないための
+// リグレッション防止。resolveErrorResponse の他ケースと異なり、この 1 ケースだけは
+// 統一前から appErr.Message を無視する仕様だった）。
+func TestRespondError_NotImplementedIgnoresCustomMessage(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	c, w := newTestContext()
+
+	RespondError(c, apperrors.WrapNotImplemented("この機能は未実装です"))
+
+	assert.Equal(t, http.StatusNotImplemented, w.Code)
+	assert.Contains(t, w.Body.String(), "not implemented")
+	assert.NotContains(t, w.Body.String(), "この機能は未実装です")
+}
+
 func TestParsePagination(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 

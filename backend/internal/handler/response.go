@@ -62,8 +62,15 @@ func resolveErrorResponse(err error) (status int, message, code string) {
 		status = http.StatusForbidden
 		message, code = appMessageAndCode(hasApp, appErr, "forbidden")
 	case errors.Is(err, apperrors.ErrNotImplemented):
+		// NotImplemented は統一前から常に固定メッセージ（appErr.Message を無視）だった。
+		// appMessageAndCode の Message!="" 上書きを適用すると、既存の
+		// WrapNotImplemented(customMsg) 呼出元（reservation_handler.go 等）で
+		// レスポンス本文が意図せず変わるため、この 1 ケースのみ現状維持する。
 		status = http.StatusNotImplemented
-		message, code = appMessageAndCode(hasApp, appErr, "not implemented")
+		message = "not implemented"
+		if hasApp {
+			code = appErr.Code
+		}
 	case errors.Is(err, apperrors.ErrBadGateway):
 		status = http.StatusBadGateway
 		message, code = appMessageAndCode(hasApp, appErr, "bad gateway")
