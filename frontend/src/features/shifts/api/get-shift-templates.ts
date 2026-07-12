@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
+import { queryKeys } from "@/lib/query-keys";
 import type { ShiftTemplate, ShiftType } from "../types";
 
 function normalizeTime(t: string | undefined | null): string {
@@ -63,7 +64,7 @@ async function getShiftTemplates(): Promise<ShiftTemplate[]> {
 
 export function useGetShiftTemplates() {
   return useQuery({
-    queryKey: ["shift-templates"],
+    queryKey: queryKeys.shiftTemplates.all(),
     queryFn: getShiftTemplates,
     staleTime: QUERY_STALE_TIMES.STATIC,
     gcTime: QUERY_GC_TIMES.LONG,

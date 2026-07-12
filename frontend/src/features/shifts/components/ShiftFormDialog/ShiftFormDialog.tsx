@@ -18,6 +18,7 @@ import { updateShift } from "../../api/update-shift";
 import { useDeleteShift } from "../../api/delete-shift";
 import { useGetShiftTemplates } from "../../api/get-shift-templates";
 import { handleApiError } from "@/lib/handle-api-error";
+import { queryKeys } from "@/lib/query-keys";
 
 /**
  * バックエンドから "HH:MM:SS" 形式で来る時刻を "HH:mm" に正規化する。
@@ -126,7 +127,7 @@ export const ShiftFormDialog = memo(function ShiftFormDialog({
           };
           await createShift(input);
         }
-        await queryClient.invalidateQueries({ queryKey: ["shifts"] });
+        await queryClient.invalidateQueries({ queryKey: queryKeys.shifts.all() });
         onClose();
         return {};
       } catch (err) {

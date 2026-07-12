@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import { handleApiError } from "@/lib/handle-api-error";
+import { queryKeys } from "@/lib/query-keys";
 import type { CreateShiftTemplateInput, ShiftTemplate } from "../types";
 
 async function createShiftTemplate(input: CreateShiftTemplateInput): Promise<ShiftTemplate> {
@@ -13,7 +14,7 @@ export function useCreateShiftTemplate() {
   return useMutation({
     mutationFn: createShiftTemplate,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["shift-templates"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.shiftTemplates.all() });
     },
     onError: (error) => handleApiError(error, "シフトテンプレートの作成"),
   });
