@@ -30,3 +30,12 @@ export function formatCurrency(amount: number | undefined | null): string {
 
   return `¥${amount.toLocaleString("ja-JP")}`;
 }
+
+/**
+ * 通貨フォーマット（正の金額のみ表示、0・負値・null/undefined は "-"）。
+ * 画面の `x > 0 ? ¥... : "-"` インライン分岐の正本（FE5-12）
+ */
+export function formatCurrencyOrDash(amount: number | undefined | null): string {
+  if (amount === undefined || amount === null || amount <= 0) return "-";
+  return formatCurrency(amount);
+}
