@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 // Internal
 import { axios } from "@/lib/axios";
+import { queryKeys } from "@/lib/query-keys";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 import { handleApiError } from "@/lib/handle-api-error";
 
@@ -62,13 +63,6 @@ export interface UpdateCarePlanItemInput {
     sort_order?: number;
 }
 
-// ---- Query Keys ----
-
-const carePlanItemKeys = {
-    all: (hospitalizationId: string) =>
-        ["hospitalizations", hospitalizationId, "care-plan-items"] as const,
-};
-
 // ---- Fetchers ----
 
 const listCarePlanItems = async (hospitalizationId: string): Promise<CarePlanItem[]> => {
@@ -112,7 +106,7 @@ const deleteCarePlanItem = async (
 
 export function useGetCarePlanItems(hospitalizationId: string) {
     return useQuery({
-        queryKey: carePlanItemKeys.all(hospitalizationId),
+        queryKey: queryKeys.hospitalizations.carePlanItems(hospitalizationId),
         queryFn: () => listCarePlanItems(hospitalizationId),
         enabled: !!hospitalizationId,
         staleTime: QUERY_STALE_TIMES.REALTIME,
@@ -127,7 +121,7 @@ export function useCreateCarePlanItem(hospitalizationId: string) {
             createCarePlanItem(hospitalizationId, input),
         onSuccess: () => {
             queryClient.invalidateQueries({
-                queryKey: carePlanItemKeys.all(hospitalizationId),
+                queryKey: queryKeys.hospitalizations.carePlanItems(hospitalizationId),
             });
         },
         onError: (error: unknown) => {
@@ -143,7 +137,7 @@ export function useUpdateCarePlanItem(hospitalizationId: string) {
             updateCarePlanItem(hospitalizationId, itemId, input),
         onSuccess: () => {
             queryClient.invalidateQueries({
-                queryKey: carePlanItemKeys.all(hospitalizationId),
+                queryKey: queryKeys.hospitalizations.carePlanItems(hospitalizationId),
             });
         },
         onError: (error: unknown) => {
@@ -158,7 +152,7 @@ export function useDeleteCarePlanItem(hospitalizationId: string) {
         mutationFn: (itemId: string) => deleteCarePlanItem(hospitalizationId, itemId),
         onSuccess: () => {
             queryClient.invalidateQueries({
-                queryKey: carePlanItemKeys.all(hospitalizationId),
+                queryKey: queryKeys.hospitalizations.carePlanItems(hospitalizationId),
             });
         },
         onError: (error: unknown) => {

@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import { handleApiError } from "@/lib/handle-api-error";
+import { queryKeys } from "@/lib/query-keys";
 import { transformHospitalization } from "./transforms";
 import type { Hospitalization } from "./transforms";
 import type {
@@ -43,9 +44,9 @@ export const useUpdateHospitalization = () => {
       req: UpdateHospitalizationRequest;
     }) => updateHospitalization(id, req),
     onSuccess: (_, { id }) => {
-      queryClient.invalidateQueries({ queryKey: ["hospitalizations"] });
-      queryClient.invalidateQueries({ queryKey: ["hospitalization", id] });
-      queryClient.invalidateQueries({ queryKey: ["hospitalization", "raw", id] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.hospitalizations.all() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.hospitalizations.detail(id) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.hospitalizations.detailRaw(id) });
     },
     onError: (error) => {
       handleApiError(error, "更新");
