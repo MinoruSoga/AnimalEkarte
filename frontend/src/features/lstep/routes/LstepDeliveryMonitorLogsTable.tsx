@@ -1,4 +1,4 @@
-import { Button } from "@/components/ui/button";
+import { Pagination } from "@/components/shared/Pagination";
 import { BADGE, C, STYLE } from "@/lib/design-tokens";
 
 import type { DeliveryTriggerLogsPageResponse } from "../api/get-lstep-delivery-trigger-logs";
@@ -47,7 +47,7 @@ export function DeliveryLogsTable({
       </div>
 
       {logsPage !== undefined && logsPage.total > 0 ? (
-        <DeliveryLogsPagination
+        <DeliveryLogsPaginationBar
           logsPage={logsPage}
           page={page}
           totalPages={totalPages}
@@ -104,7 +104,7 @@ function DeliveryLogsTableBody({
   });
 }
 
-interface DeliveryLogsPaginationProps {
+interface DeliveryLogsPaginationBarProps {
   logsPage: DeliveryTriggerLogsPageResponse;
   page: number;
   totalPages: number;
@@ -112,39 +112,44 @@ interface DeliveryLogsPaginationProps {
   onNextPage: () => void;
 }
 
-function DeliveryLogsPagination({
+function DeliveryLogsPaginationBar({
   logsPage,
   page,
   totalPages,
   onPreviousPage,
   onNextPage,
-}: DeliveryLogsPaginationProps) {
+}: DeliveryLogsPaginationBarProps) {
+  const totalCount = logsPage.total;
+  const perPage = logsPage.per_page;
+  const startIndex = totalCount === 0 ? 0 : (page - 1) * perPage + 1;
+  const endIndex = Math.min(page * perPage, totalCount);
+
+  // FE5-15: サーバ側ページネーション（logsPage は現在ページの items のみ保持）のため
+  // usePagination（クライアント側の配列全件を必要とする）は使えない。<Pagination> の
+  // onPageChange（ページ番号ジャンプ・先頭/末尾ボタン）は既存の onPreviousPage/onNextPage
+  // （関数更新型 setPage を親で保持）を目標ページまで多重呼び出しすることで実現し、
+  // 親（LstepDeliveryMonitorPage.tsx）の状態管理・API呼び出しロジックには一切触れない。
+  const onPageChange = (target: number) => {
+    const diff = target - page;
+    if (diff > 0) {
+      for (let i = 0; i < diff; i++) onNextPage();
+    } else if (diff < 0) {
+      for (let i = 0; i < -diff; i++) onPreviousPage();
+    }
+  };
+
   return (
-    <div className={`flex items-center justify-between px-4 py-2 border-t ${C.borderLight}`}>
-      <p className={`text-sm ${C.text50}`}>全 {logsPage.total.toLocaleString("ja-JP")} 件</p>
-      <div className="flex items-center gap-2">
-        <Button
-          variant="outline"
-          className="h-8 px-3 text-sm"
-          disabled={page <= 1}
-          onClick={onPreviousPage}
-          data-testid="pagination-prev"
-        >
-          前へ
-        </Button>
-        <span className={`text-sm ${C.text70}`}>
-          {page} / {totalPages}
-        </span>
-        <Button
-          variant="outline"
-          className="h-8 px-3 text-sm"
-          disabled={page >= totalPages}
-          onClick={onNextPage}
-          data-testid="pagination-next"
-        >
-          次へ
-        </Button>
-      </div>
+    <div className={`border-t ${C.borderLight}`}>
+      <Pagination
+        currentPage={page}
+        totalPages={totalPages}
+        totalCount={totalCount}
+        startIndex={startIndex}
+        endIndex={endIndex}
+        onPageChange={onPageChange}
+        onPrev={onPreviousPage}
+        onNext={onNextPage}
+      />
     </div>
   );
 }

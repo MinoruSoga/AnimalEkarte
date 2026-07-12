@@ -317,7 +317,8 @@ describe("LstepDeliveryMonitorPage — F: ページネーション", () => {
 
   it("全件数が正しく表示される", async () => {
     await renderAndWait();
-    expect(screen.getByText(/全\s*2\s*件/)).toBeInTheDocument();
+    // FE5-15: 正本 Pagination の文言は「全 N 件」ではなく「件数中 開始-終了件」
+    expect(screen.getByText("2件中 1-2件")).toBeInTheDocument();
   });
 
   it("「次へ」をクリックするとページ番号が 2 になる", async () => {
@@ -352,7 +353,8 @@ describe("LstepDeliveryMonitorPage — F: ページネーション", () => {
     await user.click(screen.getByTestId("pagination-next"));
 
     await waitFor(() => {
-      expect(screen.getByText("2 / 3")).toBeInTheDocument();
+      // FE5-15: 正本 Pagination の文言は「X / Y」ではなく「件数中 開始-終了件」
+      expect(screen.getByText("50件中 21-40件")).toBeInTheDocument();
     });
   });
 });

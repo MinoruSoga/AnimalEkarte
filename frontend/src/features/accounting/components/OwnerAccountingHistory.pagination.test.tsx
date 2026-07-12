@@ -46,7 +46,8 @@ describe("OwnerAccountingHistory", () => {
       );
       render(<OwnerAccountingHistory ownerId={mockOwnerId} />, { wrapper: createWrapper() });
       await screen.findByRole("navigation", { name: "ページネーション" });
-      expect(screen.getByText(/1 \/ 2 ページ/)).toBeInTheDocument();
+      // FE5-15: 正本 Pagination の文言は「X / Y ページ」ではなく「件数中 開始-終了件」
+      expect(screen.getByText("12件中 1-10件")).toBeInTheDocument();
     });
 
     it("ページ 1 では前のページボタンが無効で最新 10 件が表示される", async () => {
@@ -94,7 +95,7 @@ describe("OwnerAccountingHistory", () => {
 
       expect(screen.getByRole("button", { name: "次のページ" })).toBeDisabled();
       expect(screen.getByRole("button", { name: "前のページ" })).toBeEnabled();
-      expect(screen.getByText(/2 \/ 2 ページ/)).toBeInTheDocument();
+      expect(screen.getByText("12件中 11-12件")).toBeInTheDocument();
     });
 
     it("前のページへ戻るとページ 1 の内容が再表示される", async () => {
@@ -117,7 +118,7 @@ describe("OwnerAccountingHistory", () => {
       expect(idCells.map((c) => c.textContent)).toContain("211");
       expect(idCells.map((c) => c.textContent)).not.toContain("200");
       expect(idCells).toHaveLength(10);
-      expect(screen.getByText(/1 \/ 2 ページ/)).toBeInTheDocument();
+      expect(screen.getByText("12件中 1-10件")).toBeInTheDocument();
     });
 
     it("ソートフィールド変更でページ 1 にリセットされる", async () => {
@@ -132,12 +133,12 @@ describe("OwnerAccountingHistory", () => {
       await screen.findByRole("navigation", { name: "ページネーション" });
 
       await user.click(screen.getByRole("button", { name: "次のページ" }));
-      expect(screen.getByText(/2 \/ 2 ページ/)).toBeInTheDocument();
+      expect(screen.getByText("12件中 11-12件")).toBeInTheDocument();
 
       await user.click(screen.getByRole("combobox", { name: "ソート項目" }));
       await user.click(screen.getByRole("option", { name: "金額" }));
 
-      expect(screen.getByText(/1 \/ 2 ページ/)).toBeInTheDocument();
+      expect(screen.getByText("12件中 1-10件")).toBeInTheDocument();
     });
 
     it("ソート方向切替でページ 1 にリセットされる", async () => {
@@ -152,10 +153,10 @@ describe("OwnerAccountingHistory", () => {
       await screen.findByRole("navigation", { name: "ページネーション" });
 
       await user.click(screen.getByRole("button", { name: "次のページ" }));
-      expect(screen.getByText(/2 \/ 2 ページ/)).toBeInTheDocument();
+      expect(screen.getByText("12件中 11-12件")).toBeInTheDocument();
 
       await user.click(screen.getByRole("button", { name: /降順 — クリックで昇順に切替/ }));
-      expect(screen.getByText(/1 \/ 2 ページ/)).toBeInTheDocument();
+      expect(screen.getByText("12件中 1-10件")).toBeInTheDocument();
     });
   });
 
@@ -215,7 +216,7 @@ describe("OwnerAccountingHistory", () => {
       render(<OwnerAccountingHistory ownerId={mockOwnerId} />, {
         wrapper: createWrapper(["/?ah_page=2"]),
       });
-      await screen.findByText(/2 \/ 2 ページ/);
+      await screen.findByText("12件中 11-12件");
       const idCells = screen.getAllByRole("cell").filter((c) =>
         /^2[01]\d$/.test(c.textContent ?? ""),
       );
@@ -310,7 +311,7 @@ describe("OwnerAccountingHistory", () => {
       await user.click(screen.getByRole("option", { name: "金額" }));
 
       expect(screen.getByTestId("search-params")).not.toHaveTextContent("ah_page");
-      expect(screen.getByText(/1 \/ 2 ページ/)).toBeInTheDocument();
+      expect(screen.getByText("12件中 1-10件")).toBeInTheDocument();
     });
   });
 
@@ -393,7 +394,7 @@ describe("OwnerAccountingHistory", () => {
       await user.click(screen.getByRole("button", { name: /先頭の未払い行を確認する/ }));
 
       // ページ 2 に切り替わり、未払い行にフォーカスが移る
-      await screen.findByText(/2 \/ 2 ページ/);
+      await screen.findByText("11件中 11-11件");
       const targetRow = screen.getByTestId("first-unpaid-row");
       expect(window.HTMLElement.prototype.scrollIntoView).toHaveBeenCalledTimes(1);
       expect(targetRow).toHaveFocus();

@@ -76,6 +76,8 @@ export const Pagination = memo(function Pagination({
           className={STYLE.paginationBtn}
           onClick={() => onPageChange(1)}
           disabled={currentPage === 1}
+          aria-label="最初のページ"
+          data-testid="pagination-first"
         >
           <ChevronsLeft className={ICON.action} />
         </Button>
@@ -87,6 +89,8 @@ export const Pagination = memo(function Pagination({
           className={STYLE.paginationBtn}
           onClick={onPrev}
           disabled={currentPage === 1}
+          aria-label="前のページ"
+          data-testid="pagination-prev"
         >
           <ChevronLeft className={ICON.action} />
         </Button>
@@ -124,6 +128,8 @@ export const Pagination = memo(function Pagination({
           className={STYLE.paginationBtn}
           onClick={onNext}
           disabled={currentPage === totalPages}
+          aria-label="次のページ"
+          data-testid="pagination-next"
         >
           <ChevronRight className={ICON.action} />
         </Button>
@@ -135,6 +141,8 @@ export const Pagination = memo(function Pagination({
           className={STYLE.paginationBtn}
           onClick={() => onPageChange(totalPages)}
           disabled={currentPage === totalPages}
+          aria-label="最後のページ"
+          data-testid="pagination-last"
         >
           <ChevronsRight className={ICON.action} />
         </Button>

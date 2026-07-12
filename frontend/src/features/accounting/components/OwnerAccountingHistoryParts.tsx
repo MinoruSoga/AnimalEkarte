@@ -1,7 +1,7 @@
 import { memo } from "react";
 import type React from "react";
 import { Link } from "react-router";
-import { AlertTriangle, ArrowDown, ArrowUp, ChevronLeft, ChevronRight, FileText, Receipt } from "lucide-react";
+import { AlertTriangle, ArrowDown, ArrowUp, ChevronRight, FileText, Receipt } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -158,56 +158,6 @@ export function AccountingHistoryTable({
         </TableBody>
       </Table>
     </div>
-  );
-}
-
-interface AccountingHistoryPaginationProps {
-  page: number;
-  totalPages: number;
-  onPageChange: (updater: number | ((prev: number) => number)) => void;
-}
-
-export function AccountingHistoryPagination({
-  page,
-  totalPages,
-  onPageChange,
-}: AccountingHistoryPaginationProps) {
-  if (totalPages <= 1) return null;
-
-  return (
-    <nav
-      className="flex items-center justify-center gap-3 pt-1"
-      role="navigation"
-      aria-label="ページネーション"
-    >
-      <Button
-        type="button"
-        variant="outline"
-        size="sm"
-        className="h-8 px-2"
-        onClick={() => onPageChange((currentPage) => Math.max(1, currentPage - 1))}
-        disabled={page <= 1}
-        aria-label="前のページ"
-      >
-        <ChevronLeft className={ICON.action} />
-        前へ
-      </Button>
-      <span className={`text-xs ${C.text50}`} aria-live="polite">
-        {page} / {totalPages} ページ
-      </span>
-      <Button
-        type="button"
-        variant="outline"
-        size="sm"
-        className="h-8 px-2"
-        onClick={() => onPageChange((currentPage) => Math.min(totalPages, currentPage + 1))}
-        disabled={page >= totalPages}
-        aria-label="次のページ"
-      >
-        次へ
-        <ChevronRight className={ICON.action} />
-      </Button>
-    </nav>
   );
 }
 
