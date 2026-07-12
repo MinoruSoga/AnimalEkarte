@@ -1,4 +1,5 @@
 import { C } from "@/lib/design-tokens";
+import { formatCurrency } from "@/utils/format/number";
 
 import type { CashCardAmount } from "./daily-accounting-utils";
 
@@ -26,7 +27,7 @@ export function CatCell({ detail, isMixed }: CatCellProps) {
   if (!isMixed) {
     return (
       <td className="border border-gray-300 text-right px-1 py-0.5 text-[9pt]">
-        ¥{total.toLocaleString()}
+        {formatCurrency(total)}
       </td>
     );
   }

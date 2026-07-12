@@ -1,6 +1,7 @@
 import { memo, type ReactNode } from "react";
 import { ICON, C } from "@/lib/design-tokens";
 import { ChevronRight } from "lucide-react";
+import { formatCurrency } from "@/utils/format/number";
 
 interface MasterSelectTriggerProps {
   id?: string;
@@ -44,7 +45,7 @@ export const MasterSelectTrigger = memo(function MasterSelectTrigger({
               </div>
               {selectedItem.price != null ? (
                 <div className={`text-xs ${C.text60} mt-0.5`}>
-                  ¥{selectedItem.price.toLocaleString()}
+                  {formatCurrency(selectedItem.price)}
                 </div>
               ) : null}
             </div>
@@ -71,7 +72,7 @@ export const MasterSelectTrigger = memo(function MasterSelectTrigger({
           </span>
           {selectedItem.price != null ? (
             <span className={`text-xs ${C.text50} shrink-0`}>
-              ¥{selectedItem.price.toLocaleString()}
+              {formatCurrency(selectedItem.price)}
             </span>
           ) : null}
         </div>

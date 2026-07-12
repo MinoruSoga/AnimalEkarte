@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { DeleteIconButton } from "@/components/shared/DeleteIconButton/DeleteIconButton";
 import { BADGE, C, ICON, STYLE } from "@/lib/design-tokens";
+import { formatCurrency } from "@/utils/format/number";
 import type { TreatmentItemType } from "../../types";
 
 const ITEM_TYPE_LABELS: Record<TreatmentItemType, string> = {
@@ -87,7 +88,7 @@ export function TreatmentSubtotalCell({ subtotal }: TreatmentSubtotalCellProps) 
   return (
     <td className="px-3 py-2 w-28 text-right">
       <span className={`text-sm font-medium ${C.text} font-mono`}>
-        ¥{subtotal.toLocaleString()}
+        {formatCurrency(subtotal)}
       </span>
     </td>
   );

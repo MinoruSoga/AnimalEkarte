@@ -10,6 +10,7 @@ import { TaxRateSelector } from "@/components/shared/TaxRateSelector/TaxRateSele
 import { TaxTypeSelector } from "@/components/shared/TaxTypeSelector/TaxTypeSelector";
 import { C } from "@/lib/design-tokens";
 import type { TaxType } from "@/types/generated/models";
+import { formatCurrency, formatCurrencyOrDash } from "@/utils/format/number";
 
 import { useGetBillingItemDiscountSuggestions } from "../api/get-discount-suggestions";
 import type { AccountingItem, ItemCategory } from "../types";
@@ -44,7 +45,7 @@ function DiscountCell({ item, canEdit, accountingId, onUpdateItemDiscount }: Dis
   if (accountingId === undefined || onUpdateItemDiscount === undefined || !canEdit) {
     return (
       <span className={`text-sm ${C.text50}`}>
-        {item.discountAmount > 0 ? `¥${item.discountAmount.toLocaleString()}` : "-"}
+        {formatCurrencyOrDash(item.discountAmount)}
       </span>
     );
   }
@@ -89,7 +90,7 @@ function DiscountCell({ item, canEdit, accountingId, onUpdateItemDiscount }: Dis
                     <span className={`ml-1 ${C.text50}`}>
                       {s.discount_type === "rate"
                         ? `${s.discount_value}%`
-                        : `¥${s.discount_value.toLocaleString()}`}
+                        : formatCurrency(s.discount_value)}
                     </span>
                     <span className={`float-right font-mono ${C.textRedIcon}`}>
                       -¥{s.amount.toLocaleString()}
@@ -145,7 +146,7 @@ export function AccountingItemRow({
         ) : null}
       </TableCell>
       <TableCell className="text-right">
-        ¥{item.unitPrice.toLocaleString()}
+        {formatCurrency(item.unitPrice)}
       </TableCell>
       <TableCell className="text-center">
         <div className="flex items-center justify-center gap-2">
@@ -183,7 +184,7 @@ export function AccountingItemRow({
         )}
       </TableCell>
       <TableCell className="text-right font-mono text-sm">
-        ¥{item.taxAmount.toLocaleString()}
+        {formatCurrency(item.taxAmount)}
       </TableCell>
       <TableCell className="text-center">
         {item.isInsuranceApplicable ? (
@@ -193,7 +194,7 @@ export function AccountingItemRow({
         )}
       </TableCell>
       <TableCell className="text-right font-medium">
-        ¥{(item.subtotal + item.taxAmount).toLocaleString()}
+        {formatCurrency(item.subtotal + item.taxAmount)}
       </TableCell>
       <TableCell>
         {accountingId === undefined || (item.source === "manual" && canDelete) ? (

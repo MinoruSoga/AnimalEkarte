@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { C, ICON } from "@/lib/design-tokens";
 import { PAYMENT_METHOD_LABELS_SHORT as PAYMENT_METHOD_LABELS } from "@/constants/payment-method";
 import { formatJSTDate } from "@/lib/jst-date";
+import { formatCurrency } from "@/utils/format/number";
 
 import { useGetRefunds } from "../api/get-refunds";
 import type { PaymentMethod, PaymentSplitInfo } from "../types";
@@ -184,7 +185,7 @@ export const RefundSection = memo(function RefundSection({
                     {r.refundedByName || "-"}
                   </td>
                   <td className={`px-3 py-2 text-right font-medium ${C.textDiscount}`}>
-                    ¥{r.amount.toLocaleString()}
+                    {formatCurrency(r.amount)}
                   </td>
                   <td className={`px-3 py-2 text-xs ${C.text50}`}>
                     {r.paymentMethod ? (PAYMENT_METHOD_LABELS[r.paymentMethod as PaymentMethod] ?? r.paymentMethod) : "-"}

@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { paths } from "@/config/paths";
 import { C, ICON, STYLE } from "@/lib/design-tokens";
+import { formatCurrency } from "@/utils/format/number";
 import type { Accounting } from "../api/transforms";
 import type { AccountingStatus } from "../types";
 
@@ -35,7 +36,7 @@ export function AccountingHistorySummary({
         累計支払い金額（精算済 {completedCount} 件）
       </span>
       <span className={`text-base font-bold ${C.text} font-mono`}>
-        ¥{completedTotal.toLocaleString()}
+        {formatCurrency(completedTotal)}
       </span>
     </div>
   );

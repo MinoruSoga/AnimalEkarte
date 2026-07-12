@@ -4,6 +4,7 @@ import { ProgressDots } from '../components/ProgressDots';
 import { ListItem } from '../components/ListItem';
 import { BackButton } from '../components/BackButton';
 import { useFetchState } from '@/shared-liff/use-fetch-state';
+import { formatCurrency } from '@/utils/format/number';
 
 interface TrimmingCourseSelectPageProps {
   clinicId: string;
@@ -14,7 +15,7 @@ interface TrimmingCourseSelectPageProps {
 
 function formatPrice(price: number | null): string {
   if (price === null) return '';
-  return `¥${price.toLocaleString()}`;
+  return formatCurrency(price);
 }
 
 export function TrimmingCourseSelectPage({ clinicId, idToken, onSelect, onBack }: TrimmingCourseSelectPageProps) {

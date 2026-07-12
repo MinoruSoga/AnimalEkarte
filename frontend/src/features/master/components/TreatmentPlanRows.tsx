@@ -7,6 +7,7 @@ import { RowActionButton } from "@/components/shared/RowActionButton";
 import { StatusPill } from "@/components/shared/StatusPill/StatusPill";
 import { TableCell } from "@/components/ui/table";
 import { C, ICON } from "@/lib/design-tokens";
+import { formatCurrencyOrDash } from "@/utils/format/number";
 import type { TreatmentItem } from "@/lib/transforms/treatment";
 
 import type { TreatmentTreeItem, TreatmentVirtualRow } from "./treatment-plan-tab-content-model";
@@ -152,7 +153,7 @@ function TreatmentPriceCell({ price }: { price: number }) {
   return (
     <TableCell className="text-right">
       <span className={`text-base ${C.text70} font-mono`}>
-        {price > 0 ? `¥${price.toLocaleString()}` : "-"}
+        {formatCurrencyOrDash(price)}
       </span>
     </TableCell>
   );

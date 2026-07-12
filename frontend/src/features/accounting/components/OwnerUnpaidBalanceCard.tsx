@@ -1,6 +1,7 @@
 import { memo } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { C } from "@/lib/design-tokens";
+import { formatCurrency } from "@/utils/format/number";
 import { useGetOwnerUnpaidBalance } from "../api/get-owner-unpaid-balance";
 
 interface OwnerUnpaidBalanceCardProps {
@@ -31,7 +32,7 @@ export const OwnerUnpaidBalanceCard = memo(function OwnerUnpaidBalanceCard({
           <span className={`text-xs ${C.text40}`}>未入金 {data.unpaidCount} 件</span>
         </div>
         <span className={`text-xl font-bold ${C.danger}`}>
-          ¥{data.unpaidTotal.toLocaleString()}
+          {formatCurrency(data.unpaidTotal)}
         </span>
       </CardContent>
     </Card>

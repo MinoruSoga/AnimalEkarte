@@ -9,6 +9,7 @@ import { StatusPill } from "@/components/shared/StatusPill/StatusPill";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { TableCell, TableRow } from "@/components/ui/table";
 import { C, ICON, STYLE } from "@/lib/design-tokens";
+import { formatCurrencyOrDash } from "@/utils/format/number";
 import type { Medicine } from "@/types";
 
 const DOSAGE_FORM_LABELS: Record<string, string> = {
@@ -142,7 +143,7 @@ export const SortableMedicineRow = memo(function SortableMedicineRow({
         {medicine.dosageForm ? (DOSAGE_FORM_LABELS[medicine.dosageForm] ?? medicine.dosageForm) : "-"}
       </TableCell>
       <TableCell className={`${STYLE.tableCell} w-[130px] text-right pr-4 font-mono`}>
-        {medicine.price > 0 ? `¥${medicine.price.toLocaleString()}` : "-"}
+        {formatCurrencyOrDash(medicine.price)}
       </TableCell>
       <TableCell className="w-[110px] py-2.5 text-center">
         <StatusPill isActive={medicine.isActive} />
@@ -198,7 +199,7 @@ export function MedicineRowOverlay({ medicine, grouped }: MedicineRowOverlayProp
         {medicine.dosageForm ? (DOSAGE_FORM_LABELS[medicine.dosageForm] ?? medicine.dosageForm) : "-"}
       </div>
       <div className={`w-[130px] shrink-0 text-right pr-4 font-mono text-base ${C.text}`}>
-        {medicine.price > 0 ? `¥${medicine.price.toLocaleString()}` : "-"}
+        {formatCurrencyOrDash(medicine.price)}
       </div>
       <div className="w-[110px] shrink-0 flex justify-center">
         <StatusPill isActive={medicine.isActive} />

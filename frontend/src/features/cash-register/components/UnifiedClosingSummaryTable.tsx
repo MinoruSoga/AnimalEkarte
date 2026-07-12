@@ -1,6 +1,7 @@
 import { memo, useMemo } from "react";
 import { EmptyState } from "@/components/shared/DataStates";
 import { C, STYLE } from "@/lib/design-tokens";
+import { formatCurrency } from "@/utils/format/number";
 import type { PaymentMethodMaster } from "@/types/generated/models";
 import type { CloseBillingDetail } from "../api/get-cash-register-preview";
 import { buildUnifiedClosingRows, buildUnifiedClosingTotals } from "../closing-summary";
@@ -59,7 +60,7 @@ export const UnifiedClosingSummaryTable = memo(function UnifiedClosingSummaryTab
                 </td>
               ))}
               <td className={`text-right px-3 py-2 font-medium ${C.text}`}>
-                ¥{row.rowTotal.toLocaleString()}
+                {formatCurrency(row.rowTotal)}
               </td>
             </tr>
           ))}
@@ -76,7 +77,7 @@ export const UnifiedClosingSummaryTable = memo(function UnifiedClosingSummaryTab
               </td>
             ))}
             <td className={`text-right px-3 py-2 font-semibold ${C.text}`}>
-              ¥{totals.grandTotal.toLocaleString()}
+              {formatCurrency(totals.grandTotal)}
             </td>
           </tr>
         </tfoot>

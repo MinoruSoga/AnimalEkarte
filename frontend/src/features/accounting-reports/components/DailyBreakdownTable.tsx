@@ -1,6 +1,7 @@
 import { memo } from "react";
 import { EmptyState } from "@/components/shared/DataStates";
 import { C, STYLE } from "@/lib/design-tokens";
+import { formatCurrency } from "@/utils/format/number";
 import type { DailyReportDetail } from "../api/get-monthly-report";
 
 interface DailyBreakdownTableProps {
@@ -69,14 +70,14 @@ export const DailyBreakdownTable = memo(function DailyBreakdownTable({
                 <td className={`px-3 py-2 ${C.text}`}>{detail.weekday}</td>
                 <td className={`px-3 py-2 text-right ${C.text60}`}>{detail.amCount}件</td>
                 <td className={`px-3 py-2 text-right ${C.text}`}>
-                  ¥{detail.amNet.toLocaleString()}
+                  {formatCurrency(detail.amNet)}
                 </td>
                 <td className={`px-3 py-2 text-right ${C.text60}`}>{detail.pmCount}件</td>
                 <td className={`px-3 py-2 text-right ${C.text}`}>
-                  ¥{detail.pmNet.toLocaleString()}
+                  {formatCurrency(detail.pmNet)}
                 </td>
                 <td className={`px-3 py-2 text-right font-medium ${C.text}`}>
-                  ¥{detail.dayNet.toLocaleString()}
+                  {formatCurrency(detail.dayNet)}
                 </td>
                 <td
                   className={`px-3 py-2 text-right ${detail.refund > 0 ? C.danger : C.text50}`}

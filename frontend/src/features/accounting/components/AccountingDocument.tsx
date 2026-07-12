@@ -6,6 +6,7 @@ import { ja } from "date-fns/locale";
 // Internal
 import { C } from "@/lib/design-tokens";
 import { useClinicTaxRates } from "@/hooks/use-clinic-tax-rates";
+import { formatCurrency } from "@/utils/format/number";
 // #190: セクション定数 — R-F2-S9 で src/config/ へ抽出
 import {
   DOCUMENT_SECTION_KEYS,
@@ -218,9 +219,9 @@ export const AccountingDocument = memo(function AccountingDocument({ accounting,
                           ) : null}
                         </td>
                         <td className="py-2 text-right text-xs">{ratePercent}%{isReduced ? "※" : ""}</td>
-                        <td className="py-2 text-right">¥{item.unitPrice.toLocaleString()}</td>
+                        <td className="py-2 text-right">{formatCurrency(item.unitPrice)}</td>
                         <td className="py-2 text-center">{item.quantity}</td>
-                        <td className="py-2 text-right">¥{Math.max(item.unitPrice * item.quantity - item.discountAmount, 0).toLocaleString()}</td>
+                        <td className="py-2 text-right">{formatCurrency(Math.max(item.unitPrice * item.quantity - item.discountAmount, 0))}</td>
                       </tr>
                     );
                   })}
@@ -237,7 +238,7 @@ export const AccountingDocument = memo(function AccountingDocument({ accounting,
               <div className="w-72 space-y-2">
                 <div className="flex justify-between font-bold border-b pb-1">
                   <span>合計金額 (税込)</span>
-                  <span>¥{paymentInfo.totalAmount.toLocaleString()}</span>
+                  <span>{formatCurrency(paymentInfo.totalAmount)}</span>
                 </div>
 
                 <div className={`text-xs ${C.text60} space-y-1 pt-2`}>
@@ -262,16 +263,16 @@ export const AccountingDocument = memo(function AccountingDocument({ accounting,
 
                 <div className="flex justify-between font-bold text-lg pt-2 border-t border-black">
                   <span>請求金額</span>
-                  <span>¥{paymentInfo.billingAmount.toLocaleString()}</span>
+                  <span>{formatCurrency(paymentInfo.billingAmount)}</span>
                 </div>
 
                 <div className={`flex justify-between text-xs ${C.text60} pt-1`}>
                   <span>お預かり</span>
-                  <span>¥{paymentInfo.receivedAmount.toLocaleString()}</span>
+                  <span>{formatCurrency(paymentInfo.receivedAmount)}</span>
                 </div>
                 <div className={`flex justify-between text-xs ${C.text60}`}>
                   <span>お釣り</span>
-                  <span>¥{paymentInfo.changeAmount.toLocaleString()}</span>
+                  <span>{formatCurrency(paymentInfo.changeAmount)}</span>
                 </div>
               </div>
             </div>

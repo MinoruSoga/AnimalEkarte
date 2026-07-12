@@ -9,6 +9,7 @@ import { DeleteIconButton } from "@/components/shared/DeleteIconButton/DeleteIco
 import { NumberInput } from "@/components/shared/NumberInput/NumberInput";
 import { SubmitButton } from "@/components/shared/Form/SubmitButton";
 import { C, ICON } from "@/lib/design-tokens";
+import { formatCurrency } from "@/utils/format/number";
 
 import type { PaymentMethod } from "../types";
 import { PAYMENT_METHOD_LABELS_SHORT as PAYMENT_METHOD_LABELS } from "@/constants/payment-method";
@@ -105,7 +106,7 @@ export const PaymentCard = memo(function PaymentCard({
         <div className="text-center space-y-1">
           <p className={`text-sm ${C.text50}`}>今回の請求金額</p>
           <p className={`text-4xl font-bold ${C.text}`}>
-            ¥{billingAmount.toLocaleString()}
+            {formatCurrency(billingAmount)}
           </p>
         </div>
 
@@ -219,7 +220,7 @@ export const PaymentCard = memo(function PaymentCard({
                         ) : (
                           <div className="flex justify-end">
                             <span className={`text-xl font-bold ${splitChange < 0 ? C.danger : C.text}`}>
-                              ¥{splitChange.toLocaleString()}
+                              {formatCurrency(splitChange)}
                             </span>
                           </div>
                         )}
@@ -254,7 +255,7 @@ export const PaymentCard = memo(function PaymentCard({
             {paymentSplits.map((split, idx) => (
               <div key={idx} className="flex justify-between items-center text-sm">
                 <span className={C.text50}>{PAYMENT_METHOD_LABELS[split.method] ?? split.method}</span>
-                <span className="font-medium">¥{parseInt(split.amount || "0", 10).toLocaleString()}</span>
+                <span className="font-medium">{formatCurrency(parseInt(split.amount || "0", 10))}</span>
               </div>
             ))}
           </div>

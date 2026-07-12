@@ -1,6 +1,7 @@
 import { Plus, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { C, ICON, STYLE } from "@/lib/design-tokens";
+import { formatCurrency } from "@/utils/format/number";
 import type { MedicineDoseContext } from "../../api/medicine-dose-lookup";
 import type { Treatment, TreatmentItemType, UpdateTreatmentInput } from "../../types";
 import { TreatmentRow } from "./TreatmentRow";
@@ -236,12 +237,12 @@ export function TreatmentTotals({
       <div className="flex flex-col gap-1.5">
         <div className={`flex items-center justify-between text-sm ${C.text60}`}>
           <span>全明細合計 ({totalCount}件)</span>
-          <span className="font-mono">¥{totalSubtotal.toLocaleString()}</span>
+          <span className="font-mono">{formatCurrency(totalSubtotal)}</span>
         </div>
         <div className={`flex items-center justify-between text-sm font-medium ${C.text}`}>
           <span>選択済み合計 ({selectedCount}件)</span>
           <span className="font-mono text-base">
-            ¥{selectedSubtotal.toLocaleString()}
+            {formatCurrency(selectedSubtotal)}
           </span>
         </div>
         <div className={`flex items-center justify-between text-sm pt-1.5 border-t ${C.borderLight}`}>
@@ -249,7 +250,7 @@ export function TreatmentTotals({
             税込合計 (10% {ownerDiscountRate > 0 ? `飼主割引${ownerDiscountRate}%適用後` : ""})
           </span>
           <span className={`font-mono font-semibold ${C.textCostBlue}`}>
-            ¥{finalTotal.toLocaleString()}
+            {formatCurrency(finalTotal)}
           </span>
         </div>
       </div>

@@ -20,6 +20,7 @@ import { MonthlySummaryCards } from "../components/MonthlySummaryCards";
 import { DailyBreakdownTable } from "../components/DailyBreakdownTable";
 import { MonthlyReportPrintArea } from "../components/MonthlyReportPrintArea";
 import { formatJSTWallDate, toJSTWallDate } from "@/lib/jst-date";
+import { formatCurrency } from "@/utils/format/number";
 
 type ReportMode = "month" | "period";
 
@@ -244,7 +245,7 @@ export function AccountingReportsPage() {
                     <div key={method} className={`flex flex-col gap-0.5`}>
                       <span className={`text-base ${C.text60}`}>{method}</span>
                       <span className={`text-base font-semibold ${C.text}`}>
-                        ¥{amount.toLocaleString()}
+                        {formatCurrency(amount)}
                       </span>
                     </div>
                   ))}

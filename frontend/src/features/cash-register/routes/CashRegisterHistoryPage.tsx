@@ -12,6 +12,7 @@ import {
 import { formatJSTDateTimeLocal, toJSTWallDate } from "@/lib/jst-date";
 import { Pagination } from "@/components/shared/Pagination";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
+import { formatCurrency } from "@/utils/format/number";
 import { useGetCashRegisterCloses } from "../api/get-cash-register-closes";
 import type { CashRegisterClose } from "../api/get-cash-register-closes";
 import { PERIOD_LABELS, PERIOD_OPTIONS, type CashRegisterPeriod } from "../constants";
@@ -226,10 +227,10 @@ export function CashRegisterHistoryPage() {
                           {PERIOD_LABELS[close.period]}
                         </td>
                         <td className={`px-4 py-3 text-right ${C.text}`}>
-                          ¥{(close.theoreticalCash ?? 0).toLocaleString()}
+                          {formatCurrency(close.theoreticalCash ?? 0)}
                         </td>
                         <td className={`px-4 py-3 text-right ${C.text}`}>
-                          ¥{(close.actualCash ?? 0).toLocaleString()}
+                          {formatCurrency(close.actualCash ?? 0)}
                         </td>
                         <td className={`px-4 py-3 text-right font-medium ${diffClass(diff)}`}>
                           {formatDiff(diff)}
@@ -290,11 +291,11 @@ export function CashRegisterHistoryPage() {
                   <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-base">
                     <dt className={C.text60}>理論現金</dt>
                     <dd className={`text-right ${C.text}`}>
-                      ¥{(selectedClose.theoreticalCash ?? 0).toLocaleString()}
+                      {formatCurrency(selectedClose.theoreticalCash ?? 0)}
                     </dd>
                     <dt className={C.text60}>実際の現金</dt>
                     <dd className={`text-right ${C.text}`}>
-                      ¥{(selectedClose.actualCash ?? 0).toLocaleString()}
+                      {formatCurrency(selectedClose.actualCash ?? 0)}
                     </dd>
                     <dt className={C.text60}>差額</dt>
                     <dd className={`text-right font-medium ${diffClass(detailDiff)}`}>
@@ -326,7 +327,7 @@ export function CashRegisterHistoryPage() {
                         {detailSubtotals.map((row) => (
                           <div key={row.label} className="flex justify-between text-base">
                             <dt className={C.text60}>{row.label}</dt>
-                            <dd className={C.text}>¥{row.total.toLocaleString()}</dd>
+                            <dd className={C.text}>{formatCurrency(row.total)}</dd>
                           </div>
                         ))}
                       </dl>

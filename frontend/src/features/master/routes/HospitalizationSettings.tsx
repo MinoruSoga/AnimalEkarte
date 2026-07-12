@@ -7,6 +7,7 @@ import { DataTableRow } from "@/components/shared/DataTable/DataTableRow";
 import { RowActionButton } from "@/components/shared/RowActionButton";
 import { StatusPill } from "@/components/shared/StatusPill/StatusPill";
 import { C, ICON } from "@/lib/design-tokens";
+import { formatCurrencyOrDash } from "@/utils/format/number";
 import { MASTER_STATUS_FILTER, MASTER_TABLE_COL } from "../constants/styles";
 import { useMasterCRUD } from "../hooks/use-master-crud";
 import { useMasterSave } from "../hooks/use-master-save";
@@ -53,7 +54,7 @@ export function HospitalizationSettings() {
           <TableCell className={`font-medium text-base ${C.text}`}>{item.name}</TableCell>
           <TableCell className={`text-base ${C.text70}`}>{item.bodySize ? (BODY_SIZE_LABELS[item.bodySize] ?? item.bodySize) : "-"}</TableCell>
           <TableCell className={`text-base ${C.text70}`}>{item.billingUnit ? (BILLING_UNIT_LABELS[item.billingUnit] ?? item.billingUnit) : "-"}</TableCell>
-          <TableCell className={`text-right font-mono text-base ${C.text}`}>{item.price > 0 ? `¥${item.price.toLocaleString()}` : "-"}</TableCell>
+          <TableCell className={`text-right font-mono text-base ${C.text}`}>{formatCurrencyOrDash(item.price)}</TableCell>
           <TableCell className="text-center"><StatusPill isActive={item.isActive} /></TableCell>
           <TableCell className="p-0 text-right">{canEdit ? <RowActionButton onClick={() => onEdit(item)} /> : null}</TableCell>
         </DataTableRow>

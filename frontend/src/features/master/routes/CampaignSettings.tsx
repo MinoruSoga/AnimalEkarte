@@ -7,6 +7,7 @@ import { DataTableRow } from "@/components/shared/DataTable/DataTableRow";
 import { RowActionButton } from "@/components/shared/RowActionButton";
 import { StatusPill } from "@/components/shared/StatusPill/StatusPill";
 import { C, ICON } from "@/lib/design-tokens";
+import { formatCurrency } from "@/utils/format/number";
 import { MASTER_STATUS_FILTER, MASTER_TABLE_COL } from "../constants/styles";
 import { useMasterCRUD } from "../hooks/use-master-crud";
 import { useMasterSave } from "../hooks/use-master-save";
@@ -78,7 +79,7 @@ export function CampaignSettings() {
           <TableCell className={`font-medium text-base ${C.text}`}>{item.name}</TableCell>
           <TableCell className={`text-sm ${C.text50}`}>{item.startDate} 〜 {item.endDate}</TableCell>
           <TableCell className="text-right text-sm">
-            {item.discountType === "rate" ? `${item.discountValue}%` : `¥${item.discountValue.toLocaleString()}`}
+            {item.discountType === "rate" ? `${item.discountValue}%` : formatCurrency(item.discountValue)}
           </TableCell>
           <TableCell className="text-center"><StatusPill isActive={item.isActive} /></TableCell>
           <TableCell className="p-0 text-right">{canEdit ? <RowActionButton onClick={() => onEdit(item)} /> : null}</TableCell>

@@ -5,6 +5,7 @@ import { EmptyState } from "@/components/shared/DataStates";
 import { ClearableSearchInput } from "@/components/shared/ClearableSearchInput";
 import { C, ICON } from "@/lib/design-tokens";
 import { normalizeKana } from "@/lib/normalize-kana";
+import { formatCurrency } from "@/utils/format/number";
 
 interface MasterItem {
   id: string | number;
@@ -103,7 +104,7 @@ export const MasterSelectModal = memo(function MasterSelectModal({
                     <div className={`text-sm ${C.text}`}>{item.name}</div>
                     {item.price != null ? (
                       <div className={`text-xs ${C.text70} mt-0.5`}>
-                        ¥{item.price.toLocaleString()}
+                        {formatCurrency(item.price)}
                       </div>
                     ) : null}
                   </div>

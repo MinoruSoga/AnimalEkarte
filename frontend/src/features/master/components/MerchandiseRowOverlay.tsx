@@ -2,6 +2,7 @@ import { GripVertical } from "lucide-react";
 
 import { StatusPill } from "@/components/shared/StatusPill/StatusPill";
 import { C, ICON, STYLE } from "@/lib/design-tokens";
+import { formatCurrency } from "@/utils/format/number";
 
 import type { FrontendMerchandiseItem } from "../api/merchandise-items";
 import {
@@ -27,7 +28,7 @@ export function MerchandiseRowOverlay({ item }: MerchandiseRowOverlayProps) {
         {MERCHANDISE_CATEGORY_LABELS[item.category] ?? item.category}
       </div>
       <div className={`w-[120px] shrink-0 text-right pr-4 font-mono text-base ${C.text}`}>
-        ¥{item.unitPrice.toLocaleString()}
+        {formatCurrency(item.unitPrice)}
       </div>
       <div className={`w-[80px] shrink-0 text-base ${C.text70} text-center`}>
         {formatMerchandiseTaxRate(item.taxRate)}

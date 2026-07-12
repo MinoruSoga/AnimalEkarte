@@ -8,6 +8,7 @@ import { StatusPill } from "@/components/shared/StatusPill/StatusPill";
 import { SortableDataTableRow } from "@/components/shared/DataTable/SortableDataTableRow";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { C, ICON, STYLE } from "@/lib/design-tokens";
+import { formatCurrency } from "@/utils/format/number";
 
 import type { FrontendMerchandiseItem } from "../api/merchandise-items";
 import {
@@ -92,7 +93,7 @@ export function MerchandiseSortableTable({
                       {MERCHANDISE_CATEGORY_LABELS[item.category] ?? item.category}
                     </TableCell>
                     <TableCell className={`text-right font-mono text-base ${C.text} pr-4`}>
-                      ¥{item.unitPrice.toLocaleString()}
+                      {formatCurrency(item.unitPrice)}
                     </TableCell>
                     <TableCell className={`text-base ${C.text70} text-center`}>
                       {formatMerchandiseTaxRate(item.taxRate)}

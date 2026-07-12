@@ -25,6 +25,7 @@ import { BillingDetailTable } from "../components/BillingDetailTable";
 import { ClosePrintArea } from "../components/ClosePrintArea";
 import { useCashRegisterCloseForm } from "../hooks/use-cash-register-close-form";
 import { ResourceCashRegisterClose } from "@/types/generated/models";
+import { formatCurrency } from "@/utils/format/number";
 
 export function CashRegisterClosePage() {
   const { date, period, previewEnabled, handleDateChange, handlePeriodChange, enablePreview } =
@@ -197,13 +198,13 @@ export function CashRegisterClosePage() {
                       <div className="flex justify-between text-sm py-1">
                         <span className={C.text60}>課税対象額</span>
                         <span className={C.text}>
-                          ¥{preview.aggregate.taxBreakdown.standard.taxableAmount.toLocaleString()}
+                          {formatCurrency(preview.aggregate.taxBreakdown.standard.taxableAmount)}
                         </span>
                       </div>
                       <div className="flex justify-between text-sm py-1">
                         <span className={C.text60}>消費税額</span>
                         <span className={C.text}>
-                          ¥{preview.aggregate.taxBreakdown.standard.taxAmount.toLocaleString()}
+                          {formatCurrency(preview.aggregate.taxBreakdown.standard.taxAmount)}
                         </span>
                       </div>
                     </div>
@@ -212,13 +213,13 @@ export function CashRegisterClosePage() {
                       <div className="flex justify-between text-sm py-1">
                         <span className={C.text60}>課税対象額</span>
                         <span className={C.text}>
-                          ¥{preview.aggregate.taxBreakdown.reduced.taxableAmount.toLocaleString()}
+                          {formatCurrency(preview.aggregate.taxBreakdown.reduced.taxableAmount)}
                         </span>
                       </div>
                       <div className="flex justify-between text-sm py-1">
                         <span className={C.text60}>消費税額</span>
                         <span className={C.text}>
-                          ¥{preview.aggregate.taxBreakdown.reduced.taxAmount.toLocaleString()}
+                          {formatCurrency(preview.aggregate.taxBreakdown.reduced.taxAmount)}
                         </span>
                       </div>
                     </div>

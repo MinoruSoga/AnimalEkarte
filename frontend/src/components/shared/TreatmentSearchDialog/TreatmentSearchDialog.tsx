@@ -9,6 +9,7 @@ import { CategoryChipsFilter } from "@/components/shared/CategoryChipsFilter";
 import { FilteringIndicator } from "@/components/shared/FilteringIndicator/FilteringIndicator";
 import { C } from "@/lib/design-tokens";
 import { normalizeKana } from "@/lib/normalize-kana";
+import { formatCurrency } from "@/utils/format/number";
 import {
   useGetAllConsultations,
   useGetAllProcedures,
@@ -189,7 +190,7 @@ export const TreatmentSearchDialog = memo(function TreatmentSearchDialog({
                         <div className="flex-1 min-w-0">
                           <div className={`text-sm font-medium ${C.text}`}>{item.name}</div>
                           <div className={`text-xs ${C.text60} mt-0.5`}>
-                            ¥{item.unitPrice.toLocaleString()}
+                            {formatCurrency(item.unitPrice)}
                           </div>
                         </div>
                         <div className={`size-5 rounded-full border ${C.borderLight} group-hover:border-current transition-colors shrink-0 ml-3`} />

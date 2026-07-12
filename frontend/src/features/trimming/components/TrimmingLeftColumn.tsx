@@ -8,6 +8,7 @@ import { FormFieldError } from "@/components/shared/FormFieldError/FormFieldErro
 import { MasterLink } from "@/components/shared/MasterLink";
 import { MasterSelectTrigger } from "@/components/shared/MasterSelectModal";
 import { C, ICON } from "@/lib/design-tokens";
+import { formatCurrency } from "@/utils/format/number";
 
 import type { TrimmingLeftColumnProps } from "./trimming-form-column-types";
 import { TrimmingImageUploadField } from "./TrimmingImageUploadField";
@@ -79,7 +80,7 @@ export const TrimmingLeftColumn = memo(function TrimmingLeftColumn({
                 </label>
                 {option.price != null ? (
                   <span className={`text-xs ${C.text60} ml-auto`}>
-                    ¥{option.price.toLocaleString()}
+                    {formatCurrency(option.price)}
                   </span>
                 ) : null}
               </div>

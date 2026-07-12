@@ -1,6 +1,7 @@
 import { memo } from "react";
 import { C } from "@/lib/design-tokens";
 import { formatTaxRatePercent } from "@/hooks/use-clinic-tax-rates";
+import { formatCurrency } from "@/utils/format/number";
 import type { MonthlyReportResponse } from "../api/get-monthly-report";
 
 interface MonthlySummaryCardsProps {
@@ -21,12 +22,12 @@ export const MonthlySummaryCards = memo(function MonthlySummaryCards({
     { label: "会計件数", value: `${summary.totalBillings}件`, sub: null },
     {
       label: "売上合計",
-      value: `¥${summary.totalAmount.toLocaleString()}`,
+      value: formatCurrency(summary.totalAmount),
       sub: `返金: -¥${summary.totalRefund.toLocaleString()}`,
     },
     {
       label: "純売上",
-      value: `¥${summary.netAmount.toLocaleString()}`,
+      value: formatCurrency(summary.netAmount),
       sub: null,
     },
   ];
@@ -63,7 +64,7 @@ export const MonthlySummaryCards = memo(function MonthlySummaryCards({
               {Object.entries(summary.byPaymentMethod).map(([method, amount]) => (
                 <li key={method} className="flex justify-between text-sm">
                   <span className={C.text60}>{method}</span>
-                  <span className={`font-medium ${C.text}`}>¥{amount.toLocaleString()}</span>
+                  <span className={`font-medium ${C.text}`}>{formatCurrency(amount)}</span>
                 </li>
               ))}
             </ul>
@@ -80,7 +81,7 @@ export const MonthlySummaryCards = memo(function MonthlySummaryCards({
               {Object.entries(summary.byCategory).map(([cat, amount]) => (
                 <li key={cat} className="flex justify-between text-sm">
                   <span className={C.text60}>{cat}</span>
-                  <span className={`font-medium ${C.text}`}>¥{amount.toLocaleString()}</span>
+                  <span className={`font-medium ${C.text}`}>{formatCurrency(amount)}</span>
                 </li>
               ))}
             </ul>
@@ -97,11 +98,11 @@ export const MonthlySummaryCards = memo(function MonthlySummaryCards({
               </p>
               <div className="flex justify-between text-sm">
                 <span className={C.text60}>課税対象</span>
-                <span className={C.text}>¥{standard.taxableAmount.toLocaleString()}</span>
+                <span className={C.text}>{formatCurrency(standard.taxableAmount)}</span>
               </div>
               <div className="flex justify-between text-sm">
                 <span className={C.text60}>消費税</span>
-                <span className={C.text}>¥{standard.taxAmount.toLocaleString()}</span>
+                <span className={C.text}>{formatCurrency(standard.taxAmount)}</span>
               </div>
             </li>
             <li>
@@ -110,11 +111,11 @@ export const MonthlySummaryCards = memo(function MonthlySummaryCards({
               </p>
               <div className="flex justify-between text-sm">
                 <span className={C.text60}>課税対象</span>
-                <span className={C.text}>¥{reduced.taxableAmount.toLocaleString()}</span>
+                <span className={C.text}>{formatCurrency(reduced.taxableAmount)}</span>
               </div>
               <div className="flex justify-between text-sm">
                 <span className={C.text60}>消費税</span>
-                <span className={C.text}>¥{reduced.taxAmount.toLocaleString()}</span>
+                <span className={C.text}>{formatCurrency(reduced.taxAmount)}</span>
               </div>
             </li>
           </ul>

@@ -4,6 +4,7 @@ import { Link } from "react-router";
 import { BADGE, C } from "@/lib/design-tokens";
 import { CPM_STAGE_SHORT_LABELS, type CPMStage } from "@/lib/cpm-stage";
 import { paths } from "@/config/paths";
+import { formatCurrency } from "@/utils/format/number";
 
 import type { AggregationOwner, LastVisitBucket } from "../api/get-aggregations";
 import type { AggregationTab } from "./aggregation-filter-panel-model";
@@ -48,7 +49,7 @@ function renderLastVisitBucketBadge(bucket: LastVisitBucket | null) {
 
 function formatFee(fee: number | undefined): string {
   if (fee === undefined) return "—";
-  return `¥${fee.toLocaleString("ja-JP")}`;
+  return formatCurrency(fee);
 }
 
 function formatDate(dateStr: string | null | undefined): string {
