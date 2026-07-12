@@ -5,11 +5,8 @@ package repository
 // 保護する不変条件:
 //   - FindAll / FindByID は clinic_id でテナント隔離される。
 //   - FindByID は Owner（clinic_id 一致 AND deleted_at IS NULL）を preload する。
-//     LineCustomerService.LinkOwner は service 層で ownerRepo.FindByID による所属クリニック検証を
-//     行うが（FE-refactor.md 残件 3 対応）、本テストは repository 単体の Preload 防御を独立して
-//     固定する — service ガードを経由しない直接呼び出し（不正データ・将来の呼び出し元）でも
-//     Owner は preload されず nil にフォールバックすることを保証する（GetLiffProfile/GetHealthCard
-//     のクロステナント露出防止の多層防御）。
+//     owner_id が他クリニックの Owner を指す場合（LinkOwner の書き込み時未検証、既知の別チケット）でも、
+//     Owner は preload されず nil にフォールバックする（GetLiffProfile/GetHealthCard のクロステナント露出防止）。
 //   - FindOrCreateByLineUserID は未登録なら作成し、既存なら既存行を返す（重複作成しない）。
 //   - UpdateAdditionalFields / UpdateOwnerLink は clinicScope に一致しない行を更新しない。
 //   - UpdateOwnerLink は対象なしで NotFound を返す。
@@ -135,11 +132,10 @@ func TestLineCustomerRepository_FindByID(t *testing.T) {
 	})
 
 	t.Run("cross-clinic owner_id linkage does not leak the other clinic's Owner", func(t *testing.T) {
-		// LineCustomerService.LinkOwner は service 層で他クリニックの ownerID を NotFound
-		// として拒否し、UpdateOwnerLink には到達しない(FE-refactor.md 残件 3 対応)。
-		// 本テストは repository 単体の防御を独立検証するため、service ガードを経由せず
-		// UpdateOwnerLink を直接叩いて不正データ相当の状況を再現し、read 側(Preload の
-		// clinic_id 述語)が単独でもクロステナント漏洩を防いでいることを確認する。
+		// LineCustomerService.LinkOwner は現状 ownerID の所属クリニックを検証せずに
+		// UpdateOwnerLink を呼びうる（既知の write 側ギャップ、別チケット追跡）。
+		// ここでは UpdateOwnerLink を直接叩いて同じ状況を再現し、read 側（Preload の
+		// clinic_id 述語）が単独でクロステナント漏洩を防いでいることを検証する。
 		otherClinicOwner := makeOwner(t, db, clinicB, "他院の飼主")
 		c3 := makeLineCustomer(t, db, clinicA, "lineA-crossclinic", "Aさん4")
 		require.NoError(t, repo.UpdateOwnerLink(ctx, clinicA, c3.ID, &otherClinicOwner.ID))

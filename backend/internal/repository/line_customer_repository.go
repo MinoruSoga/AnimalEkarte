@@ -28,9 +28,9 @@ func NewLineCustomerRepository(db *gorm.DB) LineCustomerRepository {
 
 func (r *lineCustomerRepository) FindAll(ctx context.Context, clinicID uint64) ([]model.LineCustomer, error) {
 	items := make([]model.LineCustomer, 0)
-	// clinic_id 述語必須: LineCustomerService.LinkOwner が service 層で ownerID の所属クリニックを
-	// 検証する（FE-refactor.md 残件 3 対応）が、多層防御として読み取り側でも Owner を
-	// 自クリニックにスコープしフォールバックさせる。
+	// clinic_id 述語必須: line_customers.owner_id は書き込み時に所属クリニックが未検証のため
+	// (LineCustomerService.LinkOwner が cross-clinic ownerID を拒否しない — 別チケット追跡)、
+	// 読み取り側でも Owner を自クリニックにスコープしフォールバックさせる。
 	err := r.db.WithContext(ctx).
 		Preload("Owner", "clinic_id = ? AND deleted_at IS NULL", clinicID).
 		Scopes(clinicScope(clinicID)).
@@ -44,9 +44,9 @@ func (r *lineCustomerRepository) FindAll(ctx context.Context, clinicID uint64) (
 
 func (r *lineCustomerRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.LineCustomer, error) {
 	var c model.LineCustomer
-	// clinic_id 述語必須: LineCustomerService.LinkOwner が service 層で ownerID の所属クリニックを
-	// 検証する（FE-refactor.md 残件 3 対応）が、多層防御として読み取り側でも Owner を
-	// 自クリニックにスコープしフォールバックさせる
+	// clinic_id 述語必須: line_customers.owner_id は書き込み時に所属クリニックが未検証のため
+	// (LineCustomerService.LinkOwner が cross-clinic ownerID を拒否しない — 別チケット追跡)、
+	// 読み取り側でも Owner を自クリニックにスコープしフォールバックさせる
 	// (GetLiffProfile / GetHealthCard のクロステナント露出防止)。
 	err := r.db.WithContext(ctx).
 		Preload("Owner", "clinic_id = ? AND deleted_at IS NULL", clinicID).
