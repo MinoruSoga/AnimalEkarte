@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { handleApiError } from "@/lib/handle-api-error";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
+import { queryKeys } from "@/lib/query-keys";
 import { getClinicId } from "./get-clinic-id";
 import { fetchTriggerPriorities, patchTriggerPriorities } from "../api/trigger-priorities";
 import type { UpdateTriggerPrioritiesRequest } from "../api/trigger-priorities";
@@ -12,20 +13,13 @@ export type {
 } from "../api/trigger-priorities";
 
 // ─────────────────────────────────────────────────
-// Query key
-// ─────────────────────────────────────────────────
-
-const TRIGGER_PRIORITY_QUERY_KEY = (clinicId: string | null) =>
-  ["trigger-priorities", clinicId] as const;
-
-// ─────────────────────────────────────────────────
 // Hooks
 // ─────────────────────────────────────────────────
 
 export function useGetTriggerPriorities() {
   const clinicId = getClinicId();
   return useQuery({
-    queryKey: TRIGGER_PRIORITY_QUERY_KEY(clinicId),
+    queryKey: queryKeys.triggerPriorities(clinicId),
     queryFn: () => {
       // refetch時も都度最新値を読む（挙動保存。useLstepSettings.ts の同種修正を参照）。
       const currentClinicId = getClinicId();
@@ -53,7 +47,7 @@ export function useUpdateTriggerPriorities() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({
-        queryKey: TRIGGER_PRIORITY_QUERY_KEY(clinicId),
+        queryKey: queryKeys.triggerPriorities(clinicId),
       });
     },
     onError: (error) => handleApiError(error, "配信優先順位の更新"),

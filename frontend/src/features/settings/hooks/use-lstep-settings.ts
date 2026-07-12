@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { handleApiError } from "@/lib/handle-api-error";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
+import { queryKeys } from "@/lib/query-keys";
 import { getClinicId } from "./get-clinic-id";
 import {
   fetchLstepSettings,
@@ -13,20 +14,13 @@ import type { LstepSettingsRequest } from "../api/lstep-settings";
 export type { LstepSettingsResponse, LstepSettingsRequest } from "../api/lstep-settings";
 
 // ─────────────────────────────────────────────────
-// Query key
-// ─────────────────────────────────────────────────
-
-const LSTEP_QUERY_KEY = (clinicId: string | null) =>
-  ["lstep-settings", clinicId] as const;
-
-// ─────────────────────────────────────────────────
 // Hooks
 // ─────────────────────────────────────────────────
 
 export function useGetLstepSettings() {
   const clinicId = getClinicId();
   return useQuery({
-    queryKey: LSTEP_QUERY_KEY(clinicId),
+    queryKey: queryKeys.lstepSettings(clinicId),
     queryFn: () => {
       // refetch（window focus 等）時も都度最新値を読む — 元の fetchLstepSettings() は
       // 呼び出しごとに getClinicId() していたため、render 時点の clinicId をクロージャで
@@ -56,7 +50,7 @@ export function useUpdateLstepSettings() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({
-        queryKey: LSTEP_QUERY_KEY(clinicId),
+        queryKey: queryKeys.lstepSettings(clinicId),
       });
     },
     onError: (error) => handleApiError(error, "Lステップ設定の更新"),
@@ -103,7 +97,7 @@ export function useDeleteLstepSettings() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({
-        queryKey: LSTEP_QUERY_KEY(clinicId),
+        queryKey: queryKeys.lstepSettings(clinicId),
       });
     },
     onError: (error) => handleApiError(error, "Lステップ設定の削除"),
