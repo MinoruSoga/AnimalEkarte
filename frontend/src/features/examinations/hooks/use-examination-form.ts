@@ -23,14 +23,12 @@ import type {
 import type { ExamItemRow } from "../components/ExamItemsTable";
 import type { ActionState } from "@/types/form";
 import { INITIAL_ACTION_STATE } from "@/types/form";
+import { EXAM_STATUS_EN_TO_JA } from "@/lib/transforms/examination";
 
-const EXAM_STATUS_JA_TO_EN: Record<string, "pending" | "in_progress" | "result_entered" | "completed" | "confirmed"> = {
-  "依頼中": "pending",
-  "検査中": "in_progress",
-  "結果入力済み": "result_entered",
-  "完了": "completed",
-  "確定": "confirmed",
-};
+/** EXAM_STATUS_EN_TO_JA（正本）の逆写像を導出する（FE5-10）。両写像は完全対称であることを確認済み。 */
+const EXAM_STATUS_JA_TO_EN = Object.fromEntries(
+  Object.entries(EXAM_STATUS_EN_TO_JA).map(([en, ja]) => [ja, en]),
+) as Record<string, "pending" | "in_progress" | "result_entered" | "completed" | "confirmed">;
 
 // テンプレ（exam_type_fields）から ExamItemRow の初期行を組み立てる。
 // status/isAbnormal は backend が保存後に導出するため未設定で開始する。
