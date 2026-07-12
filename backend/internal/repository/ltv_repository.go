@@ -12,6 +12,17 @@ import (
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
+// 最終来院分類バケット名の定数（C-10）。
+// SQL 内 CASE 式（本ファイル内、"Go 定数 ltvBucket* と一致必須" コメント参照）と
+// Go 側の後段フィルタ・FindOwnerLTVParams.LastVisitBucket が同じ文字列を参照する。
+const (
+	ltvBucketNoVisit  = "no_visit"
+	ltvBucketWithin3m = "within_3m"
+	ltvBucketOver3m   = "over_3m"
+	ltvBucketOver6m   = "over_6m"
+	ltvBucketOver1y   = "over_1y"
+)
+
 // OwnerLTVRow はLTV集計クエリの結果行。
 type OwnerLTVRow struct {
 	OwnerID            uint64     `gorm:"column:owner_id"`
@@ -180,6 +191,8 @@ func (r *ltvRepository) FindOwnerLTV(ctx context.Context, params *FindOwnerLTVPa
 		periodFilterArgs = append(periodFilterArgs, fromDate, toDate, fromDate, toDate)
 	}
 
+	// last_visit_bucket CASE 式のリテラル ('no_visit'/'within_3m'/'over_3m'/'over_6m'/'over_1y')
+	// は Go 定数 ltvBucket* と一致必須（C-10）。
 	query := fmt.Sprintf(`
 SELECT
   o.id               AS owner_id,
@@ -243,7 +256,7 @@ ORDER BY %s
 			continue
 		}
 		// include_no_visit フィルタ（AGG-BE-003）
-		if !params.IncludeNoVisit && row.LastVisitBucket != nil && *row.LastVisitBucket == "no_visit" {
+		if !params.IncludeNoVisit && row.LastVisitBucket != nil && *row.LastVisitBucket == ltvBucketNoVisit {
 			continue
 		}
 		// last_visit_bucket フィルタ（AGG-BE-003）

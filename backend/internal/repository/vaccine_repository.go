@@ -34,7 +34,7 @@ func (r *vaccineRepository) FindAll(ctx context.Context, clinicID uint64, specie
 	if species != nil {
 		q = q.Where("species = ?", *species)
 	}
-	if err := q.Order("sort_order ASC, name ASC").Limit(10000).Find(&vaccines).Error; err != nil {
+	if err := q.Order("sort_order ASC, name ASC").Limit(maxMasterListRows).Find(&vaccines).Error; err != nil {
 		return nil, apperrors.FromGORM(err, "vaccine", "")
 	}
 	return vaccines, nil
