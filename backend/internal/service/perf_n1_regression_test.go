@@ -10,6 +10,7 @@ import (
 	"sync/atomic"
 	"testing"
 
+	"github.com/lib/pq"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/animal-ekarte/backend/internal/infra/lstep"
@@ -42,7 +43,10 @@ func TestPERF1_HealthPreventionThresholdsFetchedOncePerClinic(t *testing.T) {
 		owners[i] = model.Owner{ID: uint64(i + 1), ClinicID: clinicID, LineUserID: &lineID}
 	}
 	ownerRepo := &mockOwnerRepository{
-		findAllWithLineUserIDFn: func(_ context.Context, _ uint64) ([]model.Owner, error) {
+		findAllWithLineUserIDCursorFn: func(_ context.Context, _ uint64, afterID uint64, _ int) ([]model.Owner, error) {
+			if afterID != 0 {
+				return nil, nil
+			}
 			return owners, nil
 		},
 		findByIDFn: func(_ context.Context, _, _ uint64) (*model.Owner, error) {
@@ -76,12 +80,114 @@ func TestPERF1_HealthPreventionThresholdsFetchedOncePerClinic(t *testing.T) {
 	got := atomic.LoadInt64(&thresholdCallCount)
 	// GREEN 条件: 1 回 (hoist 後)
 	// RED  条件: ownerCount 回 (現行 SyncVaccineDeadlineTag がループ内で毎回 fetch)
-	//
-	// M-1 既知ギャップ: SyncAnnual4CheckupTag は本テストでは早期 return するため
-	// GetHealthPreventionThresholds を呼ばない（tagCodeRepo が空 → checkupCodes 空 → return nil）。
-	// SyncAnnual4CheckupTag 内の N+1 は未解消であり、別 Issue で対応予定。
 	assert.Equal(t, int64(1), got,
 		"GetHealthPreventionThresholds は clinic 単位で 1 回だけ呼ばれるべき (現在 %d 回)", got)
+}
+
+// ─────────────────────────────────────────────
+// PERF-M1 / PERF-M2: SyncAnnual4CheckupTag / SyncFilariaTag / SyncFleaTickTag /
+//   SyncFoodPurchaseTag が tag code mappings と thresholds を N 回でなく
+//   clinic 単位で 1 回だけ fetch すること。
+//
+// PERF-1 のテストでは tagCodeRepo が空スタブのため、これら4関数は
+// checkupCodes/testCodes/rxCodes が空で早期 return し、fetch 経路自体を
+// 通過しなかった（"M-1 既知ギャップ"）。本テストでは有効な mapping を
+// 用意して早期 return を無効化し、fetch 回数を実際に検証する。
+// ─────────────────────────────────────────────
+
+func TestPERFM1M2_MappingsAndThresholdsFetchedOncePerClinic(t *testing.T) {
+	const ownerCount = 3
+	const clinicID = uint64(10)
+
+	// --- spy: GetHealthPreventionThresholds の呼び出し回数 ---
+	var thresholdCallCount int64
+	settingsSpy := &mockLstepSettingsService{
+		getHealthPreventionThresholdsFn: func(_ context.Context, _ uint64) (model.HealthPreventionThresholds, error) {
+			atomic.AddInt64(&thresholdCallCount, 1)
+			return model.HealthPreventionThresholds{}.WithDefaults(), nil
+		},
+	}
+
+	// --- spy: FindByClinicIDAndTagName の呼び出し回数をタグ名ごとに数える ---
+	mappingCallCounts := make(map[string]*int64)
+	for _, tag := range []string{HlthHealthcheckDoneTag, PrevFilariaTag, PrevFleaTickTag, LtvFoodPurchaseTag} {
+		var c int64
+		mappingCallCounts[tag] = &c
+	}
+	tagCodeRepoSpy := &mockLstepTagCodeMappingRepository{
+		findByClinicIDAndTagNameFn: func(_ context.Context, _ uint64, tagName string) ([]*model.LstepTagCodeMapping, error) {
+			if counter, ok := mappingCallCounts[tagName]; ok {
+				atomic.AddInt64(counter, 1)
+			}
+			switch tagName {
+			case HlthHealthcheckDoneTag:
+				return []*model.LstepTagCodeMapping{{TagName: tagName, CodeType: model.CodeTypeCheckupType, Codes: pq.StringArray{"健診A"}}}, nil
+			case PrevFilariaTag:
+				return []*model.LstepTagCodeMapping{{TagName: tagName, CodeType: model.CodeTypeCheckupType, Codes: pq.StringArray{"フィラリア検査"}}}, nil
+			case PrevFleaTickTag:
+				return []*model.LstepTagCodeMapping{{TagName: tagName, CodeType: model.CodeTypePrescription, Codes: pq.StringArray{"ノミダニ薬"}}}, nil
+			case LtvFoodPurchaseTag:
+				return []*model.LstepTagCodeMapping{{TagName: tagName, CodeType: model.CodeTypeMerchandiseItem, Codes: pq.StringArray{"フードA"}}}, nil
+			}
+			return nil, nil
+		},
+	}
+
+	// --- owner repository: ownerCount 件の飼い主 ---
+	lineID := "line-u-test"
+	owners := make([]model.Owner, ownerCount)
+	for i := range owners {
+		owners[i] = model.Owner{ID: uint64(i + 1), ClinicID: clinicID, LineUserID: &lineID}
+	}
+	ownerRepo := &mockOwnerRepository{
+		findAllWithLineUserIDCursorFn: func(_ context.Context, _ uint64, afterID uint64, _ int) ([]model.Owner, error) {
+			if afterID != 0 {
+				return nil, nil
+			}
+			return owners, nil
+		},
+		findByIDFn: func(_ context.Context, _, id uint64) (*model.Owner, error) {
+			o := model.Owner{ID: id, ClinicID: clinicID, LineUserID: &lineID}
+			return &o, nil
+		},
+	}
+
+	vacRepo := &mockVaccinationRepoForHealth{}
+	petRepo := petRepoWithPets([]model.Pet{dogPet()}, nil)
+	checkupRepo := checkupRepoWithResult(nil, nil)
+	medRecordRepo := visitSummaryRepo(0)
+	billingItemRepo := billingItemRepoReturning(false, false)
+
+	buildClientFn := func(_ context.Context, _ uint64) (lstep.Client, error) {
+		return nil, nil
+	}
+
+	svc := &lstepTagSyncService{
+		settingsSvc:     settingsSpy,
+		ownerRepo:       ownerRepo,
+		vacRepo:         vacRepo,
+		petRepo:         petRepo,
+		checkupRepo:     checkupRepo,
+		medRecordRepo:   medRecordRepo,
+		billingItemRepo: billingItemRepo,
+		tagCacheRepo:    &mockLstepTagCacheRepository{},
+		tagCodeRepo:     tagCodeRepoSpy,
+		buildClientFn:   buildClientFn,
+	}
+
+	count, errs := svc.SyncHealthPreventionTagsForClinic(context.Background(), clinicID)
+	_ = count
+	assert.Empty(t, errs)
+
+	gotThresholds := atomic.LoadInt64(&thresholdCallCount)
+	assert.Equal(t, int64(1), gotThresholds,
+		"GetHealthPreventionThresholds は clinic 単位で 1 回だけ呼ばれるべき (現在 %d 回)", gotThresholds)
+
+	for _, tag := range []string{HlthHealthcheckDoneTag, PrevFilariaTag, PrevFleaTickTag, LtvFoodPurchaseTag} {
+		got := atomic.LoadInt64(mappingCallCounts[tag])
+		assert.Equal(t, int64(1), got,
+			"FindByClinicIDAndTagName(%s) は clinic 単位で 1 回だけ呼ばれるべき (現在 %d 回)", tag, got)
+	}
 }
 
 // ─────────────────────────────────────────────
@@ -107,7 +213,7 @@ func TestH1_DetectDormantOwners_NilSettingsSvc_DoesNotPanic(t *testing.T) {
 		{OwnerID: 2, DaysSince: 250},
 	}
 	medRepo := &batchMockMedRecordRepo{
-		findDormantFn: func(_ context.Context, _ uint64, _ int) ([]repository.DormantOwnerEntry, error) {
+		findDormantCursorFn: func(_ context.Context, _ uint64, _ int, _ uint64, _ int) ([]repository.DormantOwnerEntry, error) {
 			return entries, nil
 		},
 	}
@@ -157,7 +263,7 @@ func TestPERF2_DetectDormantOwners_CallsSyncWithThresholds(t *testing.T) {
 		entries[i] = repository.DormantOwnerEntry{OwnerID: uint64(i + 1), DaysSince: 200}
 	}
 	medRepo := &batchMockMedRecordRepo{
-		findDormantFn: func(_ context.Context, _ uint64, _ int) ([]repository.DormantOwnerEntry, error) {
+		findDormantCursorFn: func(_ context.Context, _ uint64, _ int, _ uint64, _ int) ([]repository.DormantOwnerEntry, error) {
 			return entries, nil
 		},
 	}

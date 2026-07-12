@@ -97,6 +97,10 @@ func (m *mockMedicalRecordRepository) FindDormantOwnerEntries(_ context.Context,
 	return nil, nil
 }
 
+func (m *mockMedicalRecordRepository) FindDormantOwnerEntriesCursor(_ context.Context, _ uint64, _ int, _ uint64, _ int) ([]repository.DormantOwnerEntry, error) {
+	return nil, nil
+}
+
 func (m *mockMedicalRecordRepository) FindOwnersByFirstVisitDate(_ context.Context, _ uint64, _ time.Time) ([]uint64, error) {
 	return nil, nil
 }
@@ -164,6 +168,9 @@ func (m *mrMockOwnerRepo) FindByLineUserID(_ context.Context, _ uint64, _ string
 	return nil, nil
 }
 func (m *mrMockOwnerRepo) FindAllWithLineUserID(_ context.Context, _ uint64) ([]model.Owner, error) {
+	return nil, nil
+}
+func (m *mrMockOwnerRepo) FindAllWithLineUserIDCursor(_ context.Context, _ uint64, _ uint64, _ int) ([]model.Owner, error) {
 	return nil, nil
 }
 func (m *mrMockOwnerRepo) UpdateLineUserID(_ context.Context, _, _ uint64, _ *string) error {

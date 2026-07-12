@@ -83,7 +83,8 @@ func (m *batchMockReservationRepo) HasReservationByOwnerInRange(_ context.Contex
 
 // batchMockMedRecordRepo は batch テスト専用 MedicalRecordRepository モック
 type batchMockMedRecordRepo struct {
-	findDormantFn func(ctx context.Context, clinicID uint64, minDays int) ([]repository.DormantOwnerEntry, error)
+	findDormantFn       func(ctx context.Context, clinicID uint64, minDays int) ([]repository.DormantOwnerEntry, error)
+	findDormantCursorFn func(ctx context.Context, clinicID uint64, minDays int, afterOwnerID uint64, limit int) ([]repository.DormantOwnerEntry, error)
 }
 
 func (m *batchMockMedRecordRepo) FindAll(_ context.Context, _ []uint64, _ repository.MedicalRecordListFilters, _, _ int) ([]model.MedicalRecord, int64, error) {
@@ -123,6 +124,12 @@ func (m *batchMockMedRecordRepo) FindLatestByOwner(_ context.Context, _, _ uint6
 func (m *batchMockMedRecordRepo) FindDormantOwnerEntries(ctx context.Context, clinicID uint64, minDays int) ([]repository.DormantOwnerEntry, error) {
 	if m.findDormantFn != nil {
 		return m.findDormantFn(ctx, clinicID, minDays)
+	}
+	return nil, nil
+}
+func (m *batchMockMedRecordRepo) FindDormantOwnerEntriesCursor(ctx context.Context, clinicID uint64, minDays int, afterOwnerID uint64, limit int) ([]repository.DormantOwnerEntry, error) {
+	if m.findDormantCursorFn != nil {
+		return m.findDormantCursorFn(ctx, clinicID, minDays, afterOwnerID, limit)
 	}
 	return nil, nil
 }
@@ -407,7 +414,7 @@ func TestDetectDormantOwners_Success(t *testing.T) {
 		},
 		&mockClinicRepository{},
 		&batchMockMedRecordRepo{
-			findDormantFn: func(_ context.Context, _ uint64, _ int) ([]repository.DormantOwnerEntry, error) {
+			findDormantCursorFn: func(_ context.Context, _ uint64, _ int, _ uint64, _ int) ([]repository.DormantOwnerEntry, error) {
 				return entries, nil
 			},
 		},
@@ -426,7 +433,7 @@ func TestDetectDormantOwners_FindError(t *testing.T) {
 		&batchMockTagSyncSvc{},
 		&mockClinicRepository{},
 		&batchMockMedRecordRepo{
-			findDormantFn: func(_ context.Context, _ uint64, _ int) ([]repository.DormantOwnerEntry, error) {
+			findDormantCursorFn: func(_ context.Context, _ uint64, _ int, _ uint64, _ int) ([]repository.DormantOwnerEntry, error) {
 				return nil, errors.New("db error")
 			},
 		},
@@ -450,7 +457,7 @@ func TestDetectDormantOwners_TagSyncError(t *testing.T) {
 		},
 		&mockClinicRepository{},
 		&batchMockMedRecordRepo{
-			findDormantFn: func(_ context.Context, _ uint64, _ int) ([]repository.DormantOwnerEntry, error) {
+			findDormantCursorFn: func(_ context.Context, _ uint64, _ int, _ uint64, _ int) ([]repository.DormantOwnerEntry, error) {
 				return entries, nil
 			},
 		},
@@ -550,7 +557,7 @@ func TestRunDormantDetectionAllClinics_PersistsAuditMetadata(t *testing.T) {
 			},
 		},
 		&batchMockMedRecordRepo{
-			findDormantFn: func(_ context.Context, _ uint64, _ int) ([]repository.DormantOwnerEntry, error) {
+			findDormantCursorFn: func(_ context.Context, _ uint64, _ int, _ uint64, _ int) ([]repository.DormantOwnerEntry, error) {
 				return entries, nil
 			},
 		},

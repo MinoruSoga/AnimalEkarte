@@ -83,6 +83,9 @@ func (m *mockLstepImportOwnerRepo) FindAllWithLineUserID(ctx context.Context, cl
 	}
 	return nil, nil
 }
+func (m *mockLstepImportOwnerRepo) FindAllWithLineUserIDCursor(_ context.Context, _ uint64, _ uint64, _ int) ([]model.Owner, error) {
+	return nil, nil
+}
 func (m *mockLstepImportOwnerRepo) CreateWithPets(_ context.Context, _ *model.Owner, _ []model.Pet) error {
 	return nil
 }

@@ -135,6 +135,9 @@ func (m *mockOwnerRepoForDelivery) FindByLineUserID(_ context.Context, _ uint64,
 func (m *mockOwnerRepoForDelivery) FindAllWithLineUserID(_ context.Context, _ uint64) ([]model.Owner, error) {
 	return nil, nil
 }
+func (m *mockOwnerRepoForDelivery) FindAllWithLineUserIDCursor(_ context.Context, _ uint64, _ uint64, _ int) ([]model.Owner, error) {
+	return nil, nil
+}
 func (m *mockOwnerRepoForDelivery) CreateWithPets(_ context.Context, _ *model.Owner, _ []model.Pet) error {
 	return nil
 }
@@ -206,6 +209,9 @@ func (m *mockMedRecordRepoForDelivery) FindLatestByOwner(_ context.Context, _, _
 	return nil, nil
 }
 func (m *mockMedRecordRepoForDelivery) FindDormantOwnerEntries(_ context.Context, _ uint64, _ int) ([]repository.DormantOwnerEntry, error) {
+	return nil, nil
+}
+func (m *mockMedRecordRepoForDelivery) FindDormantOwnerEntriesCursor(_ context.Context, _ uint64, _ int, _ uint64, _ int) ([]repository.DormantOwnerEntry, error) {
 	return nil, nil
 }
 func (m *mockMedRecordRepoForDelivery) FindOwnersByFirstVisitDate(ctx context.Context, clinicID uint64, targetDate time.Time) ([]uint64, error) {

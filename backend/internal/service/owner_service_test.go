@@ -15,18 +15,19 @@ import (
 
 // mockOwnerRepository は OwnerRepository のテスト用モック実装
 type mockOwnerRepository struct {
-	findAllFn               func(ctx context.Context, clinicIDs []uint64, page, limit int, search string) ([]model.Owner, int64, error)
-	findByIDFn              func(ctx context.Context, clinicID, id uint64) (*model.Owner, error)
-	findByIDsFn             func(ctx context.Context, clinicID uint64, ids []uint64) ([]*model.Owner, error)
-	findByEmailFn           func(ctx context.Context, clinicID uint64, email string) (*model.Owner, error)
-	findByPhoneFn           func(ctx context.Context, clinicID uint64, phone string) (*model.Owner, error)
-	createWithPetsFn        func(ctx context.Context, owner *model.Owner, pets []model.Pet) error
-	updateFn                func(ctx context.Context, clinicID, id uint64, fields map[string]any) error
-	deleteFn                func(ctx context.Context, clinicID, id uint64) error
-	countPetsByOwnerIDFn    func(ctx context.Context, clinicID, ownerID uint64) (int64, error)
-	findByLineUserIDFn      func(ctx context.Context, clinicID uint64, lineUserID string) (*model.Owner, error)
-	updateLineUserIDFn      func(ctx context.Context, clinicID, id uint64, lineUserID *string) error
-	findAllWithLineUserIDFn func(ctx context.Context, clinicID uint64) ([]model.Owner, error)
+	findAllFn                     func(ctx context.Context, clinicIDs []uint64, page, limit int, search string) ([]model.Owner, int64, error)
+	findByIDFn                    func(ctx context.Context, clinicID, id uint64) (*model.Owner, error)
+	findByIDsFn                   func(ctx context.Context, clinicID uint64, ids []uint64) ([]*model.Owner, error)
+	findByEmailFn                 func(ctx context.Context, clinicID uint64, email string) (*model.Owner, error)
+	findByPhoneFn                 func(ctx context.Context, clinicID uint64, phone string) (*model.Owner, error)
+	createWithPetsFn              func(ctx context.Context, owner *model.Owner, pets []model.Pet) error
+	updateFn                      func(ctx context.Context, clinicID, id uint64, fields map[string]any) error
+	deleteFn                      func(ctx context.Context, clinicID, id uint64) error
+	countPetsByOwnerIDFn          func(ctx context.Context, clinicID, ownerID uint64) (int64, error)
+	findByLineUserIDFn            func(ctx context.Context, clinicID uint64, lineUserID string) (*model.Owner, error)
+	updateLineUserIDFn            func(ctx context.Context, clinicID, id uint64, lineUserID *string) error
+	findAllWithLineUserIDFn       func(ctx context.Context, clinicID uint64) ([]model.Owner, error)
+	findAllWithLineUserIDCursorFn func(ctx context.Context, clinicID uint64, afterID uint64, limit int) ([]model.Owner, error)
 }
 
 func (m *mockOwnerRepository) FindAll(ctx context.Context, clinicIDs []uint64, page, limit int, search string) ([]model.Owner, int64, error) {
@@ -94,6 +95,13 @@ func (m *mockOwnerRepository) FindByLineUserID(ctx context.Context, clinicID uin
 func (m *mockOwnerRepository) FindAllWithLineUserID(ctx context.Context, clinicID uint64) ([]model.Owner, error) {
 	if m.findAllWithLineUserIDFn != nil {
 		return m.findAllWithLineUserIDFn(ctx, clinicID)
+	}
+	return nil, nil
+}
+
+func (m *mockOwnerRepository) FindAllWithLineUserIDCursor(ctx context.Context, clinicID uint64, afterID uint64, limit int) ([]model.Owner, error) {
+	if m.findAllWithLineUserIDCursorFn != nil {
+		return m.findAllWithLineUserIDCursorFn(ctx, clinicID, afterID, limit)
 	}
 	return nil, nil
 }

@@ -63,6 +63,10 @@ func (m *mockMedicalRecordRepoForTreatment) FindDormantOwnerEntries(_ context.Co
 	return nil, nil
 }
 
+func (m *mockMedicalRecordRepoForTreatment) FindDormantOwnerEntriesCursor(_ context.Context, _ uint64, _ int, _ uint64, _ int) ([]repository.DormantOwnerEntry, error) {
+	return nil, nil
+}
+
 func (m *mockMedicalRecordRepoForTreatment) FindOwnersByFirstVisitDate(_ context.Context, _ uint64, _ time.Time) ([]uint64, error) {
 	return nil, nil
 }

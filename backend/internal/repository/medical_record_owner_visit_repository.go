@@ -176,3 +176,37 @@ func (r *medicalRecordRepository) FindDormantOwnerEntries(ctx context.Context, c
 	}
 	return entries, nil
 }
+
+// FindDormantOwnerEntriesCursor は最終来院から minDaysSince 日以上経過した飼い主一覧を
+// owner_id カーソルページネーションで返す（PERF-FOLLOWUP-02）。owner_id 昇順で afterOwnerID より
+// 大きいものを最大 limit 件返す。
+func (r *medicalRecordRepository) FindDormantOwnerEntriesCursor(ctx context.Context, clinicID uint64, minDaysSince int, afterOwnerID uint64, limit int) ([]DormantOwnerEntry, error) {
+	cutoff := time.Now().In(time.Local).AddDate(0, 0, -minDaysSince)
+	type row struct {
+		OwnerID     uint64
+		LastVisitAt time.Time
+	}
+	var rows []row
+	err := r.db.WithContext(ctx).
+		Model(&model.MedicalRecord{}).
+		Scopes(clinicScope(clinicID)).
+		Where("deleted_at IS NULL AND owner_id > ?", afterOwnerID).
+		Select("owner_id, MAX(date) AS last_visit_at").
+		Group("owner_id").
+		Having("MAX(date) < ?", cutoff).
+		Order("owner_id ASC").
+		Limit(limit).
+		Scan(&rows).Error
+	if err != nil {
+		return nil, apperrors.FromGORM(err, "medical_record", fmt.Sprintf("clinic=%d dormant cursor", clinicID))
+	}
+	now := time.Now().In(time.Local)
+	entries := make([]DormantOwnerEntry, 0, len(rows))
+	for _, r := range rows {
+		entries = append(entries, DormantOwnerEntry{
+			OwnerID:   r.OwnerID,
+			DaysSince: int(now.Sub(r.LastVisitAt).Hours() / 24),
+		})
+	}
+	return entries, nil
+}

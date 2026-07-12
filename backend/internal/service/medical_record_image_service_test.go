@@ -64,6 +64,9 @@ func (m *mockMedicalRecordRepositoryForImage) FindLatestByOwner(_ context.Contex
 func (m *mockMedicalRecordRepositoryForImage) FindDormantOwnerEntries(_ context.Context, _ uint64, _ int) ([]repository.DormantOwnerEntry, error) {
 	return nil, nil
 }
+func (m *mockMedicalRecordRepositoryForImage) FindDormantOwnerEntriesCursor(_ context.Context, _ uint64, _ int, _ uint64, _ int) ([]repository.DormantOwnerEntry, error) {
+	return nil, nil
+}
 func (m *mockMedicalRecordRepositoryForImage) FindOwnersByFirstVisitDate(_ context.Context, _ uint64, _ time.Time) ([]uint64, error) {
 	return nil, nil
 }

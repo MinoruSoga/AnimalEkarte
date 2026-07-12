@@ -73,6 +73,9 @@ func (m *mockMedRecordRepoForLstepVisit) FindLatestByOwner(ctx context.Context, 
 func (m *mockMedRecordRepoForLstepVisit) FindDormantOwnerEntries(_ context.Context, _ uint64, _ int) ([]repository.DormantOwnerEntry, error) {
 	return nil, nil
 }
+func (m *mockMedRecordRepoForLstepVisit) FindDormantOwnerEntriesCursor(_ context.Context, _ uint64, _ int, _ uint64, _ int) ([]repository.DormantOwnerEntry, error) {
+	return nil, nil
+}
 func (m *mockMedRecordRepoForLstepVisit) FindOwnersByFirstVisitDate(_ context.Context, _ uint64, _ time.Time) ([]uint64, error) {
 	return nil, nil
 }

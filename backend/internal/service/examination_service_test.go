@@ -135,6 +135,10 @@ func (m *mockMedicalRecordRepositoryForExam) FindDormantOwnerEntries(ctx context
 	return nil, nil
 }
 
+func (m *mockMedicalRecordRepositoryForExam) FindDormantOwnerEntriesCursor(ctx context.Context, clinicID uint64, minDaysSince int, afterOwnerID uint64, limit int) ([]repository.DormantOwnerEntry, error) {
+	return nil, nil
+}
+
 func (m *mockMedicalRecordRepositoryForExam) FindOwnersByFirstVisitDate(ctx context.Context, clinicID uint64, targetDate time.Time) ([]uint64, error) {
 	return nil, nil
 }

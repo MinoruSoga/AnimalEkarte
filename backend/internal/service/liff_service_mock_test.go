@@ -347,6 +347,9 @@ func (m *mockLiffOwnerRepository) FindByLineUserID(_ context.Context, _ uint64, 
 func (m *mockLiffOwnerRepository) FindAllWithLineUserID(_ context.Context, _ uint64) ([]model.Owner, error) {
 	return nil, nil
 }
+func (m *mockLiffOwnerRepository) FindAllWithLineUserIDCursor(_ context.Context, _ uint64, _ uint64, _ int) ([]model.Owner, error) {
+	return nil, nil
+}
 func (m *mockLiffOwnerRepository) UpdateLineUserID(_ context.Context, _, _ uint64, _ *string) error {
 	return nil
 }

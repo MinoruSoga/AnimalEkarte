@@ -27,6 +27,10 @@ type OwnerRepository interface {
 	FindByLineUserID(ctx context.Context, clinicID uint64, lineUserID string) (*model.Owner, error)
 	// FindAllWithLineUserID は line_user_id が設定されている飼主を全件返す（タグ一括同期用）。
 	FindAllWithLineUserID(ctx context.Context, clinicID uint64) ([]model.Owner, error)
+	// FindAllWithLineUserIDCursor は line_user_id が設定されている飼主を id カーソルページネーションで返す
+	// （PERF-FOLLOWUP-02: 大規模クリニックでの無制限全件取得を回避するバッチ処理用）。
+	// afterID より大きい id を昇順で最大 limit 件返す。afterID=0 で先頭ページ。
+	FindAllWithLineUserIDCursor(ctx context.Context, clinicID uint64, afterID uint64, limit int) ([]model.Owner, error)
 	CreateWithPets(ctx context.Context, owner *model.Owner, pets []model.Pet) error
 	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error
 	// UpdateLineUserID は飼主の LINE User ID を更新する。nil を渡すと連携解除。
@@ -248,6 +252,22 @@ func (r *ownerRepository) FindAllWithLineUserID(ctx context.Context, clinicID ui
 	err := r.db.WithContext(ctx).
 		Scopes(clinicScope(clinicID)).
 		Where("line_user_id IS NOT NULL AND deleted_at IS NULL").
+		Find(&owners).Error
+	if err != nil {
+		return nil, apperrors.FromGORM(err, "owner", "")
+	}
+	return owners, nil
+}
+
+// FindAllWithLineUserIDCursor は line_user_id が設定されている飼主を id カーソルページネーションで返す
+// （PERF-FOLLOWUP-02）。id 昇順で afterID より大きいものを最大 limit 件返す。
+func (r *ownerRepository) FindAllWithLineUserIDCursor(ctx context.Context, clinicID uint64, afterID uint64, limit int) ([]model.Owner, error) {
+	var owners []model.Owner
+	err := r.db.WithContext(ctx).
+		Scopes(clinicScope(clinicID)).
+		Where("line_user_id IS NOT NULL AND deleted_at IS NULL AND id > ?", afterID).
+		Order("id ASC").
+		Limit(limit).
 		Find(&owners).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "owner", "")

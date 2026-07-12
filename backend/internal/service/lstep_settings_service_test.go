@@ -266,7 +266,7 @@ func TestAllClinicsFiltersBySyncEnabled(t *testing.T) {
 			},
 		}
 		medRepo := &batchMockMedRecordRepo{
-			findDormantFn: func(_ context.Context, clinicID uint64, _ int) ([]repository.DormantOwnerEntry, error) {
+			findDormantCursorFn: func(_ context.Context, clinicID uint64, _ int, _ uint64, _ int) ([]repository.DormantOwnerEntry, error) {
 				processed = append(processed, clinicID)
 				return nil, nil
 			},

@@ -16,7 +16,8 @@ import (
 //      lstep_batch_service_test.go / medical_record_service_test.go / clinic_service_test.go) ----
 
 type dormantMockMedicalRecordRepository struct {
-	findDormantOwnerEntriesFn func(ctx context.Context, clinicID uint64, minDaysSince int) ([]repository.DormantOwnerEntry, error)
+	findDormantOwnerEntriesFn       func(ctx context.Context, clinicID uint64, minDaysSince int) ([]repository.DormantOwnerEntry, error)
+	findDormantOwnerEntriesCursorFn func(ctx context.Context, clinicID uint64, minDaysSince int, afterOwnerID uint64, limit int) ([]repository.DormantOwnerEntry, error)
 }
 
 func (m *dormantMockMedicalRecordRepository) FindAll(_ context.Context, _ []uint64, _ repository.MedicalRecordListFilters, _, _ int) ([]model.MedicalRecord, int64, error) {
@@ -61,6 +62,12 @@ func (m *dormantMockMedicalRecordRepository) FindLatestByOwner(_ context.Context
 func (m *dormantMockMedicalRecordRepository) FindDormantOwnerEntries(ctx context.Context, clinicID uint64, minDaysSince int) ([]repository.DormantOwnerEntry, error) {
 	if m.findDormantOwnerEntriesFn != nil {
 		return m.findDormantOwnerEntriesFn(ctx, clinicID, minDaysSince)
+	}
+	return nil, nil
+}
+func (m *dormantMockMedicalRecordRepository) FindDormantOwnerEntriesCursor(ctx context.Context, clinicID uint64, minDaysSince int, afterOwnerID uint64, limit int) ([]repository.DormantOwnerEntry, error) {
+	if m.findDormantOwnerEntriesCursorFn != nil {
+		return m.findDormantOwnerEntriesCursorFn(ctx, clinicID, minDaysSince, afterOwnerID, limit)
 	}
 	return nil, nil
 }
@@ -163,7 +170,7 @@ func TestLstepBatchService_RunDormantDetectionAllClinics(t *testing.T) {
 			findAllFn: func(_ context.Context) ([]model.Clinic, error) { return []model.Clinic{{ID: 1}}, nil },
 		}
 		medRecordRepo := &dormantMockMedicalRecordRepository{
-			findDormantOwnerEntriesFn: func(_ context.Context, _ uint64, _ int) ([]repository.DormantOwnerEntry, error) {
+			findDormantOwnerEntriesCursorFn: func(_ context.Context, _ uint64, _ int, _ uint64, _ int) ([]repository.DormantOwnerEntry, error) {
 				t.Fatal("DetectDormantOwners must not run for a clinic whose sync-enabled check failed")
 				return nil, nil
 			},
@@ -181,7 +188,7 @@ func TestLstepBatchService_RunDormantDetectionAllClinics(t *testing.T) {
 			findAllFn: func(_ context.Context) ([]model.Clinic, error) { return []model.Clinic{{ID: 1}}, nil },
 		}
 		medRecordRepo := &dormantMockMedicalRecordRepository{
-			findDormantOwnerEntriesFn: func(_ context.Context, _ uint64, _ int) ([]repository.DormantOwnerEntry, error) {
+			findDormantOwnerEntriesCursorFn: func(_ context.Context, _ uint64, _ int, _ uint64, _ int) ([]repository.DormantOwnerEntry, error) {
 				t.Fatal("DetectDormantOwners must not run for a clinic with sync disabled")
 				return nil, nil
 			},
@@ -199,7 +206,7 @@ func TestLstepBatchService_RunDormantDetectionAllClinics(t *testing.T) {
 			findAllFn: func(_ context.Context) ([]model.Clinic, error) { return []model.Clinic{{ID: 1}}, nil },
 		}
 		medRecordRepo := &dormantMockMedicalRecordRepository{
-			findDormantOwnerEntriesFn: func(_ context.Context, _ uint64, _ int) ([]repository.DormantOwnerEntry, error) {
+			findDormantOwnerEntriesCursorFn: func(_ context.Context, _ uint64, _ int, _ uint64, _ int) ([]repository.DormantOwnerEntry, error) {
 				return []repository.DormantOwnerEntry{{OwnerID: 10, DaysSince: 200}}, nil
 			},
 		}
@@ -219,7 +226,7 @@ func TestLstepBatchService_RunDormantDetectionAllClinics(t *testing.T) {
 			findAllFn: func(_ context.Context) ([]model.Clinic, error) { return []model.Clinic{{ID: 1}}, nil },
 		}
 		medRecordRepo := &dormantMockMedicalRecordRepository{
-			findDormantOwnerEntriesFn: func(_ context.Context, _ uint64, _ int) ([]repository.DormantOwnerEntry, error) {
+			findDormantOwnerEntriesCursorFn: func(_ context.Context, _ uint64, _ int, _ uint64, _ int) ([]repository.DormantOwnerEntry, error) {
 				return nil, nil
 			},
 		}
@@ -239,7 +246,7 @@ func TestLstepBatchService_RunDormantDetectionAllClinics(t *testing.T) {
 			findAllFn: func(_ context.Context) ([]model.Clinic, error) { return []model.Clinic{{ID: 1}}, nil },
 		}
 		medRecordRepo := &dormantMockMedicalRecordRepository{
-			findDormantOwnerEntriesFn: func(_ context.Context, _ uint64, _ int) ([]repository.DormantOwnerEntry, error) {
+			findDormantOwnerEntriesCursorFn: func(_ context.Context, _ uint64, _ int, _ uint64, _ int) ([]repository.DormantOwnerEntry, error) {
 				return []repository.DormantOwnerEntry{{OwnerID: 10, DaysSince: 200}}, nil
 			},
 		}
@@ -257,7 +264,7 @@ func TestLstepBatchService_RunDormantDetectionAllClinics(t *testing.T) {
 			findAllFn: func(_ context.Context) ([]model.Clinic, error) { return []model.Clinic{{ID: 1}}, nil },
 		}
 		medRecordRepo := &dormantMockMedicalRecordRepository{
-			findDormantOwnerEntriesFn: func(_ context.Context, _ uint64, _ int) ([]repository.DormantOwnerEntry, error) {
+			findDormantOwnerEntriesCursorFn: func(_ context.Context, _ uint64, _ int, _ uint64, _ int) ([]repository.DormantOwnerEntry, error) {
 				return []repository.DormantOwnerEntry{{OwnerID: 10, DaysSince: 200}}, nil
 			},
 		}
@@ -277,7 +284,7 @@ func TestLstepBatchService_RunDormantDetectionAllClinics(t *testing.T) {
 			findAllFn: func(_ context.Context) ([]model.Clinic, error) { return []model.Clinic{{ID: 1}}, nil },
 		}
 		medRecordRepo := &dormantMockMedicalRecordRepository{
-			findDormantOwnerEntriesFn: func(_ context.Context, _ uint64, _ int) ([]repository.DormantOwnerEntry, error) {
+			findDormantOwnerEntriesCursorFn: func(_ context.Context, _ uint64, _ int, _ uint64, _ int) ([]repository.DormantOwnerEntry, error) {
 				return nil, nil
 			},
 		}
@@ -291,7 +298,7 @@ func TestLstepBatchService_RunDormantDetectionAllClinics(t *testing.T) {
 
 func TestLstepBatchService_DetectDormantOwners_FindError(t *testing.T) {
 	medRecordRepo := &dormantMockMedicalRecordRepository{
-		findDormantOwnerEntriesFn: func(_ context.Context, _ uint64, _ int) ([]repository.DormantOwnerEntry, error) {
+		findDormantOwnerEntriesCursorFn: func(_ context.Context, _ uint64, _ int, _ uint64, _ int) ([]repository.DormantOwnerEntry, error) {
 			return nil, errors.New("db error")
 		},
 	}
@@ -303,7 +310,7 @@ func TestLstepBatchService_DetectDormantOwners_FindError(t *testing.T) {
 
 func TestLstepBatchService_DetectDormantOwners_ThresholdsError(t *testing.T) {
 	medRecordRepo := &dormantMockMedicalRecordRepository{
-		findDormantOwnerEntriesFn: func(_ context.Context, _ uint64, _ int) ([]repository.DormantOwnerEntry, error) {
+		findDormantOwnerEntriesCursorFn: func(_ context.Context, _ uint64, _ int, _ uint64, _ int) ([]repository.DormantOwnerEntry, error) {
 			return []repository.DormantOwnerEntry{{OwnerID: 1, DaysSince: 200}}, nil
 		},
 	}
@@ -316,6 +323,37 @@ func TestLstepBatchService_DetectDormantOwners_ThresholdsError(t *testing.T) {
 	count, errs := svc.DetectDormantOwners(context.Background(), 1)
 	assert.Equal(t, 0, count)
 	assert.NotEmpty(t, errs)
+}
+
+// TestLstepBatchService_DetectDormantOwners_PaginatesAcrossMultiplePages verifies
+// PERF-FOLLOWUP-02 cursor pagination: when the first page is exactly full (pageSize), a second
+// page fetch is issued using the last entry's OwnerID as the cursor, and entries from both pages
+// are processed with no duplicates/no skips.
+func TestLstepBatchService_DetectDormantOwners_PaginatesAcrossMultiplePages(t *testing.T) {
+	fetchCalls := make([]uint64, 0, 3)
+	medRecordRepo := &dormantMockMedicalRecordRepository{
+		findDormantOwnerEntriesCursorFn: func(_ context.Context, _ uint64, _ int, afterOwnerID uint64, limit int) ([]repository.DormantOwnerEntry, error) {
+			fetchCalls = append(fetchCalls, afterOwnerID)
+			assert.Equal(t, dormantBatchPageSize, limit)
+			switch afterOwnerID {
+			case 0:
+				entries := make([]repository.DormantOwnerEntry, dormantBatchPageSize)
+				for i := range entries {
+					entries[i] = repository.DormantOwnerEntry{OwnerID: uint64(i + 1), DaysSince: 200}
+				}
+				return entries, nil
+			case uint64(dormantBatchPageSize):
+				return []repository.DormantOwnerEntry{{OwnerID: uint64(dormantBatchPageSize + 1), DaysSince: 200}}, nil
+			default:
+				return nil, nil
+			}
+		},
+	}
+	svc := newDormantBatchService(medRecordRepo, newDormantTagSyncWrapper(nil), &dormantMockClinicRepository{}, &mockAuditService{}, &mockLstepSettingsService{})
+	count, errs := svc.DetectDormantOwners(context.Background(), 1)
+	assert.Empty(t, errs)
+	assert.Equal(t, dormantBatchPageSize+1, count, "entries from both pages must be processed")
+	assert.Equal(t, []uint64{0, uint64(dormantBatchPageSize)}, fetchCalls, "cursor must advance using the last entry's OwnerID of the previous page, no duplicates/no skips")
 }
 
 // spyLstepBatchAuditService is a minimal AuditService spy scoped to this file (avoids relying

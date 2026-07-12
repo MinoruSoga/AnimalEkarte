@@ -12,11 +12,13 @@ package repository
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"gorm.io/gorm"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
@@ -329,6 +331,81 @@ func TestOwnerRepository_FindAllWithLineUserID(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, got, 1)
 	assert.Equal(t, linked.ID, got[0].ID)
+}
+
+// ---- FindAllWithLineUserIDCursor（PERF-FOLLOWUP-02: カーソルページネーション） ----
+
+// seedLineLinkedOwners は clinicID に line_user_id 設定済みの飼主を count 件一括作成する
+// （FindAllWithLineUserIDCursor のページ境界テスト用）。
+func seedLineLinkedOwners(t *testing.T, db *gorm.DB, clinicID uint64, count int) {
+	t.Helper()
+	owners := make([]model.Owner, count)
+	for i := range owners {
+		lineID := fmt.Sprintf("U-cursor-%d-%d", clinicID, i)
+		owners[i] = model.Owner{ClinicID: clinicID, Name: fmt.Sprintf("カーソル飼主%d", i), LineUserID: &lineID}
+	}
+	require.NoError(t, db.WithContext(context.Background()).CreateInBatches(owners, 200).Error)
+}
+
+func TestOwnerRepository_FindAllWithLineUserIDCursor_ExactlyOnePage(t *testing.T) {
+	db := setupOwnerPetIsolationTestDB(t)
+	repo := NewOwnerRepository(db)
+	ctx := context.Background()
+	const clinicA = uint64(1)
+	const pageSize = 500
+
+	seedLineLinkedOwners(t, db, clinicA, pageSize)
+
+	page1, err := repo.FindAllWithLineUserIDCursor(ctx, clinicA, 0, pageSize)
+	require.NoError(t, err)
+	require.Len(t, page1, pageSize, "ちょうど pageSize 件は1ページに収まる")
+
+	afterID := page1[len(page1)-1].ID
+	page2, err := repo.FindAllWithLineUserIDCursor(ctx, clinicA, afterID, pageSize)
+	require.NoError(t, err)
+	assert.Empty(t, page2, "全件消化後の次ページ取得は空を返す")
+
+	// カーソルは id 昇順で重複・欠落がないこと。
+	ids := make(map[uint64]bool, len(page1))
+	prev := uint64(0)
+	for _, o := range page1 {
+		assert.False(t, ids[o.ID], "重複 id が含まれてはいけない")
+		ids[o.ID] = true
+		assert.Greater(t, o.ID, prev, "id は昇順でなければならない")
+		prev = o.ID
+	}
+}
+
+func TestOwnerRepository_FindAllWithLineUserIDCursor_TwoPages(t *testing.T) {
+	db := setupOwnerPetIsolationTestDB(t)
+	repo := NewOwnerRepository(db)
+	ctx := context.Background()
+	const clinicA = uint64(1)
+	const pageSize = 500
+	const total = pageSize + 1
+
+	seedLineLinkedOwners(t, db, clinicA, total)
+
+	page1, err := repo.FindAllWithLineUserIDCursor(ctx, clinicA, 0, pageSize)
+	require.NoError(t, err)
+	require.Len(t, page1, pageSize)
+
+	afterID := page1[len(page1)-1].ID
+	page2, err := repo.FindAllWithLineUserIDCursor(ctx, clinicA, afterID, pageSize)
+	require.NoError(t, err)
+	require.Len(t, page2, 1, "501 件目は2ページ目に1件だけ現れる")
+
+	// 重複・欠落なし: 全体件数が total と一致し、id の重複がない。
+	seen := make(map[uint64]bool, total)
+	for _, o := range append(page1, page2...) {
+		assert.False(t, seen[o.ID], "重複 id が含まれてはいけない")
+		seen[o.ID] = true
+	}
+	assert.Len(t, seen, total)
+
+	page3, err := repo.FindAllWithLineUserIDCursor(ctx, clinicA, page2[len(page2)-1].ID, pageSize)
+	require.NoError(t, err)
+	assert.Empty(t, page3, "全件消化後の次ページ取得は空を返す")
 }
 
 func TestOwnerRepository_FindAllByLineUserID(t *testing.T) {

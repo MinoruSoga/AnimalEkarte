@@ -6,11 +6,17 @@ import (
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/repository"
 )
+
+// dormantBatchPageSize は PERF-FOLLOWUP-02 のカーソルページネーション 1 ページあたりの件数。
+const dormantBatchPageSize = 500
 
 func (s *lstepBatchService) DetectDormantOwners(ctx context.Context, clinicID uint64) (int, []error) {
 	const minDaysSince = 180
-	entries, err := s.medRecordRepo.FindDormantOwnerEntries(ctx, clinicID, minDaysSince)
+
+	// PERF-FOLLOWUP-02: 無制限全件取得を避けるため、先頭ページのみ先に取得する。
+	firstPage, err := s.medRecordRepo.FindDormantOwnerEntriesCursor(ctx, clinicID, minDaysSince, 0, dormantBatchPageSize)
 	if err != nil {
 		slog.ErrorContext(ctx, "dormant batch: failed to find dormant owners", "clinic_id", clinicID, "error", err)
 		return 0, []error{apperrors.Wrap(err, "failed to find dormant owners")}
@@ -32,13 +38,38 @@ func (s *lstepBatchService) DetectDormantOwners(ctx context.Context, clinicID ui
 
 	var errs []error
 	count := 0
-	for _, entry := range entries {
-		if tagErr := s.tagSyncSvc.SyncDormantTagsWithThresholds(ctx, clinicID, entry.OwnerID, entry.DaysSince, thresholds); tagErr != nil {
-			slog.ErrorContext(ctx, "dormant batch: failed to sync dormant tag", "clinic_id", clinicID, "owner_id", entry.OwnerID, "error", tagErr)
-			errs = append(errs, apperrors.Wrap(tagErr, "failed to sync dormant tag"))
-			continue
+	syncEntries := func(entries []repository.DormantOwnerEntry) {
+		for _, entry := range entries {
+			if tagErr := s.tagSyncSvc.SyncDormantTagsWithThresholds(ctx, clinicID, entry.OwnerID, entry.DaysSince, thresholds); tagErr != nil {
+				slog.ErrorContext(ctx, "dormant batch: failed to sync dormant tag", "clinic_id", clinicID, "owner_id", entry.OwnerID, "error", tagErr)
+				errs = append(errs, apperrors.Wrap(tagErr, "failed to sync dormant tag"))
+				continue
+			}
+			count++
 		}
-		count++
+	}
+
+	// PERF-FOLLOWUP-02: カーソルページネーションで休眠飼い主を取得しながら処理する。
+	// 直前のページが pageSize ちょうどの場合のみ次ページを取得する（最後の空ページ取得を 1 回に抑える）。
+	page := firstPage
+	afterOwnerID := uint64(0)
+	for {
+		if len(page) == 0 {
+			break
+		}
+		syncEntries(page)
+		afterOwnerID = page[len(page)-1].OwnerID
+		if len(page) < dormantBatchPageSize {
+			break
+		}
+		var pageErr error
+		page, pageErr = s.medRecordRepo.FindDormantOwnerEntriesCursor(ctx, clinicID, minDaysSince, afterOwnerID, dormantBatchPageSize)
+		if pageErr != nil {
+			slog.ErrorContext(ctx, "dormant batch: failed to find dormant owners (next page)",
+				"clinic_id", clinicID, "after_owner_id", afterOwnerID, "error", pageErr)
+			errs = append(errs, apperrors.Wrap(pageErr, "failed to find dormant owners"))
+			break
+		}
 	}
 	return count, errs
 }
