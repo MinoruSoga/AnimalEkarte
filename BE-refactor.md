@@ -65,28 +65,25 @@ LIFF 健康手帳 API の `last_visit_date` を RFC3339 datetime から date-onl
 （`In(time.Local).Format(time.DateOnly)`）へ変更済み。api.yaml の format も `date` に統一、
 stale だった drift pin も削除。詳細は git 履歴参照。
 
-### CI 構成: Backend ジョブの Lint 直列ゲート — ワークフローオーナー判断（緊急度低）
+### CI 構成: Backend ジョブの Lint 直列ゲート — ✅ DONE (`fb18fc18`)
 
-- **決定者**: ワークフローオーナー。**判断質問（転送用）**: 「Backend CI で Lint が失敗しても Test を最後まで走らせる変更（continue-on-error + 最終集約ゲート、約 6 行）を承認しますか？ Lint 失敗が Test の赤を隠す構造（TestMedicalRecordTenantScope が 2 日隠れた実例）の恒久解消です」
-- **推奨**: 肢(i)（continue-on-error + 集約 step）。最小差分・ガードレール非衝突・fail-fast マスクの恒久解消。
-- **判断材料（2026-07-12 実測）**:
-  - main は現在**緑**（`70f4c298` 2026-07-11 12:17 success）。直近失敗 run（`0676efa7`）の Backend 赤は **Test step**（Lint は通過）+ OpenAPI Date-Format Drift Gate で、同日中に解消済み。※7/11 時点の「Backend/Lint 赤」というメモは実測では Test 赤 — 訂正。
-  - backend ジョブ（ci.yml:340-484）: Build(:394) → Lint(:398, golangci-lint-action@v9) → Test(:404) 直列。Lint に continue-on-error 無し = fail-fast マスク構造は残存。スキップ条件 :343 は `needs.changes.outputs.backend == 'true' && (github.event_name != 'pull_request' || github.base_ref != 'main')` — **PR→main では backend ジョブごとスキップ**（静的ゲート 6 種を無条件の独立ジョブにした理由。:193-195 コメント）。
-  - ガードレール `scripts/check-ci-step-order.sh`（ci.yml:109-120 から呼出）は**ステップ名ベースの順序のみ**検証（gate 名完全一致 `Lint`/`Build`/`Type check` の最大 index < risk 名部分一致 `test`/`ratchet` の最小 index）。continue-on-error は検知しない → **両肢とも衝突なし**。
-- **判断肢と実装コスト**:
-  - **(i) continue-on-error + 集約 step（~6 行・推奨）**: Lint step（:398）に `id: lint` + `continue-on-error: true` を追加し、ジョブ末尾（Schema drift check :475 の後）に `if: always()` + `steps.lint.outcome != 'success'` で fail する集約 step を新設。**集約 step 名は完全一致 `Lint`/`Build` と部分一致 `test`/`ratchet` を避ける**（例: "Verify lint outcome" — ガードレールの gate/risk 判定に乗せないため）。
-  - **(ii) Lint 独立ジョブ化（~20 行）**: 二次論点が発生する — 既存静的ゲートは needs/if 無しの全イベント無条件のため、同形にすると **PR→main でも Lint が走る挙動拡大**になる（現在はスキップ）。paths 条件を付けるか否かの追加判断が必要で (i) より重い。
-- ワークフロー変更のためオーナー承認後に**別チケット・別コミット**で実施（本ファイルのコミット規約外）。
+ワークフローオーナー判断: 肢(i)（continue-on-error + 集約 step）採用。Lint step に `id: lint` +
+`continue-on-error: true` を追加し、ジョブ末尾（Schema drift check 後）に `if: always()` +
+`steps.lint.outcome != 'success'` で fail する `Verify lint outcome` 集約 step を新設。
+Lint 失敗が Test を隠す fail-fast マスク構造を解消。集約 step 名はガードレール
+`scripts/check-ci-step-order.sh` の gate/risk 判定と衝突しないことを確認済み（PASS 維持）。
+詳細は git 履歴参照。
 
 ---
 
 ## オープン・フォローアップ（実装待ち / 人間作業）
 
-### FOLLOWUP-X14A. MedicineID → DecreaseStock フォールバック（P1）
+### FOLLOWUP-X14A. MedicineID → DecreaseStock フォールバック（P1） — ✅ DONE (`2c101e40`)
 
-- X-14a は `InventoryID` 直接指定の越境を塞いだが、`InventoryID == nil` 時に `MedicineID` を inventory id として `DecreaseStock`（clinic 非参加）へ渡す経路が残る。
-- 草案: `docs/tasks/open/FOLLOWUP-X14A-decrease-stock-medicine-fallback.md`（`.gitignore` 対象の場合あり）
-- 対象: `treatment_service.go` Create 内在庫減算 / `inventory_repository.go` `DecreaseStock`
+`InventoryID == nil` 時に `MedicineID` を inventory id として `DecreaseStock`（clinic 非参加）へ渡す
+フォールバックを廃止。減算は `InventoryID` が明示指定された場合のみ実施し、`DecreaseStock` の
+シグネチャは無変更。回帰テスト（MedicineID-only で非呼出／InventoryID 指定時は従来どおり減算）を
+追加済み。詳細は git 履歴参照。
 
 ### STG クロステナント監査 SQL（人間実行・自動実行禁止）
 
