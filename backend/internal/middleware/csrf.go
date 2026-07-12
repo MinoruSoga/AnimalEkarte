@@ -4,8 +4,6 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-
-	apperrors "github.com/animal-ekarte/backend/internal/errors"
 )
 
 // RequireXRequestedWith は POST/PATCH/DELETE に対して X-Requested-With ヘッダを強制する CSRF 対策 middleware。
@@ -20,9 +18,7 @@ func RequireXRequestedWith() gin.HandlerFunc {
 
 		// X-Requested-With チェック（XMLHttpRequest が標準値）
 		if c.Request.Header.Get("X-Requested-With") == "" {
-			err := apperrors.WrapForbidden("X-Requested-With header required for state-changing requests")
-			c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
-			c.Abort()
+			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "X-Requested-With header required for state-changing requests"})
 			return
 		}
 

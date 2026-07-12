@@ -6,8 +6,9 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// respondError はミドルウェア層共通のエラーレスポンスを返す。
-// handler 層の RespondError と同一スキーマ（code/message/timestamp）を使用する。
+// respondError は auth.go/liff_auth.go 系 middleware 共通のエラーレスポンスを返す
+// （code/message/timestamp）。handler 層の RespondError（`{"error": msg}`）とは
+// スキーマが異なる — 統一判断は BE-refactor.md §4 参照（X-17）。
 func respondError(c *gin.Context, status int, msg string) {
 	c.AbortWithStatusJSON(status, gin.H{
 		"code":      status,

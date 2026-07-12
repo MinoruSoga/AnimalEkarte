@@ -38,7 +38,7 @@ func TestRequireXRequestedWith(t *testing.T) {
 		router.ServeHTTP(w, req)
 
 		assert.Equal(t, http.StatusForbidden, w.Code)
-		assert.Contains(t, w.Body.String(), "X-Requested-With header required")
+		assert.JSONEq(t, `{"error":"X-Requested-With header required for state-changing requests"}`, w.Body.String())
 	})
 
 	t.Run("allows state-changing methods (POST) with header", func(t *testing.T) {
