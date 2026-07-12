@@ -1,7 +1,6 @@
 {
   "$schema": "https://unpkg.com/knip@6/schema.json",
   "entry": [
-    "src/main.tsx",
     "liff/src/main.tsx",
     "line-reserve/src/main.tsx"
   ],
