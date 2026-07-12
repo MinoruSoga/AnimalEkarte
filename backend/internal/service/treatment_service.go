@@ -450,19 +450,26 @@ func (s *treatmentService) Delete(ctx context.Context, clinicID, medicalRecordID
 		return apperrors.WrapNotFound("treatment", strconv.FormatUint(treatmentID, 10))
 	}
 
-	// HC-004: 親カルテが確定済みの場合は削除拒否
-	parent, err := s.repos.MedicalRecord.FindByID(ctx, clinicID, medicalRecordID)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to find medical record", "error", err)
-		return apperrors.Wrap(err, "failed to find medical record")
-	}
-	if parent.Status == model.MedicalRecordStatusFinalized {
-		return apperrors.WrapConflict("確定済みカルテの治療は削除できません")
-	}
+	// HC-004: 親カルテが確定済みの場合は削除拒否（BE-refactor.md H-8b）。
+	// finalized チェックと Delete を同一 tx に束ね、閉包先頭の LockByIDForUpdate の行ロックで
+	// finalize（medical_record_repository.Update の draft-only WHERE）と直列化する。
+	if err := s.repos.Transaction(ctx, func(txRepos *repository.Repositories) error {
+		parent, err := txRepos.MedicalRecord.LockByIDForUpdate(ctx, clinicID, medicalRecordID)
+		if err != nil {
+			slog.ErrorContext(ctx, "failed to verify medical record ownership", "error", err)
+			return apperrors.Wrap(err, "failed to verify medical record ownership")
+		}
+		if parent.Status == model.MedicalRecordStatusFinalized {
+			return apperrors.WrapConflict("確定済みカルテの治療は削除できません")
+		}
 
-	if err := s.repos.Treatment.Delete(ctx, clinicID, treatmentID); err != nil {
+		if err := txRepos.Treatment.Delete(ctx, clinicID, treatmentID); err != nil {
+			return apperrors.Wrap(err, "failed to delete treatment")
+		}
+		return nil
+	}); err != nil {
 		slog.ErrorContext(ctx, "failed to delete treatment", "error", err, "id", treatmentID, "clinic_id", clinicID)
-		return apperrors.Wrap(err, "failed to delete treatment")
+		return err
 	}
 
 	slog.InfoContext(ctx, "treatment deleted",

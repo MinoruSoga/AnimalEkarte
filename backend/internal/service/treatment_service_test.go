@@ -643,11 +643,16 @@ func TestTreatmentService_Delete(t *testing.T) {
 					return tt.deleteErr
 				},
 			}
-			svc := NewTreatmentService(&repository.Repositories{
+			repos := &repository.Repositories{
 				Treatment:     repo,
 				MedicalRecord: &mockMedicalRecordRepoForTreatment{},
 				Inventory:     &mockInventoryRepository{},
-			})
+			}
+			// TransactionFn: DB 不要でトランザクションをインライン実行（BE-refactor.md H-8b）
+			repos.TransactionFn = func(_ context.Context, fn func(*repository.Repositories) error) error {
+				return fn(repos)
+			}
+			svc := NewTreatmentService(repos)
 
 			err := svc.Delete(context.Background(), clinicID, tt.medicalRecordID, tt.treatmentID)
 
