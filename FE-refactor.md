@@ -7,32 +7,6 @@
 
 ---
 
-## 残件 1: query-keys registry 全面採用 + clinic-id ルートキー化（長期・設計判断待ち）
-
-### 現状（2026-07-12 実測）
-
-- registry（`frontend/src/lib/query-keys.ts`）の収録は 3 エンティティのみ: `accountings.all/detail`・`masters.category`・`ME_QUERY_KEY`。
-- inline `queryKey` は **187 ファイル**、`invalidateQueries` 呼び出しは **249 箇所**。feature 別の分布（上位）: master 30 / 共有 hooks 24 / medical-records 21 / accounting 14 / owners 12 / lstep 12 / shifts 10 / hospitalization 7 / vaccinations 6 / examinations 6。
-- ad-hoc 文字列キーが registry 管理キーと**同一ファイル内で混在**する例が既にある（`["accounting-refunds", accountingId]` と `queryKeys.accountings.all()` が並ぶ）。キー命名の typo・階層不一致による invalidate 漏れはコンパイルで検知できない。
-
-### 現在の安全性（なぜ今すぐ壊れないか）
-
-clinic 切替は 3 層で守られている: ① `switchClinic` が reload 前に `queryClient.clear()`（FE5-3）、② マルチタブは storage イベント検知で reload（FE5-2）、③ 切替自体が full reload 前提（`clinic_context_architecture` 設計）。**キーに clinicId が無くてもキャッシュは切替時に全滅するため、漏れは発生しない**。つまり本件は「将来 SPA 切替（reload 廃止）に移行する場合の前提工事」であり、単独では緊急性がない。
-
-### 判断が必要な点（これが決まれば着手可能）
-
-1. **SPA 切替を将来やるのか** — やらない（reload 恒久）なら clinicId キー化は不要で、本件は「registry 統一による invalidate 信頼性向上」だけに縮小する（工数は約 1/3 になる）。**最初にこれを決めよ**。
-2. キー形状 — `[clinicId, "entity", ...]`（ルート prefix）か `["entity", clinicId, ...]` か。ルート prefix は `queryClient.removeQueries({ queryKey: [oldClinicId] })` の一発無効化が可能で優位。
-3. clinicId の注入方法 — key factory を純粋関数のまま保ち呼び出し側が渡すか（テスト容易・推奨）、factory 内部で auth store を読むか（利便性は高いが hooks 外から呼べず React 依存が漏れる）。
-4. 再発防止 — ESLint `no-restricted-syntax` で「registry 外の inline queryKey 配列リテラル」を禁止するか。**やらないなら 187 ファイル移行後も新規逸脱が再蓄積する**ため、移行と同時導入すべきだ。
-
-### 実行方針（判断後）
-
-- feature 単位の段階移行（249 invalidate 箇所の対応キーを突合しながら）。挙動保存 — キー文字列が変わるため deploy 直後の初回 fetch は全 miss になるが、staleTime 内の再取得が走るだけで実害なし。
-- 検証: feature ごとに scoped vitest + 当該画面の CRUD→リスト反映を手動確認。ESLint ルール導入時は既存違反 0 を移行完了の定義とする。
-
----
-
 ## 残件 2: medical-records `Treatment` の #201 未追随（#201 FE UI の一部として対応）
 
 ### 現状（2026-07-12 実測）
