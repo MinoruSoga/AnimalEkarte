@@ -1,5 +1,7 @@
 # FK Dependency Check Implementation Roadmap
 
+> ✅ **COMPLETED — ARCHIVED 2026-07-12**: 本ロードマップの TIER 1〜2 全 11 エンティティは実装完了を実査で確認済み。全エンティティで `CountUsageBy*ID`（repository）+ Delete 時 `apperrors.WrapConflict` 409 返却（service）が揃い、多くは親子（サブ項目）チェックも追加実装済み。命名差異: PermissionGroup は `CountUsageByGroupID`、Cage は `CountUsageByCageID`、DiagnosisCategory は「配下診断名存在チェック + `CountUsageByDiagnosisNameID`」の 2 段構成。パターン自体は `backend/internal/repository/CLAUDE.md` に命名規約として標準化済み。本文の「⏳ 実装待ち」表記は当時のまま（更新せず歴史記録として保存）。
+
 ## Overview
 本プロジェクトではマスタデータ削除時に外部キー依存性をチェックし、参照レコードがある場合は 409 Conflict で拒否する仕組みを実装します。
 
