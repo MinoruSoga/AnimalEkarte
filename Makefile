@@ -1,4 +1,4 @@
-.PHONY: up down build logs logs-api logs-front ps db clean reset migrate seed seed-old-db verify-old-db-seed stage-import-dry-run stage-import verify-stage-import stage-import-rollback-test restart-api restart-front build-prod lint lint-fix test test-cover lint-front test-front build-front build-go mod-download mod-tidy help codegen codegen-check sync-modules schema-check setup-hooks ci-local dump-stg check-reset-contract check-reset-contract-test shellcheck shellcheck-test
+.PHONY: up down build logs logs-api logs-front ps db clean reset migrate seed stage-import-dry-run stage-import verify-stage-import stage-import-rollback-test restart-api restart-front build-prod lint lint-fix test test-cover lint-front test-front build-front build-go mod-download mod-tidy help codegen codegen-check sync-modules schema-check setup-hooks ci-local dump-stg check-reset-contract check-reset-contract-test shellcheck shellcheck-test
 
 # デフォルトターゲット
 .DEFAULT_GOAL := help
@@ -102,32 +102,13 @@ seed:
 	$(DC) run --rm --entrypoint go backend run ./cmd/migrate
 	@echo "✓ Seed data applied"
 
-# 旧DB移行データのローカル投入
-# 前提: DB が起動済み（make up 実行後）かつ OLD_DB_MIGRATION_OUTPUT_DIR が指定済み
-# デフォルトパス: /Users/minoru/Dev/Case/AnimalHospital/old_db/sensitive-local/migration-output
-# 上書きする場合: make seed-old-db OLD_DB_MIGRATION_OUTPUT_DIR=/other/path
-OLD_DB_MIGRATION_OUTPUT_DIR ?= /Users/minoru/Dev/Case/AnimalHospital/old_db/sensitive-local/migration-output
-OLD_DB_DOCS_DIR ?= /Users/minoru/Dev/Case/AnimalHospital/old_db/docs
-
-seed-old-db:
-	@echo "🌱 Loading old-db migration data from $(OLD_DB_MIGRATION_OUTPUT_DIR) ..."
-	@test -d "$(OLD_DB_MIGRATION_OUTPUT_DIR)" || (echo "ERROR: OLD_DB_MIGRATION_OUTPUT_DIR=$(OLD_DB_MIGRATION_OUTPUT_DIR) does not exist" && exit 1)
-	OLD_DB_MIGRATION_OUTPUT_DIR="$(OLD_DB_MIGRATION_OUTPUT_DIR)" \
-	OLD_DB_DOCS_DIR="$(OLD_DB_DOCS_DIR)" \
-	$(DC) -f docker-compose.yml -f docker-compose.seed-old-db.yml run --rm seed-old-db
-	@echo "✓ old-db seed completed"
-
-# 旧DB投入後の件数検証
-verify-old-db-seed:
-	@echo "🔍 Verifying old-db seeded row counts ..."
-	@bash scripts/verify-old-db-seed.sh
-
 # ============================================================================
-# stage-import: animalekarte_stage -> 本テーブル (推奨経路 / replaces seed-old-db)
+# stage-import: animalekarte_stage -> 本テーブル (推奨経路 / replaces seed-old-db(archived))
 # ============================================================================
 # 検証済みの old_db 3層パイプライン (legacy_raw -> legacy_canonical ->
 # animalekarte_stage) の stage スキーマを唯一の投入元として本テーブルへ取り込む。
-# 旧 direct seeder (seed-old-db) は comparison-only として deprecated。
+# 旧 direct seeder (seed-old-db、backend/cmd/_archive/seed-old-db へアーカイブ済み) は
+# comparison-only として deprecated。
 #
 # 前提:
 #   - AnimalEkarte: make up でスタック起動済み (db healthy)。
@@ -316,8 +297,6 @@ help:
 	@echo "  reset         完全リセット（ボリューム削除→マイグレーション＋シーダー全適用）"
 	@echo "  migrate       差分マイグレーションのみ適用（DBは落とさない）"
 	@echo "  seed              シーダーのみ適用（差分のみ・べき等）"
-	@echo "  seed-old-db       [非推奨/comparison-only] 旧 direct seeder。stage-import を使うこと"
-	@echo "  verify-old-db-seed 旧 direct seeder 投入後の件数検証"
 	@echo ""
 	@echo "旧DB移行（推奨経路: animalekarte_stage -> 本テーブル）:"
 	@echo "  stage-import-dry-run      stage 取り込みの dry-run（件数表示・書き込み0）"

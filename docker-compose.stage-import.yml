@@ -3,7 +3,7 @@
 # stage-import reads validated old_db migration data from the animalekarte_stage
 # schema (in old_db's separate `ani_legacy` Postgres, container old-db-postgres)
 # and imports it into the local AnimalEkarte本テーブル. It replaces the deprecated
-# direct old-db seeder (docker-compose.seed-old-db.yml).
+# direct old-db seeder (archived: backend/cmd/_archive/seed-old-db).
 #
 # Reaching BOTH databases: the importer joins TWO networks — ekarte-network (for
 # the target `db`) and old_db_default (external, for `old-db-postgres`). Create
