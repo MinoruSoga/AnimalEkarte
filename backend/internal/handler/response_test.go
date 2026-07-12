@@ -175,6 +175,36 @@ func TestRespondError(t *testing.T) {
 	}
 }
 
+// TestRespondErrorWithExtras_BadGateway は RespondErrorWithExtras に
+// apperrors.WrapBadGateway 相当のエラーを渡した場合、502 + 安全メッセージを
+// 返すことを検証する（旧 resolveErrorResponse は ErrBadGateway ケースを持たず
+// default の 409 + 生 err.Error() に落ちていた）。
+func TestRespondErrorWithExtras_BadGateway(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	c, w := newTestContext()
+
+	err := apperrors.WrapBadGateway("upstream LINE API error")
+	RespondErrorWithExtras(c, err, nil)
+
+	assert.Equal(t, http.StatusBadGateway, w.Code)
+	assert.Contains(t, w.Body.String(), "upstream LINE API error")
+}
+
+// TestRespondErrorWithExtras_NotFoundEmptyMessageUsesDefault は Message=="" の
+// NotFound 系 AppError が渡された場合、デフォルトメッセージ "resource not found"
+// にフォールバックすることを検証する（Message!="" ガードが無いケースは空文字列を
+// そのまま応答してしまっていた）。
+func TestRespondErrorWithExtras_NotFoundEmptyMessageUsesDefault(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	c, w := newTestContext()
+
+	err := &apperrors.AppError{Code: "NOT_FOUND", Message: "", Err: apperrors.ErrNotFound}
+	RespondErrorWithExtras(c, err, nil)
+
+	assert.Equal(t, http.StatusNotFound, w.Code)
+	assert.Contains(t, w.Body.String(), "resource not found")
+}
+
 func TestParsePagination(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 

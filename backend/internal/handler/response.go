@@ -14,65 +14,8 @@ import (
 // RespondError はエラーを適切なHTTPステータスコードとメッセージにマッピングして返す。
 // 内部エラー(5xx)は details を露出しない。
 func RespondError(c *gin.Context, err error) {
-	switch {
-	case errors.Is(err, apperrors.ErrNotFound):
-		var appErr *apperrors.AppError
-		msg := "resource not found"
-		if errors.As(err, &appErr) {
-			msg = appErr.Message
-		}
-		c.JSON(http.StatusNotFound, gin.H{"error": msg})
-	case errors.Is(err, apperrors.ErrInvalidInput):
-		var appErr *apperrors.AppError
-		msg := "invalid input"
-		if errors.As(err, &appErr) {
-			msg = appErr.Message
-		}
-		c.JSON(http.StatusBadRequest, gin.H{"error": msg})
-	case errors.Is(err, apperrors.ErrConflict):
-		var appErr *apperrors.AppError
-		msg := "resource conflict"
-		if errors.As(err, &appErr) {
-			msg = appErr.Message
-		}
-		c.JSON(http.StatusConflict, gin.H{"error": msg})
-	case errors.Is(err, apperrors.ErrAlreadyExists):
-		var appErr *apperrors.AppError
-		msg := "resource already exists"
-		if errors.As(err, &appErr) {
-			msg = appErr.Message
-		}
-		c.JSON(http.StatusConflict, gin.H{"error": msg})
-	case errors.Is(err, apperrors.ErrUnauthorized):
-		var appErr *apperrors.AppError
-		msg := "unauthorized"
-		if errors.As(err, &appErr) {
-			msg = appErr.Message
-		}
-		c.JSON(http.StatusUnauthorized, gin.H{"error": msg})
-	case errors.Is(err, apperrors.ErrForbidden):
-		var appErr *apperrors.AppError
-		msg := "forbidden"
-		if errors.As(err, &appErr) && appErr.Message != "" {
-			msg = appErr.Message
-		}
-		c.JSON(http.StatusForbidden, gin.H{"error": msg})
-	case errors.Is(err, apperrors.ErrNotImplemented):
-		c.JSON(http.StatusNotImplemented, gin.H{"error": "not implemented"})
-	case errors.Is(err, apperrors.ErrBadGateway):
-		var appErr *apperrors.AppError
-		msg := "bad gateway"
-		if errors.As(err, &appErr) && appErr.Message != "" {
-			msg = appErr.Message
-		}
-		c.JSON(http.StatusBadGateway, gin.H{"error": msg})
-	case isPgError(err):
-		// BUG-138: FromGORM を経由しなかった PostgreSQL エラーをここでキャッチ
-		pgMsg := classifyPgError(err)
-		c.JSON(http.StatusBadRequest, gin.H{"error": pgMsg})
-	default:
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
-	}
+	status, message, _ := resolveErrorResponse(err)
+	c.JSON(status, gin.H{"error": message})
 }
 
 // RespondErrorWithExtras は custom extra fields を含むエラーレスポンスを返す。
@@ -93,7 +36,7 @@ func RespondErrorWithExtras(c *gin.Context, err error, extras map[string]any) {
 }
 
 // resolveErrorResponse はエラーから HTTP ステータスコード・メッセージ・エラーコードを決定する。
-// RespondError と同じ分類ロジックをベースにする。
+// RespondError / RespondErrorWithExtras 共通の唯一の分類ロジック。
 func resolveErrorResponse(err error) (status int, message, code string) {
 	// AppError からの抽出（Code / Message）
 	var appErr *apperrors.AppError
@@ -102,68 +45,65 @@ func resolveErrorResponse(err error) (status int, message, code string) {
 	switch {
 	case errors.Is(err, apperrors.ErrNotFound):
 		status = http.StatusNotFound
-		message = "resource not found"
-		if hasApp {
-			message = appErr.Message
-			code = appErr.Code
-		}
+		message, code = appMessageAndCode(hasApp, appErr, "resource not found")
 	case errors.Is(err, apperrors.ErrInvalidInput):
 		status = http.StatusBadRequest
-		message = "invalid input"
-		if hasApp {
-			message = appErr.Message
-			code = appErr.Code
-		}
+		message, code = appMessageAndCode(hasApp, appErr, "invalid input")
 	case errors.Is(err, apperrors.ErrConflict):
 		status = http.StatusConflict
-		message = "resource conflict"
-		if hasApp {
-			message = appErr.Message
-			code = appErr.Code
-		}
+		message, code = appMessageAndCode(hasApp, appErr, "resource conflict")
 	case errors.Is(err, apperrors.ErrAlreadyExists):
 		status = http.StatusConflict
-		message = "resource already exists"
-		if hasApp {
-			message = appErr.Message
-			code = appErr.Code
-		}
+		message, code = appMessageAndCode(hasApp, appErr, "resource already exists")
 	case errors.Is(err, apperrors.ErrUnauthorized):
 		status = http.StatusUnauthorized
-		message = "unauthorized"
-		if hasApp {
-			message = appErr.Message
-			code = appErr.Code
-		}
+		message, code = appMessageAndCode(hasApp, appErr, "unauthorized")
 	case errors.Is(err, apperrors.ErrForbidden):
 		status = http.StatusForbidden
-		message = "forbidden"
-		if hasApp && appErr.Message != "" {
-			message = appErr.Message
-			code = appErr.Code
-		}
+		message, code = appMessageAndCode(hasApp, appErr, "forbidden")
 	case errors.Is(err, apperrors.ErrNotImplemented):
 		status = http.StatusNotImplemented
-		message = "not implemented"
-		if hasApp {
-			code = appErr.Code
-		}
+		message, code = appMessageAndCode(hasApp, appErr, "not implemented")
+	case errors.Is(err, apperrors.ErrBadGateway):
+		status = http.StatusBadGateway
+		message, code = appMessageAndCode(hasApp, appErr, "bad gateway")
 	case isPgError(err):
 		status = http.StatusBadRequest
 		message = classifyPgError(err)
-	default:
-		// カスタムエラー型（ReservationLimitError 等）のフォールバック:
+	case !hasApp:
+		// カスタムエラー型（ReservationLimitError 等 apperrors 外）のフォールバック:
 		// 公開フィールド Code / Message を持つ構造体を reflect で抽出する。
-		status = http.StatusConflict
-		message = err.Error()
 		if c, m, ok := extractCodeMessage(err); ok {
+			status = http.StatusConflict
 			code = c
+			message = err.Error()
 			if m != "" {
 				message = m
 			}
+			break
 		}
+		status = http.StatusInternalServerError
+		message = "internal server error"
+	default:
+		// 未分類エラー（既知センチネルに属さない AppError・素の error）は
+		// 詳細を露出しない 500 に落とす。
+		status = http.StatusInternalServerError
+		message = "internal server error"
 	}
 	return status, message, code
+}
+
+// appMessageAndCode は AppError から (message, code) を導出する。
+// Message が空の場合は defaultMessage にフォールバックする（空文字列露出防止）。
+func appMessageAndCode(hasApp bool, appErr *apperrors.AppError, defaultMessage string) (message, code string) {
+	message = defaultMessage
+	if hasApp {
+		code = appErr.Code
+		if appErr.Message != "" {
+			message = appErr.Message
+		}
+	}
+	return message, code
 }
 
 // extractCodeMessage は err が持つ Code / Message 公開フィールドを reflect で抽出する。
