@@ -435,6 +435,15 @@ func TestListOwnerAggregation_Pagination(t *testing.T) {
 		assert.Len(t, r.Items, 5, "全件 (5件) が1ページに収まる")
 	})
 
+	t.Run("per_page over 100 is capped at 100 (C-7)", func(t *testing.T) {
+		repoMock := &mockLtvRepository{rows: rows}
+		svc := NewAggregationService(repoMock, &mockLstepTagCacheRepository{}, nil, &mockLstepSettingsService{})
+		r, err := svc.ListOwnerAggregation(context.Background(), 1, &ListOwnerAggregationInput{Page: 1, PerPage: 500})
+		require.NoError(t, err)
+		assert.Equal(t, 100, r.PerPage, "maxPerPage=100 に切り詰められる")
+		assert.Len(t, r.Items, 5, "元データが5件なので全件返るが PerPage 表示は100")
+	})
+
 	t.Run("CPM filter applied before pagination affects Total", func(t *testing.T) {
 		// CPMStage 絞り込みは pagination より先に適用されるため Total に反映される。
 		// 5件のうち 1件だけ encounter になるよう仕立てる。

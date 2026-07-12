@@ -94,18 +94,7 @@ func (s *lstepTagSummaryService) GetTagSummary(ctx context.Context, clinicID uin
 }
 
 func (s *lstepTagSummaryService) ListOwnersByTag(ctx context.Context, clinicID uint64, input ListOwnersByTagInput) (TagOwnerListResponse, error) {
-	perPage := input.PerPage
-	if perPage <= 0 {
-		perPage = 20
-	}
-	if perPage > 100 {
-		perPage = 100
-	}
-	page := input.Page
-	if page <= 0 {
-		page = 1
-	}
-	offset := (page - 1) * perPage
+	page, perPage, offset := normalizePagination(input.Page, input.PerPage, 20, 100)
 
 	rows, total, err := s.tagCache.FindOwnersByTag(ctx, clinicID, input.TagName, input.NameQuery, offset, perPage)
 	if err != nil {

@@ -191,16 +191,8 @@ func (s *aggregationService) ListOwnerAggregation(ctx context.Context, clinicID 
 
 	total := len(items)
 
-	// Go-side pagination
-	perPage := input.PerPage
-	if perPage <= 0 {
-		perPage = 50
-	}
-	page := input.Page
-	if page <= 0 {
-		page = 1
-	}
-	offset := (page - 1) * perPage
+	// Go-side pagination（C-7: aggregation は per_page 上限が無かったため maxPerPage=100 を新設）
+	page, perPage, offset := normalizePagination(input.Page, input.PerPage, 50, 100)
 	if offset >= total {
 		items = nil
 	} else {

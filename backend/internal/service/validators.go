@@ -14,6 +14,23 @@ const MasterNameMaxLength = 255
 // DefaultTaxRate は消費税標準税率。nil 税率時のデフォルト。
 const DefaultTaxRate = 0.10
 
+// normalizePagination はページネーションパラメータを正規化する（C-7）。
+// page<=0 は1に、perPage<=0 は defaultPerPage に、perPage>maxPerPage は
+// maxPerPage に丸める。戻り値は (page, perPage, offset)。
+func normalizePagination(page, perPage, defaultPerPage, maxPerPage int) (int, int, int) {
+	if page <= 0 {
+		page = 1
+	}
+	if perPage <= 0 {
+		perPage = defaultPerPage
+	}
+	if perPage > maxPerPage {
+		perPage = maxPerPage
+	}
+	offset := (page - 1) * perPage
+	return page, perPage, offset
+}
+
 // 日本語エラーメッセージ定数 (BUG-385)
 const (
 	ErrMsgAtLeastOneField   = "少なくとも1つのフィールドを指定してください"
