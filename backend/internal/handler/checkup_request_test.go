@@ -200,38 +200,3 @@ func TestNewListGlobalCheckupsQuery(t *testing.T) {
 		t.Errorf("NextEndDate = %v, want 2026-12-31", query.NextEndDate)
 	}
 }
-
-func TestCheckupAlertsQuery_ToWithinDays(t *testing.T) {
-	t.Run("default", func(t *testing.T) {
-		withinDays, err := newCheckupAlertsQuery(url.Values{}).toWithinDays()
-		if err != nil {
-			t.Fatalf("toWithinDays returned error: %v", err)
-		}
-		if withinDays != 30 {
-			t.Errorf("withinDays = %d, want 30", withinDays)
-		}
-	})
-
-	t.Run("custom", func(t *testing.T) {
-		withinDays, err := newCheckupAlertsQuery(url.Values{"within_days": {"60"}}).toWithinDays()
-		if err != nil {
-			t.Fatalf("toWithinDays returned error: %v", err)
-		}
-		if withinDays != 60 {
-			t.Errorf("withinDays = %d, want 60", withinDays)
-		}
-	})
-
-	t.Run("invalid", func(t *testing.T) {
-		withinDays, err := newCheckupAlertsQuery(url.Values{"within_days": {"abc"}}).toWithinDays()
-		if err == nil {
-			t.Fatal("toWithinDays returned nil error")
-		}
-		if withinDays != 0 {
-			t.Errorf("withinDays = %d, want 0", withinDays)
-		}
-		if !apperrors.IsInvalidInput(err) {
-			t.Fatalf("error = %v, want invalid input", err)
-		}
-	})
-}

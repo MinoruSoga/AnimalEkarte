@@ -2,7 +2,6 @@ package handler
 
 import (
 	"net/url"
-	"strconv"
 	"time"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
@@ -110,23 +109,4 @@ func (q listGlobalCheckupsQuery) toServiceInput() service.ListCheckupsByClinicIn
 		NextStartDate: q.NextStartDate,
 		NextEndDate:   q.NextEndDate,
 	}
-}
-
-type checkupAlertsQuery struct {
-	WithinDays string
-}
-
-func newCheckupAlertsQuery(values url.Values) checkupAlertsQuery {
-	return checkupAlertsQuery{WithinDays: values.Get("within_days")}
-}
-
-func (q checkupAlertsQuery) toWithinDays() (int, error) {
-	if q.WithinDays == "" {
-		return 30, nil
-	}
-	withinDays, err := strconv.Atoi(q.WithinDays)
-	if err != nil {
-		return 0, apperrors.WrapInvalidInput("within_days must be integer")
-	}
-	return withinDays, nil
 }

@@ -3,7 +3,6 @@ package repository
 import (
 	"context"
 	"fmt"
-	"time"
 
 	"gorm.io/gorm"
 
@@ -26,8 +25,6 @@ type CheckupRepository interface {
 	// medical_records 経由で owner_id を解決する。
 	FindByOwnerID(ctx context.Context, clinicID, ownerID uint64) ([]model.Checkup, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.Checkup, error)
-	// FindAlerts は next_date が今日から withinDays 日以内のレコードを返す（期限アラート用）。
-	FindAlerts(ctx context.Context, clinicID uint64, withinDays int) ([]model.Checkup, error)
 	Create(ctx context.Context, checkup *model.Checkup) error
 	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error
 	Delete(ctx context.Context, clinicID, id uint64) error
@@ -100,25 +97,6 @@ func (r *checkupRepository) FindByMedicalRecordID(ctx context.Context, clinicID,
 		Find(&checkups).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "checkup", "")
-	}
-	return checkups, nil
-}
-
-func (r *checkupRepository) FindAlerts(ctx context.Context, clinicID uint64, withinDays int) ([]model.Checkup, error) {
-	checkups := make([]model.Checkup, 0)
-	upperBound := time.Now().In(time.Local).AddDate(0, 0, withinDays).Format(time.DateOnly)
-	err := r.db.WithContext(ctx).
-		Scopes(clinicScope(clinicID)).
-		Preload("CheckupType", "clinic_id = ? AND deleted_at IS NULL", clinicID).
-		Preload("MedicalRecord", "deleted_at IS NULL").
-		Preload("MedicalRecord.Pet", "deleted_at IS NULL").
-		Preload("MedicalRecord.Pet.Owner", "deleted_at IS NULL").
-		Where("next_date IS NOT NULL").
-		Where("next_date <= ?", upperBound).
-		Order("next_date ASC").
-		Find(&checkups).Error
-	if err != nil {
-		return nil, apperrors.FromGORM(err, "checkup", fmt.Sprintf("alerts:within=%d", withinDays))
 	}
 	return checkups, nil
 }

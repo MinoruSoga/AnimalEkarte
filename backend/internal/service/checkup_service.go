@@ -6,7 +6,6 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/animal-ekarte/backend/internal/config"
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/repository"
@@ -43,12 +42,6 @@ type ListCheckupsByClinicInput struct {
 	NextEndDate   *string
 }
 
-// CheckupAlertsResult は overdue + upcoming のアラート集計結果
-type CheckupAlertsResult struct {
-	Overdue  []model.Checkup // next_date < today
-	Upcoming []model.Checkup // today <= next_date <= today + withinDays
-}
-
 // CheckupService は健診記録のビジネスロジックを定義するインターフェース
 func buildCheckupUpdate(input *UpdateCheckupInput) map[string]any {
 	fields := map[string]any{}
@@ -82,7 +75,6 @@ type CheckupService interface {
 	Create(ctx context.Context, medicalRecordID uint64, input *CreateCheckupInput) (*model.Checkup, error)
 	Update(ctx context.Context, clinicID, medicalRecordID, checkupID uint64, input *UpdateCheckupInput) (*model.Checkup, error)
 	Delete(ctx context.Context, clinicID, medicalRecordID, checkupID uint64) error
-	GetAlerts(ctx context.Context, clinicID uint64, withinDays int) (*CheckupAlertsResult, error)
 }
 
 type checkupService struct {
@@ -91,19 +83,11 @@ type checkupService struct {
 	checkupTypeRepo      repository.CheckupTypeRepository
 	lstepDeliveryTrigger LstepDeliveryTriggerService
 	tagSyncSvc           LstepTagSyncService
-	nowFn                func() time.Time // test hook; nil uses time.Now
 }
 
 // NewCheckupService は CheckupService の実装を返す
 func NewCheckupService(repo repository.CheckupRepository, medicalRecordRepo repository.MedicalRecordRepository, checkupTypeRepo repository.CheckupTypeRepository, lstepDeliveryTrigger LstepDeliveryTriggerService, tagSyncSvc LstepTagSyncService) CheckupService {
 	return &checkupService{repo: repo, medicalRecordRepo: medicalRecordRepo, checkupTypeRepo: checkupTypeRepo, lstepDeliveryTrigger: lstepDeliveryTrigger, tagSyncSvc: tagSyncSvc}
-}
-
-func (s *checkupService) now() time.Time {
-	if s.nowFn != nil {
-		return s.nowFn()
-	}
-	return time.Now()
 }
 
 func (s *checkupService) List(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.Checkup, error) {
@@ -247,35 +231,6 @@ func (s *checkupService) Update(ctx context.Context, clinicID, medicalRecordID, 
 	}
 	s.resyncOwnerCheckupTags(ctx, clinicID, updated)
 	return updated, nil
-}
-
-func (s *checkupService) GetAlerts(ctx context.Context, clinicID uint64, withinDays int) (*CheckupAlertsResult, error) {
-	if withinDays < 1 || withinDays > 365 {
-		return nil, apperrors.WrapInvalidInput("within_days must be 1-365")
-	}
-	checkups, err := s.repo.FindAlerts(ctx, clinicID, withinDays)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to find checkup alerts", "error", err, "clinic_id", clinicID)
-		return nil, apperrors.Wrap(err, "failed to find checkup alerts")
-	}
-	nowJST := s.now().In(config.JST)
-	today := time.Date(nowJST.Year(), nowJST.Month(), nowJST.Day(), 0, 0, 0, 0, config.JST)
-	result := &CheckupAlertsResult{
-		Overdue:  make([]model.Checkup, 0),
-		Upcoming: make([]model.Checkup, 0),
-	}
-	for i := range checkups {
-		c := &checkups[i]
-		if c.NextDate == nil {
-			continue
-		}
-		if c.NextDate.Before(today) {
-			result.Overdue = append(result.Overdue, *c)
-		} else {
-			result.Upcoming = append(result.Upcoming, *c)
-		}
-	}
-	return result, nil
 }
 
 func (s *checkupService) Delete(ctx context.Context, clinicID, medicalRecordID, checkupID uint64) error {

@@ -3,7 +3,7 @@ package repository
 // checkup_repository_test.go — CheckupRepository の統合テスト（カバレッジ向上）。
 //
 // 対象: FindByClinicID / FindByMedicalRecordID / FindByOwnerID / FindByID /
-//       FindAlerts / Create / Update / Delete
+//       Create / Update / Delete
 // 検証観点: 正常系、フィルタ、clinic_id 隔離、ソフトデリート除外、NotFound ラップ。
 //
 // CheckupType Preload の clinic 隔離は master_preload_clinic_isolation_test.go の
@@ -197,47 +197,6 @@ func TestCheckupRepository_FindByID(t *testing.T) {
 		require.Error(t, err)
 		assert.True(t, apperrors.IsNotFound(err))
 	})
-}
-
-func TestCheckupRepository_FindAlerts(t *testing.T) {
-	db := setupCheckupRepoTestDB(t)
-	repo := NewCheckupRepository(db)
-	ctx := context.Background()
-	const clinicA, clinicB = uint64(1), uint64(2)
-
-	owner := makeOwner(t, db, clinicA, "アラート飼主")
-	pet := makeSpeciesAndPet(t, db, clinicA, owner.ID, "アラートポチ")
-	mr := makeHistoryMedicalRecord(t, db, clinicA, pet.ID, "MR-ALERT", time.Now())
-	ct := makeCheckupTypeMaster(t, db, clinicA, "アラート健診種別")
-
-	today := time.Now().In(time.Local)
-	soon := today.AddDate(0, 0, 3)
-	far := today.AddDate(0, 0, 30)
-	past := today.AddDate(0, 0, -5)
-
-	withinAlert := makeCheckupWithDates(t, db, clinicA, mr.ID, pet.ID, ct.ID, today, &soon)
-	pastAlert := makeCheckupWithDates(t, db, clinicA, mr.ID, pet.ID, ct.ID, today, &past)
-	farAlert := makeCheckupWithDates(t, db, clinicA, mr.ID, pet.ID, ct.ID, today, &far)
-	_ = makeCheckupWithDates(t, db, clinicA, mr.ID, pet.ID, ct.ID, today, nil) // next_date 未設定は対象外
-
-	ownerB := makeOwner(t, db, clinicB, "アラート飼主B")
-	petB := makeSpeciesAndPet(t, db, clinicB, ownerB.ID, "アラートポチB")
-	mrB := makeHistoryMedicalRecord(t, db, clinicB, petB.ID, "MR-ALERT-B", time.Now())
-	ctB := makeCheckupTypeMaster(t, db, clinicB, "アラート健診種別B")
-	crossClinicAlert := makeCheckupWithDates(t, db, clinicB, mrB.ID, petB.ID, ctB.ID, today, &soon)
-
-	got, err := repo.FindAlerts(ctx, clinicA, 7)
-	require.NoError(t, err)
-
-	ids := map[uint64]bool{}
-	for _, c := range got {
-		ids[c.ID] = true
-		assert.Equal(t, clinicA, c.ClinicID)
-	}
-	assert.True(t, ids[withinAlert.ID], "7日以内は含まれる")
-	assert.True(t, ids[pastAlert.ID], "過去日も含まれる(上限のみ判定)")
-	assert.False(t, ids[farAlert.ID], "7日超過は含まれない")
-	assert.False(t, ids[crossClinicAlert.ID], "別クリニックの健診は含まれない")
 }
 
 func TestCheckupRepository_Create(t *testing.T) {

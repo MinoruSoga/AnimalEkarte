@@ -7869,46 +7869,6 @@ components:
         owner_id:
           type: string
           nullable: true
-    CheckupAlertItem:
-      type: object
-      properties:
-        checkup_id:
-          type: integer
-          format: int64
-        pet_id:
-          type: integer
-          format: int64
-        pet_name:
-          type: string
-        owner_name:
-          type: string
-        checkup_type_name:
-          type: string
-        last_checkup_date:
-          type: string
-          format: date
-        next_date:
-          type: string
-          format: date
-        days:
-          type: integer
-          description: overdue は経過日数（正）、upcoming は残り日数（正）
-    CheckupAlertCategory:
-      type: object
-      properties:
-        count:
-          type: integer
-        items:
-          type: array
-          items:
-            $ref: '#/components/schemas/CheckupAlertItem'
-    CheckupAlerts:
-      type: object
-      properties:
-        overdue:
-          $ref: '#/components/schemas/CheckupAlertCategory'
-        upcoming:
-          $ref: '#/components/schemas/CheckupAlertCategory'
     PetCheckupResult:
       description: 飼い主レポート用に親 checkup の日付・パッケージ名を付与した結果レスポンス（#211）
       allOf:
@@ -18822,33 +18782,6 @@ paths:
                         type: array
                         items:
                           $ref: '#/components/schemas/CheckupGlobal'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '403':
-          $ref: '#/components/responses/Forbidden'
-        '500':
-          $ref: '#/components/responses/InternalError'
-  /checkups/alerts:
-    get:
-      operationId: getCheckupAlerts
-      summary: 健診期限アラート集計
-      tags: [Checkups]
-      parameters:
-        - name: within_days
-          in: query
-          description: 期限までの残り/超過日数の閾値（既定30）
-          schema:
-            type: integer
-            default: 30
-      responses:
-        '200':
-          description: アラート集計
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/CheckupAlerts'
-        '400':
-          $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':

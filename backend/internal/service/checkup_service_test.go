@@ -8,7 +8,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/animal-ekarte/backend/internal/config"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/repository"
 )
@@ -20,7 +19,6 @@ type mockCheckupRepository struct {
 	listByClinicFn          func(ctx context.Context, clinicID uint64, filters repository.CheckupFilters) ([]model.Checkup, error)
 	findByOwnerIDFn         func(ctx context.Context, clinicID, ownerID uint64) ([]model.Checkup, error)
 	findByIDFn              func(ctx context.Context, clinicID, checkupID uint64) (*model.Checkup, error)
-	findAlertsFn            func(ctx context.Context, clinicID uint64, withinDays int) ([]model.Checkup, error)
 	createFn                func(ctx context.Context, checkup *model.Checkup) error
 	updateFn                func(ctx context.Context, clinicID, checkupID uint64, fields map[string]any) error
 	deleteFn                func(ctx context.Context, clinicID, checkupID uint64) error
@@ -47,13 +45,6 @@ func (m *mockCheckupRepository) FindByID(ctx context.Context, clinicID, checkupI
 func (m *mockCheckupRepository) FindByOwnerID(ctx context.Context, clinicID, ownerID uint64) ([]model.Checkup, error) {
 	if m.findByOwnerIDFn != nil {
 		return m.findByOwnerIDFn(ctx, clinicID, ownerID)
-	}
-	return nil, nil
-}
-
-func (m *mockCheckupRepository) FindAlerts(ctx context.Context, clinicID uint64, withinDays int) ([]model.Checkup, error) {
-	if m.findAlertsFn != nil {
-		return m.findAlertsFn(ctx, clinicID, withinDays)
 	}
 	return nil, nil
 }
@@ -637,102 +628,6 @@ func TestCheckupService_Delete_ResyncsOwnerCheckupTagsAfterDelete(t *testing.T) 
 	assert.True(t, syncedAfterDelete)
 }
 
-func TestGetAlerts_RejectsInvalidWithinDays(t *testing.T) {
-	svc := NewCheckupService(&mockCheckupRepository{}, &mockMedicalRecordRepository{}, okCheckupTypeRepo(), nil, nil)
-
-	for _, days := range []int{0, -1, 366} {
-		result, err := svc.GetAlerts(context.Background(), 1, days)
-		assert.Error(t, err, "days=%d should be rejected", days)
-		assert.Nil(t, result, "days=%d should return nil result", days)
-	}
-}
-
-func TestGetAlerts_SeparatesOverdueAndUpcoming(t *testing.T) {
-	fixedNow := time.Date(2026, 5, 6, 12, 0, 0, 0, config.JST)
-	yesterdayJST := time.Date(2026, 5, 5, 0, 0, 0, 0, config.JST)
-	todayJST := time.Date(2026, 5, 6, 0, 0, 0, 0, config.JST)
-	inThirtyJST := time.Date(2026, 6, 5, 0, 0, 0, 0, config.JST)
-
-	repo := &mockCheckupRepository{
-		findAlertsFn: func(_ context.Context, _ uint64, _ int) ([]model.Checkup, error) {
-			return []model.Checkup{
-				{ID: 1, NextDate: &yesterdayJST},
-				{ID: 2, NextDate: &todayJST},
-				{ID: 3, NextDate: &inThirtyJST},
-			}, nil
-		},
-	}
-	svc := NewCheckupService(repo, &mockMedicalRecordRepository{}, okCheckupTypeRepo(), nil, nil)
-	svc.(*checkupService).nowFn = func() time.Time { return fixedNow }
-
-	result, err := svc.GetAlerts(context.Background(), 1, 30)
-	assert.NoError(t, err)
-	assert.Len(t, result.Overdue, 1, "yesterday should be overdue")
-	assert.Len(t, result.Upcoming, 2, "today and inThirty should be upcoming")
-	assert.Equal(t, uint64(1), result.Overdue[0].ID)
-}
-
-func TestGetAlerts_NilNextDateExcluded(t *testing.T) {
-	repo := &mockCheckupRepository{
-		findAlertsFn: func(_ context.Context, _ uint64, _ int) ([]model.Checkup, error) {
-			return []model.Checkup{
-				{ID: 1, NextDate: nil},
-			}, nil
-		},
-	}
-	svc := NewCheckupService(repo, &mockMedicalRecordRepository{}, okCheckupTypeRepo(), nil, nil)
-	svc.(*checkupService).nowFn = func() time.Time {
-		return time.Date(2026, 5, 6, 12, 0, 0, 0, config.JST)
-	}
-
-	result, err := svc.GetAlerts(context.Background(), 1, 30)
-	assert.NoError(t, err)
-	assert.Empty(t, result.Overdue)
-	assert.Empty(t, result.Upcoming)
-}
-
-func TestGetAlerts_PropagatesRepositoryError(t *testing.T) {
-	repo := &mockCheckupRepository{
-		findAlertsFn: func(_ context.Context, _ uint64, _ int) ([]model.Checkup, error) {
-			return nil, errors.New("db error")
-		},
-	}
-	svc := NewCheckupService(repo, &mockMedicalRecordRepository{}, okCheckupTypeRepo(), nil, nil)
-	svc.(*checkupService).nowFn = func() time.Time {
-		return time.Date(2026, 5, 6, 12, 0, 0, 0, config.JST)
-	}
-
-	result, err := svc.GetAlerts(context.Background(), 1, 30)
-	assert.Error(t, err)
-	assert.Nil(t, result)
-}
-
-func TestGetAlerts_JSTLateNight_TodayIsCorrectJSTDate(t *testing.T) {
-	// 2026-05-06 03:00 JST = 2026-05-05 18:00 UTC
-	// 旧実装 Truncate(24h): today = 2026-05-05 00:00 UTC
-	//   → next_date (2026-05-05 00:00 UTC) は today と等しいので Before = false → Upcoming (誤)
-	// 新実装 (JST 基準): today = 2026-05-06 00:00 JST = 2026-05-05 15:00 UTC
-	//   → next_date (2026-05-05 00:00 UTC) < today → Overdue (正)
-	jstLateNight := time.Date(2026, 5, 6, 3, 0, 0, 0, config.JST)
-	may5UTC := time.Date(2026, 5, 5, 0, 0, 0, 0, time.UTC)
-
-	repo := &mockCheckupRepository{
-		findAlertsFn: func(_ context.Context, _ uint64, _ int) ([]model.Checkup, error) {
-			return []model.Checkup{
-				{ID: 1, NextDate: &may5UTC},
-			}, nil
-		},
-	}
-	svc := NewCheckupService(repo, &mockMedicalRecordRepository{}, okCheckupTypeRepo(), nil, nil)
-	svc.(*checkupService).nowFn = func() time.Time { return jstLateNight }
-
-	result, err := svc.GetAlerts(context.Background(), 1, 30)
-	assert.NoError(t, err)
-	assert.Len(t, result.Overdue, 1, "2026-05-05 00:00 UTC should be overdue when JST date is 2026-05-06")
-	assert.Empty(t, result.Upcoming)
-	assert.Equal(t, uint64(1), result.Overdue[0].ID)
-}
-
 func TestCheckupService_Update_FindByIDError(t *testing.T) {
 	newResult := "updated"
 	repo := &mockCheckupRepository{
@@ -1169,23 +1064,4 @@ func TestCheckupService_Delete_MedicalRecordLookupError(t *testing.T) {
 	err := svc.Delete(context.Background(), 1, 1, 1)
 
 	assert.Error(t, err)
-}
-
-// TestCheckupService_now_DefaultsToTimeNow は nowFn が未設定（nil）の場合に
-// time.Now() にフォールバックすることを検証する（テストフック未使用のデフォルト経路）。
-func TestCheckupService_now_DefaultsToTimeNow(t *testing.T) {
-	nextDate := time.Now().Add(-24 * time.Hour)
-	repo := &mockCheckupRepository{
-		findAlertsFn: func(_ context.Context, _ uint64, _ int) ([]model.Checkup, error) {
-			return []model.Checkup{{ID: 1, NextDate: &nextDate}}, nil
-		},
-	}
-	svc := NewCheckupService(repo, &mockMedicalRecordRepository{}, okCheckupTypeRepo(), nil, nil)
-	// nowFn をあえて設定しない → checkupService.now() は time.Now() にフォールバックする。
-
-	result, err := svc.GetAlerts(context.Background(), 1, 30)
-
-	assert.NoError(t, err)
-	assert.NotNil(t, result)
-	assert.Len(t, result.Overdue, 1, "現在時刻基準で昨日の next_date は overdue になるはず")
 }
