@@ -24,8 +24,6 @@ type BillingItemRepository interface {
 	HasItemByOwnerSince(ctx context.Context, clinicID, ownerID uint64, since time.Time, names []string) (bool, error)
 	// HasFoodPurchaseByOwnerSince は names 指定時は名前で、未指定時は category=food で判定する（FEAT-379）。
 	HasFoodPurchaseByOwnerSince(ctx context.Context, clinicID, ownerID uint64, since time.Time, names []string) (bool, error)
-	// FindOwnersByCategoryPurchaseDate は指定カテゴリの最終購入日が purchaseDate と一致する飼い主IDリストを返す（FEAT-383）。
-	FindOwnersByCategoryPurchaseDate(ctx context.Context, clinicID uint64, category string, purchaseDate time.Time) ([]uint64, error)
 	// FindUnbilledTrimmingItemsByPetID は指定ペットの未請求トリミングコース/オプションを返す(#77)。
 	FindUnbilledTrimmingItemsByPetID(ctx context.Context, clinicID, petID uint64) ([]model.BillingItem, error)
 	// CountNonAccountingTrimmingByPetAndDate は同日同ペットの「未会計対象化」トリミング appointment 件数を返す(#77)。
@@ -138,33 +136,6 @@ func (r *billingItemRepository) HasItemByOwnerSince(ctx context.Context, clinicI
 		return false, apperrors.FromGORM(err, "billing_item", fmt.Sprintf("clinic:%d owner:%d", clinicID, ownerID))
 	}
 	return count > 0, nil
-}
-
-// FindOwnersByCategoryPurchaseDate は指定カテゴリの最終購入日が purchaseDate と一致する飼い主IDリストを返す（FEAT-383）。
-// billings.completed_at::date の MAX が purchaseDate と一致する飼い主を返す。
-func (r *billingItemRepository) FindOwnersByCategoryPurchaseDate(ctx context.Context, clinicID uint64, category string, purchaseDate time.Time) ([]uint64, error) {
-	target := purchaseDate.Format(time.DateOnly)
-	type row struct{ OwnerID uint64 }
-	var rows []row
-	err := r.db.WithContext(ctx).Raw(`
-		SELECT billings.owner_id AS owner_id
-		FROM billing_items
-		JOIN billings ON billings.id = billing_items.billing_id
-		WHERE billings.clinic_id = ?
-		  AND billings.deleted_at IS NULL
-		  AND billing_items.deleted_at IS NULL
-		  AND billing_items.category = ?
-		GROUP BY billings.owner_id
-		HAVING MAX(billings.completed_at::date) = ?::date
-	`, clinicID, category, target).Scan(&rows).Error
-	if err != nil {
-		return nil, apperrors.FromGORM(err, "billing_item", fmt.Sprintf("clinic=%d category=%s date=%s", clinicID, category, target))
-	}
-	ids := make([]uint64, len(rows))
-	for i, r := range rows {
-		ids[i] = r.OwnerID
-	}
-	return ids, nil
 }
 
 func (r *billingItemRepository) HasFoodPurchaseByOwnerSince(ctx context.Context, clinicID, ownerID uint64, since time.Time, names []string) (bool, error) {

@@ -196,14 +196,6 @@ func (m *batchMockTagSyncSvc) SyncVisitDormantTags(_ context.Context, _, _ uint6
 	return nil
 }
 
-func (m *batchMockTagSyncSvc) SyncPetSpeciesTags(_ context.Context, _, _ uint64) error {
-	return nil
-}
-
-func (m *batchMockTagSyncSvc) SyncSeniorTag(_ context.Context, _, _ uint64) error {
-	return nil
-}
-
 func (m *batchMockTagSyncSvc) SyncExclusionTags(_ context.Context, _, _ uint64) error {
 	return nil
 }

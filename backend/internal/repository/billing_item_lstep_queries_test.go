@@ -2,17 +2,15 @@ package repository
 
 // billing_item_lstep_queries_test.go — G11-5 テスト負債解消
 //
-// テスト対象: BillingItemRepository.HasItemByOwnerSince / FindOwnersByCategoryPurchaseDate /
-//   HasFoodPurchaseByOwnerSince — Lstep 配信ターゲティング用の購買クエリ3本（FEAT-379/383）
+// テスト対象: BillingItemRepository.HasItemByOwnerSince / HasFoodPurchaseByOwnerSince
+//   — Lstep 配信ターゲティング用の購買クエリ2本（FEAT-379）
+//   （FindOwnersByCategoryPurchaseDate はF6+H-3で未配線のため削除・本テストも削除済み）
 // 保護する不変条件:
 //   - すべて billings.completed_at を基準とする（billings.issued_at ではない。ドキュメント
 //     コメントの乖離を修正した根拠を固定する）
-//   - FindOwnersByCategoryPurchaseDate は HAVING MAX(completed_at::date) = purchaseDate、
-//     つまり「その日が最終購入日」を意味する（それ以降により新しい購入があると除外される）
 //   - HasFoodPurchaseByOwnerSince は names 指定時は name IN、未指定時は category=food
 //
-// このテストは completed_at を issued_at 等の別カラムに差し替える、または
-// HAVING MAX の意味論を崩すと必ず失敗するよう設計されている。
+// このテストは completed_at を issued_at 等の別カラムに差し替えると必ず失敗するよう設計されている。
 
 import (
 	"context"
@@ -97,69 +95,6 @@ func TestBillingItemRepository_HasItemByOwnerSince(t *testing.T) {
 		ok, err := repo.HasItemByOwnerSince(ctx, clinicA, owner.ID, since, nil)
 		require.NoError(t, err)
 		assert.False(t, ok)
-	})
-}
-
-func TestBillingItemRepository_FindOwnersByCategoryPurchaseDate(t *testing.T) {
-	ctx := context.Background()
-	db := setupTestDB(t)
-	repo := NewBillingItemRepository(db)
-	const clinicA = uint64(1)
-	targetDate := time.Date(2026, 6, 10, 0, 0, 0, 0, time.UTC)
-
-	t.Run("MAX(completed_at::date)が指定日に一致するownerのみ返る", func(t *testing.T) {
-		owner := makeOwner(t, db, clinicA, "G11-5購買飼主1")
-		billing := makeTrimmingBillingWithCompletedAt(t, db, clinicA, model.BillingStatusCompleted, targetDate)
-		billing.OwnerID = &owner.ID
-		require.NoError(t, db.WithContext(ctx).Save(billing).Error)
-		item := &model.BillingItem{BillingID: billing.ID, Category: model.ItemCategoryFood, Name: "フードA"}
-		require.NoError(t, db.WithContext(ctx).Create(item).Error)
-
-		ids, err := repo.FindOwnersByCategoryPurchaseDate(ctx, clinicA, string(model.ItemCategoryFood), targetDate)
-		require.NoError(t, err)
-		assert.Contains(t, ids, owner.ID)
-	})
-
-	t.Run("同ownerがより新しい購買を持つと除外される(HAVING MAXの本質)", func(t *testing.T) {
-		owner := makeOwner(t, db, clinicA, "G11-5購買飼主2")
-		oldBilling := makeTrimmingBillingWithCompletedAt(t, db, clinicA, model.BillingStatusCompleted, targetDate)
-		oldBilling.OwnerID = &owner.ID
-		require.NoError(t, db.WithContext(ctx).Save(oldBilling).Error)
-		require.NoError(t, db.WithContext(ctx).Create(&model.BillingItem{BillingID: oldBilling.ID, Category: model.ItemCategoryFood, Name: "フード旧"}).Error)
-
-		newerBilling := makeTrimmingBillingWithCompletedAt(t, db, clinicA, model.BillingStatusCompleted, targetDate.AddDate(0, 0, 5))
-		newerBilling.OwnerID = &owner.ID
-		require.NoError(t, db.WithContext(ctx).Save(newerBilling).Error)
-		require.NoError(t, db.WithContext(ctx).Create(&model.BillingItem{BillingID: newerBilling.ID, Category: model.ItemCategoryFood, Name: "フード新"}).Error)
-
-		ids, err := repo.FindOwnersByCategoryPurchaseDate(ctx, clinicA, string(model.ItemCategoryFood), targetDate)
-		require.NoError(t, err)
-		assert.NotContains(t, ids, owner.ID, "MAXがtargetDateより後にずれたownerはtargetDateの結果から除外される")
-
-		idsNewer, err := repo.FindOwnersByCategoryPurchaseDate(ctx, clinicA, string(model.ItemCategoryFood), targetDate.AddDate(0, 0, 5))
-		require.NoError(t, err)
-		assert.Contains(t, idsNewer, owner.ID, "最新購入日を指定すればownerが返る")
-	})
-
-	t.Run("別カテゴリ/別クリニック/別日は除外", func(t *testing.T) {
-		owner := makeOwner(t, db, clinicA, "G11-5購買飼主3")
-		billing := makeTrimmingBillingWithCompletedAt(t, db, clinicA, model.BillingStatusCompleted, targetDate)
-		billing.OwnerID = &owner.ID
-		require.NoError(t, db.WithContext(ctx).Save(billing).Error)
-		require.NoError(t, db.WithContext(ctx).Create(&model.BillingItem{BillingID: billing.ID, Category: model.ItemCategoryGoods, Name: "雑貨"}).Error)
-
-		idsWrongCategory, err := repo.FindOwnersByCategoryPurchaseDate(ctx, clinicA, string(model.ItemCategoryFood), targetDate)
-		require.NoError(t, err)
-		assert.NotContains(t, idsWrongCategory, owner.ID, "カテゴリ不一致は除外")
-
-		const clinicB = uint64(2)
-		idsWrongClinic, err := repo.FindOwnersByCategoryPurchaseDate(ctx, clinicB, string(model.ItemCategoryGoods), targetDate)
-		require.NoError(t, err)
-		assert.NotContains(t, idsWrongClinic, owner.ID, "別クリニックは除外")
-
-		idsWrongDate, err := repo.FindOwnersByCategoryPurchaseDate(ctx, clinicA, string(model.ItemCategoryGoods), targetDate.AddDate(0, 0, 1))
-		require.NoError(t, err)
-		assert.NotContains(t, idsWrongDate, owner.ID, "別日は除外")
 	})
 }
 

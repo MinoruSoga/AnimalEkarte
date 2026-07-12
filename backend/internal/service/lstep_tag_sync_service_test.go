@@ -57,8 +57,6 @@ func TestLstepTagSyncServiceDisabledSyncSkipsBeforeRepositories(t *testing.T) {
 		{name: "ResyncOwnerCheckupTags", run: func() error { return svc.ResyncOwnerCheckupTags(ctx, 1, 2) }},
 		{name: "SyncCPMStageTagV2", run: func() error { return svc.SyncCPMStageTagV2(ctx, 1, 2) }},
 		{name: "SyncVisitDormantTags", run: func() error { return svc.SyncVisitDormantTags(ctx, 1, 2, 120) }},
-		{name: "SyncPetSpeciesTags", run: func() error { return svc.SyncPetSpeciesTags(ctx, 1, 2) }},
-		{name: "SyncSeniorTag", run: func() error { return svc.SyncSeniorTag(ctx, 1, 2) }},
 		{name: "SyncExclusionTags", run: func() error { return svc.SyncExclusionTags(ctx, 1, 2) }},
 		{name: "SyncHealthcheckTags", run: func() error { return svc.SyncHealthcheckTags(ctx, 1, 2) }},
 		{name: "SyncAnnual4CheckupTag", run: func() error { return svc.SyncAnnual4CheckupTag(ctx, 1, 2) }},
@@ -795,80 +793,6 @@ func TestVisitDormantTagsForDays(t *testing.T) {
 	assert.Equal(t, []string{"VISIT_120日超", "VISIT_180日超", "VISIT_220日超"}, visitDormantTagsForDays(240))
 	assert.Equal(t, []string{"VISIT_120日超", "VISIT_180日超", "VISIT_220日超", "VISIT_240日超"}, visitDormantTagsForDays(241))
 	assert.Equal(t, []string{"VISIT_120日超", "VISIT_180日超", "VISIT_220日超", "VISIT_240日超"}, visitDormantTagsForDays(300))
-}
-
-// ---- petSpeciesFlags (pure function) ----
-
-func TestPetSpeciesFlags(t *testing.T) {
-	dog := &model.AnimalSpecies{Name: "犬"}
-	cat := &model.AnimalSpecies{Name: "猫"}
-	bird := &model.AnimalSpecies{Name: "鳥"}
-
-	hasDog, hasCat := petSpeciesFlags(nil)
-	assert.False(t, hasDog)
-	assert.False(t, hasCat)
-
-	hasDog, hasCat = petSpeciesFlags([]model.Pet{})
-	assert.False(t, hasDog)
-	assert.False(t, hasCat)
-
-	hasDog, hasCat = petSpeciesFlags([]model.Pet{{AnimalSpecies: dog}})
-	assert.True(t, hasDog)
-	assert.False(t, hasCat)
-
-	hasDog, hasCat = petSpeciesFlags([]model.Pet{{AnimalSpecies: cat}})
-	assert.False(t, hasDog)
-	assert.True(t, hasCat)
-
-	hasDog, hasCat = petSpeciesFlags([]model.Pet{{AnimalSpecies: dog}, {AnimalSpecies: cat}})
-	assert.True(t, hasDog)
-	assert.True(t, hasCat)
-
-	hasDog, hasCat = petSpeciesFlags([]model.Pet{{AnimalSpecies: bird}})
-	assert.False(t, hasDog)
-	assert.False(t, hasCat)
-
-	// nil AnimalSpecies is skipped
-	hasDog, hasCat = petSpeciesFlags([]model.Pet{{AnimalSpecies: nil}})
-	assert.False(t, hasDog)
-	assert.False(t, hasCat)
-}
-
-// ---- hasSeniorPet (pure function) ----
-
-func TestHasSeniorPet(t *testing.T) {
-	dog := &model.AnimalSpecies{Name: "犬"}
-	cat := &model.AnimalSpecies{Name: "猫"}
-	bird := &model.AnimalSpecies{Name: "鳥"}
-	now := time.Date(2026, 5, 1, 0, 0, 0, 0, time.UTC)
-
-	bd7 := now.AddDate(-7, 0, -1) // 7歳超: senior
-	bd7e := now.AddDate(-7, 0, 0) // 7歳ちょうど: senior
-	bd6 := now.AddDate(-6, 0, -1) // 6歳: not senior
-
-	assert.False(t, hasSeniorPet(nil, now))
-	assert.False(t, hasSeniorPet([]model.Pet{}, now))
-
-	// 7歳超 犬 → senior
-	assert.True(t, hasSeniorPet([]model.Pet{{AnimalSpecies: dog, BirthDate: &bd7}}, now))
-
-	// 7歳ちょうど 犬 → senior
-	assert.True(t, hasSeniorPet([]model.Pet{{AnimalSpecies: dog, BirthDate: &bd7e}}, now))
-
-	// 6歳 犬 → not senior
-	assert.False(t, hasSeniorPet([]model.Pet{{AnimalSpecies: dog, BirthDate: &bd6}}, now))
-
-	// 7歳超 猫 → senior
-	assert.True(t, hasSeniorPet([]model.Pet{{AnimalSpecies: cat, BirthDate: &bd7}}, now))
-
-	// 7歳超 鳥 → not senior (犬猫以外は対象外)
-	assert.False(t, hasSeniorPet([]model.Pet{{AnimalSpecies: bird, BirthDate: &bd7}}, now))
-
-	// BirthDate nil → not senior
-	assert.False(t, hasSeniorPet([]model.Pet{{AnimalSpecies: dog, BirthDate: nil}}, now))
-
-	// AnimalSpecies nil → not senior
-	assert.False(t, hasSeniorPet([]model.Pet{{AnimalSpecies: nil, BirthDate: &bd7}}, now))
 }
 
 // ---- hasVaccineDeadlineSoon (pure function) ----

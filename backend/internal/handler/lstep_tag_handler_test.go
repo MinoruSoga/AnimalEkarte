@@ -21,7 +21,6 @@ type mockLstepTagService struct {
 	getOwnerTagsFn   func(ctx context.Context, clinicID, ownerID uint64) (*service.OwnerTagsResult, error)
 	addOwnerTagFn    func(ctx context.Context, clinicID, ownerID uint64, tagName string, actorID *uint64) error
 	removeOwnerTagFn func(ctx context.Context, clinicID, ownerID uint64, tagName string, actorID *uint64) error
-	bulkAddTagFn     func(ctx context.Context, clinicID uint64, ownerIDs []uint64, tagName string, actorID *uint64) (*service.BulkAddOwnerTagResult, error)
 }
 
 func (m *mockLstepTagService) GetOwnerTags(ctx context.Context, clinicID, ownerID uint64) (*service.OwnerTagsResult, error) {
@@ -41,12 +40,6 @@ func (m *mockLstepTagService) RemoveOwnerTag(ctx context.Context, clinicID, owne
 		return m.removeOwnerTagFn(ctx, clinicID, ownerID, tagName, actorID)
 	}
 	return nil
-}
-func (m *mockLstepTagService) BulkAddOwnerTag(ctx context.Context, clinicID uint64, ownerIDs []uint64, tagName string, actorID *uint64) (*service.BulkAddOwnerTagResult, error) {
-	if m.bulkAddTagFn != nil {
-		return m.bulkAddTagFn(ctx, clinicID, ownerIDs, tagName, actorID)
-	}
-	return &service.BulkAddOwnerTagResult{}, nil
 }
 
 // ---- helpers ----

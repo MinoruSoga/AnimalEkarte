@@ -59,9 +59,6 @@ func (m *mockBillingItemRepository) HasFoodPurchaseByOwnerSince(ctx context.Cont
 	}
 	return false, nil
 }
-func (m *mockBillingItemRepository) FindOwnersByCategoryPurchaseDate(_ context.Context, _ uint64, _ string, _ time.Time) ([]uint64, error) {
-	return nil, nil
-}
 func (m *mockBillingItemRepository) FindUnbilledTrimmingItemsByPetID(_ context.Context, _, _ uint64) ([]model.BillingItem, error) {
 	return nil, nil
 }

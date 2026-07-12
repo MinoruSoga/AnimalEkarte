@@ -53,13 +53,6 @@ type OwnerTagsResult struct {
 	FetchedAt   time.Time
 }
 
-// BulkAddOwnerTagResult は一括タグ付与の結果。
-type BulkAddOwnerTagResult struct {
-	SyncedCount    int
-	SkippedCount   int
-	FailedOwnerIDs []uint64
-}
-
 // LstepTagService は飼い主タグの手動 CRUD インターフェース（BE-019）。
 type LstepTagService interface {
 	// GetOwnerTags は飼い主の現在のLステップタグ一覧を返す。LINE未連携時は空リスト。
@@ -68,9 +61,6 @@ type LstepTagService interface {
 	AddOwnerTag(ctx context.Context, clinicID, ownerID uint64, tagName string, actorID *uint64) error
 	// RemoveOwnerTag は飼い主から手動でタグを解除する。冪等（存在しないタグは正常終了）。
 	RemoveOwnerTag(ctx context.Context, clinicID, ownerID uint64, tagName string, actorID *uint64) error
-	// BulkAddOwnerTag は複数飼い主に同一タグをベストエフォートで付与する。
-	// LINE未連携/opt-outはスキップ扱い（エラーにしない）。
-	BulkAddOwnerTag(ctx context.Context, clinicID uint64, ownerIDs []uint64, tagName string, actorID *uint64) (*BulkAddOwnerTagResult, error)
 }
 
 type lstepTagService struct {
@@ -277,90 +267,4 @@ func (s *lstepTagService) RemoveOwnerTag(ctx context.Context, clinicID, ownerID 
 	}
 
 	return nil
-}
-
-func (s *lstepTagService) BulkAddOwnerTag(ctx context.Context, clinicID uint64, ownerIDs []uint64, tagName string, actorID *uint64) (*BulkAddOwnerTagResult, error) {
-	managed, err := s.isAutoManagedTag(ctx, tagName)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to check auto managed tag", "error", err, "tag", tagName)
-		return nil, apperrors.Wrap(err, "failed to check auto managed tag")
-	}
-	if managed {
-		return nil, apperrors.WrapInvalidInput(fmt.Sprintf("タグ %q は自動管理タグのため手動付与できません", tagName))
-	}
-
-	client, err := s.buildClient(ctx, clinicID)
-	if err != nil {
-		return nil, err
-	}
-	if client == nil {
-		return nil, apperrors.WrapInvalidInput("Lステップ API が設定されていません")
-	}
-
-	result := &BulkAddOwnerTagResult{FailedOwnerIDs: []uint64{}}
-
-	// PERF-04/G7-5: FindByIDs でオーナーを一括取得し N+1 を解消する(1 total)。
-	// 挙動保存: 旧 per-owner FindByID ループはDBエラーもNotFoundと区別せず当該ownerIDをFailedOwnerIDsに
-	// 積んで処理を継続していた(呼出元にエラーを伝播しない)。FindByIDs自体が失敗した場合も同じ挙動とするため、
-	// ここでは早期returnせずログのみ行い、ownerMapを空のまま後続へ進める(=全ownerIDが「取得できなかったID」
-	// として扱われ、下の集合差ループでFailedOwnerIDsに積まれる)。
-	owners, err := s.ownerRepo.FindByIDs(ctx, clinicID, ownerIDs)
-	if err != nil {
-		slog.ErrorContext(ctx, "bulk tag: failed to bulk find owners", "error", err)
-	}
-	ownerMap := make(map[uint64]*model.Owner, len(owners))
-	for _, owner := range owners {
-		ownerMap[owner.ID] = owner
-	}
-	// 要求 - 取得の集合差を ownerIDs の順に判定し、FailedOwnerIDs への追加順を従来の per-owner
-	// NotFound 処理と同じ ownerIDs 順に保つ。
-	for _, ownerID := range ownerIDs {
-		if _, ok := ownerMap[ownerID]; !ok {
-			slog.ErrorContext(ctx, "bulk tag: owner not found", "owner_id", ownerID)
-			result.FailedOwnerIDs = append(result.FailedOwnerIDs, ownerID)
-		}
-	}
-
-	// Process owners from cache
-	for _, ownerID := range ownerIDs {
-		owner, ok := ownerMap[ownerID]
-		if !ok {
-			// Already marked as failed above
-			continue
-		}
-
-		if owner.LstepOptOut || owner.LineUserID == nil || *owner.LineUserID == "" {
-			result.SkippedCount++
-			continue
-		}
-
-		if addErr := client.AddTag(ctx, *owner.LineUserID, tagName); addErr != nil {
-			slog.ErrorContext(ctx, "bulk tag: failed to add lstep tag", "error", addErr, "owner_id", ownerID, "tag", tagName)
-			result.FailedOwnerIDs = append(result.FailedOwnerIDs, ownerID)
-			continue
-		}
-
-		if cacheErr := s.tagCacheRepo.UpsertTag(ctx, clinicID, ownerID, tagName, "manual", ""); cacheErr != nil {
-			slog.ErrorContext(ctx, "bulk tag: failed to upsert tag cache", "error", cacheErr, "owner_id", ownerID, "tag", tagName)
-		}
-		result.SyncedCount++
-	}
-
-	// ISSUE-010: LTV/CPM 一括同期や健診一括タグ付与の件数を audit_logs.metadata に永続化する。
-	failedCount := len(result.FailedOwnerIDs)
-	if err := s.auditSvc.LogLstepOperationWithMetadata(ctx, clinicID, actorID,
-		"bulk_add_tag", "owner", nil,
-		map[string]any{
-			"operation":       "bulk_add_tag",
-			"tag_name":        tagName,
-			"requested_count": len(ownerIDs),
-			"synced_count":    result.SyncedCount,
-			"skipped_count":   result.SkippedCount,
-			"failed_count":    failedCount,
-		},
-	); err != nil {
-		slog.WarnContext(ctx, "audit log failed for bulk add tag", "error", err, "tag", tagName, "count", len(ownerIDs))
-	}
-
-	return result, nil
 }

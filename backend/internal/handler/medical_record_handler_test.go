@@ -204,14 +204,6 @@ func (m *mockLstepTagSyncService) SyncVisitDormantTags(_ context.Context, _, _ u
 	return nil
 }
 
-func (m *mockLstepTagSyncService) SyncPetSpeciesTags(_ context.Context, _, _ uint64) error {
-	return nil
-}
-
-func (m *mockLstepTagSyncService) SyncSeniorTag(_ context.Context, _, _ uint64) error {
-	return nil
-}
-
 func (m *mockLstepTagSyncService) SyncExclusionTags(_ context.Context, _, _ uint64) error {
 	return nil
 }

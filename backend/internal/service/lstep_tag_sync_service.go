@@ -189,10 +189,6 @@ type LstepTagSyncService interface {
 	// SyncVisitDormantTags は最終来院経過日数に基づき VISIT_* タグを差分同期する（FEAT-377）。
 	// VISIT タグは重複付与可（複数閾値を同時保持）。daysSinceLastVisit < 0 は来院なしを表す。
 	SyncVisitDormantTags(ctx context.Context, clinicID, ownerID uint64, daysSinceLastVisit int) error
-	// SyncPetSpeciesTags は飼い主の生存ペット種別タグ（PET_犬あり / PET_猫あり）を同期する（FEAT-377）。
-	SyncPetSpeciesTags(ctx context.Context, clinicID, ownerID uint64) error
-	// SyncSeniorTag は飼い主の生存ペットに 7 歳以上の犬猫がいる場合 PET_シニア対象 タグを付与する（FEAT-377）。
-	SyncSeniorTag(ctx context.Context, clinicID, ownerID uint64) error
 	// SyncExclusionTags は配信停止条件（opt-out / 会員ステータス / 全ペット死亡）に基づき
 	// EXCL_配信停止 タグを同期する（FEAT-377）。
 	// 注: checkOptOut は呼ばない（このメソッド自体が opt-out 判定の実装）。
