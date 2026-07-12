@@ -343,7 +343,7 @@ func (s *hospitalizationService) DischargeWithBilling(ctx context.Context, clini
 				UnitPrice: item.UnitPrice,
 				Quantity:  1.0,
 				TaxType:   model.TaxTypeExcluded,
-				TaxRate:   0.10,
+				TaxRate:   DefaultTaxRate,
 				Source:    model.ItemSourceHospitalization,
 				SortOrder: i,
 			}
@@ -355,7 +355,7 @@ func (s *hospitalizationService) DischargeWithBilling(ctx context.Context, clini
 
 		// 5. 合計金額更新
 		if len(carePlanItems) > 0 {
-			taxTotal := int64(float64(totalAmount) * 0.10)
+			taxTotal := int64(float64(totalAmount) * DefaultTaxRate)
 			if err := txRepos.BillingItem.UpdateBillingTotals(ctx, clinicID, billing.ID, totalAmount, taxTotal, totalAmount+taxTotal); err != nil {
 				return apperrors.Wrap(err, "failed to update billing totals")
 			}

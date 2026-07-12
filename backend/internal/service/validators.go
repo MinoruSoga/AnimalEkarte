@@ -11,6 +11,9 @@ import (
 // 最大文字数 (UTF-8 rune count)。BUG-379 対応。
 const MasterNameMaxLength = 255
 
+// DefaultTaxRate は消費税標準税率。nil 税率時のデフォルト。
+const DefaultTaxRate = 0.10
+
 // 日本語エラーメッセージ定数 (BUG-385)
 const (
 	ErrMsgAtLeastOneField   = "少なくとも1つのフィールドを指定してください"

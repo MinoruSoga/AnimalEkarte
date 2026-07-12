@@ -219,7 +219,7 @@ func (s *billingItemService) CreateItem(ctx context.Context, input *CreateBillin
 	}
 
 	// TaxRate デフォルト設定
-	taxRate := 0.10
+	taxRate := DefaultTaxRate
 	if input.TaxRate > 0 {
 		taxRate = input.TaxRate
 	}
@@ -415,7 +415,7 @@ func treatmentToUnbilledBillingItem(t *model.Treatment) model.BillingItem {
 		UnitPrice:             t.UnitPrice,
 		Quantity:              t.Quantity,
 		TaxType:               model.TaxTypeExcluded,
-		TaxRate:               0.10,
+		TaxRate:               DefaultTaxRate,
 		IsInsuranceApplicable: t.IsInsurance,
 		Source:                model.ItemSourceMedicalRecord,
 		TreatmentID:           &treatmentID,
