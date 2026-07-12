@@ -29,9 +29,9 @@ handler・専用テスト・api.yaml オペレーションごと削除、FE 呼�
 `GetAlerts` / `FindAlerts` / `toCheckupAlertsResponse` 系 + api.yaml オペレーション + 専用テストを削除済み。
 詳細は git 履歴参照）。
 
-**② 健診一覧の実サーバページング移行 — 未判断（次期送り推奨）**:
-- **決定者**: PO。**判断質問（転送用）**: 「健診一覧は全件を一度に返す実装です。STG の実件数（下記 SQL）を見て、ページング移行を今期やるか決めてください」
-- **推奨**: STG 件数が数千行未満なら**次期送り**（自動生成が無く増加は手入力に線形 — 緊急性の根拠が薄い）。
+**② 健診一覧の実サーバページング移行 — 次期送り確定（2026-07-12 / PO 推奨案採用）**:
+- **決定者**: PO。**PO 判断**: 今期は着手しない。STG 実件数に基づき、次回 BE リファクタサイクルで再検討する。
+- **決定背景**: STG 件数が数千行未満なら**次期送り**（自動生成が無く増加は手入力に線形 — 緊急性の根拠が薄い）。
 - **判断材料**:
   - BE は既に退化封筒を返している（`checkup_handler.go:142` `newPaginatedResponse(responses, int64(len(responses)), 1, len(responses))` — total=全件数・page=1 固定の見せかけページング）。FE も封筒を読むが total を捨て**クライアント側ページング**（`get-checkups.ts:15-16` / `CheckupsList.tsx:118-120` の `usePagination`）。実体は「退化封筒 → 実サーバページング移行」であり、封筒キーは既に一致 = 漸進移行が可能で破壊的変更ではない。
   - handler 先例: **`parsePagination`（`query_helpers.go:17-41` — 既定 page=1 / limit=20 / 上限 100・per_page エイリアス対応）+ `vaccination_handler.go:13-46` + `newPaginatedResponse`（`handler.go:38-48`）**。
