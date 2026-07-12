@@ -107,7 +107,10 @@ var n1Allowlist = map[string]bool{
 	n1AllowlistKey("validateOwnerPetsInsuranceOwnership", "insuranceRepo.FindByID"): true,
 	// input.TrimmingOptionIDs is the request body of a single reservation create — bounded by
 	// how many trimming options one reservation can select (small, UI-constrained), not table size.
-	n1AllowlistKey("ValidateAndCreate", "trimmingOptionRepo.FindByID"): true,
+	// BE-refactor.md E-8 moved this loop from ValidateAndCreate into the extracted
+	// validateReservationMasterOwnership helper (pure master-FK ownership check); key renamed
+	// to match, reasoning unchanged.
+	n1AllowlistKey("validateReservationMasterOwnership", "trimmingOptionRepo.FindByID"): true,
 
 	// --- Category 2: tracked pre-existing debt ---
 	// (empty) PERF-FOLLOWUP-08 (2026-07-12) resolved both prior entries by hoisting the
@@ -395,8 +398,8 @@ func TestN1Lint_AllowlistEntriesAreLive(t *testing.T) {
 	_, allowHits, _ := walkServiceN1(t)
 
 	wantOccurrences := map[string]int{
-		n1AllowlistKey("validateOwnerPetsInsuranceOwnership", "insuranceRepo.FindByID"): 1,
-		n1AllowlistKey("ValidateAndCreate", "trimmingOptionRepo.FindByID"):              1,
+		n1AllowlistKey("validateOwnerPetsInsuranceOwnership", "insuranceRepo.FindByID"):     1,
+		n1AllowlistKey("validateReservationMasterOwnership", "trimmingOptionRepo.FindByID"): 1,
 	}
 	if len(n1Allowlist) != len(wantOccurrences) {
 		t.Fatalf("n1Allowlist has %d entries but this test pins %d; keep both lists in sync", len(n1Allowlist), len(wantOccurrences))

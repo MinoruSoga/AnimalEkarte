@@ -107,25 +107,8 @@ func (v *reservationValidators) ValidateAndCreate(ctx context.Context, input *Cr
 	// TrimmingOptionIDs が caller の clinic に属することを、INSERT 前(tx 開始前)に
 	// 検証する(billing_item_service.go と同型の master FK 所有権チェック)。所有権失敗は
 	// best-effort に落とさず hard fail とし、orphan appointment を作らない。
-	if v.typeRepo != nil {
-		if _, err := v.typeRepo.FindByID(ctx, input.ClinicID, input.ReservationTypeID); err != nil {
-			slog.ErrorContext(ctx, "reservation type not found or belongs to different clinic", "error", err)
-			return nil, apperrors.Wrap(err, "failed to verify reservation type ownership")
-		}
-	}
-	if v.trimmingCourseRepo != nil && input.TrimmingCourseID != nil {
-		if _, err := v.trimmingCourseRepo.FindByID(ctx, input.ClinicID, *input.TrimmingCourseID); err != nil {
-			slog.ErrorContext(ctx, "trimming course not found or belongs to different clinic", "error", err)
-			return nil, apperrors.Wrap(err, "failed to verify trimming course ownership")
-		}
-	}
-	if v.trimmingOptionRepo != nil {
-		for _, optionID := range input.TrimmingOptionIDs {
-			if _, err := v.trimmingOptionRepo.FindByID(ctx, input.ClinicID, optionID); err != nil {
-				slog.ErrorContext(ctx, "trimming option not found or belongs to different clinic", "error", err)
-				return nil, apperrors.Wrap(err, "failed to verify trimming option ownership")
-			}
-		}
+	if err := v.validateReservationMasterOwnership(ctx, input); err != nil {
+		return nil, err
 	}
 
 	var result *model.Reservation
@@ -184,38 +167,22 @@ func (v *reservationValidators) ValidateAndCreate(ctx context.Context, input *Cr
 			return err
 		}
 
-		// 同日予約制限チェック
-		if settings.DailyLimit != nil && *settings.DailyLimit > 0 {
-			dayStart := time.Date(input.Date.Year(), input.Date.Month(), input.Date.Day(), 0, 0, 0, 0, input.Date.Location())
-			dayEnd := dayStart.Add(24 * time.Hour)
-			dailyCount, err := v.repo.CountByCustomerAndDateRange(ctx, input.ClinicID, input.CustomerID, dayStart, dayEnd)
-			if err != nil {
-				return apperrors.Wrap(err, "failed to count daily reservations")
-			}
-			if int(dailyCount) >= *settings.DailyLimit {
-				return &ReservationLimitError{
-					Code:         "DAILY_LIMIT",
-					Message:      "1日内に予約できる件数を超えています。別の日をお選びください。",
-					RedirectStep: 4,
-				}
-			}
+		// 同日予約制限チェック（BE-refactor.md E-8: 日次・月次の構造的クローンを畳む）
+		dayStart := time.Date(input.Date.Year(), input.Date.Month(), input.Date.Day(), 0, 0, 0, 0, input.Date.Location())
+		dayEnd := dayStart.Add(24 * time.Hour)
+		if err := checkCustomerReservationLimit(ctx, v.repo, input, dayStart, dayEnd,
+			"DAILY_LIMIT", "1日内に予約できる件数を超えています。別の日をお選びください。",
+			"failed to count daily reservations", settings.DailyLimit); err != nil {
+			return err
 		}
 
 		// 同月予約制限チェック
-		if settings.MonthlyLimit != nil && *settings.MonthlyLimit > 0 {
-			monthStart := time.Date(input.Date.Year(), input.Date.Month(), 1, 0, 0, 0, 0, input.Date.Location())
-			monthEnd := monthStart.AddDate(0, 1, 0)
-			monthlyCount, err := v.repo.CountByCustomerAndDateRange(ctx, input.ClinicID, input.CustomerID, monthStart, monthEnd)
-			if err != nil {
-				return apperrors.Wrap(err, "failed to count monthly reservations")
-			}
-			if int(monthlyCount) >= *settings.MonthlyLimit {
-				return &ReservationLimitError{
-					Code:         "MONTHLY_LIMIT",
-					Message:      "1ヶ月内に予約できる件数を超えています。別の月をお選びください。",
-					RedirectStep: 4,
-				}
-			}
+		monthStart := time.Date(input.Date.Year(), input.Date.Month(), 1, 0, 0, 0, 0, input.Date.Location())
+		monthEnd := monthStart.AddDate(0, 1, 0)
+		if err := checkCustomerReservationLimit(ctx, v.repo, input, monthStart, monthEnd,
+			"MONTHLY_LIMIT", "1ヶ月内に予約できる件数を超えています。別の月をお選びください。",
+			"failed to count monthly reservations", settings.MonthlyLimit); err != nil {
+			return err
 		}
 
 		// 確認番号生成
@@ -225,37 +192,7 @@ func (v *reservationValidators) ValidateAndCreate(ctx context.Context, input *Cr
 		}
 
 		// 予約作成
-		doctorID := &input.StaffID
-		if input.StaffID == 0 {
-			doctorID = nil
-		}
-		customerFields := json.RawMessage("{}")
-		if len(input.CustomerFields) > 0 {
-			customerFields = input.CustomerFields
-		}
-		notes := input.RequestText
-		if confirmationNumber != "" {
-			if notes != "" {
-				notes = confirmationNumber + " " + notes
-			} else {
-				notes = confirmationNumber
-			}
-		}
-
-		appt := &model.Reservation{
-			ClinicID:          input.ClinicID,
-			StartTime:         startDT,
-			EndTime:           endDT,
-			ReservationTypeID: input.ReservationTypeID,
-			DoctorID:          doctorID,
-			Status:            model.ReservationStatusConfirmed,
-			Source:            model.ReservationSourceLine,
-			LineCustomerID:    &input.CustomerID,
-			IsStaffDelegated:  input.StaffID == 0,
-			CustomerFields:    customerFields,
-			Notes:             notes,
-			VisitType:         model.VisitTypeRevisit,
-		}
+		appt := buildLineReservation(input, startDT, endDT, confirmationNumber)
 		if err := v.repo.Create(ctx, appt); err != nil {
 			return apperrors.Wrap(err, "failed to create reservation")
 		}
@@ -266,6 +203,91 @@ func (v *reservationValidators) ValidateAndCreate(ctx context.Context, input *Cr
 		return nil, apperrors.Wrap(err, "failed to create line reservation")
 	}
 	return result, nil
+}
+
+// validateReservationMasterOwnership は master-FK（ReservationTypeID/TrimmingCourseID/
+// TrimmingOptionIDs）が caller の clinic に属することを検証する（BE-refactor.md E-8:
+// ValidateAndCreate の4責務分割・純粋抽出）。所有権失敗は best-effort に落とさず hard fail
+// とし、orphan appointment を作らない。
+func (v *reservationValidators) validateReservationMasterOwnership(ctx context.Context, input *CreateReservationInput) error {
+	if v.typeRepo != nil {
+		if _, err := v.typeRepo.FindByID(ctx, input.ClinicID, input.ReservationTypeID); err != nil {
+			slog.ErrorContext(ctx, "reservation type not found or belongs to different clinic", "error", err)
+			return apperrors.Wrap(err, "failed to verify reservation type ownership")
+		}
+	}
+	if v.trimmingCourseRepo != nil && input.TrimmingCourseID != nil {
+		if _, err := v.trimmingCourseRepo.FindByID(ctx, input.ClinicID, *input.TrimmingCourseID); err != nil {
+			slog.ErrorContext(ctx, "trimming course not found or belongs to different clinic", "error", err)
+			return apperrors.Wrap(err, "failed to verify trimming course ownership")
+		}
+	}
+	if v.trimmingOptionRepo != nil {
+		for _, optionID := range input.TrimmingOptionIDs {
+			if _, err := v.trimmingOptionRepo.FindByID(ctx, input.ClinicID, optionID); err != nil {
+				slog.ErrorContext(ctx, "trimming option not found or belongs to different clinic", "error", err)
+				return apperrors.Wrap(err, "failed to verify trimming option ownership")
+			}
+		}
+	}
+	return nil
+}
+
+// checkCustomerReservationLimit は指定期間内の顧客の予約件数が limit 以上かどうかを検証する
+// （BE-refactor.md E-8: 同日・同月の構造的クローンを畳む）。limit が nil または 0 以下の場合は
+// チェックをスキップする。countErrMsg はカウントクエリ失敗時の apperrors.Wrap メッセージ、
+// code/msg は上限超過時に返す ReservationLimitError の内容（呼び出し元ごとの既存文言を再現）。
+func checkCustomerReservationLimit(ctx context.Context, repo repository.ReservationRepository, input *CreateReservationInput, from, to time.Time, code, msg, countErrMsg string, limit *int) error {
+	if limit == nil || *limit <= 0 {
+		return nil
+	}
+	count, err := repo.CountByCustomerAndDateRange(ctx, input.ClinicID, input.CustomerID, from, to)
+	if err != nil {
+		return apperrors.Wrap(err, countErrMsg)
+	}
+	if int(count) >= *limit {
+		return &ReservationLimitError{
+			Code:         code,
+			Message:      msg,
+			RedirectStep: 4,
+		}
+	}
+	return nil
+}
+
+// buildLineReservation は LINE 予約の model.Reservation エンティティを組み立てる純関数
+// （BE-refactor.md E-8）。
+func buildLineReservation(input *CreateReservationInput, startDT, endDT time.Time, confirmationNumber string) *model.Reservation {
+	doctorID := &input.StaffID
+	if input.StaffID == 0 {
+		doctorID = nil
+	}
+	customerFields := json.RawMessage("{}")
+	if len(input.CustomerFields) > 0 {
+		customerFields = input.CustomerFields
+	}
+	notes := input.RequestText
+	if confirmationNumber != "" {
+		if notes != "" {
+			notes = confirmationNumber + " " + notes
+		} else {
+			notes = confirmationNumber
+		}
+	}
+	return &model.Reservation{
+		ClinicID:          input.ClinicID,
+		StartTime:         startDT,
+		EndTime:           endDT,
+		ReservationTypeID: input.ReservationTypeID,
+		DoctorID:          doctorID,
+		Status:            model.ReservationStatusConfirmed,
+		Source:            model.ReservationSourceLine,
+		LineCustomerID:    &input.CustomerID,
+		IsStaffDelegated:  input.StaffID == 0,
+		CustomerFields:    customerFields,
+		Notes:             notes,
+		VisitType:         model.VisitTypeRevisit,
+	}
 }
 
 // validateBusinessRules は予約可能日・営業時間・休憩時間などの業務ルールを検証する（BUG-LINE-008）。
