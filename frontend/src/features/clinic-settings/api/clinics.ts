@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import { handleApiError } from "@/lib/handle-api-error";
+import { queryKeys } from "@/lib/query-keys";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 import { transformClinic } from "./transforms";
 
@@ -53,12 +54,6 @@ export interface UpdateClinicRequest {
 }
 
 // ─────────────────────────────────────────────────
-// Query keys
-// ─────────────────────────────────────────────────
-
-const CLINICS_QUERY_KEY = ["clinics"] as const;
-
-// ─────────────────────────────────────────────────
 // API functions
 // ─────────────────────────────────────────────────
 
@@ -97,7 +92,7 @@ async function deleteClinic(id: number): Promise<void> {
 
 export function useGetClinics() {
   return useQuery({
-    queryKey: CLINICS_QUERY_KEY,
+    queryKey: queryKeys.clinics.all(),
     queryFn: listClinics,
     staleTime: QUERY_STALE_TIMES.STATIC,
     gcTime: QUERY_GC_TIMES.LONG,
@@ -109,7 +104,7 @@ export function useCreateClinic() {
   return useMutation({
     mutationFn: createClinic,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: CLINICS_QUERY_KEY });
+      queryClient.invalidateQueries({ queryKey: queryKeys.clinics.all() });
     },
     onError: (error) => handleApiError(error, "クリニック作成"),
   });
@@ -121,7 +116,7 @@ export function useUpdateClinic() {
     mutationFn: ({ id, req }: { id: number; req: UpdateClinicRequest }) =>
       updateClinic(id, req),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: CLINICS_QUERY_KEY });
+      queryClient.invalidateQueries({ queryKey: queryKeys.clinics.all() });
     },
     onError: (error) => handleApiError(error, "クリニック更新"),
   });
@@ -132,7 +127,7 @@ export function useDeleteClinic() {
   return useMutation({
     mutationFn: deleteClinic,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: CLINICS_QUERY_KEY });
+      queryClient.invalidateQueries({ queryKey: queryKeys.clinics.all() });
     },
     onError: (error) => handleApiError(error, "クリニック削除"),
   });
