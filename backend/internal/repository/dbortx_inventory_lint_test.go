@@ -215,6 +215,9 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"reservation_staff_repository.go|reservationStaffRepository.UpdateSortOrder":                {},
 	"reservation_staff_repository.go|reservationStaffRepository.UpdateExcludedReservationTypes": {},
 	"reservation_staff_repository.go|reservationStaffRepository.UpdateReservationCapabilities":  {},
+	// BE-refactor.md H-7: FindByID を dbOrTx 化し、reservationStaffService.Update の
+	// tx 内所有権確認（GetByID）を ambient tx に参加させ TOCTOU 窓を閉じる。
+	"reservation_staff_repository.go|reservationStaffRepository.FindByID": {},
 }
 
 // funcUsesDBOrTx reports whether a function body contains a call to dbOrTx(...).

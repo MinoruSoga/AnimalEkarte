@@ -51,9 +51,11 @@ func (r *reservationStaffRepository) FindAll(ctx context.Context, clinicID uint6
 }
 
 // FindByID はクリニック所属チェック込みでスタッフ 1 件を取得する（マルチテナント安全）。
+// BE-refactor.md H-7: dbOrTx(ctx, r.db) にすることで、reservationStaffService.Update が
+// WithTx 閉包内で行う所有権確認がその ambient tx に参加する（確認〜更新の TOCTOU 窓を閉じる）。
 func (r *reservationStaffRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Staff, error) {
 	var staff model.Staff
-	err := r.db.WithContext(ctx).
+	err := dbOrTx(ctx, r.db).
 		Joins("JOIN staff_clinic_assignments sca ON sca.staff_id = staffs.id AND sca.clinic_id = ?", clinicID).
 		Where("staffs.id = ? AND staffs.deleted_at IS NULL", id).
 		First(&staff).Error

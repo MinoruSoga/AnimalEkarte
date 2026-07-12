@@ -149,17 +149,19 @@ func (s *reservationStaffService) Create(ctx context.Context, clinicID uint64, i
 }
 
 func (s *reservationStaffService) Update(ctx context.Context, clinicID, id uint64, input *UpdateReservationStaffInput) (*model.Staff, []model.StaffReservationExclusion, error) {
-	// clinicID 確認
-	if _, err := s.GetByID(ctx, clinicID, id); err != nil {
-		slog.ErrorContext(ctx, "failed to verify reservation staff ownership", "error", err)
-		return nil, nil, apperrors.Wrap(err, "failed to verify reservation staff ownership")
-	}
-
 	// BE-refactor.md X-8: staff 本体更新 + 除外コース置換を WithTx で括り原子化する（Create と対称）。
 	// 括らないと、fields 更新が成功し UpdateExcludedReservationTypes が失敗した場合に
 	// staff 側の変更（名前/種別/表示可否等）だけがコミットされ、除外コースは古いまま残る
 	// 非原子な部分更新になる。
+	// BE-refactor.md H-7: clinicID 確認（所有権確認）を WithTx 閉包の外から先頭へ移動し、
+	// dbOrTx 化済みの repo.FindByID を txCtx で呼ぶことで ambient tx に参加させる。
+	// これにより確認〜更新の間にスタッフ削除/所属変更が起きる TOCTOU 窓を閉じる
+	// （repo.Update は R13 で updateScopedByID 化済み・RowsAffected==0 は WrapNotFound）。
 	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
+		if _, err := s.repo.FindByID(txCtx, clinicID, id); err != nil {
+			slog.ErrorContext(txCtx, "failed to verify reservation staff ownership", "error", err)
+			return apperrors.Wrap(err, "failed to verify reservation staff ownership")
+		}
 		fields := buildReservationStaffUpdate(input)
 		if len(fields) > 0 {
 			if err := s.repo.Update(txCtx, clinicID, id, fields); err != nil {
@@ -175,7 +177,7 @@ func (s *reservationStaffService) Update(ctx context.Context, clinicID, id uint6
 		}
 		return nil
 	}); err != nil {
-		return nil, nil, err //nolint:wrapcheck // tx 閉包内の 2 分岐とも文脈付き wrap 済み（同義二重ラップ回避）
+		return nil, nil, err //nolint:wrapcheck // tx 閉包内の 3 分岐とも文脈付き wrap 済み（同義二重ラップ回避）
 	}
 	updated, err := s.repo.FindByID(ctx, clinicID, id)
 	if err != nil {
