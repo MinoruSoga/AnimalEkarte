@@ -2,6 +2,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import type { VaccinationRecord } from "@/types";
 import { handleApiError } from "@/lib/handle-api-error";
+import { queryKeys } from "@/lib/query-keys";
 import { transformVaccination } from "./transforms";
 import type { BackendVaccination, CreateVaccinationRequest } from "./types";
 
@@ -21,7 +22,7 @@ export const useCreateVaccination = () => {
   return useMutation({
     mutationFn: createVaccination,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["vaccinations"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.vaccinations.all() });
     },
     onError: (error) => handleApiError(error, "ワクチン接種登録"),
   });
