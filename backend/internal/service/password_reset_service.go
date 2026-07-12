@@ -10,6 +10,7 @@ import (
 	"log/slog"
 	"net"
 	"net/smtp"
+	"strings"
 	"time"
 
 	"golang.org/x/crypto/bcrypt"
@@ -177,9 +178,28 @@ func hashToken(rawToken string) string {
 	return hex.EncodeToString(h[:])
 }
 
+// validateSMTPLine は net/smtp.SendMail 内部の validateLine 相当のガードである。
+// MAIL FROM/RCPT TO 等のエンベロープコマンドに CR/LF を許すと SMTP コマンド
+// インジェクションになるため、手動展開の smtp クライアント呼び出し前に拒否する。
+func validateSMTPLine(line string) error {
+	if strings.ContainsAny(line, "\n\r") {
+		return fmt.Errorf("smtp: A line must not contain CR or LF")
+	}
+	return nil
+}
+
 func (s *passwordResetService) sendResetEmail(ctx context.Context, to, resetURL string) error {
 	if s.cfg.SMTPHost == "" {
 		return nil
+	}
+
+	// net/smtp.SendMail の validateLine 相当: エンベロープコマンド（MAIL FROM/RCPT TO）に
+	// CR/LF を許すと SMTP コマンドインジェクションになるため、dial する前に拒否する。
+	if err := validateSMTPLine(s.cfg.SMTPFrom); err != nil {
+		return fmt.Errorf("smtp send: %w", err)
+	}
+	if err := validateSMTPLine(to); err != nil {
+		return fmt.Errorf("smtp send: %w", err)
 	}
 
 	subject := "パスワードリセットのご案内"
@@ -232,9 +252,14 @@ func (s *passwordResetService) sendResetEmail(ctx context.Context, to, resetURL 
 		}
 	}
 
+	// net/smtp.SendMail は AUTH extension をサーバが広告している場合のみ Auth を試みる
+	// （未広告サーバへの無条件 Auth 呼び出しは、AUTH 非対応サーバに対する不要な認証失敗を
+	// 招き得る）。手動展開でも同じガードを踏襲する。
 	if auth != nil {
-		if err := c.Auth(auth); err != nil {
-			return fmt.Errorf("smtp send: %w", err)
+		if ok, _ := c.Extension("AUTH"); ok {
+			if err := c.Auth(auth); err != nil {
+				return fmt.Errorf("smtp send: %w", err)
+			}
 		}
 	}
 

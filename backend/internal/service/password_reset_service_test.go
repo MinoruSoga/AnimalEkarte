@@ -338,4 +338,42 @@ func TestPasswordResetService_SendResetEmail(t *testing.T) {
 		assert.Less(t, elapsed, 3*time.Second,
 			"deadline が smtp 送信に伝播していれば OS の TCP タイムアウトを待たずに復帰するはず")
 	})
+
+	t.Run("rejects recipient address containing CRLF before dialing (SMTP command injection guard)", func(t *testing.T) {
+		svc := &passwordResetService{cfg: &PasswordResetConfig{
+			SMTPHost: "127.0.0.1",
+			SMTPPort: "25",
+			SMTPFrom: "noreply@example.com",
+		}}
+
+		sendErr := svc.sendResetEmail(context.Background(), "victim@example.com\r\nRCPT TO:<attacker@evil.example>", "https://example.com/reset-password?token=abc")
+
+		assert.Error(t, sendErr)
+		assert.Contains(t, sendErr.Error(), "CR or LF")
+	})
+}
+
+func TestValidateSMTPLine(t *testing.T) {
+	tests := []struct {
+		name    string
+		line    string
+		wantErr bool
+	}{
+		{name: "plain address is accepted", line: "owner@example.com", wantErr: false},
+		{name: "CR is rejected", line: "owner@example.com\rSubject: injected", wantErr: true},
+		{name: "LF is rejected", line: "owner@example.com\nSubject: injected", wantErr: true},
+		{name: "CRLF is rejected", line: "owner@example.com\r\nRCPT TO:<attacker@evil.example>", wantErr: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validateSMTPLine(tt.line)
+
+			if tt.wantErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
 }
