@@ -20,7 +20,7 @@ type CheckupFilters struct {
 
 type CheckupRepository interface {
 	FindByMedicalRecordID(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.Checkup, error)
-	FindByClinicID(ctx context.Context, clinicID uint64, filters CheckupFilters) ([]model.Checkup, error)
+	FindByClinicID(ctx context.Context, clinicID uint64, filters CheckupFilters, page, limit int) ([]model.Checkup, int64, error)
 	// FindByOwnerID は飼い主に紐づく生存健診記録を全件返す（ISSUE-004 タグ再同期用）。
 	// medical_records 経由で owner_id を解決する。
 	FindByOwnerID(ctx context.Context, clinicID, ownerID uint64) ([]model.Checkup, error)
@@ -38,32 +38,44 @@ func NewCheckupRepository(db *gorm.DB) CheckupRepository {
 	return &checkupRepository{db: db}
 }
 
-func (r *checkupRepository) FindByClinicID(ctx context.Context, clinicID uint64, filters CheckupFilters) ([]model.Checkup, error) {
+func (r *checkupRepository) FindByClinicID(ctx context.Context, clinicID uint64, filters CheckupFilters, page, limit int) ([]model.Checkup, int64, error) {
+	buildBase := func() *gorm.DB {
+		q := r.db.WithContext(ctx).Model(&model.Checkup{}).
+			Scopes(clinicScope(clinicID))
+		if filters.StartDate != nil {
+			q = q.Where("date >= ?", *filters.StartDate)
+		}
+		if filters.EndDate != nil {
+			q = q.Where("date <= ?", *filters.EndDate)
+		}
+		if filters.NextStartDate != nil {
+			q = q.Where("next_date >= ?", *filters.NextStartDate)
+		}
+		if filters.NextEndDate != nil {
+			q = q.Where("next_date <= ?", *filters.NextEndDate)
+		}
+		return q
+	}
+
+	var total int64
+	if err := buildBase().Count(&total).Error; err != nil {
+		return nil, 0, apperrors.FromGORM(err, "checkup", "")
+	}
+
 	checkups := make([]model.Checkup, 0)
-	q := r.db.WithContext(ctx).
-		Scopes(clinicScope(clinicID)).
+	err := buildBase().
 		Preload("CheckupType", "clinic_id = ? AND deleted_at IS NULL", clinicID).
 		Preload("Doctor", "deleted_at IS NULL").
 		Preload("MedicalRecord", "deleted_at IS NULL").
 		Preload("MedicalRecord.Pet", "deleted_at IS NULL").
-		Preload("MedicalRecord.Pet.Owner", "deleted_at IS NULL")
-	if filters.StartDate != nil {
-		q = q.Where("date >= ?", *filters.StartDate)
-	}
-	if filters.EndDate != nil {
-		q = q.Where("date <= ?", *filters.EndDate)
-	}
-	if filters.NextStartDate != nil {
-		q = q.Where("next_date >= ?", *filters.NextStartDate)
-	}
-	if filters.NextEndDate != nil {
-		q = q.Where("next_date <= ?", *filters.NextEndDate)
-	}
-	err := q.Order("date DESC").Find(&checkups).Error
+		Preload("MedicalRecord.Pet.Owner", "deleted_at IS NULL").
+		Order("date DESC").
+		Offset((page - 1) * limit).Limit(limit).
+		Find(&checkups).Error
 	if err != nil {
-		return nil, apperrors.FromGORM(err, "checkup", "")
+		return nil, 0, apperrors.FromGORM(err, "checkup", "")
 	}
-	return checkups, nil
+	return checkups, total, nil
 }
 
 // FindByOwnerID は飼い主に紐づく生存健診記録を返す（ISSUE-004 タグ再同期用）。

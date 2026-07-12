@@ -78,10 +78,11 @@ func TestCheckupRepository_FindByClinicID_FiltersAndClinicIsolation(t *testing.T
 	recent := makeCheckupWithDates(t, db, clinicA, mrA.ID, petA.ID, ctA.ID, d3, nil)
 	_ = makeCheckupWithDates(t, db, clinicB, mrB.ID, petB.ID, ctB.ID, d2, nil) // 別クリニック
 
-	t.Run("フィルタ無しで clinic A の健診が date DESC で返る", func(t *testing.T) {
-		got, err := repo.FindByClinicID(ctx, clinicA, CheckupFilters{})
+	t.Run("フィルタ無しで clinic A の健診が date DESC で返り total は全件数", func(t *testing.T) {
+		got, total, err := repo.FindByClinicID(ctx, clinicA, CheckupFilters{}, 1, 20)
 		require.NoError(t, err)
 		require.Len(t, got, 3, "clinic A の健診のみ返る")
+		assert.EqualValues(t, 3, total)
 		assert.Equal(t, recent.ID, got[0].ID)
 		assert.Equal(t, mid.ID, got[1].ID)
 		assert.Equal(t, old.ID, got[2].ID)
@@ -93,19 +94,36 @@ func TestCheckupRepository_FindByClinicID_FiltersAndClinicIsolation(t *testing.T
 	t.Run("StartDate/EndDate で絞り込み", func(t *testing.T) {
 		start := "2026-02-01"
 		end := "2026-02-28"
-		got, err := repo.FindByClinicID(ctx, clinicA, CheckupFilters{StartDate: &start, EndDate: &end})
+		got, total, err := repo.FindByClinicID(ctx, clinicA, CheckupFilters{StartDate: &start, EndDate: &end}, 1, 20)
 		require.NoError(t, err)
 		require.Len(t, got, 1)
+		assert.EqualValues(t, 1, total)
 		assert.Equal(t, mid.ID, got[0].ID)
 	})
 
 	t.Run("NextStartDate/NextEndDate で絞り込み", func(t *testing.T) {
 		nStart := "2026-04-01"
 		nEnd := "2026-04-30"
-		got, err := repo.FindByClinicID(ctx, clinicA, CheckupFilters{NextStartDate: &nStart, NextEndDate: &nEnd})
+		got, total, err := repo.FindByClinicID(ctx, clinicA, CheckupFilters{NextStartDate: &nStart, NextEndDate: &nEnd}, 1, 20)
 		require.NoError(t, err)
 		require.Len(t, got, 1, "next_date を持つ健診のみヒットする")
+		assert.EqualValues(t, 1, total)
 		assert.Equal(t, mid.ID, got[0].ID)
+	})
+
+	t.Run("page/limit で結果件数を絞り込みつつ total はフィルタ全件を維持", func(t *testing.T) {
+		got, total, err := repo.FindByClinicID(ctx, clinicA, CheckupFilters{}, 1, 2)
+		require.NoError(t, err)
+		require.Len(t, got, 2, "limit=2 で 1 ページ目は 2 件のみ")
+		assert.EqualValues(t, 3, total, "total は limit に関わらず全件数")
+		assert.Equal(t, recent.ID, got[0].ID)
+		assert.Equal(t, mid.ID, got[1].ID)
+
+		got2, total2, err := repo.FindByClinicID(ctx, clinicA, CheckupFilters{}, 2, 2)
+		require.NoError(t, err)
+		require.Len(t, got2, 1, "2 ページ目は残り 1 件")
+		assert.EqualValues(t, 3, total2)
+		assert.Equal(t, old.ID, got2[0].ID)
 	})
 }
 
@@ -281,7 +299,7 @@ func TestCheckupRepository_Delete(t *testing.T) {
 		_, err := repo.FindByID(ctx, clinicA, c.ID)
 		assert.True(t, apperrors.IsNotFound(err))
 
-		all, err := repo.FindByClinicID(ctx, clinicA, CheckupFilters{})
+		all, _, err := repo.FindByClinicID(ctx, clinicA, CheckupFilters{}, 1, 20)
 		require.NoError(t, err)
 		for _, x := range all {
 			assert.NotEqual(t, c.ID, x.ID)

@@ -16,7 +16,7 @@ import (
 
 type mockCheckupRepository struct {
 	listByMedicalRecordIDFn func(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.Checkup, error)
-	listByClinicFn          func(ctx context.Context, clinicID uint64, filters repository.CheckupFilters) ([]model.Checkup, error)
+	listByClinicFn          func(ctx context.Context, clinicID uint64, filters repository.CheckupFilters, page, limit int) ([]model.Checkup, int64, error)
 	findByOwnerIDFn         func(ctx context.Context, clinicID, ownerID uint64) ([]model.Checkup, error)
 	findByIDFn              func(ctx context.Context, clinicID, checkupID uint64) (*model.Checkup, error)
 	createFn                func(ctx context.Context, checkup *model.Checkup) error
@@ -28,11 +28,11 @@ func (m *mockCheckupRepository) FindByMedicalRecordID(ctx context.Context, clini
 	return m.listByMedicalRecordIDFn(ctx, clinicID, medicalRecordID)
 }
 
-func (m *mockCheckupRepository) FindByClinicID(ctx context.Context, clinicID uint64, filters repository.CheckupFilters) ([]model.Checkup, error) {
+func (m *mockCheckupRepository) FindByClinicID(ctx context.Context, clinicID uint64, filters repository.CheckupFilters, page, limit int) ([]model.Checkup, int64, error) {
 	if m.listByClinicFn != nil {
-		return m.listByClinicFn(ctx, clinicID, filters)
+		return m.listByClinicFn(ctx, clinicID, filters, page, limit)
 	}
-	return nil, nil
+	return nil, 0, nil
 }
 
 func (m *mockCheckupRepository) FindByID(ctx context.Context, clinicID, checkupID uint64) (*model.Checkup, error) {
@@ -129,10 +129,13 @@ func TestCheckupService_ListByClinic(t *testing.T) {
 		name           string
 		input          ListCheckupsByClinicInput
 		repoCheckups   []model.Checkup
+		repoTotal      int64
 		repoErr        error
 		wantLen        int
+		wantTotal      int64
 		wantErr        bool
 		checkedFilters func(t *testing.T, filters repository.CheckupFilters)
+		checkedPaging  func(t *testing.T, page, limit int)
 	}{
 		{
 			name: "returns checkups filtered by date range",
@@ -140,12 +143,16 @@ func TestCheckupService_ListByClinic(t *testing.T) {
 				ClinicID:  1,
 				StartDate: &startDate,
 				EndDate:   &endDate,
+				Page:      1,
+				Limit:     20,
 			},
 			repoCheckups: []model.Checkup{
 				{ID: 1, MedicalRecordID: 1},
 				{ID: 2, MedicalRecordID: 2},
 			},
-			wantLen: 2,
+			repoTotal: 2,
+			wantLen:   2,
+			wantTotal: 2,
 			checkedFilters: func(t *testing.T, filters repository.CheckupFilters) {
 				assert.Equal(t, &startDate, filters.StartDate)
 				assert.Equal(t, &endDate, filters.EndDate)
@@ -153,38 +160,64 @@ func TestCheckupService_ListByClinic(t *testing.T) {
 		},
 		{
 			name:  "returns empty list when no checkups exist",
-			input: ListCheckupsByClinicInput{ClinicID: 1},
+			input: ListCheckupsByClinicInput{ClinicID: 1, Page: 1, Limit: 20},
 		},
 		{
 			name:    "propagates repository error",
-			input:   ListCheckupsByClinicInput{ClinicID: 1},
+			input:   ListCheckupsByClinicInput{ClinicID: 1, Page: 1, Limit: 20},
 			repoErr: errors.New("db error"),
 			wantErr: true,
+		},
+		{
+			name: "passes page/limit through to repository and returns total",
+			input: ListCheckupsByClinicInput{
+				ClinicID: 1,
+				Page:     2,
+				Limit:    5,
+			},
+			repoCheckups: []model.Checkup{
+				{ID: 6, MedicalRecordID: 1},
+			},
+			repoTotal: 11,
+			wantLen:   1,
+			wantTotal: 11,
+			checkedPaging: func(t *testing.T, page, limit int) {
+				assert.Equal(t, 2, page)
+				assert.Equal(t, 5, limit)
+			},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			var gotFilters repository.CheckupFilters
+			var gotPage, gotLimit int
 			repo := &mockCheckupRepository{
-				listByClinicFn: func(_ context.Context, _ uint64, filters repository.CheckupFilters) ([]model.Checkup, error) {
+				listByClinicFn: func(_ context.Context, _ uint64, filters repository.CheckupFilters, page, limit int) ([]model.Checkup, int64, error) {
 					gotFilters = filters
-					return tt.repoCheckups, tt.repoErr
+					gotPage = page
+					gotLimit = limit
+					return tt.repoCheckups, tt.repoTotal, tt.repoErr
 				},
 			}
 			svc := NewCheckupService(repo, &mockMedicalRecordRepository{}, okCheckupTypeRepo(), nil, nil)
 
-			checkups, err := svc.ListByClinic(context.Background(), tt.input)
+			checkups, total, err := svc.ListByClinic(context.Background(), tt.input)
 
 			if tt.wantErr {
 				assert.Error(t, err)
 				assert.Nil(t, checkups)
+				assert.Zero(t, total)
 				return
 			}
 			assert.NoError(t, err)
 			assert.Len(t, checkups, tt.wantLen)
+			assert.Equal(t, tt.wantTotal, total)
 			if tt.checkedFilters != nil {
 				tt.checkedFilters(t, gotFilters)
+			}
+			if tt.checkedPaging != nil {
+				tt.checkedPaging(t, gotPage, gotLimit)
 			}
 		})
 	}

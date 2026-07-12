@@ -40,6 +40,8 @@ type ListCheckupsByClinicInput struct {
 	EndDate       *string
 	NextStartDate *string
 	NextEndDate   *string
+	Page          int
+	Limit         int
 }
 
 // CheckupService は健診記録のビジネスロジックを定義するインターフェース
@@ -70,7 +72,7 @@ func buildCheckupUpdate(input *UpdateCheckupInput) map[string]any {
 
 type CheckupService interface {
 	List(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.Checkup, error)
-	ListByClinic(ctx context.Context, input ListCheckupsByClinicInput) ([]model.Checkup, error)
+	ListByClinic(ctx context.Context, input ListCheckupsByClinicInput) ([]model.Checkup, int64, error)
 	GetByID(ctx context.Context, clinicID, medicalRecordID, checkupID uint64) (*model.Checkup, error)
 	Create(ctx context.Context, medicalRecordID uint64, input *CreateCheckupInput) (*model.Checkup, error)
 	Update(ctx context.Context, clinicID, medicalRecordID, checkupID uint64, input *UpdateCheckupInput) (*model.Checkup, error)
@@ -99,19 +101,19 @@ func (s *checkupService) List(ctx context.Context, clinicID, medicalRecordID uin
 	return result, nil
 }
 
-func (s *checkupService) ListByClinic(ctx context.Context, input ListCheckupsByClinicInput) ([]model.Checkup, error) {
+func (s *checkupService) ListByClinic(ctx context.Context, input ListCheckupsByClinicInput) ([]model.Checkup, int64, error) {
 	slog.InfoContext(ctx, "listing checkups by clinic", slog.Uint64("clinic_id", input.ClinicID))
-	result, err := s.repo.FindByClinicID(ctx, input.ClinicID, repository.CheckupFilters{
+	result, total, err := s.repo.FindByClinicID(ctx, input.ClinicID, repository.CheckupFilters{
 		StartDate:     input.StartDate,
 		EndDate:       input.EndDate,
 		NextStartDate: input.NextStartDate,
 		NextEndDate:   input.NextEndDate,
-	})
+	}, input.Page, input.Limit)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to list checkups by clinic", "error", err)
-		return nil, apperrors.Wrap(err, "failed to list checkups by clinic")
+		return nil, 0, apperrors.Wrap(err, "failed to list checkups by clinic")
 	}
-	return result, nil
+	return result, total, nil
 }
 
 func (s *checkupService) GetByID(ctx context.Context, clinicID, medicalRecordID, checkupID uint64) (*model.Checkup, error) {

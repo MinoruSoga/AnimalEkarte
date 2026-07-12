@@ -21,7 +21,7 @@ import (
 
 type mockCheckupService struct {
 	listFn         func(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.Checkup, error)
-	listByClinicFn func(ctx context.Context, input service.ListCheckupsByClinicInput) ([]model.Checkup, error)
+	listByClinicFn func(ctx context.Context, input service.ListCheckupsByClinicInput) ([]model.Checkup, int64, error)
 	getByIDFn      func(ctx context.Context, clinicID, medicalRecordID, checkupID uint64) (*model.Checkup, error)
 	createFn       func(ctx context.Context, medicalRecordID uint64, input *service.CreateCheckupInput) (*model.Checkup, error)
 	updateFn       func(ctx context.Context, clinicID, medicalRecordID, checkupID uint64, input *service.UpdateCheckupInput) (*model.Checkup, error)
@@ -35,11 +35,11 @@ func (m *mockCheckupService) List(ctx context.Context, clinicID, medicalRecordID
 	return nil, nil
 }
 
-func (m *mockCheckupService) ListByClinic(ctx context.Context, input service.ListCheckupsByClinicInput) ([]model.Checkup, error) {
+func (m *mockCheckupService) ListByClinic(ctx context.Context, input service.ListCheckupsByClinicInput) ([]model.Checkup, int64, error) {
 	if m.listByClinicFn != nil {
 		return m.listByClinicFn(ctx, input)
 	}
-	return nil, nil
+	return nil, 0, nil
 }
 
 func (m *mockCheckupService) GetByID(ctx context.Context, clinicID, medicalRecordID, checkupID uint64) (*model.Checkup, error) {
@@ -457,18 +457,41 @@ func TestListGlobalCheckups(t *testing.T) {
 		wantBody   string
 	}{
 		{
-			name:     "returns global checkups",
+			name:     "returns global checkups with default pagination and real total",
 			query:    "start_date=2026-01-01",
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockCheckupService{
-				listByClinicFn: func(_ context.Context, input service.ListCheckupsByClinicInput) ([]model.Checkup, error) {
+				listByClinicFn: func(_ context.Context, input service.ListCheckupsByClinicInput) ([]model.Checkup, int64, error) {
 					assert.Equal(t, uint64(1), input.ClinicID)
 					assert.NotNil(t, input.StartDate)
-					return []model.Checkup{{ID: 1, MedicalRecordID: 1, CheckupTypeID: 2, Result: "normal"}}, nil
+					assert.Equal(t, 1, input.Page, "デフォルト page=1")
+					assert.Equal(t, 20, input.Limit, "デフォルト limit=20")
+					return []model.Checkup{{ID: 1, MedicalRecordID: 1, CheckupTypeID: 2, Result: "normal"}}, 11, nil
 				},
 			},
 			wantStatus: http.StatusOK,
 			wantBody:   `"result":"normal"`,
+		},
+		{
+			name:     "passes page/limit query through to service and reflects real total in envelope",
+			query:    "page=2&limit=5",
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockCheckupService{
+				listByClinicFn: func(_ context.Context, input service.ListCheckupsByClinicInput) ([]model.Checkup, int64, error) {
+					assert.Equal(t, 2, input.Page)
+					assert.Equal(t, 5, input.Limit)
+					return []model.Checkup{{ID: 6, MedicalRecordID: 1, CheckupTypeID: 2, Result: "page2"}}, 11, nil
+				},
+			},
+			wantStatus: http.StatusOK,
+			wantBody:   `"total":11,"page":2,"limit":5`,
+		},
+		{
+			name:       "returns 400 for invalid pagination",
+			query:      "page=0",
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockCheckupService{},
+			wantStatus: http.StatusBadRequest,
 		},
 		{
 			name:       "returns 401 when clinic_id is missing",
@@ -480,8 +503,8 @@ func TestListGlobalCheckups(t *testing.T) {
 			name:     "returns 500 on service error",
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockCheckupService{
-				listByClinicFn: func(_ context.Context, _ service.ListCheckupsByClinicInput) ([]model.Checkup, error) {
-					return nil, fmt.Errorf("db failure")
+				listByClinicFn: func(_ context.Context, _ service.ListCheckupsByClinicInput) ([]model.Checkup, int64, error) {
+					return nil, 0, fmt.Errorf("db failure")
 				},
 			},
 			wantStatus: http.StatusInternalServerError,

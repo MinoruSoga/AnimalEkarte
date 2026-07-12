@@ -131,15 +131,24 @@ func (h *Handler) ListGlobalCheckups(c *gin.Context) {
 		return
 	}
 
-	query := newListGlobalCheckupsQuery(clinicID, c.Request.URL.Query())
+	page, limit, err := parsePagination(c)
+	if err != nil {
+		RespondError(c, err)
+		return
+	}
 
-	checkups, err := h.svc.Checkup.ListByClinic(c.Request.Context(), query.toServiceInput())
+	query := newListGlobalCheckupsQuery(clinicID, c.Request.URL.Query())
+	input := query.toServiceInput()
+	input.Page = page
+	input.Limit = limit
+
+	checkups, total, err := h.svc.Checkup.ListByClinic(c.Request.Context(), input)
 	if err != nil {
 		RespondError(c, err)
 		return
 	}
 	responses := mapSlice(checkups, toCheckupGlobalResponse)
-	c.JSON(http.StatusOK, newPaginatedResponse(responses, int64(len(responses)), 1, len(responses)))
+	c.JSON(http.StatusOK, newPaginatedResponse(responses, total, page, limit))
 }
 
 // RegisterGlobalCheckupRoutes は /checkups トップレベルルートを登録する
