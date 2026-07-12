@@ -38,8 +38,6 @@ type VisitConversionByType struct {
 
 // LstepAnalyticsService は Lステップ分析データ取得サービス（FEAT-385）。
 type LstepAnalyticsService interface {
-	// GetDeliveryHistoryByOwner は飼主単位で期間内の配信トリガーログ一覧を返す。
-	GetDeliveryHistoryByOwner(ctx context.Context, clinicID, ownerID uint64, from, to time.Time) ([]model.LstepDeliveryTriggerLog, error)
 	// GetMonthlyDeliveryStats は月次でトリガー種別 × ステータス別集計を返す（クリニック全体）。yearMonth は "2006-01" 形式。
 	GetMonthlyDeliveryStats(ctx context.Context, clinicID uint64, yearMonth string) (*MonthlyDeliveryStats, error)
 	// GetVisitConversionSummary は月次で配信後来院率を返す。days は配信後来院の判定窓（日数）。
@@ -65,15 +63,6 @@ func NewLstepAnalyticsService(
 		triggerLogRepo: triggerLogRepo,
 		snapshotRepo:   snapshotRepo,
 	}
-}
-
-func (s *lstepAnalyticsService) GetDeliveryHistoryByOwner(ctx context.Context, clinicID, ownerID uint64, from, to time.Time) ([]model.LstepDeliveryTriggerLog, error) {
-	logs, err := s.triggerLogRepo.FindAllByOwnerAndDateRange(ctx, clinicID, ownerID, from, to)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to list delivery trigger logs by owner", "error", err, "owner_id", ownerID)
-		return nil, apperrors.Wrap(err, "failed to list delivery history by owner")
-	}
-	return logs, nil
 }
 
 func (s *lstepAnalyticsService) GetMonthlyDeliveryStats(ctx context.Context, clinicID uint64, yearMonth string) (*MonthlyDeliveryStats, error) {

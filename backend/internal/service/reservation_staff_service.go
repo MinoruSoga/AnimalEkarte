@@ -70,8 +70,6 @@ type ReservationStaffCoreService interface {
 
 // ReservationStaffExclusionService は予約スタッフの除外コース操作
 type ReservationStaffExclusionService interface {
-	// GetExcludedReservationTypes は指定スタッフの除外コース一覧を返す
-	GetExcludedReservationTypes(ctx context.Context, staffID uint64) ([]model.StaffReservationExclusion, error)
 	// ListExcludedByStaffIDs は複数スタッフの除外コースをバルク取得してスタッフID→除外コース一覧のマップを返す（N+1回避）
 	ListExcludedByStaffIDs(ctx context.Context, staffIDs []uint64) (map[uint64][]model.StaffReservationExclusion, error)
 }
@@ -256,16 +254,6 @@ func (s *reservationStaffService) PatchSortOrder(ctx context.Context, clinicID, 
 		return apperrors.Wrap(err, "failed to reorder reservation staff")
 	}
 	return nil
-}
-
-// GetExcludedReservationTypes は指定スタッフの除外コース一覧を返す
-func (s *reservationStaffService) GetExcludedReservationTypes(ctx context.Context, staffID uint64) ([]model.StaffReservationExclusion, error) {
-	items, err := s.repo.FindAllExcludedReservationTypes(ctx, staffID)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to get excluded service types", "error", err, "id", staffID)
-		return nil, apperrors.Wrap(err, "failed to get excluded service types")
-	}
-	return items, nil
 }
 
 // ListExcludedByStaffIDs は複数スタッフの除外コースをバルク取得してスタッフID→除外コース一覧のマップを返す

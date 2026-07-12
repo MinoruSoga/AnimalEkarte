@@ -840,36 +840,6 @@ func TestReservationStaffService_PatchSortOrder_RepoError(t *testing.T) {
 	assert.Error(t, err)
 }
 
-func TestReservationStaffService_GetExcludedReservationTypes_Success(t *testing.T) {
-	repo := &mockReservationStaffRepository{
-		findExcludedReservationTypesFn: func(_ context.Context, staffID uint64) ([]model.StaffReservationExclusion, error) {
-			return []model.StaffReservationExclusion{{ID: 1, StaffID: staffID, ReservationTypeID: 5}}, nil
-		},
-	}
-	transactor := &mockTransactor{}
-	svc := newTestReservationStaffService(repo, transactor)
-
-	items, err := svc.GetExcludedReservationTypes(context.Background(), 1)
-
-	assert.NoError(t, err)
-	assert.Len(t, items, 1)
-}
-
-func TestReservationStaffService_GetExcludedReservationTypes_RepoError(t *testing.T) {
-	repo := &mockReservationStaffRepository{
-		findExcludedReservationTypesFn: func(_ context.Context, _ uint64) ([]model.StaffReservationExclusion, error) {
-			return nil, errors.New("db error")
-		},
-	}
-	transactor := &mockTransactor{}
-	svc := newTestReservationStaffService(repo, transactor)
-
-	items, err := svc.GetExcludedReservationTypes(context.Background(), 1)
-
-	assert.Error(t, err)
-	assert.Nil(t, items)
-}
-
 func TestReservationStaffService_ListExcludedByStaffIDs_Success(t *testing.T) {
 	repo := &mockReservationStaffRepository{
 		findExcludedReservationTypesByStaffIDs: func(_ context.Context, staffIDs []uint64) ([]model.StaffReservationExclusion, error) {

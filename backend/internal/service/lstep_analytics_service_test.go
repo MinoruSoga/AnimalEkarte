@@ -155,44 +155,6 @@ func (m *mockAnalyticsOwnerRepo) FindByIDs(_ context.Context, _ uint64, _ []uint
 	return nil, nil
 }
 
-// ---- GetDeliveryHistoryByOwner tests ----
-
-func TestLstepAnalyticsService_GetDeliveryHistoryByOwner(t *testing.T) {
-	t.Run("clinic_id + owner_id + 期間を正しく repo に渡す", func(t *testing.T) {
-		called := false
-		triggerRepo := &mockAnalyticsTriggerLogRepo{
-			listByOwnerFn: func(ctx context.Context, clinicID, ownerID uint64, from, to time.Time) ([]model.LstepDeliveryTriggerLog, error) {
-				called = true
-				assert.Equal(t, uint64(100), clinicID)
-				assert.Equal(t, uint64(200), ownerID)
-				return []model.LstepDeliveryTriggerLog{{ID: 1}}, nil
-			},
-		}
-		svc := NewLstepAnalyticsService(&mockAnalyticsOwnerRepo{}, triggerRepo, &mockAnalyticsSnapshotRepo{})
-		since := time.Date(2026, 5, 1, 0, 0, 0, 0, time.UTC)
-		until := time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC)
-
-		got, err := svc.GetDeliveryHistoryByOwner(context.Background(), 100, 200, since, until)
-
-		assert.NoError(t, err)
-		assert.True(t, called, "repo not called")
-		assert.Len(t, got, 1)
-	})
-
-	t.Run("repo error は wrap されて返る", func(t *testing.T) {
-		triggerRepo := &mockAnalyticsTriggerLogRepo{
-			listByOwnerFn: func(_ context.Context, _, _ uint64, _, _ time.Time) ([]model.LstepDeliveryTriggerLog, error) {
-				return nil, errors.New("db error")
-			},
-		}
-		svc := NewLstepAnalyticsService(&mockAnalyticsOwnerRepo{}, triggerRepo, &mockAnalyticsSnapshotRepo{})
-
-		_, err := svc.GetDeliveryHistoryByOwner(context.Background(), 100, 200, time.Now(), time.Now())
-
-		assert.Error(t, err)
-	})
-}
-
 // ---- GetMonthlyDeliveryStats tests ----
 
 func TestLstepAnalyticsService_GetMonthlyDeliveryStats(t *testing.T) {

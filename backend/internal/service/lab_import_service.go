@@ -53,8 +53,6 @@ type LabImportJobService interface {
 	TransitionStatus(ctx context.Context, clinicID uint64, jobID uuid.UUID, to model.LabImportJobStatus, counts TransitionCounts) (*model.LabImportJob, error)
 	// GetJob はクリニックスコープでジョブを返す。
 	GetJob(ctx context.Context, clinicID uint64, jobID uuid.UUID) (*model.LabImportJob, error)
-	// ListJobs はクリニックスコープで最新順にジョブ一覧を返す。
-	ListJobs(ctx context.Context, clinicID uint64, limit int) ([]*model.LabImportJob, error)
 	// PreviewBatch はバッチ内容を検証し、プレビューサマリを返す（永続化しない）。
 	PreviewBatch(ctx context.Context, clinicID uint64, batch model.LabInboundBatch) (*model.LabImportPreviewResponse, error)
 	// ListEvents はクリニックスコープでジョブのイベント一覧を返す（作成昇順）。
@@ -182,15 +180,6 @@ func (s *labImportJobService) GetJob(ctx context.Context, clinicID uint64, jobID
 		return nil, apperrors.Wrap(err, "failed to get lab import job")
 	}
 	return job, nil
-}
-
-func (s *labImportJobService) ListJobs(ctx context.Context, clinicID uint64, limit int) ([]*model.LabImportJob, error) {
-	jobs, err := s.jobRepo.FindByClinic(ctx, clinicID, limit)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to list lab import jobs", "error", err, "clinic_id", clinicID)
-		return nil, apperrors.Wrap(err, "failed to list lab import jobs")
-	}
-	return jobs, nil
 }
 
 // PreviewBatch は入力バッチを検証してサマリを返す（DB 書き込みなし）。

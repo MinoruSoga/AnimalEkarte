@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
 	"strings"
 	"time"
@@ -113,25 +112,9 @@ type ListOwnerAggregationResult struct {
 	Items   []OwnerAggregationItem
 }
 
-// SyncAggregationTagsInput はSyncAggregationTags の入力パラメータ。
-type SyncAggregationTagsInput struct {
-	TagName        string
-	MinTotalAmount *int64
-	DryRun         bool
-}
-
-// SyncAggregationTagsResult はSyncAggregationTags の結果。
-type SyncAggregationTagsResult struct {
-	DryRun  bool
-	Total   int
-	Synced  int
-	Skipped int
-}
-
 // AggregationService は顧客集計・一括タグ同期の業務ロジックインターフェース（BE-010）。
 type AggregationService interface {
 	ListOwnerAggregation(ctx context.Context, clinicID uint64, input *ListOwnerAggregationInput) (*ListOwnerAggregationResult, error)
-	SyncAggregationTags(ctx context.Context, clinicID uint64, input SyncAggregationTagsInput) (*SyncAggregationTagsResult, error)
 }
 
 type aggregationService struct {
@@ -231,52 +214,4 @@ func (s *aggregationService) ListOwnerAggregation(ctx context.Context, clinicID 
 		PerPage: perPage,
 		Items:   items,
 	}, nil
-}
-
-func (s *aggregationService) SyncAggregationTags(ctx context.Context, clinicID uint64, input SyncAggregationTagsInput) (*SyncAggregationTagsResult, error) {
-	// 禁止プレフィックスチェック（BE-019: システム固定 + DB 設定プレフィックスは手動使用禁止）
-	if isSystemManagedTag(input.TagName) {
-		return nil, apperrors.WrapInvalidInput(fmt.Sprintf("tag_name %q は自動管理タグのため使用できません", input.TagName))
-	}
-	if s.tagConfigRepo != nil {
-		prefixes, prefErr := s.tagConfigRepo.FindAllAutoManagedPrefixes(ctx)
-		if prefErr != nil {
-			slog.ErrorContext(ctx, "failed to load auto managed prefixes", "error", prefErr)
-		} else if isAutoManagedTagWithPrefixes(input.TagName, prefixes) {
-			return nil, apperrors.WrapInvalidInput(fmt.Sprintf("tag_name %q は自動管理タグのため使用できません", input.TagName))
-		}
-	}
-
-	rows, err := s.repo.FindOwnerLTV(ctx, &repository.FindOwnerLTVParams{
-		ClinicID:       clinicID,
-		MinTotalAmount: input.MinTotalAmount,
-	})
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to find owner aggregation for sync", "error", err, "clinic_id", clinicID)
-		return nil, apperrors.Wrap(err, "failed to find owner aggregation for sync")
-	}
-
-	result := &SyncAggregationTagsResult{DryRun: input.DryRun, Total: len(rows)}
-	for i := range rows {
-		row := &rows[i]
-		if row.LstepOptOut {
-			result.Skipped++
-			continue
-		}
-		if row.LineUserID == nil {
-			result.Skipped++
-			continue
-		}
-
-		if !input.DryRun {
-			if upsertErr := s.tagCacheRepo.UpsertTag(ctx, clinicID, row.OwnerID, input.TagName, "manual", ""); upsertErr != nil {
-				slog.ErrorContext(ctx, "failed to upsert aggregation tag", "owner_id", row.OwnerID, "error", upsertErr)
-				result.Skipped++
-				continue
-			}
-		}
-		result.Synced++
-	}
-
-	return result, nil
 }

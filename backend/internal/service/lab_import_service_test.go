@@ -618,46 +618,6 @@ func TestLabImportJobService_GetJob(t *testing.T) {
 }
 
 // ------------------------------------
-// ListJobs
-// ------------------------------------
-
-func TestLabImportJobService_ListJobs(t *testing.T) {
-	jobRepo := newStubJobRepo()
-	eventRepo := &stubEventRepo{}
-	svc := NewLabImportJobService(jobRepo, eventRepo)
-
-	batch := model.LabInboundBatch{SourceType: model.LabImportSourceTypeFixture, ReceivedAt: time.Now()}
-	if _, err := svc.CreateJob(context.Background(), 5, batch); err != nil {
-		t.Fatalf("CreateJob: %v", err)
-	}
-	if _, err := svc.CreateJob(context.Background(), 5, batch); err != nil {
-		t.Fatalf("CreateJob: %v", err)
-	}
-	if _, err := svc.CreateJob(context.Background(), 6, batch); err != nil {
-		t.Fatalf("CreateJob: %v", err)
-	}
-
-	t.Run("returns jobs scoped to clinic", func(t *testing.T) {
-		jobs, err := svc.ListJobs(context.Background(), 5, 10)
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-		if len(jobs) != 2 {
-			t.Errorf("expected 2 jobs for clinic 5, got %d", len(jobs))
-		}
-	})
-
-	t.Run("propagates repository error", func(t *testing.T) {
-		jobRepo.findByClinicErr = errors.New("db error")
-		defer func() { jobRepo.findByClinicErr = nil }()
-		_, err := svc.ListJobs(context.Background(), 5, 10)
-		if err == nil {
-			t.Fatal("expected error, got nil")
-		}
-	})
-}
-
-// ------------------------------------
 // ListEvents
 // ------------------------------------
 
