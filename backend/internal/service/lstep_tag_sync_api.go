@@ -7,6 +7,7 @@ import (
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/infra/lstep"
+	"github.com/animal-ekarte/backend/internal/model"
 )
 
 // removeStaleTagsByPrefixes はキャッシュ内で指定プレフィックスに一致する古いタグを Lステップから解除する（ISSUE-006）。
@@ -71,6 +72,37 @@ func (s *lstepTagSyncService) resolveSyncTarget(ctx context.Context, clinicID, o
 		return "", false, nil
 	}
 	return s.resolveSyncTargetOwner(ctx, clinicID, ownerID, tagLabel)
+}
+
+// mappingsFor は cached が非nilならそれをそのまま返し、nilなら tagName の
+// LstepTagCodeMapping を取得する（BE-refactor.md E-7: batch からの hoist 対応の
+// Sync*WithMappings 系関数冒頭ブロック統合）。label はログメッセージ
+// 「failed to find tag code mappings for <label>」の可変部（呼び出し元ごとの既存文言を再現）。
+func (s *lstepTagSyncService) mappingsFor(ctx context.Context, clinicID uint64, tagName, label string, cached []*model.LstepTagCodeMapping) ([]*model.LstepTagCodeMapping, error) {
+	if cached != nil {
+		return cached, nil
+	}
+	mappings, err := s.tagCodeRepo.FindByClinicIDAndTagName(ctx, clinicID, tagName)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to find tag code mappings for "+label, "error", err)
+		return nil, apperrors.Wrap(err, "failed to find tag code mappings")
+	}
+	return mappings, nil
+}
+
+// thresholdsFor は cached が非nilならそれをそのまま返し、nilなら健康維持しきい値を取得する
+// （BE-refactor.md E-7）。label はログメッセージ
+// 「failed to get health prevention thresholds for <label>」の可変部。
+func (s *lstepTagSyncService) thresholdsFor(ctx context.Context, clinicID uint64, label string, cached *model.HealthPreventionThresholds) (model.HealthPreventionThresholds, error) {
+	if cached != nil {
+		return *cached, nil
+	}
+	thresholds, err := s.settingsSvc.GetHealthPreventionThresholds(ctx, clinicID)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to get health prevention thresholds for "+label, "error", err, "clinic_id", clinicID)
+		return model.HealthPreventionThresholds{}, apperrors.Wrap(err, "failed to get health prevention thresholds")
+	}
+	return thresholds, nil
 }
 
 // applyTagState は desired の真偽に応じて Lステップタグを付与/解除し、キャッシュを更新する。

@@ -16,17 +16,10 @@ func (s *lstepTagSyncService) SyncFoodPurchaseTagWithMappings(ctx context.Contex
 		return nil
 	}
 
-	// PERF-M2: cachedMappings が提供されている場合は再取得しない（batch からの hoist）。
-	var mappings []*model.LstepTagCodeMapping
-	if cachedMappings != nil {
-		mappings = cachedMappings
-	} else {
-		var err error
-		mappings, err = s.tagCodeRepo.FindByClinicIDAndTagName(ctx, clinicID, LtvFoodPurchaseTag)
-		if err != nil {
-			slog.ErrorContext(ctx, "failed to find tag code mappings for food purchase tag", "error", err)
-			return apperrors.Wrap(err, "failed to find tag code mappings")
-		}
+	// PERF-M2: cachedMappings が提供されている場合は再取得しない（batch からの hoist）（BE-refactor.md E-7）。
+	mappings, err := s.mappingsFor(ctx, clinicID, LtvFoodPurchaseTag, "food purchase tag", cachedMappings)
+	if err != nil {
+		return err
 	}
 	// itemCodes が空でも HasFoodPurchaseByOwnerSince は category='food' にフォールバック
 	itemCodes := extractTagCodes(mappings, model.CodeTypeMerchandiseItem)
@@ -39,17 +32,10 @@ func (s *lstepTagSyncService) SyncFoodPurchaseTagWithMappings(ctx context.Contex
 		return nil
 	}
 
-	// PERF-M2: cachedThresholds が提供されている場合は再取得しない（batch からの hoist）。
-	var thresholds model.HealthPreventionThresholds
-	if cachedThresholds != nil {
-		thresholds = *cachedThresholds
-	} else {
-		var tErr error
-		thresholds, tErr = s.settingsSvc.GetHealthPreventionThresholds(ctx, clinicID)
-		if tErr != nil {
-			slog.ErrorContext(ctx, "failed to get health prevention thresholds for food purchase tag", "error", tErr, "clinic_id", clinicID)
-			return apperrors.Wrap(tErr, "failed to get health prevention thresholds")
-		}
+	// PERF-M2: cachedThresholds が提供されている場合は再取得しない（batch からの hoist）（BE-refactor.md E-7）。
+	thresholds, err := s.thresholdsFor(ctx, clinicID, "food purchase tag", cachedThresholds)
+	if err != nil {
+		return err
 	}
 	since := time.Now().AddDate(0, 0, -thresholds.LookbackDays)
 	hasPurchase, err := s.billingItemRepo.HasFoodPurchaseByOwnerSince(ctx, clinicID, ownerID, since, itemCodes)
