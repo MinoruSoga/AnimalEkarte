@@ -10,6 +10,7 @@ import { ja } from "date-fns/locale";
 import { C } from "@/lib/design-tokens";
 import { toJSTWallDate } from "@/lib/jst-date";
 import { getReservationTypeColor } from "@/utils/status-helpers";
+import { DAY_OF_WEEK_LABEL_LIST } from "@/constants/day-of-week";
 
 // Types
 import type { Reservation } from "@/types";
@@ -29,11 +30,9 @@ interface MonthViewProps {
   dynamicColorMap?: Map<string, ReservationTypeColor>;
 }
 
-const DAYS_OF_WEEK = ["日", "月", "火", "水", "木", "金", "土"] as const;
-
 const HEADER_ROW = (
   <div className={`grid grid-cols-7 border-b ${C.borderMedium} ${C.bgPage}`}>
-    {DAYS_OF_WEEK.map((d, i) => (
+    {DAY_OF_WEEK_LABEL_LIST.map((d, i) => (
       <div
         key={d}
         className={`py-3 text-sm font-bold text-center ${

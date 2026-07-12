@@ -1,4 +1,5 @@
 import { formatJSTDate } from "@/lib/jst-date";
+import { DAY_OF_WEEK_LABEL_LIST } from "@/constants/day-of-week";
 
 /**
  * 日付をYYYY/MM/DD形式にフォーマット
@@ -20,8 +21,6 @@ export function formatDate(dateString: string | undefined | null): string {
   }
 }
 
-const JAPANESE_WEEKDAYS = ["日", "月", "火", "水", "木", "金", "土"];
-
 /**
  * Date を「Y年M月D日（曜）」形式にフォーマット（月・日は 0 パディングしない）。
  * FE4-8: DatePickerModel.formatDisplay の逐語移設（ローカル getter 実装）。
@@ -33,6 +32,6 @@ export function formatJapaneseDate(date: Date): string {
   const year = date.getFullYear();
   const month = date.getMonth() + 1;
   const day = date.getDate();
-  const weekday = JAPANESE_WEEKDAYS[date.getDay()];
+  const weekday = DAY_OF_WEEK_LABEL_LIST[date.getDay()];
   return `${year}年${month}月${day}日（${weekday}）`;
 }
