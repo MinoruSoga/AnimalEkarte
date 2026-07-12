@@ -41,6 +41,7 @@ export function usePostalCodeLookup() {
         const response = await fetch(
           `${ZIPCLOUD_API_URL}?zipcode=${cleaned}`,
         );
+        if (!response.ok) return null; // 外部 API 失敗時は住所自動入力をスキップ（既存の無音失敗方針を維持）
         const data: ZipcloudResponse = await response.json();
         const firstResult = data.results?.[0];
         if (!firstResult) return null;
