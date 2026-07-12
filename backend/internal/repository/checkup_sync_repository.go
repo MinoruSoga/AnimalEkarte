@@ -9,6 +9,7 @@ import (
 	"gorm.io/gorm"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
+	"github.com/animal-ekarte/backend/internal/model"
 )
 
 // CheckupSyncPreviewRow はプレビュークエリの結果行。
@@ -75,7 +76,10 @@ func (r *checkupSyncRepository) FindCheckupSyncPreview(ctx context.Context, para
 	if params == nil {
 		return nil, apperrors.WrapInvalidInput("params is nil")
 	}
+	// C-1: SELECT 句の total_amount / max_single_visit_amount 副問い合わせの2箇所は
+	// WHERE 句より前に query テキスト中へ現れるため、他の args より先にバインドする。
 	var args []any
+	args = append(args, model.BillingStatusCompleted, model.BillingStatusCompleted)
 
 	where := "o.clinic_id = ? AND o.deleted_at IS NULL"
 	args = append(args, params.ClinicID)
@@ -122,8 +126,8 @@ func (r *checkupSyncRepository) FindCheckupSyncPreview(ctx context.Context, para
 	}
 	// ISSUE-009: 累計診療費フィルタ — billings 集計はスカラー副問い合わせで取得（pets cartesian の影響を回避）。
 	if params.MinTotalAmount != nil {
-		having = append(having, "COALESCE((SELECT SUM(bf.total_amount) FROM billings bf WHERE bf.clinic_id = o.clinic_id AND bf.owner_id = o.id AND bf.status = 'completed' AND bf.deleted_at IS NULL), 0) >= ?")
-		args = append(args, *params.MinTotalAmount)
+		having = append(having, "COALESCE((SELECT SUM(bf.total_amount) FROM billings bf WHERE bf.clinic_id = o.clinic_id AND bf.owner_id = o.id AND bf.status = ? AND bf.deleted_at IS NULL), 0) >= ?")
+		args = append(args, model.BillingStatusCompleted, *params.MinTotalAmount)
 	}
 	// ISSUE-009: 最終健診実施日フィルタ。checkups は medical_records 経由で owner と紐づける。
 	if params.LastCheckupBefore != nil {
@@ -169,12 +173,12 @@ SELECT
   COALESCE((
     SELECT SUM(b.total_amount) FROM billings b
     WHERE b.clinic_id = o.clinic_id AND b.owner_id = o.id
-      AND b.status = 'completed' AND b.deleted_at IS NULL
+      AND b.status = ? AND b.deleted_at IS NULL
   ), 0) AS total_amount,
   COALESCE((
     SELECT MAX(b2.total_amount) FROM billings b2
     WHERE b2.clinic_id = o.clinic_id AND b2.owner_id = o.id
-      AND b2.status = 'completed' AND b2.deleted_at IS NULL
+      AND b2.status = ? AND b2.deleted_at IS NULL
   ), 0) AS max_single_visit_amount,
   (
     SELECT MAX(c.date) FROM checkups c

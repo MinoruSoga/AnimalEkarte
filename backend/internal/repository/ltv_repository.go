@@ -9,6 +9,7 @@ import (
 	"gorm.io/gorm"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
+	"github.com/animal-ekarte/backend/internal/model"
 )
 
 // OwnerLTVRow はLTV集計クエリの結果行。
@@ -206,12 +207,12 @@ SELECT
     FROM billings b2
     WHERE b2.clinic_id = o.clinic_id
       AND b2.owner_id = o.id
-      AND b2.status = 'completed'
+      AND b2.status = ?
       AND b2.deleted_at IS NULL
   ), 0)                                                                              AS max_single_visit_amount
 FROM owners o
 LEFT JOIN medical_records mr ON mr.owner_id = o.id AND mr.clinic_id = o.clinic_id AND mr.deleted_at IS NULL
-LEFT JOIN billings b ON b.medical_record_id = mr.id AND b.clinic_id = o.clinic_id AND b.deleted_at IS NULL AND b.status = 'completed'
+LEFT JOIN billings b ON b.medical_record_id = mr.id AND b.clinic_id = o.clinic_id AND b.deleted_at IS NULL AND b.status = ?
 LEFT JOIN payments p ON p.billing_id = b.id AND p.deleted_at IS NULL
 LEFT JOIN billing_refunds br ON br.billing_id = b.id
 WHERE %s
@@ -220,9 +221,11 @@ GROUP BY o.id, o.name, o.line_user_id, o.lstep_opt_out
 ORDER BY %s
 `, amountExpr, periodVisitCountCondition, periodVisitCountCondition, where, havingClause, orderBy)
 
-	// Assemble args in the correct order: periodFilter args, then where args, then having args
-	args := make([]any, 0, len(periodFilterArgs)+len(whereArgs)+len(havingArgs))
+	// Assemble args in the correct order: periodFilter args, then the 2 max_single_visit_amount
+	// subquery / billings JOIN status placeholders (C-1), then where args, then having args
+	args := make([]any, 0, len(periodFilterArgs)+2+len(whereArgs)+len(havingArgs))
 	args = append(args, periodFilterArgs...)
+	args = append(args, model.BillingStatusCompleted, model.BillingStatusCompleted)
 	args = append(args, whereArgs...)
 	args = append(args, havingArgs...)
 
