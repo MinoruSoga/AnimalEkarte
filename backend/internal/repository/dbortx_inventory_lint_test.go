@@ -101,6 +101,9 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	// prescription (X-11 Appendix-A finalize-child-write-race fix — same FK-deadlock rationale as examination)
 	"prescription_repository.go|prescriptionRepository.Create": {},
 	"prescription_repository.go|prescriptionRepository.Update": {},
+	// prescription Delete (BE-refactor.md H-8e: prescriptionService.Delete が finalize ロック確認・
+	// Delete を s.transactor.WithTx で束ねるようになったための追加。examination Delete=H-8d と同型)
+	"prescription_repository.go|prescriptionRepository.Delete": {},
 	// refund (R1-1 TOCTOU)
 	"refund_repository.go|refundRepository.Create":                         {},
 	"refund_repository.go|refundRepository.SumByBillingID":                 {},

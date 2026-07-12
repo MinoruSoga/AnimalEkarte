@@ -92,8 +92,9 @@ func (r *prescriptionRepository) Update(ctx context.Context, clinicID, id uint64
 	return nil
 }
 
+// Delete は dbOrTx(ctx, r.db) で ambient tx に参加する（Create/Update と同じ理由、BE-refactor.md H-8e）。
 func (r *prescriptionRepository) Delete(ctx context.Context, clinicID, id uint64) error {
-	result := r.db.WithContext(ctx).
+	result := dbOrTx(ctx, r.db).
 		Scopes(clinicScope(clinicID)).
 		Where("id = ?", id).
 		Delete(&model.Prescription{})
