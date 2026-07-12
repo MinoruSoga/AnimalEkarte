@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
+import { queryKeys } from "@/lib/query-keys";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 import type { MerchandiseItem } from "@/types/generated/models";
 
@@ -25,7 +26,7 @@ function transformMerchandiseItem(item: MerchandiseItem): FrontendMerchandiseIte
 
 export const useGetAllMerchandiseItems = () => {
   return useQuery({
-    queryKey: ["accounting", "merchandise-items"],
+    queryKey: queryKeys.accounting.merchandiseItems(),
     queryFn: async (): Promise<FrontendMerchandiseItem[]> => {
       const { data } = await axios.get<MerchandiseItem[] | { data: MerchandiseItem[] }>("/v1/masters/merchandise-items");
       const items = Array.isArray(data) ? data : data.data;

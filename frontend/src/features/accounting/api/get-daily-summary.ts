@@ -1,6 +1,7 @@
 // BUG-368: レジ締め日次集計 API フック
 import { useQuery } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
+import { queryKeys } from "@/lib/query-keys";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 
 interface DailySummaryPaymentTotal {
@@ -32,7 +33,7 @@ export interface PerClinicDailySummaryResponse {
 export const useGetDailySummary = (date: string, clinicIds?: string[]) => {
   const isMultiClinic = clinicIds !== undefined && clinicIds.length > 1;
   return useQuery({
-    queryKey: ["accounting", "daily-summary", date, clinicIds] as const,
+    queryKey: queryKeys.accounting.dailySummary(date, clinicIds!),
     queryFn: async (): Promise<DailySummary | PerClinicDailySummaryResponse> => {
       const params: Record<string, string> = { date };
       if (isMultiClinic) params.clinic_ids = clinicIds.join(",");

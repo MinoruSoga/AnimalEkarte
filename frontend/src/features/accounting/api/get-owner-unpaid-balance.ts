@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
+import { queryKeys } from "@/lib/query-keys";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 
 interface BackendOwnerUnpaidBalance {
@@ -31,7 +32,7 @@ const getOwnerUnpaidBalance = async (ownerId: string): Promise<OwnerUnpaidBalanc
 
 export const useGetOwnerUnpaidBalance = (ownerId: string | undefined) =>
   useQuery({
-    queryKey: ["owner-unpaid-balance", ownerId],
+    queryKey: queryKeys.ownerUnpaidBalance(ownerId),
     queryFn: () => getOwnerUnpaidBalance(ownerId as string),
     // 未確定（空文字 / "0" / 未指定）の飼主では実行しない
     enabled: ownerId !== undefined && ownerId !== "" && ownerId !== "0",

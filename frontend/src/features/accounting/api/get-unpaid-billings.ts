@@ -2,6 +2,7 @@
 import { useQuery } from "@tanstack/react-query";
 
 import { axios } from "@/lib/axios";
+import { queryKeys } from "@/lib/query-keys";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 import type { BackendAccounting } from "./types";
 import { transformToAccounting } from "./transforms";
@@ -42,7 +43,7 @@ interface UnpaidQueryParams {
 
 export const useGetUnpaidByOwner = (params: UnpaidQueryParams) => {
   return useQuery({
-    queryKey: ["accounting", "unpaid", "owner", params] as const,
+    queryKey: queryKeys.accounting.unpaidBillings("owner", params),
     queryFn: async (): Promise<UnpaidByOwnerResponse> => {
       const { data } = await axios.get<UnpaidByOwnerResponse>("/v1/accountings/unpaid", {
         params: {
@@ -77,7 +78,7 @@ interface BackendUnpaidByBillingResponse {
 
 export const useGetUnpaidByBilling = (params: UnpaidQueryParams) => {
   return useQuery({
-    queryKey: ["accounting", "unpaid", "billing", params] as const,
+    queryKey: queryKeys.accounting.unpaidBillings("billing", params),
     queryFn: async (): Promise<UnpaidByBillingResponse> => {
       const { data } = await axios.get<BackendUnpaidByBillingResponse>("/v1/accountings/unpaid", {
         params: {
@@ -136,7 +137,7 @@ interface MonthlyUnpaidQueryParams {
 
 export const useGetUnpaidMonthly = (params: MonthlyUnpaidQueryParams) => {
   return useQuery({
-    queryKey: ["accounting", "unpaid", "monthly", params] as const,
+    queryKey: queryKeys.accounting.unpaidBillings("monthly", params),
     queryFn: async (): Promise<MonthlyUnpaidResponse> => {
       const { data } = await axios.get<MonthlyUnpaidResponse>("/v1/accountings/unpaid-monthly", {
         params: {

@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
+import { queryKeys } from "@/lib/query-keys";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 import type { BillingRefund } from "@/types/generated/models";
 import { transformToRefund } from "./transforms";
@@ -14,7 +15,7 @@ const getRefunds = async (billingId: string): Promise<Refund[]> => {
 
 export const useGetRefunds = (billingId: string | undefined) => {
   return useQuery({
-    queryKey: ["accounting-refunds", billingId],
+    queryKey: queryKeys.accountingRefunds(billingId!),
     queryFn: () => getRefunds(billingId!),
     enabled: !!billingId,
     staleTime: QUERY_STALE_TIMES.MEDIUM,

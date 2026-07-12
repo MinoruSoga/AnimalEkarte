@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
+import { queryKeys } from "@/lib/query-keys";
 import { QUERY_STALE_TIMES } from "@/lib/react-query";
 
 export interface UngroupedSameDaySummary {
@@ -28,7 +29,7 @@ const getUngroupedSameDay = async (petId: string, date: string): Promise<Ungroup
 /** #77: 同日同ペットの未会計対象化項目(診察/トリミング)件数を取得する取り残し警告用フック。 */
 export const useGetUngroupedSameDay = (petId: string, date: string, enabled: boolean) =>
   useQuery({
-    queryKey: ["accounting-ungrouped", petId, date],
+    queryKey: queryKeys.accounting.ungroupedItems(petId, date),
     queryFn: () => getUngroupedSameDay(petId, date),
     enabled: enabled && !!petId,
     staleTime: QUERY_STALE_TIMES.SHORT,

@@ -37,7 +37,7 @@ export function useAccountingSettlementActions({
       startRefundTransition(async () => {
         try {
           await createRefund(accountingId, { amount, reason, paymentMethod });
-          queryClient.invalidateQueries({ queryKey: ["accounting-refunds", accountingId] });
+          queryClient.invalidateQueries({ queryKey: queryKeys.accountingRefunds(accountingId) });
           queryClient.invalidateQueries({ queryKey: queryKeys.accountings.all() });
           toast.success(`¥${amount.toLocaleString()} の返金を登録しました`);
         } catch (error) {

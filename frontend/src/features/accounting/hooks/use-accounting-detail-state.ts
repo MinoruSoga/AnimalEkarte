@@ -5,6 +5,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { useGetPet } from "@/hooks/use-pet";
 import { calculateBillingTotals } from "@/lib/calculations";
 import { todayJSTISO } from "@/lib/jst-date";
+import { queryKeys } from "@/lib/query-keys";
 import { QUERY_STALE_TIMES } from "@/lib/react-query";
 
 import { getUnbilledItems } from "../api/get-unbilled-items";
@@ -61,7 +62,7 @@ export function useAccountingDetailState({
   const baseItems = useMemo(() => baseAccounting?.items ?? [], [baseAccounting]);
 
   const { data: unbilledItems } = useQuery({
-    queryKey: ["unbilledItems", newPetId],
+    queryKey: queryKeys.unbilledItems(newPetId),
     queryFn: () => getUnbilledItems(newPetId),
     enabled: !accountingId && !!newPetId,
     staleTime: QUERY_STALE_TIMES.SHORT,
