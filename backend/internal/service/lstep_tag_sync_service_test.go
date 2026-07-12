@@ -57,13 +57,14 @@ func TestLstepTagSyncServiceDisabledSyncSkipsBeforeRepositories(t *testing.T) {
 		}},
 		{name: "ResyncOwnerVaccineTags", run: func() error { return svc.ResyncOwnerVaccineTags(ctx, 1, 2) }},
 		{name: "ResyncOwnerCheckupTags", run: func() error { return svc.ResyncOwnerCheckupTags(ctx, 1, 2) }},
-		{name: "SyncCPMStageTagV2", run: func() error { return svc.SyncCPMStageTagV2(ctx, 1, 2) }},
 		{name: "SyncVisitDormantTags", run: func() error { return svc.SyncVisitDormantTags(ctx, 1, 2, 120) }},
 		{name: "SyncExclusionTags", run: func() error { return svc.SyncExclusionTags(ctx, 1, 2) }},
 		// B-3: SyncHealthcheckTags/SyncAnnual4CheckupTag/SyncVaccineDeadlineTag/SyncFilariaTag/
 		// SyncFleaTickTag/SyncFoodPurchaseTag の公開ラッパーは呼び出し元ゼロのため削除済み。
 		// これらの WithMappings 版・syncVaccineDeadlineTagImpl は LstepTagSyncService
 		// interface に含まれないため本テーブル（interface 経由の一括検証）の対象外。
+		// B-5: SyncCPMStageTagV2 は自ファイル内専用のため syncCPMStageTagV2（非公開）に
+		// unexport 済みで、同様に interface から除外されたため本テーブルの対象外。
 		// isSyncEnabled=false による早期 skip は各メソッドが共通で呼ぶ resolveSyncTarget の
 		// 責務であり、本テーブルの残り約15メソッドで引き続き検証される。
 	}

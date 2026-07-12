@@ -137,13 +137,15 @@ func newDormantTagSyncWrapper(fn func(ctx context.Context, clinicID, ownerID uin
 	return &dormantTagSyncServiceWrapper{mockLstepTagSyncService: &mockLstepTagSyncService{}, syncDormantTagsWithThresholdsFn: fn}
 }
 
+// newDormantBatchService は具象型を返す（B-5: detectDormantOwners の unexport に伴い、
+// テストが interface 外の非公開メソッドを直接呼ぶため）。
 func newDormantBatchService(
 	medRecordRepo repository.MedicalRecordRepository,
 	tagSyncSvc LstepTagSyncService,
 	clinicRepo repository.ClinicRepository,
 	auditSvc AuditService,
 	settingsSvc LstepSettingsService,
-) LstepBatchService {
+) *lstepBatchService {
 	return &lstepBatchService{
 		medRecordRepo: medRecordRepo,
 		tagSyncSvc:    tagSyncSvc,
@@ -303,7 +305,7 @@ func TestLstepBatchService_DetectDormantOwners_FindError(t *testing.T) {
 		},
 	}
 	svc := newDormantBatchService(medRecordRepo, newDormantTagSyncWrapper(nil), &dormantMockClinicRepository{}, &mockAuditService{}, &mockLstepSettingsService{})
-	count, errs := svc.DetectDormantOwners(context.Background(), 1)
+	count, errs := svc.detectDormantOwners(context.Background(), 1)
 	assert.Equal(t, 0, count)
 	assert.NotEmpty(t, errs)
 }
@@ -320,7 +322,7 @@ func TestLstepBatchService_DetectDormantOwners_ThresholdsError(t *testing.T) {
 		},
 	}
 	svc := newDormantBatchService(medRecordRepo, newDormantTagSyncWrapper(nil), &dormantMockClinicRepository{}, &mockAuditService{}, settingsSvc)
-	count, errs := svc.DetectDormantOwners(context.Background(), 1)
+	count, errs := svc.detectDormantOwners(context.Background(), 1)
 	assert.Equal(t, 0, count)
 	assert.NotEmpty(t, errs)
 }
@@ -350,7 +352,7 @@ func TestLstepBatchService_DetectDormantOwners_PaginatesAcrossMultiplePages(t *t
 		},
 	}
 	svc := newDormantBatchService(medRecordRepo, newDormantTagSyncWrapper(nil), &dormantMockClinicRepository{}, &mockAuditService{}, &mockLstepSettingsService{})
-	count, errs := svc.DetectDormantOwners(context.Background(), 1)
+	count, errs := svc.detectDormantOwners(context.Background(), 1)
 	assert.Empty(t, errs)
 	assert.Equal(t, dormantBatchPageSize+1, count, "entries from both pages must be processed")
 	assert.Equal(t, []uint64{0, uint64(dormantBatchPageSize)}, fetchCalls, "cursor must advance using the last entry's OwnerID of the previous page, no duplicates/no skips")

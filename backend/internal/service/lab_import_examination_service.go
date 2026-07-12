@@ -47,7 +47,7 @@ type LabExamPersistResult struct {
 	ExamID    uint64
 	ItemCount int
 	Duplicate bool
-	// RowError は PersistExam が失敗した場合に PersistBatch が記録する。
+	// RowError は persistExam が失敗した場合に PersistBatch が記録する。
 	// nil なら成功（Duplicate=true を含む）。
 	RowError error
 	JobID    uuid.UUID
@@ -95,10 +95,6 @@ func buildExamResults(examID uint64, items []LabExamItemInput) []model.ExamResul
 }
 
 type LabImportExaminationService interface {
-	// PersistExam は変換済み lab exam 1 件を exams + exam_results へ保存する。
-	// 重複の場合は Duplicate=true を返し行を保存しない（関数エラーなし）。
-	PersistExam(ctx context.Context, input LabExamPersistInput) (*LabExamPersistResult, error)
-
 	// PersistBatch は複数 exam を順次永続化し全行の結果を返す。
 	// 個別行のエラーは LabExamPersistResult.RowError に記録する。
 	// バッチ全体のエラー（context キャンセル等）は関数エラーとして返す。
@@ -109,7 +105,7 @@ type LabImportExaminationService interface {
 //
 // 実装は (clinic_id, exam_type_id, date, pet_id) で exams テーブルを検索する。
 // DB レベルの unique constraint がない場合は TOCTOU 競合で重複が発生しうる。
-// PersistExam では AlreadyExists エラーも Duplicate として処理する安全ネットを設ける。
+// persistExam では AlreadyExists エラーも Duplicate として処理する安全ネットを設ける。
 // Phase 2 で DB unique 制約を追加する場合は IsDuplicate を削除可能。
 type LabImportDuplicateChecker interface {
 	// IsDuplicate は (clinic_id, exam_type_id, date, pet_id) に一致する exam が既存かを返す。
@@ -136,7 +132,7 @@ func NewLabImportExaminationService(
 	}
 }
 
-func (s *labImportExaminationService) PersistExam(ctx context.Context, input LabExamPersistInput) (*LabExamPersistResult, error) {
+func (s *labImportExaminationService) persistExam(ctx context.Context, input LabExamPersistInput) (*LabExamPersistResult, error) {
 	if input.ClinicID == 0 {
 		return nil, apperrors.WrapInvalidInput("clinic_id is required")
 	}
@@ -251,7 +247,7 @@ func (s *labImportExaminationService) PersistBatch(ctx context.Context, inputs [
 		if err := ctx.Err(); err != nil {
 			return results, apperrors.Wrap(err, "lab import batch context cancelled")
 		}
-		res, err := s.PersistExam(ctx, input)
+		res, err := s.persistExam(ctx, input)
 		if err != nil {
 			// 個別行エラー: RowError に記録して継続（バッチ中断しない）
 			results = append(results, &LabExamPersistResult{

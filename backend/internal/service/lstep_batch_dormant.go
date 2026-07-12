@@ -12,7 +12,7 @@ import (
 // dormantBatchPageSize は PERF-FOLLOWUP-02 のカーソルページネーション 1 ページあたりの件数。
 const dormantBatchPageSize = 500
 
-func (s *lstepBatchService) DetectDormantOwners(ctx context.Context, clinicID uint64) (int, []error) {
+func (s *lstepBatchService) detectDormantOwners(ctx context.Context, clinicID uint64) (int, []error) {
 	const minDaysSince = 180
 
 	// PERF-FOLLOWUP-02: 無制限全件取得を避けるため、先頭ページのみ先に取得する。
@@ -83,6 +83,6 @@ func (s *lstepBatchService) RunDormantDetectionAllClinics(ctx context.Context) e
 	return s.runBatchAllClinics(ctx,
 		"dormant batch", "dormant batch", "synced dormant tags", "batch_dormant_detect",
 		map[string]any{"min_days_since": 180},
-		s.DetectDormantOwners,
+		s.detectDormantOwners,
 	)
 }

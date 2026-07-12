@@ -177,8 +177,6 @@ type LstepTagSyncService interface {
 	// ResyncOwnerCheckupTags は飼い主の生存健診記録から checkup_done_* / next_checkup_* タグを再構築する（ISSUE-004）。
 	// 種別ごとに最新の検査日のみ保持。next_checkup は最新の next_date 1件のみ保持。
 	ResyncOwnerCheckupTags(ctx context.Context, clinicID, ownerID uint64) error
-	// SyncCPMStageTagV2 は来院回数ベース V2 CPM ステージタグを同期する（FEAT-377）。
-	SyncCPMStageTagV2(ctx context.Context, clinicID, ownerID uint64) error
 	// SyncLTVTopPercent は LTV 上位 20% の飼い主に LTV_上位20 タグを付与し、
 	// それ以外の飼い主から解除する（FEAT-377）。
 	// 処理件数と個別エラーのスライスを返す（全体は失敗しない）。

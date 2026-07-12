@@ -226,14 +226,14 @@ func TestH1_DetectDormantOwners_NilSettingsSvc_DoesNotPanic(t *testing.T) {
 		&batchMockAuditService{},
 		nil, // settingsSvc = nil → H-1 パニック回帰
 		nil,
-	)
+	).(*lstepBatchService)
 
 	// パニックしないことを assert.NotPanics で保証する
 	assert.NotPanics(t, func() {
-		count, errs := svc.DetectDormantOwners(context.Background(), clinicID)
+		count, errs := svc.detectDormantOwners(context.Background(), clinicID)
 		assert.Equal(t, 2, count)
 		assert.Empty(t, errs)
-	}, "settingsSvc=nil でも DetectDormantOwners はパニックしてはならない")
+	}, "settingsSvc=nil でも detectDormantOwners はパニックしてはならない")
 
 	assert.Equal(t, len(entries), withThresholdsCallCount,
 		"nil settingsSvc でも全エントリに SyncDormantTagsWithThresholds を呼ぶべき")
@@ -275,7 +275,7 @@ func TestPERF2_DetectDormantOwners_CallsSyncWithThresholds(t *testing.T) {
 		medRepo,
 	)
 
-	count, errs := batchSvc.DetectDormantOwners(context.Background(), clinicID)
+	count, errs := batchSvc.detectDormantOwners(context.Background(), clinicID)
 	_ = count
 	_ = errs
 

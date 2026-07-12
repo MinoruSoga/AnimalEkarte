@@ -263,7 +263,7 @@ func TestSyncCPMStageTagV2(t *testing.T) {
 		svc := &lstepTagSyncService{
 			settingsSvc: &mockLstepSettingsService{isSyncEnabledFn: func(_ context.Context, _ uint64) (bool, error) { return false, nil }},
 		}
-		assert.NoError(t, svc.SyncCPMStageTagV2(context.Background(), 1, 10))
+		assert.NoError(t, svc.syncCPMStageTagV2(context.Background(), 1, 10))
 	})
 
 	t.Run("returns wrapped error when checkOptOut fails", func(t *testing.T) {
@@ -273,7 +273,7 @@ func TestSyncCPMStageTagV2(t *testing.T) {
 				findByIDFn: func(_ context.Context, _, _ uint64) (*model.Owner, error) { return nil, errors.New("db error") },
 			},
 		}
-		assert.Error(t, svc.SyncCPMStageTagV2(context.Background(), 1, 10))
+		assert.Error(t, svc.syncCPMStageTagV2(context.Background(), 1, 10))
 	})
 
 	t.Run("noop when owner has no line user id", func(t *testing.T) {
@@ -285,7 +285,7 @@ func TestSyncCPMStageTagV2(t *testing.T) {
 				},
 			},
 		}
-		assert.NoError(t, svc.SyncCPMStageTagV2(context.Background(), 1, 10))
+		assert.NoError(t, svc.syncCPMStageTagV2(context.Background(), 1, 10))
 	})
 
 	t.Run("returns wrapped error when FindOwnerVisitSummary fails", func(t *testing.T) {
@@ -302,7 +302,7 @@ func TestSyncCPMStageTagV2(t *testing.T) {
 				},
 			},
 		}
-		assert.Error(t, svc.SyncCPMStageTagV2(context.Background(), 1, 10))
+		assert.Error(t, svc.syncCPMStageTagV2(context.Background(), 1, 10))
 	})
 
 	t.Run("returns nil when buildClient yields no client", func(t *testing.T) {
@@ -316,7 +316,7 @@ func TestSyncCPMStageTagV2(t *testing.T) {
 			medRecordRepo: &mockMedicalRecordRepository{},
 			buildClientFn: func(_ context.Context, _ uint64) (lstep.Client, error) { return nil, nil },
 		}
-		assert.NoError(t, svc.SyncCPMStageTagV2(context.Background(), 1, 10))
+		assert.NoError(t, svc.syncCPMStageTagV2(context.Background(), 1, 10))
 	})
 
 	t.Run("removes old V2 stage tags and adds the newly-calculated one", func(t *testing.T) {
@@ -344,7 +344,7 @@ func TestSyncCPMStageTagV2(t *testing.T) {
 			tagCacheRepo:  &mockLstepTagCacheRepository{},
 			buildClientFn: func(_ context.Context, _ uint64) (lstep.Client, error) { return client, nil },
 		}
-		err := svc.SyncCPMStageTagV2(context.Background(), 1, 10)
+		err := svc.syncCPMStageTagV2(context.Background(), 1, 10)
 		assert.NoError(t, err)
 		assert.Equal(t, string(CPMStageV2Encounter), addedStage)
 		assert.Contains(t, removedStages, string(CPMStageV2Coming))
@@ -363,7 +363,7 @@ func TestSyncCPMStageTagV2(t *testing.T) {
 			tagCacheRepo:  &mockLstepTagCacheRepository{},
 			buildClientFn: func(_ context.Context, _ uint64) (lstep.Client, error) { return client, nil },
 		}
-		err := svc.SyncCPMStageTagV2(context.Background(), 1, 10)
+		err := svc.syncCPMStageTagV2(context.Background(), 1, 10)
 		assert.Error(t, err)
 	})
 }

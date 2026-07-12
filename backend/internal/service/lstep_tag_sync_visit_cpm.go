@@ -9,7 +9,7 @@ import (
 )
 
 // SyncCPMStageTag は CPM ステージタグを同期する（BE-011）。
-// cpm_version が "v2" のクリニックは SyncCPMStageTagV2 に委譲する（Q19）。
+// cpm_version が "v2" のクリニックは syncCPMStageTagV2 に委譲する（Q19）。
 func (s *lstepTagSyncService) SyncCPMStageTag(ctx context.Context, clinicID, ownerID uint64) error {
 	version, vErr := s.settingsSvc.GetCPMVersion(ctx, clinicID)
 	if vErr != nil {
@@ -17,7 +17,7 @@ func (s *lstepTagSyncService) SyncCPMStageTag(ctx context.Context, clinicID, own
 		return apperrors.Wrap(vErr, "failed to get cpm_version")
 	}
 	if version == "v2" {
-		return s.SyncCPMStageTagV2(ctx, clinicID, ownerID)
+		return s.syncCPMStageTagV2(ctx, clinicID, ownerID)
 	}
 
 	lineUserID, ok, err := s.resolveSyncTarget(ctx, clinicID, ownerID, "CPM stage")
@@ -100,8 +100,8 @@ func (s *lstepTagSyncService) SyncCPMStageTag(ctx context.Context, clinicID, own
 	return nil
 }
 
-// SyncCPMStageTagV2 は来院回数ベース V2 CPM ステージタグを同期する（FEAT-377）。
-func (s *lstepTagSyncService) SyncCPMStageTagV2(ctx context.Context, clinicID, ownerID uint64) error {
+// syncCPMStageTagV2 は来院回数ベース V2 CPM ステージタグを同期する（FEAT-377）。
+func (s *lstepTagSyncService) syncCPMStageTagV2(ctx context.Context, clinicID, ownerID uint64) error {
 	lineUserID, ok, err := s.resolveSyncTarget(ctx, clinicID, ownerID, "CPM V2 stage")
 	if err != nil {
 		return err

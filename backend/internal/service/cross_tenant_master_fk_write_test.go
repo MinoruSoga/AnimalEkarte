@@ -2047,14 +2047,14 @@ func TestLabImportExaminationService_PersistExam_RejectsCrossClinicExamType(t *t
 	const ownedExamTypeID = uint64(10)
 	const foreignExamTypeID = uint64(999)
 
-	newSvc := func(examRepo *stubExamRepo) LabImportExaminationService {
-		return NewLabImportExaminationService(examRepo, &stubDupChecker{}, rejectExamTypeRepo(ownedExamTypeID))
+	newSvc := func(examRepo *stubExamRepo) *labImportExaminationService {
+		return NewLabImportExaminationService(examRepo, &stubDupChecker{}, rejectExamTypeRepo(ownedExamTypeID)).(*labImportExaminationService)
 	}
 
 	t.Run("rejects cross-clinic exam_type_id and does not persist", func(t *testing.T) {
 		examRepo := newStubExamRepo()
 		svc := newSvc(examRepo)
-		out, err := svc.PersistExam(context.Background(), LabExamPersistInput{
+		out, err := svc.persistExam(context.Background(), LabExamPersistInput{
 			ClinicID:   clinicID,
 			ExamTypeID: foreignExamTypeID,
 			Date:       time.Now(),
@@ -2068,7 +2068,7 @@ func TestLabImportExaminationService_PersistExam_RejectsCrossClinicExamType(t *t
 	t.Run("accepts same-clinic exam_type_id (no false-reject)", func(t *testing.T) {
 		examRepo := newStubExamRepo()
 		svc := newSvc(examRepo)
-		out, err := svc.PersistExam(context.Background(), LabExamPersistInput{
+		out, err := svc.persistExam(context.Background(), LabExamPersistInput{
 			ClinicID:   clinicID,
 			ExamTypeID: ownedExamTypeID,
 			Date:       time.Now(),

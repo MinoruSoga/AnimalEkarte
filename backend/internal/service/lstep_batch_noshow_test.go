@@ -84,7 +84,9 @@ func (m *noShowMockReservationRepository) HasReservationByOwnerInRange(_ context
 	return false, nil
 }
 
-func newNoShowBatchService(reservationRepo *noShowMockReservationRepository, clinicRepo *dormantMockClinicRepository, auditSvc AuditService, settingsSvc LstepSettingsService) LstepBatchService {
+// newNoShowBatchService は具象型を返す（B-5: detectNoShowReservations の unexport に伴い、
+// テストが interface 外の非公開メソッドを直接呼ぶため）。
+func newNoShowBatchService(reservationRepo *noShowMockReservationRepository, clinicRepo *dormantMockClinicRepository, auditSvc AuditService, settingsSvc LstepSettingsService) *lstepBatchService {
 	return &lstepBatchService{
 		reservationRepo: reservationRepo,
 		clinicRepo:      clinicRepo,
@@ -243,7 +245,7 @@ func TestLstepBatchService_DetectNoShowReservations_FindError(t *testing.T) {
 		},
 	}
 	svc := newNoShowBatchService(reservationRepo, &dormantMockClinicRepository{}, &mockAuditService{}, &mockLstepSettingsService{})
-	count, errs := svc.DetectNoShowReservations(context.Background(), 1)
+	count, errs := svc.detectNoShowReservations(context.Background(), 1)
 	assert.Equal(t, 0, count)
 	assert.NotEmpty(t, errs)
 }
@@ -260,7 +262,7 @@ func TestLstepBatchService_DetectNoShowReservations_Success(t *testing.T) {
 		},
 	}
 	svc := newNoShowBatchService(reservationRepo, &dormantMockClinicRepository{}, &mockAuditService{}, &mockLstepSettingsService{})
-	count, errs := svc.DetectNoShowReservations(context.Background(), 1)
+	count, errs := svc.detectNoShowReservations(context.Background(), 1)
 	assert.Equal(t, 2, count)
 	assert.Empty(t, errs)
 	assert.Equal(t, model.ReservationStatusNoShow, capturedFields["status"])

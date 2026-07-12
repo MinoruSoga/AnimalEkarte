@@ -279,13 +279,15 @@ func (m *batchMockAuditService) LogClinicSwitch(_ context.Context, _ *uint64, _,
 	return nil
 }
 
+// newBatchService は具象型を返す（B-5: detectDormantOwners/detectNoShowReservations の
+// unexport に伴い、テストが interface 外の非公開メソッドを直接呼ぶため）。
 func newBatchService(
 	resRepo repository.ReservationRepository,
 	tagSvc LstepTagSyncService,
 	clinicRepo repository.ClinicRepository,
 	medRepo repository.MedicalRecordRepository,
-) LstepBatchService {
-	return NewLstepBatchService(resRepo, tagSvc, clinicRepo, medRepo, &batchMockAuditService{}, &mockLstepSettingsService{}, nil)
+) *lstepBatchService {
+	return NewLstepBatchService(resRepo, tagSvc, clinicRepo, medRepo, &batchMockAuditService{}, &mockLstepSettingsService{}, nil).(*lstepBatchService)
 }
 
 // newBatchServiceWithAuditSpy は ISSUE-010 監査 metadata 検証用に audit spy を返す。
@@ -294,9 +296,9 @@ func newBatchServiceWithAuditSpy(
 	tagSvc LstepTagSyncService,
 	clinicRepo repository.ClinicRepository,
 	medRepo repository.MedicalRecordRepository,
-) (LstepBatchService, *batchMockAuditService) {
+) (*lstepBatchService, *batchMockAuditService) {
 	spy := &batchMockAuditService{}
-	return NewLstepBatchService(resRepo, tagSvc, clinicRepo, medRepo, spy, &mockLstepSettingsService{}, nil), spy
+	return NewLstepBatchService(resRepo, tagSvc, clinicRepo, medRepo, spy, &mockLstepSettingsService{}, nil).(*lstepBatchService), spy
 }
 
 func TestDetectNoShowReservations_Success(t *testing.T) {
@@ -318,7 +320,7 @@ func TestDetectNoShowReservations_Success(t *testing.T) {
 		&batchMockMedRecordRepo{},
 	)
 
-	count, errs := svc.DetectNoShowReservations(context.Background(), 1)
+	count, errs := svc.detectNoShowReservations(context.Background(), 1)
 
 	assert.Equal(t, 2, count)
 	assert.Empty(t, errs)
@@ -336,7 +338,7 @@ func TestDetectNoShowReservations_FindCandidatesError(t *testing.T) {
 		&batchMockMedRecordRepo{},
 	)
 
-	count, errs := svc.DetectNoShowReservations(context.Background(), 1)
+	count, errs := svc.detectNoShowReservations(context.Background(), 1)
 
 	assert.Equal(t, 0, count)
 	assert.Len(t, errs, 1)
@@ -358,7 +360,7 @@ func TestDetectNoShowReservations_UpdateError(t *testing.T) {
 		&batchMockMedRecordRepo{},
 	)
 
-	count, errs := svc.DetectNoShowReservations(context.Background(), 1)
+	count, errs := svc.detectNoShowReservations(context.Background(), 1)
 
 	assert.Equal(t, 0, count)
 	assert.Len(t, errs, 1)
@@ -420,7 +422,7 @@ func TestDetectDormantOwners_Success(t *testing.T) {
 		},
 	)
 
-	count, errs := svc.DetectDormantOwners(context.Background(), 1)
+	count, errs := svc.detectDormantOwners(context.Background(), 1)
 
 	assert.Equal(t, 2, count)
 	assert.Empty(t, errs)
@@ -439,7 +441,7 @@ func TestDetectDormantOwners_FindError(t *testing.T) {
 		},
 	)
 
-	count, errs := svc.DetectDormantOwners(context.Background(), 1)
+	count, errs := svc.detectDormantOwners(context.Background(), 1)
 
 	assert.Equal(t, 0, count)
 	assert.Len(t, errs, 1)
@@ -463,7 +465,7 @@ func TestDetectDormantOwners_TagSyncError(t *testing.T) {
 		},
 	)
 
-	count, errs := svc.DetectDormantOwners(context.Background(), 1)
+	count, errs := svc.detectDormantOwners(context.Background(), 1)
 
 	assert.Equal(t, 0, count)
 	assert.Len(t, errs, 1)

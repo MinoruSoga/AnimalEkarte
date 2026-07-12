@@ -8,7 +8,7 @@ import (
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
-func (s *lstepBatchService) DetectNoShowReservations(ctx context.Context, clinicID uint64) (int, []error) {
+func (s *lstepBatchService) detectNoShowReservations(ctx context.Context, clinicID uint64) (int, []error) {
 	candidates, err := s.reservationRepo.FindNoShowCandidates(ctx, clinicID)
 	if err != nil {
 		slog.ErrorContext(ctx, "no-show batch: failed to find candidates", "clinic_id", clinicID, "error", err)
@@ -38,8 +38,6 @@ func (s *lstepBatchService) RunNoShowCheckAllClinics(ctx context.Context) error 
 	return s.runBatchAllClinics(ctx,
 		"no-show batch", "no-show batch", "updated reservations", "batch_no_show_detect",
 		nil,
-		s.DetectNoShowReservations,
+		s.detectNoShowReservations,
 	)
 }
-
-// DetectDormantOwners は指定クリニックの休眠飼い主を検知してタグを同期する（閾値: 180日）。

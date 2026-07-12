@@ -16,14 +16,8 @@ const deliveryTriggerHourJST = 10
 
 // LstepBatchService はバッチ処理でノーショウ検知・休眠検知を行うサービス（BE-005, BE-014）。
 type LstepBatchService interface {
-	// DetectNoShowReservations は指定クリニックのノーショウ予約を検知しタグ付与・ステータス更新を行う。
-	// 処理件数と個別エラーのスライスを返す（全体は失敗しない）。
-	DetectNoShowReservations(ctx context.Context, clinicID uint64) (int, []error)
 	// RunNoShowCheckAllClinics は全クリニックに対してノーショウ検知を実行するcronエントリポイント。
 	RunNoShowCheckAllClinics(ctx context.Context) error
-	// DetectDormantOwners は指定クリニックの休眠飼い主を検知しタグを同期する。
-	// 処理件数と個別エラーのスライスを返す（全体は失敗しない）。
-	DetectDormantOwners(ctx context.Context, clinicID uint64) (int, []error)
 	// RunDormantDetectionAllClinics は全クリニックに対して休眠検知を実行するcronエントリポイント（02:00 JST）。
 	RunDormantDetectionAllClinics(ctx context.Context) error
 	// RunLTVTopPercentSyncAllClinics は全クリニックに対して LTV 上位 20% タグを同期するcronエントリポイント（FEAT-377）。
@@ -121,5 +115,3 @@ func (s *lstepBatchService) runBatchAllClinics(
 	}
 	return nil
 }
-
-// DetectNoShowReservations は指定クリニックの no-show 予約を検知してステータス更新・タグ付与を行う。
