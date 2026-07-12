@@ -116,7 +116,11 @@ func (h *Handler) UpdatePermissionGroup(c *gin.Context) {
 	}
 
 	// 監査ログ用: 更新前の値を取得（#122 best-effort）
-	oldPGForAudit, _ := h.svc.PermissionGroup.GetByID(c.Request.Context(), clinicID, id)
+	oldPGForAudit, oldErr := h.svc.PermissionGroup.GetByID(c.Request.Context(), clinicID, id)
+	if oldErr != nil {
+		slog.WarnContext(c.Request.Context(), "failed to fetch old value for audit",
+			"error", oldErr, "resource", "permission_group", "id", id)
+	}
 
 	updated, err := h.svc.PermissionGroup.Update(c.Request.Context(), clinicID, id, req.toServiceInput())
 	if err != nil {
@@ -160,7 +164,11 @@ func (h *Handler) DeletePermissionGroup(c *gin.Context) {
 		return
 	}
 	// 削除前に old value を取得（監査ログ用）
-	oldPG, _ := h.svc.PermissionGroup.GetByID(c.Request.Context(), clinicID, id)
+	oldPG, oldErr := h.svc.PermissionGroup.GetByID(c.Request.Context(), clinicID, id)
+	if oldErr != nil {
+		slog.WarnContext(c.Request.Context(), "failed to fetch old value for audit",
+			"error", oldErr, "resource", "permission_group", "id", id)
+	}
 
 	if err := h.svc.PermissionGroup.Delete(c.Request.Context(), clinicID, id); err != nil {
 		RespondError(c, err)
