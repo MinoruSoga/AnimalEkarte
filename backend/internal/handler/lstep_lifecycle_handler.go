@@ -78,6 +78,11 @@ func (h *Handler) UpdateOwnerLstepOptOut(c *gin.Context) {
 
 // PatchOwnerLstepOptOut godoc
 // PATCH /owners/:id/lstep/opt-out — opt_out:true でオプトアウト、false でオプトインする統合エンドポイント（ISSUE-001）。
+//
+// BE-refactor.md F-3 の Patch*→Update* リネーム対象外（意図的）: POST側の
+// PostOwnerLstepOptOut が同フェーズで UpdateOwnerLstepOptOut にリネームされたため、
+// このメソッドも同じ規則を適用すると同名になりコンパイルエラーになる
+// （*Handler に同名メソッドを2つ定義できない）。よって Patch プレフィックスのまま維持する。
 func (h *Handler) PatchOwnerLstepOptOut(c *gin.Context) {
 	clinicID, ok := extractClinicID(c)
 	if !ok {
