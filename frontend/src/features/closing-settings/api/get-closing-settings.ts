@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
+import { queryKeys } from "@/lib/query-keys";
 import type { ClinicSettings, ClosingSpecialPeriod } from "@/types/generated/models";
 
 interface ClosingSettingsResponse {
@@ -14,6 +15,6 @@ const getClosingSettings = async (): Promise<ClosingSettingsResponse> => {
 
 export const useGetClosingSettings = () =>
   useQuery({
-    queryKey: ["closing-settings"],
+    queryKey: queryKeys.closingSettings.all(),
     queryFn: getClosingSettings,
   });
