@@ -11,6 +11,7 @@ import (
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/repository"
+	"github.com/animal-ekarte/backend/internal/timeutil"
 )
 
 // CloseRegisterInput はレジ締め実行の入力
@@ -278,7 +279,7 @@ func (s *cashRegisterService) GetPreview(ctx context.Context, clinicID uint64, d
 		pmName := paymentMethodNameForClose(d.PaymentMethodID, payMethodNames)
 		details = append(details, CloseBillingDetail{
 			BillingID:         d.BillingID,
-			PaidAt:            d.PaidAt.In(time.Local).Format(time.RFC3339),
+			PaidAt:            timeutil.LocalRFC3339(d.PaidAt),
 			OwnerName:         d.OwnerName,
 			PetName:           d.PetName,
 			IsHospitalization: d.IsHospitalization,
@@ -297,8 +298,8 @@ func (s *cashRegisterService) GetPreview(ctx context.Context, clinicID uint64, d
 	return &CashRegisterPreview{
 		Date:            date.In(time.Local).Format(time.DateOnly),
 		Period:          period,
-		PeriodStart:     agg.PeriodStart.In(time.Local).Format(time.RFC3339),
-		PeriodEnd:       agg.PeriodEnd.In(time.Local).Format(time.RFC3339),
+		PeriodStart:     timeutil.LocalRFC3339(agg.PeriodStart),
+		PeriodEnd:       timeutil.LocalRFC3339(agg.PeriodEnd),
 		IsAlreadyClosed: isAlreadyClosed,
 		IsHoliday:       agg.Schedule != nil && agg.Schedule.IsHoliday,
 		Aggregate: CloseAggregateSummary{

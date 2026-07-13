@@ -11,6 +11,7 @@ import (
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/repository"
+	"github.com/animal-ekarte/backend/internal/timeutil"
 )
 
 // LabReportQueryService は clinic-scoped で検査帳票向け read-only DTO を返す。
@@ -94,7 +95,7 @@ func toLabExamReportSummary(e *model.Examination) model.LabExamReportSummary {
 		ResultCount:   resultCount,
 		AbnormalCount: abnormalCount,
 		Machine:       e.Machine,
-		CreatedAt:     e.CreatedAt.In(time.Local).Format(time.RFC3339),
+		CreatedAt:     timeutil.LocalRFC3339(e.CreatedAt),
 	}
 }
 
@@ -131,7 +132,7 @@ func toLabExamReportDetail(e *model.Examination) *model.LabExamReportDetail {
 		Status:          string(e.Status),
 		Machine:         e.Machine,
 		Items:           items,
-		CreatedAt:       e.CreatedAt.In(time.Local).Format(time.RFC3339),
-		UpdatedAt:       e.UpdatedAt.In(time.Local).Format(time.RFC3339),
+		CreatedAt:       timeutil.LocalRFC3339(e.CreatedAt),
+		UpdatedAt:       timeutil.LocalRFC3339(e.UpdatedAt),
 	}
 }
