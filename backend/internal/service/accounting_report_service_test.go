@@ -16,94 +16,10 @@ import (
 	"github.com/animal-ekarte/backend/internal/repository"
 )
 
-// mockAccountingRepositoryForReport は AccountingReportService 専用のモック実装。
-// accounting_service_test.go の mockAccountingRepository とは別型として定義し、
-// GetMonthlyReport の関数フィールドを制御可能にする。
-type mockAccountingRepositoryForReport struct {
-	getMonthlyReportFn         func(ctx context.Context, clinicID uint64, year, month int) (*repository.MonthlyReportResult, error)
-	getMonthlyReportByPeriodFn func(ctx context.Context, clinicID uint64, start, end time.Time) (*repository.MonthlyReportResult, error)
-}
-
-func (m *mockAccountingRepositoryForReport) FindAll(_ context.Context, _ uint64, _, _ *uint64, _, _, _ *string, _, _ int) ([]model.Billing, int64, error) {
-	return nil, 0, nil
-}
-func (m *mockAccountingRepositoryForReport) FindByID(_ context.Context, _, _ uint64) (*model.Billing, error) {
-	return nil, nil
-}
-func (m *mockAccountingRepositoryForReport) FindAllForClinics(_ context.Context, _ []uint64, _, _ *uint64, _, _, _ *string, _, _ int) ([]model.Billing, int64, error) {
-	return nil, 0, nil
-}
-func (m *mockAccountingRepositoryForReport) FindByIDForClinics(_ context.Context, _ []uint64, _ uint64) (*model.Billing, error) {
-	return nil, nil
-}
-func (m *mockAccountingRepositoryForReport) LockAndFindByID(_ context.Context, _, _ uint64) (*model.Billing, error) {
-	return nil, nil
-}
-func (m *mockAccountingRepositoryForReport) Create(_ context.Context, _ uint64, _ *model.Billing) error {
-	return nil
-}
-func (m *mockAccountingRepositoryForReport) Update(_ context.Context, _, _ uint64, _ map[string]any) (*model.Billing, error) {
-	return nil, nil
-}
-func (m *mockAccountingRepositoryForReport) SavePayment(_ context.Context, _ *model.Payment) error {
-	return nil
-}
-
-func (m *mockAccountingRepositoryForReport) SavePaymentSplits(_ context.Context, _ []model.PaymentSplit) error {
-	return nil
-}
-
-func (m *mockAccountingRepositoryForReport) CompleteAccountingAppointments(_ context.Context, _ uint64, _, _, _ *uint64, _ time.Time) (int64, error) {
-	return 0, nil
-}
-
-func (m *mockAccountingRepositoryForReport) FindUnpaidByBilling(_ context.Context, _ uint64, _, _ string, _, _ int) ([]model.Billing, int64, error) {
-	return nil, 0, nil
-}
-func (m *mockAccountingRepositoryForReport) FindUnpaidByOwner(_ context.Context, _ uint64, _, _ string, _, _ int) ([]repository.UnpaidOwnerAggregate, int64, repository.UnpaidSummary, error) {
-	return nil, 0, repository.UnpaidSummary{}, nil
-}
-func (m *mockAccountingRepositoryForReport) SumUnpaidByOwner(_ context.Context, _, _ uint64) (repository.OwnerUnpaidBalance, error) {
-	return repository.OwnerUnpaidBalance{}, nil
-}
-func (m *mockAccountingRepositoryForReport) FindMonthlyUnpaidCarryover(_ context.Context, _ uint64, _, _ string, _, _ int) ([]repository.MonthlyUnpaidOwnerPet, int64, repository.MonthlyUnpaidSummary, error) {
-	return nil, 0, repository.MonthlyUnpaidSummary{}, nil
-}
-func (m *mockAccountingRepositoryForReport) GetDailySummary(_ context.Context, _ uint64, _ time.Time) (*repository.DailySummaryResult, error) {
-	return &repository.DailySummaryResult{}, nil
-}
-func (m *mockAccountingRepositoryForReport) GetCloseAggregate(_ context.Context, _ repository.GetCloseAggregateInput) (*repository.CloseAggregateResult, error) {
-	return &repository.CloseAggregateResult{}, nil
-}
-func (m *mockAccountingRepositoryForReport) GetMonthlyReport(ctx context.Context, clinicID uint64, year, month int) (*repository.MonthlyReportResult, error) {
-	if m.getMonthlyReportFn != nil {
-		return m.getMonthlyReportFn(ctx, clinicID, year, month)
-	}
-	return &repository.MonthlyReportResult{}, nil
-}
-func (m *mockAccountingRepositoryForReport) GetMonthlyReportByPeriod(ctx context.Context, clinicID uint64, start, end time.Time) (*repository.MonthlyReportResult, error) {
-	if m.getMonthlyReportByPeriodFn != nil {
-		return m.getMonthlyReportByPeriodFn(ctx, clinicID, start, end)
-	}
-	return &repository.MonthlyReportResult{}, nil
-}
-
-func (m *mockAccountingRepositoryForReport) SumPaidByOwner(_ context.Context, _, _ uint64) (int64, error) {
-	return 0, nil
-}
-
-func (m *mockAccountingRepositoryForReport) MaxSingleVisitAmountByOwner(_ context.Context, _, _ uint64) (int64, error) {
-	return 0, nil
-}
-
-func (m *mockAccountingRepositoryForReport) FindOwnersByAnnualRevenue(_ context.Context, _ uint64) ([]repository.OwnerAnnualRevenue, error) {
-	return nil, nil
-}
-
 // ---- ヘルパー ----
 
 func newAccountingReportService(
-	repo *mockAccountingRepositoryForReport,
+	repo *mockAccountingRepository,
 	payMethodRepo *mockPaymentMethodMasterRepository,
 	holidayRepo *mockClinicHolidayRepository,
 ) AccountingReportService {
@@ -306,7 +222,7 @@ func TestAccountingReportService_GetMonthly(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Arrange
-			repo := &mockAccountingRepositoryForReport{
+			repo := &mockAccountingRepository{
 				getMonthlyReportFn: tt.getMonthlyReportFn,
 			}
 			payMethodRepo := &mockPaymentMethodMasterRepository{
@@ -339,7 +255,7 @@ func TestAccountingReportService_GetMonthly(t *testing.T) {
 }
 
 func TestAccountingReportService_GetMonthly_UsesClinicTaxRates(t *testing.T) {
-	repo := &mockAccountingRepositoryForReport{
+	repo := &mockAccountingRepository{
 		getMonthlyReportFn: func(_ context.Context, _ uint64, _, _ int) (*repository.MonthlyReportResult, error) {
 			return &repository.MonthlyReportResult{
 				TaxBreakdown: []repository.TaxBreakdownRow{
@@ -374,7 +290,7 @@ func TestAccountingReportService_GetMonthly_UsesClinicTaxRates(t *testing.T) {
 func TestAccountingReportService_GetMonthlyByPeriod(t *testing.T) {
 	var gotStart time.Time
 	var gotEnd time.Time
-	repo := &mockAccountingRepositoryForReport{
+	repo := &mockAccountingRepository{
 		getMonthlyReportByPeriodFn: func(_ context.Context, _ uint64, start, end time.Time) (*repository.MonthlyReportResult, error) {
 			gotStart = start
 			gotEnd = end
@@ -448,7 +364,7 @@ func TestValidateReportPeriod(t *testing.T) {
 // TestAccountingReportService_GetMonthly_ClinicRepoError は buildReportResponse 内の
 // clinicRepo.FindByID エラー分岐（税率取得失敗）を固定化する。
 func TestAccountingReportService_GetMonthly_ClinicRepoError(t *testing.T) {
-	repo := &mockAccountingRepositoryForReport{}
+	repo := &mockAccountingRepository{}
 	svc := NewAccountingReportService(
 		repo,
 		&mockPaymentMethodMasterRepository{findAllFn: func(_ context.Context, _ uint64) ([]model.PaymentMethodMaster, error) {
@@ -470,7 +386,7 @@ func TestAccountingReportService_GetMonthly_ClinicRepoError(t *testing.T) {
 
 func TestAccountingReportService_GetMonthlyByPeriod_ValidationError(t *testing.T) {
 	svc := newAccountingReportService(
-		&mockAccountingRepositoryForReport{},
+		&mockAccountingRepository{},
 		&mockPaymentMethodMasterRepository{},
 		&mockClinicHolidayRepository{},
 	)
@@ -485,7 +401,7 @@ func TestAccountingReportService_GetMonthlyByPeriod_ValidationError(t *testing.T
 }
 
 func TestAccountingReportService_GetMonthlyByPeriod_RepoError(t *testing.T) {
-	repo := &mockAccountingRepositoryForReport{
+	repo := &mockAccountingRepository{
 		getMonthlyReportByPeriodFn: func(_ context.Context, _ uint64, _, _ time.Time) (*repository.MonthlyReportResult, error) {
 			return nil, errors.New("db error")
 		},
@@ -579,7 +495,7 @@ func TestBuildMonthlyCSV(t *testing.T) {
 
 func TestAccountingReportService_ExportMonthlyCSV(t *testing.T) {
 	t.Run("正常: CSV を出力する", func(t *testing.T) {
-		repo := &mockAccountingRepositoryForReport{
+		repo := &mockAccountingRepository{
 			getMonthlyReportFn: func(_ context.Context, _ uint64, _, _ int) (*repository.MonthlyReportResult, error) {
 				return &repository.MonthlyReportResult{GrandTotal: 1000, BillingCount: 1}, nil
 			},
@@ -604,7 +520,7 @@ func TestAccountingReportService_ExportMonthlyCSV(t *testing.T) {
 
 	t.Run("エラー: GetMonthly がエラーを返す", func(t *testing.T) {
 		svc := newAccountingReportService(
-			&mockAccountingRepositoryForReport{},
+			&mockAccountingRepository{},
 			&mockPaymentMethodMasterRepository{},
 			&mockClinicHolidayRepository{},
 		)
@@ -619,7 +535,7 @@ func TestAccountingReportService_ExportMonthlyCSV(t *testing.T) {
 
 func TestAccountingReportService_ExportMonthlyCSVByPeriod(t *testing.T) {
 	t.Run("正常: 期間指定で CSV を出力する", func(t *testing.T) {
-		repo := &mockAccountingRepositoryForReport{
+		repo := &mockAccountingRepository{
 			getMonthlyReportByPeriodFn: func(_ context.Context, _ uint64, _, _ time.Time) (*repository.MonthlyReportResult, error) {
 				return &repository.MonthlyReportResult{GrandTotal: 500, BillingCount: 1}, nil
 			},
@@ -645,7 +561,7 @@ func TestAccountingReportService_ExportMonthlyCSVByPeriod(t *testing.T) {
 
 	t.Run("エラー: GetMonthlyByPeriod がエラーを返す", func(t *testing.T) {
 		svc := newAccountingReportService(
-			&mockAccountingRepositoryForReport{},
+			&mockAccountingRepository{},
 			&mockPaymentMethodMasterRepository{},
 			&mockClinicHolidayRepository{},
 		)

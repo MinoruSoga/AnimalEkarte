@@ -13,81 +13,6 @@ import (
 	"github.com/animal-ekarte/backend/internal/repository"
 )
 
-// mockAccountingRepoForLstepVisit is a full repository.AccountingRepository
-// implementation used only by lstep visit-tag sync tests, exposing a configurable
-// hook for SumPaidByOwner (the shared mockAccountingRepository hardcodes it to
-// (0, nil) and cannot exercise the repo-error branch).
-type mockAccountingRepoForLstepVisit struct {
-	sumPaidByOwnerFn func(ctx context.Context, clinicID, ownerID uint64) (int64, error)
-}
-
-func (m *mockAccountingRepoForLstepVisit) FindAll(_ context.Context, _ uint64, _, _ *uint64, _, _, _ *string, _, _ int) ([]model.Billing, int64, error) {
-	return nil, 0, nil
-}
-func (m *mockAccountingRepoForLstepVisit) FindAllForClinics(_ context.Context, _ []uint64, _, _ *uint64, _, _, _ *string, _, _ int) ([]model.Billing, int64, error) {
-	return nil, 0, nil
-}
-func (m *mockAccountingRepoForLstepVisit) FindByID(_ context.Context, _, _ uint64) (*model.Billing, error) {
-	return nil, nil
-}
-func (m *mockAccountingRepoForLstepVisit) FindByIDForClinics(_ context.Context, _ []uint64, _ uint64) (*model.Billing, error) {
-	return nil, nil
-}
-func (m *mockAccountingRepoForLstepVisit) LockAndFindByID(_ context.Context, _, _ uint64) (*model.Billing, error) {
-	return nil, nil
-}
-func (m *mockAccountingRepoForLstepVisit) Create(_ context.Context, _ uint64, _ *model.Billing) error {
-	return nil
-}
-func (m *mockAccountingRepoForLstepVisit) Update(_ context.Context, _, _ uint64, _ map[string]any) (*model.Billing, error) {
-	return nil, nil
-}
-func (m *mockAccountingRepoForLstepVisit) SavePayment(_ context.Context, _ *model.Payment) error {
-	return nil
-}
-func (m *mockAccountingRepoForLstepVisit) SavePaymentSplits(_ context.Context, _ []model.PaymentSplit) error {
-	return nil
-}
-func (m *mockAccountingRepoForLstepVisit) CompleteAccountingAppointments(_ context.Context, _ uint64, _, _, _ *uint64, _ time.Time) (int64, error) {
-	return 0, nil
-}
-func (m *mockAccountingRepoForLstepVisit) FindUnpaidByBilling(_ context.Context, _ uint64, _, _ string, _, _ int) ([]model.Billing, int64, error) {
-	return nil, 0, nil
-}
-func (m *mockAccountingRepoForLstepVisit) FindUnpaidByOwner(_ context.Context, _ uint64, _, _ string, _, _ int) ([]repository.UnpaidOwnerAggregate, int64, repository.UnpaidSummary, error) {
-	return nil, 0, repository.UnpaidSummary{}, nil
-}
-func (m *mockAccountingRepoForLstepVisit) SumUnpaidByOwner(_ context.Context, _, _ uint64) (repository.OwnerUnpaidBalance, error) {
-	return repository.OwnerUnpaidBalance{}, nil
-}
-func (m *mockAccountingRepoForLstepVisit) FindMonthlyUnpaidCarryover(_ context.Context, _ uint64, _, _ string, _, _ int) ([]repository.MonthlyUnpaidOwnerPet, int64, repository.MonthlyUnpaidSummary, error) {
-	return nil, 0, repository.MonthlyUnpaidSummary{}, nil
-}
-func (m *mockAccountingRepoForLstepVisit) GetDailySummary(_ context.Context, _ uint64, _ time.Time) (*repository.DailySummaryResult, error) {
-	return &repository.DailySummaryResult{}, nil
-}
-func (m *mockAccountingRepoForLstepVisit) GetCloseAggregate(_ context.Context, _ repository.GetCloseAggregateInput) (*repository.CloseAggregateResult, error) {
-	return &repository.CloseAggregateResult{}, nil
-}
-func (m *mockAccountingRepoForLstepVisit) GetMonthlyReport(_ context.Context, _ uint64, _, _ int) (*repository.MonthlyReportResult, error) {
-	return &repository.MonthlyReportResult{}, nil
-}
-func (m *mockAccountingRepoForLstepVisit) GetMonthlyReportByPeriod(_ context.Context, _ uint64, _, _ time.Time) (*repository.MonthlyReportResult, error) {
-	return &repository.MonthlyReportResult{}, nil
-}
-func (m *mockAccountingRepoForLstepVisit) SumPaidByOwner(ctx context.Context, clinicID, ownerID uint64) (int64, error) {
-	if m.sumPaidByOwnerFn != nil {
-		return m.sumPaidByOwnerFn(ctx, clinicID, ownerID)
-	}
-	return 0, nil
-}
-func (m *mockAccountingRepoForLstepVisit) MaxSingleVisitAmountByOwner(_ context.Context, _, _ uint64) (int64, error) {
-	return 0, nil
-}
-func (m *mockAccountingRepoForLstepVisit) FindOwnersByAnnualRevenue(_ context.Context, _ uint64) ([]repository.OwnerAnnualRevenue, error) {
-	return nil, nil
-}
-
 func TestSyncVisitCompletionTags(t *testing.T) {
 	lineUID := "U_visit"
 
@@ -167,7 +92,7 @@ func TestSyncVisitCompletionTags(t *testing.T) {
 				},
 			},
 			medRecordRepo: &mockMedicalRecordRepository{},
-			accountRepo: &mockAccountingRepoForLstepVisit{
+			accountRepo: &mockAccountingRepository{
 				sumPaidByOwnerFn: func(_ context.Context, _, _ uint64) (int64, error) {
 					return 0, errors.New("ltv db error")
 				},
@@ -186,7 +111,7 @@ func TestSyncVisitCompletionTags(t *testing.T) {
 				},
 			},
 			medRecordRepo: &mockMedicalRecordRepository{},
-			accountRepo:   &mockAccountingRepoForLstepVisit{},
+			accountRepo:   &mockAccountingRepository{},
 			buildClientFn: func(_ context.Context, _ uint64) (lstep.Client, error) { return nil, nil },
 		}
 		err := svc.SyncVisitCompletionTags(context.Background(), 1, 2)
@@ -219,7 +144,7 @@ func TestSyncVisitCompletionTags(t *testing.T) {
 					return &repository.OwnerVisitSummary{FirstVisitAt: &first, LastVisitAt: &last, AnnualCount: 6}, nil
 				},
 			},
-			accountRepo: &mockAccountingRepoForLstepVisit{
+			accountRepo: &mockAccountingRepository{
 				sumPaidByOwnerFn: func(_ context.Context, _, _ uint64) (int64, error) { return 60_000, nil },
 			},
 			buildClientFn: func(_ context.Context, _ uint64) (lstep.Client, error) { return client, nil },
@@ -259,7 +184,7 @@ func TestSyncVisitCompletionTags(t *testing.T) {
 				},
 			},
 			medRecordRepo: &mockMedicalRecordRepository{},
-			accountRepo:   &mockAccountingRepoForLstepVisit{},
+			accountRepo:   &mockAccountingRepository{},
 			buildClientFn: func(_ context.Context, _ uint64) (lstep.Client, error) { return client, nil },
 			tagCacheRepo:  &mockLstepTagCacheRepository{},
 		}
@@ -277,7 +202,7 @@ func TestSyncVisitCompletionTags(t *testing.T) {
 				},
 			},
 			medRecordRepo: &mockMedicalRecordRepository{},
-			accountRepo:   &mockAccountingRepoForLstepVisit{},
+			accountRepo:   &mockAccountingRepository{},
 			buildClientFn: func(_ context.Context, _ uint64) (lstep.Client, error) { return client, nil },
 			tagCacheRepo: &mockLstepTagCacheRepository{
 				findByOwnerFn: func(_ context.Context, _, _ uint64) ([]*model.LstepTagCache, error) {
@@ -302,7 +227,7 @@ func TestSyncVisitCompletionTags(t *testing.T) {
 				},
 			},
 			medRecordRepo: &mockMedicalRecordRepository{},
-			accountRepo:   &mockAccountingRepoForLstepVisit{},
+			accountRepo:   &mockAccountingRepository{},
 			buildClientFn: func(_ context.Context, _ uint64) (lstep.Client, error) { return client, nil },
 			tagCacheRepo: &mockLstepTagCacheRepository{
 				findByOwnerFn: func(_ context.Context, _, _ uint64) ([]*model.LstepTagCache, error) {

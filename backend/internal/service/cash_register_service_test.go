@@ -60,97 +60,6 @@ func (m *mockCashRegisterCloseRepository) HasCloseOnDate(ctx context.Context, cl
 	return false, nil
 }
 
-// ---- モック: AccountingRepository（GetCloseAggregate 用追加スタブ） ----
-// accounting_service_test.go の mockAccountingRepository にスタブが既に定義されているため、
-// ここでは cash_register テスト専用の関数フィールド付きモックを別名で定義する。
-
-type mockAccountingRepositoryForClose struct {
-	getCloseAggregateFn func(ctx context.Context, input repository.GetCloseAggregateInput) (*repository.CloseAggregateResult, error)
-	getMonthlyReportFn  func(ctx context.Context, clinicID uint64, year, month int) (*repository.MonthlyReportResult, error)
-}
-
-func (m *mockAccountingRepositoryForClose) FindAll(_ context.Context, _ uint64, _, _ *uint64, _, _, _ *string, _, _ int) ([]model.Billing, int64, error) {
-	return nil, 0, nil
-}
-func (m *mockAccountingRepositoryForClose) FindAllForClinics(_ context.Context, _ []uint64, _, _ *uint64, _, _, _ *string, _, _ int) ([]model.Billing, int64, error) {
-	return nil, 0, nil
-}
-func (m *mockAccountingRepositoryForClose) FindByID(_ context.Context, _, _ uint64) (*model.Billing, error) {
-	return nil, nil
-}
-func (m *mockAccountingRepositoryForClose) FindByIDForClinics(_ context.Context, _ []uint64, _ uint64) (*model.Billing, error) {
-	return nil, nil
-}
-func (m *mockAccountingRepositoryForClose) LockAndFindByID(_ context.Context, _, _ uint64) (*model.Billing, error) {
-	return nil, nil
-}
-func (m *mockAccountingRepositoryForClose) Create(_ context.Context, _ uint64, _ *model.Billing) error {
-	return nil
-}
-func (m *mockAccountingRepositoryForClose) Update(_ context.Context, _, _ uint64, _ map[string]any) (*model.Billing, error) {
-	return nil, nil
-}
-func (m *mockAccountingRepositoryForClose) SavePayment(_ context.Context, _ *model.Payment) error {
-	return nil
-}
-
-func (m *mockAccountingRepositoryForClose) SavePaymentSplits(_ context.Context, _ []model.PaymentSplit) error {
-	return nil
-}
-
-func (m *mockAccountingRepositoryForClose) CompleteAccountingAppointments(_ context.Context, _ uint64, _, _, _ *uint64, _ time.Time) (int64, error) {
-	return 0, nil
-}
-
-func (m *mockAccountingRepositoryForClose) FindUnpaidByBilling(_ context.Context, _ uint64, _, _ string, _, _ int) ([]model.Billing, int64, error) {
-	return nil, 0, nil
-}
-func (m *mockAccountingRepositoryForClose) FindUnpaidByOwner(_ context.Context, _ uint64, _, _ string, _, _ int) ([]repository.UnpaidOwnerAggregate, int64, repository.UnpaidSummary, error) {
-	return nil, 0, repository.UnpaidSummary{}, nil
-}
-func (m *mockAccountingRepositoryForClose) SumUnpaidByOwner(_ context.Context, _, _ uint64) (repository.OwnerUnpaidBalance, error) {
-	return repository.OwnerUnpaidBalance{}, nil
-}
-func (m *mockAccountingRepositoryForClose) FindMonthlyUnpaidCarryover(_ context.Context, _ uint64, _, _ string, _, _ int) ([]repository.MonthlyUnpaidOwnerPet, int64, repository.MonthlyUnpaidSummary, error) {
-	return nil, 0, repository.MonthlyUnpaidSummary{}, nil
-}
-func (m *mockAccountingRepositoryForClose) GetDailySummary(_ context.Context, _ uint64, _ time.Time) (*repository.DailySummaryResult, error) {
-	return &repository.DailySummaryResult{}, nil
-}
-func (m *mockAccountingRepositoryForClose) GetCloseAggregate(ctx context.Context, input repository.GetCloseAggregateInput) (*repository.CloseAggregateResult, error) {
-	if m.getCloseAggregateFn != nil {
-		return m.getCloseAggregateFn(ctx, input)
-	}
-	return &repository.CloseAggregateResult{
-		PaymentRows:    []repository.PaymentAggregateRow{},
-		CategoryRows:   []repository.CategoryAggregateRow{},
-		BillingDetails: []repository.CloseBillingDetail{},
-		TaxBreakdown:   []repository.TaxBreakdownRow{},
-	}, nil
-}
-func (m *mockAccountingRepositoryForClose) GetMonthlyReport(ctx context.Context, clinicID uint64, year, month int) (*repository.MonthlyReportResult, error) {
-	if m.getMonthlyReportFn != nil {
-		return m.getMonthlyReportFn(ctx, clinicID, year, month)
-	}
-	return &repository.MonthlyReportResult{}, nil
-}
-
-func (m *mockAccountingRepositoryForClose) GetMonthlyReportByPeriod(_ context.Context, _ uint64, _, _ time.Time) (*repository.MonthlyReportResult, error) {
-	return &repository.MonthlyReportResult{}, nil
-}
-
-func (m *mockAccountingRepositoryForClose) SumPaidByOwner(_ context.Context, _, _ uint64) (int64, error) {
-	return 0, nil
-}
-
-func (m *mockAccountingRepositoryForClose) MaxSingleVisitAmountByOwner(_ context.Context, _, _ uint64) (int64, error) {
-	return 0, nil
-}
-
-func (m *mockAccountingRepositoryForClose) FindOwnersByAnnualRevenue(_ context.Context, _ uint64) ([]repository.OwnerAnnualRevenue, error) {
-	return nil, nil
-}
-
 // ---- モック: ClosingSettingsService（ResolveSchedule のみ） ----
 
 type mockClosingSettingsService struct {
@@ -199,7 +108,7 @@ func emptyAggregateResult() *repository.CloseAggregateResult {
 
 func newCashRegisterService(
 	closeRepo *mockCashRegisterCloseRepository,
-	accountingRepo *mockAccountingRepositoryForClose,
+	accountingRepo *mockAccountingRepository,
 	closingsSvc *mockClosingSettingsService,
 	payMethodRepo *mockPaymentMethodMasterRepository,
 ) CashRegisterService {
@@ -503,7 +412,7 @@ func TestCashRegisterService_GetPreview(t *testing.T) {
 			closeRepo := &mockCashRegisterCloseRepository{
 				findByDateAndPeriodFn: tt.findByDateAndPeriodFn,
 			}
-			accountingRepo := &mockAccountingRepositoryForClose{
+			accountingRepo := &mockAccountingRepository{
 				getCloseAggregateFn: tt.getCloseAggregateFn,
 			}
 			closingsSvc := &mockClosingSettingsService{
@@ -713,7 +622,7 @@ func TestCashRegisterService_Close(t *testing.T) {
 				findByDateAndPeriodFn: tt.findByDateAndPeriodFn,
 				createFn:              tt.createFn,
 			}
-			accountingRepo := &mockAccountingRepositoryForClose{
+			accountingRepo := &mockAccountingRepository{
 				getCloseAggregateFn: tt.getCloseAggregateFn,
 			}
 			closingsSvc := &mockClosingSettingsService{
@@ -789,7 +698,7 @@ func TestCashRegisterService_IsDateClosed(t *testing.T) {
 			closeRepo := &mockCashRegisterCloseRepository{
 				hasCloseOnDateFn: tt.hasCloseOnDateFn,
 			}
-			svc := newCashRegisterService(closeRepo, &mockAccountingRepositoryForClose{}, &mockClosingSettingsService{}, &mockPaymentMethodMasterRepository{})
+			svc := newCashRegisterService(closeRepo, &mockAccountingRepository{}, &mockClosingSettingsService{}, &mockPaymentMethodMasterRepository{})
 
 			got, err := svc.IsDateClosed(context.Background(), 1, date)
 
@@ -1057,7 +966,7 @@ func TestCashRegisterService_Close_ExcludesActualCashFromAggregation(t *testing.
 			return nil
 		},
 	}
-	accountingRepo := &mockAccountingRepositoryForClose{
+	accountingRepo := &mockAccountingRepository{
 		getCloseAggregateFn: func(_ context.Context, _ repository.GetCloseAggregateInput) (*repository.CloseAggregateResult, error) {
 			return &repository.CloseAggregateResult{
 				PaymentRows: []repository.PaymentAggregateRow{
@@ -1165,7 +1074,7 @@ func TestCashRegisterService_List(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			closeRepo := &mockCashRegisterCloseRepository{findAllFn: tt.findAllFn}
-			svc := newCashRegisterService(closeRepo, &mockAccountingRepositoryForClose{}, &mockClosingSettingsService{}, &mockPaymentMethodMasterRepository{})
+			svc := newCashRegisterService(closeRepo, &mockAccountingRepository{}, &mockClosingSettingsService{}, &mockPaymentMethodMasterRepository{})
 
 			got, total, err := svc.List(context.Background(), 1, &start, &end, 1, 20)
 
@@ -1207,7 +1116,7 @@ func TestCashRegisterService_GetByID(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			closeRepo := &mockCashRegisterCloseRepository{findByIDFn: tt.findByIDFn}
-			svc := newCashRegisterService(closeRepo, &mockAccountingRepositoryForClose{}, &mockClosingSettingsService{}, &mockPaymentMethodMasterRepository{})
+			svc := newCashRegisterService(closeRepo, &mockAccountingRepository{}, &mockClosingSettingsService{}, &mockPaymentMethodMasterRepository{})
 
 			got, err := svc.GetByID(context.Background(), 1, 5)
 
@@ -1227,7 +1136,7 @@ func TestCashRegisterService_GetByID(t *testing.T) {
 // fetchAggregate 経由で GetPreview のエラーとして伝播することを検証する（M-7 #191）。
 func TestCashRegisterService_GetPreview_ClinicRepoError(t *testing.T) {
 	closeRepo := &mockCashRegisterCloseRepository{}
-	accountingRepo := &mockAccountingRepositoryForClose{
+	accountingRepo := &mockAccountingRepository{
 		getCloseAggregateFn: func(_ context.Context, _ repository.GetCloseAggregateInput) (*repository.CloseAggregateResult, error) {
 			return emptyAggregateResult(), nil
 		},
