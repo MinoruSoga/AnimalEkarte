@@ -104,3 +104,6 @@ export function useGetPet(petId: string) {
 | `use-record-pet-death.ts` | 2 | ペット死亡記録 mutation（owners / pets の PetDeceasedRecordButton→PetDeceasedDialog） |
 | `use-revoke-pet-death.ts` | 2 | ペット死亡記録解除 mutation（owners / pets の PetDeceasedRecordButton→PetDeceasedBanner） |
 | `use-clinic-tax-rates.ts` | 2 | 病院マスタ消費税率取得（accounting-reports / accounting の AccountingDocument） |
+| `use-get-reservation.ts` | 2+ | 予約詳細取得（reservations / components/shared/ReservationFormModal） |
+| `use-update-reservation-route.ts` | 2+ | 予約経路更新 mutation（reservations / components/shared/ReservationFormModal 想定） |
+| `use-reservation-type-unavailable-times.ts` | 2+ | 予約タイプ別予約不可時間取得（master / components/shared/ReservationFormModal。作成・削除 mutation は `features/master/api/reservation-type-unavailable-times.ts` に残置） |
