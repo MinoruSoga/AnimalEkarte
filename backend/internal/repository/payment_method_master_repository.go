@@ -85,5 +85,5 @@ func (r *paymentMethodMasterRepository) CountUsageByPaymentMethodID(ctx context.
 }
 
 func (r *paymentMethodMasterRepository) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
-	return reorderByClinicID(ctx, r.db, &model.PaymentMethodMaster{}, "payment_method", clinicID, ids)
+	return reorderByClinicID(ctx, r.db, &model.PaymentMethodMaster{}, "payment_method", clinicID, ids, "display_order")
 }

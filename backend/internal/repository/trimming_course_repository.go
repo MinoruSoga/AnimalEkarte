@@ -72,5 +72,5 @@ func (r *trimmingCourseRepository) CountUsageByTrimmingCourseID(ctx context.Cont
 }
 
 func (r *trimmingCourseRepository) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
-	return reorderByClinicID(ctx, r.db, &model.TrimmingCourse{}, "trimming_course", clinicID, ids)
+	return reorderByClinicID(ctx, r.db, &model.TrimmingCourse{}, "trimming_course", clinicID, ids, "sort_order")
 }

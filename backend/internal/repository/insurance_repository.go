@@ -73,5 +73,5 @@ func (r *insuranceRepository) CountUsageByInsuranceID(ctx context.Context, clini
 }
 
 func (r *insuranceRepository) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
-	return reorderByClinicID(ctx, r.db, &model.Insurance{}, "insurance", clinicID, ids)
+	return reorderByClinicID(ctx, r.db, &model.Insurance{}, "insurance", clinicID, ids, "sort_order")
 }

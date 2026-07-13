@@ -75,5 +75,5 @@ func (r *cageRepository) CountUsageByCageID(ctx context.Context, clinicID, id ui
 }
 
 func (r *cageRepository) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
-	return reorderByClinicID(ctx, r.db, &model.Cage{}, "cage", clinicID, ids)
+	return reorderByClinicID(ctx, r.db, &model.Cage{}, "cage", clinicID, ids, "sort_order")
 }

@@ -46,7 +46,7 @@ func TestReorderByClinicID(t *testing.T) {
 		require.NoError(t, db.Create(b).Error)
 		require.NoError(t, db.Create(c).Error)
 
-		require.NoError(t, reorderByClinicID(ctx, db, &model.ChiefComplaintType{}, "chief_complaint_type", clinicID, []uint64{c.ID, a.ID, b.ID}))
+		require.NoError(t, reorderByClinicID(ctx, db, &model.ChiefComplaintType{}, "chief_complaint_type", clinicID, []uint64{c.ID, a.ID, b.ID}, "sort_order"))
 
 		var reloadedA, reloadedB, reloadedC model.ChiefComplaintType
 		require.NoError(t, db.First(&reloadedA, a.ID).Error)
@@ -64,7 +64,7 @@ func TestReorderByClinicID(t *testing.T) {
 		require.NoError(t, db.Create(own).Error)
 		require.NoError(t, db.Create(foreign).Error)
 
-		err := reorderByClinicID(ctx, db, &model.ChiefComplaintType{}, "chief_complaint_type", clinicA, []uint64{own.ID, foreign.ID})
+		err := reorderByClinicID(ctx, db, &model.ChiefComplaintType{}, "chief_complaint_type", clinicA, []uint64{own.ID, foreign.ID}, "sort_order")
 		require.Error(t, err)
 		assert.True(t, apperrors.IsInvalidInput(err))
 
@@ -78,7 +78,7 @@ func TestReorderByClinicID(t *testing.T) {
 		existing := &model.ChiefComplaintType{ClinicID: clinicID, Name: "existing", SortOrder: 99}
 		require.NoError(t, db.Create(existing).Error)
 
-		err := reorderByClinicID(ctx, db, &model.ChiefComplaintType{}, "chief_complaint_type", clinicID, []uint64{existing.ID, 9_999_999})
+		err := reorderByClinicID(ctx, db, &model.ChiefComplaintType{}, "chief_complaint_type", clinicID, []uint64{existing.ID, 9_999_999}, "sort_order")
 		require.Error(t, err)
 		assert.True(t, apperrors.IsInvalidInput(err))
 
@@ -100,7 +100,7 @@ func TestReorderGlobal(t *testing.T) {
 		require.NoError(t, db.Create(cat).Error)
 		require.NoError(t, db.Create(rabbit).Error)
 
-		require.NoError(t, reorderGlobal(ctx, db, &model.AnimalSpecies{}, "animal_species", []uint64{rabbit.ID, dog.ID, cat.ID}))
+		require.NoError(t, reorderGlobal(ctx, db, &model.AnimalSpecies{}, "animal_species", []uint64{rabbit.ID, dog.ID, cat.ID}, "sort_order"))
 
 		var reloadedDog, reloadedCat, reloadedRabbit model.AnimalSpecies
 		require.NoError(t, db.First(&reloadedDog, dog.ID).Error)
@@ -115,7 +115,7 @@ func TestReorderGlobal(t *testing.T) {
 		existing := &model.AnimalSpecies{Name: "鳥", SortOrder: 99}
 		require.NoError(t, db.Create(existing).Error)
 
-		err := reorderGlobal(ctx, db, &model.AnimalSpecies{}, "animal_species", []uint64{existing.ID, 9_999_998})
+		err := reorderGlobal(ctx, db, &model.AnimalSpecies{}, "animal_species", []uint64{existing.ID, 9_999_998}, "sort_order")
 		require.Error(t, err)
 		assert.True(t, apperrors.IsInvalidInput(err))
 

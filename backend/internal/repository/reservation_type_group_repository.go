@@ -69,5 +69,5 @@ func (r *reservationTypeGroupRepository) Delete(ctx context.Context, clinicID, i
 }
 
 func (r *reservationTypeGroupRepository) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
-	return reorderByClinicID(ctx, r.db, &model.ReservationTypeGroup{}, "reservation_type_group", clinicID, ids)
+	return reorderByClinicID(ctx, r.db, &model.ReservationTypeGroup{}, "reservation_type_group", clinicID, ids, "sort_order")
 }

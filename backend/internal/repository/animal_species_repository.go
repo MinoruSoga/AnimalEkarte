@@ -85,5 +85,5 @@ func (r *animalSpeciesRepository) Delete(ctx context.Context, id uint64) error {
 
 // Reorder はトランザクション内で sort_order を ids の順序で更新する
 func (r *animalSpeciesRepository) Reorder(ctx context.Context, ids []uint64) error {
-	return reorderGlobal(ctx, r.db, &model.AnimalSpecies{}, "animal_species", ids)
+	return reorderGlobal(ctx, r.db, &model.AnimalSpecies{}, "animal_species", ids, "sort_order")
 }

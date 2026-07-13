@@ -111,7 +111,7 @@ func (r *shiftTemplateRepository) UpdateBreaks(ctx context.Context, templateID u
 }
 
 func (r *shiftTemplateRepository) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
-	return reorderByClinicID(ctx, r.db, &model.ShiftTemplate{}, "shift_template", clinicID, ids)
+	return reorderByClinicID(ctx, r.db, &model.ShiftTemplate{}, "shift_template", clinicID, ids, "sort_order")
 }
 
 // CountUsageByShiftTemplateID はシフトテンプレートを参照している shift_template_breaks の件数を返す。

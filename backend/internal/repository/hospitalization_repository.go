@@ -68,8 +68,8 @@ func (r *hospitalizationRepository) FindByID(ctx context.Context, clinicID, id u
 		Preload("Owner", "deleted_at IS NULL").
 		Preload("Cage", "clinic_id = ? AND deleted_at IS NULL", clinicID).
 		Preload("Doctor", "deleted_at IS NULL").
-		Preload("CarePlanItems", "deleted_at IS NULL").
-		Preload("DailyRecords", "deleted_at IS NULL").
+		Preload("CarePlanItems").
+		Preload("DailyRecords").
 		Preload("TreatmentPlans", "deleted_at IS NULL").
 		Scopes(clinicScope(clinicID)).Where("id = ?", id).First(&hospitalization).Error
 	if err != nil {
@@ -119,7 +119,7 @@ func (r *hospitalizationRepository) CountCarePlanItemsByHospitalizationID(ctx co
 	err := r.db.WithContext(ctx).
 		Model(&model.CarePlanItem{}).
 		Joins("JOIN hospitalizations ON care_plan_items.hospitalization_id = hospitalizations.id AND hospitalizations.deleted_at IS NULL").
-		Where("hospitalizations.clinic_id = ? AND care_plan_items.hospitalization_id = ? AND care_plan_items.deleted_at IS NULL", clinicID, hospitalizationID).
+		Where("hospitalizations.clinic_id = ? AND care_plan_items.hospitalization_id = ?", clinicID, hospitalizationID).
 		Count(&count).Error
 	if err != nil {
 		return 0, apperrors.FromGORM(err, "care_plan_item", fmt.Sprintf("hospitalization_id=%d", hospitalizationID))
@@ -132,7 +132,7 @@ func (r *hospitalizationRepository) CountDailyRecordsByHospitalizationID(ctx con
 	err := r.db.WithContext(ctx).
 		Model(&model.DailyRecord{}).
 		Joins("JOIN hospitalizations ON daily_records.hospitalization_id = hospitalizations.id AND hospitalizations.deleted_at IS NULL").
-		Where("hospitalizations.clinic_id = ? AND daily_records.hospitalization_id = ? AND daily_records.deleted_at IS NULL", clinicID, hospitalizationID).
+		Where("hospitalizations.clinic_id = ? AND daily_records.hospitalization_id = ?", clinicID, hospitalizationID).
 		Count(&count).Error
 	if err != nil {
 		return 0, apperrors.FromGORM(err, "daily_record", fmt.Sprintf("hospitalization_id=%d", hospitalizationID))

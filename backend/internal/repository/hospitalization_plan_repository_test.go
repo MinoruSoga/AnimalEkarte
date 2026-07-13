@@ -214,20 +214,7 @@ func TestHospitalizationPlanRepository_Reorder(t *testing.T) {
 
 // TestHospitalizationPlanRepository_CountUsageByHospitalizationPlanID は
 // プランを参照するケアプラン項目数の集計を検証する。
-//
-// 既知の不具合（本テストではなく hospitalization_plan_repository.go 側）: 本メソッドの WHERE 句は
-// "care_plan_items.deleted_at IS NULL" を参照するが、care_plan_items テーブルには deleted_at 列が
-// 存在しない（backend/migrations/001_init.sql の CREATE TABLE care_plan_items 定義、および
-// model.CarePlanItem 構造体のいずれにも deleted_at / DeletedAt が無い）。そのため本テストは
-// PostgreSQL の "column care_plan_items.deleted_at does not exist" (42703) で常に失敗する
-// （hospitalization_repository.go の CountCarePlanItemsByHospitalizationID / FindByID の
-// Preload("CarePlanItems", ...) と同根の不具合）。*_test.go 以外の編集が禁止されたスコープ制約の
-// ため本バッチでは修正できず、意図された挙動としてテストを残しフラグする。
 func TestHospitalizationPlanRepository_CountUsageByHospitalizationPlanID(t *testing.T) {
-	// KNOWN BUG (Phase 4 discovery 2026-07-03, out of scope for this test-coverage task):
-	// see comment above — care_plan_items.deleted_at does not exist.
-	t.Skip("known production bug — see comment above")
-
 	db := setupHospitalizationPlanRepoTestDB(t)
 	repo := NewHospitalizationPlanRepository(db)
 	ctx := context.Background()

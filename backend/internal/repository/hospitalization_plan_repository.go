@@ -68,7 +68,7 @@ func (r *hospitalizationPlanRepository) CountUsageByHospitalizationPlanID(ctx co
 	if err := r.db.WithContext(ctx).
 		Model(&model.CarePlanItem{}).
 		Joins("JOIN hospitalization_plans hp ON hp.id = care_plan_items.hospitalization_plan_id AND hp.clinic_id = ? AND hp.deleted_at IS NULL", clinicID).
-		Where("care_plan_items.hospitalization_plan_id = ? AND care_plan_items.deleted_at IS NULL", planID).
+		Where("care_plan_items.hospitalization_plan_id = ?", planID).
 		Count(&count).Error; err != nil {
 		return 0, apperrors.FromGORM(err, "care_plan_item", "")
 	}
@@ -76,5 +76,5 @@ func (r *hospitalizationPlanRepository) CountUsageByHospitalizationPlanID(ctx co
 }
 
 func (r *hospitalizationPlanRepository) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
-	return reorderByClinicID(ctx, r.db, &model.HospitalizationPlan{}, "hospitalization_plan", clinicID, ids)
+	return reorderByClinicID(ctx, r.db, &model.HospitalizationPlan{}, "hospitalization_plan", clinicID, ids, "sort_order")
 }

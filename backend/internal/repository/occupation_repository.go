@@ -78,5 +78,5 @@ func (r *occupationRepository) CountUsageByOccupationID(ctx context.Context, cli
 }
 
 func (r *occupationRepository) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
-	return reorderByClinicID(ctx, r.db, &model.Occupation{}, "occupation", clinicID, ids)
+	return reorderByClinicID(ctx, r.db, &model.Occupation{}, "occupation", clinicID, ids, "sort_order")
 }

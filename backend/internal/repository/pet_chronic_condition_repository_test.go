@@ -195,18 +195,6 @@ func TestPetChronicConditionRepository_Delete(t *testing.T) {
 }
 
 func TestPetChronicConditionRepository_FindActiveConditionCodesByOwner(t *testing.T) {
-	// KNOWN BUG (Phase 4 discovery 2026-07-03, out of scope for this test-coverage task):
-	// model.PetChronicCondition.IsActive is tagged `gorm:"not null;default:true"`. GORM's Create()
-	// omits a field from the generated INSERT when its Go value equals the type's zero value AND
-	// the field has a `default` tag — so IsActive: false (the bool zero value) is silently dropped
-	// from the INSERT, and Postgres applies the column DEFAULT (true) instead. This makes it
-	// IMPOSSIBLE to ever persist an inactive (IsActive=false) chronic condition via GORM's Create():
-	// the row is always created as active=true regardless of what the caller passed. This is a
-	// model-layer bug (backend/internal/model/pet_chronic_condition.go), not a repository-layer bug
-	// and not a test-authoring mistake — confirmed by inspecting the model's gorm tag directly.
-	// Not fixed here per task scope (out of backend/internal/repository/, no production behavior
-	// changes); reported to the human.
-	t.Skip("known production bug — see comment above")
 	db := setupPetChronicConditionTestDB(t)
 	repo := NewPetChronicConditionRepository(db)
 	ctx := context.Background()

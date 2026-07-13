@@ -65,7 +65,7 @@ func (r *medicineRepository) CountUsageByMedicineID(ctx context.Context, clinicI
 	if err := dbOrTx(ctx, r.db).
 		Model(&model.CarePlanItem{}).
 		Joins("JOIN hospitalizations ON hospitalizations.id = care_plan_items.hospitalization_id AND hospitalizations.clinic_id = ? AND hospitalizations.deleted_at IS NULL", clinicID).
-		Where("care_plan_items.medicine_id = ? AND care_plan_items.deleted_at IS NULL", medicineID).
+		Where("care_plan_items.medicine_id = ?", medicineID).
 		Count(&carePlanCount).Error; err != nil {
 		return 0, apperrors.FromGORM(err, "care_plan_item", "")
 	}
@@ -100,7 +100,7 @@ func (r *medicineRepository) Update(ctx context.Context, clinicID, id uint64, fi
 }
 
 func (r *medicineRepository) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
-	return reorderByClinicID(ctx, r.db, &model.Medicine{}, "medicine", clinicID, ids)
+	return reorderByClinicID(ctx, r.db, &model.Medicine{}, "medicine", clinicID, ids, "sort_order")
 }
 
 func (r *medicineRepository) Delete(ctx context.Context, clinicID, id uint64) error {

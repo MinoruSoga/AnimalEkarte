@@ -232,15 +232,6 @@ func TestPaymentMethodMasterRepository_CountUsageByPaymentMethodID(t *testing.T)
 }
 
 // TestPaymentMethodMasterRepository_Reorder は Reorder の期待される正しい挙動を検証する。
-//
-// 注意（発見した疑わしいバグ）: Reorder は共通ヘルパー reorderByClinicID を経由し、
-// 常にリテラルのカラム名 "sort_order" へ Update する（helpers.go 参照、本テストでは変更不可）。
-// しかし PaymentMethodMaster の実体テーブル payment_methods の並び順カラムは
-// "display_order"（migrations/001_init.sql・model.PaymentMethodMaster.DisplayOrder）であり、
-// "sort_order" 列は存在しない。そのため本メソッドは呼び出す度に
-// `column "sort_order" of relation "payment_methods" does not exist` で常に失敗する可能性が高い。
-// 本テストは「正しい期待動作」（DisplayOrderが1始まりで更新される）を記述しているため、
-// もし上記の疑いが正しければ RED になる — これは実装側のバグであり本テストの誤りではない。
 func TestPaymentMethodMasterRepository_Reorder(t *testing.T) {
 	db := setupPaymentMethodMasterRepoTestDB(t)
 	repo := NewPaymentMethodMasterRepository(db)
@@ -248,20 +239,12 @@ func TestPaymentMethodMasterRepository_Reorder(t *testing.T) {
 	const clinicA, clinicB = uint64(1), uint64(2)
 
 	t.Run("指定した順序でdisplay_orderが1始まりに更新される", func(t *testing.T) {
-		// KNOWN BUG (Phase 4 discovery 2026-07-03, out of scope for this test-coverage task):
-		// reorderByClinicID (helpers.go) hardcodes Update("sort_order", i+1), but
-		// PaymentMethodMaster's actual DB column is "display_order" (model.PaymentMethodMaster.DisplayOrder,
-		// table payment_methods) — there is no "sort_order" column on this table. Every call to
-		// PaymentMethodMasterRepository.Reorder() therefore fails with
-		// `column "sort_order" of relation "payment_methods" does not exist` (SQLSTATE 42703).
-		// Not fixed here per task scope (no production behavior changes); reported to the human.
-		t.Skip("known production bug — see comment above")
 		m1 := makePaymentMethodMaster(t, db, clinicA, "支払方法1")
 		m2 := makePaymentMethodMaster(t, db, clinicA, "支払方法2")
 		m3 := makePaymentMethodMaster(t, db, clinicA, "支払方法3")
 
 		err := repo.Reorder(ctx, clinicA, []uint64{m3.ID, m1.ID, m2.ID})
-		require.NoError(t, err, "Reorderが成功すること（既知の display_order/sort_order 列名不一致バグに注意）")
+		require.NoError(t, err, "Reorderが成功すること")
 
 		got, err := repo.FindAll(ctx, clinicA)
 		require.NoError(t, err)

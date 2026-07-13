@@ -2,23 +2,6 @@ package repository
 
 // hospitalization_repository_test.go — HospitalizationRepository の統合テスト。
 // 実 Postgres テスト DB (setupTestDB) に対して実行する。
-//
-// 既知の不具合（本ファイルのテストではなく hospitalization_repository.go 側）:
-// FindByID の Preload("CarePlanItems", "deleted_at IS NULL") / Preload("DailyRecords", "deleted_at IS NULL")、
-// および CountCarePlanItemsByHospitalizationID / CountDailyRecordsByHospitalizationID の WHERE 句は
-// care_plan_items.deleted_at / daily_records.deleted_at を参照するが、これらのカラムは
-// backend/migrations/001_init.sql の CREATE TABLE 定義にも model.CarePlanItem / model.DailyRecord
-// 構造体にも存在しない（deleted_at 列そのものが無い）。兄弟の care_plan_item_repository.go /
-// daily_record_repository.go はこの2テーブルに対し deleted_at を一切参照しておらず、本ファイルの
-// 実装のみが矛盾している。GORM の Preload は関連が0件でも子テーブルへの問い合わせを必ず発行するため、
-// これらのメソッドは常に PostgreSQL "column ... does not exist" (42703) で失敗する
-// （internal/service 側は HospitalizationRepository をモックしているため、実 DB を通すこの
-// テストで初めて顕在化する）。*_test.go 以外の編集が禁止されたスコープ制約のため本バッチでは
-// hospitalization_repository.go を修正できず、意図された挙動としてテストを残しフラグする。
-// 影響を受けるテスト: TestHospitalizationRepository_FindByID_Success,
-// TestHospitalizationRepository_Update_Success,
-// TestHospitalizationRepository_CountCarePlanItemsByHospitalizationID,
-// TestHospitalizationRepository_CountDailyRecordsByHospitalizationID。
 
 import (
 	"context"
@@ -212,14 +195,7 @@ func TestHospitalizationRepository_FindByID_NotFoundAndIsolation(t *testing.T) {
 }
 
 // TestHospitalizationRepository_FindByID_Success は成功パスを検証する。
-// ファイル先頭コメントの既知の不具合により、修正されるまで現時点では RED であることが期待される。
 func TestHospitalizationRepository_FindByID_Success(t *testing.T) {
-	// KNOWN BUG (Phase 4 discovery 2026-07-03, out of scope for this test-coverage task):
-	// FindByID's Preload("CarePlanItems", "deleted_at IS NULL") / Preload("DailyRecords", "deleted_at IS NULL")
-	// reference a deleted_at column that does not exist on care_plan_items/daily_records (see file header
-	// comment for full analysis). Every call currently 500s with "column ... does not exist" (42703).
-	t.Skip("known production bug — see file header comment and KNOWN BUG note above")
-
 	db := setupHospitalizationRepoTestDB(t)
 	repo := NewHospitalizationRepository(db)
 	ctx := context.Background()
@@ -287,14 +263,7 @@ func TestHospitalizationRepository_Update_NotFoundAndIsolation(t *testing.T) {
 }
 
 // TestHospitalizationRepository_Update_Success は成功パスを検証する。
-// Update は成功時に内部で FindByID を呼ぶため、TestHospitalizationRepository_FindByID_Success と
-// 同じ既知の不具合の影響を受け現時点では RED であることが期待される。
 func TestHospitalizationRepository_Update_Success(t *testing.T) {
-	// KNOWN BUG (Phase 4 discovery 2026-07-03, out of scope for this test-coverage task):
-	// Update's underlying FindByID call hits the same missing-deleted_at-column defect documented in
-	// the file header comment. Skip until hospitalization_repository.go is fixed.
-	t.Skip("known production bug — see file header comment")
-
 	db := setupHospitalizationRepoTestDB(t)
 	repo := NewHospitalizationRepository(db)
 	ctx := context.Background()
@@ -350,13 +319,8 @@ func TestHospitalizationRepository_Delete(t *testing.T) {
 }
 
 // TestHospitalizationRepository_CountCarePlanItemsByHospitalizationID は
-// ファイル先頭コメントの既知の不具合（care_plan_items.deleted_at 列が実在しない）により
-// 現時点では RED であることが期待される。
+// 入院に紐づくケアプラン項目数の集計を検証する。
 func TestHospitalizationRepository_CountCarePlanItemsByHospitalizationID(t *testing.T) {
-	// KNOWN BUG (Phase 4 discovery 2026-07-03, out of scope for this test-coverage task):
-	// see file header comment — care_plan_items.deleted_at does not exist.
-	t.Skip("known production bug — see file header comment")
-
 	db := setupHospitalizationRepoTestDB(t)
 	repo := NewHospitalizationRepository(db)
 	ctx := context.Background()
@@ -379,13 +343,8 @@ func TestHospitalizationRepository_CountCarePlanItemsByHospitalizationID(t *test
 }
 
 // TestHospitalizationRepository_CountDailyRecordsByHospitalizationID は
-// ファイル先頭コメントの既知の不具合（daily_records.deleted_at 列が実在しない）により
-// 現時点では RED であることが期待される。
+// 入院に紐づく日次記録数の集計を検証する。
 func TestHospitalizationRepository_CountDailyRecordsByHospitalizationID(t *testing.T) {
-	// KNOWN BUG (Phase 4 discovery 2026-07-03, out of scope for this test-coverage task):
-	// see file header comment — daily_records.deleted_at does not exist.
-	t.Skip("known production bug — see file header comment")
-
 	db := setupHospitalizationRepoTestDB(t)
 	repo := NewHospitalizationRepository(db)
 	ctx := context.Background()

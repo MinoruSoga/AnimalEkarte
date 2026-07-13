@@ -10,13 +10,13 @@ import (
 )
 
 // reorderByClinicID はマスタテーブルの並び順をトランザクション内で一括更新する汎用ヘルパー。
-// clinicID スコープ付きの Reorder 実装で使用する。
-func reorderByClinicID(ctx context.Context, db *gorm.DB, model any, resource string, clinicID uint64, ids []uint64) error {
+// clinicID スコープ付きの Reorder 実装で使用する。orderColumn は "sort_order" または "display_order"。
+func reorderByClinicID(ctx context.Context, db *gorm.DB, model any, resource string, clinicID uint64, ids []uint64, orderColumn string) error {
 	if err := dbOrTx(ctx, db).Transaction(func(tx *gorm.DB) error {
 		for i, id := range ids {
 			result := tx.Model(model).
 				Scopes(clinicScope(clinicID)).Where("id = ?", id).
-				Update("sort_order", i+1)
+				Update(orderColumn, i+1)
 			if result.Error != nil {
 				return apperrors.FromGORM(result.Error, resource, fmt.Sprintf("%d", id))
 			}
@@ -32,13 +32,13 @@ func reorderByClinicID(ctx context.Context, db *gorm.DB, model any, resource str
 }
 
 // reorderGlobal はクリニック横断マスタテーブルの並び順をトランザクション内で一括更新する汎用ヘルパー。
-// clinicID スコープなしの Reorder 実装で使用する（animal_species 等）。
-func reorderGlobal(ctx context.Context, db *gorm.DB, model any, resource string, ids []uint64) error {
+// clinicID スコープなしの Reorder 実装で使用する（animal_species 等）。orderColumn は通常 "sort_order"。
+func reorderGlobal(ctx context.Context, db *gorm.DB, model any, resource string, ids []uint64, orderColumn string) error {
 	if err := dbOrTx(ctx, db).Transaction(func(tx *gorm.DB) error {
 		for i, id := range ids {
 			result := tx.Model(model).
 				Where("id = ?", id).
-				Update("sort_order", i+1)
+				Update(orderColumn, i+1)
 			if result.Error != nil {
 				return apperrors.FromGORM(result.Error, resource, fmt.Sprintf("%d", id))
 			}

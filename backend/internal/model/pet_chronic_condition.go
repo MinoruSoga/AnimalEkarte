@@ -15,7 +15,7 @@ type PetChronicCondition struct {
 	ConditionName string         `gorm:"size:100;not null"         json:"condition_name"`
 	DiagnosedAt   time.Time      `gorm:"type:date;not null"        json:"diagnosed_at"`
 	Notes         *string        `                                 json:"notes,omitempty"`
-	IsActive      bool           `gorm:"not null;default:true"     json:"is_active"`
+	IsActive      bool           `gorm:"not null"                  json:"is_active"`
 	DeletedAt     gorm.DeletedAt `                                 json:"-"`
 	CreatedAt     time.Time      `gorm:"autoCreateTime"            json:"created_at"`
 	UpdatedAt     time.Time      `gorm:"autoUpdateTime"            json:"updated_at"`

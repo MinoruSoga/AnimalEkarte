@@ -60,7 +60,7 @@ func (r *chiefComplaintTypeRepository) Update(ctx context.Context, clinicID, id 
 }
 
 func (r *chiefComplaintTypeRepository) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
-	return reorderByClinicID(ctx, r.db, &model.ChiefComplaintType{}, "chief_complaint_type", clinicID, ids)
+	return reorderByClinicID(ctx, r.db, &model.ChiefComplaintType{}, "chief_complaint_type", clinicID, ids, "sort_order")
 }
 
 // CountUsageByChiefComplaintTypeID は主訴区分を参照している inquiries の件数を返す。

@@ -260,15 +260,6 @@ func TestMedicineRepository_Reorder(t *testing.T) {
 }
 
 // TestMedicineRepository_CountUsageByMedicineID_TreatmentUsage は treatments 経由の使用件数を検証する。
-//
-// 既知の不具合（本テストで顕在化）: CountUsageByMedicineID の care_plan_items 集計クエリ
-// （medicine_repository.go 内の第2クエリ）が `care_plan_items.deleted_at IS NULL` を参照するが、
-// care_plan_items テーブルには deleted_at 列が存在しない（migrations/001_init.sql の
-// CREATE TABLE care_plan_items 定義・model.CarePlanItem 構造体のいずれにも soft-delete 列がない）。
-// そのため本メソッドは呼び出す度に "column care_plan_items.deleted_at does not exist" で
-// エラーになる可能性が高い（治療のみの使用がある場合でも、後続の care_plan_items クエリで失敗する）。
-// このテストはリポジトリのドキュメント化された意図（treatments + care_plan_items の合計）に基づいて
-// 書かれている。実行時にエラーが出た場合はこの既知の不具合が原因である。
 func TestMedicineRepository_CountUsageByMedicineID_TreatmentUsage(t *testing.T) {
 	db := setupMedicineRepositoryTestDB(t)
 	repo := NewMedicineRepository(db)
@@ -285,27 +276,13 @@ func TestMedicineRepository_CountUsageByMedicineID_TreatmentUsage(t *testing.T) 
 	treatment := &model.Treatment{MedicalRecordID: mr.ID, ItemType: model.TreatmentItemTypeMedicine, MedicineID: &medA.ID}
 	require.NoError(t, db.WithContext(ctx).Create(treatment).Error)
 
-	// KNOWN BUG (Phase 4 discovery 2026-07-03, out of scope for this test-coverage task):
-	// CountUsageByMedicineID's second query (medicine_repository.go) unconditionally runs
-	// `care_plan_items.deleted_at IS NULL`, but care_plan_items has NO deleted_at column in
-	// either migrations/001_init.sql's CREATE TABLE or model.CarePlanItem (confirmed by direct
-	// inspection of both — this entity has no soft-delete support at all). This means
-	// CountUsageByMedicineID fails with "column care_plan_items.deleted_at does not exist"
-	// (SQLSTATE 42703) on EVERY call, which per the P10 architecture pattern is the FK
-	// dependency check gating Medicine deletion — i.e. deleting ANY medicine master record is
-	// currently broken in production. AutoMigrate cannot fix this (the Go struct itself lacks
-	// the field, so AutoMigrate reproduces the same schema). Confirmed via direct read of
-	// backend/internal/model/hospitalization.go's CarePlanItem struct and
-	// backend/migrations/001_init.sql's CREATE TABLE care_plan_items.
 	t.Run("同一クリニックの treatment 使用が1件カウントされる", func(t *testing.T) {
-		t.Skip("known production bug — see comment above")
 		count, err := repo.CountUsageByMedicineID(ctx, clinicA, medA.ID)
 		require.NoError(t, err)
 		assert.Equal(t, int64(1), count)
 	})
 
 	t.Run("別クリニックからは0件（clinic_id 隔離・JOIN スコープ）", func(t *testing.T) {
-		t.Skip("known production bug — see comment above")
 		count, err := repo.CountUsageByMedicineID(ctx, clinicB, medA.ID)
 		require.NoError(t, err)
 		assert.Equal(t, int64(0), count)

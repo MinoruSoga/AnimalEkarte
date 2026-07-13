@@ -128,7 +128,7 @@ func (r *campaignRepository) Delete(ctx context.Context, clinicID, id uint64) er
 }
 
 func (r *campaignRepository) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
-	return reorderByClinicID(ctx, r.db, &model.Campaign{}, "campaign", clinicID, ids)
+	return reorderByClinicID(ctx, r.db, &model.Campaign{}, "campaign", clinicID, ids, "sort_order")
 }
 
 func (r *campaignRepository) buildApplicableCond(category model.ItemCategory, merchandiseItemID *uint64) (cond string, args []any) {

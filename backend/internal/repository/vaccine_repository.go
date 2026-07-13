@@ -63,7 +63,7 @@ func (r *vaccineRepository) Delete(ctx context.Context, clinicID, id uint64) err
 }
 
 func (r *vaccineRepository) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
-	return reorderByClinicID(ctx, r.db, &model.Vaccine{}, "vaccine", clinicID, ids)
+	return reorderByClinicID(ctx, r.db, &model.Vaccine{}, "vaccine", clinicID, ids, "sort_order")
 }
 
 // CountUsageByVaccineID はワクチンマスタを参照している vaccinations の件数を返す（BUG-107）
