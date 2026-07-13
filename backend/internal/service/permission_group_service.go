@@ -90,10 +90,6 @@ type permissionGroupService struct {
 	repo repository.PermissionGroupRepository
 }
 
-func NewPermissionGroupService(repo repository.PermissionGroupRepository) PermissionGroupService {
-	return &permissionGroupService{repo: repo}
-}
-
 // newPermissionGroupServiceImpl は PermissionGroupService と EffectivePermissionService の
 // 両インターフェースを実装する具体型ポインタを返す。
 // service.go の DI 配線のみで使用する。

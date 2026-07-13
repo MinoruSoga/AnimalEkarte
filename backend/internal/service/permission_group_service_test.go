@@ -102,7 +102,7 @@ func TestPermissionGroupService_GetByID(t *testing.T) {
 					return tt.repoGroup, tt.repoErr
 				},
 			}
-			svc := NewPermissionGroupService(repo)
+			svc := newPermissionGroupServiceImpl(repo)
 			result, err := svc.GetByID(context.Background(), 1, tt.id)
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -150,7 +150,7 @@ func TestPermissionGroupService_Create(t *testing.T) {
 					return tt.createErr
 				},
 			}
-			svc := NewPermissionGroupService(repo)
+			svc := newPermissionGroupServiceImpl(repo)
 			_, err := svc.Create(context.Background(), 1, &tt.input)
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -216,7 +216,7 @@ func TestPermissionGroupService_Update(t *testing.T) {
 					return existing, tt.updateErr
 				},
 			}
-			svc := NewPermissionGroupService(repo)
+			svc := newPermissionGroupServiceImpl(repo)
 			result, err := svc.Update(context.Background(), 1, 1, tt.input)
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -230,7 +230,7 @@ func TestPermissionGroupService_Update(t *testing.T) {
 
 func TestPermissionGroupService_Update_NilInput(t *testing.T) {
 	repo := &mockPermissionGroupRepository{}
-	svc := NewPermissionGroupService(repo)
+	svc := newPermissionGroupServiceImpl(repo)
 	result, err := svc.Update(context.Background(), 1, 1, nil)
 	assert.Error(t, err)
 	assert.Nil(t, result)
@@ -280,7 +280,7 @@ func TestPermissionGroupService_Delete(t *testing.T) {
 					return tt.deleteErr
 				},
 			}
-			svc := NewPermissionGroupService(repo)
+			svc := newPermissionGroupServiceImpl(repo)
 			err := svc.Delete(context.Background(), 1, 1)
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -324,7 +324,7 @@ func TestPermissionGroupService_Reorder(t *testing.T) {
 			repo := &mockPermissionGroupRepository{
 				reorderErr: tt.reorderErr,
 			}
-			svc := NewPermissionGroupService(repo)
+			svc := newPermissionGroupServiceImpl(repo)
 			err := svc.Reorder(context.Background(), 1, tt.ids)
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -366,7 +366,7 @@ func TestPermissionGroupService_SetRules(t *testing.T) {
 					return tt.setRulesErr
 				},
 			}
-			svc := NewPermissionGroupService(repo)
+			svc := newPermissionGroupServiceImpl(repo)
 			err := svc.UpdateRules(context.Background(), 1, tt.inputs, 0)
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -399,7 +399,7 @@ func TestPermissionGroupService_UpdateRules_FailClosedOnGroupLookupError(t *test
 			return nil
 		},
 	}
-	svc := NewPermissionGroupService(repo)
+	svc := newPermissionGroupServiceImpl(repo)
 
 	// groupID=1 を actorStaffID=10 が編集。所属取得失敗 → fail-closed で拒否すべき。
 	err := svc.UpdateRules(context.Background(), 1, inputs, 10)
@@ -436,7 +436,7 @@ func TestPermissionGroupService_List(t *testing.T) {
 					return items, tt.repoErr
 				},
 			}
-			svc := NewPermissionGroupService(repo)
+			svc := newPermissionGroupServiceImpl(repo)
 			got, err := svc.List(context.Background(), 1)
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -560,7 +560,7 @@ func TestPermissionGroupService_UpdateRules_ValidationErrors(t *testing.T) {
 				return nil
 			},
 		}
-		svc := NewPermissionGroupService(repo)
+		svc := newPermissionGroupServiceImpl(repo)
 
 		inputs := []SetPermissionGroupRulesInput{
 			{Resource: string(model.ResourceOwners)},
@@ -584,7 +584,7 @@ func TestPermissionGroupService_UpdateRules_ValidationErrors(t *testing.T) {
 				return nil
 			},
 		}
-		svc := NewPermissionGroupService(repo)
+		svc := newPermissionGroupServiceImpl(repo)
 
 		inputs := []SetPermissionGroupRulesInput{
 			{Resource: string(model.ResourceOwners), CanView: true},
@@ -605,7 +605,7 @@ func TestPermissionGroupService_UpdateRules_ValidationErrors(t *testing.T) {
 				return nil
 			},
 		}
-		svc := NewPermissionGroupService(repo)
+		svc := newPermissionGroupServiceImpl(repo)
 
 		inputs := []SetPermissionGroupRulesInput{
 			{Resource: string(model.ResourceMasterPermission), CanEdit: true},
