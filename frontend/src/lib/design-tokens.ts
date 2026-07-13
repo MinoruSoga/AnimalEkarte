@@ -538,8 +538,6 @@ export const LAYOUT = {
   sidebar: {
     expanded:      "w-[220px]",
     collapsed:     "w-[56px]",
-    expandedPx:    220,
-    collapsedPx:   56,
     /** 折りたたみ時の正方形ボタン高さ (30px) — トグル/ログアウトボタン共通 */
     collapsedItemH: "h-[30px]",
   },
@@ -557,9 +555,7 @@ export const LAYOUT = {
 
   /* ── Property Row (Notion-style key-value) ── */
   propertyRow: {
-    minH:          "min-h-[40px]",
     labelW:        "w-[140px]",
-    labelWPx:      140,
   },
 
   /**
@@ -585,16 +581,6 @@ export const LAYOUT = {
   touch: {
     /** Primary action buttons, input fields */
     md:            "h-11",
-    /** Secondary / compact buttons */
-    sm:            "h-11",
-    /** Comfortable table row */
-    row:           "h-12",
-    /** Table header */
-    tableHead:     "h-11",
-    /** Toolbar icon button */
-    iconBtn:       "size-9",
-    /** Status badge */
-    badge:         "h-8",
   },
 
   /**
@@ -602,14 +588,12 @@ export const LAYOUT = {
    *
    * sm  480px  クイックビュー・詳細モーダル
    * md  512px  入力フォーム・選択ダイアログ  (= sm:max-w-lg)
-   * lg  768px  検索・プレビューダイアログ    (= sm:max-w-3xl)
    * xl  1000px 大フォームモーダル
    * full       全幅フォーム
    */
   modal: {
     sm:   "sm:max-w-[480px]",
     md:   "sm:max-w-lg",
-    lg:   "sm:max-w-3xl",
     xl:   "sm:max-w-[1000px] max-h-[90vh]",
     full: "w-[98%] sm:max-w-[1400px] h-[90vh]",
   },
@@ -623,7 +607,6 @@ export const LAYOUT = {
 
   /** Notion page icon */
   pageIcon: {
-    size:          "size-[38px]",
     innerIcon:     "size-5",
   },
 
