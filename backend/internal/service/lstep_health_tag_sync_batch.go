@@ -11,6 +11,18 @@ import (
 // healthPreventionBatchPageSize は PERF-FOLLOWUP-02 のカーソルページネーション 1 ページあたりの件数。
 const healthPreventionBatchPageSize = 500
 
+// cachedTagMappings は tag code mappings を clinic 単位で 1 回取得しキャッシュする
+// （BE-refactor.md E-7）。取得失敗時は warn ログを出し nil を返す（呼出元は per-owner
+// フォールバックとして扱う）。label はログ文言の対象名（例: "filaria mappings"）。
+func (s *lstepTagSyncService) cachedTagMappings(ctx context.Context, clinicID uint64, tagName, label string) []*model.LstepTagCodeMapping {
+	mappings, err := s.tagCodeRepo.FindByClinicIDAndTagName(ctx, clinicID, tagName)
+	if err != nil {
+		slog.ErrorContext(ctx, "health-prevention batch: failed to cache "+label, "clinic_id", clinicID, "error", err)
+		return nil // fallback to per-owner fetch
+	}
+	return mappings
+}
+
 func (s *lstepTagSyncService) SyncHealthPreventionTagsForClinic(ctx context.Context, clinicID uint64) (int, []error) {
 	if skip, err := s.shouldSkipSync(ctx, clinicID); err != nil {
 		return 0, []error{apperrors.Wrap(err, "failed to check lstep sync enabled")}
@@ -27,28 +39,12 @@ func (s *lstepTagSyncService) SyncHealthPreventionTagsForClinic(ctx context.Cont
 	}
 
 	// Stage 1: tag code mappings を clinic 単位で 1 回キャッシュ。
-	cachedMappings, err := s.tagCodeRepo.FindByClinicIDAndTagName(ctx, clinicID, HlthHealthcheckDoneTag)
-	if err != nil {
-		slog.ErrorContext(ctx, "health-prevention batch: failed to cache mappings", "clinic_id", clinicID, "error", err)
-		cachedMappings = nil // fallback to per-owner fetch
-	}
+	cachedMappings := s.cachedTagMappings(ctx, clinicID, HlthHealthcheckDoneTag, "mappings")
 
 	// PERF-M2: Filaria / FleaTick / FoodPurchase の tag code mappings も clinic 単位で 1 回キャッシュ。
-	cachedFilariaMappings, err := s.tagCodeRepo.FindByClinicIDAndTagName(ctx, clinicID, PrevFilariaTag)
-	if err != nil {
-		slog.ErrorContext(ctx, "health-prevention batch: failed to cache filaria mappings", "clinic_id", clinicID, "error", err)
-		cachedFilariaMappings = nil // fallback to per-owner fetch
-	}
-	cachedFleaTickMappings, err := s.tagCodeRepo.FindByClinicIDAndTagName(ctx, clinicID, PrevFleaTickTag)
-	if err != nil {
-		slog.ErrorContext(ctx, "health-prevention batch: failed to cache flea tick mappings", "clinic_id", clinicID, "error", err)
-		cachedFleaTickMappings = nil // fallback to per-owner fetch
-	}
-	cachedFoodMappings, err := s.tagCodeRepo.FindByClinicIDAndTagName(ctx, clinicID, LtvFoodPurchaseTag)
-	if err != nil {
-		slog.ErrorContext(ctx, "health-prevention batch: failed to cache food purchase mappings", "clinic_id", clinicID, "error", err)
-		cachedFoodMappings = nil // fallback to per-owner fetch
-	}
+	cachedFilariaMappings := s.cachedTagMappings(ctx, clinicID, PrevFilariaTag, "filaria mappings")
+	cachedFleaTickMappings := s.cachedTagMappings(ctx, clinicID, PrevFleaTickTag, "flea tick mappings")
+	cachedFoodMappings := s.cachedTagMappings(ctx, clinicID, LtvFoodPurchaseTag, "food purchase mappings")
 
 	// PERF-1: HealthPreventionThresholds を clinic 単位で 1 回だけ取得し、ループ内で再利用する。
 	thresholds, tErr := s.settingsSvc.GetHealthPreventionThresholds(ctx, clinicID)
