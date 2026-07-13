@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"log/slog"
+	"runtime/debug"
 	"time"
 
 	"github.com/animal-ekarte/backend/internal/logger"
@@ -10,6 +11,7 @@ import (
 
 // runScheduled は nextFire が返す時刻まで待機して task を実行するループを ctx がキャンセルされるまで繰り返す。
 // task のエラーはログに残すのみでループは継続する（LSTEP-BE-004/014, FEAT-383 バッチの既存挙動を維持）。
+// task が panic しても per-iteration recover により回復し、ループは次回発火時刻まで継続する。
 func runScheduled(ctx context.Context, name string, nextFire func(now time.Time) time.Time, task func(context.Context) error) {
 	for {
 		now := time.Now()
@@ -20,10 +22,20 @@ func runScheduled(ctx context.Context, name string, nextFire func(now time.Time)
 			timer.Stop()
 			return
 		case <-timer.C:
-			if err := task(ctx); err != nil {
-				logger.Error(name+" failed", slog.String("error", err.Error()))
-			}
+			runScheduledIteration(ctx, name, task)
 		}
+	}
+}
+
+// runScheduledIteration は task を1回だけ実行し、panic を回復してループの継続を保証する。
+func runScheduledIteration(ctx context.Context, name string, task func(context.Context) error) {
+	defer func() {
+		if r := recover(); r != nil {
+			logger.Error(name+" panicked", slog.Any("panic", r), slog.String("stack", string(debug.Stack())))
+		}
+	}()
+	if err := task(ctx); err != nil {
+		logger.Error(name+" failed", slog.String("error", err.Error()))
 	}
 }
 

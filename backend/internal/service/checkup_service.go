@@ -175,13 +175,13 @@ func (s *checkupService) Create(ctx context.Context, medicalRecordID uint64, inp
 		// context.WithoutCancel: HTTP request の cancel から切離しつつ tracing context を保持。
 		// M-4: fire-and-forget goroutine のため、context.WithTimeout で明示的に制限を設定。
 		bgCtx := context.WithoutCancel(ctx)
-		go func() {
+		goSafe("checkup followup trigger", func() {
 			trigCtx, cancel := context.WithTimeout(bgCtx, 35*time.Second)
 			defer cancel()
 			if err := svc.TriggerCheckupFollowUp(trigCtx, clinicID, ownerID); err != nil {
 				slog.WarnContext(trigCtx, "checkup followup trigger failed (non-fatal)", "error", err, "owner_id", ownerID)
 			}
-		}()
+		})
 	}
 	s.syncCheckupTag(ctx, input.ClinicID, created)
 

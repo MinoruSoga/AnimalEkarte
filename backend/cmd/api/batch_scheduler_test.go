@@ -100,4 +100,33 @@ func TestRunScheduled(t *testing.T) {
 			t.Fatal("runScheduled did not return after ctx cancellation")
 		}
 	})
+
+	t.Run("taskがpanicしてもループを継続し次周期で再実行される", func(t *testing.T) {
+		var calls int32
+		ctx, cancel := context.WithCancel(context.Background())
+		immediateEachMS := func(now time.Time) time.Time { return now.Add(time.Millisecond) }
+
+		done := make(chan struct{})
+		go func() {
+			runScheduled(ctx, "panicking-task", immediateEachMS, func(context.Context) error {
+				n := atomic.AddInt32(&calls, 1)
+				if n == 1 {
+					panic("boom")
+				}
+				return nil
+			})
+			close(done)
+		}()
+
+		require.Eventually(t, func() bool {
+			return atomic.LoadInt32(&calls) >= 3
+		}, 2*time.Second, time.Millisecond, "panicしても後続の発火が続くはず(プロセス/goroutineが落ちない)")
+
+		cancel()
+		select {
+		case <-done:
+		case <-time.After(2 * time.Second):
+			t.Fatal("runScheduled did not return after ctx cancellation")
+		}
+	})
 }

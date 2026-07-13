@@ -110,7 +110,7 @@ func (s *passwordResetService) ForgotPassword(ctx context.Context, email string)
 	// 可能性があるため context.Background() + 独立タイムアウトを使用する。
 	resetURL := fmt.Sprintf("%s/reset-password?token=%s", s.cfg.FrontendURL, rawToken)
 	s.wg.Add(1)
-	go func() { //nolint:gosec // fire-and-forget: request ctx キャンセル後も送信継続が必要なため context.Background を使用
+	goSafe("password reset email", func() { //nolint:gosec // fire-and-forget: request ctx キャンセル後も送信継続が必要なため context.Background を使用
 		defer s.wg.Done()
 		bgCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second) //nolint:gosec // 上記と同理由
 		defer cancel()
@@ -119,7 +119,7 @@ func (s *passwordResetService) ForgotPassword(ctx context.Context, email string)
 				slog.String("email", email),
 				slog.String("error", sendErr.Error()))
 		}
-	}()
+	})
 
 	slog.InfoContext(ctx, "password reset token issued",
 		slog.Uint64("account_id", account.ID))
