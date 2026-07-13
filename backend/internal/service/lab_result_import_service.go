@@ -58,6 +58,48 @@ func (s *labResultImportService) Preview(ctx context.Context, clinicID uint64, b
 	return s.jobSvc.PreviewBatch(ctx, clinicID, batch)
 }
 
+// summarizeLabBatchResults は persisted/duplicate/failed カウントと終端ステータスを算出する
+// 純関数（BE-refactor.md E-9）。
+//
+// 終端状態の決定:
+//   - inputs が 0 件: 空コミット → duplicate（何も書かなかった = 冪等）
+//   - 1 件でも persisted があれば persisted
+//   - 全行 duplicate（persisted=0, failed=0）→ duplicate
+//   - それ以外（全行 failed、または duplicate+failed 混在でも persisted=0）→ failed
+func summarizeLabBatchResults(inputCount int, batchResults []*LabExamPersistResult) (model.LabImportJobStatus, TransitionCounts) {
+	persisted, duplicate, failed := 0, 0, 0
+	for _, res := range batchResults {
+		switch {
+		case res.RowError != nil:
+			failed++
+		case res.Duplicate:
+			duplicate++
+		default:
+			persisted++
+		}
+	}
+
+	var termStatus model.LabImportJobStatus
+	switch {
+	case inputCount == 0:
+		termStatus = model.LabImportJobStatusDuplicate
+	case persisted > 0:
+		termStatus = model.LabImportJobStatusPersisted
+	case duplicate > 0 && failed == 0:
+		termStatus = model.LabImportJobStatusDuplicate
+	default:
+		termStatus = model.LabImportJobStatusFailed
+	}
+
+	finalCounts := TransitionCounts{
+		RowCount:       inputCount,
+		PersistedCount: persisted,
+		DuplicateCount: duplicate,
+		FailedCount:    failed,
+	}
+	return termStatus, finalCounts
+}
+
 // Commit は fixture ソース専用の commit フロー。
 //
 // フロー:
@@ -138,41 +180,7 @@ func (s *labResultImportService) Commit(ctx context.Context, clinicID uint64, ba
 	}
 
 	// 結果集計
-	persisted, duplicate, failed := 0, 0, 0
-	for _, res := range batchResults {
-		switch {
-		case res.RowError != nil:
-			failed++
-		case res.Duplicate:
-			duplicate++
-		default:
-			persisted++
-		}
-	}
-
-	// 終端状態の決定:
-	//   - inputs が 0 件: 空コミット → duplicate（何も書かなかった = 冪等）
-	//   - 1 件でも persisted があれば persisted
-	//   - 全行 duplicate（persisted=0, failed=0）→ duplicate
-	//   - それ以外（全行 failed、または duplicate+failed 混在でも persisted=0）→ failed
-	var termStatus model.LabImportJobStatus
-	switch {
-	case len(inputs) == 0:
-		termStatus = model.LabImportJobStatusDuplicate
-	case persisted > 0:
-		termStatus = model.LabImportJobStatusPersisted
-	case duplicate > 0 && failed == 0:
-		termStatus = model.LabImportJobStatusDuplicate
-	default:
-		termStatus = model.LabImportJobStatusFailed
-	}
-
-	finalCounts := TransitionCounts{
-		RowCount:       len(inputs),
-		PersistedCount: persisted,
-		DuplicateCount: duplicate,
-		FailedCount:    failed,
-	}
+	termStatus, finalCounts := summarizeLabBatchResults(len(inputs), batchResults)
 	if _, err := s.jobSvc.TransitionStatus(ctx, clinicID, jobID, termStatus, finalCounts); err != nil {
 		slog.ErrorContext(ctx, "lab result import: failed to transition to terminal status",
 			"error", err, "job_id", jobID, "status", termStatus)
@@ -182,16 +190,16 @@ func (s *labResultImportService) Commit(ctx context.Context, clinicID uint64, ba
 
 	slog.InfoContext(ctx, "lab result import commit complete",
 		slog.String("job_id", jobID.String()),
-		slog.Int("persisted", persisted),
-		slog.Int("duplicate", duplicate),
-		slog.Int("failed", failed),
+		slog.Int("persisted", finalCounts.PersistedCount),
+		slog.Int("duplicate", finalCounts.DuplicateCount),
+		slog.Int("failed", finalCounts.FailedCount),
 	)
 
 	return &model.LabImportCommitResponse{
 		JobID:            jobID,
-		PersistedCount:   persisted,
-		DuplicateCount:   duplicate,
+		PersistedCount:   finalCounts.PersistedCount,
+		DuplicateCount:   finalCounts.DuplicateCount,
 		NeedsReviewCount: 0,
-		FailedCount:      failed,
+		FailedCount:      finalCounts.FailedCount,
 	}, nil
 }
