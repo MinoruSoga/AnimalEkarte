@@ -85,12 +85,12 @@ src/
 │   ├── use-pet-selection-page.ts         # ペット選択ページロジック
 │   ├── use-pet.ts                        # 単体ペット取得
 │   ├── use-service-type-color-map.ts     # サービス種別→色マップ
-│   ├── usePagination.ts                  # ページネーション状態
-│   ├── useReducedMotion.ts               # アクセシビリティ
-│   ├── useSortableList.ts                # ソータブルリスト
-│   ├── useStaffValidation.ts             # スタッフ入力検証
+│   ├── use-pagination.ts                 # ページネーション状態
+│   ├── use-reduced-motion.ts             # アクセシビリティ
+│   ├── use-sortable-list.ts              # ソータブルリスト
+│   ├── use-staff-validation.ts           # スタッフ入力検証
 │   ├── useTableSort.ts                   # テーブルソート状態
-│   └── useUnsavedChanges.ts              # 未保存変更警告
+│   └── use-unsaved-changes.ts            # 未保存変更警告
 │
 ├── lib/                                   # ライブラリ設定・ユーティリティ
 │   ├── axios.ts                           # Axiosインスタンス（baseURL, interceptors）
@@ -1359,6 +1359,8 @@ export interface XxxFormData {
 
 > **原則**: feature をまたぐかどうかに関わらず、全ての型定義は `src/types/` に配置する。
 > `features/xxx/types/index.ts` は `src/types/xxx.ts` への re-export のみ許容（直接型定義を書かない）。
+>
+> **例外(FA9)**: transform 関数の ReturnType を型の正本とする場合に限り、`src/types/index.ts` から feature barrel の型を re-export してよい。
 
 ---
 
@@ -1795,8 +1797,7 @@ src/
 **ルール:**
 - テストファイル名: `[対象ファイル名].test.ts(x)`
 - 新規テストは同階層への co-located 配置を推奨する
-- 既存の `__tests__/` 配置（FE4-17 時点で 53 ファイル）は許容する。一括移動は行わない
-  （移動コストが可読性向上に見合わないため。新規追加時のみ co-located を選ぶ）
+- `__tests__/` は FE5-23 で全廃済み。テストは対象ファイル隣接配置とし、`__tests__/` の新設は禁止（正本: `frontend/CLAUDE.md`）
 
 ### 8.2 テスト例
 
