@@ -105,6 +105,37 @@ func (s *accountingService) Create(ctx context.Context, input *CreateAccountingI
 	return billing, nil
 }
 
+// resolvePaymentWrites は書込み前に method(ENUM)→payment_methods マスタ id を解決する
+// （tx 外・低コストな読取のみ。BE-refactor.md E-4）。hasPaymentFields(input) が false の場合は
+// (nil, nil, nil) を返す。
+func (s *accountingService) resolvePaymentWrites(ctx context.Context, input *UpdateAccountingInput) (*model.Payment, []model.PaymentSplit, error) {
+	if !hasPaymentFields(input) {
+		return nil, nil, nil
+	}
+	systemKeyToID, err := s.loadPaymentMethodSystemKeyToID(ctx, input.ClinicID)
+	if err != nil {
+		return nil, nil, err // loadPaymentMethodSystemKeyToID 内で既に wrap + log 済み
+	}
+	payment := buildPaymentFromInput(input)
+	// 代表支払方法も master id を併設（dual maintain）。method 未設定の更新（保険のみ等）は解決対象外。
+	if payment.Method != "" {
+		pid, err := resolvePaymentMethodMasterID(payment.Method, payment.PaymentMethodID, systemKeyToID)
+		if err != nil {
+			return nil, nil, err
+		}
+		payment.PaymentMethodID = pid
+	}
+	splits := buildPaymentSplits(input)
+	for i := range splits {
+		pid, err := resolvePaymentMethodMasterID(splits[i].Method, splits[i].PaymentMethodID, systemKeyToID)
+		if err != nil {
+			return nil, nil, err
+		}
+		splits[i].PaymentMethodID = pid
+	}
+	return payment, splits, nil
+}
+
 func (s *accountingService) Update(ctx context.Context, input *UpdateAccountingInput) (*model.Billing, error) {
 	// #115 / B4: レジ締め済み期間の会計編集は理由必須。service 層を権威的 enforcement 点とし、
 	// handler を迂回する呼び出し元にも不変条件を強制する。
@@ -134,30 +165,9 @@ func (s *accountingService) Update(ctx context.Context, input *UpdateAccountingI
 	// #128: 書込み前に method(ENUM)→payment_methods マスタ id を解決する（tx 外・低コストな読取のみ）。
 	// レジ締め・月次集計は payment_method_id をキーにし NULL を現金とみなすため、
 	// 非現金 split が NULL のまま保存されると全て現金に倒れる。解決失敗時はここで会計確定を止める。
-	var payment *model.Payment
-	var splits []model.PaymentSplit
-	if hasPaymentFields(input) {
-		systemKeyToID, err := s.loadPaymentMethodSystemKeyToID(ctx, input.ClinicID)
-		if err != nil {
-			return nil, err // loadPaymentMethodSystemKeyToID 内で既に wrap + log 済み
-		}
-		payment = buildPaymentFromInput(input)
-		// 代表支払方法も master id を併設（dual maintain）。method 未設定の更新（保険のみ等）は解決対象外。
-		if payment.Method != "" {
-			pid, err := resolvePaymentMethodMasterID(payment.Method, payment.PaymentMethodID, systemKeyToID)
-			if err != nil {
-				return nil, err
-			}
-			payment.PaymentMethodID = pid
-		}
-		splits = buildPaymentSplits(input)
-		for i := range splits {
-			pid, err := resolvePaymentMethodMasterID(splits[i].Method, splits[i].PaymentMethodID, systemKeyToID)
-			if err != nil {
-				return nil, err
-			}
-			splits[i].PaymentMethodID = pid
-		}
+	payment, splits, err := s.resolvePaymentWrites(ctx, input)
+	if err != nil {
+		return nil, err // resolvePaymentWrites 内で既に wrap + log 済み
 	}
 
 	// BE-refactor.md R1-2 (D1): Billing 本体更新・Payment upsert・締め後編集監査を単一 tx に統合する。
