@@ -15,18 +15,9 @@ import { formatCurrency, formatCurrencyOrDash } from "@/utils/format/number";
 import { useGetBillingItemDiscountSuggestions } from "../api/get-discount-suggestions";
 import type { AccountingItem, ItemCategory } from "../types";
 
-// FE4-1: vaccine/hotel/training を意図的に含まない部分集合マップ（既存 fallback `?? item.category` 済み）
-export const CATEGORY_LABELS: Partial<Record<ItemCategory, string>> = {
-  examination: "診察",
-  test: "検査",
-  procedure: "処置",
-  surgery: "手術",
-  medicine: "処方",
-  food: "フード",
-  goods: "物販",
-  trimming: "トリミング",
-  other: "その他",
-};
+// FE5-26: 正本は src/constants/item-category.ts へ移設。ItemListCard.tsx が本 re-export を消費する。
+import { CATEGORY_LABELS } from "@/constants/item-category";
+export { CATEGORY_LABELS };
 
 interface DiscountCellProps {
   item: AccountingItem;
