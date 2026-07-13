@@ -175,6 +175,34 @@ func TestRespondError(t *testing.T) {
 	}
 }
 
+// thirdPartyCodeMessageError は Code/Message の exported string フィールドを持つが
+// service.ReservationLimitError ではない任意のエラー型（サードパーティ SDK エラー等を模す）。
+type thirdPartyCodeMessageError struct {
+	Code    string
+	Message string
+}
+
+func (e *thirdPartyCodeMessageError) Error() string {
+	return e.Code + ": " + e.Message
+}
+
+// TestRespondError_UnclassifiedCustomErrorWithCodeMessageFields は、
+// exported Code/Message フィールドを持つが service.ReservationLimitError ではない
+// 非 AppError エラーが 500 + "internal server error" に落ちることを検証する
+// （第5期回帰: reflection フォールバックにより 409 + 自身のメッセージが漏れていた）。
+func TestRespondError_UnclassifiedCustomErrorWithCodeMessageFields(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	c, w := newTestContext()
+
+	err := &thirdPartyCodeMessageError{Code: "UPSTREAM_CODE", Message: "sensitive upstream detail"}
+	RespondError(c, err)
+
+	assert.Equal(t, http.StatusInternalServerError, w.Code)
+	assert.Contains(t, w.Body.String(), "internal server error")
+	assert.NotContains(t, w.Body.String(), "sensitive upstream detail")
+	assert.NotContains(t, w.Body.String(), "UPSTREAM_CODE")
+}
+
 // TestRespondErrorWithExtras_BadGateway は RespondErrorWithExtras に
 // apperrors.WrapBadGateway 相当のエラーを渡した場合、502 + 安全メッセージを
 // 返すことを検証する（旧 resolveErrorResponse は ErrBadGateway ケースを持たず

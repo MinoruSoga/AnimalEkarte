@@ -4,11 +4,11 @@ import (
 	"errors"
 	"maps"
 	"net/http"
-	"reflect"
 
 	"github.com/gin-gonic/gin"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
+	"github.com/animal-ekarte/backend/internal/service"
 )
 
 // RespondError はエラーを適切なHTTPステータスコードとメッセージにマッピングして返す。
@@ -78,14 +78,15 @@ func resolveErrorResponse(err error) (status int, message, code string) {
 		status = http.StatusBadRequest
 		message = classifyPgError(err)
 	case !hasApp:
-		// カスタムエラー型（ReservationLimitError 等 apperrors 外）のフォールバック:
-		// 公開フィールド Code / Message を持つ構造体を reflect で抽出する。
-		if c, m, ok := extractCodeMessage(err); ok {
+		// カスタムエラー型のフォールバック: 対象は service.ReservationLimitError のみ
+		// （唯一の利用元は liff_handler.go の RespondErrorWithExtras）。
+		var rle *service.ReservationLimitError
+		if errors.As(err, &rle) {
 			status = http.StatusConflict
-			code = c
-			message = err.Error()
-			if m != "" {
-				message = m
+			code = rle.Code
+			message = rle.Message
+			if message == "" {
+				message = err.Error()
 			}
 			break
 		}
@@ -111,32 +112,4 @@ func appMessageAndCode(hasApp bool, appErr *apperrors.AppError, defaultMessage s
 		}
 	}
 	return message, code
-}
-
-// extractCodeMessage は err が持つ Code / Message 公開フィールドを reflect で抽出する。
-// ReservationLimitError 等、apperrors 外のカスタムエラー型をサポートする。
-func extractCodeMessage(err error) (code, message string, ok bool) {
-	v := reflect.ValueOf(err)
-	if !v.IsValid() {
-		return "", "", false
-	}
-	for v.Kind() == reflect.Pointer {
-		if v.IsNil() {
-			return "", "", false
-		}
-		v = v.Elem()
-	}
-	if v.Kind() != reflect.Struct {
-		return "", "", false
-	}
-	codeField := v.FieldByName("Code")
-	msgField := v.FieldByName("Message")
-	if codeField.IsValid() && codeField.Kind() == reflect.String {
-		code = codeField.String()
-		ok = true
-	}
-	if msgField.IsValid() && msgField.Kind() == reflect.String {
-		message = msgField.String()
-	}
-	return code, message, ok
 }
