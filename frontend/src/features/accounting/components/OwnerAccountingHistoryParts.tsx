@@ -9,9 +9,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { paths } from "@/config/paths";
 import { C, ICON, STYLE } from "@/lib/design-tokens";
+import { ACCOUNTING_STATUS_LABELS } from "@/constants/accounting-status";
 import { formatCurrency } from "@/utils/format/number";
 import type { Accounting } from "../api/transforms";
-import type { AccountingStatus } from "../types";
 
 export type AccountingHistorySortField = "date" | "amount" | "status";
 export type AccountingHistorySortOrder = "asc" | "desc";
@@ -161,13 +161,6 @@ export function AccountingHistoryTable({
   );
 }
 
-const STATUS_LABEL: Record<AccountingStatus, string> = {
-  waiting: "未精算",
-  pending: "保留",
-  completed: "精算済",
-  cancelled: "取消",
-};
-
 const AccountingHistoryRow = memo(function AccountingHistoryRow({
   accounting,
   ref,
@@ -198,7 +191,7 @@ const AccountingHistoryRow = memo(function AccountingHistoryRow({
           variant={isCompleted ? "default" : "outline"}
           className="font-normal text-xs"
         >
-          {STATUS_LABEL[accounting.status] ?? accounting.status}
+          {ACCOUNTING_STATUS_LABELS[accounting.status] ?? accounting.status}
         </Badge>
       </TableCell>
       <TableCell className={`${STYLE.tableCell} text-right font-mono`}>

@@ -18,17 +18,11 @@ import { SortableHeader } from "@/components/shared/SortableHeader/SortableHeade
 import { StatusBadge } from "@/components/shared/StatusBadge/StatusBadge";
 import { C, ICON } from "@/lib/design-tokens";
 import { PAYMENT_METHOD_LABELS } from "@/constants/payment-method";
+import { ACCOUNTING_STATUS_LABELS } from "@/constants/accounting-status";
 import { formatCurrency } from "@/utils/format/number";
 import { getAccountingStatusColor } from "@/utils/status-helpers";
-import type { Accounting as AccountingType, AccountingStatus } from "../types";
+import type { Accounting as AccountingType } from "../types";
 import { calculateAccountingTotal } from "./accounting-list-table-model";
-
-const ACCOUNTING_STATUS_LABELS: Record<AccountingStatus, string> = {
-  waiting: "会計待ち",
-  pending: "会計待ち",
-  completed: "会計済",
-  cancelled: "キャンセル",
-};
 
 const FILTER_PROPERTIES: FilterProperty[] = [
   {

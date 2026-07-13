@@ -145,8 +145,14 @@ export const getExaminationStatusColor = (status: string) => {
 
 export const getAccountingStatusColor = (status: string) => {
   switch (status) {
+    // FE5-27: 一覧側を履歴側の4値区別ラベルへ統一(PO決定P-3)。旧ラベルのcaseは
+    // status-helpers.test.ts の直接呼び出し互換のため残す。
+    case "未精算":
     case "会計待ち": return BADGE.orange;
+    case "保留":    return BADGE.yellow;
+    case "精算済":
     case "会計済":   return BADGE.green;
+    case "取消":
     case "キャンセル": return BADGE.gray;
     default:      return "";
   }
