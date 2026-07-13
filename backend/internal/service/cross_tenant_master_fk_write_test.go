@@ -208,7 +208,7 @@ func TestTreatmentService_Create_RejectsCrossClinicMasterFK(t *testing.T) {
 			Procedure:     rejectProcedureRepo(ownedProcedureID),
 		}
 		repos.TransactionFn = func(_ context.Context, fn func(*repository.Repositories) error) error { return fn(repos) }
-		return NewTreatmentService(repos)
+		return NewTreatmentServiceWithAudit(repos, nil)
 	}
 
 	t.Run("rejects cross-clinic procedure_id and does not persist", func(t *testing.T) {
@@ -265,7 +265,7 @@ func TestTreatmentService_Update_RejectsCrossClinicMasterFK(t *testing.T) {
 			Procedure:     rejectProcedureRepo(ownedProcedureID),
 		}
 		repos.TransactionFn = func(_ context.Context, fn func(*repository.Repositories) error) error { return fn(repos) }
-		return NewTreatmentService(repos)
+		return NewTreatmentServiceWithAudit(repos, nil)
 	}
 
 	t.Run("rejects cross-clinic procedure_id on update and does not persist", func(t *testing.T) {
@@ -301,7 +301,7 @@ func TestTreatmentService_Create_RejectsCrossClinicInventoryFK(t *testing.T) {
 			Procedure:     okProcedureRepo(),
 		}
 		repos.TransactionFn = func(_ context.Context, fn func(*repository.Repositories) error) error { return fn(repos) }
-		return NewTreatmentService(repos)
+		return NewTreatmentServiceWithAudit(repos, nil)
 	}
 
 	t.Run("rejects cross-clinic inventory_id and does not persist", func(t *testing.T) {
@@ -358,7 +358,7 @@ func TestTreatmentService_Update_RejectsCrossClinicInventoryFK(t *testing.T) {
 			Procedure:     okProcedureRepo(),
 		}
 		repos.TransactionFn = func(_ context.Context, fn func(*repository.Repositories) error) error { return fn(repos) }
-		return NewTreatmentService(repos)
+		return NewTreatmentServiceWithAudit(repos, nil)
 	}
 
 	t.Run("rejects cross-clinic inventory_id on update and does not persist", func(t *testing.T) {

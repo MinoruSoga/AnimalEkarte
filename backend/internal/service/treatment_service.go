@@ -148,12 +148,6 @@ type treatmentService struct {
 	auditSvc AuditService
 }
 
-// NewTreatmentService はTreatmentServiceを初期化して返す（audit なし・後方互換）。
-// 本番配線は NewTreatmentServiceWithAudit を使う（#201 逸脱 audit のため）。
-func NewTreatmentService(repos *repository.Repositories) TreatmentService {
-	return &treatmentService{repos: repos}
-}
-
 // NewTreatmentServiceWithAudit は逸脱 audit 機能を有効化する（#201 B-2）。
 // auditSvc は非nilフラグとしてのみ使う（上記 struct コメント参照）。
 func NewTreatmentServiceWithAudit(repos *repository.Repositories, auditSvc AuditService) TreatmentService {

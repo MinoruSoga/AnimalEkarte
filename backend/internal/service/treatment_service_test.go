@@ -194,11 +194,11 @@ func TestTreatmentService_List(t *testing.T) {
 					return tt.repoTreatments, tt.repoErr
 				},
 			}
-			svc := NewTreatmentService(&repository.Repositories{
+			svc := NewTreatmentServiceWithAudit(&repository.Repositories{
 				Treatment:     repo,
 				MedicalRecord: &mockMedicalRecordRepoForTreatment{},
 				Inventory:     &mockInventoryRepository{},
-			})
+			}, nil)
 
 			treatments, err := svc.List(context.Background(), clinicID, tt.medicalRecordID)
 
@@ -230,7 +230,7 @@ func TestTreatmentService_ListPetHistory(t *testing.T) {
 				return []model.Treatment{{ID: 1}, {ID: 2}}, 2, nil
 			},
 		}
-		svc := NewTreatmentService(&repository.Repositories{Treatment: repo})
+		svc := NewTreatmentServiceWithAudit(&repository.Repositories{Treatment: repo}, nil)
 
 		treatments, total, err := svc.ListPetHistory(context.Background(), clinicID, petID, model.PetTreatmentHistoryFilter{ItemType: &medicine}, 1, 100)
 
@@ -250,7 +250,7 @@ func TestTreatmentService_ListPetHistory(t *testing.T) {
 				return nil, 0, nil
 			},
 		}
-		svc := NewTreatmentService(&repository.Repositories{Treatment: repo})
+		svc := NewTreatmentServiceWithAudit(&repository.Repositories{Treatment: repo}, nil)
 
 		_, _, err := svc.ListPetHistory(context.Background(), clinicID, petID, model.PetTreatmentHistoryFilter{ItemType: &invalid}, 1, 100)
 
@@ -264,7 +264,7 @@ func TestTreatmentService_ListPetHistory(t *testing.T) {
 				return nil, 0, errors.New("db error")
 			},
 		}
-		svc := NewTreatmentService(&repository.Repositories{Treatment: repo})
+		svc := NewTreatmentServiceWithAudit(&repository.Repositories{Treatment: repo}, nil)
 
 		_, _, err := svc.ListPetHistory(context.Background(), clinicID, petID, model.PetTreatmentHistoryFilter{}, 1, 100)
 
@@ -279,7 +279,7 @@ func TestTreatmentService_ListPetHistory(t *testing.T) {
 				return []model.Treatment{{ID: 10}}, 1, nil
 			},
 		}
-		svc := NewTreatmentService(&repository.Repositories{Treatment: repo})
+		svc := NewTreatmentServiceWithAudit(&repository.Repositories{Treatment: repo}, nil)
 
 		_, _, err := svc.ListPetHistory(context.Background(), clinicID, petID, model.PetTreatmentHistoryFilter{AnesthesiaOnly: true}, 1, 100)
 
@@ -297,7 +297,7 @@ func TestTreatmentService_ListPetHistory(t *testing.T) {
 				return []model.Treatment{{ID: 20}}, 1, nil
 			},
 		}
-		svc := NewTreatmentService(&repository.Repositories{Treatment: repo})
+		svc := NewTreatmentServiceWithAudit(&repository.Repositories{Treatment: repo}, nil)
 
 		_, _, err := svc.ListPetHistory(context.Background(), clinicID, petID, model.PetTreatmentHistoryFilter{IsSurgery: true}, 1, 100)
 
@@ -404,7 +404,7 @@ func TestTreatmentService_Create(t *testing.T) {
 			repos.TransactionFn = func(ctx context.Context, fn func(*repository.Repositories) error) error {
 				return fn(repos)
 			}
-			svc := NewTreatmentService(repos)
+			svc := NewTreatmentServiceWithAudit(repos, nil)
 
 			treatment, err := svc.Create(context.Background(), clinicID, tt.medicalRecordID, tt.input)
 
@@ -458,7 +458,7 @@ func TestTreatmentService_Create_DecreaseStock(t *testing.T) {
 		repos.TransactionFn = func(_ context.Context, fn func(*repository.Repositories) error) error {
 			return fn(repos)
 		}
-		svc := NewTreatmentService(repos)
+		svc := NewTreatmentServiceWithAudit(repos, nil)
 		input := &CreateTreatmentInput{
 			ItemType:   model.TreatmentItemTypeMedicine,
 			MedicineID: &medicineID,
@@ -504,7 +504,7 @@ func TestTreatmentService_Create_DecreaseStock(t *testing.T) {
 		repos.TransactionFn = func(_ context.Context, fn func(*repository.Repositories) error) error {
 			return fn(repos)
 		}
-		svc := NewTreatmentService(repos)
+		svc := NewTreatmentServiceWithAudit(repos, nil)
 		input := &CreateTreatmentInput{
 			ItemType:    model.TreatmentItemTypeMedicine,
 			MedicineID:  &medicineID,
@@ -668,7 +668,7 @@ func TestTreatmentService_Update(t *testing.T) {
 			updateRepos.TransactionFn = func(ctx context.Context, fn func(*repository.Repositories) error) error {
 				return fn(updateRepos)
 			}
-			svc := NewTreatmentService(updateRepos)
+			svc := NewTreatmentServiceWithAudit(updateRepos, nil)
 
 			treatment, err := svc.Update(context.Background(), clinicID, tt.medicalRecordID, tt.treatmentID, tt.input)
 
@@ -760,7 +760,7 @@ func TestTreatmentService_Delete(t *testing.T) {
 			repos.TransactionFn = func(_ context.Context, fn func(*repository.Repositories) error) error {
 				return fn(repos)
 			}
-			svc := NewTreatmentService(repos)
+			svc := NewTreatmentServiceWithAudit(repos, nil)
 
 			err := svc.Delete(context.Background(), clinicID, tt.medicalRecordID, tt.treatmentID)
 
@@ -857,7 +857,7 @@ func TestTreatmentService_BulkUpdateSortOrder(t *testing.T) {
 			repos.TransactionFn = func(_ context.Context, fn func(*repository.Repositories) error) error {
 				return fn(repos)
 			}
-			svc := NewTreatmentService(repos)
+			svc := NewTreatmentServiceWithAudit(repos, nil)
 
 			err := svc.BulkUpdateSortOrder(context.Background(), clinicID, tt.medicalRecordID, tt.input)
 
