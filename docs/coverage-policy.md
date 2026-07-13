@@ -51,7 +51,8 @@
 | 計測日 | Backend 総計 % | Frontend Statements % | Notes |
 |---|---|---|---|
 | 2026-07-01 | 実測値は CI 上に残存せず未確定（下記 07-03 arm 値が最初の正式記録） | — | `closing_settings_service`, `chronic_condition_service`, `shared_file_service`, `validators` 等の各種Service/Middlewareのテストを大幅に拡充しカバレッジを大幅向上（この時点では `.coverage-baseline` への転記・arm はまだ実施していない）。 |
-| 2026-07-03 | **89.9%**（arm 済み） | — | BE-refactor.md R3-5。GitHub Actions run 28655388836（push, commit 80e0648a）の `backend-coverage` artifact `coverage-summary.txt` 末尾 `total:` 行を `backend/.coverage-baseline` に転記。以降 tolerance（既定 0.5pp）を超える低下は CI を fail させる。 |
+| 2026-07-03 | 89.9%（re-arm 済み、下記 07-13 参照） | — | BE-refactor.md R3-5。GitHub Actions run 28655388836（push, commit 80e0648a）の `backend-coverage` artifact `coverage-summary.txt` 末尾 `total:` 行を `backend/.coverage-baseline` に転記。以降 tolerance（既定 0.5pp）を超える低下は CI を fail させる。 |
+| 2026-07-13 | **91.3%**（re-arm 済み） | — | Issue #212。GitHub Actions run 29152374862（push, commit 70f4c298）の `backend-coverage` artifact `coverage-summary.txt` 末尾 `total:` 行を `backend/.coverage-baseline` に転記（89.9→91.3）。内訳: handler 94.7% / service 94.5% / middleware 93.4% / config 93.9% / errors・model・dbconn 100% 達成、`internal/repository` 76.0% が主な残課題（同 Issue で低カバレッジ7ファイルにテスト追加）。`internal/infra`（line 0% / lstep 52.3% / crypto 75.7%）は除外ポリシー見直しの PO 判断待ちのため対象外。 |
 | 2026-07-04 | — | 未記録（0・warn-onlyで起動）→ 07-05 に arm（下記参照） | FE-refactor.md R-F5。`vite.config.ts` の coverage reporter に `json-summary` を追加し `coverage/coverage-summary.json` を生成。`frontend/scripts/coverage-ratchet.mjs` + `frontend/.coverage-baseline` を新設し CI に ratchet ステップを追加（backend と同型）。 |
 | 2026-07-05 | — | **43.78%**（arm 済み） | GitHub Actions run 28672433856（push to main, commit 61b85d7a）の `frontend-coverage` artifact `coverage-final.json`（v8 provider）を istanbul json-summary と同じ式で全799ファイル集計（13624 statements 中 5964 covered）し `frontend/.coverage-baseline` に転記。以降 tolerance を超える低下は CI を fail させる。詳細な算出根拠は `frontend/.coverage-baseline` のコメントを参照。 |
 
