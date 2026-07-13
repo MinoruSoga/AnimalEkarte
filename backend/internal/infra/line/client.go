@@ -3,10 +3,13 @@ package line
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"time"
+
+	"github.com/animal-ekarte/backend/internal/infra/httpx"
 )
 
 const (
@@ -48,42 +51,30 @@ func NewMessagingClient(channelAccessToken string) MessagingClient {
 	}
 }
 
-// newRequest はLINE Messaging API向けのHTTPリクエストを生成する。
+// newRequest はLINE Messaging API向けのHTTPリクエストを生成する
+// （共通ロジックは internal/infra/httpx.NewBearerRequest に集約。BE-refactor.md C-2）。
 func (c *httpLineClient) newRequest(ctx context.Context, body io.Reader) (*http.Request, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, pushEndpoint, body)
+	req, err := httpx.NewBearerRequest(ctx, http.MethodPost, pushEndpoint, c.channelAccessToken, body)
 	if err != nil {
 		return nil, fmt.Errorf("create line request: %w", err)
 	}
-	req.Header.Set("Authorization", "Bearer "+c.channelAccessToken)
-	req.Header.Set("Content-Type", "application/json")
 	return req, nil
 }
 
-// doWithRetry はレート制限時に指数バックオフで最大 maxRetries 回リトライする。
+// doWithRetry はレート制限時に指数バックオフで最大 maxRetries 回リトライする
+// （共通ロジックは internal/infra/httpx.DoWithRetry に集約。BE-refactor.md C-2）。
 func (c *httpLineClient) doWithRetry(ctx context.Context, fn func() (*http.Response, error)) (*http.Response, error) {
-	wait := retryInitialWait
-	var lastErr error
-	for attempt := 0; attempt <= maxRetries; attempt++ {
-		resp, err := fn()
-		if err != nil {
-			return nil, err
+	resp, err := httpx.DoWithRetry(ctx, c.http, maxRetries, retryInitialWait, fn)
+	if err != nil {
+		if errors.Is(err, httpx.ErrRateLimit) {
+			return nil, fmt.Errorf("%w: exhausted %d retries", ErrRateLimit, maxRetries)
 		}
-		if resp.StatusCode != http.StatusTooManyRequests {
-			return resp, nil
+		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+			return nil, fmt.Errorf("line client: %w", err)
 		}
-		_, _ = io.Copy(io.Discard, resp.Body)
-		_ = resp.Body.Close()
-		lastErr = ErrRateLimit
-		if attempt < maxRetries {
-			select {
-			case <-ctx.Done():
-				return nil, fmt.Errorf("line client: %w", ctx.Err())
-			case <-time.After(wait):
-				wait *= 2
-			}
-		}
+		return nil, err
 	}
-	return nil, fmt.Errorf("%w: exhausted %d retries", lastErr, maxRetries)
+	return resp, nil
 }
 
 // lineErrorResponse はLINE Messaging API エラーレスポンス
