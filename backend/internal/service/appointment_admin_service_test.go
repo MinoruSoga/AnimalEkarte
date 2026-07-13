@@ -106,7 +106,7 @@ func TestReservationAdminService_ListByMonth(t *testing.T) {
 					return items, tt.repoErr
 				},
 			}
-			svc := NewReservationAdminService(repo, &mockReservationRepository{}, &mockTransactor{})
+			svc := NewReservationAdminServiceWithAvailabilityAndType(repo, &mockReservationRepository{}, nil, &mockTransactor{}, nil, nil)
 			result, err := svc.ListByMonth(context.Background(), 1, tt.yearMonth)
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -145,7 +145,7 @@ func TestReservationAdminService_ListByDay(t *testing.T) {
 					return items, tt.repoErr
 				},
 			}
-			svc := NewReservationAdminService(repo, &mockReservationRepository{}, &mockTransactor{})
+			svc := NewReservationAdminServiceWithAvailabilityAndType(repo, &mockReservationRepository{}, nil, &mockTransactor{}, nil, nil)
 			result, err := svc.ListByDay(context.Background(), 1, day)
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -234,7 +234,7 @@ func TestReservationAdminService_Create(t *testing.T) {
 			}
 			repo := &mockReservationAdminRepository{}
 			tx := &mockTransactor{withTxErr: tt.txErr}
-			svc := NewReservationAdminService(repo, resRepo, tx)
+			svc := NewReservationAdminServiceWithAvailabilityAndType(repo, resRepo, nil, tx, nil, nil)
 			result, err := svc.Create(context.Background(), 1, tt.input)
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -318,7 +318,7 @@ func TestReservationAdminService_Create_RejectsExcludedStaff(t *testing.T) {
 			return false, nil
 		},
 	}
-	svc := NewReservationAdminService(&mockReservationAdminRepository{}, resRepo, &mockTransactor{}, staffRepo)
+	svc := NewReservationAdminServiceWithAvailabilityAndType(&mockReservationAdminRepository{}, resRepo, nil, &mockTransactor{}, staffRepo, nil)
 
 	result, err := svc.Create(context.Background(), 1, &CreateReservationAdminInput{
 		StartTime:         now,
@@ -357,7 +357,7 @@ func TestReservationAdminService_Create_RejectsUnavailableTime(t *testing.T) {
 			}, nil
 		},
 	}
-	svc := NewReservationAdminServiceWithAvailability(&mockReservationAdminRepository{}, resRepo, &mockTransactor{}, nil, unavailableRepo)
+	svc := NewReservationAdminServiceWithAvailabilityAndType(&mockReservationAdminRepository{}, resRepo, nil, &mockTransactor{}, nil, unavailableRepo)
 
 	result, err := svc.Create(context.Background(), 1, &CreateReservationAdminInput{
 		StartTime:         start,
@@ -405,7 +405,7 @@ func TestReservationAdminService_Delete(t *testing.T) {
 					return tt.deleteErr
 				},
 			}
-			svc := NewReservationAdminService(repo, resRepo, &mockTransactor{})
+			svc := NewReservationAdminServiceWithAvailabilityAndType(repo, resRepo, nil, &mockTransactor{}, nil, nil)
 			err := svc.Delete(context.Background(), 1, 1)
 			if tt.wantErr {
 				assert.Error(t, err)
