@@ -7,6 +7,7 @@ import { ja } from "date-fns/locale";
 import { C } from "@/lib/design-tokens";
 import { useClinicTaxRates } from "@/hooks/use-clinic-tax-rates";
 import { formatCurrency } from "@/utils/format/number";
+import { DISPLAY_DATE_FORMAT } from "@/utils/format/date";
 // #190: セクション定数 — R-F2-S9 で src/config/ へ抽出
 import {
   DOCUMENT_SECTION_KEYS,
@@ -79,7 +80,7 @@ function safeImageUrl(url: string | null | undefined): string | undefined {
  */
 export const AccountingDocument = memo(function AccountingDocument({ accounting, paymentInfo, clinic }: AccountingDocumentProps) {
   const currentDate = useMemo(
-    () => format(new Date(), "yyyy年MM月dd日", { locale: ja }),
+    () => format(new Date(), DISPLAY_DATE_FORMAT, { locale: ja }),
     [],
   );
 

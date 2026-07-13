@@ -63,9 +63,9 @@ describe("ReservationTypeAvailableSlotsCalendar", () => {
 
     renderCalendar();
 
-    expect(await screen.findByText("2026年 6月1日 - 6月7日")).toBeInTheDocument();
+    expect(await screen.findByText("2026/06/01 - 6月7日")).toBeInTheDocument();
 
-    const cell = await screen.findByRole("button", { name: "2026年6月1日" });
+    const cell = await screen.findByRole("button", { name: "2026/06/01" });
     expect(await within(cell).findByText("09:45")).toBeInTheDocument();
     expect(screen.queryByText("14:00")).not.toBeInTheDocument();
   });
@@ -83,8 +83,8 @@ describe("ReservationTypeAvailableSlotsCalendar", () => {
     await user.click(await screen.findByRole("button", { name: "次の週" }));
     await user.click(screen.getByRole("button", { name: "次の週" }));
 
-    expect(screen.getByText("2026年 6月15日 - 6月21日")).toBeInTheDocument();
-    const cell = await screen.findByRole("button", { name: "2026年6月15日" });
+    expect(screen.getByText("2026/06/15 - 6月21日")).toBeInTheDocument();
+    const cell = await screen.findByRole("button", { name: "2026/06/15" });
     expect(await within(cell).findByText("14:00")).toBeInTheDocument();
     expect(within(cell).getByText("09:45")).toBeInTheDocument();
   });
@@ -110,7 +110,7 @@ describe("ReservationTypeAvailableSlotsCalendar", () => {
     await user.click(await screen.findByRole("button", { name: "次の週" }));
     await user.click(screen.getByRole("button", { name: "次の週" }));
 
-    const cell = await screen.findByRole("button", { name: "2026年6月15日" });
+    const cell = await screen.findByRole("button", { name: "2026/06/15" });
     await user.click(cell);
 
     expect(await screen.findByText("6月15日（月）")).toBeInTheDocument();
@@ -143,7 +143,7 @@ describe("ReservationTypeAvailableSlotsCalendar", () => {
     await user.click(await screen.findByRole("button", { name: "次の週" }));
     await user.click(screen.getByRole("button", { name: "次の週" }));
 
-    const cell = await screen.findByRole("button", { name: "2026年6月20日" });
+    const cell = await screen.findByRole("button", { name: "2026/06/20" });
     await user.click(cell);
 
     await user.click(await screen.findByRole("button", { name: /追加/ }));
@@ -168,14 +168,14 @@ describe("ReservationTypeAvailableSlotsCalendar", () => {
     const user = userEvent.setup();
     renderCalendar();
 
-    expect(await screen.findByText("2026年 6月1日 - 6月7日")).toBeInTheDocument();
+    expect(await screen.findByText("2026/06/01 - 6月7日")).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "次の週" }));
-    expect(screen.getByText("2026年 6月8日 - 6月14日")).toBeInTheDocument();
+    expect(screen.getByText("2026/06/08 - 6月14日")).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "前の週" }));
     await user.click(screen.getByRole("button", { name: "前の週" }));
-    expect(screen.getByText("2026年 5月25日 - 5月31日")).toBeInTheDocument();
+    expect(screen.getByText("2026/05/25 - 5月31日")).toBeInTheDocument();
 
     // 「今日」は実行時の当週へ戻る（月曜始まりで動的に算出）
     await user.click(screen.getByRole("button", { name: "今日" }));
@@ -186,7 +186,8 @@ describe("ReservationTypeAvailableSlotsCalendar", () => {
     currentWeekStart.setDate(today.getDate() - daysFromMonday);
     const currentWeekEnd = new Date(currentWeekStart);
     currentWeekEnd.setDate(currentWeekStart.getDate() + 6);
-    const currentWeekLabel = `${format(currentWeekStart, "yyyy年 M月d日", { locale: ja })} - ${format(currentWeekEnd, "M月d日", { locale: ja })}`;
+    // FE5-28: 実装側の週見出しフォーマットが "yyyy年 M月d日" → "yyyy/MM/dd" (DISPLAY_DATE_FORMAT) に変更
+    const currentWeekLabel = `${format(currentWeekStart, "yyyy/MM/dd", { locale: ja })} - ${format(currentWeekEnd, "M月d日", { locale: ja })}`;
     expect(screen.getByText(currentWeekLabel)).toBeInTheDocument();
   });
 
@@ -214,7 +215,7 @@ describe("ReservationTypeAvailableSlotsCalendar", () => {
     await user.click(await screen.findByRole("button", { name: "次の週" }));
     await user.click(screen.getByRole("button", { name: "次の週" }));
 
-    const cell = await screen.findByRole("button", { name: "2026年6月15日" });
+    const cell = await screen.findByRole("button", { name: "2026/06/15" });
     expect(await within(cell).findByText("12:00")).toBeInTheDocument();
     expect(within(cell).getByText("13:00")).toBeInTheDocument();
   });
@@ -245,7 +246,7 @@ describe("ReservationTypeAvailableSlotsCalendar", () => {
     await user.click(await screen.findByRole("button", { name: "次の週" }));
     await user.click(screen.getByRole("button", { name: "次の週" }));
 
-    const cell = await screen.findByRole("button", { name: "2026年6月15日" });
+    const cell = await screen.findByRole("button", { name: "2026/06/15" });
     await user.click(cell);
 
     // デフォルト start_time は 09:00 → 既存と同じなので disabled
@@ -282,7 +283,7 @@ describe("ReservationTypeAvailableSlotsCalendar", () => {
     await user.click(await screen.findByRole("button", { name: "次の週" }));
     await user.click(screen.getByRole("button", { name: "次の週" }));
 
-    const cell = await screen.findByRole("button", { name: "2026年6月15日" });
+    const cell = await screen.findByRole("button", { name: "2026/06/15" });
     await user.click(cell);
 
     // デフォルト start_time は 09:00 → 既存 (10:00) と異なるので disabled にならない
@@ -320,7 +321,7 @@ describe("ReservationTypeAvailableSlotsCalendar", () => {
     await user.click(screen.getByRole("button", { name: "次の週" }));
 
     // 2026-06-15 は月曜
-    const cell = await screen.findByRole("button", { name: "2026年6月15日" });
+    const cell = await screen.findByRole("button", { name: "2026/06/15" });
     await user.click(cell);
 
     // weekly の 09:00 があるが specific は別管理 → disabled にならない
@@ -344,7 +345,7 @@ describe("ReservationTypeAvailableSlotsCalendar", () => {
     await user.click(await screen.findByRole("button", { name: "次の週" }));
     await user.click(screen.getByRole("button", { name: "次の週" }));
 
-    const cell = await screen.findByRole("button", { name: "2026年6月15日" });
+    const cell = await screen.findByRole("button", { name: "2026/06/15" });
     await user.click(cell);
 
     expect(await screen.findByText("毎週の枠（リストで管理）:")).toBeInTheDocument();

@@ -15,6 +15,7 @@ import { SubmitButton } from "@/components/shared/Form/SubmitButton";
 import { CalendarNavToolbar } from "@/components/shared/CalendarNavToolbar";
 import { C, ICON, STYLE } from "@/lib/design-tokens";
 import { toJSTWallDate } from "@/lib/jst-date";
+import { DISPLAY_DATE_FORMAT } from "@/utils/format/date";
 import { paths } from "@/config/paths";
 import { AvailableSlotTypeSpecific, AvailableSlotTypeWeekly } from "@/types/generated/models";
 import {
@@ -134,7 +135,7 @@ export function ReservationTypeAvailableSlotsCalendar({
     const weekStart = weekDays[0];
     const weekEnd = weekDays[6];
     if (!weekStart || !weekEnd) return "";
-    return `${format(weekStart, "yyyy年 M月d日", { locale: ja })} - ${format(weekEnd, "M月d日", { locale: ja })}`;
+    return `${format(weekStart, DISPLAY_DATE_FORMAT, { locale: ja })} - ${format(weekEnd, "M月d日", { locale: ja })}`;
   }, [weekDays]);
 
   const today = toJSTWallDate(new Date());
@@ -195,7 +196,7 @@ export function ReservationTypeAvailableSlotsCalendar({
                 type="button"
                 key={dateKey}
                 onClick={() => setSelectedDate(dateKey)}
-                aria-label={format(day, "yyyy年M月d日", { locale: ja })}
+                aria-label={format(day, DISPLAY_DATE_FORMAT, { locale: ja })}
                 className={`h-full min-h-[420px] text-left border-b border-r ${C.borderLight} p-3 transition-colors cursor-pointer flex flex-col
                   ${isSelected ? C.bgBrand8 : `${C.bgWhite} ${C.hoverBgPage}`}
                 `}

@@ -13,6 +13,7 @@ import { DeleteIconButton } from "@/components/shared/DeleteIconButton/DeleteIco
 import type { Reservation, ReservationStatus } from "../types";
 import { RESERVATION_STATUS_VALUES } from "../types";
 import { getReservationTypeName, getReservationStatusLabel } from "@/utils/status-helpers";
+import { DISPLAY_TIME_FORMAT } from "@/utils/format/date";
 import { typedSetter } from "@/lib/type-utils";
 import { useReservationTypeColorMap } from "@/hooks/use-reservation-type-color-map";
 import { RESERVATION_STATUS_COLORS, getReservationStatusColor, getVisitTypeColor } from "@/utils/constants/status-colors";
@@ -164,7 +165,7 @@ export const ReservationDetailModal = memo(function ReservationDetailModal({
                 </div>
                 <div className={`flex items-center gap-1.5 text-sm ${C.text60} mt-0.5`}>
                   <Clock className={ICON.xs} />
-                  {format(reservation.start, "H:mm")} – {format(reservation.end, "H:mm")}
+                  {format(reservation.start, DISPLAY_TIME_FORMAT)} – {format(reservation.end, DISPLAY_TIME_FORMAT)}
                 </div>
               </div>
             </div>
