@@ -213,6 +213,43 @@ func resolveCalculationType(s *string) model.MedicineCalculationType {
 	return model.MedicineCalculationType(*s)
 }
 
+// validateDoseConfigAfterUpdate は #201 投与量計算設定の書込検証。dose 関連フィールドが変わる時
+// のみ、更新後の実効設定を検証する（per_weight 誤設定・含量欠落を拒否。dose 非変更の Update には
+// 影響しない＝後方互換）（BE-refactor.md E-2）。
+func validateDoseConfigAfterUpdate(existing *model.Medicine, input *UpdateMedicineInput) error {
+	doseFieldsChanged := input.CalculationType != nil || input.Strength != nil || input.ClearStrength ||
+		input.FrequencyPerDay != nil || input.DefaultDurationDays != nil || input.MedicineUnit != nil
+	if !doseFieldsChanged {
+		return nil
+	}
+	effCalcType := existing.CalculationType
+	if input.CalculationType != nil {
+		effCalcType = resolveCalculationType(input.CalculationType)
+	}
+	if effCalcType == "" {
+		effCalcType = model.MedicineCalculationTypeNone
+	}
+	effUnit := existing.MedicineUnit
+	if input.MedicineUnit != nil {
+		effUnit = toMedicineUnitPtr(input.MedicineUnit)
+	}
+	effStrength := existing.Strength
+	if input.ClearStrength {
+		effStrength = nil
+	} else if input.Strength != nil {
+		effStrength = input.Strength
+	}
+	effFreq := existing.FrequencyPerDay
+	if input.FrequencyPerDay != nil {
+		effFreq = input.FrequencyPerDay
+	}
+	effDuration := existing.DefaultDurationDays
+	if input.DefaultDurationDays != nil {
+		effDuration = input.DefaultDurationDays
+	}
+	return ValidateMedicineDoseConfig(effCalcType, effUnit, effStrength, effFreq, effDuration)
+}
+
 func (s *medicineService) Create(ctx context.Context, clinicID uint64, input *CreateMedicineInput) (*model.Medicine, error) {
 	if err := validateRequiredName(input.Name); err != nil {
 		return nil, apperrors.Wrap(err, "failed to validate required name")
@@ -351,39 +388,8 @@ func (s *medicineService) Update(ctx context.Context, clinicID, id uint64, input
 		return nil, apperrors.Wrap(err, "failed to validate optional name")
 	}
 
-	// #201 投与量計算設定の書込検証。dose 関連フィールドが変わる時のみ、更新後の実効設定を検証する
-	// （per_weight 誤設定・含量欠落を拒否。dose 非変更の Update には影響しない＝後方互換）。
-	doseFieldsChanged := input.CalculationType != nil || input.Strength != nil || input.ClearStrength ||
-		input.FrequencyPerDay != nil || input.DefaultDurationDays != nil || input.MedicineUnit != nil
-	if doseFieldsChanged {
-		effCalcType := existing.CalculationType
-		if input.CalculationType != nil {
-			effCalcType = resolveCalculationType(input.CalculationType)
-		}
-		if effCalcType == "" {
-			effCalcType = model.MedicineCalculationTypeNone
-		}
-		effUnit := existing.MedicineUnit
-		if input.MedicineUnit != nil {
-			effUnit = toMedicineUnitPtr(input.MedicineUnit)
-		}
-		effStrength := existing.Strength
-		if input.ClearStrength {
-			effStrength = nil
-		} else if input.Strength != nil {
-			effStrength = input.Strength
-		}
-		effFreq := existing.FrequencyPerDay
-		if input.FrequencyPerDay != nil {
-			effFreq = input.FrequencyPerDay
-		}
-		effDuration := existing.DefaultDurationDays
-		if input.DefaultDurationDays != nil {
-			effDuration = input.DefaultDurationDays
-		}
-		if err := ValidateMedicineDoseConfig(effCalcType, effUnit, effStrength, effFreq, effDuration); err != nil {
-			return nil, apperrors.Wrap(err, "failed to validate dose config")
-		}
+	if err := validateDoseConfigAfterUpdate(existing, input); err != nil {
+		return nil, apperrors.Wrap(err, "failed to validate dose config")
 	}
 
 	if err := s.validateParentOwnership(ctx, clinicID, input.ParentID); err != nil {
