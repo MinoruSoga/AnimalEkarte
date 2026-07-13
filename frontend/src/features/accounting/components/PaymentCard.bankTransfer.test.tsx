@@ -32,7 +32,8 @@ describe("PaymentCard — 銀行振込 (#127)", () => {
     expect(screen.getByRole("button", { name: "銀行振込" })).toBeInTheDocument();
     // 既存の支払方法も維持されていること（回帰）。
     expect(screen.getByRole("button", { name: "現金" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "カード" })).toBeInTheDocument();
+    // FE5-25: PAYMENT_METHOD_LABELS_SHORT 廃止により "カード" → "クレジットカード" へ変更
+    expect(screen.getByRole("button", { name: "クレジットカード" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "電子マネー" })).toBeInTheDocument();
   });
 

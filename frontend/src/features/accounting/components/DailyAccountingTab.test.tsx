@@ -234,8 +234,8 @@ describe("DailyAccountingTab", () => {
     });
     const table = screen.getByTestId("daily-accounting-table");
     // paymentSplits.length > 1 のとき method ラベルを " / " 区切りで結合して表示する
-    // DailyAccountingTab の PAYMENT_METHOD_LABELS: credit_card → "カード"
-    expect(within(table).getByText(/現金.*カード|カード.*現金/)).toBeInTheDocument();
+    // FE5-25: PAYMENT_METHOD_LABELS_SHORT 廃止により credit_card は "カード" → "クレジットカード" へ変更
+    expect(within(table).getByText(/現金.*クレジットカード|クレジットカード.*現金/)).toBeInTheDocument();
   });
 
   // ── #117: 新規テスト ──────────────────────────────────────────────

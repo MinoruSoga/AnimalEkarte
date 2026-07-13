@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { C, ICON } from "@/lib/design-tokens";
-import { PAYMENT_METHOD_LABELS_SHORT as PAYMENT_METHOD_LABELS } from "@/constants/payment-method";
+import { PAYMENT_METHOD_LABELS } from "@/constants/payment-method";
 import { formatJSTDate } from "@/lib/jst-date";
 import { formatCurrency } from "@/utils/format/number";
 

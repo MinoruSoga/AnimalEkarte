@@ -12,7 +12,7 @@ import { C, ICON } from "@/lib/design-tokens";
 import { formatCurrency } from "@/utils/format/number";
 
 import type { PaymentMethod } from "../types";
-import { PAYMENT_METHOD_LABELS_SHORT as PAYMENT_METHOD_LABELS } from "@/constants/payment-method";
+import { PAYMENT_METHOD_LABELS } from "@/constants/payment-method";
 
 export interface PaymentSplitDraft {
   method: PaymentMethod;

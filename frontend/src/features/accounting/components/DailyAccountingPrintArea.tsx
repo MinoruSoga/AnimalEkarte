@@ -1,7 +1,7 @@
 import { createPortal } from "react-dom";
 
 import { Z } from "@/lib/design-tokens";
-import { PAYMENT_METHOD_LABELS_SHORT as PAYMENT_METHOD_LABELS } from "@/constants/payment-method";
+import { PAYMENT_METHOD_LABELS } from "@/constants/payment-method";
 import { formatCurrency, formatCurrencyOrDash } from "@/utils/format/number";
 import { CatCell } from "./DailyAccountingTabParts";
 import { formatReceiptNo } from "./daily-accounting-utils";
