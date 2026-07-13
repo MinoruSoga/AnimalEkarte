@@ -253,6 +253,8 @@ func TestConfigValidate_StorageTypeS3RequiresBucketAndRegion(t *testing.T) {
 			cfg.StorageType = "s3"
 			cfg.S3Bucket = tt.s3Bucket
 			cfg.S3Region = tt.s3Region
+			// S3SharedBucket は本テストの対象外（A-4 で別途検証）なのでOKケースでは満たしておく。
+			cfg.S3SharedBucket = "shared-bucket"
 
 			err := cfg.Validate()
 
@@ -270,5 +272,21 @@ func TestConfigValidate_StorageTypeNonS3SkipsBucketRegionCheck(t *testing.T) {
 	cfg := &Config{GinMode: "debug", JWTSecret: "secure-jwt-secret", StorageType: "local"}
 	if err := cfg.Validate(); err != nil {
 		t.Fatalf("Validate() error = %v, want nil", err)
+	}
+}
+
+// TestConfigValidate_StorageTypeS3RequiresSharedBucket は STORAGE_TYPE=s3 かつ
+// S3_SHARED_BUCKET 未設定の場合に Validate() が fail-fast することを検証する
+// （main.go の S3_SHARED_BUCKET 参照は最初の共有ファイルアップロードまで検証されなかった）。
+func TestConfigValidate_StorageTypeS3RequiresSharedBucket(t *testing.T) {
+	cfg := &Config{GinMode: "debug", JWTSecret: "secure-jwt-secret"}
+	cfg.StorageType = "s3"
+	cfg.S3Bucket = "bucket"
+	cfg.S3Region = "ap-northeast-1"
+	cfg.S3SharedBucket = ""
+
+	err := cfg.Validate()
+	if err == nil || !strings.Contains(err.Error(), "S3_SHARED_BUCKET is required") {
+		t.Fatalf("expected S3_SHARED_BUCKET error, got %v", err)
 	}
 }

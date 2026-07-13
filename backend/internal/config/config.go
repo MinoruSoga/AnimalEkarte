@@ -107,6 +107,9 @@ func (c *Config) Validate() error {
 	if c.StorageType == "s3" && (c.S3Bucket == "" || c.S3Region == "") {
 		return fmt.Errorf("S3_BUCKET and S3_REGION are required when STORAGE_TYPE=s3")
 	}
+	if c.StorageType == "s3" && c.S3SharedBucket == "" {
+		return fmt.Errorf("S3_SHARED_BUCKET is required when STORAGE_TYPE=s3")
+	}
 	if c.GinMode != "release" {
 		return nil
 	}
