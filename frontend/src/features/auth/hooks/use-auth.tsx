@@ -15,13 +15,15 @@ export { useAuth } from "@/hooks/use-auth";
 
 /* セッション情報は httpOnly Cookie で管理するため localStorage への保存は不要。
  * 選択中のクリニック ID のみ localStorage に残す（権限情報ではないためリスク低） */
-function saveClinicToStorage(clinicId: string): void {
+function saveClinicToStorage(clinicId: string): boolean {
   try {
     localStorage.setItem(CURRENT_CLINIC_STORAGE_KEY, clinicId);
+    return true;
   } catch (error) {
     if (import.meta.env.DEV) {
       console.warn("[auth] failed to save clinic to localStorage", error);
     }
+    return false;
   }
 }
 
@@ -118,7 +120,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
       const isMember = user.clinics.some((c) => c.clinicId === clinicId);
       if (!isMember) return;
       // 1. localStorage 更新（リロード後に axios interceptor が新 clinic_id を送信する）
-      saveClinicToStorage(clinicId);
+      // FE6-2: 書込失敗時はここで打ち切る。続行して reload すると旧クリニックIDのまま
+      // 復帰し、ユーザーが切替成功と誤認する無音失敗になるため。
+      if (!saveClinicToStorage(clinicId)) {
+        toast.error("クリニックの切替に失敗しました。ブラウザのストレージ設定を確認してください。");
+        return;
+      }
       // 2. FE5-3: reload 前に React Query キャッシュを破棄する。
       //    現状は reload 1 行が安全性の全てを担っており、将来切替を SPA 化した際に
       //    clinic id を含まないクエリキー（accountings/medical-records 等）が

@@ -11,6 +11,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, act, waitFor } from "@testing-library/react";
 import { Suspense } from "react";
+import { toast } from "sonner";
 
 const STORAGE_KEY = "auth_current_clinic:v1";
 const CLINIC_A = "clinic-a";
@@ -59,6 +60,10 @@ vi.mock("../api/get-me", () => ({
 
 vi.mock("../api/logout", () => ({
   logout: vi.fn().mockResolvedValue(undefined),
+}));
+
+vi.mock("sonner", () => ({
+  toast: { success: vi.fn(), error: vi.fn(), warning: vi.fn() },
 }));
 
 vi.mock("@tanstack/react-query", async (importActual) => {
@@ -201,6 +206,30 @@ describe("FEAT-374: switchClinic", () => {
 
     expect(localStorage.getItem(STORAGE_KEY)).toBeNull();
     expect(reloadSpy).not.toHaveBeenCalled();
+  });
+
+  it("localStorage書込が失敗した場合はreloadせずエラートーストを表示する", async () => {
+    const setItemSpy = vi
+      .spyOn(Storage.prototype, "setItem")
+      .mockImplementation(() => {
+        throw new DOMException("QuotaExceededError");
+      });
+
+    await renderWithAuth(
+      <ClinicSwitcher targetClinicId={CLINIC_B} label="switch-to-b" />,
+    );
+
+    await act(async () => {
+      screen.getByText("switch-to-b").click();
+    });
+
+    expect(reloadSpy).not.toHaveBeenCalled();
+    expect(mockQueryClient.clear).not.toHaveBeenCalled();
+    expect(toast.error).toHaveBeenCalledWith(
+      "クリニックの切替に失敗しました。ブラウザのストレージ設定を確認してください。",
+    );
+
+    setItemSpy.mockRestore();
   });
 });
 
