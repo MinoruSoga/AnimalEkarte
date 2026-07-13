@@ -183,9 +183,10 @@ func (s *checkupService) Create(ctx context.Context, medicalRecordID uint64, inp
 		clinicID := input.ClinicID
 		ownerID := *created.MedicalRecord.OwnerID
 		svc := s.lstepDeliveryTrigger
-		// context.WithoutCancel: HTTP request の cancel から切離しつつ tracing context を保持。
+		// repository.DetachTx: HTTP request の cancel から切離しつつ tracing context を保持。
 		// M-4: fire-and-forget goroutine のため、context.WithTimeout で明示的に制限を設定。
-		bgCtx := context.WithoutCancel(ctx)
+		// goroutine 境界を跨ぐ WithoutCancel は ambient tx を剥がすこと（BE-refactor.md B-2）。
+		bgCtx := repository.DetachTx(ctx)
 		s.wg.Add(1)
 		goSafe("checkup followup trigger", func() {
 			defer s.wg.Done()

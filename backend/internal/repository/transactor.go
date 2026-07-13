@@ -40,3 +40,13 @@ func txFromContext(ctx context.Context) *gorm.DB {
 	tx, _ := ctx.Value(txKey{}).(*gorm.DB)
 	return tx
 }
+
+// DetachTx は ambient tx（txKey）を持ち越さない context.WithoutCancel(ctx) を返す。
+// goroutine 境界を跨いで背景実行する際、親 ctx のキャンセルからは切り離したいが、
+// context.WithoutCancel は ctx の値を全て保持するため ambient tx（コミット済みの可能性がある）
+// も goroutine に持ち越してしまう（BE-refactor.md B-2）。
+// context は値を削除できない（WithValue は既存値を shadow するのみ）ため、
+// txFromContext が nil とみなす値で上書きして無効化する。
+func DetachTx(ctx context.Context) context.Context {
+	return context.WithValue(context.WithoutCancel(ctx), txKey{}, (*gorm.DB)(nil))
+}
