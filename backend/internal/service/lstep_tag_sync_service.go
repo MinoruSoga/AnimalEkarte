@@ -251,6 +251,28 @@ func NewLstepTagSyncService(
 	}
 }
 
+// NewLstepTagSyncFromRepos は *repository.Repositories から LstepTagSyncService を構築する
+// 共有コンストラクタ（BE-refactor.md C-3）。NewServices と cmd/lstep-migrate/main.go の
+// 両方から呼ぶことで、依存追加時の2箇所同期漏れ（引数順ミスはコンパイラで検出不能）を防ぐ。
+func NewLstepTagSyncFromRepos(repos *repository.Repositories, settings LstepSettingsService) LstepTagSyncService {
+	return NewLstepTagSyncService(
+		settings,
+		repos.Owner,
+		repos.Vaccination,
+		repos.MedicalRecord,
+		repos.Accounting,
+		repos.LstepTagCache,
+		repos.Pet,
+		repos.Prescription,
+		repos.Checkup,
+		repos.Reservation,
+		repos.LstepSyncErrorCounter,
+		repos.LstepTagCodeMapping,
+		repos.BillingItem,
+		repos.LstepTagConfig,
+	)
+}
+
 // buildClient はクリニック設定から lstep.Client を構築する。
 // 同期無効（is_sync_enabled=false）または API キー未設定の場合は nil, nil を返す（スキップ）。
 func (s *lstepTagSyncService) buildClient(ctx context.Context, clinicID uint64) (lstep.Client, error) {

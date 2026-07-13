@@ -88,22 +88,7 @@ func run() int {
 	}
 
 	settingsSvc := service.NewLstepSettingsService(repos.LstepSettings, repos.LstepSyncSettings, cipher, nil, nil)
-	tagSyncSvc := service.NewLstepTagSyncService(
-		settingsSvc,
-		repos.Owner,
-		repos.Vaccination,
-		repos.MedicalRecord,
-		repos.Accounting,
-		repos.LstepTagCache,
-		repos.Pet,
-		repos.Prescription,
-		repos.Checkup,
-		repos.Reservation,
-		repos.LstepSyncErrorCounter,
-		repos.LstepTagCodeMapping,
-		repos.BillingItem,
-		repos.LstepTagConfig,
-	)
+	tagSyncSvc := service.NewLstepTagSyncFromRepos(repos, settingsSvc)
 
 	migCfg := Config{
 		ClinicID:        *clinicID,
