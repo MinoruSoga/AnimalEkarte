@@ -206,68 +206,74 @@ func (s *lstepSettingsService) GetSettings(ctx context.Context, clinicID uint64)
 			slog.ErrorContext(ctx, "failed to find clinic settings", "error", csErr, "clinic_id", clinicID)
 			return nil, apperrors.Wrap(csErr, "failed to find clinic settings")
 		}
-		if cs.CPMVersion == "" {
-			resp.CPMVersion = "v1"
-		} else {
-			resp.CPMVersion = cs.CPMVersion
-		}
-		thresholds := model.DormantThresholds{
-			Stage180: cs.DormantPrevention180Days,
-			Stage210: cs.DormantPrevention210Days,
-			Stage240: cs.DormantPrevention240Days,
-			Stage365: cs.DormantPrevention365Days,
-		}.WithDefaults()
-		resp.DormantPrevention180Days = thresholds.Stage180
-		resp.DormantPrevention210Days = thresholds.Stage210
-		resp.DormantPrevention240Days = thresholds.Stage240
-		resp.DormantPrevention365Days = thresholds.Stage365
-		v2t := model.CPMV2Thresholds{
-			Coming: cs.CPMV2ComingThreshold,
-			Good:   cs.CPMV2GoodThreshold,
-			Family: cs.CPMV2FamilyThreshold,
-			Noah:   cs.CPMV2NoahThreshold,
-		}.WithDefaults()
-		resp.CPMV2ComingThreshold = v2t.Coming
-		resp.CPMV2GoodThreshold = v2t.Good
-		resp.CPMV2FamilyThreshold = v2t.Family
-		resp.CPMV2NoahThreshold = v2t.Noah
-		v1t := model.CPMV1Thresholds{
-			DormantDays:      cs.CPMV1DormantDays,
-			NoahDays:         cs.CPMV1NoahDays,
-			NoahAnnualVisits: cs.CPMV1NoahAnnualVisits,
-			NoahLTV:          cs.CPMV1NoahLTV,
-			CoreDays:         cs.CPMV1CoreDays,
-			CoreAnnualVisits: cs.CPMV1CoreAnnualVisits,
-			CoreLTV:          cs.CPMV1CoreLTV,
-			SpotMinAmount:    cs.CPMV1SpotMinAmount,
-			SpotInactiveDays: cs.CPMV1SpotInactiveDays,
-			GrowingMaxDays:   cs.CPMV1GrowingMaxDays,
-			GrowingMinVisits: cs.CPMV1GrowingMinVisits,
-			GrowingMaxVisits: cs.CPMV1GrowingMaxVisits,
-			LTVBreakLow:      cs.CPMV1LTVBreakLow,
-		}.WithDefaults()
-		resp.CPMV1DormantDays = v1t.DormantDays
-		resp.CPMV1NoahDays = v1t.NoahDays
-		resp.CPMV1NoahAnnualVisits = v1t.NoahAnnualVisits
-		resp.CPMV1NoahLTV = v1t.NoahLTV
-		resp.CPMV1CoreDays = v1t.CoreDays
-		resp.CPMV1CoreAnnualVisits = v1t.CoreAnnualVisits
-		resp.CPMV1CoreLTV = v1t.CoreLTV
-		resp.CPMV1SpotMinAmount = v1t.SpotMinAmount
-		resp.CPMV1SpotInactiveDays = v1t.SpotInactiveDays
-		resp.CPMV1GrowingMaxDays = v1t.GrowingMaxDays
-		resp.CPMV1GrowingMinVisits = v1t.GrowingMinVisits
-		resp.CPMV1GrowingMaxVisits = v1t.GrowingMaxVisits
-		resp.CPMV1LTVBreakLow = v1t.LTVBreakLow
-		hpt := model.HealthPreventionThresholds{
-			LookbackDays:    cs.HealthPreventionLookbackDays,
-			VaccineDeadline: cs.VaccineDeadlineDays,
-		}.WithDefaults()
-		resp.HealthPreventionLookbackDays = hpt.LookbackDays
-		resp.VaccineDeadlineDays = hpt.VaccineDeadline
+		applyClinicSettingsToLstepResponse(resp, cs)
 	}
 
 	return resp, nil
+}
+
+// applyClinicSettingsToLstepResponse は ClinicSettings から LstepSettingsResponse への
+// CPM v1/v2・dormant・health 閾値の純粋なフィールドマッピングを行う（BE-refactor.md E-1）。
+func applyClinicSettingsToLstepResponse(resp *LstepSettingsResponse, cs *model.ClinicSettings) {
+	if cs.CPMVersion == "" {
+		resp.CPMVersion = "v1"
+	} else {
+		resp.CPMVersion = cs.CPMVersion
+	}
+	thresholds := model.DormantThresholds{
+		Stage180: cs.DormantPrevention180Days,
+		Stage210: cs.DormantPrevention210Days,
+		Stage240: cs.DormantPrevention240Days,
+		Stage365: cs.DormantPrevention365Days,
+	}.WithDefaults()
+	resp.DormantPrevention180Days = thresholds.Stage180
+	resp.DormantPrevention210Days = thresholds.Stage210
+	resp.DormantPrevention240Days = thresholds.Stage240
+	resp.DormantPrevention365Days = thresholds.Stage365
+	v2t := model.CPMV2Thresholds{
+		Coming: cs.CPMV2ComingThreshold,
+		Good:   cs.CPMV2GoodThreshold,
+		Family: cs.CPMV2FamilyThreshold,
+		Noah:   cs.CPMV2NoahThreshold,
+	}.WithDefaults()
+	resp.CPMV2ComingThreshold = v2t.Coming
+	resp.CPMV2GoodThreshold = v2t.Good
+	resp.CPMV2FamilyThreshold = v2t.Family
+	resp.CPMV2NoahThreshold = v2t.Noah
+	v1t := model.CPMV1Thresholds{
+		DormantDays:      cs.CPMV1DormantDays,
+		NoahDays:         cs.CPMV1NoahDays,
+		NoahAnnualVisits: cs.CPMV1NoahAnnualVisits,
+		NoahLTV:          cs.CPMV1NoahLTV,
+		CoreDays:         cs.CPMV1CoreDays,
+		CoreAnnualVisits: cs.CPMV1CoreAnnualVisits,
+		CoreLTV:          cs.CPMV1CoreLTV,
+		SpotMinAmount:    cs.CPMV1SpotMinAmount,
+		SpotInactiveDays: cs.CPMV1SpotInactiveDays,
+		GrowingMaxDays:   cs.CPMV1GrowingMaxDays,
+		GrowingMinVisits: cs.CPMV1GrowingMinVisits,
+		GrowingMaxVisits: cs.CPMV1GrowingMaxVisits,
+		LTVBreakLow:      cs.CPMV1LTVBreakLow,
+	}.WithDefaults()
+	resp.CPMV1DormantDays = v1t.DormantDays
+	resp.CPMV1NoahDays = v1t.NoahDays
+	resp.CPMV1NoahAnnualVisits = v1t.NoahAnnualVisits
+	resp.CPMV1NoahLTV = v1t.NoahLTV
+	resp.CPMV1CoreDays = v1t.CoreDays
+	resp.CPMV1CoreAnnualVisits = v1t.CoreAnnualVisits
+	resp.CPMV1CoreLTV = v1t.CoreLTV
+	resp.CPMV1SpotMinAmount = v1t.SpotMinAmount
+	resp.CPMV1SpotInactiveDays = v1t.SpotInactiveDays
+	resp.CPMV1GrowingMaxDays = v1t.GrowingMaxDays
+	resp.CPMV1GrowingMinVisits = v1t.GrowingMinVisits
+	resp.CPMV1GrowingMaxVisits = v1t.GrowingMaxVisits
+	resp.CPMV1LTVBreakLow = v1t.LTVBreakLow
+	hpt := model.HealthPreventionThresholds{
+		LookbackDays:    cs.HealthPreventionLookbackDays,
+		VaccineDeadline: cs.VaccineDeadlineDays,
+	}.WithDefaults()
+	resp.HealthPreventionLookbackDays = hpt.LookbackDays
+	resp.VaccineDeadlineDays = hpt.VaccineDeadline
 }
 
 func (s *lstepSettingsService) UpdateSettings(ctx context.Context, clinicID uint64, input *UpdateLstepSettingsInput, actorID *uint64) (*LstepSettingsResponse, error) {
