@@ -8,6 +8,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar as CalendarIcon, Clock, ArrowRight } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { DISPLAY_TIME_FORMAT } from "@/utils/format/date";
 import { TIME_OPTIONS } from "./reservation-time-utils";
 import type { Reservation } from "@/types";
 
@@ -113,7 +114,7 @@ export function ReservationDateTimeFields({
         </div>
         <div className="flex items-center gap-2">
           <Select
-            value={formData.start ? format(formData.start, "H:mm") : "10:00"}
+            value={formData.start ? format(formData.start, DISPLAY_TIME_FORMAT) : "10:00"}
             onValueChange={(v) => {
               if (!formData.start) return;
               const [h, m] = v.split(":").map(Number);
@@ -143,7 +144,7 @@ export function ReservationDateTimeFields({
           </Select>
           <ArrowRight className={`${ICON.action} ${C.text40} flex-shrink-0`} />
           <Select
-            value={formData.end ? format(formData.end, "H:mm") : "11:00"}
+            value={formData.end ? format(formData.end, DISPLAY_TIME_FORMAT) : "11:00"}
             onValueChange={(v) => {
               if (!formData.end) return;
               const [h, m] = v.split(":").map(Number);

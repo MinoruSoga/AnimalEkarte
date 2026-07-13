@@ -4,10 +4,11 @@ import type { ReservationTypeUnavailableTime } from "@/features/master";
 function generateTimeOptions(): string[] {
   const times: string[] = [];
   for (let h = 0; h < 24; h++) {
-    times.push(`${h}:00`);
-    times.push(`${h}:15`);
-    times.push(`${h}:30`);
-    times.push(`${h}:45`);
+    const hh = String(h).padStart(2, "0");
+    times.push(`${hh}:00`);
+    times.push(`${hh}:15`);
+    times.push(`${hh}:30`);
+    times.push(`${hh}:45`);
   }
   return times;
 }
@@ -20,10 +21,11 @@ function timeToMinutes(time: string): number {
 }
 
 export function slotTimeToSelectValue(time: string): string {
-  if (time.includes(":")) return time.replace(/^0/, "");
-  const hour = Number(time.slice(0, 2));
-  const minute = time.slice(2, 4);
-  return `${hour}:${minute}`;
+  if (time.includes(":")) {
+    const [hour, minute = "00"] = time.split(":");
+    return `${hour.padStart(2, "0")}:${minute.slice(0, 2)}`;
+  }
+  return `${time.slice(0, 2)}:${time.slice(2, 4)}`;
 }
 
 export function getApplicableUnavailableTimes(

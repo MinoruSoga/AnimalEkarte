@@ -453,11 +453,11 @@ describe("ReservationFormModal — 予約不可時間", () => {
     fireEvent.click(await screen.findByTestId("res-type-card-5"));
 
     await waitFor(() => {
-      expect(screen.getByTestId("res-start-time-trigger")).toHaveTextContent("9:00");
+      expect(screen.getByTestId("res-start-time-trigger")).toHaveTextContent("09:00");
     });
     await user.click(screen.getByTestId("res-start-time-trigger"));
     await waitFor(() => {
-      expect(screen.getByRole("option", { name: "9:45" })).toBeInTheDocument();
+      expect(screen.getByRole("option", { name: "09:45" })).toBeInTheDocument();
     });
     expect(screen.queryByRole("option", { name: "10:00" })).not.toBeInTheDocument();
     expect(screen.queryByRole("option", { name: "10:45" })).not.toBeInTheDocument();
