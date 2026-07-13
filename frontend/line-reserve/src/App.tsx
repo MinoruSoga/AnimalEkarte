@@ -3,6 +3,7 @@ import type { PageType, LiffSettings, LiffProfile, CustomerInfo } from './types/
 import { liffApi } from './api/liff-api';
 import { useLiff } from '@/shared-liff/use-liff';
 import { Spinner } from '@/shared-liff/Spinner';
+import { ErrorPage, type ErrorPageTheme } from '@/shared-liff/ErrorPage';
 import { useReservationFlow } from './hooks/use-reservation-flow';
 import { getClinicId } from './lib/liff-config';
 
@@ -18,8 +19,15 @@ import { RequestPage } from './pages/RequestPage';
 import { ConfirmPage } from './pages/ConfirmPage';
 import { CompletePage } from './pages/CompletePage';
 import { MyReservationsPage } from './pages/MyReservationsPage';
-import { ErrorPage } from './pages/ErrorPage';
 import { MaintenancePage } from './pages/MaintenancePage';
+
+const ERROR_PAGE_THEME: ErrorPageTheme = {
+  bg: 'bg-noah-teal-light',
+  heading: 'text-noah-teal-dark',
+  body: 'text-noah-text-sub',
+  button: 'bg-noah-teal',
+  buttonHover: 'hover:bg-noah-teal-dark',
+};
 
 export function App() {
   const clinicId = getClinicId();
@@ -125,11 +133,11 @@ export function App() {
 
   // ページのレンダリング
   if (!clinicId) {
-    return <ErrorPage message='クリニックIDが見つかりません' />;
+    return <ErrorPage message='クリニックIDが見つかりません' theme={ERROR_PAGE_THEME} />;
   }
 
   if (initError) {
-    return <ErrorPage message='LINEアプリの初期化に失敗しました。LINEアプリから再度お試しください。' />;
+    return <ErrorPage message='LINEアプリの初期化に失敗しました。LINEアプリから再度お試しください。' theme={ERROR_PAGE_THEME} />;
   }
 
   if (page === 'loading') {
@@ -144,7 +152,7 @@ export function App() {
   }
 
   if (page === 'error') {
-    return <ErrorPage message={errorMessage} />;
+    return <ErrorPage message={errorMessage} theme={ERROR_PAGE_THEME} />;
   }
 
   if (page === 'maintenance') {
@@ -152,7 +160,7 @@ export function App() {
   }
 
   if (!settings || !idToken) {
-    return <ErrorPage message="初期化に失敗しました" />;
+    return <ErrorPage message="初期化に失敗しました" theme={ERROR_PAGE_THEME} />;
   }
 
   let content: React.ReactElement;
@@ -306,7 +314,7 @@ export function App() {
       />
     );
   } else {
-    content = <ErrorPage />;
+    content = <ErrorPage theme={ERROR_PAGE_THEME} />;
   }
 
   return (
