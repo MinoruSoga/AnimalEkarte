@@ -1,4 +1,4 @@
-export type SpinnerSize = 'sm' | 'md';
+type SpinnerSize = 'sm' | 'md';
 
 interface SpinnerProps {
   size?: SpinnerSize;
