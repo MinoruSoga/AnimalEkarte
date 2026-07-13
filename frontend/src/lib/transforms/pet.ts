@@ -18,7 +18,7 @@ export const PET_STATUS_REVERSE_MAP: Record<string, "alive" | "deceased"> = {
   "死亡": "deceased",
 };
 
-const PET_GENDER_MAP: Record<string, string> = {
+export const PET_GENDER_MAP: Record<string, string> = {
   male: "雄",
   female: "雌",
   unknown: "不明",
@@ -38,7 +38,7 @@ const ACQUISITION_TYPE_REVERSE_MAP: Record<string, AcquisitionType> = {
   "その他": "other",
 };
 
-const ACQUISITION_TYPE_MAP: Record<string, string> = {
+export const ACQUISITION_TYPE_MAP: Record<string, string> = {
   purchased: "購入",
   transferred: "譲渡",
   rescued: "保護",
@@ -51,7 +51,7 @@ const DANGER_LEVEL_REVERSE_MAP: Record<string, DangerLevel> = {
   "高": "high",
 };
 
-const DANGER_LEVEL_MAP: Record<string, string> = {
+export const DANGER_LEVEL_MAP: Record<string, string> = {
   low: "低",
   medium: "中",
   high: "高",
