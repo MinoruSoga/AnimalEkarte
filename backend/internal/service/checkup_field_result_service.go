@@ -112,6 +112,56 @@ func (s *checkupFieldResultService) ListByPet(ctx context.Context, clinicID, pet
 	return results, nil
 }
 
+// buildCheckupFieldResults は fieldByID マップ構築・per-input 検証・field_type に応じた
+// value 列マッピングを行う純関数（BE-refactor.md E-5）。field_type に該当する value 列のみ
+// 書き込む（非該当列はゼロ値のまま） — 無条件に全列を書くと、例えば boolean フィールドに
+// 送られた value_text 等の異種値が未使用列へ残留する（migration コントラクト違反）。
+func buildCheckupFieldResults(clinicID, checkupID uint64, fields []model.CheckupTypeField, inputs []UpsertCheckupFieldResultInput) ([]model.CheckupFieldResult, error) {
+	fieldByID := make(map[uint64]model.CheckupTypeField, len(fields))
+	for i := range fields {
+		fieldByID[fields[i].ID] = fields[i]
+	}
+
+	results := make([]model.CheckupFieldResult, 0, len(inputs))
+	for _, in := range inputs {
+		if in.CheckupTypeFieldID == nil {
+			return nil, apperrors.WrapInvalidInput("checkup_type_field_id は必須です")
+		}
+		field, ok := fieldByID[*in.CheckupTypeFieldID]
+		if !ok {
+			return nil, apperrors.WrapInvalidInput("checkup_type_field が当該健診パッケージに属していません（別クリニック/別パッケージの項目は紐付けできません）")
+		}
+		if err := validateCheckupFieldValue(&field, in); err != nil {
+			return nil, err
+		}
+		result := model.CheckupFieldResult{
+			ClinicID:           clinicID,
+			CheckupID:          checkupID,
+			CheckupTypeFieldID: in.CheckupTypeFieldID,
+			FieldName:          field.Name,
+			FieldType:          field.FieldType,
+			Unit:               field.Unit,
+			SortOrder:          field.SortOrder,
+			Status:             model.ExaminationResultStatusNormal,
+		}
+		switch field.FieldType {
+		case model.CheckupFieldTypeNumber:
+			result.ValueNumber = in.ValueNumber
+			result.RefMin = field.MinValue
+			result.RefMax = field.MaxValue
+			result.Status, result.IsAbnormal = computeCheckupNumberStatus(in.ValueNumber, field.MinValue, field.MaxValue)
+		case model.CheckupFieldTypeBoolean:
+			result.ValueBool = in.ValueBool
+		case model.CheckupFieldTypeMultiSelect, model.CheckupFieldTypeChecklist:
+			result.ValueList = in.ValueList
+		case model.CheckupFieldTypeSingleSelect, model.CheckupFieldTypeText:
+			result.ValueText = in.ValueText
+		}
+		results = append(results, result)
+	}
+	return results, nil
+}
+
 func (s *checkupFieldResultService) ReplaceForCheckup(ctx context.Context, clinicID, medicalRecordID, checkupID uint64, actorID *uint64, inputs []UpsertCheckupFieldResultInput) ([]model.CheckupFieldResult, error) {
 	// #211 偶発的全消去の防御: results 省略（nil）は拒否する。患者検診結果値の全削除は
 	// 明示的な空配列 [] の送信を要求し、空ボディ/壊れた request での silent な全消去を遮断する。
@@ -141,50 +191,9 @@ func (s *checkupFieldResultService) ReplaceForCheckup(ctx context.Context, clini
 		slog.ErrorContext(ctx, "failed to load checkup type fields", "error", err, "checkup_type_id", checkup.CheckupTypeID, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to load checkup type fields")
 	}
-	fieldByID := make(map[uint64]model.CheckupTypeField, len(fields))
-	for i := range fields {
-		fieldByID[fields[i].ID] = fields[i]
-	}
-
-	results := make([]model.CheckupFieldResult, 0, len(inputs))
-	for _, in := range inputs {
-		if in.CheckupTypeFieldID == nil {
-			return nil, apperrors.WrapInvalidInput("checkup_type_field_id は必須です")
-		}
-		field, ok := fieldByID[*in.CheckupTypeFieldID]
-		if !ok {
-			return nil, apperrors.WrapInvalidInput("checkup_type_field が当該健診パッケージに属していません（別クリニック/別パッケージの項目は紐付けできません）")
-		}
-		if err := validateCheckupFieldValue(&field, in); err != nil {
-			return nil, err
-		}
-		// field_type に該当する value 列のみ書き込む（非該当列はゼロ値のまま）。
-		// 無条件に全列を書くと、例えば boolean フィールドに送られた value_text 等の
-		// 異種値が未使用列へ残留する（migration コントラクト「該当列のみ書込」に違反）。
-		result := model.CheckupFieldResult{
-			ClinicID:           clinicID,
-			CheckupID:          checkupID,
-			CheckupTypeFieldID: in.CheckupTypeFieldID,
-			FieldName:          field.Name,
-			FieldType:          field.FieldType,
-			Unit:               field.Unit,
-			SortOrder:          field.SortOrder,
-			Status:             model.ExaminationResultStatusNormal,
-		}
-		switch field.FieldType {
-		case model.CheckupFieldTypeNumber:
-			result.ValueNumber = in.ValueNumber
-			result.RefMin = field.MinValue
-			result.RefMax = field.MaxValue
-			result.Status, result.IsAbnormal = computeCheckupNumberStatus(in.ValueNumber, field.MinValue, field.MaxValue)
-		case model.CheckupFieldTypeBoolean:
-			result.ValueBool = in.ValueBool
-		case model.CheckupFieldTypeMultiSelect, model.CheckupFieldTypeChecklist:
-			result.ValueList = in.ValueList
-		case model.CheckupFieldTypeSingleSelect, model.CheckupFieldTypeText:
-			result.ValueText = in.ValueText
-		}
-		results = append(results, result)
+	results, err := buildCheckupFieldResults(clinicID, checkupID, fields, inputs)
+	if err != nil {
+		return nil, err
 	}
 
 	// #211 tx 内監査による原子的置換: スナップショット読取→削除/挿入→削除監査 を単一トランザクションで
