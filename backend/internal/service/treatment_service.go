@@ -299,6 +299,24 @@ func (s *treatmentService) Create(ctx context.Context, clinicID, medicalRecordID
 	return treatment, nil
 }
 
+// effectiveDoseInputs は existing と input から dose 再評価に使う実効値（item_type/medicine_id/
+// quantity）を算出する純関数（BE-refactor.md E-3）。
+func effectiveDoseInputs(existing *model.Treatment, input *UpdateTreatmentInput) (model.TreatmentItemType, *uint64, float64) {
+	effItemType := existing.ItemType
+	if input.ItemType != nil {
+		effItemType = *input.ItemType
+	}
+	effMedicineID := existing.MedicineID
+	if input.MedicineID != nil {
+		effMedicineID = input.MedicineID
+	}
+	effQty := existing.Quantity
+	if input.Quantity != nil {
+		effQty = *input.Quantity
+	}
+	return effItemType, effMedicineID, effQty
+}
+
 func (s *treatmentService) Update(ctx context.Context, clinicID, medicalRecordID, treatmentID uint64, input *UpdateTreatmentInput) (*model.Treatment, error) {
 	// 所属確認（clinic_id + id で検索）
 	existing, err := s.repos.Treatment.FindByID(ctx, clinicID, treatmentID)
@@ -369,18 +387,7 @@ func (s *treatmentService) Update(ctx context.Context, clinicID, medicalRecordID
 		}
 
 		if doseRelevant {
-			effItemType := existing.ItemType
-			if input.ItemType != nil {
-				effItemType = *input.ItemType
-			}
-			effMedicineID := existing.MedicineID
-			if input.MedicineID != nil {
-				effMedicineID = input.MedicineID
-			}
-			effQty := existing.Quantity
-			if input.Quantity != nil {
-				effQty = *input.Quantity
-			}
+			effItemType, effMedicineID, effQty := effectiveDoseInputs(existing, input)
 			eval, derr := s.evaluateDoseForSave(ctx, txRepos, clinicID, medicalRecordID, effItemType, effMedicineID, effQty)
 			if derr != nil {
 				return derr // species 不一致など fail-closed
