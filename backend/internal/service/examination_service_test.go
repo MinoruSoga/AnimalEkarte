@@ -151,18 +151,6 @@ func (m *mockMedicalRecordRepositoryForExam) FindOwnersByNextVisitRecommended(ct
 	return nil, nil
 }
 
-func (m *mockMedicalRecordRepositoryForExam) FindOwnersByLTVRange(ctx context.Context, clinicID uint64, minLTV, maxLTV int64, excludeOwnerIDs []uint64) ([]uint64, error) {
-	return nil, nil
-}
-
-func (m *mockMedicalRecordRepositoryForExam) FindOwnersByPetAgeRange(ctx context.Context, clinicID uint64, minMonths, maxMonths int, excludeOwnerIDs []uint64) ([]uint64, error) {
-	return nil, nil
-}
-
-func (m *mockMedicalRecordRepositoryForExam) FindLastVisitDateByOwner(ctx context.Context, clinicID, ownerID uint64) (*time.Time, error) {
-	return nil, nil
-}
-
 func (m *mockMedicalRecordRepositoryForExam) DeleteDraftByAppointmentID(_ context.Context, _, _ uint64) error {
 	return nil
 }

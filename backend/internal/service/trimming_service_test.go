@@ -110,9 +110,6 @@ func (m *mockTrimmingReservationRepository) CountByDateAndSource(_ context.Conte
 func (m *mockTrimmingReservationRepository) FindNoShowCandidates(_ context.Context, _ uint64) ([]model.Reservation, error) {
 	return nil, nil
 }
-func (m *mockTrimmingReservationRepository) HasReservationByOwnerInRange(_ context.Context, _, _ uint64, _, _ time.Time) (bool, error) {
-	return false, nil
-}
 
 // コンパイル時インターフェース適合チェック
 var _ repository.ReservationRepository = (*mockTrimmingReservationRepository)(nil)

@@ -18,17 +18,9 @@ import (
 // ---- mock LstepAnalyticsService ----
 
 type mockLstepAnalyticsService struct {
-	getDeliveryHistoryByOwnerFn func(ctx context.Context, clinicID, ownerID uint64, from, to time.Time) ([]model.LstepDeliveryTriggerLog, error)
 	getMonthlyDeliveryStatsFn   func(ctx context.Context, clinicID uint64, yearMonth string) (*service.MonthlyDeliveryStats, error)
 	getVisitConversionFn        func(ctx context.Context, clinicID uint64, yearMonth string, days int) (*service.VisitConversionSummary, error)
 	getLatestFriendAttributesFn func(ctx context.Context, clinicID, ownerID uint64) (*model.LstepFriendAttributeSnapshot, error)
-}
-
-func (m *mockLstepAnalyticsService) GetDeliveryHistoryByOwner(ctx context.Context, clinicID, ownerID uint64, from, to time.Time) ([]model.LstepDeliveryTriggerLog, error) {
-	if m.getDeliveryHistoryByOwnerFn != nil {
-		return m.getDeliveryHistoryByOwnerFn(ctx, clinicID, ownerID, from, to)
-	}
-	return nil, nil
 }
 
 func (m *mockLstepAnalyticsService) GetMonthlyDeliveryStats(ctx context.Context, clinicID uint64, yearMonth string) (*service.MonthlyDeliveryStats, error) {

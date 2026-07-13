@@ -121,10 +121,6 @@ func (m *mockReservationRepository) FindAllByCategory(_ context.Context, _ uint6
 func (m *mockReservationRepository) FindNoShowCandidates(_ context.Context, _ uint64) ([]model.Reservation, error) {
 	return nil, nil
 }
-func (m *mockReservationRepository) HasReservationByOwnerInRange(_ context.Context, _, _ uint64, _, _ time.Time) (bool, error) {
-	return false, nil
-}
-
 func ptrTime(t time.Time) *time.Time { return &t }
 
 func TestReservationService_List(t *testing.T) {

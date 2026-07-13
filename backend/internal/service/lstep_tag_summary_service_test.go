@@ -36,9 +36,6 @@ func (m *mockTagCacheSummaryRepo) FindByOwner(_ context.Context, _, _ uint64) ([
 func (m *mockTagCacheSummaryRepo) FindByOwners(_ context.Context, _ uint64, _ []uint64) (map[uint64][]*model.LstepTagCache, error) {
 	return map[uint64][]*model.LstepTagCache{}, nil
 }
-func (m *mockTagCacheSummaryRepo) CountByTag(_ context.Context, _ uint64, _ string) (int64, error) {
-	return 0, nil
-}
 func (m *mockTagCacheSummaryRepo) TagSummary(ctx context.Context, clinicID uint64) ([]repository.TagSummaryRow, int64, error) {
 	if m.tagSummaryFn != nil {
 		return m.tagSummaryFn(ctx, clinicID)

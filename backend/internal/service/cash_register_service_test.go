@@ -90,9 +90,6 @@ func (m *mockAccountingRepositoryForClose) Create(_ context.Context, _ uint64, _
 func (m *mockAccountingRepositoryForClose) Update(_ context.Context, _, _ uint64, _ map[string]any) (*model.Billing, error) {
 	return nil, nil
 }
-func (m *mockAccountingRepositoryForClose) UpsertPayment(_ context.Context, _ *model.Payment) error {
-	return nil
-}
 func (m *mockAccountingRepositoryForClose) SavePayment(_ context.Context, _ *model.Payment) error {
 	return nil
 }

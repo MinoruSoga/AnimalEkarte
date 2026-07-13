@@ -272,9 +272,6 @@ func (m *mockTagCacheRepoForDelivery) DeleteTag(_ context.Context, _, _ uint64, 
 func (m *mockTagCacheRepoForDelivery) DeleteAllByOwner(_ context.Context, _, _ uint64) error {
 	return nil
 }
-func (m *mockTagCacheRepoForDelivery) CountByTag(_ context.Context, _ uint64, _ string) (int64, error) {
-	return 0, nil
-}
 func (m *mockTagCacheRepoForDelivery) TagSummary(_ context.Context, _ uint64) ([]repository.TagSummaryRow, int64, error) {
 	return nil, 0, nil
 }

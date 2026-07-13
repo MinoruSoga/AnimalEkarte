@@ -80,9 +80,6 @@ func (m *noShowMockReservationRepository) FindNoShowCandidates(ctx context.Conte
 	}
 	return nil, nil
 }
-func (m *noShowMockReservationRepository) HasReservationByOwnerInRange(_ context.Context, _, _ uint64, _, _ time.Time) (bool, error) {
-	return false, nil
-}
 
 // newNoShowBatchService は具象型を返す（B-5: detectNoShowReservations の unexport に伴い、
 // テストが interface 外の非公開メソッドを直接呼ぶため）。

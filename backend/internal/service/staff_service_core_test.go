@@ -141,9 +141,6 @@ func (m *coreMockReservationQueryRepository) FindAllByCategory(_ context.Context
 func (m *coreMockReservationQueryRepository) FindNoShowCandidates(_ context.Context, _ uint64) ([]model.Reservation, error) {
 	return nil, nil
 }
-func (m *coreMockReservationQueryRepository) HasReservationByOwnerInRange(_ context.Context, _, _ uint64, _, _ time.Time) (bool, error) {
-	return false, nil
-}
 
 type coreMockShiftEntryRepository struct {
 	existsByStaffIDFn func(ctx context.Context, clinicID, staffID uint64) (bool, error)

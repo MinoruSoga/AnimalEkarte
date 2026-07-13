@@ -182,17 +182,10 @@ func (m *mockLstepTagSyncService) SyncPrescriptionTag(_ context.Context, _, _ ui
 func (m *mockLstepTagSyncService) SyncChronicConditionTags(_ context.Context, _, _ uint64, _ []string) error {
 	return nil
 }
-func (m *mockLstepTagSyncService) SyncDormantTags(_ context.Context, _, _ uint64, _ int) error {
-	return nil
-}
 func (m *mockLstepTagSyncService) ResyncOwnerVaccineTags(_ context.Context, _, _ uint64) error {
 	return nil
 }
 func (m *mockLstepTagSyncService) ResyncOwnerCheckupTags(_ context.Context, _, _ uint64) error {
-	return nil
-}
-
-func (m *mockLstepTagSyncService) SyncCPMStageTagV2(_ context.Context, _, _ uint64) error {
 	return nil
 }
 
@@ -205,30 +198,6 @@ func (m *mockLstepTagSyncService) SyncVisitDormantTags(_ context.Context, _, _ u
 }
 
 func (m *mockLstepTagSyncService) SyncExclusionTags(_ context.Context, _, _ uint64) error {
-	return nil
-}
-
-func (m *mockLstepTagSyncService) SyncHealthcheckTags(_ context.Context, _, _ uint64) error {
-	return nil
-}
-
-func (m *mockLstepTagSyncService) SyncAnnual4CheckupTag(_ context.Context, _, _ uint64) error {
-	return nil
-}
-
-func (m *mockLstepTagSyncService) SyncVaccineDeadlineTag(_ context.Context, _, _ uint64) error {
-	return nil
-}
-
-func (m *mockLstepTagSyncService) SyncFilariaTag(_ context.Context, _, _ uint64) error {
-	return nil
-}
-
-func (m *mockLstepTagSyncService) SyncFleaTickTag(_ context.Context, _, _ uint64) error {
-	return nil
-}
-
-func (m *mockLstepTagSyncService) SyncFoodPurchaseTag(_ context.Context, _, _ uint64) error {
 	return nil
 }
 

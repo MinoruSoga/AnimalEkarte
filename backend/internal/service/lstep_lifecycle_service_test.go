@@ -94,7 +94,6 @@ type mockLstepTagCacheRepository struct {
 	deleteAllByOwnerFn func(ctx context.Context, clinicID, ownerID uint64) error
 	findByOwnerFn      func(ctx context.Context, clinicID, ownerID uint64) ([]*model.LstepTagCache, error)
 	findByOwnersFn     func(ctx context.Context, clinicID uint64, ownerIDs []uint64) (map[uint64][]*model.LstepTagCache, error)
-	countByTagFn       func(ctx context.Context, clinicID uint64, tagName string) (int64, error)
 }
 
 func (m *mockLstepTagCacheRepository) UpsertTag(ctx context.Context, clinicID, ownerID uint64, tagName, category, reason string) error {
@@ -126,12 +125,6 @@ func (m *mockLstepTagCacheRepository) FindByOwners(ctx context.Context, clinicID
 		return m.findByOwnersFn(ctx, clinicID, ownerIDs)
 	}
 	return map[uint64][]*model.LstepTagCache{}, nil
-}
-func (m *mockLstepTagCacheRepository) CountByTag(ctx context.Context, clinicID uint64, tagName string) (int64, error) {
-	if m.countByTagFn != nil {
-		return m.countByTagFn(ctx, clinicID, tagName)
-	}
-	return 0, nil
 }
 func (m *mockLstepTagCacheRepository) TagSummary(ctx context.Context, clinicID uint64) ([]repository.TagSummaryRow, int64, error) {
 	return nil, 0, nil
@@ -213,10 +206,6 @@ func (m *mockLstepTagSyncService) SyncCPMStageTag(ctx context.Context, clinicID,
 	return nil
 }
 
-func (m *mockLstepTagSyncService) SyncDormantTags(_ context.Context, _, _ uint64, _ int) error {
-	return nil
-}
-
 func (m *mockLstepTagSyncService) ResyncOwnerVaccineTags(ctx context.Context, clinicID, ownerID uint64) error {
 	if m.resyncOwnerVaccineTagsFn != nil {
 		return m.resyncOwnerVaccineTagsFn(ctx, clinicID, ownerID)
@@ -231,10 +220,6 @@ func (m *mockLstepTagSyncService) ResyncOwnerCheckupTags(ctx context.Context, cl
 	return nil
 }
 
-func (m *mockLstepTagSyncService) SyncCPMStageTagV2(_ context.Context, _, _ uint64) error {
-	return nil
-}
-
 func (m *mockLstepTagSyncService) SyncLTVTopPercent(_ context.Context, _ uint64) (int, []error) {
 	return 0, nil
 }
@@ -244,30 +229,6 @@ func (m *mockLstepTagSyncService) SyncVisitDormantTags(_ context.Context, _, _ u
 }
 
 func (m *mockLstepTagSyncService) SyncExclusionTags(_ context.Context, _, _ uint64) error {
-	return nil
-}
-
-func (m *mockLstepTagSyncService) SyncHealthcheckTags(_ context.Context, _, _ uint64) error {
-	return nil
-}
-
-func (m *mockLstepTagSyncService) SyncAnnual4CheckupTag(_ context.Context, _, _ uint64) error {
-	return nil
-}
-
-func (m *mockLstepTagSyncService) SyncVaccineDeadlineTag(_ context.Context, _, _ uint64) error {
-	return nil
-}
-
-func (m *mockLstepTagSyncService) SyncFilariaTag(_ context.Context, _, _ uint64) error {
-	return nil
-}
-
-func (m *mockLstepTagSyncService) SyncFleaTickTag(_ context.Context, _, _ uint64) error {
-	return nil
-}
-
-func (m *mockLstepTagSyncService) SyncFoodPurchaseTag(_ context.Context, _, _ uint64) error {
 	return nil
 }
 

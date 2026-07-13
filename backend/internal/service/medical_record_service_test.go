@@ -1416,9 +1416,6 @@ func (m *mockReservationRepoForMedicalRecord) FindAllByCategory(_ context.Contex
 func (m *mockReservationRepoForMedicalRecord) FindNoShowCandidates(_ context.Context, _ uint64) ([]model.Reservation, error) {
 	return nil, nil
 }
-func (m *mockReservationRepoForMedicalRecord) HasReservationByOwnerInRange(_ context.Context, _, _ uint64, _, _ time.Time) (bool, error) {
-	return false, nil
-}
 
 // mockLstepDeliveryTriggerForMR は TriggerFirstVisitWelcome の呼び出し検証用モック
 type mockLstepDeliveryTriggerForMR struct {
@@ -1475,10 +1472,6 @@ func (m *mockLstepDeliveryTriggerForMR) TriggerFleaTickAlert(_ context.Context, 
 func (m *mockLstepDeliveryTriggerForMR) TriggerFoodRefillReminder(_ context.Context, _ uint64, _ time.Time) (int, []error) {
 	return 0, nil
 }
-func (m *mockLstepDeliveryTriggerForMR) TriggerSuppRefillReminder(_ context.Context, _ uint64, _ time.Time) (int, []error) {
-	return 0, nil
-}
-
 func TestMedicalRecordService_Create_FirstVisitTrigger(t *testing.T) {
 	ownerID := uint64(42)
 	clinicID := uint64(1)

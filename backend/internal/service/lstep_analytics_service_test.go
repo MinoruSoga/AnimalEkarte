@@ -80,9 +80,6 @@ type mockAnalyticsSnapshotRepo struct {
 func (m *mockAnalyticsSnapshotRepo) Create(_ context.Context, _ *model.LstepFriendAttributeSnapshot) error {
 	return nil
 }
-func (m *mockAnalyticsSnapshotRepo) BulkCreate(_ context.Context, _ []*model.LstepFriendAttributeSnapshot) error {
-	return nil
-}
 func (m *mockAnalyticsSnapshotRepo) FindLatestByOwner(ctx context.Context, clinicID uint64, lineUserID string) (*model.LstepFriendAttributeSnapshot, error) {
 	if m.findLatestFn != nil {
 		return m.findLatestFn(ctx, clinicID, lineUserID)

@@ -77,9 +77,6 @@ func (m *batchMockReservationRepo) FindNoShowCandidates(ctx context.Context, cli
 	}
 	return nil, nil
 }
-func (m *batchMockReservationRepo) HasReservationByOwnerInRange(_ context.Context, _, _ uint64, _, _ time.Time) (bool, error) {
-	return false, nil
-}
 
 // batchMockMedRecordRepo は batch テスト専用 MedicalRecordRepository モック
 type batchMockMedRecordRepo struct {
@@ -153,7 +150,6 @@ func (m *batchMockMedRecordRepo) DeleteDraftByAppointmentID(_ context.Context, _
 
 // batchMockTagSyncSvc は batch テスト専用 LstepTagSyncService モック
 type batchMockTagSyncSvc struct {
-	syncDormantTagFn                func(ctx context.Context, clinicID, ownerID uint64, daysSince int) error
 	syncDormantTagsWithThresholdsFn func(ctx context.Context, clinicID, ownerID uint64, daysSince int, thresholds model.DormantThresholds) error
 }
 
@@ -178,20 +174,10 @@ func (m *batchMockTagSyncSvc) SyncChronicConditionTags(_ context.Context, _, _ u
 	return nil
 }
 func (m *batchMockTagSyncSvc) SyncCPMStageTag(_ context.Context, _, _ uint64) error { return nil }
-func (m *batchMockTagSyncSvc) SyncDormantTags(ctx context.Context, clinicID, ownerID uint64, daysSince int) error {
-	if m.syncDormantTagFn != nil {
-		return m.syncDormantTagFn(ctx, clinicID, ownerID, daysSince)
-	}
-	return nil
-}
 func (m *batchMockTagSyncSvc) ResyncOwnerVaccineTags(_ context.Context, _, _ uint64) error {
 	return nil
 }
 func (m *batchMockTagSyncSvc) ResyncOwnerCheckupTags(_ context.Context, _, _ uint64) error {
-	return nil
-}
-
-func (m *batchMockTagSyncSvc) SyncCPMStageTagV2(_ context.Context, _, _ uint64) error {
 	return nil
 }
 
@@ -204,30 +190,6 @@ func (m *batchMockTagSyncSvc) SyncVisitDormantTags(_ context.Context, _, _ uint6
 }
 
 func (m *batchMockTagSyncSvc) SyncExclusionTags(_ context.Context, _, _ uint64) error {
-	return nil
-}
-
-func (m *batchMockTagSyncSvc) SyncHealthcheckTags(_ context.Context, _, _ uint64) error {
-	return nil
-}
-
-func (m *batchMockTagSyncSvc) SyncAnnual4CheckupTag(_ context.Context, _, _ uint64) error {
-	return nil
-}
-
-func (m *batchMockTagSyncSvc) SyncVaccineDeadlineTag(_ context.Context, _, _ uint64) error {
-	return nil
-}
-
-func (m *batchMockTagSyncSvc) SyncFilariaTag(_ context.Context, _, _ uint64) error {
-	return nil
-}
-
-func (m *batchMockTagSyncSvc) SyncFleaTickTag(_ context.Context, _, _ uint64) error {
-	return nil
-}
-
-func (m *batchMockTagSyncSvc) SyncFoodPurchaseTag(_ context.Context, _, _ uint64) error {
 	return nil
 }
 
