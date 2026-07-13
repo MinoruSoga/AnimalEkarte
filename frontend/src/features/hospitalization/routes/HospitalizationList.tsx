@@ -203,7 +203,6 @@ export function HospitalizationList() {
   }, [typeFilteredHospitalizations, activeSorts]);
 
   const pagination = usePagination(sortedHospitalizations, {
-    pageSize: 20,
     resetKey: `${deferredSearchTerm}:${statusFilter}`,
   });
 

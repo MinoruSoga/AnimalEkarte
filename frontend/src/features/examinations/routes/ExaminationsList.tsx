@@ -114,7 +114,6 @@ export function ExaminationsList() {
     useSortableData(filteredRecords);
 
   const pagination = usePagination(sortedData, {
-    pageSize: 20,
     resetKey: [deferredSearch, JSON.stringify(activeFilters)].join("|"),
   });
 

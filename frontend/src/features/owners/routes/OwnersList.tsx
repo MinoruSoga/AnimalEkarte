@@ -163,7 +163,6 @@ export function OwnersList({ onUpdatePet }: OwnersListProps = {}) {
   const urlPage = Number(searchParams.get("page") ?? 1);
 
   const pagination = usePagination(sortedData, {
-    pageSize: 20,
     resetKey: deferredSearchTerm,
   });
 

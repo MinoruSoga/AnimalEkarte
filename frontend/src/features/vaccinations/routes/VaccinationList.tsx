@@ -101,7 +101,6 @@ export function VaccinationList() {
     useSortableData(filteredRecords);
 
   const pagination = usePagination(sortedData, {
-    pageSize: 20,
     resetKey: deferredSearchTerm,
   });
 
