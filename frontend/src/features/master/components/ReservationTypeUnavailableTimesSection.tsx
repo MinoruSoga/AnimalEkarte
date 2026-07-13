@@ -13,23 +13,12 @@ import {
   UnavailableTypeWeekly,
   UnavailableTypeSpecific,
 } from "@/types/generated/models";
+import { DAY_OF_WEEK_SELECT_ITEMS } from "./day-of-week-select-items";
 import type { CreateUnavailableTimeRequest } from "../api/reservation-type-unavailable-times";
 
 // ─────────────────────────────────────────────────
 // 静的定数（rendering-hoist-jsx）
 // ─────────────────────────────────────────────────
-
-const DAY_OF_WEEK_ITEMS = (
-  <>
-    <SelectItem value="0">日曜日</SelectItem>
-    <SelectItem value="1">月曜日</SelectItem>
-    <SelectItem value="2">火曜日</SelectItem>
-    <SelectItem value="3">水曜日</SelectItem>
-    <SelectItem value="4">木曜日</SelectItem>
-    <SelectItem value="5">金曜日</SelectItem>
-    <SelectItem value="6">土曜日</SelectItem>
-  </>
-);
 
 /** 30分刻みの時刻選択肢 "HH:MM" */
 const TIME_OPTIONS: string[] = [];
@@ -169,7 +158,7 @@ export function ReservationTypeUnavailableTimesSection({ clinicId, reservationTy
               <SelectTrigger className={STYLE.selectCompact}>
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent>{DAY_OF_WEEK_ITEMS}</SelectContent>
+              <SelectContent>{DAY_OF_WEEK_SELECT_ITEMS}</SelectContent>
             </Select>
           ) : (
             <input

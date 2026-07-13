@@ -1,4 +1,5 @@
 import { C, STYLE } from "@/lib/design-tokens";
+import { DAY_OF_WEEK_LABELS } from "@/constants/day-of-week";
 import { EmptyState } from "@/components/shared/DataStates";
 import { lazy, memo, Suspense, useCallback, useMemo, useState } from "react";
 import { SearchableSelect, type SearchableSelectOption } from "@/components/ui/searchable-select";
@@ -200,7 +201,7 @@ export const ShiftCalendar = memo(function ShiftCalendar({
                 >
                   <div>{day}</div>
                   <div className="text-[10px] opacity-70">
-                    {["日", "月", "火", "水", "木", "金", "土"][dayOfWeek]}
+                    {DAY_OF_WEEK_LABELS[dayOfWeek]}
                   </div>
                   {isHoliday ? (
                     <div className={`absolute bottom-0.5 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full ${C.bgStatusRedDot}`} aria-label="定休日" />
