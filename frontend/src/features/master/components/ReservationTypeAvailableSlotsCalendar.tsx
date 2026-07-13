@@ -135,7 +135,7 @@ export function ReservationTypeAvailableSlotsCalendar({
     const weekStart = weekDays[0];
     const weekEnd = weekDays[6];
     if (!weekStart || !weekEnd) return "";
-    return `${format(weekStart, DISPLAY_DATE_FORMAT, { locale: ja })} - ${format(weekEnd, "M月d日", { locale: ja })}`;
+    return `${format(weekStart, DISPLAY_DATE_FORMAT, { locale: ja })} - ${format(weekEnd, DISPLAY_DATE_FORMAT, { locale: ja })}`;
   }, [weekDays]);
 
   const today = toJSTWallDate(new Date());

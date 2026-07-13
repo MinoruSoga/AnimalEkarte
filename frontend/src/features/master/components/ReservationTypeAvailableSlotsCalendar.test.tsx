@@ -63,7 +63,7 @@ describe("ReservationTypeAvailableSlotsCalendar", () => {
 
     renderCalendar();
 
-    expect(await screen.findByText("2026/06/01 - 6月7日")).toBeInTheDocument();
+    expect(await screen.findByText("2026/06/01 - 2026/06/07")).toBeInTheDocument();
 
     const cell = await screen.findByRole("button", { name: "2026/06/01" });
     expect(await within(cell).findByText("09:45")).toBeInTheDocument();
@@ -83,7 +83,7 @@ describe("ReservationTypeAvailableSlotsCalendar", () => {
     await user.click(await screen.findByRole("button", { name: "次の週" }));
     await user.click(screen.getByRole("button", { name: "次の週" }));
 
-    expect(screen.getByText("2026/06/15 - 6月21日")).toBeInTheDocument();
+    expect(screen.getByText("2026/06/15 - 2026/06/21")).toBeInTheDocument();
     const cell = await screen.findByRole("button", { name: "2026/06/15" });
     expect(await within(cell).findByText("14:00")).toBeInTheDocument();
     expect(within(cell).getByText("09:45")).toBeInTheDocument();
@@ -168,14 +168,14 @@ describe("ReservationTypeAvailableSlotsCalendar", () => {
     const user = userEvent.setup();
     renderCalendar();
 
-    expect(await screen.findByText("2026/06/01 - 6月7日")).toBeInTheDocument();
+    expect(await screen.findByText("2026/06/01 - 2026/06/07")).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "次の週" }));
-    expect(screen.getByText("2026/06/08 - 6月14日")).toBeInTheDocument();
+    expect(screen.getByText("2026/06/08 - 2026/06/14")).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "前の週" }));
     await user.click(screen.getByRole("button", { name: "前の週" }));
-    expect(screen.getByText("2026/05/25 - 5月31日")).toBeInTheDocument();
+    expect(screen.getByText("2026/05/25 - 2026/05/31")).toBeInTheDocument();
 
     // 「今日」は実行時の当週へ戻る（月曜始まりで動的に算出）
     await user.click(screen.getByRole("button", { name: "今日" }));
@@ -186,8 +186,8 @@ describe("ReservationTypeAvailableSlotsCalendar", () => {
     currentWeekStart.setDate(today.getDate() - daysFromMonday);
     const currentWeekEnd = new Date(currentWeekStart);
     currentWeekEnd.setDate(currentWeekStart.getDate() + 6);
-    // FE5-28: 実装側の週見出しフォーマットが "yyyy年 M月d日" → "yyyy/MM/dd" (DISPLAY_DATE_FORMAT) に変更
-    const currentWeekLabel = `${format(currentWeekStart, "yyyy/MM/dd", { locale: ja })} - ${format(currentWeekEnd, "M月d日", { locale: ja })}`;
+    // FE5-28/M3: 週見出しフォーマットは開始・終了とも "yyyy/MM/dd" (DISPLAY_DATE_FORMAT) に統一
+    const currentWeekLabel = `${format(currentWeekStart, "yyyy/MM/dd", { locale: ja })} - ${format(currentWeekEnd, "yyyy/MM/dd", { locale: ja })}`;
     expect(screen.getByText(currentWeekLabel)).toBeInTheDocument();
   });
 
