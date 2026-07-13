@@ -172,10 +172,6 @@ type medicineService struct {
 	auditTx       AuditTxLogger // #201 B-2 / BE-refactor.md R1-2: per_weight 有効化の監査（nil 可・後方互換）
 }
 
-func NewMedicineService(repo repository.MedicineRepository, inventoryRepo repository.InventoryRepository, transactor repository.Transactor) MedicineService {
-	return &medicineService{repo: repo, inventoryRepo: inventoryRepo, transactor: transactor}
-}
-
 // NewMedicineServiceWithAudit は AuditTxLogger を注入する（#201 B-2: per_weight 有効化の監査記録）。
 // BE-refactor.md R1-2 (D1): per_weight 有効化は薬剤作成/更新の tx 内で LogEntryTx を使い fail-closed 化する。
 func NewMedicineServiceWithAudit(repo repository.MedicineRepository, inventoryRepo repository.InventoryRepository, transactor repository.Transactor, auditTx AuditTxLogger) MedicineService {

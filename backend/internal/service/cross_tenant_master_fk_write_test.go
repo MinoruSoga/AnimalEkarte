@@ -1888,7 +1888,7 @@ func TestMedicineService_Create_RejectsCrossClinicParentFK(t *testing.T) {
 				return nil
 			},
 		}
-		return NewMedicineService(repo, okInventoryRepo(), &mockTransactor{})
+		return NewMedicineServiceWithAudit(repo, okInventoryRepo(), &mockTransactor{}, nil)
 	}
 
 	t.Run("rejects cross-clinic parent_id and does not persist", func(t *testing.T) {
@@ -1931,7 +1931,7 @@ func TestMedicineService_Update_RejectsCrossClinicParentFK(t *testing.T) {
 				return &model.Medicine{ID: id}, nil
 			},
 		}
-		return NewMedicineService(repo, &mockInventoryRepository{}, &mockTransactor{})
+		return NewMedicineServiceWithAudit(repo, &mockInventoryRepository{}, &mockTransactor{}, nil)
 	}
 
 	t.Run("rejects cross-clinic parent_id and does not persist", func(t *testing.T) {
@@ -1968,7 +1968,7 @@ func TestMedicineService_Create_RejectsCrossClinicInventoryFK(t *testing.T) {
 				return nil
 			},
 		}
-		return NewMedicineService(repo, inventoryRepo, &mockTransactor{})
+		return NewMedicineServiceWithAudit(repo, inventoryRepo, &mockTransactor{}, nil)
 	}
 
 	t.Run("rejects cross-clinic inventory_id and does not persist", func(t *testing.T) {
@@ -2008,7 +2008,7 @@ func TestMedicineService_Update_RejectsCrossClinicInventoryFK(t *testing.T) {
 				return &model.Medicine{ID: id}, nil
 			},
 		}
-		return NewMedicineService(repo, inventoryRepo, &mockTransactor{})
+		return NewMedicineServiceWithAudit(repo, inventoryRepo, &mockTransactor{}, nil)
 	}
 
 	t.Run("rejects cross-clinic inventory_id and does not persist", func(t *testing.T) {
