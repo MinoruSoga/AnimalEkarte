@@ -37,11 +37,7 @@ const FILTER_PROPERTIES: FilterProperty[] = [
     type: "select",
     icon: CircleDot,
     conditions: CONDITIONS_NO_EMPTY,
-    options: [
-      { value: "waiting", label: "会計待ち" },
-      { value: "completed", label: "会計済" },
-      { value: "cancelled", label: "キャンセル" },
-    ],
+    options: Object.entries(ACCOUNTING_STATUS_LABELS).map(([value, label]) => ({ value, label })),
   },
   {
     key: "paymentMethod",
