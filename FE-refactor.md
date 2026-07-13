@@ -3,7 +3,7 @@
 - **作成日**: 2026-07-13
 - **基準コミット**: `e3f243ef`(main)。行番号はずれたら**シンボル名で再特定**する。
 - **性格**: 本書は実行計画の正本。判断できない事態は**中断して報告**。本書とコード以外の文脈を前提にしない。
-- **進捗**: 未着手。各項目完了時に見出しの `[ ]` を `[x]` に更新してよい（同一コミットに `FE-refactor.md` を含めてよい）。
+- **進捗**: 完了（FE6-0〜FE6-18 全19項目）。各項目完了時に見出しの `[ ]` を `[x]` に更新してよい（同一コミットに `FE-refactor.md` を含めてよい）。
 
 ---
 
@@ -67,7 +67,7 @@ hex直書き・cross-feature import・`__tests__/`・camelCaseフック名・孤
 
 ---
 
-## 3. FE6-0 [ ] 安全網の構築（最初に実行）
+## 3. FE6-0 [x] 安全網の構築（最初に実行）
 
 **目的**: 変更前の green 状態を記録し、各項目の完了条件の基準にする。
 
@@ -101,7 +101,7 @@ docker compose exec frontend npx vitest run \
 
 ### Phase 1 — fix: 実バグとエラー処理の穴
 
-#### FE6-1 [ ] fix: 飼主検索モーダルの飼主名が常に空表示になるバグ
+#### FE6-1 [x] fix: 飼主検索モーダルの飼主名が常に空表示になるバグ
 
 - **対象**: `src/components/shared/OwnerSearchModal/OwnerSearchModal.tsx:18-46,66-69` / `OwnerSearchModal.test.tsx:46`
 - **問題**: `GET /v1/owners` のレスポンスは `ownerResponse` Go struct（`backend/internal/handler/owner_response.go:60` — `json:"owner_name"`）だが、本ファイルはローカル定義の `transformOwner` で generated `Owner` 型（`json:"name"`）を前提に `o.name` を読むため、**検索結果・確認ダイアログの飼主名が常に空文字になる**。正本 `src/lib/transforms/owner.ts` の `transformOwner`（`owner_name` を読む）を再利用していないローカル再実装が原因。既存テストのMSWフィクスチャも `name: "山田 太郎"` を返しており（`OwnerSearchModal.test.tsx:46`）、実BEと乖離したモックがバグを固定している。呼び出し元は `PetEditModal` / medical-records のモーダル群＝**飼主変更フロー**。
@@ -138,7 +138,7 @@ function toOwnerSummary(o: OwnerApiResponse): OwnerSummary {
 - **コミット**: `fix(frontend): 飼主検索モーダルの飼主名欠落を正本transformOwner委譲で修正`
 - **依存**: FE6-0
 
-#### FE6-2 [ ] fix: クリニック切替時の localStorage 書込失敗が無音で旧クリニック継続になる
+#### FE6-2 [x] fix: クリニック切替時の localStorage 書込失敗が無音で旧クリニック継続になる
 
 - **対象**: `src/features/auth/hooks/use-auth.tsx:18-27`（`saveClinicToStorage`）、同 `switchClinic`（114-131行付近） / `src/features/auth/hooks/use-auth-clinic-switch.test.tsx`
 - **問題**: `saveClinicToStorage` は書込失敗を DEV 限定 `console.warn` で握りつぶす。`switchClinic` は失敗でも `queryClient.clear()` → `window.location.reload()` を続行するため、リロード後に**旧クリニックIDのまま復帰し、ユーザーは切替成功と誤認する**。マルチテナントEMRで「誤クリニック状態が無音で継続する」経路は放置不可。
@@ -172,7 +172,7 @@ window.location.reload();
 - **コミット**: `fix(frontend): クリニック切替のlocalStorage書込失敗を無音継続からトースト+中断に変更`
 - **依存**: FE6-0
 
-#### FE6-3 [ ] refactor: liff / line-reserve の ErrorPage を shared-liff に統合
+#### FE6-3 [x] refactor: liff / line-reserve の ErrorPage を shared-liff に統合
 
 - **対象**: `frontend/liff/src/pages/ErrorPage.tsx`（23行） / `frontend/line-reserve/src/pages/ErrorPage.tsx`（23行） / 両 `App.tsx` の参照箇所
 - **問題**: 両ファイルは構造・文言・props が同一で、差分は Tailwind 色クラス（`liff-brand*` vs `noah-teal*`）のみの95%コピペ。shared-liff への集約から漏れた唯一のページコンポーネント。
@@ -182,7 +182,7 @@ window.location.reload();
 - **コミット**: `refactor(frontend): liff/line-reserveのErrorPage重複をshared-liffへ統合`
 - **依存**: FE6-0
 
-#### FE6-4 [ ] fix: liff / line-reserve に React エラーバウンダリを導入
+#### FE6-4 [x] fix: liff / line-reserve に React エラーバウンダリを導入
 
 - **対象**: `frontend/liff/src/main.tsx` / `frontend/line-reserve/src/main.tsx`（+ 新規 `src/shared-liff/ErrorBoundary.tsx`）
 - **問題**: 両アプリとも `createRoot(...).render(<StrictMode><App/></StrictMode>)` のみで、エラーバウンダリも `onUncaughtError` もない（`rg "componentDidCatch|getDerivedStateFromError" liff/src line-reserve/src` → 0件）。飼主向け画面でレンダー時例外が1件でも起きると**白紙のまま復旧手段なし**。メインアプリは全ルートに `RouteErrorBoundary` 配線済みで、この2アプリだけ防御層がない。
@@ -213,7 +213,7 @@ export class ErrorBoundary extends Component<Props, State> {
 
 ### Phase 2 — refactor: 重複の統合
 
-#### FE6-5 [ ] refactor: formatJSTDate / padDatePart の3重実装を lib/jst-date.ts に統合
+#### FE6-5 [x] refactor: formatJSTDate / padDatePart の3重実装を lib/jst-date.ts に統合
 
 - **対象**: `src/features/trimming/hooks/trimming-form-utils.ts:3,26-33` / `src/features/medical-records/hooks/use-medical-record-form-model.ts:8,27-34`（正本: `src/lib/jst-date.ts:16`）
 - **問題**: `JST_OFFSET_MS` + `padDatePart` + `formatJSTDate` が正本とバイト同一ロジックで2ファイルに再実装されている。将来 lib 側に修正が入っても追従しない（ドリフトリスク）。
@@ -223,7 +223,7 @@ export class ErrorBoundary extends Component<Props, State> {
 - **コミット**: `refactor(frontend): formatJSTDateの3重実装をlib/jst-dateへ統合`
 - **依存**: FE6-0
 
-#### FE6-6 [ ] refactor: UnpaidTab の JST 日付演算を lib/jst-date.ts に移設
+#### FE6-6 [x] refactor: UnpaidTab の JST 日付演算を lib/jst-date.ts に移設
 
 - **対象**: `src/features/accounting/components/UnpaidTab.tsx:23-34`（`daysSince` / `currentJSTYearMonth`）
 - **問題**: JSTオフセットの手動計算（`Date.now() + 9*60*60*1000` 等）がコンポーネント内に再実装されており、JST演算の正本 `lib/jst-date.ts` と実装が割れている。
@@ -233,7 +233,7 @@ export class ErrorBoundary extends Component<Props, State> {
 - **コミット**: `refactor(frontend): UnpaidTabのJST日付演算をlib/jst-dateへ移設`
 - **依存**: FE6-5（jst-date.ts への変更を直列化して衝突回避）
 
-#### FE6-7 [ ] refactor: 曜日ラベルの重複3箇所を DAY_OF_WEEK_LABELS 由来に統一
+#### FE6-7 [x] refactor: 曜日ラベルの重複3箇所を DAY_OF_WEEK_LABELS 由来に統一
 
 - **対象**:
   - `src/features/master/components/ReservationTypeAvailableSlotsSection.tsx:21-31`
@@ -261,7 +261,7 @@ export const DAY_OF_WEEK_SELECT_ITEMS = Object.entries(DAY_OF_WEEK_LABELS).map(
 - **コミット**: `refactor(frontend): 曜日ラベル重複3箇所をDAY_OF_WEEK_LABELS由来に統一`
 - **依存**: FE6-0
 
-#### FE6-8 [ ] test: Pet属性ラベルの二重定義にドリフトガードを追加
+#### FE6-8 [x] test: Pet属性ラベルの二重定義にドリフトガードを追加
 
 - **対象**: `src/features/owners/types/index.ts:10-15`（`PET_GENDER_VALUES` / `ACQUISITION_TYPE_VALUES` / `DANGER_LEVEL_VALUES`） vs `src/lib/transforms/pet.ts:21-58`（`PET_GENDER_MAP` / `ACQUISITION_TYPE_MAP` / `DANGER_LEVEL_MAP`）
 - **問題**: 同じ日本語ラベル群（雄/雌/不明、購入/譲渡/保護/その他、低/中/高）が「UI選択肢の配列」と「BE⇔FE変換マップ」に手打ちで二重定義されている。目的が違うため**単純統合は不可**（配列はリテラル型の源泉、マップはEN⇔JA変換）。片方だけ変更されると無音で乖離する。
@@ -284,7 +284,7 @@ test("owners の Pet 属性選択肢は transforms の変換マップと一致�
 - **コミット**: `test(frontend): Pet属性ラベルの二重定義にドリフトガードを追加`
 - **依存**: FE6-0
 
-#### FE6-9 [ ] refactor: line-reserve TrimmingOptionSelectPage の通貨整形を formatCurrency に委譲
+#### FE6-9 [x] refactor: line-reserve TrimmingOptionSelectPage の通貨整形を formatCurrency に委譲
 
 - **対象**: `line-reserve/src/pages/TrimmingOptionSelectPage.tsx:15-18`
 - **問題**: 兄弟ページ `TrimmingCourseSelectPage.tsx:16-19` は共通 `formatCurrency`（`@/utils/format/number`）へ委譲済みだが、本ファイルの同名 `formatPrice` は `` `+¥${price.toLocaleString()}` `` を独自再実装しており、通貨整形の将来変更に追従しない。
@@ -296,7 +296,7 @@ test("owners の Pet 属性選択肢は transforms の変換マップと一致�
 
 ### Phase 3 — refactor: 直値・デッドコード
 
-#### FE6-10 [ ] refactor: 一覧ルート5箇所の `pageSize: 20` 直書きを削除
+#### FE6-10 [x] refactor: 一覧ルート5箇所の `pageSize: 20` 直書きを削除
 
 - **対象**: `src/features/owners/routes/OwnersList.tsx:166` / `inventory/routes/InventoryList.tsx:121` / `vaccinations/routes/VaccinationList.tsx:104` / `hospitalization/routes/HospitalizationList.tsx:206` / `examinations/routes/ExaminationsList.tsx:117`
 - **問題**: `usePagination`（`src/hooks/use-pagination.ts:39`）のデフォルトが既に `pageSize = 20` なのに、5ルートが同値を再指定している。デフォルト変更時に5箇所が追従しない直値散在。
@@ -306,7 +306,7 @@ test("owners の Pet 属性選択肢は transforms の変換マップと一致�
 - **コミット**: `refactor(frontend): 一覧ルートのpageSize直書きをusePaginationデフォルトに集約`
 - **依存**: FE6-0
 
-#### FE6-11 [ ] refactor: `limit: 100` 直書き6箇所を fetch-limits 定数に集約
+#### FE6-11 [x] refactor: `limit: 100` 直書き6箇所を fetch-limits 定数に集約
 
 - **対象**: `src/hooks/use-get-reservations.ts:32` / `src/features/reception/api/get-reception.ts:26` / `owner-report/api/get-pet-examinations.ts:14` / `medical-records/api/get-record-examinations.ts:38` / `medical-records/api/get-diagnosis-options.ts:33,40`
 - **問題**: `src/config/fetch-limits.ts` に `HISTORY_FETCH_LIMIT = 100`（FE3-8で集約済み）が存在するのに、同セマンティクスの直値 100 が6箇所で再発している。
@@ -328,7 +328,7 @@ export const OPTIONS_FETCH_LIMIT = 100;
 - **コミット**: `refactor(frontend): 一括取得limit直書き6箇所をfetch-limits定数へ集約`
 - **依存**: FE6-0
 
-#### FE6-12 [ ] refactor: design-tokens の死にキー11個を削除
+#### FE6-12 [x] refactor: design-tokens の死にキー11個を削除
 
 - **対象**: `src/lib/design-tokens.ts` の `LAYOUT` 配下: `sidebar.expandedPx` / `sidebar.collapsedPx` / `propertyRow.minH` / `propertyRow.labelWPx` / `touch.sm` / `touch.row` / `touch.tableHead` / `touch.iconBtn` / `touch.badge` / `modal.lg` / `pageIcon.size`
 - **問題**: 全リポジトリ横断 grep で参照0件のキー（knip はオブジェクトのキー単位を検出できないため残存）。`touch.md` のみ生存（5箇所で使用）なので**巻き込み削除禁止**。`PALETTE`/`C`/`BADGE`/`ICON`/`STYLE`/`Z`/`Z_CLASS`/`TABLE_STYLES` は全キー生存確認済みで対象外。
@@ -338,7 +338,7 @@ export const OPTIONS_FETCH_LIMIT = 100;
 - **コミット**: `refactor(frontend): design-tokens LAYOUTの未使用キー11個を削除`
 - **依存**: FE6-0
 
-#### FE6-13 [ ] refactor: 恒久デッドブランチ isSwitchingClinic を削除
+#### FE6-13 [x] refactor: 恒久デッドブランチ isSwitchingClinic を削除
 
 - **対象**: `src/features/auth/hooks/use-auth.tsx:62-63,158,168` / `src/types/auth.ts:78` / `src/components/shared/Layout/Layout.tsx:8,33-38` / これらを参照するテストのモック
 - **問題**: `const isSwitchingClinic = false;` がハードコードされており（コメント「クリニック切替はフルリロードで行うため常に false」）、`Layout.tsx:33-38` の切替中オーバーレイJSXは**実行時に到達不能**。将来のSPA切替用の足場だが、現設計（フルリロード方式、FE5-3コメント参照）が正である以上 YAGNI。git 履歴に残るため復元可能。
@@ -350,7 +350,7 @@ export const OPTIONS_FETCH_LIMIT = 100;
 
 ### Phase 4 — refactor: 構造（M規模）
 
-#### FE6-14 [ ] refactor: AccountingDocument の消費税内訳計算を純関数に抽出（特性テスト先行）
+#### FE6-14 [x] refactor: AccountingDocument の消費税内訳計算を純関数に抽出（特性テスト先行）
 
 - **対象**: `src/features/accounting/components/AccountingDocument.tsx:89-104`（`taxBreakdown` useMemo）
 - **問題**: 標準/軽減税率の内訳計算（`Math.floor`/`Math.round` の丸め規則を含む、領収書・明細書に印字される法定金額）がコンポーネント内 useMemo にベタ書きされ、**単体テストの死角**になっている（`AccountingDocument.test.tsx:11-12` 自身が「税率自体はどのテストも検証しない」と明記）。cash-register では同種の金額計算を feature 直下の純関数に抽出するパターンが確立済み（`closing-summary.ts` 等）。
@@ -363,7 +363,7 @@ export const OPTIONS_FETCH_LIMIT = 100;
 - **コミット**: `refactor(frontend): 消費税内訳計算をtax-breakdown純関数へ抽出し特性テストを追加`
 - **依存**: FE6-0
 
-#### FE6-15 [ ] refactor: LstepTagConfigSection の3セクション複製を汎用コンポーネントに統合
+#### FE6-15 [x] refactor: LstepTagConfigSection の3セクション複製を汎用コンポーネントに統合
 
 - **対象**: `src/features/settings/components/LstepTagConfigSection.tsx`（391行。`AutoManagedPrefixesSection`:49行〜 / `ConditionTagMappingsSection`:164行〜 / `SendPurposeTagPrefixesSection`:271行〜）
 - **問題**: 3関数（各約110行）がフィールド名以外ほぼ同一構造（2つの `useState` → 追加ハンドラ（trim+必須チェック+toast+create mutation）→ 削除ハンドラ → loading/空/一覧レンダリング → 追加フォームJSX）。素朴な3重コピペで、修正が常に3箇所必要。
@@ -390,7 +390,7 @@ function TagConfigListSection<TItem>(props: TagConfigListSectionProps<TItem>) { 
 - **コミット**: `refactor(frontend): LstepTagConfigSectionの3セクション複製を汎用一覧コンポーネントへ統合`
 - **依存**: FE6-0
 
-#### FE6-16 [ ] refactor: cross-feature データフック3本を src/hooks/ の正位置へ移設
+#### FE6-16 [x] refactor: cross-feature データフック3本を src/hooks/ の正位置へ移設
 
 - **対象**:
   - `src/features/reservations/api/get-reservation.ts`（21行、`useGetReservation`）→ `src/hooks/use-get-reservation.ts`
@@ -407,7 +407,7 @@ function TagConfigListSection<TItem>(props: TagConfigListSectionProps<TItem>) { 
 - **コミット**: `refactor(frontend): 予約系cross-featureフック3本をsrc/hooksへ移設`
 - **依存**: FE6-0
 
-#### FE6-17 [ ] refactor: ReservationFormModal 群の層逆転を解消（@/features import 0件化）
+#### FE6-17 [x] refactor: ReservationFormModal 群の層逆転を解消（@/features import 0件化）
 
 - **対象**: `src/components/shared/ReservationFormModal/` 配下の全8 import:
   - `ReservationFormModal.tsx:14-15`（`useGetReservation` / `NewOwnerFormData`）
@@ -427,7 +427,7 @@ function TagConfigListSection<TItem>(props: TagConfigListSectionProps<TItem>) { 
 
 ### Phase 5 — docs
 
-#### FE6-18 [ ] docs: 規約文書と実態の乖離3点を是正
+#### FE6-18 [x] docs: 規約文書と実態の乖離3点を是正
 
 - **対象と変更**:
   1. `frontend/CODING_RULES.md:1798` 付近 — 「既存の `__tests__/` 配置（FE4-17 時点で 53 ファイル）は許容する」の段落を削除し、「`__tests__/` は FE5-23 で全廃済み。テストは対象ファイル隣接配置とし、`__tests__/` の新設は禁止（正本: `frontend/CLAUDE.md`）」に置換。実測: `src`/`liff`/`line-reserve` に `__tests__/` は0件。
