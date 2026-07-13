@@ -12,7 +12,6 @@ function makeAuthCtx(hasPermissionFn: (r: string, a: ResourceAction) => boolean)
     currentClinicId: CLINIC_ID,
     isAuthenticated: true,
     isLoading: false,
-    isSwitchingClinic: false,
     login: async () => {},
     logout: async () => {},
     switchClinic: () => {},

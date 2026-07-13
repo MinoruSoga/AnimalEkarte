@@ -60,7 +60,6 @@ function makeAuthCtx(grants: PermGrant[]) {
     currentClinicId: CLINIC_ID,
     isAuthenticated: true,
     isLoading: false,
-    isSwitchingClinic: false,
     login: async () => {},
     logout: async () => {},
     switchClinic: () => {},

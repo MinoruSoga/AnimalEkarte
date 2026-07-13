@@ -26,7 +26,6 @@ function makeAuthCtx(canEdit: boolean) {
     currentClinicId: CLINIC_ID,
     isAuthenticated: true,
     isLoading: false,
-    isSwitchingClinic: false,
     login: async () => {},
     logout: async () => {},
     switchClinic: () => {},

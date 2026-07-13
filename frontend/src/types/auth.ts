@@ -75,7 +75,6 @@ export interface AuthContextValue {
   currentClinicId: string | null;
   isAuthenticated: boolean;
   isLoading: boolean;
-  isSwitchingClinic: boolean;
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   switchClinic: (clinicId: string) => void;

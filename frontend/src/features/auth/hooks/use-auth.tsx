@@ -61,9 +61,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
     return validClinic ? storedClinic : initialResult.user.mainClinicId;
   });
 
-  // isSwitchingClinic: クリニック切替はフルリロードで行うため常に false
-  const isSwitchingClinic = false;
-
   // /me の定期ポーリング結果でユーザー情報（権限含む）を同期
   // 認証済みかつローディング完了後のみポーリングを有効化
   const { data: meData } = useGetMe(user !== null);
@@ -162,7 +159,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
       currentClinicId,
       isAuthenticated: user !== null,
       isLoading: false, // In React 19 use() pattern, if we are here, we are not loading.
-      isSwitchingClinic,
       login,
       logout,
       switchClinic,
@@ -172,7 +168,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
     [
       user,
       currentClinicId,
-      isSwitchingClinic,
       login,
       logout,
       switchClinic,

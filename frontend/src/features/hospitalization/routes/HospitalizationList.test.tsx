@@ -31,7 +31,6 @@ function makeAuthCtx() {
     currentClinicId: "clinic-1",
     isAuthenticated: true,
     isLoading: false,
-    isSwitchingClinic: false,
     login: async () => {},
     logout: async () => {},
     switchClinic: () => {},
