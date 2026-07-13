@@ -20,7 +20,3 @@ export { TrimmingSettings } from "./routes/TrimmingSettings";
 export { TrimmingCourseTypeSettings } from "./routes/TrimmingCourseTypeSettings";
 
 export { useGetCompany } from "./api/company";
-export {
-  useGetUnavailableTimes,
-} from "./api/reservation-type-unavailable-times";
-export type { ReservationTypeUnavailableTime } from "./api/reservation-type-unavailable-times";

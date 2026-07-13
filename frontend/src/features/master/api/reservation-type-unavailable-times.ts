@@ -10,7 +10,6 @@ import { unavailableTimesKey } from "@/hooks/use-reservation-type-unavailable-ti
 export {
   useGetUnavailableTimes,
 } from "@/hooks/use-reservation-type-unavailable-times";
-export type { ReservationTypeUnavailableTime } from "@/hooks/use-reservation-type-unavailable-times";
 
 // ─────────────────────────────────────────────────
 // Request types
