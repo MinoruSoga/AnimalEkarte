@@ -5,7 +5,7 @@ import { http, HttpResponse } from "msw";
 import { server } from "@/testing/mocks/node";
 import { createTestWrapper } from "@/testing/utils";
 import { ReservationRouteSelect } from "./ReservationRouteSelect";
-import type { ReservationRoute } from "../constants/reservation-route";
+import type { ReservationRoute } from "@/types/reservation-route";
 
 const RESERVATION_ID = "res-test-1";
 

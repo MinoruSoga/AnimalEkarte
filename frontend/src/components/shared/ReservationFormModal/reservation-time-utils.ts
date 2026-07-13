@@ -1,5 +1,5 @@
 import { format } from "date-fns";
-import type { ReservationTypeUnavailableTime } from "@/features/master";
+import type { ReservationTypeUnavailableTime } from "@/hooks/use-reservation-type-unavailable-times";
 
 function generateTimeOptions(): string[] {
   const times: string[] = [];

@@ -2,7 +2,7 @@ import { memo, useMemo, useCallback, useState } from "react";
 import { isBefore, startOfDay, format } from "date-fns";
 import { useMasterItems } from "@/hooks/use-master-items";
 import { getCurrentClinicId, useGetReservationTypesGrouped, useGetOnDutyStaffs, useGetReservationStaffs, useGetReservationAvailableTimes } from "@/hooks/use-reservation-types";
-import { useGetUnavailableTimes } from "@/features/master";
+import { useGetUnavailableTimes } from "@/hooks/use-reservation-type-unavailable-times";
 import { toJSTWallDate } from "@/lib/jst-date";
 import type { SearchableSelectOption } from "@/components/ui/searchable-select";
 import type { ReservationTypePickerGroup } from "@/components/shared/ReservationFormModal/ReservationTypePickerDialog";

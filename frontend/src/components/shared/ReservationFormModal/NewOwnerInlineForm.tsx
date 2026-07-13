@@ -5,8 +5,8 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { FormFieldError } from "@/components/shared/FormFieldError";
-import { useAnimalSpecies } from "@/features/owners";
-import type { NewOwnerFormData } from "@/features/reservations";
+import { useAnimalSpecies } from "@/hooks/use-animal-species";
+import type { NewOwnerFormData } from "@/types/reservation-form";
 
 interface NewOwnerInlineFormProps {
   value: NewOwnerFormData;
