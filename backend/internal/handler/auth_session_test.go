@@ -68,49 +68,6 @@ func (m *mockAuthAssignmentService) Create(_ context.Context, _ *model.StaffClin
 	return nil
 }
 
-// ---- mock AuditService (auth_session scope) ----
-
-type mockAuditService struct {
-	logAuthLoginFn func(ctx context.Context, clinicID, staffID *uint64, action, ip, ua string) error
-	loggedActions  []string
-}
-
-func (m *mockAuditService) Log(_ context.Context, _ *model.AuditLog) error { return nil }
-
-func (m *mockAuditService) LogEntry(_ context.Context, _ *service.AuditLogInput) error { return nil }
-
-func (m *mockAuditService) LogAuthLogin(ctx context.Context, clinicID, staffID *uint64, action, ip, ua string) error {
-	m.loggedActions = append(m.loggedActions, action)
-	if m.logAuthLoginFn != nil {
-		return m.logAuthLoginFn(ctx, clinicID, staffID, action, ip, ua)
-	}
-	return nil
-}
-
-func (m *mockAuditService) LogLstepOperation(_ context.Context, _ uint64, _ *uint64, _, _ string, _ *uint64) error {
-	return nil
-}
-
-func (m *mockAuditService) LogLstepOperationWithMetadata(_ context.Context, _ uint64, _ *uint64, _, _ string, _ *uint64, _ any) error {
-	return nil
-}
-
-func (m *mockAuditService) LogMedicalRecordChange(_ context.Context, _ uint64, _ *uint64, _ string, _ uint64, _, _ map[string]any) error {
-	return nil
-}
-
-func (m *mockAuditService) LogVitalChange(_ context.Context, _ uint64, _ *uint64, _ string, _, _ uint64, _, _ map[string]any) error {
-	return nil
-}
-
-func (m *mockAuditService) LogAddendumCreate(_ context.Context, _ uint64, _ *uint64, _, _ uint64, _ *model.MedicalRecordAddendum) error {
-	return nil
-}
-
-func (m *mockAuditService) LogClinicSwitch(_ context.Context, _ *uint64, _, _ uint64, _, _ string) error {
-	return nil
-}
-
 func newHandlerForAuthSession(
 	accountSvc service.AccountService,
 	staffSvc service.StaffService,

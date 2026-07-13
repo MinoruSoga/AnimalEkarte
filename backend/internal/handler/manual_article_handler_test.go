@@ -48,55 +48,13 @@ func (m *mockManualArticleService) FindVersionsByArticleID(ctx context.Context, 
 	return m.findVersionsByArticleFn(ctx, articleID)
 }
 
-// ---- mock AuditService (manual_article scope) ----
-
-type mockAuditServiceForManual struct {
-	lastLogEntry *service.AuditLogInput
-	logEntryErr  error
-}
-
-func (m *mockAuditServiceForManual) Log(_ context.Context, _ *model.AuditLog) error { return nil }
-
-func (m *mockAuditServiceForManual) LogEntry(_ context.Context, input *service.AuditLogInput) error {
-	m.lastLogEntry = input
-	return m.logEntryErr
-}
-
-func (m *mockAuditServiceForManual) LogAuthLogin(_ context.Context, _, _ *uint64, _, _, _ string) error {
-	return nil
-}
-
-func (m *mockAuditServiceForManual) LogLstepOperation(_ context.Context, _ uint64, _ *uint64, _, _ string, _ *uint64) error {
-	return nil
-}
-
-func (m *mockAuditServiceForManual) LogLstepOperationWithMetadata(_ context.Context, _ uint64, _ *uint64, _, _ string, _ *uint64, _ any) error {
-	return nil
-}
-
-func (m *mockAuditServiceForManual) LogMedicalRecordChange(_ context.Context, _ uint64, _ *uint64, _ string, _ uint64, _, _ map[string]any) error {
-	return nil
-}
-
-func (m *mockAuditServiceForManual) LogVitalChange(_ context.Context, _ uint64, _ *uint64, _ string, _, _ uint64, _, _ map[string]any) error {
-	return nil
-}
-
-func (m *mockAuditServiceForManual) LogAddendumCreate(_ context.Context, _ uint64, _ *uint64, _, _ uint64, _ *model.MedicalRecordAddendum) error {
-	return nil
-}
-
-func (m *mockAuditServiceForManual) LogClinicSwitch(_ context.Context, _ *uint64, _, _ uint64, _, _ string) error {
-	return nil
-}
-
 // ---- test helpers ----
 
 func newHandlerWithManualArticleSvc(svc service.ManualArticleService) *Handler {
 	return &Handler{
 		svc: &service.Services{
 			ManualArticle: svc,
-			Audit:         &mockAuditServiceForManual{},
+			Audit:         &mockAuditService{},
 		},
 	}
 }
@@ -369,7 +327,7 @@ func TestUpsertManualArticle_AuditLogged(t *testing.T) {
 			return &model.ManualArticle{ID: 42, Category: input.Category, Slug: input.Slug, Title: input.Title}, nil
 		},
 	}
-	auditSvc := &mockAuditServiceForManual{logEntryErr: fmt.Errorf("audit write failed")}
+	auditSvc := &mockAuditService{logEntryErr: fmt.Errorf("audit write failed")}
 	h := newHandlerWithManualArticleAndAuditSvc(svc, auditSvc)
 
 	body := map[string]any{
@@ -416,7 +374,7 @@ func TestDeleteManualArticle_AuditLogged(t *testing.T) {
 			return nil
 		},
 	}
-	auditSvc := &mockAuditServiceForManual{logEntryErr: fmt.Errorf("audit write failed")}
+	auditSvc := &mockAuditService{logEntryErr: fmt.Errorf("audit write failed")}
 	h := newHandlerWithManualArticleAndAuditSvc(svc, auditSvc)
 
 	w := httptest.NewRecorder()
