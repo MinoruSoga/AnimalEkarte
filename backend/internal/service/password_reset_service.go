@@ -4,13 +4,9 @@ import (
 	"context"
 	"crypto/rand"
 	"crypto/sha256"
-	"crypto/tls"
 	"encoding/hex"
 	"fmt"
 	"log/slog"
-	"net"
-	"net/smtp"
-	"strings"
 	"sync"
 	"time"
 
@@ -194,28 +190,9 @@ func hashToken(rawToken string) string {
 	return hex.EncodeToString(h[:])
 }
 
-// validateSMTPLine は net/smtp.SendMail 内部の validateLine 相当のガードである。
-// MAIL FROM/RCPT TO 等のエンベロープコマンドに CR/LF を許すと SMTP コマンド
-// インジェクションになるため、手動展開の smtp クライアント呼び出し前に拒否する。
-func validateSMTPLine(line string) error {
-	if strings.ContainsAny(line, "\n\r") {
-		return fmt.Errorf("smtp: A line must not contain CR or LF")
-	}
-	return nil
-}
-
 func (s *passwordResetService) sendResetEmail(ctx context.Context, to, resetURL string) error {
 	if s.cfg.SMTPHost == "" {
 		return nil
-	}
-
-	// net/smtp.SendMail の validateLine 相当: エンベロープコマンド（MAIL FROM/RCPT TO）に
-	// CR/LF を許すと SMTP コマンドインジェクションになるため、dial する前に拒否する。
-	if err := validateSMTPLine(s.cfg.SMTPFrom); err != nil {
-		return fmt.Errorf("smtp send: %w", err)
-	}
-	if err := validateSMTPLine(to); err != nil {
-		return fmt.Errorf("smtp send: %w", err)
 	}
 
 	subject := "パスワードリセットのご案内"
@@ -235,70 +212,6 @@ func (s *passwordResetService) sendResetEmail(ctx context.Context, to, resetURL 
 		"\r\n" +
 		body + "\r\n")
 
-	addr := s.cfg.SMTPHost + ":" + s.cfg.SMTPPort
-	var auth smtp.Auth
-	if s.cfg.SMTPUser != "" {
-		auth = smtp.PlainAuth("", s.cfg.SMTPUser, s.cfg.SMTPPass, s.cfg.SMTPHost)
-	}
-
-	// smtp.SendMail は ctx を受け付けないため deadline が SMTP サーバ無応答時に
-	// 伝播しない（backend/CLAUDE.md X-18）。DialContext + conn.SetDeadline で
-	// net/smtp.SendMail 相当の手順を ctx 対応に手動展開する。
-	conn, err := (&net.Dialer{}).DialContext(ctx, "tcp", addr)
-	if err != nil {
-		return fmt.Errorf("smtp send: %w", err)
-	}
-	defer conn.Close()
-
-	if deadline, ok := ctx.Deadline(); ok {
-		if err := conn.SetDeadline(deadline); err != nil {
-			return fmt.Errorf("smtp send: %w", err)
-		}
-	}
-
-	c, err := smtp.NewClient(conn, s.cfg.SMTPHost)
-	if err != nil {
-		return fmt.Errorf("smtp send: %w", err)
-	}
-	defer c.Close()
-
-	if ok, _ := c.Extension("STARTTLS"); ok {
-		if err := c.StartTLS(&tls.Config{ServerName: s.cfg.SMTPHost}); err != nil {
-			return fmt.Errorf("smtp send: %w", err)
-		}
-	}
-
-	// net/smtp.SendMail は AUTH extension をサーバが広告している場合のみ Auth を試みる
-	// （未広告サーバへの無条件 Auth 呼び出しは、AUTH 非対応サーバに対する不要な認証失敗を
-	// 招き得る）。手動展開でも同じガードを踏襲する。
-	if auth != nil {
-		if ok, _ := c.Extension("AUTH"); ok {
-			if err := c.Auth(auth); err != nil {
-				return fmt.Errorf("smtp send: %w", err)
-			}
-		}
-	}
-
-	if err := c.Mail(from); err != nil {
-		return fmt.Errorf("smtp send: %w", err)
-	}
-	if err := c.Rcpt(to); err != nil {
-		return fmt.Errorf("smtp send: %w", err)
-	}
-
-	w, err := c.Data()
-	if err != nil {
-		return fmt.Errorf("smtp send: %w", err)
-	}
-	if _, err := w.Write(msg); err != nil {
-		return fmt.Errorf("smtp send: %w", err)
-	}
-	if err := w.Close(); err != nil {
-		return fmt.Errorf("smtp send: %w", err)
-	}
-
-	if err := c.Quit(); err != nil {
-		return fmt.Errorf("smtp send: %w", err)
-	}
-	return nil
+	cfg := smtpConfig{Host: s.cfg.SMTPHost, Port: s.cfg.SMTPPort, User: s.cfg.SMTPUser, Pass: s.cfg.SMTPPass}
+	return sendSMTPMail(ctx, cfg, from, to, msg)
 }

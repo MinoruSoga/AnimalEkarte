@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
-	"net/smtp"
 	"strings"
 	"time"
 
@@ -297,7 +296,7 @@ func (s *reservationNotificationService) buildCancelledEmail(
 
 // ---- SMTP送信 ----
 
-func (s *reservationNotificationService) sendEmail(_ context.Context, to, subject, body string) error {
+func (s *reservationNotificationService) sendEmail(ctx context.Context, to, subject, body string) error {
 	if s.cfg.SMTPHost == "" {
 		return nil
 	}
@@ -310,13 +309,8 @@ func (s *reservationNotificationService) sendEmail(_ context.Context, to, subjec
 		"\r\n" +
 		body + "\r\n")
 
-	addr := s.cfg.SMTPHost + ":" + s.cfg.SMTPPort
-	var auth smtp.Auth
-	if s.cfg.SMTPUser != "" {
-		auth = smtp.PlainAuth("", s.cfg.SMTPUser, s.cfg.SMTPPass, s.cfg.SMTPHost)
-	}
-
-	if err := smtp.SendMail(addr, auth, from, []string{to}, msg); err != nil {
+	cfg := smtpConfig{Host: s.cfg.SMTPHost, Port: s.cfg.SMTPPort, User: s.cfg.SMTPUser, Pass: s.cfg.SMTPPass}
+	if err := sendSMTPMail(ctx, cfg, from, to, msg); err != nil {
 		return apperrors.Wrap(err, "smtp send")
 	}
 	return nil
