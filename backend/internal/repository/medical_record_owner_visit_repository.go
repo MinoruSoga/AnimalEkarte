@@ -33,10 +33,12 @@ func (r *medicalRecordRepository) FindLatestByOwner(ctx context.Context, clinicI
 		Order("created_at DESC").
 		First(&record).Error
 	if err != nil {
-		if apperrors.IsNotFound(err) {
+		// #236 BUG#4: IsNotFound は生 gorm.ErrRecordNotFound では常に false。FromGORM でラップしてから判定する。
+		wrapped := apperrors.FromGORM(err, "medical_record", fmt.Sprintf("owner=%d", ownerID))
+		if apperrors.IsNotFound(wrapped) {
 			return nil, nil
 		}
-		return nil, apperrors.FromGORM(err, "medical_record", fmt.Sprintf("owner=%d", ownerID))
+		return nil, wrapped
 	}
 	return &record, nil
 }

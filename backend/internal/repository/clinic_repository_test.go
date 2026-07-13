@@ -269,19 +269,11 @@ func TestClinicRepository_CountStaffByClinicID(t *testing.T) {
 	assert.Equal(t, int64(2), got)
 }
 
-// KNOWN BUG (Phase 4 discovery 2026-07-03, out of scope for this test-coverage task):
-// CountBlockingReferencesByClinicID (clinic_repository.go) unconditionally queries the
-// clinic_settings table as one of its dependency checks, on every call — regardless of which
-// subtest exercises it. model.ClinicSettings's AutoMigrate fails against a fresh test DB with
-// "invalid input syntax for type timestamp with time zone: 14:00" (GORM's generated schema for
-// this struct does not match the real migration-defined schema — see TestClinicSettingsRepository_*
-// in clinic_settings_repository_test.go for the full analysis, all skipped for the same root
-// cause), so the clinic_settings table never gets created in this test DB at all, and EVERY
-// subtest here fails with "relation clinic_settings does not exist", not just the one that
-// exercises clinic_settings directly. Skipping the whole function rather than test-fixing it,
-// since a real fix requires resolving the ClinicSettings schema drift itself (out of scope).
+// Fixed (#236 root cause, 2026-07-13): model.ClinicSettings now carries explicit gorm
+// "type:time"/"column:" tags matching backend/migrations/001_init.sql, so AutoMigrate no
+// longer fails and this table dependency check runs normally. See
+// TestClinicSettingsRepository_* in clinic_settings_repository_test.go for the same fix.
 func TestClinicRepository_CountBlockingReferencesByClinicID(t *testing.T) {
-	t.Skip("known bug — model.ClinicSettings AutoMigrate schema drift blocks this table dependency check, see comment above")
 	db := setupClinicTestDB(t)
 	repo := NewClinicRepository(db)
 	ctx := context.Background()
@@ -318,23 +310,8 @@ func TestClinicRepository_CountBlockingReferencesByClinicID(t *testing.T) {
 		assert.Empty(t, got, "唯一の会計がソフト削除されれば依存なしになる")
 	})
 
-	// KNOWN BUG (Phase 4 discovery 2026-07-03, out of scope for this test-coverage task):
-	// model.ClinicSettings AutoMigrate fails against a fresh test DB with
-	// "invalid input syntax for type timestamp with time zone: 14:00" (SQLSTATE 22007) — GORM's
-	// default naming/type inference for this struct does not agree with the real migration-defined
-	// schema (backend/migrations/001_init.sql declares closing_am_pm_boundary etc. as plain `time`
-	// columns; AutoMigrate instead generates `timestamptz` with the same bare '14:00' default
-	// literal, which Postgres rejects for a full timestamptz). Additionally, several struct fields
-	// (e.g. DormantPrevention180Days, CPMV2ComingThreshold) lack explicit gorm:"column:" tags, so
-	// GORM's default snake_case naming produces column names (dormant_prevention180_days,
-	// cpmv2_coming_threshold) that do not match the real migration's underscored names
-	// (dormant_prevention_180_days, cpm_v2_coming_threshold) — see TestClinicSettingsRepository_*
-	// in clinic_settings_repository_test.go, all skipped for the same root cause. This subtest
-	// cannot even set up its fixture (AutoMigrate itself fails), so it is skipped rather than
-	// test-fixed; whether this also affects real production use of model.ClinicSettings needs
-	// separate investigation (out of scope here).
+	// Fixed (#236 root cause, 2026-07-13): see comment above TestClinicRepository_CountBlockingReferencesByClinicID.
 	t.Run("clinic_settingsはソフトデリート対象外テーブルとして検出される", func(t *testing.T) {
-		t.Skip("known bug — model.ClinicSettings AutoMigrate schema drift, see comment above")
 		clinic := makeClinicFixture(t, db, "医院設定依存クリニック")
 		require.NoError(t, db.WithContext(ctx).Create(&model.ClinicSettings{ClinicID: clinic.ID}).Error)
 

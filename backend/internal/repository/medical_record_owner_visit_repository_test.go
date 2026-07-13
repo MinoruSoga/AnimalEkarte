@@ -182,28 +182,11 @@ func TestMedicalRecordRepository_FindLatestByOwner(t *testing.T) {
 		assert.NotEqual(t, older.ID, got.ID)
 	})
 
-	// KNOWN PRODUCTION BUG (discovered 2026-07-13, Issue #212) — FindLatestByOwner
-	// (medical_record_owner_visit_repository.go) はドキュメントコメントで
-	// 「カルテが存在しない場合は nil, nil を返す」と明記しているが、実装は
-	//   if err != nil {
-	//       if apperrors.IsNotFound(err) { return nil, nil }   // ← 未到達
-	//       return nil, apperrors.FromGORM(err, ...)
-	//   }
-	// という順序になっており、apperrors.IsNotFound(err) は GORM の生エラー
-	// (gorm.ErrRecordNotFound、まだ apperrors でラップされていない) に対して
-	// errors.Is(err, apperrors.ErrNotFound) で判定するため常に false を返す
-	// （apperrors.IsNotFound は apperrors 自身がラップした後の sentinel しか認識しない）。
-	// 結果、「該当なし」分岐は常にデッドコードで、実際には毎回 apperrors.FromGORM(...) 経由の
-	// 本物のエラーが返る。本メソッドの呼び出し元 lstep_tag_sync_visit_next.go /
-	// lstep_analytics_service.go は「カルテなしは正常系(nil,nil)」を前提にしている可能性が高く、
-	// 該当飼い主ごとにスプリアスなエラーとして扱われている懸念がある。
-	// プロダクションコード変更はこのタスクのスコープ外のため、正しい期待動作（ドキュメント通り
-	// nil, nil を返すべき）を明記した上で t.Skip する。修正方針: apperrors.IsNotFound(err) を
-	// errors.Is(err, gorm.ErrRecordNotFound) に変更するか、apperrors.FromGORM で先にラップしてから
-	// IsNotFound 判定する（他の多くのメソッドが後者のパターンを踏襲している）。
+	// #236 BUG#4 (2026-07-13): FindLatestByOwner は修正済み。
+	// apperrors.FromGORM(err, "medical_record", ...) で先にラップしてから
+	// apperrors.IsNotFound(wrapped) を判定するため、「該当なし」「他院のみ存在」の
+	// いずれのケースでも正しく nil, nil を返す。
 	t.Run("clinic_id隔離: 別クリニックのカルテは対象外", func(t *testing.T) {
-		t.Skip("KNOWN PRODUCTION BUG (2026-07-13) — apperrors.IsNotFound が生gormエラーに対し常にfalseで" +
-			"NotFound分岐が未到達。本サブテスト直上のコメント参照。")
 		owner := makeOwner(t, db, clinicA, "隔離飼主")
 		ownerID := owner.ID
 		makeVisitRecordForOwnerVisitTest(t, db, &model.MedicalRecord{
@@ -218,8 +201,6 @@ func TestMedicalRecordRepository_FindLatestByOwner(t *testing.T) {
 	})
 
 	t.Run("該当なし: カルテが存在しない飼い主は nil, nil", func(t *testing.T) {
-		t.Skip("KNOWN PRODUCTION BUG (2026-07-13) — apperrors.IsNotFound が生gormエラーに対し常にfalseで" +
-			"NotFound分岐が未到達。TestMedicalRecordRepository_FindLatestByOwner 冒頭のコメント参照。")
 		owner := makeOwner(t, db, clinicA, "カルテなし飼主")
 
 		got, err := repo.FindLatestByOwner(ctx, clinicA, owner.ID)

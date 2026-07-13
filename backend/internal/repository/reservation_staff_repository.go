@@ -99,10 +99,12 @@ func (r *reservationStaffRepository) Update(ctx context.Context, clinicID, id ui
 }
 
 // BE-refactor.md X-8: dbOrTx(ctx, r.db) で ambient tx 参加を統一する（他の write メソッドと対称）。
+// #236 BUG#1: Staff はソフトデリート対象のため Delete() は UPDATE に変換され、GORM は Joins() を落とす。
+// clinic 条件は WHERE 側の EXISTS に埋め、staff_repository.Delete と同型にする。
 func (r *reservationStaffRepository) Delete(ctx context.Context, clinicID, id uint64) error {
 	result := dbOrTx(ctx, r.db).
-		Joins("JOIN staff_clinic_assignments sca ON sca.staff_id = staffs.id AND sca.clinic_id = ?", clinicID).
-		Where("staffs.id = ?", id).
+		Where("id = ?", id).
+		Where("EXISTS (SELECT 1 FROM staff_clinic_assignments sca WHERE sca.staff_id = staffs.id AND sca.clinic_id = ? AND sca.deleted_at IS NULL)", clinicID).
 		Delete(&model.Staff{})
 	if result.Error != nil {
 		return apperrors.FromGORM(result.Error, "reservation_staff", fmt.Sprintf("%d", id))

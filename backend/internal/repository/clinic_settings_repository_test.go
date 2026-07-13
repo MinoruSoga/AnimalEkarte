@@ -18,32 +18,19 @@ import (
 
 // setupClinicSettingsTestDB は clinic_settings_repository のテスト用に DB を整備する。
 //
-// PARTIALLY FIXED (2026-07-13, Issue #212): 元々 db.AutoMigrate(&model.ClinicSettings{}) が
+// FIXED (2026-07-13, Issue #212 → #236 BUG#3): 元々 db.AutoMigrate(&model.ClinicSettings{}) が
 // "invalid input syntax for type timestamp with time zone: 14:00" (SQLSTATE 22007) で失敗し
 // 全7テストが t.Skip されていた（GORM の AutoMigrate が gorm:"type:time" タグを無視し timestamptz
 // として CREATE TABLE を生成する既知の相性問題）。プロダクションコード（model/migration）を変更せず、
 // テスト専用に実マイグレーション（backend/migrations/001_init.sql の CREATE TABLE clinic_settings +
 // 011番 ALTER TABLE ADD COLUMN closing_am_start、2036-2071行目・3635行目）と一致する生SQLで
-// テーブルを用意することでこの AutoMigrate 問題は解消した（読み取り専用パス = FindByClinicID の
-// 「行が存在しない→デフォルト値」ケースはこれで green になった）。
+// テーブルを用意することでこの AutoMigrate 問題は解消した。
 //
-// KNOWN PRODUCTION BUG — CRITICAL (未解消、2026-07-13 に本タスクで新規発覚): 上記修正後、
-// repo.Save/UpdateCPMVersion/UpdateDormantThresholds/UpdateCPMV2Thresholds/UpdateCPMV1Thresholds/
-// UpdateHealthPreventionThresholds の全てが実行時に
-// `ERROR: column "dormant_prevention180_days" of relation "clinic_settings" does not exist (SQLSTATE 42703)`
-// で失敗することが判明した。原因は model.ClinicSettings の各フィールド（DormantPrevention180Days /
-// CPMV2ComingThreshold / CPMV1DormantDays 等、15個以上）に明示的な gorm:"column:..." タグが無く、
-// GORM のデフォルト snake_case 変換が実スキーマと異なる列名（例: DormantPrevention180Days →
-// dormant_prevention180_days、実際は dormant_prevention_180_days）を生成するため。これは
-// clause.OnConflict.DoUpdates で明示指定された正しい列名（UPDATE 側）とは無関係に、Create() が
-// 生成する INSERT 列リスト自体が誤っているという問題であり、AutoMigrate の有無や本テストの
-// テーブル定義方法（生SQL/AutoMigrate）にかかわらず、実データベース（本番含む）に対しても
-// 同一エラーで確実に失敗する。つまり本番でこれらのメソッドが一度でも呼ばれれば同じ SQLSTATE 42703
-// で失敗するはずであり、ClinicSettings の書き込み経路（締め時間設定・CPM閾値・休眠予防閾値・
-// 健診予防閾値の管理画面からの更新）全体が機能していない可能性が高い。至急ユーザーへ報告し
-// 別 Issue で最優先修正すること（修正方針: 上記フィールド群に正しい gorm:"column:" タグを追加）。
-// プロダクションコード変更はこのタスクのスコープ外のため、本ファイルでは書込に依存するテスト/
-// サブテストを t.Skip で明示的にブロックし、赤 CI を防ぎつつバグを文書化する。
+// 別途発覚していた BUG#3（model.ClinicSettings の DormantPrevention180Days / CPMV2ComingThreshold /
+// CPMV1DormantDays 等、GORM デフォルトの snake_case 変換が実スキーマと異なる列名を生成し
+// `SQLSTATE 42703` で Create()/UPSERT が失敗する問題）は、対応する gorm:"column:..." タグの
+// 明示付与により解消済み（model/clinic_settings.go 参照）。本ファイルの t.Skip は全て解除し、
+// 2026-07-13 時点で TestClinicSettingsRepository_* 全サブテストが green であることを確認済み。
 func setupClinicSettingsTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
 	db := setupTestDB(t)
@@ -106,8 +93,6 @@ func TestClinicSettingsRepository_FindByClinicID(t *testing.T) {
 	})
 
 	t.Run("clinic_id隔離: 他院の設定は返らず自院はデフォルト値のまま", func(t *testing.T) {
-		t.Skip("KNOWN PRODUCTION BUG (CRITICAL, 2026-07-13) — repo.Save が列名不一致(SQLSTATE 42703)で失敗する。" +
-			"setupClinicSettingsTestDB 冒頭のコメント参照。")
 		clinicA := makeClinicFixture(t, db, "隔離検証A")
 		clinicB := makeClinicFixture(t, db, "隔離検証B")
 		sB := &model.ClinicSettings{ClinicID: clinicB.ID, ClosingAmPmBoundary: "15:45", ClosingWeekdayEnd: "20:00", ClosingSundayEnd: "18:00"}
@@ -124,8 +109,6 @@ func TestClinicSettingsRepository_FindByClinicID(t *testing.T) {
 	})
 
 	t.Run("行が存在すれば実際の値を返す", func(t *testing.T) {
-		t.Skip("KNOWN PRODUCTION BUG (CRITICAL, 2026-07-13) — repo.Save が列名不一致(SQLSTATE 42703)で失敗する。" +
-			"setupClinicSettingsTestDB 冒頭のコメント参照。")
 		clinic := makeClinicFixture(t, db, "設定既存クリニック")
 		s := &model.ClinicSettings{ClinicID: clinic.ID, ClosingAmPmBoundary: "13:00", ClosingWeekdayEnd: "19:00", ClosingSundayEnd: "16:00"}
 		_, err := repo.Save(ctx, clinic.ID, s)
@@ -138,8 +121,6 @@ func TestClinicSettingsRepository_FindByClinicID(t *testing.T) {
 }
 
 func TestClinicSettingsRepository_Save(t *testing.T) {
-	t.Skip("KNOWN PRODUCTION BUG (CRITICAL, 2026-07-13) — repo.Save が列名不一致(SQLSTATE 42703)で失敗する。" +
-		"setupClinicSettingsTestDB 冒頭のコメント参照。")
 	db := setupClinicSettingsTestDB(t)
 	repo := NewClinicSettingsRepository(db)
 	ctx := context.Background()
@@ -169,8 +150,6 @@ func TestClinicSettingsRepository_Save(t *testing.T) {
 }
 
 func TestClinicSettingsRepository_UpdateCPMVersion(t *testing.T) {
-	t.Skip("KNOWN PRODUCTION BUG (CRITICAL, 2026-07-13) — 内部で repo.Save/Create 相当のUPSERTが" +
-		"列名不一致(SQLSTATE 42703)で失敗する。setupClinicSettingsTestDB 冒頭のコメント参照。")
 	db := setupClinicSettingsTestDB(t)
 	repo := NewClinicSettingsRepository(db)
 	ctx := context.Background()
@@ -200,8 +179,6 @@ func TestClinicSettingsRepository_UpdateCPMVersion(t *testing.T) {
 }
 
 func TestClinicSettingsRepository_UpdateDormantThresholds(t *testing.T) {
-	t.Skip("KNOWN PRODUCTION BUG (CRITICAL, 2026-07-13) — 内部UPSERTが列名不一致(SQLSTATE 42703)で失敗する。" +
-		"setupClinicSettingsTestDB 冒頭のコメント参照。")
 	db := setupClinicSettingsTestDB(t)
 	repo := NewClinicSettingsRepository(db)
 	ctx := context.Background()
@@ -236,8 +213,6 @@ func TestClinicSettingsRepository_UpdateDormantThresholds(t *testing.T) {
 }
 
 func TestClinicSettingsRepository_UpdateCPMV2Thresholds(t *testing.T) {
-	t.Skip("KNOWN PRODUCTION BUG (CRITICAL, 2026-07-13) — 内部UPSERTが列名不一致(SQLSTATE 42703)で失敗する。" +
-		"setupClinicSettingsTestDB 冒頭のコメント参照。")
 	db := setupClinicSettingsTestDB(t)
 	repo := NewClinicSettingsRepository(db)
 	ctx := context.Background()
@@ -257,8 +232,6 @@ func TestClinicSettingsRepository_UpdateCPMV2Thresholds(t *testing.T) {
 }
 
 func TestClinicSettingsRepository_UpdateCPMV1Thresholds(t *testing.T) {
-	t.Skip("KNOWN PRODUCTION BUG (CRITICAL, 2026-07-13) — 内部UPSERTが列名不一致(SQLSTATE 42703)で失敗する。" +
-		"setupClinicSettingsTestDB 冒頭のコメント参照。")
 	db := setupClinicSettingsTestDB(t)
 	repo := NewClinicSettingsRepository(db)
 	ctx := context.Background()
@@ -283,8 +256,6 @@ func TestClinicSettingsRepository_UpdateCPMV1Thresholds(t *testing.T) {
 }
 
 func TestClinicSettingsRepository_UpdateHealthPreventionThresholds(t *testing.T) {
-	t.Skip("KNOWN PRODUCTION BUG (CRITICAL, 2026-07-13) — 内部UPSERTが列名不一致(SQLSTATE 42703)で失敗する。" +
-		"setupClinicSettingsTestDB 冒頭のコメント参照。")
 	db := setupClinicSettingsTestDB(t)
 	repo := NewClinicSettingsRepository(db)
 	ctx := context.Background()

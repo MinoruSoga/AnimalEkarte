@@ -141,30 +141,11 @@ func TestReservationStaffRepository_Delete(t *testing.T) {
 		assert.EqualValues(t, 1, count, "対象行は物理削除でなくソフトデリートされるべき")
 	})
 
-	// KNOWN PRODUCTION BUG — CRITICAL (discovered 2026-07-13, Issue #212 テスト追加時に発覚。
-	// プロダクションコード変更はこのタスクのスコープ外のため、既知バグとして文書化し t.Skip する。
-	// 別途 Issue 起票し最優先で修正すること — clinic_id 隔離を回避したクロステナント削除が可能。
-	//
-	// reservation_staff_repository.go の Delete は次の実装:
-	//   dbOrTx(ctx, r.db).
-	//       Joins("JOIN staff_clinic_assignments sca ON sca.staff_id = staffs.id AND sca.clinic_id = ?", clinicID).
-	//       Where("staffs.id = ?", id).
-	//       Delete(&model.Staff{})
-	// GORM は Staff（DeletedAt を持つソフトデリート対象モデル）への Delete() 呼び出し時、
-	// Joins() で追加した JOIN 条件を無視し
-	// `UPDATE "staffs" SET "deleted_at"=? WHERE staffs.id = ? AND deleted_at IS NULL` のみを発行する
-	// （直接検証済み: db.Debug() で確認、生成 SQL に JOIN 句が一切含まれない）。
-	// 結果、clinicID 引数は事実上無視され、id のみが一致すれば「他クリニックの staff」でも削除できる
-	// （clinic_id 隔離の完全な欠落 = クロステナント削除脆弱性）。
-	// 同様の Joins()+Delete(&model.X{}) パターンは repository パッケージ内の他メソッドには存在しない
-	// （grep で確認済み、本メソッド固有）。
-	// 修正方針: permission_group_repository.go の Delete のように
-	// `.Scopes(clinicScope(clinicID)).Where("id = ?", id).Delete(...)` パターンへの置換を推奨
-	// （staff は多施設所属のため clinicScope をそのまま使えるかは要検討 — assignment 経由の
-	// EXISTS サブクエリ化が必要な可能性がある）。
+	// Fixed: Delete は EXISTS(...) 相関サブクエリで clinic_id 隔離を検証する
+	// （reservation_staff_repository.go 参照）。旧 Joins()+Delete() 実装は
+	// GORM のソフトデリート UPDATE で JOIN 条件が無視されるバグがあったが、
+	// 現行の EXISTS サブクエリはただの WHERE 述語であり、同様の欠落は発生しない。
 	t.Run("別クリニックからの削除はNotFoundで行が残る", func(t *testing.T) {
-		t.Skip("KNOWN PRODUCTION BUG (CRITICAL, 2026-07-13) — Delete の Joins()+Delete() は GORM 上で" +
-			"JOIN条件が無視されclinic_id隔離が機能しない。上記コメント参照。別Issueで最優先修正すること。")
 		staff := makeDoctorAssignedToClinic(t, db, clinicA, "Delete別クリニックテスト用スタッフ")
 
 		err := repo.Delete(ctx, clinicB, staff.ID)
