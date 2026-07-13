@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>カルテシステム Q&amp;A 一覧（No.24〜32）</title>
+<style>
+  :root {
+    --bg: #f6f7f9;
+    --surface: #ffffff;
+    --text: #1f2937;
+    --text-sub: #6b7280;
+    --border: #e5e7eb;
+    --accent: #2563eb;
+    --accent-soft: #eff6ff;
+    --answered: #059669;
+    --answered-soft: #ecfdf5;
+    --unanswered: #d97706;
+    --unanswered-soft: #fffbeb;
+    --status: #7c3aed;
+    --status-soft: #f5f3ff;
+    --radius: 10px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #111827;
+      --surface: #1f2937;
+      --text: #f3f4f6;
+      --text-sub: #9ca3af;
+      --border: #374151;
+      --accent: #60a5fa;
+      --accent-soft: #1e3a5f;
+      --answered: #34d399;
+      --answered-soft: #064e3b;
+      --unanswered: #fbbf24;
+      --unanswered-soft: #453411;
+      --status: #a78bfa;
+      --status-soft: #312e5e;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: "Hiragino Kaku Gothic ProN", "Hiragino Sans", "Yu Gothic Medium", "Meiryo", sans-serif;
+    font-size: 15px;
+    line-height: 1.75;
+  }
+  .container { max-width: 880px; margin: 0 auto; padding: 32px 20px 64px; }
+  header h1 { font-size: 1.4rem; margin: 0 0 4px; }
+  header p.meta { color: var(--text-sub); font-size: 0.85rem; margin: 0 0 20px; }
+
+  .toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+    margin-bottom: 20px;
+    position: sticky;
+    top: 0;
+    background: var(--bg);
+    padding: 10px 0;
+    z-index: 10;
+  }
+  .toolbar button {
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text);
+    padding: 6px 14px;
+    border-radius: 999px;
+    font-size: 0.85rem;
+    cursor: pointer;
+  }
+  .toolbar button.active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+  }
+  .toolbar input[type="search"] {
+    flex: 1;
+    min-width: 180px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text);
+    padding: 6px 12px;
+    border-radius: 999px;
+    font-size: 0.85rem;
+  }
+  .summary { font-size: 0.85rem; color: var(--text-sub); margin-bottom: 16px; }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    margin-bottom: 16px;
+    overflow: hidden;
+  }
+  .card-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--border);
+  }
+  .qno {
+    font-weight: 700;
+    font-size: 1rem;
+    color: var(--accent);
+    min-width: 3.2em;
+  }
+  .badge {
+    display: inline-block;
+    padding: 2px 10px;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  .badge.category { background: var(--accent-soft); color: var(--accent); }
+  .badge.answered { background: var(--answered-soft); color: var(--answered); }
+  .badge.new-answer { background: var(--status-soft); color: var(--status); }
+  .badge.status { background: var(--status-soft); color: var(--status); }
+  .asker { color: var(--text-sub); font-size: 0.8rem; margin-left: auto; }
+
+  .card-body { padding: 16px 18px; }
+  .section-label {
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    color: var(--text-sub);
+    margin: 0 0 6px;
+  }
+  .qa-text {
+    white-space: pre-line;
+    margin: 0 0 4px;
+    overflow-wrap: anywhere;
+  }
+  .answer-block {
+    margin-top: 14px;
+    padding: 12px 14px;
+    background: var(--answered-soft);
+    border-left: 3px solid var(--answered);
+    border-radius: 0 6px 6px 0;
+  }
+  .answer-block .section-label { color: var(--answered); }
+  a { color: var(--accent); overflow-wrap: anywhere; }
+  footer {
+    margin-top: 32px;
+    font-size: 0.8rem;
+    color: var(--text-sub);
+    border-top: 1px solid var(--border);
+    padding-top: 16px;
+  }
+  .hidden { display: none; }
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <h1>カルテシステム Q&amp;A 一覧</h1>
+    <p class="meta">No.24〜32 ／ スプレッドシート「バックログ」より整理（質問作成日・備考は原本で全件未記入）</p>
+  </header>
+
+  <div class="toolbar">
+    <button data-filter="all" class="active">すべて</button>
+    <button data-filter="answered">既存回答</button>
+    <button data-filter="new-answer">新規記入（7/13）</button>
+    <input type="search" id="search" placeholder="キーワード検索（例: CPM、アニコム、トリミング）">
+  </div>
+  <p class="summary" id="summary"></p>
+
+  <!-- No.24 -->
+  <article class="card" data-state="answered">
+    <div class="card-head">
+      <span class="qno">No.24</span>
+      <span class="badge category">集計</span>
+      <span class="badge answered">回答あり</span>
+      <span class="badge status">対応中</span>
+      <span class="asker">質問者: ノア</span>
+    </div>
+    <div class="card-body">
+      <p class="section-label">質問</p>
+      <p class="qa-text">カルテシステムの集計機能について。以下の3つが出力可能か確認したい：
+① 飼い主単位の年間売上ランキング（累計診療費順）
+② 飼い主単位の来院回数一覧（一定期間内）
+③ 最終来院日での期間別分類（3ヶ月以上・6ヶ月以上・1年以上等）
+経営上の重要度が高い。</p>
+      <div class="answer-block">
+        <p class="section-label">回答</p>
+        <p class="qa-text">いずれも実装済みです。すべて同一の機能画面内のタブとして提供しております。
+
+【共通の入り口】
+画面左サイドバーの「集計・分析」メニュー（URL: /aggregation、画面名: 顧客集計ダッシュボード）を開いてください。この画面上部に3つのタブがあり、それぞれがご要望の各機能に対応しています。
+
+【各機能の実装場所】
+
+① 飼い主単位の年間売上ランキング（累計診療費順）
+集計・分析 →「売上ランキング」タブ
+飼主ごとの診療費を高い順にランキング表示します。集計期間（年・任意期間）の指定、累計診療費順への並べ替えにも対応しています。
+
+② 飼い主単位の来院回数一覧（一定期間内）
+集計・分析 →「来院回数」タブ
+期間（直近3ヶ月／6ヶ月／12ヶ月／暦年、または任意の期間）を指定し、飼主ごとの来院回数を一覧表示します。
+
+③ 最終来院日での期間別分類（3ヶ月以上・6ヶ月以上・1年以上等）
+集計・分析 →「最終来院」タブ
+最終来院日からの経過に応じて「3ヶ月未満／3ヶ月以上／6ヶ月以上／1年以上／来院なし」に自動分類して表示します。特定の区分（例: 1年以上未来院）のみの抽出も可能です。</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- No.25 -->
+  <article class="card" data-state="answered">
+    <div class="card-head">
+      <span class="qno">No.25</span>
+      <span class="badge category">ログイン</span>
+      <span class="badge answered">回答あり</span>
+      <span class="badge status">対応中</span>
+      <span class="asker">質問者: ノア</span>
+    </div>
+    <div class="card-body">
+      <p class="section-label">質問</p>
+      <p class="qa-text">ログイン失敗時のアカウントロックの仕様を確認したい。
+① 何回失敗するとロックされるか
+② ロック後、解除までの待ち時間
+③ 管理者による即時解除が可能か
+④ 「失敗5回でアカウントロック」と「1分間5回までのレート制限」は別の仕組みか、両者の関係
+⑤ パスワードリセットリンクの有効期限（現状マニュアルは1時間と記載）
+⑥ デモアカウントの記載をマニュアルに残してよいか（本番では非表示の運用が継続する前提か）</p>
+      <div class="answer-block">
+        <p class="section-label">回答</p>
+        <p class="qa-text">【①〜③ アカウントロックについて】
+失敗回数に応じてアカウントを凍結する「アカウントロック」機構は実装していません。したがって、ロックされる失敗回数（①）、解除までの待ち時間（②）、管理者による解除（③）のいずれも該当しません。
+
+代わりに、送信元IPアドレス単位のレート制限を設けています。認証系の要求（ログイン等）に対し、連続で最大5回まで即時に許容し、それを超えると一時的に拒否（HTTP 429）、その後は時間経過とともに毎分およそ10回のペースで回復します。手動解除は不要です。
+
+【④ 「失敗5回でアカウントロック」とレート制限の関係】
+両者は別の仕組みです。「失敗5回でアカウントロック」は実装しておらず、稼働しているのは上記のIP単位レート制限のみです。ご認識の「5回」は、正確には連続して許容する回数（バースト）が5回であることを指し、それを超えると毎分約10回のペースで回復する挙動となります。マニュアル等に「失敗5回でロック」との記載がある場合は実装と相違しますので、修正をご相談させてください。
+
+【⑤ パスワードリセットリンクの有効期限】
+発行から1時間で失効します。マニュアル記載（1時間）と実装は一致しています。
+
+【⑥ デモアカウントの記載】
+残して問題ないです。本番では非表示です。</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- No.26 -->
+  <article class="card" data-state="answered">
+    <div class="card-head">
+      <span class="qno">No.26</span>
+      <span class="badge category">集計・分析</span>
+      <span class="badge answered">回答あり</span>
+      <span class="badge status">対応中</span>
+      <span class="asker">質問者: ノア</span>
+    </div>
+    <div class="card-body">
+      <p class="section-label">質問</p>
+      <p class="qa-text">集計・分析でCPMセグメント別の人数・一覧をどこで見られるか、Slackで曽我さんに確認（連携設定・各閾値・休眠日数・最終来院の休眠抽出は確認済み）。</p>
+      <div class="answer-block">
+        <p class="section-label">回答</p>
+        <p class="qa-text">「集計・分析」の各タブは売上・来院・最終来院の軸のみで、CPMセグメント別に分類した一覧の機能は現在実装を進めているところです。実装が完了しましたら改めてご案内します。</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- No.27 -->
+  <article class="card" data-state="answered">
+    <div class="card-head">
+      <span class="qno">No.27</span>
+      <span class="badge category">Kentaro Kuroki</span>
+      <span class="badge answered">回答あり（No.26と同上）</span>
+      <span class="asker">質問者: ノア</span>
+    </div>
+    <div class="card-body">
+      <p class="section-label">質問</p>
+      <p class="qa-text">僕のパートのマニュアルを進めるため、カルテで集計・分析とLステップ連携まわりを一通り確認しました。確認できた点と、ひとつ教えていただきたい点があります。
+
+【こちらで確認できた点】
+・連携設定のCPM設定（V1で稼働、各セグメントの閾値、休眠日数 180/210/240/365）を確認しました
+・集計・分析の3タブ（売上ランキング／来院回数／最終来院）を確認しました
+・最終来院タブで、経過期間ごとに休眠予備軍を抽出できることを確認しました
+
+【教えていただきたい点】
+CPMセグメント（NOAH／コア／グローイング 等）別の人数や、該当する飼主の一覧は、どの画面で確認できますか。集計・分析の各タブには売上・来院・最終来院の軸はありましたが、CPMセグメント別に分類した一覧が見当たりませんでした。
+
+現状どの画面で見られるかを教えていただけると、マニュアルの記載と、林先生への共有を進められます。
+あわせて、バックログの25番・26番も更新していますので、ご確認ください。
+<a href="https://docs.google.com/spreadsheets/d/17jaFBv7NmbPzk88lZx94vFxa_G1shGNX2O_lFGt4QdQ/edit?gid=0#gid=0" target="_blank" rel="noopener">バックログ スプレッドシート</a></p>
+      <div class="answer-block">
+        <p class="section-label">回答</p>
+        <p class="qa-text">同上（No.26の回答を参照）: CPMセグメント別一覧は現在実装中。完了次第あらためて案内予定。</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- No.28 -->
+  <article class="card" data-state="new-answer">
+    <div class="card-head">
+      <span class="qno">No.28</span>
+      <span class="badge category">青山</span>
+      <span class="badge new-answer">回答記入（7/13）</span>
+      <span class="asker">質問者: ノア</span>
+    </div>
+    <div class="card-body">
+      <p class="section-label">質問（城東看護部からの改善要望）</p>
+      <p class="qa-text">実際に複数のスタッフにシステムに触ってみてもらっての現時点での改善点です。既に改善済みのものもあるかもしれませんが、こちらの備忘録として共有させていただきます。
+
+【改善点】
+● 山梨の各病院でカルテを統一してほしい（敷島での治療履歴が城東でも見れるなど）
+● アニコムとの連動ができてほしい（アニコム対象・対象外を仕分けて会計を出してくれる）
+● 検索すると漢字苗字のみでしかヒットしない（ペット名ではヒットしない）。飼い主よみがな・電話番号・ペット名で検索ヒットできるようにしてほしい
+● カルテを見て、動物の年齢・性別・避妊去勢済みかが分かるようにしてほしい
+● 危険度を「高い」にすると飼い主側から ⚠️ が見えてしまう可能性がある。危険度のある子は色を変えるなどで分かるようにし、カーソルを合わせると危険度が高い理由が分かるようにしてほしい</p>
+      <div class="answer-block">
+        <p class="section-label">回答</p>
+        <p class="qa-text">【① 各病院でのカルテ統一】
+スタッフが複数の医院に所属していれば、飼主・カルテ（治療明細・バイタル含む）・会計を1画面で横断して閲覧する機能は実装済みです（閲覧のみ。編集は各医院の所属範囲内）。ただし、同じ飼主・同じ子が敷島と城東で別々に登録された場合、両者を「同一の患者」として結びつける仕組み（名寄せ・共通患者ID）は未実装のため、完全なカルテ統一には追加開発が必要です。今後の開発課題として検討します。
+
+【② アニコムとの連動】
+アニコム等の保険会社とのオンライン請求連携（レセプト送信）は未実装です。一方、「対象・対象外を仕分けて会計を出す」は現行機能で可能です: 保険会社をマスタ登録し、会計時に明細ごとの保険適用可否と負担割合（50%・70%・90%等）を指定すると、保険負担分を差し引いた窓口請求額（自己負担額）を自動計算します。アニコムへのオンライン請求連携は先方仕様の確認を含め今後の検討課題です。
+
+【③ 検索が漢字苗字のみでしかヒットしない】
+現行実装では、飼主名・飼主よみがな・電話番号・ペット名・ペット名よみがなのいずれでも検索でき、カタカナ／ひらがなの違いも自動で吸収します。「漢字苗字のみでしかヒットしない」は現行仕様と一致しないため、発生した画面と入力内容（検索語）を共有してください。事象を確認して対応します。
+
+【④ 年齢・性別・避妊去勢の表示】
+カルテ上部には、生年月日から自動計算した年齢（○歳○ヶ月）・種別・体重・通算来院回数・保険情報を常時表示しています。性別・避妊去勢はデータとして保持していますがカルテ上部には未表示のため、表示項目への追加を対応します。
+
+【⑤ 危険度の表示】
+現状、「⚠ 危険」バッジが表示されるのは院内スタッフ向けの飼主一覧のみです。また、危険度の「理由」を記録する欄自体がまだ無いため、理由テキストが飼主に見えることはありません。ご要望の「色での判別＋カーソルを合わせると理由表示」は、理由入力欄の追加とあわせて対応を検討します。なお、飼主に提示しうる飼主レポートに危険度の区分（低/中/高）が表示される箇所があるため、こちらの非表示化を検討します。</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- No.29 -->
+  <article class="card" data-state="new-answer">
+    <div class="card-head">
+      <span class="qno">No.29</span>
+      <span class="badge category">会計周り</span>
+      <span class="badge new-answer">回答記入（7/13）</span>
+      <span class="asker">質問者: ノア</span>
+    </div>
+    <div class="card-body">
+      <p class="section-label">質問（深澤さんから・資料リンク）</p>
+      <p class="qa-text">・<a href="https://drive.google.com/file/d/10w9ULeJxIvqh5YvbrckzD9iIxaH8UBQV/view?usp=drive_link" target="_blank" rel="noopener">資料1（Google Drive）</a>
+・<a href="https://drive.google.com/file/d/1ZzIC2PTxBaY7z2dwp1LaqrJt0C7MHzno/view?usp=drive_link" target="_blank" rel="noopener">資料2（Google Drive）</a>
+※ 原本では資料2と同一URLが2回記載されていた（重複）。</p>
+      <div class="answer-block">
+        <p class="section-label">回答</p>
+        <p class="qa-text">共有いただいた資料（Google Drive）の内容を確認のうえ、個別に回答します。なお、2本目と3本目のリンクは同一URLでしたので、別の資料がある場合は再共有をお願いします。あわせて、ご質問・ご要望の要点をテキストでこのシートに追記いただけると、確認と回答が早く進みます（リンク切れや閲覧権限切れで内容が失われるリスクも避けられます）。</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- No.30 -->
+  <article class="card" data-state="new-answer">
+    <div class="card-head">
+      <span class="qno">No.30</span>
+      <span class="badge category">城東PC</span>
+      <span class="badge new-answer">回答記入（7/13）</span>
+      <span class="asker">質問者: ノア</span>
+    </div>
+    <div class="card-body">
+      <p class="section-label">質問（城東看護部からの要望）</p>
+      <p class="qa-text">・カルテのパッと見た感じ（予防系など）を現行のものと似たようにしてほしい
+・各病院ごとに履歴を分けるのではなく、1ペットの履歴として治療履歴が見れるようにしてほしい
+・検索するときに似たニュアンスの名前が出てきてほしい（「ひろ」と「ちろ」など）
+・写真やPDFの取り込みがスムーズにできてほしい
+・薬の履歴・OPEの履歴が検索で引っかかるようにしてほしい（その子のカルテで「OPE」と検索すると「◯月◯日 ◯◯のOPE」と出てくるなど）
+・入力作業は責任が伴うものなので、アカウントは一人ひとつあった方がいい。「城東看護部」というアカウントでの入力では誰が入力したか分からないのは困る
+・アニコムとの連携ができればありがたい</p>
+      <div class="answer-block">
+        <p class="section-label">回答</p>
+        <p class="qa-text">【見た目を現行のものに似せる（予防系など）】
+どの画面のどの表示を指しているか、現行システムの画面例（スクリーンショット）を共有してください。予防系（ワクチン・フィラリア等）の履歴管理自体は実装済みのため、「見せ方」の調整として個別に検討します。
+
+【1ペットの履歴として治療履歴を見る】
+No.28①と同じ回答です。複数医院に所属するスタッフによる横断閲覧は実装済みですが、医院間で同一の子を結びつける名寄せは未実装で、今後の開発課題です。
+
+【似たニュアンスの名前検索】
+現状は部分一致＋かな正規化（カタカナ／ひらがなの同一視）まで対応しています。「ひろ」で「ちろ」も候補に出るような類似音のあいまい検索・サジェストは未実装です。要望として承ります。
+
+【写真やPDFの取り込み】
+カルテへの画像（JPEG/PNG/GIF）・PDFの添付は実装済みです（1ファイル10MBまで、複数ファイルの一括アップロード可）。現状はボタンを押してファイルを選ぶ方式のため、ドラッグ&ドロップでの取り込みは改善要望として検討します。
+
+【薬の履歴・OPEの履歴の検索】
+カルテ検索の対象は現状、飼主名・ペット名・カルテNo・主訴のみで、治療内容・処方薬名・処置名を対象とするカルテ内検索（例: その子のカルテで「OPE」と検索）は未実装です。要望として承り、優先度を相談させてください。
+
+【アカウントは一人ひとつ】
+個人単位のアカウント発行は標準機能です（スタッフ登録時にメールアドレス＋パスワードで発行。人数分の発行に制限はありません）。カルテには入力者が自動記録され、監査ログで「誰が・いつ・何を」操作したかを追跡できます。「城東看護部」のような部署共有アカウントは、入力責任が追跡できなくなるため推奨しません。人数分の個人アカウント発行への切り替えをお願いします。
+
+【アニコムとの連携】
+No.28②と同じ回答です。オンライン請求連携は未実装ですが、会計での保険適用の仕分け・自己負担額の自動計算は実装済みです。</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- No.31 -->
+  <article class="card" data-state="new-answer">
+    <div class="card-head">
+      <span class="qno">No.31</span>
+      <span class="badge category">城東PC</span>
+      <span class="badge new-answer">回答記入（7/13）</span>
+      <span class="asker">質問者: ノア</span>
+    </div>
+    <div class="card-body">
+      <p class="section-label">質問（カルテ改定の修正要望）</p>
+      <p class="qa-text">カルテ改定について、現在のカルテから修正してほしい点をまとめましたのでご確認をお願いします。
+
+・ミーティング内でもお伝えしましたが、カルテを開いた時点で、飼い主名・動物のプロフィールはまとめて見れるようにしていただきたいです
+・同居の子に関しては、同居の子もカルテ上で確認できるようにしてほしいです。その子をクリックしたら、その子のカルテに飛べるようにしていただきたいです
+
+画像は添付画像タブ参照:
+<a href="https://docs.google.com/spreadsheets/d/17jaFBv7NmbPzk88lZx94vFxa_G1shGNX2O_lFGt4QdQ/edit?gid=900461027#gid=900461027&amp;range=A3" target="_blank" rel="noopener">添付画像タブ（スプレッドシート）</a></p>
+      <div class="answer-block">
+        <p class="section-label">回答</p>
+        <p class="qa-text">【飼主名・動物プロフィールのまとめ表示】
+カルテを開くと、画面上部に飼主名・ペット名・ペットNo・生年月日と年齢（自動計算）・種別・体重・通算来院回数・保険情報を常時表示しています。性別・避妊去勢・犬種は現状未表示のため、表示項目への追加を対応します（No.28④と同件）。添付画像タブのご要望画面と突き合わせて、不足項目を確定させてください。
+
+【同居の子の表示とカルテ遷移】
+カルテ画面から同じ飼主の他の子を一覧表示し、クリックでその子のカルテへ移動する機能は未実装です。近い機能として、カルテの「レポート」ボタンから開く飼主レポートで飼主の全ペットを切り替え表示できますが、これは閲覧専用でカルテへの遷移はできません。カルテ上部に同居ペットを表示し、クリックで該当カルテへ遷移できる改修を検討します。</p>
+      </div>
+    </div>
+  </article>
+
+  <!-- No.32 -->
+  <article class="card" data-state="new-answer">
+    <div class="card-head">
+      <span class="qno">No.32</span>
+      <span class="badge category">安田希恵</span>
+      <span class="badge new-answer">回答記入（7/13）</span>
+      <span class="asker">質問者: ノア</span>
+    </div>
+    <div class="card-body">
+      <p class="section-label">質問（トリミング関連）</p>
+      <p class="qa-text">【トリミング】
+・古いPCでは正常に動かずエラーが出る
+・検索結果に犬種も表示してほしい
+・部分カットコースを消す
+・外来で来るお手入れの予約は診察カルテの方で入力できる方がいい
+・トリミングカルテ作成の時、診察のカルテも入力できるようにしてほしい。2つカルテを作ると精算ミスが出るので、1つにまとめたい。精算もまとめて請求したい
+・当日の受付で診察中の枠に進むとトリミングカルテの入力ができないので、直してほしい
+・取扱説明書には前回のカルテのコピーのやり方が載っていないが、載せた方がいいのでは？
+・新規カルテ作成して登録するとステータスが「予約」ではなく「進行中」になる
+
+【トリミングマスタ】
+・標準所要時間の記入は予約システムと連動するのか知りたい。その子によってかかる時間が違うため、連動するなら予約システムの1枠分の時間で統一したい
+・オプションマスタは無効にするとカルテ内で入力できないのか知りたい
+・有効にすると所要時間は予約システムに反映するのか知りたい。反映するなら所要時間は0分で統一したい</p>
+      <div class="answer-block">
+        <p class="section-label">回答</p>
+        <p class="qa-text">【トリミング】
+
+・古いPCのエラー: 事象を特定するため、PCの環境（OS・ブラウザとそのバージョン）とエラー画面のスクリーンショットを共有してください。確認のうえ推奨環境の提示も含めて対応します。
+
+・検索結果への犬種表示: 現状のトリミング一覧に表示・絞り込みできるのは「種（犬／猫）」のみで、犬種は未表示です。犬種はデータとして保持しているため、一覧への表示追加を対応します。
+
+・部分カットコースの削除: 「部分カット」はトリミングコースマスタではなく予約種別として登録されています。予約受付の選択肢から外す設定変更で対応します（過去の予約データは保持されます）。
+
+・お手入れ予約の診察カルテ入力／カルテの1本化: データ上、診察カルテとトリミングカルテは別々ですが、精算は既に統合されています。会計画面が同じ子の未請求項目（診察の処置・トリミングの両方）を自動でまとめて拾うため、請求は1本にまとめられます。精算ミスが出た具体的な操作手順を共有いただければ原因を確認します。カルテ入力自体を1画面に統合する件は改修規模が大きいため、要望として承り検討します。
+
+・「診察中」枠でトリミングカルテ入力不可: 実装上、受付ステータスによるトリミングカルテの入力制限はありません。再現手順（どの画面で・どの操作をすると・どうなるか）とスクリーンショットを共有してください。別要因の可能性が高いため、事象を確認して対応します。
+
+・前回カルテのコピー: 前回のトリミングカルテをコピーして新規作成する機能自体が未実装のため、取扱説明書に記載がありません。機能追加の要望として承ります。
+
+・新規作成時のステータスが「進行中」になる: 実装を確認しました。トリミングカルテ画面から直接新規作成した場合は、当日の飛び込み対応を想定して「進行中」で作成する仕様です（予約起点で作成した場合は「予約」のままです）。新規作成時に初期ステータスを選択できるようにする改修を検討します。
+
+【トリミングマスタ】
+
+・標準所要時間と予約システムの連動: 連動していません。予約枠の長さは「予約種別」側に設定された所要時間で決まり、トリミングマスタの標準所要時間は予約枠の計算には使われていません（院内の目安情報です）。1枠分で統一したい場合は、予約種別側の所要時間を設定してください。
+
+・オプションマスタの無効化: 現状、オプションを無効にしてもトリミングカルテの選択肢に表示され続けます。これは表示から除外すべき不具合として是正します（無効化しても登録済みカルテのデータは保持されます）。
+
+・オプションの所要時間の予約反映: 反映されません。オプションの所要時間も予約枠の計算には使われないため、0分に統一する必要はありません（入力しても予約枠には影響しません）。</p>
+      </div>
+    </div>
+  </article>
+
+  <footer>
+    出典: バックログ管理スプレッドシート（No.24〜32）／ 整理日: 2026-07-13<br>
+    ・「質問作成日」「備考」列は原本で全件未記入のため省略。<br>
+    ・No.27 の回答は原本で「同上」（No.26 と同内容）。<br>
+    ・No.28 の「:warning:」表記は ⚠️ に置換。<br>
+    ・No.28〜32 の回答は 2026-07-13 に実装コードの調査に基づき開発側で記入（シートへの転記前のドラフト）。
+  </footer>
+</div>
+
+<script>
+  const cards = Array.from(document.querySelectorAll('.card'));
+  const buttons = Array.from(document.querySelectorAll('.toolbar button'));
+  const searchInput = document.getElementById('search');
+  const summary = document.getElementById('summary');
+  let currentFilter = 'all';
+
+  function apply() {
+    const keyword = searchInput.value.trim().toLowerCase();
+    let visible = 0;
+    cards.forEach(card => {
+      const matchesFilter = currentFilter === 'all' || card.dataset.state === currentFilter;
+      const matchesKeyword = keyword === '' || card.textContent.toLowerCase().includes(keyword);
+      const show = matchesFilter && matchesKeyword;
+      card.classList.toggle('hidden', !show);
+      if (show) visible++;
+    });
+    const newAnswers = cards.filter(c => c.dataset.state === 'new-answer').length;
+    summary.textContent = `表示中: ${visible} 件 ／ 全 ${cards.length} 件（既存回答 ${cards.length - newAnswers}・7/13 新規記入 ${newAnswers}）`;
+  }
+
+  buttons.forEach(btn => {
+    btn.addEventListener('click', () => {
+      buttons.forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      currentFilter = btn.dataset.filter;
+      apply();
+    });
+  });
+  searchInput.addEventListener('input', apply);
+  apply();
+</script>
+</body>
+</html>
