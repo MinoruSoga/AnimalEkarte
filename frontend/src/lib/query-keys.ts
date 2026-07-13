@@ -308,6 +308,13 @@ export const queryKeys = {
     all: () => ["closing-settings"] as const,
     holidays: () => ["closing-settings", "holidays"] as const,
   },
+
+  // ── test-only ─────────────────────────────────────────────────────
+  /** react-query.test.ts の QueryCache onError 回帰テスト専用キー。本番コードから参照しないこと */
+  _test: {
+    fe516Fail: () => ["fe5-16-fail"] as const,
+    fe516Silent: () => ["fe5-16-silent"] as const,
+  },
 } as const;
 
 /**
