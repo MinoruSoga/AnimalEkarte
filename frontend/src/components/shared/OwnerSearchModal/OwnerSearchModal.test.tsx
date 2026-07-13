@@ -43,7 +43,7 @@ describe("OwnerSearchModal", () => {
           data: [
             {
               id: 42,
-              name: "山田 太郎",
+              owner_name: "山田 太郎",
               phone: "090-1111-2222",
               address1: "東京都渋谷区",
               address2: "",
@@ -61,6 +61,31 @@ describe("OwnerSearchModal", () => {
     expect(await screen.findByText("山田 太郎")).toBeInTheDocument();
     expect(screen.getByText("090-1111-2222")).toBeInTheDocument();
     expect(screen.queryByText("該当する飼主が見つかりません")).not.toBeInTheDocument();
+  });
+
+  it("検索結果に飼主名が表示される", async () => {
+    server.use(
+      http.get("*/v1/owners", () =>
+        HttpResponse.json({
+          data: [
+            {
+              id: 7,
+              owner_name: "鈴木 花子",
+              phone: "080-3333-4444",
+              address1: "大阪府大阪市",
+              address2: "",
+              discount_rate: 0,
+              membership_type: "",
+            },
+          ],
+        }),
+      ),
+    );
+    renderModal();
+
+    await search("鈴木");
+
+    expect(await screen.findByText("鈴木 花子")).toBeInTheDocument();
   });
 
   it("APIエラー時は検索結果0件として扱われ空状態を表示する", async () => {

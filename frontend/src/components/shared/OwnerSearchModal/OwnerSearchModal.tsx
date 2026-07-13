@@ -15,8 +15,7 @@ import { handleApiError } from "@/lib/handle-api-error";
 import { axios } from "@/lib/axios";
 
 // Types
-import type { Owner as BackendOwner } from "@/types/generated/models";
-import { MEMBERSHIP_TYPE_FROM_API } from "@/lib/transforms/owner";
+import { transformOwner, type OwnerApiResponse } from "@/lib/transforms/owner";
 
 interface OwnerSummary {
   id: string;
@@ -34,14 +33,15 @@ interface OwnerSearchModalProps {
   currentOwnerName?: string;
 }
 
-function transformOwner(o: BackendOwner): OwnerSummary {
+function toOwnerSummary(o: OwnerApiResponse): OwnerSummary {
+  const owner = transformOwner(o);
   return {
-    id: String(o.id ?? 0),
-    name: o.name ?? "",
-    phone: o.phone ?? "",
-    address: [o.address1, o.address2].filter(Boolean).join(" "),
-    discountRate: o.discount_rate ?? 0,
-    membershipType: MEMBERSHIP_TYPE_FROM_API[o.membership_type ?? ""] ?? o.membership_type ?? "",
+    id: owner.id,
+    name: owner.ownerName,
+    phone: owner.phone,
+    address: [owner.address1, owner.address2].filter(Boolean).join(" "),
+    discountRate: owner.discountRate,
+    membershipType: owner.membershipType,
   };
 }
 
@@ -63,10 +63,10 @@ export const OwnerSearchModal = memo(function OwnerSearchModal({
     setHasSearched(true);
     startSearchTransition(async () => {
       try {
-        const { data } = await axios.get<{ data: BackendOwner[] }>("/v1/owners", {
+        const { data } = await axios.get<{ data: OwnerApiResponse[] }>("/v1/owners", {
           params: { search: searchTerm.trim() },
         });
-        setOwners((data.data ?? []).map(transformOwner));
+        setOwners((data.data ?? []).map(toOwnerSummary));
       } catch (error) {
         handleApiError(error, "飼主検索");
         setOwners([]);
