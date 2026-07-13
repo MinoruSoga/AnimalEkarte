@@ -14,13 +14,14 @@ import { FormFieldError } from "@/components/shared/FormFieldError/FormFieldErro
 import { C, ICON, LAYOUT } from "@/lib/design-tokens";
 import { DEFAULT_STANDARD_TAX_RATE, DEFAULT_REDUCED_TAX_RATE } from "@/constants/tax";
 import { formatCurrency } from "@/utils/format/number";
+import { CATEGORY_LABELS } from "@/constants/item-category";
 import type { TaxType } from "@/types/generated/models";
 
 import { useGetAllMerchandiseItems } from "../api/get-merchandise-items";
 import type { FrontendMerchandiseItem } from "../api/get-merchandise-items";
 import type { AccountingItem, ItemCategory } from "../types";
 
-import { AccountingItemRow, CATEGORY_LABELS } from "./AccountingItemRow";
+import { AccountingItemRow } from "./AccountingItemRow";
 
 const MERCHANDISE_CATEGORY_OPTIONS = [
   { value: "all", label: "すべて" },

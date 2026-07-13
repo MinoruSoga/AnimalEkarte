@@ -15,9 +15,8 @@ import { formatCurrency, formatCurrencyOrDash } from "@/utils/format/number";
 import { useGetBillingItemDiscountSuggestions } from "../api/get-discount-suggestions";
 import type { AccountingItem, ItemCategory } from "../types";
 
-// FE5-26: 正本は src/constants/item-category.ts へ移設。ItemListCard.tsx が本 re-export を消費する。
+// FE5-26: 正本は src/constants/item-category.ts へ移設。
 import { CATEGORY_LABELS } from "@/constants/item-category";
-export { CATEGORY_LABELS };
 
 interface DiscountCellProps {
   item: AccountingItem;
