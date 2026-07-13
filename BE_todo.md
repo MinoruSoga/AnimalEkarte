@@ -32,3 +32,21 @@
 | PERF-AUDIT-TX P2（outbox） | outbox パターン移行 | `audit_write_failed` が恒常的（目安: 月 1 件以上継続）に観測された場合、実測頻度 1 か月分を添えて再起案。正本: `docs/tasks/closed/perf/PERF-AUDIT-TX-UNIVERSAL-BEST-EFFORT.md` |
 
 **スコープ外**: `docs/tasks/open/FEAT-searchable-select-targets.md` は FE 案件のため本台帳に含めない。
+
+---
+
+### 既知バグの skip テスト台帳(2026-07-13 棚卸し)
+
+`rg -n 't\.Skip\("known production bug' backend/internal --glob '*.go'` 実測 9 件（コード変更なし・台帳化のみ）。
+
+| ファイル:行 | テスト名 | skip メッセージ要約 |
+|---|---|---|
+| `hospitalization_repository_test.go:221` | `TestHospitalizationRepository_FindByID_Success` | `FindByID` の `Preload("CarePlanItems"/"DailyRecords", "deleted_at IS NULL")` が実在しない `deleted_at` 列を参照し、常に `42703` で失敗 |
+| `hospitalization_repository_test.go:296` | `TestHospitalizationRepository_Update_Success` | `Update` が内部で `FindByID` を呼ぶため、上記と同根の `deleted_at` 列不存在バグの影響を受ける |
+| `hospitalization_repository_test.go:358` | `TestHospitalizationRepository_CountCarePlanItemsByHospitalizationID` | `care_plan_items.deleted_at` 列が `CREATE TABLE`/`model.CarePlanItem` のいずれにも存在せず、常に `42703` |
+| `hospitalization_repository_test.go:387` | `TestHospitalizationRepository_CountDailyRecordsByHospitalizationID` | `daily_records.deleted_at` 列が同様に存在せず、常に `42703` |
+| `pet_chronic_condition_repository_test.go:209` | `TestPetChronicConditionRepository_FindActiveConditionCodesByOwner` | `model.PetChronicCondition.IsActive`（`gorm:"not null;default:true"`）が zero 値 `false` を GORM `Create()` 時に自動省略し、常に DB デフォルト `true` で作成される（inactive を永続化不可能） |
+| `medicine_repository_test.go:301` | `TestMedicineRepository_CountUsageByMedicineID_TreatmentUsage`（t.Run "同一クリニックの treatment 使用が1件カウントされる"） | `CountUsageByMedicineID` の第2クエリが存在しない `care_plan_items.deleted_at` を参照し常に `42703`。Medicine 削除時の FK 依存チェックが機能不全 |
+| `medicine_repository_test.go:308` | `TestMedicineRepository_CountUsageByMedicineID_TreatmentUsage`（t.Run "別クリニックからは0件（clinic_id 隔離・JOIN スコープ）"） | 同上と同根の `care_plan_items.deleted_at` 列不存在バグ |
+| `hospitalization_plan_repository_test.go:229` | `TestHospitalizationPlanRepository_CountUsageByHospitalizationPlanID` | 同根の `care_plan_items.deleted_at` 列不存在バグ（`hospitalization_repository.go` と同一原因） |
+| `payment_method_master_repository_test.go:258` | `TestPaymentMethodMasterRepository_Reorder`（t.Run "指定した順序でdisplay_orderが1始まりに更新される"） | 共通ヘルパー `reorderByClinicID` がハードコードする `"sort_order"` 列が `payment_methods` テーブルに存在せず（実カラム名は `display_order`）、常に `42703` |
