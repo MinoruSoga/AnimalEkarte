@@ -49,9 +49,9 @@ export const useUpdateReservation = () => {
     onSuccess: (_data, { id }) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.reservations.all() });
       queryClient.invalidateQueries({ queryKey: queryKeys.reception.all() });
-      // FE4-6 fix: detail クエリの実キーは ["reservation", id]（単数形。features/reservations/api/get-reservation.ts）。
-      // list prefix invalidation はこれを包含しないため、更新後も詳細画面が stale のまま残っていた
-      // （先例: update-reservation-route.ts:27-28 は既に両方を invalidate している）。
+      // FE4-6 fix: detail クエリの実キーは queryKeys.reservations.detail(id)
+      // （正本: src/hooks/use-get-reservation.ts）。list prefix invalidation はこれを包含しない。
+      // 先例: src/hooks/use-update-reservation-route.ts は list + detail の両方を invalidate している。
       queryClient.invalidateQueries({ queryKey: queryKeys.reservations.detail(id) });
     },
     onError: (error) => handleApiError(error, "予約更新"),
