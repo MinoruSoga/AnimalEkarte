@@ -113,18 +113,6 @@ type reservationService struct {
 	availableSlotRepo    repository.ReservationTypeAvailableSlotRepository
 }
 
-func NewReservationService(repo repository.ReservationRepository, tx repository.Transactor, reservationStaffRepo ...repository.ReservationStaffRepository) ReservationService {
-	var staffRepo repository.ReservationStaffRepository
-	if len(reservationStaffRepo) > 0 {
-		staffRepo = reservationStaffRepo[0]
-	}
-	return &reservationService{repo: repo, tx: tx, reservationStaffRepo: staffRepo}
-}
-
-func NewReservationServiceWithAvailability(repo repository.ReservationRepository, tx repository.Transactor, reservationStaffRepo repository.ReservationStaffRepository, unavailableTimeRepo repository.ReservationTypeUnavailableTimeRepository, availableSlotRepo ...repository.ReservationTypeAvailableSlotRepository) ReservationService {
-	return NewReservationServiceWithAvailabilityAndType(repo, nil, tx, reservationStaffRepo, unavailableTimeRepo, availableSlotRepo...)
-}
-
 func NewReservationServiceWithAvailabilityAndType(repo repository.ReservationRepository, typeRepo reservationTypeFinder, tx repository.Transactor, reservationStaffRepo repository.ReservationStaffRepository, unavailableTimeRepo repository.ReservationTypeUnavailableTimeRepository, availableSlotRepo ...repository.ReservationTypeAvailableSlotRepository) ReservationService {
 	var slotRepo repository.ReservationTypeAvailableSlotRepository
 	if len(availableSlotRepo) > 0 {
