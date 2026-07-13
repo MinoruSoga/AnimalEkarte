@@ -163,7 +163,7 @@ func (s *trimmingService) Create(ctx context.Context, clinicID uint64, input *Cr
 	} else if err := validateTimeRange(input.StartTime, input.EndTime); err != nil {
 		return nil, err
 	}
-	if err := s.validateTrimmingCourseAndOptions(ctx, clinicID, input.CourseID, input.OptionIDs); err != nil {
+	if err := s.validateTrimmingCourseAndOptions(ctx, clinicID, input.CourseID, input.OptionIDs, nil, nil); err != nil {
 		return nil, err
 	}
 
@@ -204,7 +204,7 @@ func (s *trimmingService) Create(ctx context.Context, clinicID uint64, input *Cr
 			return apperrors.Wrap(err, "failed to create trimming detail")
 		}
 		if len(input.OptionIDs) > 0 {
-			if err := s.trimmingDetail.SetOptions(txCtx, appt.ID, input.OptionIDs); err != nil {
+			if err := s.trimmingDetail.SetOptions(txCtx, clinicID, appt.ID, input.OptionIDs); err != nil {
 				return apperrors.Wrap(err, "failed to set trimming options")
 			}
 		}
@@ -239,24 +239,47 @@ func (s *trimmingService) validateTrimmingReservationType(ctx context.Context, c
 }
 
 // validateTrimmingCourseAndOptions は appointment_trimming_detail の CourseID / OptionIDs が
-// caller の clinic に属することを永続化前に検証する（X-14c: reservation_validators.go:116-127 と
-// 同型の 2 repo ガード）。repo が nil（未 DI のテストダブル等）の場合はそのフィールドのガードを
-// スキップする（reservation_staff_capability_validator.go と同型の nil-safe パターン）。
-func (s *trimmingService) validateTrimmingCourseAndOptions(ctx context.Context, clinicID uint64, courseID *uint64, optionIDs []uint64) error {
+// caller の clinic に属し、かつ is_active であることを永続化前に検証する（X-14c: 2 repo ガード
+// + #228: 無効化されたコース/オプションを新規に紐付けさせない）。repo が nil（未 DI のテスト
+// ダブル等）の場合はそのフィールドのガードをスキップする（reservation_staff_capability_validator.go
+// と同型の nil-safe パターン）。
+// existingCourseID/existingOptionIDs はカルテに既に紐づいている ID（Create 系呼び出しでは常に
+// nil/空 — 新規紐付けはすべて active 必須）。既にリンク済みの ID は is_active チェックを免除し
+// （データを消さない）、新規に追加される ID のみ active を要求する。
+func (s *trimmingService) validateTrimmingCourseAndOptions(
+	ctx context.Context, clinicID uint64, courseID *uint64, optionIDs []uint64,
+	existingCourseID *uint64, existingOptionIDs []uint64,
+) error {
 	if s.trimmingCourseRepo != nil {
 		if err := validateOwnedMasterFK(ctx, "trimming course", clinicID, courseID,
 			func(actx context.Context, cid, mid uint64) error {
-				_, err := s.trimmingCourseRepo.FindByID(actx, cid, mid)
-				return err
+				course, err := s.trimmingCourseRepo.FindByID(actx, cid, mid)
+				if err != nil {
+					return err
+				}
+				if !course.IsActive && (existingCourseID == nil || *existingCourseID != mid) {
+					return apperrors.WrapInvalidInput("course_id references an inactive trimming course")
+				}
+				return nil
 			}); err != nil {
 			return err
 		}
 	}
 	if s.trimmingOptionRepo != nil {
+		existingOptions := make(map[uint64]bool, len(existingOptionIDs))
+		for _, existingID := range existingOptionIDs {
+			existingOptions[existingID] = true
+		}
 		if err := validateOwnedMasterFKs(ctx, "trimming option", clinicID, optionIDs,
 			func(actx context.Context, cid, mid uint64) error {
-				_, err := s.trimmingOptionRepo.FindByID(actx, cid, mid)
-				return err
+				option, err := s.trimmingOptionRepo.FindByID(actx, cid, mid)
+				if err != nil {
+					return err
+				}
+				if !option.IsActive && !existingOptions[mid] {
+					return apperrors.WrapInvalidInput("option_ids references an inactive trimming option")
+				}
+				return nil
 			}); err != nil {
 			return err
 		}
@@ -305,7 +328,7 @@ func (s *trimmingService) createDetailForExistingAppointment(
 			return nil, err
 		}
 	}
-	if err := s.validateTrimmingCourseAndOptions(ctx, clinicID, input.CourseID, input.OptionIDs); err != nil {
+	if err := s.validateTrimmingCourseAndOptions(ctx, clinicID, input.CourseID, input.OptionIDs, nil, nil); err != nil {
 		return nil, err
 	}
 
@@ -360,7 +383,7 @@ func (s *trimmingService) createDetailForExistingAppointment(
 			return apperrors.Wrap(err, "failed to create trimming detail")
 		}
 		if len(input.OptionIDs) > 0 {
-			if err := s.trimmingDetail.SetOptions(txCtx, appointmentID, input.OptionIDs); err != nil {
+			if err := s.trimmingDetail.SetOptions(txCtx, clinicID, appointmentID, input.OptionIDs); err != nil {
 				return apperrors.Wrap(err, "failed to set trimming options")
 			}
 		}
@@ -400,13 +423,12 @@ func (s *trimmingService) Update(ctx context.Context, clinicID, id uint64, input
 	if input.OptionIDs != nil {
 		optionIDs = *input.OptionIDs
 	}
-	if err := s.validateTrimmingCourseAndOptions(ctx, clinicID, input.CourseID, optionIDs); err != nil {
-		return nil, err
-	}
 
 	// appointment → trimming_detail → options の更新を単一トランザクションで実行する。
 	// appointments が更新済みで trimming_detail が失敗すると不整合が生じるため、
 	// Create と対称なアトミック性を保証する。
+	// #228: course_id/option_ids の is_active 検証は、既存紐付け ID（is_active チェック免除対象）
+	// を判定するため、tx 内で trimming_detail を取得した直後・フィールド上書き前に行う。
 	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
 		if len(apptFields) > 0 {
 			if _, err := s.reservation.Update(txCtx, clinicID, id, apptFields); err != nil {
@@ -419,6 +441,15 @@ func (s *trimmingService) Update(ctx context.Context, clinicID, id uint64, input
 		if err != nil {
 			return apperrors.Wrap(err, "failed to get trimming detail for update")
 		}
+
+		existingOptionIDs := make([]uint64, len(detail.Options))
+		for i := range detail.Options {
+			existingOptionIDs[i] = detail.Options[i].ID
+		}
+		if err := s.validateTrimmingCourseAndOptions(txCtx, clinicID, input.CourseID, optionIDs, detail.CourseID, existingOptionIDs); err != nil {
+			return err
+		}
+
 		if input.CourseID != nil {
 			detail.CourseID = input.CourseID
 		}
@@ -453,7 +484,7 @@ func (s *trimmingService) Update(ctx context.Context, clinicID, id uint64, input
 			return apperrors.Wrap(err, "failed to update trimming detail")
 		}
 		if input.OptionIDs != nil {
-			if err := s.trimmingDetail.SetOptions(txCtx, id, *input.OptionIDs); err != nil {
+			if err := s.trimmingDetail.SetOptions(txCtx, clinicID, id, *input.OptionIDs); err != nil {
 				return apperrors.Wrap(err, "failed to set trimming options")
 			}
 		}

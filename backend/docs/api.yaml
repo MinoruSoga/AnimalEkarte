@@ -78,9 +78,9 @@ components:
       type: object
       description: |
         ペットサマリー（Preload時のみ含まれる）。BE-refactor.md Phase D-2: 実ワイヤ形
-        petSummaryResponse（6消費者共通: MedicalRecord/Hospitalization/Reservation/
-        Trimming/Vaccination/Examination の pet フィールド）に合わせ、phantom だった
-        breed を削除し weight・status を追加。
+        petSummaryResponse（7消費者共通: MedicalRecord/Hospitalization/Reservation/
+        Trimming/Vaccination/Examination/Pet の pet フィールド）に合わせ、weight・
+        status に加え #231 で breed を追加（トリミング一覧の犬種列向け。空文字は未設定）。
       properties:
         id:
           type: integer
@@ -96,6 +96,9 @@ components:
         status:
           type: string
           description: alive/deceased（死亡ペット判定向け。空の場合あり）
+        breed:
+          type: string
+          description: "犬種等（#231: トリミング一覧の犬種列向け。空文字は未設定）"
         animal_species:
           $ref: '#/components/schemas/AnimalSpeciesSummary'
           nullable: true

@@ -119,7 +119,7 @@ func TestLiffService_CreateReservation_TrimmingDetail_Success(t *testing.T) {
 				createdDetail = detail
 				return nil
 			},
-			setOptionsFn: func(_ context.Context, _ uint64, optionIDs []uint64) error {
+			setOptionsFn: func(_ context.Context, _, _ uint64, optionIDs []uint64) error {
 				setOptionsCalled = true
 				setOptionsIDs = optionIDs
 				return nil
@@ -156,7 +156,7 @@ func TestLiffService_CreateReservation_TrimmingDetail_CreateError_BestEffort(t *
 			createFn: func(_ context.Context, _ *model.AppointmentTrimmingDetail) error {
 				return errors.New("db error")
 			},
-			setOptionsFn: func(_ context.Context, _ uint64, _ []uint64) error {
+			setOptionsFn: func(_ context.Context, _, _ uint64, _ []uint64) error {
 				setOptionsCalled = true
 				return nil
 			},

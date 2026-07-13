@@ -164,7 +164,9 @@ type petSummaryResponse struct {
 	PetNumber string   `json:"pet_number"`
 	Weight    *float64 `json:"weight,omitempty"`
 	// Status は死亡ペット判定（入院一覧/詳細の petIsDeceased）向け。alive/deceased。
-	Status        string                        `json:"status,omitempty"`
+	Status string `json:"status,omitempty"`
+	// Breed は犬種等（#231: トリミング一覧の犬種列向け。空文字は未設定を示す）。
+	Breed         string                        `json:"breed,omitempty"`
 	AnimalSpecies *animalSpeciesSummaryResponse `json:"animal_species,omitempty"`
 	// Owner は飼主名を必要とする一覧（トリミング/予約等）向け。Pet.Owner を Preload した場合のみ埋まる。
 	Owner *ownerSummaryResponse `json:"owner,omitempty"`
@@ -187,6 +189,7 @@ func toPetSummary(p *model.Pet) *petSummaryResponse {
 		PetNumber: p.PetNumber,
 		Weight:    p.Weight,
 		Status:    string(p.Status),
+		Breed:     p.Breed,
 		Owner:     toOwnerSummary(p.Owner),
 	}
 	if p.AnimalSpecies != nil {

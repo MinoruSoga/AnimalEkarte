@@ -49,7 +49,7 @@ func (s *liffService) CreateReservation(ctx context.Context, clinicID, customerI
 		if err := s.trimmingDetailRepo.Create(ctx, detail); err != nil {
 			slog.WarnContext(ctx, "failed to create trimming detail (best-effort)", "error", err, "appointment_id", appt.ID)
 		} else if len(input.TrimmingOptionIDs) > 0 {
-			if err := s.trimmingDetailRepo.SetOptions(ctx, appt.ID, input.TrimmingOptionIDs); err != nil {
+			if err := s.trimmingDetailRepo.SetOptions(ctx, clinicID, appt.ID, input.TrimmingOptionIDs); err != nil {
 				slog.WarnContext(ctx, "failed to set trimming options (best-effort)", "error", err, "appointment_id", appt.ID)
 			}
 		}

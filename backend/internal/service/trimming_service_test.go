@@ -175,7 +175,7 @@ type mockTrimmingDetailRepository struct {
 	findByAppointmentIDFn func(ctx context.Context, clinicID, appointmentID uint64) (*model.AppointmentTrimmingDetail, error)
 	createFn              func(ctx context.Context, detail *model.AppointmentTrimmingDetail) error
 	updateFn              func(ctx context.Context, detail *model.AppointmentTrimmingDetail) error
-	setOptionsFn          func(ctx context.Context, appointmentID uint64, optionIDs []uint64) error
+	setOptionsFn          func(ctx context.Context, clinicID, appointmentID uint64, optionIDs []uint64) error
 }
 
 func (m *mockTrimmingDetailRepository) FindByAppointmentID(ctx context.Context, clinicID, appointmentID uint64) (*model.AppointmentTrimmingDetail, error) {
@@ -199,9 +199,9 @@ func (m *mockTrimmingDetailRepository) Update(ctx context.Context, detail *model
 	return nil
 }
 
-func (m *mockTrimmingDetailRepository) SetOptions(ctx context.Context, appointmentID uint64, optionIDs []uint64) error {
+func (m *mockTrimmingDetailRepository) SetOptions(ctx context.Context, clinicID, appointmentID uint64, optionIDs []uint64) error {
 	if m.setOptionsFn != nil {
-		return m.setOptionsFn(ctx, appointmentID, optionIDs)
+		return m.setOptionsFn(ctx, clinicID, appointmentID, optionIDs)
 	}
 	return nil
 }
@@ -575,7 +575,7 @@ func TestTrimmingService_Create(t *testing.T) {
 				createFn: func(_ context.Context, _ *model.AppointmentTrimmingDetail) error {
 					return tt.detailErr
 				},
-				setOptionsFn: func(_ context.Context, _ uint64, _ []uint64) error {
+				setOptionsFn: func(_ context.Context, _, _ uint64, _ []uint64) error {
 					return tt.setOptionsErr
 				},
 			}
@@ -1162,7 +1162,7 @@ func TestTrimmingService_Update(t *testing.T) {
 				updateFn: func(_ context.Context, _ *model.AppointmentTrimmingDetail) error {
 					return tt.detailUpdateErr
 				},
-				setOptionsFn: func(_ context.Context, _ uint64, _ []uint64) error {
+				setOptionsFn: func(_ context.Context, _, _ uint64, _ []uint64) error {
 					return tt.setOptionsErr
 				},
 			}

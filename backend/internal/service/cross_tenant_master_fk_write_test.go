@@ -3122,7 +3122,7 @@ func TestTrimmingService_Update_RejectsCrossClinicOptionFK(t *testing.T) {
 			},
 		}
 		detail := &mockTrimmingDetailRepository{
-			setOptionsFn: func(_ context.Context, _ uint64, _ []uint64) error {
+			setOptionsFn: func(_ context.Context, _, _ uint64, _ []uint64) error {
 				*updated = true
 				return nil
 			},
