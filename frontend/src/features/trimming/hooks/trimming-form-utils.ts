@@ -46,6 +46,31 @@ export function findDefaultTrimmingReservationTypeId(
     .sort((a, b) => a.sort_order - b.sort_order)[0]?.id;
 }
 
+interface FilterableMasterItem {
+  id: string;
+  name: string;
+  status?: string;
+}
+
+/**
+ * #228: コース/オプション選択肢を active のみに絞り込む。ただし selectedIds に含まれる
+ * 無効アイテムは名前に「（無効）」を付与して維持する（編集中カルテのデータを消さないため）。
+ */
+export function filterActiveOrSelectedMasterItems<T extends FilterableMasterItem>(
+  items: T[],
+  selectedIds: string[],
+): T[] {
+  const active = items.filter((item) => item.status === "active");
+  const activeIds = new Set(active.map((item) => item.id));
+  const uniqueSelectedIds = [...new Set(selectedIds)];
+  const retainedInactive = uniqueSelectedIds
+    .filter((id) => id !== "" && !activeIds.has(id))
+    .map((id) => items.find((item) => item.id === id))
+    .filter((item): item is T => item != null)
+    .map((item) => ({ ...item, name: `${item.name}（無効）` }));
+  return [...active, ...retainedInactive];
+}
+
 export function buildUpdateTrimmingRequest(formData: TrimmingFormData): UpdateTrimmingRequest {
   return {
     start_time: optionalDateTime(formData.startTime),

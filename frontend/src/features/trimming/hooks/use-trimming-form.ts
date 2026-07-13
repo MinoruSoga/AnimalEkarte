@@ -41,6 +41,7 @@ const defaultFormData: TrimmingFormData = {
   optionIds: [],
   staffId: "",
   staffName: "",
+  initialStatus: "in_consultation",
 };
 
 export function useTrimmingForm(id?: string) {
@@ -86,6 +87,9 @@ export function useTrimmingForm(id?: string) {
     trimming.status !== "完了" && trimming.status !== "キャンセル"
   );
   const reusableAppointmentId = reusableTrimming?.id ? Number(reusableTrimming.id) : undefined;
+  // #233: 既存予約（受付経由 or 同日再利用可能なトリミング予約）に紐付く新規作成かどうか。
+  // true の場合はカルテ画面からの登録時ステータス選択を無効化し、予約側のステータスを維持する。
+  const hasExistingAppointment = Number.isFinite(appointmentIdFromState) || Number.isFinite(reusableAppointmentId);
 
   // BUG-027: inline field validation errors
   const { fieldErrors, validate } = useTrimmingFormValidation();
@@ -197,7 +201,6 @@ export function useTrimmingForm(id?: string) {
           const resolvedReservationTypeId = validation.reservationTypeId;
           // 日時: フォームから選択していない場合は指定日（未指定なら当日）10:00〜11:30
           const fallbackDate = visitDateFromState ?? formatJSTDate(new Date());
-          const hasExistingAppointment = Number.isFinite(appointmentIdFromState) || Number.isFinite(reusableAppointmentId);
           const startDate = formData.startTime || (hasExistingAppointment ? undefined : `${fallbackDate}T10:00:00+09:00`);
           const endDate = formData.endTime || (hasExistingAppointment ? undefined : `${fallbackDate}T11:30:00+09:00`);
           const req = buildCreateTrimmingRequest(
@@ -209,7 +212,9 @@ export function useTrimmingForm(id?: string) {
             Number.isFinite(appointmentIdFromState) ? appointmentIdFromState : reusableAppointmentId,
           );
           if (!hasExistingAppointment) {
-            req.status = "in_consultation";
+            // #233: カルテ画面から直接新規作成する場合のみ、登録時ステータスをユーザーが選択できる
+            // （デフォルトは in_consultation）。既存予約に紐付く経路（上記分岐）はここに来ない。
+            req.status = formData.initialStatus;
             req.reservation_route = "record_shortcut";
           }
           await createMutation.mutateAsync(req);
@@ -321,5 +326,6 @@ export function useTrimmingForm(id?: string) {
     fieldErrors,
     isLoading,
     notFound,
+    hasExistingAppointment,
   };
 }

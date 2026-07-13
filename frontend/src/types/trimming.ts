@@ -21,6 +21,8 @@ interface PetSummary {
   name: string;
   pet_number?: string;
   weight?: number | null;
+  /** #231: 犬種等。空文字/未設定は breed 情報なしを示す。 */
+  breed?: string;
   animal_species?: { id: number; name: string } | null;
   owner?: { id: number; name: string } | null;
 }
@@ -118,4 +120,6 @@ export interface TrimmingFormData {
   optionIds: string[];
   staffId: string;
   staffName: string;
+  /** #233: カルテ画面から直接新規作成する場合のみ選択可能な登録時ステータス。デフォルトは in_consultation。 */
+  initialStatus: "in_consultation" | "pending";
 }

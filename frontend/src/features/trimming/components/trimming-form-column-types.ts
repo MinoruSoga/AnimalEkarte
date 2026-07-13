@@ -32,6 +32,8 @@ export interface TrimmingLeftColumnProps {
   onStyleImageChange: (event: ChangeEvent<HTMLInputElement>) => void;
   onRemoveStyleImage: () => void;
   courseError?: string;
+  /** #233: カルテ画面から直接新規作成する場合のみ true。登録時ステータス選択の表示可否。 */
+  showInitialStatusSelector: boolean;
 }
 
 export interface TrimmingMiddleColumnProps {

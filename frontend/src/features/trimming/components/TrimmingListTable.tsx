@@ -119,6 +119,7 @@ export function TrimmingListTable({
       ),
       className: "w-[80px] hidden lg:table-cell",
     },
+    { header: "犬種", className: "w-[100px] hidden lg:table-cell" },
     { header: "体重", className: "w-[80px] hidden lg:table-cell" },
     { header: "スタイル希望", className: "hidden lg:table-cell" },
     {
@@ -152,7 +153,7 @@ export function TrimmingListTable({
         onFilterChange={onFilterChange}
         searchTerm={searchKeyword}
         onSearchChange={onSearchChange}
-        searchPlaceholder="飼主名、ペット名..."
+        searchPlaceholder="飼主名、ペット名、犬種..."
         count={filteredCount}
         sortProperties={TRIMMING_SORT_PROPERTIES}
         activeSorts={activeSorts}
@@ -223,6 +224,7 @@ const TrimmingTableRow = memo(function TrimmingTableRow({
         </div>
       </TableCell>
       <TableCell className={`text-base ${C.text} py-2 hidden lg:table-cell`}>{record.species}</TableCell>
+      <TableCell className={`text-base ${C.text} py-2 hidden lg:table-cell`}>{record.breed || "-"}</TableCell>
       <TableCell className={`text-base ${C.text} py-2 hidden lg:table-cell`}>{record.weight}</TableCell>
       <TableCell className={`text-base ${C.text} truncate max-w-[200px] py-2 hidden lg:table-cell`}>
         {record.styleRequest}

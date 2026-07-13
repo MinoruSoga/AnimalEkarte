@@ -26,6 +26,7 @@ import {
   TrimmingRightColumn,
 } from "../components/trimming-form-columns";
 import { useTrimmingForm } from "../hooks/use-trimming-form";
+import { filterActiveOrSelectedMasterItems } from "../hooks/trimming-form-utils";
 import type { TrimmingFormData } from "@/types/trimming";
 import { ResourceTrimming } from "@/types/generated/models";
 import { ConfirmDialog, MasterSelectModal } from "./TrimmingLazyModals";
@@ -40,25 +41,6 @@ export function TrimmingForm() {
   const { id } = useParams();
   const [searchParams] = useSearchParams();
   const petId = searchParams.get("petId");
-
-  const { data: coursesRaw = [] } = useMasterItems("trimmingCourse");
-  const { data: optionsRaw = [] } = useMasterItems("trimmingOption");
-  const { data: staffItems = [] } = useMasterItems("staff");
-  const { data: courseTypes = [] } = useGetTrimmingCourseTypes();
-  // #73: コース選択で種別が分かるよう、コース名に種別名を併記する（例「[シャンプー] フルコース」）
-  const courseTypeNameById = useMemo(
-    () => new Map(courseTypes.map((t) => [t.id, t.name])),
-    [courseTypes],
-  );
-  const courses = useMemo(
-    () =>
-      coursesRaw.map((c) => {
-        const typeName = c.courseTypeId ? courseTypeNameById.get(c.courseTypeId) : undefined;
-        return { ...c, id: String(c.id), name: typeName ? `[${typeName}] ${c.name}` : c.name };
-      }),
-    [coursesRaw, courseTypeNameById],
-  );
-  const options = useMemo(() => optionsRaw.map((o) => ({ ...o, id: String(o.id) })), [optionsRaw]);
 
   const {
     mode,
@@ -79,7 +61,31 @@ export function TrimmingForm() {
     fieldErrors,
     isLoading,
     notFound,
+    hasExistingAppointment,
   } = useTrimmingForm(id);
+
+  const { data: coursesRaw = [] } = useMasterItems("trimmingCourse");
+  const { data: optionsRaw = [] } = useMasterItems("trimmingOption");
+  const { data: staffItems = [] } = useMasterItems("staff");
+  const { data: courseTypes = [] } = useGetTrimmingCourseTypes();
+  // #73: コース選択で種別が分かるよう、コース名に種別名を併記する（例「[シャンプー] フルコース」）
+  const courseTypeNameById = useMemo(
+    () => new Map(courseTypes.map((t) => [t.id, t.name])),
+    [courseTypes],
+  );
+  // #228: 無効化(is_active=false)されたコース/オプションは選択肢から除外する。
+  // ただし編集中カルテに既に紐づく無効項目のみ「（無効）」表記で維持する（データを消さない）。
+  const courses = useMemo(() => {
+    const named = coursesRaw.map((c) => {
+      const typeName = c.courseTypeId ? courseTypeNameById.get(c.courseTypeId) : undefined;
+      return { ...c, id: String(c.id), name: typeName ? `[${typeName}] ${c.name}` : c.name };
+    });
+    return filterActiveOrSelectedMasterItems(named, formData.courseId ? [formData.courseId] : []);
+  }, [coursesRaw, courseTypeNameById, formData.courseId]);
+  const options = useMemo(() => {
+    const named = optionsRaw.map((o) => ({ ...o, id: String(o.id) }));
+    return filterActiveOrSelectedMasterItems(named, formData.optionIds);
+  }, [optionsRaw, formData.optionIds]);
 
   const { canEdit, canCreate, canDelete } = usePermission("trimming");
   const canSubmit = mode === "edit" ? canEdit : canCreate;
@@ -283,6 +289,7 @@ export function TrimmingForm() {
               onStyleImageChange={handleStyleImageChange}
               onRemoveStyleImage={removeStyleImage}
               courseError={fieldErrors.courseId}
+              showInitialStatusSelector={mode === "new" && !hasExistingAppointment}
             />
             <TrimmingMiddleColumn
               formData={formData}

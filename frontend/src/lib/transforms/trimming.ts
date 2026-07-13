@@ -9,6 +9,8 @@ type TrimmingStatus = "完了" | "予約" | "進行中" | "キャンセル";
 const STATUS_MAP: Record<string, TrimmingStatus> = {
   confirmed: "予約",
   checked_in: "予約",
+  // #233: カルテ直接新規作成で選択可能になった pending を明示（従来はフォールバックに依存）
+  pending: "予約",
   in_consultation: "進行中",
   accounting: "進行中",
   completed: "完了",
@@ -35,6 +37,7 @@ export function transformTrimming(data: BackendTrimming) {
     petName: data.pet?.name ?? "",
     ownerName: data.pet?.owner?.name ?? "",
     species: data.pet?.animal_species?.name ?? "",
+    breed: data.pet?.breed ?? "",
     weight: data.pet?.weight != null ? String(data.pet.weight) : "",
     styleRequest: data.style_request ?? "",
     staff: data.staff?.name ?? "",
