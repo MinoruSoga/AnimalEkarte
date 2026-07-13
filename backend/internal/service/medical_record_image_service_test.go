@@ -9,7 +9,6 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository"
 )
 
 // ---- MedicalRecordImage モック ----
@@ -19,74 +18,6 @@ type mockMedicalRecordImageRepository struct {
 	findByIDFn              func(ctx context.Context, clinicID, imageID uint64) (*model.MedicalRecordImage, error)
 	createFn                func(ctx context.Context, image *model.MedicalRecordImage) error
 	deleteFn                func(ctx context.Context, clinicID, imageID uint64) error
-}
-
-type mockMedicalRecordRepositoryForImage struct {
-	findByIDFn func(ctx context.Context, clinicID, id uint64) (*model.MedicalRecord, error)
-}
-
-func (m *mockMedicalRecordRepositoryForImage) FindByID(ctx context.Context, clinicID, id uint64) (*model.MedicalRecord, error) {
-	return m.findByIDFn(ctx, clinicID, id)
-}
-
-func (m *mockMedicalRecordRepositoryForImage) FindByIDForClinics(_ context.Context, _ []uint64, _ uint64) (*model.MedicalRecord, error) {
-	return nil, nil
-}
-
-// Stub other methods to satisfy interface (not used in these tests)
-func (m *mockMedicalRecordRepositoryForImage) FindAll(_ context.Context, _ []uint64, _ repository.MedicalRecordListFilters, _, _ int) ([]model.MedicalRecord, int64, error) {
-	return nil, 0, nil
-}
-func (m *mockMedicalRecordRepositoryForImage) Create(_ context.Context, _ *model.MedicalRecord) error {
-	return nil
-}
-func (m *mockMedicalRecordRepositoryForImage) Update(_ context.Context, _, _ uint64, _ map[string]any, _ *int) (*model.MedicalRecord, error) {
-	return nil, nil
-}
-func (m *mockMedicalRecordRepositoryForImage) Delete(_ context.Context, _, _ uint64) error {
-	return nil
-}
-func (m *mockMedicalRecordRepositoryForImage) CountByPetID(_ context.Context, _, _ uint64) (int64, error) {
-	return 0, nil
-}
-func (m *mockMedicalRecordRepositoryForImage) FindFirstVisitDateByPetID(_ context.Context, _, _ uint64) (*time.Time, error) {
-	return nil, nil
-}
-func (m *mockMedicalRecordRepositoryForImage) CountEstimatesByMedicalRecordID(_ context.Context, _, _ uint64) (int64, error) {
-	return 0, nil
-}
-func (m *mockMedicalRecordRepositoryForImage) FindOwnerVisitSummary(_ context.Context, _, _ uint64) (*repository.OwnerVisitSummary, error) {
-	return nil, nil
-}
-func (m *mockMedicalRecordRepositoryForImage) FindLatestByOwner(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
-	return nil, nil
-}
-func (m *mockMedicalRecordRepositoryForImage) FindDormantOwnerEntries(_ context.Context, _ uint64, _ int) ([]repository.DormantOwnerEntry, error) {
-	return nil, nil
-}
-func (m *mockMedicalRecordRepositoryForImage) FindDormantOwnerEntriesCursor(_ context.Context, _ uint64, _ int, _ uint64, _ int) ([]repository.DormantOwnerEntry, error) {
-	return nil, nil
-}
-func (m *mockMedicalRecordRepositoryForImage) FindOwnersByFirstVisitDate(_ context.Context, _ uint64, _ time.Time) ([]uint64, error) {
-	return nil, nil
-}
-func (m *mockMedicalRecordRepositoryForImage) FindOwnersByLastVisitDays(_ context.Context, _ uint64, _ int, _ time.Time) ([]uint64, error) {
-	return nil, nil
-}
-func (m *mockMedicalRecordRepositoryForImage) FindOwnersByNextVisitRecommended(_ context.Context, _ uint64, _ time.Time) ([]uint64, error) {
-	return nil, nil
-}
-func (m *mockMedicalRecordRepositoryForImage) CountByOwnerID(_ context.Context, _, _ uint64) (int64, error) {
-	return 0, nil
-}
-
-func (m *mockMedicalRecordRepositoryForImage) DeleteDraftByAppointmentID(_ context.Context, _, _ uint64) error {
-	return nil
-}
-
-// LockByIDForUpdate は X-11 finalize-lock テスト用に FindByID と同じ挙動へ委譲する。
-func (m *mockMedicalRecordRepositoryForImage) LockByIDForUpdate(ctx context.Context, clinicID, id uint64) (*model.MedicalRecord, error) {
-	return m.FindByID(ctx, clinicID, id)
 }
 
 func (m *mockMedicalRecordImageRepository) FindByMedicalRecordID(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.MedicalRecordImage, error) {
@@ -151,7 +82,7 @@ func TestMedicalRecordImageService_List(t *testing.T) {
 					return tt.repoImages, tt.repoErr
 				},
 			}
-			medRecRepo := &mockMedicalRecordRepositoryForImage{}
+			medRecRepo := &mockMedicalRecordRepository{}
 			svc := NewMedicalRecordImageService(repo, medRecRepo)
 
 			images, err := svc.List(context.Background(), 1, tt.medicalRecordID)
@@ -244,7 +175,7 @@ func TestMedicalRecordImageService_Create(t *testing.T) {
 					return tt.repoErr
 				},
 			}
-			medRecRepo := &mockMedicalRecordRepositoryForImage{
+			medRecRepo := &mockMedicalRecordRepository{
 				findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
 					return &model.MedicalRecord{ID: tt.medicalRecordID}, nil // stub: always return valid parent record
 				},
@@ -334,7 +265,7 @@ func TestMedicalRecordImageService_Delete(t *testing.T) {
 					return tt.deleteErr
 				},
 			}
-			medRecRepo := &mockMedicalRecordRepositoryForImage{}
+			medRecRepo := &mockMedicalRecordRepository{}
 			svc := NewMedicalRecordImageService(repo, medRecRepo)
 
 			err := svc.Delete(context.Background(), 1, tt.medicalRecordID, tt.imageID)

@@ -105,7 +105,7 @@ func TestSyncNextVisitTag(t *testing.T) {
 			buildClientFn: func(_ context.Context, _ uint64) (lstep.Client, error) {
 				return &mockLstepAPIClient{}, nil
 			},
-			medRecordRepo: &mockMedRecordRepoForLstepVisit{
+			medRecordRepo: &mockMedicalRecordRepository{
 				findLatestByOwnerFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
 					return nil, errors.New("medical record db error")
 				},
@@ -126,7 +126,7 @@ func TestSyncNextVisitTag(t *testing.T) {
 			buildClientFn: func(_ context.Context, _ uint64) (lstep.Client, error) {
 				return &mockLstepAPIClient{}, nil
 			},
-			medRecordRepo: &mockMedRecordRepoForLstepVisit{},
+			medRecordRepo: &mockMedicalRecordRepository{},
 			tagCacheRepo: &mockLstepTagCacheRepository{
 				findByOwnerFn: func(_ context.Context, _, _ uint64) ([]*model.LstepTagCache, error) {
 					return nil, errors.New("cache db error")
@@ -157,7 +157,7 @@ func TestSyncNextVisitTag(t *testing.T) {
 				},
 			},
 			buildClientFn: func(_ context.Context, _ uint64) (lstep.Client, error) { return client, nil },
-			medRecordRepo: &mockMedRecordRepoForLstepVisit{},
+			medRecordRepo: &mockMedicalRecordRepository{},
 			tagCacheRepo: &mockLstepTagCacheRepository{
 				findByOwnerFn: func(_ context.Context, _, _ uint64) ([]*model.LstepTagCache, error) {
 					return []*model.LstepTagCache{
@@ -190,7 +190,7 @@ func TestSyncNextVisitTag(t *testing.T) {
 				},
 			},
 			buildClientFn: func(_ context.Context, _ uint64) (lstep.Client, error) { return client, nil },
-			medRecordRepo: &mockMedRecordRepoForLstepVisit{
+			medRecordRepo: &mockMedicalRecordRepository{
 				findLatestByOwnerFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
 					return &model.MedicalRecord{ID: 5, NextVisitRecommendedDate: nil}, nil
 				},
@@ -219,7 +219,7 @@ func TestSyncNextVisitTag(t *testing.T) {
 				},
 			},
 			buildClientFn: func(_ context.Context, _ uint64) (lstep.Client, error) { return client, nil },
-			medRecordRepo: &mockMedRecordRepoForLstepVisit{
+			medRecordRepo: &mockMedicalRecordRepository{
 				findLatestByOwnerFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
 					return &model.MedicalRecord{ID: 5, NextVisitRecommendedDate: &next}, nil
 				},
@@ -244,7 +244,7 @@ func TestSyncNextVisitTag(t *testing.T) {
 				},
 			},
 			buildClientFn: func(_ context.Context, _ uint64) (lstep.Client, error) { return client, nil },
-			medRecordRepo: &mockMedRecordRepoForLstepVisit{},
+			medRecordRepo: &mockMedicalRecordRepository{},
 			tagCacheRepo: &mockLstepTagCacheRepository{
 				findByOwnerFn: func(_ context.Context, _, _ uint64) ([]*model.LstepTagCache, error) {
 					return []*model.LstepTagCache{{TagName: "next_visit_2025-01-01"}}, nil
@@ -275,7 +275,7 @@ func TestSyncNextVisitTag(t *testing.T) {
 				},
 			},
 			buildClientFn: func(_ context.Context, _ uint64) (lstep.Client, error) { return client, nil },
-			medRecordRepo: &mockMedRecordRepoForLstepVisit{
+			medRecordRepo: &mockMedicalRecordRepository{
 				findLatestByOwnerFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
 					return &model.MedicalRecord{ID: 5, NextVisitRecommendedDate: &next}, nil
 				},

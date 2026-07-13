@@ -13,85 +13,6 @@ import (
 	"github.com/animal-ekarte/backend/internal/repository"
 )
 
-// ---- MedicalRecord スタブ（BulkUpdateSortOrder テナント検証用）----
-
-type mockMedicalRecordRepoForTreatment struct {
-	// findByIDFn は任意フック（#201 B-2: pet species 解決テスト用）。nil なら既定の draft レコードを返す。
-	findByIDFn func(ctx context.Context, clinicID, id uint64) (*model.MedicalRecord, error)
-}
-
-func (m *mockMedicalRecordRepoForTreatment) FindAll(_ context.Context, _ []uint64, _ repository.MedicalRecordListFilters, _, _ int) ([]model.MedicalRecord, int64, error) {
-	return nil, 0, nil
-}
-func (m *mockMedicalRecordRepoForTreatment) FindByID(ctx context.Context, clinicID, id uint64) (*model.MedicalRecord, error) {
-	if m.findByIDFn != nil {
-		return m.findByIDFn(ctx, clinicID, id)
-	}
-	return &model.MedicalRecord{Status: model.MedicalRecordStatusDraft}, nil
-}
-func (m *mockMedicalRecordRepoForTreatment) FindByIDForClinics(_ context.Context, _ []uint64, _ uint64) (*model.MedicalRecord, error) {
-	return nil, nil
-}
-func (m *mockMedicalRecordRepoForTreatment) Create(_ context.Context, _ *model.MedicalRecord) error {
-	return nil
-}
-func (m *mockMedicalRecordRepoForTreatment) Update(_ context.Context, _, _ uint64, _ map[string]any, _ *int) (*model.MedicalRecord, error) {
-	return &model.MedicalRecord{}, nil
-}
-func (m *mockMedicalRecordRepoForTreatment) Delete(_ context.Context, _, _ uint64) error {
-	return nil
-}
-func (m *mockMedicalRecordRepoForTreatment) CountByPetID(_ context.Context, _, _ uint64) (int64, error) {
-	return 0, nil
-}
-func (m *mockMedicalRecordRepoForTreatment) FindFirstVisitDateByPetID(_ context.Context, _, _ uint64) (*time.Time, error) {
-	return nil, nil
-}
-func (m *mockMedicalRecordRepoForTreatment) CountEstimatesByMedicalRecordID(_ context.Context, _, _ uint64) (int64, error) {
-	return 0, nil
-}
-
-func (m *mockMedicalRecordRepoForTreatment) FindOwnerVisitSummary(_ context.Context, _, _ uint64) (*repository.OwnerVisitSummary, error) {
-	return &repository.OwnerVisitSummary{}, nil
-}
-
-func (m *mockMedicalRecordRepoForTreatment) FindLatestByOwner(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
-	return nil, nil
-}
-
-func (m *mockMedicalRecordRepoForTreatment) FindDormantOwnerEntries(_ context.Context, _ uint64, _ int) ([]repository.DormantOwnerEntry, error) {
-	return nil, nil
-}
-
-func (m *mockMedicalRecordRepoForTreatment) FindDormantOwnerEntriesCursor(_ context.Context, _ uint64, _ int, _ uint64, _ int) ([]repository.DormantOwnerEntry, error) {
-	return nil, nil
-}
-
-func (m *mockMedicalRecordRepoForTreatment) FindOwnersByFirstVisitDate(_ context.Context, _ uint64, _ time.Time) ([]uint64, error) {
-	return nil, nil
-}
-
-func (m *mockMedicalRecordRepoForTreatment) FindOwnersByLastVisitDays(_ context.Context, _ uint64, _ int, _ time.Time) ([]uint64, error) {
-	return nil, nil
-}
-
-func (m *mockMedicalRecordRepoForTreatment) FindOwnersByNextVisitRecommended(_ context.Context, _ uint64, _ time.Time) ([]uint64, error) {
-	return nil, nil
-}
-
-func (m *mockMedicalRecordRepoForTreatment) CountByOwnerID(_ context.Context, _, _ uint64) (int64, error) {
-	return 0, nil
-}
-
-func (m *mockMedicalRecordRepoForTreatment) DeleteDraftByAppointmentID(_ context.Context, _, _ uint64) error {
-	return nil
-}
-
-// LockByIDForUpdate は X-11 finalize-lock テスト用に FindByID と同じ挙動へ委譲する。
-func (m *mockMedicalRecordRepoForTreatment) LockByIDForUpdate(ctx context.Context, clinicID, id uint64) (*model.MedicalRecord, error) {
-	return m.FindByID(ctx, clinicID, id)
-}
-
 // ---- Treatment モック ----
 
 type mockTreatmentRepository struct {
@@ -196,7 +117,7 @@ func TestTreatmentService_List(t *testing.T) {
 			}
 			svc := NewTreatmentServiceWithAudit(&repository.Repositories{
 				Treatment:     repo,
-				MedicalRecord: &mockMedicalRecordRepoForTreatment{},
+				MedicalRecord: &mockMedicalRecordRepository{},
 				Inventory:     &mockInventoryRepository{},
 			}, nil)
 
@@ -394,12 +315,16 @@ func TestTreatmentService_Create(t *testing.T) {
 			invRepo := &mockInventoryRepository{}
 			// TransactionFn: DB 不要でトランザクションをインライン実行
 			repos := &repository.Repositories{
-				Treatment:     repo,
-				MedicalRecord: &mockMedicalRecordRepoForTreatment{},
-				Inventory:     invRepo,
-				Medicine:      okMedicineRepo(),
-				Procedure:     okProcedureRepo(),
-				Consultation:  okConsultationRepo(),
+				Treatment: repo,
+				MedicalRecord: &mockMedicalRecordRepository{
+					findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
+						return &model.MedicalRecord{Status: model.MedicalRecordStatusDraft}, nil
+					},
+				},
+				Inventory:    invRepo,
+				Medicine:     okMedicineRepo(),
+				Procedure:    okProcedureRepo(),
+				Consultation: okConsultationRepo(),
 			}
 			repos.TransactionFn = func(ctx context.Context, fn func(*repository.Repositories) error) error {
 				return fn(repos)
@@ -448,12 +373,16 @@ func TestTreatmentService_Create_DecreaseStock(t *testing.T) {
 			},
 		}
 		repos := &repository.Repositories{
-			Treatment:     treatmentRepo,
-			MedicalRecord: &mockMedicalRecordRepoForTreatment{},
-			Inventory:     invRepo,
-			Medicine:      okMedicineRepo(),
-			Procedure:     okProcedureRepo(),
-			Consultation:  okConsultationRepo(),
+			Treatment: treatmentRepo,
+			MedicalRecord: &mockMedicalRecordRepository{
+				findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
+					return &model.MedicalRecord{Status: model.MedicalRecordStatusDraft}, nil
+				},
+			},
+			Inventory:    invRepo,
+			Medicine:     okMedicineRepo(),
+			Procedure:    okProcedureRepo(),
+			Consultation: okConsultationRepo(),
 		}
 		repos.TransactionFn = func(_ context.Context, fn func(*repository.Repositories) error) error {
 			return fn(repos)
@@ -494,12 +423,16 @@ func TestTreatmentService_Create_DecreaseStock(t *testing.T) {
 			},
 		}
 		repos := &repository.Repositories{
-			Treatment:     treatmentRepo,
-			MedicalRecord: &mockMedicalRecordRepoForTreatment{},
-			Inventory:     invRepo,
-			Medicine:      okMedicineRepo(),
-			Procedure:     okProcedureRepo(),
-			Consultation:  okConsultationRepo(),
+			Treatment: treatmentRepo,
+			MedicalRecord: &mockMedicalRecordRepository{
+				findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
+					return &model.MedicalRecord{Status: model.MedicalRecordStatusDraft}, nil
+				},
+			},
+			Inventory:    invRepo,
+			Medicine:     okMedicineRepo(),
+			Procedure:    okProcedureRepo(),
+			Consultation: okConsultationRepo(),
 		}
 		repos.TransactionFn = func(_ context.Context, fn func(*repository.Repositories) error) error {
 			return fn(repos)
@@ -661,9 +594,13 @@ func TestTreatmentService_Update(t *testing.T) {
 				},
 			}
 			updateRepos := &repository.Repositories{
-				Treatment:     repo,
-				MedicalRecord: &mockMedicalRecordRepoForTreatment{},
-				Inventory:     &mockInventoryRepository{},
+				Treatment: repo,
+				MedicalRecord: &mockMedicalRecordRepository{
+					findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
+						return &model.MedicalRecord{Status: model.MedicalRecordStatusDraft}, nil
+					},
+				},
+				Inventory: &mockInventoryRepository{},
 			}
 			updateRepos.TransactionFn = func(ctx context.Context, fn func(*repository.Repositories) error) error {
 				return fn(updateRepos)
@@ -752,9 +689,13 @@ func TestTreatmentService_Delete(t *testing.T) {
 				},
 			}
 			repos := &repository.Repositories{
-				Treatment:     repo,
-				MedicalRecord: &mockMedicalRecordRepoForTreatment{},
-				Inventory:     &mockInventoryRepository{},
+				Treatment: repo,
+				MedicalRecord: &mockMedicalRecordRepository{
+					findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
+						return &model.MedicalRecord{Status: model.MedicalRecordStatusDraft}, nil
+					},
+				},
+				Inventory: &mockInventoryRepository{},
 			}
 			// TransactionFn: DB 不要でトランザクションをインライン実行（BE-refactor.md H-8b）
 			repos.TransactionFn = func(_ context.Context, fn func(*repository.Repositories) error) error {
@@ -843,7 +784,7 @@ func TestTreatmentService_BulkUpdateSortOrder(t *testing.T) {
 					return tt.repoErr
 				},
 			}
-			mrRepo := &mockMedicalRecordRepoForTreatment{
+			mrRepo := &mockMedicalRecordRepository{
 				findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
 					return &model.MedicalRecord{Status: tt.parentStatus}, nil
 				},

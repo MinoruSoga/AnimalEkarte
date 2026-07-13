@@ -13,82 +13,6 @@ import (
 	"github.com/animal-ekarte/backend/internal/repository"
 )
 
-// mockMedRecordRepoForLstepVisit is a full repository.MedicalRecordRepository
-// implementation used only by the lstep visit-tag sync tests (SyncVisitCompletionTags,
-// SyncNextVisitTag). It exposes configurable hooks only for the two methods those
-// sync functions actually call, so tests can control the FindOwnerVisitSummary /
-// FindLatestByOwner return values — the shared mockMedicalRecordRepository in
-// medical_record_service_test.go hardcodes FindLatestByOwner to (nil, nil) and cannot
-// be reused for these branches.
-type mockMedRecordRepoForLstepVisit struct {
-	findOwnerVisitSummaryFn func(ctx context.Context, clinicID, ownerID uint64) (*repository.OwnerVisitSummary, error)
-	findLatestByOwnerFn     func(ctx context.Context, clinicID, ownerID uint64) (*model.MedicalRecord, error)
-}
-
-func (m *mockMedRecordRepoForLstepVisit) FindAll(_ context.Context, _ []uint64, _ repository.MedicalRecordListFilters, _, _ int) ([]model.MedicalRecord, int64, error) {
-	return nil, 0, nil
-}
-func (m *mockMedRecordRepoForLstepVisit) FindByID(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
-	return nil, nil
-}
-func (m *mockMedRecordRepoForLstepVisit) FindByIDForClinics(_ context.Context, _ []uint64, _ uint64) (*model.MedicalRecord, error) {
-	return nil, nil
-}
-func (m *mockMedRecordRepoForLstepVisit) Create(_ context.Context, _ *model.MedicalRecord) error {
-	return nil
-}
-func (m *mockMedRecordRepoForLstepVisit) Update(_ context.Context, _, _ uint64, _ map[string]any, _ *int) (*model.MedicalRecord, error) {
-	return nil, nil
-}
-func (m *mockMedRecordRepoForLstepVisit) Delete(_ context.Context, _, _ uint64) error { return nil }
-func (m *mockMedRecordRepoForLstepVisit) DeleteDraftByAppointmentID(_ context.Context, _, _ uint64) error {
-	return nil
-}
-
-// LockByIDForUpdate は X-11 finalize-lock テスト用に FindByID と同じ挙動へ委譲する。
-func (m *mockMedRecordRepoForLstepVisit) LockByIDForUpdate(ctx context.Context, clinicID, id uint64) (*model.MedicalRecord, error) {
-	return m.FindByID(ctx, clinicID, id)
-}
-func (m *mockMedRecordRepoForLstepVisit) CountByPetID(_ context.Context, _, _ uint64) (int64, error) {
-	return 0, nil
-}
-func (m *mockMedRecordRepoForLstepVisit) FindFirstVisitDateByPetID(_ context.Context, _, _ uint64) (*time.Time, error) {
-	return nil, nil
-}
-func (m *mockMedRecordRepoForLstepVisit) CountEstimatesByMedicalRecordID(_ context.Context, _, _ uint64) (int64, error) {
-	return 0, nil
-}
-func (m *mockMedRecordRepoForLstepVisit) FindOwnerVisitSummary(ctx context.Context, clinicID, ownerID uint64) (*repository.OwnerVisitSummary, error) {
-	if m.findOwnerVisitSummaryFn != nil {
-		return m.findOwnerVisitSummaryFn(ctx, clinicID, ownerID)
-	}
-	return &repository.OwnerVisitSummary{}, nil
-}
-func (m *mockMedRecordRepoForLstepVisit) FindLatestByOwner(ctx context.Context, clinicID, ownerID uint64) (*model.MedicalRecord, error) {
-	if m.findLatestByOwnerFn != nil {
-		return m.findLatestByOwnerFn(ctx, clinicID, ownerID)
-	}
-	return nil, nil
-}
-func (m *mockMedRecordRepoForLstepVisit) FindDormantOwnerEntries(_ context.Context, _ uint64, _ int) ([]repository.DormantOwnerEntry, error) {
-	return nil, nil
-}
-func (m *mockMedRecordRepoForLstepVisit) FindDormantOwnerEntriesCursor(_ context.Context, _ uint64, _ int, _ uint64, _ int) ([]repository.DormantOwnerEntry, error) {
-	return nil, nil
-}
-func (m *mockMedRecordRepoForLstepVisit) FindOwnersByFirstVisitDate(_ context.Context, _ uint64, _ time.Time) ([]uint64, error) {
-	return nil, nil
-}
-func (m *mockMedRecordRepoForLstepVisit) FindOwnersByLastVisitDays(_ context.Context, _ uint64, _ int, _ time.Time) ([]uint64, error) {
-	return nil, nil
-}
-func (m *mockMedRecordRepoForLstepVisit) FindOwnersByNextVisitRecommended(_ context.Context, _ uint64, _ time.Time) ([]uint64, error) {
-	return nil, nil
-}
-func (m *mockMedRecordRepoForLstepVisit) CountByOwnerID(_ context.Context, _, _ uint64) (int64, error) {
-	return 0, nil
-}
-
 // mockAccountingRepoForLstepVisit is a full repository.AccountingRepository
 // implementation used only by lstep visit-tag sync tests, exposing a configurable
 // hook for SumPaidByOwner (the shared mockAccountingRepository hardcodes it to
@@ -224,7 +148,7 @@ func TestSyncVisitCompletionTags(t *testing.T) {
 					return &model.Owner{ID: 2, LineUserID: &lineUID}, nil
 				},
 			},
-			medRecordRepo: &mockMedRecordRepoForLstepVisit{
+			medRecordRepo: &mockMedicalRecordRepository{
 				findOwnerVisitSummaryFn: func(_ context.Context, _, _ uint64) (*repository.OwnerVisitSummary, error) {
 					return nil, errors.New("summary db error")
 				},
@@ -242,7 +166,7 @@ func TestSyncVisitCompletionTags(t *testing.T) {
 					return &model.Owner{ID: 2, LineUserID: &lineUID}, nil
 				},
 			},
-			medRecordRepo: &mockMedRecordRepoForLstepVisit{},
+			medRecordRepo: &mockMedicalRecordRepository{},
 			accountRepo: &mockAccountingRepoForLstepVisit{
 				sumPaidByOwnerFn: func(_ context.Context, _, _ uint64) (int64, error) {
 					return 0, errors.New("ltv db error")
@@ -261,7 +185,7 @@ func TestSyncVisitCompletionTags(t *testing.T) {
 					return &model.Owner{ID: 2, LineUserID: &lineUID}, nil
 				},
 			},
-			medRecordRepo: &mockMedRecordRepoForLstepVisit{},
+			medRecordRepo: &mockMedicalRecordRepository{},
 			accountRepo:   &mockAccountingRepoForLstepVisit{},
 			buildClientFn: func(_ context.Context, _ uint64) (lstep.Client, error) { return nil, nil },
 		}
@@ -290,7 +214,7 @@ func TestSyncVisitCompletionTags(t *testing.T) {
 					return &model.Owner{ID: 2, LineUserID: &lineUID}, nil
 				},
 			},
-			medRecordRepo: &mockMedRecordRepoForLstepVisit{
+			medRecordRepo: &mockMedicalRecordRepository{
 				findOwnerVisitSummaryFn: func(_ context.Context, _, _ uint64) (*repository.OwnerVisitSummary, error) {
 					return &repository.OwnerVisitSummary{FirstVisitAt: &first, LastVisitAt: &last, AnnualCount: 6}, nil
 				},
@@ -334,7 +258,7 @@ func TestSyncVisitCompletionTags(t *testing.T) {
 					return &model.Owner{ID: 2, LineUserID: &lineUID}, nil
 				},
 			},
-			medRecordRepo: &mockMedRecordRepoForLstepVisit{},
+			medRecordRepo: &mockMedicalRecordRepository{},
 			accountRepo:   &mockAccountingRepoForLstepVisit{},
 			buildClientFn: func(_ context.Context, _ uint64) (lstep.Client, error) { return client, nil },
 			tagCacheRepo:  &mockLstepTagCacheRepository{},
@@ -352,7 +276,7 @@ func TestSyncVisitCompletionTags(t *testing.T) {
 					return &model.Owner{ID: 2, LineUserID: &lineUID}, nil
 				},
 			},
-			medRecordRepo: &mockMedRecordRepoForLstepVisit{},
+			medRecordRepo: &mockMedicalRecordRepository{},
 			accountRepo:   &mockAccountingRepoForLstepVisit{},
 			buildClientFn: func(_ context.Context, _ uint64) (lstep.Client, error) { return client, nil },
 			tagCacheRepo: &mockLstepTagCacheRepository{
@@ -377,7 +301,7 @@ func TestSyncVisitCompletionTags(t *testing.T) {
 					return &model.Owner{ID: 2, LineUserID: &lineUID}, nil
 				},
 			},
-			medRecordRepo: &mockMedRecordRepoForLstepVisit{},
+			medRecordRepo: &mockMedicalRecordRepository{},
 			accountRepo:   &mockAccountingRepoForLstepVisit{},
 			buildClientFn: func(_ context.Context, _ uint64) (lstep.Client, error) { return client, nil },
 			tagCacheRepo: &mockLstepTagCacheRepository{

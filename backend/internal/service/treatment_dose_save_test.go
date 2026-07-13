@@ -152,7 +152,7 @@ func newDoseSaveFixture(t *testing.T, calcType model.MedicineCalculationType, pa
 			}, nil
 		},
 	}
-	mrRepo := &mockMedicalRecordRepoForTreatment{
+	mrRepo := &mockMedicalRecordRepository{
 		findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
 			petID := uint64(7)
 			return &model.MedicalRecord{

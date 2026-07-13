@@ -75,13 +75,13 @@ func okCheckupTypeRepo() repository.CheckupTypeRepository {
 
 func okTrimmingCourseRepo() repository.TrimmingCourseRepository {
 	return &mockTrimmingCourseRepository{findByIDFn: func(_ context.Context, _, id uint64) (*model.TrimmingCourse, error) {
-		return &model.TrimmingCourse{ID: id}, nil
+		return &model.TrimmingCourse{ID: id, IsActive: true}, nil
 	}}
 }
 
 func okTrimmingOptionRepo() repository.TrimmingOptionRepository {
 	return &mockTrimmingOptionRepository{findByIDFn: func(_ context.Context, _, id uint64) (*model.TrimmingOption, error) {
-		return &model.TrimmingOption{ID: id}, nil
+		return &model.TrimmingOption{ID: id, IsActive: true}, nil
 	}}
 }
 
@@ -201,11 +201,15 @@ func TestTreatmentService_Create_RejectsCrossClinicMasterFK(t *testing.T) {
 				*created = true
 				return nil
 			}},
-			MedicalRecord: &mockMedicalRecordRepoForTreatment{},
-			Inventory:     &mockInventoryRepository{},
-			Medicine:      okMedicineRepo(),
-			Consultation:  okConsultationRepo(),
-			Procedure:     rejectProcedureRepo(ownedProcedureID),
+			MedicalRecord: &mockMedicalRecordRepository{
+				findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
+					return &model.MedicalRecord{Status: model.MedicalRecordStatusDraft}, nil
+				},
+			},
+			Inventory:    &mockInventoryRepository{},
+			Medicine:     okMedicineRepo(),
+			Consultation: okConsultationRepo(),
+			Procedure:    rejectProcedureRepo(ownedProcedureID),
 		}
 		repos.TransactionFn = func(_ context.Context, fn func(*repository.Repositories) error) error { return fn(repos) }
 		return NewTreatmentServiceWithAudit(repos, nil)
@@ -258,11 +262,15 @@ func TestTreatmentService_Update_RejectsCrossClinicMasterFK(t *testing.T) {
 					return nil
 				},
 			},
-			MedicalRecord: &mockMedicalRecordRepoForTreatment{},
-			Inventory:     &mockInventoryRepository{},
-			Medicine:      okMedicineRepo(),
-			Consultation:  okConsultationRepo(),
-			Procedure:     rejectProcedureRepo(ownedProcedureID),
+			MedicalRecord: &mockMedicalRecordRepository{
+				findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
+					return &model.MedicalRecord{Status: model.MedicalRecordStatusDraft}, nil
+				},
+			},
+			Inventory:    &mockInventoryRepository{},
+			Medicine:     okMedicineRepo(),
+			Consultation: okConsultationRepo(),
+			Procedure:    rejectProcedureRepo(ownedProcedureID),
 		}
 		repos.TransactionFn = func(_ context.Context, fn func(*repository.Repositories) error) error { return fn(repos) }
 		return NewTreatmentServiceWithAudit(repos, nil)
@@ -294,11 +302,15 @@ func TestTreatmentService_Create_RejectsCrossClinicInventoryFK(t *testing.T) {
 				*created = true
 				return nil
 			}},
-			MedicalRecord: &mockMedicalRecordRepoForTreatment{},
-			Inventory:     rejectInventoryRepo(ownedInventoryID),
-			Medicine:      okMedicineRepo(),
-			Consultation:  okConsultationRepo(),
-			Procedure:     okProcedureRepo(),
+			MedicalRecord: &mockMedicalRecordRepository{
+				findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
+					return &model.MedicalRecord{Status: model.MedicalRecordStatusDraft}, nil
+				},
+			},
+			Inventory:    rejectInventoryRepo(ownedInventoryID),
+			Medicine:     okMedicineRepo(),
+			Consultation: okConsultationRepo(),
+			Procedure:    okProcedureRepo(),
 		}
 		repos.TransactionFn = func(_ context.Context, fn func(*repository.Repositories) error) error { return fn(repos) }
 		return NewTreatmentServiceWithAudit(repos, nil)
@@ -351,11 +363,15 @@ func TestTreatmentService_Update_RejectsCrossClinicInventoryFK(t *testing.T) {
 					return nil
 				},
 			},
-			MedicalRecord: &mockMedicalRecordRepoForTreatment{},
-			Inventory:     rejectInventoryRepo(ownedInventoryID),
-			Medicine:      okMedicineRepo(),
-			Consultation:  okConsultationRepo(),
-			Procedure:     okProcedureRepo(),
+			MedicalRecord: &mockMedicalRecordRepository{
+				findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
+					return &model.MedicalRecord{Status: model.MedicalRecordStatusDraft}, nil
+				},
+			},
+			Inventory:    rejectInventoryRepo(ownedInventoryID),
+			Medicine:     okMedicineRepo(),
+			Consultation: okConsultationRepo(),
+			Procedure:    okProcedureRepo(),
 		}
 		repos.TransactionFn = func(_ context.Context, fn func(*repository.Repositories) error) error { return fn(repos) }
 		return NewTreatmentServiceWithAudit(repos, nil)
@@ -524,7 +540,7 @@ func TestExaminationService_Create_RejectsCrossClinicExamType(t *testing.T) {
 		repo := &mockExaminationRepository{
 			createFn: func(_ context.Context, _ *model.Examination) error { *created = true; return nil },
 		}
-		return NewExaminationService(repo, &mockMedicalRecordRepositoryForExam{}, rejectExamTypeRepo(ownedExamTypeID), nil, &mockCheckupTransactor{})
+		return NewExaminationService(repo, &mockMedicalRecordRepository{}, rejectExamTypeRepo(ownedExamTypeID), nil, &mockCheckupTransactor{})
 	}
 
 	t.Run("rejects cross-clinic exam_type_id and does not persist", func(t *testing.T) {
@@ -561,7 +577,7 @@ func TestExaminationService_Update_RejectsCrossClinicExamType(t *testing.T) {
 				return &model.Examination{ID: 1}, nil
 			},
 		}
-		return NewExaminationService(repo, &mockMedicalRecordRepositoryForExam{}, rejectExamTypeRepo(ownedExamTypeID), nil, &mockCheckupTransactor{})
+		return NewExaminationService(repo, &mockMedicalRecordRepository{}, rejectExamTypeRepo(ownedExamTypeID), nil, &mockCheckupTransactor{})
 	}
 
 	t.Run("rejects cross-clinic exam_type_id on update and does not persist", func(t *testing.T) {
@@ -915,7 +931,7 @@ func rejectTrimmingCourseRepo(ownedID uint64) repository.TrimmingCourseRepositor
 		if id != ownedID {
 			return nil, apperrors.WrapNotFound("trimming_course", "foreign")
 		}
-		return &model.TrimmingCourse{ID: id}, nil
+		return &model.TrimmingCourse{ID: id, IsActive: true}, nil
 	}}
 }
 
@@ -924,7 +940,7 @@ func rejectTrimmingOptionRepo(ownedID uint64) repository.TrimmingOptionRepositor
 		if id != ownedID {
 			return nil, apperrors.WrapNotFound("trimming_option", "foreign")
 		}
-		return &model.TrimmingOption{ID: id}, nil
+		return &model.TrimmingOption{ID: id, IsActive: true}, nil
 	}}
 }
 
