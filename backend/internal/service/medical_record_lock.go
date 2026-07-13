@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
@@ -28,10 +29,12 @@ func lockDraftMedicalRecord(ctx context.Context, repo medicalRecordLocker, clini
 		slog.ErrorContext(ctx, findErrMsg, "error", err)
 		return apperrors.Wrap(err, findErrMsg)
 	}
-	// nil ガード: prescription_service.go の元実装が `mr != nil &&` を明示していた（テスト用
-	// モックが LockByIDForUpdate 未設定時に (nil, nil) を返す契約に依存）ため、全サイト共通で
-	// 同じ防御を維持する。
-	if parent != nil && parent.Status == model.MedicalRecordStatusFinalized {
+	// fail-closed: parent が nil の場合はカルテ不在として NotFound を返す（BE-refactor.md A-5）。
+	// 旧実装は `parent != nil &&` ガードにより nil を「draft とみなして続行」する fail-open だった。
+	if parent == nil {
+		return apperrors.WrapNotFound("medical_record", fmt.Sprintf("%d", recordID))
+	}
+	if parent.Status == model.MedicalRecordStatusFinalized {
 		return apperrors.WrapConflict(conflictMsg)
 	}
 	return nil

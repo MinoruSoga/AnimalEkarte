@@ -587,7 +587,12 @@ func TestPrescriptionService_Update_SyncsPrescriptionTagAfterUpdate(t *testing.T
 			return nil
 		},
 	}
-	svc := NewPrescriptionService(repo, &mockMedicalRecordRepository{}, tagSync, &mockCheckupTransactor{})
+	medRecordRepo := &mockMedicalRecordRepository{
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
+			return &model.MedicalRecord{ID: medicalRecordID, Status: model.MedicalRecordStatusDraft}, nil
+		},
+	}
+	svc := NewPrescriptionService(repo, medRecordRepo, tagSync, &mockCheckupTransactor{})
 	durationDays := 21
 
 	result, err := svc.Update(context.Background(), 1, medicalRecordID, 30, &UpdatePrescriptionInput{DurationDays: &durationDays})
@@ -619,7 +624,12 @@ func TestPrescriptionService_Delete_SyncsPrescriptionTagAfterDelete(t *testing.T
 			return nil
 		},
 	}
-	svc := NewPrescriptionService(repo, &mockMedicalRecordRepository{}, tagSync, &mockCheckupTransactor{})
+	medRecordRepo := &mockMedicalRecordRepository{
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
+			return &model.MedicalRecord{ID: medicalRecordID, Status: model.MedicalRecordStatusDraft}, nil
+		},
+	}
+	svc := NewPrescriptionService(repo, medRecordRepo, tagSync, &mockCheckupTransactor{})
 
 	err := svc.Delete(context.Background(), 1, medicalRecordID, 30)
 
