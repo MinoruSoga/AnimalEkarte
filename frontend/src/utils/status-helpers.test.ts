@@ -174,16 +174,33 @@ describe('getExaminationStatusColor', () => {
 });
 
 describe('getAccountingStatusColor', () => {
-  // 実装のステータス値: 会計待ち/会計済/キャンセル
-  it('returns orange for 会計待ち', () => {
+  // FE5-27で一覧側が履歴側の4値区別ラベルへ統一された正本ケース
+  it('returns orange for 未精算', () => {
+    expect(getAccountingStatusColor('未精算')).toContain(HEX.orange);
+  });
+
+  it('returns yellow for 保留', () => {
+    expect(getAccountingStatusColor('保留')).toContain(HEX.yellow);
+  });
+
+  it('returns green for 精算済', () => {
+    expect(getAccountingStatusColor('精算済')).toContain(HEX.green);
+  });
+
+  it('returns gray for 取消', () => {
+    expect(getAccountingStatusColor('取消')).toContain(HEX.gray);
+  });
+
+  // 旧ラベルは実装に互換caseとして残っているため引き続き検証する
+  it('returns orange for 会計待ち (legacy alias)', () => {
     expect(getAccountingStatusColor('会計待ち')).toContain(HEX.orange);
   });
 
-  it('returns green for 会計済', () => {
+  it('returns green for 会計済 (legacy alias)', () => {
     expect(getAccountingStatusColor('会計済')).toContain(HEX.green);
   });
 
-  it('returns gray for キャンセル', () => {
+  it('returns gray for キャンセル (legacy alias)', () => {
     expect(getAccountingStatusColor('キャンセル')).toContain(HEX.gray);
   });
 });
