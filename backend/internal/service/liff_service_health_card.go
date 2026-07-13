@@ -16,13 +16,12 @@ type HealthCardResult struct {
 }
 
 type PetHealthCard struct {
-	PetID                    uint64
-	PetName                  string
-	Species                  string
-	Breed                    string
-	NextRecommendedVisitDate *time.Time
-	LastVisitDate            *time.Time
-	Vaccines                 []VaccineRecord
+	PetID         uint64
+	PetName       string
+	Species       string
+	Breed         string
+	LastVisitDate *time.Time
+	Vaccines      []VaccineRecord
 }
 
 type VaccineRecord struct {

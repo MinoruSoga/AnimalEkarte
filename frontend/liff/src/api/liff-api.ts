@@ -19,7 +19,6 @@ const petHealthCardSchema = z.object({
   pet_name: z.string(),
   species: z.string(),
   breed: z.string(),
-  next_recommended_visit_date: z.string().nullable(),
   vaccines: z.array(petVaccineRecordSchema),
   last_visit_date: z.string().nullable(),
 });

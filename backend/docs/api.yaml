@@ -7227,10 +7227,6 @@ components:
           type: string
         breed:
           type: string
-        next_recommended_visit_date:
-          type: string
-          format: date-time
-          nullable: true
         vaccines:
           type: array
           items:
@@ -7239,7 +7235,7 @@ components:
           type: string
           format: date
           nullable: true
-      required: [pet_id, pet_name, species, breed, next_recommended_visit_date, vaccines, last_visit_date]
+      required: [pet_id, pet_name, species, breed, vaccines, last_visit_date]
     LiffHealthCardResponse:
       type: object
       properties:

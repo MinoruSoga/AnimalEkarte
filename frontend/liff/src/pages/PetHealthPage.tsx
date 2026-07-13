@@ -93,14 +93,6 @@ export function PetHealthPage({ idToken, displayName, pictureUrl }: PetHealthPag
                 </span>
               </div>
 
-              {/* 次回来院推奨日 */}
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-500">次回来院推奨日</span>
-                <span className="font-medium text-liff-brand-dark">
-                  {pet.next_recommended_visit_date ? pet.next_recommended_visit_date : 'なし'}
-                </span>
-              </div>
-
               {/* ワクチン記録 */}
               {pet.vaccines.length > 0 ? (
                 <div className="mt-3">

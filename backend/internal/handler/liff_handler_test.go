@@ -781,12 +781,11 @@ func TestGetLiffHealthCard(t *testing.T) {
 					OwnerName: "田中太郎",
 					Pets: []service.PetHealthCard{
 						{
-							PetID:                    10,
-							PetName:                  "ポチ",
-							Species:                  "犬",
-							Breed:                    "柴犬",
-							NextRecommendedVisitDate: nil,
-							LastVisitDate:            nil,
+							PetID:         10,
+							PetName:       "ポチ",
+							Species:       "犬",
+							Breed:         "柴犬",
+							LastVisitDate: nil,
 							Vaccines: []service.VaccineRecord{
 								{VaccineName: "狂犬病", VaccinatedAt: vaccinatedAt, NextDueAt: nil},
 							},
@@ -817,10 +816,6 @@ func TestGetLiffHealthCard(t *testing.T) {
 		assert.Equal(t, "柴犬", pet["breed"])
 
 		// nullable フィールドはキー省略ではなく明示 null であること
-		nextVisitVal, hasNextVisit := pet["next_recommended_visit_date"]
-		assert.True(t, hasNextVisit, "next_recommended_visit_date key must be present")
-		assert.Nil(t, nextVisitVal)
-
 		lastVisitVal, hasLastVisit := pet["last_visit_date"]
 		assert.True(t, hasLastVisit, "last_visit_date key must be present")
 		assert.Nil(t, lastVisitVal)
@@ -837,7 +832,6 @@ func TestGetLiffHealthCard(t *testing.T) {
 
 		// raw body でも null が省略されず出力されていることを確認
 		assert.Contains(t, w.Body.String(), `"next_due_at":null`)
-		assert.Contains(t, w.Body.String(), `"next_recommended_visit_date":null`)
 		assert.Contains(t, w.Body.String(), `"last_visit_date":null`)
 	})
 
