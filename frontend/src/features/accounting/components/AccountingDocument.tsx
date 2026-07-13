@@ -16,6 +16,7 @@ import {
 
 // Types
 import type { Accounting, PaymentInfo } from "../types";
+import { calcTaxBreakdown } from "../tax-breakdown";
 
 type DocumentPaymentInfo = Pick<
   PaymentInfo,
@@ -86,22 +87,10 @@ export const AccountingDocument = memo(function AccountingDocument({ accounting,
 
   const { standardTaxRate: standardRate, reducedTaxRate: reducedRate } = useClinicTaxRates();
 
-  const taxBreakdown = useMemo(() => {
-    const stdItems = accounting.items.filter(i => approxEqual(i.taxRate, standardRate));
-    const redItems = accounting.items.filter(i => approxEqual(i.taxRate, reducedRate));
-
-    const stdBase = stdItems.reduce((sum, i) => sum + Math.max(i.unitPrice * i.quantity - i.discountAmount, 0), 0);
-    const redBase = redItems.reduce((sum, i) => sum + Math.max(i.unitPrice * i.quantity - i.discountAmount, 0), 0);
-
-    return {
-      standardBase: stdBase,
-      reducedBase: redBase,
-      standardAmount: Math.floor(stdBase * standardRate),
-      reducedAmount: Math.floor(redBase * reducedRate),
-      standardRatePercent: Math.round(standardRate * 100),
-      reducedRatePercent: Math.round(reducedRate * 100),
-    };
-  }, [accounting.items, standardRate, reducedRate]);
+  const taxBreakdown = useMemo(
+    () => calcTaxBreakdown(accounting.items, standardRate, reducedRate),
+    [accounting.items, standardRate, reducedRate],
+  );
 
   const registrationNumber = clinic?.invoiceRegistrationNumber?.trim() ?? "";
   const hasRegistrationNumber = registrationNumber !== "";
