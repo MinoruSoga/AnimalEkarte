@@ -22,8 +22,9 @@ function timeToMinutes(time: string): number {
 
 export function slotTimeToSelectValue(time: string): string {
   if (time.includes(":")) {
-    const [hour, minute = "00"] = time.split(":");
-    return `${hour.padStart(2, "0")}:${minute.slice(0, 2)}`;
+    const [hour, minute] = time.split(":");
+    const normalizedMinute = minute ? minute.padStart(2, "0").slice(0, 2) : "00";
+    return `${hour.padStart(2, "0")}:${normalizedMinute}`;
   }
   return `${time.slice(0, 2)}:${time.slice(2, 4)}`;
 }
