@@ -130,7 +130,7 @@ func TestBillingItemService_GetUngroupedSameDaySummary(t *testing.T) {
 	treatmentRepo := &mockTreatmentRepositoryForBilling{
 		countFinalizedFn: func(_ context.Context, _, _ uint64, _ time.Time) (int64, error) { return 2, nil },
 	}
-	svc := NewBillingItemService(defaultMockBillingItemRepo(), defaultMockBillingRepo(), treatmentRepo, &mockTransactor{}, okTrimmingCourseRepo(), okTrimmingOptionRepo())
+	svc := NewBillingItemServiceWithCampaign(defaultMockBillingItemRepo(), defaultMockBillingRepo(), treatmentRepo, &mockTransactor{}, okTrimmingCourseRepo(), okTrimmingOptionRepo(), nil, nil)
 
 	summary, err := svc.GetUngroupedSameDaySummary(context.Background(), 1, 20, time.Now())
 
@@ -302,7 +302,7 @@ func TestBillingItemService_CreateItem(t *testing.T) {
 			if tt.billingFindFn != nil {
 				billingRepo.findByIDFn = tt.billingFindFn
 			}
-			svc := NewBillingItemService(repo, billingRepo, defaultMockTreatmentRepo(), &mockTransactor{}, okTrimmingCourseRepo(), okTrimmingOptionRepo())
+			svc := NewBillingItemServiceWithCampaign(repo, billingRepo, defaultMockTreatmentRepo(), &mockTransactor{}, okTrimmingCourseRepo(), okTrimmingOptionRepo(), nil, nil)
 			result, err := svc.CreateItem(context.Background(), tt.input)
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -375,7 +375,7 @@ func TestBillingItemService_UpdateItem(t *testing.T) {
 			repo.updateFieldsFn = func(_ context.Context, _, _ uint64, _ map[string]any) error {
 				return tt.updateErr
 			}
-			svc := NewBillingItemService(repo, defaultMockBillingRepo(), defaultMockTreatmentRepo(), &mockTransactor{}, okTrimmingCourseRepo(), okTrimmingOptionRepo())
+			svc := NewBillingItemServiceWithCampaign(repo, defaultMockBillingRepo(), defaultMockTreatmentRepo(), &mockTransactor{}, okTrimmingCourseRepo(), okTrimmingOptionRepo(), nil, nil)
 			result, err := svc.UpdateItem(context.Background(), 1, 1, tt.input)
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -424,7 +424,7 @@ func TestBillingItemService_DeleteItem(t *testing.T) {
 			repo.deleteFn = func(_ context.Context, _, _ uint64) error {
 				return tt.deleteErr
 			}
-			svc := NewBillingItemService(repo, defaultMockBillingRepo(), defaultMockTreatmentRepo(), &mockTransactor{}, okTrimmingCourseRepo(), okTrimmingOptionRepo())
+			svc := NewBillingItemServiceWithCampaign(repo, defaultMockBillingRepo(), defaultMockTreatmentRepo(), &mockTransactor{}, okTrimmingCourseRepo(), okTrimmingOptionRepo(), nil, nil)
 			err := svc.DeleteItem(context.Background(), 1, 1)
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -474,7 +474,7 @@ func TestBillingItemService_GetUnbilledItems_IncludesMedicalAndTrimming(t *testi
 			}, nil
 		},
 	}
-	svc := NewBillingItemService(repo, defaultMockBillingRepo(), treatmentRepo, &mockTransactor{}, okTrimmingCourseRepo(), okTrimmingOptionRepo())
+	svc := NewBillingItemServiceWithCampaign(repo, defaultMockBillingRepo(), treatmentRepo, &mockTransactor{}, okTrimmingCourseRepo(), okTrimmingOptionRepo(), nil, nil)
 
 	items, err := svc.GetUnbilledItems(context.Background(), 1, 20)
 
@@ -889,7 +889,7 @@ func TestBillingItemService_CreateItem_QuantityValidation(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := defaultMockBillingItemRepo()
-			svc := NewBillingItemService(repo, defaultMockBillingRepo(), defaultMockTreatmentRepo(), &mockTransactor{}, okTrimmingCourseRepo(), okTrimmingOptionRepo())
+			svc := NewBillingItemServiceWithCampaign(repo, defaultMockBillingRepo(), defaultMockTreatmentRepo(), &mockTransactor{}, okTrimmingCourseRepo(), okTrimmingOptionRepo(), nil, nil)
 			result, err := svc.CreateItem(context.Background(), tt.input)
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -915,7 +915,7 @@ func TestBillingItemService_CreateItem_TransactionErrors(t *testing.T) {
 		repo.findByBillingIDFn = func(_ context.Context, _, _ uint64) ([]model.BillingItem, error) {
 			return nil, errors.New("find failed")
 		}
-		svc := NewBillingItemService(repo, defaultMockBillingRepo(), defaultMockTreatmentRepo(), &mockTransactor{}, okTrimmingCourseRepo(), okTrimmingOptionRepo())
+		svc := NewBillingItemServiceWithCampaign(repo, defaultMockBillingRepo(), defaultMockTreatmentRepo(), &mockTransactor{}, okTrimmingCourseRepo(), okTrimmingOptionRepo(), nil, nil)
 		result, err := svc.CreateItem(context.Background(), validInput)
 		assert.Error(t, err)
 		assert.Nil(t, result)
@@ -927,7 +927,7 @@ func TestBillingItemService_CreateItem_TransactionErrors(t *testing.T) {
 			item.ID = 1
 			return nil
 		}
-		svc := NewBillingItemService(repo, defaultMockBillingRepo(), defaultMockTreatmentRepo(), &mockTransactor{withTxErr: errors.New("tx failed")}, okTrimmingCourseRepo(), okTrimmingOptionRepo())
+		svc := NewBillingItemServiceWithCampaign(repo, defaultMockBillingRepo(), defaultMockTreatmentRepo(), &mockTransactor{withTxErr: errors.New("tx failed")}, okTrimmingCourseRepo(), okTrimmingOptionRepo(), nil, nil)
 		result, err := svc.CreateItem(context.Background(), validInput)
 		assert.Error(t, err)
 		assert.Nil(t, result)
@@ -954,7 +954,7 @@ func TestBillingItemService_UpdateItem_QuantityValidation(t *testing.T) {
 			repo.findByIDFn = func(_ context.Context, _, _ uint64) (*model.BillingItem, error) {
 				return existingItem, nil
 			}
-			svc := NewBillingItemService(repo, defaultMockBillingRepo(), defaultMockTreatmentRepo(), &mockTransactor{}, okTrimmingCourseRepo(), okTrimmingOptionRepo())
+			svc := NewBillingItemServiceWithCampaign(repo, defaultMockBillingRepo(), defaultMockTreatmentRepo(), &mockTransactor{}, okTrimmingCourseRepo(), okTrimmingOptionRepo(), nil, nil)
 			result, err := svc.UpdateItem(context.Background(), 1, 1, tt.input)
 			assert.Error(t, err)
 			assert.Nil(t, result)
@@ -975,7 +975,7 @@ func TestBillingItemService_UpdateItem_TransactionErrors(t *testing.T) {
 		repo.findByBillingIDFn = func(_ context.Context, _, _ uint64) ([]model.BillingItem, error) {
 			return nil, errors.New("find failed")
 		}
-		svc := NewBillingItemService(repo, defaultMockBillingRepo(), defaultMockTreatmentRepo(), &mockTransactor{}, okTrimmingCourseRepo(), okTrimmingOptionRepo())
+		svc := NewBillingItemServiceWithCampaign(repo, defaultMockBillingRepo(), defaultMockTreatmentRepo(), &mockTransactor{}, okTrimmingCourseRepo(), okTrimmingOptionRepo(), nil, nil)
 		result, err := svc.UpdateItem(context.Background(), 1, 1, &UpdateBillingItemInput{UnitPrice: &newPrice})
 		assert.Error(t, err)
 		assert.Nil(t, result)
@@ -992,7 +992,7 @@ func TestBillingItemService_UpdateItem_TransactionErrors(t *testing.T) {
 			return nil, errors.New("find after update failed")
 		}
 		repo.updateFieldsFn = func(_ context.Context, _, _ uint64, _ map[string]any) error { return nil }
-		svc := NewBillingItemService(repo, defaultMockBillingRepo(), defaultMockTreatmentRepo(), &mockTransactor{}, okTrimmingCourseRepo(), okTrimmingOptionRepo())
+		svc := NewBillingItemServiceWithCampaign(repo, defaultMockBillingRepo(), defaultMockTreatmentRepo(), &mockTransactor{}, okTrimmingCourseRepo(), okTrimmingOptionRepo(), nil, nil)
 		result, err := svc.UpdateItem(context.Background(), 1, 1, &UpdateBillingItemInput{UnitPrice: &newPrice})
 		assert.Error(t, err)
 		assert.Nil(t, result)
@@ -1003,7 +1003,7 @@ func TestBillingItemService_UpdateItem_TransactionErrors(t *testing.T) {
 		repo.findByIDFn = func(_ context.Context, _, _ uint64) (*model.BillingItem, error) {
 			return existingItem, nil
 		}
-		svc := NewBillingItemService(repo, defaultMockBillingRepo(), defaultMockTreatmentRepo(), &mockTransactor{withTxErr: errors.New("tx failed")}, okTrimmingCourseRepo(), okTrimmingOptionRepo())
+		svc := NewBillingItemServiceWithCampaign(repo, defaultMockBillingRepo(), defaultMockTreatmentRepo(), &mockTransactor{withTxErr: errors.New("tx failed")}, okTrimmingCourseRepo(), okTrimmingOptionRepo(), nil, nil)
 		result, err := svc.UpdateItem(context.Background(), 1, 1, &UpdateBillingItemInput{UnitPrice: &newPrice})
 		assert.Error(t, err)
 		assert.Nil(t, result)
@@ -1024,7 +1024,7 @@ func TestBillingItemService_DeleteItem_TransactionErrors(t *testing.T) {
 		repo.findByBillingIDFn = func(_ context.Context, _, _ uint64) ([]model.BillingItem, error) {
 			return nil, errors.New("find failed")
 		}
-		svc := NewBillingItemService(repo, defaultMockBillingRepo(), defaultMockTreatmentRepo(), &mockTransactor{}, okTrimmingCourseRepo(), okTrimmingOptionRepo())
+		svc := NewBillingItemServiceWithCampaign(repo, defaultMockBillingRepo(), defaultMockTreatmentRepo(), &mockTransactor{}, okTrimmingCourseRepo(), okTrimmingOptionRepo(), nil, nil)
 		err := svc.DeleteItem(context.Background(), 1, 1)
 		assert.Error(t, err)
 	})
@@ -1034,7 +1034,7 @@ func TestBillingItemService_DeleteItem_TransactionErrors(t *testing.T) {
 		repo.findByIDFn = func(_ context.Context, _, _ uint64) (*model.BillingItem, error) {
 			return existingItem, nil
 		}
-		svc := NewBillingItemService(repo, defaultMockBillingRepo(), defaultMockTreatmentRepo(), &mockTransactor{withTxErr: errors.New("tx failed")}, okTrimmingCourseRepo(), okTrimmingOptionRepo())
+		svc := NewBillingItemServiceWithCampaign(repo, defaultMockBillingRepo(), defaultMockTreatmentRepo(), &mockTransactor{withTxErr: errors.New("tx failed")}, okTrimmingCourseRepo(), okTrimmingOptionRepo(), nil, nil)
 		err := svc.DeleteItem(context.Background(), 1, 1)
 		assert.Error(t, err)
 	})
@@ -1049,7 +1049,7 @@ func TestBillingItemService_GetUnbilledItems_Errors(t *testing.T) {
 				return nil, errors.New("db error")
 			},
 		}
-		svc := NewBillingItemService(defaultMockBillingItemRepo(), defaultMockBillingRepo(), treatmentRepo, &mockTransactor{}, okTrimmingCourseRepo(), okTrimmingOptionRepo())
+		svc := NewBillingItemServiceWithCampaign(defaultMockBillingItemRepo(), defaultMockBillingRepo(), treatmentRepo, &mockTransactor{}, okTrimmingCourseRepo(), okTrimmingOptionRepo(), nil, nil)
 		items, err := svc.GetUnbilledItems(context.Background(), 1, 20)
 		assert.Error(t, err)
 		assert.Nil(t, items)
@@ -1062,7 +1062,7 @@ func TestBillingItemService_GetUnbilledItems_Errors(t *testing.T) {
 				return nil, errors.New("trimming db error")
 			},
 		}
-		svc := NewBillingItemService(repo, defaultMockBillingRepo(), defaultMockTreatmentRepo(), &mockTransactor{}, okTrimmingCourseRepo(), okTrimmingOptionRepo())
+		svc := NewBillingItemServiceWithCampaign(repo, defaultMockBillingRepo(), defaultMockTreatmentRepo(), &mockTransactor{}, okTrimmingCourseRepo(), okTrimmingOptionRepo(), nil, nil)
 		items, err := svc.GetUnbilledItems(context.Background(), 1, 20)
 		assert.Error(t, err)
 		assert.Nil(t, items)
@@ -1078,7 +1078,7 @@ func TestBillingItemService_GetUngroupedSameDaySummary_Errors(t *testing.T) {
 				return 0, errors.New("db error")
 			},
 		}
-		svc := NewBillingItemService(defaultMockBillingItemRepo(), defaultMockBillingRepo(), treatmentRepo, &mockTransactor{}, okTrimmingCourseRepo(), okTrimmingOptionRepo())
+		svc := NewBillingItemServiceWithCampaign(defaultMockBillingItemRepo(), defaultMockBillingRepo(), treatmentRepo, &mockTransactor{}, okTrimmingCourseRepo(), okTrimmingOptionRepo(), nil, nil)
 		_, err := svc.GetUngroupedSameDaySummary(context.Background(), 1, 20, time.Now())
 		assert.Error(t, err)
 	})
@@ -1093,7 +1093,7 @@ func TestBillingItemService_GetUngroupedSameDaySummary_Errors(t *testing.T) {
 		treatmentRepo := &mockTreatmentRepositoryForBilling{
 			countFinalizedFn: func(_ context.Context, _, _ uint64, _ time.Time) (int64, error) { return 1, nil },
 		}
-		svc := NewBillingItemService(repo, defaultMockBillingRepo(), treatmentRepo, &mockTransactor{}, okTrimmingCourseRepo(), okTrimmingOptionRepo())
+		svc := NewBillingItemServiceWithCampaign(repo, defaultMockBillingRepo(), treatmentRepo, &mockTransactor{}, okTrimmingCourseRepo(), okTrimmingOptionRepo(), nil, nil)
 		_, err := svc.GetUngroupedSameDaySummary(context.Background(), 1, 20, time.Now())
 		assert.Error(t, err)
 	})
@@ -1108,7 +1108,7 @@ func TestBillingItemService_GetUngroupedSameDaySummary_Errors(t *testing.T) {
 		treatmentRepo := &mockTreatmentRepositoryForBilling{
 			countFinalizedFn: func(_ context.Context, _, _ uint64, _ time.Time) (int64, error) { return 1, nil },
 		}
-		svc := NewBillingItemService(repo, defaultMockBillingRepo(), treatmentRepo, &mockTransactor{}, okTrimmingCourseRepo(), okTrimmingOptionRepo())
+		svc := NewBillingItemServiceWithCampaign(repo, defaultMockBillingRepo(), treatmentRepo, &mockTransactor{}, okTrimmingCourseRepo(), okTrimmingOptionRepo(), nil, nil)
 		summary, err := svc.GetUngroupedSameDaySummary(context.Background(), 1, 20, time.Now())
 		assert.NoError(t, err)
 		assert.Equal(t, int64(1), summary.MedicalRecordCount)

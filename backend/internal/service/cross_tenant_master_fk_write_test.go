@@ -944,7 +944,7 @@ func TestBillingItemService_CreateItem_RejectsCrossClinicTrimmingFK(t *testing.T
 		billingRepo := &mockAccountingRepository{findByIDFn: func(_ context.Context, _, id uint64) (*model.Billing, error) {
 			return &model.Billing{ID: id}, nil
 		}}
-		return NewBillingItemService(repo, billingRepo, defaultMockTreatmentRepo(), &mockTransactor{}, courseRepo, optionRepo)
+		return NewBillingItemServiceWithCampaign(repo, billingRepo, defaultMockTreatmentRepo(), &mockTransactor{}, courseRepo, optionRepo, nil, nil)
 	}
 
 	baseInput := func() *CreateBillingItemInput {

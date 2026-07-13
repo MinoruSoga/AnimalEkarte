@@ -124,11 +124,6 @@ type ungroupedTrimmingCounter interface {
 	CountNonAccountingTrimmingByPetAndDate(ctx context.Context, clinicID, petID uint64, date time.Time) (int64, error)
 }
 
-// NewBillingItemService は BillingItemService を初期化して返す（キャンペーン自動割引なし）
-func NewBillingItemService(repo repository.BillingItemRepository, billingRepo repository.AccountingRepository, treatmentRepo repository.TreatmentRepository, transactor repository.Transactor, trimmingCourseRepo repository.TrimmingCourseRepository, trimmingOptionRepo repository.TrimmingOptionRepository) BillingItemService {
-	return &billingItemService{repo: repo, billingRepo: billingRepo, treatmentRepo: treatmentRepo, transactor: transactor, trimmingCourseRepo: trimmingCourseRepo, trimmingOptionRepo: trimmingOptionRepo}
-}
-
 // NewBillingItemServiceWithCampaign は #81 段階2b: キャンペーン/飼主割引の自動適用を有効にした BillingItemService を返す。
 func NewBillingItemServiceWithCampaign(repo repository.BillingItemRepository, billingRepo repository.AccountingRepository, treatmentRepo repository.TreatmentRepository, transactor repository.Transactor, trimmingCourseRepo repository.TrimmingCourseRepository, trimmingOptionRepo repository.TrimmingOptionRepository, campaignRepo repository.CampaignRepository, ownerRepo repository.OwnerRepository) BillingItemService {
 	return &billingItemService{repo: repo, billingRepo: billingRepo, treatmentRepo: treatmentRepo, transactor: transactor, trimmingCourseRepo: trimmingCourseRepo, trimmingOptionRepo: trimmingOptionRepo, campaignRepo: campaignRepo, ownerRepo: ownerRepo}
