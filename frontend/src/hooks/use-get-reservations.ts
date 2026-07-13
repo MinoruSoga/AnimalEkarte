@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
+import { DAY_VIEW_FETCH_LIMIT } from "@/config/fetch-limits";
 import { queryKeys } from "@/lib/query-keys";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 import { transformReservation } from "@/lib/transforms/reservation";
@@ -29,7 +30,7 @@ export interface ReservationFilters {
 }
 
 function buildReservationParams(filters?: ReservationFilters): Record<string, string | number> {
-  const params: Record<string, string | number> = { page: 1, limit: 100 };
+  const params: Record<string, string | number> = { page: 1, limit: DAY_VIEW_FETCH_LIMIT };
   if (filters?.date) params.date = filters.date;
   // 期間レンジ指定時は表示期間の全予約を取得するため limit を引き上げる。
   // (BUG #82: limit=100 + start_time ASC で当日の予約が古い予約に押し出され予約管理に出ない問題の修正)

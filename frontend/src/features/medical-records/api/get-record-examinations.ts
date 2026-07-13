@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
+import { HISTORY_FETCH_LIMIT } from "@/config/fetch-limits";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 import { queryKeys } from "@/lib/query-keys";
 import type { Examination } from "@/types/generated/models";
@@ -35,7 +36,7 @@ const getRecordExaminations = async (
   petId: string,
 ): Promise<ExamGroup[]> => {
   const { data } = await axios.get<{ data: Examination[] }>("/v1/examinations", {
-    params: { pet_id: Number(petId), limit: 100 },
+    params: { pet_id: Number(petId), limit: HISTORY_FETCH_LIMIT },
   });
   return (data.data ?? []).map(transformExamGroup);
 };
