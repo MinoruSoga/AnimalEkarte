@@ -16,6 +16,11 @@ const (
 	retryInitialWait = time.Second
 )
 
+// sharedHTTPClient はLステップAPI呼出全体で共有するhttp.Client。
+// 操作毎にNewClientを呼ぶたびに新規Transportを生成するとTCP/TLS接続が再利用されない
+// （BE-refactor.md B-3）。資格情報はリクエストヘッダ渡しのためクリニック間で共有して問題ない。
+var sharedHTTPClient = &http.Client{Timeout: defaultTimeout}
+
 // Client はLステップAPIクライアントのインターフェース。
 // DI可能にすることでテスト時のモック差し替えを可能にする。
 type Client interface {
@@ -47,7 +52,7 @@ func NewClient(apiKey, baseURL string) Client {
 	return &httpLstepClient{
 		apiKey:  apiKey,
 		baseURL: baseURL,
-		http:    &http.Client{Timeout: defaultTimeout},
+		http:    sharedHTTPClient,
 	}
 }
 

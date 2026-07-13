@@ -16,6 +16,12 @@ const (
 	retryInitialWait = time.Second
 )
 
+// sharedHTTPClient はLINE Messaging API呼出全体で共有するhttp.Client。
+// 通知のたびにNewMessagingClientを呼ぶたびに新規Transportを生成するとTCP/TLS接続が
+// 再利用されない（BE-refactor.md B-3）。資格情報はリクエストヘッダ渡しのため
+// クリニック間で共有して問題ない。
+var sharedHTTPClient = &http.Client{Timeout: defaultTimeout}
+
 // MessagingClient はLINE Messaging APIクライアントのインターフェース。
 // DI可能にすることでテスト時のモック差し替えを可能にする。
 type MessagingClient interface {
@@ -38,7 +44,7 @@ type httpLineClient struct {
 func NewMessagingClient(channelAccessToken string) MessagingClient {
 	return &httpLineClient{
 		channelAccessToken: channelAccessToken,
-		http:               &http.Client{Timeout: defaultTimeout},
+		http:               sharedHTTPClient,
 	}
 }
 
