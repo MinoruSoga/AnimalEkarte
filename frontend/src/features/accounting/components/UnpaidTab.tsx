@@ -10,6 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { C, STYLE } from "@/lib/design-tokens";
 import { paths } from "@/config/paths";
 import { formatCurrency } from "@/utils/format/number";
+import { daysSince, currentJSTYearMonth } from "@/lib/jst-date";
 
 import {
   useGetUnpaidByOwner,
@@ -19,21 +20,6 @@ import {
 } from "../api/get-unpaid-billings";
 
 type GroupBy = "owner" | "billing" | "monthly";
-
-function daysSince(isoDate: string, refDate: string): number {
-  if (!refDate) return 0;
-  const from = new Date(`${isoDate}T00:00:00+09:00`);
-  const to = new Date(`${refDate}T00:00:00+09:00`);
-  if (isNaN(from.getTime()) || isNaN(to.getTime())) return 0;
-  return Math.max(0, Math.floor((to.getTime() - from.getTime()) / (1000 * 60 * 60 * 24)));
-}
-
-function currentJSTYearMonth(): string {
-  const jst = new Date(Date.now() + 9 * 60 * 60 * 1000);
-  const y = jst.getUTCFullYear();
-  const m = String(jst.getUTCMonth() + 1).padStart(2, "0");
-  return `${y}-${m}`;
-}
 
 export function UnpaidTab() {
   const navigate = useNavigate();

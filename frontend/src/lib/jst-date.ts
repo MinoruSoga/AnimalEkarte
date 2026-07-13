@@ -98,3 +98,25 @@ export function formatJSTWallDate(date: Date): string {
 export function formatJSTWallTime(date: Date): string {
   return `${padDatePart(date.getHours())}:${padDatePart(date.getMinutes())}`;
 }
+
+/**
+ * FE6-6: 2 つの日付文字列（JST 00:00 起点）の日数差を返す。
+ * refDate が未指定/不正な場合は 0 を返す。負値は 0 に丸める。
+ */
+export function daysSince(isoDate: string, refDate: string): number {
+  if (!refDate) return 0;
+  const from = new Date(`${isoDate}T00:00:00+09:00`);
+  const to = new Date(`${refDate}T00:00:00+09:00`);
+  if (isNaN(from.getTime()) || isNaN(to.getTime())) return 0;
+  return Math.max(0, Math.floor((to.getTime() - from.getTime()) / (1000 * 60 * 60 * 24)));
+}
+
+/**
+ * FE6-6: 現在時刻の JST 年月を "YYYY-MM" 形式で返す。
+ */
+export function currentJSTYearMonth(): string {
+  const jst = new Date(Date.now() + JST_OFFSET_MS);
+  const y = jst.getUTCFullYear();
+  const m = padDatePart(jst.getUTCMonth() + 1);
+  return `${y}-${m}`;
+}
