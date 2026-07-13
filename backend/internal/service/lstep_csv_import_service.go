@@ -60,6 +60,48 @@ func NewLstepCsvImportService(
 	}
 }
 
+// matchRowsToOwners は飼主 line_user_id → owner_id マップ構築 + データ行パース・マッチングを
+// 担う（BE-refactor.md E-6）。repo エラーはそのまま返し、markImportFailed は呼出元に残す。
+// 番号付き stage コメント構造は 1 stage = 1 呼出として維持する。
+func (s *lstepCsvImportService) matchRowsToOwners(ctx context.Context, clinicID uint64, importID uuid.UUID, dataRows [][]string, colIdx map[string]int, now time.Time) ([]*model.LstepFriendAttributeSnapshot, []csvImportErrorEntry, error) {
+	// 6. 飼主 line_user_id → owner_id マップ構築（TX 外・読み取り専用）
+	owners, err := s.ownerRepo.FindAllWithLineUserID(ctx, clinicID)
+	if err != nil {
+		return nil, nil, err
+	}
+	ownerIDByLineUserID := make(map[string]uint64, len(owners))
+	for i := range owners {
+		o := &owners[i]
+		if o.LineUserID != nil && *o.LineUserID != "" {
+			ownerIDByLineUserID[*o.LineUserID] = o.ID
+		}
+	}
+
+	// 7. データ行ループ — スナップショット収集
+	snapshots := make([]*model.LstepFriendAttributeSnapshot, 0, len(dataRows))
+	var errEntries []csvImportErrorEntry
+
+	for i, row := range dataRows {
+		rowNum := i + 2 // ヘッダー行 = 1 なので +2
+		snapshot, errEntry := s.parseFriendAttrCSVRow(row, colIdx, rowNum, clinicID, importID, now)
+		if errEntry != nil {
+			errEntries = append(errEntries, *errEntry)
+			continue
+		}
+		if _, ok := ownerIDByLineUserID[snapshot.LineUserID]; !ok {
+			errEntries = append(errEntries, csvImportErrorEntry{
+				Row:        rowNum,
+				LineUserID: snapshot.LineUserID,
+				Reason:     csvErrorReasonUnknownLineUserID,
+				Detail:     "no matching owner found for line_user_id",
+			})
+			continue
+		}
+		snapshots = append(snapshots, snapshot)
+	}
+	return snapshots, errEntries, nil
+}
+
 func (s *lstepCsvImportService) ImportFriendAttributesCSV(ctx context.Context, clinicID uint64, fileName string, fileReader io.Reader, uploadedByUserID uint64) (*model.LstepCsvImport, error) {
 	// 1. サイズ制限付き読み込み
 	limited := io.LimitReader(fileReader, maxCSVSizeBytes+1)
@@ -117,44 +159,14 @@ func (s *lstepCsvImportService) ImportFriendAttributesCSV(ctx context.Context, c
 		return nil, apperrors.Wrap(err, "failed to create csv import record")
 	}
 
-	// 6. 飼主 line_user_id → owner_id マップ構築（TX 外・読み取り専用）
-	owners, err := s.ownerRepo.FindAllWithLineUserID(ctx, clinicID)
+	// 6-7. 飼主 line_user_id → owner_id マッチング（TX 外・読み取り専用）
+	now := time.Now().In(config.JST)
+	dataRows := allRecords[1:]
+	snapshots, errEntries, err := s.matchRowsToOwners(ctx, clinicID, imp.ID, dataRows, colIdx, now)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to find owners with line_user_id", "error", err, "clinic_id", clinicID)
 		s.markImportFailed(ctx, imp)
 		return nil, apperrors.Wrap(err, "failed to find owners")
-	}
-	ownerIDByLineUserID := make(map[string]uint64, len(owners))
-	for i := range owners {
-		o := &owners[i]
-		if o.LineUserID != nil && *o.LineUserID != "" {
-			ownerIDByLineUserID[*o.LineUserID] = o.ID
-		}
-	}
-
-	// 7. データ行ループ — スナップショット収集
-	now := time.Now().In(config.JST)
-	dataRows := allRecords[1:]
-	snapshots := make([]*model.LstepFriendAttributeSnapshot, 0, len(dataRows))
-	var errEntries []csvImportErrorEntry
-
-	for i, row := range dataRows {
-		rowNum := i + 2 // ヘッダー行 = 1 なので +2
-		snapshot, errEntry := s.parseFriendAttrCSVRow(row, colIdx, rowNum, clinicID, imp.ID, now)
-		if errEntry != nil {
-			errEntries = append(errEntries, *errEntry)
-			continue
-		}
-		if _, ok := ownerIDByLineUserID[snapshot.LineUserID]; !ok {
-			errEntries = append(errEntries, csvImportErrorEntry{
-				Row:        rowNum,
-				LineUserID: snapshot.LineUserID,
-				Reason:     csvErrorReasonUnknownLineUserID,
-				Detail:     "no matching owner found for line_user_id",
-			})
-			continue
-		}
-		snapshots = append(snapshots, snapshot)
 	}
 
 	// 最終集計をレコードに反映
