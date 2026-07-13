@@ -490,6 +490,8 @@ func (m *mockLiffNotifier) NotifyCancelled(ctx context.Context, appt *model.Rese
 	}
 }
 
+func (m *mockLiffNotifier) Wait() {}
+
 // ================================================================
 // テスト共通ヘルパー
 // ================================================================

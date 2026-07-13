@@ -70,6 +70,8 @@ func (m *mockCheckupService) Delete(ctx context.Context, clinicID, medicalRecord
 	return nil
 }
 
+func (m *mockCheckupService) Wait() {}
+
 // ---- helpers ----
 
 func newHandlerWithCheckupSvc(svc service.CheckupService) *Handler {

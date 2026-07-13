@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"sync"
 	"time"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
@@ -77,6 +78,9 @@ type CheckupService interface {
 	Create(ctx context.Context, medicalRecordID uint64, input *CreateCheckupInput) (*model.Checkup, error)
 	Update(ctx context.Context, clinicID, medicalRecordID, checkupID uint64, input *UpdateCheckupInput) (*model.Checkup, error)
 	Delete(ctx context.Context, clinicID, medicalRecordID, checkupID uint64) error
+	// Wait は健診フォローアップトリガー goroutine（fire-and-forget）の完了を待つ。
+	// graceful shutdown で server.Shutdown(ctx) の後に呼び出し、goroutine の孤児化を防ぐ（BE-refactor.md B-1）。
+	Wait()
 }
 
 type checkupService struct {
@@ -85,6 +89,13 @@ type checkupService struct {
 	checkupTypeRepo      repository.CheckupTypeRepository
 	lstepDeliveryTrigger LstepDeliveryTriggerService
 	tagSyncSvc           LstepTagSyncService
+	// wg は健診フォローアップトリガーの fire-and-forget goroutine を追跡する（BE-refactor.md B-1）。
+	wg sync.WaitGroup
+}
+
+// Wait は送信中の健診フォローアップトリガー goroutine の完了を待つ（BE-refactor.md B-1）。
+func (s *checkupService) Wait() {
+	s.wg.Wait()
 }
 
 // NewCheckupService は CheckupService の実装を返す
@@ -175,7 +186,9 @@ func (s *checkupService) Create(ctx context.Context, medicalRecordID uint64, inp
 		// context.WithoutCancel: HTTP request の cancel から切離しつつ tracing context を保持。
 		// M-4: fire-and-forget goroutine のため、context.WithTimeout で明示的に制限を設定。
 		bgCtx := context.WithoutCancel(ctx)
+		s.wg.Add(1)
 		goSafe("checkup followup trigger", func() {
+			defer s.wg.Done()
 			trigCtx, cancel := context.WithTimeout(bgCtx, 35*time.Second)
 			defer cancel()
 			if err := svc.TriggerCheckupFollowUp(trigCtx, clinicID, ownerID); err != nil {

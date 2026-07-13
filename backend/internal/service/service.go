@@ -73,6 +73,7 @@ type Services struct {
 	BillingItem                    BillingItemService
 	Refund                         RefundService
 	PasswordReset                  PasswordResetService
+	ReservationNotifier            ReservationNotifier
 
 	// FEAT-368: 集計・締め機能
 	ClosingSettings     ClosingSettingsService
@@ -301,6 +302,7 @@ func NewServices(repos *repository.Repositories, notifCfg *ReservationNotificati
 		BillingItem:                    NewBillingItemServiceWithCampaign(repos.BillingItem, repos.Accounting, repos.Treatment, tx, repos.TrimmingCourse, repos.TrimmingOption, repos.Campaign, repos.Owner),
 		Refund:                         NewRefundService(repos.Refund, repos.Accounting, auditTxLogger, tx),
 		PasswordReset:                  NewPasswordResetService(&pwResetCfg, repos.Account, repos.PasswordResetToken),
+		ReservationNotifier:            notifier,
 		// FEAT-368: 集計・締め機能
 		ClosingSettings:           closingSettingsSvc,
 		PaymentMethodMaster:       NewPaymentMethodMasterService(repos.PaymentMethodMaster),

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"strings"
+	"sync"
 	"time"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
@@ -21,6 +22,9 @@ type ReservationNotifier interface {
 	NotifyCreated(ctx context.Context, appt *model.Reservation, customer *model.LineCustomer)
 	// NotifyCancelled は予約キャンセル後に LINE + メールを送信する。
 	NotifyCancelled(ctx context.Context, appt *model.Reservation, customer *model.LineCustomer)
+	// Wait は送信中の通知 goroutine（fire-and-forget）の完了を待つ。
+	// graceful shutdown で server.Shutdown(ctx) の後に呼び出し、goroutine の孤児化を防ぐ（BE-refactor.md B-1）。
+	Wait()
 }
 
 // ReservationNotificationConfig はSMTP共有設定を保持する。
@@ -42,6 +46,13 @@ type reservationNotificationService struct {
 	// cipher は line_access_token を復号するために使う（H-4）。
 	// nil の場合は復号なしで動作する（開発環境で INTEGRATION_ENCRYPTION_KEY 未設定時）。
 	cipher *crypto.AESGCMCipher
+	// wg は通知 goroutine（fire-and-forget）を追跡する（BE-refactor.md B-1）。
+	wg sync.WaitGroup
+}
+
+// Wait は送信中の通知 goroutine の完了を待つ（BE-refactor.md B-1）。
+func (s *reservationNotificationService) Wait() {
+	s.wg.Wait()
 }
 
 // NewReservationNotificationService は通知サービスを初期化して返す。
@@ -67,7 +78,9 @@ func (s *reservationNotificationService) NotifyCreated(
 	emailSubject, emailBody := s.buildCreatedEmail(appt, customer)
 	clinicID := appt.ClinicID
 
+	s.wg.Add(1)
 	goSafe("reservation notify created", func() { //nolint:contextcheck,gosec // 意図的: 通知はリクエスト完了後も継続するため独立した background context を使用
+		defer s.wg.Done()
 		bgCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 		defer cancel()
 
@@ -116,7 +129,9 @@ func (s *reservationNotificationService) NotifyCancelled(
 	emailSubject, emailBody := s.buildCancelledEmail(appt, customer)
 	clinicID := appt.ClinicID
 
+	s.wg.Add(1)
 	goSafe("reservation notify cancelled", func() { //nolint:contextcheck,gosec // 意図的: 通知はリクエスト完了後も継続するため独立した background context を使用
+		defer s.wg.Done()
 		bgCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 		defer cancel()
 

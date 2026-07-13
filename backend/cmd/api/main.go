@@ -215,5 +215,12 @@ func main() {
 	logger.Info("draining in-flight password reset email goroutines...")
 	svcs.PasswordReset.Wait()
 
+	// BE-refactor.md B-1: 予約通知（LINE/メール）と健診フォローアップトリガーも
+	// fire-and-forget goroutine のため、同様に明示的に drain する。
+	logger.Info("draining in-flight reservation notification goroutines...")
+	svcs.ReservationNotifier.Wait()
+	logger.Info("draining in-flight checkup followup trigger goroutines...")
+	svcs.Checkup.Wait()
+
 	logger.Info("server stopped")
 }
