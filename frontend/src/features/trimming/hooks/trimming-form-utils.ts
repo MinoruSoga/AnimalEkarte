@@ -1,6 +1,7 @@
 import type { CreateTrimmingRequest, UpdateTrimmingRequest, TrimmingFormData } from "@/types/trimming";
+import { formatJSTDate } from "@/lib/jst-date";
 
-const JST_OFFSET_MS = 9 * 60 * 60 * 1000;
+export { formatJSTDate };
 
 interface TrimmingReservationType {
   id: number;
@@ -21,15 +22,6 @@ function optionalNumber(value: string): number | undefined {
 
 function optionalDateTime(value: string): string | undefined {
   return value === "" ? undefined : value;
-}
-
-function padDatePart(value: number): string {
-  return String(value).padStart(2, "0");
-}
-
-export function formatJSTDate(date: Date): string {
-  const jstDate = new Date(date.getTime() + JST_OFFSET_MS);
-  return `${jstDate.getUTCFullYear()}-${padDatePart(jstDate.getUTCMonth() + 1)}-${padDatePart(jstDate.getUTCDate())}`;
 }
 
 export function normalizeVisitDate(value: unknown): string | undefined {
