@@ -14,6 +14,20 @@ import (
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
+// buildCapacityFilterFn は course.MaxConcurrent 制約下でのキャパシティフィルタ
+// (warn-and-fallback付き)を構築する（BE-refactor.md E-10）。base のスロットに対しキャパシティ
+// 超過分を除外し、フィルタ失敗時は warn ログを出して base をそのまま返す（fail-open・既存挙動維持）。
+func (s *liffService) buildCapacityFilterFn(ctx context.Context, clinicID, typeID uint64, maxConcurrent int) func(date time.Time, base []TimeSlot) []TimeSlot {
+	return func(date time.Time, base []TimeSlot) []TimeSlot {
+		filtered, err := filterSlotsByCapacity(ctx, base, s.reservationRepo, clinicID, typeID, date, maxConcurrent)
+		if err != nil {
+			slog.WarnContext(ctx, "failed to filter by capacity in dates, skipping", "error", err)
+			return base
+		}
+		return filtered
+	}
+}
+
 // GetAvailableDates は予約可能な日付一覧を返す。
 func (s *liffService) GetAvailableDates(ctx context.Context, clinicID, typeID, staffID uint64) ([]AvailableDateResult, BookingWindow, error) {
 	setting, err := s.settingRepo.FindByClinicID(ctx, clinicID)
@@ -65,6 +79,15 @@ func (s *liffService) GetAvailableDates(ctx context.Context, clinicID, typeID, s
 			MinCourseDuration: course.DurationMinutes,
 		}
 	}
+	// BE-refactor.md E-10: capacity フィルタ(warn-and-fallback付き)を1回だけ構築し、両分岐で使う。
+	// filterSlotsByCapacity 内部で日付ごとの全スロットを1クエリにバッチ化済み
+	// （reservationTypeCapacityBatchCounter、R2-4/D8）。日付間の反復は CalcAvailableDates の
+	// 制御下にあり残るが、支配的だったスロット数分の N+1 は解消。
+	var capacityFilter func(date time.Time, base []TimeSlot) []TimeSlot
+	if course.MaxConcurrent != nil {
+		capacityFilter = s.buildCapacityFilterFn(ctx, clinicID, typeID, *course.MaxConcurrent)
+	}
+
 	var slotFilterFn func(date time.Time, slots []TimeSlot) []TimeSlot
 	if s.availableSlotRepo != nil {
 		availableSlots, err := s.availableSlotRepo.FindAll(ctx, clinicID, typeID)
@@ -75,31 +98,14 @@ func (s *liffService) GetAvailableDates(ctx context.Context, clinicID, typeID, s
 		if hasActiveAvailableSlots(availableSlots) || course.MaxConcurrent != nil {
 			slotFilterFn = func(date time.Time, slots []TimeSlot) []TimeSlot {
 				merged := mergeAvailableTimeSlots(slots, availableSlots, date, course.DurationMinutes)
-				if course.MaxConcurrent == nil {
+				if capacityFilter == nil {
 					return merged
 				}
-				// BE-refactor.md R2-4 (D8): filterSlotsByCapacity 内部で日付ごとの全スロットを
-				// 1クエリにバッチ化済み（reservationTypeCapacityBatchCounter）。日付間の反復は
-				// CalcAvailableDates の制御下にあり残るが、支配的だったスロット数分の N+1 は解消。
-				filtered, err := filterSlotsByCapacity(ctx, merged, s.reservationRepo, clinicID, typeID, date, *course.MaxConcurrent)
-				if err != nil {
-					slog.WarnContext(ctx, "failed to filter by capacity in dates, skipping", "error", err)
-					return merged
-				}
-				return filtered
+				return capacityFilter(date, merged)
 			}
 		}
-	} else if course.MaxConcurrent != nil {
-		slotFilterFn = func(date time.Time, slots []TimeSlot) []TimeSlot {
-			// BE-refactor.md R2-4 (D8): filterSlotsByCapacity 内部で日付ごとの全スロットを
-			// 1クエリにバッチ化済み（reservationTypeCapacityBatchCounter）。
-			filtered, err := filterSlotsByCapacity(ctx, slots, s.reservationRepo, clinicID, typeID, date, *course.MaxConcurrent)
-			if err != nil {
-				slog.WarnContext(ctx, "failed to filter by capacity in dates, skipping", "error", err)
-				return slots
-			}
-			return filtered
-		}
+	} else if capacityFilter != nil {
+		slotFilterFn = capacityFilter
 	}
 
 	results, window, err := CalcAvailableDates(ctx, &AvailableDatesInput{
@@ -164,6 +170,33 @@ func (s *liffService) applyOccupationGuard(ctx context.Context, clinicID, typeID
 	return nil
 }
 
+// isDateClosed は単日の休業判定(closed_weekdays/closed_dates/national_holiday_closed)を行う
+// 線形走査の純関数（BE-refactor.md E-10）。CalcAvailableDates の prebuilt set 方式とは統合しない
+// （ループ内 set は意図的設計 — CalcAvailableDates は複数日を走査するため事前構築が有効だが、
+// 本関数は単日呼出のため都度構築で十分）。
+func isDateClosed(settings AvailableDatesSettings, dateJST time.Time) bool {
+	dateStr := dateJST.Format(time.DateOnly)
+	wd := int(dateJST.Weekday())
+	closedWeekdaySet := make(map[int]struct{}, len(settings.ClosedWeekdays))
+	for _, w := range settings.ClosedWeekdays {
+		closedWeekdaySet[w] = struct{}{}
+	}
+	closedDateSet := make(map[string]struct{}, len(settings.ClosedDates))
+	for _, d := range settings.ClosedDates {
+		closedDateSet[d] = struct{}{}
+	}
+	if _, closed := closedWeekdaySet[wd]; closed {
+		return true
+	}
+	if _, closed := closedDateSet[dateStr]; closed {
+		return true
+	}
+	if settings.NationalHolidayClosed && holiday.IsHoliday(dateJST) {
+		return true
+	}
+	return false
+}
+
 // GetAvailableTimes は指定日の予約可能な時間枠一覧を返す。
 func (s *liffService) GetAvailableTimes(ctx context.Context, clinicID, typeID, staffID uint64, date time.Time) ([]TimeSlot, error) {
 	setting, err := s.settingRepo.FindByClinicID(ctx, clinicID)
@@ -191,23 +224,7 @@ func (s *liffService) GetAvailableTimes(ctx context.Context, clinicID, typeID, s
 		slog.WarnContext(ctx, "failed to parse available dates settings, using defaults", "error", err)
 	}
 	dateJST := date.In(config.JST)
-	dateStr := dateJST.Format(time.DateOnly)
-	wd := int(dateJST.Weekday())
-	closedWeekdaySet := make(map[int]struct{}, len(datesSettings.ClosedWeekdays))
-	for _, w := range datesSettings.ClosedWeekdays {
-		closedWeekdaySet[w] = struct{}{}
-	}
-	closedDateSet := make(map[string]struct{}, len(datesSettings.ClosedDates))
-	for _, d := range datesSettings.ClosedDates {
-		closedDateSet[d] = struct{}{}
-	}
-	if _, closed := closedWeekdaySet[wd]; closed {
-		return []TimeSlot{}, nil
-	}
-	if _, closed := closedDateSet[dateStr]; closed {
-		return []TimeSlot{}, nil
-	}
-	if datesSettings.NationalHolidayClosed && holiday.IsHoliday(dateJST) {
+	if isDateClosed(datesSettings, dateJST) {
 		return []TimeSlot{}, nil
 	}
 
