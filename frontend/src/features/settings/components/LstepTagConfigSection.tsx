@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import { BADGE, C, PALETTE, STYLE } from "@/lib/design-tokens";
 import { Button } from "@/components/ui/button";
@@ -39,6 +39,59 @@ function DeleteButton({
     >
       削除
     </button>
+  );
+}
+
+// ─────────────────────────────────────────────────
+// TagConfigListSection (共通プレゼンテーション部分)
+// ─────────────────────────────────────────────────
+//
+// 3セクション（AutoManagedPrefixes / ConditionTagMappings /
+// SendPurposeTagPrefixes）で共通する「loading / 空 / 一覧」の描画のみを
+// 汎用化したもの。データ取得・追加・削除は各セクションが自前のフック呼び出し
+// として保持する（Rules of Hooks を守るためフックを props で渡さない）。
+
+interface TagConfigListSectionProps<TItem> {
+  items: TItem[] | undefined;
+  isLoading: boolean;
+  getId: (item: TItem) => string | number;
+  renderRow: (item: TItem) => ReactNode;
+  onDelete: (item: TItem) => void;
+  deleteDisabled?: boolean;
+}
+
+function TagConfigListSection<TItem>({
+  items,
+  isLoading,
+  getId,
+  renderRow,
+  onDelete,
+  deleteDisabled,
+}: TagConfigListSectionProps<TItem>) {
+  if (isLoading) {
+    return <div className={`text-sm ${C.text50}`}>読み込み中...</div>;
+  }
+
+  if (!items || items.length === 0) {
+    return <div className={`text-sm ${C.text50} mb-3`}>登録なし</div>;
+  }
+
+  return (
+    <div className="space-y-1 mb-3">
+      {items.map((item) => (
+        <div
+          key={getId(item)}
+          className="flex items-center gap-2 px-2 py-1.5 rounded border"
+          style={{ borderColor: PALETTE.borderLight }}
+        >
+          {renderRow(item)}
+          <DeleteButton
+            onDelete={() => onDelete(item)}
+            disabled={deleteDisabled}
+          />
+        </div>
+      ))}
+    </div>
   );
 }
 
@@ -88,37 +141,28 @@ function AutoManagedPrefixesSection() {
         このプレフィックスで始まるタグは自動管理対象となり、手動追加・削除が拒否されます。
       </p>
 
-      {isLoading ? (
-        <div className={`text-sm ${C.text50}`}>読み込み中...</div>
-      ) : items && items.length > 0 ? (
-        <div className="space-y-1 mb-3">
-          {items.map((item) => (
-            <div
-              key={item.id}
-              className="flex items-center gap-2 px-2 py-1.5 rounded border"
-              style={{ borderColor: PALETTE.borderLight }}
+      <TagConfigListSection
+        items={items}
+        isLoading={isLoading}
+        getId={(item) => item.id}
+        renderRow={(item) => (
+          <>
+            <span className="text-sm font-mono flex-1">{item.prefix}</span>
+            <span
+              className={`text-xs px-1.5 py-0.5 rounded ${BADGE.blueNoBorder}`}
             >
-              <span className="text-sm font-mono flex-1">{item.prefix}</span>
-              <span
-                className={`text-xs px-1.5 py-0.5 rounded ${BADGE.blueNoBorder}`}
-              >
-                {item.category}
+              {item.category}
+            </span>
+            {item.description ? (
+              <span className={`text-xs ${C.text50} flex-1`}>
+                {item.description}
               </span>
-              {item.description ? (
-                <span className={`text-xs ${C.text50} flex-1`}>
-                  {item.description}
-                </span>
-              ) : null}
-              <DeleteButton
-                onDelete={() => handleDelete(item)}
-                disabled={deleteMutation.isPending}
-              />
-            </div>
-          ))}
-        </div>
-      ) : (
-        <div className={`text-sm ${C.text50} mb-3`}>登録なし</div>
-      )}
+            ) : null}
+          </>
+        )}
+        onDelete={handleDelete}
+        deleteDisabled={deleteMutation.isPending}
+      />
 
       <div className="flex gap-2 items-end">
         <div className="flex flex-col gap-1">
@@ -203,29 +247,20 @@ function ConditionTagMappingsSection() {
         慢性疾患コードが記録された飼い主に付与するタグを設定します。
       </p>
 
-      {isLoading ? (
-        <div className={`text-sm ${C.text50}`}>読み込み中...</div>
-      ) : items && items.length > 0 ? (
-        <div className="space-y-1 mb-3">
-          {items.map((item) => (
-            <div
-              key={item.id}
-              className="flex items-center gap-2 px-2 py-1.5 rounded border"
-              style={{ borderColor: PALETTE.borderLight }}
-            >
-              <span className="text-sm font-mono w-20">{item.condition_code}</span>
-              <span className={`text-xs ${C.text50}`}>→</span>
-              <span className="text-sm font-mono flex-1">{item.tag_name}</span>
-              <DeleteButton
-                onDelete={() => handleDelete(item)}
-                disabled={deleteMutation.isPending}
-              />
-            </div>
-          ))}
-        </div>
-      ) : (
-        <div className={`text-sm ${C.text50} mb-3`}>登録なし</div>
-      )}
+      <TagConfigListSection
+        items={items}
+        isLoading={isLoading}
+        getId={(item) => item.id}
+        renderRow={(item) => (
+          <>
+            <span className="text-sm font-mono w-20">{item.condition_code}</span>
+            <span className={`text-xs ${C.text50}`}>→</span>
+            <span className="text-sm font-mono flex-1">{item.tag_name}</span>
+          </>
+        )}
+        onDelete={handleDelete}
+        deleteDisabled={deleteMutation.isPending}
+      />
 
       <div className="flex gap-2 items-end">
         <div className="flex flex-col gap-1">
@@ -310,29 +345,20 @@ function SendPurposeTagPrefixesSection() {
         LINE個別送信時に、送信目的に応じたタグプレフィックスで始まるタグのみ選択可能になります。
       </p>
 
-      {isLoading ? (
-        <div className={`text-sm ${C.text50}`}>読み込み中...</div>
-      ) : items && items.length > 0 ? (
-        <div className="space-y-1 mb-3">
-          {items.map((item) => (
-            <div
-              key={item.id}
-              className="flex items-center gap-2 px-2 py-1.5 rounded border"
-              style={{ borderColor: PALETTE.borderLight }}
-            >
-              <span className="text-sm w-36">{item.purpose}</span>
-              <span className={`text-xs ${C.text50}`}>→</span>
-              <span className="text-sm font-mono flex-1">{item.tag_prefix}</span>
-              <DeleteButton
-                onDelete={() => handleDelete(item)}
-                disabled={deleteMutation.isPending}
-              />
-            </div>
-          ))}
-        </div>
-      ) : (
-        <div className={`text-sm ${C.text50} mb-3`}>登録なし</div>
-      )}
+      <TagConfigListSection
+        items={items}
+        isLoading={isLoading}
+        getId={(item) => item.id}
+        renderRow={(item) => (
+          <>
+            <span className="text-sm w-36">{item.purpose}</span>
+            <span className={`text-xs ${C.text50}`}>→</span>
+            <span className="text-sm font-mono flex-1">{item.tag_prefix}</span>
+          </>
+        )}
+        onDelete={handleDelete}
+        deleteDisabled={deleteMutation.isPending}
+      />
 
       <div className="flex gap-2 items-end">
         <div className="flex flex-col gap-1">
