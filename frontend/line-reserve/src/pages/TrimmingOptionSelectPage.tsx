@@ -3,6 +3,7 @@ import { liffApi } from '../api/liff-api';
 import { ProgressDots } from '../components/ProgressDots';
 import { BackButton } from '../components/BackButton';
 import { useFetchState } from '@/shared-liff/use-fetch-state';
+import { formatCurrency } from '@/utils/format/number';
 
 interface TrimmingOptionSelectPageProps {
   clinicId: string;
@@ -14,7 +15,7 @@ interface TrimmingOptionSelectPageProps {
 
 function formatPrice(price: number | null): string {
   if (price === null) return '';
-  return `+¥${price.toLocaleString()}`;
+  return `+${formatCurrency(price)}`;
 }
 
 export function TrimmingOptionSelectPage({
