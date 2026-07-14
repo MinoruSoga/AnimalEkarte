@@ -78,7 +78,7 @@ func (s *authService) AuthenticateUser(ctx context.Context, email, password stri
 			slog.InfoContext(ctx, "skip audit log for login failure: account not found")
 			return nil, nil, apperrors.WrapUnauthorized("メールアドレスまたはパスワードが正しくありません")
 		}
-		return nil, nil, err
+		return nil, nil, apperrors.Wrap(err, "failed to find account by email")
 	}
 	if !account.IsActive {
 		return nil, nil, apperrors.WrapUnauthorized("アカウントが無効です")

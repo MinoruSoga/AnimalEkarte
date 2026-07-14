@@ -112,9 +112,9 @@ func toMeResponse(staff *model.Staff, account *model.Account, mainClinicID strin
 }
 
 // buildAllPermissions は全リソースに対して全CRUD true のマップを返す。
-// is_system_admin=true 用。
+// is_system_admin=true 用のテスト互換ヘルパ。本番は calculateEffectivePermissions → authSvc()。
 func buildAllPermissions() EffectivePermissions {
-	return toHandlerEffectivePermissions(service.NewAuthService(nil, nil, nil).CalculateEffectivePermissions(context.Background(), true, 0, 0))
+	return toHandlerEffectivePermissions(authServiceNoDeps().CalculateEffectivePermissions(context.Background(), true, 0, 0))
 }
 
 // calculateEffectivePermissions はユーザー種別に応じた実効権限を計算する。
@@ -122,7 +122,7 @@ func buildAllPermissions() EffectivePermissions {
 // isSystemAdmin=false: DB の staff_permission_groups → permission_group_rules から UNION 計算
 func (h *Handler) calculateEffectivePermissions(ginCtx *gin.Context, isSystemAdmin bool, staffID uint64) EffectivePermissions {
 	if isSystemAdmin {
-		return buildAllPermissions()
+		return toHandlerEffectivePermissions(h.authSvc().CalculateEffectivePermissions(ginCtx.Request.Context(), true, staffID, 0))
 	}
 
 	clinicID, ok := extractClinicID(ginCtx)

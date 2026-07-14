@@ -86,15 +86,22 @@ func (h *Handler) authenticateUser(ctx context.Context, email, password, clientI
 }
 
 // resolveClinicInfo はスタッフのクリニック割り当てからメインクリニックIDと所属ID一覧を返す。
-// メインクリニックが未設定の場合は最初の割り当てを使用する。
+// テスト互換ヘルパ。本番 Handler 経路は h.authSvc() 経由で呼ぶ。
 func resolveClinicInfo(assignments []model.StaffClinicAssignment) (mainClinicID string, clinicIDs []uint64) {
-	return service.NewAuthService(nil, nil, nil).ResolveClinicInfo(assignments)
+	return authServiceNoDeps().ResolveClinicInfo(assignments)
 }
 
 // resolveSystemAdminMainClinicID は system_admin で assignments なしの場合に
 // allClinics[0] を main にフォールバックする。それ以外は元の mainClinicID を返す。
+// テスト互換ヘルパ。本番 Handler 経路は h.authSvc() 経由で呼ぶ。
 func resolveSystemAdminMainClinicID(mainClinicID string, isSystemAdmin bool, allClinics []model.Clinic) string {
-	return service.NewAuthService(nil, nil, nil).ResolveSystemAdminMainClinicID(mainClinicID, isSystemAdmin, allClinics)
+	return authServiceNoDeps().ResolveSystemAdminMainClinicID(mainClinicID, isSystemAdmin, allClinics)
+}
+
+// authServiceNoDeps は依存なし純関数メソッド（ResolveClinicInfo 等）とテスト向けの単一フォールバック。
+// 本番 Handler 経路は authSvc()（注入済み Auth 優先）を使うこと。
+func authServiceNoDeps() service.AuthService {
+	return service.NewAuthService(nil, nil, nil)
 }
 
 // authSvc は認証・権限計算用 AuthService を返す。

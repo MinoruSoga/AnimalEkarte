@@ -264,7 +264,9 @@ func TestAuthenticateUser(t *testing.T) {
 		assert.Nil(t, account)
 		assert.Nil(t, staff)
 		require.Error(t, err)
-		assert.Equal(t, "db failure", err.Error())
+		assert.Contains(t, err.Error(), "failed to find account by email")
+		assert.Contains(t, err.Error(), "db failure")
+		assert.ErrorContains(t, err, "db failure")
 	})
 
 	t.Run("returns unauthorized when account inactive", func(t *testing.T) {
