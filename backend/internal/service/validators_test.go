@@ -271,7 +271,25 @@ func TestValidateTaxType(t *testing.T) {
 }
 
 func TestValidateItemCategory(t *testing.T) {
-	assert.NoError(t, validateItemCategory(string(model.ItemCategoryExamination)))
+	// Called by go test for BE7-1; production callers use validateItemCategory via billing_item CreateItem.
+	valid := []model.ItemCategory{
+		model.ItemCategoryExamination,
+		model.ItemCategoryTest,
+		model.ItemCategoryProcedure,
+		model.ItemCategorySurgery,
+		model.ItemCategoryMedicine,
+		model.ItemCategoryFood,
+		model.ItemCategoryGoods,
+		model.ItemCategoryOther,
+		model.ItemCategoryVaccine,
+		model.ItemCategoryTrimming,
+		model.ItemCategoryHotel,
+		model.ItemCategoryTraining,
+	}
+	for _, cat := range valid {
+		assert.NoError(t, validateItemCategory(string(cat)), "category %q", cat)
+	}
+	assert.Error(t, validateItemCategory("unknown"))
 	assert.Error(t, validateItemCategory("invalid_category"))
 }
 

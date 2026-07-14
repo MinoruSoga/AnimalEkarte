@@ -4,7 +4,7 @@
 - **基準コミット**: `9aeee96d`(main)。行番号はずれたら**シンボル名で再特定**する。
 - **性格**: 本書は実行計画の正本。判断できない事態は**中断して報告**。本書とコード以外の文脈を前提にしない。
 - **別台帳**(本書と重複させない): PERF・SEED残 = `BE_todo.md` / 任意検証 = `BE-pending.md` / 既知バグ skip 台帳 = `BE_todo.md` 末尾（#236 で修正予定、**本書の対象外**）
-- **進捗**: 対応済 0 / 22。残存 BE7-0〜BE7-21（部分対応: BE7-1 / BE7-4 / BE7-15）。棚卸し基準 HEAD `e424de5c`（2026-07-14）。各項目完了時に見出しの `[ ]` を `[x]` に更新してよい（同一コミットに本書を含めてよい）。
+- **進捗**: 対応済 1 / 22。残存 BE7-0, BE7-2〜BE7-21（部分対応: BE7-4 / BE7-15）。棚卸し基準 HEAD `e424de5c`（2026-07-14）。各項目完了時に見出しの `[ ]` を `[x]` に更新してよい（同一コミットに本書を含めてよい）。
 
 ---
 
@@ -77,9 +77,9 @@ P16（repository メソッド命名）/ P17（service Input 命名）/ レシー
 
 ### Phase 1 — fix: 実バグとエラー処理の穴
 
-#### BE7-1 [ ] fix: 会計明細カテゴリ4値が service 層で不正拒否される
+#### BE7-1 [x] fix: 会計明細カテゴリ4値が service 層で不正拒否される
 
-- **棚卸し（2026-07-14）**: **部分対応** — `TestValidateItemCategory` は存在するが Examination + 不正値のみ。`validateItemCategory` はなお8値（vaccine/trimming/hotel/training 未許可）。完了条件未達のため本文は残す。
+- **棚卸し（2026-07-14）**: **完了** — `TestValidateItemCategory` は model の12定数＋`unknown`/`invalid_category` を検証。`validateItemCategory` は12値を許可。
 - **対象**: `internal/service/validators_accounting.go`（`validateItemCategory`）
 - **問題**: `internal/model/accounting.go` の `ItemCategory` は12定数、handler の binding（`internal/handler/accounting_request.go` の oneof）も12値を許可するが、`validateItemCategory` は8値のみで **`vaccine` / `trimming` / `hotel` / `training` が「明細カテゴリの値が不正です」で拒否される**。`billing_item_service.go` の `CreateItem` から無条件で呼ばれる到達可能な実バグ（4カテゴリ追加時の service 側更新漏れ）。
 - **どう変える**（テスト先行）:
