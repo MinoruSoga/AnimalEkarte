@@ -131,6 +131,8 @@ type Services struct {
 	LstepAnalytics LstepAnalyticsService
 	// 認証: refresh_token JTI ブラックリスト
 	TokenBlacklist TokenBlacklistService
+	// 認証: JWT 発行・検証
+	Token TokenService
 	// lab import: 外部検査結果インポートジョブ管理 (Phase 3–4)
 	LabImportJob    LabImportJobService
 	LabResultImport LabResultImportService
@@ -143,7 +145,7 @@ type Services struct {
 // cipher は LINE 認証情報（line_channel_secret / line_access_token）の暗号化に使う（H-4）。
 // nil の場合は暗号化なしで動作する（開発環境で INTEGRATION_ENCRYPTION_KEY 未設定時）。
 // lstep 連携と同一の cipher を再利用する。
-func NewServices(repos *repository.Repositories, notifCfg *ReservationNotificationConfig, cipher *crypto.AESGCMCipher, sharedStorage infra.FileStorage) *Services {
+func NewServices(repos *repository.Repositories, notifCfg *ReservationNotificationConfig, cipher *crypto.AESGCMCipher, sharedStorage infra.FileStorage, jwtSecret string) *Services {
 	notifier := NewReservationNotificationService(notifCfg, repos.LineReservationSetting, cipher)
 	auditSvc := NewAuditService(repos.Audit)
 	// auditTxLogger: 具象 *auditService は tx 内監査の LogEntryTx も実装する（#211）。
@@ -226,6 +228,8 @@ func NewServices(repos *repository.Repositories, notifCfg *ReservationNotificati
 	lstepCsvImportSvc := NewLstepCsvImportService(repos.DB(), repos.LstepCsvImport, repos.LstepFriendAttributeSnapshot, repos.Owner)
 	lstepAnalyticsSvc := NewLstepAnalyticsService(repos.Owner, repos.LstepDeliveryTriggerLog, repos.LstepFriendAttributeSnapshot)
 
+	tokenBlacklistSvc := NewTokenBlacklistService(repos.TokenBlacklist)
+
 	return &Services{
 		Account:               NewAccountService(repos.Account),
 		StaffClinicAssignment: NewStaffClinicAssignmentService(repos.StaffClinicAssignment),
@@ -237,7 +241,7 @@ func NewServices(repos *repository.Repositories, notifCfg *ReservationNotificati
 		MedicalRecord:         medicalRecordSvc,
 		MedicalRecordAddendum: NewMedicalRecordAddendumService(repos.MedicalRecordAddendum, repos.MedicalRecord, auditSvc),
 		Hospitalization:       NewHospitalizationService(repos),
-		Accounting:            NewAccountingService(repos.Accounting, lstepTagSyncSvc, tx, auditTxLogger, repos.PaymentMethodMaster),
+		Accounting:            NewAccountingService(repos.Accounting, repos.MedicalRecord, repos.Hospitalization, repos.Reservation, lstepTagSyncSvc, tx, auditTxLogger, repos.PaymentMethodMaster),
 		Trimming: NewTrimmingService(
 			repos.Reservation,
 			repos.ReservationType,
@@ -358,7 +362,8 @@ func NewServices(repos *repository.Repositories, notifCfg *ReservationNotificati
 			repos.AppointmentTrimmingDetail,
 			repos.Vaccination,
 		),
-		TokenBlacklist: NewTokenBlacklistService(repos.TokenBlacklist),
+		TokenBlacklist: tokenBlacklistSvc,
+		Token:          NewTokenService(jwtSecret, tokenBlacklistSvc),
 		// lab import (Phase 3–4)
 		LabImportJob: labImportJobSvc,
 		LabResultImport: NewLabResultImportService(

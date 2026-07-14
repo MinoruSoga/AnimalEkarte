@@ -10,17 +10,12 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
 
+	"github.com/animal-ekarte/backend/internal/authjwt"
 	"github.com/animal-ekarte/backend/internal/service"
 )
 
-// JWTClaims はJWTのペイロード
-type JWTClaims struct {
-	UserID        string   `json:"user_id"`
-	ClinicID      string   `json:"clinic_id"`
-	IsSystemAdmin bool     `json:"is_system_admin"`
-	ClinicIDs     []uint64 `json:"clinic_ids,omitempty"`
-	jwt.RegisteredClaims
-}
+// JWTClaims は JWT ペイロードのエイリアス（service 層との import cycle 回避）。
+type JWTClaims = authjwt.Claims
 
 // Auth はJWTトークンを検証する認証ミドルウェア。
 // httpOnly Cookie を優先して読み、なければ Authorization Bearer ヘッダにフォールバックする。

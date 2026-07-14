@@ -4,7 +4,7 @@
 - **基準コミット**: `9aeee96d`(main)。行番号はずれたら**シンボル名で再特定**する。
 - **性格**: 本書は実行計画の正本。判断できない事態は**中断して報告**。本書とコード以外の文脈を前提にしない。
 - **別台帳**(本書と重複させない): PERF・SEED残 = `BE_todo.md` / 任意検証 = `BE-pending.md` / 既知バグ skip 台帳 = `BE_todo.md` 末尾（#236 で修正予定、**本書の対象外**）
-- **進捗**: 対応済 19 / 22。残存 BE7-20〜BE7-21。棚卸し基準 HEAD `e424de5c`（2026-07-14）。各項目完了時に見出しの `[ ]` を `[x]` に更新してよい（同一コミットに本書を含めてよい）。
+- **進捗**: 対応済 20 / 22。残存 BE7-21。棚卸し基準 HEAD `e424de5c`（2026-07-14）。各項目完了時に見出しの `[ ]` を `[x]` に更新してよい（同一コミットに本書を含めてよい）。
 
 ---
 
@@ -358,7 +358,7 @@ func paginate(page, limit int) func(*gorm.DB) *gorm.DB {
 - **コミット**: `refactor(backend): trimmingのappointment差分構築をbuildUpdateFieldsパターンへ抽出`
 - **依存**: BE7-0
 
-#### BE7-20 [ ] refactor: TokenService の抽出（Auth 構造是正・第1段）
+#### BE7-20 [x] refactor: TokenService の抽出（Auth 構造是正・第1段）
 
 - **対象**: `internal/handler/auth_session.go:138`（`issueAuthCookies` 内の JWT 生成・署名）/ `internal/handler/auth_handler.go:181`（`RefreshToken` 内の JWT パース・署名検証・blacklist 照合）
 - **問題**: Auth ドメインには service 層が存在せず（`internal/service/` に `validators_auth.go` のみ）、JWT 発行/検証というセキュリティクリティカルなロジックが handler 層に直書きされている。service 層の機械強制規約（P8/P11 等）が適用されない構造的迂回。

@@ -104,7 +104,7 @@ func main() {
 		SMTPPass:    cfg.SMTPPass,
 		SMTPFrom:    cfg.SMTPFrom,
 		FrontendURL: cfg.FrontendURL,
-	}, integrationCipher, sharedStorage)
+	}, integrationCipher, sharedStorage, cfg.JWTSecret)
 
 	// ファイルアップローダー初期化（STORAGE_TYPE=s3 で S3、それ以外はローカル）
 	var uploader infra.FileUploader

@@ -10,12 +10,11 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/golang-jwt/jwt/v5"
 	"golang.org/x/crypto/bcrypt"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
-	"github.com/animal-ekarte/backend/internal/middleware"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/service"
 )
 
 // clearCookie は指定した Cookie を即時失効させる（MaxAge=-1, Value=""）ヘルパー
@@ -133,6 +132,19 @@ func resolveSystemAdminMainClinicID(mainClinicID string, isSystemAdmin bool, all
 	return strconv.FormatUint(allClinics[0].ID, 10)
 }
 
+// tokenSvc は JWT 発行・検証用 TokenService を返す。
+// 単体テストが部分 DI の Services を構築する場合に Token 未設定でも動作するようフォールバックする。
+func (h *Handler) tokenSvc() service.TokenService {
+	if h.svc != nil && h.svc.Token != nil {
+		return h.svc.Token
+	}
+	var blacklist service.TokenBlacklistService
+	if h.svc != nil {
+		blacklist = h.svc.TokenBlacklist
+	}
+	return service.NewTokenService(h.cfg.JWTSecret, blacklist)
+}
+
 // issueAuthCookies は JWT アクセストークン（15分）とリフレッシュトークン（7日）を生成して Cookie にセットする。
 // クロスオリジン対応のため SameSite=None + Secure=true を使用する。
 func (h *Handler) issueAuthCookies(c *gin.Context, staffID uint64, mainClinicID string, isSystemAdmin bool, clinicIDs []uint64) error {
@@ -146,28 +158,15 @@ func (h *Handler) issueAuthCookies(c *gin.Context, staffID uint64, mainClinicID 
 		secure = true
 	}
 
-	expiresAt := time.Now().Add(accessTokenTTL)
-	claims := &middleware.JWTClaims{
-		UserID:        strconv.FormatUint(staffID, 10),
-		ClinicID:      mainClinicID,
-		IsSystemAdmin: isSystemAdmin,
-		ClinicIDs:     clinicIDs,
-		RegisteredClaims: jwt.RegisteredClaims{
-			ID:        newJti(),
-			ExpiresAt: jwt.NewNumericDate(expiresAt),
-			IssuedAt:  jwt.NewNumericDate(time.Now()),
-		},
-	}
-	accessToken := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	accessTokenStr, err := accessToken.SignedString([]byte(h.cfg.JWTSecret))
+	accessIssued, err := h.tokenSvc().IssueAccessToken(staffID, mainClinicID, isSystemAdmin, clinicIDs)
 	if err != nil {
-		return apperrors.Wrap(err, "failed to sign jwt")
+		return err
 	}
 	http.SetCookie(c.Writer, &http.Cookie{
 		Name:     accessTokenCookieName,
-		Value:    accessTokenStr,
+		Value:    accessIssued.Token,
 		Path:     "/",
-		MaxAge:   int(time.Until(expiresAt).Seconds()),
+		MaxAge:   int(time.Until(accessIssued.ExpiresAt).Seconds()),
 		HttpOnly: true,
 		Secure:   secure,
 		SameSite: sameSite,
@@ -175,29 +174,15 @@ func (h *Handler) issueAuthCookies(c *gin.Context, staffID uint64, mainClinicID 
 
 	// Refresh Token 発行（7日間有効、token rotation で毎回更新）
 	// jti はサーバーサイド失効（ブラックリスト照合）に使用する。
-	refreshExpiresAt := time.Now().Add(refreshTokenTTL)
-	refreshClaims := &middleware.JWTClaims{
-		UserID:        strconv.FormatUint(staffID, 10),
-		ClinicID:      mainClinicID,
-		IsSystemAdmin: isSystemAdmin,
-		ClinicIDs:     clinicIDs,
-		RegisteredClaims: jwt.RegisteredClaims{
-			ID:        newJti(),
-			ExpiresAt: jwt.NewNumericDate(refreshExpiresAt),
-			IssuedAt:  jwt.NewNumericDate(time.Now()),
-			Subject:   refreshTokenSubject,
-		},
-	}
-	refreshToken := jwt.NewWithClaims(jwt.SigningMethodHS256, refreshClaims)
-	refreshTokenStr, err := refreshToken.SignedString([]byte(h.cfg.JWTSecret))
+	refreshIssued, err := h.tokenSvc().IssueRefreshToken(staffID, mainClinicID, isSystemAdmin, clinicIDs)
 	if err != nil {
-		return apperrors.Wrap(err, "failed to sign refresh token")
+		return err
 	}
 	http.SetCookie(c.Writer, &http.Cookie{
 		Name:     refreshTokenCookieName,
-		Value:    refreshTokenStr,
+		Value:    refreshIssued.Token,
 		Path:     "/api/v1/auth/refresh",
-		MaxAge:   int(time.Until(refreshExpiresAt).Seconds()),
+		MaxAge:   int(time.Until(refreshIssued.ExpiresAt).Seconds()),
 		HttpOnly: true,
 		Secure:   secure,
 		SameSite: sameSite,

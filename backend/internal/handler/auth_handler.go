@@ -4,7 +4,6 @@ import (
 	"log/slog"
 	"net/http"
 	"strconv"
-	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
@@ -18,11 +17,6 @@ const (
 	accessTokenCookieName  = "access_token"
 	refreshTokenCookieName = "refresh_token"
 	legacyCookieName       = "auth_token"
-
-	// E-3: issueAuthCookies / RefreshToken で重複していた TTL・subject の直値を集約。
-	accessTokenTTL      = 15 * time.Minute
-	refreshTokenTTL     = 7 * 24 * time.Hour
-	refreshTokenSubject = "refresh"
 )
 
 // Login godoc
@@ -187,37 +181,10 @@ func (h *Handler) RefreshToken(c *gin.Context) {
 		return
 	}
 
-	// refresh_token を検証
-	claims := &middleware.JWTClaims{}
-	if _, err := jwt.ParseWithClaims(tokenStr, claims, func(t *jwt.Token) (any, error) {
-		if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
-			return nil, jwt.ErrSignatureInvalid
-		}
-		return []byte(h.cfg.JWTSecret), nil
-	}); err != nil {
-		RespondError(c, apperrors.WrapUnauthorized("invalid or expired refresh token"))
+	claims, err := h.tokenSvc().VerifyRefreshToken(ctx, tokenStr)
+	if err != nil {
+		RespondError(c, err)
 		return
-	}
-
-	// Subject が refreshTokenSubject であることを確認（access_token の流用を防止）
-	if claims.Subject != refreshTokenSubject {
-		RespondError(c, apperrors.WrapUnauthorized("invalid token type"))
-		return
-	}
-
-	// JTI ブラックリスト照合（ログアウト済み・強制失効済みトークンを拒否）
-	if claims.ID != "" {
-		revoked, blacklistErr := h.svc.TokenBlacklist.IsRevoked(ctx, claims.ID)
-		if blacklistErr != nil {
-			// DB エラーはフェイルセーフ: 照合失敗はリフレッシュを拒否する
-			slog.ErrorContext(ctx, "token blacklist check failed", "jti", claims.ID, "error", blacklistErr)
-			RespondError(c, apperrors.WrapUnauthorized("token validation failed"))
-			return
-		}
-		if revoked {
-			RespondError(c, apperrors.WrapUnauthorized("token has been revoked"))
-			return
-		}
 	}
 
 	// staff の有効性チェック
