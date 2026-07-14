@@ -20,8 +20,8 @@
 | 修正順 | ID | 概要 | Severity | Confidence | セキュリティ判定 | 状態 |
 |---:|---|---|---|---|---|---|
 | 1 | AUD-001 | 予約のOwner/Pet/LineCustomer clinic分離漏れ | High | High confidence | Approve | Closed |
-| 2 | AUD-008 | カルテ本体のOwner/Pet clinic分離漏れ | High | High confidence | Block | Open |
-| 3 | AUD-003 | DailyRecordの親clinic未検証とview GET書込み | High | High confidence | Block | Open |
+| 2 | AUD-008 | カルテ本体のOwner/Pet clinic分離漏れ | High | High confidence | Approve | Closed |
+| 3 | AUD-003 | DailyRecordの親clinic未検証とview GET書込み | High | High confidence | Approve | Closed |
 | 4 | AUD-002 | 会計の関連FK clinic分離漏れ | High | High confidence | Block | Open |
 | 5 | AUD-004 | 入院のOwner/Pet clinic分離漏れ | High | High confidence | Block | Open |
 | 6 | AUD-005 | 見積の関連FK clinic分離漏れとcreated_by偽装 | High | High confidence | Block | Open |
@@ -144,13 +144,13 @@
 
 ## AUD-003: DailyRecordの親clinic未検証とview GET書込み
 
-**状態**: Open
+**状態**: Closed
 
 **Severity**: High
 
 **Confidence**: High confidence
 
-**clinic_id境界監査**: Block
+**clinic_id境界監査**: Approve
 
 ### 症状・原因
 
@@ -166,13 +166,20 @@
 - `backend/internal/repository/daily_record_repository.go` — `FirstOrCreate`
 - `backend/migrations/001_init.sql` — `daily_records` FK/UNIQUE/RLS
 
+### 修正スコープ
+
+- 全 DailyRecord 経路（List/GetByDate/FindOrCreate/AddVital/AddCareLog/AddStaffNote）で親 Hospitalization の clinic 所有確認（`hospRepo.FindByID`）。
+- view GET を `GetByDate`（Find のみ）に分離。未存在は NotFound。作成は create 権限の POST。
+- OpenAPI `getDailyRecord` を自動作成なし・404 に更新。FE は既存 404→create CTA をスコープテストで固定。
+- 初回修正では DB migration（UNIQUE への clinic_id 追加等）は行わない。
+
 ### 受入条件
 
-- [ ] すべてのGET/POST経路でHospitalizationのclinic所有を確認する。
-- [ ] view権限のGETはDBを書き換えない。
-- [ ] 未存在日のGET挙動を既存FE・元仕様・OpenAPI間で統一する。
-- [ ] Clinic AからClinic BのHospitalization IDを指定してもDailyRecordを作成できない。
-- [ ] 拒否後もClinic Bが同日DailyRecordを正常作成できる。
+- [x] すべてのGET/POST経路でHospitalizationのclinic所有を確認する。
+- [x] view権限のGETはDBを書き換えない。
+- [x] 未存在日のGET挙動を既存FE・元仕様・OpenAPI間で統一する。
+- [x] Clinic AからClinic BのHospitalization IDを指定してもDailyRecordを作成できない。
+- [x] 拒否後もClinic Bが同日DailyRecordを正常作成できる。
 
 ---
 
@@ -301,13 +308,13 @@ Hospitalization Create/UpdateはCageを検証する一方、Owner/Petを所有�
 
 ## AUD-008: カルテ本体のOwner/Pet clinic分離漏れ
 
-**状態**: Open
+**状態**: Closed
 
 **Severity**: High
 
 **Confidence**: High confidence
 
-**clinic_id境界監査**: Block
+**clinic_id境界監査**: Approve
 
 ### 症状・原因
 
@@ -321,20 +328,34 @@ Hospitalization Create/UpdateはCageを検証する一方、Owner/Petを所有�
 - `backend/internal/service/medical_record_builders.go` — Owner/Petフィールド構築
 - `backend/internal/repository/medical_record_repository.go` — Owner/Pet Preload
 
+### 修正スコープ
+
+- Appointment有無を問わず Create/Update で `validateReservationOwnerPetLinks`（AUD-001再利用）により Owner/Pet clinic所有と Owner-Pet 整合を検証する。
+- Update は PATCH 後の最終 Owner/Pet 状態で検証する。
+- 検証と MedicalRecord write を `Transactor.WithTx` + repo `dbOrTx` の同一 transaction に含める。
+- MedicalRecord の Owner/Pet Preload に clinic 条件を追加する。
+- 初回修正では DB migration、APIフィールド変更、他AUDの修正を行わない。
+
 ### 受入条件
 
-- [ ] Appointment有無にかかわらず別clinicのOwner/Petを指定したCreate/Updateを拒否する。
-- [ ] Owner-Pet不一致を拒否する。
-- [ ] 検証とMedicalRecord writeを同一transactionへ含める。
-- [ ] 汚染FKを持つカルテから別clinicのOwner/PetをPreloadしない。
-- [ ] 異院拒否時にカルテ・予約のどちらも変化しない。
+- [x] Appointment有無にかかわらず別clinicのOwner/Petを指定したCreate/Updateを拒否する。
+- [x] Owner-Pet不一致を拒否する。
+- [x] 検証とMedicalRecord writeを同一transactionへ含める。
+- [x] 汚染FKを持つカルテから別clinicのOwner/PetをPreloadしない。
+- [x] 異院拒否時にカルテ・予約のどちらも変化しない。
+
+### リスク
+
+- `reservationRepo == nil`（ユニットテスト用）のとき検証はスキップされる。本番DIでは常に注入される。
+- Appointment連携の予約補完とカルテCreateを同一txにしたことで部分成功リスクは減るが、監査ログは引き続きtx外best-effort。
 
 ---
-
 ## 修正履歴
 
 | 日付 | ID | 変更 | 検証 | 状態 |
 |---|---|---|---|---|
+| 2026-07-14 | AUD-003 | DailyRecord全経路へ親Hospitalization clinic所有確認。GETをGetByDate(Findのみ)に分離しview書込み除去。OpenAPI getDailyRecordを404契約に更新。FE 404→create CTAスコープテスト追加。変更: daily_record_service.go(+hospRepo DI), daily_record_handler.go, 関連テスト, openapi.yaml, DailyRecordsTab.test.tsx。migrationなし | `go test ./internal/service/ -run TestDailyRecord` PASS; `go test ./internal/handler/ -run 'Test.*DailyRecord|TestGetDailyRecord|TestCreateDailyRecord'` PASS; `go test ./internal/repository/ -run TestDailyRecord` PASS; `npx vitest run .../DailyRecordsTab.test.tsx` PASS; clinic-isolation/security/go-reviewer Approve（CRITICAL/HIGHなし） | Closed |
+| 2026-07-14 | AUD-008 | MedicalRecord Create/UpdateへOwner/Pet clinic所有確認+最終Owner-Pet整合。WithTx+dbOrTxで検証とwriteを同一tx化。Owner/Pet Preloadへclinic条件。findMedicalRecordByIDもdbOrTx化（tx内read-your-writes）。変更: medical_record_crud.go, medical_record_service.go, medical_record_repository.go, service.go DI, isolation tests | `go test ./internal/service/ -run TestMedicalRecord` PASS; `go test ./internal/repository/ -run 'TestMedicalRecordRepository_|TestDBOrTxInventory_MatchesAllowlist'` PASS; clinic-isolation/security Approve（CRITICAL/HIGHなし）。go-reviewer CRITICAL（Update後FindByIDのtx非参加）を修正済み | Closed |
 | 2026-07-14 | AUD-001 | トリミング3書込み経路へPet clinic所有確認とtransaction/lockを追加。管理予約Createをambient transactionへ参加。カルテからの予約Owner/Pet補完を検証。LINE顧客のOwner.Petsをclinic scopeし、汚染関係をfail-closed化 | Service/Repository scoped test、`go vet`、`go build`、`gofmt -l` PASS。clinic-isolation/security/GoレビューはいずれもApprove、CRITICAL/HIGHなし | Closed |
 | 2026-07-14 | AUD-008 | AUD-001再監査中に、AppointmentなしMedicalRecord本体のOwner/Pet clinic分離漏れを新規登録 | 静的監査。実装は未着手 | Open |
 | 2026-07-14 | AUD-001 | 再監査でトリミング予約のPet clinic所有確認漏れ3経路を検出し、修正を再開 | TDD実施前 | In Progress |

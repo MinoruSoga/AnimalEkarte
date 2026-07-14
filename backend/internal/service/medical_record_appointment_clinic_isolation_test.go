@@ -59,7 +59,7 @@ func TestMedicalRecordService_Create_RejectsForeignOwnerPetBeforeAppointmentBack
 					return nil, nil
 				},
 			}
-			svc := NewMedicalRecordService(recordRepo, nil, nil, nil, nil, nil, nil, nil, nil, reservationRepo, nil, nil)
+			svc := NewMedicalRecordService(recordRepo, nil, nil, nil, nil, nil, nil, nil, nil, reservationRepo, nil, nil, nil)
 
 			got, err := svc.Create(context.Background(), 1, &CreateMedicalRecordInput{
 				Date:          time.Date(2026, 7, 14, 10, 0, 0, 0, time.UTC),

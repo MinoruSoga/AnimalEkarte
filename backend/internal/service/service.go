@@ -218,7 +218,7 @@ func NewServices(repos *repository.Repositories, notifCfg *ReservationNotificati
 	// FEAT-383: 自動配信トリガー（LstepBatch / MedicalRecord / Checkup より先に初期化）
 	lstepDeliveryTriggerSvc := NewLstepDeliveryTriggerService(repos.Owner, repos.MedicalRecord, repos.Vaccination, repos.BillingItem, repos.Pet, repos.LstepTagCache, repos.LstepDeliveryTriggerLog, lstepSettingsSvc, lstepTriggerPrioritySvc)
 	// FEAT-383: イベントフック注入（LstepDeliveryTrigger 確定後に構築）
-	medicalRecordSvc := NewMedicalRecordService(repos.MedicalRecord, repos.Owner, repos.Pet, repos.Inquiry, repos.ClinicalPlan, repos.ChiefComplaintType, repos.DiagnosisType, repos.DiagnosisName, repos.LineCustomerMgr, repos.Reservation, lstepDeliveryTriggerSvc, auditSvc, lstepTagSyncSvc)
+	medicalRecordSvc := NewMedicalRecordService(repos.MedicalRecord, repos.Owner, repos.Pet, repos.Inquiry, repos.ClinicalPlan, repos.ChiefComplaintType, repos.DiagnosisType, repos.DiagnosisName, repos.LineCustomerMgr, repos.Reservation, lstepDeliveryTriggerSvc, auditSvc, tx, lstepTagSyncSvc)
 	checkupSvc := NewCheckupService(repos.Checkup, repos.MedicalRecord, repos.CheckupType, lstepDeliveryTriggerSvc, lstepTagSyncSvc)
 	// LSTEP-BE-014: ノーショウ検知バッチ（LstepDeliveryTrigger 確定後に初期化）
 	lstepBatchSvc := NewLstepBatchService(repos.Reservation, lstepTagSyncSvc, repos.Clinic, repos.MedicalRecord, auditSvc, lstepSettingsSvc, lstepDeliveryTriggerSvc)
@@ -291,7 +291,7 @@ func NewServices(repos *repository.Repositories, notifCfg *ReservationNotificati
 		TreatmentPlan:                  NewTreatmentPlanService(repos.TreatmentPlan),
 		Vital:                          NewVitalService(repos.Vital, repos.MedicalRecord, auditSvc, tx),
 		Treatment:                      NewTreatmentServiceWithAudit(repos, auditSvc),
-		DailyRecord:                    NewDailyRecordService(repos.DailyRecord),
+		DailyRecord:                    NewDailyRecordService(repos.DailyRecord, repos.Hospitalization),
 		MedicalRecordImage:             NewMedicalRecordImageService(repos.MedicalRecordImage, repos.MedicalRecord),
 		ClinicalPlan:                   NewClinicalPlanService(repos.ClinicalPlan, repos.MedicalRecord, repos.DiagnosisType, repos.DiagnosisName),
 		Checkup:                        checkupSvc,

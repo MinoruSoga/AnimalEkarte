@@ -102,6 +102,7 @@ type medicalRecordService struct {
 	reservationRepo        repository.ReservationRepository
 	lstepDeliveryTrigger   LstepDeliveryTriggerService
 	auditService           AuditService
+	tx                     repository.Transactor
 	tagSyncSvc             LstepTagSyncService
 }
 
@@ -118,6 +119,7 @@ func NewMedicalRecordService(
 	reservationRepo repository.ReservationRepository,
 	lstepDeliveryTrigger LstepDeliveryTriggerService,
 	auditService AuditService,
+	tx repository.Transactor,
 	tagSyncSvc ...LstepTagSyncService,
 ) MedicalRecordService {
 	var syncSvc LstepTagSyncService
@@ -137,6 +139,15 @@ func NewMedicalRecordService(
 		reservationRepo:        reservationRepo,
 		lstepDeliveryTrigger:   lstepDeliveryTrigger,
 		auditService:           auditService,
+		tx:                     tx,
 		tagSyncSvc:             syncSvc,
 	}
+}
+
+// withTx runs fn inside Transactor when configured; nil tx (unit tests) runs fn directly.
+func (s *medicalRecordService) withTx(ctx context.Context, fn func(context.Context) error) error {
+	if s.tx == nil {
+		return fn(ctx)
+	}
+	return s.tx.WithTx(ctx, fn)
 }

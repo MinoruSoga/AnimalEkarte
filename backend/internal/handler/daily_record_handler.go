@@ -52,7 +52,8 @@ func (h *Handler) GetDailyRecord(c *gin.Context) {
 		return
 	}
 
-	record, err := h.svc.DailyRecord.FindOrCreateByDate(c.Request.Context(), clinicID, hospitalizationID, date)
+	// view GET は読み取り専用。未存在日は NotFound（FirstOrCreate しない — AUD-003）。
+	record, err := h.svc.DailyRecord.GetByDate(c.Request.Context(), clinicID, hospitalizationID, date)
 	if err != nil {
 		RespondError(c, err)
 		return

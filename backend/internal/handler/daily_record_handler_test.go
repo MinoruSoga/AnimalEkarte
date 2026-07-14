@@ -14,6 +14,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/service"
 )
@@ -27,6 +28,7 @@ func TestDailyRecordHandlerCompiles(t *testing.T) {
 
 type mockDailyRecordService struct {
 	listFn               func(ctx context.Context, clinicID, hospitalizationID uint64) ([]model.DailyRecord, error)
+	getByDateFn          func(ctx context.Context, clinicID, hospitalizationID uint64, date time.Time) (*model.DailyRecord, error)
 	findOrCreateByDateFn func(ctx context.Context, clinicID, hospitalizationID uint64, date time.Time) (*model.DailyRecord, error)
 	addVitalRecordFn     func(ctx context.Context, clinicID, hospitalizationID uint64, date time.Time, input *service.CreateVitalRecordInput) (*model.DailyRecord, error)
 	addCareLogFn         func(ctx context.Context, clinicID, hospitalizationID uint64, date time.Time, input *service.CreateCareLogInput) (*model.DailyRecord, error)
@@ -35,6 +37,10 @@ type mockDailyRecordService struct {
 
 func (m *mockDailyRecordService) List(ctx context.Context, clinicID, hospitalizationID uint64) ([]model.DailyRecord, error) {
 	return m.listFn(ctx, clinicID, hospitalizationID)
+}
+
+func (m *mockDailyRecordService) GetByDate(ctx context.Context, clinicID, hospitalizationID uint64, date time.Time) (*model.DailyRecord, error) {
+	return m.getByDateFn(ctx, clinicID, hospitalizationID, date)
 }
 
 func (m *mockDailyRecordService) FindOrCreateByDate(ctx context.Context, clinicID, hospitalizationID uint64, date time.Time) (*model.DailyRecord, error) {
@@ -149,7 +155,7 @@ func TestGetDailyRecord(t *testing.T) {
 			paramDate: "2026-07-01",
 			setupCtx:  func(c *gin.Context) { setClinicID(c) },
 			svc: &mockDailyRecordService{
-				findOrCreateByDateFn: func(_ context.Context, clinicID, hospitalizationID uint64, date time.Time) (*model.DailyRecord, error) {
+				getByDateFn: func(_ context.Context, clinicID, hospitalizationID uint64, date time.Time) (*model.DailyRecord, error) {
 					assert.Equal(t, uint64(1), clinicID)
 					assert.Equal(t, uint64(1), hospitalizationID)
 					assert.Equal(t, "2026-07-01", date.Format("2006-01-02"))
@@ -188,11 +194,23 @@ func TestGetDailyRecord(t *testing.T) {
 			paramDate: "2026-07-01",
 			setupCtx:  func(c *gin.Context) { setClinicID(c) },
 			svc: &mockDailyRecordService{
-				findOrCreateByDateFn: func(_ context.Context, _, _ uint64, _ time.Time) (*model.DailyRecord, error) {
+				getByDateFn: func(_ context.Context, _, _ uint64, _ time.Time) (*model.DailyRecord, error) {
 					return nil, fmt.Errorf("db failure")
 				},
 			},
 			wantStatus: http.StatusInternalServerError,
+		},
+		{
+			name:      "returns 404 when daily record not found",
+			paramID:   "1",
+			paramDate: "2026-07-01",
+			setupCtx:  func(c *gin.Context) { setClinicID(c) },
+			svc: &mockDailyRecordService{
+				getByDateFn: func(_ context.Context, _, _ uint64, _ time.Time) (*model.DailyRecord, error) {
+					return nil, apperrors.WrapNotFound("daily_record", "1/2026-07-01")
+				},
+			},
+			wantStatus: http.StatusNotFound,
 		},
 	}
 

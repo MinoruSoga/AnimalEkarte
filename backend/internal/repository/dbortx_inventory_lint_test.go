@@ -91,7 +91,10 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"medical_record_addendum_repository.go|medicalRecordAddendumRepository.FindByID":              {},
 	"medical_record_addendum_repository.go|medicalRecordAddendumRepository.FindByMedicalRecordID": {},
 	// medical_record (X-11 Appendix-A finalize-child-write-race fix)
-	"medical_record_repository.go|medicalRecordRepository.LockByIDForUpdate": {},
+	"medical_record_repository.go|medicalRecordRepository.LockByIDForUpdate":     {},
+	"medical_record_repository.go|medicalRecordRepository.Create":                {},
+	"medical_record_repository.go|medicalRecordRepository.Update":                {},
+	"medical_record_repository.go|medicalRecordRepository.findMedicalRecordByID": {},
 	// medicine_dose_param (R1-2 dose-param tx)
 	"medicine_dose_param_repository.go|medicineDoseParamRepository.Create":                   {},
 	"medicine_dose_param_repository.go|medicineDoseParamRepository.Delete":                   {},

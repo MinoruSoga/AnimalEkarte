@@ -19309,7 +19309,7 @@ paths:
     get:
       operationId: getDailyRecord
       summary: 日次記録取得
-      description: 指定日の日次記録を取得（なければ自動作成）
+      description: 指定日の日次記録を取得（未存在は404。作成はPOST /daily-records）
       tags: [Hospitalizations]
       parameters:
         - name: id
@@ -19336,6 +19336,8 @@ paths:
           $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
         '500':
           $ref: '#/components/responses/InternalError'
   /hospitalizations/{id}/daily-records/{date}/vitals:

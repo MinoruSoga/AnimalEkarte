@@ -175,7 +175,13 @@ func (r *medicalRecordRepository) FindAll(ctx context.Context, clinicIDs []uint6
 	}
 	if err := buildBase().
 		Offset((page-1)*limit).Limit(limit).Order(medicalRecordOrderClause(filters.Sort, filters.Order)).
-		Preload("Owner", "deleted_at IS NULL").Preload("Pet", "deleted_at IS NULL").Preload("Pet.AnimalSpecies").Preload("Doctor", "deleted_at IS NULL").Preload("EnteredByStaff", "deleted_at IS NULL").Preload("Inquiry").Preload("Billing", "deleted_at IS NULL").
+		Preload("Owner", "clinic_id IN ? AND deleted_at IS NULL", clinicIDs).
+		Preload("Pet", "clinic_id IN ? AND deleted_at IS NULL", clinicIDs).
+		Preload("Pet.AnimalSpecies").
+		Preload("Doctor", "deleted_at IS NULL").
+		Preload("EnteredByStaff", "deleted_at IS NULL").
+		Preload("Inquiry").
+		Preload("Billing", "deleted_at IS NULL").
 		Find(&records).Error; err != nil {
 		return nil, 0, apperrors.FromGORM(err, "medical_record", "")
 	}
@@ -199,23 +205,24 @@ func medicalRecordOrderClause(sort, order string) string {
 }
 
 func (r *medicalRecordRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.MedicalRecord, error) {
-	return r.findMedicalRecordByID(ctx, clinicScope(clinicID), id)
+	return r.findMedicalRecordByID(ctx, []uint64{clinicID}, clinicScope(clinicID), id)
 }
 
 func (r *medicalRecordRepository) FindByIDForClinics(ctx context.Context, clinicIDs []uint64, id uint64) (*model.MedicalRecord, error) {
-	return r.findMedicalRecordByID(ctx, clinicScopeIn(clinicIDs), id)
+	return r.findMedicalRecordByID(ctx, clinicIDs, clinicScopeIn(clinicIDs), id)
 }
 
 // findMedicalRecordByID は scope（単一/複数クリニック）を受け取りカルテを1件取得する共通実装。
-func (r *medicalRecordRepository) findMedicalRecordByID(ctx context.Context, scope func(*gorm.DB) *gorm.DB, id uint64) (*model.MedicalRecord, error) {
+// AUD-008: Create/Update の ambient tx 内から呼ばれるため dbOrTx で read-your-writes を保証する。
+func (r *medicalRecordRepository) findMedicalRecordByID(ctx context.Context, clinicIDs []uint64, scope func(*gorm.DB) *gorm.DB, id uint64) (*model.MedicalRecord, error) {
 	var record model.MedicalRecord
-	err := r.db.WithContext(ctx).
+	err := dbOrTx(ctx, r.db).
 		Preload("Treatments", "deleted_at IS NULL").
 		Preload("Vitals").
 		Preload("Doctor", "deleted_at IS NULL").
 		Preload("EnteredByStaff", "deleted_at IS NULL").
-		Preload("Owner", "deleted_at IS NULL").
-		Preload("Pet", "deleted_at IS NULL").
+		Preload("Owner", "clinic_id IN ? AND deleted_at IS NULL", clinicIDs).
+		Preload("Pet", "clinic_id IN ? AND deleted_at IS NULL", clinicIDs).
 		Preload("Pet.AnimalSpecies").
 		Scopes(scope).Where("id = ?", id).First(&record).Error
 	if err != nil {
@@ -225,7 +232,7 @@ func (r *medicalRecordRepository) findMedicalRecordByID(ctx context.Context, sco
 }
 
 func (r *medicalRecordRepository) Create(ctx context.Context, record *model.MedicalRecord) error {
-	err := r.db.WithContext(ctx).Create(record).Error
+	err := dbOrTx(ctx, r.db).Create(record).Error
 	if err != nil {
 		if isUniqueConstraintErr(err) {
 			return apperrors.WrapAlreadyExists("medical_record", record.RecordNo)
@@ -241,7 +248,7 @@ func (r *medicalRecordRepository) Create(ctx context.Context, record *model.Medi
 // （draft のまま = version不一致、draft でない = 従来どおり not-draft）。再読自体が
 // 失敗した場合は情報を出し過ぎないよう従来の not-draft Conflict にフォールバックする。
 func (r *medicalRecordRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any, expectedVersion *int) (*model.MedicalRecord, error) {
-	q := r.db.WithContext(ctx).
+	q := dbOrTx(ctx, r.db).
 		Model(&model.MedicalRecord{}).
 		Scopes(clinicScope(clinicID)).
 		Where("id = ? AND status = ?", id, model.MedicalRecordStatusDraft)
@@ -255,7 +262,7 @@ func (r *medicalRecordRepository) Update(ctx context.Context, clinicID, id uint6
 	if result.RowsAffected == 0 {
 		if expectedVersion != nil {
 			var current model.MedicalRecord
-			err := r.db.WithContext(ctx).
+			err := dbOrTx(ctx, r.db).
 				Model(&model.MedicalRecord{}).
 				Scopes(clinicScope(clinicID)).
 				Where("id = ?", id).

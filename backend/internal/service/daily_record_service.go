@@ -42,6 +42,7 @@ type CreateStaffNoteInput struct {
 // DailyRecordService は日次記録のビジネスロジックインターフェース
 type DailyRecordService interface {
 	List(ctx context.Context, clinicID, hospitalizationID uint64) ([]model.DailyRecord, error)
+	GetByDate(ctx context.Context, clinicID, hospitalizationID uint64, date time.Time) (*model.DailyRecord, error)
 	FindOrCreateByDate(ctx context.Context, clinicID, hospitalizationID uint64, date time.Time) (*model.DailyRecord, error)
 	AddVitalRecord(ctx context.Context, clinicID, hospitalizationID uint64, date time.Time, input *CreateVitalRecordInput) (*model.DailyRecord, error)
 	AddCareLog(ctx context.Context, clinicID, hospitalizationID uint64, date time.Time, input *CreateCareLogInput) (*model.DailyRecord, error)
@@ -49,15 +50,29 @@ type DailyRecordService interface {
 }
 
 type dailyRecordService struct {
-	repo repository.DailyRecordRepository
+	repo     repository.DailyRecordRepository
+	hospRepo repository.HospitalizationRepository
 }
 
 // NewDailyRecordService は DailyRecordService を初期化して返す
-func NewDailyRecordService(repo repository.DailyRecordRepository) DailyRecordService {
-	return &dailyRecordService{repo: repo}
+func NewDailyRecordService(repo repository.DailyRecordRepository, hospRepo repository.HospitalizationRepository) DailyRecordService {
+	return &dailyRecordService{repo: repo, hospRepo: hospRepo}
+}
+
+// verifyHospitalizationOwnership は親入院が caller の clinic に属することを確認する。
+// 異院 hospitalization_id での DailyRecord 読取/書込を NotFound で拒否する（AUD-003）。
+func (s *dailyRecordService) verifyHospitalizationOwnership(ctx context.Context, clinicID, hospitalizationID uint64) error {
+	if _, err := s.hospRepo.FindByID(ctx, clinicID, hospitalizationID); err != nil {
+		slog.ErrorContext(ctx, "failed to verify hospitalization ownership", "error", err)
+		return apperrors.Wrap(err, "failed to verify hospitalization ownership")
+	}
+	return nil
 }
 
 func (s *dailyRecordService) List(ctx context.Context, clinicID, hospitalizationID uint64) ([]model.DailyRecord, error) {
+	if err := s.verifyHospitalizationOwnership(ctx, clinicID, hospitalizationID); err != nil {
+		return nil, err
+	}
 	result, err := s.repo.FindByHospitalizationID(ctx, clinicID, hospitalizationID)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to list daily record", "error", err)
@@ -66,7 +81,23 @@ func (s *dailyRecordService) List(ctx context.Context, clinicID, hospitalization
 	return result, nil
 }
 
+// GetByDate は指定日の日次記録を読み取り専用で返す（未存在は NotFound。FirstOrCreate しない）。
+func (s *dailyRecordService) GetByDate(ctx context.Context, clinicID, hospitalizationID uint64, date time.Time) (*model.DailyRecord, error) {
+	if err := s.verifyHospitalizationOwnership(ctx, clinicID, hospitalizationID); err != nil {
+		return nil, err
+	}
+	result, err := s.repo.FindByHospitalizationIDAndDate(ctx, clinicID, hospitalizationID, date)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to get daily record", "error", err)
+		return nil, apperrors.Wrap(err, "failed to get daily record")
+	}
+	return result, nil
+}
+
 func (s *dailyRecordService) FindOrCreateByDate(ctx context.Context, clinicID, hospitalizationID uint64, date time.Time) (*model.DailyRecord, error) {
+	if err := s.verifyHospitalizationOwnership(ctx, clinicID, hospitalizationID); err != nil {
+		return nil, err
+	}
 	result, err := s.repo.FindOrCreateByDate(ctx, clinicID, hospitalizationID, date)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to get or create daily record", "error", err)
@@ -76,6 +107,9 @@ func (s *dailyRecordService) FindOrCreateByDate(ctx context.Context, clinicID, h
 }
 
 func (s *dailyRecordService) AddVitalRecord(ctx context.Context, clinicID, hospitalizationID uint64, date time.Time, input *CreateVitalRecordInput) (*model.DailyRecord, error) {
+	if err := s.verifyHospitalizationOwnership(ctx, clinicID, hospitalizationID); err != nil {
+		return nil, err
+	}
 	daily, err := s.repo.FindOrCreateByDate(ctx, clinicID, hospitalizationID, date)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to get or create daily record", "error", err)
@@ -114,6 +148,10 @@ func (s *dailyRecordService) AddVitalRecord(ctx context.Context, clinicID, hospi
 }
 
 func (s *dailyRecordService) AddCareLog(ctx context.Context, clinicID, hospitalizationID uint64, date time.Time, input *CreateCareLogInput) (*model.DailyRecord, error) {
+	if err := s.verifyHospitalizationOwnership(ctx, clinicID, hospitalizationID); err != nil {
+		return nil, err
+	}
+
 	careLogType := model.CareLogType(input.Type)
 	switch careLogType {
 	case model.CareLogTypeFood, model.CareLogTypeExcretion, model.CareLogTypeMedicine,
@@ -170,6 +208,9 @@ func (s *dailyRecordService) AddCareLog(ctx context.Context, clinicID, hospitali
 }
 
 func (s *dailyRecordService) AddStaffNote(ctx context.Context, clinicID, hospitalizationID uint64, date time.Time, input *CreateStaffNoteInput) (*model.DailyRecord, error) {
+	if err := s.verifyHospitalizationOwnership(ctx, clinicID, hospitalizationID); err != nil {
+		return nil, err
+	}
 	daily, err := s.repo.FindOrCreateByDate(ctx, clinicID, hospitalizationID, date)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to get or create daily record", "error", err)
