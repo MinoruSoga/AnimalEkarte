@@ -1,8 +1,10 @@
 package service
 
 import (
+	"bytes"
 	"context"
 	"errors"
+	"log/slog"
 	"testing"
 	"time"
 
@@ -552,6 +554,53 @@ func TestRunDormantDetectionAllClinics_PersistsAuditMetadata(t *testing.T) {
 	assert.Equal(t, 2, meta["processed_count"])
 	assert.Equal(t, 0, meta["error_count"])
 	assert.Equal(t, 180, meta["min_days_since"], "判定閾値を後で再現できる")
+}
+
+// TestRunBatchAllClinics_全滅クリニックでも監査ログが記録されエラー内容がログに出る は
+// perClinic が (0, errs) を返す全滅ケースでも audit が記録され、エラー本文がログに出ることを検証する（BE7-2）。
+func TestRunBatchAllClinics_全滅クリニックでも監査ログが記録されエラー内容がログに出る(t *testing.T) {
+	var logBuf bytes.Buffer
+	prev := slog.Default()
+	slog.SetDefault(slog.New(slog.NewJSONHandler(&logBuf, &slog.HandlerOptions{Level: slog.LevelError})))
+	t.Cleanup(func() { slog.SetDefault(prev) })
+
+	clinics := []model.Clinic{{ID: 99}}
+	svc, spy := newBatchServiceWithAuditSpy(
+		&batchMockReservationRepo{},
+		&batchMockTagSyncSvc{},
+		&mockClinicRepository{
+			findAllFn: func(_ context.Context) ([]model.Clinic, error) {
+				return clinics, nil
+			},
+		},
+		&batchMockMedRecordRepo{},
+	)
+
+	err := svc.runBatchAllClinics(
+		context.Background(),
+		"test-batch",
+		"test-batch",
+		"synced",
+		"batch_test_wipeout",
+		nil,
+		func(_ context.Context, _ uint64) (int, []error) {
+			return 0, []error{errors.New("wipeout failure A"), errors.New("wipeout failure B")}
+		},
+	)
+	assert.NoError(t, err)
+	assert.True(t, spy.called, "全滅クリニックでも監査ログが記録される")
+	assert.Equal(t, "batch_test_wipeout", spy.capturedAction)
+
+	meta, ok := spy.capturedMetadata.(map[string]any)
+	if !assert.True(t, ok) {
+		return
+	}
+	assert.Equal(t, 0, meta["processed_count"])
+	assert.Equal(t, 2, meta["error_count"])
+
+	logOut := logBuf.String()
+	assert.Contains(t, logOut, "wipeout failure A")
+	assert.Contains(t, logOut, "wipeout failure B")
 }
 
 // ---- RunHealthPreventionTagSyncAllClinics (FEAT-379) ----

@@ -64,9 +64,9 @@ func NewLstepBatchService(
 }
 
 // runBatchAllClinics は「全クリニック走査 → IsSyncEnabled ゲート → 1 クリニック分の処理 →
-// 部分エラーログ → 処理件数>0 時のみ audit 記録」という lstep cron バッチ共通骨格を集約する
-// （G3-2, dup-lstep-batch-allclinics）。ログ文言・audit operation 文字列・extraMeta は
-// 呼び出し側が指定した値をそのまま使うため、移行前後で出力はバイト級で同一になる。
+// 部分エラーログ（本文サンプル付き）→ 処理件数>0 またはエラーあり時に audit 記録」という
+// lstep cron バッチ共通骨格を集約する（G3-2, dup-lstep-batch-allclinics）。
+// ログ文言・audit operation 文字列・extraMeta は呼び出し側が指定した値をそのまま使う。
 func (s *lstepBatchService) runBatchAllClinics(
 	ctx context.Context,
 	label string,
@@ -96,10 +96,21 @@ func (s *lstepBatchService) runBatchAllClinics(
 		}
 		count, errs := perClinic(ctx, clinic.ID)
 		if len(errs) > 0 {
-			slog.ErrorContext(ctx, label+": partial errors", "clinic_id", clinic.ID, "error_count", len(errs))
+			sample := errs
+			if len(sample) > 3 {
+				sample = sample[:3]
+			}
+			msgs := make([]string, 0, len(sample))
+			for _, e := range sample {
+				msgs = append(msgs, e.Error())
+			}
+			slog.ErrorContext(ctx, label+": partial errors",
+				"clinic_id", clinic.ID, "error_count", len(errs), "errors", msgs)
 		}
 		if count > 0 {
 			slog.InfoContext(ctx, label+": "+syncedSuffix, "clinic_id", clinic.ID, "count", count)
+		}
+		if count > 0 || len(errs) > 0 {
 			meta := map[string]any{
 				"operation":       operation,
 				"processed_count": count,
