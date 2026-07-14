@@ -286,7 +286,7 @@ func TestHospitalizationService_DischargeWithBilling_DoesNotPropagateForeignOwne
 				Status: model.HospitalizationStatusAdmitted,
 			}, nil
 		},
-		updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Hospitalization, error) {
+		updateIfNotDischargedFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Hospitalization, error) {
 			updated = true
 			return &model.Hospitalization{ID: 10}, nil
 		},
@@ -348,7 +348,7 @@ func TestHospitalizationService_DischargeWithBilling_RejectsContaminatedOwnerPet
 				Status: model.HospitalizationStatusAdmitted,
 			}, nil
 		},
-		updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Hospitalization, error) {
+		updateIfNotDischargedFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Hospitalization, error) {
 			updated = true
 			return &model.Hospitalization{ID: 10}, nil
 		},
@@ -402,7 +402,7 @@ func TestHospitalizationService_DischargeWithBilling_WithoutAccounting_RejectsFo
 				Status: model.HospitalizationStatusAdmitted,
 			}, nil
 		},
-		updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Hospitalization, error) {
+		updateIfNotDischargedFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Hospitalization, error) {
 			updated = true
 			return &model.Hospitalization{ID: 10}, nil
 		},
@@ -516,7 +516,7 @@ func TestHospitalizationService_DischargeWithBilling_RejectsInvalidOwnerPetLinks
 						Status: model.HospitalizationStatusAdmitted,
 					}, nil
 				},
-				updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Hospitalization, error) {
+				updateIfNotDischargedFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Hospitalization, error) {
 					updated = true
 					t.Fatal("hospitalization must not be updated with invalid Owner/Pet links")
 					return nil, nil

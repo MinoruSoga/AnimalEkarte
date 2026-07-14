@@ -347,7 +347,7 @@ func (s *hospitalizationService) DischargeWithBilling(ctx context.Context, clini
 			"status":   dischargedStatus,
 			"end_date": input.DischargeDate,
 		}
-		if _, err := txRepos.Hospitalization.Update(ctx, clinicID, id, dischargeFields); err != nil {
+		if _, err := txRepos.Hospitalization.UpdateIfNotDischarged(ctx, clinicID, id, dischargeFields); err != nil {
 			return apperrors.Wrap(err, "failed to discharge hospitalization")
 		}
 

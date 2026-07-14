@@ -402,3 +402,58 @@ func TestHospitalizationRepository_CountTreatmentPlansByHospitalizationID(t *tes
 		assert.Equal(t, int64(0), count)
 	})
 }
+
+func TestHospitalizationRepository_UpdateIfNotDischarged(t *testing.T) {
+	db := setupHospitalizationRepoTestDB(t)
+	repo := NewHospitalizationRepository(db)
+	ctx := context.Background()
+	const clinicA = uint64(1)
+
+	ownerA := makeTestOwner(t, db, clinicA, "UpdateIfNotDischarged飼主")
+	petA := makeSpeciesAndPet(t, db, clinicA, ownerA.ID, "UpdateIfNotDischargedポチ")
+
+	t.Run("admitted status は退院更新に成功する", func(t *testing.T) {
+		hosp := makeHospitalizationFixture(t, db, clinicA, ownerA.ID, petA.ID, func(h *model.Hospitalization) {
+			h.Status = model.HospitalizationStatusAdmitted
+		})
+		dischargeDate := time.Now().UTC().Truncate(time.Second)
+
+		got, err := repo.UpdateIfNotDischarged(ctx, clinicA, hosp.ID, map[string]any{
+			"status":   model.HospitalizationStatusDischarged,
+			"end_date": dischargeDate,
+		})
+		require.NoError(t, err)
+		require.NotNil(t, got)
+		assert.Equal(t, model.HospitalizationStatusDischarged, got.Status)
+	})
+
+	t.Run("reserved status は退院更新に成功する", func(t *testing.T) {
+		petB := makeSpeciesAndPet(t, db, clinicA, ownerA.ID, "UpdateIfNotDischarged予約ポチ")
+		hosp := makeHospitalizationFixture(t, db, clinicA, ownerA.ID, petB.ID, func(h *model.Hospitalization) {
+			h.Status = model.HospitalizationStatusReserved
+		})
+		dischargeDate := time.Now().UTC().Truncate(time.Second)
+
+		got, err := repo.UpdateIfNotDischarged(ctx, clinicA, hosp.ID, map[string]any{
+			"status":   model.HospitalizationStatusDischarged,
+			"end_date": dischargeDate,
+		})
+		require.NoError(t, err)
+		require.NotNil(t, got)
+		assert.Equal(t, model.HospitalizationStatusDischarged, got.Status)
+	})
+
+	t.Run("already discharged は NotFound", func(t *testing.T) {
+		petC := makeSpeciesAndPet(t, db, clinicA, ownerA.ID, "UpdateIfNotDischarged退院済みポチ")
+		hosp := makeHospitalizationFixture(t, db, clinicA, ownerA.ID, petC.ID, func(h *model.Hospitalization) {
+			h.Status = model.HospitalizationStatusDischarged
+		})
+
+		got, err := repo.UpdateIfNotDischarged(ctx, clinicA, hosp.ID, map[string]any{
+			"status": model.HospitalizationStatusDischarged,
+		})
+		assert.Nil(t, got)
+		require.Error(t, err)
+		assert.True(t, apperrors.IsNotFound(err))
+	})
+}

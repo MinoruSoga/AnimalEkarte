@@ -19,6 +19,7 @@ type mockHospitalizationRepository struct {
 	findByIDFn                               func(ctx context.Context, clinicID, id uint64) (*model.Hospitalization, error)
 	createFn                                 func(ctx context.Context, hospitalization *model.Hospitalization) error
 	updateFieldsFn                           func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Hospitalization, error)
+	updateIfNotDischargedFn                  func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Hospitalization, error)
 	deleteFn                                 func(ctx context.Context, clinicID, id uint64) error
 	countCarePlanItemsByHospitalizationIDFn  func(ctx context.Context, clinicID, hospitalizationID uint64) (int64, error)
 	countDailyRecordsByHospitalizationIDFn   func(ctx context.Context, clinicID, hospitalizationID uint64) (int64, error)
@@ -42,6 +43,13 @@ func (m *mockHospitalizationRepository) Create(ctx context.Context, hospitalizat
 
 func (m *mockHospitalizationRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Hospitalization, error) {
 	return m.updateFieldsFn(ctx, clinicID, id, fields)
+}
+
+func (m *mockHospitalizationRepository) UpdateIfNotDischarged(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Hospitalization, error) {
+	if m.updateIfNotDischargedFn != nil {
+		return m.updateIfNotDischargedFn(ctx, clinicID, id, fields)
+	}
+	return nil, apperrors.WrapNotFound("hospitalization", "updateIfNotDischargedFn not stubbed")
 }
 
 func (m *mockHospitalizationRepository) Delete(ctx context.Context, clinicID, id uint64) error {
@@ -847,7 +855,7 @@ func TestHospitalizationService_DischargeWithBilling_UpdateFails(t *testing.T) {
 		findByIDFn: func(_ context.Context, _, id uint64) (*model.Hospitalization, error) {
 			return &model.Hospitalization{ID: id, Status: model.HospitalizationStatusAdmitted, PetID: 5, OwnerID: 2}, nil
 		},
-		updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Hospitalization, error) {
+		updateIfNotDischargedFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Hospitalization, error) {
 			return nil, errors.New("db error")
 		},
 	}
@@ -865,7 +873,7 @@ func TestHospitalizationService_DischargeWithBilling_WithoutAccounting(t *testin
 		findByIDFn: func(_ context.Context, _, id uint64) (*model.Hospitalization, error) {
 			return &model.Hospitalization{ID: id, Status: model.HospitalizationStatusAdmitted, PetID: 5, OwnerID: 2}, nil
 		},
-		updateFieldsFn: func(_ context.Context, _, _ uint64, fields map[string]any) (*model.Hospitalization, error) {
+		updateIfNotDischargedFn: func(_ context.Context, _, _ uint64, fields map[string]any) (*model.Hospitalization, error) {
 			updatedFields = fields
 			return &model.Hospitalization{ID: 10}, nil
 		},
@@ -894,7 +902,7 @@ func TestHospitalizationService_DischargeWithBilling_CarePlanItemsFetchError(t *
 		findByIDFn: func(_ context.Context, _, id uint64) (*model.Hospitalization, error) {
 			return &model.Hospitalization{ID: id, Status: model.HospitalizationStatusAdmitted, PetID: 5, OwnerID: 2}, nil
 		},
-		updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Hospitalization, error) {
+		updateIfNotDischargedFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Hospitalization, error) {
 			return &model.Hospitalization{ID: 10}, nil
 		},
 	}
@@ -916,7 +924,7 @@ func TestHospitalizationService_DischargeWithBilling_BillingCreateError(t *testi
 		findByIDFn: func(_ context.Context, _, id uint64) (*model.Hospitalization, error) {
 			return &model.Hospitalization{ID: id, Status: model.HospitalizationStatusAdmitted, PetID: 5, OwnerID: 2}, nil
 		},
-		updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Hospitalization, error) {
+		updateIfNotDischargedFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Hospitalization, error) {
 			return &model.Hospitalization{ID: 10}, nil
 		},
 	}
@@ -949,7 +957,7 @@ func TestHospitalizationService_DischargeWithBilling_WithCarePlanItems(t *testin
 		findByIDFn: func(_ context.Context, _, id uint64) (*model.Hospitalization, error) {
 			return &model.Hospitalization{ID: id, Status: model.HospitalizationStatusAdmitted, PetID: 5, OwnerID: 2}, nil
 		},
-		updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Hospitalization, error) {
+		updateIfNotDischargedFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Hospitalization, error) {
 			return &model.Hospitalization{ID: 10}, nil
 		},
 	}
@@ -996,7 +1004,7 @@ func TestHospitalizationService_DischargeWithBilling_BillingItemCreateError(t *t
 		findByIDFn: func(_ context.Context, _, id uint64) (*model.Hospitalization, error) {
 			return &model.Hospitalization{ID: id, Status: model.HospitalizationStatusAdmitted, PetID: 5, OwnerID: 2}, nil
 		},
-		updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Hospitalization, error) {
+		updateIfNotDischargedFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Hospitalization, error) {
 			return &model.Hospitalization{ID: 10}, nil
 		},
 	}
@@ -1030,7 +1038,7 @@ func TestHospitalizationService_DischargeWithBilling_UpdateBillingTotalsError(t 
 		findByIDFn: func(_ context.Context, _, id uint64) (*model.Hospitalization, error) {
 			return &model.Hospitalization{ID: id, Status: model.HospitalizationStatusAdmitted, PetID: 5, OwnerID: 2}, nil
 		},
-		updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Hospitalization, error) {
+		updateIfNotDischargedFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Hospitalization, error) {
 			return &model.Hospitalization{ID: 10}, nil
 		},
 	}
@@ -1059,4 +1067,44 @@ func TestHospitalizationService_DischargeWithBilling_UpdateBillingTotalsError(t 
 
 	assert.Error(t, err)
 	assert.Nil(t, result)
+}
+
+func TestHospitalizationService_DischargeWithBilling_ConcurrentDoubleDischarge_ReturnsNotFoundWithoutAccounting(t *testing.T) {
+	accountingCreated := false
+	hospRepo := &mockHospitalizationRepository{
+		findByIDFn: func(_ context.Context, _, id uint64) (*model.Hospitalization, error) {
+			return &model.Hospitalization{
+				ID: id, Status: model.HospitalizationStatusAdmitted, PetID: 5, OwnerID: 2,
+			}, nil
+		},
+		updateIfNotDischargedFn: func(_ context.Context, _, id uint64, fields map[string]any) (*model.Hospitalization, error) {
+			assert.Equal(t, uint64(10), id)
+			assert.Equal(t, model.HospitalizationStatusDischarged, fields["status"])
+			return nil, apperrors.WrapNotFound("hospitalization", "10")
+		},
+	}
+	carePlanRepo := &mockCarePlanItemRepository{
+		listByHospitalizationIDFn: func(_ context.Context, _, _ uint64) ([]model.CarePlanItem, error) {
+			t.Fatal("care plan items must not be fetched when conditional discharge update loses the race")
+			return nil, nil
+		},
+	}
+	accountingRepo := &mockAccountingRepository{
+		createFn: func(_ context.Context, _ uint64, _ *model.Billing) error {
+			accountingCreated = true
+			t.Fatal("Accounting.Create must not run when UpdateIfNotDischarged returns NotFound")
+			return nil
+		},
+	}
+	svc := NewHospitalizationService(newDischargeTestRepos(hospRepo, carePlanRepo, accountingRepo, nil))
+
+	result, err := svc.DischargeWithBilling(context.Background(), 1, 10, DischargeWithBillingInput{
+		DischargeDate:    time.Now(),
+		CreateAccounting: true,
+	})
+
+	assert.Error(t, err)
+	assert.True(t, apperrors.IsNotFound(err))
+	assert.Nil(t, result)
+	assert.False(t, accountingCreated)
 }
