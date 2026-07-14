@@ -243,6 +243,9 @@ func (s *estimateService) Create(ctx context.Context, clinicID uint64, input *Cr
 	} else {
 		estimate.Status = model.EstimateStatusDraft
 	}
+	if isEstimateLocked(estimate.Status) {
+		return nil, apperrors.WrapConflict("承認済みまたは却下済みの見積書は作成できません")
+	}
 
 	if err := s.repo.Create(ctx, estimate); err != nil {
 		slog.ErrorContext(ctx, "failed to create estimate", "error", err)

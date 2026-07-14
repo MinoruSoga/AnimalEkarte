@@ -227,6 +227,7 @@ func TestEstimateService_Create(t *testing.T) {
 		findByIDErr  error
 		repoEstimate *model.Estimate
 		wantErr      bool
+		wantConflict bool
 	}{
 		{
 			name: "creates estimate successfully with default status",
@@ -264,6 +265,28 @@ func TestEstimateService_Create(t *testing.T) {
 				Status:      model.EstimateStatusSent,
 			},
 			wantErr: false,
+		},
+		{
+			name: "returns conflict when status is approved",
+			input: &CreateEstimateInput{
+				Title:       "承認済み直作成",
+				Status:      model.EstimateStatusApproved,
+				TotalAmount: 10000,
+				CreatedBy:   ptrU64(estimateTestCreatedByStaffID),
+			},
+			wantErr:      true,
+			wantConflict: true,
+		},
+		{
+			name: "returns conflict when status is rejected",
+			input: &CreateEstimateInput{
+				Title:       "却下済み直作成",
+				Status:      model.EstimateStatusRejected,
+				TotalAmount: 10000,
+				CreatedBy:   ptrU64(estimateTestCreatedByStaffID),
+			},
+			wantErr:      true,
+			wantConflict: true,
 		},
 		{
 			name: "returns error when title is empty",
@@ -345,8 +368,10 @@ func TestEstimateService_Create(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			createCalled := false
 			repo := &mockEstimateRepository{
 				createFn: func(_ context.Context, _ *model.Estimate) error {
+					createCalled = true
 					return tt.repoErr
 				},
 				findByIDFn: func(_ context.Context, _, _ uint64) (*model.Estimate, error) {
@@ -362,6 +387,10 @@ func TestEstimateService_Create(t *testing.T) {
 
 			if tt.wantErr {
 				assert.Error(t, err)
+				if tt.wantConflict {
+					assert.True(t, apperrors.IsConflict(err))
+					assert.False(t, createCalled, "repo.Create must not be called for locked status")
+				}
 			} else {
 				assert.NoError(t, err)
 				assert.NotNil(t, estimate)
