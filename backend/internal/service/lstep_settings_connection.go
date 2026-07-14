@@ -20,7 +20,11 @@ func (s *lstepSettingsService) TestConnection(ctx context.Context, clinicID uint
 
 	kvMap := make(map[string]string, len(records))
 	for _, r := range records {
-		val, _ := s.decrypt(r.KeyName, r.KeyValue)
+		val, decErr := s.decrypt(r.KeyName, r.KeyValue)
+		if decErr != nil {
+			slog.ErrorContext(ctx, "failed to decrypt integration value", "key_name", r.KeyName)
+			val = ""
+		}
 		kvMap[r.KeyName] = val
 	}
 
