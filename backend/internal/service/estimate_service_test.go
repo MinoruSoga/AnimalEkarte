@@ -751,6 +751,35 @@ func TestEstimateService_Delete_TOCTOU_LockedAfterFind(t *testing.T) {
 	assert.True(t, apperrors.IsConflict(err), "expected Conflict, got %v", err)
 }
 
+// TestEstimateService_Delete_TOCTOU_ItemsAddedAfterCount は CountItems==0 確認後に
+// 明細が入り DeleteIfNotLocked が Conflict を返した場合、削除を拒否することを検証する。
+func TestEstimateService_Delete_TOCTOU_ItemsAddedAfterCount(t *testing.T) {
+	deleteIfNotLockedCalled := false
+	repo := &mockEstimateRepository{
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.Estimate, error) {
+			return &model.Estimate{
+				ID:     1,
+				Status: model.EstimateStatusDraft,
+			}, nil
+		},
+		countItemsByEstimateID: func(_ context.Context, _ uint64) (int64, error) {
+			return 0, nil
+		},
+		deleteIfNotLockedFn: func(_ context.Context, _, _ uint64) error {
+			deleteIfNotLockedCalled = true
+			return apperrors.WrapConflict("この見積書には明細が登録されているため削除できません")
+		},
+	}
+	svc := NewEstimateService(repo, nil, nil, nil, nil)
+
+	err := svc.Delete(context.Background(), 1, 1, nil)
+
+	require.Error(t, err)
+	assert.True(t, deleteIfNotLockedCalled, "repo.DeleteIfNotLocked must be called after CountItems==0")
+	assert.True(t, apperrors.IsConflict(err), "expected Conflict, got %v", err)
+	assert.Contains(t, err.Error(), "明細")
+}
+
 // estimateAuditActions は mockAuditService.entries から Resource="estimate" の Action を収集する。
 func estimateAuditActions(auditSvc *mockAuditService) []string {
 	actions := make([]string, 0, len(auditSvc.entries))

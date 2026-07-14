@@ -233,8 +233,8 @@ func TestEstimateRepository_UpdateIfNotLocked(t *testing.T) {
 	})
 }
 
-// TestEstimateRepository_DeleteIfNotLocked は approved/rejected への TOCTOU を
-// status NOT IN 述語で原子的に拒否することを検証する（0 行 → Conflict）。
+// TestEstimateRepository_DeleteIfNotLocked は status NOT IN (approved, rejected) かつ
+// active 明細 0 の原子 DELETE、および RowsAffected==0 の正規化（locked/明細/NotFound）を検証する。
 func TestEstimateRepository_DeleteIfNotLocked(t *testing.T) {
 	db := setupEstimateRepoTestDB(t)
 	repo := NewEstimateRepository(db)
@@ -287,6 +287,59 @@ func TestEstimateRepository_DeleteIfNotLocked(t *testing.T) {
 		got, findErr := repo.FindByID(ctx, clinicA, e.ID)
 		require.NoError(t, findErr)
 		assert.Equal(t, model.EstimateStatusRejected, got.Status)
+	})
+
+	t.Run("active 明細ありの draft は Conflict（行は削除されない）", func(t *testing.T) {
+		e := makeEstimate(t, db, clinicA, owner.ID, model.EstimateStatusDraft)
+		makeEstimateItem(t, db, e.ID, "明細TOCTOU")
+
+		err := repo.DeleteIfNotLocked(ctx, clinicA, e.ID)
+		require.Error(t, err)
+		assert.True(t, apperrors.IsConflict(err), "expected Conflict, got %v", err)
+		assert.Contains(t, err.Error(), "明細")
+
+		got, findErr := repo.FindByID(ctx, clinicA, e.ID)
+		require.NoError(t, findErr)
+		assert.Equal(t, model.EstimateStatusDraft, got.Status)
+	})
+
+	t.Run("論理削除済み明細のみなら draft 削除に成功する", func(t *testing.T) {
+		e := makeEstimate(t, db, clinicA, owner.ID, model.EstimateStatusDraft)
+		item := makeEstimateItem(t, db, e.ID, "削除済み明細")
+		require.NoError(t, db.Delete(item).Error)
+
+		err := repo.DeleteIfNotLocked(ctx, clinicA, e.ID)
+		require.NoError(t, err)
+
+		_, findErr := repo.FindByID(ctx, clinicA, e.ID)
+		require.Error(t, findErr)
+		assert.True(t, apperrors.IsNotFound(findErr))
+	})
+
+	t.Run("存在しないIDは NotFound", func(t *testing.T) {
+		err := repo.DeleteIfNotLocked(ctx, clinicA, 999999)
+		require.Error(t, err)
+		assert.True(t, apperrors.IsNotFound(err), "expected NotFound, got %v", err)
+	})
+
+	t.Run("CountItems==0 直後に明細が追加されても削除は失敗する（TOCTOU）", func(t *testing.T) {
+		e := makeEstimate(t, db, clinicA, owner.ID, model.EstimateStatusDraft)
+
+		count, err := repo.CountItemsByEstimateID(ctx, clinicA, e.ID)
+		require.NoError(t, err)
+		require.Equal(t, int64(0), count)
+
+		// Count 確認後・Delete 前に明細が入るレース相当
+		makeEstimateItem(t, db, e.ID, "レース挿入明細")
+
+		err = repo.DeleteIfNotLocked(ctx, clinicA, e.ID)
+		require.Error(t, err)
+		assert.True(t, apperrors.IsConflict(err), "expected Conflict, got %v", err)
+		assert.Contains(t, err.Error(), "明細")
+
+		got, findErr := repo.FindByID(ctx, clinicA, e.ID)
+		require.NoError(t, findErr)
+		assert.Equal(t, model.EstimateStatusDraft, got.Status)
 	})
 }
 

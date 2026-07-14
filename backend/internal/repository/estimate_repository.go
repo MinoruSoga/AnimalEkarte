@@ -21,9 +21,9 @@ type EstimateRepository interface {
 	// RowsAffected==0（ロック済み・未存在・他院）は Conflict に正規化する。
 	UpdateIfNotLocked(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Estimate, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
-	// DeleteIfNotLocked は status NOT IN (approved, rejected) のときだけ削除する。
-	// FindByID→isEstimateLocked→Delete の TOCTOU を防ぐ（UpdateIfNotLocked と同型）。
-	// RowsAffected==0（ロック済み・未存在・他院）は Conflict に正規化する。
+	// DeleteIfNotLocked は status NOT IN (approved, rejected) かつ active 明細が 0 のときだけ削除する。
+	// FindByID→isEstimateLocked→CountItems→Delete の TOCTOU を防ぐ（UpdateIfNotLocked と同型）。
+	// RowsAffected==0 は再読取で locked / 明細あり / NotFound を可能な範囲で区別する。
 	DeleteIfNotLocked(ctx context.Context, clinicID, id uint64) error
 	// CountItemsByEstimateID は BE-refactor.md R2-5 (D12) で clinic_id 述語を追加した
 	// （唯一の呼び出し元 estimateService.Delete が clinicID を既に保持・ownership 検証済み）。
@@ -115,20 +115,47 @@ func (r *estimateRepository) Delete(ctx context.Context, clinicID, id uint64) er
 }
 
 func (r *estimateRepository) DeleteIfNotLocked(ctx context.Context, clinicID, id uint64) error {
+	// status ロック条件と active estimate_items=0 を同一 DELETE で要求し、
+	// CountItems→Delete 間の明細追加 TOCTOU を原子的に塞ぐ。
 	result := r.db.WithContext(ctx).
 		Scopes(clinicScope(clinicID)).
 		Where("id = ? AND status NOT IN ?", id, []model.EstimateStatus{
 			model.EstimateStatusApproved,
 			model.EstimateStatusRejected,
 		}).
+		Where(`NOT EXISTS (
+			SELECT 1 FROM estimate_items ei
+			WHERE ei.estimate_id = estimates.id
+			  AND ei.deleted_at IS NULL
+		)`).
 		Delete(&model.Estimate{})
 	if result.Error != nil {
 		return apperrors.FromGORM(result.Error, "estimate", fmt.Sprintf("%d", id))
 	}
 	if result.RowsAffected == 0 {
-		return apperrors.WrapConflict("承認済みまたは却下済みの見積書は削除できません")
+		return r.normalizeDeleteIfNotLockedMiss(ctx, clinicID, id)
 	}
 	return nil
+}
+
+// normalizeDeleteIfNotLockedMiss は原子 DELETE が 0 行だった理由を再読取で区別する。
+func (r *estimateRepository) normalizeDeleteIfNotLockedMiss(ctx context.Context, clinicID, id uint64) error {
+	existing, err := r.FindByID(ctx, clinicID, id)
+	if err != nil {
+		return err
+	}
+	if existing.Status == model.EstimateStatusApproved || existing.Status == model.EstimateStatusRejected {
+		return apperrors.WrapConflict("承認済みまたは却下済みの見積書は削除できません")
+	}
+	count, err := r.CountItemsByEstimateID(ctx, clinicID, id)
+	if err != nil {
+		return err
+	}
+	if count > 0 {
+		return apperrors.WrapConflict("この見積書には明細が登録されているため削除できません")
+	}
+	// DELETE と再読取の間に status がロックへ遷移した等の残余レース
+	return apperrors.WrapConflict("承認済みまたは却下済みの見積書は削除できません")
 }
 
 // CountItemsByEstimateID は見積書に紐付く明細行の件数を返す（BUG-201）

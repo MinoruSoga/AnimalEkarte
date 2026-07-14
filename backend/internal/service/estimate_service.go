@@ -365,6 +365,7 @@ func (s *estimateService) Delete(ctx context.Context, clinicID, id uint64, actor
 	if isEstimateLocked(existing.Status) {
 		return apperrors.WrapConflict("承認済みまたは却下済みの見積書は削除できません")
 	}
+	// 早期 Count は UX 用。防御の本体は DeleteIfNotLocked の原子条件（status + active items=0）。
 	count, err := s.repo.CountItemsByEstimateID(ctx, clinicID, id)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to check estimate item dependencies", "error", err, "clinic_id", clinicID, "estimate_id", id)
@@ -375,7 +376,7 @@ func (s *estimateService) Delete(ctx context.Context, clinicID, id uint64, actor
 	}
 	oldValue := extractEstimateImportantFields(existing)
 	if err := s.repo.DeleteIfNotLocked(ctx, clinicID, id); err != nil {
-		if !apperrors.IsConflict(err) {
+		if !apperrors.IsConflict(err) && !apperrors.IsNotFound(err) {
 			slog.ErrorContext(ctx, "failed to delete estimate", "error", err, "clinic_id", clinicID, "estimate_id", id)
 		}
 		return apperrors.Wrap(err, "failed to delete estimate")
