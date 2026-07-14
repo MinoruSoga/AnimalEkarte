@@ -27,7 +27,6 @@ type mockEstimateRepository struct {
 	createFn               func(ctx context.Context, estimate *model.Estimate) error
 	updateFn               func(ctx context.Context, clinicID, id uint64, fields map[string]any) error
 	updateIfNotLockedFn    func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Estimate, error)
-	deleteFn               func(ctx context.Context, clinicID, id uint64) error
 	deleteIfNotLockedFn    func(ctx context.Context, clinicID, id uint64) error
 	countItemsByEstimateID func(ctx context.Context, estimateID uint64) (int64, error)
 }
@@ -59,13 +58,6 @@ func (m *mockEstimateRepository) UpdateIfNotLocked(ctx context.Context, clinicID
 		return m.updateIfNotLockedFn(ctx, clinicID, id, fields)
 	}
 	return nil, nil
-}
-
-func (m *mockEstimateRepository) Delete(ctx context.Context, clinicID, id uint64) error {
-	if m.deleteFn != nil {
-		return m.deleteFn(ctx, clinicID, id)
-	}
-	return nil
 }
 
 func (m *mockEstimateRepository) DeleteIfNotLocked(ctx context.Context, clinicID, id uint64) error {
@@ -678,7 +670,6 @@ func TestEstimateService_Delete(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			deleteCalled := false
 			deleteIfNotLockedCalled := false
 			repo := &mockEstimateRepository{
 				findByIDFn: func(_ context.Context, _, id uint64) (*model.Estimate, error) {
@@ -692,10 +683,6 @@ func TestEstimateService_Delete(t *testing.T) {
 				},
 				countItemsByEstimateID: func(_ context.Context, _ uint64) (int64, error) {
 					return tt.itemCount, tt.countErr
-				},
-				deleteFn: func(_ context.Context, _, _ uint64) error {
-					deleteCalled = true
-					return nil
 				},
 				deleteIfNotLockedFn: func(_ context.Context, _, _ uint64) error {
 					deleteIfNotLockedCalled = true
@@ -720,7 +707,6 @@ func TestEstimateService_Delete(t *testing.T) {
 			} else {
 				assert.NoError(t, err)
 				assert.True(t, deleteIfNotLockedCalled, "repo.DeleteIfNotLocked must be called on success")
-				assert.False(t, deleteCalled, "repo.Delete must not be called")
 			}
 		})
 	}

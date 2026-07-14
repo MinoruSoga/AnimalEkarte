@@ -20,7 +20,6 @@ type EstimateRepository interface {
 	// FindByID→isEstimateLocked→Update の TOCTOU を防ぐ（UpdateIfNotDischarged と同型）。
 	// RowsAffected==0（ロック済み・未存在・他院）は Conflict に正規化する。
 	UpdateIfNotLocked(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Estimate, error)
-	Delete(ctx context.Context, clinicID, id uint64) error
 	// DeleteIfNotLocked は status NOT IN (approved, rejected) かつ active 明細が 0 のときだけ削除する。
 	// FindByID→isEstimateLocked→CountItems→Delete の TOCTOU を防ぐ（UpdateIfNotLocked と同型）。
 	// RowsAffected==0 は再読取で locked / 明細あり / NotFound を可能な範囲で区別する。
@@ -108,10 +107,6 @@ func (r *estimateRepository) UpdateIfNotLocked(ctx context.Context, clinicID, id
 		return nil, apperrors.WrapConflict("承認済みまたは却下済みの見積書は編集できません")
 	}
 	return r.FindByID(ctx, clinicID, id)
-}
-
-func (r *estimateRepository) Delete(ctx context.Context, clinicID, id uint64) error {
-	return deleteScopedByID(ctx, r.db, &model.Estimate{}, "estimate", clinicID, id)
 }
 
 func (r *estimateRepository) DeleteIfNotLocked(ctx context.Context, clinicID, id uint64) error {

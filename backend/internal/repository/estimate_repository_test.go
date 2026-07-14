@@ -239,7 +239,7 @@ func TestEstimateRepository_DeleteIfNotLocked(t *testing.T) {
 	db := setupEstimateRepoTestDB(t)
 	repo := NewEstimateRepository(db)
 	ctx := context.Background()
-	const clinicA = uint64(1)
+	const clinicA, clinicB = uint64(1), uint64(2)
 
 	owner := makeTestOwner(t, db, clinicA, "DeleteIfNotLocked飼主")
 
@@ -316,6 +316,19 @@ func TestEstimateRepository_DeleteIfNotLocked(t *testing.T) {
 		assert.True(t, apperrors.IsNotFound(findErr))
 	})
 
+	t.Run("他院からの削除はNotFound（対象は削除されない）", func(t *testing.T) {
+		e := makeEstimate(t, db, clinicA, owner.ID, model.EstimateStatusDraft)
+
+		err := repo.DeleteIfNotLocked(ctx, clinicB, e.ID)
+		require.Error(t, err)
+		assert.True(t, apperrors.IsNotFound(err), "expected NotFound, got %v", err)
+
+		got, findErr := repo.FindByID(ctx, clinicA, e.ID)
+		require.NoError(t, findErr)
+		assert.NotNil(t, got)
+		assert.Equal(t, model.EstimateStatusDraft, got.Status)
+	})
+
 	t.Run("存在しないIDは NotFound", func(t *testing.T) {
 		err := repo.DeleteIfNotLocked(ctx, clinicA, 999999)
 		require.Error(t, err)
@@ -340,43 +353,6 @@ func TestEstimateRepository_DeleteIfNotLocked(t *testing.T) {
 		got, findErr := repo.FindByID(ctx, clinicA, e.ID)
 		require.NoError(t, findErr)
 		assert.Equal(t, model.EstimateStatusDraft, got.Status)
-	})
-}
-
-func TestEstimateRepository_Delete(t *testing.T) {
-	db := setupEstimateRepoTestDB(t)
-	repo := NewEstimateRepository(db)
-	ctx := context.Background()
-	const clinicA, clinicB = uint64(1), uint64(2)
-
-	owner := makeTestOwner(t, db, clinicA, "削除飼主")
-
-	t.Run("同一クリニックの削除は成功する", func(t *testing.T) {
-		e := makeEstimate(t, db, clinicA, owner.ID, model.EstimateStatusDraft)
-
-		require.NoError(t, repo.Delete(ctx, clinicA, e.ID))
-
-		_, err := repo.FindByID(ctx, clinicA, e.ID)
-		require.Error(t, err)
-		assert.True(t, apperrors.IsNotFound(err))
-	})
-
-	t.Run("他院からの削除はNotFound（対象は削除されない）", func(t *testing.T) {
-		e := makeEstimate(t, db, clinicA, owner.ID, model.EstimateStatusDraft)
-
-		err := repo.Delete(ctx, clinicB, e.ID)
-		require.Error(t, err)
-		assert.True(t, apperrors.IsNotFound(err))
-
-		got, err := repo.FindByID(ctx, clinicA, e.ID)
-		require.NoError(t, err)
-		assert.NotNil(t, got)
-	})
-
-	t.Run("存在しないIDはNotFound", func(t *testing.T) {
-		err := repo.Delete(ctx, clinicA, 999999)
-		require.Error(t, err)
-		assert.True(t, apperrors.IsNotFound(err))
 	})
 }
 
