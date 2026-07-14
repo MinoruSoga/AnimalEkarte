@@ -46,8 +46,7 @@ func DoWithRetry(ctx context.Context, client *http.Client, maxRetries int, initi
 }
 
 // NewBearerRequest は Authorization: Bearer <token> ヘッダ付きの JSON リクエストを生成する。
-// エラーラップは呼出元パッケージの文言（"create lstep request:" 等）に委ねるため、
-// ここでは http.NewRequestWithContext のエラーをそのまま返す。
+// http.NewRequestWithContext のエラーは "httpx NewBearerRequest:" プレフィックスで %w ラップして返す。
 func NewBearerRequest(ctx context.Context, method, url, token string, body io.Reader) (*http.Request, error) {
 	req, err := http.NewRequestWithContext(ctx, method, url, body)
 	if err != nil {
