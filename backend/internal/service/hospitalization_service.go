@@ -327,12 +327,21 @@ func (s *hospitalizationService) DischargeWithBilling(ctx context.Context, clini
 	}
 
 	err = s.repos.Transaction(ctx, func(txRepos *repository.Repositories) error {
-		// 0. 汚染行対策: CreateAccounting 有無に関わらず、Update 前に Owner/Pet の clinic 所有を再検証する（AUD-004）。
-		if err := validateReservationOwnerPetLinks(ctx, txRepos.Reservation, clinicID, &hosp.OwnerID, &hosp.PetID); err != nil {
+		// 0. TOCTOU 対策: tx 内で再取得し、locked の Owner/Pet で検証・会計作成する（AUD-004 Q2-A）。
+		locked, err := txRepos.Hospitalization.FindByID(ctx, clinicID, id)
+		if err != nil {
+			return apperrors.Wrap(err, "failed to get hospitalization in transaction")
+		}
+		if locked.Status == model.HospitalizationStatusDischarged {
+			return apperrors.WrapInvalidInput("hospitalization is already discharged")
+		}
+
+		// 1. 汚染行対策: CreateAccounting 有無に関わらず、Update 前に Owner/Pet の clinic 所有を再検証する（AUD-004）。
+		if err := validateReservationOwnerPetLinks(ctx, txRepos.Reservation, clinicID, &locked.OwnerID, &locked.PetID); err != nil {
 			return err
 		}
 
-		// 1. 退院ステータスに更新
+		// 2. 退院ステータスに更新
 		dischargedStatus := model.HospitalizationStatusDischarged
 		dischargeFields := map[string]any{
 			"status":   dischargedStatus,
@@ -356,8 +365,8 @@ func (s *hospitalizationService) DischargeWithBilling(ctx context.Context, clini
 		billing := &model.Billing{
 			ClinicID:          clinicID,
 			HospitalizationID: &id,
-			PetID:             &hosp.PetID,
-			OwnerID:           &hosp.OwnerID,
+			PetID:             &locked.PetID,
+			OwnerID:           &locked.OwnerID,
 			Status:            model.BillingStatusWaiting,
 			ScheduledDate:     input.DischargeDate,
 		}

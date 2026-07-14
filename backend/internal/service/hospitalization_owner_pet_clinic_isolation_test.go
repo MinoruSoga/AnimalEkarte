@@ -326,6 +326,69 @@ func TestHospitalizationService_DischargeWithBilling_DoesNotPropagateForeignOwne
 	assert.False(t, updated, "contaminated Owner/Pet discharge must not persist status update")
 }
 
+func TestHospitalizationService_DischargeWithBilling_RejectsContaminatedOwnerPetAfterOuterFind(t *testing.T) {
+	const clinicID = uint64(1)
+	const foreignOwnerID, foreignPetID = uint64(201), uint64(202)
+
+	findByIDCallCount := 0
+	updated := false
+	hospRepo := &mockHospitalizationRepository{
+		findByIDFn: func(_ context.Context, _, id uint64) (*model.Hospitalization, error) {
+			findByIDCallCount++
+			if findByIDCallCount == 1 {
+				return &model.Hospitalization{
+					ID: id, ClinicID: clinicID,
+					OwnerID: 2, PetID: 5,
+					Status: model.HospitalizationStatusAdmitted,
+				}, nil
+			}
+			return &model.Hospitalization{
+				ID: id, ClinicID: clinicID,
+				OwnerID: foreignOwnerID, PetID: foreignPetID,
+				Status: model.HospitalizationStatusAdmitted,
+			}, nil
+		},
+		updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Hospitalization, error) {
+			updated = true
+			return &model.Hospitalization{ID: 10}, nil
+		},
+	}
+	carePlanRepo := &mockCarePlanItemRepository{
+		listByHospitalizationIDFn: func(_ context.Context, _, _ uint64) ([]model.CarePlanItem, error) {
+			return nil, nil
+		},
+	}
+	accountingCreated := false
+	accountingRepo := &mockAccountingRepository{
+		createFn: func(_ context.Context, _ uint64, billing *model.Billing) error {
+			accountingCreated = true
+			t.Fatalf("Accounting.Create must not receive contaminated Owner/Pet (owner=%v pet=%v)", billing.OwnerID, billing.PetID)
+			return nil
+		},
+	}
+	resRepo := &mockReservationRepository{
+		assertOwnerInClinicFn: func(_ context.Context, _, ownerID uint64) error {
+			assert.Equal(t, foreignOwnerID, ownerID)
+			return apperrors.WrapNotFound("owner", "201")
+		},
+	}
+	repos := newDischargeTestRepos(hospRepo, carePlanRepo, accountingRepo, nil)
+	repos.Reservation = resRepo
+	svc := NewHospitalizationService(repos)
+
+	result, err := svc.DischargeWithBilling(context.Background(), clinicID, 10, DischargeWithBillingInput{
+		DischargeDate:    time.Now(),
+		CreateAccounting: true,
+	})
+
+	assert.Error(t, err)
+	assert.True(t, apperrors.IsNotFound(err))
+	assert.Nil(t, result)
+	assert.False(t, accountingCreated)
+	assert.False(t, updated, "TOCTOU-contaminated Owner/Pet discharge must not persist status update")
+	assert.Equal(t, 2, findByIDCallCount, "outer + tx re-fetch FindByID must both run")
+}
+
 func TestHospitalizationService_DischargeWithBilling_WithoutAccounting_RejectsForeignOwnerPet(t *testing.T) {
 	const clinicID = uint64(1)
 	const foreignOwnerID, foreignPetID = uint64(201), uint64(202)
