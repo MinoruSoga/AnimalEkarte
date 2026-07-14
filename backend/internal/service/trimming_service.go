@@ -56,6 +56,31 @@ type UpdateTrimmingInput struct {
 	OptionIDs       *[]uint64
 }
 
+func buildTrimmingAppointmentUpdateFields(
+	input *CreateTrimmingInput,
+	locked *model.Reservation,
+	status model.ReservationStatus,
+	resolvedStart, resolvedEnd time.Time,
+) map[string]any {
+	apptFields := map[string]any{}
+	if input.PetID != nil && locked.PetID == nil {
+		apptFields["pet_id"] = *input.PetID
+	}
+	if input.StaffID != nil {
+		apptFields["doctor_id"] = *input.StaffID
+	}
+	if !resolvedStart.Equal(locked.StartTime) {
+		apptFields["start_time"] = resolvedStart
+	}
+	if !resolvedEnd.Equal(locked.EndTime) {
+		apptFields["end_time"] = resolvedEnd
+	}
+	if input.Status != "" && status != locked.Status {
+		apptFields["status"] = status
+	}
+	return apptFields
+}
+
 // TrimmingService はトリミング管理のビジネスロジックインターフェース（BE-119）
 type TrimmingService interface {
 	List(ctx context.Context, clinicID uint64, petID, ownerID *uint64, startDate, endDate *string, page, limit int) ([]model.Reservation, int64, error)
@@ -341,15 +366,8 @@ func (s *trimmingService) createDetailForExistingAppointment(
 			return err
 		}
 
-		apptFields := map[string]any{}
 		if input.PetID != nil && locked.PetID != nil && *locked.PetID != *input.PetID {
 			return apperrors.WrapInvalidInput("pet_id does not match appointment")
-		}
-		if input.PetID != nil && locked.PetID == nil {
-			apptFields["pet_id"] = *input.PetID
-		}
-		if input.StaffID != nil {
-			apptFields["doctor_id"] = *input.StaffID
 		}
 		resolvedStart := input.StartTime
 		if resolvedStart.IsZero() {
@@ -364,15 +382,7 @@ func (s *trimmingService) createDetailForExistingAppointment(
 				return err
 			}
 		}
-		if !resolvedStart.Equal(locked.StartTime) {
-			apptFields["start_time"] = resolvedStart
-		}
-		if !resolvedEnd.Equal(locked.EndTime) {
-			apptFields["end_time"] = resolvedEnd
-		}
-		if input.Status != "" && status != locked.Status {
-			apptFields["status"] = status
-		}
+		apptFields := buildTrimmingAppointmentUpdateFields(input, locked, status, resolvedStart, resolvedEnd)
 		if len(apptFields) > 0 {
 			if _, err := s.reservation.Update(txCtx, clinicID, appointmentID, apptFields); err != nil {
 				return apperrors.Wrap(err, "failed to update existing trimming appointment")

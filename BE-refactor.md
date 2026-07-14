@@ -4,7 +4,7 @@
 - **基準コミット**: `9aeee96d`(main)。行番号はずれたら**シンボル名で再特定**する。
 - **性格**: 本書は実行計画の正本。判断できない事態は**中断して報告**。本書とコード以外の文脈を前提にしない。
 - **別台帳**(本書と重複させない): PERF・SEED残 = `BE_todo.md` / 任意検証 = `BE-pending.md` / 既知バグ skip 台帳 = `BE_todo.md` 末尾（#236 で修正予定、**本書の対象外**）
-- **進捗**: 対応済 18 / 22。残存 BE7-19〜BE7-21。棚卸し基準 HEAD `e424de5c`（2026-07-14）。各項目完了時に見出しの `[ ]` を `[x]` に更新してよい（同一コミットに本書を含めてよい）。
+- **進捗**: 対応済 19 / 22。残存 BE7-20〜BE7-21。棚卸し基準 HEAD `e424de5c`（2026-07-14）。各項目完了時に見出しの `[ ]` を `[x]` に更新してよい（同一コミットに本書を含めてよい）。
 
 ---
 
@@ -348,7 +348,7 @@ func paginate(page, limit int) func(*gorm.DB) *gorm.DB {
 - **コミット**: `refactor(backend): billing_item CreateItemの検証・所有権・デフォルト解決を関数抽出`
 - **依存**: BE7-1（同ファイル近傍を触るため直列化）
 
-#### BE7-19 [ ] refactor: trimming の appointment 差分構築を buildXxxUpdateFields パターンへ
+#### BE7-19 [x] refactor: trimming の appointment 差分構築を buildXxxUpdateFields パターンへ
 
 - **対象**: `internal/service/trimming_service.go:290`（`createDetailForExistingAppointment`、108行）の L336-361 — apptFields 差分構築が tx クロージャ内にインライン
 - **問題**: 他サービスで確立済みの `buildXxxUpdateFields` パターン（P13）を使わず tx 内にベタ書き。
@@ -422,7 +422,7 @@ func paginate(page, limit int) func(*gorm.DB) *gorm.DB {
 
 ```
 あなたは AnimalEkarte のバックエンド実行者です。BE-refactor.md（第7期）を実行してください。
-（棚卸し 2026-07-14: 対応済 18。残存 BE7-19〜BE7-21。）
+（棚卸し 2026-07-14: 対応済 19。残存 BE7-20〜BE7-21。）
 
 1. backend/CLAUDE.md、必要に応じて各層 CLAUDE.md（handler/service/repository）、および BE-refactor.md 全文を読む。本書とコード以外の文脈は存在しない前提で作業する。
 2. BE7-0（安全網）から着手し、以後 BE7-1 → BE7-21 を番号順に、1項目ずつ実施する。
