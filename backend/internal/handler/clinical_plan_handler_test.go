@@ -276,7 +276,6 @@ func TestDeleteClinicalPlan(t *testing.T) {
 	}
 }
 
-
 func TestUpdateClinicalPlan_BindsDiagnosis2TypeID(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	typeID := uint64(31)

@@ -223,7 +223,6 @@ func TestCheckupService_ListByClinic(t *testing.T) {
 	}
 }
 
-
 func TestCheckupService_Create(t *testing.T) {
 	now := time.Now()
 	petID := uint64(5)

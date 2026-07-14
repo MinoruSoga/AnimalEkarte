@@ -41,7 +41,6 @@ func (m *mockCheckupService) ListByClinic(ctx context.Context, input service.Lis
 	return nil, 0, nil
 }
 
-
 func (m *mockCheckupService) Create(ctx context.Context, medicalRecordID uint64, input *service.CreateCheckupInput) (*model.Checkup, error) {
 	if m.createFn != nil {
 		return m.createFn(ctx, medicalRecordID, input)

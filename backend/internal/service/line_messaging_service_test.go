@@ -8,8 +8,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/animal-ekarte/backend/internal/infra/line"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/animal-ekarte/backend/internal/infra/line"
 )
 
 // lineMessagingRoundTripFunc lets a test control the HTTP response for

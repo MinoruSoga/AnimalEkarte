@@ -50,10 +50,7 @@ func (s *lstepBatchService) detectDormantOwners(ctx context.Context, clinicID ui
 	// 直前のページが pageSize ちょうどの場合のみ次ページを取得する（最後の空ページ取得を 1 回に抑える）。
 	page := firstPage
 	afterOwnerID := uint64(0)
-	for {
-		if len(page) == 0 {
-			break
-		}
+	for len(page) > 0 {
 		syncEntries(page)
 		afterOwnerID = page[len(page)-1].OwnerID
 		if len(page) < lstepBatchPageSize {

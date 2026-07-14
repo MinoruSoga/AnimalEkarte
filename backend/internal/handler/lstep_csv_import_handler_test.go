@@ -32,7 +32,6 @@ func (m *mockLstepCsvImportService) ImportFriendAttributesCSV(ctx context.Contex
 	return nil, nil
 }
 
-
 func (m *mockLstepCsvImportService) ListByClinic(ctx context.Context, clinicID uint64, limit int) ([]*model.LstepCsvImport, error) {
 	if m.listByClinicFn != nil {
 		return m.listByClinicFn(ctx, clinicID, limit)

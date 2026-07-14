@@ -260,7 +260,6 @@ func buildAccountingUpdate(input *UpdateAccountingInput) map[string]any {
 	return fields
 }
 
-
 // validateAccountingRelatedFKs は会計の関連 FK（medical_record / hospitalization / owner / pet）の
 // clinic 所有と相互整合を検証する（AUD-002）。nil 関連は既存契約どおり許可する。
 // Owner/Pet は validateReservationOwnerPetLinks（AUD-001）を再利用する。

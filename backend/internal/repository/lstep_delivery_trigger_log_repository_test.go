@@ -322,7 +322,6 @@ func TestLstepDeliveryTriggerLogRepository_FindByDateRangeWithFilters(t *testing
 	})
 }
 
-
 func TestLstepDeliveryTriggerLogRepository_CountByTypeAndStatus(t *testing.T) {
 	db := setupLstepDeliveryTriggerLogTestDB(t)
 	repo := NewLstepDeliveryTriggerLogRepository(db)

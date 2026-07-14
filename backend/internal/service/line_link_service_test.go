@@ -58,7 +58,7 @@ func (m *mockLineLinkOwnerRepo) FindByLineUserID(_ context.Context, _ uint64, _ 
 func (m *mockLineLinkOwnerRepo) FindAllWithLineUserID(_ context.Context, _ uint64) ([]model.Owner, error) {
 	return nil, nil
 }
-func (m *mockLineLinkOwnerRepo) FindAllWithLineUserIDCursor(_ context.Context, _ uint64, _ uint64, _ int) ([]model.Owner, error) {
+func (m *mockLineLinkOwnerRepo) FindAllWithLineUserIDCursor(_ context.Context, _, _ uint64, _ int) ([]model.Owner, error) {
 	return nil, nil
 }
 func (m *mockLineLinkOwnerRepo) CreateWithPets(_ context.Context, _ *model.Owner, _ []model.Pet) error {

@@ -260,7 +260,7 @@ func (r *createMedicalRecordRequest) toSubRecordsInput() service.CreateSubRecord
 		Assessment:           r.Assessment,
 		Diagnosis1CategoryID: r.Diagnosis1CategoryID,
 		Diagnosis1NameID:     r.Diagnosis1NameID,
-		Diagnosis2TypeID: r.Diagnosis2TypeID,
+		Diagnosis2TypeID:     r.Diagnosis2TypeID,
 		Diagnosis2NameID:     r.Diagnosis2NameID,
 	}
 }

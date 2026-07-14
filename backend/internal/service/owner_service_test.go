@@ -99,7 +99,7 @@ func (m *mockOwnerRepository) FindAllWithLineUserID(ctx context.Context, clinicI
 	return nil, nil
 }
 
-func (m *mockOwnerRepository) FindAllWithLineUserIDCursor(ctx context.Context, clinicID uint64, afterID uint64, limit int) ([]model.Owner, error) {
+func (m *mockOwnerRepository) FindAllWithLineUserIDCursor(ctx context.Context, clinicID, afterID uint64, limit int) ([]model.Owner, error) {
 	if m.findAllWithLineUserIDCursorFn != nil {
 		return m.findAllWithLineUserIDCursorFn(ctx, clinicID, afterID, limit)
 	}

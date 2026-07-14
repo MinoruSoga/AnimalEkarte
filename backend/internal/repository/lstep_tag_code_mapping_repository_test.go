@@ -113,7 +113,6 @@ func TestLstepTagCodeMappingRepository_FindByClinicIDAndTagName(t *testing.T) {
 	})
 }
 
-
 func TestLstepTagCodeMappingRepository_SoftDelete(t *testing.T) {
 	db := setupLstepTagCodeMappingTestDB(t)
 	repo := NewLstepTagCodeMappingRepository(db)

@@ -44,8 +44,8 @@ func seedDormantOwners(t *testing.T, db *gorm.DB, clinicID uint64, count int, ol
 	require.NoError(t, db.WithContext(ctx).CreateInBatches(&records, 200).Error)
 
 	ids := make([]uint64, count)
-	for i, o := range owners {
-		ids[i] = o.ID
+	for i := range owners {
+		ids[i] = owners[i].ID
 	}
 	return ids
 }

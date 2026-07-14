@@ -83,7 +83,7 @@ func (m *mockLstepImportOwnerRepo) FindAllWithLineUserID(ctx context.Context, cl
 	}
 	return nil, nil
 }
-func (m *mockLstepImportOwnerRepo) FindAllWithLineUserIDCursor(_ context.Context, _ uint64, _ uint64, _ int) ([]model.Owner, error) {
+func (m *mockLstepImportOwnerRepo) FindAllWithLineUserIDCursor(_ context.Context, _, _ uint64, _ int) ([]model.Owner, error) {
 	return nil, nil
 }
 func (m *mockLstepImportOwnerRepo) CreateWithPets(_ context.Context, _ *model.Owner, _ []model.Pet) error {
@@ -229,7 +229,6 @@ func TestImportFriendAttributesCSV_FindOwnersError(t *testing.T) {
 	require.NotNil(t, markedFailed)
 	assert.Equal(t, csvImportStatusFailed, markedFailed.Status)
 }
-
 
 // ---- ListByClinic ----
 

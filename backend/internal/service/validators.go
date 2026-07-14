@@ -17,7 +17,7 @@ const DefaultTaxRate = 0.10
 // normalizePagination はページネーションパラメータを正規化する（C-7）。
 // page<=0 は1に、perPage<=0 は defaultPerPage に、perPage>maxPerPage は
 // maxPerPage に丸める。戻り値は (page, perPage, offset)。
-func normalizePagination(page, perPage, defaultPerPage, maxPerPage int) (int, int, int) {
+func normalizePagination(page, perPage, defaultPerPage, maxPerPage int) (outPage, outPerPage, outOffset int) {
 	if page <= 0 {
 		page = 1
 	}

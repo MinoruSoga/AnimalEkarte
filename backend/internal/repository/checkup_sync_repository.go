@@ -78,13 +78,11 @@ func (r *checkupSyncRepository) FindCheckupSyncPreview(ctx context.Context, para
 	}
 	// C-1: SELECT 句の total_amount / max_single_visit_amount 副問い合わせの2箇所は
 	// WHERE 句より前に query テキスト中へ現れるため、他の args より先にバインドする。
-	var args []any
-	args = append(args, model.BillingStatusCompleted, model.BillingStatusCompleted)
-
 	where, whereArgs := buildCheckupSyncWhere(params)
-	args = append(args, whereArgs...)
-
 	having, havingArgs := buildCheckupSyncHaving(params)
+	args := make([]any, 0, 2+len(whereArgs)+len(havingArgs))
+	args = append(args, model.BillingStatusCompleted, model.BillingStatusCompleted)
+	args = append(args, whereArgs...)
 	args = append(args, havingArgs...)
 
 	havingClause := ""
@@ -151,9 +149,8 @@ ORDER BY MAX(mr.date) DESC NULLS LAST
 
 // buildCheckupSyncWhere は WHERE 句の条件文字列とバインド引数を構築する
 // （BE-refactor.md E-13: FindCheckupSyncPreview の位置引数結合を隔離する純粋抽出）。
-func buildCheckupSyncWhere(params *FindCheckupSyncPreviewParams) (string, []any) {
-	where := "o.clinic_id = ? AND o.deleted_at IS NULL"
-	var args []any
+func buildCheckupSyncWhere(params *FindCheckupSyncPreviewParams) (where string, args []any) {
+	where = "o.clinic_id = ? AND o.deleted_at IS NULL"
 	args = append(args, params.ClinicID)
 
 	if params.Species != "" {
@@ -174,9 +171,7 @@ func buildCheckupSyncWhere(params *FindCheckupSyncPreviewParams) (string, []any)
 }
 
 // buildCheckupSyncHaving は HAVING 句の条件断片とバインド引数を構築する（BE-refactor.md E-13）。
-func buildCheckupSyncHaving(params *FindCheckupSyncPreviewParams) ([]string, []any) {
-	var having []string
-	var args []any
+func buildCheckupSyncHaving(params *FindCheckupSyncPreviewParams) (having []string, args []any) {
 	if params.LastVisitBefore != nil {
 		having = append(having, "MAX(mr.date) <= ?")
 		args = append(args, params.LastVisitBefore.Format(time.DateOnly))

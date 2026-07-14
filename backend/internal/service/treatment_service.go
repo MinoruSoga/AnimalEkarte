@@ -301,16 +301,16 @@ func (s *treatmentService) Create(ctx context.Context, clinicID, medicalRecordID
 
 // effectiveDoseInputs は existing と input から dose 再評価に使う実効値（item_type/medicine_id/
 // quantity）を算出する純関数（BE-refactor.md E-3）。
-func effectiveDoseInputs(existing *model.Treatment, input *UpdateTreatmentInput) (model.TreatmentItemType, *uint64, float64) {
-	effItemType := existing.ItemType
+func effectiveDoseInputs(existing *model.Treatment, input *UpdateTreatmentInput) (effItemType model.TreatmentItemType, effMedicineID *uint64, effQty float64) {
+	effItemType = existing.ItemType
 	if input.ItemType != nil {
 		effItemType = *input.ItemType
 	}
-	effMedicineID := existing.MedicineID
+	effMedicineID = existing.MedicineID
 	if input.MedicineID != nil {
 		effMedicineID = input.MedicineID
 	}
-	effQty := existing.Quantity
+	effQty = existing.Quantity
 	if input.Quantity != nil {
 		effQty = *input.Quantity
 	}

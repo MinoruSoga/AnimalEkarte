@@ -97,10 +97,7 @@ func (s *lstepTagSyncService) SyncHealthPreventionTagsForClinic(ctx context.Cont
 	// 直前のページが pageSize ちょうどの場合のみ次ページを取得する（最後の空ページ取得を 1 回に抑える）。
 	page := firstPage
 	afterID := uint64(0)
-	for {
-		if len(page) == 0 {
-			break
-		}
+	for len(page) > 0 {
 		syncOwners(page)
 		afterID = page[len(page)-1].ID
 		if len(page) < lstepBatchPageSize {

@@ -116,7 +116,7 @@ func (m *mockAnalyticsOwnerRepo) FindByLineUserID(_ context.Context, _ uint64, _
 func (m *mockAnalyticsOwnerRepo) FindAllWithLineUserID(_ context.Context, _ uint64) ([]model.Owner, error) {
 	return nil, nil
 }
-func (m *mockAnalyticsOwnerRepo) FindAllWithLineUserIDCursor(_ context.Context, _ uint64, _ uint64, _ int) ([]model.Owner, error) {
+func (m *mockAnalyticsOwnerRepo) FindAllWithLineUserIDCursor(_ context.Context, _, _ uint64, _ int) ([]model.Owner, error) {
 	return nil, nil
 }
 func (m *mockAnalyticsOwnerRepo) CreateWithPets(_ context.Context, _ *model.Owner, _ []model.Pet) error {

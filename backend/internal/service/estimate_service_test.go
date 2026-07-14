@@ -20,7 +20,6 @@ func estimateTestMembershipCounter() staffClinicMembershipCounter {
 	return &mockStaffClinicMembershipCounter{}
 }
 
-
 type mockEstimateRepository struct {
 	findAllFn              func(ctx context.Context, clinicID uint64, ownerID, medicalRecordID *uint64, status *string, page, limit int) ([]model.Estimate, int64, error)
 	findByIDFn             func(ctx context.Context, clinicID, id uint64) (*model.Estimate, error)

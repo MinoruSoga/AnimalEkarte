@@ -35,7 +35,6 @@ func (m *mockLstepTagCodeMappingRepositoryForCodeSettings) Create(ctx context.Co
 	return nil
 }
 
-
 func (m *mockLstepTagCodeMappingRepositoryForCodeSettings) SoftDelete(ctx context.Context, clinicID, id uint64) error {
 	return nil
 }

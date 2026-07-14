@@ -156,7 +156,6 @@ func TestLabImportJobRepository_FindByID(t *testing.T) {
 	})
 }
 
-
 func TestLabImportEventRepository_Create(t *testing.T) {
 	db := setupLabImportTestDB(t)
 	repo := NewLabImportEventRepository(db)

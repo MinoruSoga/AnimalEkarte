@@ -126,16 +126,14 @@ var n1Allowlist = map[string]bool{
 // covered by n1Allowlist, plus which allowlist keys were actually hit (for occurrence
 // pinning — see TestN1Lint_AllowlistEntriesAreLive). Pure function over (filename, src) so the
 // real embedded source and the inline self-verification fixtures exercise identical logic.
-func analyzeFileN1(filename string, src []byte) ([]n1Finding, map[string]int, int, error) {
+func analyzeFileN1(filename string, src []byte) (findings []n1Finding, allowHits map[string]int, rangeLoopsSeen int, err error) {
 	fset := token.NewFileSet()
 	f, err := parser.ParseFile(fset, filename, src, 0)
 	if err != nil {
 		return nil, nil, 0, err
 	}
 
-	var findings []n1Finding
-	allowHits := make(map[string]int)
-	rangeLoopsSeen := 0
+	allowHits = make(map[string]int)
 	base := baseNameN1(filename)
 
 	for _, decl := range f.Decls {
@@ -219,7 +217,7 @@ func baseNameN1(p string) string {
 // directory (reusing master_fk_write_inventory_lint_test.go's serviceSourceFS) and aggregates
 // findings + allowlist hit counts + the total RangeStmt count (a floor guard against a
 // vacuously-green embed/AST break).
-func walkServiceN1(t *testing.T) ([]n1Finding, map[string]int, int) {
+func walkServiceN1(t *testing.T) (findings []n1Finding, allowHits map[string]int, totalRangeLoops int) {
 	t.Helper()
 
 	names, err := fs.Glob(serviceSourceFS, "*.go")
@@ -229,7 +227,6 @@ func walkServiceN1(t *testing.T) ([]n1Finding, map[string]int, int) {
 
 	var all []n1Finding
 	agg := make(map[string]int)
-	totalRangeLoops := 0
 	for _, name := range names {
 		if strings.HasSuffix(name, "_test.go") {
 			continue
@@ -238,12 +235,12 @@ func walkServiceN1(t *testing.T) ([]n1Finding, map[string]int, int) {
 		if err != nil {
 			t.Fatalf("read embedded %s: %v", name, err)
 		}
-		findings, allowHits, rangeLoops, err := analyzeFileN1(name, src)
+		fileFindings, fileAllowHits, rangeLoops, err := analyzeFileN1(name, src)
 		if err != nil {
 			t.Fatalf("parse %s: %v", name, err)
 		}
-		all = append(all, findings...)
-		for k, v := range allowHits {
+		all = append(all, fileFindings...)
+		for k, v := range fileAllowHits {
 			agg[k] += v
 		}
 		totalRangeLoops += rangeLoops

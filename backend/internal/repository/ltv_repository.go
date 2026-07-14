@@ -206,9 +206,8 @@ ORDER BY %s
 
 // buildLTVAmountExpr は AmountBasis に応じた金額集計式と、その式が要するプレースホルダ引数を
 // 構築する（BE-refactor.md E-12: FindOwnerLTV の位置引数結合を事故源から隔離する純粋抽出）。
-func buildLTVAmountExpr(basis string, from, to *time.Time) (string, []any) {
+func buildLTVAmountExpr(basis string, from, to *time.Time) (amountExpr string, amountExprArgs []any) {
 	hasPeriodFilter := from != nil && to != nil
-	var amountExpr string
 	switch basis {
 	case "paid_amount":
 		if hasPeriodFilter {
@@ -229,7 +228,6 @@ func buildLTVAmountExpr(basis string, from, to *time.Time) (string, []any) {
 			amountExpr = "COALESCE(SUM(b.total_amount), 0)"
 		}
 	}
-	var amountExprArgs []any
 	if hasPeriodFilter {
 		amountExprArgs = append(amountExprArgs, from, to)
 		if basis == "net_paid_amount" {
@@ -240,9 +238,7 @@ func buildLTVAmountExpr(basis string, from, to *time.Time) (string, []any) {
 }
 
 // buildLTVHaving は HAVING 句の条件断片とバインド引数を構築する（BE-refactor.md E-12）。
-func buildLTVHaving(params *FindOwnerLTVParams, amountExpr string, amountExprArgs []any, from, to *time.Time) ([]string, []any) {
-	var having []string
-	var havingArgs []any
+func buildLTVHaving(params *FindOwnerLTVParams, amountExpr string, amountExprArgs []any, from, to *time.Time) (having []string, havingArgs []any) {
 
 	// 全期間の会計額フィルタ（AGG-BE-001: min_amount/max_amount は期間内）
 	if params.MinTotalAmount != nil {

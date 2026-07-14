@@ -30,7 +30,7 @@ type OwnerRepository interface {
 	// FindAllWithLineUserIDCursor は line_user_id が設定されている飼主を id カーソルページネーションで返す
 	// （PERF-FOLLOWUP-02: 大規模クリニックでの無制限全件取得を回避するバッチ処理用）。
 	// afterID より大きい id を昇順で最大 limit 件返す。afterID=0 で先頭ページ。
-	FindAllWithLineUserIDCursor(ctx context.Context, clinicID uint64, afterID uint64, limit int) ([]model.Owner, error)
+	FindAllWithLineUserIDCursor(ctx context.Context, clinicID, afterID uint64, limit int) ([]model.Owner, error)
 	CreateWithPets(ctx context.Context, owner *model.Owner, pets []model.Pet) error
 	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error
 	// UpdateLineUserID は飼主の LINE User ID を更新する。nil を渡すと連携解除。
@@ -253,7 +253,7 @@ func (r *ownerRepository) FindAllWithLineUserID(ctx context.Context, clinicID ui
 
 // FindAllWithLineUserIDCursor は line_user_id が設定されている飼主を id カーソルページネーションで返す
 // （PERF-FOLLOWUP-02）。id 昇順で afterID より大きいものを最大 limit 件返す。
-func (r *ownerRepository) FindAllWithLineUserIDCursor(ctx context.Context, clinicID uint64, afterID uint64, limit int) ([]model.Owner, error) {
+func (r *ownerRepository) FindAllWithLineUserIDCursor(ctx context.Context, clinicID, afterID uint64, limit int) ([]model.Owner, error) {
 	var owners []model.Owner
 	err := r.db.WithContext(ctx).
 		Scopes(clinicScope(clinicID)).

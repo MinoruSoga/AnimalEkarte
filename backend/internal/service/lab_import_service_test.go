@@ -152,10 +152,10 @@ func TestLabImportJobService_PreviewBatch_MissingExamCode(t *testing.T) {
 // createErr/updateErr/findByIDErr はゼロ値(nil)の場合は通常動作となり、
 // 既存テストの挙動には影響しない。エラー注入が必要な新規テストのみが設定する。
 type stubJobRepo struct {
-	jobs            map[uuid.UUID]*model.LabImportJob
-	createErr       error
-	updateErr       error
-	findByIDErr     error
+	jobs        map[uuid.UUID]*model.LabImportJob
+	createErr   error
+	updateErr   error
+	findByIDErr error
 }
 
 func newStubJobRepo() *stubJobRepo {
@@ -197,7 +197,6 @@ func (r *stubJobRepo) FindByID(_ context.Context, clinicID uint64, id uuid.UUID)
 	cp := *j
 	return &cp, nil
 }
-
 
 // stubEventRepo はテスト用のインメモリ LabImportEventRepository。
 // createErr/findByJobErr はゼロ値(nil)の場合は通常動作となり、既存テストの挙動には影響しない。
