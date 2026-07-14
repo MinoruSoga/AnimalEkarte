@@ -139,7 +139,7 @@ func (r *reservationRepository) FindAll(ctx context.Context, clinicIDs []uint64,
 		return nil, 0, apperrors.FromGORM(err, "reservation", "")
 	}
 	if err := reservationListPreloads(q, clinicIDs, false).
-		Offset((page - 1) * limit).Limit(limit).Order("start_time ASC").Find(&reservations).Error; err != nil {
+		Scopes(paginate(page, limit)).Order("start_time ASC").Find(&reservations).Error; err != nil {
 		return nil, 0, apperrors.FromGORM(err, "reservation", "")
 	}
 	return reservations, total, nil
@@ -462,7 +462,7 @@ func (r *reservationRepository) FindAllByCategory(ctx context.Context, clinicID 
 		Preload("Doctor", staffAssignedToClinicsCond, []uint64{clinicID}).
 		Preload("TrimmingDetail.Course", "clinic_id = ? AND deleted_at IS NULL", clinicID).
 		Preload("TrimmingDetail.Options", "clinic_id = ? AND deleted_at IS NULL", clinicID).
-		Offset((page - 1) * limit).Limit(limit).
+		Scopes(paginate(page, limit)).
 		Order("appointments.start_time DESC").
 		Find(&reservations).Error; err != nil {
 		return nil, 0, apperrors.FromGORM(err, "appointment", "")

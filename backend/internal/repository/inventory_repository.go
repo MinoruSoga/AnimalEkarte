@@ -48,7 +48,7 @@ func (r *inventoryRepository) FindAll(ctx context.Context, clinicID uint64, cate
 	if err := q.Count(&total).Error; err != nil {
 		return nil, 0, apperrors.FromGORM(err, "inventory_item", "")
 	}
-	if err := q.Offset((page - 1) * limit).Limit(limit).Order("name ASC").Find(&items).Error; err != nil {
+	if err := q.Scopes(paginate(page, limit)).Order("name ASC").Find(&items).Error; err != nil {
 		return nil, 0, apperrors.FromGORM(err, "inventory_item", "")
 	}
 	return items, total, nil

@@ -71,7 +71,7 @@ func (r *petRepository) FindAll(ctx context.Context, clinicID uint64, ownerID *u
 		return nil, 0, apperrors.FromGORM(err, "pet", "")
 	}
 	if err := buildBase().Preload("Owner", "deleted_at IS NULL").Preload("AnimalSpecies").Preload("Insurance", "clinic_id = ? AND deleted_at IS NULL", clinicID).
-		Offset((page - 1) * limit).Limit(limit).Order("pets.created_at DESC").Find(&pets).Error; err != nil {
+		Scopes(paginate(page, limit)).Order("pets.created_at DESC").Find(&pets).Error; err != nil {
 		return nil, 0, apperrors.FromGORM(err, "pet", "")
 	}
 	return pets, total, nil

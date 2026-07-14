@@ -67,7 +67,7 @@ func (r *accountingRepository) FindUnpaidByBilling(ctx context.Context, clinicID
 		return nil, 0, apperrors.FromGORM(err, "billing", "")
 	}
 	if err := q.Preload("Owner", "deleted_at IS NULL").Preload("Pet", "deleted_at IS NULL").Preload("Items", "deleted_at IS NULL").
-		Offset((page - 1) * limit).Limit(limit).
+		Scopes(paginate(page, limit)).
 		Order("scheduled_date ASC, created_at ASC").
 		Find(&billings).Error; err != nil {
 		return nil, 0, apperrors.FromGORM(err, "billing", "")
@@ -102,8 +102,7 @@ func (r *accountingRepository) FindUnpaidByOwner(ctx context.Context, clinicID u
 		Select("billings.owner_id AS owner_id, owners.name AS owner_name, COUNT(billings.id) AS count, COALESCE(SUM(billings.total_amount), 0) AS total_amount, MIN(billings.scheduled_date)::text AS oldest_scheduled, MAX(billings.scheduled_date)::text AS latest_scheduled").
 		Group("billings.owner_id, owners.name").
 		Order("oldest_scheduled ASC").
-		Offset((page - 1) * limit).
-		Limit(limit).
+		Scopes(paginate(page, limit)).
 		Scan(&aggregates).Error; err != nil {
 		return nil, 0, summary, apperrors.FromGORM(err, "billing", "")
 	}
@@ -182,8 +181,7 @@ func (r *accountingRepository) FindMonthlyUnpaidCarryover(ctx context.Context, c
 		`, firstDay, firstDay, lastDay).
 		Group("billings.owner_id, owners.name, billings.pet_id, COALESCE(pets.name, '')").
 		Order("owners.name ASC, COALESCE(pets.name, '') ASC").
-		Offset((page - 1) * limit).
-		Limit(limit).
+		Scopes(paginate(page, limit)).
 		Scan(&items).Error; err != nil {
 		return nil, 0, summary, apperrors.FromGORM(err, "billing", "")
 	}

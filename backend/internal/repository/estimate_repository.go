@@ -51,7 +51,7 @@ func (r *estimateRepository) FindAll(ctx context.Context, clinicID uint64, owner
 		return nil, 0, apperrors.FromGORM(err, "estimate", "")
 	}
 	if err := q.Preload("Owner", "deleted_at IS NULL").Preload("Items", "deleted_at IS NULL").
-		Offset((page - 1) * limit).Limit(limit).Order("created_at DESC").Find(&estimates).Error; err != nil {
+		Scopes(paginate(page, limit)).Order("created_at DESC").Find(&estimates).Error; err != nil {
 		return nil, 0, apperrors.FromGORM(err, "estimate", "")
 	}
 	return estimates, total, nil

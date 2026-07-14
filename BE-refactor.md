@@ -4,7 +4,7 @@
 - **基準コミット**: `9aeee96d`(main)。行番号はずれたら**シンボル名で再特定**する。
 - **性格**: 本書は実行計画の正本。判断できない事態は**中断して報告**。本書とコード以外の文脈を前提にしない。
 - **別台帳**(本書と重複させない): PERF・SEED残 = `BE_todo.md` / 任意検証 = `BE-pending.md` / 既知バグ skip 台帳 = `BE_todo.md` 末尾（#236 で修正予定、**本書の対象外**）
-- **進捗**: 対応済 5 / 22。残存 BE7-0, BE7-6〜BE7-21（部分対応: BE7-15）。棚卸し基準 HEAD `e424de5c`（2026-07-14）。各項目完了時に見出しの `[ ]` を `[x]` に更新してよい（同一コミットに本書を含めてよい）。
+- **進捗**: 対応済 6 / 22。残存 BE7-7〜BE7-21（部分対応: BE7-15）。棚卸し基準 HEAD `e424de5c`（2026-07-14）。各項目完了時に見出しの `[ ]` を `[x]` に更新してよい（同一コミットに本書を含めてよい）。
 
 ---
 
@@ -63,7 +63,7 @@ P16（repository メソッド命名）/ P17（service Input 命名）/ レシー
 
 ---
 
-## 3. BE7-0 [ ] 安全網の構築（最初に実行）
+## 3. BE7-0 [x] 安全網の構築（最初に実行）
 
 1. `git status --porcelain` の dirty が `FE-refactor.md` ＋本書のみであることを確認。想定外があれば**中断して報告**。
 2. `git rev-parse --short HEAD` を記録（戻し先）。
@@ -182,7 +182,7 @@ func (s *RateLimitStore) safeEvict() {
 
 ### Phase 2 — refactor: 重複の統合
 
-#### BE7-6 [ ] refactor: repository ページネーション定型文（約18ファイル）を共有 Scope に集約
+#### BE7-6 [x] refactor: repository ページネーション定型文（約18ファイル）を共有 Scope に集約
 
 - **対象**: `internal/repository/base.go`（ヘルパ新設）＋ `Offset((page-1)*limit).Limit(limit)` イディオムを手書きする repository 群（`owner` / `pet` / `vaccination` / `medical_record` / `treatment` / `examination` / `checkup` / `estimate` / `diagnosis` / `hospitalization` / `inventory` / `medicine` / `procedure` / `reservation` / `staff` / `vaccine` / `accounting` / `accounting_repository_unpaid` の各 `*_repository.go` — 着手時に `rg -n "Offset\(\(" internal/repository/` で全数再列挙すること）
 - **問題**: 共有ヘルパが repository 層に存在せず、同一定型文が約18ファイルに手書き重複。
@@ -422,7 +422,7 @@ func paginate(page, limit int) func(*gorm.DB) *gorm.DB {
 
 ```
 あなたは AnimalEkarte のバックエンド実行者です。BE-refactor.md（第7期）を実行してください。
-（棚卸し 2026-07-14: 対応済 5。残存 BE7-0, BE7-6〜BE7-21。部分対応 BE7-15 は完了条件を満たしてから [x]。）
+（棚卸し 2026-07-14: 対応済 6。残存 BE7-7〜BE7-21。部分対応 BE7-15 は完了条件を満たしてから [x]。）
 
 1. backend/CLAUDE.md、必要に応じて各層 CLAUDE.md（handler/service/repository）、および BE-refactor.md 全文を読む。本書とコード以外の文脈は存在しない前提で作業する。
 2. BE7-0（安全網）から着手し、以後 BE7-1 → BE7-21 を番号順に、1項目ずつ実施する。

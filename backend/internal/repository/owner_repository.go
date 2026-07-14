@@ -90,7 +90,7 @@ func (r *ownerRepository) FindAll(ctx context.Context, clinicIDs []uint64, page,
 	}
 	if err := buildBase().
 		Preload("Pets", "deleted_at IS NULL").Preload("Pets.AnimalSpecies").Preload("Pets.Insurance", "clinic_id IN ? AND deleted_at IS NULL", clinicIDs).
-		Offset((page - 1) * limit).Limit(limit).Order("created_at DESC").
+		Scopes(paginate(page, limit)).Order("created_at DESC").
 		Find(&owners).Error; err != nil {
 		return nil, 0, apperrors.FromGORM(err, "owner", "")
 	}

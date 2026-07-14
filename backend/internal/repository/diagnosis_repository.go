@@ -40,7 +40,7 @@ func (r *diagnosisTypeRepository) FindAll(ctx context.Context, clinicID uint64, 
 	categories := make([]model.DiagnosisType, 0)
 	if err := buildBase().
 		Preload("Names", "clinic_id = ? AND deleted_at IS NULL", clinicID).
-		Offset((page - 1) * limit).Limit(limit).
+		Scopes(paginate(page, limit)).
 		Order("sort_order ASC, name ASC").
 		Find(&categories).Error; err != nil {
 		return nil, 0, apperrors.FromGORM(err, "diagnosis_type", "")
@@ -136,7 +136,7 @@ func (r *diagnosisNameRepository) FindAll(ctx context.Context, clinicID uint64, 
 	}
 	names := make([]model.DiagnosisName, 0)
 	if err := buildBase().
-		Offset((page - 1) * limit).Limit(limit).
+		Scopes(paginate(page, limit)).
 		Order("sort_order ASC, name ASC").
 		Find(&names).Error; err != nil {
 		return nil, 0, apperrors.FromGORM(err, "diagnosis_name", "")
@@ -156,7 +156,7 @@ func (r *diagnosisNameRepository) FindAllByCategoryID(ctx context.Context, clini
 	}
 	names := make([]model.DiagnosisName, 0)
 	if err := buildBase().
-		Offset((page - 1) * limit).Limit(limit).
+		Scopes(paginate(page, limit)).
 		Order("sort_order ASC, name ASC").
 		Find(&names).Error; err != nil {
 		return nil, 0, apperrors.FromGORM(err, "diagnosis_name", "")

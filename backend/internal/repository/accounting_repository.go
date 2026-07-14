@@ -94,7 +94,7 @@ func (r *accountingRepository) findBillingsWithFilters(ctx context.Context, q *g
 		return nil, 0, apperrors.FromGORM(err, "billing", "")
 	}
 	if err := q.Preload("Owner", "deleted_at IS NULL").Preload("Pet", "deleted_at IS NULL").Preload("Payments", "deleted_at IS NULL").Preload("Payments.PaidByStaff", "deleted_at IS NULL").Preload("Items", "deleted_at IS NULL").Preload("PaymentSplits").
-		Offset((page - 1) * limit).Limit(limit).Order("scheduled_date DESC, created_at DESC").Find(&billings).Error; err != nil {
+		Scopes(paginate(page, limit)).Order("scheduled_date DESC, created_at DESC").Find(&billings).Error; err != nil {
 		return nil, 0, apperrors.FromGORM(err, "billing", "")
 	}
 	if err := r.attachRefundTotals(ctx, billings); err != nil {

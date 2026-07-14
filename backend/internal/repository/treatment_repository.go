@@ -121,7 +121,7 @@ func (r *treatmentRepository) FindHistoryByPetID(ctx context.Context, clinicID, 
 		Preload("Procedure", "clinic_id = ? AND deleted_at IS NULL", clinicID).
 		Preload("Medicine", "clinic_id = ? AND deleted_at IS NULL", clinicID).
 		Order("medical_records.date DESC, treatments.sort_order ASC, treatments.id DESC").
-		Offset((page - 1) * limit).Limit(limit).
+		Scopes(paginate(page, limit)).
 		Find(&treatments).Error; err != nil {
 		return nil, 0, apperrors.FromGORM(err, "treatment", fmt.Sprintf("pet=%d", petID))
 	}

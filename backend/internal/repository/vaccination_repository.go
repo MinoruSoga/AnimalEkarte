@@ -62,7 +62,7 @@ func (r *vaccinationRepository) FindAll(ctx context.Context, clinicID uint64, pe
 		Preload("Pet", "deleted_at IS NULL").
 		Preload("Pet.Owner", "deleted_at IS NULL").
 		Preload("Doctor", "deleted_at IS NULL").
-		Offset((page - 1) * limit).Limit(limit).Order("vaccinations.date DESC, vaccinations.created_at DESC").
+		Scopes(paginate(page, limit)).Order("vaccinations.date DESC, vaccinations.created_at DESC").
 		Find(&vaccinations).Error; err != nil {
 		return nil, 0, apperrors.FromGORM(err, "vaccination", "")
 	}

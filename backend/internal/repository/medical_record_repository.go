@@ -174,7 +174,7 @@ func (r *medicalRecordRepository) FindAll(ctx context.Context, clinicIDs []uint6
 		return nil, 0, apperrors.FromGORM(err, "medical_record", "")
 	}
 	if err := buildBase().
-		Offset((page-1)*limit).Limit(limit).Order(medicalRecordOrderClause(filters.Sort, filters.Order)).
+		Scopes(paginate(page, limit)).Order(medicalRecordOrderClause(filters.Sort, filters.Order)).
 		Preload("Owner", "clinic_id IN ? AND deleted_at IS NULL", clinicIDs).
 		Preload("Pet", "clinic_id IN ? AND deleted_at IS NULL", clinicIDs).
 		Preload("Pet.AnimalSpecies").

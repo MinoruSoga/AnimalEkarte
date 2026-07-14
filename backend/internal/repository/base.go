@@ -28,6 +28,15 @@ func clinicScopeIn(clinicIDs []uint64) func(*gorm.DB) *gorm.DB {
 	}
 }
 
+// paginate は 1-origin の page と limit を Offset/Limit に変換する共有 Scope。
+// page/limit の値正規化（下限・上限）は service 層 normalizePagination の責務であり、ここでは行わない。
+func paginate(page, limit int) func(*gorm.DB) *gorm.DB {
+	return func(db *gorm.DB) *gorm.DB {
+		offset := (page - 1) * limit
+		return db.Offset(offset).Limit(limit)
+	}
+}
+
 // medicalRecordTenantScope は clinic_id を持たない medical_record 子テーブル
 // (inquiries/treatments/clinical_plans/medical_record_images 等) のテナント隔離 JOIN。
 // childTable は呼び出し側のコンパイル時リテラルのみ許可する（実行時変数の SQL 組み立て禁止）。

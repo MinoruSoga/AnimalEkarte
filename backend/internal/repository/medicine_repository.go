@@ -39,7 +39,7 @@ func (r *medicineRepository) FindAll(ctx context.Context, clinicID uint64, page,
 		return nil, 0, apperrors.FromGORM(err, "medicine", "")
 	}
 	if err := buildBase().
-		Offset((page - 1) * limit).Limit(limit).
+		Scopes(paginate(page, limit)).
 		Order("sort_order ASC, name ASC").
 		Find(&medicines).Error; err != nil {
 		return nil, 0, apperrors.FromGORM(err, "medicine", "")

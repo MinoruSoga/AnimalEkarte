@@ -64,7 +64,7 @@ func (r *examinationRepository) FindAll(ctx context.Context, clinicID uint64, pe
 
 	exams := make([]model.Examination, 0)
 	if err := buildBase().Preload("ExaminationType", "clinic_id = ? AND deleted_at IS NULL", clinicID).Preload("Pet", "deleted_at IS NULL").Preload("Pet.Owner", "deleted_at IS NULL").Preload("Doctor", "deleted_at IS NULL").Preload("Items").
-		Offset((page - 1) * limit).Limit(limit).Order("exams.date DESC, exams.created_at DESC").
+		Scopes(paginate(page, limit)).Order("exams.date DESC, exams.created_at DESC").
 		Find(&exams).Error; err != nil {
 		return nil, 0, apperrors.FromGORM(err, "exam", "")
 	}

@@ -70,7 +70,7 @@ func (r *checkupRepository) FindByClinicID(ctx context.Context, clinicID uint64,
 		Preload("MedicalRecord.Pet", "deleted_at IS NULL").
 		Preload("MedicalRecord.Pet.Owner", "deleted_at IS NULL").
 		Order("date DESC").
-		Offset((page - 1) * limit).Limit(limit).
+		Scopes(paginate(page, limit)).
 		Find(&checkups).Error
 	if err != nil {
 		return nil, 0, apperrors.FromGORM(err, "checkup", "")
