@@ -43,6 +43,7 @@ type UpdateEstimateInput struct {
 	ClearValidUntil bool
 	Comment         *string
 	Notes           *string
+	ActorID         *uint64 // 監査ログ用（永続化しない）。handler extractStaffID から渡す。
 }
 
 func buildEstimateUpdate(input *UpdateEstimateInput) map[string]any {
@@ -96,7 +97,7 @@ type EstimateService interface {
 	GetByID(ctx context.Context, clinicID, id uint64) (*model.Estimate, error)
 	Create(ctx context.Context, clinicID uint64, input *CreateEstimateInput) (*model.Estimate, error)
 	Update(ctx context.Context, clinicID, id uint64, input *UpdateEstimateInput) (*model.Estimate, error)
-	Delete(ctx context.Context, clinicID, id uint64) error
+	Delete(ctx context.Context, clinicID, id uint64, actorID *uint64) error
 }
 
 type estimateService struct {
@@ -104,21 +105,52 @@ type estimateService struct {
 	medicalRecordRepo repository.MedicalRecordRepository
 	reservationRepo   repository.ReservationRepository
 	staffClinicRepo   staffClinicMembershipCounter
+	auditService      AuditService
 }
 
 // medicalRecordRepo / reservationRepo は AUD-005 の関連 FK clinic 所有・相互整合検証用。
 // staffClinicRepo は AUD-005 の created_by clinic 所属検証用。
+// auditService は Create/Update/Delete の best-effort 監査（medical_record 同型。fail-closed にしない）。
 func NewEstimateService(
 	repo repository.EstimateRepository,
 	medicalRecordRepo repository.MedicalRecordRepository,
 	reservationRepo repository.ReservationRepository,
 	staffClinicRepo staffClinicMembershipCounter,
+	auditService AuditService,
 ) EstimateService {
 	return &estimateService{
 		repo:              repo,
 		medicalRecordRepo: medicalRecordRepo,
 		reservationRepo:   reservationRepo,
 		staffClinicRepo:   staffClinicRepo,
+		auditService:      auditService,
+	}
+}
+
+// logEstimateChangeBestEffort は見積の監査ログを LogEntry で記録する（best-effort）。
+// AuditService インターフェースは広げず resource="estimate" で medical_record と同型の動詞を使う。
+func (s *estimateService) logEstimateChangeBestEffort(
+	ctx context.Context,
+	clinicID uint64,
+	actorID *uint64,
+	action string,
+	estimateID uint64,
+	oldValue, newValue map[string]any,
+) {
+	if s.auditService == nil {
+		return
+	}
+	if err := s.auditService.LogEntry(ctx, &AuditLogInput{
+		ClinicID:   &clinicID,
+		ActorID:    actorID,
+		ActorType:  auditActorTypeFor(actorID),
+		Action:     action,
+		Resource:   "estimate",
+		ResourceID: &estimateID,
+		OldValue:   oldValue,
+		NewValue:   newValue,
+	}); err != nil {
+		slog.ErrorContext(ctx, "audit log failed for estimate "+action, "error", err, "estimate_id", estimateID)
 	}
 }
 
@@ -259,6 +291,9 @@ func (s *estimateService) Create(ctx context.Context, clinicID uint64, input *Cr
 		slog.ErrorContext(ctx, "failed to get estimate after create", "error", err)
 		return nil, apperrors.Wrap(err, "failed to get estimate after create")
 	}
+
+	// 監査ログ: create（best-effort）。actor は CreatedBy。
+	s.logEstimateChangeBestEffort(ctx, clinicID, input.CreatedBy, "create", created.ID, nil, extractEstimateImportantFields(created))
 	return created, nil
 }
 
@@ -290,6 +325,11 @@ func (s *estimateService) Update(ctx context.Context, clinicID, id uint64, input
 	if len(fields) == 0 {
 		return nil, apperrors.WrapInvalidInput("at least one field must be provided")
 	}
+	isBecomingApproved := input.Status != nil && *input.Status == model.EstimateStatusApproved &&
+		existing.Status != model.EstimateStatusApproved
+	isBecomingRejected := input.Status != nil && *input.Status == model.EstimateStatusRejected &&
+		existing.Status != model.EstimateStatusRejected
+
 	if err := s.repo.Update(ctx, clinicID, id, fields); err != nil {
 		slog.ErrorContext(ctx, "failed to update estimate", "error", err)
 		return nil, apperrors.Wrap(err, "failed to update estimate")
@@ -302,10 +342,22 @@ func (s *estimateService) Update(ctx context.Context, clinicID, id uint64, input
 		slog.ErrorContext(ctx, "failed to get estimate after update", "error", err)
 		return nil, apperrors.Wrap(err, "failed to get estimate after update")
 	}
+
+	// 監査ログ: update / approve / reject（best-effort）。ロック拒否パスでは到達しない。
+	oldDiff, newDiff := diffEstimateImportantFields(existing, updated)
+	if oldDiff != nil {
+		s.logEstimateChangeBestEffort(ctx, clinicID, input.ActorID, "update", id, oldDiff, newDiff)
+	}
+	if isBecomingApproved {
+		s.logEstimateChangeBestEffort(ctx, clinicID, input.ActorID, "approve", id, nil, extractEstimateImportantFields(updated))
+	}
+	if isBecomingRejected {
+		s.logEstimateChangeBestEffort(ctx, clinicID, input.ActorID, "reject", id, nil, extractEstimateImportantFields(updated))
+	}
 	return updated, nil
 }
 
-func (s *estimateService) Delete(ctx context.Context, clinicID, id uint64) error {
+func (s *estimateService) Delete(ctx context.Context, clinicID, id uint64, actorID *uint64) error {
 	existing, err := s.repo.FindByID(ctx, clinicID, id)
 	if err != nil {
 		return apperrors.Wrap(err, "failed to find estimate")
@@ -321,6 +373,7 @@ func (s *estimateService) Delete(ctx context.Context, clinicID, id uint64) error
 	if count > 0 {
 		return apperrors.WrapConflict("この見積書には明細が登録されているため削除できません")
 	}
+	oldValue := extractEstimateImportantFields(existing)
 	if err := s.repo.Delete(ctx, clinicID, id); err != nil {
 		slog.ErrorContext(ctx, "failed to delete estimate", "error", err, "clinic_id", clinicID, "estimate_id", id)
 		return apperrors.Wrap(err, "failed to delete estimate")
@@ -328,5 +381,8 @@ func (s *estimateService) Delete(ctx context.Context, clinicID, id uint64) error
 	slog.InfoContext(ctx, "estimate deleted",
 		slog.Uint64("estimate_id", id),
 		slog.Uint64("clinic_id", clinicID))
+
+	// 監査ログ: delete（best-effort）。actorID=nil は system actor。
+	s.logEstimateChangeBestEffort(ctx, clinicID, actorID, "delete", id, oldValue, nil)
 	return nil
 }

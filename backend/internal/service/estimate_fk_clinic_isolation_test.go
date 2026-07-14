@@ -48,7 +48,7 @@ func TestEstimateService_Create_RejectsNilCreatedBy(t *testing.T) {
 			return nil
 		},
 	}
-	svc := NewEstimateService(repo, nil, nil, &mockStaffClinicMembershipCounter{})
+	svc := NewEstimateService(repo, nil, nil, &mockStaffClinicMembershipCounter{}, nil)
 	in := estimateCreateBaseInput()
 	in.CreatedBy = nil
 	out, err := svc.Create(context.Background(), clinicID, in)
@@ -75,7 +75,7 @@ func TestEstimateService_Create_RejectsForeignClinicCreatedBy(t *testing.T) {
 			}
 			return 1, nil
 		},
-	})
+	}, nil)
 	in := estimateCreateBaseInput()
 	in.CreatedBy = ptrU64(foreignStaffID)
 	out, err := svc.Create(context.Background(), clinicID, in)
@@ -123,7 +123,7 @@ func TestEstimateService_Create_RejectsCrossClinicMedicalRecordAndOwner(t *testi
 				return nil
 			},
 		}
-		return NewEstimateService(repo, mrRepo, resRepo, &mockStaffClinicMembershipCounter{})
+		return NewEstimateService(repo, mrRepo, resRepo, &mockStaffClinicMembershipCounter{}, nil)
 	}
 
 	base := estimateCreateBaseInput
@@ -176,7 +176,7 @@ func TestEstimateService_Create_RejectsCrossClinicMedicalRecordAndOwner(t *testi
 				return nil
 			},
 		}
-		svc := NewEstimateService(repo, mrRepo, resRepo, &mockStaffClinicMembershipCounter{})
+		svc := NewEstimateService(repo, mrRepo, resRepo, &mockStaffClinicMembershipCounter{}, nil)
 		in := base()
 		in.MedicalRecordID = ptrU64(ownedMRID)
 		in.OwnerID = ptrU64(otherOwnerID)
@@ -222,7 +222,7 @@ func TestEstimateService_Create_PersistsCreatedByFromInput(t *testing.T) {
 			}
 			return 0, nil
 		},
-	})
+	}, nil)
 	out, err := svc.Create(context.Background(), clinicID, &CreateEstimateInput{
 		Title:       "見積",
 		Subtotal:    1000,

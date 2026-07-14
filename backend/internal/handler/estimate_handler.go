@@ -94,6 +94,10 @@ func (h *Handler) UpdateEstimate(c *gin.Context) {
 	if !ok {
 		return
 	}
+	staffID, ok := extractStaffID(c)
+	if !ok {
+		return
+	}
 
 	id, ok := parseIDParam(c, "id")
 	if !ok {
@@ -120,7 +124,7 @@ func (h *Handler) UpdateEstimate(c *gin.Context) {
 	}
 
 	ctx := c.Request.Context()
-	estimate, err := h.svc.Estimate.Update(ctx, clinicID, id, req.toServiceInput())
+	estimate, err := h.svc.Estimate.Update(ctx, clinicID, id, req.toServiceInput(staffID))
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -134,11 +138,16 @@ func (h *Handler) DeleteEstimate(c *gin.Context) {
 	if !ok {
 		return
 	}
+	staffID, ok := extractStaffID(c)
+	if !ok {
+		return
+	}
 	id, ok := parseIDParam(c, "id")
 	if !ok {
 		return
 	}
-	if err := h.svc.Estimate.Delete(c.Request.Context(), clinicID, id); err != nil {
+	actorID := staffID
+	if err := h.svc.Estimate.Delete(c.Request.Context(), clinicID, id, &actorID); err != nil {
 		RespondError(c, err)
 		return
 	}

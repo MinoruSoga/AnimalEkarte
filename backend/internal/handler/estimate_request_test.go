@@ -148,7 +148,7 @@ func TestUpdateEstimateRequest_ToServiceInput(t *testing.T) {
 		Comment:         &comment,
 	}
 
-	input := req.toServiceInput()
+	input := req.toServiceInput(7)
 
 	if input.Title == nil || *input.Title != title {
 		t.Errorf("Title = %v, want empty string pointer", input.Title)
@@ -164,5 +164,8 @@ func TestUpdateEstimateRequest_ToServiceInput(t *testing.T) {
 	}
 	if input.Comment == nil || *input.Comment != comment {
 		t.Errorf("Comment = %v, want empty string pointer", input.Comment)
+	}
+	if input.ActorID == nil || *input.ActorID != 7 {
+		t.Errorf("ActorID = %v, want 7", input.ActorID)
 	}
 }

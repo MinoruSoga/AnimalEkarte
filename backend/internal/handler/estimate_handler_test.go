@@ -49,7 +49,7 @@ func (m *mockEstimateService) Update(ctx context.Context, clinicID, id uint64, i
 	return m.updateFn(ctx, clinicID, id, input)
 }
 
-func (m *mockEstimateService) Delete(ctx context.Context, clinicID, id uint64) error {
+func (m *mockEstimateService) Delete(ctx context.Context, clinicID, id uint64, actorID *uint64) error {
 	return m.deleteFn(ctx, clinicID, id)
 }
 
@@ -470,13 +470,15 @@ func TestUpdateEstimate(t *testing.T) {
 			name:     "updates estimate successfully without discount change",
 			paramID:  "1",
 			body:     map[string]any{"title": "更新後"},
-			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			setupCtx: func(c *gin.Context) { setClinicID(c); setStaffID(c) },
 			svc: &mockEstimateService{
 				updateFn: func(_ context.Context, clinicID, id uint64, input *service.UpdateEstimateInput) (*model.Estimate, error) {
 					assert.Equal(t, uint64(1), clinicID)
 					assert.Equal(t, uint64(1), id)
 					require.NotNil(t, input.Title)
 					assert.Equal(t, "更新後", *input.Title)
+					require.NotNil(t, input.ActorID)
+					assert.Equal(t, uint64(1), *input.ActorID)
 					return &model.Estimate{ID: 1, Title: "更新後"}, nil
 				},
 			},
@@ -487,7 +489,7 @@ func TestUpdateEstimate(t *testing.T) {
 			name:     "updates estimate status to approved",
 			paramID:  "1",
 			body:     map[string]any{"status": "approved"},
-			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			setupCtx: func(c *gin.Context) { setClinicID(c); setStaffID(c) },
 			svc: &mockEstimateService{
 				updateFn: func(_ context.Context, _, _ uint64, input *service.UpdateEstimateInput) (*model.Estimate, error) {
 					require.NotNil(t, input.Status)
@@ -501,7 +503,7 @@ func TestUpdateEstimate(t *testing.T) {
 			name:     "updates estimate status to rejected",
 			paramID:  "1",
 			body:     map[string]any{"status": "rejected"},
-			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			setupCtx: func(c *gin.Context) { setClinicID(c); setStaffID(c) },
 			svc: &mockEstimateService{
 				updateFn: func(_ context.Context, _, _ uint64, input *service.UpdateEstimateInput) (*model.Estimate, error) {
 					require.NotNil(t, input.Status)
@@ -515,7 +517,7 @@ func TestUpdateEstimate(t *testing.T) {
 			name:     "updates estimate when discount amount unchanged",
 			paramID:  "1",
 			body:     map[string]any{"discount_amount": 500},
-			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			setupCtx: func(c *gin.Context) { setClinicID(c); setStaffID(c) },
 			svc: &mockEstimateService{
 				getFn: func(_ context.Context, _, _ uint64) (*model.Estimate, error) {
 					return &model.Estimate{ID: 1, DiscountAmount: 500}, nil
@@ -540,7 +542,7 @@ func TestUpdateEstimate(t *testing.T) {
 			name:       "returns 400 on invalid id",
 			paramID:    "abc",
 			body:       map[string]any{},
-			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			setupCtx:   func(c *gin.Context) { setClinicID(c); setStaffID(c) },
 			svc:        &mockEstimateService{},
 			wantStatus: http.StatusBadRequest,
 		},
@@ -548,7 +550,7 @@ func TestUpdateEstimate(t *testing.T) {
 			name:       "returns 400 on malformed JSON body",
 			paramID:    "1",
 			bodyRaw:    `{"title":`,
-			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			setupCtx:   func(c *gin.Context) { setClinicID(c); setStaffID(c) },
 			svc:        &mockEstimateService{},
 			wantStatus: http.StatusBadRequest,
 		},
@@ -556,7 +558,7 @@ func TestUpdateEstimate(t *testing.T) {
 			name:     "returns error when existing estimate lookup fails for discount change",
 			paramID:  "1",
 			body:     map[string]any{"discount_amount": 500},
-			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			setupCtx: func(c *gin.Context) { setClinicID(c); setStaffID(c) },
 			svc: &mockEstimateService{
 				getFn: func(_ context.Context, _, _ uint64) (*model.Estimate, error) {
 					return nil, apperrors.WrapNotFound("estimate", "1")
@@ -568,7 +570,7 @@ func TestUpdateEstimate(t *testing.T) {
 			name:     "returns 500 on service error",
 			paramID:  "1",
 			body:     map[string]any{"title": "更新後"},
-			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			setupCtx: func(c *gin.Context) { setClinicID(c); setStaffID(c) },
 			svc: &mockEstimateService{
 				updateFn: func(_ context.Context, _, _ uint64, _ *service.UpdateEstimateInput) (*model.Estimate, error) {
 					return nil, fmt.Errorf("db failure")
@@ -581,7 +583,7 @@ func TestUpdateEstimate(t *testing.T) {
 			name:     "returns 403 when discount permission denied on change",
 			paramID:  "1",
 			body:     map[string]any{"discount_amount": 999},
-			setupCtx: func(c *gin.Context) { setNonSystemAdmin(c) },
+			setupCtx: func(c *gin.Context) { setNonSystemAdmin(c); setStaffID(c) },
 			svc: &mockEstimateService{
 				getFn: func(_ context.Context, _, _ uint64) (*model.Estimate, error) {
 					return &model.Estimate{ID: 1, DiscountAmount: 500}, nil
@@ -644,7 +646,7 @@ func TestDeleteEstimate(t *testing.T) {
 		{
 			name:     "deletes estimate successfully",
 			paramID:  "1",
-			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			setupCtx: func(c *gin.Context) { setClinicID(c); setStaffID(c) },
 			svc: &mockEstimateService{
 				deleteFn: func(_ context.Context, clinicID, id uint64) error {
 					assert.Equal(t, uint64(1), clinicID)
@@ -664,14 +666,14 @@ func TestDeleteEstimate(t *testing.T) {
 		{
 			name:       "returns 400 on invalid id",
 			paramID:    "abc",
-			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			setupCtx:   func(c *gin.Context) { setClinicID(c); setStaffID(c) },
 			svc:        &mockEstimateService{},
 			wantStatus: http.StatusBadRequest,
 		},
 		{
 			name:     "returns 500 on service error",
 			paramID:  "1",
-			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			setupCtx: func(c *gin.Context) { setClinicID(c); setStaffID(c) },
 			svc: &mockEstimateService{
 				deleteFn: func(_ context.Context, _, _ uint64) error {
 					return fmt.Errorf("db failure")

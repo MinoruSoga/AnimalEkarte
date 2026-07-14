@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
@@ -136,7 +137,7 @@ func TestEstimateService_List(t *testing.T) {
 					return tt.repoEstimates, tt.repoTotal, tt.repoErr
 				},
 			}
-			svc := NewEstimateService(repo, nil, nil, nil)
+			svc := NewEstimateService(repo, nil, nil, nil, nil)
 
 			estimates, total, err := svc.List(context.Background(), 1, tt.ownerID, tt.medicalRecordID, tt.status, tt.page, tt.limit)
 
@@ -199,7 +200,7 @@ func TestEstimateService_GetByID(t *testing.T) {
 					return tt.repoEstimate, tt.repoErr
 				},
 			}
-			svc := NewEstimateService(repo, nil, nil, nil)
+			svc := NewEstimateService(repo, nil, nil, nil, nil)
 
 			estimate, err := svc.GetByID(context.Background(), 1, tt.id)
 
@@ -381,7 +382,7 @@ func TestEstimateService_Create(t *testing.T) {
 					return tt.repoEstimate, nil
 				},
 			}
-			svc := NewEstimateService(repo, nil, nil, estimateTestMembershipCounter())
+			svc := NewEstimateService(repo, nil, nil, estimateTestMembershipCounter(), nil)
 
 			estimate, err := svc.Create(context.Background(), 1, tt.input)
 
@@ -529,7 +530,7 @@ func TestEstimateService_Update(t *testing.T) {
 					return &model.Estimate{ID: 1, Status: model.EstimateStatusDraft}, nil
 				},
 			}
-			svc := NewEstimateService(repo, nil, nil, nil)
+			svc := NewEstimateService(repo, nil, nil, nil, nil)
 
 			estimate, err := svc.Update(context.Background(), 1, 1, tt.input)
 
@@ -644,9 +645,9 @@ func TestEstimateService_Delete(t *testing.T) {
 					return tt.repoErr
 				},
 			}
-			svc := NewEstimateService(repo, nil, nil, nil)
+			svc := NewEstimateService(repo, nil, nil, nil, nil)
 
-			err := svc.Delete(context.Background(), 1, tt.id)
+			err := svc.Delete(context.Background(), 1, tt.id, nil)
 
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -664,4 +665,338 @@ func TestEstimateService_Delete(t *testing.T) {
 			}
 		})
 	}
+}
+
+
+// estimateAuditActions は mockAuditService.entries から Resource="estimate" の Action を収集する。
+func estimateAuditActions(auditSvc *mockAuditService) []string {
+	actions := make([]string, 0, len(auditSvc.entries))
+	for _, e := range auditSvc.entries {
+		if e != nil && e.Resource == "estimate" {
+			actions = append(actions, e.Action)
+		}
+	}
+	return actions
+}
+
+// TestEstimateService_Create_AuditLog は見積作成時に audit "create" が LogEntry で記録されることを確認する。
+func TestEstimateService_Create_AuditLog(t *testing.T) {
+	auditSvc := &mockAuditService{}
+	const estimateID = uint64(42)
+	repo := &mockEstimateRepository{
+		createFn: func(_ context.Context, e *model.Estimate) error {
+			e.ID = estimateID
+			return nil
+		},
+		findByIDFn: func(_ context.Context, _, id uint64) (*model.Estimate, error) {
+			return &model.Estimate{
+				ID:          id,
+				ClinicID:    1,
+				Title:       "新規見積",
+				TotalAmount: 11000,
+				Status:      model.EstimateStatusDraft,
+				CreatedBy:   ptrU64(estimateTestCreatedByStaffID),
+			}, nil
+		},
+	}
+	svc := NewEstimateService(repo, nil, nil, estimateTestMembershipCounter(), auditSvc)
+
+	created, err := svc.Create(context.Background(), 1, &CreateEstimateInput{
+		Title:       "新規見積",
+		Subtotal:    10000,
+		TaxTotal:    1000,
+		TotalAmount: 11000,
+		CreatedBy:   ptrU64(estimateTestCreatedByStaffID),
+	})
+
+	assert.NoError(t, err)
+	assert.NotNil(t, created)
+	actions := estimateAuditActions(auditSvc)
+	assert.Contains(t, actions, "create", "create 操作が audit に記録されること")
+	require.NotNil(t, auditSvc.lastLogEntry)
+	assert.Equal(t, "estimate", auditSvc.lastLogEntry.Resource)
+	assert.Equal(t, estimateTestCreatedByStaffID, *auditSvc.lastLogEntry.ActorID)
+	assert.Equal(t, model.AuditActorTypeStaff, auditSvc.lastLogEntry.ActorType)
+	require.NotNil(t, auditSvc.lastLogEntry.ResourceID)
+	assert.Equal(t, estimateID, *auditSvc.lastLogEntry.ResourceID)
+}
+
+// TestEstimateService_Update_AuditLog は見積更新時に audit "update" が LogEntry で記録されることを確認する。
+func TestEstimateService_Update_AuditLog(t *testing.T) {
+	auditSvc := &mockAuditService{}
+	newTitle := "更新見積"
+	callCount := 0
+	repo := &mockEstimateRepository{
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.Estimate, error) {
+			callCount++
+			if callCount == 1 {
+				return &model.Estimate{
+					ID:       10,
+					ClinicID: 1,
+					Status:   model.EstimateStatusDraft,
+					Title:    "旧タイトル",
+				}, nil
+			}
+			return &model.Estimate{
+				ID:       10,
+				ClinicID: 1,
+				Status:   model.EstimateStatusDraft,
+				Title:    newTitle,
+			}, nil
+		},
+		updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) error {
+			return nil
+		},
+	}
+	svc := NewEstimateService(repo, nil, nil, nil, auditSvc)
+
+	actorID := uint64(7)
+	updated, err := svc.Update(context.Background(), 1, 10, &UpdateEstimateInput{
+		Title:   &newTitle,
+		ActorID: &actorID,
+	})
+
+	assert.NoError(t, err)
+	assert.NotNil(t, updated)
+	actions := estimateAuditActions(auditSvc)
+	assert.Contains(t, actions, "update", "update 操作が audit に記録されること")
+	assert.NotContains(t, actions, "approve")
+	assert.NotContains(t, actions, "reject")
+	require.NotNil(t, auditSvc.lastLogEntry)
+	assert.Equal(t, "estimate", auditSvc.lastLogEntry.Resource)
+	assert.Equal(t, actorID, *auditSvc.lastLogEntry.ActorID)
+	assert.Equal(t, model.AuditActorTypeStaff, auditSvc.lastLogEntry.ActorType)
+}
+
+// TestEstimateService_Update_ApproveAuditLog は draft|sent→approved 遷移で "approve" が追加記録されることを確認する。
+func TestEstimateService_Update_ApproveAuditLog(t *testing.T) {
+	tests := []struct {
+		name          string
+		initialStatus model.EstimateStatus
+	}{
+		{name: "draft to approved", initialStatus: model.EstimateStatusDraft},
+		{name: "sent to approved", initialStatus: model.EstimateStatusSent},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			auditSvc := &mockAuditService{}
+			approved := model.EstimateStatusApproved
+			callCount := 0
+			repo := &mockEstimateRepository{
+				findByIDFn: func(_ context.Context, _, _ uint64) (*model.Estimate, error) {
+					callCount++
+					if callCount == 1 {
+						return &model.Estimate{
+							ID:       10,
+							ClinicID: 1,
+							Status:   tt.initialStatus,
+						}, nil
+					}
+					return &model.Estimate{
+						ID:       10,
+						ClinicID: 1,
+						Status:   model.EstimateStatusApproved,
+					}, nil
+				},
+				updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) error {
+					return nil
+				},
+			}
+			svc := NewEstimateService(repo, nil, nil, nil, auditSvc)
+
+			actorID := uint64(7)
+			_, err := svc.Update(context.Background(), 1, 10, &UpdateEstimateInput{
+				Status:  &approved,
+				ActorID: &actorID,
+			})
+
+			assert.NoError(t, err)
+			actions := estimateAuditActions(auditSvc)
+			assert.Contains(t, actions, "update", "status 変更でも update が記録されること")
+			assert.Contains(t, actions, "approve", "draft|sent→approved で approve が追加記録されること")
+		})
+	}
+}
+
+// TestEstimateService_Update_RejectAuditLog は →rejected 遷移で "reject" が追加記録されることを確認する。
+func TestEstimateService_Update_RejectAuditLog(t *testing.T) {
+	auditSvc := &mockAuditService{}
+	rejected := model.EstimateStatusRejected
+	callCount := 0
+	repo := &mockEstimateRepository{
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.Estimate, error) {
+			callCount++
+			if callCount == 1 {
+				return &model.Estimate{
+					ID:       10,
+					ClinicID: 1,
+					Status:   model.EstimateStatusSent,
+				}, nil
+			}
+			return &model.Estimate{
+				ID:       10,
+				ClinicID: 1,
+				Status:   model.EstimateStatusRejected,
+			}, nil
+		},
+		updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) error {
+			return nil
+		},
+	}
+	svc := NewEstimateService(repo, nil, nil, nil, auditSvc)
+
+	actorID := uint64(7)
+	_, err := svc.Update(context.Background(), 1, 10, &UpdateEstimateInput{
+		Status:  &rejected,
+		ActorID: &actorID,
+	})
+
+	assert.NoError(t, err)
+	actions := estimateAuditActions(auditSvc)
+	assert.Contains(t, actions, "update", "status 変更でも update が記録されること")
+	assert.Contains(t, actions, "reject", "→rejected で reject が追加記録されること")
+}
+
+// TestEstimateService_Delete_AuditLog は見積削除時に audit "delete" が LogEntry で記録されることを確認する。
+func TestEstimateService_Delete_AuditLog(t *testing.T) {
+	t.Run("staff actor from ActorID", func(t *testing.T) {
+		auditSvc := &mockAuditService{}
+		repo := &mockEstimateRepository{
+			findByIDFn: func(_ context.Context, _, id uint64) (*model.Estimate, error) {
+				return &model.Estimate{
+					ID:     id,
+					Status: model.EstimateStatusDraft,
+				}, nil
+			},
+			countItemsByEstimateID: func(_ context.Context, _ uint64) (int64, error) {
+				return 0, nil
+			},
+			deleteFn: func(_ context.Context, _, _ uint64) error {
+				return nil
+			},
+		}
+		svc := NewEstimateService(repo, nil, nil, nil, auditSvc)
+
+		actorID := uint64(9)
+		err := svc.Delete(context.Background(), 1, 10, &actorID)
+
+		assert.NoError(t, err)
+		actions := estimateAuditActions(auditSvc)
+		assert.Contains(t, actions, "delete", "delete 操作が audit に記録されること")
+		require.NotNil(t, auditSvc.lastLogEntry)
+		assert.Equal(t, "estimate", auditSvc.lastLogEntry.Resource)
+		assert.Equal(t, actorID, *auditSvc.lastLogEntry.ActorID)
+		assert.Equal(t, model.AuditActorTypeStaff, auditSvc.lastLogEntry.ActorType)
+	})
+
+	t.Run("system actor when ActorID is nil", func(t *testing.T) {
+		auditSvc := &mockAuditService{}
+		repo := &mockEstimateRepository{
+			findByIDFn: func(_ context.Context, _, id uint64) (*model.Estimate, error) {
+				return &model.Estimate{
+					ID:     id,
+					Status: model.EstimateStatusSent,
+				}, nil
+			},
+			countItemsByEstimateID: func(_ context.Context, _ uint64) (int64, error) {
+				return 0, nil
+			},
+			deleteFn: func(_ context.Context, _, _ uint64) error {
+				return nil
+			},
+		}
+		svc := NewEstimateService(repo, nil, nil, nil, auditSvc)
+
+		err := svc.Delete(context.Background(), 1, 11, nil)
+
+		assert.NoError(t, err)
+		actions := estimateAuditActions(auditSvc)
+		assert.Contains(t, actions, "delete", "ActorID nil でも delete audit が記録されること")
+		require.NotNil(t, auditSvc.lastLogEntry)
+		assert.Nil(t, auditSvc.lastLogEntry.ActorID)
+		assert.Equal(t, model.AuditActorTypeSystem, auditSvc.lastLogEntry.ActorType)
+	})
+}
+
+// TestEstimateService_AuditFailure_NonFatal は監査ログ書き込み失敗が Create のメイン処理を止めないことを確認する。
+func TestEstimateService_AuditFailure_NonFatal(t *testing.T) {
+	auditSvc := &mockAuditService{
+		logEntryErr: errors.New("audit db down"),
+	}
+	repo := &mockEstimateRepository{
+		createFn: func(_ context.Context, e *model.Estimate) error {
+			e.ID = 1
+			return nil
+		},
+		findByIDFn: func(_ context.Context, _, id uint64) (*model.Estimate, error) {
+			return &model.Estimate{
+				ID:          id,
+				ClinicID:    1,
+				Title:       "新規見積",
+				TotalAmount: 11000,
+				Status:      model.EstimateStatusDraft,
+				CreatedBy:   ptrU64(estimateTestCreatedByStaffID),
+			}, nil
+		},
+	}
+	svc := NewEstimateService(repo, nil, nil, estimateTestMembershipCounter(), auditSvc)
+
+	created, err := svc.Create(context.Background(), 1, &CreateEstimateInput{
+		Title:       "新規見積",
+		TotalAmount: 11000,
+		CreatedBy:   ptrU64(estimateTestCreatedByStaffID),
+	})
+
+	assert.NoError(t, err, "監査ログ失敗はメイン処理のエラーを返さない（best-effort）")
+	assert.NotNil(t, created)
+	assert.True(t, auditSvc.logEntryCalled, "audit LogEntry は呼ばれること")
+}
+
+// TestEstimateService_LockedStatus_DoesNotAudit は locked 見積の update/delete 拒否時に audit が呼ばれないことを確認する。
+func TestEstimateService_LockedStatus_DoesNotAudit(t *testing.T) {
+	t.Run("update on approved estimate", func(t *testing.T) {
+		auditSvc := &mockAuditService{}
+		newTitle := "変更不可"
+		repo := &mockEstimateRepository{
+			findByIDFn: func(_ context.Context, _, _ uint64) (*model.Estimate, error) {
+				return &model.Estimate{
+					ID:     1,
+					Status: model.EstimateStatusApproved,
+				}, nil
+			},
+		}
+		svc := NewEstimateService(repo, nil, nil, nil, auditSvc)
+
+		_, err := svc.Update(context.Background(), 1, 1, &UpdateEstimateInput{
+			Title:   &newTitle,
+			ActorID: ptrU64(7),
+		})
+
+		assert.Error(t, err)
+		assert.True(t, apperrors.IsConflict(err))
+		assert.Empty(t, estimateAuditActions(auditSvc), "locked 見積の update 拒否時は audit しない")
+	})
+
+	t.Run("delete on rejected estimate", func(t *testing.T) {
+		auditSvc := &mockAuditService{}
+		repo := &mockEstimateRepository{
+			findByIDFn: func(_ context.Context, _, id uint64) (*model.Estimate, error) {
+				return &model.Estimate{
+					ID:     id,
+					Status: model.EstimateStatusRejected,
+				}, nil
+			},
+			countItemsByEstimateID: func(_ context.Context, _ uint64) (int64, error) {
+				return 0, nil
+			},
+		}
+		svc := NewEstimateService(repo, nil, nil, nil, auditSvc)
+
+		err := svc.Delete(context.Background(), 1, 2, ptrU64(7))
+
+		assert.Error(t, err)
+		assert.True(t, apperrors.IsConflict(err))
+		assert.Empty(t, estimateAuditActions(auditSvc), "locked 見積の delete 拒否時は audit しない")
+	})
 }

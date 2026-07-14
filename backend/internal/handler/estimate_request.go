@@ -97,7 +97,7 @@ type updateEstimateRequest struct {
 	Notes           *string    `json:"notes"`
 }
 
-func (r *updateEstimateRequest) toServiceInput() *service.UpdateEstimateInput {
+func (r *updateEstimateRequest) toServiceInput(actorID uint64) *service.UpdateEstimateInput {
 	input := &service.UpdateEstimateInput{
 		Title:           r.Title,
 		Subtotal:        r.Subtotal,
@@ -109,6 +109,7 @@ func (r *updateEstimateRequest) toServiceInput() *service.UpdateEstimateInput {
 		ClearValidUntil: r.ClearValidUntil,
 		Comment:         r.Comment,
 		Notes:           r.Notes,
+		ActorID:         &actorID,
 	}
 	if r.Status != nil {
 		status := model.EstimateStatus(*r.Status)
