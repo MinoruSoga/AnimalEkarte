@@ -51,7 +51,7 @@ func sendSMTPMail(ctx context.Context, cfg smtpConfig, from, to string, msg []by
 	if err != nil {
 		return fmt.Errorf("smtp send: %w", err)
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	if deadline, ok := ctx.Deadline(); ok {
 		if err := conn.SetDeadline(deadline); err != nil {
@@ -63,7 +63,7 @@ func sendSMTPMail(ctx context.Context, cfg smtpConfig, from, to string, msg []by
 	if err != nil {
 		return fmt.Errorf("smtp send: %w", err)
 	}
-	defer c.Close()
+	defer func() { _ = c.Close() }()
 
 	if ok, _ := c.Extension("STARTTLS"); ok {
 		if err := c.StartTLS(&tls.Config{ServerName: cfg.Host}); err != nil {

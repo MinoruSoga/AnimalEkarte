@@ -73,7 +73,7 @@ func (s *tokenService) jwtKeyFunc(t *jwt.Token) (any, error) {
 func (s *tokenService) parseClaims(tokenStr string) (*authjwt.Claims, error) {
 	claims := &authjwt.Claims{}
 	if _, err := jwt.ParseWithClaims(tokenStr, claims, s.jwtKeyFunc); err != nil {
-		return nil, err
+		return nil, apperrors.Wrap(err, "failed to parse jwt claims")
 	}
 	return claims, nil
 }

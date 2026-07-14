@@ -36,7 +36,7 @@ func DoWithRetry(ctx context.Context, client *http.Client, maxRetries int, initi
 		if attempt < maxRetries {
 			select {
 			case <-ctx.Done():
-				return nil, ctx.Err()
+				return nil, fmt.Errorf("httpx DoWithRetry: %w", ctx.Err())
 			case <-time.After(wait):
 				wait *= 2
 			}
@@ -51,7 +51,7 @@ func DoWithRetry(ctx context.Context, client *http.Client, maxRetries int, initi
 func NewBearerRequest(ctx context.Context, method, url, token string, body io.Reader) (*http.Request, error) {
 	req, err := http.NewRequestWithContext(ctx, method, url, body)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("httpx NewBearerRequest: %w", err)
 	}
 	req.Header.Set("Authorization", "Bearer "+token)
 	req.Header.Set("Content-Type", "application/json")
