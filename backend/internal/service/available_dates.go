@@ -8,6 +8,7 @@ import (
 	holiday "github.com/holiday-jp/holiday_jp-go"
 
 	"github.com/animal-ekarte/backend/internal/config"
+	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
@@ -56,11 +57,11 @@ func ParseAvailableDatesSettings(
 ) (AvailableDatesSettings, error) {
 	var closedWeekdays []int
 	if err := json.Unmarshal(orEmptyJSONArray(closedWeekdaysJSON), &closedWeekdays); err != nil {
-		closedWeekdays = nil
+		return AvailableDatesSettings{}, apperrors.WrapInvalidInput("休診設定の解析に失敗しました: " + err.Error())
 	}
 	var closedDates []string
 	if err := json.Unmarshal(orEmptyJSONArray(closedDatesJSON), &closedDates); err != nil {
-		closedDates = nil
+		return AvailableDatesSettings{}, apperrors.WrapInvalidInput("休診設定の解析に失敗しました: " + err.Error())
 	}
 	return AvailableDatesSettings{
 		ClosedWeekdays:        closedWeekdays,

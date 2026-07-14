@@ -7,6 +7,8 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+
+	apperrors "github.com/animal-ekarte/backend/internal/errors"
 )
 
 func TestParseAvailableDatesSettings(t *testing.T) {
@@ -28,7 +30,7 @@ func TestParseAvailableDatesSettings(t *testing.T) {
 		assert.Equal(t, "weekday", settings.ReservationDayOption)
 	})
 
-	t.Run("unmarshal error sets nil", func(t *testing.T) {
+	t.Run("unmarshal error returns fail-closed error", func(t *testing.T) {
 		settings, err := ParseAvailableDatesSettings(
 			[]byte("bad json"),
 			[]byte("bad json"),
@@ -36,9 +38,22 @@ func TestParseAvailableDatesSettings(t *testing.T) {
 			1, 30, 3,
 			"none",
 		)
-		assert.NoError(t, err)
-		assert.Nil(t, settings.ClosedWeekdays)
-		assert.Nil(t, settings.ClosedDates)
+		assert.Error(t, err)
+		assert.Equal(t, AvailableDatesSettings{}, settings)
+		assert.True(t, apperrors.IsInvalidInput(err))
+	})
+
+	t.Run("壊れたclosed_weekdays JSONはエラーを返す", func(t *testing.T) {
+		settings, err := ParseAvailableDatesSettings(
+			[]byte("not-valid-json"),
+			[]byte("[\"2026-01-01\"]"),
+			false,
+			1, 30, 3,
+			"none",
+		)
+		assert.Error(t, err)
+		assert.Equal(t, AvailableDatesSettings{}, settings)
+		assert.True(t, apperrors.IsInvalidInput(err))
 	})
 }
 

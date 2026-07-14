@@ -57,7 +57,7 @@ func (s *liffService) GetAvailableDates(ctx context.Context, clinicID, typeID, s
 		string(course.ReservationDayOption),
 	)
 	if err != nil {
-		slog.WarnContext(ctx, "failed to parse available dates settings, using defaults", "error", err)
+		return nil, BookingWindow{}, err
 	}
 
 	// G7-1: 日付ループN+1解消 — シフト/休憩/当日予約を予約受付期間の範囲でまとめてプリフェッチする。
@@ -221,7 +221,7 @@ func (s *liffService) GetAvailableTimes(ctx context.Context, clinicID, typeID, s
 		string(course.ReservationDayOption),
 	)
 	if err != nil {
-		slog.WarnContext(ctx, "failed to parse available dates settings, using defaults", "error", err)
+		return nil, err
 	}
 	dateJST := date.In(config.JST)
 	if isDateClosed(datesSettings, dateJST) {
