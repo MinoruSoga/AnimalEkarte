@@ -9,14 +9,11 @@ import (
 	"github.com/animal-ekarte/backend/internal/repository"
 )
 
-// dormantBatchPageSize は PERF-FOLLOWUP-02 のカーソルページネーション 1 ページあたりの件数。
-const dormantBatchPageSize = 500
-
 func (s *lstepBatchService) detectDormantOwners(ctx context.Context, clinicID uint64) (int, []error) {
 	const minDaysSince = 180
 
 	// PERF-FOLLOWUP-02: 無制限全件取得を避けるため、先頭ページのみ先に取得する。
-	firstPage, err := s.medRecordRepo.FindDormantOwnerEntriesCursor(ctx, clinicID, minDaysSince, 0, dormantBatchPageSize)
+	firstPage, err := s.medRecordRepo.FindDormantOwnerEntriesCursor(ctx, clinicID, minDaysSince, 0, lstepBatchPageSize)
 	if err != nil {
 		slog.ErrorContext(ctx, "dormant batch: failed to find dormant owners", "clinic_id", clinicID, "error", err)
 		return 0, []error{apperrors.Wrap(err, "failed to find dormant owners")}
@@ -59,11 +56,11 @@ func (s *lstepBatchService) detectDormantOwners(ctx context.Context, clinicID ui
 		}
 		syncEntries(page)
 		afterOwnerID = page[len(page)-1].OwnerID
-		if len(page) < dormantBatchPageSize {
+		if len(page) < lstepBatchPageSize {
 			break
 		}
 		var pageErr error
-		page, pageErr = s.medRecordRepo.FindDormantOwnerEntriesCursor(ctx, clinicID, minDaysSince, afterOwnerID, dormantBatchPageSize)
+		page, pageErr = s.medRecordRepo.FindDormantOwnerEntriesCursor(ctx, clinicID, minDaysSince, afterOwnerID, lstepBatchPageSize)
 		if pageErr != nil {
 			slog.ErrorContext(ctx, "dormant batch: failed to find dormant owners (next page)",
 				"clinic_id", clinicID, "after_owner_id", afterOwnerID, "error", pageErr)

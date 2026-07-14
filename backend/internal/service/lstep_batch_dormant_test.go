@@ -336,16 +336,16 @@ func TestLstepBatchService_DetectDormantOwners_PaginatesAcrossMultiplePages(t *t
 	medRecordRepo := &dormantMockMedicalRecordRepository{
 		findDormantOwnerEntriesCursorFn: func(_ context.Context, _ uint64, _ int, afterOwnerID uint64, limit int) ([]repository.DormantOwnerEntry, error) {
 			fetchCalls = append(fetchCalls, afterOwnerID)
-			assert.Equal(t, dormantBatchPageSize, limit)
+			assert.Equal(t, lstepBatchPageSize, limit)
 			switch afterOwnerID {
 			case 0:
-				entries := make([]repository.DormantOwnerEntry, dormantBatchPageSize)
+				entries := make([]repository.DormantOwnerEntry, lstepBatchPageSize)
 				for i := range entries {
 					entries[i] = repository.DormantOwnerEntry{OwnerID: uint64(i + 1), DaysSince: 200}
 				}
 				return entries, nil
-			case uint64(dormantBatchPageSize):
-				return []repository.DormantOwnerEntry{{OwnerID: uint64(dormantBatchPageSize + 1), DaysSince: 200}}, nil
+			case uint64(lstepBatchPageSize):
+				return []repository.DormantOwnerEntry{{OwnerID: uint64(lstepBatchPageSize + 1), DaysSince: 200}}, nil
 			default:
 				return nil, nil
 			}
@@ -354,8 +354,8 @@ func TestLstepBatchService_DetectDormantOwners_PaginatesAcrossMultiplePages(t *t
 	svc := newDormantBatchService(medRecordRepo, newDormantTagSyncWrapper(nil), &dormantMockClinicRepository{}, &mockAuditService{}, &mockLstepSettingsService{})
 	count, errs := svc.detectDormantOwners(context.Background(), 1)
 	assert.Empty(t, errs)
-	assert.Equal(t, dormantBatchPageSize+1, count, "entries from both pages must be processed")
-	assert.Equal(t, []uint64{0, uint64(dormantBatchPageSize)}, fetchCalls, "cursor must advance using the last entry's OwnerID of the previous page, no duplicates/no skips")
+	assert.Equal(t, lstepBatchPageSize+1, count, "entries from both pages must be processed")
+	assert.Equal(t, []uint64{0, uint64(lstepBatchPageSize)}, fetchCalls, "cursor must advance using the last entry's OwnerID of the previous page, no duplicates/no skips")
 }
 
 // spyLstepBatchAuditService is a minimal AuditService spy scoped to this file (avoids relying

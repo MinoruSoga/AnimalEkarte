@@ -8,9 +8,6 @@ import (
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
-// healthPreventionBatchPageSize は PERF-FOLLOWUP-02 のカーソルページネーション 1 ページあたりの件数。
-const healthPreventionBatchPageSize = 500
-
 // cachedTagMappings は tag code mappings を clinic 単位で 1 回取得しキャッシュする
 // （BE-refactor.md E-7）。取得失敗時は warn ログを出し nil を返す（呼出元は per-owner
 // フォールバックとして扱う）。label はログ文言の対象名（例: "filaria mappings"）。
@@ -32,7 +29,7 @@ func (s *lstepTagSyncService) SyncHealthPreventionTagsForClinic(ctx context.Cont
 
 	// PERF-FOLLOWUP-02: 無制限全件取得を避けるため、先頭ページのみ先に取得する。
 	// 取得失敗時はマッピングキャッシュ（tagCodeRepo）に触れず即座に中断する（従来挙動を維持）。
-	firstPage, err := s.ownerRepo.FindAllWithLineUserIDCursor(ctx, clinicID, 0, healthPreventionBatchPageSize)
+	firstPage, err := s.ownerRepo.FindAllWithLineUserIDCursor(ctx, clinicID, 0, lstepBatchPageSize)
 	if err != nil {
 		slog.ErrorContext(ctx, "health-prevention batch: failed to find owners", "clinic_id", clinicID, "error", err)
 		return 0, []error{apperrors.Wrap(err, "failed to find owners with line user id")}
@@ -106,11 +103,11 @@ func (s *lstepTagSyncService) SyncHealthPreventionTagsForClinic(ctx context.Cont
 		}
 		syncOwners(page)
 		afterID = page[len(page)-1].ID
-		if len(page) < healthPreventionBatchPageSize {
+		if len(page) < lstepBatchPageSize {
 			break
 		}
 		var pageErr error
-		page, pageErr = s.ownerRepo.FindAllWithLineUserIDCursor(ctx, clinicID, afterID, healthPreventionBatchPageSize)
+		page, pageErr = s.ownerRepo.FindAllWithLineUserIDCursor(ctx, clinicID, afterID, lstepBatchPageSize)
 		if pageErr != nil {
 			slog.ErrorContext(ctx, "health-prevention batch: failed to find owners (next page)",
 				"clinic_id", clinicID, "after_id", afterID, "error", pageErr)

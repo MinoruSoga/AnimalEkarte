@@ -10,6 +10,9 @@ import (
 	"github.com/animal-ekarte/backend/internal/repository"
 )
 
+// lstepBatchPageSize は PERF-FOLLOWUP-02 のカーソルページネーション 1 ページあたりの件数。
+const lstepBatchPageSize = 500
+
 // deliveryTriggerHourJST は仕様 §6.4 で固定された Lステップ自動配信バッチの実行時刻 (10:00 JST)。
 // 設定可能化は意図的に廃止 (configurable fire hour 削除)。
 const deliveryTriggerHourJST = 10

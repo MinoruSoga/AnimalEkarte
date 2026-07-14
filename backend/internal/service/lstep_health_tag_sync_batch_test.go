@@ -149,16 +149,16 @@ func TestSyncHealthPreventionTagsForClinic_PaginatesAcrossMultiplePages(t *testi
 		ownerRepo: &mockOwnerRepository{
 			findAllWithLineUserIDCursorFn: func(_ context.Context, _ uint64, afterID uint64, limit int) ([]model.Owner, error) {
 				fetchCalls = append(fetchCalls, afterID)
-				assert.Equal(t, healthPreventionBatchPageSize, limit)
+				assert.Equal(t, lstepBatchPageSize, limit)
 				switch afterID {
 				case 0:
-					owners := make([]model.Owner, healthPreventionBatchPageSize)
+					owners := make([]model.Owner, lstepBatchPageSize)
 					for i := range owners {
 						owners[i] = model.Owner{ID: uint64(i + 1)}
 					}
 					return owners, nil
-				case uint64(healthPreventionBatchPageSize):
-					return []model.Owner{{ID: uint64(healthPreventionBatchPageSize + 1)}}, nil
+				case uint64(lstepBatchPageSize):
+					return []model.Owner{{ID: uint64(lstepBatchPageSize + 1)}}, nil
 				default:
 					return nil, nil
 				}
@@ -172,6 +172,6 @@ func TestSyncHealthPreventionTagsForClinic_PaginatesAcrossMultiplePages(t *testi
 	}
 	count, errs := svc.SyncHealthPreventionTagsForClinic(context.Background(), 1)
 	assert.Empty(t, errs)
-	assert.Equal(t, healthPreventionBatchPageSize+1, count, "owners from both pages must be processed")
-	assert.Equal(t, []uint64{0, uint64(healthPreventionBatchPageSize)}, fetchCalls, "cursor must advance using the last owner ID of the previous page, no duplicates/no skips")
+	assert.Equal(t, lstepBatchPageSize+1, count, "owners from both pages must be processed")
+	assert.Equal(t, []uint64{0, uint64(lstepBatchPageSize)}, fetchCalls, "cursor must advance using the last owner ID of the previous page, no duplicates/no skips")
 }
