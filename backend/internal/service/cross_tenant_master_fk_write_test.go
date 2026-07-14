@@ -863,11 +863,12 @@ func TestClinicalPlanService_Update_RejectsCrossClinicDiagnosisFK(t *testing.T) 
 		assert.False(t, updated, "clinical plan must NOT be updated to reference another clinic's diagnosis type")
 	})
 
-	t.Run("rejects cross-clinic diagnosis_2_category_id (second slot)", func(t *testing.T) {
+	t.Run("rejects cross-clinic diagnosis_2_type_id (second slot)", func(t *testing.T) {
 		updated := false
 		svc := newSvc(&updated)
 		foreign := foreignTypeID
-		out, err := svc.Update(context.Background(), clinicID, 1, &UpdateClinicalPlanInput{Diagnosis2CategoryID: &foreign})
+		foreignPtr := &foreign
+		out, err := svc.Update(context.Background(), clinicID, 1, &UpdateClinicalPlanInput{Diagnosis2TypeID: &foreignPtr})
 		assert.Error(t, err)
 		assert.Nil(t, out)
 		assert.False(t, updated)
@@ -1447,7 +1448,8 @@ func TestClinicalPlanService_Update_RejectsCrossClinicDiagnosisName(t *testing.T
 		updated := false
 		svc := newSvc(&updated)
 		foreign := foreignNameID
-		out, err := svc.Update(context.Background(), clinicID, 1, &UpdateClinicalPlanInput{Diagnosis2NameID: &foreign})
+		foreignPtr := &foreign
+		out, err := svc.Update(context.Background(), clinicID, 1, &UpdateClinicalPlanInput{Diagnosis2NameID: &foreignPtr})
 		assert.Error(t, err)
 		assert.Nil(t, out)
 		assert.False(t, updated)

@@ -9,15 +9,21 @@ import (
 	"github.com/animal-ekarte/backend/internal/repository"
 )
 
+const (
+	colClinicalPlanDiagnosis2TypeID = "diagnosis_2_type_id"
+	colClinicalPlanDiagnosis2NameID = "diagnosis_2_name_id"
+)
+
 // UpdateClinicalPlanInput は診察所見・診断・治療方針更新の入力DTO（nil = 未送信フィールド）
+// Diagnosis2TypeID / Diagnosis2NameID は **uint64: nil=未送信, &nil=NULLクリア, &&v=セット。
 type UpdateClinicalPlanInput struct {
-	PhysicalExam         *string
-	DiagnosisTypeID      *uint64
-	DiagnosisNameID      *uint64
-	Diagnosis2CategoryID *uint64
-	Diagnosis2NameID     *uint64
-	DiagnosisDetails     *string
-	TreatmentPolicy      *string
+	PhysicalExam     *string
+	DiagnosisTypeID  *uint64
+	DiagnosisNameID  *uint64
+	Diagnosis2TypeID **uint64
+	Diagnosis2NameID **uint64
+	DiagnosisDetails *string
+	TreatmentPolicy  *string
 }
 
 func buildClinicalPlanUpdate(input *UpdateClinicalPlanInput) map[string]any {
@@ -31,11 +37,11 @@ func buildClinicalPlanUpdate(input *UpdateClinicalPlanInput) map[string]any {
 	if input.DiagnosisNameID != nil {
 		fields["diagnosis_name_id"] = *input.DiagnosisNameID
 	}
-	if input.Diagnosis2CategoryID != nil {
-		fields["diagnosis_2_category_id"] = *input.Diagnosis2CategoryID
+	if input.Diagnosis2TypeID != nil {
+		fields[colClinicalPlanDiagnosis2TypeID] = *input.Diagnosis2TypeID
 	}
 	if input.Diagnosis2NameID != nil {
-		fields["diagnosis_2_name_id"] = *input.Diagnosis2NameID
+		fields[colClinicalPlanDiagnosis2NameID] = *input.Diagnosis2NameID
 	}
 	if input.DiagnosisDetails != nil {
 		fields["diagnosis_details"] = *input.DiagnosisDetails
@@ -65,15 +71,19 @@ func NewClinicalPlanService(repo repository.ClinicalPlanRepository, medRec repos
 	return &clinicalPlanService{repo: repo, medRec: medRec, diagTypeRepo: diagTypeRepo, diagNameRepo: diagNameRepo}
 }
 
-// validateDiagnosisFKs は request 由来の clinic-scoped 診断マスタFK
-// (diagnosis_type ×2 / diagnosis_name ×2) の所有権を検証する。別 clinic の診断分類を
-// 患者の診断記録へ縫い付ける cross-tenant mislink を NotFound で遮断する。
+func optionalDoubleUint64(v **uint64) *uint64 {
+	if v == nil {
+		return nil
+	}
+	return *v
+}
+
 func (s *clinicalPlanService) validateDiagnosisFKs(ctx context.Context, clinicID uint64, input *UpdateClinicalPlanInput) error {
 	findDiagType := func(actx context.Context, cid, mid uint64) error {
 		_, err := s.diagTypeRepo.FindByID(actx, cid, mid)
 		return err
 	}
-	for _, typeID := range []*uint64{input.DiagnosisTypeID, input.Diagnosis2CategoryID} {
+	for _, typeID := range []*uint64{input.DiagnosisTypeID, optionalDoubleUint64(input.Diagnosis2TypeID)} {
 		if err := validateOwnedMasterFK(ctx, "diagnosis type", clinicID, typeID, findDiagType); err != nil {
 			return err
 		}
@@ -82,10 +92,38 @@ func (s *clinicalPlanService) validateDiagnosisFKs(ctx context.Context, clinicID
 		_, err := s.diagNameRepo.FindByID(actx, cid, mid)
 		return err
 	}
-	for _, nameID := range []*uint64{input.DiagnosisNameID, input.Diagnosis2NameID} {
+	for _, nameID := range []*uint64{input.DiagnosisNameID, optionalDoubleUint64(input.Diagnosis2NameID)} {
 		if err := validateOwnedMasterFK(ctx, "diagnosis name", clinicID, nameID, findDiagName); err != nil {
 			return err
 		}
+	}
+	return nil
+}
+
+func (s *clinicalPlanService) validateDiagnosisTypeNameConsistency(ctx context.Context, clinicID uint64, plan *model.ClinicalPlan, input *UpdateClinicalPlanInput) error {
+	// AUD-007: 第2診断スロットの type↔name 整合のみ強制（第1は既存部分PATCH互換を維持）。
+	type2 := plan.Diagnosis2TypeID
+	if input.Diagnosis2TypeID != nil {
+		type2 = *input.Diagnosis2TypeID
+	}
+	name2 := plan.Diagnosis2NameID
+	if input.Diagnosis2NameID != nil {
+		name2 = *input.Diagnosis2NameID
+	}
+	return s.assertNameBelongsToType(ctx, clinicID, type2, name2, "diagnosis_2")
+}
+
+func (s *clinicalPlanService) assertNameBelongsToType(ctx context.Context, clinicID uint64, typeID, nameID *uint64, slot string) error {
+	// 片方のみの部分PATCHは従来どおり許可。両方そろった最終状態でのみ type↔name 整合を強制する。
+	if nameID == nil || typeID == nil {
+		return nil
+	}
+	name, err := s.diagNameRepo.FindByID(ctx, clinicID, *nameID)
+	if err != nil {
+		return err
+	}
+	if name.DiagnosisTypeID != *typeID {
+		return apperrors.WrapInvalidInput(slot + " name does not belong to the selected diagnosis type")
 	}
 	return nil
 }
@@ -97,19 +135,13 @@ func (s *clinicalPlanService) GetOrCreate(ctx context.Context, clinicID, medical
 			slog.ErrorContext(ctx, "failed to get clinical plan", "error", err)
 			return nil, apperrors.Wrap(err, "failed to get clinical plan")
 		}
-		// テナント所有権検証（クロステナント write 防止）。
-		// clinical_plans は自前 clinic_id を持たず medical_records 経由で隔離するため、
-		// 自動作成前に親カルテの所有権を明示検証する（NotFound 分岐は越境ケースと重なる）。
 		if _, ownerErr := s.medRec.FindByID(ctx, clinicID, medicalRecordID); ownerErr != nil {
 			if !apperrors.IsNotFound(ownerErr) {
 				slog.ErrorContext(ctx, "failed to verify parent medical record", "error", ownerErr)
 			}
 			return nil, apperrors.Wrap(ownerErr, "failed to verify parent medical record")
 		}
-		// 存在しない場合は空レコードを自動作成
-		plan = &model.ClinicalPlan{
-			MedicalRecordID: medicalRecordID,
-		}
+		plan = &model.ClinicalPlan{MedicalRecordID: medicalRecordID}
 		if err := s.repo.Create(ctx, plan); err != nil {
 			slog.ErrorContext(ctx, "failed to create clinical plan", "error", err)
 			return nil, apperrors.Wrap(err, "failed to create clinical plan")
@@ -129,14 +161,15 @@ func (s *clinicalPlanService) Update(ctx context.Context, clinicID, medicalRecor
 		slog.ErrorContext(ctx, "failed to get or create clinical plan", "error", err)
 		return nil, apperrors.Wrap(err, "failed to get or create clinical plan")
 	}
-	// クロステナント write 防止: 貼り替え先の診断マスタFK所有権を検証する。
 	if err := s.validateDiagnosisFKs(ctx, clinicID, input); err != nil {
+		return nil, err
+	}
+	if err := s.validateDiagnosisTypeNameConsistency(ctx, clinicID, plan, input); err != nil {
 		return nil, err
 	}
 
 	fields := buildClinicalPlanUpdate(input)
 	if len(fields) == 0 {
-		// 全フィールドが未指定の場合は no-op として現在のレコードをそのまま返す
 		return plan, nil
 	}
 	if err := s.repo.Update(ctx, clinicID, plan.ID, fields); err != nil {

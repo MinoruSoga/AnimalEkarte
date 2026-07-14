@@ -85,7 +85,7 @@ type CreateSubRecordsInput struct {
 	Assessment           *string // → ClinicalPlan.DiagnosisDetails
 	Diagnosis1CategoryID *uint64
 	Diagnosis1NameID     *uint64
-	Diagnosis2CategoryID *uint64
+	Diagnosis2TypeID     *uint64
 	Diagnosis2NameID     *uint64
 }
 

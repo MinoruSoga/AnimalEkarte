@@ -186,3 +186,25 @@ func TestUpdateOwnerRequest_ToServiceInput_MembershipType(t *testing.T) {
 		assert.Nil(t, input.MembershipType)
 	})
 }
+
+func TestNullableUint64RequestField_JSON(t *testing.T) {
+	t.Run("omitted means unset", func(t *testing.T) {
+		var f nullableUint64RequestField
+		assert.Nil(t, f.toServiceInput())
+	})
+	t.Run("null clears", func(t *testing.T) {
+		var f nullableUint64RequestField
+		require.NoError(t, json.Unmarshal([]byte("null"), &f))
+		got := f.toServiceInput()
+		require.NotNil(t, got)
+		assert.Nil(t, *got)
+	})
+	t.Run("number sets", func(t *testing.T) {
+		var f nullableUint64RequestField
+		require.NoError(t, json.Unmarshal([]byte("42"), &f))
+		got := f.toServiceInput()
+		require.NotNil(t, got)
+		require.NotNil(t, *got)
+		assert.Equal(t, uint64(42), **got)
+	})
+}

@@ -111,7 +111,7 @@ func TestUpdateClinicalPlan(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	physicalExam := "軽度の発熱"
-	validBody := updateClinicalPlanRequest{PhysicalExam: &physicalExam}
+	validBody := map[string]any{"physical_exam": physicalExam}
 
 	tests := []struct {
 		name       string
@@ -274,4 +274,64 @@ func TestDeleteClinicalPlan(t *testing.T) {
 			assert.Equal(t, tt.wantStatus, w.Code)
 		})
 	}
+}
+
+
+func TestUpdateClinicalPlan_BindsDiagnosis2TypeID(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	typeID := uint64(31)
+	nameID := uint64(32)
+	body := map[string]any{"diagnosis_2_type_id": typeID, "diagnosis_2_name_id": nameID}
+	called := false
+	svc := &mockClinicalPlanService{
+		updateFn: func(_ context.Context, _, _ uint64, input *service.UpdateClinicalPlanInput) (*model.ClinicalPlan, error) {
+			called = true
+			require.NotNil(t, input.Diagnosis2TypeID)
+			require.NotNil(t, *input.Diagnosis2TypeID)
+			assert.Equal(t, typeID, **input.Diagnosis2TypeID)
+			require.NotNil(t, input.Diagnosis2NameID)
+			require.NotNil(t, *input.Diagnosis2NameID)
+			assert.Equal(t, nameID, **input.Diagnosis2NameID)
+			return &model.ClinicalPlan{ID: 1, MedicalRecordID: 8, Diagnosis2TypeID: &typeID, Diagnosis2NameID: &nameID}, nil
+		},
+	}
+	h := newHandlerWithClinicalPlanSvc(svc)
+	b, err := json.Marshal(body)
+	require.NoError(t, err)
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest(http.MethodPatch, "/medical-records/8/clinical-plan", bytes.NewReader(b))
+	c.Request.Header.Set("Content-Type", "application/json")
+	c.Params = gin.Params{{Key: "id", Value: "8"}}
+	setClinicID(c)
+	h.UpdateClinicalPlan(c)
+	assert.Equal(t, http.StatusOK, w.Code)
+	assert.True(t, called)
+	assert.Contains(t, w.Body.String(), `"diagnosis_2_type_id":"31"`)
+	assert.Contains(t, w.Body.String(), `"diagnosis_2_name_id":"32"`)
+}
+
+func TestUpdateClinicalPlan_NullClearsDiagnosis2(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	body := map[string]any{"diagnosis_2_type_id": nil, "diagnosis_2_name_id": nil}
+	svc := &mockClinicalPlanService{
+		updateFn: func(_ context.Context, _, _ uint64, input *service.UpdateClinicalPlanInput) (*model.ClinicalPlan, error) {
+			require.NotNil(t, input.Diagnosis2TypeID)
+			assert.Nil(t, *input.Diagnosis2TypeID)
+			require.NotNil(t, input.Diagnosis2NameID)
+			assert.Nil(t, *input.Diagnosis2NameID)
+			return &model.ClinicalPlan{ID: 1, MedicalRecordID: 8}, nil
+		},
+	}
+	h := newHandlerWithClinicalPlanSvc(svc)
+	b, err := json.Marshal(body)
+	require.NoError(t, err)
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest(http.MethodPatch, "/medical-records/8/clinical-plan", bytes.NewReader(b))
+	c.Request.Header.Set("Content-Type", "application/json")
+	c.Params = gin.Params{{Key: "id", Value: "8"}}
+	setClinicID(c)
+	h.UpdateClinicalPlan(c)
+	assert.Equal(t, http.StatusOK, w.Code)
 }

@@ -63,7 +63,9 @@ var clinicScopedMasterAssoc = map[string]string{
 	// checkup_field_results.CheckupTypeField として clinic_id 述語付きで Preload される。
 	"CheckupTypeField": "CheckupTypeField",
 	"DiagnosisType":    "DiagnosisType",
+	"Diagnosis2Type":   "DiagnosisType",
 	"DiagnosisName":    "DiagnosisName",
+	"Diagnosis2Name":   "DiagnosisName",
 	"Names":            "DiagnosisName", // diagnosis_type.Names []DiagnosisName
 	"Occupation":       "Occupation",
 	// BE-refactor.md R3-2 (D9・P1): 以下3件は write 側 clinicScopedMasterFKField

@@ -194,7 +194,7 @@ func TestCreateSubRecords(t *testing.T) {
 			Assessment:           strPtr("assessment"),
 			Diagnosis1CategoryID: uint64Ptr(1),
 			Diagnosis1NameID:     uint64Ptr(2),
-			Diagnosis2CategoryID: uint64Ptr(3),
+			Diagnosis2TypeID:     uint64Ptr(3),
 			Diagnosis2NameID:     uint64Ptr(4),
 		})
 
@@ -203,7 +203,7 @@ func TestCreateSubRecords(t *testing.T) {
 			assert.Equal(t, "assessment", updatedFields["diagnosis_details"])
 			assert.Equal(t, uint64(1), updatedFields["diagnosis_type_id"])
 			assert.Equal(t, uint64(2), updatedFields["diagnosis_name_id"])
-			assert.Equal(t, uint64(3), updatedFields["diagnosis_2_category_id"])
+			assert.Equal(t, uint64(3), updatedFields["diagnosis_2_type_id"])
 			assert.Equal(t, uint64(4), updatedFields["diagnosis_2_name_id"])
 		}
 	})

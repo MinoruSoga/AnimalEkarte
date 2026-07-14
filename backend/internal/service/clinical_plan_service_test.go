@@ -51,10 +51,14 @@ func TestBuildClinicalPlanUpdate(t *testing.T) {
 	physicalExam := "Normal"
 	diagnosisTypeID := uint64(1)
 	diagnosisNameID := uint64(2)
-	diagnosis2CategoryID := uint64(3)
+	diagnosis2TypeID := uint64(3)
 	diagnosis2NameID := uint64(4)
 	diagnosisDetails := "details"
 	treatmentPolicy := "policy"
+	diagnosis2TypePtr := &diagnosis2TypeID
+	diagnosis2NamePtr := &diagnosis2NameID
+	var nilDiagnosis2Type *uint64
+	var nilDiagnosis2Name *uint64
 
 	tests := []struct {
 		name       string
@@ -69,22 +73,33 @@ func TestBuildClinicalPlanUpdate(t *testing.T) {
 		{
 			name: "all fields set are reflected with real column names",
 			input: &UpdateClinicalPlanInput{
-				PhysicalExam:         &physicalExam,
-				DiagnosisTypeID:      &diagnosisTypeID,
-				DiagnosisNameID:      &diagnosisNameID,
-				Diagnosis2CategoryID: &diagnosis2CategoryID,
-				Diagnosis2NameID:     &diagnosis2NameID,
-				DiagnosisDetails:     &diagnosisDetails,
-				TreatmentPolicy:      &treatmentPolicy,
+				PhysicalExam:     &physicalExam,
+				DiagnosisTypeID:  &diagnosisTypeID,
+				DiagnosisNameID:  &diagnosisNameID,
+				Diagnosis2TypeID: &diagnosis2TypePtr,
+				Diagnosis2NameID: &diagnosis2NamePtr,
+				DiagnosisDetails: &diagnosisDetails,
+				TreatmentPolicy:  &treatmentPolicy,
 			},
 			wantFields: map[string]any{
-				"physical_exam":           physicalExam,
-				"diagnosis_type_id":       diagnosisTypeID,
-				"diagnosis_name_id":       diagnosisNameID,
-				"diagnosis_2_category_id": diagnosis2CategoryID,
-				"diagnosis_2_name_id":     diagnosis2NameID,
-				"diagnosis_details":       diagnosisDetails,
-				"treatment_policy":        treatmentPolicy,
+				"physical_exam":       physicalExam,
+				"diagnosis_type_id":   diagnosisTypeID,
+				"diagnosis_name_id":   diagnosisNameID,
+				"diagnosis_2_type_id": diagnosis2TypePtr, // *uint64（NULLクリアと同形）
+				"diagnosis_2_name_id": diagnosis2NamePtr,
+				"diagnosis_details":   diagnosisDetails,
+				"treatment_policy":    treatmentPolicy,
+			},
+		},
+		{
+			name: "null diagnosis_2 fields clear to NULL",
+			input: &UpdateClinicalPlanInput{
+				Diagnosis2TypeID: &nilDiagnosis2Type,
+				Diagnosis2NameID: &nilDiagnosis2Name,
+			},
+			wantFields: map[string]any{
+				"diagnosis_2_type_id": nilDiagnosis2Type,
+				"diagnosis_2_name_id": nilDiagnosis2Name,
 			},
 		},
 	}
@@ -482,4 +497,37 @@ func TestClinicalPlanService_GetOrCreate_CrossTenantParentRejected(t *testing.T)
 	assert.True(t, apperrors.IsNotFound(err), "拒否は NotFound(404) にマップされるべき: %v", err)
 	assert.Nil(t, plan)
 	assert.False(t, createCalled, "親カルテ所有権検証に失敗した場合、clinical_plan を永続化してはならない")
+}
+
+func TestClinicalPlanService_Update_RejectsMismatchedDiagnosis2TypeName(t *testing.T) {
+	typeID := uint64(10)
+	nameID := uint64(20)
+	typePtr := &typeID
+	namePtr := &nameID
+	repo := &mockClinicalPlanRepository{
+		findByMedicalRecordIDFn: func(_ context.Context, _, _ uint64) (*model.ClinicalPlan, error) {
+			return &model.ClinicalPlan{ID: 1, MedicalRecordID: 1}, nil
+		},
+		updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) error {
+			t.Fatal("must not update when diagnosis_2 type/name mismatch")
+			return nil
+		},
+	}
+	diagTypeRepo := &mockDiagnosisTypeRepository{
+		findByIDFn: func(_ context.Context, _, id uint64) (*model.DiagnosisType, error) {
+			return &model.DiagnosisType{ID: id}, nil
+		},
+	}
+	diagNameRepo := &mockDiagnosisNameRepository{
+		findByIDFn: func(_ context.Context, _, id uint64) (*model.DiagnosisName, error) {
+			return &model.DiagnosisName{ID: id, DiagnosisTypeID: 99}, nil
+		},
+	}
+	svc := NewClinicalPlanService(repo, okMedRecForPlan(), diagTypeRepo, diagNameRepo)
+	plan, err := svc.Update(context.Background(), 1, 1, &UpdateClinicalPlanInput{
+		Diagnosis2TypeID: &typePtr,
+		Diagnosis2NameID: &namePtr,
+	})
+	assert.Error(t, err)
+	assert.Nil(t, plan)
 }

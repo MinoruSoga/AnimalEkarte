@@ -4206,11 +4206,19 @@ components:
         physical_exam:
           type: string
           nullable: true
-        diagnosis_category_id:
+        diagnosis_type_id:
           type: integer
           format: int64
           nullable: true
         diagnosis_name_id:
+          type: integer
+          format: int64
+          nullable: true
+        diagnosis_2_type_id:
+          type: integer
+          format: int64
+          nullable: true
+        diagnosis_2_name_id:
           type: integer
           format: int64
           nullable: true

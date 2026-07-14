@@ -73,6 +73,27 @@ func TestToClinicalPlanResponse(t *testing.T) {
 				assert.Equal(t, "猫風邪", resp.DiagnosisName.Name)
 			},
 		},
+		{
+			name: "plan with diagnosis_2 IDs and preloaded relations",
+			input: &model.ClinicalPlan{
+				ID:               4,
+				MedicalRecordID:  8,
+				Diagnosis2TypeID: &diagnosisTypeID,
+				Diagnosis2NameID: &diagnosisNameID,
+				Diagnosis2Type:   &model.DiagnosisType{ID: diagnosisTypeID, Name: "外科"},
+				Diagnosis2Name:   &model.DiagnosisName{ID: diagnosisNameID, Name: "骨折", DiagnosisTypeID: diagnosisTypeID},
+			},
+			check: func(t *testing.T, resp clinicalPlanResponse) {
+				require.NotNil(t, resp.Diagnosis2TypeID)
+				assert.Equal(t, "11", *resp.Diagnosis2TypeID)
+				require.NotNil(t, resp.Diagnosis2NameID)
+				assert.Equal(t, "12", *resp.Diagnosis2NameID)
+				require.NotNil(t, resp.Diagnosis2Type)
+				assert.Equal(t, "外科", resp.Diagnosis2Type.Name)
+				require.NotNil(t, resp.Diagnosis2Name)
+				assert.Equal(t, "骨折", resp.Diagnosis2Name.Name)
+			},
+		},
 	}
 
 	for _, tt := range tests {

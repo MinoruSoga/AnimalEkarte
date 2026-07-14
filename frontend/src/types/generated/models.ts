@@ -809,7 +809,7 @@ export interface ClinicalPlan {
   medical_record?: MedicalRecord;
   diagnosis_type?: DiagnosisType;
   diagnosis_name?: DiagnosisName;
-  diagnosis_2_category?: DiagnosisType;
+  diagnosis_2_type?: DiagnosisType;
   diagnosis_2_name?: DiagnosisName;
 }
 

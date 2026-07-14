@@ -81,8 +81,8 @@ func (s *medicalRecordService) CreateSubRecords(ctx context.Context, clinicID, r
 		if input.Diagnosis1NameID != nil {
 			fields["diagnosis_name_id"] = *input.Diagnosis1NameID
 		}
-		if input.Diagnosis2CategoryID != nil {
-			fields["diagnosis_2_category_id"] = *input.Diagnosis2CategoryID
+		if input.Diagnosis2TypeID != nil {
+			fields["diagnosis_2_type_id"] = *input.Diagnosis2TypeID
 		}
 		if input.Diagnosis2NameID != nil {
 			fields["diagnosis_2_name_id"] = *input.Diagnosis2NameID
@@ -103,7 +103,7 @@ func (s *medicalRecordService) validateCreateSubRecordDiagnosisFKs(ctx context.C
 		_, err := s.diagTypeRepo.FindByID(actx, cid, mid)
 		return err
 	}
-	for _, typeID := range []*uint64{input.Diagnosis1CategoryID, input.Diagnosis2CategoryID} {
+	for _, typeID := range []*uint64{input.Diagnosis1CategoryID, input.Diagnosis2TypeID} {
 		if err := validateOwnedMasterFK(ctx, "diagnosis type", clinicID, typeID, findDiagType); err != nil {
 			return err
 		}

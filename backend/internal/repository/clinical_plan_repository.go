@@ -32,6 +32,8 @@ func (r *clinicalPlanRepository) FindByMedicalRecordID(ctx context.Context, clin
 	err := r.db.WithContext(ctx).
 		Preload("DiagnosisType", "clinic_id = ? AND deleted_at IS NULL", clinicID).
 		Preload("DiagnosisName", "clinic_id = ? AND deleted_at IS NULL", clinicID).
+		Preload("Diagnosis2Type", "clinic_id = ? AND deleted_at IS NULL", clinicID).
+		Preload("Diagnosis2Name", "clinic_id = ? AND deleted_at IS NULL", clinicID).
 		Joins("JOIN medical_records ON medical_records.id = clinical_plans.medical_record_id AND medical_records.deleted_at IS NULL").
 		Where("medical_records.clinic_id = ? AND clinical_plans.medical_record_id = ?", clinicID, medicalRecordID).
 		First(&plan).Error

@@ -73,6 +73,9 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"campaign_repository.go|campaignRepository.FindAllApplicableForItem": {},
 	"campaign_repository.go|campaignRepository.FindApplicableForItem":    {},
 	"campaign_repository.go|campaignRepository.ReplaceTargets":           {}, // G6-2 repo-internal tx replace
+	// daily_record (AUD-006: FindOrCreate+CreateVital same ambient tx)
+	"daily_record_repository.go|dailyRecordRepository.CreateVitalRecord":  {},
+	"daily_record_repository.go|dailyRecordRepository.FindOrCreateByDate": {},
 	// checkup_field (#211 tx-internal replace)
 	"checkup_field_repository.go|checkupFieldResultRepository.FindByCheckupID":   {},
 	"checkup_field_repository.go|checkupFieldResultRepository.ReplaceForCheckup": {},

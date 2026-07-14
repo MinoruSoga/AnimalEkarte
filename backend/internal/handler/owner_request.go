@@ -43,6 +43,35 @@ func (f nullableBoolRequestField) toServiceInput() **bool {
 	return &f.value
 }
 
+// nullableUint64RequestField は PATCH DTO で「未送信」と「JSON null」を区別する。
+// Go 標準の **uint64 だけでは encoding/json が null と未送信の両方を nil にするため、
+// set フラグでフィールド存在を保持し、service 層の **uint64（nil / &nil / &&value）へ変換する。
+type nullableUint64RequestField struct {
+	set   bool
+	value *uint64
+}
+
+func (f *nullableUint64RequestField) UnmarshalJSON(data []byte) error {
+	f.set = true
+	if string(data) == "null" {
+		f.value = nil
+		return nil
+	}
+	var value uint64
+	if err := json.Unmarshal(data, &value); err != nil {
+		return apperrors.WrapInvalidInput("数値IDの形式が正しくありません")
+	}
+	f.value = &value
+	return nil
+}
+
+func (f nullableUint64RequestField) toServiceInput() **uint64 {
+	if !f.set {
+		return nil
+	}
+	return &f.value
+}
+
 func newListOwnersQuery(values url.Values) listOwnersQuery {
 	return listOwnersQuery{Search: values.Get("search")}
 }

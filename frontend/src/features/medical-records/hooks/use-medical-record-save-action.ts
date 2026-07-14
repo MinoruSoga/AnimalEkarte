@@ -40,8 +40,8 @@ interface UseMedicalRecordSaveActionArgs {
       diagnosis_details: string;
       diagnosis_type_id?: number;
       diagnosis_name_id?: number;
-      diagnosis_2_type_id?: number;
-      diagnosis_2_name_id?: number;
+      diagnosis_2_type_id?: number | null;
+      diagnosis_2_name_id?: number | null;
     }) => Promise<unknown>;
   };
   updateMutation: {
@@ -112,8 +112,8 @@ export function useMedicalRecordSaveAction({
               diagnosis_details: assessment,
               diagnosis_type_id: diagnosis1CategoryId ?? undefined,
               diagnosis_name_id: diagnosis1NameId ?? undefined,
-              diagnosis_2_type_id: diagnosis2CategoryId ?? undefined,
-              diagnosis_2_name_id: diagnosis2NameId ?? undefined,
+              diagnosis_2_type_id: diagnosis2CategoryId,
+              diagnosis_2_name_id: diagnosis2NameId,
             };
             await updateTreatmentPlanMutation.mutateAsync(treatmentPlanPayload);
             // 次回来院推奨日を更新（空欄 = クリア、値あり = 設定）

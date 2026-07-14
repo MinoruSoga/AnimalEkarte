@@ -140,7 +140,7 @@ type createMedicalRecordRequest struct {
 	Notes                *string `json:"notes"`
 	Diagnosis1CategoryID *uint64 `json:"diagnosis_1_category_id"`
 	Diagnosis1NameID     *uint64 `json:"diagnosis_1_name_id"`
-	Diagnosis2CategoryID *uint64 `json:"diagnosis_2_category_id"`
+	Diagnosis2TypeID     *uint64 `json:"diagnosis_2_type_id"`
 	Diagnosis2NameID     *uint64 `json:"diagnosis_2_name_id"`
 
 	// 受診推奨理由（FEAT-382-2 supplement: 新規作成時受付）
@@ -260,7 +260,7 @@ func (r *createMedicalRecordRequest) toSubRecordsInput() service.CreateSubRecord
 		Assessment:           r.Assessment,
 		Diagnosis1CategoryID: r.Diagnosis1CategoryID,
 		Diagnosis1NameID:     r.Diagnosis1NameID,
-		Diagnosis2CategoryID: r.Diagnosis2CategoryID,
+		Diagnosis2TypeID: r.Diagnosis2TypeID,
 		Diagnosis2NameID:     r.Diagnosis2NameID,
 	}
 }

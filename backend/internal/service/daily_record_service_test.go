@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
@@ -51,7 +52,7 @@ func (m *mockDailyRecordRepository) CreateStaffNote(ctx context.Context, sn *mod
 func okHospRepoForDailyRecord() *mockHospitalizationRepository {
 	return &mockHospitalizationRepository{
 		findByIDFn: func(_ context.Context, _, _ uint64) (*model.Hospitalization, error) {
-			return &model.Hospitalization{}, nil
+			return &model.Hospitalization{PetID: 42}, nil
 		},
 	}
 }
@@ -104,7 +105,7 @@ func TestDailyRecordService_List(t *testing.T) {
 					return tt.repoRecords, tt.repoErr
 				},
 			}
-			svc := NewDailyRecordService(repo, okHospRepoForDailyRecord())
+			svc := NewDailyRecordService(repo, okHospRepoForDailyRecord(), &mockTransactor{})
 
 			records, err := svc.List(context.Background(), uint64(1), tt.hospitalizationID)
 
@@ -161,7 +162,7 @@ func TestDailyRecordService_FindOrCreateByDate(t *testing.T) {
 					return &model.DailyRecord{ID: 1, HospitalizationID: tt.hospitalizationID, Date: tt.date}, nil
 				},
 			}
-			svc := NewDailyRecordService(repo, okHospRepoForDailyRecord())
+			svc := NewDailyRecordService(repo, okHospRepoForDailyRecord(), &mockTransactor{})
 
 			record, err := svc.FindOrCreateByDate(context.Background(), uint64(1), tt.hospitalizationID, tt.date)
 
@@ -242,13 +243,14 @@ func TestDailyRecordService_AddVitalRecord(t *testing.T) {
 				},
 				createVitalRecordFn: func(_ context.Context, vital *model.VitalRecord) error {
 					assert.Equal(t, uint64(1), vital.ClinicID)
+					assert.Equal(t, uint64(42), vital.PetID, "PetID must be resolved from parent hospitalization")
 					return nil
 				},
 				findByHospitalizationIDAndDateFn: func(_ context.Context, _, _ uint64, _ time.Time) (*model.DailyRecord, error) {
 					return &model.DailyRecord{ID: 1, HospitalizationID: tt.hospitalizationID}, nil
 				},
 			}
-			svc := NewDailyRecordService(repo, okHospRepoForDailyRecord())
+			svc := NewDailyRecordService(repo, okHospRepoForDailyRecord(), &mockTransactor{})
 
 			record, err := svc.AddVitalRecord(context.Background(), uint64(1), tt.hospitalizationID, tt.date, tt.input)
 
@@ -272,7 +274,7 @@ func TestDailyRecordService_AddVitalRecord_CreateError(t *testing.T) {
 			return errors.New("db error creating vital record")
 		},
 	}
-	svc := NewDailyRecordService(repo, okHospRepoForDailyRecord())
+	svc := NewDailyRecordService(repo, okHospRepoForDailyRecord(), &mockTransactor{})
 
 	record, err := svc.AddVitalRecord(context.Background(), 1, 1, today, &CreateVitalRecordInput{Time: today})
 
@@ -293,7 +295,7 @@ func TestDailyRecordService_AddVitalRecord_RefetchError(t *testing.T) {
 			return nil, errors.New("db error on refetch")
 		},
 	}
-	svc := NewDailyRecordService(repo, okHospRepoForDailyRecord())
+	svc := NewDailyRecordService(repo, okHospRepoForDailyRecord(), &mockTransactor{})
 
 	record, err := svc.AddVitalRecord(context.Background(), 1, 1, today, &CreateVitalRecordInput{Time: today})
 
@@ -397,7 +399,7 @@ func TestDailyRecordService_AddCareLog(t *testing.T) {
 					return &model.DailyRecord{ID: 1, HospitalizationID: tt.hospitalizationID}, nil
 				},
 			}
-			svc := NewDailyRecordService(repo, okHospRepoForDailyRecord())
+			svc := NewDailyRecordService(repo, okHospRepoForDailyRecord(), &mockTransactor{})
 
 			record, err := svc.AddCareLog(context.Background(), uint64(1), tt.hospitalizationID, tt.date, tt.input)
 
@@ -421,7 +423,7 @@ func TestDailyRecordService_AddCareLog_CreateError(t *testing.T) {
 			return errors.New("db error creating care log")
 		},
 	}
-	svc := NewDailyRecordService(repo, okHospRepoForDailyRecord())
+	svc := NewDailyRecordService(repo, okHospRepoForDailyRecord(), &mockTransactor{})
 
 	record, err := svc.AddCareLog(context.Background(), 1, 1, today, &CreateCareLogInput{
 		Time: today, Type: string(model.CareLogTypeFood), Status: string(model.CareLogStatusCompleted),
@@ -444,7 +446,7 @@ func TestDailyRecordService_AddCareLog_RefetchError(t *testing.T) {
 			return nil, errors.New("db error on refetch")
 		},
 	}
-	svc := NewDailyRecordService(repo, okHospRepoForDailyRecord())
+	svc := NewDailyRecordService(repo, okHospRepoForDailyRecord(), &mockTransactor{})
 
 	record, err := svc.AddCareLog(context.Background(), 1, 1, today, &CreateCareLogInput{
 		Time: today, Type: string(model.CareLogTypeFood), Status: string(model.CareLogStatusCompleted),
@@ -518,7 +520,7 @@ func TestDailyRecordService_AddStaffNote(t *testing.T) {
 					return &model.DailyRecord{ID: 1, HospitalizationID: tt.hospitalizationID}, nil
 				},
 			}
-			svc := NewDailyRecordService(repo, okHospRepoForDailyRecord())
+			svc := NewDailyRecordService(repo, okHospRepoForDailyRecord(), &mockTransactor{})
 
 			record, err := svc.AddStaffNote(context.Background(), uint64(1), tt.hospitalizationID, tt.date, tt.input)
 
@@ -542,7 +544,7 @@ func TestDailyRecordService_AddStaffNote_CreateError(t *testing.T) {
 			return errors.New("db error creating staff note")
 		},
 	}
-	svc := NewDailyRecordService(repo, okHospRepoForDailyRecord())
+	svc := NewDailyRecordService(repo, okHospRepoForDailyRecord(), &mockTransactor{})
 
 	record, err := svc.AddStaffNote(context.Background(), 1, 1, today, &CreateStaffNoteInput{Time: today, Content: "note"})
 
@@ -563,7 +565,7 @@ func TestDailyRecordService_AddStaffNote_RefetchError(t *testing.T) {
 			return nil, errors.New("db error on refetch")
 		},
 	}
-	svc := NewDailyRecordService(repo, okHospRepoForDailyRecord())
+	svc := NewDailyRecordService(repo, okHospRepoForDailyRecord(), &mockTransactor{})
 
 	record, err := svc.AddStaffNote(context.Background(), 1, 1, today, &CreateStaffNoteInput{Time: today, Content: "note"})
 
@@ -585,7 +587,7 @@ func TestDailyRecordService_GetByDate(t *testing.T) {
 			return &model.DailyRecord{}, nil
 		},
 	}
-	svc := NewDailyRecordService(repo, okHospRepoForDailyRecord())
+	svc := NewDailyRecordService(repo, okHospRepoForDailyRecord(), &mockTransactor{})
 
 	record, err := svc.GetByDate(context.Background(), 1, 1, today)
 
@@ -607,7 +609,7 @@ func TestDailyRecordService_GetByDate_NotFoundWhenMissing(t *testing.T) {
 			return &model.DailyRecord{}, nil
 		},
 	}
-	svc := NewDailyRecordService(repo, okHospRepoForDailyRecord())
+	svc := NewDailyRecordService(repo, okHospRepoForDailyRecord(), &mockTransactor{})
 
 	record, err := svc.GetByDate(context.Background(), 1, 1, today)
 
@@ -633,7 +635,7 @@ func TestDailyRecordService_List_CrossTenantParentRejected(t *testing.T) {
 			return []model.DailyRecord{}, nil
 		},
 	}
-	svc := NewDailyRecordService(repo, crossTenantHospRepo())
+	svc := NewDailyRecordService(repo, crossTenantHospRepo(), &mockTransactor{})
 
 	records, err := svc.List(context.Background(), 1, 99)
 
@@ -657,7 +659,7 @@ func TestDailyRecordService_GetByDate_CrossTenantParentRejected(t *testing.T) {
 			return &model.DailyRecord{}, nil
 		},
 	}
-	svc := NewDailyRecordService(repo, crossTenantHospRepo())
+	svc := NewDailyRecordService(repo, crossTenantHospRepo(), &mockTransactor{})
 
 	record, err := svc.GetByDate(context.Background(), 1, 99, today)
 
@@ -677,7 +679,7 @@ func TestDailyRecordService_FindOrCreateByDate_CrossTenantParentRejected(t *test
 			return &model.DailyRecord{ID: 1}, nil
 		},
 	}
-	svc := NewDailyRecordService(repo, crossTenantHospRepo())
+	svc := NewDailyRecordService(repo, crossTenantHospRepo(), &mockTransactor{})
 
 	record, err := svc.FindOrCreateByDate(context.Background(), 1, 99, today)
 
@@ -706,7 +708,7 @@ func TestDailyRecordService_FindOrCreateByDate_OwnerClinicSucceedsAfterCrossTena
 			return nil, apperrors.WrapNotFound("hospitalization", "99")
 		},
 	}
-	svc := NewDailyRecordService(repo, hospRepo)
+	svc := NewDailyRecordService(repo, hospRepo, &mockTransactor{})
 
 	rejected, err := svc.FindOrCreateByDate(context.Background(), clinicA, hospB, today)
 	assert.Error(t, err)
@@ -733,7 +735,7 @@ func TestDailyRecordService_AddVitalRecord_CrossTenantParentRejected(t *testing.
 			return nil
 		},
 	}
-	svc := NewDailyRecordService(repo, crossTenantHospRepo())
+	svc := NewDailyRecordService(repo, crossTenantHospRepo(), &mockTransactor{})
 
 	record, err := svc.AddVitalRecord(context.Background(), 1, 99, today, &CreateVitalRecordInput{Time: today})
 
@@ -755,7 +757,7 @@ func TestDailyRecordService_AddCareLog_CrossTenantParentRejected(t *testing.T) {
 			return nil
 		},
 	}
-	svc := NewDailyRecordService(repo, crossTenantHospRepo())
+	svc := NewDailyRecordService(repo, crossTenantHospRepo(), &mockTransactor{})
 
 	record, err := svc.AddCareLog(context.Background(), 1, 99, today, &CreateCareLogInput{
 		Time: today,
@@ -780,7 +782,7 @@ func TestDailyRecordService_AddStaffNote_CrossTenantParentRejected(t *testing.T)
 			return nil
 		},
 	}
-	svc := NewDailyRecordService(repo, crossTenantHospRepo())
+	svc := NewDailyRecordService(repo, crossTenantHospRepo(), &mockTransactor{})
 
 	record, err := svc.AddStaffNote(context.Background(), 1, 99, today, &CreateStaffNoteInput{Time: today, Content: "x"})
 
@@ -788,4 +790,30 @@ func TestDailyRecordService_AddStaffNote_CrossTenantParentRejected(t *testing.T)
 	assert.True(t, apperrors.IsNotFound(err), "%v", err)
 	assert.Nil(t, record)
 	assert.False(t, createCalled)
+}
+
+func TestDailyRecordService_AddVitalRecord_SetsPetIDFromHospitalization(t *testing.T) {
+	today := time.Now().UTC().Truncate(24 * time.Hour)
+	var gotPetID uint64
+	repo := &mockDailyRecordRepository{
+		getOrCreateByDateFn: func(_ context.Context, _, _ uint64, _ time.Time) (*model.DailyRecord, error) {
+			return &model.DailyRecord{ID: 7, HospitalizationID: 1, Date: today}, nil
+		},
+		createVitalRecordFn: func(_ context.Context, vital *model.VitalRecord) error {
+			gotPetID = vital.PetID
+			return nil
+		},
+		findByHospitalizationIDAndDateFn: func(_ context.Context, _, _ uint64, _ time.Time) (*model.DailyRecord, error) {
+			return &model.DailyRecord{ID: 7}, nil
+		},
+	}
+	hospRepo := &mockHospitalizationRepository{
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.Hospitalization, error) {
+			return &model.Hospitalization{ID: 1, PetID: 99}, nil
+		},
+	}
+	svc := NewDailyRecordService(repo, hospRepo, &mockTransactor{})
+	_, err := svc.AddVitalRecord(context.Background(), 1, 1, today, &CreateVitalRecordInput{Time: today})
+	require.NoError(t, err)
+	assert.Equal(t, uint64(99), gotPetID)
 }
