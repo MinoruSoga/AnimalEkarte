@@ -3,6 +3,7 @@ package middleware
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"sync"
 	"time"
@@ -41,11 +42,21 @@ func (s *RateLimitStore) cleanupLoop(ctx context.Context) {
 	for {
 		select {
 		case <-ticker.C:
-			s.evict(10 * time.Minute)
+			s.safeEvict(10 * time.Minute)
 		case <-ctx.Done():
 			return
 		}
 	}
+}
+
+// safeEvict は evict を panic recovery 付きで実行し、cleanupLoop が継続できるようにする。
+func (s *RateLimitStore) safeEvict(ttl time.Duration) {
+	defer func() {
+		if r := recover(); r != nil {
+			slog.Error("rate limit cleanup goroutine panic", slog.Any("panic", r))
+		}
+	}()
+	s.evict(ttl)
 }
 
 // evict は ttl より古いエントリを削除する（テスト用にも公開）

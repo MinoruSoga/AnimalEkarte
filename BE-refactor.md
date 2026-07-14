@@ -4,7 +4,7 @@
 - **基準コミット**: `9aeee96d`(main)。行番号はずれたら**シンボル名で再特定**する。
 - **性格**: 本書は実行計画の正本。判断できない事態は**中断して報告**。本書とコード以外の文脈を前提にしない。
 - **別台帳**(本書と重複させない): PERF・SEED残 = `BE_todo.md` / 任意検証 = `BE-pending.md` / 既知バグ skip 台帳 = `BE_todo.md` 末尾（#236 で修正予定、**本書の対象外**）
-- **進捗**: 対応済 4 / 22。残存 BE7-0, BE7-5〜BE7-21（部分対応: BE7-15）。棚卸し基準 HEAD `e424de5c`（2026-07-14）。各項目完了時に見出しの `[ ]` を `[x]` に更新してよい（同一コミットに本書を含めてよい）。
+- **進捗**: 対応済 5 / 22。残存 BE7-0, BE7-6〜BE7-21（部分対応: BE7-15）。棚卸し基準 HEAD `e424de5c`（2026-07-14）。各項目完了時に見出しの `[ ]` を `[x]` に更新してよい（同一コミットに本書を含めてよい）。
 
 ---
 
@@ -147,7 +147,7 @@ if count > 0 || len(errs) > 0 {   // 全滅クリニックも監査に残す
 - **コミット**: `fix(backend): LIFF空き日程の休診設定パースをfail-openからfail-closedに変更`
 - **依存**: BE7-0
 
-#### BE7-5 [ ] fix: panic recovery 漏れの goroutine 2箇所
+#### BE7-5 [x] fix: panic recovery 漏れの goroutine 2箇所
 
 - **対象**: `cmd/api/main.go:192` 付近（`server.ListenAndServe()` の goroutine）/ `internal/middleware/rate_limit.go:32`（`go s.cleanupLoop(ctx)`）
 - **問題**: 第6期 A-1 で業務系 goroutine は `goSafe`（`internal/service/go_safe.go`、service パッケージ私有）と `runScheduledIteration` で保護されたが、この2本は対象外のまま。特に rate_limit の cleanupLoop は panic すると**プロセスは生きたまま cleanup だけ永久停止**し、limiter マップがリークし続ける（検知が遅い障害クラス）。
@@ -422,7 +422,7 @@ func paginate(page, limit int) func(*gorm.DB) *gorm.DB {
 
 ```
 あなたは AnimalEkarte のバックエンド実行者です。BE-refactor.md（第7期）を実行してください。
-（棚卸し 2026-07-14: 対応済 4。残存 BE7-0, BE7-5〜BE7-21。部分対応 BE7-15 は完了条件を満たしてから [x]。）
+（棚卸し 2026-07-14: 対応済 5。残存 BE7-0, BE7-6〜BE7-21。部分対応 BE7-15 は完了条件を満たしてから [x]。）
 
 1. backend/CLAUDE.md、必要に応じて各層 CLAUDE.md（handler/service/repository）、および BE-refactor.md 全文を読む。本書とコード以外の文脈は存在しない前提で作業する。
 2. BE7-0（安全網）から着手し、以後 BE7-1 → BE7-21 を番号順に、1項目ずつ実施する。

@@ -190,6 +190,11 @@ func main() {
 
 	// Graceful shutdown
 	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				logger.Error("server goroutine panic", slog.Any("panic", r))
+			}
+		}()
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			logger.Error("server error", slog.String("error", err.Error()))
 		}
