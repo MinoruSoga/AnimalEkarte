@@ -223,60 +223,6 @@ func TestCheckupService_ListByClinic(t *testing.T) {
 	}
 }
 
-func TestCheckupService_GetByID(t *testing.T) {
-	tests := []struct {
-		name            string
-		medicalRecordID uint64
-		checkupID       uint64
-		findByIDFn      func(ctx context.Context, clinicID, checkupID uint64) (*model.Checkup, error)
-		wantErr         bool
-	}{
-		{
-			name:            "returns checkup when it belongs to the medical record",
-			medicalRecordID: 1,
-			checkupID:       10,
-			findByIDFn: func(_ context.Context, _, checkupID uint64) (*model.Checkup, error) {
-				return &model.Checkup{ID: checkupID, MedicalRecordID: 1}, nil
-			},
-		},
-		{
-			name:            "returns not found when checkup belongs to a different medical record",
-			medicalRecordID: 1,
-			checkupID:       10,
-			findByIDFn: func(_ context.Context, _, checkupID uint64) (*model.Checkup, error) {
-				return &model.Checkup{ID: checkupID, MedicalRecordID: 2}, nil
-			},
-			wantErr: true,
-		},
-		{
-			name:            "propagates repository error",
-			medicalRecordID: 1,
-			checkupID:       10,
-			findByIDFn: func(_ context.Context, _, _ uint64) (*model.Checkup, error) {
-				return nil, errors.New("db error")
-			},
-			wantErr: true,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			repo := &mockCheckupRepository{findByIDFn: tt.findByIDFn}
-			svc := NewCheckupService(repo, &mockMedicalRecordRepository{}, okCheckupTypeRepo(), nil, nil)
-
-			checkup, err := svc.GetByID(context.Background(), 1, tt.medicalRecordID, tt.checkupID)
-
-			if tt.wantErr {
-				assert.Error(t, err)
-				assert.Nil(t, checkup)
-				return
-			}
-			assert.NoError(t, err)
-			assert.NotNil(t, checkup)
-			assert.Equal(t, tt.checkupID, checkup.ID)
-		})
-	}
-}
 
 func TestCheckupService_Create(t *testing.T) {
 	now := time.Now()

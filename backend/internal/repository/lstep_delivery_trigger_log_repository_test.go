@@ -322,27 +322,6 @@ func TestLstepDeliveryTriggerLogRepository_FindByDateRangeWithFilters(t *testing
 	})
 }
 
-func TestLstepDeliveryTriggerLogRepository_FindAllByOwnerAndDateRange(t *testing.T) {
-	db := setupLstepDeliveryTriggerLogTestDB(t)
-	repo := NewLstepDeliveryTriggerLogRepository(db)
-	ctx := context.Background()
-
-	const clinicA, clinicB = uint64(1), uint64(2)
-	const ownerA, ownerB = uint64(10), uint64(20)
-	from := time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC)
-	to := time.Date(2026, 7, 1, 0, 0, 0, 0, time.UTC)
-
-	old := makeDeliveryTriggerLog(t, db, clinicA, ownerA, model.TriggerTypeBirthdayMessage, model.TriggerStatusFired, time.Date(2026, 6, 5, 9, 0, 0, 0, time.UTC))
-	recent := makeDeliveryTriggerLog(t, db, clinicA, ownerA, model.TriggerTypeVaccineDeadline30, model.TriggerStatusFired, time.Date(2026, 6, 20, 9, 0, 0, 0, time.UTC))
-	makeDeliveryTriggerLog(t, db, clinicA, ownerB, model.TriggerTypeBirthdayMessage, model.TriggerStatusFired, time.Date(2026, 6, 10, 9, 0, 0, 0, time.UTC)) // 別飼主
-	makeDeliveryTriggerLog(t, db, clinicB, ownerA, model.TriggerTypeBirthdayMessage, model.TriggerStatusFired, time.Date(2026, 6, 10, 9, 0, 0, 0, time.UTC)) // 別クリニック
-
-	logs, err := repo.FindAllByOwnerAndDateRange(ctx, clinicA, ownerA, from, to)
-	require.NoError(t, err)
-	require.Len(t, logs, 2)
-	assert.Equal(t, recent.ID, logs[0].ID, "scheduled_at 降順で返るべき")
-	assert.Equal(t, old.ID, logs[1].ID)
-}
 
 func TestLstepDeliveryTriggerLogRepository_CountByTypeAndStatus(t *testing.T) {
 	db := setupLstepDeliveryTriggerLogTestDB(t)

@@ -19,8 +19,6 @@ type LabImportJobRepository interface {
 	Update(ctx context.Context, job *model.LabImportJob) error
 	// FindByID はクリニックスコープで ID に一致するジョブを返す。
 	FindByID(ctx context.Context, clinicID uint64, id uuid.UUID) (*model.LabImportJob, error)
-	// FindByClinic はクリニックスコープで最新順にジョブ一覧を返す。
-	FindByClinic(ctx context.Context, clinicID uint64, limit int) ([]*model.LabImportJob, error)
 }
 
 // LabImportEventRepository は lab_import_events の永続化インターフェース。
@@ -91,19 +89,6 @@ func (r *labImportJobRepository) FindByID(ctx context.Context, clinicID uint64, 
 		return nil, apperrors.FromGORM(err, "lab_import_job", id.String())
 	}
 	return &job, nil
-}
-
-func (r *labImportJobRepository) FindByClinic(ctx context.Context, clinicID uint64, limit int) ([]*model.LabImportJob, error) {
-	var jobs []*model.LabImportJob
-	err := r.db.WithContext(ctx).
-		Scopes(clinicScope(clinicID)).
-		Order("created_at DESC").
-		Limit(limit).
-		Find(&jobs).Error
-	if err != nil {
-		return nil, apperrors.FromGORM(err, "lab_import_job", "")
-	}
-	return jobs, nil
 }
 
 // ------------------------------------

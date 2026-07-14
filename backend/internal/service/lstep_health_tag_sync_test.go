@@ -19,7 +19,6 @@ type mockLstepTagCodeMappingRepository struct {
 	findAllByClinicIDFn        func(ctx context.Context, clinicID uint64) ([]*model.LstepTagCodeMapping, error)
 	findByClinicIDAndTagNameFn func(ctx context.Context, clinicID uint64, tagName string) ([]*model.LstepTagCodeMapping, error)
 	createFn                   func(ctx context.Context, mapping *model.LstepTagCodeMapping) error
-	updateFn                   func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.LstepTagCodeMapping, error)
 	softDeleteFn               func(ctx context.Context, clinicID, id uint64) error
 }
 
@@ -40,12 +39,6 @@ func (m *mockLstepTagCodeMappingRepository) Create(ctx context.Context, mapping 
 		return m.createFn(ctx, mapping)
 	}
 	return nil
-}
-func (m *mockLstepTagCodeMappingRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.LstepTagCodeMapping, error) {
-	if m.updateFn != nil {
-		return m.updateFn(ctx, clinicID, id, fields)
-	}
-	return nil, nil
 }
 func (m *mockLstepTagCodeMappingRepository) SoftDelete(ctx context.Context, clinicID, id uint64) error {
 	if m.softDeleteFn != nil {

@@ -7,7 +7,6 @@ package repository
 //     deleted_at IS NULL のソフトデリート済み行を除外する。
 //   - SoftDelete / SoftDeleteByClinicIDAndTagName は deleted_at を設定するのみで物理削除はしない
 //     （行は DB に残るが FindAll* からは除外される）。
-//   - Update は clinicScope を通す。存在しない行 (別clinicや削除済み) への Update 後の再読込は NotFound になる。
 
 import (
 	"context"
@@ -18,7 +17,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
 
-	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
@@ -115,35 +113,6 @@ func TestLstepTagCodeMappingRepository_FindByClinicIDAndTagName(t *testing.T) {
 	})
 }
 
-func TestLstepTagCodeMappingRepository_Update(t *testing.T) {
-	db := setupLstepTagCodeMappingTestDB(t)
-	repo := NewLstepTagCodeMappingRepository(db)
-	ctx := context.Background()
-
-	t.Run("正しいclinic_idであればフィールドが更新される", func(t *testing.T) {
-		m := &model.LstepTagCodeMapping{ClinicID: 1, TagName: "update-target", CodeType: model.CodeTypeCheckupType, Codes: pq.StringArray{"C1"}}
-		require.NoError(t, repo.Create(ctx, m))
-
-		updated, err := repo.Update(ctx, 1, m.ID, map[string]any{"tag_name": "updated-name", "age_min": 3})
-		require.NoError(t, err)
-		assert.Equal(t, "updated-name", updated.TagName)
-		require.NotNil(t, updated.AgeMin)
-		assert.Equal(t, 3, *updated.AgeMin)
-	})
-
-	t.Run("別clinic_idでの更新は対象行にヒットせず、再読込でエラーになる", func(t *testing.T) {
-		m := &model.LstepTagCodeMapping{ClinicID: 5, TagName: "isolated", CodeType: model.CodeTypeCheckupType, Codes: pq.StringArray{"C1"}}
-		require.NoError(t, repo.Create(ctx, m))
-
-		_, err := repo.Update(ctx, 999, m.ID, map[string]any{"tag_name": "hacked"})
-		require.Error(t, err)
-		assert.True(t, apperrors.IsNotFound(err))
-
-		var stored model.LstepTagCodeMapping
-		require.NoError(t, db.Where("id = ?", m.ID).First(&stored).Error)
-		assert.Equal(t, "isolated", stored.TagName, "別clinic_idからの更新は反映されない")
-	})
-}
 
 func TestLstepTagCodeMappingRepository_SoftDelete(t *testing.T) {
 	db := setupLstepTagCodeMappingTestDB(t)

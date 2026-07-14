@@ -32,8 +32,6 @@ const (
 type LstepCsvImportService interface {
 	// ImportFriendAttributesCSV は Lステップ友だち属性 CSV をインポートし、インポートレコードを返す。
 	ImportFriendAttributesCSV(ctx context.Context, clinicID uint64, fileName string, fileReader io.Reader, uploadedByUserID uint64) (*model.LstepCsvImport, error)
-	// GetByID はクリニックスコープでインポート履歴を返す。
-	GetByID(ctx context.Context, clinicID uint64, id uuid.UUID) (*model.LstepCsvImport, error)
 	// ListByClinic はクリニックスコープで最新順にインポート履歴一覧を返す。
 	ListByClinic(ctx context.Context, clinicID uint64, limit int) ([]*model.LstepCsvImport, error)
 }
@@ -196,14 +194,6 @@ func (s *lstepCsvImportService) ImportFriendAttributesCSV(ctx context.Context, c
 		return nil, apperrors.Wrap(txErr, "failed to save csv import results")
 	}
 
-	return imp, nil
-}
-
-func (s *lstepCsvImportService) GetByID(ctx context.Context, clinicID uint64, id uuid.UUID) (*model.LstepCsvImport, error) {
-	imp, err := s.csvImportRepo.FindByID(ctx, clinicID, id)
-	if err != nil {
-		return nil, apperrors.Wrap(err, "failed to find csv import")
-	}
 	return imp, nil
 }
 

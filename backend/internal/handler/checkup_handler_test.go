@@ -22,7 +22,6 @@ import (
 type mockCheckupService struct {
 	listFn         func(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.Checkup, error)
 	listByClinicFn func(ctx context.Context, input service.ListCheckupsByClinicInput) ([]model.Checkup, int64, error)
-	getByIDFn      func(ctx context.Context, clinicID, medicalRecordID, checkupID uint64) (*model.Checkup, error)
 	createFn       func(ctx context.Context, medicalRecordID uint64, input *service.CreateCheckupInput) (*model.Checkup, error)
 	updateFn       func(ctx context.Context, clinicID, medicalRecordID, checkupID uint64, input *service.UpdateCheckupInput) (*model.Checkup, error)
 	deleteFn       func(ctx context.Context, clinicID, medicalRecordID, checkupID uint64) error
@@ -42,12 +41,6 @@ func (m *mockCheckupService) ListByClinic(ctx context.Context, input service.Lis
 	return nil, 0, nil
 }
 
-func (m *mockCheckupService) GetByID(ctx context.Context, clinicID, medicalRecordID, checkupID uint64) (*model.Checkup, error) {
-	if m.getByIDFn != nil {
-		return m.getByIDFn(ctx, clinicID, medicalRecordID, checkupID)
-	}
-	return nil, nil
-}
 
 func (m *mockCheckupService) Create(ctx context.Context, medicalRecordID uint64, input *service.CreateCheckupInput) (*model.Checkup, error) {
 	if m.createFn != nil {

@@ -230,54 +230,6 @@ func TestImportFriendAttributesCSV_FindOwnersError(t *testing.T) {
 	assert.Equal(t, csvImportStatusFailed, markedFailed.Status)
 }
 
-// ---- GetByID ----
-
-func TestLstepCsvImportService_GetByID(t *testing.T) {
-	id := uuid.New()
-
-	tests := []struct {
-		name    string
-		repo    *mockLstepCsvImportRepo
-		wantErr bool
-	}{
-		{
-			name: "returns import on success",
-			repo: &mockLstepCsvImportRepo{
-				findByIDFn: func(_ context.Context, clinicID uint64, gotID uuid.UUID) (*model.LstepCsvImport, error) {
-					assert.Equal(t, uint64(1), clinicID)
-					assert.Equal(t, id, gotID)
-					return &model.LstepCsvImport{ID: gotID, ClinicID: clinicID}, nil
-				},
-			},
-			wantErr: false,
-		},
-		{
-			name: "propagates repository error",
-			repo: &mockLstepCsvImportRepo{
-				findByIDFn: func(_ context.Context, _ uint64, _ uuid.UUID) (*model.LstepCsvImport, error) {
-					return nil, apperrors.WrapNotFound("lstep_csv_import", id.String())
-				},
-			},
-			wantErr: true,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			svc := NewLstepCsvImportService(nil, tt.repo, nil, nil)
-
-			got, err := svc.GetByID(context.Background(), 1, id)
-
-			if tt.wantErr {
-				assert.Error(t, err)
-				assert.Nil(t, got)
-			} else {
-				require.NoError(t, err)
-				require.NotNil(t, got)
-			}
-		})
-	}
-}
 
 // ---- ListByClinic ----
 

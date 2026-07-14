@@ -46,12 +46,6 @@ func (m *mockAnalyticsTriggerLogRepo) CountSuppressedByPriorityDateRange(_ conte
 func (m *mockAnalyticsTriggerLogRepo) FindByDateRangeWithFilters(_ context.Context, _ uint64, _, _ time.Time, _, _ string, _, _ int) ([]repository.DeliveryTriggerLogRow, int64, error) {
 	return nil, 0, nil
 }
-func (m *mockAnalyticsTriggerLogRepo) FindAllByOwnerAndDateRange(ctx context.Context, clinicID, ownerID uint64, from, to time.Time) ([]model.LstepDeliveryTriggerLog, error) {
-	if m.listByOwnerFn != nil {
-		return m.listByOwnerFn(ctx, clinicID, ownerID, from, to)
-	}
-	return nil, nil
-}
 func (m *mockAnalyticsTriggerLogRepo) CountByTypeAndStatus(ctx context.Context, clinicID uint64, from, to time.Time) ([]repository.DeliveryStatsRow, error) {
 	if m.countByTypeAndStatusFn != nil {
 		return m.countByTypeAndStatusFn(ctx, clinicID, from, to)

@@ -22,7 +22,6 @@ import (
 
 type mockLstepCsvImportService struct {
 	importFriendAttributesFn func(ctx context.Context, clinicID uint64, fileName string, fileReader io.Reader, uploadedByUserID uint64) (*model.LstepCsvImport, error)
-	getByIDFn                func(ctx context.Context, clinicID uint64, id uuid.UUID) (*model.LstepCsvImport, error)
 	listByClinicFn           func(ctx context.Context, clinicID uint64, limit int) ([]*model.LstepCsvImport, error)
 }
 
@@ -33,12 +32,6 @@ func (m *mockLstepCsvImportService) ImportFriendAttributesCSV(ctx context.Contex
 	return nil, nil
 }
 
-func (m *mockLstepCsvImportService) GetByID(ctx context.Context, clinicID uint64, id uuid.UUID) (*model.LstepCsvImport, error) {
-	if m.getByIDFn != nil {
-		return m.getByIDFn(ctx, clinicID, id)
-	}
-	return nil, nil
-}
 
 func (m *mockLstepCsvImportService) ListByClinic(ctx context.Context, clinicID uint64, limit int) ([]*model.LstepCsvImport, error) {
 	if m.listByClinicFn != nil {

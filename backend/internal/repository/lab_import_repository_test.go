@@ -5,7 +5,7 @@ package repository
 //
 // 保護する不変条件:
 //   - LabImportJobRepository.Update は clinic_id スコープ（別クリニックからは更新できない）。
-//   - FindByID/FindByClinic は clinic_id で正しく分離される。
+//   - FindByID は clinic_id で正しく分離される。
 //   - LabImportEventRepository.FindByJob は job_id + clinic_id で分離され created_at 昇順。
 //   - LabImportDuplicateCheckerDB.IsDuplicate は (clinic_id, exam_type_id, date, pet_id) の
 //     複合キーで判定し、ソフトデリート済み exam は重複扱いしない。
@@ -156,38 +156,6 @@ func TestLabImportJobRepository_FindByID(t *testing.T) {
 	})
 }
 
-func TestLabImportJobRepository_FindByClinic(t *testing.T) {
-	db := setupLabImportTestDB(t)
-	repo := NewLabImportJobRepository(db)
-	ctx := context.Background()
-	const clinicA, clinicB = uint64(1), uint64(2)
-
-	older := makeLabImportJob(t, db, clinicA, model.LabImportJobStatusReceived)
-	time.Sleep(2 * time.Millisecond)
-	newer := makeLabImportJob(t, db, clinicA, model.LabImportJobStatusValidated)
-	makeLabImportJob(t, db, clinicB, model.LabImportJobStatusReceived) // 別クリニック
-
-	t.Run("同一クリニックのジョブのみ新しい順で返す", func(t *testing.T) {
-		got, err := repo.FindByClinic(ctx, clinicA, 10)
-		require.NoError(t, err)
-		require.Len(t, got, 2)
-		assert.Equal(t, newer.ID, got[0].ID)
-		assert.Equal(t, older.ID, got[1].ID)
-	})
-
-	t.Run("limitで件数を絞れる", func(t *testing.T) {
-		got, err := repo.FindByClinic(ctx, clinicA, 1)
-		require.NoError(t, err)
-		require.Len(t, got, 1)
-		assert.Equal(t, newer.ID, got[0].ID)
-	})
-
-	t.Run("該当ジョブが無ければ空スライスを返す", func(t *testing.T) {
-		got, err := repo.FindByClinic(ctx, uint64(9999999), 10)
-		require.NoError(t, err)
-		assert.Empty(t, got)
-	})
-}
 
 func TestLabImportEventRepository_Create(t *testing.T) {
 	db := setupLabImportTestDB(t)
