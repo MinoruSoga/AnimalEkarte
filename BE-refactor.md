@@ -4,7 +4,7 @@
 - **基準コミット**: `9aeee96d`(main)。行番号はずれたら**シンボル名で再特定**する。
 - **性格**: 本書は実行計画の正本。判断できない事態は**中断して報告**。本書とコード以外の文脈を前提にしない。
 - **別台帳**(本書と重複させない): PERF・SEED残 = `BE_todo.md` / 任意検証 = `BE-pending.md` / 既知バグ skip 台帳 = `BE_todo.md` 末尾（#236 で修正予定、**本書の対象外**）
-- **進捗**: 対応済 6 / 22。残存 BE7-7〜BE7-21（部分対応: BE7-15）。棚卸し基準 HEAD `e424de5c`（2026-07-14）。各項目完了時に見出しの `[ ]` を `[x]` に更新してよい（同一コミットに本書を含めてよい）。
+- **進捗**: 対応済 7 / 22。残存 BE7-8〜BE7-21（部分対応: BE7-15）。棚卸し基準 HEAD `e424de5c`（2026-07-14）。各項目完了時に見出しの `[ ]` を `[x]` に更新してよい（同一コミットに本書を含めてよい）。
 
 ---
 
@@ -205,7 +205,7 @@ func paginate(page, limit int) func(*gorm.DB) *gorm.DB {
 - **コミット**: `refactor(backend): repositoryページネーション定型文をpaginate Scopeへ集約`
 - **依存**: BE7-0
 
-#### BE7-7 [ ] refactor: junction テーブル「検証→削除→一括insert」3実装の統合とバッチ挿入の統一
+#### BE7-7 [x] refactor: junction テーブル「検証→削除→一括insert」3実装の統合とバッチ挿入の統一
 
 - **対象**: `internal/repository/reservation_staff_repository.go:211-264,293-336`（`UpdateExcludedReservationTypes` / `UpdateReservationCapabilities`）と `internal/repository/permission_group_repository.go:201-245`（`UpdateStaffGroups`）
 - **問題**: 3関数が同型実装（コード自身が「対称」と相互参照コメント済み）なのに未抽出。さらに `UpdateStaffGroups` のみ `tx.CreateInBatches(rows, 100)` で他2つは無制限 `tx.Create(&items)`（バインド上限防御の非対称）。サブクエリ内の `.Where("clinic_id = ?")` 手書きが2箇所（`permission_group_repository.go:225` / `reservation_staff_repository.go:240`）で `clinicScope` をバイパス。
@@ -422,7 +422,7 @@ func paginate(page, limit int) func(*gorm.DB) *gorm.DB {
 
 ```
 あなたは AnimalEkarte のバックエンド実行者です。BE-refactor.md（第7期）を実行してください。
-（棚卸し 2026-07-14: 対応済 6。残存 BE7-7〜BE7-21。部分対応 BE7-15 は完了条件を満たしてから [x]。）
+（棚卸し 2026-07-14: 対応済 7。残存 BE7-8〜BE7-21。部分対応 BE7-15 は完了条件を満たしてから [x]。）
 
 1. backend/CLAUDE.md、必要に応じて各層 CLAUDE.md（handler/service/repository）、および BE-refactor.md 全文を読む。本書とコード以外の文脈は存在しない前提で作業する。
 2. BE7-0（安全網）から着手し、以後 BE7-1 → BE7-21 を番号順に、1項目ずつ実施する。

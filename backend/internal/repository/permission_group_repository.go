@@ -203,45 +203,32 @@ func (r *permissionGroupRepository) UpdateStaffGroups(ctx context.Context, clini
 	// staff_permission_groups は自前 clinic_id を持たないため、ここで group_id の所有権を
 	// 確認しなければ別クリニックの権限グループIDを紐付けできてしまう（横断テナント書き換え）。
 	// スタッフ所有権は呼び出し側（handler verifyStaffClinicMembership）で検証済み。検証は DELETE 前に行い部分書き込みを防ぐ。
-	if len(groupIDs) > 0 {
-		var count int64
-		if err := dbOrTx(ctx, r.db).
-			Model(&model.PermissionGroup{}).
-			Where("clinic_id = ? AND id IN ? AND deleted_at IS NULL", clinicID, groupIDs).
-			Count(&count).Error; err != nil {
-			return apperrors.FromGORM(err, "permission_group", "")
-		}
-		if count != int64(len(groupIDs)) {
-			return apperrors.WrapInvalidInput("group_ids contains invalid permission group")
-		}
+	if err := validateClinicScopedMasterIDs(ctx, dbOrTx(ctx, r.db), clinicID, groupIDs,
+		&model.PermissionGroup{}, "permission_group",
+		"group_ids contains invalid permission group"); err != nil {
+		return err
 	}
 	// BE-refactor.md X-7: dbOrTx(ctx, r.db).Transaction(...) で ambient tx があれば SAVEPOINT として参加する。
-	if err := dbOrTx(ctx, r.db).Transaction(func(tx *gorm.DB) error {
+	return replaceJunctionInTransaction(dbOrTx(ctx, r.db), func(tx *gorm.DB) error {
 		// 既存の紐付けを全削除（BE-refactor.md H-1: staff_permission_groups は自前 clinic_id を
 		// 持たないため、DELETE を staff_id のみでスコープすると、多施設所属スタッフ（Staff は
 		// staff_clinic_assignments で複数クリニックに所属しうる）の場合、clinicID の属さない
 		// 他クリニック分の紐付けまで無警告で消えてしまう。group 側の clinic_id サブクエリで
 		// clinicID に属する紐付けのみを削除対象にスコープする）。
-		subQuery := tx.Model(&model.PermissionGroup{}).Select("id").Where("clinic_id = ?", clinicID)
-		if err := tx.Where("staff_id = ? AND group_id IN (?)", staffID, subQuery).
-			Delete(&model.StaffPermissionGroup{}).Error; err != nil {
-			return apperrors.FromGORM(err, "staff_permission_group", fmt.Sprintf("staff:%d", staffID))
+		if err := deleteJunctionViaMasterClinicScope(tx, clinicID, staffID,
+			&model.StaffPermissionGroup{}, &model.PermissionGroup{}, "group_id",
+			"staff_permission_group", fmt.Sprintf("staff:%d", staffID)); err != nil {
+			return err
 		}
-		// 新しい紐付けを挿入
-		if len(groupIDs) > 0 {
-			rows := make([]model.StaffPermissionGroup, 0, len(groupIDs))
-			for _, gid := range groupIDs {
-				rows = append(rows, model.StaffPermissionGroup{StaffID: staffID, GroupID: gid})
-			}
-			if err := tx.CreateInBatches(rows, 100).Error; err != nil {
-				return apperrors.FromGORM(err, "staff_permission_group", fmt.Sprintf("staff:%d", staffID))
-			}
+		if len(groupIDs) == 0 {
+			return nil
 		}
-		return nil
-	}); err != nil {
-		return apperrors.Wrap(err, "failed to replace staff permission groups")
-	}
-	return nil
+		rows := make([]model.StaffPermissionGroup, 0, len(groupIDs))
+		for _, gid := range groupIDs {
+			rows = append(rows, model.StaffPermissionGroup{StaffID: staffID, GroupID: gid})
+		}
+		return insertJunctionRowsInBatches(tx, rows, "staff_permission_group", fmt.Sprintf("staff:%d", staffID))
+	}, "failed to replace staff permission groups")
 }
 
 // Reorder は指定されたIDリストの順序でソート順を更新する。
