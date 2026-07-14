@@ -22,6 +22,7 @@ import { paths } from "@/config/paths";
 import { useGetEstimates } from "../api/get-estimates";
 import { useDeleteEstimate } from "../api/delete-estimate";
 import type { Estimate } from "../types";
+import { isEstimateLockedStatus } from "../utils/is-estimate-locked-status";
 import type {
   FilterProperty,
   ActiveFilter,
@@ -190,46 +191,52 @@ export function EstimateList() {
 
   const openDeleteModal = deleteModal.open;
   // rerender-memo: renderRow を useCallback でメモ化（DataTable への参照を安定化）
-  const renderRow = useCallback((estimate: Estimate) => (
-    <DataTableRow key={estimate.id} onClick={() => navigate(paths.estimates.detail.getHref(estimate.id))}>
-      <TableCell className={`font-mono text-base ${C.text60} py-2`}>{estimate.estimateNo}</TableCell>
-      <TableCell className={`text-base ${C.text} py-2 font-medium`}>{estimate.title}</TableCell>
-      <TableCell className={`text-base ${C.text} py-2`}>{estimate.ownerName ?? "-"}</TableCell>
-      <TableCell className={`text-base ${C.text60} py-2`}>
-        {estimate.validUntil ? estimate.validUntil.slice(0, 10) : "-"}
-      </TableCell>
-      <TableCell className={`text-right font-mono font-medium text-base ${C.text} py-2`}>
-        {formatCurrency(estimate.totalAmount)}
-      </TableCell>
-      <TableCell className="py-2">
-        <EstimateStatusBadge status={estimate.status} />
-      </TableCell>
-      <TableCell className="text-right py-2">
-        {(canEdit || canDelete) ? (
-          <RowActionDropdown
-            actions={[
-              {
-                label: "詳細",
-                icon: ExternalLink,
-                onClick: () => navigate(paths.estimates.detail.getHref(estimate.id)),
-              },
-              ...(canEdit ? [{
-                label: "編集",
-                icon: FileText,
-                onClick: () => navigate(paths.estimates.edit.getHref(estimate.id)),
-              }] : []),
-              ...(canDelete ? [{
-                label: "削除",
-                icon: Trash2,
-                variant: "destructive" as const,
-                onClick: () => openDeleteModal(estimate.id),
-              }] : []),
-            ]}
-          />
-        ) : null}
-      </TableCell>
-    </DataTableRow>
-  ), [navigate, canEdit, canDelete, openDeleteModal]);
+  const renderRow = useCallback((estimate: Estimate) => {
+    const isLocked = isEstimateLockedStatus(estimate.status);
+    const showEdit = canEdit && !isLocked;
+    const showDelete = canDelete && !isLocked;
+
+    return (
+      <DataTableRow key={estimate.id} onClick={() => navigate(paths.estimates.detail.getHref(estimate.id))}>
+        <TableCell className={`font-mono text-base ${C.text60} py-2`}>{estimate.estimateNo}</TableCell>
+        <TableCell className={`text-base ${C.text} py-2 font-medium`}>{estimate.title}</TableCell>
+        <TableCell className={`text-base ${C.text} py-2`}>{estimate.ownerName ?? "-"}</TableCell>
+        <TableCell className={`text-base ${C.text60} py-2`}>
+          {estimate.validUntil ? estimate.validUntil.slice(0, 10) : "-"}
+        </TableCell>
+        <TableCell className={`text-right font-mono font-medium text-base ${C.text} py-2`}>
+          {formatCurrency(estimate.totalAmount)}
+        </TableCell>
+        <TableCell className="py-2">
+          <EstimateStatusBadge status={estimate.status} />
+        </TableCell>
+        <TableCell className="text-right py-2">
+          {(canEdit || canDelete) ? (
+            <RowActionDropdown
+              actions={[
+                {
+                  label: "詳細",
+                  icon: ExternalLink,
+                  onClick: () => navigate(paths.estimates.detail.getHref(estimate.id)),
+                },
+                ...(showEdit ? [{
+                  label: "編集",
+                  icon: FileText,
+                  onClick: () => navigate(paths.estimates.edit.getHref(estimate.id)),
+                }] : []),
+                ...(showDelete ? [{
+                  label: "削除",
+                  icon: Trash2,
+                  variant: "destructive" as const,
+                  onClick: () => openDeleteModal(estimate.id),
+                }] : []),
+              ]}
+            />
+          ) : null}
+        </TableCell>
+      </DataTableRow>
+    );
+  }, [navigate, canEdit, canDelete, openDeleteModal]);
 
   if (isLoading) {
     return <LoadingFallback />;
