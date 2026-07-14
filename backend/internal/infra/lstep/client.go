@@ -13,6 +13,7 @@ import (
 )
 
 const (
+	DefaultBaseURL   = "https://api.lstep.jp"
 	defaultTimeout   = 10 * time.Second
 	maxRetries       = 3
 	retryInitialWait = time.Second

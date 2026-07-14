@@ -8,6 +8,8 @@ import (
 	"net/http"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
+	"github.com/animal-ekarte/backend/internal/infra/line"
+	"github.com/animal-ekarte/backend/internal/infra/lstep"
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
@@ -34,7 +36,7 @@ func (s *lstepSettingsService) TestConnection(ctx context.Context, clinicID uint
 	lstepKey := kvMap[model.IntegrationKeyLstepAPIKey]
 	lstepBase := kvMap[model.IntegrationKeyLstepBaseURL]
 	if lstepBase == "" {
-		lstepBase = "https://api.lstep.jp"
+		lstepBase = lstep.DefaultBaseURL
 	}
 	if lstepKey != "" {
 		if err := testLstepAPI(ctx, lstepBase, lstepKey); err != nil {
@@ -48,7 +50,7 @@ func (s *lstepSettingsService) TestConnection(ctx context.Context, clinicID uint
 	// LINE Messaging API疎通確認
 	lineToken := kvMap[model.IntegrationKeyLineChannelAccessToken]
 	if lineToken != "" {
-		if err := testLineAPI(ctx, "https://api.line.me", lineToken); err != nil {
+		if err := testLineAPI(ctx, line.APIHost, lineToken); err != nil {
 			result.LineOK = false
 			result.LineError = err.Error()
 		} else {

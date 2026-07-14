@@ -15,6 +15,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
+	"github.com/animal-ekarte/backend/internal/infra/line"
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
@@ -128,7 +129,7 @@ func LiffAuth(lookup LineCustomerLookup, settingLookup LineReservationSettingLoo
 
 // lineVerifyURL は LINE ID Token 検証 API のエンドポイント。
 // テスト時のみ差し替えること（本番では変更しない）。
-var lineVerifyURL = "https://api.line.me/oauth2/v2.1/verify"
+var lineVerifyURL = line.VerifyEndpoint
 
 // verifyLiffIDToken は LINE の ID Token 検証 API を呼び出してユーザー情報を返す。
 // clientID にはクリニックの LINEログインチャンネル ID を渡すこと。

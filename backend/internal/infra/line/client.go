@@ -14,7 +14,9 @@ import (
 
 const (
 	defaultTimeout   = 15 * time.Second
-	pushEndpoint     = "https://api.line.me/v2/bot/message/push"
+	APIHost          = "https://api.line.me"
+	PushEndpoint     = "https://api.line.me/v2/bot/message/push"
+	VerifyEndpoint   = "https://api.line.me/oauth2/v2.1/verify"
 	maxRetries       = 3
 	retryInitialWait = time.Second
 )
@@ -54,7 +56,7 @@ func NewMessagingClient(channelAccessToken string) MessagingClient {
 // newRequest はLINE Messaging API向けのHTTPリクエストを生成する
 // （共通ロジックは internal/infra/httpx.NewBearerRequest に集約。BE-refactor.md C-2）。
 func (c *httpLineClient) newRequest(ctx context.Context, body io.Reader) (*http.Request, error) {
-	req, err := httpx.NewBearerRequest(ctx, http.MethodPost, pushEndpoint, c.channelAccessToken, body)
+	req, err := httpx.NewBearerRequest(ctx, http.MethodPost, PushEndpoint, c.channelAccessToken, body)
 	if err != nil {
 		return nil, fmt.Errorf("create line request: %w", err)
 	}

@@ -17,6 +17,7 @@ import (
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/infra/crypto"
+	"github.com/animal-ekarte/backend/internal/infra/line"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/repository"
 )
@@ -287,7 +288,7 @@ func verifyLineIDToken(ctx context.Context, idToken string, clinicID uint64, set
 		client = http.DefaultClient
 	}
 
-	resp, err := client.PostForm("https://api.line.me/oauth2/v2.1/verify", url.Values{
+	resp, err := client.PostForm(line.VerifyEndpoint, url.Values{
 		"id_token":  {idToken},
 		"client_id": {setting.LineChannelID},
 	})

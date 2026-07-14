@@ -5,6 +5,7 @@ import (
 	"log/slog"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
+	"github.com/animal-ekarte/backend/internal/infra/lstep"
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
@@ -41,7 +42,7 @@ func (s *lstepSettingsService) GetRawCredentials(ctx context.Context, clinicID u
 	}
 	base := kvMap[model.IntegrationKeyLstepBaseURL]
 	if base == "" {
-		base = "https://api.lstep.jp"
+		base = lstep.DefaultBaseURL
 	}
 	return kvMap[model.IntegrationKeyLstepAPIKey], base, kvMap[model.IntegrationKeyLineChannelAccessToken], nil
 }

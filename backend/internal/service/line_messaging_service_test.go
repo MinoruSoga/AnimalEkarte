@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/animal-ekarte/backend/internal/infra/line"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -57,7 +58,7 @@ func TestLineMessagingService_PushText(t *testing.T) {
 		assert.Equal(t, "Bearer secret-token", gotAuth)
 		assert.Equal(t, "application/json", gotContentType)
 		assert.Equal(t, http.MethodPost, gotMethod)
-		assert.Equal(t, lineMessagingAPIURL, gotURL)
+		assert.Equal(t, line.PushEndpoint, gotURL)
 	})
 
 	t.Run("returns wrapped error when the HTTP client fails", func(t *testing.T) {
