@@ -233,6 +233,63 @@ func TestEstimateRepository_UpdateIfNotLocked(t *testing.T) {
 	})
 }
 
+// TestEstimateRepository_DeleteIfNotLocked は approved/rejected への TOCTOU を
+// status NOT IN 述語で原子的に拒否することを検証する（0 行 → Conflict）。
+func TestEstimateRepository_DeleteIfNotLocked(t *testing.T) {
+	db := setupEstimateRepoTestDB(t)
+	repo := NewEstimateRepository(db)
+	ctx := context.Background()
+	const clinicA = uint64(1)
+
+	owner := makeTestOwner(t, db, clinicA, "DeleteIfNotLocked飼主")
+
+	t.Run("draft status は削除に成功する（ソフトデリート）", func(t *testing.T) {
+		e := makeEstimate(t, db, clinicA, owner.ID, model.EstimateStatusDraft)
+
+		err := repo.DeleteIfNotLocked(ctx, clinicA, e.ID)
+		require.NoError(t, err)
+
+		_, findErr := repo.FindByID(ctx, clinicA, e.ID)
+		require.Error(t, findErr)
+		assert.True(t, apperrors.IsNotFound(findErr))
+	})
+
+	t.Run("sent status は削除に成功する（ソフトデリート）", func(t *testing.T) {
+		e := makeEstimate(t, db, clinicA, owner.ID, model.EstimateStatusSent)
+
+		err := repo.DeleteIfNotLocked(ctx, clinicA, e.ID)
+		require.NoError(t, err)
+
+		_, findErr := repo.FindByID(ctx, clinicA, e.ID)
+		require.Error(t, findErr)
+		assert.True(t, apperrors.IsNotFound(findErr))
+	})
+
+	t.Run("approved status は Conflict（行は削除されない）", func(t *testing.T) {
+		e := makeEstimate(t, db, clinicA, owner.ID, model.EstimateStatusApproved)
+
+		err := repo.DeleteIfNotLocked(ctx, clinicA, e.ID)
+		require.Error(t, err)
+		assert.True(t, apperrors.IsConflict(err), "expected Conflict, got %v", err)
+
+		got, findErr := repo.FindByID(ctx, clinicA, e.ID)
+		require.NoError(t, findErr)
+		assert.Equal(t, model.EstimateStatusApproved, got.Status)
+	})
+
+	t.Run("rejected status は Conflict（行は削除されない）", func(t *testing.T) {
+		e := makeEstimate(t, db, clinicA, owner.ID, model.EstimateStatusRejected)
+
+		err := repo.DeleteIfNotLocked(ctx, clinicA, e.ID)
+		require.Error(t, err)
+		assert.True(t, apperrors.IsConflict(err), "expected Conflict, got %v", err)
+
+		got, findErr := repo.FindByID(ctx, clinicA, e.ID)
+		require.NoError(t, findErr)
+		assert.Equal(t, model.EstimateStatusRejected, got.Status)
+	})
+}
+
 func TestEstimateRepository_Delete(t *testing.T) {
 	db := setupEstimateRepoTestDB(t)
 	repo := NewEstimateRepository(db)

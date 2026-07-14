@@ -28,6 +28,7 @@ type mockEstimateRepository struct {
 	updateFn               func(ctx context.Context, clinicID, id uint64, fields map[string]any) error
 	updateIfNotLockedFn    func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Estimate, error)
 	deleteFn               func(ctx context.Context, clinicID, id uint64) error
+	deleteIfNotLockedFn    func(ctx context.Context, clinicID, id uint64) error
 	countItemsByEstimateID func(ctx context.Context, estimateID uint64) (int64, error)
 }
 
@@ -61,7 +62,17 @@ func (m *mockEstimateRepository) UpdateIfNotLocked(ctx context.Context, clinicID
 }
 
 func (m *mockEstimateRepository) Delete(ctx context.Context, clinicID, id uint64) error {
-	return m.deleteFn(ctx, clinicID, id)
+	if m.deleteFn != nil {
+		return m.deleteFn(ctx, clinicID, id)
+	}
+	return nil
+}
+
+func (m *mockEstimateRepository) DeleteIfNotLocked(ctx context.Context, clinicID, id uint64) error {
+	if m.deleteIfNotLockedFn != nil {
+		return m.deleteIfNotLockedFn(ctx, clinicID, id)
+	}
+	return nil
 }
 
 func (m *mockEstimateRepository) CountItemsByEstimateID(ctx context.Context, _, estimateID uint64) (int64, error) {
@@ -668,6 +679,7 @@ func TestEstimateService_Delete(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			deleteCalled := false
+			deleteIfNotLockedCalled := false
 			repo := &mockEstimateRepository{
 				findByIDFn: func(_ context.Context, _, id uint64) (*model.Estimate, error) {
 					if tt.repoErr != nil && apperrors.IsNotFound(tt.repoErr) {
@@ -683,6 +695,10 @@ func TestEstimateService_Delete(t *testing.T) {
 				},
 				deleteFn: func(_ context.Context, _, _ uint64) error {
 					deleteCalled = true
+					return nil
+				},
+				deleteIfNotLockedFn: func(_ context.Context, _, _ uint64) error {
+					deleteIfNotLockedCalled = true
 					return tt.repoErr
 				},
 			}
@@ -698,14 +714,41 @@ func TestEstimateService_Delete(t *testing.T) {
 				if tt.wantConflict {
 					assert.True(t, apperrors.IsConflict(err))
 					if tt.existingStatus == model.EstimateStatusApproved || tt.existingStatus == model.EstimateStatusRejected {
-						assert.False(t, deleteCalled, "repo.Delete must not be called for locked estimate")
+						assert.False(t, deleteIfNotLockedCalled, "repo.DeleteIfNotLocked must not be called for locked estimate")
 					}
 				}
 			} else {
 				assert.NoError(t, err)
+				assert.True(t, deleteIfNotLockedCalled, "repo.DeleteIfNotLocked must be called on success")
+				assert.False(t, deleteCalled, "repo.Delete must not be called")
 			}
 		})
 	}
+}
+
+// TestEstimateService_Delete_TOCTOU_LockedAfterFind は FindByID 時点では draft でも、
+// DeleteIfNotLocked が Conflict を返した場合に削除を拒否することを検証する（TOCTOU 回帰）。
+func TestEstimateService_Delete_TOCTOU_LockedAfterFind(t *testing.T) {
+	repo := &mockEstimateRepository{
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.Estimate, error) {
+			return &model.Estimate{
+				ID:     1,
+				Status: model.EstimateStatusDraft,
+			}, nil
+		},
+		countItemsByEstimateID: func(_ context.Context, _ uint64) (int64, error) {
+			return 0, nil
+		},
+		deleteIfNotLockedFn: func(_ context.Context, _, _ uint64) error {
+			return apperrors.WrapConflict("承認済みまたは却下済みの見積書は削除できません")
+		},
+	}
+	svc := NewEstimateService(repo, nil, nil, nil, nil)
+
+	err := svc.Delete(context.Background(), 1, 1, nil)
+
+	require.Error(t, err)
+	assert.True(t, apperrors.IsConflict(err), "expected Conflict, got %v", err)
 }
 
 // estimateAuditActions は mockAuditService.entries から Resource="estimate" の Action を収集する。
@@ -897,7 +940,7 @@ func TestEstimateService_Delete_AuditLog(t *testing.T) {
 			countItemsByEstimateID: func(_ context.Context, _ uint64) (int64, error) {
 				return 0, nil
 			},
-			deleteFn: func(_ context.Context, _, _ uint64) error {
+			deleteIfNotLockedFn: func(_ context.Context, _, _ uint64) error {
 				return nil
 			},
 		}
@@ -927,7 +970,7 @@ func TestEstimateService_Delete_AuditLog(t *testing.T) {
 			countItemsByEstimateID: func(_ context.Context, _ uint64) (int64, error) {
 				return 0, nil
 			},
-			deleteFn: func(_ context.Context, _, _ uint64) error {
+			deleteIfNotLockedFn: func(_ context.Context, _, _ uint64) error {
 				return nil
 			},
 		}

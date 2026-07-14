@@ -374,8 +374,10 @@ func (s *estimateService) Delete(ctx context.Context, clinicID, id uint64, actor
 		return apperrors.WrapConflict("この見積書には明細が登録されているため削除できません")
 	}
 	oldValue := extractEstimateImportantFields(existing)
-	if err := s.repo.Delete(ctx, clinicID, id); err != nil {
-		slog.ErrorContext(ctx, "failed to delete estimate", "error", err, "clinic_id", clinicID, "estimate_id", id)
+	if err := s.repo.DeleteIfNotLocked(ctx, clinicID, id); err != nil {
+		if !apperrors.IsConflict(err) {
+			slog.ErrorContext(ctx, "failed to delete estimate", "error", err, "clinic_id", clinicID, "estimate_id", id)
+		}
 		return apperrors.Wrap(err, "failed to delete estimate")
 	}
 	slog.InfoContext(ctx, "estimate deleted",
