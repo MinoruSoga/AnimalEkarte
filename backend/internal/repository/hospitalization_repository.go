@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
@@ -13,6 +14,9 @@ import (
 type HospitalizationRepository interface {
 	FindAll(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status, startDate, endDate *string, page, limit int) ([]model.Hospitalization, int64, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.Hospitalization, error)
+	// LockByIDForUpdate は FOR UPDATE で入院行をロック取得する（Discharge Q2-C）。
+	// Repositories.Transaction（repo-swap）内の txRepos 経由でのみ呼ぶこと。
+	LockByIDForUpdate(ctx context.Context, clinicID, id uint64) (*model.Hospitalization, error)
 	Create(ctx context.Context, hospitalization *model.Hospitalization) error
 	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Hospitalization, error)
 	UpdateIfNotDischarged(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Hospitalization, error)
@@ -73,6 +77,22 @@ func (r *hospitalizationRepository) FindByID(ctx context.Context, clinicID, id u
 		Preload("DailyRecords").
 		Preload("TreatmentPlans", "deleted_at IS NULL").
 		Scopes(clinicScope(clinicID)).Where("id = ?", id).First(&hospitalization).Error
+	if err != nil {
+		return nil, apperrors.FromGORM(err, "hospitalization", fmt.Sprintf("%d", id))
+	}
+	return &hospitalization, nil
+}
+
+// LockByIDForUpdate は FOR UPDATE で入院を行ロック取得する（Discharge Q2-C）。
+// OwnerID/PetID など Q2-A 再検証に必要なスカラーはロック取得時の行スナップショットに含まれる。
+// DischargeWithBilling は Repositories.Transaction（repo-swap）内の txRepos 経由で呼ぶこと。
+// r.db が tx にバインドされていないとロックは SELECT 終了と同時に解放され直列化できない。
+func (r *hospitalizationRepository) LockByIDForUpdate(ctx context.Context, clinicID, id uint64) (*model.Hospitalization, error) {
+	var hospitalization model.Hospitalization
+	err := r.db.WithContext(ctx).
+		Scopes(clinicScope(clinicID)).
+		Clauses(clause.Locking{Strength: "UPDATE"}).
+		Where("id = ?", id).First(&hospitalization).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "hospitalization", fmt.Sprintf("%d", id))
 	}

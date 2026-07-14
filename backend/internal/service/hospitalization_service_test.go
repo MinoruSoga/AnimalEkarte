@@ -37,6 +37,11 @@ func (m *mockHospitalizationRepository) FindByID(ctx context.Context, clinicID, 
 	return nil, nil
 }
 
+// LockByIDForUpdate は Discharge Q2-C 用。既存テストの findByIDFn フックをそのまま使えるよう FindByID に委譲する。
+func (m *mockHospitalizationRepository) LockByIDForUpdate(ctx context.Context, clinicID, id uint64) (*model.Hospitalization, error) {
+	return m.FindByID(ctx, clinicID, id)
+}
+
 func (m *mockHospitalizationRepository) Create(ctx context.Context, hospitalization *model.Hospitalization) error {
 	return m.createFn(ctx, hospitalization)
 }
