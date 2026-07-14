@@ -371,4 +371,145 @@ func TestHospitalizationService_DischargeWithBilling_WithoutAccounting_RejectsFo
 	assert.False(t, updated, "contaminated Owner/Pet discharge must not persist status update")
 }
 
+func TestHospitalizationService_DischargeWithBilling_RejectsInvalidOwnerPetLinks(t *testing.T) {
+	const clinicID = uint64(1)
+	const ownedOwnerID = uint64(10)
+
+	tests := []struct {
+		name                string
+		ownerID             uint64
+		petID               uint64
+		createAccounting    bool
+		assertOwnerFn       func(context.Context, uint64, uint64) error
+		findPetFn           func(context.Context, uint64, uint64) (uint64, error)
+		expectCarePlanFatal bool
+	}{
+		{
+			name:             "rejects_foreign_pet_with_accounting",
+			ownerID:          ownedOwnerID,
+			petID:            202,
+			createAccounting: true,
+			assertOwnerFn: func(_ context.Context, _, _ uint64) error {
+				return nil
+			},
+			findPetFn: func(_ context.Context, gotClinicID, petID uint64) (uint64, error) {
+				assert.Equal(t, clinicID, gotClinicID)
+				assert.Equal(t, uint64(202), petID)
+				return 0, apperrors.WrapNotFound("pet", "202")
+			},
+		},
+		{
+			name:             "rejects_foreign_pet_without_accounting",
+			ownerID:          ownedOwnerID,
+			petID:            202,
+			createAccounting: false,
+			assertOwnerFn: func(_ context.Context, _, _ uint64) error {
+				return nil
+			},
+			findPetFn: func(_ context.Context, gotClinicID, petID uint64) (uint64, error) {
+				assert.Equal(t, clinicID, gotClinicID)
+				assert.Equal(t, uint64(202), petID)
+				return 0, apperrors.WrapNotFound("pet", "202")
+			},
+			expectCarePlanFatal: true,
+		},
+		{
+			name:             "rejects_owner_pet_mismatch_with_accounting",
+			ownerID:          ownedOwnerID,
+			petID:            21,
+			createAccounting: true,
+			assertOwnerFn: func(_ context.Context, _, _ uint64) error {
+				return nil
+			},
+			findPetFn: func(_ context.Context, _, petID uint64) (uint64, error) {
+				assert.Equal(t, uint64(21), petID)
+				return 999, nil
+			},
+		},
+		{
+			name:             "rejects_owner_pet_mismatch_without_accounting",
+			ownerID:          ownedOwnerID,
+			petID:            21,
+			createAccounting: false,
+			assertOwnerFn: func(_ context.Context, _, _ uint64) error {
+				return nil
+			},
+			findPetFn: func(_ context.Context, _, petID uint64) (uint64, error) {
+				assert.Equal(t, uint64(21), petID)
+				return 999, nil
+			},
+			expectCarePlanFatal: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			updated := false
+			hospRepo := &mockHospitalizationRepository{
+				findByIDFn: func(_ context.Context, _, id uint64) (*model.Hospitalization, error) {
+					return &model.Hospitalization{
+						ID: id, ClinicID: clinicID,
+						OwnerID: tt.ownerID, PetID: tt.petID,
+						Status: model.HospitalizationStatusAdmitted,
+					}, nil
+				},
+				updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Hospitalization, error) {
+					updated = true
+					t.Fatal("hospitalization must not be updated with invalid Owner/Pet links")
+					return nil, nil
+				},
+			}
+
+			var carePlanRepo *mockCarePlanItemRepository
+			if tt.expectCarePlanFatal {
+				carePlanRepo = &mockCarePlanItemRepository{
+					listByHospitalizationIDFn: func(_ context.Context, _, _ uint64) ([]model.CarePlanItem, error) {
+						t.Fatal("care plan items must not be fetched when CreateAccounting is false")
+						return nil, nil
+					},
+				}
+			} else {
+				carePlanRepo = &mockCarePlanItemRepository{
+					listByHospitalizationIDFn: func(_ context.Context, _, _ uint64) ([]model.CarePlanItem, error) {
+						return nil, nil
+					},
+				}
+			}
+
+			var accountingRepo repository.AccountingRepository
+			accountingCreated := false
+			if tt.createAccounting {
+				accountingRepo = &mockAccountingRepository{
+					createFn: func(_ context.Context, _ uint64, billing *model.Billing) error {
+						accountingCreated = true
+						t.Fatalf("Accounting.Create must not receive invalid Owner/Pet (owner=%v pet=%v)", billing.OwnerID, billing.PetID)
+						return nil
+					},
+				}
+			}
+
+			resRepo := &mockReservationRepository{
+				assertOwnerInClinicFn:  tt.assertOwnerFn,
+				findPetOwnerInClinicFn: tt.findPetFn,
+			}
+			repos := newDischargeTestRepos(hospRepo, carePlanRepo, accountingRepo, nil)
+			repos.Reservation = resRepo
+			svc := NewHospitalizationService(repos)
+
+			result, err := svc.DischargeWithBilling(context.Background(), clinicID, 10, DischargeWithBillingInput{
+				DischargeDate:    time.Now(),
+				CreateAccounting: tt.createAccounting,
+			})
+
+			assert.Error(t, err)
+			assert.True(t, apperrors.IsNotFound(err))
+			assert.Nil(t, result)
+			assert.False(t, updated, "contaminated Owner/Pet discharge must not persist status update")
+			if tt.createAccounting {
+				assert.False(t, accountingCreated)
+			}
+		})
+	}
+}
+
 func uint64PtrHosp(v uint64) *uint64 { return &v }
