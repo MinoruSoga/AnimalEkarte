@@ -100,9 +100,9 @@ func buildPetBasicInfoTags(pets []model.Pet) []string {
 		p := &pets[i]
 		fallback := "breed_mix_other"
 		if p.AnimalSpecies != nil {
-			if strings.Contains(p.AnimalSpecies.Name, "犬") {
+			if isDogSpeciesName(p.AnimalSpecies.Name) {
 				fallback = "breed_mix_dog"
-			} else if strings.Contains(p.AnimalSpecies.Name, "猫") {
+			} else if isCatSpeciesName(p.AnimalSpecies.Name) {
 				fallback = "breed_mix_cat"
 			}
 		}

@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"log/slog"
-	"strings"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 )
@@ -30,10 +29,10 @@ func (s *lstepTagSyncService) SyncOwnerAnimalClassificationTags(ctx context.Cont
 		if p.AnimalSpecies == nil {
 			continue
 		}
-		if strings.Contains(p.AnimalSpecies.Name, "犬") {
+		if isDogSpeciesName(p.AnimalSpecies.Name) {
 			hasDog = true
 		}
-		if strings.Contains(p.AnimalSpecies.Name, "猫") {
+		if isCatSpeciesName(p.AnimalSpecies.Name) {
 			hasCat = true
 		}
 	}

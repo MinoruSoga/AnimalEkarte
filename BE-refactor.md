@@ -4,7 +4,7 @@
 - **基準コミット**: `9aeee96d`(main)。行番号はずれたら**シンボル名で再特定**する。
 - **性格**: 本書は実行計画の正本。判断できない事態は**中断して報告**。本書とコード以外の文脈を前提にしない。
 - **別台帳**(本書と重複させない): PERF・SEED残 = `BE_todo.md` / 任意検証 = `BE-pending.md` / 既知バグ skip 台帳 = `BE_todo.md` 末尾（#236 で修正予定、**本書の対象外**）
-- **進捗**: 対応済 10 / 22。残存 BE7-11〜BE7-21（部分対応: BE7-15）。棚卸し基準 HEAD `e424de5c`（2026-07-14）。各項目完了時に見出しの `[ ]` を `[x]` に更新してよい（同一コミットに本書を含めてよい）。
+- **進捗**: 対応済 11 / 22。残存 BE7-12〜BE7-21（部分対応: BE7-15）。棚卸し基準 HEAD `e424de5c`（2026-07-14）。各項目完了時に見出しの `[ ]` を `[x]` に更新してよい（同一コミットに本書を含めてよい）。
 
 ---
 
@@ -245,7 +245,7 @@ func paginate(page, limit int) func(*gorm.DB) *gorm.DB {
 - **コミット**: `refactor(backend): 割引率バリデーションをvalidateDiscountRateへ統一`
 - **依存**: BE7-0
 
-#### BE7-11 [ ] refactor: 犬/猫種別判定の3箇所コピペをヘルパ抽出
+#### BE7-11 [x] refactor: 犬/猫種別判定の3箇所コピペをヘルパ抽出
 
 - **対象**: `internal/service/lstep_tag_sync_pet.go:33-36` / `lstep_tag_sync_pet_basic.go:103-105` / `lstep_health_tag_sync_prevention.go:46` — `strings.Contains(name, "犬"/"猫")` の部分一致判定を独立実装
 - **問題**: 3箇所コピペ。なお `dose_calc.go:29-41` の `doseSpeciesAliases`（完全一致・投薬安全の fail-closed 設計）とは**契約が意図的に異なる**ため統合しない。

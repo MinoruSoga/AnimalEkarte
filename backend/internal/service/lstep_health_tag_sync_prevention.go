@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"log/slog"
-	"strings"
 	"time"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
@@ -43,7 +42,7 @@ func (s *lstepTagSyncService) SyncFilariaTagWithMappings(ctx context.Context, cl
 	}
 	hasDog := false
 	for i := range pets {
-		if pets[i].AnimalSpecies != nil && strings.Contains(pets[i].AnimalSpecies.Name, "犬") {
+		if pets[i].AnimalSpecies != nil && isDogSpeciesName(pets[i].AnimalSpecies.Name) {
 			hasDog = true
 			break
 		}
