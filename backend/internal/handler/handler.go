@@ -80,7 +80,7 @@ func (h *Handler) RegisterRoutes(ctx context.Context, r *gin.Engine) {
 		auditSvc = h.svc.Audit
 		staffSvc = h.svc.Staff
 	}
-	protected.Use(middleware.Auth(h.cfg.JWTSecret, h.cfg.GinMode == "release", auditSvc, staffSvc))
+	protected.Use(middleware.Auth(h.tokenSvc(), h.cfg.GinMode == "release", auditSvc, staffSvc))
 	protected.Use(middleware.RequireXRequestedWith())
 	// NOTE: SanitizeNullBytes は main.go でグローバル登録済み（BUG-067）
 

@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
-	"github.com/golang-jwt/jwt/v5"
 
 	"github.com/animal-ekarte/backend/internal/authjwt"
 	"github.com/animal-ekarte/backend/internal/service"
@@ -19,11 +18,11 @@ type JWTClaims = authjwt.Claims
 
 // Auth はJWTトークンを検証する認証ミドルウェア。
 // httpOnly Cookie を優先して読み、なければ Authorization Bearer ヘッダにフォールバックする。
-// secret には config.Config.JWTSecret、isProduction には cfg.GinMode == "release" を渡す。
+// tokenSvc は access JWT 検証に使用する（VerifyAccessToken）。
+// isProduction には cfg.GinMode == "release" を渡す。
 // auditSvc はクリニック切替の監査ログ記録に使用する（ベストエフォート: nil 許容）。
 // staffSvc は staff の有効性チェック（is_active && deleted_at IS NULL）に使用する。
-func Auth(secret string, isProduction bool, auditSvc service.AuditService, staffSvc service.StaffService) gin.HandlerFunc {
-	key := []byte(secret)
+func Auth(tokenSvc service.TokenService, isProduction bool, auditSvc service.AuditService, staffSvc service.StaffService) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		tokenStr := extractToken(c)
 		if tokenStr == "" {
@@ -31,13 +30,8 @@ func Auth(secret string, isProduction bool, auditSvc service.AuditService, staff
 			return
 		}
 
-		claims := &JWTClaims{}
-		if _, err := jwt.ParseWithClaims(tokenStr, claims, func(t *jwt.Token) (any, error) {
-			if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
-				return nil, jwt.ErrSignatureInvalid
-			}
-			return key, nil
-		}); err != nil {
+		claims, err := tokenSvc.VerifyAccessToken(tokenStr)
+		if err != nil {
 			respondError(c, http.StatusUnauthorized, "invalid or expired token")
 			return
 		}

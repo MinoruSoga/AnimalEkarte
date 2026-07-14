@@ -30,6 +30,9 @@ type IssuedToken struct {
 type TokenService interface {
 	IssueAccessToken(staffID uint64, mainClinicID string, isSystemAdmin bool, clinicIDs []uint64) (*IssuedToken, error)
 	IssueRefreshToken(staffID uint64, mainClinicID string, isSystemAdmin bool, clinicIDs []uint64) (*IssuedToken, error)
+	// VerifyAccessToken は access JWT を HMAC 検証する（ブラックリスト照合なし）。
+	// subject=refresh のトークンは拒否する（refresh の access 誤用防止）。
+	VerifyAccessToken(tokenStr string) (*authjwt.Claims, error)
 	VerifyRefreshToken(ctx context.Context, tokenStr string) (*authjwt.Claims, error)
 	// ParseRefreshTokenClaims は Logout 用のベストエフォート parse。
 	// HMAC + subject=refresh のみ検証し、ブラックリスト照合は行わない（VerifyRefreshToken とは別）。
@@ -99,6 +102,24 @@ func (s *tokenService) IssueRefreshToken(staffID uint64, mainClinicID string, is
 		return nil, apperrors.Wrap(err, "failed to sign refresh token")
 	}
 	return &IssuedToken{Token: refreshTokenStr, ExpiresAt: refreshExpiresAt}, nil
+}
+
+// VerifyAccessToken は access token を署名検証し claims を返す（ブラックリスト照合なし）。
+// middleware.Auth と bit-compatible にするため BL は見ない。subject=refresh は拒否する。
+func (s *tokenService) VerifyAccessToken(tokenStr string) (*authjwt.Claims, error) {
+	claims := &authjwt.Claims{}
+	if _, err := jwt.ParseWithClaims(tokenStr, claims, func(t *jwt.Token) (any, error) {
+		if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, jwt.ErrSignatureInvalid
+		}
+		return s.jwtSecret, nil
+	}); err != nil {
+		return nil, apperrors.WrapUnauthorized("invalid or expired token")
+	}
+	if claims.Subject == refreshTokenSubject {
+		return nil, apperrors.WrapUnauthorized("invalid token type")
+	}
+	return claims, nil
 }
 
 func (s *tokenService) VerifyRefreshToken(ctx context.Context, tokenStr string) (*authjwt.Claims, error) {

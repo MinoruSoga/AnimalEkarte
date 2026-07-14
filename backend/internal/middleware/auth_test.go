@@ -18,6 +18,10 @@ import (
 
 const testSecret = "test-secret-key"
 
+func testTokenSvc() service.TokenService {
+	return service.NewTokenService(testSecret, nil)
+}
+
 func makeToken(t *testing.T, method jwt.SigningMethod, claims jwt.MapClaims) string {
 	t.Helper()
 	token := jwt.NewWithClaims(method, claims)
@@ -52,7 +56,7 @@ func runAuthMiddlewareWithAudit(t *testing.T, authHeader string, auditSvc servic
 	var captured *gin.Context
 	w := httptest.NewRecorder()
 	router := gin.New()
-	router.Use(Auth(testSecret, false, auditSvc, nil))
+	router.Use(Auth(testTokenSvc(), false, auditSvc, nil))
 	router.GET("/test", func(c *gin.Context) {
 		captured = c
 		c.Status(http.StatusOK)
@@ -298,7 +302,7 @@ func TestAuth_AccessTokenCookie(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	w := httptest.NewRecorder()
 	router := gin.New()
-	router.Use(Auth(testSecret, false, nil, nil))
+	router.Use(Auth(testTokenSvc(), false, nil, nil))
 	router.GET("/test", func(c *gin.Context) {
 		c.Status(http.StatusOK)
 	})
@@ -315,7 +319,7 @@ func TestAuth_AuthTokenCookieFallback(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	w := httptest.NewRecorder()
 	router := gin.New()
-	router.Use(Auth(testSecret, false, nil, nil))
+	router.Use(Auth(testTokenSvc(), false, nil, nil))
 	router.GET("/test", func(c *gin.Context) {
 		c.Status(http.StatusOK)
 	})
@@ -332,7 +336,7 @@ func TestAuth_SigningMethodMismatch(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	w := httptest.NewRecorder()
 	router := gin.New()
-	router.Use(Auth(testSecret, false, nil, nil))
+	router.Use(Auth(testTokenSvc(), false, nil, nil))
 	router.GET("/test", func(c *gin.Context) {
 		c.Status(http.StatusOK)
 	})
@@ -352,7 +356,7 @@ func TestAuth_InvalidClinicIDHeader(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	w := httptest.NewRecorder()
 	router := gin.New()
-	router.Use(Auth(testSecret, false, nil, nil))
+	router.Use(Auth(testTokenSvc(), false, nil, nil))
 	router.GET("/test", func(c *gin.Context) {
 		c.Status(http.StatusOK)
 	})
@@ -373,7 +377,7 @@ func TestAuth_NotAssignedClinicIDHeader(t *testing.T) {
 	claims := clinicSwitchClaims([]uint64{1, 2})
 	token := makeToken(t, jwt.SigningMethodHS256, claims)
 
-	router.Use(Auth(testSecret, false, nil, nil))
+	router.Use(Auth(testTokenSvc(), false, nil, nil))
 	router.GET("/test", func(c *gin.Context) {
 		c.Status(http.StatusOK)
 	})
@@ -412,7 +416,7 @@ func TestAuth_StaffValidation(t *testing.T) {
 		w := httptest.NewRecorder()
 		router := gin.New()
 		staffSvc := &mockStaffService{}
-		router.Use(Auth(testSecret, false, nil, staffSvc))
+		router.Use(Auth(testTokenSvc(), false, nil, staffSvc))
 		router.GET("/test", func(c *gin.Context) {
 			c.Status(http.StatusOK)
 		})
@@ -432,7 +436,7 @@ func TestAuth_StaffValidation(t *testing.T) {
 				return &model.Staff{IsActive: false}, nil
 			},
 		}
-		router.Use(Auth(testSecret, false, nil, staffSvc))
+		router.Use(Auth(testTokenSvc(), false, nil, staffSvc))
 		router.GET("/test", func(c *gin.Context) {
 			c.Status(http.StatusOK)
 		})
@@ -452,7 +456,7 @@ func TestAuth_StaffValidation(t *testing.T) {
 				return nil, errors.New("db error")
 			},
 		}
-		router.Use(Auth(testSecret, false, nil, staffSvc))
+		router.Use(Auth(testTokenSvc(), false, nil, staffSvc))
 		router.GET("/test", func(c *gin.Context) {
 			c.Status(http.StatusOK)
 		})
@@ -463,4 +467,14 @@ func TestAuth_StaffValidation(t *testing.T) {
 
 		assert.Equal(t, http.StatusOK, w.Code)
 	})
+}
+
+func TestAuth_RejectsRefreshTokenSubject(t *testing.T) {
+	claims := validClaims()
+	claims["sub"] = "refresh"
+	token := makeToken(t, jwt.SigningMethodHS256, claims)
+
+	w, _ := runAuthMiddleware(t, "Bearer "+token)
+	assert.Equal(t, http.StatusUnauthorized, w.Code)
+	assert.Contains(t, w.Body.String(), "invalid or expired token")
 }

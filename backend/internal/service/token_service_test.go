@@ -118,6 +118,79 @@ func TestTokenService_IssueAndVerify(t *testing.T) {
 	})
 }
 
+func TestTokenService_VerifyAccessToken(t *testing.T) {
+	t.Run("roundtrip: 発行した access token を検証できる", func(t *testing.T) {
+		svc := NewTokenService(testTokenJWTSecret, nil)
+
+		issued, err := svc.IssueAccessToken(42, "7", true, []uint64{7, 8})
+		require.NoError(t, err)
+
+		claims, err := svc.VerifyAccessToken(issued.Token)
+		require.NoError(t, err)
+		assert.Equal(t, "42", claims.UserID)
+		assert.Equal(t, "7", claims.ClinicID)
+		assert.True(t, claims.IsSystemAdmin)
+		assert.Equal(t, []uint64{7, 8}, claims.ClinicIDs)
+		assert.Empty(t, claims.Subject)
+		assert.NotEmpty(t, claims.ID)
+	})
+
+	t.Run("tamper detect: 改竄した token は拒否する", func(t *testing.T) {
+		svc := NewTokenService(testTokenJWTSecret, nil)
+
+		issued, err := svc.IssueAccessToken(1, "1", false, []uint64{1})
+		require.NoError(t, err)
+
+		parts := strings.Split(issued.Token, ".")
+		require.Len(t, parts, 3)
+		sig := []byte(parts[2])
+		if sig[0] == 'A' {
+			sig[0] = 'B'
+		} else {
+			sig[0] = 'A'
+		}
+		parts[2] = string(sig)
+		tampered := strings.Join(parts, ".")
+
+		_, err = svc.VerifyAccessToken(tampered)
+		require.Error(t, err)
+		assert.True(t, errors.Is(err, apperrors.ErrUnauthorized))
+		assert.Contains(t, err.Error(), "invalid or expired token")
+	})
+
+	t.Run("invalid token type: refresh token を access 検証に流用すると拒否する", func(t *testing.T) {
+		svc := NewTokenService(testTokenJWTSecret, nil)
+
+		refresh, err := svc.IssueRefreshToken(9, "2", false, []uint64{2})
+		require.NoError(t, err)
+
+		_, err = svc.VerifyAccessToken(refresh.Token)
+		require.Error(t, err)
+		assert.True(t, errors.Is(err, apperrors.ErrUnauthorized))
+		assert.Contains(t, err.Error(), "invalid token type")
+	})
+
+	t.Run("blacklist 非呼び出し: revoked JTI でも access は通る（BLなし）", func(t *testing.T) {
+		existsCalled := false
+		repo := &mockTokenBlacklistRepository{
+			existsByJTIFn: func(_ context.Context, _ string) (bool, error) {
+				existsCalled = true
+				return true, nil
+			},
+		}
+		blacklistSvc := NewTokenBlacklistService(repo)
+		svc := NewTokenService(testTokenJWTSecret, blacklistSvc)
+
+		issued, err := svc.IssueAccessToken(5, "3", false, []uint64{3})
+		require.NoError(t, err)
+
+		claims, err := svc.VerifyAccessToken(issued.Token)
+		require.NoError(t, err)
+		assert.Equal(t, "5", claims.UserID)
+		assert.False(t, existsCalled, "VerifyAccessToken must not call blacklist")
+	})
+}
+
 func TestTokenService_ParseRefreshTokenClaims(t *testing.T) {
 	t.Run("valid refresh: claims を返しブラックリストを見ない", func(t *testing.T) {
 		revokedJTIs := map[string]bool{}
