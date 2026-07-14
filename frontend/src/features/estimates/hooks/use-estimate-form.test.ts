@@ -250,6 +250,61 @@ describe("useEstimateForm", () => {
 
       expect(result.current.formState.success).toBe(false);
     });
+
+    it("status が approved → create は呼ばれず fieldErrors.status が返る", async () => {
+      const { result } = renderHook(() => useEstimateForm());
+
+      act(() => {
+        result.current.handleChange("title", "新規見積書");
+        result.current.handleChange("status", "approved");
+      });
+
+      await act(async () => {
+        await result.current.formAction(new FormData());
+      });
+
+      expect(result.current.formState.success).toBe(false);
+      expect(result.current.formState.fieldErrors?.status).toBe(
+        "作成時は下書きまたは送付済みのみ選択できます"
+      );
+      expect(mockCreateMutateAsync).not.toHaveBeenCalled();
+    });
+
+    it("status が rejected → create は呼ばれず fieldErrors.status が返る", async () => {
+      const { result } = renderHook(() => useEstimateForm());
+
+      act(() => {
+        result.current.handleChange("title", "新規見積書");
+        result.current.handleChange("status", "rejected");
+      });
+
+      await act(async () => {
+        await result.current.formAction(new FormData());
+      });
+
+      expect(result.current.formState.success).toBe(false);
+      expect(result.current.formState.fieldErrors?.status).toBe(
+        "作成時は下書きまたは送付済みのみ選択できます"
+      );
+      expect(mockCreateMutateAsync).not.toHaveBeenCalled();
+    });
+
+    it("status が sent → create に status: 'sent' が渡る", async () => {
+      const { result } = renderHook(() => useEstimateForm());
+
+      act(() => {
+        result.current.handleChange("title", "新規見積書");
+        result.current.handleChange("status", "sent");
+      });
+
+      await act(async () => {
+        await result.current.formAction(new FormData());
+      });
+
+      expect(mockCreateMutateAsync).toHaveBeenCalledWith(
+        expect.objectContaining({ title: "新規見積書", status: "sent" })
+      );
+    });
   });
 
   // ──────────────────────────
@@ -312,6 +367,26 @@ describe("useEstimateForm", () => {
       });
 
       expect(result.current.formState.success).toBe(false);
+    });
+
+    it("status が approved → update に status: 'approved' が渡る", async () => {
+      const { result } = renderHook(() => useEstimateForm(mockEstimate));
+
+      act(() => {
+        result.current.handleChange("status", "approved");
+      });
+
+      await act(async () => {
+        await result.current.formAction(new FormData());
+      });
+
+      expect(mockUpdateMutateAsync).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: "1",
+          data: expect.objectContaining({ status: "approved" }),
+        })
+      );
+      expect(mockCreateMutateAsync).not.toHaveBeenCalled();
     });
   });
 

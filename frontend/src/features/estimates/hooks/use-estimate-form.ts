@@ -8,6 +8,9 @@ import { useCreateEstimate } from '../api/create-estimate';
 import { useUpdateEstimate } from '../api/update-estimate';
 import type { CreateEstimateRequest, UpdateEstimateRequest } from '../api/types';
 
+/** Create API（binding oneof=draft sent）と整合する許可 status */
+const CREATE_ALLOWED_STATUSES: readonly EstimateStatus[] = ['draft', 'sent'];
+
 interface EstimateFormState {
   title: string;
   status: EstimateStatus;
@@ -87,6 +90,13 @@ export function useEstimateForm(estimate?: Estimate) {
           await updateEstimate({ id: estimate.id, data: req });
           toast.success("見積書を更新しました");
         } else {
+          if (!CREATE_ALLOWED_STATUSES.includes(form.status)) {
+            return {
+              success: false,
+              fieldErrors: { status: "作成時は下書きまたは送付済みのみ選択できます" },
+              timestamp: Date.now(),
+            };
+          }
           const req: CreateEstimateRequest = {
             title: form.title,
             status: form.status,

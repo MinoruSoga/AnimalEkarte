@@ -28,16 +28,26 @@ import { usePermission } from "@/hooks/use-permission";
 import type { EstimateStatus } from '../types';
 import { ResourceEstimates } from "@/types/generated/models";
 
-// rendering-hoist-jsx: ステータス選択肢は静的なのでモジュール定数に巻き上げ
-const STATUS_OPTIONS: { value: EstimateStatus; label: string }[] = [
+// rendering-hoist-jsx: Edit は全 status、Create は draft/sent のみ（Create API binding と整合）
+export const EDIT_STATUS_OPTIONS: { value: EstimateStatus; label: string }[] = [
   { value: 'draft', label: '下書き' },
   { value: 'sent', label: '送付済み' },
   { value: 'approved', label: '承認済み' },
   { value: 'rejected', label: '却下' },
 ];
 
-// rendering-hoist-jsx: ステータス SelectItem リストは静的なのでモジュール定数に巻き上げ
-const STATUS_SELECT_ITEMS = STATUS_OPTIONS.map(opt => (
+export const CREATE_STATUS_OPTIONS = EDIT_STATUS_OPTIONS.filter(
+  (opt) => opt.value === 'draft' || opt.value === 'sent'
+);
+
+// rendering-hoist-jsx: SelectItem リストは静的なのでモジュール定数に巻き上げ
+const EDIT_STATUS_SELECT_ITEMS = EDIT_STATUS_OPTIONS.map(opt => (
+  <SelectItem key={opt.value} value={opt.value}>
+    {opt.label}
+  </SelectItem>
+));
+
+const CREATE_STATUS_SELECT_ITEMS = CREATE_STATUS_OPTIONS.map(opt => (
   <SelectItem key={opt.value} value={opt.value}>
     {opt.label}
   </SelectItem>
@@ -49,16 +59,20 @@ interface BasicInfoSectionProps {
   title: string;
   status: EstimateStatus;
   validUntil: string;
+  isEdit: boolean;
   onChange: (key: string, value: unknown) => void;
   titleError?: string;
+  statusError?: string;
 }
 
 const BasicInfoSection = memo(function BasicInfoSection({
   title,
   status,
   validUntil,
+  isEdit,
   onChange,
   titleError,
+  statusError,
 }: BasicInfoSectionProps) {
   return (
     <>
@@ -90,9 +104,10 @@ const BasicInfoSection = memo(function BasicInfoSection({
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            {STATUS_SELECT_ITEMS}
+            {isEdit ? EDIT_STATUS_SELECT_ITEMS : CREATE_STATUS_SELECT_ITEMS}
           </SelectContent>
         </Select>
+        <FormFieldError message={statusError} />
       </div>
 
       {/* 有効期限 */}
@@ -331,8 +346,10 @@ function EstimateFormContent({ id }: { id?: string }) {
           title={form.title}
           status={form.status}
           validUntil={form.validUntil}
+          isEdit={isEdit}
           onChange={handleChangeWithDirty}
           titleError={formState.fieldErrors?.title}
+          statusError={formState.fieldErrors?.status}
         />
 
         {/* rerender-memo: AmountSection — 基本情報/テキスト変更では再レンダーしない */}
