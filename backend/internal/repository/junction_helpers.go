@@ -105,3 +105,31 @@ func replaceJunctionInTransaction(
 	}
 	return nil
 }
+
+// replaceChildRowsByParentID は parent FK で子行を delete→insert 置換する。
+// clinic 検証なし・parent FK 直指定削除向け（shift entry/template breaks 等）。
+// parentFKColumn は呼び出し側のコンパイル時リテラルのみ許可する。
+func replaceChildRowsByParentID[T any](
+	db *gorm.DB,
+	parentID uint64,
+	rows []T,
+	childModel any,
+	parentFKColumn string,
+	junctionResource string,
+	assignParentID func(*T, uint64),
+	wrapMessage string,
+) error {
+	return replaceJunctionInTransaction(db, func(tx *gorm.DB) error {
+		if err := tx.Where(fmt.Sprintf("%s = ?", parentFKColumn), parentID).
+			Delete(childModel).Error; err != nil {
+			return apperrors.FromGORM(err, junctionResource, fmt.Sprintf("%d", parentID))
+		}
+		if len(rows) == 0 {
+			return nil
+		}
+		for i := range rows {
+			assignParentID(&rows[i], parentID)
+		}
+		return insertJunctionRowsInBatches(tx, rows, junctionResource, "")
+	}, wrapMessage)
+}
