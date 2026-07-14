@@ -4,7 +4,7 @@
 - **基準コミット**: `9aeee96d`(main)。行番号はずれたら**シンボル名で再特定**する。
 - **性格**: 本書は実行計画の正本。判断できない事態は**中断して報告**。本書とコード以外の文脈を前提にしない。
 - **別台帳**(本書と重複させない): PERF・SEED残 = `BE_todo.md` / 任意検証 = `BE-pending.md` / 既知バグ skip 台帳 = `BE_todo.md` 末尾（#236 で修正予定、**本書の対象外**）
-- **進捗**: 対応済 17 / 22。残存 BE7-18〜BE7-21。棚卸し基準 HEAD `e424de5c`（2026-07-14）。各項目完了時に見出しの `[ ]` を `[x]` に更新してよい（同一コミットに本書を含めてよい）。
+- **進捗**: 対応済 18 / 22。残存 BE7-19〜BE7-21。棚卸し基準 HEAD `e424de5c`（2026-07-14）。各項目完了時に見出しの `[ ]` を `[x]` に更新してよい（同一コミットに本書を含めてよい）。
 
 ---
 
@@ -338,7 +338,7 @@ func paginate(page, limit int) func(*gorm.DB) *gorm.DB {
 
 ### Phase 6 — refactor: 構造（M〜L規模、最後に実施）
 
-#### BE7-18 [ ] refactor: billing_item CreateItem の3ブロック抽出
+#### BE7-18 [x] refactor: billing_item CreateItem の3ブロック抽出
 
 - **対象**: `internal/service/billing_item_service.go:167`（`CreateItem`、114行）
 - **問題**: (a) L168-179 入力値バリデーション、(b) L182-200 クロステナント所有権検証、(c) L203-229 category/taxType/taxRate/source のデフォルト解決 — 相互依存のない3ブロックが1関数に同居。
@@ -422,7 +422,7 @@ func paginate(page, limit int) func(*gorm.DB) *gorm.DB {
 
 ```
 あなたは AnimalEkarte のバックエンド実行者です。BE-refactor.md（第7期）を実行してください。
-（棚卸し 2026-07-14: 対応済 17。残存 BE7-18〜BE7-21。）
+（棚卸し 2026-07-14: 対応済 18。残存 BE7-19〜BE7-21。）
 
 1. backend/CLAUDE.md、必要に応じて各層 CLAUDE.md（handler/service/repository）、および BE-refactor.md 全文を読む。本書とコード以外の文脈は存在しない前提で作業する。
 2. BE7-0（安全網）から着手し、以後 BE7-1 → BE7-21 を番号順に、1項目ずつ実施する。
