@@ -6,10 +6,8 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
-	"github.com/golang-jwt/jwt/v5"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
-	"github.com/animal-ekarte/backend/internal/middleware"
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
@@ -44,7 +42,7 @@ func (h *Handler) Login(c *gin.Context) {
 	}
 	staff.ClinicAssignments = assignments
 
-	mainClinicID, clinicIDs := resolveClinicInfo(assignments)
+	mainClinicID, clinicIDs := h.authSvc().ResolveClinicInfo(assignments)
 
 	// クリニック一覧取得 (フォールバック適用に必要なため JWT 発行前に取得)
 	allClinics, err := h.svc.Clinic.ListClinics(ctx)
@@ -53,7 +51,7 @@ func (h *Handler) Login(c *gin.Context) {
 	}
 
 	// system_admin で assignments なしの場合、allClinics[0] を main にフォールバック (JWT 発行前に解決)
-	mainClinicID = resolveSystemAdminMainClinicID(mainClinicID, account.IsSystemAdmin, allClinics)
+	mainClinicID = h.authSvc().ResolveSystemAdminMainClinicID(mainClinicID, account.IsSystemAdmin, allClinics)
 
 	if err := h.issueAuthCookies(c, staff.ID, mainClinicID, account.IsSystemAdmin, clinicIDs); err != nil {
 		RespondError(c, err)
@@ -95,7 +93,7 @@ func (h *Handler) buildMeResponse(c *gin.Context, staff *model.Staff, account *m
 		cl := &allClinics[i]
 		clinicNameMap[strconv.FormatUint(cl.ID, 10)] = cl.Name
 	}
-	mainClinicID = resolveSystemAdminMainClinicID(mainClinicID, isSystemAdmin, allClinics)
+	mainClinicID = h.authSvc().ResolveSystemAdminMainClinicID(mainClinicID, isSystemAdmin, allClinics)
 	permMap := h.calculateEffectivePermissions(c, isSystemAdmin, staff.ID)
 	return toMeResponse(staff, account, mainClinicID, clinicNameMap, allClinics, permMap)
 }
@@ -106,14 +104,9 @@ func (h *Handler) Logout(c *gin.Context) {
 
 	// refresh_token の jti をブラックリストに登録してサーバーサイド失効させる（ベストエフォート）。
 	// 失効に失敗してもログアウト自体はブロックしない。
+	// ParseRefreshTokenClaims は BL 照合なし（既に失効済みでも parse でき、冪等 revoke 可能）。
 	if tokenStr, err := c.Cookie(refreshTokenCookieName); err == nil && tokenStr != "" {
-		claims := &middleware.JWTClaims{}
-		if _, parseErr := jwt.ParseWithClaims(tokenStr, claims, func(t *jwt.Token) (any, error) {
-			if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
-				return nil, jwt.ErrSignatureInvalid
-			}
-			return []byte(h.cfg.JWTSecret), nil
-		}); parseErr == nil && claims.ID != "" && claims.ExpiresAt != nil {
+		if claims, parseErr := h.tokenSvc().ParseRefreshTokenClaims(tokenStr); parseErr == nil && claims.ID != "" && claims.ExpiresAt != nil {
 			if revokeErr := h.svc.TokenBlacklist.RevokeToken(ctx, claims.ID, claims.ExpiresAt.Time); revokeErr != nil {
 				slog.ErrorContext(ctx, "failed to revoke refresh token on logout (best-effort)", "jti", claims.ID, "error", revokeErr)
 			}
@@ -209,8 +202,8 @@ func (h *Handler) RefreshToken(c *gin.Context) {
 		RespondError(c, apperrors.Wrap(asgErr, "failed to get clinic assignments"))
 		return
 	}
-	// resolveClinicInfo で最新割り当てから mainClinicID を再計算（旧 claims の値を引き継がない）
-	mainClinicID, clinicIDs := resolveClinicInfo(assignments)
+	// ResolveClinicInfo で最新割り当てから mainClinicID を再計算（旧 claims の値を引き継がない）
+	mainClinicID, clinicIDs := h.authSvc().ResolveClinicInfo(assignments)
 
 	// Token rotation: 旧 JTI をブラックリストに登録して旧トークンを失効させる（ベストエフォート）。
 	// 失効失敗は回帰させない（新トークン発行は続行）。

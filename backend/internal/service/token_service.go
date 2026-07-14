@@ -31,6 +31,9 @@ type TokenService interface {
 	IssueAccessToken(staffID uint64, mainClinicID string, isSystemAdmin bool, clinicIDs []uint64) (*IssuedToken, error)
 	IssueRefreshToken(staffID uint64, mainClinicID string, isSystemAdmin bool, clinicIDs []uint64) (*IssuedToken, error)
 	VerifyRefreshToken(ctx context.Context, tokenStr string) (*authjwt.Claims, error)
+	// ParseRefreshTokenClaims は Logout 用のベストエフォート parse。
+	// HMAC + subject=refresh のみ検証し、ブラックリスト照合は行わない（VerifyRefreshToken とは別）。
+	ParseRefreshTokenClaims(tokenStr string) (*authjwt.Claims, error)
 }
 
 type tokenService struct {
@@ -124,5 +127,23 @@ func (s *tokenService) VerifyRefreshToken(ctx context.Context, tokenStr string) 
 		}
 	}
 
+	return claims, nil
+}
+
+// ParseRefreshTokenClaims は refresh token を署名検証し claims を返す（ブラックリスト照合なし）。
+// Logout のベストエフォート失効向け。access token 誤失効防止のため subject=refresh は必須。
+func (s *tokenService) ParseRefreshTokenClaims(tokenStr string) (*authjwt.Claims, error) {
+	claims := &authjwt.Claims{}
+	if _, err := jwt.ParseWithClaims(tokenStr, claims, func(t *jwt.Token) (any, error) {
+		if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, jwt.ErrSignatureInvalid
+		}
+		return s.jwtSecret, nil
+	}); err != nil {
+		return nil, apperrors.WrapUnauthorized("invalid or expired refresh token")
+	}
+	if claims.Subject != refreshTokenSubject {
+		return nil, apperrors.WrapUnauthorized("invalid token type")
+	}
 	return claims, nil
 }

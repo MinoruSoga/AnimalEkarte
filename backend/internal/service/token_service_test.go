@@ -54,12 +54,16 @@ func TestTokenService_IssueAndVerify(t *testing.T) {
 		issued, err := svc.IssueRefreshToken(1, "1", false, []uint64{1})
 		require.NoError(t, err)
 
-		tampered := issued.Token
-		if tampered[len(tampered)-1] == 'a' {
-			tampered = tampered[:len(tampered)-1] + "b"
+		parts := strings.Split(issued.Token, ".")
+		require.Len(t, parts, 3)
+		sig := []byte(parts[2])
+		if sig[0] == 'A' {
+			sig[0] = 'B'
 		} else {
-			tampered = tampered[:len(tampered)-1] + "a"
+			sig[0] = 'A'
 		}
+		parts[2] = string(sig)
+		tampered := strings.Join(parts, ".")
 
 		_, err = svc.VerifyRefreshToken(ctx, tampered)
 		require.Error(t, err)
@@ -111,5 +115,65 @@ func TestTokenService_IssueAndVerify(t *testing.T) {
 		require.Error(t, err)
 		assert.True(t, errors.Is(err, apperrors.ErrUnauthorized))
 		assert.Contains(t, err.Error(), "invalid token type")
+	})
+}
+
+func TestTokenService_ParseRefreshTokenClaims(t *testing.T) {
+	t.Run("valid refresh: claims を返しブラックリストを見ない", func(t *testing.T) {
+		revokedJTIs := map[string]bool{}
+		repo := &mockTokenBlacklistRepository{
+			existsByJTIFn: func(_ context.Context, jti string) (bool, error) {
+				return revokedJTIs[jti], nil
+			},
+		}
+		blacklistSvc := NewTokenBlacklistService(repo)
+		svc := NewTokenService(testTokenJWTSecret, blacklistSvc)
+
+		issued, err := svc.IssueRefreshToken(5, "3", false, []uint64{3})
+		require.NoError(t, err)
+
+		parsed, err := svc.ParseRefreshTokenClaims(issued.Token)
+		require.NoError(t, err)
+		require.NotEmpty(t, parsed.ID)
+		require.NotNil(t, parsed.ExpiresAt)
+
+		// 失効済みでも Parse は成功する（Logout 用・BL照合なし）
+		revokedJTIs[parsed.ID] = true
+		again, err := svc.ParseRefreshTokenClaims(issued.Token)
+		require.NoError(t, err)
+		assert.Equal(t, parsed.ID, again.ID)
+		assert.Equal(t, refreshTokenSubject, again.Subject)
+	})
+
+	t.Run("access token: subject 不一致で拒否", func(t *testing.T) {
+		svc := NewTokenService(testTokenJWTSecret, nil)
+		access, err := svc.IssueAccessToken(9, "2", false, []uint64{2})
+		require.NoError(t, err)
+
+		_, err = svc.ParseRefreshTokenClaims(access.Token)
+		require.Error(t, err)
+		assert.True(t, errors.Is(err, apperrors.ErrUnauthorized))
+		assert.Contains(t, err.Error(), "invalid token type")
+	})
+
+	t.Run("tampered: 署名不正で拒否", func(t *testing.T) {
+		svc := NewTokenService(testTokenJWTSecret, nil)
+		issued, err := svc.IssueRefreshToken(1, "1", false, []uint64{1})
+		require.NoError(t, err)
+
+		parts := strings.Split(issued.Token, ".")
+		require.Len(t, parts, 3)
+		sig := []byte(parts[2])
+		if sig[0] == 'A' {
+			sig[0] = 'B'
+		} else {
+			sig[0] = 'A'
+		}
+		parts[2] = string(sig)
+		tampered := strings.Join(parts, ".")
+
+		_, err = svc.ParseRefreshTokenClaims(tampered)
+		require.Error(t, err)
+		assert.True(t, errors.Is(err, apperrors.ErrUnauthorized))
 	})
 }
