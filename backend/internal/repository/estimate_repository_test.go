@@ -165,6 +165,74 @@ func TestEstimateRepository_Update(t *testing.T) {
 	})
 }
 
+// TestEstimateRepository_UpdateIfNotLocked は approved/rejected への TOCTOU を
+// status NOT IN 述語で原子的に拒否することを検証する（0 行 → Conflict）。
+func TestEstimateRepository_UpdateIfNotLocked(t *testing.T) {
+	db := setupEstimateRepoTestDB(t)
+	repo := NewEstimateRepository(db)
+	ctx := context.Background()
+	const clinicA = uint64(1)
+
+	owner := makeTestOwner(t, db, clinicA, "UpdateIfNotLocked飼主")
+
+	t.Run("draft status は更新に成功する", func(t *testing.T) {
+		e := makeEstimate(t, db, clinicA, owner.ID, model.EstimateStatusDraft)
+
+		got, err := repo.UpdateIfNotLocked(ctx, clinicA, e.ID, map[string]any{
+			"title": "更新後タイトル",
+		})
+		require.NoError(t, err)
+		require.NotNil(t, got)
+		assert.Equal(t, "更新後タイトル", got.Title)
+		assert.Equal(t, model.EstimateStatusDraft, got.Status)
+	})
+
+	t.Run("sent status は更新に成功する", func(t *testing.T) {
+		e := makeEstimate(t, db, clinicA, owner.ID, model.EstimateStatusSent)
+
+		got, err := repo.UpdateIfNotLocked(ctx, clinicA, e.ID, map[string]any{
+			"title": "sent更新",
+		})
+		require.NoError(t, err)
+		require.NotNil(t, got)
+		assert.Equal(t, "sent更新", got.Title)
+	})
+
+	t.Run("approved status は Conflict（行は変わらない）", func(t *testing.T) {
+		e := makeEstimate(t, db, clinicA, owner.ID, model.EstimateStatusApproved)
+		originalTitle := e.Title
+
+		got, err := repo.UpdateIfNotLocked(ctx, clinicA, e.ID, map[string]any{
+			"title": "改ざん試行",
+		})
+		assert.Nil(t, got)
+		require.Error(t, err)
+		assert.True(t, apperrors.IsConflict(err), "expected Conflict, got %v", err)
+
+		unchanged, findErr := repo.FindByID(ctx, clinicA, e.ID)
+		require.NoError(t, findErr)
+		assert.Equal(t, originalTitle, unchanged.Title)
+		assert.Equal(t, model.EstimateStatusApproved, unchanged.Status)
+	})
+
+	t.Run("rejected status は Conflict（行は変わらない）", func(t *testing.T) {
+		e := makeEstimate(t, db, clinicA, owner.ID, model.EstimateStatusRejected)
+		originalTitle := e.Title
+
+		got, err := repo.UpdateIfNotLocked(ctx, clinicA, e.ID, map[string]any{
+			"title": "改ざん試行",
+		})
+		assert.Nil(t, got)
+		require.Error(t, err)
+		assert.True(t, apperrors.IsConflict(err), "expected Conflict, got %v", err)
+
+		unchanged, findErr := repo.FindByID(ctx, clinicA, e.ID)
+		require.NoError(t, findErr)
+		assert.Equal(t, originalTitle, unchanged.Title)
+		assert.Equal(t, model.EstimateStatusRejected, unchanged.Status)
+	})
+}
+
 func TestEstimateRepository_Delete(t *testing.T) {
 	db := setupEstimateRepoTestDB(t)
 	repo := NewEstimateRepository(db)

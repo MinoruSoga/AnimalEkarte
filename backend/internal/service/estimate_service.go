@@ -330,18 +330,18 @@ func (s *estimateService) Update(ctx context.Context, clinicID, id uint64, input
 	isBecomingRejected := input.Status != nil && *input.Status == model.EstimateStatusRejected &&
 		existing.Status != model.EstimateStatusRejected
 
-	if err := s.repo.Update(ctx, clinicID, id, fields); err != nil {
-		slog.ErrorContext(ctx, "failed to update estimate", "error", err)
+	// UpdateIfNotLocked: FindByID→isEstimateLocked と Update の間に approved/rejected へ
+	// 遷移されても、status NOT IN 述語で原子的に拒否する（0 行 → Conflict）。
+	updated, err := s.repo.UpdateIfNotLocked(ctx, clinicID, id, fields)
+	if err != nil {
+		if !apperrors.IsConflict(err) {
+			slog.ErrorContext(ctx, "failed to update estimate", "error", err)
+		}
 		return nil, apperrors.Wrap(err, "failed to update estimate")
 	}
 	slog.InfoContext(ctx, "estimate updated",
 		slog.Uint64("estimate_id", id),
 		slog.Uint64("clinic_id", clinicID))
-	updated, err := s.repo.FindByID(ctx, clinicID, id)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to get estimate after update", "error", err)
-		return nil, apperrors.Wrap(err, "failed to get estimate after update")
-	}
 
 	// 監査ログ: update / approve / reject（best-effort）。ロック拒否パスでは到達しない。
 	oldDiff, newDiff := diffEstimateImportantFields(existing, updated)

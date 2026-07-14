@@ -16,6 +16,10 @@ type EstimateRepository interface {
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.Estimate, error)
 	Create(ctx context.Context, estimate *model.Estimate) error
 	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error
+	// UpdateIfNotLocked は status NOT IN (approved, rejected) のときだけ更新する。
+	// FindByID→isEstimateLocked→Update の TOCTOU を防ぐ（UpdateIfNotDischarged と同型）。
+	// RowsAffected==0（ロック済み・未存在・他院）は Conflict に正規化する。
+	UpdateIfNotLocked(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Estimate, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
 	// CountItemsByEstimateID は BE-refactor.md R2-5 (D12) で clinic_id 述語を追加した
 	// （唯一の呼び出し元 estimateService.Delete が clinicID を既に保持・ownership 検証済み）。
@@ -82,6 +86,24 @@ func (r *estimateRepository) Create(ctx context.Context, estimate *model.Estimat
 
 func (r *estimateRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
 	return updateScopedByID(ctx, r.db, &model.Estimate{}, "estimate", clinicID, id, fields)
+}
+
+func (r *estimateRepository) UpdateIfNotLocked(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Estimate, error) {
+	result := r.db.WithContext(ctx).
+		Model(&model.Estimate{}).
+		Scopes(clinicScope(clinicID)).
+		Where("id = ? AND status NOT IN ?", id, []model.EstimateStatus{
+			model.EstimateStatusApproved,
+			model.EstimateStatusRejected,
+		}).
+		Updates(fields)
+	if result.Error != nil {
+		return nil, apperrors.FromGORM(result.Error, "estimate", fmt.Sprintf("%d", id))
+	}
+	if result.RowsAffected == 0 {
+		return nil, apperrors.WrapConflict("承認済みまたは却下済みの見積書は編集できません")
+	}
+	return r.FindByID(ctx, clinicID, id)
 }
 
 func (r *estimateRepository) Delete(ctx context.Context, clinicID, id uint64) error {
