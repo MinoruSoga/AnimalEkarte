@@ -41,10 +41,17 @@ docker compose exec db psql ...  # 直接 SQL 実行
 
 ## seed データは CSV が正、SQL は DDL のみ（2026-07 stub 削除）
 
-`backend/migrations/` に存在する `.sql` は DDL 専用の `001_init.sql` と `002_add_checkup_vaccination_indexes.sql`（2026-07-09 新設、インデックスのみ）の 2 つ。旧 002/003/004 の seed stub SQL ファイル（`SELECT 1;` の no-op）は削除済みで、seed の実体は `backend/migrations/seeds/{002_master,003_demo,004_staging}/*.csv` + `manifest.json` というディレクトリだけになった。
+`backend/migrations/` 直下の `.sql` は DDL 専用の次の 4 つ（いずれもインデックス追加を含むスキーマ変更）:
 
-- **cmd/migrate は二段フェーズ構成**: ①`*.sql`（DDL: 001 と 002）を昇順適用 → ②`internal/seedbundle.BundleOrder`（`002_master → 003_demo → 004_staging`固定順）で CSV バンドルを pgx `COPY FROM STDIN` ロード（`backend/cmd/migrate/csvbundle.go`）。DDL 失敗時は seed フェーズへ進まない
-- **schema_migrations の記録キー**: DDL は従来通りファイル名（`001_init.sql` 等）。seed バンドルは `internal/seedbundle.BundleMigrationKey(bundleDir)` が返す `"seeds/<bundle>"`（例: `seeds/002_master`）— stub SQL ファイル名には二度と紐付かない。fresh DB 適用後の正しい終了状態は `schema_migrations` に 5 行（`001_init.sql` + `002_add_checkup_vaccination_indexes.sql` + `seeds/002_master` + `seeds/003_demo` + `seeds/004_staging`）
+1. `001_init.sql` — 統合スキーマ
+2. `002_add_checkup_vaccination_indexes.sql`
+3. `003_add_pets_batch_living_count_index.sql`
+4. `004_add_billings_hospitalization_id_unique_index.sql`
+
+旧 002/003/004 の seed stub SQL ファイル（`SELECT 1;` の no-op）は削除済みで、seed の実体は `backend/migrations/seeds/{002_master,003_demo,004_staging}/*.csv` + `manifest.json` というディレクトリだけになった。
+
+- **cmd/migrate は二段フェーズ構成**: ①直下の `*.sql`（DDL: 001–004）を昇順適用 → ②`internal/seedbundle.BundleOrder`（`002_master → 003_demo → 004_staging`固定順）で CSV バンドルを pgx `COPY FROM STDIN` ロード（`backend/cmd/migrate/csvbundle.go`）。DDL 失敗時は seed フェーズへ進まない
+- **schema_migrations の記録キー**: DDL は従来通りファイル名（`001_init.sql` 等）。seed バンドルは `internal/seedbundle.BundleMigrationKey(bundleDir)` が返す `"seeds/<bundle>"`（例: `seeds/002_master`）— stub SQL ファイル名には二度と紐付かない。fresh DB 適用後の正しい終了状態は `schema_migrations` に 7 行（DDL 4: `001_init.sql` + `002_add_checkup_vaccination_indexes.sql` + `003_add_pets_batch_living_count_index.sql` + `004_add_billings_hospitalization_id_unique_index.sql` + seed 3: `seeds/002_master` + `seeds/003_demo` + `seeds/004_staging`）
 - seed バンドルの checksum（`bundleChecksum`）は manifest.json + 全 CSV ファイルの内容を合成したもの。CSV だけの編集でも、既に適用済みの DB では通常の migration ファイル編集と同じ checksum mismatch ガードが働く
 - COPY はシーケンスを進めないため、テーブルロード後に自動 setval される（`advanceSerialSequence`）
 - **旧形式（stub SQL 時代）からの移行は非対応**: `schema_migrations` に `002_seed_master.sql` 等の旧キーが残っている DB を現行バイナリで起動すると `detectLegacySeedKeys` が fail-fast する。対処は `db_reset` またはボリューム再構築のみ（in-place 移行は実装しない）

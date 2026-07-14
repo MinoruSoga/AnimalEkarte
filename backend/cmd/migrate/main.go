@@ -105,7 +105,7 @@ func run(logger *slog.Logger) error {
 	}
 
 	// 既存DBへの初回適用: baseline 処理
-	// schema_migrations が空だが既にテーブルが存在する場合、001_init.sql と
+	// schema_migrations が空だが既にテーブルが存在する場合、直下の全 *.sql（DDL）と
 	// 全 seed バンドル（seeds/<bundle>）の両方を「適用済み」として記録しスキップする
 	// （既存DBへ demo/staging CSV を自動ロードしないための必須ガード。詳細は
 	// baselineIfNeeded 内のコメント参照）
@@ -113,7 +113,7 @@ func run(logger *slog.Logger) error {
 		return fmt.Errorf("baseline failed: %w", err)
 	}
 
-	// フェーズ1: DDL migration（*.sql、実質 001_init.sql のみ）を適用
+	// フェーズ1: DDL migration（直下の *.sql。現行は 001–004）を適用
 	if err := runSQLMigrations(db, logger); err != nil {
 		return fmt.Errorf("migration failed: %w", err)
 	}
@@ -356,7 +356,7 @@ func fileChecksum(content []byte) string {
 	return fmt.Sprintf("%x", h)
 }
 
-// runSQLMigrations はフェーズ1: *.sql migration ファイル（実質 001_init.sql のみ）を
+// runSQLMigrations はフェーズ1: 直下の *.sql migration ファイル（現行は 001–004）を
 // 順序通りに実行する（実行済みはスキップ）。CSV シードバンドルはフェーズ2の
 // runSeedBundles が別途扱う — このファイル群には seed データは一切含まれない。
 func runSQLMigrations(db *sql.DB, logger *slog.Logger) error {
