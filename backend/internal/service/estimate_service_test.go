@@ -381,6 +381,7 @@ func TestEstimateService_Update(t *testing.T) {
 		repoErr      error
 		repoEstimate *model.Estimate
 		wantErr      bool
+		wantConflict bool
 	}{
 		{
 			name: "updates estimate successfully",
@@ -455,19 +456,48 @@ func TestEstimateService_Update(t *testing.T) {
 			},
 			wantErr: false,
 		},
+		{
+			name: "returns conflict when estimate is approved",
+			input: &UpdateEstimateInput{
+				Title: &newTitle,
+			},
+			repoEstimate: &model.Estimate{
+				ID:     1,
+				Status: model.EstimateStatusApproved,
+			},
+			wantErr:      true,
+			wantConflict: true,
+		},
+		{
+			name: "returns conflict when estimate is rejected",
+			input: &UpdateEstimateInput{
+				Title: &newTitle,
+			},
+			repoEstimate: &model.Estimate{
+				ID:     1,
+				Status: model.EstimateStatusRejected,
+			},
+			wantErr:      true,
+			wantConflict: true,
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			updateCalled := false
 			repo := &mockEstimateRepository{
 				updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) error {
+					updateCalled = true
 					return tt.repoErr
 				},
 				findByIDFn: func(_ context.Context, _, _ uint64) (*model.Estimate, error) {
 					if tt.repoErr != nil && apperrors.IsNotFound(tt.repoErr) {
 						return nil, tt.repoErr
 					}
-					return tt.repoEstimate, nil
+					if tt.repoEstimate != nil {
+						return tt.repoEstimate, nil
+					}
+					return &model.Estimate{ID: 1, Status: model.EstimateStatusDraft}, nil
 				},
 			}
 			svc := NewEstimateService(repo, nil, nil, nil)
@@ -476,6 +506,10 @@ func TestEstimateService_Update(t *testing.T) {
 
 			if tt.wantErr {
 				assert.Error(t, err)
+				if tt.wantConflict {
+					assert.True(t, apperrors.IsConflict(err))
+					assert.False(t, updateCalled, "repo.Update must not be called for locked estimate")
+				}
 			} else {
 				assert.NoError(t, err)
 				assert.NotNil(t, estimate)
@@ -486,28 +520,39 @@ func TestEstimateService_Update(t *testing.T) {
 
 func TestEstimateService_Delete(t *testing.T) {
 	tests := []struct {
-		name         string
-		id           uint64
-		itemCount    int64
-		countErr     error
-		repoErr      error
-		wantErr      bool
-		wantNF       bool
-		wantConflict bool
+		name           string
+		id             uint64
+		existingStatus model.EstimateStatus
+		itemCount      int64
+		countErr       error
+		repoErr        error
+		wantErr        bool
+		wantNF         bool
+		wantConflict   bool
 	}{
 		{
-			name:      "deletes estimate successfully when no items",
-			id:        1,
-			itemCount: 0,
-			repoErr:   nil,
-			wantErr:   false,
+			name:           "deletes estimate successfully when no items",
+			id:             1,
+			existingStatus: model.EstimateStatusDraft,
+			itemCount:      0,
+			repoErr:        nil,
+			wantErr:        false,
 		},
 		{
-			name:         "returns conflict error when estimate has items",
-			id:           2,
-			itemCount:    3,
-			wantErr:      true,
-			wantConflict: true,
+			name:           "deletes sent estimate successfully when no items",
+			id:             1,
+			existingStatus: model.EstimateStatusSent,
+			itemCount:      0,
+			repoErr:        nil,
+			wantErr:        false,
+		},
+		{
+			name:           "returns conflict error when estimate has items",
+			id:             2,
+			existingStatus: model.EstimateStatusDraft,
+			itemCount:      3,
+			wantErr:        true,
+			wantConflict:   true,
 		},
 		{
 			name:     "returns error when count check fails",
@@ -524,21 +569,49 @@ func TestEstimateService_Delete(t *testing.T) {
 			wantNF:    true,
 		},
 		{
-			name:      "returns error on repository delete failure",
-			id:        1,
-			itemCount: 0,
-			repoErr:   errors.New("db error"),
-			wantErr:   true,
+			name:           "returns error on repository delete failure",
+			id:             1,
+			existingStatus: model.EstimateStatusDraft,
+			itemCount:      0,
+			repoErr:        errors.New("db error"),
+			wantErr:        true,
+		},
+		{
+			name:           "returns conflict when estimate is approved",
+			id:             3,
+			existingStatus: model.EstimateStatusApproved,
+			itemCount:      0,
+			wantErr:        true,
+			wantConflict:   true,
+		},
+		{
+			name:           "returns conflict when estimate is rejected",
+			id:             4,
+			existingStatus: model.EstimateStatusRejected,
+			itemCount:      0,
+			wantErr:        true,
+			wantConflict:   true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			deleteCalled := false
 			repo := &mockEstimateRepository{
+				findByIDFn: func(_ context.Context, _, id uint64) (*model.Estimate, error) {
+					if tt.repoErr != nil && apperrors.IsNotFound(tt.repoErr) {
+						return nil, tt.repoErr
+					}
+					return &model.Estimate{
+						ID:     id,
+						Status: tt.existingStatus,
+					}, nil
+				},
 				countItemsByEstimateID: func(_ context.Context, _ uint64) (int64, error) {
 					return tt.itemCount, tt.countErr
 				},
 				deleteFn: func(_ context.Context, _, _ uint64) error {
+					deleteCalled = true
 					return tt.repoErr
 				},
 			}
@@ -553,6 +626,9 @@ func TestEstimateService_Delete(t *testing.T) {
 				}
 				if tt.wantConflict {
 					assert.True(t, apperrors.IsConflict(err))
+					if tt.existingStatus == model.EstimateStatusApproved || tt.existingStatus == model.EstimateStatusRejected {
+						assert.False(t, deleteCalled, "repo.Delete must not be called for locked estimate")
+					}
 				}
 			} else {
 				assert.NoError(t, err)
