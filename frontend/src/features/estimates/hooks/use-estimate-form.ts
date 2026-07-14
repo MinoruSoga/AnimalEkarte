@@ -7,13 +7,11 @@ import type { Estimate, EstimateStatus } from '../types';
 import { useCreateEstimate } from '../api/create-estimate';
 import { useUpdateEstimate } from '../api/update-estimate';
 import type { CreateEstimateRequest, UpdateEstimateRequest } from '../api/types';
+import { CREATE_ALLOWED_STATUSES } from '../utils/estimate-status-options';
 import {
   ESTIMATE_LOCKED_EDIT_MESSAGE,
   isEstimateLockedStatus,
 } from '../utils/is-estimate-locked-status';
-
-/** Create API（binding oneof=draft sent）と整合する許可 status */
-const CREATE_ALLOWED_STATUSES: readonly EstimateStatus[] = ['draft', 'sent'];
 
 interface EstimateFormState {
   title: string;

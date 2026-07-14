@@ -1,17 +1,24 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, waitFor } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router";
 import type { Estimate } from "../types";
 import {
   CREATE_STATUS_OPTIONS,
   EDIT_STATUS_OPTIONS,
-  EstimateForm,
-} from "./EstimateForm";
+} from "../utils/estimate-status-options";
+import { EstimateForm } from "./EstimateForm";
 
-const { mockEstimate, mockNavigate, mockToast } = vi.hoisted(() => ({
+const { mockEstimate, mockNavigate, mockToast, mockFormState } = vi.hoisted(() => ({
   mockEstimate: { current: null as Estimate | null },
   mockNavigate: vi.fn(),
   mockToast: { info: vi.fn(), success: vi.fn(), error: vi.fn() },
+  mockFormState: {
+    current: {
+      success: false,
+      timestamp: 0,
+      fieldErrors: undefined as Record<string, string> | undefined,
+    },
+  },
 }));
 
 vi.mock("@/hooks/use-auth", () => ({
@@ -61,7 +68,7 @@ vi.mock("../hooks/use-estimate-form", () => ({
     },
     handleChange: vi.fn(),
     formAction: vi.fn(),
-    formState: { success: false, timestamp: 0 },
+    formState: mockFormState.current,
     handleCancel: vi.fn(),
     isPending: false,
   }),
@@ -106,15 +113,25 @@ function renderEditForm() {
   );
 }
 
-describe("EstimateForm status options", () => {
-  it("Create 用選択肢は draft / sent のみ", () => {
+function renderCreateForm() {
+  return render(
+    <MemoryRouter initialEntries={["/estimates/new"]}>
+      <Routes>
+        <Route path="/estimates/new" element={<EstimateForm />} />
+      </Routes>
+    </MemoryRouter>,
+  );
+}
+
+describe("EstimateForm status options re-export", () => {
+  it("Create 用選択肢は draft / sent のみ（utils 単一ソース）", () => {
     expect(CREATE_STATUS_OPTIONS.map((o) => o.value)).toEqual([
       "draft",
       "sent",
     ]);
   });
 
-  it("Edit 用選択肢は draft / sent / approved / rejected の 4 値", () => {
+  it("Edit 用選択肢は draft / sent / approved / rejected の 4 値（utils 単一ソース）", () => {
     expect(EDIT_STATUS_OPTIONS.map((o) => o.value)).toEqual([
       "draft",
       "sent",
@@ -122,17 +139,44 @@ describe("EstimateForm status options", () => {
       "rejected",
     ]);
   });
+});
 
-  it("Create 用選択肢に approved / rejected は含まれない", () => {
-    const values = CREATE_STATUS_OPTIONS.map((o) => o.value);
-    expect(values).not.toContain("approved");
-    expect(values).not.toContain("rejected");
+describe("EstimateForm statusError aria-describedby", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockEstimate.current = null;
+    mockFormState.current = { success: false, timestamp: 0, fieldErrors: undefined };
+  });
+
+  it("statusError があるとき SelectTrigger に aria-describedby=status-error を接続する", () => {
+    mockFormState.current = {
+      success: false,
+      timestamp: Date.now(),
+      fieldErrors: { status: "作成時は下書きまたは送付済みのみ選択できます" },
+    };
+    renderCreateForm();
+
+    const trigger = screen.getByRole("combobox");
+    expect(trigger).toHaveAttribute("aria-describedby", "status-error");
+    expect(screen.getByRole("alert")).toHaveAttribute("id", "status-error");
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "作成時は下書きまたは送付済みのみ選択できます",
+    );
+  });
+
+  it("statusError がないとき aria-describedby を付けない", () => {
+    renderCreateForm();
+
+    const trigger = screen.getByRole("combobox");
+    expect(trigger).not.toHaveAttribute("aria-describedby");
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 });
 
 describe("EstimateForm locked edit redirect", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockFormState.current = { success: false, timestamp: 0, fieldErrors: undefined };
   });
 
   it("approved の edit 直アクセス → detail へ redirect + toast", async () => {

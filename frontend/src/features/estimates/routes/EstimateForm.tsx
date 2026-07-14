@@ -29,21 +29,16 @@ import { usePermission } from "@/hooks/use-permission";
 import type { EstimateStatus } from '../types';
 import { ResourceEstimates } from "@/types/generated/models";
 import {
+  CREATE_STATUS_OPTIONS,
+  EDIT_STATUS_OPTIONS,
+} from "../utils/estimate-status-options";
+import {
   ESTIMATE_LOCKED_EDIT_MESSAGE,
   isEstimateLockedStatus,
 } from "../utils/is-estimate-locked-status";
 
-// rendering-hoist-jsx: Edit は全 status、Create は draft/sent のみ（Create API binding と整合）
-export const EDIT_STATUS_OPTIONS: { value: EstimateStatus; label: string }[] = [
-  { value: 'draft', label: '下書き' },
-  { value: 'sent', label: '送付済み' },
-  { value: 'approved', label: '承認済み' },
-  { value: 'rejected', label: '却下' },
-];
-
-export const CREATE_STATUS_OPTIONS = EDIT_STATUS_OPTIONS.filter(
-  (opt) => opt.value === 'draft' || opt.value === 'sent'
-);
+// re-export: 既存テスト・外部参照用（定義は utils/estimate-status-options）
+export { CREATE_STATUS_OPTIONS, EDIT_STATUS_OPTIONS };
 
 // rendering-hoist-jsx: SelectItem リストは静的なのでモジュール定数に巻き上げ
 const EDIT_STATUS_SELECT_ITEMS = EDIT_STATUS_OPTIONS.map(opt => (
@@ -105,14 +100,18 @@ const BasicInfoSection = memo(function BasicInfoSection({
           value={status}
           onValueChange={v => onChange('status', v as EstimateStatus)}
         >
-          <SelectTrigger id="status" className="h-9 text-sm w-[200px]">
+          <SelectTrigger
+            id="status"
+            className="h-9 text-sm w-[200px]"
+            aria-describedby={statusError ? "status-error" : undefined}
+          >
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
             {isEdit ? EDIT_STATUS_SELECT_ITEMS : CREATE_STATUS_SELECT_ITEMS}
           </SelectContent>
         </Select>
-        <FormFieldError message={statusError} />
+        <FormFieldError id="status-error" message={statusError} />
       </div>
 
       {/* 有効期限 */}
