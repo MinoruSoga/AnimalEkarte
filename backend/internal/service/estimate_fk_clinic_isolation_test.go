@@ -1,7 +1,7 @@
 package service
 
 // estimate_fk_clinic_isolation_test.go — AUD-005
-// Create の medical_record_id / owner_id clinic 所有確認・MR-Owner 整合・拒否時非副作用を検証する。
+// Create の medical_record_id / owner_id clinic 所有確認・MR-Owner 整合・created_by 所属検証・拒否時非副作用を検証する。
 // Callers: go test ./internal/service/ -run 'TestEstimateService_.*(CrossClinic|CreatedBy|Owner|MedicalRecord)'
 // Existing equivalent: none (Glob *estimate*isolation* = 0). No external data files; mock-only.
 
@@ -15,6 +15,75 @@ import (
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
 )
+
+const defaultEstimateCreatedByStaffID = uint64(42)
+
+type mockStaffClinicMembershipCounter struct {
+	countFn func(ctx context.Context, staffID, clinicID uint64) (int64, error)
+}
+
+func (m *mockStaffClinicMembershipCounter) CountByStaffAndClinic(ctx context.Context, staffID, clinicID uint64) (int64, error) {
+	if m.countFn != nil {
+		return m.countFn(ctx, staffID, clinicID)
+	}
+	return 1, nil
+}
+
+func estimateCreateBaseInput() *CreateEstimateInput {
+	return &CreateEstimateInput{
+		Title:       "見積",
+		Subtotal:    1000,
+		TaxTotal:    100,
+		TotalAmount: 1100,
+		CreatedBy:   ptrU64(defaultEstimateCreatedByStaffID),
+	}
+}
+
+func TestEstimateService_Create_RejectsNilCreatedBy(t *testing.T) {
+	const clinicID = uint64(1)
+	created := false
+	repo := &mockEstimateRepository{
+		createFn: func(_ context.Context, _ *model.Estimate) error {
+			created = true
+			return nil
+		},
+	}
+	svc := NewEstimateService(repo, nil, nil, &mockStaffClinicMembershipCounter{})
+	in := estimateCreateBaseInput()
+	in.CreatedBy = nil
+	out, err := svc.Create(context.Background(), clinicID, in)
+	assert.Error(t, err)
+	assert.True(t, apperrors.IsInvalidInput(err), "want InvalidInput, got %v", err)
+	assert.Nil(t, out)
+	assert.False(t, created)
+}
+
+func TestEstimateService_Create_RejectsForeignClinicCreatedBy(t *testing.T) {
+	const clinicID = uint64(1)
+	const foreignStaffID = uint64(99)
+	created := false
+	repo := &mockEstimateRepository{
+		createFn: func(_ context.Context, _ *model.Estimate) error {
+			created = true
+			return nil
+		},
+	}
+	svc := NewEstimateService(repo, nil, nil, &mockStaffClinicMembershipCounter{
+		countFn: func(_ context.Context, staffID, gotClinicID uint64) (int64, error) {
+			if staffID == foreignStaffID && gotClinicID == clinicID {
+				return 0, nil
+			}
+			return 1, nil
+		},
+	})
+	in := estimateCreateBaseInput()
+	in.CreatedBy = ptrU64(foreignStaffID)
+	out, err := svc.Create(context.Background(), clinicID, in)
+	assert.Error(t, err)
+	assert.True(t, apperrors.IsNotFound(err), "want NotFound, got %v", err)
+	assert.Nil(t, out)
+	assert.False(t, created)
+}
 
 func TestEstimateService_Create_RejectsCrossClinicMedicalRecordAndOwner(t *testing.T) {
 	const clinicID = uint64(1)
@@ -54,17 +123,10 @@ func TestEstimateService_Create_RejectsCrossClinicMedicalRecordAndOwner(t *testi
 				return nil
 			},
 		}
-		return NewEstimateService(repo, mrRepo, resRepo)
+		return NewEstimateService(repo, mrRepo, resRepo, &mockStaffClinicMembershipCounter{})
 	}
 
-	base := func() *CreateEstimateInput {
-		return &CreateEstimateInput{
-			Title:       "見積",
-			Subtotal:    1000,
-			TaxTotal:    100,
-			TotalAmount: 1100,
-		}
-	}
+	base := estimateCreateBaseInput
 
 	t.Run("rejects cross-clinic medical_record_id and does not persist", func(t *testing.T) {
 		created := false
@@ -114,7 +176,7 @@ func TestEstimateService_Create_RejectsCrossClinicMedicalRecordAndOwner(t *testi
 				return nil
 			},
 		}
-		svc := NewEstimateService(repo, mrRepo, resRepo)
+		svc := NewEstimateService(repo, mrRepo, resRepo, &mockStaffClinicMembershipCounter{})
 		in := base()
 		in.MedicalRecordID = ptrU64(ownedMRID)
 		in.OwnerID = ptrU64(otherOwnerID)
@@ -153,7 +215,14 @@ func TestEstimateService_Create_PersistsCreatedByFromInput(t *testing.T) {
 			return &model.Estimate{ID: id, ClinicID: clinicID, Title: "見積", CreatedBy: ptrU64(staffID)}, nil
 		},
 	}
-	svc := NewEstimateService(repo, nil, nil)
+	svc := NewEstimateService(repo, nil, nil, &mockStaffClinicMembershipCounter{
+		countFn: func(_ context.Context, gotStaffID, gotClinicID uint64) (int64, error) {
+			if gotStaffID == staffID && gotClinicID == clinicID {
+				return 1, nil
+			}
+			return 0, nil
+		},
+	})
 	out, err := svc.Create(context.Background(), clinicID, &CreateEstimateInput{
 		Title:       "見積",
 		Subtotal:    1000,

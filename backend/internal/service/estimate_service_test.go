@@ -14,6 +14,13 @@ import (
 
 // ---- Estimate モック ----
 
+const estimateTestCreatedByStaffID = uint64(1)
+
+func estimateTestMembershipCounter() staffClinicMembershipCounter {
+	return &mockStaffClinicMembershipCounter{}
+}
+
+
 type mockEstimateRepository struct {
 	findAllFn              func(ctx context.Context, clinicID uint64, ownerID, medicalRecordID *uint64, status *string, page, limit int) ([]model.Estimate, int64, error)
 	findByIDFn             func(ctx context.Context, clinicID, id uint64) (*model.Estimate, error)
@@ -130,7 +137,7 @@ func TestEstimateService_List(t *testing.T) {
 					return tt.repoEstimates, tt.repoTotal, tt.repoErr
 				},
 			}
-			svc := NewEstimateService(repo, nil, nil)
+			svc := NewEstimateService(repo, nil, nil, nil)
 
 			estimates, total, err := svc.List(context.Background(), 1, tt.ownerID, tt.medicalRecordID, tt.status, tt.page, tt.limit)
 
@@ -193,7 +200,7 @@ func TestEstimateService_GetByID(t *testing.T) {
 					return tt.repoEstimate, tt.repoErr
 				},
 			}
-			svc := NewEstimateService(repo, nil, nil)
+			svc := NewEstimateService(repo, nil, nil, nil)
 
 			estimate, err := svc.GetByID(context.Background(), 1, tt.id)
 
@@ -229,6 +236,7 @@ func TestEstimateService_Create(t *testing.T) {
 				Subtotal:    10000,
 				TaxTotal:    1000,
 				TotalAmount: 11000,
+				CreatedBy:   ptrU64(estimateTestCreatedByStaffID),
 			},
 			repoErr: nil,
 			repoEstimate: &model.Estimate{
@@ -246,6 +254,7 @@ func TestEstimateService_Create(t *testing.T) {
 				Title:       "カスタム見積",
 				Status:      model.EstimateStatusSent,
 				TotalAmount: 50000,
+				CreatedBy:   ptrU64(estimateTestCreatedByStaffID),
 			},
 			repoErr: nil,
 			repoEstimate: &model.Estimate{
@@ -310,6 +319,7 @@ func TestEstimateService_Create(t *testing.T) {
 			input: &CreateEstimateInput{
 				Title:       "既存見積",
 				TotalAmount: 20000,
+				CreatedBy:   ptrU64(estimateTestCreatedByStaffID),
 			},
 			repoErr: apperrors.WrapAlreadyExists("estimate", "既存見積"),
 			wantErr: true,
@@ -320,6 +330,7 @@ func TestEstimateService_Create(t *testing.T) {
 				Title:       "期限付き見積",
 				ValidUntil:  &validUntil,
 				TotalAmount: 15000,
+				CreatedBy:   ptrU64(estimateTestCreatedByStaffID),
 			},
 			repoErr: nil,
 			repoEstimate: &model.Estimate{
@@ -346,7 +357,7 @@ func TestEstimateService_Create(t *testing.T) {
 					return tt.repoEstimate, nil
 				},
 			}
-			svc := NewEstimateService(repo, nil, nil)
+			svc := NewEstimateService(repo, nil, nil, estimateTestMembershipCounter())
 
 			estimate, err := svc.Create(context.Background(), 1, tt.input)
 
@@ -460,7 +471,7 @@ func TestEstimateService_Update(t *testing.T) {
 					return tt.repoEstimate, nil
 				},
 			}
-			svc := NewEstimateService(repo, nil, nil)
+			svc := NewEstimateService(repo, nil, nil, nil)
 
 			estimate, err := svc.Update(context.Background(), 1, 1, tt.input)
 
@@ -532,7 +543,7 @@ func TestEstimateService_Delete(t *testing.T) {
 					return tt.repoErr
 				},
 			}
-			svc := NewEstimateService(repo, nil, nil)
+			svc := NewEstimateService(repo, nil, nil, nil)
 
 			err := svc.Delete(context.Background(), 1, tt.id)
 

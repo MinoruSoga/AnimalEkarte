@@ -82,6 +82,10 @@ func buildEstimateUpdate(input *UpdateEstimateInput) map[string]any {
 	return fields
 }
 
+type staffClinicMembershipCounter interface {
+	CountByStaffAndClinic(ctx context.Context, staffID, clinicID uint64) (int64, error)
+}
+
 // EstimateService は見積書のビジネスロジックインターフェース
 type EstimateService interface {
 	List(ctx context.Context, clinicID uint64, ownerID, medicalRecordID *uint64, status *string, page, limit int) ([]model.Estimate, int64, error)
@@ -95,18 +99,22 @@ type estimateService struct {
 	repo              repository.EstimateRepository
 	medicalRecordRepo repository.MedicalRecordRepository
 	reservationRepo   repository.ReservationRepository
+	staffClinicRepo   staffClinicMembershipCounter
 }
 
 // medicalRecordRepo / reservationRepo は AUD-005 の関連 FK clinic 所有・相互整合検証用。
+// staffClinicRepo は AUD-005 の created_by clinic 所属検証用。
 func NewEstimateService(
 	repo repository.EstimateRepository,
 	medicalRecordRepo repository.MedicalRecordRepository,
 	reservationRepo repository.ReservationRepository,
+	staffClinicRepo staffClinicMembershipCounter,
 ) EstimateService {
 	return &estimateService{
 		repo:              repo,
 		medicalRecordRepo: medicalRecordRepo,
 		reservationRepo:   reservationRepo,
+		staffClinicRepo:   staffClinicRepo,
 	}
 }
 
@@ -143,6 +151,21 @@ func (s *estimateService) validateEstimateRelatedFKs(
 		if err := assertBillingLinksMatchMedicalRecord(mr, ownerID, nil); err != nil {
 			return err
 		}
+	}
+	return nil
+}
+
+func (s *estimateService) verifyCreatedByClinicMembership(ctx context.Context, clinicID, staffID uint64) error {
+	if s.staffClinicRepo == nil {
+		return apperrors.WrapNotFound("staff", fmt.Sprintf("%d", staffID))
+	}
+	count, err := s.staffClinicRepo.CountByStaffAndClinic(ctx, staffID, clinicID)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to verify staff clinic membership", "error", err, "id", staffID, "clinic_id", clinicID)
+		return apperrors.Wrap(err, "failed to verify staff clinic membership")
+	}
+	if count == 0 {
+		return apperrors.WrapNotFound("staff", fmt.Sprintf("%d", staffID))
 	}
 	return nil
 }
@@ -186,6 +209,13 @@ func (s *estimateService) Create(ctx context.Context, clinicID uint64, input *Cr
 	}
 
 	if err := s.validateEstimateRelatedFKs(ctx, clinicID, input.MedicalRecordID, input.OwnerID); err != nil {
+		return nil, err
+	}
+
+	if input.CreatedBy == nil {
+		return nil, apperrors.WrapInvalidInput("created_by is required")
+	}
+	if err := s.verifyCreatedByClinicMembership(ctx, clinicID, *input.CreatedBy); err != nil {
 		return nil, err
 	}
 
