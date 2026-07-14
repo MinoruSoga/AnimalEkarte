@@ -17,7 +17,6 @@ import (
 // ---- LstepDeliveryTriggerLogRepository モック（analytics 用）----
 
 type mockAnalyticsTriggerLogRepo struct {
-	listByOwnerFn          func(ctx context.Context, clinicID, ownerID uint64, from, to time.Time) ([]model.LstepDeliveryTriggerLog, error)
 	countByTypeAndStatusFn func(ctx context.Context, clinicID uint64, from, to time.Time) ([]repository.DeliveryStatsRow, error)
 	countVisitConvByTypeFn func(ctx context.Context, clinicID uint64, from, to time.Time, days int) ([]repository.VisitConversionRow, error)
 }

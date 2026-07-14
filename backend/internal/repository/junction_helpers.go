@@ -27,7 +27,7 @@ func validateClinicScopedMasterIDs(
 		return nil
 	}
 	var count int64
-	if err := db.
+	if err := db.WithContext(ctx).
 		Model(masterModel).
 		Where("clinic_id = ? AND id IN ? AND deleted_at IS NULL", clinicID, ids).
 		Count(&count).Error; err != nil {
