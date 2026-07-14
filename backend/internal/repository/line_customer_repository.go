@@ -50,7 +50,7 @@ func (r *lineCustomerRepository) FindByID(ctx context.Context, clinicID, id uint
 	// (GetLiffProfile / GetHealthCard のクロステナント露出防止)。
 	err := r.db.WithContext(ctx).
 		Preload("Owner", "clinic_id = ? AND deleted_at IS NULL", clinicID).
-		Preload("Owner.Pets", "deleted_at IS NULL").
+		Preload("Owner.Pets", "clinic_id = ? AND deleted_at IS NULL", clinicID).
 		Preload("Owner.Pets.AnimalSpecies").
 		Scopes(clinicScope(clinicID)).Where("id = ?", id).First(&c).Error
 	if err != nil {

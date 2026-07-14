@@ -16,11 +16,14 @@ import (
 // --- mock: ReservationRepository（FindAllByCategory 特化） ---
 
 type mockTrimmingReservationRepository struct {
-	findAllByCategoryFn func(ctx context.Context, clinicID uint64, category model.ReservationTypeCategory, petID, ownerID *uint64, startDate, endDate *string, page, limit int) ([]model.Reservation, int64, error)
-	findByIDFn          func(ctx context.Context, clinicID, id uint64) (*model.Reservation, error)
-	createFn            func(ctx context.Context, appt *model.Reservation) error
-	updateFieldsFn      func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Reservation, error)
-	deleteFn            func(ctx context.Context, clinicID, id uint64) error
+	findAllByCategoryFn  func(ctx context.Context, clinicID uint64, category model.ReservationTypeCategory, petID, ownerID *uint64, startDate, endDate *string, page, limit int) ([]model.Reservation, int64, error)
+	findByIDFn           func(ctx context.Context, clinicID, id uint64) (*model.Reservation, error)
+	acquireBookingLockFn func(ctx context.Context, clinicID uint64) error
+	lockAndFindByIDFn    func(ctx context.Context, clinicID, id uint64) (*model.Reservation, error)
+	findPetOwnerFn       func(ctx context.Context, clinicID, petID uint64) (uint64, error)
+	createFn             func(ctx context.Context, appt *model.Reservation) error
+	updateFieldsFn       func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Reservation, error)
+	deleteFn             func(ctx context.Context, clinicID, id uint64) error
 }
 
 func (m *mockTrimmingReservationRepository) FindAllByCategory(ctx context.Context, clinicID uint64, category model.ReservationTypeCategory, petID, ownerID *uint64, startDate, endDate *string, page, limit int) ([]model.Reservation, int64, error) {
@@ -75,12 +78,18 @@ func (m *mockTrimmingReservationRepository) CountMedicalRecordsByReservationID(_
 	return 0, nil
 }
 
-func (m *mockTrimmingReservationRepository) AcquireBookingLock(_ context.Context, _ uint64) error {
+func (m *mockTrimmingReservationRepository) AcquireBookingLock(ctx context.Context, clinicID uint64) error {
+	if m.acquireBookingLockFn != nil {
+		return m.acquireBookingLockFn(ctx, clinicID)
+	}
 	return nil
 }
 
-func (m *mockTrimmingReservationRepository) LockAndFindByID(_ context.Context, _, _ uint64) (*model.Reservation, error) {
-	return nil, nil
+func (m *mockTrimmingReservationRepository) LockAndFindByID(ctx context.Context, clinicID, id uint64) (*model.Reservation, error) {
+	if m.lockAndFindByIDFn != nil {
+		return m.lockAndFindByIDFn(ctx, clinicID, id)
+	}
+	return m.FindByID(ctx, clinicID, id)
 }
 
 func (m *mockTrimmingReservationRepository) HasDoctorConflict(_ context.Context, _, _ uint64, _, _ time.Time, _ *uint64) (bool, error) {
@@ -109,6 +118,21 @@ func (m *mockTrimmingReservationRepository) CountByDateAndSource(_ context.Conte
 
 func (m *mockTrimmingReservationRepository) FindNoShowCandidates(_ context.Context, _ uint64) ([]model.Reservation, error) {
 	return nil, nil
+}
+
+func (m *mockTrimmingReservationRepository) AssertOwnerInClinic(_ context.Context, _, _ uint64) error {
+	return nil
+}
+
+func (m *mockTrimmingReservationRepository) FindPetOwnerInClinic(ctx context.Context, clinicID, petID uint64) (uint64, error) {
+	if m.findPetOwnerFn != nil {
+		return m.findPetOwnerFn(ctx, clinicID, petID)
+	}
+	return 0, nil
+}
+
+func (m *mockTrimmingReservationRepository) AssertLineCustomerInClinic(_ context.Context, _, _ uint64) error {
+	return nil
 }
 
 // コンパイル時インターフェース適合チェック

@@ -455,6 +455,18 @@ func (m *mockLiffReservationRepository) FindNoShowCandidates(_ context.Context, 
 	return nil, nil
 }
 
+func (m *mockLiffReservationRepository) AssertOwnerInClinic(_ context.Context, _, _ uint64) error {
+	return nil
+}
+
+func (m *mockLiffReservationRepository) FindPetOwnerInClinic(_ context.Context, _, _ uint64) (uint64, error) {
+	return 0, nil
+}
+
+func (m *mockLiffReservationRepository) AssertLineCustomerInClinic(_ context.Context, _, _ uint64) error {
+	return nil
+}
+
 // --- mockLiffValidators ---
 
 type mockLiffValidators struct {

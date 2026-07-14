@@ -137,12 +137,12 @@ func (s *liffService) tryAttachReservationOwnerPet(
 	}
 
 	customer, err := s.customerRepo.FindByID(ctx, clinicID, customerID)
-	if err != nil || customer == nil || customer.OwnerID == nil {
+	if err != nil || customer == nil || customer.OwnerID == nil || customer.Owner == nil {
 		return
 	}
 
 	fields := map[string]any{
-		"owner_id": *customer.OwnerID,
+		"owner_id": customer.Owner.ID,
 	}
 	if petID := resolveReservationPetID(customer, customerFields); petID != nil {
 		fields["pet_id"] = *petID
@@ -242,5 +242,5 @@ func (s *liffService) tryAutoLinkOwner(ctx context.Context, clinicID, customerID
 		return
 	}
 	slog.InfoContext(ctx, "auto-linked LINE customer to owner",
-		"customer_id", customerID, "owner_id", owner.ID, "name", name)
+		"customer_id", customerID, "owner_id", owner.ID)
 }

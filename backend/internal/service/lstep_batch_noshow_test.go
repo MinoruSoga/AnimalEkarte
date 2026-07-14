@@ -81,6 +81,18 @@ func (m *noShowMockReservationRepository) FindNoShowCandidates(ctx context.Conte
 	return nil, nil
 }
 
+func (m *noShowMockReservationRepository) AssertOwnerInClinic(_ context.Context, _, _ uint64) error {
+	return nil
+}
+
+func (m *noShowMockReservationRepository) FindPetOwnerInClinic(_ context.Context, _, _ uint64) (uint64, error) {
+	return 0, nil
+}
+
+func (m *noShowMockReservationRepository) AssertLineCustomerInClinic(_ context.Context, _, _ uint64) error {
+	return nil
+}
+
 // newNoShowBatchService は具象型を返す（B-5: detectNoShowReservations の unexport に伴い、
 // テストが interface 外の非公開メソッドを直接呼ぶため）。
 func newNoShowBatchService(reservationRepo *noShowMockReservationRepository, clinicRepo *dormantMockClinicRepository, auditSvc AuditService, settingsSvc LstepSettingsService) *lstepBatchService {

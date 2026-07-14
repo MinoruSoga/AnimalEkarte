@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 
 	"github.com/animal-ekarte/backend/internal/config"
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
@@ -60,7 +61,7 @@ type ReservationSlotRepository interface {
 	CountByTypeAndStartTime(ctx context.Context, clinicID, reservationTypeID uint64, startTime time.Time, excludeID *uint64) (int64, error)
 }
 
-// ReservationQueryRepository はクロスフィーチャーのクエリ・依存チェック（6 メソッド）。
+// ReservationQueryRepository はクロスフィーチャーのクエリ・依存チェック（10 メソッド）。
 // reservation_type_service / staff_service / liff_service / reservation_validators で使用。
 type ReservationQueryRepository interface {
 	ExistsByReservationTypeID(ctx context.Context, clinicID, reservationTypeID uint64) (bool, error)
@@ -77,6 +78,12 @@ type ReservationQueryRepository interface {
 	FindAllByCategory(ctx context.Context, clinicID uint64, category model.ReservationTypeCategory, petID, ownerID *uint64, startDate, endDate *string, page, limit int) ([]model.Reservation, int64, error)
 	// FindNoShowCandidates は end_time が現在時刻以前の confirmed/pending 予約を返す（BE-014 ノーショウ検知用）。
 	FindNoShowCandidates(ctx context.Context, clinicID uint64) ([]model.Reservation, error)
+	// AssertOwnerInClinic は owner が clinic に属することを検証する（AUD-001、dbOrTx 参加）。
+	AssertOwnerInClinic(ctx context.Context, clinicID, ownerID uint64) error
+	// FindPetOwnerInClinic は pet が clinic に属する場合にその OwnerID を返す（AUD-001、dbOrTx 参加）。
+	FindPetOwnerInClinic(ctx context.Context, clinicID, petID uint64) (uint64, error)
+	// AssertLineCustomerInClinic は line_customer が clinic に属することを検証する（AUD-001、dbOrTx 参加）。
+	AssertLineCustomerInClinic(ctx context.Context, clinicID, lineCustomerID uint64) error
 }
 
 // ReservationRepository は 3 つのサブインターフェースを合成したフルインターフェース。
@@ -166,9 +173,9 @@ func (r *reservationRepository) findReservationByID(ctx context.Context, clinicI
 // ヘルパー化時に潰さず維持する） — 一覧版は false（CreatedByStaff を含まない）、単件版は
 // true（CreatedByStaff を含む）を渡す。
 func reservationListPreloads(q *gorm.DB, clinicIDs []uint64, withCreatedByStaff bool) *gorm.DB {
-	q = q.Preload("Owner", "deleted_at IS NULL").
-		Preload("Pet", "deleted_at IS NULL").
-		Preload("Pet.Owner", "deleted_at IS NULL").
+	q = q.Preload("Owner", "clinic_id IN ? AND deleted_at IS NULL", clinicIDs).
+		Preload("Pet", "clinic_id IN ? AND deleted_at IS NULL", clinicIDs).
+		Preload("Pet.Owner", "clinic_id IN ? AND deleted_at IS NULL", clinicIDs).
 		Preload("Pet.AnimalSpecies").
 		Preload("ReservationType", "clinic_id IN ? AND deleted_at IS NULL", clinicIDs).
 		Preload("ReservationType.Group", "clinic_id IN ? AND deleted_at IS NULL", clinicIDs).
@@ -448,8 +455,8 @@ func (r *reservationRepository) FindAllByCategory(ctx context.Context, clinicID 
 		return nil, 0, apperrors.FromGORM(err, "appointment", "")
 	}
 	if err := q.
-		Preload("Pet", "deleted_at IS NULL").
-		Preload("Pet.Owner", "deleted_at IS NULL").
+		Preload("Pet", "clinic_id = ? AND deleted_at IS NULL", clinicID).
+		Preload("Pet.Owner", "clinic_id = ? AND deleted_at IS NULL", clinicID).
 		Preload("Pet.AnimalSpecies").
 		Preload("ReservationType", "clinic_id = ? AND deleted_at IS NULL", clinicID).
 		Preload("Doctor", staffAssignedToClinicsCond, []uint64{clinicID}).
@@ -505,4 +512,49 @@ func parseJSTDate(value string) (time.Time, error) {
 		return time.Time{}, apperrors.WrapInvalidInput("date must be YYYY-MM-DD format")
 	}
 	return t, nil
+}
+
+// AssertOwnerInClinic は owners を clinic スコープで存在確認する（AUD-001）。
+// 別 clinic / 未存在を区別せず NotFound を返す。dbOrTx で ambient tx に参加する。
+func (r *reservationRepository) AssertOwnerInClinic(ctx context.Context, clinicID, ownerID uint64) error {
+	var id uint64
+	err := dbOrTx(ctx, r.db).Model(&model.Owner{}).
+		Scopes(clinicScope(clinicID)).
+		Select("id").
+		Where("id = ?", ownerID).
+		Take(&id).Error
+	if err != nil {
+		return apperrors.FromGORM(err, "owner", fmt.Sprintf("%d", ownerID))
+	}
+	return nil
+}
+
+// FindPetOwnerInClinic は pets を clinic スコープで取得し OwnerID を返す（AUD-001）。
+// transaction 内ではPet行を共有ロックし、検証後から予約writeまでのOwner変更を防ぐ。
+func (r *reservationRepository) FindPetOwnerInClinic(ctx context.Context, clinicID, petID uint64) (uint64, error) {
+	var pet model.Pet
+	err := dbOrTx(ctx, r.db).
+		Clauses(clause.Locking{Strength: "SHARE"}).
+		Select("id", "owner_id").
+		Scopes(clinicScope(clinicID)).
+		Where("id = ?", petID).
+		First(&pet).Error
+	if err != nil {
+		return 0, apperrors.FromGORM(err, "pet", fmt.Sprintf("%d", petID))
+	}
+	return pet.OwnerID, nil
+}
+
+// AssertLineCustomerInClinic は line_customers を clinic スコープで存在確認する（AUD-001）。
+func (r *reservationRepository) AssertLineCustomerInClinic(ctx context.Context, clinicID, lineCustomerID uint64) error {
+	var id uint64
+	err := dbOrTx(ctx, r.db).Model(&model.LineCustomer{}).
+		Scopes(clinicScope(clinicID)).
+		Select("id").
+		Where("id = ?", lineCustomerID).
+		Take(&id).Error
+	if err != nil {
+		return apperrors.FromGORM(err, "line_customer", fmt.Sprintf("%d", lineCustomerID))
+	}
+	return nil
 }

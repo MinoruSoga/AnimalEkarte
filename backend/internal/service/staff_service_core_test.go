@@ -142,6 +142,18 @@ func (m *coreMockReservationQueryRepository) FindNoShowCandidates(_ context.Cont
 	return nil, nil
 }
 
+func (m *coreMockReservationQueryRepository) AssertOwnerInClinic(_ context.Context, _, _ uint64) error {
+	return nil
+}
+
+func (m *coreMockReservationQueryRepository) FindPetOwnerInClinic(_ context.Context, _, _ uint64) (uint64, error) {
+	return 0, nil
+}
+
+func (m *coreMockReservationQueryRepository) AssertLineCustomerInClinic(_ context.Context, _, _ uint64) error {
+	return nil
+}
+
 type coreMockShiftEntryRepository struct {
 	existsByStaffIDFn func(ctx context.Context, clinicID, staffID uint64) (bool, error)
 }

@@ -9,6 +9,7 @@ package repository
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -202,6 +203,41 @@ func TestReservationAdminRepository_Create(t *testing.T) {
 	var stored model.Reservation
 	require.NoError(t, db.First(&stored, res.ID).Error)
 	assert.Equal(t, clinicA, stored.ClinicID)
+}
+
+func TestReservationAdminRepository_Create_ParticipatesInTransaction(t *testing.T) {
+	db := setupReservationAdminTestDB(t)
+	repo := NewReservationAdminRepository(db)
+	transactor := NewTransactor(db)
+	ctx := context.Background()
+	const clinicID = uint64(1)
+
+	rt := makeReservationType(t, db, clinicID)
+	now := time.Now().UTC().Truncate(time.Minute)
+	res := &model.Reservation{
+		ClinicID:          clinicID,
+		StartTime:         now,
+		EndTime:           now.Add(30 * time.Minute),
+		ReservationTypeID: rt.ID,
+		VisitType:         model.VisitTypeRevisit,
+		Status:            model.ReservationStatusPending,
+		Source:            model.ReservationSourceManual,
+		CustomerFields:    []byte(`{}`),
+	}
+	sentinel := errors.New("force admin reservation rollback")
+
+	err := transactor.WithTx(ctx, func(txCtx context.Context) error {
+		if err := repo.Create(txCtx, res); err != nil {
+			return err
+		}
+		return sentinel
+	})
+	require.Error(t, err)
+	assert.ErrorIs(t, err, sentinel)
+
+	var count int64
+	require.NoError(t, db.Model(&model.Reservation{}).Where("id = ?", res.ID).Count(&count).Error)
+	assert.Zero(t, count, "admin reservation create must roll back with the ambient transaction")
 }
 
 func TestReservationAdminRepository_SoftDelete(t *testing.T) {

@@ -26,6 +26,9 @@ type mockReservationRepository struct {
 	countOnDutyDoctorsFn               func(ctx context.Context, clinicID uint64, date time.Time) (int64, error)
 	countConflictsFn                   func(ctx context.Context, clinicID uint64, start, end time.Time, excludeID *uint64) (int64, error)
 	countByTypeAndStartTimeFn          func(ctx context.Context, clinicID, reservationTypeID uint64, startTime time.Time, excludeID *uint64) (int64, error)
+	assertOwnerInClinicFn              func(ctx context.Context, clinicID, ownerID uint64) error
+	findPetOwnerInClinicFn             func(ctx context.Context, clinicID, petID uint64) (uint64, error)
+	assertLineCustomerInClinicFn       func(ctx context.Context, clinicID, lineCustomerID uint64) error
 }
 
 func (m *mockReservationRepository) FindAll(ctx context.Context, clinicIDs []uint64, page, limit int, date, startDate, endDate *time.Time, status, source *string, petID, ownerID *uint64) ([]model.Reservation, int64, error) {
@@ -116,6 +119,27 @@ func (m *mockReservationRepository) CountByDateAndSource(_ context.Context, _ ui
 
 func (m *mockReservationRepository) FindAllByCategory(_ context.Context, _ uint64, _ model.ReservationTypeCategory, _, _ *uint64, _, _ *string, _, _ int) ([]model.Reservation, int64, error) {
 	return nil, 0, nil
+}
+
+func (m *mockReservationRepository) AssertOwnerInClinic(ctx context.Context, clinicID, ownerID uint64) error {
+	if m.assertOwnerInClinicFn != nil {
+		return m.assertOwnerInClinicFn(ctx, clinicID, ownerID)
+	}
+	return nil
+}
+
+func (m *mockReservationRepository) FindPetOwnerInClinic(ctx context.Context, clinicID, petID uint64) (uint64, error) {
+	if m.findPetOwnerInClinicFn != nil {
+		return m.findPetOwnerInClinicFn(ctx, clinicID, petID)
+	}
+	return 0, nil
+}
+
+func (m *mockReservationRepository) AssertLineCustomerInClinic(ctx context.Context, clinicID, lineCustomerID uint64) error {
+	if m.assertLineCustomerInClinicFn != nil {
+		return m.assertLineCustomerInClinicFn(ctx, clinicID, lineCustomerID)
+	}
+	return nil
 }
 
 func (m *mockReservationRepository) FindNoShowCandidates(_ context.Context, _ uint64) ([]model.Reservation, error) {

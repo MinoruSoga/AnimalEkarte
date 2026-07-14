@@ -100,6 +100,19 @@ func (m *mockReservationQueryRepository) FindAllByCategory(_ context.Context, _ 
 func (m *mockReservationQueryRepository) FindNoShowCandidates(_ context.Context, _ uint64) ([]model.Reservation, error) {
 	return nil, nil
 }
+
+func (m *mockReservationQueryRepository) AssertOwnerInClinic(_ context.Context, _, _ uint64) error {
+	return nil
+}
+
+func (m *mockReservationQueryRepository) FindPetOwnerInClinic(_ context.Context, _, _ uint64) (uint64, error) {
+	return 0, nil
+}
+
+func (m *mockReservationQueryRepository) AssertLineCustomerInClinic(_ context.Context, _, _ uint64) error {
+	return nil
+}
+
 func newTestReservationTypeLiffService(
 	repo *mockReservationTypeLiffRepository,
 	resAdminRepo *mockReservationAdminRepository,

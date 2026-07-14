@@ -41,7 +41,7 @@ func (r *reservationAdminRepository) FindAllByMonth(ctx context.Context, clinicI
 	err := r.db.WithContext(ctx).
 		Preload("ReservationType", "clinic_id = ? AND deleted_at IS NULL", clinicID).
 		Preload("Doctor", "deleted_at IS NULL").
-		Preload("LineCustomer").
+		Preload("LineCustomer", "clinic_id = ?", clinicID).
 		Scopes(clinicScope(clinicID)).
 		Where("start_time >= ? AND start_time < ?", start, end).
 		Order("start_time ASC").
@@ -62,9 +62,9 @@ func (r *reservationAdminRepository) FindAllByDay(ctx context.Context, clinicID 
 		Preload("ReservationType", "clinic_id = ? AND deleted_at IS NULL", clinicID).
 		Preload("Doctor", "deleted_at IS NULL").
 		Preload("CreatedByStaff", "deleted_at IS NULL").
-		Preload("LineCustomer").
-		Preload("Owner", "deleted_at IS NULL").
-		Preload("Pet", "deleted_at IS NULL").
+		Preload("LineCustomer", "clinic_id = ?", clinicID).
+		Preload("Owner", "clinic_id = ? AND deleted_at IS NULL", clinicID).
+		Preload("Pet", "clinic_id = ? AND deleted_at IS NULL", clinicID).
 		Scopes(clinicScope(clinicID)).
 		Where("start_time >= ? AND start_time < ?", start, end).
 		Order("start_time ASC").
@@ -92,7 +92,7 @@ func (r *reservationAdminRepository) FindTimeRangesByDateRange(ctx context.Conte
 }
 
 func (r *reservationAdminRepository) Create(ctx context.Context, ra *model.Reservation) error {
-	if err := r.db.WithContext(ctx).Create(ra).Error; err != nil {
+	if err := dbOrTx(ctx, r.db).Create(ra).Error; err != nil {
 		return apperrors.FromGORM(err, "appointment", "")
 	}
 	return nil
@@ -122,8 +122,8 @@ func (r *reservationAdminRepository) FindByIDForNotify(ctx context.Context, clin
 	err := r.db.WithContext(ctx).
 		Preload("ReservationType", "clinic_id = ? AND deleted_at IS NULL", clinicID).
 		Preload("Doctor", "deleted_at IS NULL").
-		Preload("Owner", "deleted_at IS NULL").
-		Preload("Pet", "deleted_at IS NULL").
+		Preload("Owner", "clinic_id = ? AND deleted_at IS NULL", clinicID).
+		Preload("Pet", "clinic_id = ? AND deleted_at IS NULL", clinicID).
 		Scopes(clinicScope(clinicID)).Where("id = ?", id).First(&appt).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "appointment", fmt.Sprintf("%d", id))

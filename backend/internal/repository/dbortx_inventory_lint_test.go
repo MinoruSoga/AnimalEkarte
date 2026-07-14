@@ -109,7 +109,10 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"refund_repository.go|refundRepository.SumByBillingID":                 {},
 	"refund_repository.go|refundRepository.SumByBillingIDAndPaymentMethod": {},
 	// reservation (uniform dbOrTx)
+	"reservation_repository.go|reservationRepository.AssertLineCustomerInClinic":         {}, // AUD-001
+	"reservation_repository.go|reservationRepository.AssertOwnerInClinic":                {}, // AUD-001
 	"reservation_repository.go|reservationRepository.AcquireBookingLock":                 {}, // X-9 (Appendix-A phantom-booking fix)
+	"reservation_repository.go|reservationRepository.FindPetOwnerInClinic":               {}, // AUD-001
 	"reservation_repository.go|reservationRepository.CountByCustomerAndDateRange":        {},
 	"reservation_repository.go|reservationRepository.CountByDateAndSource":               {},
 	"reservation_repository.go|reservationRepository.CountByTypeAndStartTime":            {},
@@ -127,6 +130,7 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"reservation_repository.go|reservationRepository.HasDoctorConflict":                  {},
 	"reservation_repository.go|reservationRepository.LockAndFindByID":                    {},
 	"reservation_repository.go|reservationRepository.Update":                             {},
+	"appointment_admin_repository.go|reservationAdminRepository.Create":                  {}, // AUD-001
 	// reservation_type (uniform dbOrTx)
 	"reservation_type_repository.go|reservationTypeRepository.CountChildrenByParentID":       {},
 	"reservation_type_repository.go|reservationTypeRepository.CountUsageByReservationTypeID": {},

@@ -541,6 +541,9 @@ func TestMedicalRecordService_Create(t *testing.T) {
 				assert.Equal(t, appointmentID, id)
 				return &model.Reservation{ID: id}, nil
 			},
+			findPetOwnerFn: func(_ context.Context, _, _ uint64) (uint64, error) {
+				return ownerID, nil
+			},
 			updateFn: func(_ context.Context, _ uint64, id uint64, fields map[string]any) (*model.Reservation, error) {
 				assert.Equal(t, appointmentID, id)
 				updatedFields = fields
@@ -1231,6 +1234,8 @@ func TestAutoCreateFromReservation_BUG386(t *testing.T) {
 type mockReservationRepoForMedicalRecord struct {
 	findByIDFn        func(ctx context.Context, clinicID, id uint64) (*model.Reservation, error)
 	updateFn          func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Reservation, error)
+	assertOwnerFn     func(ctx context.Context, clinicID, ownerID uint64) error
+	findPetOwnerFn    func(ctx context.Context, clinicID, petID uint64) (uint64, error)
 	findByIDCallCount int
 }
 
@@ -1297,6 +1302,24 @@ func (m *mockReservationRepoForMedicalRecord) FindAllByCategory(_ context.Contex
 }
 func (m *mockReservationRepoForMedicalRecord) FindNoShowCandidates(_ context.Context, _ uint64) ([]model.Reservation, error) {
 	return nil, nil
+}
+
+func (m *mockReservationRepoForMedicalRecord) AssertOwnerInClinic(ctx context.Context, clinicID, ownerID uint64) error {
+	if m.assertOwnerFn != nil {
+		return m.assertOwnerFn(ctx, clinicID, ownerID)
+	}
+	return nil
+}
+
+func (m *mockReservationRepoForMedicalRecord) FindPetOwnerInClinic(ctx context.Context, clinicID, petID uint64) (uint64, error) {
+	if m.findPetOwnerFn != nil {
+		return m.findPetOwnerFn(ctx, clinicID, petID)
+	}
+	return 0, nil
+}
+
+func (m *mockReservationRepoForMedicalRecord) AssertLineCustomerInClinic(_ context.Context, _, _ uint64) error {
+	return nil
 }
 
 // mockLstepDeliveryTriggerForMR は TriggerFirstVisitWelcome の呼び出し検証用モック

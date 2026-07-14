@@ -109,6 +109,18 @@ func TestLineCustomerRepository_FindByID(t *testing.T) {
 		assert.Equal(t, owner.ID, got.Owner.ID)
 	})
 
+	t.Run("does not preload a foreign-clinic pet from a contaminated owner relation", func(t *testing.T) {
+		foreignPet := makeSpeciesAndPet(t, db, clinicB, owner.ID, "他院ペット")
+
+		got, err := repo.FindByID(ctx, clinicA, c.ID)
+		require.NoError(t, err)
+		require.NotNil(t, got.Owner)
+		for i := range got.Owner.Pets {
+			assert.NotEqual(t, foreignPet.ID, got.Owner.Pets[i].ID)
+			assert.Equal(t, clinicA, got.Owner.Pets[i].ClinicID)
+		}
+	})
+
 	t.Run("not found for nonexistent id returns NotFound error", func(t *testing.T) {
 		got, err := repo.FindByID(ctx, clinicA, uint64(999999))
 		assert.Error(t, err)

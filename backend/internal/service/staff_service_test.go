@@ -102,6 +102,18 @@ func (m *mockReservationForStaff) FindNoShowCandidates(_ context.Context, _ uint
 	return nil, nil
 }
 
+func (m *mockReservationForStaff) AssertOwnerInClinic(_ context.Context, _, _ uint64) error {
+	return nil
+}
+
+func (m *mockReservationForStaff) FindPetOwnerInClinic(_ context.Context, _, _ uint64) (uint64, error) {
+	return 0, nil
+}
+
+func (m *mockReservationForStaff) AssertLineCustomerInClinic(_ context.Context, _, _ uint64) error {
+	return nil
+}
+
 // mockShiftEntryForStaff は Staff テストで使用する ShiftEntryRepository のスタブ
 type mockShiftEntryForStaff struct {
 	existsByStaffIDFn func(ctx context.Context, clinicID, staffID uint64) (bool, error)

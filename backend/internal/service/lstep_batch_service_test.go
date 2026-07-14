@@ -78,6 +78,18 @@ func (m *batchMockReservationRepo) FindNoShowCandidates(ctx context.Context, cli
 	return nil, nil
 }
 
+func (m *batchMockReservationRepo) AssertOwnerInClinic(_ context.Context, _, _ uint64) error {
+	return nil
+}
+
+func (m *batchMockReservationRepo) FindPetOwnerInClinic(_ context.Context, _, _ uint64) (uint64, error) {
+	return 0, nil
+}
+
+func (m *batchMockReservationRepo) AssertLineCustomerInClinic(_ context.Context, _, _ uint64) error {
+	return nil
+}
+
 // batchMockMedRecordRepo は batch テスト専用 MedicalRecordRepository モック
 type batchMockMedRecordRepo struct {
 	findDormantFn       func(ctx context.Context, clinicID uint64, minDays int) ([]repository.DormantOwnerEntry, error)

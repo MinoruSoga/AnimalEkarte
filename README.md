@@ -18,9 +18,9 @@
 
 | レイヤー | 技術 |
 |:---|:---|
-| **Frontend** | React 19 / TypeScript 5.7 / Vite 6 / Tailwind CSS 4 / shadcn/ui |
-| **Backend** | Go 1.25 / Gin / GORM / Air (Hot Reload) |
-| **Database** | PostgreSQL 18 (Docker: postgres:18-alpine) |
+| **Frontend** | React 19.2 / TypeScript 6.0 / Vite 8.0 / Tailwind CSS 4 / shadcn/ui |
+| **Backend** | Go 1.25.0 / Gin / GORM / Air (Hot Reload) |
+| **Database** | PostgreSQL 18 (Docker: `postgres:18-alpine`) |
 | **Infrastructure** | Docker Compose / AWS (ECS Fargate, RDS, S3) / Vercel |
 | **Testing** | MSW (Mock Service Worker), Vitest, testify |
 
@@ -28,26 +28,36 @@
 
 ## 🔧 クイックスタート
 
-### 1. 準備
+### 1. 環境変数の準備
+
 ```bash
-# 環境変数のコピー
-cp .env.example .env
+# ローカル開発用のテンプレートをコピー
+cp .env.example .env.local
 ```
 
-### 2. 起動
-```bash
-# 全コンテナの起動（初期化スクリプト自動実行）
-make up
+コピー後、`.env.local` のプレースホルダーをローカル環境用に設定してください。開発用の Make ターゲットは、このファイルを Docker Compose の変数展開元として使用します。クイックスタートでは `.env` は使用しません。`.env.local` は Git 管理対象外です。実際の認証情報は README や `.env.example` に記載しないでください。
 
-# フロントエンド型定義の同期
+### 2. 起動
+
+```bash
+# db / backend / frontend を起動し、ヘルスチェック完了まで待機
+# DB マイグレーションは backend の起動時に自動適用
+make up
+```
+
+### 3. 型定義の同期（Go モデル変更時）
+
+```bash
+# Go モデルからフロントエンド型定義を同期
 make codegen
 ```
 
 | サービス | ローカル URL |
 |:---|:---|
-| **Frontend** | [http://localhost:3000](http://localhost:3000) |
-| **Backend API** | [http://localhost:8080/api/v1](http://localhost:8080/api/v1) |
-| **Database** | `localhost:5434` (User: admin / Pass: password) |
+| **Frontend** | [http://localhost:3003](http://localhost:3003) |
+| **Backend API base** | `http://localhost:8080/api/v1` |
+| **Backend health check** | [http://localhost:8080/health](http://localhost:8080/health) |
+| **Database** | `localhost:5434`（接続情報は `.env.local` の `DB_NAME` / `DB_USER` / `DB_PASSWORD`） |
 
 ---
 
@@ -58,7 +68,7 @@ make codegen
 | **業務仕様** | [SPECIFICATION.md](docs/SPECIFICATION.md) / [screens/](docs/screens/) |
 | **機能詳細** | [Lステップ連携](docs/line/lstep-integration.md) / [会計・集計](docs/CASH_REGISTER_SPEC.md) / [顧客分析](docs/CUSTOMER_AGGREGATION_SPEC.md) |
 | **技術設計** | [Architecture](docs/architecture.md) / [ER図](docs/ERD.md)（テーブル数の正本） / [認証・認可](docs/AUTH.md)（RBACリソース数の正本） |
-| **API** | [openapi.yaml](docs/openapi.yaml)（Swagger UI表示用） / [backend/docs/api.yaml](backend/docs/api.yaml)（contract正本） |
+| **API** | [backend/docs/api.yaml](backend/docs/api.yaml)（contract 正本） / [openapi.yaml](docs/openapi.yaml)（Swagger UI 表示用） |
 | **運用・テスト** | [Deployment Hub](docs/infra/deploy/README.md) / [Manual Test Guide](docs/testing/SECTION_14_MANUAL_TEST_GUIDE.md) |
 
 ---

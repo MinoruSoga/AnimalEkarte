@@ -139,6 +139,9 @@ func (s *medicalRecordService) applyAppointmentContextForCreate(
 	if err := resolveAppointmentUint64("owner_id", appt.OwnerID, &input.OwnerID, fields); err != nil {
 		return err
 	}
+	if err := validateReservationOwnerPetLinks(ctx, s.reservationRepo, clinicID, input.OwnerID, input.PetID); err != nil {
+		return err
+	}
 	if input.DoctorID == nil && appt.DoctorID != nil {
 		input.DoctorID = appt.DoctorID
 	} else if input.DoctorID != nil && appt.DoctorID == nil {

@@ -1,0 +1,342 @@
+# AnimalEkarte バグ監査台帳
+
+> **取扱区分**: Internal / Security-sensitive
+> **更新日**: 2026-07-14
+> **目的**: コード監査で発見した未修正バグの正本。修正状況、受入条件、検証結果をここへ集約する。
+
+## 運用ルール
+
+- 1件ずつTDDで修正し、複数AUDを同時に実装しない。
+- 着手前に `git status` と対象ファイルの `git diff` を確認し、別作業の変更を保護する。
+- 行番号は参考情報とし、実装時はシンボル名で再特定する。
+- Backend/FrontendのコマンドはDocker内でスコープ限定して実行する。
+- フルテスト、フルlint、build、type-check、DB reset、migration適用、直接SQLは自動実行しない。
+- clinic分離に関する修正は `clinic-isolation-auditor` と `security-reviewer` のレビューを完了条件に含める。
+- 修正前後で秘密情報・飼主情報・ペット情報・運用情報をログやエラー応答へ追加しない。
+- 外部Issueへ転記する場合は、攻撃手順や実データを含めず、公開範囲を確認する。
+
+## 優先順位
+
+| 修正順 | ID | 概要 | Severity | Confidence | セキュリティ判定 | 状態 |
+|---:|---|---|---|---|---|---|
+| 1 | AUD-001 | 予約のOwner/Pet/LineCustomer clinic分離漏れ | High | High confidence | Approve | Closed |
+| 2 | AUD-008 | カルテ本体のOwner/Pet clinic分離漏れ | High | High confidence | Block | Open |
+| 3 | AUD-003 | DailyRecordの親clinic未検証とview GET書込み | High | High confidence | Block | Open |
+| 4 | AUD-002 | 会計の関連FK clinic分離漏れ | High | High confidence | Block | Open |
+| 5 | AUD-004 | 入院のOwner/Pet clinic分離漏れ | High | High confidence | Block | Open |
+| 6 | AUD-005 | 見積の関連FK clinic分離漏れとcreated_by偽装 | High | High confidence | Block | Open |
+| 7 | AUD-007 | 第2診断カテゴリのAPI/DB契約分裂 | Medium-High | High confidence | - | Open |
+| 8 | AUD-006 | 入院日誌バイタルのPetID欠落と部分コミット | Medium | High confidence | - | Open |
+
+---
+
+## AUD-001: 予約のOwner/Pet/LineCustomer clinic分離漏れ
+
+**状態**: Closed
+
+**Severity**: High
+
+**Confidence**: High confidence
+
+**clinic_id境界監査**: Approve
+
+### 症状
+
+- 通常予約Create/Updateへ別clinicのOwner/Pet IDを指定できる。
+- 管理予約Createへ別clinicのOwner/Pet/LineCustomer IDを指定できる。
+- トリミング予約Create、既存予約へのトリミング詳細追加、トリミング予約Updateへ別clinicのPet IDを指定できる。
+- カルテCreateがOwner/Pet未設定の予約へ、別clinicのOwner/Petを補完できる。
+- 保存後の一覧・詳細取得で、別clinicの飼主名・ペット情報・LINE顧客情報を返し得る。
+
+### 根本原因
+
+- `reservationService.Create` / `reservationService.Update` がOwner/Petをclinic所有確認せず永続化する。
+- `reservationAdminService.Create` がOwner/Pet/LineCustomerをclinic所有確認せず永続化する。
+- `trimmingService.Create` / `createDetailForExistingAppointment` / `Update` がPetをclinic所有確認せず永続化する。
+- `medicalRecordService.applyAppointmentContextForCreate` がrequest由来Owner/Petを所有確認せず予約へ補完する。
+- 管理予約RepositoryのCreateがambient transactionへ参加せず、検証とwriteが別transactionになる。
+- DBは関連IDの存在を確認する単純FKのみで、予約と関連行のclinic一致を保証しない。
+- 予約のOwner/Pet/LineCustomer Preloadにclinic条件がない。
+
+### 主な根拠
+
+- `backend/internal/service/reservation_service.go` — `Create`, `Update`, `buildReservationUpdate`
+- `backend/internal/service/appointment_admin_service.go` — `Create`
+- `backend/internal/service/trimming_service.go` — `Create`, `createDetailForExistingAppointment`, `Update`
+- `backend/internal/service/medical_record_crud.go` — `applyAppointmentContextForCreate`
+- `backend/internal/repository/reservation_repository.go` — `reservationListPreloads`
+- `backend/internal/repository/appointment_admin_repository.go` — 月次・日次一覧Preload
+- `backend/migrations/001_init.sql` — `appointments` の関連FK、FORCEなしRLS
+
+### 修正スコープ
+
+- 通常予約Create/UpdateのOwner/Pet所有確認とOwner-Pet整合確認。
+- 管理予約CreateのOwner/Pet/LineCustomer所有確認。
+- トリミング予約の3書込み経路におけるPet所有確認。
+- カルテ作成に伴う予約Owner/Pet補完の所有確認とOwner-Pet整合確認。
+- 管理予約Createをambient transactionへ参加させる。
+- LINE顧客のOwner.Pets Preloadをclinic scopeし、汚染関係の再伝播を防ぐ。
+- 通常予約、管理予約、トリミング予約の対象書込みと検証を同一transaction境界で実施する。
+- 既存不整合データからの漏洩を防ぐ防御的Preload条件。
+- 初回修正ではDB migration、APIフィールド変更、他AUDの修正を行わない。
+
+### 受入条件
+
+- [x] Clinic Aの通常予約CreateにClinic BのOwnerを指定するとNotFound系エラーとなり、予約が作成されない。
+- [x] Clinic Aの通常予約CreateにClinic BのPetを指定すると拒否される。
+- [x] Clinic Aの管理予約CreateにClinic BのOwner/Pet/LineCustomerを個別に指定すると拒否される。
+- [x] Clinic Aの予約UpdateにClinic BのOwner/Petを指定すると拒否され、既存値が変化しない。
+- [x] Petが最終Ownerに属さないOwner-Pet組合せをCreate/Updateとも拒否する。
+- [x] nil関連、Ownerのみ、Petのみの既存仕様を明示的にテストし、意図しない互換性変更を起こさない。
+- [x] 同一clinicかつ整合したOwner/Pet/LineCustomerは従来どおり成功する。
+- [x] 汚染済みFKを持つ予約を取得しても、別clinicのOwner/Pet/LineCustomer情報をレスポンスへPreloadしない。
+- [x] repository errorを握りつぶさず、既存の`apperrors`規約で返す。
+- [x] 対象テスト、`TestPreloadClinicScope`、`TestMasterFKWriteInventory`がPASSする。
+- [x] `clinic-isolation-auditor` と `security-reviewer` のCRITICAL/HIGH指摘が解消されている。
+- [x] Clinic Aのトリミング予約CreateにClinic BのPetを指定すると拒否され、予約・詳細が作成されない。
+- [x] Clinic Aの既存予約へトリミング詳細を追加する際、Clinic BのPetを指定すると拒否され、予約・詳細が変化しない。
+- [x] Clinic Aのトリミング予約UpdateにClinic BのPetを指定すると拒否され、既存値が変化しない。
+- [x] トリミング3経路のPet検証と書込みが同一transactionに参加し、失敗時にrollbackされる。
+- [x] 再監査で `clinic-isolation-auditor` と `security-reviewer` のCRITICAL/HIGH指摘が解消されている。
+- [x] カルテCreateから予約へ別clinicのOwner/Petを補完できず、Owner-Pet不一致も拒否される。
+- [x] 管理予約Createが所有確認と同じambient transactionへ参加し、rollbackされる。
+- [x] LINE顧客の汚染Owner-Pet関係から別clinic Petを予約へ再付与しない。
+
+### リスク
+
+- Constructor/DIと既存mockへの影響がある。
+- UpdateではPATCH値と現在値を統合した最終Owner/Petを検証しないと、片側だけ変更した場合に不整合が残る。
+- UI選択肢が自院に限定されていてもraw JSONは改変可能なため、Handler/UIだけの検証では不十分。
+- Appointment連携カルテの予約補完は異院IDをfail-fastで拒否するが、カルテCreateと予約Updateは単一transactionではない。競合・部分成功リスクはMediumの後続改善事項とする。
+- AppointmentなしMedicalRecord本体のOwner/Pet分離漏れは予約FKとは別問題であり、AUD-008（High/Open）で追跡する。
+
+---
+
+## AUD-002: 会計の関連FK clinic分離漏れ
+
+**状態**: Open
+
+**Severity**: High
+
+**Confidence**: High confidence
+
+**clinic_id境界監査**: Block
+
+### 症状・原因
+
+会計Create/Updateの `medical_record_id`, `hospitalization_id`, `owner_id`, `pet_id` を所有確認せず保存する。Billing本体だけがclinic scopeされ、Owner/Petは無条件Preloadされるため、別clinicの個人情報露出と会計・診療・入院データの不整合が成立する。
+
+### 主な根拠
+
+- `backend/internal/service/accounting_service_core.go` — `Create`, `Update`
+- `backend/internal/service/accounting_service_builders.go` — `buildAccountingUpdate`
+- `backend/internal/repository/accounting_repository.go` — Owner/Pet Preload
+- `backend/migrations/001_init.sql` — `billings` の関連FK
+
+### 受入条件
+
+- [ ] 4関連IDをそれぞれ別clinicへ差し替えたCreate/Updateを拒否する。
+- [ ] Create失敗時は行が作られず、Update失敗時は既存値が変化しない。
+- [ ] MedicalRecord/Hospitalization/Owner/Pet相互の整合性を検証する。
+- [ ] 一覧・詳細から別clinicのOwner/Pet情報を返さない。
+
+---
+
+## AUD-003: DailyRecordの親clinic未検証とview GET書込み
+
+**状態**: Open
+
+**Severity**: High
+
+**Confidence**: High confidence
+
+**clinic_id境界監査**: Block
+
+### 症状・原因
+
+- `GET /hospitalizations/:id/daily-records/:date` がview権限で `FirstOrCreate` を実行する。
+- DailyRecordServiceが親Hospitalizationのclinic所有を確認しない。
+- DBは `clinic_id` と `hospitalization_id` の一致を保証しない。
+- UNIQUEは日付単独ではなく `(hospitalization_id, date)` だがclinic_idを含まないため、別clinicが対象入院・対象日を先取りすると正常作成を妨害できる。
+
+### 主な根拠
+
+- `backend/internal/handler/daily_record_handler.go` — `GetDailyRecord`, route登録
+- `backend/internal/service/daily_record_service.go` — `FindOrCreateByDate` 呼出し
+- `backend/internal/repository/daily_record_repository.go` — `FirstOrCreate`
+- `backend/migrations/001_init.sql` — `daily_records` FK/UNIQUE/RLS
+
+### 受入条件
+
+- [ ] すべてのGET/POST経路でHospitalizationのclinic所有を確認する。
+- [ ] view権限のGETはDBを書き換えない。
+- [ ] 未存在日のGET挙動を既存FE・元仕様・OpenAPI間で統一する。
+- [ ] Clinic AからClinic BのHospitalization IDを指定してもDailyRecordを作成できない。
+- [ ] 拒否後もClinic Bが同日DailyRecordを正常作成できる。
+
+---
+
+## AUD-004: 入院のOwner/Pet clinic分離漏れ
+
+**状態**: Open
+
+**Severity**: High
+
+**Confidence**: High confidence
+
+**clinic_id境界監査**: Block
+
+### 症状・原因
+
+Hospitalization Create/UpdateはCageを検証する一方、Owner/Petを所有確認せず保存する。Owner/Pet Preloadもclinic無条件であり、退院会計へ汚染された関連IDが伝播する。
+
+### 主な根拠
+
+- `backend/internal/service/hospitalization_service.go` — `Create`, `Update`, `DischargeWithBilling`
+- `backend/internal/repository/hospitalization_repository.go` — Owner/Pet Preload
+- `backend/migrations/001_init.sql` — `hospitalizations` の関連FK
+
+### 受入条件
+
+- [ ] 別clinicのOwner/Petを指定したCreate/Updateを拒否する。
+- [ ] Owner-Pet不一致を拒否する。
+- [ ] 拒否時に行未作成・既存値不変を保証する。
+- [ ] 退院会計へ異院関連IDが伝播しない。
+
+---
+
+## AUD-005: 見積の関連FK clinic分離漏れとcreated_by偽装
+
+**状態**: Open
+
+**Severity**: High
+
+**Confidence**: High confidence
+
+**clinic_id境界監査**: Block
+
+### 症状・原因
+
+見積Createが `medical_record_id`, `owner_id`, `created_by` をrequest bodyから受け取り、所有確認せず保存する。`created_by` は認証主体ではないため、同一clinic内でも任意スタッフを偽装できる。
+
+### 主な根拠
+
+- `backend/internal/handler/estimate_request.go` — `createEstimateRequest`
+- `backend/internal/handler/estimate_handler.go` — `CreateEstimate`
+- `backend/internal/service/estimate_service.go` — `Create`
+- `backend/internal/repository/estimate_repository.go` — Owner/CreatedStaff Preload
+
+### 受入条件
+
+- [ ] 別clinicのMedicalRecord/Owner/Staffを指定したCreateを拒否する。
+- [ ] `created_by` は認証済みactorから設定し、request bodyで偽装できない。
+- [ ] API契約変更が必要な場合はcontract正本とFrontend利用箇所を同時に更新する。
+- [ ] 作成直後・一覧・詳細で別clinicのOwner情報を返さない。
+
+---
+
+## AUD-006: 入院日誌バイタルのPetID欠落と部分コミット
+
+**状態**: Open
+
+**Severity**: Medium
+
+**Confidence**: High confidence
+
+### 症状・原因
+
+`AddVitalRecord` が必須の `VitalRecord.PetID` を設定しないためINSERTが制約違反になる。未作成日のDailyRecord作成とVital作成は別autocommitで、Vital失敗時にDailyRecordだけが残る。
+
+### 主な根拠
+
+- `backend/internal/service/daily_record_service.go` — `AddVitalRecord`
+- `backend/internal/model/vital.go` — 必須PetID
+- `backend/internal/repository/daily_record_repository.go` — 別autocommit
+- `backend/migrations/001_init.sql` — `vital_records.pet_id` NOT NULL/FK
+
+### 受入条件
+
+- [ ] 親HospitalizationからPetIDを解決し、VitalRecordへ設定する。
+- [ ] DailyRecord作成とVital作成を同一transactionに含める。
+- [ ] Vital作成失敗時に新規DailyRecordもrollbackされる。
+- [ ] AUD-003の所有確認を前提とし、重複実装を作らない。
+
+---
+
+## AUD-007: 第2診断カテゴリのAPI/DB契約分裂
+
+**状態**: Open
+
+**Severity**: Medium-High
+
+**Confidence**: High confidence
+
+### 症状・原因
+
+- FEは `diagnosis_2_type_id` を送るが、Handlerは `diagnosis_2_category_id` を待つため第2分類がsilent dropされる。
+- 第2病名だけが保存され、不整合状態を作り得る。
+- `diagnosis_2_category_id` を直接送るとServiceが存在しない列をUPDATEし、本番PostgreSQLでは400になる見込み。
+- Response DTO/Preloadが第2診断を返さない。
+- DB/model/generated型は `diagnosis_2_type_id` であり、これをcanonical名とするのが自然。
+
+### 主な根拠
+
+- `frontend/src/features/medical-records/hooks/use-medical-record-save-action.ts`
+- `backend/internal/handler/clinical_plan_request.go`
+- `backend/internal/service/clinical_plan_service.go`
+- `backend/internal/repository/clinical_plan_repository.go`
+- `backend/internal/model/clinical_plan.go`
+- `backend/internal/handler/clinical_plan_response.go`
+- `backend/docs/api.yaml`, `docs/openapi.yaml`
+
+### 受入条件
+
+- [ ] Request/Service update map/DB/model/Response/OpenAPI/Frontendを `diagnosis_2_type_id` に統一する。
+- [ ] 第2診断分類・病名の設定、変更、クリアを実DB契約を通すテストで確認する。
+- [ ] 保存後レスポンスと再取得レスポンスに第2診断が含まれる。
+- [ ] 第2分類と第2病名の整合性を検証する。
+- [ ] 誤列名を正解として固定しているmockテストを修正する。
+
+---
+
+## AUD-008: カルテ本体のOwner/Pet clinic分離漏れ
+
+**状態**: Open
+
+**Severity**: High
+
+**Confidence**: High confidence
+
+**clinic_id境界監査**: Block
+
+### 症状・原因
+
+- Appointmentを指定しないMedicalRecord Create/Updateがrequest由来Owner/Petをclinic所有確認せず保存する。
+- MedicalRecordのOwner/Pet Preloadにclinic条件がなく、汚染FKから別clinicの個人情報を返し得る。
+- AUD-001の「予約へOwner/Petを補完する経路」とは異なり、カルテ本体のFK分離問題である。
+
+### 主な根拠
+
+- `backend/internal/service/medical_record_crud.go` — `Create`, `Update`
+- `backend/internal/service/medical_record_builders.go` — Owner/Petフィールド構築
+- `backend/internal/repository/medical_record_repository.go` — Owner/Pet Preload
+
+### 受入条件
+
+- [ ] Appointment有無にかかわらず別clinicのOwner/Petを指定したCreate/Updateを拒否する。
+- [ ] Owner-Pet不一致を拒否する。
+- [ ] 検証とMedicalRecord writeを同一transactionへ含める。
+- [ ] 汚染FKを持つカルテから別clinicのOwner/PetをPreloadしない。
+- [ ] 異院拒否時にカルテ・予約のどちらも変化しない。
+
+---
+
+## 修正履歴
+
+| 日付 | ID | 変更 | 検証 | 状態 |
+|---|---|---|---|---|
+| 2026-07-14 | AUD-001 | トリミング3書込み経路へPet clinic所有確認とtransaction/lockを追加。管理予約Createをambient transactionへ参加。カルテからの予約Owner/Pet補完を検証。LINE顧客のOwner.Petsをclinic scopeし、汚染関係をfail-closed化 | Service/Repository scoped test、`go vet`、`go build`、`gofmt -l` PASS。clinic-isolation/security/GoレビューはいずれもApprove、CRITICAL/HIGHなし | Closed |
+| 2026-07-14 | AUD-008 | AUD-001再監査中に、AppointmentなしMedicalRecord本体のOwner/Pet clinic分離漏れを新規登録 | 静的監査。実装は未着手 | Open |
+| 2026-07-14 | AUD-001 | 再監査でトリミング予約のPet clinic所有確認漏れ3経路を検出し、修正を再開 | TDD実施前 | In Progress |
+| 2026-07-14 | AUD-001 | Service境界でOwner/Pet/LineCustomer clinic所有確認+Owner-Pet整合。Preloadへclinic条件。Assert*はdbOrTx。Updateは最終状態検証+tx内Lock。変更: reservation_service.go, appointment_admin_service.go, reservation_repository.go, appointment_admin_repository.go, 関連テスト/モック | `go test ./internal/service/ -run 'TestReservationService_(Create\|Update)\|TestReservationAdminService_Create'` PASS; `go test ./internal/repository/ -run 'TestReservationRepository_(FindAll\|FindByID_ClinicIsolation)\|TestPreloadClinicScope\|AssertOwnerPet\|DoesNotPreload'` PASS; `TestMasterFKWriteInventory` PASS; `TestDBOrTxInventory` PASS。tdd/go/security/clinic-isolation レビューのCRITICAL/HIGH解消 | Closed |
+| 2026-07-13 | AUD-001〜007 | 初回監査と独立再検証結果を記録 | 静的監査。動的異院データ再現なし | Open |

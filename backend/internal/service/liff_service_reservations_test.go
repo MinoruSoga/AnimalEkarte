@@ -560,13 +560,36 @@ func TestLiffService_tryAttachReservationOwnerPet(t *testing.T) {
 			},
 			customerRepo: &mockLiffCustomerRepository{
 				findByIDFn: func(_ context.Context, _, _ uint64) (*model.LineCustomer, error) {
-					return &model.LineCustomer{ID: 1, OwnerID: ptrUint64(200)}, nil
+					return &model.LineCustomer{ID: 1, OwnerID: ptrUint64(200), Owner: &model.Owner{ID: 200}}, nil
 				},
 			},
 		}
 		appt := &model.Reservation{ID: 1}
 		svc.tryAttachReservationOwnerPet(context.Background(), 3, 1, appt, nil)
 		assert.Nil(t, appt.OwnerID, "更新失敗時は appt が変更されないこと")
+	})
+
+	t.Run("汚染された異院OwnerIDがscopeでOwner nilになった場合は予約へ再付与しない", func(t *testing.T) {
+		called := false
+		svc := &liffService{
+			reservationRepo: &mockLiffReservationRepository{
+				updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Reservation, error) {
+					called = true
+					return nil, nil
+				},
+			},
+			customerRepo: &mockLiffCustomerRepository{
+				findByIDFn: func(_ context.Context, _, _ uint64) (*model.LineCustomer, error) {
+					return &model.LineCustomer{ID: 1, OwnerID: ptrUint64(999), Owner: nil}, nil
+				},
+			},
+		}
+		appt := &model.Reservation{ID: 77}
+
+		svc.tryAttachReservationOwnerPet(context.Background(), 3, 1, appt, nil)
+
+		assert.False(t, called)
+		assert.Nil(t, appt.OwnerID)
 	})
 
 	t.Run("成功: pet_id が解決できない場合でも owner_id のみ反映", func(t *testing.T) {

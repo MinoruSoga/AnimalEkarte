@@ -4,7 +4,7 @@
 - **基準コミット**: `9aeee96d`(main)。行番号はずれたら**シンボル名で再特定**する。
 - **性格**: 本書は実行計画の正本。判断できない事態は**中断して報告**。本書とコード以外の文脈を前提にしない。
 - **別台帳**(本書と重複させない): PERF・SEED残 = `BE_todo.md` / 任意検証 = `BE-pending.md` / 既知バグ skip 台帳 = `BE_todo.md` 末尾（#236 で修正予定、**本書の対象外**）
-- **進捗**: 未着手。各項目完了時に見出しの `[ ]` を `[x]` に更新してよい（同一コミットに本書を含めてよい）。
+- **進捗**: 対応済 0 / 22。残存 BE7-0〜BE7-21（部分対応: BE7-1 / BE7-4 / BE7-15）。棚卸し基準 HEAD `e424de5c`（2026-07-14）。各項目完了時に見出しの `[ ]` を `[x]` に更新してよい（同一コミットに本書を含めてよい）。
 
 ---
 
@@ -79,8 +79,9 @@ P16（repository メソッド命名）/ P17（service Input 命名）/ レシー
 
 #### BE7-1 [ ] fix: 会計明細カテゴリ4値が service 層で不正拒否される
 
-- **対象**: `internal/service/validators_accounting.go:23-32`（`validateItemCategory`）
-- **問題**: `internal/model/accounting.go:39-50` の `ItemCategory` は12定数、handler の binding（`internal/handler/accounting_request.go:324` の oneof）も12値を許可するが、`validateItemCategory` は8値のみで **`vaccine` / `trimming` / `hotel` / `training` が「明細カテゴリの値が不正です」で拒否される**。`billing_item_service.go` の `CreateItem` から無条件で呼ばれる到達可能な実バグ（4カテゴリ追加時の service 側更新漏れ）。
+- **棚卸し（2026-07-14）**: **部分対応** — `TestValidateItemCategory` は存在するが Examination + 不正値のみ。`validateItemCategory` はなお8値（vaccine/trimming/hotel/training 未許可）。完了条件未達のため本文は残す。
+- **対象**: `internal/service/validators_accounting.go`（`validateItemCategory`）
+- **問題**: `internal/model/accounting.go` の `ItemCategory` は12定数、handler の binding（`internal/handler/accounting_request.go` の oneof）も12値を許可するが、`validateItemCategory` は8値のみで **`vaccine` / `trimming` / `hotel` / `training` が「明細カテゴリの値が不正です」で拒否される**。`billing_item_service.go` の `CreateItem` から無条件で呼ばれる到達可能な実バグ（4カテゴリ追加時の service 側更新漏れ）。
 - **どう変える**（テスト先行）:
   1. `internal/service/validators_accounting_test.go` を新設（なければ）し、table-driven テストを追加: `テスト名: TestValidateItemCategory` — model の12定数全てが nil を返すこと＋不正値 `"unknown"` がエラーになること。この時点で4値分が **RED**。
   2. `validateItemCategory` の case に `model.ItemCategoryVaccine, model.ItemCategoryTrimming, model.ItemCategoryHotel, model.ItemCategoryTraining` を追加して GREEN。
@@ -134,7 +135,8 @@ if count > 0 || len(errs) > 0 {   // 全滅クリニックも監査に残す
 
 #### BE7-4 [ ] fix: LIFF 空き日程の休診設定パースが fail-open（壊れた設定＝休診日なし扱い）
 
-- **対象**: `internal/service/available_dates.go:49-74`（`ParseAvailableDatesSettings`）と唯一の本番呼び出し元 `internal/service/liff_service_availability.go`
+- **棚卸し（2026-07-14）**: **部分対応** — `ParseAvailableDatesSettings` / `TestParseAvailableDatesSettings` は存在するが、unmarshal 失敗時は依然 fail-open（nil 代入・error 常に nil）。既存テストも fail-open を期待。caller のエラー伝播も未達。本文は残す。
+- **対象**: `internal/service/available_dates.go`（`ParseAvailableDatesSettings`）と唯一の本番呼び出し元 `internal/service/liff_service_availability.go`
 - **問題**: `closed_weekdays` / `closed_dates` の JSON unmarshal 失敗を `nil` 代入で握りつぶし「休診日なし」として返す（**fail-open**）。関数シグネチャは `error` を返せる形なのに常に nil。実際の予約作成は `reservation_validators.go` 側で fail-closed 済みのためデータ破損はしないが、LINE 予約画面が**休診日を予約可能として表示**する UX バグ経路であり、過去に CRITICAL 修正した fail-open クラスの残存兄弟。
 - **どう変える**:
   1. unmarshal 失敗時に `AvailableDatesSettings{}, apperrors.WrapInvalidInput(...)`（文言例: `"休診設定の解析に失敗しました"`、元エラーを wrap）を返す（fail-closed）。
@@ -301,6 +303,7 @@ func paginate(page, limit int) func(*gorm.DB) *gorm.DB {
 
 #### BE7-15 [ ] test: 重複モック5クラスタ（15型）の集約
 
+- **棚卸し（2026-07-14）**: **部分対応** — handler の `mockAuditService` は `internal/handler/mocks_audit_test.go` に統合済み（F-4）。service 層の AuditService / PermissionGroupRepository / OccupationRepository / ReservationTypeOccupationRepository クラスタと `mocks_shared_test.go` 集約は未達。本文は残す。
 - **対象**: service/handler テストに散在する同名同役割モック — `AuditService`×5 / `AuditRepository`×2 / `PermissionGroupRepository`×4 / `OccupationRepository`×2 / `ReservationTypeOccupationRepository`×2（着手時に `rg -n "type mock" internal/service internal/handler --glob '*_test.go'` で全数再列挙して突合）
 - **問題**: 直近10日で積み上がった生きた重複。能力差もある（例: `mockAuditRepository` は last-value capture、`mockTreatmentAuditRepository` は append-list — multi-call 検証が片方では不可能）。
 - **どう変える**: パッケージごとに共有モックファイル（例: `internal/service/mocks_shared_test.go`）へ**最も高機能な実装**（append-list 記録＋メソッド別 error 注入）を1つずつ集約し、各テストは embed ＋必要時 override で利用。**テストの assert 自体は変更しない**（モック差し替えのみ）。1クラスタずつ置換し、都度対象テストを回す。
@@ -419,6 +422,7 @@ func paginate(page, limit int) func(*gorm.DB) *gorm.DB {
 
 ```
 あなたは AnimalEkarte のバックエンド実行者です。BE-refactor.md（第7期）を実行してください。
+（棚卸し 2026-07-14: 対応済 0。残存 BE7-0〜BE7-21。部分対応 BE7-1/BE7-4/BE7-15 は完了条件を満たしてから [x]。）
 
 1. backend/CLAUDE.md、必要に応じて各層 CLAUDE.md（handler/service/repository）、および BE-refactor.md 全文を読む。本書とコード以外の文脈は存在しない前提で作業する。
 2. BE7-0（安全網）から着手し、以後 BE7-1 → BE7-21 を番号順に、1項目ずつ実施する。
