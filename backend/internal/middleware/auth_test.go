@@ -151,14 +151,11 @@ func TestAuth(t *testing.T) {
 		assert.Equal(t, http.StatusUnauthorized, w.Code)
 	})
 
-	t.Run("token signed with HS384 (also HMAC) passes through", func(t *testing.T) {
-		// The middleware checks t.Method.(*jwt.SigningMethodHMAC), which matches all
-		// HMAC variants (HS256, HS384, HS512). An HS384 token with the correct secret
-		// is therefore accepted. Algorithm confusion attacks via non-HMAC methods
-		// (e.g. RS256, none) are blocked, but HS384 is not.
+	t.Run("token signed with HS384 is rejected", func(t *testing.T) {
+		// TokenService.VerifyAccessToken は HS256 のみ許可する（HMAC 他 alg は拒否）。
 		token := makeToken(t, jwt.SigningMethodHS384, validClaims())
 		w, _ := runAuthMiddleware(t, "Bearer "+token)
-		assert.Equal(t, http.StatusOK, w.Code)
+		assert.Equal(t, http.StatusUnauthorized, w.Code)
 	})
 
 	t.Run("token signed with wrong secret returns 401", func(t *testing.T) {

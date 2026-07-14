@@ -5,6 +5,7 @@ import (
 	"errors"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/stretchr/testify/assert"
@@ -16,6 +17,38 @@ import (
 )
 
 const testTokenJWTSecret = "test-secret-for-token-service"
+
+func signTestJWT(t *testing.T, method jwt.SigningMethod, claims *authjwt.Claims) string {
+	t.Helper()
+	token := jwt.NewWithClaims(method, claims)
+	signed, err := token.SignedString([]byte(testTokenJWTSecret))
+	require.NoError(t, err)
+	return signed
+}
+
+func accessClaimsWithSubject(subject string) *authjwt.Claims {
+	return &authjwt.Claims{
+		UserID:   "42",
+		ClinicID: "7",
+		RegisteredClaims: jwt.RegisteredClaims{
+			Subject:   subject,
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour)),
+			IssuedAt:  jwt.NewNumericDate(time.Now()),
+		},
+	}
+}
+
+func refreshClaimsForAlg() *authjwt.Claims {
+	return &authjwt.Claims{
+		UserID:   "42",
+		ClinicID: "7",
+		RegisteredClaims: jwt.RegisteredClaims{
+			Subject:   refreshTokenSubject,
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour)),
+			IssuedAt:  jwt.NewNumericDate(time.Now()),
+		},
+	}
+}
 
 func TestTokenService_IssueAndVerify(t *testing.T) {
 	ctx := context.Background()
@@ -116,6 +149,16 @@ func TestTokenService_IssueAndVerify(t *testing.T) {
 		assert.True(t, errors.Is(err, apperrors.ErrUnauthorized))
 		assert.Contains(t, err.Error(), "invalid token type")
 	})
+
+	t.Run("alg reject: HS384 は拒否する", func(t *testing.T) {
+		svc := NewTokenService(testTokenJWTSecret, nil)
+		token := signTestJWT(t, jwt.SigningMethodHS384, refreshClaimsForAlg())
+
+		_, err := svc.VerifyRefreshToken(ctx, token)
+		require.Error(t, err)
+		assert.True(t, errors.Is(err, apperrors.ErrUnauthorized))
+		assert.Contains(t, err.Error(), "invalid or expired refresh token")
+	})
 }
 
 func TestTokenService_VerifyAccessToken(t *testing.T) {
@@ -189,6 +232,26 @@ func TestTokenService_VerifyAccessToken(t *testing.T) {
 		assert.Equal(t, "5", claims.UserID)
 		assert.False(t, existsCalled, "VerifyAccessToken must not call blacklist")
 	})
+
+	t.Run("non-empty subject: 任意の非空 Subject を拒否する", func(t *testing.T) {
+		svc := NewTokenService(testTokenJWTSecret, nil)
+		token := signTestJWT(t, jwt.SigningMethodHS256, accessClaimsWithSubject("user"))
+
+		_, err := svc.VerifyAccessToken(token)
+		require.Error(t, err)
+		assert.True(t, errors.Is(err, apperrors.ErrUnauthorized))
+		assert.Contains(t, err.Error(), "invalid token type")
+	})
+
+	t.Run("alg reject: HS384 は拒否する", func(t *testing.T) {
+		svc := NewTokenService(testTokenJWTSecret, nil)
+		token := signTestJWT(t, jwt.SigningMethodHS384, accessClaimsWithSubject(""))
+
+		_, err := svc.VerifyAccessToken(token)
+		require.Error(t, err)
+		assert.True(t, errors.Is(err, apperrors.ErrUnauthorized))
+		assert.Contains(t, err.Error(), "invalid or expired token")
+	})
 }
 
 func TestTokenService_ParseRefreshTokenClaims(t *testing.T) {
@@ -248,5 +311,15 @@ func TestTokenService_ParseRefreshTokenClaims(t *testing.T) {
 		_, err = svc.ParseRefreshTokenClaims(tampered)
 		require.Error(t, err)
 		assert.True(t, errors.Is(err, apperrors.ErrUnauthorized))
+	})
+
+	t.Run("alg reject: HS384 は拒否する", func(t *testing.T) {
+		svc := NewTokenService(testTokenJWTSecret, nil)
+		token := signTestJWT(t, jwt.SigningMethodHS384, refreshClaimsForAlg())
+
+		_, err := svc.ParseRefreshTokenClaims(token)
+		require.Error(t, err)
+		assert.True(t, errors.Is(err, apperrors.ErrUnauthorized))
+		assert.Contains(t, err.Error(), "invalid or expired refresh token")
 	})
 }
