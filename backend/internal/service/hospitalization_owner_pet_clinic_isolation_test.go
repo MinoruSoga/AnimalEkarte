@@ -2,7 +2,7 @@ package service
 
 // hospitalization_owner_pet_clinic_isolation_test.go — AUD-004
 // 入院 Create/Update の Owner/Pet clinic 所有確認・Owner-Pet 整合、および
-// DischargeWithBilling が汚染 Owner/Pet を会計へ伝播しないことを検証する。
+// DischargeWithBilling が汚染 Owner/Pet を拒否し（会計あり/なし双方）、会計へ伝播しないことを検証する。
 
 import (
 	"context"
@@ -277,6 +277,7 @@ func TestHospitalizationService_DischargeWithBilling_DoesNotPropagateForeignOwne
 	const clinicID = uint64(1)
 	const foreignOwnerID, foreignPetID = uint64(201), uint64(202)
 
+	updated := false
 	hospRepo := &mockHospitalizationRepository{
 		findByIDFn: func(_ context.Context, _, id uint64) (*model.Hospitalization, error) {
 			return &model.Hospitalization{
@@ -286,6 +287,7 @@ func TestHospitalizationService_DischargeWithBilling_DoesNotPropagateForeignOwne
 			}, nil
 		},
 		updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Hospitalization, error) {
+			updated = true
 			return &model.Hospitalization{ID: 10}, nil
 		},
 	}
@@ -321,6 +323,52 @@ func TestHospitalizationService_DischargeWithBilling_DoesNotPropagateForeignOwne
 	assert.True(t, apperrors.IsNotFound(err))
 	assert.Nil(t, result)
 	assert.False(t, accountingCreated)
+	assert.False(t, updated, "contaminated Owner/Pet discharge must not persist status update")
+}
+
+func TestHospitalizationService_DischargeWithBilling_WithoutAccounting_RejectsForeignOwnerPet(t *testing.T) {
+	const clinicID = uint64(1)
+	const foreignOwnerID, foreignPetID = uint64(201), uint64(202)
+
+	updated := false
+	hospRepo := &mockHospitalizationRepository{
+		findByIDFn: func(_ context.Context, _, id uint64) (*model.Hospitalization, error) {
+			return &model.Hospitalization{
+				ID: id, ClinicID: clinicID,
+				OwnerID: foreignOwnerID, PetID: foreignPetID,
+				Status: model.HospitalizationStatusAdmitted,
+			}, nil
+		},
+		updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Hospitalization, error) {
+			updated = true
+			return &model.Hospitalization{ID: 10}, nil
+		},
+	}
+	carePlanRepo := &mockCarePlanItemRepository{
+		listByHospitalizationIDFn: func(_ context.Context, _, _ uint64) ([]model.CarePlanItem, error) {
+			t.Fatal("care plan items must not be fetched when CreateAccounting is false")
+			return nil, nil
+		},
+	}
+	resRepo := &mockReservationRepository{
+		assertOwnerInClinicFn: func(_ context.Context, _, ownerID uint64) error {
+			assert.Equal(t, foreignOwnerID, ownerID)
+			return apperrors.WrapNotFound("owner", "201")
+		},
+	}
+	repos := newDischargeTestRepos(hospRepo, carePlanRepo, nil, nil)
+	repos.Reservation = resRepo
+	svc := NewHospitalizationService(repos)
+
+	result, err := svc.DischargeWithBilling(context.Background(), clinicID, 10, DischargeWithBillingInput{
+		DischargeDate:    time.Now(),
+		CreateAccounting: false,
+	})
+
+	assert.Error(t, err)
+	assert.True(t, apperrors.IsNotFound(err))
+	assert.Nil(t, result)
+	assert.False(t, updated, "contaminated Owner/Pet discharge must not persist status update")
 }
 
 func uint64PtrHosp(v uint64) *uint64 { return &v }

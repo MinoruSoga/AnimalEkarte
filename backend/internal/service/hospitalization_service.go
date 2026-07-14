@@ -327,6 +327,11 @@ func (s *hospitalizationService) DischargeWithBilling(ctx context.Context, clini
 	}
 
 	err = s.repos.Transaction(ctx, func(txRepos *repository.Repositories) error {
+		// 0. 汚染行対策: CreateAccounting 有無に関わらず、Update 前に Owner/Pet の clinic 所有を再検証する（AUD-004）。
+		if err := validateReservationOwnerPetLinks(ctx, txRepos.Reservation, clinicID, &hosp.OwnerID, &hosp.PetID); err != nil {
+			return err
+		}
+
 		// 1. 退院ステータスに更新
 		dischargedStatus := model.HospitalizationStatusDischarged
 		dischargeFields := map[string]any{
@@ -347,12 +352,7 @@ func (s *hospitalizationService) DischargeWithBilling(ctx context.Context, clini
 			return apperrors.Wrap(err, "failed to get care plan items")
 		}
 
-		// 3. 汚染行対策: 会計作成前に Owner/Pet の clinic 所有を再検証する（AUD-004）。
-		if err := validateReservationOwnerPetLinks(ctx, txRepos.Reservation, clinicID, &hosp.OwnerID, &hosp.PetID); err != nil {
-			return err
-		}
-
-		// 4. 会計レコード作成
+		// 3. 会計レコード作成
 		billing := &model.Billing{
 			ClinicID:          clinicID,
 			HospitalizationID: &id,
@@ -365,7 +365,7 @@ func (s *hospitalizationService) DischargeWithBilling(ctx context.Context, clini
 			return apperrors.Wrap(err, "failed to create billing")
 		}
 
-		// 5. ケアプラン → 会計明細に変換
+		// 4. ケアプラン → 会計明細に変換
 		var totalAmount int64
 		for i := range carePlanItems {
 			item := &carePlanItems[i]
@@ -386,7 +386,7 @@ func (s *hospitalizationService) DischargeWithBilling(ctx context.Context, clini
 			totalAmount += item.UnitPrice
 		}
 
-		// 6. 合計金額更新
+		// 5. 合計金額更新
 		if len(carePlanItems) > 0 {
 			taxTotal := int64(float64(totalAmount) * DefaultTaxRate)
 			if err := txRepos.BillingItem.UpdateBillingTotals(ctx, clinicID, billing.ID, totalAmount, taxTotal, totalAmount+taxTotal); err != nil {
