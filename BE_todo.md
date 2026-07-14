@@ -1,6 +1,6 @@
 # BE Todo — バックエンド残タスク台帳
 
-- **更新日**: 2026-07-13
+- **更新日**: 2026-07-14
 - **本書の規約**: 今期着手可能な PERF/SEED 系の未対応のみを記載する。対応済みは残さない。詳細・手順の正本は git 履歴と `docs/tasks/closed/`。
 - **別台帳**:
   - リファクタ系の今期着手可能残: `BE-refactor.md`
@@ -17,7 +17,15 @@
 
 ## 残タスク一覧
 
-**エージェント実装可能な残タスクなし（2026-07-13 時点）。**
+**エージェント実装可能な残タスク（2026-07-14 棚卸し）:**
+
+| ID | 優先度 | 内容 | 状態・条件 |
+|----|--------|------|-----------|
+| OPS-PUSH-GATE | **push 前必須** | main を push する前に最終スイープを1回実行する: (1) `Co-authored-by:` トレーラー除去（`a35631b3` 以降の並行セッションコミットに再発。Cursor が機械付与するため全セッション静止後にスイープ時点の HEAD まで一括処理）、(2) `refs/original/refs/heads/main` 残骸削除（filter-branch 由来）、(3) `backup/pre-trailer-strip` ブランチ削除（tree 一致確認済み）。**スイープ完了まで push 禁止** | 全並行セッション静止が前提。手順は 2026-07-14 の履歴書き換え実績（`git filter-branch --msg-filter 'sed "/^Co-authored-by:/d"'` + tree 不変検証）に従う |
+| SEC-SECRETS-5 | **高（次の本格タスク推奨）** | シークレット5 Issue（#89/#97/#98/#99/#109）の実装。仕様確定・実装プラン投稿済み（2026-07-13）だが実装未着手。**リポジトリは PUBLIC・seed 003_demo に LINE 実平文クレデンシャル2組が残存** | GitHub Issue 側に実装プランあり。C-1 シークレットローテーションも同群 |
+| TEST-FLAKE-P2 | 低 | `TestAppointmentTrimmingDetail*` が共有 DB + TRUNCATE のため並列実行でフレークする（2026-07-14 #236 クローズ検証時に実測）。`setupIsolatedTestDB` 化または CI での `-parallel 1` を検討 | 再現: `go test ./internal/repository/ -run 'TestAppointmentTrimmingDetail' -count=1`（並列時に稀に赤 → `-parallel 1` で緑） |
+
+**記録（2026-07-14）**: フル `go test ./...` 全 PASS・フル `golangci-lint run ./...`（cache clean 後）**0 issues** を実測確認。第7期リファクタ（BE7-0〜21）＋ lint 72件是正の全ワークストリームが両ゲート green。
 
 ### 見送り（再開条件付き・今期着手しない）
 
@@ -31,7 +39,7 @@
 
 ## 既知バグの skip テスト台帳（2026-07-13 第2次棚卸し）— 解消済み・0件
 
-skip されたテストはバグが直っても・悪化しても fail しない。修正時は該当行の `t.Skip` を外して green を確認すること。件数は `rg -in "known production bug" backend/internal --glob '*.go'` の t.Skip 実測 11 件（+ 補足 2 件）。**旧台帳（小文字 `known production bug` 表記 9 件）は `ef4f8cf5` で根因修正・`5be86907` でクローズ済み**。本表はその後の #212 カバレッジ拡充（`e908f105`、2026-07-13）で新規発覚した未修正分であり、修正タスクは #236 に起票済み。
+skip されたテストはバグが直っても・悪化しても fail しない。修正時は該当行の `t.Skip` を外して green を確認すること。件数は `rg -in "known production bug" backend/internal --glob '*.go'` の t.Skip 実測 11 件（+ 補足 2 件）。**旧台帳（小文字 `known production bug` 表記 9 件）は `ef4f8cf5` で根因修正・`5be86907` でクローズ済み**。本表はその後の #212 カバレッジ拡充（`e908f105`、2026-07-13）で新規発覚した未修正分であり、修正タスクは #236 に起票済み。**#236 は 2026-07-14 に再実測検証（対象テスト全 PASS・skip マーカー 0 件）のうえクローズコメント付きで CLOSED 済み。**
 
 **追記（2026-07-13 #236 skip 解除・検証完了、commit bb2ad499）**: 下表の 11 件 + 補足 2 件、計 13 件すべて `t.Skip` を解除し green を実測確認した。実装側の修正（BUG#1: `reservation_staff_repository.go` Delete の EXISTS 相関サブクエリ化／BUG#3: `model/clinic_settings.go` への `gorm:"column:"`・`type:time` タグ付与／BUG#4: `medical_record_owner_visit_repository.go` の `apperrors.FromGORM` ラップ→`IsNotFound` 判定順序修正）はいずれも前回セッションで適用済みだったため、本セッションでは対応するテストファイルの `t.Skip` 呼び出しと陳腐化した「KNOWN PRODUCTION BUG」コメントブロックの除去のみを行った。補足の 2 件（`clinic_repository_test.go`）は BUG#3 と同一根因（`ClinicSettings` の AutoMigrate schema drift）であることを確認しており、BUG#3 の修正が適用済みだったことで副次的に解消していた（本セッションで実測発見・skip 解除）。検証コマンド: `docker compose exec backend go test ./internal/repository/ -run 'TestClinicRepository_CountBlockingReferencesByClinicID|TestReservationStaffRepository_Delete|TestClinicSettingsRepository_|TestMedicalRecordRepository_FindLatestByOwner' -count=1 -v` → 全 PASS。`rg -in "known production bug|known bug" backend/internal --glob '*.go'` → 0 件。`docker compose exec backend gofmt -l ./internal/model/ ./internal/repository/` → 無出力。上記修正・skip解除・本追記はすべて `bb2ad499`（fix(backend): クロステナントDelete・ClinicSettings列名不一致・FindLatestByOwner判定順序を修正 (#236)）としてコミット済み。push は未実施（本タスクの範囲外）。
 
