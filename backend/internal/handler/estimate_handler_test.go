@@ -265,6 +265,74 @@ func TestCreateEstimate(t *testing.T) {
 			wantHeader: "/api/v1/estimates/10",
 		},
 		{
+			name: "creates estimate with draft status",
+			body: map[string]any{
+				"title":        "下書き見積",
+				"status":       "draft",
+				"subtotal":     1000,
+				"tax_total":    100,
+				"total_amount": 1100,
+			},
+			setupCtx: func(c *gin.Context) { setClinicID(c); setStaffID(c) },
+			svc: &mockEstimateService{
+				createFn: func(_ context.Context, _ uint64, input *service.CreateEstimateInput) (*model.Estimate, error) {
+					assert.Equal(t, model.EstimateStatusDraft, input.Status)
+					return &model.Estimate{ID: 12, Title: input.Title, Status: input.Status}, nil
+				},
+			},
+			wantStatus: http.StatusCreated,
+			wantHeader: "/api/v1/estimates/12",
+		},
+		{
+			name: "creates estimate with sent status",
+			body: map[string]any{
+				"title":        "送付見積",
+				"status":       "sent",
+				"subtotal":     1000,
+				"tax_total":    100,
+				"total_amount": 1100,
+			},
+			setupCtx: func(c *gin.Context) { setClinicID(c); setStaffID(c) },
+			svc: &mockEstimateService{
+				createFn: func(_ context.Context, _ uint64, input *service.CreateEstimateInput) (*model.Estimate, error) {
+					assert.Equal(t, model.EstimateStatusSent, input.Status)
+					return &model.Estimate{ID: 13, Title: input.Title, Status: input.Status}, nil
+				},
+			},
+			wantStatus: http.StatusCreated,
+			wantHeader: "/api/v1/estimates/13",
+		},
+		{
+			name: "returns 400 when create status is approved",
+			body: map[string]any{
+				"title":  "承認直作成",
+				"status": "approved",
+			},
+			setupCtx: func(c *gin.Context) { setClinicID(c); setStaffID(c) },
+			svc: &mockEstimateService{
+				createFn: func(_ context.Context, _ uint64, _ *service.CreateEstimateInput) (*model.Estimate, error) {
+					t.Fatal("Create must not be called when status binding rejects approved")
+					return nil, nil
+				},
+			},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name: "returns 400 when create status is rejected",
+			body: map[string]any{
+				"title":  "却下直作成",
+				"status": "rejected",
+			},
+			setupCtx: func(c *gin.Context) { setClinicID(c); setStaffID(c) },
+			svc: &mockEstimateService{
+				createFn: func(_ context.Context, _ uint64, _ *service.CreateEstimateInput) (*model.Estimate, error) {
+					t.Fatal("Create must not be called when status binding rejects rejected")
+					return nil, nil
+				},
+			},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
 			name:       "returns 401 when clinic_id is missing",
 			body:       map[string]any{"title": "x"},
 			setupCtx:   func(_ *gin.Context) {},
@@ -414,6 +482,34 @@ func TestUpdateEstimate(t *testing.T) {
 			},
 			wantStatus: http.StatusOK,
 			wantBody:   `"title":"更新後"`,
+		},
+		{
+			name:     "updates estimate status to approved",
+			paramID:  "1",
+			body:     map[string]any{"status": "approved"},
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockEstimateService{
+				updateFn: func(_ context.Context, _, _ uint64, input *service.UpdateEstimateInput) (*model.Estimate, error) {
+					require.NotNil(t, input.Status)
+					assert.Equal(t, model.EstimateStatus("approved"), *input.Status)
+					return &model.Estimate{ID: 1, Status: model.EstimateStatusApproved}, nil
+				},
+			},
+			wantStatus: http.StatusOK,
+		},
+		{
+			name:     "updates estimate status to rejected",
+			paramID:  "1",
+			body:     map[string]any{"status": "rejected"},
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockEstimateService{
+				updateFn: func(_ context.Context, _, _ uint64, input *service.UpdateEstimateInput) (*model.Estimate, error) {
+					require.NotNil(t, input.Status)
+					assert.Equal(t, model.EstimateStatus("rejected"), *input.Status)
+					return &model.Estimate{ID: 1, Status: model.EstimateStatusRejected}, nil
+				},
+			},
+			wantStatus: http.StatusOK,
 		},
 		{
 			name:     "updates estimate when discount amount unchanged",

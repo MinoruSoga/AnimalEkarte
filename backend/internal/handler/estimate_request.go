@@ -49,7 +49,7 @@ type createEstimateRequest struct {
 	MedicalRecordID *uint64    `json:"medical_record_id"`
 	Title           string     `json:"title" binding:"required,min=1,max=255"`
 	OwnerID         *uint64    `json:"owner_id"`
-	Status          string     `json:"status"  binding:"omitempty,oneof=draft sent approved rejected"`
+	Status          string     `json:"status"  binding:"omitempty,oneof=draft sent"`
 	Subtotal        int64      `json:"subtotal"      binding:"min=0"`
 	TaxTotal        int64      `json:"tax_total"     binding:"min=0"`
 	TotalAmount     int64      `json:"total_amount"  binding:"min=0"`

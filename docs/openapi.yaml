@@ -3417,7 +3417,7 @@ components:
           nullable: true
         status:
           type: string
-          enum: [draft, sent, approved, rejected]
+          enum: [draft, sent]
         subtotal:
           type: number
           format: double
