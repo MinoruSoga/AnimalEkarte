@@ -4,7 +4,7 @@
 - **基準コミット**: `9aeee96d`(main)。行番号はずれたら**シンボル名で再特定**する。
 - **性格**: 本書は実行計画の正本。判断できない事態は**中断して報告**。本書とコード以外の文脈を前提にしない。
 - **別台帳**(本書と重複させない): PERF・SEED残 = `BE_todo.md` / 任意検証 = `BE-pending.md` / 既知バグ skip 台帳 = `BE_todo.md` 末尾（#236 で修正予定、**本書の対象外**）
-- **進捗**: 対応済 16 / 22。残存 BE7-17〜BE7-21。棚卸し基準 HEAD `e424de5c`（2026-07-14）。各項目完了時に見出しの `[ ]` を `[x]` に更新してよい（同一コミットに本書を含めてよい）。
+- **進捗**: 対応済 17 / 22。残存 BE7-18〜BE7-21。棚卸し基準 HEAD `e424de5c`（2026-07-14）。各項目完了時に見出しの `[ ]` を `[x]` に更新してよい（同一コミットに本書を含めてよい）。
 
 ---
 
@@ -324,7 +324,7 @@ func paginate(page, limit int) func(*gorm.DB) *gorm.DB {
 
 ### Phase 5 — docs: API 契約の乖離是正
 
-#### BE7-17 [ ] docs: api.yaml のフィールドレベル乖離4クラスタを実装に同期
+#### BE7-17 [x] docs: api.yaml のフィールドレベル乖離4クラスタを実装に同期
 
 - **対象**: `backend/docs/api.yaml`（フィールドレベルは apicontract ゲートの対象外＝手動同期が必要な領域。**実装が正、spec を直す**）:
   1. **ShiftEntry**（api.yaml:3258-3298 / 実装 `internal/handler/shift_response.go:18-32`）: `id`/`clinic_id`/`staff_id` を `type: integer, format: int64` → **`type: string`** に修正（実装は `strconv.FormatUint` で string 直列化）。`staff_name`（string）を追加。spec のみに存在する幽霊 `note`（単数）を削除（実装は `notes` のみ）。
@@ -422,7 +422,7 @@ func paginate(page, limit int) func(*gorm.DB) *gorm.DB {
 
 ```
 あなたは AnimalEkarte のバックエンド実行者です。BE-refactor.md（第7期）を実行してください。
-（棚卸し 2026-07-14: 対応済 16。残存 BE7-17〜BE7-21。）
+（棚卸し 2026-07-14: 対応済 17。残存 BE7-18〜BE7-21。）
 
 1. backend/CLAUDE.md、必要に応じて各層 CLAUDE.md（handler/service/repository）、および BE-refactor.md 全文を読む。本書とコード以外の文脈は存在しない前提で作業する。
 2. BE7-0（安全網）から着手し、以後 BE7-1 → BE7-21 を番号順に、1項目ずつ実施する。

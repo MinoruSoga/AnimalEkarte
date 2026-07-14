@@ -1220,6 +1220,10 @@ components:
           type: integer
           format: int64
           nullable: true
+        owner:
+          $ref: '#/components/schemas/OwnerSummary'
+          description: 飼主情報（Preload時のみ含まれる）
+          nullable: true
         pet_id:
           type: integer
           format: int64
@@ -1251,19 +1255,34 @@ components:
             - completed
         notes:
           type: string
-        created_at:
-          type: string
-          format: date-time
-          readOnly: true
-        updated_at:
-          type: string
-          format: date-time
-          readOnly: true
-        deleted_at:
+        checked_in_at:
           type: string
           format: date-time
           nullable: true
-          description: 削除日時（ソフトデリート）
+        source:
+          type: string
+          enum:
+            - manual
+            - line
+        created_by:
+          type: integer
+          format: int64
+          nullable: true
+        line_customer_id:
+          type: integer
+          format: int64
+          nullable: true
+        is_staff_delegated:
+          type: boolean
+        customer_fields:
+          type: object
+        reservation_route:
+          type: string
+          nullable: true
+        actual_reservation_at:
+          type: string
+          format: date-time
+          nullable: true
         pet:
           $ref: '#/components/schemas/PetSummary'
           description: ペット情報（owner含む、Preload時のみ含まれる）
@@ -1276,18 +1295,18 @@ components:
           $ref: '#/components/schemas/StaffSummary'
           description: 担当医師情報（Preload時のみ含まれる）
           nullable: true
-        source:
+        created_by_staff:
+          $ref: '#/components/schemas/StaffSummary'
+          description: 作成スタッフ情報（Preload時のみ含まれる）
+          nullable: true
+        created_at:
           type: string
-          enum:
-            - manual
-            - line
-        created_by:
-          type: integer
-          format: int64
-        is_staff_delegated:
-          type: boolean
-        customer_fields:
-          type: object
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
     MedicalRecord:
       type: object
       required: [date, record_no]
@@ -3259,14 +3278,13 @@ components:
       type: object
       properties:
         id:
-          type: integer
-          format: int64
+          type: string
         clinic_id:
-          type: integer
-          format: int64
+          type: string
         staff_id:
-          type: integer
-          format: int64
+          type: string
+        staff_name:
+          type: string
         date:
           type: string
           format: date
@@ -3287,7 +3305,7 @@ components:
           type: string
           nullable: true
           example: "18:00"
-        note:
+        notes:
           type: string
         created_at:
           type: string
@@ -3297,9 +3315,7 @@ components:
           format: date-time
         staff:
           $ref: '#/components/schemas/StaffSummary'
-
-        notes:
-          type: string
+          nullable: true
     CreateShiftRequest:
       type: object
       required: [staff_id, date, shift_type]
@@ -5916,6 +5932,9 @@ components:
         owner_id:
           type: integer
           format: int64
+          nullable: true
+        owner_name:
+          type: string
         created_at:
           type: string
           format: date-time
