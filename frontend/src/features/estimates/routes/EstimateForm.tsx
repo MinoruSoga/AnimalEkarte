@@ -1,8 +1,9 @@
 import { ICON, C } from "@/lib/design-tokens";
 import { paths } from "@/config/paths";
 import { LoadingFallback } from "@/components/shared/DataStates";
-import { memo, useCallback, useEffect } from 'react';
+import { memo, useCallback, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router';
+import { toast } from "sonner";
 import { FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { SubmitButton } from "@/components/shared/Form/SubmitButton";
@@ -27,6 +28,10 @@ import { useEstimateForm } from '../hooks/use-estimate-form';
 import { usePermission } from "@/hooks/use-permission";
 import type { EstimateStatus } from '../types';
 import { ResourceEstimates } from "@/types/generated/models";
+import {
+  ESTIMATE_LOCKED_EDIT_MESSAGE,
+  isEstimateLockedStatus,
+} from "../utils/is-estimate-locked-status";
 
 // rendering-hoist-jsx: Edit は全 status、Create は draft/sent のみ（Create API binding と整合）
 export const EDIT_STATUS_OPTIONS: { value: EstimateStatus; label: string }[] = [
@@ -287,6 +292,20 @@ function EstimateFormContent({ id }: { id?: string }) {
   // React 19 Action の成功を検知して遷移
   // rerender-dependencies: estimate（オブジェクト）の代わりに estimate?.id（primitive）を deps に使用
   const estimateId = estimate?.id;
+  const estimateStatus = estimate?.status;
+  const isLockedEdit =
+    isEdit && estimateId != null && estimateStatus != null
+      ? isEstimateLockedStatus(estimateStatus)
+      : false;
+  const lockedRedirectRef = useRef(false);
+
+  useEffect(() => {
+    if (!isLockedEdit || estimateId == null || lockedRedirectRef.current) return;
+    lockedRedirectRef.current = true;
+    toast.info(ESTIMATE_LOCKED_EDIT_MESSAGE);
+    navigate(paths.estimates.detail.getHref(estimateId), { replace: true });
+  }, [isLockedEdit, estimateId, navigate]);
+
   useEffect(() => {
     if (formState.success) {
       markClean();
@@ -310,6 +329,11 @@ function EstimateFormContent({ id }: { id?: string }) {
   );
 
   if (isEdit && isLoading) {
+    return <LoadingFallback />;
+  }
+
+  // locked 見積の edit 直アクセス: 更新 UI を出さず detail へリダイレクト中
+  if (isLockedEdit) {
     return <LoadingFallback />;
   }
 

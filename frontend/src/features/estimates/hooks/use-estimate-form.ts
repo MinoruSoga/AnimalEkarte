@@ -7,6 +7,10 @@ import type { Estimate, EstimateStatus } from '../types';
 import { useCreateEstimate } from '../api/create-estimate';
 import { useUpdateEstimate } from '../api/update-estimate';
 import type { CreateEstimateRequest, UpdateEstimateRequest } from '../api/types';
+import {
+  ESTIMATE_LOCKED_EDIT_MESSAGE,
+  isEstimateLockedStatus,
+} from '../utils/is-estimate-locked-status';
 
 /** Create API（binding oneof=draft sent）と整合する許可 status */
 const CREATE_ALLOWED_STATUSES: readonly EstimateStatus[] = ['draft', 'sent'];
@@ -75,6 +79,10 @@ export function useEstimateForm(estimate?: Estimate) {
 
       try {
         if (isEdit && estimate) {
+          if (isEstimateLockedStatus(estimate.status)) {
+            toast.info(ESTIMATE_LOCKED_EDIT_MESSAGE);
+            return { success: false, timestamp: Date.now() };
+          }
           const req: UpdateEstimateRequest = {
             title: form.title,
             status: form.status,

@@ -15,7 +15,7 @@ const {
   mockUpdateMutateAsync,
 } = vi.hoisted(() => ({
   mockNavigate: vi.fn(),
-  mockToast: { error: vi.fn(), success: vi.fn() },
+  mockToast: { error: vi.fn(), success: vi.fn(), info: vi.fn() },
   mockCreateMutateAsync: vi.fn().mockResolvedValue({}),
   mockUpdateMutateAsync: vi.fn().mockResolvedValue({}),
 }));
@@ -387,6 +387,36 @@ describe("useEstimateForm", () => {
         })
       );
       expect(mockCreateMutateAsync).not.toHaveBeenCalled();
+    });
+
+    it("既存 status が approved → update は呼ばれず toast.info を出す", async () => {
+      const locked: Estimate = { ...mockEstimate, status: "approved" };
+      const { result } = renderHook(() => useEstimateForm(locked));
+
+      await act(async () => {
+        await result.current.formAction(new FormData());
+      });
+
+      expect(mockUpdateMutateAsync).not.toHaveBeenCalled();
+      expect(mockToast.info).toHaveBeenCalledWith(
+        "承認済みまたは却下済みの見積書は編集できません",
+      );
+      expect(result.current.formState.success).toBe(false);
+    });
+
+    it("既存 status が rejected → update は呼ばれず toast.info を出す", async () => {
+      const locked: Estimate = { ...mockEstimate, status: "rejected" };
+      const { result } = renderHook(() => useEstimateForm(locked));
+
+      await act(async () => {
+        await result.current.formAction(new FormData());
+      });
+
+      expect(mockUpdateMutateAsync).not.toHaveBeenCalled();
+      expect(mockToast.info).toHaveBeenCalledWith(
+        "承認済みまたは却下済みの見積書は編集できません",
+      );
+      expect(result.current.formState.success).toBe(false);
     });
   });
 

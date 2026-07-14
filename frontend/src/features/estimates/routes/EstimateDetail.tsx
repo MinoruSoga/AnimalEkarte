@@ -13,6 +13,7 @@ import { useGetEstimate } from '../api/get-estimate';
 import { useDeleteEstimate } from '../api/delete-estimate';
 import { usePermission } from "@/hooks/use-permission";
 import { ResourceEstimates } from "@/types/generated/models";
+import { isEstimateLockedStatus } from "../utils/is-estimate-locked-status";
 
 export function EstimateDetail() {
   const { id } = useParams<{ id: string }>();
@@ -40,6 +41,10 @@ export function EstimateDetail() {
     return <div className={`p-4 ${C.danger}`}>データの取得に失敗しました</div>;
   }
 
+  const isLocked = isEstimateLockedStatus(estimate.status);
+  const showEdit = canEdit && !isLocked;
+  const showDelete = canDelete && !isLocked;
+
   return (
     <PageLayout
       title={`見積書 ${estimate.estimateNo}`}
@@ -56,7 +61,7 @@ export function EstimateDetail() {
             <ArrowLeft className={ICON.action} />
             一覧へ
           </Button>
-          {canEdit ? (
+          {showEdit ? (
             <Button
               variant="outline"
               size="sm"
@@ -67,7 +72,7 @@ export function EstimateDetail() {
               編集
             </Button>
           ) : null}
-          {canDelete ? (
+          {showDelete ? (
             <Button
               variant="ghost-danger"
               size="sm"
