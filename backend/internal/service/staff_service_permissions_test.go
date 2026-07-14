@@ -10,54 +10,6 @@ import (
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
-// mockPermissionGroupRepoForStaffPermissions は StaffPermissionService の
-// GetPermissionGroupIDs/SetPermissionGroupIDs テスト用に repository.PermissionGroupRepository
-// を実装する、対象メソッドのみ関数フィールドで戻り値を制御可能なモック。
-type mockPermissionGroupRepoForStaffPermissions struct {
-	findAllGroupIDsByStaffIDFn func(ctx context.Context, staffID uint64) ([]uint64, error)
-	updateStaffGroupsFn        func(ctx context.Context, clinicID, staffID uint64, groupIDs []uint64) error
-}
-
-func (m *mockPermissionGroupRepoForStaffPermissions) FindAll(_ context.Context, _ uint64) ([]model.PermissionGroup, error) {
-	return nil, nil
-}
-func (m *mockPermissionGroupRepoForStaffPermissions) FindByID(_ context.Context, _, _ uint64) (*model.PermissionGroup, error) {
-	return nil, nil
-}
-func (m *mockPermissionGroupRepoForStaffPermissions) Create(_ context.Context, _ *model.PermissionGroup) error {
-	return nil
-}
-func (m *mockPermissionGroupRepoForStaffPermissions) Update(_ context.Context, _, _ uint64, _ map[string]any) (*model.PermissionGroup, error) {
-	return nil, nil
-}
-func (m *mockPermissionGroupRepoForStaffPermissions) Delete(_ context.Context, _, _ uint64) error {
-	return nil
-}
-func (m *mockPermissionGroupRepoForStaffPermissions) UpdateRules(_ context.Context, _ uint64, _ []model.PermissionGroupRule) error {
-	return nil
-}
-func (m *mockPermissionGroupRepoForStaffPermissions) CountUsageByGroupID(_ context.Context, _, _ uint64) (int64, error) {
-	return 0, nil
-}
-func (m *mockPermissionGroupRepoForStaffPermissions) Reorder(_ context.Context, _ uint64, _ []uint64) error {
-	return nil
-}
-func (m *mockPermissionGroupRepoForStaffPermissions) FindAllEffectivePermissionsByStaffID(_ context.Context, _, _ uint64) ([]model.PermissionGroupRule, error) {
-	return nil, nil
-}
-func (m *mockPermissionGroupRepoForStaffPermissions) FindAllGroupIDsByStaffID(ctx context.Context, staffID uint64) ([]uint64, error) {
-	if m.findAllGroupIDsByStaffIDFn != nil {
-		return m.findAllGroupIDsByStaffIDFn(ctx, staffID)
-	}
-	return nil, nil
-}
-func (m *mockPermissionGroupRepoForStaffPermissions) UpdateStaffGroups(ctx context.Context, clinicID, staffID uint64, groupIDs []uint64) error {
-	if m.updateStaffGroupsFn != nil {
-		return m.updateStaffGroupsFn(ctx, clinicID, staffID, groupIDs)
-	}
-	return nil
-}
-
 // mockResStaffRepoForStaffPermissions は StaffPermissionService の除外/対応可能サービス種別
 // テスト用に repository.ReservationStaffRepository を実装する、対象メソッドのみ関数フィールドで
 // 戻り値を制御可能なモック。
@@ -127,7 +79,7 @@ func (m *mockResStaffRepoForStaffPermissions) SupportsReservationType(_ context.
 // StaffService を組み立てる。権限グループ／予約種別リポジトリ以外は staff_service_test.go 内の
 // 共有スタブ（mockStaffRepository 等）を再利用する。
 func newTestStaffServiceForPermissions(
-	permRepo *mockPermissionGroupRepoForStaffPermissions,
+	permRepo *mockPermissionGroupRepository,
 	resRepo *mockResStaffRepoForStaffPermissions,
 ) StaffService {
 	return NewStaffService(
@@ -168,7 +120,7 @@ func TestStaffService_GetPermissionGroupIDs(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			permRepo := &mockPermissionGroupRepoForStaffPermissions{
+			permRepo := &mockPermissionGroupRepository{
 				findAllGroupIDsByStaffIDFn: func(_ context.Context, _ uint64) ([]uint64, error) {
 					return tt.ids, tt.repoErr
 				},
@@ -201,7 +153,7 @@ func TestStaffService_SetPermissionGroupIDs(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			var gotClinicID, gotStaffID uint64
 			var gotGroupIDs []uint64
-			permRepo := &mockPermissionGroupRepoForStaffPermissions{
+			permRepo := &mockPermissionGroupRepository{
 				updateStaffGroupsFn: func(_ context.Context, clinicID, staffID uint64, groupIDs []uint64) error {
 					gotClinicID, gotStaffID, gotGroupIDs = clinicID, staffID, groupIDs
 					return tt.repoErr
@@ -257,7 +209,7 @@ func TestStaffService_GetExcludedReservationTypeIDs(t *testing.T) {
 					return tt.items, tt.repoErr
 				},
 			}
-			svc := newTestStaffServiceForPermissions(&mockPermissionGroupRepoForStaffPermissions{}, resRepo)
+			svc := newTestStaffServiceForPermissions(&mockPermissionGroupRepository{}, resRepo)
 
 			got, err := svc.GetExcludedReservationTypeIDs(context.Background(), 1)
 
@@ -288,7 +240,7 @@ func TestStaffService_SetExcludedReservationTypeIDs(t *testing.T) {
 					return tt.repoErr
 				},
 			}
-			svc := newTestStaffServiceForPermissions(&mockPermissionGroupRepoForStaffPermissions{}, resRepo)
+			svc := newTestStaffServiceForPermissions(&mockPermissionGroupRepository{}, resRepo)
 
 			err := svc.SetExcludedReservationTypeIDs(context.Background(), 1, 10, []uint64{7})
 
@@ -334,7 +286,7 @@ func TestStaffService_GetCapableReservationTypeIDs(t *testing.T) {
 					return tt.items, tt.repoErr
 				},
 			}
-			svc := newTestStaffServiceForPermissions(&mockPermissionGroupRepoForStaffPermissions{}, resRepo)
+			svc := newTestStaffServiceForPermissions(&mockPermissionGroupRepository{}, resRepo)
 
 			got, err := svc.GetCapableReservationTypeIDs(context.Background(), 1, 1)
 
@@ -365,7 +317,7 @@ func TestStaffService_SetCapableReservationTypeIDs(t *testing.T) {
 					return tt.repoErr
 				},
 			}
-			svc := newTestStaffServiceForPermissions(&mockPermissionGroupRepoForStaffPermissions{}, resRepo)
+			svc := newTestStaffServiceForPermissions(&mockPermissionGroupRepository{}, resRepo)
 
 			err := svc.SetCapableReservationTypeIDs(context.Background(), 1, 10, []uint64{9})
 

@@ -29,7 +29,7 @@ func newHealthCardTestService(customerRepo *mockLiffCustomerRepository, vaccinat
 		&mockLiffNotifier{},
 		&mockLiffUnavailableTimeRepository{},
 		&mockAvailableSlotRepository{},
-		&mockLiffOccupationRepository{},
+		&mockReservationTypeOccupationRepository{},
 		&mockTrimmingCourseRepository{},
 		&mockTrimmingOptionRepository{},
 		&mockTrimmingDetailRepository{},

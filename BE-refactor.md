@@ -4,7 +4,7 @@
 - **基準コミット**: `9aeee96d`(main)。行番号はずれたら**シンボル名で再特定**する。
 - **性格**: 本書は実行計画の正本。判断できない事態は**中断して報告**。本書とコード以外の文脈を前提にしない。
 - **別台帳**(本書と重複させない): PERF・SEED残 = `BE_todo.md` / 任意検証 = `BE-pending.md` / 既知バグ skip 台帳 = `BE_todo.md` 末尾（#236 で修正予定、**本書の対象外**）
-- **進捗**: 対応済 14 / 22。残存 BE7-15〜BE7-21（部分対応: BE7-15）。棚卸し基準 HEAD `e424de5c`（2026-07-14）。各項目完了時に見出しの `[ ]` を `[x]` に更新してよい（同一コミットに本書を含めてよい）。
+- **進捗**: 対応済 15 / 22。残存 BE7-16〜BE7-21。棚卸し基準 HEAD `e424de5c`（2026-07-14）。各項目完了時に見出しの `[ ]` を `[x]` に更新してよい（同一コミットに本書を含めてよい）。
 
 ---
 
@@ -301,9 +301,9 @@ func paginate(page, limit int) func(*gorm.DB) *gorm.DB {
 
 ### Phase 4 — test: テスト層の重複整理
 
-#### BE7-15 [ ] test: 重複モック5クラスタ（15型）の集約
+#### BE7-15 [x] test: 重複モック5クラスタ（15型）の集約
 
-- **棚卸し（2026-07-14）**: **部分対応** — handler の `mockAuditService` は `internal/handler/mocks_audit_test.go` に統合済み（F-4）。service 層の AuditService / PermissionGroupRepository / OccupationRepository / ReservationTypeOccupationRepository クラスタと `mocks_shared_test.go` 集約は未達。本文は残す。
+- **棚卸し（2026-07-14）**: **完了** — handler `mockAuditService`（F-4）+ service `mocks_shared_test.go` に5クラスタ集約済み。
 - **対象**: service/handler テストに散在する同名同役割モック — `AuditService`×5 / `AuditRepository`×2 / `PermissionGroupRepository`×4 / `OccupationRepository`×2 / `ReservationTypeOccupationRepository`×2（着手時に `rg -n "type mock" internal/service internal/handler --glob '*_test.go'` で全数再列挙して突合）
 - **問題**: 直近10日で積み上がった生きた重複。能力差もある（例: `mockAuditRepository` は last-value capture、`mockTreatmentAuditRepository` は append-list — multi-call 検証が片方では不可能）。
 - **どう変える**: パッケージごとに共有モックファイル（例: `internal/service/mocks_shared_test.go`）へ**最も高機能な実装**（append-list 記録＋メソッド別 error 注入）を1つずつ集約し、各テストは embed ＋必要時 override で利用。**テストの assert 自体は変更しない**（モック差し替えのみ）。1クラスタずつ置換し、都度対象テストを回す。
@@ -422,7 +422,7 @@ func paginate(page, limit int) func(*gorm.DB) *gorm.DB {
 
 ```
 あなたは AnimalEkarte のバックエンド実行者です。BE-refactor.md（第7期）を実行してください。
-（棚卸し 2026-07-14: 対応済 9。残存 BE7-10〜BE7-21。部分対応 BE7-15 は完了条件を満たしてから [x]。）
+（棚卸し 2026-07-14: 対応済 15。残存 BE7-16〜BE7-21。）
 
 1. backend/CLAUDE.md、必要に応じて各層 CLAUDE.md（handler/service/repository）、および BE-refactor.md 全文を読む。本書とコード以外の文脈は存在しない前提で作業する。
 2. BE7-0（安全網）から着手し、以後 BE7-1 → BE7-21 を番号順に、1項目ずつ実施する。

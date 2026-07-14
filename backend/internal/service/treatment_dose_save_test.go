@@ -18,7 +18,7 @@ import (
 )
 
 // errAuditWriteFailed は BE-refactor.md R1-2 の fail-closed 回帰テスト（medicine/dose-param/treatment）
-// で共有する失敗注入用センチネル。mockDoseAuditService.logEntryTxErr にセットして使う。
+// で共有する失敗注入用センチネル。mockAuditService.logEntryTxErr にセットして使う。
 var errAuditWriteFailed = errors.New("audit write failed")
 
 // ---- mockMedicineDoseParamRepository ----
@@ -62,77 +62,12 @@ func (m *mockMedicineDoseParamRepository) Delete(ctx context.Context, clinicID, 
 	return m.deleteFn(ctx, clinicID, id)
 }
 
-// ---- mockDoseAuditService（LogEntry/LogEntryTx をキャプチャ。他は no-op）----
-// logEntryTxErr は fail-closed 回帰テスト用の失敗注入（BE-refactor.md R1-2・checkup_field_result_service_test.go
-// の mockAuditTxLogger.logEntryTxFn と同型）。
-
-type mockDoseAuditService struct {
-	entries       []*AuditLogInput
-	logEntryTxErr error
-}
-
-func (m *mockDoseAuditService) Log(_ context.Context, _ *model.AuditLog) error { return nil }
-func (m *mockDoseAuditService) LogEntry(_ context.Context, in *AuditLogInput) error {
-	m.entries = append(m.entries, in)
-	return nil
-}
-
-// LogEntryTx は AuditTxLogger を満たす（BE-refactor.md R1-2: medicine/dose-param の tx 内監査）。
-func (m *mockDoseAuditService) LogEntryTx(_ context.Context, in *AuditLogInput) error {
-	m.entries = append(m.entries, in)
-	return m.logEntryTxErr
-}
-func (m *mockDoseAuditService) LogAuthLogin(_ context.Context, _, _ *uint64, _, _, _ string) error {
-	return nil
-}
-func (m *mockDoseAuditService) LogLstepOperation(_ context.Context, _ uint64, _ *uint64, _, _ string, _ *uint64) error {
-	return nil
-}
-func (m *mockDoseAuditService) LogLstepOperationWithMetadata(_ context.Context, _ uint64, _ *uint64, _, _ string, _ *uint64, _ any) error {
-	return nil
-}
-func (m *mockDoseAuditService) LogMedicalRecordChange(_ context.Context, _ uint64, _ *uint64, _ string, _ uint64, _, _ map[string]any) error {
-	return nil
-}
-func (m *mockDoseAuditService) LogVitalChange(_ context.Context, _ uint64, _ *uint64, _ string, _, _ uint64, _, _ map[string]any) error {
-	return nil
-}
-func (m *mockDoseAuditService) LogAddendumCreate(_ context.Context, _ uint64, _ *uint64, _, _ uint64, _ *model.MedicalRecordAddendum) error {
-	return nil
-}
-func (m *mockDoseAuditService) LogClinicSwitch(_ context.Context, _ *uint64, _, _ uint64, _, _ string) error {
-	return nil
-}
-
-// ---- mockTreatmentAuditRepository（repository.AuditRepository を満たす。CreateTx をキャプチャ）----
-//
-// BE-refactor.md R1-2: treatment は repos.Transaction 機構（ctx-txKey を使わない）を使うため、
-// auditDoseDeviationTx は txRepos.Audit.CreateTx を直接呼ぶ（mockDoseAuditService/AuditTxLogger
-// 経由ではない — struct コメント参照）。よってこの経路のテストは repository.AuditRepository の
-// モックで検証する。createTxErr は fail-closed 回帰テスト用の失敗注入。
-type mockTreatmentAuditRepository struct {
-	entries     []*model.AuditLog
-	createTxErr error
-}
-
-func (m *mockTreatmentAuditRepository) Create(_ context.Context, log *model.AuditLog) error {
-	m.entries = append(m.entries, log)
-	return nil
-}
-func (m *mockTreatmentAuditRepository) CreateTx(_ context.Context, log *model.AuditLog) error {
-	if m.createTxErr != nil {
-		return m.createTxErr
-	}
-	m.entries = append(m.entries, log)
-	return nil
-}
-
 // ---- helpers ----
 
 type doseSaveFixture struct {
 	repos     *repository.Repositories
-	audit     *mockDoseAuditService // 非nilフラグとしてのみ使う（NewTreatmentServiceWithAudit 有効化）
-	auditRepo *mockTreatmentAuditRepository
+	audit     *mockAuditService // 非nilフラグとしてのみ使う（NewTreatmentServiceWithAudit 有効化）
+	auditRepo *mockAuditRepository
 	created   *model.Treatment
 }
 
@@ -140,7 +75,7 @@ type doseSaveFixture struct {
 // calcType=none を指定すると後方互換（再検証なし）を再現する。paramSpecies で取得 param の種を上書きできる（mismatch 検証）。
 func newDoseSaveFixture(t *testing.T, calcType model.MedicineCalculationType, paramSpecies model.MedicineDoseSpecies) *doseSaveFixture {
 	t.Helper()
-	f := &doseSaveFixture{audit: &mockDoseAuditService{}, auditRepo: &mockTreatmentAuditRepository{}}
+	f := &doseSaveFixture{audit: &mockAuditService{}, auditRepo: &mockAuditRepository{}}
 
 	medRepo := &mockMedicineRepository{
 		findByIDFn: func(_ context.Context, _, _ uint64) (*model.Medicine, error) {

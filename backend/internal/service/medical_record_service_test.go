@@ -1682,56 +1682,9 @@ func TestMedicalRecordService_UpdateRecommendationReason(t *testing.T) {
 	})
 }
 
-// ---- mockMedicalRecordAuditService ----
-
-type mockMedicalRecordAuditService struct {
-	logMedicalRecordChangeFn func(ctx context.Context, clinicID uint64, actorID *uint64, action string, recordID uint64, oldValue, newValue map[string]any) error
-	logVitalChangeFn         func(ctx context.Context, clinicID uint64, actorID *uint64, action string, vitalID, medicalRecordID uint64, oldValue, newValue map[string]any) error
-	logAddendumCreateFn      func(ctx context.Context, clinicID uint64, actorID *uint64, addendumID, medicalRecordID uint64, addendum *model.MedicalRecordAddendum) error
-	calls                    []string
-}
-
-func (m *mockMedicalRecordAuditService) Log(_ context.Context, _ *model.AuditLog) error { return nil }
-func (m *mockMedicalRecordAuditService) LogEntry(_ context.Context, _ *AuditLogInput) error {
-	return nil
-}
-func (m *mockMedicalRecordAuditService) LogAuthLogin(_ context.Context, _, _ *uint64, _, _, _ string) error {
-	return nil
-}
-func (m *mockMedicalRecordAuditService) LogLstepOperation(_ context.Context, _ uint64, _ *uint64, _, _ string, _ *uint64) error {
-	return nil
-}
-func (m *mockMedicalRecordAuditService) LogLstepOperationWithMetadata(_ context.Context, _ uint64, _ *uint64, _, _ string, _ *uint64, _ any) error {
-	return nil
-}
-func (m *mockMedicalRecordAuditService) LogMedicalRecordChange(ctx context.Context, clinicID uint64, actorID *uint64, action string, recordID uint64, oldValue, newValue map[string]any) error {
-	m.calls = append(m.calls, action)
-	if m.logMedicalRecordChangeFn != nil {
-		return m.logMedicalRecordChangeFn(ctx, clinicID, actorID, action, recordID, oldValue, newValue)
-	}
-	return nil
-}
-func (m *mockMedicalRecordAuditService) LogVitalChange(ctx context.Context, clinicID uint64, actorID *uint64, action string, vitalID, medicalRecordID uint64, oldValue, newValue map[string]any) error {
-	m.calls = append(m.calls, action)
-	if m.logVitalChangeFn != nil {
-		return m.logVitalChangeFn(ctx, clinicID, actorID, action, vitalID, medicalRecordID, oldValue, newValue)
-	}
-	return nil
-}
-func (m *mockMedicalRecordAuditService) LogAddendumCreate(ctx context.Context, clinicID uint64, actorID *uint64, addendumID, medicalRecordID uint64, addendum *model.MedicalRecordAddendum) error {
-	m.calls = append(m.calls, "create")
-	if m.logAddendumCreateFn != nil {
-		return m.logAddendumCreateFn(ctx, clinicID, actorID, addendumID, medicalRecordID, addendum)
-	}
-	return nil
-}
-func (m *mockMedicalRecordAuditService) LogClinicSwitch(_ context.Context, _ *uint64, _, _ uint64, _, _ string) error {
-	return nil
-}
-
 // TestMedicalRecordService_Create_AuditLog はカルテ作成時に audit "create" が記録されることを確認する。
 func TestMedicalRecordService_Create_AuditLog(t *testing.T) {
-	auditSvc := &mockMedicalRecordAuditService{}
+	auditSvc := &mockAuditService{}
 	repo := &mockMedicalRecordRepository{
 		createFn: func(_ context.Context, r *model.MedicalRecord) error {
 			r.ID = 50
@@ -1755,7 +1708,7 @@ func TestMedicalRecordService_Create_AuditLog(t *testing.T) {
 
 // TestMedicalRecordService_Update_AuditLog はカルテ更新時に audit "update" が記録されることを確認する。
 func TestMedicalRecordService_Update_AuditLog(t *testing.T) {
-	auditSvc := &mockMedicalRecordAuditService{}
+	auditSvc := &mockAuditService{}
 	draftStatus := model.MedicalRecordStatusDraft
 	repo := &mockMedicalRecordRepository{
 		findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
@@ -1789,7 +1742,7 @@ func TestMedicalRecordService_Update_AuditLog(t *testing.T) {
 
 // TestMedicalRecordService_Update_FinalizeAuditLog はカルテ確定時に "finalize" 監査ログが追加記録されることを確認する。
 func TestMedicalRecordService_Update_FinalizeAuditLog(t *testing.T) {
-	auditSvc := &mockMedicalRecordAuditService{}
+	auditSvc := &mockAuditService{}
 	finalizedStatus := model.MedicalRecordStatusFinalized
 	repo := &mockMedicalRecordRepository{
 		findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
@@ -1820,7 +1773,7 @@ func TestMedicalRecordService_Update_FinalizeAuditLog(t *testing.T) {
 
 // TestMedicalRecordService_Delete_AuditLog はカルテ削除時に audit "delete" が記録されることを確認する。
 func TestMedicalRecordService_Delete_AuditLog(t *testing.T) {
-	auditSvc := &mockMedicalRecordAuditService{}
+	auditSvc := &mockAuditService{}
 	repo := &mockMedicalRecordRepository{
 		findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
 			return &model.MedicalRecord{ID: 10, ClinicID: 1, Status: model.MedicalRecordStatusDraft}, nil
@@ -1841,7 +1794,7 @@ func TestMedicalRecordService_Delete_AuditLog(t *testing.T) {
 
 // TestMedicalRecordService_AuditFailure_NonFatal は監査ログ書き込み失敗がメイン処理を止めないことを確認する。
 func TestMedicalRecordService_AuditFailure_NonFatal(t *testing.T) {
-	auditSvc := &mockMedicalRecordAuditService{
+	auditSvc := &mockAuditService{
 		logMedicalRecordChangeFn: func(_ context.Context, _ uint64, _ *uint64, _ string, _ uint64, _, _ map[string]any) error {
 			return errors.New("audit db down")
 		},

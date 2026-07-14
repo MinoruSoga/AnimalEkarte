@@ -27,98 +27,6 @@ type mockClinicRepository struct {
 	countBlockingRefsFn     func(ctx context.Context, clinicID uint64) ([]repository.ClinicDependencyCount, error)
 }
 
-// mockPermissionGroupRepositoryForClinic は PermissionGroupRepository の最小限モック（clinic_service_test用）
-type mockPermissionGroupRepositoryForClinic struct {
-	createFn                  func(ctx context.Context, group *model.PermissionGroup) error
-	countUsageByGroupIDFn     func(ctx context.Context, clinicID, groupID uint64) (int64, error)
-	findAllFn                 func(ctx context.Context, clinicID uint64) ([]model.PermissionGroup, error)
-	findByIDFn                func(ctx context.Context, clinicID, id uint64) (*model.PermissionGroup, error)
-	updateFieldsFn            func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.PermissionGroup, error)
-	deleteFn                  func(ctx context.Context, clinicID, id uint64) error
-	setRulesFn                func(ctx context.Context, groupID uint64, rules []model.PermissionGroupRule) error
-	reorderFn                 func(ctx context.Context, clinicID uint64, ids []uint64) error
-	getEffectivePermissionsFn func(ctx context.Context, staffID, clinicID uint64) ([]model.PermissionGroupRule, error)
-	getGroupIDsByStaffIDFn    func(ctx context.Context, staffID uint64) ([]uint64, error)
-	setStaffGroupsFn          func(ctx context.Context, staffID uint64, groupIDs []uint64) error
-}
-
-func (m *mockPermissionGroupRepositoryForClinic) Create(ctx context.Context, group *model.PermissionGroup) error {
-	if m.createFn == nil {
-		return nil
-	}
-	return m.createFn(ctx, group)
-}
-
-func (m *mockPermissionGroupRepositoryForClinic) CountUsageByGroupID(ctx context.Context, clinicID, groupID uint64) (int64, error) {
-	if m.countUsageByGroupIDFn == nil {
-		return 0, nil
-	}
-	return m.countUsageByGroupIDFn(ctx, clinicID, groupID)
-}
-
-func (m *mockPermissionGroupRepositoryForClinic) FindAll(ctx context.Context, clinicID uint64) ([]model.PermissionGroup, error) {
-	if m.findAllFn == nil {
-		return nil, nil
-	}
-	return m.findAllFn(ctx, clinicID)
-}
-
-func (m *mockPermissionGroupRepositoryForClinic) FindByID(ctx context.Context, clinicID, id uint64) (*model.PermissionGroup, error) {
-	if m.findByIDFn == nil {
-		return nil, nil
-	}
-	return m.findByIDFn(ctx, clinicID, id)
-}
-
-func (m *mockPermissionGroupRepositoryForClinic) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.PermissionGroup, error) {
-	if m.updateFieldsFn == nil {
-		return nil, nil
-	}
-	return m.updateFieldsFn(ctx, clinicID, id, fields)
-}
-
-func (m *mockPermissionGroupRepositoryForClinic) Delete(ctx context.Context, clinicID, id uint64) error {
-	if m.deleteFn == nil {
-		return nil
-	}
-	return m.deleteFn(ctx, clinicID, id)
-}
-
-func (m *mockPermissionGroupRepositoryForClinic) UpdateRules(ctx context.Context, groupID uint64, rules []model.PermissionGroupRule) error {
-	if m.setRulesFn == nil {
-		return nil
-	}
-	return m.setRulesFn(ctx, groupID, rules)
-}
-
-func (m *mockPermissionGroupRepositoryForClinic) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
-	if m.reorderFn == nil {
-		return nil
-	}
-	return m.reorderFn(ctx, clinicID, ids)
-}
-
-func (m *mockPermissionGroupRepositoryForClinic) FindAllEffectivePermissionsByStaffID(ctx context.Context, staffID, clinicID uint64) ([]model.PermissionGroupRule, error) {
-	if m.getEffectivePermissionsFn == nil {
-		return nil, nil
-	}
-	return m.getEffectivePermissionsFn(ctx, staffID, clinicID)
-}
-
-func (m *mockPermissionGroupRepositoryForClinic) FindAllGroupIDsByStaffID(ctx context.Context, staffID uint64) ([]uint64, error) {
-	if m.getGroupIDsByStaffIDFn == nil {
-		return nil, nil
-	}
-	return m.getGroupIDsByStaffIDFn(ctx, staffID)
-}
-
-func (m *mockPermissionGroupRepositoryForClinic) UpdateStaffGroups(ctx context.Context, _, staffID uint64, groupIDs []uint64) error {
-	if m.setStaffGroupsFn == nil {
-		return nil
-	}
-	return m.setStaffGroupsFn(ctx, staffID, groupIDs)
-}
-
 func (m *mockClinicRepository) FindAll(ctx context.Context) ([]model.Clinic, error) {
 	return m.findAllFn(ctx)
 }
@@ -215,7 +123,7 @@ func TestClinicService_ListClinics(t *testing.T) {
 					return tt.repoClinics, tt.repoErr
 				},
 			}
-			pgRepo := &mockPermissionGroupRepositoryForClinic{
+			pgRepo := &mockPermissionGroupRepository{
 				createFn: func(_ context.Context, _ *model.PermissionGroup) error { return nil },
 			}
 			svc := NewClinicService(repo, pgRepo, &mockTransactor{})
@@ -272,7 +180,7 @@ func TestClinicService_ListClinicsByStaffID(t *testing.T) {
 					return tt.repoClinics, tt.repoErr
 				},
 			}
-			pgRepo := &mockPermissionGroupRepositoryForClinic{}
+			pgRepo := &mockPermissionGroupRepository{}
 			svc := NewClinicService(repo, pgRepo, &mockTransactor{})
 
 			clinics, err := svc.ListClinicsByStaffID(context.Background(), tt.staffID)
@@ -331,7 +239,7 @@ func TestClinicService_GetClinicByID(t *testing.T) {
 					return tt.repoClinic, tt.repoErr
 				},
 			}
-			pgRepo := &mockPermissionGroupRepositoryForClinic{
+			pgRepo := &mockPermissionGroupRepository{
 				createFn: func(_ context.Context, _ *model.PermissionGroup) error { return nil },
 			}
 			svc := NewClinicService(repo, pgRepo, &mockTransactor{})
@@ -400,7 +308,7 @@ func TestClinicService_CreateClinic(t *testing.T) {
 					return tt.repoCreateErr
 				},
 			}
-			pgRepo := &mockPermissionGroupRepositoryForClinic{
+			pgRepo := &mockPermissionGroupRepository{
 				createFn: func(_ context.Context, _ *model.PermissionGroup) error { return nil },
 			}
 			svc := NewClinicService(repo, pgRepo, &mockTransactor{})
@@ -482,7 +390,7 @@ func TestClinicService_UpdateClinic(t *testing.T) {
 					return tt.repoUpdateErr
 				},
 			}
-			pgRepo := &mockPermissionGroupRepositoryForClinic{
+			pgRepo := &mockPermissionGroupRepository{
 				createFn: func(_ context.Context, _ *model.PermissionGroup) error { return nil },
 			}
 			svc := NewClinicService(repo, pgRepo, &mockTransactor{})
@@ -513,7 +421,7 @@ func TestClinicService_UpdateClinic_InputNil(t *testing.T) {
 			return nil, nil
 		},
 	}
-	pgRepo := &mockPermissionGroupRepositoryForClinic{}
+	pgRepo := &mockPermissionGroupRepository{}
 	svc := NewClinicService(repo, pgRepo, &mockTransactor{})
 
 	result, err := svc.UpdateClinic(context.Background(), 1, nil)
@@ -535,7 +443,7 @@ func TestClinicService_UpdateClinic_NoFieldsProvided(t *testing.T) {
 			return nil
 		},
 	}
-	pgRepo := &mockPermissionGroupRepositoryForClinic{}
+	pgRepo := &mockPermissionGroupRepository{}
 	svc := NewClinicService(repo, pgRepo, &mockTransactor{})
 
 	result, err := svc.UpdateClinic(context.Background(), 1, &UpdateClinicInput{})
@@ -556,7 +464,7 @@ func TestClinicService_UpdateClinic_InvalidTaxRate(t *testing.T) {
 			return nil
 		},
 	}
-	pgRepo := &mockPermissionGroupRepositoryForClinic{}
+	pgRepo := &mockPermissionGroupRepository{}
 	svc := NewClinicService(repo, pgRepo, &mockTransactor{})
 
 	result, err := svc.UpdateClinic(context.Background(), 1, &UpdateClinicInput{StandardTaxRate: &invalidRate})
@@ -580,7 +488,7 @@ func TestClinicService_UpdateClinic_RefetchErrorAfterUpdate(t *testing.T) {
 			return nil
 		},
 	}
-	pgRepo := &mockPermissionGroupRepositoryForClinic{}
+	pgRepo := &mockPermissionGroupRepository{}
 	svc := NewClinicService(repo, pgRepo, &mockTransactor{})
 
 	result, err := svc.UpdateClinic(context.Background(), 1, &UpdateClinicInput{Name: strPtr("新院名")})
@@ -922,7 +830,7 @@ func TestClinicService_DeleteClinic(t *testing.T) {
 					return tt.repoErr
 				},
 			}
-			pgRepo := &mockPermissionGroupRepositoryForClinic{
+			pgRepo := &mockPermissionGroupRepository{
 				createFn: func(_ context.Context, _ *model.PermissionGroup) error { return nil },
 			}
 			svc := NewClinicService(repo, pgRepo, &mockTransactor{})

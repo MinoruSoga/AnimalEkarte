@@ -11,52 +11,6 @@ import (
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
-// ---- Occupation モック ----
-
-type mockOccupationRepository struct {
-	findAllFn                  func(ctx context.Context, clinicID uint64) ([]model.Occupation, error)
-	findByIDFn                 func(ctx context.Context, clinicID, id uint64) (*model.Occupation, error)
-	createFn                   func(ctx context.Context, occupation *model.Occupation) error
-	updateFieldsFn             func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Occupation, error)
-	deleteFn                   func(ctx context.Context, clinicID, id uint64) error
-	reorderErr                 error
-	countUsageByOccupationIDFn func(ctx context.Context, clinicID, occupationID uint64) (int64, error)
-}
-
-func (m *mockOccupationRepository) FindAll(ctx context.Context, clinicID uint64) ([]model.Occupation, error) {
-	return m.findAllFn(ctx, clinicID)
-}
-
-func (m *mockOccupationRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Occupation, error) {
-	if m.findByIDFn != nil {
-		return m.findByIDFn(ctx, clinicID, id)
-	}
-	return &model.Occupation{ID: id, ClinicID: clinicID}, nil
-}
-
-func (m *mockOccupationRepository) Create(ctx context.Context, occupation *model.Occupation) error {
-	return m.createFn(ctx, occupation)
-}
-
-func (m *mockOccupationRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Occupation, error) {
-	return m.updateFieldsFn(ctx, clinicID, id, fields)
-}
-
-func (m *mockOccupationRepository) Delete(ctx context.Context, clinicID, id uint64) error {
-	return m.deleteFn(ctx, clinicID, id)
-}
-
-func (m *mockOccupationRepository) Reorder(_ context.Context, _ uint64, _ []uint64) error {
-	return m.reorderErr
-}
-
-func (m *mockOccupationRepository) CountUsageByOccupationID(ctx context.Context, clinicID, id uint64) (int64, error) {
-	if m.countUsageByOccupationIDFn != nil {
-		return m.countUsageByOccupationIDFn(ctx, clinicID, id)
-	}
-	return 0, nil
-}
-
 // ---- Tests ----
 
 func TestOccupationService_List(t *testing.T) {

@@ -554,7 +554,7 @@ func newLiffSvcWithDeps(
 		validators:          validators,
 		notifier:            notifier,
 		unavailableTimeRepo: &mockLiffUnavailableTimeRepository{},
-		occupationRepo:      &mockLiffOccupationRepository{},
+		occupationRepo:      &mockReservationTypeOccupationRepository{},
 	}
 }
 
@@ -577,37 +577,6 @@ func (m *mockLiffUnavailableTimeRepository) Create(_ context.Context, _ *model.R
 }
 func (m *mockLiffUnavailableTimeRepository) Delete(_ context.Context, _, _ uint64) error {
 	return nil
-}
-
-// mockLiffOccupationRepository は ReservationTypeOccupationRepository のテスト用スタブ
-type mockLiffOccupationRepository struct {
-	findAllFn         func(ctx context.Context, clinicID, reservationTypeID uint64) ([]model.ReservationTypeOccupation, error)
-	countByStaffIDFn  func(ctx context.Context, clinicID, reservationTypeID uint64, date time.Time) (int64, error)
-	countByStaffIDsFn func(ctx context.Context, clinicID, reservationTypeID uint64, dates []time.Time) (map[string]int64, error)
-}
-
-func (m *mockLiffOccupationRepository) FindAll(ctx context.Context, clinicID, reservationTypeID uint64) ([]model.ReservationTypeOccupation, error) {
-	if m.findAllFn != nil {
-		return m.findAllFn(ctx, clinicID, reservationTypeID)
-	}
-	return []model.ReservationTypeOccupation{}, nil
-}
-func (m *mockLiffOccupationRepository) FindByID(_ context.Context, _, _, _ uint64) (*model.ReservationTypeOccupation, error) {
-	return &model.ReservationTypeOccupation{}, nil
-}
-func (m *mockLiffOccupationRepository) Create(_ context.Context, _ *model.ReservationTypeOccupation) error {
-	return nil
-}
-func (m *mockLiffOccupationRepository) Delete(_ context.Context, _, _, _ uint64) error { return nil }
-func (m *mockLiffOccupationRepository) CountWorkingStaffByReservationTypeIDs(ctx context.Context, clinicID, reservationTypeID uint64, dates []time.Time) (map[string]int64, error) {
-	if m.countByStaffIDsFn != nil {
-		return m.countByStaffIDsFn(ctx, clinicID, reservationTypeID, dates)
-	}
-	result := make(map[string]int64, len(dates))
-	for _, d := range dates {
-		result[d.Format("2006-01-02")] = 1 // デフォルト: 1人出勤（予約可能）
-	}
-	return result, nil
 }
 
 // liffDefaultSetting はテスト用デフォルト予約設定を返す。

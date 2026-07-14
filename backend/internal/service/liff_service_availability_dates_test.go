@@ -241,7 +241,7 @@ func TestGetAvailableDates_OccupationGuardUsesBatchedCounts(t *testing.T) {
 
 	var occupationGuardCallCount int
 	var capturedDates []time.Time
-	occupationRepo := &mockLiffOccupationRepository{
+	occupationRepo := &mockReservationTypeOccupationRepository{
 		findAllFn: func(_ context.Context, _, _ uint64) ([]model.ReservationTypeOccupation, error) {
 			return []model.ReservationTypeOccupation{{ID: 1}}, nil
 		},

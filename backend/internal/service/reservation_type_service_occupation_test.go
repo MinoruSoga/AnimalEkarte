@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -13,56 +12,10 @@ import (
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
-// mockOccupationLinkRepo は ReservationTypeOccupationRepository のテスト用モック。
-// reservation_type_service_test.go の mockOccupationRepoForRType とは別に、
-// FindByID を独立して差し替えられるようこのファイル専用で定義する。
-type mockOccupationLinkRepo struct {
-	findAllFn  func(ctx context.Context, clinicID, reservationTypeID uint64) ([]model.ReservationTypeOccupation, error)
-	findByIDFn func(ctx context.Context, clinicID, reservationTypeID, occupationID uint64) (*model.ReservationTypeOccupation, error)
-	createFn   func(ctx context.Context, o *model.ReservationTypeOccupation) error
-	deleteFn   func(ctx context.Context, clinicID, reservationTypeID, occupationID uint64) error
-}
-
-func (m *mockOccupationLinkRepo) FindAll(ctx context.Context, clinicID, reservationTypeID uint64) ([]model.ReservationTypeOccupation, error) {
-	if m.findAllFn != nil {
-		return m.findAllFn(ctx, clinicID, reservationTypeID)
-	}
-	return []model.ReservationTypeOccupation{}, nil
-}
-
-func (m *mockOccupationLinkRepo) FindByID(ctx context.Context, clinicID, reservationTypeID, occupationID uint64) (*model.ReservationTypeOccupation, error) {
-	if m.findByIDFn != nil {
-		return m.findByIDFn(ctx, clinicID, reservationTypeID, occupationID)
-	}
-	return &model.ReservationTypeOccupation{ID: 1, ClinicID: clinicID, ReservationTypeID: reservationTypeID, OccupationID: occupationID}, nil
-}
-
-func (m *mockOccupationLinkRepo) Create(ctx context.Context, o *model.ReservationTypeOccupation) error {
-	if m.createFn != nil {
-		return m.createFn(ctx, o)
-	}
-	return nil
-}
-
-func (m *mockOccupationLinkRepo) Delete(ctx context.Context, clinicID, reservationTypeID, occupationID uint64) error {
-	if m.deleteFn != nil {
-		return m.deleteFn(ctx, clinicID, reservationTypeID, occupationID)
-	}
-	return nil
-}
-
-func (m *mockOccupationLinkRepo) CountWorkingStaffByReservationTypeIDs(_ context.Context, _, _ uint64, dates []time.Time) (map[string]int64, error) {
-	result := make(map[string]int64, len(dates))
-	for _, d := range dates {
-		result[d.Format("2006-01-02")] = 1
-	}
-	return result, nil
-}
-
 func newOccupationLinkTestService(
 	repo *mockReservationTypeRepository,
-	occRepo *mockOccupationLinkRepo,
-	baseOccRepo *mockBaseOccupationRepo,
+	occRepo *mockReservationTypeOccupationRepository,
+	baseOccRepo *mockOccupationRepository,
 ) ReservationTypeService {
 	return NewReservationTypeService(repo, &mockUnavailableTimeRepository{}, occRepo, baseOccRepo, nil)
 }
@@ -109,8 +62,8 @@ func TestReservationTypeService_ListOccupations(t *testing.T) {
 					return &model.ReservationType{ID: id, ClinicID: clinicID}, nil
 				},
 			}
-			occRepo := &mockOccupationLinkRepo{findAllFn: tt.findAllFn}
-			svc := newOccupationLinkTestService(repo, occRepo, &mockBaseOccupationRepo{})
+			occRepo := &mockReservationTypeOccupationRepository{findAllFn: tt.findAllFn}
+			svc := newOccupationLinkTestService(repo, occRepo, &mockOccupationRepository{})
 
 			items, err := svc.ListOccupations(context.Background(), 10, 1)
 
@@ -171,7 +124,7 @@ func TestReservationTypeService_LinkOccupation(t *testing.T) {
 					return &model.ReservationType{ID: id, ClinicID: clinicID}, nil
 				},
 			}
-			baseOccRepo := &mockBaseOccupationRepo{
+			baseOccRepo := &mockOccupationRepository{
 				findByIDFn: func(_ context.Context, clinicID, id uint64) (*model.Occupation, error) {
 					if tt.occupationErr != nil {
 						return nil, tt.occupationErr
@@ -179,7 +132,7 @@ func TestReservationTypeService_LinkOccupation(t *testing.T) {
 					return &model.Occupation{ID: id, ClinicID: clinicID}, nil
 				},
 			}
-			occRepo := &mockOccupationLinkRepo{
+			occRepo := &mockReservationTypeOccupationRepository{
 				createFn: func(_ context.Context, o *model.ReservationTypeOccupation) error {
 					if tt.createErr != nil {
 						return tt.createErr
@@ -239,7 +192,7 @@ func TestReservationTypeService_UnlinkOccupation(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockReservationTypeRepository{}
-			occRepo := &mockOccupationLinkRepo{
+			occRepo := &mockReservationTypeOccupationRepository{
 				findByIDFn: func(_ context.Context, clinicID, reservationTypeID, occupationID uint64) (*model.ReservationTypeOccupation, error) {
 					if tt.findByIDErr != nil {
 						return nil, tt.findByIDErr
@@ -250,7 +203,7 @@ func TestReservationTypeService_UnlinkOccupation(t *testing.T) {
 					return tt.deleteErr
 				},
 			}
-			svc := newOccupationLinkTestService(repo, occRepo, &mockBaseOccupationRepo{})
+			svc := newOccupationLinkTestService(repo, occRepo, &mockOccupationRepository{})
 
 			err := svc.UnlinkOccupation(context.Background(), 10, 1, 5)
 

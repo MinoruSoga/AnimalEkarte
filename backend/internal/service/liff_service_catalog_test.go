@@ -20,7 +20,7 @@ func newLiffSvcForCatalog(course *mockTrimmingCourseRepository, option *mockTrim
 		trimmingOptionRepo:  option,
 		staffRepo:           staff,
 		unavailableTimeRepo: &mockLiffUnavailableTimeRepository{},
-		occupationRepo:      &mockLiffOccupationRepository{},
+		occupationRepo:      &mockReservationTypeOccupationRepository{},
 	}
 }
 

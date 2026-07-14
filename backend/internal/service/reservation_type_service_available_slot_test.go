@@ -50,7 +50,7 @@ func (m *mockAvailableSlotRepository) Delete(ctx context.Context, clinicID, id u
 }
 
 func newTestReservationTypeAvailableSlotService(repo *mockReservationTypeRepository, slotRepo *mockAvailableSlotRepository) ReservationTypeService {
-	return NewReservationTypeService(repo, &mockUnavailableTimeRepository{}, &mockOccupationRepoForRType{}, &mockBaseOccupationRepo{}, nil, slotRepo)
+	return NewReservationTypeService(repo, &mockUnavailableTimeRepository{}, &mockReservationTypeOccupationRepository{}, &mockOccupationRepository{}, nil, slotRepo)
 }
 
 // ---- ListAvailableSlots ----

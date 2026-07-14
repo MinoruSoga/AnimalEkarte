@@ -1276,7 +1276,7 @@ func TestAccountingService_Update_RejectsForeignPaymentMethodID(t *testing.T) {
 				return nil
 			},
 		}
-		return NewAccountingService(repo, nil, &mockTransactor{}, &mockAccountingAuditService{}, payMethodRepo)
+		return NewAccountingService(repo, nil, &mockTransactor{}, &mockAuditService{}, payMethodRepo)
 	}
 
 	t.Run("rejects clinic B's payment_method_id on clinic A's billing update and does not persist", func(t *testing.T) {
@@ -2700,7 +2700,7 @@ func TestReservationTypeService_Create_RejectsCrossClinicGroupID(t *testing.T) {
 				return nil
 			},
 		}
-		return NewReservationTypeService(repo, &mockUnavailableTimeRepository{}, &mockOccupationRepoForRType{}, &mockBaseOccupationRepo{}, groupRepoFor())
+		return NewReservationTypeService(repo, &mockUnavailableTimeRepository{}, &mockReservationTypeOccupationRepository{}, &mockOccupationRepository{}, groupRepoFor())
 	}
 
 	t.Run("rejects cross-clinic group_id and does not persist", func(t *testing.T) {
@@ -2751,7 +2751,7 @@ func TestReservationTypeService_Update_RejectsCrossClinicGroupID(t *testing.T) {
 				return &model.ReservationType{ID: id, ClinicID: gotClinicID}, nil
 			},
 		}
-		return NewReservationTypeService(repo, &mockUnavailableTimeRepository{}, &mockOccupationRepoForRType{}, &mockBaseOccupationRepo{}, groupRepoFor())
+		return NewReservationTypeService(repo, &mockUnavailableTimeRepository{}, &mockReservationTypeOccupationRepository{}, &mockOccupationRepository{}, groupRepoFor())
 	}
 
 	t.Run("rejects cross-clinic group_id and does not persist", func(t *testing.T) {
@@ -2800,7 +2800,7 @@ func TestReservationTypeService_Update_RejectsCrossClinicParentID(t *testing.T) 
 				return &model.ReservationType{ID: id, ClinicID: gotClinicID}, nil
 			},
 		}
-		return NewReservationTypeService(repo, &mockUnavailableTimeRepository{}, &mockOccupationRepoForRType{}, &mockBaseOccupationRepo{}, nil)
+		return NewReservationTypeService(repo, &mockUnavailableTimeRepository{}, &mockReservationTypeOccupationRepository{}, &mockOccupationRepository{}, nil)
 	}
 
 	t.Run("rejects cross-clinic parent_id and does not persist", func(t *testing.T) {
@@ -2845,7 +2845,7 @@ func TestStaffService_Create_RejectsCrossClinicOccupationID(t *testing.T) {
 				return nil
 			},
 		}
-		return NewStaffService(repo, &mockAccountForStaff{}, &mockAssignmentForStaff{}, &mockReservationForStaff{}, &mockShiftEntryForStaff{}, &mockPermissionGroupForStaff{}, &mockResStaffForStaff{}, occupationRepo, noopTransactor{})
+		return NewStaffService(repo, &mockAccountForStaff{}, &mockAssignmentForStaff{}, &mockReservationForStaff{}, &mockShiftEntryForStaff{}, &mockPermissionGroupRepository{}, &mockResStaffForStaff{}, occupationRepo, noopTransactor{})
 	}
 
 	t.Run("rejects cross-clinic occupation_id and does not persist", func(t *testing.T) {
@@ -2891,7 +2891,7 @@ func TestStaffService_CreateWithAccount_RejectsCrossClinicOccupationID(t *testin
 				return nil
 			},
 		}
-		return NewStaffService(repo, accountRepo, &mockAssignmentForStaff{}, &mockReservationForStaff{}, &mockShiftEntryForStaff{}, &mockPermissionGroupForStaff{}, &mockResStaffForStaff{}, occupationRepo, noopTransactor{})
+		return NewStaffService(repo, accountRepo, &mockAssignmentForStaff{}, &mockReservationForStaff{}, &mockShiftEntryForStaff{}, &mockPermissionGroupRepository{}, &mockResStaffForStaff{}, occupationRepo, noopTransactor{})
 	}
 
 	t.Run("rejects cross-clinic occupation_id and does not persist", func(t *testing.T) {
@@ -2935,7 +2935,7 @@ func TestStaffService_Update_RejectsCrossClinicOccupationID(t *testing.T) {
 				return nil
 			},
 		}
-		return NewStaffService(repo, &mockAccountForStaff{}, &mockAssignmentForStaff{}, &mockReservationForStaff{}, &mockShiftEntryForStaff{}, &mockPermissionGroupForStaff{}, &mockResStaffForStaff{}, occupationRepo, noopTransactor{})
+		return NewStaffService(repo, &mockAccountForStaff{}, &mockAssignmentForStaff{}, &mockReservationForStaff{}, &mockShiftEntryForStaff{}, &mockPermissionGroupRepository{}, &mockResStaffForStaff{}, occupationRepo, noopTransactor{})
 	}
 
 	t.Run("rejects cross-clinic occupation_id and does not persist", func(t *testing.T) {

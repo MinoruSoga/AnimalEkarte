@@ -11,62 +11,6 @@ import (
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
-// ---- PermissionGroup モック ----
-
-type mockPermissionGroupRepository struct {
-	findAllFn                        func(ctx context.Context, clinicID uint64) ([]model.PermissionGroup, error)
-	findByIDFn                       func(ctx context.Context, clinicID, id uint64) (*model.PermissionGroup, error)
-	createFn                         func(ctx context.Context, group *model.PermissionGroup) error
-	updateFieldsFn                   func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.PermissionGroup, error)
-	deleteFn                         func(ctx context.Context, clinicID, id uint64) error
-	setRulesFn                       func(ctx context.Context, groupID uint64, rules []model.PermissionGroupRule) error
-	countStaffsByGroupIDFn           func(ctx context.Context, clinicID, groupID uint64) (int64, error)
-	reorderErr                       error
-	getEffectivePermissionsByStaffID func(ctx context.Context, staffID, clinicID uint64) ([]model.PermissionGroupRule, error)
-	getGroupIDsByStaffIDFn           func(ctx context.Context, staffID uint64) ([]uint64, error)
-	setStaffGroupsFn                 func(ctx context.Context, staffID uint64, groupIDs []uint64) error
-}
-
-func (m *mockPermissionGroupRepository) FindAll(ctx context.Context, clinicID uint64) ([]model.PermissionGroup, error) {
-	return m.findAllFn(ctx, clinicID)
-}
-func (m *mockPermissionGroupRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.PermissionGroup, error) {
-	return m.findByIDFn(ctx, clinicID, id)
-}
-func (m *mockPermissionGroupRepository) Create(ctx context.Context, group *model.PermissionGroup) error {
-	return m.createFn(ctx, group)
-}
-func (m *mockPermissionGroupRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.PermissionGroup, error) {
-	return m.updateFieldsFn(ctx, clinicID, id, fields)
-}
-func (m *mockPermissionGroupRepository) Delete(ctx context.Context, clinicID, id uint64) error {
-	return m.deleteFn(ctx, clinicID, id)
-}
-func (m *mockPermissionGroupRepository) UpdateRules(ctx context.Context, groupID uint64, rules []model.PermissionGroupRule) error {
-	return m.setRulesFn(ctx, groupID, rules)
-}
-func (m *mockPermissionGroupRepository) CountUsageByGroupID(ctx context.Context, clinicID, groupID uint64) (int64, error) {
-	return m.countStaffsByGroupIDFn(ctx, clinicID, groupID)
-}
-func (m *mockPermissionGroupRepository) Reorder(_ context.Context, _ uint64, _ []uint64) error {
-	return m.reorderErr
-}
-func (m *mockPermissionGroupRepository) FindAllEffectivePermissionsByStaffID(ctx context.Context, staffID, clinicID uint64) ([]model.PermissionGroupRule, error) {
-	return m.getEffectivePermissionsByStaffID(ctx, staffID, clinicID)
-}
-func (m *mockPermissionGroupRepository) FindAllGroupIDsByStaffID(ctx context.Context, staffID uint64) ([]uint64, error) {
-	if m.getGroupIDsByStaffIDFn != nil {
-		return m.getGroupIDsByStaffIDFn(ctx, staffID)
-	}
-	return nil, nil
-}
-func (m *mockPermissionGroupRepository) UpdateStaffGroups(ctx context.Context, _, staffID uint64, groupIDs []uint64) error {
-	if m.setStaffGroupsFn != nil {
-		return m.setStaffGroupsFn(ctx, staffID, groupIDs)
-	}
-	return nil
-}
-
 // ---- Tests ----
 
 func TestPermissionGroupService_GetByID(t *testing.T) {

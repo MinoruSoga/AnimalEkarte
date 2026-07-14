@@ -240,44 +240,6 @@ func (m *mockLstepTagSyncService) SyncDormantTagsWithThresholds(_ context.Contex
 	return nil
 }
 
-// ---- AuditService モック ----
-
-// mockAuditService は AuditService のテスト用モック。logLstepOperationErr はゼロ値(nil)の場合は
-// 通常動作(成功)となり、既存テストの挙動には影響しない。
-type mockAuditService struct {
-	logLstepOperationErr error
-}
-
-func (m *mockAuditService) Log(_ context.Context, _ *model.AuditLog) error { return nil }
-func (m *mockAuditService) LogEntry(_ context.Context, _ *AuditLogInput) error {
-	return nil
-}
-func (m *mockAuditService) LogAuthLogin(_ context.Context, _, _ *uint64, _, _, _ string) error {
-	return nil
-}
-func (m *mockAuditService) LogLstepOperation(_ context.Context, _ uint64, _ *uint64, _, _ string, _ *uint64) error {
-	if m.logLstepOperationErr != nil {
-		return m.logLstepOperationErr
-	}
-	return nil
-}
-
-func (m *mockAuditService) LogLstepOperationWithMetadata(_ context.Context, _ uint64, _ *uint64, _, _ string, _ *uint64, _ any) error {
-	return nil
-}
-func (m *mockAuditService) LogMedicalRecordChange(_ context.Context, _ uint64, _ *uint64, _ string, _ uint64, _, _ map[string]any) error {
-	return nil
-}
-func (m *mockAuditService) LogVitalChange(_ context.Context, _ uint64, _ *uint64, _ string, _, _ uint64, _, _ map[string]any) error {
-	return nil
-}
-func (m *mockAuditService) LogAddendumCreate(_ context.Context, _ uint64, _ *uint64, _, _ uint64, _ *model.MedicalRecordAddendum) error {
-	return nil
-}
-func (m *mockAuditService) LogClinicSwitch(_ context.Context, _ *uint64, _, _ uint64, _, _ string) error {
-	return nil
-}
-
 // ---- ヘルパー ----
 
 func newLstepLifecycleSvc(

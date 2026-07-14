@@ -13,30 +13,6 @@ import (
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
-// ---- AuditRepository モック ----
-
-type mockAuditRepository struct {
-	createFn   func(ctx context.Context, log *model.AuditLog) error
-	lastLogged *model.AuditLog
-}
-
-func (m *mockAuditRepository) Create(ctx context.Context, log *model.AuditLog) error {
-	m.lastLogged = log
-	if m.createFn != nil {
-		return m.createFn(ctx, log)
-	}
-	return nil
-}
-
-// CreateTx は #211 tx 内監査経路。記録挙動は Create と同一（lastLogged / createFn を共有）。
-func (m *mockAuditRepository) CreateTx(ctx context.Context, log *model.AuditLog) error {
-	m.lastLogged = log
-	if m.createFn != nil {
-		return m.createFn(ctx, log)
-	}
-	return nil
-}
-
 func TestAuditService_LogEntry(t *testing.T) {
 	repo := &mockAuditRepository{}
 	svc := NewAuditService(repo)

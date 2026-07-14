@@ -565,7 +565,7 @@ func ptrInt(i int) *int {
 
 // TestVitalService_Create_AuditLog はバイタル作成時に audit "create" が記録されることを確認する。
 func TestVitalService_Create_AuditLog(t *testing.T) {
-	auditSvc := &mockMedicalRecordAuditService{}
+	auditSvc := &mockAuditService{}
 	repo := &mockVitalRepository{
 		createFn: func(_ context.Context, v *model.VitalRecord) error {
 			v.ID = 55
@@ -595,7 +595,7 @@ func TestVitalService_Create_AuditLog(t *testing.T) {
 
 // TestVitalService_Update_AuditLog はバイタル更新時に audit "update" が記録されることを確認する。
 func TestVitalService_Update_AuditLog(t *testing.T) {
-	auditSvc := &mockMedicalRecordAuditService{}
+	auditSvc := &mockAuditService{}
 	existingVital := &model.VitalRecord{
 		ID:              55,
 		MedicalRecordID: ptrUint64(77),
@@ -641,7 +641,7 @@ func TestVitalService_Update_AuditLog(t *testing.T) {
 
 // TestVitalService_Delete_AuditLog はバイタル削除時に audit "delete" が記録されることを確認する。
 func TestVitalService_Delete_AuditLog(t *testing.T) {
-	auditSvc := &mockMedicalRecordAuditService{}
+	auditSvc := &mockAuditService{}
 	existingVital := &model.VitalRecord{
 		ID:              55,
 		MedicalRecordID: ptrUint64(77),
@@ -670,7 +670,7 @@ func TestVitalService_Delete_AuditLog(t *testing.T) {
 
 // TestVitalService_AuditFailure_NonFatal はバイタル監査ログ失敗がメイン処理を止めないことを確認する。
 func TestVitalService_AuditFailure_NonFatal(t *testing.T) {
-	auditSvc := &mockMedicalRecordAuditService{
+	auditSvc := &mockAuditService{
 		logVitalChangeFn: func(_ context.Context, _ uint64, _ *uint64, _ string, _, _ uint64, _, _ map[string]any) error {
 			return errors.New("audit db down")
 		},

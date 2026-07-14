@@ -149,48 +149,12 @@ func (m *mockLineLinkSettingRepo) Save(_ context.Context, _ uint64, _ *model.Lin
 	return nil
 }
 
-// --- mock: AuditService ---
-
-type mockLineLinkAuditService struct {
-	logLstepOperationFn func(ctx context.Context, clinicID uint64, actorID *uint64, action, entityType string, entityID *uint64) error
-}
-
-func (m *mockLineLinkAuditService) Log(_ context.Context, _ *model.AuditLog) error { return nil }
-func (m *mockLineLinkAuditService) LogEntry(_ context.Context, _ *AuditLogInput) error {
-	return nil
-}
-func (m *mockLineLinkAuditService) LogAuthLogin(_ context.Context, _, _ *uint64, _, _, _ string) error {
-	return nil
-}
-func (m *mockLineLinkAuditService) LogLstepOperation(ctx context.Context, clinicID uint64, actorID *uint64, action, entityType string, entityID *uint64) error {
-	if m.logLstepOperationFn != nil {
-		return m.logLstepOperationFn(ctx, clinicID, actorID, action, entityType, entityID)
-	}
-	return nil
-}
-
-func (m *mockLineLinkAuditService) LogLstepOperationWithMetadata(_ context.Context, _ uint64, _ *uint64, _, _ string, _ *uint64, _ any) error {
-	return nil
-}
-func (m *mockLineLinkAuditService) LogMedicalRecordChange(_ context.Context, _ uint64, _ *uint64, _ string, _ uint64, _, _ map[string]any) error {
-	return nil
-}
-func (m *mockLineLinkAuditService) LogVitalChange(_ context.Context, _ uint64, _ *uint64, _ string, _, _ uint64, _, _ map[string]any) error {
-	return nil
-}
-func (m *mockLineLinkAuditService) LogAddendumCreate(_ context.Context, _ uint64, _ *uint64, _, _ uint64, _ *model.MedicalRecordAddendum) error {
-	return nil
-}
-func (m *mockLineLinkAuditService) LogClinicSwitch(_ context.Context, _ *uint64, _, _ uint64, _, _ string) error {
-	return nil
-}
-
 func newTestLineLinkService(
 	ownerRepo *mockLineLinkOwnerRepo,
 	tokenRepo *mockLineLinkTokenRepo,
 	settingRepo *mockLineLinkSettingRepo,
 ) LineLinkService {
-	return NewLineLinkService(ownerRepo, tokenRepo, settingRepo, &mockLineLinkAuditService{}, nil)
+	return NewLineLinkService(ownerRepo, tokenRepo, settingRepo, &mockAuditService{}, nil)
 }
 
 // --- GenerateLinkToken tests ---
@@ -315,7 +279,7 @@ func TestLineLinkService_HandleWebhook_EncryptedSecret(t *testing.T) {
 			return []model.LineReservationSetting{{ClinicID: 1, LineChannelSecret: encSecret}}, nil
 		},
 	}
-	svc := NewLineLinkService(ownerRepo, &mockLineLinkTokenRepo{}, settingRepo, &mockLineLinkAuditService{}, cipher)
+	svc := NewLineLinkService(ownerRepo, &mockLineLinkTokenRepo{}, settingRepo, &mockAuditService{}, cipher)
 
 	payload := WebhookPayload{
 		Destination: "dest",
@@ -430,7 +394,7 @@ func newTestLineLinkServiceFull(
 	ownerRepo *mockLineLinkOwnerRepo,
 	tokenRepo *mockLineLinkTokenRepo,
 	settingRepo *mockLineLinkSettingRepo,
-	auditSvc *mockLineLinkAuditService,
+	auditSvc *mockAuditService,
 	client *http.Client,
 ) *lineLinkService {
 	return &lineLinkService{
@@ -529,7 +493,7 @@ func TestLineLinkService_LinkAccount_TokenNotFound(t *testing.T) {
 			},
 		},
 		&mockLineLinkSettingRepo{},
-		&mockLineLinkAuditService{},
+		&mockAuditService{},
 		jsonRespClient(http.StatusOK, `{"sub":"Uverified123"}`),
 	)
 
@@ -548,7 +512,7 @@ func TestLineLinkService_LinkAccount_ClinicMismatch(t *testing.T) {
 			},
 		},
 		&mockLineLinkSettingRepo{},
-		&mockLineLinkAuditService{},
+		&mockAuditService{},
 		jsonRespClient(http.StatusOK, `{"sub":"Uverified123"}`),
 	)
 
@@ -571,7 +535,7 @@ func TestLineLinkService_LinkAccount_OwnerNotFound(t *testing.T) {
 			},
 		},
 		&mockLineLinkSettingRepo{},
-		&mockLineLinkAuditService{},
+		&mockAuditService{},
 		jsonRespClient(http.StatusOK, `{"sub":"Uverified123"}`),
 	)
 
@@ -594,7 +558,7 @@ func TestLineLinkService_LinkAccount_AlreadyLinkedConflict(t *testing.T) {
 			},
 		},
 		&mockLineLinkSettingRepo{},
-		&mockLineLinkAuditService{},
+		&mockAuditService{},
 		jsonRespClient(http.StatusOK, `{"sub":"Uverified123"}`),
 	)
 
@@ -625,7 +589,7 @@ func TestLineLinkService_LinkAccount_ForceOverridesExisting(t *testing.T) {
 			},
 		},
 		&mockLineLinkSettingRepo{},
-		&mockLineLinkAuditService{},
+		&mockAuditService{},
 		jsonRespClient(http.StatusOK, `{"sub":"Uverified123"}`),
 	)
 
@@ -651,7 +615,7 @@ func TestLineLinkService_LinkAccount_UpdateLineUserIDError(t *testing.T) {
 			},
 		},
 		&mockLineLinkSettingRepo{},
-		&mockLineLinkAuditService{},
+		&mockAuditService{},
 		jsonRespClient(http.StatusOK, `{"sub":"Uverified123"}`),
 	)
 
@@ -672,7 +636,7 @@ func TestLineLinkService_LinkAccount_MarkUsedError(t *testing.T) {
 			},
 		},
 		&mockLineLinkSettingRepo{},
-		&mockLineLinkAuditService{},
+		&mockAuditService{},
 		jsonRespClient(http.StatusOK, `{"sub":"Uverified123"}`),
 	)
 
@@ -690,7 +654,7 @@ func TestLineLinkService_LinkAccount_AuditLogFailureStillSucceeds(t *testing.T) 
 			},
 		},
 		&mockLineLinkSettingRepo{},
-		&mockLineLinkAuditService{
+		&mockAuditService{
 			logLstepOperationFn: func(_ context.Context, _ uint64, _ *uint64, _, _ string, _ *uint64) error {
 				return errors.New("audit failure")
 			},
@@ -713,7 +677,7 @@ func TestLineLinkService_LinkAccount_Success(t *testing.T) {
 			},
 		},
 		&mockLineLinkSettingRepo{},
-		&mockLineLinkAuditService{},
+		&mockAuditService{},
 		jsonRespClient(http.StatusOK, `{"sub":"Uverified123"}`),
 	)
 

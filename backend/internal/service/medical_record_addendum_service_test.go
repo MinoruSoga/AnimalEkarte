@@ -239,7 +239,7 @@ func TestMedicalRecordAddendumService_Create_AuditLog(t *testing.T) {
 			return nil
 		},
 	}
-	auditSvc := &mockMedicalRecordAuditService{}
+	auditSvc := &mockAuditService{}
 	svc := NewMedicalRecordAddendumService(addendumRepo, mrRepo, auditSvc)
 
 	input := CreateMedicalRecordAddendumInput{
@@ -273,7 +273,7 @@ func TestMedicalRecordAddendumService_AuditFailure_NonFatal(t *testing.T) {
 			return nil
 		},
 	}
-	auditSvc := &mockMedicalRecordAuditService{
+	auditSvc := &mockAuditService{
 		logAddendumCreateFn: func(_ context.Context, _ uint64, _ *uint64, _, _ uint64, _ *model.MedicalRecordAddendum) error {
 			return errors.New("audit db down")
 		},

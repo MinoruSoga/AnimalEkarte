@@ -30,7 +30,7 @@ func TestMedicineService_Create_DoseConfig(t *testing.T) {
 		repo := &mockMedicineRepository{
 			createFn: func(_ context.Context, m *model.Medicine) error { m.ID = 50; return nil },
 		}
-		audit := &mockDoseAuditService{}
+		audit := &mockAuditService{}
 		svc := medicineServiceWithAudit(repo, audit)
 
 		_, err := svc.Create(context.Background(), clinicID, &CreateMedicineInput{
@@ -47,7 +47,7 @@ func TestMedicineService_Create_DoseConfig(t *testing.T) {
 		repo := &mockMedicineRepository{
 			createFn: func(_ context.Context, m *model.Medicine) error { m.ID = 51; return nil },
 		}
-		audit := &mockDoseAuditService{}
+		audit := &mockAuditService{}
 		svc := medicineServiceWithAudit(repo, audit)
 
 		_, err := svc.Create(context.Background(), clinicID, &CreateMedicineInput{
@@ -63,7 +63,7 @@ func TestMedicineService_Create_DoseConfig(t *testing.T) {
 		repo := &mockMedicineRepository{
 			createFn: func(_ context.Context, m *model.Medicine) error { m.ID = 52; return nil },
 		}
-		svc := medicineServiceWithAudit(repo, &mockDoseAuditService{})
+		svc := medicineServiceWithAudit(repo, &mockAuditService{})
 		_, err := svc.Create(context.Background(), clinicID, &CreateMedicineInput{
 			Name: "薬", CalculationType: strptr("per_weight"), MedicineUnit: strptr("per_tablet"),
 		})
@@ -75,7 +75,7 @@ func TestMedicineService_Create_DoseConfig(t *testing.T) {
 		repo := &mockMedicineRepository{
 			createFn: func(_ context.Context, m *model.Medicine) error { m.ID = 53; return nil },
 		}
-		audit := &mockDoseAuditService{}
+		audit := &mockAuditService{}
 		svc := medicineServiceWithAudit(repo, audit)
 		med, err := svc.Create(context.Background(), clinicID, &CreateMedicineInput{Name: "通常薬"})
 		require.NoError(t, err)
@@ -89,7 +89,7 @@ func TestMedicineService_Create_DoseConfig(t *testing.T) {
 		repo := &mockMedicineRepository{
 			createFn: func(_ context.Context, m *model.Medicine) error { m.ID = 54; return nil },
 		}
-		audit := &mockDoseAuditService{logEntryTxErr: errAuditWriteFailed}
+		audit := &mockAuditService{logEntryTxErr: errAuditWriteFailed}
 		svc := medicineServiceWithAudit(repo, audit)
 
 		_, err := svc.Create(context.Background(), clinicID, &CreateMedicineInput{
@@ -113,7 +113,7 @@ func TestMedicineService_Update_DoseConfig(t *testing.T) {
 				return &model.Medicine{ID: 60, CalculationType: model.MedicineCalculationTypePerWeight, Strength: fptr(5)}, nil
 			},
 		}
-		audit := &mockDoseAuditService{}
+		audit := &mockAuditService{}
 		svc := medicineServiceWithAudit(repo, audit)
 
 		_, err := svc.Update(context.Background(), clinicID, 60, &UpdateMedicineInput{
@@ -131,7 +131,7 @@ func TestMedicineService_Update_DoseConfig(t *testing.T) {
 				return &model.Medicine{ID: 61, ClinicID: clinicID, CalculationType: model.MedicineCalculationTypePerWeight, MedicineUnit: &unit, Strength: fptr(5)}, nil
 			},
 		}
-		svc := medicineServiceWithAudit(repo, &mockDoseAuditService{})
+		svc := medicineServiceWithAudit(repo, &mockAuditService{})
 		_, err := svc.Update(context.Background(), clinicID, 61, &UpdateMedicineInput{ClearStrength: true})
 		require.Error(t, err)
 		assert.True(t, apperrors.IsInvalidInput(err))
@@ -149,7 +149,7 @@ func TestMedicineService_Update_DoseConfig(t *testing.T) {
 				return &model.Medicine{ID: 62, CalculationType: model.MedicineCalculationTypePerWeight, Strength: fptr(5)}, nil
 			},
 		}
-		audit := &mockDoseAuditService{logEntryTxErr: errAuditWriteFailed}
+		audit := &mockAuditService{logEntryTxErr: errAuditWriteFailed}
 		svc := medicineServiceWithAudit(repo, audit)
 
 		_, err := svc.Update(context.Background(), clinicID, 62, &UpdateMedicineInput{
