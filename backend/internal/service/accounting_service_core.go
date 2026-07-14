@@ -74,6 +74,7 @@ func (s *accountingService) Create(ctx context.Context, input *CreateAccountingI
 	// 単一 tx に統合する。従来は repo.Create のコミット後に tx 外で completeAccountingAppointments
 	// を呼んでおり、後者のみ失敗すると billing が確定済みのまま残った（部分コミット）。
 	// completed でない Create（waiting 等）は appointment 完了化を伴わないため従来どおり tx 不要。
+	// AUD-002: 関連 FK 所有確認は write 前に実施。completed は同一 WithTx 内、それ以外は create 直前。
 	createBilling := func(cctx context.Context) error {
 		if err := s.repo.Create(cctx, input.ClinicID, billing); err != nil {
 			slog.ErrorContext(cctx, "failed to create accounting", "error", err)
@@ -81,8 +82,17 @@ func (s *accountingService) Create(ctx context.Context, input *CreateAccountingI
 		}
 		return nil
 	}
+	validateFKs := func(cctx context.Context) error {
+		return s.validateAccountingRelatedFKs(
+			cctx, input.ClinicID,
+			input.MedicalRecordID, input.HospitalizationID, input.OwnerID, input.PetID,
+		)
+	}
 	if billing.Status == model.BillingStatusCompleted {
 		if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
+			if err := validateFKs(txCtx); err != nil {
+				return err
+			}
 			if err := createBilling(txCtx); err != nil {
 				return err
 			}
@@ -93,8 +103,13 @@ func (s *accountingService) Create(ctx context.Context, input *CreateAccountingI
 		}); err != nil {
 			return nil, err //nolint:wrapcheck // 閉包内で文脈付き wrap 済み（"in transaction" の同義二重ラップを廃止）
 		}
-	} else if err := createBilling(ctx); err != nil {
-		return nil, err //nolint:wrapcheck // createBilling 内で wrap 済み
+	} else {
+		if err := validateFKs(ctx); err != nil {
+			return nil, err
+		}
+		if err := createBilling(ctx); err != nil {
+			return nil, err //nolint:wrapcheck // createBilling 内で wrap 済み
+		}
 	}
 	slog.InfoContext(ctx, "accounting created",
 		slog.Uint64("billing_id", billing.ID),
@@ -144,7 +159,7 @@ func (s *accountingService) Update(ctx context.Context, input *UpdateAccountingI
 		return nil, apperrors.WrapInvalidInput("レジ締め済み期間の会計編集には post_close_reason の入力が必要です")
 	}
 
-	_, err := s.repo.FindByID(ctx, input.ClinicID, input.ID)
+	existing, err := s.repo.FindByID(ctx, input.ClinicID, input.ID)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to find accounting", "error", err)
 		return nil, apperrors.Wrap(err, "failed to find accounting")
@@ -161,6 +176,8 @@ func (s *accountingService) Update(ctx context.Context, input *UpdateAccountingI
 	if len(fields) == 0 && !hasPaymentFields(input) {
 		return nil, apperrors.WrapInvalidInput("no fields to update")
 	}
+
+	finalMRID, finalHospID, finalOwnerID, finalPetID := resolveFinalAccountingRelatedIDs(existing, input)
 
 	// #128: 書込み前に method(ENUM)→payment_methods マスタ id を解決する（tx 外・低コストな読取のみ）。
 	// レジ締め・月次集計は payment_method_id をキーにし NULL を現金とみなすため、
@@ -180,8 +197,12 @@ func (s *accountingService) Update(ctx context.Context, input *UpdateAccountingI
 	// appointment 完了化も同一 tx に含める。従来は WithTx コミット後・tx 外の ctx で
 	// completeAccountingAppointments を呼んでおり、これのみ失敗すると billing は completed で
 	// 確定済みのまま部分コミットになった。
+	// AUD-002: 最終関連 FK の所有・相互整合検証を write 前（同一 WithTx 内）で実施する。
 	var updatedBilling *model.Billing
 	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
+		if err := s.validateAccountingRelatedFKs(txCtx, input.ClinicID, finalMRID, finalHospID, finalOwnerID, finalPetID); err != nil {
+			return err
+		}
 		// Billing 本体の更新
 		if len(fields) > 0 {
 			b, err := s.repo.Update(txCtx, input.ClinicID, input.ID, fields)

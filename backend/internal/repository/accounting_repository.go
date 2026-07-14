@@ -61,17 +61,18 @@ func NewAccountingRepository(db *gorm.DB) AccountingRepository {
 
 func (r *accountingRepository) FindAll(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status, startDate, endDate *string, page, limit int) ([]model.Billing, int64, error) {
 	q := r.db.WithContext(ctx).Model(&model.Billing{}).Scopes(clinicScope(clinicID))
-	return r.findBillingsWithFilters(ctx, q, petID, ownerID, status, startDate, endDate, page, limit)
+	return r.findBillingsWithFilters(ctx, q, []uint64{clinicID}, petID, ownerID, status, startDate, endDate, page, limit)
 }
 
 func (r *accountingRepository) FindAllForClinics(ctx context.Context, clinicIDs []uint64, petID, ownerID *uint64, status, startDate, endDate *string, page, limit int) ([]model.Billing, int64, error) {
 	q := r.db.WithContext(ctx).Model(&model.Billing{}).Scopes(clinicScopeIn(clinicIDs))
-	return r.findBillingsWithFilters(ctx, q, petID, ownerID, status, startDate, endDate, page, limit)
+	return r.findBillingsWithFilters(ctx, q, clinicIDs, petID, ownerID, status, startDate, endDate, page, limit)
 }
 
 // findBillingsWithFilters はフィルタ・ページネーション適用後に返金合計を付与して返す共通実装。
 // FindAll / FindAllForClinics の clinic スコープ差分は呼び出し元で適用済みのクエリ q を受け取る。
-func (r *accountingRepository) findBillingsWithFilters(ctx context.Context, q *gorm.DB, petID, ownerID *uint64, status, startDate, endDate *string, page, limit int) ([]model.Billing, int64, error) {
+// clinicIDs は Owner/Pet Preload の P3.1 clinic_id 述語用（AUD-002）。
+func (r *accountingRepository) findBillingsWithFilters(ctx context.Context, q *gorm.DB, clinicIDs []uint64, petID, ownerID *uint64, status, startDate, endDate *string, page, limit int) ([]model.Billing, int64, error) {
 	billings := make([]model.Billing, 0)
 	var total int64
 
@@ -93,7 +94,7 @@ func (r *accountingRepository) findBillingsWithFilters(ctx context.Context, q *g
 	if err := q.Count(&total).Error; err != nil {
 		return nil, 0, apperrors.FromGORM(err, "billing", "")
 	}
-	if err := q.Preload("Owner", "deleted_at IS NULL").Preload("Pet", "deleted_at IS NULL").Preload("Payments", "deleted_at IS NULL").Preload("Payments.PaidByStaff", "deleted_at IS NULL").Preload("Items", "deleted_at IS NULL").Preload("PaymentSplits").
+	if err := q.Preload("Owner", "clinic_id IN ? AND deleted_at IS NULL", clinicIDs).Preload("Pet", "clinic_id IN ? AND deleted_at IS NULL", clinicIDs).Preload("Payments", "deleted_at IS NULL").Preload("Payments.PaidByStaff", "deleted_at IS NULL").Preload("Items", "deleted_at IS NULL").Preload("PaymentSplits").
 		Scopes(paginate(page, limit)).Order("scheduled_date DESC, created_at DESC").Find(&billings).Error; err != nil {
 		return nil, 0, apperrors.FromGORM(err, "billing", "")
 	}
@@ -137,15 +138,16 @@ func (r *accountingRepository) attachRefundTotals(ctx context.Context, billings 
 }
 
 func (r *accountingRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Billing, error) {
-	return r.findBillingByIDWithScope(r.db.WithContext(ctx).Scopes(clinicScope(clinicID)), id)
+	return r.findBillingByIDWithScope(r.db.WithContext(ctx).Scopes(clinicScope(clinicID)), []uint64{clinicID}, id)
 }
 
 func (r *accountingRepository) FindByIDForClinics(ctx context.Context, clinicIDs []uint64, id uint64) (*model.Billing, error) {
-	return r.findBillingByIDWithScope(r.db.WithContext(ctx).Scopes(clinicScopeIn(clinicIDs)), id)
+	return r.findBillingByIDWithScope(r.db.WithContext(ctx).Scopes(clinicScopeIn(clinicIDs)), clinicIDs, id)
 }
 
 // findBillingByIDWithScope は clinic スコープ適用済みのクエリで billing を1件取得し、返金合計を計算して返す。
-func (r *accountingRepository) findBillingByIDWithScope(q *gorm.DB, id uint64) (*model.Billing, error) {
+// clinicIDs は Owner/Pet Preload の P3.1 clinic_id 述語用（AUD-002）。
+func (r *accountingRepository) findBillingByIDWithScope(q *gorm.DB, clinicIDs []uint64, id uint64) (*model.Billing, error) {
 	var billing model.Billing
 	err := q.
 		Preload("Items", "deleted_at IS NULL").
@@ -153,8 +155,8 @@ func (r *accountingRepository) findBillingByIDWithScope(q *gorm.DB, id uint64) (
 		Preload("Payments.PaidByStaff", "deleted_at IS NULL").
 		Preload("Refunds").
 		Preload("Refunds.RefundedByStaff").
-		Preload("Owner", "deleted_at IS NULL").
-		Preload("Pet", "deleted_at IS NULL").
+		Preload("Owner", "clinic_id IN ? AND deleted_at IS NULL", clinicIDs).
+		Preload("Pet", "clinic_id IN ? AND deleted_at IS NULL", clinicIDs).
 		Preload("PaymentSplits").
 		Where("id = ?", id).First(&billing).Error
 	if err != nil {
@@ -220,7 +222,7 @@ func (r *accountingRepository) Update(ctx context.Context, clinicID, billingID u
 	}
 	var billing model.Billing
 	if err := dbOrTx(ctx, r.db).
-		Preload("Items", "deleted_at IS NULL").Preload("Payments", "deleted_at IS NULL").Preload("Payments.PaidByStaff", "deleted_at IS NULL").Preload("Refunds").Preload("Refunds.RefundedByStaff").Preload("Owner", "deleted_at IS NULL").Preload("Pet", "deleted_at IS NULL").Preload("PaymentSplits").
+		Preload("Items", "deleted_at IS NULL").Preload("Payments", "deleted_at IS NULL").Preload("Payments.PaidByStaff", "deleted_at IS NULL").Preload("Refunds").Preload("Refunds.RefundedByStaff").Preload("Owner", "clinic_id = ? AND deleted_at IS NULL", clinicID).Preload("Pet", "clinic_id = ? AND deleted_at IS NULL", clinicID).Preload("PaymentSplits").
 		Scopes(clinicScope(clinicID)).
 		First(&billing, "id = ?", billingID).Error; err != nil {
 		return nil, apperrors.FromGORM(err, "billing", fmt.Sprintf("%d", billingID))

@@ -1276,7 +1276,7 @@ func TestAccountingService_Update_RejectsForeignPaymentMethodID(t *testing.T) {
 				return nil
 			},
 		}
-		return NewAccountingService(repo, nil, &mockTransactor{}, &mockAuditService{}, payMethodRepo)
+		return NewAccountingService(repo, nil, nil, nil, nil, &mockTransactor{}, &mockAuditService{}, payMethodRepo)
 	}
 
 	t.Run("rejects clinic B's payment_method_id on clinic A's billing update and does not persist", func(t *testing.T) {

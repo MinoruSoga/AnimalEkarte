@@ -128,17 +128,39 @@ type AccountingService interface {
 }
 
 type accountingService struct {
-	repo          repository.AccountingRepository
-	tagSyncSvc    LstepTagSyncService
-	transactor    repository.Transactor
-	auditTx       AuditTxLogger
-	payMethodRepo repository.PaymentMethodMasterRepository
+	repo              repository.AccountingRepository
+	medicalRecordRepo repository.MedicalRecordRepository
+	hospRepo          repository.HospitalizationRepository
+	reservationRepo   repository.ReservationRepository // AUD-001 AssertOwnerInClinic / FindPetOwnerInClinic 再利用
+	tagSyncSvc        LstepTagSyncService
+	transactor        repository.Transactor
+	auditTx           AuditTxLogger
+	payMethodRepo     repository.PaymentMethodMasterRepository
 }
 
 // auditTx は tx 内監査（#211/BE-refactor.md R1-2 fail-closed）の記録経路。会計は金銭データのため、
 // 論理削除監査（Cancel）・クレジット訂正監査（CorrectCreditPayment）・締め後編集監査
 // （Update / AuditActionBillingPostCloseEdit）をすべて ambient tx に参加させ、監査書込の失敗が
 // 本体の書込もロールバックするようにする（3経路とも fail-closed 化済み。旧 auditSvc 経路は撤去した）。
-func NewAccountingService(repo repository.AccountingRepository, tagSyncSvc LstepTagSyncService, transactor repository.Transactor, auditTx AuditTxLogger, payMethodRepo repository.PaymentMethodMasterRepository) AccountingService {
-	return &accountingService{repo: repo, tagSyncSvc: tagSyncSvc, transactor: transactor, auditTx: auditTx, payMethodRepo: payMethodRepo}
+// medicalRecordRepo / hospRepo / reservationRepo は AUD-002 の関連 FK clinic 所有・相互整合検証用。
+func NewAccountingService(
+	repo repository.AccountingRepository,
+	medicalRecordRepo repository.MedicalRecordRepository,
+	hospRepo repository.HospitalizationRepository,
+	reservationRepo repository.ReservationRepository,
+	tagSyncSvc LstepTagSyncService,
+	transactor repository.Transactor,
+	auditTx AuditTxLogger,
+	payMethodRepo repository.PaymentMethodMasterRepository,
+) AccountingService {
+	return &accountingService{
+		repo:              repo,
+		medicalRecordRepo: medicalRecordRepo,
+		hospRepo:          hospRepo,
+		reservationRepo:   reservationRepo,
+		tagSyncSvc:        tagSyncSvc,
+		transactor:        transactor,
+		auditTx:           auditTx,
+		payMethodRepo:     payMethodRepo,
+	}
 }

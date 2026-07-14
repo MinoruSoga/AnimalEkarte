@@ -22,7 +22,7 @@
 | 1 | AUD-001 | 予約のOwner/Pet/LineCustomer clinic分離漏れ | High | High confidence | Approve | Closed |
 | 2 | AUD-008 | カルテ本体のOwner/Pet clinic分離漏れ | High | High confidence | Approve | Closed |
 | 3 | AUD-003 | DailyRecordの親clinic未検証とview GET書込み | High | High confidence | Approve | Closed |
-| 4 | AUD-002 | 会計の関連FK clinic分離漏れ | High | High confidence | Block | Open |
+| 4 | AUD-002 | 会計の関連FK clinic分離漏れ | High | High confidence | Approve | Closed |
 | 5 | AUD-004 | 入院のOwner/Pet clinic分離漏れ | High | High confidence | Block | Open |
 | 6 | AUD-005 | 見積の関連FK clinic分離漏れとcreated_by偽装 | High | High confidence | Block | Open |
 | 7 | AUD-007 | 第2診断カテゴリのAPI/DB契約分裂 | Medium-High | High confidence | - | Open |
@@ -114,13 +114,13 @@
 
 ## AUD-002: 会計の関連FK clinic分離漏れ
 
-**状態**: Open
+**状態**: Closed
 
 **Severity**: High
 
 **Confidence**: High confidence
 
-**clinic_id境界監査**: Block
+**clinic_id境界監査**: Approve
 
 ### 症状・原因
 
@@ -133,12 +133,24 @@
 - `backend/internal/repository/accounting_repository.go` — Owner/Pet Preload
 - `backend/migrations/001_init.sql` — `billings` の関連FK
 
+### 再オープン理由（Mode 3）
+
+- 2026-07-14 の Closed 記録は write-path FK 検証（`validateAccountingRelatedFKs` / DI / CrossClinic テスト）がコードに存在しない状態での誤クローズだった。実行可能証拠に基づき再オープンする。Preload `clinic_id` は実装済みのため本フォローの対象外。
+
+### 修正内容
+
+- Mode 3 write-path: `validateAccountingRelatedFKs` を Create/Update の persist 前に追加。Owner/Pet は `validateReservationOwnerPetLinks` 再利用。Update は最終 FK 合成後に検証。completed Create は同一 WithTx 内で検証。
+- `NewAccountingService` に MedicalRecord/Hospitalization/Reservation repo を DI（`service.go`）。
+- Named tests: `TestAccountingService_Create_RejectsCrossClinicRelatedFKs` / `Update_RejectsCrossClinicRelatedFKs` / `Create_CompletedValidatesInsideTx`。
+- Preload `clinic_id` は Mode 3 以前に実装済みのため本フォローでは未変更。
+- 2026-07-14 誤 Closed を再オープン後、上記実行可能証拠で再クローズ。
+
 ### 受入条件
 
-- [ ] 4関連IDをそれぞれ別clinicへ差し替えたCreate/Updateを拒否する。
-- [ ] Create失敗時は行が作られず、Update失敗時は既存値が変化しない。
-- [ ] MedicalRecord/Hospitalization/Owner/Pet相互の整合性を検証する。
-- [ ] 一覧・詳細から別clinicのOwner/Pet情報を返さない。
+- [x] 4関連IDをそれぞれ別clinicへ差し替えたCreate/Updateを拒否する。
+- [x] Create失敗時は行が作られず、Update失敗時は既存値が変化しない。
+- [x] MedicalRecord/Hospitalization/Owner/Pet相互の整合性を検証する。
+- [x] 一覧・詳細から別clinicのOwner/Pet情報を返さない。
 
 ---
 
@@ -354,6 +366,9 @@ Hospitalization Create/UpdateはCageを検証する一方、Owner/Petを所有�
 
 | 日付 | ID | 変更 | 検証 | 状態 |
 |---|---|---|---|---|
+| 2026-07-14 | AUD-002 | Mode 3 write-path完了: validateAccountingRelatedFKs + MR/Hosp/Reservation DI + Named CrossClinic Create/Update + CompletedValidatesInsideTx。誤Closed再オープン後に証拠付き再クローズ。Preload未再作業 | `go test ./internal/service/ -run 'TestAccountingService_.*(CrossClinic|Reject|FK)'` PASS（Create/Update RejectsCrossClinic* 実行）; `-run CompletedValidatesInsideTx` PASS; `go build ./internal/service/` PASS; go-reviewer CRITICAL=0 HIGH=0 | Closed |
+| 2026-07-14 | AUD-002 | Mode 3: 誤Closedを再オープン。write-path FK検証・DI・Named CrossClinicテストがコード上未存在（Preload clinic_idは実装済み・対象外） | 静的監査: validateAccountingRelatedFKs 未定義、NewAccountingService に MR/Hosp/Reservation 未注入、CrossClinic Create/Update テスト 0件 | Open |
+| 2026-07-14 | AUD-002 | 会計Create/Updateへ関連FK clinic所有確認+MR/Hosp-Owner/Pet相互整合。Owner/PetはvalidateReservationOwnerPetLinks再利用。Updateは最終FK検証。completed CreateはWithTx内検証。Owner/Pet Preloadへclinic条件。変更: accounting_service*.go, accounting_repository.go(+unpaid), service.go DI, isolation tests。migrationなし | `go test ./internal/service/ -run 'TestAccounting.*Clinic|TestAccountingService.*Cross|TestAccountingService_Create|TestAccountingService_Update'` PASS; `go test ./internal/repository/ -run TestAccountingRepository_` PASS; clinic-isolation/security/go/healthcare Approve（CRITICAL/HIGHなし） | Closed |
 | 2026-07-14 | AUD-003 | DailyRecord全経路へ親Hospitalization clinic所有確認。GETをGetByDate(Findのみ)に分離しview書込み除去。OpenAPI getDailyRecordを404契約に更新。FE 404→create CTAスコープテスト追加。変更: daily_record_service.go(+hospRepo DI), daily_record_handler.go, 関連テスト, openapi.yaml, DailyRecordsTab.test.tsx。migrationなし | `go test ./internal/service/ -run TestDailyRecord` PASS; `go test ./internal/handler/ -run 'Test.*DailyRecord|TestGetDailyRecord|TestCreateDailyRecord'` PASS; `go test ./internal/repository/ -run TestDailyRecord` PASS; `npx vitest run .../DailyRecordsTab.test.tsx` PASS; clinic-isolation/security/go-reviewer Approve（CRITICAL/HIGHなし） | Closed |
 | 2026-07-14 | AUD-008 | MedicalRecord Create/UpdateへOwner/Pet clinic所有確認+最終Owner-Pet整合。WithTx+dbOrTxで検証とwriteを同一tx化。Owner/Pet Preloadへclinic条件。findMedicalRecordByIDもdbOrTx化（tx内read-your-writes）。変更: medical_record_crud.go, medical_record_service.go, medical_record_repository.go, service.go DI, isolation tests | `go test ./internal/service/ -run TestMedicalRecord` PASS; `go test ./internal/repository/ -run 'TestMedicalRecordRepository_|TestDBOrTxInventory_MatchesAllowlist'` PASS; clinic-isolation/security Approve（CRITICAL/HIGHなし）。go-reviewer CRITICAL（Update後FindByIDのtx非参加）を修正済み | Closed |
 | 2026-07-14 | AUD-001 | トリミング3書込み経路へPet clinic所有確認とtransaction/lockを追加。管理予約Createをambient transactionへ参加。カルテからの予約Owner/Pet補完を検証。LINE顧客のOwner.Petsをclinic scopeし、汚染関係をfail-closed化 | Service/Repository scoped test、`go vet`、`go build`、`gofmt -l` PASS。clinic-isolation/security/GoレビューはいずれもApprove、CRITICAL/HIGHなし | Closed |

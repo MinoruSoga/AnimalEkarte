@@ -67,7 +67,7 @@ func TestAccountingService_CorrectCreditPayment(t *testing.T) {
 			},
 		}
 		audit := &mockAuditService{}
-		svc := NewAccountingService(repo, nil, &mockTransactor{}, audit, &mockPaymentMethodMasterRepository{})
+		svc := NewAccountingService(repo, nil, nil, nil, nil, &mockTransactor{}, audit, &mockPaymentMethodMasterRepository{})
 
 		_, err := svc.CorrectCreditPayment(context.Background(), &CorrectCreditPaymentInput{
 			ClinicID:  1,
@@ -127,7 +127,7 @@ func TestAccountingService_CorrectCreditPayment(t *testing.T) {
 			findByIDFn: func(_ context.Context, _, _ uint64) (*model.Billing, error) { return billing, nil },
 		}
 		audit := &mockAuditService{}
-		svc := NewAccountingService(repo, nil, &mockTransactor{}, audit, &mockPaymentMethodMasterRepository{})
+		svc := NewAccountingService(repo, nil, nil, nil, nil, &mockTransactor{}, audit, &mockPaymentMethodMasterRepository{})
 
 		_, err := svc.CorrectCreditPayment(context.Background(), &CorrectCreditPaymentInput{
 			ClinicID: 1, BillingID: 10, StaffID: &staffID,
@@ -156,7 +156,7 @@ func TestAccountingService_CorrectCreditPayment(t *testing.T) {
 			savePaymentSplitsFn: func(_ context.Context, _ []model.PaymentSplit) error { return nil },
 		}
 		audit := &mockAuditService{logEntryTxErr: errors.New("audit write failed")}
-		svc := NewAccountingService(repo, nil, &mockTransactor{}, audit, &mockPaymentMethodMasterRepository{})
+		svc := NewAccountingService(repo, nil, nil, nil, nil, &mockTransactor{}, audit, &mockPaymentMethodMasterRepository{})
 
 		_, err := svc.CorrectCreditPayment(context.Background(), &CorrectCreditPaymentInput{
 			ClinicID: 1, BillingID: 10, StaffID: &staffID,
@@ -222,7 +222,7 @@ func TestAccountingService_CorrectCreditPayment(t *testing.T) {
 				savePaymentFn: func(_ context.Context, _ *model.Payment) error { saveCalled = true; return nil },
 			}
 			audit := &mockAuditService{}
-			svc := NewAccountingService(repo, nil, &mockTransactor{}, audit, &mockPaymentMethodMasterRepository{})
+			svc := NewAccountingService(repo, nil, nil, nil, nil, &mockTransactor{}, audit, &mockPaymentMethodMasterRepository{})
 
 			_, err := svc.CorrectCreditPayment(context.Background(), tc.input)
 			assert.Error(t, err, "不正入力/状態は決定的にエラーを返す")
@@ -253,7 +253,7 @@ func TestAccountingService_CorrectCreditPayment(t *testing.T) {
 			},
 		}
 		audit := &mockAuditService{}
-		svc := NewAccountingService(repo, nil, &mockTransactor{}, audit, &mockPaymentMethodMasterRepository{})
+		svc := NewAccountingService(repo, nil, nil, nil, nil, &mockTransactor{}, audit, &mockPaymentMethodMasterRepository{})
 
 		_, err := svc.CorrectCreditPayment(context.Background(), &CorrectCreditPaymentInput{
 			ClinicID: 1, BillingID: 10, StaffID: &staffID,

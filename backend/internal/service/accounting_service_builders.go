@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"fmt"
 	"time"
 
@@ -257,4 +258,97 @@ func buildAccountingUpdate(input *UpdateAccountingInput) map[string]any {
 		fields["memo"] = *input.Memo
 	}
 	return fields
+}
+
+
+// validateAccountingRelatedFKs は会計の関連 FK（medical_record / hospitalization / owner / pet）の
+// clinic 所有と相互整合を検証する（AUD-002）。nil 関連は既存契約どおり許可する。
+// Owner/Pet は validateReservationOwnerPetLinks（AUD-001）を再利用する。
+func (s *accountingService) validateAccountingRelatedFKs(
+	ctx context.Context,
+	clinicID uint64,
+	medicalRecordID, hospitalizationID, ownerID, petID *uint64,
+) error {
+	var mr *model.MedicalRecord
+	if medicalRecordID != nil {
+		if s.medicalRecordRepo == nil {
+			return apperrors.WrapNotFound("medical_record", fmt.Sprintf("%d", *medicalRecordID))
+		}
+		record, err := s.medicalRecordRepo.FindByID(ctx, clinicID, *medicalRecordID)
+		if err != nil {
+			return apperrors.Wrap(err, "failed to verify medical record ownership")
+		}
+		mr = record
+	}
+
+	var hosp *model.Hospitalization
+	if hospitalizationID != nil {
+		if s.hospRepo == nil {
+			return apperrors.WrapNotFound("hospitalization", fmt.Sprintf("%d", *hospitalizationID))
+		}
+		h, err := s.hospRepo.FindByID(ctx, clinicID, *hospitalizationID)
+		if err != nil {
+			return apperrors.Wrap(err, "failed to verify hospitalization ownership")
+		}
+		hosp = h
+	}
+
+	if s.reservationRepo != nil {
+		if err := validateReservationOwnerPetLinks(ctx, s.reservationRepo, clinicID, ownerID, petID); err != nil {
+			return err
+		}
+	}
+
+	if mr != nil {
+		if err := assertBillingLinksMatchMedicalRecord(mr, ownerID, petID); err != nil {
+			return err
+		}
+	}
+	if hosp != nil {
+		if err := assertBillingLinksMatchHospitalization(hosp, ownerID, petID); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func assertBillingLinksMatchMedicalRecord(mr *model.MedicalRecord, ownerID, petID *uint64) error {
+	if ownerID != nil && mr.OwnerID != nil && *ownerID != *mr.OwnerID {
+		return apperrors.WrapNotFound("medical_record", fmt.Sprintf("%d", mr.ID))
+	}
+	if petID != nil && mr.PetID != nil && *petID != *mr.PetID {
+		return apperrors.WrapNotFound("medical_record", fmt.Sprintf("%d", mr.ID))
+	}
+	return nil
+}
+
+func assertBillingLinksMatchHospitalization(h *model.Hospitalization, ownerID, petID *uint64) error {
+	if ownerID != nil && *ownerID != h.OwnerID {
+		return apperrors.WrapNotFound("hospitalization", fmt.Sprintf("%d", h.ID))
+	}
+	if petID != nil && *petID != h.PetID {
+		return apperrors.WrapNotFound("hospitalization", fmt.Sprintf("%d", h.ID))
+	}
+	return nil
+}
+
+// resolveFinalAccountingRelatedIDs は Update の最終関連 FK 集合を既存値と input から合成する（AUD-002）。
+func resolveFinalAccountingRelatedIDs(existing *model.Billing, input *UpdateAccountingInput) (medicalRecordID, hospitalizationID, ownerID, petID *uint64) {
+	medicalRecordID = existing.MedicalRecordID
+	hospitalizationID = existing.HospitalizationID
+	ownerID = existing.OwnerID
+	petID = existing.PetID
+	if input.MedicalRecordID != nil {
+		medicalRecordID = input.MedicalRecordID
+	}
+	if input.HospitalizationID != nil {
+		hospitalizationID = input.HospitalizationID
+	}
+	if input.OwnerID != nil {
+		ownerID = input.OwnerID
+	}
+	if input.PetID != nil {
+		petID = input.PetID
+	}
+	return medicalRecordID, hospitalizationID, ownerID, petID
 }

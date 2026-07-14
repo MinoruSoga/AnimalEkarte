@@ -66,7 +66,7 @@ func (r *accountingRepository) FindUnpaidByBilling(ctx context.Context, clinicID
 	if err := q.Count(&total).Error; err != nil {
 		return nil, 0, apperrors.FromGORM(err, "billing", "")
 	}
-	if err := q.Preload("Owner", "deleted_at IS NULL").Preload("Pet", "deleted_at IS NULL").Preload("Items", "deleted_at IS NULL").
+	if err := q.Preload("Owner", "clinic_id = ? AND deleted_at IS NULL", clinicID).Preload("Pet", "clinic_id = ? AND deleted_at IS NULL", clinicID).Preload("Items", "deleted_at IS NULL").
 		Scopes(paginate(page, limit)).
 		Order("scheduled_date ASC, created_at ASC").
 		Find(&billings).Error; err != nil {
