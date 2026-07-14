@@ -39,6 +39,9 @@ const (
 )
 
 // 許可拡張子と対応 MIME タイプ
+// GIF を含まないのは意図的: 共有ファイルは LINE 配信経路（line_send_service）で飼い主へ送るため、
+// LINE Messaging API が対応する JPEG/PNG（+PDF）に限定する。院内保存専用のカルテ画像
+// （handler/medical_record_image_request.go）は GIF 可であり、この乖離を同期してはならない。
 var AllowedFileExtensions = map[string]string{
 	".pdf":  "application/pdf",
 	".jpg":  "image/jpeg",
