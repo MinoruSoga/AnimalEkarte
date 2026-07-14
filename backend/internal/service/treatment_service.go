@@ -196,8 +196,8 @@ func (s *treatmentService) Create(ctx context.Context, clinicID, medicalRecordID
 	if input.Quantity <= 0 {
 		return nil, apperrors.WrapInvalidInput(ErrMsgQuantityPositive)
 	}
-	if input.DiscountRate < 0 || input.DiscountRate > 100 {
-		return nil, apperrors.WrapInvalidInput("割引率は0〜100の範囲で入力してください")
+	if err := validateDiscountRate(input.DiscountRate); err != nil {
+		return nil, err
 	}
 
 	status := model.TreatmentStatusPending
@@ -360,8 +360,10 @@ func (s *treatmentService) Update(ctx context.Context, clinicID, medicalRecordID
 	if input.UnitPrice != nil && *input.UnitPrice < 0 {
 		return nil, apperrors.WrapInvalidInput(ErrMsgPriceZeroOrMore)
 	}
-	if input.DiscountRate != nil && (*input.DiscountRate < 0 || *input.DiscountRate > 100) {
-		return nil, apperrors.WrapInvalidInput("割引率は0〜100の範囲で入力してください")
+	if input.DiscountRate != nil {
+		if err := validateDiscountRate(*input.DiscountRate); err != nil {
+			return nil, err
+		}
 	}
 
 	fields := buildTreatmentUpdate(input)
