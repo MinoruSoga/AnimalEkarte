@@ -251,11 +251,13 @@ func TestCreateEstimate(t *testing.T) {
 				"tax_total":    100,
 				"total_amount": 1100,
 			},
-			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			setupCtx: func(c *gin.Context) { setClinicID(c); setStaffID(c) },
 			svc: &mockEstimateService{
 				createFn: func(_ context.Context, clinicID uint64, input *service.CreateEstimateInput) (*model.Estimate, error) {
 					assert.Equal(t, uint64(1), clinicID)
 					assert.Equal(t, "新規見積", input.Title)
+					require.NotNil(t, input.CreatedBy)
+					assert.Equal(t, uint64(1), *input.CreatedBy)
 					return &model.Estimate{ID: 10, Title: input.Title}, nil
 				},
 			},
@@ -270,16 +272,23 @@ func TestCreateEstimate(t *testing.T) {
 			wantStatus: http.StatusUnauthorized,
 		},
 		{
+			name:       "returns 401 when staff_id is missing",
+			body:       map[string]any{"title": "x"},
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockEstimateService{},
+			wantStatus: http.StatusUnauthorized,
+		},
+		{
 			name:       "returns 400 when title is missing",
 			body:       map[string]any{},
-			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			setupCtx:   func(c *gin.Context) { setClinicID(c); setStaffID(c) },
 			svc:        &mockEstimateService{},
 			wantStatus: http.StatusBadRequest,
 		},
 		{
 			name:       "returns 400 on malformed JSON body",
 			bodyRaw:    `{"title":`,
-			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			setupCtx:   func(c *gin.Context) { setClinicID(c); setStaffID(c) },
 			svc:        &mockEstimateService{},
 			wantStatus: http.StatusBadRequest,
 		},
@@ -291,7 +300,7 @@ func TestCreateEstimate(t *testing.T) {
 				"tax_total":    100,
 				"total_amount": 1100,
 			},
-			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			setupCtx: func(c *gin.Context) { setClinicID(c); setStaffID(c) },
 			svc: &mockEstimateService{
 				createFn: func(_ context.Context, _ uint64, _ *service.CreateEstimateInput) (*model.Estimate, error) {
 					return nil, fmt.Errorf("db failure")
@@ -350,6 +359,27 @@ func TestCreateEstimate(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestCreateEstimate_AuthStaffIDWinsOverBodyCreatedBy(t *testing.T) {
+	// AUD-005: body created_by must be ignored; extractStaffID wins.
+	gin.SetMode(gin.TestMode)
+	h := newHandlerWithEstimateSvc(&mockEstimateService{
+		createFn: func(_ context.Context, _ uint64, input *service.CreateEstimateInput) (*model.Estimate, error) {
+			require.NotNil(t, input.CreatedBy)
+			assert.Equal(t, uint64(1), *input.CreatedBy, "auth staff must win over body created_by")
+			return &model.Estimate{ID: 11, Title: input.Title, CreatedBy: input.CreatedBy}, nil
+		},
+	})
+	body := []byte(`{"title":"spoof","subtotal":0,"tax_total":0,"total_amount":0,"created_by":999}`)
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest(http.MethodPost, "/", bytes.NewReader(body))
+	c.Request.Header.Set("Content-Type", "application/json")
+	setClinicID(c)
+	setStaffID(c)
+	h.CreateEstimate(c)
+	assert.Equal(t, http.StatusCreated, w.Code)
 }
 
 // ---- UpdateEstimate ----

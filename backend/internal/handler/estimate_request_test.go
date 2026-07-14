@@ -85,9 +85,10 @@ func TestListEstimateQuery_ToServiceFilters_InvalidInput(t *testing.T) {
 }
 
 func TestCreateEstimateRequest_ToServiceInput(t *testing.T) {
+	// Callers: go test handler package. AUD-005: created_by from staffID arg, not body.
 	medicalRecordID := uint64(10)
 	ownerID := uint64(20)
-	createdBy := uint64(30)
+	staffID := uint64(30)
 	validUntil := time.Date(2026, 6, 30, 0, 0, 0, 0, time.UTC)
 	req := createEstimateRequest{
 		MedicalRecordID: &medicalRecordID,
@@ -102,10 +103,9 @@ func TestCreateEstimateRequest_ToServiceInput(t *testing.T) {
 		ValidUntil:      &validUntil,
 		Comment:         "comment",
 		Notes:           "notes",
-		CreatedBy:       &createdBy,
 	}
 
-	input := req.toServiceInput()
+	input := req.toServiceInput(staffID)
 
 	if input.MedicalRecordID == nil || *input.MedicalRecordID != medicalRecordID {
 		t.Errorf("MedicalRecordID = %v, want %d", input.MedicalRecordID, medicalRecordID)
@@ -119,15 +119,15 @@ func TestCreateEstimateRequest_ToServiceInput(t *testing.T) {
 	if input.ValidUntil == nil || !input.ValidUntil.Equal(validUntil) {
 		t.Errorf("ValidUntil = %v, want %v", input.ValidUntil, validUntil)
 	}
-	if input.CreatedBy == nil || *input.CreatedBy != createdBy {
-		t.Errorf("CreatedBy = %v, want %d", input.CreatedBy, createdBy)
+	if input.CreatedBy == nil || *input.CreatedBy != staffID {
+		t.Errorf("CreatedBy = %v, want %d", input.CreatedBy, staffID)
 	}
 }
 
 func TestCreateEstimateRequest_ToServiceInput_EmptyStatus(t *testing.T) {
 	req := createEstimateRequest{Title: "Estimate"}
 
-	input := req.toServiceInput()
+	input := req.toServiceInput(1)
 
 	if input.Status != "" {
 		t.Errorf("Status = %q, want empty", input.Status)

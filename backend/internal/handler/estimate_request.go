@@ -58,10 +58,10 @@ type createEstimateRequest struct {
 	ValidUntil      *time.Time `json:"valid_until"`
 	Comment         string     `json:"comment"`
 	Notes           string     `json:"notes"`
-	CreatedBy       *uint64    `json:"created_by"`
 }
 
-func (r *createEstimateRequest) toServiceInput() *service.CreateEstimateInput {
+// toServiceInput は認証済み staffID を created_by に設定する（body の created_by は受け取らない・AUD-005）。
+func (r *createEstimateRequest) toServiceInput(staffID uint64) *service.CreateEstimateInput {
 	input := &service.CreateEstimateInput{
 		MedicalRecordID: r.MedicalRecordID,
 		Title:           r.Title,
@@ -74,7 +74,7 @@ func (r *createEstimateRequest) toServiceInput() *service.CreateEstimateInput {
 		ValidUntil:      r.ValidUntil,
 		Comment:         r.Comment,
 		Notes:           r.Notes,
-		CreatedBy:       r.CreatedBy,
+		CreatedBy:       &staffID,
 	}
 	if r.Status != "" {
 		input.Status = model.EstimateStatus(r.Status)

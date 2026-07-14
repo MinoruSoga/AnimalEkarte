@@ -130,7 +130,7 @@ func TestEstimateService_List(t *testing.T) {
 					return tt.repoEstimates, tt.repoTotal, tt.repoErr
 				},
 			}
-			svc := NewEstimateService(repo)
+			svc := NewEstimateService(repo, nil, nil)
 
 			estimates, total, err := svc.List(context.Background(), 1, tt.ownerID, tt.medicalRecordID, tt.status, tt.page, tt.limit)
 
@@ -193,7 +193,7 @@ func TestEstimateService_GetByID(t *testing.T) {
 					return tt.repoEstimate, tt.repoErr
 				},
 			}
-			svc := NewEstimateService(repo)
+			svc := NewEstimateService(repo, nil, nil)
 
 			estimate, err := svc.GetByID(context.Background(), 1, tt.id)
 
@@ -213,7 +213,6 @@ func TestEstimateService_GetByID(t *testing.T) {
 
 func TestEstimateService_Create(t *testing.T) {
 	validUntil := time.Now().AddDate(0, 1, 0)
-	ownerID1 := uint64(1)
 
 	tests := []struct {
 		name         string
@@ -227,7 +226,6 @@ func TestEstimateService_Create(t *testing.T) {
 			name: "creates estimate successfully with default status",
 			input: &CreateEstimateInput{
 				Title:       "新規見積",
-				OwnerID:     &ownerID1,
 				Subtotal:    10000,
 				TaxTotal:    1000,
 				TotalAmount: 11000,
@@ -348,7 +346,7 @@ func TestEstimateService_Create(t *testing.T) {
 					return tt.repoEstimate, nil
 				},
 			}
-			svc := NewEstimateService(repo)
+			svc := NewEstimateService(repo, nil, nil)
 
 			estimate, err := svc.Create(context.Background(), 1, tt.input)
 
@@ -462,7 +460,7 @@ func TestEstimateService_Update(t *testing.T) {
 					return tt.repoEstimate, nil
 				},
 			}
-			svc := NewEstimateService(repo)
+			svc := NewEstimateService(repo, nil, nil)
 
 			estimate, err := svc.Update(context.Background(), 1, 1, tt.input)
 
@@ -534,7 +532,7 @@ func TestEstimateService_Delete(t *testing.T) {
 					return tt.repoErr
 				},
 			}
-			svc := NewEstimateService(repo)
+			svc := NewEstimateService(repo, nil, nil)
 
 			err := svc.Delete(context.Background(), 1, tt.id)
 

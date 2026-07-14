@@ -302,7 +302,7 @@ func NewServices(repos *repository.Repositories, notifCfg *ReservationNotificati
 		ClinicalPlan:                   NewClinicalPlanService(repos.ClinicalPlan, repos.MedicalRecord, repos.DiagnosisType, repos.DiagnosisName),
 		Checkup:                        checkupSvc,
 		CheckupFieldResult:             NewCheckupFieldResultService(repos.Checkup, repos.MedicalRecord, repos.CheckupTypeField, repos.CheckupFieldResult, auditTxLogger, tx),
-		Estimate:                       NewEstimateService(repos.Estimate),
+		Estimate:                       NewEstimateService(repos.Estimate, repos.MedicalRecord, repos.Reservation),
 		ManualArticle:                  NewManualArticleService(repos.ManualArticle),
 		MerchandiseItem:                NewMerchandiseItemService(repos.MerchandiseItem),
 		BillingItem:                    NewBillingItemServiceWithCampaign(repos.BillingItem, repos.Accounting, repos.Treatment, tx, repos.TrimmingCourse, repos.TrimmingOption, repos.Campaign, repos.Owner),

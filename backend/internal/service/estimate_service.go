@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"time"
 
@@ -90,10 +91,60 @@ type EstimateService interface {
 	Delete(ctx context.Context, clinicID, id uint64) error
 }
 
-type estimateService struct{ repo repository.EstimateRepository }
+type estimateService struct {
+	repo              repository.EstimateRepository
+	medicalRecordRepo repository.MedicalRecordRepository
+	reservationRepo   repository.ReservationRepository
+}
 
-func NewEstimateService(repo repository.EstimateRepository) EstimateService {
-	return &estimateService{repo: repo}
+// medicalRecordRepo / reservationRepo は AUD-005 の関連 FK clinic 所有・相互整合検証用。
+func NewEstimateService(
+	repo repository.EstimateRepository,
+	medicalRecordRepo repository.MedicalRecordRepository,
+	reservationRepo repository.ReservationRepository,
+) EstimateService {
+	return &estimateService{
+		repo:              repo,
+		medicalRecordRepo: medicalRecordRepo,
+		reservationRepo:   reservationRepo,
+	}
+}
+
+// validateEstimateRelatedFKs は見積 Create の関連 FK（medical_record / owner）の
+// clinic 所有と相互整合を検証する（AUD-005）。nil 関連は既存契約どおり許可する。
+// Owner は validateReservationOwnerPetLinks（AUD-001）を再利用する。
+func (s *estimateService) validateEstimateRelatedFKs(
+	ctx context.Context,
+	clinicID uint64,
+	medicalRecordID, ownerID *uint64,
+) error {
+	var mr *model.MedicalRecord
+	if medicalRecordID != nil {
+		if s.medicalRecordRepo == nil {
+			return apperrors.WrapNotFound("medical_record", fmt.Sprintf("%d", *medicalRecordID))
+		}
+		record, err := s.medicalRecordRepo.FindByID(ctx, clinicID, *medicalRecordID)
+		if err != nil {
+			return apperrors.Wrap(err, "failed to verify medical record ownership")
+		}
+		mr = record
+	}
+
+	if ownerID != nil {
+		if s.reservationRepo == nil {
+			return apperrors.WrapNotFound("owner", fmt.Sprintf("%d", *ownerID))
+		}
+		if err := validateReservationOwnerPetLinks(ctx, s.reservationRepo, clinicID, ownerID, nil); err != nil {
+			return err
+		}
+	}
+
+	if mr != nil {
+		if err := assertBillingLinksMatchMedicalRecord(mr, ownerID, nil); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (s *estimateService) List(ctx context.Context, clinicID uint64, ownerID, medicalRecordID *uint64, status *string, page, limit int) ([]model.Estimate, int64, error) {
@@ -132,6 +183,10 @@ func (s *estimateService) Create(ctx context.Context, clinicID uint64, input *Cr
 	}
 	if input.DiscountAmount < 0 {
 		return nil, apperrors.WrapInvalidInput("discount_amount must be 0 or greater")
+	}
+
+	if err := s.validateEstimateRelatedFKs(ctx, clinicID, input.MedicalRecordID, input.OwnerID); err != nil {
+		return nil, err
 	}
 
 	estimate := &model.Estimate{

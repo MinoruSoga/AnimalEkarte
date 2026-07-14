@@ -50,7 +50,9 @@ func (r *estimateRepository) FindAll(ctx context.Context, clinicID uint64, owner
 	if err := q.Count(&total).Error; err != nil {
 		return nil, 0, apperrors.FromGORM(err, "estimate", "")
 	}
-	if err := q.Preload("Owner", "deleted_at IS NULL").Preload("Items", "deleted_at IS NULL").
+	// AUD-005: Owner Preload clinic-scoped (callers: List/Create refetch FindByID).
+	if err := q.Preload("Owner", "clinic_id = ? AND deleted_at IS NULL", clinicID).
+		Preload("Items", "deleted_at IS NULL").
 		Scopes(paginate(page, limit)).Order("created_at DESC").Find(&estimates).Error; err != nil {
 		return nil, 0, apperrors.FromGORM(err, "estimate", "")
 	}
@@ -60,7 +62,7 @@ func (r *estimateRepository) FindAll(ctx context.Context, clinicID uint64, owner
 func (r *estimateRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Estimate, error) {
 	var estimate model.Estimate
 	err := r.db.WithContext(ctx).
-		Preload("Owner", "deleted_at IS NULL").
+		Preload("Owner", "clinic_id = ? AND deleted_at IS NULL", clinicID).
 		Preload("Items", "deleted_at IS NULL").
 		Preload("CreatedStaff", "deleted_at IS NULL").
 		Scopes(clinicScope(clinicID)).Where("id = ?", id).First(&estimate).Error

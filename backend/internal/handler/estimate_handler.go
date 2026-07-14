@@ -61,6 +61,10 @@ func (h *Handler) CreateEstimate(c *gin.Context) {
 	if !ok {
 		return
 	}
+	staffID, ok := extractStaffID(c)
+	if !ok {
+		return
+	}
 
 	var req createEstimateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -75,7 +79,7 @@ func (h *Handler) CreateEstimate(c *gin.Context) {
 	}
 
 	ctx := c.Request.Context()
-	estimate, err := h.svc.Estimate.Create(ctx, clinicID, req.toServiceInput())
+	estimate, err := h.svc.Estimate.Create(ctx, clinicID, req.toServiceInput(staffID))
 	if err != nil {
 		RespondError(c, err)
 		return
