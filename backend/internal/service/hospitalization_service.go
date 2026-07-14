@@ -59,6 +59,19 @@ type UpdateHospitalizationInput struct {
 	InsuranceNumber      *string
 }
 
+// resolveFinalHospitalizationOwnerPet は PATCH 入力と現在値から最終 Owner/Pet を求める（AUD-004）。
+func resolveFinalHospitalizationOwnerPet(existing *model.Hospitalization, input *UpdateHospitalizationInput) (ownerID, petID *uint64) {
+	o, p := existing.OwnerID, existing.PetID
+	ownerID, petID = &o, &p
+	if input.OwnerID != nil {
+		ownerID = input.OwnerID
+	}
+	if input.PetID != nil {
+		petID = input.PetID
+	}
+	return ownerID, petID
+}
+
 func buildHospitalizationUpdate(input *UpdateHospitalizationInput) map[string]any {
 	fields := make(map[string]any)
 	if input.OwnerID != nil {
@@ -167,6 +180,12 @@ func (s *hospitalizationService) Create(ctx context.Context, clinicID uint64, in
 		insuranceNumber = input.InsuranceNumber
 	}
 
+	// クロステナント write 防止: request 由来 Owner/Pet の clinic 所有と Owner-Pet 整合を検証する（AUD-004）。
+	ownerID, petID := input.OwnerID, input.PetID
+	if err := validateReservationOwnerPetLinks(ctx, s.repos.Reservation, clinicID, &ownerID, &petID); err != nil {
+		return nil, err
+	}
+
 	// クロステナント write 防止: request 由来の cage マスタが caller の clinic に属することを検証する。
 	if err := validateOwnedMasterFK(ctx, "cage", clinicID, input.CageID,
 		func(actx context.Context, cid, mid uint64) error {
@@ -206,9 +225,18 @@ func (s *hospitalizationService) Update(ctx context.Context, clinicID, id uint64
 	if input == nil {
 		return nil, apperrors.WrapInvalidInput("input must not be nil")
 	}
-	if _, err := s.repos.Hospitalization.FindByID(ctx, clinicID, id); err != nil {
+	existing, err := s.repos.Hospitalization.FindByID(ctx, clinicID, id)
+	if err != nil {
 		slog.ErrorContext(ctx, "failed to find hospitalization", "error", err)
 		return nil, apperrors.Wrap(err, "failed to find hospitalization")
+	}
+
+	// クロステナント write 防止: 最終マージ後の Owner/Pet を検証する（AUD-004）。
+	if input.OwnerID != nil || input.PetID != nil {
+		finalOwnerID, finalPetID := resolveFinalHospitalizationOwnerPet(existing, input)
+		if err := validateReservationOwnerPetLinks(ctx, s.repos.Reservation, clinicID, finalOwnerID, finalPetID); err != nil {
+			return nil, err
+		}
 	}
 
 	// クロステナント write 防止: 貼り替え先 cage マスタの所有権を検証する。
@@ -319,7 +347,12 @@ func (s *hospitalizationService) DischargeWithBilling(ctx context.Context, clini
 			return apperrors.Wrap(err, "failed to get care plan items")
 		}
 
-		// 3. 会計レコード作成
+		// 3. 汚染行対策: 会計作成前に Owner/Pet の clinic 所有を再検証する（AUD-004）。
+		if err := validateReservationOwnerPetLinks(ctx, txRepos.Reservation, clinicID, &hosp.OwnerID, &hosp.PetID); err != nil {
+			return err
+		}
+
+		// 4. 会計レコード作成
 		billing := &model.Billing{
 			ClinicID:          clinicID,
 			HospitalizationID: &id,
@@ -332,7 +365,7 @@ func (s *hospitalizationService) DischargeWithBilling(ctx context.Context, clini
 			return apperrors.Wrap(err, "failed to create billing")
 		}
 
-		// 4. ケアプラン → 会計明細に変換
+		// 5. ケアプラン → 会計明細に変換
 		var totalAmount int64
 		for i := range carePlanItems {
 			item := &carePlanItems[i]
@@ -353,7 +386,7 @@ func (s *hospitalizationService) DischargeWithBilling(ctx context.Context, clini
 			totalAmount += item.UnitPrice
 		}
 
-		// 5. 合計金額更新
+		// 6. 合計金額更新
 		if len(carePlanItems) > 0 {
 			taxTotal := int64(float64(totalAmount) * DefaultTaxRate)
 			if err := txRepos.BillingItem.UpdateBillingTotals(ctx, clinicID, billing.ID, totalAmount, taxTotal, totalAmount+taxTotal); err != nil {

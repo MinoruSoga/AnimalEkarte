@@ -333,7 +333,15 @@ func TestHospitalizationService_Create(t *testing.T) {
 					return tt.repoErr
 				},
 			}
-			svc := NewHospitalizationService(&repository.Repositories{Hospitalization: repo})
+			svc := NewHospitalizationService(&repository.Repositories{
+				Hospitalization: repo,
+				Reservation: &mockReservationRepository{
+					assertOwnerInClinicFn: func(_ context.Context, _, _ uint64) error { return nil },
+					findPetOwnerInClinicFn: func(_ context.Context, _, _ uint64) (uint64, error) {
+						return tt.input.OwnerID, nil
+					},
+				},
+			})
 
 			hosp, err := svc.Create(context.Background(), tt.clinicID, tt.input)
 
@@ -641,7 +649,15 @@ func TestHospitalizationService_Create_InsuranceFields(t *testing.T) {
 					return nil
 				},
 			}
-			svc := NewHospitalizationService(&repository.Repositories{Hospitalization: repo})
+			svc := NewHospitalizationService(&repository.Repositories{
+				Hospitalization: repo,
+				Reservation: &mockReservationRepository{
+					assertOwnerInClinicFn: func(_ context.Context, _, _ uint64) error { return nil },
+					findPetOwnerInClinicFn: func(_ context.Context, _, _ uint64) (uint64, error) {
+						return tt.input.OwnerID, nil
+					},
+				},
+			})
 
 			hosp, err := svc.Create(context.Background(), 1, tt.input)
 
@@ -780,6 +796,16 @@ func newDischargeTestRepos(hospRepo repository.HospitalizationRepository, carePl
 		CarePlanItem:    carePlanRepo,
 		Accounting:      accountingRepo,
 		BillingItem:     billingItemRepo,
+		Reservation: &mockReservationRepository{
+			assertOwnerInClinicFn: func(_ context.Context, _, _ uint64) error { return nil },
+			findPetOwnerInClinicFn: func(_ context.Context, _, petID uint64) (uint64, error) {
+				// Discharge fixtures use OwnerID=2 / PetID=5 by default.
+				if petID == 5 {
+					return 2, nil
+				}
+				return petID, nil
+			},
+		},
 	}
 	repos.TransactionFn = func(_ context.Context, fn func(*repository.Repositories) error) error {
 		return fn(repos)

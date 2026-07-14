@@ -751,6 +751,12 @@ func TestHospitalizationService_Create_RejectsCrossClinicCageFK(t *testing.T) {
 		return NewHospitalizationService(&repository.Repositories{
 			Hospitalization: repo,
 			Cage:            rejectCageRepo(ownedCageID),
+			Reservation: &mockReservationRepository{
+				assertOwnerInClinicFn: func(_ context.Context, _, _ uint64) error { return nil },
+				findPetOwnerInClinicFn: func(_ context.Context, _, _ uint64) (uint64, error) {
+					return 2, nil
+				},
+			},
 		})
 	}
 
