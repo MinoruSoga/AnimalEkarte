@@ -10,9 +10,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"golang.org/x/crypto/bcrypt"
 
-	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/service"
 )
@@ -76,29 +74,13 @@ func (h *Handler) auditKnownAccountLoginFailure(ctx context.Context, accountID u
 // authenticateUser はメール/パスワードを検証してアカウントとスタッフを返す。
 // 認証失敗・アカウント無効・スタッフ無効の場合は apperrors.ErrUnauthorized ラップエラーを返す。
 func (h *Handler) authenticateUser(ctx context.Context, email, password, clientIP, userAgent string) (*model.Account, *model.Staff, error) {
-	account, err := h.svc.Account.FindByEmail(ctx, email)
+	account, staff, err := h.authSvc().AuthenticateUser(ctx, email, password)
 	if err != nil {
-		if apperrors.IsNotFound(err) {
-			slog.InfoContext(ctx, "skip audit log for login failure: account not found")
-			return nil, nil, apperrors.WrapUnauthorized("メールアドレスまたはパスワードが正しくありません")
+		if accountID, ok := service.IsAuthenticateWrongPassword(err); ok {
+			// 監査ログ: ログイン失敗（パスワード不正）
+			h.auditKnownAccountLoginFailure(ctx, accountID, clientIP, userAgent)
 		}
 		return nil, nil, err
-	}
-	if !account.IsActive {
-		return nil, nil, apperrors.WrapUnauthorized("アカウントが無効です")
-	}
-	if err := bcrypt.CompareHashAndPassword([]byte(account.PasswordHash), []byte(password)); err != nil {
-		// 監査ログ: ログイン失敗（パスワード不正）
-		h.auditKnownAccountLoginFailure(ctx, account.ID, clientIP, userAgent)
-		return nil, nil, apperrors.WrapUnauthorized("メールアドレスまたはパスワードが正しくありません")
-	}
-	staff, err := h.svc.Staff.FindByAccountID(ctx, account.ID)
-	if err != nil {
-		return nil, nil, apperrors.Wrap(err, "スタッフ情報の取得に失敗しました")
-	}
-	// BUG-134: スタッフの有効性チェック（退職者・一時停止アカウント防止）
-	if !staff.IsActive {
-		return nil, nil, apperrors.WrapUnauthorized("このアカウントは無効です")
 	}
 	return account, staff, nil
 }
@@ -106,30 +88,30 @@ func (h *Handler) authenticateUser(ctx context.Context, email, password, clientI
 // resolveClinicInfo はスタッフのクリニック割り当てからメインクリニックIDと所属ID一覧を返す。
 // メインクリニックが未設定の場合は最初の割り当てを使用する。
 func resolveClinicInfo(assignments []model.StaffClinicAssignment) (mainClinicID string, clinicIDs []uint64) {
-	clinicIDs = make([]uint64, 0, len(assignments))
-	for i := range assignments {
-		asg := &assignments[i]
-		if asg.IsMain && mainClinicID == "" {
-			mainClinicID = strconv.FormatUint(asg.ClinicID, 10)
-		}
-		clinicIDs = append(clinicIDs, asg.ClinicID)
-	}
-	if mainClinicID == "" && len(assignments) > 0 {
-		mainClinicID = strconv.FormatUint(assignments[0].ClinicID, 10)
-	}
-	return mainClinicID, clinicIDs
+	return service.NewAuthService(nil, nil, nil).ResolveClinicInfo(assignments)
 }
 
 // resolveSystemAdminMainClinicID は system_admin で assignments なしの場合に
 // allClinics[0] を main にフォールバックする。それ以外は元の mainClinicID を返す。
 func resolveSystemAdminMainClinicID(mainClinicID string, isSystemAdmin bool, allClinics []model.Clinic) string {
-	if mainClinicID != "" {
-		return mainClinicID
+	return service.NewAuthService(nil, nil, nil).ResolveSystemAdminMainClinicID(mainClinicID, isSystemAdmin, allClinics)
+}
+
+// authSvc は認証・権限計算用 AuthService を返す。
+// 単体テストが部分 DI の Services を構築する場合に Auth 未設定でも動作するようフォールバックする。
+func (h *Handler) authSvc() service.AuthService {
+	if h.svc != nil && h.svc.Auth != nil {
+		return h.svc.Auth
 	}
-	if !isSystemAdmin || len(allClinics) == 0 {
-		return mainClinicID
+	var account service.AccountService
+	var staff service.StaffService
+	var effectivePerm service.EffectivePermissionService
+	if h.svc != nil {
+		account = h.svc.Account
+		staff = h.svc.Staff
+		effectivePerm = h.svc.EffectivePermission
 	}
-	return strconv.FormatUint(allClinics[0].ID, 10)
+	return service.NewAuthService(account, staff, effectivePerm)
 }
 
 // tokenSvc は JWT 発行・検証用 TokenService を返す。

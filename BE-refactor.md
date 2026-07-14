@@ -4,7 +4,7 @@
 - **基準コミット**: `9aeee96d`(main)。行番号はずれたら**シンボル名で再特定**する。
 - **性格**: 本書は実行計画の正本。判断できない事態は**中断して報告**。本書とコード以外の文脈を前提にしない。
 - **別台帳**(本書と重複させない): PERF・SEED残 = `BE_todo.md` / 任意検証 = `BE-pending.md` / 既知バグ skip 台帳 = `BE_todo.md` 末尾（#236 で修正予定、**本書の対象外**）
-- **進捗**: 対応済 20 / 22。残存 BE7-21。棚卸し基準 HEAD `e424de5c`（2026-07-14）。各項目完了時に見出しの `[ ]` を `[x]` に更新してよい（同一コミットに本書を含めてよい）。
+- **進捗**: 対応済 21 / 22。残存なし（BE7-0 未完了時は 21/22）。棚卸し基準 HEAD `e424de5c`（2026-07-14）。各項目完了時に見出しの `[ ]` を `[x]` に更新してよい（同一コミットに本書を含めてよい）。
 
 ---
 
@@ -371,7 +371,7 @@ func paginate(page, limit int) func(*gorm.DB) *gorm.DB {
 - **コミット**: `refactor(backend): JWT発行・検証をTokenServiceへ抽出しhandler層から分離`
 - **依存**: BE7-0〜BE7-17 完了後に着手（認証を触る前に他項目で green 実績を積む）
 
-#### BE7-21 [ ] refactor: AuthService の抽出（Auth 構造是正・第2段）
+#### BE7-21 [x] refactor: AuthService の抽出（Auth 構造是正・第2段）
 
 - **対象**: `internal/handler/auth_session.go:79`（`authenticateUser` — bcrypt 照合）/ `:109`（`resolveClinicInfo`）/ `:126`（`resolveSystemAdminMainClinicID`）/ `internal/handler/auth_me_response.go:125`（`calculateEffectivePermissions`）
 - **問題**: BE7-20 と同根。ログイン認証・クリニック解決・実効権限計算のビジネスロジックが handler 層に居る。

@@ -133,6 +133,8 @@ type Services struct {
 	TokenBlacklist TokenBlacklistService
 	// 認証: JWT 発行・検証
 	Token TokenService
+	// 認証: ログイン照合・クリニック解決・実効権限計算
+	Auth AuthService
 	// lab import: 外部検査結果インポートジョブ管理 (Phase 3–4)
 	LabImportJob    LabImportJobService
 	LabResultImport LabResultImportService
@@ -364,6 +366,7 @@ func NewServices(repos *repository.Repositories, notifCfg *ReservationNotificati
 		),
 		TokenBlacklist: tokenBlacklistSvc,
 		Token:          NewTokenService(jwtSecret, tokenBlacklistSvc),
+		Auth:           NewAuthService(NewAccountService(repos.Account), staffSvc, permissionGroupSvc),
 		// lab import (Phase 3–4)
 		LabImportJob: labImportJobSvc,
 		LabResultImport: NewLabResultImportService(
