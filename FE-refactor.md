@@ -1,8 +1,9 @@
 # FE-refactor.md — フロントエンド リファクタリング計画書
 
-- **作成日**: 2026-07-13
-- **第6期**: **完了**（FE6-0〜FE6-18 全19項目）。実行手順・完了条件・コミット指定は削除済み。詳細は git 履歴を参照。
+- **作成日**: 2026-07-13 / **更新日**: 2026-07-15
+- **第6期**: **完了**（FE6-0〜FE6-18 全19項目）。詳細は git 履歴を参照。
 - **本書の役割**: 次期監査への引き継ぎのみ。新規の第6期作業はない。
+- **別台帳**: プロジェクト横断 TODO = `todo.md` / 受付テレメトリ完了ポインタ = `change-ui.md`
 
 ---
 
@@ -15,16 +16,16 @@
 - **liff / line-reserve の `index.html` に CSP メタタグがない**（メインアプリのみ設定済み）。セキュリティ観点の追加検討。
 - **`src/lib/` と `src/utils/` の役割分担が不文律**（両方にフォーマット系が分散）。規約明文化候補。
 - **z-index の中間スケール**（sticky/dropdown 用）が未整理。`Z.overlay` 以外は Tailwind 標準スケールのまま（FE5-4 の意図的スコープ限定）。
-- **export されているが外部参照のない型シンボル約15件**（`CPMStageOption` 等）: `export` キーワード除去のみの薄い掃除。knip が型 export を gating しない設定か確認の上で次期にまとめて。
+- **export されているが外部参照のない型シンボル約15件**（`CPMStageOption` 等）: 次期にまとめて掃除。
 - **`.filename-baseline`（値23）** の ratchet を 0 に向けて下げる余地。
-- **Pet属性ラベルの単一ソース化**: FE6-8 は二重定義＋ガードテストでの乖離検知に留めた（PRODUCT_PHILOSOPHY ②「二重管理禁止」との緊張）。`Object.values(MAP)` 由来でリテラル型を保ったまま片方を導出する単一ソース化（`as const satisfies` 等）を次期に検討。
-- **曜日ラベル契約の統合**: `line-reserve` の `Calendar.tsx`（`DAYS_OF_WEEK`・月曜始まり）と `LineReservationSettingsFormSections.tsx`（`WEEKDAYS`・月〜土）は、`DAY_OF_WEEK_LABELS`（0=日始まり）と契約が異なるため FE6-7 対象外だった。統合は契約設計が必要。
+- **Pet属性ラベルの単一ソース化**: FE6-8 は二重定義＋ガードテストでの乖離検知に留めた。単一ソース化を次期に検討。
+- **曜日ラベル契約の統合**: `line-reserve` の月曜始まり契約と `DAY_OF_WEEK_LABELS`（0=日始まり）は契約が異なる。統合は契約設計が必要。
 
 ---
 
 ## 第6期で確定した「やらない」判断（次期でも踏襲推奨）
 
-- `use-*-form` 系フック（vaccination/trimming/examination 等）の共通スケルトン抽象化は、ドメインロジックが実質的に異なり害と判定済み。
+- `use-*-form` 系フックの共通スケルトン抽象化は、ドメインロジックが実質的に異なり害と判定済み。
 - `src/features/owners/components/pet-edit-field-shared.tsx` のリネーム・`.ts` 化は不可（JSX 定数を含む）。
 - `src/components/ui/`（shadcn 生成物）・`src/types/generated/`（tygo 生成物）は編集しない。
 - `types/index.ts` の FA9 構造自体の変更はしない（FE6-18 でドキュメント明文化のみ実施済み）。

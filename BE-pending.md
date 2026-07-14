@@ -1,8 +1,8 @@
 # BE-pending.md — バックエンド 着手保留・次期送り
 
-- **更新日**: 2026-07-13（X-16② 実装完了により DONE 移管。台帳から削除）
+- **更新日**: 2026-07-15
 - **本書の規約**: 今期は着手しない（次期送り確定 / PO 判断待ち / サイクル外 / reset 後の任意検証）項目の正本。再検討トリガが立つか判断が出たら、実装単位として `BE-refactor.md` または `BE_todo.md` に戻す。
-- **別台帳**: 今期着手可能な残は `BE-refactor.md`（リファクタ・人間作業フォローアップ）と `BE_todo.md`（PERF/SEED 索引）。本書と重複させない。
+- **別台帳**: 今期着手可能な残は `BE_todo.md`。リファクタ次期引き継ぎは `BE-refactor.md`（第7期完了）。本書と重複させない。
 
 ### 検証コマンド規約（再開時・Docker 必須・スコープ限定）
 
@@ -14,7 +14,7 @@
 
 ## 次期送り（今期は着手しない）
 
-（現在該当項目なし。X-16② は 2026-07-13 に実装完了し `BE-refactor.md` の X-16 節へ DONE 移管済み。詳細は git 履歴参照: `7a3fb9e5` backend / `34b70f2f` api.yaml / `2968d2aa` frontend）
+（現在該当項目なし）
 
 ---
 
@@ -27,11 +27,11 @@
 - **移管元**: `BE-refactor.md`（2026-07-12）。
 - **実行条件**: 人間実行のみ・自動実行禁止。接続経路が判明しているとき、reset/seed 完了後に任意で 1 回。
 - **期待値**: 全クエリ 0 行。ヒット時はシード不整合として個別是正（是正 DML は件数確認後に別途起案）。
-- SQL は 001_init.sql の DDL と突合済み（2026-07-12・列名/JOIN キー/deleted_at の有無を実測確認）。読み取り専用 SELECT のみ。
+- SQL は 001_init.sql の DDL と突合済み（2026-07-12）。読み取り専用 SELECT のみ。
 
 **実行先と接続経路**:
 - STG は移行過渡期（`docs/infra/INFRA_ARCHITECTURE.md:14-15`）: 実トラフィックは **AWS ECS/ALB/RDS** を経由（Phase 7 の NS 切替まで）、Cloudflare 正系統は **PlanetScale Postgres** に直結。**監査の正はユーザー書込が到達している側**（現状 RDS。reset 適用先と一致させること）。
-- RDS は private subnet のため直接 psql 不可。**ad-hoc SQL の接続経路（踏み台 / ECS exec 等）は runbook 未整備** — 実行前にインフラオーナーへ接続手段を確認し、確認結果をこの節に追記すること。PlanetScale 側が正になった後は console から直接実行できる。
+- RDS は private subnet のため直接 psql 不可。**ad-hoc SQL の接続経路（踏み台 / ECS exec 等）は runbook 未整備** — 実行前にインフラオーナーへ接続手段を確認し、確認結果をこの節に追記すること。
 - 各クエリは `deleted_at IS NULL` で**能動データに絞ってある**（junction 4 テーブル spg/sre/atd/ato には deleted_at 列なし — DDL 実測）。
 
 ```sql
