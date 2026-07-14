@@ -216,7 +216,7 @@ func TestCageRepository_CountUsageByCageID(t *testing.T) {
 	const clinicA, clinicB = uint64(1), uint64(2)
 
 	cage := makeCageMaster(t, db, clinicA, "使用中ケージ")
-	owner := makeOwner(t, db, clinicA, "飼主A")
+	owner := makeTestOwner(t, db, clinicA, "飼主A")
 	pet := makeSpeciesAndPet(t, db, clinicA, owner.ID, "ポチ")
 	_ = makeHospitalizationRec(t, db, clinicA, owner.ID, pet.ID, &cage.ID)
 

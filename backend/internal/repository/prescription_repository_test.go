@@ -65,7 +65,7 @@ func TestPrescriptionRepository_FindByMedicalRecordID(t *testing.T) {
 		clinicB = uint64(2)
 	)
 
-	ownerA := makeOwner(t, db, clinicA, "飼主A")
+	ownerA := makeTestOwner(t, db, clinicA, "飼主A")
 	mrA := makePrescriptionMedicalRecord(t, db, clinicA, "PR-MR-A")
 	mrB := makePrescriptionMedicalRecord(t, db, clinicB, "PR-MR-B")
 
@@ -98,7 +98,7 @@ func TestPrescriptionRepository_FindByID(t *testing.T) {
 		clinicB = uint64(2)
 	)
 
-	ownerA := makeOwner(t, db, clinicA, "飼主A")
+	ownerA := makeTestOwner(t, db, clinicA, "飼主A")
 	prescription := makePrescription(t, db, clinicA, ownerA.ID, nil, time.Now())
 
 	t.Run("found", func(t *testing.T) {
@@ -132,8 +132,8 @@ func TestPrescriptionRepository_FindActiveByOwner(t *testing.T) {
 		clinicB = uint64(2)
 	)
 
-	ownerA := makeOwner(t, db, clinicA, "飼主A")
-	otherOwner := makeOwner(t, db, clinicA, "飼主B")
+	ownerA := makeTestOwner(t, db, clinicA, "飼主A")
+	otherOwner := makeTestOwner(t, db, clinicA, "飼主B")
 
 	active := makePrescription(t, db, clinicA, ownerA.ID, nil, time.Now())
 	toBeDeleted := makePrescription(t, db, clinicA, ownerA.ID, nil, time.Now())
@@ -161,7 +161,7 @@ func TestPrescriptionRepository_FindActiveByOwner(t *testing.T) {
 	})
 
 	t.Run("empty for owner with no prescriptions", func(t *testing.T) {
-		strangerOwner := makeOwner(t, db, clinicA, "処方なし飼主")
+		strangerOwner := makeTestOwner(t, db, clinicA, "処方なし飼主")
 		got, err := repo.FindActiveByOwner(ctx, clinicA, strangerOwner.ID)
 		require.NoError(t, err)
 		assert.Empty(t, got)
@@ -174,7 +174,7 @@ func TestPrescriptionRepository_Create(t *testing.T) {
 	ctx := context.Background()
 
 	const clinicA = uint64(1)
-	ownerA := makeOwner(t, db, clinicA, "飼主A")
+	ownerA := makeTestOwner(t, db, clinicA, "飼主A")
 
 	p := &model.Prescription{ClinicID: clinicA, OwnerID: ownerA.ID, PrescribedAt: time.Now(), DurationDays: 3}
 	require.NoError(t, repo.Create(ctx, p))
@@ -190,7 +190,7 @@ func TestPrescriptionRepository_Update(t *testing.T) {
 		clinicA = uint64(1)
 		clinicB = uint64(2)
 	)
-	ownerA := makeOwner(t, db, clinicA, "飼主A")
+	ownerA := makeTestOwner(t, db, clinicA, "飼主A")
 	p := makePrescription(t, db, clinicA, ownerA.ID, nil, time.Now())
 
 	t.Run("updates successfully", func(t *testing.T) {
@@ -220,7 +220,7 @@ func TestPrescriptionRepository_Delete(t *testing.T) {
 		clinicA = uint64(1)
 		clinicB = uint64(2)
 	)
-	ownerA := makeOwner(t, db, clinicA, "飼主A")
+	ownerA := makeTestOwner(t, db, clinicA, "飼主A")
 	p := makePrescription(t, db, clinicA, ownerA.ID, nil, time.Now())
 
 	t.Run("clinic isolation: wrong clinic cannot delete", func(t *testing.T) {

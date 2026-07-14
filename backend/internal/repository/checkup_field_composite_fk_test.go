@@ -125,7 +125,7 @@ func TestCheckupFieldResult_CompositeFK_RejectsCrossClinicField(t *testing.T) {
 		FieldType: model.CheckupFieldTypeBoolean, SortOrder: 1,
 	})
 	// clinic B の checkup を作る（越境 INSERT の器）。
-	ownerB := makeOwner(t, db, clinicB, "越境飼主")
+	ownerB := makeTestOwner(t, db, clinicB, "越境飼主")
 	petB := makeSpeciesAndPet(t, db, clinicB, ownerB.ID, "越境ポチ")
 	mrB := makeHistoryMedicalRecord(t, db, clinicB, petB.ID, "MR-XCLINIC", time.Now())
 	ctB := makeCheckupTypeMaster(t, db, clinicB, "歯科検診B")
@@ -150,7 +150,7 @@ func TestCheckupFieldResult_CompositeFK_AcceptsSameClinicField(t *testing.T) {
 	ctx := context.Background()
 	const clinicA = uint64(1)
 
-	owner := makeOwner(t, db, clinicA, "正当飼主")
+	owner := makeTestOwner(t, db, clinicA, "正当飼主")
 	pet := makeSpeciesAndPet(t, db, clinicA, owner.ID, "正当ポチ")
 	mr := makeHistoryMedicalRecord(t, db, clinicA, pet.ID, "MR-OK", time.Now())
 	ct := makeCheckupTypeMaster(t, db, clinicA, "歯科検診")
@@ -179,7 +179,7 @@ func TestCheckupFieldResult_CompositeFK_PreservesSetNullBehavior(t *testing.T) {
 	ctx := context.Background()
 	const clinicA = uint64(1)
 
-	owner := makeOwner(t, db, clinicA, "SETNULL飼主")
+	owner := makeTestOwner(t, db, clinicA, "SETNULL飼主")
 	pet := makeSpeciesAndPet(t, db, clinicA, owner.ID, "SETNULLポチ")
 	mr := makeHistoryMedicalRecord(t, db, clinicA, pet.ID, "MR-SETNULL", time.Now())
 	ct := makeCheckupTypeMaster(t, db, clinicA, "歯科検診")

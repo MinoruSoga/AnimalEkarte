@@ -264,7 +264,7 @@ func TestConsultationRepository_CountUsageByConsultationID(t *testing.T) {
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 
-	owner := makeOwner(t, db, clinicA, "診察使用飼主")
+	owner := makeTestOwner(t, db, clinicA, "診察使用飼主")
 	pet := makeSpeciesAndPet(t, db, clinicA, owner.ID, "診察使用犬")
 	mr := makeHistoryMedicalRecord(t, db, clinicA, pet.ID, "CONS-USAGE-1", time.Now())
 	consultation := makeConsultation(t, db, clinicA, "使用中診察", nil)

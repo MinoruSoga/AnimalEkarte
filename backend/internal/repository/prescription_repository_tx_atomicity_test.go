@@ -32,7 +32,7 @@ func TestPrescriptionRepository_Delete_RollsBackWhenAmbientTxFails(t *testing.T)
 	ctx := context.Background()
 	const clinicA = uint64(1)
 
-	ownerA := makeOwner(t, db, clinicA, "飼主A（Delete原子性RB）")
+	ownerA := makeTestOwner(t, db, clinicA, "飼主A（Delete原子性RB）")
 	p := makePrescription(t, db, clinicA, ownerA.ID, nil, time.Now())
 
 	repo := NewPrescriptionRepository(db)
@@ -59,7 +59,7 @@ func TestPrescriptionRepository_Delete_CommitsWithinAmbientTx(t *testing.T) {
 	ctx := context.Background()
 	const clinicA = uint64(1)
 
-	ownerA := makeOwner(t, db, clinicA, "飼主A（Delete原子性CM）")
+	ownerA := makeTestOwner(t, db, clinicA, "飼主A（Delete原子性CM）")
 	p := makePrescription(t, db, clinicA, ownerA.ID, nil, time.Now())
 
 	repo := NewPrescriptionRepository(db)

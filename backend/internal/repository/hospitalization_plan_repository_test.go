@@ -220,7 +220,7 @@ func TestHospitalizationPlanRepository_CountUsageByHospitalizationPlanID(t *test
 	ctx := context.Background()
 	const clinicA = uint64(1)
 
-	ownerA := makeOwner(t, db, clinicA, "プラン使用状況飼主")
+	ownerA := makeTestOwner(t, db, clinicA, "プラン使用状況飼主")
 	petA := makeSpeciesAndPet(t, db, clinicA, ownerA.ID, "プラン使用状況ポチ")
 	planA := makeHospitalizationPlanFixture(t, db, clinicA, "使用状況プラン")
 	hospA := makeHospitalizationRec(t, db, clinicA, ownerA.ID, petA.ID, nil)

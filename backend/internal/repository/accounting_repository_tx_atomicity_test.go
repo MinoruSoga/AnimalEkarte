@@ -228,7 +228,7 @@ func TestAccountingRepository_CompleteAccountingAppointments_RollsBackWhenAmbien
 	}
 	require.NoError(t, db.WithContext(ctx).Create(billing).Error)
 
-	owner := makeOwner(t, db, clinicA, "X-12ロールバック飼主")
+	owner := makeTestOwner(t, db, clinicA, "X-12ロールバック飼主")
 	pet := makeSpeciesAndPet(t, db, clinicA, owner.ID, "X-12ロールバックペット")
 	appt := makeAccountingAppointment(t, db, clinicA, &owner.ID, &pet.ID, model.ReservationStatusPending,
 		time.Date(2026, 7, 1, 3, 0, 0, 0, time.UTC))
@@ -273,7 +273,7 @@ func TestAccountingRepository_CompleteAccountingAppointments_CommitsWithinAmbien
 	}
 	require.NoError(t, db.WithContext(ctx).Create(billing).Error)
 
-	owner := makeOwner(t, db, clinicA, "X-12コミット飼主")
+	owner := makeTestOwner(t, db, clinicA, "X-12コミット飼主")
 	pet := makeSpeciesAndPet(t, db, clinicA, owner.ID, "X-12コミットペット")
 	appt := makeAccountingAppointment(t, db, clinicA, &owner.ID, &pet.ID, model.ReservationStatusPending,
 		time.Date(2026, 7, 1, 3, 0, 0, 0, time.UTC))

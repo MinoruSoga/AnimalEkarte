@@ -67,7 +67,7 @@ func TestHospitalizationRepository_FindAll(t *testing.T) {
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 
-	ownerA := makeOwner(t, db, clinicA, "入院飼主A")
+	ownerA := makeTestOwner(t, db, clinicA, "入院飼主A")
 	petA := makeSpeciesAndPet(t, db, clinicA, ownerA.ID, "入院ポチA")
 	cageA := makeCageMaster(t, db, clinicA, "医院Aケージ1")
 	doctorA := makeDoctor(t, db, clinicA, "医院A担当医")
@@ -77,7 +77,7 @@ func TestHospitalizationRepository_FindAll(t *testing.T) {
 		h.DoctorID = &doctorA.ID
 	})
 
-	ownerB := makeOwner(t, db, clinicB, "入院飼主B")
+	ownerB := makeTestOwner(t, db, clinicB, "入院飼主B")
 	petB := makeSpeciesAndPet(t, db, clinicB, ownerB.ID, "入院ポチB")
 	_ = makeHospitalizationFixture(t, db, clinicB, ownerB.ID, petB.ID, nil)
 
@@ -175,7 +175,7 @@ func TestHospitalizationRepository_FindByID_NotFoundAndIsolation(t *testing.T) {
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 
-	ownerA := makeOwner(t, db, clinicA, "FindByID飼主A")
+	ownerA := makeTestOwner(t, db, clinicA, "FindByID飼主A")
 	petA := makeSpeciesAndPet(t, db, clinicA, ownerA.ID, "FindByIDポチA")
 	hospA := makeHospitalizationFixture(t, db, clinicA, ownerA.ID, petA.ID, nil)
 
@@ -201,7 +201,7 @@ func TestHospitalizationRepository_FindByID_Success(t *testing.T) {
 	ctx := context.Background()
 	const clinicA = uint64(1)
 
-	ownerA := makeOwner(t, db, clinicA, "FindByID成功飼主")
+	ownerA := makeTestOwner(t, db, clinicA, "FindByID成功飼主")
 	petA := makeSpeciesAndPet(t, db, clinicA, ownerA.ID, "FindByID成功ポチ")
 	hospA := makeHospitalizationFixture(t, db, clinicA, ownerA.ID, petA.ID, nil)
 
@@ -217,7 +217,7 @@ func TestHospitalizationRepository_Create(t *testing.T) {
 	ctx := context.Background()
 	const clinicA = uint64(1)
 
-	ownerA := makeOwner(t, db, clinicA, "Create飼主")
+	ownerA := makeTestOwner(t, db, clinicA, "Create飼主")
 	petA := makeSpeciesAndPet(t, db, clinicA, ownerA.ID, "Createポチ")
 
 	now := time.Now().UTC().Truncate(24 * time.Hour)
@@ -243,7 +243,7 @@ func TestHospitalizationRepository_Update_NotFoundAndIsolation(t *testing.T) {
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 
-	ownerA := makeOwner(t, db, clinicA, "Update飼主")
+	ownerA := makeTestOwner(t, db, clinicA, "Update飼主")
 	petA := makeSpeciesAndPet(t, db, clinicA, ownerA.ID, "Updateポチ")
 	hospA := makeHospitalizationFixture(t, db, clinicA, ownerA.ID, petA.ID, nil)
 
@@ -269,7 +269,7 @@ func TestHospitalizationRepository_Update_Success(t *testing.T) {
 	ctx := context.Background()
 	const clinicA = uint64(1)
 
-	ownerA := makeOwner(t, db, clinicA, "Update成功飼主")
+	ownerA := makeTestOwner(t, db, clinicA, "Update成功飼主")
 	petA := makeSpeciesAndPet(t, db, clinicA, ownerA.ID, "Update成功ポチ")
 	hospA := makeHospitalizationFixture(t, db, clinicA, ownerA.ID, petA.ID, nil)
 
@@ -285,7 +285,7 @@ func TestHospitalizationRepository_Delete(t *testing.T) {
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 
-	ownerA := makeOwner(t, db, clinicA, "Delete飼主")
+	ownerA := makeTestOwner(t, db, clinicA, "Delete飼主")
 	petA := makeSpeciesAndPet(t, db, clinicA, ownerA.ID, "Deleteポチ")
 	hospA := makeHospitalizationFixture(t, db, clinicA, ownerA.ID, petA.ID, nil)
 
@@ -326,7 +326,7 @@ func TestHospitalizationRepository_CountCarePlanItemsByHospitalizationID(t *test
 	ctx := context.Background()
 	const clinicA = uint64(1)
 
-	ownerA := makeOwner(t, db, clinicA, "ケアプラン集計飼主")
+	ownerA := makeTestOwner(t, db, clinicA, "ケアプラン集計飼主")
 	petA := makeSpeciesAndPet(t, db, clinicA, ownerA.ID, "ケアプラン集計ポチ")
 	hospA := makeHospitalizationFixture(t, db, clinicA, ownerA.ID, petA.ID, nil)
 
@@ -350,7 +350,7 @@ func TestHospitalizationRepository_CountDailyRecordsByHospitalizationID(t *testi
 	ctx := context.Background()
 	const clinicA = uint64(1)
 
-	ownerA := makeOwner(t, db, clinicA, "日次記録集計飼主")
+	ownerA := makeTestOwner(t, db, clinicA, "日次記録集計飼主")
 	petA := makeSpeciesAndPet(t, db, clinicA, ownerA.ID, "日次記録集計ポチ")
 	hospA := makeHospitalizationFixture(t, db, clinicA, ownerA.ID, petA.ID, nil)
 
@@ -368,7 +368,7 @@ func TestHospitalizationRepository_CountTreatmentPlansByHospitalizationID(t *tes
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 
-	ownerA := makeOwner(t, db, clinicA, "治療計画集計飼主")
+	ownerA := makeTestOwner(t, db, clinicA, "治療計画集計飼主")
 	petA := makeSpeciesAndPet(t, db, clinicA, ownerA.ID, "治療計画集計ポチ")
 	hospA := makeHospitalizationFixture(t, db, clinicA, ownerA.ID, petA.ID, nil)
 

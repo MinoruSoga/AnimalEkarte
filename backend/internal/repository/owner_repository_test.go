@@ -41,9 +41,9 @@ func TestOwnerRepository_FindAll(t *testing.T) {
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 
-	ownerA1 := makeOwner(t, db, clinicA, "検索対象飼主タロウ")
-	_ = makeOwner(t, db, clinicA, "別の飼主ハナコ")
-	_ = makeOwner(t, db, clinicB, "医院Bの飼主")
+	ownerA1 := makeTestOwner(t, db, clinicA, "検索対象飼主タロウ")
+	_ = makeTestOwner(t, db, clinicA, "別の飼主ハナコ")
+	_ = makeTestOwner(t, db, clinicB, "医院Bの飼主")
 
 	species := &model.AnimalSpecies{Name: "犬"}
 	require.NoError(t, db.WithContext(ctx).Create(species).Error)
@@ -68,7 +68,7 @@ func TestOwnerRepository_FindAll(t *testing.T) {
 
 	t.Run("searchで部分一致検索できる", func(t *testing.T) {
 		// owner_repository.go の search は NormalizeKana(search) でカタカナ→ひらがな変換した
-		// パターンを name ILIKE と name_kana(translate 済み) ILIKE の両方に使う。makeOwner は
+		// パターンを name ILIKE と name_kana(translate 済み) ILIKE の両方に使う。makeTestOwner は
 		// NameKana を設定しないため、"タロウ"（カタカナ）で検索すると正規化後 "たろう"
 		// （ひらがな）になり、name 列の生カタカナ "タロウ" とは文字種が異なり ILIKE が
 		// マッチしない。カナ正規化の影響を受けない漢字部分文字列で検索する。
@@ -103,7 +103,7 @@ func TestOwnerRepository_FindByIDForClinics(t *testing.T) {
 	ctx := context.Background()
 	const clinicA, clinicB, clinicC = uint64(1), uint64(2), uint64(3)
 
-	owner := makeOwner(t, db, clinicA, "拠点横断飼主")
+	owner := makeTestOwner(t, db, clinicA, "拠点横断飼主")
 
 	t.Run("所属クリニックのいずれかに一致すれば取得できる", func(t *testing.T) {
 		got, err := repo.FindByIDForClinics(ctx, []uint64{clinicA, clinicC}, owner.ID)
@@ -262,7 +262,7 @@ func TestOwnerRepository_Delete_SuccessSoftDeletes(t *testing.T) {
 	ctx := context.Background()
 	const clinicA = uint64(1)
 
-	owner := makeOwner(t, db, clinicA, "正常削除対象飼主")
+	owner := makeTestOwner(t, db, clinicA, "正常削除対象飼主")
 
 	require.NoError(t, repo.Delete(ctx, clinicA, owner.ID))
 
@@ -290,7 +290,7 @@ func TestOwnerRepository_FindByLineUserID(t *testing.T) {
 	const clinicA, clinicB = uint64(1), uint64(2)
 
 	lineID := "U-find-by-line"
-	owner := makeOwner(t, db, clinicA, "LINE検索飼主")
+	owner := makeTestOwner(t, db, clinicA, "LINE検索飼主")
 	require.NoError(t, repo.UpdateLineUserID(ctx, clinicA, owner.ID, &lineID))
 
 	t.Run("同一クリニックで見つかる", func(t *testing.T) {
@@ -318,12 +318,12 @@ func TestOwnerRepository_FindAllWithLineUserID(t *testing.T) {
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 
-	linked := makeOwner(t, db, clinicA, "連携済み飼主")
+	linked := makeTestOwner(t, db, clinicA, "連携済み飼主")
 	lineID := "U-linked"
 	require.NoError(t, repo.UpdateLineUserID(ctx, clinicA, linked.ID, &lineID))
-	_ = makeOwner(t, db, clinicA, "未連携飼主")
+	_ = makeTestOwner(t, db, clinicA, "未連携飼主")
 
-	otherClinicLinked := makeOwner(t, db, clinicB, "医院B連携済み飼主")
+	otherClinicLinked := makeTestOwner(t, db, clinicB, "医院B連携済み飼主")
 	otherLineID := "U-other-clinic"
 	require.NoError(t, repo.UpdateLineUserID(ctx, clinicB, otherClinicLinked.ID, &otherLineID))
 
@@ -415,9 +415,9 @@ func TestOwnerRepository_FindAllByLineUserID(t *testing.T) {
 	const clinicA, clinicB = uint64(1), uint64(2)
 
 	lineID := "U-cross-clinic"
-	ownerA := makeOwner(t, db, clinicA, "医院A飼主")
+	ownerA := makeTestOwner(t, db, clinicA, "医院A飼主")
 	require.NoError(t, repo.UpdateLineUserID(ctx, clinicA, ownerA.ID, &lineID))
-	ownerB := makeOwner(t, db, clinicB, "医院B飼主")
+	ownerB := makeTestOwner(t, db, clinicB, "医院B飼主")
 	require.NoError(t, repo.UpdateLineUserID(ctx, clinicB, ownerB.ID, &lineID))
 
 	got, err := repo.FindAllByLineUserID(ctx, lineID)
@@ -435,7 +435,7 @@ func TestOwnerRepository_UpdateLineFollowedAt(t *testing.T) {
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 
-	owner := makeOwner(t, db, clinicA, "LINEフォロー飼主")
+	owner := makeTestOwner(t, db, clinicA, "LINEフォロー飼主")
 	pastBlock := time.Now().Add(-24 * time.Hour)
 	require.NoError(t, db.Model(&model.Owner{}).Where("id = ?", owner.ID).Update("line_blocked_at", pastBlock).Error)
 
@@ -451,7 +451,7 @@ func TestOwnerRepository_UpdateLineFollowedAt(t *testing.T) {
 	})
 
 	t.Run("別クリニックからの更新は実データを変更しない（clinic_id述語で対象0件）", func(t *testing.T) {
-		other := makeOwner(t, db, clinicA, "変更されないはずの飼主")
+		other := makeTestOwner(t, db, clinicA, "変更されないはずの飼主")
 		require.NoError(t, repo.UpdateLineFollowedAt(ctx, clinicB, other.ID, time.Now()))
 
 		got, err := repo.FindByID(ctx, clinicA, other.ID)
@@ -466,7 +466,7 @@ func TestOwnerRepository_UpdateLineBlockedAt(t *testing.T) {
 	ctx := context.Background()
 	const clinicA = uint64(1)
 
-	owner := makeOwner(t, db, clinicA, "LINEブロック飼主")
+	owner := makeTestOwner(t, db, clinicA, "LINEブロック飼主")
 	blockedAt := time.Now()
 	require.NoError(t, repo.UpdateLineBlockedAt(ctx, clinicA, owner.ID, blockedAt))
 
@@ -482,7 +482,7 @@ func TestOwnerRepository_UpdateLineUserID(t *testing.T) {
 	ctx := context.Background()
 	const clinicA = uint64(1)
 
-	owner := makeOwner(t, db, clinicA, "LINE連携飼主")
+	owner := makeTestOwner(t, db, clinicA, "LINE連携飼主")
 	lineID := "U1234567890"
 
 	t.Run("LINE User IDを設定できる", func(t *testing.T) {
@@ -509,7 +509,7 @@ func TestOwnerRepository_CountPetsByOwnerID(t *testing.T) {
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 
-	owner := makeOwner(t, db, clinicA, "ペット数集計飼主")
+	owner := makeTestOwner(t, db, clinicA, "ペット数集計飼主")
 
 	t.Run("0件", func(t *testing.T) {
 		count, err := repo.CountPetsByOwnerID(ctx, clinicA, owner.ID)
@@ -549,9 +549,9 @@ func TestOwnerRepository_FindByIDs(t *testing.T) {
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 
-	o1 := makeOwner(t, db, clinicA, "一括取得飼主1")
-	o2 := makeOwner(t, db, clinicA, "一括取得飼主2")
-	o3 := makeOwner(t, db, clinicB, "医院B飼主")
+	o1 := makeTestOwner(t, db, clinicA, "一括取得飼主1")
+	o2 := makeTestOwner(t, db, clinicA, "一括取得飼主2")
+	o3 := makeTestOwner(t, db, clinicB, "医院B飼主")
 
 	t.Run("指定した同一クリニックのIDのみ返す", func(t *testing.T) {
 		got, err := repo.FindByIDs(ctx, clinicA, []uint64{o1.ID, o2.ID, o3.ID})

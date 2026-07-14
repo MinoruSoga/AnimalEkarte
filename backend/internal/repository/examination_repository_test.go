@@ -51,7 +51,7 @@ func TestExaminationRepository_FindAll_ClinicIsolationAndFilters(t *testing.T) {
 	etA := makeExamTypeMaster(t, db, clinicA, "血液検査")
 	etB := makeExamTypeMaster(t, db, clinicB, "医院Bの検査")
 
-	ownerA := makeOwner(t, db, clinicA, "飼主A")
+	ownerA := makeTestOwner(t, db, clinicA, "飼主A")
 	petA1 := makeSpeciesAndPet(t, db, clinicA, ownerA.ID, "ペットA1")
 	petA2 := makeSpeciesAndPet(t, db, clinicA, ownerA.ID, "ペットA2")
 

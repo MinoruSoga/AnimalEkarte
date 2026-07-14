@@ -91,7 +91,7 @@ func TestAccountingRepository_CompleteAccountingAppointments(t *testing.T) {
 	t.Run("経路1: 同日同一ペットのaccounting予約がcompletedになる", func(t *testing.T) {
 		db := setupAccountingCompleteAppointmentsTestDB(t)
 		repo := NewAccountingRepository(db)
-		owner := makeOwner(t, db, clinicA, "経路1飼主")
+		owner := makeTestOwner(t, db, clinicA, "経路1飼主")
 		pet := makeSpeciesAndPet(t, db, clinicA, owner.ID, "経路1ペット")
 		appt := makeAccountingAppointment(t, db, clinicA, &owner.ID, &pet.ID, model.ReservationStatusAccounting,
 			time.Date(2026, 6, 10, 3, 0, 0, 0, time.UTC)) // JST 12:00
@@ -105,10 +105,10 @@ func TestAccountingRepository_CompleteAccountingAppointments(t *testing.T) {
 	t.Run("経路1除外: 別日/別ペット/別クリニック/status≠accounting/deleted_atは対象外", func(t *testing.T) {
 		db := setupAccountingCompleteAppointmentsTestDB(t)
 		repo := NewAccountingRepository(db)
-		owner := makeOwner(t, db, clinicA, "除外テスト飼主")
+		owner := makeTestOwner(t, db, clinicA, "除外テスト飼主")
 		pet := makeSpeciesAndPet(t, db, clinicA, owner.ID, "除外テストペット")
 		otherPet := makeSpeciesAndPet(t, db, clinicA, owner.ID, "別ペット")
-		otherOwner := makeOwner(t, db, clinicB, "別クリニック飼主")
+		otherOwner := makeTestOwner(t, db, clinicB, "別クリニック飼主")
 		otherClinicPet := makeSpeciesAndPet(t, db, clinicB, otherOwner.ID, "別クリニックペット")
 
 		otherDay := makeAccountingAppointment(t, db, clinicA, &owner.ID, &pet.ID, model.ReservationStatusAccounting,
@@ -137,7 +137,7 @@ func TestAccountingRepository_CompleteAccountingAppointments(t *testing.T) {
 	t.Run("JST日付境界: UTC前日15:00は同日扱い、UTC当日14:59も同日、UTC当日15:00は翌日扱いで対象外", func(t *testing.T) {
 		db := setupAccountingCompleteAppointmentsTestDB(t)
 		repo := NewAccountingRepository(db)
-		owner := makeOwner(t, db, clinicA, "境界テスト飼主")
+		owner := makeTestOwner(t, db, clinicA, "境界テスト飼主")
 
 		petBefore := makeSpeciesAndPet(t, db, clinicA, owner.ID, "境界前ペット") // UTC前日15:00 = JST当日0:00
 		petLate := makeSpeciesAndPet(t, db, clinicA, owner.ID, "境界内ペット")   // UTC当日14:59 = JST当日23:59
@@ -165,7 +165,7 @@ func TestAccountingRepository_CompleteAccountingAppointments(t *testing.T) {
 	t.Run("経路2: medicalRecordID経由で非完了予約が完了化される", func(t *testing.T) {
 		db := setupAccountingCompleteAppointmentsTestDB(t)
 		repo := NewAccountingRepository(db)
-		owner := makeOwner(t, db, clinicA, "経路2飼主")
+		owner := makeTestOwner(t, db, clinicA, "経路2飼主")
 		pet := makeSpeciesAndPet(t, db, clinicA, owner.ID, "経路2ペット")
 		appt := makeAccountingAppointment(t, db, clinicA, &owner.ID, &pet.ID, model.ReservationStatusPending,
 			time.Date(2026, 6, 10, 3, 0, 0, 0, time.UTC))
@@ -180,7 +180,7 @@ func TestAccountingRepository_CompleteAccountingAppointments(t *testing.T) {
 	t.Run("経路2除外: completed/cancelled/no_showは触らない、別クリニックのmedical_recordは対象外", func(t *testing.T) {
 		db := setupAccountingCompleteAppointmentsTestDB(t)
 		repo := NewAccountingRepository(db)
-		owner := makeOwner(t, db, clinicA, "経路2除外飼主")
+		owner := makeTestOwner(t, db, clinicA, "経路2除外飼主")
 
 		for _, status := range []model.ReservationStatus{
 			model.ReservationStatusCompleted,
@@ -247,7 +247,7 @@ func TestAccountingRepository_CompleteAccountingAppointments(t *testing.T) {
 	t.Run("totalAffectedは経路1と経路2の合算になる", func(t *testing.T) {
 		db := setupAccountingCompleteAppointmentsTestDB(t)
 		repo := NewAccountingRepository(db)
-		owner := makeOwner(t, db, clinicA, "合算テスト飼主")
+		owner := makeTestOwner(t, db, clinicA, "合算テスト飼主")
 		pet1 := makeSpeciesAndPet(t, db, clinicA, owner.ID, "合算ペット1")
 		pet2 := makeSpeciesAndPet(t, db, clinicA, owner.ID, "合算ペット2")
 

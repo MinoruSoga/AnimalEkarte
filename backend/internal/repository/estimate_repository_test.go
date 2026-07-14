@@ -2,7 +2,7 @@ package repository
 
 // estimate_repository_test.go
 // estimate_repository.go の実 DB 結合テスト（#212: internal/repository カバレッジ向上）。
-// makeOwner は accounting_repository_unpaid_test.go を再利用する。
+// makeTestOwner は db_setup_test.go を再利用する。
 
 import (
 	"context"
@@ -58,7 +58,7 @@ func TestEstimateRepository_Create_FindByID(t *testing.T) {
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 
-	owner := makeOwner(t, db, clinicA, "見積飼主")
+	owner := makeTestOwner(t, db, clinicA, "見積飼主")
 
 	t.Run("作成した見積書をOwner/Items付きで取得できる", func(t *testing.T) {
 		e := makeEstimate(t, db, clinicA, owner.ID, model.EstimateStatusDraft)
@@ -94,8 +94,8 @@ func TestEstimateRepository_FindAll(t *testing.T) {
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 
-	ownerA := makeOwner(t, db, clinicA, "A飼主")
-	ownerB := makeOwner(t, db, clinicB, "B飼主")
+	ownerA := makeTestOwner(t, db, clinicA, "A飼主")
+	ownerB := makeTestOwner(t, db, clinicB, "B飼主")
 	makeEstimate(t, db, clinicA, ownerA.ID, model.EstimateStatusDraft)
 	makeEstimate(t, db, clinicA, ownerA.ID, model.EstimateStatusSent)
 	makeEstimate(t, db, clinicB, ownerB.ID, model.EstimateStatusDraft)
@@ -137,7 +137,7 @@ func TestEstimateRepository_Update(t *testing.T) {
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 
-	owner := makeOwner(t, db, clinicA, "更新飼主")
+	owner := makeTestOwner(t, db, clinicA, "更新飼主")
 
 	t.Run("同一クリニックの更新は成功する", func(t *testing.T) {
 		e := makeEstimate(t, db, clinicA, owner.ID, model.EstimateStatusDraft)
@@ -171,7 +171,7 @@ func TestEstimateRepository_Delete(t *testing.T) {
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 
-	owner := makeOwner(t, db, clinicA, "削除飼主")
+	owner := makeTestOwner(t, db, clinicA, "削除飼主")
 
 	t.Run("同一クリニックの削除は成功する", func(t *testing.T) {
 		e := makeEstimate(t, db, clinicA, owner.ID, model.EstimateStatusDraft)
@@ -211,7 +211,7 @@ func TestEstimateRepository_CountItemsByEstimateID_ExcludesSoftDeleted(t *testin
 	ctx := context.Background()
 	const clinicA = uint64(1)
 
-	owner := makeOwner(t, db, clinicA, "件数飼主")
+	owner := makeTestOwner(t, db, clinicA, "件数飼主")
 	e := makeEstimate(t, db, clinicA, owner.ID, model.EstimateStatusDraft)
 	makeEstimateItem(t, db, e.ID, "項目1")
 	makeEstimateItem(t, db, e.ID, "項目2")

@@ -2,7 +2,7 @@ package repository
 
 // vaccination_repository_test.go
 // vaccination_repository.go の実 DB 結合テスト。
-// makeOwner / makeSpeciesAndPet（accounting_repository_unpaid_test.go）、
+// makeTestOwner / makeSpeciesAndPet（db_setup_test.go / accounting_repository_unpaid_test.go）、
 // makeVaccineMaster / makeVaccinationRecord（vaccination_master_preload_clinic_isolation_test.go）、
 // makeDoctor（isolation_test_helpers_test.go）を再利用する。
 
@@ -46,7 +46,7 @@ func TestVaccinationRepository_Create_FindByID(t *testing.T) {
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 
-	owner := makeOwner(t, db, clinicA, "ワクチン飼主")
+	owner := makeTestOwner(t, db, clinicA, "ワクチン飼主")
 	pet := makeVaccinationRepoTestPet(t, db, clinicA, owner.ID, "ワクチンペット")
 	vaccine := makeVaccineMaster(t, db, clinicA, "混合ワクチン")
 	doctor := makeDoctor(t, db, clinicA, "接種医師")
@@ -96,11 +96,11 @@ func TestVaccinationRepository_FindAll(t *testing.T) {
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 
-	ownerA1 := makeOwner(t, db, clinicA, "ワクチン飼主A1")
-	ownerA2 := makeOwner(t, db, clinicA, "ワクチン飼主A2")
+	ownerA1 := makeTestOwner(t, db, clinicA, "ワクチン飼主A1")
+	ownerA2 := makeTestOwner(t, db, clinicA, "ワクチン飼主A2")
 	petA1 := makeVaccinationRepoTestPet(t, db, clinicA, ownerA1.ID, "ペットA1")
 	petA2 := makeVaccinationRepoTestPet(t, db, clinicA, ownerA2.ID, "ペットA2")
-	ownerB := makeOwner(t, db, clinicB, "ワクチン飼主B")
+	ownerB := makeTestOwner(t, db, clinicB, "ワクチン飼主B")
 	petB := makeVaccinationRepoTestPet(t, db, clinicB, ownerB.ID, "ペットB")
 	vaccineA := makeVaccineMaster(t, db, clinicA, "医院Aワクチン")
 	vaccineB := makeVaccineMaster(t, db, clinicB, "医院Bワクチン")
@@ -172,7 +172,7 @@ func TestVaccinationRepository_FindByOwner(t *testing.T) {
 	ctx := context.Background()
 	const clinicA = uint64(1)
 
-	owner := makeOwner(t, db, clinicA, "複数ペット飼主")
+	owner := makeTestOwner(t, db, clinicA, "複数ペット飼主")
 	petAlive := makeVaccinationRepoTestPet(t, db, clinicA, owner.ID, "生存ペット")
 	vaccine := makeVaccineMaster(t, db, clinicA, "狂犬病ワクチン")
 
@@ -186,7 +186,7 @@ func TestVaccinationRepository_FindByOwner(t *testing.T) {
 	makeVaccinationRecord(t, db, clinicA, deletedPet.ID, vaccine.ID)
 	require.NoError(t, db.WithContext(ctx).Delete(&model.Pet{}, deletedPet.ID).Error)
 
-	other := makeOwner(t, db, clinicA, "無関係の飼主")
+	other := makeTestOwner(t, db, clinicA, "無関係の飼主")
 
 	t.Run("生存ペットの記録のみ返しVaccineがPreloadされる", func(t *testing.T) {
 		got, err := repo.FindByOwner(ctx, clinicA, owner.ID)
@@ -210,7 +210,7 @@ func TestVaccinationRepository_Update(t *testing.T) {
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 
-	owner := makeOwner(t, db, clinicA, "更新用飼主")
+	owner := makeTestOwner(t, db, clinicA, "更新用飼主")
 	pet := makeVaccinationRepoTestPet(t, db, clinicA, owner.ID, "更新用ペット")
 	vaccine := makeVaccineMaster(t, db, clinicA, "更新用ワクチン")
 
@@ -241,7 +241,7 @@ func TestVaccinationRepository_Delete(t *testing.T) {
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 
-	owner := makeOwner(t, db, clinicA, "削除用飼主")
+	owner := makeTestOwner(t, db, clinicA, "削除用飼主")
 	pet := makeVaccinationRepoTestPet(t, db, clinicA, owner.ID, "削除用ペット")
 	vaccine := makeVaccineMaster(t, db, clinicA, "削除用ワクチン")
 
@@ -286,7 +286,7 @@ func TestVaccinationRepository_FindOwnersByVaccineDeadline(t *testing.T) {
 	}
 
 	t.Run("next_dateが対象日の飼主IDのみ重複なく返る", func(t *testing.T) {
-		owner := makeOwner(t, db, clinicA, "期限飼主")
+		owner := makeTestOwner(t, db, clinicA, "期限飼主")
 		petA := makeVaccinationRepoTestPet(t, db, clinicA, owner.ID, "期限ペットA")
 		petB := makeVaccinationRepoTestPet(t, db, clinicA, owner.ID, "期限ペットB")
 		vaccine := makeVaccineMaster(t, db, clinicA, "期限ワクチン")
@@ -296,7 +296,7 @@ func TestVaccinationRepository_FindOwnersByVaccineDeadline(t *testing.T) {
 		makeVaccinationWithNextDate(clinicA, petB.ID, vaccine.ID, target)
 
 		// 対象日ではない記録は含まれない
-		otherOwner := makeOwner(t, db, clinicA, "対象外飼主")
+		otherOwner := makeTestOwner(t, db, clinicA, "対象外飼主")
 		otherPet := makeVaccinationRepoTestPet(t, db, clinicA, otherOwner.ID, "対象外ペット")
 		makeVaccinationWithNextDate(clinicA, otherPet.ID, vaccine.ID, other)
 
@@ -306,7 +306,7 @@ func TestVaccinationRepository_FindOwnersByVaccineDeadline(t *testing.T) {
 	})
 
 	t.Run("死亡ペットの記録は除外される", func(t *testing.T) {
-		owner := makeOwner(t, db, clinicA, "死亡ペット飼主")
+		owner := makeTestOwner(t, db, clinicA, "死亡ペット飼主")
 		deceasedAt := target.Add(-24 * time.Hour)
 		deceasedPet := &model.Pet{ClinicID: clinicA, OwnerID: owner.ID, AnimalSpeciesID: species.ID, Name: "死亡ペット", DeceasedAt: &deceasedAt}
 		require.NoError(t, db.WithContext(ctx).Create(deceasedPet).Error)
@@ -319,7 +319,7 @@ func TestVaccinationRepository_FindOwnersByVaccineDeadline(t *testing.T) {
 	})
 
 	t.Run("別クリニックの記録は含まれない", func(t *testing.T) {
-		ownerB := makeOwner(t, db, clinicB, "医院B飼主")
+		ownerB := makeTestOwner(t, db, clinicB, "医院B飼主")
 		petB := makeVaccinationRepoTestPet(t, db, clinicB, ownerB.ID, "医院Bペット")
 		vaccineB := makeVaccineMaster(t, db, clinicB, "医院Bワクチン")
 		makeVaccinationWithNextDate(clinicB, petB.ID, vaccineB.ID, target)

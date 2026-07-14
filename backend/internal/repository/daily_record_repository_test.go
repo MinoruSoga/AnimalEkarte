@@ -63,12 +63,12 @@ func TestDailyRecordRepository_FindByHospitalizationID(t *testing.T) {
 		clinicB = uint64(2)
 	)
 
-	ownerA := makeOwner(t, db, clinicA, "入院飼主A")
+	ownerA := makeTestOwner(t, db, clinicA, "入院飼主A")
 	petA := makeSpeciesAndPet(t, db, clinicA, ownerA.ID, "入院ポチA")
 	hospA := makeHospitalizationRec(t, db, clinicA, ownerA.ID, petA.ID, nil)
 	hospOther := makeHospitalizationRec(t, db, clinicA, ownerA.ID, petA.ID, nil)
 
-	ownerB := makeOwner(t, db, clinicB, "入院飼主B")
+	ownerB := makeTestOwner(t, db, clinicB, "入院飼主B")
 	petB := makeSpeciesAndPet(t, db, clinicB, ownerB.ID, "入院ポチB")
 	hospB := makeHospitalizationRec(t, db, clinicB, ownerB.ID, petB.ID, nil)
 
@@ -119,7 +119,7 @@ func TestDailyRecordRepository_FindByHospitalizationIDAndDate(t *testing.T) {
 		clinicB = uint64(2)
 	)
 
-	ownerA := makeOwner(t, db, clinicA, "飼主A")
+	ownerA := makeTestOwner(t, db, clinicA, "飼主A")
 	petA := makeSpeciesAndPet(t, db, clinicA, ownerA.ID, "ポチA")
 	hospA := makeHospitalizationRec(t, db, clinicA, ownerA.ID, petA.ID, nil)
 	date := time.Date(2026, 6, 5, 0, 0, 0, 0, time.UTC)
@@ -152,7 +152,7 @@ func TestDailyRecordRepository_FindOrCreateByDate(t *testing.T) {
 	ctx := context.Background()
 
 	const clinicA = uint64(1)
-	ownerA := makeOwner(t, db, clinicA, "飼主A")
+	ownerA := makeTestOwner(t, db, clinicA, "飼主A")
 	petA := makeSpeciesAndPet(t, db, clinicA, ownerA.ID, "ポチA")
 	hospA := makeHospitalizationRec(t, db, clinicA, ownerA.ID, petA.ID, nil)
 	date := time.Date(2026, 6, 7, 0, 0, 0, 0, time.UTC)
@@ -180,7 +180,7 @@ func TestDailyRecordRepository_CreateVitalRecord(t *testing.T) {
 	ctx := context.Background()
 
 	const clinicA = uint64(1)
-	ownerA := makeOwner(t, db, clinicA, "飼主A")
+	ownerA := makeTestOwner(t, db, clinicA, "飼主A")
 	petA := makeSpeciesAndPet(t, db, clinicA, ownerA.ID, "ポチA")
 
 	weight := 3.5
@@ -195,7 +195,7 @@ func TestDailyRecordRepository_CreateCareLog(t *testing.T) {
 	ctx := context.Background()
 
 	const clinicA = uint64(1)
-	ownerA := makeOwner(t, db, clinicA, "飼主A")
+	ownerA := makeTestOwner(t, db, clinicA, "飼主A")
 	petA := makeSpeciesAndPet(t, db, clinicA, ownerA.ID, "ポチA")
 	hospA := makeHospitalizationRec(t, db, clinicA, ownerA.ID, petA.ID, nil)
 	record := makeDailyRecord(t, db, clinicA, hospA.ID, time.Now())
@@ -211,7 +211,7 @@ func TestDailyRecordRepository_CreateStaffNote(t *testing.T) {
 	ctx := context.Background()
 
 	const clinicA = uint64(1)
-	ownerA := makeOwner(t, db, clinicA, "飼主A")
+	ownerA := makeTestOwner(t, db, clinicA, "飼主A")
 	petA := makeSpeciesAndPet(t, db, clinicA, ownerA.ID, "ポチA")
 	hospA := makeHospitalizationRec(t, db, clinicA, ownerA.ID, petA.ID, nil)
 	record := makeDailyRecord(t, db, clinicA, hospA.ID, time.Now())

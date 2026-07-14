@@ -105,7 +105,7 @@ func TestCheckupSyncRepository_FindCheckupSyncPreview_AggregationClinicIsolation
 	dogSpecies := makeSyncSpecies(t, db, "犬")
 	catSpecies := makeSyncSpecies(t, db, "猫")
 
-	ownerA := makeOwner(t, db, clinicA, "同期飼主A")
+	ownerA := makeTestOwner(t, db, clinicA, "同期飼主A")
 	deceasedAt := time.Now()
 	livingDog := makeSyncPet(t, db, clinicA, ownerA.ID, dogSpecies.ID, "同期ポチ", nil, nil)
 	_ = makeSyncPet(t, db, clinicA, ownerA.ID, catSpecies.ID, "同期タマ", nil, &deceasedAt) // 死亡ペット
@@ -114,7 +114,7 @@ func TestCheckupSyncRepository_FindCheckupSyncPreview_AggregationClinicIsolation
 	makeSyncMedicalRecord(t, db, clinicA, ownerA.ID, livingDog.ID, time.Date(2026, 2, 5, 0, 0, 0, 0, time.UTC))
 
 	// 別クリニックの飼主（混入しないこと）
-	ownerB := makeOwner(t, db, clinicB, "同期飼主B")
+	ownerB := makeTestOwner(t, db, clinicB, "同期飼主B")
 	petB := makeSyncPet(t, db, clinicB, ownerB.ID, dogSpecies.ID, "同期ポチB", nil, nil)
 	makeSyncMedicalRecord(t, db, clinicB, ownerB.ID, petB.ID, time.Date(2026, 1, 5, 0, 0, 0, 0, time.UTC))
 
@@ -149,11 +149,11 @@ func TestCheckupSyncRepository_FindCheckupSyncPreview_LastVisitDateRangeFilters(
 	const clinicA = uint64(1)
 
 	dogSpecies := makeSyncSpecies(t, db, "犬")
-	ownerEarly := makeOwner(t, db, clinicA, "早期飼主")
+	ownerEarly := makeTestOwner(t, db, clinicA, "早期飼主")
 	petEarly := makeSyncPet(t, db, clinicA, ownerEarly.ID, dogSpecies.ID, "早期ポチ", nil, nil)
 	makeSyncMedicalRecord(t, db, clinicA, ownerEarly.ID, petEarly.ID, time.Date(2026, 1, 10, 0, 0, 0, 0, time.UTC))
 
-	ownerRecent := makeOwner(t, db, clinicA, "最近飼主")
+	ownerRecent := makeTestOwner(t, db, clinicA, "最近飼主")
 	petRecent := makeSyncPet(t, db, clinicA, ownerRecent.ID, dogSpecies.ID, "最近ポチ", nil, nil)
 	makeSyncMedicalRecord(t, db, clinicA, ownerRecent.ID, petRecent.ID, time.Date(2026, 6, 10, 0, 0, 0, 0, time.UTC))
 
@@ -177,7 +177,7 @@ func TestCheckupSyncRepository_FindCheckupSyncPreview_ChronicConditionFilter(t *
 	const clinicA = uint64(1)
 
 	dogSpecies := makeSyncSpecies(t, db, "犬")
-	ownerSick := makeOwner(t, db, clinicA, "慢性疾患飼主")
+	ownerSick := makeTestOwner(t, db, clinicA, "慢性疾患飼主")
 	petSick := makeSyncPet(t, db, clinicA, ownerSick.ID, dogSpecies.ID, "疾患ポチ", nil, nil)
 	makeSyncMedicalRecord(t, db, clinicA, ownerSick.ID, petSick.ID, time.Now())
 	require.NoError(t, db.WithContext(ctx).Create(&model.PetChronicCondition{
@@ -185,7 +185,7 @@ func TestCheckupSyncRepository_FindCheckupSyncPreview_ChronicConditionFilter(t *
 		DiagnosedAt: time.Now(), IsActive: true,
 	}).Error)
 
-	ownerHealthy := makeOwner(t, db, clinicA, "健康飼主")
+	ownerHealthy := makeTestOwner(t, db, clinicA, "健康飼主")
 	petHealthy := makeSyncPet(t, db, clinicA, ownerHealthy.ID, dogSpecies.ID, "健康ポチ", nil, nil)
 	makeSyncMedicalRecord(t, db, clinicA, ownerHealthy.ID, petHealthy.ID, time.Now())
 
@@ -210,13 +210,13 @@ func TestCheckupSyncRepository_FindCheckupSyncPreview_TotalAmountAndAnnualVisitF
 	const clinicA = uint64(1)
 
 	dogSpecies := makeSyncSpecies(t, db, "犬")
-	ownerHigh := makeOwner(t, db, clinicA, "高額飼主")
+	ownerHigh := makeTestOwner(t, db, clinicA, "高額飼主")
 	petHigh := makeSyncPet(t, db, clinicA, ownerHigh.ID, dogSpecies.ID, "高額ポチ", nil, nil)
 	makeSyncMedicalRecord(t, db, clinicA, ownerHigh.ID, petHigh.ID, time.Now())
 	makeBilling(t, db, clinicA, &ownerHigh.ID, nil, 10000, model.BillingStatusCompleted, time.Now())
 	makeBilling(t, db, clinicA, &ownerHigh.ID, nil, 5000, model.BillingStatusWaiting, time.Now()) // 未完了は除外
 
-	ownerLow := makeOwner(t, db, clinicA, "低額飼主")
+	ownerLow := makeTestOwner(t, db, clinicA, "低額飼主")
 	petLow := makeSyncPet(t, db, clinicA, ownerLow.ID, dogSpecies.ID, "低額ポチ", nil, nil)
 	makeSyncMedicalRecord(t, db, clinicA, ownerLow.ID, petLow.ID, time.Now())
 	makeBilling(t, db, clinicA, &ownerLow.ID, nil, 100, model.BillingStatusCompleted, time.Now())
@@ -228,12 +228,12 @@ func TestCheckupSyncRepository_FindCheckupSyncPreview_TotalAmountAndAnnualVisitF
 	assert.Equal(t, ownerHigh.ID, rows[0].OwnerID)
 	assert.Equal(t, int64(10000), rows[0].TotalAmount, "completed のみ合算される")
 
-	ownerFrequent := makeOwner(t, db, clinicA, "頻回飼主")
+	ownerFrequent := makeTestOwner(t, db, clinicA, "頻回飼主")
 	petFrequent := makeSyncPet(t, db, clinicA, ownerFrequent.ID, dogSpecies.ID, "頻回ポチ", nil, nil)
 	makeSyncMedicalRecord(t, db, clinicA, ownerFrequent.ID, petFrequent.ID, time.Now())
 	makeSyncMedicalRecord(t, db, clinicA, ownerFrequent.ID, petFrequent.ID, time.Now().AddDate(0, 0, -10))
 
-	ownerRare := makeOwner(t, db, clinicA, "希少飼主")
+	ownerRare := makeTestOwner(t, db, clinicA, "希少飼主")
 	petRare := makeSyncPet(t, db, clinicA, ownerRare.ID, dogSpecies.ID, "希少ポチ", nil, nil)
 	makeSyncMedicalRecord(t, db, clinicA, ownerRare.ID, petRare.ID, time.Now().AddDate(-2, 0, 0)) // 2年前=年間対象外
 
@@ -254,13 +254,13 @@ func TestCheckupSyncRepository_FindCheckupSyncPreview_AgeAndLastCheckupFilters(t
 	ct := makeCheckupTypeMaster(t, db, clinicA, "同期健診種別")
 
 	youngBirth := time.Now().AddDate(-1, 0, 0)
-	ownerYoung := makeOwner(t, db, clinicA, "若齢飼主")
+	ownerYoung := makeTestOwner(t, db, clinicA, "若齢飼主")
 	petYoung := makeSyncPet(t, db, clinicA, ownerYoung.ID, dogSpecies.ID, "若齢ポチ", &youngBirth, nil)
 	mrYoung := makeSyncMedicalRecord(t, db, clinicA, ownerYoung.ID, petYoung.ID, time.Now())
 	makeSyncCheckup(t, db, clinicA, mrYoung.ID, petYoung.ID, ct.ID, time.Now().AddDate(0, -1, 0))
 
 	oldBirth := time.Now().AddDate(-10, 0, 0)
-	ownerOld := makeOwner(t, db, clinicA, "高齢飼主")
+	ownerOld := makeTestOwner(t, db, clinicA, "高齢飼主")
 	petOld := makeSyncPet(t, db, clinicA, ownerOld.ID, dogSpecies.ID, "高齢ポチ", &oldBirth, nil)
 	mrOld := makeSyncMedicalRecord(t, db, clinicA, ownerOld.ID, petOld.ID, time.Now())
 	makeSyncCheckup(t, db, clinicA, mrOld.ID, petOld.ID, ct.ID, time.Now().AddDate(-1, 0, 0))

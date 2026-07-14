@@ -98,7 +98,7 @@ func TestLineCustomerRepository_FindByID(t *testing.T) {
 		clinicB = uint64(2)
 	)
 
-	owner := makeOwner(t, db, clinicA, "飼主リンク")
+	owner := makeTestOwner(t, db, clinicA, "飼主リンク")
 	c := makeLineCustomer(t, db, clinicA, "lineA1", "Aさん1")
 	require.NoError(t, db.Model(&model.LineCustomer{}).Where("id = ?", c.ID).Update("owner_id", owner.ID).Error)
 
@@ -136,7 +136,7 @@ func TestLineCustomerRepository_FindByID(t *testing.T) {
 	})
 
 	t.Run("soft-deleted owner is not preloaded", func(t *testing.T) {
-		deletedOwner := makeOwner(t, db, clinicA, "削除済み飼主")
+		deletedOwner := makeTestOwner(t, db, clinicA, "削除済み飼主")
 		c2 := makeLineCustomer(t, db, clinicA, "lineA-deletedowner", "Aさん3")
 		require.NoError(t, db.Model(&model.LineCustomer{}).Where("id = ?", c2.ID).Update("owner_id", deletedOwner.ID).Error)
 		require.NoError(t, db.Delete(deletedOwner).Error)
@@ -152,7 +152,7 @@ func TestLineCustomerRepository_FindByID(t *testing.T) {
 		// 本テストは repository 単体の防御を独立検証するため、service ガードを経由せず
 		// UpdateOwnerLink を直接叩いて不正データ相当の状況を再現し、read 側(Preload の
 		// clinic_id 述語)が単独でもクロステナント漏洩を防いでいることを確認する。
-		otherClinicOwner := makeOwner(t, db, clinicB, "他院の飼主")
+		otherClinicOwner := makeTestOwner(t, db, clinicB, "他院の飼主")
 		c3 := makeLineCustomer(t, db, clinicA, "lineA-crossclinic", "Aさん4")
 		require.NoError(t, repo.UpdateOwnerLink(ctx, clinicA, c3.ID, &otherClinicOwner.ID))
 
@@ -245,7 +245,7 @@ func TestLineCustomerRepository_UpdateOwnerLink(t *testing.T) {
 		clinicB = uint64(2)
 	)
 
-	owner := makeOwner(t, db, clinicA, "紐付け対象飼主")
+	owner := makeTestOwner(t, db, clinicA, "紐付け対象飼主")
 	c := makeLineCustomer(t, db, clinicA, "lineA1", "Aさん1")
 
 	t.Run("links owner successfully", func(t *testing.T) {

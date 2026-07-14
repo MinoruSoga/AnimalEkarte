@@ -215,7 +215,7 @@ func TestLabImportDuplicateCheckerDB_IsDuplicate(t *testing.T) {
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 
-	owner := makeOwner(t, db, clinicA, "重複判定飼主")
+	owner := makeTestOwner(t, db, clinicA, "重複判定飼主")
 	pet := makeSpeciesAndPet(t, db, clinicA, owner.ID, "重複判定犬")
 	examType := makeLabImportExamTypeMaster(t, db, clinicA, "血液検査")
 	date := time.Date(2026, 6, 15, 0, 0, 0, 0, time.UTC)

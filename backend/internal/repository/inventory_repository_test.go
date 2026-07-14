@@ -241,7 +241,7 @@ func TestInventoryRepository_CountUsageByInventoryID(t *testing.T) {
 		assert.Equal(t, int64(0), count)
 	})
 
-	owner := makeOwner(t, db, clinicA, "在庫使用飼主")
+	owner := makeTestOwner(t, db, clinicA, "在庫使用飼主")
 	pet := makeSpeciesAndPet(t, db, clinicA, owner.ID, "在庫使用犬")
 	mr := makeHistoryMedicalRecord(t, db, clinicA, pet.ID, "MR-INV-001", time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC))
 	inventoryID := item.ID

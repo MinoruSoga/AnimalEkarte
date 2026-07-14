@@ -47,7 +47,7 @@ func TestMedicalRecordRepository_LockByIDForUpdate_SerializesFinalizeAgainstChil
 	require.NoError(t, db.AutoMigrate(&model.AnimalSpecies{}, &model.Pet{}))
 
 	const clinicID = uint64(90101)
-	owner := makeOwner(t, db, clinicID, "X-11 太郎")
+	owner := makeTestOwner(t, db, clinicID, "X-11 太郎")
 	pet := makeSpeciesAndPet(t, db, clinicID, owner.ID, "X-11 ポチ")
 
 	medRecRepo := NewMedicalRecordRepository(db)
@@ -129,7 +129,7 @@ func TestMedicalRecordRepository_LockByIDForUpdate_ChildWriteRejectedAfterFinali
 	require.NoError(t, db.AutoMigrate(&model.AnimalSpecies{}, &model.Pet{}))
 
 	const clinicID = uint64(90102)
-	owner := makeOwner(t, db, clinicID, "X-11 花子")
+	owner := makeTestOwner(t, db, clinicID, "X-11 花子")
 	pet := makeSpeciesAndPet(t, db, clinicID, owner.ID, "X-11 タマ")
 
 	medRecRepo := NewMedicalRecordRepository(db)
@@ -177,7 +177,7 @@ func TestMedicalRecordRepository_LockByIDForUpdate_TreatmentDeleteRejectedAfterF
 	require.NoError(t, db.AutoMigrate(&model.AnimalSpecies{}, &model.Pet{}))
 
 	const clinicID = uint64(90103)
-	owner := makeOwner(t, db, clinicID, "H-8f 太郎")
+	owner := makeTestOwner(t, db, clinicID, "H-8f 太郎")
 	pet := makeSpeciesAndPet(t, db, clinicID, owner.ID, "H-8f ポチ")
 
 	medRecRepo := NewMedicalRecordRepository(db)
@@ -228,7 +228,7 @@ func TestMedicalRecordRepository_LockByIDForUpdate_TreatmentBulkSortOrderRejecte
 	require.NoError(t, db.AutoMigrate(&model.AnimalSpecies{}, &model.Pet{}))
 
 	const clinicID = uint64(90104)
-	owner := makeOwner(t, db, clinicID, "H-8f 花子")
+	owner := makeTestOwner(t, db, clinicID, "H-8f 花子")
 	pet := makeSpeciesAndPet(t, db, clinicID, owner.ID, "H-8f タマ")
 
 	medRecRepo := NewMedicalRecordRepository(db)

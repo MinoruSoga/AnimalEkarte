@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -11,6 +12,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 
@@ -65,6 +67,14 @@ func setupTestDB(t *testing.T) *gorm.DB {
 	db.Exec("TRUNCATE TABLE owners CASCADE")
 
 	return db
+}
+
+// makeTestOwner はテスト用の Owner を作成して返す。
+func makeTestOwner(t *testing.T, db *gorm.DB, clinicID uint64, name string) *model.Owner {
+	t.Helper()
+	o := &model.Owner{ClinicID: clinicID, Name: name}
+	require.NoError(t, db.WithContext(context.Background()).Create(o).Error)
+	return o
 }
 
 // setupIsolatedTestDB は setupTestDB と異なり、プロセス全体で共有しない「呼び出し毎に完全に新しい」

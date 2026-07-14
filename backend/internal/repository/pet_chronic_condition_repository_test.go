@@ -49,7 +49,7 @@ func TestPetChronicConditionRepository_FindByPetID(t *testing.T) {
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 
-	owner := makeOwner(t, db, clinicA, "慢性疾患飼主")
+	owner := makeTestOwner(t, db, clinicA, "慢性疾患飼主")
 	pet := makeSpeciesAndPet(t, db, clinicA, owner.ID, "慢性疾患ペット")
 
 	old := makeChronicCondition(t, db, clinicA, pet.ID, "DM", "糖尿病", time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC), true)
@@ -58,7 +58,7 @@ func TestPetChronicConditionRepository_FindByPetID(t *testing.T) {
 	require.NoError(t, db.WithContext(ctx).Delete(deleted).Error)
 
 	// 別クリニックの同一ペットID疾患（実際は起こり得ないが clinic_id 述語の検証として作成）
-	otherOwner := makeOwner(t, db, clinicB, "別クリニック慢性疾患飼主")
+	otherOwner := makeTestOwner(t, db, clinicB, "別クリニック慢性疾患飼主")
 	otherPet := makeSpeciesAndPet(t, db, clinicB, otherOwner.ID, "別クリニックペット")
 	makeChronicCondition(t, db, clinicB, otherPet.ID, "OTH", "別クリニック疾患", time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC), true)
 
@@ -75,7 +75,7 @@ func TestPetChronicConditionRepository_FindByID(t *testing.T) {
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 
-	owner := makeOwner(t, db, clinicA, "単件取得飼主")
+	owner := makeTestOwner(t, db, clinicA, "単件取得飼主")
 	pet := makeSpeciesAndPet(t, db, clinicA, owner.ID, "単件取得ペット")
 	cond := makeChronicCondition(t, db, clinicA, pet.ID, "ASTH", "喘息", time.Date(2026, 2, 1, 0, 0, 0, 0, time.UTC), true)
 
@@ -116,7 +116,7 @@ func TestPetChronicConditionRepository_Create(t *testing.T) {
 	ctx := context.Background()
 	const clinicA = uint64(1)
 
-	owner := makeOwner(t, db, clinicA, "新規作成飼主(慢性疾患)")
+	owner := makeTestOwner(t, db, clinicA, "新規作成飼主(慢性疾患)")
 	pet := makeSpeciesAndPet(t, db, clinicA, owner.ID, "新規作成ペット(慢性疾患)")
 
 	record := &model.PetChronicCondition{
@@ -142,7 +142,7 @@ func TestPetChronicConditionRepository_Update(t *testing.T) {
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 
-	owner := makeOwner(t, db, clinicA, "更新テスト飼主(慢性疾患)")
+	owner := makeTestOwner(t, db, clinicA, "更新テスト飼主(慢性疾患)")
 	pet := makeSpeciesAndPet(t, db, clinicA, owner.ID, "更新テストペット(慢性疾患)")
 	cond := makeChronicCondition(t, db, clinicA, pet.ID, "ALG", "アレルギー", time.Date(2026, 1, 10, 0, 0, 0, 0, time.UTC), true)
 
@@ -171,7 +171,7 @@ func TestPetChronicConditionRepository_Delete(t *testing.T) {
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 
-	owner := makeOwner(t, db, clinicA, "削除テスト飼主(慢性疾患)")
+	owner := makeTestOwner(t, db, clinicA, "削除テスト飼主(慢性疾患)")
 	pet := makeSpeciesAndPet(t, db, clinicA, owner.ID, "削除テストペット(慢性疾患)")
 
 	t.Run("成功", func(t *testing.T) {
@@ -200,7 +200,7 @@ func TestPetChronicConditionRepository_FindActiveConditionCodesByOwner(t *testin
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 
-	owner := makeOwner(t, db, clinicA, "アクティブ疾患飼主")
+	owner := makeTestOwner(t, db, clinicA, "アクティブ疾患飼主")
 	deceasedAt := time.Now().Add(-24 * time.Hour)
 	aliveSpeciesID := makeSyncSpeciesID(t, db)
 
@@ -217,7 +217,7 @@ func TestPetChronicConditionRepository_FindActiveConditionCodesByOwner(t *testin
 	makeChronicCondition(t, db, clinicA, petDeceased.ID, "DEAD", "死亡ペットの疾患", time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC), true)
 
 	// 別クリニックの疾患は混入しない
-	otherOwner := makeOwner(t, db, clinicB, "別クリニックアクティブ疾患飼主")
+	otherOwner := makeTestOwner(t, db, clinicB, "別クリニックアクティブ疾患飼主")
 	otherPet := makeSpeciesAndPet(t, db, clinicB, otherOwner.ID, "別クリニックペット(疾患)")
 	makeChronicCondition(t, db, clinicB, otherPet.ID, "OTH", "別クリニック疾患", time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC), true)
 

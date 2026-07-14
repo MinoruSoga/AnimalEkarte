@@ -37,14 +37,6 @@ func setupLstepTagCacheTestDB(t *testing.T) *gorm.DB {
 	return db
 }
 
-// makeTagCacheOwner はテスト用飼い主を作成して返す。
-func makeTagCacheOwner(t *testing.T, db *gorm.DB, clinicID uint64, name string) *model.Owner {
-	t.Helper()
-	owner := &model.Owner{ClinicID: clinicID, Name: name}
-	require.NoError(t, db.WithContext(context.Background()).Create(owner).Error)
-	return owner
-}
-
 func TestLstepTagCacheRepository_UpsertTag(t *testing.T) {
 	db := setupLstepTagCacheTestDB(t)
 	repo := NewLstepTagCacheRepository(db)
@@ -246,10 +238,10 @@ func TestLstepTagCacheRepository_FindOwnersByTag(t *testing.T) {
 	ctx := context.Background()
 
 	const clinicA, clinicB = uint64(1), uint64(2)
-	tanaka := makeTagCacheOwner(t, db, clinicA, "田中太郎")
-	yamada := makeTagCacheOwner(t, db, clinicA, "山田花子")
-	deletedOwner := makeTagCacheOwner(t, db, clinicA, "削除済み飼い主")
-	otherClinicOwner := makeTagCacheOwner(t, db, clinicB, "別クリニック飼い主")
+	tanaka := makeTestOwner(t, db, clinicA, "田中太郎")
+	yamada := makeTestOwner(t, db, clinicA, "山田花子")
+	deletedOwner := makeTestOwner(t, db, clinicA, "削除済み飼い主")
+	otherClinicOwner := makeTestOwner(t, db, clinicB, "別クリニック飼い主")
 
 	require.NoError(t, repo.UpsertTag(ctx, clinicA, tanaka.ID, "dormant_365d", "auto", "reason-tanaka"))
 	require.NoError(t, repo.UpsertTag(ctx, clinicA, tanaka.ID, "manual_note", "manual", ""))

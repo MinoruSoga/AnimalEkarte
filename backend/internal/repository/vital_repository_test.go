@@ -36,13 +36,6 @@ func setupVitalTestDB(t *testing.T) *gorm.DB {
 
 func vitalFloatPtr(v float64) *float64 { return &v }
 
-func makeVitalOwner(t *testing.T, db *gorm.DB, clinicID uint64, name string) *model.Owner {
-	t.Helper()
-	o := &model.Owner{ClinicID: clinicID, Name: name}
-	require.NoError(t, db.WithContext(context.Background()).Create(o).Error)
-	return o
-}
-
 func makeVitalSpecies(t *testing.T, db *gorm.DB, name string) *model.AnimalSpecies {
 	t.Helper()
 	s := &model.AnimalSpecies{Name: name}
@@ -71,7 +64,7 @@ func TestVitalRepository_Create_FindByID(t *testing.T) {
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 
-	ownerA := makeVitalOwner(t, db, clinicA, "飼主A")
+	ownerA := makeTestOwner(t, db, clinicA, "飼主A")
 	species := makeVitalSpecies(t, db, "犬")
 	petA := makeVitalPet(t, db, clinicA, ownerA.ID, species.ID, "ペットA")
 
@@ -119,7 +112,7 @@ func TestVitalRepository_FindByMedicalRecordID(t *testing.T) {
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 
-	ownerA := makeVitalOwner(t, db, clinicA, "飼主A")
+	ownerA := makeTestOwner(t, db, clinicA, "飼主A")
 	species := makeVitalSpecies(t, db, "猫")
 	petA := makeVitalPet(t, db, clinicA, ownerA.ID, species.ID, "ペットA")
 	mrA := makeVitalMedicalRecord(t, db, clinicA, "MR-VITAL-001", time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC))
@@ -168,7 +161,7 @@ func TestVitalRepository_Update(t *testing.T) {
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 
-	ownerA := makeVitalOwner(t, db, clinicA, "飼主A")
+	ownerA := makeTestOwner(t, db, clinicA, "飼主A")
 	species := makeVitalSpecies(t, db, "犬")
 	petA := makeVitalPet(t, db, clinicA, ownerA.ID, species.ID, "ペットA")
 
@@ -203,7 +196,7 @@ func TestVitalRepository_Delete(t *testing.T) {
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 
-	ownerA := makeVitalOwner(t, db, clinicA, "飼主A")
+	ownerA := makeTestOwner(t, db, clinicA, "飼主A")
 	species := makeVitalSpecies(t, db, "犬")
 	petA := makeVitalPet(t, db, clinicA, ownerA.ID, species.ID, "ペットA")
 

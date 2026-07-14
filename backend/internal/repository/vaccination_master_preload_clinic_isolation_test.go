@@ -69,7 +69,7 @@ func TestVaccinationRepository_FindByID_VaccinePreloadClinicIsolation(t *testing
 		clinicB = uint64(2)
 	)
 
-	ownerA := makeOwner(t, db, clinicA, "ワクチン隔離飼主A")
+	ownerA := makeTestOwner(t, db, clinicA, "ワクチン隔離飼主A")
 	petA := makeSpeciesAndPet(t, db, clinicA, ownerA.ID, "ワクチンポチA")
 	vaccineB := makeVaccineMaster(t, db, clinicB, "医院Bの狂犬病ワクチン")
 
@@ -91,7 +91,7 @@ func TestVaccinationRepository_FindByID_SameClinicVaccinePreloaded(t *testing.T)
 
 	const clinicA = uint64(1)
 
-	ownerA := makeOwner(t, db, clinicA, "正常ワクチン飼主A")
+	ownerA := makeTestOwner(t, db, clinicA, "正常ワクチン飼主A")
 	petA := makeSpeciesAndPet(t, db, clinicA, ownerA.ID, "正常ワクチンタマA")
 	vaccineA := makeVaccineMaster(t, db, clinicA, "医院Aの狂犬病ワクチン")
 

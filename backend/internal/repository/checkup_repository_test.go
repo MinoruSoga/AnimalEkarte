@@ -58,12 +58,12 @@ func TestCheckupRepository_FindByClinicID_FiltersAndClinicIsolation(t *testing.T
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 
-	ownerA := makeOwner(t, db, clinicA, "健診一覧飼主A")
+	ownerA := makeTestOwner(t, db, clinicA, "健診一覧飼主A")
 	petA := makeSpeciesAndPet(t, db, clinicA, ownerA.ID, "健診一覧ポチA")
 	mrA := makeHistoryMedicalRecord(t, db, clinicA, petA.ID, "MR-LIST-A", time.Now())
 	ctA := makeCheckupTypeMaster(t, db, clinicA, "医院Aの健診")
 
-	ownerB := makeOwner(t, db, clinicB, "健診一覧飼主B")
+	ownerB := makeTestOwner(t, db, clinicB, "健診一覧飼主B")
 	petB := makeSpeciesAndPet(t, db, clinicB, ownerB.ID, "健診一覧ポチB")
 	mrB := makeHistoryMedicalRecord(t, db, clinicB, petB.ID, "MR-LIST-B", time.Now())
 	ctB := makeCheckupTypeMaster(t, db, clinicB, "医院Bの健診")
@@ -133,7 +133,7 @@ func TestCheckupRepository_FindByMedicalRecordID(t *testing.T) {
 	ctx := context.Background()
 	const clinicA = uint64(1)
 
-	owner := makeOwner(t, db, clinicA, "健診MR飼主")
+	owner := makeTestOwner(t, db, clinicA, "健診MR飼主")
 	pet := makeSpeciesAndPet(t, db, clinicA, owner.ID, "健診MRポチ")
 	mr := makeHistoryMedicalRecord(t, db, clinicA, pet.ID, "MR-DETAIL", time.Now())
 	ct := makeCheckupTypeMaster(t, db, clinicA, "健診種別")
@@ -163,8 +163,8 @@ func TestCheckupRepository_FindByOwnerID(t *testing.T) {
 	ctx := context.Background()
 	const clinicA = uint64(1)
 
-	owner := makeOwner(t, db, clinicA, "健診飼主同期")
-	otherOwner := makeOwner(t, db, clinicA, "別の飼主")
+	owner := makeTestOwner(t, db, clinicA, "健診飼主同期")
+	otherOwner := makeTestOwner(t, db, clinicA, "別の飼主")
 	pet := makeSpeciesAndPet(t, db, clinicA, owner.ID, "健診同期ポチ")
 	ct := makeCheckupTypeMaster(t, db, clinicA, "同期健診種別")
 
@@ -191,7 +191,7 @@ func TestCheckupRepository_FindByID(t *testing.T) {
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 
-	owner := makeOwner(t, db, clinicA, "健診単体飼主")
+	owner := makeTestOwner(t, db, clinicA, "健診単体飼主")
 	pet := makeSpeciesAndPet(t, db, clinicA, owner.ID, "健診単体ポチ")
 	mr := makeHistoryMedicalRecord(t, db, clinicA, pet.ID, "MR-SINGLE", time.Now())
 	ct := makeCheckupTypeMaster(t, db, clinicA, "単体健診種別")
@@ -223,7 +223,7 @@ func TestCheckupRepository_Create(t *testing.T) {
 	ctx := context.Background()
 	const clinicA = uint64(1)
 
-	owner := makeOwner(t, db, clinicA, "新規健診飼主")
+	owner := makeTestOwner(t, db, clinicA, "新規健診飼主")
 	pet := makeSpeciesAndPet(t, db, clinicA, owner.ID, "新規健診ポチ")
 	mr := makeHistoryMedicalRecord(t, db, clinicA, pet.ID, "MR-NEW", time.Now())
 	ct := makeCheckupTypeMaster(t, db, clinicA, "新規健診種別")
@@ -243,7 +243,7 @@ func TestCheckupRepository_Update(t *testing.T) {
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 
-	owner := makeOwner(t, db, clinicA, "更新健診飼主")
+	owner := makeTestOwner(t, db, clinicA, "更新健診飼主")
 	pet := makeSpeciesAndPet(t, db, clinicA, owner.ID, "更新健診ポチ")
 	mr := makeHistoryMedicalRecord(t, db, clinicA, pet.ID, "MR-UPD", time.Now())
 	ct := makeCheckupTypeMaster(t, db, clinicA, "更新健診種別")
@@ -275,7 +275,7 @@ func TestCheckupRepository_Delete(t *testing.T) {
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 
-	owner := makeOwner(t, db, clinicA, "削除健診飼主")
+	owner := makeTestOwner(t, db, clinicA, "削除健診飼主")
 	pet := makeSpeciesAndPet(t, db, clinicA, owner.ID, "削除健診ポチ")
 	mr := makeHistoryMedicalRecord(t, db, clinicA, pet.ID, "MR-DEL", time.Now())
 	ct := makeCheckupTypeMaster(t, db, clinicA, "削除健診種別")

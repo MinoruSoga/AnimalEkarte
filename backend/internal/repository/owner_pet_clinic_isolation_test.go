@@ -47,7 +47,7 @@ func TestOwnerRepository_FindByID_ClinicIsolation(t *testing.T) {
 	)
 
 	// clinic A に飼主を1件作成（ペットなし → Pets preload は空リストを返す）。
-	ownerA := makeOwner(t, db, clinicA, "医院Aの飼主")
+	ownerA := makeTestOwner(t, db, clinicA, "医院Aの飼主")
 
 	t.Run("同一クリニックIDでは取得できる", func(t *testing.T) {
 		got, err := repo.FindByID(ctx, clinicA, ownerA.ID)
@@ -78,7 +78,7 @@ func TestPetRepository_FindByID_ClinicIsolation(t *testing.T) {
 		clinicB = uint64(2)
 	)
 
-	ownerA := makeOwner(t, db, clinicA, "医院Aの飼主（ペット隔離用）")
+	ownerA := makeTestOwner(t, db, clinicA, "医院Aの飼主（ペット隔離用）")
 	// makeSpeciesAndPet は animal_species + pet を作成する。insurance_id は nil。
 	petA := makeSpeciesAndPet(t, db, clinicA, ownerA.ID, "ポチ（隔離テスト）")
 
@@ -111,7 +111,7 @@ func TestOwnerRepository_Update_ClinicIsolation(t *testing.T) {
 		clinicB = uint64(2)
 	)
 
-	ownerA := makeOwner(t, db, clinicA, "更新テスト飼主")
+	ownerA := makeTestOwner(t, db, clinicA, "更新テスト飼主")
 
 	t.Run("別クリニックIDからの Update は NotFound を返す", func(t *testing.T) {
 		err := repo.Update(ctx, clinicB, ownerA.ID, map[string]any{"name": "不正書き換え"})
@@ -148,7 +148,7 @@ func TestOwnerRepository_Delete_ClinicIsolation(t *testing.T) {
 		clinicB = uint64(2)
 	)
 
-	ownerA := makeOwner(t, db, clinicA, "削除テスト飼主")
+	ownerA := makeTestOwner(t, db, clinicA, "削除テスト飼主")
 
 	t.Run("別クリニックIDからの Delete は NotFound を返す", func(t *testing.T) {
 		err := repo.Delete(ctx, clinicB, ownerA.ID)
@@ -176,7 +176,7 @@ func TestPetRepository_Delete_ClinicIsolation(t *testing.T) {
 		clinicB = uint64(2)
 	)
 
-	ownerA := makeOwner(t, db, clinicA, "ペット削除テスト飼主")
+	ownerA := makeTestOwner(t, db, clinicA, "ペット削除テスト飼主")
 	petA := makeSpeciesAndPet(t, db, clinicA, ownerA.ID, "削除テストペット")
 
 	t.Run("別クリニックIDからの Delete は NotFound を返す", func(t *testing.T) {

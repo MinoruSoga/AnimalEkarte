@@ -27,7 +27,7 @@ func TestMedicalRecordRepository_LockByIDForUpdate(t *testing.T) {
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 
-	ownerA := makeOwner(t, db, clinicA, "LockByIDForUpdate飼主")
+	ownerA := makeTestOwner(t, db, clinicA, "LockByIDForUpdate飼主")
 	petA := makeSpeciesAndPet(t, db, clinicA, ownerA.ID, "LockByIDForUpdateペット")
 	draftRec := makeFullMedicalRecord(t, db, &model.MedicalRecord{
 		ClinicID: clinicA, RecordNo: "LDB-001", Date: time.Now(), OwnerID: &ownerA.ID, PetID: &petA.ID,
@@ -75,7 +75,7 @@ func TestMedicalRecordRepository_Update(t *testing.T) {
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 
-	owner := makeOwner(t, db, clinicA, "Update飼主")
+	owner := makeTestOwner(t, db, clinicA, "Update飼主")
 	pet := makeSpeciesAndPet(t, db, clinicA, owner.ID, "Updateペット")
 
 	t.Run("draft カルテは更新できる", func(t *testing.T) {
@@ -155,7 +155,7 @@ func TestMedicalRecordRepository_Update_VersionPredicate_ConcurrentUpdates_OnlyO
 	ctx := context.Background()
 	const clinicID = uint64(1)
 
-	owner := makeOwner(t, db, clinicID, "並行更新飼主")
+	owner := makeTestOwner(t, db, clinicID, "並行更新飼主")
 	pet := makeSpeciesAndPet(t, db, clinicID, owner.ID, "並行更新ペット")
 	rec := makeFullMedicalRecord(t, db, &model.MedicalRecord{ClinicID: clinicID, RecordNo: "UP-CONCURRENT", Date: time.Now(), OwnerID: &owner.ID, PetID: &pet.ID})
 	startVersion := rec.Version

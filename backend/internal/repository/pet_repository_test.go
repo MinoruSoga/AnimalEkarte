@@ -53,12 +53,12 @@ func TestPetRepository_FindAll(t *testing.T) {
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 
-	ownerA1 := makeOwner(t, db, clinicA, "検索飼主1")
-	ownerA2 := makeOwner(t, db, clinicA, "検索飼主2")
+	ownerA1 := makeTestOwner(t, db, clinicA, "検索飼主1")
+	ownerA2 := makeTestOwner(t, db, clinicA, "検索飼主2")
 	makeSpeciesAndPet(t, db, clinicA, ownerA1.ID, "ペットA1")
 	petA2 := makeSpeciesAndPet(t, db, clinicA, ownerA1.ID, "ペットA2")
 	petA3 := makeSpeciesAndPet(t, db, clinicA, ownerA2.ID, "ペットA3")
-	makeSpeciesAndPet(t, db, clinicB, (makeOwner(t, db, clinicB, "検索飼主B")).ID, "ペットB1")
+	makeSpeciesAndPet(t, db, clinicB, (makeTestOwner(t, db, clinicB, "検索飼主B")).ID, "ペットB1")
 
 	t.Run("clinic スコープと総数", func(t *testing.T) {
 		pets, total, err := repo.FindAll(ctx, clinicA, nil, 1, 10, "")
@@ -107,7 +107,7 @@ func TestPetRepository_FindAll(t *testing.T) {
 	})
 
 	t.Run("かな正規化検索(カタカナ検索でひらがな登録データにヒット)", func(t *testing.T) {
-		ownerKana := makeOwner(t, db, clinicA, "ひらがな飼主")
+		ownerKana := makeTestOwner(t, db, clinicA, "ひらがな飼主")
 		petKana := makeSpeciesAndPet(t, db, clinicA, ownerKana.ID, "かな検索用ペット")
 		require.NoError(t, db.WithContext(ctx).Model(&model.Pet{}).Where("id = ?", petKana.ID).Update("name_kana", "ぽち").Error)
 
@@ -125,7 +125,7 @@ func TestPetRepository_FindByIDForClinics(t *testing.T) {
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 
-	ownerA := makeOwner(t, db, clinicA, "拠点横断飼主")
+	ownerA := makeTestOwner(t, db, clinicA, "拠点横断飼主")
 	petA := makeSpeciesAndPet(t, db, clinicA, ownerA.ID, "拠点横断ペット")
 
 	t.Run("認可済みclinic集合に含まれれば取得できる", func(t *testing.T) {
@@ -156,7 +156,7 @@ func TestPetRepository_FindLivingByOwner(t *testing.T) {
 	ctx := context.Background()
 	const clinicA = uint64(1)
 
-	owner := makeOwner(t, db, clinicA, "生存フィルタ飼主")
+	owner := makeTestOwner(t, db, clinicA, "生存フィルタ飼主")
 	deceasedAt := time.Now().Add(-24 * time.Hour)
 	alive1 := makePetDetailed(t, db, clinicA, owner.ID, makeSyncSpeciesID(t, db), "生存ペット1", nil, nil)
 	alive2 := makePetDetailed(t, db, clinicA, owner.ID, makeSyncSpeciesID(t, db), "生存ペット2", nil, nil)
@@ -183,7 +183,7 @@ func TestPetRepository_CountByOwner(t *testing.T) {
 	ctx := context.Background()
 	const clinicA = uint64(1)
 
-	owner := makeOwner(t, db, clinicA, "頭数カウント飼主")
+	owner := makeTestOwner(t, db, clinicA, "頭数カウント飼主")
 	makeSpeciesAndPet(t, db, clinicA, owner.ID, "カウント対象1")
 	makeSpeciesAndPet(t, db, clinicA, owner.ID, "カウント対象2")
 	deleted := makeSpeciesAndPet(t, db, clinicA, owner.ID, "カウント除外(削除済み)")
@@ -200,7 +200,7 @@ func TestPetRepository_CountLivingByOwner(t *testing.T) {
 	ctx := context.Background()
 	const clinicA = uint64(1)
 
-	owner := makeOwner(t, db, clinicA, "生存頭数飼主")
+	owner := makeTestOwner(t, db, clinicA, "生存頭数飼主")
 	deceasedAt := time.Now().Add(-24 * time.Hour)
 	makePetDetailed(t, db, clinicA, owner.ID, makeSyncSpeciesID(t, db), "生存中", nil, nil)
 	makePetDetailed(t, db, clinicA, owner.ID, makeSyncSpeciesID(t, db), "死亡済み", nil, &deceasedAt)
@@ -222,9 +222,9 @@ func TestPetRepository_CountLivingByOwnerIDs(t *testing.T) {
 		assert.Equal(t, map[uint64]int64{}, got)
 	})
 
-	owner1 := makeOwner(t, db, clinicA, "一括カウント飼主1")
-	owner2 := makeOwner(t, db, clinicA, "一括カウント飼主2")
-	ownerNoPets := makeOwner(t, db, clinicA, "ペット無し飼主")
+	owner1 := makeTestOwner(t, db, clinicA, "一括カウント飼主1")
+	owner2 := makeTestOwner(t, db, clinicA, "一括カウント飼主2")
+	ownerNoPets := makeTestOwner(t, db, clinicA, "ペット無し飼主")
 
 	makeSpeciesAndPet(t, db, clinicA, owner1.ID, "一括1-1")
 	makeSpeciesAndPet(t, db, clinicA, owner1.ID, "一括1-2")
@@ -253,7 +253,7 @@ func TestPetRepository_CountUsageByAnimalSpeciesID(t *testing.T) {
 	unusedSpecies := &model.AnimalSpecies{Name: "未使用種"}
 	require.NoError(t, db.WithContext(ctx).Create(unusedSpecies).Error)
 
-	owner := makeOwner(t, db, clinicA, "種別使用数飼主")
+	owner := makeTestOwner(t, db, clinicA, "種別使用数飼主")
 	makePetDetailed(t, db, clinicA, owner.ID, species.ID, "使用中ペット1", nil, nil)
 	deletedPet := makePetDetailed(t, db, clinicA, owner.ID, species.ID, "使用中ペット2(削除済み)", nil, nil)
 	require.NoError(t, db.WithContext(ctx).Delete(deletedPet).Error)
@@ -277,7 +277,7 @@ func TestPetRepository_Create(t *testing.T) {
 	ctx := context.Background()
 	const clinicA = uint64(1)
 
-	owner := makeOwner(t, db, clinicA, "新規作成飼主")
+	owner := makeTestOwner(t, db, clinicA, "新規作成飼主")
 	species := &model.AnimalSpecies{Name: "新規作成種"}
 	require.NoError(t, db.WithContext(ctx).Create(species).Error)
 
@@ -296,7 +296,7 @@ func TestPetRepository_Update(t *testing.T) {
 	ctx := context.Background()
 	const clinicA = uint64(1)
 
-	owner := makeOwner(t, db, clinicA, "更新テスト飼主")
+	owner := makeTestOwner(t, db, clinicA, "更新テスト飼主")
 	pet := makeSpeciesAndPet(t, db, clinicA, owner.ID, "更新前ペット名")
 
 	t.Run("成功", func(t *testing.T) {
@@ -321,7 +321,7 @@ func TestPetRepository_Delete(t *testing.T) {
 	ctx := context.Background()
 	const clinicA = uint64(1)
 
-	owner := makeOwner(t, db, clinicA, "削除テスト飼主(pet_repository)")
+	owner := makeTestOwner(t, db, clinicA, "削除テスト飼主(pet_repository)")
 	pet := makeSpeciesAndPet(t, db, clinicA, owner.ID, "削除対象ペット(pet_repository)")
 
 	t.Run("成功", func(t *testing.T) {
@@ -351,19 +351,19 @@ func TestPetRepository_FindOwnersByPetBirthday(t *testing.T) {
 	otherBirthday := time.Date(1990, time.April, 1, 0, 0, 0, 0, time.UTC)
 	deceasedAt := time.Now().Add(-24 * time.Hour)
 
-	ownerMatch := makeOwner(t, db, clinicA, "誕生日一致飼主")
+	ownerMatch := makeTestOwner(t, db, clinicA, "誕生日一致飼主")
 	makePetDetailed(t, db, clinicA, ownerMatch.ID, speciesID, "誕生日一致ペット", &matchBirthday, nil)
 
 	// 同一飼主が複数ペット・同一誕生日を持っても owner_id は重複排除される
 	makePetDetailed(t, db, clinicA, ownerMatch.ID, speciesID, "誕生日一致ペット2", &matchBirthday, nil)
 
-	ownerOther := makeOwner(t, db, clinicA, "誕生日不一致飼主")
+	ownerOther := makeTestOwner(t, db, clinicA, "誕生日不一致飼主")
 	makePetDetailed(t, db, clinicA, ownerOther.ID, speciesID, "誕生日不一致ペット", &otherBirthday, nil)
 
-	ownerDeceasedOnly := makeOwner(t, db, clinicA, "死亡ペットのみ飼主")
+	ownerDeceasedOnly := makeTestOwner(t, db, clinicA, "死亡ペットのみ飼主")
 	makePetDetailed(t, db, clinicA, ownerDeceasedOnly.ID, speciesID, "誕生日一致だが死亡", &matchBirthday, &deceasedAt)
 
-	ownerOtherClinic := makeOwner(t, db, clinicB, "別クリニック誕生日一致飼主")
+	ownerOtherClinic := makeTestOwner(t, db, clinicB, "別クリニック誕生日一致飼主")
 	makePetDetailed(t, db, clinicB, ownerOtherClinic.ID, speciesID, "別クリニックの誕生日一致ペット", &matchBirthday, nil)
 
 	got, err := repo.FindOwnersByPetBirthday(ctx, clinicA, int(time.March), 15)

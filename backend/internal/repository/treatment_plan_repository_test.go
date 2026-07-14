@@ -113,12 +113,12 @@ func TestTreatmentPlanRepository_FindByHospitalizationID(t *testing.T) {
 		clinicB = uint64(2)
 	)
 
-	ownerA := makeOwner(t, db, clinicA, "入院飼主A")
+	ownerA := makeTestOwner(t, db, clinicA, "入院飼主A")
 	petA := makeSpeciesAndPet(t, db, clinicA, ownerA.ID, "入院ポチA")
 	hospA := makeHospitalizationRec(t, db, clinicA, ownerA.ID, petA.ID, nil)
 	hospOther := makeHospitalizationRec(t, db, clinicA, ownerA.ID, petA.ID, nil)
 
-	ownerB := makeOwner(t, db, clinicB, "入院飼主B")
+	ownerB := makeTestOwner(t, db, clinicB, "入院飼主B")
 	petB := makeSpeciesAndPet(t, db, clinicB, ownerB.ID, "入院ポチB")
 	hospB := makeHospitalizationRec(t, db, clinicB, ownerB.ID, petB.ID, nil)
 

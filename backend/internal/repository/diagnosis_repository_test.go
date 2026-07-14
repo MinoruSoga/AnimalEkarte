@@ -480,7 +480,7 @@ func TestDiagnosisNameRepository_CountUsageByDiagnosisNameID(t *testing.T) {
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 
-	ownerA := makeOwner(t, db, clinicA, "診断使用状況飼主")
+	ownerA := makeTestOwner(t, db, clinicA, "診断使用状況飼主")
 	petA := makeSpeciesAndPet(t, db, clinicA, ownerA.ID, "診断使用状況ペット")
 	typeA := makeDiagnosisTypeMaster(t, db, clinicA, "分類A")
 	nameA := makeDiagnosisNameRec(t, db, clinicA, typeA.ID, "使用状況診断名")

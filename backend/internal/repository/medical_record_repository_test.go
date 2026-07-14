@@ -16,7 +16,7 @@ import (
 
 // makeMedicalRecordForPet はテスト用カルテ 1 件を作成する。deleted=true なら論理削除する。
 // pet_id は medical_records → pets の FK 制約があるため、呼び出し側で実在ペットの ID を渡すこと。
-// 既存ヘルパー（makeOwner / makeSpeciesAndPet）に合わせ context は内部生成する。
+// 既存ヘルパー（makeTestOwner / makeSpeciesAndPet）に合わせ context は内部生成する。
 func makeMedicalRecordForPet(t *testing.T, db *gorm.DB, clinicID, petID uint64, date time.Time, deleted bool) {
 	t.Helper()
 	ctx := context.Background()
@@ -51,7 +51,7 @@ func TestMedicalRecordRepository_FindFirstVisitDateByPetID(t *testing.T) {
 		return tm
 	}
 
-	owner := makeOwner(t, db, clinicA, "山田太郎")
+	owner := makeTestOwner(t, db, clinicA, "山田太郎")
 	petA := makeSpeciesAndPet(t, db, clinicA, owner.ID, "ポチ")
 	// otherPet の所属医院（clinicB）はテスト対象外。pet スコープ除外の検証では
 	// otherPet.ID を使った clinicA のカルテを作り、petA への問い合わせから除外されることを見る。
@@ -124,9 +124,9 @@ func TestMedicalRecordRepository_FindAll_ClinicIsolation(t *testing.T) {
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 
-	ownerA := makeOwner(t, db, clinicA, "医院A飼主")
+	ownerA := makeTestOwner(t, db, clinicA, "医院A飼主")
 	petA := makeSpeciesAndPet(t, db, clinicA, ownerA.ID, "医院Aペット")
-	ownerB := makeOwner(t, db, clinicB, "医院B飼主")
+	ownerB := makeTestOwner(t, db, clinicB, "医院B飼主")
 	petB := makeSpeciesAndPet(t, db, clinicB, ownerB.ID, "医院Bペット")
 
 	recA := makeFullMedicalRecord(t, db, &model.MedicalRecord{ClinicID: clinicA, RecordNo: "A-001", Date: time.Now(), OwnerID: &ownerA.ID, PetID: &petA.ID})
@@ -163,9 +163,9 @@ func TestMedicalRecordRepository_FindAll_Search(t *testing.T) {
 	ctx := context.Background()
 	const clinicA = uint64(1)
 
-	ownerTarget := makeOwner(t, db, clinicA, "検索対象飼主タロウ")
-	ownerOther := makeOwner(t, db, clinicA, "別の飼主ハナコ")
-	// makeOwner/makeSpeciesAndPet は NameKana を設定しないため、カタカナを含む語で検索すると
+	ownerTarget := makeTestOwner(t, db, clinicA, "検索対象飼主タロウ")
+	ownerOther := makeTestOwner(t, db, clinicA, "別の飼主ハナコ")
+	// makeTestOwner/makeSpeciesAndPet は NameKana を設定しないため、カタカナを含む語で検索すると
 	// NormalizeKana によりひらがな化されたパターンが生カタカナ列と文字種不一致でマッチしない
 	// （owner_repository_test.go の同種コメント参照）。カナ正規化の影響を受けない漢字で検証する。
 	petTarget := makeSpeciesAndPet(t, db, clinicA, ownerTarget.ID, "検索対象犬")
@@ -226,7 +226,7 @@ func TestMedicalRecordRepository_FindAll_Filters(t *testing.T) {
 	ctx := context.Background()
 	const clinicA = uint64(1)
 
-	owner := makeOwner(t, db, clinicA, "フィルタ検証飼主")
+	owner := makeTestOwner(t, db, clinicA, "フィルタ検証飼主")
 	dogPet := makeSpeciesAndPet(t, db, clinicA, owner.ID, "犬ペット")
 	catSpecies := &model.AnimalSpecies{Name: "猫"}
 	require.NoError(t, db.WithContext(ctx).Create(catSpecies).Error)
@@ -296,8 +296,8 @@ func TestMedicalRecordRepository_FindAll_Sort(t *testing.T) {
 	ctx := context.Background()
 	const clinicA = uint64(1)
 
-	ownerA := makeOwner(t, db, clinicA, "Aソート飼主")
-	ownerB := makeOwner(t, db, clinicA, "Bソート飼主")
+	ownerA := makeTestOwner(t, db, clinicA, "Aソート飼主")
+	ownerB := makeTestOwner(t, db, clinicA, "Bソート飼主")
 	petA := makeSpeciesAndPet(t, db, clinicA, ownerA.ID, "Aソートペット")
 	petB := makeSpeciesAndPet(t, db, clinicA, ownerB.ID, "Bソートペット")
 
@@ -367,7 +367,7 @@ func TestMedicalRecordRepository_FindAll_Pagination(t *testing.T) {
 	ctx := context.Background()
 	const clinicA = uint64(1)
 
-	owner := makeOwner(t, db, clinicA, "ページング検証飼主")
+	owner := makeTestOwner(t, db, clinicA, "ページング検証飼主")
 	pet := makeSpeciesAndPet(t, db, clinicA, owner.ID, "ページング検証ペット")
 
 	const totalRecords = 25
@@ -429,7 +429,7 @@ func TestMedicalRecordRepository_FindByID(t *testing.T) {
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 
-	ownerA := makeOwner(t, db, clinicA, "FindByID飼主")
+	ownerA := makeTestOwner(t, db, clinicA, "FindByID飼主")
 	petA := makeSpeciesAndPet(t, db, clinicA, ownerA.ID, "FindByIDペット")
 	rec := makeFullMedicalRecord(t, db, &model.MedicalRecord{
 		ClinicID: clinicA, RecordNo: "FBI-001", Date: time.Now(), OwnerID: &ownerA.ID, PetID: &petA.ID,
@@ -464,7 +464,7 @@ func TestMedicalRecordRepository_FindByIDForClinics(t *testing.T) {
 	ctx := context.Background()
 	const clinicA, clinicB, clinicC = uint64(1), uint64(2), uint64(3)
 
-	ownerA := makeOwner(t, db, clinicA, "FBIFC飼主")
+	ownerA := makeTestOwner(t, db, clinicA, "FBIFC飼主")
 	petA := makeSpeciesAndPet(t, db, clinicA, ownerA.ID, "FBIFCペット")
 	rec := makeFullMedicalRecord(t, db, &model.MedicalRecord{
 		ClinicID: clinicA, RecordNo: "FBIFC-001", Date: time.Now(), OwnerID: &ownerA.ID, PetID: &petA.ID,
@@ -497,7 +497,7 @@ func TestMedicalRecordRepository_Create(t *testing.T) {
 	ctx := context.Background()
 	const clinicA = uint64(1)
 
-	owner := makeOwner(t, db, clinicA, "Create飼主")
+	owner := makeTestOwner(t, db, clinicA, "Create飼主")
 	pet := makeSpeciesAndPet(t, db, clinicA, owner.ID, "Createペット")
 
 	t.Run("正常系: Create 後 FindByID で取得できる", func(t *testing.T) {
@@ -518,7 +518,7 @@ func TestMedicalRecordRepository_Delete(t *testing.T) {
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 
-	owner := makeOwner(t, db, clinicA, "Delete飼主")
+	owner := makeTestOwner(t, db, clinicA, "Delete飼主")
 	pet := makeSpeciesAndPet(t, db, clinicA, owner.ID, "Deleteペット")
 
 	t.Run("同一医院からの削除は成功し以降 FindByID で NotFound になる", func(t *testing.T) {
@@ -557,9 +557,9 @@ func TestMedicalRecordRepository_CountByPetID_CountByOwnerID(t *testing.T) {
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 
-	owner := makeOwner(t, db, clinicA, "Count飼主")
+	owner := makeTestOwner(t, db, clinicA, "Count飼主")
 	pet := makeSpeciesAndPet(t, db, clinicA, owner.ID, "Countペット")
-	otherOwner := makeOwner(t, db, clinicB, "他院Count飼主")
+	otherOwner := makeTestOwner(t, db, clinicB, "他院Count飼主")
 	otherPet := makeSpeciesAndPet(t, db, clinicB, otherOwner.ID, "他院Countペット")
 
 	makeFullMedicalRecord(t, db, &model.MedicalRecord{ClinicID: clinicA, RecordNo: "CNT-001", Date: time.Now(), OwnerID: &owner.ID, PetID: &pet.ID})
@@ -600,7 +600,7 @@ func TestMedicalRecordRepository_DeleteDraftByAppointmentID(t *testing.T) {
 	ctx := context.Background()
 	const clinicA = uint64(1)
 
-	owner := makeOwner(t, db, clinicA, "DDBA飼主")
+	owner := makeTestOwner(t, db, clinicA, "DDBA飼主")
 	pet := makeSpeciesAndPet(t, db, clinicA, owner.ID, "DDBAペット")
 	appointmentID := uint64(4242)
 

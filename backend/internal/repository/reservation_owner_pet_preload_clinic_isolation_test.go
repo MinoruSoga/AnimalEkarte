@@ -37,7 +37,7 @@ func TestReservationRepository_FindAll_FindByID_DoesNotPreloadForeignOwnerPet(t 
 
 	const clinicA, clinicB = uint64(1), uint64(2)
 
-	ownerB := makeOwner(t, db, clinicB, "医院Bの飼主")
+	ownerB := makeTestOwner(t, db, clinicB, "医院Bの飼主")
 	petB := makeSpeciesAndPet(t, db, clinicB, ownerB.ID, "医院Bのペット")
 	rtA := makeReservationType(t, db, clinicA)
 
@@ -91,7 +91,7 @@ func TestReservationAdminRepository_DoesNotPreloadForeignOwnerPetLineCustomer(t 
 
 	const clinicA, clinicB = uint64(1), uint64(2)
 
-	ownerB := makeOwner(t, db, clinicB, "医院B飼主")
+	ownerB := makeTestOwner(t, db, clinicB, "医院B飼主")
 	petB := makeSpeciesAndPet(t, db, clinicB, ownerB.ID, "医院Bペット")
 	lcB := makeLineCustomerForAdmin(t, db, clinicB, "line-user-b")
 
@@ -144,8 +144,8 @@ func TestReservationRepository_AssertOwnerPetLineCustomer_ClinicIsolation(t *tes
 
 	const clinicA, clinicB = uint64(1), uint64(2)
 
-	ownerA := makeOwner(t, db, clinicA, "医院A飼主")
-	ownerB := makeOwner(t, db, clinicB, "医院B飼主")
+	ownerA := makeTestOwner(t, db, clinicA, "医院A飼主")
+	ownerB := makeTestOwner(t, db, clinicB, "医院B飼主")
 	petA := makeSpeciesAndPet(t, db, clinicA, ownerA.ID, "医院Aペット")
 	petB := makeSpeciesAndPet(t, db, clinicB, ownerB.ID, "医院Bペット")
 	lcA := &model.LineCustomer{ClinicID: clinicA, LineUserID: "line-a", AdditionalFields: []byte(`{}`)}
@@ -187,7 +187,7 @@ func TestReservationRepository_FindAllByCategory_DoesNotPreloadForeignPet(t *tes
 	ctx := context.Background()
 
 	const clinicA, clinicB = uint64(1), uint64(2)
-	ownerB := makeOwner(t, db, clinicB, "医院B飼主")
+	ownerB := makeTestOwner(t, db, clinicB, "医院B飼主")
 	petB := makeSpeciesAndPet(t, db, clinicB, ownerB.ID, "医院Bペット")
 	rtA := &model.ReservationType{
 		ClinicID: clinicA,
@@ -232,7 +232,7 @@ func TestTrimmingPetValidationAndWrites_RollBackTogether(t *testing.T) {
 	ctx := context.Background()
 
 	const clinicID = uint64(1)
-	owner := makeOwner(t, db, clinicID, "医院A飼主")
+	owner := makeTestOwner(t, db, clinicID, "医院A飼主")
 	pet := makeSpeciesAndPet(t, db, clinicID, owner.ID, "医院Aペット")
 	appointment := makeReservation(t, db, clinicID)
 	sentinel := errors.New("force rollback after trimming writes")

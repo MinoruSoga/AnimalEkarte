@@ -33,7 +33,7 @@ func TestPetRepository_Update_ClinicIsolation(t *testing.T) {
 		clinicA = uint64(1)
 		clinicB = uint64(2)
 	)
-	ownerA := makeOwner(t, db, clinicA, "医院Aの飼主")
+	ownerA := makeTestOwner(t, db, clinicA, "医院Aの飼主")
 	petA := makeSpeciesAndPet(t, db, clinicA, ownerA.ID, "医院Aのポチ")
 
 	t.Run("別クリニックIDからの Update は NotFound を返す", func(t *testing.T) {
@@ -95,7 +95,7 @@ func TestMedicalRecordImageRepository_FindByID_ClinicIsolation(t *testing.T) {
 		clinicA = uint64(1)
 		clinicB = uint64(2)
 	)
-	ownerA := makeOwner(t, db, clinicA, "画像飼主A")
+	ownerA := makeTestOwner(t, db, clinicA, "画像飼主A")
 	petA := makeSpeciesAndPet(t, db, clinicA, ownerA.ID, "画像ポチA")
 	mrA := makeHistoryMedicalRecord(t, db, clinicA, petA.ID, "MR-IMG-A", time.Now())
 	imgA := makeMedRecordImage(t, db, mrA.ID, "a.jpg")
@@ -126,7 +126,7 @@ func TestMedicalRecordImageRepository_Delete_ClinicIsolation(t *testing.T) {
 		clinicA = uint64(1)
 		clinicB = uint64(2)
 	)
-	ownerA := makeOwner(t, db, clinicA, "画像飼主A")
+	ownerA := makeTestOwner(t, db, clinicA, "画像飼主A")
 	petA := makeSpeciesAndPet(t, db, clinicA, ownerA.ID, "画像ポチA")
 	mrA := makeHistoryMedicalRecord(t, db, clinicA, petA.ID, "MR-IMG-DEL", time.Now())
 	imgA := makeMedRecordImage(t, db, mrA.ID, "del.jpg")

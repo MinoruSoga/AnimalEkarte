@@ -32,14 +32,6 @@ func setupUnpaidCarryoverTestDB(t *testing.T) *gorm.DB {
 	return db
 }
 
-// makeOwner はテスト用の Owner を作成して返す。
-func makeOwner(t *testing.T, db *gorm.DB, clinicID uint64, name string) *model.Owner {
-	t.Helper()
-	o := &model.Owner{ClinicID: clinicID, Name: name}
-	require.NoError(t, db.WithContext(context.Background()).Create(o).Error)
-	return o
-}
-
 // makeBilling はテスト用の Billing を作成する。makeBillingWith（billing_test_fixtures_test.go）への thin wrapper。
 func makeBilling(t *testing.T, db *gorm.DB, clinicID uint64, ownerID, petID *uint64, amount int64, status model.BillingStatus, scheduledDate time.Time) {
 	t.Helper()
@@ -77,8 +69,8 @@ func TestSumUnpaidByOwner(t *testing.T) {
 	const clinicID = uint64(1)
 	jun := time.Date(2026, 6, 10, 0, 0, 0, 0, time.UTC)
 
-	owner := makeOwner(t, db, clinicID, "未納 太郎")
-	other := makeOwner(t, db, clinicID, "別 花子")
+	owner := makeTestOwner(t, db, clinicID, "未納 太郎")
+	other := makeTestOwner(t, db, clinicID, "別 花子")
 
 	// 対象飼主: waiting 1234 + 866（未納=2100）、completed 5000（除外）、cancelled 999（除外）
 	makeBilling(t, db, clinicID, &owner.ID, nil, 1234, model.BillingStatusWaiting, jun)
@@ -96,7 +88,7 @@ func TestSumUnpaidByOwner(t *testing.T) {
 	})
 
 	t.Run("未納なしは 0/0（空値ケース）", func(t *testing.T) {
-		empty := makeOwner(t, db, clinicID, "完納 次郎")
+		empty := makeTestOwner(t, db, clinicID, "完納 次郎")
 		makeBilling(t, db, clinicID, &empty.ID, nil, 3000, model.BillingStatusCompleted, jun)
 		got, err := repo.SumUnpaidByOwner(ctx, clinicID, empty.ID)
 		require.NoError(t, err)
@@ -120,7 +112,7 @@ func TestFindMonthlyUnpaidCarryover_PrevCurrentSplit(t *testing.T) {
 	ctx := context.Background()
 	clinicID := uint64(1)
 
-	owner := makeOwner(t, db, clinicID, "分割テスト飼主")
+	owner := makeTestOwner(t, db, clinicID, "分割テスト飼主")
 	id := owner.ID
 
 	// 前月(5月): 1000円 → prev_month_carryover
@@ -157,7 +149,7 @@ func TestFindMonthlyUnpaidCarryover_BoundaryDates(t *testing.T) {
 	ctx := context.Background()
 	clinicID := uint64(1)
 
-	owner := makeOwner(t, db, clinicID, "境界値テスト飼主")
+	owner := makeTestOwner(t, db, clinicID, "境界値テスト飼主")
 	id := owner.ID
 
 	// 5/31 (firstDay-1): prev
@@ -188,7 +180,7 @@ func TestFindMonthlyUnpaidCarryover_StatusFilter(t *testing.T) {
 	ctx := context.Background()
 	clinicID := uint64(1)
 
-	owner := makeOwner(t, db, clinicID, "ステータスフィルタ飼主")
+	owner := makeTestOwner(t, db, clinicID, "ステータスフィルタ飼主")
 	id := owner.ID
 	date := time.Date(2026, 6, 10, 0, 0, 0, 0, time.UTC)
 
@@ -214,7 +206,7 @@ func TestFindMonthlyUnpaidCarryover_NullPetID(t *testing.T) {
 	ctx := context.Background()
 	clinicID := uint64(1)
 
-	owner := makeOwner(t, db, clinicID, "ペットなし飼主")
+	owner := makeTestOwner(t, db, clinicID, "ペットなし飼主")
 	id := owner.ID
 	makeBilling(t, db, clinicID, &id, nil, 5000, model.BillingStatusWaiting,
 		time.Date(2026, 6, 10, 0, 0, 0, 0, time.UTC))
@@ -237,8 +229,8 @@ func TestFindMonthlyUnpaidCarryover_MultipleOwnersPets(t *testing.T) {
 	ctx := context.Background()
 	clinicID := uint64(1)
 
-	owner1 := makeOwner(t, db, clinicID, "飼主1")
-	owner2 := makeOwner(t, db, clinicID, "飼主2")
+	owner1 := makeTestOwner(t, db, clinicID, "飼主1")
+	owner2 := makeTestOwner(t, db, clinicID, "飼主2")
 	pet1 := makeSpeciesAndPet(t, db, clinicID, owner1.ID, "ぽち")
 	pet2 := makeSpeciesAndPet(t, db, clinicID, owner2.ID, "たま")
 
@@ -282,7 +274,7 @@ func TestFindMonthlyUnpaidCarryover_Pagination(t *testing.T) {
 
 	date := time.Date(2026, 6, 15, 0, 0, 0, 0, time.UTC)
 	for i := range 5 {
-		owner := makeOwner(t, db, clinicID, fmt.Sprintf("ページ飼主%d", i))
+		owner := makeTestOwner(t, db, clinicID, fmt.Sprintf("ページ飼主%d", i))
 		makeBilling(t, db, clinicID, &owner.ID, nil, 1000, model.BillingStatusWaiting, date)
 	}
 
@@ -315,8 +307,8 @@ func TestFindMonthlyUnpaidCarryover_ClinicIDIsolation(t *testing.T) {
 	clinicID2 := uint64(2)
 	date := time.Date(2026, 6, 10, 0, 0, 0, 0, time.UTC)
 
-	owner1 := makeOwner(t, db, clinicID1, "医院1飼主")
-	owner2 := makeOwner(t, db, clinicID2, "医院2飼主")
+	owner1 := makeTestOwner(t, db, clinicID1, "医院1飼主")
+	owner2 := makeTestOwner(t, db, clinicID2, "医院2飼主")
 	makeBilling(t, db, clinicID1, &owner1.ID, nil, 1000, model.BillingStatusWaiting, date)
 	makeBilling(t, db, clinicID2, &owner2.ID, nil, 9000, model.BillingStatusWaiting, date)
 
@@ -358,7 +350,7 @@ func TestAccountingRepository_FindUnpaidByBilling_ReturnsWaitingWithinRangeOnly(
 	ctx := context.Background()
 	clinicID := uint64(1)
 
-	owner := makeOwner(t, db, clinicID, "会計単位テスト飼主")
+	owner := makeTestOwner(t, db, clinicID, "会計単位テスト飼主")
 	id := owner.ID
 
 	makeBilling(t, db, clinicID, &id, nil, 1000, model.BillingStatusWaiting, time.Date(2026, 6, 10, 0, 0, 0, 0, time.UTC))
@@ -380,8 +372,8 @@ func TestAccountingRepository_FindUnpaidByBilling_ClinicIsolation(t *testing.T) 
 	ctx := context.Background()
 	clinicA, clinicB := uint64(1), uint64(2)
 
-	ownerA := makeOwner(t, db, clinicA, "医院A")
-	ownerB := makeOwner(t, db, clinicB, "医院B")
+	ownerA := makeTestOwner(t, db, clinicA, "医院A")
+	ownerB := makeTestOwner(t, db, clinicB, "医院B")
 	makeBilling(t, db, clinicA, &ownerA.ID, nil, 1000, model.BillingStatusWaiting, time.Date(2026, 6, 10, 0, 0, 0, 0, time.UTC))
 	makeBilling(t, db, clinicB, &ownerB.ID, nil, 9000, model.BillingStatusWaiting, time.Date(2026, 6, 10, 0, 0, 0, 0, time.UTC))
 
@@ -400,7 +392,7 @@ func TestAccountingRepository_FindUnpaidByBilling_Pagination(t *testing.T) {
 	clinicID := uint64(1)
 
 	for i := range 3 {
-		owner := makeOwner(t, db, clinicID, fmt.Sprintf("会計ページ飼主%d", i))
+		owner := makeTestOwner(t, db, clinicID, fmt.Sprintf("会計ページ飼主%d", i))
 		makeBilling(t, db, clinicID, &owner.ID, nil, 1000, model.BillingStatusWaiting, time.Date(2026, 6, 10, 0, 0, 0, 0, time.UTC))
 	}
 
@@ -418,8 +410,8 @@ func TestAccountingRepository_FindUnpaidByOwner_AggregatesByOwnerAndSummarizes(t
 	ctx := context.Background()
 	clinicID := uint64(1)
 
-	owner1 := makeOwner(t, db, clinicID, "未納集約飼主1")
-	owner2 := makeOwner(t, db, clinicID, "未納集約飼主2")
+	owner1 := makeTestOwner(t, db, clinicID, "未納集約飼主1")
+	owner2 := makeTestOwner(t, db, clinicID, "未納集約飼主2")
 
 	makeBilling(t, db, clinicID, &owner1.ID, nil, 1000, model.BillingStatusWaiting, time.Date(2026, 6, 5, 0, 0, 0, 0, time.UTC))
 	makeBilling(t, db, clinicID, &owner1.ID, nil, 500, model.BillingStatusWaiting, time.Date(2026, 6, 20, 0, 0, 0, 0, time.UTC))
@@ -452,8 +444,8 @@ func TestAccountingRepository_FindUnpaidByOwner_ClinicIsolation(t *testing.T) {
 	ctx := context.Background()
 	clinicA, clinicB := uint64(1), uint64(2)
 
-	ownerA := makeOwner(t, db, clinicA, "医院A飼主")
-	ownerB := makeOwner(t, db, clinicB, "医院B飼主")
+	ownerA := makeTestOwner(t, db, clinicA, "医院A飼主")
+	ownerB := makeTestOwner(t, db, clinicB, "医院B飼主")
 	makeBilling(t, db, clinicA, &ownerA.ID, nil, 1000, model.BillingStatusWaiting, time.Date(2026, 6, 10, 0, 0, 0, 0, time.UTC))
 	makeBilling(t, db, clinicB, &ownerB.ID, nil, 9000, model.BillingStatusWaiting, time.Date(2026, 6, 10, 0, 0, 0, 0, time.UTC))
 
@@ -487,7 +479,7 @@ func TestFindMonthlyUnpaidCarryover_NextMonthCarryoverEquality(t *testing.T) {
 	ctx := context.Background()
 	clinicID := uint64(1)
 
-	owner := makeOwner(t, db, clinicID, "等式検証飼主")
+	owner := makeTestOwner(t, db, clinicID, "等式検証飼主")
 	id := owner.ID
 
 	makeBilling(t, db, clinicID, &id, nil, 1100, model.BillingStatusWaiting,

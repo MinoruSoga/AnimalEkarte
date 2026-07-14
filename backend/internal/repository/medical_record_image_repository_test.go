@@ -28,7 +28,7 @@ func TestMedicalRecordImageRepository_Create(t *testing.T) {
 	ctx := context.Background()
 	const clinicA = uint64(1)
 
-	owner := makeOwner(t, db, clinicA, "画像作成飼主")
+	owner := makeTestOwner(t, db, clinicA, "画像作成飼主")
 	pet := makeSpeciesAndPet(t, db, clinicA, owner.ID, "画像作成犬")
 	mr := makeHistoryMedicalRecord(t, db, clinicA, pet.ID, "MR-IMG-CREATE", time.Now())
 
@@ -55,7 +55,7 @@ func TestMedicalRecordImageRepository_FindByMedicalRecordID(t *testing.T) {
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 
-	owner := makeOwner(t, db, clinicA, "画像一覧飼主")
+	owner := makeTestOwner(t, db, clinicA, "画像一覧飼主")
 	pet := makeSpeciesAndPet(t, db, clinicA, owner.ID, "画像一覧犬")
 	mr := makeHistoryMedicalRecord(t, db, clinicA, pet.ID, "MR-IMG-LIST", time.Now())
 	staff := makeDoctor(t, db, clinicA, "画像担当医")
@@ -66,7 +66,7 @@ func TestMedicalRecordImageRepository_FindByMedicalRecordID(t *testing.T) {
 	second := makeMedRecordImage(t, db, mr.ID, "2-second.jpg")
 
 	// 別クリニックのカルテに紐づく画像は混入してはならない
-	ownerB := makeOwner(t, db, clinicB, "画像一覧飼主B")
+	ownerB := makeTestOwner(t, db, clinicB, "画像一覧飼主B")
 	petB := makeSpeciesAndPet(t, db, clinicB, ownerB.ID, "画像一覧犬B")
 	mrB := makeHistoryMedicalRecord(t, db, clinicB, petB.ID, "MR-IMG-LIST-B", time.Now())
 	makeMedRecordImage(t, db, mrB.ID, "other-clinic.jpg")

@@ -89,7 +89,7 @@ func TestTreatmentRepository_FindHistoryByPetID(t *testing.T) {
 		clinicB = uint64(2)
 	)
 
-	owner := makeOwner(t, db, clinicA, "飼主A")
+	owner := makeTestOwner(t, db, clinicA, "飼主A")
 	pet := makeSpeciesAndPet(t, db, clinicA, owner.ID, "ポチ")
 
 	older := time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC)
@@ -156,7 +156,7 @@ func TestTreatmentRepository_FindHistoryByPetID_ProcedureFilters(t *testing.T) {
 
 	const clinicA = uint64(1)
 
-	owner := makeOwner(t, db, clinicA, "飼主B")
+	owner := makeTestOwner(t, db, clinicA, "飼主B")
 	pet := makeSpeciesAndPet(t, db, clinicA, owner.ID, "タマ")
 
 	date := time.Date(2026, 6, 10, 0, 0, 0, 0, time.UTC)
@@ -225,7 +225,7 @@ func TestTreatmentRepository_FindByID(t *testing.T) {
 		clinicB = uint64(2)
 	)
 
-	owner := makeOwner(t, db, clinicA, "検索対象飼主")
+	owner := makeTestOwner(t, db, clinicA, "検索対象飼主")
 	pet := makeSpeciesAndPet(t, db, clinicA, owner.ID, "検索対象ペット")
 	mr := makeHistoryMedicalRecord(t, db, clinicA, pet.ID, "MR-FINDBYID", time.Now())
 	makeHistoryTreatment(t, db, mr.ID, model.TreatmentItemTypeMedicine, "対象治療", 0)
@@ -268,7 +268,7 @@ func TestTreatmentRepository_Create(t *testing.T) {
 	ctx := context.Background()
 
 	const clinicA = uint64(1)
-	owner := makeOwner(t, db, clinicA, "作成飼主")
+	owner := makeTestOwner(t, db, clinicA, "作成飼主")
 	pet := makeSpeciesAndPet(t, db, clinicA, owner.ID, "作成ペット")
 	mr := makeHistoryMedicalRecord(t, db, clinicA, pet.ID, "MR-CREATE", time.Now())
 
@@ -291,7 +291,7 @@ func TestTreatmentRepository_Update(t *testing.T) {
 		clinicB = uint64(2)
 	)
 
-	owner := makeOwner(t, db, clinicA, "更新飼主")
+	owner := makeTestOwner(t, db, clinicA, "更新飼主")
 	pet := makeSpeciesAndPet(t, db, clinicA, owner.ID, "更新ペット")
 	mr := makeHistoryMedicalRecord(t, db, clinicA, pet.ID, "MR-UPDATE", time.Now())
 	makeHistoryTreatment(t, db, mr.ID, model.TreatmentItemTypeMedicine, "更新前", 0)
@@ -327,7 +327,7 @@ func TestTreatmentRepository_Delete(t *testing.T) {
 		clinicB = uint64(2)
 	)
 
-	owner := makeOwner(t, db, clinicA, "削除飼主")
+	owner := makeTestOwner(t, db, clinicA, "削除飼主")
 	pet := makeSpeciesAndPet(t, db, clinicA, owner.ID, "削除ペット")
 	mr := makeHistoryMedicalRecord(t, db, clinicA, pet.ID, "MR-DELETE", time.Now())
 	makeHistoryTreatment(t, db, mr.ID, model.TreatmentItemTypeMedicine, "削除対象", 0)
@@ -368,7 +368,7 @@ func TestTreatmentRepository_BulkUpdateSortOrder(t *testing.T) {
 		clinicB = uint64(2)
 	)
 
-	owner := makeOwner(t, db, clinicA, "並び替え飼主")
+	owner := makeTestOwner(t, db, clinicA, "並び替え飼主")
 	pet := makeSpeciesAndPet(t, db, clinicA, owner.ID, "並び替えペット")
 	mr := makeHistoryMedicalRecord(t, db, clinicA, pet.ID, "MR-SORT", time.Now())
 	makeHistoryTreatment(t, db, mr.ID, model.TreatmentItemTypeMedicine, "1番目", 0)
@@ -419,7 +419,7 @@ func TestTreatmentRepository_FindUnbilledByPetID(t *testing.T) {
 		clinicB = uint64(2)
 	)
 
-	owner := makeOwner(t, db, clinicA, "未会計飼主")
+	owner := makeTestOwner(t, db, clinicA, "未会計飼主")
 	pet := makeSpeciesAndPet(t, db, clinicA, owner.ID, "未会計ペット")
 
 	t.Run("returns treatments for confirmed, unbilled medical record", func(t *testing.T) {
@@ -550,7 +550,7 @@ func TestTreatmentRepository_CountFinalizedUnconfirmedByPetAndDate(t *testing.T)
 		clinicA = uint64(1)
 		clinicB = uint64(2)
 	)
-	owner := makeOwner(t, db, clinicA, "取り残し飼主")
+	owner := makeTestOwner(t, db, clinicA, "取り残し飼主")
 	date := time.Date(2026, 6, 15, 0, 0, 0, 0, time.UTC)
 
 	t.Run("counts finalized medical record with no billing_confirmation and no billing", func(t *testing.T) {

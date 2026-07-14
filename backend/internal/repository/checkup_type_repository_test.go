@@ -206,7 +206,7 @@ func TestCheckupTypeRepository_CountUsageByCheckupTypeID(t *testing.T) {
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 
-	owner := makeOwner(t, db, clinicA, "健診種別使用飼主")
+	owner := makeTestOwner(t, db, clinicA, "健診種別使用飼主")
 	pet := makeSpeciesAndPet(t, db, clinicA, owner.ID, "使用ポチ")
 	mr := makeHistoryMedicalRecord(t, db, clinicA, pet.ID, "MR-CTUSE", time.Now().UTC())
 	ct := &model.CheckupType{ClinicID: clinicA, Name: "使用中の健診種別"}

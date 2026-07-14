@@ -225,11 +225,11 @@ func TestClinicRepository_CountOwnersByClinicID(t *testing.T) {
 	clinicA := makeClinicFixture(t, db, "飼主数A")
 	clinicB := makeClinicFixture(t, db, "飼主数B")
 
-	makeOwner(t, db, clinicA.ID, "飼主1")
-	makeOwner(t, db, clinicA.ID, "飼主2")
-	deletedOwner := makeOwner(t, db, clinicA.ID, "削除済み飼主")
+	makeTestOwner(t, db, clinicA.ID, "飼主1")
+	makeTestOwner(t, db, clinicA.ID, "飼主2")
+	deletedOwner := makeTestOwner(t, db, clinicA.ID, "削除済み飼主")
 	require.NoError(t, db.WithContext(ctx).Delete(deletedOwner).Error)
-	makeOwner(t, db, clinicB.ID, "別クリニック飼主")
+	makeTestOwner(t, db, clinicB.ID, "別クリニック飼主")
 
 	got, err := repo.CountOwnersByClinicID(ctx, clinicA.ID)
 	require.NoError(t, err)

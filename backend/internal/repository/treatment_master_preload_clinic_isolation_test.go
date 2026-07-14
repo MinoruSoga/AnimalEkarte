@@ -53,7 +53,7 @@ func TestTreatmentRepository_FindByMedicalRecordID_MasterPreloadClinicIsolation(
 	)
 
 	// clinic A のカルテ（ペットは clinic A）
-	ownerA := makeOwner(t, db, clinicA, "隔離飼主A")
+	ownerA := makeTestOwner(t, db, clinicA, "隔離飼主A")
 	petA := makeSpeciesAndPet(t, db, clinicA, ownerA.ID, "ポチA")
 	mrA := makeHistoryMedicalRecord(t, db, clinicA, petA.ID, "MR-PRELOAD-A", time.Now())
 
@@ -93,7 +93,7 @@ func TestTreatmentRepository_FindByMedicalRecordID_SameClinicMasterPreloaded(t *
 
 	const clinicA = uint64(1)
 
-	ownerA := makeOwner(t, db, clinicA, "正常飼主A")
+	ownerA := makeTestOwner(t, db, clinicA, "正常飼主A")
 	petA := makeSpeciesAndPet(t, db, clinicA, ownerA.ID, "タマA")
 	mrA := makeHistoryMedicalRecord(t, db, clinicA, petA.ID, "MR-PRELOAD-OK", time.Now())
 

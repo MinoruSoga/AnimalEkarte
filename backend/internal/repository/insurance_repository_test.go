@@ -6,7 +6,7 @@ package repository
 //
 // makeInsuranceMaster / makePetWithInsurance は cross_clinic_preload_isolation_test.go に
 // 定義済みのものを再利用する（同一パッケージ内での重複宣言を避けるため）。
-// makeOwner は accounting_repository_unpaid_test.go に定義済みのものを再利用する。
+// makeTestOwner は db_setup_test.go に定義済みのものを再利用する。
 
 import (
 	"context"
@@ -206,7 +206,7 @@ func TestInsuranceRepository_CountUsageByInsuranceID(t *testing.T) {
 	const clinicA, clinicB = uint64(1), uint64(2)
 
 	ins := makeInsuranceMaster(t, db, clinicA, "使用中保険")
-	owner := makeOwner(t, db, clinicA, "飼主A")
+	owner := makeTestOwner(t, db, clinicA, "飼主A")
 	makePetWithInsurance(t, db, clinicA, owner.ID, &ins.ID, "ポチ")
 	makePetWithInsurance(t, db, clinicA, owner.ID, &ins.ID, "タマ")
 

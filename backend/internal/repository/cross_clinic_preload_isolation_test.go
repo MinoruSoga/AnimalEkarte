@@ -58,7 +58,7 @@ func TestPetRepository_Insurance_CrossClinicPreloadIsolation(t *testing.T) {
 
 	insA := makeInsuranceMaster(t, db, clinicA, "医院Aの保険")
 	insB := makeInsuranceMaster(t, db, clinicB, "医院Bの保険")
-	ownerA := makeOwner(t, db, clinicA, "保険飼主A")
+	ownerA := makeTestOwner(t, db, clinicA, "保険飼主A")
 	petLegit := makePetWithInsurance(t, db, clinicA, ownerA.ID, &insA.ID, "正規保険ペット")
 	petCross := makePetWithInsurance(t, db, clinicA, ownerA.ID, &insB.ID, "越境保険ペット") // 別clinicの保険FKを植え付け
 
@@ -94,7 +94,7 @@ func TestOwnerRepository_PetsInsurance_CrossClinicPreloadIsolation(t *testing.T)
 	const clinicA, clinicB = uint64(1), uint64(2)
 
 	insB := makeInsuranceMaster(t, db, clinicB, "医院Bの保険(owner)")
-	ownerCross := makeOwner(t, db, clinicA, "越境保険飼主")
+	ownerCross := makeTestOwner(t, db, clinicA, "越境保険飼主")
 	makePetWithInsurance(t, db, clinicA, ownerCross.ID, &insB.ID, "越境保険ペット(owner)")
 
 	// (i) FindByID(単一)で nested Pets.Insurance に別テナント保険が混入しない

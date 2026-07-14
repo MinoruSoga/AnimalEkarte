@@ -284,7 +284,7 @@ func TestLstepDeliveryTriggerLogRepository_FindByDateRangeWithFilters(t *testing
 	from := time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC)
 	to := time.Date(2026, 7, 1, 0, 0, 0, 0, time.UTC)
 
-	owner := makeOwner(t, db, clinicA, "山田花子")
+	owner := makeTestOwner(t, db, clinicA, "山田花子")
 
 	// 新しい順に3件（DESC で返る想定）。owner が紐づくログは owner_name が JOIN される。
 	l1 := makeDeliveryTriggerLog(t, db, clinicA, owner.ID, model.TriggerTypeBirthdayMessage, model.TriggerStatusFired, time.Date(2026, 6, 10, 9, 0, 0, 0, time.UTC))
@@ -367,7 +367,7 @@ func TestLstepDeliveryTriggerLogRepository_CountVisitConversionsByType(t *testin
 	const conversionWindowDays = 3
 
 	// T1: 来院した飼主 — fired ログ + 期間内の有効カルテ → visited
-	visitedOwner := makeOwner(t, db, clinicA, "来院した飼主")
+	visitedOwner := makeTestOwner(t, db, clinicA, "来院した飼主")
 	makeDeliveryTriggerLog(t, db, clinicA, visitedOwner.ID, "T1", model.TriggerStatusFired, firedAt)
 	visitedOwnerID := visitedOwner.ID
 	require.NoError(t, db.Create(&model.MedicalRecord{
@@ -378,11 +378,11 @@ func TestLstepDeliveryTriggerLogRepository_CountVisitConversionsByType(t *testin
 	}).Error)
 
 	// T1: 来院しなかった飼主 — fired ログのみ、カルテなし → not visited
-	notVisitedOwner := makeOwner(t, db, clinicA, "来院しなかった飼主")
+	notVisitedOwner := makeTestOwner(t, db, clinicA, "来院しなかった飼主")
 	makeDeliveryTriggerLog(t, db, clinicA, notVisitedOwner.ID, "T1", model.TriggerStatusFired, firedAt)
 
 	// T2: カルテはあるがソフトデリート済み → not visited（deleted_at IS NULL 条件）
-	deletedRecordOwner := makeOwner(t, db, clinicA, "削除カルテの飼主")
+	deletedRecordOwner := makeTestOwner(t, db, clinicA, "削除カルテの飼主")
 	makeDeliveryTriggerLog(t, db, clinicA, deletedRecordOwner.ID, "T2", model.TriggerStatusFired, firedAt)
 	deletedOwnerID := deletedRecordOwner.ID
 	deletedRecord := &model.MedicalRecord{
@@ -395,17 +395,17 @@ func TestLstepDeliveryTriggerLogRepository_CountVisitConversionsByType(t *testin
 	require.NoError(t, db.Delete(deletedRecord).Error)
 
 	// T1: 抑制されたログは delivered からも除外される
-	suppressedOwner := makeOwner(t, db, clinicA, "抑制された飼主")
+	suppressedOwner := makeTestOwner(t, db, clinicA, "抑制された飼主")
 	suppressedLog := makeDeliveryTriggerLog(t, db, clinicA, suppressedOwner.ID, "T1", model.TriggerStatusFired, firedAt)
 	require.NoError(t, db.Model(&model.LstepDeliveryTriggerLog{}).Where("id = ?", suppressedLog.ID).
 		Update("suppressed_by_priority", true).Error)
 
 	// T1: scheduled のまま（未配信）は delivered から除外される
-	scheduledOwner := makeOwner(t, db, clinicA, "未配信の飼主")
+	scheduledOwner := makeTestOwner(t, db, clinicA, "未配信の飼主")
 	makeDeliveryTriggerLog(t, db, clinicA, scheduledOwner.ID, "T1", model.TriggerStatusScheduled, firedAt)
 
 	// 別クリニックのログは集計対象外
-	otherClinicOwner := makeOwner(t, db, clinicB, "別クリニック飼主")
+	otherClinicOwner := makeTestOwner(t, db, clinicB, "別クリニック飼主")
 	makeDeliveryTriggerLog(t, db, clinicB, otherClinicOwner.ID, "T1", model.TriggerStatusFired, firedAt)
 
 	// makeDeliveryTriggerLog は scheduled_at のみ設定し fired_at は NULL のまま作成する

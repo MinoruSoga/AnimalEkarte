@@ -31,7 +31,7 @@ func TestCheckupFieldResultRepository_ReplaceForCheckup_RollsBackWhenAmbientTxFa
 	ctx := context.Background()
 	const clinicA = uint64(1)
 
-	owner := makeOwner(t, db, clinicA, "原子性飼主")
+	owner := makeTestOwner(t, db, clinicA, "原子性飼主")
 	pet := makeSpeciesAndPet(t, db, clinicA, owner.ID, "原子性ポチ")
 	mr := makeHistoryMedicalRecord(t, db, clinicA, pet.ID, "MR-ATOMIC-RB", time.Now())
 	ct := makeCheckupTypeMaster(t, db, clinicA, "歯科検診")
@@ -81,7 +81,7 @@ func TestCheckupFieldResultRepository_ReplaceForCheckup_CommitsWithinAmbientTx(t
 	ctx := context.Background()
 	const clinicA = uint64(1)
 
-	owner := makeOwner(t, db, clinicA, "原子性飼主2")
+	owner := makeTestOwner(t, db, clinicA, "原子性飼主2")
 	pet := makeSpeciesAndPet(t, db, clinicA, owner.ID, "原子性ポチ2")
 	mr := makeHistoryMedicalRecord(t, db, clinicA, pet.ID, "MR-ATOMIC-CM", time.Now())
 	ct := makeCheckupTypeMaster(t, db, clinicA, "歯科検診")

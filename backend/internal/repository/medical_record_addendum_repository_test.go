@@ -52,7 +52,7 @@ func TestMedicalRecordAddendumRepository_Create(t *testing.T) {
 	ctx := context.Background()
 	const clinicA = uint64(1)
 
-	owner := makeOwner(t, db, clinicA, "追記飼主")
+	owner := makeTestOwner(t, db, clinicA, "追記飼主")
 	pet := makeSpeciesAndPet(t, db, clinicA, owner.ID, "追記犬")
 	staff := makeDoctor(t, db, clinicA, "追記医師")
 	mr := makeHistoryMedicalRecord(t, db, clinicA, pet.ID, "ADD-1", time.Now())
@@ -80,7 +80,7 @@ func TestMedicalRecordAddendumRepository_FindByID(t *testing.T) {
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 
-	owner := makeOwner(t, db, clinicA, "追記飼主2")
+	owner := makeTestOwner(t, db, clinicA, "追記飼主2")
 	pet := makeSpeciesAndPet(t, db, clinicA, owner.ID, "追記犬2")
 	staff := makeDoctor(t, db, clinicA, "追記医師2")
 	mr := makeHistoryMedicalRecord(t, db, clinicA, pet.ID, "ADD-2", time.Now())
@@ -113,7 +113,7 @@ func TestMedicalRecordAddendumRepository_FindByMedicalRecordID(t *testing.T) {
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 
-	owner := makeOwner(t, db, clinicA, "追記飼主3")
+	owner := makeTestOwner(t, db, clinicA, "追記飼主3")
 	pet := makeSpeciesAndPet(t, db, clinicA, owner.ID, "追記犬3")
 	staff := makeDoctor(t, db, clinicA, "追記医師3")
 	mr := makeHistoryMedicalRecord(t, db, clinicA, pet.ID, "ADD-3", time.Now())

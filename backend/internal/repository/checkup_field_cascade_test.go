@@ -148,7 +148,7 @@ func seedCheckupResultTree(t *testing.T, db *gorm.DB) (fieldID, checkupID uint64
 	ctx := context.Background()
 	const clinicA = uint64(1)
 
-	owner := makeOwner(t, db, clinicA, "カスケード飼主")
+	owner := makeTestOwner(t, db, clinicA, "カスケード飼主")
 	pet := makeSpeciesAndPet(t, db, clinicA, owner.ID, "カスケードポチ")
 	mr := makeHistoryMedicalRecord(t, db, clinicA, pet.ID, "MR-CASCADE", time.Now())
 	ct := makeCheckupTypeMaster(t, db, clinicA, "歯科検診")
@@ -202,7 +202,7 @@ func TestCheckupFieldResult_CheckupTypeHardDelete_PreservesResultsViaCascadeSetN
 	ctx := context.Background()
 	const clinicA = uint64(1)
 
-	owner := makeOwner(t, db, clinicA, "連鎖飼主")
+	owner := makeTestOwner(t, db, clinicA, "連鎖飼主")
 	pet := makeSpeciesAndPet(t, db, clinicA, owner.ID, "連鎖ポチ")
 	mr := makeHistoryMedicalRecord(t, db, clinicA, pet.ID, "MR-CHAIN", time.Now())
 

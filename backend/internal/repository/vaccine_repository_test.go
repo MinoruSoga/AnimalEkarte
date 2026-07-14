@@ -7,7 +7,7 @@ package repository
 //
 // makeVaccineMaster / makeVaccinationRecord は vaccination_master_preload_clinic_isolation_test.go
 // に定義済みのものを再利用する（同一パッケージ内での重複宣言を避けるため）。
-// makeOwner / makeSpeciesAndPet は accounting_repository_unpaid_test.go に定義済みのものを再利用する。
+// makeTestOwner / makeSpeciesAndPet は db_setup_test.go / accounting_repository_unpaid_test.go に定義済みのものを再利用する。
 
 import (
 	"context"
@@ -222,7 +222,7 @@ func TestVaccineRepository_CountUsageByVaccineID(t *testing.T) {
 	const clinicA, clinicB = uint64(1), uint64(2)
 
 	vaccine := makeVaccineMaster(t, db, clinicA, "使用中ワクチン")
-	owner := makeOwner(t, db, clinicA, "飼主A")
+	owner := makeTestOwner(t, db, clinicA, "飼主A")
 	pet := makeSpeciesAndPet(t, db, clinicA, owner.ID, "タマ")
 	makeVaccinationRecord(t, db, clinicA, pet.ID, vaccine.ID)
 

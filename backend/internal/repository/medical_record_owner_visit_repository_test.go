@@ -159,7 +159,7 @@ func TestMedicalRecordRepository_FindLatestByOwner(t *testing.T) {
 	const clinicA, clinicB = uint64(1), uint64(2)
 
 	t.Run("正常系: created_at DESC で最新カルテを返す", func(t *testing.T) {
-		owner := makeOwner(t, db, clinicA, "最新カルテ飼主")
+		owner := makeTestOwner(t, db, clinicA, "最新カルテ飼主")
 		ownerID := owner.ID
 
 		older := makeVisitRecordForOwnerVisitTest(t, db, &model.MedicalRecord{
@@ -187,7 +187,7 @@ func TestMedicalRecordRepository_FindLatestByOwner(t *testing.T) {
 	// apperrors.IsNotFound(wrapped) を判定するため、「該当なし」「他院のみ存在」の
 	// いずれのケースでも正しく nil, nil を返す。
 	t.Run("clinic_id隔離: 別クリニックのカルテは対象外", func(t *testing.T) {
-		owner := makeOwner(t, db, clinicA, "隔離飼主")
+		owner := makeTestOwner(t, db, clinicA, "隔離飼主")
 		ownerID := owner.ID
 		makeVisitRecordForOwnerVisitTest(t, db, &model.MedicalRecord{
 			ClinicID: clinicA,
@@ -201,7 +201,7 @@ func TestMedicalRecordRepository_FindLatestByOwner(t *testing.T) {
 	})
 
 	t.Run("該当なし: カルテが存在しない飼い主は nil, nil", func(t *testing.T) {
-		owner := makeOwner(t, db, clinicA, "カルテなし飼主")
+		owner := makeTestOwner(t, db, clinicA, "カルテなし飼主")
 
 		got, err := repo.FindLatestByOwner(ctx, clinicA, owner.ID)
 		require.NoError(t, err)
@@ -216,7 +216,7 @@ func TestMedicalRecordRepository_FindOwnerVisitSummary(t *testing.T) {
 	const clinicA, clinicB = uint64(1), uint64(2)
 
 	t.Run("正常系: 初回/最終/合計/年間集計", func(t *testing.T) {
-		owner := makeOwner(t, db, clinicA, "集計飼主")
+		owner := makeTestOwner(t, db, clinicA, "集計飼主")
 		ownerID := owner.ID
 		firstDate := time.Now().In(time.Local).AddDate(-2, 0, 0)
 		lastDate := time.Now().In(time.Local).AddDate(0, -3, 0)
@@ -239,7 +239,7 @@ func TestMedicalRecordRepository_FindOwnerVisitSummary(t *testing.T) {
 	})
 
 	t.Run("clinic_id隔離: 別クリニックのカルテは集計に含まれない", func(t *testing.T) {
-		owner := makeOwner(t, db, clinicA, "隔離集計飼主")
+		owner := makeTestOwner(t, db, clinicA, "隔離集計飼主")
 		ownerID := owner.ID
 		makeVisitRecordForOwnerVisitTest(t, db, &model.MedicalRecord{
 			ClinicID: clinicA, OwnerID: &ownerID, Date: time.Now().In(time.Local),
@@ -254,7 +254,7 @@ func TestMedicalRecordRepository_FindOwnerVisitSummary(t *testing.T) {
 	})
 
 	t.Run("該当なし: カルテが存在しない飼い主はゼロ集計", func(t *testing.T) {
-		owner := makeOwner(t, db, clinicA, "集計なし飼主")
+		owner := makeTestOwner(t, db, clinicA, "集計なし飼主")
 
 		got, err := repo.FindOwnerVisitSummary(ctx, clinicA, owner.ID)
 		require.NoError(t, err)
@@ -274,7 +274,7 @@ func TestMedicalRecordRepository_FindOwnersByFirstVisitDate(t *testing.T) {
 	target := time.Date(2026, 3, 15, 0, 0, 0, 0, time.Local)
 
 	t.Run("正常系: MIN(date) が targetDate と一致する飼い主を返す", func(t *testing.T) {
-		owner := makeOwner(t, db, clinicA, "初回来院飼主")
+		owner := makeTestOwner(t, db, clinicA, "初回来院飼主")
 		ownerID := owner.ID
 		makeVisitRecordForOwnerVisitTest(t, db, &model.MedicalRecord{
 			ClinicID: clinicA, OwnerID: &ownerID, Date: target,
@@ -289,9 +289,9 @@ func TestMedicalRecordRepository_FindOwnersByFirstVisitDate(t *testing.T) {
 	})
 
 	t.Run("clinic_id隔離: 別クリニックの飼い主は混入しない", func(t *testing.T) {
-		ownerA := makeOwner(t, db, clinicA, "隔離初回A")
+		ownerA := makeTestOwner(t, db, clinicA, "隔離初回A")
 		ownerAID := ownerA.ID
-		ownerB := makeOwner(t, db, clinicB, "隔離初回B")
+		ownerB := makeTestOwner(t, db, clinicB, "隔離初回B")
 		ownerBID := ownerB.ID
 		makeVisitRecordForOwnerVisitTest(t, db, &model.MedicalRecord{
 			ClinicID: clinicA, OwnerID: &ownerAID, Date: target,
@@ -307,7 +307,7 @@ func TestMedicalRecordRepository_FindOwnersByFirstVisitDate(t *testing.T) {
 	})
 
 	t.Run("該当なし: targetDate に一致するカルテが無ければ空配列", func(t *testing.T) {
-		owner := makeOwner(t, db, clinicA, "初回不一致飼主")
+		owner := makeTestOwner(t, db, clinicA, "初回不一致飼主")
 		ownerID := owner.ID
 		makeVisitRecordForOwnerVisitTest(t, db, &model.MedicalRecord{
 			ClinicID: clinicA, OwnerID: &ownerID, Date: target.AddDate(0, 0, 1),
@@ -329,7 +329,7 @@ func TestMedicalRecordRepository_FindOwnersByLastVisitDays(t *testing.T) {
 	lastVisitDate := asOf.AddDate(0, 0, -exactDays)
 
 	t.Run("正常系: MAX(date) が asOf-exactDays と一致する飼い主を返す", func(t *testing.T) {
-		owner := makeOwner(t, db, clinicA, "最終来院飼主")
+		owner := makeTestOwner(t, db, clinicA, "最終来院飼主")
 		ownerID := owner.ID
 		makeVisitRecordForOwnerVisitTest(t, db, &model.MedicalRecord{
 			ClinicID: clinicA, OwnerID: &ownerID, Date: lastVisitDate.AddDate(0, 0, -20),
@@ -344,9 +344,9 @@ func TestMedicalRecordRepository_FindOwnersByLastVisitDays(t *testing.T) {
 	})
 
 	t.Run("clinic_id隔離: 別クリニックの飼い主は混入しない", func(t *testing.T) {
-		ownerA := makeOwner(t, db, clinicA, "隔離最終A")
+		ownerA := makeTestOwner(t, db, clinicA, "隔離最終A")
 		ownerAID := ownerA.ID
-		ownerB := makeOwner(t, db, clinicB, "隔離最終B")
+		ownerB := makeTestOwner(t, db, clinicB, "隔離最終B")
 		ownerBID := ownerB.ID
 		makeVisitRecordForOwnerVisitTest(t, db, &model.MedicalRecord{
 			ClinicID: clinicA, OwnerID: &ownerAID, Date: lastVisitDate,
@@ -362,7 +362,7 @@ func TestMedicalRecordRepository_FindOwnersByLastVisitDays(t *testing.T) {
 	})
 
 	t.Run("該当なし: exactDays に一致するカルテが無ければ空配列", func(t *testing.T) {
-		owner := makeOwner(t, db, clinicA, "最終不一致飼主")
+		owner := makeTestOwner(t, db, clinicA, "最終不一致飼主")
 		ownerID := owner.ID
 		makeVisitRecordForOwnerVisitTest(t, db, &model.MedicalRecord{
 			ClinicID: clinicA, OwnerID: &ownerID, Date: lastVisitDate.AddDate(0, 0, -5),
@@ -384,7 +384,7 @@ func TestMedicalRecordRepository_FindOwnersByNextVisitRecommended(t *testing.T) 
 	target := time.Date(2026, 8, 20, 0, 0, 0, 0, time.Local)
 
 	t.Run("正常系: 最新カルテの次回来院推奨日が targetDate の飼い主を返す", func(t *testing.T) {
-		owner := makeOwner(t, db, clinicA, "推奨日飼主")
+		owner := makeTestOwner(t, db, clinicA, "推奨日飼主")
 		ownerID := owner.ID
 		otherDate := target.AddDate(0, 0, 5)
 		makeVisitRecordForOwnerVisitTest(t, db, &model.MedicalRecord{
@@ -403,9 +403,9 @@ func TestMedicalRecordRepository_FindOwnersByNextVisitRecommended(t *testing.T) 
 	})
 
 	t.Run("clinic_id隔離(二重指定WHERE): 同一targetDateでも別クリニックの飼い主は混入しない", func(t *testing.T) {
-		ownerA := makeOwner(t, db, clinicA, "推奨日隔離A")
+		ownerA := makeTestOwner(t, db, clinicA, "推奨日隔離A")
 		ownerAID := ownerA.ID
-		ownerB := makeOwner(t, db, clinicB, "推奨日隔離B")
+		ownerB := makeTestOwner(t, db, clinicB, "推奨日隔離B")
 		ownerBID := ownerB.ID
 		makeVisitRecordForOwnerVisitTest(t, db, &model.MedicalRecord{
 			ClinicID: clinicA, OwnerID: &ownerAID, Date: time.Now().In(time.Local),
@@ -428,7 +428,7 @@ func TestMedicalRecordRepository_FindOwnersByNextVisitRecommended(t *testing.T) 
 	})
 
 	t.Run("該当なし: targetDate に一致する最新カルテが無ければ空配列", func(t *testing.T) {
-		owner := makeOwner(t, db, clinicA, "推奨日不一致飼主")
+		owner := makeTestOwner(t, db, clinicA, "推奨日不一致飼主")
 		ownerID := owner.ID
 		otherDate := target.AddDate(0, 0, 1)
 		makeVisitRecordForOwnerVisitTest(t, db, &model.MedicalRecord{
@@ -451,7 +451,7 @@ func TestMedicalRecordRepository_FindDormantOwnerEntries(t *testing.T) {
 	oldDate := time.Now().In(time.Local).AddDate(0, 0, -200)
 
 	t.Run("正常系: minDaysSince 以上経過した飼い主を返す", func(t *testing.T) {
-		owner := makeOwner(t, db, clinicA, "休眠飼主単体")
+		owner := makeTestOwner(t, db, clinicA, "休眠飼主単体")
 		ownerID := owner.ID
 		makeVisitRecordForOwnerVisitTest(t, db, &model.MedicalRecord{
 			ClinicID: clinicA, OwnerID: &ownerID, Date: oldDate,
@@ -471,9 +471,9 @@ func TestMedicalRecordRepository_FindDormantOwnerEntries(t *testing.T) {
 	})
 
 	t.Run("clinic_id隔離: 別クリニックの休眠飼い主は混入しない", func(t *testing.T) {
-		ownerA := makeOwner(t, db, clinicA, "休眠隔離A")
+		ownerA := makeTestOwner(t, db, clinicA, "休眠隔離A")
 		ownerAID := ownerA.ID
-		ownerB := makeOwner(t, db, clinicB, "休眠隔離B")
+		ownerB := makeTestOwner(t, db, clinicB, "休眠隔離B")
 		ownerBID := ownerB.ID
 		makeVisitRecordForOwnerVisitTest(t, db, &model.MedicalRecord{
 			ClinicID: clinicA, OwnerID: &ownerAID, Date: oldDate,
@@ -494,7 +494,7 @@ func TestMedicalRecordRepository_FindDormantOwnerEntries(t *testing.T) {
 	})
 
 	t.Run("該当なし: 直近来院のみの飼い主は含まれない", func(t *testing.T) {
-		owner := makeOwner(t, db, clinicA, "直近来院飼主")
+		owner := makeTestOwner(t, db, clinicA, "直近来院飼主")
 		ownerID := owner.ID
 		makeVisitRecordForOwnerVisitTest(t, db, &model.MedicalRecord{
 			ClinicID: clinicA, OwnerID: &ownerID, Date: time.Now().In(time.Local),

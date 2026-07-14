@@ -30,7 +30,7 @@ func TestMedicalRecordRepository_FindByID_FindAll_DoesNotPreloadForeignOwnerPet(
 
 	const clinicA, clinicB = uint64(1), uint64(2)
 
-	ownerB := makeOwner(t, db, clinicB, "医院Bの飼主")
+	ownerB := makeTestOwner(t, db, clinicB, "医院Bの飼主")
 	petB := makeSpeciesAndPet(t, db, clinicB, ownerB.ID, "医院Bのペット")
 
 	ownerBID, petBID := ownerB.ID, petB.ID
@@ -77,7 +77,7 @@ func TestMedicalRecordRepository_Create_ParticipatesInAmbientTransaction(t *test
 	ctx := context.Background()
 	const clinicA = uint64(1)
 
-	owner := makeOwner(t, db, clinicA, "自院飼主")
+	owner := makeTestOwner(t, db, clinicA, "自院飼主")
 	pet := makeSpeciesAndPet(t, db, clinicA, owner.ID, "自院ペット")
 	ownerID, petID := owner.ID, pet.ID
 

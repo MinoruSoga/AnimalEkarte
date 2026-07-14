@@ -63,7 +63,7 @@ func TestCheckupFieldResultRepository_ReplaceForCheckup_RoundTripsFieldTypes(t *
 	ctx := context.Background()
 	const clinicA = uint64(1)
 
-	owner := makeOwner(t, db, clinicA, "健診飼主")
+	owner := makeTestOwner(t, db, clinicA, "健診飼主")
 	pet := makeSpeciesAndPet(t, db, clinicA, owner.ID, "健診ポチ")
 	mr := makeHistoryMedicalRecord(t, db, clinicA, pet.ID, "MR-CHKFIELD", time.Now())
 	ct := makeCheckupTypeMaster(t, db, clinicA, "歯科検診")
@@ -122,7 +122,7 @@ func TestCheckupFieldResultRepository_FindByPetID_FieldPreloadClinicIsolation(t 
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 
-	ownerA := makeOwner(t, db, clinicA, "隔離飼主A")
+	ownerA := makeTestOwner(t, db, clinicA, "隔離飼主A")
 	petA := makeSpeciesAndPet(t, db, clinicA, ownerA.ID, "隔離ポチA")
 	mrA := makeHistoryMedicalRecord(t, db, clinicA, petA.ID, "MR-ISO", time.Now())
 	ctA := makeCheckupTypeMaster(t, db, clinicA, "医院Aの歯科検診")
@@ -191,7 +191,7 @@ func TestCheckupFieldResultRepository_ReplaceForCheckup_RoundTripsRemainingField
 	ctx := context.Background()
 	const clinicA = uint64(1)
 
-	owner := makeOwner(t, db, clinicA, "残型飼主")
+	owner := makeTestOwner(t, db, clinicA, "残型飼主")
 	pet := makeSpeciesAndPet(t, db, clinicA, owner.ID, "残型ポチ")
 	mr := makeHistoryMedicalRecord(t, db, clinicA, pet.ID, "MR-FIELDTYPES", time.Now())
 	ct := makeCheckupTypeMaster(t, db, clinicA, "歯科検診")

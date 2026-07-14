@@ -23,8 +23,8 @@ func TestAccountingRepository_SumPaidByOwner_SumsCompletedOnlyForOwner(t *testin
 	ctx := context.Background()
 	const clinicID = uint64(1)
 
-	owner := makeOwner(t, db, clinicID, "LTV飼主")
-	other := makeOwner(t, db, clinicID, "別飼主")
+	owner := makeTestOwner(t, db, clinicID, "LTV飼主")
+	other := makeTestOwner(t, db, clinicID, "別飼主")
 
 	completed1 := &model.Billing{ClinicID: clinicID, OwnerID: &owner.ID, TotalAmount: 3000, Status: model.BillingStatusCompleted, ScheduledDate: time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC)}
 	completed2 := &model.Billing{ClinicID: clinicID, OwnerID: &owner.ID, TotalAmount: 5000, Status: model.BillingStatusCompleted, ScheduledDate: time.Date(2026, 6, 2, 0, 0, 0, 0, time.UTC)}
@@ -46,7 +46,7 @@ func TestAccountingRepository_SumPaidByOwner_ZeroWhenNoCompletedBillings(t *test
 	ctx := context.Background()
 	const clinicID = uint64(1)
 
-	owner := makeOwner(t, db, clinicID, "未会計飼主")
+	owner := makeTestOwner(t, db, clinicID, "未会計飼主")
 	total, err := repo.SumPaidByOwner(ctx, clinicID, owner.ID)
 	require.NoError(t, err)
 	assert.Equal(t, int64(0), total)
@@ -58,7 +58,7 @@ func TestAccountingRepository_SumPaidByOwner_ClinicIsolation(t *testing.T) {
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 
-	owner := makeOwner(t, db, clinicA, "医院A飼主")
+	owner := makeTestOwner(t, db, clinicA, "医院A飼主")
 	billing := &model.Billing{ClinicID: clinicA, OwnerID: &owner.ID, TotalAmount: 4000, Status: model.BillingStatusCompleted, ScheduledDate: time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC)}
 	require.NoError(t, db.WithContext(ctx).Create(billing).Error)
 
@@ -73,7 +73,7 @@ func TestAccountingRepository_MaxSingleVisitAmountByOwner_ReturnsMaxOfCompleted(
 	ctx := context.Background()
 	const clinicID = uint64(1)
 
-	owner := makeOwner(t, db, clinicID, "最大来院飼主")
+	owner := makeTestOwner(t, db, clinicID, "最大来院飼主")
 	for _, amt := range []int64{10_000, 35_000, 8_000} {
 		b := &model.Billing{ClinicID: clinicID, OwnerID: &owner.ID, TotalAmount: amt, Status: model.BillingStatusCompleted, ScheduledDate: time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC)}
 		require.NoError(t, db.WithContext(ctx).Create(b).Error)
@@ -93,7 +93,7 @@ func TestAccountingRepository_MaxSingleVisitAmountByOwner_ZeroWhenNoCompletedBil
 	ctx := context.Background()
 	const clinicID = uint64(1)
 
-	owner := makeOwner(t, db, clinicID, "会計なし飼主")
+	owner := makeTestOwner(t, db, clinicID, "会計なし飼主")
 	maxAmount, err := repo.MaxSingleVisitAmountByOwner(ctx, clinicID, owner.ID)
 	require.NoError(t, err)
 	assert.Equal(t, int64(0), maxAmount)
@@ -106,8 +106,8 @@ func TestAccountingRepository_FindOwnersByAnnualRevenue_OrdersDescendingAndExclu
 	const clinicID = uint64(1)
 	now := time.Now()
 
-	high := makeOwner(t, db, clinicID, "高額飼主")
-	low := makeOwner(t, db, clinicID, "低額飼主")
+	high := makeTestOwner(t, db, clinicID, "高額飼主")
+	low := makeTestOwner(t, db, clinicID, "低額飼主")
 
 	// 直近365日以内（対象）
 	b1 := &model.Billing{ClinicID: clinicID, OwnerID: &high.ID, TotalAmount: 30_000, Status: model.BillingStatusCompleted, ScheduledDate: now.AddDate(0, 0, -10), CompletedAt: timePtr(now.AddDate(0, 0, -10))}
@@ -116,7 +116,7 @@ func TestAccountingRepository_FindOwnersByAnnualRevenue_OrdersDescendingAndExclu
 	require.NoError(t, db.WithContext(ctx).Create(b2).Error)
 
 	// 365日超過（除外対象）— high の売上を追加してしまうと除外検証にならないため別飼主で作成
-	tooOld := makeOwner(t, db, clinicID, "365日超過飼主")
+	tooOld := makeTestOwner(t, db, clinicID, "365日超過飼主")
 	oldBilling := &model.Billing{ClinicID: clinicID, OwnerID: &tooOld.ID, TotalAmount: 99_999, Status: model.BillingStatusCompleted, ScheduledDate: now.AddDate(0, 0, -400), CompletedAt: timePtr(now.AddDate(0, 0, -400))}
 	require.NoError(t, db.WithContext(ctx).Create(oldBilling).Error)
 
@@ -159,8 +159,8 @@ func TestAccountingRepository_FindOwnersByAnnualRevenue_ClinicIsolation(t *testi
 	const clinicA, clinicB = uint64(1), uint64(2)
 	now := time.Now()
 
-	ownerA := makeOwner(t, db, clinicA, "医院A飼主")
-	ownerB := makeOwner(t, db, clinicB, "医院B飼主")
+	ownerA := makeTestOwner(t, db, clinicA, "医院A飼主")
+	ownerB := makeTestOwner(t, db, clinicB, "医院B飼主")
 	bA := &model.Billing{ClinicID: clinicA, OwnerID: &ownerA.ID, TotalAmount: 1_000, Status: model.BillingStatusCompleted, ScheduledDate: now.AddDate(0, 0, -1), CompletedAt: timePtr(now.AddDate(0, 0, -1))}
 	bB := &model.Billing{ClinicID: clinicB, OwnerID: &ownerB.ID, TotalAmount: 9_000, Status: model.BillingStatusCompleted, ScheduledDate: now.AddDate(0, 0, -1), CompletedAt: timePtr(now.AddDate(0, 0, -1))}
 	require.NoError(t, db.WithContext(ctx).Create(bA).Error)

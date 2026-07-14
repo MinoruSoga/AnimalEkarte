@@ -105,7 +105,7 @@ func TestReservationAdminRepository_FindAllByDay(t *testing.T) {
 
 	const clinicA, clinicB = uint64(1), uint64(2)
 
-	owner := makeOwner(t, db, clinicA, "飼主・管理者予約")
+	owner := makeTestOwner(t, db, clinicA, "飼主・管理者予約")
 	pet := makeSpeciesAndPet(t, db, clinicA, owner.ID, "予約犬")
 	doctor := makeDoctor(t, db, clinicA, "予約医師")
 
@@ -143,7 +143,7 @@ func TestReservationAdminRepository_FindTimeRangesByDateRange(t *testing.T) {
 
 	const clinicA, clinicB = uint64(1), uint64(2)
 
-	owner := makeOwner(t, db, clinicA, "飼主・範囲予約")
+	owner := makeTestOwner(t, db, clinicA, "飼主・範囲予約")
 	pet := makeSpeciesAndPet(t, db, clinicA, owner.ID, "範囲予約犬")
 	doctor := makeDoctor(t, db, clinicA, "範囲予約医師")
 
@@ -358,7 +358,7 @@ func TestReservationAdminRepository_FindByIDForNotify(t *testing.T) {
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 
-	owner := makeOwner(t, db, clinicA, "飼主・通知")
+	owner := makeTestOwner(t, db, clinicA, "飼主・通知")
 	pet := makeSpeciesAndPet(t, db, clinicA, owner.ID, "通知犬")
 	doctor := makeDoctor(t, db, clinicA, "通知医師")
 	res := makeAdminReservationAt(t, db, clinicA, time.Now().UTC(), &owner.ID, &pet.ID, &doctor.ID, nil)

@@ -41,7 +41,7 @@ func TestExaminationRepository_FindByID_ExaminationTypePreloadClinicIsolation(t 
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 
-	ownerA := makeOwner(t, db, clinicA, "検査飼主A")
+	ownerA := makeTestOwner(t, db, clinicA, "検査飼主A")
 	petA := makeSpeciesAndPet(t, db, clinicA, ownerA.ID, "検査ポチA")
 	typeB := &model.ExaminationType{ClinicID: clinicB, Name: "医院Bの検査種別"}
 	require.NoError(t, db.WithContext(ctx).Create(typeB).Error)

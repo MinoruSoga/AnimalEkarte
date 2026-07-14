@@ -83,7 +83,7 @@ func TestHospitalizationRepository_FindAll_CagePreloadClinicIsolation(t *testing
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 
-	ownerA := makeOwner(t, db, clinicA, "入院飼主A")
+	ownerA := makeTestOwner(t, db, clinicA, "入院飼主A")
 	petA := makeSpeciesAndPet(t, db, clinicA, ownerA.ID, "入院ポチA")
 	cageB := makeCageMaster(t, db, clinicB, "医院Bのケージ")
 	cageA := makeCageMaster(t, db, clinicA, "医院Aのケージ")
@@ -119,7 +119,7 @@ func TestCheckupRepository_FindByID_CheckupTypePreloadClinicIsolation(t *testing
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 
-	ownerA := makeOwner(t, db, clinicA, "健診飼主A")
+	ownerA := makeTestOwner(t, db, clinicA, "健診飼主A")
 	petA := makeSpeciesAndPet(t, db, clinicA, ownerA.ID, "健診ポチA")
 	mrA := makeHistoryMedicalRecord(t, db, clinicA, petA.ID, "MR-CHK-A", time.Now())
 	typeB := makeCheckupTypeMaster(t, db, clinicB, "医院Bの健診種別")
@@ -172,7 +172,7 @@ func TestCarePlanItemRepository_FindByID_MasterPreloadClinicIsolation(t *testing
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 
-	ownerA := makeOwner(t, db, clinicA, "ケアプラン飼主A")
+	ownerA := makeTestOwner(t, db, clinicA, "ケアプラン飼主A")
 	petA := makeSpeciesAndPet(t, db, clinicA, ownerA.ID, "ケアプランポチA")
 	hospA := makeHospitalizationRec(t, db, clinicA, ownerA.ID, petA.ID, nil)
 	medB := makeMedicineMaster(t, db, clinicB, "医院Bの薬剤")
@@ -210,7 +210,7 @@ func TestClinicalPlanRepository_FindByMedicalRecordID_DiagnosisPreloadClinicIsol
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 
-	ownerA := makeOwner(t, db, clinicA, "診断計画飼主A")
+	ownerA := makeTestOwner(t, db, clinicA, "診断計画飼主A")
 	petA := makeSpeciesAndPet(t, db, clinicA, ownerA.ID, "診断計画ポチA")
 	mrA := makeHistoryMedicalRecord(t, db, clinicA, petA.ID, "MR-CP-A", time.Now())
 	typeB := makeDiagnosisTypeMaster(t, db, clinicB, "医院Bの診断分類")

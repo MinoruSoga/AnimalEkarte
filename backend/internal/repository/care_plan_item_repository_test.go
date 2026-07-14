@@ -70,12 +70,12 @@ func TestCarePlanItemRepository_FindByHospitalizationID(t *testing.T) {
 		clinicB = uint64(2)
 	)
 
-	ownerA := makeOwner(t, db, clinicA, "入院飼主A")
+	ownerA := makeTestOwner(t, db, clinicA, "入院飼主A")
 	petA := makeSpeciesAndPet(t, db, clinicA, ownerA.ID, "入院ポチA")
 	hospA := makeHospitalizationRec(t, db, clinicA, ownerA.ID, petA.ID, nil)
 	hospOther := makeHospitalizationRec(t, db, clinicA, ownerA.ID, petA.ID, nil)
 
-	ownerB := makeOwner(t, db, clinicB, "入院飼主B")
+	ownerB := makeTestOwner(t, db, clinicB, "入院飼主B")
 	petB := makeSpeciesAndPet(t, db, clinicB, ownerB.ID, "入院ポチB")
 	hospB := makeHospitalizationRec(t, db, clinicB, ownerB.ID, petB.ID, nil)
 
@@ -137,7 +137,7 @@ func TestCarePlanItemRepository_FindByID(t *testing.T) {
 		clinicB = uint64(2)
 	)
 
-	ownerA := makeOwner(t, db, clinicA, "飼主A")
+	ownerA := makeTestOwner(t, db, clinicA, "飼主A")
 	petA := makeSpeciesAndPet(t, db, clinicA, ownerA.ID, "ポチA")
 	hospA := makeHospitalizationRec(t, db, clinicA, ownerA.ID, petA.ID, nil)
 	item := makeCarePlanItem(t, db, hospA.ID, "対象アイテム", 1, nil, nil)
@@ -169,7 +169,7 @@ func TestCarePlanItemRepository_Create(t *testing.T) {
 	ctx := context.Background()
 
 	const clinicA = uint64(1)
-	ownerA := makeOwner(t, db, clinicA, "飼主A")
+	ownerA := makeTestOwner(t, db, clinicA, "飼主A")
 	petA := makeSpeciesAndPet(t, db, clinicA, ownerA.ID, "ポチA")
 	hospA := makeHospitalizationRec(t, db, clinicA, ownerA.ID, petA.ID, nil)
 
@@ -191,7 +191,7 @@ func TestCarePlanItemRepository_Update(t *testing.T) {
 		clinicA = uint64(1)
 		clinicB = uint64(2)
 	)
-	ownerA := makeOwner(t, db, clinicA, "飼主A")
+	ownerA := makeTestOwner(t, db, clinicA, "飼主A")
 	petA := makeSpeciesAndPet(t, db, clinicA, ownerA.ID, "ポチA")
 	hospA := makeHospitalizationRec(t, db, clinicA, ownerA.ID, petA.ID, nil)
 	item := makeCarePlanItem(t, db, hospA.ID, "更新前", 1, nil, nil)
@@ -223,7 +223,7 @@ func TestCarePlanItemRepository_Delete(t *testing.T) {
 		clinicA = uint64(1)
 		clinicB = uint64(2)
 	)
-	ownerA := makeOwner(t, db, clinicA, "飼主A")
+	ownerA := makeTestOwner(t, db, clinicA, "飼主A")
 	petA := makeSpeciesAndPet(t, db, clinicA, ownerA.ID, "ポチA")
 	hospA := makeHospitalizationRec(t, db, clinicA, ownerA.ID, petA.ID, nil)
 	item := makeCarePlanItem(t, db, hospA.ID, "削除対象", 1, nil, nil)
