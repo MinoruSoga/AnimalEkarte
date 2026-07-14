@@ -13,6 +13,7 @@ import (
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/repository"
+	"github.com/animal-ekarte/backend/internal/timeutil"
 )
 
 // ---- レスポンス型（フロントエンド期待形式） ----
@@ -186,7 +187,6 @@ func buildMonthlyReportResponse(
 	}
 
 	// 日別明細スライスを期間内の日付昇順で構築
-	weekdayJP := [7]string{"日", "月", "火", "水", "木", "金", "土"}
 	days := int(endDate.Sub(startDate).Hours()/24) + 1
 	if days < 0 {
 		days = 0
@@ -201,7 +201,7 @@ func buildMonthlyReportResponse(
 		agg := dailyMap[dateStr]
 		detail := DailyReportDetail{
 			Date:      dateStr,
-			Weekday:   weekdayJP[d.Weekday()],
+			Weekday:   timeutil.WeekdayJP(d),
 			IsHoliday: isHoliday,
 		}
 		if agg != nil {

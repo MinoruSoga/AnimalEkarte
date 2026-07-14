@@ -13,6 +13,7 @@ import (
 	"github.com/animal-ekarte/backend/internal/infra/crypto"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/repository"
+	"github.com/animal-ekarte/backend/internal/timeutil"
 )
 
 // ReservationNotifier は予約確定・キャンセル時の通知インターフェース。
@@ -343,15 +344,13 @@ func customerDisplayName(c *model.LineCustomer) string {
 	return c.DisplayName
 }
 
-var weekdaysJP = [...]string{"日", "月", "火", "水", "木", "金", "土"}
-
 func formatDateJPWithTime(t time.Time) string {
-	w := weekdaysJP[t.Weekday()]
+	w := timeutil.WeekdayJP(t)
 	return fmt.Sprintf("%s(%s) %s", t.Format("2006年01月02日"), w, t.Format("15:04"))
 }
 
 func formatDateTimeJP(start, end time.Time) string {
-	w := weekdaysJP[start.Weekday()]
+	w := timeutil.WeekdayJP(start)
 	return fmt.Sprintf("%s(%s) %s〜%s",
 		start.Format("2006年01月02日"),
 		w,
