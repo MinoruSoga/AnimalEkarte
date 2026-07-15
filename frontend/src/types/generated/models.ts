@@ -748,6 +748,8 @@ export interface ClinicSettings {
   cpm_version: string;
   /**
    * Q21 SPEC-004 dormant prevention 閾値 (clinic 単位調整可能)
+   * column: 必須 — GORM デフォルトは Prevention180 → prevention180（数字前に _ なし）となり
+   * 実スキーマ dormant_prevention_180_days と不一致で SQLSTATE 42703 になる（#236 BUG#3）。
    */
   dormant_prevention_180_days: number /* int */;
   dormant_prevention_210_days: number /* int */;
@@ -755,6 +757,7 @@ export interface ClinicSettings {
   dormant_prevention_365_days: number /* int */;
   /**
    * P1 CPM V2 来院回数閾値 (clinic 単位調整可能、migration 007)
+   * column: 必須 — CPMV2 → cpmv2（_v2 にならない）となり実スキーマ cpm_v2_* と不一致（#236）。
    */
   cpm_v2_coming_threshold: number /* int */;
   cpm_v2_good_threshold: number /* int */;
@@ -1725,7 +1728,7 @@ export interface LstepCsvImport {
   clinic_id: number /* uint64 */;
   csv_type: string;
   file_name: string;
-  uploaded_by_user_id?: number /* uint64 */;
+  uploaded_by_user_id: number /* uint64 */;
   row_count: number /* int */;
   success_count: number /* int */;
   error_count: number /* int */;
@@ -3010,6 +3013,12 @@ export interface AppointmentTrimmingDetail {
    * Relations
    */
   course?: TrimmingCourse;
+  /**
+   * Options: foreignKey/references を明示しないと GORM は自モデルの primaryKey(ID) をソース側
+   * 結合キーとして使う（デフォルト解決）。本モデルは ID(サロゲートPK) と AppointmentID(実FK) が
+   * 別の値空間のため、明示しないと Preload/Association が appointment_trimming_options.appointment_id
+   * を appointment_trimming_details.id と突合してしまい、常に空/失敗する（#212）。
+   */
   options?: TrimmingOption[];
 }
 /**
