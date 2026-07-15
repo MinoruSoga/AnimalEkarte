@@ -26,7 +26,7 @@ docker compose exec backend gosec -json ./... | jq
 
 ### 2. OWASP Top 10 — Go固有差分
 
-OWASP Top 10 の一般論・脅威説明・チェックリストは `security-review` スキルの「OWASP Top 10 対応状況チェック」を参照。ここでは Go 実装固有の差分のみ扱う。
+OWASP Top 10 の一般論・脅威説明・チェックリストは `security-checklist` スキルの「OWASP Top 10 対応状況チェック」を参照。ここでは Go 実装固有の差分のみ扱う。
 
 #### A1: Injection — GORM実装
 ```go
@@ -153,5 +153,5 @@ db.Where("name LIKE ?", "%"+escapeLike(name)+"%").Find(&users)  // escapeLike（
 
 ## 関連スキル
 
-- `security-review` - OWASP一般論・シークレット管理・統合チェックリスト
+- `security-checklist` - OWASP一般論・シークレット管理・統合チェックリスト
 - `database-indexing` - クエリパフォーマンスと安全性

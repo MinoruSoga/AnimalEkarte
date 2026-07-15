@@ -182,3 +182,34 @@ docker compose exec db psql -U postgres -d ekarte_dev -c \
 CREATE INDEX IF NOT EXISTS idx_owners_clinic ON owners(clinic_id, id);
 ALTER TABLE owners ADD COLUMN IF NOT EXISTS middle_name TEXT;
 ```
+
+## 運用トラブルシューティング（database スキルより統合）
+
+> ⚠️ 以下のコマンド（`docker compose restart` / `down -v` / `psql` 直実行）は CLAUDE.md の自動実行禁止コマンド。ユーザーに手動実行を依頼する。
+
+**接続エラー** (`failed to connect to postgres`):
+```bash
+docker compose ps db                                              # コンテナ起動確認
+docker compose exec db psql -U "$DB_USER" -d "$DB_NAME" -c "\conninfo"
+docker compose exec backend env | grep DB                         # 環境変数確認
+```
+
+**ロック待ち**（クエリがハング）:
+```sql
+SELECT * FROM pg_locks WHERE NOT granted;
+SELECT pid, state, query, wait_event FROM pg_stat_activity WHERE state = 'active';
+SELECT pg_terminate_backend(pid);  -- 問題プロセスの終了
+```
+
+**ディスク容量不足**:
+```bash
+docker system df               # Docker ボリューム容量確認
+docker system prune -f         # 不要イメージ・ボリューム削除
+docker compose exec db psql -U "$DB_USER" -d "$DB_NAME" -c "VACUUM FULL;"
+```
+
+**バックアップ・復元**:
+```bash
+docker compose exec db pg_dump -U "$DB_USER" "$DB_NAME" > backup_$(date +%Y%m%d).sql
+docker compose exec -T db psql -U "$DB_USER" -d "$DB_NAME" < backup_20260101.sql
+```

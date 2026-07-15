@@ -7,7 +7,7 @@ description: React セキュリティ分析・XSS対応（dangerouslySetInnerHTM
 
 React アプリケーションのセキュリティを OWASP + React セキュリティベストプラクティスで分析します。
 
-OWASP Top 10 の一般論・脅威説明・チェックリストは `security-review` スキルを参照。ここでは React/TSX 実装固有の差分のみ扱う。
+OWASP Top 10 の一般論・脅威説明・チェックリストは `security-checklist` スキルを参照。ここでは React/TSX 実装固有の差分のみ扱う。
 
 ## 実行スコープ
 
@@ -226,7 +226,7 @@ const isAllowed = ALLOWED_SCRIPTS.includes(scriptUrl)
 
 ## 関連スキル
 
-- `security-review` - OWASP一般論・シークレット管理・統合チェックリスト
+- `security-checklist` - OWASP一般論・シークレット管理・統合チェックリスト
 - `go-security` - Backend 認証・認可
 
 ## プロジェクト実績由来の注意（出典付き）

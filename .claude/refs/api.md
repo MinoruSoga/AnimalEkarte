@@ -1,52 +1,10 @@
 ---
-description: Go/Gin REST API design and implementation patterns
+description: Go/Gin REST API design and implementation patterns (pointer)
 alwaysApply: false
 globs: ["backend/**/*.go"]
 ---
 
 # API Development Rules (Go/Gin)
 
-## Endpoint Design
-
-- Use RESTful conventions
-- Include input validation on all endpoints
-- Return consistent error response format
-- Use proper HTTP status codes
-
-## Handler Pattern
-
-```go
-func (h *Handler) GetResource(c *gin.Context) {
-    id := c.Param("id")
-
-    result, err := h.service.FindByID(c.Request.Context(), id)
-    if err != nil {
-        c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-        return
-    }
-
-    c.JSON(http.StatusOK, result)
-}
-```
-
-## Error Response Format
-
-```json
-{
-  "error": "Human readable message"
-}
-```
-
-## Security
-
-- Validate all user input
-- Use parameterized queries (prevent SQL injection)
-- Implement rate limiting
-- Sanitize output (prevent XSS)
-- Use context for request-scoped values
-
-## Documentation
-
-- Add Swagger comments for API documentation
-- Document all request/response schemas
-- Use meaningful error messages
+実体は `gin-api-design` スキル（`.claude/skills/gin-api-design/SKILL.md`）に統合済み。
+API 設計・エンドポイント追加時はそちらを参照すること。

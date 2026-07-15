@@ -133,7 +133,7 @@ $ docker compose exec backend go test ./internal/service/...
 | `naming-conventions.md` | DB/API/Go naming verification |
 | `accessibility-rules.md` | Frontend UI implementation |
 
-DB design/migrations → `postgres-patterns` / `migration-seed-safety` skills. Git/code-style/testing/performance/docker/security の一般規約は `.claude/rules/ecc/**` のグローバルルールと `golang-testing` / `docker-patterns` / `security-review` 等のスキルが正本（refs/ の凍結コピーは廃止済み）。
+DB design/migrations → `postgres-patterns` / `migration-seed-safety` skills. Git/code-style/testing/performance/docker/security の一般規約は `.claude/rules/ecc/**` のグローバルルールと `golang-testing` / `docker-patterns` / `security-checklist` 等のスキルが正本（refs/ の凍結コピーは廃止済み）。
 
 ---
 

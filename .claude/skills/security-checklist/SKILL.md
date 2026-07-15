@@ -1,5 +1,5 @@
 ---
-name: security-review
+name: security-checklist
 description: セキュリティレビューの統合チェックリスト。認証・入力バリデーション・シークレット管理・OWASP Top 10対応。API実装・認証コード変更・ユーザー入力処理時に使用。
 origin: ECC (adapted for AnimalEkarte)
 ---
