@@ -36,6 +36,7 @@ gh pr view --json number,title,body
 |---------|--------------|
 | `.go` ファイル | `go-reviewer` |
 | `.ts` / `.tsx` | `typescript-reviewer` |
+| `.tsx`/`.jsx` フックロジック | `react-reviewer`（typescript-reviewerと並列） |
 | DB / migration | `database-reviewer` |
 | auth / security | `security-analyst` |
 | 患者記録・clinic_id | `healthcare-reviewer` |

@@ -22,11 +22,16 @@ process.stdin.on('end', () => {
     ];
     for (const { re, label } of secretPatterns) {
       if (re.test(prompt)) {
+        // UserPromptSubmit hook: stdout is injected as context the model sees,
+        // so surface the warning there (stderr alone is easy to miss/black-hole).
+        console.log(`[Hook] WARNING: Possible ${label} detected in this prompt. Do not act on it as a real credential; ask the user to rotate it and use env vars instead.`);
         process.stderr.write(`[Hook] WARNING: Possible ${label} detected in prompt. Use env vars instead.\n`);
         break;
       }
     }
   } catch {}
-  process.stdout.write(data);
+  // Do NOT echo the raw input JSON to stdout — for UserPromptSubmit hooks stdout
+  // is injected as additional context on every single prompt; echoing the full
+  // payload here bloated context on every message for no benefit.
   process.exit(0);
 });

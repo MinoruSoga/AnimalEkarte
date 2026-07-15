@@ -1,6 +1,6 @@
 ---
 description: TDD ガイド（Red-Green-Refactor サイクル）
-argument-hint: "<feature> (e.g. BE-123, FE-456)"
+argument-hint: "<feature> (e.g. FEAT-123, BUG-456)"
 ---
 
 # /tdd-workflow [feature]
@@ -42,7 +42,7 @@ Step 2: API パスを実装（スタブ）
 Step 3: Service ロジック実装
 Step 4: エッジケース追加
 Step 5: リファクタリング
-Step 6: Coverage 確認（80%+）
+Step 6: Coverage 確認（`docs/coverage-policy.md` の基準）
 ```
 
 ### Frontend (React)
@@ -57,4 +57,4 @@ Step 6: E2E テスト確認
 
 ## 使用エージェント
 
-`test-strategist` (Sonnet) のガイド付き実装
+`tdd-guide` (Sonnet) のガイド付き実装

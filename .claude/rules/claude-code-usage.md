@@ -10,29 +10,7 @@
 
 ## エージェント × モデル対応
 
-| エージェント | 用途 | モデル |
-|------------|------|-------|
-| `planner` | 実装計画・リスク分析 | opus |
-| `architect` | システム設計判断 | opus |
-| `security-analyst` | 脆弱性分析 | opus |
-| `healthcare-reviewer` | 臨床データ安全性・clinic_id隔離・患者記録保護 | opus |
-| `go-expert` | Go idiom・パフォーマンス | sonnet |
-| `go-reviewer` | Go コードレビュー | sonnet |
-| `go-build-resolver` | Go ビルドエラー・go vet 解決 | sonnet |
-| `typescript-reviewer` | TS/React コードレビュー（型・アーキ・design-tokens） | sonnet |
-| `react-reviewer` | React フック正確性・a11y（typescript-reviewer と排他レーン） | sonnet |
-| `build-error-resolver` | TypeScript ビルドエラー・型エラー解決 | sonnet |
-| `implementer` | 機能実装 | sonnet |
-| `refactor-cleaner` | リファクタリング | sonnet |
-| `database-reviewer` | DB スキーマレビュー | sonnet |
-| `performance-optimizer` | パフォーマンス改善 | sonnet |
-| `tdd-guide` | TDD ワークフロー | sonnet |
-| `test-strategist` | テスト戦略 | sonnet |
-| `silent-failure-hunter` | 暗黙的バグ検出 | sonnet |
-| `debugger` | 軽微なデバッグ | haiku |
-| `formatter` | コードフォーマット | haiku |
-| `researcher` | ファイル検索・情報収集 | haiku |
-| `reviewer` | 軽量レビュー | haiku |
+正本は各エージェントの frontmatter（`.claude/agents/*.md` の `model:`）。表による二重管理はしない（対応表がエージェント追加/削除のたびにドリフトしていたため廃止）。
 
 ## `/think` 判断基準
 
@@ -47,7 +25,6 @@
 | < 20% | 即座に `/compact` 実行 |
 
 - タスク切り替え前に `/compact` を検討する
-- `pre-compact-save-state.js` がコンパクト前に git 状態・進捗を自動保存
 - `stop-save-progress.js` がセッション終了時に進捗スナップショットを保存
 
 ## 読み取り効率ルール（トークン削減）

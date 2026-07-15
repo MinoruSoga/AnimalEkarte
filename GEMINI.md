@@ -1,6 +1,6 @@
 # Gemini CLI Context: Animal Ekarte
 
-> **IMPORTANT**: This document is the source of truth for Gemini CLI. It is based on the established project rules found in `.claude/CLAUDE.md`.
+> **IMPORTANT**: `.claude/CLAUDE.md` is the source of truth for this project. This document is a condensed pointer for Gemini CLI sessions. It does **not** duplicate the mandatory sections of `.claude/CLAUDE.md` — read `.claude/CLAUDE.md` directly for Product Philosophy (`docs/PRODUCT_PHILOSOPHY.md`), Prompt Defense Baseline, Execution Autonomy, Auto-Execution Prohibited Commands, and MCP Policy before doing any work in this repo.
 
 ## 🎯 Coding Persona: Senior Engineer (Flat Thinking)
 
@@ -26,13 +26,7 @@ You operate as a senior software engineer. Adhere to the **"Flat Thinking"** pri
 ## 🔧 Operational Rules
 
 ### ⚠️ Execution Mandate: Use Docker
-**Never run pnpm or go commands locally.** Always use Docker Compose.
-
-```bash
-# Correct execution
-docker compose exec frontend pnpm <command>
-docker compose exec backend go test ./...
-```
+**Never run pnpm or go commands locally.** Always use Docker Compose — but full-repo commands (`go test ./...`, `golangci-lint run ./...`, `pnpm test:run`, `pnpm build`, etc.) must NOT be auto-executed. See `.claude/CLAUDE.md` → Auto-Execution Prohibited Commands for the exact list; prefer scoped commands (e.g. `docker compose exec backend go test ./internal/service/...`).
 
 ### Key Commands
 - `make up` / `make down`: Start/Stop containers.
@@ -86,4 +80,4 @@ docker compose exec backend go test ./...
 - `frontend/CODING_RULES.md`: Detailed frontend implementation rules.
 - `backend/CLAUDE.md`: Detailed backend implementation rules.
 - `docs/FUNCTIONAL_TEST_REPORT.md`: Functional test report (OK=2,111 / NG=274 / 未確認=1,514).
-- `.gemini/styleguide.md`: Gemini-specific style adjustments (Note: sync with this file).
+- `.gemini/styleguide.md`: pointer to `.claude/CLAUDE.md` (no independent content — do not add rules there that aren't in `.claude/CLAUDE.md`).

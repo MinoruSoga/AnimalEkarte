@@ -93,11 +93,8 @@
 ### 使い方
 
 ```
-/harness BE-042          # バックエンドイシューをハーネスで実装
-/harness FE-038          # フロントエンドイシューをハーネスで実装
+/harness FEAT-123        # タスクIDを指定してハーネスで実装（FEAT-/PERF-/BUG-/SEED- 等。旧 BE-XXX/FE-XXX は docs/archive/ 移設済みで使用しない）
 /harness                 # 未コミット変更を規約チェックのみ実行
-/harness-status          # 現在のハーネス進行状態を確認
-/harness-status reset    # 状態ファイルをリセット
 ```
 
 ### ループの流れ
@@ -112,12 +109,14 @@
       ↓ FAIL → フィードバック付きで Phase 2 に戻る（最大3回）
 ```
 
-### Codex での診断コマンド（規約チェック時に自律実行）
+### 規約チェック時の診断コマンド（スコープ限定のみ自律実行可・全体実行は自律実行禁止）
+
+`go vet`・変更ファイル限定の lint/type-check はスコープ限定であれば自律実行してよい。以下の全体実行系コマンドは `.claude/CLAUDE.md` の Auto-Execution Prohibited Commands に該当し、自律実行してはならない（必要な場合はユーザーに実行を依頼する）:
 
 ```bash
-docker compose exec backend go vet ./...
-docker compose exec backend golangci-lint run ./...
-docker compose exec frontend pnpm type-check
+docker compose exec backend golangci-lint run ./...   # NG: 全体lint。スコープ限定 golangci-lint run ./internal/xxx/... のみ可
+docker compose exec backend go test ./...              # NG: 全体テスト
+docker compose exec frontend pnpm type-check            # NG: 全体type-check
 ```
 
 ### いつ使うか

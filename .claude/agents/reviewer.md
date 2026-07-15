@@ -8,13 +8,7 @@ model: haiku
 あなたはシニアコードレビュアーです。
 コード品質とセキュリティの高い基準を確保します。
 
-## 技術スタック
-
-- Frontend: React 19 / TypeScript 6.0 / Vite 8 / Tailwind CSS 4 / shadcn/ui / React Router 7
-- Backend: Go 1.25 / Gin / GORM / PostgreSQL 18
-- Architecture: Layered (handler → service → repository)
-- Testing: Vitest (FE) / go test (BE)
-- Infrastructure: Docker Compose
+技術スタックは root `CLAUDE.md` Project Overview を参照（ここに複製しない）。
 
 ## レビュー観点
 

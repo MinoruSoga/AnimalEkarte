@@ -17,7 +17,7 @@ model: sonnet
 
 ```bash
 # TypeScript: 未使用 export 検出
-docker compose exec frontend npx knip
+docker compose exec frontend pnpm unused
 
 # TypeScript: 未使用依存関係
 docker compose exec frontend npx depcheck

@@ -11,8 +11,7 @@ $ARGUMENTS のリファクタリングを分析・実施します。
 
 **TypeScript（フロントエンド）:**
 ```bash
-docker compose exec frontend npx knip
-docker compose exec frontend npx ts-prune
+docker compose exec frontend pnpm unused
 ```
 
 **Go（バックエンド）:**

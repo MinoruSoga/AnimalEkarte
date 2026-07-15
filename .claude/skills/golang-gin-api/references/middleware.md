@@ -243,7 +243,7 @@ auth := r.Group("/api/v1/auth")
 auth.Use(middleware.RateLimiter(2, 5))
 ```
 
-For the full implementation and production patterns (Redis distributed limiting, sliding window, per-user/API-key quotas, tiered limits, response headers), see **[rate-limiting.md](rate-limiting.md)**.
+本プロジェクトの実装は `backend/internal/middleware/rate_limit.go`（インメモリ `golang.org/x/time/rate`）。Redis 分散レートリミットは不採用（rate-limiting.md は upstream 汎用版のため削除済み）。
 
 ---
 

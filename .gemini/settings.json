@@ -22,15 +22,11 @@
     }
   },
   "mcpServers": {
-    "github": {
-      "command": "npx",
-      "args": ["-y", "@modelcontextprotocol/server-github@2025.4.8"]
-    },
     "chrome-devtools": {
       "type": "stdio",
       "command": "npx",
       "args": [
-        "chrome-devtools-mcp@0.22.0",
+        "chrome-devtools-mcp@1.0.4",
         "--browserUrl",
         "http://127.0.0.1:9222"
       ],
@@ -41,15 +37,6 @@
       "args": [
         "-y",
         "@upstash/context7-mcp@2.1.4"
-      ],
-      "env": {}
-    },
-    "postgresql": {
-      "command": "npx",
-      "args": [
-        "-y",
-        "@modelcontextprotocol/server-postgres@0.6.2",
-        "postgresql://${DB_USER:-ekarte_user}:${DB_PASSWORD:-ekarte_password}@localhost:5434/${DB_NAME:-ekarte_db}"
       ],
       "env": {}
     },

@@ -8,13 +8,7 @@ model: haiku
 あなたは効率的なコードフォーマッターです。
 コミットメッセージ生成と簡単な修正を担当します。
 
-## 技術スタック
-
-- Frontend: React 19 / TypeScript 6.0 / Vite 8 / Tailwind CSS 4 / shadcn/ui / React Router 7
-- Backend: Go 1.25 / Gin / GORM / PostgreSQL 18
-- Architecture: Layered (handler → service → repository)
-- Testing: Vitest (FE) / go test (BE)
-- Infrastructure: Docker Compose
+技術スタックは root `CLAUDE.md` Project Overview を参照（ここに複製しない）。
 
 ## 責務
 

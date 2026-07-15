@@ -13,7 +13,7 @@
 プロジェクトの最新規約、アーキテクチャ、および開発手順については、以下のファイルを**必ず**最優先で参照してください。
 
 - **[.claude/CLAUDE.md](../.claude/CLAUDE.md)**: 全エージェントおよび開発者向けの統合ルール（SSOT）。
-- **[GEMINI.md](../GEMINI.md)**: Gemini CLI 向け最適化コンテキスト（`.claude/CLAUDE.md`と同期済み）。
+- **[GEMINI.md](../GEMINI.md)**: Gemini CLI 向けの要点ポインタ（詳細規約は `.claude/CLAUDE.md` が正本）。
 - **[AI_DEVELOPMENT_WORKFLOW.md](AI_DEVELOPMENT_WORKFLOW.md)**: 仕様駆動・AI エージェント協働開発の標準手順。
 - **[CODEGRAPH_PROMPTS.md](CODEGRAPH_PROMPTS.md)**: CodeGraph MCP 調査プロンプト集。
 

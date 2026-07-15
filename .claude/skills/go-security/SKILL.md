@@ -63,13 +63,19 @@ docker compose exec backend go list -json -m all | nancy sleuth
 ```go
 import "golang.org/x/crypto/bcrypt"
 
-// ハッシング
-hashedPassword, _ := bcrypt.GenerateFromPassword(
+// ハッシング — エラーは必ず伝播する（無視禁止）
+hashedPassword, err := bcrypt.GenerateFromPassword(
   []byte(password), bcrypt.DefaultCost,
 )
+if err != nil {
+  return apperrors.Wrap(err)
+}
 
 // 検証
-err := bcrypt.CompareHashAndPassword(hashedPassword, []byte(inputPassword))
+err = bcrypt.CompareHashAndPassword(hashedPassword, []byte(inputPassword))
+if err != nil {
+  return apperrors.WrapUnauthorized(err) // fail-closed: 検証失敗は必ず拒否
+}
 ```
 
 ### JWT トークン (認証用)
@@ -84,12 +90,18 @@ type Claims struct {
 
 // トークン生成
 token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-tokenString, _ := token.SignedString([]byte(secretKey))
+tokenString, err := token.SignedString([]byte(secretKey))
+if err != nil {
+  return apperrors.Wrap(err)
+}
 
-// 検証（middleware で実装）
-token, _ := jwt.ParseWithClaims(tokenString, &Claims{}, func(token *jwt.Token) (interface{}, error) {
+// 検証（middleware で実装）— エラーを無視すると偽トークンを通過させる致命的脆弱性になる
+parsed, err := jwt.ParseWithClaims(tokenString, &Claims{}, func(token *jwt.Token) (interface{}, error) {
   return []byte(secretKey), nil
 })
+if err != nil || !parsed.Valid {
+  return apperrors.WrapUnauthorized(err) // fail-closed: パース/検証失敗は必ず拒否
+}
 ```
 
 ### Input バリデーション

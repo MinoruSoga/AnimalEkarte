@@ -1,6 +1,6 @@
 ---
 name: gin-api-design
-description: （本プロジェクト固有・Gin実装特化。汎用API設計原則はグローバル api-design スキルを参照）REST API 設計パターン。リソース命名・HTTPステータスコード・ページネーション・エラーレスポンス設計。新規 API エンドポイント設計時に使用。
+description: （本プロジェクト固有・Gin実装特化。汎用API設計原則はグローバル api-designer スキルを参照）REST API 設計パターン。リソース命名・HTTPステータスコード・ページネーション・エラーレスポンス設計。新規 API エンドポイント設計時に使用。
 origin: ECC (adapted for AnimalEkarte)
 ---
 

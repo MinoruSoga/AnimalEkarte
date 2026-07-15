@@ -189,4 +189,4 @@ Each handler should reduce to: `ShouldBindJSON` → map to domain input → call
 - [layer-separation.md](layer-separation.md) — Dependency rule, each layer in detail
 - [dependency-injection.md](dependency-injection.md) — Wiring layers together in `main.go`
 - [error-handling.md](error-handling.md) — Propagating domain errors across layers
-- [testing-by-layer.md](testing-by-layer.md) — Testing each layer in isolation
+- `golang-testing` スキル — 各層のテストパターン（手書き fn-field モックが正本）

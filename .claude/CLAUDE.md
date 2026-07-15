@@ -129,16 +129,11 @@ $ docker compose exec backend go test ./internal/service/...
 | `gin-architecture-compliance.md` | Gin/GORM P1-P18 compliance check (handler/service/repository) |
 | `error-handling.md` | Error handling implementation (Go/TS both) |
 | `typescript-react.md` | Frontend implementation/review |
-| `testing.md` | Test implementation |
-| `api.md` | API design, endpoint additions |
+| `api.md` | API design, endpoint additions (pointer to gin-api-design skill) |
 | `naming-conventions.md` | DB/API/Go naming verification |
-| `database-design.md` | DB design, migrations |
-| `git-workflow.md` | Git operations, PR creation |
-| `code-style.md` | Code convention verification |
-| `performance-rules.md` | Performance optimization |
-| `docker-rules.md` | Docker/infrastructure changes |
 | `accessibility-rules.md` | Frontend UI implementation |
-| `security.md` | Security-related changes |
+
+DB design/migrations → `postgres-patterns` / `migration-seed-safety` skills. Git/code-style/testing/performance/docker/security の一般規約は `.claude/rules/ecc/**` のグローバルルールと `golang-testing` / `docker-patterns` / `security-review` 等のスキルが正本（refs/ の凍結コピーは廃止済み）。
 
 ---
 
@@ -174,4 +169,4 @@ Layer-specific rules are documented close to the code:
 
 **原則**: ディレクトリ CLAUDE.md で日常的なルールを把握する。
 P1-P18 の完全スキャンや網羅的な確認が必要な時だけ `refs/gin-architecture-compliance.md` を読む。
-`refs/` は削除しない — ディレクトリ CLAUDE.md の圧縮サマリーと相補的に機能する。
+`refs/` は凍結された二重管理コピーの温床になりやすい。内容が他スキル/グローバルルールでカバーされたら削除する（2026-07 に 14 本中 7 本を削除済み）。

@@ -228,7 +228,7 @@ Load these when you need deeper detail:
 - **[references/routing.md](references/routing.md)** — Route groups, API versioning, path parameters, pagination, wildcard routes, file uploads, custom validators, request size limits
 - **[references/middleware.md](references/middleware.md)** — CORS, security headers, request logging with slog, rate limiting, request ID, timeout, recovery, custom middleware template
 - **[references/error-handling.md](references/error-handling.md)** — panic recovery とHTTPレベルの一貫したJSONエラーフォーマット（AppError/センチネルエラー本体は golang-gin-clean-arch 参照）
-- **[references/rate-limiting.md](references/rate-limiting.md)** — Deep-dive rate limiting: token bucket, sliding window, Redis distributed, per-user/API-key quotas, tiered limits, response headers, graceful degradation
+- Rate limiting の実装例は `backend/internal/middleware/rate_limit.go`（インメモリ `golang.org/x/time/rate`。本プロジェクトに Redis は不採用 — 分散レートリミットの references/rate-limiting.md は upstream 汎用版のため削除済み）
 
 ## Cross-Skill References
 

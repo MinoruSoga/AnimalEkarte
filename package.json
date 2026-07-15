@@ -1,8 +1,5 @@
 {
   "scripts": {
-    "harness:health": "node scripts/harness-health.js",
-    "harness:loop": "node scripts/harness-refinement-loop.js",
-    "harness:audit": "node scripts/harness-audit.js repo",
     "deploy:frontend": "cd frontend && vercel deploy",
     "deploy:frontend:prod": "cd frontend && vercel deploy --prod",
     "cf:whoami": "wrangler whoami",

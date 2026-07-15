@@ -486,4 +486,4 @@ h.RegisterPetRoutes(api)
 - **[references/repository-pattern.md](references/repository-pattern.md)** — GORM、トランザクション、クエリパターン
 - **[references/error-handling.md](references/error-handling.md)** — AppError、センチネルエラー、エラー伝播
 - **[references/dependency-injection.md](references/dependency-injection.md)** — main.go DI配線パターン
-- **[references/testing-by-layer.md](references/testing-by-layer.md)** — 各層のテスト戦略
+- Go テスト戦略は `golang-testing` スキルを参照（手書き fn-field モックが正本。testing-by-layer.md は upstream 汎用版のため削除済み）

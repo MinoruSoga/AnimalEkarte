@@ -23,12 +23,15 @@ CI パイプラインの状態確認、またはローカルで CI を実行し�
 ## 実行内容
 
 ### ローカル CI
+
+以下は `.claude/CLAUDE.md` の Auto-Execution Prohibited Commands に該当する全体実行コマンドであり、エージェントが自律実行してはならない。ユーザーに実行を依頼するか、変更範囲に絞ったスコープ限定コマンドを使う。
+
 ```bash
-# Backend
+# Backend（ユーザー手動実行）
 docker compose exec backend go test ./... -v
 docker compose exec backend golangci-lint run ./...
 
-# Frontend
+# Frontend（ユーザー手動実行）
 docker compose exec frontend pnpm test:run
 docker compose exec frontend pnpm lint
 

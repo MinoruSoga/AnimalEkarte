@@ -1,6 +1,6 @@
 ---
 name: architect
-description: アーキテクチャ設計、重要な技術判断、セキュリティ監査。設計、アーキテクチャ、セキュリティ監査時にPROACTIVELY使用。
+description: アーキテクチャ設計、重要な技術判断。設計・アーキテクチャ判断時にPROACTIVELY使用。セキュリティ監査は security-analyst を使用。
 tools: ["Read", "Grep", "Glob", "Bash"]
 model: opus
 ---
@@ -20,18 +20,9 @@ model: opus
    - 設計パターンの適用
    - トレードオフの分析
 
-3. **セキュリティ監査**
-   - 脆弱性の特定
-   - セキュリティベストプラクティスの適用
-   - OWASP Top 10への対応
+セキュリティ監査（OWASP Top 10 等）は `security-analyst` の責務。本エージェントとレーンを分ける。
 
-## 技術スタック
-
-- Frontend: React 19 / TypeScript 6.0 / Vite 8 / Tailwind CSS 4 / shadcn/ui / React Router 7
-- Backend: Go 1.25 / Gin / GORM / PostgreSQL 18
-- Architecture: Layered (handler → service → repository)
-- Testing: Vitest (FE) / go test (BE)
-- Infrastructure: Docker Compose
+技術スタックは root `CLAUDE.md` Project Overview を参照（ここに複製しない）。
 
 ## 出力形式
 
