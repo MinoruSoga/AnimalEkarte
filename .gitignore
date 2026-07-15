@@ -84,7 +84,6 @@ service-account-key.json
 .DS_Store
 
 # Issue tracking (local only)
-todo.md
 frontend/issues/
 backend/issues/
 docs/tasks/
