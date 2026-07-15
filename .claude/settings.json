@@ -7,7 +7,7 @@
     "CLAUDE_AUTOCOMPACT_PCT_OVERRIDE": "90",
     "ENABLE_CLAUDEAI_MCP_SERVERS": "false"
   },
-  "attribution": {},
+  "includeCoAuthoredBy": false,
   "permissions": {
     "allow": [
       "Bash(make:*)",
@@ -50,12 +50,12 @@
       "Read(tests/**)",
       "Read(docs/**)",
       "Read(tmp/**)",
-      "Write(.claude/rules/**)",
-      "Write(.claude/hooks/**)",
-      "Write(frontend/src/**)",
-      "Write(backend/**)",
-      "Write(tests/**)",
-      "Write(docs/**)"
+      "Edit(.claude/rules/**)",
+      "Edit(.claude/hooks/**)",
+      "Edit(frontend/src/**)",
+      "Edit(backend/**)",
+      "Edit(tests/**)",
+      "Edit(docs/**)"
     ],
     "deny": [
       "Bash(npm:*)",
@@ -93,13 +93,13 @@
       "Read(./logs/**)",
       "Read(./.git/**)",
       "Read(./temp/**)",
-      "Write(./.env)",
-      "Write(./.env.*)",
-      "Write(./secrets/**)",
-      "Write(./**/*.pem)",
-      "Write(./**/*.key)",
-      "Write(./.git/**)",
-      "Write(./node_modules/**)"
+      "Edit(./.env)",
+      "Edit(./.env.*)",
+      "Edit(./secrets/**)",
+      "Edit(./**/*.pem)",
+      "Edit(./**/*.key)",
+      "Edit(./.git/**)",
+      "Edit(./node_modules/**)"
     ],
     "ask": [
       "Bash(rm:*)",
