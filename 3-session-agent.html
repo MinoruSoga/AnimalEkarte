@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>3セッション並行開発計画 — GitHub Issue グルーピング（2026-07-15）</title>
+<style>
+  :root {
+    --ink: #1a202c; --sub: #4a5568; --line: #e2e8f0; --bg: #f7fafc;
+    --a: #2b6cb0; --b: #2f855a; --c: #9b2c2c;
+  }
+  * { box-sizing: border-box; }
+  body { font-family: "Hiragino Sans", "Noto Sans JP", sans-serif; color: var(--ink); background: var(--bg); margin: 0; padding: 24px; line-height: 1.65; }
+  main { max-width: 1080px; margin: 0 auto; }
+  h1 { font-size: 22px; border-bottom: 3px solid var(--ink); padding-bottom: 8px; }
+  h2 { font-size: 18px; margin-top: 36px; }
+  .meta { color: var(--sub); font-size: 13px; }
+  table { border-collapse: collapse; width: 100%; background: #fff; font-size: 13.5px; }
+  th, td { border: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: #edf2f7; }
+  code { background: #edf2f7; padding: 1px 5px; border-radius: 3px; font-size: 12.5px; }
+  .card { background: #fff; border: 1px solid var(--line); border-left: 6px solid var(--sub); border-radius: 6px; padding: 16px 20px; margin: 16px 0; }
+  .card.s1 { border-left-color: var(--a); } .card.s2 { border-left-color: var(--b); }
+  .card.s3 { border-left-color: var(--c); }
+  .card h3 { margin: 0 0 6px; font-size: 16px; }
+  .tag { display: inline-block; font-size: 11.5px; padding: 1px 8px; border-radius: 10px; background: #edf2f7; color: var(--sub); margin-left: 6px; }
+  .prompt { background: #1a202c; color: #e2e8f0; padding: 12px 14px; border-radius: 6px; font-size: 12.5px; font-family: Menlo, monospace; white-space: pre-wrap; word-break: break-all; }
+  .warn { background: #fffaf0; border: 1px solid #ecc94b; border-radius: 6px; padding: 10px 14px; font-size: 13.5px; }
+  ul { margin: 6px 0; padding-left: 22px; }
+  li { margin: 3px 0; }
+  .small { font-size: 12.5px; color: var(--sub); }
+</style>
+</head>
+<body>
+<main>
+
+<h1>3セッション並行開発計画 — GitHub Issue グルーピング</h1>
+<p class="meta"><b>正本は GitHub Issue <a href="https://github.com/MinoruSoga/AnimalEkarte/issues/260">#260</a></b>（本 HTML はビュー — 乖離時は #260 と各実装 Issue が優先）<br>
+作成: 2026-07-15（旧5セッション計画を改訂: 3セッション化＋非開発タスク除外）／ 基準: HEAD <code>1570778e</code> ／ 納品: 2026-07-18<br>
+前提: 対象 Issue は全件 2026-07-15 に実装可能粒度へ改善済み（file:line アンカー・scoped 検証・哲学ゲート付き）。実行セッションは Sonnet 5。<b>開発タスクのみを対象とし、運用・検証作業は除外</b>（下部「除外タスク」参照）。</p>
+
+<h2>全体マップ</h2>
+<table>
+<tr><th>セッション</th><th>ドメイン</th><th>Issue（実施順）</th><th>規模</th><th>並列安全性（触る領域）</th></tr>
+<tr><td><b>S1</b> 検査機能</td><td>examinations / checkup / lab_import</td><td>#249（Phase 1→2→3→4→5）→ #211 残作業</td><td>最重量</td><td><code>features/examinations</code>・<code>examination_*</code>・<code>lab_*import*</code>・checkup 系</td></tr>
+<tr><td><b>S2</b> 画面系小物 7 件</td><td>medical-records / owners / owner-report</td><td>#229 → #234 → #230 → #232 → #235 → #237 → #201</td><td>小×6+中</td><td><code>features/medical-records</code>・<code>features/owners</code>・<code>features/owner-report</code>・<code>PatientContextHeader</code>・<code>medical_record_repository</code>・pets migration</td></tr>
+<tr><td><b>S3</b> 会計＋名寄せ</td><td>accounting / cash-register / identity-links</td><td>#251 → #247 → #239 →（全セッション完了後）#212</td><td>小+中+大+全域</td><td><code>features/accounting</code>・<code>features/accounting-reports</code>・<code>features/cash-register</code>・<code>src/constants</code>・identity_links 新設（owners/pets BE）</td></tr>
+</table>
+<p class="small">3 セッションは並列実行可能（ファイル領域は分離済み）。#239 は owners ドメインだが S2 とは触るファイルが重ならない（S2=owners の FE 表示系／#239=identity_links 新設 BE+飼主詳細の候補カード）。唯一の接点は下の依存表参照。</p>
+
+<h2>セッション詳細</h2>
+
+<div class="card s1">
+<h3>セッション 1 — 検査機能の内製<span class="tag">#249 #211</span><span class="tag">最優先着手</span></h3>
+<ul>
+<li><b>やること</b>: #249 本文 §6（F 要件）+ §11 実装ガイドに従い Phase 1（時系列ピボット・FE のみ）から順に実装。P1 は前提ゼロで即着手可。</li>
+<li><b>順序</b>: P1 検歴ピボット → P2 基準値マスタ（migration・<code>exam_reference_ranges</code>）→ P3 入力完成+誤紐付け是正 → P4 取込解禁+crosswalk → P5 印刷+感染症導出 → #211 残作業（健診カテゴリ横展開+マスタ管理 UI。ADR-004 の境界維持）。</li>
+<li><b>注意</b>: P5 の F-6（感染症のカルテヘッダ表示）は <b>S2 の #230 完了後</b>に統合。判定はサーバ一元・FE 再計算禁止。</li>
+</ul>
+<div class="prompt">まず計画 Issue #260（正本）を読んでから、#249 の §11 実装ガイドに従い、Phase 1（§11.1 検歴時系列ピボット）から実装を開始して。FEのみ・BE変更なし。完了したら Phase 2 へ順に進む。#249 全 Phase 完了後は #211 の残作業（健診カテゴリ横展開・マスタUI）へ。検証は scoped コマンドのみ。commit 前に git pull で HEAD を確認すること。</div>
+</div>
+
+<div class="card s2">
+<h3>セッション 2 — カルテ・飼主まわりの画面系 7 件<span class="tag">#229 #234 #230 #232 #235 #237 #201</span></h3>
+<ul>
+<li><b>やること</b>: 飼主レポートから危険度除去（#229・削除のみ）→ 危険度理由欄+一覧色分け（#234・migration 含む）→ カルテヘッダ属性表示（#230・FEのみ）→ 同居ペットチップ+pet_id 配線（#232）→ 画像 D&amp;D（#235・FEのみ）→ カルテ検索対象拡張（#237・BE EXISTS サブクエリ）→ 薬量自動計算 UI（#201・BE 実装済みで FE のみ残）。</li>
+<li><b>順序制約（Issue 明記済み）</b>: <b>#229 を #234 より必ず先行</b>（飼主向けサーフェスへの漏出窓の防止）。他は記載順推奨だが入替可。</li>
+<li><b>注意</b>: 各 Issue に実装プラン・テスト・検証コマンド記載済み。#237 は JOIN でなく EXISTS（行重複回帰の防止テスト必須）。#232 と #237 は同じ pet_id フィルタ配線を共有する。</li>
+</ul>
+<div class="prompt">まず計画 Issue #260（正本）を読んでから、#229 → #234 → #230 → #232 → #235 → #237 → #201 の順に、各 Issue 本文の実装プランどおり実装して。#229 が #234 より先行必須。1 Issue = 1〜2 commit。#201 は BE 実装済みで FE の投与量自動計算 UI のみが残作業。それぞれの「検証（scoped）」コマンドで確認し、commit 前に git pull で HEAD を確認すること。</div>
+</div>
+
+<div class="card s3">
+<h3>セッション 3 — 会計 8 分類・月次統合表・医院間名寄せ<span class="tag">#251 #247 #239 #212</span></h3>
+<ul>
+<li><b>やること</b>: 8 分類の FE 入力経路（#251・手動入力の other 固定解消+フィルタ 12 値化+経路棚卸し）→ 月次の部門×支払方法統合表+印刷（#247・締め側クロス集計の月次移植）→ 医院間名寄せ identity links（#239・方式A確定済み）。</li>
+<li><b>根拠</b>: #251 と #247 は「セット実装」と Issue 明記（<code>DISPLAY_CATEGORIES</code> の <code>src/constants/</code> への単一ソース化を共用）。#239 は規模バランスで本セッションに配置 — S2 の owners FE 表示系とはファイルが重ならない。</li>
+<li><b>注意</b>: #239 の隔離原則（閲覧者の clinicIDs 外は非表示）は最重要・隔離テスト必須。#239 Phase 3（統合表示）は examinations の GET に触れるため<b>着手前に S1 の進捗を確認</b>。#247 の按分ルールは締め側と同一（独自ルール新設禁止）。</li>
+<li><b>追加 #212</b>: カバレッジ 90%（テスト実装=開発タスク）。<b>着手条件 = 全セッションの実装完了後</b>（全域にテストを足すため並列中は全セッションとの衝突源）。coverage-policy（#194）に従い、数値合わせの空テストは書かない。</li>
+</ul>
+<div class="prompt">まず計画 Issue #260（正本）を読んでから、#251 → #247 → #239 の順に実装して。#251 冒頭の「入力経路の棚卸し」結果は Issue にコメント投稿。分類定義は src/constants/ へ抽出して単一ソース共用。#239 は本文の方式決定（リンクテーブル）と隔離原則に厳密に従い、Phase 3 着手前に features/examinations の直近コミットを確認して衝突を避けること。#212 は全セッション完了後のみ着手。commit 前に git pull で HEAD を確認。</div>
+</div>
+
+<h2>セッション間の依存・調整</h2>
+<table>
+<tr><th>依存</th><th>内容</th><th>対処</th></tr>
+<tr><td>S2 #230 → S1 P5</td><td>#249 F-6（感染症ステータスのカルテヘッダ表示）は #230 のヘッダ拡張が土台</td><td>S1 は P5 着手時に #230 完了を確認。未完なら F-6 の表示統合のみ後回し</td></tr>
+<tr><td>S1 ⇔ S3 #239 P3</td><td>#239 Phase 3（統合表示）が examinations の GET を触る</td><td>S3 は #239 P3 着手前に S1 の進捗確認。examinations API 変更が進行中なら P3 を待機</td></tr>
+<tr><td>S2 内部</td><td>#229 が #234 より先行必須（漏出窓防止）</td><td>順序固定（Issue 明記済み）</td></tr>
+<tr><td>S3 内部</td><td>#251 の分類定数抽出が #247 の前提</td><td>#251 → #247 の順を守る（設計済み）</td></tr>
+<tr><td>migration 採番</td><td>S1（#249 P2）・S2（#234）・S3（#239）が新規 migration を作る。Issue 記載の「005」は目安</td><td><b>採番は着手時点の実ファイル最大+1</b>。commit 前の git pull で他セッションの migration を取り込んでから確定</td></tr>
+<tr><td>S3 #212 → 全セッション</td><td>カバレッジ向上は全パッケージのテストに触れる</td><td><b>S1・S2 と S3 の #251/#247/#239 完了後に着手</b>（最後尾固定）</td></tr>
+</table>
+
+<h2>除外タスク（開発タスクではないため本計画の対象外）</h2>
+<table>
+<tr><th>Issue</th><th>内容</th><th>除外理由・扱い</th></tr>
+<tr><td>#250</td><td>Access からの本番データ移行</td><td>運用タスク（PO 裁定 2026-07-15）。移行ツール実装を含め本並行開発から分離し、別途実施</td></tr>
+<tr><td>#252</td><td>締め時間設定値の投入</td><td>運用（設定画面からの投入作業・本番操作は事前承認必須）</td></tr>
+<tr><td>#238</td><td>予約種別「部分カット」除外</td><td>運用（マスタ無効化）。LINE 経路の is_active フィルタ検証で穴が判明した場合のみ小規模の開発が発生 — その時点で S2 に差し込む</td></tr>
+<tr><td>#214</td><td>bug.md 8 コミットの検証チェックリスト</td><td>検証作業（コード変更なしが原則）</td></tr>
+<tr><td>#253〜#258</td><td>本番環境整備・UAT・アカウント発行・マニュアル・Go-live・納品ドキュメント</td><td>OPS（人間の作業）</td></tr>
+<tr><td>#259</td><td>Lステップ再開</td><td>納品後スコープ（先方 API 有効化待ち）</td></tr>
+<tr><td>#89/#97/#98/#99/#109</td><td>シークレット系</td><td>pending（STG 限定 park 済み）</td></tr>
+</table>
+
+<h2>全セッション共通の運用ルール</h2>
+<div class="warn">
+<ul>
+<li><b>ブランチ</b>: main 直接（feature branch 禁止）。<b>commit 直前に必ず <code>git pull</code> で HEAD 確認</b>（並列セッションのコミット衝突防止）。</li>
+<li><b>検証</b>: 各 Issue 記載の scoped コマンドのみ自動実行。フルテスト・フル lint・build は自動実行禁止（必要ならユーザーに手動実行を依頼）。</li>
+<li><b>push 前</b>: BE_todo の OPS-PUSH-GATE を通すこと。</li>
+<li><b>哲学</b>: 確認ダイアログでの安全対策禁止／二重管理・二重入力の新設禁止／仕様外の推測実装禁止（Issue に書いていないことは作らない）。</li>
+<li><b>個人名</b>: Issue・コミットに個人名を書かない（バックログシート No.X 質問者欄参照の形式を維持）。</li>
+<li><b>詰まったら</b>: Issue 本文の file:line が行ドリフトしていたら関数名・定数名で再特定（HEAD <code>1570778e</code> 基準で記載）。</li>
+</ul>
+</div>
+
+<h2>推奨開始順（同時 3 並列でない場合）</h2>
+<p>S1（検査① = 最大価値・前提ゼロ）→ S2（小物 7 件で消化が速い）→ S3（#239 が S1 と接点を持つため最後）。</p>
+
+</main>
+</body>
+</html>
