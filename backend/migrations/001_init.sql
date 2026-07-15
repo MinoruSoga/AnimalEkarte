@@ -2175,6 +2175,12 @@ CREATE UNIQUE INDEX uk_owners_clinic_email ON owners(clinic_id, email) WHERE del
 -- billings: medical_record_idがある場合は1対1
 CREATE UNIQUE INDEX idx_billings_medical_record_id_unique ON billings(medical_record_id) WHERE medical_record_id IS NOT NULL;
 
+-- billings: hospitalization_idがある場合は active 行で1対1（退院会計の二重永続化防止）
+-- soft-delete 後の再作成を許すため deleted_at IS NULL を述語に含める（medical_record 側との意図的非対称）
+CREATE UNIQUE INDEX idx_billings_hospitalization_id_unique
+  ON billings(hospitalization_id)
+  WHERE hospitalization_id IS NOT NULL AND deleted_at IS NULL;
+
 -- -----------------------------------------------------------------------------
 -- 4.4 基本FKインデックス
 -- -----------------------------------------------------------------------------
@@ -2343,9 +2349,27 @@ CREATE INDEX idx_medical_records_clinic_status
   ON medical_records(clinic_id, status)
   WHERE deleted_at IS NULL;
 
+-- 健診・ワクチン一覧・期限アラート（clinic_id + date / next_date）
+CREATE INDEX idx_checkups_clinic_date
+  ON checkups(clinic_id, date)
+  WHERE deleted_at IS NULL;
+
+CREATE INDEX idx_checkups_clinic_next_date
+  ON checkups(clinic_id, next_date)
+  WHERE deleted_at IS NULL AND next_date IS NOT NULL;
+
+CREATE INDEX idx_vaccinations_clinic_date
+  ON vaccinations(clinic_id, date)
+  WHERE deleted_at IS NULL;
+
 -- ペット一覧（飼主別）
 CREATE INDEX idx_pets_owner_id
   ON pets(owner_id)
+  WHERE deleted_at IS NULL;
+
+-- 飼主別生存ペット件数バッチ集計（CountLivingByOwnerIDs）
+CREATE INDEX idx_pets_clinic_owner_living
+  ON pets(clinic_id, owner_id, deceased_at)
   WHERE deleted_at IS NULL;
 
 -- 会計一覧

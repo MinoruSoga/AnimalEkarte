@@ -1,8 +1,8 @@
 package repository
 
-// billings_hospitalization_unique_migration_test.go — 004 partial UNIQUE の静的ゲート。
+// billings_hospitalization_unique_migration_test.go — partial UNIQUE の静的ゲート。
 //
-// 退院会計の二重永続化を防ぐ idx_billings_hospitalization_id_unique が、連番 migration に
+// 退院会計の二重永続化を防ぐ idx_billings_hospitalization_id_unique が、001_init.sql に
 // 正しい述語（hospitalization_id IS NOT NULL AND deleted_at IS NULL）で存在するかを固定する。
 // DB 不要（os.ReadFile）。適用可否・重複データ検出は別（適用前手動 SQL）。
 
@@ -13,7 +13,7 @@ import (
 	"testing"
 )
 
-const billingsHospitalizationUniqueMigration = "004_add_billings_hospitalization_id_unique_index.sql"
+const billingsHospitalizationUniqueMigration = "001_init.sql"
 
 func TestBillingsHospitalizationUniqueMigration_PartialUniqueIndexSQL(t *testing.T) {
 	raw, err := os.ReadFile(filepath.Join(migrationsDir, billingsHospitalizationUniqueMigration))
@@ -36,8 +36,20 @@ func TestBillingsHospitalizationUniqueMigration_PartialUniqueIndexSQL(t *testing
 	if !strings.Contains(normalized, "deleted_at IS NULL") {
 		t.Error("expected WHERE predicate deleted_at IS NULL")
 	}
-	if strings.Contains(strings.ToUpper(ddl), "ON DELETE CASCADE") {
-		t.Error("004 must not introduce ON DELETE CASCADE")
+	// Scope CASCADE check to this index statement only — 001_init has unrelated
+	// ON DELETE CASCADE elsewhere (allowed join/child exceptions).
+	idxStart := strings.Index(normalized, "CREATE UNIQUE INDEX idx_billings_hospitalization_id_unique")
+	if idxStart < 0 {
+		t.Fatal("index statement not found for CASCADE scope check")
+	}
+	idxRest := normalized[idxStart:]
+	idxEnd := strings.Index(idxRest, ";")
+	if idxEnd < 0 {
+		t.Fatal("index statement missing terminating semicolon")
+	}
+	idxStmt := idxRest[:idxEnd]
+	if strings.Contains(strings.ToUpper(idxStmt), "ON DELETE CASCADE") {
+		t.Error("idx_billings_hospitalization_id_unique must not introduce ON DELETE CASCADE")
 	}
 }
 

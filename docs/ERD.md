@@ -100,13 +100,15 @@ erDiagram
 >
 > **2026-07-06 追記**: 2026-07-04 の再統合後、受付ヘッダー テレメトリ（change-ui.md Phase 2）用に増分マイグレーション `005_add_appointment_checked_in_at.sql`（`appointments.checked_in_at` カラム追加）が新設されていましたが、同日中にこれも `001_init.sql` の `appointments` テーブル定義へ再統合し、独立ファイルとしては存在しません（§4.3 参照）。新規テーブル追加ではなく既存テーブルへの単一カラム追加のため、テーブル総数(108)への影響はありません。
 >
-> **2026-07-10 追記**: seed データの実体が SQL から CSV へ移行しました。旧 `002_seed_master.sql` / `003_seed_demo.sql` / `004_seed_staging.sql`（`SELECT 1;` の no-op スタブ）は削除済みで、現在は `backend/migrations/seeds/{002_master,003_demo,004_staging}/*.csv` + `manifest.json` というディレクトリ構成のみが存在します（`backend/migrations/CLAUDE.md` 参照）。また `002_add_checkup_vaccination_indexes.sql`（checkups/vaccinations の `clinic_id`+日付 複合インデックス追加、`CREATE TABLE` なし）が新設されています。いずれもテーブル追加を伴わないため、テーブル総数(108)は不変です（§4.3 のファイル一覧を参照）。
+> **2026-07-10 追記**: seed データの実体が SQL から CSV へ移行しました。旧 `002_seed_master.sql` / `003_seed_demo.sql` / `004_seed_staging.sql`（`SELECT 1;` の no-op スタブ）は削除済みで、現在は `backend/migrations/seeds/{002_master,003_demo,004_staging}/*.csv` + `manifest.json` というディレクトリ構成のみが存在します（`backend/migrations/CLAUDE.md` 参照）。テーブル追加を伴わないため、テーブル総数(108)は不変です（§4.3 のファイル一覧を参照）。
+>
+> **2026-07-15 追記**: インデックス追加のみの DDL 増分（旧 `002_add_checkup_vaccination_indexes.sql` / `003_add_pets_batch_living_count_index.sql` / `004_add_billings_hospitalization_id_unique_index.sql`）を `001_init.sql` へ統合し、直下の DDL `.sql` は `001_init.sql` のみとなった。テーブル総数(108)は不変。
 
 | 項目 | 結果 | 判定 |
 |:---|:---|:---|
 | `001_init.sql` の `CREATE TABLE` 数 | 108（2026-07-04 統合前は 103） | 旧 005/009/010 由来の5テーブルが統合により `001_init.sql` に直接定義されるようになった。物理テーブル総数(108)自体は統合の前後で不変 |
 | 旧増分マイグレーションが追加していたテーブル | 5: `lab_import_jobs` / `lab_import_events` (旧`005`)、`medicine_dose_params` (旧`009`)、`checkup_type_fields` / `checkup_field_results` (旧`010`) | 2026-07-04 統合により現在は `001_init.sql` に直接定義（旧ファイルは削除済み） |
-| 全マイグレーション（統合後: `001_init.sql` + `002`/`003`/`004`）の物理テーブル総数 | 108 | ERD の全体数と一致（ファイル統合の前後で不変） |
+| 全マイグレーション（統合後: `001_init.sql` only + seeds CSV）の物理テーブル総数 | 108 | ERD の全体数と一致（ファイル統合の前後で不変） |
 | ERD ドメイン表の物理テーブル数 | 108 | migrations と一致 |
 | ERD へ追加した不足テーブル | 6: `token_blacklist`, `reservation_type_available_slots`, `trimming_course_types`, `campaigns`, `campaign_target_categories`, `campaign_target_items` | migration に存在し、用途コメントまたはドメイン上の継続理由があるため追加 |
 | migrations にあり ERD にないテーブル | 0 | 整合済み |
@@ -125,14 +127,13 @@ erDiagram
 - 互換注記:
   - `docker compose` 実行時、`.env.local` にて `DB_USER` / `DB_PASSWORD` / `DB_NAME` などの環境変数を読み込んでおり、検証は正常に成功しました。
 
-### 4.3 スキーマ更新履歴（001-004 統合 + 005〜012 増分 + 2026-07-04 再統合 + 2026-07-06 再統合）
+### 4.3 スキーマ更新履歴（001 統合 + 005〜012 増分 + 2026-07-04 再統合 + 2026-07-06 再統合 + 2026-07-15 DDL 002–004 統合）
 
 2026-06-26 に、かつて独立した増分ファイル (旧 005-012) として管理されていたスキーマ・シード変更を `001_init.sql` および `003_seed_demo.sql` へ統合しました。
-その後、新たな機能追加に伴い増分マイグレーション 005〜012 が再び追加されていましたが、2026-07-04 にこれらを再度 `001_init.sql`（DDL）および `003_seed_demo.sql`（歯科検診パッケージの暫定 seed DML のみ）へ統合し、独立ファイルとしての 005〜012 は削除しました。
-現行マイグレーションは以下の構成です（`backend/migrations/`、2026-07-10 時点）。
+その後、新たな機能追加に伴い増分マイグレーション 005〜012 が再び追加されていましたが、2026-07-04 にこれらを再度 `001_init.sql`（DDL）および `003_seed_demo.sql`（歯科検診パッケージの暫定 seed DML のみ）へ統合し、独立ファイルとしての 005〜012 は削除しました。さらに 2026-07-15 に、インデックス追加のみの DDL 増分（旧 `002_add_checkup_vaccination_indexes.sql` / `003_add_pets_batch_living_count_index.sql` / `004_add_billings_hospitalization_id_unique_index.sql`）を `001_init.sql` へ統合し、直下の DDL `.sql` は `001_init.sql` のみとなりました。
+現行マイグレーションは以下の構成です（`backend/migrations/`、2026-07-15 時点）。
 
-- `001_init.sql`（初期スキーマ・108 テーブル）
-- `002_add_checkup_vaccination_indexes.sql`（checkups/vaccinations の `clinic_id`+日付 複合インデックス追加。`CREATE TABLE` なし）
+- `001_init.sql`（初期スキーマ・108 テーブル・全インデックス）
 - `seeds/002_master/`、`seeds/003_demo/`、`seeds/004_staging/`（各 `*.csv` + `manifest.json` のシードバンドル。SQL ファイルではない）
 
 以下は 2026-06-26 の統合時点で `001_init.sql` / `003_seed_demo.sql` へ畳み込まれた変更の論理的な記録です（参照用、当時の独立ファイルは存在しません）。

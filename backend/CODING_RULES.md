@@ -66,9 +66,8 @@ backend/
 │       └── logger.go
 │
 ├── migrations/                 # DBマイグレーション（SQL、番号付き。AutoMigrate は使用しない）
-│   ├── 001_init.sql
-│   ├── 002_add_checkup_vaccination_indexes.sql
-│   └── ...
+│   ├── 001_init.sql            # 統合スキーマ（DDL only）
+│   └── seeds/                  # CSV シードバンドル（002_master / 003_demo / 004_staging）
 │
 ├── docs/                       # APIドキュメント
 │   └── api.yaml

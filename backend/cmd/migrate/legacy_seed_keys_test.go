@@ -21,13 +21,10 @@ func TestLegacyKeysAmongDetectsAllLegacyFilenames(t *testing.T) {
 }
 
 func TestLegacyKeysAmongEmptyOnFreshLayout(t *testing.T) {
-	// Fresh layout schema_migrations keys: DDL 001–004 plus seeds/<bundle>
-	// (7 rows). None of these are legacy stub filenames.
+	// Fresh layout schema_migrations keys: DDL 001 only plus seeds/<bundle>
+	// (4 rows). None of these are legacy stub filenames.
 	applied := []string{
 		"001_init.sql",
-		"002_add_checkup_vaccination_indexes.sql",
-		"003_add_pets_batch_living_count_index.sql",
-		"004_add_billings_hospitalization_id_unique_index.sql",
 		"seeds/002_master",
 		"seeds/003_demo",
 		"seeds/004_staging",

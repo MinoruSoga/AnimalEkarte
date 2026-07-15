@@ -90,7 +90,7 @@ func run(ctx context.Context, logger *slog.Logger) error {
 		}
 	}()
 
-	logger.Info("Applying 001-004 to disposable database via cmd/migrate ...")
+	logger.Info("Applying 001_init + seed bundles to disposable database via cmd/migrate ...")
 	if err := applyMigrationsToTmpDB(ctx, conn, logger); err != nil {
 		return fmt.Errorf("failed to apply migrations to %s: %w", tmpDBName, err)
 	}
@@ -147,7 +147,7 @@ func dropTmpDatabase(ctx context.Context, maintPool *pgxpool.Pool, logger *slog.
 
 // applyMigrationsToTmpDB shells out to the existing, unmodified cmd/migrate
 // binary with DB_NAME overridden to the disposable database. This is
-// deliberate: seed-export must never reimplement "apply 001-004", it must
+// deliberate: seed-export must never reimplement "apply DDL + seed bundles", it must
 // reuse the exact same code path every other environment uses, so the
 // disposable DB ends up in a state indistinguishable from a real fresh apply.
 func applyMigrationsToTmpDB(ctx context.Context, conn dbconn.ConnParams, logger *slog.Logger) error {
