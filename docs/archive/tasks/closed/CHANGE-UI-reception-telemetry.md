@@ -1,7 +1,7 @@
 # CLOSED: 受付ヘッダー テレメトリ（change-ui）
 
 - **完了日**: 2026-07-15（台帳同期時に実装済みを確認）
-- **ルート台帳**: [`change-ui.md`](../../../../change-ui.md)（短い完了ポインタのみ）
+- **完了ポインタ**: [`change-ui.md`](./change-ui.md)（ルートから archive へ移動済み）
 - **アクティブ仕様**: [`docs/screens/01-reception.md`](../../../screens/01-reception.md) §3
 
 ## 実装サマリ

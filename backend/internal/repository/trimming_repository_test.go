@@ -32,9 +32,13 @@ import (
 
 // setupAppointmentTrimmingDetailTestDB は appointment_trimming_details / appointment_trimming_options /
 // trimming_courses / trimming_options / appointments 周りを整備する。
+//
+// setupIsolatedTestDB を使う: 共有プール上の並行 TRUNCATE（reservation_types CASCADE 等）が
+// 他テストの接続状態を破壊し TestAppointmentTrimmingDetail* をフレークさせる実測があるため
+// （TEST-FLAKE-P2 / #236）。TRUNCATE のみでも並行破壊するため隔離する。
 func setupAppointmentTrimmingDetailTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
-	db := setupTestDB(t)
+	db := setupIsolatedTestDB(t)
 	// TRUNCATE first: 他テストが残した orphan 行を除去してから AutoMigrate（FK 検証を通すため）。
 	db.Exec("TRUNCATE TABLE appointment_trimming_options CASCADE")
 	db.Exec("TRUNCATE TABLE appointment_trimming_details CASCADE")

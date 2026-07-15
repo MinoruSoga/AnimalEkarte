@@ -29,8 +29,10 @@ func TestLineCredentialEncryptDecrypt(t *testing.T) {
 
 	t.Run("legacy plaintext row falls back to the raw value", func(t *testing.T) {
 		// 暗号化導入前に保存された平文（AES-GCM 復号に失敗する）
-		got := decryptLineCredential(ctx, cipher, "5344ef84eb7072b5894f7e087db28827")
-		assert.Equal(t, "5344ef84eb7072b5894f7e087db28827", got)
+		// 実クレデンシャルを使わず、明らかに合成の 32-hex ダミーを用いる
+		const legacyPlain = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+		got := decryptLineCredential(ctx, cipher, legacyPlain)
+		assert.Equal(t, legacyPlain, got)
 	})
 
 	t.Run("nil cipher passes the value through unchanged", func(t *testing.T) {

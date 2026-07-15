@@ -64,18 +64,9 @@ func TestExaminationRepository_FindByID_ExaminationTypePreloadClinicIsolation(t 
 // --- (a2) trimming: Course / Options ---
 
 func TestAppointmentTrimmingDetailRepository_FindByAppointmentID_MasterPreloadClinicIsolation(t *testing.T) {
-	db := setupTestDB(t)
-	// TRUNCATE first: 他テストが残した orphan 行を除去してから AutoMigrate（FK 検証を通すため）。
-	db.Exec("TRUNCATE TABLE appointment_trimming_options CASCADE")
-	db.Exec("TRUNCATE TABLE appointment_trimming_details CASCADE")
-	db.Exec("TRUNCATE TABLE trimming_courses CASCADE")
-	db.Exec("TRUNCATE TABLE trimming_options CASCADE")
-	db.Exec("TRUNCATE TABLE reservation_types CASCADE") // appointments も連鎖クリア
-	require.NoError(t, db.AutoMigrate(
-		&model.ReservationType{}, &model.Reservation{},
-		&model.TrimmingCourse{}, &model.TrimmingOption{},
-		&model.AppointmentTrimmingDetail{}, &model.AppointmentTrimmingOption{},
-	))
+	// setupAppointmentTrimmingDetailTestDB = setupIsolatedTestDB + trimming 系 TRUNCATE。
+	// 共有プール上の並行 TRUNCATE 破壊を避ける（TEST-FLAKE-P2）。
+	db := setupAppointmentTrimmingDetailTestDB(t)
 	repo := NewAppointmentTrimmingDetailRepository(db)
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)

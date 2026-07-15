@@ -585,7 +585,7 @@ func liffDefaultSetting() *model.LineReservationSetting {
 		ID:                      1,
 		ClinicID:                3,
 		Status:                  "active",
-		LiffID:                  "2009755544-abcdefgh",
+		LiffID:                  "1234567890-abcdefgh",
 		BusinessHours:           json.RawMessage(`{"start":"0900","end":"1900"}`),
 		BreakHours:              json.RawMessage(`[{"start":"1200","end":"1300"}]`),
 		BookingWindowMinDays:    2,

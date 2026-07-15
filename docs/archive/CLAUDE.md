@@ -6,7 +6,7 @@
 過去のプロジェクト資料、古いタスクドキュメント、以前のUIスクリーンショットなど、現在はアクティブではないが参照用に保管されているドキュメントを格納します。
 
 ## Contents
-- `bug.md`: クローズ済みバグ監査台帳（AUD-001〜008）。ルート `bug.md` はポインタのみ。
+- `bug.md`: クローズ済みバグ監査台帳（AUD-001〜008）。正本は本ディレクトリ。
 - `screenshots/`: 過去のUI確認用画像。
-- `tasks/closed/`: 完了済みの古いタスク。
+- `tasks/closed/`: 完了済みの古いタスク（`change-ui.md` / `CHANGE-UI-reception-telemetry.md` 含む）。
 - `old-checklists`: 以前のリファクタリングや移行時のチェックリスト。

@@ -102,7 +102,7 @@ func LiffAuth(lookup LineCustomerLookup, settingLookup LineReservationSettingLoo
 		}
 
 		// LIFF ID から LINEログインチャンネル ID を抽出する
-		// LIFF ID 形式: "{channelID}-{appID}"（例: "2009755586-nvKfG3Cp"）
+		// LIFF ID 形式: "{channelID}-{appID}"（例: "1234567890-abcdefgh"）
 		liffChannelID := strings.SplitN(setting.LiffID, "-", 2)[0]
 
 		// LINE API でトークン検証（client_id にクリニックのチャンネル ID を使用）

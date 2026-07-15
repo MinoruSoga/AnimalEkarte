@@ -43,7 +43,6 @@ export function PetDetailSection({ pet, firstVisitDate }: PetDetailSectionProps)
     { label: "マイクロチップ", value: pet.microchipNumber || "-" },
     { label: "体重", value: pet.weight ? `${pet.weight} kg` : "-" },
     { label: "毛色", value: pet.color || "-" },
-    { label: "危険度", value: pet.dangerLevel || "-" },
     { label: "避妊去勢日", value: pet.neuteredDate || "-" },
     { label: "入手経路", value: pet.acquisitionType || "-" },
     { label: "フード", value: pet.food || "-" },

@@ -17,8 +17,43 @@
 **ロールバック経路**: `.github/workflows/backend-deploy-ecs.yml` は Phase 8（AWS 廃止）
 完了まで `workflow_dispatch` のみで残置。通常運用では実行しない。
 
+**ECS 経路は現状実行不能（二重ブロック）**:
+1. `.env.staging` は git untrack 済みのため、ECS workflow の parse ステップが失敗しうる
+2. SSM Parameter Store へのシークレット登録は未実施（下記 §1 はロールバック時のみ）
+
+
 Cloudflare 正系統のシークレット供給は `infra/cloudflare/README.md` および
 `backend/wrangler.jsonc` の `secrets.required` を参照。
+
+---
+
+## 0.5 【正系統】露出クレデンシャルのローテーション（SEC-SECRETS-5 / #89/#97）
+
+> 🚨 **ユーザー所有・credential-impacting**。エージェントは実行しない。
+> PUBLIC リポジトリ履歴および過去の seed/Issue 露出に対する正攻法は **ローテーション**（filter-repo 禁止）。
+
+対象 4 系統（完了まで Issue #89/#97 はクローズしない）:
+
+| # | 系統 | 手順（概要） | 投入先 |
+|---|------|--------------|--------|
+| 1 | PlanetScale DB | `pscale role reset-default`（またはコンソールでパスワード再発行） | `wrangler secret put DB_PASSWORD`（および接続 URL 系） |
+| 2 | Cloudflare API / Worker secrets | トークン再発行 + `wrangler secret put` で必須キー再投入 | Cloudflare Secrets + GitHub `CLOUDFLARE_API_TOKEN` |
+| 3 | LINE channel secret / access token | LINE Developers Console で再発行 | アプリ UI（Lステップ設定 / LINE 予約設定）から保存（DB 暗号化）。seed には実値を戻さない |
+| 4 | JWT / INTEGRATION_ENCRYPTION_KEY 等 | 新規乱数生成 | `wrangler secret put`（`backend/wrangler.jsonc` の `secrets.required`） |
+
+検証（ローテーション後・ユーザー実施）:
+
+```bash
+# STG health（正系統）
+curl -sS -o /dev/null -w '%{http_code}\n' https://api.stg.noah-karte.com/health
+# 旧値でのアクセスが拒否されること（各コンソール / wrangler の確認 UI）
+```
+
+ローテーション完了後のみ: Issue #97 本文の実値マスク（`gh issue edit` — ユーザー実施）。
+
+P5-2 GitHub Secrets（`CLOUDFLARE_API_TOKEN`, `MIGRATE_RUN_SECRET`, `STG_DEMO_EMAIL`, `STG_DEMO_PASSWORD`）
+の登録手順は `infra/cloudflare/README.md` 「CI デプロイ (Phase 5 / P5-2)」を正とする。
+
 
 ---
 
@@ -122,13 +157,18 @@ gh run watch --exit-status $(gh run list --workflow=backend-deploy-ecs.yml --bra
 
 ---
 
-## 3. 【参考】旧 M-11: GitHub Secrets 登録（`CI_TEST_EMAIL` / `CI_TEST_PASSWORD`）
+## 3. 【参考】performance-tests 認証情報（#109 / STG_DEMO_* 統合）
 
-> `performance-tests.yml` は未登録でもフォールバック付きで fail-fast しない。
-> `STG_DEMO_EMAIL` / `STG_DEMO_PASSWORD`（`infra/cloudflare/README.md`）との統合は
-> 別途 PO/管理者判断。
+> **現状**: `.github/workflows/performance-tests.yml` は `CI_TEST_EMAIL` / `CI_TEST_PASSWORD`
+> 未登録時に `admin@example.com` / `test` へフォールバックする（fail-fast しない）。
+> **確定方針**: `STG_DEMO_EMAIL` / `STG_DEMO_PASSWORD`（`infra/cloudflare/README.md` P5-2）へ一本化。
+>
+> **エージェント作業境界**: GitHub Secrets 登録（ユーザー）が先行。登録前にフォールバックを
+> 撤去すると scheduled 実行が壊れるため、フォールバック撤去は **USER 登録完了後の Phase C**。
 
 ```bash
-gh secret set CI_TEST_EMAIL --body "<STG_TEST_ACCOUNT_EMAIL>"
-gh secret set CI_TEST_PASSWORD --body "<STG_TEST_ACCOUNT_PASSWORD>"
+# ユーザー実施: P5-2 と合わせて登録
+gh secret set STG_DEMO_EMAIL --body "<STG_DEMO_ACCOUNT_EMAIL>"
+gh secret set STG_DEMO_PASSWORD --body "<STG_DEMO_ACCOUNT_PASSWORD>"
+# 任意: 旧名の互換期間が必要なら一時併存可。最終的に CI_TEST_* 参照ゼロがクローズ条件
 ```

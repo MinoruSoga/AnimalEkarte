@@ -15,5 +15,6 @@ paths = [
   '''backend/docs/api-examples\.md''',                                  # curl コマンド例の Bearer トークンはプレースホルダ
   '''backend/internal/config/config_validate_test\.go''',                 # config バリデーションのテスト用ダミー API キー
   '''backend/internal/service/line_reservation_setting_service_test\.go''', # LINE 連携設定のテスト用ダミー値
-  '''backend/migrations/003_seed_demo\.sql''',                            # デモシードデータのダミー値
+  '''backend/internal/service/line_credentials_test\.go''',               # LINE 資格情報ヘルパーの合成ダミー
+  # 旧 003_seed_demo.sql は CSV 移行で廃止。003_demo CSV のシークレット列は空/合成ダミーのみ
 ]

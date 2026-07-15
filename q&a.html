@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>カルテシステム Q&amp;A 一覧（No.24〜32）</title>
+<title>内部 PO 判断キュー</title>
 <style>
   :root {
     --bg: #f6f7f9;
@@ -19,8 +19,6 @@
     --unanswered-soft: #fffbeb;
     --status: #7c3aed;
     --status-soft: #f5f3ff;
-    --none: #dc2626;
-    --none-soft: #fef2f2;
     --radius: 10px;
   }
   @media (prefers-color-scheme: dark) {
@@ -38,8 +36,6 @@
       --unanswered-soft: #453411;
       --status: #a78bfa;
       --status-soft: #312e5e;
-      --none: #f87171;
-      --none-soft: #4c1d1d;
     }
   }
   * { box-sizing: border-box; }
@@ -149,14 +145,6 @@
     border-radius: 0 6px 6px 0;
   }
   .answer-block .section-label { color: var(--answered); }
-  /* スプシ転記用: 装飾はテキスト外観のみ（コピー時は【対応済】等の素のテキストになる） */
-  .status-tag {
-    font-weight: 700;
-    white-space: nowrap;
-  }
-  .status-tag.done { color: var(--answered); }
-  .status-tag.planned { color: var(--unanswered); }
-  .status-tag.none { color: var(--none); }
   a { color: var(--accent); overflow-wrap: anywhere; }
   footer {
     margin-top: 32px;
@@ -171,361 +159,133 @@
 <body>
 <div class="container">
   <header>
-    <h1>カルテシステム Q&amp;A 一覧</h1>
-    <p class="meta">No.24〜32 ／ スプレッドシート「バックログ」より整理（質問作成日・備考は原本で全件未記入）</p>
-    <p class="meta">回答内タグの凡例: <span class="status-tag done">【対応済】</span>実装済み・現行機能で可能 ／ <span class="status-tag none">【未対応】</span>未実装（現時点で対応予定なし） ／ <span class="status-tag planned">【未対応（対応予定）】</span>未実装・今後対応予定</p>
+    <h1>内部 PO 判断キュー</h1>
+    <p class="meta">開発内部向け ／ 生成日: 2026-07-15 ／ 台帳整理（BE/FE-refactor・todo 等）からの移記</p>
   </header>
 
   <div class="toolbar">
     <button data-filter="all" class="active">すべて</button>
-    <button data-filter="answered">既存回答</button>
-    <button data-filter="new-answer">新規記入（7/13）</button>
-    <input type="search" id="search" placeholder="キーワード検索（例: CPM、アニコム、トリミング）">
+    <button data-filter="answered">回答あり</button>
+    <button data-filter="new-answer">PO判断待ち</button>
+    <input type="search" id="search" placeholder="キーワード検索（例: Sentry、cron、lab_import）">
   </div>
   <p class="summary" id="summary"></p>
 
-  <!-- No.24 -->
   <article class="card" data-state="answered">
     <div class="card-head">
-      <span class="qno">No.24</span>
-      <span class="badge category">集計</span>
+      <span class="qno">PO-001</span>
+      <span class="badge category">BE / Lステップ</span>
       <span class="badge answered">回答あり</span>
-      <span class="badge status">対応中</span>
-      <span class="asker">質問者: ノア</span>
+      <span class="asker">決定: 2026-07-14</span>
     </div>
     <div class="card-body">
       <p class="section-label">質問</p>
-      <p class="qa-text">カルテシステムの集計機能について。以下の3つが出力可能か確認したい：
-① 飼い主単位の年間売上ランキング（累計診療費順）
-② 飼い主単位の来院回数一覧（一定期間内）
-③ 最終来院日での期間別分類（3ヶ月以上・6ヶ月以上・1年以上等）
-経営上の重要度が高い。</p>
+      <p class="qa-text">FEAT-377/379 の cron 未配線3本（RunLTVTopPercentSyncAllClinics / RunVisitDormantSyncAllClinics / RunHealthPreventionTagSyncAllClinics）を cmd/api/main.go に配線するか、削除するか。</p>
       <div class="answer-block">
         <p class="section-label">回答</p>
-        <p class="qa-text"><span class="status-tag done">【対応済】</span>いずれも実装済みです。すべて同一の機能画面内のタブとして提供しております。
-
-【共通の入り口】
-画面左サイドバーの「集計・分析」メニュー（URL: /aggregation、画面名: 顧客集計ダッシュボード）を開いてください。この画面上部に3つのタブがあり、それぞれがご要望の各機能に対応しています。
-
-【各機能の実装場所】
-
-① 飼い主単位の年間売上ランキング（累計診療費順）
-集計・分析 →「売上ランキング」タブ
-飼主ごとの診療費を高い順にランキング表示します。集計期間（年・任意期間）の指定、累計診療費順への並べ替えにも対応しています。
-
-② 飼い主単位の来院回数一覧（一定期間内）
-集計・分析 →「来院回数」タブ
-期間（直近3ヶ月／6ヶ月／12ヶ月／暦年、または任意の期間）を指定し、飼主ごとの来院回数を一覧表示します。
-
-③ 最終来院日での期間別分類（3ヶ月以上・6ヶ月以上・1年以上等）
-集計・分析 →「最終来院」タブ
-最終来院日からの経過に応じて「3ヶ月未満／3ヶ月以上／6ヶ月以上／1年以上／来院なし」に自動分類して表示します。特定の区分（例: 1年以上未来院）のみの抽出も可能です。</p>
+        <p class="qa-text">現状維持＋配線条件の明文化で確定。Write API が noop でも applyTagState がローカルタグを更新し、配線済み delivery trigger が実 LINE 配信を発火しうるため、エンジニアリング判断で配線してはならない。確定運用: Lステップ Write 再有効化手順に「3本を main.go へ配線」を組み込む。Sunset: 2026-10 棚卸しで Write 再開が未定なら FEAT-377/379 全体の廃止可否を PO に提起。</p>
       </div>
     </div>
   </article>
-
-  <!-- No.25 -->
-  <article class="card" data-state="answered">
+  <article class="card" data-state="new-answer">
     <div class="card-head">
-      <span class="qno">No.25</span>
-      <span class="badge category">ログイン</span>
-      <span class="badge answered">回答あり</span>
-      <span class="badge status">対応中</span>
-      <span class="asker">質問者: ノア</span>
+      <span class="qno">PO-002</span>
+      <span class="badge category">FE / 運用観測</span>
+      <span class="badge new-answer">PO判断待ち</span>
+      <span class="asker">移記元: FE-refactor</span>
     </div>
     <div class="card-body">
       <p class="section-label">質問</p>
-      <p class="qa-text">ログイン失敗時のアカウントロックの仕様を確認したい。
-① 何回失敗するとロックされるか
-② ロック後、解除までの待ち時間
-③ 管理者による即時解除が可能か
-④ 「失敗5回でアカウントロック」と「1分間5回までのレート制限」は別の仕組みか、両者の関係
-⑤ パスワードリセットリンクの有効期限（現状マニュアルは1時間と記載）
-⑥ デモアカウントの記載をマニュアルに残してよいか（本番では非表示の運用が継続する前提か）</p>
-      <div class="answer-block">
-        <p class="section-label">回答</p>
-        <p class="qa-text"><span class="status-tag none">【未対応】</span>【①〜③ アカウントロックについて】
-失敗回数に応じてアカウントを凍結する「アカウントロック」機構は実装していません。したがって、ロックされる失敗回数（①）、解除までの待ち時間（②）、管理者による解除（③）のいずれも該当しません。
-
-代わりに、送信元IPアドレス単位のレート制限を設けています。認証系の要求（ログイン等）に対し、連続で最大5回まで即時に許容し、それを超えると一時的に拒否（HTTP 429）、その後は時間経過とともに毎分およそ10回のペースで回復します。手動解除は不要です。
-
-<span class="status-tag none">【未対応】</span>【④ 「失敗5回でアカウントロック」とレート制限の関係】
-両者は別の仕組みです。「失敗5回でアカウントロック」は実装しておらず、稼働しているのは上記のIP単位レート制限のみです。ご認識の「5回」は、正確には連続して許容する回数（バースト）が5回であることを指し、それを超えると毎分約10回のペースで回復する挙動となります。マニュアルに「失敗5回でロック」と記載している場合は、上記の内容への修正が必要です。
-
-<span class="status-tag done">【対応済】</span>【⑤ パスワードリセットリンクの有効期限】
-発行から1時間で失効します。マニュアル記載（1時間）と実装は一致しています。
-
-<span class="status-tag done">【対応済】</span>【⑥ デモアカウントの記載】
-残して問題ないです。本番では非表示です。</p>
-      </div>
+      <p class="qa-text">本番のレンダー例外・API失敗を運用チームが観測する手段がない（Sentry 等未導入）。Sentry（または同等 APM）を導入するか。
+影響: 依存追加・コスト・PII/医療関連データの送信境界設計が必要。未導入のままなら障害の検知が遅れる。</p>
     </div>
   </article>
-
-  <!-- No.26 -->
-  <article class="card" data-state="answered">
+  <article class="card" data-state="new-answer">
     <div class="card-head">
-      <span class="qno">No.26</span>
-      <span class="badge category">集計・分析</span>
-      <span class="badge answered">回答あり</span>
-      <span class="badge status">対応中</span>
-      <span class="asker">質問者: ノア</span>
+      <span class="qno">PO-003</span>
+      <span class="badge category">FE / 受付テレメトリ</span>
+      <span class="badge new-answer">PO判断待ち</span>
+      <span class="asker">移記元: FE-refactor</span>
     </div>
     <div class="card-body">
       <p class="section-label">質問</p>
-      <p class="qa-text">集計・分析でCPMセグメント別の人数・一覧をどこで見られるか、Slackで曽我さんに確認（連携設定・各閾値・休眠日数・最終来院の休眠抽出は確認済み）。</p>
-      <div class="answer-block">
-        <p class="section-label">回答</p>
-        <p class="qa-text"><span class="status-tag done">【対応済】</span>実装済みです。「集計・分析」画面（/aggregation）の上部に、CPMセグメント別の人数がチップ形式で常時表示されます。チップ（例: NOAH／コア／グローイング等）をクリックすると、そのセグメントに該当する飼主の一覧に絞り込まれます。売上ランキング／来院回数／最終来院の各タブと組み合わせて利用できます。加えて、フィルタパネルからもCPMセグメントでの絞り込みが可能です。</p>
-      </div>
+      <p class="qa-text">RECEPTION_TELEMETRY_PHASE2_ENABLED は恒久 true（use-reception-telemetry.ts）。キルスイッチとしてフラグと false 分岐テストを残すか、フラグとゲート OFF テストを削除して常時有効に固定するか。
+影響: 残すとデッドコードに近い分岐の保守コストが残る。削除すると緊急 OFF のコード経路がなくなる。</p>
     </div>
   </article>
-
-  <!-- No.27 -->
-  <article class="card" data-state="answered">
+  <article class="card" data-state="new-answer">
     <div class="card-head">
-      <span class="qno">No.27</span>
-      <span class="badge category">Kentaro Kuroki</span>
-      <span class="badge answered">回答あり（No.26と同上）</span>
-      <span class="asker">質問者: ノア</span>
+      <span class="qno">PO-004</span>
+      <span class="badge category">BE / 会計</span>
+      <span class="badge new-answer">PO判断待ち</span>
+      <span class="asker">移記元: BE-refactor</span>
     </div>
     <div class="card-body">
       <p class="section-label">質問</p>
-      <p class="qa-text">僕のパートのマニュアルを進めるため、カルテで集計・分析とLステップ連携まわりを一通り確認しました。確認できた点と、ひとつ教えていただきたい点があります。
-
-【こちらで確認できた点】
-・連携設定のCPM設定（V1で稼働、各セグメントの閾値、休眠日数 180/210/240/365）を確認しました
-・集計・分析の3タブ（売上ランキング／来院回数／最終来院）を確認しました
-・最終来院タブで、経過期間ごとに休眠予備軍を抽出できることを確認しました
-
-【教えていただきたい点】
-CPMセグメント（NOAH／コア／グローイング 等）別の人数や、該当する飼主の一覧は、どの画面で確認できますか。集計・分析の各タブには売上・来院・最終来院の軸はありましたが、CPMセグメント別に分類した一覧が見当たりませんでした。
-
-現状どの画面で見られるかを教えていただけると、マニュアルの記載と、林先生への共有を進められます。
-あわせて、バックログの25番・26番も更新していますので、ご確認ください。
-<a href="https://docs.google.com/spreadsheets/d/17jaFBv7NmbPzk88lZx94vFxa_G1shGNX2O_lFGt4QdQ/edit?gid=0#gid=0" target="_blank" rel="noopener">バックログ スプレッドシート</a></p>
-      <div class="answer-block">
-        <p class="section-label">回答</p>
-        <p class="qa-text"><span class="status-tag done">【対応済】</span>同上（No.26の回答を参照）: CPMセグメント別の人数・一覧は実装済み。「集計・分析」画面上部のセグメントチップから確認・絞り込みが可能。</p>
-      </div>
+      <p class="qa-text">accounting service の GetMonthlyUnpaidCarryover 等4メソッドが repository 型をパススルーしている。service DTO を挟むか、現状維持か。
+影響: DTO 化は層の純度向上と変更コスト。現状維持は依存リークが続く。</p>
     </div>
   </article>
-
-  <!-- No.28 -->
   <article class="card" data-state="new-answer">
     <div class="card-head">
-      <span class="qno">No.28</span>
-      <span class="badge category">青山</span>
-      <span class="badge new-answer">回答記入（7/13）</span>
-      <span class="asker">質問者: ノア</span>
+      <span class="qno">PO-005</span>
+      <span class="badge category">BE / 認証</span>
+      <span class="badge new-answer">PO判断待ち</span>
+      <span class="asker">移記元: BE-refactor</span>
     </div>
     <div class="card-body">
-      <p class="section-label">質問（城東看護部からの改善要望）</p>
-      <p class="qa-text">実際に複数のスタッフにシステムに触ってみてもらっての現時点での改善点です。既に改善済みのものもあるかもしれませんが、こちらの備忘録として共有させていただきます。
-
-【改善点】
-● 山梨の各病院でカルテを統一してほしい（敷島での治療履歴が城東でも見れるなど）
-● アニコムとの連動ができてほしい（アニコム対象・対象外を仕分けて会計を出してくれる）
-● 検索すると漢字苗字のみでしかヒットしない（ペット名ではヒットしない）。飼い主よみがな・電話番号・ペット名で検索ヒットできるようにしてほしい
-● カルテを見て、動物の年齢・性別・避妊去勢済みかが分かるようにしてほしい
-● 危険度を「高い」にすると飼い主側から ⚠️ が見えてしまう可能性がある。危険度のある子は色を変えるなどで分かるようにし、カーソルを合わせると危険度が高い理由が分かるようにしてほしい</p>
-      <div class="answer-block">
-        <p class="section-label">回答</p>
-        <p class="qa-text"><span class="status-tag planned">【未対応（対応予定）】</span>【① 各病院でのカルテ統一】
-スタッフが複数の医院に所属していれば、飼主・カルテ（治療明細・バイタル含む）・会計を1画面で横断して閲覧する機能は実装済みです（閲覧のみ。編集は各医院の所属範囲内）。ただし、同じ飼主・同じ子が敷島と城東で別々に登録された場合、両者を「同一の患者」として結びつける仕組み（名寄せ・共通患者ID）は未実装です。対応します。
-
-<span class="status-tag none">【未対応】</span>【② アニコムとの連動】
-アニコム等の保険会社とのオンライン請求連携（レセプト送信）は未実装です。一方、「対象・対象外を仕分けて会計を出す」は現行機能で可能です: 保険会社をマスタ登録し、会計時に明細ごとの保険適用可否と負担割合（50%・70%・90%等）を指定すると、保険負担分を差し引いた窓口請求額（自己負担額）を自動計算します。アニコムへのオンライン請求連携は未実装です。
-
-<span class="status-tag done">【対応済】</span>【③ 検索が漢字苗字のみでしかヒットしない】
-過去のコード変更に起因する不具合で、修正済みです。現在は飼主名・飼主よみがな・電話番号・ペット名・ペット名よみがなのいずれでも検索でき、カタカナ・ひらがなのどちらで入力してもヒットします。
-
-<span class="status-tag planned">【未対応（対応予定）】</span>【④ 年齢・性別・避妊去勢の表示】
-カルテ上部には、生年月日から自動計算した年齢（○歳○ヶ月）・種別・体重・通算来院回数・保険情報を常時表示しています。性別・避妊去勢はデータとして保持していますがカルテ上部には未表示のため、表示項目への追加を対応します。
-
-<span class="status-tag planned">【未対応（対応予定）】</span>【⑤ 危険度の表示】
-現状、「⚠ 危険」バッジが表示されるのは院内スタッフ向けの飼主一覧のみです。また、危険度の「理由」を記録する欄自体がまだ無いため、理由テキストが飼主に見えることはありません。ご要望の「色での判別＋カーソルを合わせると理由表示」は、理由入力欄の追加とあわせて対応します。なお、飼主に提示しうる飼主レポートに危険度の区分（低/中/高）が表示される箇所があるため、こちらは非表示化します。</p>
-      </div>
+      <p class="section-label">質問</p>
+      <p class="qa-text">checkStaffActive は DB 一時障害時に fail-open（認証を通す）で文書化済み。権限系レビューとして fail-closed に変更するか、現状維持か。
+影響: fail-closed は可用性低下の可能性。fail-open は一時的な権限検証スキップのリスク。</p>
     </div>
   </article>
-
-  <!-- No.29 -->
   <article class="card" data-state="new-answer">
     <div class="card-head">
-      <span class="qno">No.29</span>
-      <span class="badge category">会計周り</span>
-      <span class="badge new-answer">回答記入（7/13）</span>
-      <span class="asker">質問者: ノア</span>
+      <span class="qno">PO-006</span>
+      <span class="badge category">会計 / ADR</span>
+      <span class="badge new-answer">PO判断待ち</span>
+      <span class="asker">移記元: todo.md</span>
     </div>
     <div class="card-body">
-      <p class="section-label">質問（深澤さんから・資料リンク）</p>
-      <p class="qa-text">・<a href="https://drive.google.com/file/d/10w9ULeJxIvqh5YvbrckzD9iIxaH8UBQV/view?usp=drive_link" target="_blank" rel="noopener">資料1（Google Drive）</a>
-・<a href="https://drive.google.com/file/d/1ZzIC2PTxBaY7z2dwp1LaqrJt0C7MHzno/view?usp=drive_link" target="_blank" rel="noopener">資料2（Google Drive）</a>
-※ 原本では資料2と同一URLが2回記載されていた（重複）。</p>
-      <div class="answer-block">
-        <p class="section-label">回答</p>
-        <p class="qa-text">【資料1: 会計について】
-
-・<span class="status-tag done">【対応済】</span>会計キャンセルの権限制御: 実装済みです。会計のキャンセルは「会計キャンセル」専用権限を持つスタッフのみ実行できます（権限管理画面でロール単位に付与。パスワード方式ではなく権限方式です）。操作は全て監査ログに記録され、「誰が・いつ・どの会計を」取り消したか追跡できます。締め後の修正も別の専用権限＋修正理由の入力必須で保護しています。
-
-・<span class="status-tag done">【対応済】</span>残高表示とお釣り金額の変更: 実装済みです。会計画面に飼主の未納残高（未入金件数と合計金額）を表示します。お釣り金額は自動計算に加えて「手動修正」に切り替えられ、レジ実機の実際のお釣りに合わせて変更できます。
-
-・<span class="status-tag done">【対応済】</span>クレジットの打ち間違い訂正: 実装済みです。確定後のクレジットカード・電子マネー金額は専用の訂正機能で修正できます（訂正理由の入力必須・監査ログ記録・専用権限者のみ）。締め後の訂正も可能で、その場合は「締め後訂正」であることが記録に残ります。
-
-・<span class="status-tag done">【対応済】</span>未納の期間指定表示: 実装済みです。会計一覧の「未納者一覧」タブで開始日〜終了日（例: 2026/6/1〜2026/6/30）を指定して表示できます。飼主単位／会計単位／月次繰越の3つの表示切替にも対応しています。
-
-【資料2: 締め・集計について】
-
-・<span class="status-tag done">【対応済】</span>締めの時間区分（各院別）: 医院ごとの設定機能は実装済みです（設定 →「締め時間設定」）。各院の実際の時間区分がまだ設定値として投入されていないため、現状は反映されていないように見えます。各院のAM/PM/EMGの実際の時刻を確認のうえ、設定を投入します。
-
-・<span class="status-tag done">【対応済】</span>レジ締めの実現金と集計への影響: 実現金の入力欄はありますが、差額が表示されるのはレジ締め画面・締め履歴・日次締め帳票のみです。月次の集計レポートには実現金・差額は一切記載されません。「差異を集計表に載せたくない」というご意向は、現状の仕様ですでに満たされています。
-
-・<span class="status-tag done">【対応済】</span>二つの集計の1表化と印刷: レジ締め画面の部門別集計は、診療区分×支払方法を1つの統合表で表示済みで、「印刷/PDF出力」ボタンから印刷できます。
-
-・<span class="status-tag done">【対応済】</span>PDF出力: 実装済みです（※「RDF」はPDFの誤記と解釈しました）。月次集計レポート・日次締めのいずれも「印刷/PDF出力」からブラウザのPDF保存で出力できます。月次はCSV出力にも対応しています。
-
-・<span class="status-tag done">【対応済】</span>締め時間設定の表示形式: 実装済みです。設定画面に「時間帯プレビュー」があり、ご要望どおり「AM 09:00:00〜13:59:59」のように各区分の時刻範囲を表形式で表示します。
-
-・<span class="status-tag done">【対応済】</span>EMGの選択: 実装済みです。締めはAM／PM／緊急（EMG）の3区分から選択でき、EMGは日跨ぎ（PM終了〜翌AM開始）にも対応しています。
-
-・<span class="status-tag done">【対応済】</span>締め履歴一覧: 実装済みです。会計 →「締め履歴」（/accounting/close/history）で年・月・区分（AM/PM/EMG）で絞り込んで閲覧できます。
-
-・<span class="status-tag done">【対応済】</span>月次集計レポートからの詳細表示: 実装済みです。月次集計レポートの日次明細の行をクリックすると、該当日の締め詳細（締め履歴）へ移動できます。</p>
-      </div>
+      <p class="section-label">質問</p>
+      <p class="qa-text">ADR-003 論点1: payment_methods の DB TRIGGER による一貫性保証を採用するか。独立 Issue 起票後の PO 判断。
+参照: docs/adr/003-payment-method-identity-and-consistency.md（論点1保留）。</p>
     </div>
   </article>
-
-  <!-- No.30 -->
   <article class="card" data-state="new-answer">
     <div class="card-head">
-      <span class="qno">No.30</span>
-      <span class="badge category">城東PC</span>
-      <span class="badge new-answer">回答記入（7/13）</span>
-      <span class="asker">質問者: ノア</span>
+      <span class="qno">PO-007</span>
+      <span class="badge category">検査連携 / FE</span>
+      <span class="badge new-answer">PO判断待ち</span>
+      <span class="asker">移記元: todo.md</span>
     </div>
     <div class="card-body">
-      <p class="section-label">質問（城東看護部からの要望）</p>
-      <p class="qa-text">・カルテのパッと見た感じ（予防系など）を現行のものと似たようにしてほしい
-・各病院ごとに履歴を分けるのではなく、1ペットの履歴として治療履歴が見れるようにしてほしい
-・検索するときに似たニュアンスの名前が出てきてほしい（「ひろ」と「ちろ」など）
-・写真やPDFの取り込みがスムーズにできてほしい
-・薬の履歴・OPEの履歴が検索で引っかかるようにしてほしい（その子のカルテで「OPE」と検索すると「◯月◯日 ◯◯のOPE」と出てくるなど）
-・入力作業は責任が伴うものなので、アカウントは一人ひとつあった方がいい。「城東看護部」というアカウントでの入力では誰が入力したか分からないのは困る
-・アニコムとの連携ができればありがたい</p>
-      <div class="answer-block">
-        <p class="section-label">回答</p>
-        <p class="qa-text"><span class="status-tag none">【未対応】</span>【見た目を現行のものに似せる（予防系など）】
-予防系（ワクチン・フィラリア等）の履歴管理自体は実装済みです。現行システムの見た目に合わせる画面調整は未実装です。
-
-<span class="status-tag planned">【未対応（対応予定）】</span>【1ペットの履歴として治療履歴を見る】
-No.28①と同じ回答です。複数医院に所属するスタッフによる横断閲覧は実装済みですが、医院間で同一の子を結びつける名寄せは未実装です。対応します。
-
-<span class="status-tag none">【未対応】</span>【似たニュアンスの名前検索】
-現状は部分一致に対応しており、カタカナ・ひらがなのどちらで入力してもヒットします。「ひろ」で「ちろ」も候補に出るような類似音のあいまい検索・サジェストは未実装です。
-
-<span class="status-tag planned">【未対応（対応予定）】</span>【写真やPDFの取り込み】
-カルテへの画像（JPEG/PNG/GIF）・PDFの添付は実装済みです（1ファイル10MBまで、複数ファイルの一括アップロード可）。現状はボタンを押してファイルを選ぶ方式のため、ドラッグ&ドロップでの取り込みを追加します。
-
-<span class="status-tag planned">【未対応（対応予定）】</span>【薬の履歴・OPEの履歴の検索】
-カルテ検索の対象は現状、飼主名・ペット名・カルテNo・主訴のみで、治療内容・処方薬名・処置名を対象とするカルテ内検索（例: その子のカルテで「OPE」と検索）は未実装です。対応します。
-
-<span class="status-tag done">【対応済】</span>【アカウントは一人ひとつ】
-個人単位のアカウント発行は標準機能です（スタッフ登録時にメールアドレス＋パスワードで発行。人数分の発行に制限はありません）。カルテには入力者が自動記録され、監査ログで「誰が・いつ・何を」操作したかを追跡できます。「城東看護部」のような部署共有アカウントは、入力責任が追跡できなくなるため推奨しません。人数分の個人アカウント発行への切り替えをお願いします。
-
-<span class="status-tag none">【未対応】</span>【アニコムとの連携】
-No.28②と同じ回答です。オンライン請求連携は未実装ですが、会計での保険適用の仕分け・自己負担額の自動計算は実装済みです。</p>
-      </div>
+      <p class="section-label">質問</p>
+      <p class="qa-text">lab_import Frontend UI の Phase 0 操作 UX 仕様を確定するか。BE Phase 4（4A/4B）は完了済み。frontend/src/features に lab 系ディレクトリは未作成。
+UX 未確定のまま実装着手禁止。</p>
     </div>
   </article>
-
-  <!-- No.31 -->
   <article class="card" data-state="new-answer">
     <div class="card-head">
-      <span class="qno">No.31</span>
-      <span class="badge category">城東PC</span>
-      <span class="badge new-answer">回答記入（7/13）</span>
-      <span class="asker">質問者: ノア</span>
+      <span class="qno">PO-008</span>
+      <span class="badge category">Lステップ仕様 / クライアント確認</span>
+      <span class="badge new-answer">PO判断待ち</span>
+      <span class="asker">移記元: 01_曽我…仕様書 §7</span>
     </div>
     <div class="card-body">
-      <p class="section-label">質問（カルテ改定の修正要望）</p>
-      <p class="qa-text">カルテ改定について、現在のカルテから修正してほしい点をまとめましたのでご確認をお願いします。
-
-・ミーティング内でもお伝えしましたが、カルテを開いた時点で、飼い主名・動物のプロフィールはまとめて見れるようにしていただきたいです
-・同居の子に関しては、同居の子もカルテ上で確認できるようにしてほしいです。その子をクリックしたら、その子のカルテに飛べるようにしていただきたいです
-
-画像は添付画像タブ参照:
-<a href="https://docs.google.com/spreadsheets/d/17jaFBv7NmbPzk88lZx94vFxa_G1shGNX2O_lFGt4QdQ/edit?gid=900461027#gid=900461027&amp;range=A3" target="_blank" rel="noopener">添付画像タブ（スプレッドシート）</a></p>
-      <div class="answer-block">
-        <p class="section-label">回答</p>
-        <p class="qa-text"><span class="status-tag planned">【未対応（対応予定）】</span>【飼主名・動物プロフィールのまとめ表示】
-カルテを開くと、画面上部に飼主名・ペット名・ペットNo・生年月日と年齢（自動計算）・種別・体重・通算来院回数・保険情報を常時表示しています。性別・避妊去勢・犬種は現状未表示のため、表示項目への追加を対応します（No.28④と同件）。
-
-<span class="status-tag planned">【未対応（対応予定）】</span>【同居の子の表示とカルテ遷移】
-カルテ画面から同じ飼主の他の子を一覧表示し、クリックでその子のカルテへ移動する機能は未実装です。近い機能として、カルテの「レポート」ボタンから開く飼主レポートで飼主の全ペットを切り替え表示できますが、これは閲覧専用でカルテへの遷移はできません。カルテ上部に同居ペットを表示し、クリックで該当カルテへ遷移できるよう対応します。</p>
-      </div>
-    </div>
-  </article>
-
-  <!-- No.32 -->
-  <article class="card" data-state="new-answer">
-    <div class="card-head">
-      <span class="qno">No.32</span>
-      <span class="badge category">安田希恵</span>
-      <span class="badge new-answer">回答記入（7/13）</span>
-      <span class="asker">質問者: ノア</span>
-    </div>
-    <div class="card-body">
-      <p class="section-label">質問（トリミング関連）</p>
-      <p class="qa-text">【トリミング】
-・古いPCでは正常に動かずエラーが出る
-・検索結果に犬種も表示してほしい
-・部分カットコースを消す
-・外来で来るお手入れの予約は診察カルテの方で入力できる方がいい
-・トリミングカルテ作成の時、診察のカルテも入力できるようにしてほしい。2つカルテを作ると精算ミスが出るので、1つにまとめたい。精算もまとめて請求したい
-・当日の受付で診察中の枠に進むとトリミングカルテの入力ができないので、直してほしい
-・取扱説明書には前回のカルテのコピーのやり方が載っていないが、載せた方がいいのでは？
-・新規カルテ作成して登録するとステータスが「予約」ではなく「進行中」になる
-
-【トリミングマスタ】
-・標準所要時間の記入は予約システムと連動するのか知りたい。その子によってかかる時間が違うため、連動するなら予約システムの1枠分の時間で統一したい
-・オプションマスタは無効にするとカルテ内で入力できないのか知りたい
-・有効にすると所要時間は予約システムに反映するのか知りたい。反映するなら所要時間は0分で統一したい</p>
-      <div class="answer-block">
-        <p class="section-label">回答</p>
-        <p class="qa-text">【トリミング】
-
-・<span class="status-tag none">【未対応】</span>古いPCのエラー: 動作推奨環境は最新版のGoogle Chromeです。推奨環境外の古いOS・ブラウザは動作保証外のため、推奨環境でのご利用をお願いします。
-
-・<span class="status-tag done">【対応済】</span>検索結果への犬種表示: 対応済みです。トリミング一覧に犬種の列を追加しました（未登録の場合は「-」表示）。あわせて、犬種を検索語としても使えるようにしています。
-
-・<span class="status-tag planned">【未対応（対応予定）】</span>部分カットコースの削除: 「部分カット」はトリミングコースマスタではなく予約種別として登録されています。予約受付の選択肢から外す設定変更で対応します（過去の予約データは保持されます）。
-
-・<span class="status-tag none">【未対応】</span>お手入れ予約の診察カルテ入力／カルテの1本化: データ上、診察カルテとトリミングカルテは別々ですが、精算は既に統合されています。会計画面が同じ子の未請求項目（診察の処置・トリミングの両方）を自動でまとめて拾うため、請求は1本にまとめられます。カルテ入力を1画面に統合する機能は未実装です。
-
-・<span class="status-tag done">【対応済】</span>「診察中」枠でトリミングカルテ入力不可: 実装上、受付ステータスによるトリミングカルテの入力制限はありません。「診察中」の枠からもトリミングカルテを入力できます。
-
-・<span class="status-tag done">【対応済】</span>前回カルテのコピー: 実装済みです。トリミングカルテ画面右側の過去履歴カードをクリックすると、コース・スタイル希望・使用シャンプー・使用リボン・備考・担当者が現在のフォームへコピーされます（保存するまでサーバーには反映されません）。取扱説明書への記載をお願いします。記載用の手順文はこちらから提供できます。
-
-・<span class="status-tag done">【対応済】</span>新規作成時のステータスが「進行中」になる: 対応済みです。トリミングカルテを直接新規作成する際に、登録時のステータスを「進行中／予約」から選択できるようにしました（初期値は従来どおり「進行中」。予約起点で作成した場合は従来どおり「予約」です）。
-
-【トリミングマスタ】
-
-・<span class="status-tag none">【未対応】</span>標準所要時間と予約システムの連動: 連動していません。予約枠の長さは「予約種別」側に設定された所要時間で決まり、トリミングマスタの標準所要時間は予約枠の計算には使われていません（院内の目安情報です）。1枠分で統一したい場合は、予約種別側の所要時間を設定してください。
-
-・<span class="status-tag done">【対応済】</span>オプションマスタの無効化: 対応済みです（不具合として修正しました）。無効化したコース・オプションはトリミングカルテの選択肢に表示されなくなります。既存のカルテで選択済みだったものはデータを保持したまま「（無効）」付きで表示されます。
-
-・<span class="status-tag none">【未対応】</span>オプションの所要時間の予約反映: 反映されません。オプションの所要時間も予約枠の計算には使われないため、0分に統一する必要はありません（入力しても予約枠には影響しません）。</p>
-      </div>
+      <p class="section-label">質問</p>
+      <p class="qa-text">曽我様宛仕様書 §7 確認事項（未回答チェックリスト）:
+7-1 既存集計3項目の仕様（年間定義・合算・CSV / 来院回数期間 / 最終来院閾値）
+7-2 追加実装見積もり5項目（CPM / 上位20% / 健診予防 / 動物種タグ / 配信トリガー）
+7-3 Lステップ API 仕様3項目（タグ付与解除・エラー処理・LINE ID 紐付け）
+7-4 受付・診療 UI 2項目（フェーズ1必須 / フェーズ2以降）
+回答後に仕様書または ADR へ確定事項を反映する。</p>
     </div>
   </article>
 
   <footer>
-    出典: バックログ管理スプレッドシート（No.24〜32）／ 整理日: 2026-07-13<br>
-    ・「質問作成日」「備考」列は原本で全件未記入のため省略。<br>
-    ・No.27 の回答は原本で「同上」（No.26 と同内容）。<br>
-    ・No.28 の「:warning:」表記は ⚠️ に置換。<br>
-    ・No.28〜32 の回答は 2026-07-13 に実装コードの調査に基づき開発側で記入（シートへの転記前のドラフト）。<br>
-    ・2026-07-13 更新: No.26/27 を CPM セグメント実装済みに訂正／No.32 の3件（犬種列・無効オプション除外・初期ステータス選択）を対応済み化／前回カルテのコピーを実装済みに訂正／No.29 に資料確認済みの回答を記入／表現を「未実装です。」（着手しない）と「対応します。」（着手する）の二値に統一。<br>
-    ・2026-07-14 更新: 各回答の項目冒頭に対応状況タグ（対応済／未対応／未対応（対応予定））を追記。判定は本文表現に対応（実装済み・対応済み＝対応済、未実装＝未対応、対応します＝未対応（対応予定））。あわせて、回答文から質問者への確認依頼・再現情報依頼と現行仕様との齟齬説明を削除し、断定形に統一。
+    <p>顧客 Q&amp;A 正本は Google Sheet（参照: <code>docs/backlog_spreadsheet.md</code>）。本ファイルは開発内部の PO 判断待ち専用キューであり、顧客バックログ No.24〜32 の複製ではない。</p>
+    <p>本タスク範囲ではユーザー明示によりリポジトリに内部キューとして配置。Sheet への書き込みや顧客向け Q&amp;A の復元は行わない。</p>
   </footer>
 </div>
 
@@ -546,8 +306,7 @@ No.28②と同じ回答です。オンライン請求連携は未実装ですが
       card.classList.toggle('hidden', !show);
       if (show) visible++;
     });
-    const newAnswers = cards.filter(c => c.dataset.state === 'new-answer').length;
-    summary.textContent = `表示中: ${visible} 件 ／ 全 ${cards.length} 件（既存回答 ${cards.length - newAnswers}・7/13 新規記入 ${newAnswers}）`;
+    summary.textContent = `表示中: ${visible} 件 ／ 全 ${cards.length} 件`;
   }
 
   buttons.forEach(btn => {

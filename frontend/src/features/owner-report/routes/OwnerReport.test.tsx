@@ -249,12 +249,14 @@ describe("OwnerReport", () => {
     // ペット詳細: useGetPets list response 由来の既存詳細項目。list response で落とさない。
     expect(screen.getByText("柴犬")).toBeInTheDocument();
     expect(screen.getByText("赤")).toBeInTheDocument();
-    expect(screen.getByText("中")).toBeInTheDocument();
     expect(screen.getByText("購入")).toBeInTheDocument();
     expect(screen.getByText("療法食")).toBeInTheDocument();
     expect(screen.getByText("アニコム")).toBeInTheDocument();
     expect(screen.getByText("70%補償")).toBeInTheDocument();
     expect(screen.getByText("咬傷注意")).toBeInTheDocument();
+    // #229: 飼主向けサーフェスに危険度を平文表示しない（fixture に dangerLevel があっても非描画）
+    expect(screen.queryByText("危険度")).not.toBeInTheDocument();
+    expect(screen.queryByText("中")).not.toBeInTheDocument();
 
     // ペット詳細: 初診日（useGetPetFirstVisit 由来の派生値。formatDate で YYYY/MM/DD 表示）
     expect(screen.getByText("初診日")).toBeInTheDocument();

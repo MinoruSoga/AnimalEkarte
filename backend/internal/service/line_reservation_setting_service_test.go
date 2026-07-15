@@ -342,9 +342,11 @@ func TestLineReservationSettingService_Save_Encryption(t *testing.T) {
 
 	t.Run("legacy plaintext existing is re-encrypted when input empty", func(t *testing.T) {
 		// 暗号化導入前に保存された平文レコードを模す（AES-GCM 復号に失敗する値）
+		// 実クレデンシャルを使わず、明らかに合成の 32-hex ダミーを用いる
+		const legacyPlainSecret = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
 		repo := newCapturingRepo(&model.LineReservationSetting{
 			ClinicID:          1,
-			LineChannelSecret: "5344ef84eb7072b5894f7e087db28827",
+			LineChannelSecret: legacyPlainSecret,
 			LineAccessToken:   "legacy-plain-token",
 		})
 		svc := NewLineReservationSettingService(repo, cipher)
@@ -352,10 +354,10 @@ func TestLineReservationSettingService_Save_Encryption(t *testing.T) {
 		assert.NoError(t, err)
 		if assert.NotNil(t, res) {
 			// 機会的再暗号化: 平文のまま残らず、暗号化される
-			assert.NotEqual(t, "5344ef84eb7072b5894f7e087db28827", res.LineChannelSecret)
+			assert.NotEqual(t, legacyPlainSecret, res.LineChannelSecret)
 			gotSecret, decErr := cipher.Decrypt(res.LineChannelSecret)
 			assert.NoError(t, decErr)
-			assert.Equal(t, "5344ef84eb7072b5894f7e087db28827", gotSecret)
+			assert.Equal(t, legacyPlainSecret, gotSecret)
 
 			assert.NotEqual(t, "legacy-plain-token", res.LineAccessToken)
 			gotToken, decErr := cipher.Decrypt(res.LineAccessToken)
