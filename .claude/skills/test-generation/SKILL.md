@@ -52,46 +52,44 @@ E2Eは `e2e-design` コマンド / `docs/testing/E2E_TESTING_GUIDE.md` を参照
 
 ### 1. Go Backend テスト生成
 
-#### テスト構造（testify パターン）
+#### テスト構造（手書き fn-field モック — 本プロジェクトの正本パターン。詳細は `golang-testing` スキル参照）
+
+testify/mock パッケージのマッチャー/期待値APIは使わない（本プロジェクトの実コードに1件も存在しない）。各テストケースで必要な fn だけ差し替える手書きモックが正本（実例: `backend/internal/service/liff_service_mock_test.go`）。
+
 ```go
 func TestCreateOwner(t *testing.T) {
-  suite := &OwnerTestSuite{}
-  suite.SetupTest(t)
-  defer suite.TearDown()
-
   tests := []struct {
     name      string
     input     *CreateOwnerInput
-    mock      func() // モック設定
+    createFn  func(ctx context.Context, owner *model.Owner) error
     wantError bool
     wantCode  string
   }{
     {
-      name: "happy path",
+      name:  "happy path",
       input: &CreateOwnerInput{Name: "田中", Email: "test@example.com"},
-      mock: func() { suite.repo.EXPECT().Create(mock.Anything).Return(nil) },
+      createFn: func(ctx context.Context, owner *model.Owner) error { return nil },
       wantError: false,
     },
     {
-      name: "invalid email",
-      input: &CreateOwnerInput{Email: "invalid"},
+      name:      "invalid email",
+      input:     &CreateOwnerInput{Email: "invalid"},
       wantError: true,
-      wantCode: "INVALID_INPUT",
+      wantCode:  "INVALID_INPUT",
     },
     {
-      name: "duplicate email",
+      name:  "duplicate email",
       input: &CreateOwnerInput{Email: "existing@example.com"},
-      mock: func() { suite.repo.EXPECT().Create(mock.Anything).Return(ErrDuplicate) },
+      createFn: func(ctx context.Context, owner *model.Owner) error { return apperrors.ErrDuplicate },
       wantError: true,
     },
   }
 
   for _, tt := range tests {
     t.Run(tt.name, func(t *testing.T) {
-      if tt.mock != nil {
-        tt.mock()
-      }
-      err := suite.service.CreateOwner(context.Background(), tt.input)
+      repo := &mockOwnerRepository{createFn: tt.createFn}
+      svc := NewOwnerService(repo)
+      err := svc.CreateOwner(context.Background(), tt.input)
       if tt.wantError {
         require.Error(t, err)
         assert.Equal(t, tt.wantCode, err.Code)
@@ -124,20 +122,28 @@ func TestCreateOwner(t *testing.T) {
 - Context キャンセル、Timeout
 - トランザクション成功・失敗
 
-#### モック生成例
-
-> **mockery は本プロジェクト未導入**（go.mod/Makefile に無し）。既存テストは testify + 実 DB（setupTestDB）+ 手書き fn-field モックが正本。mockery 導入は別途依存追加が必要。
+#### モック生成例（手書き fn-field — モック自動生成ツールは本プロジェクト未導入のため使わない）
 
 ```go
-// mockery によるモック自動生成
 type OwnerRepository interface {
   Create(ctx context.Context, owner *Owner) error
   GetByID(ctx context.Context, id uint) (*Owner, error)
   Update(ctx context.Context, owner *Owner) error
 }
 
-// mockery -name=OwnerRepository
-// → mocks/OwnerRepository.go 自動生成
+// 手書き fn-field モック: 使う fn だけ差し替える（golang-testing スキル参照）
+type mockOwnerRepository struct {
+  createFn  func(ctx context.Context, owner *Owner) error
+  getByIDFn func(ctx context.Context, id uint) (*Owner, error)
+  updateFn  func(ctx context.Context, owner *Owner) error
+}
+
+func (m *mockOwnerRepository) Create(ctx context.Context, owner *Owner) error {
+  if m.createFn != nil {
+    return m.createFn(ctx, owner)
+  }
+  return nil
+}
 ```
 
 ### 2. React Frontend テスト生成

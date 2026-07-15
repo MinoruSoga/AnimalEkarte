@@ -1,11 +1,11 @@
 ---
 name: go-security
-description: Go セキュリティ分析・OWASP対応（gosec、SQLインジェクション、パスワードハッシング）
+description: Go セキュリティ分析・OWASP対応（SQLインジェクション、パスワードハッシング。gosec は本プロジェクト未導入）
 ---
 
 # Go Security Analysis
 
-Go アプリケーションのセキュリティを OWASP Top 10 と gosec に基づいて分析します。
+Go アプリケーションのセキュリティを OWASP Top 10 に基づいて分析します（gosec は本プロジェクト未導入のため手動レビュー中心。導入すれば併用可能）。
 
 ## 実行スコープ
 
@@ -142,7 +142,7 @@ db.Where("name LIKE ?", "%"+escapeLike(name)+"%").Find(&users)  // escapeLike（
 - Missing CORS Headers
 
 ### ✅ Passed
-- gosec warnings: 0
+- gosec: 未導入のため実行なし（手動レビューでの検出結果のみ記載。導入済みなら `gosec warnings: N`）
 - OWASP Coverage: 90%
 
 ### 推奨修正リスト

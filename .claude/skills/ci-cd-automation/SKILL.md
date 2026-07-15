@@ -109,6 +109,6 @@ warm-DB（前 run のテーブル残存）でローカル PASS しても CI の 
 
 ## 関連スキル
 
-- `docker-optimization` — イメージビルド最適化
+- `docker-patterns` — Docker Compose 開発環境・イメージ最適化（docker-optimization は削除済み・本スキルに統合）
 - `deployment` — デプロイメント（backend-deploy.yml / frontend-deploy.yml）
 - `migration-seed-safety` — migration / seed 変更時の安全ガード

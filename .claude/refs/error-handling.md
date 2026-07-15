@@ -110,17 +110,24 @@ export class ErrorBoundary extends React.Component<Props, State> {
 
 ### 5. React Query Error Handling
 
+`queryFn` 内のエラーは自動的に `error` state に載る。UI 側で明示的にハンドルしない限り無音失敗になるため、`isError`/`error` を必ず消費するか `handleApiError` を呼ぶ。
+
 ```typescript
 // hooks/use-owners.ts
 export function useGetOwners(clinicID: number) {
-  return useQuery({
+  const query = useQuery({
     queryKey: ['owners', clinicID],
-    queryFn: async () => {
-      const response = await axios.get(`/api/owners?clinic_id=${clinicID}`);
-      return response.data;
-    },
+    queryFn: () => api.get(`/api/owners?clinic_id=${clinicID}`).then(res => res.data),
     retry: 1,
   });
+
+  useEffect(() => {
+    if (query.isError) {
+      handleApiError(query.error, 'owners fetch');
+    }
+  }, [query.isError, query.error]);
+
+  return query;
 }
 ```
 
@@ -132,5 +139,5 @@ export function useGetOwners(clinicID: number) {
 - [ ] HTTP Status mapping (RespondError)
 - [ ] Logging: Structured with slog.ErrorContext
 - [ ] React Error Boundary implemented
-- [ ] React Query retry configured
-- [ ] No console.error in production code
+- [ ] React Query retry configured（`isError`/`error` を消費、無音失敗にしない）
+- [ ] `console.error` はアドホックに撒かない。`handleApiError` 内部のフォールバックとして使う分は可（実装: `frontend/src/lib/handle-api-error.ts`）

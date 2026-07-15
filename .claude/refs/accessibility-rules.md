@@ -75,12 +75,34 @@ const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
   Action
 </div>
 
-// ✅ Manage Tab focus order
+// ❌ NEVER use positive tabIndex to control order — it breaks natural DOM
+// tab order and is unmaintainable as the page grows.
 <div>
   <button tabIndex={1}>First</button>
   <button tabIndex={2}>Next</button>
   <button tabIndex={3}>Last</button>
 </div>
+
+// ✅ Let natural DOM order define Tab order. For composite widgets
+// (toolbars, tab lists) that need arrow-key navigation within a group,
+// use the "roving tabindex" pattern: only the active item gets tabIndex={0},
+// all others get tabIndex={-1}, and arrow keys move focus programmatically.
+function Toolbar({ items, activeIndex, onNavigate }: ToolbarProps) {
+  return (
+    <div role="toolbar">
+      {items.map((item, i) => (
+        <button
+          key={item.id}
+          tabIndex={i === activeIndex ? 0 : -1}
+          ref={i === activeIndex ? activeRef : undefined}
+          onKeyDown={(e) => handleArrowKeys(e, i, onNavigate)}
+        >
+          {item.label}
+        </button>
+      ))}
+    </div>
+  );
+}
 ```
 
 ### 5. Color Contrast

@@ -10,7 +10,9 @@ model: sonnet
 Go のビルドエラー・`go vet`・`golangci-lint` の問題を**最小差分**で解決する。リファクタリング・アーキテクチャ変更は行わない。
 
 > **起動条件**: 本エージェントはユーザーがビルド修復を依頼した文脈（`/go-build` 等）でのみ起動する。
-> その依頼には全体 build/vet/lint の実行が内包されるため、以下の診断コマンドを実行してよい。
+> `go build` / `go vet` / `go mod verify` / `go mod tidy` は Auto-Execution Prohibited リスト外のため全体実行してよい。
+> `golangci-lint run ./...`（全体）は禁止リスト該当のため自律実行しない — 変更パッケージにスコープ限定するか、
+> 全体実行が必要な場合はユーザーに依頼する。
 > ビルド修復以外の文脈で自発的に全体ビルド・lint を実行しないこと（CLAUDE.md の自動実行禁止リスト）。
 > golangci-lint は `--max-same-issues 0 --max-issues-per-linter 0` で cap 解除して実行する（cap 隠蔽の罠）。
 
@@ -19,9 +21,10 @@ Go のビルドエラー・`go vet`・`golangci-lint` の問題を**最小差分
 ```bash
 docker compose exec backend go build ./...
 docker compose exec backend go vet ./...
-docker compose exec backend golangci-lint run ./...
 docker compose exec backend go mod verify
 docker compose exec backend go mod tidy -v
+# lint はスコープ限定（変更パッケージのみ）。全体実行はユーザー手動:
+docker compose exec backend golangci-lint run ./internal/<変更パッケージ>/... --max-same-issues 0 --max-issues-per-linter 0
 ```
 
 ## 解決フロー
