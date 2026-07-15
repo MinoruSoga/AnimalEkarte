@@ -5,28 +5,18 @@ import type { ColumnData } from "@/types";
 import { Reception } from "./Reception";
 
 /**
- * Reception.tsx の実配線を通した回帰テスト（ReceptionTelemetryStrip 単体テストだけでは
- * 「Phase 1 = 件数のみ」が本物の配線経由でも成立することを証明できないためのギャップ埋め）。
+ * Reception.tsx → useReceptionTelemetry → ReceptionTelemetryStrip の実配線を通した
+ * 常時有効（Phase 2）の配線回帰テスト。
  *
- * 「受付済 0 件」と「Phase 2 未稼働」を区別するため、fixture には checkedInAt 付きの
- * 受付済患者を意図的に含める。それでも平均待ち/最長待ちが表示されないことを示せて初めて、
- * ゲート（RECEPTION_TELEMETRY_PHASE2_ENABLED）が実データの有無ではなくフラグで
- * 判定していることの証明になる。
- *
- * Phase 2 が稼働開始した現在、実際の `RECEPTION_TELEMETRY_PHASE2_ENABLED` は true だが、
- * OFF 経路の回帰は退行させる価値がある（将来何らかの理由で再度 false に戻す運用が
- * 発生した場合の安全網）。そのため gate-on.test.tsx と対称に、ゲート値を明示的に
- * mock してこのテストの前提を実フラグの現在値から独立させる。
+ * ReceptionTelemetryStrip 単体テストだけでは「本物の配線経由で waitStats が渡る」ことは
+ * 証明できないため、Reception ルート経由で件数・待ち時間が表示されることを検証する。
+ * Strip 内部の Phase1/Phase2 prop 分岐は ReceptionTelemetryStrip.test.tsx で既に
+ * カバー済みのため、ここでは再検証しない。
  */
 
 vi.mock("@/hooks/use-permission", () => ({
   usePermission: vi.fn(() => ({ canView: true, canCreate: true, canEdit: true, canDelete: true })),
 }));
-
-vi.mock("../hooks/use-reception-telemetry", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../hooks/use-reception-telemetry")>();
-  return { ...actual, RECEPTION_TELEMETRY_PHASE2_ENABLED: false };
-});
 
 const columnsFixture: ColumnData[] = [
   {
@@ -73,8 +63,6 @@ const columnsFixture: ColumnData[] = [
         ownerId: "21",
         status: "checked_in",
         source: "manual",
-        // 実データが存在していても(=待ち時間を計算できる状態でも)、ゲートが false の間は
-        // 表示してはならないことを示すため、意図的に checkedInAt を設定する。
         checkedInAt: new Date(Date.now() - 32 * 60_000).toISOString(),
       },
     ],
@@ -108,15 +96,16 @@ function renderReception() {
   return render(<Reception />, { wrapper: createTestWrapper({ router: true }) });
 }
 
-describe("Reception — テレメトリ配線（Phase 2 ゲート OFF、mock による安全網）", () => {
-  it("checked_in_at を持つ受付済患者が実在しても、ゲートが false の間は本日受付件数のみ表示する", () => {
+describe("Reception — テレメトリ配線（Phase 2 常時有効）", () => {
+  it("本日受付件数と平均待ち/最長待ちが実データで表示される", () => {
     renderReception();
 
     expect(screen.getByText("本日受付")).toBeInTheDocument();
     // 全カラム合算 = 2件（受付予約1 + 受付済1）
     expect(screen.getByText("2")).toBeInTheDocument();
-    expect(screen.queryByText("平均待ち")).not.toBeInTheDocument();
-    expect(screen.queryByText("最長待ち")).not.toBeInTheDocument();
-    expect(screen.queryByText(/32分/)).not.toBeInTheDocument();
+    expect(screen.getByText("平均待ち")).toBeInTheDocument();
+    expect(screen.getByText("最長待ち")).toBeInTheDocument();
+    expect(screen.getByText("32分")).toBeInTheDocument();
+    expect(screen.getByText("32分 — ミルク")).toBeInTheDocument();
   });
 });

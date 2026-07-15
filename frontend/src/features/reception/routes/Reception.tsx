@@ -27,7 +27,7 @@ import { ReceptionFilterPanel } from "../components/ReceptionFilterPanel";
 import { ReceptionTelemetryStrip } from "../components/ReceptionTelemetryStrip";
 import type { ReceptionAppointment } from "../api/types";
 import { useReceptionKanban } from "../hooks/use-reception-kanban";
-import { RECEPTION_TELEMETRY_PHASE2_ENABLED, useReceptionTelemetry } from "../hooks/use-reception-telemetry";
+import { useReceptionTelemetry } from "../hooks/use-reception-telemetry";
 import { ReceptionDetailModal, ReservationFormModal } from "./ReceptionLazyModals";
 import { NO_ADD_BUTTON_COLUMNS } from "./reception-model";
 import { useReceptionDragHandlers } from "../hooks/use-reception-drag-handlers";
@@ -188,7 +188,7 @@ export function Reception() {
 
             <ReceptionTelemetryStrip
                 totalCount={telemetry.totalCount}
-                waitStats={RECEPTION_TELEMETRY_PHASE2_ENABLED ? telemetry : undefined}
+                waitStats={telemetry}
             />
 
             {isFilterOpen ? (

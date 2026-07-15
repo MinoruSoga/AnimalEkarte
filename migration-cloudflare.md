@@ -6,6 +6,38 @@
 > **ステータス**: 実行中 — **Phase 4 完了（P4-1〜P4-9、2026-07-05 試行12確定）**。**Phase 5（CI/CD 置換）コード完了（2026-07-06。P5-1/P5-3/P5-4 実装・コミット `4a9ad331` 確定。P5-2（Secrets登録）/P5-5（2回連続成功確認）は人間タスク待ち・BLOCKED(genuine)）**。**Phase 6（監視・ログ・通知）— P6-1〜P6-3 完了（2026-07-06）・P6-4 調査完了/genuine BLOCKED（2026-07-07、Cloudflareにアカウント全体のドル建て支出アラート機構が存在しないため実装不可と判明）・P6-5 棚卸し完了（2026-07-07、AWS CloudWatch依存6項目中、代替不能は1件のみ=#4 RDS PostgreSQLログのCloudWatch Logsエクスポート↔PlanetScale側の同等性・未検証BLOCKED、他5件はPASS/N/A）**。
 > Phase 0〜3 は完了（P2-4/P2-5 画像データ移行実行・P3-6/P3-7 データ本切替は人間判断待ち）。
 > トラフィック切替（P1-2 NS 切替・Phase 7）は未実施。現行 `api.stg.noah-karte.com` は AWS ECS 経路（夜間停止等で 503 になり得る）、Cloudflare 検証経路は `*.workers.dev`（2026-07-06 時点 `/health` 200 確認済み。P6着手セッションではdeployしていないため前回記録を維持）。詳細は「実施記録」の 2026-07-06 セクション参照
+> **最新監査: 2026-07-15（下記「現況サマリ」参照 — P5-2/P5-5 依然未達・staging は 6/22 以降 push 無し・STG 実 URL のコードは 6/22 デプロイ分で停止中）**
+
+## 現況サマリ（2026-07-15 ステータス監査）
+
+7/18 納品を前に、リポジトリ・GitHub 実測（`gh run list` / `gh secret list` / `git ls-remote`）で全 Phase の現況を再監査した。
+
+**確定事実:**
+
+1. **staging ブランチは 2026-06-22（PR #177 マージ、HEAD `eb37739f`）以降 push されていない。** そのため Phase 5 で置換した Cloudflare 版 `backend-deploy.yml`（コミット `4a9ad331`・main のみに存在）は **staging push で一度も実行されていない**。`backend-deploy.yml` の実行履歴の最終成功は 2026-06-22（旧 ECS 経路）。→ **P5-5（2 回連続成功確認）は未達のまま**
+2. **P5-2（GitHub Secrets 登録）も未完了。** repo レベルの Secrets は `VERCEL_ORG_ID` / `VERCEL_PROJECT_ID` / `VERCEL_TOKEN` / `VITE_API_URL` の 4 件のみ（2026-07-15 `gh secret list` 実測・値は非取得）。`CLOUDFLARE_API_TOKEN` / `CLOUDFLARE_ACCOUNT_ID` / `MIGRATE_RUN_SECRET` は未登録（environment スコープの Secrets は未検証だが、P5-2 が人間タスク待ちである記録と整合）
+3. **STG 実トラフィックは引き続き AWS ECS/RDS**（`api.stg.noah-karte.com`。`frontend/vercel.json` の `/api` rewrite も同 URL 向き）。**実 URL で動いているバックエンドは 6/22 デプロイのコードで停止しており、それ以降の main の全変更は STG 実 URL に未反映**
+4. Phase 7（NS 切替・並行稼働）・Phase 8（AWS 廃止）は未着手（チェックリスト全項目 `[ ]`）。`infra/terraform/` は現存
+
+**2026-07-07 以降の関連コミット（本ドキュメント外の進展）:**
+
+- `6e34e684` — `.env.staging` を untrack 化し、C-1 runbook を Cloudflare STG 前提に整合
+- `2d8ab41d` — `backend-deploy.yml` の Actions バージョン統一 + drift check（#195 系の保守）
+
+**7/18 納品に対する判断ポイント（2026-07-15 PO 決定済み）:**
+
+3 セッション並行開発（#260）の成果を STG 実 URL に届ける経路が現状存在しない。選択肢は 2 つあった:
+
+- **(a) Phase 7（NS 切替）を納品前に実施** — 前提チェーン: P5-2 Secrets 登録 → staging push → P5-5 の 2 連続 green → P2-4/P2-5 画像移行 → P3-6/P3-7 データ本切替 → NS 切替。納品直前の切替リスクを伴う
+- **(b) 納品は AWS 経路のまま** — staging push 後に手動 `backend-deploy-ecs.yml` で ECS を更新する運用。Phase 7 は納品後
+
+**→ PO 決定（2026-07-15）: (a) を採用。納品は Cloudflare 経路で行う。**
+
+決定の含意:
+
+1. **STG は納品前に Phase 7 まで完遂する**（クリティカルパス: P5-2 Secrets 登録【人間】→ staging push → P5-5 2 連続 green → P2-4/P2-5 画像データ移行 → P3-6/P3-7 データ本切替 → P1-2/Phase 7 NS 切替【人間】）。人間タスクの正本は [todo-me.html](todo-me.html)
+2. **納品環境（本番）も Cloudflare 構成で整備する**（§10「本番移行は別途計画」の前倒し）。本番はまだ実データ運用前のため既存データの本切替が不要で、Access 移行（#250）を本番 DB へ直接投入できる — 切替コストが最小の唯一のタイミングである。本番整備の追跡 Issue は #253（BE 自動デプロイ = CF 版 `backend-deploy.yml` の production 対応として実装）
+3. AWS 側（ECS/RDS）は Phase 7 の並行稼働期間はロールバック先として維持し、Phase 8（廃止）は納品後の安定確認を待って実施する
 
 ---
 

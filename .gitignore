@@ -121,3 +121,4 @@ trash/
 *.import.tsv
 *.import.tsv.header
 sensitive-local/
+.secret

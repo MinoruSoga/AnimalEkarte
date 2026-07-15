@@ -160,7 +160,7 @@
 <div class="container">
   <header>
     <h1>内部 PO 判断キュー</h1>
-    <p class="meta">開発内部向け ／ 生成日: 2026-07-15 ／ 台帳整理（BE/FE-refactor・todo 等）からの移記</p>
+    <p class="meta">開発内部向け ／ 生成日: 2026-07-15 ／ PO 決裁反映: 2026-07-15（PRODUCT_PHILOSOPHY 前提・Fable 代理決裁。PO-001〜008 回答済み）</p>
   </header>
 
   <div class="toolbar">
@@ -187,90 +187,114 @@
       </div>
     </div>
   </article>
-  <article class="card" data-state="new-answer">
+  <article class="card" data-state="answered">
     <div class="card-head">
       <span class="qno">PO-002</span>
       <span class="badge category">FE / 運用観測</span>
-      <span class="badge new-answer">PO判断待ち</span>
-      <span class="asker">移記元: FE-refactor</span>
+      <span class="badge answered">回答あり</span>
+      <span class="asker">決定: 2026-07-15</span>
     </div>
     <div class="card-body">
       <p class="section-label">質問</p>
       <p class="qa-text">本番のレンダー例外・API失敗を運用チームが観測する手段がない（Sentry 等未導入）。Sentry（または同等 APM）を導入するか。
 影響: 依存追加・コスト・PII/医療関連データの送信境界設計が必要。未導入のままなら障害の検知が遅れる。</p>
+      <div class="answer-block">
+        <p class="section-label">回答</p>
+        <p class="qa-text">段階導入とする。Phase 1 として FE の未捕捉例外+ErrorBoundary 通知のみを導入し、送信データは例外スタックとリリース版数に限定、request body・ユーザー情報の送信は off（PII スクラブ必須・security-review 通過が条件）。障害検知が現場報告頼みである工程の削除が目的であり、API 失敗集計（Phase 2）は Phase 1 の実利用件数を3ヶ月計測してから判断する。ベンダ確定と課金契約は USER 確認事項。3ヶ月実測0件なら Phase 1 自体を撤去候補。</p>
+      </div>
     </div>
   </article>
-  <article class="card" data-state="new-answer">
+  <article class="card" data-state="answered">
     <div class="card-head">
       <span class="qno">PO-003</span>
       <span class="badge category">FE / 受付テレメトリ</span>
-      <span class="badge new-answer">PO判断待ち</span>
-      <span class="asker">移記元: FE-refactor</span>
+      <span class="badge answered">回答あり</span>
+      <span class="asker">決定: 2026-07-15</span>
     </div>
     <div class="card-body">
       <p class="section-label">質問</p>
       <p class="qa-text">RECEPTION_TELEMETRY_PHASE2_ENABLED は恒久 true（use-reception-telemetry.ts）。キルスイッチとしてフラグと false 分岐テストを残すか、フラグとゲート OFF テストを削除して常時有効に固定するか。
 影響: 残すとデッドコードに近い分岐の保守コストが残る。削除すると緊急 OFF のコード経路がなくなる。</p>
+      <div class="answer-block">
+        <p class="section-label">回答</p>
+        <p class="qa-text">フラグ・false 分岐・gate-off テストを削除し常時有効に固定する。本フラグはハードコード定数で切替に再デプロイが必要であり、キルスイッチの実体がなく git revert と等価。停止手段の鉄則は副作用ある自動処理が対象で、表示機能は該当しない。残る分岐はデッドコード保守コストのみであり②削除が正である。即実装可。</p>
+      </div>
     </div>
   </article>
-  <article class="card" data-state="new-answer">
+  <article class="card" data-state="answered">
     <div class="card-head">
       <span class="qno">PO-004</span>
       <span class="badge category">BE / 会計</span>
-      <span class="badge new-answer">PO判断待ち</span>
-      <span class="asker">移記元: BE-refactor</span>
+      <span class="badge answered">回答あり</span>
+      <span class="asker">決定: 2026-07-15</span>
     </div>
     <div class="card-body">
       <p class="section-label">質問</p>
       <p class="qa-text">accounting service の GetMonthlyUnpaidCarryover 等4メソッドが repository 型をパススルーしている。service DTO を挟むか、現状維持か。
 影響: DTO 化は層の純度向上と変更コスト。現状維持は依存リークが続く。</p>
+      <div class="answer-block">
+        <p class="section-label">回答</p>
+        <p class="qa-text">現状維持。層の純度のみを動機とする DTO 化は「存在すべきでないものの最適化」であり実害も未発生のためやらない。当該レポート API に仕様変更が入る際に限り、そのついでの DTO 化を許可する。当該4メソッド起因の型波及バグが実際に発生した場合のみ再評価する。</p>
+      </div>
     </div>
   </article>
-  <article class="card" data-state="new-answer">
+  <article class="card" data-state="answered">
     <div class="card-head">
       <span class="qno">PO-005</span>
       <span class="badge category">BE / 認証</span>
-      <span class="badge new-answer">PO判断待ち</span>
-      <span class="asker">移記元: BE-refactor</span>
+      <span class="badge answered">回答あり</span>
+      <span class="asker">決定: 2026-07-15</span>
     </div>
     <div class="card-body">
       <p class="section-label">質問</p>
       <p class="qa-text">checkStaffActive は DB 一時障害時に fail-open（認証を通す）で文書化済み。権限系レビューとして fail-closed に変更するか、現状維持か。
 影響: fail-closed は可用性低下の可能性。fail-open は一時的な権限検証スキップのリスク。</p>
+      <div class="answer-block">
+        <p class="section-label">回答</p>
+        <p class="qa-text">fail-open 現状維持。本チェックを通しても後続の全業務操作が同一 DB に依存するため障害中の不正操作面は実質閉じており、fail-closed は部分障害時に全スタッフの診療操作を止め臨床継続性を損なう。ただし WARN ログ止まりのサイレント権限スキップは不可とし、fail-open 発生の通知経路接続を維持条件とする（PO-002 Phase 1 または BE ログアラート）。月1回以上の発生、または無効化スタッフのアクセス痕跡が audit に1件でも出た場合は即 fail-closed 化する。</p>
+      </div>
     </div>
   </article>
-  <article class="card" data-state="new-answer">
+  <article class="card" data-state="answered">
     <div class="card-head">
       <span class="qno">PO-006</span>
       <span class="badge category">会計 / ADR</span>
-      <span class="badge new-answer">PO判断待ち</span>
-      <span class="asker">移記元: todo.md</span>
+      <span class="badge answered">回答あり</span>
+      <span class="asker">決定: 2026-07-15</span>
     </div>
     <div class="card-body">
       <p class="section-label">質問</p>
       <p class="qa-text">ADR-003 論点1: payment_methods の DB TRIGGER による一貫性保証を採用するか。独立 Issue 起票後の PO 判断。
 参照: docs/adr/003-payment-method-identity-and-consistency.md（論点1保留）。</p>
+      <div class="answer-block">
+        <p class="section-label">回答</p>
+        <p class="qa-text">採用（案1B・system_key 前提）。独立 Issue 起票を承認する（優先度中・起票操作は USER）。method 列⇔payment_method_id の二重保持は本原則が名指しする教訓であり、直接 SQL 経路を DB 物理ブロックで塞ぐ。ただしトリガーは暫定であり、Issue スコープに method 列廃止（または生成列化）による二重保持自体の解消検討を含め、解消完了時点でトリガーは削除する。</p>
+      </div>
     </div>
   </article>
-  <article class="card" data-state="new-answer">
+  <article class="card" data-state="answered">
     <div class="card-head">
       <span class="qno">PO-007</span>
       <span class="badge category">検査連携 / FE</span>
-      <span class="badge new-answer">PO判断待ち</span>
-      <span class="asker">移記元: todo.md</span>
+      <span class="badge answered">回答あり</span>
+      <span class="asker">決定: 2026-07-15</span>
     </div>
     <div class="card-body">
       <p class="section-label">質問</p>
       <p class="qa-text">lab_import Frontend UI の Phase 0 操作 UX 仕様を確定するか。BE Phase 4（4A/4B）は完了済み。frontend/src/features に lab 系ディレクトリは未作成。
 UX 未確定のまま実装着手禁止。</p>
+      <div class="answer-block">
+        <p class="section-label">回答</p>
+        <p class="qa-text">今は作らない。現時点の入力経路は fixture（デモ）のみで Dr.Wan は BLOCK・手動アップロード未実装であり、削除できる転記工程が存在しない。転記削除を言えない UI は否決する。実データ経路の開通（Dr.Wan スキーマ確認または Phase 2 解禁）後に「誰が・何を・何クリック」の最小 UX を定義してから実装可とする。FE 着手禁止を継続。</p>
+      </div>
     </div>
   </article>
-  <article class="card" data-state="new-answer">
+  <article class="card" data-state="answered">
     <div class="card-head">
       <span class="qno">PO-008</span>
       <span class="badge category">Lステップ仕様 / クライアント確認</span>
-      <span class="badge new-answer">PO判断待ち</span>
-      <span class="asker">移記元: 01_曽我…仕様書 §7</span>
+      <span class="badge answered">回答あり</span>
+      <span class="asker">決定: 2026-07-15</span>
     </div>
     <div class="card-body">
       <p class="section-label">質問</p>
@@ -280,6 +304,10 @@ UX 未確定のまま実装着手禁止。</p>
 7-3 Lステップ API 仕様3項目（タグ付与解除・エラー処理・LINE ID 紐付け）
 7-4 受付・診療 UI 2項目（フェーズ1必須 / フェーズ2以降）
 回答後に仕様書または ADR へ確定事項を反映する。</p>
+      <div class="answer-block">
+        <p class="section-label">回答</p>
+        <p class="qa-text">切り分けで進行する。7-1・7-3 は実装済みの現行動作（直近365日ローリング、add=fatal/remove=non-fatal、LINE ID 紐付け=409+監査、dormant 閾値=C-1 確定値）を暫定正とし、ファクトシートに抽出してクライアント確認に回す。7-2（追加実装見積5項目）と 7-4（フェーズ切り）はクライアントの発注・スコープ判断そのものでありブロッカーとして先方回答まで着手しない。Write API 停止中（PO-001）のため、この停止で開発が失うものはない。回答差分が出た項目は①に戻して再決裁する。2026-10 の PO-001 Sunset 棚卸しと同期。</p>
+      </div>
     </div>
   </article>
 

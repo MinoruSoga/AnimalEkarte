@@ -4,22 +4,6 @@ import { computeCheckedInWaitStats, computeReceptionTotalCount, type TelemetryWa
 
 const RECOMPUTE_INTERVAL_MS = 60_000;
 
-/**
- * Phase 2（BE: checked_in_at）の表示ゲート。
- *
- * `false` の間は「受付済 0 件」（実データはあるがまだ誰も待っていない）と
- * 「Phase 2 がまだ稼働していない」（migration 未適用 / codegen 未 regen）を
- * データ形状だけで区別できない。そのため実データの有無から推測せず、
- * この明示フラグで判定する。
- *
- * migration `appointments.checked_in_at`（2026-07-06 に `001_init.sql` へ統合済み）の適用 と
- * `make codegen` による `Reservation.checked_in_at` の regen が完了したため `true` へ切替済み。
- * ただし本番/staging 環境へは、`backend/migrations/CLAUDE.md` の警告どおり
- * migration 適用 ≥ バックエンドデプロイの順序を守ること（未適用環境へ先にデプロイすると
- * 「受付済へ進める」操作が DB エラーで失敗する）。
- */
-export const RECEPTION_TELEMETRY_PHASE2_ENABLED = true;
-
 export interface ReceptionTelemetryResult extends TelemetryWaitStats {
   totalCount: number;
 }
