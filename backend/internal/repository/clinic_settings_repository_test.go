@@ -35,43 +35,7 @@ func setupClinicSettingsTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
 	db := setupTestDB(t)
 	require.NoError(t, db.AutoMigrate(&model.Company{}, &model.Clinic{}))
-	require.NoError(t, db.Exec(`
-		CREATE TABLE IF NOT EXISTS clinic_settings (
-			clinic_id              bigint       PRIMARY KEY REFERENCES clinics(id) ON DELETE CASCADE,
-			closing_am_pm_boundary time         NOT NULL DEFAULT '14:00',
-			closing_weekday_end    time         NOT NULL DEFAULT '18:30',
-			closing_sunday_end     time         NOT NULL DEFAULT '17:30',
-			closing_am_start       time         NOT NULL DEFAULT '09:00',
-			closed_weekdays        smallint[]   NOT NULL DEFAULT '{}',
-			cpm_version            varchar(8)   NOT NULL DEFAULT 'v1'
-			                       CHECK (cpm_version IN ('v1', 'v2')),
-			dormant_prevention_180_days integer  NOT NULL DEFAULT 180,
-			dormant_prevention_210_days integer  NOT NULL DEFAULT 210,
-			dormant_prevention_240_days integer  NOT NULL DEFAULT 240,
-			dormant_prevention_365_days integer  NOT NULL DEFAULT 365,
-			cpm_v2_coming_threshold  INT NOT NULL DEFAULT 2  CHECK (cpm_v2_coming_threshold  >= 1),
-			cpm_v2_good_threshold    INT NOT NULL DEFAULT 4  CHECK (cpm_v2_good_threshold    >= 1),
-			cpm_v2_family_threshold  INT NOT NULL DEFAULT 8  CHECK (cpm_v2_family_threshold  >= 1),
-			cpm_v2_noah_threshold    INT NOT NULL DEFAULT 13 CHECK (cpm_v2_noah_threshold    >= 1),
-			cpm_v1_dormant_days       INT     NOT NULL DEFAULT 240    CHECK (cpm_v1_dormant_days       >= 1),
-			cpm_v1_noah_days          INT     NOT NULL DEFAULT 365    CHECK (cpm_v1_noah_days          >= 1),
-			cpm_v1_noah_annual_visits INT     NOT NULL DEFAULT 3      CHECK (cpm_v1_noah_annual_visits >= 1),
-			cpm_v1_noah_ltv           BIGINT  NOT NULL DEFAULT 80000  CHECK (cpm_v1_noah_ltv           >= 0),
-			cpm_v1_core_days          INT     NOT NULL DEFAULT 180    CHECK (cpm_v1_core_days          >= 1),
-			cpm_v1_core_annual_visits INT     NOT NULL DEFAULT 2      CHECK (cpm_v1_core_annual_visits >= 1),
-			cpm_v1_core_ltv           BIGINT  NOT NULL DEFAULT 50000  CHECK (cpm_v1_core_ltv           >= 0),
-			cpm_v1_spot_min_amount    BIGINT  NOT NULL DEFAULT 30000  CHECK (cpm_v1_spot_min_amount    >= 0),
-			cpm_v1_spot_inactive_days INT     NOT NULL DEFAULT 90     CHECK (cpm_v1_spot_inactive_days >= 1),
-			cpm_v1_growing_max_days   INT     NOT NULL DEFAULT 90     CHECK (cpm_v1_growing_max_days   >= 1),
-			cpm_v1_growing_min_visits INT     NOT NULL DEFAULT 2      CHECK (cpm_v1_growing_min_visits >= 1),
-			cpm_v1_growing_max_visits INT     NOT NULL DEFAULT 3      CHECK (cpm_v1_growing_max_visits >= 1),
-			cpm_v1_ltv_break_low      BIGINT  NOT NULL DEFAULT 20000  CHECK (cpm_v1_ltv_break_low      >= 0),
-			health_prevention_lookback_days INT NOT NULL DEFAULT 365,
-			vaccine_deadline_days           INT NOT NULL DEFAULT 60,
-			created_at             timestamptz  NOT NULL DEFAULT now(),
-			updated_at             timestamptz  NOT NULL DEFAULT now()
-		)
-	`).Error)
+	ensureClinicSettingsTable(t, db)
 	db.Exec("TRUNCATE TABLE clinic_settings CASCADE")
 	return db
 }

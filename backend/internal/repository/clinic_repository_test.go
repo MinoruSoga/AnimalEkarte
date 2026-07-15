@@ -21,12 +21,31 @@ import (
 )
 
 // setupClinicTestDB は clinic_repository のテスト用に DB を整備する。
+//
+// CountBlockingReferencesByClinicID（clinic_repository.go）は appointments/medical_records/
+// hospitalizations/exams/vaccinations/checkups/billings/clinic_settings/clinic_integrations/
+// lstep_settings/permission_groups の11テーブルを参照する。以前はこれらの一部（exams・
+// clinic_settings 等）を本 setup で AutoMigrate せず、同package内の他テストファイル
+// （exam_type_repository_test.go 等）が先に実行されて偶然テーブルが出来ていることに暗黙依存していた。
+// go test はファイル名のアルファベット順でテスト関数を登録するため、"clinic_repository_test.go" は
+// "exam_type_repository_test.go" より先に実行され、この暗黙依存は本来常に破綻する
+// （2026-07-15 CI: "relation \"exams\" does not exist" / "relation \"clinic_settings\" does not exist"
+// で TestClinicRepository_CountBlockingReferencesByClinicID が決定論的に fail した）。
+// 実行順序に依存しないよう、参照される全テーブルをここで明示的に整備する。
 func setupClinicTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
 	db := setupTestDB(t)
 	require.NoError(t, db.AutoMigrate(
 		&model.Company{}, &model.Clinic{}, &model.Staff{}, &model.StaffClinicAssignment{}, &model.PermissionGroup{},
+		&model.Reservation{},
+		&model.ExaminationType{}, &model.ExamTypeField{}, &model.Examination{},
+		&model.Hospitalization{},
+		&model.Vaccination{},
+		&model.CheckupType{}, &model.Checkup{},
+		&model.ClinicIntegration{},
+		&model.LstepSettings{},
 	))
+	ensureClinicSettingsTable(t, db)
 	return db
 }
 

@@ -69,6 +69,54 @@ func setupTestDB(t *testing.T) *gorm.DB {
 	return db
 }
 
+// ensureClinicSettingsTable は clinic_settings テーブルを実マイグレーション
+// （backend/migrations/001_init.sql の CREATE TABLE clinic_settings + 011番 ALTER TABLE ADD COLUMN
+// closing_am_start）と一致する生SQLで用意する。GORM の AutoMigrate は gorm:"type:time" タグを無視し
+// timestamptz として CREATE TABLE を生成する既知の相性問題があり model.ClinicSettings を直接
+// AutoMigrate できないため（#236 BUG#3 調査時に確認済み）、clinic_settings に依存する複数のテストファイル
+// （clinic_settings_repository_test.go・clinic_repository_test.go の CountBlockingReferencesByClinicID）
+// がこの生SQLヘルパーを共有する。IF NOT EXISTS のため複数回呼んでも安全。
+func ensureClinicSettingsTable(t *testing.T, db *gorm.DB) {
+	t.Helper()
+	require.NoError(t, db.Exec(`
+		CREATE TABLE IF NOT EXISTS clinic_settings (
+			clinic_id              bigint       PRIMARY KEY REFERENCES clinics(id) ON DELETE CASCADE,
+			closing_am_pm_boundary time         NOT NULL DEFAULT '14:00',
+			closing_weekday_end    time         NOT NULL DEFAULT '18:30',
+			closing_sunday_end     time         NOT NULL DEFAULT '17:30',
+			closing_am_start       time         NOT NULL DEFAULT '09:00',
+			closed_weekdays        smallint[]   NOT NULL DEFAULT '{}',
+			cpm_version            varchar(8)   NOT NULL DEFAULT 'v1'
+			                       CHECK (cpm_version IN ('v1', 'v2')),
+			dormant_prevention_180_days integer  NOT NULL DEFAULT 180,
+			dormant_prevention_210_days integer  NOT NULL DEFAULT 210,
+			dormant_prevention_240_days integer  NOT NULL DEFAULT 240,
+			dormant_prevention_365_days integer  NOT NULL DEFAULT 365,
+			cpm_v2_coming_threshold  INT NOT NULL DEFAULT 2  CHECK (cpm_v2_coming_threshold  >= 1),
+			cpm_v2_good_threshold    INT NOT NULL DEFAULT 4  CHECK (cpm_v2_good_threshold    >= 1),
+			cpm_v2_family_threshold  INT NOT NULL DEFAULT 8  CHECK (cpm_v2_family_threshold  >= 1),
+			cpm_v2_noah_threshold    INT NOT NULL DEFAULT 13 CHECK (cpm_v2_noah_threshold    >= 1),
+			cpm_v1_dormant_days       INT     NOT NULL DEFAULT 240    CHECK (cpm_v1_dormant_days       >= 1),
+			cpm_v1_noah_days          INT     NOT NULL DEFAULT 365    CHECK (cpm_v1_noah_days          >= 1),
+			cpm_v1_noah_annual_visits INT     NOT NULL DEFAULT 3      CHECK (cpm_v1_noah_annual_visits >= 1),
+			cpm_v1_noah_ltv           BIGINT  NOT NULL DEFAULT 80000  CHECK (cpm_v1_noah_ltv           >= 0),
+			cpm_v1_core_days          INT     NOT NULL DEFAULT 180    CHECK (cpm_v1_core_days          >= 1),
+			cpm_v1_core_annual_visits INT     NOT NULL DEFAULT 2      CHECK (cpm_v1_core_annual_visits >= 1),
+			cpm_v1_core_ltv           BIGINT  NOT NULL DEFAULT 50000  CHECK (cpm_v1_core_ltv           >= 0),
+			cpm_v1_spot_min_amount    BIGINT  NOT NULL DEFAULT 30000  CHECK (cpm_v1_spot_min_amount    >= 0),
+			cpm_v1_spot_inactive_days INT     NOT NULL DEFAULT 90     CHECK (cpm_v1_spot_inactive_days >= 1),
+			cpm_v1_growing_max_days   INT     NOT NULL DEFAULT 90     CHECK (cpm_v1_growing_max_days   >= 1),
+			cpm_v1_growing_min_visits INT     NOT NULL DEFAULT 2      CHECK (cpm_v1_growing_min_visits >= 1),
+			cpm_v1_growing_max_visits INT     NOT NULL DEFAULT 3      CHECK (cpm_v1_growing_max_visits >= 1),
+			cpm_v1_ltv_break_low      BIGINT  NOT NULL DEFAULT 20000  CHECK (cpm_v1_ltv_break_low      >= 0),
+			health_prevention_lookback_days INT NOT NULL DEFAULT 365,
+			vaccine_deadline_days           INT NOT NULL DEFAULT 60,
+			created_at             timestamptz  NOT NULL DEFAULT now(),
+			updated_at             timestamptz  NOT NULL DEFAULT now()
+		)
+	`).Error)
+}
+
 // makeTestOwner はテスト用の Owner を作成して返す。
 func makeTestOwner(t *testing.T, db *gorm.DB, clinicID uint64, name string) *model.Owner {
 	t.Helper()
