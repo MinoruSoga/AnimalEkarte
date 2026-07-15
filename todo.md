@@ -180,3 +180,9 @@
 | `docs/tasks/closed/` | 対応済み詳細・手順の正本 |
 
 > 旧 `todo.md` / `BE_todo.md` / `BE-refactor.md` / `FE-refactor.md` は本ファイルへ吸収済み（削除）。
+
+### AnimalEkarte CSV import — USER actions
+
+- [x] **方針 (2026-07-15):** フル 003_demo（~529MB・PHI 含みうる）は **Git に載せない**。正本バックアップは `old_db/sensitive-local/animalekarte-003-demo-full/`。リポジトリの `003_demo` は小さいデモのまま。
+- [ ] **USER:** ローカルでフル seed を使う: `rsync -a ../old_db/sensitive-local/animalekarte-003-demo-full/ backend/migrations/seeds/003_demo/` のあと `make reset`（エージェントは reset しない）。誤 `git add` 防止のため該当 CSV に `skip-worktree` 推奨。
+- [ ] **USER:** STG へのフル seed 適用は別途承認・手動実行（通常は小さいデモのまま）。

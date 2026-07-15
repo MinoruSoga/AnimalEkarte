@@ -35,6 +35,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/animal-ekarte/backend/internal/config"
+	"github.com/animal-ekarte/backend/internal/csvimport"
 	"github.com/animal-ekarte/backend/internal/dbconn"
 )
 
@@ -100,6 +101,23 @@ func run(ctx context.Context, logger *slog.Logger) error {
 		return fmt.Errorf("failed to connect to %s: %w", tmpDBName, err)
 	}
 	defer tmpPool.Close()
+	if sourceDir := os.Getenv("SEED_EXPORT_CSV_SOURCE"); sourceDir != "" {
+		var clinicID, speciesID, examTypeID int64
+		if err := tmpPool.QueryRow(ctx, `SELECT id FROM clinics WHERE name = $1 ORDER BY id LIMIT 1`, "八王子病院").Scan(&clinicID); err != nil {
+			return fmt.Errorf("resolve import clinic: %w", err)
+		}
+		if err := tmpPool.QueryRow(ctx, `SELECT id FROM animal_species ORDER BY id LIMIT 1`).Scan(&speciesID); err != nil {
+			return fmt.Errorf("resolve import species: %w", err)
+		}
+		if err := tmpPool.QueryRow(ctx, `SELECT id FROM exam_types WHERE name = $1 AND clinic_id = $2 LIMIT 1`, "検査", clinicID).Scan(&examTypeID); err != nil {
+			return fmt.Errorf("resolve import exam type: %w", err)
+		}
+		counts, err := csvimport.Import(ctx, tmpPool, sourceDir, clinicID, speciesID, examTypeID)
+		if err != nil {
+			return fmt.Errorf("CSV source import failed: %w", err)
+		}
+		logger.Info("Imported read-only CSV source into disposable database", slog.Any("counts", counts))
+	}
 
 	// Optional post-migrate SQL for additive seed rows before COPY dump.
 	// Enables INSERT → dump without hand-editing CSV. Unset to skip.
