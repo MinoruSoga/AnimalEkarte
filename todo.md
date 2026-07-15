@@ -3,7 +3,7 @@
 > 更新: 2026-07-15
 > 前回: 2026-07-07（全面棚卸し）→ 2026-07-15（open Issue/PR・実装済み除去の再棚卸し）→ 2026-07-15（`todo.md` / `BE_todo.md` / `BE-refactor.md` / `FE-refactor.md` を本ファイルへ統合）
 > 監査範囲: backend / frontend / CI-CD / migrations / docs / GitHub Issues / git 状態 / docs/tasks/open
-> **PR マージ・push・外部書き込み・credential 変更はユーザー所有アクション。**
+> **push・外部書き込み・credential 変更はユーザー所有アクション。**（PR マージはユーザーが手動で行う。本台帳には載せない）
 > **別台帳**: BE 保留 = `BE-pending.md` / PO 判断キュー = `q&a.html` / バグ監査 = `docs/archive/bug.md` / 受付テレメトリ完了記録 = `docs/archive/tasks/closed/change-ui.md`
 > **本書の役割**: プロジェクト横断 TODO・今期着手可能な BE 残・BE/FE リファクタ次期引き継ぎ・やらない判断の正本台帳。
 
@@ -21,6 +21,7 @@
 
 - 今期着手可能な BE 残タスクのみを「BE 残タスク」節に記載する（シークレット・テスト・PERF 等）。対応済みは残さない。詳細・手順の正本は git 履歴と `docs/tasks/closed/`。
 - その他 open FEAT（#249/#247/#239/#238/#237/#235/#234/#232/#230 等）は **gh を正**とし、本台帳には重複掲出しない。
+- PR マージ判断・マージ状態・マージ用チェックリストは本台帳に載せない（ユーザー手動）。
 - PO 決裁待ちは `q&a.html` を正本とし、実装着手禁止。
 - 着手保留・次期送り・任意検証は `BE-pending.md` を正本とする。再検討トリガが立つか判断が出たら、実装単位として本台帳の該当節へ戻す。
 
@@ -28,28 +29,18 @@
 
 ## Project TODO
 
-### P0 — ブロッカー
-
-- [ ] **[USER] PR #186（main → staging）のマージ判断**
-  - `state: OPEN` / `mergeable: MERGEABLE` / `mergeStateStatus: UNSTABLE`（2026-07-15 確認）
-  - 直近 checks（2026-07-15）: Playwright E2E **fail**、Codegen Sync **fail**、Backend **fail**、Frontend **pass**（一部 Worker/Gates は pass）。マージ前に CI 再確認が必要
-  - follow-up: #214（本 PR 検証チェックリスト Issue、マージ判断で消化予定）
-  - head = `main` HEAD（`2fb4959e`、origin/main 同期済み）
-
 ### P1 — Open Issues（2026-07-15 時点・台帳掲載分）
 
 | # | 内容 | 現状 |
 |---|---|---|
-| #211 | 検査・健診パッケージ化 | 残: exam_results の DB レベル複合 FK（非additive migration・別タスク）／マスタ管理 UI／ライブ E2E |
-| #201 | 薬量自動計算 | BE 完了。FE UI（`frontend/src/features` に dose 系コンポーネントなし）＋横断監査は未着手 |
-| #214 | PR チェックリスト | PR #186 マージ判断で消化予定 |
+| #211 | 検査・健診パッケージ化 | **歯科＋provisional seed 投入済み**（皮膚・耳統合／眼科／アドプリット構造のみ／季節健診・尿。clinic1=4種・clinic2/3=皮膚・耳＋眼科。全 fields `is_provisional=t`。正規経路 seed-export）。**USER 要: `db_reset` でローカル反映**。残: マスタ CRUD UI（PO 編集頻度確認後）／exam_results 複合 FK（非additive・別タスク）／ライブ E2E。**PO確認**: アドプリット実体・価格（高）／尿比重の犬猫別レンジ（高）／select 非ハイライト許容（中）／季節4分割・腎臓ドック要否（低） |
+| #201 | 薬量自動計算 | **実装完了・PO残のみ**（BE・FE・`MedicineDoseParamsEditor`／`TreatmentRow` 自動プリフィル済み）。PO残: 丸め合意・逸脱閾値・admin_route・prescriptions。gh クローズは USER |
 | #212 | カバレッジ90%目標 | ratchet ゲート導入で regression 防止は達成。90% 到達自体は長期目標のまま未達 |
-| #89/#97/#98/#99/#109 | シークレット移行・ローテーション | **実装未着手**。詳細・優先度は下記「BE 残タスク」の SEC-SECRETS-5 |
-| #229 | 飼主レポート危険度平文表示 | OPEN（BUG）。飼主向けサーフェスから除去 |
+| #89/#97/#98/#99/#109 | シークレット移行・ローテーション | **リポジトリ Phase A 完了**（seed/テスト平文除去・runbook §0.5・履歴インベントリ）。**USER BLOCKED**: 4系統ローテーション / P5-2 Secrets / #97 本文マスク / #109 フォールバック撤去。詳細は SEC-SECRETS-5 |
 
 その他 open FEAT（#249/#247/#239/#238/#237/#235/#234/#232/#230 等）は **gh を正**とし、本台帳には重複掲出しない。
 
-**クローズ済みで本表から除去（2026-07-15）**: #213 / #196 / #194 / #189（実装済みまたは決裁済み・gh CLOSED）
+**クローズ済みで本表から除去（2026-07-15）**: #213 / #196 / #194 / #189（実装済みまたは決裁済み・gh CLOSED）／#229（飼主レポート危険度平文表示の除去・ローカル実装完了・gh クローズは USER）
 
 ### P1 — lab_import 外部検査連携
 
@@ -76,7 +67,9 @@
 
 | アクション | 根拠 |
 |-----------|------|
-| PR #186（main → staging）のマージ判断 | 外部 write。CI は UNSTABLE（E2E/Codegen/Backend fail）— マージ前に再確認 |
+| SEC-SECRETS-5: 4系統ローテーション（PlanetScale / Cloudflare / LINE / JWT・暗号化鍵）＋ P5-2 GitHub Secrets 登録＋ #97 本文マスク | PUBLIC 履歴露出の実効無効化。手順: runbook §0.5 / `infra/cloudflare/README.md` |
+| SEC-SECRETS-5: seed 003_demo 変更後のローカル/STG `db_reset`（checksum mismatch） | migration-seed-safety。エージェントは DB reset 自動実行禁止 |
+| #109 Phase C: `STG_DEMO_*` 登録後に performance-tests フォールバック撤去（エージェント可） | Secrets 未登録のまま撤去すると scheduled が壊れる |
 | ECS ロールバック時のみ: SSM Parameter Store 登録＋IAM 権限 | 通常運用では不要（Cloudflare 正系統は `wrangler secret put` が代替） |
 | Vercel ダッシュボードの Production 環境変数で `VITE_SHOW_DEMO_ACCOUNTS=false` を確認/設定 | 外部システム操作 |
 | `terraform apply` 承認（tfvars 準備済み） | インフラ破壊的変更 |
@@ -87,8 +80,6 @@
 | 検査対象 | 結果 |
 |---------|------|
 | GitHub Issues（open） | 19件（台帳掲載は上表。FEAT 群は gh 正） |
-| PR #186 | OPEN・MERGEABLE・UNSTABLE（E2E/Codegen/Backend fail、Frontend pass） |
-| PR #218（FE-refactor） | MERGED（`2026-07-04T02:28:00Z`） |
 | git | `main` = `origin/main`（`2fb4959e`） |
 | Backend coverage ベースライン | `backend/.coverage-baseline` 存在（#194 CLOSED） |
 
@@ -103,8 +94,8 @@
 
 | ID | 優先度 | 内容 | 状態・条件 |
 |----|--------|------|-----------|
-| SEC-SECRETS-5 | **高（次の本格タスク推奨）** | シークレット5 Issue（#89/#97/#98/#99/#109）の実装。仕様確定・実装プラン投稿済み（2026-07-13）だが実装未着手。**リポジトリは PUBLIC・seed 003_demo に LINE 実平文クレデンシャル2組が残存** | GitHub Issue 側に実装プランあり。C-1 シークレットローテーションも同群。Issue はすべて OPEN（2026-07-15 確認） |
-| TEST-FLAKE-P2 | 低 | `TestAppointmentTrimmingDetail*` が共有 DB + TRUNCATE のため並列実行でフレークする（2026-07-14 #236 クローズ検証時に実測）。`setupIsolatedTestDB` 化または CI での `-parallel 1` を検討 | 再現: `go test ./internal/repository/ -run 'TestAppointmentTrimmingDetail' -count=1`（並列時に稀に赤 → `-parallel 1` で緑） |
+| SEC-SECRETS-5 | **部分完了（USER 残）** | **エージェント Phase A 完了（2026-07-15）**: `003_demo` LINE シークレット列を空化・識別子を合成値化、テスト/コメントの旧実値除去、`.gitleaks.toml` 更新、runbook §0.5 ローテーション手順復元、gitleaks 全履歴インベントリ（`docs/infra/deploy/runbooks/SEC_SECRETS_5_GITLEAKS_HISTORY_INVENTORY.md`）。**残（USER・credential-impacting）**: 4系統ローテーション、P5-2 `gh secret set`、#97 本文マスク、#109 `STG_DEMO_*` 登録後のフォールバック撤去。#98/#99 は Phase 8 まで PENDING | 作業ツリーに LINE 実平文なし。Issue クローズは USER ローテーション完了後。seed 変更後はローカル/STG で checksum mismatch → `db_reset` が必要（USER） |
+| TEST-FLAKE-P2 | **完了（2026-07-15）** | `TestAppointmentTrimmingDetail*` を `setupIsolatedTestDB` 化（共有プール上の並行 TRUNCATE 破壊がフレーク源）。`setupAppointmentTrimmingDetailTestDB` + MasterPreloadClinicIsolation を隔離接続へ。CI 広範 `-parallel 1` は不採用 | 検証: `go test ./internal/repository/ -run 'TestAppointmentTrimmingDetail' -count=5` |
 
 ### 見送り（再開条件付き・今期着手しない）
 

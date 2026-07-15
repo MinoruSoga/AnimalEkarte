@@ -101,6 +101,19 @@ func run(ctx context.Context, logger *slog.Logger) error {
 	}
 	defer tmpPool.Close()
 
+	// Optional post-migrate SQL for additive seed rows before COPY dump.
+	// Enables INSERT → dump without hand-editing CSV. Unset to skip.
+	if postSQL := os.Getenv("SEED_EXPORT_POST_SQL"); postSQL != "" {
+		sqlBytes, readErr := os.ReadFile(postSQL) //nolint:gosec // operator-supplied local path only
+		if readErr != nil {
+			return fmt.Errorf("failed to read SEED_EXPORT_POST_SQL=%s: %w", postSQL, readErr)
+		}
+		logger.Info("Applying SEED_EXPORT_POST_SQL before dump", slog.String("path", postSQL))
+		if _, execErr := tmpPool.Exec(ctx, string(sqlBytes)); execErr != nil {
+			return fmt.Errorf("SEED_EXPORT_POST_SQL failed: %w", execErr)
+		}
+	}
+
 	if err := dumpAllBundles(ctx, tmpPool, logger); err != nil {
 		return fmt.Errorf("failed to dump seed bundles: %w", err)
 	}
