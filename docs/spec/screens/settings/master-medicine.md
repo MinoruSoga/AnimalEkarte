@@ -30,7 +30,7 @@
 ## 2. 主要な機能
 
 ### 2.1 処方入力の自動化
-ここで設定された剤形と単位は、カルテ詳細の「処方」タブにおける入力補助（数量選択や単位表示）として反映されます。体重・species からの数量自動プリフィルはカルテ側 `TreatmentRow`（`calculateDose` / `computeDoseGate`）が担う（#201）。
+ここで設定された剤形と単位は、カルテ詳細の「処方」タブにおける入力補助（数量選択や単位表示）として反映されます。体重・species からの数量自動プリフィルはカルテ側 `TreatmentRow`（`calculateDose` / `computeDoseGate`）が担う（#201。上限超過時の統制は現行 ConfirmDialog 通過可のため #201 [SAFETY] で物理ブロック化を是正中 — 挙動詳細は `06-medical-records-form.md` §2.3）。
 
 ### 2.2 原価・在庫管理の統合（バックエンドのみ）
 `PATCH /api/v1/masters/medicines/:id` は `inventory_id` を受け付け、薬品と在庫アイテムを紐付け可能だが、本設定画面のサイドパネルには対応する入力UIが存在しない（他画面または今後の実装課題）。
