@@ -108,7 +108,7 @@ export function LineReservationSlotsSettings() {
 
       <div className={`flex items-center gap-1.5 px-4 pt-3 pb-0 text-sm ${C.text50}`}>
         <Info className={`${ICON.smXs} shrink-0`} />
-        枠が1件でも登録されている場合、登録された開始時刻のみ予約可能になります（枠のない日は予約不可）。未登録の場合は営業時間から自動生成されます。
+        ここで登録した開始時刻は、営業時間から自動生成される予約可能枠に追加されます（重複する時刻は追加されません）。枠を登録しても他の時刻が予約不可になることはなく、枠が未登録の日も営業時間から自動生成されます。
       </div>
 
       <div className={`flex-1 min-h-0 flex flex-row gap-0 overflow-hidden mt-3`}>
