@@ -111,14 +111,15 @@
 
 ## 受け入れシナリオ作成（2026-07-16）で発見した仕様・実装ギャップ
 
-- [ ] **[SPEC-GAP・PO 判断] カルテ確定（Lock）の UI 導線が存在しない** — specification §2.1 は「確定（Lock）フローを実装」と宣言するが、カルテ画面仕様（06 §2.3 に明記）に確定ボタンはなく API 直接操作でのみ確定可能。臨床記録の真正性担保が現場で使えない。UI 導線を作るか §2.1 の記述を実態に合わせるかの判断が必要。受け入れシナリオ S06 は暫定で API 確定（USER 実施）前提。
-- [ ] **[SEED-GAP] seed 003_demo の全標準ロールが検査 edit 権限を保有** — 権限差による確定ロック検証（受け入れシナリオ S02）が現 seed では実施不能。閲覧専用相当ロールの seed 追加か、STG 実権限グループでの検証かの判断が必要。
+- [ ] **[SPEC-GAP・PO 判断] カルテ確定（Lock）の UI 導線が存在しない** — 質問カード化済み（`q&a.html` GAP-1）。回答待ち。詳細はカード側を正本とする。
+- [ ] **[SEED-GAP] seed 003_demo の全標準ロールが検査 edit 権限を保有** — 質問カード化済み（`q&a.html` GAP-2・GAP-1 とセット回答）。回答待ち。
 
 ## 画面仕様書全数突合（2026-07-16）で発見した実装バグ疑い 19 件
 
 > 出所: docs/spec/screens 全 62 ファイル実装突合（commit a476b727）の副産物。**doc は現状実装に合わせ済み**のため、修正するなら実装側＋該当 doc の再更新をセットで行う。各件とも「仕様としてこれで正か」の triage が先。
 
 > SD-1/SD-2/SD-5/SD-7/SD-8 は 2026-07-16 に triage→修正完了（各コミット参照）。SD-6 はペイロード消失部分のみ 2026-07-16 に修正完了（SD-1 と同一2ファイル・同一修正パターン、RED→GREEN 29/29 pass。`frontend/src/features/vaccinations/api/types.ts`・`hooks/use-vaccination-form.ts`・`hooks/use-vaccination-form.test.ts`）。残る「次回予定」ラジオ→nextDate 計算配線の要否は q&a.html で未回答のため PO 判断待ち（下表参照）。
+> GitHub での PO triage 入口は [#261](https://github.com/MinoruSoga/AnimalEkarte/issues/261)。詳細事実は本表と `q&a.html` を正本とし、Issue へ重複転記しない。
 
 | # | 疑い内容 | 根拠 | 分類 |
 |---|---------|------|------|

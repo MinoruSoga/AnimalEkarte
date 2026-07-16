@@ -160,7 +160,7 @@
 <div class="container">
   <header>
     <h1>内部 PO 判断キュー</h1>
-    <p class="meta">開発内部向け ／ 生成日: 2026-07-15 ／ PO 決裁反映: 2026-07-15（PO-001〜008 回答済み）／ 2026-07-16: 画面仕様書全数突合で発見した実装バグ疑い SD-1〜19 を追加（台帳: todo.md 同名節）。うち SD-1/2/5/7/8 は同日 triage→修正済み。残り 14 件が PO 判断待ち — 回答欄に記入後、エージェントが実装・doc へ反映する</p>
+    <p class="meta">開発内部向け ／ 生成日: 2026-07-15 ／ PO 決裁反映: 2026-07-15（PO-001〜008 回答済み）／ 2026-07-16: 画面仕様書全数突合で発見した実装バグ疑い SD-1〜19 を追加（台帳: todo.md 同名節）。うち SD-1/2/5/7/8 は同日 triage→修正済み（SD-6 はペイロード修正済み・配線要否のみ残）。さらに受け入れシナリオ由来の GAP-1（カルテ確定 Lock UI 導線不在）・GAP-2（seed 権限差検証不能）を追加。計 16 件が PO 判断待ち — 回答欄に記入後、エージェントが実装・doc へ反映する</p>
   </header>
 
   <div class="toolbar">
@@ -684,6 +684,46 @@ UX 未確定のまま実装着手禁止。</p>
 現状: 予防接種履歴のみブラウザローカル TZ で日付整形しており、治療履歴の toJSTWallDate（JST 壁日付）と不統一。海外 TZ 環境で接種日・次回予定が 1 日ずれ得る。
 問い: toJSTWallDate へ統一修正してよいか。
 推奨: 即修正。既存の統一方針（birthdate 3 フィールドの localTimePtr 統一と同系統）に沿う低リスク修正。</p>
+      <div class="answer-block">
+        <p class="section-label">回答</p>
+        <p class="qa-text">（未回答 — ここに記入）</p>
+      </div>
+    </div>
+  </article>
+
+  <article class="card" data-state="new-answer">
+    <div class="card-head">
+      <span class="qno">GAP-1</span>
+      <span class="badge category">FE+仕様 / カルテ確定・臨床安全</span>
+      <span class="badge new-answer">PO判断待ち</span>
+      <span class="asker">起票: 2026-07-16（受け入れシナリオ作成時発見）</span>
+    </div>
+    <div class="card-body">
+      <p class="section-label">質問</p>
+      <p class="qa-text">関係箇所: docs/spec/specification.md §2.1 ／ docs/spec/screens/06-medical-records-form.md §2.3 ／ 受け入れシナリオ S06
+現状: specification §2.1 は「確定（Lock）フローを実装」と宣言するが、カルテ画面に確定ボタンは存在せず、確定は API 直接操作でのみ可能。臨床記録の真正性担保が現場で使えない。SD-2 で確定済みカルテの画像改変ガードを入れた今、確定手段が現場に無いとロック機構全体が宙に浮く。
+問い: (A) カルテ画面に確定 UI 導線を実装する（確定ボタン＋権限制御＋確定後の編集不可表示）／ (B) §2.1 の記述を実態（API のみ・運用ルールで管理）に合わせて改訂する。
+推奨: A。確定ロックは臨床安全の中核であり、使えない安全機構は無いのと同じ。受け入れシナリオ S06 も現状は暫定で API 確定（USER 実施）前提になっている。</p>
+      <div class="answer-block">
+        <p class="section-label">回答</p>
+        <p class="qa-text">（未回答 — ここに記入）</p>
+      </div>
+    </div>
+  </article>
+
+  <article class="card" data-state="new-answer">
+    <div class="card-head">
+      <span class="qno">GAP-2</span>
+      <span class="badge category">Seed / 検証環境</span>
+      <span class="badge new-answer">PO判断待ち</span>
+      <span class="asker">起票: 2026-07-16（受け入れシナリオ作成時発見）</span>
+    </div>
+    <div class="card-body">
+      <p class="section-label">質問</p>
+      <p class="qa-text">関係箇所: backend/migrations/seeds/003_demo ／ 受け入れシナリオ S02（権限差による確定ロック検証）
+現状: seed 003_demo の全標準ロールが検査 edit 権限を保有しており、権限差による確定ロックの検証（S02）が現 seed では実施できない。
+問い: (A) 閲覧専用相当のロールを seed に追加する（seed 変更＋db_reset が必要・reset 実行は USER）／ (B) STG の実権限グループで検証する（seed は変更しない）。
+推奨: A。受け入れ検証は再現可能であるべきで、seed に検証用ロールを持つのが筋。ただし GAP-1 の回答が B（Lock UI を作らない）なら S02 自体の意味が変わるため、GAP-1 とセットで回答してほしい。</p>
       <div class="answer-block">
         <p class="section-label">回答</p>
         <p class="qa-text">（未回答 — ここに記入）</p>
