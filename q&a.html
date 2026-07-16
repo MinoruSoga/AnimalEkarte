@@ -160,7 +160,7 @@
 <div class="container">
   <header>
     <h1>内部 PO 判断キュー</h1>
-    <p class="meta">開発内部向け ／ 生成日: 2026-07-15 ／ PO 決裁反映: 2026-07-15（PRODUCT_PHILOSOPHY 前提・Fable 代理決裁。PO-001〜008 回答済み）</p>
+    <p class="meta">開発内部向け ／ 生成日: 2026-07-15 ／ PO 決裁反映: 2026-07-15（PO-001〜008 回答済み）／ 2026-07-16: 画面仕様書全数突合で発見した実装バグ疑い SD-1〜19 を追加（台帳: todo.md 同名節）。うち SD-1/2/5/7/8 は同日 triage→修正済み。残り 14 件が PO 判断待ち — 回答欄に記入後、エージェントが実装・doc へ反映する</p>
   </header>
 
   <div class="toolbar">
@@ -307,6 +307,386 @@ UX 未確定のまま実装着手禁止。</p>
       <div class="answer-block">
         <p class="section-label">回答</p>
         <p class="qa-text">切り分けで進行する。7-1・7-3 は実装済みの現行動作（直近365日ローリング、add=fatal/remove=non-fatal、LINE ID 紐付け=409+監査、dormant 閾値=C-1 確定値）を暫定正とし、ファクトシートに抽出してクライアント確認に回す。7-2（追加実装見積5項目）と 7-4（フェーズ切り）はクライアントの発注・スコープ判断そのものでありブロッカーとして先方回答まで着手しない。Write API 停止中（PO-001）のため、この停止で開発が失うものはない。回答差分が出た項目は①に戻して再決裁する。2026-10 の PO-001 Sunset 棚卸しと同期。</p>
+      </div>
+    </div>
+  </article>
+
+  <article class="card" data-state="new-answer">
+    <div class="card-head">
+      <span class="qno">SD-1</span>
+      <span class="badge category">FE / 予防接種</span>
+      <span class="badge answered">解決済み</span>
+      <span class="asker">起票: 2026-07-16 ／ 修正: 2026-07-16</span>
+    </div>
+    <div class="card-body">
+      <p class="section-label">質問</p>
+      <p class="qa-text">関係箇所: docs/spec/screens/15-vaccinations-form.md ／ VaccinationForm.tsx・FE リクエスト型
+現状: 補助説明（supplemental）欄は UI に存在し BE も受理するが、FE のリクエスト型に含まれず送信されない。入力してもサイレント消失する（データ損失）。
+問い: (A) FE 型と送信ペイロードに追加して保存する（BE・カラムは既存のため薄い修正）／ (B) 業務上不要なら UI 欄ごと削除する。
+推奨: A。保存されない入力欄は入力させるコストだけが残る最悪形。ただし現場でこの欄を使う運用があるかだけ確認したい。</p>
+      <div class="answer-block">
+        <p class="section-label">回答</p>
+        <p class="qa-text">A で修正済み（commit a1631e0d・2026-07-16 別セッション triage）。FE リクエスト型と送信ペイロードに supplemental を追加し保存されるようにした。なお同調査で SD-6（次回予定ラジオ）も同型のサイレント消失と実バグ確認済み — SD-6 は未修正のため引き続き回答が必要。</p>
+      </div>
+    </div>
+  </article>
+
+  <article class="card" data-state="new-answer">
+    <div class="card-head">
+      <span class="qno">SD-2</span>
+      <span class="badge category">BE / カルテ・臨床安全</span>
+      <span class="badge answered">解決済み</span>
+      <span class="asker">起票: 2026-07-16 ／ 修正: 2026-07-16</span>
+    </div>
+    <div class="card-body">
+      <p class="section-label">質問</p>
+      <p class="qa-text">関係箇所: docs/spec/screens/99-medical-record-flow.md ／ medical_record_image_service.go
+現状: カルテ本文は確定（finalized）後に編集ロックされるが、画像の追加・削除にはロック検査がなく、確定済みカルテでも改変可能。
+問い: 画像操作にも finalized ガードを適用するか（確定後の画像追加・削除を 409 拒否）。
+推奨: 適用する。確定ロックは臨床記録の真正性担保であり、画像だけ改変可能では意味をなさない。§2.1 臨床安全が優先。反対理由があるとすれば「確定後に検査画像を後付けする運用」の存在 — その運用があるかだけ確認したい。</p>
+      <div class="answer-block">
+        <p class="section-label">回答</p>
+        <p class="qa-text">適用で修正済み（commit ac7c9fe8・2026-07-16 別セッション triage）。確定済みカルテへの画像追加・削除を拒否するガードを追加した。「確定後に画像を後付けする運用」が現場に実在する場合のみ再検討する。</p>
+      </div>
+    </div>
+  </article>
+
+  <article class="card" data-state="new-answer">
+    <div class="card-head">
+      <span class="qno">SD-3</span>
+      <span class="badge category">FE / LINE予約設定</span>
+      <span class="badge new-answer">PO判断待ち</span>
+      <span class="asker">起票: 2026-07-16</span>
+    </div>
+    <div class="card-body">
+      <p class="section-label">質問</p>
+      <p class="qa-text">関係箇所: docs/spec/screens/28-line-reservation.md ／ LineReservationSettingsForm
+現状: フォームが formData から line_channel_secret / line_access_token を読むが、対応する input が画面に存在せず常に null を送信している。
+問い: (A) credential 送信コードを削除する（設定は env/secret 管理経路に一本化）／ (B) input を追加して画面から編集可能にする。
+推奨: A。LINE credential を平文 UI に置くべきでない。あわせて BE が null 受信時に既存値を上書きしていないかを修正時に検証する。</p>
+      <div class="answer-block">
+        <p class="section-label">回答</p>
+        <p class="qa-text">（未回答 — ここに記入）</p>
+      </div>
+    </div>
+  </article>
+
+  <article class="card" data-state="new-answer">
+    <div class="card-head">
+      <span class="qno">SD-4</span>
+      <span class="badge category">FE+BE / 在庫</span>
+      <span class="badge new-answer">PO判断待ち</span>
+      <span class="asker">起票: 2026-07-16</span>
+    </div>
+    <div class="card-body">
+      <p class="section-label">質問</p>
+      <p class="qa-text">関係箇所: docs/spec/screens/18-inventory-list.md ／ 在庫 min_stock_level・在庫アラートパネル
+現状: min_stock_level（発注点）から status を自動判定するロジックがどこにも存在せず、在庫アラートパネルは実質死に機能。
+問い: (A) 自動判定を実装してアラートを生かす（数量更新時に min_stock_level と比較して status 更新）／ (B) アラートパネルと min_stock_level 入力を削除する。
+推奨: 在庫管理を実運用しているかで決まる。使っていないなら②削除原則で B。発注点管理が納品要件なら A。現場の利用実態を教えてほしい。</p>
+      <div class="answer-block">
+        <p class="section-label">回答</p>
+        <p class="qa-text">（未回答 — ここに記入）</p>
+      </div>
+    </div>
+  </article>
+
+  <article class="card" data-state="new-answer">
+    <div class="card-head">
+      <span class="qno">SD-5</span>
+      <span class="badge category">FE / 見積</span>
+      <span class="badge answered">解決済み</span>
+      <span class="asker">起票: 2026-07-16 ／ 修正: 2026-07-16</span>
+    </div>
+    <div class="card-body">
+      <p class="section-label">質問</p>
+      <p class="qa-text">関係箇所: docs/spec/screens/26-estimate-detail.md ／ frontend/src/utils/status-helpers.ts:205 getEstimateStatusColor
+現状: 色判定が "accepted"/"expired" を見るが実 enum は draft/sent/approved/rejected のため、承認済みバッジが常にグレー表示。
+問い: enum に合わせて approved=緑（成功色）へ修正してよいか。rejected の色（赤系）も同時に確認したい。
+推奨: 即修正。明白な実装バグ。</p>
+      <div class="answer-block">
+        <p class="section-label">回答</p>
+        <p class="qa-text">修正済み（commit cca0d42d・2026-07-16 別セッション triage）。色判定を実 enum（draft/sent/approved/rejected）に整合させた。</p>
+      </div>
+    </div>
+  </article>
+
+  <article class="card" data-state="new-answer">
+    <div class="card-head">
+      <span class="qno">SD-6</span>
+      <span class="badge category">FE / 予防接種</span>
+      <span class="badge new-answer">PO判断待ち</span>
+      <span class="asker">起票: 2026-07-16</span>
+    </div>
+    <div class="card-body">
+      <p class="section-label">質問</p>
+      <p class="qa-text">関係箇所: docs/spec/screens/15-vaccinations-form.md ／ 次回予定ラジオ（3週間後等）
+現状: ラジオを選んでも nextDate 計算に配線されておらず、ペイロードにも含まれない。次回予定は手動日付入力のみが有効。※2026-07-16 SD-1 修正時の調査で同型のサイレント消失（next_schedule_type が use-vaccination-form.ts の create/update payload から欠落）と実バグ確認済み。SD-1 と同じ2ファイル・同じパターンで修正可能。
+問い: (A) ラジオ選択→次回日付の自動計算を配線する／ (B) 死んでいるラジオを削除して手動日付入力のみにする。
+推奨: 現場が「◯週間後」で運用しているなら A（入力より選択の原則）。使っていないなら B。</p>
+      <div class="answer-block">
+        <p class="section-label">回答</p>
+        <p class="qa-text">（未回答 — ここに記入）</p>
+      </div>
+    </div>
+  </article>
+
+  <article class="card" data-state="new-answer">
+    <div class="card-head">
+      <span class="qno">SD-7</span>
+      <span class="badge category">FE / LINE予約枠</span>
+      <span class="badge answered">解決済み</span>
+      <span class="asker">起票: 2026-07-16 ／ 修正: 2026-07-16</span>
+    </div>
+    <div class="card-body">
+      <p class="section-label">質問</p>
+      <p class="qa-text">関係箇所: docs/spec/screens/28-line-reservation.md ／ LineReservationSlotsSettings.tsx:111
+現状: 旧ホワイトリスト仕様の警告文が残存。BE は 2026-06-11 から加算モードのため、文言がスタッフを誤誘導する。
+問い: 文言を加算モードの説明に更新する。即実装可の扱いでよいか。
+推奨: 即修正。文言のみの低リスク変更。</p>
+      <div class="answer-block">
+        <p class="section-label">回答</p>
+        <p class="qa-text">修正済み（commit 348cae41・2026-07-16 別セッション triage）。警告文言を加算モード仕様の説明に更新し、28-line-reservation.md にも加算モード注記を反映した。</p>
+      </div>
+    </div>
+  </article>
+
+  <article class="card" data-state="new-answer">
+    <div class="card-head">
+      <span class="qno">SD-8</span>
+      <span class="badge category">FE / 飼主削除</span>
+      <span class="badge answered">解決済み</span>
+      <span class="asker">起票: 2026-07-16 ／ 修正: 2026-07-16</span>
+    </div>
+    <div class="card-body">
+      <p class="section-label">質問</p>
+      <p class="qa-text">関係箇所: docs/spec/screens/03-owners-list.md ／ 飼主削除 ConfirmDialog
+現状: ダイアログ文言は「ペット情報も削除されます」だが、BE はペット紐付き時に 409 拒否する。文言が実挙動と逆。
+問い: 文言を「ペットが登録されている飼主は削除できません」系に修正する。即実装可の扱いでよいか。
+推奨: 即修正。BE の 409 挙動（安全側）が正であり文言側を直す。</p>
+      <div class="answer-block">
+        <p class="section-label">回答</p>
+        <p class="qa-text">修正済み（commit c381c52b・2026-07-16 別セッション triage）。ダイアログ文言を BE 実挙動（ペット紐付き時 409 拒否）に整合させた。</p>
+      </div>
+    </div>
+  </article>
+
+  <article class="card" data-state="new-answer">
+    <div class="card-head">
+      <span class="qno">SD-9</span>
+      <span class="badge category">BE / 権限グループ</span>
+      <span class="badge new-answer">PO判断待ち</span>
+      <span class="asker">起票: 2026-07-16</span>
+    </div>
+    <div class="card-body">
+      <p class="section-label">質問</p>
+      <p class="qa-text">関係箇所: docs/spec/screens/settings/master-permission-group.md ／ clinic_service.go
+現状: 新規院開設時のデフォルトグループ「執行」「一般」は権限ルール 0 で作成される。設定するまで system_admin 以外は全機能アクセス不能の疑い。
+問い: (A) デフォルトで妥当な権限ルールを付与する（例: 執行=全許可・一般=閲覧中心）／ (B) 手動設定前提を仕様として確定し、開設手順書に明記する。
+推奨: 新規院開設が今後発生する頻度次第。単一院運用が続くなら B で十分。マルチテナント展開が控えるなら A。</p>
+      <div class="answer-block">
+        <p class="section-label">回答</p>
+        <p class="qa-text">（未回答 — ここに記入）</p>
+      </div>
+    </div>
+  </article>
+
+  <article class="card" data-state="new-answer">
+    <div class="card-head">
+      <span class="qno">SD-10</span>
+      <span class="badge category">BE / 入院・臨床安全</span>
+      <span class="badge new-answer">PO判断待ち</span>
+      <span class="asker">起票: 2026-07-16</span>
+    </div>
+    <div class="card-body">
+      <p class="section-label">質問</p>
+      <p class="qa-text">関係箇所: docs/spec/screens/09-hospitalization-form.md ／ 入院作成 BE バリデーション
+現状: 死亡ペットの入院ブロックはペット選択 UI のみで、直接 URL・API には防御がない。
+問い: BE 側に deceased_at 検査を追加して 422 拒否するか。
+推奨: 追加する。防御は境界（BE）で行うのが原則。UI ブロックだけの安全対策は防御になっていない。</p>
+      <div class="answer-block">
+        <p class="section-label">回答</p>
+        <p class="qa-text">（未回答 — ここに記入）</p>
+      </div>
+    </div>
+  </article>
+
+  <article class="card" data-state="new-answer">
+    <div class="card-head">
+      <span class="qno">SD-11</span>
+      <span class="badge category">FE / シフト</span>
+      <span class="badge new-answer">PO判断待ち</span>
+      <span class="asker">起票: 2026-07-16</span>
+    </div>
+    <div class="card-body">
+      <p class="section-label">質問</p>
+      <p class="qa-text">関係箇所: docs/spec/screens/24-shift-calendar.md ／ シフト種別 paid_leave
+現状: 有休を選択しても時刻入力が非活性にならない（BUG-092 の趣旨と矛盾の疑い）。
+問い: paid_leave 選択時に時刻入力を disabled にするか。有休に時刻（半休等）を入れる運用があるなら現状が正。
+推奨: 半休運用の有無で決まる。運用実態を教えてほしい。</p>
+      <div class="answer-block">
+        <p class="section-label">回答</p>
+        <p class="qa-text">（未回答 — ここに記入）</p>
+      </div>
+    </div>
+  </article>
+
+  <article class="card" data-state="new-answer">
+    <div class="card-head">
+      <span class="qno">SD-12</span>
+      <span class="badge category">FE / 検査一覧</span>
+      <span class="badge new-answer">PO判断待ち</span>
+      <span class="asker">起票: 2026-07-16</span>
+    </div>
+    <div class="card-body">
+      <p class="section-label">質問</p>
+      <p class="qa-text">関係箇所: docs/spec/screens/12-examinations-list.md ／ ステータスフィルタ
+現状: フィルタが 3 ステータスのみで、result_entered / confirmed の検査を抽出できない。
+問い: フィルタに 2 ステータスを追加するか。
+推奨: 追加する。例外抽出（結果入力済みだが未確定、等）はシステムの仕事。低リスク。</p>
+      <div class="answer-block">
+        <p class="section-label">回答</p>
+        <p class="qa-text">（未回答 — ここに記入）</p>
+      </div>
+    </div>
+  </article>
+
+  <article class="card" data-state="new-answer">
+    <div class="card-head">
+      <span class="qno">SD-13</span>
+      <span class="badge category">FE / 医院設定</span>
+      <span class="badge new-answer">PO判断待ち</span>
+      <span class="asker">起票: 2026-07-16</span>
+    </div>
+    <div class="card-body">
+      <p class="section-label">質問</p>
+      <p class="qa-text">関係箇所: docs/spec/screens/19-clinic-settings.md ／ invoice_registration_number
+現状: BE 更新ハンドラは存在するが FE に編集導線がない。インボイス登録番号の設定は API 直叩きか seed のみ。
+問い: (A) 医院設定画面に入力欄を追加する／ (B) 変更頻度が開業時 1 回のため現状（管理者直接設定）を仕様とする。
+推奨: B 寄り。年 1 回も変わらない値に画面を作るのは過剰。ただし納品後にベンダー（我々）が触れない運用なら A が必要。</p>
+      <div class="answer-block">
+        <p class="section-label">回答</p>
+        <p class="qa-text">（未回答 — ここに記入）</p>
+      </div>
+    </div>
+  </article>
+
+  <article class="card" data-state="new-answer">
+    <div class="card-head">
+      <span class="qno">SD-14</span>
+      <span class="badge category">FE+BE / LINE紐付け</span>
+      <span class="badge new-answer">PO判断待ち</span>
+      <span class="asker">起票: 2026-07-16</span>
+    </div>
+    <div class="card-body">
+      <p class="section-label">質問</p>
+      <p class="qa-text">関係箇所: docs/spec/screens/38-liff-pet-health.md・04-owners-form.md ／ line_link_service.go・LiffLinkPage
+現状: 紐付けフローが E2E で不通の疑い（複合）。① GenerateLinkToken が構築する liff_url に clinic_id クエリがなく、LiffLinkPage は clinic_id 必須のため発行 URL をそのまま開くと「無効なURL」エラーになる可能性が高い。② link-token 発行 API を呼ぶ FE 導線が frontend/src に存在しない（API 直叩きのみ）。
+問い: (A) 両方修正して紐付けフローを完成させる（liff_url に clinic_id 付与＋飼主フォームに発行ボタン）／ (B) 今期この機能を使わないなら phase2 送り。
+推奨: この機能の納品スケジュール次第。使う予定があるなら A を一括で。中途半端に片方だけ直すのは無意味。</p>
+      <div class="answer-block">
+        <p class="section-label">回答</p>
+        <p class="qa-text">（未回答 — ここに記入）</p>
+      </div>
+    </div>
+  </article>
+
+  <article class="card" data-state="new-answer">
+    <div class="card-head">
+      <span class="qno">SD-15</span>
+      <span class="badge category">FE / LINE予約(飼主側)</span>
+      <span class="badge new-answer">PO判断待ち</span>
+      <span class="asker">起票: 2026-07-16</span>
+    </div>
+    <div class="card-body">
+      <p class="section-label">質問</p>
+      <p class="qa-text">関係箇所: docs/spec/screens/37-line-reserve-owner-flow.md ／ useReservationFlow（frontend/line-reserve）
+現状: trimming_style_request（トリミング仕上がり要望）が死にフィールド。setTrimmingStyleRequest がどの画面からも呼ばれず常に空文字で送信される（入力 UI 未配線）。
+問い: (A) トリミングフローに要望入力 UI を配線する／ (B) フィールドごと削除する（要望は既存の request 欄で足りる）。
+推奨: B 寄り。RequestPage の自由記述で実用上足りているなら二重入力を作るべきでない。</p>
+      <div class="answer-block">
+        <p class="section-label">回答</p>
+        <p class="qa-text">（未回答 — ここに記入）</p>
+      </div>
+    </div>
+  </article>
+
+  <article class="card" data-state="new-answer">
+    <div class="card-head">
+      <span class="qno">SD-16</span>
+      <span class="badge category">FE / LINE予約(飼主側)</span>
+      <span class="badge new-answer">PO判断待ち</span>
+      <span class="asker">起票: 2026-07-16</span>
+    </div>
+    <div class="card-body">
+      <p class="section-label">質問</p>
+      <p class="qa-text">関係箇所: docs/spec/screens/37-line-reserve-owner-flow.md ／ ステップドット表示・戻る遷移
+現状: ① トリミング分岐ページのみ total=9・下流の共有ページは total=8 固定のため、4/9→3/8 と進捗が戻って見える。② スタッフ選択の「戻る」がトリミングオプション選択をスキップしてコース選択へ飛ぶ（状態は保持される）。
+問い: フロー種別に応じて total を動的化し、戻る遷移も分岐対応する修正でよいか。
+推奨: 即修正。飼主に見える画面の進捗退行は品質印象を直接毀損する。</p>
+      <div class="answer-block">
+        <p class="section-label">回答</p>
+        <p class="qa-text">（未回答 — ここに記入）</p>
+      </div>
+    </div>
+  </article>
+
+  <article class="card" data-state="new-answer">
+    <div class="card-head">
+      <span class="qno">SD-17</span>
+      <span class="badge category">FE / 飼主レポート</span>
+      <span class="badge new-answer">PO判断待ち</span>
+      <span class="asker">起票: 2026-07-16</span>
+    </div>
+    <div class="card-body">
+      <p class="section-label">質問</p>
+      <p class="qa-text">関係箇所: docs/spec/screens/39-owner-report.md ／ OwnerReport（#158 由来）
+現状: 印刷ボタン・print CSS が不在。固定ビューポート＋パネル内スクロールのため、ブラウザ印刷では長い履歴が切れる。
+問い: #158 の印刷要件は生きているか。(A) 生きている → print CSS＋印刷導線を実装／ (B) 画面閲覧のみで足りる → 要件落ちとして確定し doc に明記。
+推奨: 飼主に紙で渡す運用があるかで決まる。運用実態を教えてほしい。</p>
+      <div class="answer-block">
+        <p class="section-label">回答</p>
+        <p class="qa-text">（未回答 — ここに記入）</p>
+      </div>
+    </div>
+  </article>
+
+  <article class="card" data-state="new-answer">
+    <div class="card-head">
+      <span class="qno">SD-18</span>
+      <span class="badge category">FE / 飼主レポート</span>
+      <span class="badge new-answer">PO判断待ち</span>
+      <span class="asker">起票: 2026-07-16</span>
+    </div>
+    <div class="card-body">
+      <p class="section-label">質問</p>
+      <p class="qa-text">関係箇所: docs/spec/screens/39-owner-report.md ／ HISTORY_FETCH_LIMIT（検査・治療・トリミング履歴）
+現状: limit=100 固定でページングなし。100 件超の古い履歴はサイレントに表示されず、超過の告知もない。
+問い: (A) 「さらに表示」等のページング追加／ (B) 100 件で実用十分と仕様化し、超過時のみ「以前の履歴は省略」表示を追加。
+推奨: B。レポートの目的は直近サマリー俯瞰であり全件表示ではない。ただしサイレント打ち切りだけは不可（省略表示は必須）。</p>
+      <div class="answer-block">
+        <p class="section-label">回答</p>
+        <p class="qa-text">（未回答 — ここに記入）</p>
+      </div>
+    </div>
+  </article>
+
+  <article class="card" data-state="new-answer">
+    <div class="card-head">
+      <span class="qno">SD-19</span>
+      <span class="badge category">FE / 飼主レポート</span>
+      <span class="badge new-answer">PO判断待ち</span>
+      <span class="asker">起票: 2026-07-16</span>
+    </div>
+    <div class="card-body">
+      <p class="section-label">質問</p>
+      <p class="qa-text">関係箇所: docs/spec/screens/39-owner-report.md ／ use-pet-vaccinations の日付整形
+現状: 予防接種履歴のみブラウザローカル TZ で日付整形しており、治療履歴の toJSTWallDate（JST 壁日付）と不統一。海外 TZ 環境で接種日・次回予定が 1 日ずれ得る。
+問い: toJSTWallDate へ統一修正してよいか。
+推奨: 即修正。既存の統一方針（birthdate 3 フィールドの localTimePtr 統一と同系統）に沿う低リスク修正。</p>
+      <div class="answer-block">
+        <p class="section-label">回答</p>
+        <p class="qa-text">（未回答 — ここに記入）</p>
       </div>
     </div>
   </article>
