@@ -15,7 +15,7 @@ interface ExaminationHistorySectionProps {
 export function ExaminationHistorySection({ petId }: ExaminationHistorySectionProps) {
   const { canView } = usePermission(ResourceExaminations);
   const { data, isLoading, isError } = useGetPetExaminations(canView ? petId : undefined);
-  const exams = data ?? [];
+  const exams = data?.items ?? [];
 
   return (
     <ReportSection
@@ -25,6 +25,7 @@ export function ExaminationHistorySection({ petId }: ExaminationHistorySectionPr
       isError={isError}
       isEmpty={exams.length === 0}
       count={exams.length}
+      isTruncated={data?.isTruncated ?? false}
       emptyMessage="検査の履歴はありません"
     >
       <ul className="flex flex-col gap-3">

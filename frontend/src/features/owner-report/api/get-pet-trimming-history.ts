@@ -18,16 +18,31 @@ export function selectCompletedTrimmingHistory(items: TrimmingUI[]): TrimmingUI[
     .sort((a, b) => b.date.localeCompare(a.date));
 }
 
+export interface PetTrimmingHistoryResult {
+  items: TrimmingUI[];
+  /**
+   * SD-18: 取得上限(HISTORY_FETCH_LIMIT)により実件数より少ない可能性がある場合 true。
+   * total はステータス問わない生の予約件数のため、完了のみに絞った items.length と直接比較せず
+   * 「fetch した生行数(rawRows.length) を total が上回るか」で判定する（フィルタ後件数で判定すると、
+   * 生件数側で truncate されていても完了以外が除外されて見かけ上 limit 未満になり検知漏れするため）。
+   */
+  isTruncated: boolean;
+}
+
 /**
  * GET /v1/trimmings?pet_id（appointments ベース）から当該ペットの予約を取得し、
  * 施術実施済み（完了）のみを実施日降順で返す。
  * 一覧 API は TrimmingDetail.Course / Doctor を preload するため、コース名・担当が埋まる。
  */
-const getPetTrimmingHistory = async (petId: string): Promise<TrimmingUI[]> => {
+const getPetTrimmingHistory = async (petId: string): Promise<PetTrimmingHistoryResult> => {
   const { data } = await axios.get<TrimmingListResponse>("/v1/trimmings", {
     params: { pet_id: Number(petId), page: 1, limit: HISTORY_FETCH_LIMIT },
   });
-  return selectCompletedTrimmingHistory((data.data ?? []).map(transformTrimming));
+  const rawRows = data.data ?? [];
+  return {
+    items: selectCompletedTrimmingHistory(rawRows.map(transformTrimming)),
+    isTruncated: typeof data.total === "number" && data.total > rawRows.length,
+  };
 };
 
 export const useGetPetTrimmingHistory = (petId?: string) => {

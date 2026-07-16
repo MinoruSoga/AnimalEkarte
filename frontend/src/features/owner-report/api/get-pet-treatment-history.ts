@@ -94,11 +94,17 @@ export function transformHistoryItem(row: BackendPetTreatmentHistory): PetTreatm
   };
 }
 
+export interface PetTreatmentHistoryResult {
+  items: PetTreatmentHistoryItem[];
+  /** SD-18: 取得上限(HISTORY_FETCH_LIMIT)により実件数より少ない可能性がある場合 true。 */
+  isTruncated: boolean;
+}
+
 const getPetTreatmentHistory = async (
   petId: string,
   filter: TreatmentHistoryFilter,
   options: TreatmentHistoryOptions = {},
-): Promise<PetTreatmentHistoryItem[]> => {
+): Promise<PetTreatmentHistoryResult> => {
   const params: Record<string, string | number | boolean> = { limit: HISTORY_FETCH_LIMIT };
   if (filter !== "all") params.item_type = filter;
   if (options.anesthesiaOnly) params.anesthesia_only = true;
@@ -107,7 +113,11 @@ const getPetTreatmentHistory = async (
     `/v1/pets/${petId}/treatment-history`,
     { params },
   );
-  return (data.data ?? []).map(transformHistoryItem);
+  const rawRows = data.data ?? [];
+  return {
+    items: rawRows.map(transformHistoryItem),
+    isTruncated: typeof data.total === "number" && data.total > rawRows.length,
+  };
 };
 
 export const useGetPetTreatmentHistory = (

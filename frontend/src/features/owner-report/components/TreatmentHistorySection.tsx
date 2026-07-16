@@ -43,7 +43,7 @@ export function TreatmentHistorySection({
     filter,
     options,
   );
-  const items = data ?? [];
+  const items = data?.items ?? [];
 
   const headers = showAnesthesia
     ? ["診療日", "内容", "麻酔"]
@@ -59,6 +59,7 @@ export function TreatmentHistorySection({
       isError={isError}
       isEmpty={items.length === 0}
       count={items.length}
+      isTruncated={data?.isTruncated ?? false}
       emptyMessage={emptyMessage ?? "履歴はありません"}
     >
       <HistoryTable headers={headers}>

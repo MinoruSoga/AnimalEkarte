@@ -143,49 +143,64 @@ beforeEach(() => {
     ok([{ id: 1, name: "狂犬病ワクチン", date: "25/5/1", next: "26/5/1" }]),
   );
   hooks.useGetPetExaminations.mockReturnValue(
-    ok([
-      {
-        id: "1",
-        testType: "血液検査",
-        date: "2026-05-10",
-        status: "確定",
-        items: [
-          {
-            id: "1",
-            name: "WBC",
-            inspectionValue: "120",
-            result: "",
-            unit: "",
-            referenceValue: "60-120",
-            status: "normal",
-          },
-        ],
-      },
-    ]),
+    ok({
+      items: [
+        {
+          id: "1",
+          testType: "血液検査",
+          date: "2026-05-10",
+          status: "確定",
+          items: [
+            {
+              id: "1",
+              name: "WBC",
+              inspectionValue: "120",
+              result: "",
+              unit: "",
+              referenceValue: "60-120",
+              status: "normal",
+            },
+          ],
+        },
+      ],
+      isTruncated: false,
+    }),
   );
   hooks.useGetPetFirstVisit.mockReturnValue(ok("2022-01-10"));
   hooks.useGetPetCheckupResults.mockReturnValue(ok([]));
   hooks.useGetPetTrimmingHistory.mockReturnValue(
-    ok([
-      { id: "t1", date: "2026-02-01", status: "完了", courseName: "シャンプー＆カット", staff: "鈴木" },
-    ]),
+    ok({
+      items: [
+        { id: "t1", date: "2026-02-01", status: "完了", courseName: "シャンプー＆カット", staff: "鈴木" },
+      ],
+      isTruncated: false,
+    }),
   );
   hooks.useGetPetTreatmentHistory.mockImplementation(
     (_petId: string | undefined, filter: string) => {
       if (filter === "medicine") {
-        return ok([
-          { id: "m1", date: "25/5/1", itemType: "medicine", name: "アモキシシリン", adminRoute: "経口", quantity: 1, medicalRecordId: "9" },
-        ]);
+        return ok({
+          items: [
+            { id: "m1", date: "25/5/1", itemType: "medicine", name: "アモキシシリン", adminRoute: "経口", quantity: 1, medicalRecordId: "9" },
+          ],
+          isTruncated: false,
+        });
       }
       if (filter === "procedure") {
-        return ok([
-          { id: "p1", date: "25/5/2", itemType: "procedure", name: "避妊手術", adminRoute: "", quantity: 1, anesthesia: "全身麻酔", medicalRecordId: "9" },
-        ]);
+        return ok({
+          items: [
+            { id: "p1", date: "25/5/2", itemType: "procedure", name: "避妊手術", adminRoute: "", quantity: 1, anesthesia: "全身麻酔", medicalRecordId: "9" },
+          ],
+          isTruncated: false,
+        });
       }
-      return ok([
-        { id: "m1", date: "25/5/1", itemType: "medicine", name: "アモキシシリン", adminRoute: "経口", quantity: 1, medicalRecordId: "9" },
-        { id: "p1", date: "25/5/2", itemType: "procedure", name: "避妊手術", adminRoute: "", quantity: 1, anesthesia: "全身麻酔", medicalRecordId: "9" },
-      ]);
+      return ok({
+        items: [
+          { id: "m1", date: "25/5/1", itemType: "medicine", name: "アモキシシリン", adminRoute: "経口", quantity: 1, medicalRecordId: "9" },
+          { id: "p1", date: "25/5/2", itemType: "procedure", name: "避妊手術", adminRoute: "", quantity: 1, anesthesia: "全身麻酔", medicalRecordId: "9" },
+        ],
+        isTruncated: false,
+      });
     },
   );
 });
@@ -340,7 +355,7 @@ describe("OwnerReport", () => {
   });
 
   it("履歴ゼロのセクションは空状態を表示する", () => {
-    hooks.useGetPetTreatmentHistory.mockReturnValue(ok([]));
+    hooks.useGetPetTreatmentHistory.mockReturnValue(ok({ items: [], isTruncated: false }));
     renderReport(makeAuth(allowAll));
 
     expect(screen.getByText("投薬の履歴はありません")).toBeInTheDocument();

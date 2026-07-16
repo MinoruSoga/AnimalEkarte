@@ -29,6 +29,7 @@ describe("useGetPetExaminations (#158 下書き除外)", () => {
             makeBackendExam(4, "completed", "D"),
             makeBackendExam(5, "confirmed", "E"),
           ],
+          total: 5,
         }),
       ),
     );
@@ -39,10 +40,30 @@ describe("useGetPetExaminations (#158 下書き除外)", () => {
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
 
-    const statuses = (result.current.data ?? []).map((e) => e.status);
+    const statuses = (result.current.data?.items ?? []).map((e) => e.status);
     expect(statuses).toEqual(["結果入力済み", "完了", "確定"]);
     expect(statuses).not.toContain("依頼中");
     expect(statuses).not.toContain("検査中");
+    expect(result.current.data?.isTruncated).toBe(false);
+  });
+
+  it("SD-18: total が fetch した生件数を上回れば isTruncated=true を返す（下書き除外後の件数では判定しない）", async () => {
+    server.use(
+      http.get("/api/v1/examinations", () =>
+        HttpResponse.json({
+          data: [makeBackendExam(1, "pending", "A"), makeBackendExam(2, "confirmed", "B")],
+          total: 150,
+        }),
+      ),
+    );
+
+    const { result } = renderHook(() => useGetPetExaminations("7"), {
+      wrapper: createWrapper(),
+    });
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+
+    expect(result.current.data?.isTruncated).toBe(true);
   });
 
   it("petId 未指定ならクエリは無効でフェッチしない", () => {

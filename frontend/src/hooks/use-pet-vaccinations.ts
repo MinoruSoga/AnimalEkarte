@@ -2,15 +2,22 @@ import { useQuery } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import { queryKeys } from "@/lib/query-keys";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
+import { toJSTWallDate } from "@/lib/jst-date";
 import type { Vaccination } from "@/types/generated/models";
 
+/**
+ * SD-19: 治療履歴（get-pet-treatment-history.ts）と同様、絶対時刻を JST 壁日付に
+ * 変換してから表示する。以前はブラウザローカル TZ の getter で整形しており、
+ * JST 以外のローカル TZ で閲覧すると日付が 1 日ずれ得た。
+ */
 function formatDate(iso?: string): string {
   if (!iso) return "-";
   const d = new Date(iso);
   if (isNaN(d.getTime())) return "-";
-  const yy = String(d.getFullYear()).slice(2);
-  const m = String(d.getMonth() + 1);
-  const day = String(d.getDate());
+  const jst = toJSTWallDate(d);
+  const yy = String(jst.getFullYear()).slice(2);
+  const m = String(jst.getMonth() + 1);
+  const day = String(jst.getDate());
   return `${yy}/${m}/${day}`;
 }
 

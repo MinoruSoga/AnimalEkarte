@@ -10,13 +10,25 @@ import type { Examination } from "@/types/generated/models";
 // 既存 transformExamination は status を日本語ラベルに変換するため、そのラベルで除外する。
 const DRAFT_STATUS_LABELS = new Set(["依頼中", "検査中"]);
 
-const getPetExaminations = async (petId: string): Promise<ExaminationRecord[]> => {
-  const { data } = await axios.get<{ data: Examination[] }>("/v1/examinations", {
+export interface PetExaminationHistoryResult {
+  items: ExaminationRecord[];
+  /**
+   * SD-18: 取得上限(HISTORY_FETCH_LIMIT)により実件数より少ない可能性がある場合 true。
+   * バックエンド total（下書き除外前の生件数）が実際に fetch した件数を上回るかで判定する
+   * （下書き除外フィルタ後の件数で判定すると、生件数側で truncate されていても除外分が
+   * 相殺されて見かけ上 limit 未満になり検知漏れするため）。
+   */
+  isTruncated: boolean;
+}
+
+const getPetExaminations = async (petId: string): Promise<PetExaminationHistoryResult> => {
+  const { data } = await axios.get<{ data: Examination[]; total?: number }>("/v1/examinations", {
     params: { pet_id: Number(petId), limit: HISTORY_FETCH_LIMIT },
   });
-  return (data.data ?? [])
-    .map(transformExamination)
-    .filter((e) => !DRAFT_STATUS_LABELS.has(e.status));
+  const rawRows = data.data ?? [];
+  const items = rawRows.map(transformExamination).filter((e) => !DRAFT_STATUS_LABELS.has(e.status));
+  const isTruncated = typeof data.total === "number" && data.total > rawRows.length;
+  return { items, isTruncated };
 };
 
 export const useGetPetExaminations = (petId?: string) => {

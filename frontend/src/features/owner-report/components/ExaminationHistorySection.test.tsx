@@ -49,7 +49,7 @@ const examWithItems = {
 beforeEach(() => {
   vi.clearAllMocks();
   hooks.usePermission.mockReturnValue({ canView: true });
-  hooks.useGetPetExaminations.mockReturnValue(ok([examWithItems]));
+  hooks.useGetPetExaminations.mockReturnValue(ok({ items: [examWithItems], isTruncated: false }));
 });
 
 describe("ExaminationHistorySection", () => {
@@ -75,7 +75,10 @@ describe("ExaminationHistorySection", () => {
 
   it("検査項目が無い検査は『検査項目なし』を表示し列見出しを出さない", () => {
     hooks.useGetPetExaminations.mockReturnValue(
-      ok([{ id: "e2", testType: "尿検査", date: "2026-05-11", status: "確定", resultSummary: "", items: [] }]),
+      ok({
+        items: [{ id: "e2", testType: "尿検査", date: "2026-05-11", status: "確定", resultSummary: "", items: [] }],
+        isTruncated: false,
+      }),
     );
     render(<ExaminationHistorySection petId="1" />);
 
@@ -90,5 +93,12 @@ describe("ExaminationHistorySection", () => {
 
     expect(screen.getByText("閲覧権限がありません")).toBeInTheDocument();
     expect(screen.queryByRole("columnheader")).not.toBeInTheDocument();
+  });
+
+  it("SD-18: isTruncated=true のとき打ち切り注記を表示する", () => {
+    hooks.useGetPetExaminations.mockReturnValue(ok({ items: [examWithItems], isTruncated: true }));
+    render(<ExaminationHistorySection petId="1" />);
+
+    expect(screen.getByTestId("section-truncation-notice")).toBeInTheDocument();
   });
 });
