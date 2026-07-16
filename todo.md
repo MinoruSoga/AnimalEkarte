@@ -1,6 +1,7 @@
 # AnimalEkarte — Unified TODO（todo.md）
 
-> 更新: 2026-07-16 (4)（PO 決裁「即実装可」4 件消化: #211 A1+A2／#211 A6／#201 B2／PO-008 完了・台帳から除去）
+> 更新: 2026-07-16 (5)（画面仕様書全数突合の副産物 = 実装バグ疑い 19 件を起票。突合本体は commit a476b727・未文書化3画面の doc 新設で SD-14〜19 追加発見）
+> 前々回: 2026-07-16 (4)（PO 決裁「即実装可」4 件消化: #211 A1+A2／#211 A6／#201 B2／PO-008 完了・台帳から除去）
 > 前回: 2026-07-16 (3)（phase2 切り出し: 今フェーズでやらない項目を `phase2.html` へ全文移動・完了記録を削除。本書は「今やること」のみ保持）
 > **push・外部書き込み・credential 変更はユーザー所有アクション。**（PR マージはユーザーが手動で行う。本台帳には載せない）
 > **別台帳**: 今フェーズでやらないもの = `phase2.html` / BE 保留詳細 = `BE-pending.md` / PO 判断キュー = `q&a.html`
@@ -116,6 +117,35 @@
 
 - [ ] **[SPEC-GAP・PO 判断] カルテ確定（Lock）の UI 導線が存在しない** — specification §2.1 は「確定（Lock）フローを実装」と宣言するが、カルテ画面仕様（06 §2.3 に明記）に確定ボタンはなく API 直接操作でのみ確定可能。臨床記録の真正性担保が現場で使えない。UI 導線を作るか §2.1 の記述を実態に合わせるかの判断が必要。受け入れシナリオ S06 は暫定で API 確定（USER 実施）前提。
 - [ ] **[SEED-GAP] seed 003_demo の全標準ロールが検査 edit 権限を保有** — 権限差による確定ロック検証（受け入れシナリオ S02）が現 seed では実施不能。閲覧専用相当ロールの seed 追加か、STG 実権限グループでの検証かの判断が必要。
+
+## 画面仕様書全数突合（2026-07-16）で発見した実装バグ疑い 19 件
+
+> 出所: docs/spec/screens 全 62 ファイル実装突合（commit a476b727）の副産物。**doc は現状実装に合わせ済み**のため、修正するなら実装側＋該当 doc の再更新をセットで行う。各件とも「仕様としてこれで正か」の triage が先。
+
+| # | 疑い内容 | 根拠 | 分類 |
+|---|---------|------|------|
+| SD-1 | 予防接種フォーム `supplemental` 欄: UI 入力可・BE 受理するが FE リクエスト型に含まれず**保存されずサイレント消失** | FE リクエスト型 vs `VaccinationForm.tsx` | **データ損失** |
+| SD-2 | 確定済みカルテでも画像の追加・削除が可能（finalized ガード欠落） | `medical_record_image_service.go` にロック検査なし | **臨床安全** |
+| SD-3 | `LineReservationSettingsForm` が formData から `line_channel_secret`/`line_access_token` を読むが対応 input が存在せず**常に null 送信** | 同コンポーネント実装 | 機能不全 |
+| SD-4 | 在庫 `min_stock_level` から status を判定するロジックがどこにも無く**在庫アラートパネルが死に機能** | 18-inventory-list 突合 | 機能不全 |
+| SD-5 | 見積ステータス色判定が `"accepted"`/`"expired"` を見るが実 enum は draft/sent/approved/rejected → **承認済みバッジが常にグレー** | `frontend/src/utils/status-helpers.ts:205` `getEstimateStatusColor` | 表示バグ |
+| SD-6 | 予防接種「次回予定」ラジオ（3週間後等）が nextDate 計算に未配線・ペイロード非含有 | 15-vaccinations-form 突合 | 機能不全 |
+| SD-7 | LINE 予約枠カレンダーに旧ホワイトリスト仕様の警告文が残存（BE は 2026-06-11 から加算モード）→ 運用誤誘導 | `LineReservationSlotsSettings.tsx:111` | 文言ドリフト |
+| SD-8 | 飼主削除 ConfirmDialog 文言「ペット情報も削除されます」⇔ BE はペット紐付き時 409 拒否（文言が誤誘導） | 03-owners-list 突合 | 文言ドリフト |
+| SD-9 | デフォルト権限グループ「執行」「一般」が権限ルール 0 で作成される（新規院で system_admin 以外全機能アクセス不能の疑い） | `clinic_service.go` | 要仕様確認 |
+| SD-10 | 入院新規: 死亡ペットのブロックがペット選択 UI のみで直接 URL・BE に防御なし | 09-hospitalization-form 突合 | 臨床安全（低） |
+| SD-11 | シフト: 有休（paid_leave）選択で時刻入力が非活性にならない | 24-shift-calendar 突合（BUG-092 趣旨と矛盾疑い） | UX |
+| SD-12 | 検査一覧フィルタが 3 ステータスのみで result_entered/confirmed を抽出できない | 12-examinations-list 突合 | UX |
+| SD-13 | `invoice_registration_number`: BE 更新ハンドラは存在するが FE 編集導線なし | 19-clinic-settings 突合 | 要仕様確認 |
+| SD-14 | **LINE 紐付けフロー E2E 不通疑い（複合）**: ① `GenerateLinkToken` が構築する liff_url に clinic_id クエリが無く、`LiffLinkPage` は clinic_id 必須のため発行 URL をそのまま開くと「無効なURL」エラー ② link-token 発行 API を呼ぶ FE 導線が frontend/src に grep 0 件（API 直叩きのみ） | `line_link_service.go` / 38 doc 新設時発見 | **機能不全** |
+| SD-15 | line-reserve: `trimming_style_request` 死にフィールド — `setTrimmingStyleRequest` がどの画面からも未呼出で常に空文字送信（入力 UI 未配線） | `useReservationFlow` / 37 doc 新設時発見 | 機能不全 |
+| SD-16 | line-reserve: ステップドット表示退行（トリミング分岐ページのみ total=9・下流共有ページ total=8 で 4/9→3/8 と進捗が戻る）＋スタッフ選択の「戻る」がトリミングオプション選択をスキップ | 37 doc 新設時発見 | UX |
+| SD-17 | OwnerReport: 印刷ボタン・print CSS が不在。固定ビューポート＋パネル内スクロールのためブラウザ印刷で長い履歴が切れる（#158 の印刷要件が落ちている可能性） | 39 doc 新設時発見 | 要仕様確認 |
+| SD-18 | OwnerReport: 検査・治療・トリミング履歴が limit=100 固定でサイレント打ち切り（ページング・超過表示なし） | `HISTORY_FETCH_LIMIT` / 39 doc 新設時発見 | UX |
+| SD-19 | OwnerReport: 予防接種日付のみブラウザローカル TZ 整形で、治療履歴の `toJSTWallDate` と不統一 → 海外 TZ 環境で 1 日ずれ得る | 39 doc 新設時発見 | 表示バグ（低） |
+
+- 対応順推奨: SD-1（データ損失）→ SD-2（臨床安全・§2.1 ロック整合）→ SD-3/SD-4（機能不全）→ SD-5/SD-7/SD-8（表示・文言）→ 残りは triage 後。
+- SD-9 は新規院開設フローの実運用確認が先（既存院は影響なし）。SD-13 はインボイス番号の入力経路が別導線（seed/管理者直接）で足りているかの PO 判断。
 
 ### AnimalEkarte CSV import — USER actions
 

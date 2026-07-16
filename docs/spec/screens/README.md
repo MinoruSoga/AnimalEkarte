@@ -1,10 +1,10 @@
 # 画面詳細仕様書 インデックス (Screen Specifications Index)
 
-> **目的**: 全37画面の仕様書インデックスを提供する。
+> **目的**: 全40画面の仕様書インデックスを提供する。
 > **読者**: 新規参加エンジニア・PdM。
 > **タイミング**: 画面インデックス参照・全体像把握時。
 
-本ディレクトリには、Animal Ekarte を構成する全 37 ページの具体的な機能、レイアウト、および API 連携の詳細が定義されています。
+本ディレクトリには、Animal Ekarte を構成する全 40 ページの具体的な機能、レイアウト、および API 連携の詳細が定義されています。
 
 ---
 
@@ -24,6 +24,7 @@
 | 16 | **トリミング一覧** | [16-trimming-list.md](./16-trimming-list.md) | 施術予約と完了ステータスの管理。 |
 | 17 | **トリミング登録** | [17-trimming-form.md](./17-trimming-form.md) | 施術内容と仕上がり画像の記録。 |
 | 25 | **定期健診一覧** | [25-checkups-list.md](./25-checkups-list.md) | 健診履歴の参照と当日カルテ自動生成。 |
+| 39 | **飼主カルテレポート** | [39-owner-report.md](./39-owner-report.md) | 飼主単位の全ペット診療サマリーを別ウィンドウで俯瞰。 |
 
 ---
 
@@ -63,6 +64,8 @@
 | 27 | **在庫登録・編集** | [27-inventory-form.md](./27-inventory-form.md) | 薬品・備品の基本情報管理。 |
 | 24 | **シフト管理** | [24-shift-calendar.md](./24-shift-calendar.md) | スタッフ勤務と LINE 予約の連動. |
 | 28 | **LINE 予約設定** | [28-line-reservation.md](./28-line-reservation.md) | 予約システム稼働ルールと文言編集・予約枠カレンダー. |
+| 37 | **LINE 予約（飼主側）** | [37-line-reserve-owner-flow.md](./37-line-reserve-owner-flow.md) | 飼主が LINE から予約を作成・確認・キャンセルする 13 ステップのフロー。 |
+| 38 | **LIFF 診察券・健康情報** | [38-liff-pet-health.md](./38-liff-pet-health.md) | 飼い主向け LINE ミニアプリ。健康手帳（ワクチン記録）表示と LINE アカウント紐付け。 |
 | 31 | **Lステップ連携設定** | [31-lstep-integration.md](./31-lstep-integration.md) | CPM 判定、配信自動化、各種プレフィックス設定。 |
 | - | ├ **Lステップタグ管理** | [31-lstep-integration.md](./31-lstep-integration.md) | 連携タグのマスタ管理・コードマッピング。 |
 | - | ├ **健診タグ一括同期** | [31-lstep-integration.md](./31-lstep-integration.md) | 健診対象者の抽出と一括タグ連携（プレビュー付）。 |
@@ -83,5 +86,5 @@
 
 ---
 
-**最新更新**: 2026-07-03 | **ステータス**: All Sync with Implementation (108 Tables / 34 Resources)
+**最新更新**: 2026-07-16 | **ステータス**: All Sync with Implementation (108 Tables / 34 Resources)
 

@@ -58,7 +58,7 @@ LINE アプリ内で飼い主が見る画面の文言を編集します。
 - **`LineReservationSettings`**: 管理者向け設定ページ。
 - **`LineReservationSlotsSettings`**: 予約枠カレンダーページ（`features/master`）。
 - **`ReservationTypeAvailableSlotsCalendar`**: 週カレンダー + 日別編集パネル。
-- **LIFF アプリ (`frontend/liff`・別エントリ)**: 飼い主が操作する LINE 内アプリ。
+- **飼主側予約アプリ (`frontend/line-reserve`・別エントリ)**: 飼い主が操作する LINE 内予約フロー。画面仕様は [37-line-reserve-owner-flow.md](./37-line-reserve-owner-flow.md) を参照。
 - **枠計算エンジン (`timeslot_engine.go`)**: 空き時間を算出するバックエンドロジック。
 
 ### API連携
