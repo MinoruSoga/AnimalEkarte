@@ -52,7 +52,7 @@ LIFF SDK 初期化中に表示される全画面スピナー（`Spinner` + 「�
 6. レスポンスは zod スキーマ（`healthCardResponseSchema`）で形状検証してから描画。不正な形状は描画せずエラー画面に落とす。
 
 ### 2. LINE アカウント紐付けフロー
-1. スタッフ側 API（POST `/api/v1/owners/:id/line/link-token`、`owners` の edit 権限）が 24 時間有効の単回使用トークンを発行し、`https://liff.line.me/{LIFF ID}?token={token}` 形式の URL を返す（`GenerateLineLinkToken` → `line_link_service.go`）。飼い主情報画面（[04-owners-form.md](./04-owners-form.md)）の LINE/Lステップ連携セクションが紐付け状況の確認・LINE User ID の手動設定を担うが、このトークン発行 API を呼ぶスタッフ側 UI は現状存在しない。
+1. スタッフ側 API（POST `/api/v1/owners/:id/line/link-token`、`owners` の edit 権限）が 24 時間有効の単回使用トークンを発行し、`https://liff.line.me/{LIFF ID}?token={token}&clinic_id={clinicID}` 形式の URL を返す（`GenerateLineLinkToken` → `line_link_service.go`）。`LiffLinkPage` は `token` と `clinic_id` の両方をクエリから読むため、`clinic_id` 欠落時は「無効なURLです」で即エラーになる（SD-14 で修正・旧実装は `clinic_id` 欠落のまま発行していた）。飼い主情報画面（[04-owners-form.md](./04-owners-form.md)）の LINE/Lステップ連携セクション（`LineIntegrationCard`）の未連携時分岐に、この発行 API を呼ぶ `LineLinkTokenSection`（「連携用URLを発行」ボタン → 発行後は読み取り専用入力欄に URL 表示 + コピー ボタン、`useGenerateLineLinkToken` mutation 経由）を SD-14 で追加した。
 2. 飼い主が URL を開くと `useLiffLink`（`use-liff-link.ts`）が LIFF 認証完了後に POST `/api/liff/:clinicId/link` へ link_token と LINE ID Token を送信。
 3. サーバ側（`LinkLiffAccount`）は ①LINE ID Token 検証 → ②トークンの実在・期限・クリニック一致検証 → ③飼い主の既存 LINE User ID 有無チェック（既設定なら 409。force フラグで上書き可能だが LIFF アプリは送信しない）→ ④LINE User ID 更新 → ⑤トークン使用済みマーク（失敗時は二重使用防止のため紐付け自体を失敗させる）→ ⑥監査ログ記録、の順で処理する。
 
@@ -87,6 +87,6 @@ health-card API は LINE 顧客が飼い主未紐付けでも 200 を返し、ow
 |:---|:---|:---|:---|
 | GET | `/api/liff/:clinicId/health-card` | 健康手帳データ（飼い主名・ペット・ワクチン記録）の取得 | LINE ID Token（`LiffAuth`） |
 | POST | `/api/liff/:clinicId/link` | link_token + line_id_token による飼い主への LINE User ID 紐付け | body 内トークン自己認証（10回/分） |
-| POST | `/api/v1/owners/:id/line/link-token` | 【スタッフ側・参考】紐付けトークンと LIFF URL の発行 | スタッフ JWT（`owners` / edit） |
+| POST | `/api/v1/owners/:id/line/link-token` | スタッフ側：紐付けトークンと LIFF URL の発行（[04-owners-form.md](./04-owners-form.md) の `LineLinkTokenSection` から呼び出し） | スタッフ JWT（`owners` / edit） |
 
 ---

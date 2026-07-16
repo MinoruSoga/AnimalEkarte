@@ -1,12 +1,11 @@
 import { useLiffLink } from '../hooks/use-liff-link';
 import { Spinner } from '@/shared-liff/Spinner';
 
-const params = new URLSearchParams(window.location.search);
-const LINK_TOKEN = params.get('token') ?? '';
-const CLINIC_ID = params.get('clinic_id') ?? '';
-
 export function LiffLinkPage() {
-  const { status, errorMessage } = useLiffLink(CLINIC_ID, LINK_TOKEN);
+  // SD-14: token/clinic_id は useLiffLink 内部で isReady（liff.init() 完了）後に
+  // window.location.search から読む。LINE ログインリダイレクト（liff.state 経由）で
+  // 復元される前の URL をここで固定読みしないよう、モジュール直下でのパース処理は行わない。
+  const { status, errorMessage } = useLiffLink();
 
   if (status === 'loading' || status === 'linking') {
     return (

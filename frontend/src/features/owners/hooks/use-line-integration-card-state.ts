@@ -6,6 +6,7 @@ import { usePermission } from "@/hooks/use-permission";
 import type { Owner } from "@/types/owner";
 
 import { useConfirmOwnerLineId } from "../api/confirm-owner-line-id";
+import { useGenerateLineLinkToken } from "../api/generate-line-link-token";
 import { useGetOwnerLineTags } from "../api/get-owner-line-tags";
 import { useUpdateOwnerDeliveryCaution } from "../api/update-owner-delivery-caution";
 import { useUpdateOwnerDeliveryExclusion } from "../api/update-owner-delivery-exclusion";
@@ -40,6 +41,11 @@ export function useLineIntegrationCardState({
     useUpdateOwnerDeliveryCaution(ownerId);
   const { mutate: updateTransferStatus, isPending: isUpdatingTransferStatus } =
     useUpdateOwnerTransferStatus(ownerId);
+  const {
+    mutate: generateLinkToken,
+    data: linkTokenResult,
+    isPending: isGeneratingLinkToken,
+  } = useGenerateLineLinkToken(ownerId);
 
   const [tagAddDialogOpen, setTagAddDialogOpen] = useState(false);
   const [removeTagName, setRemoveTagName] = useState<string | null>(null);
@@ -148,5 +154,8 @@ export function useLineIntegrationCardState({
     isUpdatingDeliveryExclusion,
     isUpdatingDeliveryCaution,
     isUpdatingTransferStatus,
+    generateLinkToken,
+    linkTokenResult,
+    isGeneratingLinkToken,
   };
 }

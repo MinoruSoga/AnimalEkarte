@@ -171,6 +171,7 @@ func TestLineLinkService_GenerateLinkToken_Success(t *testing.T) {
 	assert.True(t, result.ExpiresAt.After(time.Now()))
 	assert.Contains(t, result.LiffURL, "liff.line.me")
 	assert.Contains(t, result.LiffURL, result.Token)
+	assert.Contains(t, result.LiffURL, "clinic_id=1", "SD-14: LiffLinkPage requires clinic_id query param or it fails immediately")
 }
 
 func TestLineLinkService_GenerateLinkToken_OwnerNotFound(t *testing.T) {

@@ -12,6 +12,7 @@ import {
   LineIntegrationDialogs,
   LineIntegrationError,
   LineIntegrationLoading,
+  LineLinkTokenSection,
   LinkedStatusRow,
   LstepTagsSection,
   UnlinkedLineIdForm,
@@ -181,6 +182,12 @@ export function LineIntegrationCard({
         canEdit={state.canEdit}
         lineIdFormAction={state.lineIdFormAction}
         lineIdState={state.lineIdState}
+      />
+      <LineLinkTokenSection
+        canEdit={state.canEdit}
+        liffUrl={state.linkTokenResult?.liffUrl}
+        isGenerating={state.isGeneratingLinkToken}
+        onGenerate={() => state.generateLinkToken()}
       />
       {deliveryControls}
       {dialogs}

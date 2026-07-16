@@ -126,7 +126,10 @@ func (s *lineLinkService) GenerateLinkToken(ctx context.Context, clinicID, owner
 
 	liffURL := ""
 	if setting.LiffID != "" {
-		liffURL = fmt.Sprintf("https://liff.line.me/%s?token=%s", setting.LiffID, token)
+		// FE の LiffLinkPage（frontend/liff/src/pages/LiffLinkPage.tsx）は
+		// token と clinic_id の両方をクエリから読む（clinic_id 欠落だと useLiffLink が
+		// 即座に「無効なURL」エラーで停止する・SD-14）。
+		liffURL = fmt.Sprintf("https://liff.line.me/%s?token=%s&clinic_id=%d", setting.LiffID, token, clinicID)
 	}
 
 	return &LinkTokenResult{

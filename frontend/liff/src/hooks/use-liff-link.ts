@@ -13,7 +13,7 @@ interface UseLiffLinkResult {
   errorMessage: string | null;
 }
 
-export function useLiffLink(clinicId: string, linkToken: string): UseLiffLinkResult {
+export function useLiffLink(): UseLiffLinkResult {
   const { idToken, isReady, initError } = useLiff(LIFF_ID);
   const [status, setStatus] = useState<LinkStatus>('loading');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -34,6 +34,16 @@ export function useLiffLink(clinicId: string, linkToken: string): UseLiffLinkRes
       setErrorMessage('ログイン情報が取得できませんでした');
       return;
     }
+
+    // SD-14: token/clinic_id は isReady（liff.init() 完了）後に初めて読む。
+    // LINE ログインリダイレクト（未ログイン状態での初回アクセス等）を経由する場合、
+    // LIFF SDK は元のクエリを liff.state に包んで戻し、liff.init() の完了までに
+    // history.replaceState で元の URL（?token=...&clinic_id=...）へ復元する。
+    // isReady より前に window.location.search を読むと、この復元前の
+    // liff.state 付き URL を掴んでしまい token/clinic_id が欠落する。
+    const params = new URLSearchParams(window.location.search);
+    const clinicId = params.get('clinic_id') ?? '';
+    const linkToken = params.get('token') ?? '';
 
     if (!clinicId || !linkToken) {
       setStatus('error');
@@ -74,7 +84,7 @@ export function useLiffLink(clinicId: string, linkToken: string): UseLiffLinkRes
           setErrorMessage('連携中にエラーが発生しました。しばらくしてからお試しください');
         }
       });
-  }, [isReady, idToken, initError, clinicId, linkToken]);
+  }, [isReady, idToken, initError]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
   return { status, errorMessage };

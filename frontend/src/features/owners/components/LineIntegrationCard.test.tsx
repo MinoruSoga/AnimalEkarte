@@ -377,3 +377,41 @@ describe("LineIntegrationCard — F: 配信注意バナー + スイッチ", () =
     });
   });
 });
+
+// ─────────────────────────────────────────────────────────────
+// G: 連携用URL発行（SD-14）
+// ─────────────────────────────────────────────────────────────
+
+const unlinkedLineTags = {
+  line_user_id: undefined as unknown as string,
+  is_linked: false,
+  lstep_opt_out: false,
+  tags: [] as string[],
+  fetched_at: "2026-05-01T00:00:00Z",
+};
+
+describe("LineIntegrationCard — G: 連携用URL発行", () => {
+  it("未連携時は「連携用URLを発行」ボタンが表示される", async () => {
+    await renderAndWait(baseOwner, unlinkedLineTags);
+    expect(screen.getByRole("button", { name: "連携用URLを発行" })).toBeInTheDocument();
+  });
+
+  it("ボタンクリック → POST link-token が呼ばれ、返却された liff_url が読み取り専用入力欄に表示される", async () => {
+    const issuedUrl = "https://liff.line.me/1234567-abcdefgh?token=abc123&clinic_id=1";
+    server.use(
+      http.post(`/api/v1/owners/${OWNER_ID}/line/link-token`, () =>
+        HttpResponse.json(
+          { token: "abc123", expires_at: "2026-07-17T00:00:00+09:00", liff_url: issuedUrl },
+          { status: 201 },
+        ),
+      ),
+    );
+    await renderAndWait(baseOwner, unlinkedLineTags);
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("button", { name: "連携用URLを発行" }));
+
+    const urlInput = await screen.findByLabelText("LINE連携用URL");
+    expect(urlInput).toHaveValue(issuedUrl);
+    expect(screen.getByRole("button", { name: "コピー" })).toBeInTheDocument();
+  });
+});
