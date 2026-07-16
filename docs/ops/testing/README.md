@@ -10,6 +10,7 @@
 
 | ドキュメント | 内容 | いつ読むか |
 |:---|:---|:---|
+| [scenarios/](scenarios/README.md) | 納品前受け入れテストシナリオ（業務フロー S01〜S12 + フォーム検証 V01〜V05。臨床安全・LIFF 通し・全フォームの入力/更新/DB 整合を担当） | 納品前検証・大きなリリース前 |
 | [INTEGRATION_TEST_PLAN.md](INTEGRATION_TEST_PLAN.md) | テストの三層構造（Unit/Integration/E2E）と負荷試験の戦略 | テスト方針の確認・変更時 |
 | [E2E_TESTING_GUIDE.md](E2E_TESTING_GUIDE.md) | Playwright による業務フロー自動検証の実行・追加手順 | E2E テストの実行・追加時 |
 | [SECTION_14_MANUAL_TEST_GUIDE.md](SECTION_14_MANUAL_TEST_GUIDE.md) | ブラウザによる詳細な手動検証シナリオ（browser-test スキルが使用） | 手動検証・ブラウザ QA 時 |
