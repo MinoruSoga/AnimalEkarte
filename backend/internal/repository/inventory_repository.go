@@ -43,7 +43,7 @@ func (r *inventoryRepository) FindAll(ctx context.Context, clinicID uint64, cate
 		q = q.Where("category = ?", *category)
 	}
 	if status != nil {
-		q = q.Where("status = ?", *status)
+		q = q.Where(inventoryStatusFilterClause(*status))
 	}
 	if err := q.Count(&total).Error; err != nil {
 		return nil, 0, apperrors.FromGORM(err, "inventory_item", "")
@@ -52,6 +52,26 @@ func (r *inventoryRepository) FindAll(ctx context.Context, clinicID uint64, cate
 		return nil, 0, apperrors.FromGORM(err, "inventory_item", "")
 	}
 	return items, total, nil
+}
+
+// inventoryStatusFilterClause は SD-4 決裁A（q&a.html SD-4: status を保存せず読み取り時に
+// 導出する）に伴い、status クエリパラメータを quantity/min_stock_level に対する固定 SQL 述語へ
+// 変換する。model.DeriveInventoryStatus と同一の判定ロジックを SQL で表現したもの — 保存された
+// status 列はもはや信頼できる情報源ではないため、一覧フィルタも参照してはならない
+// （参照すると、一覧で表示される導出済みステータスとフィルタ結果が食い違う）。
+// 未知の値は 1=0（該当なし）とし、従来の厳密一致フィルタと同じ「ヒットなし」挙動を保つ。
+// 呼び出し元の *status はこの固定候補群からの選択にのみ使い、SQL へ直接埋め込まない。
+func inventoryStatusFilterClause(status string) string {
+	switch model.InventoryStatus(status) {
+	case model.InventoryStatusOutOfStock:
+		return "quantity <= 0"
+	case model.InventoryStatusLow:
+		return "quantity > 0 AND min_stock_level > 0 AND quantity <= min_stock_level"
+	case model.InventoryStatusSufficient:
+		return "quantity > 0 AND (min_stock_level <= 0 OR quantity > min_stock_level)"
+	default:
+		return "1 = 0"
+	}
 }
 
 func (r *inventoryRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.InventoryItem, error) {
@@ -81,6 +101,10 @@ func (r *inventoryRepository) Delete(ctx context.Context, clinicID, id uint64) e
 	return deleteScopedByID(ctx, dbOrTx(ctx, r.db), &model.InventoryItem{}, "inventory_item", clinicID, id)
 }
 
+// DecreaseStock は quantity のみを減算する。status は SD-4 決裁A（q&a.html SD-4）により
+// 保存値を信頼しないことになったため、ここでの再計算は行わない — 読み取り時に
+// model.DeriveInventoryStatus で quantity/min_stock_level から都度導出する
+// （handler/inventory_response.go の toInventoryResponse を参照）。
 func (r *inventoryRepository) DecreaseStock(ctx context.Context, id uint64, quantity float64) error {
 	result := dbOrTx(ctx, r.db).
 		Model(&model.InventoryItem{}).

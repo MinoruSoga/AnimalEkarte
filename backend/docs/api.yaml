@@ -1777,6 +1777,10 @@ components:
             - sufficient
             - low
             - out_of_stock
+          readOnly: true
+          description: >-
+            SD-4 決裁A（q&a.html SD-4）によりサーバーが quantity/min_stock_level から
+            読み取り時に導出する。リクエストボディに含めても無視される。
         created_at:
           type: string
           format: date-time
@@ -12439,8 +12443,10 @@ paths:
           in: query
           schema:
             type: string
-            enum: [active, inactive]
-          description: ステータスでフィルタリング
+            enum: [sufficient, low, out_of_stock]
+          description: >-
+            ステータスでフィルタリング（SD-4 決裁A: quantity/min_stock_level から
+            導出した値で絞り込む。保存列は参照しない）
       responses:
         '200':
           description: 在庫一覧

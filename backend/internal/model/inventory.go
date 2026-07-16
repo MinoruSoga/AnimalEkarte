@@ -23,6 +23,20 @@ const (
 	InventoryStatusOutOfStock InventoryStatus = "out_of_stock"
 )
 
+// DeriveInventoryStatus は quantity と minStockLevel から在庫ステータスを導出する。
+// minStockLevel <= 0 は「閾値未設定」を意味し、quantity <= 0 の在庫切れ判定以外では
+// low 判定を行わない（SD-4: 従来 status は保存値のみで quantity/min_stock_level との
+// 自動連動が存在しなかった）。
+func DeriveInventoryStatus(quantity, minStockLevel int) InventoryStatus {
+	if quantity <= 0 {
+		return InventoryStatusOutOfStock
+	}
+	if minStockLevel > 0 && quantity <= minStockLevel {
+		return InventoryStatusLow
+	}
+	return InventoryStatusSufficient
+}
+
 type InventoryItem struct {
 	ID            uint64            `gorm:"primaryKey;autoIncrement"                       json:"id"`
 	ClinicID      uint64            `gorm:"not null"                                       json:"clinic_id"`

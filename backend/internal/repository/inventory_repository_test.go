@@ -79,15 +79,6 @@ func TestInventoryRepository_FindAll_ClinicIsolationFiltersAndPagination(t *test
 		assert.Equal(t, medA.ID, got[0].ID)
 	})
 
-	t.Run("status フィルタ", func(t *testing.T) {
-		status := string(model.InventoryStatusLow)
-		got, total, err := repo.FindAll(ctx, clinicA, nil, &status, 1, 10)
-		require.NoError(t, err)
-		assert.EqualValues(t, 1, total)
-		require.Len(t, got, 1)
-		assert.Equal(t, medA.ID, got[0].ID)
-	})
-
 	t.Run("name ASC でページネーションされる", func(t *testing.T) {
 		got, total, err := repo.FindAll(ctx, clinicA, nil, nil, 1, 1)
 		require.NoError(t, err)
@@ -99,6 +90,27 @@ func TestInventoryRepository_FindAll_ClinicIsolationFiltersAndPagination(t *test
 		require.NoError(t, err)
 		require.Len(t, got2, 1)
 		assert.Equal(t, medA.ID, got2[0].ID)
+	})
+
+	// status フィルタは他 subtest の total 件数アサーションを汚染しないよう最後に置く
+	// （新規アイテムを clinicA に追加するため）。
+	t.Run("status フィルタ", func(t *testing.T) {
+		// SD-4 決裁A: status フィルタは保存列でなく quantity/min_stock_level の導出条件で絞り込む
+		// （inventoryStatusFilterClause）。medA/foodA は min_stock_level が 0（未設定）のため、
+		// 保存 status に関わらずどちらも sufficient と導出され low には該当しない。
+		// low 導出条件を満たす専用アイテムを用意して検証する。
+		lowItem := &model.InventoryItem{
+			ClinicID: clinicA, Name: "残少アイテム", Category: model.InventoryCategoryMedicine,
+			Status: model.InventoryStatusSufficient, Quantity: 2, MinStockLevel: 5,
+		}
+		require.NoError(t, db.WithContext(ctx).Create(lowItem).Error)
+
+		status := string(model.InventoryStatusLow)
+		got, total, err := repo.FindAll(ctx, clinicA, nil, &status, 1, 10)
+		require.NoError(t, err)
+		assert.EqualValues(t, 1, total)
+		require.Len(t, got, 1)
+		assert.Equal(t, lowItem.ID, got[0].ID)
 	})
 }
 
@@ -224,6 +236,72 @@ func TestInventoryRepository_DecreaseStock(t *testing.T) {
 		err := repo.DecreaseStock(ctx, 999999, 1)
 		require.Error(t, err)
 		assert.True(t, apperrors.IsNotFound(err))
+	})
+}
+
+// TestInventoryRepository_FindAll_StatusFilterUsesQuantityDerivedPredicate は SD-4 決裁A
+// （q&a.html SD-4: status を保存せず読み取り時に導出する）の回帰:
+// status クエリフィルタが保存された status 列（もはや信頼できない）ではなく、
+// quantity/min_stock_level から導出した predicate で絞り込むことを検証する。
+// 保存 status とわざと矛盾させたレコードで検証し、保存値が無視されていることを証明する。
+func TestInventoryRepository_FindAll_StatusFilterUsesQuantityDerivedPredicate(t *testing.T) {
+	db := setupInventoryTestDB(t)
+	repo := NewInventoryRepository(db)
+	ctx := context.Background()
+	const clinicA = uint64(1)
+
+	// 保存 status はすべて意図的に実態と矛盾させる（sufficient のまま放置された旧データを模す）。
+	lowItem := &model.InventoryItem{
+		ClinicID: clinicA, Name: "実態は残少", Category: model.InventoryCategoryMedicine,
+		Status: model.InventoryStatusSufficient, Quantity: 3, MinStockLevel: 10,
+	}
+	outOfStockItem := &model.InventoryItem{
+		ClinicID: clinicA, Name: "実態は在庫切れ", Category: model.InventoryCategoryMedicine,
+		Status: model.InventoryStatusSufficient, Quantity: 0, MinStockLevel: 10,
+	}
+	sufficientItem := &model.InventoryItem{
+		ClinicID: clinicA, Name: "実態は十分", Category: model.InventoryCategoryMedicine,
+		Status: model.InventoryStatusLow, Quantity: 20, MinStockLevel: 10,
+	}
+	unsetThresholdItem := &model.InventoryItem{
+		ClinicID: clinicA, Name: "閾値未設定なら十分", Category: model.InventoryCategoryMedicine,
+		Status: model.InventoryStatusLow, Quantity: 1, MinStockLevel: 0,
+	}
+	for _, item := range []*model.InventoryItem{lowItem, outOfStockItem, sufficientItem, unsetThresholdItem} {
+		require.NoError(t, db.WithContext(ctx).Create(item).Error)
+	}
+
+	t.Run("status=low は保存値でなく quantity<=min_stock_level(>0) で絞り込む", func(t *testing.T) {
+		status := string(model.InventoryStatusLow)
+		got, total, err := repo.FindAll(ctx, clinicA, nil, &status, 1, 20)
+		require.NoError(t, err)
+		assert.EqualValues(t, 1, total)
+		assert.Equal(t, lowItem.ID, got[0].ID)
+	})
+
+	t.Run("status=out_of_stock は quantity<=0 で絞り込む", func(t *testing.T) {
+		status := string(model.InventoryStatusOutOfStock)
+		got, total, err := repo.FindAll(ctx, clinicA, nil, &status, 1, 20)
+		require.NoError(t, err)
+		assert.EqualValues(t, 1, total)
+		assert.Equal(t, outOfStockItem.ID, got[0].ID)
+	})
+
+	t.Run("status=sufficient は quantity>0 かつ (閾値未設定 or quantity>閾値) で絞り込む", func(t *testing.T) {
+		status := string(model.InventoryStatusSufficient)
+		got, total, err := repo.FindAll(ctx, clinicA, nil, &status, 1, 20)
+		require.NoError(t, err)
+		assert.EqualValues(t, 2, total)
+		gotIDs := []uint64{got[0].ID, got[1].ID}
+		assert.ElementsMatch(t, []uint64{sufficientItem.ID, unsetThresholdItem.ID}, gotIDs)
+	})
+
+	t.Run("未知の status 値は該当なし", func(t *testing.T) {
+		status := "unknown"
+		got, total, err := repo.FindAll(ctx, clinicA, nil, &status, 1, 20)
+		require.NoError(t, err)
+		assert.EqualValues(t, 0, total)
+		assert.Empty(t, got)
 	})
 }
 

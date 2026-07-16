@@ -38,8 +38,12 @@ func toInventoryResponse(item *model.InventoryItem) inventoryResponse {
 		ExpiryDate:    localTimePtr(item.ExpiryDate),
 		Supplier:      item.Supplier,
 		LastRestocked: localTimePtr(item.LastRestocked),
-		Status:        string(item.Status),
-		CreatedAt:     localTime(item.CreatedAt),
-		UpdatedAt:     localTime(item.UpdatedAt),
+		// SD-4 決裁A（q&a.html SD-4）: status は保存値を信頼せず、読み取りのたびに
+		// quantity/min_stock_level から導出する。item.Status（保存値・クライアントが
+		// 作成/更新時に指定した値を含む）は意図的に無視する — 二重管理を避けるため
+		// 唯一の判定ロジックは model.DeriveInventoryStatus に一本化する。
+		Status:    string(model.DeriveInventoryStatus(item.Quantity, item.MinStockLevel)),
+		CreatedAt: localTime(item.CreatedAt),
+		UpdatedAt: localTime(item.UpdatedAt),
 	}
 }
