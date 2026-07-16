@@ -9,6 +9,7 @@ const PRINT_PORTAL_MOUNT_DELAY_MS = 100;
  */
 export function useMedicalRecordFormModals() {
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
+  const [isFinalizeConfirmOpen, setIsFinalizeConfirmOpen] = useState(false);
   const [isVitalsOpen, setIsVitalsOpen] = useState(false);
   const [isPrinting, setIsPrinting] = useState(false);
   const [isStaffModalOpen, setIsStaffModalOpen] = useState(false);
@@ -37,6 +38,8 @@ export function useMedicalRecordFormModals() {
   return {
     isDeleteConfirmOpen,
     setIsDeleteConfirmOpen,
+    isFinalizeConfirmOpen,
+    setIsFinalizeConfirmOpen,
     isVitalsOpen,
     setIsVitalsOpen,
     isPrinting,

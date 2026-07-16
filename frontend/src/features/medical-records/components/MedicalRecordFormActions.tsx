@@ -1,4 +1,4 @@
-import { HeartPulse, Printer, Trash2 } from "lucide-react";
+import { HeartPulse, Lock, Printer, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SubmitButton } from "@/components/shared/Form/SubmitButton";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
@@ -14,9 +14,11 @@ interface MedicalRecordFloatingActionsProps {
   canSubmit: boolean;
   isNewRecord: boolean;
   isCreating: boolean;
+  isFinalized: boolean;
   onDeleteClick: () => void;
   onVitalsClick: () => void;
   onPrintClick: () => void;
+  onFinalizeClick: () => void;
 }
 
 export function MedicalRecordFloatingActions({
@@ -26,9 +28,11 @@ export function MedicalRecordFloatingActions({
   canSubmit,
   isNewRecord,
   isCreating,
+  isFinalized,
   onDeleteClick,
   onVitalsClick,
   onPrintClick,
+  onFinalizeClick,
 }: MedicalRecordFloatingActionsProps) {
   if (activeTab === "会計(医師確認)") return null;
 
@@ -50,8 +54,14 @@ export function MedicalRecordFloatingActions({
           type="button"
           variant="outline"
           onClick={onVitalsClick}
-          disabled={isNewRecord}
-          title={isNewRecord ? "カルテを保存してから利用できます" : undefined}
+          disabled={isNewRecord || isFinalized}
+          title={
+            isNewRecord
+              ? "カルテを保存してから利用できます"
+              : isFinalized
+                ? "確定済みカルテのためバイタルを追加できません"
+                : undefined
+          }
           className="h-10 text-sm px-4"
         >
           <HeartPulse className={ICON.action} />
@@ -67,6 +77,18 @@ export function MedicalRecordFloatingActions({
         >
           <Printer className={ICON.action} />
           印刷
+        </Button>
+      ) : null}
+      {/* SPEC-GAP: カルテ確定（Lock）。確定済みカルテは編集不可となり、以降の修正は追記(addendum)のみ */}
+      {canEdit && !isNewRecord && !isFinalized ? (
+        <Button
+          type="button"
+          variant="outline"
+          onClick={onFinalizeClick}
+          className="h-10 text-sm px-4"
+        >
+          <Lock className={ICON.action} />
+          確定する
         </Button>
       ) : null}
       {canSubmit ? (
@@ -106,6 +128,36 @@ export function MedicalRecordDeleteDialog({
       confirmLabel={isDeleting ? "削除中..." : "削除する"}
       cancelLabel="キャンセル"
       variant="destructive"
+    />
+  );
+}
+
+interface MedicalRecordFinalizeDialogProps {
+  open: boolean;
+  isFinalizing: boolean;
+  onClose: () => void;
+  onConfirm: () => void;
+}
+
+// SPEC-GAP: カルテ確定の取り消し（unfinalize）API は存在せず、確定後の修正経路は
+// 追記(addendum)のみ。ロック/Undo で代替できないため、削除ダイアログと同じ
+// ConfirmDialog パターンで不可逆操作の唯一の停止手段とする。
+export function MedicalRecordFinalizeDialog({
+  open,
+  isFinalizing,
+  onClose,
+  onConfirm,
+}: MedicalRecordFinalizeDialogProps) {
+  return (
+    <ConfirmDialog
+      open={open}
+      onClose={onClose}
+      onConfirm={onConfirm}
+      title="カルテを確定しますか？"
+      description="確定後はカルテを編集できなくなります。修正が必要な場合は訂正追記（addendum）を使用してください。この操作は元に戻せません。"
+      confirmLabel={isFinalizing ? "確定中..." : "確定する"}
+      cancelLabel="キャンセル"
+      isPending={isFinalizing}
     />
   );
 }

@@ -1,11 +1,13 @@
 import { useCallback } from "react";
 import { ChevronDown, FileText } from "lucide-react";
 import { PatientContextHeader } from "@/components/shared/PatientContextHeader";
+import { StatusBadge } from "@/components/shared/StatusBadge/StatusBadge";
 import { UnifiedTabsContent, UnifiedTabsList } from "@/components/shared/UnifiedTabs";
 import { Button } from "@/components/ui/button";
 import { C, ICON, LAYOUT } from "@/lib/design-tokens";
 import { openOwnerReport } from "@/lib/owner-report-window";
 import { usePermission } from "@/hooks/use-permission";
+import { getMedicalRecordStatusColor } from "@/utils/status-helpers";
 import { ResourceMedicalRecords } from "@/types/generated/models";
 import { todayJSTISO } from "@/lib/jst-date";
 import type { Pet } from "@/types";
@@ -78,11 +80,18 @@ export function MedicalRecordStickyHeader({
 
   const contextControls = (
     <>
+      {/* SPEC-GAP: 確定済みバッジ。臨床記録の真正性担保のため、確定状態を常時明示する */}
+      {!isNewRecord && isFinalized ? (
+        <StatusBadge colorClass={getMedicalRecordStatusColor("確定済")}>
+          確定済
+        </StatusBadge>
+      ) : null}
+
       {/* 来院種別 */}
       <VisitTypeSelect
         value={visitType}
         onChange={onVisitTypeChange}
-        disabled={!canEdit}
+        disabled={!canEdit || isFinalized}
       />
 
       {/* 診察日 */}
@@ -107,7 +116,7 @@ export function MedicalRecordStickyHeader({
       </div>
 
       {/* 担当医 */}
-      {canEdit ? (
+      {canEdit && !isFinalized ? (
         <Button
           type="button"
           variant="ghost"
@@ -168,7 +177,7 @@ export function MedicalRecordStickyHeader({
         insuranceName={selectedPet.insuranceName ?? undefined}
         insuranceDetails={selectedPet.insuranceDetails ?? undefined}
         visitCount={visitCount}
-        onOwnerClick={!isNewRecord ? onOwnerClick : undefined}
+        onOwnerClick={!isNewRecord && !isFinalized ? onOwnerClick : undefined}
         contextControls={contextControls}
       />
       <div className={`flex shrink-0 overflow-x-auto ${C.bgPage}`}>

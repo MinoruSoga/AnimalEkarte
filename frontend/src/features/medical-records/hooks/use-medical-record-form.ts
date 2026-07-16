@@ -158,6 +158,7 @@ export function useMedicalRecordForm(recordId?: string) {
     handleVisitTypeChange,
     handleNextVisitDatePatch,
     handleChangeDate,
+    handleFinalize,
   } = useMedicalRecordQuickPatchActions({
     recordId,
     existingRecordVersion: existingRecord?.version,
@@ -267,6 +268,9 @@ export function useMedicalRecordForm(recordId?: string) {
     // 診察日
     recordDate: existingRecord?.date,
     handleChangeDate,
+    // カルテ確定（SPEC-GAP）
+    handleFinalize,
+    isFinalizeSaving: isSavingTransition,
     // 飼主変更
     pendingOwnerChange,
     requestOwnerChange,

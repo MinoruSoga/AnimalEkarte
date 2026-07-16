@@ -122,6 +122,30 @@ export function useMedicalRecordQuickPatchActions({
     });
   }, [recordId, existingRecordVersion, updateMutation, queryClient, startSaveTransition]);
 
+  // カルテ確定（SPEC-GAP）: draft→finalized の一方向遷移。BE は確定済みカルテへの
+  // 更新を 409 で拒否し（medical_record_crud.go）、確定の取り消し API は存在しない
+  // （訂正は addendum のみ）。既存の quick-patch と同じ OCC versioning パターンに従う。
+  // existingRecordVersion のみ参照するため object 全体を dep に含めない (OCC versioning)
+  // eslint-disable-next-line react-hooks/preserve-manual-memoization
+  const handleFinalize = useCallback(() => {
+    if (!recordId) return;
+    startSaveTransition(async () => {
+      try {
+        await updateMutation.mutateAsync({
+          id: recordId,
+          req: {
+            status: "finalized",
+            version: existingRecordVersion,
+          } as UpdateMedicalRecordRequest,
+        });
+        await queryClient.invalidateQueries({ queryKey: queryKeys.medicalRecords.detail(recordId) });
+        toast.success("カルテを確定しました");
+      } catch (error) {
+        handleApiError(error, "カルテ確定");
+      }
+    });
+  }, [recordId, existingRecordVersion, updateMutation, queryClient, startSaveTransition]);
+
   return {
     isSavingTransition,
     startSaveTransition,
@@ -129,5 +153,6 @@ export function useMedicalRecordQuickPatchActions({
     handleVisitTypeChange,
     handleNextVisitDatePatch,
     handleChangeDate,
+    handleFinalize,
   };
 }

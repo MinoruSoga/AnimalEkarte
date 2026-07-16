@@ -16,6 +16,7 @@ import { UnifiedTabsRoot } from "@/components/shared/UnifiedTabs";
 import { MedicalRecordAddenda } from "../components/MedicalRecordAddenda";
 import { MedicalRecordStickyHeader, MedicalRecordTabsArea } from "../components/MedicalRecordFormPanels";
 import {
+  MedicalRecordFinalizeDialog,
   MedicalRecordFloatingActions,
   MedicalRecordPrintArea,
 } from "../components/MedicalRecordFormActions";
@@ -93,6 +94,8 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
     setRecommendationReason,
     recordDate,
     handleChangeDate,
+    handleFinalize,
+    isFinalizeSaving,
     } = useMedicalRecordForm(recordId);
 
     useTitle(recordId ? `カルテ編集 (#${recordId})` : "カルテ入力");
@@ -147,6 +150,8 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
   const {
     isDeleteConfirmOpen,
     setIsDeleteConfirmOpen,
+    isFinalizeConfirmOpen,
+    setIsFinalizeConfirmOpen,
     isVitalsOpen,
     setIsVitalsOpen,
     isPrinting,
@@ -162,6 +167,14 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
   const [mountedTabs, setMountedTabs] = useState<Set<string>>(() => new Set(["問診"]));
 
   const { mutate: deleteRecord, isPending: isDeleting } = useDeleteMedicalRecord(recordClinicId);
+
+  // SPEC-GAP: カルテ確定状態。確定済みは編集不可となり、以降の修正は追記(addendum)のみ
+  const isFinalized = currentRecord?.status === "確定済";
+
+  const handleFinalizeConfirm = useCallback(() => {
+    handleFinalize();
+    setIsFinalizeConfirmOpen(false);
+  }, [handleFinalize, setIsFinalizeConfirmOpen]);
 
   const handleDeleteConfirm = useCallback(() => {
     if (!recordId) return;
@@ -279,45 +292,57 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
         onNextVisitDateValidChange={handleNextVisitDateValidChange}
         hasLineIntegration={hasLineIntegration}
       />
-      <MedicalRecordTabsArea
-        activeTab={activeTab}
-        mountedTabs={mountedTabs}
-        isNewRecord={isNewRecord}
-        recordId={recordId}
-        selectedPet={selectedPet}
-        chiefComplaint={chiefComplaint}
-        chiefComplaintTypeId={chiefComplaintTypeId}
-        treatmentPolicy={treatmentPolicy}
-        historyItems={historyItems}
-        plan={plan}
-        assessment={assessment}
-        diagnosis1CategoryId={diagnosis1CategoryId}
-        diagnosis1NameId={diagnosis1NameId}
-        diagnosis2CategoryId={diagnosis2CategoryId}
-        diagnosis2NameId={diagnosis2NameId}
-        ownerDiscountRate={ownerDiscountRate ?? 0}
-        nextVisitDate={nextVisitDate}
-        hasLineIntegration={hasLineIntegration}
-        recommendationReason={recommendationReason}
-        lstepStatus={lstepStatus}
-        recordStatus={currentRecord?.status ?? ""}
-        diagnosis1NameIdError={formState.fieldErrors?.diagnosis1_name_id}
-        onChiefComplaintChange={handleSetChiefComplaint}
-        onChiefComplaintTypeIdChange={handleSetChiefComplaintTypeId}
-        onTreatmentPolicyChange={handleSetTreatmentPolicy}
-        onPlanChange={handleSetPlan}
-        onAssessmentChange={handleSetAssessment}
-        onDiagnosis1CategoryIdChange={handleSetDiagnosis1CategoryId}
-        onDiagnosis1NameIdChange={handleSetDiagnosis1NameId}
-        onDiagnosis2CategoryIdChange={handleSetDiagnosis2CategoryId}
-        onDiagnosis2NameIdChange={handleSetDiagnosis2NameId}
-        onNextVisitDateChange={handleNextVisitDateChange}
-        onNextVisitDateValidChange={handleNextVisitDateValidChange}
-        onRecommendationReasonChange={setRecommendationReason}
-        onRegisterClinicalPlanSave={handleRegisterClinicalPlanSave}
-        onRegisterEstimateSave={handleRegisterEstimateSave}
-        recordClinicId={recordClinicId}
-      />
+      {/* SPEC-GAP (GAP-1): 確定済みカルテは編集不可 UI。BE は主要な子リソース
+          (治療/検査/バイタル/処方/健診/画像) を 409 で拒否するが、UI が押せて
+          エラーになるのは不可のため、タブ内の全編集導線をここで一括無効化する。
+          個別コンポーネントへ disabled を都度配線すると新規フィールド追加時に
+          ガード漏れが起きやすいため、fieldset の cascade を単一の強制点にする。 */}
+      <fieldset disabled={isFinalized} className="contents border-0 m-0 p-0">
+        {isFinalized ? (
+          <div className={`mx-4 mt-3 rounded border ${C.borderMedium} ${C.bgPage} px-3 py-2 text-sm ${C.text60}`}>
+            このカルテは確定済みのため編集できません。修正が必要な場合は下部の訂正追記（addendum）をご利用ください。
+          </div>
+        ) : null}
+        <MedicalRecordTabsArea
+          activeTab={activeTab}
+          mountedTabs={mountedTabs}
+          isNewRecord={isNewRecord}
+          recordId={recordId}
+          selectedPet={selectedPet}
+          chiefComplaint={chiefComplaint}
+          chiefComplaintTypeId={chiefComplaintTypeId}
+          treatmentPolicy={treatmentPolicy}
+          historyItems={historyItems}
+          plan={plan}
+          assessment={assessment}
+          diagnosis1CategoryId={diagnosis1CategoryId}
+          diagnosis1NameId={diagnosis1NameId}
+          diagnosis2CategoryId={diagnosis2CategoryId}
+          diagnosis2NameId={diagnosis2NameId}
+          ownerDiscountRate={ownerDiscountRate ?? 0}
+          nextVisitDate={nextVisitDate}
+          hasLineIntegration={hasLineIntegration}
+          recommendationReason={recommendationReason}
+          lstepStatus={lstepStatus}
+          recordStatus={currentRecord?.status ?? ""}
+          diagnosis1NameIdError={formState.fieldErrors?.diagnosis1_name_id}
+          onChiefComplaintChange={handleSetChiefComplaint}
+          onChiefComplaintTypeIdChange={handleSetChiefComplaintTypeId}
+          onTreatmentPolicyChange={handleSetTreatmentPolicy}
+          onPlanChange={handleSetPlan}
+          onAssessmentChange={handleSetAssessment}
+          onDiagnosis1CategoryIdChange={handleSetDiagnosis1CategoryId}
+          onDiagnosis1NameIdChange={handleSetDiagnosis1NameId}
+          onDiagnosis2CategoryIdChange={handleSetDiagnosis2CategoryId}
+          onDiagnosis2NameIdChange={handleSetDiagnosis2NameId}
+          onNextVisitDateChange={handleNextVisitDateChange}
+          onNextVisitDateValidChange={handleNextVisitDateValidChange}
+          onRecommendationReasonChange={setRecommendationReason}
+          onRegisterClinicalPlanSave={handleRegisterClinicalPlanSave}
+          onRegisterEstimateSave={handleRegisterEstimateSave}
+          recordClinicId={recordClinicId}
+        />
+      </fieldset>
       </UnifiedTabsRoot>
 
       {!isNewRecord ? (
@@ -330,14 +355,23 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
 
       <MedicalRecordFloatingActions
         activeTab={activeTab}
-        canDelete={canDelete}
+        canDelete={canDelete && !isFinalized}
         canEdit={canEdit}
         canSubmit={canSubmit}
         isNewRecord={isNewRecord}
         isCreating={isCreating}
+        isFinalized={isFinalized}
         onDeleteClick={() => setIsDeleteConfirmOpen(true)}
         onVitalsClick={() => setIsVitalsOpen(true)}
         onPrintClick={handlePrintClick}
+        onFinalizeClick={() => setIsFinalizeConfirmOpen(true)}
+      />
+
+      <MedicalRecordFinalizeDialog
+        open={isFinalizeConfirmOpen}
+        isFinalizing={isFinalizeSaving}
+        onClose={() => setIsFinalizeConfirmOpen(false)}
+        onConfirm={handleFinalizeConfirm}
       />
 
       <MedicalRecordFormModals
