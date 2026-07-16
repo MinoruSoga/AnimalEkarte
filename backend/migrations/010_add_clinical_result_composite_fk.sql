@@ -32,7 +32,10 @@ BEGIN
     ALTER TABLE checkup_type_fields
         ADD CONSTRAINT uq_checkup_type_fields_id_clinic UNIQUE (id, clinic_id);
 EXCEPTION
+    -- UNIQUE 制約は裏付けインデックス(relation)を作るため、既存時は
+    -- duplicate_object(42710) ではなく duplicate_table(42P07) が飛ぶ
     WHEN duplicate_object THEN NULL;
+    WHEN duplicate_table THEN NULL;
 END $$;
 
 -- 既存の単一列 FK（010 の CREATE TABLE インライン FK・自動命名）を複合 FK に置換する。

@@ -114,7 +114,10 @@ BEGIN
     ALTER TABLE medicines
       ADD CONSTRAINT uq_medicines_id_clinic UNIQUE (id, clinic_id);
 EXCEPTION
+    -- UNIQUE 制約は裏付けインデックス(relation)を作るため、既存時は
+    -- duplicate_object(42710) ではなく duplicate_table(42P07) が飛ぶ
     WHEN duplicate_object THEN NULL;
+    WHEN duplicate_table THEN NULL;
 END $$;
 
 COMMENT ON COLUMN medicines.calculation_type IS '#201 投与量計算方式。none=手動（既定・default-deny）/per_weight=mg/kg 線形自動計算';
