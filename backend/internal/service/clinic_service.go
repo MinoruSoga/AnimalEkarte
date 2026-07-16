@@ -177,6 +177,84 @@ func buildClinicUpdate(input *UpdateClinicInput) (map[string]any, error) {
 	return fields, nil
 }
 
+// defaultPermissionRule は新規クリニック作成時に "執行"/"一般" グループへ設定する
+// リソース×CRUD権限のデフォルト値。
+//
+// SD-9: 従来 CreateClinic はグループ (permission_groups) だけを作成し、ルール
+// (permission_group_rules) を1件も作成していなかった。permission_group_rules に
+// 一致行が無いリソースは handler.hasPermission / RequirePermission が deny 方向に
+// fallback するため（clinic_handler.go の hasPermission はループ内に一致が無ければ
+// 末尾で false を返す）、新規クリニックでは is_system_admin 以外の全スタッフが
+// 全リソースへアクセス不能になっていた（疑い=事実）。
+//
+// 出所: backend/migrations/seeds/003_demo/permission_group_rules.csv の group 1-6
+// （執行=奇数ID/一般=偶数ID）で一貫しているパターンをそのまま採用する。
+// 以下 8 リソースのみ 003_demo 生成時点(2026-07-06)より後に model.AllResources へ
+// 追加されたため seed に定義が無く、フォールバック設計とする（判断）:
+// cash-register-close / accounting-reports / closing-settings /
+// master-payment-method / lstep-csv-import / lstep-analytics / manual-edit /
+// lab-import。これらは執行=view+edit（create/delete 不可、hospital-settings と
+// 同じ設定系パターン）、一般=view のみとする。
+type defaultPermissionRule struct {
+	resource                                   model.Resource
+	execView, execCreate, execEdit, execDelete bool
+	genView, genCreate, genEdit, genDelete     bool
+}
+
+var defaultPermissionRuleTable = []defaultPermissionRule{
+	{model.ResourceReception, true, true, true, true, true, false, false, false},
+	{model.ResourceOwners, true, true, true, true, true, true, true, false},
+	{model.ResourceReservations, true, true, true, true, true, true, true, false},
+	{model.ResourceMedicalRecords, true, true, true, true, true, true, true, false},
+	{model.ResourceHospitalization, true, true, true, true, true, true, true, false},
+	{model.ResourceTrimming, true, true, true, true, true, true, true, false},
+	{model.ResourceExaminations, true, true, true, true, true, true, true, false},
+	{model.ResourceAccounting, true, true, true, true, true, false, false, false},
+	{model.ResourceVaccinations, true, true, true, true, true, true, true, false},
+	{model.ResourceCheckups, true, true, true, true, true, false, false, false},
+	{model.ResourceInventory, true, true, true, true, true, false, false, false},
+	{model.ResourceEstimates, true, true, true, true, true, false, false, false},
+	{model.ResourceShifts, true, true, true, true, true, true, true, false},
+	{model.ResourceHospitalSettings, true, false, true, false, true, false, false, false},
+	{model.ResourceMasterAnimalSpecies, true, true, true, true, true, false, false, false},
+	{model.ResourceMasterMedical, true, true, true, true, true, false, false, false},
+	{model.ResourceMasterReservationType, true, true, true, true, true, false, false, false},
+	{model.ResourceMasterHospitalization, true, true, true, true, true, false, false, false},
+	{model.ResourceMasterTrimming, true, true, true, true, true, false, false, false},
+	{model.ResourceMasterPermission, true, true, true, true, false, false, false, false},
+	{model.ResourceMasterStaff, true, true, true, true, true, false, false, false},
+	{model.ResourceMasterInsurance, true, true, true, true, true, false, false, false},
+	{model.ResourceMasterMerchandise, true, true, true, true, true, false, false, false},
+	{model.ResourceDiscount, true, true, true, true, false, false, false, false},
+	{model.ResourceAccountingCancel, true, false, true, false, true, false, false, false},
+	{model.ResourceAccountingPostCloseEdit, true, false, true, false, true, false, false, false},
+	// --- 003_demo 生成後に model.AllResources へ追加されたリソース（seed に定義なし・フォールバック設計） ---
+	{model.ResourceCashRegisterClose, true, false, true, false, true, false, false, false},
+	{model.ResourceAccountingReports, true, false, true, false, true, false, false, false},
+	{model.ResourceClosingSettings, true, false, true, false, true, false, false, false},
+	{model.ResourcePaymentMethod, true, false, true, false, true, false, false, false},
+	{model.ResourceLstepCsvImport, true, false, true, false, true, false, false, false},
+	{model.ResourceLstepAnalytics, true, false, true, false, true, false, false, false},
+	{model.ResourceManualEdit, true, false, true, false, true, false, false, false},
+	{model.ResourceLabImport, true, false, true, false, true, false, false, false},
+}
+
+// buildDefaultPermissionGroupRules は defaultPermissionRuleTable から、指定グループが
+// 執行(isExecutive=true)か一般(isExecutive=false)かに応じたルール一覧を組み立てる。
+func buildDefaultPermissionGroupRules(isExecutive bool) []model.PermissionGroupRule {
+	rules := make([]model.PermissionGroupRule, 0, len(defaultPermissionRuleTable))
+	for _, r := range defaultPermissionRuleTable {
+		rule := model.PermissionGroupRule{Resource: string(r.resource)}
+		if isExecutive {
+			rule.CanView, rule.CanCreate, rule.CanEdit, rule.CanDelete = r.execView, r.execCreate, r.execEdit, r.execDelete
+		} else {
+			rule.CanView, rule.CanCreate, rule.CanEdit, rule.CanDelete = r.genView, r.genCreate, r.genEdit, r.genDelete
+		}
+		rules = append(rules, rule)
+	}
+	return rules
+}
+
 type ClinicService interface {
 	ListClinics(ctx context.Context) ([]model.Clinic, error)
 	ListClinicsByStaffID(ctx context.Context, staffID uint64) ([]model.Clinic, error)
@@ -259,9 +337,10 @@ func (s *clinicService) CreateClinic(ctx context.Context, input *CreateClinicInp
 			name        string
 			description string
 			sortOrder   int
+			isExecutive bool
 		}{
-			{name: "執行", description: "執行権限", sortOrder: 1},
-			{name: "一般", description: "一般スタッフ権限", sortOrder: 2},
+			{name: "執行", description: "執行権限", sortOrder: 1, isExecutive: true},
+			{name: "一般", description: "一般スタッフ権限", sortOrder: 2, isExecutive: false},
 		}
 
 		for _, groupDef := range defaultGroups {
@@ -275,10 +354,18 @@ func (s *clinicService) CreateClinic(ctx context.Context, input *CreateClinicInp
 			if err := s.permissionGroupRepo.Create(ctx, group); err != nil {
 				return apperrors.Wrap(err, "failed to create default permission group")
 			}
+			// SD-9: グループ作成だけではルール0件のまま残り、is_system_admin 以外の
+			// 全スタッフが全リソースへアクセス不能になる（hasPermission の deny-by-default
+			// fallback）。作成直後に defaultPermissionRuleTable 由来のルールを流し込む。
+			rules := buildDefaultPermissionGroupRules(groupDef.isExecutive)
+			if err := s.permissionGroupRepo.UpdateRules(ctx, group.ID, rules); err != nil {
+				return apperrors.Wrap(err, "failed to create default permission group rules")
+			}
 			slog.InfoContext(ctx, "default permission group created",
 				slog.Uint64("clinic_id", clinic.ID),
 				slog.String("group_name", group.Name),
-				slog.Uint64("group_id", group.ID))
+				slog.Uint64("group_id", group.ID),
+				slog.Int("rule_count", len(rules)))
 		}
 		return nil
 	}); err != nil {

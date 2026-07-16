@@ -327,6 +327,105 @@ func TestClinicService_CreateClinic(t *testing.T) {
 	}
 }
 
+// SD-9: CreateClinic はグループ (permission_groups) を作るだけでルール
+// (permission_group_rules) を1件も作らず、is_system_admin 以外の全スタッフが
+// 新規クリニックで全リソースへアクセス不能になるバグがあった。
+// 修正後は defaultPermissionRuleTable 由来のルールが両グループへ流し込まれることを検証する。
+func TestClinicService_CreateClinic_DefaultPermissionGroupRules(t *testing.T) {
+	repo := &mockClinicRepository{
+		getCompanyFn: func(_ context.Context) (*model.Company, error) {
+			return &model.Company{ID: 1, Name: "グループ本社"}, nil
+		},
+		createFn: func(_ context.Context, clinic *model.Clinic) error {
+			clinic.ID = 42
+			return nil
+		},
+	}
+
+	type capturedRules struct {
+		groupName string
+		rules     []model.PermissionGroupRule
+	}
+	var created []*model.PermissionGroup
+	var captured []capturedRules
+
+	pgRepo := &mockPermissionGroupRepository{
+		createFn: func(_ context.Context, group *model.PermissionGroup) error {
+			group.ID = uint64(len(created) + 1)
+			created = append(created, group)
+			return nil
+		},
+		setRulesFn: func(_ context.Context, groupID uint64, rules []model.PermissionGroupRule) error {
+			name := ""
+			for _, g := range created {
+				if g.ID == groupID {
+					name = g.Name
+				}
+			}
+			captured = append(captured, capturedRules{groupName: name, rules: rules})
+			return nil
+		},
+	}
+
+	svc := NewClinicService(repo, pgRepo, &mockTransactor{})
+
+	result, err := svc.CreateClinic(context.Background(), &CreateClinicInput{Name: "新規院"})
+
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.Len(t, created, 2, "執行/一般 の2グループが作成されること")
+	assert.Len(t, captured, 2, "各グループに UpdateRules が1回ずつ呼ばれること")
+
+	findRule := func(rules []model.PermissionGroupRule, resource model.Resource) *model.PermissionGroupRule {
+		for i := range rules {
+			if rules[i].Resource == string(resource) {
+				return &rules[i]
+			}
+		}
+		return nil
+	}
+
+	for _, c := range captured {
+		assert.Lenf(t, c.rules, len(model.AllResources),
+			"group=%s: 全リソース分のルールが作成されること（ルール0件のデフォルトグループ回帰防止）", c.groupName)
+
+		switch c.groupName {
+		case "執行":
+			owners := findRule(c.rules, model.ResourceOwners)
+			if assert.NotNil(t, owners, "執行に owners ルールが存在すること") {
+				assert.True(t, owners.CanView, "執行は owners を閲覧可能であること")
+				assert.True(t, owners.CanCreate, "執行は owners を作成可能であること")
+				assert.True(t, owners.CanEdit, "執行は owners を編集可能であること")
+				assert.True(t, owners.CanDelete, "執行は owners を削除可能であること")
+			}
+			hs := findRule(c.rules, model.ResourceHospitalSettings)
+			if assert.NotNil(t, hs, "執行に hospital-settings ルールが存在すること") {
+				assert.True(t, hs.CanView)
+				assert.True(t, hs.CanEdit)
+				assert.False(t, hs.CanCreate, "設定系リソースは執行でも作成不可であること")
+				assert.False(t, hs.CanDelete, "設定系リソースは執行でも削除不可であること")
+			}
+		case "一般":
+			owners := findRule(c.rules, model.ResourceOwners)
+			if assert.NotNil(t, owners, "一般に owners ルールが存在すること") {
+				assert.True(t, owners.CanView)
+				assert.True(t, owners.CanCreate)
+				assert.True(t, owners.CanEdit)
+				assert.False(t, owners.CanDelete, "一般は owners を削除できないこと")
+			}
+			mp := findRule(c.rules, model.ResourceMasterPermission)
+			if assert.NotNil(t, mp, "一般に master-permission ルールが存在すること") {
+				assert.False(t, mp.CanView, "一般は権限マスタを閲覧できないこと")
+				assert.False(t, mp.CanCreate)
+				assert.False(t, mp.CanEdit)
+				assert.False(t, mp.CanDelete)
+			}
+		default:
+			t.Fatalf("unexpected group name captured: %q", c.groupName)
+		}
+	}
+}
+
 func TestClinicService_UpdateClinic(t *testing.T) {
 	tests := []struct {
 		name          string
