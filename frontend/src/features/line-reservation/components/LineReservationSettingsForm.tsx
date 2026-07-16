@@ -127,9 +127,7 @@ export function LineReservationSettingsForm({ setting, clinicId }: SettingsFormP
       show_no_staff_option: setting.show_no_staff_option,
       additional_fields: setting.additional_fields,
       line_channel_id: formData.get("line_channel_id") as string,
-      line_channel_secret: formData.get("line_channel_secret") as string,
       liff_id: formData.get("liff_id") as string,
-      line_access_token: formData.get("line_access_token") as string,
     };
     try {
       await updateLineReservationSetting(clinicId, payload);

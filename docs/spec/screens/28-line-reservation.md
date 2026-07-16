@@ -34,7 +34,8 @@ LINE アプリ内で飼い主が見る画面の文言を編集します。`LineR
 `body_text` / `footer_text` という単一フィールドは存在しません（`line_reservation_settings` 実装基準）。保存内容は即座に LIFF アプリへ反映されるため、季節キャンペーンや緊急休診の告知をスタッフ自身で行えます。保存 API は基本設定と同一の PUT `line-reservation-settings`（概要のアクセス権限欄の FE/BE 権限乖離に注意）。
 
 ### 3. 連携クレデンシャル
-- **LINE連携**: チャネルID（Channel ID）および LIFF ID の登録。
+- **LINE連携**: チャネルID（Channel ID）および LIFF ID の登録（`LineReservationSettingsForm`）。
+- チャネルシークレット・アクセストークンはこの画面では**扱わない**（意図的な設計判断）。LINE credential を平文入力可能な画面 UI に置かないという方針（SD-3 決裁A・q&a.html 参照）により、対応する input・送信コードを設けていない。値自体は `line_reservation_settings` テーブルに暗号化して保持され、この画面以外の経路（seed／運用手順）で設定する。
 
 ### 4. 予約枠カレンダー (`/slots`)
 予約区分ごとの「予約可能な開始時刻（予約可能枠）」を週カレンダー形式で日別に管理します。
