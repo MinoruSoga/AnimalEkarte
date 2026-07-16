@@ -5,7 +5,7 @@
 > **タイミング**: スキーマ変更・DB設計判断時。
 
 > **Animal Ekarte**: 高精度・高整合な動物病院データモデル
-> **バージョン**: v31.26 | **最新更新**: 2026-07-10 | **状態**: Production Ready (108 Tables Verified)
+> **バージョン**: v31.27 | **最新更新**: 2026-07-16 | **状態**: Production Ready (108 Tables Verified)
 
 ---
 
@@ -69,6 +69,7 @@ erDiagram
     
     %% 健診パッケージ
     checkups ||--o{ checkup_field_results : "checkup_id"
+    checkup_types ||--o{ checkup_type_fields : "checkup_type_id"
     checkup_type_fields ||--o{ checkup_field_results : "checkup_type_field_id"
 ```
 
@@ -79,7 +80,7 @@ erDiagram
 ### 3.1 物理設計 of 健診パッケージ複合FK保護
 - **主キー**: 全テーブルで `bigint` (auto_increment) または `uuid` を採用。
 - **日時管理**: アプリケーション、DB セッション、インフラ設定は `Asia/Tokyo` を標準とする。日時カラムは主に `timestamptz` を使い、API 入出力は JST オフセット付き ISO 8601 を基本とする。
-- **整合性制約**: アプリケーション層だけでなく、DB レベルで `FOREIGN KEY` 制約によりデータの孤立を防止。特に健診パッケージの結果レコード `checkup_field_results` では、越境防止のため `(checkup_type_field_id, clinic_id)` 複合FKにより親定義とクリニックIDの不一致を物理的に排除しています。
+- **整合性制約**: アプリケーション層だけでなく、DB レベルで `FOREIGN KEY` 制約によりデータの孤立を防止。特に健診パッケージの結果レコード `checkup_field_results` では、越境防止のため `(checkup_type_field_id, clinic_id)` 複合FKにより親定義とクリニックIDの不一致を物理的に排除しています。同様に `checkup_type_fields.checkup_type_id` も、起草済み・未適用の `002_checkup_field_clinic_composite_fk.sql`（#211 A6）により `checkup_types` に追加する `UNIQUE (id, clinic_id)` を参照する `(checkup_type_id, clinic_id)` 複合FKへ置き換える設計としています（適用は USER が STG で実施、詳細は §4.3）。
 
 ### 3.2 高度なマルチテナント隔離
 - **`clinic_id` の強制**: ビジネスロジックが関わる全テーブルに `clinic_id` カラムを配置。
@@ -171,6 +172,8 @@ erDiagram
   - `clinic_settings.closing_am_start` (time, デフォルト 09:00) を定義済み。
 - **臨床結果テーブルの複合 FK 追加 (BE-refactor R3-7/D13 / 旧 012 → 001_init.sql に統合)**
   - `checkup_type_fields` に `UNIQUE(id, clinic_id)`、`checkup_field_results` の `checkup_type_field_id` を `(checkup_type_field_id, clinic_id)` 複合 FK（`ON DELETE SET NULL` 列指定）へ置換済み。
+- **健診パッケージ親子テーブルの複合 FK 起草 (Issue #211 A6 / `002_checkup_field_clinic_composite_fk.sql`・起草のみ・未適用)**
+  - `checkup_types` に `UNIQUE (id, clinic_id)`（`uq_checkup_types_id_clinic`）を追加し、`checkup_type_fields.checkup_type_id` の単一列 FK を `(checkup_type_id, clinic_id) REFERENCES checkup_types (id, clinic_id) ON DELETE CASCADE`（`fk_checkup_type_fields_type_clinic`）の複合 FK へ置換する内容を起草済み。STG 適用および削除対象制約名の実物確認（`\d checkup_type_fields`）は USER が実施する。適用後は本セクションを「適用済み」表記へ更新すること。
 
 以下は 2026-07-06 の再統合時点で `001_init.sql` へ畳み込まれた変更の論理的な記録です（参照用、当時の独立ファイル 005 は存在しません）。
 
