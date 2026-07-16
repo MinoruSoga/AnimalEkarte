@@ -11,7 +11,7 @@
 
 ### 1.1 高度な検索・フィルタ (`PropertyFilter`)
 - **実施日時指定**: 検査が実施された期間（From-To）での絞り込み。
-- **進捗フィルタ**: 「依頼中 (pending)」「検査中 (in_progress)」「完了 (completed)」による状態別の抽出。
+- **進捗フィルタ**: 「依頼中 (pending)」「検査中 (in_progress)」「結果入力済み (result_entered)」「完了 (completed)」「確定 (confirmed)」の全5ステータスによる状態別の抽出。
 - **検査種別・担当医フィルタ**: ロード済みデータから動的生成された選択肢（`uniqueSortedOptions`）による絞り込み。
 - **全文検索**: 飼主名、ペット名、検査種別による横断検索。
 

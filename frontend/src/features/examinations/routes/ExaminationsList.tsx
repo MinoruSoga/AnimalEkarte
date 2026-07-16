@@ -56,11 +56,14 @@ const STATIC_FILTER_PROPERTIES: FilterProperty[] = [
     icon: CircleDot,
     // exams.status DEFAULT 'pending' — 空値は存在しない
     // transform で EN→JA 変換済のためフィルタ値も日本語で指定
+    // SD-12: backend ExaminationStatus 全5値（pending/in_progress/result_entered/completed/confirmed）に追従
     conditions: CONDITIONS_NO_EMPTY,
     options: [
       { value: "依頼中", label: "依頼中" },
       { value: "検査中", label: "検査中" },
+      { value: "結果入力済み", label: "結果入力済み" },
       { value: "完了", label: "完了" },
+      { value: "確定", label: "確定" },
     ],
   },
 ];
