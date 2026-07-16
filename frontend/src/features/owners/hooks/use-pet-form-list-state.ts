@@ -81,6 +81,11 @@ export function usePetFormListState({ id, initialPets, petMutations }: UsePetFor
         remarks: petData.remarks,
       });
 
+      // 死亡→生存 の実際の遷移時のみ死亡記録を解除する。
+      // editingPet.status は編集開始時にロードされた初期値（handleEditPet 以外で書き換わらない）。
+      // 送信後の status が生存というだけでは発火させない（大半のペット編集は status を触らず生存のまま）。
+      const isPetRevival = editingPet.status === "死亡" && petData.status === "生存";
+
       petMutations?.updatePetMutate(
         { id: editingPet.id, req: updateRequest },
         {
@@ -91,6 +96,10 @@ export function usePetFormListState({ id, initialPets, petMutations }: UsePetFor
               )
             );
             toast.success("ペット情報を更新しました");
+            // status PATCH が永続化された後にのみ死亡記録を解除する。
+            if (isPetRevival) {
+              petMutations?.revokePetDeathMutate(editingPet.id);
+            }
           },
           onError: (error: unknown) => {
             handleApiError(error, "更新");
@@ -157,6 +166,7 @@ export function usePetFormListState({ id, initialPets, petMutations }: UsePetFor
             insuranceId: newPetData.insuranceId,
             insuranceName: undefined,
             insuranceDetails: newPetData.insuranceDetails,
+            deceasedAt: newPetData.deceasedAt,
           };
           setPets(prev => [...prev, newPet]);
           toast.success("ペットを追加しました");

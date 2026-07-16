@@ -114,9 +114,11 @@ type LabImportDuplicateChecker interface {
 
 // labImportExaminationService は LabImportExaminationService の実装。
 type labImportExaminationService struct {
-	examRepo     repository.ExaminationRepository
-	dupChecker   LabImportDuplicateChecker
-	examTypeRepo repository.ExamTypeRepository
+	examRepo          repository.ExaminationRepository
+	dupChecker        LabImportDuplicateChecker
+	examTypeRepo      repository.ExamTypeRepository
+	petRepo           repository.PetRepository
+	medicalRecordRepo repository.MedicalRecordRepository
 }
 
 // NewLabImportExaminationService は LabImportExaminationService を初期化して返す。
@@ -124,11 +126,15 @@ func NewLabImportExaminationService(
 	examRepo repository.ExaminationRepository,
 	dupChecker LabImportDuplicateChecker,
 	examTypeRepo repository.ExamTypeRepository,
+	petRepo repository.PetRepository,
+	medicalRecordRepo repository.MedicalRecordRepository,
 ) LabImportExaminationService {
 	return &labImportExaminationService{
-		examRepo:     examRepo,
-		dupChecker:   dupChecker,
-		examTypeRepo: examTypeRepo,
+		examRepo:          examRepo,
+		dupChecker:        dupChecker,
+		examTypeRepo:      examTypeRepo,
+		petRepo:           petRepo,
+		medicalRecordRepo: medicalRecordRepo,
 	}
 }
 
@@ -152,6 +158,29 @@ func (s *labImportExaminationService) persistExam(ctx context.Context, input Lab
 			"clinic_id", input.ClinicID,
 		)
 		return nil, apperrors.Wrap(err, "failed to verify exam type ownership")
+	}
+
+	// クロステナント write 防止 (P1-2, PR #186 review): 別 clinic の pet/medical_record を
+	// 紐付けると、他院の患者データが lab import 経由で漏洩・混入する。所有権を検証する。
+	if input.PetID != nil {
+		if _, err := s.petRepo.FindByID(ctx, input.ClinicID, *input.PetID); err != nil {
+			slog.ErrorContext(ctx, "failed to verify pet ownership",
+				"error", err,
+				"pet_id", *input.PetID,
+				"clinic_id", input.ClinicID,
+			)
+			return nil, apperrors.Wrap(err, "failed to verify pet ownership")
+		}
+	}
+	if input.MedicalRecordID != nil {
+		if _, err := s.medicalRecordRepo.FindByID(ctx, input.ClinicID, *input.MedicalRecordID); err != nil {
+			slog.ErrorContext(ctx, "failed to verify medical record ownership",
+				"error", err,
+				"medical_record_id", *input.MedicalRecordID,
+				"clinic_id", input.ClinicID,
+			)
+			return nil, apperrors.Wrap(err, "failed to verify medical record ownership")
+		}
 	}
 
 	dup, err := s.dupChecker.IsDuplicate(ctx, input.ClinicID, input.ExamTypeID, input.Date, input.PetID)
@@ -218,6 +247,19 @@ func (s *labImportExaminationService) persistExam(ctx context.Context, input Lab
 				"exam_id", exam.ID,
 				"job_id", input.JobID.String(),
 			)
+			// P2-7 (PR #186 review, id 3572087707): item 保存失敗のまま exam を残すと、
+			// 結果なしの孤児 exam が (clinic_id, exam_type_id, date, pet_id) を占有し、
+			// retry が dupChecker.IsDuplicate に誤ってスキップされ自己修復できなくなる。
+			// 孤児 exam を削除して retry が同一キーで再試行できるようにする
+			// （IsDuplicate は GORM soft-delete スコープで deleted_at IS NULL のみ対象）。
+			if delErr := s.examRepo.Delete(ctx, input.ClinicID, exam.ID); delErr != nil {
+				slog.ErrorContext(ctx, "lab import orphan exam cleanup failed",
+					"error", delErr,
+					"clinic_id", input.ClinicID,
+					"exam_id", exam.ID,
+					"job_id", input.JobID.String(),
+				)
+			}
 			return nil, apperrors.Wrap(err, fmt.Sprintf("failed to save exam items for exam %d", exam.ID))
 		}
 	}

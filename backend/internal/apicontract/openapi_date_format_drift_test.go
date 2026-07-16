@@ -88,6 +88,20 @@ var knownDateFormatDrifts = map[string]int{
 	// correctly. Pinned here rather than reworking the matcher to be schema-scoped (would
 	// require ownership tracking not worth it for one collision).
 	"pet_response.go|first_visit_date": 1,
+
+	// owner_response.go|deceased_at, pet_response.go|deceased_at: benign json-name collision,
+	// NOT a real drift (same class as first_visit_date above). docs/api.yaml declares two
+	// unrelated `deceased_at` properties: `PatchPetDeathRequest.deceased_at` (request DTO,
+	// `format: date`, date-only — matches lstep_lifecycle_request.go's jsonDate input type)
+	// and the response-side `deceased_at` on OwnerPetSummary/Pet (`format: date-time`,
+	// correctly backed by owner_response.go/pet_response.go's *time.Time + localTimePtr,
+	// since pets.deceased_at is a `timestamptz` column, not a date column). The matcher keys
+	// by bare json tag name only (not by schema/request-vs-response identity), so the
+	// pre-existing date-only request property makes it flag the new datetime response field.
+	// It isn't real drift: the response schemas declare `format: date-time` for deceased_at,
+	// matching the handler's time.Time wire format exactly.
+	"owner_response.go|deceased_at": 1,
+	"pet_response.go|deceased_at":   1,
 }
 
 func driftKey(file, jsonName string) string { return file + "|" + jsonName }

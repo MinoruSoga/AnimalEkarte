@@ -5,7 +5,6 @@ import { z } from 'zod';
 
 export const liffSettingsSchema = z.object({
   liff_id: z.string(),
-  clinic_name: z.string(),
   header_text: z.string(),
   phone_number: z.string(),
   status: z.enum(['running', 'stopped']),
@@ -98,15 +97,27 @@ export const availableTimeSchema = z.object({
   display_time: z.string().optional(),
 });
 
+// status は backend の ReservationStatus enum (backend/internal/model/reservation.go) と1:1で一致させる。
+// staff_name は指名なし予約で Doctor が nil のため backend が省略する（omitempty 相当）。
+// notes は空文字時に backend が omitempty で省略するため未着信を許容する。
 export const reservationSchema = z.object({
   id: z.number(),
   course_name: z.string(),
-  staff_name: z.string(),
+  staff_name: z.string().optional().default(''),
   date: z.string(),
   start_time: z.string(),
   end_time: z.string(),
-  status: z.enum(['confirmed', 'cancelled', 'completed']),
-  notes: z.string(),
+  status: z.enum([
+    'confirmed',
+    'pending',
+    'cancelled',
+    'checked_in',
+    'in_consultation',
+    'accounting',
+    'completed',
+    'no_show',
+  ]),
+  notes: z.string().optional().default(''),
   created_at: z.string(),
 });
 

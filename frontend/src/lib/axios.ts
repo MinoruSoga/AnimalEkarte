@@ -43,9 +43,14 @@ function requestInterceptor(config: InternalAxiosRequestConfig) {
 
   // クリニック切替: localStorage の選択クリニック ID をヘッダーで送信
   // バックエンドの auth ミドルウェアが X-Clinic-ID を優先して clinic_id コンテキストを上書きする
-  const clinicId = getStoredClinicId();
-  if (clinicId !== null) {
-    config.headers["X-Clinic-ID"] = clinicId;
+  // PR #186 review (P2-11/12/15): 拠点横断で取得したレコード（billing/medical record 等）の
+  // 子リソースを操作する場合、呼び出し元が個別に X-Clinic-ID を指定できる必要がある。
+  // 呼び出し元が既にヘッダーを設定している場合はそれを優先し、グローバル選択値で上書きしない。
+  if (config.headers["X-Clinic-ID"] === undefined) {
+    const clinicId = getStoredClinicId();
+    if (clinicId !== null) {
+      config.headers["X-Clinic-ID"] = clinicId;
+    }
   }
 
   // BUG-067: POST/PATCH/PUT のリクエストボディから NULL バイトを除去

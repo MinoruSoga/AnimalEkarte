@@ -158,7 +158,7 @@ restart-front:
 # frontend/Dockerfile は「本番」と称する dev サーバイメージという矛盾があったため
 # IR-12 A案で削除済み。dev 環境のイメージビルドは frontend/Dockerfile.dev のまま）
 build-prod:
-	docker build -t animal-ekarte-api:latest ./backend
+	docker build -f backend/Dockerfile.production -t animal-ekarte-api:latest ./backend
 
 # golangci-lint バージョン（CI と同一）
 GOLANGCI_LINT_VERSION := v2.11.4

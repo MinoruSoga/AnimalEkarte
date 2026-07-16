@@ -99,8 +99,9 @@ func run(logger *slog.Logger) error {
 	}
 
 	// 旧形式（002-004 stub SQL 由来）の schema_migrations キー検出
-	// stub SQL 削除後のバイナリでは対応不可のため、db_reset / volume 再構築を促して fail-fast する
-	if err := detectLegacySeedKeys(db); err != nil {
+	// 検出したキーは seeds/<bundle> の現行キーへ翻訳/baseline する（P1-3, PR #186 review）。
+	// これにより main→staging のような通常アップグレード経路を db_reset なしで通せる。
+	if err := detectLegacySeedKeys(db, logger); err != nil {
 		return err
 	}
 
@@ -151,13 +152,14 @@ func ensureMigrationsTable(db *sql.DB) error {
 // detectLegacySeedKeys は 2026-07 の stub SQL 削除（002-004 の CSV-only 移行）より前の
 // バイナリが記録した seed 由来の schema_migrations キー（例: "002_seed_master.sql"）が
 // 残っていないか確認する。それらのキーは stub SQL ファイル自体が削除された現行バイナリでは
-// 二度と生成されず、対応する新形式キー（"seeds/002_master" 等）へ自動的に移行する経路も
-// 存在しない。黙って再解釈・スキップするとシード再適用漏れ／二重ロードの原因になるため、
-// 検出した場合は db_reset もしくは volume 再構築を促して fail-fast する。
+// 二度と生成されない。検出した場合は translateLegacySeedKeys で現行キー全件
+// （"seeds/002_master" 等）を baseline し、通常アップグレード経路（main→staging 等）を
+// db_reset なしで通す（P1-3, PR #186 review — 旧実装は fail-fast していたが、これは
+// 既存 STG/prod DB の通常アップグレードを毎回ブロックしてしまう）。
 //
 // DB アクセス（全 filename の読み出し）と判定ロジック（legacyKeysAmong）を分離しているのは、
 // 判定ロジック単体を DB 接続なしでユニットテストできるようにするため。
-func detectLegacySeedKeys(db *sql.DB) error {
+func detectLegacySeedKeys(db *sql.DB, logger *slog.Logger) error {
 	rows, err := db.Query("SELECT filename FROM schema_migrations")
 	if err != nil {
 		return fmt.Errorf("failed to read schema_migrations for legacy seed key check: %w", err)
@@ -181,14 +183,91 @@ func detectLegacySeedKeys(db *sql.DB) error {
 		return nil
 	}
 
-	return fmt.Errorf(
-		"detected legacy seed migration key(s) in schema_migrations: %s — "+
-			"this database was migrated before the 2026-07 CSV-only migration removed "+
-			"002_seed_master.sql/003_seed_demo.sql/004_seed_staging.sql, and in-place migration "+
-			"of legacy seed keys to the current seeds/<bundle> layout is not supported. "+
-			"Rebuild via db_reset=true or a fresh database volume",
-		strings.Join(found, ", "),
-	)
+	logger.Warn("⚠️ Detected legacy seed migration key(s) — baselining all current seeds/<bundle> keys",
+		slog.String("legacy_keys", strings.Join(found, ", ")))
+	if err := translateLegacySeedKeys(db, logger); err != nil {
+		return fmt.Errorf("failed to translate legacy seed key(s) %s: %w", strings.Join(found, ", "), err)
+	}
+	return nil
+}
+
+// legacyTranslationTargets returns the schema_migrations keys that
+// translateLegacySeedKeys marks applied whenever ANY legacy key is found —
+// always ALL of seedbundle.BundleOrder, never only the bundles whose specific
+// legacy filename was found in schema_migrations. Pure, no DB access — this
+// is what the translation unit tests exercise directly.
+//
+// Why "all", not "only the ones found" (PR #186 security review, HIGH): the
+// pre-2026-07 binary applied every *.sql file unconditionally in one pass, so
+// a routinely-migrated DB carries all three legacy keys together. But nothing
+// guarantees that invariant for every real DB (e.g. one hand-curated to skip
+// demo/staging on purpose) — baselining only the found subset would leave the
+// other seeds/<bundle> keys "unapplied", and the runSeedBundles call right
+// after this would then auto-COPY those CSV bundles onto what may be a real
+// database. baselineIfNeeded already treats this exact hazard as
+// non-negotiable (see its doc comment); translateLegacySeedKeys must match
+// that same conservative posture, not decide per found key.
+func legacyTranslationTargets() []string {
+	keys := make([]string, 0, len(seedbundle.BundleOrder))
+	for _, bundleDir := range seedbundle.BundleOrder {
+		keys = append(keys, seedbundle.BundleMigrationKey(bundleDir))
+	}
+	return keys
+}
+
+// translateLegacySeedKeys records every current seeds/<bundle> key
+// (legacyTranslationTargets) not already recorded — idempotent (an EXISTS
+// check guards each insert, so a rerun or an already-baselined/normally-
+// applied bundle is a no-op). It never deletes the legacy row(s) that
+// triggered it: leaving them in place is harmless once the current keys
+// exist, and avoids treating an audit trail row as disposable. Mirrors
+// baselineIfNeeded's seed-bundle baselining (same recordMigration/
+// bundleChecksum helpers) — this is "mark applied without loading", not a
+// live CSV import, so it never touches application data.
+func translateLegacySeedKeys(db *sql.DB, logger *slog.Logger) error {
+	tx, err := db.Begin()
+	if err != nil {
+		return fmt.Errorf("failed to begin legacy seed key translation transaction: %w", err)
+	}
+
+	translated := 0
+	for _, newKey := range legacyTranslationTargets() {
+		var exists bool
+		if err := tx.QueryRow(
+			"SELECT EXISTS (SELECT 1 FROM schema_migrations WHERE filename = $1)", newKey,
+		).Scan(&exists); err != nil {
+			_ = tx.Rollback()
+			return fmt.Errorf("failed to check existing seed bundle key %s: %w", newKey, err)
+		}
+		if exists {
+			// Already translated/baselined/normally-applied under the current key.
+			continue
+		}
+
+		bundleDir := strings.TrimPrefix(newKey, "seeds/")
+		checksum, err := bundleChecksum(migrationsDir, bundleDir)
+		if err != nil {
+			_ = tx.Rollback()
+			return fmt.Errorf("failed to compute checksum for seed bundle %s: %w", bundleDir, err)
+		}
+
+		if err := recordMigration(tx, newKey, checksum); err != nil {
+			_ = tx.Rollback()
+			return fmt.Errorf("failed to record translated seed bundle key %s: %w", newKey, err)
+		}
+
+		logger.Info("Translated legacy seed key set to current bundle key", slog.String("current", newKey))
+		translated++
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("failed to commit legacy seed key translation: %w", err)
+	}
+
+	if translated > 0 {
+		logger.Info("✓ Legacy seed key translation completed", slog.Int("translated", translated))
+	}
+	return nil
 }
 
 // legacyKeysAmong returns which of seedbundle.LegacyStubFilenames appear in
@@ -218,7 +297,7 @@ func legacyKeysAmong(appliedFilenames []string) []string {
 // seedbundle.BundleOrder を明示的にループして baseline する）。理由: 既存DB（テーブルが
 // 実在する＝本物の運用/移行データを持つ可能性がある）へ demo/staging の CSV シードを
 // 自動ロードすることは絶対に避けなければならない
-// （docs/infra/deploy/SEED_MIGRATION_OPERATIONS.md「既存 DB にそのまま上書き適用する
+// （docs/ops/deploy/SEED_MIGRATION_OPERATIONS.md「既存 DB にそのまま上書き適用する
 // 前提ではない」を参照）。baseline で seeds/<bundle> キーを記録しないと、この関数の
 // 直後に走る runSeedBundles がそのバンドルを「未適用」と判断し、既存DBへ CSV を
 // COPY してしまう（PK衝突でクラッシュするか、衝突しなければ demo データが紛れ込む）。

@@ -50,6 +50,8 @@ export interface PetFormData {
   /** 保険会社名（APIから取得） */
   insuranceName?: string;
   insuranceDetails?: string;
+  /** PR#186 P2-2 Bug#1: 死亡記録日時。未死亡 = undefined/null */
+  deceasedAt?: string | null;
 }
 
 // Owner data

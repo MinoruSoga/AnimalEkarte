@@ -105,6 +105,11 @@ export const transformBackendPetToFrontend = (p: BackendPet) => ({
       ? `${p.insurance.coverage_rate}%補償`
       : undefined,
   remarks: p.remarks,
+  // PR#186 P2-2 Bug#1: 死亡記録日時。null許容 (未死亡 = undefined)。
+  // deceasedReason は含めない — セキュリティレビュー指摘によりバックエンド
+  // response DTO (petResponse/petInOwnerResponse) から意図的に除外済み
+  // (未curationの LIFF 経路での漏洩防止。UI側にも読み取り消費者が無い)。
+  deceasedAt: p.deceased_at,
 });
 
 /**

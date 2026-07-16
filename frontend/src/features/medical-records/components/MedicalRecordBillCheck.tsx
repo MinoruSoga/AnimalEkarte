@@ -24,19 +24,21 @@ interface BillCheckProps {
   isNewRecord?: boolean;
   medicalRecordId?: string;
   ownerDiscountRate?: number;
+  /** P2-15: 拠点横断で開いたカルテの子リソース操作用。レコード自身の clinicId */
+  recordClinicId?: string;
 }
 
-export const MedicalRecordBillCheck = memo(function MedicalRecordBillCheck({ isNewRecord = false, medicalRecordId = "", ownerDiscountRate = 0 }: BillCheckProps) {
+export const MedicalRecordBillCheck = memo(function MedicalRecordBillCheck({ isNewRecord = false, medicalRecordId = "", ownerDiscountRate = 0, recordClinicId }: BillCheckProps) {
   const { user } = useAuth();
   const { canEdit, canDelete } = usePermission("medical-records");
   const [globalDiscountAmount, setGlobalDiscountAmount] = useState(0);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
 
   // ── API ──
-  const { data: treatments = [] } = useGetTreatments(medicalRecordId);
+  const { data: treatments = [] } = useGetTreatments(medicalRecordId, recordClinicId);
   const { data: billingConfirmation } = useGetBillingConfirmation(medicalRecordId);
-  const createTreatmentMutation = useCreateTreatment(medicalRecordId);
-  const { mutate: updateTreatment } = useUpdateTreatment(medicalRecordId);
+  const createTreatmentMutation = useCreateTreatment(medicalRecordId, recordClinicId);
+  const { mutate: updateTreatment } = useUpdateTreatment(medicalRecordId, recordClinicId);
   const confirmMutation = useCreateBillingConfirmation(medicalRecordId);
   const userId = Number(user?.id ?? 0);
   const returnMutation = useCreateBillingReturn(medicalRecordId, userId);
@@ -103,7 +105,7 @@ export const MedicalRecordBillCheck = memo(function MedicalRecordBillCheck({ isN
     updateTreatment({ treatmentId: String(id), input });
   }, [canEdit, updateTreatment]);
 
-  const { mutate: deleteTreatmentFn } = useDeleteTreatment(medicalRecordId);
+  const { mutate: deleteTreatmentFn } = useDeleteTreatment(medicalRecordId, recordClinicId);
 
   const handleRemoveItem = useCallback((id: number) => {
     if (!canDelete) return;

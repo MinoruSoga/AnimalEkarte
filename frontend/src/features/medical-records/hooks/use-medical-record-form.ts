@@ -115,12 +115,16 @@ export function useMedicalRecordForm(recordId?: string) {
     !["completed", "cancelled", "no_show"].includes(String(appointment.status))
   );
 
+  // P2-15: 拠点横断で開いたカルテ（record.clinicId）を保存する場合、グローバル選択クリニックではなく
+  // レコード自身の clinicId を X-Clinic-ID として送る必要がある。
+  const recordClinicId = existingRecord?.clinicId;
+
   const queryClient = useQueryClient();
   const createMutation = useCreateMedicalRecord();
   const createReservationMutation = useCreateReservation();
-  const updateMutation = useUpdateMedicalRecord();
+  const updateMutation = useUpdateMedicalRecord(recordClinicId);
   const updateInquiryMutation = useUpdateInquiry(recordId ?? "");
-  const updateTreatmentPlanMutation = useUpdateClinicalPlan(recordId ?? "");
+  const updateTreatmentPlanMutation = useUpdateClinicalPlan(recordId ?? "", recordClinicId);
 
   const { formState, formAction, isSaving } = useMedicalRecordSaveAction({
     recordId,

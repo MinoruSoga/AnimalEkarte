@@ -1,9 +1,10 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, afterEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
 import { server } from "@/testing/mocks/node";
 import { createTestWrapper } from "@/testing/utils";
+import { CURRENT_CLINIC_STORAGE_KEY } from "@/lib/current-clinic";
 
 import { CreditCorrectionDialog } from "./CreditCorrectionDialog";
 import type { Accounting } from "../types";
@@ -11,11 +12,16 @@ import type { Accounting } from "../types";
 function makeAccounting(overrides: Partial<Accounting>): Accounting {
   return {
     id: "10",
+    clinicId: "1",
     status: "completed",
     paymentSplits: [{ id: "1", method: "credit_card", amount: 10000, receivedAmount: 0, changeAmount: 0 }],
     ...overrides,
   } as unknown as Accounting;
 }
+
+afterEach(() => {
+  localStorage.clear();
+});
 
 function renderDialog(accounting: Accounting, isPostClose = false) {
   return render(<CreditCorrectionDialog accounting={accounting} isPostClose={isPostClose} />, {
@@ -116,5 +122,38 @@ describe("CreditCorrectionDialog 送信 (#189)", () => {
     // 短時間待っても POST は発火しない（クライアント側で reason 必須を弾く）
     await new Promise((r) => setTimeout(r, 50));
     expect(posted).toBe(false);
+  });
+});
+
+describe("CreditCorrectionDialog クリニックスコープ (#186 review P2-12)", () => {
+  it("グローバル選択クリニックと異なる accounting.clinicId を持つ会計では、X-Clinic-ID に accounting.clinicId を送信する", async () => {
+    // グローバル選択クリニックは "1"
+    localStorage.setItem(CURRENT_CLINIC_STORAGE_KEY, "1");
+
+    let receivedClinicHeader: string | null = null;
+    server.use(
+      http.post("*/v1/accountings/10/credit-correction", async ({ request }) => {
+        receivedClinicHeader = request.headers.get("X-Clinic-ID");
+        return HttpResponse.json({
+          id: 10,
+          clinic_id: 2,
+          status: "completed",
+          payment_splits: [{ id: 1, method: "credit_card", amount: 12000 }],
+          payments: [{ billing_id: 10, method: "credit_card", billing_amount: 12000 }],
+        });
+      }),
+    );
+
+    const user = userEvent.setup();
+    // 対象会計のクリニックは "2"（グローバル選択とは異なる拠点横断ケース）
+    renderDialog(makeAccounting({ clinicId: "2" }));
+
+    await user.click(screen.getByRole("button", { name: "クレジット訂正" }));
+    const reason = await screen.findByLabelText("訂正理由（必須）");
+    await user.type(reason, "端末への入力金額を打ち間違えたため");
+    await user.click(screen.getByRole("button", { name: "訂正を保存" }));
+
+    await waitFor(() => expect(receivedClinicHeader).not.toBeNull());
+    expect(receivedClinicHeader).toBe("2");
   });
 });

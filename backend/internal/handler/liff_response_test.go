@@ -30,6 +30,7 @@ func TestToLiffCourseResponse(t *testing.T) {
 				ReservationComment:     "comment",
 				ReservationImageURL:    "https://example.com/x.png",
 				SortOrder:              2,
+				Category:               model.ReservationTypeCategoryGeneral,
 			},
 			wantName: "LINE表示名",
 		},
@@ -40,6 +41,7 @@ func TestToLiffCourseResponse(t *testing.T) {
 				Name:          "一般診察",
 				ShortName:     "一般",
 				ShowShortName: true,
+				Category:      model.ReservationTypeCategoryGeneral,
 			},
 			wantName: "一般",
 		},
@@ -50,6 +52,7 @@ func TestToLiffCourseResponse(t *testing.T) {
 				Name:          "一般診察",
 				ShortName:     "一般",
 				ShowShortName: false,
+				Category:      model.ReservationTypeCategoryGeneral,
 			},
 			wantName: "一般診察",
 		},
@@ -60,8 +63,22 @@ func TestToLiffCourseResponse(t *testing.T) {
 				Name:          "ワクチン接種",
 				ShortName:     "",
 				ShowShortName: true,
+				Category:      model.ReservationTypeCategoryGeneral,
 			},
 			wantName: "ワクチン接種",
+		},
+		{
+			// P1-6 (PR #186 review): category was omitted from the response entirely,
+			// so the LIFF reservation flow's course.category === 'trimming' check always
+			// fell back to 'general' and skipped the trimming-details step.
+			name: "propagates trimming category",
+			st: &model.ReservationType{
+				ID:            5,
+				Name:          "トリミング",
+				ShowShortName: false,
+				Category:      model.ReservationTypeCategoryTrimming,
+			},
+			wantName: "トリミング",
 		},
 	}
 
@@ -76,6 +93,7 @@ func TestToLiffCourseResponse(t *testing.T) {
 			assert.Equal(t, tt.st.ReservationComment, got.ReservationComment)
 			assert.Equal(t, tt.st.ReservationImageURL, got.ReservationImageURL)
 			assert.Equal(t, tt.st.SortOrder, got.SortOrder)
+			assert.Equal(t, string(tt.st.Category), got.Category)
 		})
 	}
 }

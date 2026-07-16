@@ -10,6 +10,8 @@ interface MedicalRecordTreatmentProps {
   ownerDiscountRate?: number;
   /** #201: 投与量自動計算の species 解決に使う free-text ペット種 */
   petSpecies?: string | null;
+  /** P2-15: 拠点横断で開いたカルテの子リソース操作用。レコード自身の clinicId */
+  recordClinicId?: string;
 }
 
 export function MedicalRecordTreatment({
@@ -17,6 +19,7 @@ export function MedicalRecordTreatment({
   isNewRecord = false,
   ownerDiscountRate = 0,
   petSpecies,
+  recordClinicId,
 }: MedicalRecordTreatmentProps) {
   if (isNewRecord) {
     return (
@@ -31,6 +34,7 @@ export function MedicalRecordTreatment({
       medicalRecordId={medicalRecordId}
       ownerDiscountRate={ownerDiscountRate}
       petSpecies={petSpecies}
+      recordClinicId={recordClinicId}
     />
   );
 }

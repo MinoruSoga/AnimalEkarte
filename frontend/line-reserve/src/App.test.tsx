@@ -93,7 +93,6 @@ import { getClinicId } from './lib/liff-config';
 
 const SETTINGS: LiffSettings = {
   liff_id: 'liff-123',
-  clinic_name: 'ノア動物病院',
   header_text: 'ノア動物病院',
   phone_number: '03-1234-5678',
   status: 'running',

@@ -521,6 +521,10 @@ components:
           nullable: true
         remarks:
           type: string
+        deceased_at:
+          type: string
+          format: date-time
+          nullable: true
         created_at:
           type: string
           format: date-time
@@ -827,6 +831,10 @@ components:
           nullable: true
         remarks:
           type: string
+        deceased_at:
+          type: string
+          format: date-time
+          nullable: true
         created_at:
           type: string
           format: date-time

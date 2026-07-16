@@ -1193,7 +1193,7 @@ func TestBuildCategoryBreakdown(t *testing.T) {
 		assert.Equal(t, int64(500), got.Categories["検査"]["method_99"])
 	})
 
-	t.Run("PaymentMethodID=nil の行は #128 hotfix 後は発生しないためスキップされる", func(t *testing.T) {
+	t.Run("PaymentMethodID=nil の行は現金 system_key に計上される（#128 後方互換・レガシー seed 対応）", func(t *testing.T) {
 		payRows := []repository.PaymentAggregateRow{
 			{PaymentMethodID: nil, Amount: 1000},
 		}
@@ -1201,7 +1201,37 @@ func TestBuildCategoryBreakdown(t *testing.T) {
 			{Category: "診察", Amount: 1000},
 		}
 		got := buildCategoryBreakdown(payRows, catRows, nil, nil, rates)
-		assert.Empty(t, got.Categories["診察"], "PaymentMethodID=nil の支払方法は按分計算をスキップする")
+		assert.Equal(t, int64(1000), got.Categories["診察"]["cash"], "PaymentMethodID=nil の支払方法は現金として按分される")
+	})
+
+	// P2-13: NULL payment_method_id split を含む締めで category_breakdown が totalPayment と一致することを検証する。
+	// calcTheoreticalCash は NULL を現金として集計するため、buildCategoryBreakdown が NULL 行を
+	// スキップ/誤配分すると、締めレコードのカテゴリ内訳合計と支払方法内訳合計が食い違う（P2-13 バグ）。
+	t.Run("NULL 行を含む混在支払いで category_breakdown の合計が totalPayment と一致する", func(t *testing.T) {
+		payRows := []repository.PaymentAggregateRow{
+			{PaymentMethodID: nil, Amount: 1000},          // レガシー現金 split
+			{PaymentMethodID: ptrUint64(1), Amount: 2000}, // クレジットカード
+		}
+		catRows := []repository.CategoryAggregateRow{
+			{Category: "診察", Amount: 3000},
+		}
+		payMethods := []model.PaymentMethodMaster{
+			{ID: 1, Name: "クレジットカード", SystemKey: ptrString("credit_card")},
+		}
+		const totalPayment = int64(1000 + 2000)
+
+		got := buildCategoryBreakdown(payRows, catRows, nil, payMethods, rates)
+
+		assert.Equal(t, int64(1000), got.Categories["診察"]["cash"], "NULL 行は現金に計上される")
+		assert.Equal(t, int64(2000), got.Categories["診察"]["credit_card"], "非 NULL 行は対応する system_key に計上される")
+
+		var sum int64
+		for _, byMethod := range got.Categories {
+			for _, amount := range byMethod {
+				sum += amount
+			}
+		}
+		assert.Equal(t, totalPayment, sum, "category_breakdown の合計は totalPayment と一致しなければならない")
 	})
 
 	t.Run("totalPayment=0 の場合はカテゴリ金額が加算されない", func(t *testing.T) {

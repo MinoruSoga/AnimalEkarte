@@ -375,6 +375,8 @@ func NewServices(repos *repository.Repositories, notifCfg *ReservationNotificati
 				repos.Examination,
 				repository.NewLabImportDuplicateCheckerDB(repos.DB()),
 				repos.ExaminationType,
+				repos.Pet,
+				repos.MedicalRecord,
 			),
 		),
 		LabAudit:       NewLabAuditLogger(auditSvc),

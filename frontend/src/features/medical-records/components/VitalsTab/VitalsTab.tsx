@@ -29,14 +29,16 @@ import {
 
 interface VitalsTabProps {
   medicalRecordId: string;
+  /** P2-15: 拠点横断で開いたカルテの子リソース操作用。レコード自身の clinicId */
+  recordClinicId?: string;
 }
 
-export const VitalsTab = memo(function VitalsTab({ medicalRecordId }: VitalsTabProps) {
+export const VitalsTab = memo(function VitalsTab({ medicalRecordId, recordClinicId }: VitalsTabProps) {
   const { canCreate, canEdit, canDelete } = usePermission("medical-records");
-  const { data: vitals, isLoading, isError } = useGetVitals(medicalRecordId);
-  const createMutation = useCreateVital(medicalRecordId);
-  const updateMutation = useUpdateVital(medicalRecordId);
-  const deleteMutation = useDeleteVital(medicalRecordId);
+  const { data: vitals, isLoading, isError } = useGetVitals(medicalRecordId, recordClinicId);
+  const createMutation = useCreateVital(medicalRecordId, recordClinicId);
+  const updateMutation = useUpdateVital(medicalRecordId, recordClinicId);
+  const deleteMutation = useDeleteVital(medicalRecordId, recordClinicId);
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);

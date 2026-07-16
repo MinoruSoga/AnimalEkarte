@@ -861,6 +861,7 @@ Phase 1〜3 は互いに独立しており並行着手可能。Phase 4 が最大
 | **[2026-07-06 Phase 6で新規発見]** Containers(Durable Object)専用の異常検知alert_typeがCloudflare通知APIに存在しない | コンテナのクラッシュ/OOM/再起動が無通知になり得る | P6-3で`http_alert_edge_error`（ゾーン全体のエッジ5xx率）を代替指標として採用（Worker/Container起因の5xxもエッジ観測に含まれる想定）。専用監視が必要と判断されれば`cloudflare_healthcheck`（別課金アドオン）を本番移行判断時に再検討 |
 | Cookie/CORS の挙動差 | ログイン不能 | P1-6 / P4-8 の二段階検証 |
 | 本番移行時の再現性 | 本番展開の手戻り | 全フェーズの実施記録・所要時間を本ドキュメントに追記し、本番移行計画の一次情報とする |
+| **[PR#186 review P2-3, 2026-07-16 accept-window決定]** `wrangler deploy` 完了と同時に実トラフィックが新バージョンへ切り替わり、`backend-deploy.yml` の migration ステップ（deploy 直後・health-check 前段に配置済み）が完了するまでの区間（最大 `MIGRATE_TIMEOUT`=150s）は「新バイナリが旧スキーマに対して稼働し得る」ウィンドウとして残存する | 該当ウィンドウ中に旧スキーマ非互換のリクエストが到達すると一時的なエラーが発生し得る | Cloudflare の段階的デプロイ（`wrangler versions upload/deploy`）および Preview URL は Durable Object bind Worker（本 Worker は `AnimalEkarteApiContainer` を DO として bind）には適用不可のため、P5-1 の CI ステップ順序変更（migrate を health-check より前段に配置）による**縮小**が現行アーキテクチャでの最大の緩和策であり、YAML 変更だけでの**ゼロ化は不可能**と確定（Cloudflare公式ドキュメント: gradual-deployments/with-durable-objects, preview-urls、いずれも2026-07時点で確認）。USER がこの残存ウィンドウを既知の限界として明示的に受容済み（Grill-me Q2=A採用、`backend-deploy.yml` L66-88 のコメントに同決定を記録）。真のゼロ化には migration をコンテナイメージのデプロイから切り離し pre-deploy CI ステップとして PlanetScale へ直接実行する「decouple」方式が必要だが、本番DB認証情報のCI Secrets化・PlanetScale側のCIランナー許可・expand-contract運用への移行を伴うため、別途 USER 承認とスコープ切り出しが必要な New Work として保留（本エントリの記録のみでは実装しない） |
 
 ## 10. スコープ外
 

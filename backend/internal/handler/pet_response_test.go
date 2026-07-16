@@ -66,3 +66,52 @@ func TestToPetListResponseIncludesOwnerReportDetailFields(t *testing.T) {
 	assert.Equal(t, "アニコム", resp.Insurance.Name)
 	assert.Equal(t, 70, resp.Insurance.CoverageRate)
 }
+
+// TestToPetResponseAndToPetInOwnerResponseSerializeDeceasedAt は
+// PR#186 P2-2 Bug#1 のリグレッションテスト。死亡記録された pet の
+// deceased_at が pet 詳細 (toPetResponse) と owner ネスト
+// (toPetInOwnerResponse) の両方で serialize されることを保証する。
+// 修正前は両方の response DTO にフィールド自体が存在せず、フロントに値が
+// 一切渡らなかった。
+// deceased_reason はセキュリティレビュー指摘により意図的に含めない
+// （未curationの LIFF LinkLiffAccount 経路でも同じ DTO が再利用されるため。
+// UI側にも読み取り消費者が存在しない）。
+func TestToPetResponseAndToPetInOwnerResponseSerializeDeceasedAt(t *testing.T) {
+	deceasedAt := time.Date(2026, 7, 10, 3, 0, 0, 0, time.UTC)
+	deceasedReason := "老衰"
+
+	pet := &model.Pet{
+		ID:             7,
+		OwnerID:        42,
+		Name:           "ポチ",
+		Status:         model.PetStatusDeceased,
+		DeceasedAt:     &deceasedAt,
+		DeceasedReason: &deceasedReason,
+	}
+
+	detail := toPetResponse(pet)
+	require.NotNil(t, detail.DeceasedAt)
+	assert.True(t, deceasedAt.Equal(*detail.DeceasedAt))
+
+	nested := toPetInOwnerResponse(pet)
+	require.NotNil(t, nested.DeceasedAt)
+	assert.True(t, deceasedAt.Equal(*nested.DeceasedAt))
+}
+
+// TestToPetResponseAndToPetInOwnerResponseOmitDeceasedAtWhenAlive は、
+// 生存中ペット（DeceasedAt が nil）で DeceasedAt が nil のままであることを
+// 保証する（誤って死亡日を捏造しない）。
+func TestToPetResponseAndToPetInOwnerResponseOmitDeceasedAtWhenAlive(t *testing.T) {
+	pet := &model.Pet{
+		ID:      7,
+		OwnerID: 42,
+		Name:    "ポチ",
+		Status:  model.PetStatusAlive,
+	}
+
+	detail := toPetResponse(pet)
+	assert.Nil(t, detail.DeceasedAt)
+
+	nested := toPetInOwnerResponse(pet)
+	assert.Nil(t, nested.DeceasedAt)
+}

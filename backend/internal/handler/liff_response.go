@@ -48,6 +48,10 @@ type liffCourseResponse struct {
 	ReservationComment  string `json:"reservation_comment"`
 	ReservationImageURL string `json:"reservation_image_url"`
 	SortOrder           int    `json:"sort_order"`
+	// Category (P1-6, PR #186 review): 予約フローが course.category === 'trimming' で
+	// トリミング詳細ステップの表示を分岐する。欠落時は FE 側が 'general' にフォールバックし
+	// トリミング予約でも詳細入力がスキップされていた。
+	Category string `json:"category"`
 }
 
 func toLiffCourseResponse(st *model.ReservationType) liffCourseResponse {
@@ -72,6 +76,7 @@ func toLiffCourseResponse(st *model.ReservationType) liffCourseResponse {
 		ReservationComment:  st.ReservationComment,
 		ReservationImageURL: st.ReservationImageURL,
 		SortOrder:           st.SortOrder,
+		Category:            string(st.Category),
 	}
 }
 

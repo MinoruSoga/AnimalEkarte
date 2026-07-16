@@ -89,6 +89,7 @@ function mapOwnerPetsToFormData(owner: Owner): PetFormData[] {
     insuranceId: backendPet.insuranceId,
     insuranceName: undefined,
     insuranceDetails: backendPet.insuranceDetails,
+    deceasedAt: backendPet.deceasedAt,
   }));
 }
 

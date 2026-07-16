@@ -55,7 +55,7 @@
     // 到達路が無いため、この単一IPを信頼しても外部からのX-Forwarded-For偽装によるレート制限
     // バイパス経路は生まれない(H2)。他リージョンで異なるIPが観測された場合は本値を見直す。
     "TRUSTED_PROXY_CIDR": "10.1.0.0/32",
-    // ルート .env.staging(ECS用)の実測値と一致させる(docs/infra/architecture.md記載の値は
+    // ルート .env.staging(ECS用)の実測値と一致させる(docs/ops/infra-architecture.md記載の値は
     // 旧ドメインで陳腐化していたため実値を採用。試行9で確認)。
     "CORS_ALLOWED_ORIGIN": "https://stg.noah-karte.com,https://api.stg.noah-karte.com",
     "FRONTEND_URL": "https://stg.noah-karte.com",
@@ -140,9 +140,9 @@
       "SMTP_HOST",
       "SMTP_USER",
       "SMTP_PASS",
-      "LINE_CHANNEL_ACCESS_TOKEN",
-      "LINE_CHANNEL_SECRET",
-      "LSTEP_API_KEY",
+      // LINE_CHANNEL_ACCESS_TOKEN/LINE_CHANNEL_SECRET/LSTEP_API_KEY は将来のグローバルfallback用に
+      // 予約されているが(冒頭コメント参照)、現状 Go 側の env 読み込みパスが無いため required から
+      // 除外する(未使用シークレット不足で `wrangler deploy` が失敗するため)。実装され次第ここへ追加する。
     ],
   },
 }

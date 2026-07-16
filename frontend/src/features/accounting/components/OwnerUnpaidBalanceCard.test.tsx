@@ -1,14 +1,21 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, afterEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import { server } from "@/testing/mocks/node";
 import { createTestWrapper } from "@/testing/utils";
+import { CURRENT_CLINIC_STORAGE_KEY } from "@/lib/current-clinic";
 
 import { OwnerUnpaidBalanceCard } from "./OwnerUnpaidBalanceCard";
 
-function renderCard(ownerId: string) {
-  return render(<OwnerUnpaidBalanceCard ownerId={ownerId} />, { wrapper: createTestWrapper() });
+function renderCard(ownerId: string, clinicId = "1") {
+  return render(<OwnerUnpaidBalanceCard ownerId={ownerId} clinicId={clinicId} />, {
+    wrapper: createTestWrapper(),
+  });
 }
+
+afterEach(() => {
+  localStorage.clear();
+});
 
 describe("OwnerUnpaidBalanceCard 未納残高表示 (#182)", () => {
   it("未納がある場合は残高と件数を表示する", async () => {
@@ -40,5 +47,26 @@ describe("OwnerUnpaidBalanceCard 未納残高表示 (#182)", () => {
   it("ownerId が空のときはクエリを実行せず何も表示しない", () => {
     renderCard("");
     expect(screen.queryByTestId("owner-unpaid-balance")).not.toBeInTheDocument();
+  });
+});
+
+describe("OwnerUnpaidBalanceCard クリニックスコープ (#186 review P2-11)", () => {
+  it("グローバル選択クリニックと異なる clinicId prop を渡した場合、X-Clinic-ID は clinicId prop の値を送信する", async () => {
+    // グローバル選択クリニックは "1"
+    localStorage.setItem(CURRENT_CLINIC_STORAGE_KEY, "1");
+
+    let receivedClinicHeader: string | null = null;
+    server.use(
+      http.get("*/v1/accountings/unpaid-balance", ({ request }) => {
+        receivedClinicHeader = request.headers.get("X-Clinic-ID");
+        return HttpResponse.json({ unpaid_total: 500, unpaid_count: 1 });
+      }),
+    );
+
+    // 対象会計のクリニックは "2"（グローバル選択とは異なる拠点横断ケース）
+    renderCard("42", "2");
+    await screen.findByTestId("owner-unpaid-balance");
+
+    expect(receivedClinicHeader).toBe("2");
   });
 });

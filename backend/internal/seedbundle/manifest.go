@@ -38,8 +38,11 @@ func BundleMigrationKey(bundleDir string) string {
 // an older binary before these files were deleted from the repo will still
 // carry these keys but will never gain the new "seeds/<bundle>" keys, since
 // nothing on disk maps to them anymore. cmd/migrate checks for their
-// presence at startup and fails fast rather than silently reinterpreting or
-// skipping seed application — see detectLegacySeedKeys in cmd/migrate.
+// presence at startup and, if any are found, baselines ALL seeds/<bundle>
+// keys as applied (never just the bundles matching the legacy keys found —
+// see legacyTranslationTargets in cmd/migrate) rather than fail-fasting or
+// silently reinterpreting/skipping seed application — see
+// detectLegacySeedKeys in cmd/migrate.
 var LegacyStubFilenames = []string{
 	"002_seed_master.sql",
 	"003_seed_demo.sql",

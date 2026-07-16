@@ -22,14 +22,24 @@ function formatCreatedAt(isoStr: string): string {
 
 const STATUS_LABELS: Record<string, string> = {
   confirmed: '確定',
+  pending: '確認中',
   cancelled: 'キャンセル済',
+  checked_in: '受付済',
+  in_consultation: '診察中',
+  accounting: '会計中',
   completed: '完了',
+  no_show: '未来院',
 };
 
 const STATUS_COLORS: Record<string, string> = {
   confirmed: 'bg-green-100 text-green-800',
+  pending: 'bg-yellow-100 text-yellow-800',
   cancelled: 'bg-gray-100 text-gray-600',
+  checked_in: 'bg-blue-100 text-blue-800',
+  in_consultation: 'bg-blue-100 text-blue-800',
+  accounting: 'bg-blue-100 text-blue-800',
   completed: 'bg-blue-100 text-blue-800',
+  no_show: 'bg-red-100 text-red-700',
 };
 
 export function MyReservationsPage({

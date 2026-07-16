@@ -62,4 +62,6 @@ export interface PetMutations {
   ) => void;
   /** ペット削除用（React Query mutation） */
   deletePetMutate: (id: string, callbacks: PetMutationCallbacks) => void;
+  /** ペット死亡記録解除用（死亡→生存の遷移時のみ・React Query mutation） */
+  revokePetDeathMutate: (petId: string) => void;
 }

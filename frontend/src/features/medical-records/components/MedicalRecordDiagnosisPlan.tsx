@@ -36,6 +36,8 @@ export interface DiagnosisPlanProps {
   ownerDiscountRate?: number;
   onRegisterClinicalPlanSave?: (fn: () => Promise<void>) => void;
   diagnosis1NameIdError?: string | null;
+  /** P2-15: 拠点横断で開いたカルテの子リソース操作用。レコード自身の clinicId */
+  recordClinicId?: string;
 }
 
 export const MedicalRecordDiagnosisPlan = memo(function MedicalRecordDiagnosisPlan({
@@ -57,17 +59,18 @@ export const MedicalRecordDiagnosisPlan = memo(function MedicalRecordDiagnosisPl
   ownerDiscountRate = 0,
   onRegisterClinicalPlanSave,
   diagnosis1NameIdError,
+  recordClinicId,
 }: DiagnosisPlanProps) {
   const { canCreate, canEdit, canDelete } = usePermission("medical-records");
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [globalDiscountAmount, setGlobalDiscountAmount] = useState(0);
 
   // ── API ──
-  const { data: treatments = [] } = useGetTreatments(medicalRecordId ?? "");
-  const createMutation = useCreateTreatment(medicalRecordId ?? "");
+  const { data: treatments = [] } = useGetTreatments(medicalRecordId ?? "", recordClinicId);
+  const createMutation = useCreateTreatment(medicalRecordId ?? "", recordClinicId);
   const { mutate: createTreatmentFn } = createMutation;
-  const { mutate: updateTreatmentFn } = useUpdateTreatment(medicalRecordId ?? "");
-  const { mutate: deleteTreatmentFn } = useDeleteTreatment(medicalRecordId ?? "");
+  const { mutate: updateTreatmentFn } = useUpdateTreatment(medicalRecordId ?? "", recordClinicId);
+  const { mutate: deleteTreatmentFn } = useDeleteTreatment(medicalRecordId ?? "", recordClinicId);
 
   // Treatment[] (Backend) -> TreatmentItem[] (Generic Table) 変換
   const treatmentItems: TreatmentItem[] = useMemo(() => {
@@ -174,7 +177,7 @@ export const MedicalRecordDiagnosisPlan = memo(function MedicalRecordDiagnosisPl
 
       {!isNewRecord && medicalRecordId ? (
         <div className="shrink-0">
-          <ClinicalPlanSection medicalRecordId={medicalRecordId} onRegisterSave={onRegisterClinicalPlanSave} canEdit={canEdit} />
+          <ClinicalPlanSection medicalRecordId={medicalRecordId} onRegisterSave={onRegisterClinicalPlanSave} canEdit={canEdit} recordClinicId={recordClinicId} />
         </div>
       ) : null}
 

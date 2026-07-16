@@ -17,7 +17,6 @@ describe('line-reserve schemas（FE5-18: 実行時検証）', () => {
   it('liffSettingsSchema: models.ts どおりの fixture が通る', () => {
     const fixture = {
       liff_id: '123-abc',
-      clinic_name: 'ノア動物病院',
       header_text: 'ノア動物病院',
       phone_number: '03-1234-5678',
       status: 'running',
@@ -34,7 +33,6 @@ describe('line-reserve schemas（FE5-18: 実行時検証）', () => {
   it('liffSettingsSchema: 必須フィールド欠落が reject される', () => {
     const { liff_id: _omit, ...rest } = {
       liff_id: '123-abc',
-      clinic_name: 'ノア動物病院',
       header_text: '',
       phone_number: '',
       status: 'running',
@@ -154,6 +152,83 @@ describe('line-reserve schemas（FE5-18: 実行時検証）', () => {
 
   it('reservationSchema: 必須フィールド欠落が reject される', () => {
     const fixture = { id: 1, course_name: '一般診察' };
+    expect(reservationSchema.safeParse(fixture).success).toBe(false);
+  });
+
+  it('reservationSchema: 指名なし予約（staff_name 省略）が通り \'\' デフォルトになる', () => {
+    const { staff_name: _omit, ...fixture } = {
+      id: 1,
+      staff_name: '佐藤',
+      course_name: '一般診察',
+      date: '2026-08-01',
+      start_time: '10:00',
+      end_time: '10:30',
+      status: 'confirmed',
+      notes: '',
+      created_at: '2026-07-01T00:00:00Z',
+    };
+    const result = reservationSchema.safeParse(fixture);
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.staff_name).toBe('');
+    }
+  });
+
+  it('reservationSchema: notes 省略が通り \'\' デフォルトになる', () => {
+    const { notes: _omit, ...fixture } = {
+      id: 1,
+      course_name: '一般診察',
+      staff_name: '佐藤',
+      date: '2026-08-01',
+      start_time: '10:00',
+      end_time: '10:30',
+      status: 'confirmed',
+      notes: '',
+      created_at: '2026-07-01T00:00:00Z',
+    };
+    const result = reservationSchema.safeParse(fixture);
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.notes).toBe('');
+    }
+  });
+
+  it.each([
+    'confirmed',
+    'pending',
+    'cancelled',
+    'checked_in',
+    'in_consultation',
+    'accounting',
+    'completed',
+    'no_show',
+  ])('reservationSchema: backend ReservationStatus 値 %s を許容する', (status) => {
+    const fixture = {
+      id: 1,
+      course_name: '一般診察',
+      staff_name: '佐藤',
+      date: '2026-08-01',
+      start_time: '10:00',
+      end_time: '10:30',
+      status,
+      notes: '',
+      created_at: '2026-07-01T00:00:00Z',
+    };
+    expect(reservationSchema.safeParse(fixture).success).toBe(true);
+  });
+
+  it('reservationSchema: backend ReservationStatus に存在しない値は reject される', () => {
+    const fixture = {
+      id: 1,
+      course_name: '一般診察',
+      staff_name: '佐藤',
+      date: '2026-08-01',
+      start_time: '10:00',
+      end_time: '10:30',
+      status: 'unknown_status',
+      notes: '',
+      created_at: '2026-07-01T00:00:00Z',
+    };
     expect(reservationSchema.safeParse(fixture).success).toBe(false);
   });
 

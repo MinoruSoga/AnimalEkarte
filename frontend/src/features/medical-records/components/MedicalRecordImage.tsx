@@ -15,11 +15,14 @@ import { C } from "@/lib/design-tokens";
 interface MedicalRecordImageProps {
   isNewRecord?: boolean;
   medicalRecordId?: string;
+  /** P2-15: 拠点横断で開いたカルテの子リソース操作用。レコード自身の clinicId */
+  recordClinicId?: string;
 }
 
 export const MedicalRecordImage = memo(function MedicalRecordImage({
   isNewRecord = false,
   medicalRecordId,
+  recordClinicId,
 }: MedicalRecordImageProps) {
   const { canCreate, canDelete } = usePermission("medical-records");
   const [searchTerm, setSearchTerm] = useState("");
@@ -31,10 +34,10 @@ export const MedicalRecordImage = memo(function MedicalRecordImage({
 
   const resolvedId = isNewRecord ? undefined : medicalRecordId;
 
-  const { data: apiImageGroups = [], isLoading } = useGetMedicalRecordImages(resolvedId);
+  const { data: apiImageGroups = [], isLoading } = useGetMedicalRecordImages(resolvedId, recordClinicId);
 
-  const uploadMutation = useCreateMedicalRecordImages(resolvedId ?? "");
-  const deleteMutation = useDeleteImage(resolvedId ?? "");
+  const uploadMutation = useCreateMedicalRecordImages(resolvedId ?? "", recordClinicId);
+  const deleteMutation = useDeleteImage(resolvedId ?? "", recordClinicId);
 
   const imageGroups = useMemo(
     () =>

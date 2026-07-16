@@ -46,7 +46,10 @@ export const queryKeys = {
   },
   accountingRefunds: (billingId: string) => ["accounting-refunds", billingId] as const,
   billingItemDiscountSuggestions: (itemId: string) => ["billing-item-discount-suggestions", itemId] as const,
-  ownerUnpaidBalance: (ownerId: string | undefined) => ["owner-unpaid-balance", ownerId] as const,
+  // P2-11: clinicId をキーに含める（拠点横断で開いた記録のクリニックごとに残高が異なるため、
+  // ownerId のみでは他クリニックのキャッシュ値を誤って再利用してしまう）
+  ownerUnpaidBalance: (clinicId: string, ownerId: string | undefined) =>
+    ["owner-unpaid-balance", clinicId, ownerId] as const,
   /** 既存 ad-hoc キーの camelCase 表記をそのまま温存（キャッシュキー変更回避） */
   unbilledItems: (petId: string) => ["unbilledItems", petId] as const,
 
@@ -288,12 +291,22 @@ export const queryKeys = {
     list: <F>(filters: F) => ["medical-records", filters] as const,
     history: (petId: string) => ["medical-records", "history", petId] as const,
     detail: (id: string) => ["medical-record", id] as const,
-    vitals: (medicalRecordId: string) => ["vitals", medicalRecordId] as const,
-    treatments: (medicalRecordId: string) => ["treatments", medicalRecordId] as const,
+    /**
+     * P2-15: clinicId を末尾に含めるのは任意（拠点横断で開いたレコードの子リソースが
+     * X-Clinic-ID 解決前後で別クエリとして自然に再フェッチされるようにするため）。
+     * clinicId 省略時は従来通り2要素キー — invalidateQueries の prefix match は
+     * clinicId 付きキーも包含するため mutation 側の invalidate は変更不要。
+     */
+    vitals: (medicalRecordId: string, clinicId?: string) =>
+      clinicId ? (["vitals", medicalRecordId, clinicId] as const) : (["vitals", medicalRecordId] as const),
+    treatments: (medicalRecordId: string, clinicId?: string) =>
+      clinicId ? (["treatments", medicalRecordId, clinicId] as const) : (["treatments", medicalRecordId] as const),
     checkups: (medicalRecordId: string) => ["checkups", medicalRecordId] as const,
     addenda: (medicalRecordId: string) => ["record-addenda", medicalRecordId] as const,
-    images: (medicalRecordId: string) => ["record-images", medicalRecordId] as const,
-    clinicalPlan: (medicalRecordId: string) => ["clinical-plan", medicalRecordId] as const,
+    images: (medicalRecordId: string, clinicId?: string) =>
+      clinicId ? (["record-images", medicalRecordId, clinicId] as const) : (["record-images", medicalRecordId] as const),
+    clinicalPlan: (medicalRecordId: string, clinicId?: string) =>
+      clinicId ? (["clinical-plan", medicalRecordId, clinicId] as const) : (["clinical-plan", medicalRecordId] as const),
     estimate: (medicalRecordId: string) => ["estimate", "record", medicalRecordId] as const,
     /** medicalRecords.detail(id) と "medical-record" プレフィックスを共有（意図的） */
     billingConfirmation: (medicalRecordId: string) =>

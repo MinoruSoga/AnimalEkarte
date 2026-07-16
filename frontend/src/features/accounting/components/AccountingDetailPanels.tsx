@@ -179,7 +179,8 @@ export function AccountingDetailColumns({
 
       <div className="w-full lg:w-[400px] flex flex-col gap-4 overflow-y-auto">
         {/* #182: 飼主の未納残高（未納がある場合のみ表示） */}
-        <OwnerUnpaidBalanceCard ownerId={accounting.ownerId} />
+        {/* P2-11: 拠点横断で開いた会計の場合、残高は accounting.clinicId のクリニックで解決する */}
+        <OwnerUnpaidBalanceCard ownerId={accounting.ownerId} clinicId={accounting.clinicId} />
 
         <InsuranceCard
           useInsurance={hasInsurance}

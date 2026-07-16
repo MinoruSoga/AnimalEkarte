@@ -142,6 +142,7 @@ function makePetMutations() {
     createPetMutate: vi.fn(),
     deletePetMutate: vi.fn(),
     createPetFn: vi.fn() as never,
+    revokePetDeathMutate: vi.fn(),
   };
   return { mutations, updatePetMutate };
 }

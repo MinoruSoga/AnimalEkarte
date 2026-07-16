@@ -63,8 +63,43 @@ jobs:
         working-directory: backend
         run: pnpm exec wrangler deploy
 
+      # PR#186 P2-3: wrangler deploy は Worker/Container を即座に切り替える(段階的ロールアウト機構なし)ため、
+      # 旧ECSフロー(migrateジョブ→exit code検証→失敗ならAPI deployをabort、migration-cloudflare.md:425が
+      # 本来の意図として明記)の意図を守るには、新バージョンに対する検証系ステップより前に migration を
+      # 通す必要がある。cf-run-migrate.sh の self-test(15s)/本実行(150s)タイムアウトはコンテナのコールド
+      # スタート(最大 ~3s)を吸収できるため、/health ポーリングより前段に置ける。
+      # 既知の残課題: wrangler deploy 完了と同時に実トラフィックは新バージョンへ切り替わる。Cloudflare の
+      # 段階的デプロイ(wrangler versions upload/deploy)は Durable Object(本Workerが AnimalEkarteApiContainer
+      # を DO として bind)を使うスクリプトには適用できない(Preview URL も DO bind Worker には生成されない。
+      # 出典: developers.cloudflare.com/workers/versions-and-deployments/gradual-deployments/with-durable-objects/
+      # および .../preview-urls/、いずれも2026-07時点)。本ワークフローでは利用不可。したがって
+      # 「新バイナリが旧スキーマに対して稼働し得る」区間は deploy完了時点からこのステップの migration が
+      # 完了するまで(最大 MIGRATE_TIMEOUT=150s 分)残り続け、CIの検証順序を早めても、この区間そのものを
+      # YAML の変更だけでゼロにはできない(縮小したのみ)。
+      #
+      # USER accept-window 決定（PR#186 P2-3, 2026-07-16, Grill-me Q2=A採用）:
+      # 上記の残存ウィンドウ（deploy完了 〜 migration完了、最大 MIGRATE_TIMEOUT=150s）は既知の限界として
+      # USER が明示的に受容済み。migrate を health-check より前段に置くことでウィンドウを縮小する緩和策は
+      # 既に実施済みで、これが現行アーキテクチャでの最終形である。真のゼロ化（migrate-before-traffic の
+      # 完全達成）には、migration をコンテナイメージのデプロイから切り離し、wrangler deploy より前の
+      # CI ステップとして PlanetScale へ直接実行する「decouple」方式への移行が必要（本番DB認証情報の
+      # CI Secrets 化・PlanetScale側のCIランナー許可・expand-contract 運用への移行を伴うため、別途
+      # USER 承認とスコープ切り出しが必要 — New Work、本コメントの更新だけでは実装しない）。
+      # 「残存リスクつき PASS」ではなく「意図的に受容した既知の制約」として扱うこと。
+      - name: Run database migration
+        env:
+          MIGRATE_RUN_SECRET: ${{ secrets.MIGRATE_RUN_SECRET }}
+          WORKER_URL: ${{ env.WORKER_URL }}
+        run: |
+          set -euo pipefail
+          if [ -z "${MIGRATE_RUN_SECRET}" ]; then
+            echo "::error::MIGRATE_RUN_SECRET secret is not configured (migration-cloudflare.md P5-2)"
+            exit 1
+          fi
+          ./infra/scripts/cf-run-migrate.sh
+
       # 試行12: vars 変更は warm Container に即時反映されない。コールドスタート最大 ~3s + sleepAfter 10m を考慮
-      - name: Wait for /health (post-deploy)
+      - name: Wait for /health (post-migrate)
         run: |
           set -euo pipefail
           URL="${WORKER_URL}/health"
@@ -81,37 +116,9 @@ jobs:
             fi
             sleep 30
           done
-          echo "::error::Health check failed after deploy"
+          echo "::error::Health check failed after deploy+migrate"
           cat /tmp/health.json 2>/dev/null || true
           exit 1
-
-      - name: Run database migration
-        env:
-          MIGRATE_RUN_SECRET: ${{ secrets.MIGRATE_RUN_SECRET }}
-          WORKER_URL: ${{ env.WORKER_URL }}
-        run: |
-          set -euo pipefail
-          if [ -z "${MIGRATE_RUN_SECRET}" ]; then
-            echo "::error::MIGRATE_RUN_SECRET secret is not configured (migration-cloudflare.md P5-2)"
-            exit 1
-          fi
-          ./infra/scripts/cf-run-migrate.sh
-
-      - name: Verify /health (post-migrate)
-        run: |
-          set -euo pipefail
-          URL="${WORKER_URL}/health"
-          HTTP_CODE=$(curl -sS -o /tmp/health-post.json -w '%{http_code}' --max-time 30 "${URL}")
-          if [ "${HTTP_CODE}" != "200" ]; then
-            echo "::error::Post-migrate health returned HTTP ${HTTP_CODE}"
-            exit 1
-          fi
-          STATUS=$(jq -r '.status // empty' /tmp/health-post.json)
-          if [ "${STATUS}" != "ok" ]; then
-            echo "::error::Post-migrate health status was '${STATUS}'"
-            exit 1
-          fi
-          echo "Post-migrate health OK"
 
       - name: Optional API smoke (CRUD)
         env:

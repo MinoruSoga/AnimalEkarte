@@ -67,6 +67,40 @@ func okExamTypeRepo() repository.ExamTypeRepository {
 	}}
 }
 
+// okPetRepo / rejectPetRepo, okMedicalRecordRepo / rejectMedicalRecordRepo (P1-2, PR #186 review):
+// lab import が pet_id/medical_record_id を import clinic で所有検証してから Create することの
+// 回帰テスト用ダブル。mockPetRepository/mockMedicalRecordRepository は pet_service_test.go /
+// mocks_medical_record_test.go で定義済みの共有モック(同一パッケージ)を再利用する。
+func okPetRepo() repository.PetRepository {
+	return &mockPetRepository{findByIDFn: func(_ context.Context, _, id uint64) (*model.Pet, error) {
+		return &model.Pet{ID: id}, nil
+	}}
+}
+
+func rejectPetRepo(ownedID uint64) repository.PetRepository {
+	return &mockPetRepository{findByIDFn: func(_ context.Context, _, id uint64) (*model.Pet, error) {
+		if id != ownedID {
+			return nil, apperrors.WrapNotFound("pet", "foreign")
+		}
+		return &model.Pet{ID: id}, nil
+	}}
+}
+
+func okMedicalRecordRepo() repository.MedicalRecordRepository {
+	return &mockMedicalRecordRepository{findByIDFn: func(_ context.Context, _, id uint64) (*model.MedicalRecord, error) {
+		return &model.MedicalRecord{ID: id}, nil
+	}}
+}
+
+func rejectMedicalRecordRepo(ownedID uint64) repository.MedicalRecordRepository {
+	return &mockMedicalRecordRepository{findByIDFn: func(_ context.Context, _, id uint64) (*model.MedicalRecord, error) {
+		if id != ownedID {
+			return nil, apperrors.WrapNotFound("medical_record", "foreign")
+		}
+		return &model.MedicalRecord{ID: id}, nil
+	}}
+}
+
 func okCheckupTypeRepo() repository.CheckupTypeRepository {
 	return &mockCheckupTypeRepository{findByIDFn: func(_ context.Context, _, id uint64) (*model.CheckupType, error) {
 		return &model.CheckupType{ID: id}, nil
@@ -2072,7 +2106,7 @@ func TestLabImportExaminationService_PersistExam_RejectsCrossClinicExamType(t *t
 	const foreignExamTypeID = uint64(999)
 
 	newSvc := func(examRepo *stubExamRepo) *labImportExaminationService {
-		return NewLabImportExaminationService(examRepo, &stubDupChecker{}, rejectExamTypeRepo(ownedExamTypeID)).(*labImportExaminationService)
+		return NewLabImportExaminationService(examRepo, &stubDupChecker{}, rejectExamTypeRepo(ownedExamTypeID), okPetRepo(), okMedicalRecordRepo()).(*labImportExaminationService)
 	}
 
 	t.Run("rejects cross-clinic exam_type_id and does not persist", func(t *testing.T) {
@@ -2104,13 +2138,105 @@ func TestLabImportExaminationService_PersistExam_RejectsCrossClinicExamType(t *t
 	})
 }
 
+// ── lab import (P1-2, PR #186 review): PetID / MedicalRecordID ──
+//
+// persistExam copied a request-derived pet_id/medical_record_id into a new exam
+// after only exam_type ownership was checked, letting a lab-import commit link
+// a clinic-A exam to clinic-B pet/medical_record data. Guard: petRepo.FindByID /
+// medicalRecordRepo.FindByID (ctx, clinicID, id) before Create, mirroring the
+// exam_type check above.
+
+func TestLabImportExaminationService_PersistExam_RejectsCrossClinicPet(t *testing.T) {
+	const clinicID = uint64(1)
+	const ownedPetID = uint64(50)
+	const foreignPetID = uint64(999)
+
+	newSvc := func(examRepo *stubExamRepo) *labImportExaminationService {
+		return NewLabImportExaminationService(examRepo, &stubDupChecker{}, okExamTypeRepo(), rejectPetRepo(ownedPetID), okMedicalRecordRepo()).(*labImportExaminationService)
+	}
+
+	t.Run("rejects cross-clinic pet_id and does not persist", func(t *testing.T) {
+		examRepo := newStubExamRepo()
+		svc := newSvc(examRepo)
+		foreign := foreignPetID
+		out, err := svc.persistExam(context.Background(), LabExamPersistInput{
+			ClinicID:   clinicID,
+			ExamTypeID: 10,
+			PetID:      &foreign,
+			Date:       time.Now(),
+			JobID:      uuid.New(),
+		})
+		assert.Error(t, err)
+		assert.Nil(t, out)
+		assert.Empty(t, examRepo.exams, "lab import exam must NOT be persisted referencing another clinic's pet")
+	})
+
+	t.Run("accepts same-clinic pet_id (no false-reject)", func(t *testing.T) {
+		examRepo := newStubExamRepo()
+		svc := newSvc(examRepo)
+		owned := ownedPetID
+		out, err := svc.persistExam(context.Background(), LabExamPersistInput{
+			ClinicID:   clinicID,
+			ExamTypeID: 10,
+			PetID:      &owned,
+			Date:       time.Now(),
+			JobID:      uuid.New(),
+		})
+		assert.NoError(t, err)
+		assert.NotNil(t, out)
+		assert.Len(t, examRepo.exams, 1)
+	})
+}
+
+func TestLabImportExaminationService_PersistExam_RejectsCrossClinicMedicalRecord(t *testing.T) {
+	const clinicID = uint64(1)
+	const ownedRecordID = uint64(70)
+	const foreignRecordID = uint64(999)
+
+	newSvc := func(examRepo *stubExamRepo) *labImportExaminationService {
+		return NewLabImportExaminationService(examRepo, &stubDupChecker{}, okExamTypeRepo(), okPetRepo(), rejectMedicalRecordRepo(ownedRecordID)).(*labImportExaminationService)
+	}
+
+	t.Run("rejects cross-clinic medical_record_id and does not persist", func(t *testing.T) {
+		examRepo := newStubExamRepo()
+		svc := newSvc(examRepo)
+		foreign := foreignRecordID
+		out, err := svc.persistExam(context.Background(), LabExamPersistInput{
+			ClinicID:        clinicID,
+			ExamTypeID:      10,
+			MedicalRecordID: &foreign,
+			Date:            time.Now(),
+			JobID:           uuid.New(),
+		})
+		assert.Error(t, err)
+		assert.Nil(t, out)
+		assert.Empty(t, examRepo.exams, "lab import exam must NOT be persisted referencing another clinic's medical_record")
+	})
+
+	t.Run("accepts same-clinic medical_record_id (no false-reject)", func(t *testing.T) {
+		examRepo := newStubExamRepo()
+		svc := newSvc(examRepo)
+		owned := ownedRecordID
+		out, err := svc.persistExam(context.Background(), LabExamPersistInput{
+			ClinicID:        clinicID,
+			ExamTypeID:      10,
+			MedicalRecordID: &owned,
+			Date:            time.Now(),
+			JobID:           uuid.New(),
+		})
+		assert.NoError(t, err)
+		assert.NotNil(t, out)
+		assert.Len(t, examRepo.exams, 1)
+	})
+}
+
 func TestLabImportExaminationService_PersistBatch_RejectsCrossClinicExamType(t *testing.T) {
 	const clinicID = uint64(1)
 	const ownedExamTypeID = uint64(10)
 	const foreignExamTypeID = uint64(999)
 
 	examRepo := newStubExamRepo()
-	svc := NewLabImportExaminationService(examRepo, &stubDupChecker{}, rejectExamTypeRepo(ownedExamTypeID))
+	svc := NewLabImportExaminationService(examRepo, &stubDupChecker{}, rejectExamTypeRepo(ownedExamTypeID), okPetRepo(), okMedicalRecordRepo())
 
 	jobID := uuid.New()
 	inputs := []LabExamPersistInput{
@@ -2134,7 +2260,7 @@ func TestLabResultImportService_Commit_RejectsCrossClinicExamType(t *testing.T) 
 
 	jobSvc := newStubLabJobService()
 	examRepo := newStubExamRepo()
-	examSvc := NewLabImportExaminationService(examRepo, &stubDupChecker{}, rejectExamTypeRepo(ownedExamTypeID))
+	examSvc := NewLabImportExaminationService(examRepo, &stubDupChecker{}, rejectExamTypeRepo(ownedExamTypeID), okPetRepo(), okMedicalRecordRepo())
 	svc := NewLabResultImportService(jobSvc, examSvc)
 
 	batch := syntheticFixtureBatch(1)

@@ -39,4 +39,37 @@ describe("sanitizeNullBytes（BUG-067 / R-F20）", () => {
     expect(sanitizeNullBytes(42)).toBe(42);
     expect(sanitizeNullBytes(true)).toBe(true);
   });
+
+  it("PR #186 review (P2-1): FormData は空オブジェクト化せずファイルパートを保持する", () => {
+    const fd = new FormData();
+    fd.append("file", new File(["a,b\n1,2"], "friends.csv", { type: "text/csv" }));
+
+    const result = sanitizeNullBytes(fd) as FormData;
+
+    expect(result instanceof FormData).toBe(true);
+    expect(result.get("file")).toBeInstanceOf(File);
+    expect((result.get("file") as File).name).toBe("friends.csv");
+  });
+
+  it("セキュリティレビュー指摘: FormData に同居するテキストフィールドの NULL バイトは除去し、file パートは無傷で通す", () => {
+    const fd = new FormData();
+    fd.append("file", new File(["content"], "a.csv", { type: "text/csv" }));
+    fd.append("purpose", `line_upload${NULL_BYTE}`);
+    fd.append("owner_id", "123");
+
+    const result = sanitizeNullBytes(fd) as FormData;
+
+    expect(result.get("purpose")).toBe("line_upload");
+    expect(result.get("owner_id")).toBe("123");
+    expect(result.get("file")).toBeInstanceOf(File);
+    expect((result.get("file") as File).name).toBe("a.csv");
+  });
+
+  it("PR #186 review (P2-1): Blob/File 単体もそのまま返す", () => {
+    const file = new File(["content"], "a.csv", { type: "text/csv" });
+    const blob = new Blob(["content"], { type: "text/plain" });
+
+    expect(sanitizeNullBytes(file)).toBe(file);
+    expect(sanitizeNullBytes(blob)).toBe(blob);
+  });
 });

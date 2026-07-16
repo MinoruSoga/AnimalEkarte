@@ -61,6 +61,9 @@ type CloseBillingDetail struct {
 // buildCategoryBreakdown はカテゴリ行と支払方法行から CategoryBreakdownSchema を構築する。
 // 混在支払いの場合、カテゴリ金額を支払方法比率で按分する。
 // 支払方法キーは system_key（例: "cash", "credit_card"）を使用。未登録 id は "method_N" にフォールバック。
+// payment_method_id=NULL の行（旧 seed/レガシーデータの現金 split）は現金 system_key に計上する。
+// calcTheoreticalCash と同じ「NULL=現金」判定（#128 後方互換）に揃えないと、category_breakdown の合計が
+// totalPayment（NULL 行を含む）と一致しなくなる。
 func buildCategoryBreakdown(payRows []repository.PaymentAggregateRow, catRows []repository.CategoryAggregateRow, taxRows []repository.TaxBreakdownRow, payMethods []model.PaymentMethodMaster, taxRates accountingReportTaxRates) model.CategoryBreakdownSchema {
 	idToKey := make(map[uint64]string, len(payMethods))
 	for i := range payMethods {
@@ -71,6 +74,7 @@ func buildCategoryBreakdown(payRows []repository.PaymentAggregateRow, catRows []
 			idToKey[m.ID] = fmt.Sprintf("method_%d", m.ID)
 		}
 	}
+	cashKey := paymentMethodSystemKeys[model.PaymentMethodCash]
 
 	var totalPayment int64
 	for _, pm := range payRows {
@@ -81,12 +85,13 @@ func buildCategoryBreakdown(payRows []repository.PaymentAggregateRow, catRows []
 	for _, cat := range catRows {
 		cats[cat.Category] = make(map[string]int64)
 		for _, pm := range payRows {
-			if pm.PaymentMethodID == nil {
-				continue // #128 hotfix 後は payment_method_id=NULL は発生しない
-			}
-			key, ok := idToKey[*pm.PaymentMethodID]
-			if !ok {
-				key = fmt.Sprintf("method_%d", *pm.PaymentMethodID)
+			key := cashKey
+			if pm.PaymentMethodID != nil {
+				var ok bool
+				key, ok = idToKey[*pm.PaymentMethodID]
+				if !ok {
+					key = fmt.Sprintf("method_%d", *pm.PaymentMethodID)
+				}
 			}
 			if totalPayment > 0 {
 				cats[cat.Category][key] += cat.Amount * pm.Amount / totalPayment

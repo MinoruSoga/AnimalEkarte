@@ -60,7 +60,7 @@ export function CreditCorrectionDialog({ accounting, isPostClose = false }: Cred
       return null;
     }
     try {
-      await correctCreditPayment(accounting.id, {
+      await correctCreditPayment(accounting.id, accounting.clinicId, {
         method,
         amount: amountNum,
         reason: reason.trim(),

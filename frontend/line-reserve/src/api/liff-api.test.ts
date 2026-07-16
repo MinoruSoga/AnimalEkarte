@@ -55,7 +55,6 @@ describe("liffApi（R-F20: NULL バイトサニタイズ）", () => {
     // 確認する仮データで、実際の LiffSettings 契約を表していなかった）。
     const settingsFixture = {
       liff_id: "123",
-      clinic_name: "テスト病院",
       header_text: "テスト病院",
       phone_number: "",
       status: "running",

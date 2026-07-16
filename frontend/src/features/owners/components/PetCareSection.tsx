@@ -102,7 +102,7 @@ export function PetCareSection({
             死亡
           </label>
         </div>
-        {formData.id && formData.status === "生存" ? (
+        {formData.id ? (
           <div className="pt-1">
             <PetDeceasedRecordButton
               petId={formData.id}
@@ -110,7 +110,7 @@ export function PetCareSection({
               petBreed={formData.breed}
               petGender={formData.gender}
               birthDate={formData.birthDate}
-              deceasedAt={null}
+              deceasedAt={formData.deceasedAt ?? null}
               canEdit={canEdit}
             />
           </div>

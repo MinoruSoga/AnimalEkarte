@@ -26,35 +26,39 @@ type petOwnerNested struct {
 }
 
 type petResponse struct {
-	ID              uint64                  `json:"id"`
-	ClinicID        uint64                  `json:"clinic_id"`
-	OwnerID         uint64                  `json:"owner_id"`
-	AnimalSpeciesID uint64                  `json:"animal_species_id"`
-	PetNumber       string                  `json:"pet_number"`
-	Name            string                  `json:"name"`
-	PetNameKana     string                  `json:"pet_name_kana"`
-	Gender          string                  `json:"gender"`
-	Status          string                  `json:"status"`
-	BirthDate       *time.Time              `json:"birth_date,omitempty"`
-	Breed           string                  `json:"breed"`
-	Color           string                  `json:"color"`
-	BloodType       *string                 `json:"blood_type,omitempty"`
-	MicrochipNumber *string                 `json:"microchip_number,omitempty"`
-	Weight          *float64                `json:"weight,omitempty"`
-	NeuteredDate    *time.Time              `json:"neutered_date,omitempty"`
-	AcquisitionType *string                 `json:"acquisition_type,omitempty"`
-	DangerLevel     string                  `json:"danger_level"`
-	Food            string                  `json:"food"`
-	Environment     string                  `json:"environment"`
-	Phone           string                  `json:"phone"`
-	LastVisit       *time.Time              `json:"last_visit,omitempty"`
-	InsuranceID     *uint64                 `json:"insurance_id,omitempty"`
-	Remarks         string                  `json:"remarks"`
-	CreatedAt       time.Time               `json:"created_at"`
-	UpdatedAt       time.Time               `json:"updated_at"`
-	Owner           *petOwnerNested         `json:"owner,omitempty"`
-	AnimalSpecies   *petAnimalSpeciesNested `json:"animal_species,omitempty"`
-	Insurance       *petInsuranceNested     `json:"insurance,omitempty"`
+	ID              uint64     `json:"id"`
+	ClinicID        uint64     `json:"clinic_id"`
+	OwnerID         uint64     `json:"owner_id"`
+	AnimalSpeciesID uint64     `json:"animal_species_id"`
+	PetNumber       string     `json:"pet_number"`
+	Name            string     `json:"name"`
+	PetNameKana     string     `json:"pet_name_kana"`
+	Gender          string     `json:"gender"`
+	Status          string     `json:"status"`
+	BirthDate       *time.Time `json:"birth_date,omitempty"`
+	Breed           string     `json:"breed"`
+	Color           string     `json:"color"`
+	BloodType       *string    `json:"blood_type,omitempty"`
+	MicrochipNumber *string    `json:"microchip_number,omitempty"`
+	Weight          *float64   `json:"weight,omitempty"`
+	NeuteredDate    *time.Time `json:"neutered_date,omitempty"`
+	AcquisitionType *string    `json:"acquisition_type,omitempty"`
+	DangerLevel     string     `json:"danger_level"`
+	Food            string     `json:"food"`
+	Environment     string     `json:"environment"`
+	Phone           string     `json:"phone"`
+	LastVisit       *time.Time `json:"last_visit,omitempty"`
+	InsuranceID     *uint64    `json:"insurance_id,omitempty"`
+	Remarks         string     `json:"remarks"`
+	// DeceasedReason は含めない（セキュリティレビュー指摘と平仄を合わせる: 現状どの UI
+	// コンポーネントもこの値を読み取らない — 死亡ダイアログは書き込み専用。将来的な読み取り
+	// UI が実装されるまでは意図的に未追加とする。DeceasedAt のみで死亡バナー表示は成立する）。
+	DeceasedAt    *time.Time              `json:"deceased_at,omitempty"`
+	CreatedAt     time.Time               `json:"created_at"`
+	UpdatedAt     time.Time               `json:"updated_at"`
+	Owner         *petOwnerNested         `json:"owner,omitempty"`
+	AnimalSpecies *petAnimalSpeciesNested `json:"animal_species,omitempty"`
+	Insurance     *petInsuranceNested     `json:"insurance,omitempty"`
 }
 
 // petFirstVisitResponse は #158 飼主レポートのペット初診日（最古カルテ date 由来）。
@@ -234,6 +238,7 @@ func toPetResponse(p *model.Pet) petResponse {
 		LastVisit:       localTimePtr(p.LastVisit),
 		InsuranceID:     p.InsuranceID,
 		Remarks:         p.Remarks,
+		DeceasedAt:      localTimePtr(p.DeceasedAt),
 		CreatedAt:       localTime(p.CreatedAt),
 		UpdatedAt:       localTime(p.UpdatedAt),
 	}

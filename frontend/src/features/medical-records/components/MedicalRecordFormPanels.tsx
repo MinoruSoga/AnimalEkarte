@@ -201,6 +201,8 @@ interface MedicalRecordTabsAreaProps {
   lstepStatus: "synced" | "not-linked" | "opt-out" | undefined;
   recordStatus: string;
   diagnosis1NameIdError: string | undefined;
+  /** P2-15: 拠点横断で開いたカルテの子リソース操作用。レコード自身の clinicId */
+  recordClinicId?: string;
   onChiefComplaintChange: (value: string) => void;
   onChiefComplaintTypeIdChange: (id: number | null) => void;
   onTreatmentPolicyChange: (value: string) => void;
@@ -240,6 +242,7 @@ export function MedicalRecordTabsArea({
   lstepStatus,
   recordStatus,
   diagnosis1NameIdError,
+  recordClinicId,
   onChiefComplaintChange,
   onChiefComplaintTypeIdChange,
   onTreatmentPolicyChange,
@@ -294,6 +297,7 @@ export function MedicalRecordTabsArea({
               ownerDiscountRate={ownerDiscountRate}
               onRegisterClinicalPlanSave={onRegisterClinicalPlanSave}
               diagnosis1NameIdError={diagnosis1NameIdError}
+              recordClinicId={recordClinicId}
             />
             <div className="px-4 pb-4 mt-4 flex flex-col gap-6">
               <NextVisitDateField
@@ -329,6 +333,7 @@ export function MedicalRecordTabsArea({
               medicalRecordId={recordId ?? ""}
               isNewRecord={isNewRecord}
               petSpecies={selectedPet.species}
+              recordClinicId={recordClinicId}
             />
           </div>
         </UnifiedTabsContent>
@@ -363,7 +368,7 @@ export function MedicalRecordTabsArea({
       {mountedTabs.has("画像") ? (
         <UnifiedTabsContent value="画像">
           <div className={`${LAYOUT.fullHeight} ${activeTab === "画像" ? "" : "hidden"}`}>
-            <MedicalRecordImage isNewRecord={isNewRecord} medicalRecordId={recordId} />
+            <MedicalRecordImage isNewRecord={isNewRecord} medicalRecordId={recordId} recordClinicId={recordClinicId} />
           </div>
         </UnifiedTabsContent>
       ) : null}
@@ -386,6 +391,7 @@ export function MedicalRecordTabsArea({
               isNewRecord={isNewRecord}
               medicalRecordId={recordId}
               ownerDiscountRate={ownerDiscountRate}
+              recordClinicId={recordClinicId}
             />
           </div>
         </UnifiedTabsContent>

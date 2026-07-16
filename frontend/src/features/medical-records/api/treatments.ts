@@ -15,19 +15,30 @@ import type {
   BulkReorderTreatmentsInput,
 } from "../types";
 
+// P2-15 (PR #186 review): 拠点横断で開いたカルテ（record.clinicId）の子リソースを操作する場合、
+// グローバル選択クリニックではなくレコード自身の clinicId を X-Clinic-ID として送る必要がある。
+// clinicId 省略時は axios インターセプタがグローバル選択値にフォールバックする（従来挙動を維持）。
+function clinicHeaderConfig(clinicId?: string) {
+  return clinicId ? { headers: { "X-Clinic-ID": clinicId } } : undefined;
+}
+
 // ── Fetch ─────────────────────────────────────────────────────────────
 
-const getTreatments = async (medicalRecordId: string): Promise<Treatment[]> => {
+const getTreatments = async (
+  medicalRecordId: string,
+  clinicId?: string
+): Promise<Treatment[]> => {
   const { data } = await axios.get<Treatment[]>(
-    `/v1/medical-records/${medicalRecordId}/treatments`
+    `/v1/medical-records/${medicalRecordId}/treatments`,
+    clinicHeaderConfig(clinicId)
   );
   return data;
 };
 
-export const useGetTreatments = (medicalRecordId: string) => {
+export const useGetTreatments = (medicalRecordId: string, clinicId?: string) => {
   return useQuery({
-    queryKey: queryKeys.medicalRecords.treatments(medicalRecordId),
-    queryFn: () => getTreatments(medicalRecordId),
+    queryKey: queryKeys.medicalRecords.treatments(medicalRecordId, clinicId),
+    queryFn: () => getTreatments(medicalRecordId, clinicId),
     enabled: !!medicalRecordId,
     staleTime: QUERY_STALE_TIMES.REALTIME,
     gcTime: QUERY_GC_TIMES.STANDARD,
@@ -36,13 +47,17 @@ export const useGetTreatments = (medicalRecordId: string) => {
 
 // ── Create ────────────────────────────────────────────────────────────
 
-export const useCreateTreatment = (medicalRecordId: string) => {
+export const useCreateTreatment = (medicalRecordId: string, clinicId?: string) => {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: (input: CreateTreatmentInput) =>
       axios
-        .post<Treatment>(`/v1/medical-records/${medicalRecordId}/treatments`, input)
+        .post<Treatment>(
+          `/v1/medical-records/${medicalRecordId}/treatments`,
+          input,
+          clinicHeaderConfig(clinicId)
+        )
         .then((r) => r.data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.medicalRecords.treatments(medicalRecordId) });
@@ -55,7 +70,7 @@ export const useCreateTreatment = (medicalRecordId: string) => {
 
 // ── Update (PATCH) ────────────────────────────────────────────────────
 
-export const useUpdateTreatment = (medicalRecordId: string) => {
+export const useUpdateTreatment = (medicalRecordId: string, clinicId?: string) => {
   const queryClient = useQueryClient();
 
   return useMutation({
@@ -63,7 +78,8 @@ export const useUpdateTreatment = (medicalRecordId: string) => {
       axios
         .patch<Treatment>(
           `/v1/medical-records/${medicalRecordId}/treatments/${treatmentId}`,
-          input
+          input,
+          clinicHeaderConfig(clinicId)
         )
         .then((r) => r.data),
     onSuccess: () => {
@@ -77,12 +93,15 @@ export const useUpdateTreatment = (medicalRecordId: string) => {
 
 // ── Delete ────────────────────────────────────────────────────────────
 
-export const useDeleteTreatment = (medicalRecordId: string) => {
+export const useDeleteTreatment = (medicalRecordId: string, clinicId?: string) => {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: (treatmentId: string) =>
-      axios.delete(`/v1/medical-records/${medicalRecordId}/treatments/${treatmentId}`),
+      axios.delete(
+        `/v1/medical-records/${medicalRecordId}/treatments/${treatmentId}`,
+        clinicHeaderConfig(clinicId)
+      ),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.medicalRecords.treatments(medicalRecordId) });
     },
@@ -94,7 +113,7 @@ export const useDeleteTreatment = (medicalRecordId: string) => {
 
 // ── Reorder (PUT bulk update) ─────────────────────────────────────────
 
-export const useReorderTreatments = (medicalRecordId: string) => {
+export const useReorderTreatments = (medicalRecordId: string, clinicId?: string) => {
   const queryClient = useQueryClient();
 
   return useMutation({
@@ -108,7 +127,8 @@ export const useReorderTreatments = (medicalRecordId: string) => {
       };
       return axios.put(
         `/v1/medical-records/${medicalRecordId}/treatments`,
-        payload
+        payload,
+        clinicHeaderConfig(clinicId)
       );
     },
     onSuccess: () => {

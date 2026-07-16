@@ -25,32 +25,37 @@ func toOwnerSummary(o *model.Owner) *ownerSummaryResponse {
 }
 
 type petInOwnerResponse struct {
-	ID              uint64                  `json:"id"`
-	OwnerID         uint64                  `json:"owner_id"`
-	AnimalSpeciesID uint64                  `json:"animal_species_id"`
-	PetNumber       string                  `json:"pet_number"`
-	Name            string                  `json:"name"`
-	PetNameKana     string                  `json:"pet_name_kana"`
-	Gender          string                  `json:"gender"`
-	Status          string                  `json:"status"`
-	BirthDate       *time.Time              `json:"birth_date,omitempty"`
-	Breed           string                  `json:"breed"`
-	Color           string                  `json:"color"`
-	BloodType       *string                 `json:"blood_type,omitempty"`
-	MicrochipNumber *string                 `json:"microchip_number,omitempty"`
-	DangerLevel     string                  `json:"danger_level"`
-	Weight          *float64                `json:"weight,omitempty"`
-	NeuteredDate    *time.Time              `json:"neutered_date,omitempty"`
-	AcquisitionType *string                 `json:"acquisition_type,omitempty"`
-	Food            string                  `json:"food"`
-	Environment     string                  `json:"environment"`
-	LastVisit       *time.Time              `json:"last_visit,omitempty"`
-	InsuranceID     *uint64                 `json:"insurance_id,omitempty"`
-	Remarks         string                  `json:"remarks"`
-	CreatedAt       time.Time               `json:"created_at"`
-	UpdatedAt       time.Time               `json:"updated_at"`
-	AnimalSpecies   *petAnimalSpeciesNested `json:"animal_species,omitempty"`
-	Insurance       *petInsuranceNested     `json:"insurance,omitempty"`
+	ID              uint64     `json:"id"`
+	OwnerID         uint64     `json:"owner_id"`
+	AnimalSpeciesID uint64     `json:"animal_species_id"`
+	PetNumber       string     `json:"pet_number"`
+	Name            string     `json:"name"`
+	PetNameKana     string     `json:"pet_name_kana"`
+	Gender          string     `json:"gender"`
+	Status          string     `json:"status"`
+	BirthDate       *time.Time `json:"birth_date,omitempty"`
+	Breed           string     `json:"breed"`
+	Color           string     `json:"color"`
+	BloodType       *string    `json:"blood_type,omitempty"`
+	MicrochipNumber *string    `json:"microchip_number,omitempty"`
+	DangerLevel     string     `json:"danger_level"`
+	Weight          *float64   `json:"weight,omitempty"`
+	NeuteredDate    *time.Time `json:"neutered_date,omitempty"`
+	AcquisitionType *string    `json:"acquisition_type,omitempty"`
+	Food            string     `json:"food"`
+	Environment     string     `json:"environment"`
+	LastVisit       *time.Time `json:"last_visit,omitempty"`
+	InsuranceID     *uint64    `json:"insurance_id,omitempty"`
+	Remarks         string     `json:"remarks"`
+	// DeceasedReason は含めない（セキュリティレビュー指摘: この構造体は未curationの
+	// LIFF LinkLiffAccount 経路でも再利用されるため、スタッフ用の死因自由記述を飼主向け
+	// レスポンスに載せてしまう。UI側でも死亡バナー表示に必要なのは DeceasedAt のみで
+	// DeceasedReason の読み取り消費者は存在しない — 意図的に未追加）。
+	DeceasedAt    *time.Time              `json:"deceased_at,omitempty"`
+	CreatedAt     time.Time               `json:"created_at"`
+	UpdatedAt     time.Time               `json:"updated_at"`
+	AnimalSpecies *petAnimalSpeciesNested `json:"animal_species,omitempty"`
+	Insurance     *petInsuranceNested     `json:"insurance,omitempty"`
 }
 
 type ownerResponse struct {
@@ -111,6 +116,7 @@ func toPetInOwnerResponse(p *model.Pet) petInOwnerResponse {
 		LastVisit:       localTimePtr(p.LastVisit),
 		InsuranceID:     p.InsuranceID,
 		Remarks:         p.Remarks,
+		DeceasedAt:      localTimePtr(p.DeceasedAt),
 		CreatedAt:       localTime(p.CreatedAt),
 		UpdatedAt:       localTime(p.UpdatedAt),
 	}

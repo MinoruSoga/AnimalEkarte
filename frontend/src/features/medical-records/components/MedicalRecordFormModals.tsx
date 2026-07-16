@@ -16,6 +16,8 @@ interface MedicalRecordFormModalsProps {
   recordId: string | undefined;
   isVitalsOpen: boolean;
   onVitalsOpenChange: ComponentProps<typeof VitalsModal>["onOpenChange"];
+  /** P2-15: 拠点横断で開いたカルテの子リソース操作用。レコード自身の clinicId */
+  recordClinicId?: string;
   isStaffModalOpen: boolean;
   staffName: string;
   onSelectStaff: ComponentProps<typeof StaffSelectionModal>["onSelect"];
@@ -39,6 +41,7 @@ export function MedicalRecordFormModals({
   recordId,
   isVitalsOpen,
   onVitalsOpenChange,
+  recordClinicId,
   isStaffModalOpen,
   staffName,
   onSelectStaff,
@@ -67,6 +70,7 @@ export function MedicalRecordFormModals({
             open={isVitalsOpen}
             onOpenChange={onVitalsOpenChange}
             medicalRecordId={recordId}
+            recordClinicId={recordClinicId}
           />
         ) : null}
       </Suspense>

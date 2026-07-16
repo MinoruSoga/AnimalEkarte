@@ -10,19 +10,27 @@ import { queryKeys } from "@/lib/query-keys";
 // Relative
 import type { Vital, CreateVitalInput, UpdateVitalInput } from "../types";
 
+// P2-15 (PR #186 review): 拠点横断で開いたカルテ（record.clinicId）の子リソースを操作する場合、
+// グローバル選択クリニックではなくレコード自身の clinicId を X-Clinic-ID として送る必要がある。
+// clinicId 省略時は axios インターセプタがグローバル選択値にフォールバックする（従来挙動を維持）。
+function clinicHeaderConfig(clinicId?: string) {
+  return clinicId ? { headers: { "X-Clinic-ID": clinicId } } : undefined;
+}
+
 // ── Fetch ─────────────────────────────────────────────────────────────
 
-const getVitals = async (medicalRecordId: string): Promise<Vital[]> => {
+const getVitals = async (medicalRecordId: string, clinicId?: string): Promise<Vital[]> => {
   const { data } = await axios.get<Vital[]>(
-    `/v1/medical-records/${medicalRecordId}/vitals`
+    `/v1/medical-records/${medicalRecordId}/vitals`,
+    clinicHeaderConfig(clinicId)
   );
   return data;
 };
 
-export const useGetVitals = (medicalRecordId: string) => {
+export const useGetVitals = (medicalRecordId: string, clinicId?: string) => {
   return useQuery({
-    queryKey: queryKeys.medicalRecords.vitals(medicalRecordId),
-    queryFn: () => getVitals(medicalRecordId),
+    queryKey: queryKeys.medicalRecords.vitals(medicalRecordId, clinicId),
+    queryFn: () => getVitals(medicalRecordId, clinicId),
     enabled: !!medicalRecordId,
     staleTime: QUERY_STALE_TIMES.REALTIME,
     gcTime: QUERY_GC_TIMES.STANDARD,
@@ -31,13 +39,17 @@ export const useGetVitals = (medicalRecordId: string) => {
 
 // ── Create ────────────────────────────────────────────────────────────
 
-export const useCreateVital = (medicalRecordId: string) => {
+export const useCreateVital = (medicalRecordId: string, clinicId?: string) => {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: (input: CreateVitalInput) =>
       axios
-        .post<Vital>(`/v1/medical-records/${medicalRecordId}/vitals`, input)
+        .post<Vital>(
+          `/v1/medical-records/${medicalRecordId}/vitals`,
+          input,
+          clinicHeaderConfig(clinicId)
+        )
         .then((r) => r.data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.medicalRecords.vitals(medicalRecordId) });
@@ -50,7 +62,7 @@ export const useCreateVital = (medicalRecordId: string) => {
 
 // ── Update (PATCH) ────────────────────────────────────────────────────
 
-export const useUpdateVital = (medicalRecordId: string) => {
+export const useUpdateVital = (medicalRecordId: string, clinicId?: string) => {
   const queryClient = useQueryClient();
 
   return useMutation({
@@ -58,7 +70,8 @@ export const useUpdateVital = (medicalRecordId: string) => {
       axios
         .patch<Vital>(
           `/v1/medical-records/${medicalRecordId}/vitals/${vitalId}`,
-          input
+          input,
+          clinicHeaderConfig(clinicId)
         )
         .then((r) => r.data),
     onSuccess: () => {
@@ -72,12 +85,15 @@ export const useUpdateVital = (medicalRecordId: string) => {
 
 // ── Delete ────────────────────────────────────────────────────────────
 
-export const useDeleteVital = (medicalRecordId: string) => {
+export const useDeleteVital = (medicalRecordId: string, clinicId?: string) => {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: (vitalId: string) =>
-      axios.delete(`/v1/medical-records/${medicalRecordId}/vitals/${vitalId}`),
+      axios.delete(
+        `/v1/medical-records/${medicalRecordId}/vitals/${vitalId}`,
+        clinicHeaderConfig(clinicId)
+      ),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.medicalRecords.vitals(medicalRecordId) });
     },

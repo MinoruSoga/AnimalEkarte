@@ -6,6 +6,7 @@ import { useGetOwnerUnpaidBalance } from "../api/get-owner-unpaid-balance";
 
 interface OwnerUnpaidBalanceCardProps {
   ownerId: string;
+  clinicId: string;
 }
 
 /**
@@ -19,8 +20,9 @@ interface OwnerUnpaidBalanceCardProps {
  */
 export const OwnerUnpaidBalanceCard = memo(function OwnerUnpaidBalanceCard({
   ownerId,
+  clinicId,
 }: OwnerUnpaidBalanceCardProps) {
-  const { data, isLoading, isError } = useGetOwnerUnpaidBalance(ownerId);
+  const { data, isLoading, isError } = useGetOwnerUnpaidBalance(clinicId, ownerId);
 
   if (isLoading || isError || !data || data.unpaidCount === 0) return null;
 

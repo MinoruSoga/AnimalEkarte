@@ -19,10 +19,19 @@ export interface OwnerUnpaidBalance {
  * 飼主の未納残高を取得する（#182）。
  * Backend: GET /v1/accountings/unpaid-balance?owner_id=...
  * 残高定義は未納者一覧(#120)/月次繰越(#114)と同一（status=waiting 合計）。
+ *
+ * P2-11 (PR #186 review): 拠点横断の会計詳細から開いた場合、未納残高は
+ * グローバル選択クリニックではなく対象会計（accounting.clinicId）のクリニックで
+ * 解決しなければならない。X-Clinic-ID ヘッダーを明示指定し、axios interceptor の
+ * グローバル値フォールバックを上書きする。
  */
-const getOwnerUnpaidBalance = async (ownerId: string): Promise<OwnerUnpaidBalance> => {
+const getOwnerUnpaidBalance = async (
+  clinicId: string,
+  ownerId: string,
+): Promise<OwnerUnpaidBalance> => {
   const { data } = await axios.get<BackendOwnerUnpaidBalance>("/v1/accountings/unpaid-balance", {
     params: { owner_id: ownerId },
+    headers: { "X-Clinic-ID": clinicId },
   });
   return {
     unpaidTotal: data.unpaid_total ?? 0,
@@ -30,10 +39,10 @@ const getOwnerUnpaidBalance = async (ownerId: string): Promise<OwnerUnpaidBalanc
   };
 };
 
-export const useGetOwnerUnpaidBalance = (ownerId: string | undefined) =>
+export const useGetOwnerUnpaidBalance = (clinicId: string, ownerId: string | undefined) =>
   useQuery({
-    queryKey: queryKeys.ownerUnpaidBalance(ownerId),
-    queryFn: () => getOwnerUnpaidBalance(ownerId as string),
+    queryKey: queryKeys.ownerUnpaidBalance(clinicId, ownerId),
+    queryFn: () => getOwnerUnpaidBalance(clinicId, ownerId as string),
     // 未確定（空文字 / "0" / 未指定）の飼主では実行しない
     enabled: ownerId !== undefined && ownerId !== "" && ownerId !== "0",
     staleTime: QUERY_STALE_TIMES.MEDIUM,

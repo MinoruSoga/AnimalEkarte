@@ -15,6 +15,7 @@ import {
   useGetOwner,
 } from "@/features/owners";
 import { createPet, useCreatePet, useUpdatePet, useDeletePet } from "@/features/pets";
+import { useRevokePetDeath } from "@/hooks/use-revoke-pet-death";
 import { LinkedLineCustomers } from "@/features/line-reservation";
 import { useAuth } from "@/hooks/use-auth";
 import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
@@ -35,6 +36,7 @@ export function OwnerFormPage() {
   const { mutate: createPetMutate } = useCreatePet();
   const { mutate: updatePetMutate } = useUpdatePet();
   const { mutate: deletePetMutate } = useDeletePet();
+  const { mutate: revokePetDeathMutate } = useRevokePetDeath();
 
   const { data: owner } = useGetOwner(ownerId ?? "");
   const ownerName = owner?.ownerName ?? "";
@@ -49,6 +51,7 @@ export function OwnerFormPage() {
       updatePetMutate(args, { onSuccess, onError }),
     deletePetMutate: (id, { onSuccess, onError }) =>
       deletePetMutate(id, { onSuccess, onError }),
+    revokePetDeathMutate: (petId) => revokePetDeathMutate(petId),
   };
 
   // 会計履歴セクション（編集モード=ownerIdがある時のみ意味がある。表示可否は OwnerForm 側の権限判定に委ねる）

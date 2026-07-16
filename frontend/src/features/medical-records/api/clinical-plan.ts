@@ -57,29 +57,44 @@ export interface UpdateClinicalPlanInput {
   treatment_policy?: string;
 }
 
-const getClinicalPlan = async (medicalRecordId: string): Promise<ClinicalPlan> => {
+// P2-15 (PR #186 review): 拠点横断で開いたカルテ（record.clinicId）の子リソースを操作する場合、
+// グローバル選択クリニックではなくレコード自身の clinicId を X-Clinic-ID として送る必要がある。
+// clinicId 省略時は axios インターセプタがグローバル選択値にフォールバックする（従来挙動を維持）。
+function clinicHeaderConfig(clinicId?: string) {
+  return clinicId ? { headers: { "X-Clinic-ID": clinicId } } : undefined;
+}
+
+const getClinicalPlan = async (
+  medicalRecordId: string,
+  clinicId?: string
+): Promise<ClinicalPlan> => {
   const { data } = await axios.get<Parameters<typeof transformClinicalPlan>[0]>(
-    `/v1/medical-records/${medicalRecordId}/clinical-plan`
+    `/v1/medical-records/${medicalRecordId}/clinical-plan`,
+    clinicHeaderConfig(clinicId)
   );
   return transformClinicalPlan(data);
 };
 
-export const useGetClinicalPlan = (medicalRecordId: string) => {
+export const useGetClinicalPlan = (medicalRecordId: string, clinicId?: string) => {
   return useQuery({
-    queryKey: queryKeys.medicalRecords.clinicalPlan(medicalRecordId),
-    queryFn: () => getClinicalPlan(medicalRecordId),
+    queryKey: queryKeys.medicalRecords.clinicalPlan(medicalRecordId, clinicId),
+    queryFn: () => getClinicalPlan(medicalRecordId, clinicId),
     enabled: !!medicalRecordId,
     staleTime: QUERY_STALE_TIMES.REALTIME,
     gcTime: QUERY_GC_TIMES.STANDARD,
   });
 };
 
-export const useUpdateClinicalPlan = (medicalRecordId: string) => {
+export const useUpdateClinicalPlan = (medicalRecordId: string, clinicId?: string) => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (input: UpdateClinicalPlanInput) =>
       axios
-        .patch<ClinicalPlan>(`/v1/medical-records/${medicalRecordId}/clinical-plan`, input)
+        .patch<ClinicalPlan>(
+          `/v1/medical-records/${medicalRecordId}/clinical-plan`,
+          input,
+          clinicHeaderConfig(clinicId)
+        )
         .then((r) => r.data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.medicalRecords.clinicalPlan(medicalRecordId) });

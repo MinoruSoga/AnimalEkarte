@@ -131,11 +131,16 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
   const { canEdit, canCreate, canDelete } = usePermission("medical-records");
   const canSubmit = isNewRecord ? canCreate : canEdit;
 
-  // 印刷用データ（React Query キャッシュ共有 — 子コンポーネントが既にフェッチ済み）
-  const { data: clinicalPlan } = useGetClinicalPlan(recordId ?? "");
-  const { data: treatments = [] } = useGetTreatments(recordId ?? "");
   // addenda セクション用: キャッシュ共有のため追加ネットワーク要求なし
   const { data: currentRecord } = useGetMedicalRecord(recordId ?? "");
+  // P2-15: 拠点横断で開いたカルテ（record.clinicId）の子リソースは、グローバル選択クリニックではなく
+  // レコード自身の clinicId を X-Clinic-ID として送る必要がある。currentRecord 解決前は undefined —
+  // クエリキーに clinicId を含めているため解決後に自動で正しいクリニックへ再フェッチされる。
+  const recordClinicId = currentRecord?.clinicId;
+
+  // 印刷用データ（React Query キャッシュ共有 — 子コンポーネントが既にフェッチ済み）
+  const { data: clinicalPlan } = useGetClinicalPlan(recordId ?? "", recordClinicId);
+  const { data: treatments = [] } = useGetTreatments(recordId ?? "", recordClinicId);
 
   // ローカル状態: 担当者（hookに追加するまでの暫定）
   const [staffName, setStaffName] = useState(() => user?.displayName ?? "");
@@ -156,7 +161,7 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
   // 一度マウントしたタブを記録してhide/show方式で管理
   const [mountedTabs, setMountedTabs] = useState<Set<string>>(() => new Set(["問診"]));
 
-  const { mutate: deleteRecord, isPending: isDeleting } = useDeleteMedicalRecord();
+  const { mutate: deleteRecord, isPending: isDeleting } = useDeleteMedicalRecord(recordClinicId);
 
   const handleDeleteConfirm = useCallback(() => {
     if (!recordId) return;
@@ -311,6 +316,7 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
         onRecommendationReasonChange={setRecommendationReason}
         onRegisterClinicalPlanSave={handleRegisterClinicalPlanSave}
         onRegisterEstimateSave={handleRegisterEstimateSave}
+        recordClinicId={recordClinicId}
       />
       </UnifiedTabsRoot>
 
@@ -344,6 +350,7 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
         recordId={recordId}
         isVitalsOpen={isVitalsOpen}
         onVitalsOpenChange={setIsVitalsOpen}
+        recordClinicId={recordClinicId}
         isStaffModalOpen={isStaffModalOpen}
         staffName={staffName}
         onSelectStaff={handleSelectStaff}
