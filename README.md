@@ -9,7 +9,6 @@
 本プロジェクトは、React 19 への完全移行およびバックエンドエラー処理の標準化を完了しています。開発および運用の際は、以下のドキュメントを最優先で参照してください。
 
 - **[.claude/CLAUDE.md](.claude/CLAUDE.md)**: **【Single Source of Truth】** 開発規約・アーキテクチャ・最新ルールの集約地点。
-- **[GEMINI.md](GEMINI.md)**: Gemini CLI 向けの最適化されたコンテキスト。
 - **[docs/README.md](docs/README.md)**: 各種詳細仕様書（カルテ、Lステップ、会計等）へのポータル。
 
 ---

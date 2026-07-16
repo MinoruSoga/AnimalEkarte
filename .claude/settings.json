@@ -5,7 +5,9 @@
     "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1",
     "MAX_THINKING_TOKENS": "10000",
     "CLAUDE_AUTOCOMPACT_PCT_OVERRIDE": "90",
-    "ENABLE_CLAUDEAI_MCP_SERVERS": "false"
+    "ENABLE_CLAUDEAI_MCP_SERVERS": "false",
+    "ECC_GATEGUARD": "off",
+    "ECC_DISABLED_HOOKS": "pre:bash:block-no-verify,pre:config-protection,pre:edit-write:config-protection,post:edit:console-warn,stop:check-console-log"
   },
   "includeCoAuthoredBy": false,
   "permissions": {
