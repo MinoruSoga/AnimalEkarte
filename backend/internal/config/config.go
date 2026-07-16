@@ -50,6 +50,12 @@ type Config struct {
 	S3Bucket string
 	S3Region string
 
+	// S3PublicBaseURL はブラウザ向けオブジェクト公開 URL の base（R2 custom domain /
+	// *.r2.dev / CloudFront 等）。S3 API 接続先の S3Endpoint とは別ホストであり、
+	// 設定時はアップロード後 URL の組み立てに優先使用する。空文字（既定）の場合は
+	// AWS はバーチャルホスト形式、R2 は API endpoint への暫定フォールバックとなる。
+	S3PublicBaseURL string
+
 	// TrustedProxyCIDR は release モードで rate-limit バイパス防止のため必須の ALB CIDR。
 	TrustedProxyCIDR string
 
@@ -86,9 +92,10 @@ func Load() *Config {
 		S3SharedRegion:           getEnv("S3_SHARED_REGION", "ap-northeast-1"),
 		S3Endpoint:               os.Getenv("S3_ENDPOINT"),
 
-		StorageType: os.Getenv("STORAGE_TYPE"),
-		S3Bucket:    os.Getenv("S3_BUCKET"),
-		S3Region:    os.Getenv("S3_REGION"),
+		StorageType:     os.Getenv("STORAGE_TYPE"),
+		S3Bucket:        os.Getenv("S3_BUCKET"),
+		S3Region:        os.Getenv("S3_REGION"),
+		S3PublicBaseURL: os.Getenv("S3_PUBLIC_BASE_URL"),
 
 		TrustedProxyCIDR: os.Getenv("TRUSTED_PROXY_CIDR"),
 

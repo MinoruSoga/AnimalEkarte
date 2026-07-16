@@ -110,13 +110,20 @@ func main() {
 	var uploader infra.FileUploader
 	if cfg.StorageType == "s3" {
 		// S3_BUCKET/S3_REGION 必須検証は cfg.Validate() で起動時に済んでいる（G9-2）
-		s3Up, err := infra.NewS3Uploader(context.Background(), cfg.S3Bucket, cfg.S3Region, cfg.S3Endpoint)
+		s3Up, err := infra.NewS3Uploader(context.Background(), cfg.S3Bucket, cfg.S3Region, cfg.S3Endpoint, cfg.S3PublicBaseURL)
 		if err != nil {
 			logger.Error("failed to initialize S3 uploader", slog.String("error", err.Error()))
 			os.Exit(1)
 		}
 		uploader = s3Up
 		logger.Info("file uploader: S3", slog.String("bucket", cfg.S3Bucket), slog.String("region", cfg.S3Region))
+		// S3 API endpoint（R2 等）を使う構成で公開 base URL が未設定の場合、オブジェクト
+		// 公開 URL は API ホストを指しブラウザから参照できない。推測ドメインは捏造せず、
+		// 誤設定として起動時に警告する（P2-5: S3_PUBLIC_BASE_URL への実値投入は USER 運用）。
+		if cfg.S3Endpoint != "" && cfg.S3PublicBaseURL == "" {
+			logger.Warn("S3_PUBLIC_BASE_URL 未設定: オブジェクト公開 URL が S3 API ホストを指しブラウザから参照できません。R2 の公開ドメイン(custom domain / *.r2.dev)を S3_PUBLIC_BASE_URL に設定してください",
+				slog.String("s3_endpoint", cfg.S3Endpoint))
+		}
 	} else {
 		uploader = infra.NewLocalUploader("/app/uploads", "/uploads")
 		logger.Info("file uploader: local filesystem")

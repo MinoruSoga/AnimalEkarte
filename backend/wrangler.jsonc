@@ -72,6 +72,13 @@
     "S3_SHARED_BUCKET": "animalekarte-stg-images",
     "S3_SHARED_REGION": "auto",
     "S3_ENDPOINT": "https://776ddc3e975e8fe5773d5300522e2404.r2.cloudflarestorage.com",
+    // ブラウザ向けオブジェクト公開 URL の base(R2 custom domain / *.r2.dev)。
+    // S3_ENDPOINT(上記=API 接続先)とは別ホスト。API endpoint は認証が必要でブラウザ参照不可。
+    // 【USER 運用タスク(P2-5)】R2 の公開ドメインが未確定のため空のまま。値投入まで
+    // 医療画像の公開 URL は API ホストへ暫定フォールバックし、起動時に警告ログを出す。
+    // 形式: スキーム込みの公開 base(例 "https://<R2-custom-domain>" または "https://<id>.r2.dev")。
+    // 実ドメインは Cloudflare で公開ドメインを作成後に USER が投入する。推測ドメインは書かないこと。
+    "S3_PUBLIC_BASE_URL": "",
   },
 
   "observability": {

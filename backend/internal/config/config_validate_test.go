@@ -39,6 +39,7 @@ func TestConfigLoad(t *testing.T) {
 	t.Setenv("STORAGE_TYPE", "s3")
 	t.Setenv("S3_BUCKET", "upload-bucket")
 	t.Setenv("S3_REGION", "ap-northeast-1")
+	t.Setenv("S3_PUBLIC_BASE_URL", "https://images.example.com")
 	t.Setenv("TRUSTED_PROXY_CIDR", "10.0.0.0/8")
 	t.Setenv("LOG_LEVEL", "debug")
 	t.Setenv("CORS_ALLOWED_ORIGIN", "https://example.com")
@@ -111,6 +112,9 @@ func TestConfigLoad(t *testing.T) {
 	if cfg.S3Region != "ap-northeast-1" {
 		t.Errorf("S3Region = %s, want ap-northeast-1", cfg.S3Region)
 	}
+	if cfg.S3PublicBaseURL != "https://images.example.com" {
+		t.Errorf("S3PublicBaseURL = %s, want https://images.example.com", cfg.S3PublicBaseURL)
+	}
 	if cfg.TrustedProxyCIDR != "10.0.0.0/8" {
 		t.Errorf("TrustedProxyCIDR = %s, want 10.0.0.0/8", cfg.TrustedProxyCIDR)
 	}
@@ -129,6 +133,16 @@ func TestConfigLoad_S3EndpointDefaultsEmpty(t *testing.T) {
 
 	if cfg.S3Endpoint != "" {
 		t.Errorf("S3Endpoint = %q, want empty (AWS S3 既定挙動を維持)", cfg.S3Endpoint)
+	}
+}
+
+func TestConfigLoad_S3PublicBaseURLDefaultsEmpty(t *testing.T) {
+	t.Setenv("S3_PUBLIC_BASE_URL", "") // 未設定時は推測公開ドメインを捏造しない（P2-5: 値投入は USER 運用）
+
+	cfg := Load()
+
+	if cfg.S3PublicBaseURL != "" {
+		t.Errorf("S3PublicBaseURL = %q, want empty (未設定時は公開 base を持たない)", cfg.S3PublicBaseURL)
 	}
 }
 

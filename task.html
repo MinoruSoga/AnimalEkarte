@@ -183,18 +183,24 @@
     <div class="task-head">
       <span class="task-id">P2-5</span>
       <h3 class="task-title">R2 公開 URL（医療画像）</h3>
-      <span class="pill warn">BLOCKED</span>
+      <span class="pill good">コード完了</span>
+      <span class="pill warn">値投入待ち（USER）</span>
     </div>
     <p class="task-desc">
-      <code>buildS3ObjectURL</code> は S3 API endpoint（<code>S3_ENDPOINT</code>）で URL を組むため、ブラウザ向け公開ホストになっていない。
-      公開ドメイン未設定のままハードコードは禁止。
+      <strong>コード側クローズ済み。</strong> <code>buildS3ObjectURL</code> を公開 base URL（<code>S3_PUBLIC_BASE_URL</code>）優先の組み立てに変更し、
+      設定時はブラウザ向け公開ホスト（R2 custom domain / <code>*.r2.dev</code>）で URL を返す。S3 API endpoint（<code>S3_ENDPOINT</code>）は API 接続専用に分離した。
+      未設定時は推測ドメインを捏造せず、AWS はバーチャルホスト形式、R2 は API endpoint への暫定フォールバック（ブラウザ参照不可）とし、起動時に警告ログを出す。
     </p>
     <div class="task-body">
-      <h4>必要な USER 入力</h4>
-      <div class="need"><strong>要:</strong> R2 custom domain / <code>*.r2.dev</code> / <code>S3_PUBLIC_BASE_URL</code> 等の公開 base URL</div>
-      <h4>対象ファイル</h4>
+      <h4>残作業（USER 運用タスク）</h4>
+      <div class="need"><strong>要:</strong> R2 の公開ドメイン（custom domain / <code>*.r2.dev</code>）を確定し、<code>backend/wrangler.jsonc</code> の <code>S3_PUBLIC_BASE_URL</code>（現在は空）へ実値を投入。Cloudflare ダッシュボードでの公開ドメイン作成は External / USER 作業。</div>
+      <h4>完了済み（コード）</h4>
       <ul>
-        <li><code>backend/internal/infra/s3_endpoint.go</code>（+ config）</li>
+        <li><code>backend/internal/infra/s3_endpoint.go</code> — <code>buildS3ObjectURL</code> に publicBase 優先ロジック（単体テスト更新）</li>
+        <li><code>backend/internal/infra/s3_uploader.go</code> — <code>publicBaseURL</code> 配線</li>
+        <li><code>backend/internal/config/config.go</code> — <code>S3PublicBaseURL</code>（env: <code>S3_PUBLIC_BASE_URL</code>）追加（config テスト更新）</li>
+        <li><code>backend/cmd/api/main.go</code> — uploader 生成へ配線 + 未設定時の起動時警告ログ</li>
+        <li><code>backend/wrangler.jsonc</code> / <code>backend/worker/index.ts</code> — <code>S3_PUBLIC_BASE_URL</code> キー追加（値は空・推測ドメイン不記載）+ Container への env 伝播</li>
       </ul>
     </div>
   </article>
