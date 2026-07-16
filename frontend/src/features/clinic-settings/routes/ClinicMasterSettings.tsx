@@ -13,6 +13,7 @@ import {
   ClinicMasterList,
   ClinicMasterSidePanel,
 } from "../components/ClinicMasterSettingsPanels";
+import { CompanyInvoiceSection } from "../components/CompanyInvoiceSection";
 import {
   DEFAULT_CLINIC_FORM_DATA,
   clinicToFormData,
@@ -174,6 +175,7 @@ export function ClinicMasterSettings() {
           <ClinicMasterList
             canCreate={canCreate}
             canEdit={canEdit}
+            topSection={<CompanyInvoiceSection canEdit={canEdit} />}
             items={filteredItems}
             searchTerm={searchTerm}
             onSearchChange={setSearchTerm}

@@ -19,4 +19,5 @@ export { TreatmentPlanMaster } from "./routes/TreatmentPlanMaster";
 export { TrimmingSettings } from "./routes/TrimmingSettings";
 export { TrimmingCourseTypeSettings } from "./routes/TrimmingCourseTypeSettings";
 
-export { useGetCompany } from "./api/company";
+export { useGetCompany, useUpdateCompany } from "./api/company";
+export type { UpdateCompanyRequest } from "./api/company";

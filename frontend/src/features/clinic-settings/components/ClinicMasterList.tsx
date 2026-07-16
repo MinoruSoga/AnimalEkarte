@@ -1,4 +1,5 @@
 import { Building2, Plus } from "lucide-react";
+import type { ReactNode } from "react";
 
 import { TableCell } from "@/components/ui/table";
 import { DataTable, DESIGN_TABLE_HEADER_ROW, DESIGN_TABLE_HEADER_CELL } from "@/components/shared/DataTable/DataTable";
@@ -28,6 +29,8 @@ interface ClinicMasterListProps {
   onBack: () => void;
   onCreate: () => void;
   onEdit: (item: Clinic) => void;
+  /** 医院一覧の上部に差し込む任意セクション（例: 法人情報/インボイス）。 */
+  topSection?: ReactNode;
 }
 
 export function ClinicMasterList({
@@ -39,6 +42,7 @@ export function ClinicMasterList({
   onBack,
   onCreate,
   onEdit,
+  topSection,
 }: ClinicMasterListProps) {
   return (
     <PageLayout
@@ -57,6 +61,7 @@ export function ClinicMasterList({
       maxWidth="max-w-full"
     >
       <div className="flex flex-col gap-4">
+        {topSection}
         <PropertyFilter
           properties={[]}
           activeFilters={[]}
