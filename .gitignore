@@ -122,3 +122,7 @@ trash/
 *.import.tsv.header
 sensitive-local/
 .secret
+
+# 監査レポート（秘密の抜粋を含みうるローカル作業ファイル。git外に保つ）
+improvement.html
+improvement_ai.html
