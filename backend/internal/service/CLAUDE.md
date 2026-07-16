@@ -98,8 +98,9 @@ checkup_field_result）への書込は、確定(finalize)と子エンティテ�
    `dbOrTx(ctx, r.db)` で ambient tx に参加させる。参加させないと、`LockByIDForUpdate` の
    `FOR UPDATE` 行ロックと子テーブルの `medical_record_id` FK チェックがデッドロックする。
 
-既存 5 サービス（`treatment_service.go` / `examination_service.go` / `vital_service.go` /
-`prescription_service.go` / `checkup_field_result_service.go`）が先例。検証は
+既存 6 サービス（`treatment_service.go` / `examination_service.go` / `vital_service.go` /
+`prescription_service.go` / `checkup_field_result_service.go` / `medical_record_image_service.go`）
+が先例。検証は
 `medical_record_finalize_lock_concurrency_test.go`（`LockByIDForUpdate` の行ロック自体の並行性）
 と、個別 repo の tx atomicity test（`examination_repository_tx_atomicity_test.go` /
 `checkup_field_result_tx_atomicity_test.go` 等）が担う。
