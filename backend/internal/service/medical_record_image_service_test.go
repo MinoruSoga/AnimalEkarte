@@ -305,8 +305,8 @@ func TestMedicalRecordImageService_FinalizedGuard(t *testing.T) {
 		svc := NewMedicalRecordImageService(repo, medRecRepo, &mockCheckupTransactor{})
 
 		image, err := svc.Create(context.Background(), 1, 1, &CreateMedicalRecordImageInput{
-			ImageURL: "https://example.com/image.jpg",
-			FileName: "image.jpg",
+			ImageURL:  "https://example.com/image.jpg",
+			FileName:  "image.jpg",
 			ImageType: model.MedicalImageTypeXray,
 		})
 
