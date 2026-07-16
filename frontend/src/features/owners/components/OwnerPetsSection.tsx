@@ -178,7 +178,7 @@ export function OwnerPetsSection({
             type="button"
             size="sm"
             onClick={onAddPet}
-            // docs/DESIGN_SYSTEM.md button-primary: brand teal #038B94 + pill（旧 accent ブルーから移行）
+            // docs/spec/design-system.md button-primary: brand teal #038B94 + pill（旧 accent ブルーから移行）
             className={`${C.bgBrand} ${C.hoverBgBrand} ${C.textWhite} gap-1.5 text-sm px-4 rounded-full transition-colors shadow-none border-transparent`}
           >
             <Plus className={ICON.action} />

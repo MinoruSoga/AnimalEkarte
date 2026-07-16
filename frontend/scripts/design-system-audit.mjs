@@ -1,13 +1,13 @@
 #!/usr/bin/env node
 
 /**
- * design-system-audit — docs/UI_DESIGN_COMPLIANCE.md §1 の C1/C3/C5 判定と、
+ * design-system-audit — docs/spec/ui-design-compliance.md §1 の C1/C3/C5 判定と、
  * FE3-2 で新設した C6（rgb/rgba/hsl 直値）判定を機械化する。
  *
  * 2026-07-06 UI 準拠監査で C2/C4（PageLayout 未使用）5件を grep ベースで手動発見したが、
  * 再発防止のため機械化できる判定（C1/C3/C5/C6）だけを CI 前に実行できる形で固定する。
  * C2/C4（leaf component の PageLayout 使用追跡）は動的解決が複雑なため対象外 —
- * 引き続き docs/UI_DESIGN_COMPLIANCE.md §2 の手動更新で追跡する。
+ * 引き続き docs/spec/ui-design-compliance.md §2 の手動更新で追跡する。
  *
  * 判定内容:
  *   C1 — legacy accent 色（`C.accent` / `#0075DE` / `#2383E2`）は brand teal 系のみ許容のため禁止。

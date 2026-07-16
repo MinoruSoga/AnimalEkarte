@@ -12,7 +12,7 @@ import (
 )
 
 // CPMStage は顧客ポートフォリオ管理ステージ（BE-004）。
-// 仕様: docs/line/lstep-integration.md Section 7.2
+// 仕様: docs/spec/line/lstep-integration.md Section 7.2
 type CPMStage string
 
 // タグプレフィックス定数 — lstep_auto_managed_prefixes (migration 006) の DB 登録値と一致させる。
@@ -105,7 +105,7 @@ type CPMData struct {
 }
 
 // CalculateCPMStage は純粋関数として CPM ステージを計算する（BE-004）。
-// 仕様: docs/line/lstep-integration.md Section 7.2
+// 仕様: docs/spec/line/lstep-integration.md Section 7.2
 //
 //nolint:gocritic // hugeParam: 純粋関数 API として immutable な値型で受け取る設計
 func CalculateCPMStage(d CPMData) CPMStage {

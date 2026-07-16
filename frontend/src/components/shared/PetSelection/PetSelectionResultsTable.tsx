@@ -80,7 +80,7 @@ export const PetSelectionResultsTable = memo(function PetSelectionResultsTable({
                       size="sm"
                       variant={isDeceased ? "ghost" : "outline"}
                       disabled={isDeceased}
-                      // docs/DESIGN_SYSTEM.md button-primary: brand teal #038B94 + pill（旧 accent ブルーから移行）
+                      // docs/spec/design-system.md button-primary: brand teal #038B94 + pill（旧 accent ブルーから移行）
                       className={`h-11 gap-1 ${isDeceased ? C.textStatusGray : `${C.bgBrand} ${C.hoverBgBrand} ${C.textWhite} rounded-full`} text-sm px-4`}
                       onClick={() => onSelect(pet)}
                     >

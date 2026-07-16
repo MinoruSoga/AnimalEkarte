@@ -251,7 +251,7 @@ Plan: 1 to add, 1 to change, 0 to destroy.
 
 **P4-7 — 外部連携棚卸し結果**:
 
-新規ドキュメント `docs/infra/deploy/CLOUDFLARE-EXTERNAL-INTEGRATIONS-AUDIT.md` を作成。
+新規ドキュメント `docs/ops/deploy/CLOUDFLARE-EXTERNAL-INTEGRATIONS-AUDIT.md` を作成。
 
 | 連携 | 判定 | 根拠 |
 |---|---|---|
@@ -313,7 +313,7 @@ Plan: 1 to add, 1 to change, 0 to destroy.
 
 ### 2026-07-05 試行11（P4-6 機能スモーク — CRUD + 混在会計 API スモーク実施・実測検証）
 
-**前提**: 試行9/10で確立した Worker/Container 構成（`https://animalekarte-stg-api.baritech-soga.workers.dev`）に対し、`docs/infra/deploy/CRUD-SMOKE-TEST.md` / `MIXED-PAYMENT-SMOKE-TEST.md` を参考に `infra/scripts/cf-crud-smoke.sh`（新規、curl + jq。AC-0〜AC-8 + AC-11）を作成し、`package.json` に `pnpm cf:smoke` を登録。
+**前提**: 試行9/10で確立した Worker/Container 構成（`https://animalekarte-stg-api.baritech-soga.workers.dev`）に対し、`docs/ops/deploy/CRUD-SMOKE-TEST.md` / `MIXED-PAYMENT-SMOKE-TEST.md` を参考に `infra/scripts/cf-crud-smoke.sh`（新規、curl + jq。AC-0〜AC-8 + AC-11）を作成し、`package.json` に `pnpm cf:smoke` を登録。
 
 **ドキュメントと実装の差異（実装を正として採用）**:
 - ログインエンドポイントは `POST /api/v1/login`（`CRUD-SMOKE-TEST.md` 記載の `/auth/login` ではない。`handler.go` L63）
@@ -782,7 +782,7 @@ Phase 1〜3 は互いに独立しており並行着手可能。Phase 4 が最大
 - [x] **P4-4** ヘルスチェック — **2026-07-05 試行9で PASS**。`https://animalekarte-stg-api.baritech-soga.workers.dev/health` が `200 {"status":"ok"}`。コールドスタート実測 2.26〜3.17秒・ウォーム 0.19〜0.56秒（許容目安+2〜5秒の範囲内）。詳細は試行9記録参照
 - [x] **P4-5** migrate one-shot の置換 — **2026-07-05 試行10で PASS**。`POST /_internal/migrate`(`MIGRATE_RUN_SECRET`認証)→ `Container.exec(["/app/migrate"])` → exit code をJSONで返却。`infra/scripts/cf-run-migrate.sh` + `pnpm cf:migrate` で運用。PlanetScale STGで exit 0 ×2(冪等)・`schema_migrations` 5件整合・`/health`回帰なしを実測確認。詳細は試行10記録参照
 - [x] **P4-6** 機能スモーク — **2026-07-05 試行11で PASS**。`infra/scripts/cf-crud-smoke.sh`(`pnpm cf:smoke`)で CRUD(clinics/permission-groups/staffs) + 混在会計(payment_splits) API スモークを実施、全11 AC中10 PASS・1 BLOCKED(AC-11、UI検証はスコープ外)。詳細は試行11記録参照
-- [x] **P4-7** 外部連携の検証 — **2026-07-05 試行12で PASS/BLOCKED(genuine)**。`docs/infra/deploy/CLOUDFLARE-EXTERNAL-INTEGRATIONS-AUDIT.md` 新規作成。LINE(既定IP allowlist非依存、doc結論PASS/live送信は誤配信リスク回避でBLOCKED)・Lstep(Write4メソッド`[DISABLED]`継続確認)・SMTP(secret名存在確認済み、値非取得のためBLOCKED)・LIFF(DNS未切替でBLOCKED、P7-3 defer)。詳細は試行12記録参照
+- [x] **P4-7** 外部連携の検証 — **2026-07-05 試行12で PASS/BLOCKED(genuine)**。`docs/ops/deploy/CLOUDFLARE-EXTERNAL-INTEGRATIONS-AUDIT.md` 新規作成。LINE(既定IP allowlist非依存、doc結論PASS/live送信は誤配信リスク回避でBLOCKED)・Lstep(Write4メソッド`[DISABLED]`継続確認)・SMTP(secret名存在確認済み、値非取得のためBLOCKED)・LIFF(DNS未切替でBLOCKED、P7-3 defer)。詳細は試行12記録参照
 - [x] **P4-8** Cookie 認証の再検証 — **2026-07-05 試行12で PASS**。curl で `Set-Cookie` の `HttpOnly`/`Secure`/`SameSite=None` を確認（AC-A）、ローカル frontend(docker compose)から workers.dev への実ブラウザcross-originログイン成功（AC-B、Network 200+以降のAPI呼び出しも200）。検証中に frontend `index.html` の CSP `connect-src` が workers.dev をブロックする新規事象を発見・一時許可して検証、検証後revert・redeploy済み。詳細は試行12記録参照
 - [x] **P4-9** 負荷スモーク — **2026-07-05 試行12で PASS**。`load-tests/k6-cf-stg-sustained.js`(`pnpm cf:load-smoke`)で10分負荷実行(Docker経由grafana/k6)、失敗率0.00%・p95=897ms・exit code 0。Cloudflare GraphQL Analytics API(`containersUsageAdaptiveGroups`)でCPU実測、月額試算(~$4)との比較は±50%以内(詳細は試行12記録参照)
 
@@ -816,7 +816,7 @@ Phase 1〜3 は互いに独立しており並行着手可能。Phase 4 が最大
 - [ ] **P7-2** 並行稼働期間（1〜2 週間）— 旧 ECS/ALB は起動したまま、トラフィックのみ新経路。日次でエラーログ・課金実績を確認
 - [ ] **P7-3** フルスモーク — CRUD / 会計 / 画像アップロード / LINE 連携 / 帳票の全系統
 - [ ] **P7-4** Vercel フロントエンドの API 向き先確認（`frontend-deploy.yml` の環境変数に API URL があれば更新）
-- [ ] **P7-5** 関係者への切替完了周知、`docs/infra/` 配下の運用ドキュメント更新（`INFRA_ARCHITECTURE.md` / `STG-CONTINUOUS-OPERATIONS.md` / `CI-CD-PIPELINE.md`）
+- [ ] **P7-5** 関係者への切替完了周知、`docs/ops/` 配下の運用ドキュメント更新（`INFRA_ARCHITECTURE.md` / `STG-CONTINUOUS-OPERATIONS.md` / `CI-CD-PIPELINE.md`）
 
 **Go/No-Go 基準**: 並行稼働期間中、新経路でエラー率が旧経路同等以下・スモーク全通過・課金が試算 ±50% 以内。
 

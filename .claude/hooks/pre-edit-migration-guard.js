@@ -54,7 +54,7 @@ process.stdin.on('end', () => {
           '(local/STG), editing it will cause a checksum mismatch on next deploy.\n' +
           '[Hook] Convention: migrations are additive-only — add a new ' +
           'numbered file instead of editing this one (see backend/migrations/CLAUDE.md).\n' +
-          '[Hook] Recovery if needed: docs/infra/deploy/LOCAL_DB_RESET.md (local) / ' +
+          '[Hook] Recovery if needed: docs/ops/deploy/LOCAL_DB_RESET.md (local) / ' +
           'DB_RESET=true manual dispatch (STG)\n\n'
         );
       }

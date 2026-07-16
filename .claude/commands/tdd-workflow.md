@@ -42,7 +42,7 @@ Step 2: API パスを実装（スタブ）
 Step 3: Service ロジック実装
 Step 4: エッジケース追加
 Step 5: リファクタリング
-Step 6: Coverage 確認（`docs/coverage-policy.md` の基準）
+Step 6: Coverage 確認（`docs/ops/coverage-policy.md` の基準）
 ```
 
 ### Frontend (React)

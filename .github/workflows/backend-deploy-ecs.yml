@@ -34,7 +34,7 @@ env:
   # ここに列挙されたキーは .env.staging に残っていても environment（平文）へは展開せず、
   # 代わりに containerDefinitions[*].secrets の valueFrom で SSM から解決する。
   # パラメータ名は infra/CLAUDE.md の既存命名（/animalekarte/stg/...）に合わせる。
-  # 実際の SSM 登録・IAM 権限付与はユーザー実施（docs/infra/deploy/ の H-5 runbook 参照）。
+  # 実際の SSM 登録・IAM 権限付与はユーザー実施（docs/ops/deploy/ の H-5 runbook 参照）。
   SSM_SECRET_PARAM_MAP: |
     DB_PASSWORD=/animalekarte/stg/db/password
     JWT_SECRET=/animalekarte/stg/jwt_secret

@@ -14,7 +14,7 @@
 #   「言及シンボルの実在」と「宣言数値の一致」だけを機械強制する。
 #
 # 検査内容:
-#   1. シンボル実在: docs/screens/**/*.md + docs/DESIGN_SYSTEM.md の
+#   1. シンボル実在: docs/spec/screens/**/*.md + docs/spec/design-system.md の
 #      バッククォート内から CamelCase トークン（2 ハンプ以上）・
 #      use* フック名・ソースファイル名（*.ts/tsx/go/mjs）を抽出し、
 #      frontend/{src,liff,line-reserve} + backend/internal のソースに
@@ -57,9 +57,9 @@ fail() {
 }
 
 # ── 前提ファイル確認 ─────────────────────────────────────────
-DOCS_SCREENS="$ROOT/docs/screens"
+DOCS_SCREENS="$ROOT/docs/spec/screens"
 if [[ ! -d "$DOCS_SCREENS" ]]; then
-  echo "FAIL  docs/screens not found under $ROOT"
+  echo "FAIL  docs/spec/screens not found under $ROOT"
   exit 1
 fi
 
@@ -95,8 +95,8 @@ in_allowlist() {
 DOC_FILES="$TMP/doc_files.txt"
 {
   find "$DOCS_SCREENS" -type f -name '*.md'
-  if [[ -f "$ROOT/docs/DESIGN_SYSTEM.md" ]]; then
-    echo "$ROOT/docs/DESIGN_SYSTEM.md"
+  if [[ -f "$ROOT/docs/spec/design-system.md" ]]; then
+    echo "$ROOT/docs/spec/design-system.md"
   fi
 } | sort > "$DOC_FILES"
 
@@ -162,35 +162,35 @@ check_number() {
 if [[ -f "$ROOT/backend/migrations/001_init.sql" ]]; then
   tables="$(grep -c '^CREATE TABLE' "$ROOT/backend/migrations/001_init.sql" || true)"
   check_number "テーブル数" "$tables" '全[^0-9]{0,6}[0-9]+[^0-9]{0,6}テーブル|[0-9]+ Tables' \
-    "$ROOT/docs/ERD.md" "$ROOT/docs/README.md" "$ROOT/docs/SPECIFICATION.md" "$DOCS_SCREENS/README.md"
+    "$ROOT/docs/architecture/erd.md" "$ROOT/docs/README.md" "$ROOT/docs/spec/specification.md" "$DOCS_SCREENS/README.md"
   check_number "テーブル数" "$tables" '[0-9]+ テーブル' \
-    "$ROOT/docs/architecture.md"
+    "$ROOT/docs/architecture/overview.md"
 fi
 
 # 3b. 権限リソース数（正 = permission.go の Resource 定数）
 if [[ -f "$ROOT/backend/internal/model/permission.go" ]]; then
   resources="$(grep -cE '^	Resource[A-Za-z0-9]+ +Resource += ' "$ROOT/backend/internal/model/permission.go" || true)"
   check_number "権限リソース数" "$resources" '[0-9]+ ?種類のリソース|[0-9]+ Resources|全[^0-9]{0,4}[0-9]+[^0-9]{0,4}リソース' \
-    "$ROOT/docs/AUTH.md" "$ROOT/docs/README.md" "$DOCS_SCREENS/README.md"
+    "$ROOT/docs/architecture/auth.md" "$ROOT/docs/README.md" "$DOCS_SCREENS/README.md"
 fi
 
 # 3c. ハンドラー数（正 = *_handler.go のファイル数）
 if [[ -d "$ROOT/backend/internal/handler" ]]; then
   handlers="$(find "$ROOT/backend/internal/handler" -maxdepth 1 -name '*_handler.go' | wc -l | tr -d ' ')"
   check_number "ハンドラー数" "$handlers" '[0-9]+[^0-9]{0,4}(ハンドラー|handler\.go.{0,3}[0-9]+ ファイル)' \
-    "$ROOT/docs/architecture.md" "$ROOT/docs/SPECIFICATION.md"
+    "$ROOT/docs/architecture/overview.md" "$ROOT/docs/spec/specification.md"
 fi
 
 # 3d. 配信トリガー数（正 = TriggerType 定数）
 if [[ -f "$ROOT/backend/internal/model/lstep_delivery_trigger_log.go" ]]; then
   triggers="$(grep -cE '^	Trigger[A-Za-z0-9]+ +TriggerType += ' "$ROOT/backend/internal/model/lstep_delivery_trigger_log.go" || true)"
   check_number "配信トリガー数" "$triggers" '[0-9]+ ?種の自動配信トリガー|[0-9]+ ?種の配信トリガー|[0-9]+種配信トリガー|[0-9]+ 配信トリガー' \
-    "$ROOT/docs/architecture.md" "$ROOT/docs/line/README.md" "$ROOT/docs/line/lstep-integration.md"
+    "$ROOT/docs/architecture/overview.md" "$ROOT/docs/spec/line/README.md" "$ROOT/docs/spec/line/lstep-integration.md"
   check_number "配信トリガー数" "$triggers" '配信トリガー[^0-9]{0,2}[0-9]+' \
-    "$ROOT/docs/line/CLAUDE.md"
+    "$ROOT/docs/spec/line/CLAUDE.md"
 fi
 
-# 3e. 画面数（正 = docs/screens/ 直下の番号付き .md）
+# 3e. 画面数（正 = docs/spec/screens/ 直下の番号付き .md）
 screens="$(find "$DOCS_SCREENS" -maxdepth 1 -name '[0-9]*.md' | wc -l | tr -d ' ')"
 check_number "画面数" "$screens" '[0-9]+[^0-9]{0,2}画面' \
   "$ROOT/docs/README.md" "$DOCS_SCREENS/README.md"

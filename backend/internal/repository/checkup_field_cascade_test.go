@@ -6,7 +6,7 @@ package repository
 //       マスタ/フィールド定義の削除で silent に失わない」ことを決定的に保証する。
 //
 // 注記（2026-07-04 統合）: migration 010 は 001_init.sql へ統合され独立ファイルとしては
-// 存在しない（docs/ERD.md §4.3）。本ファイルが「migration 010」と呼ぶのは 001_init.sql に
+// 存在しない（docs/architecture/erd.md §4.3）。本ファイルが「migration 010」と呼ぶのは 001_init.sql に
 // 統合された当該 CREATE TABLE ブロックの設計意図であり、以下の (A) 静的テストは 001_init.sql
 // から直接その CREATE TABLE ブロックを抽出する。同ファイル内には 010 の CREATE TABLE より
 // 後段で、旧 012 由来の複合FK ALTER 文（checkup_type_field_id を単一列 FK から複合FKへ置換）

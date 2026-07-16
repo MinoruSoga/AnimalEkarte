@@ -3,7 +3,7 @@ package service
 // n1_lint_test.go — PERF-FOLLOWUP-07: N+1 クエリ静的検出 lint。
 //
 // Placement decision (deviates from the spec doc's literal path
-// docs/tasks/open/PERF-FOLLOWUP-07-n1-lint-static-detection.md, which suggests
+// of PERF-FOLLOWUP-07 (task ledger: root todo.md), which suggests
 // internal/repository/n1_lint_test.go scanning the service/ directory): go:embed can only
 // embed files inside its OWN package's directory subtree. The precedent
 // repository/preload_clinic_scope_lint_test.go works because it lives IN package repository
@@ -55,7 +55,7 @@ package service
 // Rather than either (a) leaving this gate permanently red — which teaches everyone to
 // ignore a failing gate and blocks it from ever catching a NEW regression — or (b) silently
 // allowlisting them with no trail, both were filed as a tracked follow-up
-// (docs/tasks/closed/perf/PERF-FOLLOWUP-08-ltv-staffslots-n1.md) and temporarily allowlisted
+// (PERF-FOLLOWUP-08, closed — see git history) and temporarily allowlisted
 // with a direct reference to that doc. This mirrored the "documented site-exception"
 // discipline preload_clinic_scope_lint_test.go already uses for known-but-deferred gaps.
 // PERF-FOLLOWUP-08 (2026-07-12) resolved both by hoisting the per-iteration Find call above
@@ -98,7 +98,7 @@ func n1AllowlistKey(fn, callee string) string {
 //  2. Tracked pre-existing debt (genuinely IS N+1, deliberately deferred): a real, data-bound
 //     N+1 outside the scope of the task that discovered it, filed as its own follow-up task
 //     and referenced by doc path so the waiver has a paper trail and an exit condition. Every
-//     entry in this category MUST reference a docs/tasks/open/*.md follow-up; an entry with no
+//     entry in this category MUST reference a follow-up entry in root todo.md; an entry with no
 //     tracked follow-up is silent suppression, which this gate exists to prevent.
 var n1Allowlist = map[string]bool{
 	// --- Category 1: request-bound, not real N+1 ---
@@ -119,7 +119,7 @@ var n1Allowlist = map[string]bool{
 	// buildStaffSlotInputs was replaced by buildStaffSlotInputsForDate, which prefetches via
 	// scheduleRepo.FindAllByStaffIDsAndDateRange/FindAllBreaksByEntryIDs (batch methods, not
 	// Find*/loop-body calls, so they don't match this lint's pattern at all) — see
-	// docs/tasks/closed/perf/PERF-FOLLOWUP-08-ltv-staffslots-n1.md.
+	// PERF-FOLLOWUP-08 (closed — see git history).
 }
 
 // analyzeFileN1 parses one Go source file and reports RangeStmt-body Find*/Get* calls not
@@ -255,7 +255,7 @@ func walkServiceN1(t *testing.T) (findings []n1Finding, allowHits map[string]int
 //
 // See the "KNOWN REAL FINDINGS, TRACKED NOT SILENCED" comment at the top of this file: two
 // pre-existing N+1s discovered by this gate's first run are allowlisted with a reference to
-// docs/tasks/open/PERF-FOLLOWUP-08-ltv-staffslots-n1.md, not fixed here — fixing them was out
+// PERF-FOLLOWUP-08 (closed — see git history), not fixed here — fixing them was out
 // of scope for the task (PERF-FOLLOWUP-07) that added this test-only gate.
 func TestN1Lint_RealServiceSourceHasNoUnresolvedLoopBodyFindOrGet(t *testing.T) {
 	findings, _, rangeLoops := walkServiceN1(t)

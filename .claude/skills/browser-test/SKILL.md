@@ -1,6 +1,6 @@
 ---
 name: browser-test
-description: Chrome DevTools MCPを使ったブラウザ機能テスト。docs/testing/SECTION_14_MANUAL_TEST_GUIDE.mdのシナリオを実行し、結果をテスト結果レポートとして出力する。Haikuモデルでコスト効率よく実行。
+description: Chrome DevTools MCPを使ったブラウザ機能テスト。docs/ops/testing/SECTION_14_MANUAL_TEST_GUIDE.mdのシナリオを実行し、結果をテスト結果レポートとして出力する。Haikuモデルでコスト効率よく実行。
 ---
 
 # ブラウザ機能テスト スキル
@@ -22,7 +22,7 @@ description: Chrome DevTools MCPを使ったブラウザ機能テスト。docs/t
 
 このスキルが呼ばれたら、**以下の手順を必ず守れ**：
 
-1. `docs/testing/SECTION_14_MANUAL_TEST_GUIDE.md`（正本）から該当ドメインのシナリオ（番号付き手順）を読み込む
+1. `docs/ops/testing/SECTION_14_MANUAL_TEST_GUIDE.md`（正本）から該当ドメインのシナリオ（番号付き手順）を読み込む
 2. **`Agent` ツールを `model: "haiku"` で起動**し、ブラウザテストを委譲する
 3. Haiku Agent の結果を受け取り、テスト結果レポートとして出力する（ガイドに項目表・結果列は存在しないため、ガイド自体は更新しない）
 
@@ -43,7 +43,7 @@ Chrome DevTools MCP を使って指定されたテスト項目を実行し、結
 
 ## テスト環境
 - URL: http://localhost:3003
-- テストアカウント: 下記（正本: docs/testing/SECTION_14_MANUAL_TEST_GUIDE.md 4章）
+- テストアカウント: 下記（正本: docs/ops/testing/SECTION_14_MANUAL_TEST_GUIDE.md 4章）
   | 役割 | ログイン ID | 用途 |
   |------|------------|------|
   | 管理者 | admin@example.com | マスタ設定、権限、会計レポート |
@@ -115,8 +115,8 @@ Chrome DevTools MCP を使って指定されたテスト項目を実行し、結
 Haiku Agent の結果を受け取った後：
 
 1. **テスト結果レポートを出力**する
-   - 結果はガイド（`docs/testing/SECTION_14_MANUAL_TEST_GUIDE.md`）の更新ではなく、テスト結果レポートとして出力する（ガイドに項目表・結果列は存在しない。ガイド冒頭の日付表記は「最新更新」であり、テスト結果では書き換えない）
-   - NG 項目は `docs/tasks/open/` にバグチケットを作成（BUG-XXX 形式。クラッシュ報告は BUG- プレフィックスのファイル名で出力。サブディレクトリは作らない）
+   - 結果はガイド（`docs/ops/testing/SECTION_14_MANUAL_TEST_GUIDE.md`）の更新ではなく、テスト結果レポートとして出力する（ガイドに項目表・結果列は存在しない。ガイド冒頭の日付表記は「最新更新」であり、テスト結果では書き換えない）
+   - NG 項目はリポジトリ直下 `todo.md` にタスクとして追記（BUG-XXX 形式の ID を付与。問題・根拠・再現手順を記載）
 
 2. **サマリを表示**する
    ```
@@ -127,7 +127,7 @@ Haiku Agent の結果を受け取った後：
 
 ---
 
-## ドメイン対応表（正本: docs/testing/SECTION_14_MANUAL_TEST_GUIDE.md の章構成）
+## ドメイン対応表（正本: docs/ops/testing/SECTION_14_MANUAL_TEST_GUIDE.md の章構成）
 
 | 引数 | ガイド章 | 内容 | 主なパス |
 |------|---------|------|---------|

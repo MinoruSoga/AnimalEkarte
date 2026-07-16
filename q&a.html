@@ -265,7 +265,7 @@
     <div class="card-body">
       <p class="section-label">質問</p>
       <p class="qa-text">ADR-003 論点1: payment_methods の DB TRIGGER による一貫性保証を採用するか。独立 Issue 起票後の PO 判断。
-参照: docs/adr/003-payment-method-identity-and-consistency.md（論点1保留）。</p>
+参照: docs/architecture/adr/003-payment-method-identity-and-consistency.md（論点1保留）。</p>
       <div class="answer-block">
         <p class="section-label">回答</p>
         <p class="qa-text">採用（案1B・system_key 前提）。独立 Issue 起票を承認する（優先度中・起票操作は USER）。method 列⇔payment_method_id の二重保持は本原則が名指しする教訓であり、直接 SQL 経路を DB 物理ブロックで塞ぐ。ただしトリガーは暫定であり、Issue スコープに method 列廃止（または生成列化）による二重保持自体の解消検討を含め、解消完了時点でトリガーは削除する。</p>
@@ -312,7 +312,7 @@ UX 未確定のまま実装着手禁止。</p>
   </article>
 
   <footer>
-    <p>顧客 Q&amp;A 正本は Google Sheet（参照: <code>docs/backlog_spreadsheet.md</code>）。本ファイルは開発内部の PO 判断待ち専用キューであり、顧客バックログ No.24〜32 の複製ではない。</p>
+    <p>顧客 Q&amp;A 正本は Google Sheet（参照: <code>docs/ops/backlog-spreadsheet.md</code>）。本ファイルは開発内部の PO 判断待ち専用キューであり、顧客バックログ No.24〜32 の複製ではない。</p>
     <p>本タスク範囲ではユーザー明示によりリポジトリに内部キューとして配置。Sheet への書き込みや顧客向け Q&amp;A の復元は行わない。</p>
   </footer>
 </div>

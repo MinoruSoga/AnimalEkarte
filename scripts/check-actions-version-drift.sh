@@ -2,7 +2,7 @@
 # scripts/check-actions-version-drift.sh
 #
 # .github/workflows/*.yml 全体で、同一 action が複数バージョンで参照されて
-# いないかを検査する（docs/ci-policy.md 運用ルール2「同一 action は全ワーク
+# いないかを検査する（docs/ops/ci-policy.md 運用ルール2「同一 action は全ワーク
 # フローで単一バージョンに統一」の機械的強制・#195 再発防止）。
 #
 # 背景:
@@ -15,7 +15,7 @@
 #   `uses: <owner>/<repo>@<ref>` 形式の参照について、同一 <owner>/<repo>
 #   （サブパス含む）が 2 種類以上の <ref> で参照されていたら FAIL。
 #   ref がメジャータグか完全 semver か SHA かは問わない — 「単一に収束して
-#   いるか」だけを見る（記法ポリシー自体は docs/ci-policy.md とレビューの領分）。
+#   いるか」だけを見る（記法ポリシー自体は docs/ops/ci-policy.md とレビューの領分）。
 #   ローカル参照（uses: ./...）と docker:// は対象外。
 #
 # このチェックは Docker を必要とせず、YAML のテキストだけを検査する。
@@ -78,7 +78,7 @@ grep -hE '^[[:space:]]*(-[[:space:]]+)?uses:[[:space:]]' "${workflow_files[@]}" 
       }
       if (errors > 0) {
         print "----"
-        printf "RESULT  %d action(s) drift across workflows — unify to a single version (docs/ci-policy.md rule 2)\n", errors
+        printf "RESULT  %d action(s) drift across workflows — unify to a single version (docs/ops/ci-policy.md rule 2)\n", errors
         exit 1
       }
       print "PASS  every action resolves to a single version across all workflows"

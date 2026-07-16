@@ -118,7 +118,7 @@ Handler → Service → Repository の各層の実装規約（エラーハンド
 `RequirePermission` によるルート保護、命名規則等）は `CODING_RULES.md` と各層の
 `internal/handler/CLAUDE.md` / `internal/service/CLAUDE.md` / `internal/repository/CLAUDE.md`
 （P1–P18 準拠チェックリスト）を参照。手順のコード例をここに重複記載しない
-（重複した手順ドキュメントは二重管理となり `docs/PRODUCT_PHILOSOPHY.md` の原則に反する）。
+（重複した手順ドキュメントは二重管理となり `docs/product-philosophy.md` の原則に反する）。
 
 概略の流れ:
 

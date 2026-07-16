@@ -124,7 +124,7 @@ jobs:
         run: bash scripts/check-ci-step-order.test.sh
 
   # ──────────────────────────────────────────────
-  # docs シンボル/数値ドリフト: docs/screens + DESIGN_SYSTEM.md が言及する
+  # docs シンボル/数値ドリフト: docs/spec/screens + DESIGN_SYSTEM.md が言及する
   # コンポーネント名・フック名・ソースファイル名の実在と、宣言数値
   # （テーブル数/権限リソース数/ハンドラー数/配信トリガー数/画面数）の
   # 実装一致を機械強制する（docs 全数同期 99943aaa の再発防止。
@@ -420,7 +420,7 @@ jobs:
         # -race は covermode=atomic を要求するため明示する。テストの合否は従来どおり。
         # -coverpkg=./internal/... で internal/* のみを計測対象とし、cmd/,
         # lstep-migrate/, seed-old-db/(archived), stage-import/, migrations/ 等のエントリポイント・
-        # インフラパッケージを除外する。除外ポリシー/ロードマップ: docs/coverage-policy.md
+        # インフラパッケージを除外する。除外ポリシー/ロードマップ: docs/ops/coverage-policy.md
         # -timeout 900s: internal/repository は _test.go ファイル急増（33→130、b69932eb）で
         # 旧 120s はもとより 450s でも実CI(run 28650708439)で test timed out。旧CI基準
         # (33ファイル/69.9s, run e9687c98) からの単純比例なら130ファイルで約276sの想定に対し、

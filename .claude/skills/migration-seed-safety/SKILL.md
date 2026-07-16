@@ -44,9 +44,9 @@ description: backend/migrations/ の新規作成・編集、およびseedバン�
 ## checksum mismatchからの復旧
 
 適用済みmigrationやseedを誤って編集してしまった場合:
-- ローカル: `docs/infra/deploy/LOCAL_DB_RESET.md` の手順でDB volumeを再構築する
+- ローカル: `docs/ops/deploy/LOCAL_DB_RESET.md` の手順でDB volumeを再構築する
 - STG: `DB_RESET=true` の手動dispatchが必要（自動実行しない）
-- 運用メモ全般: `docs/infra/deploy/SEED_MIGRATION_OPERATIONS.md`
+- 運用メモ全般: `docs/ops/deploy/SEED_MIGRATION_OPERATIONS.md`
 
 ## 診断コマンド
 

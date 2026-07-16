@@ -45,7 +45,7 @@ const migrationsDir = "../../migrations"
 //	  + 旧 010_add_checkup_packages.sql 由来の checkup_type_fields.checkup_type_id と
 //	  checkup_field_results.checkup_id の2件（純粋従属子・checkup_field_cascade_test.go で安全性実証済み）。
 //	  旧 010 は 2026-07-04 に 001_init.sql へ統合され、独立ファイルとしては存在しない
-//	  （docs/ERD.md §4.3 参照）。合計 52。
+//	  （docs/architecture/erd.md §4.3 参照）。合計 52。
 var migrationCascadeAllowlist = map[string]int{
 	"001_init.sql": 52,
 }

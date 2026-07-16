@@ -17,6 +17,6 @@
 | ドキュメント | 内容 |
 |-------------|------|
 | [.claude/CLAUDE.md](.claude/CLAUDE.md) | **【最優先】** 開発ルール・コマンド・最新技術規約 |
-| [docs/PRODUCT_PHILOSOPHY.md](docs/PRODUCT_PHILOSOPHY.md) | **【機能開発前 必読】** 業務効率ソフトウェアとしての意思決定原則（5 ステップ） |
-| [docs/ERD.md](docs/ERD.md) | データベース設計（ER図） |
-| [docs/architecture.md](docs/architecture.md) | アーキテクチャの詳細ドキュメント |
+| [docs/product-philosophy.md](docs/product-philosophy.md) | **【機能開発前 必読】** 業務効率ソフトウェアとしての意思決定原則（5 ステップ） |
+| [docs/architecture/erd.md](docs/architecture/erd.md) | データベース設計（ER図） |
+| [docs/architecture/overview.md](docs/architecture/overview.md) | アーキテクチャの詳細ドキュメント |

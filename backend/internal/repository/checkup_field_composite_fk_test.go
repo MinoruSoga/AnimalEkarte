@@ -17,7 +17,7 @@ package repository
 // 対象外。同等防御は clinic_id 列追加 + backfill という非 additive スキーマ拡張を要する別タスク。
 //
 // 注記（2026-07-04 統合）: migration 012 は 001_init.sql 末尾へ統合され独立ファイルとしては
-// 存在しない（docs/ERD.md §4.3）。001_init.sql は他の全テーブル定義を含む ~170KB のファイルに
+// 存在しない（docs/architecture/erd.md §4.3）。001_init.sql は他の全テーブル定義を含む ~170KB のファイルに
 // なったため、012 相当の3 ALTER 文だけをマーカー文字列で切り出して適用する
 // （extractMigration012CompositeFKBlock）。ファイル全体を素朴に実行すると、テスト DB に存在しない
 // 無関係テーブルへの参照で即 fail する。

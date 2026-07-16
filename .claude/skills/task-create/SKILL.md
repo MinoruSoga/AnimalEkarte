@@ -1,17 +1,17 @@
 ---
 name: task-create
-description: 抽象的なタスク依頼から docs/tasks/open/ にタスク詳細ドキュメントと、AIが実装可能な粒度の BE/FE イシューファイルを自動作成する。「タスク分解」「イシュー作成」「チケット作成」時に使用。生成物は全て docs/tasks/open/ 配下（旧 backend/issues/・frontend/issues/ は廃止済み）。
+description: 抽象的なタスク依頼から repo 直下 todo.md の「個別タスク詳細」節に、AIが実装可能な粒度のタスクセクション（`### <タスクID>: <タイトル>`）を自動追記する。「タスク分解」「イシュー作成」「チケット作成」時に使用。生成先は todo.md のみ（旧 docs/tasks/・backend/issues/・frontend/issues/ 体系は廃止済み）。
 ---
 
 # Task Decompose — タスク分解・イシュー自動生成
 
 抽象的なタスク依頼を受け取り、コードベースを調査した上で:
-1. `docs/tasks/open/TASK-XXX-<title>.md` にタスク詳細ドキュメントを生成
-2. `docs/tasks/open/BE-XXX-<title>.md` にバックエンドイシューを生成
-3. `docs/tasks/open/FE-XXX-<title>.md` にフロントエンドイシューを生成
+1. repo 直下 `todo.md` の「個別タスク詳細」節に `### TASK-XXX: <タイトル>` セクションを追記する（1タスク = 1セクション）
+2. BE/FE 分割が必要な場合は `### TASK-XXX-BE: <タイトル>` / `### TASK-XXX-FE: <タイトル>` の2セクションに分ける
 
-> **パス正本の注意**: 旧 `backend/issues/` / `frontend/issues/` 体系は**廃止済み**（closed のみ `docs/archive/{backend,frontend}-issues/` に残存）。
-> 生成物は全て `docs/tasks/open/` 配下に置く。`docs/tasks/` は .gitignore 済みのため、生成ファイルの commit 提案はしない。
+> **パス正本の注意**: 旧 `backend/issues/` / `frontend/issues/` 体系、および旧 docs/tasks 体系（open/closed/pending）は**廃止済み**（経緯は git 履歴参照）。
+> 現行のタスク台帳は repo 直下 `todo.md` のみ。todo.md は git 追跡ファイルであり、追記はコミット対象。
+> GitHub Issues（FEAT 系）は gh が正本 — todo.md と二重掲出しない。
 
 ## 起動トリガー
 
@@ -37,24 +37,21 @@ description: 抽象的なタスク依頼から docs/tasks/open/ にタスク詳�
 
 ## Phase 1: 採番（自動）
 
-### 1.1 TASK番号の決定
+### 1.1 タスク番号の決定
 
 ```bash
-# docs/tasks/ 内の最大番号 + 1（open/ と closed/ 両方から）
-ls docs/tasks/{open,closed}/TASK-*.md 2>/dev/null | sort -t- -k2 -n | tail -1
+# todo.md 内の最大番号 + 1
+grep -oE '(TASK|BUG|FEAT|PERF)-[0-9]+' todo.md | sort -V | tail -1
 ```
 
-形式: `TASK-XXX`（3桁ゼロ埋め）
+形式: `TASK-XXX`（3桁ゼロ埋め）。todo.md 内の最大番号 +1 で単純採番する（git 履歴の走査は不要。完了済みタスクは todo.md から削除されているが、番号の再利用より単純さを優先する）。
 
-### 1.2 BE/FE番号の決定
+### 1.2 BE/FE 分割時のID
 
-```bash
-# 現行タスク + 旧イシューアーカイブの両方から最大番号を取得（番号の連続性を維持）
-ls docs/tasks/{open,closed}/BE-*.md docs/archive/backend-issues/closed/*.md 2>/dev/null | grep -oE 'BE-[0-9]+' | sort -t- -k2 -n | tail -1
-ls docs/tasks/{open,closed}/FE-*.md docs/archive/frontend-issues/closed/*.md 2>/dev/null | grep -oE 'FE-[0-9]+' | sort -t- -k2 -n | tail -1
-```
+旧 `BE-XXX` / `FE-XXX` の独立採番は廃止。BE/FE 分割が必要な場合は同一 TASK 番号にサフィックスを付ける:
 
-形式: `BE-XXX`, `FE-XXX`（3桁ゼロ埋め）
+- `TASK-XXX-BE`（バックエンド側セクション）
+- `TASK-XXX-FE`（フロントエンド側セクション）
 
 ---
 
@@ -168,158 +165,59 @@ grep -n "関連キーワード" frontend/src/types/generated/models.ts
 
 ---
 
-## Phase 3: タスク詳細ドキュメント生成
+## Phase 3: タスクセクション生成
 
-### 出力先: `docs/tasks/open/TASK-XXX-kebab-case-title.md`
+### 出力先: repo 直下 `todo.md` の「個別タスク詳細」節の末尾に `###` セクションを追記
+
+旧テンプレート（概要/仕様確認ログ/サブタスク分解/受入条件/技術的判断/影響範囲/参照実装/リスク/未解決事項/実装順序）の構造を、以下の5項目に**圧縮**して記載する。**1タスク15行程度を上限の目安**とし、長くなる場合は BE/FE 分割するか、詳細を根拠ファイルパスへのポインタに落とす。
 
 ### テンプレート
 
 ```markdown
-# TASK-XXX: タスクタイトル
+### TASK-XXX: タスクタイトル（優先度）
 
-**作成日**: YYYY-MM-DD
-**ステータス**: Open
-**依頼元**: （タスク依頼の原文をそのまま引用）
-
----
-
-## 概要
-
-タスクの目的と背景を1-3行で説明。
-
-## 依頼内容（原文）
-
-> ここにユーザーのタスク依頼をそのまま引用
-
-## 仕様確認ログ
-
-Phase 2.5 でユーザーに質問し、得られた回答を記録する。
-曖昧な点がなかった場合は「確認事項なし」と記載。
-
-| # | 質問 | 回答 |
-|---|------|------|
-| 1 | 質問内容 | ユーザーの回答 |
-| 2 | 質問内容 | ユーザーの回答 |
-
-## サブタスク分解
-
-| # | サブタスク | 領域 | イシュー | 依存 | 完了 |
-|---|----------|------|---------|------|------|
-| 1 | 説明 | BE/FE/DB | BE-XXX / FE-XXX | - | [ ] |
-| 2 | 説明 | BE/FE/DB | BE-XXX / FE-XXX | #1 | [ ] |
-| 3 | 説明 | BE/FE/DB | BE-XXX / FE-XXX | #1 | [ ] |
-
-## 受入条件（Acceptance Criteria）
-
-ユーザーが「完了」と判断するための具体的・検証可能な条件。
-「〜が動く」ではなく「〜の画面で〜を入力し、〜が表示される」レベルで記述する。
-
-- [ ] AC-1: 具体的なシナリオ（Given/When/Then 形式推奨）
-- [ ] AC-2: 具体的なシナリオ
-- [ ] AC-3: エッジケース（空データ、エラー時、上限値）
-
-## 技術的判断
-
-実装方針で複数の選択肢がある場合、選んだ方針とその理由を記録する。
-判断が不要な単純タスクでは「特になし」と記載。
-
-| 判断事項 | 採用案 | 理由 | 却下案 |
-|---------|--------|------|--------|
-| 例: 状態管理 | useTransition | プロジェクト標準 | useState + try/finally |
-
-## 影響範囲
-
-### DB
-- テーブル: `xxx` — 変更内容
-
-### Backend
-- `backend/internal/model/xxx.go` — 変更内容
-- `backend/internal/handler/xxx_handler.go` — 変更内容
-- `backend/internal/service/xxx_service.go` — 変更内容
-- `backend/internal/repository/xxx_repository.go` — 変更内容
-
-### Frontend
-- `frontend/src/features/xxx/` — 変更内容
-- `frontend/src/types/generated/models.ts` — codegen で自動更新
-
-## 参照実装
-
-このタスクと類似するパターンの既存実装。実装時に参考にすべきファイル。
-
-- `features/owners/` — （どのパターンを参照するか具体的に記載）
-
-## リスク・懸念事項
-
-既知のリスクや注意点。なければ「特になし」と記載。
-
-| リスク | 影響度 | 対策 |
-|--------|--------|------|
-| 例: 既存画面のレイアウト崩れ | 中 | 変更後に全リスト画面を目視確認 |
-
-## 未解決事項
-
-Phase 2.5 で解消できなかった、または実装中に判明する可能性がある事項。
-なければ「なし」と記載。実装中に判明した場合は随時追記する。
-
-- [ ] 未解決事項1
-- [ ] 未解決事項2
-
-## 実装順序
-
-1. DB マイグレーション（必要な場合）
-2. Backend モデル → `make codegen`
-3. Backend API（handler → service → repository）
-4. Frontend API hooks
-5. Frontend UI
-
-## 関連イシュー
-
-- BE-XXX: [タイトル](./BE-XXX-*.md)
-- FE-XXX: [タイトル](./FE-XXX-*.md)
+- **問題**: 何が問題か・業務上の目的（依頼原文の要旨。1-2行）
+- **根拠**: 対象ファイル・行番号・現状コードの実測（Phase 2 の調査結果。影響範囲: DB / BE / FE を明記）
+- **修正方針**: 採用案とその理由（複数案あれば案A/案B）。参照実装（例: `features/owners/` の対応パターン）。実装順序（DB → BE → codegen → FE）
+- **受け入れ条件**: ① 検証可能な条件（「〜が動く」ではなく「〜の画面で〜を入力し〜が表示される」。Given/When/Then 推奨）② エッジケース（空データ・エラー時・上限値）③ スコープ限定テストコマンド
+- **状態**: 優先度（P1/High/Medium/Low）・依存タスク・仕様確認ログの要旨（Phase 2.5 の回答。確認事項なしならその旨）・未解決事項/リスク（なければ省略）
 ```
 
 ---
 
-## Phase 4: Backend イシュー生成
+## Phase 4: Backend セクション生成（BE/FE 分割時のみ）
 
-### 出力先: `docs/tasks/open/BE-XXX-kebab-case-title.md`
+### 出力先: todo.md「個別タスク詳細」節に `### TASK-XXX-BE: <タイトル>` を追記
 
-テンプレートは `templates/be-issue.md` を読み込んで使用する。
+上記テンプレートと同構造。観点の抜け確認に `templates/be-issue.md` を参照してよいが、出力は圧縮セクション形式（15行目安）とする。
 
 ---
 
-## Phase 5: Frontend イシュー生成
+## Phase 5: Frontend セクション生成（BE/FE 分割時のみ）
 
-### 出力先: `docs/tasks/open/FE-XXX-kebab-case-title.md`
+### 出力先: todo.md「個別タスク詳細」節に `### TASK-XXX-FE: <タイトル>` を追記
 
-テンプレートは `templates/fe-issue.md` を読み込んで使用する。
+上記テンプレートと同構造。観点の抜け確認に `templates/fe-issue.md` を参照してよいが、出力は圧縮セクション形式（15行目安）とする。FE セクションの「状態」に BE 依存（`TASK-XXX-BE` 完了後に着手可能）を明記する。
 
 ---
 
 ## Phase 6: ユーザーへの報告
 
-全ファイル生成後、以下のサマリーを出力:
+todo.md への追記後、以下のサマリーを出力:
 
 ```
 ## タスク分解完了
 
-### タスクドキュメント
-- docs/tasks/open/TASK-XXX-title.md（BE/FE イシューも同ディレクトリ。.gitignore 済みのため commit 提案はしない）
-
-### Backend イシュー (N件)
-- BE-XXX: タイトル — 概要
-- BE-YYY: タイトル — 概要
-
-### Frontend イシュー (N件)
-- FE-XXX: タイトル — 概要
-- FE-YYY: タイトル — 概要
+### todo.md「個別タスク詳細」節に追記（N件）
+- TASK-XXX: タイトル — 概要
+- TASK-XXX-BE: タイトル — 概要
+- TASK-XXX-FE: タイトル — 概要
 
 ### 実装順序
-1. BE-XXX → BE-YYY（DB + API）
-2. FE-XXX → FE-YYY（UI）
+1. TASK-XXX-BE（DB + API）
+2. TASK-XXX-FE（UI）— TASK-XXX-BE 完了後に着手可能
 
-### 依存関係
-- FE-XXX は BE-XXX 完了後に着手可能
+todo.md は git 追跡ファイルのため、追記分はコミット対象。
 ```
 
 ---

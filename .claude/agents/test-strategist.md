@@ -27,7 +27,7 @@ TDD（Red-Green-Refactor サイクル）のガイドは `tdd-guide` エージェ
 - Frontend Testing: Vitest + Testing Library + MSW
 - Backend Testing: go test + testify
 - E2E: Playwright（導入済み。`e2e-runner` エージェント参照）
-- Coverage Target: `docs/coverage-policy.md` 参照（ratchet 方式・数値ハードコードしない）
+- Coverage Target: `docs/ops/coverage-policy.md` 参照（ratchet 方式・数値ハードコードしない）
 
 ## テスト設計プロセス
 

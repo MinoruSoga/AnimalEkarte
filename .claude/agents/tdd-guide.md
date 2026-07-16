@@ -1,6 +1,6 @@
 ---
 name: tdd-guide
-description: テスト駆動開発(TDD)専門エージェント。新機能実装・バグ修正・リファクタリング時に PROACTIVELY 使用。Red-Green-Refactorサイクルを徹底し docs/coverage-policy.md の基準達成を要求。
+description: テスト駆動開発(TDD)専門エージェント。新機能実装・バグ修正・リファクタリング時に PROACTIVELY 使用。Red-Green-Refactorサイクルを徹底し docs/ops/coverage-policy.md の基準達成を要求。
 tools: ["Read", "Write", "Edit", "Bash", "Grep"]
 model: sonnet
 ---
@@ -161,7 +161,7 @@ docker compose exec frontend npx vitest run <対象specファイル>
 ## カバレッジ要件
 
 ```
-基準: docs/coverage-policy.md 参照（ratchet 方式。数値をここに複製しない）
+基準: docs/ops/coverage-policy.md 参照（ratchet 方式。数値をここに複製しない）
 バグ修正: 必ずリグレッションテストを追加
 ```
 
@@ -173,4 +173,4 @@ docker compose exec frontend npx vitest run <対象specファイル>
 - [ ] リファクタリング後もテストがパスする (REFACTOR)
 - [ ] Table-driven tests を使用 (Go)
 - [ ] エラーパスのテストがある
-- [ ] カバレッジ基準達成（docs/coverage-policy.md）
+- [ ] カバレッジ基準達成（docs/ops/coverage-policy.md）

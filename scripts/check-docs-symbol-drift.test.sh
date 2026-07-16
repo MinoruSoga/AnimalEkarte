@@ -34,7 +34,7 @@ failures=0
 # build_fixture <dir> : 検査が通る最小 fixture を構築する
 build_fixture() {
   local d="$1"
-  mkdir -p "$d/docs/screens" "$d/frontend/src/components" \
+  mkdir -p "$d/docs/spec/screens" "$d/docs/architecture" "$d/frontend/src/components" \
     "$d/backend/migrations" "$d/backend/internal/model" "$d/backend/internal/handler"
 
   cat > "$d/frontend/src/components/GoodWidget.tsx" <<'EOF'
@@ -48,29 +48,29 @@ EOF
     > "$d/backend/internal/model/lstep_delivery_trigger_log.go"
   printf 'package handler\n' > "$d/backend/internal/handler/one_handler.go"
 
-  cat > "$d/docs/screens/01-sample.md" <<'EOF'
+  cat > "$d/docs/spec/screens/01-sample.md" <<'EOF'
 # サンプル画面
 - **`GoodWidget`**: 実在するコンポーネント。
 - **`useGoodHook`**: 実在するフック。
 - 実装は `GoodWidget.tsx` を参照。
 - 色は `A39E98` を使用（16進コードは検査対象外）。
 EOF
-  cat > "$d/docs/screens/README.md" <<'EOF'
+  cat > "$d/docs/spec/screens/README.md" <<'EOF'
 全1画面のインデックス。
 EOF
-  cat > "$d/docs/ERD.md" <<'EOF'
+  cat > "$d/docs/architecture/erd.md" <<'EOF'
 全2テーブルの設計。なお、この5テーブルという表現は部分集合の言及であり総数ではない。
 EOF
   cat > "$d/docs/README.md" <<'EOF'
 索引 (2 Tables / 2 Resources)。1画面。
 EOF
-  cat > "$d/docs/AUTH.md" <<'EOF'
+  cat > "$d/docs/architecture/auth.md" <<'EOF'
 権限は 2 種類のリソースで構成される。
 EOF
-  cat > "$d/docs/architecture.md" <<'EOF'
+  cat > "$d/docs/architecture/overview.md" <<'EOF'
 実装規模: 2 テーブル、1 ハンドラー、1 配信トリガー。
 EOF
-  cat > "$d/docs/SPECIFICATION.md" <<'EOF'
+  cat > "$d/docs/spec/specification.md" <<'EOF'
 全 **2 テーブル** を audit_logs で追跡。
 EOF
 }
@@ -95,20 +95,20 @@ run_case() {
 mutate_none() { :; }
 
 mutate_phantom_component() {
-  echo '- **`PhantomWidget`**: 実在しないコンポーネント。' >> "$1/docs/screens/01-sample.md"
+  echo '- **`PhantomWidget`**: 実在しないコンポーネント。' >> "$1/docs/spec/screens/01-sample.md"
 }
 
 mutate_phantom_hook() {
-  echo '- **`usePhantomHook`**: 実在しないフック。' >> "$1/docs/screens/01-sample.md"
+  echo '- **`usePhantomHook`**: 実在しないフック。' >> "$1/docs/spec/screens/01-sample.md"
 }
 
 mutate_phantom_file() {
-  echo '- 実装は `ghost-file.ts` を参照。' >> "$1/docs/screens/01-sample.md"
+  echo '- 実装は `ghost-file.ts` を参照。' >> "$1/docs/spec/screens/01-sample.md"
 }
 
 mutate_wrong_table_total() {
   # 総数宣言を実測(2)と異なる 3 に書き換える
-  printf '全3テーブルの設計。\n' > "$1/docs/ERD.md"
+  printf '全3テーブルの設計。\n' > "$1/docs/architecture/erd.md"
 }
 
 run_case "clean"             0 mutate_none

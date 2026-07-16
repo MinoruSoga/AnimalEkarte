@@ -119,7 +119,7 @@ func evaluateRatchet(current, baseline, tolerance float64) ratchetResult {
 		return ratchetResult{
 			fail: false,
 			message: fmt.Sprintf("coverage-ratchet: baseline not recorded (current=%.1f%%). "+
-				"Record this value in .coverage-baseline / docs/coverage-policy.md to arm the ratchet.", current),
+				"Record this value in .coverage-baseline / docs/ops/coverage-policy.md to arm the ratchet.", current),
 		}
 	}
 	floor := baseline - tolerance

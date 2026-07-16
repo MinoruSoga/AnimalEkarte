@@ -66,7 +66,7 @@ export const PetSelectionSearchForm = memo(function PetSelectionSearchForm({ sea
         >
           クリア
         </Button>
-        {/* docs/DESIGN_SYSTEM.md button-primary: brand teal #038B94 + pill。cn()/tailwind-merge が
+        {/* docs/spec/design-system.md button-primary: brand teal #038B94 + pill。cn()/tailwind-merge が
             クラス競合を解決するため、後続の brand トークンで安全に上書きできる。 */}
         <Button
           size="sm"

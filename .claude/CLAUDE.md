@@ -9,7 +9,7 @@
 
 ## 🧭 Product Philosophy (業務効率の意思決定原則) — MANDATORY
 
-**新機能・機能変更・仕様議論・実装計画・Issue/PRD 作成を行うタスクでは、着手前に必ず [docs/PRODUCT_PHILOSOPHY.md](../docs/PRODUCT_PHILOSOPHY.md) を全文読むこと。** 以下は常時保持すべき圧縮サマリーである。
+**新機能・機能変更・仕様議論・実装計画・Issue/PRD 作成を行うタスクでは、着手前に必ず [docs/product-philosophy.md](../docs/product-philosophy.md) を全文読むこと。** 以下は常時保持すべき圧縮サマリーである。
 
 **5 ステップ順序（逆行禁止）**: ① 要件を疑う → ② 削除 → ③ 簡素化・最適化 → ④ サイクルタイム短縮 → ⑤ 自動化
 

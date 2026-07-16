@@ -30,7 +30,7 @@
 - SQL は 001_init.sql の DDL と突合済み（2026-07-12）。読み取り専用 SELECT のみ。
 
 **実行先と接続経路**:
-- STG は移行過渡期（`docs/infra/INFRA_ARCHITECTURE.md:14-15`）: 実トラフィックは **AWS ECS/ALB/RDS** を経由（Phase 7 の NS 切替まで）、Cloudflare 正系統は **PlanetScale Postgres** に直結。**監査の正はユーザー書込が到達している側**（現状 RDS。reset 適用先と一致させること）。
+- STG は移行過渡期（`docs/ops/infra-architecture.md:14-15`）: 実トラフィックは **AWS ECS/ALB/RDS** を経由（Phase 7 の NS 切替まで）、Cloudflare 正系統は **PlanetScale Postgres** に直結。**監査の正はユーザー書込が到達している側**（現状 RDS。reset 適用先と一致させること）。
 - RDS は private subnet のため直接 psql 不可。**ad-hoc SQL の接続経路（踏み台 / ECS exec 等）は runbook 未整備** — 実行前にインフラオーナーへ接続手段を確認し、確認結果をこの節に追記すること。
 - 各クエリは `deleted_at IS NULL` で**能動データに絞ってある**（junction 4 テーブル spg/sre/atd/ato には deleted_at 列なし — DDL 実測）。
 

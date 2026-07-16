@@ -110,7 +110,7 @@ func TestMedicineDoseParamRepository_FindByMedicineID_OrderedBySpeciesAscending(
 	med := makeDoseTestMedicine(t, db, clinicID, "順序検証薬剤")
 	// medicine_dose_species は Postgres ENUM 型（migrations/001_init.sql:
 	// CREATE TYPE medicine_dose_species AS ENUM ('dog', 'cat')。旧 009_add_medicine_dose_params.sql
-	// は 2026-07-04 に統合済み・docs/ERD.md §4.3）であり、ENUM は文字列の
+	// は 2026-07-04 に統合済み・docs/architecture/erd.md §4.3）であり、ENUM は文字列の
 	// アルファベット順ではなく「型定義での宣言順」でソートされる。dog が cat より先に
 	// 宣言されているため、cat を先に作成しても species ASC では dog が先頭に来る。
 	makeDoseParam(t, db, clinicID, med.ID, model.MedicineDoseSpeciesCat)

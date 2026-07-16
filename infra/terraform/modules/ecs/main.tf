@@ -71,7 +71,7 @@ resource "aws_lb_listener" "http" {
 # NOTE: CloudFront distribution 自体は Terraform 管理外（手動作成済み）。
 #       この resource apply 後に手動で distribution のオリジンを VPC Origin に切り替える。
 # NOTE: apply 後、AWS が CloudFront-VPCOrigins-Service-SG を自動生成する。
-#       Phase 2 SG 絞り込みは docs/infra/STG_AWS_CHANGE_READINESS.md §3.2 を参照。
+#       Phase 2 SG 絞り込みは docs/ops/stg-aws-change-readiness.md §3.2 を参照。
 resource "aws_cloudfront_vpc_origin" "alb" {
   count = var.alb_internal ? 1 : 0
 

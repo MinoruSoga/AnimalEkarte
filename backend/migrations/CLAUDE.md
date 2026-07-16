@@ -37,7 +37,7 @@ docker compose exec db psql ...  # 直接 SQL 実行
 
 ## migration 統合後のローカル復旧
 
-`001_init.sql` の checksum mismatch が出たローカル環境は、`docs/infra/deploy/LOCAL_DB_RESET.md` の手順で DB volume を再構築する。
+`001_init.sql` の checksum mismatch が出たローカル環境は、`docs/ops/deploy/LOCAL_DB_RESET.md` の手順で DB volume を再構築する。
 
 ## seed データは CSV が正、SQL は DDL のみ（2026-07 stub 削除 + DDL 002–004 統合）
 
@@ -61,4 +61,4 @@ docker compose exec db psql ...  # 直接 SQL 実行
 - 適用済み migration（`001_init.sql`）/ seed バンドル（CSV・manifest.json）を編集すると既存 DB は checksum mismatch になる
 - seed データの内容変更は CSV の手編集ではなく `cmd/seed-export` の再実行で行う（上記参照）
 - DB 非依存の最低検証は `python3 scripts/verify_seed.py`（CSV ベース）
-- 運用メモ: `docs/infra/deploy/SEED_MIGRATION_OPERATIONS.md`
+- 運用メモ: `docs/ops/deploy/SEED_MIGRATION_OPERATIONS.md`

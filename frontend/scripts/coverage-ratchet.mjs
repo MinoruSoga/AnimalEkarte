@@ -70,7 +70,7 @@ export function evaluateRatchet(current, baseline, tolerance) {
   if (baseline <= 0) {
     return {
       fail: false,
-      message: `coverage-ratchet: baseline not recorded (current=${current.toFixed(1)}%). Record this value in .coverage-baseline / docs/coverage-policy.md to arm the ratchet.`,
+      message: `coverage-ratchet: baseline not recorded (current=${current.toFixed(1)}%). Record this value in .coverage-baseline / docs/ops/coverage-policy.md to arm the ratchet.`,
     };
   }
   const floor = baseline - tolerance;

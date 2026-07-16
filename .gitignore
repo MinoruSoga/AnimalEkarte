@@ -83,11 +83,6 @@ service-account-key.json
 .vscode/settings.json
 .DS_Store
 
-# Issue tracking (local only)
-frontend/issues/
-backend/issues/
-docs/tasks/
-
 # Test results
 test-results/
 .vercel

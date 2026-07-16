@@ -40,7 +40,7 @@ it('should return expected result when given valid input', () => {
 
 全体コマンドは CLAUDE.md の自動実行禁止リスト — 生成後の全体確認はユーザーに実行を依頼する。
 
-E2Eは `e2e-design` コマンド / `docs/testing/E2E_TESTING_GUIDE.md` を参照
+E2Eは `e2e-design` コマンド / `docs/ops/testing/E2E_TESTING_GUIDE.md` を参照
 
 ### モック方針
 

@@ -31,9 +31,9 @@ export const PALETTE = {
   pickerDefaultBlue: "#3B82F6",
 
   /* ── Brand (hospital main color) ── */
-  /** Brand primary — docs/DESIGN_SYSTEM.md §2.1 {colors.primary} (teal, AE product override of DESIGN.md's Notion blue) */
+  /** Brand primary — docs/spec/design-system.md §2.1 {colors.primary} (teal, AE product override of DESIGN.md's Notion blue) */
   brand: "#038B94",
-  /** Brand hover/pressed — docs/DESIGN_SYSTEM.md §2.1 {colors.primary-active} */
+  /** Brand hover/pressed — docs/spec/design-system.md §2.1 {colors.primary-active} */
   brandHover: "#027078",
   /** Brand light background */
   brandLight: "#E1F3F4",

@@ -31,7 +31,7 @@ func setupLabImportTestDB(t *testing.T) *gorm.DB {
 	db := setupTestDB(t)
 	// setupTestDB の共通 ENUM リストには lab_import_jobs 専用の2型
 	// (lab_import_job_status / lab_import_source_type、migrations/001_init.sql に定義。
-	// 旧 005_add_lab_import_tables.sql は 2026-07-04 に統合済み・docs/ERD.md §4.3) が
+	// 旧 005_add_lab_import_tables.sql は 2026-07-04 に統合済み・docs/architecture/erd.md §4.3) が
 	// 含まれないため、AutoMigrate 前にここで明示的に作成する（無ければ CREATE TABLE が
 	// 42704 type does not exist で失敗する）。
 	for _, stmt := range []string{
