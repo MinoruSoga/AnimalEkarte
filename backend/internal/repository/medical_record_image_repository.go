@@ -40,15 +40,19 @@ func (r *medicalRecordImageRepository) FindByMedicalRecordID(ctx context.Context
 	return images, nil
 }
 
+// Create は dbOrTx(ctx, r.db) で ambient tx に参加する（SD-2 / BE-refactor.md X-11、
+// examination_repository.go Create と同じ理由 — LockByIDForUpdate の行ロックと同一 tx で
+// 直列化しないとデッドロックしうる）。
 func (r *medicalRecordImageRepository) Create(ctx context.Context, image *model.MedicalRecordImage) error {
-	if err := r.db.WithContext(ctx).Create(image).Error; err != nil {
+	if err := dbOrTx(ctx, r.db).Create(image).Error; err != nil {
 		return apperrors.FromGORM(err, "medical_record_image", "")
 	}
 	return nil
 }
 
+// Delete は dbOrTx(ctx, r.db) で ambient tx に参加する（Create と同じ理由、SD-2）。
 func (r *medicalRecordImageRepository) Delete(ctx context.Context, clinicID, id uint64) error {
-	result := r.db.WithContext(ctx).
+	result := dbOrTx(ctx, r.db).
 		Where("medical_record_images.id = ? AND medical_record_images.medical_record_id IN "+
 			"(SELECT id FROM medical_records WHERE clinic_id = ? AND deleted_at IS NULL)", id, clinicID).
 		Delete(&model.MedicalRecordImage{})
@@ -61,9 +65,11 @@ func (r *medicalRecordImageRepository) Delete(ctx context.Context, clinicID, id 
 	return nil
 }
 
+// FindByID は dbOrTx(ctx, r.db) で ambient tx に参加する（Delete の事前所有権チェックが
+// 同一 tx 内の一貫した読み取りになるよう、Create/Delete と同じ理由で揃える）。
 func (r *medicalRecordImageRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.MedicalRecordImage, error) {
 	var image model.MedicalRecordImage
-	err := r.db.WithContext(ctx).
+	err := dbOrTx(ctx, r.db).
 		Scopes(medicalRecordTenantScope("medical_record_images", clinicID)).
 		Where("medical_record_images.id = ?", id).
 		Preload("Staff", "deleted_at IS NULL").

@@ -298,7 +298,7 @@ func NewServices(repos *repository.Repositories, notifCfg *ReservationNotificati
 		Vital:                          NewVitalService(repos.Vital, repos.MedicalRecord, auditSvc, tx),
 		Treatment:                      NewTreatmentServiceWithAudit(repos, auditSvc),
 		DailyRecord:                    NewDailyRecordService(repos.DailyRecord, repos.Hospitalization, tx),
-		MedicalRecordImage:             NewMedicalRecordImageService(repos.MedicalRecordImage, repos.MedicalRecord),
+		MedicalRecordImage:             NewMedicalRecordImageService(repos.MedicalRecordImage, repos.MedicalRecord, tx),
 		ClinicalPlan:                   NewClinicalPlanService(repos.ClinicalPlan, repos.MedicalRecord, repos.DiagnosisType, repos.DiagnosisName),
 		Checkup:                        checkupSvc,
 		CheckupFieldResult:             NewCheckupFieldResultService(repos.Checkup, repos.MedicalRecord, repos.CheckupTypeField, repos.CheckupFieldResult, auditTxLogger, tx),
