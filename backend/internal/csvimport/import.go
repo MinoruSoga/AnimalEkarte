@@ -3,6 +3,7 @@ package csvimport
 import (
 	"context"
 	"encoding/csv"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -19,14 +20,14 @@ var tables = []string{"owners", "pets", "medical_records", "exams", "exam_result
 // Import replaces the old demo's owner/clinical/accounting graph in a disposable
 // target database. The source directory is expected to be a read-only mount.
 func Import(ctx context.Context, pool *pgxpool.Pool, sourceDir string, clinicID, speciesID, examTypeID int64) (map[string]int64, error) {
-	if sourceDir == "" || filepath.IsAbs(sourceDir) == false {
+	if sourceDir == "" || !filepath.IsAbs(sourceDir) {
 		return nil, fmt.Errorf("source directory must be an absolute path")
 	}
 	tx, err := pool.Begin(ctx)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("begin import tx: %w", err)
 	}
-	defer tx.Rollback(ctx) //nolint:errcheck
+	defer func() { _ = tx.Rollback(ctx) }()
 	if err := deleteDemoGraph(ctx, tx); err != nil {
 		return nil, err
 	}
@@ -39,7 +40,7 @@ func Import(ctx context.Context, pool *pgxpool.Pool, sourceDir string, clinicID,
 		counts[table] = count
 	}
 	if err := tx.Commit(ctx); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("commit import tx: %w", err)
 	}
 	return counts, nil
 }
@@ -68,16 +69,16 @@ type spec struct {
 }
 
 func importTable(ctx context.Context, tx pgx.Tx, path, table string, clinicID, speciesID, examTypeID int64) (int64, error) {
-	f, err := os.Open(path)
+	f, err := os.Open(path) //nolint:gosec // operator-controlled absolute CSV mount; validated IsAbs above
 	if err != nil {
-		return 0, err
+		return 0, fmt.Errorf("open %s: %w", path, err)
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 	r := csv.NewReader(f)
 	r.ReuseRecord = true
 	header, err := r.Read()
 	if err != nil {
-		return 0, err
+		return 0, fmt.Errorf("read csv header: %w", err)
 	}
 	idx := make(map[string]int, len(header))
 	for i, col := range header {
@@ -100,19 +101,22 @@ func importTable(ctx context.Context, tx pgx.Tx, path, table string, clinicID, s
 		}
 		_, e := tx.CopyFrom(ctx, pgx.Identifier{table}, s.columns, pgx.CopyFromRows(copyRows))
 		copyRows = nil
-		return e
+		if e != nil {
+			return fmt.Errorf("copy %s: %w", table, e)
+		}
+		return nil
 	}
 	for {
 		row, e := r.Read()
-		if e == io.EOF {
+		if errors.Is(e, io.EOF) {
 			break
 		}
 		if e != nil {
-			return 0, e
+			return 0, fmt.Errorf("read csv: %w", e)
 		}
 		vals, e := s.values(row, clinicID, speciesID, examTypeID)
 		if e != nil {
-			return 0, e
+			return 0, fmt.Errorf("map row: %w", e)
 		}
 		copyRows = append(copyRows, vals)
 		count++
@@ -193,17 +197,29 @@ func typedValue(col, v string) (any, error) {
 	}
 	for _, c := range []string{"id", "clinic_id", "owner_id", "pet_id", "medical_record_id", "exam_id", "billing_id", "animal_species_id", "exam_type_id", "total_amount", "unit_price", "sort_order"} {
 		if col == c {
-			return strconv.ParseInt(v, 10, 64)
+			n, err := strconv.ParseInt(v, 10, 64)
+			if err != nil {
+				return nil, fmt.Errorf("parse %s: %w", col, err)
+			}
+			return n, nil
 		}
 	}
 	for _, c := range []string{"weight", "quantity", "discount_rate"} {
 		if col == c {
-			return strconv.ParseFloat(v, 64)
+			n, err := strconv.ParseFloat(v, 64)
+			if err != nil {
+				return nil, fmt.Errorf("parse %s: %w", col, err)
+			}
+			return n, nil
 		}
 	}
 	for _, c := range []string{"is_dangerous", "is_insurance_applicable"} {
 		if col == c {
-			return strconv.ParseBool(v)
+			b, err := strconv.ParseBool(v)
+			if err != nil {
+				return nil, fmt.Errorf("parse %s: %w", col, err)
+			}
+			return b, nil
 		}
 	}
 	return v, nil

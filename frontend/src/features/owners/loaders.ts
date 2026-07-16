@@ -99,6 +99,7 @@ export const ownersLoader = async ({ request }: { request: Request }): Promise<O
         insuranceName: undefined,
         insuranceDetails: undefined,
         remarks: "",
+        deceasedAt: undefined,
       };
       return [emptyPet];
     });
