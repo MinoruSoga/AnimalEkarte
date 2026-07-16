@@ -45,8 +45,8 @@ const ROUND_EPSILON = 1e-9;
 const SAFETY_EPSILON = 1e-6;
 
 /**
- * 「著しい逸脱」とみなす相対乖離の安全側デフォルト（BE dose_revalidation.go
- * doseDeviationRelThreshold と同一値・運用確定待ち）。
+ * 「著しい逸脱」とみなす相対乖離のデフォルト（BE dose_revalidation.go
+ * doseDeviationRelThreshold と同一値・暫定確定 2026-07-15 PO）。
  */
 export const DOSE_DEVIATION_REL_THRESHOLD = 0.2;
 
