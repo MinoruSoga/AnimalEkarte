@@ -38,7 +38,7 @@
 ### API連携
 | メソッド | エンドポイント | 用途 | 必須権限 | 必須アクション |
 |:---|:---|:---|:---|:---|
-| GET | `/api/v1/masters/chief-complaint-types` | 有効なカテゴリ一覧の取得 | `master-medical` | `view` |
+| GET | `/api/v1/masters/chief-complaint-types` | カテゴリ一覧の取得（有効/無効を含む全件、sort_order順） | `master-medical` | `view` |
 | GET | `/api/v1/masters/chief-complaint-types/:id` | 特定のカテゴリ情報の取得 | `master-medical` | `view` |
 | POST | `/api/v1/masters/chief-complaint-types` | 新規カテゴリの作成 | `master-medical` | `create` |
 | PATCH | `/api/v1/masters/chief-complaint-types/:id` | 名称・説明・ステータスの更新 | `master-medical` | `edit` |

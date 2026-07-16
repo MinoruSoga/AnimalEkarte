@@ -3,7 +3,7 @@
 ## 概要
 - **画面の目的**: スタッフの役割（院長、獣医師、看護師、事務等）に応じたシステム操作権限の体系的定義。
 - **URLパターン**: `/settings/permission-groups`
-- **アクセス権限**: 最高管理者権限のみ（`ResourceMasterPermission`）
+- **アクセス権限**: 権限グループ管理権限が必要（`ResourceMasterPermission`）
 
 ---
 
@@ -17,7 +17,7 @@
 
 | アクション | 説明 |
 |:---|:---|
-| **View (閲覧)** | データの参照。リスト表示。 |
+| **View (表示)** | データの参照。リスト表示。 |
 | **Create (作成)** | 新規レコードの追加。 |
 | **Edit (編集)** | 既存データの修正、ステータスの更新。 |
 | **Delete (削除)** | 論理削除、取り消し操作。 |
@@ -29,7 +29,6 @@
 - **医療**: `medical-records`, `examinations`, `vaccinations`, `hospitalization`
 - **フロント**: `reception`, `owners`, `reservations`
 - **経営**: `accounting`, `cash-register-close`, `accounting-reports`
-- **マーケ**: `lstep-analytics`
 - **マスタ**: `master-staff`, `master-medical`, `hospital-settings`
 
 ---
@@ -40,7 +39,7 @@
 権限グループの設定変更は、該当グループに所属する全スタッフに即時反映されます。ログイン中のユーザーに対しては、次回のページ遷移または API リクエスト時に権限の再評価が行われます。
 
 ### 2. デフォルトグループの提供
-新規院開設時に「執行」（全権限）と「一般」の 2 グループが自動作成されます（`clinic_service.go`）。
+新規院開設時に「執行」と「一般」の 2 グループが自動作成されます（`clinic_service.go`）。作成時点では権限ルールは付与されず、本画面で個別に設定します。
 
 ---
 

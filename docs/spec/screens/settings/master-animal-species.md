@@ -40,7 +40,7 @@
 ### API連携
 | メソッド | エンドポイント | 用途 | 必須権限 | 必須アクション |
 |:---|:---|:---|:---|:---|
-| GET | `/api/v1/masters/animal-species` | 有効な動物種一覧の取得 | `master-animal-species` | `view` |
+| GET | `/api/v1/masters/animal-species` | 動物種一覧の取得（無効を含む全件） | `master-animal-species` | `view` |
 | GET | `/api/v1/masters/animal-species/:id` | 特定の動物種情報の取得 | `master-animal-species` | `view` |
 | POST | `/api/v1/masters/animal-species` | 新規動物種の登録 | `master-animal-species` | `create` |
 | PATCH | `/api/v1/masters/animal-species/:id` | 属性の更新 | `master-animal-species` | `edit` |

@@ -18,9 +18,9 @@
 | 1 | **問診** | 飼主からの主訴、現在の症状、生活環境のヒアリング記録。 |
 | 2 | **診察/治療プラン** | 身体検査所見（SOAPのS/O/A）、診断名（第1・第2）、今後の治療方針（Plan）。 |
 | 3 | **治療** | 実施した処置、処置項目、および処方薬の明細。 |
-| 4 | **予防接種** | ワクチン接種履歴の記録、次回予定日の自動算出。 |
+| 4 | **予防接種** | ワクチン接種履歴の記録、次回予定日の設定（手入力。「次回予防接種予定設定」ラジオは日付自動算出に未配線）。 |
 | 5 | **定期健診** | 健康診断の結果記録。 |
-| 6 | **検査** | 数値検査結果の入力、基準値との比較（H/Lハイライト）。 |
+| 6 | **検査** | 検査結果の一覧表示と既存検査の取込（カルテへの紐付け）、基準値との比較（HIGH/LOW判定ハイライト）。 |
 | 7 | **画像** | 患部写真、レントゲン、エコー画像、PDF資料のアップロード・管理。 |
 | 8 | **見積書** | 提示した概算費用の管理。 |
 | 9 | **会計(医師確認)** | 診療費の最終確認と会計ステータスの送信。 |
@@ -37,7 +37,7 @@
 - **Supplement (補足)**: 注意事項等。
 
 ### 2.2 保存プロセス
-- **メイン保存**: 「問診」「診察/治療プラン」等のカルテ本体属性（主訴、診断名等）は、ヘッダーの保存操作で `PATCH /medical-records/:id` にまとめて送信される。
+- **メイン保存**: 画面右下のフローティング「保存」ボタン（`MedicalRecordFloatingActions`）は、アクティブタブに応じて送信先を切り替える。「問診」タブは `PATCH /medical-records/:id/inquiries`（主訴・主訴区分・治療方針）、「診察/治療プラン」タブは `PATCH /medical-records/:id/clinical-plan`（治療方針・診断詳細・診断名）と `PATCH /medical-records/:id`（次回来院推奨日）を送信する。他タブではカルテ本体の送信は行われない（`PATCH /medical-records/:id` へまとめて送信する方式ではない）。
 - **アクティブタブの追加保存**: 保存成功直後、その時点で開いているタブが「診察/治療プラン」または「見積書」の場合のみ、`useMedicalRecordPostSave` が対応する登録済みコールバックを追加実行する（他タブ在中時は発火しない。両タブを並行実行することもない）。
 - **治療・検査等のサブリソース**: 「治療」タブの明細は行単位の追加/編集/削除操作ごとに `/medical-records/:id/treatments...` へ個別・即時送信される（メイン保存とは独立しており、「バックグラウンド並行保存」ではない）。
 
@@ -57,9 +57,11 @@
 ### API連携
 | メソッド | エンドポイント | 用途 | 必須権限 | 必須アクション |
 |:---|:---|:---|:---|:---|
-| GET | `/api/v1/medical-records/:id` | カルテ本体と全サブリソースの取得 | `medical-records` | `view` |
+| GET | `/api/v1/medical-records/:id` | カルテ本体の取得（Treatments・Vitals・Owner・Pet 等を同梱。clinical-plan・画像・検査等は個別エンドポイント） | `medical-records` | `view` |
 | POST | `/api/v1/medical-records` | 新規カルテレコードの作成 | `medical-records` | `create` |
 | PATCH | `/api/v1/medical-records/:id` | カルテ属性の更新 | `medical-records` | `edit` |
+| PATCH | `/api/v1/medical-records/:id/inquiries` | 「問診」タブの保存 | `medical-records` | `edit` |
+| PATCH | `/api/v1/medical-records/:id/clinical-plan` | 「診察/治療プラン」タブ（身体検査所見・診断・治療方針）の保存 | `medical-records` | `edit` |
 | POST | `/api/v1/medical-records/:id/treatments` | 処置・処方明細の追加 | `medical-records` | `create` |
 | PATCH | `/api/v1/medical-records/:id/treatments/:treatmentId` | 処置・処方明細の更新 | `medical-records` | `edit` |
 | DELETE | `/api/v1/medical-records/:id/treatments/:treatmentId` | 処置・処方明細の削除 | `medical-records` | `delete` |

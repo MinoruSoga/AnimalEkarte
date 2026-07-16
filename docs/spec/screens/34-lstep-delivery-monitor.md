@@ -9,21 +9,28 @@
 
 ## 1. 画面構成
 
-### 1.1 配信実行ログテーブル (`DataTable`)
-直近の配信（および配信予定）が時系列で表示されます。
+### 1.1 配信実行ログテーブル (`DeliveryLogsTable`)
+指定期間（既定は当日）の配信（および配信予定）が予定日時の降順で表示されます（サーバ側ページネーション付き）。
 
 | カラム | 説明 |
 |:---|:---|
-| **予定/実行日時** | シナリオが発火する、または発火した日時。 |
-| **対象飼主** | メッセージ送信対象のオーナー名。 |
-| **トリガー種別** | `first_visit_followup_3d`, `dormant_prevention_365d` 等のコード。 |
+| **種別** | `first_visit_followup_3d`, `dormant_prevention_365d` 等のトリガーコード（日本語ラベルで表示）。 |
+| **飼い主** | メッセージ送信対象のオーナー名。 |
+| **予定日時** | シナリオが発火する予定の日時（`scheduled_at`）。 |
 | **ステータス** | `scheduled`, `fired`, `excluded`, `failed` の 4 状態。 |
-| **判定理由** | `excluded` の場合、なぜ配信がスキップされたか（実値: `delivery_excluded_flag`＝飼主の配信除外設定、`no_line_user_id`＝LINE 未連携、`excl_tag_delivery_stop`＝配信停止タグ）。 |
+| **送信日時** | 実際に配信された日時（`fired_at`。未送信は「—」）。 |
+| **除外理由** | `excluded` の場合、なぜ配信がスキップされたか（実値: `delivery_excluded_flag`＝飼主の配信除外設定、`no_line_user_id`＝LINE 未連携、`excl_tag_delivery_stop`＝配信停止タグ）。 |
 
 ### 1.2 検索・フィルタ (`DeliveryMonitorFilters`)
-- **期間**: 予定/実行日時の From-To 絞り込み。
+- **期間**: 予定日時（`scheduled_at`）の From-To 絞り込み。
 - **トリガー種別**: `first_visit_followup_3d` 等のトリガーコードでの絞り込み。
 - **ステータス**: `scheduled`/`fired`/`excluded`/`failed` による絞り込み（失敗のみ抽出して再送検討等に使用）。
+
+### 1.3 サマリ表示 (`DeliverySummaryCards`)
+- **ステータス別サマリカード**: 予定（`scheduled`）・送信済（`fired`）・除外（`excluded`）・失敗（`failed`）・優先度抑制（`suppressed_by_priority`）の 5 枚の件数カード。
+- **失敗警告バナー (`DeliveryFailedWarning`)**: 期間内に `failed` が 1 件以上ある場合のみ表示される警告。
+- **除外理由内訳 (`DeliveryExcludedReasonBreakdown`)**: `excluded` がある場合に理由別件数をバッジ表示。
+- ヘッダの「更新」ボタンでサマリ・ログの両方を再取得する。
 
 ---
 
@@ -47,7 +54,8 @@
 ### 構成コンポーネント
 - **`LstepDeliveryMonitorPage`**: メイン監視ページ。
 - **`DeliveryMonitorFilters`**: 期間・トリガー種別・ステータスの検索フィルタ。
-- **`LstepDeliveryMonitorLogsTable`**: 配信ログの一覧テーブル（ステータスは `BADGE` デザイントークンで色分け表示）。
+- **`LstepDeliveryMonitorLogsTable`**: 配信ログの一覧テーブル `DeliveryLogsTable`（ステータスは `BADGE` デザイントークンで色分け表示。`Pagination` によるページ送り）。
+- **`LstepDeliveryMonitorPageParts`**: サマリカード（`DeliverySummaryCards`）・失敗警告（`DeliveryFailedWarning`）・除外理由内訳（`DeliveryExcludedReasonBreakdown`）の部品群。
 
 ### API連携
 | メソッド | エンドポイント | 用途 | 必須権限 | 必須アクション |

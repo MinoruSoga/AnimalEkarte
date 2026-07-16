@@ -33,7 +33,7 @@
 システムは、会計が完了（`completed_at`）した時刻と、本マスタの設定値を照合し、「何日の、AM/PM/EMG いずれの売上か」を自動的に決定します（AM/PM/EMG は連続・非重複で 24 時間を被覆）。これにより、深夜に及ぶ緊急診療等でも正確な日次集計が可能です。
 
 ### 2. 予約枠計算とは非連動
-本画面の休診設定（定例休診日 `closed_weekdays`・特別期間・日付単位の休診日）はいずれも `clinic_settings` / `clinic_holidays` テーブルに保存され、**売上集計専用**です。LINE 予約の空き枠計算エンジン（[28-line-reservation.md](../28-line-reservation.md)）は完全に別モデルの `line_reservation_settings.closed_weekdays`（LINE 予約設定画面で個別設定）を参照しており、本画面の設定とは連動しません。曜日休診をLINE予約にも反映したい場合は、LINE 予約設定側でも別途設定する必要があります。
+本画面の休診設定（定例休診日 `closed_weekdays`・特別期間・日付単位の休診日）はいずれも `clinic_settings` / `closing_special_periods` / `clinic_holidays` テーブルに保存され、**売上集計専用**です。LINE 予約の空き枠計算エンジン（[28-line-reservation.md](../28-line-reservation.md)）は完全に別モデルの `line_reservation_settings.closed_weekdays`（LINE 予約設定画面で個別設定）を参照しており、本画面の設定とは連動しません。曜日休診をLINE予約にも反映したい場合は、LINE 予約設定側でも別途設定する必要があります。
 
 ---
 

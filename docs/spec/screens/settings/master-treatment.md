@@ -2,7 +2,7 @@
 
 ## 概要
 - **画面の目的**: 診察、処置、手術、検査等の臨床行為の定義、および標準価格・税率の設定。
-- **URLパターン**: `/settings/treatment-items` (タブパラメータ: `?tab=consultation` (診察), `?tab=procedure` (処置), `?tab=vaccine` (予防), `?tab=examination` (検査))
+- **URLパターン**: `/settings/treatment-items` (タブパラメータ: `?tab=consultation` (診察), `?tab=examination` (検査), `?tab=procedure` (処置), `?tab=vaccine` (予防接種), `?tab=checkup` (定期健診))
 - **アクセス権限**: 診療マスタ管理権限が必要（`ResourceMasterMedical`）
 
 ---
@@ -10,7 +10,7 @@
 ## 1. 画面構成
 
 ### 1.1 項目一覧テーブル
-- **カテゴリ分類**: 診察、検査、処置、予防、定期健診のタブ切り替えにより、膨大な項目を整理して表示。
+- **カテゴリ分類**: 診察、検査、処置、予防接種、定期健診のタブ切り替えにより、膨大な項目を整理して表示。
 - **検索**: 項目名（親・子とも）による部分一致。
 
 ### 2. 詳細編集サイドパネル (`SidePeekPanel`)

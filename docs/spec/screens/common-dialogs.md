@@ -11,8 +11,8 @@
 トリミング・定期健診・検査・入院・予防接種の各フォーム画面上部に常駐する「単一の真実」（`features/trimming`, `features/checkups`, `features/examinations`, `features/hospitalization`, `features/vaccinations`）。
 - **臨床アラート**: 死亡 (`deceased`) ステータスを【死亡】バッジで強調。
 - **属性表示**: 名前、年齢、性別、最新体重、担当医、保険、次回来院予定。
-- **クイックアクション**: 飼主名クリックでの `OwnerSearchModal` 起動（付け替え）、担当医クリックでの変更。
-- **例外**: カルテ画面（06-medical-records-form.md）は `PatientInfoCard` を使わず、専用の `MedicalRecordStickyHeader` が同等の飼主/担当医クリック導線を独自実装している。
+- **クイックアクション**: `onOwnerClick` / `onStaffClick` 等のクリックコールバックを任意で受け取る。現状 `onOwnerClick` を渡す利用画面はなく、担当医クリックでの変更はトリミングフォームのみが使用（`MasterSelectModal` の担当スタッフ選択が開く）。飼主付け替えの `OwnerSearchModal` 起動はカルテ画面側（下記例外）の導線であり、本カード経由の実装は存在しない。
+- **例外**: カルテ画面（06-medical-records-form.md）は `PatientInfoCard` を使わず、専用の `MedicalRecordStickyHeader` が共有 `PatientContextHeader` を組み込んで同等の飼主（`OwnerSearchModal` 起動）/担当医クリック導線を実装している。
 
 ### 1.2 離脱防止ガード (`NavigationBlocker`)
 React Router 7 の `useBlocker` を活用し、入力データの損失を物理的に防ぎます。
@@ -30,7 +30,7 @@ React Router 7 の `useBlocker` を活用し、入力データの損失を物理
 
 ### 2.2 飼主検索・付け替え (`OwnerSearchModal`)
 既存カルテの飼主を誤って登録した場合や、譲渡時の変更に使用します。
-- **安全確認**: `OwnerSearchModal` 自身は選択のたびに汎用の「飼主を変更しますか？」確認を無条件で表示する（値引率・会員区分の差異は判定しない）。会員区分・値引率が異なる場合の金額変動警告（BUG-373）は呼び出し元（`OwnerForm.tsx` の `handlePetChangeOwner`）側の別ロジックであり、`OwnerSearchModal` の機能ではない。
+- **安全確認**: `OwnerSearchModal` 自身は選択のたびに汎用の「飼主変更の確認」ダイアログ（「飼主を「A」→「B」に変更します。よろしいですか？」）を無条件で表示する（値引率・会員区分の差異は判定しない）。会員区分・値引率が異なる場合の金額変動警告（BUG-373）は呼び出し元（`OwnerForm.tsx` の `handlePetChangeOwner`）側の別ロジックであり、`OwnerSearchModal` の機能ではない。
 
 ### 2.3 担当医選択 (`StaffSelectionModal`)
 稼働中（在職）スタッフを職種別にグルーピングし、名前検索で臨床担当者を割り当てます。
@@ -46,7 +46,7 @@ Notion の操作感を踏襲したボーダーレス入力。
 
 ### 3.2 高機能フィルタ (`PropertyFilter`)
 - **動的条件**: ユーザーがその場で「かつ/または」条件を組み合わせてデータを抽出。
-- **遅延描画**: `useDeferredValue` により、大規模データのフィルタ中もタイピングの遅延が発生しません。
+- **遅延描画**: `useDeferredValue` は `PropertyFilter` 自身ではなく利用側の一覧画面が検索キーワードへ適用し、大規模データのフィルタ中もタイピングの遅延が発生しません（遅延中の視覚フィードバックは共有 `FilteringIndicator` が担当）。
 
 ---
 

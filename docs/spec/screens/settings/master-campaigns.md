@@ -36,7 +36,7 @@
 ## 3. 技術仕様
 
 ### 3.1 構成コンポーネント
-- **`CampaignSettings`**: 一覧・フィルタ・並び替え・保存の制御。
+- **`CampaignSettings`**: 一覧・フィルタ・保存の制御。
 - **`CampaignSidePanel`**: 名称・期間・割引設定・対象条件の編集。
 
 ### API連携

@@ -11,8 +11,8 @@
 ## 画面構成
 
 ### 1. 検査項目一覧
-- **タブ構造**: 診察、検査、処置、予防、定期健診のタブの一つとして表示（[master-treatment.md](./master-treatment.md) 1.1参照）。
-- **項目リスト**: 項目名、ステータス（親子ツリー表示、検索は項目名の部分一致）。
+- **タブ構造**: 診察、検査、処置、予防接種、定期健診のタブの一つとして表示（[master-treatment.md](./master-treatment.md) 1.1参照）。
+- **項目リスト**: 項目名、単価(税込)、ステータス（親子ツリー表示、検索は項目名の部分一致）。
 
 ### 2. 詳細編集サイドパネル (`SidePeekPanel`)
 [master-treatment.md](./master-treatment.md) 2. と同じ `TreatmentItemSidePanel` を共有するため、画面上は項目名、有効/無効ステータス、親カテゴリ、備考、単価、課税区分、税率、保険対象外が一律表示される。ただし `ExaminationType` モデル・API（`backend/internal/model/examination_type.go`、`backend/internal/handler/exam_type_request.go`）には `tax_type`/`tax_rate` 列が存在せず、課税区分・税率は画面上操作できても保存されない。実際に保存されるのは項目名、有効/無効ステータス、親カテゴリ、備考、単価、保険対象外（`is_non_insurance`）のみ。単位・基準値（Min/Max）を設定する項目は存在しない。
@@ -41,7 +41,7 @@
 | GET | `/api/v1/masters/examination-types` | 定義済み項目の一覧取得 | `master-medical` | `view` |
 | GET | `/api/v1/masters/examination-types/:id` | 特定の検査項目情報の取得 | `master-medical` | `view` |
 | POST | `/api/v1/masters/examination-types` | 新規検査項目の登録 | `master-medical` | `create` |
-| PATCH | `/api/v1/masters/examination-types/:id` | 名称・単価・課税区分等の属性更新 | `master-medical` | `edit` |
+| PATCH | `/api/v1/masters/examination-types/:id` | 名称・単価等の属性更新 | `master-medical` | `edit` |
 | DELETE | `/api/v1/masters/examination-types/:id` | 検査項目の削除 | `master-medical` | `delete` |
 | PATCH | `/api/v1/masters/examination-types/reorder` | 並び順の一括保存 | `master-medical` | `edit` |
 
