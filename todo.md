@@ -118,13 +118,13 @@
 
 > 出所: docs/spec/screens 全 62 ファイル実装突合（commit a476b727）の副産物。**doc は現状実装に合わせ済み**のため、修正するなら実装側＋該当 doc の再更新をセットで行う。各件とも「仕様としてこれで正か」の triage が先。
 
-> SD-1/SD-2/SD-5/SD-7/SD-8 は 2026-07-16 に triage→修正完了（各コミット参照）。SD-6 は SD-1 修正時の blindspot 調査で「同型のサイレント消失」と確認済みだが本パスのスコープ外につき未修正（`next_schedule_type` が `use-vaccination-form.ts` の create/update payload から欠落 — SD-1 と同じ2ファイル・同じ修正パターンで解消可能）。
+> SD-1/SD-2/SD-5/SD-7/SD-8 は 2026-07-16 に triage→修正完了（各コミット参照）。SD-6 はペイロード消失部分のみ 2026-07-16 に修正完了（SD-1 と同一2ファイル・同一修正パターン、RED→GREEN 29/29 pass。`frontend/src/features/vaccinations/api/types.ts`・`hooks/use-vaccination-form.ts`・`hooks/use-vaccination-form.test.ts`）。残る「次回予定」ラジオ→nextDate 計算配線の要否は q&a.html で未回答のため PO 判断待ち（下表参照）。
 
 | # | 疑い内容 | 根拠 | 分類 |
 |---|---------|------|------|
 | SD-3 | `LineReservationSettingsForm` が formData から `line_channel_secret`/`line_access_token` を読むが対応 input が存在せず**常に null 送信** | 同コンポーネント実装 | 機能不全 |
 | SD-4 | 在庫 `min_stock_level` から status を判定するロジックがどこにも無く**在庫アラートパネルが死に機能** | 18-inventory-list 突合 | 機能不全 |
-| SD-6 | 予防接種「次回予定」ラジオ（3週間後等）が nextDate 計算に未配線・ペイロード非含有（SD-1 修正時の blindspot 調査で実バグ確認済み・未修正） | 15-vaccinations-form 突合 | 機能不全 |
+| SD-6 | 予防接種「次回予定」ラジオ（3週間後等）を nextDate 計算に配線すべきか（ペイロード非含有によるサイレント消失は 2026-07-16 修正済み・本行は配線要否の PO 判断分のみ残） | 15-vaccinations-form 突合 | 要仕様確認 |
 | SD-9 | デフォルト権限グループ「執行」「一般」が権限ルール 0 で作成される（新規院で system_admin 以外全機能アクセス不能の疑い） | `clinic_service.go` | 要仕様確認 |
 | SD-10 | 入院新規: 死亡ペットのブロックがペット選択 UI のみで直接 URL・BE に防御なし | 09-hospitalization-form 突合 | 臨床安全（低） |
 | SD-11 | シフト: 有休（paid_leave）選択で時刻入力が非活性にならない | 24-shift-calendar 突合（BUG-092 趣旨と矛盾疑い） | UX |
@@ -137,7 +137,7 @@
 | SD-18 | OwnerReport: 検査・治療・トリミング履歴が limit=100 固定でサイレント打ち切り（ページング・超過表示なし） | `HISTORY_FETCH_LIMIT` / 39 doc 新設時発見 | UX |
 | SD-19 | OwnerReport: 予防接種日付のみブラウザローカル TZ 整形で、治療履歴の `toJSTWallDate` と不統一 → 海外 TZ 環境で 1 日ずれ得る | 39 doc 新設時発見 | 表示バグ（低） |
 
-- 対応順推奨: SD-3/SD-4（機能不全）→ SD-6（SD-1 同型）→ 残りは triage 後。
+- 対応順推奨: SD-3/SD-4（機能不全）→ 残りは triage 後。SD-6 はペイロード消失部分を修正済み、残る配線要否は他の要仕様確認項目と合わせて triage 対象。
 - SD-9 は新規院開設フローの実運用確認が先（既存院は影響なし）。SD-13 はインボイス番号の入力経路が別導線（seed/管理者直接）で足りているかの PO 判断。
 
 ### AnimalEkarte CSV import — USER actions
