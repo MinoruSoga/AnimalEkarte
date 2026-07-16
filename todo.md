@@ -115,13 +115,13 @@
 
 > 出所: docs/spec/screens 全数突合（a476b727）＋受け入れシナリオ作成の副産物。2026-07-16 Fable 代理決裁（正本 = `q&a.html`・PO は上書きで覆せる）→ 2026-07-17 ユーザー「fix all」指示で**全 21 件を消化**。実装コミット: 142f5ebe〜6d10f4c0（決裁 ID 単位・全て scoped テスト green）。GitHub 入口 = [#261](https://github.com/MinoruSoga/AnimalEkarte/issues/261)。
 
-**決裁からの乖離 3 件（PO 確認対象）:**
+**決裁からの乖離 3 件 — 裁定確定（2026-07-17 ユーザー委任・全件承認・revert 不要。裁定理由の正本 = q&a.html 各カード）:**
 
-| ID | 決裁 | 実施内容 | 乖離理由 |
-|----|------|---------|---------|
-| SD-9 | B: doc のみ | **コード実装へ上書き**（9b6a01ed） | 決裁時未知の新事実: ルール 0 件の院は権限編集 API 自体が権限不足で塞がり**自己修復不能**。runbook 注記では防御にならない。revert 可 |
-| SD-13 | 税務ブロックへ追加 | 独立「法人情報（インボイス）」セクション新設（6d0c8d8c） | 税務ブロックは Clinic 単位フォーム — Company シングルトンを置くと「分院の設定保存で会社全体の値を書き換える」スコープ誤認事故を生む |
-| SD-10 | 422 | 400（InvalidInput）のまま | apperrors に 422 種別が存在しない。種別新設はエラー体系全体の設計判断で別スコープ |
+| ID | 決裁 | 実施内容 | 裁定 |
+|----|------|---------|------|
+| SD-9 | B: doc のみ | コード実装へ上書き（9b6a01ed） | **承認** — ルール 0 件は自己修復不能（注記では構造的に防げない）。投入内容は 003_demo 運用実証済みプロファイルで無差別全許可ではない |
+| SD-13 | 税務ブロックへ追加 | 独立「法人情報」セクション新設（6d0c8d8c） | **承認** — Clinic フォームに Company シングルトンを同居させるスコープ誤認を回避。決裁の本質（FE 導線）は充足 |
+| SD-10 | 422 | 400（InvalidInput）のまま | **恒久承認** — 本質は BE 境界拒否で実装済み。422 新設は要件責任者不在のため積まない |
 
 **fix all 実行で発見・対処した追加バグ（決裁対象外の副産物）:**
 
@@ -135,14 +135,7 @@
 - [ ] **[USER] SD-14 STG 実機検証** — LINE 紐付け E2E（URL 発行→LIFF 遷移→紐付け完了）
 - [ ] **[USER] GAP-2 反映の `db_reset`**（seed 変更 13c6a93a）
 
-**次期送り（今回の副産物・要 triage）:**
-
-- LINE 予約設定の credential 設定経路の UX（SD-3 で送信コード削除 — 現状は seed/運用手順のみ。マスク済み値バッジの BE 拡張含む）
-- `FieldRow` の label-input 関連付け欠如（a11y 既存欠陥・LineReservationSettingsForm 全体）
-- 登録番号系 3 箇所分散（`Company.RegistrationNumber`/`Company.InvoiceRegistrationNumber`/`Clinic.RegistrationNumber` — 二重管理疑い）
-- clinical_plan/inquiry の finalized ガードを正規パターン（Transactor＋LockByIDForUpdate）へ統一（`cross_tenant_master_fk_write_test.go` の制約解消後）
-- `calculateNextDate` の `"other"` デッドブランチ（Select 実値は `"custom"`・実害なし）
-- OwnerReport 印刷（SD-17 決裁で不採用 — 将来要件化時の設計メモは fix-sd17-19 最終報告と 39 doc 参照）
+**次期送り 6 件は 2026-07-17 に triage 完了 → `phase2.html`「SD/GAP fix all の副産物」節へ移動済み**（本書には残さない — 台帳スコープ規則）。
 
 ### AnimalEkarte CSV import — USER actions
 
