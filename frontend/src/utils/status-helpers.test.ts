@@ -322,16 +322,12 @@ describe('getEstimateStatusColor', () => {
     expect(getEstimateStatusColor('sent')).toContain(HEX.blue);
   });
 
-  it('returns green for accepted', () => {
-    expect(getEstimateStatusColor('accepted')).toContain(HEX.green);
+  it('returns green for approved', () => {
+    expect(getEstimateStatusColor('approved')).toContain(HEX.green);
   });
 
   it('returns red for rejected', () => {
     expect(getEstimateStatusColor('rejected')).toContain(HEX.red);
-  });
-
-  it('returns orange for expired', () => {
-    expect(getEstimateStatusColor('expired')).toContain(HEX.orange);
   });
 
   it('returns gray for unknown status', () => {

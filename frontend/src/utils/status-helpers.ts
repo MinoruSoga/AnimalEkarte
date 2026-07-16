@@ -206,10 +206,9 @@ export const getEstimateStatusColor = (status: string) => {
   switch (status) {
     case "draft":    return BADGE.gray;
     case "sent":     return BADGE.blue;
-    case "accepted": return BADGE.green;
+    case "approved": return BADGE.green;
     case "rejected": return BADGE.red;
-    case "expired":  return BADGE.orange;
-    default:        return BADGE.gray;
+    default:         return BADGE.gray;
   }
 };
 
