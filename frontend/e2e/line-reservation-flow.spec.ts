@@ -101,7 +101,8 @@ test.describe('LINE予約 フロー E2E', () => {
     try {
       await page.goto('/line-reservation/slots', { waitUntil: 'domcontentloaded' });
       await expect(page).toHaveURL(/\/line-reservation\/slots/);
-      await expect(page.getByText('枠が1件でも登録されている場合')).toBeVisible({ timeout: 10000 });
+      // SD-7 (348cae41) で加算モード仕様の文言に更新済み
+      await expect(page.getByText('営業時間から自動生成される予約可能枠に追加されます')).toBeVisible({ timeout: 10000 });
     } finally {
       await page.close();
     }
@@ -114,7 +115,8 @@ test.describe('LINE予約 フロー E2E', () => {
       await expect(page.getByRole('heading', { name: 'LINE予約枠', level: 1 })).toBeVisible({
         timeout: 15000,
       });
-      await expect(page.getByText('枠のない日は予約不可')).toBeVisible({
+      // SD-7 (348cae41) で加算モード仕様の文言に更新済み
+      await expect(page.getByText('枠が未登録の日も営業時間から自動生成されます')).toBeVisible({
         timeout: 10000,
       });
     } finally {
