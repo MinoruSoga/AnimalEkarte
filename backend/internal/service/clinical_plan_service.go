@@ -155,11 +155,33 @@ func (s *clinicalPlanService) GetOrCreate(ctx context.Context, clinicID, medical
 	return plan, nil
 }
 
+// assertParentDraft は親カルテが draft であることを検証する（SD-2 系ガード監査で発見された欠落）。
+// examination/vital 等の子エンティティが使う lockDraftMedicalRecord とは異なり
+// LockByIDForUpdate による行ロックは取らない（clinicalPlanService は Transactor を持たない設計上の
+// 制約。cross_tenant_master_fk_write_test.go の既存呼び出しが repository.Transactor 無しの
+// 旧コンストラクタシグネチャに依存しており変更できない）。単純な存在確認+ステータス確認であり、
+// このチェックと後続の書込の間のレースは clinical_plan_repository.go の Update/Delete が
+// medical_records.status='draft' を WHERE に含めることで原子的に閉じる。
+func (s *clinicalPlanService) assertParentDraft(ctx context.Context, clinicID, medicalRecordID uint64, conflictMsg string) error {
+	parent, err := s.medRec.FindByID(ctx, clinicID, medicalRecordID)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to find medical record", "error", err)
+		return apperrors.Wrap(err, "failed to find medical record")
+	}
+	if parent.Status == model.MedicalRecordStatusFinalized {
+		return apperrors.WrapConflict(conflictMsg)
+	}
+	return nil
+}
+
 func (s *clinicalPlanService) Update(ctx context.Context, clinicID, medicalRecordID uint64, input *UpdateClinicalPlanInput) (*model.ClinicalPlan, error) {
 	plan, err := s.GetOrCreate(ctx, clinicID, medicalRecordID)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to get or create clinical plan", "error", err)
 		return nil, apperrors.Wrap(err, "failed to get or create clinical plan")
+	}
+	if err := s.assertParentDraft(ctx, clinicID, medicalRecordID, "確定済みカルテの所見・診断を編集できません"); err != nil {
+		return nil, err
 	}
 	if err := s.validateDiagnosisFKs(ctx, clinicID, input); err != nil {
 		return nil, err
@@ -192,6 +214,9 @@ func (s *clinicalPlanService) Delete(ctx context.Context, clinicID, medicalRecor
 	plan, err := s.repo.FindByMedicalRecordID(ctx, clinicID, medicalRecordID)
 	if err != nil {
 		return apperrors.Wrap(err, "failed to get clinical plan")
+	}
+	if err := s.assertParentDraft(ctx, clinicID, medicalRecordID, "確定済みカルテの所見・診断は削除できません"); err != nil {
+		return err
 	}
 	if err := s.repo.Delete(ctx, clinicID, plan.ID); err != nil {
 		slog.ErrorContext(ctx, "failed to delete clinical plan", "error", err, "clinic_id", clinicID, "clinical_plan_id", plan.ID)

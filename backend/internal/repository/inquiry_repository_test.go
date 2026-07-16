@@ -88,4 +88,22 @@ func TestInquiryRepository_SaveByMedicalRecordID(t *testing.T) {
 		require.NoError(t, db.WithContext(ctx).Model(&model.Inquiry{}).Where("medical_record_id = ?", mrA.ID).Count(&count).Error)
 		assert.Equal(t, int64(1), count, "重複作成されない")
 	})
+
+	t.Run("medical_record が確定済みの場合 Conflict", func(t *testing.T) {
+		mrFinalized := &model.MedicalRecord{
+			ClinicID: clinicA,
+			RecordNo: "MR-A-FINALIZED",
+			Date:     time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC),
+			Status:   model.MedicalRecordStatusFinalized,
+		}
+		require.NoError(t, db.WithContext(ctx).Create(mrFinalized).Error)
+
+		_, err := repo.SaveByMedicalRecordID(ctx, clinicA, &model.Inquiry{MedicalRecordID: mrFinalized.ID, ChiefComplaint: "嘔吐"})
+		require.Error(t, err)
+		assert.True(t, apperrors.IsConflict(err), "確定済みカルテへの問診保存は Conflict(409) であるべき: %v", err)
+
+		var count int64
+		require.NoError(t, db.WithContext(ctx).Model(&model.Inquiry{}).Where("medical_record_id = ?", mrFinalized.ID).Count(&count).Error)
+		assert.Zero(t, count, "確定済みカルテには問診データが残ってはならない")
+	})
 }

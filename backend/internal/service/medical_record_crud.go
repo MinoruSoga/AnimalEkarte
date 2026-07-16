@@ -395,6 +395,15 @@ func (s *medicalRecordService) UpdateRecommendationReason(
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to find medical record")
 	}
+	// 確定済みカルテは推奨理由も更新不可（Update と同一方針。repo.Update 自体も
+	// status=draft の WHERE で原子的に拒否するが、この事前チェックで友好的な
+	// エラーメッセージと slog 警告を出す。SD-2 系ガード監査で発見された欠落）。
+	if existing.Status == model.MedicalRecordStatusFinalized {
+		slog.WarnContext(ctx, "attempted to update recommendation_reason on finalized medical record",
+			slog.Uint64("record_id", id),
+			slog.Uint64("clinic_id", clinicID))
+		return nil, apperrors.WrapConflict("確定済みカルテの推奨理由は編集できません")
+	}
 	// 3. build update map
 	var reasonValue any
 	if input.Reason == "" {

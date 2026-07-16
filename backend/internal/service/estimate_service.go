@@ -106,17 +106,22 @@ type estimateService struct {
 	reservationRepo   repository.ReservationRepository
 	staffClinicRepo   staffClinicMembershipCounter
 	auditService      AuditService
+	transactor        repository.Transactor
 }
 
 // medicalRecordRepo / reservationRepo は AUD-005 の関連 FK clinic 所有・相互整合検証用。
 // staffClinicRepo は AUD-005 の created_by clinic 所属検証用。
 // auditService は Create/Update/Delete の best-effort 監査（medical_record 同型。fail-closed にしない）。
+// transactor は BE-refactor.md X-11（確定と子書込の競合防止）のため、見積書（medical_record_id に
+// 紐付く「カルテ配下データ」— docs/architecture/erd.md）の書込を LockByIDForUpdate の行ロックと
+// 同一トランザクションに収める目的で注入する（SD-2 系ガード監査で発見された欠落）。
 func NewEstimateService(
 	repo repository.EstimateRepository,
 	medicalRecordRepo repository.MedicalRecordRepository,
 	reservationRepo repository.ReservationRepository,
 	staffClinicRepo staffClinicMembershipCounter,
 	auditService AuditService,
+	transactor repository.Transactor,
 ) EstimateService {
 	return &estimateService{
 		repo:              repo,
@@ -124,6 +129,7 @@ func NewEstimateService(
 		reservationRepo:   reservationRepo,
 		staffClinicRepo:   staffClinicRepo,
 		auditService:      auditService,
+		transactor:        transactor,
 	}
 }
 
@@ -244,15 +250,8 @@ func (s *estimateService) Create(ctx context.Context, clinicID uint64, input *Cr
 		return nil, apperrors.WrapInvalidInput("discount_amount must be 0 or greater")
 	}
 
-	if err := s.validateEstimateRelatedFKs(ctx, clinicID, input.MedicalRecordID, input.OwnerID); err != nil {
-		return nil, err
-	}
-
 	if input.CreatedBy == nil {
 		return nil, apperrors.WrapInvalidInput("created_by is required")
-	}
-	if err := s.verifyCreatedByClinicMembership(ctx, clinicID, *input.CreatedBy); err != nil {
-		return nil, err
 	}
 
 	estimate := &model.Estimate{
@@ -279,10 +278,30 @@ func (s *estimateService) Create(ctx context.Context, clinicID uint64, input *Cr
 		return nil, apperrors.WrapConflict("承認済みまたは却下済みの見積書は作成できません")
 	}
 
-	if err := s.repo.Create(ctx, estimate); err != nil {
-		slog.ErrorContext(ctx, "failed to create estimate", "error", err)
-		return nil, apperrors.Wrap(err, "failed to create estimate")
+	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
+		// SD-2 + BE-refactor.md X-11: 親カルテが確定済みの場合は見積書追加を拒否。見積は
+		// medical_record_id 任意（カルテに紐付かない独立見積も許容）のため、指定時のみガードする。
+		if input.MedicalRecordID != nil {
+			if err := lockDraftMedicalRecord(txCtx, s.medicalRecordRepo, clinicID, *input.MedicalRecordID,
+				"failed to find medical record", "確定済みカルテに見積書を追加できません"); err != nil {
+				return err
+			}
+		}
+		if err := s.validateEstimateRelatedFKs(txCtx, clinicID, input.MedicalRecordID, input.OwnerID); err != nil {
+			return err
+		}
+		if err := s.verifyCreatedByClinicMembership(txCtx, clinicID, *input.CreatedBy); err != nil {
+			return err
+		}
+		if err := s.repo.Create(txCtx, estimate); err != nil {
+			slog.ErrorContext(txCtx, "failed to create estimate", "error", err)
+			return apperrors.Wrap(err, "failed to create estimate")
+		}
+		return nil
+	}); err != nil {
+		return nil, err
 	}
+
 	slog.InfoContext(ctx, "estimate created",
 		slog.Uint64("estimate_id", estimate.ID),
 		slog.Uint64("clinic_id", clinicID))
@@ -330,14 +349,28 @@ func (s *estimateService) Update(ctx context.Context, clinicID, id uint64, input
 	isBecomingRejected := input.Status != nil && *input.Status == model.EstimateStatusRejected &&
 		existing.Status != model.EstimateStatusRejected
 
-	// UpdateIfNotLocked: FindByID→isEstimateLocked と Update の間に approved/rejected へ
-	// 遷移されても、status NOT IN 述語で原子的に拒否する（0 行 → Conflict）。
-	updated, err := s.repo.UpdateIfNotLocked(ctx, clinicID, id, fields)
-	if err != nil {
-		if !apperrors.IsConflict(err) {
-			slog.ErrorContext(ctx, "failed to update estimate", "error", err)
+	var updated *model.Estimate
+	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
+		// SD-2 + BE-refactor.md X-11: 親カルテが確定済みの場合は見積書編集を拒否。
+		if existing.MedicalRecordID != nil {
+			if err := lockDraftMedicalRecord(txCtx, s.medicalRecordRepo, clinicID, *existing.MedicalRecordID,
+				"failed to find medical record", "確定済みカルテの見積書は編集できません"); err != nil {
+				return err
+			}
 		}
-		return nil, apperrors.Wrap(err, "failed to update estimate")
+		// UpdateIfNotLocked: FindByID→isEstimateLocked と Update の間に approved/rejected へ
+		// 遷移されても、status NOT IN 述語で原子的に拒否する（0 行 → Conflict）。
+		got, err := s.repo.UpdateIfNotLocked(txCtx, clinicID, id, fields)
+		if err != nil {
+			if !apperrors.IsConflict(err) {
+				slog.ErrorContext(txCtx, "failed to update estimate", "error", err)
+			}
+			return apperrors.Wrap(err, "failed to update estimate")
+		}
+		updated = got
+		return nil
+	}); err != nil {
+		return nil, err
 	}
 	slog.InfoContext(ctx, "estimate updated",
 		slog.Uint64("estimate_id", id),
@@ -365,21 +398,33 @@ func (s *estimateService) Delete(ctx context.Context, clinicID, id uint64, actor
 	if isEstimateLocked(existing.Status) {
 		return apperrors.WrapConflict("承認済みまたは却下済みの見積書は削除できません")
 	}
-	// 早期 Count は UX 用。防御の本体は DeleteIfNotLocked の原子条件（status + active items=0）。
-	count, err := s.repo.CountItemsByEstimateID(ctx, clinicID, id)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to check estimate item dependencies", "error", err, "clinic_id", clinicID, "estimate_id", id)
-		return apperrors.Wrap(err, "failed to check estimate item dependencies")
-	}
-	if count > 0 {
-		return apperrors.WrapConflict("この見積書には明細が登録されているため削除できません")
-	}
 	oldValue := extractEstimateImportantFields(existing)
-	if err := s.repo.DeleteIfNotLocked(ctx, clinicID, id); err != nil {
-		if !apperrors.IsConflict(err) && !apperrors.IsNotFound(err) {
-			slog.ErrorContext(ctx, "failed to delete estimate", "error", err, "clinic_id", clinicID, "estimate_id", id)
+	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
+		// SD-2 + BE-refactor.md X-11: 親カルテが確定済みの場合は見積書削除を拒否。
+		if existing.MedicalRecordID != nil {
+			if err := lockDraftMedicalRecord(txCtx, s.medicalRecordRepo, clinicID, *existing.MedicalRecordID,
+				"failed to find medical record", "確定済みカルテの見積書は削除できません"); err != nil {
+				return err
+			}
 		}
-		return apperrors.Wrap(err, "failed to delete estimate")
+		// 早期 Count は UX 用。防御の本体は DeleteIfNotLocked の原子条件（status + active items=0）。
+		count, err := s.repo.CountItemsByEstimateID(txCtx, clinicID, id)
+		if err != nil {
+			slog.ErrorContext(txCtx, "failed to check estimate item dependencies", "error", err, "clinic_id", clinicID, "estimate_id", id)
+			return apperrors.Wrap(err, "failed to check estimate item dependencies")
+		}
+		if count > 0 {
+			return apperrors.WrapConflict("この見積書には明細が登録されているため削除できません")
+		}
+		if err := s.repo.DeleteIfNotLocked(txCtx, clinicID, id); err != nil {
+			if !apperrors.IsConflict(err) && !apperrors.IsNotFound(err) {
+				slog.ErrorContext(txCtx, "failed to delete estimate", "error", err, "clinic_id", clinicID, "estimate_id", id)
+			}
+			return apperrors.Wrap(err, "failed to delete estimate")
+		}
+		return nil
+	}); err != nil {
+		return err
 	}
 	slog.InfoContext(ctx, "estimate deleted",
 		slog.Uint64("estimate_id", id),

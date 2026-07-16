@@ -1530,6 +1530,24 @@ func TestMedicalRecordService_UpdateRecommendationReason(t *testing.T) {
 		assert.Equal(t, "exam", *rec.RecommendationReason)
 	})
 
+	t.Run("rejects_finalized_parent", func(t *testing.T) {
+		updateCalled := false
+		repo := &mockMedicalRecordRepository{
+			findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
+				return &model.MedicalRecord{ID: recordID, Status: model.MedicalRecordStatusFinalized}, nil
+			},
+			updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.MedicalRecord, error) {
+				updateCalled = true
+				return nil, errors.New("must not be called")
+			},
+		}
+		rec, err := newSvc(repo).UpdateRecommendationReason(context.Background(), clinicID, recordID, UpdateRecommendationReasonInput{Reason: "revisit"})
+		assert.Error(t, err)
+		assert.Nil(t, rec)
+		assert.True(t, apperrors.IsConflict(err), "確定済みカルテへの推奨理由更新は Conflict(409) であるべき: %v", err)
+		assert.False(t, updateCalled, "確定済みカルテの推奨理由は更新されてはならない")
+	})
+
 	t.Run("empty_reason_clears_to_nil", func(t *testing.T) {
 		var capturedFields map[string]any
 		repo := &mockMedicalRecordRepository{

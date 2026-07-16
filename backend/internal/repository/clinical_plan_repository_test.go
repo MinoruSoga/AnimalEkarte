@@ -141,6 +141,19 @@ func TestClinicalPlanRepository_Update(t *testing.T) {
 		require.Error(t, err)
 		assert.True(t, apperrors.IsNotFound(err))
 	})
+
+	t.Run("親カルテが確定済みの場合は Conflict（SD-2 系ガード監査）", func(t *testing.T) {
+		mrFinalized := makeClinicalPlanMedicalRecord(t, db, clinicA, "MR-CP-A-FINALIZED")
+		require.NoError(t, db.WithContext(ctx).Model(&model.MedicalRecord{}).
+			Where("id = ?", mrFinalized.ID).Update("status", model.MedicalRecordStatusFinalized).Error)
+		finalizedPlan := &model.ClinicalPlan{MedicalRecordID: mrFinalized.ID, PhysicalExam: "確定前"}
+		require.NoError(t, repo.Create(ctx, finalizedPlan))
+
+		err := repo.Update(ctx, clinicA, finalizedPlan.ID, map[string]any{"physical_exam": "確定後の書込"})
+
+		require.Error(t, err)
+		assert.True(t, apperrors.IsConflict(err), "確定済みカルテの clinical_plan 更新は Conflict であるべき: %v", err)
+	})
 }
 
 // TestClinicalPlanRepository_Delete はソフトデリート（JOIN による clinic_id 隔離・NotFound）を検証する。
@@ -176,5 +189,18 @@ func TestClinicalPlanRepository_Delete(t *testing.T) {
 		err := repo.Delete(ctx, clinicA, 9999999)
 		require.Error(t, err)
 		assert.True(t, apperrors.IsNotFound(err))
+	})
+
+	t.Run("親カルテが確定済みの場合は Conflict（SD-2 系ガード監査）", func(t *testing.T) {
+		mrFinalized := makeClinicalPlanMedicalRecord(t, db, clinicA, "MR-CP-A-DEL-FINALIZED")
+		require.NoError(t, db.WithContext(ctx).Model(&model.MedicalRecord{}).
+			Where("id = ?", mrFinalized.ID).Update("status", model.MedicalRecordStatusFinalized).Error)
+		finalizedPlan := &model.ClinicalPlan{MedicalRecordID: mrFinalized.ID, PhysicalExam: "確定済み"}
+		require.NoError(t, repo.Create(ctx, finalizedPlan))
+
+		err := repo.Delete(ctx, clinicA, finalizedPlan.ID)
+
+		require.Error(t, err)
+		assert.True(t, apperrors.IsConflict(err), "確定済みカルテの clinical_plan 削除は Conflict であるべき: %v", err)
 	})
 }

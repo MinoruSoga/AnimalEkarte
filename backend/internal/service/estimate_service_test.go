@@ -151,7 +151,7 @@ func TestEstimateService_List(t *testing.T) {
 					return tt.repoEstimates, tt.repoTotal, tt.repoErr
 				},
 			}
-			svc := NewEstimateService(repo, nil, nil, nil, nil)
+			svc := NewEstimateService(repo, nil, nil, nil, nil, noopTransactor{})
 
 			estimates, total, err := svc.List(context.Background(), 1, tt.ownerID, tt.medicalRecordID, tt.status, tt.page, tt.limit)
 
@@ -214,7 +214,7 @@ func TestEstimateService_GetByID(t *testing.T) {
 					return tt.repoEstimate, tt.repoErr
 				},
 			}
-			svc := NewEstimateService(repo, nil, nil, nil, nil)
+			svc := NewEstimateService(repo, nil, nil, nil, nil, noopTransactor{})
 
 			estimate, err := svc.GetByID(context.Background(), 1, tt.id)
 
@@ -396,7 +396,7 @@ func TestEstimateService_Create(t *testing.T) {
 					return tt.repoEstimate, nil
 				},
 			}
-			svc := NewEstimateService(repo, nil, nil, estimateTestMembershipCounter(), nil)
+			svc := NewEstimateService(repo, nil, nil, estimateTestMembershipCounter(), nil, noopTransactor{})
 
 			estimate, err := svc.Create(context.Background(), 1, tt.input)
 
@@ -550,7 +550,7 @@ func TestEstimateService_Update(t *testing.T) {
 					return &model.Estimate{ID: 1, Status: model.EstimateStatusDraft}, nil
 				},
 			}
-			svc := NewEstimateService(repo, nil, nil, nil, nil)
+			svc := NewEstimateService(repo, nil, nil, nil, nil, noopTransactor{})
 
 			estimate, err := svc.Update(context.Background(), 1, 1, tt.input)
 
@@ -584,7 +584,7 @@ func TestEstimateService_Update_TOCTOU_LockedAfterFind(t *testing.T) {
 			return nil, apperrors.WrapConflict("承認済みまたは却下済みの見積書は編集できません")
 		},
 	}
-	svc := NewEstimateService(repo, nil, nil, nil, nil)
+	svc := NewEstimateService(repo, nil, nil, nil, nil, noopTransactor{})
 
 	_, err := svc.Update(context.Background(), 1, 1, &UpdateEstimateInput{Title: &newTitle})
 
@@ -689,7 +689,7 @@ func TestEstimateService_Delete(t *testing.T) {
 					return tt.repoErr
 				},
 			}
-			svc := NewEstimateService(repo, nil, nil, nil, nil)
+			svc := NewEstimateService(repo, nil, nil, nil, nil, noopTransactor{})
 
 			err := svc.Delete(context.Background(), 1, tt.id, nil)
 
@@ -729,7 +729,7 @@ func TestEstimateService_Delete_TOCTOU_LockedAfterFind(t *testing.T) {
 			return apperrors.WrapConflict("承認済みまたは却下済みの見積書は削除できません")
 		},
 	}
-	svc := NewEstimateService(repo, nil, nil, nil, nil)
+	svc := NewEstimateService(repo, nil, nil, nil, nil, noopTransactor{})
 
 	err := svc.Delete(context.Background(), 1, 1, nil)
 
@@ -756,7 +756,7 @@ func TestEstimateService_Delete_TOCTOU_ItemsAddedAfterCount(t *testing.T) {
 			return apperrors.WrapConflict("この見積書には明細が登録されているため削除できません")
 		},
 	}
-	svc := NewEstimateService(repo, nil, nil, nil, nil)
+	svc := NewEstimateService(repo, nil, nil, nil, nil, noopTransactor{})
 
 	err := svc.Delete(context.Background(), 1, 1, nil)
 
@@ -797,7 +797,7 @@ func TestEstimateService_Create_AuditLog(t *testing.T) {
 			}, nil
 		},
 	}
-	svc := NewEstimateService(repo, nil, nil, estimateTestMembershipCounter(), auditSvc)
+	svc := NewEstimateService(repo, nil, nil, estimateTestMembershipCounter(), auditSvc, noopTransactor{})
 
 	created, err := svc.Create(context.Background(), 1, &CreateEstimateInput{
 		Title:       "新規見積",
@@ -841,7 +841,7 @@ func TestEstimateService_Update_AuditLog(t *testing.T) {
 			}, nil
 		},
 	}
-	svc := NewEstimateService(repo, nil, nil, nil, auditSvc)
+	svc := NewEstimateService(repo, nil, nil, nil, auditSvc, noopTransactor{})
 
 	actorID := uint64(7)
 	updated, err := svc.Update(context.Background(), 1, 10, &UpdateEstimateInput{
@@ -891,7 +891,7 @@ func TestEstimateService_Update_ApproveAuditLog(t *testing.T) {
 					}, nil
 				},
 			}
-			svc := NewEstimateService(repo, nil, nil, nil, auditSvc)
+			svc := NewEstimateService(repo, nil, nil, nil, auditSvc, noopTransactor{})
 
 			actorID := uint64(7)
 			_, err := svc.Update(context.Background(), 1, 10, &UpdateEstimateInput{
@@ -927,7 +927,7 @@ func TestEstimateService_Update_RejectAuditLog(t *testing.T) {
 			}, nil
 		},
 	}
-	svc := NewEstimateService(repo, nil, nil, nil, auditSvc)
+	svc := NewEstimateService(repo, nil, nil, nil, auditSvc, noopTransactor{})
 
 	actorID := uint64(7)
 	_, err := svc.Update(context.Background(), 1, 10, &UpdateEstimateInput{
@@ -959,7 +959,7 @@ func TestEstimateService_Delete_AuditLog(t *testing.T) {
 				return nil
 			},
 		}
-		svc := NewEstimateService(repo, nil, nil, nil, auditSvc)
+		svc := NewEstimateService(repo, nil, nil, nil, auditSvc, noopTransactor{})
 
 		actorID := uint64(9)
 		err := svc.Delete(context.Background(), 1, 10, &actorID)
@@ -989,7 +989,7 @@ func TestEstimateService_Delete_AuditLog(t *testing.T) {
 				return nil
 			},
 		}
-		svc := NewEstimateService(repo, nil, nil, nil, auditSvc)
+		svc := NewEstimateService(repo, nil, nil, nil, auditSvc, noopTransactor{})
 
 		err := svc.Delete(context.Background(), 1, 11, nil)
 
@@ -1023,7 +1023,7 @@ func TestEstimateService_AuditFailure_NonFatal(t *testing.T) {
 			}, nil
 		},
 	}
-	svc := NewEstimateService(repo, nil, nil, estimateTestMembershipCounter(), auditSvc)
+	svc := NewEstimateService(repo, nil, nil, estimateTestMembershipCounter(), auditSvc, noopTransactor{})
 
 	created, err := svc.Create(context.Background(), 1, &CreateEstimateInput{
 		Title:       "新規見積",
@@ -1049,7 +1049,7 @@ func TestEstimateService_LockedStatus_DoesNotAudit(t *testing.T) {
 				}, nil
 			},
 		}
-		svc := NewEstimateService(repo, nil, nil, nil, auditSvc)
+		svc := NewEstimateService(repo, nil, nil, nil, auditSvc, noopTransactor{})
 
 		_, err := svc.Update(context.Background(), 1, 1, &UpdateEstimateInput{
 			Title:   &newTitle,
@@ -1074,7 +1074,7 @@ func TestEstimateService_LockedStatus_DoesNotAudit(t *testing.T) {
 				return 0, nil
 			},
 		}
-		svc := NewEstimateService(repo, nil, nil, nil, auditSvc)
+		svc := NewEstimateService(repo, nil, nil, nil, auditSvc, noopTransactor{})
 
 		err := svc.Delete(context.Background(), 1, 2, ptrU64(7))
 
@@ -1082,4 +1082,113 @@ func TestEstimateService_LockedStatus_DoesNotAudit(t *testing.T) {
 		assert.True(t, apperrors.IsConflict(err))
 		assert.Empty(t, estimateAuditActions(auditSvc), "locked 見積の delete 拒否時は audit しない")
 	})
+}
+
+// TestEstimateService_Create_RejectsFinalizedParentMedicalRecord は確定済みカルテに紐付く
+// 見積書作成が Conflict(409) で拒否され、repo.Create が呼ばれないことを検証する
+// （SD-2 系ガード監査: estimates は docs/architecture/erd.md で「カルテ配下データ」に分類）。
+func TestEstimateService_Create_RejectsFinalizedParentMedicalRecord(t *testing.T) {
+	createCalled := false
+	repo := &mockEstimateRepository{
+		createFn: func(_ context.Context, _ *model.Estimate) error {
+			createCalled = true
+			return nil
+		},
+	}
+	mrRepo := &mockMedicalRecordRepository{
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
+			return &model.MedicalRecord{Status: model.MedicalRecordStatusFinalized}, nil
+		},
+	}
+	svc := NewEstimateService(repo, mrRepo, nil, &mockStaffClinicMembershipCounter{}, nil, noopTransactor{})
+
+	in := estimateCreateBaseInput()
+	in.MedicalRecordID = ptrU64(1)
+	out, err := svc.Create(context.Background(), 1, in)
+
+	assert.Error(t, err)
+	assert.Nil(t, out)
+	assert.True(t, apperrors.IsConflict(err), "確定済みカルテへの見積書作成は Conflict(409) であるべき: %v", err)
+	assert.False(t, createCalled, "確定済みカルテに見積書が作成されてはならない")
+}
+
+// TestEstimateService_Create_AllowsNoParentMedicalRecord は medical_record_id 未指定（独立見積）の
+// 作成がカルテ確定ガードの影響を受けないことを検証する（回帰: nil ガードの取りこぼし防止）。
+func TestEstimateService_Create_AllowsNoParentMedicalRecord(t *testing.T) {
+	createCalled := false
+	repo := &mockEstimateRepository{
+		createFn: func(_ context.Context, e *model.Estimate) error {
+			createCalled = true
+			e.ID = 1
+			return nil
+		},
+		findByIDFn: func(_ context.Context, _, id uint64) (*model.Estimate, error) {
+			return &model.Estimate{ID: id}, nil
+		},
+	}
+	svc := NewEstimateService(repo, nil, nil, &mockStaffClinicMembershipCounter{}, nil, noopTransactor{})
+
+	out, err := svc.Create(context.Background(), 1, estimateCreateBaseInput())
+
+	assert.NoError(t, err)
+	assert.NotNil(t, out)
+	assert.True(t, createCalled)
+}
+
+// TestEstimateService_Update_RejectsFinalizedParentMedicalRecord は確定済みカルテに紐付く
+// 見積書更新が Conflict(409) で拒否され、repo.UpdateIfNotLocked が呼ばれないことを検証する。
+func TestEstimateService_Update_RejectsFinalizedParentMedicalRecord(t *testing.T) {
+	updateCalled := false
+	mrID := uint64(1)
+	repo := &mockEstimateRepository{
+		findByIDFn: func(_ context.Context, _, id uint64) (*model.Estimate, error) {
+			return &model.Estimate{ID: id, Status: model.EstimateStatusDraft, MedicalRecordID: &mrID}, nil
+		},
+		updateIfNotLockedFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Estimate, error) {
+			updateCalled = true
+			return nil, nil
+		},
+	}
+	mrRepo := &mockMedicalRecordRepository{
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
+			return &model.MedicalRecord{Status: model.MedicalRecordStatusFinalized}, nil
+		},
+	}
+	svc := NewEstimateService(repo, mrRepo, nil, nil, nil, noopTransactor{})
+
+	newTitle := "更新後タイトル"
+	out, err := svc.Update(context.Background(), 1, 1, &UpdateEstimateInput{Title: &newTitle})
+
+	assert.Error(t, err)
+	assert.Nil(t, out)
+	assert.True(t, apperrors.IsConflict(err), "確定済みカルテの見積書更新は Conflict(409) であるべき: %v", err)
+	assert.False(t, updateCalled, "確定済みカルテの見積書は更新されてはならない")
+}
+
+// TestEstimateService_Delete_RejectsFinalizedParentMedicalRecord は確定済みカルテに紐付く
+// 見積書削除が Conflict(409) で拒否され、repo.DeleteIfNotLocked が呼ばれないことを検証する。
+func TestEstimateService_Delete_RejectsFinalizedParentMedicalRecord(t *testing.T) {
+	deleteCalled := false
+	mrID := uint64(1)
+	repo := &mockEstimateRepository{
+		findByIDFn: func(_ context.Context, _, id uint64) (*model.Estimate, error) {
+			return &model.Estimate{ID: id, Status: model.EstimateStatusDraft, MedicalRecordID: &mrID}, nil
+		},
+		deleteIfNotLockedFn: func(_ context.Context, _, _ uint64) error {
+			deleteCalled = true
+			return nil
+		},
+	}
+	mrRepo := &mockMedicalRecordRepository{
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
+			return &model.MedicalRecord{Status: model.MedicalRecordStatusFinalized}, nil
+		},
+	}
+	svc := NewEstimateService(repo, mrRepo, nil, nil, nil, noopTransactor{})
+
+	err := svc.Delete(context.Background(), 1, 1, ptrU64(7))
+
+	assert.Error(t, err)
+	assert.True(t, apperrors.IsConflict(err), "確定済みカルテの見積書削除は Conflict(409) であるべき: %v", err)
+	assert.False(t, deleteCalled, "確定済みカルテの見積書は削除されてはならない")
 }

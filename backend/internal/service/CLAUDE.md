@@ -98,9 +98,31 @@ checkup_field_result）への書込は、確定(finalize)と子エンティテ�
    `dbOrTx(ctx, r.db)` で ambient tx に参加させる。参加させないと、`LockByIDForUpdate` の
    `FOR UPDATE` 行ロックと子テーブルの `medical_record_id` FK チェックがデッドロックする。
 
-既存 6 サービス（`treatment_service.go` / `examination_service.go` / `vital_service.go` /
-`prescription_service.go` / `checkup_field_result_service.go` / `medical_record_image_service.go`）
-が先例。検証は
+既存 8 サービス（`treatment_service.go` / `examination_service.go` / `vital_service.go` /
+`prescription_service.go` / `checkup_field_result_service.go` / `medical_record_image_service.go` /
+`estimate_service.go` / `billing_confirmation_service.go`）が先例。検証は
 `medical_record_finalize_lock_concurrency_test.go`（`LockByIDForUpdate` の行ロック自体の並行性）
 と、個別 repo の tx atomicity test（`examination_repository_tx_atomicity_test.go` /
 `checkup_field_result_tx_atomicity_test.go` 等）が担う。
+
+## 例外: Transactor を注入できないサービスの簡易ガード（`clinical_plan_service.go` / `inquiry_repository.go`）
+
+`clinical_plan_service.go`（所見・診断）と `inquiry_service.go`（問診）も medical_record_id に
+紐付く「カルテ子エンティティ書込」だが、上記の `LockByIDForUpdate` + tx + `dbOrTx` パターンは
+**採用していない**。理由: 両サービスのコンストラクタは `cross_tenant_master_fk_write_test.go`
+（他エージェント作業中ファイルのため変更不可）から `repository.Transactor` 無しの旧シグネチャで
+複数箇所呼ばれており、かつそのテストは成功パス（実際に repo.Update を呼ぶ）を含むため、
+`Transactor` を新規必須引数として追加できない。
+
+代わりに以下の軽量パターンを使う:
+- **clinical_plan**: service 層で `medRec.FindByID`（ロック無し）による事前ステータス確認を行い、
+  友好的な Conflict メッセージを返す。レースの最終防衛は `clinical_plan_repository.go` の
+  `Update`/`Delete` が `medical_records.status = 'draft'` を WHERE に含めることで原子的に担う
+  （0 行 → `existsInClinic` で NotFound/Conflict を再判定）。
+- **inquiry**: サービス層は無変更。ガード全体が `inquiry_repository.go` の
+  `SaveByMedicalRecordID` 内（事前ステータス確認 + `Updates` 自体への `status='draft'` WHERE）に
+  閉じている。
+
+行ロックを取らないため、ロックベースの7サービスと比べてごく短い理論上のレース窓が残る
+（サービス層の事前チェックと repo の書込の間に確定が割り込む極小ケース）。ただし書込自体は
+repo 層の atomic WHERE で必ず拒否されるため、確定済みカルテへのデータ混入は発生しない。

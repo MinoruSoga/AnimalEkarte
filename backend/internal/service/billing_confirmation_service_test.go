@@ -104,7 +104,7 @@ func TestBillingConfirmationService_GetOrCreate(t *testing.T) {
 					return tt.createErr
 				},
 			}
-			svc := NewBillingConfirmationService(repo, okMedRecForBilling())
+			svc := NewBillingConfirmationService(repo, okMedRecForBilling(), noopTransactor{})
 
 			review, err := svc.GetOrCreate(context.Background(), 1, tt.medicalRecordID)
 
@@ -202,7 +202,7 @@ func TestBillingConfirmationService_Confirm(t *testing.T) {
 					return tt.repoUpdateErr
 				},
 			}
-			svc := NewBillingConfirmationService(repo, okMedRecForBilling())
+			svc := NewBillingConfirmationService(repo, okMedRecForBilling(), noopTransactor{})
 
 			review, err := svc.Confirm(context.Background(), 1, tt.medicalRecordID, tt.input)
 
@@ -287,7 +287,7 @@ func TestBillingConfirmationService_Return(t *testing.T) {
 					return tt.repoUpdateErr
 				},
 			}
-			svc := NewBillingConfirmationService(repo, okMedRecForBilling())
+			svc := NewBillingConfirmationService(repo, okMedRecForBilling(), noopTransactor{})
 
 			review, err := svc.Return(context.Background(), 1, tt.medicalRecordID, tt.input)
 
@@ -328,7 +328,7 @@ func TestBillingConfirmationService_GetOrCreate_CrossTenantParentRejected(t *tes
 			return nil, apperrors.WrapNotFound("medical_record", "99")
 		},
 	}
-	svc := NewBillingConfirmationService(repo, medRec)
+	svc := NewBillingConfirmationService(repo, medRec, noopTransactor{})
 
 	review, err := svc.GetOrCreate(context.Background(), clinicA, clinicBMRID)
 
@@ -355,7 +355,7 @@ func TestBillingConfirmationService_GetOrCreate_ParentLookupNonNotFoundError(t *
 			return nil, errors.New("db connection error")
 		},
 	}
-	svc := NewBillingConfirmationService(repo, medRec)
+	svc := NewBillingConfirmationService(repo, medRec, noopTransactor{})
 
 	review, err := svc.GetOrCreate(context.Background(), 1, 1)
 
@@ -372,7 +372,7 @@ func TestBillingConfirmationService_Confirm_GetOrCreateError(t *testing.T) {
 			return nil, errors.New("db error")
 		},
 	}
-	svc := NewBillingConfirmationService(repo, okMedRecForBilling())
+	svc := NewBillingConfirmationService(repo, okMedRecForBilling(), noopTransactor{})
 
 	review, err := svc.Confirm(context.Background(), 1, 1, &ConfirmBillingConfirmationInput{ConfirmedBy: 3})
 
@@ -396,7 +396,7 @@ func TestBillingConfirmationService_Confirm_FindAfterUpdateError(t *testing.T) {
 			return nil
 		},
 	}
-	svc := NewBillingConfirmationService(repo, okMedRecForBilling())
+	svc := NewBillingConfirmationService(repo, okMedRecForBilling(), noopTransactor{})
 
 	review, err := svc.Confirm(context.Background(), 1, 1, &ConfirmBillingConfirmationInput{ConfirmedBy: 3})
 
@@ -412,7 +412,7 @@ func TestBillingConfirmationService_Return_GetOrCreateError(t *testing.T) {
 			return nil, errors.New("db error")
 		},
 	}
-	svc := NewBillingConfirmationService(repo, okMedRecForBilling())
+	svc := NewBillingConfirmationService(repo, okMedRecForBilling(), noopTransactor{})
 
 	review, err := svc.Return(context.Background(), 1, 1, &ReturnBillingConfirmationInput{ReturnedBy: 2, ReturnReason: "reason"})
 
@@ -428,7 +428,7 @@ func TestBillingConfirmationService_Return_NotConfirmedRejected(t *testing.T) {
 			return &model.BillingConfirmation{ID: 1, MedicalRecordID: 1, Status: model.ConfirmationStatusPending}, nil
 		},
 	}
-	svc := NewBillingConfirmationService(repo, okMedRecForBilling())
+	svc := NewBillingConfirmationService(repo, okMedRecForBilling(), noopTransactor{})
 
 	review, err := svc.Return(context.Background(), 1, 1, &ReturnBillingConfirmationInput{ReturnedBy: 2, ReturnReason: "reason"})
 
@@ -453,10 +453,66 @@ func TestBillingConfirmationService_Return_FindAfterUpdateError(t *testing.T) {
 			return nil
 		},
 	}
-	svc := NewBillingConfirmationService(repo, okMedRecForBilling())
+	svc := NewBillingConfirmationService(repo, okMedRecForBilling(), noopTransactor{})
 
 	review, err := svc.Return(context.Background(), 1, 1, &ReturnBillingConfirmationInput{ReturnedBy: 2, ReturnReason: "reason"})
 
 	assert.Error(t, err)
 	assert.Nil(t, review)
+}
+
+// TestBillingConfirmationService_Confirm_RejectsFinalizedParent は確定済みカルテの会計確認が
+// Conflict(409) で拒否され、repo.Update が呼ばれないことを検証する（SD-2 系ガード監査）。
+func TestBillingConfirmationService_Confirm_RejectsFinalizedParent(t *testing.T) {
+	updateCalled := false
+	repo := &mockBillingConfirmationRepository{
+		findByMedicalRecordIDFn: func(_ context.Context, _, _ uint64) (*model.BillingConfirmation, error) {
+			return &model.BillingConfirmation{ID: 1, MedicalRecordID: 1, Status: model.ConfirmationStatusPending}, nil
+		},
+		updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) error {
+			updateCalled = true
+			return nil
+		},
+	}
+	medRec := &mockMedicalRecordRepository{
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
+			return &model.MedicalRecord{Status: model.MedicalRecordStatusFinalized}, nil
+		},
+	}
+	svc := NewBillingConfirmationService(repo, medRec, noopTransactor{})
+
+	review, err := svc.Confirm(context.Background(), 1, 1, &ConfirmBillingConfirmationInput{ConfirmedBy: 3})
+
+	assert.Error(t, err)
+	assert.Nil(t, review)
+	assert.True(t, apperrors.IsConflict(err), "確定済みカルテへの会計確認は Conflict(409) であるべき: %v", err)
+	assert.False(t, updateCalled, "確定済みカルテの会計確認は更新されてはならない")
+}
+
+// TestBillingConfirmationService_Return_RejectsFinalizedParent は確定済みカルテの会計確認差し戻しが
+// Conflict(409) で拒否され、repo.Update が呼ばれないことを検証する。
+func TestBillingConfirmationService_Return_RejectsFinalizedParent(t *testing.T) {
+	updateCalled := false
+	repo := &mockBillingConfirmationRepository{
+		findByMedicalRecordIDFn: func(_ context.Context, _, _ uint64) (*model.BillingConfirmation, error) {
+			return &model.BillingConfirmation{ID: 1, MedicalRecordID: 1, Status: model.ConfirmationStatusConfirmed}, nil
+		},
+		updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) error {
+			updateCalled = true
+			return nil
+		},
+	}
+	medRec := &mockMedicalRecordRepository{
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
+			return &model.MedicalRecord{Status: model.MedicalRecordStatusFinalized}, nil
+		},
+	}
+	svc := NewBillingConfirmationService(repo, medRec, noopTransactor{})
+
+	review, err := svc.Return(context.Background(), 1, 1, &ReturnBillingConfirmationInput{ReturnedBy: 2, ReturnReason: "reason"})
+
+	assert.Error(t, err)
+	assert.Nil(t, review)
+	assert.True(t, apperrors.IsConflict(err), "確定済みカルテの会計確認差し戻しは Conflict(409) であるべき: %v", err)
+	assert.False(t, updateCalled, "確定済みカルテの会計確認は更新されてはならない")
 }

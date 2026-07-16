@@ -66,9 +66,12 @@ func (r *estimateRepository) FindAll(ctx context.Context, clinicID uint64, owner
 	return estimates, total, nil
 }
 
+// FindByID は dbOrTx(ctx, r.db) で ambient tx に参加する（UpdateIfNotLocked の tx 内再取得・
+// SD-2 系ガード監査の estimateService.Create/Update/Delete が LockByIDForUpdate と同一 tx に
+// 収めるため）。
 func (r *estimateRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Estimate, error) {
 	var estimate model.Estimate
-	err := r.db.WithContext(ctx).
+	err := dbOrTx(ctx, r.db).
 		Preload("Owner", "clinic_id = ? AND deleted_at IS NULL", clinicID).
 		Preload("Items", "deleted_at IS NULL").
 		Preload("CreatedStaff", "deleted_at IS NULL").
@@ -79,8 +82,10 @@ func (r *estimateRepository) FindByID(ctx context.Context, clinicID, id uint64) 
 	return &estimate, nil
 }
 
+// Create は dbOrTx(ctx, r.db) で ambient tx に参加する（SD-2 系ガード監査: estimateService.Create が
+// 確定済みカルテガードのため LockByIDForUpdate と同一 tx に束ねる）。
 func (r *estimateRepository) Create(ctx context.Context, estimate *model.Estimate) error {
-	err := r.db.WithContext(ctx).Create(estimate).Error
+	err := dbOrTx(ctx, r.db).Create(estimate).Error
 	if err != nil {
 		return apperrors.FromGORM(err, "estimate", "")
 	}
@@ -91,8 +96,10 @@ func (r *estimateRepository) Update(ctx context.Context, clinicID, id uint64, fi
 	return updateScopedByID(ctx, r.db, &model.Estimate{}, "estimate", clinicID, id, fields)
 }
 
+// UpdateIfNotLocked は dbOrTx(ctx, r.db) で ambient tx に参加する（SD-2 系ガード監査:
+// estimateService.Update が確定済みカルテガードのため LockByIDForUpdate と同一 tx に束ねる）。
 func (r *estimateRepository) UpdateIfNotLocked(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Estimate, error) {
-	result := r.db.WithContext(ctx).
+	result := dbOrTx(ctx, r.db).
 		Model(&model.Estimate{}).
 		Scopes(clinicScope(clinicID)).
 		Where("id = ? AND status NOT IN ?", id, []model.EstimateStatus{
@@ -109,10 +116,12 @@ func (r *estimateRepository) UpdateIfNotLocked(ctx context.Context, clinicID, id
 	return r.FindByID(ctx, clinicID, id)
 }
 
+// DeleteIfNotLocked は dbOrTx(ctx, r.db) で ambient tx に参加する（SD-2 系ガード監査:
+// estimateService.Delete が確定済みカルテガードのため LockByIDForUpdate と同一 tx に束ねる）。
 func (r *estimateRepository) DeleteIfNotLocked(ctx context.Context, clinicID, id uint64) error {
 	// status ロック条件と active estimate_items=0 を同一 DELETE で要求し、
 	// CountItems→Delete 間の明細追加 TOCTOU を原子的に塞ぐ。
-	result := r.db.WithContext(ctx).
+	result := dbOrTx(ctx, r.db).
 		Scopes(clinicScope(clinicID)).
 		Where("id = ? AND status NOT IN ?", id, []model.EstimateStatus{
 			model.EstimateStatusApproved,
@@ -156,9 +165,11 @@ func (r *estimateRepository) normalizeDeleteIfNotLockedMiss(ctx context.Context,
 // CountItemsByEstimateID は見積書に紐付く明細行の件数を返す（BUG-201）
 // BE-refactor.md R2-5 (D12): clinic_id 述語を追加。estimate_items は clinic_id カラムを持たないため
 // estimates への JOIN で述語を付与する。
+// dbOrTx(ctx, r.db) で ambient tx に参加する（SD-2 系ガード監査: estimateService.Delete の
+// LockByIDForUpdate と同一 tx から呼ばれるため）。
 func (r *estimateRepository) CountItemsByEstimateID(ctx context.Context, clinicID, estimateID uint64) (int64, error) {
 	var count int64
-	if err := r.db.WithContext(ctx).
+	if err := dbOrTx(ctx, r.db).
 		Model(&model.EstimateItem{}).
 		Joins("JOIN estimates ON estimates.id = estimate_items.estimate_id AND estimates.clinic_id = ? AND estimates.deleted_at IS NULL", clinicID).
 		Where("estimate_items.estimate_id = ? AND estimate_items.deleted_at IS NULL", estimateID).

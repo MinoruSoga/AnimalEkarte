@@ -499,6 +499,62 @@ func TestClinicalPlanService_GetOrCreate_CrossTenantParentRejected(t *testing.T)
 	assert.False(t, createCalled, "親カルテ所有権検証に失敗した場合、clinical_plan を永続化してはならない")
 }
 
+// TestClinicalPlanService_Update_RejectsFinalizedParent は確定済みカルテの clinical_plan
+// 更新が Conflict(409) で拒否され、repo.Update が呼ばれないことを検証する（SD-2 系ガード監査）。
+func TestClinicalPlanService_Update_RejectsFinalizedParent(t *testing.T) {
+	updateCalled := false
+	repo := &mockClinicalPlanRepository{
+		findByMedicalRecordIDFn: func(_ context.Context, _, _ uint64) (*model.ClinicalPlan, error) {
+			return &model.ClinicalPlan{ID: 1, MedicalRecordID: 1}, nil
+		},
+		updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) error {
+			updateCalled = true
+			return nil
+		},
+	}
+	medRec := &mockMedicalRecordRepository{
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
+			return &model.MedicalRecord{Status: model.MedicalRecordStatusFinalized}, nil
+		},
+	}
+	svc := NewClinicalPlanService(repo, medRec, okDiagnosisTypeRepo(), okDiagnosisNameRepo())
+	physicalExam := "test"
+
+	plan, err := svc.Update(context.Background(), 1, 1, &UpdateClinicalPlanInput{PhysicalExam: &physicalExam})
+
+	assert.Error(t, err)
+	assert.Nil(t, plan)
+	assert.True(t, apperrors.IsConflict(err), "確定済みカルテへの clinical_plan 更新は Conflict(409) であるべき: %v", err)
+	assert.False(t, updateCalled, "確定済みカルテの所見・診断は更新されてはならない")
+}
+
+// TestClinicalPlanService_Delete_RejectsFinalizedParent は確定済みカルテの clinical_plan
+// 削除が Conflict(409) で拒否され、repo.Delete が呼ばれないことを検証する。
+func TestClinicalPlanService_Delete_RejectsFinalizedParent(t *testing.T) {
+	deleteCalled := false
+	repo := &mockClinicalPlanRepository{
+		findByMedicalRecordIDFn: func(_ context.Context, _, _ uint64) (*model.ClinicalPlan, error) {
+			return &model.ClinicalPlan{ID: 1, MedicalRecordID: 1}, nil
+		},
+		deleteFn: func(_ context.Context, _, _ uint64) error {
+			deleteCalled = true
+			return nil
+		},
+	}
+	medRec := &mockMedicalRecordRepository{
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
+			return &model.MedicalRecord{Status: model.MedicalRecordStatusFinalized}, nil
+		},
+	}
+	svc := NewClinicalPlanService(repo, medRec, okDiagnosisTypeRepo(), okDiagnosisNameRepo())
+
+	err := svc.Delete(context.Background(), 1, 1)
+
+	assert.Error(t, err)
+	assert.True(t, apperrors.IsConflict(err), "確定済みカルテの clinical_plan 削除は Conflict(409) であるべき: %v", err)
+	assert.False(t, deleteCalled, "確定済みカルテの所見・診断は削除されてはならない")
+}
+
 func TestClinicalPlanService_Update_RejectsMismatchedDiagnosis2TypeName(t *testing.T) {
 	typeID := uint64(10)
 	nameID := uint64(20)
