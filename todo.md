@@ -110,38 +110,38 @@
 - [ ] **[要再検証] BUG候補: `use-reception-kanban.ts` の既存 type エラー** — 実体パスは `frontend/src/features/reception/hooks/use-reception-kanban.ts`（旧記載の `src/hooks/…:18` は誤り）。起票後にリファクタ済みで、現 line 18 に明白な型エラーはない。`docker compose exec frontend pnpm type-check`（USER 実行）で再現しなければクローズ。
 - [ ] **[USER・任意] Notion EkarteSprint 文字化け3語の目視確認** — 2026-07-15 の保留9件適用は完了（読み戻し 9/9 PASS）。転送時に文字化けした3語（します／共有済み／事前提供）の適用先ページ（クレジット訂正フロー／検査④機器データ取込／検査⑥自動連携調査）の該当文のみ目視確認できればクローズ。
 
-## 受け入れシナリオ作成（2026-07-16）で発見した仕様・実装ギャップ
+## 画面仕様書全数突合 SD-1〜19＋GAP-1/2 — 全件消化済み（2026-07-17）
 
-- [ ] **[SPEC-GAP] カルテ確定（Lock）の UI 導線** — 2026-07-16 代理決裁 A（UI 実装・優先度最高）。実装キュー GAP-1 参照。
-- [ ] **[SEED-GAP] 閲覧専用ロール seed 追加** — 2026-07-16 代理決裁 A。実装キュー GAP-2 参照（db_reset は USER）。
+> 出所: docs/spec/screens 全数突合（a476b727）＋受け入れシナリオ作成の副産物。2026-07-16 Fable 代理決裁（正本 = `q&a.html`・PO は上書きで覆せる）→ 2026-07-17 ユーザー「fix all」指示で**全 21 件を消化**。実装コミット: 142f5ebe〜6d10f4c0（決裁 ID 単位・全て scoped テスト green）。GitHub 入口 = [#261](https://github.com/MinoruSoga/AnimalEkarte/issues/261)。
 
-## 画面仕様書全数突合（2026-07-16）で発見した実装バグ疑い 19 件
+**決裁からの乖離 3 件（PO 確認対象）:**
 
-> 出所: docs/spec/screens 全 62 ファイル実装突合（commit a476b727）の副産物。**doc は現状実装に合わせ済み**のため、修正するなら実装側＋該当 doc の再更新をセットで行う。各件とも「仕様としてこれで正か」の triage が先。
+| ID | 決裁 | 実施内容 | 乖離理由 |
+|----|------|---------|---------|
+| SD-9 | B: doc のみ | **コード実装へ上書き**（9b6a01ed） | 決裁時未知の新事実: ルール 0 件の院は権限編集 API 自体が権限不足で塞がり**自己修復不能**。runbook 注記では防御にならない。revert 可 |
+| SD-13 | 税務ブロックへ追加 | 独立「法人情報（インボイス）」セクション新設（6d0c8d8c） | 税務ブロックは Clinic 単位フォーム — Company シングルトンを置くと「分院の設定保存で会社全体の値を書き換える」スコープ誤認事故を生む |
+| SD-10 | 422 | 400（InvalidInput）のまま | apperrors に 422 種別が存在しない。種別新設はエラー体系全体の設計判断で別スコープ |
 
-> SD-1/SD-2/SD-5/SD-7/SD-8 は 2026-07-16 に triage→修正完了（各コミット参照）。**残 14 件 + GAP-1/2 は 2026-07-16 に Fable 代理決裁で全件確定**（決裁本文の正本 = `q&a.html` 各カード回答欄。PO は上書きで覆せる）。SD-6 は既解消クローズ（配線は BUG-026 実装済みを実コード確認・ペイロードは a3c79515）。
-> GitHub での PO triage 入口は [#261](https://github.com/MinoruSoga/AnimalEkarte/issues/261)。詳細事実は本表と `q&a.html` を正本とし、Issue へ重複転記しない。
+**fix all 実行で発見・対処した追加バグ（決裁対象外の副産物）:**
 
-**決裁済み実装キュー（優先順・実装時は該当 doc の再更新をセットで）:**
+- **BE finalized ガード欠落 5 件**（clinical_plan/inquiry/UpdateRecommendationReason/estimate/billing_confirmation — GAP-1 調査で発覚・API 直叩きで確定済みカルテに書込可能だった）→ 全て封殺（142f5ebe）。clinical_plan/inquiry のみ既存テスト制約により atomic WHERE 軽量パターン（限界と統一条件は `backend/internal/service/CLAUDE.md` に記録）
+- **liff.state 復元前クエリ読取**（LiffLinkPage — 未ログイン初回の OAuth リダイレクト経路で token/clinic_id が必ず欠落）→ isReady 後読取へ修正（2e4808b5）
+- **SD-2 の dbOrTx allowlist 未登録回帰**（ac7c9fe8 の取りこぼし）→ 142f5ebe に同梱
 
-| 優先 | ID | 決裁 | 実装内容 |
-|------|-----|------|---------|
-| 1 | SD-14 | A | LINE 紐付け E2E 成立: liff_url へ clinic_id 付与（liff.state 透過検証込み）＋飼主フォーム（04）に発行導線。片方のみ不可。STG 実機検証は USER |
-| 1 | GAP-1 | A | カルテ確定（Lock）UI 導線: 権限制御付き確定ボタン＋確定済み表示＋編集不可 UI。S06/06 doc/spec §2.1 同期 |
-| 2 | SD-10 | 修正 | 入院作成・更新 BE に deceased_at 検査（422）。他経路の同型監査は phase2 記録 |
-| 2 | SD-19 | 修正 | 予防接種履歴日付を toJSTWallDate へ統一 |
-| 2 | SD-12 | 追加 | 検査一覧フィルタへ result_entered / confirmed 追加 |
-| 2 | SD-16 | 修正 | line-reserve ステップ total 動的化＋戻る分岐対応 |
-| 3 | SD-3 | A | credential 送信コード削除。条件: BE null 上書きの有無を検証・上書きなら同時是正 |
-| 3 | SD-4 | A | 在庫アラートを quantity <= min_stock_level の読み取り時導出に（status 保存しない） |
-| 3 | SD-13 | A | 医院設定（19）税務ブロックへ invoice_registration_number 入力欄追加 |
-| 3 | SD-15 | B | trimming_style_request の FE 死にコード削除（BE は残置・2026-10 棚卸し） |
-| 3 | SD-18 | B+ | 履歴 100 件上限到達時のみ省略表示を追加 |
-| 3 | GAP-2 | A | 閲覧専用ロールを seed 003_demo へ追加（db_reset は USER）＋ S02 手順更新 |
-| 4 | SD-9 | B | doc のみ: 開設 runbook に権限グループ設定必須を明記 |
-| 4 | SD-11 | 仕様化 | doc のみ: 24-shift-calendar.md に「有休の時刻は任意（空=終日・入力=半休）」明記 |
-| 4 | SD-17 | B | doc のみ: 39-owner-report.md に「画面閲覧専用（印刷非対応・#158 に印刷要件なしを原文確認済み）」明記 |
-| — | SD-6 | クローズ | 追加実装なし（既解消） |
+**残 USER アクション（SD/GAP 由来）:**
+
+- [ ] **[USER] SD-9 既存院の被害判定 SQL を STG/本番で実行** — `permission_groups` にルール 0 件のグループが無いか（クエリは 9b6a01ed のコミット対象調査報告参照・0 件なら実害なし。ヒット時はバックフィル別タスク起票）
+- [ ] **[USER] SD-14 STG 実機検証** — LINE 紐付け E2E（URL 発行→LIFF 遷移→紐付け完了）
+- [ ] **[USER] GAP-2 反映の `db_reset`**（seed 変更 13c6a93a）
+
+**次期送り（今回の副産物・要 triage）:**
+
+- LINE 予約設定の credential 設定経路の UX（SD-3 で送信コード削除 — 現状は seed/運用手順のみ。マスク済み値バッジの BE 拡張含む）
+- `FieldRow` の label-input 関連付け欠如（a11y 既存欠陥・LineReservationSettingsForm 全体）
+- 登録番号系 3 箇所分散（`Company.RegistrationNumber`/`Company.InvoiceRegistrationNumber`/`Clinic.RegistrationNumber` — 二重管理疑い）
+- clinical_plan/inquiry の finalized ガードを正規パターン（Transactor＋LockByIDForUpdate）へ統一（`cross_tenant_master_fk_write_test.go` の制約解消後）
+- `calculateNextDate` の `"other"` デッドブランチ（Select 実値は `"custom"`・実害なし）
+- OwnerReport 印刷（SD-17 決裁で不採用 — 将来要件化時の設計メモは fix-sd17-19 最終報告と 39 doc 参照）
 
 ### AnimalEkarte CSV import — USER actions
 
