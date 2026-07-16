@@ -163,7 +163,17 @@ build-prod:
 # golangci-lint バージョン（CI と同一）
 GOLANGCI_LINT_VERSION := v2.11.4
 
-# リンター実行（Go）- CI と同一の公式イメージを使用
+# ── 品質チェック分担（詳細: docs/ops/ci-policy.md）────────────────
+# CI 必須: path-filtered build/test、clinic/audit inventory・preload、gitleaks、
+#          codegen/migration 検証、E2E（PR→main スキップ / push main・PR→staging）、
+#          shellcheck、reset-contract、design CTA、coverage ratchet
+# ローカル必須（CI ゲート外の静的 lint）:
+#   make lint       → golangci-lint
+#   make lint-front → ESLint + type-check + knip
+#   make ci-local   → 上記静的チェック + build/test 等の一括再現
+# ────────────────────────────────────────────────────────────────
+
+# リンター実行（Go・ローカル必須）- 公式 golangci-lint イメージを使用
 # module cache は backend dev コンテナと共用（ekarte-go-mod-cache）。golangci-lint 自体の
 # キャッシュ（/root/.cache）はバージョン固有形式のため GOCACHE とは混ぜず専用 volume に分離する。
 lint:
@@ -193,9 +203,12 @@ test:
 test-cover:
 	$(DC) exec backend go test -race -cover ./...
 
-# リンター実行（フロントエンド）
+# フロント静的チェック一式（ローカル必須・CI ゲート外）
+# ESLint + TypeScript type-check + knip（旧 CI Frontend の静的ステップ相当）
 lint-front:
 	$(DC) exec frontend pnpm run lint
+	$(DC) exec frontend pnpm run type-check
+	$(DC) exec frontend pnpm run unused
 
 # テスト実行（フロントエンド）
 test-front:
@@ -231,21 +244,22 @@ mod-download:
 mod-tidy:
 	$(DC) exec backend go mod tidy
 
-# CI と同等のチェックをローカル Docker で実行
-# 実行前に make up でコンテナを起動しておくこと
+# ローカル一括チェック（静的 lint + CI 相当の build/test）
+# 実行前に make up でコンテナを起動しておくこと。
 # 先頭の reset 契約チェックは Docker 不要・純テキスト検査なので最速で fail させる。
+# 静的 lint（golangci / ESLint / type-check / knip）は CI 必須ゲート外・ここで担保する。
 ci-local:
-	@echo "=== [1/9] Reset wait-set contract ==="
+	@echo "=== [1/11] Reset wait-set contract ==="
 	$(MAKE) check-reset-contract
 	$(MAKE) check-reset-contract-test
-	@echo "=== [2/9] Shell scripts: shellcheck ==="
+	@echo "=== [2/11] Shell scripts: shellcheck ==="
 	$(MAKE) shellcheck
 	$(MAKE) shellcheck-test
-	@echo "=== [3/9] Backend: build ==="
+	@echo "=== [3/11] Backend: build ==="
 	$(DC) exec backend go build ./...
-	@echo "=== [4/9] Backend: test ==="
+	@echo "=== [4/11] Backend: test ==="
 	$(DC) exec backend go test ./... -count=1 -race -timeout 120s
-	@echo "=== [5/9] Backend: lint ==="
+	@echo "=== [5/11] Backend: lint (local-only; not a CI gate) ==="
 	docker run --rm \
 		-v $(PWD)/backend:/app \
 		-v ekarte-go-mod-cache:/go/pkg/mod \
@@ -253,17 +267,21 @@ ci-local:
 		-w /app \
 		golangci/golangci-lint:$(GOLANGCI_LINT_VERSION) \
 		golangci-lint run
-	@echo "=== [6/9] Backend: schema drift ==="
+	@echo "=== [6/11] Backend: schema drift ==="
 	$(DC) exec backend go test ./internal/model/ -run TestSchemaDrift -v
-	@echo "=== [7/9] Codegen: sync check ==="
+	@echo "=== [7/11] Codegen: sync check ==="
 	$(MAKE) codegen
 	git diff --exit-code frontend/src/types/generated/ || (echo "ERROR: models.ts is out of sync. Commit the updated file." && exit 1)
-	@echo "=== [8/9] Frontend: lint ==="
+	@echo "=== [8/11] Frontend: lint (local-only) ==="
 	$(DC) exec frontend pnpm run lint
-	@echo "=== [9/9] Frontend: build ==="
+	@echo "=== [9/11] Frontend: type-check (local-only) ==="
+	$(DC) exec frontend pnpm run type-check
+	@echo "=== [10/11] Frontend: knip unused (local-only) ==="
+	$(DC) exec frontend pnpm run unused
+	@echo "=== [11/11] Frontend: build ==="
 	$(DC) exec frontend pnpm run build
 	@echo ""
-	@echo "✓ All CI checks passed"
+	@echo "✓ Local checks passed (static lint = local-only; CI gates = build/test/inventory/E2E — see docs/ops/ci-policy.md)"
 
 # git hooks セットアップ（初回・新メンバーオンボーディング時に実行）
 setup-hooks:
@@ -309,11 +327,13 @@ help:
 	@echo "  dump-stg      STG DBダンプ(SSM経由 pg_dump → prodData/ekarte-stg-<実行日>.sql)"
 	@echo ""
 	@echo "品質管理:"
-	@echo "  lint          Goリンター実行"
+	@echo "  【ローカル必須・静的 lint】lint / lint-front / ci-local（CI ゲート外）"
+	@echo "  【CI 必須】build+test / inventory / gitleaks / E2E(staging path) 等 — docs/ops/ci-policy.md"
+	@echo "  lint          Goリンター実行（golangci・ローカル必須）"
 	@echo "  lint-fix      Goリンター実行（自動修正）"
 	@echo "  test          Goテスト実行"
 	@echo "  test-cover    Goテスト実行（カバレッジ付き）"
-	@echo "  lint-front    フロントエンドリンター実行"
+	@echo "  lint-front    FE静的チェック（ESLint+type-check+knip・ローカル必須）"
 	@echo "  test-front    フロントエンドテスト実行"
 	@echo "  build-front   フロントエンドビルド"
 	@echo "  codegen       型定義生成（Go model → TypeScript型）"
@@ -323,7 +343,7 @@ help:
 	@echo "  check-reset-contract-test 上記契約チェック自体の回帰テスト"
 	@echo "  shellcheck       scripts/*.sh を shellcheck で検査（severity=warning・ローカル無ければDocker経由）"
 	@echo "  shellcheck-test  上記 shellcheck ゲート自体の回帰テスト"
-	@echo "  ci-local      CI と同等のチェックをローカル Docker で実行"
+	@echo "  ci-local      ローカル一括（静的 lint + build/test 等）"
 	@echo "  build-go      Goビルド（開発用）"
 	@echo "  mod-download  Goモジュールダウンロード"
 	@echo "  mod-tidy      Goモジュールtidy"

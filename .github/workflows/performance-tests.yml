@@ -6,14 +6,8 @@ on:
     # ⚠️ STG は毎日 22:00-8:00 JST に自動停止する（enable_off_hours_schedule）。
     #    この cron は必ず稼働窓 8:00-22:00 JST 内に置くこと（停止窓に動かすと STG ダウンで失敗）。
     - cron: '0 3 * * *'
+  # push トリガは外す（毎 push の負荷・時間を削る）。手動は workflow_dispatch。
   workflow_dispatch:
-  push:
-    branches: [main, staging]
-    paths:
-      - 'backend/**'
-      - 'frontend/**'
-      - 'load-tests/**'
-      - '.github/workflows/performance-tests.yml'
 
 env:
   GO_VERSION: "1.25"

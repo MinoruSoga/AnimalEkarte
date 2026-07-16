@@ -43,6 +43,7 @@ jobs:
   # ──────────────────────────────────────────────
   # Playwright E2E: full Docker Compose stack + Playwright Docker image
   # PR to main はスキップ（軽量ゲートにする）。push to main と PR to staging のみ実行。
+  # 静的 lint（golangci/ESLint/type-check/knip）は本 workflow の対象外（make 側）。
   # ──────────────────────────────────────────────
   e2e:
     name: Playwright E2E

@@ -1,18 +1,22 @@
 #!/usr/bin/env bash
 # scripts/check-ci-step-order.sh
 #
-# .github/workflows/ci.yml の各 job 内で、Lint/Build/Type check のような
-# 品質ゲート系ステップが、Test/ratchet のような機能回帰系ステップより後に
+# .github/workflows/ci.yml の各 job 内で、Build（および再導入時の Lint/Type check）
+# のような品質ゲート系ステップが、Test/ratchet のような機能回帰系ステップより後に
 # 配置されていないかを検査する（feedback_ci_step_order_masks_lint 再発防止・
 # FE-refactor.md「CI step順序ガードレール」）。
 #
 # 背景:
 #   GitHub Actions は既定で「あるステップが失敗すると同一 job の後続ステップは
-#   スキップされる」（fail-fast）。ratchet/test 系ステップが Lint/Build より前に
-#   配置されると、それらが失敗した際に Lint/Build が一度も実行されないまま job が
-#   red になり、Lint/Build 側の別の壊れが完全に見えなくなる
+#   スキップされる」（fail-fast）。ratchet/test 系ステップが Build より前に
+#   配置されると、それらが失敗した際に Build が一度も実行されないまま job が
+#   red になり、Build 側の別の壊れが完全に見えなくなる
 #   （PR #218 で実際に混入し 3fcbcaf4 で手動是正。過去にも backend 側で同型あり
 #   = feedback_ci_step_order_masks_lint）。都度レビューに頼らず機械的に再発防止する。
+#
+# 2026-07 以降: CI の必須静的 lint（golangci / ESLint / type-check / knip）は
+# ローカル make に寄せた。CI 上の主ゲートは Build。Lint / Type check 名は
+# 再導入時の順序契約用に引き続きゲートとして認識する（fixture 互換）。
 #
 # ルール:
 #   各 job 内で、ゲート系ステップ（名前が完全一致で Lint / Build / Type check の
@@ -85,6 +89,6 @@ awk '
       printf "RESULT  %d job(s) violate step order (gate step after risk step — a Test/ratchet failure would fail-fast-mask Lint/Build)\n", errors
       exit 1
     }
-    print "PASS  all jobs keep gate steps (Lint/Build/Type check) before risk steps (Test/ratchet)"
+    print "PASS  all jobs keep gate steps (Build; Lint/Type check if present) before risk steps (Test/ratchet)"
   }
 ' "$CI_YML"

@@ -103,12 +103,12 @@ jobs:
         run: bash scripts/check-reset-wait-services.test.sh
 
   # ──────────────────────────────────────────────
-  # CI step順序ガードレール: 各 job 内で Lint/Build/Type check が Test/ratchet より
-  # 前に配置されていることを検証する（feedback_ci_step_order_masks_lint 再発防止・
-  # FE-refactor.md「CI step順序ガードレール」）。fail-fast のデフォルト挙動下では、
-  # リスク系ステップがゲート系より前にあると失敗時に Lint/Build が一度も実行されず
-  # 壊れが見えなくなる（PR #218 で実際に混入し 3fcbcaf4 で手動是正）。
-  # Docker 不要・純テキスト検査なので無条件かつ最速で走らせる。
+  # CI step順序ガードレール: 各 job 内で Build（再導入時は Lint/Type check も）が
+  # Test/ratchet より前に配置されていることを検証する
+  # （feedback_ci_step_order_masks_lint 再発防止・FE-refactor.md）。
+  # 2026-07: golangci / ESLint / type-check / knip はローカル make 寄せ。CI の主ゲートは
+  # Build。fail-fast 下で risk が gate より前だと Build 退行が見えなくなる
+  # （PR #218 / 3fcbcaf4）。Docker 不要・純テキスト検査なので無条件かつ最速で走らせる。
   # ──────────────────────────────────────────────
   ci-step-order-guardrail:
     name: CI Step Order Guardrail
@@ -339,7 +339,8 @@ jobs:
         run: go test ./internal/repository/ -run TestDBOrTxInventory -count=1
 
   # ──────────────────────────────────────────────
-  # Backend: build + lint + schema check
+  # Backend: build + test + schema check
+  # （golangci-lint はローカル必須: make lint / make ci-local。CI ゲートから外す）
   # ──────────────────────────────────────────────
   backend:
     name: Backend
@@ -398,14 +399,6 @@ jobs:
       - name: Build
         working-directory: backend
         run: go build ./...
-
-      - name: Lint
-        id: lint
-        continue-on-error: true
-        uses: golangci/golangci-lint-action@v9
-        with:
-          version: v2.11.4
-          working-directory: backend
 
       - name: Test
         working-directory: backend
@@ -489,20 +482,9 @@ jobs:
           DB_SSL_MODE: disable
         run: go test ./internal/model/ -run TestSchemaDrift -v
 
-      # 注意: このステップは backend job の最後に置くこと。continue-on-error: true にした
-      # Lint(:398) の実質的なゲートはこの step が担うため、以降に risk 系ステップ（Test/ratchet
-      # 相当）を無条件追加すると check-ci-step-order.sh は検知できず fail-fast マスクが再発する
-      # （scripts/check-ci-step-order.sh は本 step 名を gate/risk いずれとしても認識しない設計）。
-      - name: Verify lint outcome
-        if: always()
-        run: |
-          if [ "${{ steps.lint.outcome }}" != "success" ]; then
-            echo "::error::Lint failed (outcome=${{ steps.lint.outcome }}) — see the Lint step log above."
-            exit 1
-          fi
-
   # ──────────────────────────────────────────────
-  # Frontend: build + lint
+  # Frontend: build + test（STG 退行検知）
+  # type-check / ESLint / knip はローカル必須: make lint-front / make ci-local
   # ──────────────────────────────────────────────
   frontend:
     name: Frontend
@@ -530,10 +512,9 @@ jobs:
 
       # 2026-07-15: npm がレガシー audit エンドポイント（/-/npm/v1/security/audits）を廃止し
       # 410 Gone を返すようになった影響で、pnpm audit 自体が ERR_PNPM_AUDIT_BAD_RESPONSE で
-      # 早期 exit 1 していた（Frontend job 全体が Type check/Lint 実行前に red 化）。この
-      # レジストリ側の一時的な非対応は依存関係の脆弱性検出とは無関係のため、このエラー
-      # シグネチャに限り non-fatal な warning に留める。それ以外の失敗（実際の脆弱性検出含む）
-      # は従来どおり fail させる — 監査ゲートを黙って無効化しない。
+      # 早期 exit 1 していた。レジストリ側の一時的な非対応は依存関係の脆弱性検出とは
+      # 無関係のため、このエラーシグネチャに限り non-fatal な warning に留める。
+      # それ以外の失敗（実際の脆弱性検出含む）は従来どおり fail させる。
       - name: Audit frontend dependencies
         working-directory: frontend
         run: |
@@ -550,20 +531,8 @@ jobs:
             fi
           fi
 
-      - name: Type check
-        working-directory: frontend
-        run: pnpm run type-check
-
-      - name: Lint
-        working-directory: frontend
-        run: pnpm run lint
-
-      # FE-refactor-v2.md FE-R17: knip 未使用コード検出をgating化（R-F7 第2段階）。
-      # findings があれば knip 自体が非0 exit するため、このステップが fail する。
-      - name: Knip unused scan
-        working-directory: frontend
-        run: pnpm run unused | tee -a "$GITHUB_STEP_SUMMARY"
-
+      # type-check / ESLint / knip は CI 必須ゲートから外し、ローカル make lint-front に寄せた
+      # （STG 保護の薄いゲート = build + test + design CTA。静的 lint は開発者手元で再現）。
       - name: Build
         working-directory: frontend
         run: pnpm run build
@@ -583,8 +552,8 @@ jobs:
       # FE-refactor.md R-F5 / coverage-policy.md Phase 1: カバレッジ ratchet（backend cmd/coverage-ratchet と対）。
       # .coverage-baseline が未記録（0）の間は warn のみで exit 0。実測値は本 PR merge 後の CI run の
       # frontend-coverage artifact から取得し、別コミットで .coverage-baseline に転記する。
-      # Lint/Build は本ステップより前に実行済みのため、ratchet が fail してもマスクされない
-      # （backend job の Build→Lint→Test→ratchet と同じ順序。feedback_ci_step_order_masks_lint 対策）。
+      # Build は本ステップより前に実行済みのため、ratchet が fail しても Build 退行はマスクされない
+      # （backend job の Build→Test→ratchet と同じ順序。feedback_ci_step_order_masks_lint 対策）。
       - name: Coverage ratchet
         working-directory: frontend
         run: |
