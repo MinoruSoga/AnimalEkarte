@@ -1,6 +1,7 @@
 # AnimalEkarte — Unified TODO（todo.md）
 
-> 更新: 2026-07-16 (5)（画面仕様書全数突合の副産物 = 実装バグ疑い 19 件を起票。突合本体は commit a476b727・未文書化3画面の doc 新設で SD-14〜19 追加発見）
+> 更新: 2026-07-16 (6)（SD 残 14 件 + GAP-1/2 を Fable 代理決裁で全件確定・実装キュー化。決裁正本 = q&a.html）
+> 前回: 2026-07-16 (5)（画面仕様書全数突合の副産物 = 実装バグ疑い 19 件を起票。突合本体は commit a476b727・未文書化3画面の doc 新設で SD-14〜19 追加発見）
 > 前々回: 2026-07-16 (4)（PO 決裁「即実装可」4 件消化: #211 A1+A2／#211 A6／#201 B2／PO-008 完了・台帳から除去）
 > 前回: 2026-07-16 (3)（phase2 切り出し: 今フェーズでやらない項目を `phase2.html` へ全文移動・完了記録を削除。本書は「今やること」のみ保持）
 > **push・外部書き込み・credential 変更はユーザー所有アクション。**（PR マージはユーザーが手動で行う。本台帳には載せない）
@@ -111,35 +112,36 @@
 
 ## 受け入れシナリオ作成（2026-07-16）で発見した仕様・実装ギャップ
 
-- [ ] **[SPEC-GAP・PO 判断] カルテ確定（Lock）の UI 導線が存在しない** — 質問カード化済み（`q&a.html` GAP-1）。回答待ち。詳細はカード側を正本とする。
-- [ ] **[SEED-GAP] seed 003_demo の全標準ロールが検査 edit 権限を保有** — 質問カード化済み（`q&a.html` GAP-2・GAP-1 とセット回答）。回答待ち。
+- [ ] **[SPEC-GAP] カルテ確定（Lock）の UI 導線** — 2026-07-16 代理決裁 A（UI 実装・優先度最高）。実装キュー GAP-1 参照。
+- [ ] **[SEED-GAP] 閲覧専用ロール seed 追加** — 2026-07-16 代理決裁 A。実装キュー GAP-2 参照（db_reset は USER）。
 
 ## 画面仕様書全数突合（2026-07-16）で発見した実装バグ疑い 19 件
 
 > 出所: docs/spec/screens 全 62 ファイル実装突合（commit a476b727）の副産物。**doc は現状実装に合わせ済み**のため、修正するなら実装側＋該当 doc の再更新をセットで行う。各件とも「仕様としてこれで正か」の triage が先。
 
-> SD-1/SD-2/SD-5/SD-7/SD-8 は 2026-07-16 に triage→修正完了（各コミット参照）。SD-6 はペイロード消失部分のみ 2026-07-16 に修正完了（SD-1 と同一2ファイル・同一修正パターン、RED→GREEN 29/29 pass。`frontend/src/features/vaccinations/api/types.ts`・`hooks/use-vaccination-form.ts`・`hooks/use-vaccination-form.test.ts`）。残る「次回予定」ラジオ→nextDate 計算配線の要否は q&a.html で未回答のため PO 判断待ち（下表参照）。
+> SD-1/SD-2/SD-5/SD-7/SD-8 は 2026-07-16 に triage→修正完了（各コミット参照）。**残 14 件 + GAP-1/2 は 2026-07-16 に Fable 代理決裁で全件確定**（決裁本文の正本 = `q&a.html` 各カード回答欄。PO は上書きで覆せる）。SD-6 は既解消クローズ（配線は BUG-026 実装済みを実コード確認・ペイロードは a3c79515）。
 > GitHub での PO triage 入口は [#261](https://github.com/MinoruSoga/AnimalEkarte/issues/261)。詳細事実は本表と `q&a.html` を正本とし、Issue へ重複転記しない。
 
-| # | 疑い内容 | 根拠 | 分類 |
-|---|---------|------|------|
-| SD-3 | `LineReservationSettingsForm` が formData から `line_channel_secret`/`line_access_token` を読むが対応 input が存在せず**常に null 送信** | 同コンポーネント実装 | 機能不全 |
-| SD-4 | 在庫 `min_stock_level` から status を判定するロジックがどこにも無く**在庫アラートパネルが死に機能** | 18-inventory-list 突合 | 機能不全 |
-| SD-6 | 予防接種「次回予定」ラジオ（3週間後等）を nextDate 計算に配線すべきか（ペイロード非含有によるサイレント消失は 2026-07-16 修正済み・本行は配線要否の PO 判断分のみ残） | 15-vaccinations-form 突合 | 要仕様確認 |
-| SD-9 | デフォルト権限グループ「執行」「一般」が権限ルール 0 で作成される（新規院で system_admin 以外全機能アクセス不能の疑い） | `clinic_service.go` | 要仕様確認 |
-| SD-10 | 入院新規: 死亡ペットのブロックがペット選択 UI のみで直接 URL・BE に防御なし | 09-hospitalization-form 突合 | 臨床安全（低） |
-| SD-11 | シフト: 有休（paid_leave）選択で時刻入力が非活性にならない | 24-shift-calendar 突合（BUG-092 趣旨と矛盾疑い） | UX |
-| SD-12 | 検査一覧フィルタが 3 ステータスのみで result_entered/confirmed を抽出できない | 12-examinations-list 突合 | UX |
-| SD-13 | `invoice_registration_number`: BE 更新ハンドラは存在するが FE 編集導線なし | 19-clinic-settings 突合 | 要仕様確認 |
-| SD-14 | **LINE 紐付けフロー E2E 不通疑い（複合）**: ① `GenerateLinkToken` が構築する liff_url に clinic_id クエリが無く、`LiffLinkPage` は clinic_id 必須のため発行 URL をそのまま開くと「無効なURL」エラー ② link-token 発行 API を呼ぶ FE 導線が frontend/src に grep 0 件（API 直叩きのみ） | `line_link_service.go` / 38 doc 新設時発見 | **機能不全** |
-| SD-15 | line-reserve: `trimming_style_request` 死にフィールド — `setTrimmingStyleRequest` がどの画面からも未呼出で常に空文字送信（入力 UI 未配線） | `useReservationFlow` / 37 doc 新設時発見 | 機能不全 |
-| SD-16 | line-reserve: ステップドット表示退行（トリミング分岐ページのみ total=9・下流共有ページ total=8 で 4/9→3/8 と進捗が戻る）＋スタッフ選択の「戻る」がトリミングオプション選択をスキップ | 37 doc 新設時発見 | UX |
-| SD-17 | OwnerReport: 印刷ボタン・print CSS が不在。固定ビューポート＋パネル内スクロールのためブラウザ印刷で長い履歴が切れる（#158 の印刷要件が落ちている可能性） | 39 doc 新設時発見 | 要仕様確認 |
-| SD-18 | OwnerReport: 検査・治療・トリミング履歴が limit=100 固定でサイレント打ち切り（ページング・超過表示なし） | `HISTORY_FETCH_LIMIT` / 39 doc 新設時発見 | UX |
-| SD-19 | OwnerReport: 予防接種日付のみブラウザローカル TZ 整形で、治療履歴の `toJSTWallDate` と不統一 → 海外 TZ 環境で 1 日ずれ得る | 39 doc 新設時発見 | 表示バグ（低） |
+**決裁済み実装キュー（優先順・実装時は該当 doc の再更新をセットで）:**
 
-- 対応順推奨: SD-3/SD-4（機能不全）→ 残りは triage 後。SD-6 はペイロード消失部分を修正済み、残る配線要否は他の要仕様確認項目と合わせて triage 対象。
-- SD-9 は新規院開設フローの実運用確認が先（既存院は影響なし）。SD-13 はインボイス番号の入力経路が別導線（seed/管理者直接）で足りているかの PO 判断。
+| 優先 | ID | 決裁 | 実装内容 |
+|------|-----|------|---------|
+| 1 | SD-14 | A | LINE 紐付け E2E 成立: liff_url へ clinic_id 付与（liff.state 透過検証込み）＋飼主フォーム（04）に発行導線。片方のみ不可。STG 実機検証は USER |
+| 1 | GAP-1 | A | カルテ確定（Lock）UI 導線: 権限制御付き確定ボタン＋確定済み表示＋編集不可 UI。S06/06 doc/spec §2.1 同期 |
+| 2 | SD-10 | 修正 | 入院作成・更新 BE に deceased_at 検査（422）。他経路の同型監査は phase2 記録 |
+| 2 | SD-19 | 修正 | 予防接種履歴日付を toJSTWallDate へ統一 |
+| 2 | SD-12 | 追加 | 検査一覧フィルタへ result_entered / confirmed 追加 |
+| 2 | SD-16 | 修正 | line-reserve ステップ total 動的化＋戻る分岐対応 |
+| 3 | SD-3 | A | credential 送信コード削除。条件: BE null 上書きの有無を検証・上書きなら同時是正 |
+| 3 | SD-4 | A | 在庫アラートを quantity <= min_stock_level の読み取り時導出に（status 保存しない） |
+| 3 | SD-13 | A | 医院設定（19）税務ブロックへ invoice_registration_number 入力欄追加 |
+| 3 | SD-15 | B | trimming_style_request の FE 死にコード削除（BE は残置・2026-10 棚卸し） |
+| 3 | SD-18 | B+ | 履歴 100 件上限到達時のみ省略表示を追加 |
+| 3 | GAP-2 | A | 閲覧専用ロールを seed 003_demo へ追加（db_reset は USER）＋ S02 手順更新 |
+| 4 | SD-9 | B | doc のみ: 開設 runbook に権限グループ設定必須を明記 |
+| 4 | SD-11 | 仕様化 | doc のみ: 24-shift-calendar.md に「有休の時刻は任意（空=終日・入力=半休）」明記 |
+| 4 | SD-17 | B | doc のみ: 39-owner-report.md に「画面閲覧専用（印刷非対応・#158 に印刷要件なしを原文確認済み）」明記 |
+| — | SD-6 | クローズ | 追加実装なし（既解消） |
 
 ### AnimalEkarte CSV import — USER actions
 
