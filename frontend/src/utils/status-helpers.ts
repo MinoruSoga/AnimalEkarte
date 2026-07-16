@@ -136,10 +136,13 @@ export const getReservationTypeName = (type: string) => {
 
 export const getExaminationStatusColor = (status: string) => {
   switch (status) {
-    case "依頼中": return BADGE.yellow;
-    case "検査中": return BADGE.blue;
-    case "完了":   return BADGE.green;
-    default:      return "";
+    // SD-12: backend ExaminationStatus 全5値に追従（結果入力済み/確定が抜けていた）
+    case "依頼中":     return BADGE.yellow;
+    case "検査中":     return BADGE.blue;
+    case "結果入力済み": return BADGE.purple;
+    case "完了":       return BADGE.green;
+    case "確定":       return BADGE.gray;
+    default:          return "";
   }
 };
 

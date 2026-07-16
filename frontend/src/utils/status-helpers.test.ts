@@ -168,8 +168,21 @@ describe('getExaminationStatusColor', () => {
     expect(getExaminationStatusColor('検査中')).toContain(HEX.blue);
   });
 
+  // SD-12: result_entered/confirmed 追加の回帰テスト
+  it('returns purple for 結果入力済み', () => {
+    expect(getExaminationStatusColor('結果入力済み')).toContain(HEX.purple);
+  });
+
   it('returns green for 完了', () => {
     expect(getExaminationStatusColor('完了')).toContain(HEX.green);
+  });
+
+  it('returns gray for 確定', () => {
+    expect(getExaminationStatusColor('確定')).toContain(HEX.gray);
+  });
+
+  it('returns empty string for unknown status', () => {
+    expect(getExaminationStatusColor('unknown')).toBe('');
   });
 });
 
