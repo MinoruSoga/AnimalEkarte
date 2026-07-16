@@ -51,7 +51,7 @@
 | **保険** | [master-insurance.md](./master-insurance.md) | ペット保険名称・補償率の管理（会計計算への連動は未実装）。 |
 | **割引キャンペーン** | [master-campaigns.md](./master-campaigns.md) | 会計割引ルールの期間・対象カテゴリ/商品設定。 |
 | **販売商品** | [master-merchandise.md](./master-merchandise.md) | 療法食、ケア用品等の販売品。 |
-| **LINE ページ** | [master-pages.md](./master-pages.md) | 飼い主向け予約画面の案内文言カスタマイズ。 |
+| **LINE ページ** | [28-line-reservation.md §2](../28-line-reservation.md) | 飼い主向け予約画面の案内文言カスタマイズ（LINE 予約設定仕様書へ統合）。 |
 
 ---
 

@@ -24,9 +24,14 @@
     - **空き時間を許容**: 隙間の発生を許容して割り当てる設定。
 
 ### 2. 表示ページ編集 (`/page-editor`)
-LINE アプリ内で飼い主が見る画面の文言を編集します。
-- **ヘッダーテキスト**: トップページの告知文。
-- **注意事項・ポリシー**: 予約時の注意事項、キャンセル時の注意事項、プライバシーポリシー、リクエスト例の定義。
+LINE アプリ内で飼い主が見る画面の文言を編集します。`LineReservationPageEditor` はフェーズ別タブ切替ではなく、5 つのテキストエリアを縦に並べた単一フォームです（セクション選択 UI は存在しない）。
+- **ヘッダーテキスト (`header_text`)**: LINE 予約ページのヘッダーに表示するテキスト。
+- **予約時の注意事項 (`reservation_notice`)**: 予約時に顧客へ表示する注意事項。
+- **キャンセル時の注意事項 (`cancel_notice`)**: キャンセル時に表示する注意事項。
+- **プライバシーポリシー (`privacy_policy`)**: 個人情報の取り扱いに関する説明。
+- **リクエスト例 (`request_example`)**: 予約リクエストの記入例。
+
+`body_text` / `footer_text` という単一フィールドは存在しません（`line_reservation_settings` 実装基準）。保存内容は即座に LIFF アプリへ反映されるため、季節キャンペーンや緊急休診の告知をスタッフ自身で行えます。保存 API は基本設定と同一の PUT `line-reservation-settings`（概要のアクセス権限欄の FE/BE 権限乖離に注意）。
 
 ### 3. 連携クレデンシャル
 - **LINE連携**: チャネルID（Channel ID）および LIFF ID の登録。
@@ -56,6 +61,7 @@ LINE アプリ内で飼い主が見る画面の文言を編集します。
 
 ### 使用コンポーネント
 - **`LineReservationSettings`**: 管理者向け設定ページ。
+- **`LineReservationPageEditor`**: 表示ページ編集（§2）。`Textarea`（shadcn/ui）5 個の単一フォーム。
 - **`LineReservationSlotsSettings`**: 予約枠カレンダーページ（`features/master`）。
 - **`ReservationTypeAvailableSlotsCalendar`**: 週カレンダー + 日別編集パネル。
 - **飼主側予約アプリ (`frontend/line-reserve`・別エントリ)**: 飼い主が操作する LINE 内予約フロー。画面仕様は [37-line-reserve-owner-flow.md](./37-line-reserve-owner-flow.md) を参照。
