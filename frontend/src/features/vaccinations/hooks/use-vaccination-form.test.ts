@@ -283,6 +283,60 @@ describe("useVaccinationForm", () => {
         expect.objectContaining({ id: "10" })
       );
     });
+
+    it("SD-1 回帰: supplemental が updateMutation の payload に含まれる（サイレント消失防止）", async () => {
+      vi.mocked(useGetVaccination).mockReturnValue({
+        data: { id: "10", petId: "5", vaccineId: "1", date: "2026-07-01", nextDate: "", nextScheduleType: "1year" },
+      } as ReturnType<typeof useGetVaccination>);
+      const mockMutateAsync = vi.fn().mockResolvedValue({});
+      vi.mocked(useUpdateVaccination).mockReturnValue({
+        mutateAsync: mockMutateAsync,
+        isPending: false,
+      } as ReturnType<typeof useUpdateVaccination>);
+
+      const { result } = renderHook(() => useVaccinationForm("10"));
+      act(() => {
+        result.current.form.setDate("2026-07-05");
+        result.current.form.setNextDate("2026-07-20");
+        result.current.form.setSupplemental("補助説明テキスト");
+      });
+      runFormAction(result.current.formAction);
+
+      await waitFor(() => {
+        expect(result.current.formState.success).toBe(true);
+      });
+      expect(mockMutateAsync).toHaveBeenCalledWith(
+        expect.objectContaining({ req: expect.objectContaining({ supplemental: "補助説明テキスト" }) })
+      );
+    });
+  });
+
+  describe("新規登録: SD-1 回帰", () => {
+    it("supplemental が createMutation の payload に含まれる（サイレント消失防止）", async () => {
+      const mockMutateAsync = vi.fn().mockResolvedValue({});
+      vi.mocked(useCreateVaccination).mockReturnValue({
+        mutateAsync: mockMutateAsync,
+        isPending: false,
+      } as ReturnType<typeof useCreateVaccination>);
+
+      const { result } = renderHook(() => useVaccinationForm());
+      act(() => {
+        result.current.petSelection.setSelectedPets([
+          { id: "5", ownerId: "1", name: "ポチ" } as Parameters<typeof result.current.petSelection.setSelectedPets>[0][number],
+        ]);
+        result.current.form.setVaccineId("1");
+        result.current.form.setDate("2026-07-01");
+        result.current.form.setSupplemental("補助説明テキスト");
+      });
+      runFormAction(result.current.formAction);
+
+      await waitFor(() => {
+        expect(result.current.formState.success).toBe(true);
+      });
+      expect(mockMutateAsync).toHaveBeenCalledWith(
+        expect.objectContaining({ supplemental: "補助説明テキスト" })
+      );
+    });
   });
 
   // ──────────────────────────

@@ -175,6 +175,7 @@ export function useVaccinationForm(id?: string) {
             lot3: formData.lot3 || undefined,
             lot4: formData.lot4 || undefined,
             remarks: formData.remarks || undefined,
+            supplemental: formData.supplemental || undefined,
           };
           await updateMutation.mutateAsync({ id, req });
           toast.success("予防接種情報を更新しました");
@@ -192,6 +193,7 @@ export function useVaccinationForm(id?: string) {
             lot3: formData.lot3 || undefined,
             lot4: formData.lot4 || undefined,
             remarks: formData.remarks || undefined,
+            supplemental: formData.supplemental || undefined,
           };
           await createMutation.mutateAsync(req);
           toast.success("予防接種を登録しました");

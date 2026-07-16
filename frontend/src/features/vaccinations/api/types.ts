@@ -18,6 +18,7 @@ export interface CreateVaccinationRequest {
   lot3?: string;
   lot4?: string;
   remarks?: string;
+  supplemental?: string;
 }
 
 export interface UpdateVaccinationRequest {
@@ -28,4 +29,5 @@ export interface UpdateVaccinationRequest {
   lot3?: string;
   lot4?: string;
   remarks?: string;
+  supplemental?: string;
 }
