@@ -51,9 +51,13 @@ const migrationsDir = "../../migrations"
 //	  複合FK（clinic_id 込み）に置換する1件のみ。checkup_types は checkup_type_fields の
 //	  親であり「構成要素として不可分な子行」（migrations/CLAUDE.md 許容例外）。
 //	  挙動は既存の CASCADE から変更しない（behavior-preserving）。
+//	008_add_checkup_packages.sql: 旧 010 の upgrade-path 再出荷。純粋従属子 2 件
+//	  （checkup_type_fields.checkup_type_id / checkup_field_results.checkup_id）。
+//	  001 統合スキーマと同内容・checkup_field_cascade_test.go で安全性実証済み。
 var migrationCascadeAllowlist = map[string]int{
 	"001_init.sql": 52,
 	"002_checkup_field_clinic_composite_fk.sql": 1,
+	"008_add_checkup_packages.sql":              2,
 }
 
 // countCascadeOccurrences は SQL テキスト中の "ON DELETE CASCADE" 出現数を数える純粋関数。
@@ -124,18 +128,18 @@ func walkMigrationsForCascade(t *testing.T) map[string]int {
 // "ON DELETE CASCADE" occurrence count must match the reviewed allowlist. A floor guards
 // against a vacuous pass if the migrations directory glob silently breaks.
 //
-// Floor rationale (2026-07-07): backend/migrations/*.sql was further reduced to a single
-// file, 001_init.sql, once the 002/003/004 seed data moved from stub SELECT-1 *.sql files
-// to CSV bundles under migrations/seeds/ (cmd/seed-export; see that package's doc comment).
-// The floor tracks the current known minimum .sql file count (1), not an arbitrary buffer;
+// Floor rationale (2026-07-17): DDL は 001 統合スキーマ + incremental upgrade path
+// （002 clinic 複合 FK + 003–011 旧 005–012/checked_in_at 再出荷）で 11 ファイル。
+// The floor tracks the current known minimum .sql file count, not an arbitrary buffer;
 // it must be revisited whenever migrations are consolidated/split or the directory's .sql
 // file count otherwise legitimately changes.
 func TestMigrationCascadeInventory_NoUnreviewedCascade(t *testing.T) {
 	found := walkMigrationsForCascade(t)
 
-	if len(found) < 1 {
-		t.Fatalf("no migration file(s) found; directory read likely broken (would vacuously "+
-			"pass). Expected at least one .sql file under %s.", migrationsDir)
+	const minDDLFiles = 11
+	if len(found) < minDDLFiles {
+		t.Fatalf("expected at least %d migration .sql file(s) under %s, found %d "+
+			"(directory read broken or files missing).", minDDLFiles, migrationsDir, len(found))
 	}
 
 	for _, v := range reconcileMigrationCascade(found, migrationCascadeAllowlist) {

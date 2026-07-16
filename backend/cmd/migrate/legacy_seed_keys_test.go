@@ -22,7 +22,8 @@ func TestLegacyKeysAmongDetectsAllLegacyFilenames(t *testing.T) {
 }
 
 func TestLegacyKeysAmongEmptyOnFreshLayout(t *testing.T) {
-	// Fresh layout schema_migrations keys: DDL 001 only plus seeds/<bundle>
+	// Fresh layout schema_migrations keys: DDL filenames plus seeds/<bundle>
+	// (DDL count is not asserted here; see migrations/CLAUDE.md for current set)
 	// (4 rows). None of these are legacy stub filenames.
 	applied := []string{
 		"001_init.sql",
