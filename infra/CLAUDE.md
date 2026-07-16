@@ -119,11 +119,10 @@ infra/
 │       ├── ecr/              # ECR リポジトリ（animalekarte-api）
 │       ├── ecs/              # ALB, ECS Cluster/Service/Task
 │       └── github-oidc/      # GitHub Actions OIDC 連携
-├── terraform-bootstrap/      # S3・DynamoDB 初期化
-└── docs/
-    ├── deployment-guide.md   # デプロイ手順・トラブルシューティング
-    └── architecture.md       # アーキテクチャ詳細
+└── terraform-bootstrap/      # S3・DynamoDB 初期化
 ```
+
+> インフラ関連ドキュメントは `docs/ops/`（構成書・デプロイハブ・ランブック）に集約されている。
 
 ### State 管理
 
@@ -241,5 +240,8 @@ make build-prod   # animal-ekarte-api:latest + animal-ekarte-front:latest
 
 | ドキュメント | 説明 |
 |-------------|------|
-| [デプロイガイド](docs/deployment-guide.md) | デプロイ手順・トラブルシューティング |
-| [アーキテクチャ詳細](docs/architecture.md) | インフラアーキテクチャ設計（infra/docs/ 配下） |
+| [デプロイハブ](../docs/ops/deploy/README.md) | デプロイ手順・ロールバック判定（Cloudflare 正系統 / ECS はロールバック専用） |
+| [インフラ構成書](../docs/ops/infra-architecture.md) | インフラアーキテクチャ設計 |
+
+> 旧 `infra/docs/{architecture,deployment-guide}.md` は AWS 時代の凍結コピー（Cloudflare 移行を未反映）
+> だったため 2026-07-16 に削除した（docs/ops/ が正本。経緯は git 履歴参照）。

@@ -111,11 +111,24 @@ mutate_wrong_table_total() {
   printf '全3テーブルの設計。\n' > "$1/docs/architecture/erd.md"
 }
 
-run_case "clean"             0 mutate_none
-run_case "phantom-component" 1 mutate_phantom_component
-run_case "phantom-hook"      1 mutate_phantom_hook
-run_case "phantom-file"      1 mutate_phantom_file
-run_case "wrong-table-total" 1 mutate_wrong_table_total
+mutate_disallowed_topdir() {
+  # docs/ 直下 allowlist 外のフォルダ（旧 docs/infra/ 復活の再発防止）
+  mkdir -p "$1/docs/infra"
+  printf '# 迷い込んだ文書\n' > "$1/docs/infra/stray.md"
+}
+
+mutate_disallowed_topfile() {
+  # docs/ 直下 allowlist 外のファイル
+  printf '# 直下に置かれた文書\n' > "$1/docs/STRAY_DOC.md"
+}
+
+run_case "clean"                0 mutate_none
+run_case "phantom-component"    1 mutate_phantom_component
+run_case "phantom-hook"         1 mutate_phantom_hook
+run_case "phantom-file"         1 mutate_phantom_file
+run_case "wrong-table-total"    1 mutate_wrong_table_total
+run_case "disallowed-topdir"    1 mutate_disallowed_topdir
+run_case "disallowed-topfile"   1 mutate_disallowed_topfile
 
 if [[ "$failures" -gt 0 ]]; then
   echo "NG    docs-symbol-drift self-test: ${failures} case(s) failed"

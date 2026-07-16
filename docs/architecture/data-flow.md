@@ -47,9 +47,9 @@
 2.  **同期ディスパッチ**: レスポンス返却前に `syncCPMStageTag` → `tagSyncSvc.SyncCPMStageTag(ctx, clinicID, ownerID)` を**同期呼び出し**（goroutine ではない）。タグ同期が失敗してもエラーは記録のみで会計処理は継続（fail-open）。
 3.  **Condition Judge**: 
     - 累計売上、来院頻度、最終来院日を再計算。
-    - CPM ステージが変動したか判定。
-4.  **External API**: Lステップ API を呼び出し、タグを付与/解除。
-5.  **Audit Log**: 処理結果（成功/失敗/除外理由）を `audit_logs` および `lstep_delivery_trigger_log` に記録。
+    - CPM ステージを再算出（変動判定は行わず、旧ステージタグを全削除して新ステージタグを付与する冪等方式。`lstep_tag_sync_visit_cpm.go`）。
+4.  **External API**: Lステップ API クライアント経由でタグを付与/解除。ただし **Write 系 API（AddTag/RemoveTag 等）はポリシーにより一時停止中**で、`internal/infra/lstep/tag.go` は HTTP 送信を抑止した noop（Read 系 `GetUserTags` は稼働）。
+5.  **記録**: 処理結果は `slog` とタグキャッシュ（`lstep_tag_cache_repository.go` の UpsertTag/DeleteTag）に反映。API 失敗はエラーカウンターに記録し、閾値到達で `EXCL_カルテ連携エラー` タグを付与。タグ同期経路では `audit_logs` / `lstep_delivery_trigger_log` への記録は行わない（後者は自動配信トリガー専用ログ）。
 
 ---
 

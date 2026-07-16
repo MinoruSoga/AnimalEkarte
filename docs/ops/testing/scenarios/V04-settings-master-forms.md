@@ -179,11 +179,11 @@
 
 ## 9. LINE 予約ページ設定 (line-reservation-page-editor)
 
-- ルート: `/line-reservation/page-editor`（/settings 外）。正本: [master-pages.md](../../../spec/screens/settings/master-pages.md)。本棚卸しでは深掘り未実施のため、実行時に文書と突合して確認する（LINE 予約系シナリオと重複していれば重複分はスキップ可）。
+- ルート: `/line-reservation/page-editor`（/settings 外）。正本: [28-line-reservation.md §2](../../../spec/screens/28-line-reservation.md)（旧 master-pages.md は 2026-07-16 に統合・削除）。本棚卸しでは深掘り未実施のため、実行時に文書と突合して確認する（LINE 予約系シナリオと重複していれば重複分はスキップ可）。
 
 | # | 操作 | 期待結果 |
 |:--|:--|:--|
-| 1 | 【要実測】master-pages.md と突合しながら C1（必須項目）・C2（保存 → 再読込永続）を実施 | 必須項目・保存動線は文書正本に従う（本棚卸しでは必須項目・一意制約とも未確認） |
+| 1 | 【要実測】28-line-reservation.md §2 と突合しながら C1（必須項目）・C2（保存 → 再読込永続）を実施 | 必須項目・保存動線は文書正本に従う（本棚卸しでは必須項目・一意制約とも未確認） |
 | 2 | (C3-1) 表示対象の予約区分選択肢を確認 | 予約区分マスタ実データ由来（§4 の「V04」区分が反映される） |
 
 ## 確認観点

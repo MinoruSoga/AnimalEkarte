@@ -5,7 +5,7 @@
 > **タイミング**: 統合テスト戦略の立案時。
 
 > **Animal Ekarte**: システム全体の整合性と信頼性を保証する検証戦略
-> **最新更新**: 2026-06-12 | **ステータス**: 推奨検証フェーズ完了
+> **最新更新**: 2026-07-16 | **ステータス**: 推奨検証フェーズ完了
 
 ---
 
@@ -19,15 +19,21 @@
 ### 2.1 ユニットテスト (Unit Testing)
 - **Backend**: `testify/assert` を用いた table-driven テストによる Service/Repository のロジック検証。
 - **Frontend**: `Vitest` + `React Testing Library` によるコンポーネントの挙動検証。
-- **合格基準**: 全テストスイートの 100% PASS。
+- **合格基準**: 全テストスイートの 100% PASS。カバレッジは ratchet 方式（ベースラインから tolerance 0.5pp を超える低下で CI fail — 正本は [../coverage-policy.md](../coverage-policy.md)）。
 
 ### 2.2 API 統合テスト (API Integration)
-- **目的**: 実際の DB 接続を伴い、トランザクションや外部キー制約、認可ミドルウェアの連動を確認。
+- **目的**: 実際の DB 接続を伴い、トランザクションや外部キー制約、認可ミドルウェアの連動を確認。CI（`.github/workflows/ci.yml`）の Backend job が PostgreSQL サービスコンテナ + 全マイグレーション適用の上で実行する。
 - **重点項目**: クリニック間でのデータリーク防止、一括保存時の不整合回避。
+- **補助ゲート**: CI には clinic_id 隔離 lint（Preload clinic-scope）・master-FK write / audit-tx / CASCADE / dbOrTx の各 inventory gate・docs-symbol-drift 等の静的検査 job が独立して常時実行され、pre-merge でブロックする。
 
 ### 2.3 E2E システムテスト (End-to-End)
-- **ツール**: Playwright によるブラウザ自動操作。
+- **ツール**: Playwright によるブラウザ自動操作（`frontend/e2e/` 配下の spec 群。設定は `frontend/playwright.config.ts`）。
 - **シナリオ**: 「予約の作成」から「会計の完了」までの一連の臨床フローを、実機環境に近い状態で再現。
+- **実行**: `frontend/scripts/run-e2e.sh`（CI の `.github/workflows/e2e.yml` も同スクリプトを使用）。手順の正本は [E2E_TESTING_GUIDE.md](E2E_TESTING_GUIDE.md)。
+
+### 2.4 手動検証・受け入れシナリオ（三層を補完する層）
+- **手動検証**: [SECTION_14_MANUAL_TEST_GUIDE.md](SECTION_14_MANUAL_TEST_GUIDE.md)（browser-test スキルが使用するブラウザ検証シナリオ）。
+- **納品前受け入れ**: [scenarios/](scenarios/README.md) — 業務フロー S01〜S12 + フォーム検証 V01〜V05。上記自動テストが覆わないギャップ（臨床安全・LIFF 通し・入院ケア等）を担当する。
 
 ---
 
@@ -37,16 +43,19 @@
 
 | 項目 | 目標値 | 検証方法 |
 |:---|:---|:---|
-| **同時接続数** | 50 ユーザー | `k6` スパイクテスト。 |
-| **応答速度 (p95)** | 500ms 以下 | API エンドポイントの定常負荷試験。 |
+| **同時接続数（定常）** | 50 ユーザー | `load-tests/k6-api-endpoints.js` の段階負荷試験。 |
+| **応答速度 (p95)** | 500ms 以下 | 同スクリプトの threshold（`p(95)<500`）で機械判定。 |
+| **スパイク耐性** | 100 ユーザーへ急増 | `load-tests/k6-spike-test.js`（threshold: `p(95)<2000`）。 |
 | **メモリ安定性** | 500MB 以下 | 長時間稼働時のプロファイリング。 |
+
+自動実行は `.github/workflows/performance-tests.yml`（毎日 12:00 JST + `workflow_dispatch`。k6 負荷試験 2 本 + Lighthouse 監査）。STG 向け持続負荷は `load-tests/k6-cf-stg-sustained.js` を手動で使用する。
 
 ---
 
 ## 4. 実行・レポート手順
 
 1.  **環境構築**: `make up` による検証用クリーン環境の起動。
-2.  **テスト実行**: バックエンド、フロントエンド、E2E の順にコマンドを実行。
+2.  **テスト実行**: フルスイートは CI（`ci.yml` / `e2e.yml`）が正本。ローカルはスコープ限定で実行する — BE は `docker compose exec backend go test ./internal/<pkg>/ -run <Name> -count=1`（フル `go test ./...` は実行禁止 — リポジトリ直下 `todo.md`「Docker 検証規約」）、E2E は `frontend/scripts/run-e2e.sh <spec>`。
 3.  **結果集計**: 失敗したテストケースのトリアージと修正、再実行。
 4.  **最終報告**: 実施時のテスト結果レポートとして記録（旧 FUNCTIONAL_TEST_REPORT.md は削除済み — git 履歴参照）。
 

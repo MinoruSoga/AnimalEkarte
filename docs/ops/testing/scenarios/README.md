@@ -9,7 +9,7 @@
 | 領域 | 正本 |
 |:---|:---|
 | 外来1件サイクル（予約→受付→カルテ→Lステップ同期）・会計精算計算・レジ金種突合・CRM タグ | [../SECTION_14_MANUAL_TEST_GUIDE.md](../SECTION_14_MANUAL_TEST_GUIDE.md) |
-| 画面表示・遷移・検索・マスタ CRUD の回帰 | Playwright E2E（`frontend/e2e/` 26 spec） |
+| 画面表示・遷移・検索・マスタ CRUD の回帰 | Playwright E2E（`frontend/e2e/` 配下の spec 群） |
 | **上記が覆わないギャップ（臨床安全・LIFF 通し・入院ケア・直近変更領域）** | **本ディレクトリ** |
 
 ## シナリオ索引（S01 から順に実行）
