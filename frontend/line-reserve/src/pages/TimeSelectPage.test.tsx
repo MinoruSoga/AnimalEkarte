@@ -13,6 +13,7 @@ const BASE_PROPS = {
   courseId: 10,
   staffId: 0,
   date: '2026-08-01',
+  isTrimming: false,
 };
 
 describe('TimeSelectPage（R-F4: 予約作成フロー・枠選択ステップ）', () => {

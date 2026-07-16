@@ -13,6 +13,7 @@ const BASE_PROPS = {
   staffId: 0,
   selectedDate: '',
   bookingWindow: 30,
+  isTrimming: false,
 };
 
 describe('DateSelectPage（R-F22/R-F23: 共通フェッチ状態管理・ステータス別エラー）', () => {

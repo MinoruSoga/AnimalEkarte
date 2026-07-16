@@ -4,12 +4,14 @@ import { ProgressDots } from '../components/ProgressDots';
 import { ListItem } from '../components/ListItem';
 import { BackButton } from '../components/BackButton';
 import { useFetchState } from '@/shared-liff/use-fetch-state';
+import { getStepProgress } from '../lib/step-progress';
 
 interface StaffSelectPageProps {
   clinicId: string;
   idToken: string;
   courseId: number;
   showNoStaffOption: boolean;
+  isTrimming: boolean;
   onSelect: (staffId: number, staffName: string) => void;
   onBack: () => void;
 }
@@ -19,6 +21,7 @@ export function StaffSelectPage({
   idToken,
   courseId,
   showNoStaffOption,
+  isTrimming,
   onSelect,
   onBack,
 }: StaffSelectPageProps) {
@@ -28,11 +31,13 @@ export function StaffSelectPage({
   );
   // R-F22/R-F23: ステータス別メッセージ解決と再試行導線を共通フックに統合。
   const { data: staffs, loading, error, retry } = useFetchState(fetcher, 'スタッフ一覧の取得');
+  // SD-16: トリミング分岐で挿入される2ステップ分、以降のフロー全体の total を一貫させる
+  const { current, total } = getStepProgress('staffSelect', isTrimming);
 
   return (
     <div className="min-h-screen bg-noah-teal-light flex flex-col">
       <div className="max-w-md mx-auto w-full flex flex-col flex-1">
-        <ProgressDots current={3} total={8} />
+        <ProgressDots current={current} total={total} />
 
         <div className="px-4">
           <BackButton onClick={onBack} />

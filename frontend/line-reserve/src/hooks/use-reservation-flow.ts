@@ -20,7 +20,6 @@ const initialFlow: ReservationFlow = {
   trimmingCourseId: null,
   trimmingCourseName: '',
   trimmingOptionIds: [],
-  trimmingStyleRequest: '',
 };
 
 interface UseReservationFlowReturn {
@@ -33,7 +32,6 @@ interface UseReservationFlowReturn {
   setRequestText: (text: string) => void;
   setTrimmingCourse: (id: number, name: string) => void;
   setTrimmingOptions: (ids: number[]) => void;
-  setTrimmingStyleRequest: (text: string) => void;
   resetFlow: () => void;
 }
 
@@ -72,10 +70,6 @@ export function useReservationFlow(): UseReservationFlowReturn {
     setFlow(prev => ({ ...prev, trimmingOptionIds: ids }));
   }, []);
 
-  const setTrimmingStyleRequest = useCallback((text: string) => {
-    setFlow(prev => ({ ...prev, trimmingStyleRequest: text }));
-  }, []);
-
   const resetFlow = useCallback(() => {
     setFlow(initialFlow);
   }, []);
@@ -90,7 +84,6 @@ export function useReservationFlow(): UseReservationFlowReturn {
     setRequestText,
     setTrimmingCourse,
     setTrimmingOptions,
-    setTrimmingStyleRequest,
     resetFlow,
   };
 }

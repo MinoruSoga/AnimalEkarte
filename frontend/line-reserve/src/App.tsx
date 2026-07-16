@@ -56,6 +56,8 @@ export function App() {
     resetFlow,
   } = useReservationFlow();
 
+  const isTrimming = flow.courseCategory === 'trimming';
+
   // settings を取得して liffId を確定
   const [liffId, setLiffId] = useState<string>('');
   const { idToken, isReady, initError } = useLiff(liffId);
@@ -241,11 +243,12 @@ export function App() {
         idToken={idToken}
         courseId={flow.courseId ?? 0}
         showNoStaffOption={settings.show_no_staff_option}
+        isTrimming={isTrimming}
         onSelect={(staffId, staffName) => {
           setStaff(staffId, staffName);
           goTo('step4');
         }}
-        onBack={() => goTo('step2')}
+        onBack={() => goTo(isTrimming ? 'step2c' : 'step2')}
       />
     );
   } else if (page === 'step4') {
@@ -257,6 +260,7 @@ export function App() {
         staffId={flow.staffId}
         selectedDate={flow.date}
         bookingWindow={settings.booking_window}
+        isTrimming={isTrimming}
         onSelect={setDate}
         onNext={() => goTo('step5')}
         onBack={() => goTo('step3')}
@@ -270,6 +274,7 @@ export function App() {
         courseId={flow.courseId ?? 0}
         staffId={flow.staffId}
         date={flow.date}
+        isTrimming={isTrimming}
         onSelect={(startTime, endTime) => {
           setTime(startTime, endTime);
           goTo('step6');
@@ -282,6 +287,7 @@ export function App() {
       <RequestPage
         requestExample={settings.request_example}
         initialText={flow.requestText}
+        isTrimming={isTrimming}
         onNext={(text) => {
           setRequestText(text);
           goTo('step7');

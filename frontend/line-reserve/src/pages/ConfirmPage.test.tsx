@@ -35,7 +35,6 @@ const baseFlow: ReservationFlow = {
   trimmingCourseId: null,
   trimmingCourseName: '',
   trimmingOptionIds: [],
-  trimmingStyleRequest: '',
 };
 
 const BASE_PROPS = {

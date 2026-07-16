@@ -2,10 +2,12 @@ import { useState, useCallback } from 'react';
 import { ProgressDots } from '../components/ProgressDots';
 import { PrimaryButton } from '../components/PrimaryButton';
 import { BackButton } from '../components/BackButton';
+import { getStepProgress } from '../lib/step-progress';
 
 interface RequestPageProps {
   requestExample: string;
   initialText: string;
+  isTrimming: boolean;
   onNext: (text: string) => void;
   onBack: () => void;
 }
@@ -13,10 +15,13 @@ interface RequestPageProps {
 export function RequestPage({
   requestExample,
   initialText,
+  isTrimming,
   onNext,
   onBack,
 }: RequestPageProps) {
   const [text, setText] = useState<string>(initialText);
+  // SD-16: トリミング分岐で挿入される2ステップ分、以降のフロー全体の total を一貫させる
+  const { current, total } = getStepProgress('request', isTrimming);
 
   const handleChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setText(e.target.value);
@@ -29,7 +34,7 @@ export function RequestPage({
   return (
     <div className="min-h-screen bg-noah-teal-light flex flex-col">
       <div className="max-w-md mx-auto w-full flex flex-col flex-1">
-        <ProgressDots current={6} total={8} />
+        <ProgressDots current={current} total={total} />
 
         <div className="px-4">
           <BackButton onClick={onBack} />

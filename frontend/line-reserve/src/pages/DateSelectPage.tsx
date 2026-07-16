@@ -6,6 +6,7 @@ import { BackButton } from '../components/BackButton';
 import { Calendar } from '../components/Calendar';
 import { formatJapaneseDate } from '@/shared-liff/jst-date';
 import { useFetchState } from '@/shared-liff/use-fetch-state';
+import { getStepProgress } from '../lib/step-progress';
 
 interface DateSelectPageProps {
   clinicId: string;
@@ -14,6 +15,7 @@ interface DateSelectPageProps {
   staffId: number;
   selectedDate: string;
   bookingWindow: number;
+  isTrimming: boolean;
   onSelect: (date: string) => void;
   onNext: () => void;
   onBack: () => void;
@@ -26,6 +28,7 @@ export function DateSelectPage({
   staffId,
   selectedDate,
   bookingWindow,
+  isTrimming,
   onSelect,
   onNext,
   onBack,
@@ -36,6 +39,8 @@ export function DateSelectPage({
   );
   // R-F22/R-F23: ステータス別メッセージ解決と再試行導線を共通フックに統合。
   const { data: availableDates, loading, error, retry } = useFetchState(fetcher, '空き日程の取得');
+  // SD-16: トリミング分岐で挿入される2ステップ分、以降のフロー全体の total を一貫させる
+  const { current, total } = getStepProgress('dateSelect', isTrimming);
 
   const formatSelectedDate = (date: string): string => {
     return formatJapaneseDate(date);
@@ -44,7 +49,7 @@ export function DateSelectPage({
   return (
     <div className="min-h-screen bg-noah-teal-light flex flex-col">
       <div className="max-w-md mx-auto w-full flex flex-col flex-1">
-        <ProgressDots current={4} total={8} />
+        <ProgressDots current={current} total={total} />
 
         <div className="px-4">
           <BackButton onClick={onBack} />

@@ -134,7 +134,6 @@ export interface CreateReservationBody {
   request_text: string;
   trimming_course_id?: number;     // BE-120
   trimming_option_ids?: number[];  // BE-120
-  trimming_style_request?: string; // BE-120
 }
 
 export interface CustomerInfo {
@@ -158,7 +157,6 @@ export interface ReservationFlow {
   trimmingCourseId: number | null;  // BE-120
   trimmingCourseName: string;       // BE-120
   trimmingOptionIds: number[];      // BE-120
-  trimmingStyleRequest: string;     // BE-120
 }
 
 export type PageType =

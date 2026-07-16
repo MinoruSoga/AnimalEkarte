@@ -5,6 +5,7 @@ import { ListItem } from '../components/ListItem';
 import { BackButton } from '../components/BackButton';
 import { useFetchState } from '@/shared-liff/use-fetch-state';
 import { formatCurrency } from '@/utils/format/number';
+import { getStepProgress } from '../lib/step-progress';
 
 interface TrimmingCourseSelectPageProps {
   clinicId: string;
@@ -22,11 +23,13 @@ export function TrimmingCourseSelectPage({ clinicId, idToken, onSelect, onBack }
   const fetcher = useCallback(() => liffApi.getTrimmingCourses(clinicId, idToken), [clinicId, idToken]);
   // R-F22/R-F23: ステータス別メッセージ解決と再試行導線を共通フックに統合。
   const { data: courses, loading, error, retry } = useFetchState(fetcher, 'トリミングコースの取得');
+  // SD-16: トリミングフロー内で一貫した total を使う（他の共有ページと同じ算出元）
+  const { current, total } = getStepProgress('trimmingCourseSelect', true);
 
   return (
     <div className="min-h-screen bg-noah-teal-light flex flex-col">
       <div className="max-w-md mx-auto w-full flex flex-col flex-1">
-        <ProgressDots current={3} total={9} />
+        <ProgressDots current={current} total={total} />
 
         <div className="px-4">
           <BackButton onClick={onBack} />

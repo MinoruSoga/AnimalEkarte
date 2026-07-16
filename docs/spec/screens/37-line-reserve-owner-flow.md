@@ -20,7 +20,7 @@
         └─ マイ予約（予約確認・キャンセル）←──────────────────── step8 からも遷移可
 ```
 
-ステップ画面には `ProgressDots`（現在位置ドット・`aria-label` 付き）と `BackButton` が付き、戻っても入力値は `useReservationFlow` の状態に保持される。
+ステップ画面には `ProgressDots`（現在位置ドット・`aria-label` 付き）と `BackButton` が付き、戻っても入力値は `useReservationFlow` の状態に保持される。トリミング分岐（step2b/step2c 経由）では総ステップ数が一般フローより 2 つ多くなるため、`getStepProgress`（`lib/step-progress.ts`）が分岐の有無に応じた一貫した `current`/`total` を算出する（step3 以降の共有ページも含め、分岐前後で番号が後退しない）。step3 スタッフ選択の「戻る」は分岐時のみ step2c（トリミングオプション選択）へ戻る。
 
 ### 各画面の役割と入力項目
 

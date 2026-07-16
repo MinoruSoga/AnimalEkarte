@@ -4,6 +4,7 @@ import { ProgressDots } from '../components/ProgressDots';
 import { BackButton } from '../components/BackButton';
 import { useFetchState } from '@/shared-liff/use-fetch-state';
 import { formatCurrency } from '@/utils/format/number';
+import { getStepProgress } from '../lib/step-progress';
 
 interface TrimmingOptionSelectPageProps {
   clinicId: string;
@@ -29,6 +30,7 @@ export function TrimmingOptionSelectPage({
   const fetcher = useCallback(() => liffApi.getTrimmingOptions(clinicId, idToken), [clinicId, idToken]);
   // R-F22/R-F23: ステータス別メッセージ解決と再試行導線を共通フックに統合。
   const { data: options, loading, error, retry } = useFetchState(fetcher, 'オプションの取得');
+  const { current, total } = getStepProgress('trimmingOptionSelect', true);
 
   const toggleOption = (id: number) => {
     setSelected(prev => {
@@ -45,7 +47,7 @@ export function TrimmingOptionSelectPage({
   return (
     <div className="min-h-screen bg-noah-teal-light flex flex-col">
       <div className="max-w-md mx-auto w-full flex flex-col flex-1">
-        <ProgressDots current={4} total={9} />
+        <ProgressDots current={current} total={total} />
 
         <div className="px-4">
           <BackButton onClick={onBack} />

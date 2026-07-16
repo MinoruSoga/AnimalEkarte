@@ -12,6 +12,7 @@ const BASE_PROPS = {
   idToken: 'test-id-token',
   courseId: 10,
   showNoStaffOption: false,
+  isTrimming: false,
 };
 
 const staff: Staff = {
