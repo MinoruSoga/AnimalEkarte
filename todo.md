@@ -35,7 +35,6 @@
 | # | 内容 | 現状 |
 |---|---|---|
 | #211 | 検査・健診パッケージ化 | **PO 決裁済・A1+A2+A6 消化済み（2026-07-16）**。A1+A2（アドプリット削除＋尿比重 min/max 空化・commit 90553a51）は seed 編集完了・`db_reset` は USER。A6（checkup_type_fields↔checkup_types 複合 FK・commit 59aa533a）は `002_checkup_field_clinic_composite_fk.sql` として起草完了（起草時に checkup_field_results↔checkup_type_fields 側は既に 001_init.sql 実装済みと判明・対象は checkup_types 側 1 本のみに縮小）。STG 適用・DROP CONSTRAINT 対象の実制約名確認は USER。やらない分（CRUD UI／四季分割・腎臓ドック／select 異常ハイライト／ライブ E2E）は `phase2.html`。provisional 解除はクライアント臨床責任者確認後に seed 手動更新 |
-| #201 | 薬量自動計算 | **実装・PO 運用確定済・残作業ゼロ**（B2 コード注記更新は 2026-07-16 消化 — audit metadata 側は該当文字列なしを grep 確認）。**gh クローズは USER**（B5 文言） |
 | #89/#97/#98/#99/#109 | シークレット移行・ローテーション | **USER BLOCKED**（リポジトリ Phase A 済）。4系統ローテ / P5-2 Secrets / #97 本文マスク / #109 フォールバック撤去。詳細は SEC-SECRETS-5 |
 
 ### P2 — follow-up
@@ -64,14 +63,11 @@
 | SEC-SECRETS-5: 4系統ローテーション＋ P5-2 GitHub Secrets 登録＋ #97 本文マスク | PUBLIC 履歴露出の実効無効化。手順: runbook §0.5 / `infra/cloudflare/README.md` |
 | seed 003_demo 変更後のローカル/STG `db_reset`（SEC / #211 A1+A2） | migration-seed-safety。エージェントは DB reset 自動実行禁止 |
 | #211 A6: `002_checkup_field_clinic_composite_fk.sql` の実DB適用 | DROP CONSTRAINT 対象の推定制約名（`checkup_type_fields_checkup_type_id_fkey`）を `\d checkup_type_fields` で事前確認してから `go run ./cmd/migrate`。migration適用はエージェント禁止 |
-| #201 B2 / #211 A6 の scoped 検証（docker 未起動のため本セッション未実行） | `docker compose exec backend go test ./internal/service/ -run 'Dose' -count=1`／`gofmt -l ./internal/service/`（B2）。A6 は静的SQLレビュー(database-reviewer)のみ実施済み・DB適用時の実SQL実行検証は未実施 |
+| #211 A6 の DB 適用時 実SQL実行検証（静的SQLレビューのみ実施済み） | B2 の scoped 検証は 2026-07-16 実施済み・green（`docker compose run --no-deps` 経由: go test -run Dose ok／gofmt・build・vet clean） |
 | #109 Phase C: `STG_DEMO_*` 登録後に performance-tests フォールバック撤去（エージェント可） | Secrets 未登録のまま撤去すると scheduled が壊れる |
 | Vercel Production `VITE_SHOW_DEMO_ACCOUNTS=false` 確認/設定 | 外部システム操作 |
 | `terraform apply` 承認（tfvars 準備済み） | インフラ破壊的変更 |
 | ADR-003（PO-006）独立 Issue 起票 | PO 承認済。案1B TRIGGER＋二重保持解消検討 |
-| #201 gh Issue クローズ | PO 運用確定済。残記録文言は B5 |
-| #229 gh Issue クローズ | ローカル実装完了済み |
-| #214（bug.md 対応検証チェックリスト）の gh クローズ判断 | 2026-06 起票・open のまま台帳外。起票元 bug.md はアーカイブ削除済み・対応自体は 2026-07-02 完遂。存置理由がなければクローズ |
 | Sentry 等ベンダ確定・課金契約（PO-002） | 課金・外部契約 |
 
 ---
@@ -122,16 +118,13 @@
 
 > 出所: docs/spec/screens 全 62 ファイル実装突合（commit a476b727）の副産物。**doc は現状実装に合わせ済み**のため、修正するなら実装側＋該当 doc の再更新をセットで行う。各件とも「仕様としてこれで正か」の triage が先。
 
+> SD-1/SD-2/SD-5/SD-7/SD-8 は 2026-07-16 に triage→修正完了（各コミット参照）。SD-6 は SD-1 修正時の blindspot 調査で「同型のサイレント消失」と確認済みだが本パスのスコープ外につき未修正（`next_schedule_type` が `use-vaccination-form.ts` の create/update payload から欠落 — SD-1 と同じ2ファイル・同じ修正パターンで解消可能）。
+
 | # | 疑い内容 | 根拠 | 分類 |
 |---|---------|------|------|
-| SD-1 | 予防接種フォーム `supplemental` 欄: UI 入力可・BE 受理するが FE リクエスト型に含まれず**保存されずサイレント消失** | FE リクエスト型 vs `VaccinationForm.tsx` | **データ損失** |
-| SD-2 | 確定済みカルテでも画像の追加・削除が可能（finalized ガード欠落） | `medical_record_image_service.go` にロック検査なし | **臨床安全** |
 | SD-3 | `LineReservationSettingsForm` が formData から `line_channel_secret`/`line_access_token` を読むが対応 input が存在せず**常に null 送信** | 同コンポーネント実装 | 機能不全 |
 | SD-4 | 在庫 `min_stock_level` から status を判定するロジックがどこにも無く**在庫アラートパネルが死に機能** | 18-inventory-list 突合 | 機能不全 |
-| SD-5 | 見積ステータス色判定が `"accepted"`/`"expired"` を見るが実 enum は draft/sent/approved/rejected → **承認済みバッジが常にグレー** | `frontend/src/utils/status-helpers.ts:205` `getEstimateStatusColor` | 表示バグ |
-| SD-6 | 予防接種「次回予定」ラジオ（3週間後等）が nextDate 計算に未配線・ペイロード非含有 | 15-vaccinations-form 突合 | 機能不全 |
-| SD-7 | LINE 予約枠カレンダーに旧ホワイトリスト仕様の警告文が残存（BE は 2026-06-11 から加算モード）→ 運用誤誘導 | `LineReservationSlotsSettings.tsx:111` | 文言ドリフト |
-| SD-8 | 飼主削除 ConfirmDialog 文言「ペット情報も削除されます」⇔ BE はペット紐付き時 409 拒否（文言が誤誘導） | 03-owners-list 突合 | 文言ドリフト |
+| SD-6 | 予防接種「次回予定」ラジオ（3週間後等）が nextDate 計算に未配線・ペイロード非含有（SD-1 修正時の blindspot 調査で実バグ確認済み・未修正） | 15-vaccinations-form 突合 | 機能不全 |
 | SD-9 | デフォルト権限グループ「執行」「一般」が権限ルール 0 で作成される（新規院で system_admin 以外全機能アクセス不能の疑い） | `clinic_service.go` | 要仕様確認 |
 | SD-10 | 入院新規: 死亡ペットのブロックがペット選択 UI のみで直接 URL・BE に防御なし | 09-hospitalization-form 突合 | 臨床安全（低） |
 | SD-11 | シフト: 有休（paid_leave）選択で時刻入力が非活性にならない | 24-shift-calendar 突合（BUG-092 趣旨と矛盾疑い） | UX |
@@ -144,7 +137,7 @@
 | SD-18 | OwnerReport: 検査・治療・トリミング履歴が limit=100 固定でサイレント打ち切り（ページング・超過表示なし） | `HISTORY_FETCH_LIMIT` / 39 doc 新設時発見 | UX |
 | SD-19 | OwnerReport: 予防接種日付のみブラウザローカル TZ 整形で、治療履歴の `toJSTWallDate` と不統一 → 海外 TZ 環境で 1 日ずれ得る | 39 doc 新設時発見 | 表示バグ（低） |
 
-- 対応順推奨: SD-1（データ損失）→ SD-2（臨床安全・§2.1 ロック整合）→ SD-3/SD-4（機能不全）→ SD-5/SD-7/SD-8（表示・文言）→ 残りは triage 後。
+- 対応順推奨: SD-3/SD-4（機能不全）→ SD-6（SD-1 同型）→ 残りは triage 後。
 - SD-9 は新規院開設フローの実運用確認が先（既存院は影響なし）。SD-13 はインボイス番号の入力経路が別導線（seed/管理者直接）で足りているかの PO 判断。
 
 ### AnimalEkarte CSV import — USER actions
