@@ -50,7 +50,7 @@ func (s *treatmentService) evaluateDoseForSave(
 		return nil, nil
 	}
 
-	// 体重を解決（来院近傍 vital・運用確定待ち）。未記録は fail-closed（手動）。
+	// 体重を解決（来院近傍 vital・暫定確定(2026-07-15 PO)）。未記録は fail-closed（手動）。
 	weightKg, weightSource, ok := s.resolveDoseWeight(ctx, repos, clinicID, medicalRecordID)
 	if !ok {
 		slog.InfoContext(ctx, "dose revalidation skipped: weight unavailable", "medical_record_id", medicalRecordID)
@@ -83,7 +83,7 @@ func (s *treatmentService) evaluateDoseForSave(
 	return &eval, nil
 }
 
-// resolveDoseWeight は来院カルテの vital から最新の体重(kg)を解決する（運用確定待ちの安全側デフォルト）。
+// resolveDoseWeight は来院カルテの vital から最新の体重(kg)を解決する（暫定確定(2026-07-15 PO)の安全側デフォルト）。
 func (s *treatmentService) resolveDoseWeight(ctx context.Context, repos *repository.Repositories, clinicID, medicalRecordID uint64) (weightKg float64, source string, ok bool) {
 	vitals, err := repos.Vital.FindByMedicalRecordID(ctx, clinicID, medicalRecordID)
 	if err != nil {

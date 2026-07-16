@@ -12,7 +12,7 @@ import (
 
 const (
 	// maxReasonableDosePerKg / maxReasonableStrength は桁間違い等のタイプミスを弾く緩い上限。
-	// 臨床上限ではない（false-reject 回避のため意図的に緩い）。確定閾値は運用確定待ち（#201 確認事項）。
+	// 臨床上限ではない（false-reject 回避のため意図的に緩い）。確定閾値は暫定確定(2026-07-15 PO)（#201 確認事項）。
 	maxReasonableDosePerKg = 100000.0  // mg/kg
 	maxReasonableStrength  = 1000000.0 // mg/単位
 )

@@ -19,7 +19,7 @@ import (
 
 const doseAmountUnitMg = "mg"
 
-// doseDeviationRelThreshold は「著しい逸脱」とみなす相対乖離の安全側デフォルト（運用確定待ち・#201 B-5）。
+// doseDeviationRelThreshold は「著しい逸脱」とみなす相対乖離の安全側デフォルト（暫定確定(2026-07-15 PO)・#201 B-5）。
 // computed quantity に対して submitted がこの割合を超えて乖離したら逸脱として audit する。
 const doseDeviationRelThreshold = 0.20
 
