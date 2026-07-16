@@ -15,3 +15,4 @@ id,email,password_hash,is_active,is_system_admin,created_at,updated_at,deleted_a
 15,joto-vet@example.com,$2a$10$jr4KmlfkPGeu2FXPA0jPtOLbCpdHAf3PUGMkI2ZVtWb6pKNYjWyQ6,t,f,2026-07-06 14:59:40.511971+09,2026-07-06 14:59:40.511971+09,
 16,shiki-vet@example.com,$2a$10$jr4KmlfkPGeu2FXPA0jPtOLbCpdHAf3PUGMkI2ZVtWb6pKNYjWyQ6,t,f,2026-07-06 14:59:40.511971+09,2026-07-06 14:59:40.511971+09,
 17,chunzishan72@gmail.com,$2a$12$83ztnVW/5NSm1kDq3ZiqXOuu41J2MLSrQ40b.v2/e6PpxheZ.4kIK,t,f,2026-07-06 14:59:40.882499+09,2026-07-06 14:59:40.882499+09,
+18,viewer@example.com,$2a$10$jr4KmlfkPGeu2FXPA0jPtOLbCpdHAf3PUGMkI2ZVtWb6pKNYjWyQ6,t,f,2026-07-06 14:59:40.511971+09,2026-07-06 14:59:40.511971+09,
