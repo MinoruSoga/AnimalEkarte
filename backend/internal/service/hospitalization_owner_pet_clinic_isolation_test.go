@@ -138,6 +138,11 @@ func TestHospitalizationService_Create_AcceptsSameClinicOwnerPet(t *testing.T) {
 	svc := NewHospitalizationService(&repository.Repositories{
 		Hospitalization: hospRepo,
 		Reservation:     acceptMatchingOwnerPetReservationRepo(ownedOwnerID, ownedPetID),
+		Pet: &mockPetRepository{
+			findByIDFn: func(_ context.Context, _, id uint64) (*model.Pet, error) {
+				return &model.Pet{ID: id}, nil
+			},
+		},
 	})
 
 	got, err := svc.Create(context.Background(), clinicID, &CreateHospitalizationInput{
@@ -264,6 +269,11 @@ func TestHospitalizationService_Update_AcceptsSameClinicFinalOwnerPet(t *testing
 	svc := NewHospitalizationService(&repository.Repositories{
 		Hospitalization: hospRepo,
 		Reservation:     acceptMatchingOwnerPetReservationRepo(ownedOwnerID, ownedPetID),
+		Pet: &mockPetRepository{
+			findByIDFn: func(_ context.Context, _, id uint64) (*model.Pet, error) {
+				return &model.Pet{ID: id}, nil
+			},
+		},
 	})
 
 	got, err := svc.Update(context.Background(), clinicID, 1, &UpdateHospitalizationInput{PetID: &newPetID})

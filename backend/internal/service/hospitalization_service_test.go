@@ -354,6 +354,11 @@ func TestHospitalizationService_Create(t *testing.T) {
 						return tt.input.OwnerID, nil
 					},
 				},
+				Pet: &mockPetRepository{
+					findByIDFn: func(_ context.Context, _, id uint64) (*model.Pet, error) {
+						return &model.Pet{ID: id}, nil
+					},
+				},
 			})
 
 			hosp, err := svc.Create(context.Background(), tt.clinicID, tt.input)
@@ -670,6 +675,11 @@ func TestHospitalizationService_Create_InsuranceFields(t *testing.T) {
 						return tt.input.OwnerID, nil
 					},
 				},
+				Pet: &mockPetRepository{
+					findByIDFn: func(_ context.Context, _, id uint64) (*model.Pet, error) {
+						return &model.Pet{ID: id}, nil
+					},
+				},
 			})
 
 			hosp, err := svc.Create(context.Background(), 1, tt.input)
@@ -680,6 +690,73 @@ func TestHospitalizationService_Create_InsuranceFields(t *testing.T) {
 			assert.Equal(t, tt.wantInsuranceNumber, captured.InsuranceNumber)
 		})
 	}
+}
+
+func TestHospitalizationService_Create_RejectsDeceasedPet(t *testing.T) {
+	now := time.Now()
+	deceasedAt := now.Add(-24 * time.Hour)
+	repo := &mockHospitalizationRepository{
+		createFn: func(_ context.Context, _ *model.Hospitalization) error {
+			t.Fatal("hospitalization must not be created for a deceased pet")
+			return nil
+		},
+	}
+	svc := NewHospitalizationService(&repository.Repositories{
+		Hospitalization: repo,
+		Reservation: &mockReservationRepository{
+			assertOwnerInClinicFn:  func(_ context.Context, _, _ uint64) error { return nil },
+			findPetOwnerInClinicFn: func(_ context.Context, _, _ uint64) (uint64, error) { return 2, nil },
+		},
+		Pet: &mockPetRepository{
+			findByIDFn: func(_ context.Context, _, id uint64) (*model.Pet, error) {
+				return &model.Pet{ID: id, DeceasedAt: &deceasedAt}, nil
+			},
+		},
+	})
+
+	hosp, err := svc.Create(context.Background(), 1, &CreateHospitalizationInput{
+		OwnerID:             2,
+		PetID:               5,
+		HospitalizationType: model.HospitalizationTypeInpatient,
+		StartDate:           now,
+		EndDate:             now.Add(24 * time.Hour),
+	})
+
+	assert.Error(t, err)
+	assert.True(t, apperrors.IsInvalidInput(err))
+	assert.Nil(t, hosp)
+}
+
+func TestHospitalizationService_Update_RejectsDeceasedPetReplacement(t *testing.T) {
+	deceasedAt := time.Now().Add(-24 * time.Hour)
+	newPetID := uint64(9)
+	repo := &mockHospitalizationRepository{
+		findByIDFn: func(_ context.Context, _, id uint64) (*model.Hospitalization, error) {
+			return &model.Hospitalization{ID: id, ClinicID: 1, OwnerID: 2, PetID: 5}, nil
+		},
+		updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Hospitalization, error) {
+			t.Fatal("hospitalization must not be updated when the replacement pet is deceased")
+			return nil, nil
+		},
+	}
+	svc := NewHospitalizationService(&repository.Repositories{
+		Hospitalization: repo,
+		Reservation: &mockReservationRepository{
+			assertOwnerInClinicFn:  func(_ context.Context, _, _ uint64) error { return nil },
+			findPetOwnerInClinicFn: func(_ context.Context, _, _ uint64) (uint64, error) { return 2, nil },
+		},
+		Pet: &mockPetRepository{
+			findByIDFn: func(_ context.Context, _, id uint64) (*model.Pet, error) {
+				return &model.Pet{ID: id, DeceasedAt: &deceasedAt}, nil
+			},
+		},
+	})
+
+	hosp, err := svc.Update(context.Background(), 1, 1, &UpdateHospitalizationInput{PetID: &newPetID})
+
+	assert.Error(t, err)
+	assert.True(t, apperrors.IsInvalidInput(err))
+	assert.Nil(t, hosp)
 }
 
 func TestBuildHospitalizationUpdate_InsuranceFields(t *testing.T) {

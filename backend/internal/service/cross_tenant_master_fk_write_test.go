@@ -791,6 +791,11 @@ func TestHospitalizationService_Create_RejectsCrossClinicCageFK(t *testing.T) {
 					return 2, nil
 				},
 			},
+			Pet: &mockPetRepository{
+				findByIDFn: func(_ context.Context, _, id uint64) (*model.Pet, error) {
+					return &model.Pet{ID: id}, nil
+				},
+			},
 		})
 	}
 

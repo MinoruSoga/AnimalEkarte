@@ -59,6 +59,20 @@ type UpdateHospitalizationInput struct {
 	InsuranceNumber      *string
 }
 
+// validatePetNotDeceased は死亡ペットへの入院登録・貼り替えをブロックする（SD-10・臨床安全）。
+// FE のペット選択 UI は死亡ペットをクリック不可にするだけで API 直叩きを防げないため、
+// BE 側でも fail-closed に検証する。
+func validatePetNotDeceased(ctx context.Context, petRepo repository.PetRepository, clinicID, petID uint64) error {
+	pet, err := petRepo.FindByID(ctx, clinicID, petID)
+	if err != nil {
+		return apperrors.Wrap(err, "failed to verify pet status")
+	}
+	if pet.DeceasedAt != nil {
+		return apperrors.WrapInvalidInput("死亡したペットは入院登録できません")
+	}
+	return nil
+}
+
 // resolveFinalHospitalizationOwnerPet は PATCH 入力と現在値から最終 Owner/Pet を求める（AUD-004）。
 func resolveFinalHospitalizationOwnerPet(existing *model.Hospitalization, input *UpdateHospitalizationInput) (ownerID, petID *uint64) {
 	o, p := existing.OwnerID, existing.PetID
@@ -186,6 +200,11 @@ func (s *hospitalizationService) Create(ctx context.Context, clinicID uint64, in
 		return nil, err
 	}
 
+	// 死亡ペットの入院ブロック（SD-10）
+	if err := validatePetNotDeceased(ctx, s.repos.Pet, clinicID, petID); err != nil {
+		return nil, err
+	}
+
 	// クロステナント write 防止: request 由来の cage マスタが caller の clinic に属することを検証する。
 	if err := validateOwnedMasterFK(ctx, "cage", clinicID, input.CageID,
 		func(actx context.Context, cid, mid uint64) error {
@@ -235,6 +254,13 @@ func (s *hospitalizationService) Update(ctx context.Context, clinicID, id uint64
 	if input.OwnerID != nil || input.PetID != nil {
 		finalOwnerID, finalPetID := resolveFinalHospitalizationOwnerPet(existing, input)
 		if err := validateReservationOwnerPetLinks(ctx, s.repos.Reservation, clinicID, finalOwnerID, finalPetID); err != nil {
+			return nil, err
+		}
+	}
+
+	// 死亡ペットへの貼り替えブロック（SD-10）: PetID が変更される場合のみ検証する。
+	if input.PetID != nil {
+		if err := validatePetNotDeceased(ctx, s.repos.Pet, clinicID, *input.PetID); err != nil {
 			return nil, err
 		}
 	}
