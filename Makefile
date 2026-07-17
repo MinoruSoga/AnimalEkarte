@@ -1,4 +1,4 @@
-.PHONY: up down build logs logs-api logs-front ps db clean reset migrate seed stage-import-dry-run stage-import verify-stage-import stage-import-rollback-test restart-api restart-front build-prod lint lint-fix test test-cover lint-front test-front build-front build-go mod-download mod-tidy help codegen codegen-check sync-modules schema-check setup-hooks ci dump-stg check-reset-contract check-reset-contract-test shellcheck shellcheck-test
+.PHONY: up down build logs logs-api logs-front ps db clean reset migrate seed stage-import-dry-run stage-import verify-stage-import stage-import-rollback-test restart-api restart-front build-prod lint lint-fix test test-cover lint-front test-front build-front e2e build-go mod-download mod-tidy help codegen codegen-check sync-modules schema-check setup-hooks ci dump-stg check-reset-contract check-reset-contract-test shellcheck shellcheck-test
 
 # デフォルトターゲット
 .DEFAULT_GOAL := help
@@ -165,9 +165,10 @@ GOLANGCI_LINT_VERSION := v2.11.4
 
 # ── 品質チェック分担（詳細: docs/ops/ci-policy.md）────────────────
 # リモート CI 必須: path-filtered build/test/coverage、gitleaks、
-#                   codegen/migration 検証、E2E、AgentShield
+#                   codegen/migration 検証、AgentShield
 # ローカル必須（make ci）: inventory / guardrail / shellcheck / golangci /
 #                          ESLint / type-check / knip / design CTA + build/test
+# ローカル任意: make e2e（Playwright。リモート自動 CI には含めない）
 # ────────────────────────────────────────────────────────────────
 
 # リンター実行（Go・ローカル必須）- 公式 golangci-lint イメージを使用
@@ -216,6 +217,14 @@ lint-front:
 # テスト実行（フロントエンド）
 test-front:
 	$(DC) exec frontend pnpm run test:run
+
+# Playwright E2E（ローカルのみ・リモート自動 CI 対象外）
+# 前提: make up 済みで frontend が http://localhost:3003 で応答すること。
+# 実体: frontend/scripts/run-e2e.sh（公式 Playwright Docker イメージ）
+# 例: make e2e
+#     make e2e ARGS='e2e/owners-search.spec.ts'
+e2e:
+	@bash frontend/scripts/run-e2e.sh $(ARGS)
 
 # フロントエンドビルド
 build-front:
@@ -298,7 +307,8 @@ help:
 	@echo ""
 	@echo "品質管理:"
 	@echo "  【ローカル必須】make ci（inventory/guardrail/lint/build/test 一括）"
-	@echo "  【リモート CI】gitleaks / path-filtered build+test+coverage / E2E — docs/ops/ci-policy.md"
+	@echo "  【ローカル任意】make e2e（Playwright・リモート自動 CI 外）"
+	@echo "  【リモート CI】gitleaks / path-filtered build+test+coverage — docs/ops/ci-policy.md"
 	@echo "  ci            ローカル一括 CI（scripts/run-local-ci.sh）"
 	@echo "  lint          Goリンター実行（golangci・ローカル必須）"
 	@echo "  lint-fix      Goリンター実行（自動修正）"
@@ -306,6 +316,7 @@ help:
 	@echo "  test-cover    Goテスト実行（カバレッジ付き）"
 	@echo "  lint-front    FE静的チェック（ESLint+type-check+knip・ローカル必須）"
 	@echo "  test-front    フロントエンドテスト実行"
+	@echo "  e2e           Playwright E2E（要 make up・ARGS= で spec 指定可）"
 	@echo "  build-front   フロントエンドビルド"
 	@echo "  codegen       型定義生成（Go model → TypeScript型）"
 	@echo "  codegen-check 型定義の差分チェック（CI用）"

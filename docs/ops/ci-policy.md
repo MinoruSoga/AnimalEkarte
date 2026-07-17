@@ -11,8 +11,9 @@
 
 | 区分 | 内容 | どこで担保するか |
 |---|---|---|
-| **リモート CI 必須** | path-filtered `build` / `test` / coverage ratchet、gitleaks（secret-scan）、codegen / migration 検証、schema drift（backend job 内）、E2E（PR→main スキップ・push main / PR→staging）、AgentShield | `.github/workflows/ci.yml` / `e2e.yml` / `security-scan.yml` |
+| **リモート CI 必須** | path-filtered `build` / `test` / coverage ratchet、gitleaks（secret-scan）、codegen / migration 検証、schema drift（backend job 内）、AgentShield | `.github/workflows/ci.yml` / `security-scan.yml` |
 | **ローカル必須 (`make ci`)** | clinic/audit inventory・preload、reset-contract、ci-step-order、docs-symbol-drift、eslint-disable rationale、shellcheck、design CTA、golangci-lint、ESLint / type-check / knip、codegen 同期、backend/frontend build+test（手元再現） | `make ci`（実体: `scripts/run-local-ci.sh`） |
+| **ローカル任意 (E2E)** | Playwright ブラウザ E2E（スタック起動が重く、PR Checks のノイズ・時間になりやすい） | `make e2e`（`frontend/scripts/run-e2e.sh`）。`.github/workflows/e2e.yml` は **workflow_dispatch のみ**（push/PR 自動実行なし） |
 | **schedule のみ** | 負荷・プロファイリング（performance） | `.github/workflows/performance-tests.yml`（push トリガなし・`workflow_dispatch` 可） |
 
 ### リモート CI のジョブ（`ci.yml`）
@@ -32,13 +33,15 @@
 - Docker 不要または `docker compose exec` で **ローカル完全再現**できる
 - 独立ジョブにすると PR Checks が 20 行超になり、失敗/スキップのノイズが増える
 - 再発防止の価値は **実行されること** にあり、実行場所はローカルで足りる
-- リモートに残すのは **共有環境での信頼が必要なもの**（gitleaks、fresh DB 上の test、coverage、E2E）
+- リモートに残すのは **共有環境での信頼が必要なもの**（gitleaks、fresh DB 上の unit/integration test、coverage）
+- E2E は Docker フルスタック + ブラウザで重いため **ローカル `make e2e`** に寄せる（自動 PR ゲートにしない）
 
 ### 開発者の使い方
 
 ```bash
 make up          # コンテナ起動
 make ci          # ローカル一括 CI（push / PR 前に実行）
+make e2e         # Playwright E2E（任意・要 make up）
 make lint        # Go lint のみ
 make lint-front  # FE 静的のみ
 ```
