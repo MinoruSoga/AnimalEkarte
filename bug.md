@@ -24,8 +24,9 @@
 - **① save-action の diagnosis1/diagnosis2 送信非対称（クリアUI追加時の前提条件）**: `use-medical-record-save-action.ts` は diagnosis1 を `?? undefined`（未送信=BE 側で「更新しない」扱い）、diagnosis2 は state の値をそのまま送信（`null` なら明示クリア）という非対称な契約になっている。現行 UI（`SearchableSelect`）には選択解除操作が無いため両方とも現状は発火しないが、**将来 diagnosis1/2 いずれかにクリアボタンを追加する場合、diagnosis1 側は `?? undefined` のためクリア操作がサイレントに no-op する**（「保存しました」トーストは出るが DB は変わらない）。クリアUI追加時はこの非対称の是正が前提条件。
 - **② diagnosis2 の FE 病名バリデーション欠如**: diagnosis1 には `if (diagnosis1CategoryId && !diagnosis1NameId)` の FE バリデーションがあるが、diagnosis2 には同等のチェックが無い。backend `clinical_plan_service.go` の `assertNameBelongsToType`（AUD-007）も `nameID == nil` の場合は許可を返すため、「diagnosis2 のカテゴリだけ変更→病名未選択のまま保存」が 400 で拒否されず、type あり/name NULL の不完全状態が永続化されうる。データ喪失ではないが臨床データの不整合。
 - **③ clinical_plan PATCH に楽観ロック（version）が無い**: `updateTreatmentPlanMutation` の payload に `version` が含まれない（同じフックの後続 `updateMutation`＝次回来院日更新は version を送る）。2名の獣医が同一カルテの診断を同時編集すると last-write-wins で lost update の理論的余地がある。
-- **重要度**: ①③ は LOW（現状 UI からは未到達 / 低頻度な同時編集シナリオ）、② は MEDIUM（到達可能な不完全データ永続化）。
-- **発見**: 2026-07-18（healthcare-reviewer による BUG-410 修正の独立監査、APPROVE・3件とも別チケット化推奨）。
+- **④ レコード切替時の hydrate guard 再利用リスク（調査済み・現状未到達と判定）**: `useApplyMedicalRecord` の hydrate は `existingRecord.diagnosisXxx != null` の場合のみ setter を呼ぶ。理論上、同一 `MedicalRecordForm` インスタンスが保持されたまま record A（diagnosis2=4,9）→ record B（diagnosis2=null）へ切り替わると、B 用の setter が一度も呼ばれず A の値が state に残存し、B の保存時に A の診断が誤って書き込まれうる（データ喪失より悪いクロスペイシェント汚染）。**実コード調査で現状は再現不可と判定**: ルート定義（`frontend/src/app/routes/clinical-care-routes.tsx` の `path: ":id"`）に `key` 指定なし かつ `/medical-records/<id1>` → `/medical-records/<id2>` へ直接 `navigate()` する呼び出しはリポジトリ全体で0件（`medicalRecords.detail.getHref` の全呼び出し元＝会計一覧/健診一覧/カルテ一覧/新規作成auto-createはいずれも別ルートを経由してから `:id` に遷移するため React Router がコンポーネントを再マウントする）。`MedicalRecordForm.tsx` 内の来院履歴パネル（`InterviewHistory.tsx` 等）も展開/折りたたみのみで他レコードへの遷移リンクを持たない。**将来「次の来院/前の来院」等、同一画面内で record ID だけを差し替えるナビゲーションUIを追加する場合は、hydrate 全体（この guard パターンを共有する chiefComplaintTypeId/plan/assessment/notes 等も含む）を record 切替時に明示的リセットする設計が前提条件になる**。
+- **重要度**: ①③④ は LOW（現状 UI からは未到達）、② は MEDIUM（到達可能な不完全データ永続化）。
+- **発見**: 2026-07-18（healthcare-reviewer による BUG-410 修正の独立監査、APPROVE・3件とも別チケット化推奨。④は同監査後の react-reviewer 観点フォローで発見・コード調査により現状未到達と確定）。
 
 ### BUG-413:【要監視・#250後に判定】予防接種・トリミング一覧が同型のページネーション不可視化リスクを抱える（現状 seed 0件で無症状）
 
@@ -35,12 +36,6 @@
 - **今回修正しない理由**: 両画面とも seed が 0 件のため、ページネーション化しても page=2 が別レコードを返すことを実測で反証できず、「直った」ことを検証できない。加えて両フックとも医師/ステータス/種別等のクライアントサイドフィルタを持ち、BUG-411/412 と同様「フィルタがページ内スコープに退行しないか」の再設計が必要（Trimming はさらに limit=100→カーソル/オフセット継続取得という追加拡張が要る）。検証不能な状態での臨床データ一覧の書き換えは、修正漏れより悪い結果（未検証の新規回帰）を生みうるため見送った。
 - **要監視**: #250（本番データ移行）でこの2画面の実件数が判明した時点で、実件数が limit（Vaccination=20 / Trimming=100）を超えるか再確認し、超える場合は本エントリを起票根拠に BUG-411/412 と同型の修正を行う。#250 の受け入れ条件にこの再確認を明示的に含めること。
 - **発見**: 2026-07-17（BUG-412 対応中の派生調査、コーディネーターが claim を再検証済み）。
-
-### BUG-414:【LOW・既存バグ】在庫一覧のカテゴリ/ステータス絞り込みで「以外」条件（is_not）が無効化されず、単に無条件表示になる
-
-- **症状**: `InventoryList.tsx` の `category`/`statusFilterEntry` 導出ロジック（category は L112-116, status は L117-120 付近）は `condition === "is"` のときのみ値をサーバへ渡し、それ以外（`is_not` 含む）は無条件に `"all"` へフォールバックする。コメントは「"is" 条件のみサーバーサイド、"is_not" はクライアントサイドで処理」と書かれているが、`is_not` を除外フィルタとして適用するクライアントサイドのロジックはコード上どこにも存在しない（`use-inventory.ts` にも `InventoryList.tsx` にも無し）。結果、ユーザーが「カテゴリが医薬品以外」等を選択しても**何も絞り込まれず全件が表示される**（サイレントな無絞り込み）。
-- **調査の起点**: `frontend/src/features/inventory/routes/InventoryList.tsx` のコメント（102行目付近）と実装の乖離。修正方針は、コメント通りクライアントサイドで `is_not` の除外フィルタを実装するか、"is_not" 自体を `PropertyFilter` の `conditions` から除外するか（`CONDITIONS_NO_EMPTY` の内容を確認）のいずれか。
-- **発見**: 2026-07-17（BUG-412 対応中の investigate subagent による調査、コード実読で確認）。
 
 ### BUG-408:【設計判断待ち】予防接種フォームのワクチン選択に動物種(species)フィルタが無い
 
