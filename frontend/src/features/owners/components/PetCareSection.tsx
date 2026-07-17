@@ -107,6 +107,9 @@ export function PetCareSection({
             死亡
           </label>
         </div>
+        <p className={`text-xs ${C.textMuted}`}>
+          生死の変更は下記のボタンから行ってください
+        </p>
         {formData.id ? (
           <div className="pt-1">
             <PetDeceasedRecordButton

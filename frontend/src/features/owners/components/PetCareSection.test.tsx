@@ -164,4 +164,13 @@ describe("PetCareSection (BUG-409 生死ラジオは二重管理の書込元に�
 
     expect(setFormData).not.toHaveBeenCalled();
   });
+
+  // typescript-reviewer 指摘: onChange 不在の間接証拠だけでなく disabled 状態そのものを
+  // 直接検証する（将来 disabled だけ外され別経路の書込が復活しても検知できるように）。
+  it("両方のラジオが disabled であり、DOM上も編集不能であることを直接確認する", () => {
+    renderPetCareSection({ ...basePet, status: "生存", deceasedAt: null });
+
+    expect(screen.getByRole("radio", { name: "生存" })).toBeDisabled();
+    expect(screen.getByRole("radio", { name: "死亡" })).toBeDisabled();
+  });
 });
