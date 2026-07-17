@@ -373,6 +373,47 @@ func TestClinicalResultAuditTxInventory_AllowlistMatchesRealSource(t *testing.T)
 // no 'pending-migration' example. statusPendingMigration itself stays in the taxonomy (see the
 // const block above and TestClinicalResultAuditTxInventory_GateDetectsViolations fixtures) for
 // the next clinical-result hard-delete site that is added but not yet made ambient-tx-aware.
+// TestClinicalResultAuditTxInventory_WalksAllEmbeddedFilesIncludingSubpackages exercises
+// walkRepositoryForClinicalResultDeletes (the production walk used by the real gate,
+// TestClinicalResultAuditTxInventory_AllowlistMatchesRealSource) against the current embedded
+// set and confirms it completes without t.Fatal for the 1-level subpackage files that set
+// includes. It additionally confirms every subpackage file's raw source is independently
+// parseable via analyzeFileForClinicalResultDeletes. NOTE (audit gap, recorded 2026-07-17):
+// clinicalResultAuditTxAllowlist currently has zero subpackage entries, so this test cannot
+// assert that walkRepositoryForClinicalResultDeletes's own internals would still visit a
+// subpackage file if a future edit added a silent path-based filter inside that function — it
+// can only prove the embed reaches subpackages and their source is parseable today. See
+// TestRepoSourceEmbed_ReachesOneLevelSubpackages (preload_clinic_scope_lint_test.go) for the
+// underlying embed-glob regression test that this wrapper depends on (BE-refactor.md BE8-0).
+func TestClinicalResultAuditTxInventory_WalksAllEmbeddedFilesIncludingSubpackages(t *testing.T) {
+	names := listEmbeddedRepoGoFiles(t)
+	nested := 0
+	for _, n := range names {
+		if strings.Contains(n, "/") {
+			nested++
+		}
+	}
+	if nested == 0 {
+		t.Fatal("no 1-level subpackage files in the embedded set walkRepositoryForClinicalResultDeletes iterates over")
+	}
+	// Smoke-exercise the actual production walk against the current embedded set (including
+	// subpackages) — proves it does not t.Fatal/panic while subpackage files are present.
+	_ = walkRepositoryForClinicalResultDeletes(t)
+	for _, n := range names {
+		if !strings.Contains(n, "/") {
+			continue
+		}
+		src, err := repoSourceFS.ReadFile(n)
+		if err != nil {
+			t.Fatalf("read embedded %s: %v", n, err)
+		}
+		if _, err := analyzeFileForClinicalResultDeletes(n, src); err != nil {
+			t.Fatalf("analyzeFileForClinicalResultDeletes failed to parse embedded subpackage file %s: %v — "+
+				"this lint's walk would silently skip it", n, err)
+		}
+	}
+}
+
 func TestClinicalResultAuditTxInventory_StatusesAreLive(t *testing.T) {
 	counts := map[auditInventoryStatus]int{}
 	for _, e := range clinicalResultAuditTxAllowlist {

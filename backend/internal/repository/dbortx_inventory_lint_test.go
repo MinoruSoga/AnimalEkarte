@@ -362,6 +362,39 @@ func TestDBOrTxInventory_MatchesAllowlist(t *testing.T) {
 	}
 }
 
+// TestDBOrTxInventory_WalksAllEmbeddedFilesIncludingSubpackages pins that walkRepositoryForDBOrTx
+// processes every 1-level domain subpackage file listEmbeddedRepoGoFiles(t) returns, with no
+// additional per-lint filtering. See TestRepoSourceEmbed_ReachesOneLevelSubpackages
+// (preload_clinic_scope_lint_test.go) for the underlying embed-glob regression test that this
+// wrapper depends on (BE-refactor.md BE8-0).
+func TestDBOrTxInventory_WalksAllEmbeddedFilesIncludingSubpackages(t *testing.T) {
+	names := listEmbeddedRepoGoFiles(t)
+	nested := 0
+	for _, n := range names {
+		if strings.Contains(n, "/") {
+			nested++
+		}
+	}
+	if nested == 0 {
+		t.Fatal("no 1-level subpackage files in the embedded set walkRepositoryForDBOrTx iterates over")
+	}
+	// Reaching this line already proves every nested file parsed cleanly: walkRepositoryForDBOrTx
+	// calls t.Fatalf internally on any parse failure for ANY embedded file, subpackage included.
+	found := walkRepositoryForDBOrTx(t)
+	sawNestedKey := false
+	for k := range found {
+		if strings.Contains(k, "/") {
+			sawNestedKey = true
+			break
+		}
+	}
+	if !sawNestedKey {
+		t.Fatal("walkRepositoryForDBOrTx found no dbOrTx-using method keyed under a subpackage path " +
+			"(e.g. reservationtype/repository.go|...); either the embed stopped reaching subpackages, " +
+			"or the reservationtype dbOrTx usages were removed")
+	}
+}
+
 // TestDBOrTxInventory_Analyzer pins the dbOrTx detector on inline fixtures.
 func TestDBOrTxInventory_Analyzer(t *testing.T) {
 	cases := []struct {

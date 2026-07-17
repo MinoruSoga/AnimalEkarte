@@ -515,6 +515,45 @@ func TestPreloadClinicScope_SiteExceptionMatchingIsExact(t *testing.T) {
 	}
 }
 
+// TestRepoSourceEmbed_ReachesOneLevelSubpackages pins that the shared repoSourceFS embed glob
+// (`//go:embed *.go */*.go`) actually reaches one-level domain subpackages, not just the root
+// package. preload_clinic_scope / audit_tx_inventory / dbortx_inventory all share this walk via
+// listEmbeddedRepoGoFiles — if the glob's `*/*.go` term were narrowed or dropped (e.g. back to
+// `*.go` root-only), a domain split out of the flat repository layer would silently fall off all
+// three clinical-safety gates without any other test catching it (BE-refactor.md BE8-0 §5-1).
+// This is a regression test for the EMBED mechanism itself, not for the AST-matching analyzers
+// (those are pinned separately by each *_Analyzer test with inline fixtures — an analyzer test
+// alone would stay green even if the embed stopped reaching subpackages, since it never touches
+// repoSourceFS).
+func TestRepoSourceEmbed_ReachesOneLevelSubpackages(t *testing.T) {
+	names := listEmbeddedRepoGoFiles(t)
+
+	found := false
+	nested := 0
+	for _, n := range names {
+		if n == "paymentmethod/repository.go" {
+			found = true
+		}
+		if strings.Contains(n, "/") {
+			nested++
+		}
+	}
+	if !found {
+		t.Fatal("embedded repository source does not include paymentmethod/repository.go; " +
+			"repoSourceFS's `*/*.go` glob term may have been narrowed or removed — this would " +
+			"silently drop 1-level domain subpackages from preload/audit-tx/dbortx clinical-safety " +
+			"coverage without any other test catching it")
+	}
+	// Floor, not an exact pin: grows as the repository strangler split proceeds (17 nested
+	// non-test files across 14 domains + repohelpers as of 2026-07-17). A broken/narrowed embed
+	// glob would drop this near 0.
+	const nestedFloor = 10
+	if nested < nestedFloor {
+		t.Fatalf("only %d nested (1-level subpackage) source files embedded, want >= %d; "+
+			"repoSourceFS's `*/*.go` glob term may have narrowed", nested, nestedFloor)
+	}
+}
+
 // TestPreloadClinicScope_SiteExceptionsMatchExpectedOccurrences pins each site exception to its
 // exact number of matched call sites. This closes two gaps a coarse (file,assoc,predicate) key
 // would otherwise leave open:
