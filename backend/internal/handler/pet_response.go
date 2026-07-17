@@ -19,10 +19,31 @@ type petInsuranceNested struct {
 	ContactPhone string `json:"contact_phone"`
 }
 
+// petOwnerNested はペット行に埋め込む飼主サマリ（#266: pets 一覧のペット行粒度化）。
+// petListResponse / petResponse の両方で共有する（detail 側は追加フィールドを無視すれば足りるため
+// 型を分けない）。OwnerNumber は独立した採番カラムではなく Owner.ID のエイリアス
+// （FE 既存実装が ownerNumber: owner.id として扱っていた表示上の呼称に合わせる）。
 type petOwnerNested struct {
-	ID    uint64 `json:"id"`
-	Name  string `json:"name"`
-	Phone string `json:"phone"`
+	ID          uint64 `json:"id"`
+	OwnerNumber uint64 `json:"owner_number"`
+	Name        string `json:"name"`
+	NameKana    string `json:"name_kana"`
+	Phone       string `json:"phone"`
+	IsDangerous bool   `json:"is_dangerous"`
+}
+
+func toPetOwnerNested(o *model.Owner) *petOwnerNested {
+	if o == nil {
+		return nil
+	}
+	return &petOwnerNested{
+		ID:          o.ID,
+		OwnerNumber: o.ID,
+		Name:        o.Name,
+		NameKana:    o.NameKana,
+		Phone:       o.Phone,
+		IsDangerous: o.IsDangerous,
+	}
 }
 
 type petResponse struct {
@@ -76,7 +97,11 @@ func toPetFirstVisitResponse(date *time.Time) petFirstVisitResponse {
 
 // petListResponse はリスト表示に必要な最小限フィールドのみ返す（GET /v1/pets 専用）
 type petListResponse struct {
-	ID              uint64                  `json:"id"`
+	ID uint64 `json:"id"`
+	// ClinicID: #266/#86 拠点横断一覧で FE (OwnersList.tsx) が「別医院の行は編集・削除を抑止」
+	// 判定に使う。petResponse(詳細) には既にあるが petListResponse は最小限フィールド構成のため
+	// 欠けていた（#266 pets 一覧のペット行粒度化で FE がこの一覧に依存するようになり露見）。
+	ClinicID        uint64                  `json:"clinic_id"`
 	OwnerID         uint64                  `json:"owner_id"`
 	AnimalSpeciesID uint64                  `json:"animal_species_id"`
 	PetNumber       string                  `json:"pet_number"`
@@ -111,6 +136,7 @@ func toPetListResponse(p *model.Pet) petListResponse {
 	}
 	resp := petListResponse{
 		ID:              p.ID,
+		ClinicID:        p.ClinicID,
 		OwnerID:         p.OwnerID,
 		AnimalSpeciesID: p.AnimalSpeciesID,
 		PetNumber:       p.PetNumber,
@@ -136,13 +162,7 @@ func toPetListResponse(p *model.Pet) petListResponse {
 		InsuranceID:     p.InsuranceID,
 		Remarks:         p.Remarks,
 	}
-	if p.Owner != nil {
-		resp.Owner = &petOwnerNested{
-			ID:    p.Owner.ID,
-			Name:  p.Owner.Name,
-			Phone: p.Owner.Phone,
-		}
-	}
+	resp.Owner = toPetOwnerNested(p.Owner)
 	if p.AnimalSpecies != nil {
 		resp.AnimalSpecies = &petAnimalSpeciesNested{
 			ID:        p.AnimalSpecies.ID,
@@ -242,13 +262,7 @@ func toPetResponse(p *model.Pet) petResponse {
 		CreatedAt:       localTime(p.CreatedAt),
 		UpdatedAt:       localTime(p.UpdatedAt),
 	}
-	if p.Owner != nil {
-		resp.Owner = &petOwnerNested{
-			ID:    p.Owner.ID,
-			Name:  p.Owner.Name,
-			Phone: p.Owner.Phone,
-		}
-	}
+	resp.Owner = toPetOwnerNested(p.Owner)
 	if p.AnimalSpecies != nil {
 		resp.AnimalSpecies = &petAnimalSpeciesNested{
 			ID:        p.AnimalSpecies.ID,

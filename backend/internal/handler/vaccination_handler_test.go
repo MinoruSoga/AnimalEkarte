@@ -16,6 +16,7 @@ import (
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/repository"
 	"github.com/animal-ekarte/backend/internal/service"
 )
 
@@ -63,7 +64,7 @@ type mockPetService struct {
 	getByIDFn func(ctx context.Context, clinicID, id uint64) (*model.Pet, error)
 }
 
-func (m *mockPetService) List(_ context.Context, _ uint64, _ *uint64, _, _ int, _ string) ([]model.Pet, int64, error) {
+func (m *mockPetService) List(_ context.Context, _ []uint64, _ repository.PetListFilters, _, _ int) ([]model.Pet, int64, error) {
 	return nil, 0, nil
 }
 func (m *mockPetService) GetByID(ctx context.Context, clinicID, id uint64) (*model.Pet, error) {

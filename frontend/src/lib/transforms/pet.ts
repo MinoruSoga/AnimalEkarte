@@ -7,7 +7,9 @@ import type {
 import { jstDateStartISOString } from "@/lib/jst-date";
 import type { CreatePetRequest, UpdatePetRequest } from "@/types/pet";
 
-const PET_STATUS_MAP: Partial<Record<string, "生存" | "死亡">> = {
+// #266: pets 一覧のペット行粒度化 (features/owners/loaders.ts) が同じ status マッピングを
+// 必要とするため export する（挙動変更なし）。
+export const PET_STATUS_MAP: Partial<Record<string, "生存" | "死亡">> = {
   alive: "生存",
   deceased: "死亡",
 };

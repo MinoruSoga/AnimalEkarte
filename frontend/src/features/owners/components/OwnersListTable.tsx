@@ -1,4 +1,4 @@
-import { FileText, Heart, PawPrint, Pencil, Trash2 } from "lucide-react";
+import { FileText, Pencil, Trash2 } from "lucide-react";
 
 import { TableCell } from "@/components/ui/table";
 import { DataTable } from "@/components/shared/DataTable/DataTable";
@@ -7,15 +7,8 @@ import { FilteringIndicator } from "@/components/shared/FilteringIndicator/Filte
 import { PropertyFilter } from "@/components/shared/PropertyFilter/PropertyFilter";
 import { Pagination } from "@/components/shared/Pagination";
 import { RowActionDropdown } from "@/components/shared/RowActionDropdown";
-import { SortableHeader } from "@/components/shared/SortableHeader";
 import { StatusBadge } from "@/components/shared/StatusBadge/StatusBadge";
-import { CONDITIONS_NO_EMPTY } from "@/components/shared/PropertyFilter/types";
-import type {
-  ActiveFilter,
-  ActiveSort,
-  FilterProperty,
-  SortProperty,
-} from "@/components/shared/PropertyFilter/types";
+import type { ActiveFilter, FilterProperty } from "@/components/shared/PropertyFilter/types";
 import { C, STYLE } from "@/lib/design-tokens";
 import { formatDate } from "@/utils/format/date";
 import { formatWeight } from "@/utils/format/number";
@@ -28,46 +21,7 @@ import type { Pet } from "@/types";
 const OWNERS_TABLE_HEADER_ROW = `border-b ${C.borderLight} ${C.bgPage} h-11`;
 const OWNERS_TABLE_HEADER_CELL = `${STYLE.sectionLabel} h-11`;
 
-const OWNER_SORT_PROPERTIES: SortProperty[] = [
-  { key: "ownerNumber", label: "飼主No" },
-  { key: "ownerName", label: "飼主名" },
-  { key: "name", label: "ペット名" },
-  { key: "species", label: "種" },
-  { key: "birthDate", label: "生年月日" },
-  { key: "lastVisit", label: "前回来院" },
-];
-
-const OWNER_FILTER_PROPERTIES: FilterProperty[] = [
-  {
-    key: "species",
-    label: "種",
-    type: "select",
-    icon: PawPrint,
-    conditions: CONDITIONS_NO_EMPTY,
-    options: [
-      { value: "犬", label: "犬" },
-      { value: "猫", label: "猫" },
-      { value: "鳥", label: "鳥" },
-      { value: "うさぎ", label: "うさぎ" },
-      { value: "ハムスター", label: "ハムスター" },
-      { value: "その他", label: "その他" },
-    ],
-  },
-  {
-    key: "status",
-    label: "生死",
-    type: "select",
-    icon: Heart,
-    conditions: CONDITIONS_NO_EMPTY,
-    options: [
-      { value: "alive", label: "生存" },
-      { value: "deceased", label: "死亡" },
-    ],
-  },
-];
-
 interface OwnersPaginationView {
-  paginatedData: Pet[];
   totalPages: number;
   totalCount: number;
   startIndex: number;
@@ -76,11 +30,13 @@ interface OwnersPaginationView {
 }
 
 interface OwnersListTableProps {
-  filteredCount: number;
+  /** #266: サーバサイドページネーション後の現在ページ分の飼主ペット行（フラット化済み） */
+  pets: Pet[];
   pagination: OwnersPaginationView;
   searchTerm: string;
   activeFilters: ActiveFilter[];
-  activeSorts: ActiveSort[];
+  /** #266: species は動物種マスタ由来のため呼び出し側 (OwnersList.tsx) が動的に組み立てて渡す */
+  filterProperties: FilterProperty[];
   isFiltering: boolean;
   canEdit: boolean;
   canDelete: boolean;
@@ -92,11 +48,8 @@ interface OwnersListTableProps {
   clinicNameById?: Map<string, string>;
   /** #86: 現在の医院ID。別医院の行は編集・削除を抑止（閲覧のみ） */
   currentClinicId?: string | null;
-  directionFor: (key: string) => "ascending" | "descending" | "none";
   onSearchChange: (value: string) => void;
   onFilterChange: (filters: ActiveFilter[]) => void;
-  onSortChange: (sorts: ActiveSort[]) => void;
-  onToggleSort: (key: string) => void;
   onRowClick: (pet: Pet) => void;
   onEdit: (ownerId: string) => void;
   onDeleteRequest: (ownerId: string, ownerName: string) => void;
@@ -106,11 +59,11 @@ interface OwnersListTableProps {
 }
 
 export function OwnersListTable({
-  filteredCount,
+  pets,
   pagination,
   searchTerm,
   activeFilters,
-  activeSorts,
+  filterProperties,
   isFiltering,
   canEdit,
   canDelete,
@@ -118,112 +71,47 @@ export function OwnersListTable({
   showClinicColumn = false,
   clinicNameById,
   currentClinicId,
-  directionFor,
   onSearchChange,
   onFilterChange,
-  onSortChange,
-  onToggleSort,
   onRowClick,
   onEdit,
   onDeleteRequest,
   onReport,
   onPageChange,
 }: OwnersListTableProps) {
+  // #266: サーバサイドページネーション化に伴い列ソートは撤去（コメント参照）。プレーンなラベルに変更。
   const columns = [
-    {
-      header: (
-        <SortableHeader
-          label="飼主No"
-          direction={directionFor("ownerNumber")}
-          onToggle={() => onToggleSort("ownerNumber")}
-          variant="eyebrow"
-        />
-      ),
-      className: "w-[100px] hidden lg:table-cell",
-    },
-    {
-      header: (
-        <SortableHeader
-          label="飼主名"
-          direction={directionFor("ownerName")}
-          onToggle={() => onToggleSort("ownerName")}
-          variant="eyebrow"
-        />
-      ),
-      className: "w-[180px]",
-    },
+    { header: "飼主No", className: "w-[100px] hidden lg:table-cell" },
+    { header: "飼主名", className: "w-[180px]" },
     // #86: 拠点横断表示時のみ医院列を表示
     ...(showClinicColumn ? [{ header: "医院", className: "w-[110px]" }] : []),
     { header: "ペット番号", className: "w-[100px] hidden lg:table-cell" },
-    {
-      header: (
-        <SortableHeader
-          label="ペット名"
-          direction={directionFor("name")}
-          onToggle={() => onToggleSort("name")}
-          variant="eyebrow"
-        />
-      ),
-      className: "w-[120px]",
-    },
+    { header: "ペット名", className: "w-[120px]" },
     { header: "生死", className: "w-[60px] hidden lg:table-cell" },
-    {
-      header: (
-        <SortableHeader
-          label="種"
-          direction={directionFor("species")}
-          onToggle={() => onToggleSort("species")}
-          variant="eyebrow"
-        />
-      ),
-      className: "w-[60px]",
-    },
-    {
-      header: (
-        <SortableHeader
-          label="生年月日"
-          direction={directionFor("birthDate")}
-          onToggle={() => onToggleSort("birthDate")}
-          variant="eyebrow"
-        />
-      ),
-      className: "w-[100px] hidden lg:table-cell",
-    },
+    { header: "種", className: "w-[60px]" },
+    { header: "生年月日", className: "w-[100px] hidden lg:table-cell" },
     { header: "体重", className: "w-[80px] hidden lg:table-cell" },
     { header: "環境", className: "w-[120px] hidden lg:table-cell" },
-    {
-      header: (
-        <SortableHeader
-          label="前回来院"
-          direction={directionFor("lastVisit")}
-          onToggle={() => onToggleSort("lastVisit")}
-          variant="eyebrow"
-        />
-      ),
-      className: "w-[100px] hidden lg:table-cell",
-    },
+    { header: "前回来院", className: "w-[100px] hidden lg:table-cell" },
     { header: "操作", className: "w-[100px]", align: "right" as const },
   ];
 
   return (
     <div className="flex flex-col gap-4 flex-1 min-h-0">
       <PropertyFilter
-        properties={OWNER_FILTER_PROPERTIES}
+        properties={filterProperties}
         activeFilters={activeFilters}
         onFilterChange={onFilterChange}
         searchTerm={searchTerm}
         onSearchChange={onSearchChange}
         searchPlaceholder="飼主名、ペット名、飼主No、種別..."
-        count={filteredCount}
-        sortProperties={OWNER_SORT_PROPERTIES}
-        activeSorts={activeSorts}
-        onSortChange={onSortChange}
+        count={pagination.totalCount}
       />
 
       <FilteringIndicator isFiltering={isFiltering}>
         <DataTable
           columns={columns}
-          data={pagination.paginatedData}
+          data={pets}
           emptyMessage="データが見つかりません"
           headerRowClassName={OWNERS_TABLE_HEADER_ROW}
           headerCellClassName={OWNERS_TABLE_HEADER_CELL}

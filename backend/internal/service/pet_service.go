@@ -161,7 +161,8 @@ func buildPetUpdate(input *UpdatePetInput) map[string]any {
 // --- Interface ---
 
 type PetService interface {
-	List(ctx context.Context, clinicID uint64, ownerID *uint64, page, limit int, search string) ([]model.Pet, int64, error)
+	// List は指定した複数医院 (#86 拠点横断) のペット一覧を返す。clinicIDs はハンドラ層で所属検証済みであること。
+	List(ctx context.Context, clinicIDs []uint64, filters repository.PetListFilters, page, limit int) ([]model.Pet, int64, error)
 	GetByID(ctx context.Context, clinicID, id uint64) (*model.Pet, error)
 	// GetByIDForClinics は複数医院スコープでペットを1件取得する (#86 詳細画面拠点横断)。clinicIDs はハンドラ層で所属検証済みであること。
 	GetByIDForClinics(ctx context.Context, clinicIDs []uint64, id uint64) (*model.Pet, error)
@@ -199,8 +200,8 @@ func NewPetService(
 	}
 }
 
-func (s *petService) List(ctx context.Context, clinicID uint64, ownerID *uint64, page, limit int, search string) ([]model.Pet, int64, error) {
-	pets, total, err := s.repo.FindAll(ctx, clinicID, ownerID, page, limit, search)
+func (s *petService) List(ctx context.Context, clinicIDs []uint64, filters repository.PetListFilters, page, limit int) ([]model.Pet, int64, error) {
+	pets, total, err := s.repo.FindAll(ctx, clinicIDs, filters, page, limit)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to list pets", "error", err)
 		return nil, 0, apperrors.Wrap(err, "failed to list pets")

@@ -4,7 +4,6 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import { OwnersListTable } from "./OwnersListTable";
-import { STYLE } from "@/lib/design-tokens";
 import type { Pet } from "@/types";
 
 // 行アクション(RowActionDropdown)の表示・発火に焦点を当てるため、無関係な重い子は無効化する。
@@ -26,9 +25,8 @@ type Props = React.ComponentProps<typeof OwnersListTable>;
 
 function baseProps(overrides: Partial<Props> = {}): Props {
   return {
-    filteredCount: 1,
+    pets: [pet],
     pagination: {
-      paginatedData: [pet],
       totalPages: 1,
       totalCount: 1,
       startIndex: 0,
@@ -37,16 +35,13 @@ function baseProps(overrides: Partial<Props> = {}): Props {
     },
     searchTerm: "",
     activeFilters: [],
-    activeSorts: [],
+    filterProperties: [],
     isFiltering: false,
     canEdit: true,
     canDelete: true,
     canReport: true,
-    directionFor: () => "none",
     onSearchChange: vi.fn(),
     onFilterChange: vi.fn(),
-    onSortChange: vi.fn(),
-    onToggleSort: vi.fn(),
     onRowClick: vi.fn(),
     onEdit: vi.fn(),
     onDeleteRequest: vi.fn(),
@@ -79,13 +74,11 @@ describe("OwnersListTable レポート行アクション (#158)", () => {
   });
 });
 
-describe("OwnersListTable header (DESIGN.md ex-data-table-cell)", () => {
-  it("ソート可能な列見出しが eyebrow 相当（STYLE.sectionLabel）で表示される", () => {
+describe("OwnersListTable header (#266: サーバサイドページネーション化でソート列は撤去)", () => {
+  it("列見出しはプレーンテキストで表示される（ソートボタンは存在しない）", () => {
     render(<OwnersListTable {...baseProps()} />);
 
-    const sortButton = screen.getByRole("button", { name: "飼主名でソート" });
-    for (const cls of STYLE.sectionLabel.split(" ")) {
-      expect(sortButton.className).toContain(cls);
-    }
+    expect(screen.getByText("飼主名")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "飼主名でソート" })).not.toBeInTheDocument();
   });
 });

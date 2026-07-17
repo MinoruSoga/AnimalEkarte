@@ -11,8 +11,10 @@ import (
 )
 
 // ListPets godoc
+// #86: 拠点横断一覧 — clinic_ids クエリ指定時は所属検証済みの複数医院、未指定は現在の医院のみ
+// （OwnersList.tsx が useClinicScope 経由でこの一覧を消費するため owners API と同一パターンを維持する）。
 func (h *Handler) ListPets(c *gin.Context) {
-	clinicID, ok := extractClinicID(c)
+	clinicIDs, ok := resolveListClinicIDs(c)
 	if !ok {
 		return
 	}
@@ -27,7 +29,7 @@ func (h *Handler) ListPets(c *gin.Context) {
 		return
 	}
 
-	pets, total, err := h.svc.Pet.List(c.Request.Context(), clinicID, filters.OwnerID, page, limit, filters.Search)
+	pets, total, err := h.svc.Pet.List(c.Request.Context(), clinicIDs, filters, page, limit)
 	if err != nil {
 		RespondError(c, err)
 		return

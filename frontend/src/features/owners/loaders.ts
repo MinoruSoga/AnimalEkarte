@@ -1,110 +1,162 @@
 import { getOwner } from "./api/get-owner";
 import { axios } from "@/lib/axios";
-import { transformBackendPetToFrontend } from "@/lib/transforms/pet";
+import {
+  PET_GENDER_MAP,
+  PET_STATUS_MAP,
+  ACQUISITION_TYPE_MAP,
+  DANGER_LEVEL_MAP,
+} from "@/lib/transforms/pet";
 import type { Pet } from "@/types";
 import type { Owner } from "@/types/owner";
-import type { Owner as BackendOwner } from "@/types/generated/models";
 
-// BUG-324: /v1/owners API レスポンスは owner_name / owner_name_kana を返す（models.ts の name と乖離）
-// ownerResponse DTO (owner_response.go) が `json:"owner_name"` を使うため
-interface OwnerApiListItem extends Omit<BackendOwner, "name" | "name_kana"> {
-  owner_name: string;
-  owner_name_kana: string;
+// #266: GET /v1/pets 専用の petListResponse（pet_response.go 参照）は petResponse（詳細）より
+// 薄いDTOで、owner も id/owner_number/name/name_kana/phone/is_dangerous のみのサマリを埋め込む。
+// docs/api.yaml 未同期（make codegen 未実行）のため、生成型 (BackendPet/Owner) を流用せず
+// 実際のワイヤー契約に忠実なローカル型を定義する。
+interface PetListOwnerNested {
+  id: number;
+  owner_number: number;
+  name: string;
+  name_kana: string;
+  phone: string;
+  is_dangerous: boolean;
 }
 
-interface OwnersResponse {
-  data: OwnerApiListItem[];
+interface PetListAnimalSpeciesNested {
+  id: number;
+  name: string;
+  sort_order: number;
+}
+
+interface PetListInsuranceNested {
+  id: number;
+  name: string;
+  coverage_rate: number;
+  contact_phone: string;
+}
+
+interface PetListApiItem {
+  id: number;
+  clinic_id: number;
+  owner_id: number;
+  animal_species_id: number;
+  pet_number: string;
+  name: string;
+  pet_name_kana: string;
+  gender: string;
+  status: string;
+  birth_date?: string;
+  breed: string;
+  color: string;
+  blood_type?: string;
+  microchip_number?: string;
+  weight?: number;
+  neutered_date?: string;
+  acquisition_type?: string;
+  danger_level: string;
+  food: string;
+  environment: string;
+  last_visit?: string;
+  insurance_id?: number;
+  remarks: string;
+  owner?: PetListOwnerNested;
+  animal_species?: PetListAnimalSpeciesNested;
+  insurance?: PetListInsuranceNested;
+}
+
+interface PetsResponse {
+  data: PetListApiItem[];
   total: number;
   page: number;
   limit: number;
 }
 
-const PER_PAGE = 100; // backend の parsePagination 上限
+// #266: 飼主・ペット一覧のページサイズ。以前の client-side usePagination のデフォルト(20件)を踏襲。
+// ページ粒度はペット行単位（旧: 飼主単位のフラット化）— 1ページの行数は常に一定になる。
+export const OWNERS_PAGE_SIZE = 20;
 
 export interface OwnersLoaderData {
   pets: Pet[];
+  page: number;
+  limit: number;
+  total: number;
+}
+
+// pets 一覧レスポンス → フロントエンド Pet 型変換。
+// transformBackendPetToFrontend (lib/transforms/pet.ts) と同じフィールド構成を維持するが、
+// petListResponse の薄い owner サマリ（address1/2 等を持たない）に合わせて address は常に undefined。
+function transformPetListItemToFrontend(p: PetListApiItem): Pet {
+  return {
+    id: String(p.id),
+    clinicId: p.clinic_id != null ? String(p.clinic_id) : undefined,
+    ownerId: String(p.owner_id),
+    ownerNumber: p.owner?.owner_number,
+    ownerName: p.owner?.name ?? "",
+    ownerNameKana: p.owner?.name_kana ?? undefined,
+    address: undefined,
+    phone: p.owner?.phone ?? "",
+    petNumber: p.pet_number,
+    name: p.name ?? "",
+    petNameKana: p.pet_name_kana ?? undefined,
+    species: p.animal_species?.name ?? "",
+    animalSpeciesId: p.animal_species_id != null ? String(p.animal_species_id) : undefined,
+    breed: p.breed,
+    color: p.color,
+    bloodType: p.blood_type ?? undefined,
+    microchipNumber: p.microchip_number ?? undefined,
+    gender: p.gender ? (PET_GENDER_MAP[p.gender] ?? p.gender) : undefined,
+    status: p.status ? PET_STATUS_MAP[p.status] : undefined,
+    birthDate: p.birth_date ? p.birth_date.split("T")[0] : undefined,
+    neuteredDate: p.neutered_date ? p.neutered_date.split("T")[0] : undefined,
+    weight: p.weight?.toString(),
+    food: p.food,
+    environment: p.environment,
+    acquisitionType: p.acquisition_type ? (ACQUISITION_TYPE_MAP[p.acquisition_type] ?? p.acquisition_type) : undefined,
+    dangerLevel: p.danger_level ? (DANGER_LEVEL_MAP[p.danger_level] ?? p.danger_level) : undefined,
+    lastVisit: p.last_visit ? p.last_visit.split("T")[0] : undefined,
+    insuranceId: p.insurance_id != null ? String(p.insurance_id) : undefined,
+    insuranceName: p.insurance?.name,
+    insuranceDetails: p.insurance?.coverage_rate != null ? `${p.insurance.coverage_rate}%補償` : undefined,
+    remarks: p.remarks,
+    // petListResponse は deceased_at を含まない（status で十分 — StatusBadge は pet.status を使用）。
+    deceasedAt: undefined,
+  };
 }
 
 /**
- * 飼主一覧ローダー — /v1/owners（ペットネスト）から全飼主を取得し
- * ペット行にフラット化する。ペット0件の飼主も1行（空ペット）として含める。
+ * 飼主・ペット一覧ローダー — #266: GET /v1/pets をペット行粒度でサーバサイドページネーション取得する
+ * （owners-pets-list-plan.md の PO 決定: owners API+EXISTS 応急案ではなく pets API 拡張を正本とする）。
+ * URL の page/search/species/include_deceased をそのまま backend に転送する
+ * （species は animal_species_id 数値、include_deceased 未指定 = 生存のみが既定）。
  * #86: URL の ?clinics=1,2 を API の clinic_ids に引き渡し拠点横断取得する
  * （所属検証はサーバ側 resolveListClinicIDs が行う。未指定は現在の医院のみ）。
  */
 export const ownersLoader = async ({ request }: { request: Request }): Promise<OwnersLoaderData> => {
   try {
-    const clinics = new URL(request.url).searchParams.get("clinics") ?? undefined;
-    const baseParams = clinics ? { clinic_ids: clinics } : {};
+    const searchParams = new URL(request.url).searchParams;
+    const clinics = searchParams.get("clinics") ?? undefined;
+    const page = Math.max(1, Number(searchParams.get("page") ?? 1) || 1);
+    const search = searchParams.get("search") || undefined;
+    const species = searchParams.get("species") || undefined;
+    const includeDeceased = searchParams.get("include_deceased") === "true" ? "true" : undefined;
 
-    // page 1 で総件数を確認し、残りのページを並列フェッチ
-    const { data: firstPage } = await axios.get<OwnersResponse>("/v1/owners", {
-      params: { ...baseParams, page: 1, limit: PER_PAGE },
+    const { data: result } = await axios.get<PetsResponse>("/v1/pets", {
+      params: {
+        ...(clinics ? { clinic_ids: clinics } : {}),
+        page,
+        limit: OWNERS_PAGE_SIZE,
+        ...(search ? { search } : {}),
+        ...(species ? { species } : {}),
+        ...(includeDeceased ? { include_deceased: includeDeceased } : {}),
+      },
     });
 
-    const totalPages = Math.ceil(firstPage.total / PER_PAGE);
-
-    const remainingPages = await Promise.all(
-      Array.from({ length: totalPages - 1 }, (_, i) =>
-        axios.get<OwnersResponse>("/v1/owners", {
-          params: { ...baseParams, page: i + 2, limit: PER_PAGE },
-        }).then(r => r.data)
-      )
-    );
-
-    const allOwners = [firstPage, ...remainingPages].flatMap(page => page.data);
-
-    // 各飼主のペットをフラット化。ペットなし飼主は owner 情報のみの空ペット行を1件追加。
-    const allPets: Pet[] = allOwners.flatMap(owner => {
-      // BUG-324: API は owner_name / owner_name_kana を返す。BackendOwner (name) に正規化して transform に渡す。
-      const normalizedOwner: BackendOwner = {
-        ...owner,
-        name: owner.owner_name ?? "",
-        name_kana: owner.owner_name_kana ?? "",
-      };
-      const pets = owner.pets ?? [];
-      if (pets.length > 0) {
-        return pets.map(pet => transformBackendPetToFrontend({ ...pet, owner: normalizedOwner }));
-      }
-      // ペットなし飼主: owner 情報のみを持つ空ペット行を直接構築
-      const ownerAddress = [owner.address1, owner.address2].filter(Boolean).join(" ") || undefined;
-      const emptyPet: Pet = {
-        id: `owner-${owner.id}`,
-        clinicId: owner.clinic_id != null ? String(owner.clinic_id) : undefined,
-        ownerId: String(owner.id),
-        ownerNumber: owner.id,
-        ownerName: owner.owner_name ?? "",
-        ownerNameKana: owner.owner_name_kana ?? undefined,
-        address: ownerAddress,
-        phone: owner.phone,
-        petNumber: "",
-        name: "",
-        petNameKana: "",
-        species: "",
-        animalSpeciesId: undefined,
-        breed: "",
-        color: "",
-        bloodType: undefined,
-        microchipNumber: undefined,
-        gender: undefined,
-        status: undefined,
-        birthDate: undefined,
-        neuteredDate: undefined,
-        weight: undefined,
-        food: "",
-        environment: "",
-        acquisitionType: undefined,
-        dangerLevel: undefined,
-        lastVisit: undefined,
-        insuranceId: undefined,
-        insuranceName: undefined,
-        insuranceDetails: undefined,
-        remarks: "",
-        deceasedAt: undefined,
-      };
-      return [emptyPet];
-    });
-
-    return { pets: allPets };
+    return {
+      pets: result.data.map(transformPetListItemToFrontend),
+      page: result.page,
+      limit: result.limit,
+      total: result.total,
+    };
   } catch {
     throw new Response("飼主一覧の取得に失敗しました", { status: 500 });
   }

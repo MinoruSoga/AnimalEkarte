@@ -237,7 +237,7 @@ type mockPetRepoForDelivery struct {
 	findOwnersByPetBirthdayFn func(ctx context.Context, clinicID uint64, month, day int) ([]uint64, error)
 }
 
-func (m *mockPetRepoForDelivery) FindAll(_ context.Context, _ uint64, _ *uint64, _, _ int, _ string) ([]model.Pet, int64, error) {
+func (m *mockPetRepoForDelivery) FindAll(_ context.Context, _ []uint64, _ repository.PetListFilters, _, _ int) ([]model.Pet, int64, error) {
 	return nil, 0, nil
 }
 func (m *mockPetRepoForDelivery) FindByID(_ context.Context, _, _ uint64) (*model.Pet, error) {
