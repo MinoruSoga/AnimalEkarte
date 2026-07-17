@@ -80,7 +80,7 @@ erDiagram
 ### 3.1 物理設計 of 健診パッケージ複合FK保護
 - **主キー**: 全テーブルで `bigint` (auto_increment) または `uuid` を採用。
 - **日時管理**: アプリケーション、DB セッション、インフラ設定は `Asia/Tokyo` を標準とする。日時カラムは主に `timestamptz` を使い、API 入出力は JST オフセット付き ISO 8601 を基本とする。
-- **整合性制約**: アプリケーション層だけでなく、DB レベルで `FOREIGN KEY` 制約によりデータの孤立を防止。特に健診パッケージの結果レコード `checkup_field_results` では、越境防止のため `(checkup_type_field_id, clinic_id)` 複合FKにより親定義とクリニックIDの不一致を物理的に排除しています。同様に `checkup_type_fields.checkup_type_id` も、起草済み・未適用の `002_checkup_field_clinic_composite_fk.sql`（#211 A6）により `checkup_types` に追加する `UNIQUE (id, clinic_id)` を参照する `(checkup_type_id, clinic_id)` 複合FKへ置き換える設計としています（適用は USER が STG で実施、詳細は §4.3）。
+- **整合性制約**: アプリケーション層だけでなく、DB レベルで `FOREIGN KEY` 制約によりデータの孤立を防止。特に健診パッケージの結果レコード `checkup_field_results` では、越境防止のため `(checkup_type_field_id, clinic_id)` 複合FKにより親定義とクリニックIDの不一致を物理的に排除しています。同様に `checkup_type_fields.checkup_type_id` も、`checkup_types` の `UNIQUE (id, clinic_id)` を参照する `(checkup_type_id, clinic_id)` 複合FK（`fk_checkup_type_fields_type_clinic`・#211 A6）へ置換済みです（2026-07-17 に `001_init.sql` へ統合。既存 DB への反映は USER の `DB_RESET=true` 再適用時、詳細は §4.3）。
 
 ### 3.2 高度なマルチテナント隔離
 - **`clinic_id` の強制**: ビジネスロジックが関わる全テーブルに `clinic_id` カラムを配置。
@@ -97,7 +97,7 @@ erDiagram
 現行マイグレーション (`001_init.sql` および増分 `005`〜`012`) の `CREATE TABLE` 定義と本 ERD の主要ドメイン別構成を静的照合し、2026-07-03 時点で以下の通り整理しました。実 DB のデータ量・実行時 SQL・アクセスログは確認対象外です。
 
 > [!NOTE]
-> **2026-07-04 追記**: 増分マイグレーション `005`〜`012` は同日中に `001_init.sql`（DDL）/ `003_seed_demo.sql`（歯科検診暫定 seed DML）へ再統合された（当時の独立ファイル名は削除）。ファイル構成が変わっただけで物理テーブル定義そのものは変化していないため、以下の判定結果・テーブル総数は本追記時点でも有効です。upgrade path としての再出荷は 2026-07-17 追記および §4.3 を参照。
+> **2026-07-04 追記**: 増分マイグレーション `005`〜`012` は同日中に `001_init.sql`（DDL）/ `003_seed_demo.sql`（歯科検診暫定 seed DML）へ再統合された（当時の独立ファイル名は削除）。ファイル構成が変わっただけで物理テーブル定義そのものは変化していないため、以下の判定結果・テーブル総数は本追記時点でも有効です。
 >
 > **2026-07-06 追記**: 2026-07-04 の再統合後、受付ヘッダー テレメトリ（change-ui.md Phase 2）用に増分マイグレーション `005_add_appointment_checked_in_at.sql`（`appointments.checked_in_at` カラム追加）が新設されていましたが、同日中にこれも `001_init.sql` の `appointments` テーブル定義へ再統合し、独立ファイルとしては存在しません（§4.3 参照）。新規テーブル追加ではなく既存テーブルへの単一カラム追加のため、テーブル総数(108)への影響はありません。
 >
@@ -105,13 +105,13 @@ erDiagram
 >
 > **2026-07-15 追記**: インデックス追加のみの DDL 増分（旧 `002_add_checkup_vaccination_indexes.sql` / `003_add_pets_batch_living_count_index.sql` / `004_add_billings_hospitalization_id_unique_index.sql`）を `001_init.sql` へ統合した。テーブル総数(108)は不変。
 >
-> **2026-07-17 追記**: 上記再統合により applied `001` が §7 相当 DDL をスキップするリスクへの対策として、冪等 incremental `003`–`011` を追加（§4.3 本文参照）。
+> **2026-07-17 追記**: 上記再統合により applied `001` が §7 相当 DDL をスキップするリスクへの対策として冪等 incremental `003`–`011` を一時追加したが、同日中に方針転換し、`002_checkup_field_clinic_composite_fk.sql`（#211 A6 複合FK）を含む全 incremental `002`–`011` を `001_init.sql` へ完全統合して削除した。現在 DDL は `001_init.sql` の単一ファイルのみで、既存 DB への適用経路は `DB_RESET=true` 再構築のみ（§4.3 本文参照）。テーブル総数(108)は不変。
 
 | 項目 | 結果 | 判定 |
 |:---|:---|:---|
 | `001_init.sql` の `CREATE TABLE` 数 | 108（2026-07-04 統合前は 103） | 旧 005/009/010 由来の5テーブルが統合により `001_init.sql` に直接定義されるようになった。物理テーブル総数(108)自体は統合の前後で不変 |
 | 旧増分マイグレーションが追加していたテーブル | 5: `lab_import_jobs` / `lab_import_events` (旧`005`)、`medicine_dose_params` (旧`009`)、`checkup_type_fields` / `checkup_field_results` (旧`010`) | 2026-07-04 統合により現在は `001_init.sql` に直接定義（旧ファイルは削除済み） |
-| 全マイグレーション（`001` 統合 + incremental + seeds CSV）の物理テーブル総数 | 108 | ERD の全体数と一致（upgrade path 追加でもテーブル総数は不変） |
+| 全マイグレーション（`001_init.sql` 単一 DDL + seeds CSV）の物理テーブル総数 | 108 | ERD の全体数と一致 |
 | ERD ドメイン表の物理テーブル数 | 108 | migrations と一致 |
 | ERD へ追加した不足テーブル | 6: `token_blacklist`, `reservation_type_available_slots`, `trimming_course_types`, `campaigns`, `campaign_target_categories`, `campaign_target_items` | migration に存在し、用途コメントまたはドメイン上の継続理由があるため追加 |
 | migrations にあり ERD にないテーブル | 0 | 整合済み |
@@ -130,18 +130,16 @@ erDiagram
 - 互換注記:
   - `docker compose` 実行時、`.env.local` にて `DB_USER` / `DB_PASSWORD` / `DB_NAME` などの環境変数を読み込んでおり、検証は正常に成功しました。
 
-### 4.3 スキーマ更新履歴（001 統合スキーマ + incremental upgrade path）
+### 4.3 スキーマ更新履歴（001 単一統合スキーマ）
 
 2026-06-26 に、かつて独立した増分ファイル (旧 005-012) として管理されていたスキーマ・シード変更を `001_init.sql` および `003_seed_demo.sql` へ統合しました。
 その後、新たな機能追加に伴い増分マイグレーション 005〜012 が再び追加されていましたが、2026-07-04 にこれらを再度 `001_init.sql`（DDL）および `003_seed_demo.sql`（歯科検診パッケージの暫定 seed DML のみ）へ統合し、独立ファイルとしての 005〜012 は削除しました。さらに 2026-07-15 に、インデックス追加のみの DDL 増分（旧 `002_add_checkup_vaccination_indexes.sql` / `003_add_pets_batch_living_count_index.sql` / `004_add_billings_hospitalization_id_unique_index.sql`）を `001_init.sql` へ統合しました。
 
-> **2026-07-17 追記（Codex PR #186 / applied-001 skip 対策）**: `001_init.sql` を統合スキーマのまま維持しつつ、すでに `schema_migrations` に薄い/統合前の `001_init.sql` だけが記録されている DB 向けに、旧 005–012 および `appointments.checked_in_at` 相当の additive DDL を冪等な incremental（`003`–`011`）として再出荷した。fresh DB では `001` で定義済みのため incremental は no-op 相当で通る。`002_checkup_field_clinic_composite_fk.sql`（`checkup_types`↔`checkup_type_fields`）と `010_add_clinical_result_composite_fk.sql`（`checkup_field_results`↔`checkup_type_fields`）はスコープが異なるため二重追加しない。
+> **2026-07-17 追記（Codex PR #186 / applied-001 skip 対策 → 同日中に完全統合へ方針転換）**: applied 済みの薄い `001` が §7 相当 DDL をスキップするリスクへの対策として、旧 005–012 および `appointments.checked_in_at` 相当の additive DDL を冪等な incremental（`003`–`011`）として一時再出荷した。しかし同日中に「DDL は `001_init.sql` 単一ファイル」へ方針転換し、`002_checkup_field_clinic_composite_fk.sql`（#211 A6・`checkup_types`↔`checkup_type_fields` 複合FK。この内容のみ 001 に未収録だったため 001 末尾へ折り込み）を含む incremental `002`–`011` を全て削除した。この時点以降、既存 DB への no-reset アップグレード経路は存在せず、適用は `DB_RESET=true` 再構築のみ（USER 手動）。
 
 現行マイグレーションは以下の構成です（`backend/migrations/`、2026-07-17 時点）。
 
-- `001_init.sql`（fresh 用統合スキーマ・108 テーブル・§7 に旧 005–012 原文）
-- `002_checkup_field_clinic_composite_fk.sql`（健診 type↔fields 複合 FK）
-- `003_add_lab_import_tables.sql` … `011_add_appointment_checked_in_at.sql`（upgrade path。各ファイル先頭コメントに旧番号を記載）
+- `001_init.sql`（fresh 用統合スキーマ・108 テーブル・唯一の DDL ファイル。§7 に旧 005–013 相当の原文を番号順追記）
 - `seeds/002_master/`、`seeds/003_demo/`、`seeds/004_staging/`（各 `*.csv` + `manifest.json` のシードバンドル。SQL ファイルではない）
 
 以下は 2026-06-26 の統合時点で `001_init.sql` / `003_seed_demo.sql` へ畳み込まれた変更の論理的な記録です（参照用、当時の独立ファイルは存在しません）。
@@ -179,8 +177,8 @@ erDiagram
   - `clinic_settings.closing_am_start` (time, デフォルト 09:00) を定義済み。
 - **臨床結果テーブルの複合 FK 追加 (BE-refactor R3-7/D13 / 旧 012 → 001_init.sql に統合)**
   - `checkup_type_fields` に `UNIQUE(id, clinic_id)`、`checkup_field_results` の `checkup_type_field_id` を `(checkup_type_field_id, clinic_id)` 複合 FK（`ON DELETE SET NULL` 列指定）へ置換済み。
-- **健診パッケージ親子テーブルの複合 FK 起草 (Issue #211 A6 / `002_checkup_field_clinic_composite_fk.sql`・起草のみ・未適用)**
-  - `checkup_types` に `UNIQUE (id, clinic_id)`（`uq_checkup_types_id_clinic`）を追加し、`checkup_type_fields.checkup_type_id` の単一列 FK を `(checkup_type_id, clinic_id) REFERENCES checkup_types (id, clinic_id) ON DELETE CASCADE`（`fk_checkup_type_fields_type_clinic`）の複合 FK へ置換する内容を起草済み。STG 適用および削除対象制約名の実物確認（`\d checkup_type_fields`）は USER が実施する。適用後は本セクションを「適用済み」表記へ更新すること。
+- **健診パッケージ親子テーブルの複合 FK (Issue #211 A6 / 旧 `002_checkup_field_clinic_composite_fk.sql` → 2026-07-17 に 001_init.sql へ統合)**
+  - `checkup_types` に `UNIQUE (id, clinic_id)`（`uq_checkup_types_id_clinic`）を追加し、`checkup_type_fields.checkup_type_id` の単一列 FK を `(checkup_type_id, clinic_id) REFERENCES checkup_types (id, clinic_id) ON DELETE CASCADE`（`fk_checkup_type_fields_type_clinic`）の複合 FK へ置換する内容を `001_init.sql` 末尾（013 セクション）に定義済み。fresh DB では 001 適用で有効。既存 DB（STG/PROD）への反映は USER の `DB_RESET=true` 再適用時。
 
 以下は 2026-07-06 の再統合時点で `001_init.sql` へ畳み込まれた変更の論理的な記録です（参照用、当時の独立ファイル 005 は存在しません）。
 

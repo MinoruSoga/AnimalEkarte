@@ -36,7 +36,7 @@
 
 | # | 内容 | 現状 |
 |---|---|---|
-| #211 | 検査・健診パッケージ化 | **PO 決裁済・A1+A2+A6 消化済み（2026-07-16）**。A1+A2（アドプリット削除＋尿比重 min/max 空化・commit 90553a51）は seed 編集完了・`db_reset` は USER。A6（checkup_type_fields↔checkup_types 複合 FK・commit 59aa533a）は `002_checkup_field_clinic_composite_fk.sql` として起草完了（起草時に checkup_field_results↔checkup_type_fields 側は既に 001_init.sql 実装済みと判明・対象は checkup_types 側 1 本のみに縮小）。STG 適用・DROP CONSTRAINT 対象の実制約名確認は USER。やらない分（CRUD UI／四季分割・腎臓ドック／select 異常ハイライト／ライブ E2E）は `phase2.html`。provisional 解除はクライアント臨床責任者確認後に seed 手動更新 |
+| #211 | 検査・健診パッケージ化 | **PO 決裁済・A1+A2+A6 消化済み（2026-07-16）**。A1+A2（アドプリット削除＋尿比重 min/max 空化・commit 90553a51）は seed 編集完了・`db_reset` は USER。A6（checkup_type_fields↔checkup_types 複合 FK・commit 59aa533a）は 2026-07-17 に `001_init.sql` 末尾（013 セクション）へ統合済み（起草時に checkup_field_results↔checkup_type_fields 側は既に 001_init.sql 実装済みと判明・対象は checkup_types 側 1 本のみに縮小。独立ファイル 002 は migration 完全統合で削除）。既存 DB への反映は USER の `DB_RESET=true` 再適用時（fresh DB は 001 適用で有効）。やらない分（CRUD UI／四季分割・腎臓ドック／select 異常ハイライト／ライブ E2E）は `phase2.html`。provisional 解除はクライアント臨床責任者確認後に seed 手動更新 |
 | #89/#97/#98/#99/#109 | シークレット移行・ローテーション | **USER BLOCKED**（リポジトリ Phase A 済）。4系統ローテ / P5-2 Secrets / #97 本文マスク / #109 フォールバック撤去。詳細は SEC-SECRETS-5 |
 
 ### P2 — follow-up
@@ -64,7 +64,7 @@
 |-----------|------|
 | SEC-SECRETS-5: 4系統ローテーション＋ P5-2 GitHub Secrets 登録＋ #97 本文マスク | PUBLIC 履歴露出の実効無効化。手順: runbook §0.5 / `infra/cloudflare/README.md` |
 | seed 003_demo 変更後のローカル/STG `db_reset`（SEC / #211 A1+A2） | migration-seed-safety。エージェントは DB reset 自動実行禁止 |
-| #211 A6: `002_checkup_field_clinic_composite_fk.sql` の実DB適用 | DROP CONSTRAINT 対象の推定制約名（`checkup_type_fields_checkup_type_id_fkey`）を `\d checkup_type_fields` で事前確認してから `go run ./cmd/migrate`。migration適用はエージェント禁止 |
+| #211 A6 複合FK の実DB反映 | 2026-07-17 の migration 完全統合により A6 は `001_init.sql`（013 セクション）に内包。既存 DB（ローカル/STG）は 001 checksum 変更のため `DB_RESET=true` での再適用が必要（A1+A2 seed 反映の db_reset と同時に消化可能）。migration適用はエージェント禁止 |
 | #211 A6 の DB 適用時 実SQL実行検証（静的SQLレビューのみ実施済み） | B2 の scoped 検証は 2026-07-16 実施済み・green（`docker compose run --no-deps` 経由: go test -run Dose ok／gofmt・build・vet clean） |
 | #109 Phase C: `STG_DEMO_*` 登録後に performance-tests フォールバック撤去（エージェント可） | Secrets 未登録のまま撤去すると scheduled が壊れる |
 | Vercel Production `VITE_SHOW_DEMO_ACCOUNTS=false` 確認/設定 | 外部システム操作 |

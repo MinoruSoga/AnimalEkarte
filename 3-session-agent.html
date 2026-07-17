@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>3セッション並行開発計画 — GitHub Issue グルーピング（2026-07-15）</title>
+<title>3セッション開発計画 — Readiness View（2026-07-16）</title>
 <style>
   :root {
     --ink: #1a202c; --sub: #4a5568; --line: #e2e8f0; --bg: #f7fafc;
@@ -24,7 +24,6 @@
   .card.s3 { border-left-color: var(--c); }
   .card h3 { margin: 0 0 6px; font-size: 16px; }
   .tag { display: inline-block; font-size: 11.5px; padding: 1px 8px; border-radius: 10px; background: #edf2f7; color: var(--sub); margin-left: 6px; }
-  .prompt { background: #1a202c; color: #e2e8f0; padding: 12px 14px; border-radius: 6px; font-size: 12.5px; font-family: Menlo, monospace; white-space: pre-wrap; word-break: break-all; }
   .warn { background: #fffaf0; border: 1px solid #ecc94b; border-radius: 6px; padding: 10px 14px; font-size: 13.5px; }
   ul { margin: 6px 0; padding-left: 22px; }
   li { margin: 3px 0; }
@@ -34,96 +33,81 @@
 <body>
 <main>
 
-<h1>3セッション並行開発計画 — GitHub Issue グルーピング</h1>
-<p class="meta"><b>正本は GitHub Issue <a href="https://github.com/MinoruSoga/AnimalEkarte/issues/260">#260</a></b>（本 HTML はビュー — 乖離時は #260 と各実装 Issue が優先）<br>
-作成: 2026-07-15（旧5セッション計画を改訂: 3セッション化＋非開発タスク除外）／ 基準: HEAD <code>1570778e</code> ／ 納品: 2026-07-18<br>
-<b>改訂: 2026-07-16（実態突合・再監査時 HEAD <code>ef26ffe6</code>）</b> — ① #229 は実装完了済み（<code>97c3157d</code>・7/15）② #201 は実装完了につき計画から除外（「FE のみ残」は誤りだった）③ #211 残作業を PO 決裁済みスコープへ再定義（マスタ管理 UI は「やらない」決裁）④ migration 002-004 は <code>fb758d50</code> で 001 に統合済み（次番号 = 実ファイル最大+1・現在 002）⑤ S1 P4 の FE に PO-007 ゲートを明記。<br>
-前提: 対象 Issue は全件 2026-07-15 に実装可能粒度へ改善済み（file:line アンカー・scoped 検証・哲学ゲート付き）。実行セッションは Sonnet 5。<b>開発タスクのみを対象とし、運用・検証作業は除外</b>（下部「除外タスク」参照）。</p>
+<h1>3セッション開発計画 — Readiness View</h1>
+<p class="meta">
+監査日: 2026-07-16 ／ 基準: HEAD <code>5e91a520</code> ／ 当初納品予定: 2026-07-18（下記 blocker 解消が前提）<br>
+正本の優先順位: <b>各実装 Issue の受け入れ条件 → <a href="https://github.com/MinoruSoga/AnimalEkarte/issues/260">計画 #260</a> → 本 HTML</b>。本 HTML は tracked view であり、詳細仕様や実行 prompt を重複保持しない。
+</p>
+
+<h2>P0 — 開始・Go-live ブロッカー</h2>
+<table>
+<tr><th>領域</th><th>Issue</th><th>現在の判定</th></tr>
+<tr><td>Credential</td><td><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/89">#89</a> / <a href="https://github.com/MinoruSoga/AnimalEkarte/issues/97">#97</a> / <a href="https://github.com/MinoruSoga/AnimalEkarte/issues/98">#98</a></td><td>公開 repository の release blocker。USER による rotation・旧値無効化・履歴／不正利用確認が必要。STG 限定 park ではない。</td></tr>
+<tr><td>CI / Production</td><td><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/253">#253</a></td><td>最新 main run は account billing/spending 状態により job 開始前に失敗。USER 復旧後、最新 main の全必須 job green が開始・Go-live 条件。</td></tr>
+<tr><td>臨床安全</td><td><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/201">#201</a> / <a href="https://github.com/MinoruSoga/AnimalEkarte/issues/261">#261</a></td><td>#201 は再オープン。薬量上限を ConfirmDialog で解除できる現状を BE 物理ブロックまたは権限付き例外フローへ是正する。Lock UI 等は #261 で PO 判定。</td></tr>
+</table>
 
 <h2>全体マップ</h2>
 <table>
-<tr><th>セッション</th><th>ドメイン</th><th>Issue（実施順）</th><th>規模</th><th>並列安全性（触る領域）</th></tr>
-<tr><td><b>S1</b> 検査機能</td><td>examinations / checkup / lab_import</td><td>#249（Phase 1→2→3→4→5）→ #211 残作業</td><td>最重量</td><td><code>features/examinations</code>・<code>examination_*</code>・<code>lab_*import*</code>・checkup 系</td></tr>
-<tr><td><b>S2</b> 画面系小物 5 件</td><td>medical-records / owners / owner-report</td><td>#234 → #230 → #232 → #235 → #237（#229 は実装完了済み・#201 は完了につき除外 — 2026-07-16 改訂）</td><td>小×5</td><td><code>features/medical-records</code>・<code>features/owners</code>・<code>features/owner-report</code>・<code>PatientContextHeader</code>・<code>medical_record_repository</code>・pets migration</td></tr>
-<tr><td><b>S3</b> 会計＋名寄せ</td><td>accounting / cash-register / identity-links</td><td>#251 → #247 → #239 →（全セッション完了後）#212</td><td>小+中+大+全域</td><td><code>features/accounting</code>・<code>features/accounting-reports</code>・<code>features/cash-register</code>・<code>src/constants</code>・identity_links 新設（owners/pets BE）</td></tr>
+<tr><th>セッション</th><th>対象</th><th>Readiness</th><th>主なゲート</th></tr>
+<tr><td><b>S1</b> 検査</td><td><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/249">#249</a></td><td>Phase 単位で条件付き</td><td>legacy mapping、enforceable な clinic/species schema、実機 export、manual validation を先行。</td></tr>
+<tr><td><b>S2</b> カルテ・飼主</td><td><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/230">#230</a> → <a href="https://github.com/MinoruSoga/AnimalEkarte/issues/232">#232</a> → <a href="https://github.com/MinoruSoga/AnimalEkarte/issues/237">#237</a> → <a href="https://github.com/MinoruSoga/AnimalEkarte/issues/238">#238</a></td><td>Issue 修正後に scoped 実装可</td><td><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/234">#234</a> は運用確認待ち、<a href="https://github.com/MinoruSoga/AnimalEkarte/issues/235">#235</a> は価値検証待ち。#201 は safety work。</td></tr>
+<tr><td><b>S3</b> 会計・医院間リンク</td><td><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/251">#251</a> → <a href="https://github.com/MinoruSoga/AnimalEkarte/issues/247">#247</a> → <a href="https://github.com/MinoruSoga/AnimalEkarte/issues/239">#239</a></td><td>設計／業務決裁待ち</td><td>全書込経路の分類、会計保存則、clinic isolation・権限・RLS・audit atomicity を先に確定。</td></tr>
 </table>
-<p class="small">3 セッションは並列実行可能（ファイル領域は分離済み）。#239 は owners ドメインだが S2 とは触るファイルが重ならない（S2=owners の FE 表示系／#239=identity_links 新設 BE+飼主詳細の候補カード）。唯一の接点は下の依存表参照。</p>
-
-<h2>セッション詳細</h2>
 
 <div class="card s1">
-<h3>セッション 1 — 検査機能の内製<span class="tag">#249 #211</span><span class="tag">最優先着手</span></h3>
+<h3>S1 — #249 検査機能<span class="tag">条件付き</span></h3>
 <ul>
-<li><b>やること</b>: #249 本文 §6（F 要件）+ §11 実装ガイドに従い Phase 1（時系列ピボット・FE のみ）から順に実装。P1 は前提ゼロで即着手可。</li>
-<li><b>順序</b>: P1 検歴ピボット → P2 基準値マスタ（migration・<code>exam_reference_ranges</code>）→ P3 入力完成+誤紐付け是正 → P4 取込解禁+crosswalk → P5 印刷+感染症導出 → #211 残作業。</li>
-<li><b>#211 残作業（2026-07-16 改訂・PO 決裁済みスコープ）</b>: (A1+A2) アドプリット（checkup_types id=15＋配下フィールド）seed 削除＋尿比重 min/max 空化（同一 seed スライス・db_reset は USER）、(A6) exam_results 複合 FK の新規 migration。<b>マスタ管理 UI（CRUD）とライブ E2E は「やらない」決裁</b>。5 カテゴリの provisional seed は投入済み（<code>1ed4eb37</code>）— provisional 解除はクライアント臨床責任者確認後。正本 = todo.md「PO 決裁 — 即実装可」節。ADR-004 の境界維持。</li>
-<li><b>P4 の FE ゲート（PO-007・2026-07-15）</b>: lab_import の FE（F-4a アップロード UI・F-4c needs_review 解決 UI）は、Phase 4 で実データ経路（manual 解禁）を開通させた上で「誰が・何を・何クリック」の最小 UX を定義してから実装する（正本 = q&amp;a.html PO-007）。</li>
-<li><b>注意</b>: P5 の F-6（感染症のカルテヘッダ表示）は <b>S2 の #230 完了後</b>に統合。判定はサーバ一元・FE 再計算禁止。</li>
+<li>legacy 相当 CSV は 1,324,612 行中 1,323,933 行で field ID が空。ID-only pivot は不可。読み取り専用の visibly-unmapped 表示と mapping/backfill review を先に行う。</li>
+<li>reference range は clinic ownership を DB で強制できる schema にし、species は既存 <code>animal_species_id</code> を正本にする。</li>
+<li>lab import の自動 commit は最後。初期 <code>auto_commit=false</code>、実機形式確認、代表データの手動照合、権限付き enable、停止・通知・監査を必須とする。</li>
+<li><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/211">#211</a> の A1+A2/A6 は実装済み。A6 は <code>checkup_type_fields → checkup_types</code> 複合 FK であり、<code>exam_results</code> ではない。残りは USER の DB 適用確認と臨床確認。</li>
 </ul>
-<div class="prompt">まず計画 Issue #260（正本）を読んでから、#249 の §11 実装ガイドに従い、Phase 1（§11.1 検歴時系列ピボット）から実装を開始して。FEのみ・BE変更なし。完了したら Phase 2 へ順に進む。#249 全 Phase 完了後は #211 の残作業（todo.md「PO 決裁 — 即実装可」節の A1+A2 seed スライスと A6 exam_results 複合 FK migration のみ。マスタ管理 UI は「やらない」決裁済みのため作らない）へ。P4 の FE は PO-007 の最小 UX 定義を先に通すこと。検証は scoped コマンドのみ。commit 前に git pull で HEAD を確認すること。</div>
 </div>
 
 <div class="card s2">
-<h3>セッション 2 — カルテ・飼主まわりの画面系 5 件<span class="tag">#234 #230 #232 #235 #237</span></h3>
+<h3>S2 — カルテ・飼主<span class="tag">安全境界を先に固定</span></h3>
 <ul>
-<li><b>やること</b>: 危険度理由欄+一覧色分け（#234・migration 含む）→ カルテヘッダ属性表示（#230・FEのみ）→ 同居ペットチップ+pet_id 配線（#232）→ 画像 D&amp;D（#235・FEのみ）→ カルテ検索対象拡張（#237・BE EXISTS サブクエリ）。</li>
-<li><b>2026-07-16 改訂</b>: #229（飼主レポート危険度除去）は <code>97c3157d</code> で実装完了済み（gh クローズは USER）→ #234 は即着手可。#201（薬量自動計算）は BE・FE・マスタ UI とも実装完了済みのため計画から除外（旧記述「FE のみ残」は誤り。残 = todo.md #201 B2 の注記文言更新のみ）。</li>
-<li><b>順序制約</b>: #234 実装時は飼主向けサーフェス（owner-report / liff / line-reserve）への danger_reason 非露出 grep を<b>必須</b>で実施（#229 の横断 grep 要件を継承）。他は記載順推奨だが入替可。</li>
-<li><b>注意</b>: 各 Issue に実装プラン・テスト・検証コマンド記載済み。#237 は JOIN でなく EXISTS（行重複回帰の防止テスト必須）。#232 と #237 は同じ pet_id フィルタ配線を共有する。</li>
+<li>#237 は correlated <code>EXISTS</code> を使い、JOIN する全 master を <code>medical_records.clinic_id</code> で再度 scope する。result と count は同じ条件を使う。</li>
+<li>#238 は条件付き OPS ではなく確定 backend bug。inactive 種別を公開一覧と直接予約 API から拒否し、既存予約表示は残す。</li>
+<li>#234 は既存の危険理由記録工程を確認して一本化を先に判断。理由は owner-facing DTO からキーごと除外し、院内 UI は touch/focus/keyboard でも1操作で確認可能にする。</li>
+<li>#235 は既存 upload path を再利用し、確定済みカルテでは drop UI・handler・BE の全境界で追加を拒否する。</li>
 </ul>
-<div class="prompt">まず計画 Issue #260（正本）を読んでから、#234 → #230 → #232 → #235 → #237 の順に、各 Issue 本文の実装プランどおり実装して。1 Issue = 1〜2 commit。#234 では owner-report/liff/line-reserve への danger_reason 非露出を grep で必ず確認（#229 の横断 grep 要件を継承）。それぞれの「検証（scoped）」コマンドで確認し、commit 前に git pull で HEAD を確認すること。</div>
 </div>
 
 <div class="card s3">
-<h3>セッション 3 — 会計 8 分類・月次統合表・医院間名寄せ<span class="tag">#251 #247 #239 #212</span></h3>
+<h3>S3 — 会計・医院間リンク<span class="tag">Block</span></h3>
 <ul>
-<li><b>やること</b>: 8 分類の FE 入力経路（#251・手動入力の other 固定解消+フィルタ 12 値化+経路棚卸し）→ 月次の部門×支払方法統合表+印刷（#247・締め側クロス集計の月次移植）→ 医院間名寄せ identity links（#239・方式A確定済み）。</li>
-<li><b>根拠</b>: #251 と #247 は「セット実装」と Issue 明記（<code>DISPLAY_CATEGORIES</code> の <code>src/constants/</code> への単一ソース化を共用）。#239 は規模バランスで本セッションに配置 — S2 の owners FE 表示系とはファイルが重ならない。</li>
-<li><b>注意</b>: #239 の隔離原則（閲覧者の clinicIDs 外は非表示）は最重要・隔離テスト必須。#239 Phase 3（統合表示）は examinations の GET に触れるため<b>着手前に S1 の進捗を確認</b>。#247 の按分ルールは締め側と同一（独自ルール新設禁止）。</li>
-<li><b>追加 #212</b>: カバレッジ 90%（テスト実装=開発タスク）。<b>着手条件 = 全セッションの実装完了後</b>（全域にテストを足すため並列中は全セッションとの衝突源）。coverage-policy（#194）に従い、数値合わせの空テストは書かない。</li>
+<li>#251 は surgery、hospitalization、vaccine、hotel、training を含む全書込経路を棚卸ししてから BE/FE の分類 contract を決める。根拠のない <code>other</code> default は使わない。</li>
+<li>#247 は現行締め表の単純移植を禁止。discount・tax・insurance・refund・端数・件数の定義を決め、動的な支払方法列と row/column/grand total の保存則を共通 helper で保証する。</li>
+<li>#239 は明示 search → 手動 link/unlink → 最小履歴を先に検証し、候補自動化は最後。全 request ID の clinic scope、専用権限、custom RLS、transactional audit、owner/pet 整合を実装条件とする。</li>
+<li><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/212">#212</a> は current phase から外し、正式 CI baseline と PO の coverage policy 決裁後に高リスク repository test へ分解する。</li>
 </ul>
-<div class="prompt">まず計画 Issue #260（正本）を読んでから、#251 → #247 → #239 の順に実装して。#251 冒頭の「入力経路の棚卸し」結果は Issue にコメント投稿。分類定義は src/constants/ へ抽出して単一ソース共用。#239 は本文の方式決定（リンクテーブル）と隔離原則に厳密に従い、Phase 3 着手前に features/examinations の直近コミットを確認して衝突を避けること。#212 は全セッション完了後のみ着手。commit 前に git pull で HEAD を確認。</div>
 </div>
 
-<h2>セッション間の依存・調整</h2>
+<h2>Delivery workstream</h2>
 <table>
-<tr><th>依存</th><th>内容</th><th>対処</th></tr>
-<tr><td>S2 #230 → S1 P5</td><td>#249 F-6（感染症ステータスのカルテヘッダ表示）は #230 のヘッダ拡張が土台</td><td>S1 は P5 着手時に #230 完了を確認。未完なら F-6 の表示統合のみ後回し</td></tr>
-<tr><td>S1 ⇔ S3 #239 P3</td><td>#239 Phase 3（統合表示）が examinations の GET を触る</td><td>S3 は #239 P3 着手前に S1 の進捗確認。examinations API 変更が進行中なら P3 を待機</td></tr>
-<tr><td>S2 内部</td><td>#229 が #234 より先行必須（漏出窓防止）</td><td><b>解消済み</b>（#229 は <code>97c3157d</code> で実装完了・2026-07-16 確認）。#234 実装時の danger_reason 非露出 grep 義務は継続</td></tr>
-<tr><td>S3 内部</td><td>#251 の分類定数抽出が #247 の前提</td><td>#251 → #247 の順を守る（設計済み）</td></tr>
-<tr><td>migration 採番</td><td>S1（#249 P2）・S2（#234）・S3（#239）が新規 migration を作る。<b>002-004 は <code>fb758d50</code>（7/15）で 001_init.sql へ統合済み・現最新 = 001 のみ</b>。Issue 記載の「005」は陳腐化（Issue 側修正済み）</td><td><b>採番は着手時点の実ファイル最大+1</b>（2026-07-16 時点の次番号 = 002）。commit 前の git pull で他セッションの migration を取り込んでから確定</td></tr>
-<tr><td>S3 #212 → 全セッション</td><td>カバレッジ向上は全パッケージのテストに触れる</td><td><b>S1・S2 と S3 の #251/#247/#239 完了後に着手</b>（最後尾固定）</td></tr>
+<tr><th>Issue</th><th>扱い</th></tr>
+<tr><td><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/250">#250</a></td><td>既存 <code>backend/cmd/stage-import</code> の gap analysis／拡張は開発。rehearsal・cutover は privileged USER operations。</td></tr>
+<tr><td><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/253">#253</a></td><td>CI/CD・監視・backup/restore の delivery prerequisite。main→STG 自動、production branch + required reviewer を維持。</td></tr>
+<tr><td>#256 / #258</td><td>システム内コンテンツ・repo docs の納品作業。人間 OPS だけではない。</td></tr>
+<tr><td>#254 / #255 / #257</td><td>UAT・アカウント発行・cutover を中心とする USER operations。</td></tr>
+<tr><td>#252 / #259</td><td>設定投入／納品後の外部 API 待ち。</td></tr>
 </table>
 
-<h2>除外タスク（本計画の対象外）</h2>
-<table>
-<tr><th>Issue</th><th>内容</th><th>除外理由・扱い</th></tr>
-<tr><td>#250</td><td>Access からの本番データ移行</td><td>運用タスク（PO 裁定 2026-07-15）。移行ツール実装を含め本並行開発から分離し、別途実施</td></tr>
-<tr><td>#252</td><td>締め時間設定値の投入</td><td>運用（設定画面からの投入作業・本番操作は事前承認必須）</td></tr>
-<tr><td>#238</td><td>予約種別「部分カット」除外</td><td>運用（マスタ無効化）。LINE 経路の is_active フィルタ検証で穴が判明した場合のみ小規模の開発が発生 — その時点で S2 に差し込む</td></tr>
-<tr><td>#214</td><td>bug.md 8 コミットの検証チェックリスト</td><td>検証作業（コード変更なしが原則）。起票元 bug.md は docs 再編（7/16）で削除済み・対応自体は 7/2 完遂 — <b>クローズ済み</b>（2026-07-16 ユーザー承認）</td></tr>
-<tr><td>#253〜#258</td><td>本番環境整備・UAT・アカウント発行・マニュアル・Go-live・納品ドキュメント</td><td>OPS（人間の作業）</td></tr>
-<tr><td>#259</td><td>Lステップ再開</td><td>納品後スコープ（先方 API 有効化待ち）</td></tr>
-<tr><td>#89/#97/#98/#99/#109</td><td>シークレット系</td><td>pending（STG 限定 park 済み）</td></tr>
-<tr><td>#229</td><td>飼主レポート危険度除去</td><td><b>実装完了済み</b>（<code>97c3157d</code>・7/15。owner-report/liff/line-reserve 横断 grep 0 件確認済み・2026-07-16 改訂で計画から除外）。<b>クローズ済み</b>（同日ユーザー承認）</td></tr>
-<tr><td>#201</td><td>薬量自動計算</td><td><b>実装完了済み</b>（BE・FE 自動プリフィル・マスタ UI とも。丸め・逸脱閾値は 2026-07-15 PO 暫定確定）。B2 注記も 7/16 消化・残ゼロ。<b>クローズ済み</b>（同日ユーザー承認）</td></tr>
-</table>
-
-<h2>全セッション共通の運用ルール</h2>
+<h2>依存・実行ルール</h2>
 <div class="warn">
 <ul>
-<li><b>ブランチ</b>: main 直接（feature branch 禁止）。<b>commit 直前に必ず <code>git pull</code> で HEAD 確認</b>（並列セッションのコミット衝突防止）。</li>
-<li><b>検証</b>: 各 Issue 記載の scoped コマンドのみ自動実行。フルテスト・フル lint・build は自動実行禁止（必要ならユーザーに手動実行を依頼）。</li>
-<li><b>push</b>: ユーザー所有アクション — エージェントは依頼があるまで push しない（旧 BE_todo「OPS-PUSH-GATE」は台帳再編で廃止・現行正本 = todo.md 運用規約。2026-07-16 更新）。</li>
-<li><b>哲学</b>: 確認ダイアログでの安全対策禁止／二重管理・二重入力の新設禁止／仕様外の推測実装禁止（Issue に書いていないことは作らない）。</li>
-<li><b>個人名</b>: Issue・コミットに個人名を書かない（バックログシート No.X 質問者欄参照の形式を維持）。</li>
-<li><b>詰まったら</b>: Issue 本文の file:line が行ドリフトしていたら関数名・定数名で再特定（HEAD <code>1570778e</code> 基準で記載）。docs 再編（7/16）で Issue 内の旧 docs パスは移動済み — <code>docs/ERD.md</code>→<code>docs/architecture/erd.md</code>、<code>docs/adr/</code>→<code>docs/architecture/adr/</code>、screens 系→<code>docs/spec/screens/</code>、<code>docs/tasks/</code>→削除（git 履歴参照）。api.yaml の正は <code>backend/docs/api.yaml</code>。</li>
+<li><b>migration</b>: 作成直前に実ファイル最大+1を再計算する。監査時点の最大は 002（現在作るなら 003）。#249・#234・#239・#250 を含め、作成と integration は単一担当が直列化する。</li>
+<li><b>並列化</b>: 独立 worktree／checkout と file ownership を使い、単一 integration owner が順に取り込む。S2 owners と #239、S1 examinations と #239 は重なる。同一 dirty worktree で blind <code>git pull</code> しない。</li>
+<li><b>哲学</b>: 要件ごとに一人の責任者と業務目的を確定し、削除→簡素化→高速化→自動化の順で判断する。確認ダイアログを安全装置にせず、二重入力・二重管理を増やさない。</li>
+<li><b>責任者</b>: 公開 Issue から access-controlled 台帳上の一人へ一意に解決できることを開始条件とする。「現場」「担当部門」だけでは着手しない。</li>
+<li><b>横断規約</b>: 仕様機能を推測追加しない。ただし clinic isolation、input validation、audit atomicity、API/docs/type sync、既存 security/verification gate は Issue の書き漏れでも省略せず、先に Issue を修正する。</li>
+<li><b>外部操作</b>: scoped verification のみ自動実行。push、本番操作、credential・billing 変更は明示依頼なしに行わない。</li>
 </ul>
 </div>
 
-<h2>推奨開始順（同時 3 並列でない場合）</h2>
-<p>S1（検査① = 最大価値・前提ゼロ）→ S2（小物 7 件で消化が速い）→ S3（#239 が S1 と接点を持つため最後）。</p>
+<p class="small">#229 は実装・close 済み。public serializer の非露出は raw grep 件数ではなく contract test で維持する。#99 は旧 ECS 経路撤去、#109 は CI 認証設定の二重管理／サイレント skip 解消として別途追跡する。</p>
 
 </main>
 </body>

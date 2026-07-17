@@ -114,7 +114,7 @@ func run(logger *slog.Logger) error {
 		return fmt.Errorf("baseline failed: %w", err)
 	}
 
-	// フェーズ1: DDL migration（直下の *.sql。001_init.sql + incremental 002 以降）を適用
+	// フェーズ1: DDL migration（直下の *.sql。現状は統合スキーマ 001_init.sql のみ）を適用
 	if err := runSQLMigrations(db, logger); err != nil {
 		return fmt.Errorf("migration failed: %w", err)
 	}
@@ -435,10 +435,10 @@ func fileChecksum(content []byte) string {
 	return fmt.Sprintf("%x", h)
 }
 
-// runSQLMigrations はフェーズ1: 直下の *.sql migration ファイル（001_init.sql +
-// incremental 002 以降。旧 005–012 / checked_in_at の upgrade path を含む）を
-// 順序通りに実行する（実行済みはスキップ）。CSV シードバンドルはフェーズ2の
-// runSeedBundles が別途扱う — このファイル群には seed データは一切含まれない。
+// runSQLMigrations はフェーズ1: 直下の *.sql migration ファイル（2026-07-17 に
+// incremental 002–011 を畳み込んだ統合スキーマ 001_init.sql のみ。将来 incremental が
+// 増えた場合も昇順）を順序通りに実行する（実行済みはスキップ）。CSV シードバンドルは
+// フェーズ2の runSeedBundles が別途扱う — このファイル群には seed データは一切含まれない。
 func runSQLMigrations(db *sql.DB, logger *slog.Logger) error {
 	// ディレクトリが存在するか確認
 	if _, err := os.Stat(migrationsDir); os.IsNotExist(err) {

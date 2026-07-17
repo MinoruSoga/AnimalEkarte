@@ -43,21 +43,14 @@ const migrationsDir = "../../migrations"
 //
 //	001_init.sql: 初期スキーマの junction/line-item 等の純粋従属子50件（#211 監査時点でレビュー済み）
 //	  + 旧 010_add_checkup_packages.sql 由来の checkup_type_fields.checkup_type_id と
-//	  checkup_field_results.checkup_id の2件（純粋従属子・checkup_field_cascade_test.go で安全性実証済み）。
-//	  旧 010 は 2026-07-04 に 001_init.sql へ統合され、独立ファイルとしては存在しない
-//	  （docs/architecture/erd.md §4.3 参照）。合計 52。
-//	002_checkup_field_clinic_composite_fk.sql: #211 A6（起草のみ・未適用）。
-//	  checkup_type_fields.checkup_type_id → checkup_types.id の既存単一列 CASCADE FK を
-//	  複合FK（clinic_id 込み）に置換する1件のみ。checkup_types は checkup_type_fields の
-//	  親であり「構成要素として不可分な子行」（migrations/CLAUDE.md 許容例外）。
-//	  挙動は既存の CASCADE から変更しない（behavior-preserving）。
-//	008_add_checkup_packages.sql: 旧 010 の upgrade-path 再出荷。純粋従属子 2 件
-//	  （checkup_type_fields.checkup_type_id / checkup_field_results.checkup_id）。
-//	  001 統合スキーマと同内容・checkup_field_cascade_test.go で安全性実証済み。
+//	  checkup_field_results.checkup_id の2件（純粋従属子・checkup_field_cascade_test.go で安全性実証済み。
+//	  旧 010 は 2026-07-04 に 001_init.sql へ統合）
+//	  + 旧 002_checkup_field_clinic_composite_fk.sql（#211 A6・2026-07-17 に 001 末尾へ統合）由来の1件
+//	  （checkup_type_fields.checkup_type_id → checkup_types の単一列 CASCADE FK を複合FK
+//	  （clinic_id 込み）へ置換するもの。挙動は既存 CASCADE から変更しない behavior-preserving）。
+//	  合計 53（docs/architecture/erd.md §4.3 参照）。
 var migrationCascadeAllowlist = map[string]int{
-	"001_init.sql": 52,
-	"002_checkup_field_clinic_composite_fk.sql": 1,
-	"008_add_checkup_packages.sql":              2,
+	"001_init.sql": 53,
 }
 
 // countCascadeOccurrences は SQL テキスト中の "ON DELETE CASCADE" 出現数を数える純粋関数。
@@ -128,15 +121,15 @@ func walkMigrationsForCascade(t *testing.T) map[string]int {
 // "ON DELETE CASCADE" occurrence count must match the reviewed allowlist. A floor guards
 // against a vacuous pass if the migrations directory glob silently breaks.
 //
-// Floor rationale (2026-07-17): DDL は 001 統合スキーマ + incremental upgrade path
-// （002 clinic 複合 FK + 003–011 旧 005–012/checked_in_at 再出荷）で 11 ファイル。
+// Floor rationale (2026-07-17): DDL は 001_init.sql の単一統合スキーマのみ
+// （同日中に incremental 002–011 を 001 へ完全統合し削除済み）。
 // The floor tracks the current known minimum .sql file count, not an arbitrary buffer;
 // it must be revisited whenever migrations are consolidated/split or the directory's .sql
 // file count otherwise legitimately changes.
 func TestMigrationCascadeInventory_NoUnreviewedCascade(t *testing.T) {
 	found := walkMigrationsForCascade(t)
 
-	const minDDLFiles = 11
+	const minDDLFiles = 1
 	if len(found) < minDDLFiles {
 		t.Fatalf("expected at least %d migration .sql file(s) under %s, found %d "+
 			"(directory read broken or files missing).", minDDLFiles, migrationsDir, len(found))

@@ -6,7 +6,7 @@
 > **ステータス**: 実行中 — **Phase 4 完了（P4-1〜P4-9、2026-07-05 試行12確定）**。**Phase 5（CI/CD 置換）コード完了（2026-07-06。P5-1/P5-3/P5-4 実装・コミット `4a9ad331` 確定。P5-2（Secrets登録）/P5-5（2回連続成功確認）は人間タスク待ち・BLOCKED(genuine)）**。**Phase 6（監視・ログ・通知）— P6-1〜P6-3 完了（2026-07-06）・P6-4 調査完了/genuine BLOCKED（2026-07-07、Cloudflareにアカウント全体のドル建て支出アラート機構が存在しないため実装不可と判明）・P6-5 棚卸し完了（2026-07-07、AWS CloudWatch依存6項目中、代替不能は1件のみ=#4 RDS PostgreSQLログのCloudWatch Logsエクスポート↔PlanetScale側の同等性・未検証BLOCKED、他5件はPASS/N/A）**。
 > Phase 0〜3 は完了（P2-4/P2-5 画像データ移行実行・P3-6/P3-7 データ本切替は人間判断待ち）。
 > トラフィック切替（P1-2 NS 切替・Phase 7）は未実施。現行 `api.stg.noah-karte.com` は AWS ECS 経路（夜間停止等で 503 になり得る）、Cloudflare 検証経路は `*.workers.dev`（2026-07-06 時点 `/health` 200 確認済み。P6着手セッションではdeployしていないため前回記録を維持）。詳細は「実施記録」の 2026-07-06 セクション参照
-> **最新監査: 2026-07-15（下記「現況サマリ」参照 — P5-2/P5-5 依然未達・staging は 6/22 以降 push 無し・STG 実 URL のコードは 6/22 デプロイ分で停止中）**
+> **最新更新: 2026-07-16（下記「現況サマリ」の同日付ブロック参照 — P5-2 完了・PlanetScale STG 初期化済み・残ブロッカー = main CI 赤修正 → PR #186 マージ【ユーザー】）**
 
 ## 現況サマリ（2026-07-15 ステータス監査）
 
@@ -38,6 +38,14 @@
 1. **STG は納品前に Phase 7 まで完遂する**（クリティカルパス: P5-2 Secrets 登録【人間】→ staging push → P5-5 2 連続 green → P2-4/P2-5 画像データ移行 → P3-6/P3-7 データ本切替 → P1-2/Phase 7 NS 切替【人間】）。人間タスクの正本は [todo-me.html](todo-me.html)
 2. **納品環境（本番）も Cloudflare 構成で整備する**（§10「本番移行は別途計画」の前倒し）。本番はまだ実データ運用前のため既存データの本切替が不要で、Access 移行（#250）を本番 DB へ直接投入できる — 切替コストが最小の唯一のタイミングである。本番整備の追跡 Issue は #253（BE 自動デプロイ = CF 版 `backend-deploy.yml` の production 対応として実装）
 3. AWS 側（ECS/RDS）は Phase 7 の並行稼働期間はロールバック先として維持し、Phase 8（廃止）は納品後の安定確認を待って実施する
+
+### 2026-07-16 進捗更新
+
+- **P5-2 完了**: `CLOUDFLARE_API_TOKEN` / `MIGRATE_RUN_SECRET` / `STG_DEMO_EMAIL` / `STG_DEMO_PASSWORD` を GitHub Secrets へ登録（`gh secret list` 実測）。`MIGRATE_RUN_SECRET` は控え紛失のため新値でローテし Worker 側と同値投入。シークレットのローカルメモ運用として repo 直下 `.secret`（gitignore 済み）を新設
+- **PlanetScale STG スキーマ初期化済み**: `fb758d50`（migration 002〜004 を 001 へ統合）による checksum mismatch を事前解消するため、一時 role（TTL 1h）経由で `DROP SCHEMA public CASCADE`（166 オブジェクト削除を実測確認）。次回デプロイの migrate は統合後 001 をフレッシュ適用する
+- **PR #186（main→staging）マージ待ち【ユーザー実施】**: ブロッカー = main `ef26ffe6` の CI 赤（Backend golangci-lint / Frontend / E2E）。7/15 に一度 CI green 化（`233e5531`）したが後続 push（seed CSV 取込アダプタ等）で再赤化 — 修正の再依頼が必要。E2E の `estimates-flow` 2 件は見積書 UI の実リグレッション疑い（マージ非ブロッカー裁定済みだが別途修正必須）
+- **監視稼働中**: マージ後の `backend-deploy.yml` 初回 run を自動検知・完了追跡するウォッチャーを起動済み（4 時間窓）
+- 残クリティカルパス（変更なし）: CI green → マージ → P5-5（2 連続 green）→ P2-4/5 画像移行 → P3-6/7 データ投入（STG は seed 再投入で代替可の判断待ち）→ Phase 7 NS 切替 → 本番 CF 整備（#253）→ #250 Access 投入 → 7/18 Go-live
 
 ---
 
@@ -793,10 +801,10 @@ Phase 1〜3 は互いに独立しており並行着手可能。Phase 4 が最大
 ## Phase 5: CI/CD — GitHub Actions 置換（2〜3 人日）
 
 - [x] **P5-1** `backend-deploy.yml` の置換 — **2026-07-06 実装済み**。AWS OIDC / ECR push / task-definition render / ECS update / migrate task 実行のジョブ群を `wrangler deploy`（+ P4-5 の migrate 実行）に置換。デプロイ後検証は deploy直後と migrate後の2段階で `/health` ポーリングを実装。旧ECSフローは `backend-deploy-ecs.yml`（`workflow_dispatch` のみ）へ分離しPhase 8まで温存
-- [ ] **P5-2** GitHub Secrets に Cloudflare API Token 登録（deploy 権限のみの最小スコープ）、AWS OIDC ロール参照の除去 — **人間タスク（未実施）**。登録手順・最小スコープ表は `infra/cloudflare/README.md` §CIデプロイ参照
+- [x] **P5-2** GitHub Secrets 登録 — **2026-07-15 完了**。`CLOUDFLARE_API_TOKEN`（統合トークンを流用 — STG は許容、**本番構築時は deploy 専用最小スコープを別発行すること**）/ `MIGRATE_RUN_SECRET`（控え紛失のため新値でローテし Worker 側 `wrangler secret put` と GitHub 側を同値で再投入・`.secret` に記録）/ `STG_DEMO_EMAIL`・`STG_DEMO_PASSWORD`（CRUD smoke 用）を登録済み（`gh secret list` 実測）。AWS OIDC 参照は `backend-deploy.yml` からは P5-1 で除去済み・`backend-deploy-ecs.yml`（ロールバック用）には意図的に温存（Phase 8 で削除）
 - [x] **P5-3** `staging-stop.yml`（夜間停止）を**廃止** — **2026-07-06 実装済み**。scale-to-zero + PlanetScale 固定額により不要と判断し非推奨コメントを追加（ファイル自体はECS/RDS緊急手動停止用に残置、Phase 8で完全削除）
 - [x] **P5-4** `stg-smoke.yml` / `e2e.yml` / `performance-tests.yml` の対象 URL・前提を新構成に更新 — **`stg-smoke.yml` は2026-07-06実装済み**（`workflow_dispatch`入力`api_base`で workers.dev/本番相当を切替可能）。`e2e.yml` / `performance-tests.yml` はP1-2 NS切替後に対象URLが確定するためPhase 7へdefer（部分完了）
-- [ ] **P5-5** デプロイ 2 回連続成功（通常デプロイ + マイグレーション含むデプロイ）を確認 — **BLOCKED（genuine）**。P5-2のSecrets未投入のため本セッションでは実行不可。Secrets投入後の実行手順は `infra/cloudflare/README.md` §CIデプロイ検証参照
+- [ ] **P5-5** デプロイ 2 回連続成功（通常デプロイ + マイグレーション含むデプロイ）を確認 — **BLOCKED 解除済み・PR #186 マージ待ち（2026-07-16 時点）**。P5-2 完了により実行可能。前提整備済み: PlanetScale STG スキーマ初期化済み（migration 001 統合の checksum mismatch 対策・2026-07-15）。ブロッカー = main（`ef26ffe6`）の CI 赤（Backend lint / Frontend / E2E）修正待ち → green 後にユーザーが PR #186 をマージ → 初回 run 自動監視中（1回目）→ `gh workflow run backend-deploy.yml`（2回目）
 
 ---
 

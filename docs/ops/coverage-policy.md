@@ -74,7 +74,7 @@
   「Coverage ratchet」ステップは `-warn-only` なし・`continue-on-error` なしで実行し、
   tolerance を超える低下を検出すると非0 exit してステップ自体を fail させる
   （`evaluateRatchet` は baseline ≤ 0 のときのみ warn-only 相当で exit 0 を返す設計）。
-- しきい値設定: `tolerance` 既定 0.5pp。baseline は `backend/.coverage-baseline`（89.9%、2026-07-03 arm）。
+- しきい値設定: `tolerance` 既定 0.5pp。baseline は `backend/.coverage-baseline`（91.3%、2026-07-13 に main CI run 29152374862 の artifact で re-arm）。
 - ブランチ対象: backend Test job（main への push / staging・production への PR）
 - **ベースライン更新手順**: 意図的にカバレッジ基準を変える場合のみ、`backend-coverage` artifact の
   `coverage-summary.txt` 末尾 `total:` 行の実測 % を `.coverage-baseline` に転記する（推測値を書かない）。

@@ -153,7 +153,7 @@
 
 <!-- ===================== 1. INVENTORY ===================== -->
 <h2 id="inventory">① STG AWS リソース棚卸し（出典付き）</h2>
-<p class="section-intro">一次情報 = リポジトリ内 Terraform（<code>infra/terraform/</code>）・デプロイ設定・Dockerfile。read-only の <code>aws sts get-caller-identity</code> は <code>InvalidClientTokenId</code>（認証トークン無効）で実環境照会は不可だったため、<strong>IaC を STG 構成の真実の源泉</strong>とする。実コスト実測値はチームの read-only Cost Explorer 調査 <code>docs/infra/STG_AWS_COST_REDUCTION.md</code>（2026-06-17）に拠る。各行に出典を明記。</p>
+<p class="section-intro">一次情報 = リポジトリ内 Terraform（<code>infra/terraform/</code>）・デプロイ設定・Dockerfile。read-only の <code>aws sts get-caller-identity</code> は <code>InvalidClientTokenId</code>（認証トークン無効）で実環境照会は不可だったため、<strong>IaC を STG 構成の真実の源泉</strong>とする。実コスト実測値はチームの read-only Cost Explorer 調査 <code>docs/ops/stg-aws-cost-reduction.md</code>（2026-06-17）に拠る。各行に出典を明記。</p>
 
 <table>
   <thead><tr><th style="width:4%">#</th><th style="width:20%">AWS リソース</th><th>仕様（IaC 由来・識別子は非掲載）</th><th style="width:26%">出典</th></tr></thead>
@@ -384,7 +384,7 @@
 <p class="section-intro">想定トラフィック前提・為替・出典を明記の上、①STG 実態 ②本番投影 の 2 シナリオで対比する。<strong>為替前提: 1 USD = 161.2 JPY（2026-07-04 再取得。frankfurter.dev(ECB) 161.15 / open.er-api 161.30 の中点 161.22 を 161.2 に丸め）。</strong>料金は全て税前。日本の消費税(10%)は別途。USD 併記。</p>
 
 <h3>シナリオ① STG 実態（低トラフィック・us-east-1）</h3>
-<p class="small"><strong>トラフィック前提：</strong>Staging 実測（2026-06-01〜17 の 16 日実績 ×30/16）。夜間停止(22:00–8:00 JST)・Fargate Spot・fck-nat・RDS single-AZ private の最適化済み状態。CDN/画像は実質ゼロ課金量。AWS 側はチームの read-only Cost Explorer 実測値（<code>docs/infra/STG_AWS_COST_REDUCTION.md</code>）を採用。</p>
+<p class="small"><strong>トラフィック前提：</strong>Staging 実測（2026-06-01〜17 の 16 日実績 ×30/16）。夜間停止(22:00–8:00 JST)・Fargate Spot・fck-nat・RDS single-AZ private の最適化済み状態。CDN/画像は実質ゼロ課金量。AWS 側はチームの read-only Cost Explorer 実測値（<code>docs/ops/stg-aws-cost-reduction.md</code>）を採用。</p>
 
 <div class="two-col">
 <div>
@@ -583,7 +583,7 @@
 <ul>
   <li>USD/JPY: frankfurter.dev(ECB) 161.15（2026-07-03）/ open.er-api 161.30（2026-07-04）→ 採用 <strong>161.2</strong>（前回 161.7）。</li>
   <li>STG 構成: <code>infra/terraform/**</code>（main.tf / modules/{vpc,security,rds,ecr,ecs,scheduler,github-oidc}）, <code>infra/CLAUDE.md</code>。2026-06-28 以降 infra 配下にコード変更なし（git log で確認）。</li>
-  <li>STG 実コスト: <code>docs/infra/STG_AWS_COST_REDUCTION.md</code>（2026-06-17, read-only Cost Explorer 実測。以降更新なし）。</li>
+  <li>STG 実コスト: <code>docs/ops/stg-aws-cost-reduction.md</code>（2026-06-17, read-only Cost Explorer 実測。以降更新なし）。</li>
   <li>外部 Postgres 料金: <a href="https://planetscale.com/docs/postgres/pricing">planetscale.com/docs/postgres/pricing</a> / <a href="https://neon.com/pricing">neon.com/pricing</a>（2025-12 改定で月額最低額撤廃を確認）/ <a href="https://supabase.com/pricing">supabase.com/pricing</a>（いずれも 2026-07-04 取得）。</li>
   <li>ストレージ実装: <code>backend/internal/infra/s3_file_storage.go</code>, <code>s3_uploader.go</code>。</li>
 </ul>

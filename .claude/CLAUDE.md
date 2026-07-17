@@ -42,14 +42,6 @@
 
 ---
 
-## 📋 Project Overview
-
-| Item | Details |
-|------|---------|
-| Frontend | React 19 / TypeScript 6.0 / Vite 8 / Tailwind CSS 4 / shadcn/ui |
-| Backend | Go 1.25 / Gin / GORM |
-| Database | PostgreSQL 18 (Docker: postgres:18-alpine) |
-
 ## 🔧 Mandatory Operational Rules
 
 - **Docker Required**: npm/go commands prohibited locally. Use `docker compose exec frontend/backend` only

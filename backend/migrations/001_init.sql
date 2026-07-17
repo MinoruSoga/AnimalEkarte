@@ -61,6 +61,7 @@
 --   010: checkup_type_fields / checkup_field_results テーブル (#211。歯科検診暫定 seed は 003_seed_demo.sql へ)
 --   011: clinic_settings.closing_am_start カラム (#215)
 --   012: checkup_field_results の (checkup_type_field_id, clinic_id) 複合FK (BE-refactor R3-7/D13)
+--   013: checkup_type_fields → checkup_types の (checkup_type_id, clinic_id) 複合FK (#211 A6・旧 002_checkup_field_clinic_composite_fk.sql)
 -- =============================================================================
 
 -- -----------------------------------------------------------------------------
@@ -3689,3 +3690,33 @@ ALTER TABLE checkup_field_results
     FOREIGN KEY (checkup_type_field_id, clinic_id)
     REFERENCES checkup_type_fields (id, clinic_id)
     ON DELETE SET NULL (checkup_type_field_id);
+
+-- 013_checkup_field_clinic_composite_fk.sql（旧 002_checkup_field_clinic_composite_fk.sql・#211 A6）
+-- 健診 checkup_type_fields → checkup_types の DB レベル複合 FK（clinic_id 込み）で
+-- 越境 INSERT/UPDATE を物理拒否する。012 の checkup_field_results 側（子→フィールド定義）と
+-- 対をなす、フィールド定義→パッケージ親側の defense-in-depth。
+--
+-- 挙動保存: checkup_type_id は NOT NULL のため SET NULL は不要。既存のインライン単一列 FK が持つ
+-- CASCADE 削除挙動（親 checkup_types 削除で checkup_type_fields も連動削除・構成要素として
+-- 不可分な純粋従属データ、migrations/CLAUDE.md の許容例外）を複合 FK でもそのまま維持する。
+--
+-- インデックス: 親 checkup_types 削除時の CASCADE 検索（ソフトデリート済み行も含む子行捜索）は
+-- 非パーシャル index idx_checkup_type_fields_checkup_type_id (checkup_type_id) で既にカバーされる
+-- ため追加しない（WHERE deleted_at IS NULL の部分 index はプランナが述語を保証できないため
+-- CASCADE 検索には使われない）。
+
+-- 親テーブルに複合 FK ターゲット用の UNIQUE(id, clinic_id) を追加する。
+-- id は PK のため (id, clinic_id) は常に一意で、既存データに対して無条件に充足する（挙動非破壊）。
+ALTER TABLE checkup_types
+    ADD CONSTRAINT uq_checkup_types_id_clinic UNIQUE (id, clinic_id);
+
+-- 既存の単一列 FK（本ファイル checkup_type_fields の CREATE TABLE インライン FK・
+-- PostgreSQL 自動命名。同一ファイル内で生成されるため名前は決定論的）を複合 FK に置換する。
+ALTER TABLE checkup_type_fields
+    DROP CONSTRAINT IF EXISTS checkup_type_fields_checkup_type_id_fkey;
+
+ALTER TABLE checkup_type_fields
+    ADD CONSTRAINT fk_checkup_type_fields_type_clinic
+    FOREIGN KEY (checkup_type_id, clinic_id)
+    REFERENCES checkup_types (id, clinic_id)
+    ON DELETE CASCADE;
