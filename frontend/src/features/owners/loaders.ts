@@ -73,7 +73,7 @@ interface PetsResponse {
 
 // #266: 飼主・ペット一覧のページサイズ。以前の client-side usePagination のデフォルト(20件)を踏襲。
 // ページ粒度はペット行単位（旧: 飼主単位のフラット化）— 1ページの行数は常に一定になる。
-export const OWNERS_PAGE_SIZE = 20;
+const OWNERS_PAGE_SIZE = 20;
 
 export interface OwnersLoaderData {
   pets: Pet[];
