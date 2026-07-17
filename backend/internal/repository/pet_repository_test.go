@@ -222,8 +222,8 @@ func TestPetRepository_FindAll(t *testing.T) {
 }
 
 func indexOfPetID(pets []model.Pet, id uint64) int {
-	for i, p := range pets {
-		if p.ID == id {
+	for i := range pets {
+		if pets[i].ID == id {
 			return i
 		}
 	}
