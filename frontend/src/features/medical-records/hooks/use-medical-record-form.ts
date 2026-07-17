@@ -81,6 +81,7 @@ export function useMedicalRecordForm(recordId?: string) {
   useApplyMedicalRecord({
     existingRecord,
     setChiefComplaint,
+    setChiefComplaintTypeId,
     setTreatmentPolicy,
     setPlan,
     setAssessment,

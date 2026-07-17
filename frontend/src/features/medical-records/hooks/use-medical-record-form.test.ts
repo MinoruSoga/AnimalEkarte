@@ -224,6 +224,32 @@ describe("useMedicalRecordForm", () => {
         expect(result.current.visitType).toBe("初診");
       });
     });
+
+    it("BUG-406 follow-up: 既存レコードに chiefComplaintTypeId がある場合、state に反映される", async () => {
+      const loadedRecord = {
+        data: {
+          id: "10",
+          visitType: "再診",
+          chiefComplaint: "",
+          chiefComplaintTypeId: 5,
+          plan: "",
+          assessment: "",
+          notes: "",
+          version: 1,
+        },
+        isLoading: false,
+        isError: false,
+      };
+      mockUseGetMedicalRecord.mockReturnValue({ data: undefined, isLoading: true, isError: false });
+      const { result, rerender } = renderHook(() => useMedicalRecordForm("10"));
+
+      mockUseGetMedicalRecord.mockReturnValue(loadedRecord as never);
+      rerender();
+
+      await waitFor(() => {
+        expect(result.current.chiefComplaintTypeId).toBe(5);
+      });
+    });
   });
 
   // ──────────────────────────
