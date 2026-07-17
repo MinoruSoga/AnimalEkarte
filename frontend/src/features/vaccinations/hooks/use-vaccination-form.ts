@@ -29,6 +29,10 @@ interface VaccinationFormState {
 
 const DEFAULT_NEXT_SCHEDULE_TYPE = "1year" as const;
 
+// react-reviewer指摘: インラインの `?? []` は毎レンダー新規参照になり vaccineOptions の
+// useMemo を不必要に再計算させる（取得未完了/エラー時に顕著）。安定参照にする。
+const EMPTY_VACCINES_MASTER: ReturnType<typeof useGetAllVaccinesMaster>["data"] = [];
+
 // BUG-401/BUG-026: vaccine interval (vaccines master 実データ) → schedule type。
 // 旧実装はハードコードの vaccine_id "1"/"2" をキーにしていたため、実マスタ ID（例: "14"）に
 // 切り替えると必ずフォールスルーして誤った次回予定を計算していた（サイレント mis-scheduling）。
@@ -89,7 +93,7 @@ export function useVaccinationForm(id?: string) {
   // カテゴリ用の "ワクチン犬"/"ワクチン猫" スタブ）と衝突し、保存した vaccine_id が選択ラベルと
   // 一致しないデータ破損を起こしていた。species フィルタは姉妹フォームも持たないため本修正では
   // 追加しない（BUG-408 に残置）。
-  const { data: vaccinesMaster = [] } = useGetAllVaccinesMaster();
+  const { data: vaccinesMaster = EMPTY_VACCINES_MASTER } = useGetAllVaccinesMaster();
   const vaccineOptions = useMemo(
     () => vaccinesMaster.flatMap((v) => (v.isActive ? [{ value: v.id, label: v.name }] : [])),
     [vaccinesMaster],
