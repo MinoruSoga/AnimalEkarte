@@ -14,8 +14,8 @@ import { Plus, TestTube, Calendar, CircleDot, FlaskConical, User } from "lucide-
 import { TableCell } from "@/components/ui/table";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { LoadingFallback, ErrorFallback } from "@/components/shared/DataStates";
-import { NotionFilter } from "@/components/shared/NotionFilter/NotionFilter";
-import { DataTable } from "@/components/shared/DataTable/DataTable";
+import { PropertyFilter } from "@/components/shared/PropertyFilter/PropertyFilter";
+import { DataTable, DESIGN_TABLE_HEADER_ROW, DESIGN_TABLE_HEADER_CELL } from "@/components/shared/DataTable/DataTable";
 import { DataTableRow } from "@/components/shared/DataTable/DataTableRow";
 import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
 import { StatusBadge } from "@/components/shared/StatusBadge/StatusBadge";
@@ -36,8 +36,8 @@ import type {
   FilterProperty,
   ActiveFilter,
   SortProperty,
-} from "@/components/shared/NotionFilter/types";
-import { CONDITIONS_NO_EMPTY, CONDITIONS_WITH_EMPTY } from "@/components/shared/NotionFilter/types";
+} from "@/components/shared/PropertyFilter/types";
+import { CONDITIONS_NO_EMPTY, CONDITIONS_WITH_EMPTY } from "@/components/shared/PropertyFilter/types";
 import type { ExaminationRecord } from "../api/transforms";
 import { ResourceExaminations } from "@/types/generated/models";
 
@@ -56,11 +56,14 @@ const STATIC_FILTER_PROPERTIES: FilterProperty[] = [
     icon: CircleDot,
     // exams.status DEFAULT 'pending' — 空値は存在しない
     // transform で EN→JA 変換済のためフィルタ値も日本語で指定
+    // SD-12: backend ExaminationStatus 全5値（pending/in_progress/result_entered/completed/confirmed）に追従
     conditions: CONDITIONS_NO_EMPTY,
     options: [
       { value: "依頼中", label: "依頼中" },
       { value: "検査中", label: "検査中" },
+      { value: "結果入力済み", label: "結果入力済み" },
       { value: "完了", label: "完了" },
+      { value: "確定", label: "確定" },
     ],
   },
 ];
@@ -114,7 +117,6 @@ export function ExaminationsList() {
     useSortableData(filteredRecords);
 
   const pagination = usePagination(sortedData, {
-    pageSize: 20,
     resetKey: [deferredSearch, JSON.stringify(activeFilters)].join("|"),
   });
 
@@ -249,7 +251,7 @@ export function ExaminationsList() {
       headerAction={
         <div className="flex items-center gap-2">
           {canCreate ? (
-            <PrimaryButton onClick={handleCreate}>
+            <PrimaryButton colorVariant="brand" onClick={handleCreate}>
               <Plus className={`mr-1.5 ${ICON.action}`} />
               新規検査登録
             </PrimaryButton>
@@ -259,7 +261,7 @@ export function ExaminationsList() {
       maxWidth="max-w-full"
     >
       <div className="flex flex-col gap-4">
-        <NotionFilter
+        <PropertyFilter
           properties={filterProperties}
           activeFilters={activeFilters}
           onFilterChange={setActiveFilters}
@@ -274,6 +276,8 @@ export function ExaminationsList() {
 
         <FilteringIndicator isFiltering={isFiltering}>
           <DataTable
+            headerRowClassName={DESIGN_TABLE_HEADER_ROW}
+            headerCellClassName={DESIGN_TABLE_HEADER_CELL}
             columns={columns}
             data={pagination.paginatedData}
             emptyMessage="検査データが見つかりません"

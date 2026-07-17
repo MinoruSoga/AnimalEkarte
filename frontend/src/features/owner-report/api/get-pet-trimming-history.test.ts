@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 
-import { transformTrimming, type TrimmingUI } from "@/features/trimming";
+import { transformTrimming, type TrimmingUI } from "@/lib/transforms/trimming";
 import type { BackendTrimming } from "@/types/trimming";
 
 import { selectCompletedTrimmingHistory } from "./get-pet-trimming-history";

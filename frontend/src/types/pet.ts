@@ -37,25 +37,15 @@ export type CreatePetRequest =
 export type UpdatePetRequest = Partial<PetWritable>;
 
 /**
- * ペット一覧APIレスポンス型
- */
-export interface PetListResponse {
-  data: BackendPet[];
-  total: number;
-  page: number;
-  limit: number;
-}
-
-/**
  * useOwnerForm への依存性注入インターフェース
  * owners feature が pets feature を直接 import しないための DI
  */
-export interface PetMutationCallbacks {
+interface PetMutationCallbacks {
   onSuccess: () => void;
   onError: (error?: unknown) => void;
 }
 
-export interface PetCreateCallbacks {
+interface PetCreateCallbacks {
   onSuccess: (data: Pet) => void;
   onError: (error?: unknown) => void;
 }
@@ -72,4 +62,6 @@ export interface PetMutations {
   ) => void;
   /** ペット削除用（React Query mutation） */
   deletePetMutate: (id: string, callbacks: PetMutationCallbacks) => void;
+  /** ペット死亡記録解除用（死亡→生存の遷移時のみ・React Query mutation） */
+  revokePetDeathMutate: (petId: string) => void;
 }

@@ -2,6 +2,7 @@ import { Navigate, Outlet, type RouteObject } from "react-router";
 
 import { RouteErrorBoundary } from "@/components/errors/RouteErrorBoundary";
 import { RequirePermission } from "@/components/shared/RequirePermission";
+import { paths } from "@/config/paths";
 import {
   ResourceClosingSettings,
   ResourceHospitalSettings,
@@ -34,17 +35,17 @@ export const settingsRoute: RouteObject = {
     },
     // BUG-382 / BUG-384: 旧ルートからの互換 redirect。
     // カルテ編集画面・トリミング編集画面等、既存 UI からの遷移先を救済する。
-    { path: "job-title", element: <Navigate to="/settings/occupations" replace /> },
-    { path: "service-type", element: <Navigate to="/settings/reservation-type" replace /> },
-    { path: "diagnosis-type", element: <Navigate to="/settings/diagnosis?tab=diagnosis_type" replace /> },
-    { path: "diagnosis-name", element: <Navigate to="/settings/diagnosis?tab=diagnosis_name" replace /> },
-    { path: "trimming-course", element: <Navigate to="/settings/trimming?tab=course" replace /> },
-    { path: "trimming-option", element: <Navigate to="/settings/trimming?tab=option" replace /> },
-    { path: "examination", element: <Navigate to="/settings/treatment-items?tab=examination" replace /> },
-    { path: "vaccine", element: <Navigate to="/settings/treatment-items?tab=vaccine" replace /> },
-    { path: "consultation", element: <Navigate to="/settings/treatment-items?tab=consultation" replace /> },
-    { path: "procedure", element: <Navigate to="/settings/treatment-items?tab=procedure" replace /> },
-    { path: "inquiry-template", element: <Navigate to="/settings/inquiry-templates" replace /> },
+    { path: "job-title", element: <Navigate to={paths.settings.occupations.getHref()} replace /> },
+    { path: "service-type", element: <Navigate to={paths.settings.reservationType.getHref()} replace /> },
+    { path: "diagnosis-type", element: <Navigate to={paths.settings.diagnosisType.getHref()} replace /> },
+    { path: "diagnosis-name", element: <Navigate to={paths.settings.diagnosisName.getHref()} replace /> },
+    { path: "trimming-course", element: <Navigate to={paths.settings.trimmingCourse.getHref()} replace /> },
+    { path: "trimming-option", element: <Navigate to={paths.settings.trimmingOption.getHref()} replace /> },
+    { path: "examination", element: <Navigate to={paths.settings.examination.getHref()} replace /> },
+    { path: "vaccine", element: <Navigate to={paths.settings.vaccine.getHref()} replace /> },
+    { path: "consultation", element: <Navigate to={paths.settings.consultation.getHref()} replace /> },
+    { path: "procedure", element: <Navigate to={paths.settings.procedure.getHref()} replace /> },
+    { path: "inquiry-template", element: <Navigate to={paths.settings.inquiryTemplates.getHref()} replace /> },
     {
       path: "staff",
       element: <RequirePermission resource={ResourceMasterStaff}><Outlet /></RequirePermission>,
@@ -235,7 +236,7 @@ export const settingsRoute: RouteObject = {
     {
       // BUG-383: 旧URL redirect
       path: "shift-template",
-      element: <Navigate to="/settings/shift-templates" replace />,
+      element: <Navigate to={paths.settings.shiftTemplates.getHref()} replace />,
     },
     {
       path: "shift-templates",

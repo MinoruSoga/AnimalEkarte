@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import { handleApiError } from "@/lib/handle-api-error";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
+import { queryKeys } from "@/lib/query-keys";
 import type {
   TrimmingCourse as ModelTrimmingCourse,
   TrimmingOption as ModelTrimmingOption,
@@ -105,21 +106,18 @@ export type TrimmingOption = ReturnType<typeof transformTrimmingOption>;
 // ─────────────────────────────────────────────────
 
 // P8: useMasterItems("trimmingCourse") と queryKey を統一（キャッシュ無効化が機能するため）
-const TRIMMING_COURSES_KEY = ["masters", "trimmingCourse"] as const;
-const TRIMMING_OPTIONS_KEY = ["masters", "trimming-options"] as const;
-
 // ─────────────────────────────────────────────────
 // API functions - TrimmingCourse
 // ─────────────────────────────────────────────────
 
-export async function listTrimmingCourses(): Promise<TrimmingCourse[]> {
+async function listTrimmingCourses(): Promise<TrimmingCourse[]> {
   const { data } = await axios.get<ModelTrimmingCourse[]>(
     "/v1/masters/trimming-courses",
   );
   return data.map(transformTrimmingCourse);
 }
 
-export async function createTrimmingCourse(
+async function createTrimmingCourse(
   req: CreateTrimmingCourseRequest,
 ): Promise<TrimmingCourse> {
   const { data } = await axios.post<ModelTrimmingCourse>(
@@ -129,7 +127,7 @@ export async function createTrimmingCourse(
   return transformTrimmingCourse(data);
 }
 
-export async function updateTrimmingCourse(
+async function updateTrimmingCourse(
   id: string,
   req: UpdateTrimmingCourseRequest,
 ): Promise<TrimmingCourse> {
@@ -140,26 +138,22 @@ export async function updateTrimmingCourse(
   return transformTrimmingCourse(data);
 }
 
-export async function deleteTrimmingCourse(id: string): Promise<void> {
+async function deleteTrimmingCourse(id: string): Promise<void> {
   await axios.delete(`/v1/masters/trimming-courses/${id}`);
-}
-
-export async function reorderTrimmingCourses(ids: number[]): Promise<void> {
-  await axios.patch("/v1/masters/trimming-courses/reorder", { ids });
 }
 
 // ─────────────────────────────────────────────────
 // API functions - TrimmingOption
 // ─────────────────────────────────────────────────
 
-export async function listTrimmingOptions(): Promise<TrimmingOption[]> {
+async function listTrimmingOptions(): Promise<TrimmingOption[]> {
   const { data } = await axios.get<ModelTrimmingOption[]>(
     "/v1/masters/trimming-options",
   );
   return data.map(transformTrimmingOption);
 }
 
-export async function createTrimmingOption(
+async function createTrimmingOption(
   req: CreateTrimmingOptionRequest,
 ): Promise<TrimmingOption> {
   const { data } = await axios.post<ModelTrimmingOption>(
@@ -169,7 +163,7 @@ export async function createTrimmingOption(
   return transformTrimmingOption(data);
 }
 
-export async function updateTrimmingOption(
+async function updateTrimmingOption(
   id: string,
   req: UpdateTrimmingOptionRequest,
 ): Promise<TrimmingOption> {
@@ -180,12 +174,8 @@ export async function updateTrimmingOption(
   return transformTrimmingOption(data);
 }
 
-export async function deleteTrimmingOption(id: string): Promise<void> {
+async function deleteTrimmingOption(id: string): Promise<void> {
   await axios.delete(`/v1/masters/trimming-options/${id}`);
-}
-
-export async function reorderTrimmingOptions(ids: number[]): Promise<void> {
-  await axios.patch("/v1/masters/trimming-options/reorder", { ids });
 }
 
 // ─────────────────────────────────────────────────
@@ -194,7 +184,7 @@ export async function reorderTrimmingOptions(ids: number[]): Promise<void> {
 
 export function useGetTrimmingCourses() {
   return useQuery({
-    queryKey: TRIMMING_COURSES_KEY,
+    queryKey: queryKeys.masters.category("trimmingCourse"),
     queryFn: listTrimmingCourses,
     staleTime: QUERY_STALE_TIMES.STATIC,
     gcTime: QUERY_GC_TIMES.LONG,
@@ -206,7 +196,7 @@ export function useCreateTrimmingCourse() {
   return useMutation({
     mutationFn: createTrimmingCourse,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: TRIMMING_COURSES_KEY });
+      queryClient.invalidateQueries({ queryKey: queryKeys.masters.category("trimmingCourse") });
     },
     onError: (error) => handleApiError(error, "作成"),
   });
@@ -218,7 +208,7 @@ export function useUpdateTrimmingCourse() {
     mutationFn: ({ id, req }: { id: string; req: UpdateTrimmingCourseRequest }) =>
       updateTrimmingCourse(id, req),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: TRIMMING_COURSES_KEY });
+      queryClient.invalidateQueries({ queryKey: queryKeys.masters.category("trimmingCourse") });
     },
     onError: (error) => handleApiError(error, "更新"),
   });
@@ -229,22 +219,12 @@ export function useDeleteTrimmingCourse() {
   return useMutation({
     mutationFn: deleteTrimmingCourse,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: TRIMMING_COURSES_KEY });
+      queryClient.invalidateQueries({ queryKey: queryKeys.masters.category("trimmingCourse") });
     },
     onError: (error) => handleApiError(error, "削除"),
   });
 }
 
-export function useReorderTrimmingCourses() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (ids: number[]) => reorderTrimmingCourses(ids),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: TRIMMING_COURSES_KEY });
-    },
-    onError: (error) => handleApiError(error, "並び替え"),
-  });
-}
 
 // ─────────────────────────────────────────────────
 // TanStack Query hooks - TrimmingOption
@@ -252,7 +232,7 @@ export function useReorderTrimmingCourses() {
 
 export function useGetTrimmingOptions() {
   return useQuery({
-    queryKey: TRIMMING_OPTIONS_KEY,
+    queryKey: queryKeys.masters.category("trimming-options"),
     queryFn: listTrimmingOptions,
     staleTime: QUERY_STALE_TIMES.STATIC,
     gcTime: QUERY_GC_TIMES.LONG,
@@ -264,7 +244,7 @@ export function useCreateTrimmingOption() {
   return useMutation({
     mutationFn: createTrimmingOption,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: TRIMMING_OPTIONS_KEY });
+      queryClient.invalidateQueries({ queryKey: queryKeys.masters.category("trimming-options") });
     },
     onError: (error) => handleApiError(error, "作成"),
   });
@@ -276,7 +256,7 @@ export function useUpdateTrimmingOption() {
     mutationFn: ({ id, req }: { id: string; req: UpdateTrimmingOptionRequest }) =>
       updateTrimmingOption(id, req),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: TRIMMING_OPTIONS_KEY });
+      queryClient.invalidateQueries({ queryKey: queryKeys.masters.category("trimming-options") });
     },
     onError: (error) => handleApiError(error, "更新"),
   });
@@ -287,19 +267,9 @@ export function useDeleteTrimmingOption() {
   return useMutation({
     mutationFn: deleteTrimmingOption,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: TRIMMING_OPTIONS_KEY });
+      queryClient.invalidateQueries({ queryKey: queryKeys.masters.category("trimming-options") });
     },
     onError: (error) => handleApiError(error, "削除"),
   });
 }
 
-export function useReorderTrimmingOptions() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (ids: number[]) => reorderTrimmingOptions(ids),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: TRIMMING_OPTIONS_KEY });
-    },
-    onError: (error) => handleApiError(error, "並び替え"),
-  });
-}

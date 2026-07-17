@@ -28,7 +28,7 @@ type PermissionGroupRepository interface {
 	// FindAllGroupIDsByStaffID はスタッフが所属する権限グループIDリストを返す。
 	FindAllGroupIDsByStaffID(ctx context.Context, staffID uint64) ([]uint64, error)
 	// UpdateStaffGroups はスタッフの権限グループを全置換する（DELETE + INSERT）。
-	UpdateStaffGroups(ctx context.Context, staffID uint64, groupIDs []uint64) error
+	UpdateStaffGroups(ctx context.Context, clinicID, staffID uint64, groupIDs []uint64) error
 }
 
 type permissionGroupRepository struct{ db *gorm.DB }
@@ -61,8 +61,13 @@ func (r *permissionGroupRepository) FindByID(ctx context.Context, clinicID, id u
 	return &group, nil
 }
 
+// BE-refactor.md X-7: dbOrTx で ambient tx に参加する。clinic_service.CreateClinic は
+// clinic 作成 + デフォルト権限グループ2件の作成を transactor.WithTx で包むが、Create が
+// r.db.WithContext(ctx) のまま tx 非参加だと、2件目の作成が失敗しても1件目は既に
+// オートコミット済みで WithTx のロールバックが効かず、デフォルト権限グループが片方だけの
+// 孤児クリニックが生成しうるバグがあった。
 func (r *permissionGroupRepository) Create(ctx context.Context, group *model.PermissionGroup) error {
-	err := r.db.WithContext(ctx).Create(group).Error
+	err := dbOrTx(ctx, r.db).Create(group).Error
 	if err != nil {
 		return apperrors.FromGORM(err, "permission_group", "")
 	}
@@ -70,15 +75,8 @@ func (r *permissionGroupRepository) Create(ctx context.Context, group *model.Per
 }
 
 func (r *permissionGroupRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.PermissionGroup, error) {
-	result := r.db.WithContext(ctx).
-		Model(&model.PermissionGroup{}).
-		Scopes(clinicScope(clinicID)).Where("id = ?", id).
-		Updates(fields)
-	if result.Error != nil {
-		return nil, apperrors.FromGORM(result.Error, "permission_group", fmt.Sprintf("%d", id))
-	}
-	if result.RowsAffected == 0 {
-		return nil, apperrors.WrapNotFound("permission_group", fmt.Sprintf("%d", id))
+	if err := updateScopedByID(ctx, r.db, &model.PermissionGroup{}, "permission_group", clinicID, id, fields); err != nil {
+		return nil, err
 	}
 	return r.FindByID(ctx, clinicID, id)
 }
@@ -98,8 +96,10 @@ func (r *permissionGroupRepository) Delete(ctx context.Context, clinicID, id uin
 }
 
 // UpdateRules はトランザクション内で権限グループの全ルールを置き換える（全削除→再挿入）
+// BE-refactor.md X-7: dbOrTx(ctx, r.db).Transaction(...) にすることで ambient tx があれば
+// SAVEPOINT として参加する（Create と同じ tx 参加方針、R1-1 と同一パターン）。
 func (r *permissionGroupRepository) UpdateRules(ctx context.Context, groupID uint64, rules []model.PermissionGroupRule) error {
-	if err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	if err := dbOrTx(ctx, r.db).Transaction(func(tx *gorm.DB) error {
 		// 既存ルールを全削除（物理削除してユニーク制約重複を防止）
 		if err := tx.Unscoped().Where("group_id = ?", groupID).Delete(&model.PermissionGroupRule{}).Error; err != nil {
 			return apperrors.FromGORM(err, "permission_group_rule", "")
@@ -173,6 +173,12 @@ func (r *permissionGroupRepository) FindAllEffectivePermissionsByStaffID(ctx con
 }
 
 // FindAllGroupIDsByStaffID はスタッフが所属する権限グループIDリストを返す。
+// BE-refactor.md R2-5 (D12) レビュー結果: clinic_id 述語なしを意図的に維持する。
+// permission_groups.id はクリニック横断でグローバル一意の PK であり、呼び出し元
+// (UpdateRules の自己参照チェック) は「groupID ∈ staffGroupIDs」という単純メンバーシップ判定にのみ使う。
+// クリニックでスコープしても対象 groupID は既に一意なため判定結果は変わらず、
+// スコープを追加すると clinicID の追加引数貫通のみでセキュリティ上の実利益がない
+// （D12 実測: 実害は低い・整数IDのみ）。
 func (r *permissionGroupRepository) FindAllGroupIDsByStaffID(ctx context.Context, staffID uint64) ([]uint64, error) {
 	var rows []struct {
 		GroupID uint64
@@ -192,33 +198,44 @@ func (r *permissionGroupRepository) FindAllGroupIDsByStaffID(ctx context.Context
 }
 
 // UpdateStaffGroups はスタッフの権限グループを全置換する（DELETE + INSERT）。
-func (r *permissionGroupRepository) UpdateStaffGroups(ctx context.Context, staffID uint64, groupIDs []uint64) error {
-	if err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		// 既存の紐付けを全削除
-		if err := tx.Where("staff_id = ?", staffID).Delete(&model.StaffPermissionGroup{}).Error; err != nil {
-			return apperrors.FromGORM(err, "staff_permission_group", fmt.Sprintf("staff:%d", staffID))
-		}
-		// 新しい紐付けを挿入
-		if len(groupIDs) > 0 {
-			rows := make([]model.StaffPermissionGroup, 0, len(groupIDs))
-			for _, gid := range groupIDs {
-				rows = append(rows, model.StaffPermissionGroup{StaffID: staffID, GroupID: gid})
-			}
-			if err := tx.CreateInBatches(rows, 100).Error; err != nil {
-				return apperrors.FromGORM(err, "staff_permission_group", fmt.Sprintf("staff:%d", staffID))
-			}
-		}
-		return nil
-	}); err != nil {
-		return apperrors.Wrap(err, "failed to replace staff permission groups")
+func (r *permissionGroupRepository) UpdateStaffGroups(ctx context.Context, clinicID, staffID uint64, groupIDs []uint64) error {
+	// テナント越境 write 防止: 紐付け対象の権限グループIDが呼び出し元クリニックに属することを検証する。
+	// staff_permission_groups は自前 clinic_id を持たないため、ここで group_id の所有権を
+	// 確認しなければ別クリニックの権限グループIDを紐付けできてしまう（横断テナント書き換え）。
+	// スタッフ所有権は呼び出し側（handler verifyStaffClinicMembership）で検証済み。検証は DELETE 前に行い部分書き込みを防ぐ。
+	if err := validateClinicScopedMasterIDs(ctx, dbOrTx(ctx, r.db), clinicID, groupIDs,
+		&model.PermissionGroup{}, "permission_group",
+		"group_ids contains invalid permission group"); err != nil {
+		return err
 	}
-	return nil
+	// BE-refactor.md X-7: dbOrTx(ctx, r.db).Transaction(...) で ambient tx があれば SAVEPOINT として参加する。
+	return replaceJunctionInTransaction(dbOrTx(ctx, r.db), func(tx *gorm.DB) error {
+		// 既存の紐付けを全削除（BE-refactor.md H-1: staff_permission_groups は自前 clinic_id を
+		// 持たないため、DELETE を staff_id のみでスコープすると、多施設所属スタッフ（Staff は
+		// staff_clinic_assignments で複数クリニックに所属しうる）の場合、clinicID の属さない
+		// 他クリニック分の紐付けまで無警告で消えてしまう。group 側の clinic_id サブクエリで
+		// clinicID に属する紐付けのみを削除対象にスコープする）。
+		if err := deleteJunctionViaMasterClinicScope(tx, clinicID, staffID,
+			&model.StaffPermissionGroup{}, &model.PermissionGroup{}, "group_id",
+			"staff_permission_group", fmt.Sprintf("staff:%d", staffID)); err != nil {
+			return err
+		}
+		if len(groupIDs) == 0 {
+			return nil
+		}
+		rows := make([]model.StaffPermissionGroup, 0, len(groupIDs))
+		for _, gid := range groupIDs {
+			rows = append(rows, model.StaffPermissionGroup{StaffID: staffID, GroupID: gid})
+		}
+		return insertJunctionRowsInBatches(tx, rows, "staff_permission_group", fmt.Sprintf("staff:%d", staffID))
+	}, "failed to replace staff permission groups")
 }
 
 // Reorder は指定されたIDリストの順序でソート順を更新する。
 // GORM の論理削除は Model 呼び出しで自動適用されないため、明示的に deleted_at IS NULL を指定する。
+// BE-refactor.md X-7: dbOrTx(ctx, r.db).Transaction(...) で ambient tx があれば SAVEPOINT として参加する。
 func (r *permissionGroupRepository) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
-	if err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	if err := dbOrTx(ctx, r.db).Transaction(func(tx *gorm.DB) error {
 		for i, id := range ids {
 			result := tx.Model(&model.PermissionGroup{}).
 				Scopes(clinicScope(clinicID)).Where("id = ? AND deleted_at IS NULL", id).

@@ -1,6 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import { requireStoredClinicId } from "@/lib/current-clinic";
+import { queryKeys } from "@/lib/query-keys";
+import { QUERY_STALE_TIMES } from "@/lib/react-query";
 
 export interface LstepTagSummaryItem {
   tag_name: string;
@@ -17,7 +19,7 @@ export interface LstepTagSummaryResponse {
 // GET /api/clinics/:clinic_id/lstep/tag-summary
 export function useGetLstepTagSummary() {
   return useQuery({
-    queryKey: ["lstep-tag-summary"],
+    queryKey: queryKeys.lstepTagSummary(),
     queryFn: async () => {
       const clinicId = requireStoredClinicId();
       const { data } = await axios.get<LstepTagSummaryResponse>(
@@ -25,6 +27,6 @@ export function useGetLstepTagSummary() {
       );
       return data;
     },
-    staleTime: 5 * 60 * 1000, // 5分キャッシュ
+    staleTime: QUERY_STALE_TIMES.MEDIUM, // 5分キャッシュ
   });
 }

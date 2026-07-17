@@ -4,14 +4,15 @@ import { useSidePeekDirty } from "@/hooks/use-side-peek-dirty";
 import { TableCell } from "@/components/ui/table";
 import { DataTableRow } from "@/components/shared/DataTable/DataTableRow";
 import { RowActionButton } from "@/components/shared/RowActionButton";
-import { NotionStatusPill } from "@/components/shared/StatusPill/NotionStatusPill";
+import { StatusPill } from "@/components/shared/StatusPill/StatusPill";
 import { C, LAYOUT, ICON, PALETTE } from "@/lib/design-tokens";
+import { MASTER_TABLE_COL } from "../constants/styles";
 import { useMasterCRUD } from "../hooks/use-master-crud";
 import { useMasterSave } from "../hooks/use-master-save";
 import { usePermission } from "@/hooks/use-permission";
 import { MasterCRUDPage } from "../components/MasterCRUDPage";
 import { StaffSidePanel } from "../components/StaffSidePanel";
-import type { StaffFormData } from "../components/StaffSidePanelModel";
+import type { StaffFormData } from "../components/staff-side-panel-model";
 import {
   useGetStaffs,
   useCreateStaff,
@@ -35,7 +36,7 @@ import {
   buildStaffUpdateRequest,
   filterStaffByMasterFilters,
   searchStaff,
-} from "./StaffSettingsModel";
+} from "./staff-settings-model";
 import { ResourceMasterStaff } from "@/types/generated/models";
 
 // ─────────────────────────────────────────────────
@@ -44,10 +45,10 @@ import { ResourceMasterStaff } from "@/types/generated/models";
 
 const COLUMNS = [
   { header: "氏名", className: "flex-1" },
-  { header: "職種", className: "w-[130px]" },
-  { header: "権限グループ", className: "w-[200px]" },
-  { header: "ステータス", className: "w-[90px]", align: "center" as const },
-  { header: "操作", className: "w-[80px]", align: "right" as const },
+  { header: "職種", className: MASTER_TABLE_COL.w130 },
+  { header: "権限グループ", className: MASTER_TABLE_COL.w200 },
+  { header: "ステータス", className: MASTER_TABLE_COL.w100, align: "center" as const },
+  { header: "操作", className: MASTER_TABLE_COL.w80, align: "right" as const },
 ];
 
 // ─────────────────────────────────────────────────
@@ -200,7 +201,7 @@ export function StaffSettings() {
               </div>
             </TableCell>
             <TableCell className="text-center">
-              <NotionStatusPill isActive={item.isActive} />
+              <StatusPill isActive={item.isActive} />
             </TableCell>
             <TableCell className="p-0 text-right">
               {canEdit ? <RowActionButton onClick={() => onEdit(item)} /> : null}

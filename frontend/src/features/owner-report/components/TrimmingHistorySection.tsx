@@ -17,7 +17,7 @@ interface TrimmingHistorySectionProps {
 export function TrimmingHistorySection({ petId }: TrimmingHistorySectionProps) {
   const { canView } = usePermission(ResourceTrimming);
   const { data, isLoading, isError } = useGetPetTrimmingHistory(canView ? petId : undefined);
-  const items = data ?? [];
+  const items = data?.items ?? [];
 
   return (
     <ReportSection
@@ -27,6 +27,7 @@ export function TrimmingHistorySection({ petId }: TrimmingHistorySectionProps) {
       isError={isError}
       isEmpty={items.length === 0}
       count={items.length}
+      isTruncated={data?.isTruncated ?? false}
       emptyMessage="トリミングの履歴はありません"
     >
       <HistoryTable headers={["実施日", "状態", "コース", "担当"]}>

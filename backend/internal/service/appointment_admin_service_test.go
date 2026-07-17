@@ -7,7 +7,9 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
+	"github.com/animal-ekarte/backend/internal/config"
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
 )
@@ -18,13 +20,14 @@ import (
 // ---- ReservationAdmin モック ----
 
 type mockReservationAdminRepository struct {
-	findByMonthFn      func(ctx context.Context, clinicID uint64, year int, month time.Month) ([]model.Reservation, error)
-	findByDayFn        func(ctx context.Context, clinicID uint64, date time.Time) ([]model.Reservation, error)
-	createFn           func(ctx context.Context, r *model.Reservation) error
-	softDeleteFn       func(ctx context.Context, clinicID, id uint64) error
-	findByCustomerIDFn func(ctx context.Context, clinicID, customerID uint64) ([]model.Reservation, error)
-	cancelByIDFn       func(ctx context.Context, clinicID, customerID, id uint64) error
-	findByIDForNotify  func(ctx context.Context, clinicID, id uint64) (*model.Reservation, error)
+	findByMonthFn               func(ctx context.Context, clinicID uint64, year int, month time.Month) ([]model.Reservation, error)
+	findByDayFn                 func(ctx context.Context, clinicID uint64, date time.Time) ([]model.Reservation, error)
+	createFn                    func(ctx context.Context, r *model.Reservation) error
+	softDeleteFn                func(ctx context.Context, clinicID, id uint64) error
+	findByCustomerIDFn          func(ctx context.Context, clinicID, customerID uint64) ([]model.Reservation, error)
+	cancelByIDFn                func(ctx context.Context, clinicID, customerID, id uint64) error
+	findByIDForNotify           func(ctx context.Context, clinicID, id uint64) (*model.Reservation, error)
+	findTimeRangesByDateRangeFn func(ctx context.Context, clinicID uint64, from, to time.Time) ([]model.Reservation, error)
 }
 
 func (m *mockReservationAdminRepository) FindAllByMonth(ctx context.Context, clinicID uint64, year int, month time.Month) ([]model.Reservation, error) {
@@ -32,6 +35,12 @@ func (m *mockReservationAdminRepository) FindAllByMonth(ctx context.Context, cli
 }
 func (m *mockReservationAdminRepository) FindAllByDay(ctx context.Context, clinicID uint64, date time.Time) ([]model.Reservation, error) {
 	return m.findByDayFn(ctx, clinicID, date)
+}
+func (m *mockReservationAdminRepository) FindTimeRangesByDateRange(ctx context.Context, clinicID uint64, from, to time.Time) ([]model.Reservation, error) {
+	if m.findTimeRangesByDateRangeFn != nil {
+		return m.findTimeRangesByDateRangeFn(ctx, clinicID, from, to)
+	}
+	return nil, nil
 }
 func (m *mockReservationAdminRepository) Create(ctx context.Context, r *model.Reservation) error {
 	if m.createFn != nil {
@@ -97,7 +106,7 @@ func TestReservationAdminService_ListByMonth(t *testing.T) {
 					return items, tt.repoErr
 				},
 			}
-			svc := NewReservationAdminService(repo, &mockReservationRepository{}, &mockTransactor{})
+			svc := NewReservationAdminServiceWithAvailabilityAndType(repo, &mockReservationRepository{}, nil, &mockTransactor{}, nil, nil)
 			result, err := svc.ListByMonth(context.Background(), 1, tt.yearMonth)
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -136,7 +145,7 @@ func TestReservationAdminService_ListByDay(t *testing.T) {
 					return items, tt.repoErr
 				},
 			}
-			svc := NewReservationAdminService(repo, &mockReservationRepository{}, &mockTransactor{})
+			svc := NewReservationAdminServiceWithAvailabilityAndType(repo, &mockReservationRepository{}, nil, &mockTransactor{}, nil, nil)
 			result, err := svc.ListByDay(context.Background(), 1, day)
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -225,7 +234,7 @@ func TestReservationAdminService_Create(t *testing.T) {
 			}
 			repo := &mockReservationAdminRepository{}
 			tx := &mockTransactor{withTxErr: tt.txErr}
-			svc := NewReservationAdminService(repo, resRepo, tx)
+			svc := NewReservationAdminServiceWithAvailabilityAndType(repo, resRepo, nil, tx, nil, nil)
 			result, err := svc.Create(context.Background(), 1, tt.input)
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -239,7 +248,7 @@ func TestReservationAdminService_Create(t *testing.T) {
 }
 
 func TestReservationAdminService_Create_RejectsFullReservationTypeCapacity(t *testing.T) {
-	start := time.Date(2026, 6, 1, 10, 0, 0, 0, jstLocation)
+	start := time.Date(2026, 6, 1, 10, 0, 0, 0, config.JST)
 	maxConcurrent := 2
 	createCalled := false
 	resRepo := &mockReservationRepository{
@@ -309,7 +318,7 @@ func TestReservationAdminService_Create_RejectsExcludedStaff(t *testing.T) {
 			return false, nil
 		},
 	}
-	svc := NewReservationAdminService(&mockReservationAdminRepository{}, resRepo, &mockTransactor{}, staffRepo)
+	svc := NewReservationAdminServiceWithAvailabilityAndType(&mockReservationAdminRepository{}, resRepo, nil, &mockTransactor{}, staffRepo, nil)
 
 	result, err := svc.Create(context.Background(), 1, &CreateReservationAdminInput{
 		StartTime:         now,
@@ -324,7 +333,7 @@ func TestReservationAdminService_Create_RejectsExcludedStaff(t *testing.T) {
 }
 
 func TestReservationAdminService_Create_RejectsUnavailableTime(t *testing.T) {
-	start := time.Date(2026, 6, 1, 10, 30, 0, 0, jstLocation)
+	start := time.Date(2026, 6, 1, 10, 30, 0, 0, config.JST)
 	end := start.Add(30 * time.Minute)
 	specificDate := time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC)
 	resRepo := &mockReservationRepository{
@@ -348,7 +357,7 @@ func TestReservationAdminService_Create_RejectsUnavailableTime(t *testing.T) {
 			}, nil
 		},
 	}
-	svc := NewReservationAdminServiceWithAvailability(&mockReservationAdminRepository{}, resRepo, &mockTransactor{}, nil, unavailableRepo)
+	svc := NewReservationAdminServiceWithAvailabilityAndType(&mockReservationAdminRepository{}, resRepo, nil, &mockTransactor{}, nil, unavailableRepo)
 
 	result, err := svc.Create(context.Background(), 1, &CreateReservationAdminInput{
 		StartTime:         start,
@@ -364,6 +373,7 @@ func TestReservationAdminService_Create_RejectsUnavailableTime(t *testing.T) {
 func TestReservationAdminService_Delete(t *testing.T) {
 	tests := []struct {
 		name      string
+		findErr   error
 		deleteErr error
 		wantErr   bool
 	}{
@@ -376,16 +386,26 @@ func TestReservationAdminService_Delete(t *testing.T) {
 			deleteErr: errors.New("db error"),
 			wantErr:   true,
 		},
+		{
+			name:    "returns error when reservation appointment is not found",
+			findErr: apperrors.WrapNotFound("reservation", "1"),
+			wantErr: true,
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			resRepo := &mockReservationRepository{
+				findByIDFn: func(_ context.Context, _, id uint64) (*model.Reservation, error) {
+					return &model.Reservation{ID: id}, tt.findErr
+				},
+			}
 			repo := &mockReservationAdminRepository{
 				softDeleteFn: func(_ context.Context, _, _ uint64) error {
 					return tt.deleteErr
 				},
 			}
-			svc := NewReservationAdminService(repo, &mockReservationRepository{}, &mockTransactor{})
+			svc := NewReservationAdminServiceWithAvailabilityAndType(repo, resRepo, nil, &mockTransactor{}, nil, nil)
 			err := svc.Delete(context.Background(), 1, 1)
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -394,4 +414,41 @@ func TestReservationAdminService_Delete(t *testing.T) {
 			}
 		})
 	}
+}
+
+// ---- NewReservationAdminServiceWithAvailabilityAndType ----
+
+func TestNewReservationAdminServiceWithAvailabilityAndType(t *testing.T) {
+	t.Run("wires optional available slot repository when provided", func(t *testing.T) {
+		slotRepo := &mockAvailableSlotRepository{}
+
+		svc := NewReservationAdminServiceWithAvailabilityAndType(
+			&mockReservationAdminRepository{},
+			&mockReservationRepository{},
+			nil,
+			&mockTransactor{},
+			nil,
+			nil,
+			slotRepo,
+		)
+
+		impl, ok := svc.(*reservationAdminService)
+		require.True(t, ok)
+		assert.Same(t, slotRepo, impl.availableSlotRepo)
+	})
+
+	t.Run("leaves available slot repository nil when not provided", func(t *testing.T) {
+		svc := NewReservationAdminServiceWithAvailabilityAndType(
+			&mockReservationAdminRepository{},
+			&mockReservationRepository{},
+			nil,
+			&mockTransactor{},
+			nil,
+			nil,
+		)
+
+		impl, ok := svc.(*reservationAdminService)
+		require.True(t, ok)
+		assert.Nil(t, impl.availableSlotRepo)
+	})
 }

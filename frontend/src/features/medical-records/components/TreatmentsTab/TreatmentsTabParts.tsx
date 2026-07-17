@@ -1,22 +1,25 @@
 import { Plus, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { C, ICON, STYLE } from "@/lib/design-tokens";
+import { formatCurrency } from "@/utils/format/number";
+import type { MedicineDoseContext } from "../../api/medicine-dose-lookup";
 import type { Treatment, TreatmentItemType, UpdateTreatmentInput } from "../../types";
 import { TreatmentRow } from "./TreatmentRow";
 
+// DESIGN.md ex-data-table-cell: header は canvas-soft 背景 + eyebrow 相当タイポグラフィ（STYLE.sectionLabel）。
 const TABLE_HEADER = (
   <thead>
-    <tr className={`border-b ${C.borderLight} ${C.bgPage30} h-10`}>
-      <th className={`px-3 text-left text-xs font-medium ${C.text70} w-10`}></th>
-      <th className={`px-3 text-left text-xs font-medium ${C.text70} w-24`}>種別</th>
-      <th className={`px-3 text-left text-xs font-medium ${C.text70}`}>内容</th>
-      <th className={`px-3 text-center text-xs font-medium ${C.text70} w-16`}>保険</th>
-      <th className={`px-3 text-right text-xs font-medium ${C.text70} w-28`}>単価</th>
-      <th className={`px-3 text-right text-xs font-medium ${C.text70} w-20`}>数量</th>
-      <th className={`px-3 text-right text-xs font-medium ${C.text70} w-28`}>値引き</th>
-      <th className={`px-3 text-right text-xs font-medium ${C.text70} w-28`}>小計</th>
-      <th className={`px-3 text-left text-xs font-medium ${C.text70}`}>メモ</th>
-      <th className={`px-2 text-right text-xs font-medium ${C.text70} w-28`}></th>
+    <tr className={`border-b ${C.borderLight} ${C.bgPage} h-11`}>
+      <th scope="col" className={`px-3 text-left ${STYLE.sectionLabel} w-10`}></th>
+      <th scope="col" className={`px-3 text-left ${STYLE.sectionLabel} w-24`}>種別</th>
+      <th scope="col" className={`px-3 text-left ${STYLE.sectionLabel}`}>内容</th>
+      <th scope="col" className={`px-3 text-center ${STYLE.sectionLabel} w-16`}>保険</th>
+      <th scope="col" className={`px-3 text-right ${STYLE.sectionLabel} w-28`}>単価</th>
+      <th scope="col" className={`px-3 text-right ${STYLE.sectionLabel} w-20`}>数量</th>
+      <th scope="col" className={`px-3 text-right ${STYLE.sectionLabel} w-28`}>値引き</th>
+      <th scope="col" className={`px-3 text-right ${STYLE.sectionLabel} w-28`}>小計</th>
+      <th scope="col" className={`px-3 text-left ${STYLE.sectionLabel}`}>メモ</th>
+      <th scope="col" className={`px-2 text-right ${STYLE.sectionLabel} w-28`}></th>
     </tr>
   </thead>
 );
@@ -50,6 +53,8 @@ interface TreatmentsTableProps {
   onMoveUp: (treatmentId: string) => void;
   onMoveDown: (treatmentId: string) => void;
   onAutoFocusDone: () => void;
+  /** #201: 投与量自動計算プレビューに必要なコンテキスト */
+  doseContext: MedicineDoseContext;
 }
 
 export function TreatmentsTable({
@@ -63,6 +68,7 @@ export function TreatmentsTable({
   onMoveUp,
   onMoveDown,
   onAutoFocusDone,
+  doseContext,
 }: TreatmentsTableProps) {
   return (
     <table className="w-full">
@@ -92,6 +98,7 @@ export function TreatmentsTable({
                 canEditDiscount={canEditDiscount}
                 autoFocusQuantity={autoFocusQuantity}
                 onAutoFocusDone={autoFocusQuantity ? onAutoFocusDone : undefined}
+                doseContext={doseContext}
               />
             );
           })
@@ -169,11 +176,12 @@ export function TreatmentAddControls({
             if (event.key === "Enter") onSubmit();
             if (event.key === "Escape") onCancel();
           }}
+          aria-label="治療内容"
           className={`flex-1 h-8 text-sm border ${C.borderMedium} rounded-[3px] px-2 ${C.bgWhite} ${C.text} outline-none ${C.focusBorderAccent}`}
         />
         <Button
           size="sm"
-          className={`${STYLE.btnPrimary} h-8 text-xs px-3`}
+          className={`${C.bgBrand} ${C.hoverBgBrand} text-white rounded-full border-transparent transition-colors h-8 text-xs px-3`}
           onClick={onSubmit}
           disabled={isPending || !addContent.trim()}
         >
@@ -229,12 +237,12 @@ export function TreatmentTotals({
       <div className="flex flex-col gap-1.5">
         <div className={`flex items-center justify-between text-sm ${C.text60}`}>
           <span>全明細合計 ({totalCount}件)</span>
-          <span className="font-mono">¥{totalSubtotal.toLocaleString()}</span>
+          <span className="font-mono">{formatCurrency(totalSubtotal)}</span>
         </div>
         <div className={`flex items-center justify-between text-sm font-medium ${C.text}`}>
           <span>選択済み合計 ({selectedCount}件)</span>
           <span className="font-mono text-base">
-            ¥{selectedSubtotal.toLocaleString()}
+            {formatCurrency(selectedSubtotal)}
           </span>
         </div>
         <div className={`flex items-center justify-between text-sm pt-1.5 border-t ${C.borderLight}`}>
@@ -242,7 +250,7 @@ export function TreatmentTotals({
             税込合計 (10% {ownerDiscountRate > 0 ? `飼主割引${ownerDiscountRate}%適用後` : ""})
           </span>
           <span className={`font-mono font-semibold ${C.textCostBlue}`}>
-            ¥{finalTotal.toLocaleString()}
+            {formatCurrency(finalTotal)}
           </span>
         </div>
       </div>

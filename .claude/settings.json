@@ -1,63 +1,16 @@
 {
   "$schema": "https://json.schemastore.org/claude-code-settings.json",
-  "alwaysThinkingEnabled": false,
-  "attribution": {
-    "enabled": false
-  },
-  "outputStyle": "senior-engineer",
   "env": {
     "CLAUDE_CODE_ENABLE_TELEMETRY": "0",
     "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1",
     "MAX_THINKING_TOKENS": "10000",
     "CLAUDE_AUTOCOMPACT_PCT_OVERRIDE": "90",
-    "ENABLE_CLAUDEAI_MCP_SERVERS": "false"
+    "ENABLE_CLAUDEAI_MCP_SERVERS": "false",
+    "ECC_GATEGUARD": "off",
+    "ECC_DISABLED_HOOKS": "pre:bash:block-no-verify,pre:config-protection,pre:edit-write:config-protection,post:edit:console-warn,stop:check-console-log"
   },
-  "teammateMode": "in-process",
+  "includeCoAuthoredBy": false,
   "permissions": {
-    "deny": [
-      "Bash(npm:*)",
-      "Bash(pnpm:*)",
-      "Bash(yarn:*)",
-      "Bash(node:*)",
-      "Bash(go:*)",
-      "Bash(wget:*)",
-      "Bash(rm -rf:*)",
-      "Bash(*|bash:*)",
-      "Bash(*|sh:*)",
-      "Read(~/.ssh/**)",
-      "Read(~/.aws/**)",
-      "Read(~/.kube/**)",
-      "Read(~/.gnupg/**)",
-      "Read(./.env)",
-      "Read(./.env.*)",
-      "Read(./secrets/**)",
-      "Read(./api-keys.json)",
-      "Read(./secrets.json)",
-      "Read(./**/*.pem)",
-      "Read(./**/*.key)",
-      "Read(./**/*.crt)",
-      "Read(./**/*.p12)",
-      "Read(./**/*.pfx)",
-      "Read(./node_modules/**)",
-      "Read(./.next/**)",
-      "Read(./out/**)",
-      "Read(./dist/**)",
-      "Read(./build/**)",
-      "Read(./coverage/**)",
-      "Read(./.cache/**)",
-      "Read(./**/*.db)",
-      "Read(./**/*.log)",
-      "Read(./logs/**)",
-      "Read(./.git/**)",
-      "Read(./temp/**)",
-      "Write(./.env)",
-      "Write(./.env.*)",
-      "Write(./secrets/**)",
-      "Write(./**/*.pem)",
-      "Write(./**/*.key)",
-      "Write(./.git/**)",
-      "Write(./node_modules/**)"
-    ],
     "allow": [
       "Bash(make:*)",
       "Bash(docker ps)",
@@ -99,12 +52,56 @@
       "Read(tests/**)",
       "Read(docs/**)",
       "Read(tmp/**)",
-      "Write(.claude/rules/**)",
-      "Write(.claude/hooks/**)",
-      "Write(frontend/src/**)",
-      "Write(backend/**)",
-      "Write(tests/**)",
-      "Write(docs/**)"
+      "Edit(.claude/rules/**)",
+      "Edit(.claude/hooks/**)",
+      "Edit(frontend/src/**)",
+      "Edit(backend/**)",
+      "Edit(tests/**)",
+      "Edit(docs/**)"
+    ],
+    "deny": [
+      "Bash(npm:*)",
+      "Bash(pnpm:*)",
+      "Bash(yarn:*)",
+      "Bash(node:*)",
+      "Bash(go:*)",
+      "Bash(wget:*)",
+      "Bash(rm -rf:*)",
+      "Bash(*|bash:*)",
+      "Bash(*|sh:*)",
+      "Read(~/.ssh/**)",
+      "Read(~/.aws/**)",
+      "Read(~/.kube/**)",
+      "Read(~/.gnupg/**)",
+      "Read(./.env)",
+      "Read(./.env.*)",
+      "Read(./secrets/**)",
+      "Read(./api-keys.json)",
+      "Read(./secrets.json)",
+      "Read(./**/*.pem)",
+      "Read(./**/*.key)",
+      "Read(./**/*.crt)",
+      "Read(./**/*.p12)",
+      "Read(./**/*.pfx)",
+      "Read(./node_modules/**)",
+      "Read(./.next/**)",
+      "Read(./out/**)",
+      "Read(./dist/**)",
+      "Read(./build/**)",
+      "Read(./coverage/**)",
+      "Read(./.cache/**)",
+      "Read(./**/*.db)",
+      "Read(./**/*.log)",
+      "Read(./logs/**)",
+      "Read(./.git/**)",
+      "Read(./temp/**)",
+      "Edit(./.env)",
+      "Edit(./.env.*)",
+      "Edit(./secrets/**)",
+      "Edit(./**/*.pem)",
+      "Edit(./**/*.key)",
+      "Edit(./.git/**)",
+      "Edit(./node_modules/**)"
     ],
     "ask": [
       "Bash(rm:*)",
@@ -125,6 +122,7 @@
     ],
     "defaultMode": "default"
   },
+  "model": "claude-sonnet-5",
   "hooks": {
     "PreToolUse": [
       {
@@ -134,8 +132,7 @@
             "type": "command",
             "command": "node \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/pre-bash-block-dangerous.js"
           }
-        ],
-        "description": "Block destructive shell commands (rm -rf /, dd, mkfs)"
+        ]
       },
       {
         "matcher": "Bash",
@@ -144,8 +141,16 @@
             "type": "command",
             "command": "node \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/pre-bash-block-no-verify.js"
           }
-        ],
-        "description": "Block --no-verify and --no-gpg-sign flags to protect git hooks"
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/pre-bash-block-env-read.js"
+          }
+        ]
       },
       {
         "matcher": "Bash",
@@ -154,18 +159,7 @@
             "type": "command",
             "command": "node \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/pre-bash-commit-quality.js"
           }
-        ],
-        "description": "Commit quality gate: block secrets, warn on console.log/debugger, validate commit message format"
-      },
-      {
-        "matcher": "Bash",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "node \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/pre-bash-git-push-reminder.js"
-          }
-        ],
-        "description": "Remind to review changes before git push"
+        ]
       },
       {
         "matcher": "Write",
@@ -174,8 +168,7 @@
             "type": "command",
             "command": "node \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/pre-write-large-file-block.js"
           }
-        ],
-        "description": "Block creation of files larger than 800 lines"
+        ]
       },
       {
         "matcher": "Edit|Write",
@@ -184,8 +177,16 @@
             "type": "command",
             "command": "node \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/pre-edit-config-protection.js"
           }
-        ],
-        "description": "Warn when editing linter/formatter config files"
+        ]
+      },
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/pre-edit-migration-guard.js"
+          }
+        ]
       }
     ],
     "PostToolUse": [
@@ -196,8 +197,7 @@
             "type": "command",
             "command": "node \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/post-edit-console-warn.js"
           }
-        ],
-        "description": "Warn about console.log statements after edits or new file creation"
+        ]
       },
       {
         "matcher": "Edit",
@@ -206,8 +206,7 @@
             "type": "command",
             "command": "node \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/post-edit-file-size-warn.js"
           }
-        ],
-        "description": "Warn when file exceeds 500/800 lines after edit (catches gradual growth)"
+        ]
       },
       {
         "matcher": "Edit|Write",
@@ -216,8 +215,7 @@
             "type": "command",
             "command": "node \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/post-edit-format-go.js"
           }
-        ],
-        "description": "Auto-format .go files with gofmt via Docker after edits"
+        ]
       },
       {
         "matcher": "Edit|Write",
@@ -226,40 +224,7 @@
             "type": "command",
             "command": "node \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/post-edit-typecheck-ts.js"
           }
-        ],
-        "description": "TypeScript type check via Docker after .ts/.tsx edits"
-      },
-      {
-        "matcher": "Bash",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "node \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/after-shell-execution.js"
-          }
-        ],
-        "description": "Log PR URL after gh pr create"
-      },
-      {
-        "matcher": "Edit|Write|Bash",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "node \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/harness-state.js"
-          }
-        ],
-        "description": "Track changed files during harness iterations (no-op when harness is not active)"
-      }
-    ],
-    "PreCompact": [
-      {
-        "matcher": "*",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "node \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/pre-compact-save-state.js"
-          }
-        ],
-        "description": "Save git state and progress before context compaction"
+        ]
       }
     ],
     "Stop": [
@@ -271,8 +236,7 @@
             "command": "node \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/stop-save-progress.js",
             "timeout": 10000
           }
-        ],
-        "description": "Save session progress snapshot for cross-session context persistence"
+        ]
       },
       {
         "matcher": "*",
@@ -282,8 +246,7 @@
             "command": "node \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/stop-desktop-notify.js",
             "timeout": 10000
           }
-        ],
-        "description": "Send macOS desktop notification when Claude finishes"
+        ]
       }
     ],
     "SessionStart": [
@@ -294,8 +257,7 @@
             "type": "command",
             "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/session-init.sh"
           }
-        ],
-        "description": "Log session start and detect project type"
+        ]
       }
     ],
     "UserPromptSubmit": [
@@ -306,9 +268,13 @@
             "type": "command",
             "command": "node \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/before-submit-prompt.js"
           }
-        ],
-        "description": "Detect potential secrets (API keys, PATs, private keys) in user prompts"
+        ]
       }
     ]
-  }
+  },
+  "outputStyle": "senior-engineer",
+  "alwaysThinkingEnabled": false,
+  "teammateMode": "in-process",
+  "effort": "medium",
+  "enabledPlugins": {}
 }

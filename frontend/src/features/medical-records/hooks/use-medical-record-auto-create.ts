@@ -3,8 +3,7 @@ import type { NavigateFunction } from "react-router";
 
 import { paths } from "@/config/paths";
 import { handleApiError } from "@/lib/handle-api-error";
-import type { MedicalRecord, Pet, Reservation } from "@/types";
-import type { CreateReservationRequest, Reservation as ReservationUI } from "@/features/reservations";
+import type { MedicalRecord, Pet } from "@/types";
 
 import type { CreateMedicalRecordRequest } from "../api/types";
 import type { RecommendationReason } from "../constants/recommendation-reason";
@@ -20,16 +19,38 @@ interface AsyncMutation<TVariables, TData> {
   mutateAsync: (variables: TVariables) => Promise<TData>;
 }
 
+/** 呼び出し元が保持する予約の最小参照。id 以外は auto-create で不要。 */
+interface ReusableAppointmentRef {
+  id: string;
+}
+
+/**
+ * 予約作成リクエスト（auto-create 経路が実際に送信するフィールドのみ）。
+ * BE 契約は features/reservations/api/types.ts の CreateReservationRequest と同一。
+ * medical-records は reservations feature に依存しないためローカル定義する（S5 教訓: DRY より依存方向優先）。
+ */
+interface MedicalRecordAppointmentCreateRequest {
+  pet_id: number;
+  owner_id: number;
+  start_time: string;
+  end_time: string;
+  visit_type: "first" | "revisit";
+  reservation_type_id: number;
+  status: "in_consultation";
+  source: "manual" | "line";
+  reservation_route: "record_shortcut";
+}
+
 interface UseMedicalRecordAutoCreateParams {
   isNewRecord: boolean;
   selectedPet: Pet | undefined;
   hasAutoCreatedRef: MutableRefObject<boolean>;
   appointmentIdFromState: string | undefined;
-  reusableAppointment: ReservationUI | undefined;
+  reusableAppointment: ReusableAppointmentRef | undefined;
   isReusableAppointmentLoading: boolean;
   visitDateFromState: string | undefined;
   generalReservationType: MedicalRecordReservationType | undefined;
-  createReservationMutation: AsyncMutation<CreateReservationRequest, Reservation>;
+  createReservationMutation: AsyncMutation<MedicalRecordAppointmentCreateRequest, { id: string }>;
   createMutation: AsyncMutation<CreateMedicalRecordRequest, MedicalRecord>;
   startCreateTransition: TransitionStartFunction;
   visitType: string;

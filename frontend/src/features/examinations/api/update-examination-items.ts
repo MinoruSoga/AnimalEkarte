@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import { handleApiError } from "@/lib/handle-api-error";
+import { queryKeys } from "@/lib/query-keys";
 import { transformExamResult, type ExamResult } from "./transforms";
 import type { ExamItemsResponse, ReplaceExamItemsRequest } from "./types";
 
@@ -9,7 +10,7 @@ import type { ExamItemsResponse, ReplaceExamItemsRequest } from "./types";
  * 既存項目を全削除して受け取った items を一括登録するセマンティクス。
  * status / is_abnormal は backend が ref_min/ref_max から導出するため送信不要。
  */
-export const updateExaminationItems = async (
+const updateExaminationItems = async (
   id: string,
   req: ReplaceExamItemsRequest,
 ): Promise<ExamResult[]> => {
@@ -23,8 +24,8 @@ export const useUpdateExaminationItems = () => {
     mutationFn: ({ id, req }: { id: string; req: ReplaceExamItemsRequest }) =>
       updateExaminationItems(id, req),
     onSuccess: (_data, { id }) => {
-      queryClient.invalidateQueries({ queryKey: ["examination-items", id] });
-      queryClient.invalidateQueries({ queryKey: ["examination", id] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.examinations.items(id) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.examinations.detail(id) });
     },
     onError: (error) => handleApiError(error, "検査項目の保存"),
   });

@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { C } from "@/lib/design-tokens";
+import { HISTORY_FETCH_LIMIT } from "@/config/fetch-limits";
 import { ReportPanel } from "./ReportPanel";
 
 interface ReportSectionProps {
@@ -12,6 +13,11 @@ interface ReportSectionProps {
   emptyMessage?: string;
   /** 件数バッジ（閲覧可・取得済み・非エラーのときのみヘッダーに表示）。 */
   count?: number;
+  /**
+   * SD-18: 取得 API が HISTORY_FETCH_LIMIT で打ち切っており、実件数がここに表示された
+   * 件数より多い可能性がある場合 true。true のとき本文の先頭に打ち切り注記を表示する。
+   */
+  isTruncated?: boolean;
   children: ReactNode;
 }
 
@@ -28,6 +34,7 @@ export function ReportSection({
   isEmpty,
   emptyMessage = "履歴はありません",
   count,
+  isTruncated = false,
   children,
 }: ReportSectionProps) {
   const body = !canView ? (
@@ -41,7 +48,14 @@ export function ReportSection({
   ) : isEmpty ? (
     <p className={`text-sm ${C.text50}`}>{emptyMessage}</p>
   ) : (
-    children
+    <>
+      {isTruncated ? (
+        <p className={`mb-2 text-xs ${C.text50}`} data-testid="section-truncation-notice">
+          直近{HISTORY_FETCH_LIMIT}件を表示しています
+        </p>
+      ) : null}
+      {children}
+    </>
   );
 
   const showCount = canView && !isLoading && !isError && typeof count === "number";

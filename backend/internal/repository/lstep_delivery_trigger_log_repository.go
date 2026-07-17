@@ -39,8 +39,6 @@ type LstepDeliveryTriggerLogRepository interface {
 	ExistsTodayByOwnerAndType(ctx context.Context, clinicID, ownerID uint64, triggerType string, date time.Time) (bool, error)
 	// UpdateStatus はログのステータス・fired_at・excluded_reason を更新する。
 	UpdateStatus(ctx context.Context, clinicID, id uint64, status string, firedAt *time.Time, excludedReason *string) error
-	// FindByClinicAndDate はクリニック・日付でトリガーログ一覧を返す（管理確認用）。
-	FindByClinicAndDate(ctx context.Context, clinicID uint64, date time.Time) ([]model.LstepDeliveryTriggerLog, error)
 	// CountByStatusAndDateRange はクリニック・期間でステータス別件数マップを返す。triggerType が空なら全種別。
 	CountByStatusAndDateRange(ctx context.Context, clinicID uint64, from, to time.Time, triggerType string) (map[string]int64, error)
 	// CountExcludedReasonByDateRange は除外ログを除外理由別に集計する。triggerType が空なら全種別。
@@ -49,8 +47,6 @@ type LstepDeliveryTriggerLogRepository interface {
 	CountSuppressedByPriorityDateRange(ctx context.Context, clinicID uint64, from, to time.Time, triggerType string) (int64, error)
 	// FindByDateRangeWithFilters は飼い主名 JOIN 付きでページングログ一覧と総件数を返す。
 	FindByDateRangeWithFilters(ctx context.Context, clinicID uint64, from, to time.Time, triggerType, status string, limit, offset int) ([]DeliveryTriggerLogRow, int64, error)
-	// ListByOwnerAndDateRange はクリニック・飼主単位で期間内トリガーログ一覧を返す。
-	ListByOwnerAndDateRange(ctx context.Context, clinicID, ownerID uint64, from, to time.Time) ([]model.LstepDeliveryTriggerLog, error)
 	// CountByTypeAndStatus はクリニック単位で期間内トリガー種別 × ステータス別集計を返す。
 	CountByTypeAndStatus(ctx context.Context, clinicID uint64, from, to time.Time) ([]DeliveryStatsRow, error)
 	// CountVisitConversionsByType は期間内の fired ログについてトリガー種別ごとの来院転換数を返す。
@@ -106,20 +102,6 @@ func (r *lstepDeliveryTriggerLogRepository) UpdateStatus(ctx context.Context, cl
 		return apperrors.WrapNotFound("lstep_delivery_trigger_log", fmt.Sprintf("%d", id))
 	}
 	return nil
-}
-
-func (r *lstepDeliveryTriggerLogRepository) FindByClinicAndDate(ctx context.Context, clinicID uint64, date time.Time) ([]model.LstepDeliveryTriggerLog, error) {
-	dayStart := time.Date(date.Year(), date.Month(), date.Day(), 0, 0, 0, 0, date.Location())
-	dayEnd := dayStart.AddDate(0, 0, 1)
-	var logs []model.LstepDeliveryTriggerLog
-	err := r.db.WithContext(ctx).
-		Where("clinic_id = ? AND scheduled_at >= ? AND scheduled_at < ?", clinicID, dayStart, dayEnd).
-		Order("scheduled_at ASC").
-		Find(&logs).Error
-	if err != nil {
-		return nil, apperrors.FromGORM(err, "lstep_delivery_trigger_log", "find_by_clinic_date")
-	}
-	return logs, nil
 }
 
 func (r *lstepDeliveryTriggerLogRepository) CountByStatusAndDateRange(ctx context.Context, clinicID uint64, from, to time.Time, triggerType string) (map[string]int64, error) {
@@ -221,18 +203,6 @@ func (r *lstepDeliveryTriggerLogRepository) FindByDateRangeWithFilters(ctx conte
 		return nil, 0, apperrors.FromGORM(err, "lstep_delivery_trigger_log", "find_with_filters")
 	}
 	return rows, total, nil
-}
-
-func (r *lstepDeliveryTriggerLogRepository) ListByOwnerAndDateRange(ctx context.Context, clinicID, ownerID uint64, from, to time.Time) ([]model.LstepDeliveryTriggerLog, error) {
-	var logs []model.LstepDeliveryTriggerLog
-	err := r.db.WithContext(ctx).
-		Where("clinic_id = ? AND owner_id = ? AND scheduled_at >= ? AND scheduled_at < ?", clinicID, ownerID, from, to).
-		Order("scheduled_at DESC").
-		Find(&logs).Error
-	if err != nil {
-		return nil, apperrors.FromGORM(err, "lstep_delivery_trigger_log", "list_by_owner")
-	}
-	return logs, nil
 }
 
 func (r *lstepDeliveryTriggerLogRepository) CountByTypeAndStatus(ctx context.Context, clinicID uint64, from, to time.Time) ([]DeliveryStatsRow, error) {

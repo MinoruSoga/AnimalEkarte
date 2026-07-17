@@ -19,5 +19,8 @@ export interface CheckupFilters {
   endDate?: string;
   nextStartDate?: string;
   nextEndDate?: string;
+  /** X-16②: 実サーバページング移行 */
+  page?: number;
+  limit?: number;
 }
 

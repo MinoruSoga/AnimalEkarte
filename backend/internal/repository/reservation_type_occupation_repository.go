@@ -8,19 +8,10 @@ import (
 
 	"gorm.io/gorm"
 
+	"github.com/animal-ekarte/backend/internal/config"
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
 )
-
-// jstLoc は起動時に一度だけロードする JST タイムゾーン。
-// tzdata 欠落時は起動時に panic して早期発見できる（_ エラー握りつぶし禁止の規約に準拠）。
-var jstLoc = func() *time.Location {
-	loc, err := time.LoadLocation("Asia/Tokyo")
-	if err != nil {
-		panic(fmt.Sprintf("failed to load JST timezone: %v", err))
-	}
-	return loc
-}()
 
 // ReservationTypeOccupationRepository は職種紐付けの永続化インターフェース
 type ReservationTypeOccupationRepository interface {
@@ -31,9 +22,9 @@ type ReservationTypeOccupationRepository interface {
 	Create(ctx context.Context, o *model.ReservationTypeOccupation) error
 	// Delete は物理削除（論理削除なし）
 	Delete(ctx context.Context, clinicID, reservationTypeID, occupationID uint64) error
-	// CountWorkingStaffByReservationTypeID は指定日に対応職種のスタッフが何人出勤しているかを返す（LIFF 専用）
-	// shift_type が 'off' / 'paid_leave' 以外のスタッフのみカウント
-	CountWorkingStaffByReservationTypeID(ctx context.Context, clinicID, reservationTypeID uint64, date time.Time) (int64, error)
+	// CountWorkingStaffByReservationTypeIDs は複数日分の出勤スタッフ数を1クエリでまとめて返す(G7-1: 日付ループN+1回避)。
+	// 戻り値のキーは time.DateOnly 形式(JST)。シフトが無い日はキーとして存在しない(0扱い)。dates が空なら空map即返し。
+	CountWorkingStaffByReservationTypeIDs(ctx context.Context, clinicID, reservationTypeID uint64, dates []time.Time) (map[string]int64, error)
 }
 
 type reservationTypeOccupationRepository struct {
@@ -96,30 +87,44 @@ func (r *reservationTypeOccupationRepository) Delete(
 		return apperrors.FromGORM(result.Error, "reservation_type_occupation", fmt.Sprintf("type=%d occ=%d", reservationTypeID, occupationID))
 	}
 	if result.RowsAffected == 0 {
-		return apperrors.FromGORM(gorm.ErrRecordNotFound, "reservation_type_occupation", fmt.Sprintf("type=%d occ=%d", reservationTypeID, occupationID))
+		return apperrors.WrapNotFound("reservation_type_occupation", fmt.Sprintf("type=%d occ=%d", reservationTypeID, occupationID))
 	}
 	return nil
 }
 
-func (r *reservationTypeOccupationRepository) CountWorkingStaffByReservationTypeID(
-	ctx context.Context, clinicID, reservationTypeID uint64, date time.Time,
-) (int64, error) {
-	// JST 日付文字列で shift_entries.date と比較する
-	dateStr := date.In(jstLoc).Format("2006-01-02")
-	var count int64
+func (r *reservationTypeOccupationRepository) CountWorkingStaffByReservationTypeIDs(
+	ctx context.Context, clinicID, reservationTypeID uint64, dates []time.Time,
+) (map[string]int64, error) {
+	result := make(map[string]int64, len(dates))
+	if len(dates) == 0 {
+		return result, nil
+	}
+	dateStrs := make([]string, len(dates))
+	for i, d := range dates {
+		dateStrs[i] = d.In(config.JST).Format(time.DateOnly)
+	}
+	type row struct {
+		Date  string `gorm:"column:date"`
+		Count int64  `gorm:"column:cnt"`
+	}
+	var rows []row
 	err := r.db.WithContext(ctx).Raw(`
-		SELECT COUNT(DISTINCT se.staff_id)
+		SELECT se.date::text AS date, COUNT(DISTINCT se.staff_id) AS cnt
 		FROM reservation_type_occupations rto
 		JOIN staffs s ON s.occupation_id = rto.occupation_id AND s.deleted_at IS NULL
 		JOIN shift_entries se ON se.staff_id = s.id
 			AND se.clinic_id = ?
-			AND se.date = ?
+			AND se.date IN ?
 			AND se.shift_type NOT IN ('off', 'paid_leave')
 		WHERE rto.clinic_id = ?
 		  AND rto.reservation_type_id = ?
-	`, clinicID, dateStr, clinicID, reservationTypeID).Scan(&count).Error
+		GROUP BY se.date
+	`, clinicID, dateStrs, clinicID, reservationTypeID).Scan(&rows).Error
 	if err != nil {
-		return 0, apperrors.FromGORM(err, "count_working_staff", fmt.Sprintf("type=%d date=%s", reservationTypeID, dateStr))
+		return nil, apperrors.FromGORM(err, "count_working_staff_batch", fmt.Sprintf("type=%d", reservationTypeID))
 	}
-	return count, nil
+	for _, rw := range rows {
+		result[rw.Date] = rw.Count
+	}
+	return result, nil
 }

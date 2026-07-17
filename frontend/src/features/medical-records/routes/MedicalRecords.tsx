@@ -1,14 +1,13 @@
 // React/Framework
-import { type ReactNode, useState, useCallback, useDeferredValue, useMemo, useEffect } from "react";
-import { useNavigate, useSearchParams } from "react-router";
+import { useState, useCallback, useDeferredValue, useMemo, useEffect } from "react";
+import { useNavigate } from "react-router";
 
 // Auth
 import { useClinicScope } from "@/hooks/use-clinic-scope";
 
 // Hooks
-import { useSortableData } from "@/hooks/use-sortable-data";
 import { useModalState } from "@/hooks/use-modal-state";
-import { uniqueSortedOptions } from "@/utils/unique-sorted-options";
+import { useGetStaffs } from "@/hooks/use-staffs";
 
 // External
 import { Plus, FileText, Edit, Trash2, Receipt, AlertTriangle, Calendar, CircleDot, User, PawPrint } from "lucide-react";
@@ -17,39 +16,45 @@ import { Plus, FileText, Edit, Trash2, Receipt, AlertTriangle, Calendar, CircleD
 import { paths } from "@/config/paths";
 import { TableCell } from "@/components/ui/table";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
-import { NotionFilter } from "@/components/shared/NotionFilter/NotionFilter";
+import { PropertyFilter } from "@/components/shared/PropertyFilter/PropertyFilter";
 import { DataTable } from "@/components/shared/DataTable/DataTable";
 import { DataTableRow } from "@/components/shared/DataTable/DataTableRow";
 import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
 import { StatusBadge } from "@/components/shared/StatusBadge/StatusBadge";
 import { RowActionDropdown } from "@/components/shared/RowActionDropdown";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
-import { SortableHeader } from "@/components/shared/SortableHeader/SortableHeader";
 import { LoadingFallback, ErrorFallback } from "@/components/shared/DataStates";
 import { Pagination } from "@/components/shared/Pagination";
 import { FilteringIndicator } from "@/components/shared/FilteringIndicator/FilteringIndicator";
 import { ClinicScopeFilter } from "@/components/shared/ClinicScopeFilter/ClinicScopeFilter";
-import { C, STYLE, ICON } from "@/lib/design-tokens";
+import { C, STYLE, ICON, LAYOUT } from "@/lib/design-tokens";
 import { getMedicalRecordStatusColor } from "@/utils/status-helpers";
-import { usePagination } from "@/hooks/use-pagination";
 import { useStaffValidation } from "@/hooks/use-staff-validation";
 
 // Relative
-import { useFilterMedicalRecords } from "../hooks/use-medical-records";
+import { useMedicalRecordsList } from "../hooks/use-medical-records";
+import { useMedicalRecordsUrlState } from "../hooks/use-medical-records-url-state";
 import { useDeleteMedicalRecord } from "../api/delete-medical-record";
 import { usePermission } from "@/hooks/use-permission";
+import { useAnimalSpecies } from "@/hooks/use-animal-species";
+import { useMedicalRecordsColumns } from "./medical-records-columns";
 
 // Types
 import type {
   FilterProperty,
   ActiveFilter,
-  SortProperty,
-} from "@/components/shared/NotionFilter/types";
-import { CONDITIONS_NO_EMPTY, CONDITIONS_WITH_EMPTY } from "@/components/shared/NotionFilter/types";
-import type { MedicalRecordFilters } from "../api/get-medical-records";
+  FilterCondition,
+} from "@/components/shared/PropertyFilter/types";
 import { ResourceMedicalRecords } from "@/types/generated/models";
 
-// rendering-hoist-jsx: 静的フィルタプロパティ（担当医・種は動的オプションのためコンポーネント内で構築）
+const PAGE_SIZE = 20;
+
+// BE は status/doctor_id/animal_species_id を単一値の完全一致でのみ受け付けるため、
+// これらのフィルタは "is" 条件のみ UI で選択可能にする（is_not/is_empty は server 未対応）。
+// 詳細: bug.md B-1 follow-up
+const SERVER_EQUALITY_ONLY: FilterCondition[] = ["is"];
+
+// rendering-hoist-jsx: 静的フィルタプロパティ（担当医・種は master 取得後に動的追加）
 const STATIC_FILTER_PROPERTIES: FilterProperty[] = [
   {
     key: "date",
@@ -62,8 +67,7 @@ const STATIC_FILTER_PROPERTIES: FilterProperty[] = [
     label: "ステータス",
     type: "select",
     icon: CircleDot,
-    // medical_records.status DEFAULT 'draft' — 空値は存在しない
-    conditions: CONDITIONS_NO_EMPTY,
+    conditions: SERVER_EQUALITY_ONLY,
     options: [
       { value: "作成中", label: "作成中" },
       { value: "確定済", label: "確定済" },
@@ -71,21 +75,16 @@ const STATIC_FILTER_PROPERTIES: FilterProperty[] = [
   },
 ];
 
-// rendering-hoist-jsx: 静的ソートプロパティ定義
-const MEDICAL_RECORD_SORT_PROPERTIES: SortProperty[] = [
-  { key: "date", label: "診療日" },
-  { key: "ownerName", label: "飼主名" },
-  { key: "petName", label: "ペット名" },
-  { key: "species", label: "種" },
-  { key: "doctor", label: "担当医" },
-  { key: "status", label: "ステータス" },
-];
-
 const CLINIC_TOGGLE_RESET_PARAMS = ["page"] as const;
+
+// DESIGN.md ex-data-table-cell: header は canvas-soft 背景 + eyebrow 相当タイポグラフィ（12px/600/tracking）。
+// STYLE.tableHeaderRow/tableHeaderCell（他画面と共有）を直接変更すると影響範囲が広がるため、
+// DataTable の headerRowClassName/headerCellClassName で本テーブルのみ上書きする。
+const MEDICAL_RECORDS_HEADER_ROW = `border-b ${C.borderLight} ${C.bgPage} h-11`;
+const MEDICAL_RECORDS_HEADER_CELL = `${STYLE.sectionLabel} h-11`;
 
 export function MedicalRecords() {
   const navigate = useNavigate();
-  const [searchParams, setSearchParams] = useSearchParams();
   const { canCreate, canEdit, canDelete } = usePermission("medical-records");
   const {
     assignedClinics,
@@ -99,74 +98,60 @@ export function MedicalRecords() {
   const [activeFilters, setActiveFilters] = useState<ActiveFilter[]>([]);
   const deferredSearch = useDeferredValue(searchTerm);
 
-  // activeFilters から日付フィルタのみを抽出してAPIに渡す
-  const apiFilters = useMemo<MedicalRecordFilters>(() => {
-    const dateFilter = activeFilters.find((f) => f.key === "date")?.value as
-      | { from?: string; to?: string }
-      | undefined;
-    return {
-      startDate: dateFilter?.from,
-      endDate: dateFilter?.to,
-      clinicIds: isMultiClinic ? selectedClinicIds : undefined,
-    };
-  }, [activeFilters, isMultiClinic, selectedClinicIds]);
+  const { data: staffs } = useGetStaffs();
+  const { activeSpecies } = useAnimalSpecies();
 
-  const { data: filteredRecords, allRecords, isLoading, isError } = useFilterMedicalRecords(deferredSearch, apiFilters, activeFilters);
-
-  // js-cache-function-results: ロード済みレコードから担当医・種の選択肢を動的生成
+  // js-cache-function-results: staff/species master から担当医・種の選択肢を動的生成（allRecords 非依存）
   const filterProperties = useMemo<FilterProperty[]>(() => {
-    const doctorOptions = uniqueSortedOptions(allRecords, (r) => r.doctor);
-    const speciesOptions = uniqueSortedOptions(allRecords, (r) => r.species);
+    const doctorOptions = (staffs ?? [])
+      .filter((s) => s.isActive)
+      .map((s) => ({ value: s.id, label: s.name }));
+    const speciesOptions = activeSpecies.map((s) => ({ value: String(s.id), label: s.name }));
     return [
       ...STATIC_FILTER_PROPERTIES,
-      // medical_records.doctor_id nullable（未割当あり）
-      { key: "doctor", label: "担当医", type: "select" as const, icon: User, conditions: CONDITIONS_WITH_EMPTY, options: doctorOptions },
-      // pets.animal_species_id NOT NULL — 空値は存在しない
-      { key: "species", label: "種", type: "select" as const, icon: PawPrint, conditions: CONDITIONS_NO_EMPTY, options: speciesOptions },
+      { key: "doctor", label: "担当医", type: "select" as const, icon: User, conditions: SERVER_EQUALITY_ONLY, options: doctorOptions },
+      { key: "species", label: "種", type: "select" as const, icon: PawPrint, conditions: SERVER_EQUALITY_ONLY, options: speciesOptions },
     ];
-  }, [allRecords]);
+  }, [staffs, activeSpecies]);
+
+  // rerender-derived-state-no-effect: 検索/フィルタが変わったら1ページ目へリセット（useEffect不使用）
+  const resetKey = `${deferredSearch}|${JSON.stringify(activeFilters)}`;
+  const {
+    currentPage,
+    sortKey,
+    sortOrder,
+    handleSortToggle,
+    directionForSort,
+    handlePageChange,
+  } = useMedicalRecordsUrlState(resetKey);
+
+  const clinicIdsForApi = isMultiClinic ? selectedClinicIds : undefined;
+  const { records, total, isLoading, isError } = useMedicalRecordsList({
+    searchTerm: deferredSearch,
+    activeFilters,
+    clinicIds: clinicIdsForApi,
+    page: currentPage,
+    limit: PAGE_SIZE,
+    sort: sortKey,
+    order: sortKey ? sortOrder : undefined,
+  });
+
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+
+  // BUG-B1: server-side フィルタで件数が減り currentPage が範囲外になった場合、最終ページへ補正
+  useEffect(() => {
+    if (total > 0 && currentPage > totalPages) {
+      handlePageChange(totalPages);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [totalPages, total]);
+
   const deleteModal = useModalState<{ id: string; label: string }>();
   const { mutate: deleteRecord } = useDeleteMedicalRecord();
   const { isValidStaff } = useStaffValidation();
 
-  const { activeSorts, setActiveSorts, toggleSort, directionFor, sortedData } =
-    useSortableData(filteredRecords);
-
-  const {
-    paginatedData,
-    currentPage,
-    totalPages,
-    totalCount,
-    startIndex,
-    endIndex,
-    goToPage,
-  } = usePagination(sortedData, { pageSize: 20, resetKey: [searchTerm, JSON.stringify(activeFilters)].join("|") });
-
-  // FE-144: URLクエリパラメータからページ番号を読み取る
-  const urlPage = Number(searchParams.get("page") ?? 1);
-
-  // FE-144: URLのページ番号とローカル状態を同期（URLが変わったときのみ）
-  useEffect(() => {
-    const clampedPage = Math.max(1, Math.min(urlPage, totalPages));
-    if (clampedPage !== currentPage) {
-      goToPage(clampedPage);
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [urlPage, totalPages]);
-
-  // FE-144: ページ変更時にURLクエリパラメータを更新
-  const handlePageChange = useCallback((page: number) => {
-    goToPage(page);
-    setSearchParams((prev) => {
-      const next = new URLSearchParams(prev);
-      if (page === 1) {
-        next.delete("page");
-      } else {
-        next.set("page", String(page));
-      }
-      return next;
-    }, { replace: true });
-  }, [goToPage, setSearchParams]);
+  const startIndex = total === 0 ? 0 : (currentPage - 1) * PAGE_SIZE + 1;
+  const endIndex = Math.min(currentPage * PAGE_SIZE, total);
 
   const isFiltering = searchTerm !== deferredSearch;
 
@@ -179,35 +164,11 @@ export function MedicalRecords() {
 
   const showClinicColumn = isMultiClinic;
 
-  // js-cache-function-results: directionFor/toggleSort に依存するカラム定義をメモ化
-  const COLUMNS = useMemo<{ header: ReactNode; className?: string; align?: "left" | "center" | "right" }[]>(() => [
-    {
-      header: <SortableHeader label="診療日" direction={directionFor("date")} onToggle={() => toggleSort("date")} />,
-      className: "w-[120px]",
-    },
-    {
-      header: <SortableHeader label="飼主名" direction={directionFor("ownerName")} onToggle={() => toggleSort("ownerName")} />,
-    },
-    {
-      header: <SortableHeader label="ペット名" direction={directionFor("petName")} onToggle={() => toggleSort("petName")} />,
-    },
-    {
-      header: <SortableHeader label="種" direction={directionFor("species")} onToggle={() => toggleSort("species")} />,
-      className: "w-[80px] hidden lg:table-cell",
-    },
-    { header: "主訴" },
-    { header: "関連", className: "w-[100px] hidden lg:table-cell" },
-    {
-      header: <SortableHeader label="担当医" direction={directionFor("doctor")} onToggle={() => toggleSort("doctor")} />,
-      className: "w-[100px]",
-    },
-    {
-      header: <SortableHeader label="ステータス" direction={directionFor("status")} onToggle={() => toggleSort("status")} />,
-      className: "w-[100px]",
-    },
-    ...(showClinicColumn ? [{ header: "医院", className: "w-[120px] hidden lg:table-cell" }] : []),
-    { header: "操作", className: "w-[100px]", align: "right" as const },
-  ], [directionFor, toggleSort, showClinicColumn]);
+  const COLUMNS = useMedicalRecordsColumns({
+    showClinicColumn,
+    directionForSort,
+    onSortToggle: handleSortToggle,
+  });
 
   if (isLoading) return <LoadingFallback />;
   if (isError) return <ErrorFallback />;
@@ -225,7 +186,7 @@ export function MedicalRecords() {
           </PrimaryButton>
         ) : null
       }
-      maxWidth="max-w-full"
+      maxWidth={LAYOUT.pageContentMaxWidth.full}
     >
       <div className="flex flex-col gap-4 flex-1 min-h-0">
         {/* #86: 拠点横断フィルター — 複数所属医院がある場合のみ表示 */}
@@ -236,25 +197,24 @@ export function MedicalRecords() {
         />
 
         {/* Search */}
-        <NotionFilter
+        <PropertyFilter
           properties={filterProperties}
           activeFilters={activeFilters}
           onFilterChange={setActiveFilters}
           searchTerm={searchTerm}
           onSearchChange={setSearchTerm}
           searchPlaceholder="飼主名、ペット名、カルテNo、主訴で検索..."
-          count={filteredRecords.length}
-          sortProperties={MEDICAL_RECORD_SORT_PROPERTIES}
-          activeSorts={activeSorts}
-          onSortChange={setActiveSorts}
+          count={total}
         />
 
         {/* Table */}
         <FilteringIndicator isFiltering={isFiltering}>
           <DataTable
             columns={COLUMNS}
-            data={paginatedData}
+            data={records}
             emptyMessage="カルテデータが見つかりません"
+            headerRowClassName={MEDICAL_RECORDS_HEADER_ROW}
+            headerCellClassName={MEDICAL_RECORDS_HEADER_CELL}
             renderRow={(r) => {
               const isOtherClinic = showClinicColumn && r.clinicId !== currentClinicId;
               return (
@@ -340,7 +300,7 @@ export function MedicalRecords() {
           <Pagination
             currentPage={currentPage}
             totalPages={totalPages}
-            totalCount={totalCount}
+            totalCount={total}
             startIndex={startIndex}
             endIndex={endIndex}
             onPageChange={handlePageChange}

@@ -28,8 +28,11 @@ func NewLineCustomerRepository(db *gorm.DB) LineCustomerRepository {
 
 func (r *lineCustomerRepository) FindAll(ctx context.Context, clinicID uint64) ([]model.LineCustomer, error) {
 	items := make([]model.LineCustomer, 0)
+	// clinic_id 述語必須: LineCustomerService.LinkOwner が service 層で ownerID の所属クリニックを
+	// 検証する（FE-refactor.md 残件 3 対応）が、多層防御として読み取り側でも Owner を
+	// 自クリニックにスコープしフォールバックさせる。
 	err := r.db.WithContext(ctx).
-		Preload("Owner", "deleted_at IS NULL").
+		Preload("Owner", "clinic_id = ? AND deleted_at IS NULL", clinicID).
 		Scopes(clinicScope(clinicID)).
 		Order("created_at DESC").
 		Find(&items).Error
@@ -41,9 +44,13 @@ func (r *lineCustomerRepository) FindAll(ctx context.Context, clinicID uint64) (
 
 func (r *lineCustomerRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.LineCustomer, error) {
 	var c model.LineCustomer
+	// clinic_id 述語必須: LineCustomerService.LinkOwner が service 層で ownerID の所属クリニックを
+	// 検証する（FE-refactor.md 残件 3 対応）が、多層防御として読み取り側でも Owner を
+	// 自クリニックにスコープしフォールバックさせる
+	// (GetLiffProfile / GetHealthCard のクロステナント露出防止)。
 	err := r.db.WithContext(ctx).
-		Preload("Owner", "deleted_at IS NULL").
-		Preload("Owner.Pets", "deleted_at IS NULL").
+		Preload("Owner", "clinic_id = ? AND deleted_at IS NULL", clinicID).
+		Preload("Owner.Pets", "clinic_id = ? AND deleted_at IS NULL", clinicID).
 		Preload("Owner.Pets.AnimalSpecies").
 		Scopes(clinicScope(clinicID)).Where("id = ?", id).First(&c).Error
 	if err != nil {

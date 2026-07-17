@@ -16,7 +16,6 @@ type LstepTagCodeMappingRepository interface {
 	FindAllByClinicID(ctx context.Context, clinicID uint64) ([]*model.LstepTagCodeMapping, error)
 	FindByClinicIDAndTagName(ctx context.Context, clinicID uint64, tagName string) ([]*model.LstepTagCodeMapping, error)
 	Create(ctx context.Context, mapping *model.LstepTagCodeMapping) error
-	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.LstepTagCodeMapping, error)
 	SoftDelete(ctx context.Context, clinicID, id uint64) error
 	// SoftDeleteByClinicIDAndTagName は指定タグ名に紐づく全 mapping を一括ソフトデリートする（PUT replace 用）。
 	SoftDeleteByClinicIDAndTagName(ctx context.Context, clinicID uint64, tagName string) error
@@ -58,24 +57,6 @@ func (r *lstepTagCodeMappingRepository) Create(ctx context.Context, mapping *mod
 		return apperrors.FromGORM(err, "lstep_tag_code_mapping", "create")
 	}
 	return nil
-}
-
-func (r *lstepTagCodeMappingRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.LstepTagCodeMapping, error) {
-	err := r.db.WithContext(ctx).Model(&model.LstepTagCodeMapping{}).
-		Scopes(clinicScope(clinicID)).
-		Where("id = ?", id).
-		Updates(fields).Error
-	if err != nil {
-		return nil, apperrors.FromGORM(err, "lstep_tag_code_mapping", fmt.Sprintf("%d", id))
-	}
-	var updated model.LstepTagCodeMapping
-	if err := r.db.WithContext(ctx).
-		Scopes(clinicScope(clinicID)).
-		Where("id = ? AND deleted_at IS NULL", id).
-		First(&updated).Error; err != nil {
-		return nil, apperrors.FromGORM(err, "lstep_tag_code_mapping", fmt.Sprintf("%d", id))
-	}
-	return &updated, nil
 }
 
 func (r *lstepTagCodeMappingRepository) SoftDelete(ctx context.Context, clinicID, id uint64) error {

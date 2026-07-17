@@ -8,7 +8,6 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/animal-ekarte/backend/internal/config"
-	"github.com/animal-ekarte/backend/internal/repository"
 )
 
 // TestRegisterRoutes_NoPanic はルート登録時に panic が発生しないことを保証する。
@@ -27,7 +26,6 @@ func TestRegisterRoutes_NoPanic(t *testing.T) {
 		cfg: &config.Config{
 			JWTSecret: "test-secret-for-route-registration",
 		},
-		repos: &repository.Repositories{},
 	}
 
 	assert.NotPanics(t, func() {

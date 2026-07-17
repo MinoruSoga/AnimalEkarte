@@ -7,50 +7,89 @@ description: テスト自動生成（ユニット・統合テスト、Go testify
 
 関数・メソッド・コンポーネントのテストケースを自動生成します。
 
+## テスト作成の基本方針
+
+### AAA (Arrange-Act-Assert) パターン
+
+テストは Arrange（準備）→ Act（実行）→ Assert（検証）の3ブロックで構成する。
+
+```typescript
+it('should return expected result when given valid input', () => {
+  // Arrange
+  const input = 'test input'
+
+  // Act
+  const result = functionToTest(input)
+
+  // Assert
+  expect(result).toBe('expected output')
+})
+```
+
+### Descriptive naming
+
+テスト名は「何をしたら何が起きるか」を明示する（`should return X when Y` 形式）。`test1` や `it works` のような曖昧な名前は禁止。
+
+### テストコマンド
+
+| 種別 | ツール | スコープ限定（自動実行可） | 全体（ユーザー手動実行） |
+|------|--------|--------------------------|------------------------|
+| ユニット (FE) | Vitest + Testing Library + MSW | `docker compose exec frontend npx vitest run <spec>` | `pnpm test:run` |
+| カバレッジ (FE) | Vitest | — | `pnpm test:coverage` |
+| ユニット (BE) | go test + testify | `docker compose exec backend go test ./internal/<pkg>/... -v` | `go test ./... -v` |
+
+全体コマンドは CLAUDE.md の自動実行禁止リスト — 生成後の全体確認はユーザーに実行を依頼する。
+
+E2Eは `e2e-design` コマンド / `docs/ops/testing/E2E_TESTING_GUIDE.md` を参照
+
+### モック方針
+
+- モックは最小限に。過剰なモック化は実装との乖離を生む
+- テストデータはファクトリパターンを使用
+- 非同期テストは適切に await する
+
 ## 実行スコープ
 
 ### 1. Go Backend テスト生成
 
-#### テスト構造（testify パターン）
+#### テスト構造（手書き fn-field モック — 本プロジェクトの正本パターン。詳細は `golang-testing` スキル参照）
+
+testify/mock パッケージのマッチャー/期待値APIは使わない（本プロジェクトの実コードに1件も存在しない）。各テストケースで必要な fn だけ差し替える手書きモックが正本（実例: `backend/internal/service/liff_service_mock_test.go`）。
+
 ```go
 func TestCreateOwner(t *testing.T) {
-  suite := &OwnerTestSuite{}
-  suite.SetupTest(t)
-  defer suite.TearDown()
-
   tests := []struct {
     name      string
     input     *CreateOwnerInput
-    mock      func() // モック設定
+    createFn  func(ctx context.Context, owner *model.Owner) error
     wantError bool
     wantCode  string
   }{
     {
-      name: "happy path",
+      name:  "happy path",
       input: &CreateOwnerInput{Name: "田中", Email: "test@example.com"},
-      mock: func() { suite.repo.EXPECT().Create(mock.Anything).Return(nil) },
+      createFn: func(ctx context.Context, owner *model.Owner) error { return nil },
       wantError: false,
     },
     {
-      name: "invalid email",
-      input: &CreateOwnerInput{Email: "invalid"},
+      name:      "invalid email",
+      input:     &CreateOwnerInput{Email: "invalid"},
       wantError: true,
-      wantCode: "INVALID_INPUT",
+      wantCode:  "INVALID_INPUT",
     },
     {
-      name: "duplicate email",
+      name:  "duplicate email",
       input: &CreateOwnerInput{Email: "existing@example.com"},
-      mock: func() { suite.repo.EXPECT().Create(mock.Anything).Return(ErrDuplicate) },
+      createFn: func(ctx context.Context, owner *model.Owner) error { return apperrors.ErrDuplicate },
       wantError: true,
     },
   }
 
   for _, tt := range tests {
     t.Run(tt.name, func(t *testing.T) {
-      if tt.mock != nil {
-        tt.mock()
-      }
-      err := suite.service.CreateOwner(context.Background(), tt.input)
+      repo := &mockOwnerRepository{createFn: tt.createFn}
+      svc := NewOwnerService(repo)
+      err := svc.CreateOwner(context.Background(), tt.input)
       if tt.wantError {
         require.Error(t, err)
         assert.Equal(t, tt.wantCode, err.Code)
@@ -83,17 +122,28 @@ func TestCreateOwner(t *testing.T) {
 - Context キャンセル、Timeout
 - トランザクション成功・失敗
 
-#### モック生成例
+#### モック生成例（手書き fn-field — モック自動生成ツールは本プロジェクト未導入のため使わない）
+
 ```go
-// mockery によるモック自動生成
 type OwnerRepository interface {
   Create(ctx context.Context, owner *Owner) error
   GetByID(ctx context.Context, id uint) (*Owner, error)
   Update(ctx context.Context, owner *Owner) error
 }
 
-// mockery -name=OwnerRepository
-// → mocks/OwnerRepository.go 自動生成
+// 手書き fn-field モック: 使う fn だけ差し替える（golang-testing スキル参照）
+type mockOwnerRepository struct {
+  createFn  func(ctx context.Context, owner *Owner) error
+  getByIDFn func(ctx context.Context, id uint) (*Owner, error)
+  updateFn  func(ctx context.Context, owner *Owner) error
+}
+
+func (m *mockOwnerRepository) Create(ctx context.Context, owner *Owner) error {
+  if m.createFn != nil {
+    return m.createFn(ctx, owner)
+  }
+  return nil
+}
 ```
 
 ### 2. React Frontend テスト生成
@@ -129,7 +179,8 @@ describe('OwnerCard', () => {
 
 #### ユーザーインタラクション テスト
 ```typescript
-import { render, screen, userEvent } from '@testing-library/react'
+import { render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { OwnerForm } from './OwnerForm'
 
 test('submits form with valid data', async () => {
@@ -176,7 +227,7 @@ test('raises error with invalid owner prop', () => {
 #### Hook テスト
 ```typescript
 import { renderHook, act } from '@testing-library/react'
-import { useOwnerForm } from './useOwnerForm'
+import { useOwnerForm } from './use-owner-form' // hooks ファイルは kebab-case 命名
 
 test('useOwnerForm initializes with default values', () => {
   const { result } = renderHook(() => useOwnerForm())
@@ -233,8 +284,8 @@ func TestCreateOwnerAPI(t *testing.T) {
 ### 4. テストカバレッジ
 
 ```bash
-# Coverage レポート生成
-docker compose exec backend go test -coverprofile=coverage.out ./...
+# Coverage レポート生成（スコープ限定 — 全体カバレッジ計測はユーザー手動実行。CLAUDE.md 禁止コマンド）
+docker compose exec backend go test -coverprofile=coverage.out ./internal/<対象パッケージ>/...
 docker compose exec backend go tool cover -html=coverage.out
 
 # 目標: 80% 以上
@@ -289,10 +340,10 @@ docker compose exec backend go tool cover -html=coverage.out
 ### Next Steps
 1. Review generated tests
 2. Add custom test cases if needed
-3. Run tests: `docker compose exec backend go test ./...`
+3. Run tests: `docker compose exec backend go test ./internal/<対象パッケージ>/...`
+   （⚠️ 全体 `go test ./...` は CLAUDE.md の自動実行禁止コマンド。ユーザーに手動実行を依頼する）
 ```
 
 ## 関連スキル
 
-- `tdd-workflow` - テスト駆動開発フロー
-- `error-handling-patterns` - エラーケースの完全網羅
+- `/tdd-workflow`（コマンド） - テスト駆動開発フロー

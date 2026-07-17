@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
 	"strings"
 	"time"
@@ -14,20 +13,11 @@ import (
 // SyncVaccineTag はワクチン接種記録からタグを同期する（BE-003）。
 // 接種種別（dog/cat）とラビーズを date 付きタグとして付与する。
 func (s *lstepTagSyncService) SyncVaccineTag(ctx context.Context, clinicID, ownerID, vaccinationID uint64) error {
-	if skip, err := s.shouldSkipSync(ctx, clinicID); err != nil {
-		return err
-	} else if skip {
-		return nil
-	}
-	optOut, owner, err := s.checkOptOut(ctx, clinicID, ownerID)
+	lineUserID, ok, err := s.resolveSyncTarget(ctx, clinicID, ownerID, "vaccine")
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to check opt-out for vaccine tag sync", "error", err)
-		return apperrors.Wrap(err, "failed to check opt-out")
+		return err
 	}
-	if optOut {
-		return nil
-	}
-	if owner.LineUserID == nil || *owner.LineUserID == "" {
+	if !ok {
 		return nil
 	}
 
@@ -50,8 +40,6 @@ func (s *lstepTagSyncService) SyncVaccineTag(ctx context.Context, clinicID, owne
 		return nil
 	}
 
-	lineUserID := *owner.LineUserID
-
 	// 同一カテゴリの古い日付タグを解除してから新タグを付与（ISSUE-006）
 	newTagSet := make(map[string]struct{}, len(tags))
 	for _, t := range tags {
@@ -61,13 +49,8 @@ func (s *lstepTagSyncService) SyncVaccineTag(ctx context.Context, clinicID, owne
 		[]string{"vaccine_dog_", "vaccine_cat_", "vaccine_rabies_"}, newTagSet)
 
 	for _, tag := range tags {
-		if addErr := client.AddTag(ctx, lineUserID, tag); addErr != nil {
-			slog.ErrorContext(ctx, "failed to add vaccine tag", "error", addErr, "tag", tag)
-			s.notifyAPIFailure(ctx, client, clinicID, ownerID, lineUserID)
-			return apperrors.Wrap(addErr, fmt.Sprintf("failed to add vaccine tag %s", tag))
-		}
-		if cacheErr := s.tagCacheRepo.UpsertTag(ctx, clinicID, ownerID, tag, "auto", ""); cacheErr != nil {
-			slog.ErrorContext(ctx, "failed to upsert tag cache", "error", cacheErr, "tag", tag)
+		if err := s.applyTagState(ctx, client, clinicID, ownerID, lineUserID, tag, "vaccine", "", true); err != nil {
+			return err
 		}
 	}
 	if !apiFailed {
@@ -81,7 +64,7 @@ func vaccineTagNames(vac *model.Vaccination) []string {
 	if vac.Vaccine == nil {
 		return nil
 	}
-	date := vac.Date.Format("2006-01-02")
+	date := vac.Date.Format(time.DateOnly)
 	var tags []string
 
 	species := vac.Vaccine.Species
@@ -111,23 +94,13 @@ func isRabiesVaccine(name string) bool {
 // 接種記録の更新・削除後に呼び出すこと。種別ごとに最新の接種日のみタグを保持する。
 // 記録が0件の場合は全 vaccine_* タグを解除する。
 func (s *lstepTagSyncService) ResyncOwnerVaccineTags(ctx context.Context, clinicID, ownerID uint64) error {
-	if skip, err := s.shouldSkipSync(ctx, clinicID); err != nil {
-		return err
-	} else if skip {
-		return nil
-	}
-	optOut, owner, err := s.checkOptOut(ctx, clinicID, ownerID)
+	lineUserID, ok, err := s.resolveSyncTarget(ctx, clinicID, ownerID, "vaccine resync")
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to check opt-out for vaccine resync", "error", err)
-		return apperrors.Wrap(err, "failed to check opt-out")
+		return err
 	}
-	if optOut {
+	if !ok {
 		return nil
 	}
-	if owner.LineUserID == nil || *owner.LineUserID == "" {
-		return nil
-	}
-	lineUserID := *owner.LineUserID
 
 	client, err := s.buildClient(ctx, clinicID)
 	if err != nil {
@@ -150,13 +123,8 @@ func (s *lstepTagSyncService) ResyncOwnerVaccineTags(ctx context.Context, clinic
 		[]string{"vaccine_dog_", "vaccine_cat_", "vaccine_rabies_"}, newTagSet)
 
 	for tag := range newTagSet {
-		if addErr := client.AddTag(ctx, lineUserID, tag); addErr != nil {
-			slog.ErrorContext(ctx, "failed to add vaccine tag on resync", "error", addErr, "tag", tag)
-			s.notifyAPIFailure(ctx, client, clinicID, ownerID, lineUserID)
-			return apperrors.Wrap(addErr, fmt.Sprintf("failed to add vaccine tag %s", tag))
-		}
-		if cacheErr := s.tagCacheRepo.UpsertTag(ctx, clinicID, ownerID, tag, "auto", ""); cacheErr != nil {
-			slog.ErrorContext(ctx, "failed to upsert vaccine tag cache on resync", "error", cacheErr, "tag", tag)
+		if err := s.applyTagState(ctx, client, clinicID, ownerID, lineUserID, tag, "vaccine resync", "", true); err != nil {
+			return err
 		}
 	}
 	if !apiFailed {
@@ -197,7 +165,7 @@ func buildLatestVaccineTagSet(vaccinations []model.Vaccination) map[string]struc
 	}
 	tagSet := make(map[string]struct{}, len(latestByPrefix))
 	for prefix, date := range latestByPrefix {
-		tagSet[prefix+date.Format("2006-01-02")] = struct{}{}
+		tagSet[prefix+date.Format(time.DateOnly)] = struct{}{}
 	}
 	return tagSet
 }

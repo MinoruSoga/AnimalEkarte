@@ -1,7 +1,7 @@
 import { HistoryFilterPanel } from "@/components/shared/HistoryFilterPanel";
 import { MasterLink } from "@/components/shared/MasterLink";
 import { FormFieldError } from "@/components/shared/FormFieldError/FormFieldError";
-import { NotionDatePicker } from "@/components/shared/NotionDatePicker/NotionDatePicker";
+import { DatePicker } from "@/components/shared/DatePicker/DatePicker";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -85,7 +85,7 @@ export function VaccinationFieldsPanel({
             <Label htmlFor="vaccination-date">
               接種日<span className={`${C.textRequired} ml-1`}>*</span>
             </Label>
-            <NotionDatePicker
+            <DatePicker
               id="vaccination-date"
               value={date}
               onChange={(value) => {
@@ -156,7 +156,7 @@ export function VaccinationFieldsPanel({
               </SelectTrigger>
               <SelectContent>{NEXT_SCHEDULE_ITEMS}</SelectContent>
             </Select>
-            <NotionDatePicker
+            <DatePicker
               value={nextDate}
               onChange={(value) => {
                 onMarkDirty();

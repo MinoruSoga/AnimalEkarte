@@ -5,7 +5,7 @@ import { handleApiError } from "@/lib/handle-api-error";
 import { paths } from "@/config/paths";
 import type { ActionState } from "@/types/form";
 import { INITIAL_ACTION_STATE } from "@/types/form";
-import type { TreatmentPlan } from "@/types";
+import type { HospitalizationTreatmentPlan } from "@/types";
 import type { HospitalizationFormData } from "../types";
 import { usePetSelection } from "@/hooks/use-pet-selection";
 import { useGetPet } from "@/hooks/use-pet";
@@ -42,7 +42,7 @@ export function useHospitalizationForm(id?: string, _onSuccess?: () => void) {
     setFormData((prev) => ({ ...prev, ...updates }));
   };
 
-  const [treatmentPlans, setTreatmentPlans] = useState<TreatmentPlan[]>(DEFAULT_TREATMENT_PLANS);
+  const [treatmentPlans, setTreatmentPlans] = useState<HospitalizationTreatmentPlan[]>(DEFAULT_TREATMENT_PLANS);
 
   const [globalDiscount, setGlobalDiscount] = useState(0);
   const [globalDiscountAmount, setGlobalDiscountAmount] = useState(0);
@@ -120,7 +120,7 @@ export function useHospitalizationForm(id?: string, _onSuccess?: () => void) {
 
   const updateTreatmentPlan = useCallback((
     planId: string,
-    field: keyof TreatmentPlan,
+    field: keyof HospitalizationTreatmentPlan,
     value: string | number | boolean
   ) => {
     setTreatmentPlans((prev) =>

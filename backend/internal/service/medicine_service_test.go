@@ -68,7 +68,7 @@ func newTestMedicineService(repo *mockMedicineRepository) MedicineService {
 		},
 	}
 	// mockTransactor は trimming_service_test.go で定義済み（パッケージスコープ共有）
-	return NewMedicineService(repo, inventoryRepo, &mockTransactor{})
+	return NewMedicineServiceWithAudit(repo, inventoryRepo, &mockTransactor{}, nil)
 }
 
 func TestMedicineService_List(t *testing.T) {
@@ -349,7 +349,7 @@ func uint64Ptr(v uint64) *uint64 { return &v }
 
 func TestMedicineService_Update_NilInput(t *testing.T) {
 	repo := &mockMedicineRepository{}
-	svc := NewMedicineService(repo, &mockInventoryRepository{}, &mockTransactor{})
+	svc := NewMedicineServiceWithAudit(repo, &mockInventoryRepository{}, &mockTransactor{}, nil)
 	result, err := svc.Update(context.Background(), 1, 1, nil)
 	assert.Error(t, err)
 	assert.Nil(t, result)

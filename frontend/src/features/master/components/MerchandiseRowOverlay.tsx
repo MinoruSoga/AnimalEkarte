@@ -1,13 +1,14 @@
 import { GripVertical } from "lucide-react";
 
-import { NotionStatusPill } from "@/components/shared/StatusPill/NotionStatusPill";
+import { StatusPill } from "@/components/shared/StatusPill/StatusPill";
 import { C, ICON, STYLE } from "@/lib/design-tokens";
+import { formatCurrency } from "@/utils/format/number";
 
 import type { FrontendMerchandiseItem } from "../api/merchandise-items";
 import {
   formatMerchandiseTaxRate,
   MERCHANDISE_CATEGORY_LABELS,
-} from "./MerchandiseSidePanelModel";
+} from "./merchandise-side-panel-model";
 
 interface MerchandiseRowOverlayProps {
   item: FrontendMerchandiseItem;
@@ -27,13 +28,13 @@ export function MerchandiseRowOverlay({ item }: MerchandiseRowOverlayProps) {
         {MERCHANDISE_CATEGORY_LABELS[item.category] ?? item.category}
       </div>
       <div className={`w-[120px] shrink-0 text-right pr-4 font-mono text-base ${C.text}`}>
-        ¥{item.unitPrice.toLocaleString()}
+        {formatCurrency(item.unitPrice)}
       </div>
       <div className={`w-[80px] shrink-0 text-base ${C.text70} text-center`}>
         {formatMerchandiseTaxRate(item.taxRate)}
       </div>
       <div className="w-[90px] shrink-0 flex justify-center">
-        <NotionStatusPill isActive={item.isActive} />
+        <StatusPill isActive={item.isActive} />
       </div>
       <div className="w-[80px] shrink-0" />
     </div>

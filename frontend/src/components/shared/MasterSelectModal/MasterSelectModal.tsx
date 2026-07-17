@@ -1,9 +1,11 @@
-import { useState, useMemo, useCallback, memo } from "react";
-import { Search, X, Check } from "lucide-react";
+import { useState, useMemo, useCallback, useDeferredValue, memo } from "react";
+import { Check } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
+import { EmptyState } from "@/components/shared/DataStates";
+import { ClearableSearchInput } from "@/components/shared/ClearableSearchInput";
 import { C, ICON } from "@/lib/design-tokens";
 import { normalizeKana } from "@/lib/normalize-kana";
+import { formatCurrency } from "@/utils/format/number";
 
 interface MasterItem {
   id: string | number;
@@ -39,12 +41,13 @@ export const MasterSelectModal = memo(function MasterSelectModal({
   matchBy = "name",
 }: MasterSelectModalProps) {
   const [searchTerm, setSearchTerm] = useState("");
+  const deferredSearchTerm = useDeferredValue(searchTerm);
 
   const filtered = useMemo(() => {
-    if (!searchTerm) return items;
-    const normalizedTerm = normalizeKana(searchTerm).toLowerCase();
+    if (!deferredSearchTerm) return items;
+    const normalizedTerm = normalizeKana(deferredSearchTerm).toLowerCase();
     return items.filter((item) => normalizeKana(item.name).toLowerCase().includes(normalizedTerm));
-  }, [items, searchTerm]);
+  }, [items, deferredSearchTerm]);
 
   const handleSelect = useCallback(
     (item: MasterItem) => {
@@ -66,31 +69,16 @@ export const MasterSelectModal = memo(function MasterSelectModal({
         </DialogHeader>
 
         {/* Search */}
-        <div className="relative">
-          <Search className={`absolute left-2.5 top-1/2 -translate-y-1/2 ${ICON.action} ${C.text40}`} />
-          <Input
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder={searchPlaceholder}
-            className={`pl-9 h-11 text-sm bg-white ${C.borderMedium}`}
-          />
-          {searchTerm ? (
-            <button
-              type="button"
-              onClick={() => setSearchTerm("")}
-              className={`absolute right-2.5 top-1/2 -translate-y-1/2 ${C.text40} ${C.hoverText}`}
-            >
-              <X className={`${ICON.xs}`} />
-            </button>
-          ) : null}
-        </div>
+        <ClearableSearchInput
+          value={searchTerm}
+          onChange={setSearchTerm}
+          placeholder={searchPlaceholder}
+        />
 
         {/* Item List */}
         <div className="space-y-2 max-h-[400px] overflow-y-auto pr-1">
           {filtered.length === 0 ? (
-            <div className={`py-12 text-center text-sm ${C.text40}`}>
-              該当する項目がありません
-            </div>
+            <EmptyState message="該当する項目がありません" />
           ) : (
             filtered.map((item) => {
               const isSelected =
@@ -116,7 +104,7 @@ export const MasterSelectModal = memo(function MasterSelectModal({
                     <div className={`text-sm ${C.text}`}>{item.name}</div>
                     {item.price != null ? (
                       <div className={`text-xs ${C.text70} mt-0.5`}>
-                        ¥{item.price.toLocaleString()}
+                        {formatCurrency(item.price)}
                       </div>
                     ) : null}
                   </div>

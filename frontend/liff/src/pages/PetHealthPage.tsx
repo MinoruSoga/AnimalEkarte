@@ -1,5 +1,7 @@
-import { useState, useEffect } from 'react';
-import { fetchHealthCard, type HealthCardResponse } from '../api/liff-api';
+import { useCallback } from 'react';
+import { fetchHealthCard } from '../api/liff-api';
+import { useFetchState } from '@/shared-liff/use-fetch-state';
+import { Spinner } from '@/shared-liff/Spinner';
 
 interface PetHealthPageProps {
   idToken: string;
@@ -7,65 +9,53 @@ interface PetHealthPageProps {
   pictureUrl: string | null;
 }
 
-type LoadState = 'loading' | 'error' | 'done';
-
 export function PetHealthPage({ idToken, displayName, pictureUrl }: PetHealthPageProps) {
-  const [loadState, setLoadState] = useState<LoadState>('loading');
-  const [data, setData] = useState<HealthCardResponse | null>(null);
-
   const clinicId = new URLSearchParams(window.location.search).get('clinic_id') ?? '';
 
-  // 同期目的のため useEffect 内 setState は許容。
-  /* eslint-disable react-hooks/set-state-in-effect */
-  useEffect(() => {
+  const fetcher = useCallback(() => {
     if (!clinicId) {
-      setLoadState('error');
-      return;
+      return Promise.reject(new Error('クリニックIDが見つかりません'));
     }
-
-    fetchHealthCard(idToken, clinicId)
-      .then((res) => {
-        setData(res);
-        setLoadState('done');
-      })
-      .catch((err: unknown) => {
-        console.error('[PetHealthPage] fetchHealthCard failed:', err);
-        setLoadState('error');
-      });
+    return fetchHealthCard(idToken, clinicId);
   }, [idToken, clinicId]);
-  /* eslint-enable react-hooks/set-state-in-effect */
 
-  if (loadState === 'loading') {
+  // R-F22/R-F23: ステータス別メッセージ解決と再試行導線を共通フックに統合。
+  const { data, loading, error, retry } = useFetchState(fetcher, '健康記録の取得');
+
+  if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-green-50">
+      <div className="min-h-screen flex items-center justify-center bg-liff-brand-bg">
         <div className="text-center">
-          <div className="w-10 h-10 border-4 border-green-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" aria-hidden="true" />
+          <Spinner />
           <p className="text-gray-500 text-sm">読み込み中...</p>
         </div>
       </div>
     );
   }
 
-  if (loadState === 'error' || !data) {
+  if (error || !data) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-green-50">
+      <div className="min-h-screen flex items-center justify-center bg-liff-brand-bg">
         <div className="max-w-md mx-auto px-4 text-center">
           <div className="text-6xl mb-4" aria-hidden="true">⚠️</div>
           <h1 className="text-xl font-bold text-gray-800 mb-2">データ取得に失敗しました</h1>
-          <button
-            type="button"
-            onClick={() => window.location.reload()}
-            className="py-3 px-6 bg-green-500 text-white rounded-xl font-semibold hover:bg-green-600"
-          >
-            再読み込み
-          </button>
+          <p className="text-gray-500 text-sm mb-6" role="alert">{error?.message ?? '不明なエラーが発生しました'}</p>
+          {error?.canRetry !== false ? (
+            <button
+              type="button"
+              onClick={retry}
+              className="py-3 px-6 bg-liff-brand text-white rounded-xl font-semibold hover:bg-liff-brand-dark"
+            >
+              再試行
+            </button>
+          ) : null}
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-green-50 pb-10">
+    <div className="min-h-screen bg-liff-brand-bg pb-10">
       {/* ヘッダー */}
       <div className="bg-white shadow-sm px-4 py-4 flex items-center gap-3">
         {pictureUrl ? (
@@ -89,9 +79,9 @@ export function PetHealthPage({ idToken, displayName, pictureUrl }: PetHealthPag
         {data.pets.map((pet) => (
           <div key={pet.pet_id} className="bg-white rounded-2xl shadow-sm overflow-hidden">
             {/* ペット基本情報 */}
-            <div className="bg-green-500 px-5 py-4">
+            <div className="bg-liff-brand px-5 py-4">
               <h2 className="text-lg font-bold text-white">{pet.pet_name}</h2>
-              <p className="text-green-100 text-sm">{pet.species} / {pet.breed}</p>
+              <p className="text-liff-brand-subtle text-sm">{pet.species} / {pet.breed}</p>
             </div>
 
             <div className="px-5 py-4 space-y-3">
@@ -100,14 +90,6 @@ export function PetHealthPage({ idToken, displayName, pictureUrl }: PetHealthPag
                 <span className="text-gray-500">最終来院日</span>
                 <span className="font-medium text-gray-800">
                   {pet.last_visit_date ? pet.last_visit_date : '記録なし'}
-                </span>
-              </div>
-
-              {/* 次回来院推奨日 */}
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-500">次回来院推奨日</span>
-                <span className="font-medium text-green-600">
-                  {pet.next_recommended_visit_date ? pet.next_recommended_visit_date : 'なし'}
                 </span>
               </div>
 
@@ -129,7 +111,7 @@ export function PetHealthPage({ idToken, displayName, pictureUrl }: PetHealthPag
                           <tr key={i} className="border-b border-gray-50 last:border-0">
                             <td className="py-2 text-gray-800">{v.vaccine_name}</td>
                             <td className="py-2 text-gray-600">{v.vaccinated_at}</td>
-                            <td className="py-2 text-green-600">{v.next_due_at ? v.next_due_at : '—'}</td>
+                            <td className="py-2 text-liff-brand-dark">{v.next_due_at ? v.next_due_at : '—'}</td>
                           </tr>
                         ))}
                       </tbody>

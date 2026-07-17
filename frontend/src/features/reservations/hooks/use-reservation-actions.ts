@@ -3,11 +3,10 @@ import type { Dispatch, RefObject, SetStateAction } from "react";
 import type { NavigateFunction } from "react-router";
 import { toast } from "sonner";
 
-import { createOwner } from "@/features/owners";
-import { createPet } from "@/features/pets";
 import { handleApiError } from "@/lib/handle-api-error";
 import { jstWallDateToISOString } from "@/lib/jst-date";
 import { getReservationStatusLabel } from "@/utils/status-helpers";
+import type { ReservationCreateMutations } from "@/types/reservation-create-mutations";
 
 import { useCreateReservation } from "../api/create-reservation";
 import { useDeleteReservation } from "../api/delete-reservation";
@@ -33,6 +32,7 @@ interface UseReservationActionsArgs {
   handleCloseDetail: () => void;
   locationFrom: NavigationState["from"] | null;
   navigate: NavigateFunction;
+  createMutations: ReservationCreateMutations;
 }
 
 function buildUpdatePayload(
@@ -66,6 +66,7 @@ export function useReservationActions({
   handleCloseDetail,
   locationFrom,
   navigate,
+  createMutations,
 }: UseReservationActionsArgs) {
   const createMutation = useCreateReservation();
   const updateMutation = useUpdateReservation();
@@ -133,11 +134,11 @@ export function useReservationActions({
         });
       } else if (newOwnerData) {
         try {
-          const owner = await createOwner({
+          const owner = await createMutations.createOwnerFn({
             owner_name: newOwnerData.ownerName,
             phone: newOwnerData.phone,
           });
-          const pet = await createPet({
+          const pet = await createMutations.createPetFn({
             owner_id: Number(owner.id),
             animal_species_id: newOwnerData.animalSpeciesId,
             name: newOwnerData.petName,
@@ -187,6 +188,7 @@ export function useReservationActions({
     [
       checkOverlap,
       createMutation,
+      createMutations,
       editingAppointmentRef,
       handleCloseForm,
       navigateBackIfNeeded,

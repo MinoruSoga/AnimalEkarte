@@ -21,6 +21,7 @@ type LiffService interface {
 	CreateReservation(ctx context.Context, clinicID, customerID uint64, input *CreateReservationInput) (*model.Reservation, error)
 	GetMyReservations(ctx context.Context, clinicID, customerID uint64) ([]model.Reservation, error)
 	CancelReservation(ctx context.Context, clinicID, customerID, reservationID uint64) error
+	GetHealthCard(ctx context.Context, clinicID, customerID uint64) (*HealthCardResult, error)
 }
 
 type liffService struct {
@@ -41,46 +42,7 @@ type liffService struct {
 	trimmingCourseRepo  repository.TrimmingCourseRepository            // BE-120
 	trimmingOptionRepo  repository.TrimmingOptionRepository            // BE-120
 	trimmingDetailRepo  repository.AppointmentTrimmingDetailRepository // BE-120
-}
-
-// NewLiffService はLIFFサービスを初期化して返す。
-func NewLiffService(
-	settingRepo repository.LineReservationSettingRepository,
-	typeLiffRepo repository.ReservationTypeLiffRepository,
-	staffRepo repository.ReservationStaffRepository,
-	scheduleRepo repository.ReservationScheduleRepository,
-	adminRepo repository.ReservationAdminRepository,
-	customerRepo repository.LineCustomerRepository,
-	ownerRepo repository.OwnerRepository,
-	tx repository.Transactor,
-	reservationRepo repository.ReservationRepository,
-	notifier ReservationNotifier,
-	unavailableTimeRepo repository.ReservationTypeUnavailableTimeRepository,
-	availableSlotRepo repository.ReservationTypeAvailableSlotRepository,
-	occupationRepo repository.ReservationTypeOccupationRepository,
-	trimmingCourseRepo repository.TrimmingCourseRepository,
-	trimmingOptionRepo repository.TrimmingOptionRepository,
-	trimmingDetailRepo repository.AppointmentTrimmingDetailRepository,
-) LiffService {
-	return NewLiffServiceWithType(
-		settingRepo,
-		typeLiffRepo,
-		nil,
-		staffRepo,
-		scheduleRepo,
-		adminRepo,
-		customerRepo,
-		ownerRepo,
-		tx,
-		reservationRepo,
-		notifier,
-		unavailableTimeRepo,
-		availableSlotRepo,
-		occupationRepo,
-		trimmingCourseRepo,
-		trimmingOptionRepo,
-		trimmingDetailRepo,
-	)
+	vaccinationRepo     repository.VaccinationRepository
 }
 
 func NewLiffServiceWithType(
@@ -101,6 +63,7 @@ func NewLiffServiceWithType(
 	trimmingCourseRepo repository.TrimmingCourseRepository,
 	trimmingOptionRepo repository.TrimmingOptionRepository,
 	trimmingDetailRepo repository.AppointmentTrimmingDetailRepository,
+	vaccinationRepo repository.VaccinationRepository,
 ) LiffService {
 	return &liffService{
 		settingRepo:         settingRepo,
@@ -112,7 +75,7 @@ func NewLiffServiceWithType(
 		reservationRepo:     reservationRepo,
 		customerRepo:        customerRepo,
 		ownerRepo:           ownerRepo,
-		validators:          NewReservationValidators(tx, reservationRepo, typeRepo),
+		validators:          NewReservationValidators(tx, reservationRepo, typeRepo, trimmingCourseRepo, trimmingOptionRepo),
 		notifier:            notifier,
 		unavailableTimeRepo: unavailableTimeRepo,
 		availableSlotRepo:   availableSlotRepo,
@@ -120,5 +83,6 @@ func NewLiffServiceWithType(
 		trimmingCourseRepo:  trimmingCourseRepo,
 		trimmingOptionRepo:  trimmingOptionRepo,
 		trimmingDetailRepo:  trimmingDetailRepo,
+		vaccinationRepo:     vaccinationRepo,
 	}
 }

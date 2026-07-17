@@ -6,12 +6,12 @@ import { usePermission } from "@/hooks/use-permission";
 import { C, ICON } from "@/lib/design-tokens";
 import { normalizeKana } from "@/lib/normalize-kana";
 import { MASTER_STATUS_FILTER } from "../constants/styles";
-import type { FilterProperty } from "@/components/shared/NotionFilter/types";
+import type { FilterProperty } from "@/components/shared/PropertyFilter/types";
 import { useMasterCRUD } from "../hooks/use-master-crud";
 import { useMasterSave } from "../hooks/use-master-save";
 import { MasterCRUDPage } from "../components/MasterCRUDPage";
 import { PermissionGroupSidePanel } from "../components/PermissionGroupSidePanel";
-import type { PermissionGroupFormData } from "../components/PermissionGroupSidePanelModel";
+import type { PermissionGroupFormData } from "../components/permission-group-side-panel-model";
 import {
   PERMISSION_GROUP_COLUMNS,
   PermissionGroupSortableTable,
@@ -31,7 +31,7 @@ import {
   buildPermissionGroupCreateRequest,
   buildPermissionGroupRulesRequest,
   buildPermissionGroupUpdateRequest,
-} from "./PermissionGroupSettingsModel";
+} from "./permission-group-settings-model";
 import { ResourceMasterPermission } from "@/types/generated/models";
 
 // ─────────────────────────────────────────────────

@@ -1,0 +1,12 @@
+# 値はすべて環境変数(TF_VAR_*)で供給すること。このファイルに実値を書かない。
+# terraform.tfvars(実ファイル)は親ディレクトリの .gitignore(infra/cloudflare/.gitignore、
+# `terraform.tfvars` / `*.tfstate*` / `.terraform/` を除外)がこのサブディレクトリにも
+# 適用されるため、ここに作成しても誤コミットされない(gitignoreはディレクトリ再帰的に有効)。
+#
+# account_id               = "CLOUDFLARE_ACCOUNT_ID と同値(STGと同一アカウント想定)。TF_VAR_account_id で供給推奨"
+# pscale_prod_db_host      = "pscale role reset-default animalekarte-prod main --org noah-animalekarte --force で取得(DB作成手順はdocs/infra/deploy/PRODUCTION_CF_SETUP.md参照)"
+# pscale_prod_db_user      = "同上"
+# pscale_prod_db_password の値 = "同上(都度発行の短命クレデンシャルを推奨。使い終わったら再度 reset-default で失効させる)"
+#
+# notification_email は本ディレクトリでは変数化していない(notifications.tf参照。
+# production専用の通知ポリシーを作らない設計のため不要)。

@@ -4,17 +4,8 @@ import { formatCurrency } from '@/utils/format/number';
 import { calcLineItemAmount } from '@/utils/line-item-helpers';
 import type { EstimateLineItem } from '../../types';
 import { C } from '@/lib/design-tokens';
-
-const CATEGORY_LABELS: Record<string, string> = {
-  examination: '診察',
-  test: '検査',
-  procedure: '処置',
-  surgery: '手術',
-  medicine: '薬剤',
-  food: '食事',
-  goods: '物品',
-  other: 'その他',
-};
+// FE5-26: 会計側の訳語(処方/フード/物販等)へ統一。旧ローカル定義(薬剤/食事/物品)は廃止。
+import { CATEGORY_LABELS } from '@/constants/item-category';
 
 interface EstimateLineItemsProps {
   items: EstimateLineItem[];

@@ -2,8 +2,8 @@ import type { TrimmingCourse, TrimmingOption } from "../api/trimming";
 import type {
   CourseFormData,
   OptionFormData,
-} from "./TrimmingSidePanelModel";
-import type { TrimmingTabValue } from "../routes/TrimmingSettingsModel";
+} from "./trimming-side-panel-model";
+import type { TrimmingTabValue } from "../routes/trimming-settings-model";
 import { TrimmingCourseSidePanel } from "./TrimmingCourseSidePanel";
 import { TrimmingOptionSidePanel } from "./TrimmingOptionSidePanel";
 

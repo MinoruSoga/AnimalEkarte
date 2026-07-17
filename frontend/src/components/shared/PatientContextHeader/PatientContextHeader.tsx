@@ -1,32 +1,18 @@
 import { type ReactNode } from "react";
 import { PawPrint, Weight } from "lucide-react";
 import { C, ICON } from "@/lib/design-tokens";
-import { toJSTWallDate } from "@/lib/jst-date";
+import { calcAgePartsAt } from "@/lib/calc-age";
 import imgEllipse1 from "@/assets/231a870df600a37e011a0e1140e7608b1f4c3340.png";
 import { ImageWithFallback } from "@/components/shared/Feedback";
 import { Tooltip } from "@/components/ui/tooltip";
 
 // ──────────────────────────────────────────────────────────
-// Age calculation (JST)
+// Age calculation (JST) — FE3-9: 計算部は共有ヘルパへ委譲。
+// 表示フォーマット（1歳未満は年表記省略）と未来日ガード無しの現挙動はここに残す。
 // ──────────────────────────────────────────────────────────
 
 function calcAge(birthDateStr: string): string {
-  const today = toJSTWallDate(new Date());
-  const birth = new Date(birthDateStr);
-  const birthJST = toJSTWallDate(birth);
-  let years = today.getFullYear() - birthJST.getFullYear();
-  let months = today.getMonth() - birthJST.getMonth();
-  if (months < 0) {
-    years--;
-    months += 12;
-  }
-  if (today.getDate() < birthJST.getDate()) {
-    months--;
-    if (months < 0) {
-      years--;
-      months += 12;
-    }
-  }
+  const { years, months } = calcAgePartsAt(birthDateStr, new Date());
   if (years >= 1) return `${years}歳${months}ヶ月`;
   return `${months}ヶ月`;
 }

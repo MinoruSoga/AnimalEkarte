@@ -2,6 +2,7 @@
 import { useQuery } from "@tanstack/react-query";
 
 import { axios } from "@/lib/axios";
+import { queryKeys } from "@/lib/query-keys";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 import type { BackendAccounting } from "./types";
 import { transformToAccounting } from "./transforms";
@@ -16,7 +17,7 @@ export interface UnpaidOwner {
   latest_scheduled: string;
 }
 
-export interface UnpaidSummary {
+interface UnpaidSummary {
   total_amount: number;
   billing_count: number;
   owner_count: number;
@@ -42,7 +43,7 @@ interface UnpaidQueryParams {
 
 export const useGetUnpaidByOwner = (params: UnpaidQueryParams) => {
   return useQuery({
-    queryKey: ["accounting", "unpaid", "owner", params] as const,
+    queryKey: queryKeys.accounting.unpaidBillings("owner", params),
     queryFn: async (): Promise<UnpaidByOwnerResponse> => {
       const { data } = await axios.get<UnpaidByOwnerResponse>("/v1/accountings/unpaid", {
         params: {
@@ -77,7 +78,7 @@ interface BackendUnpaidByBillingResponse {
 
 export const useGetUnpaidByBilling = (params: UnpaidQueryParams) => {
   return useQuery({
-    queryKey: ["accounting", "unpaid", "billing", params] as const,
+    queryKey: queryKeys.accounting.unpaidBillings("billing", params),
     queryFn: async (): Promise<UnpaidByBillingResponse> => {
       const { data } = await axios.get<BackendUnpaidByBillingResponse>("/v1/accountings/unpaid", {
         params: {
@@ -103,7 +104,7 @@ export const useGetUnpaidByBilling = (params: UnpaidQueryParams) => {
 
 // #114: 月次未納繰越集計
 
-export interface MonthlyUnpaidOwnerPet {
+interface MonthlyUnpaidOwnerPet {
   owner_id: number;
   owner_name: string;
   pet_id?: number;
@@ -113,7 +114,7 @@ export interface MonthlyUnpaidOwnerPet {
   next_month_carryover: number;
 }
 
-export interface MonthlyUnpaidSummary {
+interface MonthlyUnpaidSummary {
   prev_month_carryover: number;
   current_month_unpaid: number;
   next_month_carryover: number;
@@ -136,7 +137,7 @@ interface MonthlyUnpaidQueryParams {
 
 export const useGetUnpaidMonthly = (params: MonthlyUnpaidQueryParams) => {
   return useQuery({
-    queryKey: ["accounting", "unpaid", "monthly", params] as const,
+    queryKey: queryKeys.accounting.unpaidBillings("monthly", params),
     queryFn: async (): Promise<MonthlyUnpaidResponse> => {
       const { data } = await axios.get<MonthlyUnpaidResponse>("/v1/accountings/unpaid-monthly", {
         params: {

@@ -1,5 +1,5 @@
 // Internal
-import { NotionStatusPill } from "@/components/shared/StatusPill/NotionStatusPill";
+import { StatusPill } from "@/components/shared/StatusPill/StatusPill";
 import { PropertyRow } from "@/components/shared/SidePeek/PropertyRow";
 import { C } from "@/lib/design-tokens";
 
@@ -17,7 +17,7 @@ export function StatusToggleButton({ isActive, onToggle }: StatusToggleButtonPro
         aria-label="ステータスを切り替え"
         className={`inline-flex items-center rounded-[3px] ${C.hoverBgLight} transition-colors py-0.5 px-0.5 cursor-pointer`}
       >
-        <NotionStatusPill isActive={isActive} />
+        <StatusPill isActive={isActive} />
       </button>
     </PropertyRow>
   );

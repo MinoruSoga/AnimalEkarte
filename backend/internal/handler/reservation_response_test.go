@@ -2,6 +2,7 @@ package handler
 
 import (
 	"testing"
+	"time"
 
 	"github.com/animal-ekarte/backend/internal/model"
 )
@@ -64,5 +65,38 @@ func TestToReservationResponseIncludesNestedReservationType(t *testing.T) {
 	}
 	if resp.Doctor == nil || resp.Doctor.Name != "佐藤 医師" {
 		t.Fatalf("doctor summary = %#v, want name %q", resp.Doctor, "佐藤 医師")
+	}
+}
+
+// 受付ヘッダー テレメトリ（change-ui.md Phase 2）: checked_in_at が
+// レスポンス DTO に正しくマッピングされることを保証する。
+func TestToReservationResponseIncludesCheckedInAt(t *testing.T) {
+	checkedInAt := time.Date(2026, 7, 6, 9, 30, 0, 0, time.UTC)
+
+	resp := toReservationResponse(&model.Reservation{
+		ID:          1,
+		ClinicID:    1,
+		Status:      model.ReservationStatusCheckedIn,
+		CheckedInAt: &checkedInAt,
+	})
+
+	if resp.CheckedInAt == nil {
+		t.Fatal("checked_in_at is nil, want non-nil")
+	}
+	if !resp.CheckedInAt.Equal(checkedInAt) {
+		t.Fatalf("checked_in_at = %v, want %v", resp.CheckedInAt, checkedInAt)
+	}
+}
+
+// checked_in_at が未設定（受付前）の場合は nil のまま omitempty で省略されることを保証する。
+func TestToReservationResponseOmitsCheckedInAtWhenNil(t *testing.T) {
+	resp := toReservationResponse(&model.Reservation{
+		ID:       1,
+		ClinicID: 1,
+		Status:   model.ReservationStatusPending,
+	})
+
+	if resp.CheckedInAt != nil {
+		t.Fatalf("checked_in_at = %v, want nil", resp.CheckedInAt)
 	}
 }

@@ -1,4 +1,5 @@
 import { CheckCircle2, Circle } from "lucide-react";
+import { toast } from "sonner";
 
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 import { SubmitButton } from "@/components/shared/Form/SubmitButton";
@@ -8,7 +9,7 @@ import { C, ICON, PALETTE, STYLE } from "@/lib/design-tokens";
 import { LstepTagAddDialog } from "./LstepTagAddDialog";
 import { LstepTagList } from "./LstepTagList";
 import { LstepTagRemoveInline } from "./LstepTagRemoveInline";
-import type { LineIdFormState } from "./use-line-integration-card-state";
+import type { LineIdFormState } from "../hooks/use-line-integration-card-state";
 
 export function LineIntegrationCardFrame({ children }: { children: React.ReactNode }) {
   return (
@@ -163,7 +164,7 @@ export function UnlinkedLineIdForm({
           placeholder="Uxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
           className={`${STYLE.formInput} flex-1 rounded-md px-3`}
         />
-        <SubmitButton loadingText="設定中...">設定</SubmitButton>
+        <SubmitButton loadingText="設定中..." colorVariant="brand">設定</SubmitButton>
       </div>
       {lineIdState.error !== null ? (
         <p className={`text-sm ${C.danger}`}>{lineIdState.error}</p>
@@ -177,6 +178,69 @@ export function UnlinkedStatusRow() {
     <div className="flex items-center gap-2">
       <Circle className={`${ICON.smXs} ${C.text40} shrink-0`} />
       <span className={`text-sm ${C.text50}`}>未連携</span>
+    </div>
+  );
+}
+
+interface LineLinkTokenSectionProps {
+  canEdit: boolean;
+  liffUrl?: string;
+  isGenerating: boolean;
+  onGenerate: () => void;
+}
+
+// SD-14: LINE 連携用 URL（トークン発行 → LiffLinkPage への QR/リンク元）を
+// スタッフが発行・コピーできる導線。発行 API 自体は既存だが呼び出す UI がなかった。
+export function LineLinkTokenSection({
+  canEdit,
+  liffUrl,
+  isGenerating,
+  onGenerate,
+}: LineLinkTokenSectionProps) {
+  if (!canEdit) return null;
+
+  const handleCopy = async () => {
+    if (!liffUrl) return;
+    try {
+      await navigator.clipboard.writeText(liffUrl);
+      toast.success("URLをコピーしました");
+    } catch {
+      toast.error("コピーに失敗しました");
+    }
+  };
+
+  return (
+    <div className="flex flex-col gap-2">
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        className="h-8 px-3 text-xs w-fit"
+        disabled={isGenerating}
+        onClick={onGenerate}
+      >
+        {isGenerating ? "発行中..." : "連携用URLを発行"}
+      </Button>
+      {liffUrl ? (
+        <div className="flex items-center gap-2">
+          <input
+            readOnly
+            value={liffUrl}
+            aria-label="LINE連携用URL"
+            className={`${STYLE.formInput} flex-1 rounded-md px-3 text-xs`}
+            onFocus={(e) => e.target.select()}
+          />
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="h-8 px-2 text-xs shrink-0"
+            onClick={handleCopy}
+          >
+            コピー
+          </Button>
+        </div>
+      ) : null}
     </div>
   );
 }

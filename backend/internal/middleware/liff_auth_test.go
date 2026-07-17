@@ -103,7 +103,7 @@ func TestLiffAuth(t *testing.T) {
 			authHeader: "",
 			clinicID:   "3",
 			setupLine:  nil,
-			setting:    validSettingLookup("2009755544-abcdefgh"),
+			setting:    validSettingLookup("1234567890-abcdefgh"),
 			customer:   validCustomerLookup(),
 			wantStatus: http.StatusUnauthorized,
 			wantBody:   "missing authorization header",
@@ -113,7 +113,7 @@ func TestLiffAuth(t *testing.T) {
 			authHeader: "Token invalidtoken",
 			clinicID:   "3",
 			setupLine:  nil,
-			setting:    validSettingLookup("2009755544-abcdefgh"),
+			setting:    validSettingLookup("1234567890-abcdefgh"),
 			customer:   validCustomerLookup(),
 			wantStatus: http.StatusUnauthorized,
 			wantBody:   "invalid authorization header",
@@ -123,7 +123,7 @@ func TestLiffAuth(t *testing.T) {
 			authHeader: "Bearer",
 			clinicID:   "3",
 			setupLine:  nil,
-			setting:    validSettingLookup("2009755544-abcdefgh"),
+			setting:    validSettingLookup("1234567890-abcdefgh"),
 			customer:   validCustomerLookup(),
 			wantStatus: http.StatusUnauthorized,
 			wantBody:   "invalid authorization header",
@@ -133,7 +133,7 @@ func TestLiffAuth(t *testing.T) {
 			authHeader: "Bearer validtoken",
 			clinicID:   "abc",
 			setupLine:  nil,
-			setting:    validSettingLookup("2009755544-abcdefgh"),
+			setting:    validSettingLookup("1234567890-abcdefgh"),
 			customer:   validCustomerLookup(),
 			wantStatus: http.StatusBadRequest,
 			wantBody:   "invalid clinic id",
@@ -143,7 +143,7 @@ func TestLiffAuth(t *testing.T) {
 			authHeader: "Bearer validtoken",
 			clinicID:   "0",
 			setupLine:  nil,
-			setting:    validSettingLookup("2009755544-abcdefgh"),
+			setting:    validSettingLookup("1234567890-abcdefgh"),
 			customer:   validCustomerLookup(),
 			wantStatus: http.StatusBadRequest,
 			wantBody:   "invalid clinic id",
@@ -181,7 +181,7 @@ func TestLiffAuth(t *testing.T) {
 				})
 				lineVerifyURL = srv.URL
 			},
-			setting:    validSettingLookup("2009755544-abcdefgh"),
+			setting:    validSettingLookup("1234567890-abcdefgh"),
 			customer:   validCustomerLookup(),
 			wantStatus: http.StatusUnauthorized,
 			wantBody:   "invalid ID token",
@@ -197,7 +197,7 @@ func TestLiffAuth(t *testing.T) {
 				})
 				lineVerifyURL = srv.URL
 			},
-			setting:    validSettingLookup("2009755544-abcdefgh"),
+			setting:    validSettingLookup("1234567890-abcdefgh"),
 			customer:   validCustomerLookup(),
 			wantStatus: http.StatusUnauthorized,
 			wantBody:   "invalid ID token",
@@ -213,7 +213,7 @@ func TestLiffAuth(t *testing.T) {
 				})
 				lineVerifyURL = srv.URL
 			},
-			setting: validSettingLookup("2009755544-abcdefgh"),
+			setting: validSettingLookup("1234567890-abcdefgh"),
 			customer: &mockCustomerLookup{
 				findOrCreateFn: func(_ context.Context, _ uint64, _, _ string) (*model.LineCustomer, error) {
 					return nil, errors.New("db write error")
@@ -233,7 +233,7 @@ func TestLiffAuth(t *testing.T) {
 				})
 				lineVerifyURL = srv.URL
 			},
-			setting:    validSettingLookup("2009755544-abcdefgh"),
+			setting:    validSettingLookup("1234567890-abcdefgh"),
 			customer:   validCustomerLookup(),
 			wantStatus: http.StatusOK,
 			wantBody:   `"customer_id":1`,
@@ -276,11 +276,11 @@ func TestVerifyLiffIDToken(t *testing.T) {
 		srv := startMockLINEServer(t, http.StatusOK, &lineVerifyResponse{
 			Sub:      "U9999999",
 			Name:     "田中太郎",
-			ClientID: "2009755544",
+			ClientID: "1234567890",
 		})
 		lineVerifyURL = srv.URL
 
-		result, err := verifyLiffIDToken(context.Background(), "mytoken", "2009755544")
+		result, err := verifyLiffIDToken(context.Background(), "mytoken", "1234567890")
 		require.NoError(t, err)
 		assert.Equal(t, "U9999999", result.Sub)
 		assert.Equal(t, "田中太郎", result.Name)
@@ -293,7 +293,7 @@ func TestVerifyLiffIDToken(t *testing.T) {
 		})
 		lineVerifyURL = srv.URL
 
-		_, err := verifyLiffIDToken(context.Background(), "expiredtoken", "2009755544")
+		_, err := verifyLiffIDToken(context.Background(), "expiredtoken", "1234567890")
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "The id_token is expired")
 	})
@@ -305,7 +305,7 @@ func TestVerifyLiffIDToken(t *testing.T) {
 		})
 		lineVerifyURL = srv.URL
 
-		_, err := verifyLiffIDToken(context.Background(), "badtoken", "2009755544")
+		_, err := verifyLiffIDToken(context.Background(), "badtoken", "1234567890")
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "empty line user id")
 	})
@@ -318,7 +318,7 @@ func TestVerifyLiffIDToken(t *testing.T) {
 		t.Cleanup(func() { srv.Close() })
 		lineVerifyURL = srv.URL
 
-		_, err := verifyLiffIDToken(context.Background(), "badtoken", "2009755544")
+		_, err := verifyLiffIDToken(context.Background(), "badtoken", "1234567890")
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "parse line verify response")
 	})
@@ -355,7 +355,7 @@ func TestLiffChannelIDExtraction(t *testing.T) {
 	setting := &mockSettingLookup{
 		findFn: func(_ context.Context, _ uint64) (*model.LineReservationSetting, error) {
 			// LIFF ID = "{channelID}-{appID}" 形式
-			return &model.LineReservationSetting{ClinicID: 3, LiffID: "2009755544-nvKfG3Cp"}, nil
+			return &model.LineReservationSetting{ClinicID: 3, LiffID: "1234567890-abcdefgh"}, nil
 		},
 	}
 	customer := validCustomerLookup()
@@ -368,7 +368,7 @@ func TestLiffChannelIDExtraction(t *testing.T) {
 
 	assert.Equal(t, http.StatusOK, w.Code)
 	// LINEチャンネルID（ハイフン前の部分）が client_id として渡されること
-	assert.Equal(t, "2009755544", capturedClientID)
+	assert.Equal(t, "1234567890", capturedClientID)
 }
 
 // ---- Extract 関数テスト ----

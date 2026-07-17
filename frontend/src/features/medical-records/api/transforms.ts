@@ -1,19 +1,28 @@
 import { formatDate } from "@/utils/format/date";
-import { fromVisitTypeValue } from "../routes/MedicalRecordFormModel";
+import { fromVisitTypeValue } from "../routes/medical-record-form-model";
 import type { BackendMedicalRecord } from "./types";
 import type { InterviewHistoryItem } from "../types";
 import type { RecommendationReason } from "../constants/recommendation-reason";
 
 type MedicalRecordStatus = "作成中" | "確定済";
 
+const STATUS_MAP: Record<string, MedicalRecordStatus> = {
+  draft: "作成中",
+  finalized: "確定済",
+};
+
+/** 日本語UIラベル（作成中/確定済）→ BE enum（draft/finalized）の逆引き。BUG-B1: 一覧の server-side status フィルタ送信用 */
+const STATUS_MAP_TO_BACKEND: Record<MedicalRecordStatus, string> = {
+  作成中: "draft",
+  確定済: "finalized",
+};
+
+export const toBackendMedicalRecordStatus = (label: string): string | undefined =>
+  STATUS_MAP_TO_BACKEND[label as MedicalRecordStatus];
+
 export const transformMedicalRecord = (
   record: BackendMedicalRecord
 ) => {
-  const statusMap: Record<string, MedicalRecordStatus> = {
-    draft: "作成中",
-    finalized: "確定済",
-  };
-
   return {
     id: String(record.id ?? 0),
     recordNo: record.record_no,
@@ -25,7 +34,6 @@ export const transformMedicalRecord = (
     species: record.pet?.animal_species?.name ?? "",
     chiefComplaint: record.inquiry?.chief_complaint ?? "",
     doctor: record.doctor?.name ?? String(record.doctor_id ?? ""),
-    status: (statusMap[record.status] ?? "作成中") as MedicalRecordStatus,
     visitType: record.visit_type != null ? fromVisitTypeValue(record.visit_type) : undefined,
     nextVisitRecommendedDate: record.next_visit_recommended_date ?? "",
     subjective: undefined,
@@ -42,6 +50,7 @@ export const transformMedicalRecord = (
     version: record.version ?? 1,
     recommendationReason: (record.recommendation_reason ?? null) as RecommendationReason | null,
     clinicId: record.clinic_id ? String(record.clinic_id) : undefined,
+    status: (STATUS_MAP[record.status] ?? "作成中") as MedicalRecordStatus,
   };
 };
 

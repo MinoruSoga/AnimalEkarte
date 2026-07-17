@@ -1,5 +1,5 @@
 // React/Framework
-import { memo, useDeferredValue, useMemo, useState, useCallback } from "react";
+import { memo, useDeferredValue, useMemo, useState, useCallback, Suspense } from "react";
 
 // Internal
 import { normalizedIncludes } from "@/lib/normalize-kana";
@@ -8,7 +8,7 @@ import { normalizedIncludes } from "@/lib/normalize-kana";
 import { useGetRecordExaminations } from "../api/get-record-examinations";
 import { ExaminationFilter } from "./ExaminationFilter";
 import { ExaminationGroup } from "./ExaminationGroup";
-import { ExaminationImportDialog } from "./ExaminationImportDialog";
+import { ExaminationImportDialog } from "./MedicalRecordLazyModals";
 import { C } from "@/lib/design-tokens";
 
 interface MedicalRecordExaminationProps {
@@ -88,13 +88,15 @@ export const MedicalRecordExamination = memo(function MedicalRecordExamination({
 
       {/* Examination Import Dialog */}
       {isImportDialogOpen ? (
-        <ExaminationImportDialog
-          open={isImportDialogOpen}
-          onOpenChange={setIsImportDialogOpen}
-          petId={petId}
-          medicalRecordId={medicalRecordId}
-          onImported={handleImported}
-        />
+        <Suspense fallback={null}>
+          <ExaminationImportDialog
+            open={isImportDialogOpen}
+            onOpenChange={setIsImportDialogOpen}
+            petId={petId}
+            medicalRecordId={medicalRecordId}
+            onImported={handleImported}
+          />
+        </Suspense>
       ) : null}
     </div>
   );

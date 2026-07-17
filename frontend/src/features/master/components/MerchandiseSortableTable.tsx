@@ -4,16 +4,17 @@ import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable"
 import { Plus } from "lucide-react";
 
 import { RowActionButton } from "@/components/shared/RowActionButton";
-import { NotionStatusPill } from "@/components/shared/StatusPill/NotionStatusPill";
+import { StatusPill } from "@/components/shared/StatusPill/StatusPill";
 import { SortableDataTableRow } from "@/components/shared/DataTable/SortableDataTableRow";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { C, ICON, STYLE } from "@/lib/design-tokens";
+import { formatCurrency } from "@/utils/format/number";
 
 import type { FrontendMerchandiseItem } from "../api/merchandise-items";
 import {
   formatMerchandiseTaxRate,
   MERCHANDISE_CATEGORY_LABELS,
-} from "./MerchandiseSidePanelModel";
+} from "./merchandise-side-panel-model";
 import { MerchandiseRowOverlay } from "./MerchandiseRowOverlay";
 
 const TABLE_COLUMNS = [
@@ -22,7 +23,7 @@ const TABLE_COLUMNS = [
   { key: "category", label: "カテゴリ", className: "w-[90px] text-center" },
   { key: "price", label: "単価(税込)", className: "w-[120px] text-right pr-4" },
   { key: "taxRate", label: "税率", className: "w-[80px] text-center" },
-  { key: "status", label: "ステータス", className: "w-[90px] text-center" },
+  { key: "status", label: "ステータス", className: "w-[100px] text-center" },
   { key: "action", label: "操作", className: "w-[80px] text-right pr-2" },
 ];
 
@@ -92,13 +93,13 @@ export function MerchandiseSortableTable({
                       {MERCHANDISE_CATEGORY_LABELS[item.category] ?? item.category}
                     </TableCell>
                     <TableCell className={`text-right font-mono text-base ${C.text} pr-4`}>
-                      ¥{item.unitPrice.toLocaleString()}
+                      {formatCurrency(item.unitPrice)}
                     </TableCell>
                     <TableCell className={`text-base ${C.text70} text-center`}>
                       {formatMerchandiseTaxRate(item.taxRate)}
                     </TableCell>
                     <TableCell className="text-center">
-                      <NotionStatusPill isActive={item.isActive} />
+                      <StatusPill isActive={item.isActive} />
                     </TableCell>
                     <TableCell className="p-0 text-right pr-2">
                       {canEdit ? <RowActionButton onClick={() => onEdit(item)} /> : null}

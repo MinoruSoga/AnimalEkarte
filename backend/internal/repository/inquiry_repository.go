@@ -13,7 +13,6 @@ import (
 // InquiryRepository は医療記録問診の永続化インターフェース
 type InquiryRepository interface {
 	SaveByMedicalRecordID(ctx context.Context, clinicID uint64, inquiry *model.Inquiry) (*model.Inquiry, error)
-	CountByChiefComplaintTypeID(ctx context.Context, clinicID, categoryID uint64) (int64, error)
 }
 
 type inquiryRepository struct {
@@ -32,17 +31,23 @@ func NewInquiryRepository(db *gorm.DB) InquiryRepository {
 // BUG-079 修正: FirstOrCreate+Assign に同一ポインタを渡すと既存レコード取得後の
 // Assign が無効になるため、FirstOrCreate でレコードを確保してから
 // map[string]any で明示的に Updates する 2 ステップ方式に変更。
+// SD-2 系ガード監査で発見された欠落: 親カルテが確定済みの場合は問診の作成/更新を拒否する
+// (BE-refactor.md X-11 と同種の不変条件)。inquiryService は Transactor を持たない設計上の制約
+// (cross_tenant_master_fk_write_test.go の既存呼び出しが repository.Transactor 無しの
+// 旧コンストラクタシグネチャに依存しており変更できない) のため、examination/vital 等が使う
+// LockByIDForUpdate による行ロックではなく、本メソッド内の事前ステータス確認 + Updates 自体への
+// status='draft' WHERE 条件（原子的レース対策）の二段構えで守る。
 func (r *inquiryRepository) SaveByMedicalRecordID(ctx context.Context, clinicID uint64, inquiry *model.Inquiry) (*model.Inquiry, error) {
-	// Verify the medical_record belongs to this clinic before upserting
-	var mrCount int64
+	// Verify the medical_record belongs to this clinic and is still draft before upserting.
+	var mr model.MedicalRecord
 	if err := r.db.WithContext(ctx).
-		Table("medical_records").
-		Scopes(clinicScope(clinicID)).Where("id = ?", inquiry.MedicalRecordID).
-		Count(&mrCount).Error; err != nil {
-		return nil, apperrors.FromGORM(err, "inquiry", "")
+		Scopes(clinicScope(clinicID)).
+		Where("id = ?", inquiry.MedicalRecordID).
+		First(&mr).Error; err != nil {
+		return nil, apperrors.FromGORM(err, "inquiry", fmt.Sprintf("medical_record_id=%d", inquiry.MedicalRecordID))
 	}
-	if mrCount == 0 {
-		return nil, apperrors.WrapNotFound("medical_record", fmt.Sprintf("%d", inquiry.MedicalRecordID))
+	if mr.Status == model.MedicalRecordStatusFinalized {
+		return nil, apperrors.WrapConflict("確定済みカルテの問診は編集できません")
 	}
 
 	// Step 1: medical_record_id で既存レコードを取得または新規作成
@@ -53,7 +58,9 @@ func (r *inquiryRepository) SaveByMedicalRecordID(ctx context.Context, clinicID 
 		return nil, apperrors.FromGORM(err, "inquiry", "")
 	}
 
-	// Step 2: 更新フィールドを map[string]any で明示的に Updates（GORM ゼロ値問題を回避）
+	// Step 2: 更新フィールドを map[string]any で明示的に Updates（GORM ゼロ値問題を回避）。
+	// medical_records の status='draft' 条件を Where に含め、直前の事前チェックと本 UPDATE の
+	// 間で親カルテが確定した場合でも原子的に 0 行更新（Conflict）とする。
 	updates := map[string]any{
 		"chief_complaint":         inquiry.ChiefComplaint,
 		"notes":                   inquiry.Notes,
@@ -69,10 +76,16 @@ func (r *inquiryRepository) SaveByMedicalRecordID(ctx context.Context, clinicID 
 		"water_intake":            inquiry.WaterIntake,
 		"staff_id":                inquiry.StaffID,
 	}
-	if err := r.db.WithContext(ctx).
+	result := r.db.WithContext(ctx).
 		Model(&existing).
-		Updates(updates).Error; err != nil {
-		return nil, apperrors.FromGORM(err, "inquiry", "")
+		Where("medical_record_id IN (SELECT id FROM medical_records WHERE clinic_id = ? AND status = ? AND deleted_at IS NULL)",
+			clinicID, model.MedicalRecordStatusDraft).
+		Updates(updates)
+	if result.Error != nil {
+		return nil, apperrors.FromGORM(result.Error, "inquiry", "")
+	}
+	if result.RowsAffected == 0 {
+		return nil, apperrors.WrapConflict("確定済みカルテの問診は編集できません")
 	}
 
 	// 最新状態を DB から取得（updated_at 等の DB 管理フィールドも正確に反映）
@@ -83,20 +96,4 @@ func (r *inquiryRepository) SaveByMedicalRecordID(ctx context.Context, clinicID 
 		return nil, apperrors.FromGORM(err, "inquiry", fmt.Sprintf("%d", existing.ID))
 	}
 	return &refreshed, nil
-}
-
-// CountByChiefComplaintTypeID は指定クリニック・カテゴリIDを参照するInquiryの件数を返す。
-// Delete の FK チェックに使用する。clinic_id フィルタにより他クリニックのレコードを誤検知しない。
-func (r *inquiryRepository) CountByChiefComplaintTypeID(ctx context.Context, clinicID, categoryID uint64) (int64, error) {
-	var count int64
-	// Inquiry は clinic_id を持たないため、medical_records と JOIN して clinicID で絞り込む
-	err := r.db.WithContext(ctx).
-		Model(&model.Inquiry{}).
-		Joins("JOIN medical_records ON medical_records.id = inquiries.medical_record_id").
-		Where("medical_records.clinic_id = ? AND inquiries.chief_complaint_type_id = ?", clinicID, categoryID).
-		Count(&count).Error
-	if err != nil {
-		return 0, apperrors.FromGORM(err, "inquiry", "")
-	}
-	return count, nil
 }

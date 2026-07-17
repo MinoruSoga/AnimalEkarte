@@ -1,8 +1,10 @@
 import { useQuery } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import { requireStoredClinicId } from "@/lib/current-clinic";
+import { queryKeys } from "@/lib/query-keys";
+import { QUERY_STALE_TIMES } from "@/lib/react-query";
 
-export interface DeliveryTriggerLogItem {
+interface DeliveryTriggerLogItem {
   id: string;
   owner_id: string;
   owner_name: string;
@@ -29,14 +31,7 @@ export function useGetLstepDeliveryTriggerLogs(
   page = 1
 ) {
   return useQuery({
-    queryKey: [
-      "lstep-delivery-trigger-logs",
-      from,
-      to,
-      triggerType ?? "",
-      status ?? "",
-      page,
-    ],
+    queryKey: queryKeys.lstepDeliveryTriggerLogs.logs(from, to, triggerType, status, page),
     queryFn: async () => {
       const clinicId = requireStoredClinicId();
       const params = new URLSearchParams({ from, to, page: String(page) });
@@ -47,6 +42,6 @@ export function useGetLstepDeliveryTriggerLogs(
       );
       return data;
     },
-    staleTime: 60 * 1000, // 1分キャッシュ
+    staleTime: QUERY_STALE_TIMES.MINUTE, // 1分キャッシュ
   });
 }

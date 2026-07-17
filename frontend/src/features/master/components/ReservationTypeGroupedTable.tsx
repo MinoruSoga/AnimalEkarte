@@ -7,7 +7,7 @@ import { useReorderReservationTypes } from "../api/reservation-types";
 import type { ReservationType } from "../api/reservation-types";
 import type { ReservationTypeGroup } from "../api/reservation-type-groups";
 import { ReservationTypeGroupedTableBody } from "./ReservationTypeGroupedTableBody";
-import { groupReservationTypesByGroupId } from "./ReservationTypeGroupedTableModel";
+import { groupReservationTypesByGroupId } from "./reservation-type-grouped-table-model";
 
 interface ReservationTypeGroupedTableProps {
   groups: ReservationTypeGroup[];

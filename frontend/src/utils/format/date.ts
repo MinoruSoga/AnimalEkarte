@@ -1,4 +1,9 @@
 import { formatJSTDate } from "@/lib/jst-date";
+import { DAY_OF_WEEK_LABEL_LIST } from "@/constants/day-of-week";
+
+/** 表示用の標準日付・時刻フォーマット(PO決定2026-07-12。wire用 "yyyy-MM-dd" とは別物) */
+export const DISPLAY_DATE_FORMAT = "yyyy/MM/dd";
+export const DISPLAY_TIME_FORMAT = "HH:mm";
 
 /**
  * 日付をYYYY/MM/DD形式にフォーマット
@@ -18,4 +23,19 @@ export function formatDate(dateString: string | undefined | null): string {
   } catch {
     return "-";
   }
+}
+
+/**
+ * Date を「Y年M月D日（曜）」形式にフォーマット（月・日は 0 パディングしない）。
+ * FE4-8: DatePickerModel.formatDisplay の逐語移設（ローカル getter 実装）。
+ * "YYYY-MM-DD"→Date の parse 契約は 2 系統併存する（DatePicker=ローカル正午 / line-reserve=UTC 深夜）。
+ * 本関数はローカル getter で整形するため、渡す Date は DatePickerModel.parseLocalDate 等の
+ * ローカル正午 parse から得たものを想定する（line-reserve 側の UTC 深夜 Date を渡すと TZ 依存でずれる）。
+ */
+export function formatJapaneseDate(date: Date): string {
+  const year = date.getFullYear();
+  const month = date.getMonth() + 1;
+  const day = date.getDate();
+  const weekday = DAY_OF_WEEK_LABEL_LIST[date.getDay()];
+  return `${year}年${month}月${day}日（${weekday}）`;
 }

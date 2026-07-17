@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"strings"
 	"testing"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
@@ -127,24 +128,57 @@ func TestCreateVaccinationRequest_ToServiceInput_DateRequired(t *testing.T) {
 	}
 }
 
-func TestCreateVaccinationRequest_ToServiceInput_InvalidNextDate(t *testing.T) {
-	date := "2026-05-28"
-	nextDate := "2027/05/28"
-	req := createVaccinationRequest{
-		VaccineID: 1,
-		Date:      &date,
-		NextDate:  &nextDate,
+func TestVaccinationRequest_ToServiceInput_InvalidDate(t *testing.T) {
+	validDate := "2026-05-28"
+	invalidDate := "2027/05/28"
+
+	tests := []struct {
+		name string
+		call func() error
+	}{
+		{
+			name: "create/date",
+			call: func() error {
+				_, err := (&createVaccinationRequest{VaccineID: 1, Date: &invalidDate}).toServiceInput()
+				return err
+			},
+		},
+		{
+			name: "create/next_date",
+			call: func() error {
+				_, err := (&createVaccinationRequest{VaccineID: 1, Date: &validDate, NextDate: &invalidDate}).toServiceInput()
+				return err
+			},
+		},
+		{
+			name: "update/date",
+			call: func() error {
+				_, err := (&updateVaccinationRequest{Date: &invalidDate}).toServiceInput()
+				return err
+			},
+		},
+		{
+			name: "update/next_date",
+			call: func() error {
+				_, err := (&updateVaccinationRequest{NextDate: &invalidDate}).toServiceInput()
+				return err
+			},
+		},
 	}
 
-	input, err := req.toServiceInput()
-	if err == nil {
-		t.Fatal("toServiceInput returned nil error")
-	}
-	if input != nil {
-		t.Fatalf("input = %#v, want nil", input)
-	}
-	if !apperrors.IsInvalidInput(err) {
-		t.Fatalf("error = %v, want invalid input", err)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := tt.call()
+			if err == nil {
+				t.Fatal("toServiceInput returned nil error")
+			}
+			if !apperrors.IsInvalidInput(err) {
+				t.Fatalf("error = %v, want invalid input", err)
+			}
+			if strings.Contains(err.Error(), invalidDate) {
+				t.Fatalf("error = %v, must not leak raw input %q", err, invalidDate)
+			}
+		})
 	}
 }
 
@@ -176,21 +210,5 @@ func TestUpdateVaccinationRequest_ToServiceInput(t *testing.T) {
 	}
 	if input.Remarks == nil || *input.Remarks != remarks {
 		t.Fatalf("Remarks = %v, want explicit empty string", input.Remarks)
-	}
-}
-
-func TestUpdateVaccinationRequest_ToServiceInput_InvalidDate(t *testing.T) {
-	date := "May 29, 2026"
-	req := updateVaccinationRequest{Date: &date}
-
-	input, err := req.toServiceInput()
-	if err == nil {
-		t.Fatal("toServiceInput returned nil error")
-	}
-	if input != nil {
-		t.Fatalf("input = %#v, want nil", input)
-	}
-	if !apperrors.IsInvalidInput(err) {
-		t.Fatalf("error = %v, want invalid input", err)
 	}
 }

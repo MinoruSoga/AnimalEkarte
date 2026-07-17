@@ -55,6 +55,18 @@ describe("transformHistoryItem", () => {
     expect(out.anesthesia).toBe("spinal");
   });
 
+  it("is_surgery=true は isSurgery=true にマップされる", () => {
+    const out = transformHistoryItem(
+      row({ item_type: "procedure", procedure_name: "開腹手術", anesthesia: "general", is_surgery: true }),
+    );
+    expect(out.isSurgery).toBe(true);
+  });
+
+  it("is_surgery が undefined のとき isSurgery は undefined", () => {
+    const out = transformHistoryItem(row({ item_type: "medicine", medicine_name: "アモキシシリン" }));
+    expect(out.isSurgery).toBeUndefined();
+  });
+
   it("日付は YY/M/D 形式、null は '-'", () => {
     expect(transformHistoryItem(row({ date: "2026-06-01T00:00:00+09:00" })).date).toMatch(/^\d{2}\/\d{1,2}\/\d{1,2}$/);
     expect(transformHistoryItem(row({ date: null })).date).toBe("-");

@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { useGetVaccinations } from "../api/get-vaccinations";
 import { normalizeKana } from "@/lib/normalize-kana";
 import type { VaccinationFilters } from "../api/get-vaccinations";
-import type { ActiveFilter } from "@/components/shared/NotionFilter/types";
+import type { ActiveFilter } from "@/components/shared/PropertyFilter/types";
 
 export function useFilterVaccinations(
   searchTerm: string,

@@ -1,6 +1,6 @@
 import { memo } from "react";
 import { ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react";
-import { C, ICON } from "@/lib/design-tokens";
+import { C, ICON, STYLE } from "@/lib/design-tokens";
 
 type SortDirection = "ascending" | "descending" | "none";
 
@@ -8,9 +8,15 @@ interface SortableHeaderProps {
   label: string;
   direction: SortDirection;
   onToggle: () => void;
+  /**
+   * "eyebrow" — DESIGN.md ex-data-table-cell の header 相当（STYLE.sectionLabel: muted + uppercase +
+   * tracking-wide）。既定の "default"（本文相当の濃い ${C.text}）は他 feature（examinations/checkups/
+   * accounting/vaccinations/trimming/inventory/medical-records 等）で広く使われているため変更しない。
+   */
+  variant?: "default" | "eyebrow";
 }
 
-export const SortableHeader = memo(function SortableHeader({ label, direction, onToggle }: SortableHeaderProps) {
+export const SortableHeader = memo(function SortableHeader({ label, direction, onToggle, variant = "default" }: SortableHeaderProps) {
   const Icon =
     direction === "ascending"
       ? ArrowUp
@@ -18,11 +24,13 @@ export const SortableHeader = memo(function SortableHeader({ label, direction, o
         ? ArrowDown
         : ArrowUpDown;
 
+  const textClassName = variant === "eyebrow" ? STYLE.sectionLabel : C.text;
+
   return (
     <button
       type="button"
       onClick={onToggle}
-      className={`inline-flex items-center gap-1 cursor-pointer select-none ${C.hoverText60} transition-colors ${C.text}`}
+      className={`inline-flex items-center gap-1 cursor-pointer select-none ${C.hoverText60} transition-colors ${textClassName}`}
       aria-label={`${label}でソート`}
     >
       {label}

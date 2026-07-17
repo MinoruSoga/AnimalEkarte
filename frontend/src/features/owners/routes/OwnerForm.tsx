@@ -8,7 +8,7 @@ import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 import { SubmitButton } from "@/components/shared/Form/SubmitButton";
 import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
 import { useTitle } from "@/hooks/use-title";
-import { usePostalCodeLookup } from "@/hooks/use-postal-code-lookup";
+import { usePostalCodeLookup } from "../hooks/use-postal-code-lookup";
 import { useAuth } from "@/hooks/use-auth";
 import { C, ICON } from "@/lib/design-tokens";
 import { handleApiError } from "@/lib/handle-api-error";
@@ -18,17 +18,13 @@ import { OwnerInfoSection } from "../components/OwnerInfoSection";
 import { OwnerPetsSection } from "../components/OwnerPetsSection";
 import { useOwnerForm } from "../hooks/use-owner-form";
 import type { PetMutations } from "@/types/pet";
-import type { OwnerData, MembershipType } from "../types";
+import type { OwnerData, MembershipTypeLabel } from "../types";
 import type { OwnerLoaderData } from "../loaders";
 import { ResourceOwners } from "@/types/generated/models";
 
 // Lazy-loaded modal — only loaded when first opened (bundle-dynamic-imports)
 const PetEditModal = lazy(() =>
   import("../components/PetEditModal").then(m => ({ default: m.PetEditModal }))
-);
-// Lazy-loaded — 編集モードでのみ必要、新規登録画面のバンドルから切り離す
-const OwnerAccountingHistory = lazy(() =>
-  import("@/features/accounting").then(m => ({ default: m.OwnerAccountingHistory }))
 );
 
 // rendering-hoist-jsx: アクセシビリティ用定数をモジュールレベルに巻き上げ（毎レンダー再生成を回避）
@@ -44,9 +40,10 @@ const OWNER_PRIORITY_FIELDS = ["ownerName", "ownerNameKana", "phone", "email", "
 interface OwnerFormProps {
   petMutations?: PetMutations;
   lineSection?: React.ReactNode;
+  accountingSection?: React.ReactNode;
 }
 
-export function OwnerForm({ petMutations, lineSection }: OwnerFormProps = {}) {
+export function OwnerForm({ petMutations, lineSection, accountingSection }: OwnerFormProps = {}) {
   const navigate = useNavigate();
   const { id: ownerId } = useParams();
   const { canEdit, canCreate, canDelete } = usePermission("owners");
@@ -190,7 +187,7 @@ export function OwnerForm({ petMutations, lineSection }: OwnerFormProps = {}) {
   }, []);
 
   // MembershipTypeButtons の onChange prop を安定化（handleInputChange が stable なので依存なし）
-  const handleMembershipChange = useCallback((type: MembershipType) => {
+  const handleMembershipChange = useCallback((type: MembershipTypeLabel) => {
     handleInputChange("membershipType", type);
   }, [handleInputChange]);
 
@@ -216,13 +213,14 @@ export function OwnerForm({ petMutations, lineSection }: OwnerFormProps = {}) {
         maxWidth="max-w-[1400px]"
         headerAction={
           canSubmit ? (
-            <SubmitButton size="sm">
+            <SubmitButton size="sm" colorVariant="brand">
               {isEdit ? "更新" : "登録"}
             </SubmitButton>
           ) : null
         }
       >
-        <NavigationBlocker when={isDirty && !isLoading} />
+        {/* FE6-8: jsx-no-leaked-render は非型認識のため isDirty を boolean と静的に断定できず !! で明示する */}
+        <NavigationBlocker when={!!isDirty && !isLoading} />
         <fieldset disabled={!canSubmit} className="border-0 p-0 m-0 min-w-0">
           <div className={`mb-4 rounded-lg ${C.bgWhite} p-4 border ${C.borderMedium}`}>
             <h2 className={`mb-3 text-sm font-bold ${C.text} flex items-center gap-2`}>
@@ -255,8 +253,8 @@ export function OwnerForm({ petMutations, lineSection }: OwnerFormProps = {}) {
           />
         </fieldset>
 
-        {/* 会計履歴セクション（編集モード + accounting:view 権限保有時のみ表示） */}
-        {isEdit && ownerId && canViewAccounting ? (
+        {/* 会計履歴セクション（編集モード + accounting:view 権限保有 + app層からの注入時のみ表示） */}
+        {isEdit && ownerId && canViewAccounting && accountingSection ? (
           <div className="mb-4 space-y-3">
             <div className="flex items-center justify-between">
               <h2 className={`text-sm font-bold ${C.text} flex items-center gap-2`}>
@@ -265,7 +263,7 @@ export function OwnerForm({ petMutations, lineSection }: OwnerFormProps = {}) {
               </h2>
             </div>
             <Suspense fallback={null}>
-              <OwnerAccountingHistory ownerId={ownerId} />
+              {accountingSection}
             </Suspense>
           </div>
         ) : null}

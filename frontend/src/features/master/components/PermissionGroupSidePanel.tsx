@@ -12,12 +12,12 @@ import { C, LAYOUT } from "@/lib/design-tokens";
 import type { PermissionGroup } from "../api/permission-groups";
 import { MASTER_INPUT_CLASS } from "../constants/styles";
 import { PermissionRuleTable } from "./PermissionRuleTable";
-import type { PermissionRuleField } from "./PermissionRuleTableModel";
+import type { PermissionRuleField } from "./permission-rule-table-model";
 import {
   permissionGroupToFormData,
   type PermissionGroupFormData,
   updatePermissionRule,
-} from "./PermissionGroupSidePanelModel";
+} from "./permission-group-side-panel-model";
 
 interface PermissionGroupSidePanelProps {
   item: PermissionGroup | null;
@@ -129,6 +129,7 @@ export const PermissionGroupSidePanel = memo(function PermissionGroupSidePanel({
         <div className="flex items-center gap-3">
           <input
             type="color"
+            aria-label="カラー"
             className={`${LAYOUT.colorInputMedium} ${C.borderMedium}`}
             value={formData.color}
             onChange={(event) => handleColorChange(event.target.value)}

@@ -54,7 +54,7 @@ func (r *clinicHolidayRepository) Save(ctx context.Context, clinicID uint64, hol
 		}).
 		Create(holiday).Error
 	if err != nil {
-		return nil, apperrors.FromGORM(err, "clinic_holiday", holiday.Date.Format("2006-01-02"))
+		return nil, apperrors.FromGORM(err, "clinic_holiday", holiday.Date.Format(time.DateOnly))
 	}
 	return holiday, nil
 }
@@ -62,13 +62,13 @@ func (r *clinicHolidayRepository) Save(ctx context.Context, clinicID uint64, hol
 func (r *clinicHolidayRepository) Delete(ctx context.Context, clinicID uint64, date time.Time) error {
 	result := r.db.WithContext(ctx).
 		Scopes(clinicScope(clinicID)).
-		Where("date = ?", date.Format("2006-01-02")).
+		Where("date = ?", date.Format(time.DateOnly)).
 		Delete(&model.ClinicHoliday{})
 	if result.Error != nil {
-		return apperrors.FromGORM(result.Error, "clinic_holiday", date.Format("2006-01-02"))
+		return apperrors.FromGORM(result.Error, "clinic_holiday", date.Format(time.DateOnly))
 	}
 	if result.RowsAffected == 0 {
-		return apperrors.WrapNotFound("clinic_holiday", date.Format("2006-01-02"))
+		return apperrors.WrapNotFound("clinic_holiday", date.Format(time.DateOnly))
 	}
 	return nil
 }
@@ -77,10 +77,10 @@ func (r *clinicHolidayRepository) FindByDate(ctx context.Context, clinicID uint6
 	var holiday model.ClinicHoliday
 	result := r.db.WithContext(ctx).
 		Scopes(clinicScope(clinicID)).
-		Where("date = ?", date.Format("2006-01-02")).
+		Where("date = ?", date.Format(time.DateOnly)).
 		First(&holiday)
 	if result.Error != nil {
-		return nil, apperrors.FromGORM(result.Error, "clinic_holiday", date.Format("2006-01-02"))
+		return nil, apperrors.FromGORM(result.Error, "clinic_holiday", date.Format(time.DateOnly))
 	}
 	return &holiday, nil
 }

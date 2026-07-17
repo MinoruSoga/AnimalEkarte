@@ -20,23 +20,13 @@ func conditionTagMapFromMappings(mappings []*model.LstepConditionTagMapping) map
 
 // SyncChronicConditionTags は慢性疾患タグを差分同期する（BE-012）。
 func (s *lstepTagSyncService) SyncChronicConditionTags(ctx context.Context, clinicID, ownerID uint64, activeConditionCodes []string) error {
-	if skip, err := s.shouldSkipSync(ctx, clinicID); err != nil {
-		return err
-	} else if skip {
-		return nil
-	}
-	optOut, owner, err := s.checkOptOut(ctx, clinicID, ownerID)
+	lineUserID, ok, err := s.resolveSyncTarget(ctx, clinicID, ownerID, "chronic condition")
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to check opt-out for chronic condition tag sync", "error", err)
-		return apperrors.Wrap(err, "failed to check opt-out")
+		return err
 	}
-	if optOut {
+	if !ok {
 		return nil
 	}
-	if owner.LineUserID == nil || *owner.LineUserID == "" {
-		return nil
-	}
-	lineUserID := *owner.LineUserID
 
 	client, err := s.buildClient(ctx, clinicID)
 	if err != nil {
@@ -87,14 +77,9 @@ func (s *lstepTagSyncService) SyncChronicConditionTags(ctx context.Context, clin
 		if activeTags[t.TagName] {
 			continue
 		}
-		if rmErr := client.RemoveTag(ctx, lineUserID, t.TagName); rmErr != nil {
-			slog.WarnContext(ctx, "failed to remove chronic tag via lstep api", "tag", t.TagName, "error", rmErr)
-			s.notifyAPIFailure(ctx, client, clinicID, ownerID, lineUserID)
+		if err := s.applyTagState(ctx, client, clinicID, ownerID, lineUserID, t.TagName, "chronic", "", false); err != nil {
 			apiFailed = true
 			continue
-		}
-		if delErr := s.tagCacheRepo.DeleteTag(ctx, clinicID, ownerID, t.TagName); delErr != nil {
-			slog.ErrorContext(ctx, "failed to delete chronic tag cache", "tag", t.TagName, "error", delErr)
 		}
 	}
 
@@ -103,14 +88,9 @@ func (s *lstepTagSyncService) SyncChronicConditionTags(ctx context.Context, clin
 		if existingSet[tagName] {
 			continue
 		}
-		if addErr := client.AddTag(ctx, lineUserID, tagName); addErr != nil {
-			slog.WarnContext(ctx, "failed to add chronic tag via lstep api", "tag", tagName, "error", addErr)
-			s.notifyAPIFailure(ctx, client, clinicID, ownerID, lineUserID)
+		if err := s.applyTagState(ctx, client, clinicID, ownerID, lineUserID, tagName, "chronic", "", true); err != nil {
 			apiFailed = true
 			continue
-		}
-		if upsertErr := s.tagCacheRepo.UpsertTag(ctx, clinicID, ownerID, tagName, "auto", ""); upsertErr != nil {
-			slog.ErrorContext(ctx, "failed to upsert chronic tag cache", "tag", tagName, "error", upsertErr)
 		}
 	}
 

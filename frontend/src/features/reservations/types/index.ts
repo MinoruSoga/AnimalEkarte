@@ -4,14 +4,12 @@ export type {
   Reservation,
   ReservationStatus,
   CalendarView,
-  VisitType,
   NavigationState,
   Pet,
 } from "@/types";
 export {
   CALENDAR_VIEW_VALUES,
   RESERVATION_STATUS_VALUES,
-  RESERVATION_STATUS_LABELS,
 } from "@/types";
 
 /**
@@ -38,10 +36,5 @@ export interface ReservationFormData {
   reservationRoute?: ReservationRoute | null;
 }
 
-export interface NewOwnerFormData {
-  ownerName: string;
-  phone: string;
-  petName: string;
-  chiefComplaint: string;
-  animalSpeciesId: number;
-}
+// FE6-17: 正本は src/types/reservation-form.ts へ移動。ここは re-export のみ。
+export type { NewOwnerFormData } from "@/types/reservation-form";

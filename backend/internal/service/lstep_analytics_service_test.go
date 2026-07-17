@@ -8,6 +8,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
+	"github.com/animal-ekarte/backend/internal/config"
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/repository"
@@ -16,7 +17,6 @@ import (
 // ---- LstepDeliveryTriggerLogRepository モック（analytics 用）----
 
 type mockAnalyticsTriggerLogRepo struct {
-	listByOwnerFn          func(ctx context.Context, clinicID, ownerID uint64, from, to time.Time) ([]model.LstepDeliveryTriggerLog, error)
 	countByTypeAndStatusFn func(ctx context.Context, clinicID uint64, from, to time.Time) ([]repository.DeliveryStatsRow, error)
 	countVisitConvByTypeFn func(ctx context.Context, clinicID uint64, from, to time.Time, days int) ([]repository.VisitConversionRow, error)
 }
@@ -44,12 +44,6 @@ func (m *mockAnalyticsTriggerLogRepo) CountSuppressedByPriorityDateRange(_ conte
 }
 func (m *mockAnalyticsTriggerLogRepo) FindByDateRangeWithFilters(_ context.Context, _ uint64, _, _ time.Time, _, _ string, _, _ int) ([]repository.DeliveryTriggerLogRow, int64, error) {
 	return nil, 0, nil
-}
-func (m *mockAnalyticsTriggerLogRepo) ListByOwnerAndDateRange(ctx context.Context, clinicID, ownerID uint64, from, to time.Time) ([]model.LstepDeliveryTriggerLog, error) {
-	if m.listByOwnerFn != nil {
-		return m.listByOwnerFn(ctx, clinicID, ownerID, from, to)
-	}
-	return nil, nil
 }
 func (m *mockAnalyticsTriggerLogRepo) CountByTypeAndStatus(ctx context.Context, clinicID uint64, from, to time.Time) ([]repository.DeliveryStatsRow, error) {
 	if m.countByTypeAndStatusFn != nil {
@@ -79,16 +73,13 @@ type mockAnalyticsSnapshotRepo struct {
 func (m *mockAnalyticsSnapshotRepo) Create(_ context.Context, _ *model.LstepFriendAttributeSnapshot) error {
 	return nil
 }
-func (m *mockAnalyticsSnapshotRepo) BulkCreate(_ context.Context, _ []*model.LstepFriendAttributeSnapshot) error {
-	return nil
-}
 func (m *mockAnalyticsSnapshotRepo) FindLatestByOwner(ctx context.Context, clinicID uint64, lineUserID string) (*model.LstepFriendAttributeSnapshot, error) {
 	if m.findLatestFn != nil {
 		return m.findLatestFn(ctx, clinicID, lineUserID)
 	}
 	return nil, nil
 }
-func (m *mockAnalyticsSnapshotRepo) ListByClinicAndDateRange(_ context.Context, _ uint64, _, _ time.Time) ([]*model.LstepFriendAttributeSnapshot, error) {
+func (m *mockAnalyticsSnapshotRepo) FindAllByClinicAndDateRange(_ context.Context, _ uint64, _, _ time.Time) ([]*model.LstepFriendAttributeSnapshot, error) {
 	return nil, nil
 }
 
@@ -125,6 +116,9 @@ func (m *mockAnalyticsOwnerRepo) FindByLineUserID(_ context.Context, _ uint64, _
 func (m *mockAnalyticsOwnerRepo) FindAllWithLineUserID(_ context.Context, _ uint64) ([]model.Owner, error) {
 	return nil, nil
 }
+func (m *mockAnalyticsOwnerRepo) FindAllWithLineUserIDCursor(_ context.Context, _, _ uint64, _ int) ([]model.Owner, error) {
+	return nil, nil
+}
 func (m *mockAnalyticsOwnerRepo) CreateWithPets(_ context.Context, _ *model.Owner, _ []model.Pet) error {
 	return nil
 }
@@ -147,51 +141,16 @@ func (m *mockAnalyticsOwnerRepo) Delete(_ context.Context, _, _ uint64) error { 
 func (m *mockAnalyticsOwnerRepo) CountPetsByOwnerID(_ context.Context, _, _ uint64) (int64, error) {
 	return 0, nil
 }
-
-// ---- GetDeliveryHistoryByOwner tests ----
-
-func TestLstepAnalyticsService_GetDeliveryHistoryByOwner(t *testing.T) {
-	t.Run("clinic_id + owner_id + 期間を正しく repo に渡す", func(t *testing.T) {
-		called := false
-		triggerRepo := &mockAnalyticsTriggerLogRepo{
-			listByOwnerFn: func(ctx context.Context, clinicID, ownerID uint64, from, to time.Time) ([]model.LstepDeliveryTriggerLog, error) {
-				called = true
-				assert.Equal(t, uint64(100), clinicID)
-				assert.Equal(t, uint64(200), ownerID)
-				return []model.LstepDeliveryTriggerLog{{ID: 1}}, nil
-			},
-		}
-		svc := NewLstepAnalyticsService(&mockAnalyticsOwnerRepo{}, triggerRepo, &mockAnalyticsSnapshotRepo{})
-		since := time.Date(2026, 5, 1, 0, 0, 0, 0, time.UTC)
-		until := time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC)
-
-		got, err := svc.GetDeliveryHistoryByOwner(context.Background(), 100, 200, since, until)
-
-		assert.NoError(t, err)
-		assert.True(t, called, "repo not called")
-		assert.Len(t, got, 1)
-	})
-
-	t.Run("repo error は wrap されて返る", func(t *testing.T) {
-		triggerRepo := &mockAnalyticsTriggerLogRepo{
-			listByOwnerFn: func(_ context.Context, _, _ uint64, _, _ time.Time) ([]model.LstepDeliveryTriggerLog, error) {
-				return nil, errors.New("db error")
-			},
-		}
-		svc := NewLstepAnalyticsService(&mockAnalyticsOwnerRepo{}, triggerRepo, &mockAnalyticsSnapshotRepo{})
-
-		_, err := svc.GetDeliveryHistoryByOwner(context.Background(), 100, 200, time.Now(), time.Now())
-
-		assert.Error(t, err)
-	})
+func (m *mockAnalyticsOwnerRepo) FindByIDs(_ context.Context, _ uint64, _ []uint64) ([]*model.Owner, error) {
+	return nil, nil
 }
 
 // ---- GetMonthlyDeliveryStats tests ----
 
 func TestLstepAnalyticsService_GetMonthlyDeliveryStats(t *testing.T) {
 	t.Run("yearMonth パース + JST 月境界で repo 呼び出し", func(t *testing.T) {
-		expectedFrom := time.Date(2026, 5, 1, 0, 0, 0, 0, jst)
-		expectedUntil := time.Date(2026, 6, 1, 0, 0, 0, 0, jst)
+		expectedFrom := time.Date(2026, 5, 1, 0, 0, 0, 0, config.JST)
+		expectedUntil := time.Date(2026, 6, 1, 0, 0, 0, 0, config.JST)
 
 		triggerRepo := &mockAnalyticsTriggerLogRepo{
 			countByTypeAndStatusFn: func(ctx context.Context, clinicID uint64, from, to time.Time) ([]repository.DeliveryStatsRow, error) {
@@ -311,12 +270,54 @@ func TestLstepAnalyticsService_GetLatestFriendAttributes(t *testing.T) {
 
 		assert.Error(t, err)
 	})
+
+	t.Run("snapshotRepo error は wrap されて返る", func(t *testing.T) {
+		lu := "U9999"
+		ownerRepo := &mockAnalyticsOwnerRepo{
+			findByIDFn: func(_ context.Context, _, id uint64) (*model.Owner, error) {
+				return &model.Owner{ID: id, LineUserID: &lu}, nil
+			},
+		}
+		snapshotRepo := &mockAnalyticsSnapshotRepo{
+			findLatestFn: func(_ context.Context, _ uint64, _ string) (*model.LstepFriendAttributeSnapshot, error) {
+				return nil, errors.New("db error")
+			},
+		}
+		svc := NewLstepAnalyticsService(ownerRepo, &mockAnalyticsTriggerLogRepo{}, snapshotRepo)
+
+		got, err := svc.GetLatestFriendAttributes(context.Background(), 100, 200)
+
+		assert.Error(t, err)
+		assert.Nil(t, got)
+	})
+}
+
+// ---- calculateRate direct tests ----
+
+func TestCalculateRate(t *testing.T) {
+	tests := []struct {
+		name        string
+		numerator   int64
+		denominator int64
+		want        float64
+	}{
+		{name: "denominator zero returns zero", numerator: 5, denominator: 0, want: 0},
+		{name: "denominator zero with zero numerator returns zero", numerator: 0, denominator: 0, want: 0},
+		{name: "normal ratio", numerator: 1, denominator: 4, want: 0.25},
+		{name: "full ratio", numerator: 10, denominator: 10, want: 1},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := calculateRate(tt.numerator, tt.denominator)
+			assert.InDelta(t, tt.want, got, 0.0001)
+		})
+	}
 }
 
 func TestLstepAnalyticsService_GetVisitConversionSummary(t *testing.T) {
 	t.Run("yearMonth + days を使って repo 集計を呼び、率を計算する", func(t *testing.T) {
-		expectedFrom := time.Date(2026, 5, 1, 0, 0, 0, 0, jst)
-		expectedUntil := time.Date(2026, 6, 1, 0, 0, 0, 0, jst)
+		expectedFrom := time.Date(2026, 5, 1, 0, 0, 0, 0, config.JST)
+		expectedUntil := time.Date(2026, 6, 1, 0, 0, 0, 0, config.JST)
 		triggerRepo := &mockAnalyticsTriggerLogRepo{
 			countVisitConvByTypeFn: func(ctx context.Context, clinicID uint64, from, to time.Time, days int) ([]repository.VisitConversionRow, error) {
 				assert.Equal(t, uint64(100), clinicID)

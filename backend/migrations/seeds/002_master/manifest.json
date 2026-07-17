@@ -1,0 +1,25 @@
+{
+  "bundle": "002_master",
+  "tables": [
+    {
+      "table": "companies",
+      "csvFile": "companies.csv"
+    },
+    {
+      "table": "animal_species",
+      "csvFile": "animal_species.csv"
+    },
+    {
+      "table": "lstep_auto_managed_prefixes",
+      "csvFile": "lstep_auto_managed_prefixes.csv"
+    },
+    {
+      "table": "lstep_condition_tag_mappings",
+      "csvFile": "lstep_condition_tag_mappings.csv"
+    },
+    {
+      "table": "lstep_send_purpose_tag_prefixes",
+      "csvFile": "lstep_send_purpose_tag_prefixes.csv"
+    }
+  ]
+}

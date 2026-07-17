@@ -1,8 +1,10 @@
 package service
 
 import (
+	"bytes"
 	"context"
 	"errors"
+	"log/slog"
 	"testing"
 	"time"
 
@@ -35,6 +37,9 @@ func (m *batchMockReservationRepo) Update(ctx context.Context, clinicID, id uint
 	return &model.Reservation{}, nil
 }
 func (m *batchMockReservationRepo) Delete(_ context.Context, _, _ uint64) error { return nil }
+func (m *batchMockReservationRepo) AcquireBookingLock(_ context.Context, _ uint64) error {
+	return nil
+}
 func (m *batchMockReservationRepo) LockAndFindByID(_ context.Context, _, _ uint64) (*model.Reservation, error) {
 	return nil, nil
 }
@@ -56,7 +61,7 @@ func (m *batchMockReservationRepo) ExistsByReservationTypeID(_ context.Context, 
 func (m *batchMockReservationRepo) ExistsByStaffID(_ context.Context, _, _ uint64) (bool, error) {
 	return false, nil
 }
-func (m *batchMockReservationRepo) CountMedicalRecordsByReservationID(_ context.Context, _ uint64) (int64, error) {
+func (m *batchMockReservationRepo) CountMedicalRecordsByReservationID(_ context.Context, _, _ uint64) (int64, error) {
 	return 0, nil
 }
 func (m *batchMockReservationRepo) CountByCustomerAndDateRange(_ context.Context, _, _ uint64, _, _ time.Time) (int64, error) {
@@ -74,16 +79,26 @@ func (m *batchMockReservationRepo) FindNoShowCandidates(ctx context.Context, cli
 	}
 	return nil, nil
 }
-func (m *batchMockReservationRepo) HasReservationByOwnerInRange(_ context.Context, _, _ uint64, _, _ time.Time) (bool, error) {
-	return false, nil
+
+func (m *batchMockReservationRepo) AssertOwnerInClinic(_ context.Context, _, _ uint64) error {
+	return nil
+}
+
+func (m *batchMockReservationRepo) FindPetOwnerInClinic(_ context.Context, _, _ uint64) (uint64, error) {
+	return 0, nil
+}
+
+func (m *batchMockReservationRepo) AssertLineCustomerInClinic(_ context.Context, _, _ uint64) error {
+	return nil
 }
 
 // batchMockMedRecordRepo は batch テスト専用 MedicalRecordRepository モック
 type batchMockMedRecordRepo struct {
-	findDormantFn func(ctx context.Context, clinicID uint64, minDays int) ([]repository.DormantOwnerEntry, error)
+	findDormantFn       func(ctx context.Context, clinicID uint64, minDays int) ([]repository.DormantOwnerEntry, error)
+	findDormantCursorFn func(ctx context.Context, clinicID uint64, minDays int, afterOwnerID uint64, limit int) ([]repository.DormantOwnerEntry, error)
 }
 
-func (m *batchMockMedRecordRepo) FindAll(_ context.Context, _ []uint64, _, _ *uint64, _, _ *string, _, _ int) ([]model.MedicalRecord, int64, error) {
+func (m *batchMockMedRecordRepo) FindAll(_ context.Context, _ []uint64, _ repository.MedicalRecordListFilters, _, _ int) ([]model.MedicalRecord, int64, error) {
 	return nil, 0, nil
 }
 func (m *batchMockMedRecordRepo) FindByID(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
@@ -93,20 +108,22 @@ func (m *batchMockMedRecordRepo) FindByIDForClinics(_ context.Context, _ []uint6
 	return nil, nil
 }
 func (m *batchMockMedRecordRepo) Create(_ context.Context, _ *model.MedicalRecord) error { return nil }
-func (m *batchMockMedRecordRepo) Update(_ context.Context, _, _ uint64, _ map[string]any) (*model.MedicalRecord, error) {
+func (m *batchMockMedRecordRepo) Update(_ context.Context, _, _ uint64, _ map[string]any, _ *int) (*model.MedicalRecord, error) {
 	return nil, nil
 }
 func (m *batchMockMedRecordRepo) Delete(_ context.Context, _, _ uint64) error { return nil }
+
+// LockByIDForUpdate は X-11 finalize-lock テスト用に FindByID と同じ挙動へ委譲する。
+func (m *batchMockMedRecordRepo) LockByIDForUpdate(ctx context.Context, clinicID, id uint64) (*model.MedicalRecord, error) {
+	return m.FindByID(ctx, clinicID, id)
+}
 func (m *batchMockMedRecordRepo) CountByPetID(_ context.Context, _, _ uint64) (int64, error) {
 	return 0, nil
 }
 func (m *batchMockMedRecordRepo) FindFirstVisitDateByPetID(_ context.Context, _, _ uint64) (*time.Time, error) {
 	return nil, nil
 }
-func (m *batchMockMedRecordRepo) FindOwnerMedicationHistory(_ context.Context, _, _ uint64, _, _ int) ([]repository.OwnerMedicationHistoryRow, int64, error) {
-	return nil, 0, nil
-}
-func (m *batchMockMedRecordRepo) CountEstimatesByMedicalRecordID(_ context.Context, _ uint64) (int64, error) {
+func (m *batchMockMedRecordRepo) CountEstimatesByMedicalRecordID(_ context.Context, _, _ uint64) (int64, error) {
 	return 0, nil
 }
 func (m *batchMockMedRecordRepo) FindOwnerVisitSummary(_ context.Context, _, _ uint64) (*repository.OwnerVisitSummary, error) {
@@ -118,6 +135,12 @@ func (m *batchMockMedRecordRepo) FindLatestByOwner(_ context.Context, _, _ uint6
 func (m *batchMockMedRecordRepo) FindDormantOwnerEntries(ctx context.Context, clinicID uint64, minDays int) ([]repository.DormantOwnerEntry, error) {
 	if m.findDormantFn != nil {
 		return m.findDormantFn(ctx, clinicID, minDays)
+	}
+	return nil, nil
+}
+func (m *batchMockMedRecordRepo) FindDormantOwnerEntriesCursor(ctx context.Context, clinicID uint64, minDays int, afterOwnerID uint64, limit int) ([]repository.DormantOwnerEntry, error) {
+	if m.findDormantCursorFn != nil {
+		return m.findDormantCursorFn(ctx, clinicID, minDays, afterOwnerID, limit)
 	}
 	return nil, nil
 }
@@ -141,7 +164,7 @@ func (m *batchMockMedRecordRepo) DeleteDraftByAppointmentID(_ context.Context, _
 
 // batchMockTagSyncSvc は batch テスト専用 LstepTagSyncService モック
 type batchMockTagSyncSvc struct {
-	syncDormantTagFn func(ctx context.Context, clinicID, ownerID uint64, daysSince int) error
+	syncDormantTagsWithThresholdsFn func(ctx context.Context, clinicID, ownerID uint64, daysSince int, thresholds model.DormantThresholds) error
 }
 
 func (m *batchMockTagSyncSvc) SyncVaccineTag(_ context.Context, _, _, _ uint64) error { return nil }
@@ -165,20 +188,10 @@ func (m *batchMockTagSyncSvc) SyncChronicConditionTags(_ context.Context, _, _ u
 	return nil
 }
 func (m *batchMockTagSyncSvc) SyncCPMStageTag(_ context.Context, _, _ uint64) error { return nil }
-func (m *batchMockTagSyncSvc) SyncDormantTags(ctx context.Context, clinicID, ownerID uint64, daysSince int) error {
-	if m.syncDormantTagFn != nil {
-		return m.syncDormantTagFn(ctx, clinicID, ownerID, daysSince)
-	}
-	return nil
-}
 func (m *batchMockTagSyncSvc) ResyncOwnerVaccineTags(_ context.Context, _, _ uint64) error {
 	return nil
 }
 func (m *batchMockTagSyncSvc) ResyncOwnerCheckupTags(_ context.Context, _, _ uint64) error {
-	return nil
-}
-
-func (m *batchMockTagSyncSvc) SyncCPMStageTagV2(_ context.Context, _, _ uint64) error {
 	return nil
 }
 
@@ -190,44 +203,19 @@ func (m *batchMockTagSyncSvc) SyncVisitDormantTags(_ context.Context, _, _ uint6
 	return nil
 }
 
-func (m *batchMockTagSyncSvc) SyncPetSpeciesTags(_ context.Context, _, _ uint64) error {
-	return nil
-}
-
-func (m *batchMockTagSyncSvc) SyncSeniorTag(_ context.Context, _, _ uint64) error {
-	return nil
-}
-
 func (m *batchMockTagSyncSvc) SyncExclusionTags(_ context.Context, _, _ uint64) error {
-	return nil
-}
-
-func (m *batchMockTagSyncSvc) SyncHealthcheckTags(_ context.Context, _, _ uint64) error {
-	return nil
-}
-
-func (m *batchMockTagSyncSvc) SyncAnnual4CheckupTag(_ context.Context, _, _ uint64) error {
-	return nil
-}
-
-func (m *batchMockTagSyncSvc) SyncVaccineDeadlineTag(_ context.Context, _, _ uint64) error {
-	return nil
-}
-
-func (m *batchMockTagSyncSvc) SyncFilariaTag(_ context.Context, _, _ uint64) error {
-	return nil
-}
-
-func (m *batchMockTagSyncSvc) SyncFleaTickTag(_ context.Context, _, _ uint64) error {
-	return nil
-}
-
-func (m *batchMockTagSyncSvc) SyncFoodPurchaseTag(_ context.Context, _, _ uint64) error {
 	return nil
 }
 
 func (m *batchMockTagSyncSvc) SyncHealthPreventionTagsForClinic(_ context.Context, _ uint64) (int, []error) {
 	return 0, nil
+}
+
+func (m *batchMockTagSyncSvc) SyncDormantTagsWithThresholds(ctx context.Context, clinicID, ownerID uint64, daysSince int, thresholds model.DormantThresholds) error {
+	if m.syncDormantTagsWithThresholdsFn != nil {
+		return m.syncDormantTagsWithThresholdsFn(ctx, clinicID, ownerID, daysSince, thresholds)
+	}
+	return nil
 }
 
 type batchMockAuditService struct {
@@ -267,13 +255,15 @@ func (m *batchMockAuditService) LogClinicSwitch(_ context.Context, _ *uint64, _,
 	return nil
 }
 
+// newBatchService は具象型を返す（B-5: detectDormantOwners/detectNoShowReservations の
+// unexport に伴い、テストが interface 外の非公開メソッドを直接呼ぶため）。
 func newBatchService(
 	resRepo repository.ReservationRepository,
 	tagSvc LstepTagSyncService,
 	clinicRepo repository.ClinicRepository,
 	medRepo repository.MedicalRecordRepository,
-) LstepBatchService {
-	return NewLstepBatchService(resRepo, tagSvc, clinicRepo, medRepo, &batchMockAuditService{}, &mockLstepSettingsService{}, nil)
+) *lstepBatchService {
+	return NewLstepBatchService(resRepo, tagSvc, clinicRepo, medRepo, &batchMockAuditService{}, &mockLstepSettingsService{}, nil).(*lstepBatchService)
 }
 
 // newBatchServiceWithAuditSpy は ISSUE-010 監査 metadata 検証用に audit spy を返す。
@@ -282,9 +272,9 @@ func newBatchServiceWithAuditSpy(
 	tagSvc LstepTagSyncService,
 	clinicRepo repository.ClinicRepository,
 	medRepo repository.MedicalRecordRepository,
-) (LstepBatchService, *batchMockAuditService) {
+) (*lstepBatchService, *batchMockAuditService) {
 	spy := &batchMockAuditService{}
-	return NewLstepBatchService(resRepo, tagSvc, clinicRepo, medRepo, spy, &mockLstepSettingsService{}, nil), spy
+	return NewLstepBatchService(resRepo, tagSvc, clinicRepo, medRepo, spy, &mockLstepSettingsService{}, nil).(*lstepBatchService), spy
 }
 
 func TestDetectNoShowReservations_Success(t *testing.T) {
@@ -306,7 +296,7 @@ func TestDetectNoShowReservations_Success(t *testing.T) {
 		&batchMockMedRecordRepo{},
 	)
 
-	count, errs := svc.DetectNoShowReservations(context.Background(), 1)
+	count, errs := svc.detectNoShowReservations(context.Background(), 1)
 
 	assert.Equal(t, 2, count)
 	assert.Empty(t, errs)
@@ -324,7 +314,7 @@ func TestDetectNoShowReservations_FindCandidatesError(t *testing.T) {
 		&batchMockMedRecordRepo{},
 	)
 
-	count, errs := svc.DetectNoShowReservations(context.Background(), 1)
+	count, errs := svc.detectNoShowReservations(context.Background(), 1)
 
 	assert.Equal(t, 0, count)
 	assert.Len(t, errs, 1)
@@ -346,7 +336,7 @@ func TestDetectNoShowReservations_UpdateError(t *testing.T) {
 		&batchMockMedRecordRepo{},
 	)
 
-	count, errs := svc.DetectNoShowReservations(context.Background(), 1)
+	count, errs := svc.detectNoShowReservations(context.Background(), 1)
 
 	assert.Equal(t, 0, count)
 	assert.Len(t, errs, 1)
@@ -394,20 +384,21 @@ func TestDetectDormantOwners_Success(t *testing.T) {
 	svc := newBatchService(
 		&batchMockReservationRepo{},
 		&batchMockTagSyncSvc{
-			syncDormantTagFn: func(_ context.Context, _, ownerID uint64, _ int) error {
+			// PERF-2: DetectDormantOwners は SyncDormantTagsWithThresholds を呼ぶ。
+			syncDormantTagsWithThresholdsFn: func(_ context.Context, _, ownerID uint64, _ int, _ model.DormantThresholds) error {
 				synced = append(synced, ownerID)
 				return nil
 			},
 		},
 		&mockClinicRepository{},
 		&batchMockMedRecordRepo{
-			findDormantFn: func(_ context.Context, _ uint64, _ int) ([]repository.DormantOwnerEntry, error) {
+			findDormantCursorFn: func(_ context.Context, _ uint64, _ int, _ uint64, _ int) ([]repository.DormantOwnerEntry, error) {
 				return entries, nil
 			},
 		},
 	)
 
-	count, errs := svc.DetectDormantOwners(context.Background(), 1)
+	count, errs := svc.detectDormantOwners(context.Background(), 1)
 
 	assert.Equal(t, 2, count)
 	assert.Empty(t, errs)
@@ -420,13 +411,13 @@ func TestDetectDormantOwners_FindError(t *testing.T) {
 		&batchMockTagSyncSvc{},
 		&mockClinicRepository{},
 		&batchMockMedRecordRepo{
-			findDormantFn: func(_ context.Context, _ uint64, _ int) ([]repository.DormantOwnerEntry, error) {
+			findDormantCursorFn: func(_ context.Context, _ uint64, _ int, _ uint64, _ int) ([]repository.DormantOwnerEntry, error) {
 				return nil, errors.New("db error")
 			},
 		},
 	)
 
-	count, errs := svc.DetectDormantOwners(context.Background(), 1)
+	count, errs := svc.detectDormantOwners(context.Background(), 1)
 
 	assert.Equal(t, 0, count)
 	assert.Len(t, errs, 1)
@@ -437,19 +428,20 @@ func TestDetectDormantOwners_TagSyncError(t *testing.T) {
 	svc := newBatchService(
 		&batchMockReservationRepo{},
 		&batchMockTagSyncSvc{
-			syncDormantTagFn: func(_ context.Context, _, _ uint64, _ int) error {
+			// PERF-2: DetectDormantOwners は SyncDormantTagsWithThresholds を呼ぶ。
+			syncDormantTagsWithThresholdsFn: func(_ context.Context, _, _ uint64, _ int, _ model.DormantThresholds) error {
 				return errors.New("lstep api error")
 			},
 		},
 		&mockClinicRepository{},
 		&batchMockMedRecordRepo{
-			findDormantFn: func(_ context.Context, _ uint64, _ int) ([]repository.DormantOwnerEntry, error) {
+			findDormantCursorFn: func(_ context.Context, _ uint64, _ int, _ uint64, _ int) ([]repository.DormantOwnerEntry, error) {
 				return entries, nil
 			},
 		},
 	)
 
-	count, errs := svc.DetectDormantOwners(context.Background(), 1)
+	count, errs := svc.detectDormantOwners(context.Background(), 1)
 
 	assert.Equal(t, 0, count)
 	assert.Len(t, errs, 1)
@@ -543,7 +535,7 @@ func TestRunDormantDetectionAllClinics_PersistsAuditMetadata(t *testing.T) {
 			},
 		},
 		&batchMockMedRecordRepo{
-			findDormantFn: func(_ context.Context, _ uint64, _ int) ([]repository.DormantOwnerEntry, error) {
+			findDormantCursorFn: func(_ context.Context, _ uint64, _ int, _ uint64, _ int) ([]repository.DormantOwnerEntry, error) {
 				return entries, nil
 			},
 		},
@@ -562,6 +554,53 @@ func TestRunDormantDetectionAllClinics_PersistsAuditMetadata(t *testing.T) {
 	assert.Equal(t, 2, meta["processed_count"])
 	assert.Equal(t, 0, meta["error_count"])
 	assert.Equal(t, 180, meta["min_days_since"], "判定閾値を後で再現できる")
+}
+
+// TestRunBatchAllClinics_全滅クリニックでも監査ログが記録されエラー内容がログに出る は
+// perClinic が (0, errs) を返す全滅ケースでも audit が記録され、エラー本文がログに出ることを検証する（BE7-2）。
+func TestRunBatchAllClinics_全滅クリニックでも監査ログが記録されエラー内容がログに出る(t *testing.T) {
+	var logBuf bytes.Buffer
+	prev := slog.Default()
+	slog.SetDefault(slog.New(slog.NewJSONHandler(&logBuf, &slog.HandlerOptions{Level: slog.LevelError})))
+	t.Cleanup(func() { slog.SetDefault(prev) })
+
+	clinics := []model.Clinic{{ID: 99}}
+	svc, spy := newBatchServiceWithAuditSpy(
+		&batchMockReservationRepo{},
+		&batchMockTagSyncSvc{},
+		&mockClinicRepository{
+			findAllFn: func(_ context.Context) ([]model.Clinic, error) {
+				return clinics, nil
+			},
+		},
+		&batchMockMedRecordRepo{},
+	)
+
+	err := svc.runBatchAllClinics(
+		context.Background(),
+		"test-batch",
+		"test-batch",
+		"synced",
+		"batch_test_wipeout",
+		nil,
+		func(_ context.Context, _ uint64) (int, []error) {
+			return 0, []error{errors.New("wipeout failure A"), errors.New("wipeout failure B")}
+		},
+	)
+	assert.NoError(t, err)
+	assert.True(t, spy.called, "全滅クリニックでも監査ログが記録される")
+	assert.Equal(t, "batch_test_wipeout", spy.capturedAction)
+
+	meta, ok := spy.capturedMetadata.(map[string]any)
+	if !assert.True(t, ok) {
+		return
+	}
+	assert.Equal(t, 0, meta["processed_count"])
+	assert.Equal(t, 2, meta["error_count"])
+
+	logOut := logBuf.String()
+	assert.Contains(t, logOut, "wipeout failure A")
+	assert.Contains(t, logOut, "wipeout failure B")
 }
 
 // ---- RunHealthPreventionTagSyncAllClinics (FEAT-379) ----

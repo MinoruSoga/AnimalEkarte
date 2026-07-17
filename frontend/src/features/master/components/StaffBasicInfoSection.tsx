@@ -7,7 +7,7 @@ import { C, STYLE } from "@/lib/design-tokens";
 import type { Staff } from "../api/staffs";
 import type { Occupation } from "../api/occupations";
 import { MASTER_INPUT_CLASS } from "../constants/styles";
-import type { StaffFormData } from "./StaffSidePanelModel";
+import type { StaffFormData } from "./staff-side-panel-model";
 
 interface StaffBasicInfoSectionProps {
   item: Staff | null;
@@ -76,6 +76,7 @@ export function StaffBasicInfoSection({
       <PropertyRow label="資格番号">
         <input
           type="text"
+          aria-label="資格番号"
           className={MASTER_INPUT_CLASS}
           value={formData.licenseNumber}
           onChange={handleLicenseNumberChange}
@@ -88,6 +89,7 @@ export function StaffBasicInfoSection({
           <PropertyRow label="メールアドレス">
             <input
               type="email"
+              aria-label="メールアドレス"
               className={MASTER_INPUT_CLASS}
               value={formData.email}
               onChange={handleEmailChange}
@@ -97,6 +99,7 @@ export function StaffBasicInfoSection({
           <PropertyRow label="パスワード">
             <input
               type="password"
+              aria-label="パスワード"
               className={MASTER_INPUT_CLASS}
               value={formData.password}
               onChange={handlePasswordChange}
@@ -112,6 +115,7 @@ export function StaffBasicInfoSection({
           <PropertyRow label="パスワード">
             <input
               type="password"
+              aria-label="パスワード"
               className={MASTER_INPUT_CLASS}
               value={formData.password}
               onChange={handlePasswordChange}

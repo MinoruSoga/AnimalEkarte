@@ -1,0 +1,88 @@
+# 飼主・ペット登録/編集 仕様書 (Owner Form)
+
+![飼主登録画面](./images/04-owners-form.png)
+
+## 概要
+- **画面の目的**: 飼い主基本情報および、紐付く全てのペット（患者）情報の一元管理。
+- **URLパターン**: 
+  - 新規登録: `/owners/new`
+  - 編集: `/owners/:id`
+- **アクセス権限**: 新規登録 (`/owners/new`) は `owners:create` を要求する `RequirePermission` ルートガードあり。編集 (`/owners/:id`) は親ルート `/owners` の `owners:view` ガードのみを継承し、保存可否（`fieldset disabled`）は `usePermission` によるコンポーネント内制御。
+
+---
+
+## 1. 画面構成
+
+### 1.1 飼主情報セクション (Owner Information)
+Notion スタイルの 4 カラムグリッドを採用し、臨床現場での迅速な入力をサポートします。
+- **基本属性**: 氏名（漢字・カナ）、電話番号、メールアドレス。
+- **経済・サービス属性**: 
+    - **会員区分**: 非会員 / 会員 / 退亡者 / 他診/準 の 4 区分をボタンで選択。
+    - **個別値引率**: 特定の事情に基づくデフォルトの値引設定（会計時に自動適用）。
+- **住所管理**: 郵便番号による自動住所入力および、地図連携（将来計画）。
+
+### 1.2 ペット管理セクション (Pet Management)
+一人の飼い主に紐付く複数のペットをテーブル形式の一覧で管理します。
+
+| 項目 | 説明 |
+|:---|:---|
+| **基本情報** | 名前、性別（雄/雌/不明）、生年月日、動物種、品種（サジェスト付）。 |
+| **臨床ステータス** | **生存 (`alive`) / 死亡 (`deceased`)**。死亡時は日付と理由を記録。 |
+| **身体的特徴** | 毛色、体重、去勢・避妊手術日、血液型、マイクロチップ番号。 |
+| **行動・安全属性** | **危険度 (`danger_level`)**: 咬癖や攻撃性がある場合、`高 / 中 / 低` で設定。一覧画面で警告が表示されます。 |
+| **医療背景** | 常用フード、飼育環境（自由入力）、加入保険（マスタ選択）。 |
+
+- **飼主変更 (BUG-373)**: `PetEditModal` からペットの紐付け先飼主を変更可能（`PATCH /api/v1/pets/:id` の `owner_id`）。変更先飼主の値引率/会員区分が現飼主と異なる場合、会計金額への影響を警告する確認モーダルを挟んでから確定する。
+
+### 1.3 LINE/Lステップ連携セクション (編集時のみ、`LineIntegrationCard`)
+- **紐付け状況**: LINE User ID の取得状態をリアルタイム表示。
+- **連携用URLの発行**（未連携時、`LineLinkTokenSection`、SD-14）: 「連携用URLを発行」ボタンで `POST /api/v1/owners/:id/line/link-token` を呼び、返却された LIFF URL（[38-liff-pet-health.md](./38-liff-pet-health.md) の `LiffLinkPage` 紐付けフロー参照）を読み取り専用入力欄に表示しコピーできる。`owners` の edit 権限でゲート。
+- **配信除外**: 「配信除外」スイッチによる、リマインドの一時停止機能（`PATCH /clinics/:clinicId/owners/:id/delivery-exclusion`）。
+- **配信注意フラグ**: リマインドを止めずに注意喚起のみ行うフラグ＋理由メモ（`PATCH /clinics/:clinicId/owners/:id/delivery-caution`）。配信除外とは独立した別スイッチ。
+- **転院ステータス**: 転院済みフラグの切替（`PATCH /clinics/:clinicId/owners/:id/transfer-status`）。
+- **個別メッセージ送信**: 
+    - **`LineSendPanel`**: サイドパネルから特定の飼い主へ直接 LINE メッセージを送信。
+    - **ファイル共有**: 血液検査結果などの PDF や画像をアップロードし、LINE 経由で共有可能（**`shared_files`** ストレージ連携）。
+
+### 1.4 会計履歴セクション（編集時のみ）
+- 該当飼主の会計履歴を一覧表示。`accounting` の閲覧権限を持つユーザーにのみ表示されます（権限がない場合、見出しごと非表示）。
+
+---
+
+## 2. 主要な臨床安全機能
+
+### 2.1 危険個体の視覚的警告
+`danger_level` が「高」に設定されたペットは、飼主一覧において、即座に目立つ警告バッジが表示され、スタッフの安全確保を促します。
+
+### 2.2 データの真正性保護
+- **保存アクション**: React 19 の `useActionState` を活用し、保存中の二重送信防止とエラー箇所への自動フォーカス移動を実現。
+- **離脱ブロック**: 編集途中のページ遷移時に、`NavigationBlocker` が変更破棄の確認を求めます。
+
+---
+
+## 3. 技術仕様
+
+### 使用コンポーネント
+- **`OwnerForm`**: 統合フォーム。
+- **`PetEditModal`**: ペット情報の詳細入力（遅延ロード対応）。
+- **`LineIntegrationCard`**: 外部連携管理部品。
+- **`LineSendPanel`**: 個別メッセージおよび共有ファイル送信 UI。
+
+### API連携
+| メソッド | エンドポイント | 用途 | 必須権限 | 必須アクション |
+|:---|:---|:---|:---|:---|
+| GET | `/api/v1/owners/:id` | 飼主・ペット情報の取得 | `owners` | `view` |
+| POST | `/api/v1/owners` | 新規登録（ペット一括登録含む） | `owners` | `create` |
+| PATCH | `/api/v1/owners/:id` | 飼主基本情報の更新 | `owners` | `edit` |
+| PATCH | `/api/v1/pets/:id` | ペット単体の属性変更 | `owners` | `edit` |
+| POST | `/api/v1/shared-files` | LINE 共有用ファイルのアップロード | `owners` or `medical-records` | `edit` (or `create`/`edit`) |
+| POST | `/api/v1/clinics/:clinicId/owners/:id/line/send` | LINE個別メッセージ送信 | `owners` | `edit` |
+| GET | `/api/v1/clinics/:clinicId/owners/:id/line/send-logs` | LINEメッセージ送信履歴取得（`pending` 行がある間は5秒間隔でポーリング） | `owners` | `view` |
+| PATCH | `/api/v1/clinics/:clinicId/owners/:id/line-user-id` | LINE User ID の手動設定・解除 | `owners` | `edit` |
+| PATCH | `/api/v1/clinics/:clinicId/owners/:id/line-id-confirm` | LINE ID 確認の記録 | `owners` | `edit` |
+| POST | `/api/v1/owners/:id/line/link-token` | 連携用トークン + LIFF URL の発行（SD-14） | `owners` | `edit` |
+| PATCH | `/api/v1/clinics/:clinicId/owners/:id/delivery-exclusion` | 配信除外フラグの切替 | `owners` | `edit` |
+| PATCH | `/api/v1/clinics/:clinicId/owners/:id/delivery-caution` | 配信注意フラグ・理由の切替 | `owners` | `edit` |
+| PATCH | `/api/v1/clinics/:clinicId/owners/:id/transfer-status` | 転院ステータスの切替 | `owners` | `edit` |
+
+---

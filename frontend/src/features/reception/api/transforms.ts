@@ -105,6 +105,7 @@ export function transformReservationToReceptionAppointment(
     status,
     notes: reservation.notes || undefined,
     source: (reservation.source as "manual" | "line") ?? "manual",
+    checkedInAt: reservation.checked_in_at,
   };
 }
 

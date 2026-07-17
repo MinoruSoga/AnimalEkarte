@@ -152,6 +152,11 @@ func (s *trimmingCourseService) Update(ctx context.Context, clinicID, id uint64,
 		slog.ErrorContext(ctx, "failed to get trimming course", "error", err, "id", id, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to get trimming course")
 	}
+	if input.CourseTypeID != nil {
+		if _, err := s.courseTypeRepo.FindByID(ctx, clinicID, *input.CourseTypeID); err != nil {
+			return nil, apperrors.WrapInvalidInput("course_type_id not found in this clinic")
+		}
+	}
 	if err := validateOptionalName(input.Name); err != nil {
 		return nil, apperrors.Wrap(err, "failed to validate optional name")
 	}

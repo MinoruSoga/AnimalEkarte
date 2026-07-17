@@ -44,6 +44,20 @@ db.WithContext(ctx).Where("clinic_id = ? AND id = ?", clinicID, id).First(&owner
 db.WithContext(ctx).First(&owner, id)
 ```
 
+### master Preload には clinic_id 述語必須（実績・read IDOR 再発防止）
+
+base クエリが clinic-scoped でも、FK 値が別 clinic のマスタを指すと Preload で別 clinic のマスタ名・価格が応答に混入する（read IDOR）。clinic-scoped マスタの Preload には必ず述語を付ける。
+
+```go
+// ❌ 別 clinic のマスタが混入しうる
+db.Preload("Medicine", "deleted_at IS NULL")
+// ✅ 正しい先例（reservation_type_occupation_repository）
+db.Preload("Occupation", "clinic_id = ? AND deleted_at IS NULL", clinicID)
+```
+
+機械強制: preload_clinic_scope_lint_test.go（go/ast）が述語欠落を CI fail させる。新しい clinic-scoped マスタを追加したら allowlist 登録が必要。global マスタ（animal_species / company / manual_article）は例外。
+（出典: memory cross_tenant_read_idor_audit_20260629 / preload_clinic_scope_lint_p0_20260630、commit b3638d5e / 8a51c2eb）
+
 ## インデックス戦略
 
 ### クエリパターン別インデックス
@@ -145,6 +159,8 @@ db.Where("clinic_id = ? AND id > ?", clinicID, lastID).
 
 ## EXPLAIN ANALYZE
 
+> ⚠️ `psql` での直接SQL実行は CLAUDE.md の自動実行禁止コマンド。ユーザーに手動実行を依頼する。
+
 ```bash
 # クエリ実行計画の確認
 docker compose exec db psql -U postgres -d ekarte_dev -c \
@@ -157,12 +173,43 @@ docker compose exec db psql -U postgres -d ekarte_dev -c \
 ## マイグレーション方針
 
 ```
-リリース前: 001_init.sql を直接編集（DBリセット運用）
-リリース後: 002_xxx.sql として incremental migration
+適用済み migration の編集は禁止（checksum mismatch → db_reset が必要になる）
+変更は常に最終番号+1 の incremental migration として追加（現行は 002 まで採番済み。実行前に `ls backend/migrations/*.sql` で最新番号を確認する。migration-seed-safety スキル参照）
 ```
 
 ```sql
 -- ✅ Always idempotent
 CREATE INDEX IF NOT EXISTS idx_owners_clinic ON owners(clinic_id, id);
 ALTER TABLE owners ADD COLUMN IF NOT EXISTS middle_name TEXT;
+```
+
+## 運用トラブルシューティング（database スキルより統合）
+
+> ⚠️ 以下のコマンド（`docker compose restart` / `down -v` / `psql` 直実行）は CLAUDE.md の自動実行禁止コマンド。ユーザーに手動実行を依頼する。
+
+**接続エラー** (`failed to connect to postgres`):
+```bash
+docker compose ps db                                              # コンテナ起動確認
+docker compose exec db psql -U "$DB_USER" -d "$DB_NAME" -c "\conninfo"
+docker compose exec backend env | grep DB                         # 環境変数確認
+```
+
+**ロック待ち**（クエリがハング）:
+```sql
+SELECT * FROM pg_locks WHERE NOT granted;
+SELECT pid, state, query, wait_event FROM pg_stat_activity WHERE state = 'active';
+SELECT pg_terminate_backend(pid);  -- 問題プロセスの終了
+```
+
+**ディスク容量不足**:
+```bash
+docker system df               # Docker ボリューム容量確認
+docker system prune -f         # 不要イメージ・ボリューム削除
+docker compose exec db psql -U "$DB_USER" -d "$DB_NAME" -c "VACUUM FULL;"
+```
+
+**バックアップ・復元**:
+```bash
+docker compose exec db pg_dump -U "$DB_USER" "$DB_NAME" > backup_$(date +%Y%m%d).sql
+docker compose exec -T db psql -U "$DB_USER" -d "$DB_NAME" < backup_20260101.sql
 ```

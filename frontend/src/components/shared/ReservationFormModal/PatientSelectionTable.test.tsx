@@ -30,6 +30,8 @@ const basePet = {
   animalSpeciesId: undefined,
   breed: undefined,
   color: undefined,
+  bloodType: undefined,
+  microchipNumber: undefined,
   neuteredDate: undefined,
   food: undefined,
   environment: undefined,
@@ -40,6 +42,7 @@ const basePet = {
   insuranceName: undefined,
   insuranceDetails: undefined,
   remarks: undefined,
+  deceasedAt: undefined,
 } satisfies Pet;
 
 const MOCK_PETS: Pet[] = [

@@ -53,7 +53,7 @@ func (r *lstepTagConfigRepository) DeleteAutoManagedPrefix(ctx context.Context, 
 		return apperrors.FromGORM(result.Error, "lstep_auto_managed_prefix", fmt.Sprintf("%d", id))
 	}
 	if result.RowsAffected == 0 {
-		return apperrors.FromGORM(gorm.ErrRecordNotFound, "lstep_auto_managed_prefix", fmt.Sprintf("%d", id))
+		return apperrors.WrapNotFound("lstep_auto_managed_prefix", fmt.Sprintf("%d", id))
 	}
 	return nil
 }
@@ -79,7 +79,7 @@ func (r *lstepTagConfigRepository) DeleteConditionTagMapping(ctx context.Context
 		return apperrors.FromGORM(result.Error, "lstep_condition_tag_mapping", fmt.Sprintf("%d", id))
 	}
 	if result.RowsAffected == 0 {
-		return apperrors.FromGORM(gorm.ErrRecordNotFound, "lstep_condition_tag_mapping", fmt.Sprintf("%d", id))
+		return apperrors.WrapNotFound("lstep_condition_tag_mapping", fmt.Sprintf("%d", id))
 	}
 	return nil
 }
@@ -105,7 +105,7 @@ func (r *lstepTagConfigRepository) DeleteSendPurposeTagPrefix(ctx context.Contex
 		return apperrors.FromGORM(result.Error, "lstep_send_purpose_tag_prefix", fmt.Sprintf("%d", id))
 	}
 	if result.RowsAffected == 0 {
-		return apperrors.FromGORM(gorm.ErrRecordNotFound, "lstep_send_purpose_tag_prefix", fmt.Sprintf("%d", id))
+		return apperrors.WrapNotFound("lstep_send_purpose_tag_prefix", fmt.Sprintf("%d", id))
 	}
 	return nil
 }

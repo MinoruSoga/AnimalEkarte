@@ -38,7 +38,7 @@ func (r *sharedFileRepository) FindByID(ctx context.Context, clinicID, id uint64
 	var f model.SharedFile
 	err := r.db.WithContext(ctx).
 		Scopes(clinicScope(clinicID)).
-		Where("id = ? AND deleted_at IS NULL", id).
+		Where("id = ?", id).
 		First(&f).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "shared_file", fmt.Sprintf("%d", id))
@@ -50,7 +50,6 @@ func (r *sharedFileRepository) FindAll(ctx context.Context, clinicID uint64) ([]
 	var files []*model.SharedFile
 	err := r.db.WithContext(ctx).
 		Scopes(clinicScope(clinicID)).
-		Where("deleted_at IS NULL").
 		Order("created_at DESC").
 		Find(&files).Error
 	if err != nil {
@@ -60,12 +59,15 @@ func (r *sharedFileRepository) FindAll(ctx context.Context, clinicID uint64) ([]
 }
 
 func (r *sharedFileRepository) Delete(ctx context.Context, clinicID, id uint64) error {
-	err := r.db.WithContext(ctx).
+	result := r.db.WithContext(ctx).
 		Scopes(clinicScope(clinicID)).
-		Where("id = ? AND deleted_at IS NULL", id).
-		Delete(&model.SharedFile{}).Error
-	if err != nil {
-		return apperrors.FromGORM(err, "shared_file", fmt.Sprintf("%d", id))
+		Where("id = ?", id).
+		Delete(&model.SharedFile{})
+	if result.Error != nil {
+		return apperrors.FromGORM(result.Error, "shared_file", fmt.Sprintf("%d", id))
+	}
+	if result.RowsAffected == 0 {
+		return apperrors.WrapNotFound("shared_file", fmt.Sprintf("%d", id))
 	}
 	return nil
 }
@@ -73,7 +75,7 @@ func (r *sharedFileRepository) Delete(ctx context.Context, clinicID, id uint64) 
 func (r *sharedFileRepository) FindExpired(ctx context.Context, thresholdUnix int64) ([]*model.SharedFile, error) {
 	var files []*model.SharedFile
 	err := r.db.WithContext(ctx).
-		Where("deleted_at IS NULL AND EXTRACT(EPOCH FROM created_at) < ?", thresholdUnix).
+		Where("EXTRACT(EPOCH FROM created_at) < ?", thresholdUnix).
 		Find(&files).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "shared_file", "expired")

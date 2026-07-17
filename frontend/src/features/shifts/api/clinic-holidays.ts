@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import { handleApiError } from "@/lib/handle-api-error";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
+import { queryKeys } from "@/lib/query-keys";
 import type { ClinicHoliday } from "@/types/generated/models";
 
 export type { ClinicHoliday };
@@ -11,13 +12,8 @@ export interface SetClinicHolidayInput {
   reason?: string;
 }
 
-const clinicHolidayKeys = {
-  all: ["clinic-holidays"] as const,
-  byMonth: (yearMonth: string) => ["clinic-holidays", yearMonth] as const,
-};
-
 // GET /v1/clinic-holidays?year_month=YYYY-MM
-export const getClinicHolidays = async (yearMonth?: string): Promise<ClinicHoliday[]> => {
+const getClinicHolidays = async (yearMonth?: string): Promise<ClinicHoliday[]> => {
   const params: Record<string, string> = {};
   if (yearMonth) params.year_month = yearMonth;
   const { data } = await axios.get<ClinicHoliday[]>("/v1/clinic-holidays", { params });
@@ -26,7 +22,7 @@ export const getClinicHolidays = async (yearMonth?: string): Promise<ClinicHolid
 
 export function useGetClinicHolidays(yearMonth: string) {
   return useQuery({
-    queryKey: clinicHolidayKeys.byMonth(yearMonth),
+    queryKey: queryKeys.clinicHolidays.byMonth(yearMonth),
     queryFn: () => getClinicHolidays(yearMonth),
     enabled: !!yearMonth,
     staleTime: QUERY_STALE_TIMES.MEDIUM,
@@ -41,7 +37,7 @@ export function useCreateClinicHoliday() {
     mutationFn: (input: SetClinicHolidayInput) =>
       axios.post<ClinicHoliday>("/v1/clinic-holidays", { date: input.date, reason: input.reason ?? "" }).then((r) => r.data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: clinicHolidayKeys.all });
+      queryClient.invalidateQueries({ queryKey: queryKeys.clinicHolidays.all() });
     },
     onError: (error) => handleApiError(error, "休診日の設定"),
   });
@@ -54,7 +50,7 @@ export function useDeleteClinicHoliday() {
     mutationFn: (date: string) =>
       axios.delete(`/v1/clinic-holidays/${date}`),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: clinicHolidayKeys.all });
+      queryClient.invalidateQueries({ queryKey: queryKeys.clinicHolidays.all() });
     },
     onError: (error) => handleApiError(error, "休診日の解除"),
   });

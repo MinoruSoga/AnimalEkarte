@@ -12,10 +12,13 @@ import {
   ClinicDeleteDialog,
   ClinicMasterList,
   ClinicMasterSidePanel,
+} from "../components/ClinicMasterSettingsPanels";
+import { CompanyInvoiceSection } from "../components/CompanyInvoiceSection";
+import {
   DEFAULT_CLINIC_FORM_DATA,
   clinicToFormData,
   type ClinicFormData,
-} from "../components/ClinicMasterSettingsPanels";
+} from "../components/clinic-master-settings-model";
 import {
   useCreateClinic,
   useDeleteClinic,
@@ -70,6 +73,16 @@ export function ClinicMasterSettings() {
             is_active: fd.is_active,
             standard_tax_rate: fd.standard_tax_rate,
             reduced_tax_rate: fd.reduced_tax_rate,
+            accounting_document_show_logo: fd.accounting_document_show_logo,
+            accounting_document_show_registration_warning: fd.accounting_document_show_registration_warning,
+            accounting_document_show_item_category: fd.accounting_document_show_item_category,
+            accounting_document_footer_note: fd.accounting_document_footer_note,
+            // #190: セクション表示/非表示トグルと表示順
+            accounting_document_show_clinic_header: fd.accounting_document_show_clinic_header,
+            accounting_document_show_owner_pet_info: fd.accounting_document_show_owner_pet_info,
+            accounting_document_show_items_table: fd.accounting_document_show_items_table,
+            accounting_document_show_payment_summary: fd.accounting_document_show_payment_summary,
+            accounting_document_section_order: fd.accounting_document_section_order,
           };
           await updateMutation.mutateAsync({ id: selectedItem.id, req });
           toast.success("更新しました");
@@ -162,6 +175,7 @@ export function ClinicMasterSettings() {
           <ClinicMasterList
             canCreate={canCreate}
             canEdit={canEdit}
+            topSection={<CompanyInvoiceSection canEdit={canEdit} />}
             items={filteredItems}
             searchTerm={searchTerm}
             onSearchChange={setSearchTerm}

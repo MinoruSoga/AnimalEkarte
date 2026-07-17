@@ -1,0 +1,20 @@
+title = "AnimalEkarte gitleaks config"
+
+# C-1: CI secret scan（.github/workflows/ci.yml の secret-scan job）が参照する設定。
+# デフォルトルールセットを継承しつつ、実害のないダミー値のみを対象パスで allowlist する。
+# 実シークレット（.env.staging の JWT_SECRET/DB_PASSWORD/INTEGRATION_ENCRYPTION_KEY）は
+# 意図的に allowlist しない — untrack（C-1 手順3）と H-5（SSM 移行）が完了するまでゲートの
+# 対象として残し、誤って再露出させた場合に検知できるようにする。
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "既知のダミー値のみを含むドキュメント/テストフィクスチャ（実シークレットなし）"
+paths = [
+  '''backend/docs/api-examples\.md''',                                  # curl コマンド例の Bearer トークンはプレースホルダ
+  '''backend/internal/config/config_validate_test\.go''',                 # config バリデーションのテスト用ダミー API キー
+  '''backend/internal/service/line_reservation_setting_service_test\.go''', # LINE 連携設定のテスト用ダミー値
+  '''backend/internal/service/line_credentials_test\.go''',               # LINE 資格情報ヘルパーの合成ダミー
+  # 旧 003_seed_demo.sql は CSV 移行で廃止。003_demo CSV のシークレット列は空/合成ダミーのみ
+]

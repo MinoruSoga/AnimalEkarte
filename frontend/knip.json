@@ -1,7 +1,6 @@
 {
-  "$schema": "https://unpkg.com/knip@5/schema.json",
+  "$schema": "https://unpkg.com/knip@6/schema.json",
   "entry": [
-    "src/main.tsx",
     "liff/src/main.tsx",
     "line-reserve/src/main.tsx"
   ],
@@ -11,6 +10,12 @@
     "line-reserve/src/**/*.{ts,tsx}"
   ],
   "ignore": [
-    "src/types/generated/**"
+    "src/types/generated/**",
+    "src/components/ui/**"
+  ],
+  "ignoreDependencies": [
+    "tailwindcss",
+    "chrome-launcher",
+    "lighthouse"
   ]
 }

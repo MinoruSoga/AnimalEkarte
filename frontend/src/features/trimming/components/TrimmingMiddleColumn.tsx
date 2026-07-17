@@ -7,7 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { NumberInput } from "@/components/shared/NumberInput/NumberInput";
 import { C } from "@/lib/design-tokens";
 
-import type { TrimmingMiddleColumnProps } from "./TrimmingFormColumnTypes";
+import type { TrimmingMiddleColumnProps } from "./trimming-form-column-types";
 import { TrimmingImageUploadField } from "./TrimmingImageUploadField";
 
 const BW_UNIT_ITEMS = (

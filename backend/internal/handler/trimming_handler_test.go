@@ -98,6 +98,19 @@ func TestListTrimmings(t *testing.T) {
 			wantStatus: http.StatusOK,
 		},
 		{
+			// #231: 一覧レスポンスの pet オブジェクトに breed が含まれる
+			name:     "includes pet breed in response",
+			query:    "page=1&limit=10",
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockTrimmingService{
+				listFn: func(_ context.Context, _ uint64, _, _ *uint64, _, _ *string, _, _ int) ([]model.Reservation, int64, error) {
+					return []model.Reservation{{ID: 1, Pet: &model.Pet{ID: 5, Name: "ポチ", Breed: "トイプードル"}}}, 1, nil
+				},
+			},
+			wantStatus: http.StatusOK,
+			wantBody:   `"breed":"トイプードル"`,
+		},
+		{
 			name:       "returns 401 when clinic_id missing",
 			query:      "page=1&limit=10",
 			setupCtx:   func(_ *gin.Context) {},

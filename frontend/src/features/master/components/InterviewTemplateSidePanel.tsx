@@ -14,7 +14,7 @@ import { MASTER_INPUT_CLASS } from "../constants/styles";
 import {
   interviewTemplateToFormData,
   type InterviewTemplateFormData,
-} from "./InterviewTemplateSidePanelModel";
+} from "./interview-template-side-panel-model";
 
 interface InterviewTemplateSidePanelProps {
   item: InquiryTemplate | null;
@@ -98,6 +98,7 @@ export const InterviewTemplateSidePanel = memo(function InterviewTemplateSidePan
       <PropertyRow label="カテゴリ">
         <input
           type="text"
+          aria-label="カテゴリ"
           className={MASTER_INPUT_CLASS}
           value={formData.category}
           onChange={handleCategoryChange}

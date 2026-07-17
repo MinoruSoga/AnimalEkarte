@@ -1,11 +1,12 @@
 import { useQuery } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
+import { queryKeys } from "@/lib/query-keys";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 import { transformHospitalization } from "./transforms";
 import type { Hospitalization } from "./transforms";
 import type { BackendHospitalization } from "./types";
 
-export const getHospitalization = async (
+const getHospitalization = async (
   id: string
 ): Promise<Hospitalization> => {
   const { data } = await axios.get<BackendHospitalization>(
@@ -16,7 +17,7 @@ export const getHospitalization = async (
 
 export const useGetHospitalization = (id: string) => {
   return useQuery({
-    queryKey: ["hospitalization", id],
+    queryKey: queryKeys.hospitalizations.detail(id),
     queryFn: () => getHospitalization(id),
     enabled: !!id,
     staleTime: QUERY_STALE_TIMES.MEDIUM,
@@ -24,7 +25,7 @@ export const useGetHospitalization = (id: string) => {
   });
 };
 
-export const getHospitalizationRaw = async (
+const getHospitalizationRaw = async (
   id: string
 ): Promise<BackendHospitalization> => {
   const { data } = await axios.get<BackendHospitalization>(
@@ -35,7 +36,7 @@ export const getHospitalizationRaw = async (
 
 export const useGetHospitalizationRaw = (id: string | undefined) => {
   return useQuery({
-    queryKey: ["hospitalization", "raw", id],
+    queryKey: queryKeys.hospitalizations.detailRaw(id ?? ""),
     queryFn: () => getHospitalizationRaw(id!),
     enabled: !!id,
     staleTime: QUERY_STALE_TIMES.MEDIUM,

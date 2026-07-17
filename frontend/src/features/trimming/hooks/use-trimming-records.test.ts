@@ -14,8 +14,8 @@ vi.mock("../api/delete-trimming", () => ({
 import { useGetTrimmings } from "../api/get-trimmings";
 
 const mockRecords = [
-  { ownerName: "ヤマダタロウ", petName: "ポチ", status: "active", species: "犬", staff: "田中" },
-  { ownerName: "さとうけんじ", petName: "たまごろう", status: "active", species: "猫", staff: "佐藤" },
+  { ownerName: "ヤマダタロウ", petName: "ポチ", status: "active", species: "犬", staff: "田中", breed: "トイプードル" },
+  { ownerName: "さとうけんじ", petName: "たまごろう", status: "active", species: "猫", staff: "佐藤", breed: "" },
 ];
 
 function setup(searchTerm: string) {
@@ -46,6 +46,12 @@ describe("useFilterTrimmingRecords かな正規化", () => {
     const { result } = setup("タマゴロウ");
     expect(result.current.data).toHaveLength(1);
     expect(result.current.data[0].petName).toBe("たまごろう");
+  });
+
+  it("#231: 犬種でも検索できる", () => {
+    const { result } = setup("トイプードル");
+    expect(result.current.data).toHaveLength(1);
+    expect(result.current.data[0].ownerName).toBe("ヤマダタロウ");
   });
 
   it("空文字の場合は全件返す", () => {

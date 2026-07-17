@@ -25,7 +25,7 @@ interface BackendMonthlyReportSummary {
   tax_breakdown: BackendMonthlyTaxBreakdownSummary;
 }
 
-export interface BackendDailyReportDetail {
+interface BackendDailyReportDetail {
   date: string;
   weekday: string;
   am_count: number;
@@ -42,6 +42,8 @@ export interface BackendDailyReportDetail {
 interface BackendMonthlyReportResponse {
   year: number;
   month: number;
+  start_date: string;
+  end_date: string;
   summary: BackendMonthlyReportSummary;
   daily_details: BackendDailyReportDetail[];
 }
@@ -71,7 +73,7 @@ function transformMonthlyReportSummary(raw: BackendMonthlyReportSummary) {
   };
 }
 
-export function transformDailyReportDetail(raw: BackendDailyReportDetail) {
+function transformDailyReportDetail(raw: BackendDailyReportDetail) {
   return {
     date: raw.date,
     weekday: raw.weekday,
@@ -91,6 +93,8 @@ function transformMonthlyReport(raw: BackendMonthlyReportResponse) {
   return {
     year: raw.year,
     month: raw.month,
+    startDate: raw.start_date,
+    endDate: raw.end_date,
     summary: transformMonthlyReportSummary(raw.summary),
     dailyDetails: raw.daily_details.map(transformDailyReportDetail),
   };
@@ -101,22 +105,37 @@ function transformMonthlyReport(raw: BackendMonthlyReportResponse) {
 export type DailyReportDetail = ReturnType<typeof transformDailyReportDetail>;
 export type MonthlyReportResponse = ReturnType<typeof transformMonthlyReport>;
 
+export type MonthlyReportParams =
+  | { mode: "month"; year: number; month: number }
+  | { mode: "period"; startDate: string; endDate: string };
+
+function toRequestParams(params: MonthlyReportParams) {
+  if (params.mode === "month") {
+    return { year: params.year, month: params.month };
+  }
+  return { start_date: params.startDate, end_date: params.endDate };
+}
+
+function toQueryKey(params: MonthlyReportParams) {
+  if (params.mode === "month") {
+    return ["monthly-report", "month", params.year, params.month] as const;
+  }
+  return ["monthly-report", "period", params.startDate, params.endDate] as const;
+}
+
 // ── API functions ────────────────────────────────────────────────────────────
 
-export const getMonthlyReport = async (
-  year: number,
-  month: number,
-): Promise<MonthlyReportResponse> => {
+const getMonthlyReport = async (params: MonthlyReportParams): Promise<MonthlyReportResponse> => {
   const { data } = await axios.get<BackendMonthlyReportResponse>("/v1/reports/monthly", {
-    params: { year, month },
+    params: toRequestParams(params),
   });
   return transformMonthlyReport(data);
 };
 
-export const useGetMonthlyReport = (year: number, month: number) =>
+export const useGetMonthlyReport = (params: MonthlyReportParams) =>
   useQuery({
-    queryKey: ["monthly-report", year, month],
-    queryFn: () => getMonthlyReport(year, month),
+    queryKey: toQueryKey(params),
+    queryFn: () => getMonthlyReport(params),
     staleTime: QUERY_STALE_TIMES.STATIC,
     gcTime: QUERY_GC_TIMES.LONG,
   });

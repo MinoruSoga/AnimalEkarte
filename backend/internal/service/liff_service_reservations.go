@@ -49,7 +49,7 @@ func (s *liffService) CreateReservation(ctx context.Context, clinicID, customerI
 		if err := s.trimmingDetailRepo.Create(ctx, detail); err != nil {
 			slog.WarnContext(ctx, "failed to create trimming detail (best-effort)", "error", err, "appointment_id", appt.ID)
 		} else if len(input.TrimmingOptionIDs) > 0 {
-			if err := s.trimmingDetailRepo.SetOptions(ctx, appt.ID, input.TrimmingOptionIDs); err != nil {
+			if err := s.trimmingDetailRepo.SetOptions(ctx, clinicID, appt.ID, input.TrimmingOptionIDs); err != nil {
 				slog.WarnContext(ctx, "failed to set trimming options (best-effort)", "error", err, "appointment_id", appt.ID)
 			}
 		}
@@ -107,6 +107,7 @@ func (s *liffService) CancelReservation(ctx context.Context, clinicID, customerI
 	}
 
 	if err := s.adminRepo.CancelByID(ctx, clinicID, customerID, reservationID); err != nil {
+		slog.ErrorContext(ctx, "failed to cancel reservation", "error", err, "clinic_id", clinicID, "reservation_id", reservationID)
 		return apperrors.Wrap(err, "failed to cancel reservation")
 	}
 
@@ -136,12 +137,12 @@ func (s *liffService) tryAttachReservationOwnerPet(
 	}
 
 	customer, err := s.customerRepo.FindByID(ctx, clinicID, customerID)
-	if err != nil || customer == nil || customer.OwnerID == nil {
+	if err != nil || customer == nil || customer.OwnerID == nil || customer.Owner == nil {
 		return
 	}
 
 	fields := map[string]any{
-		"owner_id": *customer.OwnerID,
+		"owner_id": customer.Owner.ID,
 	}
 	if petID := resolveReservationPetID(customer, customerFields); petID != nil {
 		fields["pet_id"] = *petID
@@ -241,5 +242,5 @@ func (s *liffService) tryAutoLinkOwner(ctx context.Context, clinicID, customerID
 		return
 	}
 	slog.InfoContext(ctx, "auto-linked LINE customer to owner",
-		"customer_id", customerID, "owner_id", owner.ID, "name", name)
+		"customer_id", customerID, "owner_id", owner.ID)
 }

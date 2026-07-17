@@ -2,23 +2,14 @@ package repository
 
 import (
 	"context"
-	"fmt"
-	"os"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"gorm.io/driver/postgres"
-	"gorm.io/gorm"
 
 	"github.com/animal-ekarte/backend/internal/model"
 )
-
-func TestEscapeLikePattern(t *testing.T) {
-	assert.Equal(t, `100\%\_\\`, escapeLikePattern(`100%_\`))
-	assert.Equal(t, `normal`, escapeLikePattern(`normal`))
-}
 
 func TestFindOwnerLTV_SearchEscapesLikeWildcards(t *testing.T) {
 	db := setupTestDB(t)
@@ -1019,141 +1010,210 @@ func TestFindOwnerLTV_SearchByName(t *testing.T) {
 	})
 }
 
-// setupTestDB はテスト用の DB を初期化してマイグレーションを実行します
-func setupTestDB(t *testing.T) *gorm.DB {
-	// テスト DB コネクション（docker compose で起動）
-	// 実装は環境に合わせて調整
-	db := getTestDatabaseConnection(t)
+// TestLtvRepository_BuildOrderBy はソートフィールド×順序の組み合わせで ORDER BY 句が
+// 期待通りに構築されることを検証する（DB 非依存の純粋関数のためテーブル駆動で直接検証）。
+func TestLtvRepository_BuildOrderBy(t *testing.T) {
+	repo := &ltvRepository{}
 
-	// AutoMigrate の前に、PostgreSQL カスタム ENUM 型を作成
-	// （マイグレーション 001_init.sql で定義されている全 46 型）
-	// DROP TYPE IF EXISTS → CREATE TYPE の順序で、既存型を削除してから再作成
-	enumTypes := []struct {
-		drop   string
-		create string
+	tests := []struct {
+		name   string
+		sort   string
+		order  string
+		expect string
 	}{
-		// ペット関連
-		{"DROP TYPE IF EXISTS pet_status CASCADE", "CREATE TYPE pet_status AS ENUM ('alive', 'deceased')"},
-		{"DROP TYPE IF EXISTS pet_gender CASCADE", "CREATE TYPE pet_gender AS ENUM ('male', 'female', 'unknown')"},
-		{"DROP TYPE IF EXISTS acquisition_type CASCADE", "CREATE TYPE acquisition_type AS ENUM ('purchased', 'transferred', 'rescued', 'other')"},
-		{"DROP TYPE IF EXISTS danger_level CASCADE", "CREATE TYPE danger_level AS ENUM ('low', 'medium', 'high')"},
-		{"DROP TYPE IF EXISTS membership_type CASCADE", "CREATE TYPE membership_type AS ENUM ('non_member', 'member', 'deceased', 'transferred')"},
-		// マスタ共通
-		{"DROP TYPE IF EXISTS inventory_category CASCADE", "CREATE TYPE inventory_category AS ENUM ('medicine', 'consumable', 'food', 'other')"},
-		{"DROP TYPE IF EXISTS inventory_status CASCADE", "CREATE TYPE inventory_status AS ENUM ('sufficient', 'low', 'out_of_stock')"},
-		{"DROP TYPE IF EXISTS dosage_form CASCADE", "CREATE TYPE dosage_form AS ENUM ('tablet', 'liquid', 'injection', 'topical', 'powder')"},
-		{"DROP TYPE IF EXISTS medicine_unit CASCADE", "CREATE TYPE medicine_unit AS ENUM ('per_tablet', 'per_ml', 'per_dose', 'per_gram')"},
-		{"DROP TYPE IF EXISTS cage_type CASCADE", "CREATE TYPE cage_type AS ENUM ('icu', 'dog', 'cat', 'general')"},
-		{"DROP TYPE IF EXISTS cage_size CASCADE", "CREATE TYPE cage_size AS ENUM ('small', 'medium', 'large')"},
-		{"DROP TYPE IF EXISTS body_size CASCADE", "CREATE TYPE body_size AS ENUM ('small', 'medium', 'large')"},
-		{"DROP TYPE IF EXISTS billing_unit CASCADE", "CREATE TYPE billing_unit AS ENUM ('per_day', 'per_night')"},
-		{"DROP TYPE IF EXISTS target_size CASCADE", "CREATE TYPE target_size AS ENUM ('small', 'medium', 'large', 'cat')"},
-		{"DROP TYPE IF EXISTS anesthesia_type CASCADE", "CREATE TYPE anesthesia_type AS ENUM ('none', 'local', 'sedation', 'general')"},
-		{"DROP TYPE IF EXISTS vaccine_species CASCADE", "CREATE TYPE vaccine_species AS ENUM ('dog', 'cat', 'both')"},
-		// 電子カルテ関連
-		{"DROP TYPE IF EXISTS medical_record_status CASCADE", "CREATE TYPE medical_record_status AS ENUM ('draft', 'finalized')"},
-		{"DROP TYPE IF EXISTS treatment_item_type CASCADE", "CREATE TYPE treatment_item_type AS ENUM ('consultation', 'procedure', 'medicine', 'other')"},
-		{"DROP TYPE IF EXISTS treatment_status CASCADE", "CREATE TYPE treatment_status AS ENUM ('pending', 'completed', 'not_applicable')"},
-		{"DROP TYPE IF EXISTS exam_status CASCADE", "CREATE TYPE exam_status AS ENUM ('pending', 'in_progress', 'result_entered', 'completed', 'confirmed')"},
-		{"DROP TYPE IF EXISTS exam_result_status CASCADE", "CREATE TYPE exam_result_status AS ENUM ('normal', 'high', 'low')"},
-		{"DROP TYPE IF EXISTS next_schedule_type CASCADE", "CREATE TYPE next_schedule_type AS ENUM ('3weeks', '4weeks', '1year', 'other')"},
-		{"DROP TYPE IF EXISTS appetite_level CASCADE", "CREATE TYPE appetite_level AS ENUM ('normal', 'increased', 'decreased', 'none')"},
-		{"DROP TYPE IF EXISTS water_intake_level CASCADE", "CREATE TYPE water_intake_level AS ENUM ('normal', 'increased', 'decreased', 'none')"},
-		{"DROP TYPE IF EXISTS medical_image_type CASCADE", "CREATE TYPE medical_image_type AS ENUM ('xray', 'echo', 'photo', 'endoscope', 'ct', 'mri', 'microscope', 'other')"},
-		{"DROP TYPE IF EXISTS estimate_status CASCADE", "CREATE TYPE estimate_status AS ENUM ('draft', 'sent', 'approved', 'rejected')"},
-		{"DROP TYPE IF EXISTS confirmation_status CASCADE", "CREATE TYPE confirmation_status AS ENUM ('pending', 'confirmed', 'returned')"},
-		{"DROP TYPE IF EXISTS item_category CASCADE", "CREATE TYPE item_category AS ENUM ('examination', 'test', 'procedure', 'surgery', 'medicine', 'food', 'goods', 'other', 'vaccine', 'trimming', 'hotel', 'training')"},
-		{"DROP TYPE IF EXISTS item_source CASCADE", "CREATE TYPE item_source AS ENUM ('medical_record', 'manual', 'hospitalization')"},
-		// 予約・会計・入院関連
-		{"DROP TYPE IF EXISTS visit_type CASCADE", "CREATE TYPE visit_type AS ENUM ('first', 'revisit')"},
-		{"DROP TYPE IF EXISTS reservation_status CASCADE", "CREATE TYPE reservation_status AS ENUM ('confirmed', 'pending', 'cancelled', 'checked_in', 'in_consultation', 'accounting', 'completed', 'no_show')"},
-		{"DROP TYPE IF EXISTS staff_type CASCADE", "CREATE TYPE staff_type AS ENUM ('doctor', 'nurse', 'trimmer', 'resource')"},
-		{"DROP TYPE IF EXISTS reservation_source CASCADE", "CREATE TYPE reservation_source AS ENUM ('manual', 'line')"},
-		{"DROP TYPE IF EXISTS billing_status CASCADE", "CREATE TYPE billing_status AS ENUM ('waiting', 'completed', 'cancelled', 'pending')"},
-		{"DROP TYPE IF EXISTS hospitalization_type CASCADE", "CREATE TYPE hospitalization_type AS ENUM ('hospitalization', 'hotel')"},
-		{"DROP TYPE IF EXISTS hospitalization_status CASCADE", "CREATE TYPE hospitalization_status AS ENUM ('admitted', 'discharged', 'reserved')"},
-		{"DROP TYPE IF EXISTS care_plan_type CASCADE", "CREATE TYPE care_plan_type AS ENUM ('food', 'medicine', 'treatment', 'instruction', 'item')"},
-		{"DROP TYPE IF EXISTS care_plan_status CASCADE", "CREATE TYPE care_plan_status AS ENUM ('active', 'completed', 'discontinued')"},
-		{"DROP TYPE IF EXISTS care_log_type CASCADE", "CREATE TYPE care_log_type AS ENUM ('food', 'excretion', 'medicine', 'treatment', 'other')"},
-		{"DROP TYPE IF EXISTS care_log_status CASCADE", "CREATE TYPE care_log_status AS ENUM ('completed', 'partial', 'skipped')"},
-		{"DROP TYPE IF EXISTS plan_timing CASCADE", "CREATE TYPE plan_timing AS ENUM ('morning', 'noon', 'night')"},
-		{"DROP TYPE IF EXISTS body_weight_unit CASCADE", "CREATE TYPE body_weight_unit AS ENUM ('Kg', 'g')"},
-		// トリミング・シフト関連
-		{"DROP TYPE IF EXISTS reservation_type_category CASCADE", "CREATE TYPE reservation_type_category AS ENUM ('general', 'trimming')"},
-		{"DROP TYPE IF EXISTS payment_method CASCADE", "CREATE TYPE payment_method AS ENUM ('cash', 'credit_card', 'electronic_money', 'bank_transfer')"},
-		{"DROP TYPE IF EXISTS shift_type CASCADE", "CREATE TYPE shift_type AS ENUM ('full', 'morning', 'afternoon', 'off', 'paid_leave')"},
-		{"DROP TYPE IF EXISTS tax_type CASCADE", "CREATE TYPE tax_type AS ENUM ('included', 'excluded', 'exempt')"},
-	}
-	for _, et := range enumTypes {
-		db.Exec(et.drop) // ignore errors on DROP
-		if err := db.Exec(et.create).Error; err != nil {
-			t.Fatalf("failed to create ENUM type: %v", err)
-		}
+		{"annual_amount asc", "annual_amount", "asc", "annual_amount ASC NULLS LAST"},
+		{"annual_amount desc", "annual_amount", "desc", "annual_amount DESC NULLS LAST"},
+		{"total_amount asc", "total_amount", "asc", "total_amount ASC NULLS LAST"},
+		{"visit_count desc", "visit_count", "desc", "period_visit_count DESC NULLS LAST"},
+		{"total_visit_count asc", "total_visit_count", "asc", "total_visit_count ASC NULLS LAST"},
+		{"annual_visit_count desc", "annual_visit_count", "desc", "annual_visit_count DESC NULLS LAST"},
+		{"last_visit_date asc", "last_visit_date", "asc", "last_visit_date ASC NULLS LAST"},
+		{"days_since_last_visit desc", "days_since_last_visit", "desc", "days_since_last_visit DESC NULLS LAST"},
+		{"owner_name asc (no NULLS LAST)", "owner_name", "asc", "owner_name ASC"},
+		{"unknown sort falls back to total_amount", "unknown_field", "desc", "total_amount DESC NULLS LAST"},
+		{"empty sort falls back to total_amount", "", "asc", "total_amount ASC NULLS LAST"},
+		{"invalid order defaults to desc", "total_amount", "sideways", "total_amount DESC NULLS LAST"},
+		{"empty order defaults to desc", "total_amount", "", "total_amount DESC NULLS LAST"},
 	}
 
-	// Truncate tables to ensure clean state (data isolation between tests)
-	db.Exec("TRUNCATE TABLE billing_refunds CASCADE")
-	db.Exec("TRUNCATE TABLE payments CASCADE")
-	db.Exec("TRUNCATE TABLE billings CASCADE")
-	db.Exec("TRUNCATE TABLE medical_records CASCADE")
-	db.Exec("TRUNCATE TABLE owners CASCADE")
-
-	db.AutoMigrate(
-		&model.Owner{},
-		&model.MedicalRecord{},
-		&model.Billing{},
-		&model.Payment{},
-		&model.BillingRefund{},
-	)
-	if db.Error != nil {
-		t.Fatalf("failed to migrate test db: %v", db.Error)
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Equal(t, tc.expect, repo.buildOrderBy(tc.sort, tc.order))
+		})
 	}
-	return db
 }
 
-// getTestDatabaseConnection はテスト用の DB コネクションを取得（環境変数から）
-func getTestDatabaseConnection(t *testing.T) *gorm.DB {
-	// 環境変数から DB パラメータを取得（デフォルト: ekarte_db）
-	dbHost := os.Getenv("DB_HOST")
-	if dbHost == "" {
-		dbHost = "db"
+// TestLtvRepository_CalculateDateRange_InvalidFormats は from/to のパース失敗時に
+// エラーが伝播することを検証する（DB 非依存）。
+func TestLtvRepository_CalculateDateRange_InvalidFormats(t *testing.T) {
+	repo := &ltvRepository{}
+
+	t.Run("invalid From format returns an error", func(t *testing.T) {
+		from := "not-a-date"
+		to := "2026-01-01"
+		fromDate, toDate, err := repo.calculateDateRange(&FindOwnerLTVParams{From: &from, To: &to})
+		assert.Error(t, err)
+		assert.Nil(t, fromDate)
+		assert.Nil(t, toDate)
+	})
+
+	t.Run("invalid To format returns an error", func(t *testing.T) {
+		from := "2026-01-01"
+		to := "not-a-date"
+		fromDate, toDate, err := repo.calculateDateRange(&FindOwnerLTVParams{From: &from, To: &to})
+		assert.Error(t, err)
+		assert.Nil(t, fromDate)
+		assert.Nil(t, toDate)
+	})
+
+	t.Run("year takes priority over period_preset", func(t *testing.T) {
+		year := 2025
+		fromDate, toDate, err := repo.calculateDateRange(&FindOwnerLTVParams{Year: &year, PeriodPreset: "last_3_months"})
+		require.NoError(t, err)
+		require.NotNil(t, fromDate)
+		require.NotNil(t, toDate)
+		assert.Equal(t, 2025, fromDate.Year())
+		assert.Equal(t, 2025, toDate.Year())
+	})
+
+	t.Run("no filters returns nil range (all time)", func(t *testing.T) {
+		fromDate, toDate, err := repo.calculateDateRange(&FindOwnerLTVParams{})
+		require.NoError(t, err)
+		assert.Nil(t, fromDate)
+		assert.Nil(t, toDate)
+	})
+}
+
+// TestFindOwnerLTV_InvalidFromDateFormatPropagatesError
+// calculateDateRange のエラーが公開 API である FindOwnerLTV から呼び出し元へ伝播することを検証する。
+func TestFindOwnerLTV_InvalidFromDateFormatPropagatesError(t *testing.T) {
+	db := setupTestDB(t)
+	repo := NewLtvRepository(db)
+	ctx := context.Background()
+
+	badFrom := "20260101"
+	to := "2026-12-31"
+	rows, err := repo.FindOwnerLTV(ctx, &FindOwnerLTVParams{
+		ClinicID: uint64(1),
+		From:     &badFrom,
+		To:       &to,
+	})
+	assert.Error(t, err)
+	assert.Nil(t, rows)
+}
+
+// TestFindOwnerLTV_MinVisitCountAndMaxVisitCountFilter
+// AGG-BE-002: min_visit_count / max_visit_count による HAVING 絞り込みを検証する。
+func TestFindOwnerLTV_MinVisitCountAndMaxVisitCountFilter(t *testing.T) {
+	db := setupTestDB(t)
+	repo := NewLtvRepository(db)
+	ctx := context.Background()
+
+	clinicID := uint64(1)
+
+	fewVisits := &model.Owner{ClinicID: clinicID, Name: "Owner Few Visits"}
+	manyVisits := &model.Owner{ClinicID: clinicID, Name: "Owner Many Visits"}
+	require.NoError(t, db.WithContext(ctx).Create(fewVisits).Error)
+	require.NoError(t, db.WithContext(ctx).Create(manyVisits).Error)
+
+	now := time.Now()
+	for i := 0; i < 2; i++ {
+		mr := &model.MedicalRecord{ClinicID: clinicID, OwnerID: &fewVisits.ID, Date: now.AddDate(0, 0, -i)}
+		require.NoError(t, db.WithContext(ctx).Create(mr).Error)
 	}
-	dbPort := os.Getenv("DB_PORT")
-	if dbPort == "" {
-		dbPort = "5432"
-	}
-	dbUser := os.Getenv("DB_USER")
-	if dbUser == "" {
-		dbUser = "ekarte_user"
-	}
-	dbPassword := os.Getenv("DB_PASSWORD")
-	if dbPassword == "" {
-		dbPassword = "ekarte_password"
-	}
-	dbName := os.Getenv("DB_NAME")
-	if dbName == "" {
-		dbName = "ekarte_db"
+	for i := 0; i < 5; i++ {
+		mr := &model.MedicalRecord{ClinicID: clinicID, OwnerID: &manyVisits.ID, Date: now.AddDate(0, 0, -i)}
+		require.NoError(t, db.WithContext(ctx).Create(mr).Error)
 	}
 
-	testDBName := dbName + "_test"
-	mainDSN := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable", dbUser, dbPassword, dbHost, dbPort, dbName)
+	t.Run("min_visit_count excludes owners with fewer visits", func(t *testing.T) {
+		minVisits := int64(3)
+		rows, err := repo.FindOwnerLTV(ctx, &FindOwnerLTVParams{
+			ClinicID:      clinicID,
+			MinVisitCount: &minVisits,
+			IncludeZero:   true,
+		})
+		require.NoError(t, err)
+		require.Len(t, rows, 1)
+		assert.Equal(t, manyVisits.ID, rows[0].OwnerID)
+	})
 
-	// まず本番DBに接続してテストDBを作成
-	mainDB, err := gorm.Open(postgres.Open(mainDSN), &gorm.Config{})
-	if err != nil {
-		t.Logf("warning: failed to connect to main db: %v", err)
-	} else {
-		mainDB.Exec("CREATE DATABASE " + testDBName)
-	}
+	t.Run("max_visit_count excludes owners with more visits", func(t *testing.T) {
+		maxVisits := int64(3)
+		rows, err := repo.FindOwnerLTV(ctx, &FindOwnerLTVParams{
+			ClinicID:      clinicID,
+			MaxVisitCount: &maxVisits,
+			IncludeZero:   true,
+		})
+		require.NoError(t, err)
+		require.Len(t, rows, 1)
+		assert.Equal(t, fewVisits.ID, rows[0].OwnerID)
+	})
+}
 
-	// テストDB接続
-	testDSN := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable", dbUser, dbPassword, dbHost, dbPort, testDBName)
-	if envDSN := os.Getenv("TEST_DATABASE_URL"); envDSN != "" {
-		testDSN = envDSN
-	}
-	db, err := gorm.Open(postgres.Open(testDSN), &gorm.Config{})
-	if err != nil {
-		t.Fatalf("failed to connect to test db: %v", err)
-	}
-	return db
+// TestFindOwnerLTV_LastVisitBucketFilterExcludesOtherBuckets
+// AGG-BE-003: last_visit_bucket 指定時、他バケットのオーナーは除外されることを検証する。
+func TestFindOwnerLTV_LastVisitBucketFilterExcludesOtherBuckets(t *testing.T) {
+	db := setupTestDB(t)
+	repo := NewLtvRepository(db)
+	ctx := context.Background()
+
+	clinicID := uint64(1)
+	now := time.Now()
+
+	recentOwner := &model.Owner{ClinicID: clinicID, Name: "Owner Recent"}
+	oldOwner := &model.Owner{ClinicID: clinicID, Name: "Owner Old"}
+	require.NoError(t, db.WithContext(ctx).Create(recentOwner).Error)
+	require.NoError(t, db.WithContext(ctx).Create(oldOwner).Error)
+
+	require.NoError(t, db.WithContext(ctx).Create(&model.MedicalRecord{ClinicID: clinicID, OwnerID: &recentOwner.ID, Date: now.AddDate(0, 0, -1)}).Error)
+	require.NoError(t, db.WithContext(ctx).Create(&model.MedicalRecord{ClinicID: clinicID, OwnerID: &oldOwner.ID, Date: now.AddDate(0, 0, -400)}).Error)
+
+	rows, err := repo.FindOwnerLTV(ctx, &FindOwnerLTVParams{
+		ClinicID:        clinicID,
+		LastVisitBucket: "within_3m",
+		IncludeZero:     true,
+	})
+	require.NoError(t, err)
+	require.Len(t, rows, 1)
+	assert.Equal(t, recentOwner.ID, rows[0].OwnerID)
+}
+
+// TestFindOwnerLTV_SortOrdering
+// sort/order パラメータの組み合わせで total_amount の昇順・降順が反転することを検証する。
+func TestFindOwnerLTV_SortOrdering(t *testing.T) {
+	db := setupTestDB(t)
+	repo := NewLtvRepository(db)
+	ctx := context.Background()
+
+	clinicID := uint64(1)
+
+	low := &model.Owner{ClinicID: clinicID, Name: "Owner Low Amount"}
+	high := &model.Owner{ClinicID: clinicID, Name: "Owner High Amount"}
+	require.NoError(t, db.WithContext(ctx).Create(low).Error)
+	require.NoError(t, db.WithContext(ctx).Create(high).Error)
+
+	mrLow := &model.MedicalRecord{ClinicID: clinicID, OwnerID: &low.ID, Date: time.Now()}
+	require.NoError(t, db.WithContext(ctx).Create(mrLow).Error)
+	require.NoError(t, db.WithContext(ctx).Create(&model.Billing{ClinicID: clinicID, MedicalRecordID: &mrLow.ID, OwnerID: &low.ID, TotalAmount: 1000, Status: model.BillingStatusCompleted}).Error)
+
+	mrHigh := &model.MedicalRecord{ClinicID: clinicID, OwnerID: &high.ID, Date: time.Now()}
+	require.NoError(t, db.WithContext(ctx).Create(mrHigh).Error)
+	require.NoError(t, db.WithContext(ctx).Create(&model.Billing{ClinicID: clinicID, MedicalRecordID: &mrHigh.ID, OwnerID: &high.ID, TotalAmount: 9000, Status: model.BillingStatusCompleted}).Error)
+
+	t.Run("ascending order returns the lowest total_amount first", func(t *testing.T) {
+		rows, err := repo.FindOwnerLTV(ctx, &FindOwnerLTVParams{ClinicID: clinicID, Sort: "total_amount", Order: "asc", IncludeZero: true})
+		require.NoError(t, err)
+		require.Len(t, rows, 2)
+		assert.Equal(t, low.ID, rows[0].OwnerID)
+		assert.Equal(t, high.ID, rows[1].OwnerID)
+	})
+
+	t.Run("descending order returns the highest total_amount first", func(t *testing.T) {
+		rows, err := repo.FindOwnerLTV(ctx, &FindOwnerLTVParams{ClinicID: clinicID, Sort: "total_amount", Order: "desc", IncludeZero: true})
+		require.NoError(t, err)
+		require.Len(t, rows, 2)
+		assert.Equal(t, high.ID, rows[0].OwnerID)
+		assert.Equal(t, low.ID, rows[1].OwnerID)
+	})
 }

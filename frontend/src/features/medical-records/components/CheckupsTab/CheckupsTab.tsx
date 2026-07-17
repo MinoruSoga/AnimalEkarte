@@ -21,7 +21,7 @@ import {
 import {
   makeDefaultCheckupAddForm,
   type AddCheckupFormState,
-} from "./CheckupsTabTableModel";
+} from "./checkups-tab-table-model";
 
 interface CheckupsTabProps {
   medicalRecordId: string;

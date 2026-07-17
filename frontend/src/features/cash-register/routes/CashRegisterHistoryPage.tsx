@@ -1,6 +1,7 @@
 import { useState, useCallback } from "react";
 import { useSearchParams } from "react-router";
-import { C, STYLE } from "@/lib/design-tokens";
+import { History } from "lucide-react";
+import { C, ICON, LAYOUT, STYLE } from "@/lib/design-tokens";
 import {
   Dialog,
   DialogContent,
@@ -9,12 +10,20 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { formatJSTDateTimeLocal, toJSTWallDate } from "@/lib/jst-date";
+import { Pagination } from "@/components/shared/Pagination";
+import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
+import { formatCurrency } from "@/utils/format/number";
 import { useGetCashRegisterCloses } from "../api/get-cash-register-closes";
 import type { CashRegisterClose } from "../api/get-cash-register-closes";
 import { PERIOD_LABELS, PERIOD_OPTIONS, type CashRegisterPeriod } from "../constants";
 import { summarizeCategoryTotals } from "../category-breakdown";
+import { monthDateRange } from "../month-date-range";
+import { ResourceCashRegisterClose } from "@/types/generated/models";
 
 type PeriodFilter = "all" | CashRegisterPeriod;
+
+// BE のデフォルト limit（query_helpers.go）と一致させる
+const HISTORY_PAGE_SIZE = 20;
 
 // 月次集計レポートからのドリルダウン用 ?date=YYYY-MM-DD を年月にパースする
 function parseHighlightDate(dateParam: string | null): { year: number; month: number } | null {
@@ -43,16 +52,34 @@ export function CashRegisterHistoryPage() {
   const [month, setMonth] = useState<number>(drillDownTarget?.month ?? now.getMonth() + 1);
   const [periodFilter, setPeriodFilter] = useState<PeriodFilter>("all");
   const [selectedClose, setSelectedClose] = useState<CashRegisterClose | null>(null);
+  // ドリルダウン(?date=)初期表示は該当日 1 日分に絞る。年月セレクタを操作したら
+  // null に落として月レンジ(月初〜月末)表示へ切り替える。
+  const [singleDate, setSingleDate] = useState<string | null>(highlightDate);
+  const [page, setPage] = useState<number>(1);
 
-  const { data, isLoading, isError } = useGetCashRegisterCloses({ year, month });
+  // BE 契約: start_date <= close_date <= end_date（両端含む）。年月→月初/月末を導出する。
+  const { startDate, endDate } = singleDate
+    ? { startDate: singleDate, endDate: singleDate }
+    : monthDateRange(year, month);
+
+  const { data, isLoading, isError } = useGetCashRegisterCloses({
+    start_date: startDate,
+    end_date: endDate,
+    page,
+    limit: HISTORY_PAGE_SIZE,
+  });
 
   const handleYearChange = useCallback((e: React.ChangeEvent<HTMLSelectElement>) => {
     setYear(Number(e.target.value));
-  }, []);
+    setSingleDate(null);
+    setPage(1);
+  }, [setPage]);
 
   const handleMonthChange = useCallback((e: React.ChangeEvent<HTMLSelectElement>) => {
     setMonth(Number(e.target.value));
-  }, []);
+    setSingleDate(null);
+    setPage(1);
+  }, [setPage]);
 
   const handlePeriodFilterChange = useCallback((e: React.ChangeEvent<HTMLSelectElement>) => {
     setPeriodFilter(e.target.value as PeriodFilter);
@@ -60,9 +87,16 @@ export function CashRegisterHistoryPage() {
 
   const yearOptions = Array.from({ length: 5 }, (_, i) => now.getFullYear() - i);
 
+  // period(AM/PM/EMG)はクライアント側フィルタのため、現在ページ内の行だけに作用する。
   const rows = (data?.data ?? []).filter(
     (close) => periodFilter === "all" || close.period === periodFilter,
   );
+
+  // ページネーションはサーバー側。BE の total と FE 管理の page/limit から算出する。
+  const total = data?.total ?? 0;
+  const totalPages = Math.max(1, Math.ceil(total / HISTORY_PAGE_SIZE));
+  const startIndex = total === 0 ? 0 : (page - 1) * HISTORY_PAGE_SIZE + 1;
+  const endIndex = Math.min(page * HISTORY_PAGE_SIZE, total);
 
   const detailSubtotals = selectedClose
     ? summarizeCategoryTotals(selectedClose.categoryBreakdown)
@@ -72,223 +106,241 @@ export function CashRegisterHistoryPage() {
     : 0;
 
   return (
-    <div className="flex-1 overflow-y-auto px-6 py-6 space-y-6">
-      <h1 className={`text-xl font-bold ${C.text}`}>締め履歴</h1>
+    <PageLayout
+      title="締め履歴"
+      resource={ResourceCashRegisterClose}
+      icon={<History className={`${ICON.page} ${C.text}`} />}
+      maxWidth={LAYOUT.pageContentMaxWidth.full}
+    >
+      <div className="space-y-6">
+        {highlightDate ? (
+          <p className={`text-base ${C.text60}`}>
+            月次集計レポートから <span className={`font-medium ${C.text}`}>{highlightDate}</span>{" "}
+            の締めをハイライト表示しています。
+          </p>
+        ) : null}
 
-      {highlightDate ? (
-        <p className={`text-base ${C.text60}`}>
-          月次集計レポートから <span className={`font-medium ${C.text}`}>{highlightDate}</span>{" "}
-          の締めをハイライト表示しています。
-        </p>
-      ) : null}
+        {/* 絞り込み */}
+        <div className="flex flex-wrap gap-3 items-center">
+          <div>
+            <label htmlFor="hist_year" className={`${STYLE.formLabel} mr-2`}>
+              年
+            </label>
+            <select
+              id="hist_year"
+              value={year}
+              onChange={handleYearChange}
+              className={`${STYLE.formInput} rounded-[4px] border px-3 inline-block w-auto`}
+            >
+              {yearOptions.map((y) => (
+                <option key={y} value={y}>
+                  {y}年
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label htmlFor="hist_month" className={`${STYLE.formLabel} mr-2`}>
+              月
+            </label>
+            <select
+              id="hist_month"
+              value={month}
+              onChange={handleMonthChange}
+              className={`${STYLE.formInput} rounded-[4px] border px-3 inline-block w-auto`}
+            >
+              {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
+                <option key={m} value={m}>
+                  {m}月
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label htmlFor="hist_period" className={`${STYLE.formLabel} mr-2`}>
+              区分
+            </label>
+            <select
+              id="hist_period"
+              value={periodFilter}
+              onChange={handlePeriodFilterChange}
+              className={`${STYLE.formInput} rounded-[4px] border px-3 inline-block w-auto`}
+            >
+              <option value="all">すべて</option>
+              {PERIOD_OPTIONS.map((p) => (
+                <option key={p} value={p}>
+                  {PERIOD_LABELS[p]}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
 
-      {/* 絞り込み */}
-      <div className="flex flex-wrap gap-3 items-center">
-        <div>
-          <label htmlFor="hist_year" className={`${STYLE.formLabel} mr-2`}>
-            年
-          </label>
-          <select
-            id="hist_year"
-            value={year}
-            onChange={handleYearChange}
-            className={`${STYLE.formInput} rounded-[4px] border px-3 inline-block w-auto`}
-          >
-            {yearOptions.map((y) => (
-              <option key={y} value={y}>
-                {y}年
-              </option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <label htmlFor="hist_month" className={`${STYLE.formLabel} mr-2`}>
-            月
-          </label>
-          <select
-            id="hist_month"
-            value={month}
-            onChange={handleMonthChange}
-            className={`${STYLE.formInput} rounded-[4px] border px-3 inline-block w-auto`}
-          >
-            {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
-              <option key={m} value={m}>
-                {m}月
-              </option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <label htmlFor="hist_period" className={`${STYLE.formLabel} mr-2`}>
-            区分
-          </label>
-          <select
-            id="hist_period"
-            value={periodFilter}
-            onChange={handlePeriodFilterChange}
-            className={`${STYLE.formInput} rounded-[4px] border px-3 inline-block w-auto`}
-          >
-            <option value="all">すべて</option>
-            {PERIOD_OPTIONS.map((p) => (
-              <option key={p} value={p}>
-                {PERIOD_LABELS[p]}
-              </option>
-            ))}
-          </select>
-        </div>
+        {isLoading ? (
+          <div className="flex items-center justify-center py-8">
+            <p className={`text-base ${C.text50}`}>読み込み中...</p>
+          </div>
+        ) : isError ? (
+          <div className="flex items-center justify-center py-8">
+            <p className={`text-base ${C.danger}`}>データの取得に失敗しました</p>
+          </div>
+        ) : (
+          <div className={`${C.bgWhite} rounded-lg border ${C.borderLight}`}>
+            {rows.length > 0 ? (
+              <table className="w-full text-base">
+                <thead>
+                  <tr className={`border-b ${C.borderLight} ${C.bgPage}`}>
+                    <th className={`text-left px-4 py-2 font-medium ${C.text70}`}>日付</th>
+                    <th className={`text-left px-4 py-2 font-medium ${C.text70}`}>区分</th>
+                    <th className={`text-right px-4 py-2 font-medium ${C.text70}`}>理論現金</th>
+                    <th className={`text-right px-4 py-2 font-medium ${C.text70}`}>実際の現金</th>
+                    <th className={`text-right px-4 py-2 font-medium ${C.text70}`}>差額</th>
+                    <th className={`text-left px-4 py-2 font-medium ${C.text70}`}>担当者</th>
+                    <th className={`text-left px-4 py-2 font-medium ${C.text70}`}>締め時刻</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rows.map((close) => {
+                    const diff = (close.actualCash ?? 0) - (close.theoreticalCash ?? 0);
+                    const isHighlighted =
+                      highlightDate != null && close.closeDate.slice(0, 10) === highlightDate;
+                    return (
+                      <tr
+                        key={close.id}
+                        role="button"
+                        tabIndex={0}
+                        aria-label={`${close.closeDate} ${PERIOD_LABELS[close.period]} の締め詳細を表示`}
+                        data-highlighted={isHighlighted ? "true" : undefined}
+                        onClick={() => setSelectedClose(close)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            setSelectedClose(close);
+                          }
+                        }}
+                        className={`border-b ${C.borderLight} cursor-pointer ${
+                          isHighlighted ? C.bgBrandLight40 : STYLE.tableRow
+                        }`}
+                      >
+                        <td className={`px-4 py-3 ${C.text}`}>{close.closeDate}</td>
+                        <td className={`px-4 py-3 ${C.text}`}>
+                          {PERIOD_LABELS[close.period]}
+                        </td>
+                        <td className={`px-4 py-3 text-right ${C.text}`}>
+                          {formatCurrency(close.theoreticalCash ?? 0)}
+                        </td>
+                        <td className={`px-4 py-3 text-right ${C.text}`}>
+                          {formatCurrency(close.actualCash ?? 0)}
+                        </td>
+                        <td className={`px-4 py-3 text-right font-medium ${diffClass(diff)}`}>
+                          {formatDiff(diff)}
+                        </td>
+                        <td className={`px-4 py-3 ${C.text}`}>
+                          {close.closedByStaffName ?? "—"}
+                        </td>
+                        <td className={`px-4 py-3 ${C.text60}`}>
+                          {close.closedAt
+                            ? formatJSTDateTimeLocal(close.closedAt).slice(5).replace("T", " ")
+                            : "—"}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            ) : (
+              <p className={`text-base ${C.text50} py-8 text-center`}>
+                締め履歴がありません
+              </p>
+            )}
+          </div>
+        )}
+
+        {!isLoading && !isError && total > HISTORY_PAGE_SIZE ? (
+          <Pagination
+            currentPage={page}
+            totalPages={totalPages}
+            totalCount={total}
+            startIndex={startIndex}
+            endIndex={endIndex}
+            onPageChange={(p) => setPage(p)}
+            onPrev={() => setPage((p) => Math.max(1, p - 1))}
+            onNext={() => setPage((p) => Math.min(totalPages, p + 1))}
+          />
+        ) : null}
+
+        <Dialog
+          open={selectedClose !== null}
+          onOpenChange={(open) => {
+            if (!open) setSelectedClose(null);
+          }}
+        >
+          <DialogContent>
+            {selectedClose ? (
+              <>
+                <DialogHeader>
+                  <DialogTitle>
+                    {selectedClose.closeDate} {PERIOD_LABELS[selectedClose.period]} の締め詳細
+                  </DialogTitle>
+                  <DialogDescription>
+                    この締めレコードの集計内訳と差額を表示しています。
+                  </DialogDescription>
+                </DialogHeader>
+
+                <div className="space-y-4">
+                  <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-base">
+                    <dt className={C.text60}>理論現金</dt>
+                    <dd className={`text-right ${C.text}`}>
+                      {formatCurrency(selectedClose.theoreticalCash ?? 0)}
+                    </dd>
+                    <dt className={C.text60}>実際の現金</dt>
+                    <dd className={`text-right ${C.text}`}>
+                      {formatCurrency(selectedClose.actualCash ?? 0)}
+                    </dd>
+                    <dt className={C.text60}>差額</dt>
+                    <dd className={`text-right font-medium ${diffClass(detailDiff)}`}>
+                      {formatDiff(detailDiff)}
+                    </dd>
+                    <dt className={C.text60}>担当者</dt>
+                    <dd className={`text-right ${C.text}`}>
+                      {selectedClose.closedByStaffName ?? "—"}
+                    </dd>
+                    <dt className={C.text60}>締め日時</dt>
+                    <dd className={`text-right ${C.text}`}>
+                      {selectedClose.closedAt
+                        ? formatJSTDateTimeLocal(selectedClose.closedAt).replace("T", " ")
+                        : "—"}
+                    </dd>
+                  </dl>
+
+                  <div>
+                    <p className={`text-sm font-medium ${C.text70} mb-1`}>メモ</p>
+                    <p className={`text-base ${C.text}`}>
+                      {selectedClose.memo ? selectedClose.memo : "—"}
+                    </p>
+                  </div>
+
+                  <div>
+                    <p className={`text-sm font-medium ${C.text70} mb-2`}>部門別内訳</p>
+                    {detailSubtotals.length > 0 ? (
+                      <dl className="space-y-1">
+                        {detailSubtotals.map((row) => (
+                          <div key={row.label} className="flex justify-between text-base">
+                            <dt className={C.text60}>{row.label}</dt>
+                            <dd className={C.text}>{formatCurrency(row.total)}</dd>
+                          </div>
+                        ))}
+                      </dl>
+                    ) : (
+                      <p className={`text-base ${C.text50}`}>内訳データなし</p>
+                    )}
+                  </div>
+                </div>
+              </>
+            ) : null}
+          </DialogContent>
+        </Dialog>
       </div>
-
-      {isLoading ? (
-        <div className="flex items-center justify-center py-8">
-          <p className={`text-base ${C.text50}`}>読み込み中...</p>
-        </div>
-      ) : isError ? (
-        <div className="flex items-center justify-center py-8">
-          <p className={`text-base ${C.danger}`}>データの取得に失敗しました</p>
-        </div>
-      ) : (
-        <div className={`${C.bgWhite} rounded-lg border ${C.borderLight}`}>
-          {rows.length > 0 ? (
-            <table className="w-full text-base">
-              <thead>
-                <tr className={`border-b ${C.borderLight} ${C.bgPage}`}>
-                  <th className={`text-left px-4 py-2 font-medium ${C.text70}`}>日付</th>
-                  <th className={`text-left px-4 py-2 font-medium ${C.text70}`}>区分</th>
-                  <th className={`text-right px-4 py-2 font-medium ${C.text70}`}>理論現金</th>
-                  <th className={`text-right px-4 py-2 font-medium ${C.text70}`}>実際の現金</th>
-                  <th className={`text-right px-4 py-2 font-medium ${C.text70}`}>差額</th>
-                  <th className={`text-left px-4 py-2 font-medium ${C.text70}`}>担当者</th>
-                  <th className={`text-left px-4 py-2 font-medium ${C.text70}`}>締め時刻</th>
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((close) => {
-                  const diff = (close.actualCash ?? 0) - (close.theoreticalCash ?? 0);
-                  const isHighlighted =
-                    highlightDate != null && close.closeDate.slice(0, 10) === highlightDate;
-                  return (
-                    <tr
-                      key={close.id}
-                      role="button"
-                      tabIndex={0}
-                      aria-label={`${close.closeDate} ${PERIOD_LABELS[close.period]} の締め詳細を表示`}
-                      data-highlighted={isHighlighted ? "true" : undefined}
-                      onClick={() => setSelectedClose(close)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter" || e.key === " ") {
-                          e.preventDefault();
-                          setSelectedClose(close);
-                        }
-                      }}
-                      className={`border-b ${C.borderLight} cursor-pointer ${
-                        isHighlighted ? C.bgAccentLight40 : STYLE.tableRow
-                      }`}
-                    >
-                      <td className={`px-4 py-3 ${C.text}`}>{close.closeDate}</td>
-                      <td className={`px-4 py-3 ${C.text}`}>
-                        {PERIOD_LABELS[close.period]}
-                      </td>
-                      <td className={`px-4 py-3 text-right ${C.text}`}>
-                        ¥{(close.theoreticalCash ?? 0).toLocaleString()}
-                      </td>
-                      <td className={`px-4 py-3 text-right ${C.text}`}>
-                        ¥{(close.actualCash ?? 0).toLocaleString()}
-                      </td>
-                      <td className={`px-4 py-3 text-right font-medium ${diffClass(diff)}`}>
-                        {formatDiff(diff)}
-                      </td>
-                      <td className={`px-4 py-3 ${C.text}`}>
-                        {close.closedByStaffName ?? "—"}
-                      </td>
-                      <td className={`px-4 py-3 ${C.text60}`}>
-                        {close.closedAt
-                          ? formatJSTDateTimeLocal(close.closedAt).slice(5).replace("T", " ")
-                          : "—"}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          ) : (
-            <p className={`text-base ${C.text50} py-8 text-center`}>
-              締め履歴がありません
-            </p>
-          )}
-        </div>
-      )}
-
-      <Dialog
-        open={selectedClose !== null}
-        onOpenChange={(open) => {
-          if (!open) setSelectedClose(null);
-        }}
-      >
-        <DialogContent>
-          {selectedClose ? (
-            <>
-              <DialogHeader>
-                <DialogTitle>
-                  {selectedClose.closeDate} {PERIOD_LABELS[selectedClose.period]} の締め詳細
-                </DialogTitle>
-                <DialogDescription>
-                  この締めレコードの集計内訳と差額を表示しています。
-                </DialogDescription>
-              </DialogHeader>
-
-              <div className="space-y-4">
-                <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-base">
-                  <dt className={C.text60}>理論現金</dt>
-                  <dd className={`text-right ${C.text}`}>
-                    ¥{(selectedClose.theoreticalCash ?? 0).toLocaleString()}
-                  </dd>
-                  <dt className={C.text60}>実際の現金</dt>
-                  <dd className={`text-right ${C.text}`}>
-                    ¥{(selectedClose.actualCash ?? 0).toLocaleString()}
-                  </dd>
-                  <dt className={C.text60}>差額</dt>
-                  <dd className={`text-right font-medium ${diffClass(detailDiff)}`}>
-                    {formatDiff(detailDiff)}
-                  </dd>
-                  <dt className={C.text60}>担当者</dt>
-                  <dd className={`text-right ${C.text}`}>
-                    {selectedClose.closedByStaffName ?? "—"}
-                  </dd>
-                  <dt className={C.text60}>締め日時</dt>
-                  <dd className={`text-right ${C.text}`}>
-                    {selectedClose.closedAt
-                      ? formatJSTDateTimeLocal(selectedClose.closedAt).replace("T", " ")
-                      : "—"}
-                  </dd>
-                </dl>
-
-                <div>
-                  <p className={`text-sm font-medium ${C.text70} mb-1`}>メモ</p>
-                  <p className={`text-base ${C.text}`}>
-                    {selectedClose.memo ? selectedClose.memo : "—"}
-                  </p>
-                </div>
-
-                <div>
-                  <p className={`text-sm font-medium ${C.text70} mb-2`}>部門別内訳</p>
-                  {detailSubtotals.length > 0 ? (
-                    <dl className="space-y-1">
-                      {detailSubtotals.map((row) => (
-                        <div key={row.label} className="flex justify-between text-base">
-                          <dt className={C.text60}>{row.label}</dt>
-                          <dd className={C.text}>¥{row.total.toLocaleString()}</dd>
-                        </div>
-                      ))}
-                    </dl>
-                  ) : (
-                    <p className={`text-base ${C.text50}`}>内訳データなし</p>
-                  )}
-                </div>
-              </div>
-            </>
-          ) : null}
-        </DialogContent>
-      </Dialog>
-    </div>
+    </PageLayout>
   );
 }

@@ -110,10 +110,10 @@ export const DailyVitalsSection = memo(function DailyVitalsSection({ vitals, onA
                     {sorted.map((v) => (
                         <div
                             key={v.id}
-                            className={`text-xs ${C.bgAccentLight} rounded px-2.5 py-2 border ${C.borderAccentBadge}`}
+                            className={`text-xs ${C.bgBrandLight} rounded px-2.5 py-2 border ${C.borderBrandLight}`}
                         >
                             <div className="flex items-center gap-2 mb-1">
-                                <span className={`font-semibold ${C.textAccentDark}`}>{v.time}</span>
+                                <span className={`font-semibold ${C.textBrandDark}`}>{v.time}</span>
                             </div>
                             <div className={`flex flex-wrap gap-x-3 gap-y-0.5 ${C.text70}`}>
                                 {v.temperature !== undefined && v.temperature !== null ? (

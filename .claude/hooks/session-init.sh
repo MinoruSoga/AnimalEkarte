@@ -14,18 +14,4 @@ if [[ -f "$PROGRESS_FILE" ]]; then
     echo ""
 fi
 
-# ハーネスが実行中であれば状態を表示（pure bash — python3 不要）
-HARNESS_FILE="$CLAUDE_PROJECT_DIR/.claude/logs/harness-active.json"
-if [[ -f "$HARNESS_FILE" ]]; then
-    echo ""
-    echo "=== Harness In Progress ==="
-    TASK=$(grep -o '"task"[[:space:]]*:[[:space:]]*"[^"]*"' "$HARNESS_FILE" | head -1 | sed 's/.*: *"\(.*\)"/\1/' || echo "unknown")
-    ITER=$(grep -o '"iteration"[[:space:]]*:[[:space:]]*[0-9]*' "$HARNESS_FILE" | head -1 | grep -o '[0-9]*$' || echo "?")
-    MAX=$(grep -o '"maxIterations"[[:space:]]*:[[:space:]]*[0-9]*' "$HARNESS_FILE" | head -1 | grep -o '[0-9]*$' || echo "3")
-    echo "Task: ${TASK:-unknown} | Iteration: ${ITER:-?} / ${MAX:-3}"
-    echo "Resume with: /harness ${TASK:-<task>}"
-    echo "=== End Harness Context ==="
-    echo ""
-fi
-
 exit 0

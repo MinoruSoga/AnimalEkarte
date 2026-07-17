@@ -263,3 +263,320 @@ func TestGenerateTimeSlots_AfternoonShift(t *testing.T) {
 }
 
 func tsStrPtr(s string) *string { return &s }
+
+// ---- minutesSinceMidnight 直接テスト ----
+
+func TestMinutesSinceMidnight(t *testing.T) {
+	tests := []struct {
+		name    string
+		hhmm    string
+		want    int
+		wantErr bool
+	}{
+		{name: "valid time 09:00", hhmm: "0900", want: 540},
+		{name: "valid time 23:59", hhmm: "2359", want: 1439},
+		{name: "valid time 00:00", hhmm: "0000", want: 0},
+		{name: "invalid length (too short)", hhmm: "900", wantErr: true},
+		{name: "invalid length (too long)", hhmm: "09000", wantErr: true},
+		{name: "invalid hour", hhmm: "2500", wantErr: true},
+		{name: "invalid minute", hhmm: "0060", wantErr: true},
+		// R1-3: 非ASCII数字混入は明示的に拒否する。以下は byte 型の unsigned wraparound
+		// （'0'=0x30 未満の文字は減算で 200+ に、'9' 超の文字は 10+ にラップする）により
+		// 現行実装が「たまたま」レンジ外へ弾いているだけの例。桁が偶然レンジ内に収まる非数字
+		// （':' などの 0x3A-0x47 台の文字）は素通りするため、明示的な ASCII 数字チェックが必要。
+		{name: "non-digit letter in hour tens (caught by range, kept as regression)", hhmm: "1a00", wantErr: true},
+		{name: "non-digit letter in minute tens (caught by range, kept as regression)", hhmm: "12x0", wantErr: true},
+		{name: "full-width digits (caught by length, kept as regression)", hhmm: "１２00", wantErr: true},
+		{name: "leading space (caught by range, kept as regression)", hhmm: " 900", wantErr: true},
+		{name: "colon in hour ones digit slips through range check", hhmm: "1:00", wantErr: true},
+		{name: "colon in hour ones digit with zero tens slips through range check", hhmm: "0:00", wantErr: true},
+		{name: "colon in minute ones digit slips through range check", hhmm: "090:", wantErr: true},
+		{name: "semicolon in hour ones digit slips through range check", hhmm: "1;00", wantErr: true},
+		{name: "less-than sign in hour ones digit slips through range check", hhmm: "0<00", wantErr: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := minutesSinceMidnight(tt.hhmm)
+			if tt.wantErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+				assert.Equal(t, tt.want, got)
+			}
+		})
+	}
+}
+
+// ---- resolveWorkIntervals 直接テスト ----
+
+func TestResolveWorkIntervals(t *testing.T) {
+	baseInput := func() *TimeSlotsInput {
+		return &TimeSlotsInput{
+			BusinessHours: BusinessHours{Start: "0900", End: "1900"},
+			DefaultBreaks: []BreakPeriod{{Start: "1200", End: "1300"}},
+		}
+	}
+
+	t.Run("業務時間開始が不正な場合はエラー", func(t *testing.T) {
+		input := baseInput()
+		input.BusinessHours.Start = "invalid"
+		_, err := resolveWorkIntervals(input, &StaffSlotInput{})
+		assert.Error(t, err)
+	})
+
+	t.Run("業務時間終了が不正な場合はエラー", func(t *testing.T) {
+		input := baseInput()
+		input.BusinessHours.End = "invalid"
+		_, err := resolveWorkIntervals(input, &StaffSlotInput{})
+		assert.Error(t, err)
+	})
+
+	t.Run("デフォルト休憩開始が不正な場合はエラー", func(t *testing.T) {
+		input := baseInput()
+		input.DefaultBreaks = []BreakPeriod{{Start: "invalid", End: "1300"}}
+		_, err := resolveWorkIntervals(input, &StaffSlotInput{})
+		assert.Error(t, err)
+	})
+
+	t.Run("デフォルト休憩終了が不正な場合はエラー", func(t *testing.T) {
+		input := baseInput()
+		input.DefaultBreaks = []BreakPeriod{{Start: "1200", End: "invalid"}}
+		_, err := resolveWorkIntervals(input, &StaffSlotInput{})
+		assert.Error(t, err)
+	})
+
+	t.Run("DefaultBreaksが空の場合はbsEndを既定の休憩境界に使用", func(t *testing.T) {
+		input := baseInput()
+		input.DefaultBreaks = nil
+		intervals, err := resolveWorkIntervals(input, &StaffSlotInput{ScheduleOverride: &StaffScheduleOverride{ShiftType: "morning"}})
+		assert.NoError(t, err)
+		assert.Equal(t, []interval{{540, 1140}}, intervals)
+	})
+
+	t.Run("ScheduleOverrideがnilの場合は基本営業時間を使用", func(t *testing.T) {
+		input := baseInput()
+		intervals, err := resolveWorkIntervals(input, &StaffSlotInput{})
+		assert.NoError(t, err)
+		assert.Equal(t, []interval{{540, 1140}}, intervals)
+	})
+
+	t.Run("ShiftType=off は空", func(t *testing.T) {
+		input := baseInput()
+		intervals, err := resolveWorkIntervals(input, &StaffSlotInput{ScheduleOverride: &StaffScheduleOverride{ShiftType: "off"}})
+		assert.NoError(t, err)
+		assert.Nil(t, intervals)
+	})
+
+	t.Run("ShiftType=paid_leave は空", func(t *testing.T) {
+		input := baseInput()
+		intervals, err := resolveWorkIntervals(input, &StaffSlotInput{ScheduleOverride: &StaffScheduleOverride{ShiftType: "paid_leave"}})
+		assert.NoError(t, err)
+		assert.Nil(t, intervals)
+	})
+
+	t.Run("WorkStartが不正な文字列の場合はデフォルトにフォールバック", func(t *testing.T) {
+		input := baseInput()
+		invalidStart := "invalid"
+		intervals, err := resolveWorkIntervals(input, &StaffSlotInput{
+			ScheduleOverride: &StaffScheduleOverride{ShiftType: "full", WorkStart: &invalidStart},
+		})
+		assert.NoError(t, err)
+		assert.Equal(t, 540, intervals[0].start) // bsStart にフォールバック
+	})
+
+	t.Run("WorkEndが不正な文字列の場合はデフォルトにフォールバック", func(t *testing.T) {
+		input := baseInput()
+		invalidEnd := "invalid"
+		intervals, err := resolveWorkIntervals(input, &StaffSlotInput{
+			ScheduleOverride: &StaffScheduleOverride{ShiftType: "full", WorkEnd: &invalidEnd},
+		})
+		assert.NoError(t, err)
+		assert.Equal(t, 1140, intervals[0].end) // bsEnd にフォールバック
+	})
+
+	t.Run("afternoonシフトでWorkStart/WorkEndが不正な場合はデフォルトにフォールバック", func(t *testing.T) {
+		input := baseInput()
+		invalid := "invalid"
+		intervals, err := resolveWorkIntervals(input, &StaffSlotInput{
+			ScheduleOverride: &StaffScheduleOverride{ShiftType: "afternoon", WorkStart: &invalid, WorkEnd: &invalid},
+		})
+		assert.NoError(t, err)
+		assert.Equal(t, []interval{{780, 1140}}, intervals) // defaultBreakEnd(13:00) 〜 bsEnd(19:00)
+	})
+}
+
+// ---- resolveBreakIntervals 直接テスト ----
+
+func TestResolveBreakIntervals(t *testing.T) {
+	t.Run("ScheduleOverrideがnilの場合はDefaultBreaksを使用", func(t *testing.T) {
+		input := &TimeSlotsInput{DefaultBreaks: []BreakPeriod{{Start: "1200", End: "1300"}}}
+		got, err := resolveBreakIntervals(input, &StaffSlotInput{})
+		assert.NoError(t, err)
+		assert.Equal(t, []interval{{720, 780}}, got)
+	})
+
+	t.Run("ScheduleOverrideにBreaksがある場合は個人設定を優先", func(t *testing.T) {
+		input := &TimeSlotsInput{DefaultBreaks: []BreakPeriod{{Start: "1200", End: "1300"}}}
+		got, err := resolveBreakIntervals(input, &StaffSlotInput{
+			ScheduleOverride: &StaffScheduleOverride{Breaks: []BreakPeriod{{Start: "1400", End: "1430"}}},
+		})
+		assert.NoError(t, err)
+		assert.Equal(t, []interval{{840, 870}}, got)
+	})
+
+	t.Run("休憩開始が不正な場合はエラー", func(t *testing.T) {
+		input := &TimeSlotsInput{DefaultBreaks: []BreakPeriod{{Start: "invalid", End: "1300"}}}
+		_, err := resolveBreakIntervals(input, &StaffSlotInput{})
+		assert.Error(t, err)
+	})
+
+	t.Run("休憩終了が不正な場合はエラー", func(t *testing.T) {
+		input := &TimeSlotsInput{DefaultBreaks: []BreakPeriod{{Start: "1200", End: "invalid"}}}
+		_, err := resolveBreakIntervals(input, &StaffSlotInput{})
+		assert.Error(t, err)
+	})
+
+	t.Run("休憩が空の場合は空リスト", func(t *testing.T) {
+		input := &TimeSlotsInput{}
+		got, err := resolveBreakIntervals(input, &StaffSlotInput{})
+		assert.NoError(t, err)
+		assert.Empty(t, got)
+	})
+}
+
+// ---- generateAllowGaps 直接テスト ----
+
+func TestGenerateAllowGaps(t *testing.T) {
+	t.Run("intervalMinutesが0以下の場合はdurにフォールバック", func(t *testing.T) {
+		available := []interval{{540, 600}} // 09:00-10:00
+		slots, err := generateAllowGaps(available, 15, 0)
+		assert.NoError(t, err)
+		assert.Len(t, slots, 4) // 60分/15分=4枠
+	})
+
+	t.Run("区間に枠が収まらない場合は空", func(t *testing.T) {
+		available := []interval{{540, 550}} // 10分しかない
+		slots, err := generateAllowGaps(available, 15, 15)
+		assert.NoError(t, err)
+		assert.Empty(t, slots)
+	})
+
+	t.Run("複数区間から生成", func(t *testing.T) {
+		available := []interval{{540, 570}, {600, 630}} // 09:00-09:30, 10:00-10:30
+		slots, err := generateAllowGaps(available, 15, 15)
+		assert.NoError(t, err)
+		assert.Len(t, slots, 4)
+	})
+}
+
+// ---- generateForStaff 直接テスト ----
+
+func TestGenerateForStaff(t *testing.T) {
+	t.Run("resolveWorkIntervalsのエラーを伝播", func(t *testing.T) {
+		input := &TimeSlotsInput{
+			BusinessHours: BusinessHours{Start: "invalid", End: "1900"},
+			Mode:          "allow_gaps",
+		}
+		_, err := generateForStaff(input, &StaffSlotInput{})
+		assert.Error(t, err)
+	})
+
+	t.Run("resolveBreakIntervalsのエラーを伝播", func(t *testing.T) {
+		// DefaultBreaks 自体は valid にして resolveWorkIntervals を通過させ、
+		// staffInput.ScheduleOverride.Breaks（優先される）を invalid にして resolveBreakIntervals 側のみを失敗させる。
+		input := &TimeSlotsInput{
+			BusinessHours: BusinessHours{Start: "0900", End: "1900"},
+			DefaultBreaks: []BreakPeriod{{Start: "1200", End: "1300"}},
+			Mode:          "allow_gaps",
+		}
+		staffInput := &StaffSlotInput{
+			ScheduleOverride: &StaffScheduleOverride{Breaks: []BreakPeriod{{Start: "invalid", End: "1300"}}},
+		}
+		_, err := generateForStaff(input, staffInput)
+		assert.Error(t, err)
+	})
+
+	t.Run("既存予約のStartTimeが不正な場合はエラー", func(t *testing.T) {
+		input := &TimeSlotsInput{
+			BusinessHours: BusinessHours{Start: "0900", End: "1900"},
+			Mode:          "allow_gaps",
+		}
+		staffInput := &StaffSlotInput{
+			StaffID: 1,
+			ExistingResvs: []ExistingReservation{
+				{StaffID: 1, StartTime: "invalid", EndTime: "1000"},
+			},
+		}
+		_, err := generateForStaff(input, staffInput)
+		assert.Error(t, err)
+	})
+
+	t.Run("既存予約のEndTimeが不正な場合はエラー", func(t *testing.T) {
+		input := &TimeSlotsInput{
+			BusinessHours: BusinessHours{Start: "0900", End: "1900"},
+			Mode:          "allow_gaps",
+		}
+		staffInput := &StaffSlotInput{
+			StaffID: 1,
+			ExistingResvs: []ExistingReservation{
+				{StaffID: 1, StartTime: "0900", EndTime: "invalid"},
+			},
+		}
+		_, err := generateForStaff(input, staffInput)
+		assert.Error(t, err)
+	})
+
+	t.Run("StaffID=0の場合は全既存予約を除外対象にする", func(t *testing.T) {
+		input := &TimeSlotsInput{
+			BusinessHours:   BusinessHours{Start: "0900", End: "1000"},
+			CourseDuration:  15,
+			IntervalMinutes: 15,
+			Mode:            "allow_gaps",
+		}
+		staffInput := &StaffSlotInput{
+			StaffID: 0,
+			ExistingResvs: []ExistingReservation{
+				{StaffID: 99, StartTime: "0900", EndTime: "0930"},
+			},
+		}
+		slots, err := generateForStaff(input, staffInput)
+		assert.NoError(t, err)
+		for _, s := range slots {
+			assert.False(t, s.StartTime >= "0900" && s.StartTime < "0930")
+		}
+	})
+
+	t.Run("休日の場合はnilを返す", func(t *testing.T) {
+		input := &TimeSlotsInput{
+			BusinessHours: BusinessHours{Start: "0900", End: "1900"},
+			Mode:          "allow_gaps",
+		}
+		staffInput := &StaffSlotInput{
+			ScheduleOverride: &StaffScheduleOverride{ShiftType: "off"},
+		}
+		slots, err := generateForStaff(input, staffInput)
+		assert.NoError(t, err)
+		assert.Nil(t, slots)
+	})
+
+	t.Run("CourseDuration未指定時は15分デフォルト", func(t *testing.T) {
+		input := &TimeSlotsInput{
+			BusinessHours: BusinessHours{Start: "0900", End: "0930"},
+			Mode:          "allow_gaps",
+		}
+		slots, err := generateForStaff(input, &StaffSlotInput{})
+		assert.NoError(t, err)
+		assert.Len(t, slots, 2) // 30分/15分=2枠
+	})
+
+	t.Run("minimize_gapsモードでMinCourseDuration未指定時はdurを使用", func(t *testing.T) {
+		input := &TimeSlotsInput{
+			BusinessHours:  BusinessHours{Start: "0900", End: "1000"},
+			CourseDuration: 15,
+			Mode:           "minimize_gaps",
+		}
+		slots, err := generateForStaff(input, &StaffSlotInput{})
+		assert.NoError(t, err)
+		assert.NotEmpty(t, slots)
+	})
+}

@@ -3,7 +3,7 @@ import type { MutateOptions } from "@tanstack/react-query";
 import { useGetTrimmings } from "../api/get-trimmings";
 import { useDeleteTrimming } from "../api/delete-trimming";
 import { normalizeKana } from "@/lib/normalize-kana";
-import type { ActiveFilter } from "@/components/shared/NotionFilter/types";
+import type { ActiveFilter } from "@/components/shared/PropertyFilter/types";
 import type { TrimmingFilters } from "../api/get-trimmings";
 
 export function useFilterTrimmingRecords(
@@ -59,12 +59,13 @@ export function useFilterTrimmingRecords(
       });
     }
 
-    // テキスト検索（日付フィルタはサーバーサイドに移行済み）
+    // テキスト検索（日付フィルタはサーバーサイドに移行済み）。#231: 犬種も検索対象に含める。
     if (searchTerm === "") return result;
     const normalizedTerm = normalizeKana(searchTerm).toLowerCase();
     return result.filter((r) =>
       normalizeKana(r.ownerName).toLowerCase().includes(normalizedTerm) ||
-      normalizeKana(r.petName).toLowerCase().includes(normalizedTerm),
+      normalizeKana(r.petName).toLowerCase().includes(normalizedTerm) ||
+      normalizeKana(r.breed).toLowerCase().includes(normalizedTerm),
     );
   }, [trimmingRecords, searchTerm, activeFilters]);
 

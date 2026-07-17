@@ -10,55 +10,34 @@ import (
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
-// SyncHealthcheckTags は健診履歴に基づき HLTH_健診あり / HLTH_健診未受診 を同期する（FEAT-379）。
-func (s *lstepTagSyncService) SyncHealthcheckTags(ctx context.Context, clinicID, ownerID uint64) error {
-	return s.SyncHealthcheckTagsWithMappings(ctx, clinicID, ownerID, nil, nil)
-}
-
+// SyncHealthcheckTagsWithMappings は健診履歴に基づき HLTH_健診あり / HLTH_健診未受診 を同期する（FEAT-379）。
 func (s *lstepTagSyncService) SyncHealthcheckTagsWithMappings(ctx context.Context, clinicID, ownerID uint64, cachedMappings []*model.LstepTagCodeMapping, cachedThresholds *model.HealthPreventionThresholds) error {
 	if s.tagCodeRepo == nil {
 		return nil
 	}
-	if skip, err := s.shouldSkipSync(ctx, clinicID); err != nil {
-		return err
-	} else if skip {
-		return nil
-	}
 
-	// PERF-03: Use cached mappings if provided, otherwise fetch (fallback)
-	var mappings []*model.LstepTagCodeMapping
-	if cachedMappings != nil {
-		mappings = cachedMappings
-	} else {
-		var err error
-		mappings, err = s.tagCodeRepo.FindByClinicIDAndTagName(ctx, clinicID, HlthHealthcheckDoneTag)
-		if err != nil {
-			slog.ErrorContext(ctx, "failed to find tag code mappings for healthcheck", "error", err)
-			return apperrors.Wrap(err, "failed to find tag code mappings")
-		}
+	// PERF-03: Use cached mappings if provided, otherwise fetch (fallback)（BE-refactor.md E-7）。
+	mappings, err := s.mappingsFor(ctx, clinicID, HlthHealthcheckDoneTag, "healthcheck", cachedMappings)
+	if err != nil {
+		return err
 	}
 	checkupCodes := extractTagCodes(mappings, model.CodeTypeCheckupType)
 	if len(checkupCodes) == 0 {
 		return nil
 	}
 
-	optOut, owner, err := s.checkOptOut(ctx, clinicID, ownerID)
+	lineUserID, ok, err := s.resolveSyncTarget(ctx, clinicID, ownerID, HlthHealthcheckDoneTag)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to check opt-out for healthcheck tags", "error", err)
-		return apperrors.Wrap(err, "failed to check opt-out")
+		return err
 	}
-	if optOut {
+	if !ok {
 		return nil
 	}
-	if owner.LineUserID == nil || *owner.LineUserID == "" {
-		return nil
-	}
-	lineUserID := *owner.LineUserID
 
-	thresholds, err := s.settingsSvc.GetHealthPreventionThresholds(ctx, clinicID)
+	// PERF-1: cachedThresholds が提供されている場合は再取得しない（batch からの hoist）（BE-refactor.md E-7）。
+	thresholds, err := s.thresholdsFor(ctx, clinicID, "healthcheck tags", cachedThresholds)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to get health prevention thresholds for healthcheck tags", "error", err, "clinic_id", clinicID)
-		return apperrors.Wrap(err, "failed to get health prevention thresholds")
+		return err
 	}
 	since := time.Now().AddDate(0, 0, -thresholds.LookbackDays)
 	checkups, err := s.checkupRepo.FindByOwnerID(ctx, clinicID, ownerID)
@@ -95,40 +74,19 @@ func (s *lstepTagSyncService) SyncHealthcheckTagsWithMappings(ctx context.Contex
 
 	apiFailed := false
 	if hasHealthcheck {
-		if addErr := client.AddTag(ctx, lineUserID, HlthHealthcheckDoneTag); addErr != nil {
-			slog.ErrorContext(ctx, "failed to add healthcheck done tag", "error", addErr)
-			s.notifyAPIFailure(ctx, client, clinicID, ownerID, lineUserID)
-			return apperrors.Wrap(addErr, "failed to add healthcheck done tag")
+		doneReason := fmt.Sprintf("最終健診: %s", lastCheckupDate.Format(time.DateOnly))
+		if err := s.applyTagState(ctx, client, clinicID, ownerID, lineUserID, HlthHealthcheckDoneTag, "healthcheck done", doneReason, true); err != nil {
+			return err
 		}
-		if err := s.tagCacheRepo.UpsertTag(ctx, clinicID, ownerID, HlthHealthcheckDoneTag, "auto", fmt.Sprintf("最終健診: %s", lastCheckupDate.Format("2006-01-02"))); err != nil {
-			slog.WarnContext(ctx, "failed to upsert tag cache (non-fatal)", "tag", HlthHealthcheckDoneTag, "owner_id", ownerID, "error", err)
-		}
-		if delErr := client.RemoveTag(ctx, lineUserID, HlthHealthcheckNeverTag); delErr != nil {
-			slog.ErrorContext(ctx, "failed to remove healthcheck never tag", "error", delErr)
-			s.notifyAPIFailure(ctx, client, clinicID, ownerID, lineUserID)
+		if err := s.applyTagState(ctx, client, clinicID, ownerID, lineUserID, HlthHealthcheckNeverTag, "healthcheck never", "", false); err != nil {
 			apiFailed = true
-		} else {
-			if err := s.tagCacheRepo.DeleteTag(ctx, clinicID, ownerID, HlthHealthcheckNeverTag); err != nil {
-				slog.WarnContext(ctx, "failed to delete tag cache (non-fatal)", "tag", HlthHealthcheckNeverTag, "owner_id", ownerID, "error", err)
-			}
 		}
 	} else {
-		if addErr := client.AddTag(ctx, lineUserID, HlthHealthcheckNeverTag); addErr != nil {
-			slog.ErrorContext(ctx, "failed to add healthcheck never tag", "error", addErr)
-			s.notifyAPIFailure(ctx, client, clinicID, ownerID, lineUserID)
-			return apperrors.Wrap(addErr, "failed to add healthcheck never tag")
+		if err := s.applyTagState(ctx, client, clinicID, ownerID, lineUserID, HlthHealthcheckNeverTag, "healthcheck never", "", true); err != nil {
+			return err
 		}
-		if err := s.tagCacheRepo.UpsertTag(ctx, clinicID, ownerID, HlthHealthcheckNeverTag, "auto", ""); err != nil {
-			slog.WarnContext(ctx, "failed to upsert tag cache (non-fatal)", "tag", HlthHealthcheckNeverTag, "owner_id", ownerID, "error", err)
-		}
-		if delErr := client.RemoveTag(ctx, lineUserID, HlthHealthcheckDoneTag); delErr != nil {
-			slog.ErrorContext(ctx, "failed to remove healthcheck done tag", "error", delErr)
-			s.notifyAPIFailure(ctx, client, clinicID, ownerID, lineUserID)
+		if err := s.applyTagState(ctx, client, clinicID, ownerID, lineUserID, HlthHealthcheckDoneTag, "healthcheck done", "", false); err != nil {
 			apiFailed = true
-		} else {
-			if err := s.tagCacheRepo.DeleteTag(ctx, clinicID, ownerID, HlthHealthcheckDoneTag); err != nil {
-				slog.WarnContext(ctx, "failed to delete tag cache (non-fatal)", "tag", HlthHealthcheckDoneTag, "owner_id", ownerID, "error", err)
-			}
 		}
 	}
 	if !apiFailed {
@@ -137,44 +95,35 @@ func (s *lstepTagSyncService) SyncHealthcheckTagsWithMappings(ctx context.Contex
 	return nil
 }
 
-// SyncAnnual4CheckupTag は年2回以上来院かつ健診履歴がある飼い主に HLTH_年4回候補 を付与する（FEAT-379）。
-func (s *lstepTagSyncService) SyncAnnual4CheckupTag(ctx context.Context, clinicID, ownerID uint64) error {
+// SyncAnnual4CheckupTagWithMappings は年2回以上来院かつ健診履歴がある飼い主に HLTH_年4回候補 を付与する
+// （FEAT-379）。事前取得済み mappings/thresholds を使って処理する（PERF-M1 N+1 解消用）。
+func (s *lstepTagSyncService) SyncAnnual4CheckupTagWithMappings(ctx context.Context, clinicID, ownerID uint64, cachedMappings []*model.LstepTagCodeMapping, cachedThresholds *model.HealthPreventionThresholds) error {
 	if s.tagCodeRepo == nil {
 		return nil
 	}
-	if skip, err := s.shouldSkipSync(ctx, clinicID); err != nil {
-		return err
-	} else if skip {
-		return nil
-	}
 
-	mappings, err := s.tagCodeRepo.FindByClinicIDAndTagName(ctx, clinicID, HlthHealthcheckDoneTag)
+	// PERF-M1: cachedMappings が提供されている場合は再取得しない（batch からの hoist）（BE-refactor.md E-7）。
+	mappings, err := s.mappingsFor(ctx, clinicID, HlthHealthcheckDoneTag, "annual4checkup", cachedMappings)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to find tag code mappings for annual4checkup", "error", err)
-		return apperrors.Wrap(err, "failed to find tag code mappings")
+		return err
 	}
 	checkupCodes := extractTagCodes(mappings, model.CodeTypeCheckupType)
 	if len(checkupCodes) == 0 {
 		return nil
 	}
 
-	optOut, owner, err := s.checkOptOut(ctx, clinicID, ownerID)
+	lineUserID, ok, err := s.resolveSyncTarget(ctx, clinicID, ownerID, HlthAnnual4CheckupTag)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to check opt-out for annual4checkup tag", "error", err)
-		return apperrors.Wrap(err, "failed to check opt-out")
+		return err
 	}
-	if optOut {
+	if !ok {
 		return nil
 	}
-	if owner.LineUserID == nil || *owner.LineUserID == "" {
-		return nil
-	}
-	lineUserID := *owner.LineUserID
 
-	thresholds, err := s.settingsSvc.GetHealthPreventionThresholds(ctx, clinicID)
+	// PERF-M1: cachedThresholds が提供されている場合は再取得しない（batch からの hoist）（BE-refactor.md E-7）。
+	thresholds, err := s.thresholdsFor(ctx, clinicID, "annual4checkup tag", cachedThresholds)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to get health prevention thresholds for annual4checkup tag", "error", err, "clinic_id", clinicID)
-		return apperrors.Wrap(err, "failed to get health prevention thresholds")
+		return err
 	}
 	since := time.Now().AddDate(0, 0, -thresholds.LookbackDays)
 	checkups, err := s.checkupRepo.FindByOwnerID(ctx, clinicID, ownerID)
@@ -216,23 +165,12 @@ func (s *lstepTagSyncService) SyncAnnual4CheckupTag(ctx context.Context, clinicI
 
 	apiFailed := false
 	if qualified {
-		if addErr := client.AddTag(ctx, lineUserID, HlthAnnual4CheckupTag); addErr != nil {
-			slog.ErrorContext(ctx, "failed to add annual4checkup tag", "error", addErr)
-			s.notifyAPIFailure(ctx, client, clinicID, ownerID, lineUserID)
-			return apperrors.Wrap(addErr, "failed to add annual4checkup tag")
-		}
-		if cacheErr := s.tagCacheRepo.UpsertTag(ctx, clinicID, ownerID, HlthAnnual4CheckupTag, "auto", ""); cacheErr != nil {
-			slog.ErrorContext(ctx, "failed to upsert annual4checkup tag cache", "error", cacheErr)
+		if err := s.applyTagState(ctx, client, clinicID, ownerID, lineUserID, HlthAnnual4CheckupTag, "annual4checkup", "", true); err != nil {
+			return err
 		}
 	} else {
-		if delErr := client.RemoveTag(ctx, lineUserID, HlthAnnual4CheckupTag); delErr != nil {
-			slog.ErrorContext(ctx, "failed to remove annual4checkup tag", "error", delErr)
-			s.notifyAPIFailure(ctx, client, clinicID, ownerID, lineUserID)
+		if err := s.applyTagState(ctx, client, clinicID, ownerID, lineUserID, HlthAnnual4CheckupTag, "annual4checkup", "", false); err != nil {
 			apiFailed = true
-		} else {
-			if cacheErr := s.tagCacheRepo.DeleteTag(ctx, clinicID, ownerID, HlthAnnual4CheckupTag); cacheErr != nil {
-				slog.ErrorContext(ctx, "failed to delete annual4checkup tag cache", "error", cacheErr)
-			}
 		}
 	}
 	if !apiFailed {

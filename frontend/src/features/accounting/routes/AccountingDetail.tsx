@@ -1,4 +1,4 @@
-import { useState, useMemo, memo, useTransition } from "react";
+import { useState, useMemo, memo, useTransition, lazy, Suspense } from "react";
 import { useParams, useNavigate, useLocation } from "react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
@@ -8,6 +8,7 @@ import { LoadingFallback, ErrorFallback } from "@/components/shared/DataStates";
 import { useGetAccountingDetail } from "../api/get-accounting";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 import { paths } from "@/config/paths";
+import { C } from "@/lib/design-tokens";
 import {
   AccountingDetailColumns,
   AccountingDocumentPreviewDialog,
@@ -16,13 +17,17 @@ import {
   ReadOnlyAccountingBanner,
   UngroupedItemsWarningBanner,
 } from "../components/AccountingDetailPanels";
-import { useAccountingCompletionAction } from "./useAccountingCompletionAction";
-import { useAccountingDetailState } from "./useAccountingDetailState";
-import { useAccountingItemActions } from "./useAccountingItemActions";
-import { useAccountingSettlementActions } from "./useAccountingSettlementActions";
+import { useAccountingCompletionAction } from "../hooks/use-accounting-completion-action";
+import { useAccountingDetailState } from "../hooks/use-accounting-detail-state";
+import { useAccountingItemActions } from "../hooks/use-accounting-item-actions";
+import { useAccountingSettlementActions } from "../hooks/use-accounting-settlement-actions";
 import type { AccountingItem } from "../types";
 import { ResourceAccounting, ResourceAccountingCancel, ResourceAccountingPostCloseEdit } from "@/types/generated/models";
-import { useGetCashRegisterCloses } from "@/features/cash-register";
+import { useGetCashRegisterCloses } from "@/hooks/use-cash-register-closes";
+
+const CreditCorrectionDialog = lazy(() =>
+  import("../components/CreditCorrectionDialog").then((m) => ({ default: m.CreditCorrectionDialog })),
+);
 
 interface AccountingDetailProps {
   invoiceRegistrationNumber?: string;
@@ -108,11 +113,10 @@ export const AccountingDetail = memo(function AccountingDetail({ invoiceRegistra
 
   // #115: billing の scheduled_date が締め済みか確認
   const scheduledDateStr = accounting?.scheduledDate ? accounting.scheduledDate.slice(0, 10) : null;
-  const scheduledYear = scheduledDateStr ? parseInt(scheduledDateStr.slice(0, 4), 10) : undefined;
-  const scheduledMonth = scheduledDateStr ? parseInt(scheduledDateStr.slice(5, 7), 10) : undefined;
+  // #115: scheduled_date が締め済みか、その 1 日分（AM/PM/EMG）を BE 契約（start_date/end_date）で問い合わせる
   const { data: closesData } = useGetCashRegisterCloses(
-    scheduledYear && scheduledMonth ? { year: scheduledYear, month: scheduledMonth, limit: 100 } : undefined,
-    Boolean(scheduledYear && scheduledMonth),
+    scheduledDateStr ? { start_date: scheduledDateStr, end_date: scheduledDateStr } : undefined,
+    Boolean(scheduledDateStr),
   );
   const isScheduledDateClosed = Boolean(
     scheduledDateStr && closesData?.data.some((c) => c.closeDate?.slice(0, 10) === scheduledDateStr),
@@ -201,10 +205,20 @@ export const AccountingDetail = memo(function AccountingDetail({ invoiceRegistra
             />
           </fieldset>
 
+          {/* #189: 確定済みカード金額の確定後訂正（専用フロー・監査付き）。確定済み + 訂正権限がある場合のみ導線を表示。
+              CreditCorrectionDialog は確定済み(completed)かつカード支払いが無ければ自動で null を返す。 */}
+          {id && canPostCloseEdit ? (
+            <div className="px-4 pb-4">
+              <Suspense fallback={null}>
+                <CreditCorrectionDialog accounting={accounting} isPostClose={isScheduledDateClosed} />
+              </Suspense>
+            </div>
+          ) : null}
+
           {/* #115: 締め後編集理由入力（レジ締め済み期間かつ編集権限あり） */}
           {isScheduledDateClosed && canSubmit && canPostCloseEdit ? (
             <div className="px-4 pb-4">
-              <label htmlFor="postCloseReason" className="block text-sm font-semibold text-red-600 mb-1">
+              <label htmlFor="postCloseReason" className={`block text-sm font-semibold ${C.danger} mb-1`}>
                 ⚠ レジ締め済み期間の編集 — 修正理由（必須）
               </label>
               <textarea

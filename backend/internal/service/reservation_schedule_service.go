@@ -119,7 +119,7 @@ func (s *reservationScheduleService) Save(ctx context.Context, clinicID, staffID
 	slog.InfoContext(ctx, "schedule upserted",
 		slog.Uint64("clinic_id", clinicID),
 		slog.Uint64("staff_id", staffID),
-		slog.String("date", date.Format("2006-01-02")))
+		slog.String("date", date.Format(time.DateOnly)))
 	return &ScheduleEntry{Entry: *entry, Breaks: savedBreaks}, isNew, nil
 }
 
@@ -137,6 +137,6 @@ func (s *reservationScheduleService) Delete(ctx context.Context, clinicID, staff
 	slog.InfoContext(ctx, "schedule deleted",
 		slog.Uint64("clinic_id", clinicID),
 		slog.Uint64("staff_id", staffID),
-		slog.String("date", date.Format("2006-01-02")))
+		slog.String("date", date.Format(time.DateOnly)))
 	return nil
 }

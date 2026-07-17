@@ -7,12 +7,14 @@ import (
 
 	holiday "github.com/holiday-jp/holiday_jp-go"
 
+	"github.com/animal-ekarte/backend/internal/config"
+	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
 // AvailableDateResult は1日分の空き状況を表す。
 type AvailableDateResult struct {
-	Date      string // "2006-01-02"
+	Date      string // time.DateOnly
 	Weekday   int    // 0=Sun, 1=Mon, ..., 6=Sat
 	Available bool
 	Reason    string // "closed" | "holiday" | "staff_off" | "no_slots" | ""
@@ -20,8 +22,8 @@ type AvailableDateResult struct {
 
 // BookingWindow は予約受付期間を表す。
 type BookingWindow struct {
-	Start string // "2006-01-02"
-	End   string // "2006-01-02"
+	Start string // time.DateOnly
+	End   string // time.DateOnly
 }
 
 // AvailableDatesInput は空き日付計算の入力。
@@ -37,7 +39,7 @@ type AvailableDatesInput struct {
 // AvailableDatesSettings は空き日付計算に必要な設定項目。
 type AvailableDatesSettings struct {
 	ClosedWeekdays        []int    // 0=Sun,...,6=Sat
-	ClosedDates           []string // "2006-01-02"
+	ClosedDates           []string // time.DateOnly
 	NationalHolidayClosed bool
 	BookingWindowMinDays  int
 	BookingWindowMaxDays  int
@@ -55,11 +57,11 @@ func ParseAvailableDatesSettings(
 ) (AvailableDatesSettings, error) {
 	var closedWeekdays []int
 	if err := json.Unmarshal(orEmptyJSONArray(closedWeekdaysJSON), &closedWeekdays); err != nil {
-		closedWeekdays = nil
+		return AvailableDatesSettings{}, apperrors.WrapInvalidInput("休診設定の解析に失敗しました: " + err.Error())
 	}
 	var closedDates []string
 	if err := json.Unmarshal(orEmptyJSONArray(closedDatesJSON), &closedDates); err != nil {
-		closedDates = nil
+		return AvailableDatesSettings{}, apperrors.WrapInvalidInput("休診設定の解析に失敗しました: " + err.Error())
 	}
 	return AvailableDatesSettings{
 		ClosedWeekdays:        closedWeekdays,
@@ -80,17 +82,23 @@ func orEmptyJSONArray(b []byte) []byte {
 	return b
 }
 
+// bookingWindowDates は BookingWindowMinDays/MaxDays から予約受付期間 [minDate, maxDate]（JST日付・時刻0時）を計算する。
+// CalcAvailableDates と GetAvailableDates のプリフェッチ経路が同一の窓計算を共有するために抽出した（G7-1）。
+func bookingWindowDates(settings AvailableDatesSettings) (minDate, maxDate time.Time) {
+	now := time.Now().In(config.JST)
+	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, config.JST)
+	minDate = today.AddDate(0, 0, settings.BookingWindowMinDays)
+	maxDate = today.AddDate(0, 0, settings.BookingWindowMaxDays)
+	return minDate, maxDate
+}
+
 // CalcAvailableDates は予約可能な日付一覧を計算して返す。
 func CalcAvailableDates(ctx context.Context, input *AvailableDatesInput) ([]AvailableDateResult, BookingWindow, error) {
-	now := time.Now().In(jstLocation)
-	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, jstLocation)
-
-	minDate := today.AddDate(0, 0, input.Settings.BookingWindowMinDays)
-	maxDate := today.AddDate(0, 0, input.Settings.BookingWindowMaxDays)
+	minDate, maxDate := bookingWindowDates(input.Settings)
 
 	window := BookingWindow{
-		Start: minDate.Format("2006-01-02"),
-		End:   maxDate.Format("2006-01-02"),
+		Start: minDate.Format(time.DateOnly),
+		End:   maxDate.Format(time.DateOnly),
 	}
 
 	// 休業日セット
@@ -107,7 +115,7 @@ func CalcAvailableDates(ctx context.Context, input *AvailableDatesInput) ([]Avai
 	results := make([]AvailableDateResult, 0, input.Settings.BookingWindowMaxDays)
 
 	for d := minDate; !d.After(maxDate); d = d.AddDate(0, 0, 1) {
-		dateStr := d.Format("2006-01-02")
+		dateStr := d.Format(time.DateOnly)
 		wd := int(d.Weekday()) // 0=Sun,...,6=Sat
 
 		result := AvailableDateResult{
@@ -211,14 +219,3 @@ func checkDayOption(option string, weekday int) bool {
 		return true
 	}
 }
-
-// jstLocation は JST タイムゾーン (Asia/Tokyo) のキャッシュ済みインスタンス。
-// パッケージ初期化時に 1 回だけ time.LoadLocation を呼び出す。
-// LoadLocation が失敗した場合は固定オフセット +09:00 のフォールバックを使用。
-var jstLocation = func() *time.Location {
-	loc, err := time.LoadLocation("Asia/Tokyo")
-	if err != nil {
-		return time.FixedZone("JST", 9*60*60)
-	}
-	return loc
-}()

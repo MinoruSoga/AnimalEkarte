@@ -2,19 +2,19 @@ FROM golang:1.25-alpine
 
 WORKDIR /app
 
-# CGo（-race フラグ対応）
-RUN apk add --no-cache gcc musl-dev tzdata
+# CGo（-race フラグ対応）+ golangci-lint install.sh 取得用 curl を1レイヤに統合
+RUN apk add --no-cache gcc musl-dev tzdata curl
 
 ENV TZ=Asia/Tokyo
 
 # 開発ツール
-RUN go install github.com/air-verse/air@latest
+# 再現性のため pin（FE6-1 の tygo pin と同方針）。更新は明示的な bump コミットで行う
+RUN go install github.com/air-verse/air@v1.65.3
 
 # golangci-lint (CI と整合: ci.yml の golangci-lint-action@v7 / version: v2.11.4)
 # alpine では go install のコンパイルに binutils が必要なため、公式 install.sh で
 # pre-built バイナリを取得する (公式推奨パターン)
-RUN apk add --no-cache curl && \
-    curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | \
+RUN curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | \
     sh -s -- -b $(go env GOPATH)/bin v2.11.4
 
 COPY go.mod go.sum ./

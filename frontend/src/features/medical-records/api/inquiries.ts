@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import { handleApiError } from "@/lib/handle-api-error";
+import { queryKeys } from "@/lib/query-keys";
 
 export interface UpdateInquiryRequest {
   chief_complaint?: string;
@@ -14,7 +15,7 @@ export const useUpdateInquiry = (recordId: string) => {
     mutationFn: (input: UpdateInquiryRequest) =>
       axios.patch(`/v1/medical-records/${recordId}/inquiries`, input),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["medical-record", recordId] });
+      qc.invalidateQueries({ queryKey: queryKeys.medicalRecords.detail(recordId) });
     },
     onError: (error) => handleApiError(error, "問診更新"),
   });

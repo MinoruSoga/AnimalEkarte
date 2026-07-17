@@ -2,7 +2,6 @@ package repository
 
 import (
 	"context"
-	"fmt"
 
 	"gorm.io/gorm"
 
@@ -37,12 +36,7 @@ func (r *trimmingOptionRepository) FindAll(ctx context.Context, clinicID uint64)
 }
 
 func (r *trimmingOptionRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.TrimmingOption, error) {
-	var option model.TrimmingOption
-	err := r.db.WithContext(ctx).Scopes(clinicScope(clinicID)).Where("id = ?", id).First(&option).Error
-	if err != nil {
-		return nil, apperrors.FromGORM(err, "trimming_option", fmt.Sprintf("%d", id))
-	}
-	return &option, nil
+	return findByIDScoped[model.TrimmingOption](ctx, r.db, "trimming_option", clinicID, id)
 }
 
 func (r *trimmingOptionRepository) Create(ctx context.Context, option *model.TrimmingOption) error {
@@ -53,28 +47,14 @@ func (r *trimmingOptionRepository) Create(ctx context.Context, option *model.Tri
 }
 
 func (r *trimmingOptionRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.TrimmingOption, error) {
-	result := r.db.WithContext(ctx).
-		Model(&model.TrimmingOption{}).
-		Scopes(clinicScope(clinicID)).Where("id = ?", id).
-		Updates(fields)
-	if result.Error != nil {
-		return nil, apperrors.FromGORM(result.Error, "trimming_option", fmt.Sprintf("%d", id))
-	}
-	if result.RowsAffected == 0 {
-		return nil, apperrors.WrapNotFound("trimming_option", fmt.Sprintf("%d", id))
+	if err := updateScopedByID(ctx, r.db, &model.TrimmingOption{}, "trimming_option", clinicID, id, fields); err != nil {
+		return nil, err
 	}
 	return r.FindByID(ctx, clinicID, id)
 }
 
 func (r *trimmingOptionRepository) Delete(ctx context.Context, clinicID, id uint64) error {
-	result := r.db.WithContext(ctx).Scopes(clinicScope(clinicID)).Where("id = ?", id).Delete(&model.TrimmingOption{})
-	if result.Error != nil {
-		return apperrors.FromGORM(result.Error, "trimming_option", fmt.Sprintf("%d", id))
-	}
-	if result.RowsAffected == 0 {
-		return apperrors.WrapNotFound("trimming_option", fmt.Sprintf("%d", id))
-	}
-	return nil
+	return deleteScopedByID(ctx, r.db, &model.TrimmingOption{}, "trimming_option", clinicID, id)
 }
 
 func (r *trimmingOptionRepository) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {

@@ -1,7 +1,11 @@
 # Hard Delete / Soft Delete 設計パターン
 
+> **目的**: Hard Delete と Soft Delete の使い分け・FK 制約との関係を定義する。
+> **読者**: 削除機能の実装者。
+> **タイミング**: 削除/論理削除の機能を実装する時。
+
 > **Animal Ekarte**: Hard Delete と Soft Delete の使い分け、FK 制約との関係、実装時チェックリスト
-> **最新更新**: 2026-06-12 | **目的**: STG-001 の根本原因解消と今後の実装指針
+> **最新更新**: 2026-07-10 | **目的**: STG-001 の根本原因解消と今後の実装指針
 
 ---
 
@@ -65,10 +69,11 @@
 ## 4. Soft Delete が妥当なケース
 
 ### 4.1 監査対象データ
-- **医療記録（medical_records / vital_records / addendums）**
+- **医療記録（medical_records / vital_records）**
   - 診療実績、投薬履歴、検査結果
   - コンプライアンス要件で削除履歴が必須
   - UI では削除済みを非表示だが、内部 API では trackable
+  - `medical_record_addenda`（追記）は `deleted_at` カラムを持たない Append-only（削除メソッド自体が存在しない）。Soft Delete 対象ではない
 
 - **会計データ（billings / billing_items / accounting）**
   - 領収書・請求書実績の追跡
@@ -86,7 +91,7 @@
 
 - **Clinic Settings**
   - マルチテナント環境で clinic 単位の設定変更
-  - Soft Delete で変更履歴を保持（監査目的）
+  - `clinic_settings` は `clinic_id` を主キーとする単一行構成で `deleted_at` カラムを持たない。UPDATE による上書きのみで、Soft Delete による変更履歴保持は行われていない
 
 ---
 
@@ -329,6 +334,17 @@ func (r *Repo) DeleteParentWithSoftDeletedChildren(ctx context.Context,
 - 親削除と同一トランザクション内で実行されても個別ログ行として区別
 - 理由：FK cleanup の explicit 証跡
 
+### 12.4 臨床結果レコード物理削除と監査ログの原子性（#211）
+- **背景**: `exam_results`, `checkup_field_results` などの臨床結果レコードは物理削除（Hard Delete）されますが、削除後の監査ログ（`audit_logs`）の書き込みが別トランザクションで行われると、監査ログ書き込みが失敗した際に物理削除をロールバックできず、監査トレイルが失われる危険性があります。
+- **Fail-closed 設計**: 臨床結果レコードの置換（物理削除＋再作成）時の物理削除と監査ログ書き込みは、必ず同一のトランザクション（ambient tx / `dbOrTx`）内で実行しなければなりません。監査ログの作成に失敗した場合はトランザクション全体をロールバックし、削除を元に戻します。
+- **CI ゲートテスト (`audit_tx_inventory_lint_test.go`)**: 臨床結果レコードを物理削除するリポジトリ関数を監査対象の allowlist（許容リスト）で管理し、新規の物理削除が発生した場合は CI で検知・制限します。
+- **返金処理の同一トランザクション化**: `refund_service.go`（返金処理）においても、返金処理と監査ログ作成を同一のトランザクション内で実行し、監査ログ作成に失敗した場合は返金処理もロールバックされるように実装します。
+- **監査ログの定義拡張**: #211 の置換処理に伴い、監査ログに記録するリソース定数 `checkup_field_result` およびアクション定数 `checkup_field_result.replace` を新たに定義し、監査証跡の追跡性を保証しています。
+- **並行競合時の無監査物理削除の防止 (READ COMMITTED 対策)**: 置換（Replace）処理において、削除判定を「スナップショット時の事前取得件数」ではなく、DELETE文実行後の実際の `RowsAffected` (物理削除数) を用いて監査ログ作成の要否をゲートします。これにより、READ COMMITTED 分離レベル下で事前取得時点では 0 件であっても、直後に並行処理でコミットされた新規データを削除してしまい、監査ログが出力されない（無監査物理削除）という競合を防ぎます。
+- **移行ステータス**:
+  - `checkup_field_results` (完了 / `statusAuditedTxInternal`): ambient tx を用いてトランザクション内で削除と監査を実施。実行時テスト `checkup_field_result_tx_atomicity_test.go` により担保。
+  - `exam_results` (完了 / `statusAuditedTxInternal`): `examinationRepository.ReplaceItemsByExamID` が `dbOrTx` ambient tx を用いてトランザクション内で削除と監査を実施するよう移行済み。実行時テスト `examination_repository_tx_atomicity_test.go` により担保。
+
 ---
 
 ## 13. マルチテナント Clinic_ID 隔離
@@ -506,8 +522,8 @@ curl -X DELETE "https://api.stg.noah-karte.com/api/v1/clinics/clinic-B-id" \
 
 ## 参考資料
 
-- **デプロイメント運用**: [`docs/infra/deploy/README.md`](../infra/deploy/README.md)
-- **STG テストデータライフサイクル**: [`docs/infra/deploy/STG-DEMO-DATA-LIFECYCLE.md`](../infra/deploy/STG-DEMO-DATA-LIFECYCLE.md)（テスト削除ポリシー参照）
+- **デプロイメント運用**: [`docs/ops/deploy/README.md`](../ops/deploy/README.md)
+- **STG テストデータライフサイクル**: [`docs/ops/deploy/STG-DEMO-DATA-LIFECYCLE.md`](../ops/deploy/STG-DEMO-DATA-LIFECYCLE.md)（テスト削除ポリシー参照）
 - **PR #64 修正内容**: commit `1755c193` 他
 - **Go アーキテクチャ規約**: [`backend/CLAUDE.md`](../../backend/CLAUDE.md)
-- **API 設計**: [`docs/API_SPEC.md`](../API_SPEC.md)
+- **API 設計**: [`backend/docs/api.yaml`](../../backend/docs/api.yaml)（contract 正本）

@@ -100,3 +100,8 @@ masters.DELETE("/vaccines/:id", RequirePermission("delete"), h.Delete)
 // ❌
 masters.DELETE("/vaccines/:id", RequirePermission("edit"), h.Delete)
 ```
+
+**唯一の例外（PO 決定 2026-07-12・BE-refactor.md X-15）**: `pet_handler.go` の
+`pets.DELETE("/:id/death")` / `clinicPets.DELETE("/:id/death")` は死亡記録解除という
+状態トグル（リソース削除ではない）のため `edit` のまま。他の DELETE ルートで edit を使う
+先例にはできない — 新規実装は引き続き `delete` を使うこと。

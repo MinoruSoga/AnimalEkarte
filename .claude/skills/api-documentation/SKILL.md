@@ -11,7 +11,7 @@ OpenAPI (Swagger) 仕様による API ドキュメント化。
 
 本プロジェクトは **手動 OpenAPI 仕様管理** を採用：
 - `backend/docs/api.yaml` - 手動で定義
-- Swagger UI: `http://localhost:8080/swagger/index.html`
+- 閲覧: `backend/docs/api.yaml` を任意の OpenAPI ビューア（VSCode 拡張等）で開く（backend に Swagger UI 配信ルートは存在しない）
 - コード内 swag タグは廃止（ドキュメント専用）
 
 ## api.yaml 構造
@@ -24,22 +24,22 @@ info:
   description: 動物病院向け電子カルテシステムAPI
 
 servers:
-  - url: http://localhost:8080
+  - url: http://localhost:8080/api/v1
     description: Development
 
 paths:
-  /api/owners:
+  /owners:
     get:
       summary: オーナー一覧取得
       operationId: listOwners
+      # clinic コンテキストは HttpOnly Cookie ベース（clinic_id クエリパラメータは不要）
       parameters:
-        - name: clinic_id
-          in: query
-          required: true
-          schema: { type: integer }
         - name: page
           in: query
           schema: { type: integer, default: 1 }
+        - name: limit
+          in: query
+          schema: { type: integer, default: 10 }
       responses:
         '200':
           description: Success
@@ -70,7 +70,7 @@ paths:
         '409':
           $ref: '#/components/responses/ConflictError'
 
-  /api/owners/{id}:
+  /owners/{id}:
     get:
       parameters:
         - name: id
@@ -156,42 +156,39 @@ components:
 
 ### RESTful CRUD
 ```yaml
-POST   /api/owners              # Create
-GET    /api/owners              # List (クエリフィルタ)
-GET    /api/owners/{id}         # Get one
-PATCH  /api/owners/{id}         # Update (部分更新)
-DELETE /api/owners/{id}         # Delete (論理削除)
+POST   /owners              # Create
+GET    /owners              # List (クエリフィルタ)
+GET    /owners/{id}         # Get one
+PATCH  /owners/{id}         # Update (部分更新)
+DELETE /owners/{id}         # Delete (論理削除)
 ```
 
 ### リレーション
 
 ```yaml
-GET    /api/owners/{owner_id}/pets           # Owner の Pet 一覧
-POST   /api/owners/{owner_id}/pets           # Pet 作成 (owner_id 自動)
-GET    /api/owners/{owner_id}/pets/{pet_id}  # 特定 Pet 取得
+GET    /owners/{owner_id}/pets           # Owner の Pet 一覧
+POST   /owners/{owner_id}/pets           # Pet 作成 (owner_id 自動)
+GET    /owners/{owner_id}/pets/{pet_id}  # 特定 Pet 取得
 ```
 
 ### フィルタ・ソート・ページネーション
 
 ```yaml
-GET /api/owners?clinic_id=1&name=太&page=2&size=20&sort=-created_at
+GET /owners?name=太&page=2&limit=20&sort=-created_at
 
 Parameters:
-  - clinic_id (required) - マルチテナント
+  # clinic コンテキストは HttpOnly Cookie ベース（クエリパラメータでは渡さない）
   - name (optional) - 部分検索
   - page (default: 1)
-  - size (default: 10, max: 100)
+  - limit (default: 10, max: 100)
   - sort (例: created_at, -updated_at)
 
 Response:
   {
     "data": [...],
-    "pagination": {
-      "page": 2,
-      "size": 20,
-      "total": 150,
-      "pages": 8
-    }
+    "total": 150,
+    "page": 2,
+    "limit": 20
   }
 ```
 
@@ -224,11 +221,16 @@ Response:
   { "code": "INTERNAL_ERROR", "message": "Internal server error" }
 ```
 
-## セキュリティヘッダー
+## セキュリティ
+
+主メカニズムは **HttpOnly Cookie**（`access_token` 15分 / `refresh_token` 7日）。
+`Authorization: Bearer <jwt>` ヘッダは後方互換フォールバックとしてのみサポート
+（api.yaml 冒頭の認証説明を正とする）。
 
 ```yaml
 components:
   securitySchemes:
+    # Bearer は後方互換フォールバック。実運用は HttpOnly Cookie（axios withCredentials: true）
     BearerAuth:
       type: http
       scheme: bearer
@@ -246,7 +248,7 @@ security:
    - Go ハンドラを実装
    - `api.yaml` のパスを更新
    - スキーマを修正
-   - Swagger UI で動作確認
+   - OpenAPI ビューア（VSCode 拡張等）で仕様を確認
 
 2. **定期監査**
    - 月 1 回、実装と api.yaml の同期確認
@@ -263,7 +265,7 @@ security:
 - [ ] パラメータ・レスポンススキーマが完全
 - [ ] エラーコードが明示的
 - [ ] セキュリティスキーム定義完了
-- [ ] Swagger UI で動作確認
+- [ ] OpenAPI ビューアで仕様を確認
 - [ ] 月 1 回の同期確認
 
 ## 関連スキル

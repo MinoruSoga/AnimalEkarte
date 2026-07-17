@@ -14,7 +14,7 @@ type ClinicRepository interface {
 	FindAll(ctx context.Context) ([]model.Clinic, error)
 	FindByStaffID(ctx context.Context, staffID uint64) ([]model.Clinic, error)
 	FindByID(ctx context.Context, id uint64) (*model.Clinic, error)
-	GetCompany(ctx context.Context) (*model.Company, error)
+	FindCompany(ctx context.Context) (*model.Company, error)
 	Create(ctx context.Context, clinic *model.Clinic) error
 	Update(ctx context.Context, id uint64, fields map[string]any) error
 	Delete(ctx context.Context, id uint64) error
@@ -61,24 +61,28 @@ func (r *clinicRepository) FindByStaffID(ctx context.Context, staffID uint64) ([
 
 func (r *clinicRepository) FindByID(ctx context.Context, id uint64) (*model.Clinic, error) {
 	var clinic model.Clinic
-	err := r.db.WithContext(ctx).First(&clinic, "id = ?", id).Error
+	err := dbOrTx(ctx, r.db).First(&clinic, "id = ?", id).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "clinic", fmt.Sprintf("%d", id))
 	}
 	return &clinic, nil
 }
 
-func (r *clinicRepository) GetCompany(ctx context.Context) (*model.Company, error) {
+func (r *clinicRepository) FindCompany(ctx context.Context) (*model.Company, error) {
 	var company model.Company
-	err := r.db.WithContext(ctx).First(&company).Error
+	err := dbOrTx(ctx, r.db).First(&company).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "company", "singleton")
 	}
 	return &company, nil
 }
 
+// BE-refactor.md X-7: dbOrTx で ambient tx に参加する。CreateClinic は clinic 作成 +
+// デフォルト権限グループ2件の作成を transactor.WithTx で包むが、Create が r.db.WithContext(ctx)
+// のまま tx 非参加だと、途中で失敗しても既にオートコミット済みの行は WithTx のロールバックで
+// 巻き戻らず、デフォルト権限グループなしの孤児クリニックが生成しうるバグがあった。
 func (r *clinicRepository) Create(ctx context.Context, clinic *model.Clinic) error {
-	err := r.db.WithContext(ctx).Create(clinic).Error
+	err := dbOrTx(ctx, r.db).Create(clinic).Error
 	if err != nil {
 		if isUniqueConstraintErr(err) {
 			return apperrors.WrapAlreadyExists("clinic", clinic.Name)
@@ -89,7 +93,7 @@ func (r *clinicRepository) Create(ctx context.Context, clinic *model.Clinic) err
 }
 
 func (r *clinicRepository) Update(ctx context.Context, id uint64, fields map[string]any) error {
-	result := r.db.WithContext(ctx).Model(&model.Clinic{}).Where("id = ?", id).Updates(fields)
+	result := dbOrTx(ctx, r.db).Model(&model.Clinic{}).Where("id = ?", id).Updates(fields)
 	if result.Error != nil {
 		return apperrors.FromGORM(result.Error, "clinic", fmt.Sprintf("%d", id))
 	}
@@ -99,8 +103,12 @@ func (r *clinicRepository) Update(ctx context.Context, id uint64, fields map[str
 	return nil
 }
 
+// BE-refactor.md X-7: dbOrTx(ctx, r.db).Transaction(...) にすることで、ambient tx があれば
+// その中のネスト tx（SAVEPOINT）として参加する（R1-1 と同一パターン、accounting_repository.go
+// SavePaymentSplits 参照）。現状 Delete を ambient tx から呼ぶ呼び出し元は無く、
+// 既存呼び出しに対する挙動は変わらない（ambient tx が無ければ dbOrTx は従来どおり新規 tx を開始する）。
 func (r *clinicRepository) Delete(ctx context.Context, id uint64) error {
-	if err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	if err := dbOrTx(ctx, r.db).Transaction(func(tx *gorm.DB) error {
 		// Soft-deleted PG rows remain as physical rows and block the clinic FK.
 		// Hard-delete only those rows (deleted_at IS NOT NULL) before removing the clinic.
 		// Active PGs (deleted_at IS NULL) are still caught by CountBlockingReferencesByClinicID → 409.

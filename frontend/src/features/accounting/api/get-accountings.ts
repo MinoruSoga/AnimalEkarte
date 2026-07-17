@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
+import { queryKeys } from "@/lib/query-keys";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 import { transformToAccounting } from "./transforms";
 import type { Accounting } from "./transforms";
@@ -25,7 +26,7 @@ export interface AccountingFilters {
   clinicIds?: string[];
 }
 
-export const getAccountings = async (
+const getAccountings = async (
   filters?: AccountingFilters,
 ): Promise<Accounting[]> => {
   const params: Record<string, string> = {};
@@ -39,7 +40,7 @@ export const getAccountings = async (
 
 export const useGetAccountings = (filters?: AccountingFilters) => {
   return useQuery({
-    queryKey: ["accountings", filters],
+    queryKey: queryKeys.accountings.list(filters),
     queryFn: () => getAccountings(filters),
     staleTime: QUERY_STALE_TIMES.MEDIUM,
     gcTime: QUERY_GC_TIMES.STANDARD,

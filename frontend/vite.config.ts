@@ -100,6 +100,11 @@ function resolveManualChunk(id: string): string | undefined {
 }
 
 export default defineConfig({
+  // M-10: Vercel が自動注入する VERCEL_ENV をビルド時定数として埋め込む。
+  // frontend/src/features/auth/lib/show-demo-accounts.ts 参照。
+  define: {
+    __VERCEL_ENV__: JSON.stringify(process.env.VERCEL_ENV ?? ''),
+  },
   plugins: [react(), tailwindcss(), lineReserveDevPlugin(), liffDevPlugin()],
   resolve: {
     alias: {
@@ -136,10 +141,19 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: './src/testing/setup.ts',
     css: true,
-    exclude: ['**/node_modules/**', '**/dist/**', 'tests/**', 'e2e/**'],
+    // scripts/**: node:test ベースのガードレール回帰テスト（例: check-eslint-disable-rationale.test.mjs）は
+    // 専用 CI ジョブが `node --test` で直接実行する。Vitest のデフォルト include glob (*.test.mjs) にも
+    // 一致してしまい「No test suite found」で Test (with coverage) step を落とすため除外する。
+    exclude: ['**/node_modules/**', '**/dist/**', 'tests/**', 'e2e/**', 'scripts/**'],
     coverage: {
       provider: 'v8',
-      reporter: ['text', 'json', 'html'],
+      // json-summary: coverage-policy.md Phase 1 ratchet（scripts/coverage-ratchet.mjs）が
+      // total.statements.pct を読むために必要
+      reporter: ['text', 'json', 'json-summary', 'html'],
+      exclude: [
+        'src/types/generated/**', // tygo 生成型定義 — テスト対象外
+        'src/testing/**', // テストセットアップ・MSW モック — テスト対象外
+      ],
     },
   },
 });

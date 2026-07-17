@@ -9,8 +9,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	apperrors "github.com/animal-ekarte/backend/internal/errors"
-	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/repository"
 )
 
@@ -437,6 +435,15 @@ func TestListOwnerAggregation_Pagination(t *testing.T) {
 		assert.Len(t, r.Items, 5, "全件 (5件) が1ページに収まる")
 	})
 
+	t.Run("per_page over 100 is capped at 100 (C-7)", func(t *testing.T) {
+		repoMock := &mockLtvRepository{rows: rows}
+		svc := NewAggregationService(repoMock, &mockLstepTagCacheRepository{}, nil, &mockLstepSettingsService{})
+		r, err := svc.ListOwnerAggregation(context.Background(), 1, &ListOwnerAggregationInput{Page: 1, PerPage: 500})
+		require.NoError(t, err)
+		assert.Equal(t, 100, r.PerPage, "maxPerPage=100 に切り詰められる")
+		assert.Len(t, r.Items, 5, "元データが5件なので全件返るが PerPage 表示は100")
+	})
+
 	t.Run("CPM filter applied before pagination affects Total", func(t *testing.T) {
 		// CPMStage 絞り込みは pagination より先に適用されるため Total に反映される。
 		// 5件のうち 1件だけ encounter になるよう仕立てる。
@@ -561,80 +568,6 @@ func TestListOwnerAggregation_InputForwarding(t *testing.T) {
 	assert.Equal(t, "over_6m", captured.LastVisitBucket)
 	assert.True(t, captured.IncludeNoVisit)
 	// Metric は service が repo に渡さない (Metric は表示用)
-}
-
-// TestSyncAggregationTags_DryRunDoesNotMutate は DryRun=true でタグ更新が起こらないことを検証する。
-func TestSyncAggregationTags_DryRunDoesNotMutate(t *testing.T) {
-	rows := []repository.OwnerLTVRow{
-		{OwnerID: 1, OwnerName: "linked", LineUserID: aggStrPtr("U-1"), LstepOptOut: false},
-		{OwnerID: 2, OwnerName: "opted-out", LineUserID: aggStrPtr("U-2"), LstepOptOut: true},
-		{OwnerID: 3, OwnerName: "no line", LineUserID: nil, LstepOptOut: false},
-	}
-	upsertCalls := 0
-	tagCache := &mockLstepTagCacheRepository{
-		upsertTagFn: func(_ context.Context, _, _ uint64, _, _, _ string) error {
-			upsertCalls++
-			return nil
-		},
-	}
-	repoMock := &mockLtvRepository{rows: rows}
-	svc := NewAggregationService(repoMock, tagCache, nil, &mockLstepSettingsService{})
-
-	r, err := svc.SyncAggregationTags(context.Background(), 1, SyncAggregationTagsInput{
-		TagName: "VIP", DryRun: true,
-	})
-	require.NoError(t, err)
-	assert.True(t, r.DryRun)
-	assert.Equal(t, 3, r.Total)
-	assert.Equal(t, 1, r.Synced, "DryRun でも判定上は 1 件 (linked のみ)")
-	assert.Equal(t, 2, r.Skipped, "opt-out + no line を skip")
-	assert.Equal(t, 0, upsertCalls, "DryRun では UpsertTag を呼ばない")
-}
-
-// TestSyncAggregationTags_ProhibitedTagName は自動管理タグの利用を拒否することを保証する。
-// autoManagedPrefixes (lstep_tag_service.go) の prefix を持つタグは
-// SyncAggregationTags で 400 InvalidInput になる。
-func TestSyncAggregationTags_ProhibitedTagName(t *testing.T) {
-	prohibitedTags := []string{
-		"cpm_spot",       // cpm_ prefix
-		"last_visit_3m",  // last_visit_ prefix
-		"first_visit_30", // first_visit_ prefix
-		"ltv_high",       // ltv_ prefix
-		"vaccine_dhppl",  // vaccine_ prefix (DB-managed C2)
-		"HLTH_健診あり",      // HLTH_ prefix
-		"PREV_ワクチン期限",    // PREV_ prefix
-	}
-	// vaccine_ is a DB-managed prefix (C2). Supply a tagConfigRepo mock so the
-	// DB-based check in SyncAggregationTags correctly rejects it.
-	tagConfigRepo := &mockLstepTagConfigRepository{
-		findAllAutoManagedPrefixesFn: func(_ context.Context) ([]*model.LstepAutoManagedPrefix, error) {
-			return []*model.LstepAutoManagedPrefix{
-				{Prefix: "vaccine_", Category: "C2"},
-			}, nil
-		},
-	}
-	for _, tag := range prohibitedTags {
-		t.Run(tag, func(t *testing.T) {
-			repoMock := &mockLtvRepository{}
-			svc := NewAggregationService(repoMock, &mockLstepTagCacheRepository{}, tagConfigRepo, &mockLstepSettingsService{})
-			_, err := svc.SyncAggregationTags(context.Background(), 1, SyncAggregationTagsInput{
-				TagName: tag,
-			})
-			require.Error(t, err)
-			assert.ErrorIs(t, err, apperrors.ErrInvalidInput, "auto-managed prefix should be rejected as invalid input")
-		})
-	}
-}
-
-// TestSyncAggregationTags_AcceptsManualTagName は手動管理タグ (auto-managed prefix を持たない)
-// が許容されることを保証する。
-func TestSyncAggregationTags_AcceptsManualTagName(t *testing.T) {
-	repoMock := &mockLtvRepository{rows: []repository.OwnerLTVRow{}}
-	svc := NewAggregationService(repoMock, &mockLstepTagCacheRepository{}, nil, &mockLstepSettingsService{})
-	_, err := svc.SyncAggregationTags(context.Background(), 1, SyncAggregationTagsInput{
-		TagName: "VIP顧客", DryRun: true,
-	})
-	require.NoError(t, err, "manual tag name should be accepted")
 }
 
 // ---- 補助モック ----

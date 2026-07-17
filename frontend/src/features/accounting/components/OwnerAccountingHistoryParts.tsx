@@ -1,7 +1,7 @@
 import { memo } from "react";
 import type React from "react";
 import { Link } from "react-router";
-import { AlertTriangle, ArrowDown, ArrowUp, ChevronLeft, ChevronRight, FileText, Receipt } from "lucide-react";
+import { AlertTriangle, ArrowDown, ArrowUp, ChevronRight, FileText, Receipt } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -9,8 +9,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { paths } from "@/config/paths";
 import { C, ICON, STYLE } from "@/lib/design-tokens";
+import { ACCOUNTING_STATUS_LABELS } from "@/constants/accounting-status";
+import { formatCurrency } from "@/utils/format/number";
 import type { Accounting } from "../api/transforms";
-import type { AccountingStatus } from "../types";
 
 export type AccountingHistorySortField = "date" | "amount" | "status";
 export type AccountingHistorySortOrder = "asc" | "desc";
@@ -35,7 +36,7 @@ export function AccountingHistorySummary({
         累計支払い金額（精算済 {completedCount} 件）
       </span>
       <span className={`text-base font-bold ${C.text} font-mono`}>
-        ¥{completedTotal.toLocaleString()}
+        {formatCurrency(completedTotal)}
       </span>
     </div>
   );
@@ -160,63 +161,6 @@ export function AccountingHistoryTable({
   );
 }
 
-interface AccountingHistoryPaginationProps {
-  page: number;
-  totalPages: number;
-  onPageChange: (updater: number | ((prev: number) => number)) => void;
-}
-
-export function AccountingHistoryPagination({
-  page,
-  totalPages,
-  onPageChange,
-}: AccountingHistoryPaginationProps) {
-  if (totalPages <= 1) return null;
-
-  return (
-    <nav
-      className="flex items-center justify-center gap-3 pt-1"
-      role="navigation"
-      aria-label="ページネーション"
-    >
-      <Button
-        type="button"
-        variant="outline"
-        size="sm"
-        className="h-8 px-2"
-        onClick={() => onPageChange((currentPage) => Math.max(1, currentPage - 1))}
-        disabled={page <= 1}
-        aria-label="前のページ"
-      >
-        <ChevronLeft className={ICON.action} />
-        前へ
-      </Button>
-      <span className={`text-xs ${C.text50}`} aria-live="polite">
-        {page} / {totalPages} ページ
-      </span>
-      <Button
-        type="button"
-        variant="outline"
-        size="sm"
-        className="h-8 px-2"
-        onClick={() => onPageChange((currentPage) => Math.min(totalPages, currentPage + 1))}
-        disabled={page >= totalPages}
-        aria-label="次のページ"
-      >
-        次へ
-        <ChevronRight className={ICON.action} />
-      </Button>
-    </nav>
-  );
-}
-
-const STATUS_LABEL: Record<AccountingStatus, string> = {
-  waiting: "未精算",
-  pending: "保留",
-  completed: "精算済",
-  cancelled: "取消",
-};
-
 const AccountingHistoryRow = memo(function AccountingHistoryRow({
   accounting,
   ref,
@@ -247,7 +191,7 @@ const AccountingHistoryRow = memo(function AccountingHistoryRow({
           variant={isCompleted ? "default" : "outline"}
           className="font-normal text-xs"
         >
-          {STATUS_LABEL[accounting.status] ?? accounting.status}
+          {ACCOUNTING_STATUS_LABELS[accounting.status] ?? accounting.status}
         </Badge>
       </TableCell>
       <TableCell className={`${STYLE.tableCell} text-right font-mono`}>

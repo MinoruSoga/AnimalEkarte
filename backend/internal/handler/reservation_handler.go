@@ -224,9 +224,9 @@ func (h *Handler) DeleteReservation(c *gin.Context) {
 	c.Status(http.StatusNoContent)
 }
 
-// PatchReservationReservationRoute godoc
+// UpdateReservationReservationRoute godoc
 // PATCH /reservations/:id/reservation-route — 予約経路を更新する（FEAT-381-2）。
-func (h *Handler) PatchReservationReservationRoute(c *gin.Context) {
+func (h *Handler) UpdateReservationReservationRoute(c *gin.Context) {
 	clinicID, ok := extractClinicID(c)
 	if !ok {
 		return
@@ -259,6 +259,6 @@ func (h *Handler) RegisterReservationRoutes(rg *gin.RouterGroup) {
 	reservations.GET("/:id", h.RequirePermission(string(model.ResourceReservations), "view"), h.GetReservation)
 	reservations.POST("", h.RequirePermission(string(model.ResourceReservations), "create"), h.CreateReservation)
 	reservations.PATCH("/:id", h.RequirePermission(string(model.ResourceReservations), "edit"), h.UpdateReservation)
-	reservations.PATCH("/:id/reservation-route", h.RequirePermission(string(model.ResourceReservations), "edit"), h.PatchReservationReservationRoute)
+	reservations.PATCH("/:id/reservation-route", h.RequirePermission(string(model.ResourceReservations), "edit"), h.UpdateReservationReservationRoute)
 	reservations.DELETE("/:id", h.RequirePermission(string(model.ResourceReservations), "delete"), h.DeleteReservation)
 }

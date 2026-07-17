@@ -14,3 +14,7 @@ projects/
 *.swp
 *.bak
 *.log
+
+# Python cache (sync-codex-mirror.py)
+__pycache__/
+*.pyc

@@ -25,7 +25,7 @@
                                                                                 
   - 上記2（React Compiler 警告）を、並行セッションの衝突リスクを承知の上で直す  
   - 上記3の仕様変更を設計する（PO論点を整理して提案する）                       
-  ⎿  Read docs/screens/settings/master-reservation-type.md (57 lines)
+  ⎿  Read docs/spec/screens/settings/master-reservation-type.md (57 lines)
   ⎿  Read ../../../../.claude/projects/-Users-minoru-Dev-Case-AnimalHospital-AnimalEkarte/memory/line_reservation_slots_page_20260611.md (33 lines)
   ⎿  Read frontend/src/features/master/routes/TreatmentPlanMaster.tsx (343 lines)
   ⎿  Read frontend/e2e/master-crud.spec.ts (121 lines)
@@ -34,7 +34,7 @@
 ⏺ use-medical-record-form.ts の該当箇所を読む。
 
   Read 1 file (ctrl+o to expand)
-  ⎿  Loaded docs/screens/CLAUDE.md
+  ⎿  Loaded docs/spec/screens/CLAUDE.md
   ⎿  Loaded frontend/CLAUDE.md
   ⎿  Loaded frontend/src/features/CLAUDE.md
 

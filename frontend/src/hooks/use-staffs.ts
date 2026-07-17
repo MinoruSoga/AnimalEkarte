@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
+import { queryKeys } from "@/lib/query-keys";
 import type { Staff as ModelStaff } from "@/types/generated/models";
 
 // ─────────────────────────────────────────────────
@@ -38,7 +39,7 @@ function transformStaff(data: ModelStaff): StaffItem {
  */
 export function useGetStaffs() {
   return useQuery({
-    queryKey: ["masters", "staffs"] as const,
+    queryKey: queryKeys.masters.category("staffs"),
     queryFn: async (): Promise<StaffItem[]> => {
       const { data } = await axios.get<ModelStaff[]>("/v1/masters/staffs");
       return data.map(transformStaff);

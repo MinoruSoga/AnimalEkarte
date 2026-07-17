@@ -9,7 +9,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { NotionDatePicker } from "@/components/shared/NotionDatePicker/NotionDatePicker";
+import { DatePicker } from "@/components/shared/DatePicker/DatePicker";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { C, ICON } from "@/lib/design-tokens";
 
@@ -88,7 +88,7 @@ export const ImageGalleryFilter = memo(function ImageGalleryFilter({
           <Button
             type="button"
             size="sm"
-            className={`${C.bgAccent} ${C.bgAccentHover} ${C.textWhite} gap-2 h-10 text-sm shadow-sm border-transparent px-4`}
+            className={`${C.bgBrand} ${C.hoverBgBrand} ${C.textWhite} gap-2 h-10 text-sm shadow-none rounded-full border-transparent px-4`}
             onClick={handleUploadClick}
             disabled={isUploading}
           >
@@ -117,14 +117,14 @@ export const ImageGalleryFilter = memo(function ImageGalleryFilter({
             期間
           </Label>
           <div className="flex items-center gap-2">
-            <NotionDatePicker
+            <DatePicker
               value={dateStart}
               onChange={onDateStartChange}
               placeholder="開始日"
               className="flex-1"
             />
             <span className={`${C.text} font-medium text-sm`}>〜</span>
-            <NotionDatePicker
+            <DatePicker
               value={dateEnd}
               onChange={onDateEndChange}
               placeholder="終了日"
@@ -143,8 +143,7 @@ export const ImageGalleryFilter = memo(function ImageGalleryFilter({
           </Button>
           <Button
             type="button"
-            variant="outline"
-            className={`h-10 ${C.bgAccent} ${C.textWhite} ${C.bgAccentHover} hover:text-white border-transparent text-sm shadow-sm px-3`}
+            className={`h-10 ${C.bgBrand} ${C.textWhite} ${C.hoverBgBrand} hover:text-white border-transparent text-sm shadow-none rounded-full px-3`}
           >
             検索
           </Button>

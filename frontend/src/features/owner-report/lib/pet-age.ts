@@ -1,4 +1,4 @@
-import { toJSTWallDate } from "@/lib/jst-date";
+import { calcAgePartsAt } from "@/lib/calc-age";
 
 /**
  * #158 飼主レポート: 生年月日から「N歳Mヶ月」表記を算出する純関数。
@@ -8,11 +8,12 @@ import { toJSTWallDate } from "@/lib/jst-date";
  *
  * - birthDate は "YYYY-MM-DD" もしくは "YYYY-MM-DDT..."（ISO）を受け付ける。
  * - 不正な値・未来日付は null を返す（表示側で非表示にする）。
- * - タイムゾーン差で月境界がずれないよう、birthDate は数値分解して比較する。
- * - 基準日 now の既定値は JST 壁時計（toJSTWallDate）。ブラウザのローカル TZ に依存して
- *   月境界で 1 日ずれるのを防ぐ（運用は JST 固定）。
+ * - 年月の計算部は calcAgePartsAt（lib/calc-age）に委譲（FE3-9）。バリデーション・
+ *   未来日ガード・「N歳Mヶ月」表記はこちらに残す。
+ * - 基準日 now の既定値は生の `new Date()`。JST 変換は calcAgePartsAt が内部で 1 回だけ
+ *   行うため、ここで事前に toJSTWallDate すると二重変換になり時刻帯によって日付がずれる。
  */
-export function formatPetAge(birthDate: string, now: Date = toJSTWallDate(new Date())): string | null {
+export function formatPetAge(birthDate: string, now: Date = new Date()): string | null {
   const [y, m, d] = birthDate.split("T")[0].split("-").map(Number);
   if (
     !Number.isInteger(y) ||
@@ -26,15 +27,7 @@ export function formatPetAge(birthDate: string, now: Date = toJSTWallDate(new Da
     return null;
   }
 
-  let years = now.getFullYear() - y;
-  let months = now.getMonth() + 1 - m;
-  if (now.getDate() < d) {
-    months -= 1;
-  }
-  if (months < 0) {
-    years -= 1;
-    months += 12;
-  }
+  const { years, months } = calcAgePartsAt(birthDate, now);
   if (years < 0) {
     return null;
   }

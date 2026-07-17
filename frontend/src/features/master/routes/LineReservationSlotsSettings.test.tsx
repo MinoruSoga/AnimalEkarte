@@ -1,9 +1,8 @@
 import { describe, expect, it, afterEach, vi } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
-import { MemoryRouter } from "react-router";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { http, HttpResponse } from "msw";
 import { server } from "@/testing/mocks/node";
+import { createTestWrapper } from "@/testing/utils";
 import { LineReservationSlotsSettings } from "./LineReservationSlotsSettings";
 
 vi.mock("@/hooks/use-permission", () => ({
@@ -16,16 +15,9 @@ vi.mock("@/hooks/use-permission", () => ({
 }));
 
 function renderPage(initialEntry: string) {
-  const queryClient = new QueryClient({
-    defaultOptions: { queries: { retry: false } },
+  return render(<LineReservationSlotsSettings />, {
+    wrapper: createTestWrapper({ initialEntries: [initialEntry] }),
   });
-  return render(
-    <MemoryRouter initialEntries={[initialEntry]}>
-      <QueryClientProvider client={queryClient}>
-        <LineReservationSlotsSettings />
-      </QueryClientProvider>
-    </MemoryRouter>,
-  );
 }
 
 /** BE の tree response 形式 (root は children 付き) */

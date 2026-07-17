@@ -25,7 +25,7 @@ type mockExaminationService struct {
 	updateFn       func(ctx context.Context, clinicID, id uint64, input service.UpdateExaminationInput) (*model.Examination, error)
 	deleteFn       func(ctx context.Context, clinicID, id uint64) error
 	listItemsFn    func(ctx context.Context, clinicID, examID uint64) ([]model.ExamResult, error)
-	replaceItemsFn func(ctx context.Context, clinicID, examID uint64, inputs []service.UpsertExamItemInput) ([]model.ExamResult, error)
+	replaceItemsFn func(ctx context.Context, clinicID, examID uint64, actorID *uint64, inputs []service.UpsertExamItemInput) ([]model.ExamResult, error)
 }
 
 func (m *mockExaminationService) List(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status, startDate, endDate *string, page, limit int) ([]model.Examination, int64, error) {
@@ -52,8 +52,8 @@ func (m *mockExaminationService) ListItems(ctx context.Context, clinicID, examID
 	return m.listItemsFn(ctx, clinicID, examID)
 }
 
-func (m *mockExaminationService) ReplaceItems(ctx context.Context, clinicID, examID uint64, inputs []service.UpsertExamItemInput) ([]model.ExamResult, error) {
-	return m.replaceItemsFn(ctx, clinicID, examID, inputs)
+func (m *mockExaminationService) ReplaceItems(ctx context.Context, clinicID, examID uint64, actorID *uint64, inputs []service.UpsertExamItemInput) ([]model.ExamResult, error) {
+	return m.replaceItemsFn(ctx, clinicID, examID, actorID, inputs)
 }
 
 func newHandlerWithExaminationSvc(svc service.ExaminationService) *Handler {
@@ -174,7 +174,7 @@ func TestReplaceExaminationItems(t *testing.T) {
 			},
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockExaminationService{
-				replaceItemsFn: func(_ context.Context, clinicID, examID uint64, inputs []service.UpsertExamItemInput) ([]model.ExamResult, error) {
+				replaceItemsFn: func(_ context.Context, clinicID, examID uint64, _ *uint64, inputs []service.UpsertExamItemInput) ([]model.ExamResult, error) {
 					assert.Equal(t, uint64(1), clinicID)
 					assert.Equal(t, uint64(10), examID)
 					assert.Len(t, inputs, 2)
@@ -195,7 +195,7 @@ func TestReplaceExaminationItems(t *testing.T) {
 			body:     map[string]any{"items": []map[string]any{}},
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockExaminationService{
-				replaceItemsFn: func(_ context.Context, _, _ uint64, inputs []service.UpsertExamItemInput) ([]model.ExamResult, error) {
+				replaceItemsFn: func(_ context.Context, _, _ uint64, _ *uint64, inputs []service.UpsertExamItemInput) ([]model.ExamResult, error) {
 					assert.Empty(t, inputs)
 					return []model.ExamResult{}, nil
 				},
@@ -245,7 +245,7 @@ func TestReplaceExaminationItems(t *testing.T) {
 			body:     map[string]any{"items": []map[string]any{{"name": "WBC"}}},
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockExaminationService{
-				replaceItemsFn: func(_ context.Context, _, _ uint64, _ []service.UpsertExamItemInput) ([]model.ExamResult, error) {
+				replaceItemsFn: func(_ context.Context, _, _ uint64, _ *uint64, _ []service.UpsertExamItemInput) ([]model.ExamResult, error) {
 					return nil, apperrors.WrapInvalidInput("確定済みの検査は編集できません")
 				},
 			},
@@ -257,7 +257,7 @@ func TestReplaceExaminationItems(t *testing.T) {
 			body:     map[string]any{"items": []map[string]any{{"name": "WBC"}}},
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockExaminationService{
-				replaceItemsFn: func(_ context.Context, _, _ uint64, _ []service.UpsertExamItemInput) ([]model.ExamResult, error) {
+				replaceItemsFn: func(_ context.Context, _, _ uint64, _ *uint64, _ []service.UpsertExamItemInput) ([]model.ExamResult, error) {
 					return nil, apperrors.WrapNotFound("exam", "999")
 				},
 			},

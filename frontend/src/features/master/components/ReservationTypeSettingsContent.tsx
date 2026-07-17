@@ -1,6 +1,6 @@
 import Plus from "lucide-react/dist/esm/icons/plus";
-import { NotionFilter } from "@/components/shared/NotionFilter/NotionFilter";
-import type { ActiveFilter } from "@/components/shared/NotionFilter/types";
+import { PropertyFilter } from "@/components/shared/PropertyFilter/PropertyFilter";
+import type { ActiveFilter } from "@/components/shared/PropertyFilter/types";
 import { C, ICON } from "@/lib/design-tokens";
 import type { ReservationType } from "../api/reservation-types";
 import type { ReservationTypeGroup } from "../api/reservation-type-groups";
@@ -40,7 +40,7 @@ export function ReservationTypeSettingsContent({
 }: ReservationTypeSettingsContentProps) {
   return (
     <div className="flex flex-col gap-4">
-      <NotionFilter
+      <PropertyFilter
         properties={[MASTER_STATUS_FILTER]}
         activeFilters={activeFilters}
         onFilterChange={onFilterChange}

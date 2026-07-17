@@ -37,7 +37,7 @@ import type { Pet } from "@/types";
 import type { OwnersLoaderData } from "../loaders";
 import type { PetFormData } from "../types";
 import type { UpdatePetRequest } from "@/types/pet";
-import type { ActiveFilter } from "@/components/shared/NotionFilter/types";
+import type { ActiveFilter } from "@/components/shared/PropertyFilter/types";
 import { ResourceMedicalRecords, ResourceOwners } from "@/types/generated/models";
 import { OwnersListTable } from "../components/OwnersListTable";
 
@@ -163,7 +163,6 @@ export function OwnersList({ onUpdatePet }: OwnersListProps = {}) {
   const urlPage = Number(searchParams.get("page") ?? 1);
 
   const pagination = usePagination(sortedData, {
-    pageSize: 20,
     resetKey: deferredSearchTerm,
   });
 
@@ -287,7 +286,7 @@ export function OwnersList({ onUpdatePet }: OwnersListProps = {}) {
       resource={ResourceOwners}
       headerAction={
         canCreate ? (
-          <PrimaryButton onClick={handleCreate}>
+          <PrimaryButton colorVariant="brand" onClick={handleCreate}>
             <Plus className={`mr-1.5 ${ICON.action}`} />
             新規登録
           </PrimaryButton>
@@ -336,7 +335,7 @@ export function OwnersList({ onUpdatePet }: OwnersListProps = {}) {
         onClose={() => { if (!isDeleting) deleteModal.close(); }}
         onConfirm={handleConfirmDelete}
         title="飼主を削除しますか？"
-        description={`飼主「${deleteModal.item?.name}」とこの飼主に関連するすべてのペット情報が削除されます。この操作は取り消すことができません。`}
+        description={`飼主「${deleteModal.item?.name}」を削除します。この操作は取り消すことができません。なお、ペットが紐付いている場合は削除できません（先にペットを削除してください）。`}
         confirmLabel={isDeleting ? "削除中..." : "削除"}
         cancelLabel="キャンセル"
         variant="destructive"

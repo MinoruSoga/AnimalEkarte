@@ -70,24 +70,96 @@ func (s *accountingService) Create(ctx context.Context, input *CreateAccountingI
 		CompletedAt:       input.CompletedAt,
 		Memo:              input.Memo,
 	}
-	if err := s.repo.Create(ctx, input.ClinicID, billing); err != nil {
-		slog.ErrorContext(ctx, "failed to create accounting", "error", err)
-		return nil, apperrors.Wrap(err, "failed to create accounting")
+	// BE-refactor.md X-12: 会計完了(completed)での Create は billing 作成と appointment 完了化を
+	// 単一 tx に統合する。従来は repo.Create のコミット後に tx 外で completeAccountingAppointments
+	// を呼んでおり、後者のみ失敗すると billing が確定済みのまま残った（部分コミット）。
+	// completed でない Create（waiting 等）は appointment 完了化を伴わないため従来どおり tx 不要。
+	// AUD-002: 関連 FK 所有確認は write 前に実施。completed は同一 WithTx 内、それ以外は create 直前。
+	createBilling := func(cctx context.Context) error {
+		if err := s.repo.Create(cctx, input.ClinicID, billing); err != nil {
+			slog.ErrorContext(cctx, "failed to create accounting", "error", err)
+			return apperrors.Wrap(err, "failed to create accounting")
+		}
+		return nil
+	}
+	validateFKs := func(cctx context.Context) error {
+		return s.validateAccountingRelatedFKs(
+			cctx, input.ClinicID,
+			input.MedicalRecordID, input.HospitalizationID, input.OwnerID, input.PetID,
+		)
+	}
+	if billing.Status == model.BillingStatusCompleted {
+		if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
+			if err := validateFKs(txCtx); err != nil {
+				return err
+			}
+			if err := createBilling(txCtx); err != nil {
+				return err
+			}
+			if err := s.completeAccountingAppointments(txCtx, input.ClinicID, billing); err != nil {
+				return apperrors.Wrap(err, "failed to complete accounting appointments during create")
+			}
+			return nil
+		}); err != nil {
+			return nil, err //nolint:wrapcheck // 閉包内で文脈付き wrap 済み（"in transaction" の同義二重ラップを廃止）
+		}
+	} else {
+		if err := validateFKs(ctx); err != nil {
+			return nil, err
+		}
+		if err := createBilling(ctx); err != nil {
+			return nil, err //nolint:wrapcheck // createBilling 内で wrap 済み
+		}
 	}
 	slog.InfoContext(ctx, "accounting created",
 		slog.Uint64("billing_id", billing.ID),
 		slog.Uint64("clinic_id", input.ClinicID))
 	if billing.Status == model.BillingStatusCompleted {
-		if err := s.completeAccountingAppointments(ctx, input.ClinicID, billing); err != nil {
-			return nil, apperrors.Wrap(err, "failed to complete accounting appointments during create")
-		}
 		s.syncCPMStageTag(ctx, input.ClinicID, billing)
 	}
 	return billing, nil
 }
 
+// resolvePaymentWrites は書込み前に method(ENUM)→payment_methods マスタ id を解決する
+// （tx 外・低コストな読取のみ。BE-refactor.md E-4）。hasPaymentFields(input) が false の場合は
+// (nil, nil, nil) を返す。
+func (s *accountingService) resolvePaymentWrites(ctx context.Context, input *UpdateAccountingInput) (*model.Payment, []model.PaymentSplit, error) {
+	if !hasPaymentFields(input) {
+		return nil, nil, nil
+	}
+	systemKeyToID, err := s.loadPaymentMethodSystemKeyToID(ctx, input.ClinicID)
+	if err != nil {
+		return nil, nil, err // loadPaymentMethodSystemKeyToID 内で既に wrap + log 済み
+	}
+	payment := buildPaymentFromInput(input)
+	// 代表支払方法も master id を併設（dual maintain）。method 未設定の更新（保険のみ等）は解決対象外。
+	if payment.Method != "" {
+		pid, err := resolvePaymentMethodMasterID(payment.Method, payment.PaymentMethodID, systemKeyToID)
+		if err != nil {
+			return nil, nil, err
+		}
+		payment.PaymentMethodID = pid
+	}
+	splits := buildPaymentSplits(input)
+	for i := range splits {
+		pid, err := resolvePaymentMethodMasterID(splits[i].Method, splits[i].PaymentMethodID, systemKeyToID)
+		if err != nil {
+			return nil, nil, err
+		}
+		splits[i].PaymentMethodID = pid
+	}
+	return payment, splits, nil
+}
+
 func (s *accountingService) Update(ctx context.Context, input *UpdateAccountingInput) (*model.Billing, error) {
-	_, err := s.repo.FindByID(ctx, input.ClinicID, input.ID)
+	// #115 / B4: レジ締め済み期間の会計編集は理由必須。service 層を権威的 enforcement 点とし、
+	// handler を迂回する呼び出し元にも不変条件を強制する。
+	// 注: 認可（ユーザー権限）はリクエストスコープの関心事のため handler 側に残す（service 入力に actor 権限は持たせない）。
+	if input.IsPostClose && (input.PostCloseReason == nil || *input.PostCloseReason == "") {
+		return nil, apperrors.WrapInvalidInput("レジ締め済み期間の会計編集には post_close_reason の入力が必要です")
+	}
+
+	existing, err := s.repo.FindByID(ctx, input.ClinicID, input.ID)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to find accounting", "error", err)
 		return nil, apperrors.Wrap(err, "failed to find accounting")
@@ -105,42 +177,44 @@ func (s *accountingService) Update(ctx context.Context, input *UpdateAccountingI
 		return nil, apperrors.WrapInvalidInput("no fields to update")
 	}
 
-	// Billing 本体の更新
-	if len(fields) > 0 {
-		if _, err := s.repo.Update(ctx, input.ClinicID, input.ID, fields); err != nil {
-			slog.ErrorContext(ctx, "failed to update accounting", "error", err)
-			return nil, apperrors.Wrap(err, "failed to update accounting")
-		}
+	finalMRID, finalHospID, finalOwnerID, finalPetID := resolveFinalAccountingRelatedIDs(existing, input)
+
+	// #128: 書込み前に method(ENUM)→payment_methods マスタ id を解決する（tx 外・低コストな読取のみ）。
+	// レジ締め・月次集計は payment_method_id をキーにし NULL を現金とみなすため、
+	// 非現金 split が NULL のまま保存されると全て現金に倒れる。解決失敗時はここで会計確定を止める。
+	payment, splits, err := s.resolvePaymentWrites(ctx, input)
+	if err != nil {
+		return nil, err // resolvePaymentWrites 内で既に wrap + log 済み
 	}
 
-	// Payment upsert（支払フィールドが含まれている場合）— トランザクション内で SavePayment + SavePaymentSplits を実行
-	if hasPaymentFields(input) {
-		// #128: 書込み前に method(ENUM)→payment_methods マスタ id を解決する。
-		// レジ締め・月次集計は payment_method_id をキーにし NULL を現金とみなすため、
-		// 非現金 split が NULL のまま保存されると全て現金に倒れる。解決失敗時はここで会計確定を止める。
-		nameToID, err := s.loadPaymentMethodNameToID(ctx, input.ClinicID)
-		if err != nil {
-			return nil, err // loadPaymentMethodNameToID 内で既に wrap + log 済み
+	// BE-refactor.md R1-2 (D1): Billing 本体更新・Payment upsert・締め後編集監査を単一 tx に統合する。
+	// 従来は fields 更新が tx 外、payment upsert が独立 tx、監査が tx 外 best-effort の三系統に分かれており、
+	// 途中失敗時に部分コミット（例: fields 更新は成功したが payment upsert のみ失敗）が起こり得た。
+	// 統合後は「本体書込（fields/payment）と締め後編集監査が原子」になる（refund/CorrectCreditPayment と同型）。
+	// BE-refactor.md X-12: fields が status=completed を含む場合（buildAccountingUpdate は
+	// input.Status != nil を必ず fields["status"] に反映するため、この分岐に入るなら fields は
+	// 必ず非空 = s.repo.Update が必ず呼ばれる）、tx 内で得られる updatedBilling を使って
+	// appointment 完了化も同一 tx に含める。従来は WithTx コミット後・tx 外の ctx で
+	// completeAccountingAppointments を呼んでおり、これのみ失敗すると billing は completed で
+	// 確定済みのまま部分コミットになった。
+	// AUD-002: 最終関連 FK の所有・相互整合検証を write 前（同一 WithTx 内）で実施する。
+	var updatedBilling *model.Billing
+	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
+		if err := s.validateAccountingRelatedFKs(txCtx, input.ClinicID, finalMRID, finalHospID, finalOwnerID, finalPetID); err != nil {
+			return err
 		}
-		payment := buildPaymentFromInput(input)
-		// 代表支払方法も master id を併設（dual maintain）。method 未設定の更新（保険のみ等）は解決対象外。
-		if payment.Method != "" {
-			pid, err := resolvePaymentMethodMasterID(payment.Method, payment.PaymentMethodID, nameToID)
+		// Billing 本体の更新
+		if len(fields) > 0 {
+			b, err := s.repo.Update(txCtx, input.ClinicID, input.ID, fields)
 			if err != nil {
-				return nil, err
+				slog.ErrorContext(txCtx, "failed to update accounting", "error", err)
+				return apperrors.Wrap(err, "failed to update accounting")
 			}
-			payment.PaymentMethodID = pid
-		}
-		splits := buildPaymentSplits(input)
-		for i := range splits {
-			pid, err := resolvePaymentMethodMasterID(splits[i].Method, splits[i].PaymentMethodID, nameToID)
-			if err != nil {
-				return nil, err
-			}
-			splits[i].PaymentMethodID = pid
+			updatedBilling = b
 		}
 
-		if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
+		// Payment upsert（支払フィールドが含まれている場合）
+		if hasPaymentFields(input) {
 			if err := s.repo.SavePayment(txCtx, payment); err != nil {
 				slog.ErrorContext(txCtx, "failed to upsert payment", "error", err)
 				return apperrors.Wrap(err, "failed to upsert payment")
@@ -153,10 +227,24 @@ func (s *accountingService) Update(ctx context.Context, input *UpdateAccountingI
 			slog.InfoContext(txCtx, "payment upserted",
 				slog.Uint64("clinic_id", input.ClinicID),
 				slog.Uint64("billing_id", input.ID))
-			return nil
-		}); err != nil {
-			return nil, apperrors.Wrap(err, "failed to upsert payment")
 		}
+
+		// #115: 締め後編集監査ログ（fail-closed: 失敗時は tx をロールバックし更新ごと無効にする。BE-refactor.md R1-2）
+		if input.IsPostClose {
+			if err := s.logPostCloseEdit(txCtx, input); err != nil {
+				return err
+			}
+		}
+
+		// X-12: 判定は再読込後の accounting ではなく input.Status ベース（tx 内では fields 適用済みのため同値）。
+		if input.Status != nil && *input.Status == model.BillingStatusCompleted {
+			if err := s.completeAccountingAppointments(txCtx, input.ClinicID, updatedBilling); err != nil {
+				return apperrors.Wrap(err, "failed to complete accounting appointments during update")
+			}
+		}
+		return nil
+	}); err != nil {
+		return nil, apperrors.Wrap(err, "failed to update accounting in transaction")
 	}
 
 	// 更新後のレコードを返す
@@ -170,51 +258,55 @@ func (s *accountingService) Update(ctx context.Context, input *UpdateAccountingI
 		slog.Uint64("billing_id", accounting.ID),
 		slog.Uint64("clinic_id", input.ClinicID))
 
-	// #115: 締め後編集監査ログ（ベストエフォート）
-	if input.IsPostClose && s.auditSvc != nil {
-		billingID := input.ID
-		aType := "system"
-		if input.StaffID != nil {
-			aType = "staff"
-		}
-		meta := map[string]any{}
-		if input.PostCloseReason != nil {
-			meta["reason"] = *input.PostCloseReason
-		}
-		if logErr := s.auditSvc.LogEntry(ctx, &AuditLogInput{
-			ClinicID:   &input.ClinicID,
-			ActorID:    input.StaffID,
-			ActorType:  aType,
-			Action:     model.AuditActionBillingPostCloseEdit,
-			Resource:   "billing",
-			ResourceID: &billingID,
-			Metadata:   meta,
-		}); logErr != nil {
-			slog.WarnContext(ctx, "audit log failed for post_close_edit", "error", logErr, "billing_id", input.ID)
-		}
-	}
-
+	// syncCPMStageTag は外部 LSTEP 同期のため従来どおり tx 外 best-effort を維持する（X-12 対応方針）。
 	if input.Status != nil && *input.Status == model.BillingStatusCompleted {
-		if err := s.completeAccountingAppointments(ctx, input.ClinicID, accounting); err != nil {
-			return nil, apperrors.Wrap(err, "failed to complete accounting appointments during update")
-		}
 		s.syncCPMStageTag(ctx, input.ClinicID, accounting)
 	}
 	return accounting, nil
 }
 
-// loadPaymentMethodNameToID は当該 clinic の payment_methods マスタを name→id マップとして読み込む（#128）。
-func (s *accountingService) loadPaymentMethodNameToID(ctx context.Context, clinicID uint64) (map[string]uint64, error) {
+// logPostCloseEdit はレジ締め済み期間の会計編集監査ログを記録する（#115 / B4）。
+// BE-refactor.md R1-2: Update の ambient tx に参加する LogEntryTx を使う（fail-closed）。
+// 呼び出し元は返されたエラーで tx をロールバックし、監査失敗時に編集自体も無効にする。
+func (s *accountingService) logPostCloseEdit(ctx context.Context, input *UpdateAccountingInput) error {
+	if s.auditTx == nil {
+		return nil
+	}
+	billingID := input.ID
+	aType := auditActorTypeFor(input.StaffID)
+	meta := map[string]any{}
+	if input.PostCloseReason != nil {
+		meta["reason"] = *input.PostCloseReason
+	}
+	if err := s.auditTx.LogEntryTx(ctx, &AuditLogInput{
+		ClinicID:   &input.ClinicID,
+		ActorID:    input.StaffID,
+		ActorType:  aType,
+		Action:     model.AuditActionBillingPostCloseEdit,
+		Resource:   "billing",
+		ResourceID: &billingID,
+		Metadata:   meta,
+	}); err != nil {
+		return apperrors.Wrap(err, "failed to write post_close_edit audit log")
+	}
+	return nil
+}
+
+// loadPaymentMethodSystemKeyToID は当該 clinic の payment_methods マスタを system_key→id マップとして読み込む（#197）。
+// system_key が NULL の行（クリニック独自追加の非標準支払方法）はスキップする。
+func (s *accountingService) loadPaymentMethodSystemKeyToID(ctx context.Context, clinicID uint64) (map[string]uint64, error) {
 	methods, err := s.payMethodRepo.FindAll(ctx, clinicID)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to load payment methods", "error", err, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to load payment methods")
 	}
-	nameToID := make(map[string]uint64, len(methods))
+	skToID := make(map[string]uint64, len(methods))
 	for i := range methods {
-		nameToID[methods[i].Name] = methods[i].ID
+		if methods[i].SystemKey != nil {
+			skToID[*methods[i].SystemKey] = methods[i].ID
+		}
 	}
-	return nameToID, nil
+	return skToID, nil
 }
 
 func (s *accountingService) completeAccountingAppointments(ctx context.Context, clinicID uint64, billing *model.Billing) error {

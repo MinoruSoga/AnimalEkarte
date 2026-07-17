@@ -24,10 +24,10 @@ func toPrescriptionResponse(p *model.Prescription) prescriptionResponse {
 		ID:           strconv.FormatUint(p.ID, 10),
 		ClinicID:     strconv.FormatUint(p.ClinicID, 10),
 		OwnerID:      strconv.FormatUint(p.OwnerID, 10),
-		PrescribedAt: p.PrescribedAt.In(time.Local).Format("2006-01-02"),
+		PrescribedAt: p.PrescribedAt.In(time.Local).Format(time.DateOnly),
 		DurationDays: p.DurationDays,
-		CreatedAt:    p.CreatedAt.In(time.Local).Format(time.RFC3339),
-		UpdatedAt:    p.UpdatedAt.In(time.Local).Format(time.RFC3339),
+		CreatedAt:    localTimeRFC3339(p.CreatedAt),
+		UpdatedAt:    localTimeRFC3339(p.UpdatedAt),
 	}
 	if p.PetID != nil {
 		s := strconv.FormatUint(*p.PetID, 10)

@@ -290,6 +290,6 @@ Use `gin.New()` (not `gin.Default()`) — `gin.Default()` adds its own plaintext
 ## See Also
 
 - **[repository-pattern.md](repository-pattern.md)** — DB error wrapping (SQLC, GORM)
-- **[testing-by-layer.md](testing-by-layer.md)** — testing error paths, mock error injection
+- `golang-testing` スキル — テストパターン全般（手書き fn-field モックが正本）
 - **[layer-separation.md](layer-separation.md)** — why errors must not cross layer boundaries raw
 - **golang-gin-api** skill — `ShouldBind*` variants, header parsing, request lifecycle

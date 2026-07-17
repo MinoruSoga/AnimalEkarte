@@ -1,27 +1,9 @@
 import Axios, { type InternalAxiosRequestConfig, type AxiosError } from "axios";
 import { getStoredClinicId } from "@/lib/current-clinic";
+import { sanitizeNullBytes } from "@/lib/sanitize";
+import { paths } from "@/config/paths";
 
 const API_URL = import.meta.env.VITE_API_URL || "/api";
-
-/**
- * BUG-067: NULL バイト（\u0000）を再帰的に除去する。
- * PostgreSQL は NULL バイトを含む文字列を受け付けないため 500 エラーになる。
- */
-function sanitizeNullBytes(value: unknown): unknown {
-  if (typeof value === "string") {
-    // eslint-disable-next-line no-control-regex -- NULL バイト除去のため意図的に制御文字を使用
-    return value.replace(/\u0000/g, "");
-  }
-  if (Array.isArray(value)) {
-    return value.map(sanitizeNullBytes);
-  }
-  if (value !== null && typeof value === "object") {
-    return Object.fromEntries(
-      Object.entries(value as Record<string, unknown>).map(([k, v]) => [k, sanitizeNullBytes(v)])
-    );
-  }
-  return value;
-}
 
 function safeFromPath(path: string): string {
   if (path === "") {
@@ -61,9 +43,14 @@ function requestInterceptor(config: InternalAxiosRequestConfig) {
 
   // クリニック切替: localStorage の選択クリニック ID をヘッダーで送信
   // バックエンドの auth ミドルウェアが X-Clinic-ID を優先して clinic_id コンテキストを上書きする
-  const clinicId = getStoredClinicId();
-  if (clinicId !== null) {
-    config.headers["X-Clinic-ID"] = clinicId;
+  // PR #186 review (P2-11/12/15): 拠点横断で取得したレコード（billing/medical record 等）の
+  // 子リソースを操作する場合、呼び出し元が個別に X-Clinic-ID を指定できる必要がある。
+  // 呼び出し元が既にヘッダーを設定している場合はそれを優先し、グローバル選択値で上書きしない。
+  if (config.headers["X-Clinic-ID"] === undefined) {
+    const clinicId = getStoredClinicId();
+    if (clinicId !== null) {
+      config.headers["X-Clinic-ID"] = clinicId;
+    }
   }
 
   // BUG-067: POST/PATCH/PUT のリクエストボディから NULL バイトを除去
@@ -147,7 +134,7 @@ axios.interceptors.response.use(
         window.location.pathname !== "/login"
       ) {
         const from = encodeURIComponent(safeFromPath(`${window.location.pathname}${window.location.search}`));
-        window.location.href = `/login?from=${from}`;
+        window.location.href = `${paths.auth.login.getHref()}?from=${from}`;
       }
       return Promise.reject(error);
     }
@@ -173,7 +160,7 @@ axios.interceptors.response.use(
       processQueue(refreshError as AxiosError);
       if (window.location.pathname !== "/login") {
         const from = encodeURIComponent(safeFromPath(`${window.location.pathname}${window.location.search}`));
-        window.location.href = `/login?from=${from}`;
+        window.location.href = `${paths.auth.login.getHref()}?from=${from}`;
       }
       return Promise.reject(refreshError);
     } finally {

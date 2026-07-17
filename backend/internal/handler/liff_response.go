@@ -2,6 +2,7 @@ package handler
 
 import (
 	"encoding/json"
+	"strconv"
 	"time"
 
 	"github.com/animal-ekarte/backend/internal/model"
@@ -47,6 +48,10 @@ type liffCourseResponse struct {
 	ReservationComment  string `json:"reservation_comment"`
 	ReservationImageURL string `json:"reservation_image_url"`
 	SortOrder           int    `json:"sort_order"`
+	// Category (P1-6, PR #186 review): 予約フローが course.category === 'trimming' で
+	// トリミング詳細ステップの表示を分岐する。欠落時は FE 側が 'general' にフォールバックし
+	// トリミング予約でも詳細入力がスキップされていた。
+	Category string `json:"category"`
 }
 
 func toLiffCourseResponse(st *model.ReservationType) liffCourseResponse {
@@ -71,6 +76,7 @@ func toLiffCourseResponse(st *model.ReservationType) liffCourseResponse {
 		ReservationComment:  st.ReservationComment,
 		ReservationImageURL: st.ReservationImageURL,
 		SortOrder:           st.SortOrder,
+		Category:            string(st.Category),
 	}
 }
 
@@ -183,7 +189,7 @@ func toLiffProfileResponse(c *model.LineCustomer) liffProfileResponse {
 func toLiffReservationResponse(r *model.Reservation) liffReservationResponse {
 	res := liffReservationResponse{
 		ID:        r.ID,
-		Date:      r.StartTime.In(time.Local).Format("2006-01-02"),
+		Date:      r.StartTime.In(time.Local).Format(time.DateOnly),
 		StartTime: r.StartTime.In(time.Local).Format("15:04"),
 		EndTime:   r.EndTime.In(time.Local).Format("15:04"),
 		Status:    string(r.Status),
@@ -207,6 +213,71 @@ func toLiffReservationResponse(r *model.Reservation) liffReservationResponse {
 		}
 	}
 	return res
+}
+
+// liffReservationCreatedResponse はLIFF予約作成（201）専用レスポンス。
+// 一覧用の liffReservationResponse とは別型（id/notes の2フィールドのみ露出）。
+type liffReservationCreatedResponse struct {
+	ID    uint64 `json:"id"`
+	Notes string `json:"notes"`
+}
+
+func toLiffReservationCreatedResponse(r *model.Reservation) liffReservationCreatedResponse {
+	return liffReservationCreatedResponse{
+		ID:    r.ID,
+		Notes: r.Notes,
+	}
+}
+
+// liffHealthCardVaccineResponse はLIFF向け健康手帳ワクチン接種履歴レスポンス。
+type liffHealthCardVaccineResponse struct {
+	VaccineName  string     `json:"vaccine_name"`
+	VaccinatedAt time.Time  `json:"vaccinated_at"`
+	NextDueAt    *time.Time `json:"next_due_at"`
+}
+
+// liffHealthCardPetResponse はLIFF向け健康手帳ペットレスポンス。
+type liffHealthCardPetResponse struct {
+	PetID         string                          `json:"pet_id"`
+	PetName       string                          `json:"pet_name"`
+	Species       string                          `json:"species"`
+	Breed         string                          `json:"breed"`
+	Vaccines      []liffHealthCardVaccineResponse `json:"vaccines"`
+	LastVisitDate *string                         `json:"last_visit_date"`
+}
+
+// liffHealthCardResponse はLIFF向け健康手帳レスポンス。
+type liffHealthCardResponse struct {
+	OwnerName string                      `json:"owner_name"`
+	Pets      []liffHealthCardPetResponse `json:"pets"`
+}
+
+func toLiffHealthCardResponse(r *service.HealthCardResult) liffHealthCardResponse {
+	pets := make([]liffHealthCardPetResponse, 0, len(r.Pets))
+	for _, p := range r.Pets {
+		vaccines := make([]liffHealthCardVaccineResponse, 0, len(p.Vaccines))
+		for _, v := range p.Vaccines {
+			vaccines = append(vaccines, liffHealthCardVaccineResponse{
+				VaccineName:  v.VaccineName,
+				VaccinatedAt: localTime(v.VaccinatedAt),
+				NextDueAt:    localTimePtr(v.NextDueAt),
+			})
+		}
+		var lastVisitDate *string
+		if p.LastVisitDate != nil {
+			s := p.LastVisitDate.In(time.Local).Format(time.DateOnly)
+			lastVisitDate = &s
+		}
+		pets = append(pets, liffHealthCardPetResponse{
+			PetID:         strconv.FormatUint(p.PetID, 10),
+			PetName:       p.PetName,
+			Species:       p.Species,
+			Breed:         p.Breed,
+			Vaccines:      vaccines,
+			LastVisitDate: lastVisitDate,
+		})
+	}
+	return liffHealthCardResponse{OwnerName: r.OwnerName, Pets: pets}
 }
 
 // liffTrimmingCourseResponse はLIFF向けトリミングコースレスポンス。

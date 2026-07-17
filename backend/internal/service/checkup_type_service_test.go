@@ -18,7 +18,9 @@ type mockCheckupTypeRepository struct {
 	createFn                    func(ctx context.Context, checkupType *model.CheckupType) error
 	updateFieldsFn              func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.CheckupType, error)
 	deleteFn                    func(ctx context.Context, clinicID, id uint64) error
+	reorderFn                   func(ctx context.Context, clinicID uint64, ids []uint64) error
 	countUsageByCheckupTypeIDFn func(ctx context.Context, clinicID, checkupTypeID uint64) (int64, error)
+	countChildrenByParentIDFn   func(ctx context.Context, clinicID, parentID uint64) (int64, error)
 }
 
 func (m *mockCheckupTypeRepository) FindAll(ctx context.Context, clinicID uint64) ([]model.CheckupType, error) {
@@ -42,6 +44,9 @@ func (m *mockCheckupTypeRepository) Delete(ctx context.Context, clinicID, id uin
 }
 
 func (m *mockCheckupTypeRepository) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
+	if m.reorderFn != nil {
+		return m.reorderFn(ctx, clinicID, ids)
+	}
 	return nil
 }
 
@@ -52,8 +57,11 @@ func (m *mockCheckupTypeRepository) CountUsageByCheckupTypeID(ctx context.Contex
 	return m.countUsageByCheckupTypeIDFn(ctx, clinicID, checkupTypeID)
 }
 
-func (m *mockCheckupTypeRepository) CountChildrenByParentID(_ context.Context, _, _ uint64) (int64, error) {
-	return 0, nil
+func (m *mockCheckupTypeRepository) CountChildrenByParentID(ctx context.Context, clinicID, parentID uint64) (int64, error) {
+	if m.countChildrenByParentIDFn == nil {
+		return 0, nil
+	}
+	return m.countChildrenByParentIDFn(ctx, clinicID, parentID)
 }
 
 func TestCheckupTypeService_List(t *testing.T) {
@@ -216,6 +224,14 @@ func TestCheckupTypeService_Create(t *testing.T) {
 			repoErr: errors.New("db error"),
 			wantErr: true,
 		},
+		{
+			name: "rejects empty name",
+			input: &CreateCheckupTypeInput{
+				Name:     "",
+				IsActive: true,
+			},
+			wantErr: true,
+		},
 	}
 
 	for _, tt := range tests {
@@ -245,14 +261,17 @@ func TestCheckupTypeService_Create(t *testing.T) {
 func TestCheckupTypeService_Update(t *testing.T) {
 	name := "更新後健診種別"
 	isActive := true
+	emptyName := "   "
 	tests := []struct {
-		name     string
-		clinicID uint64
-		id       uint64
-		input    *UpdateCheckupTypeInput
-		repoData *model.CheckupType
-		repoErr  error
-		wantErr  bool
+		name        string
+		clinicID    uint64
+		id          uint64
+		input       *UpdateCheckupTypeInput
+		findByIDErr error
+		repoData    *model.CheckupType
+		updateErr   error
+		wantErr     bool
+		wantNF      bool
 	}{
 		{
 			name:     "updates checkup type successfully",
@@ -260,7 +279,6 @@ func TestCheckupTypeService_Update(t *testing.T) {
 			id:       1,
 			input:    &UpdateCheckupTypeInput{Name: &name, IsActive: &isActive},
 			repoData: &model.CheckupType{ID: 1, Name: name, IsActive: isActive},
-			repoErr:  nil,
 			wantErr:  false,
 		},
 		{
@@ -268,25 +286,37 @@ func TestCheckupTypeService_Update(t *testing.T) {
 			clinicID: 1,
 			id:       1,
 			input:    &UpdateCheckupTypeInput{},
-			repoErr:  nil,
 			wantErr:  true,
 		},
 		{
-			name:     "returns not found error when checkup type does not exist",
-			clinicID: 1,
-			id:       999,
-			input:    &UpdateCheckupTypeInput{Name: &name},
-			repoData: nil,
-			repoErr:  apperrors.WrapNotFound("checkup_type", "999"),
-			wantErr:  true,
+			name:        "returns not found error when checkup type does not exist",
+			clinicID:    1,
+			id:          999,
+			input:       &UpdateCheckupTypeInput{Name: &name},
+			findByIDErr: apperrors.WrapNotFound("checkup_type", "999"),
+			wantErr:     true,
+			wantNF:      true,
 		},
 		{
-			name:     "returns error on repository failure",
+			name:      "returns error on repository failure",
+			clinicID:  1,
+			id:        1,
+			input:     &UpdateCheckupTypeInput{Name: &name},
+			updateErr: errors.New("db error"),
+			wantErr:   true,
+		},
+		{
+			name:     "returns invalid input error when nil input given",
 			clinicID: 1,
 			id:       1,
-			input:    &UpdateCheckupTypeInput{Name: &name},
-			repoData: nil,
-			repoErr:  errors.New("db error"),
+			input:    nil,
+			wantErr:  true,
+		},
+		{
+			name:     "rejects blank name",
+			clinicID: 1,
+			id:       1,
+			input:    &UpdateCheckupTypeInput{Name: &emptyName},
 			wantErr:  true,
 		},
 	}
@@ -295,13 +325,13 @@ func TestCheckupTypeService_Update(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockCheckupTypeRepository{
 				findByIDFn: func(_ context.Context, _, _ uint64) (*model.CheckupType, error) {
-					if tt.repoErr != nil {
-						return nil, tt.repoErr
+					if tt.findByIDErr != nil {
+						return nil, tt.findByIDErr
 					}
 					return &model.CheckupType{ID: tt.id}, nil
 				},
 				updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.CheckupType, error) {
-					return tt.repoData, tt.repoErr
+					return tt.repoData, tt.updateErr
 				},
 			}
 			svc := NewCheckupTypeService(repo)
@@ -311,6 +341,9 @@ func TestCheckupTypeService_Update(t *testing.T) {
 			if tt.wantErr {
 				assert.Error(t, err)
 				assert.Nil(t, result)
+				if tt.wantNF {
+					assert.True(t, apperrors.IsNotFound(err))
+				}
 			} else {
 				assert.NoError(t, err)
 				assert.NotNil(t, result)
@@ -323,6 +356,8 @@ func TestCheckupTypeService_Delete(t *testing.T) {
 	tests := []struct {
 		name          string
 		id            uint64
+		childCount    int64
+		countChildErr error
 		usageCount    int64
 		countUsageErr error
 		findByIDErr   error
@@ -371,6 +406,19 @@ func TestCheckupTypeService_Delete(t *testing.T) {
 			repoErr:       errors.New("db error"),
 			wantErr:       true,
 		},
+		{
+			name:         "returns conflict error when checkup type has sub types",
+			id:           1,
+			childCount:   2,
+			wantErr:      true,
+			wantConflict: true,
+		},
+		{
+			name:          "returns error when child count check fails",
+			id:            1,
+			countChildErr: errors.New("db error"),
+			wantErr:       true,
+		},
 	}
 
 	for _, tt := range tests {
@@ -381,6 +429,9 @@ func TestCheckupTypeService_Delete(t *testing.T) {
 						return nil, tt.findByIDErr
 					}
 					return &model.CheckupType{ID: id}, nil
+				},
+				countChildrenByParentIDFn: func(_ context.Context, _, _ uint64) (int64, error) {
+					return tt.childCount, tt.countChildErr
 				},
 				countUsageByCheckupTypeIDFn: func(_ context.Context, _, _ uint64) (int64, error) {
 					return tt.usageCount, tt.countUsageErr
@@ -406,4 +457,102 @@ func TestCheckupTypeService_Delete(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestCheckupTypeService_Reorder(t *testing.T) {
+	tests := []struct {
+		name    string
+		ids     []uint64
+		repoErr error
+		wantErr bool
+	}{
+		{
+			name:    "reorders successfully",
+			ids:     []uint64{3, 1, 2},
+			repoErr: nil,
+			wantErr: false,
+		},
+		{
+			name:    "returns invalid input when ids is empty",
+			ids:     []uint64{},
+			wantErr: true,
+		},
+		{
+			name:    "returns error when id not in clinic",
+			ids:     []uint64{999},
+			repoErr: apperrors.WrapInvalidInput("checkup_type id 999 not found in this clinic"),
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			repo := &mockCheckupTypeRepository{
+				reorderFn: func(_ context.Context, _ uint64, _ []uint64) error {
+					return tt.repoErr
+				},
+			}
+			svc := NewCheckupTypeService(repo)
+
+			err := svc.Reorder(context.Background(), 1, tt.ids)
+
+			if tt.wantErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
+
+func TestBuildCheckupTypeUpdate(t *testing.T) {
+	t.Run("returns empty map when all fields are nil", func(t *testing.T) {
+		fields := buildCheckupTypeUpdate(&UpdateCheckupTypeInput{})
+		assert.Empty(t, fields)
+	})
+
+	t.Run("includes all provided fields", func(t *testing.T) {
+		name := "更新後健診種別"
+		price := int64(3000)
+		isActive := true
+		desc := "説明"
+		interval := "6ヶ月"
+		targetAge := "成犬"
+		parentID := uint64(2)
+		sortOrder := 5
+
+		input := &UpdateCheckupTypeInput{
+			Name:        &name,
+			Price:       &price,
+			IsActive:    &isActive,
+			Description: &desc,
+			Interval:    &interval,
+			TargetAge:   &targetAge,
+			ParentID:    &parentID,
+			SortOrder:   &sortOrder,
+		}
+		fields := buildCheckupTypeUpdate(input)
+
+		assert.Equal(t, name, fields[colCheckupTypeName])
+		assert.Equal(t, price, fields[colCheckupTypePrice])
+		assert.Equal(t, isActive, fields[colCheckupTypeIsActive])
+		assert.Equal(t, desc, fields[colCheckupTypeDescription])
+		assert.Equal(t, interval, fields[colCheckupTypeInterval])
+		assert.Equal(t, targetAge, fields[colCheckupTypeTargetAge])
+		assert.Equal(t, parentID, fields[colCheckupTypeParentID])
+		assert.Equal(t, sortOrder, fields[colCheckupTypeSortOrder])
+	})
+
+	t.Run("clears parent_id when ClearParentID is true", func(t *testing.T) {
+		input := &UpdateCheckupTypeInput{ClearParentID: true}
+		fields := buildCheckupTypeUpdate(input)
+		assert.Contains(t, fields, colCheckupTypeParentID)
+		assert.Nil(t, fields[colCheckupTypeParentID])
+	})
+
+	t.Run("omits parent_id when neither ParentID nor ClearParentID set", func(t *testing.T) {
+		input := &UpdateCheckupTypeInput{}
+		fields := buildCheckupTypeUpdate(input)
+		assert.NotContains(t, fields, colCheckupTypeParentID)
+	})
 }

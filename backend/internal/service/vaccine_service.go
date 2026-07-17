@@ -68,11 +68,7 @@ func buildVaccineUpdate(input *UpdateVaccineInput) map[string]any {
 	if input.Interval != nil {
 		fields[colVaccineInterval] = *input.Interval
 	}
-	if input.ClearParentID {
-		fields[colVaccineParentID] = nil
-	} else if input.ParentID != nil {
-		fields[colVaccineParentID] = *input.ParentID
-	}
+	setNullableUint64Field(fields, colVaccineParentID, input.ClearParentID, input.ParentID)
 	if input.SortOrder != nil {
 		fields[colVaccineSortOrder] = *input.SortOrder
 	}
@@ -122,6 +118,9 @@ func (s *vaccineService) Create(ctx context.Context, clinicID uint64, input *Cre
 			return nil, apperrors.Wrap(err, "failed to validate vaccine species")
 		}
 	}
+	if err := s.validateParentOwnership(ctx, clinicID, input.ParentID); err != nil {
+		return nil, err
+	}
 	var species *model.VaccineSpecies
 	if input.Species != nil {
 		s := model.VaccineSpecies(*input.Species)
@@ -152,6 +151,9 @@ func (s *vaccineService) Update(ctx context.Context, clinicID, id uint64, input 
 	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
 		slog.ErrorContext(ctx, "failed to get vaccine", "error", err, "id", id, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to get vaccine")
+	}
+	if err := s.validateParentOwnership(ctx, clinicID, input.ParentID); err != nil {
+		return nil, err
 	}
 	if err := validateOptionalName(input.Name); err != nil {
 		return nil, apperrors.Wrap(err, "failed to validate optional name")
@@ -215,4 +217,14 @@ func (s *vaccineService) Reorder(ctx context.Context, clinicID uint64, ids []uin
 	}
 	slog.InfoContext(ctx, "vaccines reordered", slog.Uint64("clinic_id", clinicID), slog.Int("count", len(ids)))
 	return nil
+}
+
+// validateParentOwnership verifies a request-supplied parent_id belongs to the caller's
+// clinic before it is persisted (X-14 self-ref master FK guard).
+func (s *vaccineService) validateParentOwnership(ctx context.Context, clinicID uint64, parentID *uint64) error {
+	return validateOwnedMasterFK(ctx, "parent vaccine", clinicID, parentID,
+		func(actx context.Context, cid, mid uint64) error {
+			_, err := s.repo.FindByID(actx, cid, mid)
+			return err
+		})
 }

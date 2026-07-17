@@ -29,10 +29,7 @@ func (h *Handler) ListDailyRecords(c *gin.Context) {
 		return
 	}
 
-	items := make([]dailyRecordResponse, 0, len(records))
-	for i := range records {
-		items = append(items, toDailyRecordResponse(&records[i]))
-	}
+	items := mapSlice(records, toDailyRecordResponse)
 	c.JSON(http.StatusOK, items)
 }
 
@@ -49,13 +46,14 @@ func (h *Handler) GetDailyRecord(c *gin.Context) {
 	}
 
 	dateStr := c.Param("date")
-	date, err := time.ParseInLocation("2006-01-02", dateStr, time.Local)
+	date, err := time.ParseInLocation(time.DateOnly, dateStr, time.Local)
 	if err != nil {
 		RespondError(c, apperrors.WrapInvalidInput("invalid date format, expected YYYY-MM-DD"))
 		return
 	}
 
-	record, err := h.svc.DailyRecord.FindOrCreateByDate(c.Request.Context(), clinicID, hospitalizationID, date)
+	// view GET は読み取り専用。未存在日は NotFound（FirstOrCreate しない — AUD-003）。
+	record, err := h.svc.DailyRecord.GetByDate(c.Request.Context(), clinicID, hospitalizationID, date)
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -83,7 +81,7 @@ func (h *Handler) CreateDailyRecord(c *gin.Context) {
 		return
 	}
 
-	date, err := time.ParseInLocation("2006-01-02", req.Date, time.Local)
+	date, err := time.ParseInLocation(time.DateOnly, req.Date, time.Local)
 	if err != nil {
 		RespondError(c, apperrors.WrapInvalidInput("invalid date format, expected YYYY-MM-DD"))
 		return
@@ -94,7 +92,7 @@ func (h *Handler) CreateDailyRecord(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.Header("Location", fmt.Sprintf("/api/v1/hospitalizations/%d/daily-records/%s", record.HospitalizationID, record.Date.In(time.Local).Format("2006-01-02")))
+	c.Header("Location", fmt.Sprintf("/api/v1/hospitalizations/%d/daily-records/%s", record.HospitalizationID, record.Date.In(time.Local).Format(time.DateOnly)))
 	c.JSON(http.StatusCreated, toDailyRecordResponse(record))
 }
 
@@ -111,7 +109,7 @@ func (h *Handler) AddVitalRecord(c *gin.Context) {
 	}
 
 	dateStr := c.Param("date")
-	date, err := time.ParseInLocation("2006-01-02", dateStr, time.Local)
+	date, err := time.ParseInLocation(time.DateOnly, dateStr, time.Local)
 	if err != nil {
 		RespondError(c, apperrors.WrapInvalidInput("invalid date format, expected YYYY-MM-DD"))
 		return
@@ -134,7 +132,7 @@ func (h *Handler) AddVitalRecord(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.Header("Location", fmt.Sprintf("/api/v1/hospitalizations/%d/daily-records/%s", hospitalizationID, date.In(time.Local).Format("2006-01-02")))
+	c.Header("Location", fmt.Sprintf("/api/v1/hospitalizations/%d/daily-records/%s", hospitalizationID, date.In(time.Local).Format(time.DateOnly)))
 	c.JSON(http.StatusCreated, toDailyRecordResponse(record))
 }
 
@@ -151,7 +149,7 @@ func (h *Handler) AddCareLog(c *gin.Context) {
 	}
 
 	dateStr := c.Param("date")
-	date, err := time.ParseInLocation("2006-01-02", dateStr, time.Local)
+	date, err := time.ParseInLocation(time.DateOnly, dateStr, time.Local)
 	if err != nil {
 		RespondError(c, apperrors.WrapInvalidInput("invalid date format, expected YYYY-MM-DD"))
 		return
@@ -174,7 +172,7 @@ func (h *Handler) AddCareLog(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.Header("Location", fmt.Sprintf("/api/v1/hospitalizations/%d/daily-records/%s", hospitalizationID, date.In(time.Local).Format("2006-01-02")))
+	c.Header("Location", fmt.Sprintf("/api/v1/hospitalizations/%d/daily-records/%s", hospitalizationID, date.In(time.Local).Format(time.DateOnly)))
 	c.JSON(http.StatusCreated, toDailyRecordResponse(record))
 }
 
@@ -191,7 +189,7 @@ func (h *Handler) AddStaffNote(c *gin.Context) {
 	}
 
 	dateStr := c.Param("date")
-	date, err := time.ParseInLocation("2006-01-02", dateStr, time.Local)
+	date, err := time.ParseInLocation(time.DateOnly, dateStr, time.Local)
 	if err != nil {
 		RespondError(c, apperrors.WrapInvalidInput("invalid date format, expected YYYY-MM-DD"))
 		return
@@ -214,7 +212,7 @@ func (h *Handler) AddStaffNote(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	c.Header("Location", fmt.Sprintf("/api/v1/hospitalizations/%d/daily-records/%s", hospitalizationID, date.In(time.Local).Format("2006-01-02")))
+	c.Header("Location", fmt.Sprintf("/api/v1/hospitalizations/%d/daily-records/%s", hospitalizationID, date.In(time.Local).Format(time.DateOnly)))
 	c.JSON(http.StatusCreated, toDailyRecordResponse(record))
 }
 

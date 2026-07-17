@@ -12,7 +12,7 @@ import {
   HOUR_HEIGHT,
   HOURS,
   type ReservationTypeColor,
-} from "./WeekViewGridConstants";
+} from "./week-view-grid-constants";
 
 interface DayColumnProps {
   date: Date;
@@ -87,7 +87,7 @@ export const DayColumn = memo(function DayColumn({
   return (
     <div
       className={`flex-1 flex-shrink-0 border-r ${C.borderMedium} relative ${
-        isToday ? C.bgAccentLight8 : ""
+        isToday ? C.bgBrandLight8 : ""
       }`}
       style={{ minWidth: minWidth ?? "20%" }}
       onClick={handleColumnClick}

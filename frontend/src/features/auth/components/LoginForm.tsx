@@ -23,7 +23,12 @@ interface DemoCredential {
   isSystemAdmin?: boolean;
 }
 
-const SHOW_DEMO = import.meta.env.DEV || import.meta.env.VITE_SHOW_DEMO_ACCOUNTS === "true";
+// M-10 (#91): Vercel Production では __VERCEL_ENV__ 一次ガードで他フラグに関わらず false にする。
+// ロジックは computeShowDemoAccounts (show-demo-accounts.ts) と同一 — 定数畳み込み維持のためインライン化。
+// export はテスト用（本番バンドルの tree-shake には影響しない — 参照は test 側 dynamic import のみ）。
+export const SHOW_DEMO =
+  __VERCEL_ENV__ !== "production" &&
+  (import.meta.env.DEV || import.meta.env.VITE_SHOW_DEMO_ACCOUNTS === "true");
 
 const DEMO_ACCOUNTS: readonly DemoCredential[] = SHOW_DEMO ? [
   // システム管理者（全医院）
@@ -85,7 +90,7 @@ const DemoAccount = memo(function DemoAccount({
 });
 
 /* ---- Shared input classes (padding-x set per field to avoid conflict) ---- */
-// Figma実測: fontSize=15px, height=~48px, bg=rgba(242,241,238,0.6), borderRadius=3px
+// Figma実測: fontSize=15px, height=~48px, bg=warm neutral 60%透過（PALETTE.hoverBgInput相当の色調）, borderRadius=3px
 const INPUT_BASE = `w-full h-[48px] text-base rounded-[3px] ${C.bgInputLogin} border ${C.borderMedium} ${C.text} ${C.textPlaceholder} outline-none transition-all focus:ring-2 ${C.focusRingBrand} focus:border-transparent disabled:opacity-60`;
 
 /* ---- Login Form ---- */
@@ -225,7 +230,7 @@ export const LoginForm = memo(function LoginForm() {
 
         {/* Submit */}
         <SubmitButton
-          className={`w-full h-[52px] text-base font-medium rounded-[3px] ${C.bgBrand} ${C.hoverBgBrand} transition-colors ${C.textWhite}`}
+          className="w-full h-[52px] text-base font-medium"
           loadingText="ログイン中..."
         >
           ログイン

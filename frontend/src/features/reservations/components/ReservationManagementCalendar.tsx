@@ -2,10 +2,9 @@ import { lazy, Suspense, useMemo } from "react";
 import type React from "react";
 import { format } from "date-fns";
 import { ja } from "date-fns/locale";
-import { ChevronLeft, ChevronRight } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { SearchableSelect, type SearchableSelectOption } from "@/components/ui/searchable-select";
+import { CalendarNavToolbar } from "@/components/shared/CalendarNavToolbar";
 import type { LegendEntry, ReservationTypeColor } from "@/hooks/use-reservation-type-color-map";
 import { C, ICON } from "@/lib/design-tokens";
 import { typedSetter } from "@/lib/type-utils";
@@ -93,22 +92,18 @@ export function ReservationManagementCalendar({
   return (
     <div className="flex-1 flex flex-col p-4 overflow-hidden w-full min-w-0">
       <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
-        <div className="flex items-center gap-4">
-          <div className={`flex items-center ${C.bgWhite} rounded-md border ${C.borderMedium} p-1 shadow-sm`}>
-            <Button variant="ghost" size="icon" className="h-10 w-10" onClick={onNavigatePrevious}>
-              <ChevronLeft className={ICON.page} />
-            </Button>
-            <Button variant="ghost" size="sm" className="h-10 px-4 text-base font-medium" onClick={onNavigateToday}>
-              今日
-            </Button>
-            <Button variant="ghost" size="icon" className="h-10 w-10" onClick={onNavigateNext}>
-              <ChevronRight className={ICON.page} />
-            </Button>
-          </div>
-          <h2 className={`text-xl font-bold ${C.text} flex items-center gap-2`}>
-            {format(currentDate, "yyyy年 M月", { locale: ja })}
-          </h2>
-        </div>
+        <CalendarNavToolbar
+          onPrev={onNavigatePrevious}
+          onToday={onNavigateToday}
+          onNext={onNavigateNext}
+          prevAriaLabel="前の月"
+          nextAriaLabel="次の月"
+          label={
+            <h2 className={`text-xl font-bold ${C.text} flex items-center gap-2`}>
+              {format(currentDate, "yyyy年 M月", { locale: ja })}
+            </h2>
+          }
+        />
 
         <div className="flex items-center gap-2">
           <Select value={sourceFilter} onValueChange={onSourceFilterChange}>

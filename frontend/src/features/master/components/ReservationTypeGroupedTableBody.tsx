@@ -11,7 +11,7 @@ import {
 import {
   UNCATEGORIZED_RESERVATION_TYPE_GROUP_ID,
   type ReservationTypesByGroup,
-} from "./ReservationTypeGroupedTableModel";
+} from "./reservation-type-grouped-table-model";
 
 interface ReservationTypeGroupedTableBodyProps {
   groups: ReservationTypeGroup[];

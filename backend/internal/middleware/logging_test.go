@@ -1,0 +1,108 @@
+package middleware
+
+import (
+	"errors"
+	"net/http"
+	"net/http/httptest"
+	"strings"
+	"testing"
+
+	"github.com/gin-gonic/gin"
+	"github.com/stretchr/testify/assert"
+)
+
+func TestRequestID(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+	router.Use(RequestID())
+	router.GET("/test", func(c *gin.Context) {
+		reqID, _ := c.Get("request_id")
+		c.String(http.StatusOK, reqID.(string))
+	})
+
+	t.Run("generates request id if not provided", func(t *testing.T) {
+		w := httptest.NewRecorder()
+		req, _ := http.NewRequest(http.MethodGet, "/test", http.NoBody)
+
+		router.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+		assert.NotEmpty(t, w.Body.String())
+		assert.Equal(t, w.Body.String(), w.Header().Get("X-Request-ID"))
+	})
+
+	t.Run("uses provided valid request id", func(t *testing.T) {
+		w := httptest.NewRecorder()
+		req, _ := http.NewRequest(http.MethodGet, "/test", http.NoBody)
+		req.Header.Set("X-Request-ID", "valid-id-123_abc-ABC")
+
+		router.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+		assert.Equal(t, "valid-id-123_abc-ABC", w.Body.String())
+	})
+
+	t.Run("regenerates request id if invalid characters present", func(t *testing.T) {
+		w := httptest.NewRecorder()
+		req, _ := http.NewRequest(http.MethodGet, "/test", http.NoBody)
+		req.Header.Set("X-Request-ID", "invalid id!")
+
+		router.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+		assert.NotEqual(t, "invalid id!", w.Body.String())
+		assert.NotEmpty(t, w.Body.String())
+	})
+
+	t.Run("regenerates request id if too long", func(t *testing.T) {
+		tooLongID := strings.Repeat("a", 65)
+		w := httptest.NewRecorder()
+		req, _ := http.NewRequest(http.MethodGet, "/test", http.NoBody)
+		req.Header.Set("X-Request-ID", tooLongID)
+
+		router.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+		assert.NotEqual(t, tooLongID, w.Body.String())
+		assert.NotEmpty(t, w.Body.String())
+	})
+}
+
+func TestRequestLoggingMiddleware(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+	router.Use(RequestID())
+	router.Use(RequestLoggingMiddleware())
+
+	router.GET("/200", func(c *gin.Context) {
+		c.String(http.StatusOK, "ok")
+	})
+	router.GET("/400", func(c *gin.Context) {
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "client error"})
+	})
+	router.GET("/500", func(c *gin.Context) {
+		c.Error(errors.New("db error"))
+		c.AbortWithStatus(http.StatusInternalServerError)
+	})
+
+	t.Run("logs status 200", func(t *testing.T) {
+		w := httptest.NewRecorder()
+		req, _ := http.NewRequest(http.MethodGet, "/200?query=1", http.NoBody)
+		router.ServeHTTP(w, req)
+		assert.Equal(t, http.StatusOK, w.Code)
+	})
+
+	t.Run("logs status 400", func(t *testing.T) {
+		w := httptest.NewRecorder()
+		req, _ := http.NewRequest(http.MethodGet, "/400", http.NoBody)
+		router.ServeHTTP(w, req)
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+	})
+
+	t.Run("logs status 500 with error", func(t *testing.T) {
+		w := httptest.NewRecorder()
+		req, _ := http.NewRequest(http.MethodGet, "/500", http.NoBody)
+		router.ServeHTTP(w, req)
+		assert.Equal(t, http.StatusInternalServerError, w.Code)
+	})
+}

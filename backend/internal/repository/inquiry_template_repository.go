@@ -3,7 +3,6 @@ package repository
 
 import (
 	"context"
-	"fmt"
 
 	"gorm.io/gorm"
 
@@ -42,12 +41,7 @@ func (r *inquiryTemplateRepository) FindAll(ctx context.Context, clinicID uint64
 }
 
 func (r *inquiryTemplateRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.InquiryTemplate, error) {
-	var template model.InquiryTemplate
-	err := r.db.WithContext(ctx).Scopes(clinicScope(clinicID)).Where("id = ?", id).First(&template).Error
-	if err != nil {
-		return nil, apperrors.FromGORM(err, "inquiry_template", fmt.Sprintf("%d", id))
-	}
-	return &template, nil
+	return findByIDScoped[model.InquiryTemplate](ctx, r.db, "inquiry_template", clinicID, id)
 }
 
 func (r *inquiryTemplateRepository) Create(ctx context.Context, template *model.InquiryTemplate) error {
@@ -59,28 +53,14 @@ func (r *inquiryTemplateRepository) Create(ctx context.Context, template *model.
 }
 
 func (r *inquiryTemplateRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.InquiryTemplate, error) {
-	result := r.db.WithContext(ctx).
-		Model(&model.InquiryTemplate{}).
-		Scopes(clinicScope(clinicID)).Where("id = ?", id).
-		Updates(fields)
-	if result.Error != nil {
-		return nil, apperrors.FromGORM(result.Error, "inquiry_template", fmt.Sprintf("%d", id))
-	}
-	if result.RowsAffected == 0 {
-		return nil, apperrors.WrapNotFound("inquiry_template", fmt.Sprintf("%d", id))
+	if err := updateScopedByID(ctx, r.db, &model.InquiryTemplate{}, "inquiry_template", clinicID, id, fields); err != nil {
+		return nil, err
 	}
 	return r.FindByID(ctx, clinicID, id)
 }
 
 func (r *inquiryTemplateRepository) Delete(ctx context.Context, clinicID, id uint64) error {
-	result := r.db.WithContext(ctx).Scopes(clinicScope(clinicID)).Where("id = ?", id).Delete(&model.InquiryTemplate{})
-	if result.Error != nil {
-		return apperrors.FromGORM(result.Error, "inquiry_template", fmt.Sprintf("%d", id))
-	}
-	if result.RowsAffected == 0 {
-		return apperrors.WrapNotFound("inquiry_template", fmt.Sprintf("%d", id))
-	}
-	return nil
+	return deleteScopedByID(ctx, r.db, &model.InquiryTemplate{}, "inquiry_template", clinicID, id)
 }
 
 // 現スキーマに inquiry_template_id を参照する FK テーブルが存在しないため常に 0 を返す。

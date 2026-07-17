@@ -1,20 +1,19 @@
 import { useCallback } from "react";
-import { useNavigate, useSearchParams } from "react-router";
-import { Plus, Scissors } from "lucide-react";
-import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
-import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
-import { paths } from "@/config/paths";
+import { useSearchParams } from "react-router";
+import { Scissors } from "lucide-react";
 import { usePermission } from "@/hooks/use-permission";
 import { useSidePeekDirty } from "@/hooks/use-side-peek-dirty";
 import { C, ICON } from "@/lib/design-tokens";
 import { ResourceMasterTrimming } from "@/types/generated/models";
+import { UnifiedTabs, UnifiedTabsContent } from "@/components/shared/UnifiedTabs";
 import { TrimmingDeleteDialogs } from "../components/TrimmingDeleteDialogs";
 import { TrimmingSettingsSidePanels } from "../components/TrimmingSettingsSidePanels";
-import { TrimmingSettingsTabs } from "../components/TrimmingSettingsTabs";
+import { TrimmingCourseTab, TrimmingOptionTab } from "../components/TrimmingTabs";
+import { MasterTabPage } from "../components/MasterTabPage";
 import type {
   CourseFormData,
   OptionFormData,
-} from "../components/TrimmingSidePanelModel";
+} from "../components/trimming-side-panel-model";
 import {
   useCreateTrimmingCourse,
   useCreateTrimmingOption,
@@ -32,12 +31,12 @@ import {
   buildTrimmingCourseUpdateRequest,
   buildTrimmingOptionCreateRequest,
   buildTrimmingOptionUpdateRequest,
+  TRIMMING_TABS,
   toTrimmingTabValue,
-} from "./TrimmingSettingsModel";
+} from "./trimming-settings-model";
 
 export function TrimmingSettings() {
-  const navigate = useNavigate();
-  const { canCreate, canEdit, canDelete } = usePermission(ResourceMasterTrimming);
+  const { canEdit, canDelete } = usePermission(ResourceMasterTrimming);
   const [searchParams, setSearchParams] = useSearchParams();
   const activeTab = toTrimmingTabValue(searchParams.get("tab"));
 
@@ -82,6 +81,11 @@ export function TrimmingSettings() {
     optionSetPendingDelete(null);
   }, [setSearchParams, courseSetEditTarget, optionSetEditTarget, courseSetPendingDelete, optionSetPendingDelete, dirty]);
 
+  const handleNew = useCallback(() => {
+    if (activeTab === "course") courseCrud.handleNew();
+    else optionCrud.handleNew();
+  }, [activeTab, courseCrud, optionCrud]);
+
   const courseSave = useMasterSave({
     crud: courseCrud,
     createMutation: createCourseMutation,
@@ -101,37 +105,12 @@ export function TrimmingSettings() {
   });
 
   return (
-    <>
-      <div className="flex h-full">
-        <div className="flex-1 min-w-0">
-          <PageLayout
-            title="トリミングマスタ"
-            icon={<Scissors className={`${ICON.page} ${C.text}`} />}
-            resource={ResourceMasterTrimming}
-            onBack={() => navigate(paths.settings.getHref())}
-            maxWidth="max-w-full"
-            headerAction={
-              canCreate ? (
-                <PrimaryButton onClick={() => {
-                  if (activeTab === "course") courseCrud.handleNew();
-                  else optionCrud.handleNew();
-                }}>
-                  <Plus className={`mr-1.5 ${ICON.action}`} />
-                  新規登録
-                </PrimaryButton>
-              ) : null
-            }
-          >
-            <TrimmingSettingsTabs
-              activeTab={activeTab}
-              onTabChange={handleTabChange}
-              onCourseEditTargetChange={courseCrud.setEditTarget}
-              onOptionEditTargetChange={optionCrud.setEditTarget}
-              canEdit={canEdit}
-            />
-          </PageLayout>
-        </div>
-
+    <MasterTabPage
+      title="トリミングマスタ"
+      icon={<Scissors className={`${ICON.page} ${C.text}`} />}
+      resource={ResourceMasterTrimming}
+      onNew={handleNew}
+      sidePanel={
         <TrimmingSettingsSidePanels
           activeTab={activeTab}
           courseEditTarget={courseCrud.editTarget}
@@ -148,16 +127,37 @@ export function TrimmingSettings() {
           onOptionDeleteRequest={optionCrud.setPendingDelete}
           onDirtyChange={handleDirtyChange}
         />
-      </div>
-
-      <TrimmingDeleteDialogs
-        pendingCourseDelete={courseCrud.pendingDelete}
-        pendingOptionDelete={optionCrud.pendingDelete}
-        onCourseDeleteCancel={courseCrud.handleDeleteCancel}
-        onCourseDeleteConfirm={courseCrud.handleDeleteConfirm}
-        onOptionDeleteCancel={optionCrud.handleDeleteCancel}
-        onOptionDeleteConfirm={optionCrud.handleDeleteConfirm}
-      />
-    </>
+      }
+      deleteDialogs={
+        <TrimmingDeleteDialogs
+          pendingCourseDelete={courseCrud.pendingDelete}
+          pendingOptionDelete={optionCrud.pendingDelete}
+          onCourseDeleteCancel={courseCrud.handleDeleteCancel}
+          onCourseDeleteConfirm={courseCrud.handleDeleteConfirm}
+          onOptionDeleteCancel={optionCrud.handleDeleteCancel}
+          onOptionDeleteConfirm={optionCrud.handleDeleteConfirm}
+        />
+      }
+    >
+      <UnifiedTabs
+        items={TRIMMING_TABS}
+        value={activeTab}
+        onValueChange={handleTabChange}
+        className="flex flex-col gap-4"
+      >
+        <UnifiedTabsContent value="course" className="mt-4">
+          <TrimmingCourseTab
+            onEditTargetChange={courseCrud.setEditTarget}
+            canEdit={canEdit}
+          />
+        </UnifiedTabsContent>
+        <UnifiedTabsContent value="option" className="mt-4">
+          <TrimmingOptionTab
+            onEditTargetChange={optionCrud.setEditTarget}
+            canEdit={canEdit}
+          />
+        </UnifiedTabsContent>
+      </UnifiedTabs>
+    </MasterTabPage>
   );
 }

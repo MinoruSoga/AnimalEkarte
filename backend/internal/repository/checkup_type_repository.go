@@ -3,7 +3,6 @@ package repository
 
 import (
 	"context"
-	"fmt"
 
 	"gorm.io/gorm"
 
@@ -40,12 +39,7 @@ func (r *checkupTypeRepository) FindAll(ctx context.Context, clinicID uint64) ([
 }
 
 func (r *checkupTypeRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.CheckupType, error) {
-	var checkupType model.CheckupType
-	err := r.db.WithContext(ctx).Scopes(clinicScope(clinicID)).Where("id = ?", id).First(&checkupType).Error
-	if err != nil {
-		return nil, apperrors.FromGORM(err, "checkup_type", fmt.Sprintf("%d", id))
-	}
-	return &checkupType, nil
+	return findByIDScoped[model.CheckupType](ctx, r.db, "checkup_type", clinicID, id)
 }
 
 func (r *checkupTypeRepository) Create(ctx context.Context, checkupType *model.CheckupType) error {
@@ -57,28 +51,14 @@ func (r *checkupTypeRepository) Create(ctx context.Context, checkupType *model.C
 }
 
 func (r *checkupTypeRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.CheckupType, error) {
-	result := r.db.WithContext(ctx).
-		Model(&model.CheckupType{}).
-		Scopes(clinicScope(clinicID)).Where("id = ?", id).
-		Updates(fields)
-	if result.Error != nil {
-		return nil, apperrors.FromGORM(result.Error, "checkup_type", fmt.Sprintf("%d", id))
-	}
-	if result.RowsAffected == 0 {
-		return nil, apperrors.WrapNotFound("checkup_type", fmt.Sprintf("%d", id))
+	if err := updateScopedByID(ctx, r.db, &model.CheckupType{}, "checkup_type", clinicID, id, fields); err != nil {
+		return nil, err
 	}
 	return r.FindByID(ctx, clinicID, id)
 }
 
 func (r *checkupTypeRepository) Delete(ctx context.Context, clinicID, id uint64) error {
-	result := r.db.WithContext(ctx).Scopes(clinicScope(clinicID)).Where("id = ?", id).Delete(&model.CheckupType{})
-	if result.Error != nil {
-		return apperrors.FromGORM(result.Error, "checkup_type", fmt.Sprintf("%d", id))
-	}
-	if result.RowsAffected == 0 {
-		return apperrors.WrapNotFound("checkup_type", fmt.Sprintf("%d", id))
-	}
-	return nil
+	return deleteScopedByID(ctx, r.db, &model.CheckupType{}, "checkup_type", clinicID, id)
 }
 
 func (r *checkupTypeRepository) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {

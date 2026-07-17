@@ -14,20 +14,31 @@ Go 1.25 / Gin / GORM のバックエンド開発規約。
 ```
 backend/
 ├── cmd/
-│   └── api/
-│       └── main.go             # エントリーポイント
+│   ├── api/                    # メインAPIサーバー エントリーポイント
+│   ├── migrate/                # SQLマイグレーション適用
+│   ├── coverage-ratchet/       # カバレッジ低下防止（BE-refactor.md R3-5）
+│   ├── seed-export/            # seed CSV エクスポート（migrations/seeds/ 用）
+│   ├── seed-old-db/            # 旧DB TSV ローカル投入（開発専用）
+│   ├── stage-import/           # 旧DB移行データの本テーブル取り込み
+│   └── lstep-migrate/          # Lステップ連携データ移行
 │
 ├── internal/                   # 内部パッケージ（外部からimport不可）
+│   ├── apicontract/            # OpenAPI (docs/api.yaml) とルート実装の整合性テスト
+│   │
 │   ├── config/
 │   │   └── config.go           # 環境変数・設定読み込み
 │   │
+│   ├── dbconn/                 # DB接続確立
+│   │
 │   ├── errors/
-│   │   └── errors.go           # センチネルエラー定義
+│   │   └── errors.go           # apperrors（センチネルエラー・FromGORM・Wrap）
 │   │
 │   ├── handler/                # HTTPハンドラ（プレゼンテーション層）
 │   │   ├── owner_handler.go
 │   │   ├── pet_handler.go
 │   │   └── ...
+│   │
+│   ├── infra/                  # 外部インフラ連携（ファイルストレージ、LINE、暗号化等）
 │   │
 │   ├── service/                # ビジネスロジック（ユースケース層）
 │   │   ├── owner_service.go
@@ -49,13 +60,14 @@ backend/
 │   │   ├── cors.go
 │   │   └── logging.go
 │   │
+│   ├── seedbundle/             # seedデータのバンドル定義
+│   │
 │   └── logger/                 # ロガー設定
 │       └── logger.go
 │
-├── migrations/                 # DBマイグレーション
-│   ├── 001_create_owners.sql
-│   ├── 002_create_pets.sql
-│   └── ...
+├── migrations/                 # DBマイグレーション（SQL、番号付き。AutoMigrate は使用しない）
+│   ├── 001_init.sql            # 統合スキーマ（DDL only）
+│   └── seeds/                  # CSV シードバンドル（002_master / 003_demo / 004_staging）
 │
 ├── docs/                       # APIドキュメント
 │   └── api.yaml
@@ -113,11 +125,11 @@ backend/
 ```go
 // repository/owner_repository.go
 type OwnerRepository interface {
-    FindByID(ctx context.Context, id uint64) (*model.Owner, error)
-    FindAll(ctx context.Context, filter OwnerFilter) ([]model.Owner, error)
+    FindByID(ctx context.Context, clinicID, id uint64) (*model.Owner, error)
+    FindAll(ctx context.Context, clinicID uint64, filter OwnerFilter) ([]model.Owner, error)
     Create(ctx context.Context, owner *model.Owner) error
-    Update(ctx context.Context, owner *model.Owner) error
-    Delete(ctx context.Context, id uint64) error
+    Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error
+    Delete(ctx context.Context, clinicID, id uint64) error
 }
 
 // service/owner_service.go
@@ -164,7 +176,8 @@ func (r *ownerRepository) FindByID(ctx context.Context, id uint64) (*model.Owner
 
 // ❌ 禁止: Contextを省略
 func (s *ownerService) GetOwner(id string) (*model.Owner, error) {
-    return s.repo.FindByID(uuid.MustParse(id))
+    ownerID, _ := strconv.ParseUint(id, 10, 64)
+    return s.repo.FindByID(clinicID, ownerID)  // ctx が第一引数にない
 }
 ```
 
@@ -205,104 +218,56 @@ func GetRequestID(ctx context.Context) string {
 
 ### 3.1 センチネルエラー
 
-```go
-// internal/errors/errors.go
-package errors
-
-import (
-    "errors"
-    "fmt"
-)
-
-// センチネルエラー（パッケージレベルで定義）
-var (
-    ErrNotFound      = errors.New("resource not found")
-    ErrInvalidInput  = errors.New("invalid input")
-    ErrUnauthorized  = errors.New("unauthorized")
-    ErrForbidden     = errors.New("forbidden")
-    ErrConflict      = errors.New("resource conflict")
-    ErrInternal      = errors.New("internal server error")
-)
-
-// エラーラッピング
-func Wrap(err error, message string) error {
-    if err == nil {
-        return nil
-    }
-    return fmt.Errorf("%s: %w", message, err)
-}
-
-// エラーラッピング（フォーマット付き）
-func Wrapf(err error, format string, args ...interface{}) error {
-    if err == nil {
-        return nil
-    }
-    return fmt.Errorf("%s: %w", fmt.Sprintf(format, args...), err)
-}
-```
+センチネルエラー・`AppError`・ラッピングヘルパー（`Wrap` / `WrapNotFound` / `WrapInvalidInput` /
+`WrapConflict` / `WrapAlreadyExists` / `FromGORM`）の正本は `internal/errors/errors.go` である。
+実装とのドリフトを防ぐため、本ファイルでは一覧を再掲しない。
 
 ### 3.2 エラー判定
 
+`RespondError(c, err)` がセンチネルエラーを HTTP ステータスへ一元的にマッピングする。
+ハンドラで `errors.Is` の switch や `gin.H` を個別に組み立てることは禁止。
+
 ```go
-// errors.Is() でセンチネルエラーを判定
 func (h *OwnerHandler) GetOwner(c *gin.Context) {
     ctx := c.Request.Context()
     id := c.Param("id")
 
     owner, err := h.service.GetOwner(ctx, id)
     if err != nil {
-        switch {
-        case errors.Is(err, apperrors.ErrNotFound):
-            c.JSON(http.StatusNotFound, gin.H{
-                "error": "飼主が見つかりません",
-                "code":  "OWNER_NOT_FOUND",
-            })
-        case errors.Is(err, apperrors.ErrInvalidInput):
-            c.JSON(http.StatusBadRequest, gin.H{
-                "error": "無効なリクエストです",
-                "code":  "INVALID_INPUT",
-            })
-        default:
-            slog.ErrorContext(ctx, "failed to get owner",
-                slog.String("owner_id", id),
-                slog.String("error", err.Error()))
-            c.JSON(http.StatusInternalServerError, gin.H{
-                "error": "サーバーエラーが発生しました",
-                "code":  "INTERNAL_ERROR",
-            })
-        }
+        RespondError(c, err)
         return
     }
 
-    c.JSON(http.StatusOK, owner)
+    c.JSON(http.StatusOK, toOwnerResponse(owner))
 }
 ```
+
+ステータスコード対応表・`AppError` 抽出ロジックの正本は `internal/handler/response.go` であり、
+詳細は `internal/handler/CLAUDE.md` の P7/P12 を参照する。本ファイルでは再掲しない。
 
 ### 3.3 エラーラッピングパターン
 
 ```go
-// Repository層: DBエラーをセンチネルエラーに変換
-func (r *ownerRepository) FindByID(ctx context.Context, id uuid.UUID) (*model.Owner, error) {
+// Repository層: GORMエラーをapperrorsに変換（clinicScopeで隔離、FromGORMで変換）
+func (r *ownerRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Owner, error) {
     var owner model.Owner
-    if err := r.db.WithContext(ctx).First(&owner, "id = ?", id).Error; err != nil {
-        if errors.Is(err, gorm.ErrRecordNotFound) {
-            return nil, apperrors.ErrNotFound
-        }
-        return nil, apperrors.Wrap(err, "failed to find owner")
+    if err := r.db.WithContext(ctx).Scopes(clinicScope(clinicID)).
+        Where("id = ?", id).First(&owner).Error; err != nil {
+        return nil, apperrors.FromGORM(err, "owner", fmt.Sprintf("%d", id))
     }
     return &owner, nil
 }
 
-// Service層: コンテキストを追加してラップ
-func (s *ownerService) GetOwner(ctx context.Context, id string) (*model.Owner, error) {
-    ownerID, err := uuid.Parse(id)
+// Service層: 入力パースエラーはWrapInvalidInput、下位層エラーはWrapで文脈を付加
+func (s *ownerService) GetOwner(ctx context.Context, clinicID uint64, id string) (*model.Owner, error) {
+    ownerID, err := strconv.ParseUint(id, 10, 64)
     if err != nil {
-        return nil, apperrors.Wrapf(apperrors.ErrInvalidInput, "invalid owner id: %s", id)
+        return nil, apperrors.WrapInvalidInput("invalid owner id: " + id)
     }
 
-    owner, err := s.repo.FindByID(ctx, ownerID)
+    owner, err := s.repo.FindByID(ctx, clinicID, ownerID)
     if err != nil {
-        return nil, apperrors.Wrapf(err, "owner_id=%s", id)
+        return nil, apperrors.Wrap(err, "failed to get owner")
     }
 
     return owner, nil
@@ -343,7 +308,7 @@ import "log/slog"
 
 // 情報ログ
 slog.InfoContext(ctx, "owner created",
-    slog.String("owner_id", owner.ID.String()),
+    slog.Uint64("owner_id", owner.ID),
     slog.String("name", owner.Name))
 
 // エラーログ
@@ -420,13 +385,11 @@ func (r *ownerRepository) Create(ctx context.Context, owner *model.Owner) error 
 }
 
 // Read (単一)
-func (r *ownerRepository) FindByID(ctx context.Context, id uuid.UUID) (*model.Owner, error) {
+func (r *ownerRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Owner, error) {
     var owner model.Owner
-    if err := r.db.WithContext(ctx).First(&owner, "id = ?", id).Error; err != nil {
-        if errors.Is(err, gorm.ErrRecordNotFound) {
-            return nil, apperrors.ErrNotFound
-        }
-        return nil, apperrors.Wrap(err, "failed to find owner")
+    if err := r.db.WithContext(ctx).Scopes(clinicScope(clinicID)).
+        Where("id = ?", id).First(&owner).Error; err != nil {
+        return nil, apperrors.FromGORM(err, "owner", fmt.Sprintf("%d", id))
     }
     return &owner, nil
 }
@@ -449,26 +412,29 @@ func (r *ownerRepository) FindAll(ctx context.Context, filter OwnerFilter) ([]mo
     return owners, nil
 }
 
-// Update
-func (r *ownerRepository) Update(ctx context.Context, owner *model.Owner) error {
-    result := r.db.WithContext(ctx).Save(owner)
+// Update (P4: clinicScope必須 / P16: fields mapによるPATCH更新)
+func (r *ownerRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Owner, error) {
+    result := r.db.WithContext(ctx).Model(&model.Owner{}).
+        Scopes(clinicScope(clinicID)).Where("id = ?", id).
+        Updates(fields)
     if result.Error != nil {
-        return apperrors.Wrap(result.Error, "failed to update owner")
+        return nil, apperrors.FromGORM(result.Error, "owner", fmt.Sprintf("%d", id))
     }
     if result.RowsAffected == 0 {
-        return apperrors.ErrNotFound
+        return nil, apperrors.WrapNotFound("owner", fmt.Sprintf("%d", id))
     }
-    return nil
+    return r.FindByID(ctx, clinicID, id)
 }
 
-// Delete (ソフトデリート)
-func (r *ownerRepository) Delete(ctx context.Context, id uuid.UUID) error {
-    result := r.db.WithContext(ctx).Delete(&model.Owner{}, "id = ?", id)
+// Delete (ソフトデリート、P4: clinicScope必須)
+func (r *ownerRepository) Delete(ctx context.Context, clinicID, id uint64) error {
+    result := r.db.WithContext(ctx).Scopes(clinicScope(clinicID)).
+        Where("id = ?", id).Delete(&model.Owner{})
     if result.Error != nil {
-        return apperrors.Wrap(result.Error, "failed to delete owner")
+        return apperrors.FromGORM(result.Error, "owner", fmt.Sprintf("%d", id))
     }
     if result.RowsAffected == 0 {
-        return apperrors.ErrNotFound
+        return apperrors.WrapNotFound("owner", fmt.Sprintf("%d", id))
     }
     return nil
 }
@@ -577,11 +543,11 @@ func (h *OwnerHandler) GetOwner(c *gin.Context) {
 
     owner, err := h.service.GetOwner(ctx, id)
     if err != nil {
-        h.handleError(c, err)
+        RespondError(c, err)
         return
     }
 
-    c.JSON(http.StatusOK, owner)
+    c.JSON(http.StatusOK, toOwnerResponse(owner))
 }
 
 // POST /api/owners
@@ -590,20 +556,18 @@ func (h *OwnerHandler) CreateOwner(c *gin.Context) {
 
     var input CreateOwnerInput
     if err := c.ShouldBindJSON(&input); err != nil {
-        c.JSON(http.StatusBadRequest, gin.H{
-            "error": "無効なリクエストです",
-            "code":  "INVALID_REQUEST",
-        })
+        RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
         return
     }
 
     owner, err := h.service.CreateOwner(ctx, input)
     if err != nil {
-        h.handleError(c, err)
+        RespondError(c, err)
         return
     }
 
-    c.JSON(http.StatusCreated, owner)
+    c.Header("Location", fmt.Sprintf("/api/v1/owners/%d", owner.ID))
+    c.JSON(http.StatusCreated, toOwnerResponse(owner))
 }
 ```
 
@@ -634,34 +598,51 @@ func validateJapanesePhone(fl validator.FieldLevel) bool {
 
 ### 6.3 レスポンス形式
 
+`toXxxResponse()` でモデルをレスポンス DTO に変換して返す。素の `gin.H` map でモデルを直接
+包む（`data` キーでのラップを含む）ことは禁止。エラー系は必ず `RespondError(c, err)` を使う
+（`gin.H` によるエラーマップの直書きは禁止）。
+
 ```go
 // 成功レスポンス
-c.JSON(http.StatusOK, gin.H{
-    "data": owner,
-})
+c.JSON(http.StatusOK, toOwnerResponse(owner))
 
-// ページネーションレスポンス
-c.JSON(http.StatusOK, gin.H{
-    "data": owners,
-    "pagination": gin.H{
-        "total":     total,
-        "page":      page,
-        "page_size": pageSize,
-    },
-})
+// 一覧レスポンス
+c.JSON(http.StatusOK, toOwnerListResponse(owners))
 
 // エラーレスポンス
-c.JSON(http.StatusBadRequest, gin.H{
-    "error":   "無効なリクエストです",
-    "code":    "INVALID_REQUEST",
-    "details": validationErrors,
-})
+RespondError(c, err)
 ```
+
+ステータスコード対応・ページネーション形式の詳細は `internal/handler/CLAUDE.md` の P7/P18 を参照。
 
 ### 6.4 API ドキュメント
 
 API 仕様は `docs/api.yaml`（OpenAPI 3.0）で手動管理。
 Swagger アノテーション（`@Summary` 等）は廃止済み — 使用しない。
+
+### 6.5 ルート登録と権限ゲート
+
+全ての非公開ルートに `perm(resource, verb)` を必須で付与する（AUDIT-H2 2026-05-09）。
+GET は `"view"`、POST は `"create"`、PATCH は `"edit"`、DELETE は `"delete"`。
+更新系メソッドは **PATCH を使用し、PUT は使用しない**。
+
+```go
+// ✅ in RegisterOwnerRoutes
+owners.GET("/owners", perm(model.ResourceOwner, "view"), h.ListOwners)
+owners.GET("/owners/:id", perm(model.ResourceOwner, "view"), h.GetOwner)
+owners.POST("/owners", perm(model.ResourceOwner, "create"), h.CreateOwner)
+owners.PATCH("/owners/:id", perm(model.ResourceOwner, "edit"), h.UpdateOwner)
+owners.DELETE("/owners/:id", perm(model.ResourceOwner, "delete"), h.DeleteOwner)
+
+// ❌ 禁止
+owners.GET("/owners", h.ListOwners)                          // perm 欠落
+owners.PUT("/owners/:id", perm(model.ResourceOwner, "edit"), h.UpdateOwner)   // PUT 禁止、PATCH を使う
+owners.DELETE("/owners/:id", perm(model.ResourceOwner, "edit"), h.DeleteOwner) // delete には "edit" ではなく "delete"
+```
+
+**免除ルート**（`perm` 不要）: `/login`, `/logout`, `/auth/*`, `/me`, `/health`, LIFF 公開 API, webhook。
+
+詳細は `internal/handler/CLAUDE.md` の P5/P6 を参照。
 
 ---
 
@@ -676,7 +657,6 @@ package model
 import (
     "time"
 
-    "github.com/google/uuid"
     "gorm.io/gorm"
 )
 
@@ -918,8 +898,9 @@ func TestOwnerService_GetOwner(t *testing.T) {
 - [ ] テストを書いている
 
 ### PR作成時
-- [ ] `golangci-lint run ./...` がパス
-- [ ] `go test ./... -v` がパス
+- [ ] 変更パッケージに絞った `docker compose exec backend go test ./internal/<pkg>/...` がパス
+      （リポジトリ全体を横断するテスト全実行・lint 全実行は自動実行禁止 — `backend/CLAUDE.md` の
+      Prohibited Commands を参照。全体検証が必要な場合はコマンドを提示しユーザーに手動実行を依頼する）
 - [ ] API仕様（docs/api.yaml）更新済み
 - [ ] 不要なコメントアウトがない
 - [ ] デバッグ用コードが残っていない

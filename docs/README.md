@@ -1,58 +1,40 @@
 # Animal Ekarte プロジェクト・ドキュメント (Documentation Index)
 
-本ディレクトリには、Animal Ekarte の設計、仕様、および運用に関する全ての公式ドキュメントが集約されています。
+> **目的**: docs/ 配下の公式ドキュメントへの入口（カテゴリ索引）を提供する。
+> **読者**: 全開発者・AI エージェント。
+> **タイミング**: 関連ドキュメントを探す時。
 
----
+開発規約・アーキテクチャ・開発手順の統合ルール（SSOT）は **[.claude/CLAUDE.md](../.claude/CLAUDE.md)** を最優先で参照すること。
 
-## ⚠️ 開発ガイドライン (Single Source of Truth)
+## 構成（2層索引）
 
-プロジェクトの最新規約、アーキテクチャ、および開発手順については、以下のファイルを**必ず**最優先で参照してください。
+ファイル単位の説明は各フォルダの README.md が正本。本書はカテゴリの入口のみを持つ（二重管理をしない）。
 
-- **[ANTIGRAVITY_CLI.md](ANTIGRAVITY_CLI.md)**: **【現在の標準】** Antigravity CLI (`agy`) 運用メモ（2026-06-18 に提供停止となる Gemini CLI からの移行手順）。
-- **[.claude/CLAUDE.md](../.claude/CLAUDE.md)**: 全エージェントおよび開発者向けの統合ルール（SSOT）。
-- **[GEMINI.md](../GEMINI.md)**: Gemini CLI 向け最適化コンテキスト（移行後もルール参照・互換用として保持）。
-- **[AI_DEVELOPMENT_WORKFLOW.md](AI_DEVELOPMENT_WORKFLOW.md)**: 仕様駆動・AI エージェント協働開発の標準手順。
+```
+docs/
+├── product-philosophy.md   … 意思決定原則（何を作るか/作らないか。全文書の上位）
+├── architecture/           … 説明系: システムがどう作られているか
+├── spec/                   … 仕様系: システムが何をするか（業務・画面・UI）
+├── ops/                    … 運用系: デプロイ・CI・テスト・インフラ
+└── delivery/               … 納品系: クライアント納品物（Go-live・操作マニュアル）
+```
 
----
-
-## 🏗 システム設計と基盤
-
-| カテゴリ | ドキュメント | 概要 |
+| カテゴリ | 索引 | 概要 |
 |:---|:---|:---|
-| **技術設計** | [architecture.md](architecture.md) | 軽量レイヤードアーキテクチャの定義。 |
-| **データ** | [ERD.md](file:///Users/minoru/dev/case/AnimalHospital/AnimalEkarte/docs/ERD.md) | データベース設計（全 **103 テーブル**・リレーション）。 |
-| **セキュリティ**| [AUTH.md](AUTH.md) | RBAC 権限モデル（全 **31 リソース**）、マルチテナント隔離。 |
-| **UI/UX** | [DESIGN_SYSTEM.md](DESIGN_SYSTEM.md) | Notion ライクなデザイン規約とデザイントークン。 |
-| **API** | [API_SPEC.md](API_SPEC.md) | バックエンド Go API の詳細リファレンス (v2.3)。 |
-| **データフロー** | [data-flow.md](data-flow.md) | リクエストの追跡（Request ID）と非同期同期の仕組み。 |
+| **意思決定原則** | [product-philosophy.md](product-philosophy.md) | 5 ステップの意思決定原則。新機能・仕様変更の着手前に必読 |
+| **説明系** | [architecture/README.md](architecture/README.md) | レイヤード構造・ERD・RBAC/マルチテナント・データフロー・削除設計・ADR |
+| **仕様系** | [spec/README.md](spec/README.md) | 機能要件・全画面仕様・会計/顧客分析/予約フロー・デザイン規約・LINE 連携 |
+| **運用系** | [ops/README.md](ops/README.md) | デプロイ・ランブック・テスト・CI/カバレッジポリシー・インフラ構成 |
+| **納品系** | [delivery/README.md](delivery/README.md) | 納品パッケージ・Go-live 手順・現場向け操作マニュアル |
+
+> **フォルダ規律**: docs/ 直下に新カテゴリを追加する場合は本表と CI ゲート（`scripts/check-docs-symbol-drift.sh` の TOP_ALLOWLIST）を同コミットで更新すること。allowlist 外のフォルダは CI が拒否する。
+
+## 横断事項
+
+- **API contract**: 正本は [`backend/docs/api.yaml`](../backend/docs/api.yaml)（Swagger UI 表示は `docker compose -f docker-compose.swagger.yml up`）。
+- **docs ドリフトゲート**: `scripts/check-docs-symbol-drift.sh`（CI の docs-symbol-drift ジョブ）が、spec/screens/ 系ドキュメントの言及シンボル実在と宣言数値（テーブル数・リソース数等）の実装一致を機械検査する。
+- **タスク台帳**: 個別タスクはリポジトリ直下の [`todo.md`](../todo.md) に一元化（旧 `docs/tasks/` は廃止）。過去の完了記録・監査アーカイブは git 履歴を参照（旧 `docs/archive/` は削除済み）。
 
 ---
 
-## 📱 業務・画面仕様
-
-- **[SPECIFICATION.md](SPECIFICATION.md)**: システム全体の機能要件と主要ビジネスフロー。
-- **[screens/README.md](screens/README.md)**: **【全 38 画面インデックス】** 各機能の詳細操作ガイド。
-- **[CASH_REGISTER_SPEC.md](CASH_REGISTER_SPEC.md)**: レジ締め・日次/月次売上集計の業務仕様。
-- **[CUSTOMER_AGGREGATION_SPEC.md](CUSTOMER_AGGREGATION_SPEC.md)**: 累計売上・来院頻度に基づく顧客分析ダッシュボード。
-
----
-
-## 💬 LINE / Lステップ連携 (CRM)
-
-- **[line/lstep-integration.md](line/lstep-integration.md)**: **Lステップ戦略書**。CPM 判定、全 15 種の配信トリガー。
-- **[line/setup.md](line/setup.md)**: LINE Developers Console および管理画面での初期セットアップ。
-- **[LINE_LSTEP_COST_ANALYSIS.md](LINE_LSTEP_COST_ANALYSIS.md)**: 外部配信コストと ROI の経済性分析。
-- **[line/reservation-spec.md](line/reservation-spec.md)**: 飼い主向け LINE 予約システムの機能と計算エンジン。
-
----
-
-## 📦 運用とテスト
-
-- **[infra/deploy/README.md](infra/deploy/README.md)**: AWS ステージング環境の運用・デプロイガイド。
-- **[testing/SECTION_14_MANUAL_TEST_GUIDE.md](testing/SECTION_14_MANUAL_TEST_GUIDE.md)**: ブラウザによる詳細な手動検証シナリオ。
-- **[FUNCTIONAL_TEST_REPORT.md](FUNCTIONAL_TEST_REPORT.md)**: **【全機能検証記録】** 2,000 項目以上の詳細チェックリスト。
-- **[DEPLOYMENT_CHECKLIST.md](DEPLOYMENT_CHECKLIST.md)**: 本番リリース前の統合チェックリスト。
-
----
-
-**最新更新**: 2026-06-12 | **ステータス**: All Sync with Implementation (103 Tables / 31 Resources)
+**最新更新**: 2026-07-16 | **ステータス**: All Sync with Implementation (108 Tables / 34 Resources)

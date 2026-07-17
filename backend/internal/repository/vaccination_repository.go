@@ -58,11 +58,11 @@ func (r *vaccinationRepository) FindAll(ctx context.Context, clinicID uint64, pe
 
 	vaccinations := make([]model.Vaccination, 0)
 	if err := buildBase().
-		Preload("Vaccine", "deleted_at IS NULL").
+		Preload("Vaccine", "clinic_id = ? AND deleted_at IS NULL", clinicID).
 		Preload("Pet", "deleted_at IS NULL").
 		Preload("Pet.Owner", "deleted_at IS NULL").
 		Preload("Doctor", "deleted_at IS NULL").
-		Offset((page - 1) * limit).Limit(limit).Order("vaccinations.date DESC, vaccinations.created_at DESC").
+		Scopes(paginate(page, limit)).Order("vaccinations.date DESC, vaccinations.created_at DESC").
 		Find(&vaccinations).Error; err != nil {
 		return nil, 0, apperrors.FromGORM(err, "vaccination", "")
 	}
@@ -76,7 +76,7 @@ func (r *vaccinationRepository) FindByOwner(ctx context.Context, clinicID, owner
 	err := r.db.WithContext(ctx).
 		Joins("JOIN pets ON pets.id = vaccinations.pet_id AND pets.deleted_at IS NULL").
 		Where("vaccinations.clinic_id = ? AND pets.owner_id = ?", clinicID, ownerID).
-		Preload("Vaccine", "deleted_at IS NULL").
+		Preload("Vaccine", "clinic_id = ? AND deleted_at IS NULL", clinicID).
 		Order("vaccinations.date DESC, vaccinations.created_at DESC").
 		Find(&vaccinations).Error
 	if err != nil {
@@ -89,7 +89,7 @@ func (r *vaccinationRepository) FindByID(ctx context.Context, clinicID, id uint6
 	var vaccination model.Vaccination
 	err := r.db.WithContext(ctx).
 		Where("vaccinations.id = ? AND vaccinations.clinic_id = ?", id, clinicID).
-		Preload("Vaccine", "deleted_at IS NULL").Preload("Pet", "deleted_at IS NULL").Preload("Pet.Owner", "deleted_at IS NULL").Preload("Doctor", "deleted_at IS NULL").
+		Preload("Vaccine", "clinic_id = ? AND deleted_at IS NULL", clinicID).Preload("Pet", "deleted_at IS NULL").Preload("Pet.Owner", "deleted_at IS NULL").Preload("Doctor", "deleted_at IS NULL").
 		First(&vaccination).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "vaccination", fmt.Sprintf("%d", id))
@@ -105,36 +105,20 @@ func (r *vaccinationRepository) Create(ctx context.Context, vaccination *model.V
 }
 
 func (r *vaccinationRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Vaccination, error) {
-	result := r.db.WithContext(ctx).
-		Model(&model.Vaccination{}).
-		Scopes(clinicScope(clinicID)).Where("id = ?", id).
-		Updates(fields)
-	if result.Error != nil {
-		return nil, apperrors.FromGORM(result.Error, "vaccination", fmt.Sprintf("%d", id))
-	}
-	if result.RowsAffected == 0 {
-		return nil, apperrors.WrapNotFound("vaccination", fmt.Sprintf("%d", id))
+	if err := updateScopedByID(ctx, r.db, &model.Vaccination{}, "vaccination", clinicID, id, fields); err != nil {
+		return nil, err
 	}
 	return r.FindByID(ctx, clinicID, id)
 }
 
 func (r *vaccinationRepository) Delete(ctx context.Context, clinicID, id uint64) error {
-	result := r.db.WithContext(ctx).
-		Scopes(clinicScope(clinicID)).Where("id = ?", id).
-		Delete(&model.Vaccination{})
-	if result.Error != nil {
-		return apperrors.FromGORM(result.Error, "vaccination", fmt.Sprintf("%d", id))
-	}
-	if result.RowsAffected == 0 {
-		return apperrors.WrapNotFound("vaccination", fmt.Sprintf("%d", id))
-	}
-	return nil
+	return deleteScopedByID(ctx, r.db, &model.Vaccination{}, "vaccination", clinicID, id)
 }
 
 // FindOwnersByVaccineDeadline はワクチン次回接種日（next_date）が targetDate の飼い主IDリストを返す（FEAT-383）。
 // pets テーブルを JOIN し、生存ペット経由で飼い主IDを取得する。
 func (r *vaccinationRepository) FindOwnersByVaccineDeadline(ctx context.Context, clinicID uint64, targetDate time.Time) ([]uint64, error) {
-	target := targetDate.Format("2006-01-02")
+	target := targetDate.Format(time.DateOnly)
 	type row struct{ OwnerID uint64 }
 	var rows []row
 	err := r.db.WithContext(ctx).

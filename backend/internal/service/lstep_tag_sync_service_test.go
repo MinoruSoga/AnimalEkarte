@@ -52,20 +52,21 @@ func TestLstepTagSyncServiceDisabledSyncSkipsBeforeRepositories(t *testing.T) {
 		{name: "SyncCheckupTag", run: func() error { return svc.SyncCheckupTag(ctx, 1, 2, 3, now, nil) }},
 		{name: "SyncPrescriptionTag", run: func() error { return svc.SyncPrescriptionTag(ctx, 1, 2) }},
 		{name: "SyncChronicConditionTags", run: func() error { return svc.SyncChronicConditionTags(ctx, 1, 2, []string{"kidney"}) }},
-		{name: "SyncDormantTags", run: func() error { return svc.SyncDormantTags(ctx, 1, 2, 180) }},
+		{name: "SyncDormantTagsWithThresholds", run: func() error {
+			return svc.SyncDormantTagsWithThresholds(ctx, 1, 2, 180, model.DormantThresholds{})
+		}},
 		{name: "ResyncOwnerVaccineTags", run: func() error { return svc.ResyncOwnerVaccineTags(ctx, 1, 2) }},
 		{name: "ResyncOwnerCheckupTags", run: func() error { return svc.ResyncOwnerCheckupTags(ctx, 1, 2) }},
-		{name: "SyncCPMStageTagV2", run: func() error { return svc.SyncCPMStageTagV2(ctx, 1, 2) }},
 		{name: "SyncVisitDormantTags", run: func() error { return svc.SyncVisitDormantTags(ctx, 1, 2, 120) }},
-		{name: "SyncPetSpeciesTags", run: func() error { return svc.SyncPetSpeciesTags(ctx, 1, 2) }},
-		{name: "SyncSeniorTag", run: func() error { return svc.SyncSeniorTag(ctx, 1, 2) }},
 		{name: "SyncExclusionTags", run: func() error { return svc.SyncExclusionTags(ctx, 1, 2) }},
-		{name: "SyncHealthcheckTags", run: func() error { return svc.SyncHealthcheckTags(ctx, 1, 2) }},
-		{name: "SyncAnnual4CheckupTag", run: func() error { return svc.SyncAnnual4CheckupTag(ctx, 1, 2) }},
-		{name: "SyncVaccineDeadlineTag", run: func() error { return svc.SyncVaccineDeadlineTag(ctx, 1, 2) }},
-		{name: "SyncFilariaTag", run: func() error { return svc.SyncFilariaTag(ctx, 1, 2) }},
-		{name: "SyncFleaTickTag", run: func() error { return svc.SyncFleaTickTag(ctx, 1, 2) }},
-		{name: "SyncFoodPurchaseTag", run: func() error { return svc.SyncFoodPurchaseTag(ctx, 1, 2) }},
+		// B-3: SyncHealthcheckTags/SyncAnnual4CheckupTag/SyncVaccineDeadlineTag/SyncFilariaTag/
+		// SyncFleaTickTag/SyncFoodPurchaseTag の公開ラッパーは呼び出し元ゼロのため削除済み。
+		// これらの WithMappings 版・syncVaccineDeadlineTagImpl は LstepTagSyncService
+		// interface に含まれないため本テーブル（interface 経由の一括検証）の対象外。
+		// B-5: SyncCPMStageTagV2 は自ファイル内専用のため syncCPMStageTagV2（非公開）に
+		// unexport 済みで、同様に interface から除外されたため本テーブルの対象外。
+		// isSyncEnabled=false による早期 skip は各メソッドが共通で呼ぶ resolveSyncTarget の
+		// 責務であり、本テーブルの残り約15メソッドで引き続き検証される。
 	}
 
 	for _, tc := range tests {
@@ -109,6 +110,20 @@ func TestIsPetBasicInfoTag(t *testing.T) {
 			assert.Equal(t, tc.want, isPetBasicInfoTagWithPrefixes(tc.tag, c1Prefixes))
 		})
 	}
+
+	t.Run("prefixes outside category C1 are ignored even on an exact/prefix match", func(t *testing.T) {
+		mixedPrefixes := []*model.LstepAutoManagedPrefix{
+			{Prefix: "breed_", Category: "C2"}, // not C1 -> must not match despite the same prefix text
+			{Prefix: "sex_", Category: "C1"},
+		}
+		assert.False(t, isPetBasicInfoTagWithPrefixes("breed_shiba_inu", mixedPrefixes), "C2-category prefix must not classify the tag as C1")
+		assert.True(t, isPetBasicInfoTagWithPrefixes("sex_male", mixedPrefixes))
+	})
+
+	t.Run("empty dbPrefixes never matches", func(t *testing.T) {
+		assert.False(t, isPetBasicInfoTagWithPrefixes("breed_shiba_inu", nil))
+		assert.False(t, isPetBasicInfoTagWithPrefixes("", nil))
+	})
 }
 
 // ---- isDormantTag ----
@@ -783,80 +798,6 @@ func TestVisitDormantTagsForDays(t *testing.T) {
 	assert.Equal(t, []string{"VISIT_120日超", "VISIT_180日超", "VISIT_220日超", "VISIT_240日超"}, visitDormantTagsForDays(300))
 }
 
-// ---- petSpeciesFlags (pure function) ----
-
-func TestPetSpeciesFlags(t *testing.T) {
-	dog := &model.AnimalSpecies{Name: "犬"}
-	cat := &model.AnimalSpecies{Name: "猫"}
-	bird := &model.AnimalSpecies{Name: "鳥"}
-
-	hasDog, hasCat := petSpeciesFlags(nil)
-	assert.False(t, hasDog)
-	assert.False(t, hasCat)
-
-	hasDog, hasCat = petSpeciesFlags([]model.Pet{})
-	assert.False(t, hasDog)
-	assert.False(t, hasCat)
-
-	hasDog, hasCat = petSpeciesFlags([]model.Pet{{AnimalSpecies: dog}})
-	assert.True(t, hasDog)
-	assert.False(t, hasCat)
-
-	hasDog, hasCat = petSpeciesFlags([]model.Pet{{AnimalSpecies: cat}})
-	assert.False(t, hasDog)
-	assert.True(t, hasCat)
-
-	hasDog, hasCat = petSpeciesFlags([]model.Pet{{AnimalSpecies: dog}, {AnimalSpecies: cat}})
-	assert.True(t, hasDog)
-	assert.True(t, hasCat)
-
-	hasDog, hasCat = petSpeciesFlags([]model.Pet{{AnimalSpecies: bird}})
-	assert.False(t, hasDog)
-	assert.False(t, hasCat)
-
-	// nil AnimalSpecies is skipped
-	hasDog, hasCat = petSpeciesFlags([]model.Pet{{AnimalSpecies: nil}})
-	assert.False(t, hasDog)
-	assert.False(t, hasCat)
-}
-
-// ---- hasSeniorPet (pure function) ----
-
-func TestHasSeniorPet(t *testing.T) {
-	dog := &model.AnimalSpecies{Name: "犬"}
-	cat := &model.AnimalSpecies{Name: "猫"}
-	bird := &model.AnimalSpecies{Name: "鳥"}
-	now := time.Date(2026, 5, 1, 0, 0, 0, 0, time.UTC)
-
-	bd7 := now.AddDate(-7, 0, -1) // 7歳超: senior
-	bd7e := now.AddDate(-7, 0, 0) // 7歳ちょうど: senior
-	bd6 := now.AddDate(-6, 0, -1) // 6歳: not senior
-
-	assert.False(t, hasSeniorPet(nil, now))
-	assert.False(t, hasSeniorPet([]model.Pet{}, now))
-
-	// 7歳超 犬 → senior
-	assert.True(t, hasSeniorPet([]model.Pet{{AnimalSpecies: dog, BirthDate: &bd7}}, now))
-
-	// 7歳ちょうど 犬 → senior
-	assert.True(t, hasSeniorPet([]model.Pet{{AnimalSpecies: dog, BirthDate: &bd7e}}, now))
-
-	// 6歳 犬 → not senior
-	assert.False(t, hasSeniorPet([]model.Pet{{AnimalSpecies: dog, BirthDate: &bd6}}, now))
-
-	// 7歳超 猫 → senior
-	assert.True(t, hasSeniorPet([]model.Pet{{AnimalSpecies: cat, BirthDate: &bd7}}, now))
-
-	// 7歳超 鳥 → not senior (犬猫以外は対象外)
-	assert.False(t, hasSeniorPet([]model.Pet{{AnimalSpecies: bird, BirthDate: &bd7}}, now))
-
-	// BirthDate nil → not senior
-	assert.False(t, hasSeniorPet([]model.Pet{{AnimalSpecies: dog, BirthDate: nil}}, now))
-
-	// AnimalSpecies nil → not senior
-	assert.False(t, hasSeniorPet([]model.Pet{{AnimalSpecies: nil, BirthDate: &bd7}}, now))
-}
-
 // ---- hasVaccineDeadlineSoon (pure function) ----
 
 func TestHasVaccineDeadlineSoon(t *testing.T) {
@@ -899,40 +840,40 @@ func TestSyncHealthcheckTagsNoopWhenTagCodeRepoNil(t *testing.T) {
 	svc := NewLstepTagSyncService(
 		&mockLstepSettingsService{isSyncEnabledFn: func(_ context.Context, _ uint64) (bool, error) { return true, nil }},
 		nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
-	)
-	assert.NoError(t, svc.SyncHealthcheckTags(context.Background(), 1, 2))
+	).(*lstepTagSyncService)
+	assert.NoError(t, svc.SyncHealthcheckTagsWithMappings(context.Background(), 1, 2, nil, nil))
 }
 
 func TestSyncAnnual4CheckupTagNoopWhenTagCodeRepoNil(t *testing.T) {
 	svc := NewLstepTagSyncService(
 		&mockLstepSettingsService{isSyncEnabledFn: func(_ context.Context, _ uint64) (bool, error) { return true, nil }},
 		nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
-	)
-	assert.NoError(t, svc.SyncAnnual4CheckupTag(context.Background(), 1, 2))
+	).(*lstepTagSyncService)
+	assert.NoError(t, svc.SyncAnnual4CheckupTagWithMappings(context.Background(), 1, 2, nil, nil))
 }
 
 func TestSyncFilariaTagNoopWhenTagCodeRepoNil(t *testing.T) {
 	svc := NewLstepTagSyncService(
 		&mockLstepSettingsService{isSyncEnabledFn: func(_ context.Context, _ uint64) (bool, error) { return true, nil }},
 		nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
-	)
-	assert.NoError(t, svc.SyncFilariaTag(context.Background(), 1, 2))
+	).(*lstepTagSyncService)
+	assert.NoError(t, svc.SyncFilariaTagWithMappings(context.Background(), 1, 2, nil, nil))
 }
 
 func TestSyncFleaTickTagNoopWhenTagCodeRepoNil(t *testing.T) {
 	svc := NewLstepTagSyncService(
 		&mockLstepSettingsService{isSyncEnabledFn: func(_ context.Context, _ uint64) (bool, error) { return true, nil }},
 		nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
-	)
-	assert.NoError(t, svc.SyncFleaTickTag(context.Background(), 1, 2))
+	).(*lstepTagSyncService)
+	assert.NoError(t, svc.SyncFleaTickTagWithMappings(context.Background(), 1, 2, nil, nil))
 }
 
 func TestSyncFoodPurchaseTagNoopWhenTagCodeRepoNil(t *testing.T) {
 	svc := NewLstepTagSyncService(
 		&mockLstepSettingsService{isSyncEnabledFn: func(_ context.Context, _ uint64) (bool, error) { return true, nil }},
 		nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil,
-	)
-	assert.NoError(t, svc.SyncFoodPurchaseTag(context.Background(), 1, 2))
+	).(*lstepTagSyncService)
+	assert.NoError(t, svc.SyncFoodPurchaseTagWithMappings(context.Background(), 1, 2, nil, nil))
 }
 
 func TestSyncHealthPreventionTagsForClinicDisabledSync(t *testing.T) {
@@ -1013,5 +954,137 @@ func TestSyncExclusionTagsCaution(t *testing.T) {
 		err := svc.SyncExclusionTags(context.Background(), 1, 10)
 		assert.NoError(t, err)
 		assert.Contains(t, removedTags, exclTagDeliveryCaution)
+	})
+}
+
+// ---- buildClient ----
+
+func TestLstepTagSyncService_BuildClient(t *testing.T) {
+	tests := []struct {
+		name          string
+		isSyncEnabled bool
+		syncErr       error
+		apiKey        string
+		credErr       error
+		wantErr       bool
+		wantNilClient bool
+	}{
+		{
+			name:          "sync disabled -> nil client, nil error",
+			isSyncEnabled: false,
+			wantNilClient: true,
+		},
+		{
+			name:          "IsSyncEnabled error -> wrapped error",
+			isSyncEnabled: false,
+			syncErr:       errors.New("db error"),
+			wantErr:       true,
+			wantNilClient: true,
+		},
+		{
+			name:          "GetRawCredentials error -> wrapped error",
+			isSyncEnabled: true,
+			credErr:       errors.New("db error"),
+			wantErr:       true,
+			wantNilClient: true,
+		},
+		{
+			name:          "empty api key -> nil client, nil error",
+			isSyncEnabled: true,
+			apiKey:        "",
+			wantNilClient: true,
+		},
+		{
+			name:          "valid credentials -> non-nil client",
+			isSyncEnabled: true,
+			apiKey:        "secret-key",
+			wantNilClient: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			settingsSvc := &mockLstepSettingsService{
+				isSyncEnabledFn: func(_ context.Context, _ uint64) (bool, error) {
+					return tt.isSyncEnabled, tt.syncErr
+				},
+				getRawCredentialsFn: func(_ context.Context, _ uint64) (string, string, string, error) {
+					return tt.apiKey, "https://example.com", "", tt.credErr
+				},
+			}
+			svc := &lstepTagSyncService{settingsSvc: settingsSvc}
+
+			client, err := svc.buildClient(context.Background(), 1)
+
+			if tt.wantErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
+			if tt.wantNilClient {
+				assert.Nil(t, client)
+			} else {
+				assert.NotNil(t, client)
+			}
+		})
+	}
+
+	t.Run("buildClientFn override takes precedence over real settingsSvc lookups", func(t *testing.T) {
+		called := false
+		fakeClient := &mockLstepAPIClient{}
+		svc := &lstepTagSyncService{
+			settingsSvc: &mockLstepSettingsService{
+				isSyncEnabledFn: func(_ context.Context, _ uint64) (bool, error) {
+					t.Fatal("real settingsSvc must not be consulted when buildClientFn is set")
+					return false, nil
+				},
+			},
+			buildClientFn: func(_ context.Context, _ uint64) (lstep.Client, error) {
+				called = true
+				return fakeClient, nil
+			},
+		}
+		client, err := svc.buildClient(context.Background(), 1)
+		assert.NoError(t, err)
+		assert.Same(t, fakeClient, client)
+		assert.True(t, called)
+	})
+}
+
+// ---- shouldSkipSync ----
+
+func TestLstepTagSyncService_ShouldSkipSync(t *testing.T) {
+	t.Run("nil settingsSvc always skips", func(t *testing.T) {
+		svc := &lstepTagSyncService{}
+		skip, err := svc.shouldSkipSync(context.Background(), 1)
+		assert.NoError(t, err)
+		assert.True(t, skip)
+	})
+
+	t.Run("IsSyncEnabled error is wrapped and skip=false", func(t *testing.T) {
+		svc := &lstepTagSyncService{
+			settingsSvc: &mockLstepSettingsService{isSyncEnabledFn: func(_ context.Context, _ uint64) (bool, error) { return false, errors.New("db error") }},
+		}
+		skip, err := svc.shouldSkipSync(context.Background(), 1)
+		assert.Error(t, err)
+		assert.False(t, skip)
+	})
+
+	t.Run("sync disabled -> skip=true, nil error", func(t *testing.T) {
+		svc := &lstepTagSyncService{
+			settingsSvc: &mockLstepSettingsService{isSyncEnabledFn: func(_ context.Context, _ uint64) (bool, error) { return false, nil }},
+		}
+		skip, err := svc.shouldSkipSync(context.Background(), 1)
+		assert.NoError(t, err)
+		assert.True(t, skip)
+	})
+
+	t.Run("sync enabled -> skip=false, nil error", func(t *testing.T) {
+		svc := &lstepTagSyncService{
+			settingsSvc: &mockLstepSettingsService{isSyncEnabledFn: func(_ context.Context, _ uint64) (bool, error) { return true, nil }},
+		}
+		skip, err := svc.shouldSkipSync(context.Background(), 1)
+		assert.NoError(t, err)
+		assert.False(t, skip)
 	})
 }

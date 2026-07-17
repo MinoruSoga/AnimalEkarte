@@ -8,6 +8,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
+	"github.com/animal-ekarte/backend/internal/config"
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
 )
@@ -21,7 +22,7 @@ func (m mockReservationTypeFinder) FindByID(ctx context.Context, clinicID, id ui
 }
 
 func TestCheckReservationTypeCapacity(t *testing.T) {
-	start := time.Date(2026, 6, 1, 9, 0, 0, 0, jstLocation)
+	start := time.Date(2026, 6, 1, 9, 0, 0, 0, config.JST)
 	maxConcurrent := 2
 
 	t.Run("上限未満ならnilを返す", func(t *testing.T) {

@@ -3,8 +3,9 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
 import { usePermission } from "@/hooks/use-permission";
-import { C, LAYOUT, STYLE } from "@/lib/design-tokens";
+import { C, LAYOUT } from "@/lib/design-tokens";
 import { useGetInsurances } from "../api/get-insurances";
 import { useAnimalSpecies } from "../hooks/use-animal-species";
 import type { PetFormData } from "../types";
@@ -151,12 +152,9 @@ export const PetEditModal = memo(function PetEditModal({
               キャンセル
             </Button>
             {canEdit ? (
-              <Button
-                onClick={handleSave}
-                className={`${STYLE.confirmPrimary} text-sm px-4`}
-              >
+              <PrimaryButton onClick={handleSave} className="text-sm px-4">
                 {isEdit ? "更新" : "登録"}
-              </Button>
+              </PrimaryButton>
             ) : null}
           </div>
         </fieldset>

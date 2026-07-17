@@ -4,13 +4,9 @@ import { useMemo } from "react";
 import { SelectItem } from "@/components/ui/select";
 import { type SearchableSelectOption } from "@/components/ui/searchable-select";
 
-import {
-  PetCareSection,
-  PetIdentitySection,
-  PetPhysicalSection,
-  type AnimalSpeciesOption,
-  type InsuranceOption,
-} from "./PetEditModalFieldSections";
+import { PetIdentitySection, type AnimalSpeciesOption } from "./PetIdentitySection";
+import { PetPhysicalSection } from "./PetPhysicalSection";
+import { PetCareSection, type InsuranceOption } from "./PetCareSection";
 import type { PetFormData } from "../types";
 
 interface PetEditModalFieldsProps {

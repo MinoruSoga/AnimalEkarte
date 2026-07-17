@@ -31,7 +31,6 @@ import (
 
 type mockAggregationService struct {
 	listFn func(ctx context.Context, clinicID uint64, input *service.ListOwnerAggregationInput) (*service.ListOwnerAggregationResult, error)
-	syncFn func(ctx context.Context, clinicID uint64, input service.SyncAggregationTagsInput) (*service.SyncAggregationTagsResult, error)
 }
 
 func (m *mockAggregationService) ListOwnerAggregation(ctx context.Context, clinicID uint64, input *service.ListOwnerAggregationInput) (*service.ListOwnerAggregationResult, error) {
@@ -39,13 +38,6 @@ func (m *mockAggregationService) ListOwnerAggregation(ctx context.Context, clini
 		return m.listFn(ctx, clinicID, input)
 	}
 	return &service.ListOwnerAggregationResult{}, nil
-}
-
-func (m *mockAggregationService) SyncAggregationTags(ctx context.Context, clinicID uint64, input service.SyncAggregationTagsInput) (*service.SyncAggregationTagsResult, error) {
-	if m.syncFn != nil {
-		return m.syncFn(ctx, clinicID, input)
-	}
-	return &service.SyncAggregationTagsResult{}, nil
 }
 
 func newHandlerWithAggregationSvc(svc service.AggregationService) *Handler {

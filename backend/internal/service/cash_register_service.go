@@ -7,9 +7,11 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/animal-ekarte/backend/internal/config"
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/repository"
+	"github.com/animal-ekarte/backend/internal/timeutil"
 )
 
 // CloseRegisterInput はレジ締め実行の入力
@@ -58,7 +60,22 @@ type CloseBillingDetail struct {
 
 // buildCategoryBreakdown はカテゴリ行と支払方法行から CategoryBreakdownSchema を構築する。
 // 混在支払いの場合、カテゴリ金額を支払方法比率で按分する。
-func buildCategoryBreakdown(payRows []repository.PaymentAggregateRow, catRows []repository.CategoryAggregateRow, taxRows []repository.TaxBreakdownRow) model.CategoryBreakdownSchema {
+// 支払方法キーは system_key（例: "cash", "credit_card"）を使用。未登録 id は "method_N" にフォールバック。
+// payment_method_id=NULL の行（旧 seed/レガシーデータの現金 split）は現金 system_key に計上する。
+// calcTheoreticalCash と同じ「NULL=現金」判定（#128 後方互換）に揃えないと、category_breakdown の合計が
+// totalPayment（NULL 行を含む）と一致しなくなる。
+func buildCategoryBreakdown(payRows []repository.PaymentAggregateRow, catRows []repository.CategoryAggregateRow, taxRows []repository.TaxBreakdownRow, payMethods []model.PaymentMethodMaster, taxRates accountingReportTaxRates) model.CategoryBreakdownSchema {
+	idToKey := make(map[uint64]string, len(payMethods))
+	for i := range payMethods {
+		m := &payMethods[i]
+		if m.SystemKey != nil {
+			idToKey[m.ID] = *m.SystemKey
+		} else {
+			idToKey[m.ID] = fmt.Sprintf("method_%d", m.ID)
+		}
+	}
+	cashKey := paymentMethodSystemKeys[model.PaymentMethodCash]
+
 	var totalPayment int64
 	for _, pm := range payRows {
 		totalPayment += pm.Amount
@@ -68,9 +85,13 @@ func buildCategoryBreakdown(payRows []repository.PaymentAggregateRow, catRows []
 	for _, cat := range catRows {
 		cats[cat.Category] = make(map[string]int64)
 		for _, pm := range payRows {
-			key := "cash"
+			key := cashKey
 			if pm.PaymentMethodID != nil {
-				key = fmt.Sprintf("method_%d", *pm.PaymentMethodID)
+				var ok bool
+				key, ok = idToKey[*pm.PaymentMethodID]
+				if !ok {
+					key = fmt.Sprintf("method_%d", *pm.PaymentMethodID)
+				}
 			}
 			if totalPayment > 0 {
 				cats[cat.Category][key] += cat.Amount * pm.Amount / totalPayment
@@ -78,7 +99,7 @@ func buildCategoryBreakdown(payRows []repository.PaymentAggregateRow, catRows []
 		}
 	}
 
-	tax := buildTaxBreakdown(taxRows)
+	tax := buildTaxBreakdown(taxRows, taxRates)
 	return model.CategoryBreakdownSchema{
 		Categories: cats,
 		TaxBreakdown: model.TaxBreakdown{
@@ -111,6 +132,8 @@ type periodAggregate struct {
 	PeriodEnd       time.Time
 	// PaymentMethods は当該 clinic の支払方法マスタ。現金マスタ id 判定（#128）と GetPreview の二重ロード回避に使う。
 	PaymentMethods []model.PaymentMethodMaster
+	// TaxRates は病院マスタの税率設定。M-7(#191): 締めレジの税率分類を月次レポート経路（exact-match）と統一する。
+	TaxRates accountingReportTaxRates
 }
 
 type cashRegisterService struct {
@@ -118,6 +141,7 @@ type cashRegisterService struct {
 	accountingRepo repository.AccountingRepository
 	closingsSvc    ClosingSettingsService
 	payMethodRepo  repository.PaymentMethodMasterRepository
+	clinicRepo     repository.ClinicRepository
 }
 
 // NewCashRegisterService は CashRegisterService を初期化して返す
@@ -126,12 +150,14 @@ func NewCashRegisterService(
 	accountingRepo repository.AccountingRepository,
 	closingsSvc ClosingSettingsService,
 	payMethodRepo repository.PaymentMethodMasterRepository,
+	clinicRepo repository.ClinicRepository,
 ) CashRegisterService {
 	return &cashRegisterService{
 		closeRepo:      closeRepo,
 		accountingRepo: accountingRepo,
 		closingsSvc:    closingsSvc,
 		payMethodRepo:  payMethodRepo,
+		clinicRepo:     clinicRepo,
 	}
 }
 
@@ -151,7 +177,7 @@ func (s *cashRegisterService) fetchAggregate(ctx context.Context, clinicID uint6
 		return nil, apperrors.Wrap(err, "failed to resolve schedule")
 	}
 
-	dateJST := time.Date(date.Year(), date.Month(), date.Day(), 0, 0, 0, 0, jstLocation)
+	dateJST := time.Date(date.Year(), date.Month(), date.Day(), 0, 0, 0, 0, config.JST)
 
 	periodStart, periodEnd, err := resolvePeriodRange(dateJST, period, schedule)
 	if err != nil {
@@ -169,13 +195,24 @@ func (s *cashRegisterService) fetchAggregate(ctx context.Context, clinicID uint6
 		return nil, apperrors.Wrap(err, "failed to aggregate billings")
 	}
 
-	// #128: 現金マスタ id を解決し、payment_method_id=現金id の新データも理論現金に含める（NULL も後方互換で現金）。
+	// #128: 現金マスタ id を解決し、payment_method_id=現金id の split を理論現金に含める。
 	payMethods, err := s.payMethodRepo.FindAll(ctx, clinicID)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to load payment methods for aggregate", "error", err)
 		return nil, apperrors.Wrap(err, "failed to load payment methods for aggregate")
 	}
-	cashMethodID := findCashMethodID(payMethods)
+	cashMethodID, err := findCashMethodID(payMethods)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to find cash payment method", "error", err)
+		return nil, apperrors.Wrap(err, "failed to find cash payment method")
+	}
+
+	// M-7(#191): 税率分類は固定閾値ではなく病院マスタ税率（exact-match）で行う（月次レポート経路と統一）。
+	clinic, err := s.clinicRepo.FindByID(ctx, clinicID)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to load clinic for tax rates", "error", err)
+		return nil, apperrors.Wrap(err, "failed to load clinic for tax rates")
+	}
 
 	return &periodAggregate{
 		Schedule:        schedule,
@@ -188,6 +225,7 @@ func (s *cashRegisterService) fetchAggregate(ctx context.Context, clinicID uint6
 		PeriodStart:     periodStart,
 		PeriodEnd:       periodEnd,
 		PaymentMethods:  payMethods,
+		TaxRates:        clinicTaxRates(clinic),
 	}, nil
 }
 
@@ -195,7 +233,7 @@ func (s *cashRegisterService) GetPreview(ctx context.Context, clinicID uint64, d
 	if dateStr == "" {
 		return nil, apperrors.WrapInvalidInput("date クエリパラメータは必須です")
 	}
-	date, err := time.ParseInLocation("2006-01-02", dateStr, time.Local)
+	date, err := time.ParseInLocation(time.DateOnly, dateStr, time.Local)
 	if err != nil {
 		return nil, apperrors.WrapInvalidInput("date は YYYY-MM-DD 形式で指定してください")
 	}
@@ -246,7 +284,7 @@ func (s *cashRegisterService) GetPreview(ctx context.Context, clinicID uint64, d
 		pmName := paymentMethodNameForClose(d.PaymentMethodID, payMethodNames)
 		details = append(details, CloseBillingDetail{
 			BillingID:         d.BillingID,
-			PaidAt:            d.PaidAt.In(time.Local).Format(time.RFC3339),
+			PaidAt:            timeutil.LocalRFC3339(d.PaidAt),
 			OwnerName:         d.OwnerName,
 			PetName:           d.PetName,
 			IsHospitalization: d.IsHospitalization,
@@ -260,13 +298,13 @@ func (s *cashRegisterService) GetPreview(ctx context.Context, clinicID uint64, d
 	}
 
 	// 税率別集計
-	taxSummary := buildTaxBreakdown(agg.TaxBreakdown)
+	taxSummary := buildTaxBreakdown(agg.TaxBreakdown, agg.TaxRates)
 
 	return &CashRegisterPreview{
-		Date:            date.In(time.Local).Format("2006-01-02"),
+		Date:            date.In(time.Local).Format(time.DateOnly),
 		Period:          period,
-		PeriodStart:     agg.PeriodStart.In(time.Local).Format(time.RFC3339),
-		PeriodEnd:       agg.PeriodEnd.In(time.Local).Format(time.RFC3339),
+		PeriodStart:     timeutil.LocalRFC3339(agg.PeriodStart),
+		PeriodEnd:       timeutil.LocalRFC3339(agg.PeriodEnd),
 		IsAlreadyClosed: isAlreadyClosed,
 		IsHoliday:       agg.Schedule != nil && agg.Schedule.IsHoliday,
 		Aggregate: CloseAggregateSummary{
@@ -303,7 +341,7 @@ func (s *cashRegisterService) Close(ctx context.Context, clinicID uint64, input 
 	cashDifference := input.ActualCash - agg.TheoreticalCash
 
 	// category_breakdown JSONB を構築（消費税内訳を含む）
-	breakdownSchema := buildCategoryBreakdown(agg.PaymentRows, agg.CategoryRows, agg.TaxBreakdown)
+	breakdownSchema := buildCategoryBreakdown(agg.PaymentRows, agg.CategoryRows, agg.TaxBreakdown, agg.PaymentMethods, agg.TaxRates)
 	breakdownJSON, err := json.Marshal(breakdownSchema)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to marshal category breakdown", "error", err)
@@ -330,7 +368,7 @@ func (s *cashRegisterService) Close(ctx context.Context, clinicID uint64, input 
 
 	slog.InfoContext(ctx, "cash register closed",
 		slog.Uint64("clinic_id", clinicID),
-		slog.String("date", input.Date.Format("2006-01-02")),
+		slog.String("date", input.Date.Format(time.DateOnly)),
 		slog.String("period", input.Period),
 		slog.Int64("theoretical_cash", agg.TheoreticalCash),
 		slog.Int64("actual_cash", input.ActualCash))
@@ -360,7 +398,10 @@ func (s *cashRegisterService) IsDateClosed(ctx context.Context, clinicID uint64,
 	return closed, nil
 }
 
-// resolvePeriodRange は period（"am"/"pm"/"emg"）と DaySchedule から集計期間（JST）を返す
+// resolvePeriodRange は period（"am"/"pm"/"emg"）と DaySchedule から集計期間（JST）を返す。
+// 集計クエリ（GetCloseAggregate）は completed_at >= start AND < end の終端排他なので、
+// AM=[am_start, boundary) / PM=[boundary, pmEnd) / EMG=[pmEnd, 翌日 am_start) は
+// 連続・非重複で24時間を被覆する（#215: 深夜 0:00〜am_start の会計は前日 EMG に帰属）。
 func resolvePeriodRange(dateJST time.Time, period string, schedule *DaySchedule) (start, end time.Time, err error) {
 	boundaryH, boundaryM, parseErr := parseHHMM(schedule.AmPmBoundary)
 	if parseErr != nil {
@@ -370,23 +411,33 @@ func resolvePeriodRange(dateJST time.Time, period string, schedule *DaySchedule)
 	if parseErr != nil {
 		return time.Time{}, time.Time{}, apperrors.WrapInvalidInput("pm_end の形式が正しくありません")
 	}
+	amStartStr := schedule.AmStart
+	if amStartStr == "" {
+		// migration 011 以前のデータ・旧呼び出し元は既定 09:00 として扱う（#215 後方互換）
+		amStartStr = defaultClosingAmStart
+	}
+	amStartH, amStartM, parseErr := parseHHMM(amStartStr)
+	if parseErr != nil {
+		return time.Time{}, time.Time{}, apperrors.WrapInvalidInput("am_start の形式が正しくありません")
+	}
 
-	boundary := time.Date(dateJST.Year(), dateJST.Month(), dateJST.Day(), boundaryH, boundaryM, 0, 0, jstLocation)
-	pmEnd := time.Date(dateJST.Year(), dateJST.Month(), dateJST.Day(), pmEndH, pmEndM, 0, 0, jstLocation)
-	dayStart := time.Date(dateJST.Year(), dateJST.Month(), dateJST.Day(), 0, 0, 0, 0, jstLocation)
+	boundary := time.Date(dateJST.Year(), dateJST.Month(), dateJST.Day(), boundaryH, boundaryM, 0, 0, config.JST)
+	pmEnd := time.Date(dateJST.Year(), dateJST.Month(), dateJST.Day(), pmEndH, pmEndM, 0, 0, config.JST)
+	amStart := time.Date(dateJST.Year(), dateJST.Month(), dateJST.Day(), amStartH, amStartM, 0, 0, config.JST)
+	if !amStart.Before(boundary) {
+		// 逆転設定は空レンジ集計を silent に返すより設定不正として fail-loud にする
+		return time.Time{}, time.Time{}, apperrors.WrapInvalidInput("am_start は am_pm_boundary より前に設定してください")
+	}
 
 	switch period {
 	case "am":
-		return dayStart, boundary, nil
+		return amStart, boundary, nil
 	case "pm":
 		return boundary, pmEnd, nil
 	case "emg":
-		// EMG（緊急）は PM 締め終了後〜翌日0時までの夜間時間帯を集計対象とする。
-		// 仕様(#150)の「翌8:59まで」越日範囲を完全再現するには am 開始時刻の設定値
-		// (現状未保持) が必要で、既存 am=[0時,境界] を壊さずには表現できない。
-		// よって非破壊な PM終了〜当日24時 を採用する（越日分は #150 フォローアップ）。
-		nextDayStart := dayStart.AddDate(0, 0, 1)
-		return pmEnd, nextDayStart, nil
+		// #215: EMG は当日 pmEnd 〜 翌日 am_start の越日レンジ。am_start は標準設定由来で日別に
+		// 変わらない（特別期間も標準設定を継承する）ため、「翌日の am_start」は当日値 + 1日 と一致する。
+		return pmEnd, amStart.AddDate(0, 0, 1), nil
 	default:
 		return time.Time{}, time.Time{}, apperrors.WrapInvalidInput("period は 'am'、'pm'、'emg' のいずれかを指定してください")
 	}
@@ -409,26 +460,29 @@ func parseHHMM(s string) (h, m int, err error) {
 	return hh, mm, nil
 }
 
-// findCashMethodID は payment_methods マスタ群から「現金」マスタの id を返す（無ければ nil）。#128
-// 現金 name は paymentMethodMasterNames（書込み側の解決と同一の真実の源泉）を参照する。
-func findCashMethodID(methods []model.PaymentMethodMaster) *uint64 {
-	cashName := paymentMethodMasterNames[model.PaymentMethodCash]
+// findCashMethodID は payment_methods マスタ群から現金マスタ（system_key='cash'）の id を返す（#197）。
+// system_key 一致で検索するため、クリニックが「現金」等の name を改名しても正しく現金マスタを識別できる。
+// 現金マスタが存在しない場合は内部エラーを返す（migration 009 で必ず backfill 済み）。
+func findCashMethodID(methods []model.PaymentMethodMaster) (uint64, error) {
+	cashKey := paymentMethodSystemKeys[model.PaymentMethodCash]
 	for i := range methods {
-		if methods[i].Name == cashName {
-			id := methods[i].ID
-			return &id
+		if methods[i].SystemKey != nil && *methods[i].SystemKey == cashKey {
+			return methods[i].ID, nil
 		}
 	}
-	return nil
+	return 0, apperrors.WrapInternalServerError("現金マスタが見つかりません (system_key='cash')")
 }
 
 // calcTheoreticalCash は支払方法別集計行から現金合計を返し、返金合計を差し引いて理論現金残高を算出する。
-// 現金判定（#128）: payment_method_id が現金マスタ id（hotfix 後の新データ）、または NULL（旧 seed/
-// レガシーデータの現金 split: 後方互換）。cashMethodID が nil の場合は NULL のみを現金とみなす。
-func calcTheoreticalCash(payRows []repository.PaymentAggregateRow, totalRefund int64, cashMethodID *uint64) int64 {
+// 現金判定: payment_method_id が現金マスタ id と一致する split（#197 の新データ）に加え、
+// payment_method_id=NULL の split（旧 seed/レガシーデータの現金 split）も現金として集計する（#128 後方互換）。
+// 集計クエリ（accounting_repository_reports_close.go）は payment_method_id で GROUP BY し method ENUM を
+// 射影しないため、NULL 行の元 method は判定できない。月次レポート側 resolvePaymentMethodName も NULL→"現金"
+// 扱いのため、締め理論現金と月次レポート現金を一致させるにはここでも NULL を現金に含める（bug.md H-3）。
+func calcTheoreticalCash(payRows []repository.PaymentAggregateRow, totalRefund int64, cashMethodID uint64) int64 {
 	var cashTotal int64
 	for _, r := range payRows {
-		if r.PaymentMethodID == nil || (cashMethodID != nil && *r.PaymentMethodID == *cashMethodID) {
+		if r.PaymentMethodID == nil || *r.PaymentMethodID == cashMethodID {
 			cashTotal += r.Amount
 		}
 	}

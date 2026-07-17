@@ -1,6 +1,11 @@
 package handler
 
-import "testing"
+import (
+	"strings"
+	"testing"
+
+	apperrors "github.com/animal-ekarte/backend/internal/errors"
+)
 
 func TestCreateInventoryRequest_ToServiceInput(t *testing.T) {
 	expiryDate := "2026-12-31"
@@ -56,12 +61,56 @@ func TestCreateInventoryRequest_ToServiceInput(t *testing.T) {
 	}
 }
 
-func TestCreateInventoryRequest_ToServiceInput_InvalidDate(t *testing.T) {
-	expiryDate := "not-a-date"
+func TestInventoryRequest_ToServiceInput_InvalidDate(t *testing.T) {
+	invalidDate := "not-a-date"
 
-	_, err := (&createInventoryRequest{ExpiryDate: &expiryDate}).toServiceInput()
-	if err == nil {
-		t.Fatalf("error = nil, want invalid expiry_date error")
+	tests := []struct {
+		name string
+		call func() error
+	}{
+		{
+			name: "create/expiry_date",
+			call: func() error {
+				_, err := (&createInventoryRequest{ExpiryDate: &invalidDate}).toServiceInput()
+				return err
+			},
+		},
+		{
+			name: "create/last_restocked",
+			call: func() error {
+				_, err := (&createInventoryRequest{LastRestocked: &invalidDate}).toServiceInput()
+				return err
+			},
+		},
+		{
+			name: "update/expiry_date",
+			call: func() error {
+				_, err := (&updateInventoryRequest{ExpiryDate: &invalidDate}).toServiceInput()
+				return err
+			},
+		},
+		{
+			name: "update/last_restocked",
+			call: func() error {
+				_, err := (&updateInventoryRequest{LastRestocked: &invalidDate}).toServiceInput()
+				return err
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := tt.call()
+			if err == nil {
+				t.Fatal("toServiceInput returned nil error")
+			}
+			if !apperrors.IsInvalidInput(err) {
+				t.Fatalf("error = %v, want invalid input", err)
+			}
+			if strings.Contains(err.Error(), invalidDate) {
+				t.Fatalf("error = %v, must not leak raw input %q", err, invalidDate)
+			}
+		})
 	}
 }
 

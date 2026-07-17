@@ -1,5 +1,5 @@
 // React/Framework
-import { C, ICON } from "@/lib/design-tokens";
+import { C, ICON, STYLE } from "@/lib/design-tokens";
 import React, { memo } from "react";
 
 // Shared
@@ -65,10 +65,10 @@ export const TreatmentTable = memo(function TreatmentTable({
 
   return (
     <div className={`flex-1 flex flex-col min-h-0 border ${C.borderMedium} rounded-lg ${C.bgWhite} overflow-hidden shadow-sm`}>
-      {/* Header */}
+      {/* Header — DESIGN.md ex-data-table-cell: canvas-soft 背景 + eyebrow 相当タイポグラフィ（STYLE.sectionLabel） */}
       <div
         className={cn(
-          `grid gap-0 border-b ${C.borderMedium} ${C.bgPage} text-sm font-bold ${C.text80} min-h-[48px] items-center`,
+          `grid gap-0 border-b ${C.borderMedium} ${C.bgPage} ${STYLE.sectionLabel} min-h-[48px] items-center`,
           gridColsClass
         )}
       >
@@ -126,16 +126,24 @@ export const TreatmentTable = memo(function TreatmentTable({
                   disabled={disabled}
                 />
               </Cell>
-              <Cell
-                align="center"
-                onClick={disabled ? undefined : () => onUpdate(item.id, "is_insurance", !item.is_insurance)}
-                className={disabled ? undefined : `cursor-pointer ${C.hoverBgPage}`}
-              >
-                {item.is_insurance ? (
-                  <Circle className={`${ICON.action} ${C.textRedIcon}`} />
-                ) : (
-                  <X className={`${ICON.action} ${C.text25}`} />
-                )}
+              <Cell align="center">
+                <button
+                  type="button"
+                  aria-pressed={item.is_insurance}
+                  aria-label="保険適用"
+                  disabled={disabled}
+                  onClick={() => onUpdate(item.id, "is_insurance", !item.is_insurance)}
+                  className={cn(
+                    "h-full w-full flex items-center justify-center",
+                    disabled ? "cursor-not-allowed opacity-60" : `cursor-pointer ${C.hoverBgPage}`
+                  )}
+                >
+                  {item.is_insurance ? (
+                    <Circle className={`${ICON.action} ${C.textRedIcon}`} />
+                  ) : (
+                    <X className={`${ICON.action} ${C.text25}`} />
+                  )}
+                </button>
               </Cell>
               <Cell>
                 {/* BUG-072: 単価は0以上の整数・上限9億円 */}

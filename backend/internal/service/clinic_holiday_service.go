@@ -48,7 +48,7 @@ func (s *clinicHolidayService) Set(ctx context.Context, clinicID uint64, date ti
 	}
 	slog.InfoContext(ctx, "clinic holiday set",
 		slog.Uint64("clinic_id", clinicID),
-		slog.String("date", date.Format("2006-01-02")))
+		slog.String("date", date.Format(time.DateOnly)))
 	return result, nil
 }
 
@@ -69,6 +69,6 @@ func (s *clinicHolidayService) Remove(ctx context.Context, clinicID uint64, date
 	}
 	slog.InfoContext(ctx, "clinic holiday removed",
 		slog.Uint64("clinic_id", clinicID),
-		slog.String("date", date.Format("2006-01-02")))
+		slog.String("date", date.Format(time.DateOnly)))
 	return nil
 }

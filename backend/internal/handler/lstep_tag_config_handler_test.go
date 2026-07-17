@@ -3,6 +3,7 @@ package handler
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -149,6 +150,22 @@ func TestListAutoManagedPrefixes_Handler(t *testing.T) {
 			assert.Equal(t, "C2", body[0]["category"])
 		}
 	})
+
+	t.Run("500 service error", func(t *testing.T) {
+		r := newLstepTagConfigRouter(
+			&mockLstepTagConfigService{
+				listAutoManagedPrefixesFn: func(_ context.Context) ([]*model.LstepAutoManagedPrefix, error) {
+					return nil, fmt.Errorf("db failure")
+				},
+			},
+			nil,
+			func(c *gin.Context) { setSystemAdmin(c) },
+		)
+		req := httptest.NewRequest(http.MethodGet, "/lstep-tag-config/auto-managed-prefixes", http.NoBody)
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+		assert.Equal(t, http.StatusInternalServerError, w.Code)
+	})
 }
 
 func TestCreateAutoManagedPrefix_Handler(t *testing.T) {
@@ -186,6 +203,24 @@ func TestCreateAutoManagedPrefix_Handler(t *testing.T) {
 		require.NoError(t, json.Unmarshal(w.Body.Bytes(), &resp))
 		assert.Equal(t, "vaccine_", resp["prefix"])
 	})
+
+	t.Run("500 service error", func(t *testing.T) {
+		r := newLstepTagConfigRouter(
+			&mockLstepTagConfigService{
+				createAutoManagedPrefixFn: func(_ context.Context, _ service.CreateAutoManagedPrefixInput) (*model.LstepAutoManagedPrefix, error) {
+					return nil, fmt.Errorf("db failure")
+				},
+			},
+			nil,
+			func(c *gin.Context) { setSystemAdmin(c) },
+		)
+		body := `{"prefix":"vaccine_","category":"C2"}`
+		req := httptest.NewRequest(http.MethodPost, "/lstep-tag-config/auto-managed-prefixes", strings.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+		assert.Equal(t, http.StatusInternalServerError, w.Code)
+	})
 }
 
 func TestDeleteAutoManagedPrefix_Handler(t *testing.T) {
@@ -215,6 +250,15 @@ func TestDeleteAutoManagedPrefix_Handler(t *testing.T) {
 		r.ServeHTTP(w, req)
 		assert.Equal(t, http.StatusNoContent, w.Code)
 	})
+
+	t.Run("400 invalid id", func(t *testing.T) {
+		r := newLstepTagConfigRouter(&mockLstepTagConfigService{}, nil,
+			func(c *gin.Context) { setSystemAdmin(c) })
+		req := httptest.NewRequest(http.MethodDelete, "/lstep-tag-config/auto-managed-prefixes/abc", http.NoBody)
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+	})
 }
 
 // --- condition_tag_mappings tests ---
@@ -243,10 +287,37 @@ func TestListConditionTagMappings_Handler(t *testing.T) {
 		assert.Len(t, body, 1)
 		assert.Equal(t, "DM", body[0]["condition_code"])
 	})
+
+	t.Run("500 service error", func(t *testing.T) {
+		r := newLstepTagConfigRouter(
+			&mockLstepTagConfigService{
+				listConditionTagMappingsFn: func(_ context.Context) ([]*model.LstepConditionTagMapping, error) {
+					return nil, fmt.Errorf("db failure")
+				},
+			},
+			nil,
+			func(c *gin.Context) { setSystemAdmin(c) },
+		)
+		req := httptest.NewRequest(http.MethodGet, "/lstep-tag-config/condition-tag-mappings", http.NoBody)
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+		assert.Equal(t, http.StatusInternalServerError, w.Code)
+	})
 }
 
 func TestCreateConditionTagMapping_Handler(t *testing.T) {
 	gin.SetMode(gin.TestMode)
+
+	t.Run("400 missing field", func(t *testing.T) {
+		r := newLstepTagConfigRouter(&mockLstepTagConfigService{}, nil,
+			func(c *gin.Context) { setSystemAdmin(c) })
+		body := `{"condition_code":"DM"}`
+		req := httptest.NewRequest(http.MethodPost, "/lstep-tag-config/condition-tag-mappings", strings.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+	})
 
 	t.Run("201 created", func(t *testing.T) {
 		r := newLstepTagConfigRouter(
@@ -265,6 +336,62 @@ func TestCreateConditionTagMapping_Handler(t *testing.T) {
 		r.ServeHTTP(w, req)
 		assert.Equal(t, http.StatusCreated, w.Code)
 		assert.Contains(t, w.Header().Get("Location"), "5")
+	})
+
+	t.Run("500 service error", func(t *testing.T) {
+		r := newLstepTagConfigRouter(
+			&mockLstepTagConfigService{
+				createConditionTagMappingFn: func(_ context.Context, _ service.CreateConditionTagMappingInput) (*model.LstepConditionTagMapping, error) {
+					return nil, fmt.Errorf("db failure")
+				},
+			},
+			nil,
+			func(c *gin.Context) { setSystemAdmin(c) },
+		)
+		body := `{"condition_code":"DM","tag_name":"CHRON_DM"}`
+		req := httptest.NewRequest(http.MethodPost, "/lstep-tag-config/condition-tag-mappings", strings.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+		assert.Equal(t, http.StatusInternalServerError, w.Code)
+	})
+}
+
+func TestDeleteConditionTagMapping_Handler(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	t.Run("404 not found", func(t *testing.T) {
+		r := newLstepTagConfigRouter(
+			&mockLstepTagConfigService{
+				deleteConditionTagMappingFn: func(_ context.Context, _ uint64) error {
+					return apperrors.WrapNotFound("lstep_condition_tag_mapping", "99")
+				},
+			},
+			nil,
+			func(c *gin.Context) { setSystemAdmin(c) },
+		)
+		req := httptest.NewRequest(http.MethodDelete, "/lstep-tag-config/condition-tag-mappings/99", http.NoBody)
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+		assert.Equal(t, http.StatusNotFound, w.Code)
+	})
+
+	t.Run("204 deleted", func(t *testing.T) {
+		r := newLstepTagConfigRouter(&mockLstepTagConfigService{}, nil,
+			func(c *gin.Context) { setSystemAdmin(c) })
+		req := httptest.NewRequest(http.MethodDelete, "/lstep-tag-config/condition-tag-mappings/1", http.NoBody)
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+		assert.Equal(t, http.StatusNoContent, w.Code)
+	})
+
+	t.Run("400 invalid id", func(t *testing.T) {
+		r := newLstepTagConfigRouter(&mockLstepTagConfigService{}, nil,
+			func(c *gin.Context) { setSystemAdmin(c) })
+		req := httptest.NewRequest(http.MethodDelete, "/lstep-tag-config/condition-tag-mappings/abc", http.NoBody)
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+		assert.Equal(t, http.StatusBadRequest, w.Code)
 	})
 }
 
@@ -294,10 +421,37 @@ func TestListSendPurposeTagPrefixes_Handler(t *testing.T) {
 		assert.Len(t, body, 1)
 		assert.Equal(t, "PREV_", body[0]["tag_prefix"])
 	})
+
+	t.Run("500 service error", func(t *testing.T) {
+		r := newLstepTagConfigRouter(
+			&mockLstepTagConfigService{
+				listSendPurposeTagPrefixesFn: func(_ context.Context) ([]*model.LstepSendPurposeTagPrefix, error) {
+					return nil, fmt.Errorf("db failure")
+				},
+			},
+			nil,
+			func(c *gin.Context) { setSystemAdmin(c) },
+		)
+		req := httptest.NewRequest(http.MethodGet, "/lstep-tag-config/send-purpose-tag-prefixes", http.NoBody)
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+		assert.Equal(t, http.StatusInternalServerError, w.Code)
+	})
 }
 
 func TestCreateSendPurposeTagPrefix_Handler(t *testing.T) {
 	gin.SetMode(gin.TestMode)
+
+	t.Run("400 missing field", func(t *testing.T) {
+		r := newLstepTagConfigRouter(&mockLstepTagConfigService{}, nil,
+			func(c *gin.Context) { setSystemAdmin(c) })
+		body := `{"purpose":"vaccine_reminder"}`
+		req := httptest.NewRequest(http.MethodPost, "/lstep-tag-config/send-purpose-tag-prefixes", strings.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+	})
 
 	t.Run("201 created", func(t *testing.T) {
 		r := newLstepTagConfigRouter(
@@ -316,5 +470,61 @@ func TestCreateSendPurposeTagPrefix_Handler(t *testing.T) {
 		r.ServeHTTP(w, req)
 		assert.Equal(t, http.StatusCreated, w.Code)
 		assert.Contains(t, w.Header().Get("Location"), "9")
+	})
+
+	t.Run("500 service error", func(t *testing.T) {
+		r := newLstepTagConfigRouter(
+			&mockLstepTagConfigService{
+				createSendPurposeTagPrefixFn: func(_ context.Context, _ service.CreateSendPurposeTagPrefixInput) (*model.LstepSendPurposeTagPrefix, error) {
+					return nil, fmt.Errorf("db failure")
+				},
+			},
+			nil,
+			func(c *gin.Context) { setSystemAdmin(c) },
+		)
+		body := `{"purpose":"vaccine_reminder","tag_prefix":"PREV_"}`
+		req := httptest.NewRequest(http.MethodPost, "/lstep-tag-config/send-purpose-tag-prefixes", strings.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+		assert.Equal(t, http.StatusInternalServerError, w.Code)
+	})
+}
+
+func TestDeleteSendPurposeTagPrefix_Handler(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	t.Run("404 not found", func(t *testing.T) {
+		r := newLstepTagConfigRouter(
+			&mockLstepTagConfigService{
+				deleteSendPurposeTagPrefixFn: func(_ context.Context, _ uint64) error {
+					return apperrors.WrapNotFound("lstep_send_purpose_tag_prefix", "99")
+				},
+			},
+			nil,
+			func(c *gin.Context) { setSystemAdmin(c) },
+		)
+		req := httptest.NewRequest(http.MethodDelete, "/lstep-tag-config/send-purpose-tag-prefixes/99", http.NoBody)
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+		assert.Equal(t, http.StatusNotFound, w.Code)
+	})
+
+	t.Run("204 deleted", func(t *testing.T) {
+		r := newLstepTagConfigRouter(&mockLstepTagConfigService{}, nil,
+			func(c *gin.Context) { setSystemAdmin(c) })
+		req := httptest.NewRequest(http.MethodDelete, "/lstep-tag-config/send-purpose-tag-prefixes/1", http.NoBody)
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+		assert.Equal(t, http.StatusNoContent, w.Code)
+	})
+
+	t.Run("400 invalid id", func(t *testing.T) {
+		r := newLstepTagConfigRouter(&mockLstepTagConfigService{}, nil,
+			func(c *gin.Context) { setSystemAdmin(c) })
+		req := httptest.NewRequest(http.MethodDelete, "/lstep-tag-config/send-purpose-tag-prefixes/abc", http.NoBody)
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req)
+		assert.Equal(t, http.StatusBadRequest, w.Code)
 	})
 }

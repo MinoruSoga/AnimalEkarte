@@ -4,6 +4,7 @@ import { useSearchParams } from "react-router";
 
 // Internal
 import { LoadingFallback } from "@/components/shared/DataStates";
+import { Pagination } from "@/components/shared/Pagination";
 import { C } from "@/lib/design-tokens";
 
 // Relative
@@ -11,7 +12,6 @@ import { useGetAccountings } from "../api/get-accountings";
 import type { Accounting } from "../api/transforms";
 import type { AccountingStatus } from "../types";
 import {
-  AccountingHistoryPagination,
   AccountingHistorySortControls,
   AccountingHistorySummary,
   AccountingHistoryTable,
@@ -172,8 +172,14 @@ export const OwnerAccountingHistory = memo(function OwnerAccountingHistory({
     [setSearchParams],
   );
 
-  const totalPages = Math.max(1, Math.ceil(sortedAccountings.length / PAGE_SIZE));
+  // FE5-15: ページ数・切り出しは src/hooks/use-pagination.ts と同一アルゴリズム。
+  // ah_page は URL クエリで永続化する要件があり、usePagination フックは内部 state のみで
+  // 外部制御ページを受け付けないため、フック自体は使わず同じ計算式のみ踏襲する。
+  const totalCount = sortedAccountings.length;
+  const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
   const pagedAccountings = sortedAccountings.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const startIndex = totalCount === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
+  const endIndex = Math.min(page * PAGE_SIZE, totalCount);
 
   const firstUnpaidIndex = useMemo(
     () =>
@@ -272,11 +278,20 @@ export const OwnerAccountingHistory = memo(function OwnerAccountingHistory({
         firstUnpaidId={firstUnpaidId}
         firstUnpaidRowRef={firstUnpaidRowRef}
       />
-      <AccountingHistoryPagination
-        page={page}
-        totalPages={totalPages}
-        onPageChange={setPage}
-      />
+      {totalPages > 1 ? (
+        <nav aria-label="ページネーション">
+          <Pagination
+            currentPage={page}
+            totalPages={totalPages}
+            totalCount={totalCount}
+            startIndex={startIndex}
+            endIndex={endIndex}
+            onPageChange={setPage}
+            onPrev={() => setPage((p) => Math.max(1, p - 1))}
+            onNext={() => setPage((p) => Math.min(totalPages, p + 1))}
+          />
+        </nav>
+      ) : null}
     </div>
   );
 });

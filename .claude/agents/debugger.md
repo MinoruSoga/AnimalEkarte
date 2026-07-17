@@ -8,13 +8,7 @@ model: haiku
 あなたはエキスパートデバッガーです。
 根本原因分析と最小限の修正を専門とします。
 
-## 技術スタック
-
-- Frontend: React 19 / TypeScript 5.7 / Vite 6 / Tailwind CSS 4 / shadcn/ui / React Router 7
-- Backend: Go 1.25 / Gin / GORM / PostgreSQL 18
-- Architecture: Layered (handler → service → repository)
-- Testing: Vitest (FE) / go test (BE)
-- Infrastructure: Docker Compose
+技術スタックは root `CLAUDE.md` Project Overview を参照（ここに複製しない）。
 
 ## デバッグプロセス
 

@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import { handleApiError } from "@/lib/handle-api-error";
+import { queryKeys } from "@/lib/query-keys";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 import { transformClinic } from "./transforms";
 
@@ -40,19 +41,23 @@ export interface UpdateClinicRequest {
   is_active?: boolean;
   standard_tax_rate?: number;
   reduced_tax_rate?: number;
+  accounting_document_show_logo?: boolean;
+  accounting_document_show_registration_warning?: boolean;
+  accounting_document_show_item_category?: boolean;
+  accounting_document_footer_note?: string;
+  // #190: セクション表示/非表示トグルと表示順
+  accounting_document_show_clinic_header?: boolean;
+  accounting_document_show_owner_pet_info?: boolean;
+  accounting_document_show_items_table?: boolean;
+  accounting_document_show_payment_summary?: boolean;
+  accounting_document_section_order?: string[];
 }
-
-// ─────────────────────────────────────────────────
-// Query keys
-// ─────────────────────────────────────────────────
-
-const CLINICS_QUERY_KEY = ["clinics"] as const;
 
 // ─────────────────────────────────────────────────
 // API functions
 // ─────────────────────────────────────────────────
 
-export async function listClinics(): Promise<TransformedClinic[]> {
+async function listClinics(): Promise<TransformedClinic[]> {
   // BUG-378: 医院マスタ管理画面では staff_clinic_assignments に紐づかない
   // クリニックも含めて全件を返す必要があるため scope=all を指定する。
   // バックエンド側で hospital-settings.can_view 権限が必要。
@@ -62,14 +67,14 @@ export async function listClinics(): Promise<TransformedClinic[]> {
   return data.map(transformClinic);
 }
 
-export async function createClinic(
+async function createClinic(
   req: CreateClinicRequest,
 ): Promise<TransformedClinic> {
   const { data } = await axios.post<BackendClinic>("/v1/clinics", req);
   return transformClinic(data);
 }
 
-export async function updateClinic(
+async function updateClinic(
   id: number,
   req: UpdateClinicRequest,
 ): Promise<TransformedClinic> {
@@ -77,7 +82,7 @@ export async function updateClinic(
   return transformClinic(data);
 }
 
-export async function deleteClinic(id: number): Promise<void> {
+async function deleteClinic(id: number): Promise<void> {
   await axios.delete(`/v1/clinics/${id}`);
 }
 
@@ -87,7 +92,7 @@ export async function deleteClinic(id: number): Promise<void> {
 
 export function useGetClinics() {
   return useQuery({
-    queryKey: CLINICS_QUERY_KEY,
+    queryKey: queryKeys.clinics.all(),
     queryFn: listClinics,
     staleTime: QUERY_STALE_TIMES.STATIC,
     gcTime: QUERY_GC_TIMES.LONG,
@@ -99,7 +104,7 @@ export function useCreateClinic() {
   return useMutation({
     mutationFn: createClinic,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: CLINICS_QUERY_KEY });
+      queryClient.invalidateQueries({ queryKey: queryKeys.clinics.all() });
     },
     onError: (error) => handleApiError(error, "クリニック作成"),
   });
@@ -111,7 +116,7 @@ export function useUpdateClinic() {
     mutationFn: ({ id, req }: { id: number; req: UpdateClinicRequest }) =>
       updateClinic(id, req),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: CLINICS_QUERY_KEY });
+      queryClient.invalidateQueries({ queryKey: queryKeys.clinics.all() });
     },
     onError: (error) => handleApiError(error, "クリニック更新"),
   });
@@ -122,7 +127,7 @@ export function useDeleteClinic() {
   return useMutation({
     mutationFn: deleteClinic,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: CLINICS_QUERY_KEY });
+      queryClient.invalidateQueries({ queryKey: queryKeys.clinics.all() });
     },
     onError: (error) => handleApiError(error, "クリニック削除"),
   });

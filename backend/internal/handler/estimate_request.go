@@ -49,7 +49,7 @@ type createEstimateRequest struct {
 	MedicalRecordID *uint64    `json:"medical_record_id"`
 	Title           string     `json:"title" binding:"required,min=1,max=255"`
 	OwnerID         *uint64    `json:"owner_id"`
-	Status          string     `json:"status"  binding:"omitempty,oneof=draft sent approved rejected"`
+	Status          string     `json:"status"  binding:"omitempty,oneof=draft sent"`
 	Subtotal        int64      `json:"subtotal"      binding:"min=0"`
 	TaxTotal        int64      `json:"tax_total"     binding:"min=0"`
 	TotalAmount     int64      `json:"total_amount"  binding:"min=0"`
@@ -58,10 +58,10 @@ type createEstimateRequest struct {
 	ValidUntil      *time.Time `json:"valid_until"`
 	Comment         string     `json:"comment"`
 	Notes           string     `json:"notes"`
-	CreatedBy       *uint64    `json:"created_by"`
 }
 
-func (r *createEstimateRequest) toServiceInput() *service.CreateEstimateInput {
+// toServiceInput は認証済み staffID を created_by に設定する（body の created_by は受け取らない・AUD-005）。
+func (r *createEstimateRequest) toServiceInput(staffID uint64) *service.CreateEstimateInput {
 	input := &service.CreateEstimateInput{
 		MedicalRecordID: r.MedicalRecordID,
 		Title:           r.Title,
@@ -74,7 +74,7 @@ func (r *createEstimateRequest) toServiceInput() *service.CreateEstimateInput {
 		ValidUntil:      r.ValidUntil,
 		Comment:         r.Comment,
 		Notes:           r.Notes,
-		CreatedBy:       r.CreatedBy,
+		CreatedBy:       &staffID,
 	}
 	if r.Status != "" {
 		input.Status = model.EstimateStatus(r.Status)
@@ -97,7 +97,7 @@ type updateEstimateRequest struct {
 	Notes           *string    `json:"notes"`
 }
 
-func (r *updateEstimateRequest) toServiceInput() *service.UpdateEstimateInput {
+func (r *updateEstimateRequest) toServiceInput(actorID uint64) *service.UpdateEstimateInput {
 	input := &service.UpdateEstimateInput{
 		Title:           r.Title,
 		Subtotal:        r.Subtotal,
@@ -109,6 +109,7 @@ func (r *updateEstimateRequest) toServiceInput() *service.UpdateEstimateInput {
 		ClearValidUntil: r.ClearValidUntil,
 		Comment:         r.Comment,
 		Notes:           r.Notes,
+		ActorID:         &actorID,
 	}
 	if r.Status != nil {
 		status := model.EstimateStatus(*r.Status)

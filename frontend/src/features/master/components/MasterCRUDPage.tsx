@@ -1,9 +1,9 @@
 import { memo, type ReactNode } from "react";
-import { DataTable } from "@/components/shared/DataTable/DataTable";
+import { DataTable, DESIGN_TABLE_HEADER_ROW, DESIGN_TABLE_HEADER_CELL } from "@/components/shared/DataTable/DataTable";
 import { MasterListPage } from "../components/MasterListPage";
 import { usePermission } from "@/hooks/use-permission";
 import type { UseMasterCRUDReturn } from "../hooks/use-master-crud";
-import type { FilterProperty, SortProperty } from "@/components/shared/NotionFilter/types";
+import type { FilterProperty, SortProperty } from "@/components/shared/PropertyFilter/types";
 import type { Resource } from "@/types/generated/models";
 
 // ─────────────────────────────────────────────────
@@ -65,10 +65,10 @@ interface MasterCRUDPageProps<T extends MasterEntity, TForm = Record<string, unk
   /** Custom delete description (overrides auto-generated one) */
   deleteDescription?: string;
 
-  /** NotionFilter filter properties */
+  /** PropertyFilter filter properties */
   filterProperties?: FilterProperty[];
 
-  /** NotionFilter sort properties */
+  /** PropertyFilter sort properties */
   sortProperties?: SortProperty[];
 }
 
@@ -95,7 +95,8 @@ export const MasterCRUDPage = memo(function MasterCRUDPage<T extends MasterEntit
   resource,
 }: MasterCRUDPageProps<T, TForm>) {
   // BUG-158: edit/delete 権限で保存・削除ボタンの表示を制御
-  const { canEdit, canDelete } = usePermission(resource ?? "");
+  // FE6-2: resource は任意。フック呼び出し順序維持のための sentinel（"" は未定義扱い）。
+  const { canEdit, canDelete } = usePermission((resource ?? "") as Resource);
 
   const deleteName = crud.pendingDelete
     ? String((crud.pendingDelete as Record<string, unknown>)[deleteNameField] ?? "")
@@ -139,6 +140,8 @@ export const MasterCRUDPage = memo(function MasterCRUDPage<T extends MasterEntit
     >
       {children ?? (
         <DataTable
+          headerRowClassName={DESIGN_TABLE_HEADER_ROW}
+          headerCellClassName={DESIGN_TABLE_HEADER_CELL}
           columns={columns}
           data={crud.filteredItems}
           emptyMessage={emptyMessage}

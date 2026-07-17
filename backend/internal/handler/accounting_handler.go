@@ -3,6 +3,7 @@ package handler
 import (
 	"fmt"
 	"net/http"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 
@@ -153,13 +154,12 @@ func (h *Handler) UpdateAccounting(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
+	// 認可（締め後編集権限）はリクエストスコープの関心事のため handler に残す。
+	// post_close_reason の必須検証は service 層（accountingService.Update 冒頭）へ移設し、
+	// handler を迂回する呼び出し元にも不変条件を強制する（B4）。
 	if isClosed {
 		if !h.hasPermission(c, string(model.ResourceAccountingPostCloseEdit), "edit") {
 			RespondError(c, apperrors.WrapForbidden("レジ締め済み期間の会計編集には accounting-post-close-edit:edit 権限が必要です"))
-			return
-		}
-		if input.PostCloseReason == nil || *input.PostCloseReason == "" {
-			RespondError(c, apperrors.WrapInvalidInput("レジ締め済み期間の会計編集には post_close_reason の入力が必要です"))
 			return
 		}
 	}
@@ -168,6 +168,56 @@ func (h *Handler) UpdateAccounting(c *gin.Context) {
 	serviceInput.IsPostClose = isClosed
 
 	updated, err := h.svc.Accounting.Update(ctx, serviceInput)
+	if err != nil {
+		RespondError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, toAccountingResponse(updated))
+}
+
+// CorrectCreditPayment は確定済み会計のクレジット（カード）金額を確定後に訂正する（#189）。
+// ルート側で ResourceAccountingPostCloseEdit:edit 権限を要求する（確定/締め済み訂正の既存ゲートを再利用）。
+// 確定前編集の通常 PATCH 経路とは別の専用フローで、理由・監査を伴う。
+func (h *Handler) CorrectCreditPayment(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
+	staffID, ok := extractStaffID(c)
+	if !ok {
+		return
+	}
+	id, ok := parseIDParam(c, "id")
+	if !ok {
+		return
+	}
+
+	var req correctCreditPaymentRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
+		return
+	}
+
+	ctx := c.Request.Context()
+
+	// bug.md M-2（#189 follow-up）: 訂正対象会計の予定日が締め済み期間かを PATCH 経路（UpdateAccounting）と同じ判定で解決する。
+	// 拒否はしない（ルートで post-close-edit 権限を既に要求）が、締め済み売上への訂正を service 側で
+	// 監査ログ・WarnContext に可視化させるため、判定結果を IsPostClose として注入する。
+	existing, err := h.svc.Accounting.GetByID(ctx, clinicID, id)
+	if err != nil {
+		RespondError(c, err)
+		return
+	}
+	isClosed, err := h.svc.CashRegister.IsDateClosed(ctx, clinicID, existing.ScheduledDate)
+	if err != nil {
+		RespondError(c, err)
+		return
+	}
+
+	serviceInput := req.toServiceInput(id, clinicID, staffID)
+	serviceInput.IsPostClose = isClosed
+
+	updated, err := h.svc.Accounting.CorrectCreditPayment(ctx, serviceInput)
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -215,6 +265,26 @@ func (h *Handler) ListUnpaidBillings(c *gin.Context) {
 	default:
 		RespondError(c, apperrors.WrapInvalidInput("group_by must be owner or billing"))
 	}
+}
+
+// GetOwnerUnpaidBalance は会計画面表示用に飼主の未納残高を返す。#182
+// GET /v1/accountings/unpaid-balance?owner_id=N
+func (h *Handler) GetOwnerUnpaidBalance(c *gin.Context) {
+	clinicID, ok := extractClinicID(c)
+	if !ok {
+		return
+	}
+	ownerID, err := strconv.ParseUint(c.Query("owner_id"), 10, 64)
+	if err != nil || ownerID == 0 {
+		RespondError(c, apperrors.WrapInvalidInput("owner_id is required"))
+		return
+	}
+	result, err := h.svc.Accounting.GetOwnerUnpaidBalance(c.Request.Context(), clinicID, ownerID)
+	if err != nil {
+		RespondError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, toOwnerUnpaidBalanceResponse(result))
 }
 
 // GetUnpaidMonthlySummary は月次未納繰越集計を返す。#114

@@ -10,8 +10,8 @@ import { formatCurrency } from "@/utils/format/number";
 import { Plus, FileText, Trash2, ExternalLink, CircleDot, Calendar } from "lucide-react";
 import { TableCell } from "@/components/ui/table";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
-import { NotionFilter } from "@/components/shared/NotionFilter/NotionFilter";
-import { DataTable } from "@/components/shared/DataTable/DataTable";
+import { PropertyFilter } from "@/components/shared/PropertyFilter/PropertyFilter";
+import { DataTable, DESIGN_TABLE_HEADER_ROW, DESIGN_TABLE_HEADER_CELL } from "@/components/shared/DataTable/DataTable";
 import { DataTableRow } from "@/components/shared/DataTable/DataTableRow";
 import { Pagination } from "@/components/shared/Pagination/Pagination";
 import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
@@ -22,13 +22,14 @@ import { paths } from "@/config/paths";
 import { useGetEstimates } from "../api/get-estimates";
 import { useDeleteEstimate } from "../api/delete-estimate";
 import type { Estimate } from "../types";
+import { isEstimateLockedStatus } from "../utils/is-estimate-locked-status";
 import type {
   FilterProperty,
   ActiveFilter,
   SortProperty,
   ActiveSort,
-} from "@/components/shared/NotionFilter/types";
-import { CONDITIONS_NO_EMPTY } from "@/components/shared/NotionFilter/types";
+} from "@/components/shared/PropertyFilter/types";
+import { CONDITIONS_NO_EMPTY } from "@/components/shared/PropertyFilter/types";
 import { ResourceEstimates } from "@/types/generated/models";
 
 // rendering-hoist-jsx: 静的定義はモジュール定数に巻き上げ
@@ -169,7 +170,6 @@ export function EstimateList() {
 
   // rerender-transitions: ページネーション状態管理
   const pagination = usePagination(filtered, {
-    pageSize: 20,
     resetKey: deferredSearch,
   });
 
@@ -191,46 +191,52 @@ export function EstimateList() {
 
   const openDeleteModal = deleteModal.open;
   // rerender-memo: renderRow を useCallback でメモ化（DataTable への参照を安定化）
-  const renderRow = useCallback((estimate: Estimate) => (
-    <DataTableRow key={estimate.id} onClick={() => navigate(paths.estimates.detail.getHref(estimate.id))}>
-      <TableCell className={`font-mono text-base ${C.text60} py-2`}>{estimate.estimateNo}</TableCell>
-      <TableCell className={`text-base ${C.text} py-2 font-medium`}>{estimate.title}</TableCell>
-      <TableCell className={`text-base ${C.text} py-2`}>{estimate.ownerName ?? "-"}</TableCell>
-      <TableCell className={`text-base ${C.text60} py-2`}>
-        {estimate.validUntil ? estimate.validUntil.slice(0, 10) : "-"}
-      </TableCell>
-      <TableCell className={`text-right font-mono font-medium text-base ${C.text} py-2`}>
-        {formatCurrency(estimate.totalAmount)}
-      </TableCell>
-      <TableCell className="py-2">
-        <EstimateStatusBadge status={estimate.status} />
-      </TableCell>
-      <TableCell className="text-right py-2">
-        {(canEdit || canDelete) ? (
-          <RowActionDropdown
-            actions={[
-              {
-                label: "詳細",
-                icon: ExternalLink,
-                onClick: () => navigate(paths.estimates.detail.getHref(estimate.id)),
-              },
-              ...(canEdit ? [{
-                label: "編集",
-                icon: FileText,
-                onClick: () => navigate(paths.estimates.edit.getHref(estimate.id)),
-              }] : []),
-              ...(canDelete ? [{
-                label: "削除",
-                icon: Trash2,
-                variant: "destructive" as const,
-                onClick: () => openDeleteModal(estimate.id),
-              }] : []),
-            ]}
-          />
-        ) : null}
-      </TableCell>
-    </DataTableRow>
-  ), [navigate, canEdit, canDelete, openDeleteModal]);
+  const renderRow = useCallback((estimate: Estimate) => {
+    const isLocked = isEstimateLockedStatus(estimate.status);
+    const showEdit = canEdit && !isLocked;
+    const showDelete = canDelete && !isLocked;
+
+    return (
+      <DataTableRow key={estimate.id} onClick={() => navigate(paths.estimates.detail.getHref(estimate.id))}>
+        <TableCell className={`font-mono text-base ${C.text60} py-2`}>{estimate.estimateNo}</TableCell>
+        <TableCell className={`text-base ${C.text} py-2 font-medium`}>{estimate.title}</TableCell>
+        <TableCell className={`text-base ${C.text} py-2`}>{estimate.ownerName ?? "-"}</TableCell>
+        <TableCell className={`text-base ${C.text60} py-2`}>
+          {estimate.validUntil ? estimate.validUntil.slice(0, 10) : "-"}
+        </TableCell>
+        <TableCell className={`text-right font-mono font-medium text-base ${C.text} py-2`}>
+          {formatCurrency(estimate.totalAmount)}
+        </TableCell>
+        <TableCell className="py-2">
+          <EstimateStatusBadge status={estimate.status} />
+        </TableCell>
+        <TableCell className="text-right py-2">
+          {(canEdit || canDelete) ? (
+            <RowActionDropdown
+              actions={[
+                {
+                  label: "詳細",
+                  icon: ExternalLink,
+                  onClick: () => navigate(paths.estimates.detail.getHref(estimate.id)),
+                },
+                ...(showEdit ? [{
+                  label: "編集",
+                  icon: FileText,
+                  onClick: () => navigate(paths.estimates.edit.getHref(estimate.id)),
+                }] : []),
+                ...(showDelete ? [{
+                  label: "削除",
+                  icon: Trash2,
+                  variant: "destructive" as const,
+                  onClick: () => openDeleteModal(estimate.id),
+                }] : []),
+              ]}
+            />
+          ) : null}
+        </TableCell>
+      </DataTableRow>
+    );
+  }, [navigate, canEdit, canDelete, openDeleteModal]);
 
   if (isLoading) {
     return <LoadingFallback />;
@@ -246,7 +252,7 @@ export function EstimateList() {
       icon={<FileText className={`${ICON.page} ${C.text}`} />}
       headerAction={
         canCreate ? (
-          <PrimaryButton onClick={() => navigate(paths.estimates.new.getHref())}>
+          <PrimaryButton colorVariant="brand" onClick={() => navigate(paths.estimates.new.getHref())}>
             <Plus className={`mr-1.5 ${ICON.action}`} />
             新規見積書登録
           </PrimaryButton>
@@ -255,7 +261,7 @@ export function EstimateList() {
       maxWidth="max-w-full"
     >
       <div className="flex flex-col gap-4">
-        <NotionFilter
+        <PropertyFilter
           properties={FILTER_PROPERTIES}
           activeFilters={activeFilters}
           onFilterChange={setActiveFilters}
@@ -269,6 +275,8 @@ export function EstimateList() {
         />
 
         <DataTable
+          headerRowClassName={DESIGN_TABLE_HEADER_ROW}
+          headerCellClassName={DESIGN_TABLE_HEADER_CELL}
           columns={COLUMNS}
           data={pagination.paginatedData}
           emptyMessage="見積書が見つかりません"

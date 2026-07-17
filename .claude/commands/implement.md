@@ -1,27 +1,29 @@
 ---
-description: イシュー実装（BE-XXX / FE-XXX）→ セルフレビュー → クローズ
-argument-hint: "BE-XXX | FE-XXX"
+description: タスク実装（todo.md「個別タスク詳細」節のタスクID）→ セルフレビュー → クローズ
+argument-hint: "FEAT-XXX | PERF-XXX | BUG-XXX | SEED-XXX 等"
 ---
 
-# イシュー実装
+# タスク実装
 
-指定されたイシュー（BE-XXX / FE-XXX）を実装する。
+指定されたタスクID（repo 直下 `todo.md` の「個別タスク詳細」節に `### <タスクID>: <タイトル>` 形式で記載）を実装する。
 
 スキル `implement-issue` を使用して、以下の5フェーズを実行:
-1. イシュー読み込み・依存関係チェック
+1. タスク読み込み・依存関係チェック
 2. コンテキスト収集（対象ファイル・参照実装・コーディングルール）
 3. コード規約準拠の実装
 4. セルフレビュー（reviewer エージェント + Lint/Build）
-5. クローズ処理（ファイル移動 + 親TASK更新）
+5. クローズ処理（todo.md から該当セクション削除 + 索引行更新）
 
 ## 使い方
 
 ```
-/implement FE-038    # 特定イシューを実装
-/implement BE-015    # バックエンドイシューを実装
-/implement           # open イシュー一覧を表示して選択
+/implement PERF-FOLLOWUP-01   # 特定タスクを実装（todo.md 内の `### <タスクID>` 見出しを grep で検索）
+/implement FEAT-searchable-select-targets
+/implement                    # todo.md の個別タスク詳細節の見出し一覧を表示して選択
 ```
 
 ## 引数
 
-$ARGUMENTS — イシュー番号（例: `FE-038`, `BE-015`）。省略時は一覧表示。
+$ARGUMENTS — タスクID（例: `PERF-FOLLOWUP-01`, `FEAT-searchable-select-targets`, `BUG-XXX`, `SEED-XXX`）。省略時は `todo.md` の個別タスク詳細節の見出し一覧を表示。
+
+> 旧 `BE-XXX` / `FE-XXX` イシュー体系および旧 `docs/tasks/` 体系は廃止済み（経緯は git 履歴参照）。新規実装には使用しない。

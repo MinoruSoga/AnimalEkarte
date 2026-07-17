@@ -14,15 +14,15 @@ import type {
   FilterProperty,
   ActiveFilter,
   SortProperty,
-} from "@/components/shared/NotionFilter/types";
-import { CONDITIONS_NO_EMPTY } from "@/components/shared/NotionFilter/types";
+} from "@/components/shared/PropertyFilter/types";
+import { CONDITIONS_NO_EMPTY } from "@/components/shared/PropertyFilter/types";
 
 // Internal
 import { paths } from "@/config/paths";
 import { TableCell } from "@/components/ui/table";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
-import { NotionFilter } from "@/components/shared/NotionFilter/NotionFilter";
-import { DataTable } from "@/components/shared/DataTable/DataTable";
+import { PropertyFilter } from "@/components/shared/PropertyFilter/PropertyFilter";
+import { DataTable, DESIGN_TABLE_HEADER_ROW, DESIGN_TABLE_HEADER_CELL } from "@/components/shared/DataTable/DataTable";
 import { DataTableRow } from "@/components/shared/DataTable/DataTableRow";
 import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
 import { RowActionButton } from "@/components/shared/RowActionButton";
@@ -118,7 +118,6 @@ export function InventoryList() {
     useSortableData(filteredItems, { numericKeys: ["quantity"] });
 
   const pagination = usePagination(sortedData, {
-    pageSize: 20,
     resetKey: [deferredSearch, JSON.stringify(activeFilters)].join("|"),
   });
 
@@ -249,7 +248,7 @@ export function InventoryList() {
       headerAction={
         <div className="flex items-center gap-2">
           {canCreate ? (
-            <PrimaryButton onClick={handleCreate}>
+            <PrimaryButton colorVariant="brand" onClick={handleCreate}>
               <Plus className={`mr-1.5 ${ICON.action}`} />
               新規登録
             </PrimaryButton>
@@ -279,7 +278,7 @@ export function InventoryList() {
         ) : null}
 
         {/* Search & Filters */}
-        <NotionFilter
+        <PropertyFilter
           properties={INVENTORY_FILTER_PROPERTIES}
           activeFilters={activeFilters}
           onFilterChange={setActiveFilters}
@@ -295,6 +294,8 @@ export function InventoryList() {
         {/* Table */}
         <FilteringIndicator isFiltering={isFiltering}>
           <DataTable
+            headerRowClassName={DESIGN_TABLE_HEADER_ROW}
+            headerCellClassName={DESIGN_TABLE_HEADER_CELL}
             columns={columns}
             data={pagination.paginatedData}
             emptyMessage="在庫データが見つかりません"

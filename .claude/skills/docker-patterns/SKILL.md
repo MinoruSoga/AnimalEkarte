@@ -21,11 +21,11 @@ origin: ECC (adapted for AnimalEkarte)
 ```bash
 # ❌ ローカル直接実行（禁止）
 pnpm build
-go test ./...
+go test ./internal/service/...
 
 # ✅ Docker Compose 経由（必須）
-docker compose exec frontend pnpm build
-docker compose exec backend go test ./...
+docker compose exec frontend pnpm build   # ※全体 build 自体も自動実行禁止 — ユーザーに依頼
+docker compose exec backend go test ./internal/service/...
 ```
 
 ## よく使うコマンド
@@ -35,23 +35,30 @@ docker compose exec backend go test ./...
 make up          # docker compose up -d
 make down        # docker compose down
 make logs        # docker compose logs -f
+# ⚠️ 上3つは CLAUDE.md の自動実行禁止コマンド（docker compose up/down/logs）。ユーザーに手動実行を依頼する
 
 # Frontend
 docker compose exec frontend pnpm lint
 docker compose exec frontend pnpm test:run
 docker compose exec frontend pnpm build
 docker compose exec frontend npx tsc --noEmit
+# ⚠️ 上4つは CLAUDE.md の自動実行禁止コマンド。ユーザーに手動実行を依頼するか、
+#    スコープ限定版（`npx eslint <ファイル>` / `npx vitest run <spec>`）を使う
 
 # Backend
 docker compose exec backend go test ./...
+# ⚠️ CLAUDE.md の自動実行禁止コマンド。ユーザーに手動実行を依頼するか、スコープ限定版（例: `go test ./internal/service/...`）を使う
 docker compose exec backend go vet ./...
 docker compose exec backend golangci-lint run ./...
+# ⚠️ CLAUDE.md の自動実行禁止コマンド。ユーザーに手動実行を依頼するか、スコープ限定版を使う
 
 # Database
-docker compose exec db psql -U postgres -d ekarte_dev
+make db  # = docker compose exec db sh -c 'psql -U $POSTGRES_USER -d $POSTGRES_DB'
+# ⚠️ CLAUDE.md の自動実行禁止コマンド。ユーザーに手動実行を依頼するか、スコープ限定版を使う
 
 # CodeGen（Go モデル → TypeScript 型）
 make codegen
+# ⚠️ CLAUDE.md の自動実行禁止コマンド。ユーザーに手動実行を依頼する
 ```
 
 ## ヘルスチェック・トラブルシューティング
@@ -71,7 +78,7 @@ docker compose exec backend sh
 
 # ネットワーク確認
 docker network ls
-docker network inspect ekarte_default
+docker network inspect ekarte-network
 
 # ボリューム確認
 docker volume ls
@@ -83,15 +90,17 @@ docker volume ls
 ```bash
 # ボリュームを再作成
 docker compose down -v
+# ⚠️ CLAUDE.md の自動実行禁止コマンド。ユーザーに手動実行を依頼するか、スコープ限定版を使う
 docker compose up -d
+# ⚠️ CLAUDE.md の自動実行禁止コマンド。ユーザーに手動実行を依頼する
 ```
 
 ### ポート競合
 ```bash
 # 使用中のポートを確認
-lsof -i :3000
+lsof -i :3003
 lsof -i :8080
-lsof -i :5432
+lsof -i :5434  # db はホスト 5434 → コンテナ 5432 にマップ
 
 # 停止後に再起動
 make down
@@ -107,7 +116,7 @@ docker compose logs db
 docker compose exec db pg_isready
 
 # 接続テスト
-docker compose exec backend go run cmd/api/main.go -- 接続テスト
+docker compose exec db pg_isready -U "$DB_USER"
 ```
 
 ### 変更が反映されない
@@ -133,7 +142,7 @@ RUN go mod download      # 依存を先にキャッシュ
 COPY . .
 RUN CGO_ENABLED=0 go build -o app ./cmd/api
 
-FROM alpine:3.20
+FROM alpine:3.21
 WORKDIR /app
 RUN apk add --no-cache ca-certificates tzdata
 COPY --from=builder /app/app .
@@ -146,9 +155,9 @@ CMD ["./app"]
 
 ```dockerfile
 # Frontend（本番）
-FROM node:20-alpine AS builder
+FROM node:24-alpine AS builder
 WORKDIR /app
-COPY package.json package-lock.json ./
+COPY package.json pnpm-lock.yaml ./
 RUN pnpm install --frozen-lockfile                # 依存を先にキャッシュ
 COPY . .
 RUN pnpm build
@@ -180,7 +189,7 @@ RUN addgroup -g 1000 appuser && adduser -D -u 1000 -G appuser appuser
 USER appuser
 
 # ✅ 最小イメージ（attack surface 削減）
-FROM alpine:3.20  # debian/ubuntu より小さい
+FROM alpine:3.21  # debian/ubuntu より小さい
 
 # ✅ .dockerignore で機密ファイル除外
 .env
@@ -197,9 +206,11 @@ node_modules
 make up       # 全サービス起動
 make down     # 全サービス停止
 make logs     # ログ表示（follow）
-make db       # DB マイグレーション実行
+make db       # DB接続（psql）。マイグレーションは make migrate
 make codegen  # Go モデル → TS 型生成
 make clean    # キャッシュクリア + 再ビルド
 make test-front  # フロントエンドテスト
 make lint-front  # フロントエンド lint
 ```
+
+⚠️ `make db` は CLAUDE.md の自動実行禁止コマンドに該当する（DB リセット等の高影響操作）。ユーザーに手動実行を依頼するか、スコープ限定版を使う

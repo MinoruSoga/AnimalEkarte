@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
+import { queryKeys } from "@/lib/query-keys";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 import { transformHospitalization } from "./transforms";
 import type { Hospitalization } from "./transforms";
@@ -17,7 +18,7 @@ export interface HospitalizationFilters {
   endDate?: string;   // YYYY-MM-DD
 }
 
-export const getHospitalizations = async (filters?: HospitalizationFilters): Promise<Hospitalization[]> => {
+const getHospitalizations = async (filters?: HospitalizationFilters): Promise<Hospitalization[]> => {
   const params: Record<string, string> = {};
   if (filters?.startDate) params.start_date = filters.startDate;
   if (filters?.endDate) params.end_date = filters.endDate;
@@ -30,7 +31,7 @@ export const getHospitalizations = async (filters?: HospitalizationFilters): Pro
 
 export const useGetHospitalizations = (filters?: HospitalizationFilters) => {
   return useQuery({
-    queryKey: ["hospitalizations", filters],
+    queryKey: queryKeys.hospitalizations.list(filters),
     queryFn: () => getHospitalizations(filters),
     staleTime: QUERY_STALE_TIMES.MEDIUM,
     gcTime: QUERY_GC_TIMES.STANDARD,

@@ -6,19 +6,21 @@ import (
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
-type trimmingOptionSummaryResponse struct {
+// FE7-1: tygo codegen 対象にするため export（BackendTrimming の生成契約ゲート化・FE-refactor.md
+// BackendTrimming BLOCKED の解消）。JSON wire 形状は json タグで完全維持しており不変。
+type TrimmingOptionSummaryResponse struct {
 	ID   uint64 `json:"id"`
 	Name string `json:"name"`
 }
 
-type trimmingCourseSummaryResponse struct {
+type TrimmingCourseSummaryResponse struct {
 	ID    uint64 `json:"id"`
 	Name  string `json:"name"`
 	Price int64  `json:"price"`
 }
 
-// trimmingResponse は appointments ベースのフラット DTO（BE-119）
-type trimmingResponse struct {
+// TrimmingResponse は appointments ベースのフラット DTO（BE-119）
+type TrimmingResponse struct {
 	ID                uint64    `json:"id"`
 	ClinicID          uint64    `json:"clinic_id"`
 	ReservationTypeID uint64    `json:"reservation_type_id"`
@@ -43,14 +45,18 @@ type trimmingResponse struct {
 	CreatedAt      time.Time `json:"created_at"`
 	UpdatedAt      time.Time `json:"updated_at"`
 	// リレーション
-	Pet     *petSummaryResponse             `json:"pet,omitempty"`
-	Staff   *staffSummaryResponse           `json:"staff,omitempty"`
-	Course  *trimmingCourseSummaryResponse  `json:"course,omitempty"`
-	Options []trimmingOptionSummaryResponse `json:"options"`
+	// FE7-2: Pet/Staff は petSummaryResponse/staffSummaryResponse（11+18箇所で共有される
+	// 非公開型）を参照しており tygo が解決できないため tstype:"-" で生成対象から除外する
+	// （JSON wire 形状・json タグは無変更 — 実際のレスポンスには pet/staff は引き続き含まれる。
+	// 生成型 TrimmingResponse のみこの2フィールドを欠く）。
+	Pet     *petSummaryResponse             `json:"pet,omitempty" tstype:"-"`
+	Staff   *staffSummaryResponse           `json:"staff,omitempty" tstype:"-"`
+	Course  *TrimmingCourseSummaryResponse  `json:"course,omitempty"`
+	Options []TrimmingOptionSummaryResponse `json:"options"`
 }
 
-func toTrimmingResponse(appt *model.Reservation) trimmingResponse {
-	resp := trimmingResponse{
+func toTrimmingResponse(appt *model.Reservation) TrimmingResponse {
+	resp := TrimmingResponse{
 		ID:                appt.ID,
 		ClinicID:          appt.ClinicID,
 		ReservationTypeID: appt.ReservationTypeID,
@@ -64,7 +70,7 @@ func toTrimmingResponse(appt *model.Reservation) trimmingResponse {
 		UpdatedAt:         localTime(appt.UpdatedAt),
 		Pet:               toPetSummary(appt.Pet),
 		Staff:             toStaffSummary(appt.Doctor),
-		Options:           make([]trimmingOptionSummaryResponse, 0),
+		Options:           make([]TrimmingOptionSummaryResponse, 0),
 		// TrimmingDetail が nil の異常データ向けデフォルト（モデルデフォルトと一致）
 		BWUnit: "Kg",
 	}
@@ -88,14 +94,14 @@ func toTrimmingResponse(appt *model.Reservation) trimmingResponse {
 			if d.Course.Price != nil {
 				price = *d.Course.Price
 			}
-			resp.Course = &trimmingCourseSummaryResponse{
+			resp.Course = &TrimmingCourseSummaryResponse{
 				ID:    d.Course.ID,
 				Name:  d.Course.Name,
 				Price: price,
 			}
 		}
 		for i := range d.Options {
-			resp.Options = append(resp.Options, trimmingOptionSummaryResponse{
+			resp.Options = append(resp.Options, TrimmingOptionSummaryResponse{
 				ID:   d.Options[i].ID,
 				Name: d.Options[i].Name,
 			})

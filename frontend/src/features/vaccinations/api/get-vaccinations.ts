@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
+import { queryKeys } from "@/lib/query-keys";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 import type { VaccinationRecord } from "@/types";
 import { transformVaccination } from "./transforms";
@@ -10,7 +11,7 @@ export interface VaccinationFilters {
   endDate?: string; // YYYY-MM-DD
 }
 
-export const getVaccinations = async (
+const getVaccinations = async (
   filters?: VaccinationFilters,
 ): Promise<VaccinationRecord[]> => {
   const params: Record<string, string> = {};
@@ -25,7 +26,7 @@ export const getVaccinations = async (
 
 export const useGetVaccinations = (filters?: VaccinationFilters) => {
   return useQuery({
-    queryKey: ["vaccinations", filters],
+    queryKey: queryKeys.vaccinations.list(filters),
     queryFn: () => getVaccinations(filters),
     staleTime: QUERY_STALE_TIMES.MEDIUM,
     gcTime: QUERY_GC_TIMES.STANDARD,

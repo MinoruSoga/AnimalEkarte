@@ -31,12 +31,16 @@ type BillingConfirmationService interface {
 }
 
 type billingConfirmationService struct {
-	repo repository.BillingConfirmationRepository
+	repo       repository.BillingConfirmationRepository
+	medRec     repository.MedicalRecordRepository
+	transactor repository.Transactor
 }
 
-// NewBillingConfirmationService はBillingConfirmationServiceを初期化して返す
-func NewBillingConfirmationService(repo repository.BillingConfirmationRepository) BillingConfirmationService {
-	return &billingConfirmationService{repo: repo}
+// NewBillingConfirmationService はBillingConfirmationServiceを初期化して返す。transactor は
+// BE-refactor.md X-11（確定と子書込の競合防止）のため、Confirm/Return の書込を LockByIDForUpdate の
+// 行ロックと同一トランザクションに収める目的で注入する（SD-2 系ガード監査で発見された欠落）。
+func NewBillingConfirmationService(repo repository.BillingConfirmationRepository, medRec repository.MedicalRecordRepository, transactor repository.Transactor) BillingConfirmationService {
+	return &billingConfirmationService{repo: repo, medRec: medRec, transactor: transactor}
 }
 
 func (s *billingConfirmationService) GetOrCreate(ctx context.Context, clinicID, medicalRecordID uint64) (*model.BillingConfirmation, error) {
@@ -45,6 +49,15 @@ func (s *billingConfirmationService) GetOrCreate(ctx context.Context, clinicID, 
 		if !apperrors.IsNotFound(err) {
 			slog.ErrorContext(ctx, "failed to get billing review", "error", err)
 			return nil, apperrors.Wrap(err, "failed to get billing review")
+		}
+		// テナント所有権検証（クロステナント write 防止）。
+		// billing_confirmations は自前 clinic_id を持たず medical_records 経由で隔離するため、
+		// 自動作成前に親カルテの所有権を明示検証する（NotFound 分岐は越境ケースと重なる）。
+		if _, ownerErr := s.medRec.FindByID(ctx, clinicID, medicalRecordID); ownerErr != nil {
+			if !apperrors.IsNotFound(ownerErr) {
+				slog.ErrorContext(ctx, "failed to verify parent medical record", "error", ownerErr)
+			}
+			return nil, apperrors.Wrap(ownerErr, "failed to verify parent medical record")
 		}
 		// 存在しない場合はpendingで新規作成
 		review = &model.BillingConfirmation{
@@ -80,9 +93,21 @@ func (s *billingConfirmationService) Confirm(ctx context.Context, clinicID, medi
 		"confirmed_at": now,
 		"memo":         input.Memo,
 	}
-	if err := s.repo.Update(ctx, clinicID, review.ID, fields); err != nil {
-		slog.ErrorContext(ctx, "failed to update billing review", "error", err)
-		return nil, apperrors.Wrap(err, "failed to update billing review")
+	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
+		// SD-2 + BE-refactor.md X-11: 親カルテが確定済みの場合は会計確認の変更を拒否。
+		// LockByIDForUpdate の行ロックで finalize と直列化し、確定と同時の会計確認変更が
+		// 確定済みカルテに混入する競合を防ぐ（examination_service.go Update 同型）。
+		if err := lockDraftMedicalRecord(txCtx, s.medRec, clinicID, medicalRecordID,
+			"failed to find medical record", "確定済みカルテの会計確認は変更できません"); err != nil {
+			return err
+		}
+		if err := s.repo.Update(txCtx, clinicID, review.ID, fields); err != nil {
+			slog.ErrorContext(txCtx, "failed to update billing review", "error", err)
+			return apperrors.Wrap(err, "failed to update billing review")
+		}
+		return nil
+	}); err != nil {
+		return nil, err
 	}
 	slog.InfoContext(ctx, "billing_confirmation confirmed",
 		slog.Uint64("clinic_id", clinicID),
@@ -116,9 +141,19 @@ func (s *billingConfirmationService) Return(ctx context.Context, clinicID, medic
 		"return_reason": input.ReturnReason,
 		"memo":          input.Memo,
 	}
-	if err := s.repo.Update(ctx, clinicID, review.ID, fields); err != nil {
-		slog.ErrorContext(ctx, "failed to update billing review", "error", err)
-		return nil, apperrors.Wrap(err, "failed to update billing review")
+	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
+		// SD-2 + BE-refactor.md X-11: 親カルテが確定済みの場合は会計確認の差し戻しを拒否。
+		if err := lockDraftMedicalRecord(txCtx, s.medRec, clinicID, medicalRecordID,
+			"failed to find medical record", "確定済みカルテの会計確認は差し戻しできません"); err != nil {
+			return err
+		}
+		if err := s.repo.Update(txCtx, clinicID, review.ID, fields); err != nil {
+			slog.ErrorContext(txCtx, "failed to update billing review", "error", err)
+			return apperrors.Wrap(err, "failed to update billing review")
+		}
+		return nil
+	}); err != nil {
+		return nil, err
 	}
 	slog.InfoContext(ctx, "billing_confirmation returned",
 		slog.Uint64("clinic_id", clinicID),

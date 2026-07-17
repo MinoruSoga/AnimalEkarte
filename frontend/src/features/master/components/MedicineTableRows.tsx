@@ -1,13 +1,15 @@
+import { memo } from "react";
 import ChevronRight from "lucide-react/dist/esm/icons/chevron-right";
 import GripVertical from "lucide-react/dist/esm/icons/grip-vertical";
 import Maximize2 from "lucide-react/dist/esm/icons/maximize-2";
 import MoreHorizontal from "lucide-react/dist/esm/icons/more-horizontal";
 import Plus from "lucide-react/dist/esm/icons/plus";
 import { SortableDataTableRow } from "@/components/shared/DataTable/SortableDataTableRow";
-import { NotionStatusPill } from "@/components/shared/StatusPill/NotionStatusPill";
+import { StatusPill } from "@/components/shared/StatusPill/StatusPill";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { TableCell, TableRow } from "@/components/ui/table";
 import { C, ICON, STYLE } from "@/lib/design-tokens";
+import { formatCurrencyOrDash } from "@/utils/format/number";
 import type { Medicine } from "@/types";
 
 const DOSAGE_FORM_LABELS: Record<string, string> = {
@@ -37,7 +39,7 @@ interface MedicineCategoryHeaderRowProps {
   onCreate: (parentId?: string) => void;
 }
 
-export function MedicineCategoryHeaderRow({
+export const MedicineCategoryHeaderRow = memo(function MedicineCategoryHeaderRow({
   parentId,
   header,
   itemCount,
@@ -103,7 +105,7 @@ export function MedicineCategoryHeaderRow({
       <TableCell className="w-[100px] py-0" />
       <TableCell className="w-[130px] py-0" />
       <TableCell className="w-[110px] py-0 text-center">
-        <NotionStatusPill isActive={true} />
+        <StatusPill isActive={true} />
       </TableCell>
       <TableCell className="w-[80px] py-0 text-center" onClick={(event) => event.stopPropagation()}>
         {canEdit ? (
@@ -124,9 +126,9 @@ export function MedicineCategoryHeaderRow({
       </TableCell>
     </TableRow>
   );
-}
+});
 
-export function SortableMedicineRow({
+export const SortableMedicineRow = memo(function SortableMedicineRow({
   medicine,
   onEdit,
   grouped,
@@ -141,10 +143,10 @@ export function SortableMedicineRow({
         {medicine.dosageForm ? (DOSAGE_FORM_LABELS[medicine.dosageForm] ?? medicine.dosageForm) : "-"}
       </TableCell>
       <TableCell className={`${STYLE.tableCell} w-[130px] text-right pr-4 font-mono`}>
-        {medicine.price > 0 ? `¥${medicine.price.toLocaleString()}` : "-"}
+        {formatCurrencyOrDash(medicine.price)}
       </TableCell>
       <TableCell className="w-[110px] py-2.5 text-center">
-        <NotionStatusPill isActive={medicine.isActive} />
+        <StatusPill isActive={medicine.isActive} />
       </TableCell>
       <TableCell className="w-[80px] py-2.5 text-center" onClick={(e) => e.stopPropagation()}>
         {canEdit ? (
@@ -174,7 +176,7 @@ export function SortableMedicineRow({
       </TableCell>
     </SortableDataTableRow>
   );
-}
+});
 
 interface MedicineRowOverlayProps {
   medicine: Medicine;
@@ -197,10 +199,10 @@ export function MedicineRowOverlay({ medicine, grouped }: MedicineRowOverlayProp
         {medicine.dosageForm ? (DOSAGE_FORM_LABELS[medicine.dosageForm] ?? medicine.dosageForm) : "-"}
       </div>
       <div className={`w-[130px] shrink-0 text-right pr-4 font-mono text-base ${C.text}`}>
-        {medicine.price > 0 ? `¥${medicine.price.toLocaleString()}` : "-"}
+        {formatCurrencyOrDash(medicine.price)}
       </div>
       <div className="w-[110px] shrink-0 flex justify-center">
-        <NotionStatusPill isActive={medicine.isActive} />
+        <StatusPill isActive={medicine.isActive} />
       </div>
       <div className="w-[80px] shrink-0" />
     </div>

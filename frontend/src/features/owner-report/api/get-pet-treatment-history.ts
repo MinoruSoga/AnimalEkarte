@@ -1,10 +1,18 @@
 import { useQuery } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
+import { queryKeys } from "@/lib/query-keys";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
+import { HISTORY_FETCH_LIMIT } from "@/config/fetch-limits";
 import { toJSTWallDate } from "@/lib/jst-date";
 
 /** 治療履歴の絞り込み。#158: 投薬=medicine / 手術・処置=procedure / 治療=all。 */
 export type TreatmentHistoryFilter = "medicine" | "procedure" | "all";
+
+/** #159 追加フィルタ。anesthesiaOnly=true で麻酔処置のみ / isSurgery=true で手術処置のみ。 */
+export interface TreatmentHistoryOptions {
+  anesthesiaOnly?: boolean;
+  isSurgery?: boolean;
+}
 
 /** GET /v1/pets/:id/treatment-history の 1 行（バックエンド petTreatmentHistoryResponse に対応）。 */
 export interface BackendPetTreatmentHistory {
@@ -24,6 +32,7 @@ export interface BackendPetTreatmentHistory {
   procedure_id?: string;
   procedure_name?: string;
   anesthesia?: string;
+  is_surgery?: boolean;
 }
 
 interface PetTreatmentHistoryListResponse {
@@ -44,6 +53,8 @@ export interface PetTreatmentHistoryItem {
   quantity: number;
   /** 麻酔種別の日本語ラベル（procedure のみ）。 */
   anesthesia?: string;
+  /** 手術処置フラグ（procedure のみ）。 */
+  isSurgery?: boolean;
   medicalRecordId: string;
 }
 
@@ -78,30 +89,45 @@ export function transformHistoryItem(row: BackendPetTreatmentHistory): PetTreatm
     adminRoute: row.admin_route ?? "",
     quantity: row.quantity,
     anesthesia,
+    isSurgery: row.is_surgery,
     medicalRecordId: row.medical_record_id,
   };
+}
+
+export interface PetTreatmentHistoryResult {
+  items: PetTreatmentHistoryItem[];
+  /** SD-18: 取得上限(HISTORY_FETCH_LIMIT)により実件数より少ない可能性がある場合 true。 */
+  isTruncated: boolean;
 }
 
 const getPetTreatmentHistory = async (
   petId: string,
   filter: TreatmentHistoryFilter,
-): Promise<PetTreatmentHistoryItem[]> => {
-  const params: Record<string, string | number> = { limit: 100 };
+  options: TreatmentHistoryOptions = {},
+): Promise<PetTreatmentHistoryResult> => {
+  const params: Record<string, string | number | boolean> = { limit: HISTORY_FETCH_LIMIT };
   if (filter !== "all") params.item_type = filter;
+  if (options.anesthesiaOnly) params.anesthesia_only = true;
+  if (options.isSurgery) params.is_surgery = true;
   const { data } = await axios.get<PetTreatmentHistoryListResponse>(
     `/v1/pets/${petId}/treatment-history`,
     { params },
   );
-  return (data.data ?? []).map(transformHistoryItem);
+  const rawRows = data.data ?? [];
+  return {
+    items: rawRows.map(transformHistoryItem),
+    isTruncated: typeof data.total === "number" && data.total > rawRows.length,
+  };
 };
 
 export const useGetPetTreatmentHistory = (
   petId: string | undefined,
   filter: TreatmentHistoryFilter,
+  options: TreatmentHistoryOptions = {},
 ) => {
   return useQuery({
-    queryKey: ["pet-treatment-history", petId, filter],
-    queryFn: () => getPetTreatmentHistory(petId!, filter),
+    queryKey: queryKeys.petTreatmentHistory(petId!, filter, options),
+    queryFn: () => getPetTreatmentHistory(petId!, filter, options),
     enabled: !!petId,
     staleTime: QUERY_STALE_TIMES.MEDIUM,
     gcTime: QUERY_GC_TIMES.STANDARD,

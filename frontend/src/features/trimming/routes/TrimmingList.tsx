@@ -13,7 +13,7 @@ import { Plus, Scissors } from "lucide-react";
 import { toast } from "sonner";
 
 // Types
-import type { ActiveFilter, FilterProperty } from "@/components/shared/NotionFilter/types";
+import type { ActiveFilter, FilterProperty } from "@/components/shared/PropertyFilter/types";
 
 // Internal
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
@@ -32,7 +32,7 @@ import { usePermission } from "@/hooks/use-permission";
 import { ResourceTrimming } from "@/types/generated/models";
 import { handleApiError } from "@/lib/handle-api-error";
 import { TrimmingListTable } from "../components/TrimmingListTable";
-import { buildTrimmingDynamicFilterProperties } from "../components/TrimmingListTableModel";
+import { buildTrimmingDynamicFilterProperties } from "../components/trimming-list-table-model";
 
 export function TrimmingList() {
   const navigate = useNavigate();
@@ -87,7 +87,7 @@ export function TrimmingList() {
     if (clampedPage !== currentPage) {
       goToPage(clampedPage);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- currentPage/goToPage は意図的に除外（URL変更時のみ同期する設計。FE-144）
   }, [urlPage, totalPages]);
 
   // FE-144: ページ変更時にURLクエリパラメータを更新

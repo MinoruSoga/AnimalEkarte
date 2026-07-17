@@ -4,14 +4,14 @@ import { Check, Pencil, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DeleteIconButton } from "@/components/shared/DeleteIconButton/DeleteIconButton";
 import { FormFieldError } from "@/components/shared/FormFieldError/FormFieldError";
-import { NotionDatePicker } from "@/components/shared/NotionDatePicker/NotionDatePicker";
-import { CheckupAlertBadge } from "@/features/checkups";
+import { DatePicker } from "@/components/shared/DatePicker/DatePicker";
+import { CheckupAlertBadge } from "@/components/shared/CheckupAlertBadge/CheckupAlertBadge";
 import { C, ICON, STYLE } from "@/lib/design-tokens";
 import type { StaffItem } from "@/hooks/use-staffs";
 import type { CheckupTypeItem } from "@/hooks/use-treatment-master";
 
 import type { Checkup, UpdateCheckupInput } from "../../api/checkups";
-import type { AddCheckupFormState } from "./CheckupsTabTableModel";
+import type { AddCheckupFormState } from "./checkups-tab-table-model";
 
 interface CheckupEditRowProps {
   checkup: Checkup;
@@ -56,7 +56,7 @@ export const CheckupEditRow = memo(function CheckupEditRow({
   return (
     <tr className={`border-b ${C.borderLight} ${C.bgNotice40}`}>
       <td className="px-3 py-2">
-        <NotionDatePicker
+        <DatePicker
           value={form.date ?? ""}
           onChange={(value) => handleChange("date", value)}
           placeholder="日付"
@@ -71,7 +71,7 @@ export const CheckupEditRow = memo(function CheckupEditRow({
         />
       </td>
       <td className="px-3 py-2">
-        <NotionDatePicker
+        <DatePicker
           value={form.next_date ?? ""}
           onChange={(value) => handleChange("next_date", value || null)}
           placeholder="次回日"
@@ -92,6 +92,7 @@ export const CheckupEditRow = memo(function CheckupEditRow({
           value={form.result ?? ""}
           onChange={(e) => handleChange("result", e.target.value)}
           placeholder="結果を入力..."
+          aria-label={`結果 (${checkup.date})`}
           className={`h-8 text-sm border ${C.borderMedium} rounded-[3px] px-2 ${C.bgWhite} ${C.text} outline-none ${C.focusBorderAccent} w-full`}
         />
       </td>
@@ -208,7 +209,7 @@ export function CheckupAddRow({
   return (
     <div className={`flex flex-wrap items-start gap-2 px-3 py-2 border-t ${C.borderLight} ${C.bgPage30}`}>
       <div className="flex flex-col">
-        <NotionDatePicker
+        <DatePicker
           value={addForm.date}
           onChange={(value) => onChange("date", value)}
           placeholder="日付"
@@ -225,7 +226,7 @@ export function CheckupAddRow({
         />
         <FormFieldError message={errors.checkup_type_id} />
       </div>
-      <NotionDatePicker
+      <DatePicker
         value={addForm.next_date}
         onChange={(value) => onChange("next_date", value)}
         placeholder="次回日"
@@ -247,11 +248,12 @@ export function CheckupAddRow({
           if (e.key === "Enter") onSubmit();
           if (e.key === "Escape") onCancel();
         }}
+        aria-label="結果"
         className={`flex-1 min-w-[160px] h-8 text-sm border ${C.borderMedium} rounded-[3px] px-2 ${C.bgWhite} ${C.text} outline-none ${C.focusBorderAccent}`}
       />
       <Button
         size="sm"
-        className={`${STYLE.btnPrimary} h-8 text-xs px-3`}
+        className={`${C.bgBrand} ${C.hoverBgBrand} text-white rounded-full border-transparent transition-colors h-8 text-xs px-3`}
         onClick={onSubmit}
         disabled={isPending || !addForm.date || !addForm.checkup_type_id}
       >

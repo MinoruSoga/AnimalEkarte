@@ -6,11 +6,11 @@ import { C } from "@/lib/design-tokens";
 import type { Reservation } from "@/types";
 
 import { DayColumn } from "./WeekViewDayColumn";
-import { HOUR_HEIGHT, HOURS, WEEK_DAYS, type ReservationTypeColor } from "./WeekViewGridConstants";
+import { HOUR_HEIGHT, HOURS, WEEK_DAYS, type ReservationTypeColor } from "./week-view-grid-constants";
 
 const INITIAL_SCROLL_HOUR = 9;
 
-export type { ReservationTypeColor } from "./WeekViewGridConstants";
+export type { ReservationTypeColor } from "./week-view-grid-constants";
 
 interface WeekViewGridProps {
   startDate: Date;
@@ -98,22 +98,22 @@ function WeekHeader({ startDate, appointmentsByDay, columnWidth }: WeekHeaderPro
             key={offset}
             data-testid="week-header-day"
             className={`flex-1 flex-shrink-0 text-center py-2 border-r border-b ${C.borderMedium} ${C.bgWhite} ${
-              isToday ? C.bgAccentLight30 : ""
+              isToday ? C.bgBrand8 : ""
             }`}
             style={{ minWidth: columnWidth }}
           >
             <div
               className={`text-sm mb-1 ${
-                dow === 0 ? C.textNotionRed : dow === 6 ? C.accent : C.text60
+                dow === 0 ? C.textNotionRed : dow === 6 ? C.textBrand : C.text60
               }`}
             >
               {format(day, "E", { locale: ja })}
             </div>
             <div className="flex items-center justify-center">
-              <div className={`relative text-lg font-bold ${isToday ? C.accent : C.text}`}>
+              <div className={`relative text-lg font-bold ${isToday ? C.textBrand : C.text}`}>
                 {format(day, "d")}
                 {count > 0 ? (
-                  <span className={`absolute -right-7 bottom-0 text-xs whitespace-nowrap ${C.accent}`}>
+                  <span className={`absolute -right-7 bottom-0 text-xs whitespace-nowrap ${C.textBrand}`}>
                     {count}件
                   </span>
                 ) : null}

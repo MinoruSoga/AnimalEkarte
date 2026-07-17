@@ -1,6 +1,7 @@
 import { memo } from "react";
 import { C, STYLE } from "@/lib/design-tokens";
 import { formatJSTTime } from "@/lib/jst-date";
+import { formatCurrency } from "@/utils/format/number";
 import type { CloseBillingDetail } from "../api/get-cash-register-preview";
 import { CATEGORY_LABELS } from "../constants";
 
@@ -52,13 +53,13 @@ export const BillingDetailTable = memo(function BillingDetailTable({
               </td>
               <td className={`px-3 py-2 ${C.text}`}>{detail.paymentMethodName}</td>
               <td className={`px-3 py-2 text-right ${C.text}`}>
-                ¥{detail.billingAmount.toLocaleString()}
+                {formatCurrency(detail.billingAmount)}
               </td>
               <td className={`px-3 py-2 text-right ${detail.refundAmount > 0 ? C.danger : C.text50}`}>
                 {detail.refundAmount > 0 ? `-¥${detail.refundAmount.toLocaleString()}` : "—"}
               </td>
               <td className={`px-3 py-2 text-right font-medium ${C.text}`}>
-                ¥{detail.netAmount.toLocaleString()}
+                {formatCurrency(detail.netAmount)}
               </td>
             </tr>
           ))}

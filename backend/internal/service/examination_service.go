@@ -113,17 +113,21 @@ type ExaminationService interface {
 	Update(ctx context.Context, clinicID, id uint64, input UpdateExaminationInput) (*model.Examination, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
 	ListItems(ctx context.Context, clinicID, examID uint64) ([]model.ExamResult, error)
-	ReplaceItems(ctx context.Context, clinicID, examID uint64, inputs []UpsertExamItemInput) ([]model.ExamResult, error)
+	// ReplaceItems は検査項目を一括置換する（PUT セマンティクス）。actorID は監査ログ用の操作スタッフ ID
+	// （nil = システム実行）。BE-refactor.md R1-2: 実削除が発生した場合は同一 tx 内で fail-closed 監査する。
+	ReplaceItems(ctx context.Context, clinicID, examID uint64, actorID *uint64, inputs []UpsertExamItemInput) ([]model.ExamResult, error)
 }
 
 type examinationService struct {
-	repo     repository.ExaminationRepository
-	medRec   repository.MedicalRecordRepository
-	auditSvc AuditService
+	repo         repository.ExaminationRepository
+	medRec       repository.MedicalRecordRepository
+	examTypeRepo repository.ExamTypeRepository
+	auditTx      AuditTxLogger
+	transactor   repository.Transactor
 }
 
-func NewExaminationService(repo repository.ExaminationRepository, medRec repository.MedicalRecordRepository, auditSvc AuditService) ExaminationService {
-	return &examinationService{repo: repo, medRec: medRec, auditSvc: auditSvc}
+func NewExaminationService(repo repository.ExaminationRepository, medRec repository.MedicalRecordRepository, examTypeRepo repository.ExamTypeRepository, auditTx AuditTxLogger, transactor repository.Transactor) ExaminationService {
+	return &examinationService{repo: repo, medRec: medRec, examTypeRepo: examTypeRepo, auditTx: auditTx, transactor: transactor}
 }
 
 func (s *examinationService) List(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status, startDate, endDate *string, page, limit int) ([]model.Examination, int64, error) {
@@ -145,18 +149,6 @@ func (s *examinationService) GetByID(ctx context.Context, clinicID, id uint64) (
 }
 
 func (s *examinationService) Create(ctx context.Context, clinicID uint64, input *CreateExaminationInput) (*model.Examination, error) {
-	// HC-005: 親カルテが確定済みの場合は作成拒否
-	if input.MedicalRecordID != nil {
-		parent, err := s.medRec.FindByID(ctx, clinicID, *input.MedicalRecordID)
-		if err != nil {
-			slog.ErrorContext(ctx, "failed to find medical record", "error", err)
-			return nil, apperrors.Wrap(err, "failed to find medical record")
-		}
-		if parent.Status == model.MedicalRecordStatusFinalized {
-			return nil, apperrors.WrapConflict("確定済みカルテに検査を追加できません")
-		}
-	}
-
 	status := input.Status
 	if status == "" {
 		status = model.ExaminationStatusPending
@@ -172,10 +164,35 @@ func (s *examinationService) Create(ctx context.Context, clinicID uint64, input 
 		Machine:         input.Machine,
 		Status:          status,
 	}
-	if err := s.repo.Create(ctx, exam); err != nil {
-		slog.ErrorContext(ctx, "failed to create examination", "error", err)
-		return nil, apperrors.Wrap(err, "failed to create examination")
+
+	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
+		// HC-005 + BE-refactor.md X-11: 親カルテが確定済みの場合は作成拒否。LockByIDForUpdate の
+		// 行ロックで finalize（medical_record_repository.Update の draft-only WHERE）と直列化し、
+		// 確定と同時の検査追加が確定済みカルテに混入する競合を防ぐ。
+		if input.MedicalRecordID != nil {
+			if err := lockDraftMedicalRecord(txCtx, s.medRec, clinicID, *input.MedicalRecordID,
+				"failed to find medical record", "確定済みカルテに検査を追加できません"); err != nil {
+				return err
+			}
+		}
+
+		// クロステナント write 防止: 別 clinic の exam_type を紐付けると、その exam_type が持つ
+		// 異常値判定の基準値/単位（exam_type_fields）が検査記録に混入する（#124 同型）。所有権を検証する。
+		if input.ExamTypeID != 0 {
+			if _, err := s.examTypeRepo.FindByID(txCtx, clinicID, input.ExamTypeID); err != nil {
+				return apperrors.Wrap(err, "failed to verify exam type ownership")
+			}
+		}
+
+		if err := s.repo.Create(txCtx, exam); err != nil {
+			slog.ErrorContext(txCtx, "failed to create examination", "error", err)
+			return apperrors.Wrap(err, "failed to create examination")
+		}
+		return nil
+	}); err != nil {
+		return nil, err
 	}
+
 	slog.InfoContext(ctx, "examination created", slog.Uint64("clinic_id", clinicID), slog.Uint64("examination_id", exam.ID))
 	return exam, nil
 }
@@ -190,27 +207,41 @@ func (s *examinationService) Update(ctx context.Context, clinicID, id uint64, in
 		return nil, apperrors.WrapInvalidInput("確定済みの検査は編集できません")
 	}
 
-	// HC-003: 親カルテが確定済みの場合は編集拒否
-	if existing.MedicalRecordID != nil {
-		parent, err := s.medRec.FindByID(ctx, clinicID, *existing.MedicalRecordID)
+	var exam *model.Examination
+	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
+		// HC-003 + BE-refactor.md X-11: 親カルテが確定済みの場合は編集拒否。LockByIDForUpdate の
+		// 行ロックで finalize と直列化し、確定と同時の検査編集が確定済みカルテに混入する競合を防ぐ。
+		if existing.MedicalRecordID != nil {
+			if err := lockDraftMedicalRecord(txCtx, s.medRec, clinicID, *existing.MedicalRecordID,
+				"failed to find medical record", "確定済みカルテの検査は編集できません"); err != nil {
+				return err
+			}
+		}
+
+		// クロステナント write 防止: 貼り替え先 exam_type が caller の clinic に属することを検証する。
+		if err := validateOwnedMasterFK(txCtx, "exam type", clinicID, input.ExamTypeID,
+			func(actx context.Context, cid, mid uint64) error {
+				_, err := s.examTypeRepo.FindByID(actx, cid, mid)
+				return err
+			}); err != nil {
+			return err
+		}
+
+		fields := buildExaminationUpdate(input)
+		if len(fields) == 0 {
+			return apperrors.WrapInvalidInput("at least one field must be provided")
+		}
+		updated, err := s.repo.Update(txCtx, clinicID, id, fields)
 		if err != nil {
-			slog.ErrorContext(ctx, "failed to find medical record", "error", err)
-			return nil, apperrors.Wrap(err, "failed to find medical record")
+			slog.ErrorContext(txCtx, "failed to update examination", "error", err)
+			return apperrors.Wrap(err, "failed to update examination")
 		}
-		if parent.Status == model.MedicalRecordStatusFinalized {
-			return nil, apperrors.WrapConflict("確定済みカルテの検査は編集できません")
-		}
+		exam = updated
+		return nil
+	}); err != nil {
+		return nil, err
 	}
 
-	fields := buildExaminationUpdate(input)
-	if len(fields) == 0 {
-		return nil, apperrors.WrapInvalidInput("at least one field must be provided")
-	}
-	exam, err := s.repo.Update(ctx, clinicID, id, fields)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to update examination", "error", err)
-		return nil, apperrors.Wrap(err, "failed to update examination")
-	}
 	slog.InfoContext(ctx, "examination updated", slog.Uint64("clinic_id", clinicID), slog.Uint64("examination_id", id))
 	return exam, nil
 }
@@ -236,13 +267,44 @@ func (s *examinationService) ListItems(ctx context.Context, clinicID, examID uin
 //  2. 親 exam が confirmed の場合は 400 で拒否（既存 Update と同方針）
 //  3. 各 input の inspection_value と ref_min / ref_max から status / is_abnormal を導出（FE 送信値は無視）
 //  4. repository の ReplaceItemsByExamID（トランザクション内で全削除→一括挿入）に委譲
-func (s *examinationService) ReplaceItems(ctx context.Context, clinicID, examID uint64, inputs []UpsertExamItemInput) ([]model.ExamResult, error) {
+//  5. 実削除が発生した場合（deletedCount > 0）は同一 tx 内で監査ログを書き込む。監査書込が失敗したら
+//     tx を rollback する（best-effort ではなく fail-closed。BE-refactor.md R1-2・#211 と同方針）。
+func (s *examinationService) ReplaceItems(ctx context.Context, clinicID, examID uint64, actorID *uint64, inputs []UpsertExamItemInput) ([]model.ExamResult, error) {
 	existing, err := s.repo.FindByID(ctx, clinicID, examID)
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to find examination")
 	}
 	if existing.Status == model.ExaminationStatusConfirmed {
 		return nil, apperrors.WrapInvalidInput("確定済みの検査は編集できません")
+	}
+
+	// #124 防止: request の exam_type_field が caller の clinic に属する当該検査種別の
+	// フィールドであることを検証する。別 clinic / 別種別のフィールドを紐付けると、その
+	// フィールドが持つ基準値・単位が検査結果に誤適用される（#124 実害と同型・クロステナント）。
+	// 03bf1cb5 は親 exam_type_id のみ検証しており、この field 経路は未検証だった。
+	hasFieldRef := false
+	for _, in := range inputs {
+		if in.ExamTypeFieldID != nil {
+			hasFieldRef = true
+			break
+		}
+	}
+	if hasFieldRef {
+		examType, err := s.examTypeRepo.FindByID(ctx, clinicID, existing.ExamTypeID)
+		if err != nil {
+			return nil, apperrors.Wrap(err, "failed to verify exam type ownership")
+		}
+		validFieldIDs := make(map[uint64]struct{}, len(examType.Items))
+		for i := range examType.Items {
+			validFieldIDs[examType.Items[i].ID] = struct{}{}
+		}
+		for _, in := range inputs {
+			if in.ExamTypeFieldID != nil {
+				if _, ok := validFieldIDs[*in.ExamTypeFieldID]; !ok {
+					return nil, apperrors.WrapInvalidInput("exam_type_field が当該検査種別に属していません（別クリニック/別種別の項目は紐付けできません）")
+				}
+			}
+		}
 	}
 
 	items := make([]model.ExamResult, 0, len(inputs))
@@ -264,11 +326,43 @@ func (s *examinationService) ReplaceItems(ctx context.Context, clinicID, examID 
 		})
 	}
 
-	saved, err := s.repo.ReplaceItemsByExamID(ctx, clinicID, examID, items)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to replace examination items", "error", err, "exam_id", examID, "clinic_id", clinicID)
-		return nil, apperrors.Wrap(err, "failed to replace examination items")
+	// #211/R1-2 tx 内監査による原子的置換: スナップショット読取→削除/挿入→削除監査 を単一トランザクションで
+	// 実行する。監査書込が失敗したら tx 全体を rollback し、削除・挿入も巻き戻す（監査なしの検査結果削除を
+	// 許さない＝fail-closed）。exam_results は hard-delete のため old_value が唯一の耐久記録であり、
+	// 旧コードでは「置換 commit 後に監査を書く」経路自体が存在しなかった（audit_tx_inventory_lint_test.go
+	// が発見した無監査ギャップ）。スナップショットも同一 tx 内で取得し TOCTOU 窓を作らない。
+	var saved []model.ExamResult
+	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
+		before, err := s.repo.FindAllItemsByExamID(txCtx, clinicID, examID)
+		if err != nil {
+			slog.ErrorContext(txCtx, "failed to snapshot existing examination items before replace", "error", err, "exam_id", examID, "clinic_id", clinicID)
+			return apperrors.Wrap(err, "failed to load existing examination items")
+		}
+
+		replaced, deletedCount, err := s.repo.ReplaceItemsByExamID(txCtx, clinicID, examID, items)
+		if err != nil {
+			slog.ErrorContext(txCtx, "failed to replace examination items", "error", err, "exam_id", examID, "clinic_id", clinicID)
+			return apperrors.Wrap(err, "failed to replace examination items")
+		}
+		saved = replaced
+
+		// 実際に削除が発生した場合のみ監査する（純粋な新規挿入は削除を伴わない）。ゲートはスナップショット
+		// 件数でなく DELETE の実削除数（deletedCount）に基づく（#211 security MEDIUM-1 と同方針: 並行 INSERT
+		// 競合下でスナップショット 0 件でも実削除>0 を取りこぼさない）。監査書込失敗は tx を rollback する。
+		return logReplaceDeletionTx(txCtx, s.auditTx, clinicID, actorID, deletedCount,
+			model.AuditActionExamResultReplace, model.AuditResourceExamResult, examID,
+			extractExamResultsAudit(before), extractExamResultsAudit(saved),
+			map[string]any{
+				"exam_id":       examID,
+				"deleted_count": deletedCount,
+				"new_count":     len(saved),
+			},
+			"audit log failed for examination items replace; rolling back deletion",
+			"failed to write examination items deletion audit", "exam_id")
+	}); err != nil {
+		return nil, apperrors.Wrap(err, "failed to replace examination items in transaction")
 	}
+
 	slog.InfoContext(ctx, "examination items replaced",
 		slog.Uint64("clinic_id", clinicID),
 		slog.Uint64("examination_id", examID),
@@ -277,37 +371,62 @@ func (s *examinationService) ReplaceItems(ctx context.Context, clinicID, examID 
 	return saved, nil
 }
 
+// extractExamResultsAudit は監査ログの old_value/new_value に格納する検査結果値のスナップショットを構築する。
+// 飼主/患者の識別情報は含まず、行 ID・フィールド定義参照・検査値のみを記録する
+// （extractCheckupFieldResultsAudit と同方針）。
+func extractExamResultsAudit(results []model.ExamResult) []map[string]any {
+	if len(results) == 0 {
+		return nil
+	}
+	out := make([]map[string]any, 0, len(results))
+	for i := range results {
+		r := results[i]
+		out = append(out, map[string]any{
+			"id":                 r.ID,
+			"exam_type_field_id": r.ExamTypeItemID,
+			"name":               r.Name,
+			"inspection_value":   r.InspectionValue,
+			"is_abnormal":        r.IsAbnormal,
+			"status":             string(r.Status),
+		})
+	}
+	return out
+}
+
 func (s *examinationService) Delete(ctx context.Context, clinicID, id uint64) error {
 	existing, err := s.repo.FindByID(ctx, clinicID, id)
 	if err != nil {
 		return apperrors.Wrap(err, "failed to find examination")
 	}
 
-	// HC-003: 親カルテが確定済みの場合は削除拒否
-	if existing.MedicalRecordID != nil {
-		parent, err := s.medRec.FindByID(ctx, clinicID, *existing.MedicalRecordID)
+	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
+		// HC-003 + BE-refactor.md H-8d: 親カルテが確定済みの場合は削除拒否。LockByIDForUpdate の
+		// 行ロックで finalize と直列化し、確定と同時の検査削除が確定済みカルテに混入する競合を防ぐ
+		// （Update :215-227 と対称・nil ガード込み）。
+		if existing.MedicalRecordID != nil {
+			if err := lockDraftMedicalRecord(txCtx, s.medRec, clinicID, *existing.MedicalRecordID,
+				"failed to find medical record", "確定済みカルテの検査は削除できません"); err != nil {
+				return err
+			}
+		}
+
+		// FK依存チェック: 検査に紐付く検査明細が存在する場合は削除を拒否
+		itemCount, err := s.repo.CountItemsByExamID(txCtx, clinicID, id)
 		if err != nil {
-			slog.ErrorContext(ctx, "failed to find medical record", "error", err)
-			return apperrors.Wrap(err, "failed to find medical record")
+			slog.ErrorContext(txCtx, "failed to check examination item dependencies", "error", err, "id", id, "clinic_id", clinicID)
+			return apperrors.Wrap(err, "failed to check examination item dependencies")
 		}
-		if parent.Status == model.MedicalRecordStatusFinalized {
-			return apperrors.WrapConflict("確定済みカルテの検査は削除できません")
+		if itemCount > 0 {
+			return apperrors.WrapConflict("検査結果が紐付いているため削除できません。先に検査結果を削除してください")
 		}
-	}
 
-	// FK依存チェック: 検査に紐付く検査明細が存在する場合は削除を拒否
-	itemCount, err := s.repo.CountItemsByExamID(ctx, clinicID, id)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to check examination item dependencies", "error", err, "id", id, "clinic_id", clinicID)
-		return apperrors.Wrap(err, "failed to check examination item dependencies")
-	}
-	if itemCount > 0 {
-		return apperrors.WrapConflict("検査結果が紐付いているため削除できません。先に検査結果を削除してください")
-	}
-
-	if err := s.repo.Delete(ctx, clinicID, id); err != nil {
-		slog.ErrorContext(ctx, "failed to delete examination", "error", err, "id", id, "clinic_id", clinicID)
-		return apperrors.Wrap(err, "failed to delete examination")
+		if err := s.repo.Delete(txCtx, clinicID, id); err != nil {
+			slog.ErrorContext(txCtx, "failed to delete examination", "error", err, "id", id, "clinic_id", clinicID)
+			return apperrors.Wrap(err, "failed to delete examination")
+		}
+		return nil
+	}); err != nil {
+		return err
 	}
 
 	slog.InfoContext(ctx, "examination deleted",

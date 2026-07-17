@@ -1,6 +1,47 @@
 package handler
 
-import "testing"
+import (
+	"net/url"
+	"testing"
+	"time"
+)
+
+func TestNewListReservationSchedulesQuery(t *testing.T) {
+	tests := []struct {
+		name   string
+		values url.Values
+		now    time.Time
+		want   string
+	}{
+		{
+			name:   "uses provided month",
+			values: url.Values{"month": []string{"2026-03"}},
+			now:    time.Date(2026, 5, 1, 0, 0, 0, 0, time.UTC),
+			want:   "2026-03",
+		},
+		{
+			name:   "defaults to current month when missing",
+			values: url.Values{},
+			now:    time.Date(2026, 5, 1, 0, 0, 0, 0, time.UTC),
+			want:   "2026-05",
+		},
+		{
+			name:   "defaults to current month when empty string",
+			values: url.Values{"month": []string{""}},
+			now:    time.Date(2026, 12, 1, 0, 0, 0, 0, time.UTC),
+			want:   "2026-12",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := newListReservationSchedulesQuery(tt.values, tt.now)
+			if got.Month != tt.want {
+				t.Errorf("Month = %q, want %q", got.Month, tt.want)
+			}
+		})
+	}
+}
 
 func TestUpsertReservationScheduleRequest_ToServiceInput(t *testing.T) {
 	workStart := "09:00"

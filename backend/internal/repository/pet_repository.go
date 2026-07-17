@@ -20,6 +20,9 @@ type PetRepository interface {
 	// CountLivingByOwner は指定オーナーの生存ペット数（deceased_at IS NULL）を返す。
 	// ISSUE-007: CreateCheckupSync のサーバ側二重防御で誤配信を防ぐ。
 	CountLivingByOwner(ctx context.Context, clinicID, ownerID uint64) (int64, error)
+	// CountLivingByOwnerIDs は複数オーナーの生存ペット数を一括取得する（N+1 解消用）。
+	// 返り値は ownerID → 生存ペット数のマップ。存在しない ownerID は 0 として扱う。
+	CountLivingByOwnerIDs(ctx context.Context, clinicID uint64, ownerIDs []uint64) (map[uint64]int64, error)
 	CountUsageByAnimalSpeciesID(ctx context.Context, speciesID uint64) (int64, error)
 	Create(ctx context.Context, pet *model.Pet) error
 	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error
@@ -67,29 +70,33 @@ func (r *petRepository) FindAll(ctx context.Context, clinicID uint64, ownerID *u
 	if err := buildBase().Count(&total).Error; err != nil {
 		return nil, 0, apperrors.FromGORM(err, "pet", "")
 	}
-	if err := buildBase().Preload("Owner", "deleted_at IS NULL").Preload("AnimalSpecies").Preload("Insurance", "deleted_at IS NULL").
-		Offset((page - 1) * limit).Limit(limit).Order("pets.created_at DESC").Find(&pets).Error; err != nil {
+	if err := buildBase().Preload("Owner", "deleted_at IS NULL").Preload("AnimalSpecies").Preload("Insurance", "clinic_id = ? AND deleted_at IS NULL", clinicID).
+		Scopes(paginate(page, limit)).Order("pets.created_at DESC").Find(&pets).Error; err != nil {
 		return nil, 0, apperrors.FromGORM(err, "pet", "")
 	}
 	return pets, total, nil
 }
 
 func (r *petRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Pet, error) {
-	return r.findPetByID(ctx, clinicScope(clinicID), id)
+	return r.findPetByID(ctx, []uint64{clinicID}, id)
 }
 
 func (r *petRepository) FindByIDForClinics(ctx context.Context, clinicIDs []uint64, id uint64) (*model.Pet, error) {
-	return r.findPetByID(ctx, clinicScopeIn(clinicIDs), id)
+	return r.findPetByID(ctx, clinicIDs, id)
 }
 
-// findPetByID は scope（単一/複数クリニック）を受け取りペットを1件取得する共通実装。
-func (r *petRepository) findPetByID(ctx context.Context, scope func(*gorm.DB) *gorm.DB, id uint64) (*model.Pet, error) {
+// findPetByID は認可済みクリニック集合を受け取りペットを1件取得する共通実装。
+// Preload する保険マスタも同じ集合で clinic 隔離する（別クリニックの保険マスタ混入防止）。
+func (r *petRepository) findPetByID(ctx context.Context, clinicIDs []uint64, id uint64) (*model.Pet, error) {
+	if len(clinicIDs) == 0 {
+		return nil, apperrors.WrapNotFound("pet", fmt.Sprintf("%d", id))
+	}
 	var pet model.Pet
 	err := r.db.WithContext(ctx).
 		Preload("Owner", "deleted_at IS NULL").
 		Preload("AnimalSpecies").
-		Preload("Insurance", "deleted_at IS NULL").
-		Scopes(scope).Where("id = ?", id).First(&pet).Error
+		Preload("Insurance", "clinic_id IN ? AND deleted_at IS NULL", clinicIDs).
+		Scopes(clinicScopeIn(clinicIDs)).Where("id = ?", id).First(&pet).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "pet", fmt.Sprintf("%d", id))
 	}
@@ -132,6 +139,31 @@ func (r *petRepository) CountLivingByOwner(ctx context.Context, clinicID, ownerI
 		return 0, apperrors.FromGORM(err, "pet", "")
 	}
 	return count, nil
+}
+
+type ownerPetCount struct {
+	OwnerID uint64
+	Count   int64
+}
+
+func (r *petRepository) CountLivingByOwnerIDs(ctx context.Context, clinicID uint64, ownerIDs []uint64) (map[uint64]int64, error) {
+	if len(ownerIDs) == 0 {
+		return map[uint64]int64{}, nil
+	}
+	var rows []ownerPetCount
+	if err := r.db.WithContext(ctx).Model(&model.Pet{}).
+		Scopes(clinicScope(clinicID)).
+		Select("owner_id, COUNT(*) AS count").
+		Where("owner_id IN ? AND deceased_at IS NULL AND deleted_at IS NULL", ownerIDs).
+		Group("owner_id").
+		Scan(&rows).Error; err != nil {
+		return nil, apperrors.FromGORM(err, "pet", "")
+	}
+	result := make(map[uint64]int64, len(ownerIDs))
+	for _, row := range rows {
+		result[row.OwnerID] = row.Count
+	}
+	return result, nil
 }
 
 func (r *petRepository) CountUsageByAnimalSpeciesID(ctx context.Context, speciesID uint64) (int64, error) {

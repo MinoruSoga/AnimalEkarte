@@ -7,7 +7,9 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
+	"github.com/animal-ekarte/backend/internal/config"
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
 )
@@ -29,8 +31,8 @@ func newSettingForValidation() *model.LineReservationSetting {
 
 // dateInDays は今日から n 日後の 00:00 JST を返す。
 func dateInDays(n int) time.Time {
-	now := time.Now().In(jstLocation)
-	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, jstLocation)
+	now := time.Now().In(config.JST)
+	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, config.JST)
 	return today.AddDate(0, 0, n)
 }
 
@@ -152,7 +154,7 @@ func TestValidateBusinessRules(t *testing.T) {
 			if tt.modify != nil {
 				tt.modify(settings)
 			}
-			err := validateBusinessRules(settings, tt.date, tt.startTime, tt.endTime)
+			err := validateBusinessRules(context.Background(), settings, tt.date, tt.startTime, tt.endTime)
 			if tt.wantErr {
 				assert.Error(t, err)
 				assert.True(t, apperrors.IsInvalidInput(err), "expected invalid input error, got %v", err)
@@ -164,6 +166,95 @@ func TestValidateBusinessRules(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestValidateBusinessRules_MalformedBreakHours_FailsClosed は BE-refactor.md D10/F-2 の
+// fail-closed 化を検証する。break_hours の JSON が破損している場合、予約を拒否すべき。
+//
+// temp-revert RED: liff_service_availability_business.go の parseBusinessHoursForDate で
+// `if err := json.Unmarshal(setting.BreakHours, &breaks); err != nil { breaks = nil }` と
+// エラーを握りつぶす形に戻すと、休憩時間チェック（step 6）が空配列に対して行われ常に重複なしと
+// 判定されるため、本テストは NoError になり RED になる（＝壊れた休憩時間設定下でも予約が通ってしまう）。
+func TestValidateBusinessRules_MalformedBreakHours_FailsClosed(t *testing.T) {
+	settings := newSettingForValidation()
+	settings.BreakHours = []byte(`not-valid-json`)
+
+	err := validateBusinessRules(context.Background(), settings, dateInDays(3), "1000", "1015")
+
+	require.Error(t, err,
+		"break_hours の JSON が破損している場合、休憩時間との重複を検証できないため予約を拒否すべき（fail-closed）。"+
+			"fail-open（現状バグ）だと breaks=nil にフォールバックし検証がスキップされ予約が通ってしまう")
+}
+
+// TestValidateBusinessRules_MalformedBreakEntry_FailsClosed は、break_hours の JSON 配列自体は
+// パースできるが個々のエントリの HHMM 値が不正な場合も同様に拒否されることを検証する
+// （検証ループ内の個別 continue による fail-open の是正）。
+func TestValidateBusinessRules_MalformedBreakEntry_FailsClosed(t *testing.T) {
+	settings := newSettingForValidation()
+	settings.BreakHours = []byte(`[{"start":"not-a-time","end":"1300"}]`)
+
+	err := validateBusinessRules(context.Background(), settings, dateInDays(3), "1000", "1015")
+
+	require.Error(t, err,
+		"個別休憩エントリの時刻形式が不正な場合、そのエントリの重複判定をスキップせず拒否すべき（fail-closed）")
+}
+
+// TestValidateBusinessRules_NonDigitHHMMBreakEntry_FailsClosed は、長さ4文字の break_hours
+// エントリに非ASCII数字が混入した場合も拒否されることを検証する（R1-3）。
+//
+// temp-revert RED: minutesSinceMidnight の ASCII 数字チェックを外すと、byte 型の unsigned
+// wraparound で ':' (0x3A) が "偶然" レンジ内の値に化けてしまい（'1'+':'+'0'+'0' → 20時00分と
+// 誤変換）、エラーなく break 区間 [1200,780) として扱われる。この壊れた区間は通常の予約時刻
+// （10:00-10:15）と重複判定されず、検証をすり抜けて予約が通ってしまう（＝本テストが NoError
+// になり RED になる）。
+func TestValidateBusinessRules_NonDigitHHMMBreakEntry_FailsClosed(t *testing.T) {
+	settings := newSettingForValidation()
+	settings.BreakHours = []byte(`[{"start":"1:00","end":"1300"}]`)
+
+	err := validateBusinessRules(context.Background(), settings, dateInDays(3), "1000", "1015")
+
+	require.Error(t, err,
+		"長さ4文字でも非ASCII数字混入のHHMMは拒否すべき（fail-closed）。"+
+			"byteのunsigned wraparoundでレンジ内に化けると重複判定をすり抜け予約が通ってしまう")
+}
+
+// TestValidateBusinessRules_MalformedClosedWeekdays_FailsClosed は BE-refactor.md A-3 の
+// fail-closed 化を検証する。closed_weekdays の JSON が破損している場合、休業曜日チェックを
+// 検証できないため予約を拒否すべき（break_hours の D10/F-2 と対称）。
+func TestValidateBusinessRules_MalformedClosedWeekdays_FailsClosed(t *testing.T) {
+	settings := newSettingForValidation()
+	settings.ClosedWeekdays = []byte(`not-valid-json`)
+
+	err := validateBusinessRules(context.Background(), settings, dateInDays(3), "1000", "1015")
+
+	require.Error(t, err,
+		"closed_weekdays の JSON が破損している場合、休業曜日チェックを検証できないため予約を"+
+			"拒否すべき（fail-closed）。fail-open（現状バグ）だとチェックがスキップされ休業日に予約が通ってしまう")
+}
+
+// TestValidateBusinessRules_MalformedClosedDates_FailsClosed は closed_dates の JSON が
+// 破損している場合も同様に拒否されることを検証する。
+func TestValidateBusinessRules_MalformedClosedDates_FailsClosed(t *testing.T) {
+	settings := newSettingForValidation()
+	settings.ClosedDates = []byte(`not-valid-json`)
+
+	err := validateBusinessRules(context.Background(), settings, dateInDays(3), "1000", "1015")
+
+	require.Error(t, err,
+		"closed_dates の JSON が破損している場合、休業日チェックを検証できないため拒否すべき（fail-closed）")
+}
+
+// TestValidateBusinessRules_EmptyClosedWeekdaysAndDates_SkipsCheck は未設定（空 JSON 配列）の
+// 場合はチェックをスキップし予約が通ることを検証する（fail-closed 化で「未設定」の現行挙動を
+// 壊していないことのリグレッション防止）。
+func TestValidateBusinessRules_EmptyClosedWeekdaysAndDates_SkipsCheck(t *testing.T) {
+	settings := newSettingForValidation()
+	settings.ClosedWeekdays = []byte(`[]`)
+	settings.ClosedDates = []byte(`[]`)
+
+	err := validateBusinessRules(context.Background(), settings, dateInDays(3), "1000", "1015")
+
+	assert.NoError(t, err)
 }
 
 func TestReservationValidators_ValidateAndCreate_MapsCapacityConflict(t *testing.T) {
@@ -196,7 +287,7 @@ func TestReservationValidators_ValidateAndCreate_MapsCapacityConflict(t *testing
 			return &model.ReservationType{ID: id, ClinicID: clinicID, MaxConcurrent: &maxConcurrent}, nil
 		},
 	}
-	validators := NewReservationValidators(&mockTransactor{}, repo, typeRepo)
+	validators := NewReservationValidators(&mockTransactor{}, repo, typeRepo, okTrimmingCourseRepo(), okTrimmingOptionRepo())
 
 	result, err := validators.ValidateAndCreate(context.Background(), &CreateReservationInput{
 		ClinicID:          1,

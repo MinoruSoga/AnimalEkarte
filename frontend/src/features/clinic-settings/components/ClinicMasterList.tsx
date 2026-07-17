@@ -1,11 +1,13 @@
 import { Building2, Plus } from "lucide-react";
+import type { ReactNode } from "react";
 
 import { TableCell } from "@/components/ui/table";
-import { DataTable } from "@/components/shared/DataTable/DataTable";
+import { DataTable, DESIGN_TABLE_HEADER_ROW, DESIGN_TABLE_HEADER_CELL } from "@/components/shared/DataTable/DataTable";
 import { DataTableRow } from "@/components/shared/DataTable/DataTableRow";
-import { NotionFilter } from "@/components/shared/NotionFilter/NotionFilter";
+import { PropertyFilter } from "@/components/shared/PropertyFilter/PropertyFilter";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
+import { RowActionButton } from "@/components/shared/RowActionButton";
 import { C, ICON } from "@/lib/design-tokens";
 import { ResourceHospitalSettings } from "@/types/generated/models";
 import type { Clinic } from "../api/clinics";
@@ -14,7 +16,8 @@ const COLUMNS = [
   { header: "院名" },
   { header: "電話番号", className: "w-[150px]" },
   { header: "メール" },
-  { header: "ステータス", className: "w-[90px]", align: "right" as const },
+  { header: "ステータス", className: "w-[100px]", align: "right" as const },
+  { header: "操作", className: "w-[80px]", align: "right" as const },
 ];
 
 interface ClinicMasterListProps {
@@ -26,6 +29,8 @@ interface ClinicMasterListProps {
   onBack: () => void;
   onCreate: () => void;
   onEdit: (item: Clinic) => void;
+  /** 医院一覧の上部に差し込む任意セクション（例: 法人情報/インボイス）。 */
+  topSection?: ReactNode;
 }
 
 export function ClinicMasterList({
@@ -37,6 +42,7 @@ export function ClinicMasterList({
   onBack,
   onCreate,
   onEdit,
+  topSection,
 }: ClinicMasterListProps) {
   return (
     <PageLayout
@@ -46,7 +52,7 @@ export function ClinicMasterList({
       onBack={onBack}
       headerAction={
         canCreate ? (
-          <PrimaryButton onClick={onCreate}>
+          <PrimaryButton colorVariant="brand" onClick={onCreate}>
             <Plus className={`mr-1.5 ${ICON.action}`} />
             新規登録
           </PrimaryButton>
@@ -55,7 +61,8 @@ export function ClinicMasterList({
       maxWidth="max-w-full"
     >
       <div className="flex flex-col gap-4">
-        <NotionFilter
+        {topSection}
+        <PropertyFilter
           properties={[]}
           activeFilters={[]}
           onFilterChange={() => {}}
@@ -66,6 +73,8 @@ export function ClinicMasterList({
         />
 
         <DataTable
+          headerRowClassName={DESIGN_TABLE_HEADER_ROW}
+          headerCellClassName={DESIGN_TABLE_HEADER_CELL}
           columns={COLUMNS}
           data={items}
           emptyMessage="医院が登録されていません"
@@ -82,11 +91,14 @@ export function ClinicMasterList({
               </TableCell>
               <TableCell className="text-right py-2.5">
                 <span className="inline-flex items-center gap-1.5">
-                  <span className={`size-[7px] rounded-full ${item.isActive ? C.bgAccent : C.bgPrimary10}`} />
+                  <span className={`size-[7px] rounded-full ${item.isActive ? C.bgBrandDot : C.bgPrimary10}`} />
                   <span className={`text-sm ${item.isActive ? C.text65 : C.text35}`}>
                     {item.isActive ? "有効" : "無効"}
                   </span>
                 </span>
+              </TableCell>
+              <TableCell className="p-0 text-right">
+                {canEdit ? <RowActionButton onClick={() => onEdit(item)} /> : null}
               </TableCell>
             </DataTableRow>
           )}

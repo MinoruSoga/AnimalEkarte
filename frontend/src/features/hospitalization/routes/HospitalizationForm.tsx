@@ -179,7 +179,7 @@ export function HospitalizationForm() {
             ) : null}
             {canSubmit ? (
               <SubmitButton
-              className={`${C.bgAccent} ${C.bgAccentHover} ${C.textWhite} rounded-[6px] h-10 text-sm px-4`}
+              className="h-10 text-sm px-4"
               >
               {hospitalizationId ? "更新" : "登録"}
               </SubmitButton>

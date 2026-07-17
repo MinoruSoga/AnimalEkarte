@@ -20,13 +20,13 @@ import { useMasterSave } from "../hooks/use-master-save";
 import { MedicineDeleteDialog } from "../components/MedicineDeleteDialog";
 import { MedicineSidePanel, type MedicineFormData } from "../components/MedicineSidePanel";
 import { MedicineTableSection } from "../components/MedicineTableSection";
-import { useMedicineTableState } from "../components/useMedicineTableState";
+import { useMedicineTableState } from "../hooks/use-medicine-table-state";
 import {
   buildMedicineCreateRequest,
   buildMedicineUpdateRequest,
   getCategoryMedicines,
   isCategoryMedicine,
-} from "./MedicineSettingsModel";
+} from "./medicine-settings-model";
 
 // Internal – feature API (direct import, no barrel)
 import { useGetAllMedicines, useCreateMedicine, useUpdateMedicine, useDeleteMedicine, useReorderMedicines } from "../api/medicines";
@@ -58,12 +58,20 @@ export function MedicineSettings() {
   const dirty = useSidePeekDirty();
   const handleDirtyChange = useCallback((d: boolean) => { if (d) dirty.markDirty(); else dirty.markClean(); }, [dirty]);
 
+  // R-F8-S3: useSidePeekDirty は毎レンダー新規オブジェクトを返す（confirmDiscard 自体は安定）。
+  // dirtyGuard を confirmDiscard だけに絞って安定化し、medicineCrud.handleEdit/handleNew の
+  // 参照安定性（→ 行コンポーネント memo() の実効性）を確保する。
+  const dirtyGuard = useMemo(
+    () => ({ confirmDiscard: dirty.confirmDiscard }),
+    [dirty.confirmDiscard],
+  );
+
   // ── FR1: useMasterCRUD (editTarget state only; deletion modal kept external) ──
   const medicineCrud = useMasterCRUD<Medicine>({
     data: medicines,
     deleteMutation,
     entityLabel: "薬品",
-    dirtyGuard: dirty,
+    dirtyGuard,
   });
 
   // ── Derived: editTarget → selectedMedicine / isEditing / isCategory ──

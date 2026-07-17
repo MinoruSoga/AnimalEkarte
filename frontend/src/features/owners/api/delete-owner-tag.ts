@@ -3,6 +3,7 @@ import { toast } from "sonner";
 import { axios } from "@/lib/axios";
 import { getStoredClinicId } from "@/lib/current-clinic";
 import { handleApiError } from "@/lib/handle-api-error";
+import { queryKeys } from "@/lib/query-keys";
 
 async function deleteOwnerTag(
   clinicId: string,
@@ -26,7 +27,7 @@ export function useDeleteOwnerTag(ownerId: string) {
       return deleteOwnerTag(clinicId, ownerId, tagName);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["owner-line-tags", ownerId] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.ownerLineTags(ownerId) });
       toast.success("タグを解除しました");
     },
     onError: (error) => {

@@ -86,13 +86,6 @@ function build(category: ManualCategory, modules: Record<string, string>): Manua
 export const screenArticles: ManualArticle[] = build("screens", screenModules);
 export const workflowArticles: ManualArticle[] = build("workflows", workflowModules);
 
-export const allArticles: ManualArticle[] = [...screenArticles, ...workflowArticles];
-
-export function findArticle(category: ManualCategory, slug: string): ManualArticle | undefined {
-  const list = category === "screens" ? screenArticles : workflowArticles;
-  return list.find((a) => a.slug === slug);
-}
-
 export function groupBySection(articles: ManualArticle[]): { section: string; items: ManualArticle[] }[] {
   const map = new Map<string, ManualArticle[]>();
   for (const a of articles) {

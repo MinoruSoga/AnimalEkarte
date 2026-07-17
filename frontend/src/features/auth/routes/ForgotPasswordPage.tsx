@@ -3,7 +3,6 @@ import { Link } from "react-router";
 import Stethoscope from "lucide-react/dist/esm/icons/stethoscope";
 import { C } from "@/lib/design-tokens";
 import { paths } from "@/config/paths";
-import { handleApiError } from "@/lib/handle-api-error";
 import { FormFieldError } from "@/components/shared/FormFieldError";
 import { SubmitButton } from "@/components/shared/Form/SubmitButton";
 import { forgotPassword } from "../api/forgot-password";
@@ -30,12 +29,13 @@ export function ForgotPasswordPage() {
 
       try {
         await forgotPassword({ email });
-        // セキュリティ上、アドレス不存在でも成功として扱う
-        return { status: "sent" };
-      } catch (err) {
-        handleApiError(err, "パスワードリセットメール送信");
-        return { status: "sent" };
+      } catch {
+        // FE6-6: anti-enumeration — 失敗理由（アドレス不存在・ネットワーク断など）に
+        // かかわらず常に成功表示にする。handleApiError の toast はここでは意図的に呼ばない
+        // （呼ぶと catch に入った事実自体が UI に可視化され、列挙防止が部分的に破れるため）。
       }
+      // セキュリティ上、アドレス不存在でも成功として扱う
+      return { status: "sent" };
     },
     INITIAL_STATE,
   );
@@ -93,7 +93,7 @@ export function ForgotPasswordPage() {
             <FormFieldError id="forgot-error" message={errorMessage} />
 
             <SubmitButton
-              className={`w-full h-[52px] text-base font-medium rounded-[3px] ${C.bgBrand} hover:opacity-90 transition-opacity ${C.textWhite}`}
+              className="w-full h-[52px] text-base font-medium"
               loadingText="送信中..."
             >
               リセットリンクを送信

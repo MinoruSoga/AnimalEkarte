@@ -1,6 +1,6 @@
 ---
 description: 実装→規約チェック→承認ループ型ハーネス（最大3イテレーション）
-argument-hint: "BE-XXX | FE-XXX | <タスク説明>"
+argument-hint: "FEAT-XXX | BUG-XXX | <タスク説明>"
 ---
 
 # 実装ハーネス（Implement → Verify → Approve Loop）
@@ -26,8 +26,7 @@ argument-hint: "BE-XXX | FE-XXX | <タスク説明>"
 
 ## $ARGUMENTS の解釈
 
-- `BE-XXX` → バックエンドイシュー実装モード
-- `FE-XXX` → フロントエンドイシュー実装モード
+- `FEAT-XXX` / `BUG-XXX` / `PERF-XXX` / `SEED-XXX` 等のタスクID → repo 直下 `todo.md` の「個別タスク詳細」節の該当タスク（`### <タスクID>` 見出し）を実装モードで対象化
 - テキスト → タスク説明として直接扱う
 - 省略 → `git status` で未コミット変更を対象として検証のみ実行
 
@@ -45,7 +44,7 @@ git diff --name-only HEAD
 3. 関連する規約ファイルを特定：
    - Go変更 → `.claude/refs/gin-architecture-compliance.md`（P1-P18）
    - TS変更 → `.claude/refs/typescript-react.md`
-   - DB変更 → `.claude/refs/database-design.md`
+   - DB変更 → `postgres-patterns` / `migration-seed-safety` スキル
 4. ハーネス状態を初期化：
    ```
    HARNESS START: <タスク説明>

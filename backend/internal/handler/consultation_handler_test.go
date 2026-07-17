@@ -1,9 +1,21 @@
 package handler
 
 import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 
+	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	apperrors "github.com/animal-ekarte/backend/internal/errors"
+	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/service"
 )
 
 // TestConsultationHandlerCompiles verifies consultation_handler.go compiles
@@ -179,3 +191,545 @@ func TestConsultationHandlerCompiles(t *testing.T) {
 //    - Verify clinic_id parameter on all endpoints
 //    - Test permission checks (ResourceMasterMedical)
 //
+
+// ---- mock ConsultationService ----
+
+type mockConsultationService struct {
+	listFn    func(ctx context.Context, clinicID uint64) ([]model.Consultation, error)
+	getByIDFn func(ctx context.Context, clinicID, id uint64) (*model.Consultation, error)
+	createFn  func(ctx context.Context, clinicID uint64, input *service.CreateConsultationInput) (*model.Consultation, error)
+	updateFn  func(ctx context.Context, clinicID, id uint64, input *service.UpdateConsultationInput) (*model.Consultation, error)
+	deleteFn  func(ctx context.Context, clinicID, id uint64) error
+	reorderFn func(ctx context.Context, clinicID uint64, ids []uint64) error
+}
+
+func (m *mockConsultationService) List(ctx context.Context, clinicID uint64) ([]model.Consultation, error) {
+	return m.listFn(ctx, clinicID)
+}
+
+func (m *mockConsultationService) GetByID(ctx context.Context, clinicID, id uint64) (*model.Consultation, error) {
+	return m.getByIDFn(ctx, clinicID, id)
+}
+
+func (m *mockConsultationService) Create(ctx context.Context, clinicID uint64, input *service.CreateConsultationInput) (*model.Consultation, error) {
+	return m.createFn(ctx, clinicID, input)
+}
+
+func (m *mockConsultationService) Update(ctx context.Context, clinicID, id uint64, input *service.UpdateConsultationInput) (*model.Consultation, error) {
+	return m.updateFn(ctx, clinicID, id, input)
+}
+
+func (m *mockConsultationService) Delete(ctx context.Context, clinicID, id uint64) error {
+	return m.deleteFn(ctx, clinicID, id)
+}
+
+func (m *mockConsultationService) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
+	return m.reorderFn(ctx, clinicID, ids)
+}
+
+// ---- test helper ----
+
+func newHandlerWithConsultationSvc(svc service.ConsultationService) *Handler {
+	return &Handler{svc: &service.Services{Consultation: svc}}
+}
+
+// ---- ListConsultations ----
+
+func TestListConsultations(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	tests := []struct {
+		name       string
+		setupCtx   func(c *gin.Context)
+		svc        *mockConsultationService
+		wantStatus int
+		wantBody   string
+	}{
+		{
+			name:     "returns list of consultations",
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockConsultationService{
+				listFn: func(_ context.Context, clinicID uint64) ([]model.Consultation, error) {
+					assert.Equal(t, uint64(1), clinicID)
+					return []model.Consultation{{ID: 1, ClinicID: clinicID, Name: "予防接種相談"}}, nil
+				},
+			},
+			wantStatus: http.StatusOK,
+			wantBody:   `"name":"予防接種相談"`,
+		},
+		{
+			name:     "returns empty list when no consultations exist",
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockConsultationService{
+				listFn: func(_ context.Context, _ uint64) ([]model.Consultation, error) {
+					return []model.Consultation{}, nil
+				},
+			},
+			wantStatus: http.StatusOK,
+			wantBody:   `[]`,
+		},
+		{
+			name:       "returns 401 when clinic_id is missing",
+			setupCtx:   func(_ *gin.Context) {},
+			svc:        &mockConsultationService{},
+			wantStatus: http.StatusUnauthorized,
+		},
+		{
+			name:     "returns 500 on service error",
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockConsultationService{
+				listFn: func(_ context.Context, _ uint64) ([]model.Consultation, error) {
+					return nil, fmt.Errorf("db failure")
+				},
+			},
+			wantStatus: http.StatusInternalServerError,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := newHandlerWithConsultationSvc(tt.svc)
+
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			c.Request = httptest.NewRequest(http.MethodGet, "/", http.NoBody)
+			tt.setupCtx(c)
+
+			h.ListConsultations(c)
+
+			assert.Equal(t, tt.wantStatus, w.Code)
+			if tt.wantBody != "" {
+				assert.Contains(t, w.Body.String(), tt.wantBody)
+			}
+		})
+	}
+}
+
+// ---- GetConsultation ----
+
+func TestGetConsultation(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	tests := []struct {
+		name       string
+		paramID    string
+		setupCtx   func(c *gin.Context)
+		svc        *mockConsultationService
+		wantStatus int
+		wantBody   string
+	}{
+		{
+			name:     "returns consultation for valid id",
+			paramID:  "4",
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockConsultationService{
+				getByIDFn: func(_ context.Context, clinicID, id uint64) (*model.Consultation, error) {
+					assert.Equal(t, uint64(1), clinicID)
+					assert.Equal(t, uint64(4), id)
+					return &model.Consultation{ID: 4, ClinicID: clinicID, Name: "栄養相談"}, nil
+				},
+			},
+			wantStatus: http.StatusOK,
+			wantBody:   `"name":"栄養相談"`,
+		},
+		{
+			name:       "returns 401 when clinic_id is missing",
+			paramID:    "1",
+			setupCtx:   func(_ *gin.Context) {},
+			svc:        &mockConsultationService{},
+			wantStatus: http.StatusUnauthorized,
+		},
+		{
+			name:       "returns 400 for non-numeric id",
+			paramID:    "abc",
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockConsultationService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:     "returns 404 when consultation not found",
+			paramID:  "999",
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockConsultationService{
+				getByIDFn: func(_ context.Context, _, _ uint64) (*model.Consultation, error) {
+					return nil, apperrors.WrapNotFound("consultation", "999")
+				},
+			},
+			wantStatus: http.StatusNotFound,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := newHandlerWithConsultationSvc(tt.svc)
+
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			c.Request = httptest.NewRequest(http.MethodGet, "/", http.NoBody)
+			c.Params = gin.Params{{Key: "id", Value: tt.paramID}}
+			tt.setupCtx(c)
+
+			h.GetConsultation(c)
+
+			assert.Equal(t, tt.wantStatus, w.Code)
+			if tt.wantBody != "" {
+				assert.Contains(t, w.Body.String(), tt.wantBody)
+			}
+		})
+	}
+}
+
+// ---- CreateConsultation ----
+
+func TestCreateConsultation(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	validBody := func() map[string]any {
+		return map[string]any{
+			"name":      "予防接種相談",
+			"is_active": true,
+		}
+	}
+
+	tests := []struct {
+		name       string
+		body       any
+		setupCtx   func(c *gin.Context)
+		svc        *mockConsultationService
+		wantStatus int
+		wantBody   string
+		wantHeader bool
+	}{
+		{
+			name:     "creates consultation successfully",
+			body:     validBody(),
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockConsultationService{
+				createFn: func(_ context.Context, clinicID uint64, input *service.CreateConsultationInput) (*model.Consultation, error) {
+					assert.Equal(t, uint64(1), clinicID)
+					assert.Equal(t, "予防接種相談", input.Name)
+					return &model.Consultation{ID: 8, ClinicID: clinicID, Name: input.Name}, nil
+				},
+			},
+			wantStatus: http.StatusCreated,
+			wantBody:   `"name":"予防接種相談"`,
+			wantHeader: true,
+		},
+		{
+			name:       "returns 401 when clinic_id is missing",
+			body:       validBody(),
+			setupCtx:   func(_ *gin.Context) {},
+			svc:        &mockConsultationService{},
+			wantStatus: http.StatusUnauthorized,
+		},
+		{
+			name:       "returns 400 when name is missing",
+			body:       map[string]any{"is_active": true},
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockConsultationService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:       "returns 400 for invalid JSON",
+			body:       "not-json",
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockConsultationService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:     "returns 500 on service error",
+			body:     validBody(),
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockConsultationService{
+				createFn: func(_ context.Context, _ uint64, _ *service.CreateConsultationInput) (*model.Consultation, error) {
+					return nil, fmt.Errorf("db error")
+				},
+			},
+			wantStatus: http.StatusInternalServerError,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := newHandlerWithConsultationSvc(tt.svc)
+
+			bodyBytes, err := json.Marshal(tt.body)
+			require.NoError(t, err)
+
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			c.Request = httptest.NewRequest(http.MethodPost, "/", bytes.NewReader(bodyBytes))
+			c.Request.Header.Set("Content-Type", "application/json")
+			tt.setupCtx(c)
+
+			h.CreateConsultation(c)
+
+			assert.Equal(t, tt.wantStatus, w.Code)
+			if tt.wantBody != "" {
+				assert.Contains(t, w.Body.String(), tt.wantBody)
+			}
+			if tt.wantHeader {
+				assert.Equal(t, "/v1/masters/consultations/8", w.Header().Get("Location"))
+			}
+		})
+	}
+}
+
+// ---- UpdateConsultation ----
+
+func TestUpdateConsultation(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	tests := []struct {
+		name       string
+		paramID    string
+		body       any
+		setupCtx   func(c *gin.Context)
+		svc        *mockConsultationService
+		wantStatus int
+		wantBody   string
+	}{
+		{
+			name:     "updates consultation successfully",
+			paramID:  "1",
+			body:     map[string]any{"name": "行動相談"},
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockConsultationService{
+				updateFn: func(_ context.Context, clinicID, id uint64, input *service.UpdateConsultationInput) (*model.Consultation, error) {
+					assert.Equal(t, uint64(1), clinicID)
+					assert.Equal(t, uint64(1), id)
+					require.NotNil(t, input.Name)
+					assert.Equal(t, "行動相談", *input.Name)
+					return &model.Consultation{ID: 1, ClinicID: clinicID, Name: *input.Name}, nil
+				},
+			},
+			wantStatus: http.StatusOK,
+			wantBody:   `"name":"行動相談"`,
+		},
+		{
+			name:     "partial update with description",
+			paramID:  "1",
+			body:     map[string]any{"description": "行動に関する相談"},
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockConsultationService{
+				updateFn: func(_ context.Context, _, _ uint64, input *service.UpdateConsultationInput) (*model.Consultation, error) {
+					require.NotNil(t, input.Description)
+					assert.Equal(t, "行動に関する相談", *input.Description)
+					assert.Nil(t, input.Name)
+					return &model.Consultation{ID: 1, Description: *input.Description}, nil
+				},
+			},
+			wantStatus: http.StatusOK,
+		},
+		{
+			name:       "returns 401 when clinic_id is missing",
+			paramID:    "1",
+			body:       map[string]any{"name": "テスト"},
+			setupCtx:   func(_ *gin.Context) {},
+			svc:        &mockConsultationService{},
+			wantStatus: http.StatusUnauthorized,
+		},
+		{
+			name:       "returns 400 for non-numeric id",
+			paramID:    "xyz",
+			body:       map[string]any{"name": "テスト"},
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockConsultationService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:       "returns 400 for invalid JSON",
+			paramID:    "1",
+			body:       "not-json",
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockConsultationService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:     "returns 404 when consultation not found",
+			paramID:  "999",
+			body:     map[string]any{"name": "テスト"},
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockConsultationService{
+				updateFn: func(_ context.Context, _, _ uint64, _ *service.UpdateConsultationInput) (*model.Consultation, error) {
+					return nil, apperrors.WrapNotFound("consultation", "999")
+				},
+			},
+			wantStatus: http.StatusNotFound,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := newHandlerWithConsultationSvc(tt.svc)
+
+			bodyBytes, err := json.Marshal(tt.body)
+			require.NoError(t, err)
+
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			c.Request = httptest.NewRequest(http.MethodPatch, "/", bytes.NewReader(bodyBytes))
+			c.Request.Header.Set("Content-Type", "application/json")
+			c.Params = gin.Params{{Key: "id", Value: tt.paramID}}
+			tt.setupCtx(c)
+
+			h.UpdateConsultation(c)
+
+			assert.Equal(t, tt.wantStatus, w.Code)
+			if tt.wantBody != "" {
+				assert.Contains(t, w.Body.String(), tt.wantBody)
+			}
+		})
+	}
+}
+
+// ---- ReorderConsultations ----
+
+func newReorderConsultationsRouter(svc service.ConsultationService) *gin.Engine {
+	r := gin.New()
+	h := newHandlerWithConsultationSvc(svc)
+	r.POST("/consultations/reorder", func(c *gin.Context) {
+		setClinicID(c)
+	}, h.ReorderConsultations)
+	return r
+}
+
+func TestReorderConsultations(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	t.Run("reorders consultations successfully", func(t *testing.T) {
+		svc := &mockConsultationService{
+			reorderFn: func(_ context.Context, clinicID uint64, ids []uint64) error {
+				assert.Equal(t, uint64(1), clinicID)
+				assert.Equal(t, []uint64{2, 1, 3}, ids)
+				return nil
+			},
+		}
+		router := newReorderConsultationsRouter(svc)
+		bodyBytes, err := json.Marshal(map[string]any{"ids": []int{2, 1, 3}})
+		require.NoError(t, err)
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodPost, "/consultations/reorder", bytes.NewReader(bodyBytes))
+		req.Header.Set("Content-Type", "application/json")
+		router.ServeHTTP(w, req)
+		assert.Equal(t, http.StatusNoContent, w.Code)
+	})
+
+	t.Run("returns 401 when clinic_id is missing", func(t *testing.T) {
+		h := newHandlerWithConsultationSvc(&mockConsultationService{})
+		bodyBytes, err := json.Marshal(map[string]any{"ids": []int{1, 2}})
+		require.NoError(t, err)
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Request = httptest.NewRequest(http.MethodPost, "/", bytes.NewReader(bodyBytes))
+		c.Request.Header.Set("Content-Type", "application/json")
+		h.ReorderConsultations(c)
+		assert.Equal(t, http.StatusUnauthorized, w.Code)
+	})
+
+	t.Run("returns 400 for invalid JSON", func(t *testing.T) {
+		router := newReorderConsultationsRouter(&mockConsultationService{})
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodPost, "/consultations/reorder", bytes.NewBufferString("not-json"))
+		req.Header.Set("Content-Type", "application/json")
+		router.ServeHTTP(w, req)
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+	})
+
+	t.Run("returns 500 on service error", func(t *testing.T) {
+		svc := &mockConsultationService{
+			reorderFn: func(_ context.Context, _ uint64, _ []uint64) error {
+				return fmt.Errorf("db error")
+			},
+		}
+		router := newReorderConsultationsRouter(svc)
+		bodyBytes, err := json.Marshal(map[string]any{"ids": []int{1, 2}})
+		require.NoError(t, err)
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodPost, "/consultations/reorder", bytes.NewReader(bodyBytes))
+		req.Header.Set("Content-Type", "application/json")
+		router.ServeHTTP(w, req)
+		assert.Equal(t, http.StatusInternalServerError, w.Code)
+	})
+}
+
+// ---- DeleteConsultation ----
+
+func newDeleteConsultationRouter(svc service.ConsultationService) *gin.Engine {
+	r := gin.New()
+	h := newHandlerWithConsultationSvc(svc)
+	r.DELETE("/consultations/:id", func(c *gin.Context) {
+		setClinicID(c)
+	}, h.DeleteConsultation)
+	return r
+}
+
+func TestDeleteConsultation(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	tests := []struct {
+		name       string
+		paramID    string
+		svc        *mockConsultationService
+		wantStatus int
+	}{
+		{
+			name:    "deletes consultation successfully",
+			paramID: "1",
+			svc: &mockConsultationService{
+				deleteFn: func(_ context.Context, clinicID, id uint64) error {
+					assert.Equal(t, uint64(1), clinicID)
+					assert.Equal(t, uint64(1), id)
+					return nil
+				},
+			},
+			wantStatus: http.StatusNoContent,
+		},
+		{
+			name:       "returns 400 for non-numeric id",
+			paramID:    "abc",
+			svc:        &mockConsultationService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:    "returns 404 when consultation not found",
+			paramID: "999",
+			svc: &mockConsultationService{
+				deleteFn: func(_ context.Context, _, _ uint64) error {
+					return apperrors.WrapNotFound("consultation", "999")
+				},
+			},
+			wantStatus: http.StatusNotFound,
+		},
+		{
+			name:    "returns 409 when consultation is in use",
+			paramID: "2",
+			svc: &mockConsultationService{
+				deleteFn: func(_ context.Context, _, _ uint64) error {
+					return apperrors.WrapConflict("この診察種別は診療記録で使用中のため削除できません")
+				},
+			},
+			wantStatus: http.StatusConflict,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			router := newDeleteConsultationRouter(tt.svc)
+			w := httptest.NewRecorder()
+			req := httptest.NewRequest(http.MethodDelete, "/consultations/"+tt.paramID, http.NoBody)
+			router.ServeHTTP(w, req)
+			assert.Equal(t, tt.wantStatus, w.Code)
+		})
+	}
+
+	t.Run("returns 401 when clinic_id is missing", func(t *testing.T) {
+		h := newHandlerWithConsultationSvc(&mockConsultationService{})
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Request = httptest.NewRequest(http.MethodDelete, "/", http.NoBody)
+		c.Params = gin.Params{{Key: "id", Value: "1"}}
+		h.DeleteConsultation(c)
+		assert.Equal(t, http.StatusUnauthorized, w.Code)
+	})
+}

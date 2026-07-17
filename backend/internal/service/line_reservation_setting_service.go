@@ -6,6 +6,7 @@ import (
 	"log/slog"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
+	"github.com/animal-ekarte/backend/internal/infra/crypto"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/repository"
 )
@@ -50,10 +51,15 @@ type LineReservationSettingService interface {
 
 type lineReservationSettingService struct {
 	repo repository.LineReservationSettingRepository
+	// cipher は line_channel_secret / line_access_token の暗号化に使う（H-4）。
+	// nil の場合は暗号化なしで動作する（開発環境で INTEGRATION_ENCRYPTION_KEY 未設定時）。
+	cipher *crypto.AESGCMCipher
 }
 
-func NewLineReservationSettingService(repo repository.LineReservationSettingRepository) LineReservationSettingService {
-	return &lineReservationSettingService{repo: repo}
+// NewLineReservationSettingService は LineReservationSettingService を初期化して返す。
+// cipher が nil の場合は暗号化なしで動作する（lstep 連携と同一の cipher を再利用する）。
+func NewLineReservationSettingService(repo repository.LineReservationSettingRepository, cipher *crypto.AESGCMCipher) LineReservationSettingService {
+	return &lineReservationSettingService{repo: repo, cipher: cipher}
 }
 
 func (s *lineReservationSettingService) Get(ctx context.Context, clinicID uint64) (*model.LineReservationSetting, error) {
@@ -78,6 +84,32 @@ func validateJSONFields(fields map[string][]byte) error {
 	return nil
 }
 
+// validateBreakHoursShape は break_hours が []BreakPeriod{start,end} 形式に unmarshal でき、
+// 各エントリの start/end が HHMM 形式であることを確認する（go-reviewer/security-reviewer 指摘）。
+//
+// BE-refactor.md D10/F-2 で parseBusinessHoursForDate の break_hours unmarshal 失敗を
+// fail-closed（予約拒否）に変更したため、構文的には有効だが形状が不正な JSON（例: "{}"）が
+// 保存されると、保存時ではなく以降のあらゆる予約作成試行が拒否され続ける可用性劣化になる。
+// 保存時にこの形状を検証し、破損データが永続化される前に 400 で拒否する。
+func validateBreakHoursShape(data []byte) error {
+	if len(data) == 0 {
+		return nil
+	}
+	var breaks []BreakPeriod
+	if err := json.Unmarshal(data, &breaks); err != nil {
+		return apperrors.WrapInvalidInput(`break_hours は [{"start":"HHMM","end":"HHMM"}] 形式である必要があります`)
+	}
+	for _, b := range breaks {
+		if _, err := minutesSinceMidnight(b.Start); err != nil {
+			return apperrors.WrapInvalidInput("break_hours の start は HHMM 形式である必要があります: " + b.Start)
+		}
+		if _, err := minutesSinceMidnight(b.End); err != nil {
+			return apperrors.WrapInvalidInput("break_hours の end は HHMM 形式である必要があります: " + b.End)
+		}
+	}
+	return nil
+}
+
 func (s *lineReservationSettingService) Save(ctx context.Context, clinicID uint64, input *UpsertLineReservationSettingInput) (*model.LineReservationSetting, bool, error) {
 	if err := validateJSONFields(map[string][]byte{
 		"closed_weekdays":           input.ClosedWeekdays,
@@ -87,6 +119,9 @@ func (s *lineReservationSettingService) Save(ctx context.Context, clinicID uint6
 		"break_hours":               input.BreakHours,
 		"additional_fields":         input.AdditionalFields,
 	}); err != nil {
+		return nil, false, err
+	}
+	if err := validateBreakHoursShape(input.BreakHours); err != nil {
 		return nil, false, err
 	}
 
@@ -99,16 +134,30 @@ func (s *lineReservationSettingService) Save(ctx context.Context, clinicID uint6
 	isNew := existing == nil
 
 	// LineChannelSecret / LineAccessToken はレスポンスに含まれないため、
-	// フロントエンドは既存値を読み取れない。空文字が送られてきた場合は既存値を保持する。
+	// フロントエンドは既存値を読み取れない。空文字が送られてきた場合は既存値（DB 上は暗号文）を
+	// 復号して平文として保持する。decryptLineCredential はレガシー平文行もそのまま返す。
 	channelSecret := input.LineChannelSecret
 	accessToken := input.LineAccessToken
 	if existing != nil {
 		if channelSecret == "" {
-			channelSecret = existing.LineChannelSecret
+			channelSecret = decryptLineCredential(ctx, s.cipher, existing.LineChannelSecret)
 		}
 		if accessToken == "" {
-			accessToken = existing.LineAccessToken
+			accessToken = decryptLineCredential(ctx, s.cipher, existing.LineAccessToken)
 		}
+	}
+
+	// H-4: 保存時は常に暗号化して書き込む。既存のレガシー平文行は、この経路（次回保存）で
+	// 自然に暗号化される（機会的再暗号化）。一括 migration は行わない。
+	encryptedSecret, err := encryptLineCredential(s.cipher, channelSecret)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to encrypt line channel secret", "error", err, "clinic_id", clinicID)
+		return nil, false, apperrors.Wrap(err, "failed to encrypt line channel secret")
+	}
+	encryptedToken, err := encryptLineCredential(s.cipher, accessToken)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to encrypt line access token", "error", err, "clinic_id", clinicID)
+		return nil, false, apperrors.Wrap(err, "failed to encrypt line access token")
 	}
 
 	setting := &model.LineReservationSetting{
@@ -138,9 +187,9 @@ func (s *lineReservationSettingService) Save(ctx context.Context, clinicID uint6
 		ShowNoStaffOption:       input.ShowNoStaffOption,
 		AdditionalFields:        input.AdditionalFields,
 		LineChannelID:           input.LineChannelID,
-		LineChannelSecret:       channelSecret,
+		LineChannelSecret:       encryptedSecret,
 		LiffID:                  input.LiffID,
-		LineAccessToken:         accessToken,
+		LineAccessToken:         encryptedToken,
 	}
 	if err := s.repo.Save(ctx, clinicID, setting); err != nil {
 		slog.ErrorContext(ctx, "failed to upsert reservation setting", "error", err, "clinic_id", clinicID)

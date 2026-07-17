@@ -1,16 +1,16 @@
 import { AlertTriangle, Edit, Trash2 } from "lucide-react";
 import { memo } from "react";
 import { TableCell } from "@/components/ui/table";
-import { DataTable } from "@/components/shared/DataTable/DataTable";
+import { DataTable, DESIGN_TABLE_HEADER_ROW, DESIGN_TABLE_HEADER_CELL } from "@/components/shared/DataTable/DataTable";
 import { DataTableRow } from "@/components/shared/DataTable/DataTableRow";
 import { FilteringIndicator } from "@/components/shared/FilteringIndicator/FilteringIndicator";
-import { NotionFilter } from "@/components/shared/NotionFilter/NotionFilter";
+import { PropertyFilter } from "@/components/shared/PropertyFilter/PropertyFilter";
 import type {
   ActiveFilter,
   ActiveSort,
   FilterProperty,
   SortProperty,
-} from "@/components/shared/NotionFilter/types";
+} from "@/components/shared/PropertyFilter/types";
 import { Pagination } from "@/components/shared/Pagination";
 import { RowActionDropdown } from "@/components/shared/RowActionDropdown";
 import { SortableHeader } from "@/components/shared/SortableHeader/SortableHeader";
@@ -119,6 +119,7 @@ export function TrimmingListTable({
       ),
       className: "w-[80px] hidden lg:table-cell",
     },
+    { header: "犬種", className: "w-[100px] hidden lg:table-cell" },
     { header: "体重", className: "w-[80px] hidden lg:table-cell" },
     { header: "スタイル希望", className: "hidden lg:table-cell" },
     {
@@ -146,13 +147,13 @@ export function TrimmingListTable({
 
   return (
     <>
-      <NotionFilter
+      <PropertyFilter
         properties={filterProperties}
         activeFilters={activeFilters}
         onFilterChange={onFilterChange}
         searchTerm={searchKeyword}
         onSearchChange={onSearchChange}
-        searchPlaceholder="飼主名、ペット名..."
+        searchPlaceholder="飼主名、ペット名、犬種..."
         count={filteredCount}
         sortProperties={TRIMMING_SORT_PROPERTIES}
         activeSorts={activeSorts}
@@ -161,6 +162,8 @@ export function TrimmingListTable({
 
       <FilteringIndicator isFiltering={isFiltering}>
         <DataTable
+          headerRowClassName={DESIGN_TABLE_HEADER_ROW}
+          headerCellClassName={DESIGN_TABLE_HEADER_CELL}
           columns={columns}
           data={records}
           renderRow={(record) => (
@@ -221,6 +224,7 @@ const TrimmingTableRow = memo(function TrimmingTableRow({
         </div>
       </TableCell>
       <TableCell className={`text-base ${C.text} py-2 hidden lg:table-cell`}>{record.species}</TableCell>
+      <TableCell className={`text-base ${C.text} py-2 hidden lg:table-cell`}>{record.breed || "-"}</TableCell>
       <TableCell className={`text-base ${C.text} py-2 hidden lg:table-cell`}>{record.weight}</TableCell>
       <TableCell className={`text-base ${C.text} truncate max-w-[200px] py-2 hidden lg:table-cell`}>
         {record.styleRequest}

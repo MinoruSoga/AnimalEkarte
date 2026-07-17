@@ -1,8 +1,8 @@
-# Frontend — React 19 / TypeScript 5.7
+# Frontend — React 19 / TypeScript 6.0
 
 ## Stack
 
-React 19 / TypeScript 5.7 / Vite 6 / Tailwind CSS 4 / shadcn/ui
+React 19 / TypeScript 6.0 / Vite 8 / Tailwind CSS 4 / shadcn/ui
 
 ## Type Safety (MANDATORY)
 
@@ -87,3 +87,14 @@ docker compose exec frontend pnpm build
 docker compose exec frontend pnpm type-check
 docker compose exec frontend pnpm install
 ```
+
+## Test 配置 (MANDATORY)
+
+- テストはテスト対象ファイルに隣接配置する（`Foo.tsx` → `Foo.test.tsx`、同一ディレクトリ）。
+- `__tests__/` ディレクトリは新設禁止（FE5-23 で全廃済み）。
+
+## Scoped Test Verification (MANDATORY)
+
+- `docker compose exec frontend pnpm test:run -- <path>` は罠 — `--` 以降のパスがスコープ指定として渡らず全件実行になる。スコープ限定したい場合は必ず `docker compose exec frontend npx vitest run <path>` を使うこと（`.claude/skills/scoped-verification-gates/SKILL.md` と整合）。
+- `PageLayout` に `resource` prop を渡す route の render test では `PermissionBadges → usePermission → useAuth` が呼ばれるため、`vi.mock("@/hooks/use-auth", () => ({ useAuth: () => ({ ... hasPermission: () => true }) }))` が必須（`AuthProvider` 無しだと `useAuth must be used within an AuthProvider` で全滅する）。正例: `frontend/src/features/cash-register/routes/CashRegisterHistoryPage.test.tsx`。
+- 新規リーフルートを追加したら `docs/spec/ui-design-compliance.md` §2 のページ表を同じコミットで更新すること（C1/C3/C5 は `pnpm design-audit` で機械検証されるが、C2/C4 の `PageLayout` 使用有無は手動追跡のみのため更新漏れが唯一の防御線）。

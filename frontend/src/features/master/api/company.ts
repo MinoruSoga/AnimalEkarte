@@ -2,15 +2,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import { handleApiError } from "@/lib/handle-api-error";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
+import { queryKeys } from "@/lib/query-keys";
 import type { Company as ModelCompany } from "@/types/generated/models";
-
-// ─────────────────────────────────────────────────
-// Request types (derived from models.ts)
-// ─────────────────────────────────────────────────
-
-export type UpdateCompanyRequest = Partial<
-  Omit<ModelCompany, "id" | "created_at" | "updated_at">
->;
 
 // ─────────────────────────────────────────────────
 // Transform
@@ -35,24 +28,35 @@ function transformCompany(data: ModelCompany) {
   };
 }
 
-export type Company = ReturnType<typeof transformCompany>;
+type Company = ReturnType<typeof transformCompany>;
+
+interface UpdateCompanyRequest {
+  name?: string;
+  postal_code?: string;
+  address?: string;
+  phone_number?: string;
+  fax_number?: string;
+  email?: string;
+  website?: string;
+  director_name?: string;
+  registration_number?: string;
+  invoice_registration_number?: string;
+}
 
 // ─────────────────────────────────────────────────
 // Query keys
 // ─────────────────────────────────────────────────
 
-const COMPANY_QUERY_KEY = ["masters", "company"] as const;
-
 // ─────────────────────────────────────────────────
 // API functions
 // ─────────────────────────────────────────────────
 
-export async function getCompany(): Promise<Company> {
+async function getCompany(): Promise<Company> {
   const { data } = await axios.get<ModelCompany>("/v1/company");
   return transformCompany(data);
 }
 
-export async function updateCompany(req: UpdateCompanyRequest): Promise<Company> {
+async function updateCompany(req: UpdateCompanyRequest): Promise<Company> {
   const { data } = await axios.patch<ModelCompany>("/v1/company", req);
   return transformCompany(data);
 }
@@ -63,7 +67,7 @@ export async function updateCompany(req: UpdateCompanyRequest): Promise<Company>
 
 export function useGetCompany() {
   return useQuery({
-    queryKey: COMPANY_QUERY_KEY,
+    queryKey: queryKeys.masters.category("company"),
     queryFn: getCompany,
     staleTime: QUERY_STALE_TIMES.STATIC,
     gcTime: QUERY_GC_TIMES.LONG,
@@ -75,8 +79,8 @@ export function useUpdateCompany() {
   return useMutation({
     mutationFn: updateCompany,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: COMPANY_QUERY_KEY });
+      queryClient.invalidateQueries({ queryKey: queryKeys.masters.category("company") });
     },
-    onError: (error) => handleApiError(error, "更新"),
+    onError: (error) => handleApiError(error, "法人情報更新"),
   });
 }

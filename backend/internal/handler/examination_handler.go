@@ -159,7 +159,7 @@ func (h *Handler) ReplaceExaminationItems(c *gin.Context) {
 		return
 	}
 
-	saved, err := h.svc.Examination.ReplaceItems(c.Request.Context(), clinicID, id, req.toServiceInput())
+	saved, err := h.svc.Examination.ReplaceItems(c.Request.Context(), clinicID, id, optionalStaffID(c), req.toServiceInput())
 	if err != nil {
 		RespondError(c, err)
 		return

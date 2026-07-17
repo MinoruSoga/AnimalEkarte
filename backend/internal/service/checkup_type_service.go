@@ -68,11 +68,7 @@ func buildCheckupTypeUpdate(input *UpdateCheckupTypeInput) map[string]any {
 	if input.TargetAge != nil {
 		fields[colCheckupTypeTargetAge] = *input.TargetAge
 	}
-	if input.ClearParentID {
-		fields[colCheckupTypeParentID] = nil
-	} else if input.ParentID != nil {
-		fields[colCheckupTypeParentID] = *input.ParentID
-	}
+	setNullableUint64Field(fields, colCheckupTypeParentID, input.ClearParentID, input.ParentID)
 	if input.SortOrder != nil {
 		fields[colCheckupTypeSortOrder] = *input.SortOrder
 	}
@@ -116,6 +112,9 @@ func (s *checkupTypeService) Create(ctx context.Context, clinicID uint64, input 
 	if err := validateRequiredName(input.Name); err != nil {
 		return nil, apperrors.Wrap(err, "failed to validate required name")
 	}
+	if err := s.validateParentOwnership(ctx, clinicID, input.ParentID); err != nil {
+		return nil, err
+	}
 	checkupType := &model.CheckupType{
 		ClinicID:    clinicID,
 		Name:        input.Name,
@@ -143,6 +142,9 @@ func (s *checkupTypeService) Update(ctx context.Context, clinicID, id uint64, in
 	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
 		slog.ErrorContext(ctx, "failed to get checkup type", "error", err, "id", id, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to get checkup type")
+	}
+	if err := s.validateParentOwnership(ctx, clinicID, input.ParentID); err != nil {
+		return nil, err
 	}
 	if err := validateOptionalName(input.Name); err != nil {
 		return nil, apperrors.Wrap(err, "failed to validate optional name")
@@ -199,4 +201,14 @@ func (s *checkupTypeService) Reorder(ctx context.Context, clinicID uint64, ids [
 		slog.Uint64("clinic_id", clinicID),
 		slog.Int("count", len(ids)))
 	return nil
+}
+
+// validateParentOwnership verifies a request-supplied parent_id belongs to the caller's
+// clinic before it is persisted (X-14 self-ref master FK guard).
+func (s *checkupTypeService) validateParentOwnership(ctx context.Context, clinicID uint64, parentID *uint64) error {
+	return validateOwnedMasterFK(ctx, "parent checkup type", clinicID, parentID,
+		func(actx context.Context, cid, mid uint64) error {
+			_, err := s.repo.FindByID(actx, cid, mid)
+			return err
+		})
 }

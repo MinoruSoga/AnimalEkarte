@@ -9,12 +9,13 @@ import {
   subWeeks,
 } from "date-fns";
 import { ja } from "date-fns/locale";
-import { ChevronLeft, ChevronRight, Plus, Repeat, Trash2 } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Plus, Repeat, Trash2 } from "lucide-react";
 import { Select, SelectContent, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { SubmitButton } from "@/components/shared/Form/SubmitButton";
+import { CalendarNavToolbar } from "@/components/shared/CalendarNavToolbar";
 import { C, ICON, STYLE } from "@/lib/design-tokens";
 import { toJSTWallDate } from "@/lib/jst-date";
+import { DISPLAY_DATE_FORMAT } from "@/utils/format/date";
 import { paths } from "@/config/paths";
 import { AvailableSlotTypeSpecific, AvailableSlotTypeWeekly } from "@/types/generated/models";
 import {
@@ -22,7 +23,7 @@ import {
   useCreateAvailableSlot,
   useDeleteAvailableSlot,
 } from "../api/reservation-type-available-slots";
-import { TIME_SELECT_ITEMS } from "./available-slot-options";
+import { TIME_SELECT_ITEMS } from "./AvailableSlotOptions";
 import type { ReservationTypeAvailableSlot } from "../api/reservation-type-available-slots";
 
 const DAYS_OF_WEEK = ["月", "火", "水", "木", "金", "土", "日"] as const;
@@ -33,7 +34,7 @@ const HEADER_ROW = (
       <div
         key={d}
         className={`py-3 text-sm font-bold text-center ${
-          i === 5 ? C.accent : i === 6 ? C.danger : C.text60
+          i === 5 ? C.textBrand : i === 6 ? C.danger : C.text60
         }`}
       >
         {d}
@@ -134,7 +135,7 @@ export function ReservationTypeAvailableSlotsCalendar({
     const weekStart = weekDays[0];
     const weekEnd = weekDays[6];
     if (!weekStart || !weekEnd) return "";
-    return `${format(weekStart, "yyyy年 M月d日", { locale: ja })} - ${format(weekEnd, "M月d日", { locale: ja })}`;
+    return `${format(weekStart, DISPLAY_DATE_FORMAT, { locale: ja })} - ${format(weekEnd, DISPLAY_DATE_FORMAT, { locale: ja })}`;
   }, [weekDays]);
 
   const today = toJSTWallDate(new Date());
@@ -154,20 +155,14 @@ export function ReservationTypeAvailableSlotsCalendar({
     <div className="flex-1 min-h-0 flex flex-col gap-3">
       {/* 予約管理ページと同一構成のナビゲーションバー */}
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex items-center gap-4">
-          <div className={`flex items-center ${C.bgWhite} rounded-md border ${C.borderMedium} p-1 shadow-sm`}>
-            <Button variant="ghost" size="icon" className="h-10 w-10" onClick={handlePrevWeek} aria-label="前の週">
-              <ChevronLeft className={ICON.page} />
-            </Button>
-            <Button variant="ghost" size="sm" className="h-10 px-4 text-base font-medium" onClick={handleToday}>
-              今日
-            </Button>
-            <Button variant="ghost" size="icon" className="h-10 w-10" onClick={handleNextWeek} aria-label="次の週">
-              <ChevronRight className={ICON.page} />
-            </Button>
-          </div>
-          <h2 className={`text-xl font-bold ${C.text}`}>{weekLabel}</h2>
-        </div>
+        <CalendarNavToolbar
+          onPrev={handlePrevWeek}
+          onToday={handleToday}
+          onNext={handleNextWeek}
+          prevAriaLabel="前の週"
+          nextAriaLabel="次の週"
+          label={<h2 className={`text-xl font-bold ${C.text}`}>{weekLabel}</h2>}
+        />
 
         {/* 凡例（予約管理ページの予約区分凡例と同形式） */}
         <div className="flex items-center gap-3 flex-wrap">
@@ -176,7 +171,7 @@ export function ReservationTypeAvailableSlotsCalendar({
             <span className={`text-base ${C.text60}`}>毎週の枠</span>
           </div>
           <div className="flex items-center gap-1.5">
-            <span className={`${ICON.dotMd} rounded-full ${C.bgAccent}`} />
+            <span className={`${ICON.dotMd} rounded-full ${C.bgBrandDot}`} />
             <span className={`text-base ${C.text60}`}>特定日の枠</span>
           </div>
         </div>
@@ -201,16 +196,16 @@ export function ReservationTypeAvailableSlotsCalendar({
                 type="button"
                 key={dateKey}
                 onClick={() => setSelectedDate(dateKey)}
-                aria-label={format(day, "yyyy年M月d日", { locale: ja })}
+                aria-label={format(day, DISPLAY_DATE_FORMAT, { locale: ja })}
                 className={`h-full min-h-[420px] text-left border-b border-r ${C.borderLight} p-3 transition-colors cursor-pointer flex flex-col
-                  ${isSelected ? C.bgAccent8 : `${C.bgWhite} ${C.hoverBgPage}`}
+                  ${isSelected ? C.bgBrand8 : `${C.bgWhite} ${C.hoverBgPage}`}
                 `}
               >
                 <div className="flex justify-between items-start mb-3">
                   <div className="min-w-0">
                     <span
                       className={`text-base font-bold size-8 flex items-center justify-center rounded-full ${
-                        isSameDay(day, today) ? `${C.bgAccent} ${C.textWhite} shadow-sm` : C.text
+                        isSameDay(day, today) ? `${C.bgBrand} ${C.textWhite} shadow-sm` : C.text
                       }`}
                     >
                       {format(day, "d")}
@@ -226,7 +221,7 @@ export function ReservationTypeAvailableSlotsCalendar({
                       className={`text-sm px-2 py-1.5 rounded border leading-tight flex items-center gap-1 tabular-nums ${
                         weekly
                           ? `${C.bgPage} ${C.text50} ${C.borderLight}`
-                          : `${C.bgAccentLight} ${C.textAccentDark} ${C.borderLight}`
+                          : `${C.bgBrandLight} ${C.textBrandDark} ${C.borderLight}`
                       }`}
                     >
                       {weekly ? <Repeat className="size-3 shrink-0" /> : null}
@@ -269,7 +264,7 @@ export function ReservationTypeAvailableSlotsCalendar({
                       `${paths.settings.reservationType.getHref()}?typeId=${reservationTypeId}`,
                     )
                   }
-                  className={`text-xs ${C.text40} ${C.hoverTextAccent} transition-colors`}
+                  className={`text-xs ${C.text40} ${C.hoverTextBrand} transition-colors`}
                 >
                   毎週枠は予約区分マスタで編集 →
                 </button>
@@ -282,7 +277,7 @@ export function ReservationTypeAvailableSlotsCalendar({
                 {selectedSpecificSlots.map((slot) => (
                   <span
                     key={slot.id}
-                    className={`flex items-center gap-1 text-sm px-2 py-1 rounded border ${C.borderLight} ${C.bgAccentLight} ${C.textAccentDark} tabular-nums`}
+                    className={`flex items-center gap-1 text-sm px-2 py-1 rounded border ${C.borderLight} ${C.bgBrandLight} ${C.textBrandDark} tabular-nums`}
                   >
                     {slot.startTime}
                     <button
@@ -311,6 +306,7 @@ export function ReservationTypeAvailableSlotsCalendar({
                 <p className={`text-xs ${C.text40}`}>この時刻は既に登録済みです</p>
               ) : null}
               <SubmitButton
+                colorVariant="brand"
                 disabled={isDuplicate}
                 loadingText="追加中..."
                 className="h-8 text-sm px-3"

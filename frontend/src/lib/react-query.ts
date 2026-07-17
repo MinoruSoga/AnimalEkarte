@@ -1,4 +1,15 @@
-import { QueryClient, type DefaultOptions } from "@tanstack/react-query";
+import { QueryClient, QueryCache, type DefaultOptions } from "@tanstack/react-query";
+import { handleApiError } from "@/lib/handle-api-error";
+
+// FE5-16: 個別 UI で処理済みを明示した query は silentError でスキップできる
+declare module "@tanstack/react-query" {
+  interface Register {
+    queryMeta: {
+      silentError?: boolean;
+      errorContext?: string;
+    };
+  }
+}
 
 const queryConfig: DefaultOptions = {
   queries: {
@@ -12,10 +23,22 @@ const queryConfig: DefaultOptions = {
 
 export const queryClient = new QueryClient({
   defaultOptions: queryConfig,
+  queryCache: new QueryCache({
+    onError: (error, query) => {
+      if (query.meta?.silentError) return;
+      handleApiError(error, query.meta?.errorContext ?? "データ取得");
+    },
+  }),
 });
 
 // リソース別キャッシング戦略
 export const QUERY_STALE_TIMES = {
+  // 極短期: 会計の一時集計・提案系（FE3-7 新設。値は既存直値のまま）
+  SHORT: 30_000,           // 30秒
+
+  // 短期: lstep配信トリガー系（FE3-7 新設。値は既存直値のまま）
+  MINUTE: 60 * 1000,       // 1分
+
   // 低頻度変更: 飼主・ペット・マスタ等
   STATIC: 30 * 60 * 1000,  // 30分
 

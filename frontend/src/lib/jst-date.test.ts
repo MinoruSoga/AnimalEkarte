@@ -1,10 +1,11 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   buildJSTWallDateTime,
+  currentJSTYearMonth,
+  daysSince,
   formatJSTDate,
   formatJSTDateTimeLocal,
-  formatJSTOffsetDateTime,
   formatJSTTime,
   jstDateStartISOString,
   jstDateTimeLocalToISOString,
@@ -43,15 +44,38 @@ describe("jst-date", () => {
     expect(jstDateTimeLocalToISOString("2026-06-01T09:45")).toBe("2026-06-01T09:45:00+09:00");
   });
 
-  it("instant を JST オフセット付き ISO 文字列にする", () => {
-    expect(formatJSTOffsetDateTime("2026-06-01T00:45:00.123Z")).toBe("2026-06-01T09:45:00.123+09:00");
-  });
-
   it("instant を datetime-local 用の JST 壁時計文字列にする", () => {
     expect(formatJSTDateTimeLocal("2026-06-01T00:45:00Z")).toBe("2026-06-01T09:45");
   });
 
   it("現在時刻も JST オフセット付き ISO 文字列を返す", () => {
     expect(jstNowISOString()).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}\+09:00$/);
+  });
+
+  describe("JST 日付跨ぎ境界", () => {
+    beforeEach(() => {
+      vi.useFakeTimers();
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it("daysSinceは日付跨ぎをJST基準で数える", () => {
+      // JST では 2026-03-31 と 2026-04-01 は 1 日差（月跨ぎ）
+      expect(daysSince("2026-03-31", "2026-04-01")).toBe(1);
+      // refDate がより過去の場合は負値を 0 にクランプする
+      expect(daysSince("2026-04-01", "2026-03-31")).toBe(0);
+    });
+
+    it("currentJSTYearMonthはJSTの年月を返す", () => {
+      // UTC 15:00 未満はまだ JST 当日（5/31）
+      vi.setSystemTime(new Date("2026-05-31T14:59:00Z"));
+      expect(currentJSTYearMonth()).toBe("2026-05");
+
+      // UTC 15:00 到達で JST は日付・月跨ぎ（6/1 00:00 JST）
+      vi.setSystemTime(new Date("2026-05-31T15:00:00Z"));
+      expect(currentJSTYearMonth()).toBe("2026-06");
+    });
   });
 });

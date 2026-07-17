@@ -9,21 +9,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { C, ICON } from "@/lib/design-tokens";
+import { PAYMENT_METHOD_LABELS } from "@/constants/payment-method";
 import { formatJSTDate } from "@/lib/jst-date";
-import type { PaymentMethod } from "@/types/generated/models";
+import { formatCurrency } from "@/utils/format/number";
 
 import { useGetRefunds } from "../api/get-refunds";
-import type { PaymentSplitInfo } from "../types";
+import type { PaymentMethod, PaymentSplitInfo } from "../types";
 
 const NO_PAYMENT_METHOD = "none";
-
-// 会計 payment_splits.method (ENUM) と同体系の支払方法ラベル。
-const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
-  cash: "現金",
-  credit_card: "カード",
-  electronic_money: "電子マネー",
-  bank_transfer: "銀行振込",
-};
 
 interface RefundSectionProps {
   accountingId: string;
@@ -192,10 +185,10 @@ export const RefundSection = memo(function RefundSection({
                     {r.refundedByName || "-"}
                   </td>
                   <td className={`px-3 py-2 text-right font-medium ${C.textDiscount}`}>
-                    ¥{r.amount.toLocaleString()}
+                    {formatCurrency(r.amount)}
                   </td>
                   <td className={`px-3 py-2 text-xs ${C.text50}`}>
-                    {r.paymentMethod ? (PAYMENT_METHOD_LABELS[r.paymentMethod] ?? r.paymentMethod) : "-"}
+                    {r.paymentMethod ? (PAYMENT_METHOD_LABELS[r.paymentMethod as PaymentMethod] ?? r.paymentMethod) : "-"}
                   </td>
                   <td className={`px-3 py-2 ${C.text50} truncate max-w-[120px]`}>
                     {r.reason || "-"}

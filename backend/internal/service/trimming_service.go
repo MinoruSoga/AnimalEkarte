@@ -56,6 +56,31 @@ type UpdateTrimmingInput struct {
 	OptionIDs       *[]uint64
 }
 
+func buildTrimmingAppointmentUpdateFields(
+	input *CreateTrimmingInput,
+	locked *model.Reservation,
+	status model.ReservationStatus,
+	resolvedStart, resolvedEnd time.Time,
+) map[string]any {
+	apptFields := map[string]any{}
+	if input.PetID != nil && locked.PetID == nil {
+		apptFields["pet_id"] = *input.PetID
+	}
+	if input.StaffID != nil {
+		apptFields["doctor_id"] = *input.StaffID
+	}
+	if !resolvedStart.Equal(locked.StartTime) {
+		apptFields["start_time"] = resolvedStart
+	}
+	if !resolvedEnd.Equal(locked.EndTime) {
+		apptFields["end_time"] = resolvedEnd
+	}
+	if input.Status != "" && status != locked.Status {
+		apptFields["status"] = status
+	}
+	return apptFields
+}
+
 // TrimmingService はトリミング管理のビジネスロジックインターフェース（BE-119）
 type TrimmingService interface {
 	List(ctx context.Context, clinicID uint64, petID, ownerID *uint64, startDate, endDate *string, page, limit int) ([]model.Reservation, int64, error)
@@ -66,13 +91,15 @@ type TrimmingService interface {
 }
 
 type trimmingService struct {
-	reservation      repository.ReservationRepository
-	reservationType  repository.ReservationTypeRepository
-	reservationStaff repository.ReservationStaffRepository
-	unavailableTime  repository.ReservationTypeUnavailableTimeRepository
-	availableSlot    repository.ReservationTypeAvailableSlotRepository
-	trimmingDetail   repository.AppointmentTrimmingDetailRepository
-	transactor       repository.Transactor
+	reservation        repository.ReservationRepository
+	reservationType    repository.ReservationTypeRepository
+	reservationStaff   repository.ReservationStaffRepository
+	unavailableTime    repository.ReservationTypeUnavailableTimeRepository
+	availableSlot      repository.ReservationTypeAvailableSlotRepository
+	trimmingDetail     repository.AppointmentTrimmingDetailRepository
+	trimmingCourseRepo repository.TrimmingCourseRepository
+	trimmingOptionRepo repository.TrimmingOptionRepository
+	transactor         repository.Transactor
 }
 
 func NewTrimmingService(
@@ -82,16 +109,20 @@ func NewTrimmingService(
 	unavailableTime repository.ReservationTypeUnavailableTimeRepository,
 	availableSlot repository.ReservationTypeAvailableSlotRepository,
 	trimmingDetail repository.AppointmentTrimmingDetailRepository,
+	trimmingCourseRepo repository.TrimmingCourseRepository,
+	trimmingOptionRepo repository.TrimmingOptionRepository,
 	transactor repository.Transactor,
 ) TrimmingService {
 	return &trimmingService{
-		reservation:      reservation,
-		reservationType:  reservationType,
-		reservationStaff: reservationStaff,
-		unavailableTime:  unavailableTime,
-		availableSlot:    availableSlot,
-		trimmingDetail:   trimmingDetail,
-		transactor:       transactor,
+		reservation:        reservation,
+		reservationType:    reservationType,
+		reservationStaff:   reservationStaff,
+		unavailableTime:    unavailableTime,
+		availableSlot:      availableSlot,
+		trimmingDetail:     trimmingDetail,
+		trimmingCourseRepo: trimmingCourseRepo,
+		trimmingOptionRepo: trimmingOptionRepo,
+		transactor:         transactor,
 	}
 }
 
@@ -157,11 +188,17 @@ func (s *trimmingService) Create(ctx context.Context, clinicID uint64, input *Cr
 	} else if err := validateTimeRange(input.StartTime, input.EndTime); err != nil {
 		return nil, err
 	}
+	if err := s.validateTrimmingCourseAndOptions(ctx, clinicID, input.CourseID, input.OptionIDs, nil, nil); err != nil {
+		return nil, err
+	}
 
 	var apptID uint64
 	// appointment → trimming_detail → options の3書き込みを単一トランザクションで実行する。
 	// 中間でエラーが発生した場合はロールバックされ、孤立レコードは残らない。
 	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
+		if err := validateReservationOwnerPetLinks(txCtx, s.reservation, clinicID, nil, input.PetID); err != nil {
+			return err
+		}
 		appt := &model.Reservation{
 			ClinicID:          clinicID,
 			ReservationTypeID: input.ReservationTypeID,
@@ -195,7 +232,7 @@ func (s *trimmingService) Create(ctx context.Context, clinicID uint64, input *Cr
 			return apperrors.Wrap(err, "failed to create trimming detail")
 		}
 		if len(input.OptionIDs) > 0 {
-			if err := s.trimmingDetail.SetOptions(txCtx, appt.ID, input.OptionIDs); err != nil {
+			if err := s.trimmingDetail.SetOptions(txCtx, clinicID, appt.ID, input.OptionIDs); err != nil {
 				return apperrors.Wrap(err, "failed to set trimming options")
 			}
 		}
@@ -229,6 +266,55 @@ func (s *trimmingService) validateTrimmingReservationType(ctx context.Context, c
 	return nil
 }
 
+// validateTrimmingCourseAndOptions は appointment_trimming_detail の CourseID / OptionIDs が
+// caller の clinic に属し、かつ is_active であることを永続化前に検証する（X-14c: 2 repo ガード
+// + #228: 無効化されたコース/オプションを新規に紐付けさせない）。repo が nil（未 DI のテスト
+// ダブル等）の場合はそのフィールドのガードをスキップする（reservation_staff_capability_validator.go
+// と同型の nil-safe パターン）。
+// existingCourseID/existingOptionIDs はカルテに既に紐づいている ID（Create 系呼び出しでは常に
+// nil/空 — 新規紐付けはすべて active 必須）。既にリンク済みの ID は is_active チェックを免除し
+// （データを消さない）、新規に追加される ID のみ active を要求する。
+func (s *trimmingService) validateTrimmingCourseAndOptions(
+	ctx context.Context, clinicID uint64, courseID *uint64, optionIDs []uint64,
+	existingCourseID *uint64, existingOptionIDs []uint64,
+) error {
+	if s.trimmingCourseRepo != nil {
+		if err := validateOwnedMasterFK(ctx, "trimming course", clinicID, courseID,
+			func(actx context.Context, cid, mid uint64) error {
+				course, err := s.trimmingCourseRepo.FindByID(actx, cid, mid)
+				if err != nil {
+					return err
+				}
+				if !course.IsActive && (existingCourseID == nil || *existingCourseID != mid) {
+					return apperrors.WrapInvalidInput("course_id references an inactive trimming course")
+				}
+				return nil
+			}); err != nil {
+			return err
+		}
+	}
+	if s.trimmingOptionRepo != nil {
+		existingOptions := make(map[uint64]bool, len(existingOptionIDs))
+		for _, existingID := range existingOptionIDs {
+			existingOptions[existingID] = true
+		}
+		if err := validateOwnedMasterFKs(ctx, "trimming option", clinicID, optionIDs,
+			func(actx context.Context, cid, mid uint64) error {
+				option, err := s.trimmingOptionRepo.FindByID(actx, cid, mid)
+				if err != nil {
+					return err
+				}
+				if !option.IsActive && !existingOptions[mid] {
+					return apperrors.WrapInvalidInput("option_ids references an inactive trimming option")
+				}
+				return nil
+			}); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func (s *trimmingService) createDetailForExistingAppointment(
 	ctx context.Context,
 	clinicID uint64,
@@ -245,58 +331,58 @@ func (s *trimmingService) createDetailForExistingAppointment(
 	if appt.ReservationType == nil || appt.ReservationType.Category != model.ReservationTypeCategoryTrimming {
 		return nil, apperrors.WrapInvalidInput("appointment is not a trimming reservation")
 	}
-	if existing, err := s.trimmingDetail.FindByAppointmentID(ctx, clinicID, appointmentID); err == nil && existing != nil {
-		return s.GetByID(ctx, clinicID, appointmentID)
-	} else if !apperrors.IsNotFound(err) {
-		slog.ErrorContext(ctx, "failed to check existing trimming detail", "error", err, "appointment_id", appointmentID, "clinic_id", clinicID)
-		return nil, apperrors.Wrap(err, "failed to check existing trimming detail")
-	}
-
-	if input.StaffID != nil {
-		if err := validateReservationStaffCapability(ctx, s.reservationStaff, clinicID, input.StaffID, appt.ReservationTypeID); err != nil {
-			return nil, err
+	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
+		if err := s.reservation.AcquireBookingLock(txCtx, clinicID); err != nil {
+			return apperrors.Wrap(err, "failed to acquire trimming booking lock")
 		}
-	}
-	if !input.StartTime.IsZero() || !input.EndTime.IsZero() {
+		locked, err := s.reservation.LockAndFindByID(txCtx, clinicID, appointmentID)
+		if err != nil {
+			return apperrors.Wrap(err, "failed to lock existing trimming appointment")
+		}
+		if locked.ReservationTypeID != 0 {
+			if err := s.validateTrimmingReservationType(txCtx, clinicID, locked.ReservationTypeID); err != nil {
+				return err
+			}
+		}
+		if existing, err := s.trimmingDetail.FindByAppointmentID(txCtx, clinicID, appointmentID); err == nil && existing != nil {
+			return nil
+		} else if !apperrors.IsNotFound(err) {
+			return apperrors.Wrap(err, "failed to check existing trimming detail")
+		}
+		if err := s.validateTrimmingCourseAndOptions(txCtx, clinicID, input.CourseID, input.OptionIDs, nil, nil); err != nil {
+			return err
+		}
+		if input.StaffID != nil {
+			if err := validateReservationStaffCapability(txCtx, s.reservationStaff, clinicID, input.StaffID, locked.ReservationTypeID); err != nil {
+				return err
+			}
+		}
+
+		finalPetID := locked.PetID
+		if input.PetID != nil {
+			finalPetID = input.PetID
+		}
+		if err := validateReservationOwnerPetLinks(txCtx, s.reservation, clinicID, locked.OwnerID, finalPetID); err != nil {
+			return err
+		}
+
+		if input.PetID != nil && locked.PetID != nil && *locked.PetID != *input.PetID {
+			return apperrors.WrapInvalidInput("pet_id does not match appointment")
+		}
 		resolvedStart := input.StartTime
 		if resolvedStart.IsZero() {
-			resolvedStart = appt.StartTime
+			resolvedStart = locked.StartTime
 		}
 		resolvedEnd := input.EndTime
 		if resolvedEnd.IsZero() {
-			resolvedEnd = appt.EndTime
+			resolvedEnd = locked.EndTime
 		}
-		if err := validateReservationTypeAvailableTime(ctx, s.unavailableTime, clinicID, appt.ReservationTypeID, resolvedStart, resolvedEnd); err != nil {
-			return nil, err
+		if !input.StartTime.IsZero() || !input.EndTime.IsZero() {
+			if err := validateReservationTypeAvailableTime(txCtx, s.unavailableTime, clinicID, locked.ReservationTypeID, resolvedStart, resolvedEnd); err != nil {
+				return err
+			}
 		}
-	}
-
-	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
-		apptFields := map[string]any{}
-		if input.PetID != nil && appt.PetID != nil && *appt.PetID != *input.PetID {
-			return apperrors.WrapInvalidInput("pet_id does not match appointment")
-		}
-		if input.PetID != nil && appt.PetID == nil {
-			apptFields["pet_id"] = *input.PetID
-		}
-		if input.StaffID != nil {
-			apptFields["doctor_id"] = *input.StaffID
-		}
-		if input.StartTime.IsZero() {
-			input.StartTime = appt.StartTime
-		}
-		if input.EndTime.IsZero() {
-			input.EndTime = appt.EndTime
-		}
-		if !input.StartTime.Equal(appt.StartTime) {
-			apptFields["start_time"] = input.StartTime
-		}
-		if !input.EndTime.Equal(appt.EndTime) {
-			apptFields["end_time"] = input.EndTime
-		}
-		if input.Status != "" && status != appt.Status {
-			apptFields["status"] = status
-		}
+		apptFields := buildTrimmingAppointmentUpdateFields(input, locked, status, resolvedStart, resolvedEnd)
 		if len(apptFields) > 0 {
 			if _, err := s.reservation.Update(txCtx, clinicID, appointmentID, apptFields); err != nil {
 				return apperrors.Wrap(err, "failed to update existing trimming appointment")
@@ -322,7 +408,7 @@ func (s *trimmingService) createDetailForExistingAppointment(
 			return apperrors.Wrap(err, "failed to create trimming detail")
 		}
 		if len(input.OptionIDs) > 0 {
-			if err := s.trimmingDetail.SetOptions(txCtx, appointmentID, input.OptionIDs); err != nil {
+			if err := s.trimmingDetail.SetOptions(txCtx, clinicID, appointmentID, input.OptionIDs); err != nil {
 				return apperrors.Wrap(err, "failed to set trimming options")
 			}
 		}
@@ -358,10 +444,29 @@ func (s *trimmingService) Update(ctx context.Context, clinicID, id uint64, input
 		apptFields["status"] = *input.Status
 	}
 
+	var optionIDs []uint64
+	if input.OptionIDs != nil {
+		optionIDs = *input.OptionIDs
+	}
+
 	// appointment → trimming_detail → options の更新を単一トランザクションで実行する。
 	// appointments が更新済みで trimming_detail が失敗すると不整合が生じるため、
 	// Create と対称なアトミック性を保証する。
+	// #228: course_id/option_ids の is_active 検証は、既存紐付け ID（is_active チェック免除対象）
+	// を判定するため、tx 内で trimming_detail を取得した直後・フィールド上書き前に行う。
 	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
+		if input.PetID != nil {
+			if err := s.reservation.AcquireBookingLock(txCtx, clinicID); err != nil {
+				return apperrors.Wrap(err, "failed to acquire trimming booking lock")
+			}
+			locked, err := s.reservation.LockAndFindByID(txCtx, clinicID, id)
+			if err != nil {
+				return apperrors.Wrap(err, "failed to lock trimming appointment")
+			}
+			if err := validateReservationOwnerPetLinks(txCtx, s.reservation, clinicID, locked.OwnerID, input.PetID); err != nil {
+				return err
+			}
+		}
 		if len(apptFields) > 0 {
 			if _, err := s.reservation.Update(txCtx, clinicID, id, apptFields); err != nil {
 				return apperrors.Wrap(err, "failed to update trimming appointment")
@@ -373,6 +478,15 @@ func (s *trimmingService) Update(ctx context.Context, clinicID, id uint64, input
 		if err != nil {
 			return apperrors.Wrap(err, "failed to get trimming detail for update")
 		}
+
+		existingOptionIDs := make([]uint64, len(detail.Options))
+		for i := range detail.Options {
+			existingOptionIDs[i] = detail.Options[i].ID
+		}
+		if err := s.validateTrimmingCourseAndOptions(txCtx, clinicID, input.CourseID, optionIDs, detail.CourseID, existingOptionIDs); err != nil {
+			return err
+		}
+
 		if input.CourseID != nil {
 			detail.CourseID = input.CourseID
 		}
@@ -407,7 +521,7 @@ func (s *trimmingService) Update(ctx context.Context, clinicID, id uint64, input
 			return apperrors.Wrap(err, "failed to update trimming detail")
 		}
 		if input.OptionIDs != nil {
-			if err := s.trimmingDetail.SetOptions(txCtx, id, *input.OptionIDs); err != nil {
+			if err := s.trimmingDetail.SetOptions(txCtx, clinicID, id, *input.OptionIDs); err != nil {
 				return apperrors.Wrap(err, "failed to set trimming options")
 			}
 		}

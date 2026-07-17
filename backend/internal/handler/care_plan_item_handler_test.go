@@ -1,14 +1,454 @@
 package handler
 
 import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 
+	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	apperrors "github.com/animal-ekarte/backend/internal/errors"
+	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/service"
 )
 
 // TestCarePlanItemHandlerCompiles verifies care_plan_item_handler.go compiles
 func TestCarePlanItemHandlerCompiles(t *testing.T) {
 	assert.True(t, true, "care_plan_item_handler.go compiled successfully")
+}
+
+// ---- mock CarePlanItemService ----
+
+type mockCarePlanItemService struct {
+	listFn   func(ctx context.Context, clinicID, hospitalizationID uint64) ([]model.CarePlanItem, error)
+	createFn func(ctx context.Context, clinicID, hospitalizationID uint64, input *service.CreateCarePlanItemInput) (*model.CarePlanItem, error)
+	updateFn func(ctx context.Context, clinicID, hospitalizationID, itemID uint64, input *service.UpdateCarePlanItemInput) (*model.CarePlanItem, error)
+	deleteFn func(ctx context.Context, clinicID, hospitalizationID, itemID uint64) error
+}
+
+func (m *mockCarePlanItemService) List(ctx context.Context, clinicID, hospitalizationID uint64) ([]model.CarePlanItem, error) {
+	return m.listFn(ctx, clinicID, hospitalizationID)
+}
+
+func (m *mockCarePlanItemService) Create(ctx context.Context, clinicID, hospitalizationID uint64, input *service.CreateCarePlanItemInput) (*model.CarePlanItem, error) {
+	return m.createFn(ctx, clinicID, hospitalizationID, input)
+}
+
+func (m *mockCarePlanItemService) Update(ctx context.Context, clinicID, hospitalizationID, itemID uint64, input *service.UpdateCarePlanItemInput) (*model.CarePlanItem, error) {
+	return m.updateFn(ctx, clinicID, hospitalizationID, itemID, input)
+}
+
+func (m *mockCarePlanItemService) Delete(ctx context.Context, clinicID, hospitalizationID, itemID uint64) error {
+	return m.deleteFn(ctx, clinicID, hospitalizationID, itemID)
+}
+
+func newHandlerWithCarePlanItemSvc(svc service.CarePlanItemService) *Handler {
+	return &Handler{svc: &service.Services{CarePlanItem: svc}}
+}
+
+// ---- ListCarePlanItems ----
+
+func TestListCarePlanItems(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	tests := []struct {
+		name       string
+		paramID    string
+		setupCtx   func(c *gin.Context)
+		svc        *mockCarePlanItemService
+		wantStatus int
+		wantBody   string
+	}{
+		{
+			name:     "returns list of care plan items",
+			paramID:  "1",
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockCarePlanItemService{
+				listFn: func(_ context.Context, clinicID, hospitalizationID uint64) ([]model.CarePlanItem, error) {
+					assert.Equal(t, uint64(1), clinicID)
+					assert.Equal(t, uint64(1), hospitalizationID)
+					return []model.CarePlanItem{{ID: 1, HospitalizationID: 1, Type: "medicine", Name: "抗生剤"}}, nil
+				},
+			},
+			wantStatus: http.StatusOK,
+			wantBody:   `"name":"抗生剤"`,
+		},
+		{
+			name:       "returns 401 when clinic_id is missing",
+			paramID:    "1",
+			setupCtx:   func(_ *gin.Context) {},
+			svc:        &mockCarePlanItemService{},
+			wantStatus: http.StatusUnauthorized,
+		},
+		{
+			name:       "returns 400 on invalid hospitalization id",
+			paramID:    "abc",
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockCarePlanItemService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:     "returns 500 on service error",
+			paramID:  "1",
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockCarePlanItemService{
+				listFn: func(_ context.Context, _, _ uint64) ([]model.CarePlanItem, error) {
+					return nil, fmt.Errorf("db failure")
+				},
+			},
+			wantStatus: http.StatusInternalServerError,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := newHandlerWithCarePlanItemSvc(tt.svc)
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			c.Request = httptest.NewRequest(http.MethodGet, "/", http.NoBody)
+			c.Params = gin.Params{{Key: "id", Value: tt.paramID}}
+			tt.setupCtx(c)
+
+			h.ListCarePlanItems(c)
+
+			assert.Equal(t, tt.wantStatus, w.Code)
+			if tt.wantBody != "" {
+				assert.Contains(t, w.Body.String(), tt.wantBody)
+			}
+		})
+	}
+}
+
+// ---- CreateCarePlanItem ----
+
+func TestCreateCarePlanItem(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	tests := []struct {
+		name       string
+		paramID    string
+		body       any
+		bodyRaw    string
+		setupCtx   func(c *gin.Context)
+		svc        *mockCarePlanItemService
+		wantStatus int
+		wantBody   string
+		wantLoc    string
+	}{
+		{
+			name:    "creates care plan item successfully",
+			paramID: "1",
+			body: map[string]any{
+				"type": "medicine",
+				"name": "抗生剤",
+			},
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockCarePlanItemService{
+				createFn: func(_ context.Context, clinicID, hospitalizationID uint64, input *service.CreateCarePlanItemInput) (*model.CarePlanItem, error) {
+					assert.Equal(t, uint64(1), clinicID)
+					assert.Equal(t, uint64(1), hospitalizationID)
+					assert.Equal(t, "medicine", input.Type)
+					return &model.CarePlanItem{ID: 42, HospitalizationID: hospitalizationID, Type: model.CarePlanType(input.Type), Name: input.Name}, nil
+				},
+			},
+			wantStatus: http.StatusCreated,
+			wantBody:   `"name":"抗生剤"`,
+			wantLoc:    "42",
+		},
+		{
+			name:       "returns 401 when clinic_id is missing",
+			paramID:    "1",
+			body:       map[string]any{"type": "medicine", "name": "抗生剤"},
+			setupCtx:   func(_ *gin.Context) {},
+			svc:        &mockCarePlanItemService{},
+			wantStatus: http.StatusUnauthorized,
+		},
+		{
+			name:       "returns 400 on invalid hospitalization id",
+			paramID:    "abc",
+			body:       map[string]any{"type": "medicine", "name": "抗生剤"},
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockCarePlanItemService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:       "returns 400 when required field missing",
+			paramID:    "1",
+			body:       map[string]any{"type": "medicine"},
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockCarePlanItemService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:       "returns 400 on malformed JSON body",
+			paramID:    "1",
+			bodyRaw:    `{"type":`,
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockCarePlanItemService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:     "returns 500 on service error",
+			paramID:  "1",
+			body:     map[string]any{"type": "medicine", "name": "抗生剤"},
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockCarePlanItemService{
+				createFn: func(_ context.Context, _, _ uint64, _ *service.CreateCarePlanItemInput) (*model.CarePlanItem, error) {
+					return nil, fmt.Errorf("db failure")
+				},
+			},
+			wantStatus: http.StatusInternalServerError,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := newHandlerWithCarePlanItemSvc(tt.svc)
+
+			var bodyBytes []byte
+			if tt.bodyRaw != "" {
+				bodyBytes = []byte(tt.bodyRaw)
+			} else {
+				var err error
+				bodyBytes, err = json.Marshal(tt.body)
+				require.NoError(t, err)
+			}
+
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			c.Request = httptest.NewRequest(http.MethodPost, "/", bytes.NewReader(bodyBytes))
+			c.Request.Header.Set("Content-Type", "application/json")
+			c.Params = gin.Params{{Key: "id", Value: tt.paramID}}
+			tt.setupCtx(c)
+
+			h.CreateCarePlanItem(c)
+
+			assert.Equal(t, tt.wantStatus, w.Code)
+			if tt.wantBody != "" {
+				assert.Contains(t, w.Body.String(), tt.wantBody)
+			}
+			if tt.wantLoc != "" {
+				assert.Contains(t, w.Header().Get("Location"), tt.wantLoc)
+			}
+		})
+	}
+}
+
+// ---- UpdateCarePlanItem ----
+
+func TestUpdateCarePlanItem(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	tests := []struct {
+		name       string
+		paramID    string
+		itemID     string
+		body       any
+		bodyRaw    string
+		setupCtx   func(c *gin.Context)
+		svc        *mockCarePlanItemService
+		wantStatus int
+		wantBody   string
+	}{
+		{
+			name:     "updates care plan item successfully",
+			paramID:  "1",
+			itemID:   "2",
+			body:     map[string]any{"name": "更新済み"},
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockCarePlanItemService{
+				updateFn: func(_ context.Context, clinicID, hospitalizationID, itemID uint64, input *service.UpdateCarePlanItemInput) (*model.CarePlanItem, error) {
+					assert.Equal(t, uint64(1), clinicID)
+					assert.Equal(t, uint64(1), hospitalizationID)
+					assert.Equal(t, uint64(2), itemID)
+					require.NotNil(t, input.Name)
+					return &model.CarePlanItem{ID: itemID, HospitalizationID: hospitalizationID, Name: *input.Name}, nil
+				},
+			},
+			wantStatus: http.StatusOK,
+			wantBody:   `"name":"更新済み"`,
+		},
+		{
+			name:       "returns 401 when clinic_id is missing",
+			paramID:    "1",
+			itemID:     "2",
+			body:       map[string]any{"name": "更新済み"},
+			setupCtx:   func(_ *gin.Context) {},
+			svc:        &mockCarePlanItemService{},
+			wantStatus: http.StatusUnauthorized,
+		},
+		{
+			name:       "returns 400 on invalid hospitalization id",
+			paramID:    "abc",
+			itemID:     "2",
+			body:       map[string]any{"name": "更新済み"},
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockCarePlanItemService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:       "returns 400 on invalid item id",
+			paramID:    "1",
+			itemID:     "abc",
+			body:       map[string]any{"name": "更新済み"},
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockCarePlanItemService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:       "returns 400 on malformed JSON body",
+			paramID:    "1",
+			itemID:     "2",
+			bodyRaw:    `{"name":`,
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockCarePlanItemService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:     "returns 500 on service error",
+			paramID:  "1",
+			itemID:   "2",
+			body:     map[string]any{"name": "更新済み"},
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockCarePlanItemService{
+				updateFn: func(_ context.Context, _, _, _ uint64, _ *service.UpdateCarePlanItemInput) (*model.CarePlanItem, error) {
+					return nil, apperrors.WrapNotFound("care_plan_item", "2")
+				},
+			},
+			wantStatus: http.StatusNotFound,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := newHandlerWithCarePlanItemSvc(tt.svc)
+
+			var bodyBytes []byte
+			if tt.bodyRaw != "" {
+				bodyBytes = []byte(tt.bodyRaw)
+			} else {
+				var err error
+				bodyBytes, err = json.Marshal(tt.body)
+				require.NoError(t, err)
+			}
+
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			c.Request = httptest.NewRequest(http.MethodPatch, "/", bytes.NewReader(bodyBytes))
+			c.Request.Header.Set("Content-Type", "application/json")
+			c.Params = gin.Params{{Key: "id", Value: tt.paramID}, {Key: "itemId", Value: tt.itemID}}
+			tt.setupCtx(c)
+
+			h.UpdateCarePlanItem(c)
+
+			assert.Equal(t, tt.wantStatus, w.Code)
+			if tt.wantBody != "" {
+				assert.Contains(t, w.Body.String(), tt.wantBody)
+			}
+		})
+	}
+}
+
+// ---- DeleteCarePlanItem ----
+
+func TestDeleteCarePlanItem(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	tests := []struct {
+		name       string
+		paramID    string
+		itemID     string
+		setupCtx   func(c *gin.Context)
+		svc        *mockCarePlanItemService
+		wantStatus int
+	}{
+		{
+			name:     "deletes care plan item successfully",
+			paramID:  "1",
+			itemID:   "2",
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockCarePlanItemService{
+				deleteFn: func(_ context.Context, clinicID, hospitalizationID, itemID uint64) error {
+					assert.Equal(t, uint64(1), clinicID)
+					assert.Equal(t, uint64(1), hospitalizationID)
+					assert.Equal(t, uint64(2), itemID)
+					return nil
+				},
+			},
+			wantStatus: http.StatusNoContent,
+		},
+		{
+			name:       "returns 401 when clinic_id is missing",
+			paramID:    "1",
+			itemID:     "2",
+			setupCtx:   func(_ *gin.Context) {},
+			svc:        &mockCarePlanItemService{},
+			wantStatus: http.StatusUnauthorized,
+		},
+		{
+			name:       "returns 400 on invalid hospitalization id",
+			paramID:    "abc",
+			itemID:     "2",
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockCarePlanItemService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:       "returns 400 on invalid item id",
+			paramID:    "1",
+			itemID:     "abc",
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockCarePlanItemService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:     "returns 404 when item not found",
+			paramID:  "1",
+			itemID:   "99",
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockCarePlanItemService{
+				deleteFn: func(_ context.Context, _, _, _ uint64) error {
+					return apperrors.WrapNotFound("care_plan_item", "99")
+				},
+			},
+			wantStatus: http.StatusNotFound,
+		},
+		{
+			name:     "returns 500 on service error",
+			paramID:  "1",
+			itemID:   "2",
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockCarePlanItemService{
+				deleteFn: func(_ context.Context, _, _, _ uint64) error {
+					return fmt.Errorf("db failure")
+				},
+			},
+			wantStatus: http.StatusInternalServerError,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// c.Status(http.StatusNoContent) のみでボディ書き込みが無いハンドラのため、
+			// gin.Engine 経由 (router.ServeHTTP) でヘッダーを確実にフラッシュする。
+			// (直接 h.DeleteCarePlanItem(c) 呼び出しだと WriteHeaderNow が走らず w.Code が 200 のままになる)
+			h := newHandlerWithCarePlanItemSvc(tt.svc)
+			r := gin.New()
+			r.DELETE("/hospitalizations/:id/care-plan-items/:itemId", tt.setupCtx, h.DeleteCarePlanItem)
+
+			w := httptest.NewRecorder()
+			req := httptest.NewRequest(http.MethodDelete, fmt.Sprintf("/hospitalizations/%s/care-plan-items/%s", tt.paramID, tt.itemID), http.NoBody)
+			r.ServeHTTP(w, req)
+
+			assert.Equal(t, tt.wantStatus, w.Code)
+		})
+	}
 }
 
 // ---- Comprehensive Test Coverage Documentation ----

@@ -38,6 +38,10 @@ tmp/
 
 # Local build artifacts / helper files
 api
+migrate
+lstep-migrate
+seed-old-db
+stage-import
 FK_DEPENDENCY_CHECK_ROADMAP.md
 tygo.yaml
 

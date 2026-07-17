@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
@@ -13,10 +14,13 @@ import (
 type HospitalizationRepository interface {
 	FindAll(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status, startDate, endDate *string, page, limit int) ([]model.Hospitalization, int64, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.Hospitalization, error)
+	// LockByIDForUpdate は FOR UPDATE で入院行をロック取得する（Discharge Q2-C）。
+	// Repositories.Transaction（repo-swap）内の txRepos 経由でのみ呼ぶこと。
+	LockByIDForUpdate(ctx context.Context, clinicID, id uint64) (*model.Hospitalization, error)
 	Create(ctx context.Context, hospitalization *model.Hospitalization) error
 	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Hospitalization, error)
+	UpdateIfNotDischarged(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Hospitalization, error)
 	Delete(ctx context.Context, clinicID, id uint64) error
-	CountByCageID(ctx context.Context, clinicID, cageID uint64) (int64, error)
 	CountCarePlanItemsByHospitalizationID(ctx context.Context, clinicID, hospitalizationID uint64) (int64, error)
 	CountDailyRecordsByHospitalizationID(ctx context.Context, clinicID, hospitalizationID uint64) (int64, error)
 	CountTreatmentPlansByHospitalizationID(ctx context.Context, clinicID, hospitalizationID uint64) (int64, error)
@@ -53,8 +57,8 @@ func (r *hospitalizationRepository) FindAll(ctx context.Context, clinicID uint64
 	if err := q.Count(&total).Error; err != nil {
 		return nil, 0, apperrors.FromGORM(err, "hospitalization", "")
 	}
-	if err := q.Preload("Pet", "deleted_at IS NULL").Preload("Pet.AnimalSpecies").Preload("Owner", "deleted_at IS NULL").Preload("Cage", "deleted_at IS NULL").Preload("Doctor", "deleted_at IS NULL").
-		Offset((page - 1) * limit).Limit(limit).Order("start_date DESC, created_at DESC").
+	if err := q.Preload("Pet", "clinic_id = ? AND deleted_at IS NULL", clinicID).Preload("Pet.AnimalSpecies").Preload("Owner", "clinic_id = ? AND deleted_at IS NULL", clinicID).Preload("Cage", "clinic_id = ? AND deleted_at IS NULL", clinicID).Preload("Doctor", "deleted_at IS NULL").
+		Scopes(paginate(page, limit)).Order("start_date DESC, created_at DESC").
 		Find(&hospitalizations).Error; err != nil {
 		return nil, 0, apperrors.FromGORM(err, "hospitalization", "")
 	}
@@ -64,15 +68,31 @@ func (r *hospitalizationRepository) FindAll(ctx context.Context, clinicID uint64
 func (r *hospitalizationRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Hospitalization, error) {
 	var hospitalization model.Hospitalization
 	err := r.db.WithContext(ctx).
-		Preload("Pet", "deleted_at IS NULL").
+		Preload("Pet", "clinic_id = ? AND deleted_at IS NULL", clinicID).
 		Preload("Pet.AnimalSpecies").
-		Preload("Owner", "deleted_at IS NULL").
-		Preload("Cage", "deleted_at IS NULL").
+		Preload("Owner", "clinic_id = ? AND deleted_at IS NULL", clinicID).
+		Preload("Cage", "clinic_id = ? AND deleted_at IS NULL", clinicID).
 		Preload("Doctor", "deleted_at IS NULL").
-		Preload("CarePlanItems", "deleted_at IS NULL").
-		Preload("DailyRecords", "deleted_at IS NULL").
+		Preload("CarePlanItems").
+		Preload("DailyRecords").
 		Preload("TreatmentPlans", "deleted_at IS NULL").
 		Scopes(clinicScope(clinicID)).Where("id = ?", id).First(&hospitalization).Error
+	if err != nil {
+		return nil, apperrors.FromGORM(err, "hospitalization", fmt.Sprintf("%d", id))
+	}
+	return &hospitalization, nil
+}
+
+// LockByIDForUpdate は FOR UPDATE で入院を行ロック取得する（Discharge Q2-C）。
+// OwnerID/PetID など Q2-A 再検証に必要なスカラーはロック取得時の行スナップショットに含まれる。
+// DischargeWithBilling は Repositories.Transaction（repo-swap）内の txRepos 経由で呼ぶこと。
+// r.db が tx にバインドされていないとロックは SELECT 終了と同時に解放され直列化できない。
+func (r *hospitalizationRepository) LockByIDForUpdate(ctx context.Context, clinicID, id uint64) (*model.Hospitalization, error) {
+	var hospitalization model.Hospitalization
+	err := r.db.WithContext(ctx).
+		Scopes(clinicScope(clinicID)).
+		Clauses(clause.Locking{Strength: "UPDATE"}).
+		Where("id = ?", id).First(&hospitalization).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "hospitalization", fmt.Sprintf("%d", id))
 	}
@@ -104,6 +124,21 @@ func (r *hospitalizationRepository) Update(ctx context.Context, clinicID, id uin
 	return r.FindByID(ctx, clinicID, id)
 }
 
+func (r *hospitalizationRepository) UpdateIfNotDischarged(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Hospitalization, error) {
+	result := r.db.WithContext(ctx).
+		Model(&model.Hospitalization{}).
+		Scopes(clinicScope(clinicID)).
+		Where("id = ? AND status != ?", id, model.HospitalizationStatusDischarged).
+		Updates(fields)
+	if result.Error != nil {
+		return nil, apperrors.FromGORM(result.Error, "hospitalization", fmt.Sprintf("%d", id))
+	}
+	if result.RowsAffected == 0 {
+		return nil, apperrors.WrapNotFound("hospitalization", fmt.Sprintf("%d", id))
+	}
+	return r.FindByID(ctx, clinicID, id)
+}
+
 func (r *hospitalizationRepository) Delete(ctx context.Context, clinicID, id uint64) error {
 	result := r.db.WithContext(ctx).Scopes(clinicScope(clinicID)).Where("id = ?", id).Delete(&model.Hospitalization{})
 	if result.Error != nil {
@@ -115,24 +150,12 @@ func (r *hospitalizationRepository) Delete(ctx context.Context, clinicID, id uin
 	return nil
 }
 
-func (r *hospitalizationRepository) CountByCageID(ctx context.Context, clinicID, cageID uint64) (int64, error) {
-	var count int64
-	err := r.db.WithContext(ctx).Model(&model.Hospitalization{}).
-		Scopes(clinicScope(clinicID)).
-		Where("cage_id = ? AND deleted_at IS NULL", cageID).
-		Count(&count).Error
-	if err != nil {
-		return 0, apperrors.FromGORM(err, "hospitalization", "")
-	}
-	return count, nil
-}
-
 func (r *hospitalizationRepository) CountCarePlanItemsByHospitalizationID(ctx context.Context, clinicID, hospitalizationID uint64) (int64, error) {
 	var count int64
 	err := r.db.WithContext(ctx).
 		Model(&model.CarePlanItem{}).
 		Joins("JOIN hospitalizations ON care_plan_items.hospitalization_id = hospitalizations.id AND hospitalizations.deleted_at IS NULL").
-		Where("hospitalizations.clinic_id = ? AND care_plan_items.hospitalization_id = ? AND care_plan_items.deleted_at IS NULL", clinicID, hospitalizationID).
+		Where("hospitalizations.clinic_id = ? AND care_plan_items.hospitalization_id = ?", clinicID, hospitalizationID).
 		Count(&count).Error
 	if err != nil {
 		return 0, apperrors.FromGORM(err, "care_plan_item", fmt.Sprintf("hospitalization_id=%d", hospitalizationID))
@@ -145,7 +168,7 @@ func (r *hospitalizationRepository) CountDailyRecordsByHospitalizationID(ctx con
 	err := r.db.WithContext(ctx).
 		Model(&model.DailyRecord{}).
 		Joins("JOIN hospitalizations ON daily_records.hospitalization_id = hospitalizations.id AND hospitalizations.deleted_at IS NULL").
-		Where("hospitalizations.clinic_id = ? AND daily_records.hospitalization_id = ? AND daily_records.deleted_at IS NULL", clinicID, hospitalizationID).
+		Where("hospitalizations.clinic_id = ? AND daily_records.hospitalization_id = ?", clinicID, hospitalizationID).
 		Count(&count).Error
 	if err != nil {
 		return 0, apperrors.FromGORM(err, "daily_record", fmt.Sprintf("hospitalization_id=%d", hospitalizationID))

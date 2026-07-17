@@ -4,12 +4,13 @@ import ChevronRight from "lucide-react/dist/esm/icons/chevron-right";
 import { DataTableRow } from "@/components/shared/DataTable/DataTableRow";
 import { SortableDataTableRow } from "@/components/shared/DataTable/SortableDataTableRow";
 import { RowActionButton } from "@/components/shared/RowActionButton";
-import { NotionStatusPill } from "@/components/shared/StatusPill/NotionStatusPill";
+import { StatusPill } from "@/components/shared/StatusPill/StatusPill";
 import { TableCell } from "@/components/ui/table";
 import { C, ICON } from "@/lib/design-tokens";
+import { formatCurrencyOrDash } from "@/utils/format/number";
 import type { TreatmentItem } from "@/lib/transforms/treatment";
 
-import type { TreatmentTreeItem, TreatmentVirtualRow } from "./TreatmentPlanTabContentModel";
+import type { TreatmentTreeItem, TreatmentVirtualRow } from "./treatment-plan-tab-content-model";
 
 interface TreatmentPlanRowProps {
   row: TreatmentVirtualRow;
@@ -79,7 +80,7 @@ function RootTreatmentRow({
       </TableCell>
       <TreatmentPriceCell price={item.price} />
       <TableCell className="text-center">
-        <NotionStatusPill isActive={item.isActive} />
+        <StatusPill isActive={item.isActive} />
       </TableCell>
       <TableCell className="p-0 text-right">
         {canEdit ? <RowActionButton onClick={onEdit} /> : null}
@@ -139,7 +140,7 @@ function ChildTreatmentRow({ item, onEdit, canEdit }: ChildTreatmentRowProps) {
       </TableCell>
       <TreatmentPriceCell price={item.price} />
       <TableCell className="text-center">
-        <NotionStatusPill isActive={item.isActive} />
+        <StatusPill isActive={item.isActive} />
       </TableCell>
       <TableCell className="p-0 text-right">
         {canEdit ? <RowActionButton onClick={onEdit} /> : null}
@@ -152,7 +153,7 @@ function TreatmentPriceCell({ price }: { price: number }) {
   return (
     <TableCell className="text-right">
       <span className={`text-base ${C.text70} font-mono`}>
-        {price > 0 ? `¥${price.toLocaleString()}` : "-"}
+        {formatCurrencyOrDash(price)}
       </span>
     </TableCell>
   );

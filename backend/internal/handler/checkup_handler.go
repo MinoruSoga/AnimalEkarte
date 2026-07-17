@@ -131,41 +131,32 @@ func (h *Handler) ListGlobalCheckups(c *gin.Context) {
 		return
 	}
 
-	query := newListGlobalCheckupsQuery(clinicID, c.Request.URL.Query())
+	page, limit, err := parsePagination(c)
+	if err != nil {
+		RespondError(c, err)
+		return
+	}
 
-	checkups, err := h.svc.Checkup.ListByClinic(c.Request.Context(), query.toServiceInput())
+	query := newListGlobalCheckupsQuery(clinicID, c.Request.URL.Query())
+	input := query.toServiceInput()
+	input.Page = page
+	input.Limit = limit
+
+	checkups, total, err := h.svc.Checkup.ListByClinic(c.Request.Context(), input)
 	if err != nil {
 		RespondError(c, err)
 		return
 	}
 	responses := mapSlice(checkups, toCheckupGlobalResponse)
-	c.JSON(http.StatusOK, newPaginatedResponse(responses, int64(len(responses)), 1, len(responses)))
-}
-
-// GetCheckupAlerts は GET /v1/checkups/alerts?within_days=30 — 健診期限アラート集計
-func (h *Handler) GetCheckupAlerts(c *gin.Context) {
-	clinicID, ok := extractClinicID(c)
-	if !ok {
-		return
-	}
-	withinDays, err := newCheckupAlertsQuery(c.Request.URL.Query()).toWithinDays()
-	if err != nil {
-		RespondError(c, err)
-		return
-	}
-	result, err := h.svc.Checkup.GetAlerts(c.Request.Context(), clinicID, withinDays)
-	if err != nil {
-		RespondError(c, err)
-		return
-	}
-	c.JSON(http.StatusOK, toCheckupAlertsResponse(result))
+	c.JSON(http.StatusOK, newPaginatedResponse(responses, total, page, limit))
 }
 
 // RegisterGlobalCheckupRoutes は /checkups トップレベルルートを登録する
 func (h *Handler) RegisterGlobalCheckupRoutes(rg *gin.RouterGroup) {
 	checkups := rg.Group("/checkups")
 	checkups.GET("", h.RequirePermission(string(model.ResourceCheckups), "view"), h.ListGlobalCheckups)
-	checkups.GET("/alerts", h.RequirePermission(string(model.ResourceCheckups), "view"), h.GetCheckupAlerts)
+	// #211: pet 単位の健診結果（飼い主レポート用）。
+	checkups.GET("/field-results", h.RequirePermission(string(model.ResourceCheckups), "view"), h.ListPetCheckupResults)
 }
 
 // RegisterCheckupRoutes は健診記録関連のルートを登録する
@@ -176,4 +167,7 @@ func (h *Handler) RegisterCheckupRoutes(rg *gin.RouterGroup) {
 	rg.POST("/:id/checkups", h.RequirePermission(string(model.ResourceMedicalRecords), "create"), h.CreateCheckup)
 	rg.PATCH("/:id/checkups/:checkupId", h.RequirePermission(string(model.ResourceMedicalRecords), "edit"), h.UpdateCheckup)
 	rg.DELETE("/:id/checkups/:checkupId", h.RequirePermission(string(model.ResourceMedicalRecords), "delete"), h.DeleteCheckup)
+	// #211: 健診パッケージの型付き結果値（サブリソース。親 medical-records 権限に従う）。
+	rg.GET("/:id/checkups/:checkupId/field-results", h.RequirePermission(string(model.ResourceMedicalRecords), "view"), h.ListCheckupFieldResults)
+	rg.PUT("/:id/checkups/:checkupId/field-results", h.RequirePermission(string(model.ResourceMedicalRecords), "edit"), h.ReplaceCheckupFieldResults)
 }

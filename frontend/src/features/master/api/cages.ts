@@ -2,9 +2,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import { handleApiError } from "@/lib/handle-api-error";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
+import { queryKeys } from "@/lib/query-keys";
 import type { Cage as ModelCage } from "@/types/generated/models";
-
-const CAGES_QUERY_KEY = ["masters", "cages"] as const;
 
 // Strict union types (models.ts uses string, but we keep these for form safety)
 export type CageType = "icu" | "dog" | "cat" | "general";
@@ -41,26 +40,21 @@ function transformCage(data: ModelCage) {
 
 export type Cage = ReturnType<typeof transformCage>;
 
-export const getAllCages = async (): Promise<Cage[]> => {
+const getAllCages = async (): Promise<Cage[]> => {
   const { data } = await axios.get<ModelCage[]>("/v1/masters/cages");
   return data.map(transformCage);
 };
 
 export const useGetAllCages = () => {
   return useQuery({
-    queryKey: CAGES_QUERY_KEY,
+    queryKey: queryKeys.masters.category("cages"),
     queryFn: getAllCages,
     staleTime: QUERY_STALE_TIMES.STATIC,
     gcTime: QUERY_GC_TIMES.LONG,
   });
 };
 
-export const getCageById = async (id: string): Promise<Cage> => {
-  const { data } = await axios.get<ModelCage>(`/v1/masters/cages/${id}`);
-  return transformCage(data);
-};
-
-export const createCage = async (req: CreateCageRequest): Promise<Cage> => {
+const createCage = async (req: CreateCageRequest): Promise<Cage> => {
   const { data } = await axios.post<ModelCage>("/v1/masters/cages", req);
   return transformCage(data);
 };
@@ -70,13 +64,13 @@ export const useCreateCage = () => {
   return useMutation({
     mutationFn: createCage,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: CAGES_QUERY_KEY });
+      queryClient.invalidateQueries({ queryKey: queryKeys.masters.category("cages") });
     },
     onError: (error) => handleApiError(error, "作成"),
   });
 };
 
-export const updateCage = async (id: string, req: UpdateCageRequest): Promise<Cage> => {
+const updateCage = async (id: string, req: UpdateCageRequest): Promise<Cage> => {
   const { data } = await axios.patch<ModelCage>(`/v1/masters/cages/${id}`, req);
   return transformCage(data);
 };
@@ -87,19 +81,19 @@ export const useUpdateCage = () => {
     mutationFn: ({ id, req }: { id: string; req: UpdateCageRequest }) =>
       updateCage(id, req),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: CAGES_QUERY_KEY });
+      queryClient.invalidateQueries({ queryKey: queryKeys.masters.category("cages") });
     },
     onError: (error) => handleApiError(error, "更新"),
   });
 };
 
-export const deleteCage = async (id: string): Promise<void> => {
+const deleteCage = async (id: string): Promise<void> => {
   await axios.delete(`/v1/masters/cages/${id}`);
 };
 
 export type ReorderCagesRequest = { ids: number[] };
 
-export const reorderCages = async (req: ReorderCagesRequest): Promise<void> => {
+const reorderCages = async (req: ReorderCagesRequest): Promise<void> => {
   await axios.patch("/v1/masters/cages/reorder", req);
 };
 
@@ -108,7 +102,7 @@ export const useDeleteCage = () => {
   return useMutation({
     mutationFn: deleteCage,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: CAGES_QUERY_KEY });
+      queryClient.invalidateQueries({ queryKey: queryKeys.masters.category("cages") });
     },
     onError: (error) => handleApiError(error, "削除"),
   });
@@ -119,7 +113,7 @@ export const useReorderCages = () => {
   return useMutation({
     mutationFn: (req: ReorderCagesRequest) => reorderCages(req),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: CAGES_QUERY_KEY });
+      queryClient.invalidateQueries({ queryKey: queryKeys.masters.category("cages") });
     },
     onError: (error) => handleApiError(error, "並び替え"),
   });

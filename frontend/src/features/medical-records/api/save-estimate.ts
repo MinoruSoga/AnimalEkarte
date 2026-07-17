@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 import { handleApiError } from "@/lib/handle-api-error";
+import { queryKeys } from "@/lib/query-keys";
 import type { Estimate } from "@/types/generated/models";
 
 export interface SaveEstimatePayload {
@@ -26,7 +27,7 @@ const getEstimatesByRecord = async (
 
 export const useGetEstimateByRecord = (medicalRecordId?: string) => {
   return useQuery({
-    queryKey: ["estimate", "record", medicalRecordId],
+    queryKey: queryKeys.medicalRecords.estimate(medicalRecordId!),
     queryFn: () => getEstimatesByRecord(medicalRecordId!),
     enabled: !!medicalRecordId,
     staleTime: QUERY_STALE_TIMES.REALTIME,
@@ -40,7 +41,7 @@ export const useCreateEstimateRecord = (medicalRecordId: string) => {
     mutationFn: (payload: SaveEstimatePayload) =>
       axios.post<Estimate>("/v1/estimates", payload),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["estimate", "record", medicalRecordId] });
+      qc.invalidateQueries({ queryKey: queryKeys.medicalRecords.estimate(medicalRecordId) });
     },
     onError: (error) => handleApiError(error, "見積登録"),
   });
@@ -52,7 +53,7 @@ export const useUpdateEstimateRecord = (estimateId: number, medicalRecordId: str
     mutationFn: (payload: Partial<SaveEstimatePayload>) =>
       axios.patch<Estimate>(`/v1/estimates/${estimateId}`, payload),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["estimate", "record", medicalRecordId] });
+      qc.invalidateQueries({ queryKey: queryKeys.medicalRecords.estimate(medicalRecordId) });
     },
     onError: (error) => handleApiError(error, "見積更新"),
   });

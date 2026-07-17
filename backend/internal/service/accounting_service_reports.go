@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/animal-ekarte/backend/internal/config"
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/repository"
@@ -16,9 +17,8 @@ func (s *accountingService) GetMonthlyUnpaidCarryover(ctx context.Context, clini
 	if month < 1 || month > 12 {
 		return nil, 0, repository.MonthlyUnpaidSummary{}, apperrors.WrapInvalidInput("month must be between 1 and 12")
 	}
-	jst := time.FixedZone("Asia/Tokyo", 9*60*60)
-	firstDay := time.Date(year, time.Month(month), 1, 0, 0, 0, 0, jst).Format("2006-01-02")
-	lastDay := time.Date(year, time.Month(month+1), 0, 0, 0, 0, 0, jst).Format("2006-01-02")
+	firstDay := time.Date(year, time.Month(month), 1, 0, 0, 0, 0, config.JST).Format(time.DateOnly)
+	lastDay := time.Date(year, time.Month(month+1), 0, 0, 0, 0, 0, config.JST).Format(time.DateOnly)
 
 	items, total, summary, err := s.repo.FindMonthlyUnpaidCarryover(ctx, clinicID, firstDay, lastDay, page, limit)
 	if err != nil {
@@ -48,8 +48,23 @@ func (s *accountingService) ListUnpaidByOwner(ctx context.Context, clinicID uint
 	return result, total, summary, nil
 }
 
+// GetOwnerUnpaidBalance は会計画面表示用に飼主の未納残高を返す。#182
+func (s *accountingService) GetOwnerUnpaidBalance(ctx context.Context, clinicID, ownerID uint64) (repository.OwnerUnpaidBalance, error) {
+	if ownerID == 0 {
+		return repository.OwnerUnpaidBalance{}, apperrors.WrapInvalidInput("owner_id is required")
+	}
+	result, err := s.repo.SumUnpaidByOwner(ctx, clinicID, ownerID)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to get owner unpaid balance", "clinic_id", clinicID, "owner_id", ownerID, "error", err)
+		return repository.OwnerUnpaidBalance{}, apperrors.Wrap(err, "failed to get owner unpaid balance")
+	}
+	return result, nil
+}
+
 // Cancel は会計を論理削除（status=cancelled）する。
 // BUG-371 / #118: ハード削除の代替。actorID で監査ログを記録する。
+// BE-refactor.md R1-2: 更新+監査を同一 tx で原子化する（fail-closed。#211/refund_service パターン踏襲）。
+// 監査書込が失敗すると tx がロールバックし、status=cancelled への更新も無効になる。
 func (s *accountingService) Cancel(ctx context.Context, clinicID, id uint64, actorID *uint64) error {
 	existing, err := s.repo.FindByID(ctx, clinicID, id)
 	if err != nil {
@@ -60,47 +75,48 @@ func (s *accountingService) Cancel(ctx context.Context, clinicID, id uint64, act
 		return apperrors.WrapConflict("既にキャンセル済みの会計です")
 	}
 
-	fields := map[string]any{"status": model.BillingStatusCancelled}
-	if _, err := s.repo.Update(ctx, clinicID, id, fields); err != nil {
-		slog.ErrorContext(ctx, "failed to cancel accounting", "error", err, "billing_id", id, "clinic_id", clinicID)
-		return apperrors.Wrap(err, "failed to cancel accounting")
-	}
+	billingID := id
+	aType := auditActorTypeFor(actorID)
 
-	slog.InfoContext(ctx, "billing cancelled",
-		slog.Uint64("billing_id", id),
-		slog.Uint64("clinic_id", clinicID))
-
-	// #118: 監査ログ（ベストエフォート）
-	if s.auditSvc != nil {
-		billingID := id
-		aType := "system"
-		if actorID != nil {
-			aType = "staff"
+	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
+		fields := map[string]any{"status": model.BillingStatusCancelled}
+		if _, err := s.repo.Update(txCtx, clinicID, id, fields); err != nil {
+			slog.ErrorContext(txCtx, "failed to cancel accounting", "error", err, "billing_id", id, "clinic_id", clinicID)
+			return apperrors.Wrap(err, "failed to cancel accounting")
 		}
-		if logErr := s.auditSvc.LogEntry(ctx, &AuditLogInput{
-			ClinicID:   &clinicID,
-			ActorID:    actorID,
-			ActorType:  aType,
-			Action:     model.AuditActionBillingCancel,
-			Resource:   "billing",
-			ResourceID: &billingID,
-			OldValue:   map[string]any{"status": string(existing.Status)},
-			NewValue:   map[string]any{"status": string(model.BillingStatusCancelled)},
-		}); logErr != nil {
-			slog.WarnContext(ctx, "audit log failed for billing cancel", "error", logErr, "billing_id", id)
-		}
-	}
 
+		slog.InfoContext(txCtx, "billing cancelled",
+			slog.Uint64("billing_id", id),
+			slog.Uint64("clinic_id", clinicID))
+
+		// #118: 監査ログ
+		if s.auditTx != nil {
+			if err := s.auditTx.LogEntryTx(txCtx, &AuditLogInput{
+				ClinicID:   &clinicID,
+				ActorID:    actorID,
+				ActorType:  aType,
+				Action:     model.AuditActionBillingCancel,
+				Resource:   "billing",
+				ResourceID: &billingID,
+				OldValue:   map[string]any{"status": string(existing.Status)},
+				NewValue:   map[string]any{"status": string(model.BillingStatusCancelled)},
+			}); err != nil {
+				return apperrors.Wrap(err, "failed to write billing cancel audit log")
+			}
+		}
+		return nil
+	}); err != nil {
+		return apperrors.Wrap(err, "failed to cancel accounting in transaction")
+	}
 	return nil
 }
 
 // parseDailySummaryDate は dateStr（空なら今日）を JST でパースする共通ヘルパー。
 func parseDailySummaryDate(dateStr string) (time.Time, error) {
 	if dateStr == "" {
-		dateStr = time.Now().In(time.Local).Format("2006-01-02")
+		dateStr = time.Now().In(time.Local).Format(time.DateOnly)
 	}
-	jst := time.FixedZone("Asia/Tokyo", 9*60*60)
-	date, err := time.ParseInLocation("2006-01-02", dateStr, jst)
+	date, err := time.ParseInLocation(time.DateOnly, dateStr, config.JST)
 	if err != nil {
 		return time.Time{}, apperrors.WrapInvalidInput("date must be YYYY-MM-DD")
 	}

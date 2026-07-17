@@ -34,8 +34,8 @@ func (r *carePlanItemRepository) FindByHospitalizationID(ctx context.Context, cl
 		Joins("JOIN hospitalizations ON hospitalizations.id = care_plan_items.hospitalization_id AND hospitalizations.deleted_at IS NULL").
 		Where("hospitalizations.clinic_id = ? AND care_plan_items.hospitalization_id = ?", clinicID, hospitalizationID).
 		Order("care_plan_items.sort_order ASC").
-		Preload("Medicine", "deleted_at IS NULL").
-		Preload("Procedure", "deleted_at IS NULL").
+		Preload("Medicine", "clinic_id = ? AND deleted_at IS NULL", clinicID).
+		Preload("Procedure", "clinic_id = ? AND deleted_at IS NULL", clinicID).
 		Find(&items).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "care_plan_item", "")
@@ -48,8 +48,8 @@ func (r *carePlanItemRepository) FindByID(ctx context.Context, clinicID, id uint
 	err := r.db.WithContext(ctx).
 		Joins("JOIN hospitalizations ON hospitalizations.id = care_plan_items.hospitalization_id AND hospitalizations.deleted_at IS NULL").
 		Where("hospitalizations.clinic_id = ? AND care_plan_items.id = ?", clinicID, id).
-		Preload("Medicine", "deleted_at IS NULL").
-		Preload("Procedure", "deleted_at IS NULL").
+		Preload("Medicine", "clinic_id = ? AND deleted_at IS NULL", clinicID).
+		Preload("Procedure", "clinic_id = ? AND deleted_at IS NULL", clinicID).
 		First(&item).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "care_plan_item", fmt.Sprintf("%d", id))
@@ -66,10 +66,12 @@ func (r *carePlanItemRepository) Create(ctx context.Context, item *model.CarePla
 }
 
 func (r *carePlanItemRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
+	// NOTE: GORM does not propagate Joins() into the generated UPDATE statement's SQL
+	// (it is a SELECT-only clause), so a WHERE referencing the joined table fails with
+	// "missing FROM-clause entry". clinic_id isolation must be expressed as a subquery instead.
 	result := r.db.WithContext(ctx).
 		Model(&model.CarePlanItem{}).
-		Joins("JOIN hospitalizations ON hospitalizations.id = care_plan_items.hospitalization_id AND hospitalizations.deleted_at IS NULL").
-		Where("hospitalizations.clinic_id = ? AND care_plan_items.id = ?", clinicID, id).
+		Where("care_plan_items.id = ? AND care_plan_items.hospitalization_id IN (SELECT id FROM hospitalizations WHERE clinic_id = ? AND deleted_at IS NULL)", id, clinicID).
 		Updates(fields)
 	if result.Error != nil {
 		return apperrors.FromGORM(result.Error, "care_plan_item", fmt.Sprintf("%d", id))
@@ -81,9 +83,11 @@ func (r *carePlanItemRepository) Update(ctx context.Context, clinicID, id uint64
 }
 
 func (r *carePlanItemRepository) Delete(ctx context.Context, clinicID, id uint64) error {
+	// NOTE: see Update — Joins() does not propagate into DELETE's SQL either.
+	// .Unscoped() is a no-op here (CarePlanItem has no DeletedAt field, i.e. it is a hard-delete
+	// model already) but is kept to make that intent explicit for future maintainers.
 	result := r.db.WithContext(ctx).
-		Joins("JOIN hospitalizations ON hospitalizations.id = care_plan_items.hospitalization_id AND hospitalizations.deleted_at IS NULL").
-		Where("hospitalizations.clinic_id = ? AND care_plan_items.id = ?", clinicID, id).
+		Where("care_plan_items.id = ? AND care_plan_items.hospitalization_id IN (SELECT id FROM hospitalizations WHERE clinic_id = ? AND deleted_at IS NULL)", id, clinicID).
 		Unscoped().
 		Delete(&model.CarePlanItem{})
 	if result.Error != nil {

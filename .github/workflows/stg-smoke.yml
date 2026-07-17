@@ -2,20 +2,27 @@ name: STG Smoke Test
 
 # STG の疎通確認（/health）。手動トリガー。
 #
+# Cloudflare 移行 (Phase 5): 既定は workers.dev 経路。P1-2 NS 切替後は
+# workflow_dispatch の api_base 入力または repository variable STG_API_BASE で上書き可能。
+#
 # 注: login / readonly / CRUD の smoke は STG_DEMO_EMAIL / STG_DEMO_PASSWORD secret が
 #     未設定で約1年間 login 段階から機能していなかったため、2026-06 にデッドコードとして撤去した。
 #     CRUD の正しさは backend の unit/integration テスト + FE の route-guard テストでカバー済み。
-#     復活させる場合: git 履歴 commit 281a561e の login/readonly/CRUD ステップ（level 入力付き）を戻し、
-#     `gh secret set STG_DEMO_EMAIL` / `STG_DEMO_PASSWORD`（STG demo の system-admin 認証）を設定する。
+#     Cloudflare 経路の CRUD smoke は backend-deploy.yml の optional step または `pnpm cf:smoke` を使用。
 on:
   workflow_dispatch:
+    inputs:
+      api_base:
+        description: "API origin (no trailing slash). Default: Cloudflare workers.dev"
+        required: false
+        default: "https://animalekarte-stg-api.baritech-soga.workers.dev"
 
 jobs:
   health:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     env:
-      API_BASE: https://api.stg.noah-karte.com
+      API_BASE: ${{ inputs.api_base }}
     steps:
       - name: Health Check
         run: |

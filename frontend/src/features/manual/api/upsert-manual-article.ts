@@ -10,12 +10,13 @@ import { toast } from "sonner";
 
 import { axios } from "@/lib/axios";
 import { handleApiError } from "@/lib/handle-api-error";
+import { queryKeys } from "@/lib/query-keys";
 
 import type { ManualCategory } from "../lib/manual-index";
 
 import type { ManualArticleOverride } from "./get-manual-articles";
 
-export interface UpsertManualArticleParams {
+interface UpsertManualArticleParams {
   category: ManualCategory;
   slug: string;
   title: string;
@@ -24,7 +25,7 @@ export interface UpsertManualArticleParams {
   body_markdown: string;
 }
 
-export async function upsertManualArticle(params: UpsertManualArticleParams): Promise<ManualArticleOverride> {
+async function upsertManualArticle(params: UpsertManualArticleParams): Promise<ManualArticleOverride> {
   const { category, slug, ...body } = params;
   const { data } = await axios.put<ManualArticleOverride>(
     `/v1/manual/articles/${category}/${slug}`,
@@ -39,7 +40,7 @@ export function useUpsertManualArticle() {
   return useMutation({
     mutationFn: upsertManualArticle,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["manual-articles"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.manualArticles.all() });
       toast.success("マニュアルを保存しました");
     },
     onError: (error) => {

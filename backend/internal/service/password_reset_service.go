@@ -7,7 +7,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"log/slog"
-	"net/smtp"
+	"sync"
 	"time"
 
 	"golang.org/x/crypto/bcrypt"
@@ -27,6 +27,10 @@ type PasswordResetService interface {
 	ForgotPassword(ctx context.Context, email string) error
 	// ResetPassword は rawToken と新パスワードでパスワードを更新する。
 	ResetPassword(ctx context.Context, rawToken, newPassword string) error
+	// Wait は送信中のパスワードリセットメール goroutine（fire-and-forget）の完了を待つ。
+	// graceful shutdown で server.Shutdown(ctx) の後に呼び出し、goroutine の孤児化を防ぐ
+	// （PERF-FOLLOWUP-05）。
+	Wait()
 }
 
 // PasswordResetConfig は SMTP とフロントエンド URL の設定を保持する。
@@ -43,6 +47,9 @@ type passwordResetService struct {
 	cfg         *PasswordResetConfig
 	accountRepo repository.AccountRepository
 	tokenRepo   repository.PasswordResetTokenRepository
+	// wg は fire-and-forget のメール送信 goroutine を追跡する（PERF-FOLLOWUP-05）。
+	// shutdown 時に Wait() で drain し、goroutine の孤児化を防ぐ。
+	wg sync.WaitGroup
 }
 
 // NewPasswordResetService は PasswordResetService の実装を返す。
@@ -98,15 +105,17 @@ func (s *passwordResetService) ForgotPassword(ctx context.Context, email string)
 	// メール送信は非同期（fire-and-forget）。リクエスト ctx はすでにキャンセル済みの
 	// 可能性があるため context.Background() + 独立タイムアウトを使用する。
 	resetURL := fmt.Sprintf("%s/reset-password?token=%s", s.cfg.FrontendURL, rawToken)
-	go func() { //nolint:gosec,contextcheck // fire-and-forget: request ctx キャンセル後も送信継続が必要なため context.Background を使用
+	s.wg.Add(1)
+	goSafe("password reset email", func() { //nolint:contextcheck // fire-and-forget: request ctx キャンセル後も送信継続が必要なため context.Background を使用
+		defer s.wg.Done()
 		bgCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second) //nolint:gosec // 上記と同理由
 		defer cancel()
-		if sendErr := s.sendResetEmail(email, resetURL); sendErr != nil {
+		if sendErr := s.sendResetEmail(bgCtx, email, resetURL); sendErr != nil {
 			slog.ErrorContext(bgCtx, "failed to send password reset email",
 				slog.String("email", email),
 				slog.String("error", sendErr.Error()))
 		}
-	}()
+	})
 
 	slog.InfoContext(ctx, "password reset token issued",
 		slog.Uint64("account_id", account.ID))
@@ -156,6 +165,12 @@ func (s *passwordResetService) ResetPassword(ctx context.Context, rawToken, newP
 	return nil
 }
 
+// Wait は送信中のパスワードリセットメール goroutine の完了を待つ（PERF-FOLLOWUP-05）。
+// main.go の graceful shutdown から server.Shutdown(ctx) の後に呼び出す。
+func (s *passwordResetService) Wait() {
+	s.wg.Wait()
+}
+
 // ---- ヘルパー ----
 
 // generateToken は URL 用の rawToken と DB 保存用の SHA256 ハッシュを返す。
@@ -175,7 +190,7 @@ func hashToken(rawToken string) string {
 	return hex.EncodeToString(h[:])
 }
 
-func (s *passwordResetService) sendResetEmail(to, resetURL string) error {
+func (s *passwordResetService) sendResetEmail(ctx context.Context, to, resetURL string) error {
 	if s.cfg.SMTPHost == "" {
 		return nil
 	}
@@ -197,14 +212,6 @@ func (s *passwordResetService) sendResetEmail(to, resetURL string) error {
 		"\r\n" +
 		body + "\r\n")
 
-	addr := s.cfg.SMTPHost + ":" + s.cfg.SMTPPort
-	var auth smtp.Auth
-	if s.cfg.SMTPUser != "" {
-		auth = smtp.PlainAuth("", s.cfg.SMTPUser, s.cfg.SMTPPass, s.cfg.SMTPHost)
-	}
-
-	if err := smtp.SendMail(addr, auth, from, []string{to}, msg); err != nil {
-		return fmt.Errorf("smtp send: %w", err)
-	}
-	return nil
+	cfg := smtpConfig{Host: s.cfg.SMTPHost, Port: s.cfg.SMTPPort, User: s.cfg.SMTPUser, Pass: s.cfg.SMTPPass}
+	return sendSMTPMail(ctx, cfg, from, to, msg)
 }

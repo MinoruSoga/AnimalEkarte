@@ -11,6 +11,8 @@ Backend (Go) と Frontend (React) のパフォーマンスを詳細に分析・�
 
 ### 1. Go Backend Profiling (pprof)
 
+**前提: backend には現在 net/http/pprof が未配線**。以下のコマンドは `import _ "net/http/pprof"` + :6060 リッスンを追加してから使う。未配線のまま実行しても接続失敗する
+
 #### CPU プロファイル
 ```bash
 docker compose exec backend go tool pprof http://localhost:6060/debug/pprof/profile?seconds=30
@@ -79,12 +81,13 @@ docker compose exec backend go tool pprof http://localhost:6060/debug/pprof/goro
 
 #### Database クエリ分析
 ```bash
-docker compose exec db psql -U ekarte_user -d ekarte_db -c "
+docker compose exec db psql -U "$DB_USER" -d "$DB_NAME" -c "
   SELECT query, calls, mean_time
   FROM pg_stat_statements
   ORDER BY mean_time DESC LIMIT 10;
 "
 ```
+⚠️ CLAUDE.md の自動実行禁止コマンド（psql 直叩き）。ユーザーに手動実行を依頼する
 
 **N+1 クエリ検出:**
 ```go
@@ -151,7 +154,8 @@ export function MyComponent() {
 
 #### Lighthouse スコア
 ```bash
-docker compose exec frontend pnpm lighthouse
+# 対象 URL を明示して実行（フロントのホストポートは 3003）
+docker compose exec frontend pnpm exec lighthouse http://localhost:3003 --output html
 ```
 
 **Core Web Vitals:**
@@ -161,9 +165,12 @@ docker compose exec frontend pnpm lighthouse
 
 ### 3. バンドルサイズ分析
 
+⚠️ `pnpm build` は CLAUDE.md の自動実行禁止コマンド。ユーザーに手動実行を依頼する
+
 ```bash
 docker compose exec frontend pnpm build
 docker compose exec frontend npx source-map-explorer 'dist/**/*.js'
+# ※ source-map-explorer は依存未登録。使う場合は導入をユーザーに確認する
 ```
 
 **最適化:**
@@ -215,7 +222,7 @@ LCP:                < 2.5s
 INP:                < 200ms
 CLS:                < 0.1
 バンドルサイズ:     < 200KB (gzip)
-首回塁タイム:       < 3s
+初回表示タイム:     < 3s
 ```
 
 ## チェックリスト
@@ -277,4 +284,3 @@ CLS:                < 0.1
 ## 関連スキル
 
 - `database-indexing` - クエリパフォーマンス
-- `error-handling-patterns` - エラー時のログ効率化

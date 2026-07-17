@@ -13,7 +13,7 @@ export interface OwnerApiResponse extends Omit<BackendOwner, "name" | "name_kana
   dm_preference?: boolean | null;
 }
 
-export const MEMBERSHIP_TYPE_FROM_API: Record<string, string> = {
+const MEMBERSHIP_TYPE_FROM_API: Record<string, string> = {
   "non_member": "非会員",
   "member": "会員",
   "deceased": "退亡者",

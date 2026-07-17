@@ -30,7 +30,7 @@ func toUnavailableTimeResponse(t *model.ReservationTypeUnavailableTime) unavaila
 		EndTime:           t.EndTime,
 	}
 	if t.SpecificDate != nil {
-		s := t.SpecificDate.In(time.Local).Format("2006-01-02")
+		s := t.SpecificDate.In(time.Local).Format(time.DateOnly)
 		resp.SpecificDate = &s
 	}
 	return resp
@@ -60,7 +60,7 @@ func toAvailableSlotResponse(slot *model.ReservationTypeAvailableSlot) available
 		IsActive:          slot.IsActive,
 	}
 	if slot.SpecificDate != nil {
-		s := slot.SpecificDate.In(time.Local).Format("2006-01-02")
+		s := slot.SpecificDate.In(time.Local).Format(time.DateOnly)
 		resp.SpecificDate = &s
 	}
 	return resp

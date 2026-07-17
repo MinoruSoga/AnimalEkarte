@@ -24,16 +24,25 @@ type InquiryService interface {
 }
 
 type inquiryService struct {
-	repo repository.InquiryRepository
+	repo                   repository.InquiryRepository
+	chiefComplaintTypeRepo repository.ChiefComplaintTypeRepository
 }
 
 // NewInquiryService は InquiryService を生成する
-func NewInquiryService(repo repository.InquiryRepository) InquiryService {
-	return &inquiryService{repo: repo}
+func NewInquiryService(repo repository.InquiryRepository, chiefComplaintTypeRepo repository.ChiefComplaintTypeRepository) InquiryService {
+	return &inquiryService{repo: repo, chiefComplaintTypeRepo: chiefComplaintTypeRepo}
 }
 
 // Save は medical_record_id に対応する問診を upsert する。
 func (s *inquiryService) Save(ctx context.Context, input UpsertInquiryInput) (*model.Inquiry, error) {
+	if err := validateOwnedMasterFK(ctx, "chief complaint type", input.ClinicID, input.ChiefComplaintTypeID,
+		func(actx context.Context, cid, mid uint64) error {
+			_, err := s.chiefComplaintTypeRepo.FindByID(actx, cid, mid)
+			return err
+		}); err != nil {
+		return nil, err
+	}
+
 	inquiry := &model.Inquiry{
 		MedicalRecordID: input.MedicalRecordID,
 	}

@@ -185,8 +185,6 @@ func (r *gormProductRepo) FindAll(ctx context.Context, f domain.ProductFilter) (
 }
 ```
 
-> For associations, hooks, soft-deletes — see the **golang-gin-database** skill.
-
 ---
 
 ## 4. Transactions
@@ -276,15 +274,14 @@ func safeOrderBy(col, dir string) string {
 
 ## 7. Testing
 
-**Unit — mock interface:** See [testing-by-layer.md](testing-by-layer.md) for comprehensive mock patterns and test organization.
+**Unit — mock interface:** see `golang-testing` スキル for the project's hand-written fn-field mock pattern.
 
-**Integration — real DB:** Use testcontainers with `-tags=integration`. Full setup in [testing-by-layer.md](testing-by-layer.md).
+**Integration — real DB:** this project runs integration tests against the docker-compose Postgres service directly (no testcontainers).
 
 ---
 
 ## See Also
 
 - **[error-handling.md](error-handling.md)** — repo error propagation to HTTP
-- **[testing-by-layer.md](testing-by-layer.md)** — full mock patterns and coverage goals
+- `golang-testing` スキル — full mock patterns and coverage goals
 - **[dependency-injection.md](dependency-injection.md)** — wiring repositories into usecases
-- **golang-gin-database** skill — GORM associations, migrations, sqlx

@@ -17,8 +17,8 @@ type PetChronicConditionRepository interface {
 	Create(ctx context.Context, record *model.PetChronicCondition) error
 	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error
 	Delete(ctx context.Context, clinicID, id uint64) error
-	// GetActiveConditionCodesByOwner は飼い主の全生存ペットのアクティブ疾患コードを返す。
-	GetActiveConditionCodesByOwner(ctx context.Context, clinicID, ownerID uint64) ([]string, error)
+	// FindActiveConditionCodesByOwner は飼い主の全生存ペットのアクティブ疾患コードを返す。
+	FindActiveConditionCodesByOwner(ctx context.Context, clinicID, ownerID uint64) ([]string, error)
 }
 
 type petChronicConditionRepository struct {
@@ -59,26 +59,14 @@ func (r *petChronicConditionRepository) Create(ctx context.Context, record *mode
 }
 
 func (r *petChronicConditionRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
-	if err := r.db.WithContext(ctx).Model(&model.PetChronicCondition{}).
-		Scopes(clinicScope(clinicID)).
-		Where("id = ?", id).
-		Updates(fields).Error; err != nil {
-		return apperrors.FromGORM(err, "pet_chronic_condition", fmt.Sprintf("%d", id))
-	}
-	return nil
+	return updateScopedByID(ctx, r.db, &model.PetChronicCondition{}, "pet_chronic_condition", clinicID, id, fields)
 }
 
 func (r *petChronicConditionRepository) Delete(ctx context.Context, clinicID, id uint64) error {
-	if err := r.db.WithContext(ctx).
-		Scopes(clinicScope(clinicID)).
-		Where("id = ?", id).
-		Delete(&model.PetChronicCondition{}).Error; err != nil {
-		return apperrors.FromGORM(err, "pet_chronic_condition", fmt.Sprintf("%d", id))
-	}
-	return nil
+	return deleteScopedByID(ctx, r.db, &model.PetChronicCondition{}, "pet_chronic_condition", clinicID, id)
 }
 
-func (r *petChronicConditionRepository) GetActiveConditionCodesByOwner(ctx context.Context, clinicID, ownerID uint64) ([]string, error) {
+func (r *petChronicConditionRepository) FindActiveConditionCodesByOwner(ctx context.Context, clinicID, ownerID uint64) ([]string, error) {
 	var codes []string
 	err := r.db.WithContext(ctx).Raw(`
 SELECT DISTINCT pcc.condition_code

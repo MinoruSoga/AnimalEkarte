@@ -37,9 +37,9 @@
   },
   {
     "id": "eval-harness-04",
-    "description": "consumer-memory-notes: docs/adr/ に ADR が存在する場合に pass",
+    "description": "consumer-memory-notes: docs/architecture/adr/ に ADR が存在する場合に pass",
     "input": {
-      "dir": "docs/adr",
+      "dir": "docs/architecture/adr",
       "file_count_min": 1
     },
     "expected": {

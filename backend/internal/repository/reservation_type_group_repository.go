@@ -2,7 +2,6 @@ package repository
 
 import (
 	"context"
-	"fmt"
 
 	"gorm.io/gorm"
 
@@ -38,11 +37,7 @@ func (r *reservationTypeGroupRepository) FindAll(ctx context.Context, clinicID u
 }
 
 func (r *reservationTypeGroupRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.ReservationTypeGroup, error) {
-	var g model.ReservationTypeGroup
-	if err := r.db.WithContext(ctx).Scopes(clinicScope(clinicID)).Where("id = ?", id).First(&g).Error; err != nil {
-		return nil, apperrors.FromGORM(err, "reservation_type_group", fmt.Sprintf("%d", id))
-	}
-	return &g, nil
+	return findByIDScoped[model.ReservationTypeGroup](ctx, r.db, "reservation_type_group", clinicID, id)
 }
 
 func (r *reservationTypeGroupRepository) CountUsageByReservationTypeGroupID(ctx context.Context, clinicID, groupID uint64) (int64, error) {
@@ -63,28 +58,14 @@ func (r *reservationTypeGroupRepository) Create(ctx context.Context, g *model.Re
 }
 
 func (r *reservationTypeGroupRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.ReservationTypeGroup, error) {
-	result := r.db.WithContext(ctx).
-		Model(&model.ReservationTypeGroup{}).
-		Scopes(clinicScope(clinicID)).Where("id = ?", id).
-		Updates(fields)
-	if result.Error != nil {
-		return nil, apperrors.FromGORM(result.Error, "reservation_type_group", fmt.Sprintf("%d", id))
-	}
-	if result.RowsAffected == 0 {
-		return nil, apperrors.WrapNotFound("reservation_type_group", fmt.Sprintf("%d", id))
+	if err := updateScopedByID(ctx, r.db, &model.ReservationTypeGroup{}, "reservation_type_group", clinicID, id, fields); err != nil {
+		return nil, err
 	}
 	return r.FindByID(ctx, clinicID, id)
 }
 
 func (r *reservationTypeGroupRepository) Delete(ctx context.Context, clinicID, id uint64) error {
-	result := r.db.WithContext(ctx).Scopes(clinicScope(clinicID)).Where("id = ?", id).Delete(&model.ReservationTypeGroup{})
-	if result.Error != nil {
-		return apperrors.FromGORM(result.Error, "reservation_type_group", fmt.Sprintf("%d", id))
-	}
-	if result.RowsAffected == 0 {
-		return apperrors.WrapNotFound("reservation_type_group", fmt.Sprintf("%d", id))
-	}
-	return nil
+	return deleteScopedByID(ctx, r.db, &model.ReservationTypeGroup{}, "reservation_type_group", clinicID, id)
 }
 
 func (r *reservationTypeGroupRepository) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {

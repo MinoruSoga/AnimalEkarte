@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
+import { queryKeys } from "@/lib/query-keys";
 import type { MedicalRecordImage } from "@/types/generated/models";
 
 function transformImageGalleryItem(img: MedicalRecordImage) {
@@ -12,7 +13,7 @@ function transformImageGalleryItem(img: MedicalRecordImage) {
     mimeType: img.mime_type || undefined,
   };
 }
-export type ImageGalleryItem = ReturnType<typeof transformImageGalleryItem>;
+type ImageGalleryItem = ReturnType<typeof transformImageGalleryItem>;
 
 function transformImageGalleryGroup(g: { groupId: number; date: string; images: ImageGalleryItem[] }) {
   return {
@@ -48,19 +49,28 @@ function groupImagesByDate(images: MedicalRecordImage[]): ImageGalleryGroup[] {
   return Array.from(groupMap.values()).map(transformImageGalleryGroup);
 }
 
+// P2-15 (PR #186 review): 拠点横断で開いたカルテ（record.clinicId）の子リソースを操作する場合、
+// グローバル選択クリニックではなくレコード自身の clinicId を X-Clinic-ID として送る必要がある。
+// clinicId 省略時は axios インターセプタがグローバル選択値にフォールバックする（従来挙動を維持）。
+function clinicHeaderConfig(clinicId?: string) {
+  return clinicId ? { headers: { "X-Clinic-ID": clinicId } } : undefined;
+}
+
 const getMedicalRecordImages = async (
   medicalRecordId: string,
+  clinicId?: string,
 ): Promise<ImageGalleryGroup[]> => {
   const { data } = await axios.get<MedicalRecordImage[]>(
     `/v1/medical-records/${medicalRecordId}/images`,
+    clinicHeaderConfig(clinicId),
   );
   return groupImagesByDate(data ?? []);
 };
 
-export const useGetMedicalRecordImages = (medicalRecordId?: string) => {
+export const useGetMedicalRecordImages = (medicalRecordId?: string, clinicId?: string) => {
   return useQuery({
-    queryKey: ["record-images", medicalRecordId],
-    queryFn: () => getMedicalRecordImages(medicalRecordId!),
+    queryKey: queryKeys.medicalRecords.images(medicalRecordId!, clinicId),
+    queryFn: () => getMedicalRecordImages(medicalRecordId!, clinicId),
     enabled: !!medicalRecordId,
     staleTime: QUERY_STALE_TIMES.MEDIUM,
     gcTime: QUERY_GC_TIMES.STANDARD,

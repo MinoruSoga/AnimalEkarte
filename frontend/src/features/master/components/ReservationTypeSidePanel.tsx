@@ -150,6 +150,7 @@ export const CategorySidePanel = memo(function CategorySidePanel({
         </PropertyRow>
         <PropertyRow label="所要時間（分）">
           <input type="number" min={5} max={480}
+            aria-label="所要時間（分）"
             className={`w-20 border ${C.borderMedium} ${LAYOUT.inputStandard} text-base ${C.text}`}
             value={formData.durationMinutes}
             onChange={(e) => setFormDataDirty((prev) => ({ ...prev, durationMinutes: Number(e.target.value) || 15 }))} />

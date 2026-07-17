@@ -6,6 +6,8 @@ This repository uses Claude Code and Codex-style agent workflows. The source of 
 
 Before making changes, read [.claude/CLAUDE.md](.claude/CLAUDE.md), then load only the referenced files relevant to the task. Do not bulk-read unrelated docs.
 
+Also load the project-wide rules in [.claude/rules/](.claude/rules/) (code conventions such as Go package layout — mirrored at `.agents/rules/`). Claude Code auto-loads these; other agents must read them explicitly.
+
 ## Core Rules
 
 - Preserve the Handler → Service → Repository architecture.

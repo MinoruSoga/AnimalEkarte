@@ -130,7 +130,7 @@ func (m *mockLiffStaffRepository) FindAllExcludedReservationTypesByStaffIDs(ctx 
 	return nil, nil
 }
 
-func (m *mockLiffStaffRepository) UpdateExcludedReservationTypes(_ context.Context, _ uint64, _ []uint64) error {
+func (m *mockLiffStaffRepository) UpdateExcludedReservationTypes(_ context.Context, _, _ uint64, _ []uint64) error {
 	return nil
 }
 
@@ -159,14 +159,26 @@ func (m *mockLiffStaffRepository) SupportsReservationType(ctx context.Context, c
 // --- mockLiffScheduleRepository ---
 
 type mockLiffScheduleRepository struct {
-	findByDateFn func(ctx context.Context, clinicID, staffID uint64, date time.Time) (*model.ShiftEntry, error)
+	findByDateFn                    func(ctx context.Context, clinicID, staffID uint64, date time.Time) (*model.ShiftEntry, error)
+	findAllByStaffIDsAndDateRangeFn func(ctx context.Context, clinicID uint64, staffIDs []uint64, from, to time.Time) ([]model.ShiftEntry, error)
+	findAllBreaksByEntryIDsFn       func(ctx context.Context, entryIDs []uint64) (map[uint64][]model.ShiftEntryBreak, error)
 }
 
 func (m *mockLiffScheduleRepository) FindAllByMonth(_ context.Context, _, _ uint64, _ string) ([]model.ShiftEntry, error) {
 	return nil, nil
 }
 
-func (m *mockLiffScheduleRepository) FindAllBreaksByEntryIDs(_ context.Context, _ []uint64) (map[uint64][]model.ShiftEntryBreak, error) {
+func (m *mockLiffScheduleRepository) FindAllByStaffIDsAndDateRange(ctx context.Context, clinicID uint64, staffIDs []uint64, from, to time.Time) ([]model.ShiftEntry, error) {
+	if m.findAllByStaffIDsAndDateRangeFn != nil {
+		return m.findAllByStaffIDsAndDateRangeFn(ctx, clinicID, staffIDs, from, to)
+	}
+	return nil, nil
+}
+
+func (m *mockLiffScheduleRepository) FindAllBreaksByEntryIDs(ctx context.Context, entryIDs []uint64) (map[uint64][]model.ShiftEntryBreak, error) {
+	if m.findAllBreaksByEntryIDsFn != nil {
+		return m.findAllBreaksByEntryIDsFn(ctx, entryIDs)
+	}
 	return nil, nil
 }
 
@@ -192,10 +204,11 @@ func (m *mockLiffScheduleRepository) Delete(_ context.Context, _, _ uint64, _ ti
 // --- mockLiffAdminRepository ---
 
 type mockLiffAdminRepository struct {
-	findByDayFn         func(ctx context.Context, clinicID uint64, date time.Time) ([]model.Reservation, error)
-	findByCustomerIDFn  func(ctx context.Context, clinicID, customerID uint64) ([]model.Reservation, error)
-	cancelByIDFn        func(ctx context.Context, clinicID, customerID, id uint64) error
-	findByIDForNotifyFn func(ctx context.Context, clinicID, id uint64) (*model.Reservation, error)
+	findByDayFn                 func(ctx context.Context, clinicID uint64, date time.Time) ([]model.Reservation, error)
+	findByCustomerIDFn          func(ctx context.Context, clinicID, customerID uint64) ([]model.Reservation, error)
+	cancelByIDFn                func(ctx context.Context, clinicID, customerID, id uint64) error
+	findByIDForNotifyFn         func(ctx context.Context, clinicID, id uint64) (*model.Reservation, error)
+	findTimeRangesByDateRangeFn func(ctx context.Context, clinicID uint64, from, to time.Time) ([]model.Reservation, error)
 }
 
 func (m *mockLiffAdminRepository) FindAllByMonth(_ context.Context, _ uint64, _ int, _ time.Month) ([]model.Reservation, error) {
@@ -205,6 +218,13 @@ func (m *mockLiffAdminRepository) FindAllByMonth(_ context.Context, _ uint64, _ 
 func (m *mockLiffAdminRepository) FindAllByDay(ctx context.Context, clinicID uint64, date time.Time) ([]model.Reservation, error) {
 	if m.findByDayFn != nil {
 		return m.findByDayFn(ctx, clinicID, date)
+	}
+	return nil, nil
+}
+
+func (m *mockLiffAdminRepository) FindTimeRangesByDateRange(ctx context.Context, clinicID uint64, from, to time.Time) ([]model.Reservation, error) {
+	if m.findTimeRangesByDateRangeFn != nil {
+		return m.findTimeRangesByDateRangeFn(ctx, clinicID, from, to)
 	}
 	return nil, nil
 }
@@ -327,6 +347,9 @@ func (m *mockLiffOwnerRepository) FindByLineUserID(_ context.Context, _ uint64, 
 func (m *mockLiffOwnerRepository) FindAllWithLineUserID(_ context.Context, _ uint64) ([]model.Owner, error) {
 	return nil, nil
 }
+func (m *mockLiffOwnerRepository) FindAllWithLineUserIDCursor(_ context.Context, _, _ uint64, _ int) ([]model.Owner, error) {
+	return nil, nil
+}
 func (m *mockLiffOwnerRepository) UpdateLineUserID(_ context.Context, _, _ uint64, _ *string) error {
 	return nil
 }
@@ -341,6 +364,10 @@ func (m *mockLiffOwnerRepository) UpdateLineFollowedAt(_ context.Context, _, _ u
 
 func (m *mockLiffOwnerRepository) UpdateLineBlockedAt(_ context.Context, _, _ uint64, _ time.Time) error {
 	return nil
+}
+
+func (m *mockLiffOwnerRepository) FindByIDs(_ context.Context, _ uint64, _ []uint64) ([]*model.Owner, error) {
+	return nil, nil
 }
 
 // --- mockLiffReservationRepository ---
@@ -384,8 +411,12 @@ func (m *mockLiffReservationRepository) ExistsByStaffID(_ context.Context, _, _ 
 	return false, nil
 }
 
-func (m *mockLiffReservationRepository) CountMedicalRecordsByReservationID(_ context.Context, _ uint64) (int64, error) {
+func (m *mockLiffReservationRepository) CountMedicalRecordsByReservationID(_ context.Context, _, _ uint64) (int64, error) {
 	return 0, nil
+}
+
+func (m *mockLiffReservationRepository) AcquireBookingLock(_ context.Context, _ uint64) error {
+	return nil
 }
 
 func (m *mockLiffReservationRepository) LockAndFindByID(_ context.Context, _, _ uint64) (*model.Reservation, error) {
@@ -423,8 +454,17 @@ func (m *mockLiffReservationRepository) FindAllByCategory(_ context.Context, _ u
 func (m *mockLiffReservationRepository) FindNoShowCandidates(_ context.Context, _ uint64) ([]model.Reservation, error) {
 	return nil, nil
 }
-func (m *mockLiffReservationRepository) HasReservationByOwnerInRange(_ context.Context, _, _ uint64, _, _ time.Time) (bool, error) {
-	return false, nil
+
+func (m *mockLiffReservationRepository) AssertOwnerInClinic(_ context.Context, _, _ uint64) error {
+	return nil
+}
+
+func (m *mockLiffReservationRepository) FindPetOwnerInClinic(_ context.Context, _, _ uint64) (uint64, error) {
+	return 0, nil
+}
+
+func (m *mockLiffReservationRepository) AssertLineCustomerInClinic(_ context.Context, _, _ uint64) error {
+	return nil
 }
 
 // --- mockLiffValidators ---
@@ -458,6 +498,8 @@ func (m *mockLiffNotifier) NotifyCancelled(ctx context.Context, appt *model.Rese
 		m.notifyCancelledFn(ctx, appt, customer)
 	}
 }
+
+func (m *mockLiffNotifier) Wait() {}
 
 // ================================================================
 // テスト共通ヘルパー
@@ -512,7 +554,7 @@ func newLiffSvcWithDeps(
 		validators:          validators,
 		notifier:            notifier,
 		unavailableTimeRepo: &mockLiffUnavailableTimeRepository{},
-		occupationRepo:      &mockLiffOccupationRepository{},
+		occupationRepo:      &mockReservationTypeOccupationRepository{},
 	}
 }
 
@@ -537,39 +579,13 @@ func (m *mockLiffUnavailableTimeRepository) Delete(_ context.Context, _, _ uint6
 	return nil
 }
 
-// mockLiffOccupationRepository は ReservationTypeOccupationRepository のテスト用スタブ
-type mockLiffOccupationRepository struct {
-	findAllFn        func(ctx context.Context, clinicID, reservationTypeID uint64) ([]model.ReservationTypeOccupation, error)
-	countByStaffIDFn func(ctx context.Context, clinicID, reservationTypeID uint64, date time.Time) (int64, error)
-}
-
-func (m *mockLiffOccupationRepository) FindAll(ctx context.Context, clinicID, reservationTypeID uint64) ([]model.ReservationTypeOccupation, error) {
-	if m.findAllFn != nil {
-		return m.findAllFn(ctx, clinicID, reservationTypeID)
-	}
-	return []model.ReservationTypeOccupation{}, nil
-}
-func (m *mockLiffOccupationRepository) FindByID(_ context.Context, _, _, _ uint64) (*model.ReservationTypeOccupation, error) {
-	return &model.ReservationTypeOccupation{}, nil
-}
-func (m *mockLiffOccupationRepository) Create(_ context.Context, _ *model.ReservationTypeOccupation) error {
-	return nil
-}
-func (m *mockLiffOccupationRepository) Delete(_ context.Context, _, _, _ uint64) error { return nil }
-func (m *mockLiffOccupationRepository) CountWorkingStaffByReservationTypeID(ctx context.Context, clinicID, reservationTypeID uint64, date time.Time) (int64, error) {
-	if m.countByStaffIDFn != nil {
-		return m.countByStaffIDFn(ctx, clinicID, reservationTypeID, date)
-	}
-	return 1, nil // デフォルト: 1人出勤（予約可能）
-}
-
 // liffDefaultSetting はテスト用デフォルト予約設定を返す。
 func liffDefaultSetting() *model.LineReservationSetting {
 	return &model.LineReservationSetting{
 		ID:                      1,
 		ClinicID:                3,
 		Status:                  "active",
-		LiffID:                  "2009755544-abcdefgh",
+		LiffID:                  "1234567890-abcdefgh",
 		BusinessHours:           json.RawMessage(`{"start":"0900","end":"1900"}`),
 		BreakHours:              json.RawMessage(`[{"start":"1200","end":"1300"}]`),
 		BookingWindowMinDays:    2,

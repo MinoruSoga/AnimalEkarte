@@ -5,11 +5,12 @@ import Calendar from "lucide-react/dist/esm/icons/calendar";
 import { useNavigate } from "react-router";
 import { toast } from "sonner";
 
-import { DataTable } from "@/components/shared/DataTable/DataTable";
+import { DataTable, DESIGN_TABLE_HEADER_ROW, DESIGN_TABLE_HEADER_CELL } from "@/components/shared/DataTable/DataTable";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { useSidePeekDirty } from "@/hooks/use-side-peek-dirty";
 import { useSortableList } from "@/hooks/use-sortable-list";
 import { C } from "@/lib/design-tokens";
+import { paths } from "@/config/paths";
 import { ShiftTypeOff, ShiftTypePaidLeave } from "@/types/generated/models";
 import { useCreateShiftTemplate } from "../api/create-shift-template";
 import { useDeleteShiftTemplate } from "../api/delete-shift-template";
@@ -151,7 +152,7 @@ export function ShiftTemplateSettings() {
         <PageLayout
           title="シフトテンプレートマスタ"
           icon={<Calendar className="size-5" />}
-          onBack={() => navigate("/settings")}
+          onBack={() => navigate(paths.settings.getHref())}
           maxWidth="max-w-full"
         >
           <ShiftTemplateToolbar count={orderedItems.length} onCreate={handleCreate} />
@@ -166,6 +167,8 @@ export function ShiftTemplateSettings() {
               strategy={verticalListSortingStrategy}
             >
               <DataTable
+                headerRowClassName={DESIGN_TABLE_HEADER_ROW}
+                headerCellClassName={DESIGN_TABLE_HEADER_CELL}
                 columns={SHIFT_TEMPLATE_COLUMNS}
                 data={orderedItems}
                 renderRow={(item) => (

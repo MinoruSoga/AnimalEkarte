@@ -13,6 +13,7 @@ import { useGetEstimate } from '../api/get-estimate';
 import { useDeleteEstimate } from '../api/delete-estimate';
 import { usePermission } from "@/hooks/use-permission";
 import { ResourceEstimates } from "@/types/generated/models";
+import { isEstimateLockedStatus } from "../utils/is-estimate-locked-status";
 
 export function EstimateDetail() {
   const { id } = useParams<{ id: string }>();
@@ -40,6 +41,10 @@ export function EstimateDetail() {
     return <div className={`p-4 ${C.danger}`}>データの取得に失敗しました</div>;
   }
 
+  const isLocked = isEstimateLockedStatus(estimate.status);
+  const showEdit = canEdit && !isLocked;
+  const showDelete = canDelete && !isLocked;
+
   return (
     <PageLayout
       title={`見積書 ${estimate.estimateNo}`}
@@ -56,7 +61,7 @@ export function EstimateDetail() {
             <ArrowLeft className={ICON.action} />
             一覧へ
           </Button>
-          {canEdit ? (
+          {showEdit ? (
             <Button
               variant="outline"
               size="sm"
@@ -67,7 +72,7 @@ export function EstimateDetail() {
               編集
             </Button>
           ) : null}
-          {canDelete ? (
+          {showDelete ? (
             <Button
               variant="ghost-danger"
               size="sm"
@@ -85,7 +90,7 @@ export function EstimateDetail() {
     >
       <div className="space-y-6">
         {/* 基本情報 */}
-        <div className={`${C.bgWhite} border ${C.borderLight} rounded-[6px] p-5 space-y-4`}>
+        <div className={`${C.bgWhite} border ${C.borderLight} rounded-md p-5 space-y-4`}>
           <div className="flex items-center justify-between">
             <h2 className={`text-base font-semibold ${C.text}`}>{estimate.title}</h2>
             <EstimateStatusBadge status={estimate.status} />
@@ -127,7 +132,7 @@ export function EstimateDetail() {
         </div>
 
         {/* 見積明細 */}
-        <div className={`${C.bgWhite} border ${C.borderLight} rounded-[6px] p-5`}>
+        <div className={`${C.bgWhite} border ${C.borderLight} rounded-md p-5`}>
           <h3 className={`text-sm font-medium ${C.text} mb-4`}>見積明細</h3>
           <EstimateLineItems
             items={estimate.items}
@@ -141,7 +146,7 @@ export function EstimateDetail() {
 
         {/* 備考 */}
         {estimate.notes ? (
-          <div className={`${C.bgWhite} border ${C.borderLight} rounded-[6px] p-5`}>
+          <div className={`${C.bgWhite} border ${C.borderLight} rounded-md p-5`}>
             <h3 className={`text-sm font-medium ${C.text} mb-2`}>備考</h3>
             <p className={`text-sm ${C.text70} whitespace-pre-wrap`}>{estimate.notes}</p>
           </div>

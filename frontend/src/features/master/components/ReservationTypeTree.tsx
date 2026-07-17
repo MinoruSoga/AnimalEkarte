@@ -11,7 +11,7 @@ interface Props {
 
 function leafClassName(isSelected: boolean, isActive: boolean): string {
   const base = `w-full flex items-center gap-1.5 px-3 py-2 text-sm text-left transition-colors border-l-2 ${C.hoverBgLight}`;
-  if (isSelected) return `${base} ${C.bgAccent8} ${C.accent} ${C.borderAccent}`;
+  if (isSelected) return `${base} ${C.bgBrand8} ${C.textBrand} ${C.borderBrand}`;
   return `${base} border-transparent ${isActive ? C.text : C.text40}`;
 }
 

@@ -97,12 +97,13 @@ type VaccinationService interface {
 }
 
 type vaccinationService struct {
-	repo       repository.VaccinationRepository
-	tagSyncSvc LstepTagSyncService
+	repo        repository.VaccinationRepository
+	vaccineRepo repository.VaccineRepository
+	tagSyncSvc  LstepTagSyncService
 }
 
-func NewVaccinationService(repo repository.VaccinationRepository, tagSyncSvc LstepTagSyncService) VaccinationService {
-	return &vaccinationService{repo: repo, tagSyncSvc: tagSyncSvc}
+func NewVaccinationService(repo repository.VaccinationRepository, vaccineRepo repository.VaccineRepository, tagSyncSvc LstepTagSyncService) VaccinationService {
+	return &vaccinationService{repo: repo, vaccineRepo: vaccineRepo, tagSyncSvc: tagSyncSvc}
 }
 
 func (s *vaccinationService) List(ctx context.Context, clinicID uint64, petID, ownerID *uint64, startDate, endDate *string, page, limit int) ([]model.Vaccination, int64, error) {
@@ -126,6 +127,11 @@ func (s *vaccinationService) GetByID(ctx context.Context, clinicID, id uint64) (
 func (s *vaccinationService) Create(ctx context.Context, clinicID uint64, input *CreateVaccinationInput) (*model.Vaccination, error) {
 	if input.VaccineID == 0 {
 		return nil, apperrors.WrapInvalidInput("vaccine_id is required")
+	}
+	// クロステナント write 防止: 別 clinic の vaccine を接種記録に紐付けると
+	// ワクチン名/種別/スケジュールが患者記録へ混入する（#125 同型）。所有権を明示検証する。
+	if _, err := s.vaccineRepo.FindByID(ctx, clinicID, input.VaccineID); err != nil {
+		return nil, apperrors.Wrap(err, "failed to verify vaccine ownership")
 	}
 	vaccination := &model.Vaccination{
 		ClinicID:         clinicID,
@@ -171,6 +177,14 @@ func (s *vaccinationService) Update(ctx context.Context, clinicID, id uint64, in
 		slog.ErrorContext(ctx, "failed to find vaccination", "error", err)
 		return nil, apperrors.Wrap(err, "failed to find vaccination")
 	}
+	// クロステナント write 防止: 貼り替え先の vaccine が caller の clinic に属することを検証する。
+	if err := validateOwnedMasterFK(ctx, "vaccine", clinicID, input.VaccineID,
+		func(actx context.Context, cid, mid uint64) error {
+			_, err := s.vaccineRepo.FindByID(actx, cid, mid)
+			return err
+		}); err != nil {
+		return nil, err
+	}
 	fields := buildVaccinationUpdate(input)
 	if len(fields) == 0 {
 		return nil, apperrors.WrapInvalidInput("at least one field must be provided")
@@ -192,6 +206,7 @@ func (s *vaccinationService) Delete(ctx context.Context, clinicID, id uint64) er
 		return apperrors.Wrap(err, "failed to find vaccination")
 	}
 	if err := s.repo.Delete(ctx, clinicID, id); err != nil {
+		slog.ErrorContext(ctx, "failed to delete vaccination", "error", err, "clinic_id", clinicID, "vaccination_id", id)
 		return apperrors.Wrap(err, "failed to delete vaccination")
 	}
 	slog.InfoContext(ctx, "vaccination deleted",

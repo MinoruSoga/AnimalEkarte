@@ -166,17 +166,19 @@ const (
 )
 
 type CareLog struct {
-	ID            uint64        `gorm:"primaryKey;autoIncrement"                       json:"id"`
-	ClinicID      uint64        `gorm:"not null"                                       json:"clinic_id"`
-	DailyRecordID uint64        `gorm:"not null"                                       json:"daily_record_id"`
-	Time          time.Time     `gorm:"type:time;not null"                             json:"time"`
-	Type          CareLogType   `gorm:"type:care_log_type;not null"                    json:"type"`
-	Status        CareLogStatus `gorm:"type:care_log_status;not null;default:'completed'" json:"status"`
-	Value         string        `gorm:"default:''"                                     json:"value"`
-	StaffID       *uint64       `                                                      json:"staff_id,omitempty"`
-	Notes         string        `gorm:"default:''"                                     json:"notes"`
-	CreatedAt     time.Time     `gorm:"autoCreateTime"                                 json:"created_at"`
-	UpdatedAt     time.Time     `gorm:"autoUpdateTime"                                 json:"updated_at"`
+	ID            uint64 `gorm:"primaryKey;autoIncrement"                       json:"id"`
+	ClinicID      uint64 `gorm:"not null"                                       json:"clinic_id"`
+	DailyRecordID uint64 `gorm:"not null"                                       json:"daily_record_id"`
+	// TIME 列は string で受ける（pg ドライバは TIME を string で返すため time.Time では Scan 不能。
+	// clinic_settings / shift_entry_break 等の既存 TIME 列と同じ規約。BUG-404）
+	Time      string        `gorm:"type:time;not null"                             json:"time"`
+	Type      CareLogType   `gorm:"type:care_log_type;not null"                    json:"type"`
+	Status    CareLogStatus `gorm:"type:care_log_status;not null;default:'completed'" json:"status"`
+	Value     string        `gorm:"default:''"                                     json:"value"`
+	StaffID   *uint64       `                                                      json:"staff_id,omitempty"`
+	Notes     string        `gorm:"default:''"                                     json:"notes"`
+	CreatedAt time.Time     `gorm:"autoCreateTime"                                 json:"created_at"`
+	UpdatedAt time.Time     `gorm:"autoUpdateTime"                                 json:"updated_at"`
 
 	// Relations
 	Staff *Staff `gorm:"foreignKey:StaffID" json:"staff,omitempty"`
@@ -187,7 +189,7 @@ func (CareLog) TableName() string { return "care_logs" }
 type StaffNote struct {
 	ID            uint64    `gorm:"primaryKey;autoIncrement"                       json:"id"`
 	DailyRecordID uint64    `gorm:"not null"                                       json:"daily_record_id"`
-	Time          time.Time `gorm:"type:time;not null"                             json:"time"`
+	Time          string    `gorm:"type:time;not null"                             json:"time"`
 	Content       string    `gorm:"not null;default:''"                            json:"content"`
 	StaffID       *uint64   `                                                      json:"staff_id,omitempty"`
 	CreatedAt     time.Time `gorm:"autoCreateTime"                                 json:"created_at"`

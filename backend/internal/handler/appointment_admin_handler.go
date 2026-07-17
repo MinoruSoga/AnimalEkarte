@@ -26,14 +26,11 @@ func (h *Handler) ListReservationsAdmin(c *gin.Context) {
 			RespondError(c, err)
 			return
 		}
-		list := make([]reservationSummaryResponse, 0, len(items))
-		for i := range items {
-			list = append(list, toReservationSummaryResponse(&items[i]))
-		}
+		list := mapSlice(items, toReservationSummaryResponse)
 		c.JSON(http.StatusOK, list)
 
 	case "day":
-		date, err := time.ParseInLocation("2006-01-02", query.Date, time.Local)
+		date, err := time.ParseInLocation(time.DateOnly, query.Date, time.Local)
 		if err != nil {
 			RespondError(c, apperrors.WrapInvalidInput("date must be YYYY-MM-DD format for day view"))
 			return
@@ -43,10 +40,7 @@ func (h *Handler) ListReservationsAdmin(c *gin.Context) {
 			RespondError(c, err)
 			return
 		}
-		list := make([]reservationDetailResponse, 0, len(items))
-		for i := range items {
-			list = append(list, toReservationDetailResponse(&items[i]))
-		}
+		list := mapSlice(items, toReservationDetailResponse)
 		c.JSON(http.StatusOK, list)
 
 	default:

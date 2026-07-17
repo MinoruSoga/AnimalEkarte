@@ -9,7 +9,7 @@ import {
   createEmptyPermissionRule,
   type PermissionRule,
   type PermissionRuleField,
-} from "./PermissionRuleTableModel";
+} from "./permission-rule-table-model";
 import { PermissionRuleTableRow } from "./PermissionRuleTableRow";
 
 interface PermissionRuleTableProps {

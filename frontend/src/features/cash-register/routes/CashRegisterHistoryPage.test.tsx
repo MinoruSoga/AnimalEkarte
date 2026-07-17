@@ -1,12 +1,24 @@
-import { describe, it, expect, afterEach } from "vitest";
+import { describe, it, expect, afterEach, vi } from "vitest";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { MemoryRouter } from "react-router";
 import { http, HttpResponse } from "msw";
 import { server } from "@/testing/mocks/node";
+import { createTestWrapper } from "@/testing/utils";
 import type { CashRegisterClose } from "@/types/generated/models";
 import { CashRegisterHistoryPage } from "./CashRegisterHistoryPage";
+
+// PageLayout の resource prop 経由で PermissionBadges → usePermission → useAuth が呼ばれるため、
+// AuthProvider 非依存でレンダーできるよう最小限のモックを用意する（AccountingReportsPage.test.tsx と同パターン）。
+vi.mock("@/hooks/use-auth", () => ({
+  useAuth: () => ({
+    user: {
+      clinics: [{ clinicId: "1", clinicName: "テスト動物病院", isMain: true }],
+      clinic: { name: "テスト動物病院" },
+    },
+    currentClinicId: "1",
+    hasPermission: () => true,
+  }),
+}));
 
 interface CloseOverrides {
   memo?: string;
@@ -36,16 +48,10 @@ const makeClose = (
 
 const mockCloses = [makeClose(1, "2026-06-15", "am"), makeClose(2, "2026-06-20", "pm")];
 
-const renderPage = (initialEntry: string) => {
-  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  return render(
-    <QueryClientProvider client={queryClient}>
-      <MemoryRouter initialEntries={[initialEntry]}>
-        <CashRegisterHistoryPage />
-      </MemoryRouter>
-    </QueryClientProvider>,
-  );
-};
+const renderPage = (initialEntry: string) =>
+  render(<CashRegisterHistoryPage />, {
+    wrapper: createTestWrapper({ initialEntries: [initialEntry] }),
+  });
 
 const stubCloses = (closes: CashRegisterClose[]) => {
   server.use(
@@ -60,7 +66,7 @@ describe("CashRegisterHistoryPage drill-down deep-link", () => {
     server.resetHandlers();
   });
 
-  it("scopes the month query and highlights the close matching the ?date param", async () => {
+  it("scopes the query to the single ?date day and highlights the matching close", async () => {
     let capturedParams: URLSearchParams | null = null;
     server.use(
       http.get("*/v1/cash-register/closes", ({ request }) => {
@@ -75,9 +81,9 @@ describe("CashRegisterHistoryPage drill-down deep-link", () => {
       expect(screen.queryByText("読み込み中...")).not.toBeInTheDocument();
     });
 
-    // The deep-link initialized the query to the target month.
-    expect(capturedParams?.get("year")).toBe("2026");
-    expect(capturedParams?.get("month")).toBe("6");
+    // The deep-link scopes the query to that single day (start_date = end_date = date).
+    expect(capturedParams?.get("start_date")).toBe("2026-06-15");
+    expect(capturedParams?.get("end_date")).toBe("2026-06-15");
 
     // A contextual note explains the highlight.
     expect(screen.getByText(/ハイライト表示しています/)).toBeInTheDocument();
@@ -152,6 +158,86 @@ describe("CashRegisterHistoryPage period filter", () => {
 
     expect(screen.queryByText("2026-06-15")).not.toBeInTheDocument();
     expect(screen.getByText("締め履歴がありません")).toBeInTheDocument();
+  });
+});
+
+describe("CashRegisterHistoryPage month-range query", () => {
+  afterEach(() => {
+    server.resetHandlers();
+  });
+
+  it("derives start_date/end_date from the selected month and resets to page 1", async () => {
+    const user = userEvent.setup();
+    let latestParams: URLSearchParams | null = null;
+    server.use(
+      http.get("*/v1/cash-register/closes", ({ request }) => {
+        latestParams = new URL(request.url).searchParams;
+        return HttpResponse.json({ data: mockCloses, total: mockCloses.length });
+      }),
+    );
+
+    renderPage("/accounting/close/history");
+
+    await waitFor(() => {
+      expect(screen.queryByText("読み込み中...")).not.toBeInTheDocument();
+    });
+
+    // Read the component's own default (JST) year to avoid timezone coupling in CI.
+    const currentYear = (screen.getByLabelText("年") as HTMLSelectElement).value;
+    // August always has 31 days, so the expected range is stable regardless of the run year.
+    await user.selectOptions(screen.getByLabelText("月"), "8");
+
+    await waitFor(() => {
+      expect(latestParams?.get("start_date")).toBe(`${currentYear}-08-01`);
+    });
+    expect(latestParams?.get("end_date")).toBe(`${currentYear}-08-31`);
+    expect(latestParams?.get("page")).toBe("1");
+    // The legacy year/month params must no longer be sent.
+    expect(latestParams?.get("year")).toBeNull();
+    expect(latestParams?.get("month")).toBeNull();
+  });
+});
+
+describe("CashRegisterHistoryPage pagination", () => {
+  afterEach(() => {
+    server.resetHandlers();
+  });
+
+  it("shows the pager only when the total exceeds one page and sends the requested page", async () => {
+    const user = userEvent.setup();
+    let latestParams: URLSearchParams | null = null;
+    server.use(
+      http.get("*/v1/cash-register/closes", ({ request }) => {
+        latestParams = new URL(request.url).searchParams;
+        return HttpResponse.json({ data: mockCloses, total: 45 });
+      }),
+    );
+
+    renderPage("/accounting/close/history");
+
+    await waitFor(() => {
+      expect(screen.queryByText("読み込み中...")).not.toBeInTheDocument();
+    });
+
+    // 45 closes / 20 per page = 3 pages, so the page-2 control is present.
+    await user.click(screen.getByRole("button", { name: "2" }));
+
+    await waitFor(() => {
+      expect(latestParams?.get("page")).toBe("2");
+    });
+    expect(latestParams?.get("limit")).toBe("20");
+  });
+
+  it("hides the pager when the total fits on a single page", async () => {
+    stubCloses(mockCloses);
+
+    renderPage("/accounting/close/history");
+
+    await waitFor(() => {
+      expect(screen.queryByText("読み込み中...")).not.toBeInTheDocument();
+    });
+
+    expect(screen.queryByText(/件中/)).not.toBeInTheDocument();
   });
 });
 

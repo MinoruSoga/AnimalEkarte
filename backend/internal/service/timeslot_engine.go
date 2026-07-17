@@ -14,6 +14,14 @@ func minutesSinceMidnight(hhmm string) (int, error) {
 	if len(hhmm) != 4 {
 		return 0, apperrors.WrapInvalidInput(fmt.Sprintf("invalid time format %q: must be HHMM", hhmm))
 	}
+	// byte 型の unsigned wraparound（'0' 未満の文字は減算で200+に、'9' 超の文字は10+に
+	// ラップする）に依存せず、ASCII 数字4桁であることを明示的に検証する。桁が偶然レンジ内に
+	// 収まる非数字（例: ':' 0x3A）は下の h/m レンジチェックだけではすり抜けるため必須。
+	for i := 0; i < len(hhmm); i++ {
+		if hhmm[i] < '0' || hhmm[i] > '9' {
+			return 0, apperrors.WrapInvalidInput(fmt.Sprintf("invalid time format %q: must be HHMM", hhmm))
+		}
+	}
 	h := int(hhmm[0]-'0')*10 + int(hhmm[1]-'0')
 	m := int(hhmm[2]-'0')*10 + int(hhmm[3]-'0')
 	if h < 0 || h > 23 || m < 0 || m > 59 {

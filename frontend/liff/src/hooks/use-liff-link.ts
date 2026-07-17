@@ -1,16 +1,19 @@
 import { useState, useEffect } from 'react';
-import { useLiff } from './use-liff';
+import { useLiff } from '@/shared-liff/use-liff';
 import { LIFF_ID, LIFF_MOCK } from '../lib/liff-config';
 import { linkLineAccount, LiffApiError } from '../api/liff-api';
 
-export type LinkStatus = 'loading' | 'linking' | 'success' | 'conflict' | 'expired' | 'error';
+/** モック連携成功を表示するまでの待ち時間 (FE5-6) */
+const LINK_SUCCESS_DISPLAY_MS = 800;
+
+type LinkStatus = 'loading' | 'linking' | 'success' | 'conflict' | 'expired' | 'error';
 
 interface UseLiffLinkResult {
   status: LinkStatus;
   errorMessage: string | null;
 }
 
-export function useLiffLink(clinicId: string, linkToken: string): UseLiffLinkResult {
+export function useLiffLink(): UseLiffLinkResult {
   const { idToken, isReady, initError } = useLiff(LIFF_ID);
   const [status, setStatus] = useState<LinkStatus>('loading');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -32,6 +35,16 @@ export function useLiffLink(clinicId: string, linkToken: string): UseLiffLinkRes
       return;
     }
 
+    // SD-14: token/clinic_id は isReady（liff.init() 完了）後に初めて読む。
+    // LINE ログインリダイレクト（未ログイン状態での初回アクセス等）を経由する場合、
+    // LIFF SDK は元のクエリを liff.state に包んで戻し、liff.init() の完了までに
+    // history.replaceState で元の URL（?token=...&clinic_id=...）へ復元する。
+    // isReady より前に window.location.search を読むと、この復元前の
+    // liff.state 付き URL を掴んでしまい token/clinic_id が欠落する。
+    const params = new URLSearchParams(window.location.search);
+    const clinicId = params.get('clinic_id') ?? '';
+    const linkToken = params.get('token') ?? '';
+
     if (!clinicId || !linkToken) {
       setStatus('error');
       setErrorMessage('無効なURLです。QRコードを再度読み取ってください');
@@ -41,7 +54,7 @@ export function useLiffLink(clinicId: string, linkToken: string): UseLiffLinkRes
     setStatus('linking');
 
     if (LIFF_MOCK) {
-      const timer = setTimeout(() => setStatus('success'), 800);
+      const timer = setTimeout(() => setStatus('success'), LINK_SUCCESS_DISPLAY_MS);
       return () => clearTimeout(timer);
     }
 
@@ -71,7 +84,7 @@ export function useLiffLink(clinicId: string, linkToken: string): UseLiffLinkRes
           setErrorMessage('連携中にエラーが発生しました。しばらくしてからお試しください');
         }
       });
-  }, [isReady, idToken, initError, clinicId, linkToken]);
+  }, [isReady, idToken, initError]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
   return { status, errorMessage };

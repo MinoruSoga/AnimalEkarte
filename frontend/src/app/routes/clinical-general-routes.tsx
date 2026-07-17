@@ -109,8 +109,8 @@ export const clinicalGeneralRoutes: RouteObject[] = [
     {
       index: true,
       lazy: async () => {
-        const { ReservationManagement } = await import("@/features/reservations");
-        return { Component: ReservationManagement };
+        const { ReservationsPage } = await import("@/app/pages/ReservationsPage");
+        return { Component: ReservationsPage };
       },
     },
   ],

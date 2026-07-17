@@ -6,14 +6,8 @@ on:
     # ⚠️ STG は毎日 22:00-8:00 JST に自動停止する（enable_off_hours_schedule）。
     #    この cron は必ず稼働窓 8:00-22:00 JST 内に置くこと（停止窓に動かすと STG ダウンで失敗）。
     - cron: '0 3 * * *'
+  # push トリガは外す（毎 push の負荷・時間を削る）。手動は workflow_dispatch。
   workflow_dispatch:
-  push:
-    branches: [main, staging]
-    paths:
-      - 'backend/**'
-      - 'frontend/**'
-      - 'load-tests/**'
-      - '.github/workflows/performance-tests.yml'
 
 env:
   GO_VERSION: "1.25"
@@ -32,7 +26,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6.0.2
+        uses: actions/checkout@v7.0.0
 
       - name: Set up Go
         uses: actions/setup-go@v6
@@ -47,10 +41,12 @@ jobs:
 
       - name: Create .env.local for CI
         run: |
-          echo "DB_USER=postgres" > .env.local
-          echo "DB_PASSWORD=postgres" >> .env.local
-          echo "DB_NAME=animal_ekarte" >> .env.local
-          echo "JWT_SECRET=${{ secrets.CI_JWT_SECRET || 'ci-test-secret-not-for-prod-use-32chars-min' }}" >> .env.local
+          {
+            echo "DB_USER=postgres"
+            echo "DB_PASSWORD=postgres"
+            echo "DB_NAME=animal_ekarte"
+            echo "JWT_SECRET=${{ secrets.CI_JWT_SECRET || 'ci-test-secret-not-for-prod-use-32chars-min' }}"
+          } > .env.local
 
       - name: Install k6
         run: sudo apt-get install -y gnupg software-properties-common && curl https://dl.k6.io/key.gpg | sudo apt-key add - && sudo add-apt-repository "deb https://dl.k6.io/deb stable main" && sudo apt-get update && sudo apt-get install k6
@@ -60,12 +56,12 @@ jobs:
 
       - name: Wait for backend health
         run: |
-          for i in {1..30}; do
+          for i in {1..150}; do
             if curl -f http://localhost:8080/health 2>/dev/null; then
               echo "Backend is ready"
               exit 0
             fi
-            echo "Attempt $i/30: waiting for backend..."
+            echo "Attempt $i/150: waiting for backend..."
             sleep 2
           done
           exit 1
@@ -84,8 +80,9 @@ jobs:
             --out json=load-tests/results-endpoints.json
         env:
           BASE_URL: http://localhost:8080
-          TEST_EMAIL: admin@example.com
-          TEST_CRED: test
+          # bug.md M-11 / #109: Secrets 未登録時は既存の CI seed 専用デモ値へフォールバック（JWT_SECRET と同型）
+          TEST_EMAIL: ${{ secrets.CI_TEST_EMAIL || 'admin@example.com' }}
+          TEST_CRED: ${{ secrets.CI_TEST_PASSWORD || 'test' }}
         continue-on-error: true
 
       - name: Run k6 spike test
@@ -94,8 +91,8 @@ jobs:
             --out json=load-tests/results-spike.json
         env:
           BASE_URL: http://localhost:8080
-          TEST_EMAIL: admin@example.com
-          TEST_CRED: test
+          TEST_EMAIL: ${{ secrets.CI_TEST_EMAIL || 'admin@example.com' }}
+          TEST_CRED: ${{ secrets.CI_TEST_PASSWORD || 'test' }}
         continue-on-error: true
 
       - name: Upload load test results
@@ -109,106 +106,12 @@ jobs:
       - name: Parse load test results
         if: always()
         run: |
-          echo "=== Load Test Results Summary ===" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "=== Load Test Results Summary ===" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
           if [ -f load-tests/results-endpoints.json ]; then
-            echo "**API Endpoints Test**" >> $GITHUB_STEP_SUMMARY
-            jq '.metrics | keys' load-tests/results-endpoints.json >> $GITHUB_STEP_SUMMARY || echo "Results parsing failed" >> $GITHUB_STEP_SUMMARY
+            echo "**API Endpoints Test**" >> "$GITHUB_STEP_SUMMARY"
+            jq '.metrics | keys' load-tests/results-endpoints.json >> "$GITHUB_STEP_SUMMARY" || echo "Results parsing failed" >> "$GITHUB_STEP_SUMMARY"
           fi
-
-  profiling:
-    timeout-minutes: 20
-    runs-on: ubuntu-latest
-    name: Backend Profiling (CPU/Memory)
-
-    env:
-      DB_USER: postgres
-      DB_PASSWORD: postgres
-      DB_NAME: animal_ekarte
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v6.0.2
-
-      - name: Set up Go
-        uses: actions/setup-go@v6
-        with:
-          go-version: ${{ env.GO_VERSION }}
-          cache-dependency-path: backend/go.sum
-
-      - name: Create .env.local for CI
-        run: |
-          echo "DB_USER=postgres" > .env.local
-          echo "DB_PASSWORD=postgres" >> .env.local
-          echo "DB_NAME=animal_ekarte" >> .env.local
-          echo "JWT_SECRET=${{ secrets.CI_JWT_SECRET || 'ci-test-secret-not-for-prod-use-32chars-min' }}" >> .env.local
-
-      - name: Start Docker services
-        run: docker compose up -d db backend
-
-      - name: Wait for backend health
-        run: |
-          for i in {1..30}; do
-            if curl -f http://localhost:8080/health 2>/dev/null; then
-              echo "Backend is ready"
-              exit 0
-            fi
-            echo "Attempt $i/30: waiting for backend..."
-            sleep 2
-          done
-          exit 1
-
-      - name: Dump Docker logs on failure
-        if: failure()
-        run: |
-          echo "=== backend logs ==="
-          docker compose logs --no-color backend | tail -100
-          echo "=== db logs ==="
-          docker compose logs --no-color db | tail -50
-
-      - name: Run memory profiling
-        run: |
-          cd backend
-          go run scripts/profile.go memory
-          ls -la profile_memory.pprof
-        continue-on-error: true
-
-      - name: Run CPU profiling (10s)
-        run: |
-          cd backend
-          go run scripts/profile.go cpu 10s
-          ls -la profile_cpu.pprof
-        continue-on-error: true
-
-      - name: Run goroutine profiling
-        run: |
-          cd backend
-          go run scripts/profile.go goroutine
-          ls -la profile_goroutines.pprof
-        continue-on-error: true
-
-      - name: Print memory stats
-        run: |
-          cd backend
-          go run scripts/profile.go stats
-        continue-on-error: true
-
-      - name: Upload profiling results
-        uses: actions/upload-artifact@v7
-        if: always()
-        with:
-          name: profiling-results
-          path: backend/profile_*.pprof
-          retention-days: 30
-
-      - name: Analyze memory profile
-        if: always()
-        run: |
-          if [ -f backend/profile_memory.pprof ]; then
-            go tool pprof -top backend/profile_memory.pprof > backend/memory-analysis.txt || true
-            cat backend/memory-analysis.txt
-          fi
-        continue-on-error: true
 
   lighthouse:
     timeout-minutes: 30
@@ -222,7 +125,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6.0.2
+        uses: actions/checkout@v7.0.0
 
       - name: Install pnpm
         uses: pnpm/action-setup@v6
@@ -240,10 +143,12 @@ jobs:
 
       - name: Create .env.local for CI
         run: |
-          echo "DB_USER=postgres" > .env.local
-          echo "DB_PASSWORD=postgres" >> .env.local
-          echo "DB_NAME=animal_ekarte" >> .env.local
-          echo "JWT_SECRET=${{ secrets.CI_JWT_SECRET || 'ci-test-secret-not-for-prod-use-32chars-min' }}" >> .env.local
+          {
+            echo "DB_USER=postgres"
+            echo "DB_PASSWORD=postgres"
+            echo "DB_NAME=animal_ekarte"
+            echo "JWT_SECRET=${{ secrets.CI_JWT_SECRET || 'ci-test-secret-not-for-prod-use-32chars-min' }}"
+          } > .env.local
 
       - name: Start Docker services
         run: docker compose up -d
@@ -283,7 +188,7 @@ jobs:
 
       - name: Comment PR with performance results
         if: github.event_name == 'pull_request' && always()
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           script: |
             const fs = require('fs');
@@ -316,7 +221,7 @@ jobs:
             });
 
   summary:
-    needs: [load-test, profiling, lighthouse]
+    needs: [load-test, lighthouse]
     runs-on: ubuntu-latest
     if: always()
     name: Performance Test Summary
@@ -324,13 +229,14 @@ jobs:
     steps:
       - name: Generate summary
         run: |
-          echo "## Performance Test Run Complete" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "- Load Testing: ${{ needs.load-test.result }}" >> $GITHUB_STEP_SUMMARY
-          echo "- Backend Profiling: ${{ needs.profiling.result }}" >> $GITHUB_STEP_SUMMARY
-          echo "- Lighthouse Audit: ${{ needs.lighthouse.result }}" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "Results available in Artifacts" >> $GITHUB_STEP_SUMMARY
+          {
+            echo "## Performance Test Run Complete"
+            echo ""
+            echo "- Load Testing: ${{ needs.load-test.result }}"
+            echo "- Lighthouse Audit: ${{ needs.lighthouse.result }}"
+            echo ""
+            echo "Results available in Artifacts"
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Stop Docker services
         if: always()

@@ -18,6 +18,7 @@ type mockVaccineRepository struct {
 	createFn                  func(ctx context.Context, vaccine *model.Vaccine) error
 	updateFieldsFn            func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Vaccine, error)
 	deleteFn                  func(ctx context.Context, clinicID, id uint64) error
+	reorderFn                 func(ctx context.Context, clinicID uint64, ids []uint64) error
 	countUsageByVaccineIDFn   func(ctx context.Context, clinicID, vaccineID uint64) (int64, error)
 	countChildrenByParentIDFn func(ctx context.Context, clinicID, parentID uint64) (int64, error)
 }
@@ -43,6 +44,9 @@ func (m *mockVaccineRepository) Delete(ctx context.Context, clinicID, id uint64)
 }
 
 func (m *mockVaccineRepository) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
+	if m.reorderFn != nil {
+		return m.reorderFn(ctx, clinicID, ids)
+	}
 	return nil
 }
 
@@ -457,4 +461,215 @@ func TestVaccineService_Delete(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestVaccineService_Reorder(t *testing.T) {
+	tests := []struct {
+		name        string
+		ids         []uint64
+		repoErr     error
+		wantErr     bool
+		wantInvalid bool
+	}{
+		{
+			name:    "reorders successfully",
+			ids:     []uint64{3, 1, 2},
+			wantErr: false,
+		},
+		{
+			name:        "returns error when ids is empty",
+			ids:         []uint64{},
+			wantErr:     true,
+			wantInvalid: true,
+		},
+		{
+			name:        "returns error when ids is nil",
+			ids:         nil,
+			wantErr:     true,
+			wantInvalid: true,
+		},
+		{
+			name:    "propagates repository error",
+			ids:     []uint64{1, 2},
+			repoErr: errors.New("db error"),
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			repo := &mockVaccineRepository{
+				reorderFn: func(_ context.Context, _ uint64, _ []uint64) error {
+					return tt.repoErr
+				},
+			}
+			svc := NewVaccineService(repo)
+
+			err := svc.Reorder(context.Background(), 1, tt.ids)
+
+			if tt.wantErr {
+				assert.Error(t, err)
+				if tt.wantInvalid {
+					assert.True(t, apperrors.IsInvalidInput(err))
+				}
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
+
+// ---- buildVaccineUpdate 直接テスト ----
+
+func TestBuildVaccineUpdate(t *testing.T) {
+	name := "更新後ワクチン"
+	price := int64(3000)
+	isActive := true
+	description := "更新説明"
+	species := "dog"
+	interval := "annual"
+	parentID := uint64(5)
+	sortOrder := 3
+
+	tests := []struct {
+		name  string
+		input *UpdateVaccineInput
+		want  map[string]any
+	}{
+		{
+			name:  "全フィールドnilの場合は空map",
+			input: &UpdateVaccineInput{},
+			want:  map[string]any{},
+		},
+		{
+			name: "全フィールド設定",
+			input: &UpdateVaccineInput{
+				Name:        &name,
+				Price:       &price,
+				IsActive:    &isActive,
+				Description: &description,
+				Species:     &species,
+				Interval:    &interval,
+				ParentID:    &parentID,
+				SortOrder:   &sortOrder,
+			},
+			want: map[string]any{
+				colVaccineName:        name,
+				colVaccinePrice:       price,
+				colVaccineIsActive:    isActive,
+				colVaccineDescription: description,
+				colVaccineSpecies:     model.VaccineSpecies(species),
+				colVaccineInterval:    interval,
+				colVaccineParentID:    parentID,
+				colVaccineSortOrder:   sortOrder,
+			},
+		},
+		{
+			name: "ClearParentIDがtrueの場合はparent_idをnilに設定",
+			input: &UpdateVaccineInput{
+				ClearParentID: true,
+			},
+			want: map[string]any{
+				colVaccineParentID: nil,
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := buildVaccineUpdate(tt.input)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+// ---- Create 追加分岐 ----
+
+func TestVaccineService_Create_InvalidSpecies(t *testing.T) {
+	invalidSpecies := "reptile"
+	repo := &mockVaccineRepository{
+		createFn: func(_ context.Context, _ *model.Vaccine) error {
+			t.Fatal("repo.Create should not be called when species validation fails")
+			return nil
+		},
+	}
+	svc := NewVaccineService(repo)
+
+	vaccine, err := svc.Create(context.Background(), 1, &CreateVaccineInput{
+		Name:    "新規ワクチン",
+		Species: &invalidSpecies,
+	})
+
+	assert.Error(t, err)
+	assert.Nil(t, vaccine)
+	assert.True(t, apperrors.IsInvalidInput(err))
+}
+
+func TestVaccineService_Create_WithValidSpecies(t *testing.T) {
+	dogSpecies := "dog"
+	repo := &mockVaccineRepository{
+		createFn: func(_ context.Context, _ *model.Vaccine) error {
+			return nil
+		},
+	}
+	svc := NewVaccineService(repo)
+
+	vaccine, err := svc.Create(context.Background(), 1, &CreateVaccineInput{
+		Name:    "犬用ワクチン",
+		Species: &dogSpecies,
+	})
+
+	assert.NoError(t, err)
+	assert.NotNil(t, vaccine)
+	assert.NotNil(t, vaccine.Species)
+	assert.Equal(t, model.VaccineSpeciesDog, *vaccine.Species)
+}
+
+// ---- Update 追加分岐 ----
+
+func TestVaccineService_Update_InvalidName(t *testing.T) {
+	invalidName := "無効\x00文字"
+	repo := &mockVaccineRepository{
+		findByIDFn: func(_ context.Context, _, id uint64) (*model.Vaccine, error) {
+			return &model.Vaccine{ID: id}, nil
+		},
+	}
+	svc := NewVaccineService(repo)
+
+	vaccine, err := svc.Update(context.Background(), 1, 1, &UpdateVaccineInput{Name: &invalidName})
+
+	assert.Error(t, err)
+	assert.Nil(t, vaccine)
+	assert.True(t, apperrors.IsInvalidInput(err))
+}
+
+func TestVaccineService_Update_NegativePrice(t *testing.T) {
+	negativePrice := int64(-500)
+	repo := &mockVaccineRepository{
+		findByIDFn: func(_ context.Context, _, id uint64) (*model.Vaccine, error) {
+			return &model.Vaccine{ID: id}, nil
+		},
+	}
+	svc := NewVaccineService(repo)
+
+	vaccine, err := svc.Update(context.Background(), 1, 1, &UpdateVaccineInput{Price: &negativePrice})
+
+	assert.Error(t, err)
+	assert.Nil(t, vaccine)
+	assert.True(t, apperrors.IsInvalidInput(err))
+}
+
+func TestVaccineService_Update_InvalidSpecies(t *testing.T) {
+	invalidSpecies := "reptile"
+	repo := &mockVaccineRepository{
+		findByIDFn: func(_ context.Context, _, id uint64) (*model.Vaccine, error) {
+			return &model.Vaccine{ID: id}, nil
+		},
+	}
+	svc := NewVaccineService(repo)
+
+	vaccine, err := svc.Update(context.Background(), 1, 1, &UpdateVaccineInput{Species: &invalidSpecies})
+
+	assert.Error(t, err)
+	assert.Nil(t, vaccine)
+	assert.True(t, apperrors.IsInvalidInput(err))
 }

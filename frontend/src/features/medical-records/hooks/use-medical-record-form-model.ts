@@ -1,3 +1,7 @@
+import { formatJSTDate } from "@/lib/jst-date";
+
+export { formatJSTDate };
+
 export const DEFAULT_CHIEF_COMPLAINT = "# どんな症状\n\n# どこが\n\n# いつから\n\n# その他・備考\n\n# フリースペース";
 export const DEFAULT_TREATMENT_POLICY = "# 治療方針";
 export const DEFAULT_PLAN = "# 治療方針";
@@ -26,11 +30,6 @@ export function toVisitTypeValue(visitTypeLabel: string): "first" | "revisit" {
 
 function padDatePart(value: number): string {
   return String(value).padStart(2, "0");
-}
-
-export function formatJSTDate(date: Date): string {
-  const jstDate = new Date(date.getTime() + JST_OFFSET_MS);
-  return `${jstDate.getUTCFullYear()}-${padDatePart(jstDate.getUTCMonth() + 1)}-${padDatePart(jstDate.getUTCDate())}`;
 }
 
 function formatJSTDateTime(date: Date): string {

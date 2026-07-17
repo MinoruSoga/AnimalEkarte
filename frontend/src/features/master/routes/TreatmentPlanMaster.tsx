@@ -1,8 +1,7 @@
 // React/Framework
 import { useState, useMemo, useCallback } from "react";
-import { useNavigate, useSearchParams } from "react-router";
+import { useSearchParams } from "react-router";
 import { toast } from "sonner";
-import { paths } from "@/config/paths";
 import { useSidePeekDirty } from "@/hooks/use-side-peek-dirty";
 
 // Shared hooks
@@ -10,17 +9,15 @@ import { useMasterSave } from "../hooks/use-master-save";
 
 // External
 import Stethoscope from "lucide-react/dist/esm/icons/stethoscope";
-import Plus from "lucide-react/dist/esm/icons/plus";
 
 // Tabs
 import { UnifiedTabs, UnifiedTabsContent } from "@/components/shared/UnifiedTabs";
 
 // Internal shared
-import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
-import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
 import { C, ICON } from "@/lib/design-tokens";
 import { handleApiError } from "@/lib/handle-api-error";
 import { usePermission } from "@/hooks/use-permission";
+import { MasterTabPage } from "../components/MasterTabPage";
 import { TreatmentPlanDeleteDialog } from "../components/TreatmentPlanDeleteDialog";
 import { TreatmentPlanSidePanelHost } from "../components/TreatmentPlanSidePanelHost";
 import { TreatmentPlanTabContent } from "../components/TreatmentPlanTabContent";
@@ -39,7 +36,7 @@ import {
   buildVaccineUpdateRequest,
   TREATMENT_PLAN_TABS,
   toTreatmentPlanTabValue,
-} from "./TreatmentPlanMasterModel";
+} from "./treatment-plan-master-model";
 
 // API hooks
 import { useGetAllConsultations, useCreateConsultation, useUpdateConsultation, useDeleteConsultation, useReorderConsultations } from "../api/consultations";
@@ -62,8 +59,7 @@ import { ResourceMasterMedical } from "@/types/generated/models";
 // ─────────────────────────────────────────────────
 
 export function TreatmentPlanMaster() {
-  const navigate = useNavigate();
-  const { canCreate, canEdit, canDelete } = usePermission(ResourceMasterMedical);
+  const { canEdit, canDelete } = usePermission(ResourceMasterMedical);
   const [searchParams, setSearchParams] = useSearchParams();
   const activeTab = toTreatmentPlanTabValue(searchParams.get("tab"));
   const [editTarget, setEditTarget] = useState<TreatmentItem | "new" | null>(null);
@@ -79,6 +75,11 @@ export function TreatmentPlanMaster() {
     setEditTarget(null);
     setPendingDelete(null);
   }, [setSearchParams, dirty]);
+
+  const handleNew = useCallback(() => {
+    if (!dirty.confirmDiscard()) return;
+    setEditTarget("new");
+  }, [dirty]);
 
   // ── Consultations ──────────────────────────────────
   const { data: consultationData } = useGetAllConsultations();
@@ -274,49 +275,12 @@ export function TreatmentPlanMaster() {
   }, [activeTab, deleteMutationByTab, pendingDelete, tabConfigs]);
 
   return (
-    <>
-      <div className="flex h-full">
-        <div className="flex-1 min-w-0">
-          <PageLayout
-            title="治療プランマスタ"
-            icon={<Stethoscope className={`${ICON.page} ${C.text}`} />}
-            resource={ResourceMasterMedical}
-            onBack={() => navigate(paths.settings.getHref())}
-            maxWidth="max-w-full"
-            headerAction={
-              canCreate ? (
-                <PrimaryButton onClick={() => {
-                  if (!dirty.confirmDiscard()) return;
-                  setEditTarget("new");
-                }}>
-                  <Plus className={`mr-1.5 ${ICON.action}`} />
-                  新規登録
-                </PrimaryButton>
-              ) : null
-            }
-          >
-            <UnifiedTabs
-              items={tabItems}
-              value={activeTab}
-              onValueChange={handleTabChange}
-              className="flex flex-col gap-4"
-            >
-              {TREATMENT_PLAN_TABS.map((tab) => {
-                const config = tabConfigs[tab.value];
-                return (
-                  <UnifiedTabsContent key={tab.value} value={tab.value} className="mt-4">
-                    <TreatmentPlanTabContent
-                      {...config}
-                      onEditTargetChange={setEditTargetGuarded}
-                      canEdit={canEdit}
-                    />
-                  </UnifiedTabsContent>
-                );
-              })}
-            </UnifiedTabs>
-          </PageLayout>
-        </div>
-
+    <MasterTabPage
+      title="治療プランマスタ"
+      icon={<Stethoscope className={`${ICON.page} ${C.text}`} />}
+      resource={ResourceMasterMedical}
+      onNew={handleNew}
+      sidePanel={
         <TreatmentPlanSidePanelHost
           editTarget={editTarget}
           selectedItem={selectedItem}
@@ -329,14 +293,35 @@ export function TreatmentPlanMaster() {
           onDeleteRequest={handleDeleteRequest}
           onDirtyChange={handleDirtyChange}
         />
-      </div>
-
-      <TreatmentPlanDeleteDialog
-        entityLabel={tabConfigs[activeTab].entityLabel}
-        pendingDelete={pendingDelete}
-        onClose={handleDeleteCancel}
-        onConfirm={handleDeleteConfirm}
-      />
-    </>
+      }
+      deleteDialogs={
+        <TreatmentPlanDeleteDialog
+          entityLabel={tabConfigs[activeTab].entityLabel}
+          pendingDelete={pendingDelete}
+          onClose={handleDeleteCancel}
+          onConfirm={handleDeleteConfirm}
+        />
+      }
+    >
+      <UnifiedTabs
+        items={tabItems}
+        value={activeTab}
+        onValueChange={handleTabChange}
+        className="flex flex-col gap-4"
+      >
+        {TREATMENT_PLAN_TABS.map((tab) => {
+          const config = tabConfigs[tab.value];
+          return (
+            <UnifiedTabsContent key={tab.value} value={tab.value} className="mt-4">
+              <TreatmentPlanTabContent
+                {...config}
+                onEditTargetChange={setEditTargetGuarded}
+                canEdit={canEdit}
+              />
+            </UnifiedTabsContent>
+          );
+        })}
+      </UnifiedTabs>
+    </MasterTabPage>
   );
 }

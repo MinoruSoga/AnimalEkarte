@@ -1,30 +1,17 @@
 package service
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
+	"log/slog"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 
 	"github.com/animal-ekarte/backend/internal/model"
 )
-
-// ---- AuditRepository モック ----
-
-type mockAuditRepository struct {
-	createFn   func(ctx context.Context, log *model.AuditLog) error
-	lastLogged *model.AuditLog
-}
-
-func (m *mockAuditRepository) Create(ctx context.Context, log *model.AuditLog) error {
-	m.lastLogged = log
-	if m.createFn != nil {
-		return m.createFn(ctx, log)
-	}
-	return nil
-}
 
 func TestAuditService_LogEntry(t *testing.T) {
 	repo := &mockAuditRepository{}
@@ -53,7 +40,9 @@ func TestAuditService_LogEntry(t *testing.T) {
 	assert.Equal(t, "staff", repo.lastLogged.ActorType)
 	assert.Equal(t, "update", repo.lastLogged.Action)
 	assert.Equal(t, "permission_group", repo.lastLogged.Resource)
-	assert.Equal(t, "127.0.0.1", repo.lastLogged.IPAddress)
+	if assert.NotNil(t, repo.lastLogged.IPAddress) {
+		assert.Equal(t, "127.0.0.1", *repo.lastLogged.IPAddress)
+	}
 	assert.NotNil(t, repo.lastLogged.OldValue)
 	assert.NotNil(t, repo.lastLogged.NewValue)
 }
@@ -116,6 +105,65 @@ func TestAuditService_LogEntry_Validation(t *testing.T) {
 	}
 }
 
+// TestAuditService_Log_RecordsFailureObservability は PERF-AUDIT-TX P1 の回帰テスト:
+// repo.Create が失敗した際、統一キー "audit_write_failed" が slog.ErrorContext で記録されることを
+// 検証する（STG 日次監視クエリ filter @message like /audit_write_failed/ の前提）。
+// 呼び出し側の分散 Warn ログは対象外・不変（本テストはそれらに触れない）。
+func TestAuditService_Log_RecordsFailureObservability(t *testing.T) {
+	var buf bytes.Buffer
+	prevLogger := slog.Default()
+	slog.SetDefault(slog.New(slog.NewTextHandler(&buf, &slog.HandlerOptions{Level: slog.LevelError})))
+	t.Cleanup(func() { slog.SetDefault(prevLogger) })
+
+	repo := &mockAuditRepository{
+		createFn: func(_ context.Context, _ *model.AuditLog) error {
+			return errors.New("db down")
+		},
+	}
+	svc := NewAuditService(repo)
+	clinicID := uint64(7)
+
+	err := svc.LogEntry(context.Background(), &AuditLogInput{
+		ClinicID:  &clinicID,
+		ActorType: model.AuditActorTypeSystem,
+		Action:    "batch_dormant_detect",
+		Resource:  "clinic",
+	})
+
+	// 戻り値の Wrap 挙動は不変（apperrors.Wrap されたエラーが返る）。
+	assert.Error(t, err)
+
+	out := buf.String()
+	assert.Contains(t, out, "audit_write_failed", "repo.Create 失敗時は統一キーで ErrorContext 記録が必須")
+	assert.Contains(t, out, "level=ERROR")
+	assert.Contains(t, out, "action=batch_dormant_detect")
+	assert.Contains(t, out, "resource=clinic")
+	assert.Contains(t, out, "clinic_id=7")
+}
+
+// TestAuditService_Log_Success_NoFailureLog は成功経路で audit_write_failed が出力されないことの
+// 回帰（誤って常時ログを出すよう実装すると STG 監視クエリがノイズだらけになるため）。
+func TestAuditService_Log_Success_NoFailureLog(t *testing.T) {
+	var buf bytes.Buffer
+	prevLogger := slog.Default()
+	slog.SetDefault(slog.New(slog.NewTextHandler(&buf, &slog.HandlerOptions{Level: slog.LevelError})))
+	t.Cleanup(func() { slog.SetDefault(prevLogger) })
+
+	repo := &mockAuditRepository{}
+	svc := NewAuditService(repo)
+	clinicID := uint64(7)
+
+	err := svc.LogEntry(context.Background(), &AuditLogInput{
+		ClinicID:  &clinicID,
+		ActorType: model.AuditActorTypeSystem,
+		Action:    "batch_dormant_detect",
+		Resource:  "clinic",
+	})
+
+	assert.NoError(t, err)
+	assert.Empty(t, buf.String(), "成功経路では audit_write_failed ログを出さない")
+}
+
 func TestAuditService_LogAuthLogin_RequiresClinicAndStaff(t *testing.T) {
 	repo := &mockAuditRepository{}
 	svc := NewAuditService(repo)
@@ -129,6 +177,168 @@ func TestAuditService_LogAuthLogin_RequiresClinicAndStaff(t *testing.T) {
 
 func ptrUint64ForAuditTest(v uint64) *uint64 {
 	return &v
+}
+
+// TestValidateAuditLog は validateAuditLog の全分岐（nil ログ・必須フィールド欠落・
+// actor_type 別の actor_id 制約・不正な actor_type）を直接検証する。
+func TestValidateAuditLog(t *testing.T) {
+	clinicID := uint64(1)
+	actorID := uint64(2)
+
+	tests := []struct {
+		name    string
+		log     *model.AuditLog
+		wantErr bool
+	}{
+		{
+			name:    "nil log is rejected",
+			log:     nil,
+			wantErr: true,
+		},
+		{
+			name:    "missing clinic_id is rejected",
+			log:     &model.AuditLog{ActorType: model.AuditActorTypeStaff, ActorID: &actorID, Action: "update", Resource: "owner"},
+			wantErr: true,
+		},
+		{
+			name:    "zero clinic_id is rejected",
+			log:     &model.AuditLog{ClinicID: ptrUint64ForAuditTest(0), ActorType: model.AuditActorTypeStaff, ActorID: &actorID, Action: "update", Resource: "owner"},
+			wantErr: true,
+		},
+		{
+			name:    "blank actor_type is rejected",
+			log:     &model.AuditLog{ClinicID: &clinicID, ActorType: "  ", Action: "update", Resource: "owner"},
+			wantErr: true,
+		},
+		{
+			name:    "blank action is rejected",
+			log:     &model.AuditLog{ClinicID: &clinicID, ActorType: model.AuditActorTypeStaff, ActorID: &actorID, Action: " ", Resource: "owner"},
+			wantErr: true,
+		},
+		{
+			name:    "blank resource is rejected",
+			log:     &model.AuditLog{ClinicID: &clinicID, ActorType: model.AuditActorTypeStaff, ActorID: &actorID, Action: "update", Resource: ""},
+			wantErr: true,
+		},
+		{
+			name:    "staff actor without actor_id is rejected",
+			log:     &model.AuditLog{ClinicID: &clinicID, ActorType: model.AuditActorTypeStaff, Action: "update", Resource: "owner"},
+			wantErr: true,
+		},
+		{
+			name:    "staff actor with zero actor_id is rejected",
+			log:     &model.AuditLog{ClinicID: &clinicID, ActorType: model.AuditActorTypeStaff, ActorID: ptrUint64ForAuditTest(0), Action: "update", Resource: "owner"},
+			wantErr: true,
+		},
+		{
+			name:    "system actor with actor_id is rejected",
+			log:     &model.AuditLog{ClinicID: &clinicID, ActorType: model.AuditActorTypeSystem, ActorID: &actorID, Action: "batch", Resource: "owner"},
+			wantErr: true,
+		},
+		{
+			name:    "unknown actor_type is rejected",
+			log:     &model.AuditLog{ClinicID: &clinicID, ActorType: "account", ActorID: &actorID, Action: "update", Resource: "owner"},
+			wantErr: true,
+		},
+		{
+			name:    "valid staff log passes",
+			log:     &model.AuditLog{ClinicID: &clinicID, ActorType: model.AuditActorTypeStaff, ActorID: &actorID, Action: "update", Resource: "owner"},
+			wantErr: false,
+		},
+		{
+			name:    "valid system log passes",
+			log:     &model.AuditLog{ClinicID: &clinicID, ActorType: model.AuditActorTypeSystem, Action: "batch", Resource: "owner"},
+			wantErr: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validateAuditLog(tt.log)
+			if tt.wantErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
+
+// TestAuditService_Log_NilLog は Log(ctx, nil) が validateAuditLog の nil チェックを
+// 経由してエラーを返すことを確認する。
+func TestAuditService_Log_NilLog(t *testing.T) {
+	repo := &mockAuditRepository{}
+	svc := NewAuditService(repo)
+
+	err := svc.Log(context.Background(), nil)
+
+	assert.Error(t, err)
+	assert.Nil(t, repo.lastLogged)
+}
+
+// TestAuditService_LogEntryTx は #211 tx 内監査経路が repo.CreateTx を使うこと、
+// validateAuditLog のバリデーションを経由すること、repo エラーがラップされて返ることを検証する。
+func TestAuditService_LogEntryTx(t *testing.T) {
+	t.Run("success writes via CreateTx", func(t *testing.T) {
+		repo := &mockAuditRepository{}
+		svc := NewAuditService(repo)
+		auditTxLogger, ok := svc.(AuditTxLogger)
+		if !assert.True(t, ok, "auditService must implement AuditTxLogger") {
+			return
+		}
+
+		clinicID := uint64(1)
+		actorID := uint64(2)
+
+		err := auditTxLogger.LogEntryTx(context.Background(), &AuditLogInput{
+			ClinicID:  &clinicID,
+			ActorID:   &actorID,
+			ActorType: model.AuditActorTypeStaff,
+			Action:    "replace",
+			Resource:  "checkup_field_result",
+		})
+
+		assert.NoError(t, err)
+		if assert.NotNil(t, repo.lastLogged) {
+			assert.Equal(t, "replace", repo.lastLogged.Action)
+			assert.Equal(t, "checkup_field_result", repo.lastLogged.Resource)
+		}
+	})
+
+	t.Run("validation error is returned without hitting repo", func(t *testing.T) {
+		repo := &mockAuditRepository{}
+		svc := NewAuditService(repo)
+		auditTxLogger := svc.(AuditTxLogger)
+
+		err := auditTxLogger.LogEntryTx(context.Background(), &AuditLogInput{
+			ActorType: model.AuditActorTypeStaff,
+			Action:    "replace",
+			Resource:  "checkup_field_result",
+		})
+
+		assert.Error(t, err)
+		assert.Nil(t, repo.lastLogged)
+	})
+
+	t.Run("repo error is wrapped", func(t *testing.T) {
+		repo := &mockAuditRepository{
+			createFn: func(_ context.Context, _ *model.AuditLog) error {
+				return errors.New("tx write failed")
+			},
+		}
+		svc := NewAuditService(repo)
+		auditTxLogger := svc.(AuditTxLogger)
+
+		clinicID := uint64(1)
+		err := auditTxLogger.LogEntryTx(context.Background(), &AuditLogInput{
+			ClinicID:  &clinicID,
+			ActorType: model.AuditActorTypeSystem,
+			Action:    "replace",
+			Resource:  "checkup_field_result",
+		})
+
+		assert.Error(t, err)
+	})
 }
 
 // TestAuditService_LogLstepOperation_BackwardCompat は ISSUE-010 でメソッドを追加した後でも
@@ -387,7 +597,9 @@ func TestAuditService_LogClinicSwitch_StaffActor(t *testing.T) {
 	if assert.NotNil(t, repo.lastLogged.ClinicID) {
 		assert.Equal(t, toClinicID, *repo.lastLogged.ClinicID)
 	}
-	assert.Equal(t, "192.168.1.1", repo.lastLogged.IPAddress)
+	if assert.NotNil(t, repo.lastLogged.IPAddress) {
+		assert.Equal(t, "192.168.1.1", *repo.lastLogged.IPAddress)
+	}
 	assert.Equal(t, "Mozilla/5.0", repo.lastLogged.UserAgent)
 
 	var oldVal, newVal map[string]any

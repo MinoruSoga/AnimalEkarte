@@ -13,73 +13,6 @@ import (
 	"github.com/animal-ekarte/backend/internal/repository"
 )
 
-// ---- MedicalRecord スタブ（BulkUpdateSortOrder テナント検証用）----
-
-type mockMedicalRecordRepoForTreatment struct{}
-
-func (m *mockMedicalRecordRepoForTreatment) FindAll(_ context.Context, _ []uint64, _, _ *uint64, _, _ *string, _, _ int) ([]model.MedicalRecord, int64, error) {
-	return nil, 0, nil
-}
-func (m *mockMedicalRecordRepoForTreatment) FindByID(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
-	return &model.MedicalRecord{Status: model.MedicalRecordStatusDraft}, nil
-}
-func (m *mockMedicalRecordRepoForTreatment) FindByIDForClinics(_ context.Context, _ []uint64, _ uint64) (*model.MedicalRecord, error) {
-	return nil, nil
-}
-func (m *mockMedicalRecordRepoForTreatment) Create(_ context.Context, _ *model.MedicalRecord) error {
-	return nil
-}
-func (m *mockMedicalRecordRepoForTreatment) Update(_ context.Context, _, _ uint64, _ map[string]any) (*model.MedicalRecord, error) {
-	return &model.MedicalRecord{}, nil
-}
-func (m *mockMedicalRecordRepoForTreatment) Delete(_ context.Context, _, _ uint64) error {
-	return nil
-}
-func (m *mockMedicalRecordRepoForTreatment) CountByPetID(_ context.Context, _, _ uint64) (int64, error) {
-	return 0, nil
-}
-func (m *mockMedicalRecordRepoForTreatment) FindFirstVisitDateByPetID(_ context.Context, _, _ uint64) (*time.Time, error) {
-	return nil, nil
-}
-func (m *mockMedicalRecordRepoForTreatment) FindOwnerMedicationHistory(_ context.Context, _, _ uint64, _, _ int) ([]repository.OwnerMedicationHistoryRow, int64, error) {
-	return nil, 0, nil
-}
-func (m *mockMedicalRecordRepoForTreatment) CountEstimatesByMedicalRecordID(_ context.Context, _ uint64) (int64, error) {
-	return 0, nil
-}
-
-func (m *mockMedicalRecordRepoForTreatment) FindOwnerVisitSummary(_ context.Context, _, _ uint64) (*repository.OwnerVisitSummary, error) {
-	return &repository.OwnerVisitSummary{}, nil
-}
-
-func (m *mockMedicalRecordRepoForTreatment) FindLatestByOwner(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
-	return nil, nil
-}
-
-func (m *mockMedicalRecordRepoForTreatment) FindDormantOwnerEntries(_ context.Context, _ uint64, _ int) ([]repository.DormantOwnerEntry, error) {
-	return nil, nil
-}
-
-func (m *mockMedicalRecordRepoForTreatment) FindOwnersByFirstVisitDate(_ context.Context, _ uint64, _ time.Time) ([]uint64, error) {
-	return nil, nil
-}
-
-func (m *mockMedicalRecordRepoForTreatment) FindOwnersByLastVisitDays(_ context.Context, _ uint64, _ int, _ time.Time) ([]uint64, error) {
-	return nil, nil
-}
-
-func (m *mockMedicalRecordRepoForTreatment) FindOwnersByNextVisitRecommended(_ context.Context, _ uint64, _ time.Time) ([]uint64, error) {
-	return nil, nil
-}
-
-func (m *mockMedicalRecordRepoForTreatment) CountByOwnerID(_ context.Context, _, _ uint64) (int64, error) {
-	return 0, nil
-}
-
-func (m *mockMedicalRecordRepoForTreatment) DeleteDraftByAppointmentID(_ context.Context, _, _ uint64) error {
-	return nil
-}
-
 // ---- Treatment モック ----
 
 type mockTreatmentRepository struct {
@@ -89,7 +22,7 @@ type mockTreatmentRepository struct {
 	updateFn                func(ctx context.Context, clinicID, treatmentID uint64, fields map[string]any) error
 	deleteFn                func(ctx context.Context, clinicID, treatmentID uint64) error
 	bulkUpdateSortOrderFn   func(ctx context.Context, updates []repository.TreatmentSortUpdate) error
-	findHistoryByPetIDFn    func(ctx context.Context, clinicID, petID uint64, itemType *model.TreatmentItemType, page, limit int) ([]model.Treatment, int64, error)
+	findHistoryByPetIDFn    func(ctx context.Context, clinicID, petID uint64, filter model.PetTreatmentHistoryFilter, page, limit int) ([]model.Treatment, int64, error)
 }
 
 func (m *mockTreatmentRepository) FindByMedicalRecordID(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.Treatment, error) {
@@ -123,9 +56,9 @@ func (m *mockTreatmentRepository) FindUnbilledByPetID(_ context.Context, _, _ ui
 	return nil, nil
 }
 
-func (m *mockTreatmentRepository) FindHistoryByPetID(ctx context.Context, clinicID, petID uint64, itemType *model.TreatmentItemType, page, limit int) ([]model.Treatment, int64, error) {
+func (m *mockTreatmentRepository) FindHistoryByPetID(ctx context.Context, clinicID, petID uint64, filter model.PetTreatmentHistoryFilter, page, limit int) ([]model.Treatment, int64, error) {
 	if m.findHistoryByPetIDFn != nil {
-		return m.findHistoryByPetIDFn(ctx, clinicID, petID, itemType, page, limit)
+		return m.findHistoryByPetIDFn(ctx, clinicID, petID, filter, page, limit)
 	}
 	return nil, 0, nil
 }
@@ -182,11 +115,11 @@ func TestTreatmentService_List(t *testing.T) {
 					return tt.repoTreatments, tt.repoErr
 				},
 			}
-			svc := NewTreatmentService(&repository.Repositories{
+			svc := NewTreatmentServiceWithAudit(&repository.Repositories{
 				Treatment:     repo,
-				MedicalRecord: &mockMedicalRecordRepoForTreatment{},
+				MedicalRecord: &mockMedicalRecordRepository{},
 				Inventory:     &mockInventoryRepository{},
-			})
+			}, nil)
 
 			treatments, err := svc.List(context.Background(), clinicID, tt.medicalRecordID)
 
@@ -209,38 +142,38 @@ func TestTreatmentService_ListPetHistory(t *testing.T) {
 	invalid := model.TreatmentItemType("bogus")
 
 	t.Run("returns treatments and total on success", func(t *testing.T) {
-		var gotItemType *model.TreatmentItemType
+		var gotFilter model.PetTreatmentHistoryFilter
 		repo := &mockTreatmentRepository{
-			findHistoryByPetIDFn: func(_ context.Context, gotClinic, gotPet uint64, it *model.TreatmentItemType, _, _ int) ([]model.Treatment, int64, error) {
+			findHistoryByPetIDFn: func(_ context.Context, gotClinic, gotPet uint64, f model.PetTreatmentHistoryFilter, _, _ int) ([]model.Treatment, int64, error) {
 				assert.Equal(t, clinicID, gotClinic)
 				assert.Equal(t, petID, gotPet)
-				gotItemType = it
+				gotFilter = f
 				return []model.Treatment{{ID: 1}, {ID: 2}}, 2, nil
 			},
 		}
-		svc := NewTreatmentService(&repository.Repositories{Treatment: repo})
+		svc := NewTreatmentServiceWithAudit(&repository.Repositories{Treatment: repo}, nil)
 
-		treatments, total, err := svc.ListPetHistory(context.Background(), clinicID, petID, &medicine, 1, 100)
+		treatments, total, err := svc.ListPetHistory(context.Background(), clinicID, petID, model.PetTreatmentHistoryFilter{ItemType: &medicine}, 1, 100)
 
 		assert.NoError(t, err)
 		assert.Len(t, treatments, 2)
 		assert.Equal(t, int64(2), total)
-		if assert.NotNil(t, gotItemType) {
-			assert.Equal(t, medicine, *gotItemType)
+		if assert.NotNil(t, gotFilter.ItemType) {
+			assert.Equal(t, medicine, *gotFilter.ItemType)
 		}
 	})
 
 	t.Run("rejects invalid item_type before hitting repository", func(t *testing.T) {
 		called := false
 		repo := &mockTreatmentRepository{
-			findHistoryByPetIDFn: func(_ context.Context, _, _ uint64, _ *model.TreatmentItemType, _, _ int) ([]model.Treatment, int64, error) {
+			findHistoryByPetIDFn: func(_ context.Context, _, _ uint64, _ model.PetTreatmentHistoryFilter, _, _ int) ([]model.Treatment, int64, error) {
 				called = true
 				return nil, 0, nil
 			},
 		}
-		svc := NewTreatmentService(&repository.Repositories{Treatment: repo})
+		svc := NewTreatmentServiceWithAudit(&repository.Repositories{Treatment: repo}, nil)
 
-		_, _, err := svc.ListPetHistory(context.Background(), clinicID, petID, &invalid, 1, 100)
+		_, _, err := svc.ListPetHistory(context.Background(), clinicID, petID, model.PetTreatmentHistoryFilter{ItemType: &invalid}, 1, 100)
 
 		assert.Error(t, err)
 		assert.False(t, called, "repository should not be called for invalid item_type")
@@ -248,15 +181,51 @@ func TestTreatmentService_ListPetHistory(t *testing.T) {
 
 	t.Run("propagates repository error", func(t *testing.T) {
 		repo := &mockTreatmentRepository{
-			findHistoryByPetIDFn: func(_ context.Context, _, _ uint64, _ *model.TreatmentItemType, _, _ int) ([]model.Treatment, int64, error) {
+			findHistoryByPetIDFn: func(_ context.Context, _, _ uint64, _ model.PetTreatmentHistoryFilter, _, _ int) ([]model.Treatment, int64, error) {
 				return nil, 0, errors.New("db error")
 			},
 		}
-		svc := NewTreatmentService(&repository.Repositories{Treatment: repo})
+		svc := NewTreatmentServiceWithAudit(&repository.Repositories{Treatment: repo}, nil)
 
-		_, _, err := svc.ListPetHistory(context.Background(), clinicID, petID, nil, 1, 100)
+		_, _, err := svc.ListPetHistory(context.Background(), clinicID, petID, model.PetTreatmentHistoryFilter{}, 1, 100)
 
 		assert.Error(t, err)
+	})
+
+	t.Run("passes AnesthesiaOnly=true to repository", func(t *testing.T) {
+		var gotFilter model.PetTreatmentHistoryFilter
+		repo := &mockTreatmentRepository{
+			findHistoryByPetIDFn: func(_ context.Context, _, _ uint64, f model.PetTreatmentHistoryFilter, _, _ int) ([]model.Treatment, int64, error) {
+				gotFilter = f
+				return []model.Treatment{{ID: 10}}, 1, nil
+			},
+		}
+		svc := NewTreatmentServiceWithAudit(&repository.Repositories{Treatment: repo}, nil)
+
+		_, _, err := svc.ListPetHistory(context.Background(), clinicID, petID, model.PetTreatmentHistoryFilter{AnesthesiaOnly: true}, 1, 100)
+
+		assert.NoError(t, err)
+		assert.True(t, gotFilter.AnesthesiaOnly)
+		assert.False(t, gotFilter.IsSurgery)
+		assert.Nil(t, gotFilter.ItemType)
+	})
+
+	t.Run("passes IsSurgery=true to repository", func(t *testing.T) {
+		var gotFilter model.PetTreatmentHistoryFilter
+		repo := &mockTreatmentRepository{
+			findHistoryByPetIDFn: func(_ context.Context, _, _ uint64, f model.PetTreatmentHistoryFilter, _, _ int) ([]model.Treatment, int64, error) {
+				gotFilter = f
+				return []model.Treatment{{ID: 20}}, 1, nil
+			},
+		}
+		svc := NewTreatmentServiceWithAudit(&repository.Repositories{Treatment: repo}, nil)
+
+		_, _, err := svc.ListPetHistory(context.Background(), clinicID, petID, model.PetTreatmentHistoryFilter{IsSurgery: true}, 1, 100)
+
+		assert.NoError(t, err)
+		assert.False(t, gotFilter.AnesthesiaOnly)
+		assert.True(t, gotFilter.IsSurgery)
+		assert.Nil(t, gotFilter.ItemType)
 	})
 }
 
@@ -346,14 +315,21 @@ func TestTreatmentService_Create(t *testing.T) {
 			invRepo := &mockInventoryRepository{}
 			// TransactionFn: DB 不要でトランザクションをインライン実行
 			repos := &repository.Repositories{
-				Treatment:     repo,
-				MedicalRecord: &mockMedicalRecordRepoForTreatment{},
-				Inventory:     invRepo,
+				Treatment: repo,
+				MedicalRecord: &mockMedicalRecordRepository{
+					findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
+						return &model.MedicalRecord{Status: model.MedicalRecordStatusDraft}, nil
+					},
+				},
+				Inventory:    invRepo,
+				Medicine:     okMedicineRepo(),
+				Procedure:    okProcedureRepo(),
+				Consultation: okConsultationRepo(),
 			}
 			repos.TransactionFn = func(ctx context.Context, fn func(*repository.Repositories) error) error {
 				return fn(repos)
 			}
-			svc := NewTreatmentService(repos)
+			svc := NewTreatmentServiceWithAudit(repos, nil)
 
 			treatment, err := svc.Create(context.Background(), clinicID, tt.medicalRecordID, tt.input)
 
@@ -368,6 +344,118 @@ func TestTreatmentService_Create(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestTreatmentService_Create_DecreaseStock は FOLLOWUP-X14A の回帰テスト。
+// medicines.id と inventory_items.id は独立した採番空間の別テーブルであり、
+// DecreaseStock（clinic_id 述語なしで inventory_items.id を直接 UPDATE する）に
+// MedicineID を代用して渡すと、番号が偶然衝突した他クリニックの在庫を減算しうる
+// （クロステナント write IDOR）。在庫減算は InventoryID が明示指定された場合のみ行う。
+func TestTreatmentService_Create_DecreaseStock(t *testing.T) {
+	const (
+		clinicID        = uint64(1)
+		medicalRecordID = uint64(1)
+	)
+	unitPrice := int64(1000)
+	quantity := 2.0
+
+	t.Run("MedicineID only (InventoryID nil): stock is NOT decreased", func(t *testing.T) {
+		// Arrange
+		medicineID := uint64(999) // inventory_items.id としては無関係の値（採番衝突を模擬）
+		called := false
+		treatmentRepo := &mockTreatmentRepository{
+			createFn: func(_ context.Context, _ *model.Treatment) error { return nil },
+		}
+		invRepo := &mockInventoryRepository{
+			decreaseStockFn: func(_ context.Context, _ uint64, _ float64) error {
+				called = true
+				return nil
+			},
+		}
+		repos := &repository.Repositories{
+			Treatment: treatmentRepo,
+			MedicalRecord: &mockMedicalRecordRepository{
+				findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
+					return &model.MedicalRecord{Status: model.MedicalRecordStatusDraft}, nil
+				},
+			},
+			Inventory:    invRepo,
+			Medicine:     okMedicineRepo(),
+			Procedure:    okProcedureRepo(),
+			Consultation: okConsultationRepo(),
+		}
+		repos.TransactionFn = func(_ context.Context, fn func(*repository.Repositories) error) error {
+			return fn(repos)
+		}
+		svc := NewTreatmentServiceWithAudit(repos, nil)
+		input := &CreateTreatmentInput{
+			ItemType:   model.TreatmentItemTypeMedicine,
+			MedicineID: &medicineID,
+			UnitPrice:  unitPrice,
+			Quantity:   quantity,
+		}
+
+		// Act
+		treatment, err := svc.Create(context.Background(), clinicID, medicalRecordID, input)
+
+		// Assert
+		assert.NoError(t, err)
+		assert.NotNil(t, treatment)
+		assert.False(t, called, "DecreaseStock must not be called when only MedicineID is set (medicines.id is not an inventory_items.id)")
+	})
+
+	t.Run("InventoryID explicitly set: stock IS decreased for that inventory id", func(t *testing.T) {
+		// Arrange
+		medicineID := uint64(999) // 同時に指定されても DecreaseStock の対象に影響しないことを確認する
+		inventoryID := uint64(42)
+		callCount := 0
+		var gotID uint64
+		var gotQty float64
+		treatmentRepo := &mockTreatmentRepository{
+			createFn: func(_ context.Context, _ *model.Treatment) error { return nil },
+		}
+		invRepo := &mockInventoryRepository{
+			decreaseStockFn: func(_ context.Context, id uint64, qty float64) error {
+				callCount++
+				gotID = id
+				gotQty = qty
+				return nil
+			},
+		}
+		repos := &repository.Repositories{
+			Treatment: treatmentRepo,
+			MedicalRecord: &mockMedicalRecordRepository{
+				findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
+					return &model.MedicalRecord{Status: model.MedicalRecordStatusDraft}, nil
+				},
+			},
+			Inventory:    invRepo,
+			Medicine:     okMedicineRepo(),
+			Procedure:    okProcedureRepo(),
+			Consultation: okConsultationRepo(),
+		}
+		repos.TransactionFn = func(_ context.Context, fn func(*repository.Repositories) error) error {
+			return fn(repos)
+		}
+		svc := NewTreatmentServiceWithAudit(repos, nil)
+		input := &CreateTreatmentInput{
+			ItemType:    model.TreatmentItemTypeMedicine,
+			MedicineID:  &medicineID,
+			InventoryID: &inventoryID,
+			UnitPrice:   unitPrice,
+			Quantity:    quantity,
+		}
+
+		// Act
+		treatment, err := svc.Create(context.Background(), clinicID, medicalRecordID, input)
+
+		// Assert
+		assert.NoError(t, err)
+		assert.NotNil(t, treatment)
+		assert.Equal(t, 1, callCount)
+		assert.Equal(t, inventoryID, gotID)
+		assert.Equal(t, quantity, gotQty)
+	})
 }
 
 func TestTreatmentService_Update(t *testing.T) {
@@ -505,11 +593,19 @@ func TestTreatmentService_Update(t *testing.T) {
 					return tt.updateErr
 				},
 			}
-			svc := NewTreatmentService(&repository.Repositories{
-				Treatment:     repo,
-				MedicalRecord: &mockMedicalRecordRepoForTreatment{},
-				Inventory:     &mockInventoryRepository{},
-			})
+			updateRepos := &repository.Repositories{
+				Treatment: repo,
+				MedicalRecord: &mockMedicalRecordRepository{
+					findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
+						return &model.MedicalRecord{Status: model.MedicalRecordStatusDraft}, nil
+					},
+				},
+				Inventory: &mockInventoryRepository{},
+			}
+			updateRepos.TransactionFn = func(ctx context.Context, fn func(*repository.Repositories) error) error {
+				return fn(updateRepos)
+			}
+			svc := NewTreatmentServiceWithAudit(updateRepos, nil)
 
 			treatment, err := svc.Update(context.Background(), clinicID, tt.medicalRecordID, tt.treatmentID, tt.input)
 
@@ -592,11 +688,20 @@ func TestTreatmentService_Delete(t *testing.T) {
 					return tt.deleteErr
 				},
 			}
-			svc := NewTreatmentService(&repository.Repositories{
-				Treatment:     repo,
-				MedicalRecord: &mockMedicalRecordRepoForTreatment{},
-				Inventory:     &mockInventoryRepository{},
-			})
+			repos := &repository.Repositories{
+				Treatment: repo,
+				MedicalRecord: &mockMedicalRecordRepository{
+					findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
+						return &model.MedicalRecord{Status: model.MedicalRecordStatusDraft}, nil
+					},
+				},
+				Inventory: &mockInventoryRepository{},
+			}
+			// TransactionFn: DB 不要でトランザクションをインライン実行（BE-refactor.md H-8b）
+			repos.TransactionFn = func(_ context.Context, fn func(*repository.Repositories) error) error {
+				return fn(repos)
+			}
+			svc := NewTreatmentServiceWithAudit(repos, nil)
 
 			err := svc.Delete(context.Background(), clinicID, tt.medicalRecordID, tt.treatmentID)
 
@@ -616,8 +721,10 @@ func TestTreatmentService_BulkUpdateSortOrder(t *testing.T) {
 		name            string
 		medicalRecordID uint64
 		input           *BulkUpdateTreatmentsInput
+		parentStatus    model.MedicalRecordStatus
 		repoErr         error
 		wantErr         bool
+		wantConflict    bool
 	}{
 		{
 			name:            "bulk updates sort order successfully",
@@ -629,8 +736,9 @@ func TestTreatmentService_BulkUpdateSortOrder(t *testing.T) {
 					{ID: 3, SortOrder: 2},
 				},
 			},
-			repoErr: nil,
-			wantErr: false,
+			parentStatus: model.MedicalRecordStatusDraft,
+			repoErr:      nil,
+			wantErr:      false,
 		},
 		{
 			name:            "returns error when repository fails",
@@ -640,8 +748,9 @@ func TestTreatmentService_BulkUpdateSortOrder(t *testing.T) {
 					{ID: 1, SortOrder: 1},
 				},
 			},
-			repoErr: errors.New("db error"),
-			wantErr: true,
+			parentStatus: model.MedicalRecordStatusDraft,
+			repoErr:      errors.New("db error"),
+			wantErr:      true,
 		},
 		{
 			name:            "handles empty treatments list",
@@ -649,8 +758,22 @@ func TestTreatmentService_BulkUpdateSortOrder(t *testing.T) {
 			input: &BulkUpdateTreatmentsInput{
 				Treatments: []BulkTreatmentItem{},
 			},
-			repoErr: nil,
-			wantErr: false,
+			parentStatus: model.MedicalRecordStatusDraft,
+			repoErr:      nil,
+			wantErr:      false,
+		},
+		{
+			name:            "returns conflict when parent medical record is finalized",
+			medicalRecordID: 1,
+			input: &BulkUpdateTreatmentsInput{
+				Treatments: []BulkTreatmentItem{
+					{ID: 1, SortOrder: 1},
+				},
+			},
+			parentStatus: model.MedicalRecordStatusFinalized,
+			repoErr:      nil,
+			wantErr:      true,
+			wantConflict: true,
 		},
 	}
 
@@ -661,17 +784,29 @@ func TestTreatmentService_BulkUpdateSortOrder(t *testing.T) {
 					return tt.repoErr
 				},
 			}
-			mrRepo := &mockMedicalRecordRepoForTreatment{}
-			svc := NewTreatmentService(&repository.Repositories{
+			mrRepo := &mockMedicalRecordRepository{
+				findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
+					return &model.MedicalRecord{Status: tt.parentStatus}, nil
+				},
+			}
+			repos := &repository.Repositories{
 				Treatment:     repo,
 				Inventory:     &mockInventoryRepository{},
 				MedicalRecord: mrRepo,
-			})
+			}
+			// TransactionFn: DB 不要でトランザクションをインライン実行（BE-refactor.md H-8c）
+			repos.TransactionFn = func(_ context.Context, fn func(*repository.Repositories) error) error {
+				return fn(repos)
+			}
+			svc := NewTreatmentServiceWithAudit(repos, nil)
 
 			err := svc.BulkUpdateSortOrder(context.Background(), clinicID, tt.medicalRecordID, tt.input)
 
 			if tt.wantErr {
 				assert.Error(t, err)
+				if tt.wantConflict {
+					assert.True(t, apperrors.IsConflict(err), "expected conflict but got: %v", err)
+				}
 			} else {
 				assert.NoError(t, err)
 			}

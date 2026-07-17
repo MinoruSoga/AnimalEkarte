@@ -86,9 +86,6 @@ func (m *mockDeliveryTriggerLogRepository) CountSuppressedByPriorityDateRange(_ 
 func (m *mockDeliveryTriggerLogRepository) FindByDateRangeWithFilters(_ context.Context, _ uint64, _, _ time.Time, _, _ string, _, _ int) ([]repository.DeliveryTriggerLogRow, int64, error) {
 	return nil, 0, nil
 }
-func (m *mockDeliveryTriggerLogRepository) ListByOwnerAndDateRange(_ context.Context, _, _ uint64, _, _ time.Time) ([]model.LstepDeliveryTriggerLog, error) {
-	return nil, nil
-}
 func (m *mockDeliveryTriggerLogRepository) CountByTypeAndStatus(_ context.Context, _ uint64, _, _ time.Time) ([]repository.DeliveryStatsRow, error) {
 	return nil, nil
 }
@@ -135,6 +132,9 @@ func (m *mockOwnerRepoForDelivery) FindByLineUserID(_ context.Context, _ uint64,
 func (m *mockOwnerRepoForDelivery) FindAllWithLineUserID(_ context.Context, _ uint64) ([]model.Owner, error) {
 	return nil, nil
 }
+func (m *mockOwnerRepoForDelivery) FindAllWithLineUserIDCursor(_ context.Context, _, _ uint64, _ int) ([]model.Owner, error) {
+	return nil, nil
+}
 func (m *mockOwnerRepoForDelivery) CreateWithPets(_ context.Context, _ *model.Owner, _ []model.Pet) error {
 	return nil
 }
@@ -157,77 +157,8 @@ func (m *mockOwnerRepoForDelivery) Delete(_ context.Context, _, _ uint64) error 
 func (m *mockOwnerRepoForDelivery) CountPetsByOwnerID(_ context.Context, _, _ uint64) (int64, error) {
 	return 0, nil
 }
-
-// ---- MedicalRecordRepository モック（delivery trigger 用）----
-
-type mockMedRecordRepoForDelivery struct {
-	findOwnersByFirstVisitFn    func(ctx context.Context, clinicID uint64, targetDate time.Time) ([]uint64, error)
-	findOwnersByLastVisitDaysFn func(ctx context.Context, clinicID uint64, exactDays int, asOf time.Time) ([]uint64, error)
-	findOwnersByNextVisitRecFn  func(ctx context.Context, clinicID uint64, targetDate time.Time) ([]uint64, error)
-}
-
-func (m *mockMedRecordRepoForDelivery) FindAll(_ context.Context, _ []uint64, _, _ *uint64, _, _ *string, _, _ int) ([]model.MedicalRecord, int64, error) {
-	return nil, 0, nil
-}
-func (m *mockMedRecordRepoForDelivery) FindByID(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
+func (m *mockOwnerRepoForDelivery) FindByIDs(_ context.Context, _ uint64, _ []uint64) ([]*model.Owner, error) {
 	return nil, nil
-}
-func (m *mockMedRecordRepoForDelivery) FindByIDForClinics(_ context.Context, _ []uint64, _ uint64) (*model.MedicalRecord, error) {
-	return nil, nil
-}
-func (m *mockMedRecordRepoForDelivery) Create(_ context.Context, _ *model.MedicalRecord) error {
-	return nil
-}
-func (m *mockMedRecordRepoForDelivery) Update(_ context.Context, _, _ uint64, _ map[string]any) (*model.MedicalRecord, error) {
-	return nil, nil
-}
-func (m *mockMedRecordRepoForDelivery) Delete(_ context.Context, _, _ uint64) error { return nil }
-func (m *mockMedRecordRepoForDelivery) CountByPetID(_ context.Context, _, _ uint64) (int64, error) {
-	return 0, nil
-}
-func (m *mockMedRecordRepoForDelivery) FindFirstVisitDateByPetID(_ context.Context, _, _ uint64) (*time.Time, error) {
-	return nil, nil
-}
-func (m *mockMedRecordRepoForDelivery) FindOwnerMedicationHistory(_ context.Context, _, _ uint64, _, _ int) ([]repository.OwnerMedicationHistoryRow, int64, error) {
-	return nil, 0, nil
-}
-func (m *mockMedRecordRepoForDelivery) CountEstimatesByMedicalRecordID(_ context.Context, _ uint64) (int64, error) {
-	return 0, nil
-}
-func (m *mockMedRecordRepoForDelivery) FindOwnerVisitSummary(_ context.Context, _, _ uint64) (*repository.OwnerVisitSummary, error) {
-	return nil, nil
-}
-func (m *mockMedRecordRepoForDelivery) FindLatestByOwner(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
-	return nil, nil
-}
-func (m *mockMedRecordRepoForDelivery) FindDormantOwnerEntries(_ context.Context, _ uint64, _ int) ([]repository.DormantOwnerEntry, error) {
-	return nil, nil
-}
-func (m *mockMedRecordRepoForDelivery) FindOwnersByFirstVisitDate(ctx context.Context, clinicID uint64, targetDate time.Time) ([]uint64, error) {
-	if m.findOwnersByFirstVisitFn != nil {
-		return m.findOwnersByFirstVisitFn(ctx, clinicID, targetDate)
-	}
-	return nil, nil
-}
-func (m *mockMedRecordRepoForDelivery) FindOwnersByLastVisitDays(ctx context.Context, clinicID uint64, exactDays int, asOf time.Time) ([]uint64, error) {
-	if m.findOwnersByLastVisitDaysFn != nil {
-		return m.findOwnersByLastVisitDaysFn(ctx, clinicID, exactDays, asOf)
-	}
-	return nil, nil
-}
-func (m *mockMedRecordRepoForDelivery) FindOwnersByNextVisitRecommended(ctx context.Context, clinicID uint64, targetDate time.Time) ([]uint64, error) {
-	if m.findOwnersByNextVisitRecFn != nil {
-		return m.findOwnersByNextVisitRecFn(ctx, clinicID, targetDate)
-	}
-	return nil, nil
-}
-
-func (m *mockMedRecordRepoForDelivery) CountByOwnerID(_ context.Context, _, _ uint64) (int64, error) {
-	return 0, nil
-}
-
-func (m *mockMedRecordRepoForDelivery) DeleteDraftByAppointmentID(_ context.Context, _, _ uint64) error {
-	return nil
 }
 
 // ---- TagCacheRepository モック（delivery trigger 用）----
@@ -243,6 +174,9 @@ func (m *mockTagCacheRepoForDelivery) FindByOwner(ctx context.Context, clinicID,
 	}
 	return nil, nil
 }
+func (m *mockTagCacheRepoForDelivery) FindByOwners(_ context.Context, _ uint64, _ []uint64) (map[uint64][]*model.LstepTagCache, error) {
+	return map[uint64][]*model.LstepTagCache{}, nil
+}
 func (m *mockTagCacheRepoForDelivery) FindOwnerIDsByTag(ctx context.Context, clinicID uint64, tagName string) ([]uint64, error) {
 	if m.findOwnerIDsByTagFn != nil {
 		return m.findOwnerIDsByTagFn(ctx, clinicID, tagName)
@@ -257,9 +191,6 @@ func (m *mockTagCacheRepoForDelivery) DeleteTag(_ context.Context, _, _ uint64, 
 }
 func (m *mockTagCacheRepoForDelivery) DeleteAllByOwner(_ context.Context, _, _ uint64) error {
 	return nil
-}
-func (m *mockTagCacheRepoForDelivery) CountByTag(_ context.Context, _ uint64, _ string) (int64, error) {
-	return 0, nil
 }
 func (m *mockTagCacheRepoForDelivery) TagSummary(_ context.Context, _ uint64) ([]repository.TagSummaryRow, int64, error) {
 	return nil, 0, nil
@@ -337,6 +268,9 @@ func (m *mockPetRepoForDelivery) FindOwnersByPetBirthday(ctx context.Context, cl
 		return m.findOwnersByPetBirthdayFn(ctx, clinicID, month, day)
 	}
 	return nil, nil
+}
+func (m *mockPetRepoForDelivery) CountLivingByOwnerIDs(_ context.Context, _ uint64, _ []uint64) (map[uint64]int64, error) {
+	return map[uint64]int64{}, nil
 }
 
 // ---- helpers ----
@@ -460,7 +394,7 @@ func TestLstepDeliveryTriggerService_TriggerFirstVisitFollowUp3D(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			var capturedTargetDate time.Time
-			medRepo := &mockMedRecordRepoForDelivery{
+			medRepo := &mockMedicalRecordRepository{
 				findOwnersByFirstVisitFn: func(_ context.Context, _ uint64, targetDate time.Time) ([]uint64, error) {
 					capturedTargetDate = targetDate
 					if tt.repoErr != nil {
@@ -515,7 +449,7 @@ func TestLstepDeliveryTriggerService_TriggerFirstVisitFollowUp7D(t *testing.T) {
 	asOf := time.Date(2026, 5, 10, 0, 0, 0, 0, time.UTC)
 	expected7DagsAgo := time.Date(2026, 5, 3, 0, 0, 0, 0, time.UTC)
 
-	medRepo := &mockMedRecordRepoForDelivery{
+	medRepo := &mockMedicalRecordRepository{
 		findOwnersByFirstVisitFn: func(_ context.Context, _ uint64, targetDate time.Time) ([]uint64, error) {
 			assert.Equal(t, expected7DagsAgo.Format("2006-01-02"), targetDate.Format("2006-01-02"))
 			return []uint64{20}, nil
@@ -536,7 +470,7 @@ func TestLstepDeliveryTriggerService_TriggerFirstVisitFollowUp7D(t *testing.T) {
 func TestLstepDeliveryTriggerService_TriggerNextVisitReminder(t *testing.T) {
 	asOf := time.Date(2026, 5, 10, 0, 0, 0, 0, time.UTC)
 
-	medRepo := &mockMedRecordRepoForDelivery{
+	medRepo := &mockMedicalRecordRepository{
 		findOwnersByNextVisitRecFn: func(_ context.Context, _ uint64, targetDate time.Time) ([]uint64, error) {
 			assert.Equal(t, asOf.Format("2006-01-02"), targetDate.Format("2006-01-02"))
 			return []uint64{30, 31}, nil
@@ -668,7 +602,7 @@ func TestLstepDeliveryTriggerService_TriggerDormantPrevention(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			var capturedDays int
-			medRepo := &mockMedRecordRepoForDelivery{
+			medRepo := &mockMedicalRecordRepository{
 				findOwnersByLastVisitDaysFn: func(_ context.Context, _ uint64, exactDays int, _ time.Time) ([]uint64, error) {
 					capturedDays = exactDays
 					return []uint64{60}, nil
@@ -743,7 +677,7 @@ func TestLstepDeliveryTriggerService_TriggerTagBased(t *testing.T) {
 }
 
 func TestLstepDeliveryTriggerService_SyncDisabled(t *testing.T) {
-	medRepo := &mockMedRecordRepoForDelivery{
+	medRepo := &mockMedicalRecordRepository{
 		findOwnersByFirstVisitFn: func(_ context.Context, _ uint64, _ time.Time) ([]uint64, error) {
 			return []uint64{10}, nil
 		},
@@ -757,7 +691,7 @@ func TestLstepDeliveryTriggerService_SyncDisabled(t *testing.T) {
 func TestLstepDeliveryTriggerService_ExclTagStopsDelivery(t *testing.T) {
 	ownerID := uint64(80)
 	lineID := "U_excl_tag"
-	medRepo := &mockMedRecordRepoForDelivery{
+	medRepo := &mockMedicalRecordRepository{
 		findOwnersByFirstVisitFn: func(_ context.Context, _ uint64, _ time.Time) ([]uint64, error) {
 			return []uint64{ownerID}, nil
 		},
@@ -789,7 +723,7 @@ func TestLstepDeliveryTriggerService_ExclTagStopsDelivery(t *testing.T) {
 }
 
 func TestLstepDeliveryTriggerService_AlreadyFiredSkips(t *testing.T) {
-	medRepo := &mockMedRecordRepoForDelivery{
+	medRepo := &mockMedicalRecordRepository{
 		findOwnersByFirstVisitFn: func(_ context.Context, _ uint64, _ time.Time) ([]uint64, error) {
 			return []uint64{10}, nil
 		},
@@ -814,7 +748,7 @@ func TestLstepDeliveryTriggerService_TriggerLogRecorded(t *testing.T) {
 			return nil
 		},
 	}
-	medRepo := &mockMedRecordRepoForDelivery{
+	medRepo := &mockMedicalRecordRepository{
 		findOwnersByFirstVisitFn: func(_ context.Context, _ uint64, _ time.Time) ([]uint64, error) {
 			return []uint64{10}, nil
 		},
@@ -835,7 +769,7 @@ func TestLstepDeliveryTriggerService_TriggerLogRecorded(t *testing.T) {
 
 func TestLstepDeliveryTriggerService_RepoErrorDoesNotStopOtherOwners(t *testing.T) {
 	callCount := 0
-	medRepo := &mockMedRecordRepoForDelivery{
+	medRepo := &mockMedicalRecordRepository{
 		findOwnersByFirstVisitFn: func(_ context.Context, _ uint64, _ time.Time) ([]uint64, error) {
 			return []uint64{10, 11}, nil
 		},
@@ -861,7 +795,7 @@ func TestLstepDeliveryTriggerService_TriggerFirstVisitWelcome(t *testing.T) {
 	ownerID := uint64(10)
 
 	t.Run("sync disabled returns nil (noop)", func(t *testing.T) {
-		svc := buildDeliverySvc(&mockOwnerRepoForDelivery{}, &mockMedRecordRepoForDelivery{}, nil, defaultMockBillingItemRepoForDelivery(), nil, &mockTagCacheRepoForDelivery{}, &mockDeliveryTriggerLogRepository{}, disabledSettings())
+		svc := buildDeliverySvc(&mockOwnerRepoForDelivery{}, &mockMedicalRecordRepository{}, nil, defaultMockBillingItemRepoForDelivery(), nil, &mockTagCacheRepoForDelivery{}, &mockDeliveryTriggerLogRepository{}, disabledSettings())
 		assert.NoError(t, svc.TriggerFirstVisitWelcome(context.Background(), 1, ownerID))
 	})
 
@@ -878,7 +812,7 @@ func TestLstepDeliveryTriggerService_TriggerFirstVisitWelcome(t *testing.T) {
 				return nil
 			},
 		}
-		svc := buildDeliverySvc(ownerRepo, &mockMedRecordRepoForDelivery{}, nil, defaultMockBillingItemRepoForDelivery(), nil, &mockTagCacheRepoForDelivery{}, &mockDeliveryTriggerLogRepository{}, enabledSettings())
+		svc := buildDeliverySvc(ownerRepo, &mockMedicalRecordRepository{}, nil, defaultMockBillingItemRepoForDelivery(), nil, &mockTagCacheRepoForDelivery{}, &mockDeliveryTriggerLogRepository{}, enabledSettings())
 		injectTestClient(svc, client)
 		err := svc.TriggerFirstVisitWelcome(context.Background(), 1, ownerID)
 		assert.NoError(t, err)
@@ -891,7 +825,7 @@ func TestLstepDeliveryTriggerService_TriggerFirstVisitWelcome(t *testing.T) {
 				return false, errors.New("settings error")
 			},
 		}
-		svc := buildDeliverySvc(&mockOwnerRepoForDelivery{}, &mockMedRecordRepoForDelivery{}, nil, defaultMockBillingItemRepoForDelivery(), nil, &mockTagCacheRepoForDelivery{}, &mockDeliveryTriggerLogRepository{}, settingsSvc)
+		svc := buildDeliverySvc(&mockOwnerRepoForDelivery{}, &mockMedicalRecordRepository{}, nil, defaultMockBillingItemRepoForDelivery(), nil, &mockTagCacheRepoForDelivery{}, &mockDeliveryTriggerLogRepository{}, settingsSvc)
 		err := svc.TriggerFirstVisitWelcome(context.Background(), 1, ownerID)
 		assert.Error(t, err)
 	})
@@ -907,7 +841,7 @@ func TestLstepDeliveryTriggerService_TriggerFirstVisitWelcome(t *testing.T) {
 				return errors.New("lstep api error")
 			},
 		}
-		svc := buildDeliverySvc(ownerRepo, &mockMedRecordRepoForDelivery{}, nil, defaultMockBillingItemRepoForDelivery(), nil, &mockTagCacheRepoForDelivery{}, &mockDeliveryTriggerLogRepository{}, enabledSettings())
+		svc := buildDeliverySvc(ownerRepo, &mockMedicalRecordRepository{}, nil, defaultMockBillingItemRepoForDelivery(), nil, &mockTagCacheRepoForDelivery{}, &mockDeliveryTriggerLogRepository{}, enabledSettings())
 		injectTestClient(svc, client)
 		err := svc.TriggerFirstVisitWelcome(context.Background(), 1, ownerID)
 		assert.Error(t, err)
@@ -918,7 +852,7 @@ func TestLstepDeliveryTriggerService_TriggerCheckupFollowUp(t *testing.T) {
 	ownerID := uint64(20)
 
 	t.Run("sync disabled returns nil (noop)", func(t *testing.T) {
-		svc := buildDeliverySvc(&mockOwnerRepoForDelivery{}, &mockMedRecordRepoForDelivery{}, nil, defaultMockBillingItemRepoForDelivery(), nil, &mockTagCacheRepoForDelivery{}, &mockDeliveryTriggerLogRepository{}, disabledSettings())
+		svc := buildDeliverySvc(&mockOwnerRepoForDelivery{}, &mockMedicalRecordRepository{}, nil, defaultMockBillingItemRepoForDelivery(), nil, &mockTagCacheRepoForDelivery{}, &mockDeliveryTriggerLogRepository{}, disabledSettings())
 		assert.NoError(t, svc.TriggerCheckupFollowUp(context.Background(), 1, ownerID))
 	})
 
@@ -935,7 +869,7 @@ func TestLstepDeliveryTriggerService_TriggerCheckupFollowUp(t *testing.T) {
 				return nil
 			},
 		}
-		svc := buildDeliverySvc(ownerRepo, &mockMedRecordRepoForDelivery{}, nil, defaultMockBillingItemRepoForDelivery(), nil, &mockTagCacheRepoForDelivery{}, &mockDeliveryTriggerLogRepository{}, enabledSettings())
+		svc := buildDeliverySvc(ownerRepo, &mockMedicalRecordRepository{}, nil, defaultMockBillingItemRepoForDelivery(), nil, &mockTagCacheRepoForDelivery{}, &mockDeliveryTriggerLogRepository{}, enabledSettings())
 		injectTestClient(svc, client)
 		err := svc.TriggerCheckupFollowUp(context.Background(), 1, ownerID)
 		assert.NoError(t, err)
@@ -948,7 +882,7 @@ func TestLstepDeliveryTriggerService_TriggerCheckupFollowUp(t *testing.T) {
 				return false, errors.New("settings error")
 			},
 		}
-		svc := buildDeliverySvc(&mockOwnerRepoForDelivery{}, &mockMedRecordRepoForDelivery{}, nil, defaultMockBillingItemRepoForDelivery(), nil, &mockTagCacheRepoForDelivery{}, &mockDeliveryTriggerLogRepository{}, settingsSvc)
+		svc := buildDeliverySvc(&mockOwnerRepoForDelivery{}, &mockMedicalRecordRepository{}, nil, defaultMockBillingItemRepoForDelivery(), nil, &mockTagCacheRepoForDelivery{}, &mockDeliveryTriggerLogRepository{}, settingsSvc)
 		err := svc.TriggerCheckupFollowUp(context.Background(), 1, ownerID)
 		assert.Error(t, err)
 	})
@@ -964,7 +898,7 @@ func TestLstepDeliveryTriggerService_TriggerCheckupFollowUp(t *testing.T) {
 				return errors.New("lstep api error")
 			},
 		}
-		svc := buildDeliverySvc(ownerRepo, &mockMedRecordRepoForDelivery{}, nil, defaultMockBillingItemRepoForDelivery(), nil, &mockTagCacheRepoForDelivery{}, &mockDeliveryTriggerLogRepository{}, enabledSettings())
+		svc := buildDeliverySvc(ownerRepo, &mockMedicalRecordRepository{}, nil, defaultMockBillingItemRepoForDelivery(), nil, &mockTagCacheRepoForDelivery{}, &mockDeliveryTriggerLogRepository{}, enabledSettings())
 		injectTestClient(svc, client)
 		err := svc.TriggerCheckupFollowUp(context.Background(), 1, ownerID)
 		assert.Error(t, err)
@@ -972,7 +906,7 @@ func TestLstepDeliveryTriggerService_TriggerCheckupFollowUp(t *testing.T) {
 }
 
 func TestLstepDeliveryTriggerService_EmptyOwnerListIsNoop(t *testing.T) {
-	medRepo := &mockMedRecordRepoForDelivery{
+	medRepo := &mockMedicalRecordRepository{
 		findOwnersByFirstVisitFn: func(_ context.Context, _ uint64, _ time.Time) ([]uint64, error) {
 			return []uint64{}, nil
 		},
@@ -989,4 +923,181 @@ func TestTriggerSyncTagConstantsAlignment(t *testing.T) {
 	assert.Equal(t, PrevFilariaTag, tagFilariaAlert, "filaria tag must match between sync and trigger")
 	assert.Equal(t, PrevFleaTickTag, tagFleaTickAlert, "flea tick tag must match between sync and trigger")
 	assert.Equal(t, LtvFoodPurchaseTag, tagFoodRefill, "food purchase tag must match between sync and trigger")
+}
+
+// TestLstepDeliveryTriggerService_FindOwnersErrorPropagates は各トリガーメソッドの
+// owner検索リポジトリエラー時に count=0・エラー1件でラップ返却されることを検証する。
+func TestLstepDeliveryTriggerService_FindOwnersErrorPropagates(t *testing.T) {
+	asOf := time.Date(2026, 5, 10, 0, 0, 0, 0, time.UTC)
+	repoErr := errors.New("db error")
+
+	tests := []struct {
+		name      string
+		triggerFn func(svc LstepDeliveryTriggerService, ctx context.Context) (int, []error)
+	}{
+		{
+			name: "TriggerFirstVisitFollowUp7D",
+			triggerFn: func(svc LstepDeliveryTriggerService, ctx context.Context) (int, []error) {
+				return svc.TriggerFirstVisitFollowUp7D(ctx, 1, asOf)
+			},
+		},
+		{
+			name: "TriggerNextVisitReminder",
+			triggerFn: func(svc LstepDeliveryTriggerService, ctx context.Context) (int, []error) {
+				return svc.TriggerNextVisitReminder(ctx, 1, asOf)
+			},
+		},
+		{
+			name: "TriggerVaccineDeadline60",
+			triggerFn: func(svc LstepDeliveryTriggerService, ctx context.Context) (int, []error) {
+				return svc.TriggerVaccineDeadline60(ctx, 1, asOf)
+			},
+		},
+		{
+			name: "TriggerVaccineDeadline30",
+			triggerFn: func(svc LstepDeliveryTriggerService, ctx context.Context) (int, []error) {
+				return svc.TriggerVaccineDeadline30(ctx, 1, asOf)
+			},
+		},
+		{
+			name: "TriggerBirthdayMessage",
+			triggerFn: func(svc LstepDeliveryTriggerService, ctx context.Context) (int, []error) {
+				return svc.TriggerBirthdayMessage(ctx, 1, asOf)
+			},
+		},
+		{
+			name: "TriggerDormantPrevention180",
+			triggerFn: func(svc LstepDeliveryTriggerService, ctx context.Context) (int, []error) {
+				return svc.TriggerDormantPrevention180(ctx, 1, asOf)
+			},
+		},
+		{
+			name: "TriggerDormantPrevention210",
+			triggerFn: func(svc LstepDeliveryTriggerService, ctx context.Context) (int, []error) {
+				return svc.TriggerDormantPrevention210(ctx, 1, asOf)
+			},
+		},
+		{
+			name: "TriggerDormantPrevention240",
+			triggerFn: func(svc LstepDeliveryTriggerService, ctx context.Context) (int, []error) {
+				return svc.TriggerDormantPrevention240(ctx, 1, asOf)
+			},
+		},
+		{
+			name: "TriggerDormantPrevention365",
+			triggerFn: func(svc LstepDeliveryTriggerService, ctx context.Context) (int, []error) {
+				return svc.TriggerDormantPrevention365(ctx, 1, asOf)
+			},
+		},
+		{
+			name: "TriggerFilariaAlert",
+			triggerFn: func(svc LstepDeliveryTriggerService, ctx context.Context) (int, []error) {
+				return svc.TriggerFilariaAlert(ctx, 1, asOf)
+			},
+		},
+		{
+			name: "TriggerFleaTickAlert",
+			triggerFn: func(svc LstepDeliveryTriggerService, ctx context.Context) (int, []error) {
+				return svc.TriggerFleaTickAlert(ctx, 1, asOf)
+			},
+		},
+		{
+			name: "TriggerFoodRefillReminder",
+			triggerFn: func(svc LstepDeliveryTriggerService, ctx context.Context) (int, []error) {
+				return svc.TriggerFoodRefillReminder(ctx, 1, asOf)
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			medRepo := &mockMedicalRecordRepository{
+				findOwnersByFirstVisitFn: func(_ context.Context, _ uint64, _ time.Time) ([]uint64, error) {
+					return nil, repoErr
+				},
+				findOwnersByLastVisitDaysFn: func(_ context.Context, _ uint64, _ int, _ time.Time) ([]uint64, error) {
+					return nil, repoErr
+				},
+				findOwnersByNextVisitRecFn: func(_ context.Context, _ uint64, _ time.Time) ([]uint64, error) {
+					return nil, repoErr
+				},
+			}
+			vacRepo := &mockVaccinationRepoForDelivery{
+				findOwnersByVaccineDeadlineFn: func(_ context.Context, _ uint64, _ time.Time) ([]uint64, error) {
+					return nil, repoErr
+				},
+			}
+			petRepo := &mockPetRepoForDelivery{
+				findOwnersByPetBirthdayFn: func(_ context.Context, _ uint64, _, _ int) ([]uint64, error) {
+					return nil, repoErr
+				},
+			}
+			tagRepo := &mockTagCacheRepoForDelivery{
+				findOwnerIDsByTagFn: func(_ context.Context, _ uint64, _ string) ([]uint64, error) {
+					return nil, repoErr
+				},
+			}
+			svc := buildDeliverySvc(&mockOwnerRepoForDelivery{}, medRepo, vacRepo, defaultMockBillingItemRepoForDelivery(), petRepo, tagRepo, &mockDeliveryTriggerLogRepository{}, enabledSettings())
+			injectTestClient(svc, &mockLstepClientForDelivery{})
+
+			count, errs := tt.triggerFn(svc, context.Background())
+
+			assert.Equal(t, 0, count)
+			assert.Len(t, errs, 1)
+		})
+	}
+}
+
+// TestLstepDeliveryTriggerService_DormantThresholdsErrorPropagates は dormant 系トリガーの
+// settingsSvc.GetDormantThresholds エラー時にエラーが伝播することを検証する（他トリガーには無い分岐）。
+func TestLstepDeliveryTriggerService_DormantThresholdsErrorPropagates(t *testing.T) {
+	asOf := time.Date(2026, 5, 10, 0, 0, 0, 0, time.UTC)
+	thresholdsErr := errors.New("settings db error")
+	settingsSvc := &mockLstepSettingsService{
+		getDormantThresholdsFn: func(_ context.Context, _ uint64) (model.DormantThresholds, error) {
+			return model.DormantThresholds{}, thresholdsErr
+		},
+	}
+
+	tests := []struct {
+		name      string
+		triggerFn func(svc LstepDeliveryTriggerService, ctx context.Context) (int, []error)
+	}{
+		{
+			name: "TriggerDormantPrevention180",
+			triggerFn: func(svc LstepDeliveryTriggerService, ctx context.Context) (int, []error) {
+				return svc.TriggerDormantPrevention180(ctx, 1, asOf)
+			},
+		},
+		{
+			name: "TriggerDormantPrevention210",
+			triggerFn: func(svc LstepDeliveryTriggerService, ctx context.Context) (int, []error) {
+				return svc.TriggerDormantPrevention210(ctx, 1, asOf)
+			},
+		},
+		{
+			name: "TriggerDormantPrevention240",
+			triggerFn: func(svc LstepDeliveryTriggerService, ctx context.Context) (int, []error) {
+				return svc.TriggerDormantPrevention240(ctx, 1, asOf)
+			},
+		},
+		{
+			name: "TriggerDormantPrevention365",
+			triggerFn: func(svc LstepDeliveryTriggerService, ctx context.Context) (int, []error) {
+				return svc.TriggerDormantPrevention365(ctx, 1, asOf)
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			svc := buildDeliverySvc(&mockOwnerRepoForDelivery{}, &mockMedicalRecordRepository{}, nil, defaultMockBillingItemRepoForDelivery(), nil, &mockTagCacheRepoForDelivery{}, &mockDeliveryTriggerLogRepository{}, settingsSvc)
+			injectTestClient(svc, &mockLstepClientForDelivery{})
+
+			count, errs := tt.triggerFn(svc, context.Background())
+
+			assert.Equal(t, 0, count)
+			assert.Len(t, errs, 1)
+		})
+	}
 }

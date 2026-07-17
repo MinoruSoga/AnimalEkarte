@@ -26,12 +26,37 @@ func (s *staffService) GetByID(ctx context.Context, id uint64) (*model.Staff, er
 	}
 	return staff, nil
 }
+
+// validateOccupationOwnership verifies a request-supplied occupation_id belongs to the
+// caller's clinic before it is persisted (X-14 master FK guard batch U7). OccupationID
+// is an optional FK — nil is always allowed. occupationRepo is a mandatory NewStaffService
+// dependency wired from repos.Occupation in production, so a nil repo here is fail-closed
+// (unlike validateReservationTypeGroup's nil-skip in reservation_type_service_core.go,
+// which predates occupationRepo being a required dependency).
+func (s *staffService) validateOccupationOwnership(ctx context.Context, clinicID uint64, occupationID *uint64) error {
+	if occupationID == nil {
+		return nil
+	}
+	if s.occupationRepo == nil {
+		slog.ErrorContext(ctx, "occupation repository not configured", "clinic_id", clinicID)
+		return apperrors.WrapInternalServerError("failed to verify occupation ownership: occupation repository not configured")
+	}
+	if _, err := s.occupationRepo.FindByID(ctx, clinicID, *occupationID); err != nil {
+		slog.ErrorContext(ctx, "failed to verify occupation ownership", "error", err, "occupation_id", *occupationID, "clinic_id", clinicID)
+		return apperrors.Wrap(err, "failed to verify occupation ownership")
+	}
+	return nil
+}
+
 func (s *staffService) Create(ctx context.Context, input *CreateStaffInput) (*model.Staff, error) {
 	if err := validateRequiredName(input.Name); err != nil {
 		return nil, apperrors.Wrap(err, "failed to validate required name")
 	}
 	if input.ClinicID == 0 {
 		return nil, apperrors.WrapInvalidInput("clinic_id is required")
+	}
+	if err := s.validateOccupationOwnership(ctx, input.ClinicID, input.OccupationID); err != nil {
+		return nil, err
 	}
 	input.Name = strings.TrimSpace(input.Name)
 
@@ -91,6 +116,9 @@ func (s *staffService) Update(ctx context.Context, clinicID, id uint64, input *U
 	if _, err := s.repo.FindByID(ctx, id); err != nil {
 		slog.ErrorContext(ctx, "failed to get staff", "error", err, "id", id, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to get staff")
+	}
+	if err := s.validateOccupationOwnership(ctx, clinicID, input.OccupationID); err != nil {
+		return nil, err
 	}
 	if input.Name != nil {
 		if err := validateRequiredName(*input.Name); err != nil {

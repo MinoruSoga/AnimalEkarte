@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { transformMedicalRecord, transformToHistoryItem } from "./transforms";
+import { transformMedicalRecord, transformToHistoryItem, toBackendMedicalRecordStatus } from "./transforms";
 import type { BackendMedicalRecord } from "./types";
 
 const minimal: BackendMedicalRecord = {
@@ -235,5 +235,22 @@ describe("transformToHistoryItem", () => {
 
   it("date を YYYY/MM/DD 形式にフォーマットする", () => {
     expect(transformToHistoryItem({ ...minimal, date: "2026-03-25T00:00:00Z" }).date).toBe("2026/03/25");
+  });
+});
+
+// ─────────────────────────────────────────────────────────────
+// toBackendMedicalRecordStatus（BUG-B1: server-side status フィルタ変換）
+// ─────────────────────────────────────────────────────────────
+describe("toBackendMedicalRecordStatus", () => {
+  it("'作成中' → 'draft'", () => {
+    expect(toBackendMedicalRecordStatus("作成中")).toBe("draft");
+  });
+
+  it("'確定済' → 'finalized'", () => {
+    expect(toBackendMedicalRecordStatus("確定済")).toBe("finalized");
+  });
+
+  it("未知のラベルは undefined を返す", () => {
+    expect(toBackendMedicalRecordStatus("不明")).toBeUndefined();
   });
 });

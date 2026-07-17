@@ -29,6 +29,7 @@ type Repositories struct {
 	Staff                     StaffRepository
 	Cage                      CageRepository
 	Medicine                  MedicineRepository
+	MedicineDoseParam         MedicineDoseParamRepository
 	Vaccine                   VaccineRepository
 	Insurance                 InsuranceRepository
 	ReservationType           ReservationTypeRepository
@@ -63,6 +64,8 @@ type Repositories struct {
 	MedicalRecordImage        MedicalRecordImageRepository
 	ClinicalPlan              ClinicalPlanRepository
 	Checkup                   CheckupRepository
+	CheckupTypeField          CheckupTypeFieldRepository
+	CheckupFieldResult        CheckupFieldResultRepository
 	Estimate                  EstimateRepository
 	ManualArticle             ManualArticleRepository
 	MerchandiseItem           MerchandiseItemRepository
@@ -119,6 +122,9 @@ type Repositories struct {
 	LstepTagConfig LstepTagConfigRepository
 	// 認証: refresh_token JTI ブラックリスト
 	TokenBlacklist TokenBlacklistRepository
+	// lab import
+	LabImportJob   LabImportJobRepository
+	LabImportEvent LabImportEventRepository
 }
 
 // NewRepositories はすべてのリポジトリを初期化して返す
@@ -140,6 +146,7 @@ func NewRepositories(db *gorm.DB) *Repositories {
 		Staff:                          NewStaffRepository(db),
 		Cage:                           NewCageRepository(db),
 		Medicine:                       NewMedicineRepository(db),
+		MedicineDoseParam:              NewMedicineDoseParamRepository(db),
 		Vaccine:                        NewVaccineRepository(db),
 		Insurance:                      NewInsuranceRepository(db),
 		ReservationType:                NewReservationTypeRepository(db),
@@ -174,6 +181,8 @@ func NewRepositories(db *gorm.DB) *Repositories {
 		MedicalRecordImage:             NewMedicalRecordImageRepository(db),
 		ClinicalPlan:                   NewClinicalPlanRepository(db),
 		Checkup:                        NewCheckupRepository(db),
+		CheckupTypeField:               NewCheckupTypeFieldRepository(db),
+		CheckupFieldResult:             NewCheckupFieldResultRepository(db),
 		Estimate:                       NewEstimateRepository(db),
 		ManualArticle:                  NewManualArticleRepository(db),
 		MerchandiseItem:                NewMerchandiseItemRepository(db),
@@ -216,6 +225,9 @@ func NewRepositories(db *gorm.DB) *Repositories {
 		LstepFriendAttributeSnapshot: NewLstepFriendAttributeSnapshotRepository(db),
 		LstepTagConfig:               NewLstepTagConfigRepository(db),
 		TokenBlacklist:               NewTokenBlacklistRepository(db),
+		// lab import
+		LabImportJob:   NewLabImportJobRepository(db),
+		LabImportEvent: NewLabImportEventRepository(db),
 	}
 }
 

@@ -2,9 +2,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import { handleApiError } from "@/lib/handle-api-error";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
+import { queryKeys } from "@/lib/query-keys";
 import type { Insurance as ModelInsurance } from "@/types/generated/models";
-
-const INSURANCES_QUERY_KEY = ["masters", "insurances"] as const;
 
 // ─────────────────────────────────────────────────
 // Request types (derived from models.ts)
@@ -69,7 +68,7 @@ const deleteInsurance = async (id: string): Promise<void> => {
 
 export const useGetAllInsurances = () => {
   return useQuery({
-    queryKey: INSURANCES_QUERY_KEY,
+    queryKey: queryKeys.masters.category("insurances"),
     queryFn: getAllInsurances,
     staleTime: QUERY_STALE_TIMES.STATIC,
     gcTime: QUERY_GC_TIMES.LONG,
@@ -81,7 +80,7 @@ export const useCreateInsurance = () => {
   return useMutation({
     mutationFn: createInsurance,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: INSURANCES_QUERY_KEY });
+      queryClient.invalidateQueries({ queryKey: queryKeys.masters.category("insurances") });
     },
     onError: (error) => handleApiError(error, "作成"),
   });
@@ -93,7 +92,7 @@ export const useUpdateInsurance = () => {
     mutationFn: ({ id, req }: { id: string; req: UpdateInsuranceRequest }) =>
       updateInsurance(id, req),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: INSURANCES_QUERY_KEY });
+      queryClient.invalidateQueries({ queryKey: queryKeys.masters.category("insurances") });
     },
     onError: (error) => handleApiError(error, "更新"),
   });
@@ -104,7 +103,7 @@ export const useDeleteInsurance = () => {
   return useMutation({
     mutationFn: deleteInsurance,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: INSURANCES_QUERY_KEY });
+      queryClient.invalidateQueries({ queryKey: queryKeys.masters.category("insurances") });
     },
     onError: (error) => handleApiError(error, "削除"),
   });
@@ -112,17 +111,3 @@ export const useDeleteInsurance = () => {
 
 
 
-const reorderInsurances = async (ids: number[]): Promise<void> => {
-  await axios.patch("/v1/masters/insurances/reorder", { ids });
-};
-
-export const useReorderInsurances = () => {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (ids: number[]) => reorderInsurances(ids),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: INSURANCES_QUERY_KEY });
-    },
-    onError: (error) => handleApiError(error, "並び替え"),
-  });
-};

@@ -53,7 +53,7 @@ func (r *shiftEntryRepository) FindAll(ctx context.Context, clinicID uint64, fil
 		}
 		start := t
 		end := t.AddDate(0, 1, 0)
-		q = q.Where("date >= ? AND date < ?", start.Format("2006-01-02"), end.Format("2006-01-02"))
+		q = q.Where("date >= ? AND date < ?", start.Format(time.DateOnly), end.Format(time.DateOnly))
 	}
 	if filter.StaffID != nil {
 		q = q.Where("staff_id = ?", *filter.StaffID)
@@ -84,7 +84,7 @@ func (r *shiftEntryRepository) Create(ctx context.Context, entry *model.ShiftEnt
 		// PostgreSQL UNIQUE違反 (23505)
 		if isUniqueConstraintErr(err) {
 			return apperrors.WrapAlreadyExists("shift_entry",
-				fmt.Sprintf("staff_id=%d date=%s", entry.StaffID, entry.Date.Format("2006-01-02")))
+				fmt.Sprintf("staff_id=%d date=%s", entry.StaffID, entry.Date.Format(time.DateOnly)))
 		}
 		return apperrors.FromGORM(err, "shift_entry", "")
 	}
@@ -92,17 +92,7 @@ func (r *shiftEntryRepository) Create(ctx context.Context, entry *model.ShiftEnt
 }
 
 func (r *shiftEntryRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
-	result := dbOrTx(ctx, r.db).
-		Model(&model.ShiftEntry{}).
-		Scopes(clinicScope(clinicID)).Where("id = ?", id).
-		Updates(fields)
-	if result.Error != nil {
-		return apperrors.FromGORM(result.Error, "shift_entry", strconv.FormatUint(id, 10))
-	}
-	if result.RowsAffected == 0 {
-		return apperrors.WrapNotFound("shift_entry", strconv.FormatUint(id, 10))
-	}
-	return nil
+	return updateScopedByID(ctx, dbOrTx(ctx, r.db), &model.ShiftEntry{}, "shift_entry", clinicID, id, fields)
 }
 
 func (r *shiftEntryRepository) Delete(ctx context.Context, clinicID, id uint64) error {
@@ -119,24 +109,16 @@ func (r *shiftEntryRepository) Delete(ctx context.Context, clinicID, id uint64) 
 }
 
 func (r *shiftEntryRepository) ReplaceBreaks(ctx context.Context, shiftEntryID uint64, breaks []model.ShiftEntryBreak) error {
-	if err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		if err := tx.Where("shift_entry_id = ?", shiftEntryID).Delete(&model.ShiftEntryBreak{}).Error; err != nil {
-			return apperrors.FromGORM(err, "shift_entry_break", fmt.Sprintf("%d", shiftEntryID))
-		}
-		if len(breaks) == 0 {
-			return nil
-		}
-		for i := range breaks {
-			breaks[i].ShiftEntryID = shiftEntryID
-		}
-		if err := tx.Create(&breaks).Error; err != nil {
-			return apperrors.FromGORM(err, "shift_entry_break", "")
-		}
-		return nil
-	}); err != nil {
-		return apperrors.Wrap(err, "failed to replace shift entry breaks")
-	}
-	return nil
+	return replaceChildRowsByParentID(
+		dbOrTx(ctx, r.db),
+		shiftEntryID,
+		breaks,
+		&model.ShiftEntryBreak{},
+		"shift_entry_id",
+		"shift_entry_break",
+		func(row *model.ShiftEntryBreak, id uint64) { row.ShiftEntryID = id },
+		"failed to replace shift entry breaks",
+	)
 }
 
 func (r *shiftEntryRepository) ExistsByStaffID(ctx context.Context, clinicID, staffID uint64) (bool, error) {
@@ -154,7 +136,7 @@ func (r *shiftEntryRepository) ExistsByStaffID(ctx context.Context, clinicID, st
 // FindOnDutyStaffs は指定日にシフトが登録されているスタッフ一覧を返す (BUG-344)
 func (r *shiftEntryRepository) FindOnDutyStaffs(ctx context.Context, clinicID uint64, date time.Time) ([]model.Staff, error) {
 	var staffs []model.Staff
-	dateStr := date.Format("2006-01-02")
+	dateStr := date.Format(time.DateOnly)
 	// shift_entries テーブルは deleted_at カラムを持たない（論理削除なし）
 	// 勤務日の絞り込みは JOIN 条件の shift_entries.clinic_id で担保する。
 	err := dbOrTx(ctx, r.db).

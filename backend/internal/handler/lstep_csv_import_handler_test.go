@@ -21,21 +21,13 @@ import (
 // ---- mock LstepCsvImportService ----
 
 type mockLstepCsvImportService struct {
-	importFriendAttributesFn func(ctx context.Context, clinicID uint64, fileName string, fileReader io.Reader, uploadedByUserID *uint64) (*model.LstepCsvImport, error)
-	getByIDFn                func(ctx context.Context, clinicID uint64, id uuid.UUID) (*model.LstepCsvImport, error)
+	importFriendAttributesFn func(ctx context.Context, clinicID uint64, fileName string, fileReader io.Reader, uploadedByUserID uint64) (*model.LstepCsvImport, error)
 	listByClinicFn           func(ctx context.Context, clinicID uint64, limit int) ([]*model.LstepCsvImport, error)
 }
 
-func (m *mockLstepCsvImportService) ImportFriendAttributesCSV(ctx context.Context, clinicID uint64, fileName string, fileReader io.Reader, uploadedByUserID *uint64) (*model.LstepCsvImport, error) {
+func (m *mockLstepCsvImportService) ImportFriendAttributesCSV(ctx context.Context, clinicID uint64, fileName string, fileReader io.Reader, uploadedByUserID uint64) (*model.LstepCsvImport, error) {
 	if m.importFriendAttributesFn != nil {
 		return m.importFriendAttributesFn(ctx, clinicID, fileName, fileReader, uploadedByUserID)
-	}
-	return nil, nil
-}
-
-func (m *mockLstepCsvImportService) GetByID(ctx context.Context, clinicID uint64, id uuid.UUID) (*model.LstepCsvImport, error) {
-	if m.getByIDFn != nil {
-		return m.getByIDFn(ctx, clinicID, id)
 	}
 	return nil, nil
 }
@@ -55,7 +47,7 @@ func newPostCsvImportRouter(csvSvc service.LstepCsvImportService, permSvc servic
 	r.POST("/clinics/:clinic_id/lstep/csv-imports/friend-attributes",
 		setupCtx,
 		h.RequirePermission(string(model.ResourceLstepCsvImport), "edit"),
-		h.PostLstepCsvImportFriendAttributes,
+		h.ImportLstepFriendAttributesCsv,
 	)
 	return r
 }
@@ -106,7 +98,7 @@ func TestPostLstepCsvImport_B_201_Created(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	id := uuid.New()
 	csvSvc := &mockLstepCsvImportService{
-		importFriendAttributesFn: func(_ context.Context, clinicID uint64, fileName string, _ io.Reader, _ *uint64) (*model.LstepCsvImport, error) {
+		importFriendAttributesFn: func(_ context.Context, clinicID uint64, fileName string, _ io.Reader, _ uint64) (*model.LstepCsvImport, error) {
 			return &model.LstepCsvImport{
 				ID:        id,
 				ClinicID:  clinicID,

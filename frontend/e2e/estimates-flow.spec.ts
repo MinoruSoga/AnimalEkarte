@@ -57,9 +57,9 @@ test.describe('見積書管理 フロー E2E', () => {
       await expect(estimates.listHeading()).toBeVisible({
         timeout: 15000,
       });
-      await expect(estimates.firstRow()).toBeVisible({ timeout: 15000 });
+      await expect(estimates.draftRow()).toBeVisible({ timeout: 15000 });
 
-      await estimates.firstRow().click();
+      await estimates.draftRow().click();
       await expect(estimates.detailHeading()).toBeVisible({
         timeout: 15000,
       });
@@ -77,9 +77,9 @@ test.describe('見積書管理 フロー E2E', () => {
       await expect(estimates.listHeading()).toBeVisible({
         timeout: 15000,
       });
-      await expect(estimates.firstRow()).toBeVisible({ timeout: 15000 });
+      await expect(estimates.draftRow()).toBeVisible({ timeout: 15000 });
 
-      await estimates.firstRow().click();
+      await estimates.draftRow().click();
       await expect(estimates.detailHeading()).toBeVisible({
         timeout: 15000,
       });

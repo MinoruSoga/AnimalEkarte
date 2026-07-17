@@ -2,7 +2,6 @@ package repository
 
 import (
 	"context"
-	"fmt"
 	"strconv"
 
 	"gorm.io/gorm"
@@ -90,24 +89,16 @@ func (r *shiftTemplateRepository) Delete(ctx context.Context, clinicID, id uint6
 }
 
 func (r *shiftTemplateRepository) UpdateBreaks(ctx context.Context, templateID uint64, breaks []model.ShiftTemplateBreak) error {
-	if err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		if err := tx.Where("shift_template_id = ?", templateID).Delete(&model.ShiftTemplateBreak{}).Error; err != nil {
-			return apperrors.FromGORM(err, "shift_template_break", fmt.Sprintf("%d", templateID))
-		}
-		if len(breaks) == 0 {
-			return nil
-		}
-		for i := range breaks {
-			breaks[i].ShiftTemplateID = templateID
-		}
-		if err := tx.Create(&breaks).Error; err != nil {
-			return apperrors.FromGORM(err, "shift_template_break", "")
-		}
-		return nil
-	}); err != nil {
-		return apperrors.Wrap(err, "failed to replace shift template breaks")
-	}
-	return nil
+	return replaceChildRowsByParentID(
+		dbOrTx(ctx, r.db),
+		templateID,
+		breaks,
+		&model.ShiftTemplateBreak{},
+		"shift_template_id",
+		"shift_template_break",
+		func(row *model.ShiftTemplateBreak, id uint64) { row.ShiftTemplateID = id },
+		"failed to replace shift template breaks",
+	)
 }
 
 func (r *shiftTemplateRepository) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {

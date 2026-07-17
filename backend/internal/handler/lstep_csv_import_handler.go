@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
-	"time"
 
 	"github.com/gin-gonic/gin"
 
@@ -38,17 +37,15 @@ func toLstepCsvImportResponse(m *model.LstepCsvImport) lstepCsvImportResponse {
 		SuccessCount: m.SuccessCount,
 		ErrorCount:   m.ErrorCount,
 		Status:       m.Status,
-		CreatedAt:    m.CreatedAt.In(time.Local).Format(time.RFC3339),
+		CreatedAt:    localTimeRFC3339(m.CreatedAt),
 	}
-	if m.UploadedByUserID != nil {
-		s := strconv.FormatUint(*m.UploadedByUserID, 10)
-		r.UploadedByUserID = &s
-	}
+	uploadedBy := strconv.FormatUint(m.UploadedByUserID, 10)
+	r.UploadedByUserID = &uploadedBy
 	if len(m.ErrorLog) > 0 {
 		r.ErrorLog = json.RawMessage(m.ErrorLog)
 	}
 	if m.ImportedAt != nil {
-		s := m.ImportedAt.In(time.Local).Format(time.RFC3339)
+		s := localTimeRFC3339(*m.ImportedAt)
 		r.ImportedAt = &s
 	}
 	return r
@@ -62,9 +59,9 @@ func toLstepCsvImportListResponse(imports []*model.LstepCsvImport) []lstepCsvImp
 	return resp
 }
 
-// PostLstepCsvImportFriendAttributes godoc
+// ImportLstepFriendAttributesCsv godoc
 // POST /api/v1/clinics/:clinic_id/lstep/csv-imports/friend-attributes — 友だち属性 CSV インポート（FEAT-385）。
-func (h *Handler) PostLstepCsvImportFriendAttributes(c *gin.Context) {
+func (h *Handler) ImportLstepFriendAttributesCsv(c *gin.Context) {
 	clinicID, ok := extractClinicID(c)
 	if !ok {
 		return
@@ -77,12 +74,12 @@ func (h *Handler) PostLstepCsvImportFriendAttributes(c *gin.Context) {
 	}
 	defer file.Close() //nolint:errcheck // deferred Close on multipart file; error is non-actionable
 
-	var actorID *uint64
-	if staffID, ok2 := extractStaffID(c); ok2 {
-		actorID = &staffID
+	staffID, ok2 := extractStaffID(c)
+	if !ok2 {
+		return
 	}
 
-	imp, svcErr := h.svc.LstepCsvImport.ImportFriendAttributesCSV(c.Request.Context(), clinicID, header.Filename, file, actorID)
+	imp, svcErr := h.svc.LstepCsvImport.ImportFriendAttributesCSV(c.Request.Context(), clinicID, header.Filename, file, staffID)
 	if svcErr != nil {
 		RespondError(c, svcErr)
 		return
@@ -113,6 +110,6 @@ func (h *Handler) ListLstepCsvImports(c *gin.Context) {
 // RegisterLstepCsvImportRoutes は FEAT-385 CSV インポートのルートを登録する。
 func (h *Handler) RegisterLstepCsvImportRoutes(rg *gin.RouterGroup) {
 	g := rg.Group("/clinics/:clinic_id/lstep/csv-imports")
-	g.POST("/friend-attributes", h.RequirePermission(string(model.ResourceLstepCsvImport), "edit"), h.PostLstepCsvImportFriendAttributes)
+	g.POST("/friend-attributes", h.RequirePermission(string(model.ResourceLstepCsvImport), "edit"), h.ImportLstepFriendAttributesCsv)
 	g.GET("", h.RequirePermission(string(model.ResourceLstepCsvImport), "view"), h.ListLstepCsvImports)
 }

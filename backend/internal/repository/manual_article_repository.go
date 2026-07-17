@@ -57,7 +57,7 @@ func (r *manualArticleRepository) FindByCategoryAndSlug(ctx context.Context, cat
 // Upsert は category+slug で UNIQUE 制約を利用した upsert を実行する。
 // 履歴テーブルへの記録も同一トランザクション内で行う。
 func (r *manualArticleRepository) Upsert(ctx context.Context, article *model.ManualArticle, editorStaffID *uint64) (*model.ManualArticle, error) {
-	if err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	if err := dbOrTx(ctx, r.db).Transaction(func(tx *gorm.DB) error {
 		// 既存レコード取得
 		var existing model.ManualArticle
 		findErr := tx.Where("category = ? AND slug = ?", article.Category, article.Slug).First(&existing).Error
@@ -119,7 +119,7 @@ func (r *manualArticleRepository) Delete(ctx context.Context, category model.Man
 		return apperrors.FromGORM(result.Error, "manual_article", fmt.Sprintf("%s/%s", category, slug))
 	}
 	if result.RowsAffected == 0 {
-		return apperrors.FromGORM(gorm.ErrRecordNotFound, "manual_article", fmt.Sprintf("%s/%s", category, slug))
+		return apperrors.WrapNotFound("manual_article", fmt.Sprintf("%s/%s", category, slug))
 	}
 	return nil
 }

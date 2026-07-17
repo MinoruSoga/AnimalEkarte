@@ -1,0 +1,155 @@
+// P4-1〜P4-4: Cloudflare Workers + Containers 設定。
+//
+// 各バインディングの確定状況(2026-07-05 試行9時点):
+//   - hyperdrive[0].id … 試行7で確定済み(45ae9b2a018a4c0fa84c1744c0f12efa)。Worker binding として
+//     残すが、Container(Go API)は PlanetScale へ直結するため Phase 4 では未使用
+//     (Hyperdrive は Container 内非対応: https://github.com/cloudflare/containers/issues/97)
+//   - r2_buckets[0].bucket_name … 試行4で apply 済み(animalekarte-stg-images)。S3互換 Access Key/
+//     Secret は試行8で発行済みのため、試行9で Container の STORAGE_TYPE=s3 化も完了(vars/envVars参照)
+//   - routes[0] … P1-2 の NS 切替後でないと Custom Domain として機能しない(現時点では参考値)。
+//     試行9では workers_dev=true で *.workers.dev 経由の疎通確認を行う
+//   - secrets.required … 値は `wrangler secret put <NAME>` で個別投入する(本ファイルには値を書かない)。
+//     LINE_CHANNEL_ACCESS_TOKEN/LINE_CHANNEL_SECRET/LSTEP_API_KEY はクリニックごとにDBで管理する設計
+//     (config.go 参照)のため現状 Go の env 読み込みパスは無いが、将来のグローバルfallback用に予約
+//   - vars … 非シークレットの Go 設定値。containers[].envVars(backend/worker/index.ts)へ渡す
+//
+// migrate one-shot タスク(現行 ECS one-shot 相当)は P4-5(試行10)で実装済み: Worker の
+// POST /_internal/migrate(MIGRATE_RUN_SECRET認証)→ Containers の低レベル exec() API →
+// /app/migrate 実行、という経路(backend/worker/index.ts の AnimalEkarteApiContainer.runMigrate()
+// 参照)。本ファイルにはコンテナ定義のみ含む。migrate バイナリは Hyperdrive を経由せず
+// PlanetScale へ直結する(pg_advisory_lock 使用のため。P3-5 の判断を参照)。
+{
+  "$schema": "../node_modules/wrangler/config-schema.json",
+  "name": "animalekarte-stg-api",
+  "main": "./worker/index.ts",
+  "compatibility_date": "2026-07-05",
+  "compatibility_flags": ["nodejs_compat_v2"],
+  // TODO(P1-2 NS切替完了後にfalseへ戻す): 試行9はP4-4疎通確認のため一時的にtrue。
+  // P1-2(NS切替)完了まで api.stg.noah-karte.com への route は機能しないため、*.workers.dev を
+  // 検証用の公開経路として使う。切替後は「STG APIを不要に公開しない」方針に合わせて false に戻す
+  // (migration-cloudflare.md 試行9の残課題参照)。
+  "workers_dev": true,
+
+  "routes": [
+    {
+      // P1-2(NS切替)完了後に有効化する。現時点では未切替のため参考値。
+      "pattern": "api.stg.noah-karte.com/*",
+      "zone_name": "noah-karte.com",
+    },
+  ],
+
+  // 非シークレットの設定値。Container の envVars へ backend/worker/index.ts 経由で渡す
+  // (Go 側 os.Getenv キーとの対応は下記コメント参照)。
+  "vars": {
+    "GIN_MODE": "release",
+    "LOG_LEVEL": "info",
+    "DB_PORT": "5432",
+    "DB_NAME": "postgres",
+    // PlanetScale Postgres はTLS必須。証明書検証はスキップしつつ暗号化のみ要求する
+    // (試行7で確認済みの sslmode=require 運用を踏襲)。
+    "DB_SSL_MODE": "require",
+    // 試行9で実測確定(migration-cloudflare.md参照)。/health に一時追加した診断フィールドで
+    // 確認した Worker→Container 内部プロキシの実ソースIP。複数リクエストにわたり 10.1.0.0 で
+    // 安定(ポートのみ変動)。RFC1918プライベートアドレスであり、Container の :8080 には Worker の
+    // containerFetch(worker/index.ts で CF-Connecting-IP → X-Forwarded-For に転記)経由以外の
+    // 到達路が無いため、この単一IPを信頼しても外部からのX-Forwarded-For偽装によるレート制限
+    // バイパス経路は生まれない(H2)。他リージョンで異なるIPが観測された場合は本値を見直す。
+    "TRUSTED_PROXY_CIDR": "10.1.0.0/32",
+    // ルート .env.staging(ECS用)の実測値と一致させる(docs/ops/infra-architecture.md記載の値は
+    // 旧ドメインで陳腐化していたため実値を採用。試行9で確認)。
+    "CORS_ALLOWED_ORIGIN": "https://stg.noah-karte.com,https://api.stg.noah-karte.com",
+    "FRONTEND_URL": "https://stg.noah-karte.com",
+    "SMTP_PORT": "587",
+    "SMTP_FROM": "noreply@noah-karte.com",
+
+    // R2(S3互換)ファイルストレージ。P2-3(試行8)でR2 API Token発行済みのためPhase 4でも接続する。
+    // aws-sdk-go-v2 の既定クレデンシャルチェーンが AWS_ACCESS_KEY_ID/AWS_SECRET_ACCESS_KEY を読むため、
+    // R2キーもそのGo標準の名前で secrets に投入する(下記 secrets.required 参照)。
+    // 共有ファイル(shared_files)用と通常アップロード用を同一バケットに簡略化(R2バケットは1つのみ作成済み)。
+    "STORAGE_TYPE": "s3",
+    "S3_BUCKET": "animalekarte-stg-images",
+    "S3_REGION": "auto",
+    "S3_SHARED_BUCKET": "animalekarte-stg-images",
+    "S3_SHARED_REGION": "auto",
+    "S3_ENDPOINT": "https://776ddc3e975e8fe5773d5300522e2404.r2.cloudflarestorage.com",
+    // ブラウザ向けオブジェクト公開 URL の base(R2 custom domain / *.r2.dev)。
+    // S3_ENDPOINT(上記=API 接続先)とは別ホスト。API endpoint は認証が必要でブラウザ参照不可。
+    // 【USER 運用タスク(P2-5)】R2 の公開ドメインが未確定のため空のまま。値投入まで
+    // 医療画像の公開 URL は API ホストへ暫定フォールバックし、起動時に警告ログを出す。
+    // 形式: スキーム込みの公開 base(例 "https://<R2-custom-domain>" または "https://<id>.r2.dev")。
+    // 実ドメインは Cloudflare で公開ドメインを作成後に USER が投入する。推測ドメインは書かないこと。
+    "S3_PUBLIC_BASE_URL": "",
+  },
+
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 1,
+  },
+
+  "containers": [
+    {
+      "class_name": "AnimalEkarteApiContainer",
+      // Dockerfileパス指定が公式にサポートされる標準経路(Cloudflare Containers docs
+      // "platform-details/environment-variables"/get-started 参照): `wrangler deploy` が
+      // ローカル Docker でビルドし、Cloudflare 管理の Registry(R2バック)へ自動 push する。
+      // 完全なイメージURL直書きは不要(旧TODOは誤り。試行9で公式ドキュメント確認済み)。
+      "image": "./Dockerfile.production",
+      "instance_type": "basic", // 1/4 vCPU / 1GiB。migration-cloudflare.md の想定コストに合わせる
+      "max_instances": 3,
+    },
+  ],
+
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "API_CONTAINER",
+        "class_name": "AnimalEkarteApiContainer",
+      },
+    ],
+  },
+
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": ["AnimalEkarteApiContainer"],
+    },
+  ],
+
+  "hyperdrive": [
+    {
+      "binding": "HYPERDRIVE",
+      // 2026-07-05 試行7: infra/cloudflare/hyperdrive.tf apply 済み(animalekarte-stg-planetscale)。
+      // wrangler dev --remote での実接続 CRUD/トランザクション検証 PASS(migration-cloudflare.md 試行7参照)。
+      "id": "45ae9b2a018a4c0fa84c1744c0f12efa",
+    },
+  ],
+
+  "r2_buckets": [
+    {
+      "binding": "MEDICAL_IMAGES",
+      // r2_bucket_name のデフォルト値(infra/cloudflare/variables.tf)と一致させる。
+      "bucket_name": "animalekarte-stg-images",
+    },
+  ],
+
+  "secrets": {
+    "required": [
+      "DB_HOST",
+      "DB_USER",
+      "DB_PASSWORD",
+      "AWS_ACCESS_KEY_ID",
+      "AWS_SECRET_ACCESS_KEY",
+      // 試行10(P4-5): POST /_internal/migrate 用の管理シークレット。Bearer token として使用。
+      // JWT_SECRET等とは独立させる(用途混同・ローテーション影響範囲を分離するため)。
+      "MIGRATE_RUN_SECRET",
+      "JWT_SECRET",
+      "INTEGRATION_ENCRYPTION_KEY",
+      "SMTP_HOST",
+      "SMTP_USER",
+      "SMTP_PASS",
+      // LINE_CHANNEL_ACCESS_TOKEN/LINE_CHANNEL_SECRET/LSTEP_API_KEY は将来のグローバルfallback用に
+      // 予約されているが(冒頭コメント参照)、現状 Go 側の env 読み込みパスが無いため required から
+      // 除外する(未使用シークレット不足で `wrangler deploy` が失敗するため)。実装され次第ここへ追加する。
+    ],
+  },
+}

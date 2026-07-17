@@ -104,18 +104,7 @@ func (s *lstepDeliveryMonitorService) GetLogs(ctx context.Context, input *GetDel
 	if input == nil {
 		return DeliveryTriggerLogsPage{}, apperrors.WrapInvalidInput("input is nil")
 	}
-	perPage := input.PerPage
-	if perPage <= 0 {
-		perPage = 20
-	}
-	if perPage > 100 {
-		perPage = 100
-	}
-	page := input.Page
-	if page <= 0 {
-		page = 1
-	}
-	offset := (page - 1) * perPage
+	page, perPage, offset := normalizePagination(input.Page, input.PerPage, 20, 100)
 
 	rows, total, err := s.triggerLog.FindByDateRangeWithFilters(ctx, input.ClinicID, input.From, input.To, input.TriggerType, input.Status, perPage, offset)
 	if err != nil {

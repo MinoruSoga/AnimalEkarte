@@ -1,6 +1,6 @@
 import { type ReactNode, useState, useRef } from "react";
 import { createPortal } from "react-dom";
-import { C } from "@/lib/design-tokens";
+import { C, Z } from "@/lib/design-tokens";
 import { cn } from "./utils";
 
 interface TooltipProps {
@@ -39,7 +39,7 @@ export function Tooltip({ content, children, className }: TooltipProps) {
             position: "fixed",
             top: pos?.top ?? 0,
             left: pos?.left ?? 0,
-            zIndex: 9999,
+            zIndex: Z.overlay,
             transform: "translateX(-50%) translateY(calc(-100% - 4px))",
             visibility: isVisible ? "visible" : "hidden",
           }}

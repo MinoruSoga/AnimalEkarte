@@ -5,12 +5,13 @@ import { UploadCloud } from "lucide-react";
 import { SubmitButton } from "@/components/shared/Form/SubmitButton";
 import { C, ICON, PALETTE } from "@/lib/design-tokens";
 import { handleApiError } from "@/lib/handle-api-error";
-import { axios } from "@/lib/axios";
 import { requireStoredClinicId } from "@/lib/current-clinic";
 import { formatJSTDateTimeLocal } from "@/lib/jst-date";
+import { queryKeys } from "@/lib/query-keys";
 
 import { useGetLstepCsvImports } from "../api/get-lstep-csv-imports";
-import { CSV_STATUS_LABELS } from "./LstepAnalyticsModel";
+import { uploadFriendAttributesCsv } from "../api/upload-friend-attributes-csv";
+import { CSV_STATUS_LABELS } from "./lstep-analytics-model";
 
 export function CsvImportSection() {
   return (
@@ -47,14 +48,8 @@ function CsvUploadSection() {
       }
       try {
         const clinicId = requireStoredClinicId();
-        const fd = new FormData();
-        fd.append("file", file);
-        await axios.post(
-          `/v1/clinics/${clinicId}/lstep/csv-imports/friend-attributes`,
-          fd,
-          { headers: { "Content-Type": "multipart/form-data" } },
-        );
-        queryClient.invalidateQueries({ queryKey: ["lstep-csv-imports"] });
+        await uploadFriendAttributesCsv(clinicId, file);
+        queryClient.invalidateQueries({ queryKey: queryKeys.lstepCsvImports.all() });
         return { success: true };
       } catch (err) {
         handleApiError(err, "CSVアップロード");

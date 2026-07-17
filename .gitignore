@@ -1,12 +1,19 @@
 # Environment
 .env
 .env.*.local
-# .env.local / .env.production は git track する（ローカル・本番設定）
+# frontend/.env.production は意図的に git track する（PO決定 2026-07-02 / Issue #91 / bug.md M-10）。
+# 根拠: VITE_* はビルド成果物に埋め込まれる公開値でありシークレットではない。
+# ルール: この env ファイルにシークレット（トークン・パスワード・鍵）を置くことは禁止。
+#        違反は CI シークレットスキャン（bug.md C-1-4 で導入予定）で検出する。
 
 # Dependencies
 node_modules/
 vendor/
 .pnpm-store/
+
+# Python bytecode cache
+__pycache__/
+*.pyc
 
 # Build
 dist/
@@ -21,6 +28,11 @@ frontend/coverage/
 frontend/test-results/
 frontend/playwright-report/
 frontend/debug_*.png
+
+# Backend coverage artifacts (CI generates these; non-gating)
+backend/coverage.out
+backend/coverage.html
+backend/coverage-summary.txt
 
 # Design-spec extraction artifacts
 .design-specs/test-results/
@@ -46,6 +58,8 @@ npm-debug.log*
 # Go
 backend/tmp/
 backend/uploads/
+# Compiled cmd binaries: consolidated into backend/.gitignore (/migrate, /seed-old-db,
+# /stage-import, /lstep-migrate) to avoid drift between root and backend/ ignore lists.
 
 # Terraform
 *.tfplan
@@ -69,11 +83,6 @@ service-account-key.json
 .vscode/settings.json
 .DS_Store
 
-# Issue tracking (local only)
-frontend/issues/
-backend/issues/
-docs/tasks/
-
 # Test results
 test-results/
 .vercel
@@ -96,5 +105,19 @@ tables.txt
 .env.staging
 .env.local
 
+# k6負荷テストの実行結果（Cookie/JWT等の実行時データを含み得るため、生成物は追跡しない）
+load-tests/results-*.json
+
 # Trash directory
 trash/
+
+# old_db raw migration data — must never be committed
+# These guards catch any accidental copy of sensitive-local/ files into this repo.
+*.import.tsv
+*.import.tsv.header
+sensitive-local/
+.secret
+
+# 監査レポート（秘密の抜粋を含みうるローカル作業ファイル。git外に保つ）
+improvement.html
+improvement_ai.html

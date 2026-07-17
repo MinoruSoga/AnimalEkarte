@@ -2,15 +2,19 @@ import type { Dispatch, SetStateAction } from "react";
 import Pill from "lucide-react/dist/esm/icons/pill";
 
 import { PropertyInput, PropertyRow } from "@/components/shared/SidePeek";
-import { NotionStatusPill } from "@/components/shared/StatusPill/NotionStatusPill";
+import { StatusPill } from "@/components/shared/StatusPill/StatusPill";
 import { TaxRateSelector } from "@/components/shared/TaxRateSelector/TaxRateSelector";
 import { TaxTypeSelector } from "@/components/shared/TaxTypeSelector/TaxTypeSelector";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { SearchableSelect } from "@/components/ui/searchable-select";
 import { C, ICON, STYLE } from "@/lib/design-tokens";
 import type { Medicine } from "@/types";
+import {
+  MedicineCalculationTypeNone,
+  MedicineCalculationTypePerWeight,
+} from "@/types/generated/models";
 
-import type { MedicineFormData } from "./MedicineSidePanelModel";
+import type { MedicineFormData } from "./medicine-side-panel-model";
 
 const DOSAGE_FORM_SELECT_ITEMS = (
   <>
@@ -31,7 +35,8 @@ const MEDICINE_UNIT_SELECT_ITEMS = (
   </>
 );
 
-const SELECT_TRIGGER_FULL = `h-[30px] text-base bg-transparent ${C.text} border-0 ${C.hoverBgLight} px-1.5 shadow-none rounded-[3px] w-full`;
+// ts-review-201 MEDIUM: MedicineDoseParamsEditor.tsx と共有するため export する（重複定義の解消）。
+export const SELECT_TRIGGER_FULL = `h-[30px] text-base bg-transparent ${C.text} border-0 ${C.hoverBgLight} px-1.5 shadow-none rounded-[3px] w-full`;
 
 type SetMedicineFormDataDirty = Dispatch<SetStateAction<MedicineFormData>>;
 
@@ -93,6 +98,7 @@ export function MedicinePriceTaxSection({
             <input
               type="number"
               min={0}
+              aria-label="単価(税込)"
               value={formData.price}
               onChange={(event) => setFormDataDirty((prev) => ({ ...prev, price: Number(event.target.value) }))}
               placeholder="0"
@@ -138,7 +144,7 @@ export function MedicineBasicFlagsSection({
           onClick={() => setFormDataDirty((prev) => ({ ...prev, isActive: !prev.isActive }))}
           className={`inline-flex items-center rounded-[3px] ${C.hoverBgLight} transition-colors py-0.5 px-0.5 cursor-pointer`}
         >
-          <NotionStatusPill isActive={formData.isActive} />
+          <StatusPill isActive={formData.isActive} />
         </button>
       </PropertyRow>
 
@@ -147,7 +153,7 @@ export function MedicineBasicFlagsSection({
           type="button"
           onClick={() => setFormDataDirty((prev) => ({ ...prev, isNonInsurance: !prev.isNonInsurance }))}
           aria-label="保険対象外を切り替え"
-          className={`inline-flex items-center rounded-[3px] ${C.hoverBgLight} transition-colors py-0.5 px-1.5 cursor-pointer text-sm ${formData.isNonInsurance ? C.accent : C.text50}`}
+          className={`inline-flex items-center rounded-[3px] ${C.hoverBgLight} transition-colors py-0.5 px-1.5 cursor-pointer text-sm ${formData.isNonInsurance ? C.textBrand : C.text50}`}
         >
           {formData.isNonInsurance ? "対象外" : "対象"}
         </button>
@@ -207,6 +213,106 @@ export function MedicineDetailSection({
             <SelectContent>{MEDICINE_UNIT_SELECT_ITEMS}</SelectContent>
           </Select>
         </PropertyRow>
+      </div>
+    </>
+  );
+}
+
+interface MedicineDoseCalculationSectionProps {
+  formData: MedicineFormData;
+  setFormDataDirty: SetMedicineFormDataDirty;
+}
+
+/**
+ * #201 投与量自動計算（製品軸）。calculation_type=none（既定・手動）/ per_weight（mg/kg 自動計算）。
+ * per_weight 選択時のみ strength/frequencyPerDay/defaultDurationDays を表示する。
+ * 種別（犬・猫）パラメータは別 API（MedicineDoseParamsEditor）で編集する — ここでは製品軸のみ。
+ */
+export function MedicineDoseCalculationSection({
+  formData,
+  setFormDataDirty,
+}: MedicineDoseCalculationSectionProps) {
+  const isPerWeight = formData.calculationType === MedicineCalculationTypePerWeight;
+
+  return (
+    <>
+      <div className={`${STYLE.sectionDivider} mt-3 mb-1`} />
+      <div className="py-1">
+        <div className="flex items-center gap-1.5 py-2 mb-1">
+          <Pill className={`${ICON.xs} ${C.text40}`} />
+          <span className={`text-base font-medium ${C.text50} uppercase tracking-wide select-none`}>
+            投与量自動計算
+          </span>
+        </div>
+
+        <PropertyRow label="計算方式">
+          <Select
+            value={formData.calculationType}
+            onValueChange={(value) =>
+              setFormDataDirty((prev) => ({
+                ...prev,
+                calculationType: value as MedicineFormData["calculationType"],
+              }))
+            }
+          >
+            <SelectTrigger className={SELECT_TRIGGER_FULL}>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={MedicineCalculationTypeNone}>手動</SelectItem>
+              <SelectItem value={MedicineCalculationTypePerWeight}>体重換算(mg/kg)</SelectItem>
+            </SelectContent>
+          </Select>
+        </PropertyRow>
+
+        {isPerWeight ? (
+          <>
+            <PropertyRow label="製品含量(mg/単位)">
+              <input
+                type="number"
+                min={0}
+                step="any"
+                aria-label="製品含量(mg/単位)"
+                value={formData.strength}
+                onChange={(event) =>
+                  setFormDataDirty((prev) => ({ ...prev, strength: event.target.value }))
+                }
+                placeholder="未設定"
+                className={`${STYLE.propertyInput} w-28`}
+              />
+            </PropertyRow>
+
+            <PropertyRow label="1日投与回数(任意)">
+              <input
+                type="number"
+                min={1}
+                step={1}
+                aria-label="1日投与回数"
+                value={formData.frequencyPerDay}
+                onChange={(event) =>
+                  setFormDataDirty((prev) => ({ ...prev, frequencyPerDay: event.target.value }))
+                }
+                placeholder="未設定"
+                className={`${STYLE.propertyInput} w-28`}
+              />
+            </PropertyRow>
+
+            <PropertyRow label="既定投与日数(任意)">
+              <input
+                type="number"
+                min={1}
+                step={1}
+                aria-label="既定投与日数"
+                value={formData.defaultDurationDays}
+                onChange={(event) =>
+                  setFormDataDirty((prev) => ({ ...prev, defaultDurationDays: event.target.value }))
+                }
+                placeholder="未設定"
+                className={`${STYLE.propertyInput} w-28`}
+              />
+            </PropertyRow>
+          </>
+        ) : null}
       </div>
     </>
   );

@@ -26,35 +26,39 @@ type petOwnerNested struct {
 }
 
 type petResponse struct {
-	ID              uint64                  `json:"id"`
-	ClinicID        uint64                  `json:"clinic_id"`
-	OwnerID         uint64                  `json:"owner_id"`
-	AnimalSpeciesID uint64                  `json:"animal_species_id"`
-	PetNumber       string                  `json:"pet_number"`
-	Name            string                  `json:"name"`
-	PetNameKana     string                  `json:"pet_name_kana"`
-	Gender          string                  `json:"gender"`
-	Status          string                  `json:"status"`
-	BirthDate       *time.Time              `json:"birth_date,omitempty"`
-	Breed           string                  `json:"breed"`
-	Color           string                  `json:"color"`
-	BloodType       *string                 `json:"blood_type,omitempty"`
-	MicrochipNumber *string                 `json:"microchip_number,omitempty"`
-	Weight          *float64                `json:"weight,omitempty"`
-	NeuteredDate    *time.Time              `json:"neutered_date,omitempty"`
-	AcquisitionType *string                 `json:"acquisition_type,omitempty"`
-	DangerLevel     string                  `json:"danger_level"`
-	Food            string                  `json:"food"`
-	Environment     string                  `json:"environment"`
-	Phone           string                  `json:"phone"`
-	LastVisit       *time.Time              `json:"last_visit,omitempty"`
-	InsuranceID     *uint64                 `json:"insurance_id,omitempty"`
-	Remarks         string                  `json:"remarks"`
-	CreatedAt       time.Time               `json:"created_at"`
-	UpdatedAt       time.Time               `json:"updated_at"`
-	Owner           *petOwnerNested         `json:"owner,omitempty"`
-	AnimalSpecies   *petAnimalSpeciesNested `json:"animal_species,omitempty"`
-	Insurance       *petInsuranceNested     `json:"insurance,omitempty"`
+	ID              uint64     `json:"id"`
+	ClinicID        uint64     `json:"clinic_id"`
+	OwnerID         uint64     `json:"owner_id"`
+	AnimalSpeciesID uint64     `json:"animal_species_id"`
+	PetNumber       string     `json:"pet_number"`
+	Name            string     `json:"name"`
+	PetNameKana     string     `json:"pet_name_kana"`
+	Gender          string     `json:"gender"`
+	Status          string     `json:"status"`
+	BirthDate       *time.Time `json:"birth_date,omitempty"`
+	Breed           string     `json:"breed"`
+	Color           string     `json:"color"`
+	BloodType       *string    `json:"blood_type,omitempty"`
+	MicrochipNumber *string    `json:"microchip_number,omitempty"`
+	Weight          *float64   `json:"weight,omitempty"`
+	NeuteredDate    *time.Time `json:"neutered_date,omitempty"`
+	AcquisitionType *string    `json:"acquisition_type,omitempty"`
+	DangerLevel     string     `json:"danger_level"`
+	Food            string     `json:"food"`
+	Environment     string     `json:"environment"`
+	Phone           string     `json:"phone"`
+	LastVisit       *time.Time `json:"last_visit,omitempty"`
+	InsuranceID     *uint64    `json:"insurance_id,omitempty"`
+	Remarks         string     `json:"remarks"`
+	// DeceasedReason は含めない（セキュリティレビュー指摘と平仄を合わせる: 現状どの UI
+	// コンポーネントもこの値を読み取らない — 死亡ダイアログは書き込み専用。将来的な読み取り
+	// UI が実装されるまでは意図的に未追加とする。DeceasedAt のみで死亡バナー表示は成立する）。
+	DeceasedAt    *time.Time              `json:"deceased_at,omitempty"`
+	CreatedAt     time.Time               `json:"created_at"`
+	UpdatedAt     time.Time               `json:"updated_at"`
+	Owner         *petOwnerNested         `json:"owner,omitempty"`
+	AnimalSpecies *petAnimalSpeciesNested `json:"animal_species,omitempty"`
+	Insurance     *petInsuranceNested     `json:"insurance,omitempty"`
 }
 
 // petFirstVisitResponse は #158 飼主レポートのペット初診日（最古カルテ date 由来）。
@@ -64,7 +68,10 @@ type petFirstVisitResponse struct {
 }
 
 func toPetFirstVisitResponse(date *time.Time) petFirstVisitResponse {
-	return petFirstVisitResponse{FirstVisitDate: date}
+	// MedicalRecord.date は medical_record 詳細経路で localTime(r.Date) として datetime 配信される。
+	// 同じ date 値の派生である初診日も localTimePtr で time.Local へ変換し、経路間の tz 表現割れ
+	// (`…Z` vs `…+09:00`) を防ぐ。nil (カルテ無し) は素通しで null を維持する。
+	return petFirstVisitResponse{FirstVisitDate: localTimePtr(date)}
 }
 
 // petListResponse はリスト表示に必要な最小限フィールドのみ返す（GET /v1/pets 専用）
@@ -111,18 +118,21 @@ func toPetListResponse(p *model.Pet) petListResponse {
 		PetNameKana:     p.NameKana,
 		Gender:          string(p.Gender),
 		Status:          string(p.Status),
-		BirthDate:       p.BirthDate,
+		// 日付フィールドは canonical 規約に従い localTimePtr で time.Local へ変換する
+		// (格納は date.go の ParseInLocation(time.Local) によるローカル暦日。
+		// owner 経路と byte 一致させ、pgx の深夜 UTC 表現の漏れを防ぐ)。
+		BirthDate:       localTimePtr(p.BirthDate),
 		Breed:           p.Breed,
 		Color:           p.Color,
 		BloodType:       p.BloodType,
 		MicrochipNumber: p.MicrochipNumber,
 		Weight:          p.Weight,
-		NeuteredDate:    p.NeuteredDate,
+		NeuteredDate:    localTimePtr(p.NeuteredDate),
 		AcquisitionType: acquisitionType,
 		DangerLevel:     string(p.DangerLevel),
 		Food:            p.Food,
 		Environment:     p.Environment,
-		LastVisit:       p.LastVisit,
+		LastVisit:       localTimePtr(p.LastVisit),
 		InsuranceID:     p.InsuranceID,
 		Remarks:         p.Remarks,
 	}
@@ -158,7 +168,9 @@ type petSummaryResponse struct {
 	PetNumber string   `json:"pet_number"`
 	Weight    *float64 `json:"weight,omitempty"`
 	// Status は死亡ペット判定（入院一覧/詳細の petIsDeceased）向け。alive/deceased。
-	Status        string                        `json:"status,omitempty"`
+	Status string `json:"status,omitempty"`
+	// Breed は犬種等（#231: トリミング一覧の犬種列向け。空文字は未設定を示す）。
+	Breed         string                        `json:"breed,omitempty"`
 	AnimalSpecies *animalSpeciesSummaryResponse `json:"animal_species,omitempty"`
 	// Owner は飼主名を必要とする一覧（トリミング/予約等）向け。Pet.Owner を Preload した場合のみ埋まる。
 	Owner *ownerSummaryResponse `json:"owner,omitempty"`
@@ -181,6 +193,7 @@ func toPetSummary(p *model.Pet) *petSummaryResponse {
 		PetNumber: p.PetNumber,
 		Weight:    p.Weight,
 		Status:    string(p.Status),
+		Breed:     p.Breed,
 		Owner:     toOwnerSummary(p.Owner),
 	}
 	if p.AnimalSpecies != nil {
@@ -208,21 +221,24 @@ func toPetResponse(p *model.Pet) petResponse {
 		PetNameKana:     p.NameKana,
 		Gender:          string(p.Gender),
 		Status:          string(p.Status),
-		BirthDate:       p.BirthDate,
+		// 日付フィールドは canonical 規約に従い localTimePtr で time.Local へ変換する
+		// (CreatedAt/UpdatedAt と同様に同関数内でローカル化を統一)。
+		BirthDate:       localTimePtr(p.BirthDate),
 		Breed:           p.Breed,
 		Color:           p.Color,
 		BloodType:       p.BloodType,
 		MicrochipNumber: p.MicrochipNumber,
 		Weight:          p.Weight,
-		NeuteredDate:    p.NeuteredDate,
+		NeuteredDate:    localTimePtr(p.NeuteredDate),
 		AcquisitionType: acquisitionType,
 		DangerLevel:     string(p.DangerLevel),
 		Food:            p.Food,
 		Environment:     p.Environment,
 		Phone:           p.Phone,
-		LastVisit:       p.LastVisit,
+		LastVisit:       localTimePtr(p.LastVisit),
 		InsuranceID:     p.InsuranceID,
 		Remarks:         p.Remarks,
+		DeceasedAt:      localTimePtr(p.DeceasedAt),
 		CreatedAt:       localTime(p.CreatedAt),
 		UpdatedAt:       localTime(p.UpdatedAt),
 	}

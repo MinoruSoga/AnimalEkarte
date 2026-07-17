@@ -146,6 +146,13 @@ masters.DELETE("/vaccines/:id", RequirePermission("delete"), h.Delete)
 masters.DELETE("/vaccines/:id", RequirePermission("edit"), h.Delete)
 ```
 
+**例外（PO 決定 2026-07-12・BE-refactor.md X-15）**: `pets.DELETE("/:id/death")` /
+`clinicPets.DELETE("/:id/death")`（`pet_handler.go`）は死亡記録の解除という PATCH 相当の
+状態トグルであり、リソース自体を削除しないため `edit` を要求する。edit 可・delete 不可の
+一般ロールでも「死亡記録を解除」ボタン（FE `PetDeceasedBanner.tsx`、`canEdit` で表示制御）を
+操作できる現行 UX を保つための意図的な例外。新規 DELETE ルートの正当化には使えない
+（この 1 件のみの例外であり、他の DELETE には引き続き `delete` を要求する）。
+
 ---
 
 ## P7: toXxxResponse() conversion in handler (Handler)
@@ -435,9 +442,11 @@ if not missing: print('全件OK — スキャン開始')
 【Step 1: スキャン + 起票実行】
 tmp/BE/be_master_check.md を読み込み、完了条件3（起票）まで含めて全工程を実行せよ。
 
-タスクファイルは docs/tasks/open/code-quality/TASK-{番号}-{kebab-case-title}.md に作成する。
-タスク番号は docs/tasks/open/code-quality/ と docs/tasks/closed/code-quality/ の
-既存ファイル名から最大番号を確認し、その +1 から採番する。
+タスクは repo 直下 todo.md の「個別タスク詳細」節に `### TASK-{番号}(P{n}): {title}` 形式の
+セクションとして追記する（問題/根拠/修正方針/受け入れ条件/状態の5項目・15行程度を上限の目安）。
+完了したタスクは todo.md から該当セクションを削除する（完了記録は git 履歴が正本）。
+タスク番号は todo.md 内の既存 TASK 番号の最大値 +1 から採番する
+（`grep -oE 'TASK-[0-9]+' todo.md | sort -V | tail -1`）。
 
 ultrathink
 
@@ -453,7 +462,7 @@ use AgentTeams with the following teams running in parallel:
 全チーム完了後、違反サマリを集約して既存タスクとの重複チェックを行い、
 未起票の違反のみを新規タスクとして起票する。
 違反が 0 件だった場合は「違反なし」をユーザーに報告して終了せよ（起票不要）。
-起票完了後、新規作成したタスクファイルのパス一覧をユーザーに報告して終了せよ。
+起票完了後、todo.md に新規追記したタスクセクションの見出し一覧をユーザーに報告して終了せよ。
 ```
 
 ---
@@ -517,9 +526,11 @@ if not missing: print('全件OK — スキャン開始')
 【Step 1: スキャン + 起票実行】
 tmp/BE/be_non_master_check.md を読み込み、完了条件3（起票）まで含めて全工程を実行せよ。
 
-タスクファイルは docs/tasks/open/code-quality/TASK-{番号}-{kebab-case-title}.md に作成する。
-タスク番号は docs/tasks/open/code-quality/ と docs/tasks/closed/code-quality/ の
-既存ファイル名から最大番号を確認し、その +1 から採番する。
+タスクは repo 直下 todo.md の「個別タスク詳細」節に `### TASK-{番号}(P{n}): {title}` 形式の
+セクションとして追記する（問題/根拠/修正方針/受け入れ条件/状態の5項目・15行程度を上限の目安）。
+完了したタスクは todo.md から該当セクションを削除する（完了記録は git 履歴が正本）。
+タスク番号は todo.md 内の既存 TASK 番号の最大値 +1 から採番する
+（`grep -oE 'TASK-[0-9]+' todo.md | sort -V | tail -1`）。
 
 ultrathink
 
@@ -534,7 +545,7 @@ use AgentTeams with the following teams running in parallel:
 全チーム完了後、違反サマリを集約して既存タスクとの重複チェックを行い、
 未起票の違反のみを新規タスクとして起票する。
 違反が 0 件だった場合は「違反なし」をユーザーに報告して終了せよ（起票不要）。
-起票完了後、新規作成したタスクファイルのパス一覧をユーザーに報告して終了せよ。
+起票完了後、todo.md に新規追記したタスクセクションの見出し一覧をユーザーに報告して終了せよ。
 ```
 
 ---
@@ -579,13 +590,13 @@ ultrathink
 ファイル競合が起きないよう、担当ファイルが重複しないチーム編成にする。
 
 ```
-docs/tasks/open/code-quality/ の全タスクファイルを Read し、
+todo.md「個別タスク詳細」節の P1〜P18 起票タスク（`### TASK-XXX(P{n}): ...` セクション）を全件 Read し、
 以下のチーム編成ルールに従って AgentTeams で並列実装せよ。
 
 ## 事前準備（実装前に必ず実施）
-1. docs/tasks/open/code-quality/ の全ファイルを Read して対象タスクを把握する
-2. フロントマターの `pattern:` フィールドが P1〜P18 のいずれかであるタスクのみを対象とする
-   - pattern が P1〜P18 以外（例: BUG-xxx）または `status: partial` のタスクは除外する
+1. `grep -n '^### TASK-' todo.md` で個別タスク詳細節の全タスクセクションを Read して対象タスクを把握する
+2. 見出しのパターン表記が P1〜P18 のいずれか（例: `### TASK-123(P4): ...`）であるタスクのみを対象とする
+   - パターンが P1〜P18 以外（例: BUG-xxx）または「状態」に partial（部分実装）と記載のあるタスクは除外する
 3. 各タスクの「対象ファイル」を確認し、同一ファイルへの変更が重複するタスクを
    同一チームに割り当てる（チーム間のファイル競合を防ぐ）
 4. 全タスクが以下のいずれかのチームに割り当てられたことを確認する。
@@ -631,7 +642,7 @@ docs/tasks/open/code-quality/ の全タスクファイルを Read し、
 4. 全タスク修正完了後、ユーザーに以下の手動実行を依頼する（自動実行禁止）:
    docker compose exec backend go test ./backend/internal/...
 5. ユーザーからテスト結果を受け取ったら:
-   - PASS → 担当タスク全件をまとめて 1 コミットし、タスクファイルを docs/tasks/closed/code-quality/ に移動する
+   - PASS → 担当タスク全件をまとめて 1 コミットし、todo.md から該当 `###` セクションを削除する（todo.md の変更も同コミットに含める）
    - FAIL → エラーログを確認して修正し、再度手動実行を依頼する。修正してもFAILが続く場合はユーザーに報告して止まる
 
 ## 禁止事項
@@ -651,23 +662,23 @@ use AgentTeams.
 ### 実装例B: 全 open タスクを優先度順に一括処理
 
 ```
-docs/tasks/open/code-quality/ の全タスクを優先度順（Critical → High → Medium → Low）に
+todo.md「個別タスク詳細」節の P1〜P18 起票タスクを優先度順（Critical → High → Medium → Low）に
 すべて実装してクローズせよ。
 
 ## 実装手順
-1. docs/tasks/open/code-quality/ のファイル一覧を取得する
-2. 各タスクファイルを Read して「優先度」「対象ファイル」「あるべき姿」を把握する
-   - フロントマターの `pattern:` が P1〜P18 のタスクのみを対象とする
-   - `status: partial` のタスクは除外する（partial_note を確認し未実装箇所をユーザーに確認する）
+1. `grep -n '^### TASK-' todo.md` で個別タスク詳細節のタスク見出し一覧を取得する
+2. 各タスクセクションを Read して「優先度」「対象ファイル」「あるべき姿」を把握する
+   - 見出しのパターン表記が P1〜P18（例: `### TASK-123(P4): ...`）のタスクのみを対象とする
+   - 「状態」に partial（部分実装）と記載のあるタスクは除外する（partial の注記を確認し未実装箇所をユーザーに確認する）
 3. 対象タスクが 0 件の場合はその旨をユーザーに報告して終了せよ
 4. 優先度でグルーピングし、Critical から順番に実装する
 5. 同一優先度のタスクは担当ファイルが重複しないものを AgentTeams で並列実装する
 6. 各グループの全タスク修正完了後、ユーザーに以下の手動実行を依頼する（自動実行禁止）:
    docker compose exec backend go test ./backend/internal/...
 7. ユーザーからテスト結果を受け取ったら:
-   - PASS → そのグループのタスクをまとめて 1 コミットし、docs/tasks/closed/code-quality/ に移動してから次のグループへ進む
+   - PASS → そのグループのタスクをまとめて 1 コミットし、todo.md から該当セクションを削除してから次のグループへ進む（todo.md の変更も同コミットに含める）
    - FAIL → エラーログを確認して修正し、再度手動実行を依頼する。修正してもFAILが続く場合はユーザーに報告して止まる
-8. 全グループ完了後、docs/tasks/open/code-quality/ に残っている P1〜P18 タスクがないことを確認し、ユーザーに完了報告する
+8. 全グループ完了後、todo.md の個別タスク詳細節に P1〜P18 起票タスクが残っていないことを確認し、ユーザーに完了報告する
 
 ## 並列実行の制約
 - 同一ファイルへの変更が発生するタスクは順番に実行する（競合防止）
@@ -677,8 +688,8 @@ docs/tasks/open/code-quality/ の全タスクを優先度順（Critical → High
 - タスクに書かれた「あるべき姿」以外の修正を行わない
 - テスト結果未確認のままタスクをクローズしない
 - テストFAILのままコミットしない
-- `status: partial` のタスクをフルクローズしない（partial_note を必ず読むこと）
-- 既に closed/ にあるタスクを再実装しない
+- 「状態」が partial（部分実装）のタスクをフルクローズしない（partial の注記を必ず読むこと）
+- 既に todo.md から削除（クローズ）済みのタスクを再実装しない（経緯は git 履歴で確認）
 
 ultrathink
 

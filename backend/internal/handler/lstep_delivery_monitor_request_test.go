@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/animal-ekarte/backend/internal/config"
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 )
 
@@ -61,8 +62,7 @@ func TestNewLstepDeliveryMonitorLogsQuery(t *testing.T) {
 }
 
 func TestNewLstepDeliveryMonitorLogsQuery_Defaults(t *testing.T) {
-	jst := time.FixedZone("Asia/Tokyo", 9*60*60)
-	now := time.Date(2026, 5, 28, 12, 0, 0, 0, jst)
+	now := time.Date(2026, 5, 28, 12, 0, 0, 0, config.JST)
 
 	query, err := newLstepDeliveryMonitorLogsQuery(1, url.Values{}, now)
 	if err != nil {

@@ -2,6 +2,18 @@ package handler
 
 import "github.com/animal-ekarte/backend/internal/service"
 
+// normalizeMessageType は FE から送られる message_type エイリアスをサービス内部値に変換する（ISSUE-002）。
+func normalizeMessageType(t string) string {
+	switch t {
+	case "pdf":
+		return "pdf_url"
+	case "image":
+		return "image_url"
+	default:
+		return t
+	}
+}
+
 type lineSendRequest struct {
 	MessageType string  `json:"message_type" binding:"required"`
 	Text        string  `json:"text"`

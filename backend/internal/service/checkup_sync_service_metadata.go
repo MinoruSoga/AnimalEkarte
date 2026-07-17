@@ -1,5 +1,7 @@
 package service
 
+import "time"
+
 // buildCheckupSyncPreviewMetadata は PreviewCheckupSync の監査メタデータを生成する（ISSUE-010）。
 // 受入条件の必須キー（total_count / eligible_count / line_linked_count / opt_out_count /
 // no_living_pet_count / species / last_visit_before / last_visit_after）に加え、
@@ -14,10 +16,10 @@ func buildCheckupSyncPreviewMetadata(
 		"species":      input.Species,
 	}
 	if input.LastVisitBefore != nil {
-		filter["last_visit_before"] = input.LastVisitBefore.Format("2006-01-02")
+		filter["last_visit_before"] = input.LastVisitBefore.Format(time.DateOnly)
 	}
 	if input.LastVisitAfter != nil {
-		filter["last_visit_after"] = input.LastVisitAfter.Format("2006-01-02")
+		filter["last_visit_after"] = input.LastVisitAfter.Format(time.DateOnly)
 	}
 	if input.MinAgeYears != nil {
 		filter["min_age_years"] = *input.MinAgeYears
@@ -38,10 +40,10 @@ func buildCheckupSyncPreviewMetadata(
 		filter["min_annual_visit_count"] = *input.MinAnnualVisitCount
 	}
 	if input.LastCheckupBefore != nil {
-		filter["last_checkup_before"] = input.LastCheckupBefore.Format("2006-01-02")
+		filter["last_checkup_before"] = input.LastCheckupBefore.Format(time.DateOnly)
 	}
 	if input.LastCheckupAfter != nil {
-		filter["last_checkup_after"] = input.LastCheckupAfter.Format("2006-01-02")
+		filter["last_checkup_after"] = input.LastCheckupAfter.Format(time.DateOnly)
 	}
 	return map[string]any{
 		"operation":           "checkup_sync_preview",

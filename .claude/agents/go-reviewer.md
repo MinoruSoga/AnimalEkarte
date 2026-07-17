@@ -54,13 +54,15 @@ model: sonnet
 - **Interface の肥大化**: 3〜5 メソッドに絞る
 - **PATCH 実装**: ポインタ型 + `buildXxxUpdateFields()` パターン未使用
 
-## 診断コマンド
+## 診断コマンド（スコープ限定のみ自動実行可）
 
 ```bash
-docker compose exec backend go vet ./...
-docker compose exec backend golangci-lint run ./...
-docker compose exec backend go test ./... -race
+docker compose exec backend go vet ./internal/<変更パッケージ>/...
+docker compose exec backend go test ./internal/<変更パッケージ>/... -race
 ```
+
+全体 `go test ./...` / `golangci-lint run ./...` は自動実行禁止（CLAUDE.md の禁止リスト）。
+全体検証が必要な場合はコマンドを提示してユーザーに実行を依頼する。
 
 ## 承認基準
 

@@ -34,38 +34,38 @@ export interface StaffClinicAssignment {
 //////////
 // source: accounting.go
 
-export type TaxType = string;
-export const TaxTypeIncluded: TaxType = "included"; // 内税
-export const TaxTypeExcluded: TaxType = "excluded"; // 外税
-export const TaxTypeExempt: TaxType = "exempt"; // 非課税
-export type BillingStatus = string;
-export const BillingStatusWaiting: BillingStatus = "waiting";
-export const BillingStatusPending: BillingStatus = "pending";
-export const BillingStatusCompleted: BillingStatus = "completed";
-export const BillingStatusCancelled: BillingStatus = "cancelled";
-export type PaymentMethod = string;
-export const PaymentMethodCash: PaymentMethod = "cash";
-export const PaymentMethodCreditCard: PaymentMethod = "credit_card";
-export const PaymentMethodElectronicMoney: PaymentMethod = "electronic_money";
-export const PaymentMethodBankTransfer: PaymentMethod = "bank_transfer"; // #127: 銀行振込
-export type ItemCategory = string;
-export const ItemCategoryExamination: ItemCategory = "examination";
-export const ItemCategoryTest: ItemCategory = "test";
-export const ItemCategoryProcedure: ItemCategory = "procedure";
-export const ItemCategorySurgery: ItemCategory = "surgery";
-export const ItemCategoryMedicine: ItemCategory = "medicine";
-export const ItemCategoryFood: ItemCategory = "food";
-export const ItemCategoryGoods: ItemCategory = "goods";
-export const ItemCategoryOther: ItemCategory = "other";
-export const ItemCategoryVaccine: ItemCategory = "vaccine";
-export const ItemCategoryTrimming: ItemCategory = "trimming";
-export const ItemCategoryHotel: ItemCategory = "hotel";
-export const ItemCategoryTraining: ItemCategory = "training";
-export type ItemSource = string;
-export const ItemSourceMedicalRecord: ItemSource = "medical_record";
-export const ItemSourceManual: ItemSource = "manual";
-export const ItemSourceHospitalization: ItemSource = "hospitalization";
-export const ItemSourceTrimming: ItemSource = "trimming";
+export const TaxTypeIncluded = "included"; // 内税
+export const TaxTypeExcluded = "excluded"; // 外税
+export const TaxTypeExempt = "exempt"; // 非課税
+export type TaxType = typeof TaxTypeIncluded | typeof TaxTypeExcluded | typeof TaxTypeExempt;
+export const BillingStatusWaiting = "waiting";
+export const BillingStatusPending = "pending";
+export const BillingStatusCompleted = "completed";
+export const BillingStatusCancelled = "cancelled";
+export type BillingStatus = typeof BillingStatusWaiting | typeof BillingStatusPending | typeof BillingStatusCompleted | typeof BillingStatusCancelled;
+export const PaymentMethodCash = "cash";
+export const PaymentMethodCreditCard = "credit_card";
+export const PaymentMethodElectronicMoney = "electronic_money";
+export const PaymentMethodBankTransfer = "bank_transfer"; // #127: 銀行振込
+export type PaymentMethod = typeof PaymentMethodCash | typeof PaymentMethodCreditCard | typeof PaymentMethodElectronicMoney | typeof PaymentMethodBankTransfer;
+export const ItemCategoryExamination = "examination";
+export const ItemCategoryTest = "test";
+export const ItemCategoryProcedure = "procedure";
+export const ItemCategorySurgery = "surgery";
+export const ItemCategoryMedicine = "medicine";
+export const ItemCategoryFood = "food";
+export const ItemCategoryGoods = "goods";
+export const ItemCategoryOther = "other";
+export const ItemCategoryVaccine = "vaccine";
+export const ItemCategoryTrimming = "trimming";
+export const ItemCategoryHotel = "hotel";
+export const ItemCategoryTraining = "training";
+export type ItemCategory = typeof ItemCategoryExamination | typeof ItemCategoryTest | typeof ItemCategoryProcedure | typeof ItemCategorySurgery | typeof ItemCategoryMedicine | typeof ItemCategoryFood | typeof ItemCategoryGoods | typeof ItemCategoryOther | typeof ItemCategoryVaccine | typeof ItemCategoryTrimming | typeof ItemCategoryHotel | typeof ItemCategoryTraining;
+export const ItemSourceMedicalRecord = "medical_record";
+export const ItemSourceManual = "manual";
+export const ItemSourceHospitalization = "hospitalization";
+export const ItemSourceTrimming = "trimming";
+export type ItemSource = typeof ItemSourceMedicalRecord | typeof ItemSourceManual | typeof ItemSourceHospitalization | typeof ItemSourceTrimming;
 export interface Billing {
   id: number /* uint64 */;
   clinic_id: number /* uint64 */;
@@ -196,6 +196,11 @@ export interface AnimalSpecies {
  */
 export interface AuditLog {
   id: number /* uint64 */;
+  /**
+   * ClinicID は実DDLで bigint NOT NULL REFERENCES clinics(id)（X-3）。Go 型は *uint64 のまま維持する
+   * — サービス層 validateAuditLog（audit_service.go）が永続化前に非nil/非ゼロを検証する経路を持ち、
+   * 呼び出し元が検証前の構造体を一時的に組み立てる余地を残すため（DB制約が最終防衛線）。
+   */
   clinic_id?: number /* uint64 */;
   actor_id?: number /* uint64 */;
   actor_type: string;
@@ -209,90 +214,139 @@ export interface AuditLog {
    * resource_id 単一 ID では表現できない情報（例: 健診対象抽出のフィルタ条件 + 件数集計）を JSON で永続化する。
    */
   metadata: any /* json.RawMessage */;
-  ip_address: string;
+  /**
+   * IPAddress は実DDLで inet NULL（X-3）。空文字列は `''::inet` として 22P02 になるため、
+   * 未設定/空を表す値は Go の nil として保持する（*string、"" ではない）。
+   */
+  ip_address?: string;
   user_agent: string;
   created_at: string;
 }
-/**
- * 監査アクション定数
- */
 export const AuditActorTypeStaff = "staff";
-/**
- * 監査アクション定数
- */
 export const AuditActorTypeSystem = "system";
-/**
- * 監査アクション定数
- */
 export const AuditActionPermissionGroupCreate = "permission_group.create";
-/**
- * 監査アクション定数
- */
 export const AuditActionPermissionGroupUpdate = "permission_group.update";
-/**
- * 監査アクション定数
- */
 export const AuditActionPermissionGroupDelete = "permission_group.delete";
-/**
- * 監査アクション定数
- */
 export const AuditActionPermissionRulesUpdate = "permission_rules.update";
-/**
- * 監査アクション定数
- */
 export const AuditActionAuthLoginSuccess = "auth.login.success";
-/**
- * 監査アクション定数
- */
 export const AuditActionAuthLoginFailure = "auth.login.failure";
-/**
- * 監査アクション定数
- */
 export const AuditActionAuthLogout = "auth.logout";
 /**
  * Lステップ / LINE連携 監査アクション
  */
 export const AuditActionLstepSettingsSave = "lstep.settings.save";
-/**
- * 監査アクション定数
- */
 export const AuditActionLstepTagSync = "lstep.tag.sync";
-/**
- * 監査アクション定数
- */
 export const AuditActionLstepTagSyncBulk = "lstep.tag.sync_bulk";
-/**
- * 監査アクション定数
- */
 export const AuditActionLineNotificationSend = "line.notification.send";
-/**
- * 監査アクション定数
- */
 export const AuditActionOwnerLineUserIDUpdate = "owner.line_user_id.update";
-/**
- * 監査アクション定数
- */
 export const AuditActionOwnerLineUserIDUnlink = "owner.line_user_id.unlink";
 /**
  * 取扱説明書（マニュアル）編集 監査アクション
  */
 export const AuditActionManualArticleUpsert = "manual_article.upsert";
-/**
- * 監査アクション定数
- */
 export const AuditActionManualArticleDelete = "manual_article.delete";
 /**
  * 会計・返金 監査アクション（#122）
  */
 export const AuditActionBillingCancel = "billing.cancel";
-/**
- * 監査アクション定数
- */
 export const AuditActionBillingPostCloseEdit = "billing.post_close_edit";
+export const AuditActionBillingRefundCreate = "billing_refund.create";
+/**
+ * #189: 確定済み会計のクレジット（カード）金額の確定後訂正
+ */
+export const AuditActionBillingCreditCorrection = "billing.credit_correction";
+/**
+ * #201 薬量自動計算 監査アクション
+ * dose パラメータ変更（作成/更新/削除）・per_weight 有効化・著しい逸脱上書き
+ */
+export const AuditActionMedicineDoseParamUpsert = "medicine_dose_param.upsert";
+export const AuditActionMedicineDoseParamDelete = "medicine_dose_param.delete";
+export const AuditActionMedicinePerWeightEnable = "medicine.per_weight.enable";
+export const AuditActionTreatmentDoseDeviation = "treatment.dose.deviation";
+/**
+ * lab import 監査アクション（Phase 4A）
+ */
+export const AuditActionLabImportPreviewRequested = "lab_import.preview.requested";
+export const AuditActionLabImportCommitRequested = "lab_import.commit.requested";
+export const AuditActionLabImportCommitSucceeded = "lab_import.commit.succeeded";
+export const AuditActionLabImportCommitFailed = "lab_import.commit.failed";
+export const AuditActionLabImportSourceBlocked = "lab_import.source.blocked";
+/**
+ * #211 健診結果値の置換（既存削除を伴う PUT）監査アクション
+ */
+export const AuditActionCheckupFieldResultReplace = "checkup_field_result.replace";
+/**
+ * BE-refactor.md R1-2 (D1): 検査結果値（exam_results）の置換（既存削除を伴う PUT）監査アクション。
+ * checkup_field_result と同型の tx 内 fail-closed 監査。
+ */
+export const AuditActionExamResultReplace = "exam_result.replace";
 /**
  * 監査アクション定数
  */
-export const AuditActionBillingRefundCreate = "billing_refund.create";
+export type AuditAct = typeof AuditActorTypeStaff | typeof AuditActorTypeSystem | typeof AuditActionPermissionGroupCreate | typeof AuditActionPermissionGroupUpdate | typeof AuditActionPermissionGroupDelete | typeof AuditActionPermissionRulesUpdate | typeof AuditActionAuthLoginSuccess | typeof AuditActionAuthLoginFailure | typeof AuditActionAuthLogout | typeof AuditActionLstepSettingsSave | typeof AuditActionLstepTagSync | typeof AuditActionLstepTagSyncBulk | typeof AuditActionLineNotificationSend | typeof AuditActionOwnerLineUserIDUpdate | typeof AuditActionOwnerLineUserIDUnlink | typeof AuditActionManualArticleUpsert | typeof AuditActionManualArticleDelete | typeof AuditActionBillingCancel | typeof AuditActionBillingPostCloseEdit | typeof AuditActionBillingRefundCreate | typeof AuditActionBillingCreditCorrection | typeof AuditActionMedicineDoseParamUpsert | typeof AuditActionMedicineDoseParamDelete | typeof AuditActionMedicinePerWeightEnable | typeof AuditActionTreatmentDoseDeviation | typeof AuditActionLabImportPreviewRequested | typeof AuditActionLabImportCommitRequested | typeof AuditActionLabImportCommitSucceeded | typeof AuditActionLabImportCommitFailed | typeof AuditActionLabImportSourceBlocked | typeof AuditActionCheckupFieldResultReplace | typeof AuditActionExamResultReplace;
+export const AuditResourceLabImport = "lab_import";
+/**
+ * #201 薬量自動計算
+ */
+export const AuditResourceMedicineDoseParam = "medicine_dose_param";
+export const AuditResourceMedicine = "medicine";
+export const AuditResourceTreatmentDose = "treatment_dose";
+/**
+ * #211 健診パッケージ型付き結果値の置換（既存削除を伴う）監査
+ */
+export const AuditResourceCheckupFieldResult = "checkup_field_result";
+/**
+ * BE-refactor.md R1-2: 検査結果値の置換（既存削除を伴う）監査
+ */
+export const AuditResourceExamResult = "exam_result";
+/**
+ * audit_logs.resource 定数
+ */
+export type AuditResource = typeof AuditResourceLabImport | typeof AuditResourceMedicineDoseParam | typeof AuditResourceMedicine | typeof AuditResourceTreatmentDose | typeof AuditResourceCheckupFieldResult | typeof AuditResourceExamResult;
+/**
+ * LabBlockedReason は source_blocked 監査イベントの reason フィールドに使用できる
+ * 許可された値のみを表す型。free-form string は使用不可。
+ * 新しい reason を追加する場合はこのファイルに定数を追加すること。
+ */
+/**
+ * LabBlockedReasonMDBSchemaUnconfirmed は drwan ソースの MDB スキーマが未確認のためブロックされた場合。
+ */
+export const LabBlockedReasonMDBSchemaUnconfirmed = "mdb_schema_not_confirmed";
+/**
+ * LabBlockedReasonSourceNotImplemented は該当ソース種別が未実装のためブロックされた場合。
+ */
+export const LabBlockedReasonSourceNotImplemented = "source_not_implemented";
+/**
+ * LabBlockedReasonSourceTypeBlocked は該当ソース種別がポリシーによりブロックされた場合。
+ */
+export const LabBlockedReasonSourceTypeBlocked = "source_type_blocked";
+export type LabBlockedReason = typeof LabBlockedReasonMDBSchemaUnconfirmed | typeof LabBlockedReasonSourceNotImplemented | typeof LabBlockedReasonSourceTypeBlocked;
+/**
+ * LabAuditErrorCategory は commit_failed 監査イベントの error_category フィールドに使用できる
+ * 許可された値のみを表す型。free-form string は使用不可。
+ * 新しいカテゴリを追加する場合はこのファイルに定数を追加すること。
+ */
+/**
+ * LabAuditErrorCategoryInvalidInput はリクエストの入力値が不正な場合。
+ */
+export const LabAuditErrorCategoryInvalidInput = "invalid_input";
+/**
+ * LabAuditErrorCategoryNotFound はリソースが見つからない / スコープ外の場合。
+ */
+export const LabAuditErrorCategoryNotFound = "not_found";
+/**
+ * LabAuditErrorCategoryForbidden は操作が権限上禁止されている場合。
+ */
+export const LabAuditErrorCategoryForbidden = "forbidden";
+/**
+ * LabAuditErrorCategoryUnauthorized は認証されていない場合。
+ */
+export const LabAuditErrorCategoryUnauthorized = "unauthorized";
+/**
+ * LabAuditErrorCategoryInternal はその他の内部エラーの場合。
+ */
+export const LabAuditErrorCategoryInternal = "internal";
+export type LabAuditErrorCategory = typeof LabAuditErrorCategoryInvalidInput | typeof LabAuditErrorCategoryNotFound | typeof LabAuditErrorCategoryForbidden | typeof LabAuditErrorCategoryUnauthorized | typeof LabAuditErrorCategoryInternal;
 
 //////////
 // source: billing_confirmation.go
@@ -300,10 +354,10 @@ export const AuditActionBillingRefundCreate = "billing_refund.create";
 /**
  * ConfirmationStatus は会計医師確認ステータス
  */
-export type ConfirmationStatus = string;
-export const ConfirmationStatusPending: ConfirmationStatus = "pending";
-export const ConfirmationStatusConfirmed: ConfirmationStatus = "confirmed";
-export const ConfirmationStatusReturned: ConfirmationStatus = "returned";
+export const ConfirmationStatusPending = "pending";
+export const ConfirmationStatusConfirmed = "confirmed";
+export const ConfirmationStatusReturned = "returned";
+export type ConfirmationStatus = typeof ConfirmationStatusPending | typeof ConfirmationStatusConfirmed | typeof ConfirmationStatusReturned;
 /**
  * BillingConfirmation は会計医師確認（v7.0追加）
  */
@@ -353,15 +407,15 @@ export interface BillingRefund {
 //////////
 // source: cage.go
 
-export type CageType = string;
-export const CageTypeICU: CageType = "icu";
-export const CageTypeDog: CageType = "dog";
-export const CageTypeCat: CageType = "cat";
-export const CageTypeGeneral: CageType = "general";
-export type CageSize = string;
-export const CageSizeSmall: CageSize = "small";
-export const CageSizeMedium: CageSize = "medium";
-export const CageSizeLarge: CageSize = "large";
+export const CageTypeICU = "icu";
+export const CageTypeDog = "dog";
+export const CageTypeCat = "cat";
+export const CageTypeGeneral = "general";
+export type CageType = typeof CageTypeICU | typeof CageTypeDog | typeof CageTypeCat | typeof CageTypeGeneral;
+export const CageSizeSmall = "small";
+export const CageSizeMedium = "medium";
+export const CageSizeLarge = "large";
+export type CageSize = typeof CageSizeSmall | typeof CageSizeMedium | typeof CageSizeLarge;
 export interface Cage {
   id: number /* uint64 */;
   clinic_id: number /* uint64 */;
@@ -382,9 +436,9 @@ export interface Cage {
 /**
  * CampaignDiscountType はキャンペーン割引の種別（率 or 額）。
  */
-export type CampaignDiscountType = string;
-export const CampaignDiscountTypeRate: CampaignDiscountType = "rate";
-export const CampaignDiscountTypeAmount: CampaignDiscountType = "amount";
+export const CampaignDiscountTypeRate = "rate";
+export const CampaignDiscountTypeAmount = "amount";
+export type CampaignDiscountType = typeof CampaignDiscountTypeRate | typeof CampaignDiscountTypeAmount;
 /**
  * Campaign は割引キャンペーンマスタ (issue #81)。
  * payment_methods / trimming_course_types と同型の拡張可能マスタ。
@@ -470,6 +524,74 @@ export interface TaxBreakdownItem {
 }
 
 //////////
+// source: checkup_field.go
+
+/**
+ * CheckupFieldType は健診パッケージのフィールド型（#211・6種）。
+ */
+export const CheckupFieldTypeNumber = "number";
+export const CheckupFieldTypeSingleSelect = "single_select";
+export const CheckupFieldTypeMultiSelect = "multi_select";
+export const CheckupFieldTypeBoolean = "boolean";
+export const CheckupFieldTypeChecklist = "checklist";
+export const CheckupFieldTypeText = "text";
+export type CheckupFieldType = typeof CheckupFieldTypeNumber | typeof CheckupFieldTypeSingleSelect | typeof CheckupFieldTypeMultiSelect | typeof CheckupFieldTypeBoolean | typeof CheckupFieldTypeChecklist | typeof CheckupFieldTypeText;
+/**
+ * CheckupTypeField は健診パッケージ（checkup_type）の型付きフィールド定義マスタ。
+ * examination の exam_type_fields に相当するが、field_type / options / 異常値基準を持つ。
+ */
+export interface CheckupTypeField {
+  id: number /* uint64 */;
+  clinic_id: number /* uint64 */;
+  checkup_type_id: number /* uint64 */;
+  name: string;
+  field_type: CheckupFieldType;
+  unit: string;
+  min_value?: number /* float64 */;
+  max_value?: number /* float64 */;
+  options: any /* datatypes.JSON */;
+  is_provisional: boolean;
+  sort_order: number /* int */;
+  created_at: string;
+  updated_at: string;
+}
+/**
+ * CheckupFieldResult は健診記録（checkup）に紐づく型付き結果値（checkups の純粋従属子）。
+ * field 定義削除後も自己記述的であるよう field_name/field_type/unit を非正規化保持する
+ * （exam_results.exam_type_field_id と同型: nullable FK + snapshot）。
+ */
+export interface CheckupFieldResult {
+  id: number /* uint64 */;
+  clinic_id: number /* uint64 */;
+  checkup_id: number /* uint64 */;
+  checkup_type_field_id?: number /* uint64 */;
+  field_name: string;
+  field_type: CheckupFieldType;
+  unit: string;
+  value_number?: number /* float64 */;
+  value_text: string;
+  value_bool?: boolean;
+  value_list: string[];
+  ref_min?: number /* float64 */;
+  ref_max?: number /* float64 */;
+  is_abnormal: boolean;
+  status: ExaminationResultStatus;
+  sort_order: number /* int */;
+  created_at: string;
+  updated_at: string;
+  /**
+   * Relations — 関連名はモデル名と一致させる（P3.1 read lint の assoc キーが
+   * clinicScopedMasterAssoc["CheckupTypeField"] で解決されるため）。
+   */
+  checkup_type_field?: CheckupTypeField;
+  /**
+   * 飼い主レポート用に親 checkup（日付・種別）を解決する。Checkup は記録であり
+   * マスタではないため P3.1 lint 対象外だが、ネストの CheckupType は対象（clinic_id 述語を付ける）。
+   */
+  checkup?: Checkup;
+}
+
+//////////
 // source: checkup_record.go
 
 export interface Checkup {
@@ -547,6 +669,18 @@ export interface Clinic {
   is_active: boolean;
   standard_tax_rate: number /* float64 */;
   reduced_tax_rate: number /* float64 */;
+  accounting_document_show_logo: boolean;
+  accounting_document_show_registration_warning: boolean;
+  accounting_document_show_item_category: boolean;
+  accounting_document_footer_note: string;
+  /**
+   * #190: セクション表示/非表示トグルと表示順 (migration 010)
+   */
+  accounting_document_show_clinic_header: boolean;
+  accounting_document_show_owner_pet_info: boolean;
+  accounting_document_show_items_table: boolean;
+  accounting_document_show_payment_summary: boolean;
+  accounting_document_section_order: string[];
   created_at: string;
   updated_at: string;
 }
@@ -584,30 +718,16 @@ export interface ClinicIntegration {
  * Lステップ連携の service 識別子
  */
 export const IntegrationServiceLstep = "lstep";
-/**
- * key_name 定数
- */
 export const IntegrationKeyLstepAPIKey = "lstep_api_key";
-/**
- * key_name 定数
- */
 export const IntegrationKeyLstepBaseURL = "lstep_base_url";
-/**
- * key_name 定数
- */
 export const IntegrationKeyLineChannelAccessToken = "line_channel_access_token";
-/**
- * key_name 定数
- */
 export const IntegrationKeyLineChannelSecret = "line_channel_secret";
-/**
- * key_name 定数
- */
 export const IntegrationKeyLiffID = "liff_id";
+export const IntegrationKeyLineAccountName = "line_account_name";
 /**
  * key_name 定数
  */
-export const IntegrationKeyLineAccountName = "line_account_name";
+export type IntegrationKeyL = typeof IntegrationKeyLstepAPIKey | typeof IntegrationKeyLstepBaseURL | typeof IntegrationKeyLineChannelAccessToken | typeof IntegrationKeyLineChannelSecret | typeof IntegrationKeyLiffID | typeof IntegrationKeyLineAccountName;
 
 //////////
 // source: clinic_settings.go
@@ -620,10 +740,16 @@ export interface ClinicSettings {
   closing_am_pm_boundary: string;
   closing_weekday_end: string;
   closing_sunday_end: string;
+  /**
+   * #215: AM 開始時刻。AM=[am_start, boundary) / EMG=[pm_end, 翌日 am_start) の越日レンジに使う（migration 011）。
+   */
+  closing_am_start: string;
   closed_weekdays: any /* pq.Int64Array */;
   cpm_version: string;
   /**
    * Q21 SPEC-004 dormant prevention 閾値 (clinic 単位調整可能)
+   * column: 必須 — GORM デフォルトは Prevention180 → prevention180（数字前に _ なし）となり
+   * 実スキーマ dormant_prevention_180_days と不一致で SQLSTATE 42703 になる（#236 BUG#3）。
    */
   dormant_prevention_180_days: number /* int */;
   dormant_prevention_210_days: number /* int */;
@@ -631,6 +757,7 @@ export interface ClinicSettings {
   dormant_prevention_365_days: number /* int */;
   /**
    * P1 CPM V2 来院回数閾値 (clinic 単位調整可能、migration 007)
+   * column: 必須 — CPMV2 → cpmv2（_v2 にならない）となり実スキーマ cpm_v2_* と不一致（#236）。
    */
   cpm_v2_coming_threshold: number /* int */;
   cpm_v2_good_threshold: number /* int */;
@@ -685,7 +812,7 @@ export interface ClinicalPlan {
   medical_record?: MedicalRecord;
   diagnosis_type?: DiagnosisType;
   diagnosis_name?: DiagnosisName;
-  diagnosis_2_category?: DiagnosisType;
+  diagnosis_2_type?: DiagnosisType;
   diagnosis_2_name?: DiagnosisName;
 }
 
@@ -753,36 +880,25 @@ export interface Consultation {
 //////////
 // source: cpm_v1_thresholds.go
 
-/**
- * CPM V1 判定閾値のデフォルト値。
- * clinic_settings に値が設定されていない or 0 以下の場合の fallback として使用。
- */
 export const DefaultCPMV1DormantDays = 240;
-/**
- * CPM V1 判定閾値のデフォルト値。
- * clinic_settings に値が設定されていない or 0 以下の場合の fallback として使用。
- */
 export const DefaultCPMV1NoahDays = 365;
+export const DefaultCPMV1NoahAnnualVisits = 3;
+export const DefaultCPMV1CoreDays = 180;
+export const DefaultCPMV1CoreAnnualVisits = 2;
+export const DefaultCPMV1SpotInactiveDays = 90;
+export const DefaultCPMV1GrowingMaxDays = 90;
+export const DefaultCPMV1GrowingMinVisits = 2;
+export const DefaultCPMV1GrowingMaxVisits = 3;
 /**
  * CPM V1 判定閾値のデフォルト値。
  * clinic_settings に値が設定されていない or 0 以下の場合の fallback として使用。
  */
-export const DefaultCPMV1NoahAnnualVisits = 3;
+export type DefaultCPMV1 = typeof DefaultCPMV1DormantDays | typeof DefaultCPMV1NoahDays | typeof DefaultCPMV1NoahAnnualVisits | typeof DefaultCPMV1CoreDays | typeof DefaultCPMV1CoreAnnualVisits | typeof DefaultCPMV1SpotInactiveDays | typeof DefaultCPMV1GrowingMaxDays | typeof DefaultCPMV1GrowingMinVisits | typeof DefaultCPMV1GrowingMaxVisits;
 /**
  * CPM V1 判定閾値のデフォルト値。
  * clinic_settings に値が設定されていない or 0 以下の場合の fallback として使用。
  */
 export const DefaultCPMV1NoahLTV: number /* int64 */ = 80_000;
-/**
- * CPM V1 判定閾値のデフォルト値。
- * clinic_settings に値が設定されていない or 0 以下の場合の fallback として使用。
- */
-export const DefaultCPMV1CoreDays = 180;
-/**
- * CPM V1 判定閾値のデフォルト値。
- * clinic_settings に値が設定されていない or 0 以下の場合の fallback として使用。
- */
-export const DefaultCPMV1CoreAnnualVisits = 2;
 /**
  * CPM V1 判定閾値のデフォルト値。
  * clinic_settings に値が設定されていない or 0 以下の場合の fallback として使用。
@@ -793,26 +909,6 @@ export const DefaultCPMV1CoreLTV: number /* int64 */ = 50_000;
  * clinic_settings に値が設定されていない or 0 以下の場合の fallback として使用。
  */
 export const DefaultCPMV1SpotMinAmount: number /* int64 */ = 30_000;
-/**
- * CPM V1 判定閾値のデフォルト値。
- * clinic_settings に値が設定されていない or 0 以下の場合の fallback として使用。
- */
-export const DefaultCPMV1SpotInactiveDays = 90;
-/**
- * CPM V1 判定閾値のデフォルト値。
- * clinic_settings に値が設定されていない or 0 以下の場合の fallback として使用。
- */
-export const DefaultCPMV1GrowingMaxDays = 90;
-/**
- * CPM V1 判定閾値のデフォルト値。
- * clinic_settings に値が設定されていない or 0 以下の場合の fallback として使用。
- */
-export const DefaultCPMV1GrowingMinVisits = 2;
-/**
- * CPM V1 判定閾値のデフォルト値。
- * clinic_settings に値が設定されていない or 0 以下の場合の fallback として使用。
- */
-export const DefaultCPMV1GrowingMaxVisits = 3;
 /**
  * CPM V1 判定閾値のデフォルト値。
  * clinic_settings に値が設定されていない or 0 以下の場合の fallback として使用。
@@ -841,26 +937,15 @@ export interface CPMV1Thresholds {
 //////////
 // source: cpm_v2_thresholds.go
 
-/**
- * P1 CPM V2 来院回数閾値のデフォルト値。
- * clinic_settings に値が設定されていない or 0 以下の場合の fallback として使用。
- */
 export const DefaultCPMV2ComingThreshold = 2;
-/**
- * P1 CPM V2 来院回数閾値のデフォルト値。
- * clinic_settings に値が設定されていない or 0 以下の場合の fallback として使用。
- */
 export const DefaultCPMV2GoodThreshold = 4;
-/**
- * P1 CPM V2 来院回数閾値のデフォルト値。
- * clinic_settings に値が設定されていない or 0 以下の場合の fallback として使用。
- */
 export const DefaultCPMV2FamilyThreshold = 8;
+export const DefaultCPMV2NoahThreshold = 13;
 /**
  * P1 CPM V2 来院回数閾値のデフォルト値。
  * clinic_settings に値が設定されていない or 0 以下の場合の fallback として使用。
  */
-export const DefaultCPMV2NoahThreshold = 13;
+export type DefaultCPMV2 = typeof DefaultCPMV2ComingThreshold | typeof DefaultCPMV2GoodThreshold | typeof DefaultCPMV2FamilyThreshold | typeof DefaultCPMV2NoahThreshold;
 /**
  * CPMV2Thresholds は CPM V2 来院回数 4 段階閾値を集約した DTO。
  */
@@ -907,26 +992,15 @@ export interface DiagnosisName {
 //////////
 // source: dormant_thresholds.go
 
-/**
- * Q21 SPEC-004 dormant prevention 閾値のデフォルト値。
- * clinic_settings に値が設定されていない or 0 の場合の fallback として使用。
- */
 export const DefaultDormantPrevention180Days = 180;
-/**
- * Q21 SPEC-004 dormant prevention 閾値のデフォルト値。
- * clinic_settings に値が設定されていない or 0 の場合の fallback として使用。
- */
 export const DefaultDormantPrevention210Days = 210;
-/**
- * Q21 SPEC-004 dormant prevention 閾値のデフォルト値。
- * clinic_settings に値が設定されていない or 0 の場合の fallback として使用。
- */
 export const DefaultDormantPrevention240Days = 240;
+export const DefaultDormantPrevention365Days = 365;
 /**
  * Q21 SPEC-004 dormant prevention 閾値のデフォルト値。
  * clinic_settings に値が設定されていない or 0 の場合の fallback として使用。
  */
-export const DefaultDormantPrevention365Days = 365;
+export type DefaultDormantPrevention = typeof DefaultDormantPrevention180Days | typeof DefaultDormantPrevention210Days | typeof DefaultDormantPrevention240Days | typeof DefaultDormantPrevention365Days;
 /**
  * DormantThresholds は dormant prevention 4 段階閾値を集約した DTO。
  */
@@ -943,11 +1017,11 @@ export interface DormantThresholds {
 /**
  * EstimateStatus は見積書ステータス
  */
-export type EstimateStatus = string;
-export const EstimateStatusDraft: EstimateStatus = "draft";
-export const EstimateStatusSent: EstimateStatus = "sent";
-export const EstimateStatusApproved: EstimateStatus = "approved";
-export const EstimateStatusRejected: EstimateStatus = "rejected";
+export const EstimateStatusDraft = "draft";
+export const EstimateStatusSent = "sent";
+export const EstimateStatusApproved = "approved";
+export const EstimateStatusRejected = "rejected";
+export type EstimateStatus = typeof EstimateStatusDraft | typeof EstimateStatusSent | typeof EstimateStatusApproved | typeof EstimateStatusRejected;
 /**
  * Estimate は見積書（v7.0追加）
  */
@@ -1011,16 +1085,16 @@ export interface EstimateItem {
 //////////
 // source: examination_record.go
 
-export type ExaminationStatus = string;
-export const ExaminationStatusPending: ExaminationStatus = "pending";
-export const ExaminationStatusInProgress: ExaminationStatus = "in_progress";
-export const ExaminationStatusResultEntered: ExaminationStatus = "result_entered";
-export const ExaminationStatusCompleted: ExaminationStatus = "completed";
-export const ExaminationStatusConfirmed: ExaminationStatus = "confirmed";
-export type ExaminationResultStatus = string;
-export const ExaminationResultStatusNormal: ExaminationResultStatus = "normal";
-export const ExaminationResultStatusHigh: ExaminationResultStatus = "high";
-export const ExaminationResultStatusLow: ExaminationResultStatus = "low";
+export const ExaminationStatusPending = "pending";
+export const ExaminationStatusInProgress = "in_progress";
+export const ExaminationStatusResultEntered = "result_entered";
+export const ExaminationStatusCompleted = "completed";
+export const ExaminationStatusConfirmed = "confirmed";
+export type ExaminationStatus = typeof ExaminationStatusPending | typeof ExaminationStatusInProgress | typeof ExaminationStatusResultEntered | typeof ExaminationStatusCompleted | typeof ExaminationStatusConfirmed;
+export const ExaminationResultStatusNormal = "normal";
+export const ExaminationResultStatusHigh = "high";
+export const ExaminationResultStatusLow = "low";
+export type ExaminationResultStatus = typeof ExaminationResultStatusNormal | typeof ExaminationResultStatusHigh | typeof ExaminationResultStatusLow;
 export interface Examination {
   id: number /* uint64 */;
   clinic_id: number /* uint64 */;
@@ -1028,6 +1102,11 @@ export interface Examination {
   pet_id?: number /* uint64 */;
   exam_type_id: number /* uint64 */;
   doctor_id?: number /* uint64 */;
+  /**
+   * JobID は lab_import_jobs.id への nullable FK。手動作成の exam は NULL。
+   * ON DELETE SET NULL のため job 削除時も exam は保持される（Phase 4B.2）。
+   */
+  job_id?: any /* uuid.UUID */;
   date: string;
   result_summary: string;
   machine: string;
@@ -1101,16 +1180,13 @@ export interface ExamTypeField {
 //////////
 // source: health_prevention_thresholds.go
 
-/**
- * 健診・予防タグ判定閾値のデフォルト値。
- * clinic_settings に値が設定されていない or 0 以下の場合の fallback として使用。
- */
 export const DefaultHealthPreventionLookbackDays = 365; // 健診・予防履歴の参照期間（日数）
+export const DefaultVaccineDeadlineDays = 60; // ワクチン期限間近とみなす残日数
 /**
  * 健診・予防タグ判定閾値のデフォルト値。
  * clinic_settings に値が設定されていない or 0 以下の場合の fallback として使用。
  */
-export const DefaultVaccineDeadlineDays = 60; // ワクチン期限間近とみなす残日数
+export type Default = typeof DefaultHealthPreventionLookbackDays | typeof DefaultVaccineDeadlineDays;
 /**
  * HealthPreventionThresholds は健診・予防タグ判定の全閾値を集約した DTO。
  * ゼロ値は WithDefaults() で互換デフォルトに補完される。
@@ -1123,13 +1199,13 @@ export interface HealthPreventionThresholds {
 //////////
 // source: hospitalization.go
 
-export type HospitalizationType = string;
-export const HospitalizationTypeInpatient: HospitalizationType = "hospitalization";
-export const HospitalizationTypeHotel: HospitalizationType = "hotel";
-export type HospitalizationStatus = string;
-export const HospitalizationStatusAdmitted: HospitalizationStatus = "admitted";
-export const HospitalizationStatusDischarged: HospitalizationStatus = "discharged";
-export const HospitalizationStatusReserved: HospitalizationStatus = "reserved";
+export const HospitalizationTypeInpatient = "hospitalization";
+export const HospitalizationTypeHotel = "hotel";
+export type HospitalizationType = typeof HospitalizationTypeInpatient | typeof HospitalizationTypeHotel;
+export const HospitalizationStatusAdmitted = "admitted";
+export const HospitalizationStatusDischarged = "discharged";
+export const HospitalizationStatusReserved = "reserved";
+export type HospitalizationStatus = typeof HospitalizationStatusAdmitted | typeof HospitalizationStatusDischarged | typeof HospitalizationStatusReserved;
 export interface Hospitalization {
   id: number /* uint64 */;
   clinic_id: number /* uint64 */;
@@ -1159,20 +1235,20 @@ export interface Hospitalization {
   daily_records?: DailyRecord[];
   treatment_plans?: TreatmentPlan[];
 }
-export type CarePlanType = string;
-export const CarePlanTypeFood: CarePlanType = "food";
-export const CarePlanTypeMedicine: CarePlanType = "medicine";
-export const CarePlanTypeTreatment: CarePlanType = "treatment";
-export const CarePlanTypeInstruction: CarePlanType = "instruction";
-export const CarePlanTypeItem: CarePlanType = "item";
-export type CarePlanStatus = string;
-export const CarePlanStatusActive: CarePlanStatus = "active";
-export const CarePlanStatusCompleted: CarePlanStatus = "completed";
-export const CarePlanStatusDiscontinued: CarePlanStatus = "discontinued";
-export type PlanTiming = string;
-export const PlanTimingMorning: PlanTiming = "morning";
-export const PlanTimingNoon: PlanTiming = "noon";
-export const PlanTimingNight: PlanTiming = "night";
+export const CarePlanTypeFood = "food";
+export const CarePlanTypeMedicine = "medicine";
+export const CarePlanTypeTreatment = "treatment";
+export const CarePlanTypeInstruction = "instruction";
+export const CarePlanTypeItem = "item";
+export type CarePlanType = typeof CarePlanTypeFood | typeof CarePlanTypeMedicine | typeof CarePlanTypeTreatment | typeof CarePlanTypeInstruction | typeof CarePlanTypeItem;
+export const CarePlanStatusActive = "active";
+export const CarePlanStatusCompleted = "completed";
+export const CarePlanStatusDiscontinued = "discontinued";
+export type CarePlanStatus = typeof CarePlanStatusActive | typeof CarePlanStatusCompleted | typeof CarePlanStatusDiscontinued;
+export const PlanTimingMorning = "morning";
+export const PlanTimingNoon = "noon";
+export const PlanTimingNight = "night";
+export type PlanTiming = typeof PlanTimingMorning | typeof PlanTimingNoon | typeof PlanTimingNight;
 export interface CarePlanItem {
   id: number /* uint64 */;
   hospitalization_id: number /* uint64 */;
@@ -1233,20 +1309,24 @@ export interface DailyRecord {
   care_logs?: CareLog[];
   staff_notes?: StaffNote[];
 }
-export type CareLogType = string;
-export const CareLogTypeFood: CareLogType = "food";
-export const CareLogTypeExcretion: CareLogType = "excretion";
-export const CareLogTypeMedicine: CareLogType = "medicine";
-export const CareLogTypeTreatment: CareLogType = "treatment";
-export const CareLogTypeOther: CareLogType = "other";
-export type CareLogStatus = string;
-export const CareLogStatusCompleted: CareLogStatus = "completed";
-export const CareLogStatusPartial: CareLogStatus = "partial";
-export const CareLogStatusSkipped: CareLogStatus = "skipped";
+export const CareLogTypeFood = "food";
+export const CareLogTypeExcretion = "excretion";
+export const CareLogTypeMedicine = "medicine";
+export const CareLogTypeTreatment = "treatment";
+export const CareLogTypeOther = "other";
+export type CareLogType = typeof CareLogTypeFood | typeof CareLogTypeExcretion | typeof CareLogTypeMedicine | typeof CareLogTypeTreatment | typeof CareLogTypeOther;
+export const CareLogStatusCompleted = "completed";
+export const CareLogStatusPartial = "partial";
+export const CareLogStatusSkipped = "skipped";
+export type CareLogStatus = typeof CareLogStatusCompleted | typeof CareLogStatusPartial | typeof CareLogStatusSkipped;
 export interface CareLog {
   id: number /* uint64 */;
   clinic_id: number /* uint64 */;
   daily_record_id: number /* uint64 */;
+  /**
+   * TIME 列は string で受ける（pg ドライバは TIME を string で返すため time.Time では Scan 不能。
+   * clinic_settings / shift_entry_break 等の既存 TIME 列と同じ規約。BUG-404）
+   */
   time: string;
   type: CareLogType;
   status: CareLogStatus;
@@ -1277,13 +1357,13 @@ export interface StaffNote {
 //////////
 // source: hospitalization_plan.go
 
-export type BodySize = string;
-export const BodySizeSmall: BodySize = "small";
-export const BodySizeMedium: BodySize = "medium";
-export const BodySizeLarge: BodySize = "large";
-export type BillingUnit = string;
-export const BillingUnitPerDay: BillingUnit = "per_day";
-export const BillingUnitPerNight: BillingUnit = "per_night";
+export const BodySizeSmall = "small";
+export const BodySizeMedium = "medium";
+export const BodySizeLarge = "large";
+export type BodySize = typeof BodySizeSmall | typeof BodySizeMedium | typeof BodySizeLarge;
+export const BillingUnitPerDay = "per_day";
+export const BillingUnitPerNight = "per_night";
+export type BillingUnit = typeof BillingUnitPerDay | typeof BillingUnitPerNight;
 export interface HospitalizationPlan {
   id: number /* uint64 */;
   clinic_id: number /* uint64 */;
@@ -1306,19 +1386,19 @@ export interface HospitalizationPlan {
 /**
  * AppetiteLevel は食欲レベル
  */
-export type AppetiteLevel = string;
-export const AppetiteLevelNormal: AppetiteLevel = "normal";
-export const AppetiteLevelIncreased: AppetiteLevel = "increased";
-export const AppetiteLevelDecreased: AppetiteLevel = "decreased";
-export const AppetiteLevelNone: AppetiteLevel = "none";
+export const AppetiteLevelNormal = "normal";
+export const AppetiteLevelIncreased = "increased";
+export const AppetiteLevelDecreased = "decreased";
+export const AppetiteLevelNone = "none";
+export type AppetiteLevel = typeof AppetiteLevelNormal | typeof AppetiteLevelIncreased | typeof AppetiteLevelDecreased | typeof AppetiteLevelNone;
 /**
  * WaterIntakeLevel は水分摂取レベル
  */
-export type WaterIntakeLevel = string;
-export const WaterIntakeLevelNormal: WaterIntakeLevel = "normal";
-export const WaterIntakeLevelIncreased: WaterIntakeLevel = "increased";
-export const WaterIntakeLevelDecreased: WaterIntakeLevel = "decreased";
-export const WaterIntakeLevelNone: WaterIntakeLevel = "none";
+export const WaterIntakeLevelNormal = "normal";
+export const WaterIntakeLevelIncreased = "increased";
+export const WaterIntakeLevelDecreased = "decreased";
+export const WaterIntakeLevelNone = "none";
+export type WaterIntakeLevel = typeof WaterIntakeLevelNormal | typeof WaterIntakeLevelIncreased | typeof WaterIntakeLevelDecreased | typeof WaterIntakeLevelNone;
 /**
  * Inquiry は問診情報（カルテ問診タブ, v7.0追加）
  */
@@ -1385,15 +1465,15 @@ export interface Insurance {
 //////////
 // source: inventory.go
 
-export type InventoryCategory = string;
-export const InventoryCategoryMedicine: InventoryCategory = "medicine";
-export const InventoryCategoryConsumable: InventoryCategory = "consumable";
-export const InventoryCategoryFood: InventoryCategory = "food";
-export const InventoryCategoryOther: InventoryCategory = "other";
-export type InventoryStatus = string;
-export const InventoryStatusSufficient: InventoryStatus = "sufficient";
-export const InventoryStatusLow: InventoryStatus = "low";
-export const InventoryStatusOutOfStock: InventoryStatus = "out_of_stock";
+export const InventoryCategoryMedicine = "medicine";
+export const InventoryCategoryConsumable = "consumable";
+export const InventoryCategoryFood = "food";
+export const InventoryCategoryOther = "other";
+export type InventoryCategory = typeof InventoryCategoryMedicine | typeof InventoryCategoryConsumable | typeof InventoryCategoryFood | typeof InventoryCategoryOther;
+export const InventoryStatusSufficient = "sufficient";
+export const InventoryStatusLow = "low";
+export const InventoryStatusOutOfStock = "out_of_stock";
+export type InventoryStatus = typeof InventoryStatusSufficient | typeof InventoryStatusLow | typeof InventoryStatusOutOfStock;
 export interface InventoryItem {
   id: number /* uint64 */;
   clinic_id: number /* uint64 */;
@@ -1409,6 +1489,125 @@ export interface InventoryItem {
   status: InventoryStatus;
   created_at: string;
   updated_at: string;
+}
+
+//////////
+// source: lab_import.go
+
+/**
+ * LabImportJobStatus は lab_import_jobs のジョブ状態。
+ * 許可された遷移は service.LabImportJobStatus.CanTransitionTo で強制される。
+ */
+export const LabImportJobStatusReceived = "received";
+export const LabImportJobStatusValidated = "validated";
+export const LabImportJobStatusMapped = "mapped";
+export const LabImportJobStatusPersisted = "persisted";
+export const LabImportJobStatusDuplicate = "duplicate";
+export const LabImportJobStatusNeedsReview = "needs_review";
+export const LabImportJobStatusFailed = "failed";
+export type LabImportJobStatus = typeof LabImportJobStatusReceived | typeof LabImportJobStatusValidated | typeof LabImportJobStatusMapped | typeof LabImportJobStatusPersisted | typeof LabImportJobStatusDuplicate | typeof LabImportJobStatusNeedsReview | typeof LabImportJobStatusFailed;
+/**
+ * LabImportSourceType は入力元の種別。
+ * fixture: Phase 0 テスト用。drwan: Phase BLOCKED（MDB スキーマ未確認）。
+ */
+export const LabImportSourceTypeFixture = "fixture";
+export const LabImportSourceTypeDrWan = "drwan";
+export const LabImportSourceTypeManual = "manual";
+export type LabImportSourceType = typeof LabImportSourceTypeFixture | typeof LabImportSourceTypeDrWan | typeof LabImportSourceTypeManual;
+/**
+ * LabImportJob は外部検査結果のインポートジョブ。
+ * source_fingerprint には raw 接続文字列・認証情報を格納しない。
+ * error_message には安全なメッセージのみ格納し、スタックトレース・PHI 不可。
+ */
+export interface LabImportJob {
+  id: any /* uuid.UUID */;
+  clinic_id: number /* uint64 */;
+  source_type: LabImportSourceType;
+  source_fingerprint: string;
+  status: LabImportJobStatus;
+  row_count: number /* int */;
+  persisted_count: number /* int */;
+  duplicate_count: number /* int */;
+  needs_review_count: number /* int */;
+  failed_count: number /* int */;
+  error_code?: string;
+  error_message?: string;
+  started_at?: string;
+  finished_at?: string;
+  created_at: string;
+  updated_at: string;
+}
+/**
+ * LabImportEventType はイベントの種別ラベル。
+ */
+export const LabImportEventTypeStatusTransition = "status_transition";
+export const LabImportEventTypeValidationResult = "validation_result";
+export const LabImportEventTypeMappingResult = "mapping_result";
+export const LabImportEventTypePersistenceResult = "persistence_result";
+export const LabImportEventTypeRetryRequested = "retry_requested";
+export type LabImportEventType = typeof LabImportEventTypeStatusTransition | typeof LabImportEventTypeValidationResult | typeof LabImportEventTypeMappingResult | typeof LabImportEventTypePersistenceResult | typeof LabImportEventTypeRetryRequested;
+/**
+ * LabImportEvent は検査インポートジョブの監査イベント。
+ * PHI・raw デバイスペイロード・接続情報は格納しない。
+ * error_code は lab_error_taxonomy のコードのみ。スタックトレース不可。
+ */
+export interface LabImportEvent {
+  id: number /* uint64 */;
+  clinic_id: number /* uint64 */;
+  job_id: any /* uuid.UUID */;
+  event_type: LabImportEventType;
+  from_status?: LabImportJobStatus;
+  to_status?: LabImportJobStatus;
+  row_count: number /* int */;
+  persisted_count: number /* int */;
+  duplicate_count: number /* int */;
+  needs_review_count: number /* int */;
+  error_code?: string;
+  created_at: string;
+}
+/**
+ * LabInboundBatch は外部入力バッチの DTO。
+ * raw 接続文字列・認証情報・臨床ナラティブ blob は含めない。
+ */
+export interface LabInboundBatch {
+  source_type: LabImportSourceType;
+  source_fingerprint: string;
+  received_at: string;
+  result_rows: LabInboundResultRow[];
+}
+/**
+ * LabInboundResultRow は入力バッチの 1 行。
+ * フィクスチャ値はサニタイズ済みであること。raw PHI 不可。
+ */
+export interface LabInboundResultRow {
+  old_pet_key: string;
+  old_chart_key: string;
+  old_row_key: string;
+  exam_date: string;
+  exam_code: string;
+  exam_name: string;
+  item_name: string;
+  display_value: string;
+  reference_value: string;
+}
+/**
+ * LabImportPreviewResponse は preview エンドポイントのレスポンス。
+ * raw 検査値・PHI は含めない。
+ */
+export interface LabImportPreviewResponse {
+  row_count: number /* int */;
+  mapping_warnings: string[];
+  blocked_reasons: string[];
+}
+/**
+ * LabImportCommitResponse は commit エンドポイントのレスポンス。
+ */
+export interface LabImportCommitResponse {
+  job_id: any /* uuid.UUID */;
+  persisted_count: number /* int */;
+  duplicate_count: number /* int */;
+  needs_review_count: number /* int */;
+  failed_count: number /* int */;
 }
 
 //////////
@@ -1533,7 +1732,7 @@ export interface LstepCsvImport {
   clinic_id: number /* uint64 */;
   csv_type: string;
   file_name: string;
-  uploaded_by_user_id?: number /* uint64 */;
+  uploaded_by_user_id: number /* uint64 */;
   row_count: number /* int */;
   success_count: number /* int */;
   error_count: number /* int */;
@@ -1549,30 +1748,36 @@ export interface LstepCsvImport {
 /**
  * TriggerType は配信トリガーの種別を表す型エイリアス。
  */
-export type TriggerType = string;
 /**
  * TriggerStatus は配信トリガーログのステータスを表す型エイリアス。
  */
-export type TriggerStatus = string;
-export const TriggerTypeFirstVisitFollowUp3D: TriggerType = "first_visit_followup_3d";
-export const TriggerTypeFirstVisitFollowUp7D: TriggerType = "first_visit_followup_7d";
-export const TriggerTypeNextVisitReminder: TriggerType = "next_visit_reminder";
-export const TriggerTypeVaccineDeadline60: TriggerType = "vaccine_deadline_60d";
-export const TriggerTypeVaccineDeadline30: TriggerType = "vaccine_deadline_30d";
-export const TriggerTypeBirthdayMessage: TriggerType = "birthday_message";
-export const TriggerTypeDormantPrevention180: TriggerType = "dormant_prevention_180d";
-export const TriggerTypeDormantPrevention210: TriggerType = "dormant_prevention_210d";
-export const TriggerTypeDormantPrevention240: TriggerType = "dormant_prevention_240d";
-export const TriggerTypeDormantPrevention365: TriggerType = "dormant_prevention_365d";
-export const TriggerTypeFilariaAlert: TriggerType = "filaria_alert";
-export const TriggerTypeFleaTickAlert: TriggerType = "flea_tick_alert";
-export const TriggerTypeFoodRefillReminder: TriggerType = "food_refill_reminder";
-export const TriggerTypeFirstVisitWelcome: TriggerType = "first_visit_welcome";
-export const TriggerTypeCheckupFollowUp: TriggerType = "checkup_followup";
-export const TriggerStatusScheduled: TriggerStatus = "scheduled";
-export const TriggerStatusFired: TriggerStatus = "fired";
-export const TriggerStatusExcluded: TriggerStatus = "excluded";
-export const TriggerStatusFailed: TriggerStatus = "failed";
+export const TriggerTypeFirstVisitFollowUp3D = "first_visit_followup_3d";
+export const TriggerTypeFirstVisitFollowUp7D = "first_visit_followup_7d";
+export const TriggerTypeNextVisitReminder = "next_visit_reminder";
+export const TriggerTypeVaccineDeadline60 = "vaccine_deadline_60d";
+export const TriggerTypeVaccineDeadline30 = "vaccine_deadline_30d";
+export const TriggerTypeBirthdayMessage = "birthday_message";
+export const TriggerTypeDormantPrevention180 = "dormant_prevention_180d";
+export const TriggerTypeDormantPrevention210 = "dormant_prevention_210d";
+export const TriggerTypeDormantPrevention240 = "dormant_prevention_240d";
+export const TriggerTypeDormantPrevention365 = "dormant_prevention_365d";
+export const TriggerTypeFilariaAlert = "filaria_alert";
+export const TriggerTypeFleaTickAlert = "flea_tick_alert";
+export const TriggerTypeFoodRefillReminder = "food_refill_reminder";
+export const TriggerTypeFirstVisitWelcome = "first_visit_welcome";
+export const TriggerTypeCheckupFollowUp = "checkup_followup";
+export type TriggerType = typeof TriggerTypeFirstVisitFollowUp3D | typeof TriggerTypeFirstVisitFollowUp7D | typeof TriggerTypeNextVisitReminder | typeof TriggerTypeVaccineDeadline60 | typeof TriggerTypeVaccineDeadline30 | typeof TriggerTypeBirthdayMessage | typeof TriggerTypeDormantPrevention180 | typeof TriggerTypeDormantPrevention210 | typeof TriggerTypeDormantPrevention240 | typeof TriggerTypeDormantPrevention365 | typeof TriggerTypeFilariaAlert | typeof TriggerTypeFleaTickAlert | typeof TriggerTypeFoodRefillReminder | typeof TriggerTypeFirstVisitWelcome | typeof TriggerTypeCheckupFollowUp;
+export const TriggerStatusScheduled = "scheduled";
+export const TriggerStatusFired = "fired";
+export const TriggerStatusExcluded = "excluded";
+export const TriggerStatusFailed = "failed";
+/**
+ * FE6-1: tygo の detectEnumGroup は 1 つの const() ブロック（1 GenDecl）につき
+ * 先頭定数の型のみを基準にグループ化するため、TriggerType/TriggerStatus が
+ * 同一ブロックに混在していると後発の TriggerStatus が enum_style: "union" の対象から
+ * 脱落する。ブロックを分離するだけで両方が正しく union 化される（値・型・エクスポートは不変）。
+ */
+export type TriggerStatus = typeof TriggerStatusScheduled | typeof TriggerStatusFired | typeof TriggerStatusExcluded | typeof TriggerStatusFailed;
 /**
  * LstepDeliveryTriggerLog は自動配信トリガーの実行ログ。
  */
@@ -1715,9 +1920,9 @@ export const DefaultPriorityFallback = 99;
 /**
  * ManualCategory は取扱説明書のカテゴリ
  */
-export type ManualCategory = string;
-export const ManualCategoryScreens: ManualCategory = "screens";
-export const ManualCategoryWorkflows: ManualCategory = "workflows";
+export const ManualCategoryScreens = "screens";
+export const ManualCategoryWorkflows = "workflows";
+export type ManualCategory = typeof ManualCategoryScreens | typeof ManualCategoryWorkflows;
 /**
  * ManualArticle は取扱説明書のオーバーライド版（DB に保存された編集後マニュアル）
  * 設計方針:
@@ -1756,9 +1961,9 @@ export interface ManualArticleVersion {
 //////////
 // source: medical_record.go
 
-export type MedicalRecordStatus = string;
-export const MedicalRecordStatusDraft: MedicalRecordStatus = "draft";
-export const MedicalRecordStatusFinalized: MedicalRecordStatus = "finalized";
+export const MedicalRecordStatusDraft = "draft";
+export const MedicalRecordStatusFinalized = "finalized";
+export type MedicalRecordStatus = typeof MedicalRecordStatusDraft | typeof MedicalRecordStatusFinalized;
 export interface MedicalRecord {
   id: number /* uint64 */;
   clinic_id: number /* uint64 */;
@@ -1816,15 +2021,15 @@ export interface MedicalRecordAddendum {
 /**
  * MedicalImageType は診療画像種別
  */
-export type MedicalImageType = string;
-export const MedicalImageTypeXray: MedicalImageType = "xray";
-export const MedicalImageTypeEcho: MedicalImageType = "echo";
-export const MedicalImageTypePhoto: MedicalImageType = "photo";
-export const MedicalImageTypeEndoscope: MedicalImageType = "endoscope";
-export const MedicalImageTypeCT: MedicalImageType = "ct";
-export const MedicalImageTypeMRI: MedicalImageType = "mri";
-export const MedicalImageTypeMicroscope: MedicalImageType = "microscope";
-export const MedicalImageTypeOther: MedicalImageType = "other";
+export const MedicalImageTypeXray = "xray";
+export const MedicalImageTypeEcho = "echo";
+export const MedicalImageTypePhoto = "photo";
+export const MedicalImageTypeEndoscope = "endoscope";
+export const MedicalImageTypeCT = "ct";
+export const MedicalImageTypeMRI = "mri";
+export const MedicalImageTypeMicroscope = "microscope";
+export const MedicalImageTypeOther = "other";
+export type MedicalImageType = typeof MedicalImageTypeXray | typeof MedicalImageTypeEcho | typeof MedicalImageTypePhoto | typeof MedicalImageTypeEndoscope | typeof MedicalImageTypeCT | typeof MedicalImageTypeMRI | typeof MedicalImageTypeMicroscope | typeof MedicalImageTypeOther;
 /**
  * MedicalRecordImage は診療画像（v7.0追加）
  */
@@ -1855,17 +2060,17 @@ export interface MedicalRecordImage {
 //////////
 // source: medicine.go
 
-export type DosageForm = string;
-export const DosageFormTablet: DosageForm = "tablet";
-export const DosageFormLiquid: DosageForm = "liquid";
-export const DosageFormInjection: DosageForm = "injection";
-export const DosageFormTopical: DosageForm = "topical";
-export const DosageFormPowder: DosageForm = "powder";
-export type MedicineUnit = string;
-export const MedicineUnitPerTablet: MedicineUnit = "per_tablet";
-export const MedicineUnitPerML: MedicineUnit = "per_ml";
-export const MedicineUnitPerDose: MedicineUnit = "per_dose";
-export const MedicineUnitPerGram: MedicineUnit = "per_gram";
+export const DosageFormTablet = "tablet";
+export const DosageFormLiquid = "liquid";
+export const DosageFormInjection = "injection";
+export const DosageFormTopical = "topical";
+export const DosageFormPowder = "powder";
+export type DosageForm = typeof DosageFormTablet | typeof DosageFormLiquid | typeof DosageFormInjection | typeof DosageFormTopical | typeof DosageFormPowder;
+export const MedicineUnitPerTablet = "per_tablet";
+export const MedicineUnitPerML = "per_ml";
+export const MedicineUnitPerDose = "per_dose";
+export const MedicineUnitPerGram = "per_gram";
+export type MedicineUnit = typeof MedicineUnitPerTablet | typeof MedicineUnitPerML | typeof MedicineUnitPerDose | typeof MedicineUnitPerGram;
 export interface Medicine {
   id: number /* uint64 */;
   clinic_id: number /* uint64 */;
@@ -1882,12 +2087,74 @@ export interface Medicine {
   tax_rate: number /* float64 */;
   sort_order: number /* int */;
   is_non_insurance: boolean;
+  /**
+   * #201 投与量自動計算（製品軸パラメータ）。calculation_type=none（既定）で従来通り手動。
+   */
+  calculation_type: MedicineCalculationType;
+  strength?: number /* float64 */; // 製品含量 mg/単位。分母は medicine_unit で解釈
+  frequency_per_day?: number /* int */; // 1日投与回数（per_day 按分）
+  default_duration_days?: number /* int */; // 既定投与日数
   created_at: string;
   updated_at: string;
   /**
    * Relations
    */
   inventory?: InventoryItem;
+  dose_params?: MedicineDoseParam[]; // #201 種別計算パラメータ
+}
+
+//////////
+// source: medicine_dose_param.go
+
+/**
+ * MedicineCalculationType は投与量計算方式（#201）。
+ * none = 手動（既定・default-deny）/ per_weight = mg/kg 線形自動計算。
+ * 非線形（CRI/IU/濃度/BSA 等）は将来この ENUM を拡張して名前付き計算式を追加する。
+ * 自由入力式は不採用（任意コード実行・型非安全・式ミスの全患者波及）。
+ */
+export const MedicineCalculationTypeNone = "none";
+export const MedicineCalculationTypePerWeight = "per_weight";
+export type MedicineCalculationType = typeof MedicineCalculationTypeNone | typeof MedicineCalculationTypePerWeight;
+/**
+ * MedicineDoseBasis は dose_per_kg の基準。
+ * per_administration = 1回投与あたりの mg/kg / per_day = 1日あたりの mg/kg（1回量は frequency_per_day で按分）。
+ */
+export const MedicineDoseBasisPerAdministration = "per_administration";
+export const MedicineDoseBasisPerDay = "per_day";
+export type MedicineDoseBasis = typeof MedicineDoseBasisPerAdministration | typeof MedicineDoseBasisPerDay;
+/**
+ * MedicineRoundingMode は丸め方向。臨床ソースは丸め規則を定義しないため運用前提（NULL=丸めなし）。
+ */
+export const MedicineRoundingModeUp = "up";
+export const MedicineRoundingModeDown = "down";
+export const MedicineRoundingModeNearest = "nearest";
+export type MedicineRoundingMode = typeof MedicineRoundingModeUp | typeof MedicineRoundingModeDown | typeof MedicineRoundingModeNearest;
+/**
+ * MedicineDoseSpecies は計算対象の患者種。mg/kg は犬・猫で網羅的に異なり 'both' は持たない
+ * （vaccine_species と区別）。free-text animal_species から正規化し、マップ不能種は fail-closed。
+ */
+export const MedicineDoseSpeciesDog = "dog";
+export const MedicineDoseSpeciesCat = "cat";
+export type MedicineDoseSpecies = typeof MedicineDoseSpeciesDog | typeof MedicineDoseSpeciesCat;
+/**
+ * MedicineDoseParam は薬剤 × 種の体重あたり投与量パラメータ（#201 per_weight 自動計算用）。
+ * strength は製品軸（medicines）、dose_per_kg は種軸（この子テーブル）に分離する。
+ */
+export interface MedicineDoseParam {
+  id: number /* uint64 */;
+  clinic_id: number /* uint64 */; // 親 medicines から非正規化（clinicScope 直適用）
+  medicine_id: number /* uint64 */;
+  species: MedicineDoseSpecies;
+  dose_basis: MedicineDoseBasis;
+  dose_per_kg: number /* float64 */; // mg/kg
+  min_mg_per_kg?: number /* float64 */; // 安全域下限
+  max_mg_per_kg?: number /* float64 */; // 体重連動上限
+  absolute_max_dose?: number /* float64 */; // 体重非依存 mg/head 上限
+  rounding_step?: number /* float64 */; // NULL=丸めなし
+  rounding_mode?: MedicineRoundingMode;
+  notes: string;
+  created_at: string;
+  updated_at: string;
 }
 
 //////////
@@ -1930,11 +2197,11 @@ export interface Occupation {
 //////////
 // source: owner.go
 
-export type MembershipType = string;
-export const MembershipTypeNonMember: MembershipType = "non_member";
-export const MembershipTypeMember: MembershipType = "member";
-export const MembershipTypeDeceased: MembershipType = "deceased";
-export const MembershipTypeTransferred: MembershipType = "transferred";
+export const MembershipTypeNonMember = "non_member";
+export const MembershipTypeMember = "member";
+export const MembershipTypeDeceased = "deceased";
+export const MembershipTypeTransferred = "transferred";
+export type MembershipType = typeof MembershipTypeNonMember | typeof MembershipTypeMember | typeof MembershipTypeDeceased | typeof MembershipTypeTransferred;
 export interface Owner {
   id: number /* uint64 */;
   clinic_id: number /* uint64 */;
@@ -2018,64 +2285,68 @@ export interface PaymentMethodMaster {
 /**
  * Resource はフロントエンドのページ識別子（権限管理用）
  */
-export type Resource = string;
-export const ResourceReception: Resource = "reception";
-export const ResourceOwners: Resource = "owners";
-export const ResourceReservations: Resource = "reservations";
-export const ResourceMedicalRecords: Resource = "medical-records";
-export const ResourceHospitalization: Resource = "hospitalization";
-export const ResourceTrimming: Resource = "trimming";
-export const ResourceExaminations: Resource = "examinations";
-export const ResourceAccounting: Resource = "accounting";
-export const ResourceVaccinations: Resource = "vaccinations";
-export const ResourceCheckups: Resource = "checkups";
-export const ResourceInventory: Resource = "inventory";
-export const ResourceEstimates: Resource = "estimates";
-export const ResourceShifts: Resource = "shifts";
-export const ResourceHospitalSettings: Resource = "hospital-settings";
+export const ResourceReception = "reception";
+export const ResourceOwners = "owners";
+export const ResourceReservations = "reservations";
+export const ResourceMedicalRecords = "medical-records";
+export const ResourceHospitalization = "hospitalization";
+export const ResourceTrimming = "trimming";
+export const ResourceExaminations = "examinations";
+export const ResourceAccounting = "accounting";
+export const ResourceVaccinations = "vaccinations";
+export const ResourceCheckups = "checkups";
+export const ResourceInventory = "inventory";
+export const ResourceEstimates = "estimates";
+export const ResourceShifts = "shifts";
+export const ResourceHospitalSettings = "hospital-settings";
 /**
  * マスタ設定: 個別リソース
  */
-export const ResourceMasterAnimalSpecies: Resource = "master-animal-species";
-export const ResourceMasterMedical: Resource = "master-medical";
-export const ResourceMasterReservationType: Resource = "master-reservation-type";
-export const ResourceMasterHospitalization: Resource = "master-hospitalization";
-export const ResourceMasterTrimming: Resource = "master-trimming";
-export const ResourceMasterPermission: Resource = "master-permission";
-export const ResourceMasterStaff: Resource = "master-staff";
-export const ResourceMasterInsurance: Resource = "master-insurance";
-export const ResourceMasterMerchandise: Resource = "master-merchandise";
+export const ResourceMasterAnimalSpecies = "master-animal-species";
+export const ResourceMasterMedical = "master-medical";
+export const ResourceMasterReservationType = "master-reservation-type";
+export const ResourceMasterHospitalization = "master-hospitalization";
+export const ResourceMasterTrimming = "master-trimming";
+export const ResourceMasterPermission = "master-permission";
+export const ResourceMasterStaff = "master-staff";
+export const ResourceMasterInsurance = "master-insurance";
+export const ResourceMasterMerchandise = "master-merchandise";
 /**
  * BUG-372: 割引フィールド専用権限（飼主/治療/入院/見積/会計の全割引フィールドを保護）
  */
-export const ResourceDiscount: Resource = "discount";
+export const ResourceDiscount = "discount";
 /**
  * FEAT-368: 集計・締め
  */
-export const ResourceCashRegisterClose: Resource = "cash-register-close"; // レジ締め実行・履歴
-export const ResourceAccountingReports: Resource = "accounting-reports"; // 月次売上集計（経理向け）
-export const ResourceClosingSettings: Resource = "closing-settings"; // 締め時間設定（管理者向け）
+export const ResourceCashRegisterClose = "cash-register-close"; // レジ締め実行・履歴
+export const ResourceAccountingReports = "accounting-reports"; // 月次売上集計（経理向け）
+export const ResourceClosingSettings = "closing-settings"; // 締め時間設定（管理者向け）
 /**
  * 支払方法マスタ
  */
-export const ResourcePaymentMethod: Resource = "master-payment-method";
+export const ResourcePaymentMethod = "master-payment-method";
 /**
  * FEAT-385: Lステップ CSV インポート・分析
  */
-export const ResourceLstepCsvImport: Resource = "lstep-csv-import";
-export const ResourceLstepAnalytics: Resource = "lstep-analytics";
+export const ResourceLstepCsvImport = "lstep-csv-import";
+export const ResourceLstepAnalytics = "lstep-analytics";
 /**
  * 取扱説明書（マニュアル）編集権限
  */
-export const ResourceManualEdit: Resource = "manual-edit";
+export const ResourceManualEdit = "manual-edit";
 /**
  * #118: 会計キャンセル専用権限（ResourceAccounting "delete" から分離）
  */
-export const ResourceAccountingCancel: Resource = "accounting-cancel";
+export const ResourceAccountingCancel = "accounting-cancel";
 /**
  * #115: 締め後編集専用権限（レジ締め済み期間の会計を特定権限で遡り編集）
  */
-export const ResourceAccountingPostCloseEdit: Resource = "accounting-post-close-edit";
+export const ResourceAccountingPostCloseEdit = "accounting-post-close-edit";
+/**
+ * lab import: 外部検査結果インポートジョブ管理
+ */
+export const ResourceLabImport = "lab-import";
+export type Resource = typeof ResourceReception | typeof ResourceOwners | typeof ResourceReservations | typeof ResourceMedicalRecords | typeof ResourceHospitalization | typeof ResourceTrimming | typeof ResourceExaminations | typeof ResourceAccounting | typeof ResourceVaccinations | typeof ResourceCheckups | typeof ResourceInventory | typeof ResourceEstimates | typeof ResourceShifts | typeof ResourceHospitalSettings | typeof ResourceMasterAnimalSpecies | typeof ResourceMasterMedical | typeof ResourceMasterReservationType | typeof ResourceMasterHospitalization | typeof ResourceMasterTrimming | typeof ResourceMasterPermission | typeof ResourceMasterStaff | typeof ResourceMasterInsurance | typeof ResourceMasterMerchandise | typeof ResourceDiscount | typeof ResourceCashRegisterClose | typeof ResourceAccountingReports | typeof ResourceClosingSettings | typeof ResourcePaymentMethod | typeof ResourceLstepCsvImport | typeof ResourceLstepAnalytics | typeof ResourceManualEdit | typeof ResourceAccountingCancel | typeof ResourceAccountingPostCloseEdit | typeof ResourceLabImport;
 
 //////////
 // source: permission_group.go
@@ -2134,22 +2405,22 @@ export interface StaffPermissionGroup {
 //////////
 // source: pet.go
 
-export type PetStatus = string;
-export const PetStatusAlive: PetStatus = "alive";
-export const PetStatusDeceased: PetStatus = "deceased";
-export type PetGender = string;
-export const PetGenderMale: PetGender = "male";
-export const PetGenderFemale: PetGender = "female";
-export const PetGenderUnknown: PetGender = "unknown";
-export type AcquisitionType = string;
-export const AcquisitionTypePurchase: AcquisitionType = "purchased";
-export const AcquisitionTypeTransfer: AcquisitionType = "transferred";
-export const AcquisitionTypeRescued: AcquisitionType = "rescued";
-export const AcquisitionTypeOther: AcquisitionType = "other";
-export type DangerLevel = string;
-export const DangerLevelLow: DangerLevel = "low";
-export const DangerLevelMedium: DangerLevel = "medium";
-export const DangerLevelHigh: DangerLevel = "high";
+export const PetStatusAlive = "alive";
+export const PetStatusDeceased = "deceased";
+export type PetStatus = typeof PetStatusAlive | typeof PetStatusDeceased;
+export const PetGenderMale = "male";
+export const PetGenderFemale = "female";
+export const PetGenderUnknown = "unknown";
+export type PetGender = typeof PetGenderMale | typeof PetGenderFemale | typeof PetGenderUnknown;
+export const AcquisitionTypePurchase = "purchased";
+export const AcquisitionTypeTransfer = "transferred";
+export const AcquisitionTypeRescued = "rescued";
+export const AcquisitionTypeOther = "other";
+export type AcquisitionType = typeof AcquisitionTypePurchase | typeof AcquisitionTypeTransfer | typeof AcquisitionTypeRescued | typeof AcquisitionTypeOther;
+export const DangerLevelLow = "low";
+export const DangerLevelMedium = "medium";
+export const DangerLevelHigh = "high";
+export type DangerLevel = typeof DangerLevelLow | typeof DangerLevelMedium | typeof DangerLevelHigh;
 export interface Pet {
   id: number /* uint64 */;
   clinic_id: number /* uint64 */;
@@ -2237,11 +2508,11 @@ export interface Prescription {
 //////////
 // source: procedure.go
 
-export type AnesthesiaType = string;
-export const AnesthesiaTypeNone: AnesthesiaType = "none";
-export const AnesthesiaTypeLocal: AnesthesiaType = "local";
-export const AnesthesiaTypeSedation: AnesthesiaType = "sedation";
-export const AnesthesiaTypeGeneral: AnesthesiaType = "general";
+export const AnesthesiaTypeNone = "none";
+export const AnesthesiaTypeLocal = "local";
+export const AnesthesiaTypeSedation = "sedation";
+export const AnesthesiaTypeGeneral = "general";
+export type AnesthesiaType = typeof AnesthesiaTypeNone | typeof AnesthesiaTypeLocal | typeof AnesthesiaTypeSedation | typeof AnesthesiaTypeGeneral;
 export interface Procedure {
   id: number /* uint64 */;
   clinic_id: number /* uint64 */;
@@ -2251,6 +2522,7 @@ export interface Procedure {
   description: string;
   duration?: number /* int */;
   anesthesia: AnesthesiaType;
+  is_surgery: boolean;
   parent_id?: number /* uint64 */;
   tax_type: TaxType;
   tax_rate: number /* float64 */;
@@ -2262,24 +2534,24 @@ export interface Procedure {
 //////////
 // source: reservation.go
 
-export type ReservationStatus = string;
-export const ReservationStatusConfirmed: ReservationStatus = "confirmed";
-export const ReservationStatusPending: ReservationStatus = "pending";
-export const ReservationStatusCancelled: ReservationStatus = "cancelled";
-export const ReservationStatusCheckedIn: ReservationStatus = "checked_in";
-export const ReservationStatusInConsultation: ReservationStatus = "in_consultation";
-export const ReservationStatusAccounting: ReservationStatus = "accounting";
-export const ReservationStatusCompleted: ReservationStatus = "completed";
-export const ReservationStatusNoShow: ReservationStatus = "no_show";
-export type VisitType = string;
-export const VisitTypeFirst: VisitType = "first";
-export const VisitTypeRevisit: VisitType = "revisit";
+export const ReservationStatusConfirmed = "confirmed";
+export const ReservationStatusPending = "pending";
+export const ReservationStatusCancelled = "cancelled";
+export const ReservationStatusCheckedIn = "checked_in";
+export const ReservationStatusInConsultation = "in_consultation";
+export const ReservationStatusAccounting = "accounting";
+export const ReservationStatusCompleted = "completed";
+export const ReservationStatusNoShow = "no_show";
+export type ReservationStatus = typeof ReservationStatusConfirmed | typeof ReservationStatusPending | typeof ReservationStatusCancelled | typeof ReservationStatusCheckedIn | typeof ReservationStatusInConsultation | typeof ReservationStatusAccounting | typeof ReservationStatusCompleted | typeof ReservationStatusNoShow;
+export const VisitTypeFirst = "first";
+export const VisitTypeRevisit = "revisit";
+export type VisitType = typeof VisitTypeFirst | typeof VisitTypeRevisit;
 /**
  * ReservationSource indicates whether a reservation was created via LINE or manually.
  */
-export type ReservationSource = string;
-export const ReservationSourceManual: ReservationSource = "manual";
-export const ReservationSourceLine: ReservationSource = "line";
+export const ReservationSourceManual = "manual";
+export const ReservationSourceLine = "line";
+export type ReservationSource = typeof ReservationSourceManual | typeof ReservationSourceLine;
 export interface Reservation {
   id: number /* uint64 */;
   clinic_id: number /* uint64 */;
@@ -2293,6 +2565,10 @@ export interface Reservation {
   is_designated: boolean;
   status: ReservationStatus;
   notes: string;
+  /**
+   * 受付ヘッダー テレメトリ（change-ui.md Phase 2）: checked_in へ遷移した時刻。待ち時間算出専用。
+   */
+  checked_in_at?: string;
   created_at: string;
   updated_at: string;
   /**
@@ -2334,21 +2610,21 @@ export const DayOptionAnyday: ReservationDayOption = "anyday";
 /**
  * ReservationTypeCategory は予約区分のカテゴリ（'general' | 'trimming'）
  */
-export type ReservationTypeCategory = string;
-export const ReservationTypeCategoryGeneral: ReservationTypeCategory = "general";
-export const ReservationTypeCategoryTrimming: ReservationTypeCategory = "trimming";
+export const ReservationTypeCategoryGeneral = "general";
+export const ReservationTypeCategoryTrimming = "trimming";
+export type ReservationTypeCategory = typeof ReservationTypeCategoryGeneral | typeof ReservationTypeCategoryTrimming;
 /**
  * UnavailableType は予約不可時間の種別
  */
-export type UnavailableType = string;
-export const UnavailableTypeWeekly: UnavailableType = "weekly";
-export const UnavailableTypeSpecific: UnavailableType = "specific";
+export const UnavailableTypeWeekly = "weekly";
+export const UnavailableTypeSpecific = "specific";
+export type UnavailableType = typeof UnavailableTypeWeekly | typeof UnavailableTypeSpecific;
 /**
  * AvailableSlotType は予約可能枠の種別
  */
-export type AvailableSlotType = string;
-export const AvailableSlotTypeWeekly: AvailableSlotType = "weekly";
-export const AvailableSlotTypeSpecific: AvailableSlotType = "specific";
+export const AvailableSlotTypeWeekly = "weekly";
+export const AvailableSlotTypeSpecific = "specific";
+export type AvailableSlotType = typeof AvailableSlotTypeWeekly | typeof AvailableSlotTypeSpecific;
 /**
  * ReservationType はサービス種別（予約区分）マスタ
  */
@@ -2474,32 +2750,21 @@ export interface SharedFile {
   purpose: string;
   expires_at?: string;
   created_at: string;
-  deleted_at?: string;
 }
-/**
- * ファイルタイプ定数
- */
 export const SharedFileTypePDF = "pdf";
-/**
- * ファイルタイプ定数
- */
 export const SharedFileTypeImageJPEG = "image_jpeg";
-/**
- * ファイルタイプ定数
- */
 export const SharedFileTypeImagePNG = "image_png";
 /**
- * 用途定数
+ * ファイルタイプ定数
  */
+export type SharedFileType = typeof SharedFileTypePDF | typeof SharedFileTypeImageJPEG | typeof SharedFileTypeImagePNG;
 export const SharedFilePurposeInspectionResult = "inspection_result";
-/**
- * 用途定数
- */
 export const SharedFilePurposeVaccineCert = "vaccine_cert";
+export const SharedFilePurposeOther = "other";
 /**
  * 用途定数
  */
-export const SharedFilePurposeOther = "other";
+export type SharedFilePurpose = typeof SharedFilePurposeInspectionResult | typeof SharedFilePurposeVaccineCert | typeof SharedFilePurposeOther;
 /**
  * MaxSharedFileSizeBytes は許可する最大ファイルサイズ（LINE Messaging API制限: 10MB）
  */
@@ -2525,11 +2790,11 @@ export interface ShiftEntryBreak {
 /**
  * StaffType represents the role of a staff member in the reservation system.
  */
-export type StaffType = string;
-export const StaffTypeDoctor: StaffType = "doctor";
-export const StaffTypeNurse: StaffType = "nurse";
-export const StaffTypeTrimmer: StaffType = "trimmer";
-export const StaffTypeResource: StaffType = "resource";
+export const StaffTypeDoctor = "doctor";
+export const StaffTypeNurse = "nurse";
+export const StaffTypeTrimmer = "trimmer";
+export const StaffTypeResource = "resource";
+export type StaffType = typeof StaffTypeDoctor | typeof StaffTypeNurse | typeof StaffTypeTrimmer | typeof StaffTypeResource;
 export interface Staff {
   id: number /* uint64 */;
   clinic_id: number /* uint64 */;
@@ -2557,12 +2822,12 @@ export interface Staff {
   clinic_assignments?: StaffClinicAssignment[];
   capabilities?: StaffReservationCapability[];
 }
-export type ShiftType = string;
-export const ShiftTypeFull: ShiftType = "full";
-export const ShiftTypeMorning: ShiftType = "morning";
-export const ShiftTypeAfternoon: ShiftType = "afternoon";
-export const ShiftTypeOff: ShiftType = "off";
-export const ShiftTypePaidLeave: ShiftType = "paid_leave";
+export const ShiftTypeFull = "full";
+export const ShiftTypeMorning = "morning";
+export const ShiftTypeAfternoon = "afternoon";
+export const ShiftTypeOff = "off";
+export const ShiftTypePaidLeave = "paid_leave";
+export type ShiftType = typeof ShiftTypeFull | typeof ShiftTypeMorning | typeof ShiftTypeAfternoon | typeof ShiftTypeOff | typeof ShiftTypePaidLeave;
 export interface ShiftEntry {
   id: number /* uint64 */;
   clinic_id: number /* uint64 */;
@@ -2663,18 +2928,18 @@ export interface TokenBlacklist {
 /**
  * TreatmentItemType は治療項目種別
  */
-export type TreatmentItemType = string;
-export const TreatmentItemTypeConsultation: TreatmentItemType = "consultation";
-export const TreatmentItemTypeProcedure: TreatmentItemType = "procedure";
-export const TreatmentItemTypeMedicine: TreatmentItemType = "medicine";
-export const TreatmentItemTypeOther: TreatmentItemType = "other";
+export const TreatmentItemTypeConsultation = "consultation";
+export const TreatmentItemTypeProcedure = "procedure";
+export const TreatmentItemTypeMedicine = "medicine";
+export const TreatmentItemTypeOther = "other";
+export type TreatmentItemType = typeof TreatmentItemTypeConsultation | typeof TreatmentItemTypeProcedure | typeof TreatmentItemTypeMedicine | typeof TreatmentItemTypeOther;
 /**
  * TreatmentStatus は治療ステータス
  */
-export type TreatmentStatus = string;
-export const TreatmentStatusPending: TreatmentStatus = "pending";
-export const TreatmentStatusCompleted: TreatmentStatus = "completed";
-export const TreatmentStatusNotApplicable: TreatmentStatus = "not_applicable";
+export const TreatmentStatusPending = "pending";
+export const TreatmentStatusCompleted = "completed";
+export const TreatmentStatusNotApplicable = "not_applicable";
+export type TreatmentStatus = typeof TreatmentStatusPending | typeof TreatmentStatusCompleted | typeof TreatmentStatusNotApplicable;
 /**
  * Treatment は治療項目（外来診療）
  */
@@ -2697,6 +2962,15 @@ export interface Treatment {
   discount_rate: number /* float64 */;
   discount_amount: number /* int64 */;
   sort_order: number /* int */;
+  /**
+   * #201 投与量自動計算の根拠スナップショット（medicine 明細のみ・per_weight 計算時に値で固定）。
+   * マスタの後変更・論理削除があっても当時の計算根拠を保全する（FK 非依存）。
+   */
+  dose_weight_kg?: number /* float64 */; // 使用体重（kg 正規化後）
+  dose_weight_source?: string; // 体重の出典（vital_records.id / 時刻 pin）
+  dose_amount_mg?: number /* float64 */; // 実効用量(mg)。安全域判定(C1)はこの丸め後の値
+  dose_amount_unit?: string; // 'mg' | 'ug'
+  dose_param_snapshot?: any /* json.RawMessage */; // species/dose_per_kg/strength/丸め設定/計算式版
   created_at: string;
   updated_at: string;
   /**
@@ -2707,6 +2981,14 @@ export interface Treatment {
   procedure?: Procedure;
   medicine?: Medicine;
   inventory?: InventoryItem;
+}
+/**
+ * PetTreatmentHistoryFilter は #159 飼主レポート用の治療履歴絞り込み条件。
+ */
+export interface PetTreatmentHistoryFilter {
+  ItemType?: TreatmentItemType;
+  AnesthesiaOnly: boolean; // true = procedures.anesthesia != 'none'
+  IsSurgery: boolean; // true = procedures.is_surgery = true
 }
 
 //////////
@@ -2735,6 +3017,12 @@ export interface AppointmentTrimmingDetail {
    * Relations
    */
   course?: TrimmingCourse;
+  /**
+   * Options: foreignKey/references を明示しないと GORM は自モデルの primaryKey(ID) をソース側
+   * 結合キーとして使う（デフォルト解決）。本モデルは ID(サロゲートPK) と AppointmentID(実FK) が
+   * 別の値空間のため、明示しないと Preload/Association が appointment_trimming_options.appointment_id
+   * を appointment_trimming_details.id と突合してしまい、常に空/失敗する（#212）。
+   */
   options?: TrimmingOption[];
 }
 /**
@@ -2768,11 +3056,11 @@ export interface TrimmingCourseType {
 //////////
 // source: trimming_master.go
 
-export type TargetSize = string;
-export const TargetSizeSmall: TargetSize = "small";
-export const TargetSizeMedium: TargetSize = "medium";
-export const TargetSizeLarge: TargetSize = "large";
-export const TargetSizeCat: TargetSize = "cat";
+export const TargetSizeSmall = "small";
+export const TargetSizeMedium = "medium";
+export const TargetSizeLarge = "large";
+export const TargetSizeCat = "cat";
+export type TargetSize = typeof TargetSizeSmall | typeof TargetSizeMedium | typeof TargetSizeLarge | typeof TargetSizeCat;
 export interface TrimmingCourse {
   id: number /* uint64 */;
   clinic_id: number /* uint64 */;
@@ -2804,11 +3092,11 @@ export interface TrimmingOption {
 //////////
 // source: vaccination_record.go
 
-export type NextScheduleType = string;
-export const NextScheduleType3Weeks: NextScheduleType = "3weeks";
-export const NextScheduleType4Weeks: NextScheduleType = "4weeks";
-export const NextScheduleType1Year: NextScheduleType = "1year";
-export const NextScheduleTypeOther: NextScheduleType = "other";
+export const NextScheduleType3Weeks = "3weeks";
+export const NextScheduleType4Weeks = "4weeks";
+export const NextScheduleType1Year = "1year";
+export const NextScheduleTypeOther = "other";
+export type NextScheduleType = typeof NextScheduleType3Weeks | typeof NextScheduleType4Weeks | typeof NextScheduleType1Year | typeof NextScheduleTypeOther;
 export interface Vaccination {
   id: number /* uint64 */;
   clinic_id: number /* uint64 */;
@@ -2839,10 +3127,10 @@ export interface Vaccination {
 //////////
 // source: vaccine.go
 
-export type VaccineSpecies = string;
-export const VaccineSpeciesDog: VaccineSpecies = "dog";
-export const VaccineSpeciesCat: VaccineSpecies = "cat";
-export const VaccineSpeciesBoth: VaccineSpecies = "both";
+export const VaccineSpeciesDog = "dog";
+export const VaccineSpeciesCat = "cat";
+export const VaccineSpeciesBoth = "both";
+export type VaccineSpecies = typeof VaccineSpeciesDog | typeof VaccineSpeciesCat | typeof VaccineSpeciesBoth;
 export interface Vaccine {
   id: number /* uint64 */;
   clinic_id: number /* uint64 */;
@@ -2862,9 +3150,9 @@ export interface Vaccine {
 //////////
 // source: vital.go
 
-export type BodyWeightUnit = string;
-export const BodyWeightUnitKg: BodyWeightUnit = "Kg";
-export const BodyWeightUnitG: BodyWeightUnit = "g";
+export const BodyWeightUnitKg = "Kg";
+export const BodyWeightUnitG = "g";
+export type BodyWeightUnit = typeof BodyWeightUnitKg | typeof BodyWeightUnitG;
 export interface VitalRecord {
   id: number /* uint64 */;
   clinic_id: number /* uint64 */;

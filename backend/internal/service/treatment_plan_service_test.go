@@ -52,6 +52,103 @@ func (m *mockTreatmentPlanRepository) Delete(ctx context.Context, clinicID, id u
 
 const testClinicIDTP = uint64(1)
 
+func TestTreatmentPlanService_GetByID(t *testing.T) {
+	tests := []struct {
+		name    string
+		repoErr error
+		wantErr bool
+	}{
+		{
+			name:    "returns plan when found",
+			repoErr: nil,
+			wantErr: false,
+		},
+		{
+			name:    "propagates repository error",
+			repoErr: errors.New("not found"),
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			repo := &mockTreatmentPlanRepository{
+				findByIDFn: func(_ context.Context, clinicID, id uint64) (*model.TreatmentPlan, error) {
+					if tt.repoErr != nil {
+						return nil, tt.repoErr
+					}
+					return &model.TreatmentPlan{ID: id, ClinicID: clinicID, TreatmentContent: "Surgery"}, nil
+				},
+			}
+			svc := NewTreatmentPlanService(repo)
+
+			plan, err := svc.GetByID(context.Background(), testClinicIDTP, 1)
+
+			if tt.wantErr {
+				assert.Error(t, err)
+				assert.Nil(t, plan)
+			} else {
+				assert.NoError(t, err)
+				assert.NotNil(t, plan)
+				assert.Equal(t, "Surgery", plan.TreatmentContent)
+			}
+		})
+	}
+}
+
+func TestBuildTreatmentPlanUpdate(t *testing.T) {
+	tests := []struct {
+		name  string
+		input *UpdateTreatmentPlanInput
+		want  map[string]any
+	}{
+		{
+			name:  "全フィールド nil → 空マップ",
+			input: &UpdateTreatmentPlanInput{},
+			want:  map[string]any{},
+		},
+		{
+			name: "TreatmentContent のみ設定",
+			input: &UpdateTreatmentPlanInput{
+				TreatmentContent: strPtr("Updated content"),
+			},
+			want: map[string]any{"treatment_content": "Updated content"},
+		},
+		{
+			name: "全フィールド設定",
+			input: &UpdateTreatmentPlanInput{
+				TreatmentContent: strPtr("Surgery"),
+				Memo:             strPtr("memo"),
+				IsInsurance:      boolPtr(true),
+				UnitPrice:        int64Ptr(1000),
+				Quantity:         float64Ptr(2),
+				DiscountRate:     float64Ptr(10),
+				DiscountAmount:   int64Ptr(100),
+				Subtotal:         int64Ptr(1700),
+				SortOrder:        intPtr(3),
+			},
+			want: map[string]any{
+				"treatment_content": "Surgery",
+				"memo":              "memo",
+				"is_insurance":      true,
+				"unit_price":        int64(1000),
+				"quantity":          float64(2),
+				"discount_rate":     float64(10),
+				"discount_amount":   int64(100),
+				"subtotal":          int64(1700),
+				"sort_order":        3,
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := buildTreatmentPlanUpdate(tt.input)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
 func TestTreatmentPlanService_ListByMedicalRecord(t *testing.T) {
 	tests := []struct {
 		name            string
@@ -177,6 +274,7 @@ func TestTreatmentPlanService_Create(t *testing.T) {
 		hospitalizationID *uint64
 		input             *CreateTreatmentPlanInput
 		repoErr           error
+		reloadErr         error
 		wantErr           bool
 	}{
 		{
@@ -229,6 +327,17 @@ func TestTreatmentPlanService_Create(t *testing.T) {
 			repoErr: errors.New("db error"),
 			wantErr: true,
 		},
+		{
+			name:              "returns error when reload after create fails",
+			medicalRecordID:   &medicalRecordID,
+			hospitalizationID: nil,
+			input: &CreateTreatmentPlanInput{
+				TreatmentContent: "Checkup",
+				UnitPrice:        100,
+			},
+			reloadErr: errors.New("reload failed"),
+			wantErr:   true,
+		},
 	}
 
 	for _, tt := range tests {
@@ -241,6 +350,9 @@ func TestTreatmentPlanService_Create(t *testing.T) {
 					return tt.repoErr
 				},
 				findByIDFn: func(_ context.Context, _, _ uint64) (*model.TreatmentPlan, error) {
+					if tt.reloadErr != nil {
+						return nil, tt.reloadErr
+					}
 					return &model.TreatmentPlan{
 						ClinicID:          testClinicIDTP,
 						MedicalRecordID:   tt.medicalRecordID,
@@ -269,12 +381,14 @@ func TestTreatmentPlanService_Update(t *testing.T) {
 	newPrice := int64(200)
 
 	tests := []struct {
-		name           string
-		id             uint64
-		input          *UpdateTreatmentPlanInput
-		repoUpdateErr  error
-		repoReturnPlan *model.TreatmentPlan
-		wantErr        bool
+		name                   string
+		id                     uint64
+		input                  *UpdateTreatmentPlanInput
+		repoUpdateErr          error
+		repoReturnPlan         *model.TreatmentPlan
+		findByIDErrOnFirstCall bool
+		findByIDErrOnReload    bool
+		wantErr                bool
 	}{
 		{
 			name: "updates plan successfully",
@@ -309,15 +423,42 @@ func TestTreatmentPlanService_Update(t *testing.T) {
 			repoReturnPlan: nil,
 			wantErr:        true,
 		},
+		{
+			name: "returns error when treatment plan not found",
+			id:   999,
+			input: &UpdateTreatmentPlanInput{
+				TreatmentContent: &newContent,
+			},
+			findByIDErrOnFirstCall: true,
+			wantErr:                true,
+		},
+		{
+			name: "returns error when reload after update fails",
+			id:   1,
+			input: &UpdateTreatmentPlanInput{
+				TreatmentContent: &newContent,
+			},
+			repoUpdateErr:       nil,
+			findByIDErrOnReload: true,
+			wantErr:             true,
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			callCount := 0
 			repo := &mockTreatmentPlanRepository{
 				updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) error {
 					return tt.repoUpdateErr
 				},
 				findByIDFn: func(_ context.Context, _, _ uint64) (*model.TreatmentPlan, error) {
+					callCount++
+					if callCount == 1 && tt.findByIDErrOnFirstCall {
+						return nil, errors.New("not found")
+					}
+					if callCount == 2 && tt.findByIDErrOnReload {
+						return nil, errors.New("reload failed")
+					}
 					return tt.repoReturnPlan, nil
 				},
 			}
@@ -337,10 +478,11 @@ func TestTreatmentPlanService_Update(t *testing.T) {
 
 func TestTreatmentPlanService_Delete(t *testing.T) {
 	tests := []struct {
-		name    string
-		id      uint64
-		repoErr error
-		wantErr bool
+		name        string
+		id          uint64
+		findByIDErr error
+		repoErr     error
+		wantErr     bool
 	}{
 		{
 			name:    "deletes plan successfully",
@@ -349,10 +491,10 @@ func TestTreatmentPlanService_Delete(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name:    "returns error when plan not found",
-			id:      999,
-			repoErr: errors.New("not found"),
-			wantErr: true,
+			name:        "returns error when plan not found",
+			id:          999,
+			findByIDErr: errors.New("not found"),
+			wantErr:     true,
 		},
 		{
 			name:    "returns error when delete fails",
@@ -365,6 +507,12 @@ func TestTreatmentPlanService_Delete(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockTreatmentPlanRepository{
+				findByIDFn: func(_ context.Context, _, id uint64) (*model.TreatmentPlan, error) {
+					if tt.findByIDErr != nil {
+						return nil, tt.findByIDErr
+					}
+					return &model.TreatmentPlan{ID: id}, nil
+				},
 				deleteFn: func(_ context.Context, _, _ uint64) error {
 					return tt.repoErr
 				},
@@ -386,3 +534,6 @@ func TestTreatmentPlanService_Delete(t *testing.T) {
 func uint64P(v uint64) *uint64 {
 	return &v
 }
+
+func int64Ptr(v int64) *int64       { return &v }
+func float64Ptr(v float64) *float64 { return &v }

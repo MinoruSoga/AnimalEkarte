@@ -136,17 +136,26 @@ export const getReservationTypeName = (type: string) => {
 
 export const getExaminationStatusColor = (status: string) => {
   switch (status) {
-    case "依頼中": return BADGE.yellow;
-    case "検査中": return BADGE.blue;
-    case "完了":   return BADGE.green;
-    default:      return "";
+    // SD-12: backend ExaminationStatus 全5値に追従（結果入力済み/確定が抜けていた）
+    case "依頼中":     return BADGE.yellow;
+    case "検査中":     return BADGE.blue;
+    case "結果入力済み": return BADGE.purple;
+    case "完了":       return BADGE.green;
+    case "確定":       return BADGE.gray;
+    default:          return "";
   }
 };
 
 export const getAccountingStatusColor = (status: string) => {
   switch (status) {
+    // FE5-27: 一覧側を履歴側の4値区別ラベルへ統一(PO決定P-3)。旧ラベルのcaseは
+    // status-helpers.test.ts の直接呼び出し互換のため残す。
+    case "未精算":
     case "会計待ち": return BADGE.orange;
+    case "保留":    return BADGE.yellow;
+    case "精算済":
     case "会計済":   return BADGE.green;
+    case "取消":
     case "キャンセル": return BADGE.gray;
     default:      return "";
   }
@@ -200,10 +209,9 @@ export const getEstimateStatusColor = (status: string) => {
   switch (status) {
     case "draft":    return BADGE.gray;
     case "sent":     return BADGE.blue;
-    case "accepted": return BADGE.green;
+    case "approved": return BADGE.green;
     case "rejected": return BADGE.red;
-    case "expired":  return BADGE.orange;
-    default:        return BADGE.gray;
+    default:         return BADGE.gray;
   }
 };
 

@@ -13,7 +13,7 @@ import (
 )
 
 func purposeTagNameFromPrefixes(purpose string, t time.Time, prefixes []*model.LstepSendPurposeTagPrefix) string {
-	date := t.Format("2006-01-02")
+	date := t.Format(time.DateOnly)
 	for _, p := range prefixes {
 		if p.Purpose == purpose {
 			return p.TagPrefix + date
@@ -50,6 +50,10 @@ type lineSendService struct {
 	auditSvc      AuditService
 	logRepo       repository.LineSendLogRepository
 	tagConfigRepo repository.LstepTagConfigRepository
+	// newLineClient は LINE Messaging API クライアントのファクトリ。
+	// 本番では lineinfra.NewMessagingClient（実際に外部 API へ通信する）で初期化される。
+	// テスト時にのみ差し替え可能にするためのテスト容易性シーム（振る舞いは変更しない）。
+	newLineClient func(channelAccessToken string) lineinfra.MessagingClient
 }
 
 func NewLineSendService(
@@ -69,7 +73,67 @@ func NewLineSendService(
 		auditSvc:      auditSvc,
 		logRepo:       logRepo,
 		tagConfigRepo: tagConfigRepo,
+		newLineClient: lineinfra.NewMessagingClient,
 	}
+}
+
+// dispatchLineMessage は input.MessageType に応じてLINEメッセージを送信する
+// （BE-refactor.md E-8）。pdf/image 分岐の検証エラー（file_id 必須・署名URL取得失敗・
+// message_type 不正）は fail-fast の別経路のため、通常の送信エラー（sendErr）とは
+// 戻り値を分ける（現行の分岐構造を厳密に保つ）。
+func (s *lineSendService) dispatchLineMessage(ctx context.Context, lineClient lineinfra.MessagingClient, clinicID uint64, lineUserID string, input *SendLineMessageInput) (contentSummary string, validationErr, sendErr error) {
+	switch input.MessageType {
+	case "text":
+		contentSummary = lineSendTruncate(input.Text, 50)
+		sendErr = lineClient.PushText(ctx, lineUserID, input.Text)
+	case "pdf_url", "image_url":
+		if input.FileID == nil {
+			validationErr = apperrors.WrapInvalidInput("file_id は必須です")
+			return
+		}
+		fileURL, fErr := s.sharedFile.GetSignedURL(ctx, clinicID, *input.FileID)
+		if fErr != nil {
+			slog.ErrorContext(ctx, "failed to get signed URL for line send", "error", fErr)
+			validationErr = apperrors.Wrap(fErr, "failed to get file URL")
+			return
+		}
+		if input.MessageType == "image_url" {
+			contentSummary = lineSendTruncate(fileURL, 50)
+			sendErr = lineClient.PushImageURL(ctx, lineUserID, fileURL, fileURL)
+		} else {
+			altText := input.FileName
+			if altText == "" {
+				altText = "ファイル"
+			}
+			contentSummary = altText
+			sendErr = lineClient.PushFileURL(ctx, lineUserID, fileURL, altText)
+		}
+	default:
+		validationErr = apperrors.WrapInvalidInput("message_type が無効です")
+	}
+	return
+}
+
+// applySendPurposeTag は purpose に対応する自動タグを best-effort で付与する
+// （BE-refactor.md E-8）。付与したタグ名を返す（""=付与なし）。
+func (s *lineSendService) applySendPurposeTag(ctx context.Context, clinicID, ownerID uint64, purpose string, sentAt time.Time) string {
+	var purposePrefixes []*model.LstepSendPurposeTagPrefix
+	if s.tagConfigRepo != nil {
+		if pp, ppErr := s.tagConfigRepo.FindAllSendPurposeTagPrefixes(ctx); ppErr != nil {
+			slog.ErrorContext(ctx, "failed to load send purpose tag prefixes", "error", ppErr)
+		} else {
+			purposePrefixes = pp
+		}
+	}
+	tagName := purposeTagNameFromPrefixes(purpose, sentAt, purposePrefixes)
+	if tagName == "" {
+		return ""
+	}
+	if upsertErr := s.tagCacheRepo.UpsertTag(ctx, clinicID, ownerID, tagName, "auto", ""); upsertErr != nil {
+		slog.ErrorContext(ctx, "failed to upsert line send tag", "error", upsertErr, "tag", tagName)
+		return ""
+	}
+	return tagName
 }
 
 func (s *lineSendService) Send(ctx context.Context, clinicID uint64, input *SendLineMessageInput) (*SendLineMessageResult, error) {
@@ -91,37 +155,11 @@ func (s *lineSendService) Send(ctx context.Context, clinicID uint64, input *Send
 		return nil, apperrors.Wrap(err, "failed to get LINE credentials")
 	}
 
-	lineClient := lineinfra.NewMessagingClient(lineToken)
+	lineClient := s.newLineClient(lineToken)
 
-	var contentSummary string
-	var sendErr error
-
-	switch input.MessageType {
-	case "text":
-		contentSummary = lineSendTruncate(input.Text, 50)
-		sendErr = lineClient.PushText(ctx, *owner.LineUserID, input.Text)
-	case "pdf_url", "image_url":
-		if input.FileID == nil {
-			return nil, apperrors.WrapInvalidInput("file_id は必須です")
-		}
-		fileURL, fErr := s.sharedFile.GetSignedURL(ctx, clinicID, *input.FileID)
-		if fErr != nil {
-			slog.ErrorContext(ctx, "failed to get signed URL for line send", "error", fErr)
-			return nil, apperrors.Wrap(fErr, "failed to get file URL")
-		}
-		if input.MessageType == "image_url" {
-			contentSummary = lineSendTruncate(fileURL, 50)
-			sendErr = lineClient.PushImageURL(ctx, *owner.LineUserID, fileURL, fileURL)
-		} else {
-			altText := input.FileName
-			if altText == "" {
-				altText = "ファイル"
-			}
-			contentSummary = altText
-			sendErr = lineClient.PushFileURL(ctx, *owner.LineUserID, fileURL, altText)
-		}
-	default:
-		return nil, apperrors.WrapInvalidInput("message_type が無効です")
+	contentSummary, validationErr, sendErr := s.dispatchLineMessage(ctx, lineClient, clinicID, *owner.LineUserID, input)
+	if validationErr != nil {
+		return nil, validationErr
 	}
 
 	sentAt := time.Now()
@@ -159,22 +197,7 @@ func (s *lineSendService) Send(ctx context.Context, clinicID uint64, input *Send
 	}
 
 	result := &SendLineMessageResult{SentAt: sentAt}
-	var purposePrefixes []*model.LstepSendPurposeTagPrefix
-	if s.tagConfigRepo != nil {
-		if pp, ppErr := s.tagConfigRepo.FindAllSendPurposeTagPrefixes(ctx); ppErr != nil {
-			slog.ErrorContext(ctx, "failed to load send purpose tag prefixes", "error", ppErr)
-		} else {
-			purposePrefixes = pp
-		}
-	}
-	tagName := purposeTagNameFromPrefixes(input.Purpose, sentAt, purposePrefixes)
-	if tagName != "" {
-		if upsertErr := s.tagCacheRepo.UpsertTag(ctx, clinicID, input.OwnerID, tagName, "auto", ""); upsertErr != nil {
-			slog.ErrorContext(ctx, "failed to upsert line send tag", "error", upsertErr, "tag", tagName)
-		} else {
-			result.TagAdded = tagName
-		}
-	}
+	result.TagAdded = s.applySendPurposeTag(ctx, clinicID, input.OwnerID, input.Purpose, sentAt)
 
 	return result, nil
 }

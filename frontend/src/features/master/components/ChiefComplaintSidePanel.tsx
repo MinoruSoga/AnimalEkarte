@@ -14,7 +14,7 @@ import { MASTER_INPUT_CLASS } from "../constants/styles";
 import {
   chiefComplaintToFormData,
   type ChiefComplaintFormData,
-} from "./ChiefComplaintSidePanelModel";
+} from "./chief-complaint-side-panel-model";
 
 interface ChiefComplaintSidePanelProps {
   item: ChiefComplaintType | null;

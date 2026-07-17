@@ -53,11 +53,11 @@ func toOwnerAggregationResponse(item *service.OwnerAggregationItem) ownerAggrega
 		CPMStage:           item.CPMStage,
 	}
 	if item.LastVisitDate != nil {
-		s := item.LastVisitDate.In(time.Local).Format("2006-01-02")
+		s := item.LastVisitDate.In(time.Local).Format(time.DateOnly)
 		r.LastVisitDate = &s
 	}
 	if item.FirstVisitDate != nil {
-		s := item.FirstVisitDate.In(time.Local).Format("2006-01-02")
+		s := item.FirstVisitDate.In(time.Local).Format(time.DateOnly)
 		r.FirstVisitDate = &s
 	}
 	return r

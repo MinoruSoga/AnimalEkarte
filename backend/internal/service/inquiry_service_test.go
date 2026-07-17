@@ -75,7 +75,7 @@ func TestInquiryService_Save(t *testing.T) {
 					return returned, nil
 				},
 			}
-			svc := NewInquiryService(repo)
+			svc := NewInquiryService(repo, okChiefComplaintTypeRepo())
 			result, err := svc.Save(context.Background(), tt.input)
 			if tt.wantErr {
 				assert.Error(t, err)

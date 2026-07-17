@@ -2,10 +2,10 @@ import type { DiagnosisName, DiagnosisType } from "../api/diagnosis";
 import type {
   DiagnosisNameFormData,
   DiagnosisTypeFormData,
-} from "./DiagnosisSidePanelModel";
+} from "./diagnosis-side-panel-model";
 import { DiagnosisNameSidePanel } from "./DiagnosisNameSidePanel";
 import { DiagnosisTypeSidePanel } from "./DiagnosisTypeSidePanel";
-import type { DiagnosisTabValue } from "../routes/DiagnosisSettingsModel";
+import type { DiagnosisTabValue } from "../routes/diagnosis-settings-model";
 
 interface DiagnosisSettingsSidePanelsProps {
   activeTab: DiagnosisTabValue;

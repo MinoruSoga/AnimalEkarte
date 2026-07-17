@@ -30,19 +30,14 @@ func NewProcedureRepository(db *gorm.DB) ProcedureRepository { return &procedure
 
 func (r *procedureRepository) FindAll(ctx context.Context, clinicID uint64) ([]model.Procedure, error) {
 	procedures := make([]model.Procedure, 0)
-	if err := r.db.WithContext(ctx).Scopes(clinicScope(clinicID)).Order("sort_order ASC, name ASC").Limit(10000).Find(&procedures).Error; err != nil {
+	if err := r.db.WithContext(ctx).Scopes(clinicScope(clinicID)).Order("sort_order ASC, name ASC").Limit(maxMasterListRows).Find(&procedures).Error; err != nil {
 		return nil, apperrors.FromGORM(err, "procedure", "")
 	}
 	return procedures, nil
 }
 
 func (r *procedureRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Procedure, error) {
-	var procedure model.Procedure
-	err := r.db.WithContext(ctx).Scopes(clinicScope(clinicID)).Where("id = ?", id).First(&procedure).Error
-	if err != nil {
-		return nil, apperrors.FromGORM(err, "procedure", fmt.Sprintf("%d", id))
-	}
-	return &procedure, nil
+	return findByIDScoped[model.Procedure](ctx, r.db, "procedure", clinicID, id)
 }
 
 func (r *procedureRepository) Create(ctx context.Context, procedure *model.Procedure) error {
@@ -53,28 +48,14 @@ func (r *procedureRepository) Create(ctx context.Context, procedure *model.Proce
 }
 
 func (r *procedureRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Procedure, error) {
-	result := r.db.WithContext(ctx).
-		Model(&model.Procedure{}).
-		Scopes(clinicScope(clinicID)).Where("id = ?", id).
-		Updates(fields)
-	if result.Error != nil {
-		return nil, apperrors.FromGORM(result.Error, "procedure", fmt.Sprintf("%d", id))
-	}
-	if result.RowsAffected == 0 {
-		return nil, apperrors.WrapNotFound("procedure", fmt.Sprintf("%d", id))
+	if err := updateScopedByID(ctx, r.db, &model.Procedure{}, "procedure", clinicID, id, fields); err != nil {
+		return nil, err
 	}
 	return r.FindByID(ctx, clinicID, id)
 }
 
 func (r *procedureRepository) Delete(ctx context.Context, clinicID, id uint64) error {
-	result := r.db.WithContext(ctx).Scopes(clinicScope(clinicID)).Where("id = ?", id).Delete(&model.Procedure{})
-	if result.Error != nil {
-		return apperrors.FromGORM(result.Error, "procedure", fmt.Sprintf("%d", id))
-	}
-	if result.RowsAffected == 0 {
-		return apperrors.WrapNotFound("procedure", fmt.Sprintf("%d", id))
-	}
-	return nil
+	return deleteScopedByID(ctx, r.db, &model.Procedure{}, "procedure", clinicID, id)
 }
 
 // CountUsageByProcedureID は treatments と care_plan_items で参照されている件数の合計を返す（BUG-107）
@@ -83,7 +64,7 @@ func (r *procedureRepository) CountUsageByProcedureID(ctx context.Context, clini
 	var treatmentCount, carePlanCount int64
 	if err := r.db.WithContext(ctx).
 		Model(&model.Treatment{}).
-		Joins("JOIN medical_records ON medical_records.id = treatments.medical_record_id AND medical_records.clinic_id = ? AND medical_records.deleted_at IS NULL", clinicID).
+		Scopes(medicalRecordTenantScope("treatments", clinicID)).
 		Where("treatments.procedure_id = ? AND treatments.deleted_at IS NULL", procedureID).
 		Count(&treatmentCount).Error; err != nil {
 		return 0, apperrors.FromGORM(err, "treatment", "")

@@ -142,6 +142,13 @@ func TestListVaccinations(t *testing.T) {
 			wantStatus: http.StatusBadRequest,
 		},
 		{
+			name:       "returns 400 for invalid pagination",
+			query:      "page=0&limit=10",
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockVaccinationService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
 			name:       "returns 401 when clinic_id is missing",
 			query:      "page=1&limit=10",
 			setupCtx:   func(_ *gin.Context) {},
@@ -296,6 +303,16 @@ func TestCreateVaccination(t *testing.T) {
 			wantStatus: http.StatusBadRequest,
 		},
 		{
+			name: "returns 400 when date is invalid",
+			body: map[string]any{
+				"vaccine_id": vaccineID,
+				"date":       "not-a-date",
+			},
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockVaccinationService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
 			name:     "returns 500 on service error",
 			body:     validBody(),
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
@@ -320,6 +337,110 @@ func TestCreateVaccination(t *testing.T) {
 			tt.setupCtx(c)
 			h.CreateVaccination(c)
 			assert.Equal(t, tt.wantStatus, w.Code)
+		})
+	}
+}
+
+// ---- UpdateVaccination ----
+
+func TestUpdateVaccination(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	tests := []struct {
+		name       string
+		paramID    string
+		body       any
+		setupCtx   func(c *gin.Context)
+		svc        *mockVaccinationService
+		wantStatus int
+		wantBody   string
+	}{
+		{
+			name:     "updates vaccination successfully",
+			paramID:  "10",
+			body:     map[string]any{"remarks": "更新済み"},
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockVaccinationService{
+				updateFn: func(_ context.Context, clinicID, id uint64, input *service.UpdateVaccinationInput) (*model.Vaccination, error) {
+					assert.Equal(t, uint64(1), clinicID)
+					assert.Equal(t, uint64(10), id)
+					require.NotNil(t, input.Remarks)
+					assert.Equal(t, "更新済み", *input.Remarks)
+					return &model.Vaccination{ID: 10, Remarks: *input.Remarks}, nil
+				},
+			},
+			wantStatus: http.StatusOK,
+			wantBody:   `"remarks":"更新済み"`,
+		},
+		{
+			name:       "returns 401 when clinic_id is missing",
+			paramID:    "10",
+			body:       map[string]any{"remarks": "更新済み"},
+			setupCtx:   func(_ *gin.Context) {},
+			svc:        &mockVaccinationService{},
+			wantStatus: http.StatusUnauthorized,
+		},
+		{
+			name:       "returns 400 for non-numeric id",
+			paramID:    "abc",
+			body:       map[string]any{"remarks": "更新済み"},
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockVaccinationService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:       "returns 400 for malformed json body",
+			paramID:    "10",
+			body:       `{"remarks":`,
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockVaccinationService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:       "returns 400 when date is invalid",
+			paramID:    "10",
+			body:       map[string]any{"date": "not-a-date"},
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockVaccinationService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:     "returns 404 when not found",
+			paramID:  "999",
+			body:     map[string]any{"remarks": "更新済み"},
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockVaccinationService{
+				updateFn: func(_ context.Context, _, _ uint64, _ *service.UpdateVaccinationInput) (*model.Vaccination, error) {
+					return nil, apperrors.WrapNotFound("vaccination", "999")
+				},
+			},
+			wantStatus: http.StatusNotFound,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := newHandlerWithVaccinationSvc(tt.svc)
+			var bodyBytes []byte
+			switch b := tt.body.(type) {
+			case string:
+				bodyBytes = []byte(b)
+			default:
+				var err error
+				bodyBytes, err = json.Marshal(tt.body)
+				require.NoError(t, err)
+			}
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			c.Request = httptest.NewRequest(http.MethodPatch, "/", bytes.NewReader(bodyBytes))
+			c.Request.Header.Set("Content-Type", "application/json")
+			c.Params = gin.Params{{Key: "id", Value: tt.paramID}}
+			tt.setupCtx(c)
+			h.UpdateVaccination(c)
+			assert.Equal(t, tt.wantStatus, w.Code)
+			if tt.wantBody != "" {
+				assert.Contains(t, w.Body.String(), tt.wantBody)
+			}
 		})
 	}
 }

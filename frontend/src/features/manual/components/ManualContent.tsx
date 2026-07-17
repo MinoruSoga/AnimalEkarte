@@ -33,6 +33,7 @@ export function getSafeMarkdownHref(href: unknown): string | undefined {
     }
   })();
 
+  // 制御文字（NULLバイト等）でスキーム判定を回避する攻撃を防ぐため意図的に制御文字を除去する
   // eslint-disable-next-line no-control-regex
   const compact = decoded.replace(/[\u0000-\u001F\u007F\s]+/g, "");
   const schemeMatch = /^([a-z][a-z0-9+.-]*):/i.exec(compact);

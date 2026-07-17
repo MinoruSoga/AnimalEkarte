@@ -1,20 +1,23 @@
-import { memo, useActionState } from "react";
+import { memo, useActionState, useState } from "react";
 import { toast } from "sonner";
 import { C, STYLE } from "@/lib/design-tokens";
 import { SubmitButton } from "@/components/shared/Form/SubmitButton";
 import { handleApiError } from "@/lib/handle-api-error";
 import type { ClinicSettings } from "@/types/generated/models";
+import { DAY_OF_WEEK_LABELS as WEEKDAY_LABELS } from "@/constants/day-of-week";
 import { updateClosingSettings } from "../api/update-closing-settings";
+import {
+  computeClosingTimeRanges,
+  formatRangeText,
+  toTimeInputValue,
+} from "../lib/closing-time-ranges";
 
-const WEEKDAY_LABELS: Record<number, string> = {
-  0: "日",
-  1: "月",
-  2: "火",
-  3: "水",
-  4: "木",
-  5: "金",
-  6: "土",
-};
+// 時間帯プレビューの行定義（key は ClosingTimeRanges のキーと一致）。
+const PERIOD_ROWS = [
+  { key: "am", label: "AM", caption: "午前" },
+  { key: "pm", label: "PM", caption: "午後" },
+  { key: "emg", label: "EMG", caption: "緊急" },
+] as const;
 
 interface StandardClosingTimeSectionProps {
   settings: ClinicSettings;
@@ -23,6 +26,16 @@ interface StandardClosingTimeSectionProps {
 export const StandardClosingTimeSection = memo(function StandardClosingTimeSection({
   settings,
 }: StandardClosingTimeSectionProps) {
+  // 時間帯プレビュー用に境界値を制御値として保持する。
+  // 送信は form action が FormData(DOM 値) から読むため、このプレビュー state とは独立。
+  const [amPmBoundary, setAmPmBoundary] = useState(() =>
+    toTimeInputValue(settings.closing_am_pm_boundary),
+  );
+  const [weekdayEnd, setWeekdayEnd] = useState(() =>
+    toTimeInputValue(settings.closing_weekday_end),
+  );
+  const [sundayEnd, setSundayEnd] = useState(() => toTimeInputValue(settings.closing_sunday_end));
+
   const [, formAction] = useActionState(async (_prev: null, formData: FormData) => {
     try {
       const closedWeekdays: number[] = [];
@@ -44,6 +57,14 @@ export const StandardClosingTimeSection = memo(function StandardClosingTimeSecti
     return null;
   }, null);
 
+  // 派生値は描画時に計算する（useEffect で同期しない）。AM は am_start と境界に依存し
+  // 平日・日曜で共通。PM/EMG は各曜日の終了時刻に追従する（EMG は翌 am_start までの越日 #215）。
+  const weekdayRanges = computeClosingTimeRanges(amPmBoundary, weekdayEnd, settings.closing_am_start);
+  const sundayRanges = computeClosingTimeRanges(amPmBoundary, sundayEnd, settings.closing_am_start);
+
+  const rangeCellClass = `px-3 py-1.5 text-sm tabular-nums whitespace-nowrap ${C.text}`;
+  const headCellClass = `px-3 py-1.5 text-sm font-medium ${C.textMuted}`;
+
   return (
     <section className={`bg-white rounded-lg border ${C.borderLight} p-6`}>
       <h2 className={`text-base font-semibold ${C.text} mb-4`}>標準締め時間</h2>
@@ -57,7 +78,8 @@ export const StandardClosingTimeSection = memo(function StandardClosingTimeSecti
               id="closing_am_pm_boundary"
               name="closing_am_pm_boundary"
               type="time"
-              defaultValue={settings.closing_am_pm_boundary}
+              value={amPmBoundary}
+              onChange={(event) => setAmPmBoundary(event.target.value)}
               className={`${STYLE.formInput} mt-1 w-full rounded-[4px] border px-3`}
               required
             />
@@ -70,7 +92,8 @@ export const StandardClosingTimeSection = memo(function StandardClosingTimeSecti
               id="closing_weekday_end"
               name="closing_weekday_end"
               type="time"
-              defaultValue={settings.closing_weekday_end}
+              value={weekdayEnd}
+              onChange={(event) => setWeekdayEnd(event.target.value)}
               className={`${STYLE.formInput} mt-1 w-full rounded-[4px] border px-3`}
               required
             />
@@ -83,12 +106,48 @@ export const StandardClosingTimeSection = memo(function StandardClosingTimeSecti
               id="closing_sunday_end"
               name="closing_sunday_end"
               type="time"
-              defaultValue={settings.closing_sunday_end}
+              value={sundayEnd}
+              onChange={(event) => setSundayEnd(event.target.value)}
               className={`${STYLE.formInput} mt-1 w-full rounded-[4px] border px-3`}
               required
             />
           </div>
         </div>
+
+        {/* 時間帯プレビュー: 境界編集に即時追従する（Issue #151）。 */}
+        <div className={`overflow-x-auto rounded-[4px] border ${C.borderLight} ${C.bgSubtle} p-4`}>
+          <table className="w-full border-collapse text-left">
+            <caption className={`mb-3 text-left text-sm font-medium ${C.textMuted}`}>
+              時間帯プレビュー
+            </caption>
+            <thead>
+              <tr>
+                <th scope="col" className={headCellClass}>
+                  区分
+                </th>
+                <th scope="col" className={headCellClass}>
+                  平日
+                </th>
+                <th scope="col" className={headCellClass}>
+                  日曜
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {PERIOD_ROWS.map((row) => (
+                <tr key={row.key}>
+                  <th scope="row" className={`px-3 py-1.5 ${C.text}`}>
+                    <span className="font-semibold">{row.label}</span>
+                    <span className={`ml-2 text-sm ${C.textMuted}`}>{row.caption}</span>
+                  </th>
+                  <td className={rangeCellClass}>{formatRangeText(weekdayRanges[row.key])}</td>
+                  <td className={rangeCellClass}>{formatRangeText(sundayRanges[row.key])}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
         <div>
           <p className={`${STYLE.formLabel} mb-2`}>休診曜日</p>
           <div className="flex flex-wrap gap-3">

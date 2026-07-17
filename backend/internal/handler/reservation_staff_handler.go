@@ -96,8 +96,8 @@ func (h *Handler) DeleteReservationStaff(c *gin.Context) {
 	c.Status(http.StatusNoContent)
 }
 
-// PatchReservationStaffStatus godoc
-func (h *Handler) PatchReservationStaffStatus(c *gin.Context) {
+// UpdateReservationStaffStatus godoc
+func (h *Handler) UpdateReservationStaffStatus(c *gin.Context) {
 	clinicID, ok := extractClinicID(c)
 	if !ok {
 		return
@@ -119,8 +119,8 @@ func (h *Handler) PatchReservationStaffStatus(c *gin.Context) {
 	c.JSON(http.StatusOK, toReservationStaffResponse(staff, excluded))
 }
 
-// PatchReservationStaffSortOrder godoc
-func (h *Handler) PatchReservationStaffSortOrder(c *gin.Context) {
+// UpdateReservationStaffSortOrder godoc
+func (h *Handler) UpdateReservationStaffSortOrder(c *gin.Context) {
 	clinicID, ok := extractClinicID(c)
 	if !ok {
 		return

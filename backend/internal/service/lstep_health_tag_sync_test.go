@@ -19,7 +19,6 @@ type mockLstepTagCodeMappingRepository struct {
 	findAllByClinicIDFn        func(ctx context.Context, clinicID uint64) ([]*model.LstepTagCodeMapping, error)
 	findByClinicIDAndTagNameFn func(ctx context.Context, clinicID uint64, tagName string) ([]*model.LstepTagCodeMapping, error)
 	createFn                   func(ctx context.Context, mapping *model.LstepTagCodeMapping) error
-	updateFn                   func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.LstepTagCodeMapping, error)
 	softDeleteFn               func(ctx context.Context, clinicID, id uint64) error
 }
 
@@ -40,12 +39,6 @@ func (m *mockLstepTagCodeMappingRepository) Create(ctx context.Context, mapping 
 		return m.createFn(ctx, mapping)
 	}
 	return nil
-}
-func (m *mockLstepTagCodeMappingRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.LstepTagCodeMapping, error) {
-	if m.updateFn != nil {
-		return m.updateFn(ctx, clinicID, id, fields)
-	}
-	return nil, nil
 }
 func (m *mockLstepTagCodeMappingRepository) SoftDelete(ctx context.Context, clinicID, id uint64) error {
 	if m.softDeleteFn != nil {
@@ -75,6 +68,8 @@ func ownerRepoReturning(owner *model.Owner) *mockOwnerRepository {
 
 // buildHealthSvc は健診・予防・物販タグテスト用にサービスを構築する。
 // settingsSvc: IsSyncEnabled=true, GetRawCredentials="" → buildClient→nil (APIコールなし)
+// SyncXxxWithMappings（interface 外の非公開メソッド群）を直接呼ぶため具象型を返す
+// （B-3: 呼び出し元ゼロの公開ラッパー削除に伴う変更）。
 func buildHealthSvc(
 	tagCodeRepo repository.LstepTagCodeMappingRepository,
 	ownerRepo repository.OwnerRepository,
@@ -82,7 +77,7 @@ func buildHealthSvc(
 	medRecordRepo repository.MedicalRecordRepository,
 	petRepo repository.PetRepository,
 	billingItemRepo repository.BillingItemRepository,
-) LstepTagSyncService {
+) *lstepTagSyncService {
 	settingsSvc := &mockLstepSettingsService{}
 	var tagCache repository.LstepTagCacheRepository = &mockLstepTagCacheRepository{}
 	return NewLstepTagSyncService(
@@ -100,7 +95,7 @@ func buildHealthSvc(
 		tagCodeRepo,
 		billingItemRepo,
 		nil, // tagConfigRepo
-	)
+	).(*lstepTagSyncService)
 }
 
 func mappingWith(tagName, codeType string, codes []string) *mockLstepTagCodeMappingRepository {
@@ -234,27 +229,27 @@ func TestSyncHealthcheckTags(t *testing.T) {
 
 	t.Run("nil tagCodeRepo→noop", func(t *testing.T) {
 		svc := buildHealthSvc(nil, ownerRepoReturning(defaultOwnerWithLineID()), nil, nil, nil, nil)
-		assert.NoError(t, svc.SyncHealthcheckTags(ctx, clinicID, ownerID))
+		assert.NoError(t, svc.SyncHealthcheckTagsWithMappings(ctx, clinicID, ownerID, nil, nil))
 	})
 
 	t.Run("コードなし→noop", func(t *testing.T) {
 		tagRepo := &mockLstepTagCodeMappingRepository{} // FindByClinicIDAndTagName → nil, nil
 		svc := buildHealthSvc(tagRepo, ownerRepoReturning(defaultOwnerWithLineID()), nil, nil, nil, nil)
-		assert.NoError(t, svc.SyncHealthcheckTags(ctx, clinicID, ownerID))
+		assert.NoError(t, svc.SyncHealthcheckTagsWithMappings(ctx, clinicID, ownerID, nil, nil))
 	})
 
 	t.Run("オプトアウト→noop", func(t *testing.T) {
 		owner := &model.Owner{ID: 1, LstepOptOut: true}
 		tagRepo := mappingWith(HlthHealthcheckDoneTag, model.CodeTypeCheckupType, []string{"健診A"})
 		svc := buildHealthSvc(tagRepo, ownerRepoReturning(owner), checkupRepoWithResult(nil, nil), nil, nil, nil)
-		assert.NoError(t, svc.SyncHealthcheckTags(ctx, clinicID, ownerID))
+		assert.NoError(t, svc.SyncHealthcheckTagsWithMappings(ctx, clinicID, ownerID, nil, nil))
 	})
 
 	t.Run("LineUserIDなし→noop", func(t *testing.T) {
 		owner := &model.Owner{ID: 1, LstepOptOut: false, LineUserID: nil}
 		tagRepo := mappingWith(HlthHealthcheckDoneTag, model.CodeTypeCheckupType, []string{"健診A"})
 		svc := buildHealthSvc(tagRepo, ownerRepoReturning(owner), checkupRepoWithResult(nil, nil), nil, nil, nil)
-		assert.NoError(t, svc.SyncHealthcheckTags(ctx, clinicID, ownerID))
+		assert.NoError(t, svc.SyncHealthcheckTagsWithMappings(ctx, clinicID, ownerID, nil, nil))
 	})
 
 	t.Run("lookback内で一致→hasHealthcheck=true→nil(client=nil)", func(t *testing.T) {
@@ -262,7 +257,7 @@ func TestSyncHealthcheckTags(t *testing.T) {
 		checkups := []model.Checkup{recentCheckup("健診A")}
 		svc := buildHealthSvc(tagRepo, ownerRepoReturning(defaultOwnerWithLineID()),
 			checkupRepoWithResult(checkups, nil), nil, nil, nil)
-		assert.NoError(t, svc.SyncHealthcheckTags(ctx, clinicID, ownerID))
+		assert.NoError(t, svc.SyncHealthcheckTagsWithMappings(ctx, clinicID, ownerID, nil, nil))
 	})
 
 	t.Run("lookback外の健診→hasHealthcheck=false→nil", func(t *testing.T) {
@@ -270,7 +265,7 @@ func TestSyncHealthcheckTags(t *testing.T) {
 		checkups := []model.Checkup{oldCheckup("健診A")}
 		svc := buildHealthSvc(tagRepo, ownerRepoReturning(defaultOwnerWithLineID()),
 			checkupRepoWithResult(checkups, nil), nil, nil, nil)
-		assert.NoError(t, svc.SyncHealthcheckTags(ctx, clinicID, ownerID))
+		assert.NoError(t, svc.SyncHealthcheckTagsWithMappings(ctx, clinicID, ownerID, nil, nil))
 	})
 
 	t.Run("コードが一致しない→hasHealthcheck=false→nil", func(t *testing.T) {
@@ -278,14 +273,14 @@ func TestSyncHealthcheckTags(t *testing.T) {
 		checkups := []model.Checkup{recentCheckup("健診A")} // 別コード
 		svc := buildHealthSvc(tagRepo, ownerRepoReturning(defaultOwnerWithLineID()),
 			checkupRepoWithResult(checkups, nil), nil, nil, nil)
-		assert.NoError(t, svc.SyncHealthcheckTags(ctx, clinicID, ownerID))
+		assert.NoError(t, svc.SyncHealthcheckTagsWithMappings(ctx, clinicID, ownerID, nil, nil))
 	})
 
 	t.Run("checkupRepo エラー→エラー返却", func(t *testing.T) {
 		tagRepo := mappingWith(HlthHealthcheckDoneTag, model.CodeTypeCheckupType, []string{"健診A"})
 		svc := buildHealthSvc(tagRepo, ownerRepoReturning(defaultOwnerWithLineID()),
 			checkupRepoWithResult(nil, errors.New("db error")), nil, nil, nil)
-		assert.Error(t, svc.SyncHealthcheckTags(ctx, clinicID, ownerID))
+		assert.Error(t, svc.SyncHealthcheckTagsWithMappings(ctx, clinicID, ownerID, nil, nil))
 	})
 
 	t.Run("tagCodeRepo エラー→エラー返却", func(t *testing.T) {
@@ -295,7 +290,7 @@ func TestSyncHealthcheckTags(t *testing.T) {
 			},
 		}
 		svc := buildHealthSvc(tagRepo, ownerRepoReturning(defaultOwnerWithLineID()), nil, nil, nil, nil)
-		assert.Error(t, svc.SyncHealthcheckTags(ctx, clinicID, ownerID))
+		assert.Error(t, svc.SyncHealthcheckTagsWithMappings(ctx, clinicID, ownerID, nil, nil))
 	})
 
 	t.Run("ownerRepo エラー→エラー返却", func(t *testing.T) {
@@ -306,7 +301,7 @@ func TestSyncHealthcheckTags(t *testing.T) {
 			},
 		}
 		svc := buildHealthSvc(tagRepo, ownerRepo, nil, nil, nil, nil)
-		assert.Error(t, svc.SyncHealthcheckTags(ctx, clinicID, ownerID))
+		assert.Error(t, svc.SyncHealthcheckTagsWithMappings(ctx, clinicID, ownerID, nil, nil))
 	})
 }
 
@@ -318,13 +313,13 @@ func TestSyncAnnual4CheckupTag(t *testing.T) {
 
 	t.Run("nil tagCodeRepo→noop", func(t *testing.T) {
 		svc := buildHealthSvc(nil, ownerRepoReturning(defaultOwnerWithLineID()), nil, nil, nil, nil)
-		assert.NoError(t, svc.SyncAnnual4CheckupTag(ctx, clinicID, ownerID))
+		assert.NoError(t, svc.SyncAnnual4CheckupTagWithMappings(ctx, clinicID, ownerID, nil, nil))
 	})
 
 	t.Run("コードなし→noop", func(t *testing.T) {
 		svc := buildHealthSvc(&mockLstepTagCodeMappingRepository{},
 			ownerRepoReturning(defaultOwnerWithLineID()), nil, nil, nil, nil)
-		assert.NoError(t, svc.SyncAnnual4CheckupTag(ctx, clinicID, ownerID))
+		assert.NoError(t, svc.SyncAnnual4CheckupTagWithMappings(ctx, clinicID, ownerID, nil, nil))
 	})
 
 	t.Run("healthcheck=true AnnualCount>=2→qualified→nil", func(t *testing.T) {
@@ -333,7 +328,7 @@ func TestSyncAnnual4CheckupTag(t *testing.T) {
 		medRepo := visitSummaryRepo(2)
 		svc := buildHealthSvc(tagRepo, ownerRepoReturning(defaultOwnerWithLineID()),
 			checkupRepoWithResult(checkups, nil), medRepo, nil, nil)
-		assert.NoError(t, svc.SyncAnnual4CheckupTag(ctx, clinicID, ownerID))
+		assert.NoError(t, svc.SyncAnnual4CheckupTagWithMappings(ctx, clinicID, ownerID, nil, nil))
 	})
 
 	t.Run("healthcheck=true AnnualCount<2→not qualified→nil", func(t *testing.T) {
@@ -342,7 +337,7 @@ func TestSyncAnnual4CheckupTag(t *testing.T) {
 		medRepo := visitSummaryRepo(1)
 		svc := buildHealthSvc(tagRepo, ownerRepoReturning(defaultOwnerWithLineID()),
 			checkupRepoWithResult(checkups, nil), medRepo, nil, nil)
-		assert.NoError(t, svc.SyncAnnual4CheckupTag(ctx, clinicID, ownerID))
+		assert.NoError(t, svc.SyncAnnual4CheckupTagWithMappings(ctx, clinicID, ownerID, nil, nil))
 	})
 
 	t.Run("healthcheck=false AnnualCount>=2→not qualified→nil", func(t *testing.T) {
@@ -351,7 +346,7 @@ func TestSyncAnnual4CheckupTag(t *testing.T) {
 		medRepo := visitSummaryRepo(5)
 		svc := buildHealthSvc(tagRepo, ownerRepoReturning(defaultOwnerWithLineID()),
 			checkupRepoWithResult(checkups, nil), medRepo, nil, nil)
-		assert.NoError(t, svc.SyncAnnual4CheckupTag(ctx, clinicID, ownerID))
+		assert.NoError(t, svc.SyncAnnual4CheckupTagWithMappings(ctx, clinicID, ownerID, nil, nil))
 	})
 
 	t.Run("medRecordRepo エラー→エラー返却", func(t *testing.T) {
@@ -364,14 +359,14 @@ func TestSyncAnnual4CheckupTag(t *testing.T) {
 		}
 		svc := buildHealthSvc(tagRepo, ownerRepoReturning(defaultOwnerWithLineID()),
 			checkupRepoWithResult(checkups, nil), medRepo, nil, nil)
-		assert.Error(t, svc.SyncAnnual4CheckupTag(ctx, clinicID, ownerID))
+		assert.Error(t, svc.SyncAnnual4CheckupTagWithMappings(ctx, clinicID, ownerID, nil, nil))
 	})
 
 	t.Run("checkupRepo エラー→エラー返却", func(t *testing.T) {
 		tagRepo := mappingWith(HlthHealthcheckDoneTag, model.CodeTypeCheckupType, []string{"健診A"})
 		svc := buildHealthSvc(tagRepo, ownerRepoReturning(defaultOwnerWithLineID()),
 			checkupRepoWithResult(nil, errors.New("db error")), visitSummaryRepo(3), nil, nil)
-		assert.Error(t, svc.SyncAnnual4CheckupTag(ctx, clinicID, ownerID))
+		assert.Error(t, svc.SyncAnnual4CheckupTagWithMappings(ctx, clinicID, ownerID, nil, nil))
 	})
 }
 
@@ -383,7 +378,7 @@ func TestSyncFilariaTag(t *testing.T) {
 
 	t.Run("nil tagCodeRepo→noop", func(t *testing.T) {
 		svc := buildHealthSvc(nil, ownerRepoReturning(defaultOwnerWithLineID()), nil, nil, nil, nil)
-		assert.NoError(t, svc.SyncFilariaTag(ctx, clinicID, ownerID))
+		assert.NoError(t, svc.SyncFilariaTagWithMappings(ctx, clinicID, ownerID, nil, nil))
 	})
 
 	t.Run("testCodes/rxCodes両方空→noop", func(t *testing.T) {
@@ -396,7 +391,7 @@ func TestSyncFilariaTag(t *testing.T) {
 			},
 		}
 		svc := buildHealthSvc(tagRepo, ownerRepoReturning(defaultOwnerWithLineID()), nil, nil, nil, nil)
-		assert.NoError(t, svc.SyncFilariaTag(ctx, clinicID, ownerID))
+		assert.NoError(t, svc.SyncFilariaTagWithMappings(ctx, clinicID, ownerID, nil, nil))
 	})
 
 	t.Run("犬なし→noop(nil返却)", func(t *testing.T) {
@@ -404,7 +399,7 @@ func TestSyncFilariaTag(t *testing.T) {
 		petRepo := petRepoWithPets([]model.Pet{catPet()}, nil)
 		svc := buildHealthSvc(tagRepo, ownerRepoReturning(defaultOwnerWithLineID()),
 			checkupRepoWithResult(nil, nil), nil, petRepo, nil)
-		assert.NoError(t, svc.SyncFilariaTag(ctx, clinicID, ownerID))
+		assert.NoError(t, svc.SyncFilariaTagWithMappings(ctx, clinicID, ownerID, nil, nil))
 	})
 
 	t.Run("犬あり+testDone=true→complete→nil", func(t *testing.T) {
@@ -413,7 +408,7 @@ func TestSyncFilariaTag(t *testing.T) {
 		petRepo := petRepoWithPets([]model.Pet{dogPet()}, nil)
 		svc := buildHealthSvc(tagRepo, ownerRepoReturning(defaultOwnerWithLineID()),
 			checkupRepoWithResult(checkups, nil), nil, petRepo, nil)
-		assert.NoError(t, svc.SyncFilariaTag(ctx, clinicID, ownerID))
+		assert.NoError(t, svc.SyncFilariaTagWithMappings(ctx, clinicID, ownerID, nil, nil))
 	})
 
 	t.Run("犬あり+rxDone=true→complete→nil", func(t *testing.T) {
@@ -422,7 +417,7 @@ func TestSyncFilariaTag(t *testing.T) {
 		billingRepo := billingItemRepoReturning(true, false)
 		svc := buildHealthSvc(tagRepo, ownerRepoReturning(defaultOwnerWithLineID()),
 			checkupRepoWithResult(nil, nil), nil, petRepo, billingRepo)
-		assert.NoError(t, svc.SyncFilariaTag(ctx, clinicID, ownerID))
+		assert.NoError(t, svc.SyncFilariaTagWithMappings(ctx, clinicID, ownerID, nil, nil))
 	})
 
 	t.Run("犬あり+両方未完了→incomplete→nil(client=nil)", func(t *testing.T) {
@@ -439,7 +434,7 @@ func TestSyncFilariaTag(t *testing.T) {
 		billingRepo := billingItemRepoReturning(false, false)
 		svc := buildHealthSvc(tagRepo, ownerRepoReturning(defaultOwnerWithLineID()),
 			checkupRepoWithResult(checkups, nil), nil, petRepo, billingRepo)
-		assert.NoError(t, svc.SyncFilariaTag(ctx, clinicID, ownerID))
+		assert.NoError(t, svc.SyncFilariaTagWithMappings(ctx, clinicID, ownerID, nil, nil))
 	})
 
 	t.Run("petRepo エラー→エラー返却", func(t *testing.T) {
@@ -447,7 +442,7 @@ func TestSyncFilariaTag(t *testing.T) {
 		petRepo := petRepoWithPets(nil, errors.New("db error"))
 		svc := buildHealthSvc(tagRepo, ownerRepoReturning(defaultOwnerWithLineID()),
 			nil, nil, petRepo, nil)
-		assert.Error(t, svc.SyncFilariaTag(ctx, clinicID, ownerID))
+		assert.Error(t, svc.SyncFilariaTagWithMappings(ctx, clinicID, ownerID, nil, nil))
 	})
 
 	t.Run("checkupRepo エラー→エラー返却", func(t *testing.T) {
@@ -455,7 +450,7 @@ func TestSyncFilariaTag(t *testing.T) {
 		petRepo := petRepoWithPets([]model.Pet{dogPet()}, nil)
 		svc := buildHealthSvc(tagRepo, ownerRepoReturning(defaultOwnerWithLineID()),
 			checkupRepoWithResult(nil, errors.New("db error")), nil, petRepo, nil)
-		assert.Error(t, svc.SyncFilariaTag(ctx, clinicID, ownerID))
+		assert.Error(t, svc.SyncFilariaTagWithMappings(ctx, clinicID, ownerID, nil, nil))
 	})
 
 	t.Run("billingItemRepo エラー→エラー返却", func(t *testing.T) {
@@ -468,7 +463,7 @@ func TestSyncFilariaTag(t *testing.T) {
 		}
 		svc := buildHealthSvc(tagRepo, ownerRepoReturning(defaultOwnerWithLineID()),
 			checkupRepoWithResult(nil, nil), nil, petRepo, billingRepo)
-		assert.Error(t, svc.SyncFilariaTag(ctx, clinicID, ownerID))
+		assert.Error(t, svc.SyncFilariaTagWithMappings(ctx, clinicID, ownerID, nil, nil))
 	})
 }
 
@@ -480,20 +475,20 @@ func TestSyncFleaTickTag(t *testing.T) {
 
 	t.Run("nil tagCodeRepo→noop", func(t *testing.T) {
 		svc := buildHealthSvc(nil, ownerRepoReturning(defaultOwnerWithLineID()), nil, nil, nil, billingItemRepoReturning(false, false))
-		assert.NoError(t, svc.SyncFleaTickTag(ctx, clinicID, ownerID))
+		assert.NoError(t, svc.SyncFleaTickTagWithMappings(ctx, clinicID, ownerID, nil, nil))
 	})
 
 	t.Run("nil billingItemRepo→noop", func(t *testing.T) {
 		tagRepo := mappingWith(PrevFleaTickTag, model.CodeTypePrescription, []string{"ノミダニ薬"})
 		svc := buildHealthSvc(tagRepo, ownerRepoReturning(defaultOwnerWithLineID()), nil, nil, nil, nil)
-		assert.NoError(t, svc.SyncFleaTickTag(ctx, clinicID, ownerID))
+		assert.NoError(t, svc.SyncFleaTickTagWithMappings(ctx, clinicID, ownerID, nil, nil))
 	})
 
 	t.Run("rxCodesなし→noop", func(t *testing.T) {
 		tagRepo := &mockLstepTagCodeMappingRepository{} // FindByClinicIDAndTagName → nil
 		svc := buildHealthSvc(tagRepo, ownerRepoReturning(defaultOwnerWithLineID()),
 			nil, nil, nil, billingItemRepoReturning(false, false))
-		assert.NoError(t, svc.SyncFleaTickTag(ctx, clinicID, ownerID))
+		assert.NoError(t, svc.SyncFleaTickTagWithMappings(ctx, clinicID, ownerID, nil, nil))
 	})
 
 	t.Run("処方なし→add tag→nil(client=nil)", func(t *testing.T) {
@@ -501,7 +496,7 @@ func TestSyncFleaTickTag(t *testing.T) {
 		billingRepo := billingItemRepoReturning(false, false)
 		svc := buildHealthSvc(tagRepo, ownerRepoReturning(defaultOwnerWithLineID()),
 			nil, nil, nil, billingRepo)
-		assert.NoError(t, svc.SyncFleaTickTag(ctx, clinicID, ownerID))
+		assert.NoError(t, svc.SyncFleaTickTagWithMappings(ctx, clinicID, ownerID, nil, nil))
 	})
 
 	t.Run("処方あり→remove tag→nil(client=nil)", func(t *testing.T) {
@@ -509,7 +504,7 @@ func TestSyncFleaTickTag(t *testing.T) {
 		billingRepo := billingItemRepoReturning(true, false)
 		svc := buildHealthSvc(tagRepo, ownerRepoReturning(defaultOwnerWithLineID()),
 			nil, nil, nil, billingRepo)
-		assert.NoError(t, svc.SyncFleaTickTag(ctx, clinicID, ownerID))
+		assert.NoError(t, svc.SyncFleaTickTagWithMappings(ctx, clinicID, ownerID, nil, nil))
 	})
 
 	t.Run("billingItemRepo エラー→エラー返却", func(t *testing.T) {
@@ -521,7 +516,7 @@ func TestSyncFleaTickTag(t *testing.T) {
 		}
 		svc := buildHealthSvc(tagRepo, ownerRepoReturning(defaultOwnerWithLineID()),
 			nil, nil, nil, billingRepo)
-		assert.Error(t, svc.SyncFleaTickTag(ctx, clinicID, ownerID))
+		assert.Error(t, svc.SyncFleaTickTagWithMappings(ctx, clinicID, ownerID, nil, nil))
 	})
 }
 
@@ -533,13 +528,13 @@ func TestSyncFoodPurchaseTag(t *testing.T) {
 
 	t.Run("nil tagCodeRepo→noop", func(t *testing.T) {
 		svc := buildHealthSvc(nil, ownerRepoReturning(defaultOwnerWithLineID()), nil, nil, nil, billingItemRepoReturning(false, false))
-		assert.NoError(t, svc.SyncFoodPurchaseTag(ctx, clinicID, ownerID))
+		assert.NoError(t, svc.SyncFoodPurchaseTagWithMappings(ctx, clinicID, ownerID, nil, nil))
 	})
 
 	t.Run("nil billingItemRepo→noop", func(t *testing.T) {
 		tagRepo := mappingWith(LtvFoodPurchaseTag, model.CodeTypeMerchandiseItem, []string{"フード1"})
 		svc := buildHealthSvc(tagRepo, ownerRepoReturning(defaultOwnerWithLineID()), nil, nil, nil, nil)
-		assert.NoError(t, svc.SyncFoodPurchaseTag(ctx, clinicID, ownerID))
+		assert.NoError(t, svc.SyncFoodPurchaseTagWithMappings(ctx, clinicID, ownerID, nil, nil))
 	})
 
 	t.Run("itemCodesなし→noop対象外(HasFoodPurchase呼ぶ)→nil", func(t *testing.T) {
@@ -548,7 +543,7 @@ func TestSyncFoodPurchaseTag(t *testing.T) {
 		billingRepo := billingItemRepoReturning(false, false)
 		svc := buildHealthSvc(tagRepo, ownerRepoReturning(defaultOwnerWithLineID()),
 			nil, nil, nil, billingRepo)
-		assert.NoError(t, svc.SyncFoodPurchaseTag(ctx, clinicID, ownerID))
+		assert.NoError(t, svc.SyncFoodPurchaseTagWithMappings(ctx, clinicID, ownerID, nil, nil))
 	})
 
 	t.Run("フード購入あり→add tag→nil(client=nil)", func(t *testing.T) {
@@ -556,7 +551,7 @@ func TestSyncFoodPurchaseTag(t *testing.T) {
 		billingRepo := billingItemRepoReturning(false, true)
 		svc := buildHealthSvc(tagRepo, ownerRepoReturning(defaultOwnerWithLineID()),
 			nil, nil, nil, billingRepo)
-		assert.NoError(t, svc.SyncFoodPurchaseTag(ctx, clinicID, ownerID))
+		assert.NoError(t, svc.SyncFoodPurchaseTagWithMappings(ctx, clinicID, ownerID, nil, nil))
 	})
 
 	t.Run("フード購入なし→remove tag→nil(client=nil)", func(t *testing.T) {
@@ -564,7 +559,7 @@ func TestSyncFoodPurchaseTag(t *testing.T) {
 		billingRepo := billingItemRepoReturning(false, false)
 		svc := buildHealthSvc(tagRepo, ownerRepoReturning(defaultOwnerWithLineID()),
 			nil, nil, nil, billingRepo)
-		assert.NoError(t, svc.SyncFoodPurchaseTag(ctx, clinicID, ownerID))
+		assert.NoError(t, svc.SyncFoodPurchaseTagWithMappings(ctx, clinicID, ownerID, nil, nil))
 	})
 
 	t.Run("billingItemRepo エラー→エラー返却", func(t *testing.T) {
@@ -576,7 +571,7 @@ func TestSyncFoodPurchaseTag(t *testing.T) {
 		}
 		svc := buildHealthSvc(tagRepo, ownerRepoReturning(defaultOwnerWithLineID()),
 			nil, nil, nil, billingRepo)
-		assert.Error(t, svc.SyncFoodPurchaseTag(ctx, clinicID, ownerID))
+		assert.Error(t, svc.SyncFoodPurchaseTagWithMappings(ctx, clinicID, ownerID, nil, nil))
 	})
 }
 
@@ -609,7 +604,8 @@ func (m *mockVaccinationRepoForHealth) FindOwnersByVaccineDeadline(_ context.Con
 	return nil, nil
 }
 
-func buildVaccineSvc(ownerRepo repository.OwnerRepository, vacRepo repository.VaccinationRepository) LstepTagSyncService {
+// buildVaccineSvc は syncVaccineDeadlineTagImpl（非公開）を直接呼ぶテスト用に具象型を返す。
+func buildVaccineSvc(ownerRepo repository.OwnerRepository, vacRepo repository.VaccinationRepository) *lstepTagSyncService {
 	settingsSvc := &mockLstepSettingsService{}
 	var tagCache repository.LstepTagCacheRepository = &mockLstepTagCacheRepository{}
 	return NewLstepTagSyncService(
@@ -620,7 +616,7 @@ func buildVaccineSvc(ownerRepo repository.OwnerRepository, vacRepo repository.Va
 		tagCache,
 		nil, nil, nil, nil, nil, nil, nil,
 		nil, // tagConfigRepo
-	)
+	).(*lstepTagSyncService)
 }
 
 // ---- TestSyncVaccineDeadlineTag ----
@@ -633,13 +629,13 @@ func TestSyncVaccineDeadlineTag(t *testing.T) {
 	t.Run("オプトアウト→noop", func(t *testing.T) {
 		owner := &model.Owner{ID: ownerID, ClinicID: clinicID, LstepOptOut: true}
 		svc := buildVaccineSvc(ownerRepoReturning(owner), &mockVaccinationRepoForHealth{})
-		assert.NoError(t, svc.SyncVaccineDeadlineTag(ctx, clinicID, ownerID))
+		assert.NoError(t, svc.syncVaccineDeadlineTagImpl(ctx, clinicID, ownerID, model.HealthPreventionThresholds{}.WithDefaults()))
 	})
 
 	t.Run("LineUserIDなし→noop", func(t *testing.T) {
 		owner := &model.Owner{ID: ownerID, ClinicID: clinicID, LstepOptOut: false, LineUserID: nil}
 		svc := buildVaccineSvc(ownerRepoReturning(owner), &mockVaccinationRepoForHealth{})
-		assert.NoError(t, svc.SyncVaccineDeadlineTag(ctx, clinicID, ownerID))
+		assert.NoError(t, svc.syncVaccineDeadlineTagImpl(ctx, clinicID, ownerID, model.HealthPreventionThresholds{}.WithDefaults()))
 	})
 
 	t.Run("NextDate nil→期限なし→nil(client=nil)", func(t *testing.T) {
@@ -650,7 +646,7 @@ func TestSyncVaccineDeadlineTag(t *testing.T) {
 			},
 		}
 		svc := buildVaccineSvc(ownerRepoReturning(defaultOwnerWithLineID()), vacRepo)
-		assert.NoError(t, svc.SyncVaccineDeadlineTag(ctx, clinicID, ownerID))
+		assert.NoError(t, svc.syncVaccineDeadlineTagImpl(ctx, clinicID, ownerID, model.HealthPreventionThresholds{}.WithDefaults()))
 	})
 
 	t.Run("期限なし→nil(client=nil)", func(t *testing.T) {
@@ -662,7 +658,7 @@ func TestSyncVaccineDeadlineTag(t *testing.T) {
 			},
 		}
 		svc := buildVaccineSvc(ownerRepoReturning(defaultOwnerWithLineID()), vacRepo)
-		assert.NoError(t, svc.SyncVaccineDeadlineTag(ctx, clinicID, ownerID))
+		assert.NoError(t, svc.syncVaccineDeadlineTagImpl(ctx, clinicID, ownerID, model.HealthPreventionThresholds{}.WithDefaults()))
 	})
 
 	t.Run("期限あり→nil(client=nil)", func(t *testing.T) {
@@ -674,7 +670,7 @@ func TestSyncVaccineDeadlineTag(t *testing.T) {
 			},
 		}
 		svc := buildVaccineSvc(ownerRepoReturning(defaultOwnerWithLineID()), vacRepo)
-		assert.NoError(t, svc.SyncVaccineDeadlineTag(ctx, clinicID, ownerID))
+		assert.NoError(t, svc.syncVaccineDeadlineTagImpl(ctx, clinicID, ownerID, model.HealthPreventionThresholds{}.WithDefaults()))
 	})
 
 	t.Run("vacRepo エラー→エラー返却", func(t *testing.T) {
@@ -684,6 +680,6 @@ func TestSyncVaccineDeadlineTag(t *testing.T) {
 			},
 		}
 		svc := buildVaccineSvc(ownerRepoReturning(defaultOwnerWithLineID()), vacRepo)
-		assert.Error(t, svc.SyncVaccineDeadlineTag(ctx, clinicID, ownerID))
+		assert.Error(t, svc.syncVaccineDeadlineTagImpl(ctx, clinicID, ownerID, model.HealthPreventionThresholds{}.WithDefaults()))
 	})
 }

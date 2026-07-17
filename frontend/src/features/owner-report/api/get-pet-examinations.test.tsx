@@ -1,9 +1,8 @@
-import type { ReactNode } from "react";
 import { describe, it, expect } from "vitest";
 import { renderHook, waitFor } from "@testing-library/react";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { http, HttpResponse } from "msw";
 import { server } from "@/testing/mocks/node";
+import { createTestWrapper } from "@/testing/utils";
 import { useGetPetExaminations } from "./get-pet-examinations";
 
 function makeBackendExam(id: number, status: string, typeName: string) {
@@ -16,12 +15,7 @@ function makeBackendExam(id: number, status: string, typeName: string) {
   };
 }
 
-function createWrapper() {
-  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  return ({ children }: { children: ReactNode }) => (
-    <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
-  );
-}
+const createWrapper = createTestWrapper;
 
 describe("useGetPetExaminations (#158 下書き除外)", () => {
   it("依頼中/検査中を除外し、結果入力済み/完了/確定のみ日付順で返す", async () => {
@@ -35,6 +29,7 @@ describe("useGetPetExaminations (#158 下書き除外)", () => {
             makeBackendExam(4, "completed", "D"),
             makeBackendExam(5, "confirmed", "E"),
           ],
+          total: 5,
         }),
       ),
     );
@@ -45,10 +40,30 @@ describe("useGetPetExaminations (#158 下書き除外)", () => {
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
 
-    const statuses = (result.current.data ?? []).map((e) => e.status);
+    const statuses = (result.current.data?.items ?? []).map((e) => e.status);
     expect(statuses).toEqual(["結果入力済み", "完了", "確定"]);
     expect(statuses).not.toContain("依頼中");
     expect(statuses).not.toContain("検査中");
+    expect(result.current.data?.isTruncated).toBe(false);
+  });
+
+  it("SD-18: total が fetch した生件数を上回れば isTruncated=true を返す（下書き除外後の件数では判定しない）", async () => {
+    server.use(
+      http.get("/api/v1/examinations", () =>
+        HttpResponse.json({
+          data: [makeBackendExam(1, "pending", "A"), makeBackendExam(2, "confirmed", "B")],
+          total: 150,
+        }),
+      ),
+    );
+
+    const { result } = renderHook(() => useGetPetExaminations("7"), {
+      wrapper: createWrapper(),
+    });
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+
+    expect(result.current.data?.isTruncated).toBe(true);
   });
 
   it("petId 未指定ならクエリは無効でフェッチしない", () => {

@@ -168,7 +168,7 @@ export const VaccinationForm = memo(function VaccinationForm() {
             ) : null}
             {canSubmit ? (
               <SubmitButton
-                className={`${C.bgAccent} ${C.bgAccentHover} ${C.textWhite} shadow-sm px-6 h-10 text-sm`}
+                className="px-6 h-10 text-sm"
               >
                 保存
               </SubmitButton>
@@ -176,7 +176,8 @@ export const VaccinationForm = memo(function VaccinationForm() {
           </div>
         }
       >
-        <NavigationBlocker when={isDirty && !isSaving} />
+        {/* FE6-8: jsx-no-leaked-render は非型認識のため isDirty を boolean と静的に断定できず !! で明示する */}
+        <NavigationBlocker when={!!isDirty && !isSaving} />
 
         <fieldset disabled={!canSubmit} className="border-0 p-0 m-0 min-w-0">
         {selectedPet ? (

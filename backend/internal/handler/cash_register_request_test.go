@@ -1,10 +1,62 @@
 package handler
 
 import (
+	"net/url"
 	"testing"
+	"time"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 )
+
+func TestNewListCashRegisterClosesQuery(t *testing.T) {
+	query := newListCashRegisterClosesQuery(url.Values{
+		"start_date": {"2026-05-01"},
+		"end_date":   {"2026-05-31"},
+	})
+
+	if query.StartDate != "2026-05-01" {
+		t.Errorf("StartDate = %q, want 2026-05-01", query.StartDate)
+	}
+	if query.EndDate != "2026-05-31" {
+		t.Errorf("EndDate = %q, want 2026-05-31", query.EndDate)
+	}
+}
+
+func TestNewListCashRegisterClosesQuery_Empty(t *testing.T) {
+	query := newListCashRegisterClosesQuery(url.Values{})
+
+	if query.StartDate != "" {
+		t.Errorf("StartDate = %q, want empty", query.StartDate)
+	}
+	if query.EndDate != "" {
+		t.Errorf("EndDate = %q, want empty", query.EndDate)
+	}
+}
+
+func TestNewCashRegisterPreviewQuery(t *testing.T) {
+	query := newCashRegisterPreviewQuery(url.Values{
+		"date":   {"2026-05-28"},
+		"period": {"am"},
+	})
+
+	if query.Date != "2026-05-28" {
+		t.Errorf("Date = %q, want 2026-05-28", query.Date)
+	}
+	if query.Period != "am" {
+		t.Errorf("Period = %q, want am", query.Period)
+	}
+}
+
+func TestNewCashRegisterPreviewQuery_Empty(t *testing.T) {
+	query := newCashRegisterPreviewQuery(url.Values{})
+
+	if query.Date != "" {
+		t.Errorf("Date = %q, want empty", query.Date)
+	}
+	if query.Period != "" {
+		t.Errorf("Period = %q, want empty", query.Period)
+	}
+}
 
 func TestListCashRegisterClosesQuery_ToServiceFilters(t *testing.T) {
 	filters, err := (listCashRegisterClosesQuery{
@@ -15,10 +67,10 @@ func TestListCashRegisterClosesQuery_ToServiceFilters(t *testing.T) {
 		t.Fatalf("toServiceFilters returned error: %v", err)
 	}
 
-	if filters.StartDate == nil || filters.StartDate.Format(cashRegisterDateLayout) != "2026-05-01" {
+	if filters.StartDate == nil || filters.StartDate.Format(time.DateOnly) != "2026-05-01" {
 		t.Fatalf("StartDate = %v, want 2026-05-01", filters.StartDate)
 	}
-	if filters.EndDate == nil || filters.EndDate.Format(cashRegisterDateLayout) != "2026-05-31" {
+	if filters.EndDate == nil || filters.EndDate.Format(time.DateOnly) != "2026-05-31" {
 		t.Fatalf("EndDate = %v, want 2026-05-31", filters.EndDate)
 	}
 }
@@ -61,7 +113,7 @@ func TestCloseCashRegisterRequest_ToServiceInput(t *testing.T) {
 		t.Fatalf("toServiceInput() error = %v", err)
 	}
 
-	if got := input.Date.Format(cashRegisterDateLayout); got != req.Date {
+	if got := input.Date.Format(time.DateOnly); got != req.Date {
 		t.Errorf("Date = %q, want %q", got, req.Date)
 	}
 	if input.Period != req.Period {

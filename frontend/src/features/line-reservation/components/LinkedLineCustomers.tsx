@@ -9,6 +9,7 @@ import { Link2, Link2Off, Search, MessageCircle } from "lucide-react";
 import { format } from "date-fns";
 import { ja } from "date-fns/locale";
 import { C, ICON, PALETTE } from "@/lib/design-tokens";
+import { EmptyState } from "@/components/shared/DataStates";
 import { normalizeKana } from "@/lib/normalize-kana";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -83,9 +84,7 @@ export const LinkedLineCustomers = memo(function LinkedLineCustomers({ clinicId,
       </div>
 
       {linked.length === 0 ? (
-        <p className={`text-sm ${C.textMuted} py-2`}>
-          紐付けされたLINEアカウントはありません
-        </p>
+        <EmptyState message="紐付けされたLINEアカウントはありません" />
       ) : (
         <div className="space-y-2">
           {linked.map((c) => (
@@ -189,9 +188,7 @@ function LinkSearchDialog({ unlinked, onLink, onClose, isPending }: LinkSearchDi
 
           <div className="max-h-60 overflow-y-auto space-y-1">
             {filtered.length === 0 ? (
-              <p className={`text-sm ${C.textMuted} text-center py-4`}>
-                未紐付けのLINE顧客が見つかりません
-              </p>
+              <EmptyState message="未紐付けのLINE顧客が見つかりません" />
             ) : (
               filtered.map((c) => (
                 <button

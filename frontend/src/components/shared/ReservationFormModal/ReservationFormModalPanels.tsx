@@ -6,8 +6,9 @@ import { Button } from "@/components/ui/button";
 import { DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { FormFieldError } from "@/components/shared/FormFieldError";
-import { ReservationRouteSelect } from "@/features/reservations";
-import type { NewOwnerFormData, ReservationRoute } from "@/features/reservations";
+import { ReservationRouteSelect } from "@/components/shared/ReservationRouteSelect";
+import type { NewOwnerFormData } from "@/types/reservation-form";
+import type { ReservationRoute } from "@/types/reservation-route";
 import { C, ICON, PALETTE } from "@/lib/design-tokens";
 import { cn } from "@/lib/utils";
 import type { Pet, Reservation } from "@/types";
@@ -17,7 +18,7 @@ import { ReservationFormFields } from "./ReservationFormFields";
 
 export type OwnerMode = "existing" | "new";
 export type MobilePanel = "search" | "form";
-export type LstepStatus = "synced" | "not-linked" | "opt-out" | undefined;
+type LstepStatus = "synced" | "not-linked" | "opt-out" | undefined;
 
 interface ReservationModalHeaderProps {
   isEditMode: boolean;
@@ -39,7 +40,7 @@ export function ReservationModalHeader({
           {isEditMode ? (
             <CalendarCheck className={`${ICON.page} ${C.textNotice}`} />
           ) : (
-            <Calendar className={`${ICON.page} ${C.accent}`} />
+            <Calendar className={`${ICON.page} ${C.textBrand}`} />
           )}
           <DialogTitle className={`text-sm font-bold ${C.text}`}>
             {isEditMode ? "予約編集" : "新規予約作成"}
@@ -85,10 +86,10 @@ const StepIndicator = memo(function StepIndicator({
   active: boolean;
 }) {
   return (
-    <div className={`flex items-center gap-1.5 text-xs ${active ? C.accent : C.text30}`}>
+    <div className={`flex items-center gap-1.5 text-xs ${active ? C.textBrand : C.text30}`}>
       <span
         className={`w-5 h-5 rounded-full flex items-center justify-center text-[11px] font-bold transition-colors ${
-          active ? `${C.bgAccent} ${C.textWhite}` : `${C.bgPrimary10} ${C.text30}`
+          active ? `${C.bgBrand} ${C.textWhite}` : `${C.bgPrimary10} ${C.text30}`
         }`}
       >
         {step}
@@ -134,7 +135,7 @@ export function ReservationPatientPanel({
             type="button"
             onClick={() => onOwnerModeChange("existing")}
             data-testid="mode-existing"
-            className={`flex-1 px-3 py-1.5 text-xs font-medium transition-colors ${ownerMode === "existing" ? `${C.bgAccent} ${C.textWhite}` : `bg-white ${C.text60}`}`}
+            className={`flex-1 px-3 py-1.5 text-xs font-medium transition-colors ${ownerMode === "existing" ? `${C.bgBrand} ${C.textWhite}` : `bg-white ${C.text60}`}`}
           >
             <Users size={12} className="inline mr-1" />既存飼主
           </button>
@@ -142,7 +143,7 @@ export function ReservationPatientPanel({
             type="button"
             onClick={() => onOwnerModeChange("new")}
             data-testid="mode-new"
-            className={`flex-1 px-3 py-1.5 text-xs font-medium transition-colors ${ownerMode === "new" ? `${C.bgAccent} ${C.textWhite}` : `bg-white ${C.text60}`}`}
+            className={`flex-1 px-3 py-1.5 text-xs font-medium transition-colors ${ownerMode === "new" ? `${C.bgBrand} ${C.textWhite}` : `bg-white ${C.text60}`}`}
           >
             <UserPlus size={12} className="inline mr-1" />新規飼主
           </button>
@@ -253,7 +254,7 @@ function SelectedPatientSummary({
   onSelectedPetsChange: (updater: (prev: Pet[]) => Pet[]) => void;
 }) {
   return (
-    <div className={`rounded-lg border p-3 transition-colors ${selectedPets.length > 0 ? `${C.bgAccentLight50} ${C.borderAccentLight}` : `${C.bgPage} ${C.borderMediumLight}`}`}>
+    <div className={`rounded-lg border p-3 transition-colors ${selectedPets.length > 0 ? `${C.bgBrandLight50} ${C.borderBrandLight}` : `${C.bgPage} ${C.borderMediumLight}`}`}>
       <Label className={`text-[12px] ${C.text40} font-bold tracking-widest uppercase block mb-3`}>
         予約対象（選択中）
         <span style={{ color: C.danger }} className="ml-1 normal-case" aria-hidden="true">*</span>
@@ -377,7 +378,7 @@ export function ReservationModalFooter({
         {canSave ? (
           <Button
             onClick={onSave}
-            className={`${C.bgAccent} ${C.textWhite} ${C.bgAccentHover} h-10 text-sm min-w-[100px]`}
+            className={`${C.bgBrand} ${C.textWhite} ${C.hoverBgBrand} h-10 text-sm rounded-full min-w-[100px]`}
           >
             {isEditMode ? "更新する" : "予約を確定"}
           </Button>

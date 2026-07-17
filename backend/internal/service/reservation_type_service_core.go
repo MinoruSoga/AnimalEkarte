@@ -36,6 +36,9 @@ func (s *reservationTypeService) Create(ctx context.Context, clinicID uint64, in
 	if err := s.validateReservationTypeParent(ctx, clinicID, input.ParentID); err != nil {
 		return nil, err
 	}
+	if err := s.validateReservationTypeGroup(ctx, clinicID, input.GroupID); err != nil {
+		return nil, err
+	}
 	reservationDayOption := model.ReservationDayOption(input.ReservationDayOption)
 	if reservationDayOption == "" {
 		reservationDayOption = model.DayOptionNone
@@ -120,6 +123,9 @@ func (s *reservationTypeService) Update(ctx context.Context, clinicID, id uint64
 	if err := s.validateReservationTypeParent(ctx, clinicID, input.ParentID); err != nil {
 		return nil, err
 	}
+	if err := s.validateReservationTypeGroup(ctx, clinicID, input.GroupID); err != nil {
+		return nil, err
+	}
 	fields := buildReservationTypeUpdate(input)
 	if len(fields) == 0 {
 		return nil, apperrors.WrapInvalidInput(ErrMsgAtLeastOneField)
@@ -195,6 +201,21 @@ func (s *reservationTypeService) validateReservationTypeParent(ctx context.Conte
 	}
 	if parent.ParentID != nil {
 		return apperrors.WrapInvalidInput("親予約区分にはルートノードのみ指定できます")
+	}
+	return nil
+}
+
+// validateReservationTypeGroup は BE-refactor.md X-14/U6b のクロステナント write 防止:
+// GroupID が caller の clinic に属することを INSERT/UPDATE 前に検証する
+// (validateReservationTypeParent / reservation_validators.go の typeRepo と同型の
+// nil 許容パターン。groupRepo 未設定時はチェックをスキップする — production は常に非 nil)。
+func (s *reservationTypeService) validateReservationTypeGroup(ctx context.Context, clinicID uint64, groupID *uint64) error {
+	if s.groupRepo == nil || groupID == nil {
+		return nil
+	}
+	if _, err := s.groupRepo.FindByID(ctx, clinicID, *groupID); err != nil {
+		slog.ErrorContext(ctx, "reservation type group not found or belongs to different clinic", "error", err, "group_id", *groupID, "clinic_id", clinicID)
+		return apperrors.Wrap(err, "failed to verify reservation type group ownership")
 	}
 	return nil
 }

@@ -68,7 +68,7 @@ func (s *lstepDeliveryTriggerService) processSingleOwner(
 		return false, err
 	}
 	if suppressed {
-		suppressionReason := fmt.Sprintf("owner_id=%d already has higher-priority trigger on %s", ownerID, asOf.Format("2006-01-02"))
+		suppressionReason := fmt.Sprintf("owner_id=%d already has higher-priority trigger on %s", ownerID, asOf.Format(time.DateOnly))
 		suppressedLog := &model.LstepDeliveryTriggerLog{
 			OwnerID:              ownerID,
 			ClinicID:             clinicID,

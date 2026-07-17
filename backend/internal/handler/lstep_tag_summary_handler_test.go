@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"testing"
 
 	"github.com/gin-gonic/gin"
@@ -177,6 +178,30 @@ func TestSearchLstepOwnersByTag(t *testing.T) {
 			assert.Equal(t, tt.wantStatus, w.Code)
 		})
 	}
+}
+
+// #179 ③: 日本語タグ名を含む CSV のファイル名が RFC 5987 でエンコードされ、
+// Content-Disposition で文字化けしないことを検証する。
+func TestSearchLstepOwnersByTag_CSVFilenameRFC5987(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	const tag = "優良顧客"
+	router := newSearchLstepOwnersByTagRouter(&mockLstepTagSummaryService{}, true)
+	req := httptest.NewRequest(
+		http.MethodGet,
+		"/lstep/owners?tag="+url.QueryEscape(tag)+"&format=csv",
+		http.NoBody,
+	)
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	cd := w.Header().Get("Content-Disposition")
+	// RFC 5987 の filename*（UTF-8）が併記される
+	assert.Contains(t, cd, "filename*=UTF-8''")
+	// 日本語タグ名はパーセントエンコードされて含まれる（生の UTF-8 を直書きしない）
+	assert.Contains(t, cd, url.PathEscape(tag))
+	// 非対応クライアント向け ASCII フォールバックも併記する
+	assert.Contains(t, cd, `filename="lstep-`)
 }
 
 func TestSearchLstepOwnersByTag_ReasonField(t *testing.T) {

@@ -3,6 +3,7 @@ import { toast } from "sonner";
 import { axios } from "@/lib/axios";
 import { getStoredClinicId } from "@/lib/current-clinic";
 import { handleApiError } from "@/lib/handle-api-error";
+import { queryKeys } from "@/lib/query-keys";
 
 export type LineSendType = "text" | "pdf_url" | "image_url";
 
@@ -38,7 +39,7 @@ export function useSendLineMessage(ownerId: string) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({
-        queryKey: ["line-send-history", ownerId],
+        queryKey: queryKeys.lineSendHistory(ownerId),
       });
       toast.success("LINEメッセージを送信しました");
     },

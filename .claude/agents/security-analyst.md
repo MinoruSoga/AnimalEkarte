@@ -25,11 +25,11 @@ model: opus
    - 認証・認可の設計
    - データ保護（暗号化、ハッシング）
 
-## 技術スタック
+技術スタックは root `CLAUDE.md` Project Overview を参照（ここに複製しない）。
 
-- Backend: Go 1.25 / Gin / GORM
-- Frontend: React 19 / TypeScript 5.7
-- Security Tools: gosec, pnpm audit, GitHub Advanced Security
+## セキュリティツール・基準
+
+- Tools: gosec, pnpm audit, GitHub Advanced Security
 - Standards: OWASP Top 10, CWE, CVE
 
 ## セキュリティチェックリスト

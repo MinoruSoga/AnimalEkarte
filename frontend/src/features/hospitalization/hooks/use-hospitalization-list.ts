@@ -4,6 +4,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { updateHospitalization } from "../api/update-hospitalization";
 import { handleApiError } from "@/lib/handle-api-error";
 import { paths } from "@/config/paths";
+import { queryKeys } from "@/lib/query-keys";
 import { useMasterItems } from "@/hooks/use-master-items";
 import { HospitalizationFilterStatus, HOSPITALIZATION_FILTER_STATUS, HOSPITALIZATION_STATUS } from "../constants";
 import type { Hospitalization } from "@/types";
@@ -21,7 +22,7 @@ export const useHospitalizationList = () => {
   // optimistic update は行わず、updateHospitalization 後の invalidateQueries で UI を更新する。
   const movePet = useCallback(async (hospitalizationId: string, targetCageId: string) => {
     // 全キャッシュエントリから入院リストを取得（フィルタに関わらず）
-    const allEntries = queryClient.getQueriesData<Hospitalization[]>({ queryKey: ["hospitalizations"] });
+    const allEntries = queryClient.getQueriesData<Hospitalization[]>({ queryKey: queryKeys.hospitalizations.all() });
     const hospitalizations = allEntries.flatMap(([, data]) => data ?? []);
 
     const sourceHosp = hospitalizations.find((h) => h.id === hospitalizationId);
@@ -53,7 +54,7 @@ export const useHospitalizationList = () => {
       } else {
         await updateHospitalization(sourceHosp.id, { cage_id: targetCageId });
       }
-      queryClient.invalidateQueries({ queryKey: ["hospitalizations"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.hospitalizations.all() });
     } catch (error) {
       handleApiError(error, "移動");
     }

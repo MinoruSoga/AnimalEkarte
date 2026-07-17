@@ -1,22 +1,14 @@
 import { describe, it, expect, afterEach, vi } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { MemoryRouter } from "react-router";
 import { http, HttpResponse } from "msw";
 import { server } from "@/testing/mocks/node";
+import { createTestWrapper } from "@/testing/utils";
 import { ReservationFormModal } from "./ReservationFormModal";
 import type { Reservation } from "@/types";
 
 function createWrapper() {
-  const queryClient = new QueryClient({
-    defaultOptions: { queries: { retry: false } },
-  });
-  return ({ children }: { children: React.ReactNode }) => (
-    <QueryClientProvider client={queryClient}>
-      <MemoryRouter>{children}</MemoryRouter>
-    </QueryClientProvider>
-  );
+  return createTestWrapper({ router: true });
 }
 
 /** 空レスポンスを返すハンドラ群。ReservationFormModal 内部のクエリを全て黙らせる */
@@ -461,11 +453,11 @@ describe("ReservationFormModal — 予約不可時間", () => {
     fireEvent.click(await screen.findByTestId("res-type-card-5"));
 
     await waitFor(() => {
-      expect(screen.getByTestId("res-start-time-trigger")).toHaveTextContent("9:00");
+      expect(screen.getByTestId("res-start-time-trigger")).toHaveTextContent("09:00");
     });
     await user.click(screen.getByTestId("res-start-time-trigger"));
     await waitFor(() => {
-      expect(screen.getByRole("option", { name: "9:45" })).toBeInTheDocument();
+      expect(screen.getByRole("option", { name: "09:45" })).toBeInTheDocument();
     });
     expect(screen.queryByRole("option", { name: "10:00" })).not.toBeInTheDocument();
     expect(screen.queryByRole("option", { name: "10:45" })).not.toBeInTheDocument();

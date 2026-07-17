@@ -56,7 +56,7 @@ VPC: 10.0.0.0/16 (us-east-1)
 
 | リソース | 許可ルール |
 |---------|-----------|
-| ALB | 80/tcp, 443/tcp。許可元は `alb_internal` に連動: `false`（internet-facing）は `0.0.0.0/0`、`true`（P2: internal ALB + CloudFront VPC Origin）は VPC CIDR に絞る + **VPC Origin apply 後に自動生成される `CloudFront-VPCOrigins-Service-SG` を source 参照する port 80 ingress を【必須】追加**（CloudFront → internal ALB 疎通には service-managed SG 参照が必須。VPC CIDR だけでは 504 で全断＝2026-06-18 live 検証。public CloudFront managed prefix list は SG ルール重み超過で不採用）。詳細は `docs/infra/P2_TERRAFORM_PLAN_RUNBOOK.md` §6.1 |
+| ALB | 80/tcp, 443/tcp。許可元は `alb_internal` に連動: `false`（internet-facing）は `0.0.0.0/0`、`true`（P2: internal ALB + CloudFront VPC Origin）は VPC CIDR に絞る + **VPC Origin apply 後に自動生成される `CloudFront-VPCOrigins-Service-SG` を source 参照する port 80 ingress を【必須】追加**（CloudFront → internal ALB 疎通には service-managed SG 参照が必須。VPC CIDR だけでは 504 で全断＝2026-06-18 live 検証。public CloudFront managed prefix list は SG ルール重み超過で不採用）。詳細は `docs/ops/p2-terraform-plan-runbook.md` §6.1 |
 | ECS | 8080/tcp from ALB SG のみ |
 | RDS | 5432/tcp from ECS SG + 開発者 IP |
 
@@ -119,11 +119,10 @@ infra/
 │       ├── ecr/              # ECR リポジトリ（animalekarte-api）
 │       ├── ecs/              # ALB, ECS Cluster/Service/Task
 │       └── github-oidc/      # GitHub Actions OIDC 連携
-├── terraform-bootstrap/      # S3・DynamoDB 初期化
-└── docs/
-    ├── deployment-guide.md   # デプロイ手順・トラブルシューティング
-    └── architecture.md       # アーキテクチャ詳細
+└── terraform-bootstrap/      # S3・DynamoDB 初期化
 ```
+
+> インフラ関連ドキュメントは `docs/ops/`（構成書・デプロイハブ・ランブック）に集約されている。
 
 ### State 管理
 
@@ -241,5 +240,8 @@ make build-prod   # animal-ekarte-api:latest + animal-ekarte-front:latest
 
 | ドキュメント | 説明 |
 |-------------|------|
-| [デプロイガイド](docs/deployment-guide.md) | デプロイ手順・トラブルシューティング |
-| [アーキテクチャ詳細](docs/architecture.md) | インフラアーキテクチャ設計 |
+| [デプロイハブ](../docs/ops/deploy/README.md) | デプロイ手順・ロールバック判定（Cloudflare 正系統 / ECS はロールバック専用） |
+| [インフラ構成書](../docs/ops/infra-architecture.md) | インフラアーキテクチャ設計 |
+
+> 旧 `infra/docs/{architecture,deployment-guide}.md` は AWS 時代の凍結コピー（Cloudflare 移行を未反映）
+> だったため 2026-07-16 に削除した（docs/ops/ が正本。経緯は git 履歴参照）。

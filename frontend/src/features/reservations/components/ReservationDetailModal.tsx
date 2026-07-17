@@ -4,7 +4,7 @@ import type { ReactNode } from "react";
 import { format } from "date-fns";
 import { ja } from "date-fns/locale";
 import { Calendar, Clock, Stethoscope, FileText, Pencil, Scissors, Building2, FilePlus2, PawPrint, Tag, AlertTriangle } from "lucide-react";
-import { useGetOwnerLineTags } from "@/features/owners";
+import { useGetOwnerLineTags } from "@/hooks/use-owner-line-tags";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -13,6 +13,7 @@ import { DeleteIconButton } from "@/components/shared/DeleteIconButton/DeleteIco
 import type { Reservation, ReservationStatus } from "../types";
 import { RESERVATION_STATUS_VALUES } from "../types";
 import { getReservationTypeName, getReservationStatusLabel } from "@/utils/status-helpers";
+import { DISPLAY_TIME_FORMAT } from "@/utils/format/date";
 import { typedSetter } from "@/lib/type-utils";
 import { useReservationTypeColorMap } from "@/hooks/use-reservation-type-color-map";
 import { RESERVATION_STATUS_COLORS, getReservationStatusColor, getVisitTypeColor } from "@/utils/constants/status-colors";
@@ -117,7 +118,7 @@ export const ReservationDetailModal = memo(function ReservationDetailModal({
         <div className="px-5 pt-3 pb-4 space-y-4">
           {/* LINE Warning */}
           {lineData !== undefined && (!lineData.is_linked || lineData.lstep_opt_out) ? (
-            <div className="flex items-start gap-2 p-3 rounded-md bg-red-50 border border-red-200 text-sm text-red-700">
+            <div className={`flex items-start gap-2 p-3 rounded-md ${C.bgRed50} border ${C.borderRed300} text-sm ${C.textRed700}`}>
               <AlertTriangle className="shrink-0 mt-0.5 w-4 h-4" />
               <span>
                 {lineData.lstep_opt_out
@@ -164,7 +165,7 @@ export const ReservationDetailModal = memo(function ReservationDetailModal({
                 </div>
                 <div className={`flex items-center gap-1.5 text-sm ${C.text60} mt-0.5`}>
                   <Clock className={ICON.xs} />
-                  {format(reservation.start, "H:mm")} – {format(reservation.end, "H:mm")}
+                  {format(reservation.start, DISPLAY_TIME_FORMAT)} – {format(reservation.end, DISPLAY_TIME_FORMAT)}
                 </div>
               </div>
             </div>
@@ -257,7 +258,7 @@ export const ReservationDetailModal = memo(function ReservationDetailModal({
             {onCreateRecord ? (
               <Button
                 size="sm"
-                className={`${C.bgAccent} ${C.textWhite} ${C.bgAccentHover} h-9 text-sm gap-1.5 shadow-sm`}
+                className={`${C.bgBrand} ${C.textWhite} ${C.hoverBgBrand} h-9 text-sm gap-1.5 rounded-full shadow-none`}
                 onClick={() => onCreateRecord(reservation)}
               >
                 <actionConfig.Icon className={ICON.action} />

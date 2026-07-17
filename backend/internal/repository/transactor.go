@@ -6,9 +6,8 @@ import (
 	"gorm.io/gorm"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
+	"github.com/animal-ekarte/backend/internal/repository/repohelpers"
 )
-
-type txKey struct{}
 
 // Transactor はトランザクション境界を管理するインターフェース。
 // サービス層は *gorm.DB を直接保持せず、Transactor を介してトランザクションを開始する。
@@ -27,7 +26,7 @@ func NewTransactor(db *gorm.DB) Transactor {
 
 func (t *gormTransactor) WithTx(ctx context.Context, fn func(ctx context.Context) error) error {
 	if err := t.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		return fn(context.WithValue(ctx, txKey{}, tx))
+		return fn(repohelpers.WithTxValue(ctx, tx))
 	}); err != nil {
 		return apperrors.Wrap(err, "transaction failed")
 	}
@@ -37,6 +36,15 @@ func (t *gormTransactor) WithTx(ctx context.Context, fn func(ctx context.Context
 // txFromContext はコンテキストからトランザクションを取り出す。
 // トランザクションがない場合は nil を返す。
 func txFromContext(ctx context.Context) *gorm.DB {
-	tx, _ := ctx.Value(txKey{}).(*gorm.DB)
-	return tx
+	return repohelpers.TxFromContext(ctx)
+}
+
+// DetachTx は ambient tx を持ち越さない context.WithoutCancel(ctx) を返す。
+// goroutine 境界を跨いで背景実行する際、親 ctx のキャンセルからは切り離したいが、
+// context.WithoutCancel は ctx の値を全て保持するため ambient tx（コミット済みの可能性がある）
+// も goroutine に持ち越してしまう（BE-refactor.md B-2）。
+// context は値を削除できない（WithValue は既存値を shadow するのみ）ため、
+// txFromContext が nil とみなす値で上書きして無効化する。
+func DetachTx(ctx context.Context) context.Context {
+	return repohelpers.DetachTx(ctx)
 }

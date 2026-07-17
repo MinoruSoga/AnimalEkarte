@@ -8,6 +8,7 @@
 import { useQuery } from "@tanstack/react-query";
 
 import { axios } from "@/lib/axios";
+import { queryKeys } from "@/lib/query-keys";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 
 import type { ManualCategory } from "../lib/manual-index";
@@ -29,7 +30,7 @@ interface ListResponse {
   data: ManualArticleOverride[];
 }
 
-export async function getManualArticleOverrides(): Promise<ManualArticleOverride[]> {
+async function getManualArticleOverrides(): Promise<ManualArticleOverride[]> {
   try {
     const { data } = await axios.get<ListResponse>("/v1/manual/articles");
     return data.data;
@@ -41,7 +42,7 @@ export async function getManualArticleOverrides(): Promise<ManualArticleOverride
 
 export function useGetManualArticleOverrides() {
   return useQuery({
-    queryKey: ["manual-articles"],
+    queryKey: queryKeys.manualArticles.all(),
     queryFn: getManualArticleOverrides,
     staleTime: QUERY_STALE_TIMES.STATIC,
     gcTime: QUERY_GC_TIMES.STANDARD,

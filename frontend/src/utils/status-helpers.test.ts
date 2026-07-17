@@ -168,22 +168,52 @@ describe('getExaminationStatusColor', () => {
     expect(getExaminationStatusColor('検査中')).toContain(HEX.blue);
   });
 
+  // SD-12: result_entered/confirmed 追加の回帰テスト
+  it('returns purple for 結果入力済み', () => {
+    expect(getExaminationStatusColor('結果入力済み')).toContain(HEX.purple);
+  });
+
   it('returns green for 完了', () => {
     expect(getExaminationStatusColor('完了')).toContain(HEX.green);
+  });
+
+  it('returns gray for 確定', () => {
+    expect(getExaminationStatusColor('確定')).toContain(HEX.gray);
+  });
+
+  it('returns empty string for unknown status', () => {
+    expect(getExaminationStatusColor('unknown')).toBe('');
   });
 });
 
 describe('getAccountingStatusColor', () => {
-  // 実装のステータス値: 会計待ち/会計済/キャンセル
-  it('returns orange for 会計待ち', () => {
+  // FE5-27で一覧側が履歴側の4値区別ラベルへ統一された正本ケース
+  it('returns orange for 未精算', () => {
+    expect(getAccountingStatusColor('未精算')).toContain(HEX.orange);
+  });
+
+  it('returns yellow for 保留', () => {
+    expect(getAccountingStatusColor('保留')).toContain(HEX.yellow);
+  });
+
+  it('returns green for 精算済', () => {
+    expect(getAccountingStatusColor('精算済')).toContain(HEX.green);
+  });
+
+  it('returns gray for 取消', () => {
+    expect(getAccountingStatusColor('取消')).toContain(HEX.gray);
+  });
+
+  // 旧ラベルは実装に互換caseとして残っているため引き続き検証する
+  it('returns orange for 会計待ち (legacy alias)', () => {
     expect(getAccountingStatusColor('会計待ち')).toContain(HEX.orange);
   });
 
-  it('returns green for 会計済', () => {
+  it('returns green for 会計済 (legacy alias)', () => {
     expect(getAccountingStatusColor('会計済')).toContain(HEX.green);
   });
 
-  it('returns gray for キャンセル', () => {
+  it('returns gray for キャンセル (legacy alias)', () => {
     expect(getAccountingStatusColor('キャンセル')).toContain(HEX.gray);
   });
 });
@@ -305,16 +335,12 @@ describe('getEstimateStatusColor', () => {
     expect(getEstimateStatusColor('sent')).toContain(HEX.blue);
   });
 
-  it('returns green for accepted', () => {
-    expect(getEstimateStatusColor('accepted')).toContain(HEX.green);
+  it('returns green for approved', () => {
+    expect(getEstimateStatusColor('approved')).toContain(HEX.green);
   });
 
   it('returns red for rejected', () => {
     expect(getEstimateStatusColor('rejected')).toContain(HEX.red);
-  });
-
-  it('returns orange for expired', () => {
-    expect(getEstimateStatusColor('expired')).toContain(HEX.orange);
   });
 
   it('returns gray for unknown status', () => {

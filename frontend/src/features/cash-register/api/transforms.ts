@@ -1,23 +1,5 @@
-import type { CashRegisterClose as BackendCashRegisterClose } from "@/types/generated/models";
-import type { CashRegisterPeriod } from "../constants";
-
-export function transformCashRegisterClose(raw: BackendCashRegisterClose) {
-  return {
-    id: String(raw.id ?? 0),
-    clinicId: String(raw.clinic_id ?? 0),
-    closeDate: raw.close_date,
-    period: raw.period as CashRegisterPeriod,
-    theoreticalCash: raw.theoretical_cash,
-    actualCash: raw.actual_cash,
-    cashDifference: raw.cash_difference,
-    categoryBreakdown: raw.category_breakdown,
-    memo: raw.memo,
-    closedBy: raw.closed_by ?? null,
-    closedByStaffName: raw.closed_by_staff?.name ?? undefined,
-    closedAt: raw.closed_at,
-    createdAt: raw.created_at,
-    updatedAt: raw.updated_at,
-  };
-}
-
-export type CashRegisterClose = ReturnType<typeof transformCashRegisterClose>;
+// Re-export from shared transforms layer
+export {
+  transformCashRegisterClose,
+  type CashRegisterClose,
+} from "@/lib/transforms/cash-register";

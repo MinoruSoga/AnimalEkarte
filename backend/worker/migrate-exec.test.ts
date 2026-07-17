@@ -1,0 +1,90 @@
+// G10-6: unit tests for the pure functions migrate-exec.ts was split out for
+// ("unit test容易性のため分離" per its own file header) but shipped without any.
+// Runs under @cloudflare/vitest-pool-workers (workerd runtime) rather than plain
+// Node vitest because timingSafeEqual depends on crypto.subtle.timingSafeEqual,
+// a Cloudflare-specific SubtleCrypto extension that does not exist in Node's
+// WebCrypto implementation — a Node-run test would either fail to resolve the
+// call or silently exercise a different code path than production.
+import { describe, expect, it } from "vitest";
+import { isAuthorizedMigrateRequest, timingSafeEqual, toMigrateResponse } from "./migrate-exec";
+
+const SECRET = "test-migrate-secret-value";
+
+function requestWithAuth(header: string | null): Request {
+  const headers = new Headers();
+  if (header !== null) {
+    headers.set("Authorization", header);
+  }
+  return new Request("https://example.com/_internal/migrate", { method: "POST", headers });
+}
+
+describe("timingSafeEqual", () => {
+  it("returns true for identical strings", () => {
+    expect(timingSafeEqual("abc123", "abc123")).toBe(true);
+  });
+
+  it("returns false for different strings of the same length", () => {
+    expect(timingSafeEqual("abc123", "abc124")).toBe(false);
+  });
+
+  it("returns false when lengths differ", () => {
+    expect(timingSafeEqual("short", "much-longer-value")).toBe(false);
+  });
+
+  it("returns false against an empty string", () => {
+    expect(timingSafeEqual("abc123", "")).toBe(false);
+  });
+});
+
+describe("isAuthorizedMigrateRequest", () => {
+  it("returns false when secret is undefined (fail-closed)", () => {
+    const req = requestWithAuth(`Bearer ${SECRET}`);
+    expect(isAuthorizedMigrateRequest(req, undefined)).toBe(false);
+  });
+
+  it("returns false when secret is an empty string (fail-closed)", () => {
+    const req = requestWithAuth(`Bearer ${SECRET}`);
+    expect(isAuthorizedMigrateRequest(req, "")).toBe(false);
+  });
+
+  it("returns false when the Authorization header is missing", () => {
+    const req = requestWithAuth(null);
+    expect(isAuthorizedMigrateRequest(req, SECRET)).toBe(false);
+  });
+
+  it("returns false when the secret does not match", () => {
+    const req = requestWithAuth("Bearer wrong-secret");
+    expect(isAuthorizedMigrateRequest(req, SECRET)).toBe(false);
+  });
+
+  it("returns false when the Bearer prefix is missing", () => {
+    const req = requestWithAuth(SECRET);
+    expect(isAuthorizedMigrateRequest(req, SECRET)).toBe(false);
+  });
+
+  it("returns true for a correct `Bearer <secret>` header", () => {
+    const req = requestWithAuth(`Bearer ${SECRET}`);
+    expect(isAuthorizedMigrateRequest(req, SECRET)).toBe(true);
+  });
+});
+
+describe("toMigrateResponse", () => {
+  it("maps exitCode 0 to HTTP 200", async () => {
+    const res = toMigrateResponse({ exitCode: 0, stdout: "ok", stderr: "" });
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body).toEqual({ exitCode: 0, stdout: "ok", stderr: "" });
+  });
+
+  it("maps a non-zero exitCode to HTTP 500", async () => {
+    const res = toMigrateResponse({ exitCode: 1, stdout: "", stderr: "boom" });
+    expect(res.status).toBe(500);
+    const body = await res.json();
+    expect(body).toEqual({ exitCode: 1, stdout: "", stderr: "boom" });
+  });
+
+  it("sets Content-Type: application/json", () => {
+    const res = toMigrateResponse({ exitCode: 0, stdout: "", stderr: "" });
+    expect(res.headers.get("Content-Type")).toBe("application/json");
+  });
+});

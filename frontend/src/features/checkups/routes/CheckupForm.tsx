@@ -10,7 +10,7 @@ import { C, ICON } from "@/lib/design-tokens";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { PatientInfoCard } from "@/components/shared/PatientInfoCard";
 import { SubmitButton } from "@/components/shared/Form/SubmitButton";
-import { NotionDatePicker } from "@/components/shared/NotionDatePicker/NotionDatePicker";
+import { DatePicker } from "@/components/shared/DatePicker/DatePicker";
 import { FormFieldError } from "@/components/shared/FormFieldError/FormFieldError";
 import { LoadingFallback } from "@/components/shared/DataStates";
 import { Label } from "@/components/ui/label";
@@ -24,6 +24,7 @@ import { ResourceCheckups } from "@/types/generated/models";
 
 // Relative
 import { useCheckupForm } from "../hooks/use-checkup-form";
+import { DynamicCheckupFields } from "../components/DynamicCheckupFields";
 
 export function CheckupForm() {
   const navigate = useNavigate();
@@ -35,6 +36,9 @@ export function CheckupForm() {
     formAction,
     isPending,
     fieldErrors,
+    checkupFields,
+    fieldValues,
+    setFieldValue,
     setCheckupTypeId,
     setDate,
     setNextDate,
@@ -61,7 +65,7 @@ export function CheckupForm() {
         maxWidth="max-w-[900px]"
         headerAction={
           <SubmitButton
-            className={`${C.bgAccent} ${C.bgAccentHover} ${C.textWhite} shadow-sm px-6 h-10 text-sm`}
+            className="px-6 h-10 text-sm"
             disabled={isPending}
           >
             {isPending ? "保存中..." : "保存"}
@@ -84,7 +88,7 @@ export function CheckupForm() {
               <Label htmlFor="checkup-date">
                 実施日<span className={`${C.textRequired} ml-1`}>*</span>
               </Label>
-              <NotionDatePicker
+              <DatePicker
                 id="checkup-date"
                 value={form.date}
                 onChange={setDate}
@@ -114,7 +118,7 @@ export function CheckupForm() {
             {/* 次回予定日 */}
             <div className="space-y-2">
               <Label htmlFor="checkup-next-date">次回予定日</Label>
-              <NotionDatePicker
+              <DatePicker
                 id="checkup-next-date"
                 value={form.nextDate}
                 onChange={setNextDate}
@@ -136,6 +140,18 @@ export function CheckupForm() {
               />
             </div>
           </div>
+
+          {/* #211 健診パッケージの型付き入力（選択種別にフィールド定義がある場合のみ表示） */}
+          {checkupFields.length > 0 ? (
+            <div className={`border-t ${C.borderLight} pt-6`}>
+              <h2 className={`mb-4 text-sm font-medium ${C.text}`}>健診項目</h2>
+              <DynamicCheckupFields
+                fields={checkupFields}
+                values={fieldValues}
+                onChange={setFieldValue}
+              />
+            </div>
+          ) : null}
 
           {/* 結果・所見 */}
           <div className="space-y-2">

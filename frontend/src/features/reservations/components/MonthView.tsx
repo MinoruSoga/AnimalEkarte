@@ -10,6 +10,7 @@ import { ja } from "date-fns/locale";
 import { C } from "@/lib/design-tokens";
 import { toJSTWallDate } from "@/lib/jst-date";
 import { getReservationTypeColor } from "@/utils/status-helpers";
+import { DAY_OF_WEEK_LABEL_LIST } from "@/constants/day-of-week";
 
 // Types
 import type { Reservation } from "@/types";
@@ -29,15 +30,13 @@ interface MonthViewProps {
   dynamicColorMap?: Map<string, ReservationTypeColor>;
 }
 
-const DAYS_OF_WEEK = ["日", "月", "火", "水", "木", "金", "土"] as const;
-
 const HEADER_ROW = (
   <div className={`grid grid-cols-7 border-b ${C.borderMedium} ${C.bgPage}`}>
-    {DAYS_OF_WEEK.map((d, i) => (
+    {DAY_OF_WEEK_LABEL_LIST.map((d, i) => (
       <div
         key={d}
         className={`py-3 text-sm font-bold text-center ${
-          i === 0 ? C.danger : i === 6 ? C.accent : C.text60
+          i === 0 ? C.danger : i === 6 ? C.textBrand : C.text60
         }`}
       >
         {d}
@@ -72,13 +71,13 @@ export const MonthView = memo(function MonthView({ currentDate, appointments, on
             key={day.toString()}
             className={`h-full min-h-[140px] ${C.bgWhite} border-b border-r ${C.borderLight} p-2 transition-colors ${C.hoverBgPage} cursor-pointer flex flex-col
               ${!isSameMonth(day, monthStart) ? `${C.bgPage30} ${C.text30}` : C.text}
-              ${isSameDay(day, today) ? C.bgAccent8 : ""}
+              ${isSameDay(day, today) ? C.bgBrand8 : ""}
             `}
           >
             <div className="flex justify-between items-start mb-2">
                 <button
                   type="button"
-                  className={`text-base font-bold size-7 flex items-center justify-center rounded-full transition-colors ${isSameDay(day, today) ? `${C.bgAccent} ${C.textWhite} shadow-sm` : `${C.hoverBgAccentLight} ${C.hoverTextAccent}`}`}
+                  className={`text-base font-bold size-7 flex items-center justify-center rounded-full transition-colors ${isSameDay(day, today) ? `${C.bgBrand} ${C.textWhite} shadow-sm` : `${C.hoverBgBrandLight} ${C.hoverTextBrand}`}`}
                   onClick={(e) => {
                     e.stopPropagation();
                     onDateClick?.(cloneDay);
@@ -93,9 +92,10 @@ export const MonthView = memo(function MonthView({ currentDate, appointments, on
                     const colorStyle = getReservationTypeColor(app.type, dynamicColorMap);
                     const isClassNameColor = typeof colorStyle === "string";
                     return (
-                    <div
+                    <button
                         key={app.id}
-                        className={`text-sm px-2 py-1.5 rounded border cursor-pointer hover:opacity-80 leading-tight ${isClassNameColor ? colorStyle : ""}`}
+                        type="button"
+                        className={`block w-full text-left text-sm px-2 py-1.5 rounded border cursor-pointer hover:opacity-80 leading-tight ${isClassNameColor ? colorStyle : ""}`}
                         style={isClassNameColor ? undefined : (colorStyle as React.CSSProperties)}
                         onClick={(e) => {
                             e.stopPropagation();
@@ -105,14 +105,14 @@ export const MonthView = memo(function MonthView({ currentDate, appointments, on
                         <div className="flex items-center gap-1 min-w-0">
                             {app.visitType === "first"
                                 ? <span className={`${C.bgRedLight} ${C.danger} text-[10px] px-1 rounded flex-shrink-0`}>初</span>
-                                : <span className={`${C.bgAccentLight} ${C.textAccentDark} text-[10px] px-1 rounded flex-shrink-0`}>再</span>
+                                : <span className={`${C.bgBrandLight} ${C.textBrandDark} text-[10px] px-1 rounded flex-shrink-0`}>再</span>
                             }
                             <span className="truncate text-xs font-medium">{app.petName}</span>
                         </div>
                         <div className="text-[11px] opacity-70 truncate mt-0.5">
                             {app.ownerName}{app.doctor ? ` / ${app.doctor}` : ""}
                         </div>
-                    </div>
+                    </button>
                     );
                 })}
                 {dayAppointments.length > 4 ? (

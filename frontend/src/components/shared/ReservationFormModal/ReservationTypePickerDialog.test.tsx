@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 
 import {
   ReservationTypePickerDialog,
@@ -78,5 +79,22 @@ describe("ReservationTypePickerDialog", () => {
 
     expect(onSelect).toHaveBeenCalledWith("3");
     expect(onOpenChange).toHaveBeenCalledWith(false);
+  });
+
+  it("検索後にクリアボタンで全件表示に戻る", async () => {
+    const user = userEvent.setup();
+    renderDialog();
+
+    const input = await screen.findByPlaceholderText("予約区分を検索...");
+    await user.type(input, "再診");
+    expect(input).toHaveValue("再診");
+    expect(screen.queryByTestId("res-type-card-1")).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "検索をクリア" }));
+
+    expect(input).toHaveValue("");
+    expect(screen.getByTestId("res-type-card-1")).toBeInTheDocument();
+    expect(screen.getByTestId("res-type-card-2")).toBeInTheDocument();
+    expect(screen.getByTestId("res-type-card-3")).toBeInTheDocument();
   });
 });

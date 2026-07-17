@@ -1,13 +1,14 @@
 import { AlertTriangle, EyeOff, Printer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { C, ICON } from "@/lib/design-tokens";
-import type { PaymentMethod, TaxType } from "@/types/generated/models";
-import type { Accounting } from "../types";
+import { C, ICON, Z_CLASS } from "@/lib/design-tokens";
+import type { TaxType } from "@/types/generated/models";
+import type { Accounting, PaymentMethod } from "../types";
 import { AccountingDocument, type ClinicInfo } from "./AccountingDocument";
 import { InsuranceCard } from "./InsuranceCard";
 import { ItemListCard } from "./ItemListCard";
 import { PaymentCard, type PaymentSplitDraft } from "./PaymentCard";
+import { OwnerUnpaidBalanceCard } from "./OwnerUnpaidBalanceCard";
 import { RefundSection } from "./RefundSection";
 
 interface AccountingHeaderActionsProps {
@@ -177,6 +178,10 @@ export function AccountingDetailColumns({
       </div>
 
       <div className="w-full lg:w-[400px] flex flex-col gap-4 overflow-y-auto">
+        {/* #182: 飼主の未納残高（未納がある場合のみ表示） */}
+        {/* P2-11: 拠点横断で開いた会計の場合、残高は accounting.clinicId のクリニックで解決する */}
+        <OwnerUnpaidBalanceCard ownerId={accounting.ownerId} clinicId={accounting.clinicId} />
+
         <InsuranceCard
           useInsurance={hasInsurance}
           onUseInsuranceChange={onUseInsuranceChange}
@@ -267,7 +272,7 @@ export function AccountingPrintArea({
   if (!accounting.payment) return null;
 
   return (
-    <div className={`hidden print:block fixed inset-0 ${C.bgWhite} z-[9999] p-0 m-0 w-full h-full`}>
+    <div className={`hidden print:block fixed inset-0 ${C.bgWhite} ${Z_CLASS.overlay} p-0 m-0 w-full h-full`}>
       <style type="text/css" media="print">
         {`
           @page { size: auto; margin: 0; }

@@ -36,7 +36,81 @@ func (m *mockClinicalPlanRepository) Delete(ctx context.Context, clinicID, planI
 	return m.deleteFn(ctx, clinicID, planID)
 }
 
+// okMedRecForPlan は親カルテの所有権検証が成功する（同一クリニック）モックを返す。
+func okMedRecForPlan() *mockMedicalRecordRepository {
+	return &mockMedicalRecordRepository{
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
+			return &model.MedicalRecord{}, nil
+		},
+	}
+}
+
 // ---- Tests ----
+
+func TestBuildClinicalPlanUpdate(t *testing.T) {
+	physicalExam := "Normal"
+	diagnosisTypeID := uint64(1)
+	diagnosisNameID := uint64(2)
+	diagnosis2TypeID := uint64(3)
+	diagnosis2NameID := uint64(4)
+	diagnosisDetails := "details"
+	treatmentPolicy := "policy"
+	diagnosis2TypePtr := &diagnosis2TypeID
+	diagnosis2NamePtr := &diagnosis2NameID
+	var nilDiagnosis2Type *uint64
+	var nilDiagnosis2Name *uint64
+
+	tests := []struct {
+		name       string
+		input      *UpdateClinicalPlanInput
+		wantFields map[string]any
+	}{
+		{
+			name:       "empty input returns empty map",
+			input:      &UpdateClinicalPlanInput{},
+			wantFields: map[string]any{},
+		},
+		{
+			name: "all fields set are reflected with real column names",
+			input: &UpdateClinicalPlanInput{
+				PhysicalExam:     &physicalExam,
+				DiagnosisTypeID:  &diagnosisTypeID,
+				DiagnosisNameID:  &diagnosisNameID,
+				Diagnosis2TypeID: &diagnosis2TypePtr,
+				Diagnosis2NameID: &diagnosis2NamePtr,
+				DiagnosisDetails: &diagnosisDetails,
+				TreatmentPolicy:  &treatmentPolicy,
+			},
+			wantFields: map[string]any{
+				"physical_exam":       physicalExam,
+				"diagnosis_type_id":   diagnosisTypeID,
+				"diagnosis_name_id":   diagnosisNameID,
+				"diagnosis_2_type_id": diagnosis2TypePtr, // *uint64（NULLクリアと同形）
+				"diagnosis_2_name_id": diagnosis2NamePtr,
+				"diagnosis_details":   diagnosisDetails,
+				"treatment_policy":    treatmentPolicy,
+			},
+		},
+		{
+			name: "null diagnosis_2 fields clear to NULL",
+			input: &UpdateClinicalPlanInput{
+				Diagnosis2TypeID: &nilDiagnosis2Type,
+				Diagnosis2NameID: &nilDiagnosis2Name,
+			},
+			wantFields: map[string]any{
+				"diagnosis_2_type_id": nilDiagnosis2Type,
+				"diagnosis_2_name_id": nilDiagnosis2Name,
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			fields := buildClinicalPlanUpdate(tt.input)
+			assert.Equal(t, tt.wantFields, fields)
+		})
+	}
+}
 
 func TestClinicalPlanService_GetOrCreate(t *testing.T) {
 	existingPlan := &model.ClinicalPlan{
@@ -106,7 +180,7 @@ func TestClinicalPlanService_GetOrCreate(t *testing.T) {
 					return tt.repoCreatErr
 				},
 			}
-			svc := NewClinicalPlanService(repo)
+			svc := NewClinicalPlanService(repo, okMedRecForPlan(), okDiagnosisTypeRepo(), okDiagnosisNameRepo())
 
 			plan, err := svc.GetOrCreate(context.Background(), 1, tt.medicalRecordID)
 
@@ -234,7 +308,7 @@ func TestClinicalPlanService_Update(t *testing.T) {
 					return tt.repoUpdateErr
 				},
 			}
-			svc := NewClinicalPlanService(repo)
+			svc := NewClinicalPlanService(repo, okMedRecForPlan(), okDiagnosisTypeRepo(), okDiagnosisNameRepo())
 
 			plan, err := svc.Update(context.Background(), 1, tt.medicalRecordID, tt.input)
 
@@ -246,6 +320,82 @@ func TestClinicalPlanService_Update(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestClinicalPlanService_Update_ValidateDiagnosisFKsError は、貼り替え先の診断マスタFKが
+// 呼び出し元クリニックの所有でない場合に Update がエラーを返し、repo.Update が呼ばれない
+// ことを検証する（クロステナント write 防止）。
+func TestClinicalPlanService_Update_ValidateDiagnosisFKsError(t *testing.T) {
+	foreignTypeID := uint64(999)
+	repo := &mockClinicalPlanRepository{
+		findByMedicalRecordIDFn: func(_ context.Context, _, _ uint64) (*model.ClinicalPlan, error) {
+			return &model.ClinicalPlan{ID: 1, MedicalRecordID: 1}, nil
+		},
+		updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) error {
+			t.Fatal("clinical plan must not be updated when diagnosis FK ownership check fails")
+			return nil
+		},
+	}
+	diagTypeRepo := &mockDiagnosisTypeRepository{
+		findByIDFn: func(_ context.Context, _, id uint64) (*model.DiagnosisType, error) {
+			if id != foreignTypeID {
+				return &model.DiagnosisType{ID: id}, nil
+			}
+			return nil, apperrors.WrapNotFound("diagnosis_type", "foreign")
+		},
+	}
+	svc := NewClinicalPlanService(repo, okMedRecForPlan(), diagTypeRepo, okDiagnosisNameRepo())
+
+	plan, err := svc.Update(context.Background(), 1, 1, &UpdateClinicalPlanInput{DiagnosisTypeID: &foreignTypeID})
+
+	assert.Error(t, err)
+	assert.Nil(t, plan)
+}
+
+// TestClinicalPlanService_Update_GetOrCreateError は、Update が内部で呼ぶ GetOrCreate が
+// 失敗した場合にそのエラーがラップされて伝播することを検証する。
+func TestClinicalPlanService_Update_GetOrCreateError(t *testing.T) {
+	physicalExam := "Normal"
+	repo := &mockClinicalPlanRepository{
+		findByMedicalRecordIDFn: func(_ context.Context, _, _ uint64) (*model.ClinicalPlan, error) {
+			return nil, apperrors.WrapNotFound("clinical_plan", "1")
+		},
+		createFn: func(_ context.Context, _ *model.ClinicalPlan) error {
+			return errors.New("db create error")
+		},
+	}
+	svc := NewClinicalPlanService(repo, okMedRecForPlan(), okDiagnosisTypeRepo(), okDiagnosisNameRepo())
+
+	plan, err := svc.Update(context.Background(), 1, 1, &UpdateClinicalPlanInput{PhysicalExam: &physicalExam})
+
+	assert.Error(t, err)
+	assert.Nil(t, plan)
+}
+
+// TestClinicalPlanService_Update_RefetchError は、更新自体は成功したが更新後の
+// FindByMedicalRecordID による再取得が失敗した場合にエラーが伝播することを検証する。
+func TestClinicalPlanService_Update_RefetchError(t *testing.T) {
+	physicalExam := "Normal"
+	findCalls := 0
+	repo := &mockClinicalPlanRepository{
+		findByMedicalRecordIDFn: func(_ context.Context, _, _ uint64) (*model.ClinicalPlan, error) {
+			findCalls++
+			if findCalls == 1 {
+				return &model.ClinicalPlan{ID: 1, MedicalRecordID: 1}, nil
+			}
+			return nil, errors.New("db error")
+		},
+		updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) error {
+			return nil
+		},
+	}
+	svc := NewClinicalPlanService(repo, okMedRecForPlan(), okDiagnosisTypeRepo(), okDiagnosisNameRepo())
+
+	plan, err := svc.Update(context.Background(), 1, 1, &UpdateClinicalPlanInput{PhysicalExam: &physicalExam})
+
+	assert.Error(t, err)
+	assert.Nil(t, plan)
+	assert.Equal(t, 2, findCalls, "更新後の再取得も呼ばれる")
 }
 
 func TestClinicalPlanService_Delete(t *testing.T) {
@@ -299,7 +449,7 @@ func TestClinicalPlanService_Delete(t *testing.T) {
 					return tt.deleteErr
 				},
 			}
-			svc := NewClinicalPlanService(repo)
+			svc := NewClinicalPlanService(repo, okMedRecForPlan(), okDiagnosisTypeRepo(), okDiagnosisNameRepo())
 
 			err := svc.Delete(context.Background(), 1, tt.medicalRecordID)
 
@@ -310,4 +460,130 @@ func TestClinicalPlanService_Delete(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestClinicalPlanService_GetOrCreate_CrossTenantParentRejected は
+// clinic A の呼び出しが clinic B のカルテを参照する自動作成（GetOrCreate）を拒否し、
+// clinical_plan（自前 clinic_id を持たない）が clinic B のカルテ配下に
+// 永続化されない（repo.Create が呼ばれない）ことを検証する。
+// 親所有権検証（medRec.FindByID(clinicID, medRecID)）を削除すると必ず失敗する回帰テスト。
+func TestClinicalPlanService_GetOrCreate_CrossTenantParentRejected(t *testing.T) {
+	const (
+		clinicA     = uint64(1)
+		clinicBMRID = uint64(99) // clinic B のカルテ ID（clinic A は所有しない）
+	)
+	createCalled := false
+	repo := &mockClinicalPlanRepository{
+		// clinic A のスコープでは clinic B のカルテのプランは見えない → NotFound（作成分岐へ）。
+		findByMedicalRecordIDFn: func(_ context.Context, _, _ uint64) (*model.ClinicalPlan, error) {
+			return nil, apperrors.WrapNotFound("clinical_plan", "99")
+		},
+		createFn: func(_ context.Context, _ *model.ClinicalPlan) error {
+			createCalled = true
+			return nil
+		},
+	}
+	// 親カルテも clinic A の所有ではない → NotFound（クロステナント）。
+	medRec := &mockMedicalRecordRepository{
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
+			return nil, apperrors.WrapNotFound("medical_record", "99")
+		},
+	}
+	svc := NewClinicalPlanService(repo, medRec, okDiagnosisTypeRepo(), okDiagnosisNameRepo())
+
+	plan, err := svc.GetOrCreate(context.Background(), clinicA, clinicBMRID)
+
+	assert.Error(t, err, "clinic A から clinic B のカルテへの clinical_plan 自動作成は拒否されるべき")
+	assert.True(t, apperrors.IsNotFound(err), "拒否は NotFound(404) にマップされるべき: %v", err)
+	assert.Nil(t, plan)
+	assert.False(t, createCalled, "親カルテ所有権検証に失敗した場合、clinical_plan を永続化してはならない")
+}
+
+// TestClinicalPlanService_Update_RejectsFinalizedParent は確定済みカルテの clinical_plan
+// 更新が Conflict(409) で拒否され、repo.Update が呼ばれないことを検証する（SD-2 系ガード監査）。
+func TestClinicalPlanService_Update_RejectsFinalizedParent(t *testing.T) {
+	updateCalled := false
+	repo := &mockClinicalPlanRepository{
+		findByMedicalRecordIDFn: func(_ context.Context, _, _ uint64) (*model.ClinicalPlan, error) {
+			return &model.ClinicalPlan{ID: 1, MedicalRecordID: 1}, nil
+		},
+		updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) error {
+			updateCalled = true
+			return nil
+		},
+	}
+	medRec := &mockMedicalRecordRepository{
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
+			return &model.MedicalRecord{Status: model.MedicalRecordStatusFinalized}, nil
+		},
+	}
+	svc := NewClinicalPlanService(repo, medRec, okDiagnosisTypeRepo(), okDiagnosisNameRepo())
+	physicalExam := "test"
+
+	plan, err := svc.Update(context.Background(), 1, 1, &UpdateClinicalPlanInput{PhysicalExam: &physicalExam})
+
+	assert.Error(t, err)
+	assert.Nil(t, plan)
+	assert.True(t, apperrors.IsConflict(err), "確定済みカルテへの clinical_plan 更新は Conflict(409) であるべき: %v", err)
+	assert.False(t, updateCalled, "確定済みカルテの所見・診断は更新されてはならない")
+}
+
+// TestClinicalPlanService_Delete_RejectsFinalizedParent は確定済みカルテの clinical_plan
+// 削除が Conflict(409) で拒否され、repo.Delete が呼ばれないことを検証する。
+func TestClinicalPlanService_Delete_RejectsFinalizedParent(t *testing.T) {
+	deleteCalled := false
+	repo := &mockClinicalPlanRepository{
+		findByMedicalRecordIDFn: func(_ context.Context, _, _ uint64) (*model.ClinicalPlan, error) {
+			return &model.ClinicalPlan{ID: 1, MedicalRecordID: 1}, nil
+		},
+		deleteFn: func(_ context.Context, _, _ uint64) error {
+			deleteCalled = true
+			return nil
+		},
+	}
+	medRec := &mockMedicalRecordRepository{
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
+			return &model.MedicalRecord{Status: model.MedicalRecordStatusFinalized}, nil
+		},
+	}
+	svc := NewClinicalPlanService(repo, medRec, okDiagnosisTypeRepo(), okDiagnosisNameRepo())
+
+	err := svc.Delete(context.Background(), 1, 1)
+
+	assert.Error(t, err)
+	assert.True(t, apperrors.IsConflict(err), "確定済みカルテの clinical_plan 削除は Conflict(409) であるべき: %v", err)
+	assert.False(t, deleteCalled, "確定済みカルテの所見・診断は削除されてはならない")
+}
+
+func TestClinicalPlanService_Update_RejectsMismatchedDiagnosis2TypeName(t *testing.T) {
+	typeID := uint64(10)
+	nameID := uint64(20)
+	typePtr := &typeID
+	namePtr := &nameID
+	repo := &mockClinicalPlanRepository{
+		findByMedicalRecordIDFn: func(_ context.Context, _, _ uint64) (*model.ClinicalPlan, error) {
+			return &model.ClinicalPlan{ID: 1, MedicalRecordID: 1}, nil
+		},
+		updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) error {
+			t.Fatal("must not update when diagnosis_2 type/name mismatch")
+			return nil
+		},
+	}
+	diagTypeRepo := &mockDiagnosisTypeRepository{
+		findByIDFn: func(_ context.Context, _, id uint64) (*model.DiagnosisType, error) {
+			return &model.DiagnosisType{ID: id}, nil
+		},
+	}
+	diagNameRepo := &mockDiagnosisNameRepository{
+		findByIDFn: func(_ context.Context, _, id uint64) (*model.DiagnosisName, error) {
+			return &model.DiagnosisName{ID: id, DiagnosisTypeID: 99}, nil
+		},
+	}
+	svc := NewClinicalPlanService(repo, okMedRecForPlan(), diagTypeRepo, diagNameRepo)
+	plan, err := svc.Update(context.Background(), 1, 1, &UpdateClinicalPlanInput{
+		Diagnosis2TypeID: &typePtr,
+		Diagnosis2NameID: &namePtr,
+	})
+	assert.Error(t, err)
+	assert.Nil(t, plan)
 }

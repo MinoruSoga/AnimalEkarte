@@ -1,12 +1,11 @@
 import Axios from "axios";
 import { useQuery } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
+import { ME_QUERY_KEY } from "@/lib/query-keys";
 import { type BackendMeResponse, mapMeToAuthUser } from "./transforms";
 import type { AuthUser } from "../types";
 
-export const ME_QUERY_KEY = ["me"] as const;
-
-export async function getMe(): Promise<AuthUser> {
+async function getMe(): Promise<AuthUser> {
   const { data } = await axios.get<BackendMeResponse>("/v1/me");
   return mapMeToAuthUser(data);
 }

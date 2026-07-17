@@ -23,10 +23,10 @@ type TreatmentRepository interface {
 	FindByMedicalRecordID(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.Treatment, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.Treatment, error)
 	FindUnbilledByPetID(ctx context.Context, clinicID, petID uint64) ([]model.Treatment, error)
-	// FindHistoryByPetID は #158 飼主レポート用: ペット単位で treatments を横断取得する。
+	// FindHistoryByPetID は #158/#159 飼主レポート用: ペット単位で treatments を横断取得する。
 	// medical_records JOIN で clinic_id 隔離し、medical_records.date 降順で返す。
-	// itemType が nil の場合は全 item_type、非 nil の場合は当該種別のみ。
-	FindHistoryByPetID(ctx context.Context, clinicID, petID uint64, itemType *model.TreatmentItemType, page, limit int) ([]model.Treatment, int64, error)
+	// filter.AnesthesiaOnly=true / filter.IsSurgery=true 指定時は procedures JOIN で絞り込む。
+	FindHistoryByPetID(ctx context.Context, clinicID, petID uint64, filter model.PetTreatmentHistoryFilter, page, limit int) ([]model.Treatment, int64, error)
 	// CountFinalizedUnconfirmedByPetAndDate は同日同ペットの「未会計対象化」診察カルテ件数を返す(#77)。
 	// finalized だが billing_confirmation 未confirmed かつ未会計のカルテ = 取り残し候補。
 	CountFinalizedUnconfirmedByPetAndDate(ctx context.Context, clinicID, petID uint64, date time.Time) (int64, error)
@@ -50,9 +50,9 @@ func (r *treatmentRepository) FindByMedicalRecordID(ctx context.Context, clinicI
 	if err := r.db.WithContext(ctx).
 		Joins("JOIN medical_records ON medical_records.id = treatments.medical_record_id AND medical_records.deleted_at IS NULL").
 		Where("medical_records.clinic_id = ? AND treatments.medical_record_id = ? AND treatments.deleted_at IS NULL", clinicID, medicalRecordID).
-		Preload("Consultation", "deleted_at IS NULL").
-		Preload("Procedure", "deleted_at IS NULL").
-		Preload("Medicine", "deleted_at IS NULL").
+		Preload("Consultation", "clinic_id = ? AND deleted_at IS NULL", clinicID).
+		Preload("Procedure", "clinic_id = ? AND deleted_at IS NULL", clinicID).
+		Preload("Medicine", "clinic_id = ? AND deleted_at IS NULL", clinicID).
 		Order("treatments.sort_order ASC").
 		Find(&treatments).Error; err != nil {
 		return nil, apperrors.FromGORM(err, "treatment", "")
@@ -88,14 +88,24 @@ func (r *treatmentRepository) FindUnbilledByPetID(ctx context.Context, clinicID,
 	return treatments, nil
 }
 
-func (r *treatmentRepository) FindHistoryByPetID(ctx context.Context, clinicID, petID uint64, itemType *model.TreatmentItemType, page, limit int) ([]model.Treatment, int64, error) {
+func (r *treatmentRepository) FindHistoryByPetID(ctx context.Context, clinicID, petID uint64, filter model.PetTreatmentHistoryFilter, page, limit int) ([]model.Treatment, int64, error) {
 	buildBase := func() *gorm.DB {
 		q := r.db.WithContext(ctx).
 			Model(&model.Treatment{}).
 			Joins("JOIN medical_records ON medical_records.id = treatments.medical_record_id AND medical_records.deleted_at IS NULL").
 			Where("medical_records.clinic_id = ? AND medical_records.pet_id = ? AND treatments.deleted_at IS NULL", clinicID, petID)
-		if itemType != nil {
-			q = q.Where("treatments.item_type = ?", *itemType)
+		if filter.ItemType != nil {
+			q = q.Where("treatments.item_type = ?", *filter.ItemType)
+		}
+		// #159: 処置 JOIN フィルタ（procedure_id が NULL 以外の行のみ通る INNER JOIN で暗黙 item_type 絞り込み）
+		if filter.AnesthesiaOnly || filter.IsSurgery {
+			q = q.Joins("JOIN procedures ON procedures.id = treatments.procedure_id AND procedures.deleted_at IS NULL")
+			if filter.AnesthesiaOnly {
+				q = q.Where("procedures.anesthesia != ?", string(model.AnesthesiaTypeNone))
+			}
+			if filter.IsSurgery {
+				q = q.Where("procedures.is_surgery = ?", true)
+			}
 		}
 		return q
 	}
@@ -108,10 +118,10 @@ func (r *treatmentRepository) FindHistoryByPetID(ctx context.Context, clinicID, 
 	treatments := make([]model.Treatment, 0)
 	if err := buildBase().
 		Preload("MedicalRecord", "deleted_at IS NULL").
-		Preload("Procedure", "deleted_at IS NULL").
-		Preload("Medicine", "deleted_at IS NULL").
+		Preload("Procedure", "clinic_id = ? AND deleted_at IS NULL", clinicID).
+		Preload("Medicine", "clinic_id = ? AND deleted_at IS NULL", clinicID).
 		Order("medical_records.date DESC, treatments.sort_order ASC, treatments.id DESC").
-		Offset((page - 1) * limit).Limit(limit).
+		Scopes(paginate(page, limit)).
 		Find(&treatments).Error; err != nil {
 		return nil, 0, apperrors.FromGORM(err, "treatment", fmt.Sprintf("pet=%d", petID))
 	}
@@ -143,10 +153,12 @@ func (r *treatmentRepository) Create(ctx context.Context, treatment *model.Treat
 }
 
 func (r *treatmentRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
+	// NOTE: GORM does not propagate Joins() into the generated UPDATE statement's SQL
+	// (it is a SELECT-only clause), so a WHERE referencing the joined table fails with
+	// "missing FROM-clause entry". clinic_id isolation must be expressed as a subquery instead.
 	result := r.db.WithContext(ctx).
 		Model(&model.Treatment{}).
-		Joins("JOIN medical_records ON medical_records.id = treatments.medical_record_id AND medical_records.deleted_at IS NULL").
-		Where("medical_records.clinic_id = ? AND treatments.id = ? AND treatments.deleted_at IS NULL", clinicID, id).
+		Where("treatments.id = ? AND treatments.deleted_at IS NULL AND treatments.medical_record_id IN (SELECT id FROM medical_records WHERE clinic_id = ? AND deleted_at IS NULL)", id, clinicID).
 		Updates(fields)
 	if result.Error != nil {
 		return apperrors.FromGORM(result.Error, "treatment", fmt.Sprintf("%d", id))
@@ -158,9 +170,9 @@ func (r *treatmentRepository) Update(ctx context.Context, clinicID, id uint64, f
 }
 
 func (r *treatmentRepository) Delete(ctx context.Context, clinicID, id uint64) error {
+	// NOTE: see Update — Joins() does not propagate into DELETE's SQL either.
 	result := r.db.WithContext(ctx).
-		Joins("JOIN medical_records ON medical_records.id = treatments.medical_record_id AND medical_records.deleted_at IS NULL").
-		Where("medical_records.clinic_id = ? AND treatments.id = ? AND treatments.deleted_at IS NULL", clinicID, id).
+		Where("treatments.id = ? AND treatments.deleted_at IS NULL AND treatments.medical_record_id IN (SELECT id FROM medical_records WHERE clinic_id = ? AND deleted_at IS NULL)", id, clinicID).
 		Delete(&model.Treatment{})
 	if result.Error != nil {
 		return apperrors.FromGORM(result.Error, "treatment", fmt.Sprintf("%d", id))
@@ -172,11 +184,10 @@ func (r *treatmentRepository) Delete(ctx context.Context, clinicID, id uint64) e
 }
 
 func (r *treatmentRepository) BulkUpdateSortOrder(ctx context.Context, updates []TreatmentSortUpdate) error {
-	if err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	if err := dbOrTx(ctx, r.db).Transaction(func(tx *gorm.DB) error {
 		for _, u := range updates {
 			result := tx.Model(&model.Treatment{}).
-				Joins("JOIN medical_records ON treatments.medical_record_id = medical_records.id").
-				Where("treatments.id = ? AND treatments.deleted_at IS NULL AND medical_records.clinic_id = ?", u.ID, u.ClinicID).
+				Where("treatments.id = ? AND treatments.deleted_at IS NULL AND treatments.medical_record_id IN (SELECT id FROM medical_records WHERE clinic_id = ?)", u.ID, u.ClinicID).
 				Update("sort_order", u.SortOrder)
 			if result.Error != nil {
 				return apperrors.FromGORM(result.Error, "treatment", fmt.Sprintf("%d", u.ID))

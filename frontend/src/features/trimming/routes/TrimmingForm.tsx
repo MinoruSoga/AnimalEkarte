@@ -1,5 +1,5 @@
 // React/Framework
-import { ICON, C, STYLE } from "@/lib/design-tokens";
+import { ICON, C } from "@/lib/design-tokens";
 import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams, useLocation, useSearchParams } from "react-router";
 
@@ -12,9 +12,9 @@ import { PatientInfoCard } from "@/components/shared/PatientInfoCard";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { FormFieldError } from "@/components/shared/FormFieldError/FormFieldError";
 import { NavigationBlocker } from "@/components/shared/NavigationBlocker";
-import { LoadingFallback } from "@/components/shared/DataStates";
+import { LoadingFallback, ErrorFallback } from "@/components/shared/DataStates";
 import { useMasterItems } from "@/hooks/use-master-items";
-import { useGetTrimmingCourseTypes } from "@/features/master";
+import { useGetTrimmingCourseTypes } from "@/hooks/use-trimming-course-types";
 import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
 import { paths } from "@/config/paths";
 import { usePermission } from "@/hooks/use-permission";
@@ -24,13 +24,14 @@ import {
   TrimmingLeftColumn,
   TrimmingMiddleColumn,
   TrimmingRightColumn,
-} from "../components/TrimmingFormColumns.ts";
+} from "../components/trimming-form-columns";
 import { useTrimmingForm } from "../hooks/use-trimming-form";
+import { filterActiveOrSelectedMasterItems } from "../hooks/trimming-form-utils";
 import type { TrimmingFormData } from "@/types/trimming";
 import { ResourceTrimming } from "@/types/generated/models";
 import { ConfirmDialog, MasterSelectModal } from "./TrimmingLazyModals";
-import { TRIMMING_FORM_ID, TRIMMING_PRIORITY_FIELDS } from "./TrimmingFormModel";
-import { useTrimmingHistory } from "./useTrimmingHistory";
+import { TRIMMING_FORM_ID, TRIMMING_PRIORITY_FIELDS } from "./trimming-form-model";
+import { useTrimmingHistory } from "../hooks/use-trimming-history";
 
 // ─── メインコンポーネント ────────────────────────────────────────────────────
 
@@ -40,25 +41,6 @@ export function TrimmingForm() {
   const { id } = useParams();
   const [searchParams] = useSearchParams();
   const petId = searchParams.get("petId");
-
-  const { data: coursesRaw = [] } = useMasterItems("trimmingCourse");
-  const { data: optionsRaw = [] } = useMasterItems("trimmingOption");
-  const { data: staffItems = [] } = useMasterItems("staff");
-  const { data: courseTypes = [] } = useGetTrimmingCourseTypes();
-  // #73: コース選択で種別が分かるよう、コース名に種別名を併記する（例「[シャンプー] フルコース」）
-  const courseTypeNameById = useMemo(
-    () => new Map(courseTypes.map((t) => [t.id, t.name])),
-    [courseTypes],
-  );
-  const courses = useMemo(
-    () =>
-      coursesRaw.map((c) => {
-        const typeName = c.courseTypeId ? courseTypeNameById.get(c.courseTypeId) : undefined;
-        return { ...c, id: String(c.id), name: typeName ? `[${typeName}] ${c.name}` : c.name };
-      }),
-    [coursesRaw, courseTypeNameById],
-  );
-  const options = useMemo(() => optionsRaw.map((o) => ({ ...o, id: String(o.id) })), [optionsRaw]);
 
   const {
     mode,
@@ -79,7 +61,31 @@ export function TrimmingForm() {
     fieldErrors,
     isLoading,
     notFound,
+    hasExistingAppointment,
   } = useTrimmingForm(id);
+
+  const { data: coursesRaw = [] } = useMasterItems("trimmingCourse");
+  const { data: optionsRaw = [] } = useMasterItems("trimmingOption");
+  const { data: staffItems = [] } = useMasterItems("staff");
+  const { data: courseTypes = [] } = useGetTrimmingCourseTypes();
+  // #73: コース選択で種別が分かるよう、コース名に種別名を併記する（例「[シャンプー] フルコース」）
+  const courseTypeNameById = useMemo(
+    () => new Map(courseTypes.map((t) => [t.id, t.name])),
+    [courseTypes],
+  );
+  // #228: 無効化(is_active=false)されたコース/オプションは選択肢から除外する。
+  // ただし編集中カルテに既に紐づく無効項目のみ「（無効）」表記で維持する（データを消さない）。
+  const courses = useMemo(() => {
+    const named = coursesRaw.map((c) => {
+      const typeName = c.courseTypeId ? courseTypeNameById.get(c.courseTypeId) : undefined;
+      return { ...c, id: String(c.id), name: typeName ? `[${typeName}] ${c.name}` : c.name };
+    });
+    return filterActiveOrSelectedMasterItems(named, formData.courseId ? [formData.courseId] : []);
+  }, [coursesRaw, courseTypeNameById, formData.courseId]);
+  const options = useMemo(() => {
+    const named = optionsRaw.map((o) => ({ ...o, id: String(o.id) }));
+    return filterActiveOrSelectedMasterItems(named, formData.optionIds);
+  }, [optionsRaw, formData.optionIds]);
 
   const { canEdit, canCreate, canDelete } = usePermission("trimming");
   const canSubmit = mode === "edit" ? canEdit : canCreate;
@@ -201,7 +207,7 @@ export function TrimmingForm() {
   if (notFound) {
     return (
       <PageLayout title="トリミング" onBack={handleBack} icon={<Scissors className={`${ICON.page} ${C.text}`} />}>
-        <div className={`px-6 py-12 text-center text-base ${C.text50}`}>トリミング記録が見つかりません</div>
+        <ErrorFallback message="トリミング記録が見つかりません" />
       </PageLayout>
     );
   }
@@ -232,7 +238,7 @@ export function TrimmingForm() {
             <Button
               type="submit"
               form={TRIMMING_FORM_ID}
-              className={`${STYLE.confirmPrimary} h-10`}
+              className={`${C.bgBrand} ${C.hoverBgBrand} text-white px-4 text-base rounded-full transition-colors shadow-none border-transparent h-10`}
               disabled={isSaving}
             >
               {isSaving ? "保存中..." : "保存"}
@@ -242,7 +248,8 @@ export function TrimmingForm() {
       }
     >
       {/* NavigationBlocker: isSaving 中はブロック無効化 */}
-      <NavigationBlocker when={isDirty && !isSaving} />
+      {/* FE6-8: jsx-no-leaked-render は非型認識のため isDirty を boolean と静的に断定できず !! で明示する */}
+      <NavigationBlocker when={!!isDirty && !isSaving} />
       <form id={TRIMMING_FORM_ID} action={formAction}>
       <fieldset disabled={!canSubmit} className="border-0 p-0 m-0 min-w-0">
       {/* rendering-conditional-render: && → ? ... : null */}
@@ -282,6 +289,7 @@ export function TrimmingForm() {
               onStyleImageChange={handleStyleImageChange}
               onRemoveStyleImage={removeStyleImage}
               courseError={fieldErrors.courseId}
+              showInitialStatusSelector={mode === "new" && !hasExistingAppointment}
             />
             <TrimmingMiddleColumn
               formData={formData}

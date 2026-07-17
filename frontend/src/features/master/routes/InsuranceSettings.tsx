@@ -5,28 +5,28 @@ import { useSidePeekDirty } from "@/hooks/use-side-peek-dirty";
 import { TableCell } from "@/components/ui/table";
 import { DataTableRow } from "@/components/shared/DataTable/DataTableRow";
 import { RowActionButton } from "@/components/shared/RowActionButton";
-import { NotionStatusPill } from "@/components/shared/StatusPill/NotionStatusPill";
+import { StatusPill } from "@/components/shared/StatusPill/StatusPill";
 import { C, ICON } from "@/lib/design-tokens";
-import { MASTER_STATUS_FILTER } from "../constants/styles";
+import { MASTER_STATUS_FILTER, MASTER_TABLE_COL } from "../constants/styles";
 import { useMasterCRUD } from "../hooks/use-master-crud";
 import { useMasterSave } from "../hooks/use-master-save";
 import { MasterCRUDPage } from "../components/MasterCRUDPage";
 import { InsuranceSidePanel } from "../components/InsuranceSidePanel";
-import type { InsuranceFormData } from "../components/InsuranceSidePanelModel";
+import type { InsuranceFormData } from "../components/insurance-side-panel-model";
 import { useGetAllInsurances, useCreateInsurance, useUpdateInsurance, useDeleteInsurance } from "../api/insurances";
 import type { Insurance, CreateInsuranceRequest, UpdateInsuranceRequest } from "../api/insurances";
 import {
   buildInsuranceCreateRequest,
   buildInsuranceUpdateRequest,
-} from "./InsuranceSettingsModel";
+} from "./insurance-settings-model";
 import { ResourceMasterInsurance } from "@/types/generated/models";
 
 const COLUMNS = [
   { header: "名称", className: "flex-1" },
-  { header: "補償率", className: "w-[100px]", align: "center" as const },
-  { header: "連絡先", className: "w-[140px]" },
-  { header: "ステータス", className: "w-[90px]", align: "center" as const },
-  { header: "操作", className: "w-[80px]", align: "right" as const },
+  { header: "補償率", className: MASTER_TABLE_COL.w100, align: "center" as const },
+  { header: "連絡先", className: MASTER_TABLE_COL.w140 },
+  { header: "ステータス", className: MASTER_TABLE_COL.w100, align: "center" as const },
+  { header: "操作", className: MASTER_TABLE_COL.w80, align: "right" as const },
 ];
 
 export function InsuranceSettings() {
@@ -55,7 +55,7 @@ export function InsuranceSettings() {
           <TableCell className={`font-medium text-base ${C.text}`}>{item.name}</TableCell>
           <TableCell className={`text-base text-center ${C.text}`}>{item.coverageRate > 0 ? `${item.coverageRate}%` : "-"}</TableCell>
           <TableCell className={`text-base ${C.text70}`}>{item.contactPhone || "-"}</TableCell>
-          <TableCell className="text-center"><NotionStatusPill isActive={item.isActive} /></TableCell>
+          <TableCell className="text-center"><StatusPill isActive={item.isActive} /></TableCell>
           <TableCell className="p-0 text-right">{canEdit ? <RowActionButton onClick={() => onEdit(item)} /> : null}</TableCell>
         </DataTableRow>
       )}

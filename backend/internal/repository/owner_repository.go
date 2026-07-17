@@ -27,6 +27,10 @@ type OwnerRepository interface {
 	FindByLineUserID(ctx context.Context, clinicID uint64, lineUserID string) (*model.Owner, error)
 	// FindAllWithLineUserID は line_user_id が設定されている飼主を全件返す（タグ一括同期用）。
 	FindAllWithLineUserID(ctx context.Context, clinicID uint64) ([]model.Owner, error)
+	// FindAllWithLineUserIDCursor は line_user_id が設定されている飼主を id カーソルページネーションで返す
+	// （PERF-FOLLOWUP-02: 大規模クリニックでの無制限全件取得を回避するバッチ処理用）。
+	// afterID より大きい id を昇順で最大 limit 件返す。afterID=0 で先頭ページ。
+	FindAllWithLineUserIDCursor(ctx context.Context, clinicID, afterID uint64, limit int) ([]model.Owner, error)
 	CreateWithPets(ctx context.Context, owner *model.Owner, pets []model.Pet) error
 	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error
 	// UpdateLineUserID は飼主の LINE User ID を更新する。nil を渡すと連携解除。
@@ -39,6 +43,9 @@ type OwnerRepository interface {
 	UpdateLineBlockedAt(ctx context.Context, clinicID, id uint64, t time.Time) error
 	Delete(ctx context.Context, clinicID, id uint64) error
 	CountPetsByOwnerID(ctx context.Context, clinicID, ownerID uint64) (int64, error)
+	// FindByIDs は複数 ID でオーナーを一括取得する（タグ一括同期の N+1 解消用）。
+	// Preload なしの軽量クエリ。返り値の順序は ids の順序と一致しない場合がある。
+	FindByIDs(ctx context.Context, clinicID uint64, ids []uint64) ([]*model.Owner, error)
 }
 
 type ownerRepository struct {
@@ -82,8 +89,8 @@ func (r *ownerRepository) FindAll(ctx context.Context, clinicIDs []uint64, page,
 		return nil, 0, apperrors.FromGORM(err, "owner", "")
 	}
 	if err := buildBase().
-		Preload("Pets", "deleted_at IS NULL").Preload("Pets.AnimalSpecies").Preload("Pets.Insurance", "deleted_at IS NULL").
-		Offset((page - 1) * limit).Limit(limit).Order("created_at DESC").
+		Preload("Pets", "deleted_at IS NULL").Preload("Pets.AnimalSpecies").Preload("Pets.Insurance", "clinic_id IN ? AND deleted_at IS NULL", clinicIDs).
+		Scopes(paginate(page, limit)).Order("created_at DESC").
 		Find(&owners).Error; err != nil {
 		return nil, 0, apperrors.FromGORM(err, "owner", "")
 	}
@@ -91,22 +98,27 @@ func (r *ownerRepository) FindAll(ctx context.Context, clinicIDs []uint64, page,
 }
 
 func (r *ownerRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Owner, error) {
-	return r.findOwnerByID(ctx, clinicScope(clinicID), id)
+	return r.findOwnerByID(ctx, []uint64{clinicID}, id)
 }
 
 func (r *ownerRepository) FindByIDForClinics(ctx context.Context, clinicIDs []uint64, id uint64) (*model.Owner, error) {
-	return r.findOwnerByID(ctx, clinicScopeIn(clinicIDs), id)
+	return r.findOwnerByID(ctx, clinicIDs, id)
 }
 
-// findOwnerByID は scope（単一/複数クリニック）を受け取り飼主を1件取得する共通実装。
-func (r *ownerRepository) findOwnerByID(ctx context.Context, scope func(*gorm.DB) *gorm.DB, id uint64) (*model.Owner, error) {
+// findOwnerByID は認可済みクリニック集合を受け取り飼主を1件取得する共通実装。
+// clinicIDs は呼び出し側で検証済みの集合（単一は []uint64{clinicID}、拠点横断#86は全所属）。
+// Preload する保険マスタも同じ集合で clinic 隔離する（別クリニックの保険マスタ混入防止）。
+func (r *ownerRepository) findOwnerByID(ctx context.Context, clinicIDs []uint64, id uint64) (*model.Owner, error) {
+	if len(clinicIDs) == 0 {
+		return nil, apperrors.WrapNotFound("owner", fmt.Sprintf("%d", id))
+	}
 	var owner model.Owner
 	err := r.db.WithContext(ctx).
 		Preload("Pets", "deleted_at IS NULL").
 		Preload("Pets.AnimalSpecies").
-		Preload("Pets.Insurance", "deleted_at IS NULL").
+		Preload("Pets.Insurance", "clinic_id IN ? AND deleted_at IS NULL", clinicIDs).
 		Preload("Pets.Owner", "deleted_at IS NULL").
-		Scopes(scope).Where("id = ?", id).First(&owner).Error
+		Scopes(clinicScopeIn(clinicIDs)).Where("id = ?", id).First(&owner).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "owner", fmt.Sprintf("%d", id))
 	}
@@ -162,7 +174,7 @@ func (r *ownerRepository) FindByNameAndPhone(ctx context.Context, clinicID uint6
 }
 
 func (r *ownerRepository) CreateWithPets(ctx context.Context, owner *model.Owner, pets []model.Pet) error {
-	if err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	if err := dbOrTx(ctx, r.db).Transaction(func(tx *gorm.DB) error {
 		// 1. 飼主を作成
 		if err := tx.Create(owner).Error; err != nil {
 			if isUniqueConstraintErr(err) {
@@ -191,37 +203,12 @@ func (r *ownerRepository) CreateWithPets(ctx context.Context, owner *model.Owner
 	return nil
 }
 
-// escapeLike escapes LIKE wildcard characters in s for use with PostgreSQL ILIKE ... ESCAPE '\'.
-func escapeLike(s string) string {
-	s = strings.ReplaceAll(s, `\`, `\\`)
-	s = strings.ReplaceAll(s, `%`, `\%`)
-	s = strings.ReplaceAll(s, `_`, `\_`)
-	return s
-}
-
 func (r *ownerRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
-	result := r.db.WithContext(ctx).
-		Model(&model.Owner{}).
-		Scopes(clinicScope(clinicID)).Where("id = ?", id).
-		Updates(fields)
-	if result.Error != nil {
-		return apperrors.FromGORM(result.Error, "owner", fmt.Sprintf("%d", id))
-	}
-	if result.RowsAffected == 0 {
-		return apperrors.WrapNotFound("owner", fmt.Sprintf("%d", id))
-	}
-	return nil
+	return updateScopedByID(ctx, r.db, &model.Owner{}, "owner", clinicID, id, fields)
 }
 
 func (r *ownerRepository) Delete(ctx context.Context, clinicID, id uint64) error {
-	result := r.db.WithContext(ctx).Scopes(clinicScope(clinicID)).Where("id = ?", id).Delete(&model.Owner{})
-	if result.Error != nil {
-		return apperrors.FromGORM(result.Error, "owner", fmt.Sprintf("%d", id))
-	}
-	if result.RowsAffected == 0 {
-		return apperrors.WrapNotFound("owner", fmt.Sprintf("%d", id))
-	}
-	return nil
+	return deleteScopedByID(ctx, r.db, &model.Owner{}, "owner", clinicID, id)
 }
 
 // CountPetsByOwnerID は指定されたオーナーに紐付いているペット数を返す
@@ -257,6 +244,22 @@ func (r *ownerRepository) FindAllWithLineUserID(ctx context.Context, clinicID ui
 	err := r.db.WithContext(ctx).
 		Scopes(clinicScope(clinicID)).
 		Where("line_user_id IS NOT NULL AND deleted_at IS NULL").
+		Find(&owners).Error
+	if err != nil {
+		return nil, apperrors.FromGORM(err, "owner", "")
+	}
+	return owners, nil
+}
+
+// FindAllWithLineUserIDCursor は line_user_id が設定されている飼主を id カーソルページネーションで返す
+// （PERF-FOLLOWUP-02）。id 昇順で afterID より大きいものを最大 limit 件返す。
+func (r *ownerRepository) FindAllWithLineUserIDCursor(ctx context.Context, clinicID, afterID uint64, limit int) ([]model.Owner, error) {
+	var owners []model.Owner
+	err := r.db.WithContext(ctx).
+		Scopes(clinicScope(clinicID)).
+		Where("line_user_id IS NOT NULL AND deleted_at IS NULL AND id > ?", afterID).
+		Order("id ASC").
+		Limit(limit).
 		Find(&owners).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "owner", "")
@@ -313,4 +316,18 @@ func (r *ownerRepository) UpdateLineUserID(ctx context.Context, clinicID, id uin
 		return apperrors.FromGORM(err, "owner", fmt.Sprintf("%d", id))
 	}
 	return nil
+}
+
+func (r *ownerRepository) FindByIDs(ctx context.Context, clinicID uint64, ids []uint64) ([]*model.Owner, error) {
+	if len(ids) == 0 {
+		return nil, nil
+	}
+	var owners []*model.Owner
+	if err := r.db.WithContext(ctx).
+		Scopes(clinicScope(clinicID)).
+		Where("id IN ?", ids).
+		Find(&owners).Error; err != nil {
+		return nil, apperrors.FromGORM(err, "owner", "")
+	}
+	return owners, nil
 }

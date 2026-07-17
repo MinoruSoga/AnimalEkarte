@@ -29,6 +29,9 @@ process.stdin.on('end', () => {
       /\bmkfs\b/,
       /\bdd\s+if=\/dev\/zero/,
       /:\(\)\{.*\|.*&\}\;:/,  // fork bomb
+      /\|\s*(sudo\s+)?(ba|z|da)?sh\b/,  // pipe-to-shell: curl ... | bash, ... | sudo sh
+      /\b(ba|z|da)?sh\s+<\(\s*(curl|wget)\b/,  // process substitution: bash <(curl ...)
+      /\b(ba|z|da)?sh\s+-c\s+["']?\$\((curl|wget)\b/,  // sh -c "$(curl ...)"
     ];
 
     for (const pattern of DANGEROUS_PATTERNS) {

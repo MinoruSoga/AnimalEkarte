@@ -13,210 +13,6 @@ import (
 	"github.com/animal-ekarte/backend/internal/repository"
 )
 
-// mockMedicalRecordRepository は MedicalRecordRepository のテスト用モック実装
-type mockMedicalRecordRepository struct {
-	findAllFn                         func(ctx context.Context, clinicIDs []uint64, petID, ownerID *uint64, startDate, endDate *string, page, limit int) ([]model.MedicalRecord, int64, error)
-	findByIDFn                        func(ctx context.Context, clinicID, id uint64) (*model.MedicalRecord, error)
-	createFn                          func(ctx context.Context, record *model.MedicalRecord) error
-	updateFieldsFn                    func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.MedicalRecord, error)
-	deleteFn                          func(ctx context.Context, clinicID, id uint64) error
-	countByPetIDFn                    func(ctx context.Context, clinicID, petID uint64) (int64, error)
-	findFirstVisitDateByPetIDFn       func(ctx context.Context, clinicID, petID uint64) (*time.Time, error)
-	countEstimatesByMedicalRecordIDFn func(ctx context.Context, medicalRecordID uint64) (int64, error)
-	findOwnerVisitSummaryFn           func(ctx context.Context, clinicID, ownerID uint64) (*repository.OwnerVisitSummary, error)
-	countByOwnerIDFn                  func(ctx context.Context, clinicID, ownerID uint64) (int64, error)
-	countByOwnerIDCallCount           int
-	findOwnerMedicationHistoryFn      func(ctx context.Context, clinicID, ownerID uint64, page, limit int) ([]repository.OwnerMedicationHistoryRow, int64, error)
-}
-
-func (m *mockMedicalRecordRepository) FindAll(ctx context.Context, clinicIDs []uint64, petID, ownerID *uint64, startDate, endDate *string, page, limit int) ([]model.MedicalRecord, int64, error) {
-	if m.findAllFn == nil {
-		return []model.MedicalRecord{}, 0, nil
-	}
-	return m.findAllFn(ctx, clinicIDs, petID, ownerID, startDate, endDate, page, limit)
-}
-
-func (m *mockMedicalRecordRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.MedicalRecord, error) {
-	if m.findByIDFn != nil {
-		return m.findByIDFn(ctx, clinicID, id)
-	}
-	return nil, nil
-}
-
-func (m *mockMedicalRecordRepository) FindByIDForClinics(_ context.Context, _ []uint64, _ uint64) (*model.MedicalRecord, error) {
-	return nil, nil
-}
-
-func (m *mockMedicalRecordRepository) Create(ctx context.Context, record *model.MedicalRecord) error {
-	return m.createFn(ctx, record)
-}
-
-func (m *mockMedicalRecordRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.MedicalRecord, error) {
-	if m.updateFieldsFn != nil {
-		return m.updateFieldsFn(ctx, clinicID, id, fields)
-	}
-	return &model.MedicalRecord{}, nil
-}
-
-func (m *mockMedicalRecordRepository) Delete(ctx context.Context, clinicID, id uint64) error {
-	return m.deleteFn(ctx, clinicID, id)
-}
-
-func (m *mockMedicalRecordRepository) CountByPetID(ctx context.Context, clinicID, petID uint64) (int64, error) {
-	if m.countByPetIDFn != nil {
-		return m.countByPetIDFn(ctx, clinicID, petID)
-	}
-	return 0, nil
-}
-
-func (m *mockMedicalRecordRepository) FindFirstVisitDateByPetID(ctx context.Context, clinicID, petID uint64) (*time.Time, error) {
-	if m.findFirstVisitDateByPetIDFn != nil {
-		return m.findFirstVisitDateByPetIDFn(ctx, clinicID, petID)
-	}
-	return nil, nil
-}
-
-func (m *mockMedicalRecordRepository) CountEstimatesByMedicalRecordID(ctx context.Context, medicalRecordID uint64) (int64, error) {
-	if m.countEstimatesByMedicalRecordIDFn != nil {
-		return m.countEstimatesByMedicalRecordIDFn(ctx, medicalRecordID)
-	}
-	return 0, nil
-}
-
-func (m *mockMedicalRecordRepository) FindOwnerVisitSummary(ctx context.Context, clinicID, ownerID uint64) (*repository.OwnerVisitSummary, error) {
-	if m.findOwnerVisitSummaryFn != nil {
-		return m.findOwnerVisitSummaryFn(ctx, clinicID, ownerID)
-	}
-	return &repository.OwnerVisitSummary{}, nil
-}
-
-func (m *mockMedicalRecordRepository) FindOwnerMedicationHistory(ctx context.Context, clinicID, ownerID uint64, page, limit int) ([]repository.OwnerMedicationHistoryRow, int64, error) {
-	if m.findOwnerMedicationHistoryFn != nil {
-		return m.findOwnerMedicationHistoryFn(ctx, clinicID, ownerID, page, limit)
-	}
-	return nil, 0, nil
-}
-
-func (m *mockMedicalRecordRepository) FindLatestByOwner(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
-	return nil, nil
-}
-
-func (m *mockMedicalRecordRepository) FindDormantOwnerEntries(_ context.Context, _ uint64, _ int) ([]repository.DormantOwnerEntry, error) {
-	return nil, nil
-}
-
-func (m *mockMedicalRecordRepository) FindOwnersByFirstVisitDate(_ context.Context, _ uint64, _ time.Time) ([]uint64, error) {
-	return nil, nil
-}
-
-func (m *mockMedicalRecordRepository) FindOwnersByLastVisitDays(_ context.Context, _ uint64, _ int, _ time.Time) ([]uint64, error) {
-	return nil, nil
-}
-
-func (m *mockMedicalRecordRepository) FindOwnersByNextVisitRecommended(_ context.Context, _ uint64, _ time.Time) ([]uint64, error) {
-	return nil, nil
-}
-
-func (m *mockMedicalRecordRepository) CountByOwnerID(ctx context.Context, clinicID, ownerID uint64) (int64, error) {
-	m.countByOwnerIDCallCount++
-	if m.countByOwnerIDFn != nil {
-		return m.countByOwnerIDFn(ctx, clinicID, ownerID)
-	}
-	return 0, nil
-}
-
-func (m *mockMedicalRecordRepository) DeleteDraftByAppointmentID(_ context.Context, _, _ uint64) error {
-	return nil
-}
-
-// mrMockOwnerRepo は MedicalRecord テスト用 OwnerRepository モック（FindByID のみ）
-type mrMockOwnerRepo struct {
-	findByIDFn func(ctx context.Context, clinicID, id uint64) (*model.Owner, error)
-}
-
-func (m *mrMockOwnerRepo) FindAll(_ context.Context, _ []uint64, _, _ int, _ string) ([]model.Owner, int64, error) {
-	return nil, 0, nil
-}
-func (m *mrMockOwnerRepo) FindByID(ctx context.Context, clinicID, id uint64) (*model.Owner, error) {
-	return m.findByIDFn(ctx, clinicID, id)
-}
-func (m *mrMockOwnerRepo) FindByIDForClinics(_ context.Context, _ []uint64, _ uint64) (*model.Owner, error) {
-	return nil, nil
-}
-func (m *mrMockOwnerRepo) CreateWithPets(_ context.Context, _ *model.Owner, _ []model.Pet) error {
-	return nil
-}
-func (m *mrMockOwnerRepo) Update(_ context.Context, _, _ uint64, _ map[string]any) error {
-	return nil
-}
-func (m *mrMockOwnerRepo) Delete(_ context.Context, _, _ uint64) error { return nil }
-func (m *mrMockOwnerRepo) FindByEmail(_ context.Context, _ uint64, _ string) (*model.Owner, error) {
-	return nil, nil
-}
-func (m *mrMockOwnerRepo) FindByPhone(_ context.Context, _ uint64, _ string) (*model.Owner, error) {
-	return nil, nil
-}
-func (m *mrMockOwnerRepo) FindByNameAndPhone(_ context.Context, _ uint64, _, _ string) (*model.Owner, error) {
-	return nil, nil
-}
-func (m *mrMockOwnerRepo) CountPetsByOwnerID(_ context.Context, _, _ uint64) (int64, error) {
-	return 0, nil
-}
-func (m *mrMockOwnerRepo) FindByLineUserID(_ context.Context, _ uint64, _ string) (*model.Owner, error) {
-	return nil, nil
-}
-func (m *mrMockOwnerRepo) FindAllWithLineUserID(_ context.Context, _ uint64) ([]model.Owner, error) {
-	return nil, nil
-}
-func (m *mrMockOwnerRepo) UpdateLineUserID(_ context.Context, _, _ uint64, _ *string) error {
-	return nil
-}
-
-func (m *mrMockOwnerRepo) FindAllByLineUserID(_ context.Context, _ string) ([]model.Owner, error) {
-	return nil, nil
-}
-
-func (m *mrMockOwnerRepo) UpdateLineFollowedAt(_ context.Context, _, _ uint64, _ time.Time) error {
-	return nil
-}
-
-func (m *mrMockOwnerRepo) UpdateLineBlockedAt(_ context.Context, _, _ uint64, _ time.Time) error {
-	return nil
-}
-
-// mrMockPetRepo は MedicalRecord テスト用 PetRepository モック（FindByID のみ）
-type mrMockPetRepo struct {
-	findByIDFn func(ctx context.Context, clinicID, id uint64) (*model.Pet, error)
-}
-
-func (m *mrMockPetRepo) FindAll(_ context.Context, _ uint64, _ *uint64, _, _ int, _ string) ([]model.Pet, int64, error) {
-	return nil, 0, nil
-}
-func (m *mrMockPetRepo) FindByID(ctx context.Context, clinicID, id uint64) (*model.Pet, error) {
-	return m.findByIDFn(ctx, clinicID, id)
-}
-func (m *mrMockPetRepo) FindByIDForClinics(_ context.Context, _ []uint64, _ uint64) (*model.Pet, error) {
-	return nil, nil
-}
-func (m *mrMockPetRepo) CountByOwner(_ context.Context, _, _ uint64) (int64, error) { return 0, nil }
-func (m *mrMockPetRepo) CountLivingByOwner(_ context.Context, _, _ uint64) (int64, error) {
-	return 0, nil
-}
-func (m *mrMockPetRepo) CountUsageByAnimalSpeciesID(_ context.Context, _ uint64) (int64, error) {
-	return 0, nil
-}
-func (m *mrMockPetRepo) Create(_ context.Context, _ *model.Pet) error { return nil }
-func (m *mrMockPetRepo) Update(_ context.Context, _, _ uint64, _ map[string]any) error {
-	return nil
-}
-func (m *mrMockPetRepo) Delete(_ context.Context, _, _ uint64) error { return nil }
-func (m *mrMockPetRepo) FindLivingByOwner(_ context.Context, _, _ uint64) ([]model.Pet, error) {
-	return nil, nil
-}
-func (m *mrMockPetRepo) FindOwnersByPetBirthday(_ context.Context, _ uint64, _, _ int) ([]uint64, error) {
-	return nil, nil
-}
-
 func TestMedicalRecordService_List(t *testing.T) {
 	now := time.Now()
 	tests := []struct {
@@ -317,15 +113,15 @@ func TestMedicalRecordService_List(t *testing.T) {
 			capturedPetID := (*uint64)(nil)
 			capturedOwnerID := (*uint64)(nil)
 			repo := &mockMedicalRecordRepository{
-				findAllFn: func(_ context.Context, _ []uint64, petID *uint64, ownerID *uint64, _, _ *string, _, _ int) ([]model.MedicalRecord, int64, error) {
-					capturedPetID = petID
-					capturedOwnerID = ownerID
+				findAllFn: func(_ context.Context, _ []uint64, filters repository.MedicalRecordListFilters, _, _ int) ([]model.MedicalRecord, int64, error) {
+					capturedPetID = filters.PetID
+					capturedOwnerID = filters.OwnerID
 					return tt.repoRecords, tt.repoTotal, tt.repoErr
 				},
 			}
-			svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, nil, nil)
+			svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
 
-			records, total, err := svc.List(context.Background(), []uint64{tt.clinicID}, tt.petID, tt.ownerID, nil, nil, tt.page, tt.limit)
+			records, total, err := svc.List(context.Background(), []uint64{tt.clinicID}, repository.MedicalRecordListFilters{PetID: tt.petID, OwnerID: tt.ownerID}, tt.page, tt.limit)
 
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -387,7 +183,7 @@ func TestMedicalRecordService_GetByID(t *testing.T) {
 					return tt.repoRecord, tt.repoErr
 				},
 			}
-			svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, nil, nil)
+			svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
 
 			record, err := svc.GetByID(context.Background(), tt.clinicID, tt.id)
 
@@ -410,7 +206,7 @@ func TestMedicalRecordService_GetByID_NotFound(t *testing.T) {
 			return nil, apperrors.WrapNotFound("medical_record", "999")
 		},
 	}
-	svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, nil, nil)
+	svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
 
 	record, err := svc.GetByID(context.Background(), 1, 999)
 
@@ -490,7 +286,7 @@ func TestMedicalRecordService_Create(t *testing.T) {
 					return tt.repoErr
 				},
 			}
-			svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, nil, nil)
+			svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
 
 			record, err := svc.Create(context.Background(), 1, &tt.input)
 
@@ -514,7 +310,7 @@ func TestMedicalRecordService_Create(t *testing.T) {
 				return nil
 			},
 		}
-		svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, nil, nil)
+		svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
 		record, err := svc.Create(context.Background(), 1, &CreateMedicalRecordInput{
 			Date:                 time.Now(),
 			RecommendationReason: &reason,
@@ -535,7 +331,7 @@ func TestMedicalRecordService_Create(t *testing.T) {
 				return nil
 			},
 		}
-		svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, nil, nil)
+		svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
 		record, err := svc.Create(context.Background(), 1, &CreateMedicalRecordInput{
 			Date:                 time.Now(),
 			RecommendationReason: &reason,
@@ -553,7 +349,7 @@ func TestMedicalRecordService_Create(t *testing.T) {
 				return nil
 			},
 		}
-		svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, nil, nil)
+		svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
 		record, err := svc.Create(context.Background(), 1, &CreateMedicalRecordInput{
 			Date: time.Now(),
 		})
@@ -566,10 +362,10 @@ func TestMedicalRecordService_Create(t *testing.T) {
 		petID := uint64(10)
 		createCalled := false
 		repo := &mockMedicalRecordRepository{
-			findAllFn: func(_ context.Context, _ []uint64, gotPetID, _ *uint64, startDate, endDate *string, _, _ int) ([]model.MedicalRecord, int64, error) {
-				assert.Equal(t, petID, *gotPetID)
-				assert.Equal(t, "2026-05-29", *startDate)
-				assert.Equal(t, "2026-05-29", *endDate)
+			findAllFn: func(_ context.Context, _ []uint64, filters repository.MedicalRecordListFilters, _, _ int) ([]model.MedicalRecord, int64, error) {
+				assert.Equal(t, petID, *filters.PetID)
+				assert.Equal(t, "2026-05-29", *filters.StartDate)
+				assert.Equal(t, "2026-05-29", *filters.EndDate)
 				return []model.MedicalRecord{{
 					ID:            123,
 					ClinicID:      1,
@@ -583,7 +379,7 @@ func TestMedicalRecordService_Create(t *testing.T) {
 				return nil
 			},
 		}
-		svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, nil, nil)
+		svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
 
 		record, err := svc.Create(context.Background(), 1, &CreateMedicalRecordInput{
 			Date:          time.Date(2026, 5, 29, 0, 0, 0, 0, time.UTC),
@@ -614,7 +410,7 @@ func TestMedicalRecordService_Create(t *testing.T) {
 				return &model.Reservation{ID: id, PetID: &appointmentPetID}, nil
 			},
 		}
-		svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, resRepo, nil, nil)
+		svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, nil, nil, resRepo, nil, nil, nil)
 
 		record, err := svc.Create(context.Background(), 1, &CreateMedicalRecordInput{
 			Date:          time.Date(2026, 5, 29, 0, 0, 0, 0, time.UTC),
@@ -648,13 +444,16 @@ func TestMedicalRecordService_Create(t *testing.T) {
 				assert.Equal(t, appointmentID, id)
 				return &model.Reservation{ID: id}, nil
 			},
+			findPetOwnerFn: func(_ context.Context, _, _ uint64) (uint64, error) {
+				return ownerID, nil
+			},
 			updateFn: func(_ context.Context, _ uint64, id uint64, fields map[string]any) (*model.Reservation, error) {
 				assert.Equal(t, appointmentID, id)
 				updatedFields = fields
 				return &model.Reservation{ID: id}, nil
 			},
 		}
-		svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, resRepo, nil, nil)
+		svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, nil, nil, resRepo, nil, nil, nil)
 
 		record, err := svc.Create(context.Background(), 1, &CreateMedicalRecordInput{
 			Date:          time.Date(2026, 5, 29, 0, 0, 0, 0, time.UTC),
@@ -687,7 +486,7 @@ func TestMedicalRecordService_Create_SyncsNextVisitTagBestEffort(t *testing.T) {
 			return errors.New("sync failed")
 		},
 	}
-	svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, nil, nil, tagSync)
+	svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, tagSync)
 
 	record, err := svc.Create(context.Background(), 1, &CreateMedicalRecordInput{
 		Date:    time.Date(2026, 5, 28, 0, 0, 0, 0, time.UTC),
@@ -786,7 +585,7 @@ func TestMedicalRecordService_Update(t *testing.T) {
 					return &model.MedicalRecord{ID: 1, ClinicID: 1}, nil
 				},
 			}
-			svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, nil, nil)
+			svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
 
 			record, err := svc.Update(context.Background(), 1, 1, tt.input)
 
@@ -830,7 +629,7 @@ func TestMedicalRecordService_Update_SyncsVisitCompletionAndNextVisitTags(t *tes
 			return errors.New("sync failed")
 		},
 	}
-	svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, nil, nil, tagSync)
+	svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, tagSync)
 
 	record, err := svc.Update(context.Background(), 1, 30, UpdateMedicalRecordInput{Status: &statusFinalized})
 
@@ -842,27 +641,31 @@ func TestMedicalRecordService_Update_SyncsVisitCompletionAndNextVisitTags(t *tes
 
 func TestMedicalRecordService_Update_OwnerValidation(t *testing.T) {
 	ownerID := uint64(100)
-	validRecord := &model.MedicalRecord{ID: 1, ClinicID: 1, Version: 0}
+	validRecord := &model.MedicalRecord{ID: 1, ClinicID: 1, Version: 0, Status: model.MedicalRecordStatusDraft}
 
 	t.Run("rejects owner_id not in clinic", func(t *testing.T) {
 		repo := &mockMedicalRecordRepository{
 			findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
 				return validRecord, nil
 			},
-		}
-		ownerRepo := &mrMockOwnerRepo{
-			findByIDFn: func(_ context.Context, _, _ uint64) (*model.Owner, error) {
-				return nil, apperrors.WrapNotFound("owner", "100")
+			updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.MedicalRecord, error) {
+				t.Fatal("update must not persist invalid owner")
+				return nil, nil
 			},
 		}
-		svc := NewMedicalRecordService(repo, ownerRepo, nil, nil, nil, nil, nil, nil, nil)
+		resRepo := &mockReservationRepoForMedicalRecord{
+			assertOwnerFn: func(_ context.Context, _, _ uint64) error {
+				return apperrors.WrapNotFound("owner", "100")
+			},
+		}
+		svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, nil, nil, resRepo, nil, nil, nil)
 
 		_, err := svc.Update(context.Background(), 1, 1, UpdateMedicalRecordInput{
 			OwnerID: &ownerID,
 		})
 
 		assert.Error(t, err)
-		assert.True(t, apperrors.IsInvalidInput(err))
+		assert.True(t, apperrors.IsNotFound(err))
 	})
 
 	t.Run("accepts valid owner_id in clinic", func(t *testing.T) {
@@ -874,12 +677,13 @@ func TestMedicalRecordService_Update_OwnerValidation(t *testing.T) {
 				return &model.MedicalRecord{ID: 1, ClinicID: 1}, nil
 			},
 		}
-		ownerRepo := &mrMockOwnerRepo{
-			findByIDFn: func(_ context.Context, _, _ uint64) (*model.Owner, error) {
-				return &model.Owner{ID: ownerID, ClinicID: 1}, nil
+		resRepo := &mockReservationRepoForMedicalRecord{
+			assertOwnerFn: func(_ context.Context, _, id uint64) error {
+				assert.Equal(t, ownerID, id)
+				return nil
 			},
 		}
-		svc := NewMedicalRecordService(repo, ownerRepo, nil, nil, nil, nil, nil, nil, nil)
+		svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, nil, nil, resRepo, nil, nil, nil)
 
 		record, err := svc.Update(context.Background(), 1, 1, UpdateMedicalRecordInput{
 			OwnerID: &ownerID,
@@ -893,27 +697,31 @@ func TestMedicalRecordService_Update_OwnerValidation(t *testing.T) {
 func TestMedicalRecordService_Update_PetValidation(t *testing.T) {
 	petID := uint64(200)
 
-	validRecord := &model.MedicalRecord{ID: 1, ClinicID: 1, Version: 0}
+	validRecord := &model.MedicalRecord{ID: 1, ClinicID: 1, Version: 0, Status: model.MedicalRecordStatusDraft}
 
 	t.Run("rejects pet_id not in clinic", func(t *testing.T) {
 		repo := &mockMedicalRecordRepository{
 			findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
 				return validRecord, nil
 			},
-		}
-		petRepo := &mrMockPetRepo{
-			findByIDFn: func(_ context.Context, _, _ uint64) (*model.Pet, error) {
-				return nil, apperrors.WrapNotFound("pet", "200")
+			updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.MedicalRecord, error) {
+				t.Fatal("update must not persist invalid pet")
+				return nil, nil
 			},
 		}
-		svc := NewMedicalRecordService(repo, nil, petRepo, nil, nil, nil, nil, nil, nil)
+		resRepo := &mockReservationRepoForMedicalRecord{
+			findPetOwnerFn: func(_ context.Context, _, _ uint64) (uint64, error) {
+				return 0, apperrors.WrapNotFound("pet", "200")
+			},
+		}
+		svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, nil, nil, resRepo, nil, nil, nil)
 
 		_, err := svc.Update(context.Background(), 1, 1, UpdateMedicalRecordInput{
 			PetID: &petID,
 		})
 
 		assert.Error(t, err)
-		assert.True(t, apperrors.IsInvalidInput(err))
+		assert.True(t, apperrors.IsNotFound(err))
 	})
 
 	t.Run("accepts valid pet_id in clinic", func(t *testing.T) {
@@ -925,12 +733,13 @@ func TestMedicalRecordService_Update_PetValidation(t *testing.T) {
 				return &model.MedicalRecord{ID: 1, ClinicID: 1}, nil
 			},
 		}
-		petRepo := &mrMockPetRepo{
-			findByIDFn: func(_ context.Context, _, _ uint64) (*model.Pet, error) {
-				return &model.Pet{ID: petID, ClinicID: 1}, nil
+		resRepo := &mockReservationRepoForMedicalRecord{
+			findPetOwnerFn: func(_ context.Context, _, id uint64) (uint64, error) {
+				assert.Equal(t, petID, id)
+				return 1, nil
 			},
 		}
-		svc := NewMedicalRecordService(repo, nil, petRepo, nil, nil, nil, nil, nil, nil)
+		svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, nil, nil, resRepo, nil, nil, nil)
 
 		_, err := svc.Update(context.Background(), 1, 1, UpdateMedicalRecordInput{
 			PetID: &petID,
@@ -1012,7 +821,7 @@ func TestMedicalRecordService_Delete(t *testing.T) {
 					return tt.repoErr
 				},
 			}
-			svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, nil, nil)
+			svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
 
 			err := svc.Delete(context.Background(), tt.clinicID, tt.id)
 
@@ -1061,7 +870,7 @@ func TestMedicalRecordService_Delete_SyncsVisitCompletionAndNextVisitTagsAfterDe
 			return nil
 		},
 	}
-	svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, nil, nil, tagSync)
+	svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, tagSync)
 
 	err := svc.Delete(context.Background(), 1, 30)
 
@@ -1072,17 +881,7 @@ func TestMedicalRecordService_Delete_SyncsVisitCompletionAndNextVisitTagsAfterDe
 
 func TestMedicalRecordService_CreateSubRecords_SkipsEmptyInquiryInput(t *testing.T) {
 	inquiryRepo := &spyInquiryRepo{}
-	svc := NewMedicalRecordService(
-		nil,
-		nil,
-		nil,
-		inquiryRepo,
-		&noopClinicalPlanRepo{},
-		nil,
-		nil,
-		nil,
-		nil,
-	)
+	svc := NewMedicalRecordService(nil, nil, nil, inquiryRepo, &noopClinicalPlanRepo{}, nil, nil, nil, nil, nil, nil, nil, nil)
 
 	svc.CreateSubRecords(context.Background(), 1, 10, CreateSubRecordsInput{})
 
@@ -1091,17 +890,7 @@ func TestMedicalRecordService_CreateSubRecords_SkipsEmptyInquiryInput(t *testing
 
 func TestMedicalRecordService_CreateSubRecords_SavesInquiryWhenInputProvided(t *testing.T) {
 	inquiryRepo := &spyInquiryRepo{}
-	svc := NewMedicalRecordService(
-		nil,
-		nil,
-		nil,
-		inquiryRepo,
-		&noopClinicalPlanRepo{},
-		nil,
-		nil,
-		nil,
-		nil,
-	)
+	svc := NewMedicalRecordService(nil, nil, nil, inquiryRepo, &noopClinicalPlanRepo{}, nil, nil, nil, nil, nil, nil, nil, nil)
 	chiefComplaint := "食欲不振"
 
 	svc.CreateSubRecords(context.Background(), 1, 10, CreateSubRecordsInput{
@@ -1182,11 +971,11 @@ func TestAutoCreateFromReservation_BUG386(t *testing.T) {
 
 	t.Run("skips when owner_id and pet_id are nil and no line_customer_id", func(t *testing.T) {
 		repo := &mockMedicalRecordRepository{
-			findAllFn: func(_ context.Context, _ []uint64, _ *uint64, _ *uint64, _, _ *string, _, _ int) ([]model.MedicalRecord, int64, error) {
+			findAllFn: func(_ context.Context, _ []uint64, _ repository.MedicalRecordListFilters, _, _ int) ([]model.MedicalRecord, int64, error) {
 				return nil, 0, nil
 			},
 		}
-		svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, nil, nil)
+		svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
 		appt := &model.Reservation{
 			ID:        1,
 			ClinicID:  1,
@@ -1200,7 +989,7 @@ func TestAutoCreateFromReservation_BUG386(t *testing.T) {
 		created := false
 		findAllCalled := false
 		repo := &mockMedicalRecordRepository{
-			findAllFn: func(_ context.Context, _ []uint64, _ *uint64, _ *uint64, _, _ *string, _, _ int) ([]model.MedicalRecord, int64, error) {
+			findAllFn: func(_ context.Context, _ []uint64, _ repository.MedicalRecordListFilters, _, _ int) ([]model.MedicalRecord, int64, error) {
 				findAllCalled = true
 				return nil, 0, nil
 			},
@@ -1209,7 +998,7 @@ func TestAutoCreateFromReservation_BUG386(t *testing.T) {
 				return nil
 			},
 		}
-		svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, nil, nil)
+		svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
 		appt := &model.Reservation{
 			ID:              1,
 			ClinicID:        1,
@@ -1229,7 +1018,7 @@ func TestAutoCreateFromReservation_BUG386(t *testing.T) {
 		created := false
 		findAllCalled := false
 		repo := &mockMedicalRecordRepository{
-			findAllFn: func(_ context.Context, _ []uint64, _ *uint64, _ *uint64, _, _ *string, _, _ int) ([]model.MedicalRecord, int64, error) {
+			findAllFn: func(_ context.Context, _ []uint64, _ repository.MedicalRecordListFilters, _, _ int) ([]model.MedicalRecord, int64, error) {
 				findAllCalled = true
 				return nil, 0, nil
 			},
@@ -1238,7 +1027,7 @@ func TestAutoCreateFromReservation_BUG386(t *testing.T) {
 				return nil
 			},
 		}
-		svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, nil, nil)
+		svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
 		appt := &model.Reservation{
 			ID:        1,
 			ClinicID:  1,
@@ -1260,7 +1049,7 @@ func TestAutoCreateFromReservation_BUG386(t *testing.T) {
 	t.Run("resolves owner_id from line_customer and creates medical record (BUG-386)", func(t *testing.T) {
 		var createdRecord *model.MedicalRecord
 		repo := &mockMedicalRecordRepository{
-			findAllFn: func(_ context.Context, _ []uint64, _ *uint64, _ *uint64, _, _ *string, _, _ int) ([]model.MedicalRecord, int64, error) {
+			findAllFn: func(_ context.Context, _ []uint64, _ repository.MedicalRecordListFilters, _, _ int) ([]model.MedicalRecord, int64, error) {
 				return nil, 0, nil
 			},
 			createFn: func(_ context.Context, record *model.MedicalRecord) error {
@@ -1283,7 +1072,7 @@ func TestAutoCreateFromReservation_BUG386(t *testing.T) {
 				}, nil
 			},
 		}
-		svc := NewMedicalRecordService(repo, nil, nil, &noopInquiryRepo{}, &noopClinicalPlanRepo{}, lineCustomerRepo, nil, nil, nil)
+		svc := NewMedicalRecordService(repo, nil, nil, &noopInquiryRepo{}, &noopClinicalPlanRepo{}, nil, nil, nil, lineCustomerRepo, nil, nil, nil, nil)
 
 		appt := &model.Reservation{
 			ID:             1,
@@ -1305,7 +1094,7 @@ func TestAutoCreateFromReservation_BUG386(t *testing.T) {
 	t.Run("skips when line_customer has no owner_id", func(t *testing.T) {
 		created := false
 		repo := &mockMedicalRecordRepository{
-			findAllFn: func(_ context.Context, _ []uint64, _ *uint64, _ *uint64, _, _ *string, _, _ int) ([]model.MedicalRecord, int64, error) {
+			findAllFn: func(_ context.Context, _ []uint64, _ repository.MedicalRecordListFilters, _, _ int) ([]model.MedicalRecord, int64, error) {
 				return nil, 0, nil
 			},
 			createFn: func(_ context.Context, _ *model.MedicalRecord) error {
@@ -1321,7 +1110,7 @@ func TestAutoCreateFromReservation_BUG386(t *testing.T) {
 				}, nil
 			},
 		}
-		svc := NewMedicalRecordService(repo, nil, nil, nil, nil, lineCustomerRepo, nil, nil, nil)
+		svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, nil, lineCustomerRepo, nil, nil, nil, nil)
 
 		appt := &model.Reservation{
 			ID:             1,
@@ -1336,10 +1125,12 @@ func TestAutoCreateFromReservation_BUG386(t *testing.T) {
 }
 
 // mockReservationRepoForMedicalRecord は MedicalRecord テスト用 ReservationRepository モック。
-// FindByID のみカスタマイズ可能。他の 16 メソッドは noop スタブ。
+// FindByID のみカスタマイズ可能。他の 17 メソッドは noop スタブ。
 type mockReservationRepoForMedicalRecord struct {
 	findByIDFn        func(ctx context.Context, clinicID, id uint64) (*model.Reservation, error)
 	updateFn          func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Reservation, error)
+	assertOwnerFn     func(ctx context.Context, clinicID, ownerID uint64) error
+	findPetOwnerFn    func(ctx context.Context, clinicID, petID uint64) (uint64, error)
 	findByIDCallCount int
 }
 
@@ -1368,6 +1159,9 @@ func (m *mockReservationRepoForMedicalRecord) Update(ctx context.Context, clinic
 func (m *mockReservationRepoForMedicalRecord) Delete(_ context.Context, _, _ uint64) error {
 	return nil
 }
+func (m *mockReservationRepoForMedicalRecord) AcquireBookingLock(_ context.Context, _ uint64) error {
+	return nil
+}
 func (m *mockReservationRepoForMedicalRecord) LockAndFindByID(_ context.Context, _, _ uint64) (*model.Reservation, error) {
 	return nil, nil
 }
@@ -1389,7 +1183,7 @@ func (m *mockReservationRepoForMedicalRecord) ExistsByReservationTypeID(_ contex
 func (m *mockReservationRepoForMedicalRecord) ExistsByStaffID(_ context.Context, _, _ uint64) (bool, error) {
 	return false, nil
 }
-func (m *mockReservationRepoForMedicalRecord) CountMedicalRecordsByReservationID(_ context.Context, _ uint64) (int64, error) {
+func (m *mockReservationRepoForMedicalRecord) CountMedicalRecordsByReservationID(_ context.Context, _, _ uint64) (int64, error) {
 	return 0, nil
 }
 func (m *mockReservationRepoForMedicalRecord) CountByCustomerAndDateRange(_ context.Context, _, _ uint64, _, _ time.Time) (int64, error) {
@@ -1404,8 +1198,23 @@ func (m *mockReservationRepoForMedicalRecord) FindAllByCategory(_ context.Contex
 func (m *mockReservationRepoForMedicalRecord) FindNoShowCandidates(_ context.Context, _ uint64) ([]model.Reservation, error) {
 	return nil, nil
 }
-func (m *mockReservationRepoForMedicalRecord) HasReservationByOwnerInRange(_ context.Context, _, _ uint64, _, _ time.Time) (bool, error) {
-	return false, nil
+
+func (m *mockReservationRepoForMedicalRecord) AssertOwnerInClinic(ctx context.Context, clinicID, ownerID uint64) error {
+	if m.assertOwnerFn != nil {
+		return m.assertOwnerFn(ctx, clinicID, ownerID)
+	}
+	return nil
+}
+
+func (m *mockReservationRepoForMedicalRecord) FindPetOwnerInClinic(ctx context.Context, clinicID, petID uint64) (uint64, error) {
+	if m.findPetOwnerFn != nil {
+		return m.findPetOwnerFn(ctx, clinicID, petID)
+	}
+	return 0, nil
+}
+
+func (m *mockReservationRepoForMedicalRecord) AssertLineCustomerInClinic(_ context.Context, _, _ uint64) error {
+	return nil
 }
 
 // mockLstepDeliveryTriggerForMR は TriggerFirstVisitWelcome の呼び出し検証用モック
@@ -1463,10 +1272,6 @@ func (m *mockLstepDeliveryTriggerForMR) TriggerFleaTickAlert(_ context.Context, 
 func (m *mockLstepDeliveryTriggerForMR) TriggerFoodRefillReminder(_ context.Context, _ uint64, _ time.Time) (int, []error) {
 	return 0, nil
 }
-func (m *mockLstepDeliveryTriggerForMR) TriggerSuppRefillReminder(_ context.Context, _ uint64, _ time.Time) (int, []error) {
-	return 0, nil
-}
-
 func TestMedicalRecordService_Create_FirstVisitTrigger(t *testing.T) {
 	ownerID := uint64(42)
 	clinicID := uint64(1)
@@ -1499,7 +1304,7 @@ func TestMedicalRecordService_Create_FirstVisitTrigger(t *testing.T) {
 		}
 		trigger := &mockLstepDeliveryTriggerForMR{}
 
-		svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, resRepo, trigger, nil)
+		svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, nil, nil, resRepo, trigger, nil, nil)
 		_, err := createMedicalRecordForTest(context.Background(), svc, newRecord(&appointmentID))
 
 		assert.NoError(t, err)
@@ -1519,7 +1324,7 @@ func TestMedicalRecordService_Create_FirstVisitTrigger(t *testing.T) {
 		}
 		trigger := &mockLstepDeliveryTriggerForMR{}
 
-		svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, resRepo, trigger, nil)
+		svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, nil, nil, resRepo, trigger, nil, nil)
 		_, err := createMedicalRecordForTest(context.Background(), svc, newRecord(&appointmentID))
 
 		assert.NoError(t, err)
@@ -1536,7 +1341,7 @@ func TestMedicalRecordService_Create_FirstVisitTrigger(t *testing.T) {
 		}
 		trigger := &mockLstepDeliveryTriggerForMR{}
 
-		svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, resRepo, trigger, nil)
+		svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, nil, nil, resRepo, trigger, nil, nil)
 		_, err := createMedicalRecordForTest(context.Background(), svc, newRecord(&appointmentID))
 
 		assert.NoError(t, err)
@@ -1555,7 +1360,7 @@ func TestMedicalRecordService_Create_FirstVisitTrigger(t *testing.T) {
 		}
 		trigger := &mockLstepDeliveryTriggerForMR{}
 
-		svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, resRepo, trigger, nil)
+		svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, nil, nil, resRepo, trigger, nil, nil)
 		_, err := createMedicalRecordForTest(context.Background(), svc, newRecord(&appointmentID))
 
 		assert.NoError(t, err)
@@ -1574,7 +1379,7 @@ func TestMedicalRecordService_Create_FirstVisitTrigger(t *testing.T) {
 		}
 		trigger := &mockLstepDeliveryTriggerForMR{}
 
-		svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, resRepo, trigger, nil)
+		svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, nil, nil, resRepo, trigger, nil, nil)
 		_, err := createMedicalRecordForTest(context.Background(), svc, newRecord(&appointmentID))
 
 		assert.NoError(t, err)
@@ -1589,7 +1394,7 @@ func TestMedicalRecordService_Create_FirstVisitTrigger(t *testing.T) {
 		resRepo := &mockReservationRepoForMedicalRecord{}
 		trigger := &mockLstepDeliveryTriggerForMR{}
 
-		svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, resRepo, trigger, nil)
+		svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, nil, nil, resRepo, trigger, nil, nil)
 		_, err := createMedicalRecordForTest(context.Background(), svc, newRecord(nil)) // no AppointmentID
 
 		assert.NoError(t, err)
@@ -1605,7 +1410,7 @@ func TestMedicalRecordService_Create_FirstVisitTrigger(t *testing.T) {
 		resRepo := &mockReservationRepoForMedicalRecord{}
 		trigger := &mockLstepDeliveryTriggerForMR{}
 
-		svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, resRepo, trigger, nil)
+		svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, nil, nil, resRepo, trigger, nil, nil)
 		_, err := createMedicalRecordForTest(context.Background(), svc, newRecord(nil))
 
 		assert.NoError(t, err)
@@ -1625,7 +1430,7 @@ func TestMedicalRecordService_Create_FirstVisitTrigger(t *testing.T) {
 		}
 		trigger := &mockLstepDeliveryTriggerForMR{}
 
-		svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, resRepo, trigger, nil)
+		svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, nil, nil, resRepo, trigger, nil, nil)
 		_, err := createMedicalRecordForTest(context.Background(), svc, newRecord(&appointmentID))
 
 		assert.NoError(t, err, "reservation lookup error must be non-fatal")
@@ -1645,7 +1450,7 @@ func TestMedicalRecordService_Create_FirstVisitTrigger(t *testing.T) {
 		}
 		trigger := &mockLstepDeliveryTriggerForMR{}
 
-		svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, resRepo, trigger, nil)
+		svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, nil, nil, resRepo, trigger, nil, nil)
 		_, err := createMedicalRecordForTest(context.Background(), svc, newRecord(&appointmentID))
 
 		assert.NoError(t, err)
@@ -1662,7 +1467,7 @@ func TestMedicalRecordService_UpdateRecommendationReason(t *testing.T) {
 	)
 
 	newSvc := func(repo *mockMedicalRecordRepository) MedicalRecordService {
-		return NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, nil, nil)
+		return NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil)
 	}
 
 	t.Run("valid_reason_revisit", func(t *testing.T) {
@@ -1725,6 +1530,24 @@ func TestMedicalRecordService_UpdateRecommendationReason(t *testing.T) {
 		assert.Equal(t, "exam", *rec.RecommendationReason)
 	})
 
+	t.Run("rejects_finalized_parent", func(t *testing.T) {
+		updateCalled := false
+		repo := &mockMedicalRecordRepository{
+			findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
+				return &model.MedicalRecord{ID: recordID, Status: model.MedicalRecordStatusFinalized}, nil
+			},
+			updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.MedicalRecord, error) {
+				updateCalled = true
+				return nil, errors.New("must not be called")
+			},
+		}
+		rec, err := newSvc(repo).UpdateRecommendationReason(context.Background(), clinicID, recordID, UpdateRecommendationReasonInput{Reason: "revisit"})
+		assert.Error(t, err)
+		assert.Nil(t, rec)
+		assert.True(t, apperrors.IsConflict(err), "確定済みカルテへの推奨理由更新は Conflict(409) であるべき: %v", err)
+		assert.False(t, updateCalled, "確定済みカルテの推奨理由は更新されてはならない")
+	})
+
 	t.Run("empty_reason_clears_to_nil", func(t *testing.T) {
 		var capturedFields map[string]any
 		repo := &mockMedicalRecordRepository{
@@ -1780,63 +1603,16 @@ func TestMedicalRecordService_UpdateRecommendationReason(t *testing.T) {
 	})
 }
 
-// ---- mockMedicalRecordAuditService ----
-
-type mockMedicalRecordAuditService struct {
-	logMedicalRecordChangeFn func(ctx context.Context, clinicID uint64, actorID *uint64, action string, recordID uint64, oldValue, newValue map[string]any) error
-	logVitalChangeFn         func(ctx context.Context, clinicID uint64, actorID *uint64, action string, vitalID, medicalRecordID uint64, oldValue, newValue map[string]any) error
-	logAddendumCreateFn      func(ctx context.Context, clinicID uint64, actorID *uint64, addendumID, medicalRecordID uint64, addendum *model.MedicalRecordAddendum) error
-	calls                    []string
-}
-
-func (m *mockMedicalRecordAuditService) Log(_ context.Context, _ *model.AuditLog) error { return nil }
-func (m *mockMedicalRecordAuditService) LogEntry(_ context.Context, _ *AuditLogInput) error {
-	return nil
-}
-func (m *mockMedicalRecordAuditService) LogAuthLogin(_ context.Context, _, _ *uint64, _, _, _ string) error {
-	return nil
-}
-func (m *mockMedicalRecordAuditService) LogLstepOperation(_ context.Context, _ uint64, _ *uint64, _, _ string, _ *uint64) error {
-	return nil
-}
-func (m *mockMedicalRecordAuditService) LogLstepOperationWithMetadata(_ context.Context, _ uint64, _ *uint64, _, _ string, _ *uint64, _ any) error {
-	return nil
-}
-func (m *mockMedicalRecordAuditService) LogMedicalRecordChange(ctx context.Context, clinicID uint64, actorID *uint64, action string, recordID uint64, oldValue, newValue map[string]any) error {
-	m.calls = append(m.calls, action)
-	if m.logMedicalRecordChangeFn != nil {
-		return m.logMedicalRecordChangeFn(ctx, clinicID, actorID, action, recordID, oldValue, newValue)
-	}
-	return nil
-}
-func (m *mockMedicalRecordAuditService) LogVitalChange(ctx context.Context, clinicID uint64, actorID *uint64, action string, vitalID, medicalRecordID uint64, oldValue, newValue map[string]any) error {
-	m.calls = append(m.calls, action)
-	if m.logVitalChangeFn != nil {
-		return m.logVitalChangeFn(ctx, clinicID, actorID, action, vitalID, medicalRecordID, oldValue, newValue)
-	}
-	return nil
-}
-func (m *mockMedicalRecordAuditService) LogAddendumCreate(ctx context.Context, clinicID uint64, actorID *uint64, addendumID, medicalRecordID uint64, addendum *model.MedicalRecordAddendum) error {
-	m.calls = append(m.calls, "create")
-	if m.logAddendumCreateFn != nil {
-		return m.logAddendumCreateFn(ctx, clinicID, actorID, addendumID, medicalRecordID, addendum)
-	}
-	return nil
-}
-func (m *mockMedicalRecordAuditService) LogClinicSwitch(_ context.Context, _ *uint64, _, _ uint64, _, _ string) error {
-	return nil
-}
-
 // TestMedicalRecordService_Create_AuditLog はカルテ作成時に audit "create" が記録されることを確認する。
 func TestMedicalRecordService_Create_AuditLog(t *testing.T) {
-	auditSvc := &mockMedicalRecordAuditService{}
+	auditSvc := &mockAuditService{}
 	repo := &mockMedicalRecordRepository{
 		createFn: func(_ context.Context, r *model.MedicalRecord) error {
 			r.ID = 50
 			return nil
 		},
 	}
-	svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, nil, auditSvc)
+	svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, auditSvc, nil)
 
 	enteredBy := uint64(7)
 	record := &model.MedicalRecord{
@@ -1853,7 +1629,7 @@ func TestMedicalRecordService_Create_AuditLog(t *testing.T) {
 
 // TestMedicalRecordService_Update_AuditLog はカルテ更新時に audit "update" が記録されることを確認する。
 func TestMedicalRecordService_Update_AuditLog(t *testing.T) {
-	auditSvc := &mockMedicalRecordAuditService{}
+	auditSvc := &mockAuditService{}
 	draftStatus := model.MedicalRecordStatusDraft
 	repo := &mockMedicalRecordRepository{
 		findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
@@ -1873,7 +1649,7 @@ func TestMedicalRecordService_Update_AuditLog(t *testing.T) {
 			}, nil
 		},
 	}
-	svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, nil, auditSvc)
+	svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, auditSvc, nil)
 
 	staffID := uint64(7)
 	_, err := svc.Update(context.Background(), 1, 10, UpdateMedicalRecordInput{
@@ -1887,7 +1663,7 @@ func TestMedicalRecordService_Update_AuditLog(t *testing.T) {
 
 // TestMedicalRecordService_Update_FinalizeAuditLog はカルテ確定時に "finalize" 監査ログが追加記録されることを確認する。
 func TestMedicalRecordService_Update_FinalizeAuditLog(t *testing.T) {
-	auditSvc := &mockMedicalRecordAuditService{}
+	auditSvc := &mockAuditService{}
 	finalizedStatus := model.MedicalRecordStatusFinalized
 	repo := &mockMedicalRecordRepository{
 		findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
@@ -1905,7 +1681,7 @@ func TestMedicalRecordService_Update_FinalizeAuditLog(t *testing.T) {
 			}, nil
 		},
 	}
-	svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, nil, auditSvc)
+	svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, auditSvc, nil)
 
 	staffID := uint64(7)
 	_, err := svc.Update(context.Background(), 1, 10, UpdateMedicalRecordInput{
@@ -1918,7 +1694,7 @@ func TestMedicalRecordService_Update_FinalizeAuditLog(t *testing.T) {
 
 // TestMedicalRecordService_Delete_AuditLog はカルテ削除時に audit "delete" が記録されることを確認する。
 func TestMedicalRecordService_Delete_AuditLog(t *testing.T) {
-	auditSvc := &mockMedicalRecordAuditService{}
+	auditSvc := &mockAuditService{}
 	repo := &mockMedicalRecordRepository{
 		findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
 			return &model.MedicalRecord{ID: 10, ClinicID: 1, Status: model.MedicalRecordStatusDraft}, nil
@@ -1930,7 +1706,7 @@ func TestMedicalRecordService_Delete_AuditLog(t *testing.T) {
 			return nil
 		},
 	}
-	svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, nil, auditSvc)
+	svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, auditSvc, nil)
 
 	err := svc.Delete(context.Background(), 1, 10)
 	assert.NoError(t, err)
@@ -1939,7 +1715,7 @@ func TestMedicalRecordService_Delete_AuditLog(t *testing.T) {
 
 // TestMedicalRecordService_AuditFailure_NonFatal は監査ログ書き込み失敗がメイン処理を止めないことを確認する。
 func TestMedicalRecordService_AuditFailure_NonFatal(t *testing.T) {
-	auditSvc := &mockMedicalRecordAuditService{
+	auditSvc := &mockAuditService{
 		logMedicalRecordChangeFn: func(_ context.Context, _ uint64, _ *uint64, _ string, _ uint64, _, _ map[string]any) error {
 			return errors.New("audit db down")
 		},
@@ -1950,7 +1726,7 @@ func TestMedicalRecordService_AuditFailure_NonFatal(t *testing.T) {
 			return nil
 		},
 	}
-	svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, nil, auditSvc)
+	svc := NewMedicalRecordService(repo, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, auditSvc, nil)
 
 	record := &model.MedicalRecord{ClinicID: 1, Date: time.Now(), Status: model.MedicalRecordStatusDraft}
 	created, err := createMedicalRecordForTest(context.Background(), svc, record)

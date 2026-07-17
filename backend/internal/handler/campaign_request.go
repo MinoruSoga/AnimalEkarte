@@ -22,11 +22,11 @@ type createCampaignRequest struct {
 }
 
 func (r *createCampaignRequest) toServiceInput() (*service.CreateCampaignInput, error) {
-	start, err := time.ParseInLocation("2006-01-02", r.StartDate, time.Local)
+	start, err := time.ParseInLocation(time.DateOnly, r.StartDate, time.Local)
 	if err != nil {
 		return nil, apperrors.WrapInvalidInput("start_date は YYYY-MM-DD 形式で指定してください")
 	}
-	end, err := time.ParseInLocation("2006-01-02", r.EndDate, time.Local)
+	end, err := time.ParseInLocation(time.DateOnly, r.EndDate, time.Local)
 	if err != nil {
 		return nil, apperrors.WrapInvalidInput("end_date は YYYY-MM-DD 形式で指定してください")
 	}
@@ -69,14 +69,14 @@ func (r *updateCampaignRequest) toServiceInput() (*service.UpdateCampaignInput, 
 		TargetItemIDs: r.TargetItemIDs,
 	}
 	if r.StartDate != nil {
-		t, err := time.ParseInLocation("2006-01-02", *r.StartDate, time.Local)
+		t, err := time.ParseInLocation(time.DateOnly, *r.StartDate, time.Local)
 		if err != nil {
 			return nil, apperrors.WrapInvalidInput("start_date は YYYY-MM-DD 形式で指定してください")
 		}
 		input.StartDate = &t
 	}
 	if r.EndDate != nil {
-		t, err := time.ParseInLocation("2006-01-02", *r.EndDate, time.Local)
+		t, err := time.ParseInLocation(time.DateOnly, *r.EndDate, time.Local)
 		if err != nil {
 			return nil, apperrors.WrapInvalidInput("end_date は YYYY-MM-DD 形式で指定してください")
 		}

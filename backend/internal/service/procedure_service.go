@@ -74,11 +74,7 @@ func buildProcedureUpdate(input *UpdateProcedureInput) map[string]any {
 	if input.Anesthesia != nil {
 		fields[colProcedureAnesthesia] = model.AnesthesiaType(*input.Anesthesia)
 	}
-	if input.ClearParentID {
-		fields[colProcedureParentID] = nil
-	} else if input.ParentID != nil {
-		fields[colProcedureParentID] = *input.ParentID
-	}
+	setNullableUint64Field(fields, colProcedureParentID, input.ClearParentID, input.ParentID)
 	if input.SortOrder != nil {
 		fields[colProcedureSortOrder] = *input.SortOrder
 	}
@@ -139,12 +135,15 @@ func (s *procedureService) Create(ctx context.Context, clinicID uint64, input *C
 			return nil, apperrors.Wrap(err, "failed to validate tax type")
 		}
 	}
+	if err := s.validateParentOwnership(ctx, clinicID, input.ParentID); err != nil {
+		return nil, err
+	}
 	// TaxType 変換: "" の場合はデフォルト "excluded" を使用 (BUG-379)
 	taxType := model.TaxTypeExcluded
 	if input.TaxType != "" {
 		taxType = model.TaxType(input.TaxType)
 	}
-	taxRate := 0.10
+	taxRate := DefaultTaxRate
 	if input.TaxRate != nil {
 		taxRate = *input.TaxRate
 	}
@@ -179,6 +178,9 @@ func (s *procedureService) Update(ctx context.Context, clinicID, id uint64, inpu
 	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
 		slog.ErrorContext(ctx, "failed to get procedure", "error", err, "id", id, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to get procedure")
+	}
+	if err := s.validateParentOwnership(ctx, clinicID, input.ParentID); err != nil {
+		return nil, err
 	}
 	if err := validateOptionalName(input.Name); err != nil {
 		return nil, apperrors.Wrap(err, "failed to validate optional name")
@@ -246,4 +248,14 @@ func (s *procedureService) Reorder(ctx context.Context, clinicID uint64, ids []u
 	}
 	slog.InfoContext(ctx, "procedures reordered", slog.Uint64("clinic_id", clinicID), slog.Int("count", len(ids)))
 	return nil
+}
+
+// validateParentOwnership verifies a request-supplied parent_id belongs to the caller's
+// clinic before it is persisted (X-14 self-ref master FK guard).
+func (s *procedureService) validateParentOwnership(ctx context.Context, clinicID uint64, parentID *uint64) error {
+	return validateOwnedMasterFK(ctx, "parent procedure", clinicID, parentID,
+		func(actx context.Context, cid, mid uint64) error {
+			_, err := s.repo.FindByID(actx, cid, mid)
+			return err
+		})
 }

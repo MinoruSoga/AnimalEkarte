@@ -1,6 +1,6 @@
 import type { ShiftTemplate, ShiftType } from "../types";
 
-export interface BreakInput {
+interface BreakInput {
   break_start: string;
   break_end: string;
 }

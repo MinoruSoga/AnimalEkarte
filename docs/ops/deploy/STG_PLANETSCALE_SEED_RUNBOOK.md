@@ -1,0 +1,380 @@
+# PlanetScale STG シードデータ投入 Runbook
+
+> **目的**: 2026-07-15 に `DROP SCHEMA public CASCADE` で初期化した PlanetScale STG（`animalekarte-stg` / `main` ブランチ）へ、次の CF デプロイ後にデータ（seed）を復元・検証する手順を定義する。
+> **読者**: DevOps/開発者。
+> **タイミング**: PlanetScale STG のスキーマ初期化直後〜次回 CF デプロイ前後。
+
+---
+
+## 0. 背景
+
+2026-07-15、migration 002〜004 の stub SQL を 001 へ統合したコミット（`fb758d50` chore(backend): migration 002-004 を 001 に統合し削除する）により、STG の `schema_migrations` に残っていた旧キー（`002_seed_master.sql` 等）と現行バイナリの整合性リスクを避けるため、PlanetScale STG（`animalekarte-stg`）に対して直接 `DROP SCHEMA public CASCADE` を実行し初期化した。次の CF デプロイで `wrangler deploy` → `POST /_internal/migrate` が走れば `backend/migrations/001_init.sql`（DDL）は復元されるが、**そのデータ（seed）が復元されるかどうかは別途確認が必要**というのが本書の出発点。
+
+調査の結論を先取りすると、**cmd/migrate は DDL 適用後に seed バンドルの投入まで同一プロセス内で行う**（§2.1〜2.2 参照）。したがって「schema 復元 → seed は別途手作業」という前提は、STG が *真に空のスキーマ*（`public` スキーマごと存在しない状態）である限り成立しない。本書は、この自動投入を前提にした**検証中心の手順**と、それでも人手が要る分岐（`public` スキーマの実在確認、フルデモ投入）を扱う。
+
+---
+
+## 1. 方式比較（結論: seed 再投入を主手順とする）
+
+| 案 | 概要 | 所要目安 | リスク | 採否 |
+|---|---|---|---|---|
+| **A. seed 再投入**（本書の主手順） | `backend/migrations/seeds/{002_master,003_demo,004_staging}/` の CSV を `cmd/migrate` の既存メカニズムで自動投入し、検証する | 数分（migrate 自体）＋検証 10〜15分 | 低（既存の起動時経路をそのまま使うだけ。新規コードなし） | **採用** |
+| B. RDS ダンプ移行 | 旧 AWS RDS `animalekarte-stg` から `pg_dump`/`pg_restore` で実データを PlanetScale へ移す | 半日〜（スキーマ差分・接続経路の再構築が必要） | 高（RDS は private subnet 限定・SSM port-forward 前提で PlanetScale への直接 dump/restore 経路が未整備。本番同等の PII を STG に持ち込む運用上のリスクも増える） | 不採用（§6 参照） |
+
+STG はデモデータ運用（`docs/ops/deploy/STG-DEMO-DATA-LIFECYCLE.md` §2.1「Seed Data」）であり、実データの忠実な移行を要求されていない。したがって A を主手順とする。
+
+---
+
+## 2. 調査結果（根拠）
+
+### 2.1 cmd/migrate は DB_RESET に関わらず seed を適用する
+
+`backend/cmd/migrate/main.go` の `run()`:
+
+- `DB_RESET` は `resetSchema`（`DROP SCHEMA public CASCADE` → `CREATE SCHEMA public`）の実行有無だけを制御する（main.go:88-94, 590-617）。
+- seed バンドルのロード（`runSeedBundles`, main.go:539-588）は `DB_RESET` の値と**無関係**に、`runSQLMigrations`（DDL 適用, main.go:441-526）の直後に必ず呼ばれる（main.go:117-127）。
+- `runSeedBundles` は各バンドルが `schema_migrations` に未記録の場合のみ CSV を投入する（`isAlreadyApplied` ガード, main.go:551-559）。**未記録かどうか**が投入有無を決める唯一の条件であり、`DB_RESET` は関係しない。
+- 既存 DB（テーブルが実在する）への誤投入を防ぐガードは `baselineIfNeeded`（main.go:293-394）。`clinics` テーブルが存在しなければ「新規 DB」と判定し baseline せず（main.go:324-327）、そのまま `runSeedBundles` が CSV を実投入する。
+
+CF 経路（`POST /_internal/migrate` → `Container.exec(["/app/migrate"])`）は起動引数が固定で `DB_RESET` を注入する経路が構造的に存在しない（`migration-cloudflare.md:431` 「DB_RESETは本経路から渡せない(常にfalse)」、同 L622 のセキュリティレビュー所見も参照）。
+
+**結論**: `DROP SCHEMA public CASCADE` 実行後の STG は「`clinics` テーブルが存在しない = 新規 DB」と cmd/migrate から見える。したがって次の `POST /_internal/migrate` は DB_RESET の値に関係なく、001_init.sql 適用 → 002_master → 003_demo → 004_staging の順で CSV を **自動投入する**（`seedbundle.BundleOrder`, `backend/internal/seedbundle/manifest.go:23`）。`docs/ops/deploy/SEED_MIGRATION_OPERATIONS.md:18` も「fresh DB 適用後の正しい終了状態は `schema_migrations` に4行」と明記しており、これは自動投入を前提にした記述。
+
+### 2.2 ただし前提条件が一つだけある: `public` スキーマの実在
+
+`resetSchema`（main.go:591-617）は `DROP SCHEMA public CASCADE` と `CREATE SCHEMA public` を**対で**実行する。しかし今回 STG に対して実行されたのはこのペアではなく、手動での `DROP SCHEMA public CASCADE` 単体（背景§0）。`CREATE SCHEMA public` が対で実行されていない場合、`public` スキーマ自体が存在しない状態になる。
+
+この場合、migrate の次のステップ `ensureMigrationsTable`（main.go:97, 140-150）が実行する `CREATE TABLE IF NOT EXISTS schema_migrations (...)` はスキーマ未指定（unqualified）のため、PostgreSQL は `no schema has been selected to create in` で失敗する。これは `POST /_internal/migrate` の非ゼロ終了 → `backend-deploy.yml` の `Run database migration` ステップ失敗 → デプロイ全体 abort という**大声で失敗する**経路になる（サイレント障害にはならない）が、そうなると「次の CF デプロイで seed まで自動復元される」という前提が崩れる。
+
+→ **§4 の事前チェックは省略不可**。`public` スキーマの実在を先に確認し、なければ CF デプロイ前に手動で作成する。
+
+### 2.3 seed バンドルの中身（002_master / 003_demo / 004_staging）
+
+`backend/migrations/seeds/` は CSV + `manifest.json` のディレクトリ3本のみで、stub SQL は 2026-07 に削除済み（`docs/ops/deploy/SEED_MIGRATION_OPERATIONS.md:11`）。`cmd/migrate` は `manifest.json` の `tables` 配列順に pgx `COPY FROM STDIN` で各 CSV をロードする（`backend/cmd/migrate/csvbundle.go:99-116`）。
+
+| バンドル | テーブル数（manifest） | 内容 | git 追跡状態 |
+|---|---:|---|---|
+| `002_master` | 5 | company, animal_species, lstep 系マスタ | 通常追跡（小容量、合計 <1KB） |
+| `003_demo` | 85 | owners/pets/medical_records/billings 等の業務デモデータ一式 | **`git ls-files -v` で全 86 ファイルに `S`（skip-worktree）フラグが立っている** |
+| `004_staging` | 1 | `appointment_trimming_details`（現状 0 行） | 通常追跡 |
+
+**直近コミットで変わった点**（`e273545d5d2604856ecee4639bcac5c201534f2c` feat(backend): CSV 取込アダプタを追加し、フル 003_demo はローカル専用とする）:
+
+- `backend/internal/csvimport/import.go` を新設。旧DB由来の owners/pets/medical_records/exams/exam_results/billings/billing_items の7テーブルを、**使い捨てローカルDB**に対してのみ投入するアダプタ（`import.go:17-45`）。`cmd/seed-export`（`main.go:104-116`）が `SEED_EXPORT_CSV_SOURCE` 環境変数経由でこれを呼び出し、投入結果を再び `COPY ... TO STDOUT` で CSV ダンプして `backend/migrations/seeds/003_demo/` を再生成する、という**ローカル専用**のパイプライン。STG/PlanetScale へ直接書き込む経路ではない。
+- `docs/ops/deploy/ANIMALEKARTE_CSV_IMPORT_COMPLETION.md:43,65-67`: GitHub の 100MB ファイルサイズ制限を回避するため、フルデモ（529MB、owners 10,370 / pets 15,654 / medical_records 425,544 / billings 392,105 / billing_items 1,542,422 / exam_results 1,322,503 行）は `old_db/sensitive-local/animalekarte-003-demo-full/` に**ローカルのみ**保持し、リポジトリの `003_demo` は小さいデモのまま維持する方針に確定した。
+
+**本セッションで確認した現在の実体**（2026-07-16 時点）:
+
+- **git にコミットされている内容**（= Docker イメージに焼き込まれ、CF デプロイで実際に投入される内容）は小さいデモである。`git show HEAD:backend/migrations/seeds/003_demo/<table>.csv` で確認した主要テーブルの行数:
+
+  | テーブル | 行数（コミット済み） |
+  |---|---:|
+  | clinics | 4 |
+  | staffs | 36 |
+  | permission_groups | 8 |
+  | exam_types | 23 |
+  | owners | 61 |
+  | pets | 78 |
+  | appointments | 810 |
+  | medical_records | 136 |
+  | billings | 64 |
+  | billing_items | 52 |
+  | exam_results | 53 |
+
+- **ローカル作業ツリー**には `git update-index --skip-worktree` された状態で、フルデモ相当のオーバーレイ（owners 10,499 / pets 15,737 / medical_records 425,544 / billings 392,105、`003_demo` ディレクトリ合計 505MB、うち `billing_items.csv` 241MB・`exam_results.csv` 172MB）が既に上書きされている（`ANIMALEKARTE_CSV_IMPORT_COMPLETION.md` の「Remaining risks」で指示された「USER が sensitive-local からフルダンプを復元する」を、このマシン上で既に実施済みという状態）。**これは git addされず、コミットにも Docker イメージにも含まれない**（skip-worktree のため `git status` にも出ない）。billing_items.csv/exam_results.csv は単体で GitHub の 100MB 制限を超えるため、通常の git → Docker イメージ → migrate 経路には原理的に乗らない。
+
+→ 何もしなければ CF デプロイで STG に入るのは**小さいデモ**（上表）。フルデモが必要な場合は §5 Step E-b（pscale role 経由の直接投入）以外に経路がない。
+
+### 2.4 従来の STG seed 投入経路（ECS/RDS 前提。現在は非該当）
+
+`docs/ops/deploy/SEED_MIGRATION_OPERATIONS.md` と `STG-DEMO-DATA-LIFECYCLE.md` に記載の `DB_RESET=true` 起動や `backend-deploy-ecs.yml -f db_reset=true`（`SEED_MIGRATION_OPERATIONS.md:27`, `STG-DEMO-DATA-LIFECYCLE.md:246-252`）は、いずれも**旧 AWS ECS ロールバック経路専用**の手段であり、Cloudflare 正系統の `backend-deploy.yml` には `db_reset` の `workflow_dispatch` 入力が存在しない（同ファイル、`.github/workflows/backend-deploy.yml:6-15` にも当該入力なし）。`make stage-import`（`SEED_MIGRATION_OPERATIONS.md:57-114`）は old_db（旧カルテ）由来データを**ローカル開発DB**へ投入する経路であり、PlanetScale STG への投入手段ではない。これらは今回の PlanetScale STG 投入には使えない・使わない。
+
+### 2.5 PlanetScale への直接投入経路: `pscale role` + psql
+
+PlanetScale Postgres は `pscale role create <database> <branch> <name> --inherited-roles <roles> --ttl <duration>` で、期限付き（TTL）の Postgres ロールを都度発行できる（ローカル `pscale role create --help` で確認済み。`--ttl duration` は `"2h"` 等を受け付け、デフォルト無期限）。STG では `noah-animalekarte` 組織の `animalekarte-stg` データベース・`main` ブランチが対象（`infra/scripts/pscale-create-stg.sh:8-11`）。
+
+既存運用は `pscale role reset-default`（アプリ本体が使う既定 `postgres` ロールのパスワードを都度再発行・失効）だが（`migration-cloudflare.md:403,570,622,694` 等）、これはアプリ稼働用の共有クレデンシャルを毎回ローテーションする前提で、本番稼働中の Worker/Hyperdrive 設定にも影響する。本書の検証・任意投入作業は本番トラフィックに影響しない**別ロール**を使うべきなので、`pscale role reset-default` ではなく `pscale role create` で使い捨てロールを発行する（TTL 失効で自動的に片付く）。
+
+直結接続が必要な理由: `cmd/migrate` は `pg_advisory_lock` を使うため Hyperdrive 経由の接続では動作しない（`infra/scripts/pscale-create-stg.sh:34-35` 「Hyperdrive 経由では advisory lock が非対応」）。同じ理由で、手動の `CREATE SCHEMA public;` やロールバック用 `DROP SCHEMA` も **Hyperdrive を経由しない直結接続**（`pscale role` で発行したロールの host/port へ直接 psql）で行う。
+
+`backend/cmd/seed-export` はローカル専用ツール（安全ガードとして `DB_HOST` が `db`/`localhost`/`127.0.0.1` 以外を拒否する。`main.go` package doc・`dbconn.IsLocalHost` 使用箇所）であり、PlanetScale への逆方向（import）に相当する既存ツールは**ない**。フルデモを STG へ入れる場合は psql の `\copy`（クライアント側ストリーム）を手動で使うしかない。`COPY ... FROM '/path'`（サーバ側ファイル読み込み）は PlanetScale 側にファイルが存在しないため使えない点に注意（`cmd/migrate` 自身も `COPY FROM STDIN` を使っており、サーバ側パス読み込みではない。`csvbundle.go:173-178`）。
+
+---
+
+## 3. 前提
+
+- 本書の「推奨手順」は、**次の CF デプロイで `POST /_internal/migrate` が正常終了していること**（`backend-deploy.yml` の `Run database migration` ステップが exit 0）を前提とする。
+- ただし §2.2 の通り、`public` スキーマが存在しないまま migrate を叩くとこの前提そのものが崩れる（migrate が失敗する）。**§4 の事前チェックを先に実施してから CF デプロイをトリガーすること。**
+- 本書はコード変更を伴わない。`backend/migrations/seeds/` の内容にも触れない（§5 Step E のデータ投入はいずれもデータ投入のみで、seed バンドルファイル自体は編集しない）。
+
+---
+
+## 4. 事前チェック（CF デプロイをトリガーする前に一度だけ）: `public` スキーマの実在確認
+
+```bash
+# 1. TTL付きの検証用ロールを発行（2時間で自動失効。値は画面表示のみ、ファイル/ログ/チャットに残さない）
+pscale role create animalekarte-stg main stg-seed-precheck \
+  --org noah-animalekarte \
+  --inherited-roles postgres \
+  --ttl 2h
+
+# 2. 表示された host/port/user/password/database をこのシェルセッションのみの変数に代入
+export PGHOST="<表示された host>"
+export PGPORT="<表示された port>"
+export PGUSER="<表示された user>"
+export PGPASSWORD="<表示された password>"
+export PGDATABASE="<表示された database>"
+
+# 3. public スキーマの実在確認
+psql -c "SELECT schema_name FROM information_schema.schemata WHERE schema_name = 'public';"
+```
+
+**分岐（人間の判断が必要）**:
+
+- 1行返る（`public` が存在） → 何もしなくてよい。§5 へ進む。
+- 0行（`public` が存在しない） → 次を実行してから §5 へ進む:
+  ```bash
+  psql -c "CREATE SCHEMA public;"
+  ```
+  実行前に、STG に他エンジニアがアクセス中でないか確認すること（`STG-DEMO-DATA-LIFECYCLE.md` §7.4 の確認事項に準ずる）。
+
+```bash
+# 4. 検証が終わったら忘れずに失効（TTL任せでもよいが即時失効推奨）
+pscale role list animalekarte-stg main --org noah-animalekarte
+pscale role delete animalekarte-stg main <role-id> --org noah-animalekarte
+```
+
+所要目安: 5分以内。
+
+---
+
+## 5. 推奨手順: seed 再投入（cmd/migrate の自動投入を使う）
+
+### Step A. CF デプロイをトリガー
+
+以下いずれか（実行は人間が行う。本書は手順の提示のみ）:
+
+```bash
+# 方法1: staging ブランチへの push（backend/** に変更がある場合。今回はデータのみの復元なので
+#        変更がなければ push では走らない点に注意）
+# 方法2: 手動トリガー
+gh workflow run backend-deploy.yml --ref staging
+```
+
+`backend-deploy.yml` は `wrangler deploy` → `POST /_internal/migrate`（`infra/scripts/cf-run-migrate.sh`）→ `/health` ポーリングの順で実行される（`.github/workflows/backend-deploy.yml:60-121`）。
+
+所要目安: `wrangler deploy` 数十秒 + migrate（seed バンドル合計 <1MB・約1,200行なので数秒〜長くても Worker 側 exec timeout の 120秒以内）+ health check 最大 6分（30秒×12回ポーリング）。
+
+### Step B. デプロイ結果の確認
+
+```bash
+gh run list --workflow backend-deploy.yml --branch staging --limit 1
+gh run view <run-id> --log | grep -E "Seed bundle summary|✓ Migration completed|✓ Seed bundle loaded|schema_migrations"
+```
+
+`Run database migration` ステップが成功していれば、`cmd/migrate` のログに `Seed bundle summary applied=3 skipped=0 total=3`（`main.go:582-585`）相当の出力が出るはず。
+
+### Step C. 検証用ロールを発行し、直接 psql で確認
+
+```bash
+pscale role create animalekarte-stg main stg-seed-verify \
+  --org noah-animalekarte \
+  --inherited-roles pg_read_all_data \
+  --ttl 1h
+export PGHOST="<host>"; export PGPORT="<port>"; export PGUSER="<user>"
+export PGPASSWORD="<password>"; export PGDATABASE="<database>"
+```
+
+読み取り専用の検証なら `--inherited-roles pg_read_all_data` で十分（`postgres` ロール継承は書き込み系操作が必要な Step E でのみ使う）。
+
+### Step D. 検証クエリ（テーブル別件数 + 主要マスタの存在確認）
+
+```sql
+-- 1. schema_migrations が4行そろっているか（fresh apply の正しい終了状態）
+--    SEED_MIGRATION_OPERATIONS.md:18 の期待値
+SELECT filename, checksum, executed_at FROM schema_migrations ORDER BY filename;
+-- 期待: 001_init.sql / seeds/002_master / seeds/003_demo / seeds/004_staging の4行
+-- checksum の期待値（2026-07-16 時点、git HEAD の committed 内容から算出。
+--   seeds/*.csv や manifest.json を編集した場合は再計算が必要。算出方法は §5 Step E-a 参照）:
+--   seeds/002_master = 5a46c460e51bf617602c0812f100d077df36a3f5855a85d23ba84f63a2bf9945
+--   seeds/003_demo   = c3e86a7c78d6d1b654ecd2ce4657e77402e8fb3a4f896b5c0172df3416c095e5
+--   seeds/004_staging= 3cb6a3292700248ef2c3835154c070b34218122de99196f054e4721aec4319d1
+
+-- 2. 002_master（5テーブル）
+SELECT 'companies' t, count(*) FROM companies
+UNION ALL SELECT 'animal_species', count(*) FROM animal_species
+UNION ALL SELECT 'lstep_auto_managed_prefixes', count(*) FROM lstep_auto_managed_prefixes
+UNION ALL SELECT 'lstep_condition_tag_mappings', count(*) FROM lstep_condition_tag_mappings
+UNION ALL SELECT 'lstep_send_purpose_tag_prefixes', count(*) FROM lstep_send_purpose_tag_prefixes;
+-- 期待: companies=1, animal_species=6, lstep_auto_managed_prefixes=19,
+--       lstep_condition_tag_mappings=7, lstep_send_purpose_tag_prefixes=4
+
+-- 3. 003_demo（主要マスタ・業務データの存在確認。小さいデモの期待値）
+SELECT 'clinics' t, count(*) FROM clinics
+UNION ALL SELECT 'staffs', count(*) FROM staffs
+UNION ALL SELECT 'permission_groups', count(*) FROM permission_groups
+UNION ALL SELECT 'exam_types', count(*) FROM exam_types
+UNION ALL SELECT 'owners', count(*) FROM owners
+UNION ALL SELECT 'pets', count(*) FROM pets
+UNION ALL SELECT 'appointments', count(*) FROM appointments
+UNION ALL SELECT 'medical_records', count(*) FROM medical_records
+UNION ALL SELECT 'billings', count(*) FROM billings
+UNION ALL SELECT 'billing_items', count(*) FROM billing_items
+UNION ALL SELECT 'exam_results', count(*) FROM exam_results;
+-- 期待: clinics=4, staffs=36, permission_groups=8, exam_types=23, owners=61, pets=78,
+--       appointments=810, medical_records=136, billings=64, billing_items=52, exam_results=53
+-- (§2.3 の表と同一。85テーブル全件を確認したい場合は各テーブル名で
+--  `git show HEAD:backend/migrations/seeds/003_demo/<table>.csv | wc -l` からヘッダ1行を引いた値と突合する)
+
+-- 4. system_admin グループ・初期 clinic の存在（STG-DEMO-DATA-LIFECYCLE.md §2.1 の必須 seed data）
+SELECT id, name FROM permission_groups WHERE id = 1;
+SELECT id, name FROM clinics ORDER BY id LIMIT 1;
+
+-- 5. 004_staging
+SELECT count(*) FROM appointment_trimming_details;
+-- 期待: 0（現状の manifest では空テーブル）
+
+-- 6. デモアカウントでログイン可能か（DB上ではなくAPI経由で確認。STG-DEMO-DATA-LIFECYCLE.md §7.4）
+--    curl -X POST https://animalekarte-stg-api.baritech-soga.workers.dev/api/v1/auth/login ...
+```
+
+すべて期待値通りであれば復元完了。ズレがあれば `schema_migrations` の該当行の有無・`checksum mismatch` エラーの有無を migrate ログで再確認する。
+
+所要目安: 10〜15分。
+
+### Step E（オプション・人間の判断が必要）: pscale role + psql による直接投入
+
+投入対象データが「committed の小さいデモ」か「ローカルのみのフルデモ」かで手順も安全性もまったく異なる。**両者を混在させない**（後述）。
+
+#### E-a. 緊急フォールバック — 自動投入（Step A）が失敗した場合の手動再現
+
+`POST /_internal/migrate` 自体が届かない・恒常的に失敗するなど、CF デプロイ経由の自動投入（§2.1）が使えない場合の最終手段。**スキーマが真に空（91テーブル全て 0 行）の場合にのみ**実施する。
+
+重要な注意点: このマシンの `backend/migrations/seeds/003_demo/` は §2.3 の通り `skip-worktree` でフルデモに上書きされている。作業ツリーから直接 `\copy` すると committed の小さいデモではなくフルデモが投入されてしまう。**必ず `git archive` で HEAD の内容だけを別ディレクトリへ抽出してから使う**。
+
+```bash
+# 1. git HEAD のシード内容だけをクリーンに抽出（作業ツリーの overlay を回避）
+WORKDIR=$(mktemp -d)
+git archive HEAD backend/migrations | tar -x -C "$WORKDIR"
+SEEDS="$WORKDIR/backend/migrations/seeds"
+
+# 2. 書き込み可能な検証用ロールを発行
+pscale role create animalekarte-stg main stg-seed-fallback \
+  --org noah-animalekarte \
+  --inherited-roles postgres \
+  --ttl 1h
+export PGHOST="<host>"; export PGPORT="<port>"; export PGUSER="<user>"
+export PGPASSWORD="<password>"; export PGDATABASE="<database>"
+
+# 3. 002_master → 003_demo → 004_staging の順、各バンドルは manifest.json のテーブル順で投入
+#    （seedbundle.BundleOrder と csvbundle.go の COPY 順を手動再現。順序は
+#    backend/internal/seedbundle/manifest.go:23 と各 manifest.json 参照）
+psql -v seeds="$SEEDS" <<'EOSQL'
+\copy companies FROM :'seeds'/002_master/companies.csv WITH (FORMAT csv, HEADER true)
+\copy animal_species FROM :'seeds'/002_master/animal_species.csv WITH (FORMAT csv, HEADER true)
+\copy lstep_auto_managed_prefixes FROM :'seeds'/002_master/lstep_auto_managed_prefixes.csv WITH (FORMAT csv, HEADER true)
+\copy lstep_condition_tag_mappings FROM :'seeds'/002_master/lstep_condition_tag_mappings.csv WITH (FORMAT csv, HEADER true)
+\copy lstep_send_purpose_tag_prefixes FROM :'seeds'/002_master/lstep_send_purpose_tag_prefixes.csv WITH (FORMAT csv, HEADER true)
+-- 003_demo は85テーブル。manifest.json のテーブル順で同様に \copy を続ける
+-- （順序: clinics, clinic_integrations, occupations, accounts, staffs, owners, ... 全85件。
+--   `python3 -c "import json;print('\n'.join(t['table'] for t in json.load(open('$SEEDS/003_demo/manifest.json'))['tables']))"`
+--   でテーブル順一覧を出力し、同じテンプレートで \copy 文を生成すること）
+\copy appointment_trimming_details FROM :'seeds'/004_staging/appointment_trimming_details.csv WITH (FORMAT csv, HEADER true)
+EOSQL
+
+# 4. SERIAL シーケンスを cmd/migrate と同じロジックで一括前進（csvbundle.go:124-151 相当）
+psql <<'EOSQL'
+DO $$
+DECLARE
+  r record; seq regclass; max_id bigint;
+BEGIN
+  FOR r IN SELECT table_name FROM information_schema.columns
+           WHERE table_schema = 'public' AND column_name = 'id'
+  LOOP
+    seq := pg_get_serial_sequence('public.' || quote_ident(r.table_name), 'id');
+    IF seq IS NOT NULL THEN
+      EXECUTE format('SELECT max(id) FROM %I', r.table_name) INTO max_id;
+      PERFORM setval(seq, COALESCE(max_id, 1), max_id IS NOT NULL);
+    END IF;
+  END LOOP;
+END $$;
+EOSQL
+
+# 5. 必須の後処理: schema_migrations に3行を記録する。これを省略すると、
+#    次に正常な migrate が動いた時に「未適用」と誤認して同じCSVを再COPYし、
+#    PK重複で失敗する。checksum は Step D に記載の値（committed content 由来。
+#    seeds編集後は再計算要）を使う。
+psql <<'EOSQL'
+INSERT INTO schema_migrations (filename, checksum, executed_at) VALUES
+  ('seeds/002_master', '5a46c460e51bf617602c0812f100d077df36a3f5855a85d23ba84f63a2bf9945', now()),
+  ('seeds/003_demo', 'c3e86a7c78d6d1b654ecd2ce4657e77402e8fb3a4f896b5c0172df3416c095e5', now()),
+  ('seeds/004_staging', '3cb6a3292700248ef2c3835154c070b34218122de99196f054e4721aec4319d1', now())
+ON CONFLICT (filename) DO NOTHING;
+EOSQL
+```
+
+これは `baselineIfNeeded`／`translateLegacySeedKeys`（main.go:293-394, 218-271）が使っているのと同じ「投入せず適用済みとしてだけ記録する」パターンの逆（実際に投入した上でその記録を後追いする）であり、cmd/migrate の設計と整合する。
+
+#### E-b. フルデモ投入（ローカルのみ・本書のスコープ外 — 着手前に別途判断すること）
+
+§2.3 の通り、フルデモ（505MB。`billing_items.csv` 241MB・`exam_results.csv` 172MB は単体で GitHub 100MB 制限を超過）は commit できないため、通常の git → Docker イメージ → migrate 経路には原理的に乗らない。
+
+これを STG に入れたい場合、**E-a と単純に組み合わせることはできない**。理由:
+- E-a で先に小さいデモ（85テーブル、主キーは1〜数百番台）を投入した状態にフルデモの7テーブル（owners/pets/medical_records/exams/exam_results/billings/billing_items）だけを上書きすると、フルデモ側にしか存在しない78テーブル分の関連行（小さいデモ側の owners/pets を参照）が dangling FK になり、データ整合性が壊れる。
+- したがって実施する場合は、スキーマを空の状態（§7 ロールバック後）から、**小さいデモを一切経由せず**、003_demo の85テーブル全てをローカル作業ツリー（フルデモで overlay 済み）から `\copy` する必要がある。
+- schema_migrations への記録は E-a と同じ「committed content の checksum」を使う（実際に投入したのはフルデモでも、記録する checksum は将来の migrate 実行が比較する対象＝committed content のものでなければ、次回 migrate がまた不一致/再投入を試みる）。
+
+本書はここまでの制約整理に留める。505MB・91テーブル規模の初回実行を無検証の手順書だけで進めるのはリスクが高く、実施する場合は本書とは別に、実施前提（実施理由・実施者・許容ダウンタイム）を明確にした専用の手順で扱うべきと判断した。
+
+**判断が必要な点**:
+- E-a と E-b のどちらも、通常の git 管理下のシード投入経路をバイパスする手動操作。**再現性なし**（§7 のロールバック後は自動では戻らない。次に必要になった時は同じ手順を再実行する）。
+- E-b を実施する場合、505MB を東京リージョンの PlanetScale へ psql `\copy` で送る所要時間は未実測（数十分規模を想定）。ネットワーク切断リスクを許容できるか、業務時間内に実施できるかは実施者の判断。
+- 実施要否そのものが判断事項: STG は「デモデータ運用」（§1）なので、小さいデモ（E-a 相当、通常は自動投入で足りる）で業務上十分なら E-b は不要というのが本書の既定スタンス。
+
+---
+
+## 6. 代替案: RDS ダンプ移行（不採用・簡易比較のみ）
+
+| 観点 | seed 再投入（採用） | RDS ダンプ移行 |
+|---|---|---|
+| 実データ忠実性 | デモデータのみ（本番同等ではない） | 旧 RDS の実データをそのまま反映可能 |
+| 実装コスト | ゼロ（既存 cmd/migrate をそのまま使う） | 高：RDS は private subnet + SSM port-forward 前提（`infra/CLAUDE.md`「RDS Public Access 無効」）で PlanetScale への直接 dump/restore 経路が未整備。SSM 経由でダンプを取得しローカル経由で `pg_restore` する迂回が必要 |
+| スキーマ整合性 | `cmd/migrate` が保証（同一 DDL から生成） | RDS 側スキーマと現行 `001_init.sql` の差分検証が別途必要 |
+| PII/コンプライアンス | デモデータのみ、リスク低 | 本番同等データを STG に複製することになり、`ANIMALEKARTE_CSV_IMPORT_COMPLETION.md` で懸念された「PHI が STG に残る」問題を re-introduce しかねない |
+| 運用方針との整合 | `STG-DEMO-DATA-LIFECYCLE.md` の「STG=デモデータ運用」方針に合致 | 方針からの逸脱（要 PO 判断） |
+
+**結論**: RDS ダンプ移行は今回採用しない。STG の目的（デモ・スモークテスト）に対して過剰なコストとリスクを伴うため。
+
+---
+
+## 7. ロールバック
+
+現在の状態（スキーマなし、または投入直後で問題が見つかった場合）から再度やり直す手順。
+
+```bash
+# 1. 直結ロールを発行
+pscale role create animalekarte-stg main stg-rollback \
+  --org noah-animalekarte \
+  --inherited-roles postgres \
+  --ttl 1h
+export PGHOST="<host>"; export PGPORT="<port>"; export PGUSER="<user>"
+export PGPASSWORD="<password>"; export PGDATABASE="<database>"
+
+# 2. スキーマを完全初期化（今回と同じ操作。必ず対で実行し public 不在状態を残さない）
+psql -c "DROP SCHEMA public CASCADE;"
+psql -c "CREATE SCHEMA public;"
+
+# 3. ロールを失効
+pscale role delete animalekarte-stg main <role-id> --org noah-animalekarte
+```
+
+その後は §5 Step A（CF デプロイのトリガー）からやり直す。`public` を対で再作成しているため §4 の事前チェックは今回は不要（ただし習慣として一度確認しても良い）。
+
+---
+
+## 8. 人間の判断が必要な分岐（まとめ）
+
+1. **§2.2 / §4**: `public` スキーマが実在するか。実在しなければ CF デプロイ前に手動で `CREATE SCHEMA public;` が必須（自動化されていない・migrate 側では検出できず単に失敗する）。
+2. **§5 Step E-b**: フルデモ（505MB、ローカルに `skip-worktree` で存在）を STG に投入するか。小さいデモ（自動投入 or E-a）で業務要件を満たすなら不要。投入する場合は本書がスコープ外とした専用手順を別途起こす必要があり、所要時間未実測・再現性なしの手動操作である点を許容できるか。
+3. **§7 ロールバック**: 検証で問題が見つかった場合、再度スキーマごと作り直すか、部分修正で済ませるか（本書はスキーマごと作り直す手順のみ用意）。
+4. **§5 Step B**: `POST /_internal/migrate` が非ゼロ終了した場合、`checksum mismatch`（seed ファイル改変）なのか `public` スキーマ不在（§2.2）なのか、ログを見て切り分けるのは実施者の判断。

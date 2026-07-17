@@ -15,7 +15,7 @@ import {
   formatRecordedAt,
   parseVitalsNumber,
   type VitalsAddFormState,
-} from "./VitalsTabTableModel";
+} from "./vitals-tab-table-model";
 
 interface VitalsDisplayRowProps {
   vital: Vital;
@@ -144,6 +144,7 @@ export const VitalsEditRow = memo(function VitalsEditRow({
           type="datetime-local"
           value={form.recorded_at}
           onChange={(e) => handleChange("recorded_at", e.target.value)}
+          aria-label="記録日時"
           className={EDIT_INPUT_CLASS}
         />
         <FormFieldError message={editFormErrors.recorded_at} />
@@ -155,6 +156,7 @@ export const VitalsEditRow = memo(function VitalsEditRow({
           value={form.temperature}
           onChange={(e) => handleChange("temperature", e.target.value)}
           placeholder="-"
+          aria-label={`体温 (${formatRecordedAt(vital.recorded_at)})`}
           className={EDIT_INPUT_CLASS}
         />
         <FormFieldError message={editFormErrors.temperature} />
@@ -165,6 +167,7 @@ export const VitalsEditRow = memo(function VitalsEditRow({
           value={form.heart_rate}
           onChange={(e) => handleChange("heart_rate", e.target.value)}
           placeholder="-"
+          aria-label={`心拍数 (${formatRecordedAt(vital.recorded_at)})`}
           className={EDIT_INPUT_CLASS}
         />
       </td>
@@ -174,6 +177,7 @@ export const VitalsEditRow = memo(function VitalsEditRow({
           value={form.respiration_rate}
           onChange={(e) => handleChange("respiration_rate", e.target.value)}
           placeholder="-"
+          aria-label={`呼吸数 (${formatRecordedAt(vital.recorded_at)})`}
           className={EDIT_INPUT_CLASS}
         />
       </td>
@@ -185,6 +189,7 @@ export const VitalsEditRow = memo(function VitalsEditRow({
             value={form.weight}
             onChange={(e) => handleChange("weight", e.target.value)}
             placeholder="-"
+            aria-label={`体重 (${formatRecordedAt(vital.recorded_at)})`}
             className={`${EDIT_INPUT_CLASS} text-right`}
           />
           <button
@@ -202,6 +207,7 @@ export const VitalsEditRow = memo(function VitalsEditRow({
           value={form.note}
           onChange={(e) => handleChange("note", e.target.value)}
           placeholder="メモ"
+          aria-label={`メモ (${formatRecordedAt(vital.recorded_at)})`}
           className={EDIT_INPUT_CLASS}
         />
       </td>
@@ -256,6 +262,7 @@ export function VitalsAddRow({
           type="datetime-local"
           value={addForm.recorded_at}
           onChange={(e) => onChange("recorded_at", e.target.value)}
+          aria-label="記録日時"
           className={`${ADD_INPUT_CLASS} w-40`}
         />
         <FormFieldError message={errors.recorded_at} />
@@ -267,6 +274,7 @@ export function VitalsAddRow({
           value={addForm.temperature}
           onChange={(e) => onChange("temperature", e.target.value)}
           placeholder="体温"
+          aria-label="体温"
           className={`${ADD_INPUT_CLASS} w-20`}
         />
         <FormFieldError message={errors.temperature} />
@@ -276,6 +284,7 @@ export function VitalsAddRow({
         value={addForm.heart_rate}
         onChange={(e) => onChange("heart_rate", e.target.value)}
         placeholder="心拍数"
+        aria-label="心拍数"
         className={`${ADD_INPUT_CLASS} w-20`}
       />
       <input
@@ -283,6 +292,7 @@ export function VitalsAddRow({
         value={addForm.respiration_rate}
         onChange={(e) => onChange("respiration_rate", e.target.value)}
         placeholder="呼吸数"
+        aria-label="呼吸数"
         className={`${ADD_INPUT_CLASS} w-20`}
       />
       <div className="flex items-center gap-1">
@@ -292,6 +302,7 @@ export function VitalsAddRow({
           value={addForm.weight}
           onChange={(e) => onChange("weight", e.target.value)}
           placeholder="体重"
+          aria-label="体重"
           className={`${ADD_INPUT_CLASS} w-20 text-right`}
         />
         <button
@@ -311,11 +322,12 @@ export function VitalsAddRow({
           if (e.key === "Escape") onCancel();
         }}
         placeholder="メモ"
+        aria-label="メモ"
         className={`${ADD_INPUT_CLASS} flex-1 min-w-[120px]`}
       />
       <Button
         size="sm"
-        className={`${STYLE.btnPrimary} h-8 text-xs px-3`}
+        className={`${C.bgBrand} ${C.hoverBgBrand} text-white rounded-full border-transparent transition-colors h-8 text-xs px-3`}
         onClick={onSubmit}
         disabled={isPending || !addForm.recorded_at}
       >

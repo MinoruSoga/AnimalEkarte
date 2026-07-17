@@ -1,0 +1,5 @@
+id,purpose,tag_prefix,description,created_at,updated_at
+1,vaccine_cert,cert_sent_vaccine_,ワクチン証明書送付,2026-07-06 14:59:40.504818+09,2026-07-06 14:59:40.504818+09
+2,inspection_result,cert_sent_inspection_,検査結果送付,2026-07-06 14:59:40.504818+09,2026-07-06 14:59:40.504818+09
+3,post_surgery,post_surgery_followup_,術後フォローアップ,2026-07-06 14:59:40.504818+09,2026-07-06 14:59:40.504818+09
+4,post_discharge,post_discharge_followup_,退院フォローアップ,2026-07-06 14:59:40.504818+09,2026-07-06 14:59:40.504818+09

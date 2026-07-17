@@ -12,7 +12,7 @@ import (
 )
 
 // CPMStage は顧客ポートフォリオ管理ステージ（BE-004）。
-// 仕様: docs/line/lstep-integration.md Section 7.2
+// 仕様: docs/spec/line/lstep-integration.md Section 7.2
 type CPMStage string
 
 // タグプレフィックス定数 — lstep_auto_managed_prefixes (migration 006) の DB 登録値と一致させる。
@@ -105,7 +105,7 @@ type CPMData struct {
 }
 
 // CalculateCPMStage は純粋関数として CPM ステージを計算する（BE-004）。
-// 仕様: docs/line/lstep-integration.md Section 7.2
+// 仕様: docs/spec/line/lstep-integration.md Section 7.2
 //
 //nolint:gocritic // hugeParam: 純粋関数 API として immutable な値型で受け取る設計
 func CalculateCPMStage(d CPMData) CPMStage {
@@ -168,17 +168,15 @@ type LstepTagSyncService interface {
 	// SyncChronicConditionTags は慢性疾患フラグに基づき chronic_* タグを差分同期する（BE-012）。
 	// activeConditionCodes は飼い主の全生存ペットのアクティブ疾患コード一覧。
 	SyncChronicConditionTags(ctx context.Context, clinicID, ownerID uint64, activeConditionCodes []string) error
-	// SyncDormantTags は最終来院からの経過日数に基づき dormant_* タグを差分同期する（BE-005）。
-	// daysSinceLastVisit < 0 は来院なしを表す。
-	SyncDormantTags(ctx context.Context, clinicID, ownerID uint64, daysSinceLastVisit int) error
+	// SyncDormantTagsWithThresholds は事前取得済みの閾値を使って dormant タグを同期する（N+1 解消用 PERF-2）。
+	// DetectDormantOwners バッチがループ外で閾値を 1 回取得し、各オーナーに渡す。
+	SyncDormantTagsWithThresholds(ctx context.Context, clinicID, ownerID uint64, daysSinceLastVisit int, thresholds model.DormantThresholds) error
 	// ResyncOwnerVaccineTags は飼い主の生存ワクチン記録から vaccine_* タグを再構築する（ISSUE-004）。
 	// 種別ごとに最新の接種日のみタグを保持する。レコードが0件の場合は全 vaccine_* タグを解除する。
 	ResyncOwnerVaccineTags(ctx context.Context, clinicID, ownerID uint64) error
 	// ResyncOwnerCheckupTags は飼い主の生存健診記録から checkup_done_* / next_checkup_* タグを再構築する（ISSUE-004）。
 	// 種別ごとに最新の検査日のみ保持。next_checkup は最新の next_date 1件のみ保持。
 	ResyncOwnerCheckupTags(ctx context.Context, clinicID, ownerID uint64) error
-	// SyncCPMStageTagV2 は来院回数ベース V2 CPM ステージタグを同期する（FEAT-377）。
-	SyncCPMStageTagV2(ctx context.Context, clinicID, ownerID uint64) error
 	// SyncLTVTopPercent は LTV 上位 20% の飼い主に LTV_上位20 タグを付与し、
 	// それ以外の飼い主から解除する（FEAT-377）。
 	// 処理件数と個別エラーのスライスを返す（全体は失敗しない）。
@@ -186,32 +184,10 @@ type LstepTagSyncService interface {
 	// SyncVisitDormantTags は最終来院経過日数に基づき VISIT_* タグを差分同期する（FEAT-377）。
 	// VISIT タグは重複付与可（複数閾値を同時保持）。daysSinceLastVisit < 0 は来院なしを表す。
 	SyncVisitDormantTags(ctx context.Context, clinicID, ownerID uint64, daysSinceLastVisit int) error
-	// SyncPetSpeciesTags は飼い主の生存ペット種別タグ（PET_犬あり / PET_猫あり）を同期する（FEAT-377）。
-	SyncPetSpeciesTags(ctx context.Context, clinicID, ownerID uint64) error
-	// SyncSeniorTag は飼い主の生存ペットに 7 歳以上の犬猫がいる場合 PET_シニア対象 タグを付与する（FEAT-377）。
-	SyncSeniorTag(ctx context.Context, clinicID, ownerID uint64) error
 	// SyncExclusionTags は配信停止条件（opt-out / 会員ステータス / 全ペット死亡）に基づき
 	// EXCL_配信停止 タグを同期する（FEAT-377）。
 	// 注: checkOptOut は呼ばない（このメソッド自体が opt-out 判定の実装）。
 	SyncExclusionTags(ctx context.Context, clinicID, ownerID uint64) error
-	// SyncHealthcheckTags は健診履歴に基づき HLTH_健診あり / HLTH_健診未受診 タグを同期する（FEAT-379）。
-	// 判定コードは lstep_tag_code_mappings から取得する。tagCodeRepo が nil の場合は noop。
-	SyncHealthcheckTags(ctx context.Context, clinicID, ownerID uint64) error
-	// SyncAnnual4CheckupTag は年2回以上来院かつ健診履歴がある飼い主に HLTH_年4回候補 タグを付与する（FEAT-379）。
-	// 判定コードは lstep_tag_code_mappings から取得する。tagCodeRepo が nil の場合は noop。
-	SyncAnnual4CheckupTag(ctx context.Context, clinicID, ownerID uint64) error
-	// SyncVaccineDeadlineTag はワクチン次回予定日が VaccineDeadlineDays 以内に迫っている場合
-	// PREV_ワクチン期限 タグを付与し、それ以外は解除する（FEAT-379）。
-	SyncVaccineDeadlineTag(ctx context.Context, clinicID, ownerID uint64) error
-	// SyncFilariaTag はフィラリア検査・予防薬処方履歴に基づき PREV_フィラリア未完了 タグを同期する（FEAT-379）。
-	// 判定コードは lstep_tag_code_mappings から取得する。tagCodeRepo が nil の場合は noop。
-	SyncFilariaTag(ctx context.Context, clinicID, ownerID uint64) error
-	// SyncFleaTickTag はノミ・マダニ駆除薬処方履歴に基づき PREV_ノミダニ対象 タグを同期する（FEAT-379）。
-	// 判定コードは lstep_tag_code_mappings から取得する。tagCodeRepo が nil の場合は noop。
-	SyncFleaTickTag(ctx context.Context, clinicID, ownerID uint64) error
-	// SyncFoodPurchaseTag はフード購入履歴に基づき LTV_フード購入あり タグを同期する（FEAT-379）。
-	// 判定コードは lstep_tag_code_mappings から取得する。tagCodeRepo が nil の場合は noop。
-	SyncFoodPurchaseTag(ctx context.Context, clinicID, ownerID uint64) error
 	// SyncHealthPreventionTagsForClinic は指定クリニックの全飼い主に対して
 	// 健診・予防・物販タグを一括同期する（FEAT-379 バッチエントリポイント）。
 	// 処理件数と個別エラーのスライスを返す（全体は失敗しない）。
@@ -273,6 +249,28 @@ func NewLstepTagSyncService(
 		billingItemRepo:  billingItemRepo,
 		tagConfigRepo:    tagConfigRepo,
 	}
+}
+
+// NewLstepTagSyncFromRepos は *repository.Repositories から LstepTagSyncService を構築する
+// 共有コンストラクタ（BE-refactor.md C-3）。NewServices と cmd/lstep-migrate/main.go の
+// 両方から呼ぶことで、依存追加時の2箇所同期漏れ（引数順ミスはコンパイラで検出不能）を防ぐ。
+func NewLstepTagSyncFromRepos(repos *repository.Repositories, settings LstepSettingsService) LstepTagSyncService {
+	return NewLstepTagSyncService(
+		settings,
+		repos.Owner,
+		repos.Vaccination,
+		repos.MedicalRecord,
+		repos.Accounting,
+		repos.LstepTagCache,
+		repos.Pet,
+		repos.Prescription,
+		repos.Checkup,
+		repos.Reservation,
+		repos.LstepSyncErrorCounter,
+		repos.LstepTagCodeMapping,
+		repos.BillingItem,
+		repos.LstepTagConfig,
+	)
 }
 
 // buildClient はクリニック設定から lstep.Client を構築する。

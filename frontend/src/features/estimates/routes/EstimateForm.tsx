@@ -1,8 +1,9 @@
 import { ICON, C } from "@/lib/design-tokens";
 import { paths } from "@/config/paths";
 import { LoadingFallback } from "@/components/shared/DataStates";
-import { memo, useCallback, useEffect } from 'react';
+import { memo, useCallback, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router';
+import { toast } from "sonner";
 import { FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { SubmitButton } from "@/components/shared/Form/SubmitButton";
@@ -17,7 +18,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { PageLayout } from '@/components/shared/PageLayout/PageLayout';
-import { NotionDatePicker } from '@/components/shared/NotionDatePicker/NotionDatePicker';
+import { DatePicker } from '@/components/shared/DatePicker/DatePicker';
 import { NavigationBlocker } from '@/components/shared/NavigationBlocker';
 import { NumberInput } from '@/components/shared/NumberInput/NumberInput';
 import { FormFieldError } from '@/components/shared/FormFieldError';
@@ -27,17 +28,23 @@ import { useEstimateForm } from '../hooks/use-estimate-form';
 import { usePermission } from "@/hooks/use-permission";
 import type { EstimateStatus } from '../types';
 import { ResourceEstimates } from "@/types/generated/models";
+import {
+  CREATE_STATUS_OPTIONS,
+  EDIT_STATUS_OPTIONS,
+} from "../utils/estimate-status-options";
+import {
+  ESTIMATE_LOCKED_EDIT_MESSAGE,
+  isEstimateLockedStatus,
+} from "../utils/is-estimate-locked-status";
 
-// rendering-hoist-jsx: ステータス選択肢は静的なのでモジュール定数に巻き上げ
-const STATUS_OPTIONS: { value: EstimateStatus; label: string }[] = [
-  { value: 'draft', label: '下書き' },
-  { value: 'sent', label: '送付済み' },
-  { value: 'approved', label: '承認済み' },
-  { value: 'rejected', label: '却下' },
-];
+// rendering-hoist-jsx: SelectItem リストは静的なのでモジュール定数に巻き上げ
+const EDIT_STATUS_SELECT_ITEMS = EDIT_STATUS_OPTIONS.map(opt => (
+  <SelectItem key={opt.value} value={opt.value}>
+    {opt.label}
+  </SelectItem>
+));
 
-// rendering-hoist-jsx: ステータス SelectItem リストは静的なのでモジュール定数に巻き上げ
-const STATUS_SELECT_ITEMS = STATUS_OPTIONS.map(opt => (
+const CREATE_STATUS_SELECT_ITEMS = CREATE_STATUS_OPTIONS.map(opt => (
   <SelectItem key={opt.value} value={opt.value}>
     {opt.label}
   </SelectItem>
@@ -49,16 +56,20 @@ interface BasicInfoSectionProps {
   title: string;
   status: EstimateStatus;
   validUntil: string;
+  isEdit: boolean;
   onChange: (key: string, value: unknown) => void;
   titleError?: string;
+  statusError?: string;
 }
 
 const BasicInfoSection = memo(function BasicInfoSection({
   title,
   status,
   validUntil,
+  isEdit,
   onChange,
   titleError,
+  statusError,
 }: BasicInfoSectionProps) {
   return (
     <>
@@ -86,13 +97,18 @@ const BasicInfoSection = memo(function BasicInfoSection({
           value={status}
           onValueChange={v => onChange('status', v as EstimateStatus)}
         >
-          <SelectTrigger id="status" className="h-9 text-sm w-[200px]">
+          <SelectTrigger
+            id="status"
+            className="h-9 text-sm w-[200px]"
+            aria-describedby={statusError ? "status-error" : undefined}
+          >
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            {STATUS_SELECT_ITEMS}
+            {isEdit ? EDIT_STATUS_SELECT_ITEMS : CREATE_STATUS_SELECT_ITEMS}
           </SelectContent>
         </Select>
+        <FormFieldError id="status-error" message={statusError} />
       </div>
 
       {/* 有効期限 */}
@@ -100,7 +116,7 @@ const BasicInfoSection = memo(function BasicInfoSection({
         <Label htmlFor="validUntil" className={`text-sm font-medium ${C.text}`}>
           有効期限
         </Label>
-        <NotionDatePicker
+        <DatePicker
           id="validUntil"
           value={validUntil ? validUntil.slice(0, 10) : ''}
           onChange={(v) => onChange('validUntil', v)}
@@ -272,6 +288,20 @@ function EstimateFormContent({ id }: { id?: string }) {
   // React 19 Action の成功を検知して遷移
   // rerender-dependencies: estimate（オブジェクト）の代わりに estimate?.id（primitive）を deps に使用
   const estimateId = estimate?.id;
+  const estimateStatus = estimate?.status;
+  const isLockedEdit =
+    isEdit && estimateId != null && estimateStatus != null
+      ? isEstimateLockedStatus(estimateStatus)
+      : false;
+  const lockedRedirectRef = useRef(false);
+
+  useEffect(() => {
+    if (!isLockedEdit || estimateId == null || lockedRedirectRef.current) return;
+    lockedRedirectRef.current = true;
+    toast.info(ESTIMATE_LOCKED_EDIT_MESSAGE);
+    navigate(paths.estimates.detail.getHref(estimateId), { replace: true });
+  }, [isLockedEdit, estimateId, navigate]);
+
   useEffect(() => {
     if (formState.success) {
       markClean();
@@ -298,6 +328,11 @@ function EstimateFormContent({ id }: { id?: string }) {
     return <LoadingFallback />;
   }
 
+  // locked 見積の edit 直アクセス: 更新 UI を出さず detail へリダイレクト中
+  if (isLockedEdit) {
+    return <LoadingFallback />;
+  }
+
   return (
     <form action={formAction}>
     <PageLayout
@@ -312,8 +347,9 @@ function EstimateFormContent({ id }: { id?: string }) {
           {canSubmit ? (
             <SubmitButton
               size="sm"
+              colorVariant="brand"
               disabled={!form.title.trim()}
-              className={`h-9 ${C.bgAccent} ${C.bgAccentHover} ${C.textWhite} text-sm`}
+              className="h-9 text-sm"
             >
               {isEdit ? '更新' : '作成'}
             </SubmitButton>
@@ -322,15 +358,18 @@ function EstimateFormContent({ id }: { id?: string }) {
       }
       maxWidth="max-w-2xl"
     >
-      <NavigationBlocker when={isDirty && !isPending} />
-      <div className={`${C.bgWhite} border ${C.borderLight} rounded-[6px] p-5 space-y-5`}>
+      {/* FE6-8: jsx-no-leaked-render は非型認識のため isDirty を boolean と静的に断定できず !! で明示する */}
+      <NavigationBlocker when={!!isDirty && !isPending} />
+      <div className={`${C.bgWhite} border ${C.borderLight} rounded-md p-5 space-y-5`}>
         {/* rerender-memo: BasicInfoSection — 金額/テキスト変更では再レンダーしない */}
         <BasicInfoSection
           title={form.title}
           status={form.status}
           validUntil={form.validUntil}
+          isEdit={isEdit}
           onChange={handleChangeWithDirty}
           titleError={formState.fieldErrors?.title}
+          statusError={formState.fieldErrors?.status}
         />
 
         {/* rerender-memo: AmountSection — 基本情報/テキスト変更では再レンダーしない */}

@@ -1,14 +1,19 @@
 package handler
 
 import (
+	"bytes"
 	"context"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
+	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/service"
 )
@@ -77,6 +82,573 @@ func TestListVitals_ViewPermissionDenied(t *testing.T) {
 	r.ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusForbidden, w.Code)
+}
+
+// ---- direct handler tests ----
+
+func newHandlerWithVitalSvc(vitalSvc service.VitalService, mrSvc service.MedicalRecordService) *Handler {
+	return &Handler{svc: &service.Services{
+		Vital:         vitalSvc,
+		MedicalRecord: mrSvc,
+	}}
+}
+
+// ---- ListVitals ----
+
+func TestListVitals(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	tests := []struct {
+		name       string
+		paramID    string
+		setupCtx   func(c *gin.Context)
+		mrSvc      *mockMedicalRecordService
+		vitalSvc   *mockVitalService
+		wantStatus int
+		wantBody   string
+	}{
+		{
+			name:     "returns list of vitals",
+			paramID:  "5",
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			mrSvc: &mockMedicalRecordService{
+				getByIDFn: func(_ context.Context, clinicID, id uint64) (*model.MedicalRecord, error) {
+					return &model.MedicalRecord{ID: id, ClinicID: clinicID}, nil
+				},
+			},
+			vitalSvc: &mockVitalService{
+				listFn: func(_ context.Context, clinicID, medicalRecordID uint64) ([]model.VitalRecord, error) {
+					assert.Equal(t, uint64(1), clinicID)
+					assert.Equal(t, uint64(5), medicalRecordID)
+					return []model.VitalRecord{{ID: 1, MedicalRecordID: &medicalRecordID, Notes: "stable"}}, nil
+				},
+			},
+			wantStatus: http.StatusOK,
+			wantBody:   `"notes":"stable"`,
+		},
+		{
+			name:       "returns 401 when clinic_id is missing",
+			paramID:    "5",
+			setupCtx:   func(_ *gin.Context) {},
+			mrSvc:      &mockMedicalRecordService{},
+			vitalSvc:   &mockVitalService{},
+			wantStatus: http.StatusUnauthorized,
+		},
+		{
+			name:       "returns 400 when id param is invalid",
+			paramID:    "abc",
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			mrSvc:      &mockMedicalRecordService{},
+			vitalSvc:   &mockVitalService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:     "returns error from ownership verification",
+			paramID:  "5",
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			mrSvc: &mockMedicalRecordService{
+				getByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
+					return nil, apperrors.WrapNotFound("medical_record", "5")
+				},
+			},
+			vitalSvc:   &mockVitalService{},
+			wantStatus: http.StatusNotFound,
+		},
+		{
+			name:     "returns 500 on service error",
+			paramID:  "5",
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			mrSvc: &mockMedicalRecordService{
+				getByIDFn: func(_ context.Context, clinicID, id uint64) (*model.MedicalRecord, error) {
+					return &model.MedicalRecord{ID: id, ClinicID: clinicID}, nil
+				},
+			},
+			vitalSvc: &mockVitalService{
+				listFn: func(_ context.Context, _, _ uint64) ([]model.VitalRecord, error) {
+					return nil, fmt.Errorf("db failure")
+				},
+			},
+			wantStatus: http.StatusInternalServerError,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := newHandlerWithVitalSvc(tt.vitalSvc, tt.mrSvc)
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			c.Request = httptest.NewRequest(http.MethodGet, "/medical-records/"+tt.paramID+"/vitals", http.NoBody)
+			c.Params = gin.Params{{Key: "id", Value: tt.paramID}}
+			tt.setupCtx(c)
+			h.ListVitals(c)
+			assert.Equal(t, tt.wantStatus, w.Code)
+			if tt.wantBody != "" {
+				assert.Contains(t, w.Body.String(), tt.wantBody)
+			}
+		})
+	}
+}
+
+// ---- CreateVital ----
+
+func TestCreateVital(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	tests := []struct {
+		name         string
+		paramID      string
+		body         string
+		setupCtx     func(c *gin.Context)
+		mrSvc        *mockMedicalRecordService
+		vitalSvc     *mockVitalService
+		wantStatus   int
+		wantLocation bool
+	}{
+		{
+			name:     "returns 201 with Location header",
+			paramID:  "5",
+			body:     `{"recorded_at":"2026-05-28T10:30:00Z","temperature":38.5}`,
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			mrSvc: &mockMedicalRecordService{
+				getByIDFn: func(_ context.Context, clinicID, id uint64) (*model.MedicalRecord, error) {
+					petID := uint64(7)
+					return &model.MedicalRecord{ID: id, ClinicID: clinicID, PetID: &petID}, nil
+				},
+			},
+			vitalSvc: &mockVitalService{
+				createFn: func(_ context.Context, medicalRecordID uint64, input *service.CreateVitalInput) (*model.VitalRecord, error) {
+					assert.Equal(t, uint64(5), medicalRecordID)
+					assert.Equal(t, uint64(1), input.ClinicID)
+					assert.Equal(t, uint64(7), input.PetID)
+					return &model.VitalRecord{ID: 9, MedicalRecordID: &medicalRecordID}, nil
+				},
+			},
+			wantStatus:   http.StatusCreated,
+			wantLocation: true,
+		},
+		{
+			name:       "returns 401 when clinic_id is missing",
+			paramID:    "5",
+			body:       `{"recorded_at":"2026-05-28T10:30:00Z"}`,
+			setupCtx:   func(_ *gin.Context) {},
+			mrSvc:      &mockMedicalRecordService{},
+			vitalSvc:   &mockVitalService{},
+			wantStatus: http.StatusUnauthorized,
+		},
+		{
+			name:       "returns 400 when id param is invalid",
+			paramID:    "abc",
+			body:       `{"recorded_at":"2026-05-28T10:30:00Z"}`,
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			mrSvc:      &mockMedicalRecordService{},
+			vitalSvc:   &mockVitalService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:     "returns error from ownership verification",
+			paramID:  "5",
+			body:     `{"recorded_at":"2026-05-28T10:30:00Z"}`,
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			mrSvc: &mockMedicalRecordService{
+				getByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
+					return nil, apperrors.WrapNotFound("medical_record", "5")
+				},
+			},
+			vitalSvc:   &mockVitalService{},
+			wantStatus: http.StatusNotFound,
+		},
+		{
+			name:     "returns 400 on request bind error",
+			paramID:  "5",
+			body:     `{"recorded_at":`,
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			mrSvc: &mockMedicalRecordService{
+				getByIDFn: func(_ context.Context, clinicID, id uint64) (*model.MedicalRecord, error) {
+					return &model.MedicalRecord{ID: id, ClinicID: clinicID}, nil
+				},
+			},
+			vitalSvc:   &mockVitalService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:     "returns 400 when required field missing",
+			paramID:  "5",
+			body:     `{}`,
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			mrSvc: &mockMedicalRecordService{
+				getByIDFn: func(_ context.Context, clinicID, id uint64) (*model.MedicalRecord, error) {
+					return &model.MedicalRecord{ID: id, ClinicID: clinicID}, nil
+				},
+			},
+			vitalSvc:   &mockVitalService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:     "returns 500 on service error",
+			paramID:  "5",
+			body:     `{"recorded_at":"2026-05-28T10:30:00Z"}`,
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			mrSvc: &mockMedicalRecordService{
+				getByIDFn: func(_ context.Context, clinicID, id uint64) (*model.MedicalRecord, error) {
+					return &model.MedicalRecord{ID: id, ClinicID: clinicID}, nil
+				},
+			},
+			vitalSvc: &mockVitalService{
+				createFn: func(_ context.Context, _ uint64, _ *service.CreateVitalInput) (*model.VitalRecord, error) {
+					return nil, fmt.Errorf("db failure")
+				},
+			},
+			wantStatus: http.StatusInternalServerError,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := newHandlerWithVitalSvc(tt.vitalSvc, tt.mrSvc)
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			c.Request = httptest.NewRequest(http.MethodPost, "/medical-records/"+tt.paramID+"/vitals", bytes.NewReader([]byte(tt.body)))
+			c.Request.Header.Set("Content-Type", "application/json")
+			c.Params = gin.Params{{Key: "id", Value: tt.paramID}}
+			tt.setupCtx(c)
+			h.CreateVital(c)
+			assert.Equal(t, tt.wantStatus, w.Code)
+			if tt.wantLocation {
+				assert.NotEmpty(t, w.Header().Get("Location"))
+			}
+		})
+	}
+}
+
+// ---- UpdateVital ----
+
+func TestUpdateVital(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	tests := []struct {
+		name       string
+		paramID    string
+		vitalID    string
+		body       string
+		setupCtx   func(c *gin.Context)
+		mrSvc      *mockMedicalRecordService
+		vitalSvc   *mockVitalService
+		wantStatus int
+		wantBody   string
+	}{
+		{
+			name:     "returns 200 on successful update",
+			paramID:  "5",
+			vitalID:  "9",
+			body:     `{"notes":"improved"}`,
+			setupCtx: func(c *gin.Context) { setClinicID(c); setStaffID(c) },
+			mrSvc: &mockMedicalRecordService{
+				getByIDFn: func(_ context.Context, clinicID, id uint64) (*model.MedicalRecord, error) {
+					return &model.MedicalRecord{ID: id, ClinicID: clinicID}, nil
+				},
+			},
+			vitalSvc: &mockVitalService{
+				updateFn: func(_ context.Context, clinicID, medicalRecordID, vitalID uint64, input *service.UpdateVitalInput) (*model.VitalRecord, error) {
+					assert.Equal(t, uint64(1), clinicID)
+					assert.Equal(t, uint64(5), medicalRecordID)
+					assert.Equal(t, uint64(9), vitalID)
+					require.NotNil(t, input.ActorID)
+					assert.Equal(t, uint64(1), *input.ActorID)
+					return &model.VitalRecord{ID: vitalID, Notes: "improved"}, nil
+				},
+			},
+			wantStatus: http.StatusOK,
+			wantBody:   `"notes":"improved"`,
+		},
+		{
+			name:       "returns 401 when clinic_id is missing",
+			paramID:    "5",
+			vitalID:    "9",
+			body:       `{"notes":"improved"}`,
+			setupCtx:   func(_ *gin.Context) {},
+			mrSvc:      &mockMedicalRecordService{},
+			vitalSvc:   &mockVitalService{},
+			wantStatus: http.StatusUnauthorized,
+		},
+		{
+			name:       "returns 400 when medical record id param is invalid",
+			paramID:    "abc",
+			vitalID:    "9",
+			body:       `{"notes":"improved"}`,
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			mrSvc:      &mockMedicalRecordService{},
+			vitalSvc:   &mockVitalService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:     "returns error from ownership verification",
+			paramID:  "5",
+			vitalID:  "9",
+			body:     `{"notes":"improved"}`,
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			mrSvc: &mockMedicalRecordService{
+				getByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
+					return nil, apperrors.WrapNotFound("medical_record", "5")
+				},
+			},
+			vitalSvc:   &mockVitalService{},
+			wantStatus: http.StatusNotFound,
+		},
+		{
+			name:     "returns 400 when vital id param is invalid",
+			paramID:  "5",
+			vitalID:  "abc",
+			body:     `{"notes":"improved"}`,
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			mrSvc: &mockMedicalRecordService{
+				getByIDFn: func(_ context.Context, clinicID, id uint64) (*model.MedicalRecord, error) {
+					return &model.MedicalRecord{ID: id, ClinicID: clinicID}, nil
+				},
+			},
+			vitalSvc:   &mockVitalService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:     "returns 401 when staff_id is missing",
+			paramID:  "5",
+			vitalID:  "9",
+			body:     `{"notes":"improved"}`,
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			mrSvc: &mockMedicalRecordService{
+				getByIDFn: func(_ context.Context, clinicID, id uint64) (*model.MedicalRecord, error) {
+					return &model.MedicalRecord{ID: id, ClinicID: clinicID}, nil
+				},
+			},
+			vitalSvc:   &mockVitalService{},
+			wantStatus: http.StatusUnauthorized,
+		},
+		{
+			name:     "returns 400 on request bind error",
+			paramID:  "5",
+			vitalID:  "9",
+			body:     `{"notes":`,
+			setupCtx: func(c *gin.Context) { setClinicID(c); setStaffID(c) },
+			mrSvc: &mockMedicalRecordService{
+				getByIDFn: func(_ context.Context, clinicID, id uint64) (*model.MedicalRecord, error) {
+					return &model.MedicalRecord{ID: id, ClinicID: clinicID}, nil
+				},
+			},
+			vitalSvc:   &mockVitalService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:     "returns 500 on service error",
+			paramID:  "5",
+			vitalID:  "9",
+			body:     `{"notes":"improved"}`,
+			setupCtx: func(c *gin.Context) { setClinicID(c); setStaffID(c) },
+			mrSvc: &mockMedicalRecordService{
+				getByIDFn: func(_ context.Context, clinicID, id uint64) (*model.MedicalRecord, error) {
+					return &model.MedicalRecord{ID: id, ClinicID: clinicID}, nil
+				},
+			},
+			vitalSvc: &mockVitalService{
+				updateFn: func(_ context.Context, _, _, _ uint64, _ *service.UpdateVitalInput) (*model.VitalRecord, error) {
+					return nil, fmt.Errorf("db failure")
+				},
+			},
+			wantStatus: http.StatusInternalServerError,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := newHandlerWithVitalSvc(tt.vitalSvc, tt.mrSvc)
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			c.Request = httptest.NewRequest(http.MethodPatch, "/medical-records/"+tt.paramID+"/vitals/"+tt.vitalID, bytes.NewReader([]byte(tt.body)))
+			c.Request.Header.Set("Content-Type", "application/json")
+			c.Params = gin.Params{{Key: "id", Value: tt.paramID}, {Key: "vitalId", Value: tt.vitalID}}
+			tt.setupCtx(c)
+			h.UpdateVital(c)
+			assert.Equal(t, tt.wantStatus, w.Code)
+			if tt.wantBody != "" {
+				assert.Contains(t, w.Body.String(), tt.wantBody)
+			}
+		})
+	}
+}
+
+// ---- DeleteVital ----
+
+func TestDeleteVital(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	tests := []struct {
+		name       string
+		paramID    string
+		vitalID    string
+		setupCtx   func(c *gin.Context)
+		mrSvc      *mockMedicalRecordService
+		vitalSvc   *mockVitalService
+		wantStatus int
+	}{
+		{
+			name:     "returns 204 on successful delete",
+			paramID:  "5",
+			vitalID:  "9",
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			mrSvc: &mockMedicalRecordService{
+				getByIDFn: func(_ context.Context, clinicID, id uint64) (*model.MedicalRecord, error) {
+					return &model.MedicalRecord{ID: id, ClinicID: clinicID}, nil
+				},
+			},
+			vitalSvc: &mockVitalService{
+				deleteFn: func(_ context.Context, clinicID, medicalRecordID, vitalID uint64) error {
+					assert.Equal(t, uint64(1), clinicID)
+					assert.Equal(t, uint64(5), medicalRecordID)
+					assert.Equal(t, uint64(9), vitalID)
+					return nil
+				},
+			},
+			wantStatus: http.StatusNoContent,
+		},
+		{
+			name:       "returns 401 when clinic_id is missing",
+			paramID:    "5",
+			vitalID:    "9",
+			setupCtx:   func(_ *gin.Context) {},
+			mrSvc:      &mockMedicalRecordService{},
+			vitalSvc:   &mockVitalService{},
+			wantStatus: http.StatusUnauthorized,
+		},
+		{
+			name:       "returns 400 when medical record id param is invalid",
+			paramID:    "abc",
+			vitalID:    "9",
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			mrSvc:      &mockMedicalRecordService{},
+			vitalSvc:   &mockVitalService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:     "returns error from ownership verification",
+			paramID:  "5",
+			vitalID:  "9",
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			mrSvc: &mockMedicalRecordService{
+				getByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
+					return nil, apperrors.WrapNotFound("medical_record", "5")
+				},
+			},
+			vitalSvc:   &mockVitalService{},
+			wantStatus: http.StatusNotFound,
+		},
+		{
+			name:     "returns 400 when vital id param is invalid",
+			paramID:  "5",
+			vitalID:  "abc",
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			mrSvc: &mockMedicalRecordService{
+				getByIDFn: func(_ context.Context, clinicID, id uint64) (*model.MedicalRecord, error) {
+					return &model.MedicalRecord{ID: id, ClinicID: clinicID}, nil
+				},
+			},
+			vitalSvc:   &mockVitalService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:     "returns 500 on service error",
+			paramID:  "5",
+			vitalID:  "9",
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			mrSvc: &mockMedicalRecordService{
+				getByIDFn: func(_ context.Context, clinicID, id uint64) (*model.MedicalRecord, error) {
+					return &model.MedicalRecord{ID: id, ClinicID: clinicID}, nil
+				},
+			},
+			vitalSvc: &mockVitalService{
+				deleteFn: func(_ context.Context, _, _, _ uint64) error {
+					return fmt.Errorf("db failure")
+				},
+			},
+			wantStatus: http.StatusInternalServerError,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := newHandlerWithVitalSvc(tt.vitalSvc, tt.mrSvc)
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			c.Request = httptest.NewRequest(http.MethodDelete, "/medical-records/"+tt.paramID+"/vitals/"+tt.vitalID, http.NoBody)
+			c.Params = gin.Params{{Key: "id", Value: tt.paramID}, {Key: "vitalId", Value: tt.vitalID}}
+			tt.setupCtx(c)
+			h.DeleteVital(c)
+			c.Writer.WriteHeaderNow() // flush a bare c.Status() (no body) to the recorder
+			assert.Equal(t, tt.wantStatus, w.Code)
+		})
+	}
+}
+
+// ---- toVitalResponse ----
+
+func TestToVitalResponse(t *testing.T) {
+	recordedAt := time.Date(2026, 5, 28, 10, 30, 0, 0, time.UTC)
+	createdAt := time.Date(2026, 5, 28, 10, 31, 0, 0, time.UTC)
+
+	t.Run("maps all fields including optional pointers", func(t *testing.T) {
+		medicalRecordID := uint64(5)
+		staffID := uint64(9)
+		temperature := 38.5
+		heartRate := 120
+		respirationRate := 30
+		weight := 4.2
+
+		resp := toVitalResponse(&model.VitalRecord{
+			ID:              1,
+			MedicalRecordID: &medicalRecordID,
+			RecordedAt:      recordedAt,
+			StaffID:         &staffID,
+			Temperature:     &temperature,
+			HeartRate:       &heartRate,
+			RespirationRate: &respirationRate,
+			Weight:          &weight,
+			WeightUnit:      model.BodyWeightUnitKg,
+			Notes:           "stable",
+			CreatedAt:       createdAt,
+		})
+
+		assert.Equal(t, "1", resp.ID)
+		require.NotNil(t, resp.MedicalRecordID)
+		assert.Equal(t, "5", *resp.MedicalRecordID)
+		require.NotNil(t, resp.StaffID)
+		assert.Equal(t, "9", *resp.StaffID)
+		require.NotNil(t, resp.Temperature)
+		assert.Equal(t, 38.5, *resp.Temperature)
+		require.NotNil(t, resp.HeartRate)
+		assert.Equal(t, 120, *resp.HeartRate)
+		require.NotNil(t, resp.RespirationRate)
+		assert.Equal(t, 30, *resp.RespirationRate)
+		require.NotNil(t, resp.Weight)
+		assert.Equal(t, 4.2, *resp.Weight)
+		assert.Equal(t, model.BodyWeightUnitKg, resp.WeightUnit)
+		assert.Equal(t, "stable", resp.Notes)
+		assert.True(t, resp.RecordedAt.Equal(recordedAt))
+		assert.True(t, resp.CreatedAt.Equal(createdAt))
+	})
+
+	t.Run("handles nil optional pointers", func(t *testing.T) {
+		resp := toVitalResponse(&model.VitalRecord{
+			ID:         2,
+			RecordedAt: recordedAt,
+			Notes:      "",
+			CreatedAt:  createdAt,
+		})
+
+		assert.Equal(t, "2", resp.ID)
+		assert.Nil(t, resp.MedicalRecordID)
+		assert.Nil(t, resp.StaffID)
+		assert.Nil(t, resp.Temperature)
+		assert.Nil(t, resp.HeartRate)
+		assert.Nil(t, resp.RespirationRate)
+		assert.Nil(t, resp.Weight)
+	})
 }
 
 // ---- Comprehensive Test Coverage Documentation ----

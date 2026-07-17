@@ -11,7 +11,7 @@ export type { Resource };
 export type ResourceAction = "view" | "create" | "edit" | "delete";
 
 /** 1リソースに対する CRUD 権限 */
-export interface ResourcePermission {
+interface ResourcePermission {
   view: boolean;
   create: boolean;
   edit: boolean;
@@ -19,7 +19,7 @@ export interface ResourcePermission {
 }
 
 /** resource → CRUD（バックエンドが UNION 計算済みのフラット実効権限） */
-export type ResourcePermissions = Record<string, ResourcePermission>;
+type ResourcePermissions = Record<string, ResourcePermission>;
 
 /** @see {@link import("@/types/generated/models").StaffClinicAssignment} */
 export interface ClinicMembership {
@@ -44,6 +44,16 @@ export interface AuthClinic {
   /** BUG-367: インボイス帳票の税率別内訳計算用 */
   standardTaxRate: number;
   reducedTaxRate: number;
+  accountingDocumentShowLogo: boolean;
+  accountingDocumentShowRegistrationWarning: boolean;
+  accountingDocumentShowItemCategory: boolean;
+  accountingDocumentFooterNote: string;
+  /** #190: セクション表示/非表示トグルと表示順 */
+  accountingDocumentShowClinicHeader: boolean;
+  accountingDocumentShowOwnerPetInfo: boolean;
+  accountingDocumentShowItemsTable: boolean;
+  accountingDocumentShowPaymentSummary: boolean;
+  accountingDocumentSectionOrder: string[];
 }
 
 /** @see {@link import("@/types/generated/models").Account} */
@@ -53,7 +63,6 @@ export interface AuthUser {
   displayName: string;
   /** true の場合、クロスクリニック権限を持つ運営管理者 */
   isSystemAdmin: boolean;
-  avatarUrl: string | null;
   mainClinicId: string;
   /** メイン医院の詳細情報。/me レスポンスから取得。null の場合は未所属 */
   clinic: AuthClinic | null;
@@ -66,7 +75,6 @@ export interface AuthContextValue {
   currentClinicId: string | null;
   isAuthenticated: boolean;
   isLoading: boolean;
-  isSwitchingClinic: boolean;
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   switchClinic: (clinicId: string) => void;

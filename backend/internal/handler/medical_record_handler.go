@@ -23,7 +23,8 @@ func (h *Handler) ListMedicalRecords(c *gin.Context) {
 		return
 	}
 
-	filters, err := newListMedicalRecordQuery(c.Request.URL.Query()).toServiceFilters()
+	q := newListMedicalRecordQuery(c.Request.URL.Query())
+	filters, err := q.toServiceFilters()
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -32,10 +33,7 @@ func (h *Handler) ListMedicalRecords(c *gin.Context) {
 	records, total, err := h.svc.MedicalRecord.List(
 		c.Request.Context(),
 		clinicIDs,
-		filters.PetID,
-		filters.OwnerID,
-		filters.StartDate,
-		filters.EndDate,
+		filters,
 		page,
 		limit,
 	)
@@ -145,9 +143,9 @@ func (h *Handler) UpdateMedicalRecord(c *gin.Context) {
 	c.JSON(http.StatusOK, toMedicalRecordResponse(record))
 }
 
-// PatchMedicalRecordRecommendationReason godoc
+// UpdateMedicalRecordRecommendationReason godoc
 // PATCH /medical-records/:id/recommendation-reason — 受診推奨理由を更新する（FEAT-381-2）。
-func (h *Handler) PatchMedicalRecordRecommendationReason(c *gin.Context) {
+func (h *Handler) UpdateMedicalRecordRecommendationReason(c *gin.Context) {
 	clinicID, ok := extractClinicID(c)
 	if !ok {
 		return

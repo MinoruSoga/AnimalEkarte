@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import { getStoredClinicId } from "@/lib/current-clinic";
+import { queryKeys } from "@/lib/query-keys";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 
 // バックエンドの reservation_type_groups レスポンス型
@@ -102,7 +103,7 @@ const fetchReservationAvailableTimes = async (
  */
 export function useGetReservationTypesGrouped() {
   return useQuery({
-    queryKey: ["masters", "reservationType", "grouped"],
+    queryKey: queryKeys.masters.reservationTypesGrouped(),
     queryFn: fetchReservationTypesRaw,
     staleTime: QUERY_STALE_TIMES.STATIC,
     gcTime: QUERY_GC_TIMES.LONG,
@@ -128,7 +129,7 @@ export function useGetReservationTypesGrouped() {
  */
 export function useGetOnDutyStaffs(date: string | null) {
   return useQuery({
-    queryKey: ["shifts", "on-duty-staffs", date],
+    queryKey: queryKeys.shifts.onDutyStaffs(date!),
     queryFn: () => fetchOnDutyStaffs(date!),
     enabled: date !== null,
     staleTime: QUERY_STALE_TIMES.MEDIUM,
@@ -143,7 +144,7 @@ export function useGetOnDutyStaffs(date: string | null) {
 export function useGetReservationStaffs() {
   const clinicId = getCurrentClinicId();
   return useQuery({
-    queryKey: ["clinics", clinicId, "reservation-staffs"],
+    queryKey: queryKeys.clinics.reservationStaffs(clinicId!),
     queryFn: () => {
       if (clinicId === null) {
         return Promise.reject(new Error("clinic_id is required"));
@@ -166,7 +167,7 @@ export function useGetReservationAvailableTimes(
   staffId: string | null,
 ) {
   return useQuery({
-    queryKey: ["reservations", "available-times", reservationTypeId, date, staffId ?? ""],
+    queryKey: queryKeys.reservations.availableTimes(reservationTypeId!, date!, staffId ?? undefined),
     queryFn: () => fetchReservationAvailableTimes(reservationTypeId!, date!, staffId),
     enabled: reservationTypeId !== null && date !== null,
     staleTime: QUERY_STALE_TIMES.REALTIME,

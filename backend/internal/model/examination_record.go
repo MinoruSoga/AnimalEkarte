@@ -3,6 +3,7 @@ package model
 import (
 	"time"
 
+	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
 
@@ -25,19 +26,22 @@ const (
 )
 
 type Examination struct {
-	ID              uint64            `gorm:"primaryKey;autoIncrement"                       json:"id"`
-	ClinicID        uint64            `gorm:"not null"                                       json:"clinic_id"`
-	MedicalRecordID *uint64           `                                                      json:"medical_record_id,omitempty"`
-	PetID           *uint64           `                                                      json:"pet_id,omitempty"`
-	ExamTypeID      uint64            `gorm:"not null"                                       json:"exam_type_id"`
-	DoctorID        *uint64           `                                                      json:"doctor_id,omitempty"`
-	Date            time.Time         `gorm:"type:date;not null"                             json:"date"`
-	ResultSummary   string            `gorm:"default:''"                                     json:"result_summary"`
-	Machine         string            `gorm:"default:''"                                     json:"machine"`
-	Status          ExaminationStatus `gorm:"type:exam_status;default:'pending'"                json:"status"`
-	DeletedAt       gorm.DeletedAt    `                                                      json:"-"`
-	CreatedAt       time.Time         `gorm:"autoCreateTime"                                 json:"created_at"`
-	UpdatedAt       time.Time         `gorm:"autoUpdateTime"                                 json:"updated_at"`
+	ID              uint64  `gorm:"primaryKey;autoIncrement"                       json:"id"`
+	ClinicID        uint64  `gorm:"not null"                                       json:"clinic_id"`
+	MedicalRecordID *uint64 `                                                      json:"medical_record_id,omitempty"`
+	PetID           *uint64 `                                                      json:"pet_id,omitempty"`
+	ExamTypeID      uint64  `gorm:"not null"                                       json:"exam_type_id"`
+	DoctorID        *uint64 `                                                      json:"doctor_id,omitempty"`
+	// JobID は lab_import_jobs.id への nullable FK。手動作成の exam は NULL。
+	// ON DELETE SET NULL のため job 削除時も exam は保持される（Phase 4B.2）。
+	JobID         *uuid.UUID        `gorm:"type:uuid"                                      json:"job_id,omitempty"`
+	Date          time.Time         `gorm:"type:date;not null"                             json:"date"`
+	ResultSummary string            `gorm:"default:''"                                     json:"result_summary"`
+	Machine       string            `gorm:"default:''"                                     json:"machine"`
+	Status        ExaminationStatus `gorm:"type:exam_status;default:'pending'"                json:"status"`
+	DeletedAt     gorm.DeletedAt    `                                                      json:"-"`
+	CreatedAt     time.Time         `gorm:"autoCreateTime"                                 json:"created_at"`
+	UpdatedAt     time.Time         `gorm:"autoUpdateTime"                                 json:"updated_at"`
 
 	// Relations
 	MedicalRecord   *MedicalRecord   `gorm:"foreignKey:MedicalRecordID" json:"medical_record,omitempty"`

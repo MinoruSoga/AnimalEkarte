@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -32,7 +33,7 @@ func (m *mockTriggerPriorityRepo) UpsertBatch(ctx context.Context, clinicID uint
 	return nil
 }
 
-func (m *mockTriggerPriorityRepo) GetPriority(ctx context.Context, clinicID uint64, triggerType string) (int, error) {
+func (m *mockTriggerPriorityRepo) FindPriorityByTriggerType(ctx context.Context, clinicID uint64, triggerType string) (int, error) {
 	if m.getPriorityFn != nil {
 		return m.getPriorityFn(ctx, clinicID, triggerType)
 	}
@@ -76,6 +77,30 @@ func TestGetPriorityFor_FinalFallback(t *testing.T) {
 	assert.Equal(t, model.DefaultPriorityFallback, p)
 }
 
+func TestGetPriorityFor_RepoError(t *testing.T) {
+	repo := &mockTriggerPriorityRepo{
+		getPriorityFn: func(_ context.Context, _ uint64, _ string) (int, error) {
+			return 0, errors.New("db error")
+		},
+	}
+	svc := NewLstepTriggerPriorityService(repo)
+	p, err := svc.GetPriorityFor(context.Background(), 1, model.TriggerTypeDormantPrevention365)
+	assert.Error(t, err)
+	assert.Equal(t, 0, p)
+}
+
+func TestGetByClinicID_RepoError(t *testing.T) {
+	repo := &mockTriggerPriorityRepo{
+		findByClinicIDFn: func(_ context.Context, _ uint64) ([]model.LstepTriggerPriority, error) {
+			return nil, errors.New("db error")
+		},
+	}
+	svc := NewLstepTriggerPriorityService(repo)
+	items, err := svc.GetByClinicID(context.Background(), 1)
+	assert.Error(t, err)
+	assert.Nil(t, items)
+}
+
 func TestGetByClinicID_ComplementsAllTypes(t *testing.T) {
 	// DB に 1 件だけ登録されている状態
 	repo := &mockTriggerPriorityRepo{
@@ -108,6 +133,21 @@ func TestUpdatePriorities_InvalidPriority(t *testing.T) {
 	})
 	assert.Error(t, err)
 	assert.True(t, apperrors.IsInvalidInput(err))
+}
+
+func TestUpdatePriorities_RepoError(t *testing.T) {
+	repo := &mockTriggerPriorityRepo{
+		upsertBatchFn: func(_ context.Context, _ uint64, _ []model.LstepTriggerPriority) error {
+			return errors.New("db error")
+		},
+	}
+	svc := NewLstepTriggerPriorityService(repo)
+	err := svc.UpdatePriorities(context.Background(), 1, UpdateTriggerPrioritiesInput{
+		Items: []TriggerPriorityItem{
+			{TriggerType: model.TriggerTypeDormantPrevention365, Priority: 1},
+		},
+	})
+	assert.Error(t, err)
 }
 
 func TestUpdatePriorities_OK(t *testing.T) {

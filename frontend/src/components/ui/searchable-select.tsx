@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { Check, ChevronDown } from "lucide-react";
 
 import { cn } from "@/lib/utils";
-import { C } from "@/lib/design-tokens";
+import { C, PALETTE, Z_CLASS } from "@/lib/design-tokens";
 import { normalizedIncludes } from "@/lib/normalize-kana";
 import {
   Command,
@@ -120,9 +120,9 @@ export function SearchableSelect({
         disabled={disabled}
         data-testid={triggerTestId}
         className={cn(
-          "flex h-10 w-full items-center justify-between gap-2 rounded-md border bg-white px-3 py-2 text-sm whitespace-nowrap transition-colors outline-none",
+          "flex h-10 w-full items-center justify-between gap-2 rounded-xs border bg-white px-3 py-2 text-sm whitespace-nowrap transition-colors outline-none",
           C.borderMedium,
-          "hover:bg-[rgba(242,241,238,0.5)] focus:bg-white focus:border-[rgba(35,131,226,0.57)] focus:shadow-[0_0_0_1px_rgba(35,131,226,0.35)]",
+          `${PALETTE.hoverBgInput} focus:bg-white ${PALETTE.focusBorderLegacyAccent} ${PALETTE.focusRingLegacyAccent}`,
           "disabled:cursor-not-allowed disabled:opacity-50",
           ariaInvalid && C.borderDanger,
           className,
@@ -135,7 +135,7 @@ export function SearchableSelect({
       </PopoverTrigger>
       <PopoverContent
         align="start"
-        className={cn("z-[9999] w-[var(--radix-popover-trigger-width)] p-0", contentClassName)}
+        className={cn(`${Z_CLASS.overlay} w-[var(--radix-popover-trigger-width)] p-0`, contentClassName)}
       >
         <Command
           filter={(_value, search, keywords) => {

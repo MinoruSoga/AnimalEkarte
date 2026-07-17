@@ -135,5 +135,3 @@ export function UnifiedTabsList({
     </ShadcnTabsList>
   );
 }
-
-export default UnifiedTabs;

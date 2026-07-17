@@ -3,6 +3,7 @@ import type React from "react";
 import { useQuery } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
+import { queryKeys } from "@/lib/query-keys";
 import { PALETTE } from "@/lib/design-tokens";
 import type { ReservationType, ReservationTypeGroup } from "@/types/generated/models";
 
@@ -74,7 +75,7 @@ function transformReservationTypeGroup(
 
 function useGetReservationTypes() {
   return useQuery({
-    queryKey: ["masters", "reservation-types"] as const,
+    queryKey: queryKeys.masters.category("reservation-types"),
     queryFn: async (): Promise<ReservationTypeForColorMap[]> => {
       const { data } = await axios.get<ReservationType[]>("/v1/masters/reservation-types");
       return data.map(transformReservationType);
@@ -86,7 +87,7 @@ function useGetReservationTypes() {
 
 function useGetReservationTypeGroups() {
   return useQuery({
-    queryKey: ["masters", "reservation-type-groups"] as const,
+    queryKey: queryKeys.masters.category("reservation-type-groups"),
     queryFn: async (): Promise<ReservationTypeGroupForColorMap[]> => {
       const { data } = await axios.get<ReservationTypeGroup[]>(
         "/v1/masters/reservation-type-groups",

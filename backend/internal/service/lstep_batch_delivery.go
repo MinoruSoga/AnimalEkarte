@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/animal-ekarte/backend/internal/config"
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 )
 
@@ -42,8 +43,7 @@ func (s *lstepBatchService) runDeliveryTriggersForClinic(ctx context.Context, cl
 // RunDeliveryTriggerBatchAllClinics は全クリニックの自動配信トリガーバッチを実行する。
 // 仕様 §6.4 により配信時刻は 10:00 JST 固定。
 func (s *lstepBatchService) RunDeliveryTriggerBatchAllClinics(ctx context.Context) error {
-	jst := time.FixedZone("Asia/Tokyo", 9*60*60)
-	nowHour := s.nowFn().In(jst).Hour()
+	nowHour := s.nowFn().In(config.JST).Hour()
 
 	clinics, err := s.clinicRepo.FindAll(ctx)
 	if err != nil {

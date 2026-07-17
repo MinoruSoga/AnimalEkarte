@@ -2,8 +2,8 @@ package service
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
+	"time"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/repository"
@@ -11,20 +11,11 @@ import (
 
 // SyncVisitCompletionTags は診療完了時の来院・LTV タグを同期する（BE-004）。
 func (s *lstepTagSyncService) SyncVisitCompletionTags(ctx context.Context, clinicID, ownerID uint64) error {
-	if skip, err := s.shouldSkipSync(ctx, clinicID); err != nil {
-		return err
-	} else if skip {
-		return nil
-	}
-	optOut, owner, err := s.checkOptOut(ctx, clinicID, ownerID)
+	lineUserID, ok, err := s.resolveSyncTarget(ctx, clinicID, ownerID, "visit completion")
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to check opt-out for visit tags sync", "error", err)
-		return apperrors.Wrap(err, "failed to check opt-out")
+		return err
 	}
-	if optOut {
-		return nil
-	}
-	if owner.LineUserID == nil || *owner.LineUserID == "" {
+	if !ok {
 		return nil
 	}
 
@@ -48,7 +39,6 @@ func (s *lstepTagSyncService) SyncVisitCompletionTags(ctx context.Context, clini
 		return nil
 	}
 
-	lineUserID := *owner.LineUserID
 	tags := buildVisitTags(summary, ltv)
 
 	// 同一カテゴリ1タグ保持: 古い ltv_amount_* / visit_count_annual_* / first_visit_* / last_visit_* を解除（ISSUE-006）
@@ -60,13 +50,8 @@ func (s *lstepTagSyncService) SyncVisitCompletionTags(ctx context.Context, clini
 		[]string{"ltv_amount_", "visit_count_annual_", "first_visit_", "last_visit_"}, newTagSet)
 
 	for _, tag := range tags {
-		if addErr := client.AddTag(ctx, lineUserID, tag); addErr != nil {
-			slog.ErrorContext(ctx, "failed to add visit tag", "error", addErr, "tag", tag)
-			s.notifyAPIFailure(ctx, client, clinicID, ownerID, lineUserID)
-			return apperrors.Wrap(addErr, fmt.Sprintf("failed to add visit tag %s", tag))
-		}
-		if cacheErr := s.tagCacheRepo.UpsertTag(ctx, clinicID, ownerID, tag, "auto", ""); cacheErr != nil {
-			slog.ErrorContext(ctx, "failed to upsert tag cache", "error", cacheErr, "tag", tag)
+		if err := s.applyTagState(ctx, client, clinicID, ownerID, lineUserID, tag, "visit completion", "", true); err != nil {
+			return err
 		}
 	}
 
@@ -78,27 +63,15 @@ func (s *lstepTagSyncService) SyncVisitCompletionTags(ctx context.Context, clini
 	}
 	for _, c := range cached {
 		if isDormantTag(c.TagName) || isVisitDormantTag(c.TagName) || c.TagName == "cpm_dormant" {
-			if delErr := client.RemoveTag(ctx, lineUserID, c.TagName); delErr != nil {
-				slog.ErrorContext(ctx, "failed to remove dormant tag on visit completion", "error", delErr, "tag", c.TagName)
-				s.notifyAPIFailure(ctx, client, clinicID, ownerID, lineUserID)
+			if err := s.applyTagState(ctx, client, clinicID, ownerID, lineUserID, c.TagName, "visit completion dormant", "", false); err != nil {
 				apiFailed = true
-			} else {
-				if delCacheErr := s.tagCacheRepo.DeleteTag(ctx, clinicID, ownerID, c.TagName); delCacheErr != nil {
-					slog.WarnContext(ctx, "failed to delete tag from cache (best-effort)", "error", delCacheErr, "owner_id", ownerID, "tag", c.TagName)
-				}
 			}
 		}
 	}
 	// レガシータグ（名前変更前との互換）
 	for _, staleTag := range []string{"dormant", "noshow", "reserved"} {
-		if delErr := client.RemoveTag(ctx, lineUserID, staleTag); delErr != nil {
-			slog.ErrorContext(ctx, "failed to remove stale legacy tag", "error", delErr, "tag", staleTag)
-			s.notifyAPIFailure(ctx, client, clinicID, ownerID, lineUserID)
+		if err := s.applyTagState(ctx, client, clinicID, ownerID, lineUserID, staleTag, "visit completion legacy", "", false); err != nil {
 			apiFailed = true
-		} else {
-			if delCacheErr := s.tagCacheRepo.DeleteTag(ctx, clinicID, ownerID, staleTag); delCacheErr != nil {
-				slog.WarnContext(ctx, "failed to delete tag from cache (best-effort)", "error", delCacheErr, "owner_id", ownerID, "tag", staleTag)
-			}
 		}
 	}
 
@@ -112,10 +85,10 @@ func (s *lstepTagSyncService) SyncVisitCompletionTags(ctx context.Context, clini
 func buildVisitTags(summary *repository.OwnerVisitSummary, ltv int64) []string {
 	var tags []string
 	if summary.FirstVisitAt != nil {
-		tags = append(tags, "first_visit_"+summary.FirstVisitAt.Format("2006-01-02"))
+		tags = append(tags, "first_visit_"+summary.FirstVisitAt.Format(time.DateOnly))
 	}
 	if summary.LastVisitAt != nil {
-		tags = append(tags, "last_visit_"+summary.LastVisitAt.Format("2006-01-02"))
+		tags = append(tags, "last_visit_"+summary.LastVisitAt.Format(time.DateOnly))
 	}
 	tags = append(tags, ltvBracketTag(ltv), visitCountAnnualTag(summary.AnnualCount))
 	return tags

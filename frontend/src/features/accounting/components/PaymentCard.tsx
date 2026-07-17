@@ -9,21 +9,19 @@ import { DeleteIconButton } from "@/components/shared/DeleteIconButton/DeleteIco
 import { NumberInput } from "@/components/shared/NumberInput/NumberInput";
 import { SubmitButton } from "@/components/shared/Form/SubmitButton";
 import { C, ICON } from "@/lib/design-tokens";
+import { formatCurrency } from "@/utils/format/number";
 
 import type { PaymentMethod } from "../types";
+import { PAYMENT_METHOD_LABELS } from "@/constants/payment-method";
 
 export interface PaymentSplitDraft {
   method: PaymentMethod;
   amount: string;
   receivedAmount: string;
+  // #188: お釣り直接上書きモード（レジ実機の誤差吸収）。changeOverride=true の時のみ changeAmount を使う。
+  changeOverride?: boolean;
+  changeAmount?: string;
 }
-
-const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
-  cash: "現金",
-  credit_card: "カード",
-  electronic_money: "電子マネー",
-  bank_transfer: "銀行振込",
-};
 
 const PAYMENT_METHODS: PaymentMethod[] = ["cash", "credit_card", "electronic_money", "bank_transfer"];
 
@@ -72,6 +70,24 @@ export const PaymentCard = memo(function PaymentCard({
     onSplitsChange(paymentSplits.map((s, i) => i === idx ? { ...s, receivedAmount: value } : s));
   }, [paymentSplits, onSplitsChange]);
 
+  // #188: お釣り手動修正モードの ON/OFF。ON 時は現在の派生値（max(0, received-amount)）を初期値に置く。
+  const handleToggleChangeOverride = useCallback((idx: number) => {
+    onSplitsChange(paymentSplits.map((s, i) => {
+      if (i !== idx) return s;
+      if (s.changeOverride) {
+        // 自動計算に戻す: 上書きフィールドを除いた基本ドラフトへ戻す
+        return { method: s.method, amount: s.amount, receivedAmount: s.receivedAmount };
+      }
+      const amt = parseInt(s.amount || "0", 10);
+      const rec = parseInt(s.receivedAmount || "0", 10);
+      return { ...s, changeOverride: true, changeAmount: Math.max(0, rec - amt).toString() };
+    }));
+  }, [paymentSplits, onSplitsChange]);
+
+  const handleChangeAmountChange = useCallback((idx: number, value: string) => {
+    onSplitsChange(paymentSplits.map((s, i) => i === idx ? { ...s, changeAmount: value } : s));
+  }, [paymentSplits, onSplitsChange]);
+
   const handleRemoveSplit = useCallback((idx: number) => {
     onSplitsChange(paymentSplits.filter((_, i) => i !== idx));
   }, [paymentSplits, onSplitsChange]);
@@ -90,7 +106,7 @@ export const PaymentCard = memo(function PaymentCard({
         <div className="text-center space-y-1">
           <p className={`text-sm ${C.text50}`}>今回の請求金額</p>
           <p className={`text-4xl font-bold ${C.text}`}>
-            ¥{billingAmount.toLocaleString()}
+            {formatCurrency(billingAmount)}
           </p>
         </div>
 
@@ -176,11 +192,38 @@ export const PaymentCard = memo(function PaymentCard({
                           </Button>
                         </div>
                       </div>
-                      <div className={`${C.bgPrimary5} p-3 rounded-lg flex justify-between items-center`}>
-                        <span className={`text-sm font-bold ${C.text60}`}>お釣り</span>
-                        <span className={`text-xl font-bold ${splitChange < 0 ? C.danger : C.text}`}>
-                          ¥{splitChange.toLocaleString()}
-                        </span>
+                      <div className={`${C.bgPrimary5} p-3 rounded-lg space-y-2`}>
+                        <div className="flex justify-between items-center">
+                          <span className={`text-sm font-bold ${C.text60}`}>お釣り</span>
+                          <button
+                            type="button"
+                            onClick={() => handleToggleChangeOverride(idx)}
+                            className={`text-xs underline ${C.text50} ${C.hoverText}`}
+                          >
+                            {split.changeOverride ? "自動計算に戻す" : "手動修正"}
+                          </button>
+                        </div>
+                        {split.changeOverride ? (
+                          <>
+                            <NumberInput
+                              className="h-10 text-lg font-bold"
+                              value={split.changeAmount ?? ""}
+                              onChange={(v) => handleChangeAmountChange(idx, v)}
+                              suffix="円"
+                              align="right"
+                              min={0}
+                            />
+                            <p className={`text-xs text-right ${C.text40}`}>
+                              レジ実機の実際のお釣りに合わせて手動修正中
+                            </p>
+                          </>
+                        ) : (
+                          <div className="flex justify-end">
+                            <span className={`text-xl font-bold ${splitChange < 0 ? C.danger : C.text}`}>
+                              {formatCurrency(splitChange)}
+                            </span>
+                          </div>
+                        )}
                       </div>
                     </>
                   ) : null}
@@ -212,7 +255,7 @@ export const PaymentCard = memo(function PaymentCard({
             {paymentSplits.map((split, idx) => (
               <div key={idx} className="flex justify-between items-center text-sm">
                 <span className={C.text50}>{PAYMENT_METHOD_LABELS[split.method] ?? split.method}</span>
-                <span className="font-medium">¥{parseInt(split.amount || "0", 10).toLocaleString()}</span>
+                <span className="font-medium">{formatCurrency(parseInt(split.amount || "0", 10))}</span>
               </div>
             ))}
           </div>

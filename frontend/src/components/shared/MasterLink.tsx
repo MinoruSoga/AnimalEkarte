@@ -5,7 +5,7 @@ import { Link } from "react-router";
 import { paths } from "@/config/paths";
 
 /** 設定ページへのリンクに対応する全マスタカテゴリ */
-export type MasterLinkCategory =
+type MasterLinkCategory =
   | "reservationType"
   | "vaccine"
   | "examination"

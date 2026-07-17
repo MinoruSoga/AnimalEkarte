@@ -1,1 +1,1 @@
-export { LstepSettingsPage } from "./integrations/lstep";
+export { LstepSettingsPage } from "./routes/LstepSettingsPage";

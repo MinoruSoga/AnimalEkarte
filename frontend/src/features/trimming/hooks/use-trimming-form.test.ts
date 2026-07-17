@@ -185,6 +185,63 @@ describe("useTrimmingForm", () => {
     );
   });
 
+  it("#233: カルテ直接新規作成で initialStatus=pending を選択した場合は status=pending を送る", async () => {
+    mockSelectedPets.push({ id: "10", ownerId: "20", name: "ポチ" });
+
+    const { result } = renderHook(() => useTrimmingForm());
+
+    act(() => {
+      result.current.setFormData({
+        staffId: "3",
+        courseId: "4",
+        initialStatus: "pending",
+      });
+    });
+
+    await submitFormAction(result.current.formAction);
+
+    expect(mockCreateMutateAsync).toHaveBeenCalledWith(
+      expect.objectContaining({
+        status: "pending",
+        reservation_route: "record_shortcut",
+      }),
+    );
+  });
+
+  it("#233: hasExistingAppointment はカルテ直接新規作成で false を返す", () => {
+    mockSelectedPets.push({ id: "10", ownerId: "20", name: "ポチ" });
+
+    const { result } = renderHook(() => useTrimmingForm());
+
+    expect(result.current.hasExistingAppointment).toBe(false);
+  });
+
+  it("#233: 受付から遷移した新規作成では initialStatus を無視し status/reservation_route を送らない", async () => {
+    mockLocationStateHolder.value = { appointmentId: "77" };
+    mockSelectedPets.push({ id: "10", ownerId: "20", name: "ポチ" });
+
+    const { result } = renderHook(() => useTrimmingForm());
+
+    expect(result.current.hasExistingAppointment).toBe(true);
+
+    act(() => {
+      result.current.setFormData({
+        staffId: "3",
+        courseId: "4",
+        initialStatus: "pending",
+      });
+    });
+
+    await submitFormAction(result.current.formAction);
+
+    expect(mockCreateMutateAsync).toHaveBeenCalledWith(
+      expect.not.objectContaining({
+        status: expect.anything(),
+        reservation_route: expect.anything(),
+      }),
+    );
+  });
+
   it("visitDate 指定の一覧新規作成では appointment も同じ日付で作成する", async () => {
     mockSearchParamsHolder.value = new URLSearchParams({ visitDate: "2026-06-01" });
     mockSelectedPets.push({ id: "10", ownerId: "20", name: "ポチ" });

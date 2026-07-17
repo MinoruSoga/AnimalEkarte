@@ -2,7 +2,7 @@ import { memo } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { NotionDatePicker } from "@/components/shared/NotionDatePicker";
+import { DatePicker } from "@/components/shared/DatePicker";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { SortOrder } from "@/types";
 import { SORT_ORDER_VALUES } from "@/types";
@@ -47,14 +47,14 @@ export const HistoryFilterPanel = memo(function HistoryFilterPanel({
         <div className="flex flex-col gap-1.5">
           <Label className={`text-sm ${C.text60}`}>実施日</Label>
           <div className="flex items-center gap-2">
-            <NotionDatePicker
+            <DatePicker
               value={filterStartDate}
               onChange={(val) => onFilterStartDateChange?.(val)}
               className="flex-1"
               placeholder="開始日"
             />
             <span className={`${C.text} text-sm shrink-0`}>〜</span>
-            <NotionDatePicker
+            <DatePicker
               value={filterEndDate}
               onChange={(val) => onFilterEndDateChange?.(val)}
               className="flex-1"

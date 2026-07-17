@@ -8,7 +8,7 @@ import type { Occupation } from "../api/occupations";
 import {
   occupationToFormData,
   type OccupationFormData,
-} from "./OccupationSidePanelModel";
+} from "./occupation-side-panel-model";
 
 interface OccupationSidePanelProps {
   item: Occupation | null;

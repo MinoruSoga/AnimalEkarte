@@ -28,15 +28,12 @@ func (h *Handler) ListTreatments(c *gin.Context) {
 		return
 	}
 
-	items := make([]treatmentResponse, 0, len(treatments))
-	for i := range treatments {
-		items = append(items, toTreatmentResponse(&treatments[i]))
-	}
+	items := mapSlice(treatments, toTreatmentResponse)
 	c.JSON(http.StatusOK, items)
 }
 
 // ListPetTreatmentHistory godoc
-// GET /pets/:id/treatment-history?item_type=medicine|procedure|all (#158 飼主レポート)
+// GET /pets/:id/treatment-history?item_type=medicine|procedure|all&anesthesia_only=true&is_surgery=true (#158/#159 飼主レポート)
 // ペット単位で治療履歴を medical_records.date 降順で返す。clinic_id 隔離は service/repository が medical_records JOIN で担保する。
 func (h *Handler) ListPetTreatmentHistory(c *gin.Context) {
 	clinicID, ok := extractClinicID(c)
@@ -57,7 +54,13 @@ func (h *Handler) ListPetTreatmentHistory(c *gin.Context) {
 		return
 	}
 
-	treatments, total, err := h.svc.Treatment.ListPetHistory(c.Request.Context(), clinicID, petID, itemType, page, limit)
+	filter := model.PetTreatmentHistoryFilter{
+		ItemType:       itemType,
+		AnesthesiaOnly: c.Query("anesthesia_only") == "true",
+		IsSurgery:      c.Query("is_surgery") == "true",
+	}
+
+	treatments, total, err := h.svc.Treatment.ListPetHistory(c.Request.Context(), clinicID, petID, filter, page, limit)
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -112,7 +115,9 @@ func (h *Handler) CreateTreatment(c *gin.Context) {
 		return
 	}
 
-	treatment, err := h.svc.Treatment.Create(c.Request.Context(), clinicID, medicalRecordID, req.toServiceInput())
+	createInput := req.toServiceInput()
+	createInput.ActorID = optionalStaffID(c) // #201 B-2: 逸脱 audit の実施者
+	treatment, err := h.svc.Treatment.Create(c.Request.Context(), clinicID, medicalRecordID, createInput)
 	if err != nil {
 		RespondError(c, err)
 		return
@@ -160,7 +165,9 @@ func (h *Handler) UpdateTreatment(c *gin.Context) {
 		}
 	}
 
-	treatment, err := h.svc.Treatment.Update(c.Request.Context(), clinicID, medicalRecordID, treatmentID, req.toServiceInput())
+	updateInput := req.toServiceInput()
+	updateInput.ActorID = optionalStaffID(c) // #201 B-2: 逸脱 audit の実施者
+	treatment, err := h.svc.Treatment.Update(c.Request.Context(), clinicID, medicalRecordID, treatmentID, updateInput)
 	if err != nil {
 		RespondError(c, err)
 		return

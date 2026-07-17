@@ -1,0 +1,15 @@
+# FE-refactor.md「eslint-disable 根拠コメントの機械強制」ratchet baseline
+# （scripts/check-eslint-disable-rationale.mjs が参照）。
+#
+# 根拠コメント（` -- 理由`）を持たない eslint-disable / eslint-disable-next-line /
+# eslint-disable-line の合計件数を1行の数値で記録する。R-F3 で既存33件（うち今回の
+# 機械スキャンで根拠コメント無しと判定されたのは22件）を監査・分類済みで、
+# 個別ファイルの判断として意図的に根拠コメントを付けていないものが多い
+# （既知の受容済み債務。遡って fail させない）。
+#
+# 2026-07-04 実測（node scripts/check-eslint-disable-rationale.mjs で算出、
+# 現在の src/ + liff/src/ + line-reserve/src/ 全件スキャン）: 22
+#
+# 更新規則: 件数が減った場合はこの値を実測値まで引き下げてよい（ratchet を締める）。
+# 増えた場合は、新規 disable に根拠コメントを追加するか、追加自体の要否を再検討すること。
+22

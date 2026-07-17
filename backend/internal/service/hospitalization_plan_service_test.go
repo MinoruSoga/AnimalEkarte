@@ -59,6 +59,62 @@ func (m *mockHospitalizationPlanRepository) CountUsageByHospitalizationPlanID(ct
 
 // ---- Tests ----
 
+func TestBuildHospitalizationPlanUpdate(t *testing.T) {
+	name := "更新後プラン"
+	price := int64(5000)
+	isActive := true
+	description := "説明文"
+	bodySize := "large"
+	billingUnit := "day"
+	sortOrder := 3
+	taxType := "excluded"
+	taxRate := 0.08
+
+	tests := []struct {
+		name       string
+		input      UpdateHospitalizationPlanInput
+		wantFields map[string]any
+	}{
+		{
+			name:       "no fields set returns empty map",
+			input:      UpdateHospitalizationPlanInput{},
+			wantFields: map[string]any{},
+		},
+		{
+			name: "all fields set are reflected with real column names",
+			input: UpdateHospitalizationPlanInput{
+				Name:        &name,
+				Price:       &price,
+				IsActive:    &isActive,
+				Description: &description,
+				BodySize:    &bodySize,
+				BillingUnit: &billingUnit,
+				SortOrder:   &sortOrder,
+				TaxType:     &taxType,
+				TaxRate:     &taxRate,
+			},
+			wantFields: map[string]any{
+				"name":         name,
+				"price":        price,
+				"is_active":    isActive,
+				"description":  description,
+				"body_size":    model.BodySize(bodySize),
+				"billing_unit": model.BillingUnit(billingUnit),
+				"sort_order":   sortOrder,
+				"tax_type":     model.TaxType(taxType),
+				"tax_rate":     taxRate,
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			fields := buildHospitalizationPlanUpdate(tt.input)
+			assert.Equal(t, tt.wantFields, fields)
+		})
+	}
+}
+
 func TestHospitalizationPlanService_List(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -217,6 +273,51 @@ func TestHospitalizationPlanService_Create(t *testing.T) {
 	}
 }
 
+func TestHospitalizationPlanService_Create_ValidationError(t *testing.T) {
+	repo := &mockHospitalizationPlanRepository{
+		createFn: func(_ context.Context, _ *model.HospitalizationPlan) error {
+			t.Fatal("plan must not be created when name is empty")
+			return nil
+		},
+	}
+	svc := NewHospitalizationPlanService(repo)
+
+	plan, err := svc.Create(context.Background(), 1, &CreateHospitalizationPlanInput{Name: "  "})
+
+	assert.Error(t, err)
+	assert.True(t, apperrors.IsInvalidInput(err))
+	assert.Nil(t, plan)
+}
+
+func TestHospitalizationPlanService_Create_WithBodySizeAndBillingUnit(t *testing.T) {
+	taxRate := 0.08
+	var captured *model.HospitalizationPlan
+	repo := &mockHospitalizationPlanRepository{
+		createFn: func(_ context.Context, plan *model.HospitalizationPlan) error {
+			captured = plan
+			return nil
+		},
+	}
+	svc := NewHospitalizationPlanService(repo)
+
+	plan, err := svc.Create(context.Background(), 1, &CreateHospitalizationPlanInput{
+		Name:        "個室プラン",
+		BodySize:    "large",
+		BillingUnit: "day",
+		TaxType:     "included",
+		TaxRate:     &taxRate,
+	})
+
+	assert.NoError(t, err)
+	assert.NotNil(t, plan)
+	assert.NotNil(t, captured.BodySize)
+	assert.Equal(t, model.BodySize("large"), *captured.BodySize)
+	assert.NotNil(t, captured.BillingUnit)
+	assert.Equal(t, model.BillingUnit("day"), *captured.BillingUnit)
+	assert.Equal(t, model.TaxType("included"), captured.TaxType)
+	assert.Equal(t, taxRate, captured.TaxRate)
+}
+
 func TestHospitalizationPlanService_Update(t *testing.T) {
 	name := "Updated Plan"
 	isActive := false
@@ -276,10 +377,60 @@ func TestHospitalizationPlanService_Update(t *testing.T) {
 	}
 }
 
+func TestHospitalizationPlanService_Update_InputNil(t *testing.T) {
+	repo := &mockHospitalizationPlanRepository{
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.HospitalizationPlan, error) {
+			t.Fatal("plan must not be looked up when input is nil")
+			return nil, nil
+		},
+	}
+	svc := NewHospitalizationPlanService(repo)
+
+	plan, err := svc.Update(context.Background(), 1, 1, nil)
+
+	assert.Error(t, err)
+	assert.True(t, apperrors.IsInvalidInput(err))
+	assert.Nil(t, plan)
+}
+
+func TestHospitalizationPlanService_Update_ParentNotFound(t *testing.T) {
+	name := "更新後プラン"
+	repo := &mockHospitalizationPlanRepository{
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.HospitalizationPlan, error) {
+			return nil, apperrors.WrapNotFound("hospitalization_plan", "999")
+		},
+	}
+	svc := NewHospitalizationPlanService(repo)
+
+	plan, err := svc.Update(context.Background(), 1, 999, &UpdateHospitalizationPlanInput{Name: &name})
+
+	assert.Error(t, err)
+	assert.True(t, apperrors.IsNotFound(err))
+	assert.Nil(t, plan)
+}
+
+func TestHospitalizationPlanService_Update_InvalidName(t *testing.T) {
+	blank := "   "
+	repo := &mockHospitalizationPlanRepository{
+		updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.HospitalizationPlan, error) {
+			t.Fatal("plan must not be updated when name fails validation")
+			return nil, nil
+		},
+	}
+	svc := NewHospitalizationPlanService(repo)
+
+	plan, err := svc.Update(context.Background(), 1, 1, &UpdateHospitalizationPlanInput{Name: &blank})
+
+	assert.Error(t, err)
+	assert.True(t, apperrors.IsInvalidInput(err))
+	assert.Nil(t, plan)
+}
+
 func TestHospitalizationPlanService_Delete(t *testing.T) {
 	tests := []struct {
 		name          string
 		id            uint64
+		findErr       error
 		carePlanCount int64
 		countErr      error
 		repoErr       error
@@ -305,11 +456,29 @@ func TestHospitalizationPlanService_Delete(t *testing.T) {
 			wantErr:       true,
 			wantConflict:  true,
 		},
+		{
+			name:    "returns error when the parent lookup fails",
+			id:      3,
+			findErr: apperrors.WrapNotFound("hospitalization_plan", "3"),
+			wantErr: true,
+		},
+		{
+			name:     "returns error when usage count check fails",
+			id:       4,
+			countErr: errors.New("db error"),
+			wantErr:  true,
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockHospitalizationPlanRepository{
+				findByIDFn: func(_ context.Context, clinicID, id uint64) (*model.HospitalizationPlan, error) {
+					if tt.findErr != nil {
+						return nil, tt.findErr
+					}
+					return &model.HospitalizationPlan{ID: id, ClinicID: clinicID}, nil
+				},
 				countCarePlanItemsByPlanIDFn: func(_ context.Context, _, _ uint64) (int64, error) {
 					return tt.carePlanCount, tt.countErr
 				},
@@ -353,6 +522,12 @@ func TestHospitalizationPlanService_Reorder(t *testing.T) {
 			clinicID: 1,
 			ids:      []uint64{1, 2},
 			repoErr:  errors.New("db error"),
+			wantErr:  true,
+		},
+		{
+			name:     "returns error when ids is empty",
+			clinicID: 1,
+			ids:      []uint64{},
 			wantErr:  true,
 		},
 	}

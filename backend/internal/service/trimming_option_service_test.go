@@ -56,6 +56,76 @@ func (m *mockTrimmingOptionRepository) CountUsageByTrimmingOptionID(ctx context.
 
 // ---- TrimmingOptionService テスト ----
 
+func TestBuildTrimmingOptionUpdate(t *testing.T) {
+	name := "爪切り"
+	price := int64(1000)
+	isActive := true
+	description := "説明文"
+	duration := 15
+	isCombinable := true
+	sortOrder := 2
+
+	tests := []struct {
+		name  string
+		input *UpdateTrimmingOptionInput
+		want  map[string]any
+	}{
+		{
+			name: "all fields set",
+			input: &UpdateTrimmingOptionInput{
+				Name: &name, Price: &price, IsActive: &isActive, Description: &description,
+				Duration: &duration, IsCombinable: &isCombinable, SortOrder: &sortOrder,
+			},
+			want: map[string]any{
+				colTrimmingOptionName:         name,
+				colTrimmingOptionPrice:        price,
+				colTrimmingOptionIsActive:     isActive,
+				colTrimmingOptionDescription:  description,
+				colTrimmingOptionDuration:     duration,
+				colTrimmingOptionIsCombinable: isCombinable,
+				colTrimmingOptionSortOrder:    sortOrder,
+			},
+		},
+		{
+			name:  "no fields set returns empty map",
+			input: &UpdateTrimmingOptionInput{},
+			want:  map[string]any{},
+		},
+		{
+			name:  "only price set",
+			input: &UpdateTrimmingOptionInput{Price: &price},
+			want:  map[string]any{colTrimmingOptionPrice: price},
+		},
+		{
+			name:  "only description set",
+			input: &UpdateTrimmingOptionInput{Description: &description},
+			want:  map[string]any{colTrimmingOptionDescription: description},
+		},
+		{
+			name:  "only duration set",
+			input: &UpdateTrimmingOptionInput{Duration: &duration},
+			want:  map[string]any{colTrimmingOptionDuration: duration},
+		},
+		{
+			name:  "only is_combinable set",
+			input: &UpdateTrimmingOptionInput{IsCombinable: &isCombinable},
+			want:  map[string]any{colTrimmingOptionIsCombinable: isCombinable},
+		},
+		{
+			name:  "only sort_order set",
+			input: &UpdateTrimmingOptionInput{SortOrder: &sortOrder},
+			want:  map[string]any{colTrimmingOptionSortOrder: sortOrder},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := buildTrimmingOptionUpdate(tt.input)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
 func TestTrimmingOptionService_List(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -207,6 +277,11 @@ func TestTrimmingOptionService_Create(t *testing.T) {
 			repoErr: errors.New("db error"),
 			wantErr: true,
 		},
+		{
+			name:    "returns validation error when name is blank",
+			input:   &CreateTrimmingOptionInput{Name: "", IsActive: true},
+			wantErr: true,
+		},
 	}
 
 	for _, tt := range tests {
@@ -263,6 +338,11 @@ func TestTrimmingOptionService_Update(t *testing.T) {
 			name:    "returns error on repository failure",
 			input:   &UpdateTrimmingOptionInput{Name: &optName},
 			repoErr: errors.New("db error"),
+			wantErr: true,
+		},
+		{
+			name:    "returns validation error when name is blank",
+			input:   &UpdateTrimmingOptionInput{Name: strPtr("")},
 			wantErr: true,
 		},
 	}
@@ -323,6 +403,11 @@ func TestTrimmingOptionService_Reorder(t *testing.T) {
 			name:    "propagates repository error",
 			ids:     []uint64{1, 2},
 			repoErr: errors.New("db error"),
+			wantErr: true,
+		},
+		{
+			name:    "returns error when ids is empty",
+			ids:     []uint64{},
 			wantErr: true,
 		},
 	}

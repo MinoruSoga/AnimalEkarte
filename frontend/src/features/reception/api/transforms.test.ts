@@ -170,6 +170,16 @@ describe("transformReservationToReceptionAppointment", () => {
   it("is_designated をそのまま返す", () => {
     expect(transformReservationToReceptionAppointment({ ...minimal, is_designated: true }).isDesignated).toBe(true);
   });
+
+  // 受付ヘッダー テレメトリ Phase 2（change-ui.md）: checked_in_at のマッピング。
+  it("checked_in_at を checkedInAt にマップする", () => {
+    const withCheckedInAt = { ...minimal, checked_in_at: "2026-07-05T01:00:00Z" };
+    expect(transformReservationToReceptionAppointment(withCheckedInAt).checkedInAt).toBe("2026-07-05T01:00:00Z");
+  });
+
+  it("checked_in_at が未設定の場合 checkedInAt は undefined", () => {
+    expect(transformReservationToReceptionAppointment(minimal).checkedInAt).toBeUndefined();
+  });
 });
 
 describe("transformReservationsToReceptionColumns", () => {

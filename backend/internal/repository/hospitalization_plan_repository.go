@@ -3,7 +3,6 @@ package repository
 
 import (
 	"context"
-	"fmt"
 
 	"gorm.io/gorm"
 
@@ -39,12 +38,7 @@ func (r *hospitalizationPlanRepository) FindAll(ctx context.Context, clinicID ui
 }
 
 func (r *hospitalizationPlanRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.HospitalizationPlan, error) {
-	var plan model.HospitalizationPlan
-	err := r.db.WithContext(ctx).Scopes(clinicScope(clinicID)).Where("id = ?", id).First(&plan).Error
-	if err != nil {
-		return nil, apperrors.FromGORM(err, "hospitalization_plan", fmt.Sprintf("%d", id))
-	}
-	return &plan, nil
+	return findByIDScoped[model.HospitalizationPlan](ctx, r.db, "hospitalization_plan", clinicID, id)
 }
 
 func (r *hospitalizationPlanRepository) Create(ctx context.Context, plan *model.HospitalizationPlan) error {
@@ -56,28 +50,14 @@ func (r *hospitalizationPlanRepository) Create(ctx context.Context, plan *model.
 }
 
 func (r *hospitalizationPlanRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.HospitalizationPlan, error) {
-	result := r.db.WithContext(ctx).
-		Model(&model.HospitalizationPlan{}).
-		Scopes(clinicScope(clinicID)).Where("id = ?", id).
-		Updates(fields)
-	if result.Error != nil {
-		return nil, apperrors.FromGORM(result.Error, "hospitalization_plan", fmt.Sprintf("%d", id))
-	}
-	if result.RowsAffected == 0 {
-		return nil, apperrors.WrapNotFound("hospitalization_plan", fmt.Sprintf("%d", id))
+	if err := updateScopedByID(ctx, r.db, &model.HospitalizationPlan{}, "hospitalization_plan", clinicID, id, fields); err != nil {
+		return nil, err
 	}
 	return r.FindByID(ctx, clinicID, id)
 }
 
 func (r *hospitalizationPlanRepository) Delete(ctx context.Context, clinicID, id uint64) error {
-	result := r.db.WithContext(ctx).Scopes(clinicScope(clinicID)).Where("id = ?", id).Delete(&model.HospitalizationPlan{})
-	if result.Error != nil {
-		return apperrors.FromGORM(result.Error, "hospitalization_plan", fmt.Sprintf("%d", id))
-	}
-	if result.RowsAffected == 0 {
-		return apperrors.WrapNotFound("hospitalization_plan", fmt.Sprintf("%d", id))
-	}
-	return nil
+	return deleteScopedByID(ctx, r.db, &model.HospitalizationPlan{}, "hospitalization_plan", clinicID, id)
 }
 
 // CountUsageByHospitalizationPlanID は指定入院プランを参照する care_plan_items の件数を返す（BUG-105）。
@@ -88,7 +68,7 @@ func (r *hospitalizationPlanRepository) CountUsageByHospitalizationPlanID(ctx co
 	if err := r.db.WithContext(ctx).
 		Model(&model.CarePlanItem{}).
 		Joins("JOIN hospitalization_plans hp ON hp.id = care_plan_items.hospitalization_plan_id AND hp.clinic_id = ? AND hp.deleted_at IS NULL", clinicID).
-		Where("care_plan_items.hospitalization_plan_id = ? AND care_plan_items.deleted_at IS NULL", planID).
+		Where("care_plan_items.hospitalization_plan_id = ?", planID).
 		Count(&count).Error; err != nil {
 		return 0, apperrors.FromGORM(err, "care_plan_item", "")
 	}

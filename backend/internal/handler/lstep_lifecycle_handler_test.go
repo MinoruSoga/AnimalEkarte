@@ -77,9 +77,9 @@ func newPatchPetDeathRouter(lc service.LstepLifecycleService, withClinicID bool)
 	r := gin.New()
 	h := newHandlerWithLstepLifecycleSvc(lc, nil)
 	if withClinicID {
-		r.PATCH("/pets/:id/death", func(c *gin.Context) { setClinicID(c) }, h.PatchPetDeath)
+		r.PATCH("/pets/:id/death", func(c *gin.Context) { setClinicID(c) }, h.UpdatePetDeath)
 	} else {
-		r.PATCH("/pets/:id/death", h.PatchPetDeath)
+		r.PATCH("/pets/:id/death", h.UpdatePetDeath)
 	}
 	return r
 }
@@ -99,20 +99,9 @@ func newPostOwnerLstepOptOutRouter(lc service.LstepLifecycleService, withClinicI
 	r := gin.New()
 	h := newHandlerWithLstepLifecycleSvc(lc, nil)
 	if withClinicID {
-		r.POST("/owners/:id/lstep-opt-out", func(c *gin.Context) { setClinicID(c) }, h.PostOwnerLstepOptOut)
+		r.POST("/owners/:id/lstep-opt-out", func(c *gin.Context) { setClinicID(c) }, h.UpdateOwnerLstepOptOut)
 	} else {
-		r.POST("/owners/:id/lstep-opt-out", h.PostOwnerLstepOptOut)
-	}
-	return r
-}
-
-func newDeleteOwnerLstepOptOutRouter(lc service.LstepLifecycleService, withClinicID bool) *gin.Engine {
-	r := gin.New()
-	h := newHandlerWithLstepLifecycleSvc(lc, nil)
-	if withClinicID {
-		r.DELETE("/owners/:id/lstep-opt-out", func(c *gin.Context) { setClinicID(c) }, h.DeleteOwnerLstepOptOut)
-	} else {
-		r.DELETE("/owners/:id/lstep-opt-out", h.DeleteOwnerLstepOptOut)
+		r.POST("/owners/:id/lstep-opt-out", h.UpdateOwnerLstepOptOut)
 	}
 	return r
 }
@@ -139,7 +128,7 @@ func newDeleteOwnerLineRouter(ow service.OwnerService, withClinicID bool) *gin.E
 	return r
 }
 
-// ---- PatchPetDeath ----
+// ---- UpdatePetDeath ----
 
 func TestPatchPetDeath(t *testing.T) {
 	gin.SetMode(gin.TestMode)
@@ -274,7 +263,7 @@ func TestDeletePetDeath(t *testing.T) {
 	}
 }
 
-// ---- PostOwnerLstepOptOut ----
+// ---- UpdateOwnerLstepOptOut ----
 
 func TestPostOwnerLstepOptOut(t *testing.T) {
 	gin.SetMode(gin.TestMode)
@@ -333,55 +322,6 @@ func TestPostOwnerLstepOptOut(t *testing.T) {
 			w := httptest.NewRecorder()
 			req := httptest.NewRequest(http.MethodPost, "/owners/"+tt.paramID+"/lstep-opt-out", bytes.NewReader(raw))
 			req.Header.Set("Content-Type", "application/json")
-			router.ServeHTTP(w, req)
-
-			assert.Equal(t, tt.wantStatus, w.Code)
-		})
-	}
-}
-
-// ---- DeleteOwnerLstepOptOut ----
-
-func TestDeleteOwnerLstepOptOut(t *testing.T) {
-	gin.SetMode(gin.TestMode)
-
-	tests := []struct {
-		name       string
-		paramID    string
-		svc        *mockLstepLifecycleService
-		wantStatus int
-	}{
-		{
-			name:    "returns 204 on success (opt-in)",
-			paramID: "7",
-			svc: &mockLstepLifecycleService{
-				handleOwnerOptInFn: func(_ context.Context, clinicID, ownerID uint64) error {
-					assert.Equal(t, uint64(1), clinicID)
-					assert.Equal(t, uint64(7), ownerID)
-					return nil
-				},
-			},
-			wantStatus: http.StatusNoContent,
-		},
-		{
-			name:       "returns 401 when clinic_id missing",
-			paramID:    "7",
-			svc:        &mockLstepLifecycleService{},
-			wantStatus: http.StatusUnauthorized,
-		},
-		{
-			name:       "returns 400 when id is not numeric",
-			paramID:    "nope",
-			svc:        &mockLstepLifecycleService{},
-			wantStatus: http.StatusBadRequest,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			router := newDeleteOwnerLstepOptOutRouter(tt.svc, tt.wantStatus != http.StatusUnauthorized)
-			w := httptest.NewRecorder()
-			req := httptest.NewRequest(http.MethodDelete, "/owners/"+tt.paramID+"/lstep-opt-out", http.NoBody)
 			router.ServeHTTP(w, req)
 
 			assert.Equal(t, tt.wantStatus, w.Code)

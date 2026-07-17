@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import { handleApiError } from "@/lib/handle-api-error";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
+import { queryKeys } from "@/lib/query-keys";
 import type { ChiefComplaintType as ModelChiefComplaintType } from "@/types/generated/models";
 
 // ─────────────────────────────────────────────────
@@ -41,20 +42,18 @@ export type ChiefComplaintType = ReturnType<typeof transformChiefComplaintType>;
 // Query keys
 // ─────────────────────────────────────────────────
 
-const CHIEF_COMPLAINT_TYPES_QUERY_KEY = ["masters", "chief-complaint-types"] as const;
-
 // ─────────────────────────────────────────────────
 // API functions
 // ─────────────────────────────────────────────────
 
-export async function listChiefComplaintTypes(): Promise<ChiefComplaintType[]> {
+async function listChiefComplaintTypes(): Promise<ChiefComplaintType[]> {
   const { data } = await axios.get<ModelChiefComplaintType[]>(
     "/v1/masters/chief-complaint-types"
   );
   return data.map(transformChiefComplaintType);
 }
 
-export async function createChiefComplaintType(
+async function createChiefComplaintType(
   req: CreateChiefComplaintTypeRequest
 ): Promise<ChiefComplaintType> {
   const { data } = await axios.post<ModelChiefComplaintType>(
@@ -64,7 +63,7 @@ export async function createChiefComplaintType(
   return transformChiefComplaintType(data);
 }
 
-export async function updateChiefComplaintType(
+async function updateChiefComplaintType(
   id: string,
   req: UpdateChiefComplaintTypeRequest
 ): Promise<ChiefComplaintType> {
@@ -75,7 +74,7 @@ export async function updateChiefComplaintType(
   return transformChiefComplaintType(data);
 }
 
-export async function deleteChiefComplaintType(id: string): Promise<void> {
+async function deleteChiefComplaintType(id: string): Promise<void> {
   await axios.delete(`/v1/masters/chief-complaint-types/${id}`);
 }
 
@@ -85,7 +84,7 @@ export async function deleteChiefComplaintType(id: string): Promise<void> {
 
 export function useGetChiefComplaintTypes() {
   return useQuery({
-    queryKey: CHIEF_COMPLAINT_TYPES_QUERY_KEY,
+    queryKey: queryKeys.masters.category("chief-complaint-types"),
     queryFn: listChiefComplaintTypes,
     staleTime: QUERY_STALE_TIMES.STATIC,
     gcTime: QUERY_GC_TIMES.LONG,
@@ -97,7 +96,7 @@ export function useCreateChiefComplaintType() {
   return useMutation({
     mutationFn: createChiefComplaintType,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: CHIEF_COMPLAINT_TYPES_QUERY_KEY });
+      queryClient.invalidateQueries({ queryKey: queryKeys.masters.category("chief-complaint-types") });
     },
     onError: (error) => handleApiError(error, "作成"),
   });
@@ -109,7 +108,7 @@ export function useUpdateChiefComplaintType() {
     mutationFn: ({ id, req }: { id: string; req: UpdateChiefComplaintTypeRequest }) =>
       updateChiefComplaintType(id, req),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: CHIEF_COMPLAINT_TYPES_QUERY_KEY });
+      queryClient.invalidateQueries({ queryKey: queryKeys.masters.category("chief-complaint-types") });
     },
     onError: (error) => handleApiError(error, "更新"),
   });
@@ -120,23 +119,9 @@ export function useDeleteChiefComplaintType() {
   return useMutation({
     mutationFn: deleteChiefComplaintType,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: CHIEF_COMPLAINT_TYPES_QUERY_KEY });
+      queryClient.invalidateQueries({ queryKey: queryKeys.masters.category("chief-complaint-types") });
     },
     onError: (error) => handleApiError(error, "削除"),
   });
 }
 
-export async function reorderChiefComplaintTypes(ids: number[]): Promise<void> {
-  await axios.patch("/v1/masters/chief-complaint-types/reorder", { ids });
-}
-
-export function useReorderChiefComplaintTypes() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (ids: number[]) => reorderChiefComplaintTypes(ids),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: CHIEF_COMPLAINT_TYPES_QUERY_KEY });
-    },
-    onError: (error) => handleApiError(error, "並び替え"),
-  });
-}

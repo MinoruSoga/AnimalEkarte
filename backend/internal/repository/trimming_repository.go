@@ -15,7 +15,7 @@ type AppointmentTrimmingDetailRepository interface {
 	FindByAppointmentID(ctx context.Context, clinicID, appointmentID uint64) (*model.AppointmentTrimmingDetail, error)
 	Create(ctx context.Context, detail *model.AppointmentTrimmingDetail) error
 	Update(ctx context.Context, detail *model.AppointmentTrimmingDetail) error
-	SetOptions(ctx context.Context, appointmentID uint64, optionIDs []uint64) error
+	SetOptions(ctx context.Context, clinicID, appointmentID uint64, optionIDs []uint64) error
 }
 
 type appointmentTrimmingDetailRepository struct {
@@ -30,8 +30,8 @@ func (r *appointmentTrimmingDetailRepository) FindByAppointmentID(ctx context.Co
 	var detail model.AppointmentTrimmingDetail
 	err := dbOrTx(ctx, r.db).
 		Scopes(clinicScope(clinicID)).
-		Preload("Course", "deleted_at IS NULL").
-		Preload("Options", "deleted_at IS NULL").
+		Preload("Course", "clinic_id = ? AND deleted_at IS NULL", clinicID).
+		Preload("Options", "clinic_id = ? AND deleted_at IS NULL", clinicID).
 		Where("appointment_id = ?", appointmentID).
 		First(&detail).Error
 	if err != nil {
@@ -79,11 +79,23 @@ func (r *appointmentTrimmingDetailRepository) Update(ctx context.Context, detail
 // SetOptions は appointment に紐づく trimming オプションを全置換する。
 // WithTx コンテキスト内から呼ばれた場合は外側のトランザクションに参加する（savepoint）。
 // 単独呼び出しの場合は Clear + Replace を単一トランザクションで実行する。
-func (r *appointmentTrimmingDetailRepository) SetOptions(ctx context.Context, appointmentID uint64, optionIDs []uint64) error {
-	// many2many: joinForeignKey:AppointmentID を使用するため AppointmentID のみで関連を操作できる
-	detail := &model.AppointmentTrimmingDetail{AppointmentID: appointmentID}
+func (r *appointmentTrimmingDetailRepository) SetOptions(ctx context.Context, clinicID, appointmentID uint64, optionIDs []uint64) error {
 	if err := dbOrTx(ctx, r.db).Transaction(func(tx *gorm.DB) error {
-		if err := tx.Model(detail).Association("Options").Unscoped().Clear(); err != nil {
+		// Options の many2many join には foreignKey:AppointmentID を使うが、GORM の Association()
+		// は付随して自モデル行（appointment_trimming_details）の touch-update も行うため、
+		// primaryKey(ID) が設定された実インスタンスが必要（#212 の追加発現。AppointmentID のみの
+		// ゼロ値インスタンスを渡すと "WHERE conditions required" で失敗する）。
+		// clinic_id 述語は P4 の defense-in-depth（checkup_field_repository.go の
+		// ReplaceForCheckup / examination_repository.go の ReplaceItemsByExamID と同型パターン）:
+		// 呼び出し元（trimming_service.go / liff_service_reservations.go）は appointmentID を
+		// 事前に clinic 検証済みだが、repository 層でも再検証し fail-closed にする。
+		var detail model.AppointmentTrimmingDetail
+		if err := tx.Select("id", "appointment_id").
+			Where("appointment_id = ? AND clinic_id = ?", appointmentID, clinicID).
+			First(&detail).Error; err != nil {
+			return apperrors.FromGORM(err, "appointment_trimming_detail", fmt.Sprintf("appointment_id=%d", appointmentID))
+		}
+		if err := tx.Model(&detail).Association("Options").Unscoped().Clear(); err != nil {
 			return apperrors.FromGORM(err, "appointment_trimming_option", fmt.Sprintf("appointment_id=%d", appointmentID))
 		}
 		if len(optionIDs) == 0 {
@@ -93,7 +105,7 @@ func (r *appointmentTrimmingDetailRepository) SetOptions(ctx context.Context, ap
 		for _, id := range optionIDs {
 			options = append(options, model.TrimmingOption{ID: id})
 		}
-		if err := tx.Model(detail).Association("Options").Replace(options); err != nil {
+		if err := tx.Model(&detail).Association("Options").Replace(options); err != nil {
 			return apperrors.FromGORM(err, "appointment_trimming_option", fmt.Sprintf("appointment_id=%d", appointmentID))
 		}
 		return nil

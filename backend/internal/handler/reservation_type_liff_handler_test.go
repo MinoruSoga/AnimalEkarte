@@ -256,6 +256,22 @@ func TestUpdateReservationTypeLiff(t *testing.T) {
 			wantStatus: http.StatusBadRequest,
 		},
 		{
+			name:       "returns 400 on malformed body",
+			paramID:    "1",
+			body:       "not-json",
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockReservationTypeLiffService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:       "returns 400 for invalid reservation_day_option",
+			paramID:    "1",
+			body:       map[string]any{"reservation_day_option": "invalid-option"},
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockReservationTypeLiffService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
 			name:     "returns 404 when not found",
 			paramID:  "999",
 			body:     map[string]any{"name": "test"},
@@ -266,6 +282,18 @@ func TestUpdateReservationTypeLiff(t *testing.T) {
 				},
 			},
 			wantStatus: http.StatusNotFound,
+		},
+		{
+			name:     "returns 500 on service error",
+			paramID:  "1",
+			body:     map[string]any{"name": "test"},
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockReservationTypeLiffService{
+				updateFn: func(_ context.Context, _, _ uint64, _ *service.UpdateReservationTypeLiffInput) (*model.ReservationType, error) {
+					return nil, fmt.Errorf("db error")
+				},
+			},
+			wantStatus: http.StatusInternalServerError,
 		},
 	}
 
@@ -345,7 +373,7 @@ func TestDeleteReservationTypeLiff(t *testing.T) {
 	})
 }
 
-// ---- PatchReservationTypeLiffStatus ----
+// ---- UpdateReservationTypeLiffStatus ----
 
 func TestPatchReservationTypeLiffStatus(t *testing.T) {
 	gin.SetMode(gin.TestMode)
@@ -392,6 +420,34 @@ func TestPatchReservationTypeLiffStatus(t *testing.T) {
 			},
 			wantStatus: http.StatusNotFound,
 		},
+		{
+			name:       "returns 400 for non-numeric id",
+			paramID:    "abc",
+			body:       map[string]any{"is_active": true},
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockReservationTypeLiffService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:       "returns 400 on malformed body",
+			paramID:    "1",
+			body:       "not-json",
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockReservationTypeLiffService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:     "returns 500 on service error",
+			paramID:  "1",
+			body:     map[string]any{"is_active": true},
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockReservationTypeLiffService{
+				patchStatusFn: func(_ context.Context, _, _ uint64, _ bool) (*model.ReservationType, error) {
+					return nil, fmt.Errorf("db error")
+				},
+			},
+			wantStatus: http.StatusInternalServerError,
+		},
 	}
 
 	for _, tt := range tests {
@@ -405,18 +461,18 @@ func TestPatchReservationTypeLiffStatus(t *testing.T) {
 			c.Request.Header.Set("Content-Type", "application/json")
 			c.Params = gin.Params{{Key: "id", Value: tt.paramID}}
 			tt.setupCtx(c)
-			h.PatchReservationTypeLiffStatus(c)
+			h.UpdateReservationTypeLiffStatus(c)
 			assert.Equal(t, tt.wantStatus, w.Code)
 		})
 	}
 }
 
-// ---- PatchReservationTypeLiffSortOrder ----
+// ---- UpdateReservationTypeLiffSortOrder ----
 
 func newPatchLiffSortOrderRouter(svc service.ReservationTypeLiffService) *gin.Engine {
 	r := gin.New()
 	h := newHandlerWithReservationTypeLiffSvc(svc)
-	r.PATCH("/reservation-types-liff/:id/sort-order", func(c *gin.Context) { setClinicID(c) }, h.PatchReservationTypeLiffSortOrder)
+	r.PATCH("/reservation-types-liff/:id/sort-order", func(c *gin.Context) { setClinicID(c) }, h.UpdateReservationTypeLiffSortOrder)
 	return r
 }
 
@@ -449,7 +505,80 @@ func TestPatchReservationTypeLiffSortOrder(t *testing.T) {
 		c.Request.Header.Set("Content-Type", "application/json")
 		c.Params = gin.Params{{Key: "id", Value: "1"}}
 		setClinicID(c)
-		h.PatchReservationTypeLiffSortOrder(c)
+		h.UpdateReservationTypeLiffSortOrder(c)
 		assert.Equal(t, http.StatusBadRequest, w.Code)
 	})
+
+	t.Run("returns 401 when clinic_id missing", func(t *testing.T) {
+		h := newHandlerWithReservationTypeLiffSvc(&mockReservationTypeLiffService{})
+		body, _ := json.Marshal(map[string]any{"direction": "up"})
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Request = httptest.NewRequest(http.MethodPatch, "/", bytes.NewReader(body))
+		c.Request.Header.Set("Content-Type", "application/json")
+		c.Params = gin.Params{{Key: "id", Value: "1"}}
+		h.UpdateReservationTypeLiffSortOrder(c)
+		assert.Equal(t, http.StatusUnauthorized, w.Code)
+	})
+
+	t.Run("returns 400 for non-numeric id", func(t *testing.T) {
+		h := newHandlerWithReservationTypeLiffSvc(&mockReservationTypeLiffService{})
+		body, _ := json.Marshal(map[string]any{"direction": "up"})
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Request = httptest.NewRequest(http.MethodPatch, "/", bytes.NewReader(body))
+		c.Request.Header.Set("Content-Type", "application/json")
+		c.Params = gin.Params{{Key: "id", Value: "abc"}}
+		setClinicID(c)
+		h.UpdateReservationTypeLiffSortOrder(c)
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+	})
+
+	t.Run("returns 400 on malformed body", func(t *testing.T) {
+		h := newHandlerWithReservationTypeLiffSvc(&mockReservationTypeLiffService{})
+		body, _ := json.Marshal("not-json")
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Request = httptest.NewRequest(http.MethodPatch, "/", bytes.NewReader(body))
+		c.Request.Header.Set("Content-Type", "application/json")
+		c.Params = gin.Params{{Key: "id", Value: "1"}}
+		setClinicID(c)
+		h.UpdateReservationTypeLiffSortOrder(c)
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+	})
+
+	t.Run("returns 500 on service error", func(t *testing.T) {
+		svc := &mockReservationTypeLiffService{
+			patchSortOrderFn: func(_ context.Context, _, _ uint64, _ string) error {
+				return fmt.Errorf("db error")
+			},
+		}
+		h := newHandlerWithReservationTypeLiffSvc(svc)
+		body, _ := json.Marshal(map[string]any{"direction": "down"})
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Request = httptest.NewRequest(http.MethodPatch, "/", bytes.NewReader(body))
+		c.Request.Header.Set("Content-Type", "application/json")
+		c.Params = gin.Params{{Key: "id", Value: "1"}}
+		setClinicID(c)
+		h.UpdateReservationTypeLiffSortOrder(c)
+		assert.Equal(t, http.StatusInternalServerError, w.Code)
+	})
+}
+
+// ---- UploadReservationTypeLiffImage ----
+
+// TestUploadReservationTypeLiffImage は v2 スコープ未実装エンドポイントが
+// 常に 501 Not Implemented を返すことを検証する（BE スコープ境界の回帰防止）。
+func TestUploadReservationTypeLiffImage(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	h := newHandlerWithReservationTypeLiffSvc(&mockReservationTypeLiffService{})
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest(http.MethodPost, "/", http.NoBody)
+
+	h.UploadReservationTypeLiffImage(c)
+
+	assert.Equal(t, http.StatusNotImplemented, w.Code)
 }

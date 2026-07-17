@@ -53,7 +53,7 @@ func toMedicalRecordResponseWithVisitCount(r *model.MedicalRecord, visitCount in
 		Doctor:        toStaffSummary(r.Doctor),
 	}
 	if r.NextVisitRecommendedDate != nil {
-		s := r.NextVisitRecommendedDate.In(time.Local).Format("2006-01-02")
+		s := r.NextVisitRecommendedDate.In(time.Local).Format(time.DateOnly)
 		resp.NextVisitRecommendedDate = &s
 	}
 	resp.RecommendationReason = r.RecommendationReason

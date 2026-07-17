@@ -128,9 +128,9 @@ func (h *Handler) UpdateOwner(c *gin.Context) {
 	c.JSON(http.StatusOK, toOwnerResponse(owner))
 }
 
-// PatchOwnerLineUserID godoc
+// UpdateOwnerLineUserID godoc
 // PATCH /owners/:id/line-user-id — LINE User ID を連携または解除する（BE-005）。
-func (h *Handler) PatchOwnerLineUserID(c *gin.Context) {
+func (h *Handler) UpdateOwnerLineUserID(c *gin.Context) {
 	clinicID, ok := extractClinicID(c)
 	if !ok {
 		return
@@ -152,9 +152,9 @@ func (h *Handler) PatchOwnerLineUserID(c *gin.Context) {
 	c.Status(http.StatusNoContent)
 }
 
-// PatchOwnerDeliveryExclusion godoc
+// UpdateOwnerDeliveryExclusion godoc
 // PATCH /owners/:id/delivery-exclusion — 配信除外フラグを更新する（FEAT-381）。
-func (h *Handler) PatchOwnerDeliveryExclusion(c *gin.Context) {
+func (h *Handler) UpdateOwnerDeliveryExclusion(c *gin.Context) {
 	clinicID, ok := extractClinicID(c)
 	if !ok {
 		return
@@ -177,9 +177,9 @@ func (h *Handler) PatchOwnerDeliveryExclusion(c *gin.Context) {
 	c.JSON(http.StatusOK, toOwnerResponse(owner))
 }
 
-// PatchOwnerDeliveryCaution godoc
+// UpdateOwnerDeliveryCaution godoc
 // PATCH /owners/:id/delivery-caution — 配信注意フラグを更新する（FEAT-381-2）。
-func (h *Handler) PatchOwnerDeliveryCaution(c *gin.Context) {
+func (h *Handler) UpdateOwnerDeliveryCaution(c *gin.Context) {
 	clinicID, ok := extractClinicID(c)
 	if !ok {
 		return
@@ -202,9 +202,9 @@ func (h *Handler) PatchOwnerDeliveryCaution(c *gin.Context) {
 	c.JSON(http.StatusOK, toOwnerResponse(owner))
 }
 
-// PatchOwnerTransferStatus godoc
+// UpdateOwnerTransferStatus godoc
 // PATCH /owners/:id/transfer-status — 転院フラグを更新する（FEAT-381）。
-func (h *Handler) PatchOwnerTransferStatus(c *gin.Context) {
+func (h *Handler) UpdateOwnerTransferStatus(c *gin.Context) {
 	clinicID, ok := extractClinicID(c)
 	if !ok {
 		return
@@ -227,9 +227,9 @@ func (h *Handler) PatchOwnerTransferStatus(c *gin.Context) {
 	c.JSON(http.StatusOK, toOwnerResponse(owner))
 }
 
-// PatchOwnerLineIDConfirm godoc
+// UpdateOwnerLineIDConfirm godoc
 // PATCH /owners/:id/line-id-confirm — LINE ID 紐付け確認日時を現在時刻に設定する（FEAT-381）。
-func (h *Handler) PatchOwnerLineIDConfirm(c *gin.Context) {
+func (h *Handler) UpdateOwnerLineIDConfirm(c *gin.Context) {
 	clinicID, ok := extractClinicID(c)
 	if !ok {
 		return

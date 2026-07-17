@@ -9,41 +9,33 @@ import (
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
-func (s *lstepTagSyncService) SyncFoodPurchaseTag(ctx context.Context, clinicID, ownerID uint64) error {
+// SyncFoodPurchaseTagWithMappings はフード購入履歴に基づき LTV_フード購入あり タグを同期する（FEAT-379）。
+// 事前取得済み mappings/thresholds を使って処理する（PERF-M2 N+1 解消用）。
+func (s *lstepTagSyncService) SyncFoodPurchaseTagWithMappings(ctx context.Context, clinicID, ownerID uint64, cachedMappings []*model.LstepTagCodeMapping, cachedThresholds *model.HealthPreventionThresholds) error {
 	if s.tagCodeRepo == nil || s.billingItemRepo == nil {
 		return nil
 	}
-	if skip, err := s.shouldSkipSync(ctx, clinicID); err != nil {
-		return err
-	} else if skip {
-		return nil
-	}
 
-	mappings, err := s.tagCodeRepo.FindByClinicIDAndTagName(ctx, clinicID, LtvFoodPurchaseTag)
+	// PERF-M2: cachedMappings が提供されている場合は再取得しない（batch からの hoist）（BE-refactor.md E-7）。
+	mappings, err := s.mappingsFor(ctx, clinicID, LtvFoodPurchaseTag, "food purchase tag", cachedMappings)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to find tag code mappings for food purchase tag", "error", err)
-		return apperrors.Wrap(err, "failed to find tag code mappings")
+		return err
 	}
 	// itemCodes が空でも HasFoodPurchaseByOwnerSince は category='food' にフォールバック
 	itemCodes := extractTagCodes(mappings, model.CodeTypeMerchandiseItem)
 
-	optOut, owner, err := s.checkOptOut(ctx, clinicID, ownerID)
+	lineUserID, ok, err := s.resolveSyncTarget(ctx, clinicID, ownerID, LtvFoodPurchaseTag)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to check opt-out for food purchase tag", "error", err)
-		return apperrors.Wrap(err, "failed to check opt-out")
+		return err
 	}
-	if optOut {
+	if !ok {
 		return nil
 	}
-	if owner.LineUserID == nil || *owner.LineUserID == "" {
-		return nil
-	}
-	lineUserID := *owner.LineUserID
 
-	thresholds, err := s.settingsSvc.GetHealthPreventionThresholds(ctx, clinicID)
+	// PERF-M2: cachedThresholds が提供されている場合は再取得しない（batch からの hoist）（BE-refactor.md E-7）。
+	thresholds, err := s.thresholdsFor(ctx, clinicID, "food purchase tag", cachedThresholds)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to get health prevention thresholds for food purchase tag", "error", err, "clinic_id", clinicID)
-		return apperrors.Wrap(err, "failed to get health prevention thresholds")
+		return err
 	}
 	since := time.Now().AddDate(0, 0, -thresholds.LookbackDays)
 	hasPurchase, err := s.billingItemRepo.HasFoodPurchaseByOwnerSince(ctx, clinicID, ownerID, since, itemCodes)
@@ -62,23 +54,12 @@ func (s *lstepTagSyncService) SyncFoodPurchaseTag(ctx context.Context, clinicID,
 
 	apiFailed := false
 	if hasPurchase {
-		if addErr := client.AddTag(ctx, lineUserID, LtvFoodPurchaseTag); addErr != nil {
-			slog.ErrorContext(ctx, "failed to add food purchase tag", "error", addErr)
-			s.notifyAPIFailure(ctx, client, clinicID, ownerID, lineUserID)
-			return apperrors.Wrap(addErr, "failed to add food purchase tag")
-		}
-		if err := s.tagCacheRepo.UpsertTag(ctx, clinicID, ownerID, LtvFoodPurchaseTag, "auto", "購入済"); err != nil {
-			slog.WarnContext(ctx, "failed to upsert tag cache (non-fatal)", "tag", LtvFoodPurchaseTag, "owner_id", ownerID, "error", err)
+		if err := s.applyTagState(ctx, client, clinicID, ownerID, lineUserID, LtvFoodPurchaseTag, "food purchase", "購入済", true); err != nil {
+			return err
 		}
 	} else {
-		if delErr := client.RemoveTag(ctx, lineUserID, LtvFoodPurchaseTag); delErr != nil {
-			slog.ErrorContext(ctx, "failed to remove food purchase tag", "error", delErr)
-			s.notifyAPIFailure(ctx, client, clinicID, ownerID, lineUserID)
+		if err := s.applyTagState(ctx, client, clinicID, ownerID, lineUserID, LtvFoodPurchaseTag, "food purchase", "購入済", false); err != nil {
 			apiFailed = true
-		} else {
-			if err := s.tagCacheRepo.DeleteTag(ctx, clinicID, ownerID, LtvFoodPurchaseTag); err != nil {
-				slog.WarnContext(ctx, "failed to delete tag cache (non-fatal)", "tag", LtvFoodPurchaseTag, "owner_id", ownerID, "error", err)
-			}
 		}
 	}
 	if !apiFailed {

@@ -5,6 +5,7 @@ import type {
   Vaccine,
   CheckupType,
 } from "@/types/generated/models";
+import type { ReorderRequest } from "@/types/form";
 
 // ─────────────────────────────────────────────────
 // 共通: サーバーが自動生成するフィールド
@@ -82,6 +83,4 @@ export type UpdateCheckupTypeRequest = Partial<CheckupTypeWritable> & {
 // 共通 Reorder リクエスト
 // ─────────────────────────────────────────────────
 
-export interface ReorderTreatmentRequest {
-  ids: number[];
-}
+export type ReorderTreatmentRequest = ReorderRequest;

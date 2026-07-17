@@ -33,6 +33,7 @@ func (s *staffClinicAssignmentService) FindAllByStaffID(ctx context.Context, sta
 
 func (s *staffClinicAssignmentService) Create(ctx context.Context, assignment *model.StaffClinicAssignment) error {
 	if err := s.repo.Create(ctx, assignment); err != nil {
+		slog.ErrorContext(ctx, "failed to create staff clinic assignment", "error", err, "staff_id", assignment.StaffID, "clinic_id", assignment.ClinicID)
 		return apperrors.Wrap(err, "failed to create staff clinic assignment")
 	}
 	slog.InfoContext(ctx, "staff clinic assignment created",

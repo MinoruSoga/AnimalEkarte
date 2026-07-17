@@ -3,7 +3,7 @@
  * owners feature と pets feature と line-reservation feature を app層でのみ合成し、
  * feature 間 import を排除する。
  */
-import { useState } from "react";
+import { useState, lazy } from "react";
 import { useParams } from "react-router";
 import { Send } from "lucide-react";
 
@@ -15,11 +15,18 @@ import {
   useGetOwner,
 } from "@/features/owners";
 import { createPet, useCreatePet, useUpdatePet, useDeletePet } from "@/features/pets";
+import { useRevokePetDeath } from "@/hooks/use-revoke-pet-death";
 import { LinkedLineCustomers } from "@/features/line-reservation";
 import { useAuth } from "@/hooks/use-auth";
-import { Button } from "@/components/ui/button";
-import { ICON, STYLE } from "@/lib/design-tokens";
+import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
+import { ICON } from "@/lib/design-tokens";
 import type { PetMutations } from "@/types/pet";
+
+// Lazy-loaded — 編集モードでのみ必要、新規登録画面のバンドルから切り離す。
+// feature 間 import (owners → accounting) を避けるため app 層でのみ import する。
+const OwnerAccountingHistory = lazy(() =>
+  import("@/features/accounting").then(m => ({ default: m.OwnerAccountingHistory }))
+);
 
 export function OwnerFormPage() {
   const { id: ownerId } = useParams();
@@ -29,6 +36,7 @@ export function OwnerFormPage() {
   const { mutate: createPetMutate } = useCreatePet();
   const { mutate: updatePetMutate } = useUpdatePet();
   const { mutate: deletePetMutate } = useDeletePet();
+  const { mutate: revokePetDeathMutate } = useRevokePetDeath();
 
   const { data: owner } = useGetOwner(ownerId ?? "");
   const ownerName = owner?.ownerName ?? "";
@@ -43,7 +51,13 @@ export function OwnerFormPage() {
       updatePetMutate(args, { onSuccess, onError }),
     deletePetMutate: (id, { onSuccess, onError }) =>
       deletePetMutate(id, { onSuccess, onError }),
+    revokePetDeathMutate: (petId) => revokePetDeathMutate(petId),
   };
+
+  // 会計履歴セクション（編集モード=ownerIdがある時のみ意味がある。表示可否は OwnerForm 側の権限判定に委ねる）
+  const accountingSection = ownerId ? (
+    <OwnerAccountingHistory ownerId={ownerId} />
+  ) : null;
 
   // LINE連携セクション（編集モード=ownerIdがある時のみ意味がある）
   const lineSection = ownerId ? (
@@ -51,14 +65,15 @@ export function OwnerFormPage() {
       <LinkedLineCustomers clinicId={clinicId} ownerId={Number(ownerId)} />
       <LineIntegrationCard ownerId={ownerId} ownerName={ownerName} owner={owner} />
       <div className="flex justify-end">
-        <Button
+        <PrimaryButton
           type="button"
+          colorVariant="brand"
           onClick={() => setSendPanelOpen(true)}
-          className={STYLE.btnPrimary}
+          className="px-4 text-base"
         >
           <Send className={ICON.sm} />
           個別LINE送信
-        </Button>
+        </PrimaryButton>
       </div>
       <LineSendPanel
         ownerId={ownerId}
@@ -69,5 +84,11 @@ export function OwnerFormPage() {
     </div>
   ) : null;
 
-  return <OwnerForm petMutations={petMutations} lineSection={lineSection} />;
+  return (
+    <OwnerForm
+      petMutations={petMutations}
+      lineSection={lineSection}
+      accountingSection={accountingSection}
+    />
+  );
 }

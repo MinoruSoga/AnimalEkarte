@@ -1,6 +1,6 @@
 ---
 name: golang-gin-clean-arch
-description: "軽量レイヤードアーキテクチャ（handler→service→repository→model）の設計・実装パターン。handler/*_request.go バインド・service.XxxInput 変換・handler/*_response.go 変換・PATCH ポインタ型・buildXxxUpdateFields・RespondError・service/validators.go・slog service層のみ・マルチテナント clinic_id を完全網羅。"
+description: "軽量レイヤードアーキテクチャ（handler→service→repository→model）の設計・実装パターン。handler/*_request.go バインド・service.XxxInput 変換・handler/*_response.go 変換・PATCH ポインタ型・buildXxxUpdateFields・RespondError・service/validators.go・slog service層のみ・マルチテナント clinic_id を完全網羅。HTTPサーバ起動・middleware・routing・rate-limiting・graceful shutdownは golang-gin-api を参照。"
 license: MIT
 metadata:
   author: henriqueatila
@@ -28,6 +28,8 @@ metadata:
 6. **`handler` から `repository` を直接呼ばない** — service 層を必ず経由する
 7. **slog は `service` 層のみ** — handler・repository には書かない
 8. **`tx`（トランザクション）内で Preload しない** — 完了後に `FindByID` で取得
+9. **request 由来の clinic-scoped master FK は永続化前に所有権検証**: `masterRepo.FindByID(ctx, clinicID, id)`（別 clinic は NotFound）で検証してから書き込む。子テーブルが自前 clinic_id を持たず親経由でのみ隔離される場合、repository の clinicScope（P4）は効かず、service が検証しない限り越境 write が成立する（#124 exam_type / #125 vaccine の実発生源）。Create の必須 uint64 は `!= 0`、Update の *uint64 は `!= nil` で判定し、検証は tx を含む永続化より前に行う。
+   （出典: memory cross_tenant_master_fk_write_audit_20260629、commit 03bf1cb5 / f4e7b7a7）
 
 ## Project Structure
 
@@ -36,7 +38,7 @@ backend/
 ├── cmd/api/main.go              # エントリーポイント + DI配線（唯一の汚い場所）
 ├── internal/
 │   ├── handler/                 # HTTP受付層
-│   │   ├── handler.go           # Handler struct・extractClinicID・RespondError・parseBindError
+│   │   ├── handler.go / context_helpers.go / response.go / bind_errors.go  # Handler struct・extractClinicID・RespondError・parseBindError
 │   │   ├── owner_handler.go     # RegisterOwnerRoutes(rg) + CRUD handlers
 │   │   ├── owner_request.go     # createOwnerRequest / updateOwnerRequest（binding struct）
 │   │   ├── owner_response.go    # ownerResponse + toOwnerResponse()
@@ -478,8 +480,10 @@ h.RegisterPetRoutes(api)
 
 ## Reference Files
 
+> ⚠️ references/ は upstream 汎用版（usecase/domain 命名・SQLC・DI container・testcontainers 前提）。本体 Core Rules と矛盾する箇所は**本体が正**。特に dependency-injection.md の「DI Container Pattern」は本プロジェクトでは禁止（Core Rule 4: di/container.go は作らない）。
+
 - **[references/layer-separation.md](references/layer-separation.md)** — 層の責務詳細・アンチパターン
 - **[references/repository-pattern.md](references/repository-pattern.md)** — GORM、トランザクション、クエリパターン
 - **[references/error-handling.md](references/error-handling.md)** — AppError、センチネルエラー、エラー伝播
 - **[references/dependency-injection.md](references/dependency-injection.md)** — main.go DI配線パターン
-- **[references/testing-by-layer.md](references/testing-by-layer.md)** — 各層のテスト戦略
+- Go テスト戦略は `golang-testing` スキルを参照（手書き fn-field モックが正本。testing-by-layer.md は upstream 汎用版のため削除済み）

@@ -36,14 +36,14 @@ func toScheduleEntryResponse(e *service.ScheduleEntry) scheduleEntryResponse {
 		ID:        e.Entry.ID,
 		ClinicID:  e.Entry.ClinicID,
 		StaffID:   e.Entry.StaffID,
-		Date:      e.Entry.Date.In(time.Local).Format("2006-01-02"),
+		Date:      e.Entry.Date.In(time.Local).Format(time.DateOnly),
 		ShiftType: string(e.Entry.ShiftType),
 		WorkStart: e.Entry.StartTime,
 		WorkEnd:   e.Entry.EndTime,
 		Note:      e.Entry.Notes,
 		Breaks:    breaks,
-		CreatedAt: e.Entry.CreatedAt.In(time.Local).Format(time.RFC3339),
-		UpdatedAt: e.Entry.UpdatedAt.In(time.Local).Format(time.RFC3339),
+		CreatedAt: localTimeRFC3339(e.Entry.CreatedAt),
+		UpdatedAt: localTimeRFC3339(e.Entry.UpdatedAt),
 	}
 }
 

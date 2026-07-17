@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
@@ -14,12 +15,19 @@ import (
 
 // ---- Estimate モック ----
 
+const estimateTestCreatedByStaffID = uint64(1)
+
+func estimateTestMembershipCounter() staffClinicMembershipCounter {
+	return &mockStaffClinicMembershipCounter{}
+}
+
 type mockEstimateRepository struct {
 	findAllFn              func(ctx context.Context, clinicID uint64, ownerID, medicalRecordID *uint64, status *string, page, limit int) ([]model.Estimate, int64, error)
 	findByIDFn             func(ctx context.Context, clinicID, id uint64) (*model.Estimate, error)
 	createFn               func(ctx context.Context, estimate *model.Estimate) error
 	updateFn               func(ctx context.Context, clinicID, id uint64, fields map[string]any) error
-	deleteFn               func(ctx context.Context, clinicID, id uint64) error
+	updateIfNotLockedFn    func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Estimate, error)
+	deleteIfNotLockedFn    func(ctx context.Context, clinicID, id uint64) error
 	countItemsByEstimateID func(ctx context.Context, estimateID uint64) (int64, error)
 }
 
@@ -39,14 +47,27 @@ func (m *mockEstimateRepository) Create(ctx context.Context, estimate *model.Est
 }
 
 func (m *mockEstimateRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
-	return m.updateFn(ctx, clinicID, id, fields)
+	if m.updateFn != nil {
+		return m.updateFn(ctx, clinicID, id, fields)
+	}
+	return nil
 }
 
-func (m *mockEstimateRepository) Delete(ctx context.Context, clinicID, id uint64) error {
-	return m.deleteFn(ctx, clinicID, id)
+func (m *mockEstimateRepository) UpdateIfNotLocked(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Estimate, error) {
+	if m.updateIfNotLockedFn != nil {
+		return m.updateIfNotLockedFn(ctx, clinicID, id, fields)
+	}
+	return nil, nil
 }
 
-func (m *mockEstimateRepository) CountItemsByEstimateID(ctx context.Context, estimateID uint64) (int64, error) {
+func (m *mockEstimateRepository) DeleteIfNotLocked(ctx context.Context, clinicID, id uint64) error {
+	if m.deleteIfNotLockedFn != nil {
+		return m.deleteIfNotLockedFn(ctx, clinicID, id)
+	}
+	return nil
+}
+
+func (m *mockEstimateRepository) CountItemsByEstimateID(ctx context.Context, _, estimateID uint64) (int64, error) {
 	if m.countItemsByEstimateID != nil {
 		return m.countItemsByEstimateID(ctx, estimateID)
 	}
@@ -130,7 +151,7 @@ func TestEstimateService_List(t *testing.T) {
 					return tt.repoEstimates, tt.repoTotal, tt.repoErr
 				},
 			}
-			svc := NewEstimateService(repo)
+			svc := NewEstimateService(repo, nil, nil, nil, nil, noopTransactor{})
 
 			estimates, total, err := svc.List(context.Background(), 1, tt.ownerID, tt.medicalRecordID, tt.status, tt.page, tt.limit)
 
@@ -193,7 +214,7 @@ func TestEstimateService_GetByID(t *testing.T) {
 					return tt.repoEstimate, tt.repoErr
 				},
 			}
-			svc := NewEstimateService(repo)
+			svc := NewEstimateService(repo, nil, nil, nil, nil, noopTransactor{})
 
 			estimate, err := svc.GetByID(context.Background(), 1, tt.id)
 
@@ -213,7 +234,6 @@ func TestEstimateService_GetByID(t *testing.T) {
 
 func TestEstimateService_Create(t *testing.T) {
 	validUntil := time.Now().AddDate(0, 1, 0)
-	ownerID1 := uint64(1)
 
 	tests := []struct {
 		name         string
@@ -222,15 +242,16 @@ func TestEstimateService_Create(t *testing.T) {
 		findByIDErr  error
 		repoEstimate *model.Estimate
 		wantErr      bool
+		wantConflict bool
 	}{
 		{
 			name: "creates estimate successfully with default status",
 			input: &CreateEstimateInput{
 				Title:       "新規見積",
-				OwnerID:     &ownerID1,
 				Subtotal:    10000,
 				TaxTotal:    1000,
 				TotalAmount: 11000,
+				CreatedBy:   ptrU64(estimateTestCreatedByStaffID),
 			},
 			repoErr: nil,
 			repoEstimate: &model.Estimate{
@@ -248,6 +269,7 @@ func TestEstimateService_Create(t *testing.T) {
 				Title:       "カスタム見積",
 				Status:      model.EstimateStatusSent,
 				TotalAmount: 50000,
+				CreatedBy:   ptrU64(estimateTestCreatedByStaffID),
 			},
 			repoErr: nil,
 			repoEstimate: &model.Estimate{
@@ -258,6 +280,28 @@ func TestEstimateService_Create(t *testing.T) {
 				Status:      model.EstimateStatusSent,
 			},
 			wantErr: false,
+		},
+		{
+			name: "returns conflict when status is approved",
+			input: &CreateEstimateInput{
+				Title:       "承認済み直作成",
+				Status:      model.EstimateStatusApproved,
+				TotalAmount: 10000,
+				CreatedBy:   ptrU64(estimateTestCreatedByStaffID),
+			},
+			wantErr:      true,
+			wantConflict: true,
+		},
+		{
+			name: "returns conflict when status is rejected",
+			input: &CreateEstimateInput{
+				Title:       "却下済み直作成",
+				Status:      model.EstimateStatusRejected,
+				TotalAmount: 10000,
+				CreatedBy:   ptrU64(estimateTestCreatedByStaffID),
+			},
+			wantErr:      true,
+			wantConflict: true,
 		},
 		{
 			name: "returns error when title is empty",
@@ -312,6 +356,7 @@ func TestEstimateService_Create(t *testing.T) {
 			input: &CreateEstimateInput{
 				Title:       "既存見積",
 				TotalAmount: 20000,
+				CreatedBy:   ptrU64(estimateTestCreatedByStaffID),
 			},
 			repoErr: apperrors.WrapAlreadyExists("estimate", "既存見積"),
 			wantErr: true,
@@ -322,6 +367,7 @@ func TestEstimateService_Create(t *testing.T) {
 				Title:       "期限付き見積",
 				ValidUntil:  &validUntil,
 				TotalAmount: 15000,
+				CreatedBy:   ptrU64(estimateTestCreatedByStaffID),
 			},
 			repoErr: nil,
 			repoEstimate: &model.Estimate{
@@ -337,8 +383,10 @@ func TestEstimateService_Create(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			createCalled := false
 			repo := &mockEstimateRepository{
 				createFn: func(_ context.Context, _ *model.Estimate) error {
+					createCalled = true
 					return tt.repoErr
 				},
 				findByIDFn: func(_ context.Context, _, _ uint64) (*model.Estimate, error) {
@@ -348,12 +396,16 @@ func TestEstimateService_Create(t *testing.T) {
 					return tt.repoEstimate, nil
 				},
 			}
-			svc := NewEstimateService(repo)
+			svc := NewEstimateService(repo, nil, nil, estimateTestMembershipCounter(), nil, noopTransactor{})
 
 			estimate, err := svc.Create(context.Background(), 1, tt.input)
 
 			if tt.wantErr {
 				assert.Error(t, err)
+				if tt.wantConflict {
+					assert.True(t, apperrors.IsConflict(err))
+					assert.False(t, createCalled, "repo.Create must not be called for locked status")
+				}
 			} else {
 				assert.NoError(t, err)
 				assert.NotNil(t, estimate)
@@ -373,6 +425,7 @@ func TestEstimateService_Update(t *testing.T) {
 		repoErr      error
 		repoEstimate *model.Estimate
 		wantErr      bool
+		wantConflict bool
 	}{
 		{
 			name: "updates estimate successfully",
@@ -447,27 +500,66 @@ func TestEstimateService_Update(t *testing.T) {
 			},
 			wantErr: false,
 		},
+		{
+			name: "returns conflict when estimate is approved",
+			input: &UpdateEstimateInput{
+				Title: &newTitle,
+			},
+			repoEstimate: &model.Estimate{
+				ID:     1,
+				Status: model.EstimateStatusApproved,
+			},
+			wantErr:      true,
+			wantConflict: true,
+		},
+		{
+			name: "returns conflict when estimate is rejected",
+			input: &UpdateEstimateInput{
+				Title: &newTitle,
+			},
+			repoEstimate: &model.Estimate{
+				ID:     1,
+				Status: model.EstimateStatusRejected,
+			},
+			wantErr:      true,
+			wantConflict: true,
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			updateCalled := false
 			repo := &mockEstimateRepository{
-				updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) error {
-					return tt.repoErr
+				updateIfNotLockedFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Estimate, error) {
+					updateCalled = true
+					if tt.repoErr != nil {
+						return nil, tt.repoErr
+					}
+					if tt.repoEstimate != nil {
+						return tt.repoEstimate, nil
+					}
+					return &model.Estimate{ID: 1, Status: model.EstimateStatusDraft}, nil
 				},
 				findByIDFn: func(_ context.Context, _, _ uint64) (*model.Estimate, error) {
 					if tt.repoErr != nil && apperrors.IsNotFound(tt.repoErr) {
 						return nil, tt.repoErr
 					}
-					return tt.repoEstimate, nil
+					if tt.repoEstimate != nil {
+						return tt.repoEstimate, nil
+					}
+					return &model.Estimate{ID: 1, Status: model.EstimateStatusDraft}, nil
 				},
 			}
-			svc := NewEstimateService(repo)
+			svc := NewEstimateService(repo, nil, nil, nil, nil, noopTransactor{})
 
 			estimate, err := svc.Update(context.Background(), 1, 1, tt.input)
 
 			if tt.wantErr {
 				assert.Error(t, err)
+				if tt.wantConflict {
+					assert.True(t, apperrors.IsConflict(err))
+					assert.False(t, updateCalled, "repo.UpdateIfNotLocked must not be called for locked estimate")
+				}
 			} else {
 				assert.NoError(t, err)
 				assert.NotNil(t, estimate)
@@ -476,30 +568,65 @@ func TestEstimateService_Update(t *testing.T) {
 	}
 }
 
+// TestEstimateService_Update_TOCTOU_LockedAfterFind は FindByID 時点では draft でも、
+// UpdateIfNotLocked が Conflict を返した場合に編集を拒否することを検証する（TOCTOU 回帰）。
+func TestEstimateService_Update_TOCTOU_LockedAfterFind(t *testing.T) {
+	newTitle := "TOCTOU改ざん"
+	repo := &mockEstimateRepository{
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.Estimate, error) {
+			return &model.Estimate{
+				ID:     1,
+				Status: model.EstimateStatusDraft,
+				Title:  "旧タイトル",
+			}, nil
+		},
+		updateIfNotLockedFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Estimate, error) {
+			return nil, apperrors.WrapConflict("承認済みまたは却下済みの見積書は編集できません")
+		},
+	}
+	svc := NewEstimateService(repo, nil, nil, nil, nil, noopTransactor{})
+
+	_, err := svc.Update(context.Background(), 1, 1, &UpdateEstimateInput{Title: &newTitle})
+
+	require.Error(t, err)
+	assert.True(t, apperrors.IsConflict(err), "expected Conflict, got %v", err)
+}
+
 func TestEstimateService_Delete(t *testing.T) {
 	tests := []struct {
-		name         string
-		id           uint64
-		itemCount    int64
-		countErr     error
-		repoErr      error
-		wantErr      bool
-		wantNF       bool
-		wantConflict bool
+		name           string
+		id             uint64
+		existingStatus model.EstimateStatus
+		itemCount      int64
+		countErr       error
+		repoErr        error
+		wantErr        bool
+		wantNF         bool
+		wantConflict   bool
 	}{
 		{
-			name:      "deletes estimate successfully when no items",
-			id:        1,
-			itemCount: 0,
-			repoErr:   nil,
-			wantErr:   false,
+			name:           "deletes estimate successfully when no items",
+			id:             1,
+			existingStatus: model.EstimateStatusDraft,
+			itemCount:      0,
+			repoErr:        nil,
+			wantErr:        false,
 		},
 		{
-			name:         "returns conflict error when estimate has items",
-			id:           2,
-			itemCount:    3,
-			wantErr:      true,
-			wantConflict: true,
+			name:           "deletes sent estimate successfully when no items",
+			id:             1,
+			existingStatus: model.EstimateStatusSent,
+			itemCount:      0,
+			repoErr:        nil,
+			wantErr:        false,
+		},
+		{
+			name:           "returns conflict error when estimate has items",
+			id:             2,
+			existingStatus: model.EstimateStatusDraft,
+			itemCount:      3,
+			wantErr:        true,
+			wantConflict:   true,
 		},
 		{
 			name:     "returns error when count check fails",
@@ -516,27 +643,55 @@ func TestEstimateService_Delete(t *testing.T) {
 			wantNF:    true,
 		},
 		{
-			name:      "returns error on repository delete failure",
-			id:        1,
-			itemCount: 0,
-			repoErr:   errors.New("db error"),
-			wantErr:   true,
+			name:           "returns error on repository delete failure",
+			id:             1,
+			existingStatus: model.EstimateStatusDraft,
+			itemCount:      0,
+			repoErr:        errors.New("db error"),
+			wantErr:        true,
+		},
+		{
+			name:           "returns conflict when estimate is approved",
+			id:             3,
+			existingStatus: model.EstimateStatusApproved,
+			itemCount:      0,
+			wantErr:        true,
+			wantConflict:   true,
+		},
+		{
+			name:           "returns conflict when estimate is rejected",
+			id:             4,
+			existingStatus: model.EstimateStatusRejected,
+			itemCount:      0,
+			wantErr:        true,
+			wantConflict:   true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			deleteIfNotLockedCalled := false
 			repo := &mockEstimateRepository{
+				findByIDFn: func(_ context.Context, _, id uint64) (*model.Estimate, error) {
+					if tt.repoErr != nil && apperrors.IsNotFound(tt.repoErr) {
+						return nil, tt.repoErr
+					}
+					return &model.Estimate{
+						ID:     id,
+						Status: tt.existingStatus,
+					}, nil
+				},
 				countItemsByEstimateID: func(_ context.Context, _ uint64) (int64, error) {
 					return tt.itemCount, tt.countErr
 				},
-				deleteFn: func(_ context.Context, _, _ uint64) error {
+				deleteIfNotLockedFn: func(_ context.Context, _, _ uint64) error {
+					deleteIfNotLockedCalled = true
 					return tt.repoErr
 				},
 			}
-			svc := NewEstimateService(repo)
+			svc := NewEstimateService(repo, nil, nil, nil, nil, noopTransactor{})
 
-			err := svc.Delete(context.Background(), 1, tt.id)
+			err := svc.Delete(context.Background(), 1, tt.id, nil)
 
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -545,10 +700,495 @@ func TestEstimateService_Delete(t *testing.T) {
 				}
 				if tt.wantConflict {
 					assert.True(t, apperrors.IsConflict(err))
+					if tt.existingStatus == model.EstimateStatusApproved || tt.existingStatus == model.EstimateStatusRejected {
+						assert.False(t, deleteIfNotLockedCalled, "repo.DeleteIfNotLocked must not be called for locked estimate")
+					}
 				}
 			} else {
 				assert.NoError(t, err)
+				assert.True(t, deleteIfNotLockedCalled, "repo.DeleteIfNotLocked must be called on success")
 			}
 		})
 	}
+}
+
+// TestEstimateService_Delete_TOCTOU_LockedAfterFind は FindByID 時点では draft でも、
+// DeleteIfNotLocked が Conflict を返した場合に削除を拒否することを検証する（TOCTOU 回帰）。
+func TestEstimateService_Delete_TOCTOU_LockedAfterFind(t *testing.T) {
+	repo := &mockEstimateRepository{
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.Estimate, error) {
+			return &model.Estimate{
+				ID:     1,
+				Status: model.EstimateStatusDraft,
+			}, nil
+		},
+		countItemsByEstimateID: func(_ context.Context, _ uint64) (int64, error) {
+			return 0, nil
+		},
+		deleteIfNotLockedFn: func(_ context.Context, _, _ uint64) error {
+			return apperrors.WrapConflict("承認済みまたは却下済みの見積書は削除できません")
+		},
+	}
+	svc := NewEstimateService(repo, nil, nil, nil, nil, noopTransactor{})
+
+	err := svc.Delete(context.Background(), 1, 1, nil)
+
+	require.Error(t, err)
+	assert.True(t, apperrors.IsConflict(err), "expected Conflict, got %v", err)
+}
+
+// TestEstimateService_Delete_TOCTOU_ItemsAddedAfterCount は CountItems==0 確認後に
+// 明細が入り DeleteIfNotLocked が Conflict を返した場合、削除を拒否することを検証する。
+func TestEstimateService_Delete_TOCTOU_ItemsAddedAfterCount(t *testing.T) {
+	deleteIfNotLockedCalled := false
+	repo := &mockEstimateRepository{
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.Estimate, error) {
+			return &model.Estimate{
+				ID:     1,
+				Status: model.EstimateStatusDraft,
+			}, nil
+		},
+		countItemsByEstimateID: func(_ context.Context, _ uint64) (int64, error) {
+			return 0, nil
+		},
+		deleteIfNotLockedFn: func(_ context.Context, _, _ uint64) error {
+			deleteIfNotLockedCalled = true
+			return apperrors.WrapConflict("この見積書には明細が登録されているため削除できません")
+		},
+	}
+	svc := NewEstimateService(repo, nil, nil, nil, nil, noopTransactor{})
+
+	err := svc.Delete(context.Background(), 1, 1, nil)
+
+	require.Error(t, err)
+	assert.True(t, deleteIfNotLockedCalled, "repo.DeleteIfNotLocked must be called after CountItems==0")
+	assert.True(t, apperrors.IsConflict(err), "expected Conflict, got %v", err)
+	assert.Contains(t, err.Error(), "明細")
+}
+
+// estimateAuditActions は mockAuditService.entries から Resource="estimate" の Action を収集する。
+func estimateAuditActions(auditSvc *mockAuditService) []string {
+	actions := make([]string, 0, len(auditSvc.entries))
+	for _, e := range auditSvc.entries {
+		if e != nil && e.Resource == "estimate" {
+			actions = append(actions, e.Action)
+		}
+	}
+	return actions
+}
+
+// TestEstimateService_Create_AuditLog は見積作成時に audit "create" が LogEntry で記録されることを確認する。
+func TestEstimateService_Create_AuditLog(t *testing.T) {
+	auditSvc := &mockAuditService{}
+	const estimateID = uint64(42)
+	repo := &mockEstimateRepository{
+		createFn: func(_ context.Context, e *model.Estimate) error {
+			e.ID = estimateID
+			return nil
+		},
+		findByIDFn: func(_ context.Context, _, id uint64) (*model.Estimate, error) {
+			return &model.Estimate{
+				ID:          id,
+				ClinicID:    1,
+				Title:       "新規見積",
+				TotalAmount: 11000,
+				Status:      model.EstimateStatusDraft,
+				CreatedBy:   ptrU64(estimateTestCreatedByStaffID),
+			}, nil
+		},
+	}
+	svc := NewEstimateService(repo, nil, nil, estimateTestMembershipCounter(), auditSvc, noopTransactor{})
+
+	created, err := svc.Create(context.Background(), 1, &CreateEstimateInput{
+		Title:       "新規見積",
+		Subtotal:    10000,
+		TaxTotal:    1000,
+		TotalAmount: 11000,
+		CreatedBy:   ptrU64(estimateTestCreatedByStaffID),
+	})
+
+	assert.NoError(t, err)
+	assert.NotNil(t, created)
+	actions := estimateAuditActions(auditSvc)
+	assert.Contains(t, actions, "create", "create 操作が audit に記録されること")
+	require.NotNil(t, auditSvc.lastLogEntry)
+	assert.Equal(t, "estimate", auditSvc.lastLogEntry.Resource)
+	assert.Equal(t, estimateTestCreatedByStaffID, *auditSvc.lastLogEntry.ActorID)
+	assert.Equal(t, model.AuditActorTypeStaff, auditSvc.lastLogEntry.ActorType)
+	require.NotNil(t, auditSvc.lastLogEntry.ResourceID)
+	assert.Equal(t, estimateID, *auditSvc.lastLogEntry.ResourceID)
+}
+
+// TestEstimateService_Update_AuditLog は見積更新時に audit "update" が LogEntry で記録されることを確認する。
+func TestEstimateService_Update_AuditLog(t *testing.T) {
+	auditSvc := &mockAuditService{}
+	newTitle := "更新見積"
+	repo := &mockEstimateRepository{
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.Estimate, error) {
+			return &model.Estimate{
+				ID:       10,
+				ClinicID: 1,
+				Status:   model.EstimateStatusDraft,
+				Title:    "旧タイトル",
+			}, nil
+		},
+		updateIfNotLockedFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Estimate, error) {
+			return &model.Estimate{
+				ID:       10,
+				ClinicID: 1,
+				Status:   model.EstimateStatusDraft,
+				Title:    newTitle,
+			}, nil
+		},
+	}
+	svc := NewEstimateService(repo, nil, nil, nil, auditSvc, noopTransactor{})
+
+	actorID := uint64(7)
+	updated, err := svc.Update(context.Background(), 1, 10, &UpdateEstimateInput{
+		Title:   &newTitle,
+		ActorID: &actorID,
+	})
+
+	assert.NoError(t, err)
+	assert.NotNil(t, updated)
+	actions := estimateAuditActions(auditSvc)
+	assert.Contains(t, actions, "update", "update 操作が audit に記録されること")
+	assert.NotContains(t, actions, "approve")
+	assert.NotContains(t, actions, "reject")
+	require.NotNil(t, auditSvc.lastLogEntry)
+	assert.Equal(t, "estimate", auditSvc.lastLogEntry.Resource)
+	assert.Equal(t, actorID, *auditSvc.lastLogEntry.ActorID)
+	assert.Equal(t, model.AuditActorTypeStaff, auditSvc.lastLogEntry.ActorType)
+}
+
+// TestEstimateService_Update_ApproveAuditLog は draft|sent→approved 遷移で "approve" が追加記録されることを確認する。
+func TestEstimateService_Update_ApproveAuditLog(t *testing.T) {
+	tests := []struct {
+		name          string
+		initialStatus model.EstimateStatus
+	}{
+		{name: "draft to approved", initialStatus: model.EstimateStatusDraft},
+		{name: "sent to approved", initialStatus: model.EstimateStatusSent},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			auditSvc := &mockAuditService{}
+			approved := model.EstimateStatusApproved
+			repo := &mockEstimateRepository{
+				findByIDFn: func(_ context.Context, _, _ uint64) (*model.Estimate, error) {
+					return &model.Estimate{
+						ID:       10,
+						ClinicID: 1,
+						Status:   tt.initialStatus,
+					}, nil
+				},
+				updateIfNotLockedFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Estimate, error) {
+					return &model.Estimate{
+						ID:       10,
+						ClinicID: 1,
+						Status:   model.EstimateStatusApproved,
+					}, nil
+				},
+			}
+			svc := NewEstimateService(repo, nil, nil, nil, auditSvc, noopTransactor{})
+
+			actorID := uint64(7)
+			_, err := svc.Update(context.Background(), 1, 10, &UpdateEstimateInput{
+				Status:  &approved,
+				ActorID: &actorID,
+			})
+
+			assert.NoError(t, err)
+			actions := estimateAuditActions(auditSvc)
+			assert.Contains(t, actions, "update", "status 変更でも update が記録されること")
+			assert.Contains(t, actions, "approve", "draft|sent→approved で approve が追加記録されること")
+		})
+	}
+}
+
+// TestEstimateService_Update_RejectAuditLog は →rejected 遷移で "reject" が追加記録されることを確認する。
+func TestEstimateService_Update_RejectAuditLog(t *testing.T) {
+	auditSvc := &mockAuditService{}
+	rejected := model.EstimateStatusRejected
+	repo := &mockEstimateRepository{
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.Estimate, error) {
+			return &model.Estimate{
+				ID:       10,
+				ClinicID: 1,
+				Status:   model.EstimateStatusSent,
+			}, nil
+		},
+		updateIfNotLockedFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Estimate, error) {
+			return &model.Estimate{
+				ID:       10,
+				ClinicID: 1,
+				Status:   model.EstimateStatusRejected,
+			}, nil
+		},
+	}
+	svc := NewEstimateService(repo, nil, nil, nil, auditSvc, noopTransactor{})
+
+	actorID := uint64(7)
+	_, err := svc.Update(context.Background(), 1, 10, &UpdateEstimateInput{
+		Status:  &rejected,
+		ActorID: &actorID,
+	})
+
+	assert.NoError(t, err)
+	actions := estimateAuditActions(auditSvc)
+	assert.Contains(t, actions, "update", "status 変更でも update が記録されること")
+	assert.Contains(t, actions, "reject", "→rejected で reject が追加記録されること")
+}
+
+// TestEstimateService_Delete_AuditLog は見積削除時に audit "delete" が LogEntry で記録されることを確認する。
+func TestEstimateService_Delete_AuditLog(t *testing.T) {
+	t.Run("staff actor from ActorID", func(t *testing.T) {
+		auditSvc := &mockAuditService{}
+		repo := &mockEstimateRepository{
+			findByIDFn: func(_ context.Context, _, id uint64) (*model.Estimate, error) {
+				return &model.Estimate{
+					ID:     id,
+					Status: model.EstimateStatusDraft,
+				}, nil
+			},
+			countItemsByEstimateID: func(_ context.Context, _ uint64) (int64, error) {
+				return 0, nil
+			},
+			deleteIfNotLockedFn: func(_ context.Context, _, _ uint64) error {
+				return nil
+			},
+		}
+		svc := NewEstimateService(repo, nil, nil, nil, auditSvc, noopTransactor{})
+
+		actorID := uint64(9)
+		err := svc.Delete(context.Background(), 1, 10, &actorID)
+
+		assert.NoError(t, err)
+		actions := estimateAuditActions(auditSvc)
+		assert.Contains(t, actions, "delete", "delete 操作が audit に記録されること")
+		require.NotNil(t, auditSvc.lastLogEntry)
+		assert.Equal(t, "estimate", auditSvc.lastLogEntry.Resource)
+		assert.Equal(t, actorID, *auditSvc.lastLogEntry.ActorID)
+		assert.Equal(t, model.AuditActorTypeStaff, auditSvc.lastLogEntry.ActorType)
+	})
+
+	t.Run("system actor when ActorID is nil", func(t *testing.T) {
+		auditSvc := &mockAuditService{}
+		repo := &mockEstimateRepository{
+			findByIDFn: func(_ context.Context, _, id uint64) (*model.Estimate, error) {
+				return &model.Estimate{
+					ID:     id,
+					Status: model.EstimateStatusSent,
+				}, nil
+			},
+			countItemsByEstimateID: func(_ context.Context, _ uint64) (int64, error) {
+				return 0, nil
+			},
+			deleteIfNotLockedFn: func(_ context.Context, _, _ uint64) error {
+				return nil
+			},
+		}
+		svc := NewEstimateService(repo, nil, nil, nil, auditSvc, noopTransactor{})
+
+		err := svc.Delete(context.Background(), 1, 11, nil)
+
+		assert.NoError(t, err)
+		actions := estimateAuditActions(auditSvc)
+		assert.Contains(t, actions, "delete", "ActorID nil でも delete audit が記録されること")
+		require.NotNil(t, auditSvc.lastLogEntry)
+		assert.Nil(t, auditSvc.lastLogEntry.ActorID)
+		assert.Equal(t, model.AuditActorTypeSystem, auditSvc.lastLogEntry.ActorType)
+	})
+}
+
+// TestEstimateService_AuditFailure_NonFatal は監査ログ書き込み失敗が Create のメイン処理を止めないことを確認する。
+func TestEstimateService_AuditFailure_NonFatal(t *testing.T) {
+	auditSvc := &mockAuditService{
+		logEntryErr: errors.New("audit db down"),
+	}
+	repo := &mockEstimateRepository{
+		createFn: func(_ context.Context, e *model.Estimate) error {
+			e.ID = 1
+			return nil
+		},
+		findByIDFn: func(_ context.Context, _, id uint64) (*model.Estimate, error) {
+			return &model.Estimate{
+				ID:          id,
+				ClinicID:    1,
+				Title:       "新規見積",
+				TotalAmount: 11000,
+				Status:      model.EstimateStatusDraft,
+				CreatedBy:   ptrU64(estimateTestCreatedByStaffID),
+			}, nil
+		},
+	}
+	svc := NewEstimateService(repo, nil, nil, estimateTestMembershipCounter(), auditSvc, noopTransactor{})
+
+	created, err := svc.Create(context.Background(), 1, &CreateEstimateInput{
+		Title:       "新規見積",
+		TotalAmount: 11000,
+		CreatedBy:   ptrU64(estimateTestCreatedByStaffID),
+	})
+
+	assert.NoError(t, err, "監査ログ失敗はメイン処理のエラーを返さない（best-effort）")
+	assert.NotNil(t, created)
+	assert.True(t, auditSvc.logEntryCalled, "audit LogEntry は呼ばれること")
+}
+
+// TestEstimateService_LockedStatus_DoesNotAudit は locked 見積の update/delete 拒否時に audit が呼ばれないことを確認する。
+func TestEstimateService_LockedStatus_DoesNotAudit(t *testing.T) {
+	t.Run("update on approved estimate", func(t *testing.T) {
+		auditSvc := &mockAuditService{}
+		newTitle := "変更不可"
+		repo := &mockEstimateRepository{
+			findByIDFn: func(_ context.Context, _, _ uint64) (*model.Estimate, error) {
+				return &model.Estimate{
+					ID:     1,
+					Status: model.EstimateStatusApproved,
+				}, nil
+			},
+		}
+		svc := NewEstimateService(repo, nil, nil, nil, auditSvc, noopTransactor{})
+
+		_, err := svc.Update(context.Background(), 1, 1, &UpdateEstimateInput{
+			Title:   &newTitle,
+			ActorID: ptrU64(7),
+		})
+
+		assert.Error(t, err)
+		assert.True(t, apperrors.IsConflict(err))
+		assert.Empty(t, estimateAuditActions(auditSvc), "locked 見積の update 拒否時は audit しない")
+	})
+
+	t.Run("delete on rejected estimate", func(t *testing.T) {
+		auditSvc := &mockAuditService{}
+		repo := &mockEstimateRepository{
+			findByIDFn: func(_ context.Context, _, id uint64) (*model.Estimate, error) {
+				return &model.Estimate{
+					ID:     id,
+					Status: model.EstimateStatusRejected,
+				}, nil
+			},
+			countItemsByEstimateID: func(_ context.Context, _ uint64) (int64, error) {
+				return 0, nil
+			},
+		}
+		svc := NewEstimateService(repo, nil, nil, nil, auditSvc, noopTransactor{})
+
+		err := svc.Delete(context.Background(), 1, 2, ptrU64(7))
+
+		assert.Error(t, err)
+		assert.True(t, apperrors.IsConflict(err))
+		assert.Empty(t, estimateAuditActions(auditSvc), "locked 見積の delete 拒否時は audit しない")
+	})
+}
+
+// TestEstimateService_Create_RejectsFinalizedParentMedicalRecord は確定済みカルテに紐付く
+// 見積書作成が Conflict(409) で拒否され、repo.Create が呼ばれないことを検証する
+// （SD-2 系ガード監査: estimates は docs/architecture/erd.md で「カルテ配下データ」に分類）。
+func TestEstimateService_Create_RejectsFinalizedParentMedicalRecord(t *testing.T) {
+	createCalled := false
+	repo := &mockEstimateRepository{
+		createFn: func(_ context.Context, _ *model.Estimate) error {
+			createCalled = true
+			return nil
+		},
+	}
+	mrRepo := &mockMedicalRecordRepository{
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
+			return &model.MedicalRecord{Status: model.MedicalRecordStatusFinalized}, nil
+		},
+	}
+	svc := NewEstimateService(repo, mrRepo, nil, &mockStaffClinicMembershipCounter{}, nil, noopTransactor{})
+
+	in := estimateCreateBaseInput()
+	in.MedicalRecordID = ptrU64(1)
+	out, err := svc.Create(context.Background(), 1, in)
+
+	assert.Error(t, err)
+	assert.Nil(t, out)
+	assert.True(t, apperrors.IsConflict(err), "確定済みカルテへの見積書作成は Conflict(409) であるべき: %v", err)
+	assert.False(t, createCalled, "確定済みカルテに見積書が作成されてはならない")
+}
+
+// TestEstimateService_Create_AllowsNoParentMedicalRecord は medical_record_id 未指定（独立見積）の
+// 作成がカルテ確定ガードの影響を受けないことを検証する（回帰: nil ガードの取りこぼし防止）。
+func TestEstimateService_Create_AllowsNoParentMedicalRecord(t *testing.T) {
+	createCalled := false
+	repo := &mockEstimateRepository{
+		createFn: func(_ context.Context, e *model.Estimate) error {
+			createCalled = true
+			e.ID = 1
+			return nil
+		},
+		findByIDFn: func(_ context.Context, _, id uint64) (*model.Estimate, error) {
+			return &model.Estimate{ID: id}, nil
+		},
+	}
+	svc := NewEstimateService(repo, nil, nil, &mockStaffClinicMembershipCounter{}, nil, noopTransactor{})
+
+	out, err := svc.Create(context.Background(), 1, estimateCreateBaseInput())
+
+	assert.NoError(t, err)
+	assert.NotNil(t, out)
+	assert.True(t, createCalled)
+}
+
+// TestEstimateService_Update_RejectsFinalizedParentMedicalRecord は確定済みカルテに紐付く
+// 見積書更新が Conflict(409) で拒否され、repo.UpdateIfNotLocked が呼ばれないことを検証する。
+func TestEstimateService_Update_RejectsFinalizedParentMedicalRecord(t *testing.T) {
+	updateCalled := false
+	mrID := uint64(1)
+	repo := &mockEstimateRepository{
+		findByIDFn: func(_ context.Context, _, id uint64) (*model.Estimate, error) {
+			return &model.Estimate{ID: id, Status: model.EstimateStatusDraft, MedicalRecordID: &mrID}, nil
+		},
+		updateIfNotLockedFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Estimate, error) {
+			updateCalled = true
+			return nil, nil
+		},
+	}
+	mrRepo := &mockMedicalRecordRepository{
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
+			return &model.MedicalRecord{Status: model.MedicalRecordStatusFinalized}, nil
+		},
+	}
+	svc := NewEstimateService(repo, mrRepo, nil, nil, nil, noopTransactor{})
+
+	newTitle := "更新後タイトル"
+	out, err := svc.Update(context.Background(), 1, 1, &UpdateEstimateInput{Title: &newTitle})
+
+	assert.Error(t, err)
+	assert.Nil(t, out)
+	assert.True(t, apperrors.IsConflict(err), "確定済みカルテの見積書更新は Conflict(409) であるべき: %v", err)
+	assert.False(t, updateCalled, "確定済みカルテの見積書は更新されてはならない")
+}
+
+// TestEstimateService_Delete_RejectsFinalizedParentMedicalRecord は確定済みカルテに紐付く
+// 見積書削除が Conflict(409) で拒否され、repo.DeleteIfNotLocked が呼ばれないことを検証する。
+func TestEstimateService_Delete_RejectsFinalizedParentMedicalRecord(t *testing.T) {
+	deleteCalled := false
+	mrID := uint64(1)
+	repo := &mockEstimateRepository{
+		findByIDFn: func(_ context.Context, _, id uint64) (*model.Estimate, error) {
+			return &model.Estimate{ID: id, Status: model.EstimateStatusDraft, MedicalRecordID: &mrID}, nil
+		},
+		deleteIfNotLockedFn: func(_ context.Context, _, _ uint64) error {
+			deleteCalled = true
+			return nil
+		},
+	}
+	mrRepo := &mockMedicalRecordRepository{
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
+			return &model.MedicalRecord{Status: model.MedicalRecordStatusFinalized}, nil
+		},
+	}
+	svc := NewEstimateService(repo, mrRepo, nil, nil, nil, noopTransactor{})
+
+	err := svc.Delete(context.Background(), 1, 1, ptrU64(7))
+
+	assert.Error(t, err)
+	assert.True(t, apperrors.IsConflict(err), "確定済みカルテの見積書削除は Conflict(409) であるべき: %v", err)
+	assert.False(t, deleteCalled, "確定済みカルテの見積書は削除されてはならない")
 }

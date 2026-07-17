@@ -10,12 +10,12 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
+import { EmptyState } from "@/components/shared/DataStates";
 import { handleApiError } from "@/lib/handle-api-error";
 import { axios } from "@/lib/axios";
 
 // Types
-import type { Owner as BackendOwner } from "@/types/generated/models";
-import { MEMBERSHIP_TYPE_FROM_API } from "@/lib/transforms/owner";
+import { transformOwner, type OwnerApiResponse } from "@/lib/transforms/owner";
 
 interface OwnerSummary {
   id: string;
@@ -33,14 +33,15 @@ interface OwnerSearchModalProps {
   currentOwnerName?: string;
 }
 
-function transformOwner(o: BackendOwner): OwnerSummary {
+function toOwnerSummary(o: OwnerApiResponse): OwnerSummary {
+  const owner = transformOwner(o);
   return {
-    id: String(o.id ?? 0),
-    name: o.name ?? "",
-    phone: o.phone ?? "",
-    address: [o.address1, o.address2].filter(Boolean).join(" "),
-    discountRate: o.discount_rate ?? 0,
-    membershipType: MEMBERSHIP_TYPE_FROM_API[o.membership_type ?? ""] ?? o.membership_type ?? "",
+    id: owner.id,
+    name: owner.ownerName,
+    phone: owner.phone,
+    address: [owner.address1, owner.address2].filter(Boolean).join(" "),
+    discountRate: owner.discountRate,
+    membershipType: owner.membershipType,
   };
 }
 
@@ -62,10 +63,10 @@ export const OwnerSearchModal = memo(function OwnerSearchModal({
     setHasSearched(true);
     startSearchTransition(async () => {
       try {
-        const { data } = await axios.get<{ data: BackendOwner[] }>("/v1/owners", {
+        const { data } = await axios.get<{ data: OwnerApiResponse[] }>("/v1/owners", {
           params: { search: searchTerm.trim() },
         });
-        setOwners((data.data ?? []).map(transformOwner));
+        setOwners((data.data ?? []).map(toOwnerSummary));
       } catch (error) {
         handleApiError(error, "飼主検索");
         setOwners([]);
@@ -166,11 +167,12 @@ export const OwnerSearchModal = memo(function OwnerSearchModal({
             ) : filteredOwners.length > 0 ? (
               <table className="w-full">
                 <thead>
+                  {/* DESIGN.md ex-data-table-cell: header は canvas-soft 背景 + eyebrow 相当タイポグラフィ */}
                   <tr className={`border-b ${C.borderLight} ${C.bgPage}`}>
-                    <th className={`px-3 py-2 text-left text-xs font-medium ${C.text60}`}>飼主No</th>
-                    <th className={`px-3 py-2 text-left text-xs font-medium ${C.text60}`}>飼主名</th>
-                    <th className={`px-3 py-2 text-left text-xs font-medium ${C.text60}`}>電話番号</th>
-                    <th className={`px-3 py-2 text-left text-xs font-medium ${C.text60}`}>住所</th>
+                    <th className={`px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide ${C.text55}`}>飼主No</th>
+                    <th className={`px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide ${C.text55}`}>飼主名</th>
+                    <th className={`px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide ${C.text55}`}>電話番号</th>
+                    <th className={`px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide ${C.text55}`}>住所</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -189,8 +191,8 @@ export const OwnerSearchModal = memo(function OwnerSearchModal({
                 </tbody>
               </table>
             ) : hasSearched ? (
-              <div className={`flex items-center justify-center h-full text-sm ${C.text40}`}>
-                該当する飼主が見つかりません
+              <div className="flex items-center justify-center h-full">
+                <EmptyState message="該当する飼主が見つかりません" />
               </div>
             ) : (
               <div className={`flex items-center justify-center h-full text-sm ${C.text30}`}>

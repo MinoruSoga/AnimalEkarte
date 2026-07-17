@@ -3,6 +3,7 @@ import { Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { C, STYLE } from "@/lib/design-tokens";
 import { SubmitButton } from "@/components/shared/Form/SubmitButton";
+import { EmptyState } from "@/components/shared/DataStates";
 import { handleApiError } from "@/lib/handle-api-error";
 import type { ClosingHoliday } from "../api/holidays";
 import { useCreateHoliday, useDeleteHoliday } from "../api/holidays";
@@ -126,7 +127,7 @@ export const HolidaySection = memo(function HolidaySection({ holidays }: Holiday
           ))}
         </div>
       ) : (
-        <p className={`text-base ${C.text50} py-4 text-center`}>個別休診日は登録されていません</p>
+        <EmptyState message="個別休診日は登録されていません" />
       )}
     </section>
   );

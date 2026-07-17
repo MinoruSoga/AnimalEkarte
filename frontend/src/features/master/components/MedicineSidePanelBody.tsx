@@ -4,11 +4,14 @@ import Pill from "lucide-react/dist/esm/icons/pill";
 import { MasterSidePanel } from "@/components/shared/SidePeek";
 import { LAYOUT } from "@/lib/design-tokens";
 import type { Medicine } from "@/types";
+import { MedicineCalculationTypePerWeight } from "@/types/generated/models";
 
-import { medicineToFormData, type MedicineFormData } from "./MedicineSidePanelModel";
+import { MedicineDoseParamsEditor } from "./MedicineDoseParamsEditor";
+import { medicineToFormData, type MedicineFormData } from "./medicine-side-panel-model";
 import {
   MedicineBasicFlagsSection,
   MedicineDetailSection,
+  MedicineDoseCalculationSection,
   MedicineParentCategorySection,
   MedicinePriceTaxSection,
 } from "./MedicineSidePanelSections";
@@ -101,6 +104,13 @@ export const MedicineSidePanelBody = memo(function MedicineSidePanelBody({
         formData={formData}
         setFormDataDirty={setFormDataDirty}
       />
+      <MedicineDoseCalculationSection
+        formData={formData}
+        setFormDataDirty={setFormDataDirty}
+      />
+      {selectedMedicine && formData.calculationType === MedicineCalculationTypePerWeight ? (
+        <MedicineDoseParamsEditor medicineId={selectedMedicine.id} />
+      ) : null}
     </MasterSidePanel>
   );
 });

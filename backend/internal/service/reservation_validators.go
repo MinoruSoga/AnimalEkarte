@@ -10,6 +10,7 @@ import (
 
 	holiday "github.com/holiday-jp/holiday_jp-go"
 
+	"github.com/animal-ekarte/backend/internal/config"
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/repository"
@@ -60,14 +61,28 @@ type CreateReservationInput struct {
 }
 
 type reservationValidators struct {
-	tx       repository.Transactor
-	repo     repository.ReservationRepository
-	typeRepo reservationTypeFinder
+	tx                 repository.Transactor
+	repo               repository.ReservationRepository
+	typeRepo           reservationTypeFinder
+	trimmingCourseRepo repository.TrimmingCourseRepository
+	trimmingOptionRepo repository.TrimmingOptionRepository
 }
 
 // NewReservationValidators はバリデーターを初期化して返す。
-func NewReservationValidators(tx repository.Transactor, repo repository.ReservationRepository, typeRepo reservationTypeFinder) ReservationValidators {
-	return &reservationValidators{tx: tx, repo: repo, typeRepo: typeRepo}
+func NewReservationValidators(
+	tx repository.Transactor,
+	repo repository.ReservationRepository,
+	typeRepo reservationTypeFinder,
+	trimmingCourseRepo repository.TrimmingCourseRepository,
+	trimmingOptionRepo repository.TrimmingOptionRepository,
+) ReservationValidators {
+	return &reservationValidators{
+		tx:                 tx,
+		repo:               repo,
+		typeRepo:           typeRepo,
+		trimmingCourseRepo: trimmingCourseRepo,
+		trimmingOptionRepo: trimmingOptionRepo,
+	}
 }
 
 func (v *reservationValidators) ValidateAndCreate(ctx context.Context, input *CreateReservationInput) (*model.Reservation, error) {
@@ -84,12 +99,26 @@ func (v *reservationValidators) ValidateAndCreate(ctx context.Context, input *Cr
 	// BUG-LINE-008: 業務時間・予約窓・休業日のサーバーサイド検証。
 	// GET /available-times は正しく除外しているが、POST /reservations は素通りしていた。
 	// 直接 API を叩かれても無効な予約を受け付けないようにする。
-	if err := validateBusinessRules(settings, input.Date, input.StartTime, input.EndTime); err != nil {
+	if err := validateBusinessRules(ctx, settings, input.Date, input.StartTime, input.EndTime); err != nil {
 		return nil, apperrors.Wrap(err, "failed to validate business rules")
+	}
+
+	// X-14/U6a: クロステナント write 防止: ReservationTypeID / TrimmingCourseID /
+	// TrimmingOptionIDs が caller の clinic に属することを、INSERT 前(tx 開始前)に
+	// 検証する(billing_item_service.go と同型の master FK 所有権チェック)。所有権失敗は
+	// best-effort に落とさず hard fail とし、orphan appointment を作らない。
+	if err := v.validateReservationMasterOwnership(ctx, input); err != nil {
+		return nil, err
 	}
 
 	var result *model.Reservation
 	if err := v.tx.WithTx(ctx, func(ctx context.Context) error {
+		// BE-refactor.md X-9: LINE予約は不特定多数から到達するため、空き枠への同時アクセスが
+		// 最も起こりやすい経路。AcquireBookingLock（clinic 単位 advisory xact lock）で
+		// 競合チェック～INSERT を直列化する。
+		if err := v.repo.AcquireBookingLock(ctx, input.ClinicID); err != nil {
+			return err
+		}
 		// 時間枠を SELECT FOR UPDATE でロック
 		startDT, err := toDateTime(input.Date, input.StartTime)
 		if err != nil {
@@ -138,38 +167,22 @@ func (v *reservationValidators) ValidateAndCreate(ctx context.Context, input *Cr
 			return err
 		}
 
-		// 同日予約制限チェック
-		if settings.DailyLimit != nil && *settings.DailyLimit > 0 {
-			dayStart := time.Date(input.Date.Year(), input.Date.Month(), input.Date.Day(), 0, 0, 0, 0, input.Date.Location())
-			dayEnd := dayStart.Add(24 * time.Hour)
-			dailyCount, err := v.repo.CountByCustomerAndDateRange(ctx, input.ClinicID, input.CustomerID, dayStart, dayEnd)
-			if err != nil {
-				return apperrors.Wrap(err, "failed to count daily reservations")
-			}
-			if int(dailyCount) >= *settings.DailyLimit {
-				return &ReservationLimitError{
-					Code:         "DAILY_LIMIT",
-					Message:      "1日内に予約できる件数を超えています。別の日をお選びください。",
-					RedirectStep: 4,
-				}
-			}
+		// 同日予約制限チェック（BE-refactor.md E-8: 日次・月次の構造的クローンを畳む）
+		dayStart := time.Date(input.Date.Year(), input.Date.Month(), input.Date.Day(), 0, 0, 0, 0, input.Date.Location())
+		dayEnd := dayStart.Add(24 * time.Hour)
+		if err := checkCustomerReservationLimit(ctx, v.repo, input, dayStart, dayEnd,
+			"DAILY_LIMIT", "1日内に予約できる件数を超えています。別の日をお選びください。",
+			"failed to count daily reservations", settings.DailyLimit); err != nil {
+			return err
 		}
 
 		// 同月予約制限チェック
-		if settings.MonthlyLimit != nil && *settings.MonthlyLimit > 0 {
-			monthStart := time.Date(input.Date.Year(), input.Date.Month(), 1, 0, 0, 0, 0, input.Date.Location())
-			monthEnd := monthStart.AddDate(0, 1, 0)
-			monthlyCount, err := v.repo.CountByCustomerAndDateRange(ctx, input.ClinicID, input.CustomerID, monthStart, monthEnd)
-			if err != nil {
-				return apperrors.Wrap(err, "failed to count monthly reservations")
-			}
-			if int(monthlyCount) >= *settings.MonthlyLimit {
-				return &ReservationLimitError{
-					Code:         "MONTHLY_LIMIT",
-					Message:      "1ヶ月内に予約できる件数を超えています。別の月をお選びください。",
-					RedirectStep: 4,
-				}
-			}
+		monthStart := time.Date(input.Date.Year(), input.Date.Month(), 1, 0, 0, 0, 0, input.Date.Location())
+		monthEnd := monthStart.AddDate(0, 1, 0)
+		if err := checkCustomerReservationLimit(ctx, v.repo, input, monthStart, monthEnd,
+			"MONTHLY_LIMIT", "1ヶ月内に予約できる件数を超えています。別の月をお選びください。",
+			"failed to count monthly reservations", settings.MonthlyLimit); err != nil {
+			return err
 		}
 
 		// 確認番号生成
@@ -179,37 +192,7 @@ func (v *reservationValidators) ValidateAndCreate(ctx context.Context, input *Cr
 		}
 
 		// 予約作成
-		doctorID := &input.StaffID
-		if input.StaffID == 0 {
-			doctorID = nil
-		}
-		customerFields := json.RawMessage("{}")
-		if len(input.CustomerFields) > 0 {
-			customerFields = input.CustomerFields
-		}
-		notes := input.RequestText
-		if confirmationNumber != "" {
-			if notes != "" {
-				notes = confirmationNumber + " " + notes
-			} else {
-				notes = confirmationNumber
-			}
-		}
-
-		appt := &model.Reservation{
-			ClinicID:          input.ClinicID,
-			StartTime:         startDT,
-			EndTime:           endDT,
-			ReservationTypeID: input.ReservationTypeID,
-			DoctorID:          doctorID,
-			Status:            model.ReservationStatusConfirmed,
-			Source:            model.ReservationSourceLine,
-			LineCustomerID:    &input.CustomerID,
-			IsStaffDelegated:  input.StaffID == 0,
-			CustomerFields:    customerFields,
-			Notes:             notes,
-			VisitType:         model.VisitTypeRevisit,
-		}
+		appt := buildLineReservation(input, startDT, endDT, confirmationNumber)
 		if err := v.repo.Create(ctx, appt); err != nil {
 			return apperrors.Wrap(err, "failed to create reservation")
 		}
@@ -222,6 +205,91 @@ func (v *reservationValidators) ValidateAndCreate(ctx context.Context, input *Cr
 	return result, nil
 }
 
+// validateReservationMasterOwnership は master-FK（ReservationTypeID/TrimmingCourseID/
+// TrimmingOptionIDs）が caller の clinic に属することを検証する（BE-refactor.md E-8:
+// ValidateAndCreate の4責務分割・純粋抽出）。所有権失敗は best-effort に落とさず hard fail
+// とし、orphan appointment を作らない。
+func (v *reservationValidators) validateReservationMasterOwnership(ctx context.Context, input *CreateReservationInput) error {
+	if v.typeRepo != nil {
+		if _, err := v.typeRepo.FindByID(ctx, input.ClinicID, input.ReservationTypeID); err != nil {
+			slog.ErrorContext(ctx, "reservation type not found or belongs to different clinic", "error", err)
+			return apperrors.Wrap(err, "failed to verify reservation type ownership")
+		}
+	}
+	if v.trimmingCourseRepo != nil && input.TrimmingCourseID != nil {
+		if _, err := v.trimmingCourseRepo.FindByID(ctx, input.ClinicID, *input.TrimmingCourseID); err != nil {
+			slog.ErrorContext(ctx, "trimming course not found or belongs to different clinic", "error", err)
+			return apperrors.Wrap(err, "failed to verify trimming course ownership")
+		}
+	}
+	if v.trimmingOptionRepo != nil {
+		for _, optionID := range input.TrimmingOptionIDs {
+			if _, err := v.trimmingOptionRepo.FindByID(ctx, input.ClinicID, optionID); err != nil {
+				slog.ErrorContext(ctx, "trimming option not found or belongs to different clinic", "error", err)
+				return apperrors.Wrap(err, "failed to verify trimming option ownership")
+			}
+		}
+	}
+	return nil
+}
+
+// checkCustomerReservationLimit は指定期間内の顧客の予約件数が limit 以上かどうかを検証する
+// （BE-refactor.md E-8: 同日・同月の構造的クローンを畳む）。limit が nil または 0 以下の場合は
+// チェックをスキップする。countErrMsg はカウントクエリ失敗時の apperrors.Wrap メッセージ、
+// code/msg は上限超過時に返す ReservationLimitError の内容（呼び出し元ごとの既存文言を再現）。
+func checkCustomerReservationLimit(ctx context.Context, repo repository.ReservationRepository, input *CreateReservationInput, from, to time.Time, code, msg, countErrMsg string, limit *int) error {
+	if limit == nil || *limit <= 0 {
+		return nil
+	}
+	count, err := repo.CountByCustomerAndDateRange(ctx, input.ClinicID, input.CustomerID, from, to)
+	if err != nil {
+		return apperrors.Wrap(err, countErrMsg)
+	}
+	if int(count) >= *limit {
+		return &ReservationLimitError{
+			Code:         code,
+			Message:      msg,
+			RedirectStep: 4,
+		}
+	}
+	return nil
+}
+
+// buildLineReservation は LINE 予約の model.Reservation エンティティを組み立てる純関数
+// （BE-refactor.md E-8）。
+func buildLineReservation(input *CreateReservationInput, startDT, endDT time.Time, confirmationNumber string) *model.Reservation {
+	doctorID := &input.StaffID
+	if input.StaffID == 0 {
+		doctorID = nil
+	}
+	customerFields := json.RawMessage("{}")
+	if len(input.CustomerFields) > 0 {
+		customerFields = input.CustomerFields
+	}
+	notes := input.RequestText
+	if confirmationNumber != "" {
+		if notes != "" {
+			notes = confirmationNumber + " " + notes
+		} else {
+			notes = confirmationNumber
+		}
+	}
+	return &model.Reservation{
+		ClinicID:          input.ClinicID,
+		StartTime:         startDT,
+		EndTime:           endDT,
+		ReservationTypeID: input.ReservationTypeID,
+		DoctorID:          doctorID,
+		Status:            model.ReservationStatusConfirmed,
+		Source:            model.ReservationSourceLine,
+		LineCustomerID:    &input.CustomerID,
+		IsStaffDelegated:  input.StaffID == 0,
+		CustomerFields:    customerFields,
+		Notes:             notes,
+		VisitType:         model.VisitTypeRevisit,
+	}
+}
+
 // validateBusinessRules は予約可能日・営業時間・休憩時間などの業務ルールを検証する（BUG-LINE-008）。
 // - 過去日・予約窓（min/max days）範囲外
 // - 休業曜日（closed_weekdays）
@@ -230,8 +298,8 @@ func (v *reservationValidators) ValidateAndCreate(ctx context.Context, input *Cr
 // - 営業時間外（business_hours / business_hours_by_weekday）
 // - 休憩時間と重複（break_hours）
 // エラーは apperrors.WrapInvalidInput で 400 を返す。
-func validateBusinessRules(settings *model.LineReservationSetting, date time.Time, startTime, endTime string) error {
-	loc := jstLocation
+func validateBusinessRules(ctx context.Context, settings *model.LineReservationSetting, date time.Time, startTime, endTime string) error {
+	loc := config.JST
 	now := time.Now().In(loc)
 	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, loc)
 	dateStart := time.Date(date.Year(), date.Month(), date.Day(), 0, 0, 0, 0, loc)
@@ -240,34 +308,40 @@ func validateBusinessRules(settings *model.LineReservationSetting, date time.Tim
 	minDate := today.AddDate(0, 0, settings.BookingWindowMinDays)
 	maxDate := today.AddDate(0, 0, settings.BookingWindowMaxDays)
 	if dateStart.Before(minDate) {
-		return apperrors.WrapInvalidInput(fmt.Sprintf("予約可能日は %s 以降です", minDate.Format("2006-01-02")))
+		return apperrors.WrapInvalidInput(fmt.Sprintf("予約可能日は %s 以降です", minDate.Format(time.DateOnly)))
 	}
 	if dateStart.After(maxDate) {
-		return apperrors.WrapInvalidInput(fmt.Sprintf("予約可能日は %s 以前です", maxDate.Format("2006-01-02")))
+		return apperrors.WrapInvalidInput(fmt.Sprintf("予約可能日は %s 以前です", maxDate.Format(time.DateOnly)))
 	}
 
 	// 2. 休業曜日
+	// A-3: JSON 破損時は fail-closed（予約拒否）。休業曜日チェックを検証できない状態で
+	// 予約を通すと、休業曜日に予約が誤って確定しうるため（break_hours と対称）。
 	if len(settings.ClosedWeekdays) > 0 {
 		var closedWeekdays []int
-		if err := json.Unmarshal(settings.ClosedWeekdays, &closedWeekdays); err == nil {
-			wd := int(dateStart.Weekday())
-			for _, cwd := range closedWeekdays {
-				if cwd == wd {
-					return apperrors.WrapInvalidInput("指定日は休業曜日のため予約できません")
-				}
+		if err := json.Unmarshal(settings.ClosedWeekdays, &closedWeekdays); err != nil {
+			return apperrors.Wrap(err, "invalid closed_weekdays")
+		}
+		wd := int(dateStart.Weekday())
+		for _, cwd := range closedWeekdays {
+			if cwd == wd {
+				return apperrors.WrapInvalidInput("指定日は休業曜日のため予約できません")
 			}
 		}
 	}
 
 	// 3. 休業日
+	// A-3: JSON 破損時は fail-closed（予約拒否）。休業日チェックを検証できない状態で
+	// 予約を通すと、休業日に予約が誤って確定しうるため（break_hours と対称）。
 	if len(settings.ClosedDates) > 0 {
 		var closedDates []string
-		if err := json.Unmarshal(settings.ClosedDates, &closedDates); err == nil {
-			dateStr := dateStart.Format("2006-01-02")
-			for _, cd := range closedDates {
-				if cd == dateStr {
-					return apperrors.WrapInvalidInput("指定日は休業日のため予約できません")
-				}
+		if err := json.Unmarshal(settings.ClosedDates, &closedDates); err != nil {
+			return apperrors.Wrap(err, "invalid closed_dates")
+		}
+		dateStr := dateStart.Format(time.DateOnly)
+		for _, cd := range closedDates {
+			if cd == dateStr {
+				return apperrors.WrapInvalidInput("指定日は休業日のため予約できません")
 			}
 		}
 	}
@@ -278,7 +352,12 @@ func validateBusinessRules(settings *model.LineReservationSetting, date time.Tim
 	}
 
 	// 5. 営業時間
-	bh, breaks := parseBusinessHoursForDate(settings, dateStart)
+	// D10/F-2: break_hours の unmarshal 失敗は fail-closed（予約拒否）。休憩時間との重複を
+	// 検証できない状態で予約を通すと、休憩時間帯の予約が誤って確定しうるため。
+	bh, breaks, err := parseBusinessHoursForDate(ctx, settings, dateStart)
+	if err != nil {
+		return apperrors.Wrap(err, "invalid break_hours")
+	}
 	bsStart, err := minutesSinceMidnight(bh.Start)
 	if err != nil {
 		return apperrors.Wrap(err, "invalid business_hours.start")
@@ -300,14 +379,16 @@ func validateBusinessRules(settings *model.LineReservationSetting, date time.Tim
 	}
 
 	// 6. 休憩時間との重複（半開区間 [start, end) で重複判定）
+	// D10/F-2: 個別エントリの形式不正も fail-closed。continue でスキップすると、その
+	// エントリだけ重複判定を回避でき休憩時間帯の予約が誤って確定しうる。
 	for _, b := range breaks {
 		brStart, err := minutesSinceMidnight(b.Start)
 		if err != nil {
-			continue
+			return apperrors.Wrap(err, "invalid break_hours entry")
 		}
 		brEnd, err := minutesSinceMidnight(b.End)
 		if err != nil {
-			continue
+			return apperrors.Wrap(err, "invalid break_hours entry")
 		}
 		if reqStart < brEnd && reqEnd > brStart {
 			return apperrors.WrapInvalidInput(fmt.Sprintf("休憩時間(%s-%s)と重複しています", b.Start, b.End))
@@ -325,7 +406,7 @@ func toDateTime(date time.Time, hhmm string) (time.Time, error) {
 	}
 	h := mins / 60
 	m := mins % 60
-	return time.Date(date.Year(), date.Month(), date.Day(), h, m, 0, 0, jstLocation), nil
+	return time.Date(date.Year(), date.Month(), date.Day(), h, m, 0, 0, config.JST), nil
 }
 
 // generateConfirmationNumber は "R-YYYYMMDD-XXXX" 形式の確認番号を生成する。

@@ -12,7 +12,7 @@ import {
   MERCHANDISE_CATEGORY_OPTIONS,
   merchandiseToFormData,
   type MerchandiseFormData,
-} from "./MerchandiseSidePanelModel";
+} from "./merchandise-side-panel-model";
 
 interface MerchandiseSidePanelProps {
   item: FrontendMerchandiseItem | null;

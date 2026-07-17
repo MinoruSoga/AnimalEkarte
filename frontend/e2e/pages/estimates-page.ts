@@ -47,4 +47,9 @@ export class EstimatesPage extends BasePage {
   searchInput(): Locator {
     return this.page.getByPlaceholder('見積番号、タイトル、飼主名...');
   }
+
+  /** Row with status badge text 下書き (editable; not approved/rejected). */
+  draftRow(): Locator {
+    return this.page.locator('tbody tr').filter({ hasText: '下書き' }).first();
+  }
 }

@@ -59,6 +59,33 @@ type UpdateHospitalizationInput struct {
 	InsuranceNumber      *string
 }
 
+// validatePetNotDeceased は死亡ペットへの入院登録・貼り替えをブロックする（SD-10・臨床安全）。
+// FE のペット選択 UI は死亡ペットをクリック不可にするだけで API 直叩きを防げないため、
+// BE 側でも fail-closed に検証する。
+func validatePetNotDeceased(ctx context.Context, petRepo repository.PetRepository, clinicID, petID uint64) error {
+	pet, err := petRepo.FindByID(ctx, clinicID, petID)
+	if err != nil {
+		return apperrors.Wrap(err, "failed to verify pet status")
+	}
+	if pet.DeceasedAt != nil {
+		return apperrors.WrapInvalidInput("死亡したペットは入院登録できません")
+	}
+	return nil
+}
+
+// resolveFinalHospitalizationOwnerPet は PATCH 入力と現在値から最終 Owner/Pet を求める（AUD-004）。
+func resolveFinalHospitalizationOwnerPet(existing *model.Hospitalization, input *UpdateHospitalizationInput) (ownerID, petID *uint64) {
+	o, p := existing.OwnerID, existing.PetID
+	ownerID, petID = &o, &p
+	if input.OwnerID != nil {
+		ownerID = input.OwnerID
+	}
+	if input.PetID != nil {
+		petID = input.PetID
+	}
+	return ownerID, petID
+}
+
 func buildHospitalizationUpdate(input *UpdateHospitalizationInput) map[string]any {
 	fields := make(map[string]any)
 	if input.OwnerID != nil {
@@ -166,6 +193,27 @@ func (s *hospitalizationService) Create(ctx context.Context, clinicID uint64, in
 		insuranceCompanyName = input.InsuranceCompanyName
 		insuranceNumber = input.InsuranceNumber
 	}
+
+	// クロステナント write 防止: request 由来 Owner/Pet の clinic 所有と Owner-Pet 整合を検証する（AUD-004）。
+	ownerID, petID := input.OwnerID, input.PetID
+	if err := validateReservationOwnerPetLinks(ctx, s.repos.Reservation, clinicID, &ownerID, &petID); err != nil {
+		return nil, err
+	}
+
+	// 死亡ペットの入院ブロック（SD-10）
+	if err := validatePetNotDeceased(ctx, s.repos.Pet, clinicID, petID); err != nil {
+		return nil, err
+	}
+
+	// クロステナント write 防止: request 由来の cage マスタが caller の clinic に属することを検証する。
+	if err := validateOwnedMasterFK(ctx, "cage", clinicID, input.CageID,
+		func(actx context.Context, cid, mid uint64) error {
+			_, err := s.repos.Cage.FindByID(actx, cid, mid)
+			return err
+		}); err != nil {
+		return nil, err
+	}
+
 	hospitalization := &model.Hospitalization{
 		ClinicID:             clinicID,
 		OwnerID:              input.OwnerID,
@@ -196,10 +244,36 @@ func (s *hospitalizationService) Update(ctx context.Context, clinicID, id uint64
 	if input == nil {
 		return nil, apperrors.WrapInvalidInput("input must not be nil")
 	}
-	if _, err := s.repos.Hospitalization.FindByID(ctx, clinicID, id); err != nil {
+	existing, err := s.repos.Hospitalization.FindByID(ctx, clinicID, id)
+	if err != nil {
 		slog.ErrorContext(ctx, "failed to find hospitalization", "error", err)
 		return nil, apperrors.Wrap(err, "failed to find hospitalization")
 	}
+
+	// クロステナント write 防止: 最終マージ後の Owner/Pet を検証する（AUD-004）。
+	if input.OwnerID != nil || input.PetID != nil {
+		finalOwnerID, finalPetID := resolveFinalHospitalizationOwnerPet(existing, input)
+		if err := validateReservationOwnerPetLinks(ctx, s.repos.Reservation, clinicID, finalOwnerID, finalPetID); err != nil {
+			return nil, err
+		}
+	}
+
+	// 死亡ペットへの貼り替えブロック（SD-10）: PetID が変更される場合のみ検証する。
+	if input.PetID != nil {
+		if err := validatePetNotDeceased(ctx, s.repos.Pet, clinicID, *input.PetID); err != nil {
+			return nil, err
+		}
+	}
+
+	// クロステナント write 防止: 貼り替え先 cage マスタの所有権を検証する。
+	if err := validateOwnedMasterFK(ctx, "cage", clinicID, input.CageID,
+		func(actx context.Context, cid, mid uint64) error {
+			_, err := s.repos.Cage.FindByID(actx, cid, mid)
+			return err
+		}); err != nil {
+		return nil, err
+	}
+
 	fields := buildHospitalizationUpdate(input)
 	if len(fields) == 0 {
 		return nil, apperrors.WrapInvalidInput("at least one field must be provided")
@@ -279,13 +353,28 @@ func (s *hospitalizationService) DischargeWithBilling(ctx context.Context, clini
 	}
 
 	err = s.repos.Transaction(ctx, func(txRepos *repository.Repositories) error {
-		// 1. 退院ステータスに更新
+		// 0. Q2-C: FOR UPDATE で直列化し、locked 行の OwnerID/PetID で Q2-A 再検証する。
+		// LockByIDForUpdate の行スナップショットにスカラーが含まれるため、検証用 ID が空にならない。
+		locked, err := txRepos.Hospitalization.LockByIDForUpdate(ctx, clinicID, id)
+		if err != nil {
+			return apperrors.Wrap(err, "failed to lock hospitalization for discharge")
+		}
+		if locked.Status == model.HospitalizationStatusDischarged {
+			return apperrors.WrapInvalidInput("hospitalization is already discharged")
+		}
+
+		// 1. 汚染行対策: CreateAccounting 有無に関わらず、Update 前に Owner/Pet の clinic 所有を再検証する（AUD-004 Q2-A）。
+		if err := validateReservationOwnerPetLinks(ctx, txRepos.Reservation, clinicID, &locked.OwnerID, &locked.PetID); err != nil {
+			return err
+		}
+
+		// 2. 退院ステータスに更新
 		dischargedStatus := model.HospitalizationStatusDischarged
 		dischargeFields := map[string]any{
 			"status":   dischargedStatus,
 			"end_date": input.DischargeDate,
 		}
-		if _, err := txRepos.Hospitalization.Update(ctx, clinicID, id, dischargeFields); err != nil {
+		if _, err := txRepos.Hospitalization.UpdateIfNotDischarged(ctx, clinicID, id, dischargeFields); err != nil {
 			return apperrors.Wrap(err, "failed to discharge hospitalization")
 		}
 
@@ -303,8 +392,8 @@ func (s *hospitalizationService) DischargeWithBilling(ctx context.Context, clini
 		billing := &model.Billing{
 			ClinicID:          clinicID,
 			HospitalizationID: &id,
-			PetID:             &hosp.PetID,
-			OwnerID:           &hosp.OwnerID,
+			PetID:             &locked.PetID,
+			OwnerID:           &locked.OwnerID,
 			Status:            model.BillingStatusWaiting,
 			ScheduledDate:     input.DischargeDate,
 		}
@@ -323,7 +412,7 @@ func (s *hospitalizationService) DischargeWithBilling(ctx context.Context, clini
 				UnitPrice: item.UnitPrice,
 				Quantity:  1.0,
 				TaxType:   model.TaxTypeExcluded,
-				TaxRate:   0.10,
+				TaxRate:   DefaultTaxRate,
 				Source:    model.ItemSourceHospitalization,
 				SortOrder: i,
 			}
@@ -335,7 +424,7 @@ func (s *hospitalizationService) DischargeWithBilling(ctx context.Context, clini
 
 		// 5. 合計金額更新
 		if len(carePlanItems) > 0 {
-			taxTotal := int64(float64(totalAmount) * 0.10)
+			taxTotal := int64(float64(totalAmount) * DefaultTaxRate)
 			if err := txRepos.BillingItem.UpdateBillingTotals(ctx, clinicID, billing.ID, totalAmount, taxTotal, totalAmount+taxTotal); err != nil {
 				return apperrors.Wrap(err, "failed to update billing totals")
 			}

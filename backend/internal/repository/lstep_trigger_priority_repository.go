@@ -17,8 +17,8 @@ type LstepTriggerPriorityRepository interface {
 	FindByClinicID(ctx context.Context, clinicID uint64) ([]model.LstepTriggerPriority, error)
 	// UpsertBatch はクリニックの優先順位設定を一括 Upsert する。
 	UpsertBatch(ctx context.Context, clinicID uint64, items []model.LstepTriggerPriority) error
-	// GetPriority はクリニック・トリガー種別の優先度を返す。レコードなし時は model.ErrNotFound。
-	GetPriority(ctx context.Context, clinicID uint64, triggerType string) (int, error)
+	// FindPriorityByTriggerType はクリニック・トリガー種別の優先度を返す。レコードなし時は model.ErrNotFound。
+	FindPriorityByTriggerType(ctx context.Context, clinicID uint64, triggerType string) (int, error)
 }
 
 type lstepTriggerPriorityRepository struct{ db *gorm.DB }
@@ -57,7 +57,7 @@ func (r *lstepTriggerPriorityRepository) UpsertBatch(ctx context.Context, clinic
 	return nil
 }
 
-func (r *lstepTriggerPriorityRepository) GetPriority(ctx context.Context, clinicID uint64, triggerType string) (int, error) {
+func (r *lstepTriggerPriorityRepository) FindPriorityByTriggerType(ctx context.Context, clinicID uint64, triggerType string) (int, error) {
 	var item model.LstepTriggerPriority
 	if err := r.db.WithContext(ctx).
 		Where("clinic_id = ? AND trigger_type = ?", clinicID, triggerType).

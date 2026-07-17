@@ -1,14 +1,351 @@
 package handler
 
 import (
+	"bytes"
+	"context"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"testing"
+	"time"
 
+	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
+
+	apperrors "github.com/animal-ekarte/backend/internal/errors"
+	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/service"
 )
 
 // TestReservationScheduleHandlerCompiles verifies reservation_schedule_handler.go compiles
 func TestReservationScheduleHandlerCompiles(t *testing.T) {
 	assert.True(t, true, "reservation_schedule_handler.go compiled successfully")
+}
+
+// ---- mock ReservationScheduleService ----
+
+type mockReservationScheduleService struct {
+	listByMonthFn func(ctx context.Context, clinicID, staffID uint64, month string) ([]service.ScheduleEntry, error)
+	saveFn        func(ctx context.Context, clinicID, staffID uint64, date time.Time, input *service.CreateReservationScheduleInput) (*service.ScheduleEntry, bool, error)
+	deleteFn      func(ctx context.Context, clinicID, staffID uint64, date time.Time) error
+}
+
+func (m *mockReservationScheduleService) ListByMonth(ctx context.Context, clinicID, staffID uint64, month string) ([]service.ScheduleEntry, error) {
+	return m.listByMonthFn(ctx, clinicID, staffID, month)
+}
+
+func (m *mockReservationScheduleService) Save(ctx context.Context, clinicID, staffID uint64, date time.Time, input *service.CreateReservationScheduleInput) (*service.ScheduleEntry, bool, error) {
+	return m.saveFn(ctx, clinicID, staffID, date, input)
+}
+
+func (m *mockReservationScheduleService) Delete(ctx context.Context, clinicID, staffID uint64, date time.Time) error {
+	return m.deleteFn(ctx, clinicID, staffID, date)
+}
+
+func newHandlerWithReservationScheduleSvc(svc service.ReservationScheduleService) *Handler {
+	return &Handler{svc: &service.Services{ReservationSchedule: svc}}
+}
+
+// ---- ListReservationSchedules ----
+
+func TestListReservationSchedules(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	tests := []struct {
+		name       string
+		staffID    string
+		query      string
+		setupCtx   func(c *gin.Context)
+		svc        *mockReservationScheduleService
+		wantStatus int
+		wantBody   string
+	}{
+		{
+			name:     "returns list of schedules",
+			staffID:  "3",
+			query:    "month=2026-05",
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockReservationScheduleService{
+				listByMonthFn: func(_ context.Context, clinicID, staffID uint64, month string) ([]service.ScheduleEntry, error) {
+					assert.Equal(t, uint64(1), clinicID)
+					assert.Equal(t, uint64(3), staffID)
+					assert.Equal(t, "2026-05", month)
+					return []service.ScheduleEntry{
+						{
+							Entry: model.ShiftEntry{
+								ID:        1,
+								ClinicID:  clinicID,
+								StaffID:   staffID,
+								Date:      time.Date(2026, 5, 1, 0, 0, 0, 0, time.UTC),
+								ShiftType: model.ShiftTypeFull,
+							},
+						},
+					}, nil
+				},
+			},
+			wantStatus: http.StatusOK,
+			wantBody:   `"shift_type":"full"`,
+		},
+		{
+			name:     "defaults month when query missing",
+			staffID:  "3",
+			query:    "",
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockReservationScheduleService{
+				listByMonthFn: func(_ context.Context, _, _ uint64, month string) ([]service.ScheduleEntry, error) {
+					assert.Regexp(t, `^\d{4}-\d{2}$`, month)
+					return []service.ScheduleEntry{}, nil
+				},
+			},
+			wantStatus: http.StatusOK,
+			wantBody:   `[]`,
+		},
+		{
+			name:       "returns 401 when clinic_id missing",
+			staffID:    "3",
+			setupCtx:   func(_ *gin.Context) {},
+			svc:        &mockReservationScheduleService{},
+			wantStatus: http.StatusUnauthorized,
+		},
+		{
+			name:       "returns 400 when staffId param invalid",
+			staffID:    "abc",
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockReservationScheduleService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:     "returns 500 on service error",
+			staffID:  "3",
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockReservationScheduleService{
+				listByMonthFn: func(_ context.Context, _, _ uint64, _ string) ([]service.ScheduleEntry, error) {
+					return nil, fmt.Errorf("db failure")
+				},
+			},
+			wantStatus: http.StatusInternalServerError,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := newHandlerWithReservationScheduleSvc(tt.svc)
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			c.Request = httptest.NewRequest(http.MethodGet, "/reservation-staffs/"+tt.staffID+"/schedules?"+tt.query, http.NoBody)
+			c.Params = gin.Params{{Key: "staffId", Value: tt.staffID}}
+			tt.setupCtx(c)
+			h.ListReservationSchedules(c)
+			assert.Equal(t, tt.wantStatus, w.Code)
+			if tt.wantBody != "" {
+				assert.Contains(t, w.Body.String(), tt.wantBody)
+			}
+		})
+	}
+}
+
+// ---- UpsertReservationSchedule ----
+
+func TestUpsertReservationSchedule(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	tests := []struct {
+		name         string
+		staffID      string
+		date         string
+		body         string
+		setupCtx     func(c *gin.Context)
+		svc          *mockReservationScheduleService
+		wantStatus   int
+		wantLocation bool
+	}{
+		{
+			name:     "returns 201 with Location header when newly created",
+			staffID:  "3",
+			date:     "2026-05-15",
+			body:     `{"shift_type":"full","work_start":"09:00","work_end":"18:00"}`,
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockReservationScheduleService{
+				saveFn: func(_ context.Context, clinicID, staffID uint64, date time.Time, input *service.CreateReservationScheduleInput) (*service.ScheduleEntry, bool, error) {
+					assert.Equal(t, "full", input.ShiftType)
+					return &service.ScheduleEntry{Entry: model.ShiftEntry{ID: 1, ClinicID: clinicID, StaffID: staffID, Date: date, ShiftType: model.ShiftTypeFull}}, true, nil
+				},
+			},
+			wantStatus:   http.StatusCreated,
+			wantLocation: true,
+		},
+		{
+			name:     "returns 200 without Location header when updated",
+			staffID:  "3",
+			date:     "2026-05-15",
+			body:     `{"shift_type":"off"}`,
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockReservationScheduleService{
+				saveFn: func(_ context.Context, clinicID, staffID uint64, date time.Time, _ *service.CreateReservationScheduleInput) (*service.ScheduleEntry, bool, error) {
+					return &service.ScheduleEntry{Entry: model.ShiftEntry{ID: 1, ClinicID: clinicID, StaffID: staffID, Date: date, ShiftType: model.ShiftTypeOff}}, false, nil
+				},
+			},
+			wantStatus: http.StatusOK,
+		},
+		{
+			name:       "returns 401 when clinic_id missing",
+			staffID:    "3",
+			date:       "2026-05-15",
+			body:       `{"shift_type":"full"}`,
+			setupCtx:   func(_ *gin.Context) {},
+			svc:        &mockReservationScheduleService{},
+			wantStatus: http.StatusUnauthorized,
+		},
+		{
+			name:       "returns 400 when staffId param invalid",
+			staffID:    "abc",
+			date:       "2026-05-15",
+			body:       `{"shift_type":"full"}`,
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockReservationScheduleService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:       "returns 400 when date param is malformed",
+			staffID:    "3",
+			date:       "not-a-date",
+			body:       `{"shift_type":"full"}`,
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockReservationScheduleService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:       "returns 400 on request bind error",
+			staffID:    "3",
+			date:       "2026-05-15",
+			body:       `{"shift_type":`,
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockReservationScheduleService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:       "returns 400 when shift_type is invalid enum",
+			staffID:    "3",
+			date:       "2026-05-15",
+			body:       `{"shift_type":"invalid_type"}`,
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockReservationScheduleService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:     "returns 500 on service error",
+			staffID:  "3",
+			date:     "2026-05-15",
+			body:     `{"shift_type":"full"}`,
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockReservationScheduleService{
+				saveFn: func(_ context.Context, _, _ uint64, _ time.Time, _ *service.CreateReservationScheduleInput) (*service.ScheduleEntry, bool, error) {
+					return nil, false, fmt.Errorf("db failure")
+				},
+			},
+			wantStatus: http.StatusInternalServerError,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := newHandlerWithReservationScheduleSvc(tt.svc)
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			c.Request = httptest.NewRequest(http.MethodPut, "/reservation-staffs/"+tt.staffID+"/schedules/"+tt.date, bytes.NewReader([]byte(tt.body)))
+			c.Request.Header.Set("Content-Type", "application/json")
+			c.Params = gin.Params{{Key: "staffId", Value: tt.staffID}, {Key: "date", Value: tt.date}}
+			tt.setupCtx(c)
+			h.UpsertReservationSchedule(c)
+			assert.Equal(t, tt.wantStatus, w.Code)
+			if tt.wantLocation {
+				assert.NotEmpty(t, w.Header().Get("Location"))
+			}
+		})
+	}
+}
+
+// ---- DeleteReservationSchedule ----
+
+func TestDeleteReservationSchedule(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	tests := []struct {
+		name       string
+		staffID    string
+		date       string
+		setupCtx   func(c *gin.Context)
+		svc        *mockReservationScheduleService
+		wantStatus int
+	}{
+		{
+			name:     "returns 204 on success",
+			staffID:  "3",
+			date:     "2026-05-15",
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockReservationScheduleService{
+				deleteFn: func(_ context.Context, clinicID, staffID uint64, date time.Time) error {
+					assert.Equal(t, uint64(1), clinicID)
+					assert.Equal(t, uint64(3), staffID)
+					assert.Equal(t, 2026, date.Year())
+					return nil
+				},
+			},
+			wantStatus: http.StatusNoContent,
+		},
+		{
+			name:       "returns 401 when clinic_id missing",
+			staffID:    "3",
+			date:       "2026-05-15",
+			setupCtx:   func(_ *gin.Context) {},
+			svc:        &mockReservationScheduleService{},
+			wantStatus: http.StatusUnauthorized,
+		},
+		{
+			name:       "returns 400 when staffId param invalid",
+			staffID:    "abc",
+			date:       "2026-05-15",
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockReservationScheduleService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:       "returns 400 when date param is malformed",
+			staffID:    "3",
+			date:       "invalid-date",
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockReservationScheduleService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:     "returns 404 when schedule doesn't exist",
+			staffID:  "3",
+			date:     "2026-05-15",
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockReservationScheduleService{
+				deleteFn: func(_ context.Context, _, _ uint64, _ time.Time) error {
+					return apperrors.WrapNotFound("shift_entry", "1")
+				},
+			},
+			wantStatus: http.StatusNotFound,
+		},
+	}
+
+	// DeleteReservationSchedule は c.Status(http.StatusNoContent) のみでボディ書き込みが無いため、
+	// gin.CreateTestContext + 直接ハンドラ呼び出しだと WriteHeaderNow が走らず
+	// w.Code が既定の 200 のまま残る。実 router.ServeHTTP 経由で検証する
+	// (accounting_handler_test.go の newCancelAccountingRouter と同様のパターン)。
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := newHandlerWithReservationScheduleSvc(tt.svc)
+			r := gin.New()
+			r.DELETE("/reservation-staffs/:staffId/schedules/:date", tt.setupCtx, h.DeleteReservationSchedule)
+			w := httptest.NewRecorder()
+			req := httptest.NewRequest(http.MethodDelete, "/reservation-staffs/"+tt.staffID+"/schedules/"+tt.date, http.NoBody)
+			r.ServeHTTP(w, req)
+			assert.Equal(t, tt.wantStatus, w.Code)
+		})
+	}
 }
 
 // ---- Comprehensive Test Coverage Documentation ----

@@ -8,13 +8,21 @@ import (
 	"io"
 	"net/http"
 	"time"
+
+	"github.com/animal-ekarte/backend/internal/infra/httpx"
 )
 
 const (
+	DefaultBaseURL   = "https://api.lstep.jp"
 	defaultTimeout   = 10 * time.Second
 	maxRetries       = 3
 	retryInitialWait = time.Second
 )
+
+// sharedHTTPClient はLステップAPI呼出全体で共有するhttp.Client。
+// 操作毎にNewClientを呼ぶたびに新規Transportを生成するとTCP/TLS接続が再利用されない
+// （BE-refactor.md B-3）。資格情報はリクエストヘッダ渡しのためクリニック間で共有して問題ない。
+var sharedHTTPClient = &http.Client{Timeout: defaultTimeout}
 
 // Client はLステップAPIクライアントのインターフェース。
 // DI可能にすることでテスト時のモック差し替えを可能にする。
@@ -47,46 +55,33 @@ func NewClient(apiKey, baseURL string) Client {
 	return &httpLstepClient{
 		apiKey:  apiKey,
 		baseURL: baseURL,
-		http:    &http.Client{Timeout: defaultTimeout},
+		http:    sharedHTTPClient,
 	}
 }
 
-// doWithRetry はレート制限時に指数バックオフで最大 maxRetries 回リトライする。
+// doWithRetry はレート制限時に指数バックオフで最大 maxRetries 回リトライする
+// （共通ロジックは internal/infra/httpx.DoWithRetry に集約。BE-refactor.md C-2）。
 func (c *httpLstepClient) doWithRetry(ctx context.Context, fn func() (*http.Response, error)) (*http.Response, error) {
-	wait := retryInitialWait
-	var lastErr error
-	for attempt := 0; attempt <= maxRetries; attempt++ {
-		resp, err := fn()
-		if err != nil {
-			return nil, err
+	resp, err := httpx.DoWithRetry(ctx, c.http, maxRetries, retryInitialWait, fn)
+	if err != nil {
+		if errors.Is(err, httpx.ErrRateLimit) {
+			return nil, fmt.Errorf("%w: exhausted %d retries", ErrRateLimit, maxRetries)
 		}
-		if resp.StatusCode != http.StatusTooManyRequests {
-			return resp, nil
+		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+			return nil, fmt.Errorf("lstep client: %w", err)
 		}
-		// 429: レート制限 — レスポンスボディを破棄してリトライ
-		_, _ = io.Copy(io.Discard, resp.Body)
-		_ = resp.Body.Close()
-		lastErr = ErrRateLimit
-		if attempt < maxRetries {
-			select {
-			case <-ctx.Done():
-				return nil, fmt.Errorf("lstep client: %w", ctx.Err())
-			case <-time.After(wait):
-				wait *= 2
-			}
-		}
+		return nil, err
 	}
-	return nil, fmt.Errorf("%w: exhausted %d retries", lastErr, maxRetries)
+	return resp, nil
 }
 
-// newRequest はLステップAPI向けのHTTPリクエストを生成する。
+// newRequest はLステップAPI向けのHTTPリクエストを生成する
+// （共通ロジックは internal/infra/httpx.NewBearerRequest に集約。BE-refactor.md C-2）。
 func (c *httpLstepClient) newRequest(ctx context.Context, method, path string, body io.Reader) (*http.Request, error) {
-	req, err := http.NewRequestWithContext(ctx, method, c.baseURL+path, body)
+	req, err := httpx.NewBearerRequest(ctx, method, c.baseURL+path, c.apiKey, body)
 	if err != nil {
 		return nil, fmt.Errorf("create lstep request: %w", err)
 	}
-	req.Header.Set("Authorization", "Bearer "+c.apiKey)
-	req.Header.Set("Content-Type", "application/json")
 	return req, nil
 }
 

@@ -71,6 +71,61 @@ func (m *mockPaymentMethodMasterRepository) Reorder(ctx context.Context, clinicI
 	return nil
 }
 
+// ---- buildPaymentMethodUpdate (純粋関数) ----
+
+func TestBuildPaymentMethodUpdate(t *testing.T) {
+	ptrStr := func(s string) *string { return &s }
+	ptrInt := func(i int) *int { return &i }
+	ptrBool := func(b bool) *bool { return &b }
+
+	tests := []struct {
+		name  string
+		input *UpdatePaymentMethodMasterInput
+		want  map[string]any
+	}{
+		{
+			name:  "全フィールド nil は空 map",
+			input: &UpdatePaymentMethodMasterInput{},
+			want:  map[string]any{},
+		},
+		{
+			name:  "Name のみ",
+			input: &UpdatePaymentMethodMasterInput{Name: ptrStr("現金")},
+			want:  map[string]any{colPaymentMethodName: "現金"},
+		},
+		{
+			name:  "DisplayOrder のみ",
+			input: &UpdatePaymentMethodMasterInput{DisplayOrder: ptrInt(3)},
+			want:  map[string]any{colPaymentMethodDisplayOrder: 3},
+		},
+		{
+			name:  "IsActive のみ (false)",
+			input: &UpdatePaymentMethodMasterInput{IsActive: ptrBool(false)},
+			want:  map[string]any{colPaymentMethodIsActive: false},
+		},
+		{
+			name: "全フィールド指定",
+			input: &UpdatePaymentMethodMasterInput{
+				Name:         ptrStr("クレジット"),
+				DisplayOrder: ptrInt(5),
+				IsActive:     ptrBool(true),
+			},
+			want: map[string]any{
+				colPaymentMethodName:         "クレジット",
+				colPaymentMethodDisplayOrder: 5,
+				colPaymentMethodIsActive:     true,
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := buildPaymentMethodUpdate(tt.input)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
 // ---- テスト ----
 
 func TestPaymentMethodMasterService_List(t *testing.T) {
@@ -320,6 +375,7 @@ func TestPaymentMethodMasterService_Update(t *testing.T) {
 	tests := []struct {
 		name           string
 		input          *UpdatePaymentMethodMasterInput
+		findByIDFn     func(ctx context.Context, clinicID, id uint64) (*model.PaymentMethodMaster, error)
 		updateFieldsFn func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.PaymentMethodMaster, error)
 		wantErr        bool
 		wantResult     *model.PaymentMethodMaster
@@ -355,12 +411,20 @@ func TestPaymentMethodMasterService_Update(t *testing.T) {
 			},
 			wantErr: true,
 		},
+		{
+			name:  "エラー: FindByID が存在しないIDエラーを返す (Update より前段でチェック)",
+			input: &UpdatePaymentMethodMasterInput{Name: ptrStr("現金")},
+			findByIDFn: func(_ context.Context, _, _ uint64) (*model.PaymentMethodMaster, error) {
+				return nil, apperrors.WrapNotFound("payment_method", "99")
+			},
+			wantErr: true,
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Arrange
-			repo := &mockPaymentMethodMasterRepository{updateFieldsFn: tt.updateFieldsFn}
+			repo := &mockPaymentMethodMasterRepository{findByIDFn: tt.findByIDFn, updateFieldsFn: tt.updateFieldsFn}
 			svc := NewPaymentMethodMasterService(repo)
 
 			// Act

@@ -96,11 +96,11 @@ type StaffPermissionService interface {
 	// GetPermissionGroupIDs はスタッフが所属する権限グループIDリストを返す
 	GetPermissionGroupIDs(ctx context.Context, staffID uint64) ([]uint64, error)
 	// SetPermissionGroupIDs はスタッフの権限グループを全置換する
-	SetPermissionGroupIDs(ctx context.Context, staffID uint64, groupIDs []uint64) error
+	SetPermissionGroupIDs(ctx context.Context, clinicID, staffID uint64, groupIDs []uint64) error
 	// GetExcludedReservationTypeIDs はスタッフの除外サービス種別IDリストを返す
 	GetExcludedReservationTypeIDs(ctx context.Context, staffID uint64) ([]uint64, error)
 	// SetExcludedReservationTypeIDs はスタッフの除外サービス種別を全置換する
-	SetExcludedReservationTypeIDs(ctx context.Context, staffID uint64, typeIDs []uint64) error
+	SetExcludedReservationTypeIDs(ctx context.Context, clinicID, staffID uint64, typeIDs []uint64) error
 	// GetCapableReservationTypeIDs はスタッフの対応可能サービス種別IDリストを返す
 	GetCapableReservationTypeIDs(ctx context.Context, clinicID, staffID uint64) ([]uint64, error)
 	// SetCapableReservationTypeIDs はスタッフの対応可能サービス種別を全置換する
@@ -123,6 +123,7 @@ type staffService struct {
 	shiftEntryRepo      repository.ShiftEntryRepository
 	permissionGroupRepo repository.PermissionGroupRepository
 	resStaffRepo        repository.ReservationStaffRepository
+	occupationRepo      repository.OccupationRepository
 	tx                  repository.Transactor
 }
 
@@ -134,6 +135,7 @@ func NewStaffService(
 	shiftEntryRepo repository.ShiftEntryRepository,
 	permissionGroupRepo repository.PermissionGroupRepository,
 	resStaffRepo repository.ReservationStaffRepository,
+	occupationRepo repository.OccupationRepository,
 	tx repository.Transactor,
 ) StaffService {
 	return &staffService{
@@ -144,6 +146,7 @@ func NewStaffService(
 		shiftEntryRepo:      shiftEntryRepo,
 		permissionGroupRepo: permissionGroupRepo,
 		resStaffRepo:        resStaffRepo,
+		occupationRepo:      occupationRepo,
 		tx:                  tx,
 	}
 }

@@ -17,7 +17,7 @@ model: sonnet
 
 ```bash
 # TypeScript: 未使用 export 検出
-docker compose exec frontend npx knip
+docker compose exec frontend pnpm unused
 
 # TypeScript: 未使用依存関係
 docker compose exec frontend npx depcheck
@@ -78,11 +78,13 @@ make codegen 2>&1 | grep -i error
 - [ ] Public API (index.ts) に含まれていない
 - [ ] テストが存在する場合はテストも削除
 
-各バッチ後:
-- [ ] ビルド成功: `docker compose exec frontend pnpm build`
-- [ ] テストパス: `docker compose exec frontend pnpm test:run`
-- [ ] 型エラーなし: `docker compose exec frontend npx tsc --noEmit`
+各バッチ後（スコープ限定検証のみ自動実行可）:
+- [ ] 影響ファイルのテストパス: `docker compose exec frontend npx vitest run <影響specファイル>`
+- [ ] 型エラーなし: `post-edit-typecheck-ts.js` フックの編集時出力で確認
 - [ ] コミット済み（説明的なメッセージで）
+
+全バッチ完了後の全体検証（`pnpm build` / `pnpm test:run` / `pnpm type-check`）は
+自動実行禁止（CLAUDE.md）— コマンドを提示してユーザーに実行を依頼する。
 
 ## 禁止事項（使用してはいけないタイミング）
 

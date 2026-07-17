@@ -21,8 +21,12 @@ type AppointmentTrimmingDetail struct {
 	UpdatedAt       time.Time      `gorm:"autoUpdateTime"                                 json:"updated_at"`
 
 	// Relations
-	Course  *TrimmingCourse  `gorm:"foreignKey:CourseID"                                                                            json:"course,omitempty"`
-	Options []TrimmingOption `gorm:"many2many:appointment_trimming_options;joinForeignKey:AppointmentID;joinReferences:OptionID"    json:"options,omitempty"`
+	Course *TrimmingCourse `gorm:"foreignKey:CourseID"                                                                                                          json:"course,omitempty"`
+	// Options: foreignKey/references を明示しないと GORM は自モデルの primaryKey(ID) をソース側
+	// 結合キーとして使う（デフォルト解決）。本モデルは ID(サロゲートPK) と AppointmentID(実FK) が
+	// 別の値空間のため、明示しないと Preload/Association が appointment_trimming_options.appointment_id
+	// を appointment_trimming_details.id と突合してしまい、常に空/失敗する（#212）。
+	Options []TrimmingOption `gorm:"many2many:appointment_trimming_options;foreignKey:AppointmentID;joinForeignKey:AppointmentID;references:ID;joinReferences:OptionID" json:"options,omitempty"`
 }
 
 func (AppointmentTrimmingDetail) TableName() string { return "appointment_trimming_details" }

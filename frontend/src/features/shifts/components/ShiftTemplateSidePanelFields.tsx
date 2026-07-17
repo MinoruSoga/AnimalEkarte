@@ -6,7 +6,7 @@ import X from "lucide-react/dist/esm/icons/x";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { NotionStatusPill } from "@/components/shared/StatusPill/NotionStatusPill";
+import { StatusPill } from "@/components/shared/StatusPill/StatusPill";
 import { C, ICON } from "@/lib/design-tokens";
 
 import { SHIFT_TYPE_LABELS, type ShiftType } from "../types";
@@ -46,7 +46,7 @@ export function ShiftTemplateProperties({
             onClick={() => onField("is_active", !formData.is_active)}
             className={`inline-flex items-center rounded-[3px] ${C.hoverBgLight} transition-colors py-0.5 px-0.5 cursor-pointer`}
           >
-            <NotionStatusPill isActive={formData.is_active} />
+            <StatusPill isActive={formData.is_active} />
           </button>
         </PropertyRow>
 
@@ -67,6 +67,7 @@ export function ShiftTemplateProperties({
             <PropertyRow label="開始時刻">
               <PropInput
                 type="time"
+                ariaLabel="開始時刻"
                 value={formData.start_time}
                 onChange={(v) => onField("start_time", v)}
               />
@@ -74,6 +75,7 @@ export function ShiftTemplateProperties({
             <PropertyRow label="終了時刻">
               <PropInput
                 type="time"
+                ariaLabel="終了時刻"
                 value={formData.end_time}
                 onChange={(v) => onField("end_time", v)}
               />
@@ -83,6 +85,7 @@ export function ShiftTemplateProperties({
 
         <PropertyRow label="メモ">
           <PropInput
+            ariaLabel="メモ"
             value={formData.notes}
             onChange={(v) => onField("notes", v)}
             placeholder="補足情報など"
@@ -134,6 +137,7 @@ function BreakEditor({
         <div key={i} className="flex items-center gap-2 mb-2">
           <Input
             type="time"
+            aria-label={`休憩${i + 1} 開始時刻`}
             value={b.break_start}
             onChange={(e) => onBreakChange(i, "break_start", e.target.value)}
             className="flex-1 h-8 text-sm"
@@ -141,6 +145,7 @@ function BreakEditor({
           <span className={`text-xs ${C.text50}`}>〜</span>
           <Input
             type="time"
+            aria-label={`休憩${i + 1} 終了時刻`}
             value={b.break_end}
             onChange={(e) => onBreakChange(i, "break_end", e.target.value)}
             className="flex-1 h-8 text-sm"
@@ -181,15 +186,18 @@ function PropInput({
   onChange,
   placeholder,
   type = "text",
+  ariaLabel,
 }: {
   value: string;
   onChange: (v: string) => void;
   placeholder?: string;
   type?: string;
+  ariaLabel?: string;
 }) {
   return (
     <input
       type={type}
+      aria-label={ariaLabel}
       className={`w-full bg-transparent text-sm ${C.text} outline-none border-none px-1.5 py-0.5 rounded-[3px] ${C.hoverBgLight} transition-colors ${C.textPlaceholder}`}
       value={value}
       onChange={(e) => onChange(e.target.value)}

@@ -27,7 +27,7 @@ const ROW_ICON = `flex items-center gap-2 ${C.text60}`;
 
 const RELATED_BTN_BASE =
   "flex items-center gap-1.5 text-sm border rounded-md px-3 py-1.5 transition-colors group";
-const RELATED_BTN_KARTE = `${RELATED_BTN_BASE} ${C.accent} ${C.bgAccentLight40} ${C.hoverBgAccentLight} ${C.borderAccentLight}`;
+const RELATED_BTN_KARTE = `${RELATED_BTN_BASE} ${C.textBrand} ${C.bgBrandLight40} ${C.hoverBgBrandLight} ${C.borderBrandLight}`;
 const RELATED_BTN_ACCOUNTING = `${RELATED_BTN_BASE} ${C.textStatusGreen} ${C.bgStatusGreen40} ${C.hoverBgStatusGreen} ${C.borderStatusGreen}`;
 const RELATED_BTN_HOSPITAL = `${RELATED_BTN_BASE} ${C.textStatusPurple} ${C.bgStatusPurple40} ${C.hoverBgStatusPurple} ${C.borderStatusPurple}`;
 
@@ -42,7 +42,7 @@ export function ReceptionDialogHeader({
 }: ReceptionDialogHeaderProps) {
   const visitTypeClass =
     appointment.visitType === "初診"
-      ? `${C.bgAccentLight} ${C.accent}`
+      ? `${C.bgBrandLight} ${C.textBrand}`
       : `${C.bgActive} ${C.text60}`;
 
   return (

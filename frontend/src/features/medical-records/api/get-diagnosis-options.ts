@@ -1,6 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
+import { OPTIONS_FETCH_LIMIT } from "@/config/fetch-limits";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
+import { queryKeys } from "@/lib/query-keys";
 import type { DiagnosisType, DiagnosisName } from "@/types/generated/models";
 
 interface PaginatedResponse<T> {
@@ -16,7 +18,7 @@ function transformDiagnosisTypeOption(item: DiagnosisType) {
     name: item.name,
   };
 }
-export type DiagnosisTypeOption = ReturnType<typeof transformDiagnosisTypeOption>;
+type DiagnosisTypeOption = ReturnType<typeof transformDiagnosisTypeOption>;
 
 function transformDiagnosisNameOption(item: DiagnosisName) {
   return {
@@ -26,17 +28,17 @@ function transformDiagnosisNameOption(item: DiagnosisName) {
 }
 export type DiagnosisNameOption = ReturnType<typeof transformDiagnosisNameOption>;
 
-export const getDiagnosisTypes = async (): Promise<DiagnosisTypeOption[]> => {
+const getDiagnosisTypes = async (): Promise<DiagnosisTypeOption[]> => {
   const { data } = await axios.get<DiagnosisType[] | PaginatedResponse<DiagnosisType>>(
     "/v1/masters/diagnosis-types",
-    { params: { limit: 100 } },
+    { params: { limit: OPTIONS_FETCH_LIMIT } },
   );
   const items = Array.isArray(data) ? data : (data.data ?? []);
   return items.map(transformDiagnosisTypeOption);
 };
 
-export const getDiagnosisNames = async (typeId?: number | null): Promise<DiagnosisNameOption[]> => {
-  const params: Record<string, unknown> = { limit: 100 };
+const getDiagnosisNames = async (typeId?: number | null): Promise<DiagnosisNameOption[]> => {
+  const params: Record<string, unknown> = { limit: OPTIONS_FETCH_LIMIT };
   if (typeId) params.type_id = typeId;
   const { data } = await axios.get<DiagnosisName[] | PaginatedResponse<DiagnosisName>>(
     "/v1/masters/diagnosis-names",
@@ -48,7 +50,7 @@ export const getDiagnosisNames = async (typeId?: number | null): Promise<Diagnos
 
 export const useGetDiagnosisTypes = () =>
   useQuery({
-    queryKey: ["masters", "diagnosis-types"],
+    queryKey: queryKeys.masters.category("diagnosis-types"),
     queryFn: getDiagnosisTypes,
     staleTime: QUERY_STALE_TIMES.STATIC,
     gcTime: QUERY_GC_TIMES.LONG,
@@ -56,7 +58,7 @@ export const useGetDiagnosisTypes = () =>
 
 export const useGetDiagnosisNames = (typeId?: number | null) =>
   useQuery({
-    queryKey: ["masters", "diagnosis-names", typeId ?? null],
+    queryKey: queryKeys.masters.diagnosisNames(typeId),
     queryFn: () => getDiagnosisNames(typeId),
     staleTime: QUERY_STALE_TIMES.STATIC,
     gcTime: QUERY_GC_TIMES.LONG,

@@ -3,6 +3,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { axios } from "@/lib/axios";
 import { requireStoredClinicId } from "@/lib/current-clinic";
+import { queryKeys } from "@/lib/query-keys";
 
 interface BulkRemoveProgress {
   done: number;
@@ -37,7 +38,7 @@ export function useBulkRemoveTag(): UseBulkRemoveTagResult {
     }
 
     setProgress((prev) => ({ ...prev, isRunning: false }));
-    queryClient.invalidateQueries({ queryKey: ["lstep-tag-summary"] });
+    queryClient.invalidateQueries({ queryKey: queryKeys.lstepTagSummary() });
     toast.success(`タグ「${tagName}」を${ownerIds.length}名から解除しました`);
   };
 

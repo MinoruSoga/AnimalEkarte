@@ -1,6 +1,8 @@
 package service
 
 import (
+	"github.com/animal-ekarte/backend/internal/infra"
+	"github.com/animal-ekarte/backend/internal/infra/crypto"
 	"github.com/animal-ekarte/backend/internal/repository"
 )
 
@@ -25,6 +27,7 @@ type Services struct {
 	StaffPermission                StaffPermissionService
 	Cage                           CageService
 	Medicine                       MedicineService
+	MedicineDoseParam              MedicineDoseParamService
 	Vaccine                        VaccineService
 	Insurance                      InsuranceService
 	ReservationType                ReservationTypeCoreService
@@ -63,12 +66,14 @@ type Services struct {
 	MedicalRecordImage             MedicalRecordImageService
 	ClinicalPlan                   ClinicalPlanService
 	Checkup                        CheckupService
+	CheckupFieldResult             CheckupFieldResultService
 	Estimate                       EstimateService
 	ManualArticle                  ManualArticleService
 	MerchandiseItem                MerchandiseItemService
 	BillingItem                    BillingItemService
 	Refund                         RefundService
 	PasswordReset                  PasswordResetService
+	ReservationNotifier            ReservationNotifier
 
 	// FEAT-368: 集計・締め機能
 	ClosingSettings     ClosingSettingsService
@@ -126,12 +131,34 @@ type Services struct {
 	LstepAnalytics LstepAnalyticsService
 	// 認証: refresh_token JTI ブラックリスト
 	TokenBlacklist TokenBlacklistService
+	// 認証: JWT 発行・検証
+	Token TokenService
+	// 認証: ログイン照合・クリニック解決・実効権限計算
+	Auth AuthService
+	// lab import: 外部検査結果インポートジョブ管理 (Phase 3–4)
+	LabImportJob    LabImportJobService
+	LabResultImport LabResultImportService
+	LabAudit        LabAuditLogger
+	// lab report: 検査帳票 read-only クエリ (Phase 4B.2)
+	LabReportQuery LabReportQueryService
 }
 
-// NewServices はリポジトリからすべてのサービスを初期化して返す
-func NewServices(repos *repository.Repositories, notifCfg *ReservationNotificationConfig) *Services {
-	notifier := NewReservationNotificationService(notifCfg, repos.LineReservationSetting)
+// NewServices はリポジトリからすべてのサービスを初期化して返す。
+// cipher は LINE 認証情報（line_channel_secret / line_access_token）の暗号化に使う（H-4）。
+// nil の場合は暗号化なしで動作する（開発環境で INTEGRATION_ENCRYPTION_KEY 未設定時）。
+// lstep 連携と同一の cipher を再利用する。
+func NewServices(repos *repository.Repositories, notifCfg *ReservationNotificationConfig, cipher *crypto.AESGCMCipher, sharedStorage infra.FileStorage, jwtSecret string) *Services {
+	notifier := NewReservationNotificationService(notifCfg, repos.LineReservationSetting, cipher)
 	auditSvc := NewAuditService(repos.Audit)
+	// auditTxLogger: 具象 *auditService は tx 内監査の LogEntryTx も実装する（#211）。
+	// AuditService インターフェース自体は広げず（既存サービス/モックへ非波及）、tx 内監査を要する
+	// checkup のみ narrow な AuditTxLogger に依存させる。コンパイル時保証は audit_service.go の
+	// `var _ AuditTxLogger = (*auditService)(nil)`。配線時の comma-ok で、将来 NewAuditService が
+	// AuditTxLogger 非実装のラッパを返すよう変わった場合に原因の分かる panic を出す。
+	auditTxLogger, ok := auditSvc.(AuditTxLogger)
+	if !ok {
+		panic("DI wiring error: AuditService concrete does not implement AuditTxLogger (#211 tx-internal audit); check NewAuditService return type")
+	}
 	tx := repository.NewTransactor(repos.DB())
 	pwResetCfg := PasswordResetConfig{
 		SMTPHost:    notifCfg.SMTPHost,
@@ -152,6 +179,7 @@ func NewServices(repos *repository.Repositories, notifCfg *ReservationNotificati
 		repos.ReservationTypeUnavailableTime,
 		repos.ReservationTypeOccupation,
 		repos.Occupation,
+		repos.ReservationTypeGroup,
 		repos.ReservationTypeAvailableSlot,
 	)
 
@@ -161,28 +189,61 @@ func NewServices(repos *repository.Repositories, notifCfg *ReservationNotificati
 
 	// staffSvc は StaffService（StaffCoreService / StaffAccountService / StaffPermissionService の合成）を実装する。
 	// 同一インスタンスを4フィールドに割り当てることで余分な初期化を避ける。
-	staffSvc := NewStaffService(repos.Staff, repos.Account, repos.StaffClinicAssignment, repos.Reservation, repos.ShiftEntry, repos.PermissionGroup, repos.ReservationStaff, tx)
+	staffSvc := NewStaffService(repos.Staff, repos.Account, repos.StaffClinicAssignment, repos.Reservation, repos.ShiftEntry, repos.PermissionGroup, repos.ReservationStaff, repos.Occupation, tx)
 
 	// resStaffSvc は ReservationStaffService（Core + Exclusion の合成）を実装する。
 	resStaffSvc := NewReservationStaffService(repos.ReservationStaff, tx)
 
-	// LSTEP services initialization with nil cipher (production code in main.go will override with encrypted cipher)
-	lstepSettingsSvc := NewLstepSettingsService(repos.LstepSettings, repos.LstepSyncSettings, nil, auditSvc, repos.ClinicSettings)
-	lstepTagSyncSvc := NewLstepTagSyncService(lstepSettingsSvc, repos.Owner, repos.Vaccination, repos.MedicalRecord, repos.Accounting, repos.LstepTagCache, repos.Pet, repos.Prescription, repos.Checkup, repos.Reservation, repos.LstepSyncErrorCounter, repos.LstepTagCodeMapping, repos.BillingItem, repos.LstepTagConfig)
+	// LSTEP services initialization: LINE予約設定と同一の cipher を再利用する（X-2）。
+	lstepSettingsSvc := NewLstepSettingsService(repos.LstepSettings, repos.LstepSyncSettings, cipher, auditSvc, repos.ClinicSettings)
+	lstepTagSyncSvc := NewLstepTagSyncFromRepos(repos, lstepSettingsSvc)
 	lstepLifecycleSvc := NewLstepLifecycleService(lstepSettingsSvc, repos.Owner, repos.Pet, repos.LstepTagCache, lstepTagSyncSvc, auditSvc, repos.LstepTagConfig)
+
+	// lab import (Phase 3): 同一 jobSvc インスタンスを LabImportJob/LabResultImport で共有する。
+	labImportJobSvc := NewLabImportJobService(repos.LabImportJob, repos.LabImportEvent)
+
+	// G9-1: 旧 main.go 二段階DI（NewServices 呼び出し後の再構築ブロック）をここに統合。
+	// main.go 由来の元の構築順序をそのまま保持する。
+	sharedFileSvc := NewSharedFileService(repos.SharedFile, repos.Owner, sharedStorage)
+	// LSTEP-BE-012: 慢性疾患フラグ
+	chronicConditionSvc := NewChronicConditionService(repos.ChronicCondition, repos.Pet, lstepTagSyncSvc)
+	// LSTEP-BE-013: LINE個別送信
+	lineSendSvc := NewLineSendService(lstepSettingsSvc, repos.Owner, sharedFileSvc, repos.LstepTagCache, auditSvc, repos.LineSendLog, repos.LstepTagConfig)
+	// LSTEP-BE-021: LINE User ID 自動取得・飼い主紐付け
+	lineLinkSvc := NewLineLinkService(repos.Owner, repos.LineLinkToken, repos.LineReservationSetting, auditSvc, cipher)
+	// LSTEP-BE-020: タグ集計・タグ別飼い主検索
+	lstepTagSummarySvc := NewLstepTagSummaryService(repos.LstepTagCache)
+	// LSTEP-BE-004: 健診対象者抽出・一括タグ連携
+	checkupSyncSvc := NewCheckupSyncService(repos.CheckupSync, repos.Owner, repos.Pet, repos.LstepTagCache, lstepSettingsSvc, auditSvc)
+	// FEAT-384: 自動配信トリガー監視
+	lstepDeliveryMonitorSvc := NewLstepDeliveryMonitorService(repos.LstepDeliveryTriggerLog)
+	// Q23: トリガー優先順位設定
+	lstepTriggerPrioritySvc := NewLstepTriggerPriorityService(repos.LstepTriggerPriority)
+	// FEAT-383: 自動配信トリガー（LstepBatch / MedicalRecord / Checkup より先に初期化）
+	lstepDeliveryTriggerSvc := NewLstepDeliveryTriggerService(repos.Owner, repos.MedicalRecord, repos.Vaccination, repos.BillingItem, repos.Pet, repos.LstepTagCache, repos.LstepDeliveryTriggerLog, lstepSettingsSvc, lstepTriggerPrioritySvc)
+	// FEAT-383: イベントフック注入（LstepDeliveryTrigger 確定後に構築）
+	medicalRecordSvc := NewMedicalRecordService(repos.MedicalRecord, repos.Owner, repos.Pet, repos.Inquiry, repos.ClinicalPlan, repos.ChiefComplaintType, repos.DiagnosisType, repos.DiagnosisName, repos.LineCustomerMgr, repos.Reservation, lstepDeliveryTriggerSvc, auditSvc, tx, lstepTagSyncSvc)
+	checkupSvc := NewCheckupService(repos.Checkup, repos.MedicalRecord, repos.CheckupType, lstepDeliveryTriggerSvc, lstepTagSyncSvc)
+	// LSTEP-BE-014: ノーショウ検知バッチ（LstepDeliveryTrigger 確定後に初期化）
+	lstepBatchSvc := NewLstepBatchService(repos.Reservation, lstepTagSyncSvc, repos.Clinic, repos.MedicalRecord, auditSvc, lstepSettingsSvc, lstepDeliveryTriggerSvc)
+	// FEAT-385: Lステップ CSV インポート・分析
+	lstepCsvImportSvc := NewLstepCsvImportService(repos.DB(), repos.LstepCsvImport, repos.LstepFriendAttributeSnapshot, repos.Owner)
+	lstepAnalyticsSvc := NewLstepAnalyticsService(repos.Owner, repos.LstepDeliveryTriggerLog, repos.LstepFriendAttributeSnapshot)
+
+	tokenBlacklistSvc := NewTokenBlacklistService(repos.TokenBlacklist)
 
 	return &Services{
 		Account:               NewAccountService(repos.Account),
 		StaffClinicAssignment: NewStaffClinicAssignmentService(repos.StaffClinicAssignment),
 		Audit:                 auditSvc,
 		AnimalSpecies:         NewAnimalSpeciesService(repos.AnimalSpecies, repos.Pet),
-		Owner:                 NewOwnerService(repos.Owner, lstepTagSyncSvc, auditSvc),
+		Owner:                 NewOwnerService(repos.Owner, repos.Insurance, lstepTagSyncSvc, auditSvc),
 		Pet:                   NewPetService(repos.Pet, repos.Owner, repos.Insurance, repos.MedicalRecord, lstepTagSyncSvc),
 		Reservation:           NewReservationServiceWithAvailabilityAndType(repos.Reservation, repos.ReservationType, tx, repos.ReservationStaff, repos.ReservationTypeUnavailableTime, repos.ReservationTypeAvailableSlot),
-		MedicalRecord:         NewMedicalRecordService(repos.MedicalRecord, repos.Owner, repos.Pet, repos.Inquiry, repos.ClinicalPlan, repos.LineCustomerMgr, repos.Reservation, nil, auditSvc, lstepTagSyncSvc),
+		MedicalRecord:         medicalRecordSvc,
 		MedicalRecordAddendum: NewMedicalRecordAddendumService(repos.MedicalRecordAddendum, repos.MedicalRecord, auditSvc),
 		Hospitalization:       NewHospitalizationService(repos),
-		Accounting:            NewAccountingService(repos.Accounting, lstepTagSyncSvc, tx, auditSvc, repos.PaymentMethodMaster),
+		Accounting:            NewAccountingService(repos.Accounting, repos.MedicalRecord, repos.Hospitalization, repos.Reservation, lstepTagSyncSvc, tx, auditTxLogger, repos.PaymentMethodMaster),
 		Trimming: NewTrimmingService(
 			repos.Reservation,
 			repos.ReservationType,
@@ -190,6 +251,8 @@ func NewServices(repos *repository.Repositories, notifCfg *ReservationNotificati
 			repos.ReservationTypeUnavailableTime,
 			repos.ReservationTypeAvailableSlot,
 			repos.AppointmentTrimmingDetail,
+			repos.TrimmingCourse,
+			repos.TrimmingOption,
 			tx,
 		),
 		Inventory:                      NewInventoryService(repos.Inventory),
@@ -198,7 +261,8 @@ func NewServices(repos *repository.Repositories, notifCfg *ReservationNotificati
 		StaffAccount:                   staffSvc,
 		StaffPermission:                staffSvc,
 		Cage:                           NewCageService(repos.Cage),
-		Medicine:                       NewMedicineService(repos.Medicine, repos.Inventory, tx),
+		Medicine:                       NewMedicineServiceWithAudit(repos.Medicine, repos.Inventory, tx, auditTxLogger),
+		MedicineDoseParam:              NewMedicineDoseParamService(repos.MedicineDoseParam, repos.Medicine, tx, auditTxLogger),
 		Vaccine:                        NewVaccineService(repos.Vaccine),
 		Insurance:                      NewInsuranceService(repos.Insurance),
 		ReservationType:                reservationTypeSvc,
@@ -216,56 +280,70 @@ func NewServices(repos *repository.Repositories, notifCfg *ReservationNotificati
 		DiagnosisName:                  NewDiagnosisNameService(repos.DiagnosisName, repos.DiagnosisType),
 		CheckupType:                    NewCheckupTypeService(repos.CheckupType),
 		Clinic:                         NewClinicService(repos.Clinic, repos.PermissionGroup, tx),
-		Examination:                    NewExaminationService(repos.Examination, repos.MedicalRecord, auditSvc),
-		Vaccination:                    NewVaccinationService(repos.Vaccination, lstepTagSyncSvc),
+		Examination:                    NewExaminationService(repos.Examination, repos.MedicalRecord, repos.ExaminationType, auditTxLogger, tx),
+		Vaccination:                    NewVaccinationService(repos.Vaccination, repos.Vaccine, lstepTagSyncSvc),
 		Occupation:                     NewOccupationService(repos.Occupation),
 		ChiefComplaintType:             NewChiefComplaintTypeService(repos.ChiefComplaintType),
-		Inquiry:                        NewInquiryService(repos.Inquiry),
+		Inquiry:                        NewInquiryService(repos.Inquiry, repos.ChiefComplaintType),
 		InquiryTemplate:                NewInquiryTemplateService(repos.InquiryTemplate),
 		Company:                        NewCompanyService(repos.Company),
 		PermissionGroup:                permissionGroupSvc,
 		EffectivePermission:            permissionGroupSvc,
-		BillingConfirmation:            NewBillingConfirmationService(repos.BillingConfirmation),
-		CarePlanItem:                   NewCarePlanItemService(repos.CarePlanItem),
+		BillingConfirmation:            NewBillingConfirmationService(repos.BillingConfirmation, repos.MedicalRecord, tx),
+		CarePlanItem:                   NewCarePlanItemService(repos.CarePlanItem, repos.Hospitalization, repos.Medicine, repos.Procedure, repos.HospitalizationPlan),
 		ShiftEntry:                     NewShiftEntryService(repos.ShiftEntry),
 		ShiftTemplate:                  NewShiftTemplateService(repos.ShiftTemplate),
 		ClinicHoliday:                  NewClinicHolidayService(repos.ClinicHoliday),
 		TreatmentPlan:                  NewTreatmentPlanService(repos.TreatmentPlan),
-		Vital:                          NewVitalService(repos.Vital, repos.MedicalRecord, auditSvc),
-		Treatment:                      NewTreatmentService(repos),
-		DailyRecord:                    NewDailyRecordService(repos.DailyRecord),
-		MedicalRecordImage:             NewMedicalRecordImageService(repos.MedicalRecordImage, repos.MedicalRecord),
-		ClinicalPlan:                   NewClinicalPlanService(repos.ClinicalPlan),
-		Checkup:                        NewCheckupService(repos.Checkup, repos.MedicalRecord, nil, lstepTagSyncSvc),
-		Estimate:                       NewEstimateService(repos.Estimate),
+		Vital:                          NewVitalService(repos.Vital, repos.MedicalRecord, auditSvc, tx),
+		Treatment:                      NewTreatmentServiceWithAudit(repos, auditSvc),
+		DailyRecord:                    NewDailyRecordService(repos.DailyRecord, repos.Hospitalization, tx),
+		MedicalRecordImage:             NewMedicalRecordImageService(repos.MedicalRecordImage, repos.MedicalRecord, tx),
+		ClinicalPlan:                   NewClinicalPlanService(repos.ClinicalPlan, repos.MedicalRecord, repos.DiagnosisType, repos.DiagnosisName),
+		Checkup:                        checkupSvc,
+		CheckupFieldResult:             NewCheckupFieldResultService(repos.Checkup, repos.MedicalRecord, repos.CheckupTypeField, repos.CheckupFieldResult, auditTxLogger, tx),
+		Estimate:                       NewEstimateService(repos.Estimate, repos.MedicalRecord, repos.Reservation, repos.StaffClinicAssignment, auditSvc, tx),
 		ManualArticle:                  NewManualArticleService(repos.ManualArticle),
 		MerchandiseItem:                NewMerchandiseItemService(repos.MerchandiseItem),
-		BillingItem:                    NewBillingItemServiceWithCampaign(repos.BillingItem, repos.Accounting, repos.Treatment, tx, repos.Campaign, repos.Owner),
-		Refund:                         NewRefundService(repos.Refund, repos.Accounting, auditSvc, tx),
+		BillingItem:                    NewBillingItemServiceWithCampaign(repos.BillingItem, repos.Accounting, repos.Treatment, tx, repos.TrimmingCourse, repos.TrimmingOption, repos.Campaign, repos.Owner),
+		Refund:                         NewRefundService(repos.Refund, repos.Accounting, auditTxLogger, tx),
 		PasswordReset:                  NewPasswordResetService(&pwResetCfg, repos.Account, repos.PasswordResetToken),
+		ReservationNotifier:            notifier,
 		// FEAT-368: 集計・締め機能
 		ClosingSettings:           closingSettingsSvc,
 		PaymentMethodMaster:       NewPaymentMethodMasterService(repos.PaymentMethodMaster),
 		TrimmingCourseType:        NewTrimmingCourseTypeService(repos.TrimmingCourseType),
-		Campaign:                  NewCampaignService(repos.Campaign),
-		CashRegister:              NewCashRegisterService(repos.CashRegisterClose, repos.Accounting, closingSettingsSvc, repos.PaymentMethodMaster),
-		AccountingReport:          NewAccountingReportService(repos.Accounting, repos.PaymentMethodMaster, repos.ClinicHoliday),
-		LineReservationSetting:    NewLineReservationSettingService(repos.LineReservationSetting),
+		Campaign:                  NewCampaignService(repos.Campaign, repos.MerchandiseItem),
+		CashRegister:              NewCashRegisterService(repos.CashRegisterClose, repos.Accounting, closingSettingsSvc, repos.PaymentMethodMaster, repos.Clinic),
+		AccountingReport:          NewAccountingReportService(repos.Accounting, repos.PaymentMethodMaster, repos.ClinicHoliday, repos.Clinic),
+		LineReservationSetting:    NewLineReservationSettingService(repos.LineReservationSetting, cipher),
 		ReservationTypeLiff:       NewReservationTypeLiffService(repos.ReservationTypeLiff, repos.ReservationAdmin, repos.Reservation),
 		ReservationStaff:          resStaffSvc,
 		ReservationStaffCore:      resStaffSvc,
 		ReservationStaffExclusion: resStaffSvc,
 		ReservationSchedule:       NewReservationScheduleService(repos.ReservationSchedule),
 		ReservationAdmin:          NewReservationAdminServiceWithAvailabilityAndType(repos.ReservationAdmin, repos.Reservation, repos.ReservationType, tx, repos.ReservationStaff, repos.ReservationTypeUnavailableTime, repos.ReservationTypeAvailableSlot),
-		LineCustomer:              NewLineCustomerService(repos.LineCustomerMgr),
-		Prescription:              NewPrescriptionService(repos.Prescription, repos.MedicalRecord, lstepTagSyncSvc),
+		LineCustomer:              NewLineCustomerService(repos.LineCustomerMgr, repos.Owner),
+		Prescription:              NewPrescriptionService(repos.Prescription, repos.MedicalRecord, lstepTagSyncSvc, tx),
 		Aggregation:               NewAggregationService(repos.Ltv, repos.LstepTagCache, repos.LstepTagConfig, lstepSettingsSvc),
 		LstepSettings:             lstepSettingsSvc,
 		LstepTagSync:              lstepTagSyncSvc,
 		LstepLifecycle:            lstepLifecycleSvc,
 		LstepTag:                  NewLstepTagService(lstepSettingsSvc, repos.Owner, repos.LstepTagCache, auditSvc, repos.LstepTagConfig),
+		SharedFile:                sharedFileSvc,
+		ChronicCondition:          chronicConditionSvc,
+		LineSend:                  lineSendSvc,
+		LstepBatch:                lstepBatchSvc,
+		LstepDeliveryTrigger:      lstepDeliveryTriggerSvc,
+		LstepTriggerPriority:      lstepTriggerPrioritySvc,
 		LstepTagCodeMapping:       NewLstepTagCodeMappingService(repos.LstepTagCodeMapping),
 		LstepTagConfig:            NewLstepTagConfigService(repos.LstepTagConfig),
+		LineLink:                  lineLinkSvc,
+		LstepTagSummary:           lstepTagSummarySvc,
+		CheckupSync:               checkupSyncSvc,
+		LstepDeliveryMonitor:      lstepDeliveryMonitorSvc,
+		LstepCsvImport:            lstepCsvImportSvc,
+		LstepAnalytics:            lstepAnalyticsSvc,
 		Liff: NewLiffServiceWithType(
 			repos.LineReservationSetting,
 			repos.ReservationTypeLiff,
@@ -284,7 +362,24 @@ func NewServices(repos *repository.Repositories, notifCfg *ReservationNotificati
 			repos.TrimmingCourse,
 			repos.TrimmingOption,
 			repos.AppointmentTrimmingDetail,
+			repos.Vaccination,
 		),
-		TokenBlacklist: NewTokenBlacklistService(repos.TokenBlacklist),
+		TokenBlacklist: tokenBlacklistSvc,
+		Token:          NewTokenService(jwtSecret, tokenBlacklistSvc),
+		Auth:           NewAuthService(NewAccountService(repos.Account), staffSvc, permissionGroupSvc),
+		// lab import (Phase 3–4)
+		LabImportJob: labImportJobSvc,
+		LabResultImport: NewLabResultImportService(
+			labImportJobSvc,
+			NewLabImportExaminationService(
+				repos.Examination,
+				repository.NewLabImportDuplicateCheckerDB(repos.DB()),
+				repos.ExaminationType,
+				repos.Pet,
+				repos.MedicalRecord,
+			),
+		),
+		LabAudit:       NewLabAuditLogger(auditSvc),
+		LabReportQuery: NewLabReportQueryService(repos.Examination),
 	}
 }

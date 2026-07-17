@@ -1,5 +1,7 @@
 import { memo } from "react";
+import { EmptyState } from "@/components/shared/DataStates";
 import { C, STYLE } from "@/lib/design-tokens";
+import { formatCurrency } from "@/utils/format/number";
 import type { DailyReportDetail } from "../api/get-monthly-report";
 
 interface DailyBreakdownTableProps {
@@ -16,7 +18,7 @@ export const DailyBreakdownTable = memo(function DailyBreakdownTable({
   onDrillDown,
 }: DailyBreakdownTableProps) {
   if (details.length === 0) {
-    return <p className={`text-base ${C.text50} py-4 text-center`}>日次データがありません</p>;
+    return <EmptyState message="日次データがありません" />;
   }
 
   return (
@@ -68,14 +70,14 @@ export const DailyBreakdownTable = memo(function DailyBreakdownTable({
                 <td className={`px-3 py-2 ${C.text}`}>{detail.weekday}</td>
                 <td className={`px-3 py-2 text-right ${C.text60}`}>{detail.amCount}件</td>
                 <td className={`px-3 py-2 text-right ${C.text}`}>
-                  ¥{detail.amNet.toLocaleString()}
+                  {formatCurrency(detail.amNet)}
                 </td>
                 <td className={`px-3 py-2 text-right ${C.text60}`}>{detail.pmCount}件</td>
                 <td className={`px-3 py-2 text-right ${C.text}`}>
-                  ¥{detail.pmNet.toLocaleString()}
+                  {formatCurrency(detail.pmNet)}
                 </td>
                 <td className={`px-3 py-2 text-right font-medium ${C.text}`}>
-                  ¥{detail.dayNet.toLocaleString()}
+                  {formatCurrency(detail.dayNet)}
                 </td>
                 <td
                   className={`px-3 py-2 text-right ${detail.refund > 0 ? C.danger : C.text50}`}

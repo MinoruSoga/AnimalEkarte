@@ -17,6 +17,15 @@ env:
   # CI ランナーは UTC のため go test の time.Local 依存テストが日付境界でズレる。全 job に JST を適用する。
   TZ: Asia/Tokyo
 
+# ──────────────────────────────────────────────
+# ゲート分担（詳細: docs/ops/ci-policy.md）
+#
+# CI 必須（本 workflow）: path-filtered build/test/coverage、gitleaks、
+#   codegen / migration 検証、schema drift
+# ローカル必須（make ci）: inventory / guardrail / shellcheck / golangci /
+#   ESLint / type-check / knip / design CTA など、手元 Docker で十分な静的ゲート
+# ──────────────────────────────────────────────
+
 jobs:
   # ──────────────────────────────────────────────
   # 変更検出: どのジョブを実行すべきか判定
@@ -25,18 +34,20 @@ jobs:
     name: Detect changes
     runs-on: ubuntu-latest
     permissions:
+      contents: read
       pull-requests: read
     outputs:
       backend: ${{ steps.filter.outputs.backend }}
       frontend: ${{ steps.filter.outputs.frontend }}
       codegen: ${{ steps.filter.outputs.codegen }}
       migrations: ${{ steps.filter.outputs.migrations }}
+      worker: ${{ steps.filter.outputs.worker }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v6.0.2
+        uses: actions/checkout@v7.0.0
 
       - name: Path filter
-        uses: dorny/paths-filter@v3
+        uses: dorny/paths-filter@v4
         id: filter
         with:
           filters: |
@@ -50,9 +61,36 @@ jobs:
               - 'frontend/src/types/generated/**'
             migrations:
               - 'backend/migrations/*.sql'
+            worker:
+              - 'backend/worker/**'
+              - 'package.json'
+              - 'pnpm-lock.yaml'
 
   # ──────────────────────────────────────────────
-  # Backend: build + lint + schema check
+  # C-1 再発防止: gitleaks によるシークレット漏洩スキャン。
+  # push/PR 全イベント無条件。ローカル再現は困難でリモート必須。
+  # （bug.md C-1: .env.staging への JWT_SECRET/DB_PASSWORD 平文混入の再発防止）。
+  # ──────────────────────────────────────────────
+  secret-scan:
+    name: Gitleaks Secret Scan
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7.0.0
+        with:
+          fetch-depth: 0
+
+      - name: Run gitleaks
+        uses: gitleaks/gitleaks-action@v3
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # ──────────────────────────────────────────────
+  # Backend: build + test + schema check
+  # （golangci-lint / inventory はローカル必須: make ci）
   # ──────────────────────────────────────────────
   backend:
     name: Backend
@@ -79,7 +117,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6.0.2
+        uses: actions/checkout@v7.0.0
 
       - name: Apply migrations
         env:
@@ -112,12 +150,6 @@ jobs:
         working-directory: backend
         run: go build ./...
 
-      - name: Lint
-        uses: golangci/golangci-lint-action@v7
-        with:
-          version: v2.11.4
-          working-directory: backend
-
       - name: Test
         working-directory: backend
         env:
@@ -127,7 +159,59 @@ jobs:
           DB_PASSWORD: ekarte_password
           DB_NAME: ekarte_db
           DB_SSL_MODE: disable
-        run: go test ./... -count=1 -race -timeout 120s
+        # 非ゲートのカバレッジ可視化: -coverprofile で測定するが、しきい値で fail させない。
+        # -race は covermode=atomic を要求するため明示する。テストの合否は従来どおり。
+        # -coverpkg=./internal/... で internal/* のみを計測対象とし、cmd/,
+        # lstep-migrate/, seed-old-db/(archived), stage-import/, migrations/ 等のエントリポイント・
+        # インフラパッケージを除外する。除外ポリシー/ロードマップ: docs/ops/coverage-policy.md
+        # -timeout 900s: internal/repository は _test.go 急増で長時間化（PR #186 timeout調査参照）。
+        # -p 1: 共有 ekarte_db_test への package 並列アクセスを禁止（repository/CLAUDE.md）。
+        # Makefile ci と揃える。
+        run: go test ./... -count=1 -race -covermode=atomic -coverprofile=coverage.out -coverpkg=./internal/... -timeout 900s -p 1
+
+      - name: Coverage summary (non-gating, baseline visibility)
+        if: always()
+        # 可視化専用ステップ。集計失敗が CI を落とさないよう非致命にする。
+        continue-on-error: true
+        working-directory: backend
+        run: |
+          if [ -f coverage.out ]; then
+            go tool cover -func=coverage.out | tee coverage-summary.txt
+            go tool cover -html=coverage.out -o coverage.html
+            {
+              echo "### Backend coverage (non-gating, baseline visibility)"
+              echo '```'
+              tail -n 1 coverage-summary.txt
+              echo '```'
+            } >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "coverage.out not produced (tests failed before profiling completed); skipping summary."
+          fi
+
+      # BE-refactor.md R3-5 / bug.md H-7 / coverage-policy.md Phase 1: カバレッジ ratchet。
+      # baseline > 0 のため evaluateRatchet が tolerance（既定 0.5pp）を超える低下を検出すると
+      # 非0 exit する。coverage-summary.txt が無い場合（テスト自体が失敗）はスキップ。
+      - name: Coverage ratchet
+        if: always()
+        working-directory: backend
+        run: |
+          if [ -f coverage-summary.txt ]; then
+            go run ./cmd/coverage-ratchet -baseline .coverage-baseline -func-file coverage-summary.txt | tee -a "$GITHUB_STEP_SUMMARY"
+          else
+            echo "coverage-summary.txt not produced; skipping ratchet."
+          fi
+
+      - name: Upload backend coverage artifact
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: backend-coverage
+          path: |
+            backend/coverage.out
+            backend/coverage-summary.txt
+            backend/coverage.html
+          if-no-files-found: ignore
+          retention-days: 14
 
       - name: Schema drift check
         working-directory: backend
@@ -141,7 +225,8 @@ jobs:
         run: go test ./internal/model/ -run TestSchemaDrift -v
 
   # ──────────────────────────────────────────────
-  # Frontend: build + lint
+  # Frontend: build + test（STG 退行検知）
+  # type-check / ESLint / knip / design CTA はローカル必須: make ci
   # ──────────────────────────────────────────────
   frontend:
     name: Frontend
@@ -151,7 +236,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6.0.2
+        uses: actions/checkout@v7.0.0
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v6
@@ -167,25 +252,90 @@ jobs:
         working-directory: frontend
         run: pnpm install
 
+      # 2026-07-15: npm がレガシー audit エンドポイント（/-/npm/v1/security/audits）を廃止し
+      # 410 Gone を返すようになった影響で、pnpm audit 自体が ERR_PNPM_AUDIT_BAD_RESPONSE で
+      # 早期 exit 1 していた。レジストリ側の一時的な非対応は依存関係の脆弱性検出とは
+      # 無関係のため、このエラーシグネチャに限り non-fatal な warning に留める。
+      # それ以外の失敗（実際の脆弱性検出含む）は従来どおり fail させる。
       - name: Audit frontend dependencies
         working-directory: frontend
-        run: pnpm audit --audit-level moderate
+        run: |
+          set +e
+          audit_output=$(pnpm audit --audit-level moderate 2>&1)
+          audit_exit=$?
+          set -e
+          echo "$audit_output"
+          if [ $audit_exit -ne 0 ]; then
+            if echo "$audit_output" | grep -q "ERR_PNPM_AUDIT_BAD_RESPONSE"; then
+              echo "::warning::pnpm audit unavailable — npm's legacy audit endpoint was retired (HTTP 410). Treating as non-blocking; verify dependencies manually until pnpm supports the new bulk-advisory endpoint."
+            else
+              exit $audit_exit
+            fi
+          fi
 
-      - name: Type check
-        working-directory: frontend
-        run: pnpm run type-check
-
-      - name: Test
-        working-directory: frontend
-        run: pnpm run test:run
-
-      - name: Lint
-        working-directory: frontend
-        run: pnpm run lint
-
+      # 静的 lint / design CTA は CI 必須ゲートから外し make ci に寄せた
+      # （STG 保護の薄いゲート = build + test + coverage ratchet）。
       - name: Build
         working-directory: frontend
         run: pnpm run build
+
+      # 非ゲートのカバレッジ可視化: vite.config.ts には coverage.thresholds 未設定のため、
+      # --coverage はレポート生成のみで低カバレッジによる fail は起きない。テストの合否は従来どおり。
+      - name: Test (with coverage)
+        working-directory: frontend
+        run: pnpm run test:coverage
+
+      # FE-refactor.md R-F5 / coverage-policy.md Phase 1: カバレッジ ratchet。
+      # Build は本ステップより前に実行済みのため、ratchet が fail しても Build 退行はマスクされない
+      # （backend job の Build→Test→ratchet と同じ順序。feedback_ci_step_order_masks_lint 対策）。
+      - name: Coverage ratchet
+        working-directory: frontend
+        run: |
+          if [ -f coverage/coverage-summary.json ]; then
+            node scripts/coverage-ratchet.mjs --summary coverage/coverage-summary.json --baseline .coverage-baseline | tee -a "$GITHUB_STEP_SUMMARY"
+          else
+            echo "coverage/coverage-summary.json not produced; skipping ratchet."
+          fi
+
+      - name: Upload frontend coverage artifact
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: frontend-coverage
+          path: frontend/coverage
+          if-no-files-found: ignore
+          retention-days: 14
+
+  # ──────────────────────────────────────────────
+  # G10-6: backend/worker/*.ts (Cloudflare Worker の migrate 認証・レスポンス整形ロジック)
+  # の unit test。crypto.subtle.timingSafeEqual の実挙動を検証するため vitest-pool-workers
+  # (workerd ランタイム) 上で実行する — 素の Node vitest では当該 API が存在しない。
+  # ──────────────────────────────────────────────
+  worker:
+    name: Worker Tests
+    needs: changes
+    if: needs.changes.outputs.worker == 'true'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7.0.0
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Install root dependencies
+        run: pnpm install
+
+      - name: Run worker tests
+        run: pnpm run test:worker
 
   # ──────────────────────────────────────────────
   # Codegen: Go model → TypeScript 型の同期チェック
@@ -198,7 +348,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6.0.2
+        uses: actions/checkout@v7.0.0
 
       - name: Setup Go
         uses: actions/setup-go@v6
@@ -210,9 +360,12 @@ jobs:
         working-directory: backend
         run: |
           mkdir -p "$GITHUB_WORKSPACE/tygo-output"
-          sed 's|/output/models.ts|'"$GITHUB_WORKSPACE"'/tygo-output/models.ts|' tygo.yaml > tygo-ci.yaml
-          go run github.com/gzuidhof/tygo@latest generate --config tygo-ci.yaml
+          # FE6-5: handler-responses.ts（MeResponse 等）を追加生成するため sed を2置換に拡張。
+          sed -e 's|/output/models.ts|'"$GITHUB_WORKSPACE"'/tygo-output/models.ts|' -e 's|/output/handler-responses.ts|'"$GITHUB_WORKSPACE"'/tygo-output/handler-responses.ts|' tygo.yaml > tygo-ci.yaml
+          # FE6-1: tygo@latest は生成物の再現性を損なうため具体バージョンに pin（現行安定版 v0.2.21）。
+          go run github.com/gzuidhof/tygo@v0.2.21 generate --config tygo-ci.yaml
           cp "$GITHUB_WORKSPACE/tygo-output/models.ts" ../frontend/src/types/generated/models.ts
+          cp "$GITHUB_WORKSPACE/tygo-output/handler-responses.ts" ../frontend/src/types/generated/handler-responses.ts
 
       - name: Check for drift
         run: |
@@ -249,7 +402,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6.0.2
+        uses: actions/checkout@v7.0.0
 
       - name: Apply migrations
         env:

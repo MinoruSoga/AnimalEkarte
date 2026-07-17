@@ -35,6 +35,23 @@ func (s *ownerService) GetByIDForClinics(ctx context.Context, clinicIDs []uint64
 	return owner, nil
 }
 
+// validateOwnerPetsInsuranceOwnership は同時作成する各ペットの InsuranceID
+// (nested, request-derived master FK) が呼び出し元 clinic に属することを検証する
+// (X-14 U5)。petService.Create/Update と同型の FindByID ガード。nil InsuranceID
+// はスキップする。
+func (s *ownerService) validateOwnerPetsInsuranceOwnership(ctx context.Context, clinicID uint64, pets []CreatePetForOwnerInput) error {
+	for i := range pets {
+		pet := &pets[i]
+		if pet.InsuranceID == nil {
+			continue
+		}
+		if _, err := s.insuranceRepo.FindByID(ctx, clinicID, *pet.InsuranceID); err != nil {
+			return apperrors.WrapInvalidInput("insurance not found in this clinic")
+		}
+	}
+	return nil
+}
+
 func (s *ownerService) CreateWithPets(ctx context.Context, clinicID uint64, input *CreateOwnerInput) (*model.Owner, error) {
 	if err := validateCreateOwnerInput(input); err != nil {
 		return nil, err
@@ -44,6 +61,10 @@ func (s *ownerService) CreateWithPets(ctx context.Context, clinicID uint64, inpu
 		return nil, err
 	}
 	if err := s.ensureOwnerPhoneUnique(ctx, clinicID, 0, input.Phone); err != nil {
+		return nil, err
+	}
+
+	if err := s.validateOwnerPetsInsuranceOwnership(ctx, clinicID, input.Pets); err != nil {
 		return nil, err
 	}
 

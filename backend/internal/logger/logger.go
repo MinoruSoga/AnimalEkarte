@@ -4,10 +4,16 @@ import (
 	"io"
 	"log/slog"
 	"os"
+	"sync"
 )
 
 // Logger はアプリケーション全体で使用するロガー
 var defaultLogger *slog.Logger
+
+// fallbackOnce は Default() が Init() 未実行時に行うフォールバック初期化を保護する。
+// 全エントリポイントは main で Init 済みのため実害は理論値だが、
+// 非同期 read/write の -race 検出クラスを残さない（BE-refactor.md B-4）。
+var fallbackOnce sync.Once
 
 // Config はロガーの設定
 type Config struct {
@@ -46,9 +52,13 @@ func Init(cfg Config) {
 
 // Default はデフォルトロガーを返す
 func Default() *slog.Logger {
-	if defaultLogger == nil {
-		Init(DefaultConfig())
-	}
+	// defaultLogger への読み書きは sync.Once の外側で行わない
+	// （Once.Do() の外の nil チェックは write と競合し -race を誘発する）。
+	fallbackOnce.Do(func() {
+		if defaultLogger == nil {
+			Init(DefaultConfig())
+		}
+	})
 	return defaultLogger
 }
 

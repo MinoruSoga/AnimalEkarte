@@ -89,7 +89,7 @@ func (r *campaignRepository) Update(ctx context.Context, clinicID, id uint64, fi
 // ReplaceTargets は campaign の対象カテゴリ・対象商品を全削除→再作成で差し替える。
 // 呼び出し側(service)で campaign の所有(clinic_id)を確認済みであること。
 func (r *campaignRepository) ReplaceTargets(ctx context.Context, campaignID uint64, categories []model.ItemCategory, itemIDs []uint64) error {
-	if err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	if err := dbOrTx(ctx, r.db).Transaction(func(tx *gorm.DB) error {
 		if err := tx.Where("campaign_id = ?", campaignID).Delete(&model.CampaignTargetCategory{}).Error; err != nil {
 			return apperrors.FromGORM(err, "campaign_target_category", "")
 		}

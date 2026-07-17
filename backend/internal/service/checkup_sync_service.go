@@ -110,12 +110,13 @@ type CheckupSyncService interface {
 }
 
 type checkupSyncService struct {
-	repo         repository.CheckupSyncRepository
-	ownerRepo    repository.OwnerRepository
-	petRepo      repository.PetRepository
-	tagCacheRepo repository.LstepTagCacheRepository
-	settingsSvc  LstepSettingsService
-	auditSvc     AuditService
+	repo          repository.CheckupSyncRepository
+	ownerRepo     repository.OwnerRepository
+	petRepo       repository.PetRepository
+	tagCacheRepo  repository.LstepTagCacheRepository
+	settingsSvc   LstepSettingsService
+	auditSvc      AuditService
+	buildClientFn func(ctx context.Context, clinicID uint64) (lstep.Client, error) // テスト注入用
 }
 
 // NewCheckupSyncService は CheckupSyncService を初期化して返す。
@@ -139,6 +140,9 @@ func NewCheckupSyncService(
 }
 
 func (s *checkupSyncService) buildClient(ctx context.Context, clinicID uint64) (lstep.Client, error) {
+	if s.buildClientFn != nil {
+		return s.buildClientFn(ctx, clinicID)
+	}
 	enabled, err := s.settingsSvc.IsSyncEnabled(ctx, clinicID)
 	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to check lstep sync enabled")

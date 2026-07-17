@@ -52,8 +52,8 @@ func (r *staffRepository) FindAll(ctx context.Context, clinicID uint64, page, li
 	}
 	if err := buildBase().
 		Preload("Account", "deleted_at IS NULL").
-		Preload("Occupation", "deleted_at IS NULL").
-		Offset((page - 1) * limit).Limit(limit).
+		Preload("Occupation", "clinic_id = ? AND deleted_at IS NULL", clinicID).
+		Scopes(paginate(page, limit)).
 		Order("staffs.sort_order ASC, staffs.name ASC").
 		Distinct("staffs.*").
 		Find(&staffs).Error; err != nil {

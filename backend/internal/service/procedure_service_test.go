@@ -67,6 +67,81 @@ func (m *mockProcedureRepository) CountChildrenByParentID(ctx context.Context, c
 
 // ---- Tests ----
 
+func TestBuildProcedureUpdate(t *testing.T) {
+	name := "処置A"
+	price := int64(3000)
+	isActive := true
+	description := "説明"
+	duration := 30
+	anesthesia := string(model.AnesthesiaTypeLocal)
+	parentID := uint64(5)
+	sortOrder := 2
+	taxType := string(model.TaxTypeIncluded)
+	taxRate := 0.08
+
+	tests := []struct {
+		name       string
+		input      *UpdateProcedureInput
+		wantFields map[string]any
+	}{
+		{
+			name:       "empty input produces empty fields",
+			input:      &UpdateProcedureInput{},
+			wantFields: map[string]any{},
+		},
+		{
+			name: "all fields set produces full field map",
+			input: &UpdateProcedureInput{
+				Name:        &name,
+				Price:       &price,
+				IsActive:    &isActive,
+				Description: &description,
+				Duration:    &duration,
+				Anesthesia:  &anesthesia,
+				ParentID:    &parentID,
+				SortOrder:   &sortOrder,
+				TaxType:     &taxType,
+				TaxRate:     &taxRate,
+			},
+			wantFields: map[string]any{
+				colProcedureName:        name,
+				colProcedurePrice:       price,
+				colProcedureIsActive:    isActive,
+				colProcedureDescription: description,
+				colProcedureDuration:    duration,
+				colProcedureAnesthesia:  model.AnesthesiaType(anesthesia),
+				colProcedureParentID:    parentID,
+				colProcedureSortOrder:   sortOrder,
+				colProcedureTaxType:     model.TaxType(taxType),
+				colProcedureTaxRate:     taxRate,
+			},
+		},
+		{
+			name: "ClearParentID clears parent_id to nil",
+			input: &UpdateProcedureInput{
+				ClearParentID: true,
+			},
+			wantFields: map[string]any{
+				colProcedureParentID: nil,
+			},
+		},
+		{
+			name: "only name set produces single field",
+			input: &UpdateProcedureInput{
+				Name: &name,
+			},
+			wantFields: map[string]any{colProcedureName: name},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := buildProcedureUpdate(tt.input)
+			assert.Equal(t, tt.wantFields, got)
+		})
+	}
+}
+
 func TestProcedureService_List(t *testing.T) {
 	tests := []struct {
 		name           string
@@ -205,6 +280,48 @@ func TestProcedureService_Create(t *testing.T) {
 			repoErr: errors.New("db error"),
 			wantErr: true,
 		},
+		{
+			name: "returns validation error when name is empty",
+			input: &CreateProcedureInput{
+				Name: "",
+			},
+			wantErr: true,
+		},
+		{
+			name: "returns validation error when price is negative",
+			input: &CreateProcedureInput{
+				Name:  "Negative Price Procedure",
+				Price: func(v int64) *int64 { return &v }(-100),
+			},
+			wantErr: true,
+		},
+		{
+			name: "returns validation error when anesthesia type is invalid",
+			input: &CreateProcedureInput{
+				Name:       "Invalid Anesthesia Procedure",
+				Anesthesia: "invalid_type",
+			},
+			wantErr: true,
+		},
+		{
+			name: "returns validation error when tax type is invalid",
+			input: &CreateProcedureInput{
+				Name:    "Invalid Tax Procedure",
+				TaxType: "invalid_tax",
+			},
+			wantErr: true,
+		},
+		{
+			name: "creates procedure with anesthesia, parent and custom tax settings",
+			input: &CreateProcedureInput{
+				Name:       "Full Option Procedure",
+				Anesthesia: string(model.AnesthesiaTypeGeneral),
+				ParentID:   func(v uint64) *uint64 { return &v }(7),
+				TaxType:    string(model.TaxTypeIncluded),
+				TaxRate:    func(v float64) *float64 { return &v }(0.08),
+			},
+			wantErr: false,
+		},
 	}
 
 	for _, tt := range tests {
@@ -212,6 +329,9 @@ func TestProcedureService_Create(t *testing.T) {
 			repo := &mockProcedureRepository{
 				createFn: func(_ context.Context, _ *model.Procedure) error {
 					return tt.repoErr
+				},
+				findByIDFn: func(_ context.Context, _, id uint64) (*model.Procedure, error) {
+					return &model.Procedure{ID: id}, nil
 				},
 			}
 			svc := NewProcedureService(repo)
@@ -233,11 +353,12 @@ func TestProcedureService_Update(t *testing.T) {
 	name := "Updated Procedure"
 	isActive := false
 	tests := []struct {
-		name    string
-		input   UpdateProcedureInput
-		repoErr error
-		wantErr bool
-		wantNF  bool
+		name        string
+		input       UpdateProcedureInput
+		repoErr     error
+		findByIDErr error
+		wantErr     bool
+		wantNF      bool
 	}{
 		{
 			name: "updates procedure successfully",
@@ -271,12 +392,52 @@ func TestProcedureService_Update(t *testing.T) {
 			repoErr: errors.New("db error"),
 			wantErr: true,
 		},
+		{
+			name: "returns error when FindByID fails before update",
+			input: UpdateProcedureInput{
+				Name: &name,
+			},
+			findByIDErr: apperrors.WrapNotFound("procedure", "999"),
+			wantErr:     true,
+			wantNF:      true,
+		},
+		{
+			name: "returns validation error when name is whitespace only",
+			input: UpdateProcedureInput{
+				Name: func(s string) *string { return &s }("   "),
+			},
+			wantErr: true,
+		},
+		{
+			name: "returns validation error when price is negative",
+			input: UpdateProcedureInput{
+				Price: func(v int64) *int64 { return &v }(-500),
+			},
+			wantErr: true,
+		},
+		{
+			name: "returns validation error when anesthesia type is invalid",
+			input: UpdateProcedureInput{
+				Anesthesia: func(s string) *string { return &s }("bogus"),
+			},
+			wantErr: true,
+		},
+		{
+			name: "returns validation error when tax type is invalid",
+			input: UpdateProcedureInput{
+				TaxType: func(s string) *string { return &s }("bogus_tax"),
+			},
+			wantErr: true,
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockProcedureRepository{
 				findByIDFn: func(_ context.Context, _, id uint64) (*model.Procedure, error) {
+					if tt.findByIDErr != nil {
+						return nil, tt.findByIDErr
+					}
 					return &model.Procedure{ID: id}, nil
 				},
 				updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Procedure, error) {

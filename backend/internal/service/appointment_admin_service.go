@@ -46,18 +46,6 @@ type reservationAdminService struct {
 	availableSlotRepo    repository.ReservationTypeAvailableSlotRepository
 }
 
-func NewReservationAdminService(repo repository.ReservationAdminRepository, resRepo repository.ReservationRepository, tx repository.Transactor, reservationStaffRepo ...repository.ReservationStaffRepository) ReservationAdminService {
-	var staffRepo repository.ReservationStaffRepository
-	if len(reservationStaffRepo) > 0 {
-		staffRepo = reservationStaffRepo[0]
-	}
-	return &reservationAdminService{repo: repo, resRepo: resRepo, tx: tx, reservationStaffRepo: staffRepo}
-}
-
-func NewReservationAdminServiceWithAvailability(repo repository.ReservationAdminRepository, resRepo repository.ReservationRepository, tx repository.Transactor, reservationStaffRepo repository.ReservationStaffRepository, unavailableTimeRepo repository.ReservationTypeUnavailableTimeRepository, availableSlotRepo ...repository.ReservationTypeAvailableSlotRepository) ReservationAdminService {
-	return NewReservationAdminServiceWithAvailabilityAndType(repo, resRepo, nil, tx, reservationStaffRepo, unavailableTimeRepo, availableSlotRepo...)
-}
-
 func NewReservationAdminServiceWithAvailabilityAndType(repo repository.ReservationAdminRepository, resRepo repository.ReservationRepository, typeRepo reservationTypeFinder, tx repository.Transactor, reservationStaffRepo repository.ReservationStaffRepository, unavailableTimeRepo repository.ReservationTypeUnavailableTimeRepository, availableSlotRepo ...repository.ReservationTypeAvailableSlotRepository) ReservationAdminService {
 	var slotRepo repository.ReservationTypeAvailableSlotRepository
 	if len(availableSlotRepo) > 0 {
@@ -118,6 +106,14 @@ func (s *reservationAdminService) Create(ctx context.Context, clinicID uint64, i
 
 	var result *model.Reservation
 	err := s.tx.WithTx(ctx, func(ctx context.Context) error {
+		if err := validateReservationOwnerPetLinks(ctx, s.resRepo, clinicID, input.OwnerID, input.PetID); err != nil {
+			return err
+		}
+		if input.LineCustomerID != nil {
+			if err := s.resRepo.AssertLineCustomerInClinic(ctx, clinicID, *input.LineCustomerID); err != nil {
+				return apperrors.Wrap(err, "failed to verify line customer ownership")
+			}
+		}
 		if err := checkSlotConflict(ctx, s.resRepo, clinicID, input.DoctorID, input.StartTime, input.EndTime, nil); err != nil {
 			return apperrors.Wrap(err, "failed to check slot conflict")
 		}

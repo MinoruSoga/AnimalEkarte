@@ -43,12 +43,7 @@ func (r *reservationTypeLiffRepository) FindAll(ctx context.Context, clinicID ui
 }
 
 func (r *reservationTypeLiffRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.ReservationType, error) {
-	var st model.ReservationType
-	err := r.db.WithContext(ctx).Scopes(clinicScope(clinicID)).Where("id = ?", id).First(&st).Error
-	if err != nil {
-		return nil, apperrors.FromGORM(err, "reservation_type_liff", fmt.Sprintf("%d", id))
-	}
-	return &st, nil
+	return findByIDScoped[model.ReservationType](ctx, r.db, "reservation_type_liff", clinicID, id)
 }
 
 func (r *reservationTypeLiffRepository) CountChildrenByParentID(ctx context.Context, clinicID, parentID uint64) (int64, error) {
@@ -71,15 +66,8 @@ func (r *reservationTypeLiffRepository) Create(ctx context.Context, st *model.Re
 }
 
 func (r *reservationTypeLiffRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.ReservationType, error) {
-	result := r.db.WithContext(ctx).
-		Model(&model.ReservationType{}).
-		Scopes(clinicScope(clinicID)).Where("id = ?", id).
-		Updates(fields)
-	if result.Error != nil {
-		return nil, apperrors.FromGORM(result.Error, "reservation_type_liff", fmt.Sprintf("%d", id))
-	}
-	if result.RowsAffected == 0 {
-		return nil, apperrors.WrapNotFound("reservation_type_liff", fmt.Sprintf("%d", id))
+	if err := updateScopedByID(ctx, r.db, &model.ReservationType{}, "reservation_type_liff", clinicID, id, fields); err != nil {
+		return nil, err
 	}
 	return r.FindByID(ctx, clinicID, id)
 }
@@ -101,7 +89,7 @@ func (r *reservationTypeLiffRepository) Delete(ctx context.Context, clinicID, id
 }
 
 func (r *reservationTypeLiffRepository) UpdateSortOrder(ctx context.Context, clinicID, id uint64, direction string) error {
-	if err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	if err := dbOrTx(ctx, r.db).Transaction(func(tx *gorm.DB) error {
 		var target model.ReservationType
 		if err := tx.Scopes(clinicScope(clinicID)).Where("id = ?", id).First(&target).Error; err != nil {
 			return apperrors.FromGORM(err, "reservation_type_liff", fmt.Sprintf("%d", id))

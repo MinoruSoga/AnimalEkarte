@@ -3,6 +3,7 @@ import { toast } from "sonner";
 import { axios } from "@/lib/axios";
 import { getStoredClinicId } from "@/lib/current-clinic";
 import { handleApiError } from "@/lib/handle-api-error";
+import { queryKeys } from "@/lib/query-keys";
 import type { Owner } from "@/types/owner";
 import { transformOwner, type OwnerApiResponse } from "./transforms";
 
@@ -35,9 +36,9 @@ export function useUpdateOwnerDeliveryExclusion(ownerId: string) {
       return updateOwnerDeliveryExclusion(clinicId, ownerId, body);
     },
     onSuccess: (owner, variables) => {
-      queryClient.setQueryData(["owners", ownerId], owner);
-      queryClient.invalidateQueries({ queryKey: ["owners", ownerId] });
-      queryClient.invalidateQueries({ queryKey: ["owner-line-tags", ownerId] });
+      queryClient.setQueryData(queryKeys.owners.detail(ownerId), owner);
+      queryClient.invalidateQueries({ queryKey: queryKeys.owners.detail(ownerId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.ownerLineTags(ownerId) });
       toast.success(variables.excluded ? "配信を除外しました" : "配信除外を解除しました");
     },
     onError: (error) => {

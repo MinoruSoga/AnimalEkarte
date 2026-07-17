@@ -1,0 +1,51 @@
+{
+  // Run Everything: 全ツールを承認なしで実行（Cursor Settings > Agents と同期）
+  // https://cursor.com/docs/reference/permissions
+  "approvalMode": "unrestricted",
+  "mcpAllowlist": ["*:*"],
+  "terminalAllowlist": [
+    "git",
+    "docker",
+    "docker compose",
+    "make",
+    "gh",
+    "bash",
+    "sh",
+    "node",
+    "npm",
+    "pnpm",
+    "yarn",
+    "python",
+    "python3",
+    "go",
+    "cargo",
+    "curl",
+    "wget",
+    "cat",
+    "ls",
+    "mkdir",
+    "chmod",
+    "test",
+    "rg",
+    "grep",
+    "find",
+    "wc",
+    "head",
+    "tail",
+    "sed",
+    "awk",
+    "echo",
+    "printf",
+    "tee",
+    "xargs"
+  ],
+  "autoRun": {
+    "allow_instructions": [
+      "Allow all standard local development shell commands without approval.",
+      "Allow git commit, git add, git push, and git status when the user requested version control work."
+    ],
+    "block_instructions": [
+      "Block git commit only when .env.staging or other obvious secret files are staged."
+    ]
+  }
+}

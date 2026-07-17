@@ -17,8 +17,8 @@ func (s *staffService) GetPermissionGroupIDs(ctx context.Context, staffID uint64
 }
 
 // SetPermissionGroupIDs はスタッフの権限グループを全置換する
-func (s *staffService) SetPermissionGroupIDs(ctx context.Context, staffID uint64, groupIDs []uint64) error {
-	if err := s.permissionGroupRepo.UpdateStaffGroups(ctx, staffID, groupIDs); err != nil {
+func (s *staffService) SetPermissionGroupIDs(ctx context.Context, clinicID, staffID uint64, groupIDs []uint64) error {
+	if err := s.permissionGroupRepo.UpdateStaffGroups(ctx, clinicID, staffID, groupIDs); err != nil {
 		slog.ErrorContext(ctx, "failed to set permission group ids", "error", err, "id", staffID)
 		return apperrors.Wrap(err, "failed to set permission group ids")
 	}
@@ -40,8 +40,8 @@ func (s *staffService) GetExcludedReservationTypeIDs(ctx context.Context, staffI
 }
 
 // SetExcludedReservationTypeIDs はスタッフの除外サービス種別を全置換する
-func (s *staffService) SetExcludedReservationTypeIDs(ctx context.Context, staffID uint64, typeIDs []uint64) error {
-	if err := s.resStaffRepo.UpdateExcludedReservationTypes(ctx, staffID, typeIDs); err != nil {
+func (s *staffService) SetExcludedReservationTypeIDs(ctx context.Context, clinicID, staffID uint64, typeIDs []uint64) error {
+	if err := s.resStaffRepo.UpdateExcludedReservationTypes(ctx, clinicID, staffID, typeIDs); err != nil {
 		slog.ErrorContext(ctx, "failed to set excluded service type ids", "error", err, "id", staffID)
 		return apperrors.Wrap(err, "failed to set excluded service type ids")
 	}

@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { Reservation } from "../types";
 import { ReservationDetailModal } from "./ReservationDetailModal";
 
-vi.mock("@/features/owners", () => ({
+vi.mock("@/hooks/use-owner-line-tags", () => ({
   useGetOwnerLineTags: () => ({ data: undefined }),
 }));
 

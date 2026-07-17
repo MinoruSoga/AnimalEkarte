@@ -46,4 +46,24 @@ export class MedicalRecordsPage extends BasePage {
   saveButton(): Locator {
     return this.page.getByRole('button', { name: '保存' });
   }
+
+  // ---- B-1 follow-up: server pagination / sort / filter (AC-3) ----
+
+  /** ページネーションの「2」ページ番号ボタン。 */
+  pageButton(page: number): Locator {
+    return this.page.getByRole('button', { name: String(page), exact: true });
+  }
+
+  /** SortableHeader の `aria-label="{label}でソート"` に対応する列ヘッダボタン。 */
+  sortHeader(label: '診療日' | '飼主名' | 'ペット名' | 'ステータス'): Locator {
+    return this.page.getByRole('button', { name: `${label}でソート` });
+  }
+
+  filterAddButton(): Locator {
+    return this.page.getByRole('button', { name: 'フィルタを追加' });
+  }
+
+  filterRemoveButton(propertyLabel: string): Locator {
+    return this.page.getByRole('button', { name: `${propertyLabel} フィルタを削除` });
+  }
 }

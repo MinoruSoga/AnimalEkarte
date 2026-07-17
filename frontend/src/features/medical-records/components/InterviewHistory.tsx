@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { C, LAYOUT, ICON } from "@/lib/design-tokens";
+import { EmptyState } from "@/components/shared/DataStates";
 import { normalizedIncludes } from "@/lib/normalize-kana";
 import type { InterviewHistoryItem } from "../types";
 
@@ -68,8 +69,18 @@ export const InterviewHistory = memo(function InterviewHistory({
             return (
               <div
                 key={item.id}
+                role="button"
+                tabIndex={0}
+                aria-expanded={isExpanded}
                 className={`p-3 transition-colors group cursor-pointer ${isExpanded ? C.bgPage30 : C.hoverBgPageHalf}`}
                 onClick={() => toggleExpand(item.id)}
+                onKeyDown={(e) => {
+                  if (e.target !== e.currentTarget) return;
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    toggleExpand(item.id);
+                  }
+                }}
               >
                 <div className="flex items-start justify-between mb-1">
                   <div className="flex items-center gap-2">
@@ -126,9 +137,7 @@ export const InterviewHistory = memo(function InterviewHistory({
             );
           })}
           {filteredItems.length === 0 ? (
-            <div className={`p-4 text-center text-sm ${C.text60}`}>
-              該当するカルテはありません
-            </div>
+            <EmptyState message="該当するカルテはありません" />
           ) : null}
         </div>
       </ScrollArea>

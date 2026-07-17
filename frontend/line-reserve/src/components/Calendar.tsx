@@ -1,6 +1,6 @@
 import { useState, useCallback, useMemo } from 'react';
 import type { AvailableDate } from '../types/models';
-import { addDaysISO, getJSTToday, parseISODate } from '../lib/jst-date';
+import { addDaysISO, getJSTToday, parseISODate } from '@/shared-liff/jst-date';
 
 interface CalendarProps {
   availableDates: AvailableDate[];

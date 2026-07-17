@@ -13,12 +13,14 @@ import (
 
 // mockExamTypeRepository は ExamTypeRepository のテスト用モック実装
 type mockExamTypeRepository struct {
-	findAllFn                func(ctx context.Context, clinicID uint64) ([]model.ExaminationType, error)
-	findByIDFn               func(ctx context.Context, clinicID, id uint64) (*model.ExaminationType, error)
-	createFn                 func(ctx context.Context, exType *model.ExaminationType) error
-	updateFieldsFn           func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.ExaminationType, error)
-	deleteFn                 func(ctx context.Context, clinicID, id uint64) error
-	countUsageByExamTypeIDFn func(ctx context.Context, clinicID, examTypeID uint64) (int64, error)
+	findAllFn                 func(ctx context.Context, clinicID uint64) ([]model.ExaminationType, error)
+	findByIDFn                func(ctx context.Context, clinicID, id uint64) (*model.ExaminationType, error)
+	createFn                  func(ctx context.Context, exType *model.ExaminationType) error
+	updateFieldsFn            func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.ExaminationType, error)
+	deleteFn                  func(ctx context.Context, clinicID, id uint64) error
+	reorderFn                 func(ctx context.Context, clinicID uint64, ids []uint64) error
+	countUsageByExamTypeIDFn  func(ctx context.Context, clinicID, examTypeID uint64) (int64, error)
+	countChildrenByParentIDFn func(ctx context.Context, clinicID, parentID uint64) (int64, error)
 }
 
 func (m *mockExamTypeRepository) FindAll(ctx context.Context, clinicID uint64) ([]model.ExaminationType, error) {
@@ -46,6 +48,9 @@ func (m *mockExamTypeRepository) ReplaceItems(ctx context.Context, examTypeID ui
 }
 
 func (m *mockExamTypeRepository) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
+	if m.reorderFn != nil {
+		return m.reorderFn(ctx, clinicID, ids)
+	}
 	return nil
 }
 
@@ -56,8 +61,11 @@ func (m *mockExamTypeRepository) CountUsageByExamTypeID(ctx context.Context, cli
 	return m.countUsageByExamTypeIDFn(ctx, clinicID, examTypeID)
 }
 
-func (m *mockExamTypeRepository) CountChildrenByParentID(_ context.Context, _, _ uint64) (int64, error) {
-	return 0, nil
+func (m *mockExamTypeRepository) CountChildrenByParentID(ctx context.Context, clinicID, parentID uint64) (int64, error) {
+	if m.countChildrenByParentIDFn == nil {
+		return 0, nil
+	}
+	return m.countChildrenByParentIDFn(ctx, clinicID, parentID)
 }
 
 func TestExamTypeService_List(t *testing.T) {
@@ -236,6 +244,14 @@ func TestExamTypeService_Create(t *testing.T) {
 			repoErr: errors.New("db error"),
 			wantErr: true,
 		},
+		{
+			name: "rejects empty name",
+			input: &CreateExamTypeInput{
+				Name:     "",
+				IsActive: true,
+			},
+			wantErr: true,
+		},
 	}
 
 	for _, tt := range tests {
@@ -265,24 +281,25 @@ func TestExamTypeService_Create(t *testing.T) {
 
 func TestExamTypeService_Update(t *testing.T) {
 	name := "更新後検査種別"
+	emptyName := "   "
 	tests := []struct {
-		name    string
-		input   UpdateExamTypeInput
-		repoErr error
-		wantErr bool
+		name        string
+		input       UpdateExamTypeInput
+		findByIDErr error
+		updateErr   error
+		wantErr     bool
+		wantNF      bool
 	}{
 		{
 			name: "updates exam type successfully",
 			input: UpdateExamTypeInput{
 				Name: &name,
 			},
-			repoErr: nil,
 			wantErr: false,
 		},
 		{
 			name:    "returns error when no fields provided",
 			input:   UpdateExamTypeInput{},
-			repoErr: nil,
 			wantErr: true,
 		},
 		{
@@ -290,15 +307,23 @@ func TestExamTypeService_Update(t *testing.T) {
 			input: UpdateExamTypeInput{
 				Name: &name,
 			},
-			repoErr: apperrors.WrapNotFound("exam_type", "999"),
-			wantErr: true,
+			findByIDErr: apperrors.WrapNotFound("exam_type", "999"),
+			wantErr:     true,
+			wantNF:      true,
 		},
 		{
 			name: "returns error on repository failure",
 			input: UpdateExamTypeInput{
 				Name: &name,
 			},
-			repoErr: errors.New("db error"),
+			updateErr: errors.New("db error"),
+			wantErr:   true,
+		},
+		{
+			name: "rejects blank name",
+			input: UpdateExamTypeInput{
+				Name: &emptyName,
+			},
 			wantErr: true,
 		},
 	}
@@ -307,14 +332,14 @@ func TestExamTypeService_Update(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockExamTypeRepository{
 				findByIDFn: func(_ context.Context, _, _ uint64) (*model.ExaminationType, error) {
-					if tt.repoErr != nil {
-						return nil, tt.repoErr
+					if tt.findByIDErr != nil {
+						return nil, tt.findByIDErr
 					}
 					return &model.ExaminationType{ID: 1}, nil
 				},
 				updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.ExaminationType, error) {
-					if tt.repoErr != nil {
-						return nil, tt.repoErr
+					if tt.updateErr != nil {
+						return nil, tt.updateErr
 					}
 					return &model.ExaminationType{ID: 1}, nil
 				},
@@ -326,6 +351,9 @@ func TestExamTypeService_Update(t *testing.T) {
 			if tt.wantErr {
 				assert.Error(t, err)
 				assert.Nil(t, exType)
+				if tt.wantNF {
+					assert.True(t, apperrors.IsNotFound(err))
+				}
 			} else {
 				assert.NoError(t, err)
 				assert.NotNil(t, exType)
@@ -367,6 +395,8 @@ func TestExamTypeService_Delete(t *testing.T) {
 		name          string
 		id            uint64
 		findByIDErr   error
+		childCount    int64
+		countChildErr error
 		usageCount    int64
 		countUsageErr error
 		repoErr       error
@@ -414,6 +444,19 @@ func TestExamTypeService_Delete(t *testing.T) {
 			repoErr:       errors.New("db error"),
 			wantErr:       true,
 		},
+		{
+			name:         "returns conflict error when exam type has sub types",
+			id:           1,
+			childCount:   1,
+			wantErr:      true,
+			wantConflict: true,
+		},
+		{
+			name:          "returns error when child count check fails",
+			id:            1,
+			countChildErr: errors.New("db error"),
+			wantErr:       true,
+		},
 	}
 
 	for _, tt := range tests {
@@ -424,6 +467,9 @@ func TestExamTypeService_Delete(t *testing.T) {
 						return nil, tt.findByIDErr
 					}
 					return &model.ExaminationType{ID: id}, nil
+				},
+				countChildrenByParentIDFn: func(_ context.Context, _, _ uint64) (int64, error) {
+					return tt.childCount, tt.countChildErr
 				},
 				countUsageByExamTypeIDFn: func(_ context.Context, _, _ uint64) (int64, error) {
 					return tt.usageCount, tt.countUsageErr
@@ -449,4 +495,99 @@ func TestExamTypeService_Delete(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestExamTypeService_Reorder(t *testing.T) {
+	tests := []struct {
+		name    string
+		ids     []uint64
+		repoErr error
+		wantErr bool
+	}{
+		{
+			name:    "reorders successfully",
+			ids:     []uint64{3, 1, 2},
+			repoErr: nil,
+			wantErr: false,
+		},
+		{
+			name:    "returns invalid input when ids is empty",
+			ids:     []uint64{},
+			wantErr: true,
+		},
+		{
+			name:    "returns error when id not in clinic",
+			ids:     []uint64{999},
+			repoErr: apperrors.WrapInvalidInput("exam_type id 999 not found in this clinic"),
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			repo := &mockExamTypeRepository{
+				reorderFn: func(_ context.Context, _ uint64, _ []uint64) error {
+					return tt.repoErr
+				},
+			}
+			svc := NewExamTypeService(repo)
+
+			err := svc.Reorder(context.Background(), 1, tt.ids)
+
+			if tt.wantErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
+
+func TestBuildExamTypeUpdate(t *testing.T) {
+	t.Run("returns empty map when all fields are nil", func(t *testing.T) {
+		fields := buildExamTypeUpdate(&UpdateExamTypeInput{})
+		assert.Empty(t, fields)
+	})
+
+	t.Run("includes all provided fields", func(t *testing.T) {
+		name := "更新後検査種別"
+		price := int64(2000)
+		isActive := true
+		desc := "説明"
+		parentID := uint64(3)
+		sortOrder := 2
+		isNonIns := true
+
+		input := &UpdateExamTypeInput{
+			Name:           &name,
+			Price:          &price,
+			IsActive:       &isActive,
+			Description:    &desc,
+			ParentID:       &parentID,
+			SortOrder:      &sortOrder,
+			IsNonInsurance: &isNonIns,
+		}
+		fields := buildExamTypeUpdate(input)
+
+		assert.Equal(t, name, fields[colExamTypeName])
+		assert.Equal(t, price, fields[colExamTypePrice])
+		assert.Equal(t, isActive, fields[colExamTypeIsActive])
+		assert.Equal(t, desc, fields[colExamTypeDescription])
+		assert.Equal(t, parentID, fields[colExamTypeParentID])
+		assert.Equal(t, sortOrder, fields[colExamTypeSortOrder])
+		assert.Equal(t, isNonIns, fields[colExamTypeIsNonInsurance])
+	})
+
+	t.Run("clears parent_id when ClearParentID is true", func(t *testing.T) {
+		input := &UpdateExamTypeInput{ClearParentID: true}
+		fields := buildExamTypeUpdate(input)
+		assert.Contains(t, fields, colExamTypeParentID)
+		assert.Nil(t, fields[colExamTypeParentID])
+	})
+
+	t.Run("omits parent_id when neither ParentID nor ClearParentID set", func(t *testing.T) {
+		input := &UpdateExamTypeInput{}
+		fields := buildExamTypeUpdate(input)
+		assert.NotContains(t, fields, colExamTypeParentID)
+	})
 }

@@ -56,12 +56,13 @@ process.stdin.on('end', () => {
       // Not JSON or no transcript_path — that's OK
     }
 
+    // Only Branch/Last commit/Transcript are actually read back by
+    // session-init.sh (`grep -E "^\*\*(Branch|Last commit)\*\*"`). Uncommitted
+    // Changes / Modified Files / Recent Commits were written every Stop but
+    // never consumed by anything — git already derives them on demand.
     const timestamp = new Date().toISOString();
     const branch = run('git branch --show-current');
-    const status = run('git status --short');
     const lastCommit = run('git log --oneline -1');
-    const recentCommits = run('git log --oneline -5');
-    const diffFiles = run('git diff --name-only');
 
     const lines = [
       `# Session Progress`,
@@ -75,15 +76,7 @@ process.stdin.on('end', () => {
       lines.push(`**Transcript:** ${transcriptPath}`);
     }
 
-    if (status) {
-      lines.push(``, `## Uncommitted Changes`, '```', status, '```');
-    }
-
-    if (diffFiles) {
-      lines.push(``, `## Modified Files`, '```', diffFiles, '```');
-    }
-
-    lines.push(``, `## Recent Commits`, '```', recentCommits, '```', '');
+    lines.push('');
 
     fs.writeFileSync(
       path.join(logsDir, 'session-progress.md'),

@@ -49,3 +49,23 @@ func (h *Handler) verifyStaffClinicMembership(c *gin.Context, clinicID, staffID 
 	}
 	return true
 }
+
+// resolveStaffWithClinic は staff 関連エンドポイント共通の前処理を集約する:
+// clinic_id 抽出 → :id パース → クリニック所属検証 を順に行う。いずれかが失敗した
+// 時点で各ヘルパー（extractClinicID=401 / parseIDParam=400 / verifyStaffClinicMembership=404）
+// が適切なエラー応答を書き、ok=false を返す。呼び出し元は ok==false で即 return すること。
+// 挙動は従来のインライン前処理と同一（短絡順序・各エラー応答を保存）。
+func (h *Handler) resolveStaffWithClinic(c *gin.Context) (clinicID, staffID uint64, ok bool) {
+	clinicID, ok = extractClinicID(c)
+	if !ok {
+		return 0, 0, false
+	}
+	staffID, ok = parseIDParam(c, "id")
+	if !ok {
+		return 0, 0, false
+	}
+	if !h.verifyStaffClinicMembership(c, clinicID, staffID) {
+		return 0, 0, false
+	}
+	return clinicID, staffID, true
+}

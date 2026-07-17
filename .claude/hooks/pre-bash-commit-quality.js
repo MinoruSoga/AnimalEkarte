@@ -6,13 +6,20 @@
  *  1. console.log / debugger statements in staged .ts/.tsx/.js/.jsx files
  *  2. Secret patterns (API keys, AWS keys, GitHub PATs, passwords)
  *  3. Commit message format validation (conventional commits)
+ *  4. Mirror sync: if .claude/skills, .claude/commands, or .claude/agents are
+ *     staged, regenerate .agents/skills and .codex/agents+commands so the
+ *     mirrors never silently drift from the source of truth again (#1/#2).
+ *     Disable with SYNC_MIRRORS_DISABLED=1. Failures block the commit and are
+ *     logged to .claude/logs/sync-mirrors.log (⑤ 鉄則: 停止手段/失敗通知/監査ログ).
  *
  * Exit code 2 = block the commit.
  * Exit code 0 = allow.
  */
 'use strict';
 
-const { execSync } = require('child_process');
+const { execSync, execFileSync } = require('child_process');
+const fs = require('fs');
+const path = require('path');
 
 const MAX_STDIN = 1024 * 1024;
 let data = '';
@@ -131,16 +138,68 @@ process.stdin.on('end', () => {
       }
     }
 
+    // --- 4. Mirror sync (regenerate .agents/ and .codex/agents+commands) ---
+    if (process.env.SYNC_MIRRORS_DISABLED !== '1') {
+      const mirrorTriggerFiles = stagedFiles.filter(
+        f => f.startsWith('.claude/skills/') || f.startsWith('.claude/commands/') || f.startsWith('.claude/agents/') || f.startsWith('.claude/rules/')
+      );
+      if (mirrorTriggerFiles.length > 0) {
+        const logPath = path.join(projectDir, '.claude', 'logs', 'sync-mirrors.log');
+        const logLine = (msg) => {
+          try {
+            fs.mkdirSync(path.dirname(logPath), { recursive: true });
+            fs.appendFileSync(logPath, `${new Date().toISOString()} ${msg}\n`);
+          } catch {
+            // logging is best-effort; never let it block the commit path itself
+          }
+        };
+        const scripts = [
+          ['.claude/scripts/sync-agents-skills.sh', 'bash'],
+          ['.claude/scripts/sync-codex-mirror.sh', 'bash'],
+        ];
+        let syncFailed = false;
+        for (const [rel, shell] of scripts) {
+          try {
+            const out = execFileSync(shell, [rel], {
+              cwd: projectDir,
+              encoding: 'utf8',
+              timeout: 30000,
+            });
+            logLine(`OK ${rel} (triggered by: ${mirrorTriggerFiles.join(', ')})\n${out.trim()}`);
+          } catch (err) {
+            syncFailed = true;
+            const out = (err.stdout || '') + (err.stderr || err.message || '');
+            logLine(`FAIL ${rel}: ${out.trim()}`);
+            issues.push(`[MIRROR-SYNC] ${rel} failed — see .claude/logs/sync-mirrors.log`);
+          }
+        }
+        // .agents/ and .codex/agents|commands are gitignored by design (local
+        // generated mirrors) — nothing to `git add`, the regeneration above is
+        // enough to keep the working tree in sync.
+      }
+    }
+
     // --- Report ---
     if (issues.length > 0) {
       const secrets = issues.filter(i => i.startsWith('[SECRET]'));
-      const others = issues.filter(i => !i.startsWith('[SECRET]'));
+      const syncFailures = issues.filter(i => i.startsWith('[MIRROR-SYNC]'));
+      const others = issues.filter(i => !i.startsWith('[SECRET]') && !i.startsWith('[MIRROR-SYNC]'));
 
       if (secrets.length > 0) {
         // Secrets are hard blocks
         process.stderr.write(`\n[Hook] BLOCKED: ${secrets.length} secret(s) detected in staged files:\n`);
         secrets.forEach(i => process.stderr.write(`  ${i}\n`));
         process.stderr.write('[Hook] Remove secrets before committing.\n\n');
+        process.stdout.write(data);
+        process.exit(2);
+      }
+
+      if (syncFailures.length > 0) {
+        // Mirror regeneration failing silently is exactly the failure mode this
+        // hook exists to prevent (#1) — hard block, don't just warn.
+        process.stderr.write(`\n[Hook] BLOCKED: mirror sync failed:\n`);
+        syncFailures.forEach(i => process.stderr.write(`  ${i}\n`));
+        process.stderr.write('[Hook] Fix the sync script or set SYNC_MIRRORS_DISABLED=1 to bypass intentionally.\n\n');
         process.stdout.write(data);
         process.exit(2);
       }

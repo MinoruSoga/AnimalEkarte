@@ -2,58 +2,17 @@
  * Accounting feature types (UI-facing: camelCase, string IDs)
  * Backend types: {@link Billing}, {@link BillingItem}, {@link Payment} from models.ts
  */
-import {
-  BillingStatusWaiting,
-  BillingStatusCompleted,
-  BillingStatusCancelled,
-  BillingStatusPending,
-  PaymentMethodCash,
-  PaymentMethodCreditCard,
-  PaymentMethodElectronicMoney,
-  PaymentMethodBankTransfer,
-  ItemCategoryExamination,
-  ItemCategoryTest,
-  ItemCategoryProcedure,
-  ItemCategorySurgery,
-  ItemCategoryMedicine,
-  ItemCategoryFood,
-  ItemCategoryGoods,
-  ItemCategoryOther,
-  ItemCategoryTrimming,
-  ItemCategoryVaccine,
-  ItemCategoryHotel,
-  ItemCategoryTraining,
+// FE6-3: tygo enum_style: "union"（FE6-1/FE6-2）により生成定数が真の literal union に
+// なったため、手書き union を生成型からの re-export へ移行した。drift テストは不要になり
+// union-drift.test.ts から削除済み。AccountingStatus は生成側の BillingStatus に対応する
+// （FE4-1 当時から名称が分岐していたため as で明示的にリネームして re-export する）。
+import type {
+  TaxType,
+  BillingStatus as AccountingStatus,
+  PaymentMethod,
+  ItemCategory,
 } from "@/types/generated/models";
-import type { TaxType } from "@/types/generated/models";
-
-/** @see {@link import("@/types/generated/models").BillingStatus} */
-export type AccountingStatus =
-  | typeof BillingStatusWaiting
-  | typeof BillingStatusCompleted
-  | typeof BillingStatusCancelled
-  | typeof BillingStatusPending;
-
-/** @see {@link import("@/types/generated/models").PaymentMethod} */
-export type PaymentMethod =
-  | typeof PaymentMethodCash
-  | typeof PaymentMethodCreditCard
-  | typeof PaymentMethodElectronicMoney
-  | typeof PaymentMethodBankTransfer;
-
-/** @see {@link import("@/types/generated/models").ItemCategory} */
-export type ItemCategory =
-  | typeof ItemCategoryExamination
-  | typeof ItemCategoryTest
-  | typeof ItemCategoryProcedure
-  | typeof ItemCategorySurgery
-  | typeof ItemCategoryMedicine
-  | typeof ItemCategoryFood
-  | typeof ItemCategoryGoods
-  | typeof ItemCategoryOther
-  | typeof ItemCategoryTrimming
-  | typeof ItemCategoryVaccine
-  | typeof ItemCategoryHotel
-  | typeof ItemCategoryTraining;
+export type { AccountingStatus, PaymentMethod, ItemCategory };
 
 /** @see {@link import("@/types/generated/models").BillingItem} */
 export interface AccountingItem {
@@ -102,18 +61,6 @@ export interface PaymentSplitInfo {
   receivedAmount: number;
   changeAmount: number;
   paidByName?: string;
-}
-
-/** @see {@link import("@/types/generated/models").BillingRefund} */
-export interface Refund {
-  id: string;
-  billingId: string;
-  amount: number;
-  reason: string;
-  refundedBy: number | null;
-  refundedByName: string;
-  refundedAt: string;
-  createdAt: string;
 }
 
 /** @see {@link import("@/types/generated/models").Billing} */

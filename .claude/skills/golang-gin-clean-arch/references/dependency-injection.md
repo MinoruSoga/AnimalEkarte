@@ -2,7 +2,7 @@
 
 Manual constructor wiring, the DI container pattern, constructor variants, and testing with DI.
 
-Companion: [dependency-injection-alternatives.md](dependency-injection-alternatives.md) — scaling, Wire, Fx, common mistakes.
+Core Rule 4 (SKILL.md): `main.go` is the only DI wiring location — no `di/container.go`, no Wire/Fx, regardless of usecase count.
 
 ## Table of Contents
 
@@ -48,7 +48,7 @@ config → database → repository → usecase → handler → router → server
 Each step depends only on the step above. Concrete types appear **only** in `main.go`.
 
 ```go
-// cmd/api/main.go — wiring section (full server in project-scaffolding.md)
+// cmd/api/main.go — wiring section
 package main
 
 import (
@@ -92,7 +92,7 @@ func main() {
     productUC      := usecase.NewProductUsecase(productRepo) // → domain.ProductUsecase
     productHandler := delivery.NewProductHandler(productUC, logger)
 
-    // ... gin setup + graceful shutdown — see project-scaffolding.md
+    // ... gin setup + graceful shutdown
 }
 ```
 
@@ -292,7 +292,5 @@ Each layer tests in isolation — no running database or HTTP server needed for 
 
 ## See Also
 
-- [dependency-injection-alternatives.md](dependency-injection-alternatives.md) — Scaling, Wire, Fx, common mistakes
 - [layer-separation.md](layer-separation.md) — Why interfaces live in domain, not outer layers
-- [testing-by-layer.md](testing-by-layer.md) — Full mock-per-layer testing patterns
-- [project-scaffolding.md](project-scaffolding.md) — Complete `main.go` with graceful shutdown
+- `golang-testing` skill — hand-written fn-field mocks (project's actual testing pattern)

@@ -1,14 +1,202 @@
 package handler
 
 import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 
+	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	apperrors "github.com/animal-ekarte/backend/internal/errors"
+	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/service"
 )
 
 // TestLineCustomerHandlerCompiles verifies line_customer_handler.go compiles
 func TestLineCustomerHandlerCompiles(t *testing.T) {
 	assert.True(t, true, "line_customer_handler.go compiled successfully")
+}
+
+// ---- mock LineCustomerService ----
+
+type mockLineCustomerService struct {
+	listFn      func(ctx context.Context, clinicID uint64) ([]model.LineCustomer, error)
+	linkOwnerFn func(ctx context.Context, clinicID, id uint64, ownerID *uint64) (*model.LineCustomer, error)
+}
+
+func (m *mockLineCustomerService) List(ctx context.Context, clinicID uint64) ([]model.LineCustomer, error) {
+	if m.listFn != nil {
+		return m.listFn(ctx, clinicID)
+	}
+	return nil, nil
+}
+
+func (m *mockLineCustomerService) LinkOwner(ctx context.Context, clinicID, id uint64, ownerID *uint64) (*model.LineCustomer, error) {
+	if m.linkOwnerFn != nil {
+		return m.linkOwnerFn(ctx, clinicID, id, ownerID)
+	}
+	return &model.LineCustomer{ID: id, ClinicID: clinicID, OwnerID: ownerID}, nil
+}
+
+// ---- test helper ----
+
+func newHandlerWithLineCustomerSvc(svc service.LineCustomerService) *Handler {
+	return &Handler{svc: &service.Services{LineCustomer: svc}}
+}
+
+// ---- ListLineCustomers ----
+
+func TestListLineCustomers(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	tests := []struct {
+		name       string
+		setupCtx   func(c *gin.Context)
+		svc        *mockLineCustomerService
+		wantStatus int
+		wantBody   string
+	}{
+		{
+			name:     "returns list of LINE customers",
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockLineCustomerService{
+				listFn: func(_ context.Context, clinicID uint64) ([]model.LineCustomer, error) {
+					assert.Equal(t, uint64(1), clinicID)
+					return []model.LineCustomer{{ID: 1, ClinicID: 1, DisplayName: "田中太郎"}}, nil
+				},
+			},
+			wantStatus: http.StatusOK,
+			wantBody:   `"display_name":"田中太郎"`,
+		},
+		{
+			name:       "returns 401 when clinic_id missing",
+			setupCtx:   func(_ *gin.Context) {},
+			svc:        &mockLineCustomerService{},
+			wantStatus: http.StatusUnauthorized,
+		},
+		{
+			name:     "returns 500 on service error",
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockLineCustomerService{
+				listFn: func(_ context.Context, _ uint64) ([]model.LineCustomer, error) {
+					return nil, fmt.Errorf("db error")
+				},
+			},
+			wantStatus: http.StatusInternalServerError,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := newHandlerWithLineCustomerSvc(tt.svc)
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			c.Request = httptest.NewRequest(http.MethodGet, "/", http.NoBody)
+			tt.setupCtx(c)
+			h.ListLineCustomers(c)
+			assert.Equal(t, tt.wantStatus, w.Code)
+			if tt.wantBody != "" {
+				assert.Contains(t, w.Body.String(), tt.wantBody)
+			}
+		})
+	}
+}
+
+// ---- LinkOwnerToLineCustomer ----
+
+func TestLinkOwnerToLineCustomer(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	ownerID := uint64(5)
+
+	tests := []struct {
+		name       string
+		paramID    string
+		body       any
+		setupCtx   func(c *gin.Context)
+		svc        *mockLineCustomerService
+		wantStatus int
+		wantBody   string
+	}{
+		{
+			name:     "links owner successfully",
+			paramID:  "1",
+			body:     map[string]any{"owner_id": ownerID},
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockLineCustomerService{
+				linkOwnerFn: func(_ context.Context, clinicID, id uint64, ownerID *uint64) (*model.LineCustomer, error) {
+					assert.Equal(t, uint64(1), clinicID)
+					assert.Equal(t, uint64(1), id)
+					require.NotNil(t, ownerID)
+					assert.Equal(t, uint64(5), *ownerID)
+					return &model.LineCustomer{ID: id, ClinicID: clinicID, OwnerID: ownerID}, nil
+				},
+			},
+			wantStatus: http.StatusOK,
+			wantBody:   `"owner_id":5`,
+		},
+		{
+			name:       "returns 401 when clinic_id missing",
+			paramID:    "1",
+			body:       map[string]any{"owner_id": ownerID},
+			setupCtx:   func(_ *gin.Context) {},
+			svc:        &mockLineCustomerService{},
+			wantStatus: http.StatusUnauthorized,
+		},
+		{
+			name:       "returns 400 for non-numeric id",
+			paramID:    "abc",
+			body:       map[string]any{"owner_id": ownerID},
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockLineCustomerService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:       "returns 400 on malformed body",
+			paramID:    "1",
+			body:       "not-json",
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockLineCustomerService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:     "returns 404 when not found",
+			paramID:  "999",
+			body:     map[string]any{"owner_id": ownerID},
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockLineCustomerService{
+				linkOwnerFn: func(_ context.Context, _, _ uint64, _ *uint64) (*model.LineCustomer, error) {
+					return nil, apperrors.WrapNotFound("line_customer", "999")
+				},
+			},
+			wantStatus: http.StatusNotFound,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := newHandlerWithLineCustomerSvc(tt.svc)
+			b, err := json.Marshal(tt.body)
+			require.NoError(t, err)
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			c.Request = httptest.NewRequest(http.MethodPatch, "/", bytes.NewReader(b))
+			c.Request.Header.Set("Content-Type", "application/json")
+			c.Params = gin.Params{{Key: "customerId", Value: tt.paramID}}
+			tt.setupCtx(c)
+			h.LinkOwnerToLineCustomer(c)
+			assert.Equal(t, tt.wantStatus, w.Code)
+			if tt.wantBody != "" {
+				assert.Contains(t, w.Body.String(), tt.wantBody)
+			}
+		})
+	}
 }
 
 // ---- Comprehensive Test Coverage Documentation ----

@@ -1,64 +1,72 @@
 ---
 name: implement-issue
-description: イシュー番号（BE-XXX / FE-XXX）を指定して、コード規約準拠の実装 → セルフレビュー → イシュークローズまでを自動化する。`/implement FE-038` のように使用。
+description: repo 直下 todo.md「個別タスク詳細」節のタスクID（FEAT-XXX / PERF-XXX / BUG-XXX / SEED-XXX 等）を指定して、コード規約準拠の実装 → セルフレビュー → タスククローズ（todo.md からのセクション削除）までを自動化する。`/implement PERF-FOLLOWUP-01` のように使用。旧 BE-XXX / FE-XXX イシュー体系および旧 docs/tasks 体系は廃止済み（経緯は git 履歴参照）。
 ---
 
-# Implement Issue — イシュー実装ワークフロー
+# Implement Issue — タスク実装ワークフロー
 
-イシューファイルを読み込み、コード規約に準拠した実装 → セルフレビュー → クローズ処理までを実行する。
+todo.md の該当タスクセクションを読み込み、コード規約に準拠した実装 → セルフレビュー → クローズ処理までを実行する。
+
+> **パス正本の注意**: 旧 `backend/issues/` / `frontend/issues/` 体系、および旧 docs/tasks 体系（open/closed/pending）は**廃止済み**（経緯は git 履歴参照）。
+> 現行のタスク台帳は repo 直下 `todo.md` のみ。open タスクは「個別タスク詳細」節に `### <タスクID>: <タイトル>` 形式で記載される。
+> todo.md は git 追跡ファイルであり、変更はコミット対象。
 
 ## 起動トリガー
 
-- `/implement BE-XXX` または `/implement FE-XXX`（例: `/implement FE-038`）
-- 旧形式番号も対応: `/implement 003`（`open/` 内からファイル名に `003` を含むものを検索）
-- 引数なしの場合: `frontend/issues/open/` + `backend/issues/open/` を一覧表示し、ユーザーに選択させる
+- `/implement <タスクID>`（例: `/implement PERF-FOLLOWUP-01`）— `todo.md` の「個別タスク詳細」節から `### <タスクID>` 見出しを grep で検索
+- 引数なしの場合: 「個別タスク詳細」節の見出し一覧を表示し、ユーザーに選択させる
+- 旧 `BE-XXX` / `FE-XXX` 番号を指定された場合: git 履歴（`git log --all -- docs/archive/` / `git show <rev>:<path>`）で経緯確認のみ行い、新規実装には使わない
 
 引数は `$ARGUMENTS` 変数で受け取る。
 
 ---
 
-## Phase 1: イシュー選択・読み込み
+## Phase 1: タスク選択・読み込み
 
 ### 1.1 引数解析
 
-- `BE-XXX` → `backend/issues/open/BE-XXX-*.md` を検索
-- `FE-XXX` → `frontend/issues/open/FE-XXX-*.md` を検索
-- 旧形式（`003`, `master-002` 等プレフィックスなし）→ 両ディレクトリから `*003*` でパターン検索
-- 引数なし → 以下を実行して一覧表示:
+- タスクID（`FEAT-XXX`, `PERF-XXX`, `BUG-XXX`, `SEED-XXX` 等）→ `todo.md` 内の `### <タスクID>` 見出しを grep で検索:
 
 ```bash
-echo "=== Backend Issues (Open) ==="
-ls backend/issues/open/*.md 2>/dev/null | sort
-echo ""
-echo "=== Frontend Issues (Open) ==="
-ls frontend/issues/open/*.md 2>/dev/null | sort
+grep -n "^### <タスクID>" todo.md
 ```
 
-ユーザーに番号またはファイル名を選択させる。
+- 引数なし → 以下を実行して「個別タスク詳細」節の見出し一覧を表示:
 
-### 1.2 イシューファイル読み込み
+```bash
+# 個別タスク詳細節のタスク見出し一覧（節外の見出しは無視する）
+grep -n '^### ' todo.md
+```
 
-イシューファイルを Read で読み込み、以下を抽出:
-- **Summary**: 実装内容の概要
-- **親タスク**: 親 TASK へのリンク（`**親タスク**: [TASK-XXX](...)` 形式）
-- **Related**: 依存イシュー（`BE-XXX`, `FE-XXX`, `TASK-XXX`）
-- **依存関係**: 「依存関係」セクションに記載された前提条件
-- **完了条件**: チェックリスト項目
-- **必要な変更**: 具体的なコード変更指示
+着手保留は todo.md の「見送り（再開条件付き・今期着手しない）」節が担う（旧 pending/ の概念は廃止）。
+ユーザーに番号またはタスクIDを選択させる。
+
+### 1.2 タスクセクション読み込み
+
+todo.md の該当 `###` セクションを Read で読み込み、以下を抽出:
+- **問題**: 何が問題か・実装内容の概要
+- **根拠**: 対象ファイル・行番号・現状コードの実測情報
+- **修正方針**: 採用案・参照実装・具体的なコード変更指示
+- **受け入れ条件**: 検証可能な完了条件
+- **状態**: 優先度・依存タスク（`TASK-XXX` 等）・前提条件
+
+### タスクセクション記載の実測再検証（着手前必須）
+
+タスクセクションの行番号・「現状のコード」・残タスク認識は起票時点のスナップショットであり陳腐化前提。着手前に現行コードを grep/Read で突合し、既に解消済みの項目は「陳腐化・実測訂正」として報告する。タスク本文の「Context 要約」と「行番号・Constraints」が食い違ったら後者（実コード）を優先する。
+
+（出典: memory be_refactor_execution_20260702 / closed_issue_reaudit_20260707 / issue_g3_1_phase1_food_lstep_tag_helpers_20260709）
 
 ### 1.3 依存関係チェック
 
-- `Related` と「依存関係」セクションに記載された前提イシューが `closed/` に存在するか確認
-- FE イシューが BE イシューに依存する場合:
-  - `backend/issues/closed/` に対応する BE イシューがあるか確認
-  - なければユーザーに警告: 「BE-XXX が未完了。先に実装するか？」
+- 「状態」等に記載された前提タスクが todo.md に**残っていなければ完了済み**とみなす（完了記録は git 履歴が正本。経緯は `git log --all --oneline -- todo.md` や `git show <rev>:todo.md` で確認可）
+- 前提タスクが todo.md に残存（「個別タスク詳細」または「見送り」節）する場合:
+  - ユーザーに警告: 「<前提ID> が未完了。先に実装するか？」
 
 ```bash
-# 依存イシューのクローズ確認（新旧両形式に対応）
-ls backend/issues/closed/BE-XXX-*.md 2>/dev/null
-ls backend/issues/closed/*XXX*.md 2>/dev/null
-ls frontend/issues/closed/FE-XXX-*.md 2>/dev/null
-ls frontend/issues/closed/*XXX*.md 2>/dev/null
+# 依存タスクの残存確認（ヒットしなければ完了済み）
+grep -n '<前提ID>' todo.md
+# 旧イシュー体系（BE-XXX / FE-XXX）の経緯は git 履歴で確認
+git log --all --oneline -- 'docs/archive/**' | head
 ```
 
 ---
@@ -67,14 +75,14 @@ ls frontend/issues/closed/*XXX*.md 2>/dev/null
 
 ### 2.1 対象ファイルの特定
 
-イシュー内の「現状のコード」「必要な変更」セクションから、変更対象ファイルパスを抽出し、全て Read で読み込む。
+タスクセクションの「根拠」「修正方針」から、変更対象ファイルパスを抽出し、全て Read で読み込む。
 
 ### 2.2 参照実装の確認
 
 **FE イシューの場合:**
 - `features/owners/` の対応パターンを確認（ベストプラクティス参照実装）
 - 変更内容に応じて、以下のファイルから該当パターンを読む:
-  - フォーム系 → `features/owners/routes/OwnerForm.tsx` + `features/owners/hooks/useOwnerForm.ts`
+  - フォーム系 → `features/owners/routes/OwnerForm.tsx` + `features/owners/hooks/use-owner-form.ts`
   - リスト系 → `features/owners/routes/OwnersList.tsx`
   - API hooks → `features/owners/api/` 内の対応ファイル
   - loader → `features/owners/loaders.ts`
@@ -103,9 +111,9 @@ ls frontend/issues/closed/*XXX*.md 2>/dev/null
 |---|---------|---------|
 | 1 | `memo()` + `useCallback` でセクション分割 | 大型フォーム・リスト行 |
 | 2 | `useDeferredValue` で検索フィルタ遅延 | フィルタ・検索入力 |
-| 3 | `useTransition` で pending 管理 | API 書き込み（保存・削除） |
+| 3 | フォーム送信は `useActionState`（isPending 内蔵）。`useTransition` はリスト再取得・ナビ・削除等の非フォーム操作のみ | フォーム送信 / 非フォーム操作の pending 管理 |
 | 4 | `lazy()` + `Suspense` で遅延ロード | 重いモーダル・ダイアログ |
-| 5 | 直接ファイル import（barrel 禁止） | 全 import |
+| 5 | feature 外部からの import は barrel（`features/xxx/index.ts`）必須。直接 import が正当なのは feature 内部の相対 import と lazy 動的 import のみ | 全 import |
 | 6 | 三項演算子 `? ... : null`（`&&` 禁止） | 条件レンダー |
 | 7 | `useState(() => ...)` lazy init | 高コストな初期化 |
 | 8 | 静的 JSX はモジュール定数に巻き上げ | Select 選択肢、テーブルヘッダ等 |
@@ -115,7 +123,7 @@ ls frontend/issues/closed/*XXX*.md 2>/dev/null
 **追加禁止チェック:**
 - `any` 型 → `unknown` + 型ガード
 - `FC` / `forwardRef` → 関数宣言 + ref as prop
-- `useState(false)` + `setIsPending` → `useTransition`
+- `useState(false)` + `setIsPending` → `useActionState`（フォーム送信）/ `useTransition`（非フォーム操作）
 - 型は `models.ts` から `Omit`/`Partial` で導出（手書き interface 禁止）
 - `console.log` → 削除
 
@@ -134,8 +142,8 @@ ls frontend/issues/closed/*XXX*.md 2>/dev/null
 ### 3.3 実装実行
 
 - `implementer` エージェント（Sonnet）を使って実装を並列実行してよい
-- DB マイグレーションがある場合: `backend/migrations/001_init.sql` を直接編集（リリース前運用）
-- モデル変更がある場合: `make codegen` を実行して `models.ts` を更新
+- DB マイグレーションがある場合: **適用済み migration の編集は禁止**（checksum mismatch → STG db_reset が必要になる。出典: memory ops_applied_migration_edit_requires_db_reset）。`backend/migrations/` の最終番号 +1 で新規ファイルを追加し、`migration-seed-safety` スキルのチェックリストに従う
+- モデル変更がある場合: `make codegen` を実行して `models.ts` を更新（※ CLAUDE.md の自動実行禁止コマンド。ユーザーに実行を依頼する）
 
 ```bash
 # モデル変更後の codegen
@@ -152,16 +160,16 @@ make codegen
 
 ### 4.2 完了条件チェック
 
-イシューファイルの「完了条件」チェックリスト項目を1つずつ検証。
+タスクセクションの「受け入れ条件」項目を1つずつ検証。
 
 ### 4.3 コード規約チェック
 
 **FE の場合:**
 - [ ] `any` 型なし
 - [ ] `FC` / `forwardRef` なし
-- [ ] barrel index 経由 import なし
+- [ ] feature 外部への deep import なし（barrel 経由か確認）
 - [ ] `&&` 条件レンダーなし（三項演算子を使用）
-- [ ] `useTransition` で pending 管理（`useState(false)` + `setIsPending` なし）
+- [ ] フォーム送信は `useActionState`、非フォーム操作の pending は `useTransition`（`useState(false)` + `setIsPending` なし）
 - [ ] 型は `models.ts` から導出
 - [ ] `console.log` なし
 - [ ] feature 間 import なし
@@ -173,19 +181,26 @@ make codegen
 - [ ] PATCH はポインタ型 + `buildXxxUpdateFields()`
 - [ ] service に `*gin.Context` / `binding:` タグなし
 
-### 4.4 Lint・ビルド・テスト実行（Docker 経由）
+### 4.4 Lint・ビルド・テスト実行（Docker 経由・スコープ限定）
+
+**全体 lint / build / test（`pnpm lint` `pnpm build` `pnpm test:run` `golangci-lint run ./...` `go test ./...`）は CLAUDE.md の自動実行禁止コマンド。** 変更スコープに限定した検証を自分で実行し、全体検証はユーザーに手動実行を依頼する。
 
 ```bash
-# FE の場合（3段階: lint → 型チェック → テスト）
-docker compose exec frontend pnpm lint
-docker compose exec frontend pnpm build
-docker compose exec frontend pnpm test:run
+# FE の場合 — 変更した feature に限定（`--` 付き pnpm test は全件実行になる罠。npx vitest run <path> が正。出典: memory feedback_frontend_verify_harness_gotchas）
+docker compose exec frontend npx vitest run src/features/<対象feature>
 
-# BE の場合（3段階: lint → vet/build → テスト）
-docker compose exec backend golangci-lint run ./...
-docker compose exec backend go vet ./...
-docker compose exec backend go build ./...
-docker compose exec backend go test ./... -v
+# BE の場合 — 変更したパッケージに限定
+docker compose exec backend go build ./internal/<対象パッケージ>/...
+docker compose exec backend go vet ./internal/<対象パッケージ>/...
+docker compose exec backend go test ./internal/<対象パッケージ>/...
+```
+
+全体検証が必要な場合の依頼文例:
+
+```
+変更完了。全体検証は以下を手動実行してください:
+$ docker compose exec backend go test ./...
+$ docker compose exec frontend pnpm lint && docker compose exec frontend pnpm test:run
 ```
 
 ### 4.5 問題があれば Phase 3 に戻る（最大3回）
@@ -197,64 +212,43 @@ Lint エラー・型エラー・テスト失敗・規約違反があれば修正
 
 ## Phase 5: クローズ処理
 
-### 5.1 イシューファイル更新
+### 5.1 todo.md から該当セクションを削除
 
-イシューファイルの先頭に YAML frontmatter を更新:
+完了したタスクは todo.md の「個別タスク詳細」節から該当 `### <タスクID>` セクションを**丸ごと削除**する。
+「closed への移動」という概念はもう無い — 完了記録は git 履歴が正本（コミットメッセージに実装内容を残す）。
 
-```
-**Status**: Closed
-```
+### 5.2 索引行の更新
 
-`closed_at` と実装コミット情報を末尾に追記:
+P2 節等の索引行（例: 「PERF/FOLLOWUP 系 — 未消化（`PERF-FOLLOWUP-01/02/05`…）」）に該当 ID が列挙されている場合、そこからも ID を除去する。
+節内の最後のタスクだった場合は索引行自体の要否も整理する。
 
-```markdown
-## クローズ情報
+todo.md は **git 追跡ファイル**なので、この変更は実装コミットのコミット対象に含める。
 
-- **Closed At**: YYYY-MM-DD
-- **変更ファイル**: （変更したファイルの一覧）
-```
+### 5.3 親 TASK セクション更新（存在する場合）
 
-### 5.2 ファイル移動
-
-```bash
-# closed/ ディレクトリが存在することを確認
-mkdir -p backend/issues/closed frontend/issues/closed
-
-# BE イシューの場合
-mv backend/issues/open/BE-XXX-*.md backend/issues/closed/
-
-# FE イシューの場合
-mv frontend/issues/open/FE-XXX-*.md frontend/issues/closed/
-
-# 旧形式イシューの場合（BE-/FE- プレフィックスなし）
-# mv [backend|frontend]/issues/open/XXX-*.md [backend|frontend]/issues/closed/
-```
-
-### 5.3 親 TASK ドキュメント更新（存在する場合）
-
-イシューの `親タスク` フィールドまたは `Related` に `TASK-XXX` がある場合:
-1. `docs/tasks/open/TASK-XXX-*.md` を読み込む
-2. 「サブタスク分解」テーブルの該当行にチェックを入れる
-3. 全サブタスクが完了していれば、TASK 自体もクローズ候補としてユーザーに通知
+タスクの「状態」等に親 `TASK-XXX` の記載がある場合:
+1. todo.md の `### TASK-XXX` セクションを読み込む
+2. サブタスク一覧の該当行にチェックを入れる（または該当サブタスク記述を削除）
+3. 全サブタスクが完了していれば、親セクション自体も削除（クローズ）候補としてユーザーに通知
 
 ### 5.4 完了報告
 
 以下のフォーマットでユーザーに報告:
 
 ```
-## 実装完了: [BE/FE]-XXX
+## 実装完了: <タスクID>
 
 ### 変更ファイル
 - `path/to/file1.tsx` — 変更内容
 - `path/to/file2.ts` — 変更内容
 
 ### レビュー結果
-- Lint: PASS
-- Build: PASS
+- スコープ限定 vet/test: PASS（実行したコマンドと結果を明記）
 - 完了条件: 全項目クリア
+- 全体 lint/test: ユーザー手動実行待ち（コマンド提示済み）
 
-### イシュー
-- [BE/FE]-XXX → closed/ に移動済み
+### タスク
+- <タスクID> → todo.md から該当セクション削除済み（索引行も更新・コミット対象。完了記録は git 履歴）
 ```
 
 ---
@@ -263,7 +257,7 @@ mv frontend/issues/open/FE-XXX-*.md frontend/issues/closed/
 
 | 状況 | 対応 |
 |------|------|
-| イシューファイルが見つからない | ユーザーに番号の確認を求める |
+| タスクIDが todo.md に見つからない | ユーザーにIDの確認を求める（完了済みで削除された可能性は git 履歴で確認） |
 | 依存イシューが未完了 | 警告表示、ユーザーに続行確認 |
 | Docker コンテナ未起動 | `make up` の実行を提案 |
 | Lint/Build 失敗 | エラー内容を表示し、Phase 3 に戻って修正 |
@@ -273,8 +267,8 @@ mv frontend/issues/open/FE-XXX-*.md frontend/issues/closed/
 
 ## 禁止事項
 
-- **イシューに書かれていない変更を勝手に行わない**: スコープはイシューの「必要な変更」に限定
-- **UI を推測で実装しない**: Figma デザインがない場合、UI 変更はイシューの指示に厳密に従う
+- **タスクに書かれていない変更を勝手に行わない**: スコープはタスクの「修正方針」に限定
+- **UI を推測で実装しない**: Figma デザインがない場合、UI 変更はタスクの指示に厳密に従う
 - **ローカルで npm/go コマンドを実行しない**: 必ず Docker 経由
-- **テストを省略しない**: イシューの完了条件にテストがあれば必ず実行
-- **イシューの完了条件を勝手に変更しない**: 条件を満たせない場合はユーザーに報告
+- **テストを省略しない**: タスクの受け入れ条件にテストがあれば必ず実行
+- **タスクの受け入れ条件を勝手に変更しない**: 条件を満たせない場合はユーザーに報告

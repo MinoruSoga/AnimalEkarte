@@ -1,14 +1,486 @@
 package handler
 
 import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"testing"
+	"time"
 
+	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	apperrors "github.com/animal-ekarte/backend/internal/errors"
+	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/service"
 )
 
 // TestShiftHandlerCompiles verifies shift_handler.go compiles
 func TestShiftHandlerCompiles(t *testing.T) {
 	assert.True(t, true, "shift_handler.go compiled successfully")
+}
+
+// ---- mock ShiftEntryService ----
+
+type mockShiftEntryService struct {
+	listFn            func(ctx context.Context, clinicID uint64, yearMonth string, staffID *uint64) ([]model.ShiftEntry, error)
+	createFn          func(ctx context.Context, clinicID uint64, input *service.CreateShiftEntryInput) (*model.ShiftEntry, error)
+	updateFn          func(ctx context.Context, clinicID, id uint64, input *service.UpdateShiftEntryInput) (*model.ShiftEntry, error)
+	deleteFn          func(ctx context.Context, clinicID, id uint64) error
+	getOnDutyStaffsFn func(ctx context.Context, clinicID uint64, date time.Time) ([]model.Staff, error)
+}
+
+func (m *mockShiftEntryService) List(ctx context.Context, clinicID uint64, yearMonth string, staffID *uint64) ([]model.ShiftEntry, error) {
+	return m.listFn(ctx, clinicID, yearMonth, staffID)
+}
+
+func (m *mockShiftEntryService) Create(ctx context.Context, clinicID uint64, input *service.CreateShiftEntryInput) (*model.ShiftEntry, error) {
+	return m.createFn(ctx, clinicID, input)
+}
+
+func (m *mockShiftEntryService) Update(ctx context.Context, clinicID, id uint64, input *service.UpdateShiftEntryInput) (*model.ShiftEntry, error) {
+	return m.updateFn(ctx, clinicID, id, input)
+}
+
+func (m *mockShiftEntryService) Delete(ctx context.Context, clinicID, id uint64) error {
+	return m.deleteFn(ctx, clinicID, id)
+}
+
+func (m *mockShiftEntryService) GetOnDutyStaffs(ctx context.Context, clinicID uint64, date time.Time) ([]model.Staff, error) {
+	return m.getOnDutyStaffsFn(ctx, clinicID, date)
+}
+
+func newHandlerWithShiftEntrySvc(svc service.ShiftEntryService) *Handler {
+	return &Handler{svc: &service.Services{ShiftEntry: svc}}
+}
+
+// ---- ListShiftEntries ----
+
+func TestListShiftEntries(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	tests := []struct {
+		name       string
+		query      string
+		setupCtx   func(c *gin.Context)
+		svc        *mockShiftEntryService
+		wantStatus int
+		wantBody   string
+	}{
+		{
+			name:     "returns list of shift entries",
+			query:    "date=2026-05&staff_id=10",
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockShiftEntryService{
+				listFn: func(_ context.Context, clinicID uint64, yearMonth string, staffID *uint64) ([]model.ShiftEntry, error) {
+					assert.Equal(t, uint64(1), clinicID)
+					assert.Equal(t, "2026-05", yearMonth)
+					require.NotNil(t, staffID)
+					assert.Equal(t, uint64(10), *staffID)
+					return []model.ShiftEntry{{ID: 1, ClinicID: 1, StaffID: 10, ShiftType: model.ShiftType("full"), Staff: &model.Staff{ID: 10, Name: "山田太郎"}}}, nil
+				},
+			},
+			wantStatus: http.StatusOK,
+			wantBody:   `"staff_id":"10"`,
+		},
+		{
+			name:       "returns 401 when clinic_id is missing",
+			setupCtx:   func(_ *gin.Context) {},
+			svc:        &mockShiftEntryService{},
+			wantStatus: http.StatusUnauthorized,
+		},
+		{
+			name:       "returns 400 when staff_id is not numeric",
+			query:      "staff_id=abc",
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockShiftEntryService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:     "returns 500 on service error",
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockShiftEntryService{
+				listFn: func(_ context.Context, _ uint64, _ string, _ *uint64) ([]model.ShiftEntry, error) {
+					return nil, fmt.Errorf("db failure")
+				},
+			},
+			wantStatus: http.StatusInternalServerError,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := newHandlerWithShiftEntrySvc(tt.svc)
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			c.Request = httptest.NewRequest(http.MethodGet, "/?"+tt.query, http.NoBody)
+			tt.setupCtx(c)
+
+			h.ListShiftEntries(c)
+
+			assert.Equal(t, tt.wantStatus, w.Code)
+			if tt.wantBody != "" {
+				assert.Contains(t, w.Body.String(), tt.wantBody)
+			}
+		})
+	}
+}
+
+// ---- CreateShiftEntry ----
+
+func TestCreateShiftEntry(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	validBody := func() map[string]any {
+		return map[string]any{
+			"staff_id":   10,
+			"date":       "2026-05-28",
+			"shift_type": "full",
+			"start_time": "09:00",
+			"end_time":   "18:00",
+		}
+	}
+
+	tests := []struct {
+		name       string
+		body       any
+		setupCtx   func(c *gin.Context)
+		svc        *mockShiftEntryService
+		wantStatus int
+		wantHeader string
+	}{
+		{
+			name:     "creates shift entry successfully",
+			body:     validBody(),
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockShiftEntryService{
+				createFn: func(_ context.Context, clinicID uint64, input *service.CreateShiftEntryInput) (*model.ShiftEntry, error) {
+					assert.Equal(t, uint64(1), clinicID)
+					assert.Equal(t, uint64(10), input.StaffID)
+					return &model.ShiftEntry{ID: 5, ClinicID: clinicID, StaffID: input.StaffID, ShiftType: model.ShiftType(input.ShiftType), Staff: &model.Staff{ID: input.StaffID}}, nil
+				},
+			},
+			wantStatus: http.StatusCreated,
+			wantHeader: "/api/v1/shifts/5",
+		},
+		{
+			name:       "returns 401 when clinic_id is missing",
+			body:       validBody(),
+			setupCtx:   func(_ *gin.Context) {},
+			svc:        &mockShiftEntryService{},
+			wantStatus: http.StatusUnauthorized,
+		},
+		{
+			name:       "returns 400 when required field missing",
+			body:       map[string]any{"date": "2026-05-28"},
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockShiftEntryService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:       "returns 400 for invalid JSON",
+			body:       "not-json",
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockShiftEntryService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name: "returns 400 for invalid date format",
+			body: map[string]any{
+				"staff_id":   10,
+				"date":       "2026/05/28",
+				"shift_type": "full",
+			},
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockShiftEntryService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:     "returns 500 on service error",
+			body:     validBody(),
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockShiftEntryService{
+				createFn: func(_ context.Context, _ uint64, _ *service.CreateShiftEntryInput) (*model.ShiftEntry, error) {
+					return nil, fmt.Errorf("db failure")
+				},
+			},
+			wantStatus: http.StatusInternalServerError,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := newHandlerWithShiftEntrySvc(tt.svc)
+
+			bodyBytes, err := json.Marshal(tt.body)
+			require.NoError(t, err)
+
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			c.Request = httptest.NewRequest(http.MethodPost, "/", bytes.NewReader(bodyBytes))
+			c.Request.Header.Set("Content-Type", "application/json")
+			tt.setupCtx(c)
+
+			h.CreateShiftEntry(c)
+
+			assert.Equal(t, tt.wantStatus, w.Code)
+			if tt.wantHeader != "" {
+				assert.Equal(t, tt.wantHeader, w.Header().Get("Location"))
+			}
+		})
+	}
+}
+
+// ---- UpdateShiftEntry ----
+
+func TestUpdateShiftEntry(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	tests := []struct {
+		name       string
+		paramID    string
+		body       any
+		setupCtx   func(c *gin.Context)
+		svc        *mockShiftEntryService
+		wantStatus int
+	}{
+		{
+			name:     "updates shift entry successfully",
+			paramID:  "1",
+			body:     map[string]any{"shift_type": "off"},
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockShiftEntryService{
+				updateFn: func(_ context.Context, _, _ uint64, input *service.UpdateShiftEntryInput) (*model.ShiftEntry, error) {
+					require.NotNil(t, input.ShiftType)
+					assert.Equal(t, "off", *input.ShiftType)
+					return &model.ShiftEntry{ID: 1, ShiftType: model.ShiftType(*input.ShiftType), Staff: &model.Staff{}}, nil
+				},
+			},
+			wantStatus: http.StatusOK,
+		},
+		{
+			name:       "returns 401 when clinic_id is missing",
+			paramID:    "1",
+			body:       map[string]any{"shift_type": "off"},
+			setupCtx:   func(_ *gin.Context) {},
+			svc:        &mockShiftEntryService{},
+			wantStatus: http.StatusUnauthorized,
+		},
+		{
+			name:       "returns 400 for non-numeric id",
+			paramID:    "xyz",
+			body:       map[string]any{"shift_type": "off"},
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockShiftEntryService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:       "returns 400 for invalid JSON",
+			paramID:    "1",
+			body:       "not-json",
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockShiftEntryService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:       "returns 400 for invalid shift_type",
+			paramID:    "1",
+			body:       map[string]any{"shift_type": "invalid"},
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockShiftEntryService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:     "returns 404 when shift not found",
+			paramID:  "999",
+			body:     map[string]any{"shift_type": "off"},
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockShiftEntryService{
+				updateFn: func(_ context.Context, _, _ uint64, _ *service.UpdateShiftEntryInput) (*model.ShiftEntry, error) {
+					return nil, apperrors.WrapNotFound("shift entry", "999")
+				},
+			},
+			wantStatus: http.StatusNotFound,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := newHandlerWithShiftEntrySvc(tt.svc)
+
+			bodyBytes, err := json.Marshal(tt.body)
+			require.NoError(t, err)
+
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			c.Request = httptest.NewRequest(http.MethodPatch, "/", bytes.NewReader(bodyBytes))
+			c.Request.Header.Set("Content-Type", "application/json")
+			c.Params = gin.Params{{Key: "id", Value: tt.paramID}}
+			tt.setupCtx(c)
+
+			h.UpdateShiftEntry(c)
+
+			assert.Equal(t, tt.wantStatus, w.Code)
+		})
+	}
+}
+
+// ---- DeleteShiftEntry ----
+//
+// c.Status(http.StatusNoContent) は Gin の ResponseWriter にステータスをバッファするだけで
+// httptest.ResponseRecorder には即時書き込まれない（owner_handler_test.go / cage_handler_test.go
+// と同じ既知の挙動）。そのため NoContent 系レスポンスは gin.Engine 経由でリクエストを送る。
+
+func newDeleteShiftEntryRouter(svc service.ShiftEntryService) *gin.Engine {
+	r := gin.New()
+	h := newHandlerWithShiftEntrySvc(svc)
+	r.DELETE("/shifts/:id", func(c *gin.Context) {
+		setClinicID(c)
+	}, h.DeleteShiftEntry)
+	return r
+}
+
+func TestDeleteShiftEntry(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	tests := []struct {
+		name       string
+		paramID    string
+		svc        *mockShiftEntryService
+		wantStatus int
+	}{
+		{
+			name:    "deletes shift entry successfully",
+			paramID: "1",
+			svc: &mockShiftEntryService{
+				deleteFn: func(_ context.Context, clinicID, id uint64) error {
+					assert.Equal(t, uint64(1), clinicID)
+					assert.Equal(t, uint64(1), id)
+					return nil
+				},
+			},
+			wantStatus: http.StatusNoContent,
+		},
+		{
+			name:       "returns 400 for non-numeric id",
+			paramID:    "xyz",
+			svc:        &mockShiftEntryService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:    "returns 500 on service error",
+			paramID: "1",
+			svc: &mockShiftEntryService{
+				deleteFn: func(_ context.Context, _, _ uint64) error {
+					return fmt.Errorf("db failure")
+				},
+			},
+			wantStatus: http.StatusInternalServerError,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			router := newDeleteShiftEntryRouter(tt.svc)
+			w := httptest.NewRecorder()
+			req := httptest.NewRequest(http.MethodDelete, "/shifts/"+tt.paramID, http.NoBody)
+			router.ServeHTTP(w, req)
+			assert.Equal(t, tt.wantStatus, w.Code)
+		})
+	}
+
+	t.Run("returns 401 when clinic_id is missing", func(t *testing.T) {
+		h := newHandlerWithShiftEntrySvc(&mockShiftEntryService{})
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Request = httptest.NewRequest(http.MethodDelete, "/", http.NoBody)
+		c.Params = gin.Params{{Key: "id", Value: "1"}}
+		h.DeleteShiftEntry(c)
+		assert.Equal(t, http.StatusUnauthorized, w.Code)
+	})
+}
+
+// ---- GetOnDutyStaffs ----
+
+func TestGetOnDutyStaffs(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	tests := []struct {
+		name       string
+		query      string
+		setupCtx   func(c *gin.Context)
+		svc        *mockShiftEntryService
+		wantStatus int
+		wantBody   string
+	}{
+		{
+			name:     "returns on-duty staffs for date",
+			query:    "date=2026-05-28",
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockShiftEntryService{
+				getOnDutyStaffsFn: func(_ context.Context, clinicID uint64, date time.Time) ([]model.Staff, error) {
+					assert.Equal(t, uint64(1), clinicID)
+					assert.Equal(t, "2026-05-28", date.Format(time.DateOnly))
+					return []model.Staff{{ID: 1, Name: "山田太郎"}}, nil
+				},
+			},
+			wantStatus: http.StatusOK,
+			wantBody:   `"name":"山田太郎"`,
+		},
+		{
+			name:       "returns 401 when clinic_id is missing",
+			query:      "date=2026-05-28",
+			setupCtx:   func(_ *gin.Context) {},
+			svc:        &mockShiftEntryService{},
+			wantStatus: http.StatusUnauthorized,
+		},
+		{
+			name:       "returns 400 when date is missing",
+			query:      "",
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockShiftEntryService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:       "returns 400 for invalid date format",
+			query:      "date=2026/05/28",
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockShiftEntryService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:     "returns 500 on service error",
+			query:    "date=2026-05-28",
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockShiftEntryService{
+				getOnDutyStaffsFn: func(_ context.Context, _ uint64, _ time.Time) ([]model.Staff, error) {
+					return nil, fmt.Errorf("db failure")
+				},
+			},
+			wantStatus: http.StatusInternalServerError,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := newHandlerWithShiftEntrySvc(tt.svc)
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			c.Request = httptest.NewRequest(http.MethodGet, "/?"+tt.query, http.NoBody)
+			tt.setupCtx(c)
+
+			h.GetOnDutyStaffs(c)
+
+			assert.Equal(t, tt.wantStatus, w.Code)
+			if tt.wantBody != "" {
+				assert.Contains(t, w.Body.String(), tt.wantBody)
+			}
+		})
+	}
 }
 
 // ---- Comprehensive Test Coverage Documentation ----

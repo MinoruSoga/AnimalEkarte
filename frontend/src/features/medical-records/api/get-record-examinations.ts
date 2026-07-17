@@ -1,8 +1,10 @@
 import { useQuery } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
+import { HISTORY_FETCH_LIMIT } from "@/config/fetch-limits";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
+import { queryKeys } from "@/lib/query-keys";
 import type { Examination } from "@/types/generated/models";
-import { transformExamResult, type ExamResult } from "@/features/examinations";
+import { transformExamResult, type ExamResult } from "@/lib/transforms/examination";
 
 /**
  * 医療記録（カルテ）画面用の検査グループ ViewModel。
@@ -21,8 +23,6 @@ export interface ExamGroup {
   items: ExamResult[];
 }
 
-export type ExamGroupItem = ExamResult;
-
 function transformExamGroup(exam: Examination): ExamGroup {
   return {
     id: exam.id,
@@ -36,14 +36,14 @@ const getRecordExaminations = async (
   petId: string,
 ): Promise<ExamGroup[]> => {
   const { data } = await axios.get<{ data: Examination[] }>("/v1/examinations", {
-    params: { pet_id: Number(petId), limit: 100 },
+    params: { pet_id: Number(petId), limit: HISTORY_FETCH_LIMIT },
   });
   return (data.data ?? []).map(transformExamGroup);
 };
 
 export const useGetRecordExaminations = (petId?: string) => {
   return useQuery({
-    queryKey: ["examinations", "pet", petId],
+    queryKey: queryKeys.examinations.byPet(petId!),
     queryFn: () => getRecordExaminations(petId!),
     enabled: !!petId,
     staleTime: QUERY_STALE_TIMES.MEDIUM,

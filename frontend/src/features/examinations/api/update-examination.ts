@@ -1,34 +1,7 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { axios } from "@/lib/axios";
-import { handleApiError } from "@/lib/handle-api-error";
-import { transformExamination, type ExaminationRecord } from "./transforms";
-import type { BackendExamination, UpdateExaminationRequest } from "./types";
-
-export const updateExamination = async (
-  id: string,
-  req: UpdateExaminationRequest
-): Promise<ExaminationRecord> => {
-  const { data } = await axios.patch<BackendExamination>(
-    `/v1/examinations/${id}`,
-    req
-  );
-  return transformExamination(data);
-};
-
-export const useUpdateExamination = () => {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: ({
-      id,
-      req,
-    }: {
-      id: string;
-      req: UpdateExaminationRequest;
-    }) => updateExamination(id, req),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["examinations"] });
-    },
-    onError: (error) => handleApiError(error, "検査更新"),
-  });
-};
+// R-F2-S8: shared hook (@/hooks/use-update-examination) へ昇格。
+// medical-records から examinations feature への直接 import を避けるための re-export。
+// 注意: このモジュールの UpdateExaminationRequest は shared hook 内の narrow 定義。
+// feature 内部の正本は ./types.ts の同名 interface（BE 契約は同一）。
+export {
+  useUpdateExamination,
+} from "@/hooks/use-update-examination";

@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
+import { queryKeys } from "@/lib/query-keys";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 import type { ClinicHoliday } from "@/types/generated/models";
 
@@ -17,7 +18,7 @@ const getClinicHolidays = async (yearMonth?: string): Promise<ClinicHoliday[]> =
  */
 export function useGetClinicHolidays(yearMonth: string) {
   return useQuery({
-    queryKey: ["clinic-holidays", yearMonth],
+    queryKey: queryKeys.clinicHolidays.byMonth(yearMonth),
     queryFn: () => getClinicHolidays(yearMonth),
     enabled: !!yearMonth,
     staleTime: QUERY_STALE_TIMES.MEDIUM,

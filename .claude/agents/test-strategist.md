@@ -20,17 +20,14 @@ model: sonnet
    - エッジケースの特定
    - テストカバレッジ向上
 
-3. **TDD ガイダンス**
-   - Red-Green-Refactor サイクル
-   - テストファースト開発
-   - 要件からのテスト設計
+TDD（Red-Green-Refactor サイクル）のガイドは `tdd-guide` エージェントが正本。本エージェントは戦略設計・自動生成に専念する。
 
 ## 技術スタック
 
 - Frontend Testing: Vitest + Testing Library + MSW
 - Backend Testing: go test + testify
-- Coverage Target: 80% 以上
-- E2E: 未導入（シナリオ設計のみ対応）
+- E2E: Playwright（導入済み。`e2e-runner` エージェント参照）
+- Coverage Target: `docs/ops/coverage-policy.md` 参照（ratchet 方式・数値ハードコードしない）
 
 ## テスト設計プロセス
 

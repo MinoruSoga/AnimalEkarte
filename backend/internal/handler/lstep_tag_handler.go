@@ -3,51 +3,14 @@ package handler
 import (
 	"net/http"
 	"regexp"
-	"time"
 
 	"github.com/gin-gonic/gin"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
-	"github.com/animal-ekarte/backend/internal/service"
 )
 
 // tagNamePattern は手動付与可能なタグ名の形式（英数字・アンダースコア・ハイフン、1〜100文字）。
 var tagNamePattern = regexp.MustCompile(`^[a-zA-Z0-9_\-]{1,100}$`)
-
-// postOwnerLstepTagRequest は POST /owners/:id/lstep/tags のリクエスト。
-type postOwnerLstepTagRequest struct {
-	TagName string `json:"tag_name" binding:"required"`
-	Reason  string `json:"reason"`
-}
-
-// lstepTagsResponse は GET /owners/:id/lstep/tags のレスポンス。
-type lstepTagsResponse struct {
-	LineUserID  *string   `json:"line_user_id"`
-	IsLinked    bool      `json:"is_linked"`
-	LstepOptOut bool      `json:"lstep_opt_out"`
-	Tags        []string  `json:"tags"`
-	FetchedAt   time.Time `json:"fetched_at"`
-}
-
-// lstepAddTagResponse は POST /owners/:id/lstep/tags のレスポンス。
-type lstepAddTagResponse struct {
-	TagName string `json:"tag_name"`
-	Added   bool   `json:"added"`
-}
-
-func toLstepTagsResponse(r *service.OwnerTagsResult) lstepTagsResponse {
-	tags := r.Tags
-	if tags == nil {
-		tags = []string{}
-	}
-	return lstepTagsResponse{
-		LineUserID:  r.LineUserID,
-		IsLinked:    r.IsLinked,
-		LstepOptOut: r.LstepOptOut,
-		Tags:        tags,
-		FetchedAt:   localTime(r.FetchedAt),
-	}
-}
 
 // GetOwnerLstepTags godoc
 // GET /owners/:id/lstep/tags — 飼い主のLステップタグ一覧を返す（BE-019）。
@@ -69,9 +32,9 @@ func (h *Handler) GetOwnerLstepTags(c *gin.Context) {
 	c.JSON(http.StatusOK, toLstepTagsResponse(result))
 }
 
-// PostOwnerLstepTag godoc
+// AddOwnerLstepTag godoc
 // POST /owners/:id/lstep/tags — 飼い主に手動でLステップタグを付与する（BE-019）。
-func (h *Handler) PostOwnerLstepTag(c *gin.Context) {
+func (h *Handler) AddOwnerLstepTag(c *gin.Context) {
 	clinicID, ok := extractClinicID(c)
 	if !ok {
 		return

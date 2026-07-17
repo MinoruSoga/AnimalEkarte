@@ -49,7 +49,7 @@ TFVARS="$TF_DIR/terraform.tfvars"
 if [ ! -f "$TFVARS" ]; then
   fail "BLOCKED: terraform.tfvars missing ($TFVARS)"
   fail "full plan は実行しない。db_password と alb_internal=true を含む実 tfvars をローカルに用意せよ。"
-  fail "手順は docs/infra/P2_TERRAFORM_PLAN_RUNBOOK.md を参照。"
+  fail "手順は docs/ops/p2-terraform-plan-runbook.md を参照。"
   exit 3
 fi
 log "terraform.tfvars detected (内容は読み取らない)"

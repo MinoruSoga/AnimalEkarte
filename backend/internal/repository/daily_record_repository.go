@@ -54,7 +54,7 @@ func (r *dailyRecordRepository) FindByHospitalizationIDAndDate(ctx context.Conte
 		Preload("StaffNotes").
 		First(&record).Error
 	if err != nil {
-		return nil, apperrors.FromGORM(err, "daily_record", fmt.Sprintf("%d/%s", hospitalizationID, date.Format("2006-01-02")))
+		return nil, apperrors.FromGORM(err, "daily_record", fmt.Sprintf("%d/%s", hospitalizationID, date.Format(time.DateOnly)))
 	}
 	return &record, nil
 }
@@ -65,7 +65,7 @@ func (r *dailyRecordRepository) FindOrCreateByDate(ctx context.Context, clinicID
 		HospitalizationID: hospitalizationID,
 		Date:              date,
 	}
-	result := r.db.WithContext(ctx).
+	result := dbOrTx(ctx, r.db).
 		Where(model.DailyRecord{ClinicID: clinicID, HospitalizationID: hospitalizationID, Date: date}).
 		FirstOrCreate(&record)
 	if result.Error != nil {
@@ -75,7 +75,7 @@ func (r *dailyRecordRepository) FindOrCreateByDate(ctx context.Context, clinicID
 }
 
 func (r *dailyRecordRepository) CreateVitalRecord(ctx context.Context, vr *model.VitalRecord) error {
-	err := r.db.WithContext(ctx).Create(vr).Error
+	err := dbOrTx(ctx, r.db).Create(vr).Error
 	if err != nil {
 		return apperrors.FromGORM(err, "vital_record", "")
 	}

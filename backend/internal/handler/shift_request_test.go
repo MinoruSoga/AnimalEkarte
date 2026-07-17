@@ -1,10 +1,100 @@
 package handler
 
 import (
+	"net/url"
 	"testing"
+	"time"
+
+	"github.com/stretchr/testify/assert"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 )
+
+func TestNewListShiftEntriesQuery(t *testing.T) {
+	tests := []struct {
+		name   string
+		values url.Values
+		want   listShiftEntriesQuery
+	}{
+		{
+			name:   "parses date and staff_id",
+			values: url.Values{"date": {"2026-05"}, "staff_id": {"10"}},
+			want:   listShiftEntriesQuery{Date: "2026-05", StaffID: "10"},
+		},
+		{
+			name:   "empty values yield zero query",
+			values: url.Values{},
+			want:   listShiftEntriesQuery{},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, newListShiftEntriesQuery(tt.values))
+		})
+	}
+}
+
+func TestNewOnDutyStaffsQuery(t *testing.T) {
+	tests := []struct {
+		name   string
+		values url.Values
+		want   onDutyStaffsQuery
+	}{
+		{
+			name:   "parses date",
+			values: url.Values{"date": {"2026-05-28"}},
+			want:   onDutyStaffsQuery{Date: "2026-05-28"},
+		},
+		{
+			name:   "empty values yield empty date",
+			values: url.Values{},
+			want:   onDutyStaffsQuery{},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, newOnDutyStaffsQuery(tt.values))
+		})
+	}
+}
+
+func TestOnDutyStaffsQuery_ToDate(t *testing.T) {
+	tests := []struct {
+		name    string
+		query   onDutyStaffsQuery
+		wantErr bool
+	}{
+		{
+			name:  "valid date",
+			query: onDutyStaffsQuery{Date: "2026-05-28"},
+		},
+		{
+			name:    "missing date returns error",
+			query:   onDutyStaffsQuery{Date: ""},
+			wantErr: true,
+		},
+		{
+			name:    "invalid format returns error",
+			query:   onDutyStaffsQuery{Date: "2026/05/28"},
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			date, err := tt.query.toDate()
+			if tt.wantErr {
+				assert.Error(t, err)
+				assert.True(t, date.IsZero())
+				return
+			}
+			assert.NoError(t, err)
+			assert.Equal(t, tt.query.Date, date.Format(time.DateOnly))
+		})
+	}
+}
 
 func TestListShiftEntriesQuery_ToServiceFilters(t *testing.T) {
 	filters, err := (&listShiftEntriesQuery{
@@ -57,7 +147,7 @@ func TestCreateShiftRequest_ToServiceInput(t *testing.T) {
 	if input.StaffID != req.StaffID {
 		t.Errorf("StaffID = %d, want %d", input.StaffID, req.StaffID)
 	}
-	if got := input.Date.Format(shiftDateLayout); got != req.Date {
+	if got := input.Date.Format(time.DateOnly); got != req.Date {
 		t.Errorf("Date = %q, want %q", got, req.Date)
 	}
 	if input.StartTime == nil || *input.StartTime != req.StartTime {

@@ -5,13 +5,15 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
-	"net/smtp"
 	"strings"
+	"sync"
 	"time"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
+	"github.com/animal-ekarte/backend/internal/infra/crypto"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/repository"
+	"github.com/animal-ekarte/backend/internal/timeutil"
 )
 
 // ReservationNotifier は予約確定・キャンセル時の通知インターフェース。
@@ -21,6 +23,9 @@ type ReservationNotifier interface {
 	NotifyCreated(ctx context.Context, appt *model.Reservation, customer *model.LineCustomer)
 	// NotifyCancelled は予約キャンセル後に LINE + メールを送信する。
 	NotifyCancelled(ctx context.Context, appt *model.Reservation, customer *model.LineCustomer)
+	// Wait は送信中の通知 goroutine（fire-and-forget）の完了を待つ。
+	// graceful shutdown で server.Shutdown(ctx) の後に呼び出し、goroutine の孤児化を防ぐ（BE-refactor.md B-1）。
+	Wait()
 }
 
 // ReservationNotificationConfig はSMTP共有設定を保持する。
@@ -39,15 +44,27 @@ type ReservationNotificationConfig struct {
 type reservationNotificationService struct {
 	cfg         ReservationNotificationConfig
 	settingRepo repository.LineReservationSettingRepository
+	// cipher は line_access_token を復号するために使う（H-4）。
+	// nil の場合は復号なしで動作する（開発環境で INTEGRATION_ENCRYPTION_KEY 未設定時）。
+	cipher *crypto.AESGCMCipher
+	// wg は通知 goroutine（fire-and-forget）を追跡する（BE-refactor.md B-1）。
+	wg sync.WaitGroup
+}
+
+// Wait は送信中の通知 goroutine の完了を待つ（BE-refactor.md B-1）。
+func (s *reservationNotificationService) Wait() {
+	s.wg.Wait()
 }
 
 // NewReservationNotificationService は通知サービスを初期化して返す。
 // SMTP設定が空の場合はメール送信をスキップする。
 // LINE アクセストークン・通知先メールは予約のクリニック設定（DB）から都度取得する。
-func NewReservationNotificationService(cfg *ReservationNotificationConfig, settingRepo repository.LineReservationSettingRepository) ReservationNotifier {
+// cipher が nil の場合は復号なしで動作する（lstep 連携と同一の cipher を再利用する）。
+func NewReservationNotificationService(cfg *ReservationNotificationConfig, settingRepo repository.LineReservationSettingRepository, cipher *crypto.AESGCMCipher) ReservationNotifier {
 	return &reservationNotificationService{
 		cfg:         *cfg,
 		settingRepo: settingRepo,
+		cipher:      cipher,
 	}
 }
 
@@ -62,7 +79,9 @@ func (s *reservationNotificationService) NotifyCreated(
 	emailSubject, emailBody := s.buildCreatedEmail(appt, customer)
 	clinicID := appt.ClinicID
 
-	go func() { //nolint:contextcheck,gosec // 意図的: 通知はリクエスト完了後も継続するため独立した background context を使用
+	s.wg.Add(1)
+	goSafe("reservation notify created", func() { //nolint:contextcheck,gosec // 意図的: 通知はリクエスト完了後も継続するため独立した background context を使用
+		defer s.wg.Done()
 		bgCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 		defer cancel()
 
@@ -77,8 +96,10 @@ func (s *reservationNotificationService) NotifyCreated(
 			return
 		}
 
-		if customer != nil && customer.LineUserID != "" && setting.LineAccessToken != "" {
-			lineSvc := NewLineMessagingService(setting.LineAccessToken)
+		// DB 上の line_access_token は暗号文（H-4）。レガシー平文行はそのまま返る。
+		accessToken := decryptLineCredential(bgCtx, s.cipher, setting.LineAccessToken)
+		if customer != nil && customer.LineUserID != "" && accessToken != "" {
+			lineSvc := NewLineMessagingService(accessToken)
 			if err := lineSvc.PushText(bgCtx, customer.LineUserID, lineText); err != nil {
 				slog.ErrorContext(bgCtx, "LINE notify created failed",
 					"reservation_id", appt.ID,
@@ -95,7 +116,7 @@ func (s *reservationNotificationService) NotifyCreated(
 				)
 			}
 		}
-	}()
+	})
 }
 
 // ---- NotifyCancelled ----
@@ -109,7 +130,9 @@ func (s *reservationNotificationService) NotifyCancelled(
 	emailSubject, emailBody := s.buildCancelledEmail(appt, customer)
 	clinicID := appt.ClinicID
 
-	go func() { //nolint:contextcheck,gosec // 意図的: 通知はリクエスト完了後も継続するため独立した background context を使用
+	s.wg.Add(1)
+	goSafe("reservation notify cancelled", func() { //nolint:contextcheck,gosec // 意図的: 通知はリクエスト完了後も継続するため独立した background context を使用
+		defer s.wg.Done()
 		bgCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 		defer cancel()
 
@@ -124,8 +147,10 @@ func (s *reservationNotificationService) NotifyCancelled(
 			return
 		}
 
-		if customer != nil && customer.LineUserID != "" && setting.LineAccessToken != "" {
-			lineSvc := NewLineMessagingService(setting.LineAccessToken)
+		// DB 上の line_access_token は暗号文（H-4）。レガシー平文行はそのまま返る。
+		accessToken := decryptLineCredential(bgCtx, s.cipher, setting.LineAccessToken)
+		if customer != nil && customer.LineUserID != "" && accessToken != "" {
+			lineSvc := NewLineMessagingService(accessToken)
 			if err := lineSvc.PushText(bgCtx, customer.LineUserID, lineMsg); err != nil {
 				slog.ErrorContext(bgCtx, "LINE notify cancelled failed",
 					"reservation_id", appt.ID,
@@ -142,7 +167,7 @@ func (s *reservationNotificationService) NotifyCancelled(
 				)
 			}
 		}
-	}()
+	})
 }
 
 // ---- ヘルパー: LINE表示名フォールバック ----
@@ -287,7 +312,7 @@ func (s *reservationNotificationService) buildCancelledEmail(
 
 // ---- SMTP送信 ----
 
-func (s *reservationNotificationService) sendEmail(_ context.Context, to, subject, body string) error {
+func (s *reservationNotificationService) sendEmail(ctx context.Context, to, subject, body string) error {
 	if s.cfg.SMTPHost == "" {
 		return nil
 	}
@@ -300,13 +325,8 @@ func (s *reservationNotificationService) sendEmail(_ context.Context, to, subjec
 		"\r\n" +
 		body + "\r\n")
 
-	addr := s.cfg.SMTPHost + ":" + s.cfg.SMTPPort
-	var auth smtp.Auth
-	if s.cfg.SMTPUser != "" {
-		auth = smtp.PlainAuth("", s.cfg.SMTPUser, s.cfg.SMTPPass, s.cfg.SMTPHost)
-	}
-
-	if err := smtp.SendMail(addr, auth, from, []string{to}, msg); err != nil {
+	cfg := smtpConfig{Host: s.cfg.SMTPHost, Port: s.cfg.SMTPPort, User: s.cfg.SMTPUser, Pass: s.cfg.SMTPPass}
+	if err := sendSMTPMail(ctx, cfg, from, to, msg); err != nil {
 		return apperrors.Wrap(err, "smtp send")
 	}
 	return nil
@@ -324,15 +344,13 @@ func customerDisplayName(c *model.LineCustomer) string {
 	return c.DisplayName
 }
 
-var weekdaysJP = [...]string{"日", "月", "火", "水", "木", "金", "土"}
-
 func formatDateJPWithTime(t time.Time) string {
-	w := weekdaysJP[t.Weekday()]
+	w := timeutil.WeekdayJP(t)
 	return fmt.Sprintf("%s(%s) %s", t.Format("2006年01月02日"), w, t.Format("15:04"))
 }
 
 func formatDateTimeJP(start, end time.Time) string {
-	w := weekdaysJP[start.Weekday()]
+	w := timeutil.WeekdayJP(start)
 	return fmt.Sprintf("%s(%s) %s〜%s",
 		start.Format("2006年01月02日"),
 		w,

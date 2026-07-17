@@ -5,26 +5,27 @@ import { useSidePeekDirty } from "@/hooks/use-side-peek-dirty";
 import { TableCell } from "@/components/ui/table";
 import { DataTableRow } from "@/components/shared/DataTable/DataTableRow";
 import { RowActionButton } from "@/components/shared/RowActionButton";
-import { NotionStatusPill } from "@/components/shared/StatusPill/NotionStatusPill";
+import { StatusPill } from "@/components/shared/StatusPill/StatusPill";
 import { C, ICON } from "@/lib/design-tokens";
-import { MASTER_STATUS_FILTER } from "../constants/styles";
+import { formatCurrencyOrDash } from "@/utils/format/number";
+import { MASTER_STATUS_FILTER, MASTER_TABLE_COL } from "../constants/styles";
 import { useMasterCRUD } from "../hooks/use-master-crud";
 import { useMasterSave } from "../hooks/use-master-save";
 import { MasterCRUDPage } from "../components/MasterCRUDPage";
 import { useGetAllHospitalizationPlans, useCreateHospitalizationPlan, useUpdateHospitalizationPlan, useDeleteHospitalizationPlan, BODY_SIZE_LABELS, BILLING_UNIT_LABELS } from "../api/hospitalization-plans";
 import type { HospitalizationPlan, CreateHospitalizationPlanRequest, UpdateHospitalizationPlanRequest } from "../api/hospitalization-plans";
 import { HospitalizationSidePanel } from "../components/HospitalizationSidePanel";
-import type { HospitalizationFormData } from "../components/HospitalizationSidePanelModel";
+import type { HospitalizationFormData } from "../components/hospitalization-side-panel-model";
 import {
   buildHospitalizationCreateRequest,
   buildHospitalizationUpdateRequest,
-} from "./HospitalizationSettingsModel";
+} from "./hospitalization-settings-model";
 import { ResourceMasterHospitalization } from "@/types/generated/models";
 
 const COLUMNS = [
-  { header: "名称" }, { header: "対象体格", className: "w-[100px]" },
-  { header: "料金単位", className: "w-[120px]" }, { header: "単価(税込)", className: "w-[120px]", align: "right" as const },
-  { header: "ステータス", className: "w-[100px]", align: "center" as const }, { header: "操作", className: "w-[80px]", align: "right" as const },
+  { header: "名称" }, { header: "対象体格", className: MASTER_TABLE_COL.w100 },
+  { header: "料金単位", className: MASTER_TABLE_COL.w120 }, { header: "単価(税込)", className: MASTER_TABLE_COL.w120, align: "right" as const },
+  { header: "ステータス", className: MASTER_TABLE_COL.w100, align: "center" as const }, { header: "操作", className: MASTER_TABLE_COL.w80, align: "right" as const },
 ];
 
 export function HospitalizationSettings() {
@@ -53,8 +54,8 @@ export function HospitalizationSettings() {
           <TableCell className={`font-medium text-base ${C.text}`}>{item.name}</TableCell>
           <TableCell className={`text-base ${C.text70}`}>{item.bodySize ? (BODY_SIZE_LABELS[item.bodySize] ?? item.bodySize) : "-"}</TableCell>
           <TableCell className={`text-base ${C.text70}`}>{item.billingUnit ? (BILLING_UNIT_LABELS[item.billingUnit] ?? item.billingUnit) : "-"}</TableCell>
-          <TableCell className={`text-right font-mono text-base ${C.text}`}>{item.price > 0 ? `¥${item.price.toLocaleString()}` : "-"}</TableCell>
-          <TableCell className="text-center"><NotionStatusPill isActive={item.isActive} /></TableCell>
+          <TableCell className={`text-right font-mono text-base ${C.text}`}>{formatCurrencyOrDash(item.price)}</TableCell>
+          <TableCell className="text-center"><StatusPill isActive={item.isActive} /></TableCell>
           <TableCell className="p-0 text-right">{canEdit ? <RowActionButton onClick={() => onEdit(item)} /> : null}</TableCell>
         </DataTableRow>
       )}

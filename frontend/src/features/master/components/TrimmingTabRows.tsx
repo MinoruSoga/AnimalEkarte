@@ -1,6 +1,7 @@
 import { TableCell } from "@/components/ui/table";
 import { DataTableRow } from "@/components/shared/DataTable/DataTableRow";
-import { NotionStatusPill } from "@/components/shared/StatusPill/NotionStatusPill";
+import { RowActionButton } from "@/components/shared/RowActionButton";
+import { StatusPill } from "@/components/shared/StatusPill/StatusPill";
 import { C } from "@/lib/design-tokens";
 
 import {
@@ -32,8 +33,11 @@ export function TrimmingCourseRow({
         {formatTrimmingDuration(item.duration)}
       </TableCell>
       <TrimmingPriceCell price={item.price} />
-      <TableCell className="text-right">
-        <NotionStatusPill isActive={item.isActive} />
+      <TableCell className="text-center">
+        <StatusPill isActive={item.isActive} />
+      </TableCell>
+      <TableCell className="p-0 text-right">
+        {canEdit ? <RowActionButton onClick={() => onEdit(item)} /> : null}
       </TableCell>
     </DataTableRow>
   );
@@ -62,8 +66,11 @@ export function TrimmingOptionRow({
         <CombinablePill combinable={item.combinable} />
       </TableCell>
       <TrimmingPriceCell price={item.price} />
-      <TableCell className="text-right">
-        <NotionStatusPill isActive={item.isActive} />
+      <TableCell className="text-center">
+        <StatusPill isActive={item.isActive} />
+      </TableCell>
+      <TableCell className="p-0 text-right">
+        {canEdit ? <RowActionButton onClick={() => onEdit(item)} /> : null}
       </TableCell>
     </DataTableRow>
   );

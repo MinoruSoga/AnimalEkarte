@@ -9,6 +9,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
+	"github.com/animal-ekarte/backend/internal/config"
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/repository"
@@ -59,93 +60,6 @@ func (m *mockCashRegisterCloseRepository) HasCloseOnDate(ctx context.Context, cl
 	return false, nil
 }
 
-// ---- モック: AccountingRepository（GetCloseAggregate 用追加スタブ） ----
-// accounting_service_test.go の mockAccountingRepository にスタブが既に定義されているため、
-// ここでは cash_register テスト専用の関数フィールド付きモックを別名で定義する。
-
-type mockAccountingRepositoryForClose struct {
-	getCloseAggregateFn func(ctx context.Context, input repository.GetCloseAggregateInput) (*repository.CloseAggregateResult, error)
-	getMonthlyReportFn  func(ctx context.Context, clinicID uint64, year, month int) (*repository.MonthlyReportResult, error)
-}
-
-func (m *mockAccountingRepositoryForClose) FindAll(_ context.Context, _ uint64, _, _ *uint64, _, _, _ *string, _, _ int) ([]model.Billing, int64, error) {
-	return nil, 0, nil
-}
-func (m *mockAccountingRepositoryForClose) FindAllForClinics(_ context.Context, _ []uint64, _, _ *uint64, _, _, _ *string, _, _ int) ([]model.Billing, int64, error) {
-	return nil, 0, nil
-}
-func (m *mockAccountingRepositoryForClose) FindByID(_ context.Context, _, _ uint64) (*model.Billing, error) {
-	return nil, nil
-}
-func (m *mockAccountingRepositoryForClose) FindByIDForClinics(_ context.Context, _ []uint64, _ uint64) (*model.Billing, error) {
-	return nil, nil
-}
-func (m *mockAccountingRepositoryForClose) LockAndFindByID(_ context.Context, _, _ uint64) (*model.Billing, error) {
-	return nil, nil
-}
-func (m *mockAccountingRepositoryForClose) Create(_ context.Context, _ uint64, _ *model.Billing) error {
-	return nil
-}
-func (m *mockAccountingRepositoryForClose) Update(_ context.Context, _, _ uint64, _ map[string]any) (*model.Billing, error) {
-	return nil, nil
-}
-func (m *mockAccountingRepositoryForClose) UpsertPayment(_ context.Context, _ *model.Payment) error {
-	return nil
-}
-func (m *mockAccountingRepositoryForClose) SavePayment(_ context.Context, _ *model.Payment) error {
-	return nil
-}
-
-func (m *mockAccountingRepositoryForClose) SavePaymentSplits(_ context.Context, _ []model.PaymentSplit) error {
-	return nil
-}
-
-func (m *mockAccountingRepositoryForClose) CompleteAccountingAppointments(_ context.Context, _ uint64, _, _, _ *uint64, _ time.Time) (int64, error) {
-	return 0, nil
-}
-
-func (m *mockAccountingRepositoryForClose) FindUnpaidByBilling(_ context.Context, _ uint64, _, _ string, _, _ int) ([]model.Billing, int64, error) {
-	return nil, 0, nil
-}
-func (m *mockAccountingRepositoryForClose) FindUnpaidByOwner(_ context.Context, _ uint64, _, _ string, _, _ int) ([]repository.UnpaidOwnerAggregate, int64, repository.UnpaidSummary, error) {
-	return nil, 0, repository.UnpaidSummary{}, nil
-}
-func (m *mockAccountingRepositoryForClose) FindMonthlyUnpaidCarryover(_ context.Context, _ uint64, _, _ string, _, _ int) ([]repository.MonthlyUnpaidOwnerPet, int64, repository.MonthlyUnpaidSummary, error) {
-	return nil, 0, repository.MonthlyUnpaidSummary{}, nil
-}
-func (m *mockAccountingRepositoryForClose) GetDailySummary(_ context.Context, _ uint64, _ time.Time) (*repository.DailySummaryResult, error) {
-	return &repository.DailySummaryResult{}, nil
-}
-func (m *mockAccountingRepositoryForClose) GetCloseAggregate(ctx context.Context, input repository.GetCloseAggregateInput) (*repository.CloseAggregateResult, error) {
-	if m.getCloseAggregateFn != nil {
-		return m.getCloseAggregateFn(ctx, input)
-	}
-	return &repository.CloseAggregateResult{
-		PaymentRows:    []repository.PaymentAggregateRow{},
-		CategoryRows:   []repository.CategoryAggregateRow{},
-		BillingDetails: []repository.CloseBillingDetail{},
-		TaxBreakdown:   []repository.TaxBreakdownRow{},
-	}, nil
-}
-func (m *mockAccountingRepositoryForClose) GetMonthlyReport(ctx context.Context, clinicID uint64, year, month int) (*repository.MonthlyReportResult, error) {
-	if m.getMonthlyReportFn != nil {
-		return m.getMonthlyReportFn(ctx, clinicID, year, month)
-	}
-	return &repository.MonthlyReportResult{}, nil
-}
-
-func (m *mockAccountingRepositoryForClose) SumPaidByOwner(_ context.Context, _, _ uint64) (int64, error) {
-	return 0, nil
-}
-
-func (m *mockAccountingRepositoryForClose) MaxSingleVisitAmountByOwner(_ context.Context, _, _ uint64) (int64, error) {
-	return 0, nil
-}
-
-func (m *mockAccountingRepositoryForClose) FindOwnersByAnnualRevenue(_ context.Context, _ uint64) ([]repository.OwnerAnnualRevenue, error) {
-	return nil, nil
-}
-
 // ---- モック: ClosingSettingsService（ResolveSchedule のみ） ----
 
 type mockClosingSettingsService struct {
@@ -194,11 +108,12 @@ func emptyAggregateResult() *repository.CloseAggregateResult {
 
 func newCashRegisterService(
 	closeRepo *mockCashRegisterCloseRepository,
-	accountingRepo *mockAccountingRepositoryForClose,
+	accountingRepo *mockAccountingRepository,
 	closingsSvc *mockClosingSettingsService,
 	payMethodRepo *mockPaymentMethodMasterRepository,
 ) CashRegisterService {
-	return NewCashRegisterService(closeRepo, accountingRepo, closingsSvc, payMethodRepo)
+	// clinicRepo の zero-value mock は nil clinic を返し、税率は既定値（標準10%/軽減8%）になる（M-7）。
+	return NewCashRegisterService(closeRepo, accountingRepo, closingsSvc, payMethodRepo, &mockClinicRepository{})
 }
 
 // ---- テスト ----
@@ -232,7 +147,9 @@ func TestCashRegisterService_GetPreview(t *testing.T) {
 				return nil, nil // 未締め
 			},
 			findAllPayMethodFn: func(_ context.Context, _ uint64) ([]model.PaymentMethodMaster, error) {
-				return []model.PaymentMethodMaster{}, nil
+				return []model.PaymentMethodMaster{
+					{ID: 1, Name: "現金", SystemKey: ptrString("cash")},
+				}, nil
 			},
 			checkResult: func(t *testing.T, got *CashRegisterPreview) {
 				assert.Equal(t, "2026-04-20", got.Date)
@@ -256,7 +173,9 @@ func TestCashRegisterService_GetPreview(t *testing.T) {
 				return &model.CashRegisterClose{ID: 99, Period: "pm"}, nil
 			},
 			findAllPayMethodFn: func(_ context.Context, _ uint64) ([]model.PaymentMethodMaster, error) {
-				return []model.PaymentMethodMaster{}, nil
+				return []model.PaymentMethodMaster{
+					{ID: 1, Name: "現金", SystemKey: ptrString("cash")},
+				}, nil
 			},
 			checkResult: func(t *testing.T, got *CashRegisterPreview) {
 				assert.True(t, got.IsAlreadyClosed)
@@ -304,7 +223,9 @@ func TestCashRegisterService_GetPreview(t *testing.T) {
 				return nil, nil
 			},
 			findAllPayMethodFn: func(_ context.Context, _ uint64) ([]model.PaymentMethodMaster, error) {
-				return []model.PaymentMethodMaster{}, nil
+				return []model.PaymentMethodMaster{
+					{ID: 1, Name: "現金", SystemKey: ptrString("cash")},
+				}, nil
 			},
 			checkResult: func(t *testing.T, got *CashRegisterPreview) {
 				assert.Equal(t, "emg", got.Period)
@@ -319,10 +240,11 @@ func TestCashRegisterService_GetPreview(t *testing.T) {
 				return defaultSchedule(), nil
 			},
 			getCloseAggregateFn: func(_ context.Context, _ repository.GetCloseAggregateInput) (*repository.CloseAggregateResult, error) {
+				cashID := uint64(2)
 				creditID := uint64(1)
 				return &repository.CloseAggregateResult{
 					PaymentRows: []repository.PaymentAggregateRow{
-						{PaymentMethodID: nil, Amount: 3000},       // 現金
+						{PaymentMethodID: &cashID, Amount: 3000},   // 現金
 						{PaymentMethodID: &creditID, Amount: 7000}, // クレジット
 					},
 					CategoryRows: []repository.CategoryAggregateRow{
@@ -338,7 +260,8 @@ func TestCashRegisterService_GetPreview(t *testing.T) {
 			},
 			findAllPayMethodFn: func(_ context.Context, _ uint64) ([]model.PaymentMethodMaster, error) {
 				return []model.PaymentMethodMaster{
-					{ID: 1, Name: "クレジット"},
+					{ID: 1, Name: "クレジット", SystemKey: ptrString("credit_card")},
+					{ID: 2, Name: "現金", SystemKey: ptrString("cash")},
 				}, nil
 			},
 			checkResult: func(t *testing.T, got *CashRegisterPreview) {
@@ -350,11 +273,134 @@ func TestCashRegisterService_GetPreview(t *testing.T) {
 			},
 		},
 		{
+			name:    "正常: 個別会計一覧（BillingDetails）が正しく変換される",
+			dateStr: targetDateStr,
+			period:  "am",
+			resolveScheduleFn: func(_ context.Context, _ uint64, _ time.Time) (*DaySchedule, error) {
+				return defaultSchedule(), nil
+			},
+			getCloseAggregateFn: func(_ context.Context, _ repository.GetCloseAggregateInput) (*repository.CloseAggregateResult, error) {
+				cashID := uint64(2)
+				return &repository.CloseAggregateResult{
+					PaymentRows:  []repository.PaymentAggregateRow{},
+					CategoryRows: []repository.CategoryAggregateRow{},
+					BillingDetails: []repository.CloseBillingDetail{
+						{
+							BillingID:         500,
+							PaidAt:            time.Date(2026, 4, 20, 10, 30, 0, 0, time.UTC),
+							OwnerName:         "田中太郎",
+							PetName:           "ポチ",
+							IsHospitalization: false,
+							Category:          "診察",
+							PaymentMethodID:   &cashID,
+							BillingAmount:     5000,
+							RefundAmount:      0,
+							NetAmount:         5000,
+						},
+					},
+					TaxBreakdown: []repository.TaxBreakdownRow{},
+				}, nil
+			},
+			findByDateAndPeriodFn: func(_ context.Context, _ uint64, _ time.Time, _ string) (*model.CashRegisterClose, error) {
+				return nil, nil
+			},
+			findAllPayMethodFn: func(_ context.Context, _ uint64) ([]model.PaymentMethodMaster, error) {
+				return []model.PaymentMethodMaster{
+					{ID: 2, Name: "現金", SystemKey: ptrString("cash")},
+				}, nil
+			},
+			checkResult: func(t *testing.T, got *CashRegisterPreview) {
+				if assert.Len(t, got.BillingDetails, 1) {
+					d := got.BillingDetails[0]
+					assert.Equal(t, uint64(500), d.BillingID)
+					assert.Equal(t, "田中太郎", d.OwnerName)
+					assert.Equal(t, "ポチ", d.PetName)
+					assert.Equal(t, "現金", d.PaymentMethodName)
+					assert.Equal(t, int64(5000), d.BillingAmount)
+					assert.Equal(t, int64(5000), d.NetAmount)
+				}
+			},
+		},
+		{
 			name:    "エラー: ResolveSchedule がエラーを返す",
 			dateStr: targetDateStr,
 			period:  "am",
 			resolveScheduleFn: func(_ context.Context, _ uint64, _ time.Time) (*DaySchedule, error) {
 				return nil, errors.New("schedule error")
+			},
+			wantErr: true,
+		},
+		{
+			name:    "エラー: resolvePeriodRange が失敗する（スケジュールの時刻形式が不正）",
+			dateStr: targetDateStr,
+			period:  "am",
+			resolveScheduleFn: func(_ context.Context, _ uint64, _ time.Time) (*DaySchedule, error) {
+				return &DaySchedule{AmPmBoundary: "invalid", PmEnd: "18:30", AmStart: "09:00"}, nil
+			},
+			wantErr:   true,
+			wantErrIs: apperrors.ErrInvalidInput,
+		},
+		{
+			name:    "エラー: GetCloseAggregate がエラーを返す",
+			dateStr: targetDateStr,
+			period:  "am",
+			resolveScheduleFn: func(_ context.Context, _ uint64, _ time.Time) (*DaySchedule, error) {
+				return defaultSchedule(), nil
+			},
+			getCloseAggregateFn: func(_ context.Context, _ repository.GetCloseAggregateInput) (*repository.CloseAggregateResult, error) {
+				return nil, errors.New("aggregate error")
+			},
+			wantErr: true,
+		},
+		{
+			name:    "エラー: 支払方法マスタ取得に失敗する",
+			dateStr: targetDateStr,
+			period:  "am",
+			resolveScheduleFn: func(_ context.Context, _ uint64, _ time.Time) (*DaySchedule, error) {
+				return defaultSchedule(), nil
+			},
+			getCloseAggregateFn: func(_ context.Context, _ repository.GetCloseAggregateInput) (*repository.CloseAggregateResult, error) {
+				return emptyAggregateResult(), nil
+			},
+			findAllPayMethodFn: func(_ context.Context, _ uint64) ([]model.PaymentMethodMaster, error) {
+				return nil, errors.New("pay method error")
+			},
+			wantErr: true,
+		},
+		{
+			name:    "エラー: 現金マスタ（system_key='cash'）が存在しない",
+			dateStr: targetDateStr,
+			period:  "am",
+			resolveScheduleFn: func(_ context.Context, _ uint64, _ time.Time) (*DaySchedule, error) {
+				return defaultSchedule(), nil
+			},
+			getCloseAggregateFn: func(_ context.Context, _ repository.GetCloseAggregateInput) (*repository.CloseAggregateResult, error) {
+				return emptyAggregateResult(), nil
+			},
+			findAllPayMethodFn: func(_ context.Context, _ uint64) ([]model.PaymentMethodMaster, error) {
+				return []model.PaymentMethodMaster{
+					{ID: 1, Name: "クレジットカード", SystemKey: ptrString("credit_card")},
+				}, nil
+			},
+			wantErr: true,
+		},
+		{
+			name:    "エラー: 二重締め確認（FindByDateAndPeriod）がエラーを返す",
+			dateStr: targetDateStr,
+			period:  "am",
+			resolveScheduleFn: func(_ context.Context, _ uint64, _ time.Time) (*DaySchedule, error) {
+				return defaultSchedule(), nil
+			},
+			getCloseAggregateFn: func(_ context.Context, _ repository.GetCloseAggregateInput) (*repository.CloseAggregateResult, error) {
+				return emptyAggregateResult(), nil
+			},
+			findAllPayMethodFn: func(_ context.Context, _ uint64) ([]model.PaymentMethodMaster, error) {
+				return []model.PaymentMethodMaster{
+					{ID: 1, Name: "現金", SystemKey: ptrString("cash")},
+				}, nil
+			},
+			findByDateAndPeriodFn: func(_ context.Context, _ uint64, _ time.Time, _ string) (*model.CashRegisterClose, error) {
+				return nil, errors.New("find close error")
 			},
 			wantErr: true,
 		},
@@ -366,7 +412,7 @@ func TestCashRegisterService_GetPreview(t *testing.T) {
 			closeRepo := &mockCashRegisterCloseRepository{
 				findByDateAndPeriodFn: tt.findByDateAndPeriodFn,
 			}
-			accountingRepo := &mockAccountingRepositoryForClose{
+			accountingRepo := &mockAccountingRepository{
 				getCloseAggregateFn: tt.getCloseAggregateFn,
 			}
 			closingsSvc := &mockClosingSettingsService{
@@ -413,6 +459,7 @@ func TestCashRegisterService_Close(t *testing.T) {
 		findByDateAndPeriodFn func(ctx context.Context, clinicID uint64, date time.Time, period string) (*model.CashRegisterClose, error)
 		resolveScheduleFn     func(ctx context.Context, clinicID uint64, date time.Time) (*DaySchedule, error)
 		getCloseAggregateFn   func(ctx context.Context, input repository.GetCloseAggregateInput) (*repository.CloseAggregateResult, error)
+		findAllPayMethodFn    func(ctx context.Context, clinicID uint64) ([]model.PaymentMethodMaster, error)
 		createFn              func(ctx context.Context, c *model.CashRegisterClose) error
 		wantErr               bool
 		wantErrIs             error
@@ -458,16 +505,23 @@ func TestCashRegisterService_Close(t *testing.T) {
 				return defaultSchedule(), nil
 			},
 			getCloseAggregateFn: func(_ context.Context, _ repository.GetCloseAggregateInput) (*repository.CloseAggregateResult, error) {
+				cashID := uint64(2)
 				creditID := uint64(1)
 				return &repository.CloseAggregateResult{
 					PaymentRows: []repository.PaymentAggregateRow{
-						{PaymentMethodID: nil, Amount: 3000},       // 現金
+						{PaymentMethodID: &cashID, Amount: 3000},   // 現金
 						{PaymentMethodID: &creditID, Amount: 7000}, // クレジット
 					},
 					CategoryRows:   []repository.CategoryAggregateRow{},
 					TotalRefund:    500,
 					BillingDetails: []repository.CloseBillingDetail{},
 					TaxBreakdown:   []repository.TaxBreakdownRow{},
+				}, nil
+			},
+			findAllPayMethodFn: func(_ context.Context, _ uint64) ([]model.PaymentMethodMaster, error) {
+				return []model.PaymentMethodMaster{
+					{ID: 1, Name: "クレジットカード", SystemKey: ptrString("credit_card")},
+					{ID: 2, Name: "現金", SystemKey: ptrString("cash")},
 				}, nil
 			},
 			createFn: func(_ context.Context, _ *model.CashRegisterClose) error {
@@ -515,6 +569,14 @@ func TestCashRegisterService_Close(t *testing.T) {
 			wantErrIs: apperrors.ErrConflict,
 		},
 		{
+			name:  "エラー: 二重締め確認（FindByDateAndPeriod）がリポジトリエラーを返す",
+			input: validInput,
+			findByDateAndPeriodFn: func(_ context.Context, _ uint64, _ time.Time, _ string) (*model.CashRegisterClose, error) {
+				return nil, errors.New("find close error")
+			},
+			wantErr: true,
+		},
+		{
 			name: "エラー: period が不正 → ErrInvalidInput",
 			input: CloseRegisterInput{
 				Date:   targetDate,
@@ -560,13 +622,21 @@ func TestCashRegisterService_Close(t *testing.T) {
 				findByDateAndPeriodFn: tt.findByDateAndPeriodFn,
 				createFn:              tt.createFn,
 			}
-			accountingRepo := &mockAccountingRepositoryForClose{
+			accountingRepo := &mockAccountingRepository{
 				getCloseAggregateFn: tt.getCloseAggregateFn,
 			}
 			closingsSvc := &mockClosingSettingsService{
 				resolveScheduleFn: tt.resolveScheduleFn,
 			}
-			payMethodRepo := &mockPaymentMethodMasterRepository{}
+			findAllFn := tt.findAllPayMethodFn
+			if findAllFn == nil {
+				findAllFn = func(_ context.Context, _ uint64) ([]model.PaymentMethodMaster, error) {
+					return []model.PaymentMethodMaster{
+						{ID: 1, Name: "現金", SystemKey: ptrString("cash")},
+					}, nil
+				}
+			}
+			payMethodRepo := &mockPaymentMethodMasterRepository{findAllFn: findAllFn}
 			svc := newCashRegisterService(closeRepo, accountingRepo, closingsSvc, payMethodRepo)
 
 			// Act
@@ -628,7 +698,7 @@ func TestCashRegisterService_IsDateClosed(t *testing.T) {
 			closeRepo := &mockCashRegisterCloseRepository{
 				hasCloseOnDateFn: tt.hasCloseOnDateFn,
 			}
-			svc := newCashRegisterService(closeRepo, &mockAccountingRepositoryForClose{}, &mockClosingSettingsService{}, &mockPaymentMethodMasterRepository{})
+			svc := newCashRegisterService(closeRepo, &mockAccountingRepository{}, &mockClosingSettingsService{}, &mockPaymentMethodMasterRepository{})
 
 			got, err := svc.IsDateClosed(context.Background(), 1, date)
 
@@ -645,8 +715,8 @@ func TestCashRegisterService_IsDateClosed(t *testing.T) {
 // TestResolvePeriodRange は period→集計期間（JST）の算出を検証する。
 // #150 で追加した emg は PM 締め終了〜翌日0時を対象とする。
 func TestResolvePeriodRange(t *testing.T) {
-	dateJST := time.Date(2026, 4, 20, 0, 0, 0, 0, jstLocation)
-	schedule := &DaySchedule{AmPmBoundary: "14:00", PmEnd: "18:30"}
+	dateJST := time.Date(2026, 4, 20, 0, 0, 0, 0, config.JST)
+	schedule := &DaySchedule{AmPmBoundary: "14:00", PmEnd: "18:30", AmStart: "09:00"}
 
 	tests := []struct {
 		name      string
@@ -656,22 +726,22 @@ func TestResolvePeriodRange(t *testing.T) {
 		wantErr   bool
 	}{
 		{
-			name:      "am: 0時〜AM/PM境界",
+			name:      "am: am_start(9:00)〜AM/PM境界（#215: 0時開始ではない）",
 			period:    "am",
-			wantStart: time.Date(2026, 4, 20, 0, 0, 0, 0, jstLocation),
-			wantEnd:   time.Date(2026, 4, 20, 14, 0, 0, 0, jstLocation),
+			wantStart: time.Date(2026, 4, 20, 9, 0, 0, 0, config.JST),
+			wantEnd:   time.Date(2026, 4, 20, 14, 0, 0, 0, config.JST),
 		},
 		{
 			name:      "pm: 境界〜PM締め終了",
 			period:    "pm",
-			wantStart: time.Date(2026, 4, 20, 14, 0, 0, 0, jstLocation),
-			wantEnd:   time.Date(2026, 4, 20, 18, 30, 0, 0, jstLocation),
+			wantStart: time.Date(2026, 4, 20, 14, 0, 0, 0, config.JST),
+			wantEnd:   time.Date(2026, 4, 20, 18, 30, 0, 0, config.JST),
 		},
 		{
-			name:      "emg: PM締め終了〜翌日0時（PM終了と連続・非破壊）",
+			name:      "emg: PM締め終了〜翌日am_start（#215 越日レンジ・PM終了と連続）",
 			period:    "emg",
-			wantStart: time.Date(2026, 4, 20, 18, 30, 0, 0, jstLocation),
-			wantEnd:   time.Date(2026, 4, 21, 0, 0, 0, 0, jstLocation),
+			wantStart: time.Date(2026, 4, 20, 18, 30, 0, 0, config.JST),
+			wantEnd:   time.Date(2026, 4, 21, 9, 0, 0, 0, config.JST),
 		},
 		{
 			name:    "エラー: 不正な period",
@@ -694,51 +764,131 @@ func TestResolvePeriodRange(t *testing.T) {
 	}
 }
 
-// TestFindCashMethodID は payment_methods マスタ群から「現金」マスタ id を name 一致で解決することを検証する（#128）。
-func TestFindCashMethodID(t *testing.T) {
-	methods := []model.PaymentMethodMaster{
-		{ID: 101, Name: "現金"},
-		{ID: 102, Name: "クレジットカード"},
-		{ID: 104, Name: "銀行振込"},
-	}
-	got := findCashMethodID(methods)
-	if assert.NotNil(t, got) {
-		assert.Equal(t, uint64(101), *got)
+// TestResolvePeriodRange_CrossMidnightEMG は越日 EMG の帰属を検証する（#215）。
+// 深夜 0:00〜am_start の緊急会計は「前日の EMG」に、am_start 以降は「当日の AM」に計上される。
+func TestResolvePeriodRange_CrossMidnightEMG(t *testing.T) {
+	schedule := &DaySchedule{AmPmBoundary: "14:00", PmEnd: "18:30", AmStart: "09:00"}
+	day := time.Date(2026, 4, 20, 0, 0, 0, 0, config.JST)
+
+	// 集計クエリは completed_at >= start AND < end の終端排他（GetCloseAggregate）
+	contains := func(start, end, at time.Time) bool {
+		return !at.Before(start) && at.Before(end)
 	}
 
-	// 現金マスタが存在しない場合は nil（calcTheoreticalCash は NULL のみ現金扱いにフォールバック）
-	assert.Nil(t, findCashMethodID([]model.PaymentMethodMaster{{ID: 102, Name: "クレジットカード"}}))
+	emgStart, emgEnd, err := resolvePeriodRange(day, "emg", schedule)
+	assert.NoError(t, err)
+	nextAmStart, nextAmEnd, err := resolvePeriodRange(day.AddDate(0, 0, 1), "am", schedule)
+	assert.NoError(t, err)
+
+	t.Run("当日23:00の会計は当日EMGに計上される", func(t *testing.T) {
+		at := time.Date(2026, 4, 20, 23, 0, 0, 0, config.JST)
+		assert.True(t, contains(emgStart, emgEnd, at))
+	})
+
+	t.Run("翌朝7:00の会計は前日EMGに計上される（翌日AMに流入しない）", func(t *testing.T) {
+		at := time.Date(2026, 4, 21, 7, 0, 0, 0, config.JST)
+		assert.True(t, contains(emgStart, emgEnd, at), "前日EMGレンジに含まれる")
+		assert.False(t, contains(nextAmStart, nextAmEnd, at), "翌日AMレンジには含まれない")
+	})
+
+	t.Run("翌朝9:00ちょうどは翌日AM（EMG終端は排他）", func(t *testing.T) {
+		at := time.Date(2026, 4, 21, 9, 0, 0, 0, config.JST)
+		assert.False(t, contains(emgStart, emgEnd, at))
+		assert.True(t, contains(nextAmStart, nextAmEnd, at))
+	})
+
+	t.Run("前日EMGと当日AMの間に隙間・重複が無い", func(t *testing.T) {
+		assert.True(t, emgEnd.Equal(nextAmStart))
+	})
+
+	t.Run("AmStart未設定は既定9:00にフォールバックする（後方互換）", func(t *testing.T) {
+		legacy := &DaySchedule{AmPmBoundary: "14:00", PmEnd: "18:30"}
+		s, e, err := resolvePeriodRange(day, "emg", legacy)
+		assert.NoError(t, err)
+		assert.True(t, s.Equal(emgStart), "start が AmStart 指定時と一致")
+		assert.True(t, e.Equal(emgEnd), "end が AmStart 指定時と一致")
+	})
+
+	t.Run("am_start >= boundary は設定不正としてエラー", func(t *testing.T) {
+		bad := &DaySchedule{AmPmBoundary: "09:00", PmEnd: "18:30", AmStart: "09:00"}
+		_, _, err := resolvePeriodRange(day, "am", bad)
+		assert.Error(t, err)
+	})
+
+	t.Run("am_start の形式不正はエラー", func(t *testing.T) {
+		bad := &DaySchedule{AmPmBoundary: "14:00", PmEnd: "18:30", AmStart: "9時"}
+		_, _, err := resolvePeriodRange(day, "am", bad)
+		assert.Error(t, err)
+	})
+
+	t.Run("pm_end の形式不正はエラー", func(t *testing.T) {
+		bad := &DaySchedule{AmPmBoundary: "14:00", PmEnd: "invalid", AmStart: "09:00"}
+		_, _, err := resolvePeriodRange(day, "pm", bad)
+		assert.Error(t, err)
+	})
 }
 
-// TestCalcTheoreticalCash は理論現金の現金判定を検証する（#128）。
-// 現金 = payment_method_id が現金マスタ id（新データ）または NULL（旧/レガシー: 後方互換）。
+// TestFindCashMethodID は payment_methods マスタ群から現金マスタ id を system_key 一致で解決することを検証する（#197）。
+func TestFindCashMethodID(t *testing.T) {
+	ptr := func(s string) *string { return &s }
+
+	t.Run("system_key='cash' の行が正しく解決される", func(t *testing.T) {
+		methods := []model.PaymentMethodMaster{
+			{ID: 101, Name: "現金", SystemKey: ptr("cash")},
+			{ID: 102, Name: "クレジットカード", SystemKey: ptr("credit_card")},
+			{ID: 104, Name: "銀行振込", SystemKey: ptr("bank_transfer")},
+		}
+		got, err := findCashMethodID(methods)
+		assert.NoError(t, err)
+		assert.Equal(t, uint64(101), got)
+	})
+
+	t.Run("rename 耐性: name='お金' に改名しても system_key='cash' で正しく解決される", func(t *testing.T) {
+		renamed := []model.PaymentMethodMaster{
+			{ID: 101, Name: "お金", SystemKey: ptr("cash")},
+		}
+		got, err := findCashMethodID(renamed)
+		assert.NoError(t, err)
+		assert.Equal(t, uint64(101), got)
+	})
+
+	t.Run("現金マスタが存在しない場合はエラーを返す", func(t *testing.T) {
+		_, err := findCashMethodID([]model.PaymentMethodMaster{{ID: 102, Name: "クレジット", SystemKey: ptr("credit_card")}})
+		assert.Error(t, err)
+	})
+}
+
+// TestCalcTheoreticalCash は理論現金の現金判定を検証する（#128/#197）。
+// 現金 = payment_method_id が現金マスタ id と一致する split（#197 の新データ）、
+// または payment_method_id=NULL の split（旧 seed/レガシーデータの現金: #128 後方互換, bug.md H-3）。
 func TestCalcTheoreticalCash(t *testing.T) {
 	cashID := uint64(101)
 	creditID := uint64(102)
+	unknownID := uint64(999) // どの行の payment_method_id とも一致しない現金マスタ id
 
 	tests := []struct {
 		name         string
 		rows         []repository.PaymentAggregateRow
 		totalRefund  int64
-		cashMethodID *uint64
+		cashMethodID uint64
 		want         int64
 	}{
 		{
-			name: "現金マスタ id の行を現金として加算する（hotfix 後の新データ）",
+			name: "現金マスタ id の行を現金として加算する",
 			rows: []repository.PaymentAggregateRow{
 				{PaymentMethodID: &cashID, Amount: 5000},
 				{PaymentMethodID: &creditID, Amount: 3000},
 			},
-			cashMethodID: &cashID,
+			cashMethodID: cashID,
 			want:         5000,
 		},
 		{
-			name: "payment_method_id=NULL の行も現金として加算する（レガシー seed 後方互換）",
+			name: "payment_method_id=NULL の行も現金として加算する（レガシー seed 後方互換, bug.md H-3）",
 			rows: []repository.PaymentAggregateRow{
 				{PaymentMethodID: nil, Amount: 4000},
 				{PaymentMethodID: &creditID, Amount: 1000},
 			},
-			cashMethodID: &cashID,
+			cashMethodID: cashID,
 			want:         4000,
 		},
 		{
@@ -748,15 +898,24 @@ func TestCalcTheoreticalCash(t *testing.T) {
 				{PaymentMethodID: nil, Amount: 2000},
 				{PaymentMethodID: &creditID, Amount: 3000},
 			},
-			cashMethodID: &cashID,
+			cashMethodID: cashID,
 			want:         7000,
+		},
+		{
+			name: "現金マスタ id がどの行にも一致しなくても NULL 行は現金として加算する（NULL 後方互換は id 一致に非依存）",
+			rows: []repository.PaymentAggregateRow{
+				{PaymentMethodID: nil, Amount: 4000},
+				{PaymentMethodID: &cashID, Amount: 5000},
+			},
+			cashMethodID: unknownID,
+			want:         4000,
 		},
 		{
 			name: "非現金（credit_card）のみは現金 0",
 			rows: []repository.PaymentAggregateRow{
 				{PaymentMethodID: &creditID, Amount: 3000},
 			},
-			cashMethodID: &cashID,
+			cashMethodID: cashID,
 			want:         0,
 		},
 		{
@@ -765,17 +924,8 @@ func TestCalcTheoreticalCash(t *testing.T) {
 				{PaymentMethodID: &cashID, Amount: 5000},
 			},
 			totalRefund:  1200,
-			cashMethodID: &cashID,
+			cashMethodID: cashID,
 			want:         3800,
-		},
-		{
-			name: "cashMethodID が nil の場合は NULL のみ現金とみなす（現金マスタ未登録 clinic）",
-			rows: []repository.PaymentAggregateRow{
-				{PaymentMethodID: nil, Amount: 4000},
-				{PaymentMethodID: &cashID, Amount: 5000},
-			},
-			cashMethodID: nil,
-			want:         4000,
 		},
 	}
 
@@ -803,6 +953,9 @@ func TestCashRegisterService_Close_ExcludesActualCashFromAggregation(t *testing.
 		creditBilling      = int64(7000)
 	)
 
+	cashID := uint64(2)
+	creditID := uint64(1)
+
 	var created *model.CashRegisterClose
 	closeRepo := &mockCashRegisterCloseRepository{
 		findByDateAndPeriodFn: func(_ context.Context, _ uint64, _ time.Time, _ string) (*model.CashRegisterClose, error) {
@@ -813,12 +966,11 @@ func TestCashRegisterService_Close_ExcludesActualCashFromAggregation(t *testing.
 			return nil
 		},
 	}
-	accountingRepo := &mockAccountingRepositoryForClose{
+	accountingRepo := &mockAccountingRepository{
 		getCloseAggregateFn: func(_ context.Context, _ repository.GetCloseAggregateInput) (*repository.CloseAggregateResult, error) {
-			creditID := uint64(1)
 			return &repository.CloseAggregateResult{
 				PaymentRows: []repository.PaymentAggregateRow{
-					{PaymentMethodID: nil, Amount: cashBilling},         // 現金（NULL = 後方互換現金）
+					{PaymentMethodID: &cashID, Amount: cashBilling},     // 現金
 					{PaymentMethodID: &creditID, Amount: creditBilling}, // クレジット
 				},
 				CategoryRows: []repository.CategoryAggregateRow{
@@ -837,7 +989,10 @@ func TestCashRegisterService_Close_ExcludesActualCashFromAggregation(t *testing.
 	}
 	payMethodRepo := &mockPaymentMethodMasterRepository{
 		findAllFn: func(_ context.Context, _ uint64) ([]model.PaymentMethodMaster, error) {
-			return []model.PaymentMethodMaster{{ID: 1, Name: "クレジット"}}, nil
+			return []model.PaymentMethodMaster{
+				{ID: 1, Name: "クレジットカード", SystemKey: ptrString("credit_card")},
+				{ID: 2, Name: "現金", SystemKey: ptrString("cash")},
+			}, nil
 		},
 	}
 	svc := newCashRegisterService(closeRepo, accountingRepo, closingsSvc, payMethodRepo)
@@ -866,7 +1021,7 @@ func TestCashRegisterService_Close_ExcludesActualCashFromAggregation(t *testing.
 
 	diag := schema.Categories["診察"]
 	assert.Equal(t, cashBilling, diag["cash"], "診察カテゴリの現金按分は請求現金(3000)")
-	assert.Equal(t, creditBilling, diag["method_1"], "診察カテゴリのクレジット按分は請求クレジット(7000)")
+	assert.Equal(t, creditBilling, diag["credit_card"], "診察カテゴリのクレジット按分は請求クレジット(7000)")
 
 	// カテゴリ内訳の総額は医療記録合計(10000)に一致し、actual_cash(99999) で汚染されていない。
 	var breakdownTotal int64
@@ -877,4 +1032,257 @@ func TestCashRegisterService_Close_ExcludesActualCashFromAggregation(t *testing.
 		}
 	}
 	assert.Equal(t, medicalRecordTotal, breakdownTotal, "category_breakdown の総額は医療記録合計のみ（actual_cash 不含）")
+}
+
+// TestCashRegisterService_List は締め履歴一覧取得を検証する。
+func TestCashRegisterService_List(t *testing.T) {
+	start := time.Date(2026, 4, 1, 0, 0, 0, 0, time.UTC)
+	end := time.Date(2026, 4, 30, 0, 0, 0, 0, time.UTC)
+
+	tests := []struct {
+		name      string
+		findAllFn func(ctx context.Context, clinicID uint64, startDate, endDate *time.Time, page, limit int) ([]model.CashRegisterClose, int64, error)
+		wantLen   int
+		wantTotal int64
+		wantErr   bool
+	}{
+		{
+			name: "正常: 締め履歴一覧を返す",
+			findAllFn: func(_ context.Context, _ uint64, _, _ *time.Time, _, _ int) ([]model.CashRegisterClose, int64, error) {
+				return []model.CashRegisterClose{{ID: 1}, {ID: 2}}, 2, nil
+			},
+			wantLen:   2,
+			wantTotal: 2,
+		},
+		{
+			name: "正常: 該当なし → 空リスト",
+			findAllFn: func(_ context.Context, _ uint64, _, _ *time.Time, _, _ int) ([]model.CashRegisterClose, int64, error) {
+				return []model.CashRegisterClose{}, 0, nil
+			},
+			wantLen:   0,
+			wantTotal: 0,
+		},
+		{
+			name: "エラー: リポジトリエラーを wrap して返す",
+			findAllFn: func(_ context.Context, _ uint64, _, _ *time.Time, _, _ int) ([]model.CashRegisterClose, int64, error) {
+				return nil, 0, errors.New("db error")
+			},
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			closeRepo := &mockCashRegisterCloseRepository{findAllFn: tt.findAllFn}
+			svc := newCashRegisterService(closeRepo, &mockAccountingRepository{}, &mockClosingSettingsService{}, &mockPaymentMethodMasterRepository{})
+
+			got, total, err := svc.List(context.Background(), 1, &start, &end, 1, 20)
+
+			if tt.wantErr {
+				assert.Error(t, err)
+				assert.Nil(t, got)
+				assert.Zero(t, total)
+				return
+			}
+			assert.NoError(t, err)
+			assert.Len(t, got, tt.wantLen)
+			assert.Equal(t, tt.wantTotal, total)
+		})
+	}
+}
+
+// TestCashRegisterService_GetByID は締め詳細の単体取得を検証する。
+func TestCashRegisterService_GetByID(t *testing.T) {
+	tests := []struct {
+		name       string
+		findByIDFn func(ctx context.Context, clinicID, id uint64) (*model.CashRegisterClose, error)
+		wantErr    bool
+	}{
+		{
+			name: "正常: 締め記録を返す",
+			findByIDFn: func(_ context.Context, _, id uint64) (*model.CashRegisterClose, error) {
+				return &model.CashRegisterClose{ID: id}, nil
+			},
+		},
+		{
+			name: "エラー: リポジトリがエラーを返す",
+			findByIDFn: func(_ context.Context, _, _ uint64) (*model.CashRegisterClose, error) {
+				return nil, apperrors.WrapNotFound("cash_register_close", "999")
+			},
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			closeRepo := &mockCashRegisterCloseRepository{findByIDFn: tt.findByIDFn}
+			svc := newCashRegisterService(closeRepo, &mockAccountingRepository{}, &mockClosingSettingsService{}, &mockPaymentMethodMasterRepository{})
+
+			got, err := svc.GetByID(context.Background(), 1, 5)
+
+			if tt.wantErr {
+				assert.Error(t, err)
+				assert.Nil(t, got)
+				return
+			}
+			assert.NoError(t, err)
+			assert.NotNil(t, got)
+			assert.Equal(t, uint64(5), got.ID)
+		})
+	}
+}
+
+// TestCashRegisterService_GetPreview_ClinicRepoError は税率解決のための病院マスタ取得失敗が
+// fetchAggregate 経由で GetPreview のエラーとして伝播することを検証する（M-7 #191）。
+func TestCashRegisterService_GetPreview_ClinicRepoError(t *testing.T) {
+	closeRepo := &mockCashRegisterCloseRepository{}
+	accountingRepo := &mockAccountingRepository{
+		getCloseAggregateFn: func(_ context.Context, _ repository.GetCloseAggregateInput) (*repository.CloseAggregateResult, error) {
+			return emptyAggregateResult(), nil
+		},
+	}
+	closingsSvc := &mockClosingSettingsService{
+		resolveScheduleFn: func(_ context.Context, _ uint64, _ time.Time) (*DaySchedule, error) {
+			return defaultSchedule(), nil
+		},
+	}
+	payMethodRepo := &mockPaymentMethodMasterRepository{
+		findAllFn: func(_ context.Context, _ uint64) ([]model.PaymentMethodMaster, error) {
+			return []model.PaymentMethodMaster{{ID: 1, Name: "現金", SystemKey: ptrString("cash")}}, nil
+		},
+	}
+	clinicRepo := &mockClinicRepository{
+		findByIDFn: func(_ context.Context, _ uint64) (*model.Clinic, error) {
+			return nil, errors.New("clinic lookup error")
+		},
+	}
+	svc := NewCashRegisterService(closeRepo, accountingRepo, closingsSvc, payMethodRepo, clinicRepo)
+
+	got, err := svc.GetPreview(context.Background(), 1, "2026-04-20", "am")
+
+	assert.Error(t, err)
+	assert.Nil(t, got)
+}
+
+// TestBuildCategoryBreakdown はカテゴリ×支払方法按分の各分岐を検証する。
+func TestBuildCategoryBreakdown(t *testing.T) {
+	rates := accountingReportTaxRates{StandardPercent: 10, ReducedPercent: 8}
+
+	t.Run("SystemKey が nil のマスタは method_N にフォールバックする", func(t *testing.T) {
+		payRows := []repository.PaymentAggregateRow{
+			{PaymentMethodID: ptrUint64(5), Amount: 1000},
+		}
+		catRows := []repository.CategoryAggregateRow{
+			{Category: "診察", Amount: 1000},
+		}
+		payMethods := []model.PaymentMethodMaster{
+			{ID: 5, Name: "謎の支払方法", SystemKey: nil},
+		}
+		got := buildCategoryBreakdown(payRows, catRows, nil, payMethods, rates)
+		assert.Equal(t, int64(1000), got.Categories["診察"]["method_5"])
+	})
+
+	t.Run("payRows の PaymentMethodID がマスタに存在しない場合も method_N にフォールバックする", func(t *testing.T) {
+		payRows := []repository.PaymentAggregateRow{
+			{PaymentMethodID: ptrUint64(99), Amount: 500},
+		}
+		catRows := []repository.CategoryAggregateRow{
+			{Category: "検査", Amount: 500},
+		}
+		got := buildCategoryBreakdown(payRows, catRows, nil, nil, rates)
+		assert.Equal(t, int64(500), got.Categories["検査"]["method_99"])
+	})
+
+	t.Run("PaymentMethodID=nil の行は現金 system_key に計上される（#128 後方互換・レガシー seed 対応）", func(t *testing.T) {
+		payRows := []repository.PaymentAggregateRow{
+			{PaymentMethodID: nil, Amount: 1000},
+		}
+		catRows := []repository.CategoryAggregateRow{
+			{Category: "診察", Amount: 1000},
+		}
+		got := buildCategoryBreakdown(payRows, catRows, nil, nil, rates)
+		assert.Equal(t, int64(1000), got.Categories["診察"]["cash"], "PaymentMethodID=nil の支払方法は現金として按分される")
+	})
+
+	// P2-13: NULL payment_method_id split を含む締めで category_breakdown が totalPayment と一致することを検証する。
+	// calcTheoreticalCash は NULL を現金として集計するため、buildCategoryBreakdown が NULL 行を
+	// スキップ/誤配分すると、締めレコードのカテゴリ内訳合計と支払方法内訳合計が食い違う（P2-13 バグ）。
+	t.Run("NULL 行を含む混在支払いで category_breakdown の合計が totalPayment と一致する", func(t *testing.T) {
+		payRows := []repository.PaymentAggregateRow{
+			{PaymentMethodID: nil, Amount: 1000},          // レガシー現金 split
+			{PaymentMethodID: ptrUint64(1), Amount: 2000}, // クレジットカード
+		}
+		catRows := []repository.CategoryAggregateRow{
+			{Category: "診察", Amount: 3000},
+		}
+		payMethods := []model.PaymentMethodMaster{
+			{ID: 1, Name: "クレジットカード", SystemKey: ptrString("credit_card")},
+		}
+		const totalPayment = int64(1000 + 2000)
+
+		got := buildCategoryBreakdown(payRows, catRows, nil, payMethods, rates)
+
+		assert.Equal(t, int64(1000), got.Categories["診察"]["cash"], "NULL 行は現金に計上される")
+		assert.Equal(t, int64(2000), got.Categories["診察"]["credit_card"], "非 NULL 行は対応する system_key に計上される")
+
+		var sum int64
+		for _, byMethod := range got.Categories {
+			for _, amount := range byMethod {
+				sum += amount
+			}
+		}
+		assert.Equal(t, totalPayment, sum, "category_breakdown の合計は totalPayment と一致しなければならない")
+	})
+
+	t.Run("totalPayment=0 の場合はカテゴリ金額が加算されない", func(t *testing.T) {
+		catRows := []repository.CategoryAggregateRow{
+			{Category: "診察", Amount: 1000},
+		}
+		got := buildCategoryBreakdown(nil, catRows, nil, nil, rates)
+		assert.Empty(t, got.Categories["診察"])
+	})
+
+	t.Run("税率内訳を標準/軽減に分類する", func(t *testing.T) {
+		taxRows := []repository.TaxBreakdownRow{
+			{TaxRate: 10, TaxableAmount: 1000, TaxAmount: 100},
+			{TaxRate: 8, TaxableAmount: 500, TaxAmount: 40},
+		}
+		got := buildCategoryBreakdown(nil, nil, taxRows, nil, rates)
+		assert.Equal(t, int64(1000), got.TaxBreakdown.Standard.TaxableAmount)
+		assert.Equal(t, int64(100), got.TaxBreakdown.Standard.TaxAmount)
+		assert.Equal(t, int64(500), got.TaxBreakdown.Reduced.TaxableAmount)
+		assert.Equal(t, int64(40), got.TaxBreakdown.Reduced.TaxAmount)
+	})
+}
+
+// TestParseHHMM は "HH:MM" / "HH:MM:SS"（PostgreSQL time 型）形式のパースを検証する。
+func TestParseHHMM(t *testing.T) {
+	tests := []struct {
+		name    string
+		input   string
+		wantH   int
+		wantM   int
+		wantErr bool
+	}{
+		{name: "HH:MM 形式を正しくパースする", input: "09:05", wantH: 9, wantM: 5},
+		{name: "PostgreSQL time 型 HH:MM:SS 形式は秒部分を除去する", input: "18:30:00", wantH: 18, wantM: 30},
+		{name: "空文字はエラー", input: "", wantErr: true},
+		{name: "5文字だがコロン位置が不正な場合はエラー", input: "09-05", wantErr: true},
+		{name: "4文字（ゼロ埋めなし）はエラー", input: "9:05", wantErr: true},
+		{name: "数値でない HH:MM は Sscanf 失敗でエラー", input: "ab:cd", wantErr: true},
+		{name: "8文字だが PostgreSQL 形式でない場合はエラー", input: "12345678", wantErr: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h, m, err := parseHHMM(tt.input)
+			if tt.wantErr {
+				assert.Error(t, err)
+				return
+			}
+			assert.NoError(t, err)
+			assert.Equal(t, tt.wantH, h)
+			assert.Equal(t, tt.wantM, m)
+		})
+	}
 }

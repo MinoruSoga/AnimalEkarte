@@ -11,7 +11,7 @@ import { normalizeKana } from "@/lib/normalize-kana";
 // ─────────────────────────────────────────────────
 
 /** Common fields present in ALL backend master entities */
-export interface GenericMasterBackendItem {
+interface GenericMasterBackendItem {
   id: string;
   code?: string;
   name: string;
@@ -30,7 +30,7 @@ export interface GenericMasterBackendItem {
 // ─────────────────────────────────────────────────
 
 /** Maps frontend category key → backend endpoint path */
-export const MASTER_CATEGORY_ENDPOINT: Record<string, string> = {
+const MASTER_CATEGORY_ENDPOINT: Record<string, string> = {
   examination: "/v1/masters/examination-types",
   vaccine: "/v1/masters/vaccines",
   medicine: "/v1/masters/medicines",
@@ -54,7 +54,7 @@ export const MASTER_CATEGORY_ENDPOINT: Record<string, string> = {
 // Transform
 // ─────────────────────────────────────────────────
 
-export function transformGenericMasterItem(data: GenericMasterBackendItem): MasterItem {
+function transformGenericMasterItem(data: GenericMasterBackendItem): MasterItem {
   return {
     id: String(data.id),
     name: data.name,
@@ -86,7 +86,7 @@ const getMasterItemsByEndpoint = async (endpoint: string): Promise<MasterItem[]>
  * Read-only hook to fetch master items by category key.
  * The source of truth for generic master item fetching across all features.
  */
-export function useGetMasterItemsByCategory(category: string) {
+function useGetMasterItemsByCategory(category: string) {
   const endpoint = MASTER_CATEGORY_ENDPOINT[category];
   return useQuery({
     queryKey: queryKeys.masters.category(category),

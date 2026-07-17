@@ -19,13 +19,15 @@ interface ClinicalPlanSectionProps {
   medicalRecordId: string;
   onRegisterSave?: (fn: () => Promise<void>) => void;
   canEdit?: boolean;
+  /** P2-15: 拠点横断で開いたカルテの子リソース操作用。レコード自身の clinicId */
+  recordClinicId?: string;
 }
 
 // ── Component ─────────────────────────────────────────────────────────
 
-export const ClinicalPlanSection = memo(function ClinicalPlanSection({ medicalRecordId, onRegisterSave, canEdit = false }: ClinicalPlanSectionProps) {
-  const { data, isLoading } = useGetClinicalPlan(medicalRecordId);
-  const updateMutation = useUpdateClinicalPlan(medicalRecordId);
+export const ClinicalPlanSection = memo(function ClinicalPlanSection({ medicalRecordId, onRegisterSave, canEdit = false, recordClinicId }: ClinicalPlanSectionProps) {
+  const { data, isLoading } = useGetClinicalPlan(medicalRecordId, recordClinicId);
+  const updateMutation = useUpdateClinicalPlan(medicalRecordId, recordClinicId);
 
   const [physicalExam, setPhysicalExam] = useState("");
   // 数値IDで管理（文字列を Number() 変換する旧実装の NaN バグを排除）

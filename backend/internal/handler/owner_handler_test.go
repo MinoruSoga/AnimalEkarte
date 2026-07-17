@@ -682,7 +682,7 @@ func newPatchDeliveryExclusionRouter(svc service.OwnerService) *gin.Engine {
 	h := newHandlerWithOwnerSvc(svc)
 	r.PATCH("/owners/:id/delivery-exclusion", func(c *gin.Context) {
 		setClinicID(c)
-	}, h.PatchOwnerDeliveryExclusion)
+	}, h.UpdateOwnerDeliveryExclusion)
 	return r
 }
 
@@ -762,7 +762,7 @@ func newPatchDeliveryCautionRouter(svc service.OwnerService) *gin.Engine {
 	h := newHandlerWithOwnerSvc(svc)
 	r.PATCH("/owners/:id/delivery-caution", func(c *gin.Context) {
 		setClinicID(c)
-	}, h.PatchOwnerDeliveryCaution)
+	}, h.UpdateOwnerDeliveryCaution)
 	return r
 }
 
@@ -843,7 +843,7 @@ func newPatchTransferStatusRouter(svc service.OwnerService) *gin.Engine {
 	h := newHandlerWithOwnerSvc(svc)
 	r.PATCH("/owners/:id/transfer-status", func(c *gin.Context) {
 		setClinicID(c)
-	}, h.PatchOwnerTransferStatus)
+	}, h.UpdateOwnerTransferStatus)
 	return r
 }
 
@@ -923,7 +923,7 @@ func newPatchLineIDConfirmRouter(svc service.OwnerService) *gin.Engine {
 	h := newHandlerWithOwnerSvc(svc)
 	r.PATCH("/owners/:id/line-id-confirm", func(c *gin.Context) {
 		setClinicID(c)
-	}, h.PatchOwnerLineIDConfirm)
+	}, h.UpdateOwnerLineIDConfirm)
 	return r
 }
 
@@ -976,6 +976,241 @@ func TestPatchOwnerLineIDConfirm(t *testing.T) {
 			assert.Equal(t, tt.wantStatus, w.Code)
 		})
 	}
+}
+
+// ---- UpdateOwner: discount_rate authorization branch ----
+
+// newHandlerWithOwnerAndPermSvc は discount_rate 権限チェック (BUG-372) の検証用に
+// EffectivePermission も注入したハンドラを構築する。
+func newHandlerWithOwnerAndPermSvc(svc service.OwnerService, permSvc service.EffectivePermissionService) *Handler {
+	return &Handler{
+		svc: &service.Services{
+			Owner:               svc,
+			LstepTagSync:        &mockLstepTagSyncService{},
+			LstepLifecycle:      &mockLstepLifecycleService{},
+			EffectivePermission: permSvc,
+		},
+	}
+}
+
+func TestUpdateOwner_DiscountRateAuthorization(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	newDiscountRate := 15.0
+
+	t.Run("returns error from GetByID when discount_rate lookup fails", func(t *testing.T) {
+		svc := &mockOwnerService{
+			getByIDFn: func(_ context.Context, _, _ uint64) (*model.Owner, error) {
+				return nil, apperrors.WrapNotFound("owner", "1")
+			},
+		}
+		h := newHandlerWithOwnerAndPermSvc(svc, &mockEffectivePermissionService{})
+
+		bodyBytes, err := json.Marshal(map[string]any{"discount_rate": newDiscountRate})
+		require.NoError(t, err)
+
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Request = httptest.NewRequest(http.MethodPatch, "/", bytes.NewReader(bodyBytes))
+		c.Request.Header.Set("Content-Type", "application/json")
+		c.Params = gin.Params{{Key: "id", Value: "1"}}
+		setClinicID(c)
+
+		h.UpdateOwner(c)
+
+		assert.Equal(t, http.StatusNotFound, w.Code)
+	})
+
+	t.Run("returns 403 when discount_rate changed without discount:edit permission", func(t *testing.T) {
+		svc := &mockOwnerService{
+			getByIDFn: func(_ context.Context, _, _ uint64) (*model.Owner, error) {
+				return &model.Owner{ID: 1, DiscountRate: 0}, nil
+			},
+		}
+		permSvc := &mockEffectivePermissionService{
+			getEffectivePermissionsFn: func(_ context.Context, _, _ uint64) ([]model.PermissionGroupRule, error) {
+				return []model.PermissionGroupRule{}, nil
+			},
+		}
+		h := newHandlerWithOwnerAndPermSvc(svc, permSvc)
+
+		bodyBytes, err := json.Marshal(map[string]any{"discount_rate": newDiscountRate})
+		require.NoError(t, err)
+
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Request = httptest.NewRequest(http.MethodPatch, "/", bytes.NewReader(bodyBytes))
+		c.Request.Header.Set("Content-Type", "application/json")
+		c.Params = gin.Params{{Key: "id", Value: "1"}}
+		setNonSystemAdmin(c)
+
+		h.UpdateOwner(c)
+
+		assert.Equal(t, http.StatusForbidden, w.Code)
+	})
+
+	t.Run("succeeds without permission lookup when discount_rate unchanged", func(t *testing.T) {
+		svc := &mockOwnerService{
+			getByIDFn: func(_ context.Context, _, _ uint64) (*model.Owner, error) {
+				return &model.Owner{ID: 1, DiscountRate: newDiscountRate}, nil
+			},
+			updateFn: func(_ context.Context, _, _ uint64, input *service.UpdateOwnerInput) (*model.Owner, error) {
+				require.NotNil(t, input.DiscountRate)
+				return &model.Owner{ID: 1, DiscountRate: *input.DiscountRate}, nil
+			},
+		}
+		// EffectivePermission が nil でも floatEquals early-return のため呼ばれない
+		h := newHandlerWithOwnerSvc(svc)
+
+		bodyBytes, err := json.Marshal(map[string]any{"discount_rate": newDiscountRate})
+		require.NoError(t, err)
+
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Request = httptest.NewRequest(http.MethodPatch, "/", bytes.NewReader(bodyBytes))
+		c.Request.Header.Set("Content-Type", "application/json")
+		c.Params = gin.Params{{Key: "id", Value: "1"}}
+		setClinicID(c)
+
+		h.UpdateOwner(c)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+	})
+
+	t.Run("succeeds when discount_rate changed with discount:edit permission", func(t *testing.T) {
+		svc := &mockOwnerService{
+			getByIDFn: func(_ context.Context, _, _ uint64) (*model.Owner, error) {
+				return &model.Owner{ID: 1, DiscountRate: 0}, nil
+			},
+			updateFn: func(_ context.Context, _, _ uint64, input *service.UpdateOwnerInput) (*model.Owner, error) {
+				require.NotNil(t, input.DiscountRate)
+				return &model.Owner{ID: 1, DiscountRate: *input.DiscountRate}, nil
+			},
+		}
+		permSvc := &mockEffectivePermissionService{
+			getEffectivePermissionsFn: func(_ context.Context, _, _ uint64) ([]model.PermissionGroupRule, error) {
+				return []model.PermissionGroupRule{
+					{Resource: string(model.ResourceDiscount), CanEdit: true},
+				}, nil
+			},
+		}
+		h := newHandlerWithOwnerAndPermSvc(svc, permSvc)
+
+		bodyBytes, err := json.Marshal(map[string]any{"discount_rate": newDiscountRate})
+		require.NoError(t, err)
+
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Request = httptest.NewRequest(http.MethodPatch, "/", bytes.NewReader(bodyBytes))
+		c.Request.Header.Set("Content-Type", "application/json")
+		c.Params = gin.Params{{Key: "id", Value: "1"}}
+		setNonSystemAdmin(c)
+
+		h.UpdateOwner(c)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+	})
+}
+
+// ---- UpdateOwnerLineUserID ----
+//
+// c.Status(http.StatusNoContent) は httptest.ResponseRecorder に即時反映されないため
+// gin.Engine 経由でリクエストを送る（DeleteOwner と同様のパターン）。
+
+func newPatchLineUserIDRouter(svc service.OwnerService) *gin.Engine {
+	r := gin.New()
+	h := newHandlerWithOwnerSvc(svc)
+	r.PATCH("/owners/:id/line-user-id", func(c *gin.Context) {
+		setClinicID(c)
+	}, h.UpdateOwnerLineUserID)
+	return r
+}
+
+func TestPatchOwnerLineUserID(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	tests := []struct {
+		name       string
+		paramID    string
+		body       string
+		svc        *mockOwnerService
+		wantStatus int
+	}{
+		{
+			name:    "links line user id successfully",
+			paramID: "1",
+			body:    `{"line_user_id":"U1234567890"}`,
+			svc: &mockOwnerService{
+				linkLineUserIDFn: func(_ context.Context, clinicID, id uint64, lineUserID *string, _ *uint64) error {
+					assert.Equal(t, uint64(1), clinicID)
+					assert.Equal(t, uint64(1), id)
+					require.NotNil(t, lineUserID)
+					assert.Equal(t, "U1234567890", *lineUserID)
+					return nil
+				},
+			},
+			wantStatus: http.StatusNoContent,
+		},
+		{
+			name:    "unlinks line user id when null",
+			paramID: "1",
+			body:    `{"line_user_id":null}`,
+			svc: &mockOwnerService{
+				linkLineUserIDFn: func(_ context.Context, _, _ uint64, lineUserID *string, _ *uint64) error {
+					assert.Nil(t, lineUserID)
+					return nil
+				},
+			},
+			wantStatus: http.StatusNoContent,
+		},
+		{
+			name:       "returns 400 for invalid JSON",
+			paramID:    "1",
+			body:       `{invalid}`,
+			svc:        &mockOwnerService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:       "returns 400 for non-numeric id",
+			paramID:    "abc",
+			body:       `{"line_user_id":"U1"}`,
+			svc:        &mockOwnerService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:    "returns 404 when owner not found",
+			paramID: "999",
+			body:    `{"line_user_id":"U1"}`,
+			svc: &mockOwnerService{
+				linkLineUserIDFn: func(_ context.Context, _, _ uint64, _ *string, _ *uint64) error {
+					return apperrors.WrapNotFound("owner", "999")
+				},
+			},
+			wantStatus: http.StatusNotFound,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			router := newPatchLineUserIDRouter(tt.svc)
+			w := httptest.NewRecorder()
+			req := httptest.NewRequest(http.MethodPatch, "/owners/"+tt.paramID+"/line-user-id", strings.NewReader(tt.body))
+			req.Header.Set("Content-Type", "application/json")
+			router.ServeHTTP(w, req)
+			assert.Equal(t, tt.wantStatus, w.Code)
+		})
+	}
+
+	t.Run("returns 401 when clinic_id is missing", func(t *testing.T) {
+		h := newHandlerWithOwnerSvc(&mockOwnerService{})
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Request = httptest.NewRequest(http.MethodPatch, "/", strings.NewReader(`{"line_user_id":"U1"}`))
+		c.Request.Header.Set("Content-Type", "application/json")
+		c.Params = gin.Params{{Key: "id", Value: "1"}}
+		h.UpdateOwnerLineUserID(c)
+		assert.Equal(t, http.StatusUnauthorized, w.Code)
+	})
 }
 
 // ---- view permission gate tests ----

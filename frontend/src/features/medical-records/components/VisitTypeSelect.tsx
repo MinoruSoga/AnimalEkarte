@@ -6,7 +6,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { C } from "@/lib/design-tokens";
-import { VISIT_TYPE_OPTIONS } from "../routes/MedicalRecordFormModel";
+import { VISIT_TYPE_OPTIONS } from "../routes/medical-record-form-model";
 
 interface VisitTypeSelectProps {
   value: string;

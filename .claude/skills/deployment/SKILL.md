@@ -1,11 +1,11 @@
 ---
 name: Deployment
-description: AWS ECS（GitHub Actions経由）へのアプリケーションデプロイ
+description: バックエンド(Cloudflare Workers + Containers。ECS は backend-deploy-ecs.yml によるロールバック専用)・フロントエンド(Vercel)へのアプリケーションデプロイ。両方とも GitHub Actions 経由で自動化。
 ---
 
 # デプロイメントスキル
 
-> AnimalEkarte は **AWS ECS** にデプロイ。GitHub Actions ワークフロー経由で自動化。
+> AnimalEkarte は **バックエンドを Cloudflare Workers + Containers**、**フロントエンドを Vercel** にデプロイ。両方とも GitHub Actions ワークフロー経由で自動化（`backend-deploy.yml` / `frontend-deploy.yml`）。AWS ECS はロールバック専用経路（`backend-deploy-ecs.yml`・DEPRECATED）として残存。
 
 ## このスキルを使用するタイミング
 
@@ -16,11 +16,9 @@ description: AWS ECS（GitHub Actions経由）へのアプリケーションデ�
 ## デプロイフロー（実際）
 
 ```
-git push → GitHub Actions (.github/workflows/backend-deploy.yml)
-    ↓
-Docker Build → ECR Push → ECS Deploy
-    ↓
-Verify deployment
+Backend:  git push → backend-deploy.yml → wrangler deploy → migrate（Cloudflare Workers + Containers）
+          ※ ECS ロールバックは backend-deploy-ecs.yml (workflow_dispatch・DEPRECATED)
+Frontend: git push → frontend-deploy.yml → vercel pull → vercel build → vercel deploy（VERCEL_TOKEN使用）
 ```
 
 ## デプロイ方法
@@ -28,32 +26,29 @@ Verify deployment
 デプロイは **GitHub Actions で自動実行**（`scripts/deploy.sh` は存在しない）。
 
 ```bash
-# ステージング: main ブランチへの push で自動デプロイ
-git push origin main
+# ステージング: staging ブランチへの push で自動デプロイ（backend/** / frontend/** 変更時。frontend は production push でも発火）
+git push origin staging
 
 # 手動トリガー (workflow_dispatch)
-# GitHub Actions → backend-deploy.yml → Run workflow
+# GitHub Actions → backend-deploy.yml / frontend-deploy.yml → Run workflow
 
 # CI ステータス確認
 gh run list --workflow=backend-deploy.yml
+gh run list --workflow=frontend-deploy.yml
 gh run watch
 ```
 
 ## CI パイプライン（ci.yml）
 
-```
-PR push → Backend (go build / go test / golangci-lint / schema-check)
-        → Frontend (pnpm install / lint / build)
-        → Codegen check (make codegen-check)
-```
+実ジョブ構成は `ci-cd-automation` スキルを参照（changes判定 + 6本のインベントリlint + backend(build/lint/test/schema-drift) + frontend(audit/type-check/test/lint/build の4ゲート) + codegen-check + migration-verify）。
 
 ## 重要な注意事項
 
 - 必ずステージングで検証してから本番へ
-- ECS タスク定義のロールバックは AWS Console または `aws ecs update-service`
+- バックエンドのロールバックは `backend-deploy-ecs.yml`（workflow_dispatch）経由の ECS 切り戻し（手順は platforms/aws.md）
 - デプロイ後はモニタリングダッシュボードを確認
 
 ## プラットフォーム参照
 
-- AWS ECS: [platforms/aws.md](./platforms/aws.md)
-- GCP (参考): [platforms/gcp.md](./platforms/gcp.md)
+- AWS ECS（バックエンドのロールバック専用・DEPRECATED）: [platforms/aws.md](./platforms/aws.md)
+- フロントエンドは Vercel（`.github/workflows/frontend-deploy.yml`）にデプロイ。AWS 対象外。

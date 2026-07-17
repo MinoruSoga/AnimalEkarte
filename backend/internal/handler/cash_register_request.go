@@ -8,8 +8,6 @@ import (
 	"github.com/animal-ekarte/backend/internal/service"
 )
 
-const cashRegisterDateLayout = "2006-01-02"
-
 type listCashRegisterClosesQuery struct {
 	StartDate string
 	EndDate   string
@@ -63,7 +61,7 @@ type closeCashRegisterRequest struct {
 }
 
 func (r closeCashRegisterRequest) toServiceInput(staffID uint64) (service.CloseRegisterInput, error) {
-	date, err := time.ParseInLocation(cashRegisterDateLayout, r.Date, time.Local)
+	date, err := time.ParseInLocation(time.DateOnly, r.Date, time.Local)
 	if err != nil {
 		return service.CloseRegisterInput{}, fmt.Errorf("date は YYYY-MM-DD 形式で指定してください")
 	}

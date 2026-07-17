@@ -30,6 +30,7 @@ git diff --staged --name-only
 |---------|--------------|
 | `.go` ファイル変更 | `go-reviewer` |
 | `.ts` / `.tsx` 変更 | `typescript-reviewer` |
+| `.tsx`/`.jsx` のフックロジック変更 | `react-reviewer`（typescript-reviewerと並列。フック正確性・a11y担当） |
 | DB スキーマ・migration | `database-reviewer` |
 | auth / permission / security | `security-analyst` |
 | 動物患者記録・clinic_id 変更 | `healthcare-reviewer` |

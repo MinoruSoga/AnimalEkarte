@@ -5,11 +5,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Pagination } from "@/components/shared/Pagination/Pagination";
-import { LoadingFallback, ErrorFallback } from "@/components/shared/DataStates";
+import { LoadingFallback, ErrorFallback, EmptyState } from "@/components/shared/DataStates";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { C, STYLE } from "@/lib/design-tokens";
 import { paths } from "@/config/paths";
 import { formatCurrency } from "@/utils/format/number";
+import { daysSince, currentJSTYearMonth } from "@/lib/jst-date";
 
 import {
   useGetUnpaidByOwner,
@@ -19,21 +20,6 @@ import {
 } from "../api/get-unpaid-billings";
 
 type GroupBy = "owner" | "billing" | "monthly";
-
-function daysSince(isoDate: string, refDate: string): number {
-  if (!refDate) return 0;
-  const from = new Date(`${isoDate}T00:00:00+09:00`);
-  const to = new Date(`${refDate}T00:00:00+09:00`);
-  if (isNaN(from.getTime()) || isNaN(to.getTime())) return 0;
-  return Math.max(0, Math.floor((to.getTime() - from.getTime()) / (1000 * 60 * 60 * 24)));
-}
-
-function currentJSTYearMonth(): string {
-  const jst = new Date(Date.now() + 9 * 60 * 60 * 1000);
-  const y = jst.getUTCFullYear();
-  const m = String(jst.getUTCMonth() + 1).padStart(2, "0");
-  return `${y}-${m}`;
-}
 
 export function UnpaidTab() {
   const navigate = useNavigate();
@@ -258,7 +244,7 @@ export function UnpaidTab() {
       {/* 会計単位テーブル */}
       {!isLoading && !isError && groupBy === "billing" ? (
         (billingQuery.data?.data ?? []).length === 0 ? (
-          <p className={`text-sm ${C.text50} py-8 text-center`}>未納会計はありません</p>
+          <EmptyState message="未納会計はありません" />
         ) : (
           <div className={`rounded-lg border ${C.borderLight} ${C.bgWhite} overflow-hidden`}>
             <Table>
@@ -301,7 +287,7 @@ export function UnpaidTab() {
       {/* 月次繰越テーブル */}
       {!isLoading && !isError && groupBy === "monthly" ? (
         monthlyRows.length === 0 ? (
-          <p className={`text-sm ${C.text50} py-8 text-center`}>対象月の未納データがありません</p>
+          <EmptyState message="対象月の未納データがありません" />
         ) : (
           <div className={`rounded-lg border ${C.borderLight} ${C.bgWhite} overflow-hidden`}>
             <Table>

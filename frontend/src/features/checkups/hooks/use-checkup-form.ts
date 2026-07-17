@@ -4,7 +4,13 @@ import { toast } from "sonner";
 import { handleApiError } from "@/lib/handle-api-error";
 import { paths } from "@/config/paths";
 import { useGetPet } from "@/hooks/use-pet";
-import { axios } from "@/lib/axios";
+import {
+  createCheckupOnMedicalRecord,
+  createMedicalRecordForCheckup,
+} from "../api/create-checkup-medical-record";
+import { useGetCheckupTypeFields } from "../api/get-checkup-type-fields";
+import { replaceCheckupFieldResults } from "../api/replace-checkup-field-results";
+import { buildCheckupResultsPayload, type CheckupFieldValue } from "../components/DynamicCheckupFields";
 
 interface CheckupFormState {
   checkupTypeId: string;
@@ -39,8 +45,16 @@ export function useCheckupForm() {
 
   const formData: CheckupFormState = { ...DEFAULT_FORM, ...localOverrides };
 
+  // #211: 選択中の健診パッケージのフィールド定義 + 入力値。
+  const { data: checkupFields = [] } = useGetCheckupTypeFields(formData.checkupTypeId);
+  const [fieldValues, setFieldValues] = useState<Record<number, CheckupFieldValue>>({});
+
   const setField = useCallback(<K extends keyof CheckupFormState>(key: K, value: CheckupFormState[K]) => {
     setLocalOverrides((prev) => ({ ...prev, [key]: value }));
+  }, []);
+
+  const setFieldValue = useCallback((fieldId: number, value: CheckupFieldValue) => {
+    setFieldValues((prev) => ({ ...prev, [fieldId]: value }));
   }, []);
 
   const [formState, formAction, isPending] = useActionState(
@@ -59,20 +73,26 @@ export function useCheckupForm() {
 
       try {
         // 1. カルテを作成（checkupのサブリソース登録に medical_record_id が必須）
-        const { data: medicalRecord } = await axios.post<{ id: string }>("/v1/medical-records", {
+        const medicalRecord = await createMedicalRecordForCheckup({
           pet_id: pet.id,
           owner_id: pet.ownerId,
           visit_date: formData.date,
         });
 
         // 2. 作成したカルテに健診記録を登録
-        await axios.post(`/v1/medical-records/${medicalRecord.id}/checkups`, {
+        const checkup = await createCheckupOnMedicalRecord(medicalRecord.id, {
           checkup_type_id: Number(formData.checkupTypeId),
           date: formData.date,
           ...(formData.nextDate ? { next_date: formData.nextDate } : {}),
           ...(formData.doctorId ? { doctor_id: Number(formData.doctorId) } : {}),
           ...(formData.result ? { result: formData.result } : {}),
         });
+
+        // 3. #211 健診パッケージの型付き結果値を保存（入力がある場合のみ）。
+        const resultsPayload = buildCheckupResultsPayload(checkupFields, fieldValues);
+        if (resultsPayload.length > 0) {
+          await replaceCheckupFieldResults(medicalRecord.id, checkup.id, resultsPayload);
+        }
 
         toast.success("定期健診を登録しました");
         return { success: true, timestamp: Date.now() };
@@ -106,7 +126,17 @@ export function useCheckupForm() {
     formState,
     isPending,
     fieldErrors,
-    setCheckupTypeId: useCallback((v: string) => setField("checkupTypeId", v), [setField]),
+    checkupFields,
+    fieldValues,
+    setFieldValue,
+    // 健診種別を変えたら、旧パッケージのフィールド値は破棄する。
+    setCheckupTypeId: useCallback(
+      (v: string) => {
+        setField("checkupTypeId", v);
+        setFieldValues({});
+      },
+      [setField],
+    ),
     setDate: useCallback((v: string) => setField("date", v), [setField]),
     setNextDate: useCallback((v: string) => setField("nextDate", v), [setField]),
     setDoctorId: useCallback((v: string) => setField("doctorId", v), [setField]),

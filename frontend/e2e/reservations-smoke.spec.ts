@@ -4,7 +4,7 @@ import { loginAsDemoAdmin } from './helpers/auth';
 
 // The filterCalendarAppointments function (cancelled → hidden, no_show → visible) is
 // unit-tested in:
-//   frontend/src/features/reservations/routes/__tests__/ReservationManagement.filter.test.ts
+//   frontend/src/features/reservations/routes/__tests__/reservation-management.filter.test.ts
 //
 // E2E seed is time-dependent (calendar shows the current week), so seeding appointments
 // for a stable date is impractical. This file covers:

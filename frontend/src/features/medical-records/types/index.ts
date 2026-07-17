@@ -4,6 +4,13 @@
  * {@link import("@/types/generated/models").Vital},
  * {@link import("@/types/generated/models").BillingConfirmation} from models.ts
  */
+// FE6-3: tygo enum_style: "union"（FE6-1/FE6-2）により生成定数が真の literal union になったため、
+// 手書き union を生成型からの re-export へ移行した。drift テストは union-drift.test.ts から削除済み。
+import type {
+  TreatmentItemType,
+  BodyWeightUnit,
+} from "@/types/generated/models";
+export type { TreatmentItemType, BodyWeightUnit };
 
 /** Interview (問診) history list item */
 export interface InterviewHistoryItem {
@@ -16,9 +23,6 @@ export interface InterviewHistoryItem {
 }
 
 // ── Treatment (治療明細) ──────────────────────────────────────────────
-
-/** @see {@link import("@/types/generated/models").TreatmentItemType} */
-export type TreatmentItemType = 'consultation' | 'procedure' | 'medicine' | 'other';
 
 export interface Treatment {
   id: string;
@@ -38,6 +42,12 @@ export interface Treatment {
   discount_rate: number;
   discount_amount: number;
   sort_order: number;
+  // #201 投与量自動計算の計算根拠スナップショット（全て nullable・BE treatment.go:52-56 に追随）
+  dose_weight_kg?: number | null;
+  dose_weight_source?: string | null;
+  dose_amount_mg?: number | null;
+  dose_amount_unit?: string | null;
+  dose_param_snapshot?: Record<string, unknown> | null;
   created_at: string;
   updated_at: string;
 }
@@ -46,7 +56,10 @@ export interface CreateTreatmentInput {
   item_type: TreatmentItemType;
   consultation_id?: string | null;
   procedure_id?: string | null;
-  medicine_id?: string | null;
+  // ts-review-201 CRITICAL: BE は *uint64（JSON number）を期待する。他の *_id は今のところ
+  // どの呼び出し元からも書き込まれていない（未使用の潜在バグ）ため型を温存するが、#201 で
+  // 実際に書き込む medicine_id だけは正しい書込型（number）に直す。
+  medicine_id?: number | null;
   inventory_id?: string | null;
   unit_price?: number;
   quantity?: number;
@@ -85,7 +98,7 @@ export interface BulkReorderTreatmentsInput {
 // ── BillingConfirmation (会計医師確認) ──────────────────────────────────────
 
 /** 会計医師確認ステータス @see {@link import("@/types/generated/models").ConfirmationStatus} */
-export type ConfirmationStatus = 'pending' | 'confirmed' | 'returned';
+type ConfirmationStatus = 'pending' | 'confirmed' | 'returned';
 
 /** 会計医師確認レコード */
 export interface BillingConfirmation {
@@ -108,8 +121,6 @@ export interface ReturnBillingConfirmationInput {
 }
 
 // ── Vital (バイタル) ──────────────────────────────────────────────────
-
-export type BodyWeightUnit = "Kg" | "g";
 
 export interface Vital {
   id: string;

@@ -2,29 +2,18 @@ package service
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
-	"strings"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 )
 
 // SyncOwnerAnimalClassificationTags は飼い主の動物分類タグを同期する（BE-005）。
 func (s *lstepTagSyncService) SyncOwnerAnimalClassificationTags(ctx context.Context, clinicID, ownerID uint64) error {
-	if skip, err := s.shouldSkipSync(ctx, clinicID); err != nil {
-		return err
-	} else if skip {
-		return nil
-	}
-	optOut, owner, err := s.checkOptOut(ctx, clinicID, ownerID)
+	lineUserID, ok, err := s.resolveSyncTarget(ctx, clinicID, ownerID, "animal classification")
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to check opt-out for animal classification tags", "error", err)
-		return apperrors.Wrap(err, "failed to check opt-out")
+		return err
 	}
-	if optOut {
-		return nil
-	}
-	if owner.LineUserID == nil || *owner.LineUserID == "" {
+	if !ok {
 		return nil
 	}
 
@@ -40,10 +29,10 @@ func (s *lstepTagSyncService) SyncOwnerAnimalClassificationTags(ctx context.Cont
 		if p.AnimalSpecies == nil {
 			continue
 		}
-		if strings.Contains(p.AnimalSpecies.Name, "犬") {
+		if isDogSpeciesName(p.AnimalSpecies.Name) {
 			hasDog = true
 		}
-		if strings.Contains(p.AnimalSpecies.Name, "猫") {
+		if isCatSpeciesName(p.AnimalSpecies.Name) {
 			hasCat = true
 		}
 	}
@@ -55,8 +44,6 @@ func (s *lstepTagSyncService) SyncOwnerAnimalClassificationTags(ctx context.Cont
 	if client == nil {
 		return nil
 	}
-
-	lineUserID := *owner.LineUserID
 
 	var newTag string
 	switch {
@@ -74,14 +61,8 @@ func (s *lstepTagSyncService) SyncOwnerAnimalClassificationTags(ctx context.Cont
 		if old == newTag {
 			continue
 		}
-		if delErr := client.RemoveTag(ctx, lineUserID, old); delErr != nil {
-			slog.ErrorContext(ctx, "failed to remove old classification tag", "error", delErr, "tag", old)
-			s.notifyAPIFailure(ctx, client, clinicID, ownerID, lineUserID)
+		if err := s.applyTagState(ctx, client, clinicID, ownerID, lineUserID, old, "animal classification", "", false); err != nil {
 			apiFailed = true
-		} else {
-			if delCacheErr := s.tagCacheRepo.DeleteTag(ctx, clinicID, ownerID, old); delCacheErr != nil {
-				slog.WarnContext(ctx, "failed to delete tag from cache (best-effort)", "error", delCacheErr, "owner_id", ownerID, "tag", old)
-			}
 		}
 	}
 
@@ -92,13 +73,8 @@ func (s *lstepTagSyncService) SyncOwnerAnimalClassificationTags(ctx context.Cont
 		return nil
 	}
 
-	if addErr := client.AddTag(ctx, lineUserID, newTag); addErr != nil {
-		slog.ErrorContext(ctx, "failed to add classification tag", "error", addErr, "tag", newTag)
-		s.notifyAPIFailure(ctx, client, clinicID, ownerID, lineUserID)
-		return apperrors.Wrap(addErr, fmt.Sprintf("failed to add classification tag %s", newTag))
-	}
-	if cacheErr := s.tagCacheRepo.UpsertTag(ctx, clinicID, ownerID, newTag, "auto", ""); cacheErr != nil {
-		slog.ErrorContext(ctx, "failed to upsert classification tag cache", "error", cacheErr, "tag", newTag)
+	if err := s.applyTagState(ctx, client, clinicID, ownerID, lineUserID, newTag, "animal classification", "", true); err != nil {
+		return err
 	}
 	if !apiFailed {
 		s.notifyAPISuccess(ctx, client, clinicID, ownerID, lineUserID)

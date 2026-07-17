@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/animal-ekarte/backend/internal/config"
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
 )
@@ -25,6 +26,9 @@ type mockReservationRepository struct {
 	countOnDutyDoctorsFn               func(ctx context.Context, clinicID uint64, date time.Time) (int64, error)
 	countConflictsFn                   func(ctx context.Context, clinicID uint64, start, end time.Time, excludeID *uint64) (int64, error)
 	countByTypeAndStartTimeFn          func(ctx context.Context, clinicID, reservationTypeID uint64, startTime time.Time, excludeID *uint64) (int64, error)
+	assertOwnerInClinicFn              func(ctx context.Context, clinicID, ownerID uint64) error
+	findPetOwnerInClinicFn             func(ctx context.Context, clinicID, petID uint64) (uint64, error)
+	assertLineCustomerInClinicFn       func(ctx context.Context, clinicID, lineCustomerID uint64) error
 }
 
 func (m *mockReservationRepository) FindAll(ctx context.Context, clinicIDs []uint64, page, limit int, date, startDate, endDate *time.Time, status, source *string, petID, ownerID *uint64) ([]model.Reservation, int64, error) {
@@ -62,11 +66,15 @@ func (m *mockReservationRepository) ExistsByStaffID(_ context.Context, _, _ uint
 	return false, nil
 }
 
-func (m *mockReservationRepository) CountMedicalRecordsByReservationID(ctx context.Context, reservationID uint64) (int64, error) {
+func (m *mockReservationRepository) CountMedicalRecordsByReservationID(ctx context.Context, _, reservationID uint64) (int64, error) {
 	if m.countMedicalRecordsByReservationID != nil {
 		return m.countMedicalRecordsByReservationID(ctx, reservationID)
 	}
 	return 0, nil
+}
+
+func (m *mockReservationRepository) AcquireBookingLock(_ context.Context, _ uint64) error {
+	return nil
 }
 
 func (m *mockReservationRepository) LockAndFindByID(ctx context.Context, clinicID, id uint64) (*model.Reservation, error) {
@@ -113,13 +121,30 @@ func (m *mockReservationRepository) FindAllByCategory(_ context.Context, _ uint6
 	return nil, 0, nil
 }
 
+func (m *mockReservationRepository) AssertOwnerInClinic(ctx context.Context, clinicID, ownerID uint64) error {
+	if m.assertOwnerInClinicFn != nil {
+		return m.assertOwnerInClinicFn(ctx, clinicID, ownerID)
+	}
+	return nil
+}
+
+func (m *mockReservationRepository) FindPetOwnerInClinic(ctx context.Context, clinicID, petID uint64) (uint64, error) {
+	if m.findPetOwnerInClinicFn != nil {
+		return m.findPetOwnerInClinicFn(ctx, clinicID, petID)
+	}
+	return 0, nil
+}
+
+func (m *mockReservationRepository) AssertLineCustomerInClinic(ctx context.Context, clinicID, lineCustomerID uint64) error {
+	if m.assertLineCustomerInClinicFn != nil {
+		return m.assertLineCustomerInClinicFn(ctx, clinicID, lineCustomerID)
+	}
+	return nil
+}
+
 func (m *mockReservationRepository) FindNoShowCandidates(_ context.Context, _ uint64) ([]model.Reservation, error) {
 	return nil, nil
 }
-func (m *mockReservationRepository) HasReservationByOwnerInRange(_ context.Context, _, _ uint64, _, _ time.Time) (bool, error) {
-	return false, nil
-}
-
 func ptrTime(t time.Time) *time.Time { return &t }
 
 func TestReservationService_List(t *testing.T) {
@@ -272,7 +297,7 @@ func TestReservationService_List(t *testing.T) {
 					return tt.repoReservations, tt.repoTotal, tt.repoErr
 				},
 			}
-			svc := NewReservationService(repo, nil)
+			svc := NewReservationServiceWithAvailabilityAndType(repo, nil, nil, nil, nil)
 
 			reservations, total, err := svc.List(context.Background(), []uint64{tt.clinicID}, tt.page, tt.limit, tt.date, nil, nil, tt.status, nil, tt.petID, tt.ownerID)
 
@@ -334,7 +359,7 @@ func TestReservationService_GetByID(t *testing.T) {
 					return tt.repoReservation, tt.repoErr
 				},
 			}
-			svc := NewReservationService(repo, nil)
+			svc := NewReservationServiceWithAvailabilityAndType(repo, nil, nil, nil, nil)
 
 			reservation, err := svc.GetByID(context.Background(), tt.clinicID, tt.id)
 
@@ -357,7 +382,7 @@ func TestReservationService_GetByID_NotFound(t *testing.T) {
 			return nil, apperrors.WrapNotFound("reservation", "999")
 		},
 	}
-	svc := NewReservationService(repo, nil)
+	svc := NewReservationServiceWithAvailabilityAndType(repo, nil, nil, nil, nil)
 
 	reservation, err := svc.GetByID(context.Background(), 1, 999)
 
@@ -418,7 +443,7 @@ func TestReservationService_Create(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockReservationRepository{}
-			svc := NewReservationService(repo, nil)
+			svc := NewReservationServiceWithAvailabilityAndType(repo, nil, nil, nil, nil)
 
 			_, err := svc.Create(context.Background(), tt.input)
 
@@ -435,7 +460,7 @@ func TestReservationService_Create(t *testing.T) {
 }
 
 func TestReservationService_Create_RejectsFullReservationTypeCapacity(t *testing.T) {
-	start := time.Date(2026, 6, 1, 10, 0, 0, 0, jstLocation)
+	start := time.Date(2026, 6, 1, 10, 0, 0, 0, config.JST)
 	maxConcurrent := 2
 	createCalled := false
 	repo := &mockReservationRepository{
@@ -500,7 +525,7 @@ func TestReservationService_Create_RejectsIncapableStaff(t *testing.T) {
 			return false, nil
 		},
 	}
-	svc := NewReservationService(repo, nil, staffRepo)
+	svc := NewReservationServiceWithAvailabilityAndType(repo, nil, nil, staffRepo, nil)
 
 	result, err := svc.Create(context.Background(), &CreateManualReservationInput{
 		ClinicID:          1,
@@ -516,7 +541,7 @@ func TestReservationService_Create_RejectsIncapableStaff(t *testing.T) {
 }
 
 func TestReservationService_Create_RejectsUnavailableTime(t *testing.T) {
-	start := time.Date(2026, 6, 1, 10, 30, 0, 0, jstLocation)
+	start := time.Date(2026, 6, 1, 10, 30, 0, 0, config.JST)
 	end := start.Add(30 * time.Minute)
 	specificDate := time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC)
 	repo := &mockReservationRepository{
@@ -540,7 +565,7 @@ func TestReservationService_Create_RejectsUnavailableTime(t *testing.T) {
 			}, nil
 		},
 	}
-	svc := NewReservationServiceWithAvailability(repo, nil, nil, unavailableRepo)
+	svc := NewReservationServiceWithAvailabilityAndType(repo, nil, nil, nil, unavailableRepo)
 
 	result, err := svc.Create(context.Background(), &CreateManualReservationInput{
 		ClinicID:          1,
@@ -555,7 +580,7 @@ func TestReservationService_Create_RejectsUnavailableTime(t *testing.T) {
 }
 
 func TestReservationService_Create_SkipsBookingConstraintsForInConsultation(t *testing.T) {
-	start := time.Date(2026, 6, 1, 10, 30, 0, 0, jstLocation)
+	start := time.Date(2026, 6, 1, 10, 30, 0, 0, config.JST)
 	end := start.Add(30 * time.Minute)
 	specificDate := time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC)
 	created := false
@@ -583,7 +608,7 @@ func TestReservationService_Create_SkipsBookingConstraintsForInConsultation(t *t
 			}, nil
 		},
 	}
-	svc := NewReservationServiceWithAvailability(repo, &mockTransactor{}, nil, unavailableRepo)
+	svc := NewReservationServiceWithAvailabilityAndType(repo, nil, &mockTransactor{}, nil, unavailableRepo)
 
 	result, err := svc.Create(context.Background(), &CreateManualReservationInput{
 		ClinicID:          1,
@@ -655,7 +680,7 @@ func TestReservationService_Update(t *testing.T) {
 					return &model.Reservation{ID: 1, ClinicID: 1}, nil
 				},
 			}
-			svc := NewReservationService(repo, nil)
+			svc := NewReservationServiceWithAvailabilityAndType(repo, nil, nil, nil, nil)
 
 			reservation, err := svc.Update(context.Background(), 1, 1, &tt.input)
 
@@ -674,7 +699,7 @@ func TestReservationService_Update(t *testing.T) {
 }
 
 func TestReservationService_Update_RejectsFullReservationTypeCapacity(t *testing.T) {
-	start := time.Date(2026, 6, 1, 10, 0, 0, 0, jstLocation)
+	start := time.Date(2026, 6, 1, 10, 0, 0, 0, config.JST)
 	nextStart := start.Add(time.Hour)
 	maxConcurrent := 2
 	updateCalled := false
@@ -748,13 +773,104 @@ func TestReservationService_Update_CancelledSoftDeletes(t *testing.T) {
 			return nil
 		},
 	}
-	svc := NewReservationService(repo, nil)
+	svc := NewReservationServiceWithAvailabilityAndType(repo, nil, nil, nil, nil)
 
 	reservation, err := svc.Update(context.Background(), 1, 1, &UpdateReservationInput{Status: &statusCancelled})
 
 	assert.NoError(t, err)
 	assert.NotNil(t, reservation)
 	assert.True(t, deleteCalled, "キャンセル時は repo.Delete でソフトデリートされるべき")
+}
+
+// 受付ヘッダー テレメトリ（change-ui.md Phase 2）: checked_in への遷移時に checked_in_at が
+// now() で記録されることを保証する。
+func TestReservationService_Update_CheckedInStampsCheckedInAt(t *testing.T) {
+	statusCheckedIn := model.ReservationStatusCheckedIn
+	var capturedFields map[string]any
+	repo := &mockReservationRepository{
+		findByIDFn: func(_ context.Context, clinicID, id uint64) (*model.Reservation, error) {
+			return &model.Reservation{ID: id, ClinicID: clinicID, Status: model.ReservationStatusPending}, nil
+		},
+		updateFieldsFn: func(_ context.Context, _, _ uint64, fields map[string]any) (*model.Reservation, error) {
+			capturedFields = fields
+			return &model.Reservation{ID: 1, ClinicID: 1, Status: model.ReservationStatusCheckedIn}, nil
+		},
+	}
+	svc := NewReservationServiceWithAvailabilityAndType(repo, nil, nil, nil, nil)
+
+	before := time.Now()
+	reservation, err := svc.Update(context.Background(), 1, 1, &UpdateReservationInput{Status: &statusCheckedIn})
+	after := time.Now()
+
+	assert.NoError(t, err)
+	assert.NotNil(t, reservation)
+	require.Contains(t, capturedFields, "checked_in_at")
+	stamped, ok := capturedFields["checked_in_at"].(time.Time)
+	require.True(t, ok, "checked_in_at must be a time.Time")
+	assert.False(t, stamped.Before(before), "checked_in_at must not be before the call")
+	assert.False(t, stamped.After(after), "checked_in_at must not be after the call")
+}
+
+// 非ステータス更新（時刻変更のみ等）では checked_in_at に触れないことを保証する。
+// UpdatedAt(autoUpdateTime) を待ち時間算出に流用してはならないという仕様の裏返しの検証。
+func TestReservationService_Update_NonStatusUpdateLeavesCheckedInAtUntouched(t *testing.T) {
+	newStart := time.Date(2026, 7, 5, 10, 0, 0, 0, config.JST)
+	newEnd := newStart.Add(30 * time.Minute)
+	var capturedFields map[string]any
+	repo := &mockReservationRepository{
+		findByIDFn: func(_ context.Context, clinicID, id uint64) (*model.Reservation, error) {
+			return &model.Reservation{ID: id, ClinicID: clinicID, ReservationTypeID: 1, Status: model.ReservationStatusCheckedIn}, nil
+		},
+		lockAndFindByIDFn: func(_ context.Context, clinicID, id uint64) (*model.Reservation, error) {
+			return &model.Reservation{ID: id, ClinicID: clinicID, ReservationTypeID: 1, Status: model.ReservationStatusCheckedIn}, nil
+		},
+		countOnDutyDoctorsFn: func(_ context.Context, _ uint64, _ time.Time) (int64, error) { return 1, nil },
+		countConflictsFn:     func(_ context.Context, _ uint64, _, _ time.Time, _ *uint64) (int64, error) { return 0, nil },
+		updateFieldsFn: func(_ context.Context, _, _ uint64, fields map[string]any) (*model.Reservation, error) {
+			capturedFields = fields
+			return &model.Reservation{ID: 1, ClinicID: 1, Status: model.ReservationStatusCheckedIn}, nil
+		},
+	}
+	svc := NewReservationServiceWithAvailabilityAndType(repo, nil, &mockTransactor{}, nil, nil)
+
+	reservation, err := svc.Update(context.Background(), 1, 1, &UpdateReservationInput{StartTime: &newStart, EndTime: &newEnd})
+
+	assert.NoError(t, err)
+	assert.NotNil(t, reservation)
+	assert.NotContains(t, capturedFields, "checked_in_at", "非ステータス更新は checked_in_at を変更してはならない")
+}
+
+// checked_in → 他ステータス → checked_in（再受付）で checked_in_at が最新遷移時刻へ上書きされる
+// （待ち直しとみなす）ことを保証する。
+func TestReservationService_Update_RecheckInResetsCheckedInAt(t *testing.T) {
+	statusCheckedIn := model.ReservationStatusCheckedIn
+	statusPending := model.ReservationStatusPending
+	var capturedFields map[string]any
+	repo := &mockReservationRepository{
+		findByIDFn: func(_ context.Context, clinicID, id uint64) (*model.Reservation, error) {
+			return &model.Reservation{ID: id, ClinicID: clinicID, Status: model.ReservationStatusPending}, nil
+		},
+		updateFieldsFn: func(_ context.Context, _, _ uint64, fields map[string]any) (*model.Reservation, error) {
+			capturedFields = fields
+			return &model.Reservation{ID: 1, ClinicID: 1}, nil
+		},
+	}
+	svc := NewReservationServiceWithAvailabilityAndType(repo, nil, nil, nil, nil)
+
+	_, err := svc.Update(context.Background(), 1, 1, &UpdateReservationInput{Status: &statusCheckedIn})
+	require.NoError(t, err)
+	firstStamp := capturedFields["checked_in_at"].(time.Time)
+
+	_, err = svc.Update(context.Background(), 1, 1, &UpdateReservationInput{Status: &statusPending})
+	require.NoError(t, err)
+	assert.NotContains(t, capturedFields, "checked_in_at", "checked_in 以外への遷移では checked_in_at を触らない")
+
+	time.Sleep(time.Millisecond)
+	_, err = svc.Update(context.Background(), 1, 1, &UpdateReservationInput{Status: &statusCheckedIn})
+	require.NoError(t, err)
+	secondStamp, ok := capturedFields["checked_in_at"].(time.Time)
+	require.True(t, ok)
+	assert.True(t, secondStamp.After(firstStamp), "再受付時は checked_in_at が最新の遷移時刻へ上書きされるべき")
 }
 
 func TestReservationService_Update_RejectsExcludedStaffWhenTypeChanges(t *testing.T) {
@@ -789,7 +905,7 @@ func TestReservationService_Update_RejectsExcludedStaffWhenTypeChanges(t *testin
 			return false, nil
 		},
 	}
-	svc := NewReservationService(repo, nil, staffRepo)
+	svc := NewReservationServiceWithAvailabilityAndType(repo, nil, nil, staffRepo, nil)
 
 	result, err := svc.Update(context.Background(), 1, 1, &UpdateReservationInput{
 		ReservationTypeID: &nextTypeID,
@@ -819,7 +935,7 @@ func TestReservationService_Update_RejectsLineCheckedInWithoutOwnerPet(t *testin
 			return nil, nil
 		},
 	}
-	svc := NewReservationService(repo, nil)
+	svc := NewReservationServiceWithAvailabilityAndType(repo, nil, nil, nil, nil)
 	status := model.ReservationStatusCheckedIn
 
 	result, err := svc.Update(context.Background(), 1, 1, &UpdateReservationInput{
@@ -832,7 +948,7 @@ func TestReservationService_Update_RejectsLineCheckedInWithoutOwnerPet(t *testin
 }
 
 func TestReservationService_Update_RejectsUnavailableTimeWhenTimeChanges(t *testing.T) {
-	start := time.Date(2026, 6, 1, 10, 30, 0, 0, jstLocation)
+	start := time.Date(2026, 6, 1, 10, 30, 0, 0, config.JST)
 	end := start.Add(30 * time.Minute)
 	specificDate := time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC)
 	repo := &mockReservationRepository{
@@ -843,8 +959,8 @@ func TestReservationService_Update_RejectsUnavailableTimeWhenTimeChanges(t *test
 				ID:                id,
 				ClinicID:          clinicID,
 				ReservationTypeID: 5,
-				StartTime:         time.Date(2026, 6, 1, 9, 0, 0, 0, jstLocation),
-				EndTime:           time.Date(2026, 6, 1, 9, 30, 0, 0, jstLocation),
+				StartTime:         time.Date(2026, 6, 1, 9, 0, 0, 0, config.JST),
+				EndTime:           time.Date(2026, 6, 1, 9, 30, 0, 0, config.JST),
 			}, nil
 		},
 		updateFieldsFn: func(_ context.Context, _, _ uint64, _ map[string]any) (*model.Reservation, error) {
@@ -867,7 +983,7 @@ func TestReservationService_Update_RejectsUnavailableTimeWhenTimeChanges(t *test
 			}, nil
 		},
 	}
-	svc := NewReservationServiceWithAvailability(repo, nil, nil, unavailableRepo)
+	svc := NewReservationServiceWithAvailabilityAndType(repo, nil, nil, nil, unavailableRepo)
 
 	result, err := svc.Update(context.Background(), 1, 1, &UpdateReservationInput{
 		StartTime: &start,
@@ -943,7 +1059,7 @@ func TestReservationService_Delete(t *testing.T) {
 					return tt.repoErr
 				},
 			}
-			svc := NewReservationService(repo, nil)
+			svc := NewReservationServiceWithAvailabilityAndType(repo, nil, nil, nil, nil)
 
 			err := svc.Delete(context.Background(), tt.clinicID, tt.id)
 
@@ -980,7 +1096,7 @@ func TestReservationService_UpdateReservationRoute(t *testing.T) {
 						return &model.Reservation{ID: 1}, nil
 					},
 				}
-				svc := NewReservationService(repo, nil)
+				svc := NewReservationServiceWithAvailabilityAndType(repo, nil, nil, nil, nil)
 				result, err := svc.UpdateReservationRoute(context.Background(), 1, 1, UpdateReservationRouteInput{Route: route})
 				assert.NoError(t, err)
 				assert.NotNil(t, result)
@@ -998,21 +1114,21 @@ func TestReservationService_UpdateReservationRoute(t *testing.T) {
 				return &model.Reservation{ID: 1}, nil
 			},
 		}
-		svc := NewReservationService(repo, nil)
+		svc := NewReservationServiceWithAvailabilityAndType(repo, nil, nil, nil, nil)
 		result, err := svc.UpdateReservationRoute(context.Background(), 1, 1, UpdateReservationRouteInput{Route: ""})
 		assert.NoError(t, err)
 		assert.NotNil(t, result)
 	})
 
 	t.Run("error: invalid route 'fax' returns InvalidInput", func(t *testing.T) {
-		svc := NewReservationService(&mockReservationRepository{}, nil)
+		svc := NewReservationServiceWithAvailabilityAndType(&mockReservationRepository{}, nil, nil, nil, nil)
 		_, err := svc.UpdateReservationRoute(context.Background(), 1, 1, UpdateReservationRouteInput{Route: "fax"})
 		assert.Error(t, err)
 		assert.True(t, apperrors.IsInvalidInput(err))
 	})
 
 	t.Run("error: uppercase 'LINE' is not valid", func(t *testing.T) {
-		svc := NewReservationService(&mockReservationRepository{}, nil)
+		svc := NewReservationServiceWithAvailabilityAndType(&mockReservationRepository{}, nil, nil, nil, nil)
 		_, err := svc.UpdateReservationRoute(context.Background(), 1, 1, UpdateReservationRouteInput{Route: "LINE"})
 		assert.Error(t, err)
 		assert.True(t, apperrors.IsInvalidInput(err))
@@ -1024,7 +1140,7 @@ func TestReservationService_UpdateReservationRoute(t *testing.T) {
 				return nil, apperrors.WrapNotFound("reservation", "1")
 			},
 		}
-		svc := NewReservationService(repo, nil)
+		svc := NewReservationServiceWithAvailabilityAndType(repo, nil, nil, nil, nil)
 		_, err := svc.UpdateReservationRoute(context.Background(), 1, 1, UpdateReservationRouteInput{Route: "line"})
 		assert.Error(t, err)
 		assert.True(t, apperrors.IsNotFound(err))
@@ -1039,7 +1155,7 @@ func TestReservationService_UpdateReservationRoute(t *testing.T) {
 				return &model.Reservation{ID: 1}, nil
 			},
 		}
-		svc := NewReservationService(repo, nil)
+		svc := NewReservationServiceWithAvailabilityAndType(repo, nil, nil, nil, nil)
 		_, err := svc.UpdateReservationRoute(context.Background(), 99, 1, UpdateReservationRouteInput{Route: "line"})
 		assert.Error(t, err)
 		assert.True(t, apperrors.IsNotFound(err))

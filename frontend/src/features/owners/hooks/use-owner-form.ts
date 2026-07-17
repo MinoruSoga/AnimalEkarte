@@ -2,15 +2,16 @@ import { useState, useCallback, useActionState, useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { handleApiError } from "@/lib/handle-api-error";
+import { queryKeys } from "@/lib/query-keys";
 import type { ActionState } from "@/types/form";
 import { INITIAL_ACTION_STATE } from "@/types/form";
-import { transformCreatePetRequest, transformUpdatePetRequest, PET_STATUS_REVERSE_MAP } from "@/lib/transforms/pet";
+import { transformCreatePetRequest, PET_STATUS_REVERSE_MAP } from "@/lib/transforms/pet";
 import type { CreateOwnerRequest, UpdateOwnerRequest, Owner } from "@/types/owner";
-import type { Pet } from "@/types";
 import type { PetMutations } from "@/types/pet";
-import type { OwnerData, PetFormData, MembershipType } from "../types";
+import type { OwnerData, PetFormData, MembershipTypeLabel } from "../types";
 import { createOwner } from "../api/create-owner";
 import { updateOwner } from "../api/update-owner";
+import { usePetFormListState } from "./use-pet-form-list-state";
 
 const MEMBERSHIP_TYPE_TO_API: Record<string, string> = {
   "非会員": "non_member",
@@ -23,7 +24,7 @@ const DEFAULT_OWNER_DATA: OwnerData = {
   ownerId: "",
   postalCode: "",
   company: "",
-  membershipType: "非会員" as MembershipType,
+  membershipType: "非会員" as MembershipTypeLabel,
   ownerName: "",
   address1: "",
   ownerNameKana: "",
@@ -43,7 +44,7 @@ function mapOwnerToFormData(owner: Owner): OwnerData {
     ownerId: owner.id,
     postalCode: owner.postalCode,
     company: owner.company,
-    membershipType: (owner.membershipType as MembershipType) || "非会員",
+    membershipType: (owner.membershipType as MembershipTypeLabel) || "非会員",
     ownerName: owner.ownerName,
     address1: owner.address1,
     ownerNameKana: owner.ownerNameKana || "",
@@ -88,6 +89,7 @@ function mapOwnerPetsToFormData(owner: Owner): PetFormData[] {
     insuranceId: backendPet.insuranceId,
     insuranceName: undefined,
     insuranceDetails: backendPet.insuranceDetails,
+    deceasedAt: backendPet.deceasedAt,
   }));
 }
 
@@ -103,11 +105,22 @@ export function useOwnerForm(
     () => initialOwner ? mapOwnerToFormData(initialOwner) : DEFAULT_OWNER_DATA
   );
 
-  const [pets, setPets] = useState<PetFormData[]>(
-    () => initialOwner ? mapOwnerPetsToFormData(initialOwner) : []
-  );
-  const [petModalOpen, setPetModalOpen] = useState(false);
-  const [editingPet, setEditingPet] = useState<PetFormData | null>(null);
+  const {
+    pets,
+    setPets,
+    petModalOpen,
+    setPetModalOpen,
+    editingPet,
+    handleAddPet,
+    handleEditPet,
+    handleDeletePet,
+    handleSavePet,
+  } = usePetFormListState({
+    id,
+    initialPets: initialOwner ? mapOwnerPetsToFormData(initialOwner) : [],
+    petMutations,
+  });
+
   const [manualErrors, setManualErrors] = useState<Record<string, string>>({});
 
   /**
@@ -170,7 +183,7 @@ export function useOwnerForm(
         if (isEdit && id) {
           const updateData: UpdateOwnerRequest = ownerRequestPayload;
           await updateOwner(id, updateData);
-          await queryClient.invalidateQueries({ queryKey: ["owners"] });
+          await queryClient.invalidateQueries({ queryKey: queryKeys.owners.all() });
           toast.success("飼主情報を更新しました");
           return { success: true, timestamp: Date.now() };
         } else {
@@ -180,7 +193,7 @@ export function useOwnerForm(
             clinic_id: ownerData.clinicId ? Number(ownerData.clinicId) : undefined,
           };
           const newOwner = await createOwner(createData);
-          await queryClient.invalidateQueries({ queryKey: ["owners"] });
+          await queryClient.invalidateQueries({ queryKey: queryKeys.owners.all() });
 
           const pendingPets = pets.filter(p => p.isPending && p.animalSpeciesId);
           if (pendingPets.length > 0 && petMutations) {
@@ -234,157 +247,6 @@ export function useOwnerForm(
     // eslint-disable-next-line react-hooks/set-state-in-effect -- ActionState のエラーをフォームフィールドに同期するパターン
     setManualErrors(formState.fieldErrors || {});
   }, [formState.fieldErrors, formState.timestamp]);
-
-  const handleAddPet = () => {
-    setEditingPet(null);
-    setPetModalOpen(true);
-  };
-
-  const handleEditPet = (pet: PetFormData) => {
-    setEditingPet(pet);
-    setPetModalOpen(true);
-  };
-
-  const handleDeletePet = (petId: string) => {
-    const target = pets.find(p => p.id === petId);
-    if (target?.isPending) {
-      setPets(prev => prev.filter(p => p.id !== petId));
-      toast.success("ペットを削除しました");
-      return;
-    }
-
-    petMutations?.deletePetMutate(petId, {
-      onSuccess: () => {
-        setPets(prev => prev.filter((pet) => pet.id !== petId));
-        toast.success("ペットを削除しました");
-      },
-      onError: (error: unknown) => {
-        handleApiError(error, "削除");
-      },
-    });
-  };
-
-  const handleSavePet = (petData: PetFormData) => {
-    if (editingPet) {
-      if (editingPet.isPending) {
-        setPets(prev =>
-          prev.map(p =>
-            p.id === editingPet.id
-              ? { ...petData, id: editingPet.id, isPending: true }
-              : p
-          )
-        );
-        return;
-      }
-
-      const updateRequest = transformUpdatePetRequest({
-        petNumber: petData.petNumber,
-        name: petData.petName,
-        petNameKana: petData.petNameKana,
-        animalSpeciesId: petData.animalSpeciesId,
-        gender: petData.gender,
-        birthDate: petData.birthDate,
-        breed: petData.breed,
-        color: petData.color,
-        bloodType: petData.bloodType,
-        microchipNumber: petData.microchipNumber,
-        weight: petData.weight,
-        food: petData.food,
-        environment: petData.environment,
-        neuteredDate: petData.neuteredDate,
-        acquisitionType: petData.acquisitionType,
-        dangerLevel: petData.dangerLevel,
-        status: PET_STATUS_REVERSE_MAP[petData.status],
-        insuranceId: petData.insuranceId,
-        remarks: petData.remarks,
-      });
-
-      petMutations?.updatePetMutate(
-        { id: editingPet.id, req: updateRequest },
-        {
-          onSuccess: () => {
-            setPets(prev =>
-              prev.map((pet) =>
-                pet.id === editingPet.id ? { ...pet, ...petData } : pet
-              )
-            );
-            toast.success("ペット情報を更新しました");
-          },
-          onError: (error: unknown) => {
-            handleApiError(error, "更新");
-          },
-        }
-      );
-    } else {
-      if (!petData.animalSpeciesId) {
-        return;
-      }
-
-      if (!id) {
-        const tempId = `temp-${Date.now()}`;
-        setPets(prev => [...prev, { ...petData, id: tempId, isPending: true }]);
-        return;
-      }
-
-      const createRequest = transformCreatePetRequest({
-        ownerId: id,
-        name: petData.petName || "",
-        animalSpeciesId: petData.animalSpeciesId,
-        petNumber: petData.petNumber,
-        petNameKana: petData.petNameKana,
-        breed: petData.breed,
-        color: petData.color,
-        bloodType: petData.bloodType,
-        microchipNumber: petData.microchipNumber,
-        gender: petData.gender,
-        birthDate: petData.birthDate,
-        weight: petData.weight,
-        food: petData.food,
-        environment: petData.environment,
-        neuteredDate: petData.neuteredDate,
-        acquisitionType: petData.acquisitionType,
-        dangerLevel: petData.dangerLevel,
-        status: PET_STATUS_REVERSE_MAP[petData.status],
-        insuranceId: petData.insuranceId,
-        remarks: petData.remarks,
-      });
-
-      petMutations?.createPetMutate(createRequest, {
-        onSuccess: (newPetData: Pet) => {
-          const newPet: PetFormData = {
-            id: newPetData.id,
-            petNumber: newPetData.petNumber || "",
-            petName: newPetData.name,
-            petNameKana: newPetData.petNameKana || "",
-            status: newPetData.status || "生存",
-            species: newPetData.species,
-            animalSpeciesId: newPetData.animalSpeciesId,
-            gender: newPetData.gender || "",
-            birthDate: newPetData.birthDate || "",
-            color: newPetData.color || "",
-            bloodType: newPetData.bloodType || "",
-            microchipNumber: newPetData.microchipNumber || "",
-            weight: newPetData.weight || "",
-            food: newPetData.food || "",
-            environment: newPetData.environment || "",
-            neuteredDate: newPetData.neuteredDate || "",
-            acquisitionType: (newPetData.acquisitionType as PetFormData["acquisitionType"]) || "購入",
-            dangerLevel: (newPetData.dangerLevel as PetFormData["dangerLevel"]) || "低",
-            remarks: newPetData.remarks || "",
-            breed: newPetData.breed,
-            insuranceId: newPetData.insuranceId,
-            insuranceName: undefined,
-            insuranceDetails: newPetData.insuranceDetails,
-          };
-          setPets(prev => [...prev, newPet]);
-          toast.success("ペットを追加しました");
-        },
-        onError: (error: unknown) => {
-          handleApiError(error, "追加");
-        },
-      });
-    }
-  };
 
   const clearFieldError = useCallback((field: string) => {
     setManualErrors((prev) => {

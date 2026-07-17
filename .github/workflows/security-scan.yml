@@ -29,12 +29,15 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6.0.2
+        uses: actions/checkout@v7.0.0
 
       - name: Run AgentShield
-        # Pinned to v1.3.0 SHA: v1.4.0 (9bbc007c) introduced an unbundled `yaml` import that
-        # crashes with ERR_MODULE_NOT_FOUND. v1.3.0 is the last known-good version.
-        # Upgrade when upstream fixes yaml bundling and releases a new tag.
+        # Pinned to v1.3.0 (commit 0b5e1bc9 — also where the upstream `v1` tag points).
+        # Do NOT use v1.4.0 (9bbc007c): its dist/action.js added an unbundled
+        # `import YAML from "yaml"` that crashes with ERR_MODULE_NOT_FOUND on the runner.
+        # v1.3.0's bundle is self-contained (only Node builtins). Upgrade past v1.3.0 only
+        # after confirming the new release re-bundles its dependencies. Resolve tag -> commit:
+        #   git ls-remote https://github.com/affaan-m/agentshield.git refs/tags/<tag>^{}
         uses: affaan-m/agentshield@0b5e1bc95a712285d6bf6289f67d6694de4cf8ef
         with:
           path: "."

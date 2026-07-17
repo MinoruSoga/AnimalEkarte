@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -130,68 +129,68 @@ func (m *mockUnavailableTimeRepository) Delete(ctx context.Context, clinicID, id
 	return nil
 }
 
-// mockOccupationRepository は ReservationTypeOccupationRepository のテスト用モック
-type mockOccupationRepoForRType struct {
-	findAllFn        func(ctx context.Context, clinicID, reservationTypeID uint64) ([]model.ReservationTypeOccupation, error)
-	createFn         func(ctx context.Context, o *model.ReservationTypeOccupation) error
-	deleteFn         func(ctx context.Context, clinicID, reservationTypeID, occupationID uint64) error
-	countByStaffIDFn func(ctx context.Context, clinicID, reservationTypeID uint64, date time.Time) (int64, error)
+func newTestReservationTypeService(repo *mockReservationTypeRepository) ReservationTypeService {
+	return NewReservationTypeService(repo, &mockUnavailableTimeRepository{}, &mockReservationTypeOccupationRepository{}, &mockOccupationRepository{}, nil)
 }
 
-func (m *mockOccupationRepoForRType) FindAll(ctx context.Context, clinicID, reservationTypeID uint64) ([]model.ReservationTypeOccupation, error) {
+// mockAvailableSlotRepoForRType is a minimal ReservationTypeAvailableSlotRepository
+// implementation used to exercise NewReservationTypeService's variadic
+// availableSlotRepo parameter (only set when a caller explicitly passes one).
+type mockAvailableSlotRepoForRType struct {
+	findAllFn func(ctx context.Context, clinicID, reservationTypeID uint64) ([]model.ReservationTypeAvailableSlot, error)
+}
+
+func (m *mockAvailableSlotRepoForRType) FindAll(ctx context.Context, clinicID, reservationTypeID uint64) ([]model.ReservationTypeAvailableSlot, error) {
 	if m.findAllFn != nil {
 		return m.findAllFn(ctx, clinicID, reservationTypeID)
 	}
-	return []model.ReservationTypeOccupation{}, nil
+	return []model.ReservationTypeAvailableSlot{}, nil
 }
-func (m *mockOccupationRepoForRType) FindByID(_ context.Context, _, _, _ uint64) (*model.ReservationTypeOccupation, error) {
-	return &model.ReservationTypeOccupation{}, nil
+func (m *mockAvailableSlotRepoForRType) FindByID(_ context.Context, _, id uint64) (*model.ReservationTypeAvailableSlot, error) {
+	return &model.ReservationTypeAvailableSlot{ID: id}, nil
 }
-func (m *mockOccupationRepoForRType) Create(ctx context.Context, o *model.ReservationTypeOccupation) error {
-	if m.createFn != nil {
-		return m.createFn(ctx, o)
-	}
+func (m *mockAvailableSlotRepoForRType) Create(_ context.Context, _ *model.ReservationTypeAvailableSlot) error {
 	return nil
 }
-func (m *mockOccupationRepoForRType) Delete(ctx context.Context, clinicID, reservationTypeID, occupationID uint64) error {
-	if m.deleteFn != nil {
-		return m.deleteFn(ctx, clinicID, reservationTypeID, occupationID)
-	}
-	return nil
-}
-func (m *mockOccupationRepoForRType) CountWorkingStaffByReservationTypeID(ctx context.Context, clinicID, reservationTypeID uint64, date time.Time) (int64, error) {
-	if m.countByStaffIDFn != nil {
-		return m.countByStaffIDFn(ctx, clinicID, reservationTypeID, date)
-	}
-	return 1, nil
-}
+func (m *mockAvailableSlotRepoForRType) Delete(_ context.Context, _, _ uint64) error { return nil }
 
-// mockBaseOccupationRepo は OccupationRepository のテスト用スタブ
-type mockBaseOccupationRepo struct {
-	findByIDFn func(ctx context.Context, clinicID, id uint64) (*model.Occupation, error)
-}
+func TestNewReservationTypeService_WithAvailableSlotRepo(t *testing.T) {
+	t.Run("variadic availableSlotRepo is wired when provided", func(t *testing.T) {
+		called := false
+		slotRepo := &mockAvailableSlotRepoForRType{
+			findAllFn: func(_ context.Context, _, _ uint64) ([]model.ReservationTypeAvailableSlot, error) {
+				called = true
+				return []model.ReservationTypeAvailableSlot{{ID: 1}}, nil
+			},
+		}
+		svc := NewReservationTypeService(
+			&mockReservationTypeRepository{},
+			&mockUnavailableTimeRepository{},
+			&mockReservationTypeOccupationRepository{},
+			&mockOccupationRepository{},
+			nil,
+			slotRepo,
+		)
 
-func (m *mockBaseOccupationRepo) FindAll(_ context.Context, _ uint64) ([]model.Occupation, error) {
-	return []model.Occupation{}, nil
-}
-func (m *mockBaseOccupationRepo) FindByID(ctx context.Context, clinicID, id uint64) (*model.Occupation, error) {
-	if m.findByIDFn != nil {
-		return m.findByIDFn(ctx, clinicID, id)
-	}
-	return &model.Occupation{ID: id, ClinicID: clinicID}, nil
-}
-func (m *mockBaseOccupationRepo) Create(_ context.Context, _ *model.Occupation) error { return nil }
-func (m *mockBaseOccupationRepo) Update(_ context.Context, _, _ uint64, _ map[string]any) (*model.Occupation, error) {
-	return &model.Occupation{}, nil
-}
-func (m *mockBaseOccupationRepo) Delete(_ context.Context, _, _ uint64) error           { return nil }
-func (m *mockBaseOccupationRepo) Reorder(_ context.Context, _ uint64, _ []uint64) error { return nil }
-func (m *mockBaseOccupationRepo) CountUsageByOccupationID(_ context.Context, _, _ uint64) (int64, error) {
-	return 0, nil
-}
+		slots, err := svc.ListAvailableSlots(context.Background(), 1, 5)
 
-func newTestReservationTypeService(repo *mockReservationTypeRepository) ReservationTypeService {
-	return NewReservationTypeService(repo, &mockUnavailableTimeRepository{}, &mockOccupationRepoForRType{}, &mockBaseOccupationRepo{})
+		assert.NoError(t, err)
+		assert.True(t, called, "the explicitly provided availableSlotRepo should be used")
+		assert.Len(t, slots, 1)
+	})
+
+	t.Run("omitting availableSlotRepo leaves it nil", func(t *testing.T) {
+		svc := NewReservationTypeService(
+			&mockReservationTypeRepository{},
+			&mockUnavailableTimeRepository{},
+			&mockReservationTypeOccupationRepository{},
+			&mockOccupationRepository{},
+			nil,
+		)
+		concrete, ok := svc.(*reservationTypeService)
+		require.True(t, ok)
+		assert.Nil(t, concrete.availableSlotRepo)
+	})
 }
 
 // ---- List ----
@@ -643,7 +642,7 @@ func TestReservationTypeService_Reorder(t *testing.T) {
 func TestReservationTypeService_DeleteUnavailableTime(t *testing.T) {
 	t.Run("正常: FindByID → Delete が呼ばれる", func(t *testing.T) {
 		unavailableRepo := &mockUnavailableTimeRepository{}
-		svc := NewReservationTypeService(&mockReservationTypeRepository{}, unavailableRepo, &mockOccupationRepoForRType{}, &mockBaseOccupationRepo{})
+		svc := NewReservationTypeService(&mockReservationTypeRepository{}, unavailableRepo, &mockReservationTypeOccupationRepository{}, &mockOccupationRepository{}, nil)
 
 		err := svc.DeleteUnavailableTime(context.Background(), 1, 10, 5)
 
@@ -656,7 +655,7 @@ func TestReservationTypeService_DeleteUnavailableTime(t *testing.T) {
 				return nil, apperrors.WrapNotFound("reservation_type", "10")
 			},
 		}
-		svc := NewReservationTypeService(repo, &mockUnavailableTimeRepository{}, &mockOccupationRepoForRType{}, &mockBaseOccupationRepo{})
+		svc := NewReservationTypeService(repo, &mockUnavailableTimeRepository{}, &mockReservationTypeOccupationRepository{}, &mockOccupationRepository{}, nil)
 
 		err := svc.DeleteUnavailableTime(context.Background(), 1, 10, 5)
 
@@ -670,7 +669,7 @@ func TestReservationTypeService_DeleteUnavailableTime(t *testing.T) {
 				return nil, apperrors.WrapNotFound("reservation_type_unavailable_time", "5")
 			},
 		}
-		svc := NewReservationTypeService(&mockReservationTypeRepository{}, unavailableRepo, &mockOccupationRepoForRType{}, &mockBaseOccupationRepo{})
+		svc := NewReservationTypeService(&mockReservationTypeRepository{}, unavailableRepo, &mockReservationTypeOccupationRepository{}, &mockOccupationRepository{}, nil)
 
 		err := svc.DeleteUnavailableTime(context.Background(), 1, 10, 5)
 
@@ -684,7 +683,7 @@ func TestReservationTypeService_DeleteUnavailableTime(t *testing.T) {
 				return errors.New("db error")
 			},
 		}
-		svc := NewReservationTypeService(&mockReservationTypeRepository{}, unavailableRepo, &mockOccupationRepoForRType{}, &mockBaseOccupationRepo{})
+		svc := NewReservationTypeService(&mockReservationTypeRepository{}, unavailableRepo, &mockReservationTypeOccupationRepository{}, &mockOccupationRepository{}, nil)
 
 		err := svc.DeleteUnavailableTime(context.Background(), 1, 10, 5)
 

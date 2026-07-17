@@ -1,5 +1,5 @@
 // React/Framework
-import { memo, Suspense, useCallback, useEffect, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useRef, useState } from "react";
 import { useParams, useNavigate } from "react-router";
 
 // External
@@ -8,23 +8,23 @@ import { HeartPulse } from "lucide-react";
 // Internal
 import { paths } from "@/config/paths";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
-import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 import { C, ICON, LAYOUT } from "@/lib/design-tokens";
-import { LoadingFallback } from "@/components/shared/DataStates";
+import { LoadingFallback, ErrorFallback } from "@/components/shared/DataStates";
 import { UnifiedTabsRoot } from "@/components/shared/UnifiedTabs";
 
 // Relative
 import { MedicalRecordAddenda } from "../components/MedicalRecordAddenda";
 import { MedicalRecordStickyHeader, MedicalRecordTabsArea } from "../components/MedicalRecordFormPanels";
 import {
-  MedicalRecordDeleteDialog,
+  MedicalRecordFinalizeDialog,
   MedicalRecordFloatingActions,
   MedicalRecordPrintArea,
 } from "../components/MedicalRecordFormActions";
-import { OwnerSearchModal, StaffSelectionModal, VitalsModal } from "./MedicalRecordLazyModals";
-import { MEDICAL_RECORD_TAB_ITEMS } from "./MedicalRecordFormModel";
-import { useMedicalRecordDirtyFields } from "./useMedicalRecordDirtyFields";
-import { useMedicalRecordPostSave } from "./useMedicalRecordPostSave";
+import { MedicalRecordFormModals } from "../components/MedicalRecordFormModals";
+import { MEDICAL_RECORD_TAB_ITEMS } from "./medical-record-form-model";
+import { useMedicalRecordDirtyFields } from "../hooks/use-medical-record-dirty-fields";
+import { useMedicalRecordFormModals } from "../hooks/use-medical-record-form-modals";
+import { useMedicalRecordPostSave } from "../hooks/use-medical-record-post-save";
 import { useMedicalRecordForm } from "../hooks/use-medical-record-form";
 import { useGetMedicalRecord } from "../api/get-medical-record";
 import { useGetPetMedicalHistory } from "../api/get-medical-records";
@@ -35,7 +35,7 @@ import { handleApiError } from "@/lib/handle-api-error";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/use-auth";
 import { usePermission } from "@/hooks/use-permission";
-import { useGetOwnerLineTags } from "@/features/owners";
+import { useGetOwnerLineTags } from "@/hooks/use-owner-line-tags";
 import { NavigationBlocker } from "@/components/shared/NavigationBlocker";
 import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
 import { useTitle } from "@/hooks/use-title";
@@ -94,6 +94,8 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
     setRecommendationReason,
     recordDate,
     handleChangeDate,
+    handleFinalize,
+    isFinalizeSaving,
     } = useMedicalRecordForm(recordId);
 
     useTitle(recordId ? `カルテ編集 (#${recordId})` : "カルテ入力");
@@ -132,23 +134,47 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
   const { canEdit, canCreate, canDelete } = usePermission("medical-records");
   const canSubmit = isNewRecord ? canCreate : canEdit;
 
-  // 印刷用データ（React Query キャッシュ共有 — 子コンポーネントが既にフェッチ済み）
-  const { data: clinicalPlan } = useGetClinicalPlan(recordId ?? "");
-  const { data: treatments = [] } = useGetTreatments(recordId ?? "");
   // addenda セクション用: キャッシュ共有のため追加ネットワーク要求なし
   const { data: currentRecord } = useGetMedicalRecord(recordId ?? "");
+  // P2-15: 拠点横断で開いたカルテ（record.clinicId）の子リソースは、グローバル選択クリニックではなく
+  // レコード自身の clinicId を X-Clinic-ID として送る必要がある。currentRecord 解決前は undefined —
+  // クエリキーに clinicId を含めているため解決後に自動で正しいクリニックへ再フェッチされる。
+  const recordClinicId = currentRecord?.clinicId;
+
+  // 印刷用データ（React Query キャッシュ共有 — 子コンポーネントが既にフェッチ済み）
+  const { data: clinicalPlan } = useGetClinicalPlan(recordId ?? "", recordClinicId);
+  const { data: treatments = [] } = useGetTreatments(recordId ?? "", recordClinicId);
 
   // ローカル状態: 担当者（hookに追加するまでの暫定）
   const [staffName, setStaffName] = useState(() => user?.displayName ?? "");
-  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
-  const [isVitalsOpen, setIsVitalsOpen] = useState(false);
-  const [isPrinting, setIsPrinting] = useState(false);
-  const [isStaffModalOpen, setIsStaffModalOpen] = useState(false);
-  const [isOwnerSearchOpen, setIsOwnerSearchOpen] = useState(false);
+  const {
+    isDeleteConfirmOpen,
+    setIsDeleteConfirmOpen,
+    isFinalizeConfirmOpen,
+    setIsFinalizeConfirmOpen,
+    isVitalsOpen,
+    setIsVitalsOpen,
+    isPrinting,
+    isStaffModalOpen,
+    isOwnerSearchOpen,
+    setIsOwnerSearchOpen,
+    handleStaffModalOpenChange,
+    handleOpenStaffModal,
+    handleOpenOwnerSearch,
+    handlePrintClick,
+  } = useMedicalRecordFormModals();
   // 一度マウントしたタブを記録してhide/show方式で管理
   const [mountedTabs, setMountedTabs] = useState<Set<string>>(() => new Set(["問診"]));
 
-  const { mutate: deleteRecord, isPending: isDeleting } = useDeleteMedicalRecord();
+  const { mutate: deleteRecord, isPending: isDeleting } = useDeleteMedicalRecord(recordClinicId);
+
+  // SPEC-GAP: カルテ確定状態。確定済みは編集不可となり、以降の修正は追記(addendum)のみ
+  const isFinalized = currentRecord?.status === "確定済";
+
+  const handleFinalizeConfirm = useCallback(() => {
+    handleFinalize();
+    setIsFinalizeConfirmOpen(false);
+  }, [handleFinalize, setIsFinalizeConfirmOpen]);
 
   const handleDeleteConfirm = useCallback(() => {
     if (!recordId) return;
@@ -162,7 +188,7 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
         handleApiError(error, "カルテ削除");
       },
     });
-  }, [recordId, deleteRecord, navigate]);
+  }, [recordId, deleteRecord, navigate, setIsDeleteConfirmOpen]);
 
   useEffect(() => {
     if (shouldRedirectToSelectPet) {
@@ -215,30 +241,15 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
     }
   }, [recordId, handleChangeDoctor, setStaffName]);
 
-  const handleStaffModalOpenChange = useCallback((open: boolean) => {
-    setIsStaffModalOpen(open);
-  }, []);
-
-  const handleOpenStaffModal = useCallback(() => {
-    setIsStaffModalOpen(true);
-  }, []);
-
-  const handleOpenOwnerSearch = useCallback(() => {
-    setIsOwnerSearchOpen(true);
-  }, []);
-
-  const handlePrintClick = useCallback(() => {
-    setIsPrinting(true);
-    setTimeout(() => {
-      window.print();
-      setIsPrinting(false);
-    }, 100);
-  }, []);
-
   if (notFound) {
     return (
-      <PageLayout title="カルテ" onBack={handleBack} icon={<HeartPulse className={`${ICON.page} ${C.text}`} />}>
-        <div className={`px-6 py-12 text-center text-base ${C.text50}`}>カルテが見つかりません</div>
+      <PageLayout
+        title="カルテ"
+        onBack={handleBack}
+        icon={<HeartPulse className={`${ICON.page} ${C.text}`} />}
+        maxWidth={LAYOUT.pageContentMaxWidth.full}
+      >
+        <ErrorFallback message="カルテが見つかりません" />
       </PageLayout>
     );
   }
@@ -257,7 +268,7 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
       title={recordId ? "カルテ編集" : "カルテ入力"}
       onBack={handleBack}
       resource={ResourceMedicalRecords}
-      maxWidth="max-w-[1440px]"
+      maxWidth={LAYOUT.pageContentMaxWidth.full}
       scrollContainerRef={scrollContainerRef}
     >
       <NavigationBlocker when={isDirty} />
@@ -281,44 +292,57 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
         onNextVisitDateValidChange={handleNextVisitDateValidChange}
         hasLineIntegration={hasLineIntegration}
       />
-      <MedicalRecordTabsArea
-        activeTab={activeTab}
-        mountedTabs={mountedTabs}
-        isNewRecord={isNewRecord}
-        recordId={recordId}
-        selectedPet={selectedPet}
-        chiefComplaint={chiefComplaint}
-        chiefComplaintTypeId={chiefComplaintTypeId}
-        treatmentPolicy={treatmentPolicy}
-        historyItems={historyItems}
-        plan={plan}
-        assessment={assessment}
-        diagnosis1CategoryId={diagnosis1CategoryId}
-        diagnosis1NameId={diagnosis1NameId}
-        diagnosis2CategoryId={diagnosis2CategoryId}
-        diagnosis2NameId={diagnosis2NameId}
-        ownerDiscountRate={ownerDiscountRate ?? 0}
-        nextVisitDate={nextVisitDate}
-        hasLineIntegration={hasLineIntegration}
-        recommendationReason={recommendationReason}
-        lstepStatus={lstepStatus}
-        recordStatus={currentRecord?.status ?? ""}
-        diagnosis1NameIdError={formState.fieldErrors?.diagnosis1_name_id}
-        onChiefComplaintChange={handleSetChiefComplaint}
-        onChiefComplaintTypeIdChange={handleSetChiefComplaintTypeId}
-        onTreatmentPolicyChange={handleSetTreatmentPolicy}
-        onPlanChange={handleSetPlan}
-        onAssessmentChange={handleSetAssessment}
-        onDiagnosis1CategoryIdChange={handleSetDiagnosis1CategoryId}
-        onDiagnosis1NameIdChange={handleSetDiagnosis1NameId}
-        onDiagnosis2CategoryIdChange={handleSetDiagnosis2CategoryId}
-        onDiagnosis2NameIdChange={handleSetDiagnosis2NameId}
-        onNextVisitDateChange={handleNextVisitDateChange}
-        onNextVisitDateValidChange={handleNextVisitDateValidChange}
-        onRecommendationReasonChange={setRecommendationReason}
-        onRegisterClinicalPlanSave={handleRegisterClinicalPlanSave}
-        onRegisterEstimateSave={handleRegisterEstimateSave}
-      />
+      {/* SPEC-GAP (GAP-1): 確定済みカルテは編集不可 UI。BE は主要な子リソース
+          (治療/検査/バイタル/処方/健診/画像) を 409 で拒否するが、UI が押せて
+          エラーになるのは不可のため、タブ内の全編集導線をここで一括無効化する。
+          個別コンポーネントへ disabled を都度配線すると新規フィールド追加時に
+          ガード漏れが起きやすいため、fieldset の cascade を単一の強制点にする。 */}
+      <fieldset disabled={isFinalized} className="contents border-0 m-0 p-0">
+        {isFinalized ? (
+          <div className={`mx-4 mt-3 rounded border ${C.borderMedium} ${C.bgPage} px-3 py-2 text-sm ${C.text60}`}>
+            このカルテは確定済みのため編集できません。修正が必要な場合は下部の訂正追記（addendum）をご利用ください。
+          </div>
+        ) : null}
+        <MedicalRecordTabsArea
+          activeTab={activeTab}
+          mountedTabs={mountedTabs}
+          isNewRecord={isNewRecord}
+          recordId={recordId}
+          selectedPet={selectedPet}
+          chiefComplaint={chiefComplaint}
+          chiefComplaintTypeId={chiefComplaintTypeId}
+          treatmentPolicy={treatmentPolicy}
+          historyItems={historyItems}
+          plan={plan}
+          assessment={assessment}
+          diagnosis1CategoryId={diagnosis1CategoryId}
+          diagnosis1NameId={diagnosis1NameId}
+          diagnosis2CategoryId={diagnosis2CategoryId}
+          diagnosis2NameId={diagnosis2NameId}
+          ownerDiscountRate={ownerDiscountRate ?? 0}
+          nextVisitDate={nextVisitDate}
+          hasLineIntegration={hasLineIntegration}
+          recommendationReason={recommendationReason}
+          lstepStatus={lstepStatus}
+          recordStatus={currentRecord?.status ?? ""}
+          diagnosis1NameIdError={formState.fieldErrors?.diagnosis1_name_id}
+          onChiefComplaintChange={handleSetChiefComplaint}
+          onChiefComplaintTypeIdChange={handleSetChiefComplaintTypeId}
+          onTreatmentPolicyChange={handleSetTreatmentPolicy}
+          onPlanChange={handleSetPlan}
+          onAssessmentChange={handleSetAssessment}
+          onDiagnosis1CategoryIdChange={handleSetDiagnosis1CategoryId}
+          onDiagnosis1NameIdChange={handleSetDiagnosis1NameId}
+          onDiagnosis2CategoryIdChange={handleSetDiagnosis2CategoryId}
+          onDiagnosis2NameIdChange={handleSetDiagnosis2NameId}
+          onNextVisitDateChange={handleNextVisitDateChange}
+          onNextVisitDateValidChange={handleNextVisitDateValidChange}
+          onRecommendationReasonChange={setRecommendationReason}
+          onRegisterClinicalPlanSave={handleRegisterClinicalPlanSave}
+          onRegisterEstimateSave={handleRegisterEstimateSave}
+          recordClinicId={recordClinicId}
+        />
+      </fieldset>
       </UnifiedTabsRoot>
 
       {!isNewRecord ? (
@@ -331,65 +355,47 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
 
       <MedicalRecordFloatingActions
         activeTab={activeTab}
-        canDelete={canDelete}
+        canDelete={!!canDelete && !isFinalized}
         canEdit={canEdit}
         canSubmit={canSubmit}
         isNewRecord={isNewRecord}
         isCreating={isCreating}
+        isFinalized={isFinalized}
         onDeleteClick={() => setIsDeleteConfirmOpen(true)}
         onVitalsClick={() => setIsVitalsOpen(true)}
         onPrintClick={handlePrintClick}
+        onFinalizeClick={() => setIsFinalizeConfirmOpen(true)}
       />
 
-      <MedicalRecordDeleteDialog
-        open={isDeleteConfirmOpen}
-        petName={selectedPet.name}
+      <MedicalRecordFinalizeDialog
+        open={isFinalizeConfirmOpen}
+        isFinalizing={isFinalizeSaving}
+        onClose={() => setIsFinalizeConfirmOpen(false)}
+        onConfirm={handleFinalizeConfirm}
+      />
+
+      <MedicalRecordFormModals
+        isDeleteConfirmOpen={isDeleteConfirmOpen}
+        selectedPetName={selectedPet.name}
         isDeleting={isDeleting}
-        onClose={() => setIsDeleteConfirmOpen(false)}
-        onConfirm={handleDeleteConfirm}
-      />
-      {/* Vitals Modal */}
-      <Suspense fallback={null}>
-        {!isNewRecord && recordId ? (
-          <VitalsModal
-            open={isVitalsOpen}
-            onOpenChange={setIsVitalsOpen}
-            medicalRecordId={recordId}
-          />
-        ) : null}
-      </Suspense>
-
-      {/* Staff Selection Modal */}
-      <Suspense fallback={null}>
-        <StaffSelectionModal
-          open={isStaffModalOpen}
-          selectedStaffName={staffName}
-          onSelect={handleSelectStaff}
-          onOpenChange={handleStaffModalOpenChange}
-        />
-      </Suspense>
-
-      {/* Owner Search Modal (edit mode only) */}
-      {!isNewRecord && recordId ? (
-        <Suspense fallback={null}>
-          <OwnerSearchModal
-            open={isOwnerSearchOpen}
-            onOpenChange={setIsOwnerSearchOpen}
-            currentOwnerName={selectedPet?.ownerName}
-            onSelect={requestOwnerChange}
-          />
-        </Suspense>
-      ) : null}
-
-      {/* BUG-373: 飼主変更 確認ダイアログ (discount_rate/membership_type 不一致時のみ表示) */}
-      <ConfirmDialog
-        open={!!pendingOwnerChange}
-        onClose={cancelOwnerChange}
-        onConfirm={confirmOwnerChange}
-        title="飼主変更の確認"
-        description="飼主によって値引率や会員区分が異なるため、今後の会計金額が変動する可能性があります。変更を続行してよろしいですか?"
-        confirmLabel="続行"
-        cancelLabel="キャンセル"
+        onCloseDeleteConfirm={() => setIsDeleteConfirmOpen(false)}
+        onConfirmDelete={handleDeleteConfirm}
+        isNewRecord={isNewRecord}
+        recordId={recordId}
+        isVitalsOpen={isVitalsOpen}
+        onVitalsOpenChange={setIsVitalsOpen}
+        recordClinicId={recordClinicId}
+        isStaffModalOpen={isStaffModalOpen}
+        staffName={staffName}
+        onSelectStaff={handleSelectStaff}
+        onStaffModalOpenChange={handleStaffModalOpenChange}
+        isOwnerSearchOpen={isOwnerSearchOpen}
+        onOwnerSearchOpenChange={setIsOwnerSearchOpen}
+        selectedPetOwnerName={selectedPet?.ownerName}
+        onSelectOwner={requestOwnerChange}
+        pendingOwnerChange={pendingOwnerChange}
+        onCancelOwnerChange={cancelOwnerChange}
+        onConfirmOwnerChange={confirmOwnerChange}
       />
     </PageLayout>
 

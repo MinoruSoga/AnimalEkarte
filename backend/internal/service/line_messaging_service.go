@@ -10,9 +10,8 @@ import (
 	"time"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
+	"github.com/animal-ekarte/backend/internal/infra/line"
 )
-
-const lineMessagingAPIURL = "https://api.line.me/v2/bot/message/push"
 
 // LineMessagingService はLINE Messaging APIを使ったプッシュ通知クライアント。
 // channelToken が空の場合はすべての送信をスキップする（設定不要時に安全に無効化）。
@@ -62,7 +61,7 @@ func (s *LineMessagingService) PushText(ctx context.Context, lineUserID, text st
 		return apperrors.Wrap(err, "marshal line payload")
 	}
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, lineMessagingAPIURL, bytes.NewReader(body))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, line.PushEndpoint, bytes.NewReader(body))
 	if err != nil {
 		return apperrors.Wrap(err, "create line request")
 	}

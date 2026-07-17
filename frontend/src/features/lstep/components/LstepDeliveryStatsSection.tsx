@@ -17,7 +17,7 @@ import {
   STATUS_LABELS,
   STATS_STATUSES,
   type CrossRow,
-} from "./LstepAnalyticsModel";
+} from "./lstep-analytics-model";
 
 interface DeliveryStatsSectionProps {
   yearMonth: string;

@@ -77,7 +77,7 @@ export const InterviewChiefComplaint = memo(function InterviewChiefComplaint({
               <button
                 type="button"
                 onClick={() => navigate(paths.settings.interview.chiefComplaint.getHref())}
-                className={`text-xs ${C.text40} ${C.hoverTextAccent} transition-colors flex items-center gap-1`}
+                className={`text-xs ${C.text40} ${C.hoverTextBrand} transition-colors flex items-center gap-1`}
               >
                 <Settings className={ICON.xs} />
                 マスタ編集
@@ -102,7 +102,7 @@ export const InterviewChiefComplaint = memo(function InterviewChiefComplaint({
               <button
                 type="button"
                 onClick={() => navigate(paths.settings.interview.interviewTemplate.getHref())}
-                className={`text-xs ${C.text40} ${C.hoverTextAccent} transition-colors flex items-center gap-1`}
+                className={`text-xs ${C.text40} ${C.hoverTextBrand} transition-colors flex items-center gap-1`}
               >
                 <Settings className={ICON.xs} />
                 マスタ編集

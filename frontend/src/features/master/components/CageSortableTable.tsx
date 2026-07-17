@@ -4,7 +4,7 @@ import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable"
 import { Plus } from "lucide-react";
 
 import { RowActionButton } from "@/components/shared/RowActionButton";
-import { NotionStatusPill } from "@/components/shared/StatusPill/NotionStatusPill";
+import { StatusPill } from "@/components/shared/StatusPill/StatusPill";
 import { SortableDataTableRow } from "@/components/shared/DataTable/SortableDataTableRow";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { C, ICON, STYLE } from "@/lib/design-tokens";
@@ -14,7 +14,7 @@ import {
   CAGE_SIZE_LABELS,
   CAGE_TYPE_LABELS,
   formatCagePrice,
-} from "./CageSidePanelModel";
+} from "./cage-side-panel-model";
 import { CageRowOverlay } from "./CageRowOverlay";
 
 const TABLE_COLUMNS = [
@@ -23,7 +23,7 @@ const TABLE_COLUMNS = [
   { key: "type", label: "エリア", className: "w-[100px]" },
   { key: "size", label: "サイズ", className: "w-[90px]" },
   { key: "price", label: "単価(税込)", className: "w-[120px] text-right pr-4" },
-  { key: "status", label: "ステータス", className: "w-[90px] text-center" },
+  { key: "status", label: "ステータス", className: "w-[100px] text-center" },
   { key: "action", label: "操作", className: "w-[80px] text-right pr-2" },
 ];
 
@@ -99,7 +99,7 @@ export function CageSortableTable({
                       {formatCagePrice(item.price)}
                     </TableCell>
                     <TableCell className="text-center">
-                      <NotionStatusPill isActive={item.isActive} />
+                      <StatusPill isActive={item.isActive} />
                     </TableCell>
                     <TableCell className="p-0 text-right pr-2">
                       {canEdit ? <RowActionButton onClick={() => onEdit(item)} /> : null}

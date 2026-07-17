@@ -11,7 +11,7 @@ import { normalizeKana } from "@/lib/normalize-kana";
 
 import type { Campaign, CampaignDiscountType } from "../api/campaign";
 import { useGetAllMerchandiseItems } from "../api/merchandise-items";
-import { campaignToFormData, type CampaignFormData } from "./CampaignSidePanelModel";
+import { campaignToFormData, type CampaignFormData } from "./campaign-side-panel-model";
 
 // item_category に対応する対象カテゴリの選択肢
 const CATEGORY_OPTIONS: { value: string; label: string }[] = [

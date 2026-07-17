@@ -8,7 +8,7 @@ import { toast } from "sonner";
 import { TableCell } from "@/components/ui/table";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 import { RowActionButton } from "@/components/shared/RowActionButton";
-import { NotionStatusPill } from "@/components/shared/StatusPill/NotionStatusPill";
+import { StatusPill } from "@/components/shared/StatusPill/StatusPill";
 import { SortableDataTableRow } from "@/components/shared/DataTable/SortableDataTableRow";
 import { C, LAYOUT, STYLE } from "@/lib/design-tokens";
 import { SHIFT_TYPE_LABELS, type ShiftTemplate } from "../types";
@@ -44,7 +44,7 @@ export const ShiftTemplateRow = memo(function ShiftTemplateRow({
       </TableCell>
       <TableCell className={`text-sm ${C.text70} py-2.5`}>{timeLabel}</TableCell>
       <TableCell className="text-center py-2.5">
-        <NotionStatusPill isActive={item.is_active} />
+        <StatusPill isActive={item.is_active} />
       </TableCell>
       <TableCell className="text-right py-2.5">
         <RowActionButton onClick={onEdit} />
@@ -65,7 +65,7 @@ export function ShiftTemplateToolbar({ count, onCreate }: ShiftTemplateToolbarPr
       <button
         type="button"
         onClick={onCreate}
-        className={`inline-flex items-center gap-1 text-sm font-medium ${C.accent} ${C.hoverTextAccent} cursor-pointer transition-colors`}
+        className={`inline-flex items-center gap-1 text-sm font-medium ${C.textBrand} ${C.hoverTextBrand} cursor-pointer transition-colors`}
       >
         <Plus className="size-4" />
         新規登録
@@ -188,7 +188,8 @@ export const ShiftTemplateSidePanel = memo(function ShiftTemplateSidePanel({
           <div className="pb-1 mb-4">
             <input
               type="text"
-              className={`w-full bg-transparent ${C.text} placeholder:text-[rgba(55,53,47,0.15)] outline-none border-none p-0`}
+              aria-label="テンプレート名"
+              className={`w-full bg-transparent ${C.text} ${C.textPlaceholderFaint} outline-none border-none p-0`}
               style={{
                 fontSize: LAYOUT.pageTitle.fontSize,
                 fontWeight: LAYOUT.pageTitle.fontWeight,
@@ -222,7 +223,7 @@ export const ShiftTemplateSidePanel = memo(function ShiftTemplateSidePanel({
           type="button"
           onClick={handleAction}
           disabled={isSaving || !formData.name.trim()}
-          className={STYLE.sidePeekSaveBtn}
+          className={`px-5 py-[7px] text-base text-white ${C.bgBrand} ${C.hoverBgBrand} rounded-full transition-colors cursor-pointer ${STYLE.pillShadow}`}
         >
           {isSaving ? "保存中..." : "保存"}
         </button>

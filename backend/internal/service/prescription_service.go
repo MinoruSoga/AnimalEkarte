@@ -47,11 +47,14 @@ type prescriptionService struct {
 	repo          repository.PrescriptionRepository
 	medRecordRepo repository.MedicalRecordRepository
 	tagSyncSvc    LstepTagSyncService
+	transactor    repository.Transactor
 }
 
-// NewPrescriptionService は PrescriptionService の実装を返す
-func NewPrescriptionService(repo repository.PrescriptionRepository, medRecordRepo repository.MedicalRecordRepository, tagSyncSvc LstepTagSyncService) PrescriptionService {
-	return &prescriptionService{repo: repo, medRecordRepo: medRecordRepo, tagSyncSvc: tagSyncSvc}
+// NewPrescriptionService は PrescriptionService の実装を返す。transactor は BE-refactor.md X-11
+// （確定と子書込の競合防止）のため、子書込を LockByIDForUpdate の行ロックと同一トランザクションに
+// 収める目的で注入する。
+func NewPrescriptionService(repo repository.PrescriptionRepository, medRecordRepo repository.MedicalRecordRepository, tagSyncSvc LstepTagSyncService, transactor repository.Transactor) PrescriptionService {
+	return &prescriptionService{repo: repo, medRecordRepo: medRecordRepo, tagSyncSvc: tagSyncSvc, transactor: transactor}
 }
 
 func (s *prescriptionService) List(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.Prescription, error) {
@@ -72,30 +75,40 @@ func (s *prescriptionService) GetByID(ctx context.Context, clinicID, prescriptio
 }
 
 func (s *prescriptionService) Create(ctx context.Context, clinicID, medicalRecordID uint64, input *CreatePrescriptionInput) (*model.Prescription, error) {
-	mr, err := s.medRecordRepo.FindByID(ctx, clinicID, medicalRecordID)
-	if err != nil {
-		return nil, apperrors.Wrap(err, "failed to get medical record")
-	}
-	if mr.OwnerID == nil {
-		return nil, apperrors.WrapInvalidInput("medical record has no owner")
-	}
-	// Prevent adding prescriptions to finalized medical records
-	if mr.Status == model.MedicalRecordStatusFinalized {
-		return nil, apperrors.WrapConflict("確定済みの診療記録には処方を追加できません")
-	}
-
 	p := &model.Prescription{
 		ClinicID:        clinicID,
-		OwnerID:         *mr.OwnerID,
-		PetID:           mr.PetID,
 		MedicalRecordID: &medicalRecordID,
 		PrescribedAt:    input.PrescribedAt,
 		DurationDays:    input.DurationDays,
 	}
-	if err := s.repo.Create(ctx, p); err != nil {
-		slog.ErrorContext(ctx, "failed to create prescription", "error", err)
-		return nil, apperrors.Wrap(err, "failed to create prescription")
+
+	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
+		// BE-refactor.md X-11: LockByIDForUpdate の行ロックで finalize と直列化し、確定と同時の
+		// 処方追加が確定済みカルテに混入する競合を防ぐ。
+		mr, err := s.medRecordRepo.LockByIDForUpdate(txCtx, clinicID, medicalRecordID)
+		if err != nil {
+			slog.ErrorContext(txCtx, "failed to get medical record", "error", err)
+			return apperrors.Wrap(err, "failed to get medical record")
+		}
+		if mr.OwnerID == nil {
+			return apperrors.WrapInvalidInput("medical record has no owner")
+		}
+		// Prevent adding prescriptions to finalized medical records
+		if mr.Status == model.MedicalRecordStatusFinalized {
+			return apperrors.WrapConflict("確定済みの診療記録には処方を追加できません")
+		}
+		p.OwnerID = *mr.OwnerID
+		p.PetID = mr.PetID
+
+		if err := s.repo.Create(txCtx, p); err != nil {
+			slog.ErrorContext(txCtx, "failed to create prescription", "error", err)
+			return apperrors.Wrap(err, "failed to create prescription")
+		}
+		return nil
+	}); err != nil {
+		return nil, err
 	}
+
 	slog.InfoContext(ctx, "prescription created",
 		slog.Uint64("clinic_id", clinicID),
 		slog.Uint64("prescription_id", p.ID),
@@ -113,22 +126,28 @@ func (s *prescriptionService) Update(ctx context.Context, clinicID, medicalRecor
 	if existing.MedicalRecordID == nil || *existing.MedicalRecordID != medicalRecordID {
 		return nil, apperrors.WrapNotFound("prescription", fmt.Sprintf("%d", prescriptionID))
 	}
-	// Prevent updating prescriptions for finalized medical records
-	mr, err := s.medRecordRepo.FindByID(ctx, clinicID, medicalRecordID)
-	if err != nil {
-		return nil, apperrors.Wrap(err, "failed to get medical record")
+
+	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
+		// Prevent updating prescriptions for finalized medical records.
+		// BE-refactor.md X-11: LockByIDForUpdate の行ロックで finalize と直列化し、確定と同時の
+		// 処方編集が確定済みカルテに混入する競合を防ぐ。
+		if err := lockDraftMedicalRecord(txCtx, s.medRecordRepo, clinicID, medicalRecordID,
+			"failed to get medical record", "確定済みの診療記録の処方は編集できません"); err != nil {
+			return err
+		}
+		fields := buildPrescriptionUpdate(input)
+		if len(fields) == 0 {
+			return apperrors.WrapInvalidInput("at least one field must be provided")
+		}
+		if err := s.repo.Update(txCtx, clinicID, prescriptionID, fields); err != nil {
+			slog.ErrorContext(txCtx, "failed to update prescription", "error", err)
+			return apperrors.Wrap(err, "failed to update prescription")
+		}
+		return nil
+	}); err != nil {
+		return nil, err
 	}
-	if mr != nil && mr.Status == model.MedicalRecordStatusFinalized {
-		return nil, apperrors.WrapConflict("確定済みの診療記録の処方は編集できません")
-	}
-	fields := buildPrescriptionUpdate(input)
-	if len(fields) == 0 {
-		return nil, apperrors.WrapInvalidInput("at least one field must be provided")
-	}
-	if err := s.repo.Update(ctx, clinicID, prescriptionID, fields); err != nil {
-		slog.ErrorContext(ctx, "failed to update prescription", "error", err)
-		return nil, apperrors.Wrap(err, "failed to update prescription")
-	}
+
 	slog.InfoContext(ctx, "prescription updated",
 		slog.Uint64("clinic_id", clinicID),
 		slog.Uint64("prescription_id", prescriptionID))
@@ -149,20 +168,28 @@ func (s *prescriptionService) Delete(ctx context.Context, clinicID, medicalRecor
 	if existing.MedicalRecordID == nil || *existing.MedicalRecordID != medicalRecordID {
 		return apperrors.WrapNotFound("prescription", fmt.Sprintf("%d", prescriptionID))
 	}
-	// Prevent deleting prescriptions for finalized medical records
-	mr, err := s.medRecordRepo.FindByID(ctx, clinicID, medicalRecordID)
-	if err != nil {
-		return apperrors.Wrap(err, "failed to get medical record")
+
+	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
+		// Prevent deleting prescriptions for finalized medical records.
+		// BE-refactor.md H-8e: LockByIDForUpdate の行ロックで finalize と直列化し、確定と同時の
+		// 処方削除が確定済みカルテに混入する競合を防ぐ（Update と対称）。
+		if err := lockDraftMedicalRecord(txCtx, s.medRecordRepo, clinicID, medicalRecordID,
+			"failed to get medical record", "確定済みの診療記録の処方は削除できません"); err != nil {
+			return err
+		}
+		if err := s.repo.Delete(txCtx, clinicID, prescriptionID); err != nil {
+			slog.ErrorContext(txCtx, "failed to delete prescription", "error", err, "clinic_id", clinicID, "prescription_id", prescriptionID)
+			return apperrors.Wrap(err, "failed to delete prescription")
+		}
+		return nil
+	}); err != nil {
+		return err
 	}
-	if mr != nil && mr.Status == model.MedicalRecordStatusFinalized {
-		return apperrors.WrapConflict("確定済みの診療記録の処方は削除できません")
-	}
-	if err := s.repo.Delete(ctx, clinicID, prescriptionID); err != nil {
-		return apperrors.Wrap(err, "failed to delete prescription")
-	}
+
 	slog.InfoContext(ctx, "prescription deleted",
 		slog.Uint64("clinic_id", clinicID),
 		slog.Uint64("prescription_id", prescriptionID))
+	// syncPrescriptionTag は best-effort のため tx 外のまま維持（BE-refactor.md H-8e）。
 	s.syncPrescriptionTag(ctx, clinicID, existing.OwnerID)
 	return nil
 }

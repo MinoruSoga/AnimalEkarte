@@ -1,11 +1,13 @@
 import { useCallback } from "react";
 import { ChevronDown, FileText } from "lucide-react";
 import { PatientContextHeader } from "@/components/shared/PatientContextHeader";
+import { StatusBadge } from "@/components/shared/StatusBadge/StatusBadge";
 import { UnifiedTabsContent, UnifiedTabsList } from "@/components/shared/UnifiedTabs";
 import { Button } from "@/components/ui/button";
 import { C, ICON, LAYOUT } from "@/lib/design-tokens";
 import { openOwnerReport } from "@/lib/owner-report-window";
 import { usePermission } from "@/hooks/use-permission";
+import { getMedicalRecordStatusColor } from "@/utils/status-helpers";
 import { ResourceMedicalRecords } from "@/types/generated/models";
 import { todayJSTISO } from "@/lib/jst-date";
 import type { Pet } from "@/types";
@@ -78,11 +80,18 @@ export function MedicalRecordStickyHeader({
 
   const contextControls = (
     <>
+      {/* SPEC-GAP: 確定済みバッジ。臨床記録の真正性担保のため、確定状態を常時明示する */}
+      {!isNewRecord && isFinalized ? (
+        <StatusBadge colorClass={getMedicalRecordStatusColor("確定済")}>
+          確定済
+        </StatusBadge>
+      ) : null}
+
       {/* 来院種別 */}
       <VisitTypeSelect
         value={visitType}
         onChange={onVisitTypeChange}
-        disabled={!canEdit}
+        disabled={!canEdit || isFinalized}
       />
 
       {/* 診察日 */}
@@ -107,7 +116,7 @@ export function MedicalRecordStickyHeader({
       </div>
 
       {/* 担当医 */}
-      {canEdit ? (
+      {canEdit && !isFinalized ? (
         <Button
           type="button"
           variant="ghost"
@@ -168,7 +177,7 @@ export function MedicalRecordStickyHeader({
         insuranceName={selectedPet.insuranceName ?? undefined}
         insuranceDetails={selectedPet.insuranceDetails ?? undefined}
         visitCount={visitCount}
-        onOwnerClick={!isNewRecord ? onOwnerClick : undefined}
+        onOwnerClick={!isNewRecord && !isFinalized ? onOwnerClick : undefined}
         contextControls={contextControls}
       />
       <div className={`flex shrink-0 overflow-x-auto ${C.bgPage}`}>
@@ -201,6 +210,8 @@ interface MedicalRecordTabsAreaProps {
   lstepStatus: "synced" | "not-linked" | "opt-out" | undefined;
   recordStatus: string;
   diagnosis1NameIdError: string | undefined;
+  /** P2-15: 拠点横断で開いたカルテの子リソース操作用。レコード自身の clinicId */
+  recordClinicId?: string;
   onChiefComplaintChange: (value: string) => void;
   onChiefComplaintTypeIdChange: (id: number | null) => void;
   onTreatmentPolicyChange: (value: string) => void;
@@ -240,6 +251,7 @@ export function MedicalRecordTabsArea({
   lstepStatus,
   recordStatus,
   diagnosis1NameIdError,
+  recordClinicId,
   onChiefComplaintChange,
   onChiefComplaintTypeIdChange,
   onTreatmentPolicyChange,
@@ -294,6 +306,7 @@ export function MedicalRecordTabsArea({
               ownerDiscountRate={ownerDiscountRate}
               onRegisterClinicalPlanSave={onRegisterClinicalPlanSave}
               diagnosis1NameIdError={diagnosis1NameIdError}
+              recordClinicId={recordClinicId}
             />
             <div className="px-4 pb-4 mt-4 flex flex-col gap-6">
               <NextVisitDateField
@@ -325,7 +338,12 @@ export function MedicalRecordTabsArea({
       {mountedTabs.has("治療") ? (
         <UnifiedTabsContent value="治療">
           <div className={`${LAYOUT.fullHeight} ${activeTab === "治療" ? "" : "hidden"}`}>
-            <MedicalRecordTreatment medicalRecordId={recordId ?? ""} isNewRecord={isNewRecord} />
+            <MedicalRecordTreatment
+              medicalRecordId={recordId ?? ""}
+              isNewRecord={isNewRecord}
+              petSpecies={selectedPet.species}
+              recordClinicId={recordClinicId}
+            />
           </div>
         </UnifiedTabsContent>
       ) : null}
@@ -359,7 +377,7 @@ export function MedicalRecordTabsArea({
       {mountedTabs.has("画像") ? (
         <UnifiedTabsContent value="画像">
           <div className={`${LAYOUT.fullHeight} ${activeTab === "画像" ? "" : "hidden"}`}>
-            <MedicalRecordImage isNewRecord={isNewRecord} medicalRecordId={recordId} />
+            <MedicalRecordImage isNewRecord={isNewRecord} medicalRecordId={recordId} recordClinicId={recordClinicId} />
           </div>
         </UnifiedTabsContent>
       ) : null}
@@ -382,6 +400,7 @@ export function MedicalRecordTabsArea({
               isNewRecord={isNewRecord}
               medicalRecordId={recordId}
               ownerDiscountRate={ownerDiscountRate}
+              recordClinicId={recordClinicId}
             />
           </div>
         </UnifiedTabsContent>

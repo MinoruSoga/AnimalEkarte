@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import { handleApiError } from "@/lib/handle-api-error";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
-import { ME_QUERY_KEY } from "@/features/auth";
+import { ME_QUERY_KEY, queryKeys } from "@/lib/query-keys";
 import type { PermissionGroup as ModelPermissionGroup } from "@/types/generated/models";
 
 // ─────────────────────────────────────────────────
@@ -64,8 +64,6 @@ export type PermissionGroup = ReturnType<typeof transformPermissionGroup>;
 // Query keys
 // ─────────────────────────────────────────────────
 
-const PERMISSION_GROUPS_QUERY_KEY = ["masters", "permission-groups"] as const;
-
 // ─────────────────────────────────────────────────
 // API functions
 // ─────────────────────────────────────────────────
@@ -118,7 +116,7 @@ async function reorderPermissionGroups(ids: string[]): Promise<void> {
 
 export function useGetPermissionGroups() {
   return useQuery({
-    queryKey: PERMISSION_GROUPS_QUERY_KEY,
+    queryKey: queryKeys.masters.category("permission-groups"),
     queryFn: listPermissionGroups,
     staleTime: QUERY_STALE_TIMES.STATIC,
     gcTime: QUERY_GC_TIMES.LONG,
@@ -130,7 +128,7 @@ export function useCreatePermissionGroup() {
   return useMutation({
     mutationFn: createPermissionGroup,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: PERMISSION_GROUPS_QUERY_KEY });
+      queryClient.invalidateQueries({ queryKey: queryKeys.masters.category("permission-groups") });
     },
     onError: (error) => handleApiError(error, "作成"),
   });
@@ -142,7 +140,7 @@ export function useUpdatePermissionGroup() {
     mutationFn: ({ id, req }: { id: string; req: UpdatePermissionGroupRequest }) =>
       updatePermissionGroup(id, req),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: PERMISSION_GROUPS_QUERY_KEY });
+      queryClient.invalidateQueries({ queryKey: queryKeys.masters.category("permission-groups") });
     },
     onError: (error) => handleApiError(error, "更新"),
   });
@@ -153,7 +151,7 @@ export function useDeletePermissionGroup() {
   return useMutation({
     mutationFn: deletePermissionGroup,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: PERMISSION_GROUPS_QUERY_KEY });
+      queryClient.invalidateQueries({ queryKey: queryKeys.masters.category("permission-groups") });
     },
     onError: (error) => handleApiError(error, "削除"),
   });
@@ -165,7 +163,7 @@ export function useUpdatePermissionGroupRules() {
     mutationFn: ({ id, req }: { id: string; req: UpdatePermissionGroupRulesRequest }) =>
       updatePermissionGroupRules(id, req),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: PERMISSION_GROUPS_QUERY_KEY });
+      queryClient.invalidateQueries({ queryKey: queryKeys.masters.category("permission-groups") });
       // P7: 権限変更後は /me キャッシュも無効化し、権限を即座に反映
       queryClient.invalidateQueries({ queryKey: ME_QUERY_KEY });
     },
@@ -178,7 +176,7 @@ export function useReorderPermissionGroups() {
   return useMutation({
     mutationFn: reorderPermissionGroups,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: PERMISSION_GROUPS_QUERY_KEY });
+      queryClient.invalidateQueries({ queryKey: queryKeys.masters.category("permission-groups") });
     },
     onError: (error) => handleApiError(error, "並び替え"),
   });

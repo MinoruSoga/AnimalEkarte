@@ -16,10 +16,9 @@ import (
 
 type mockCheckupRepository struct {
 	listByMedicalRecordIDFn func(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.Checkup, error)
-	listByClinicFn          func(ctx context.Context, clinicID uint64, filters repository.CheckupFilters) ([]model.Checkup, error)
+	listByClinicFn          func(ctx context.Context, clinicID uint64, filters repository.CheckupFilters, page, limit int) ([]model.Checkup, int64, error)
 	findByOwnerIDFn         func(ctx context.Context, clinicID, ownerID uint64) ([]model.Checkup, error)
 	findByIDFn              func(ctx context.Context, clinicID, checkupID uint64) (*model.Checkup, error)
-	findAlertsFn            func(ctx context.Context, clinicID uint64, withinDays int) ([]model.Checkup, error)
 	createFn                func(ctx context.Context, checkup *model.Checkup) error
 	updateFn                func(ctx context.Context, clinicID, checkupID uint64, fields map[string]any) error
 	deleteFn                func(ctx context.Context, clinicID, checkupID uint64) error
@@ -29,11 +28,11 @@ func (m *mockCheckupRepository) FindByMedicalRecordID(ctx context.Context, clini
 	return m.listByMedicalRecordIDFn(ctx, clinicID, medicalRecordID)
 }
 
-func (m *mockCheckupRepository) FindByClinicID(ctx context.Context, clinicID uint64, filters repository.CheckupFilters) ([]model.Checkup, error) {
+func (m *mockCheckupRepository) FindByClinicID(ctx context.Context, clinicID uint64, filters repository.CheckupFilters, page, limit int) ([]model.Checkup, int64, error) {
 	if m.listByClinicFn != nil {
-		return m.listByClinicFn(ctx, clinicID, filters)
+		return m.listByClinicFn(ctx, clinicID, filters, page, limit)
 	}
-	return nil, nil
+	return nil, 0, nil
 }
 
 func (m *mockCheckupRepository) FindByID(ctx context.Context, clinicID, checkupID uint64) (*model.Checkup, error) {
@@ -46,13 +45,6 @@ func (m *mockCheckupRepository) FindByID(ctx context.Context, clinicID, checkupI
 func (m *mockCheckupRepository) FindByOwnerID(ctx context.Context, clinicID, ownerID uint64) ([]model.Checkup, error) {
 	if m.findByOwnerIDFn != nil {
 		return m.findByOwnerIDFn(ctx, clinicID, ownerID)
-	}
-	return nil, nil
-}
-
-func (m *mockCheckupRepository) FindAlerts(ctx context.Context, clinicID uint64, withinDays int) ([]model.Checkup, error) {
-	if m.findAlertsFn != nil {
-		return m.findAlertsFn(ctx, clinicID, withinDays)
 	}
 	return nil, nil
 }
@@ -115,7 +107,7 @@ func TestCheckupService_List(t *testing.T) {
 					return tt.repoCheckups, tt.repoErr
 				},
 			}
-			svc := NewCheckupService(repo, &mockMedicalRecordRepository{}, nil, nil)
+			svc := NewCheckupService(repo, &mockMedicalRecordRepository{}, okCheckupTypeRepo(), nil, nil)
 
 			checkups, err := svc.List(context.Background(), 1, tt.medicalRecordID)
 
@@ -124,6 +116,108 @@ func TestCheckupService_List(t *testing.T) {
 			} else {
 				assert.NoError(t, err)
 				assert.Len(t, checkups, tt.wantLen)
+			}
+		})
+	}
+}
+
+func TestCheckupService_ListByClinic(t *testing.T) {
+	startDate := "2026-05-01"
+	endDate := "2026-05-31"
+
+	tests := []struct {
+		name           string
+		input          ListCheckupsByClinicInput
+		repoCheckups   []model.Checkup
+		repoTotal      int64
+		repoErr        error
+		wantLen        int
+		wantTotal      int64
+		wantErr        bool
+		checkedFilters func(t *testing.T, filters repository.CheckupFilters)
+		checkedPaging  func(t *testing.T, page, limit int)
+	}{
+		{
+			name: "returns checkups filtered by date range",
+			input: ListCheckupsByClinicInput{
+				ClinicID:  1,
+				StartDate: &startDate,
+				EndDate:   &endDate,
+				Page:      1,
+				Limit:     20,
+			},
+			repoCheckups: []model.Checkup{
+				{ID: 1, MedicalRecordID: 1},
+				{ID: 2, MedicalRecordID: 2},
+			},
+			repoTotal: 2,
+			wantLen:   2,
+			wantTotal: 2,
+			checkedFilters: func(t *testing.T, filters repository.CheckupFilters) {
+				assert.Equal(t, &startDate, filters.StartDate)
+				assert.Equal(t, &endDate, filters.EndDate)
+			},
+		},
+		{
+			name:  "returns empty list when no checkups exist",
+			input: ListCheckupsByClinicInput{ClinicID: 1, Page: 1, Limit: 20},
+		},
+		{
+			name:    "propagates repository error",
+			input:   ListCheckupsByClinicInput{ClinicID: 1, Page: 1, Limit: 20},
+			repoErr: errors.New("db error"),
+			wantErr: true,
+		},
+		{
+			name: "passes page/limit through to repository and returns total",
+			input: ListCheckupsByClinicInput{
+				ClinicID: 1,
+				Page:     2,
+				Limit:    5,
+			},
+			repoCheckups: []model.Checkup{
+				{ID: 6, MedicalRecordID: 1},
+			},
+			repoTotal: 11,
+			wantLen:   1,
+			wantTotal: 11,
+			checkedPaging: func(t *testing.T, page, limit int) {
+				assert.Equal(t, 2, page)
+				assert.Equal(t, 5, limit)
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var gotFilters repository.CheckupFilters
+			var gotPage, gotLimit int
+			repo := &mockCheckupRepository{
+				listByClinicFn: func(_ context.Context, _ uint64, filters repository.CheckupFilters, page, limit int) ([]model.Checkup, int64, error) {
+					gotFilters = filters
+					gotPage = page
+					gotLimit = limit
+					return tt.repoCheckups, tt.repoTotal, tt.repoErr
+				},
+			}
+			svc := NewCheckupService(repo, &mockMedicalRecordRepository{}, okCheckupTypeRepo(), nil, nil)
+
+			checkups, total, err := svc.ListByClinic(context.Background(), tt.input)
+
+			if tt.wantErr {
+				assert.Error(t, err)
+				assert.Nil(t, checkups)
+				assert.Zero(t, total)
+				return
+			}
+			assert.NoError(t, err)
+			assert.Len(t, checkups, tt.wantLen)
+			assert.Equal(t, tt.wantTotal, total)
+			if tt.checkedFilters != nil {
+				tt.checkedFilters(t, gotFilters)
+			}
+			if tt.checkedPaging != nil {
+				tt.checkedPaging(t, gotPage, gotLimit)
 			}
 		})
 	}
@@ -191,7 +285,7 @@ func TestCheckupService_Create(t *testing.T) {
 					return &model.MedicalRecord{Status: model.MedicalRecordStatusDraft}, nil
 				},
 			}
-			svc := NewCheckupService(repo, mrRepo, nil, nil)
+			svc := NewCheckupService(repo, mrRepo, okCheckupTypeRepo(), nil, nil)
 
 			checkup, err := svc.Create(context.Background(), tt.medicalRecordID, tt.input)
 
@@ -294,7 +388,7 @@ func TestCheckupService_Update(t *testing.T) {
 					return &model.MedicalRecord{Status: model.MedicalRecordStatusDraft}, nil
 				},
 			}
-			svc := NewCheckupService(repo, mrRepo, nil, nil)
+			svc := NewCheckupService(repo, mrRepo, okCheckupTypeRepo(), nil, nil)
 
 			checkup, err := svc.Update(context.Background(), 1, tt.medicalRecordID, tt.checkupID, tt.input)
 
@@ -361,7 +455,7 @@ func TestCheckupService_Delete(t *testing.T) {
 					return &model.MedicalRecord{Status: model.MedicalRecordStatusDraft}, nil
 				},
 			}
-			svc := NewCheckupService(repo, mrRepo, nil, nil)
+			svc := NewCheckupService(repo, mrRepo, okCheckupTypeRepo(), nil, nil)
 
 			err := svc.Delete(context.Background(), 1, tt.medicalRecordID, tt.checkupID)
 
@@ -412,7 +506,7 @@ func TestCheckupService_Create_SyncsCheckupTagBestEffort(t *testing.T) {
 			return errors.New("sync failed")
 		},
 	}
-	svc := NewCheckupService(repo, mrRepo, nil, tagSync)
+	svc := NewCheckupService(repo, mrRepo, okCheckupTypeRepo(), nil, tagSync)
 
 	result, err := svc.Create(context.Background(), 2, &CreateCheckupInput{
 		ClinicID:      1,
@@ -464,7 +558,7 @@ func TestCheckupService_Update_ResyncsOwnerCheckupTags(t *testing.T) {
 		},
 	}
 	resultText := "updated"
-	svc := NewCheckupService(repo, mrRepo, nil, tagSync)
+	svc := NewCheckupService(repo, mrRepo, okCheckupTypeRepo(), nil, tagSync)
 
 	result, err := svc.Update(context.Background(), 1, medicalRecordID, 30, &UpdateCheckupInput{Result: &resultText})
 
@@ -504,7 +598,7 @@ func TestCheckupService_Delete_ResyncsOwnerCheckupTagsAfterDelete(t *testing.T) 
 			return nil
 		},
 	}
-	svc := NewCheckupService(repo, mrRepo, nil, tagSync)
+	svc := NewCheckupService(repo, mrRepo, okCheckupTypeRepo(), nil, tagSync)
 
 	err := svc.Delete(context.Background(), 1, medicalRecordID, 30)
 
@@ -512,100 +606,72 @@ func TestCheckupService_Delete_ResyncsOwnerCheckupTagsAfterDelete(t *testing.T) 
 	assert.True(t, syncedAfterDelete)
 }
 
-func TestGetAlerts_RejectsInvalidWithinDays(t *testing.T) {
-	svc := NewCheckupService(&mockCheckupRepository{}, &mockMedicalRecordRepository{}, nil, nil)
-
-	for _, days := range []int{0, -1, 366} {
-		result, err := svc.GetAlerts(context.Background(), 1, days)
-		assert.Error(t, err, "days=%d should be rejected", days)
-		assert.Nil(t, result, "days=%d should return nil result", days)
-	}
-}
-
-func TestGetAlerts_SeparatesOverdueAndUpcoming(t *testing.T) {
-	fixedNow := time.Date(2026, 5, 6, 12, 0, 0, 0, jstLocation)
-	yesterdayJST := time.Date(2026, 5, 5, 0, 0, 0, 0, jstLocation)
-	todayJST := time.Date(2026, 5, 6, 0, 0, 0, 0, jstLocation)
-	inThirtyJST := time.Date(2026, 6, 5, 0, 0, 0, 0, jstLocation)
-
+func TestCheckupService_Update_FindByIDError(t *testing.T) {
+	newResult := "updated"
 	repo := &mockCheckupRepository{
-		findAlertsFn: func(_ context.Context, _ uint64, _ int) ([]model.Checkup, error) {
-			return []model.Checkup{
-				{ID: 1, NextDate: &yesterdayJST},
-				{ID: 2, NextDate: &todayJST},
-				{ID: 3, NextDate: &inThirtyJST},
-			}, nil
-		},
-	}
-	svc := NewCheckupService(repo, &mockMedicalRecordRepository{}, nil, nil)
-	svc.(*checkupService).nowFn = func() time.Time { return fixedNow }
-
-	result, err := svc.GetAlerts(context.Background(), 1, 30)
-	assert.NoError(t, err)
-	assert.Len(t, result.Overdue, 1, "yesterday should be overdue")
-	assert.Len(t, result.Upcoming, 2, "today and inThirty should be upcoming")
-	assert.Equal(t, uint64(1), result.Overdue[0].ID)
-}
-
-func TestGetAlerts_NilNextDateExcluded(t *testing.T) {
-	repo := &mockCheckupRepository{
-		findAlertsFn: func(_ context.Context, _ uint64, _ int) ([]model.Checkup, error) {
-			return []model.Checkup{
-				{ID: 1, NextDate: nil},
-			}, nil
-		},
-	}
-	svc := NewCheckupService(repo, &mockMedicalRecordRepository{}, nil, nil)
-	svc.(*checkupService).nowFn = func() time.Time {
-		return time.Date(2026, 5, 6, 12, 0, 0, 0, jstLocation)
-	}
-
-	result, err := svc.GetAlerts(context.Background(), 1, 30)
-	assert.NoError(t, err)
-	assert.Empty(t, result.Overdue)
-	assert.Empty(t, result.Upcoming)
-}
-
-func TestGetAlerts_PropagatesRepositoryError(t *testing.T) {
-	repo := &mockCheckupRepository{
-		findAlertsFn: func(_ context.Context, _ uint64, _ int) ([]model.Checkup, error) {
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.Checkup, error) {
 			return nil, errors.New("db error")
 		},
 	}
-	svc := NewCheckupService(repo, &mockMedicalRecordRepository{}, nil, nil)
-	svc.(*checkupService).nowFn = func() time.Time {
-		return time.Date(2026, 5, 6, 12, 0, 0, 0, jstLocation)
-	}
+	svc := NewCheckupService(repo, &mockMedicalRecordRepository{}, okCheckupTypeRepo(), nil, nil)
 
-	result, err := svc.GetAlerts(context.Background(), 1, 30)
+	result, err := svc.Update(context.Background(), 1, 1, 1, &UpdateCheckupInput{Result: &newResult})
+
 	assert.Error(t, err)
 	assert.Nil(t, result)
 }
 
-func TestGetAlerts_JSTLateNight_TodayIsCorrectJSTDate(t *testing.T) {
-	// 2026-05-06 03:00 JST = 2026-05-05 18:00 UTC
-	// 旧実装 Truncate(24h): today = 2026-05-05 00:00 UTC
-	//   → next_date (2026-05-05 00:00 UTC) は today と等しいので Before = false → Upcoming (誤)
-	// 新実装 (JST 基準): today = 2026-05-06 00:00 JST = 2026-05-05 15:00 UTC
-	//   → next_date (2026-05-05 00:00 UTC) < today → Overdue (正)
-	jstLateNight := time.Date(2026, 5, 6, 3, 0, 0, 0, jstLocation)
-	may5UTC := time.Date(2026, 5, 5, 0, 0, 0, 0, time.UTC)
-
+func TestCheckupService_Delete_FindByIDError(t *testing.T) {
 	repo := &mockCheckupRepository{
-		findAlertsFn: func(_ context.Context, _ uint64, _ int) ([]model.Checkup, error) {
-			return []model.Checkup{
-				{ID: 1, NextDate: &may5UTC},
-			}, nil
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.Checkup, error) {
+			return nil, errors.New("db error")
 		},
 	}
-	svc := NewCheckupService(repo, &mockMedicalRecordRepository{}, nil, nil)
-	svc.(*checkupService).nowFn = func() time.Time { return jstLateNight }
+	svc := NewCheckupService(repo, &mockMedicalRecordRepository{}, okCheckupTypeRepo(), nil, nil)
 
-	result, err := svc.GetAlerts(context.Background(), 1, 30)
-	assert.NoError(t, err)
-	assert.Len(t, result.Overdue, 1, "2026-05-05 00:00 UTC should be overdue when JST date is 2026-05-06")
-	assert.Empty(t, result.Upcoming)
-	assert.Equal(t, uint64(1), result.Overdue[0].ID)
+	err := svc.Delete(context.Background(), 1, 1, 1)
+
+	assert.Error(t, err)
+}
+
+// TestBuildCheckupUpdate_AllFields は buildCheckupUpdate の全フィールド分岐を直接検証する。
+func TestBuildCheckupUpdate_AllFields(t *testing.T) {
+	t.Run("フィールド未指定時は空map", func(t *testing.T) {
+		fields := buildCheckupUpdate(&UpdateCheckupInput{})
+		assert.Empty(t, fields)
+	})
+
+	t.Run("CheckupTypeID/PetID/Date/NextDate/DoctorID/Result すべて反映される", func(t *testing.T) {
+		checkupTypeID := uint64(2)
+		petID := uint64(5)
+		date := time.Date(2026, 5, 1, 0, 0, 0, 0, time.UTC)
+		nextDate := time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC)
+		doctorID := uint64(9)
+		result := "所見あり"
+
+		fields := buildCheckupUpdate(&UpdateCheckupInput{
+			CheckupTypeID: &checkupTypeID,
+			PetID:         &petID,
+			Date:          &date,
+			NextDate:      &nextDate,
+			DoctorID:      &doctorID,
+			Result:        &result,
+		})
+
+		assert.Equal(t, checkupTypeID, fields["checkup_type_id"])
+		assert.Equal(t, petID, fields["pet_id"])
+		assert.Equal(t, date, fields["date"])
+		assert.Equal(t, nextDate, fields["next_date"])
+		assert.Equal(t, doctorID, fields["doctor_id"])
+		assert.Equal(t, result, fields["result"])
+	})
+
+	t.Run("DoctorIDClear=false かつ DoctorID 指定時は DoctorID が採用される", func(t *testing.T) {
+		falseVal := false
+		doctorID := uint64(7)
+		fields := buildCheckupUpdate(&UpdateCheckupInput{DoctorIDClear: &falseVal, DoctorID: &doctorID})
+		assert.Equal(t, doctorID, fields["doctor_id"])
+	})
 }
 
 func TestBuildCheckupUpdate_DoctorIDClear(t *testing.T) {
@@ -635,7 +701,7 @@ func TestCheckupService_Create_FinalizedRejection(t *testing.T) {
 			return &model.MedicalRecord{Status: model.MedicalRecordStatusFinalized}, nil
 		},
 	}
-	svc := NewCheckupService(repo, mrRepo, nil, nil)
+	svc := NewCheckupService(repo, mrRepo, okCheckupTypeRepo(), nil, nil)
 
 	_, err := svc.Create(context.Background(), 1, &CreateCheckupInput{
 		ClinicID: 1, CheckupTypeID: 1, Date: now,
@@ -655,7 +721,7 @@ func TestCheckupService_Update_FinalizedRejection(t *testing.T) {
 			return &model.MedicalRecord{Status: model.MedicalRecordStatusFinalized}, nil
 		},
 	}
-	svc := NewCheckupService(repo, mrRepo, nil, nil)
+	svc := NewCheckupService(repo, mrRepo, okCheckupTypeRepo(), nil, nil)
 
 	_, err := svc.Update(context.Background(), 1, 1, 1, &UpdateCheckupInput{Result: &newResult})
 	assert.Error(t, err)
@@ -672,8 +738,308 @@ func TestCheckupService_Delete_FinalizedRejection(t *testing.T) {
 			return &model.MedicalRecord{Status: model.MedicalRecordStatusFinalized}, nil
 		},
 	}
-	svc := NewCheckupService(repo, mrRepo, nil, nil)
+	svc := NewCheckupService(repo, mrRepo, okCheckupTypeRepo(), nil, nil)
 
 	err := svc.Delete(context.Background(), 1, 1, 1)
+	assert.Error(t, err)
+}
+
+// mockLstepDeliveryTriggerForCheckup は checkup_service の Create フォローアップトリガー
+// （fire-and-forget goroutine）を検証するための最小限モック。
+type mockLstepDeliveryTriggerForCheckup struct {
+	triggerCheckupFollowUpFn func(ctx context.Context, clinicID, ownerID uint64) error
+}
+
+func (m *mockLstepDeliveryTriggerForCheckup) TriggerFirstVisitWelcome(_ context.Context, _, _ uint64) error {
+	return nil
+}
+func (m *mockLstepDeliveryTriggerForCheckup) TriggerCheckupFollowUp(ctx context.Context, clinicID, ownerID uint64) error {
+	if m.triggerCheckupFollowUpFn != nil {
+		return m.triggerCheckupFollowUpFn(ctx, clinicID, ownerID)
+	}
+	return nil
+}
+func (m *mockLstepDeliveryTriggerForCheckup) TriggerFirstVisitFollowUp3D(_ context.Context, _ uint64, _ time.Time) (int, []error) {
+	return 0, nil
+}
+func (m *mockLstepDeliveryTriggerForCheckup) TriggerFirstVisitFollowUp7D(_ context.Context, _ uint64, _ time.Time) (int, []error) {
+	return 0, nil
+}
+func (m *mockLstepDeliveryTriggerForCheckup) TriggerNextVisitReminder(_ context.Context, _ uint64, _ time.Time) (int, []error) {
+	return 0, nil
+}
+func (m *mockLstepDeliveryTriggerForCheckup) TriggerVaccineDeadline60(_ context.Context, _ uint64, _ time.Time) (int, []error) {
+	return 0, nil
+}
+func (m *mockLstepDeliveryTriggerForCheckup) TriggerVaccineDeadline30(_ context.Context, _ uint64, _ time.Time) (int, []error) {
+	return 0, nil
+}
+func (m *mockLstepDeliveryTriggerForCheckup) TriggerBirthdayMessage(_ context.Context, _ uint64, _ time.Time) (int, []error) {
+	return 0, nil
+}
+func (m *mockLstepDeliveryTriggerForCheckup) TriggerDormantPrevention180(_ context.Context, _ uint64, _ time.Time) (int, []error) {
+	return 0, nil
+}
+func (m *mockLstepDeliveryTriggerForCheckup) TriggerDormantPrevention210(_ context.Context, _ uint64, _ time.Time) (int, []error) {
+	return 0, nil
+}
+func (m *mockLstepDeliveryTriggerForCheckup) TriggerDormantPrevention240(_ context.Context, _ uint64, _ time.Time) (int, []error) {
+	return 0, nil
+}
+func (m *mockLstepDeliveryTriggerForCheckup) TriggerDormantPrevention365(_ context.Context, _ uint64, _ time.Time) (int, []error) {
+	return 0, nil
+}
+func (m *mockLstepDeliveryTriggerForCheckup) TriggerFilariaAlert(_ context.Context, _ uint64, _ time.Time) (int, []error) {
+	return 0, nil
+}
+func (m *mockLstepDeliveryTriggerForCheckup) TriggerFleaTickAlert(_ context.Context, _ uint64, _ time.Time) (int, []error) {
+	return 0, nil
+}
+func (m *mockLstepDeliveryTriggerForCheckup) TriggerFoodRefillReminder(_ context.Context, _ uint64, _ time.Time) (int, []error) {
+	return 0, nil
+}
+
+// TestCheckupService_Create_TriggersCheckupFollowUpBestEffort は健診記録作成後に
+// fire-and-forget goroutine で TriggerCheckupFollowUp が呼ばれることを検証する（非致命的トリガー）。
+func TestCheckupService_Create_TriggersCheckupFollowUpBestEffort(t *testing.T) {
+	ownerID := uint64(42)
+	triggeredCh := make(chan struct{}, 1)
+	var triggeredClinicID, triggeredOwnerID uint64
+
+	repo := &mockCheckupRepository{
+		createFn: func(_ context.Context, checkup *model.Checkup) error {
+			checkup.ID = 5
+			return nil
+		},
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.Checkup, error) {
+			return &model.Checkup{
+				ID:              5,
+				MedicalRecordID: 2,
+				MedicalRecord:   &model.MedicalRecord{OwnerID: &ownerID},
+			}, nil
+		},
+	}
+	mrRepo := &mockMedicalRecordRepository{
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
+			return &model.MedicalRecord{Status: model.MedicalRecordStatusDraft}, nil
+		},
+	}
+	trigger := &mockLstepDeliveryTriggerForCheckup{
+		triggerCheckupFollowUpFn: func(_ context.Context, clinicID, ownerID uint64) error {
+			triggeredClinicID = clinicID
+			triggeredOwnerID = ownerID
+			triggeredCh <- struct{}{}
+			return errors.New("trigger failed") // 非致命的: Create は成功する
+		},
+	}
+	svc := NewCheckupService(repo, mrRepo, okCheckupTypeRepo(), trigger, nil)
+
+	result, err := svc.Create(context.Background(), 2, &CreateCheckupInput{
+		ClinicID:      3,
+		CheckupTypeID: 1,
+		Date:          time.Now(),
+	})
+
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+
+	select {
+	case <-triggeredCh:
+		assert.Equal(t, uint64(3), triggeredClinicID)
+		assert.Equal(t, ownerID, triggeredOwnerID)
+	case <-time.After(2 * time.Second):
+		t.Fatal("TriggerCheckupFollowUp was not called within timeout")
+	}
+}
+
+// TestCheckupService_Create_CheckupTypeIDZero_SkipsOwnershipCheck は
+// CheckupTypeID=0（未指定）の場合、checkup_type の所有権検証をスキップして作成が成功することを検証する。
+func TestCheckupService_Create_CheckupTypeIDZero_SkipsOwnershipCheck(t *testing.T) {
+	checkupTypeChecked := false
+	repo := &mockCheckupRepository{
+		createFn: func(_ context.Context, checkup *model.Checkup) error {
+			checkup.ID = 1
+			return nil
+		},
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.Checkup, error) {
+			return &model.Checkup{ID: 1, MedicalRecordID: 1}, nil
+		},
+	}
+	mrRepo := &mockMedicalRecordRepository{
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
+			return &model.MedicalRecord{Status: model.MedicalRecordStatusDraft}, nil
+		},
+	}
+	checkupTypeRepo := &mockCheckupTypeRepository{
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.CheckupType, error) {
+			checkupTypeChecked = true
+			return &model.CheckupType{}, nil
+		},
+	}
+	svc := NewCheckupService(repo, mrRepo, checkupTypeRepo, nil, nil)
+
+	_, err := svc.Create(context.Background(), 1, &CreateCheckupInput{
+		ClinicID:      1,
+		CheckupTypeID: 0,
+		Date:          time.Now(),
+	})
+
+	assert.NoError(t, err)
+	assert.False(t, checkupTypeChecked, "CheckupTypeID=0 の場合は checkup_type 所有権検証をスキップする")
+}
+
+// TestCheckupService_Create_CheckupTypeOwnershipError はクロステナント write 防止（checkup_type
+// の所有権検証失敗）が Create のエラーとして伝播することを検証する。
+func TestCheckupService_Create_CheckupTypeOwnershipError(t *testing.T) {
+	mrRepo := &mockMedicalRecordRepository{
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
+			return &model.MedicalRecord{Status: model.MedicalRecordStatusDraft}, nil
+		},
+	}
+	checkupTypeRepo := rejectCheckupTypeRepo(99)
+	svc := NewCheckupService(&mockCheckupRepository{}, mrRepo, checkupTypeRepo, nil, nil)
+
+	result, err := svc.Create(context.Background(), 1, &CreateCheckupInput{
+		ClinicID:      1,
+		CheckupTypeID: 1, // 99 以外は NotFound
+		Date:          time.Now(),
+	})
+
+	assert.Error(t, err)
+	assert.Nil(t, result)
+}
+
+// TestCheckupService_Create_MedicalRecordLookupError は親カルテ取得失敗の伝播を検証する。
+func TestCheckupService_Create_MedicalRecordLookupError(t *testing.T) {
+	mrRepo := &mockMedicalRecordRepository{
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
+			return nil, errors.New("db error")
+		},
+	}
+	svc := NewCheckupService(&mockCheckupRepository{}, mrRepo, okCheckupTypeRepo(), nil, nil)
+
+	result, err := svc.Create(context.Background(), 1, &CreateCheckupInput{
+		ClinicID: 1, CheckupTypeID: 1, Date: time.Now(),
+	})
+
+	assert.Error(t, err)
+	assert.Nil(t, result)
+}
+
+// TestCheckupService_Create_FindByIDAfterCreateError は作成直後の再取得失敗の伝播を検証する。
+func TestCheckupService_Create_FindByIDAfterCreateError(t *testing.T) {
+	repo := &mockCheckupRepository{
+		createFn: func(_ context.Context, checkup *model.Checkup) error {
+			checkup.ID = 1
+			return nil
+		},
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.Checkup, error) {
+			return nil, errors.New("db error")
+		},
+	}
+	mrRepo := &mockMedicalRecordRepository{
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
+			return &model.MedicalRecord{Status: model.MedicalRecordStatusDraft}, nil
+		},
+	}
+	svc := NewCheckupService(repo, mrRepo, okCheckupTypeRepo(), nil, nil)
+
+	result, err := svc.Create(context.Background(), 1, &CreateCheckupInput{
+		ClinicID: 1, CheckupTypeID: 1, Date: time.Now(),
+	})
+
+	assert.Error(t, err)
+	assert.Nil(t, result)
+}
+
+// TestCheckupService_Update_CheckupTypeOwnershipError は貼り替え先 checkup_type の
+// クロステナント所有権検証失敗が Update のエラーとして伝播することを検証する。
+func TestCheckupService_Update_CheckupTypeOwnershipError(t *testing.T) {
+	newTypeID := uint64(1)
+	repo := &mockCheckupRepository{
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.Checkup, error) {
+			return &model.Checkup{ID: 1, MedicalRecordID: 1}, nil
+		},
+	}
+	mrRepo := &mockMedicalRecordRepository{
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
+			return &model.MedicalRecord{Status: model.MedicalRecordStatusDraft}, nil
+		},
+	}
+	checkupTypeRepo := rejectCheckupTypeRepo(99)
+	svc := NewCheckupService(repo, mrRepo, checkupTypeRepo, nil, nil)
+
+	result, err := svc.Update(context.Background(), 1, 1, 1, &UpdateCheckupInput{CheckupTypeID: &newTypeID})
+
+	assert.Error(t, err)
+	assert.Nil(t, result)
+}
+
+// TestCheckupService_Update_MedicalRecordLookupError は親カルテ取得失敗の伝播を検証する。
+func TestCheckupService_Update_MedicalRecordLookupError(t *testing.T) {
+	newResult := "updated"
+	repo := &mockCheckupRepository{
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.Checkup, error) {
+			return &model.Checkup{ID: 1, MedicalRecordID: 1}, nil
+		},
+	}
+	mrRepo := &mockMedicalRecordRepository{
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
+			return nil, errors.New("db error")
+		},
+	}
+	svc := NewCheckupService(repo, mrRepo, okCheckupTypeRepo(), nil, nil)
+
+	result, err := svc.Update(context.Background(), 1, 1, 1, &UpdateCheckupInput{Result: &newResult})
+
+	assert.Error(t, err)
+	assert.Nil(t, result)
+}
+
+// TestCheckupService_Update_FindByIDAfterUpdateError は更新後の再取得失敗の伝播を検証する。
+func TestCheckupService_Update_FindByIDAfterUpdateError(t *testing.T) {
+	newResult := "updated"
+	findCount := 0
+	repo := &mockCheckupRepository{
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.Checkup, error) {
+			findCount++
+			if findCount == 1 {
+				return &model.Checkup{ID: 1, MedicalRecordID: 1}, nil
+			}
+			return nil, errors.New("db error")
+		},
+		updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) error {
+			return nil
+		},
+	}
+	mrRepo := &mockMedicalRecordRepository{
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
+			return &model.MedicalRecord{Status: model.MedicalRecordStatusDraft}, nil
+		},
+	}
+	svc := NewCheckupService(repo, mrRepo, okCheckupTypeRepo(), nil, nil)
+
+	result, err := svc.Update(context.Background(), 1, 1, 1, &UpdateCheckupInput{Result: &newResult})
+
+	assert.Error(t, err)
+	assert.Nil(t, result)
+}
+
+// TestCheckupService_Delete_MedicalRecordLookupError は親カルテ取得失敗の伝播を検証する。
+func TestCheckupService_Delete_MedicalRecordLookupError(t *testing.T) {
+	repo := &mockCheckupRepository{
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.Checkup, error) {
+			return &model.Checkup{ID: 1, MedicalRecordID: 1}, nil
+		},
+	}
+	mrRepo := &mockMedicalRecordRepository{
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
+			return nil, errors.New("db error")
+		},
+	}
+	svc := NewCheckupService(repo, mrRepo, okCheckupTypeRepo(), nil, nil)
+
+	err := svc.Delete(context.Background(), 1, 1, 1)
+
 	assert.Error(t, err)
 }

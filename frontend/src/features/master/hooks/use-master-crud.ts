@@ -10,7 +10,7 @@ import { handleApiError } from "@/lib/handle-api-error";
 
 // Types
 import type { UseMutationResult } from "@tanstack/react-query";
-import type { ActiveFilter, ActiveSort } from "@/components/shared/NotionFilter/types";
+import type { ActiveFilter, ActiveSort } from "@/components/shared/PropertyFilter/types";
 
 // ─────────────────────────────────────────────────
 // Types
@@ -38,7 +38,7 @@ interface UseMasterCRUDOptions<T extends MasterEntity> {
   searchFilter?: (item: T, term: string) => boolean;
 
   /**
-   * Custom filter application for NotionFilter activeFilters.
+   * Custom filter application for PropertyFilter activeFilters.
    * Return true if item matches all filters. Defaults to isActive status filter.
    */
   activeFilterApply?: (item: T, filters: ActiveFilter[]) => boolean;
@@ -88,7 +88,7 @@ export interface UseMasterCRUDReturn<T extends MasterEntity> {
 // Default search filter
 // ─────────────────────────────────────────────────
 
-function defaultSearchFilter<T extends MasterEntity>(item: T, term: string): boolean {
+export function defaultSearchFilter<T extends MasterEntity>(item: T, term: string): boolean {
   if ("name" in item && typeof item.name === "string") {
     return normalizeKana(item.name).toLowerCase().includes(term);
   }
@@ -99,7 +99,7 @@ function defaultSearchFilter<T extends MasterEntity>(item: T, term: string): boo
 // Default active filter application (isActive status)
 // ─────────────────────────────────────────────────
 
-function defaultActiveFilterApply<T extends MasterEntity>(item: T, filters: ActiveFilter[]): boolean {
+export function defaultActiveFilterApply<T extends MasterEntity>(item: T, filters: ActiveFilter[]): boolean {
   const record = item as Record<string, unknown>;
   for (const filter of filters) {
     if (filter.key === "status" && typeof filter.value === "string") {
@@ -133,7 +133,7 @@ function defaultActiveFilterApply<T extends MasterEntity>(item: T, filters: Acti
 // Default sort comparator
 // ─────────────────────────────────────────────────
 
-function applySorts<T extends MasterEntity>(items: T[], sorts: ActiveSort[]): T[] {
+export function applySorts<T extends MasterEntity>(items: T[], sorts: ActiveSort[]): T[] {
   if (sorts.length === 0) return items;
   const sorted = [...items];
   sorted.sort((a, b) => {
@@ -177,7 +177,7 @@ export function useMasterCRUD<T extends MasterEntity>({
   const filteredItems = useMemo(() => {
     let items = data ?? [];
 
-    // NotionFilter activeFilters 適用
+    // PropertyFilter activeFilters 適用
     if (activeFilters.length > 0) {
       items = items.filter((item) => activeFilterApply(item, activeFilters));
     }

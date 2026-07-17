@@ -1,4 +1,9 @@
-import type { Pet as BackendPet } from "@/types/generated/models";
+import type {
+  Pet as BackendPet,
+  PetGender,
+  AcquisitionType,
+  DangerLevel,
+} from "@/types/generated/models";
 import { jstDateStartISOString } from "@/lib/jst-date";
 import type { CreatePetRequest, UpdatePetRequest } from "@/types/pet";
 
@@ -13,39 +18,40 @@ export const PET_STATUS_REVERSE_MAP: Record<string, "alive" | "deceased"> = {
   "死亡": "deceased",
 };
 
-const PET_GENDER_MAP: Record<string, string> = {
+export const PET_GENDER_MAP: Record<string, string> = {
   male: "雄",
   female: "雌",
   unknown: "不明",
 };
 
-const PET_GENDER_REVERSE_MAP: Record<string, string> = {
+// FE6-2: REVERSE_MAP の値は生成型の値域に収まる文字列のみ（PET_GENDER_MAP のキー = 逆写像元）。
+const PET_GENDER_REVERSE_MAP: Record<string, PetGender> = {
   "雄": "male",
   "雌": "female",
   "不明": "unknown",
 };
 
-const ACQUISITION_TYPE_REVERSE_MAP: Record<string, string> = {
+const ACQUISITION_TYPE_REVERSE_MAP: Record<string, AcquisitionType> = {
   "購入": "purchased",
   "譲渡": "transferred",
   "保護": "rescued",
   "その他": "other",
 };
 
-const ACQUISITION_TYPE_MAP: Record<string, string> = {
+export const ACQUISITION_TYPE_MAP: Record<string, string> = {
   purchased: "購入",
   transferred: "譲渡",
   rescued: "保護",
   other: "その他",
 };
 
-const DANGER_LEVEL_REVERSE_MAP: Record<string, string> = {
+const DANGER_LEVEL_REVERSE_MAP: Record<string, DangerLevel> = {
   "低": "low",
   "中": "medium",
   "高": "high",
 };
 
-const DANGER_LEVEL_MAP: Record<string, string> = {
+export const DANGER_LEVEL_MAP: Record<string, string> = {
   low: "低",
   medium: "中",
   high: "高",
@@ -99,6 +105,11 @@ export const transformBackendPetToFrontend = (p: BackendPet) => ({
       ? `${p.insurance.coverage_rate}%補償`
       : undefined,
   remarks: p.remarks,
+  // PR#186 P2-2 Bug#1: 死亡記録日時。null許容 (未死亡 = undefined)。
+  // deceasedReason は含めない — セキュリティレビュー指摘によりバックエンド
+  // response DTO (petResponse/petInOwnerResponse) から意図的に除外済み
+  // (未curationの LIFF 経路での漏洩防止。UI側にも読み取り消費者が無い)。
+  deceasedAt: p.deceased_at,
 });
 
 /**

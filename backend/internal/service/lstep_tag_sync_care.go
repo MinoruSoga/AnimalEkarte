@@ -13,23 +13,13 @@ import (
 // refill_due_* タグを更新する（BE-009）。duration_days < 7 の場合は prescribed_at + 1 日を使用する。
 // 最新の refill_due が現在日時を過ぎている場合は refill_due_* タグをすべて削除して終了する。
 func (s *lstepTagSyncService) SyncPrescriptionTag(ctx context.Context, clinicID, ownerID uint64) error {
-	if skip, err := s.shouldSkipSync(ctx, clinicID); err != nil {
-		return err
-	} else if skip {
-		return nil
-	}
-	optOut, owner, err := s.checkOptOut(ctx, clinicID, ownerID)
+	lineUserID, ok, err := s.resolveSyncTarget(ctx, clinicID, ownerID, "prescription")
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to check opt-out for prescription tag sync", "error", err)
-		return apperrors.Wrap(err, "failed to check opt-out")
+		return err
 	}
-	if optOut {
+	if !ok {
 		return nil
 	}
-	if owner.LineUserID == nil || *owner.LineUserID == "" {
-		return nil
-	}
-	lineUserID := *owner.LineUserID
 
 	client, err := s.buildClient(ctx, clinicID)
 	if err != nil {
@@ -71,14 +61,9 @@ func (s *lstepTagSyncService) SyncPrescriptionTag(ctx context.Context, clinicID,
 	apiFailed := false
 	for _, c := range cached {
 		if strings.HasPrefix(c.TagName, tagPrefixRefillDue) {
-			if delErr := client.RemoveTag(ctx, lineUserID, c.TagName); delErr != nil {
-				slog.ErrorContext(ctx, "failed to remove stale refill_due tag", "error", delErr, "tag", c.TagName)
-				s.notifyAPIFailure(ctx, client, clinicID, ownerID, lineUserID)
+			if err := s.applyTagState(ctx, client, clinicID, ownerID, lineUserID, c.TagName, "refill_due", "", false); err != nil {
 				apiFailed = true
 				continue
-			}
-			if delErr := s.tagCacheRepo.DeleteTag(ctx, clinicID, ownerID, c.TagName); delErr != nil {
-				slog.ErrorContext(ctx, "failed to delete refill_due tag cache", "error", delErr, "tag", c.TagName)
 			}
 		}
 	}
@@ -90,14 +75,9 @@ func (s *lstepTagSyncService) SyncPrescriptionTag(ctx context.Context, clinicID,
 		}
 		return nil
 	}
-	newTag := tagPrefixRefillDue + latestRefillDue.Format("2006-01-02")
-	if addErr := client.AddTag(ctx, lineUserID, newTag); addErr != nil {
-		slog.ErrorContext(ctx, "failed to add refill_due tag", "error", addErr, "tag", newTag)
-		s.notifyAPIFailure(ctx, client, clinicID, ownerID, lineUserID)
-		return apperrors.Wrap(addErr, "failed to add refill_due tag")
-	}
-	if upsertErr := s.tagCacheRepo.UpsertTag(ctx, clinicID, ownerID, newTag, "auto", ""); upsertErr != nil {
-		slog.ErrorContext(ctx, "failed to upsert refill_due tag cache", "error", upsertErr)
+	newTag := tagPrefixRefillDue + latestRefillDue.Format(time.DateOnly)
+	if err := s.applyTagState(ctx, client, clinicID, ownerID, lineUserID, newTag, "refill_due", "", true); err != nil {
+		return err
 	}
 	if !apiFailed {
 		s.notifyAPISuccess(ctx, client, clinicID, ownerID, lineUserID)

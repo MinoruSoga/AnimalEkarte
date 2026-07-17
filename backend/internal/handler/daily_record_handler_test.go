@@ -1,14 +1,663 @@
 package handler
 
 import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"testing"
+	"time"
 
+	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	apperrors "github.com/animal-ekarte/backend/internal/errors"
+	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/service"
 )
 
 // TestDailyRecordHandlerCompiles verifies daily_record_handler.go compiles
 func TestDailyRecordHandlerCompiles(t *testing.T) {
 	assert.True(t, true, "daily_record_handler.go compiled successfully")
+}
+
+// ---- mock DailyRecordService ----
+
+type mockDailyRecordService struct {
+	listFn               func(ctx context.Context, clinicID, hospitalizationID uint64) ([]model.DailyRecord, error)
+	getByDateFn          func(ctx context.Context, clinicID, hospitalizationID uint64, date time.Time) (*model.DailyRecord, error)
+	findOrCreateByDateFn func(ctx context.Context, clinicID, hospitalizationID uint64, date time.Time) (*model.DailyRecord, error)
+	addVitalRecordFn     func(ctx context.Context, clinicID, hospitalizationID uint64, date time.Time, input *service.CreateVitalRecordInput) (*model.DailyRecord, error)
+	addCareLogFn         func(ctx context.Context, clinicID, hospitalizationID uint64, date time.Time, input *service.CreateCareLogInput) (*model.DailyRecord, error)
+	addStaffNoteFn       func(ctx context.Context, clinicID, hospitalizationID uint64, date time.Time, input *service.CreateStaffNoteInput) (*model.DailyRecord, error)
+}
+
+func (m *mockDailyRecordService) List(ctx context.Context, clinicID, hospitalizationID uint64) ([]model.DailyRecord, error) {
+	return m.listFn(ctx, clinicID, hospitalizationID)
+}
+
+func (m *mockDailyRecordService) GetByDate(ctx context.Context, clinicID, hospitalizationID uint64, date time.Time) (*model.DailyRecord, error) {
+	return m.getByDateFn(ctx, clinicID, hospitalizationID, date)
+}
+
+func (m *mockDailyRecordService) FindOrCreateByDate(ctx context.Context, clinicID, hospitalizationID uint64, date time.Time) (*model.DailyRecord, error) {
+	return m.findOrCreateByDateFn(ctx, clinicID, hospitalizationID, date)
+}
+
+func (m *mockDailyRecordService) AddVitalRecord(ctx context.Context, clinicID, hospitalizationID uint64, date time.Time, input *service.CreateVitalRecordInput) (*model.DailyRecord, error) {
+	return m.addVitalRecordFn(ctx, clinicID, hospitalizationID, date, input)
+}
+
+func (m *mockDailyRecordService) AddCareLog(ctx context.Context, clinicID, hospitalizationID uint64, date time.Time, input *service.CreateCareLogInput) (*model.DailyRecord, error) {
+	return m.addCareLogFn(ctx, clinicID, hospitalizationID, date, input)
+}
+
+func (m *mockDailyRecordService) AddStaffNote(ctx context.Context, clinicID, hospitalizationID uint64, date time.Time, input *service.CreateStaffNoteInput) (*model.DailyRecord, error) {
+	return m.addStaffNoteFn(ctx, clinicID, hospitalizationID, date, input)
+}
+
+func newHandlerWithDailyRecordSvc(svc service.DailyRecordService) *Handler {
+	return &Handler{svc: &service.Services{DailyRecord: svc}}
+}
+
+// ---- ListDailyRecords ----
+
+func TestListDailyRecords(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	tests := []struct {
+		name       string
+		paramID    string
+		setupCtx   func(c *gin.Context)
+		svc        *mockDailyRecordService
+		wantStatus int
+		wantBody   string
+	}{
+		{
+			name:     "returns list of daily records",
+			paramID:  "1",
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockDailyRecordService{
+				listFn: func(_ context.Context, clinicID, hospitalizationID uint64) ([]model.DailyRecord, error) {
+					assert.Equal(t, uint64(1), clinicID)
+					assert.Equal(t, uint64(1), hospitalizationID)
+					return []model.DailyRecord{
+						{ID: 1, HospitalizationID: 1, Date: time.Date(2026, 7, 1, 0, 0, 0, 0, time.UTC)},
+					}, nil
+				},
+			},
+			wantStatus: http.StatusOK,
+			wantBody:   `"hospitalization_id":"1"`,
+		},
+		{
+			name:       "returns 401 when clinic_id is missing",
+			paramID:    "1",
+			setupCtx:   func(_ *gin.Context) {},
+			svc:        &mockDailyRecordService{},
+			wantStatus: http.StatusUnauthorized,
+		},
+		{
+			name:       "returns 400 for non-numeric hospitalization id",
+			paramID:    "abc",
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockDailyRecordService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:     "returns 500 on service error",
+			paramID:  "1",
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockDailyRecordService{
+				listFn: func(_ context.Context, _, _ uint64) ([]model.DailyRecord, error) {
+					return nil, fmt.Errorf("db failure")
+				},
+			},
+			wantStatus: http.StatusInternalServerError,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := newHandlerWithDailyRecordSvc(tt.svc)
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			c.Request = httptest.NewRequest(http.MethodGet, "/", http.NoBody)
+			c.Params = gin.Params{{Key: "id", Value: tt.paramID}}
+			tt.setupCtx(c)
+			h.ListDailyRecords(c)
+			assert.Equal(t, tt.wantStatus, w.Code)
+			if tt.wantBody != "" {
+				assert.Contains(t, w.Body.String(), tt.wantBody)
+			}
+		})
+	}
+}
+
+// ---- GetDailyRecord ----
+
+func TestGetDailyRecord(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	tests := []struct {
+		name       string
+		paramID    string
+		paramDate  string
+		setupCtx   func(c *gin.Context)
+		svc        *mockDailyRecordService
+		wantStatus int
+	}{
+		{
+			name:      "returns daily record for date",
+			paramID:   "1",
+			paramDate: "2026-07-01",
+			setupCtx:  func(c *gin.Context) { setClinicID(c) },
+			svc: &mockDailyRecordService{
+				getByDateFn: func(_ context.Context, clinicID, hospitalizationID uint64, date time.Time) (*model.DailyRecord, error) {
+					assert.Equal(t, uint64(1), clinicID)
+					assert.Equal(t, uint64(1), hospitalizationID)
+					assert.Equal(t, "2026-07-01", date.Format("2006-01-02"))
+					return &model.DailyRecord{ID: 1, HospitalizationID: hospitalizationID, Date: date}, nil
+				},
+			},
+			wantStatus: http.StatusOK,
+		},
+		{
+			name:       "returns 401 when clinic_id is missing",
+			paramID:    "1",
+			paramDate:  "2026-07-01",
+			setupCtx:   func(_ *gin.Context) {},
+			svc:        &mockDailyRecordService{},
+			wantStatus: http.StatusUnauthorized,
+		},
+		{
+			name:       "returns 400 for non-numeric hospitalization id",
+			paramID:    "abc",
+			paramDate:  "2026-07-01",
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockDailyRecordService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:       "returns 400 for invalid date format",
+			paramID:    "1",
+			paramDate:  "07-01-2026",
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockDailyRecordService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:      "returns 500 on service error",
+			paramID:   "1",
+			paramDate: "2026-07-01",
+			setupCtx:  func(c *gin.Context) { setClinicID(c) },
+			svc: &mockDailyRecordService{
+				getByDateFn: func(_ context.Context, _, _ uint64, _ time.Time) (*model.DailyRecord, error) {
+					return nil, fmt.Errorf("db failure")
+				},
+			},
+			wantStatus: http.StatusInternalServerError,
+		},
+		{
+			name:      "returns 404 when daily record not found",
+			paramID:   "1",
+			paramDate: "2026-07-01",
+			setupCtx:  func(c *gin.Context) { setClinicID(c) },
+			svc: &mockDailyRecordService{
+				getByDateFn: func(_ context.Context, _, _ uint64, _ time.Time) (*model.DailyRecord, error) {
+					return nil, apperrors.WrapNotFound("daily_record", "1/2026-07-01")
+				},
+			},
+			wantStatus: http.StatusNotFound,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := newHandlerWithDailyRecordSvc(tt.svc)
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			c.Request = httptest.NewRequest(http.MethodGet, "/", http.NoBody)
+			c.Params = gin.Params{{Key: "id", Value: tt.paramID}, {Key: "date", Value: tt.paramDate}}
+			tt.setupCtx(c)
+			h.GetDailyRecord(c)
+			assert.Equal(t, tt.wantStatus, w.Code)
+		})
+	}
+}
+
+// ---- CreateDailyRecord ----
+
+func TestCreateDailyRecord(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	tests := []struct {
+		name       string
+		paramID    string
+		setupCtx   func(c *gin.Context)
+		body       any
+		svc        *mockDailyRecordService
+		wantStatus int
+		wantHeader bool
+	}{
+		{
+			name:     "creates daily record with 201",
+			paramID:  "1",
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			body:     map[string]any{"date": "2026-07-01"},
+			svc: &mockDailyRecordService{
+				findOrCreateByDateFn: func(_ context.Context, clinicID, hospitalizationID uint64, date time.Time) (*model.DailyRecord, error) {
+					assert.Equal(t, uint64(1), clinicID)
+					assert.Equal(t, uint64(1), hospitalizationID)
+					return &model.DailyRecord{ID: 1, HospitalizationID: hospitalizationID, Date: date}, nil
+				},
+			},
+			wantStatus: http.StatusCreated,
+			wantHeader: true,
+		},
+		{
+			name:       "returns 401 when clinic_id is missing",
+			paramID:    "1",
+			setupCtx:   func(_ *gin.Context) {},
+			body:       map[string]any{"date": "2026-07-01"},
+			svc:        &mockDailyRecordService{},
+			wantStatus: http.StatusUnauthorized,
+		},
+		{
+			name:       "returns 400 for non-numeric hospitalization id",
+			paramID:    "abc",
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			body:       map[string]any{"date": "2026-07-01"},
+			svc:        &mockDailyRecordService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:       "returns 400 when date field missing",
+			paramID:    "1",
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			body:       map[string]any{},
+			svc:        &mockDailyRecordService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:       "returns 400 for invalid date format",
+			paramID:    "1",
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			body:       map[string]any{"date": "not-a-date"},
+			svc:        &mockDailyRecordService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:     "returns 500 on service error",
+			paramID:  "1",
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			body:     map[string]any{"date": "2026-07-01"},
+			svc: &mockDailyRecordService{
+				findOrCreateByDateFn: func(_ context.Context, _, _ uint64, _ time.Time) (*model.DailyRecord, error) {
+					return nil, fmt.Errorf("db failure")
+				},
+			},
+			wantStatus: http.StatusInternalServerError,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := newHandlerWithDailyRecordSvc(tt.svc)
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			bodyBytes, err := json.Marshal(tt.body)
+			require.NoError(t, err)
+			c.Request = httptest.NewRequest(http.MethodPost, "/", bytes.NewReader(bodyBytes))
+			c.Request.Header.Set("Content-Type", "application/json")
+			c.Params = gin.Params{{Key: "id", Value: tt.paramID}}
+			tt.setupCtx(c)
+			h.CreateDailyRecord(c)
+			assert.Equal(t, tt.wantStatus, w.Code)
+			if tt.wantHeader {
+				assert.NotEmpty(t, w.Header().Get("Location"))
+			}
+		})
+	}
+}
+
+// ---- AddVitalRecord ----
+
+func TestAddVitalRecord(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	temperature := 38.5
+
+	tests := []struct {
+		name       string
+		paramID    string
+		paramDate  string
+		setupCtx   func(c *gin.Context)
+		body       any
+		svc        *mockDailyRecordService
+		wantStatus int
+		wantHeader bool
+	}{
+		{
+			name:      "adds vital record with 201",
+			paramID:   "1",
+			paramDate: "2026-07-01",
+			setupCtx:  func(c *gin.Context) { setClinicID(c) },
+			body:      map[string]any{"time": "09:30:00", "temperature": temperature},
+			svc: &mockDailyRecordService{
+				addVitalRecordFn: func(_ context.Context, clinicID, hospitalizationID uint64, date time.Time, input *service.CreateVitalRecordInput) (*model.DailyRecord, error) {
+					assert.Equal(t, uint64(1), clinicID)
+					assert.Equal(t, uint64(1), hospitalizationID)
+					require.NotNil(t, input.Temperature)
+					assert.InDelta(t, temperature, *input.Temperature, 0.001)
+					return &model.DailyRecord{ID: 1, HospitalizationID: hospitalizationID, Date: date}, nil
+				},
+			},
+			wantStatus: http.StatusCreated,
+			wantHeader: true,
+		},
+		{
+			name:       "returns 401 when clinic_id is missing",
+			paramID:    "1",
+			paramDate:  "2026-07-01",
+			setupCtx:   func(_ *gin.Context) {},
+			body:       map[string]any{"time": "09:30:00"},
+			svc:        &mockDailyRecordService{},
+			wantStatus: http.StatusUnauthorized,
+		},
+		{
+			name:       "returns 400 for non-numeric hospitalization id",
+			paramID:    "abc",
+			paramDate:  "2026-07-01",
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			body:       map[string]any{"time": "09:30:00"},
+			svc:        &mockDailyRecordService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:       "returns 400 for invalid date param",
+			paramID:    "1",
+			paramDate:  "not-a-date",
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			body:       map[string]any{"time": "09:30:00"},
+			svc:        &mockDailyRecordService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:       "returns 400 when time field missing",
+			paramID:    "1",
+			paramDate:  "2026-07-01",
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			body:       map[string]any{},
+			svc:        &mockDailyRecordService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:       "returns 400 for invalid time value",
+			paramID:    "1",
+			paramDate:  "2026-07-01",
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			body:       map[string]any{"time": "09:30"},
+			svc:        &mockDailyRecordService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:      "returns 500 on service error",
+			paramID:   "1",
+			paramDate: "2026-07-01",
+			setupCtx:  func(c *gin.Context) { setClinicID(c) },
+			body:      map[string]any{"time": "09:30:00"},
+			svc: &mockDailyRecordService{
+				addVitalRecordFn: func(_ context.Context, _, _ uint64, _ time.Time, _ *service.CreateVitalRecordInput) (*model.DailyRecord, error) {
+					return nil, fmt.Errorf("db failure")
+				},
+			},
+			wantStatus: http.StatusInternalServerError,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := newHandlerWithDailyRecordSvc(tt.svc)
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			bodyBytes, err := json.Marshal(tt.body)
+			require.NoError(t, err)
+			c.Request = httptest.NewRequest(http.MethodPost, "/", bytes.NewReader(bodyBytes))
+			c.Request.Header.Set("Content-Type", "application/json")
+			c.Params = gin.Params{{Key: "id", Value: tt.paramID}, {Key: "date", Value: tt.paramDate}}
+			tt.setupCtx(c)
+			h.AddVitalRecord(c)
+			assert.Equal(t, tt.wantStatus, w.Code)
+			if tt.wantHeader {
+				assert.NotEmpty(t, w.Header().Get("Location"))
+			}
+		})
+	}
+}
+
+// ---- AddCareLog ----
+
+func TestAddCareLog(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	tests := []struct {
+		name       string
+		paramID    string
+		paramDate  string
+		setupCtx   func(c *gin.Context)
+		body       any
+		svc        *mockDailyRecordService
+		wantStatus int
+		wantHeader bool
+	}{
+		{
+			name:      "adds care log with 201",
+			paramID:   "1",
+			paramDate: "2026-07-01",
+			setupCtx:  func(c *gin.Context) { setClinicID(c) },
+			body:      map[string]any{"time": "10:15:00", "type": "food", "status": "completed"},
+			svc: &mockDailyRecordService{
+				addCareLogFn: func(_ context.Context, clinicID, hospitalizationID uint64, date time.Time, input *service.CreateCareLogInput) (*model.DailyRecord, error) {
+					assert.Equal(t, uint64(1), clinicID)
+					assert.Equal(t, "food", input.Type)
+					return &model.DailyRecord{ID: 1, HospitalizationID: hospitalizationID, Date: date}, nil
+				},
+			},
+			wantStatus: http.StatusCreated,
+			wantHeader: true,
+		},
+		{
+			name:       "returns 401 when clinic_id is missing",
+			paramID:    "1",
+			paramDate:  "2026-07-01",
+			setupCtx:   func(_ *gin.Context) {},
+			body:       map[string]any{"time": "10:15:00", "type": "food"},
+			svc:        &mockDailyRecordService{},
+			wantStatus: http.StatusUnauthorized,
+		},
+		{
+			name:       "returns 400 for non-numeric hospitalization id",
+			paramID:    "abc",
+			paramDate:  "2026-07-01",
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			body:       map[string]any{"time": "10:15:00", "type": "food"},
+			svc:        &mockDailyRecordService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:       "returns 400 for invalid date param",
+			paramID:    "1",
+			paramDate:  "not-a-date",
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			body:       map[string]any{"time": "10:15:00", "type": "food"},
+			svc:        &mockDailyRecordService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:       "returns 400 when type is invalid oneof value",
+			paramID:    "1",
+			paramDate:  "2026-07-01",
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			body:       map[string]any{"time": "10:15:00", "type": "unknown"},
+			svc:        &mockDailyRecordService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:       "returns 400 for invalid time value",
+			paramID:    "1",
+			paramDate:  "2026-07-01",
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			body:       map[string]any{"time": "10:15", "type": "food"},
+			svc:        &mockDailyRecordService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:      "returns 500 on service error",
+			paramID:   "1",
+			paramDate: "2026-07-01",
+			setupCtx:  func(c *gin.Context) { setClinicID(c) },
+			body:      map[string]any{"time": "10:15:00", "type": "food"},
+			svc: &mockDailyRecordService{
+				addCareLogFn: func(_ context.Context, _, _ uint64, _ time.Time, _ *service.CreateCareLogInput) (*model.DailyRecord, error) {
+					return nil, fmt.Errorf("db failure")
+				},
+			},
+			wantStatus: http.StatusInternalServerError,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := newHandlerWithDailyRecordSvc(tt.svc)
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			bodyBytes, err := json.Marshal(tt.body)
+			require.NoError(t, err)
+			c.Request = httptest.NewRequest(http.MethodPost, "/", bytes.NewReader(bodyBytes))
+			c.Request.Header.Set("Content-Type", "application/json")
+			c.Params = gin.Params{{Key: "id", Value: tt.paramID}, {Key: "date", Value: tt.paramDate}}
+			tt.setupCtx(c)
+			h.AddCareLog(c)
+			assert.Equal(t, tt.wantStatus, w.Code)
+			if tt.wantHeader {
+				assert.NotEmpty(t, w.Header().Get("Location"))
+			}
+		})
+	}
+}
+
+// ---- AddStaffNote ----
+
+func TestAddStaffNote(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	tests := []struct {
+		name       string
+		paramID    string
+		paramDate  string
+		setupCtx   func(c *gin.Context)
+		body       any
+		svc        *mockDailyRecordService
+		wantStatus int
+		wantHeader bool
+	}{
+		{
+			name:      "adds staff note with 201",
+			paramID:   "1",
+			paramDate: "2026-07-01",
+			setupCtx:  func(c *gin.Context) { setClinicID(c) },
+			body:      map[string]any{"time": "11:00:00", "content": "note content"},
+			svc: &mockDailyRecordService{
+				addStaffNoteFn: func(_ context.Context, clinicID, hospitalizationID uint64, date time.Time, input *service.CreateStaffNoteInput) (*model.DailyRecord, error) {
+					assert.Equal(t, uint64(1), clinicID)
+					assert.Equal(t, "note content", input.Content)
+					return &model.DailyRecord{ID: 1, HospitalizationID: hospitalizationID, Date: date}, nil
+				},
+			},
+			wantStatus: http.StatusCreated,
+			wantHeader: true,
+		},
+		{
+			name:       "returns 401 when clinic_id is missing",
+			paramID:    "1",
+			paramDate:  "2026-07-01",
+			setupCtx:   func(_ *gin.Context) {},
+			body:       map[string]any{"time": "11:00:00", "content": "note"},
+			svc:        &mockDailyRecordService{},
+			wantStatus: http.StatusUnauthorized,
+		},
+		{
+			name:       "returns 400 for non-numeric hospitalization id",
+			paramID:    "abc",
+			paramDate:  "2026-07-01",
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			body:       map[string]any{"time": "11:00:00", "content": "note"},
+			svc:        &mockDailyRecordService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:       "returns 400 for invalid date param",
+			paramID:    "1",
+			paramDate:  "not-a-date",
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			body:       map[string]any{"time": "11:00:00", "content": "note"},
+			svc:        &mockDailyRecordService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:       "returns 400 when content is missing",
+			paramID:    "1",
+			paramDate:  "2026-07-01",
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			body:       map[string]any{"time": "11:00:00"},
+			svc:        &mockDailyRecordService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:       "returns 400 for invalid time value",
+			paramID:    "1",
+			paramDate:  "2026-07-01",
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			body:       map[string]any{"time": "11:00", "content": "note"},
+			svc:        &mockDailyRecordService{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:      "returns 500 on service error",
+			paramID:   "1",
+			paramDate: "2026-07-01",
+			setupCtx:  func(c *gin.Context) { setClinicID(c) },
+			body:      map[string]any{"time": "11:00:00", "content": "note"},
+			svc: &mockDailyRecordService{
+				addStaffNoteFn: func(_ context.Context, _, _ uint64, _ time.Time, _ *service.CreateStaffNoteInput) (*model.DailyRecord, error) {
+					return nil, fmt.Errorf("db failure")
+				},
+			},
+			wantStatus: http.StatusInternalServerError,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := newHandlerWithDailyRecordSvc(tt.svc)
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			bodyBytes, err := json.Marshal(tt.body)
+			require.NoError(t, err)
+			c.Request = httptest.NewRequest(http.MethodPost, "/", bytes.NewReader(bodyBytes))
+			c.Request.Header.Set("Content-Type", "application/json")
+			c.Params = gin.Params{{Key: "id", Value: tt.paramID}, {Key: "date", Value: tt.paramDate}}
+			tt.setupCtx(c)
+			h.AddStaffNote(c)
+			assert.Equal(t, tt.wantStatus, w.Code)
+			if tt.wantHeader {
+				assert.NotEmpty(t, w.Header().Get("Location"))
+			}
+		})
+	}
 }
 
 // ---- Comprehensive Test Coverage Documentation ----

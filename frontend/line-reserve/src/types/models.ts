@@ -2,7 +2,6 @@
 
 export interface LiffSettings {
   liff_id: string;
-  clinic_name: string;
   header_text: string;
   phone_number: string;
   status: 'running' | 'stopped';
@@ -85,15 +84,24 @@ export interface AvailableTime {
   display_time?: string; // Backend未実装のためオプショナル。formatTime でフォールバック
 }
 
+// status は backend ReservationStatus (backend/internal/model/reservation.go) と1:1一致。
 export interface Reservation {
   id: number;
   course_name: string;
-  staff_name: string;
+  staff_name: string; // 指名なし予約は backend が省略するため schemas.ts 側で '' デフォルト
   date: string;       // "YYYY-MM-DD"
   start_time: string; // "HH:MM"
   end_time: string;   // "HH:MM"
-  status: 'confirmed' | 'cancelled' | 'completed';
-  notes: string;
+  status:
+    | 'confirmed'
+    | 'pending'
+    | 'cancelled'
+    | 'checked_in'
+    | 'in_consultation'
+    | 'accounting'
+    | 'completed'
+    | 'no_show';
+  notes: string; // 空文字時は backend が省略するため schemas.ts 側で '' デフォルト
   created_at: string;
 }
 
@@ -109,7 +117,7 @@ export interface PetSelection {
   isNew?: boolean;   // true = 自由入力で追加した新規ペット
 }
 
-export interface CustomerFields {
+interface CustomerFields {
   customer_name?: string;
   phone?: string;
   owner_name?: string;
@@ -126,7 +134,6 @@ export interface CreateReservationBody {
   request_text: string;
   trimming_course_id?: number;     // BE-120
   trimming_option_ids?: number[];  // BE-120
-  trimming_style_request?: string; // BE-120
 }
 
 export interface CustomerInfo {
@@ -150,7 +157,6 @@ export interface ReservationFlow {
   trimmingCourseId: number | null;  // BE-120
   trimmingCourseName: string;       // BE-120
   trimmingOptionIds: number[];      // BE-120
-  trimmingStyleRequest: string;     // BE-120
 }
 
 export type PageType =

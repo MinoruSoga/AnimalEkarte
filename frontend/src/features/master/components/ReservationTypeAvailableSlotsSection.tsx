@@ -5,6 +5,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { SubmitButton } from "@/components/shared/Form/SubmitButton";
 import { C, ICON, STYLE } from "@/lib/design-tokens";
 import { paths } from "@/config/paths";
+import { DAY_OF_WEEK_LABELS } from "@/constants/day-of-week";
 import {
   useGetAvailableSlots,
   useCreateAvailableSlot,
@@ -14,31 +15,9 @@ import {
   AvailableSlotTypeWeekly,
   AvailableSlotTypeSpecific,
 } from "@/types/generated/models";
-import { TIME_SELECT_ITEMS } from "./available-slot-options";
+import { TIME_SELECT_ITEMS } from "./AvailableSlotOptions";
+import { DAY_OF_WEEK_SELECT_ITEMS } from "./day-of-week-select-items";
 import type { CreateAvailableSlotRequest } from "../api/reservation-type-available-slots";
-
-const DAY_OF_WEEK_ITEMS = (
-  <>
-    <SelectItem value="0">日曜日</SelectItem>
-    <SelectItem value="1">月曜日</SelectItem>
-    <SelectItem value="2">火曜日</SelectItem>
-    <SelectItem value="3">水曜日</SelectItem>
-    <SelectItem value="4">木曜日</SelectItem>
-    <SelectItem value="5">金曜日</SelectItem>
-    <SelectItem value="6">土曜日</SelectItem>
-  </>
-);
-
-// react-refresh/only-export-components: JSX 以外の値は共有ファイルから export できないためローカル定義
-const DAY_OF_WEEK_LABELS: Record<number, string> = {
-  0: "日",
-  1: "月",
-  2: "火",
-  3: "水",
-  4: "木",
-  5: "金",
-  6: "土",
-};
 
 interface FormState {
   availableType: string;
@@ -125,7 +104,7 @@ export function ReservationTypeAvailableSlotsSection({ clinicId, reservationType
         <button
           type="button"
           onClick={() => navigate(`${paths.lineReservation.slots.getHref()}?typeId=${reservationTypeId}`)}
-          className={`ml-auto flex items-center gap-1 text-xs ${C.text50} ${C.hoverTextAccent} transition-colors`}
+          className={`ml-auto flex items-center gap-1 text-xs ${C.text50} ${C.hoverTextBrand} transition-colors`}
         >
           <CalendarDays className={ICON.smXs} />
           カレンダーで編集
@@ -163,11 +142,12 @@ export function ReservationTypeAvailableSlotsSection({ clinicId, reservationType
               <SelectTrigger className={STYLE.selectCompact}>
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent>{DAY_OF_WEEK_ITEMS}</SelectContent>
+              <SelectContent>{DAY_OF_WEEK_SELECT_ITEMS}</SelectContent>
             </Select>
           ) : (
             <input
               type="date"
+              aria-label="特定日"
               value={form.specificDate}
               onChange={(event) => handleFieldChange("specificDate", event.target.value)}
               className={`rounded-[3px] border ${C.borderMedium} px-2 py-1 text-sm ${C.text} ${C.bgWhite}`}

@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import { handleApiError } from "@/lib/handle-api-error";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
+import { queryKeys } from "@/lib/query-keys";
 import { transformVaccine } from "@/lib/transforms/treatment";
 import type { VaccineItem } from "@/lib/transforms/treatment";
 import type { Vaccine } from "@/types/generated/models";
@@ -11,18 +12,16 @@ import type {
   ReorderTreatmentRequest,
 } from "@/types/treatment";
 
-const VACCINES_MASTER_QUERY_KEY = ["masters", "vaccines"] as const;
-
 export type { VaccineItem };
 
-export const getAllVaccinesMaster = async (): Promise<VaccineItem[]> => {
+const getAllVaccinesMaster = async (): Promise<VaccineItem[]> => {
   const { data } = await axios.get<Vaccine[]>("/v1/masters/vaccines");
   return data.map(transformVaccine);
 };
 
 export const useGetAllVaccinesMaster = () =>
   useQuery({
-    queryKey: VACCINES_MASTER_QUERY_KEY,
+    queryKey: queryKeys.masters.category("vaccines"),
     queryFn: getAllVaccinesMaster,
     staleTime: QUERY_STALE_TIMES.STATIC,
     gcTime: QUERY_GC_TIMES.LONG,
@@ -35,7 +34,7 @@ export const useCreateVaccineMaster = () => {
       const { data } = await axios.post<Vaccine>("/v1/masters/vaccines", req);
       return transformVaccine(data);
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: VACCINES_MASTER_QUERY_KEY }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.masters.category("vaccines") }),
     onError: (error) => handleApiError(error, "操作"),
   });
 };
@@ -53,7 +52,7 @@ export const useUpdateVaccineMaster = () => {
       const { data } = await axios.patch<Vaccine>(`/v1/masters/vaccines/${id}`, req);
       return transformVaccine(data);
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: VACCINES_MASTER_QUERY_KEY }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.masters.category("vaccines") }),
     onError: (error) => handleApiError(error, "操作"),
   });
 };
@@ -62,7 +61,7 @@ export const useDeleteVaccineMaster = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => axios.delete(`/v1/masters/vaccines/${id}`),
-    onSuccess: () => qc.invalidateQueries({ queryKey: VACCINES_MASTER_QUERY_KEY }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.masters.category("vaccines") }),
     onError: (error) => handleApiError(error, "操作"),
   });
 };
@@ -72,7 +71,7 @@ export const useReorderVaccinesMaster = () => {
   return useMutation({
     mutationFn: (req: ReorderTreatmentRequest) =>
       axios.patch("/v1/masters/vaccines/reorder", req),
-    onSuccess: () => qc.invalidateQueries({ queryKey: VACCINES_MASTER_QUERY_KEY }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.masters.category("vaccines") }),
     onError: (error) => handleApiError(error, "操作"),
   });
 };

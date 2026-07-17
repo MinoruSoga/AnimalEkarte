@@ -1,10 +1,10 @@
 name: E2E Tests
 
+# 自動 CI から外す: PR / push では走らせない。
+# ローカル正本は make e2e（frontend/scripts/run-e2e.sh）。
+# 必要時のみ GitHub 上で手動実行（workflow_dispatch）。
 on:
-  push:
-    branches: [main]
-  pull_request:
-    branches: [main, staging]
+  workflow_dispatch:
 
 concurrency:
   group: e2e-${{ github.ref }}
@@ -15,46 +15,17 @@ env:
 
 jobs:
   # ──────────────────────────────────────────────
-  # 変更検出: frontend/backend どちらかが変わった時のみ実行
-  # ──────────────────────────────────────────────
-  changes:
-    name: Detect changes
-    runs-on: ubuntu-latest
-    permissions:
-      pull-requests: read
-    outputs:
-      run_e2e: ${{ steps.filter.outputs.e2e }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v6.0.2
-
-      - name: Path filter
-        uses: dorny/paths-filter@v3
-        id: filter
-        with:
-          filters: |
-            e2e:
-              - 'frontend/**'
-              - 'backend/**'
-              - 'docker-compose.yml'
-              - 'backend/migrations/**'
-
-  # ──────────────────────────────────────────────
   # Playwright E2E: full Docker Compose stack + Playwright Docker image
-  # PR to main はスキップ（軽量ゲートにする）。push to main と PR to staging のみ実行。
+  # 静的 lint（golangci/ESLint/type-check/knip）は本 workflow の対象外（make 側）。
   # ──────────────────────────────────────────────
   e2e:
     name: Playwright E2E
-    needs: changes
-    if: |
-      needs.changes.outputs.run_e2e == 'true' &&
-      (github.event_name != 'pull_request' || github.base_ref != 'main')
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6.0.2
+        uses: actions/checkout@v7.0.0
 
       - name: Create CI environment file
         # .env.local はリポジトリに含まれない。CI 用の最小限の値をインラインで生成する。
@@ -71,9 +42,11 @@ jobs:
           JWT_SECRET=ci-e2e-jwt-secret-for-testing-only
           GIN_MODE=debug
           EOF
-          echo "DB_USER=ekarte_user" >> $GITHUB_ENV
-          echo "DB_PASSWORD=ekarte_password" >> $GITHUB_ENV
-          echo "DB_NAME=ekarte_db" >> $GITHUB_ENV
+          {
+            echo "DB_USER=ekarte_user"
+            echo "DB_PASSWORD=ekarte_password"
+            echo "DB_NAME=ekarte_db"
+          } >> "$GITHUB_ENV"
 
       - name: Start app stack (db + backend + frontend)
         run: docker compose up -d db backend frontend
@@ -126,7 +99,7 @@ jobs:
 
       - name: Upload Playwright report on failure
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: playwright-report
           path: frontend/playwright-report/

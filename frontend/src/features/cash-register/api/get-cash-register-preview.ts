@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
+import { queryKeys } from "@/lib/query-keys";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
 import type { PaymentMethodMaster } from "@/types/generated/models";
 import type { CashRegisterPeriod } from "../constants";
@@ -23,7 +24,7 @@ interface BackendCashRegisterAggregateSummary {
   tax_breakdown: BackendCashRegisterTaxBreakdown;
 }
 
-export interface BackendCloseBillingDetail {
+interface BackendCloseBillingDetail {
   billing_id: number;
   paid_at: string;
   owner_name: string;
@@ -69,7 +70,7 @@ function transformAggregateSummary(raw: BackendCashRegisterAggregateSummary) {
   };
 }
 
-export function transformCloseBillingDetail(raw: BackendCloseBillingDetail) {
+function transformCloseBillingDetail(raw: BackendCloseBillingDetail) {
   return {
     billingId: raw.billing_id,
     paidAt: raw.paid_at,
@@ -105,7 +106,7 @@ export type ClosePreviewResult = ReturnType<typeof transformClosePreviewResult>;
 
 // ── API functions ────────────────────────────────────────────────────────────
 
-export const getCashRegisterPreview = async (
+const getCashRegisterPreview = async (
   date: string,
   period: CashRegisterPeriod,
 ): Promise<ClosePreviewResult> => {
@@ -121,7 +122,7 @@ export const useGetCashRegisterPreview = (
   enabled: boolean,
 ) =>
   useQuery({
-    queryKey: ["cash-register-preview", date, period],
+    queryKey: queryKeys.cashRegister.preview.byDatePeriod(date, period),
     queryFn: () => getCashRegisterPreview(date, period),
     enabled: enabled && !!date,
     staleTime: QUERY_STALE_TIMES.REALTIME,

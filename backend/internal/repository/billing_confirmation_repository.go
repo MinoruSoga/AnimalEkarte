@@ -45,9 +45,11 @@ func (r *billingConfirmationRepository) Create(ctx context.Context, review *mode
 	return nil
 }
 
+// Update は dbOrTx(ctx, r.db) で ambient tx に参加する（billingConfirmationService.Confirm/Return が
+// SD-2/X-11 と同種の確定済みカルテガードのため LockByIDForUpdate の行ロックと同一 tx に束ねる）。
 func (r *billingConfirmationRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
 	// Restrict update to rows belonging to this clinic via subquery on medical_records
-	result := r.db.WithContext(ctx).
+	result := dbOrTx(ctx, r.db).
 		Model(&model.BillingConfirmation{}).
 		Where("id = ? AND medical_record_id IN (SELECT id FROM medical_records WHERE clinic_id = ?)", id, clinicID).
 		Updates(fields)

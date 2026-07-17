@@ -1,8 +1,10 @@
-import { useState, useEffect } from 'react';
-import type { TrimmingOption } from '../types/models';
+import { useCallback, useState } from 'react';
 import { liffApi } from '../api/liff-api';
 import { ProgressDots } from '../components/ProgressDots';
 import { BackButton } from '../components/BackButton';
+import { useFetchState } from '@/shared-liff/use-fetch-state';
+import { formatCurrency } from '@/utils/format/number';
+import { getStepProgress } from '../lib/step-progress';
 
 interface TrimmingOptionSelectPageProps {
   clinicId: string;
@@ -14,7 +16,7 @@ interface TrimmingOptionSelectPageProps {
 
 function formatPrice(price: number | null): string {
   if (price === null) return '';
-  return `+¥${price.toLocaleString()}`;
+  return `+${formatCurrency(price)}`;
 }
 
 export function TrimmingOptionSelectPage({
@@ -24,24 +26,11 @@ export function TrimmingOptionSelectPage({
   onNext,
   onBack,
 }: TrimmingOptionSelectPageProps) {
-  const [options, setOptions] = useState<TrimmingOption[]>([]);
   const [selected, setSelected] = useState<Set<number>>(new Set(selectedOptionIds));
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    liffApi.getTrimmingOptions(clinicId, idToken)
-      .then(data => {
-        setOptions(data);
-        setError(null);
-      })
-      .catch(() => {
-        setError('オプションの取得に失敗しました');
-      })
-      .finally(() => {
-        setLoading(false);
-      });
-  }, [clinicId, idToken]);
+  const fetcher = useCallback(() => liffApi.getTrimmingOptions(clinicId, idToken), [clinicId, idToken]);
+  // R-F22/R-F23: ステータス別メッセージ解決と再試行導線を共通フックに統合。
+  const { data: options, loading, error, retry } = useFetchState(fetcher, 'オプションの取得');
+  const { current, total } = getStepProgress('trimmingOptionSelect', true);
 
   const toggleOption = (id: number) => {
     setSelected(prev => {
@@ -58,7 +47,7 @@ export function TrimmingOptionSelectPage({
   return (
     <div className="min-h-screen bg-noah-teal-light flex flex-col">
       <div className="max-w-md mx-auto w-full flex flex-col flex-1">
-        <ProgressDots current={4} total={9} />
+        <ProgressDots current={current} total={total} />
 
         <div className="px-4">
           <BackButton onClick={onBack} />
@@ -72,10 +61,21 @@ export function TrimmingOptionSelectPage({
               <div className="text-noah-text-sub">読み込み中...</div>
             </div>
           ) : error ? (
-            <div className="px-4 py-8 text-center text-red-500">{error}</div>
+            <div className="px-4 py-8 text-center text-red-500">
+              <p role="alert">{error.message}</p>
+              {error.canRetry ? (
+                <button
+                  type="button"
+                  onClick={retry}
+                  className="mt-3 text-sm font-medium text-noah-teal-dark underline"
+                >
+                  再試行
+                </button>
+              ) : null}
+            </div>
           ) : (
             <div className="bg-white border-t border-gray-200">
-              {options.map(option => (
+              {(options ?? []).map(option => (
                 <button
                   key={option.id}
                   type="button"

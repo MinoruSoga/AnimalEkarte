@@ -28,7 +28,7 @@ const trimmings = [
 beforeEach(() => {
   vi.clearAllMocks();
   hooks.usePermission.mockReturnValue({ canView: true });
-  hooks.useGetPetTrimmingHistory.mockReturnValue(ok(trimmings));
+  hooks.useGetPetTrimmingHistory.mockReturnValue(ok({ items: trimmings, isTruncated: false }));
 });
 
 describe("TrimmingHistorySection", () => {
@@ -62,7 +62,7 @@ describe("TrimmingHistorySection", () => {
   });
 
   it("履歴ゼロのとき空状態を表示する", () => {
-    hooks.useGetPetTrimmingHistory.mockReturnValue(ok([]));
+    hooks.useGetPetTrimmingHistory.mockReturnValue(ok({ items: [], isTruncated: false }));
     render(<TrimmingHistorySection petId="7" />);
 
     expect(screen.getByText("トリミングの履歴はありません")).toBeInTheDocument();
@@ -78,5 +78,12 @@ describe("TrimmingHistorySection", () => {
     expect(screen.queryByRole("columnheader")).not.toBeInTheDocument();
     // canView=false のとき hook 引数は undefined（fetch を起こさない）
     expect(hooks.useGetPetTrimmingHistory).toHaveBeenCalledWith(undefined);
+  });
+
+  it("SD-18: isTruncated=true のとき打ち切り注記を表示する", () => {
+    hooks.useGetPetTrimmingHistory.mockReturnValue(ok({ items: trimmings, isTruncated: true }));
+    render(<TrimmingHistorySection petId="7" />);
+
+    expect(screen.getByTestId("section-truncation-notice")).toBeInTheDocument();
   });
 });

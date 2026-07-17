@@ -10,11 +10,19 @@ import { useGetTrimmings } from "../api/get-trimmings";
 import { useCreateTrimming } from "../api/create-trimming";
 import { useUpdateTrimming } from "../api/update-trimming";
 import { useDeleteTrimming } from "../api/delete-trimming";
-import type { CreateTrimmingRequest, UpdateTrimmingRequest, TrimmingFormData } from "@/types/trimming";
+import type { TrimmingFormData } from "@/types/trimming";
 import type { Pet } from "@/types";
 import { paths } from "@/config/paths";
 import type { ActionState } from "@/types/form";
 import { INITIAL_ACTION_STATE } from "@/types/form";
+import {
+  buildCreateTrimmingRequest,
+  buildUpdateTrimmingRequest,
+  findDefaultTrimmingReservationTypeId,
+  formatJSTDate,
+  normalizeVisitDate,
+} from "./trimming-form-utils";
+import { useTrimmingFormValidation } from "./use-trimming-form-validation";
 
 const defaultFormData: TrimmingFormData = {
   reservationTypeId: "",
@@ -33,96 +41,8 @@ const defaultFormData: TrimmingFormData = {
   optionIds: [],
   staffId: "",
   staffName: "",
+  initialStatus: "in_consultation",
 };
-const JST_OFFSET_MS = 9 * 60 * 60 * 1000;
-
-interface TrimmingReservationType {
-  id: number;
-  category: string;
-  is_internal: boolean;
-  sort_order: number;
-}
-
-interface TrimmingReservationTypeGroup {
-  types: TrimmingReservationType[];
-}
-
-function optionalNumber(value: string): number | undefined {
-  if (value === "") return undefined;
-  const parsed = Number(value);
-  return Number.isFinite(parsed) ? parsed : undefined;
-}
-
-function optionalDateTime(value: string): string | undefined {
-  return value === "" ? undefined : value;
-}
-
-function padDatePart(value: number): string {
-  return String(value).padStart(2, "0");
-}
-
-function formatJSTDate(date: Date): string {
-  const jstDate = new Date(date.getTime() + JST_OFFSET_MS);
-  return `${jstDate.getUTCFullYear()}-${padDatePart(jstDate.getUTCMonth() + 1)}-${padDatePart(jstDate.getUTCDate())}`;
-}
-
-function normalizeVisitDate(value: unknown): string | undefined {
-  if (typeof value !== "string") return undefined;
-  return /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : undefined;
-}
-
-function findDefaultTrimmingReservationTypeId(
-  groups: readonly TrimmingReservationTypeGroup[] | undefined,
-): number | undefined {
-  return groups
-    ?.flatMap((group) => group.types)
-    .filter((type) => type.category === "trimming" && !type.is_internal)
-    .sort((a, b) => a.sort_order - b.sort_order)[0]?.id;
-}
-
-function buildUpdateTrimmingRequest(formData: TrimmingFormData): UpdateTrimmingRequest {
-  return {
-    start_time: optionalDateTime(formData.startTime),
-    end_time: optionalDateTime(formData.endTime),
-    staff_id: optionalNumber(formData.staffId),
-    course_id: optionalNumber(formData.courseId),
-    style_request: formData.styleRequest,
-    bw: optionalNumber(formData.bw),
-    bw_unit: formData.bwUnit,
-    bt: optionalNumber(formData.bt),
-    used_shampoo: formData.usedShampoo,
-    used_ribbon: formData.usedRibbon,
-    remarks: formData.remarks,
-    option_ids: (formData.optionIds ?? []).map(Number),
-  };
-}
-
-function buildCreateTrimmingRequest(
-  formData: TrimmingFormData,
-  petID: number,
-  reservationTypeID: number,
-  startTime: string | undefined,
-  endTime: string | undefined,
-  appointmentID?: number,
-): CreateTrimmingRequest {
-  return {
-    appointment_id: appointmentID,
-    reservation_type_id: reservationTypeID,
-    start_time: startTime,
-    end_time: endTime,
-    pet_id: petID,
-    staff_id: optionalNumber(formData.staffId),
-    course_id: optionalNumber(formData.courseId),
-    style_request: formData.styleRequest,
-    bw: optionalNumber(formData.bw),
-    bw_unit: formData.bwUnit,
-    bt: optionalNumber(formData.bt),
-    used_shampoo: formData.usedShampoo,
-    used_ribbon: formData.usedRibbon,
-    remarks: formData.remarks,
-    option_ids: (formData.optionIds ?? []).map(Number),
-  };
-}
 
 export function useTrimmingForm(id?: string) {
   const navigate = useNavigate();
@@ -167,9 +87,12 @@ export function useTrimmingForm(id?: string) {
     trimming.status !== "完了" && trimming.status !== "キャンセル"
   );
   const reusableAppointmentId = reusableTrimming?.id ? Number(reusableTrimming.id) : undefined;
+  // #233: 既存予約（受付経由 or 同日再利用可能なトリミング予約）に紐付く新規作成かどうか。
+  // true の場合はカルテ画面からの登録時ステータス選択を無効化し、予約側のステータスを維持する。
+  const hasExistingAppointment = Number.isFinite(appointmentIdFromState) || Number.isFinite(reusableAppointmentId);
 
   // BUG-027: inline field validation errors
-  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const { fieldErrors, validate } = useTrimmingFormValidation();
 
   // localOverrides・formData を useActionState の前に宣言: callback 内で formData を参照するため
   const [localOverrides, setLocalOverrides] = useState<Partial<TrimmingFormData>>({});
@@ -203,7 +126,7 @@ export function useTrimmingForm(id?: string) {
       });
       // 既存画像URLをプレビューとして復元
       if (existingTrimming.styleImage) {
-        // eslint-disable-next-line react-hooks/set-state-in-effect
+        // eslint-disable-next-line react-hooks/set-state-in-effect -- 上記と同じ理由（初回のみ・effect同期が必須）
         setStyleImagePreview(existingTrimming.styleImage);
       }
       if (existingTrimming.completedImage) {
@@ -235,7 +158,7 @@ export function useTrimmingForm(id?: string) {
       staffName: existingAppointmentTrimming.staff || prev.staffName || "",
     }));
     if (existingAppointmentTrimming.styleImage) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- 上記と同じ理由（初回のみ・effect同期が必須）
       setStyleImagePreview(existingAppointmentTrimming.styleImage);
     }
     if (existingAppointmentTrimming.completedImage) {
@@ -271,28 +194,13 @@ export function useTrimmingForm(id?: string) {
           const pet = selectedPets[0];
           if (!pet) return { success: false, timestamp: Date.now() };
           // BUG-027: バリデーション: staff と course は必須（インラインエラー + toast）
-          const errors: Record<string, string> = {};
-          if (!formData.staffId) {
-            errors.staffId = "担当者を選択してください";
+          const validation = validate(formData, defaultTrimmingReservationTypeId);
+          if (!validation.valid) {
+            return { success: false, fieldErrors: validation.errors, timestamp: Date.now() };
           }
-          if (!formData.courseId) {
-            errors.courseId = "コースを選択してください";
-          }
-          const reservationTypeId = formData.reservationTypeId
-            ? Number(formData.reservationTypeId)
-            : defaultTrimmingReservationTypeId;
-          if (!reservationTypeId || !Number.isFinite(reservationTypeId)) {
-            errors.reservationTypeId = "トリミング予約区分が設定されていません";
-          }
-          if (Object.keys(errors).length > 0) {
-            setFieldErrors(errors);
-            return { success: false, fieldErrors: errors, timestamp: Date.now() };
-          }
-          setFieldErrors({});
-          const resolvedReservationTypeId = Number(reservationTypeId);
+          const resolvedReservationTypeId = validation.reservationTypeId;
           // 日時: フォームから選択していない場合は指定日（未指定なら当日）10:00〜11:30
           const fallbackDate = visitDateFromState ?? formatJSTDate(new Date());
-          const hasExistingAppointment = Number.isFinite(appointmentIdFromState) || Number.isFinite(reusableAppointmentId);
           const startDate = formData.startTime || (hasExistingAppointment ? undefined : `${fallbackDate}T10:00:00+09:00`);
           const endDate = formData.endTime || (hasExistingAppointment ? undefined : `${fallbackDate}T11:30:00+09:00`);
           const req = buildCreateTrimmingRequest(
@@ -304,7 +212,9 @@ export function useTrimmingForm(id?: string) {
             Number.isFinite(appointmentIdFromState) ? appointmentIdFromState : reusableAppointmentId,
           );
           if (!hasExistingAppointment) {
-            req.status = "in_consultation";
+            // #233: カルテ画面から直接新規作成する場合のみ、登録時ステータスをユーザーが選択できる
+            // （デフォルトは in_consultation）。既存予約に紐付く経路（上記分岐）はここに来ない。
+            req.status = formData.initialStatus;
             req.reservation_route = "record_shortcut";
           }
           await createMutation.mutateAsync(req);
@@ -416,5 +326,6 @@ export function useTrimmingForm(id?: string) {
     fieldErrors,
     isLoading,
     notFound,
+    hasExistingAppointment,
   };
 }

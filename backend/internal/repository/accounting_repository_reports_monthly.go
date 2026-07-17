@@ -13,15 +13,14 @@ import (
 func (r *accountingRepository) GetMonthlyReport(ctx context.Context, clinicID uint64, year, month int) (*MonthlyReportResult, error) {
 	start := time.Date(year, time.Month(month), 1, 0, 0, 0, 0, time.Local)
 	end := start.AddDate(0, 1, 0)
+	return r.GetMonthlyReportByPeriod(ctx, clinicID, start, end)
+}
 
+// GetMonthlyReportByPeriod は指定期間（start 以上 end 未満）の売上レポートを集計する。
+func (r *accountingRepository) GetMonthlyReportByPeriod(ctx context.Context, clinicID uint64, start, end time.Time) (*MonthlyReportResult, error) {
 	// Cartesian 積を避けるため payment_splits / billing_items を別クエリで集計する
 	mArgs := []any{clinicID, model.BillingStatusCompleted, start, end}
-	mCompletedCTE := `WITH completed_billings AS (
-		SELECT id, completed_at FROM billings
-		WHERE clinic_id = ? AND deleted_at IS NULL AND status = ?
-		  AND completed_at >= ?
-		  AND completed_at < ?
-	)`
+	mCompletedCTE := completedBillingsCTE("id, completed_at")
 
 	// Query 1: 日×支払方法別合計 (payment_splits のみ)
 	type mPmRow struct {
@@ -66,13 +65,8 @@ func (r *accountingRepository) GetMonthlyReport(ctx context.Context, clinicID ui
 	}
 
 	// Query 3: 返金合計
-	var mTotalRefund int64
-	if err := r.db.WithContext(ctx).Raw(
-		mCompletedCTE+`
-		SELECT COALESCE(SUM(br.amount), 0)
-		FROM billing_refunds br
-		WHERE br.billing_id IN (SELECT id FROM completed_billings)
-		`, mArgs...).Scan(&mTotalRefund).Error; err != nil {
+	mTotalRefund, err := r.sumRefundsForCompletedBillings(ctx, clinicID, start, end)
+	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to aggregate monthly refunds")
 	}
 
@@ -102,7 +96,7 @@ func (r *accountingRepository) GetMonthlyReport(ctx context.Context, clinicID ui
 	if err := r.db.WithContext(ctx).
 		Table("cash_register_closes").
 		Where("clinic_id = ? AND deleted_at IS NULL", clinicID).
-		Where("close_date >= ? AND close_date < ?", start.Format("2006-01-02"), end.Format("2006-01-02")).
+		Where("close_date >= ? AND close_date < ?", start.Format(time.DateOnly), end.Format(time.DateOnly)).
 		Select("close_date::text AS close_date, period").
 		Scan(&closeRows).Error; err != nil {
 		return nil, apperrors.Wrap(err, "failed to get cash register closes for monthly report")
@@ -136,32 +130,9 @@ func (r *accountingRepository) GetMonthlyReport(ctx context.Context, clinicID ui
 	}
 
 	// 税率別集計
-	type taxRow struct {
-		TaxRate       int64
-		TaxableAmount int64
-		TaxAmount     int64
-	}
-	var taxRows []taxRow
-	if err := r.db.WithContext(ctx).
-		Table("billing_items").
-		Joins("JOIN billings ON billings.id = billing_items.billing_id AND billings.deleted_at IS NULL").
-		Where("billings.clinic_id = ? AND billing_items.deleted_at IS NULL", clinicID).
-		Where("billings.status = ?", model.BillingStatusCompleted).
-		Where("billings.completed_at AT TIME ZONE 'Asia/Tokyo' >= ?", start).
-		Where("billings.completed_at AT TIME ZONE 'Asia/Tokyo' < ?", end).
-		Select(
-			"ROUND(billing_items.tax_rate * 100)::bigint AS tax_rate," +
-				" COALESCE(SUM(ROUND(billing_items.unit_price * billing_items.quantity::numeric)), 0) AS taxable_amount," +
-				" COALESCE(SUM(ROUND(billing_items.unit_price * billing_items.quantity::numeric * billing_items.tax_rate)), 0) AS tax_amount",
-		).
-		Group("billing_items.tax_rate").
-		Scan(&taxRows).Error; err != nil {
+	taxBreakdown, err := r.aggregateTaxBreakdown(ctx, clinicID, start, end)
+	if err != nil {
 		return nil, apperrors.Wrap(err, "failed to aggregate tax breakdown for monthly report")
-	}
-
-	taxBreakdown := make([]TaxBreakdownRow, 0, len(taxRows))
-	for _, tr := range taxRows {
-		taxBreakdown = append(taxBreakdown, TaxBreakdownRow(tr))
 	}
 
 	// 会計件数（billings 単位）
@@ -170,8 +141,9 @@ func (r *accountingRepository) GetMonthlyReport(ctx context.Context, clinicID ui
 		Model(&model.Billing{}).
 		Scopes(clinicScope(clinicID)).
 		Where("status = ?", model.BillingStatusCompleted).
-		Where("completed_at AT TIME ZONE 'Asia/Tokyo' >= ?", start).
-		Where("completed_at AT TIME ZONE 'Asia/Tokyo' < ?", end).
+		// G7-3: sargable な直接比較に統一(idx_billings_clinic_completed_at partial index を使えるようにする)。
+		Where("completed_at >= ?", start).
+		Where("completed_at < ?", end).
 		Count(&billingCount).Error; err != nil {
 		return nil, apperrors.Wrap(err, "failed to count monthly billings")
 	}

@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import { handleApiError } from "@/lib/handle-api-error";
+import { queryKeys } from "@/lib/query-keys";
 import type { RecommendationReason } from "../constants/recommendation-reason";
 import { transformMedicalRecord, type MedicalRecord } from "./transforms";
 import type { BackendMedicalRecord } from "./types";
@@ -27,8 +28,8 @@ export function useUpdateRecommendationReason(medicalRecordId: string) {
     mutationFn: (body: UpdateRecommendationReasonBody) =>
       updateRecommendationReason(medicalRecordId, body),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["medical-records"] });
-      queryClient.invalidateQueries({ queryKey: ["medical-record", medicalRecordId] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.medicalRecords.all() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.medicalRecords.detail(medicalRecordId) });
     },
     onError: (error) => {
       handleApiError(error, "推奨理由更新");

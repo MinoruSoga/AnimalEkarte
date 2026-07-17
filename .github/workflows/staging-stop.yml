@@ -1,3 +1,7 @@
+# DEPRECATED (migration-cloudflare.md P5-3):
+# Cloudflare Containers は scale-to-zero により夜間停止スケジューラ不要。
+# Phase 8 (AWS 廃止) 完了後に削除。緊急時の ECS/RDS 手動停止のみ workflow_dispatch で残す。
+
 name: Staging Stop
 
 # STG の ECS サービス停止 (desiredCount=0) と RDS 停止を手動で実行する。
@@ -35,7 +39,7 @@ jobs:
 
     steps:
       - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v6.1.0
+        uses: aws-actions/configure-aws-credentials@v6.2.1
         with:
           role-to-assume: arn:aws:iam::698109622668:role/animalekarte-stg-github-ecs-deploy-role
           aws-region: ${{ env.AWS_REGION }}

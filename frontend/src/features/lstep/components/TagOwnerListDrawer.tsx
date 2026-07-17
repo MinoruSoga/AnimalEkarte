@@ -1,4 +1,4 @@
-import { useState, useCallback, useTransition } from "react";
+import { memo, useState, useCallback, useTransition } from "react";
 import { Link } from "react-router";
 import { Download, Trash2 } from "lucide-react";
 import {
@@ -9,12 +9,12 @@ import {
 } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { C, STYLE, ICON } from "@/lib/design-tokens";
-import { axios } from "@/lib/axios";
-import { requireStoredClinicId } from "@/lib/current-clinic";
+import { EmptyState } from "@/components/shared/DataStates";
 import { handleApiError } from "@/lib/handle-api-error";
 import { isAutoManagedTag } from "@/constants/lstep-auto-tag-prefixes";
-import { useGetLstepTagOwners } from "../api/get-lstep-tag-owners";
-import type { LstepTagOwner, LstepTagOwnersResponse } from "../api/get-lstep-tag-owners";
+import { paths } from "@/config/paths";
+import { useGetLstepTagOwners, fetchAllLstepTagOwners } from "../api/get-lstep-tag-owners";
+import type { LstepTagOwner } from "../api/get-lstep-tag-owners";
 import { BulkTagRemoveDialog } from "./BulkTagRemoveDialog";
 
 interface TagOwnerListDrawerProps {
@@ -43,26 +43,6 @@ function buildOwnersCsv(
   return [header, ...rows].join("\n");
 }
 
-async function fetchAllOwnersForCsv(tagName: string, ownerCount: number): Promise<LstepTagOwner[]> {
-  const clinicId = requireStoredClinicId();
-  const perPage = 100;
-  const totalPages = Math.max(1, Math.ceil(ownerCount / perPage));
-  const owners: LstepTagOwner[] = [];
-
-  for (let page = 1; page <= totalPages; page += 1) {
-    const { data } = await axios.get<LstepTagOwnersResponse>(
-      `/v1/clinics/${clinicId}/lstep/owners`,
-      { params: { tag: tagName, page, per_page: perPage } }
-    );
-    owners.push(...data.owners);
-    if (owners.length >= data.total || data.owners.length === 0) {
-      break;
-    }
-  }
-
-  return owners;
-}
-
 function downloadCsv(content: string, filename: string): void {
   const bom = "﻿";
   const blob = new Blob([bom + content], { type: "text/csv;charset=utf-8;" });
@@ -73,6 +53,38 @@ function downloadCsv(content: string, filename: string): void {
   link.click();
   URL.revokeObjectURL(url);
 }
+
+const TagOwnerListItem = memo(function TagOwnerListItem({
+  owner,
+}: {
+  owner: LstepTagOwner;
+}) {
+  return (
+    <li
+      className={`flex items-center justify-between px-4 py-3 ${C.hoverBgPageHalf} transition-colors`}
+    >
+      <div className="flex flex-col gap-0.5 min-w-0">
+        <span className={`text-sm font-medium ${C.text} truncate`}>
+          {owner.owner_name}
+        </span>
+        <span className={`text-xs ${C.text50}`}>
+          最終来院: {formatDate(owner.last_visit_date)}
+        </span>
+        {owner.reason ? (
+          <span className={`text-xs ${C.text50} truncate`}>
+            判定理由: {owner.reason}
+          </span>
+        ) : null}
+      </div>
+      <Link
+        to={paths.owners.detail.getHref(owner.owner_id)}
+        className={`shrink-0 ml-3 text-xs ${C.textBrand} hover:underline whitespace-nowrap`}
+      >
+        カルテを開く
+      </Link>
+    </li>
+  );
+});
 
 export function TagOwnerListDrawer({
   open,
@@ -97,7 +109,7 @@ export function TagOwnerListDrawer({
     if (ownerCount === 0 || !canExportCsv) return;
     startCsvTransition(async () => {
       try {
-        const allOwners = await fetchAllOwnersForCsv(tagName, ownerCount);
+        const allOwners = await fetchAllLstepTagOwners(tagName, ownerCount);
         const csv = buildOwnersCsv(allOwners, tagName);
         downloadCsv(csv, `lstep-tag-${tagName}-owners.csv`);
       } catch (error) {
@@ -152,36 +164,11 @@ export function TagOwnerListDrawer({
             {isLoading ? (
               <div className={`py-12 text-center ${C.text50} text-sm`}>読み込み中...</div>
             ) : owners.length === 0 ? (
-              <div className={`py-12 text-center ${C.text40} text-sm`}>
-                対象者が見つかりません
-              </div>
+              <EmptyState message="対象者が見つかりません" />
             ) : (
-              <ul className="divide-y divide-[rgba(55,53,47,0.09)]">
+              <ul className={`divide-y ${C.divideDivider}`}>
                 {owners.map((owner) => (
-                  <li
-                    key={owner.owner_id}
-                    className={`flex items-center justify-between px-4 py-3 ${C.hoverBgPageHalf} transition-colors`}
-                  >
-                    <div className="flex flex-col gap-0.5 min-w-0">
-                      <span className={`text-sm font-medium ${C.text} truncate`}>
-                        {owner.owner_name}
-                      </span>
-                      <span className={`text-xs ${C.text50}`}>
-                        最終来院: {formatDate(owner.last_visit_date)}
-                      </span>
-                      {owner.reason ? (
-                        <span className={`text-xs ${C.text50} truncate`}>
-                          判定理由: {owner.reason}
-                        </span>
-                      ) : null}
-                    </div>
-                    <Link
-                      to={`/owners/${owner.owner_id}`}
-                      className={`shrink-0 ml-3 text-xs ${C.accent} hover:underline whitespace-nowrap`}
-                    >
-                      カルテを開く
-                    </Link>
-                  </li>
+                  <TagOwnerListItem key={owner.owner_id} owner={owner} />
                 ))}
               </ul>
             )}

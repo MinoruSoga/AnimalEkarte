@@ -8,6 +8,8 @@ import (
 	"net/http"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
+	"github.com/animal-ekarte/backend/internal/infra/line"
+	"github.com/animal-ekarte/backend/internal/infra/lstep"
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
@@ -20,7 +22,11 @@ func (s *lstepSettingsService) TestConnection(ctx context.Context, clinicID uint
 
 	kvMap := make(map[string]string, len(records))
 	for _, r := range records {
-		val, _ := s.decrypt(r.KeyName, r.KeyValue)
+		val, decErr := s.decrypt(r.KeyName, r.KeyValue)
+		if decErr != nil {
+			slog.ErrorContext(ctx, "failed to decrypt integration value", "key_name", r.KeyName)
+			val = ""
+		}
 		kvMap[r.KeyName] = val
 	}
 
@@ -30,7 +36,7 @@ func (s *lstepSettingsService) TestConnection(ctx context.Context, clinicID uint
 	lstepKey := kvMap[model.IntegrationKeyLstepAPIKey]
 	lstepBase := kvMap[model.IntegrationKeyLstepBaseURL]
 	if lstepBase == "" {
-		lstepBase = "https://api.lstep.jp"
+		lstepBase = lstep.DefaultBaseURL
 	}
 	if lstepKey != "" {
 		if err := testLstepAPI(ctx, lstepBase, lstepKey); err != nil {
@@ -44,7 +50,7 @@ func (s *lstepSettingsService) TestConnection(ctx context.Context, clinicID uint
 	// LINE Messaging API疎通確認
 	lineToken := kvMap[model.IntegrationKeyLineChannelAccessToken]
 	if lineToken != "" {
-		if err := testLineAPI(ctx, lineToken); err != nil {
+		if err := testLineAPI(ctx, line.APIHost, lineToken); err != nil {
 			result.LineOK = false
 			result.LineError = err.Error()
 		} else {
@@ -73,8 +79,8 @@ func testLstepAPI(ctx context.Context, baseURL, apiKey string) error {
 	return nil
 }
 
-func testLineAPI(ctx context.Context, channelToken string) error {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://api.line.me/v2/bot/info", http.NoBody)
+func testLineAPI(ctx context.Context, baseURL, channelToken string) error {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, baseURL+"/v2/bot/info", http.NoBody)
 	if err != nil {
 		return fmt.Errorf("failed to build request: %w", err)
 	}

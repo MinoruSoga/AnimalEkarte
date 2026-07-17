@@ -3,6 +3,7 @@ import { Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { C, STYLE } from "@/lib/design-tokens";
 import { SubmitButton } from "@/components/shared/Form/SubmitButton";
+import { EmptyState } from "@/components/shared/DataStates";
 import { handleApiError } from "@/lib/handle-api-error";
 import type { ClosingSpecialPeriod } from "@/types/generated/models";
 import { useCreateSpecialPeriod, useDeleteSpecialPeriod } from "../api/special-periods";
@@ -170,7 +171,7 @@ export const SpecialPeriodSection = memo(function SpecialPeriodSection({
           ))}
         </div>
       ) : (
-        <p className={`text-base ${C.text50} py-4 text-center`}>特別期間は登録されていません</p>
+        <EmptyState message="特別期間は登録されていません" />
       )}
     </section>
   );

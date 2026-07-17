@@ -7,9 +7,11 @@ description: React セキュリティ分析・XSS対応（dangerouslySetInnerHTM
 
 React アプリケーションのセキュリティを OWASP + React セキュリティベストプラクティスで分析します。
 
+OWASP Top 10 の一般論・脅威説明・チェックリストは `security-checklist` スキルを参照。ここでは React/TSX 実装固有の差分のみ扱う。
+
 ## 実行スコープ
 
-### 1. XSS（クロスサイトスクリプティング）検出
+### 1. XSS（クロスサイトスクリプティング）検出 — React/TSX実装
 
 #### ❌ 危険パターン
 ```typescript
@@ -32,9 +34,20 @@ eval(untrustedCode)
 // 安全: JSON パース + 検証後に使用
 const data = JSON.parse(userInput)
 
-// 安全: URL検証
-const safeUrl = userInput.startsWith('http') ? userInput : '/default'
-<img src={sanitize(userProvidedUrl)} />
+// 安全: URL検証（new URL + origin/プロトコル allowlist。
+// 文字列 prefix 判定（"http" で始まるか等）は http://evil.com を通す不十分な検証なので禁止）
+const ALLOWED_ORIGINS = ['https://api.example.com']
+const toSafeUrl = (userInput: string): string => {
+  try {
+    const url = new URL(userInput)
+    return url.protocol === 'https:' && ALLOWED_ORIGINS.includes(url.origin)
+      ? url.href
+      : '/default'
+  } catch {
+    return '/default' // パース不能な入力は既定値へ
+  }
+}
+<img src={toSafeUrl(userProvidedUrl)} />
 ```
 
 ### 2. CSRF（クロスサイト要求偽造）対策
@@ -129,6 +142,9 @@ export const Card = React.memo(({ content, onClick }: Props) => {
 ```
 
 #### フォーム入力のサニタイズ
+
+> **DOMPurify は本プロジェクト未導入**（package.json に無し）。dangerouslySetInnerHTML を新規導入する場合のみ依存追加とセットで使用。
+
 ```typescript
 import DOMPurify from 'dompurify'
 
@@ -155,7 +171,7 @@ const isAllowed = ALLOWED_SCRIPTS.includes(scriptUrl)
 ### XSS 対策
 - [ ] dangerouslySetInnerHTML 使用なし
 - [ ] ユーザー入力は自動エスケープ
-- [ ] DOMPurify で HTML フィルタリング
+- [ ] DOMPurify で HTML フィルタリング（**DOMPurify は本プロジェクト未導入**。dangerouslySetInnerHTML を新規導入する場合のみ依存追加とセットで使用）
 - [ ] iframe の信頼済みソースのみ
 
 ### CSRF 対策
@@ -190,8 +206,8 @@ const isAllowed = ALLOWED_SCRIPTS.includes(scriptUrl)
   - Fix: Remove and use safe JSX rendering
 
 ### 🟠 High Issues
-- **Token Management** - localStorage에서 제거
-- **CSRF Token** - X-CSRF-Token header 추가
+- **Token Management** - localStorageから削除
+- **CSRF Token** - X-CSRF-Tokenヘッダーを追加
 
 ### 🟡 Medium Issues
 - Missing CSP headers
@@ -210,5 +226,10 @@ const isAllowed = ALLOWED_SCRIPTS.includes(scriptUrl)
 
 ## 関連スキル
 
+- `security-checklist` - OWASP一般論・シークレット管理・統合チェックリスト
 - `go-security` - Backend 認証・認可
-- `error-handling-patterns` - エラーメッセージのセキュア化
+
+## プロジェクト実績由来の注意（出典付き）
+
+- **render中のsetState + useActionState は stale closure を生む**: React 19 の useActionState と組み合わせて render フェーズで setState すると、action が古い state を掴む。state同期は effect で行うこと（出典: memory feedback_render_phase_setstate_useactionstate_stale_closure）
+- **Radix Select のテストで fireEvent はcloseライフサイクルを完走しない**: option選択で閉じる挙動の検証は `user.click`（userEvent）必須（出典: memory feedback_radix_select_fireevent_close_lifecycle）

@@ -43,18 +43,12 @@ type ManualArticleVersionResponse struct {
 }
 
 func toManualArticleListResponse(articles []model.ManualArticle) ManualArticleListResponse {
-	data := make([]ManualArticleResponse, 0, len(articles))
-	for i := range articles {
-		data = append(data, toManualArticleResponse(&articles[i]))
-	}
+	data := mapSlice(articles, toManualArticleResponse)
 	return ManualArticleListResponse{Data: data}
 }
 
 func toManualArticleVersionListResponse(versions []model.ManualArticleVersion) ManualArticleVersionListResponse {
-	data := make([]ManualArticleVersionResponse, 0, len(versions))
-	for i := range versions {
-		data = append(data, toManualArticleVersionResponse(&versions[i]))
-	}
+	data := mapSlice(versions, toManualArticleVersionResponse)
 	return ManualArticleVersionListResponse{Data: data}
 }
 

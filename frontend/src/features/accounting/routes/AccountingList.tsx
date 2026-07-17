@@ -25,7 +25,7 @@ import { LoadingFallback, ErrorFallback } from "@/components/shared/DataStates";
 
 // Relative
 import { AccountingListTable } from "../components/AccountingListTable";
-import { calculateAccountingTotal } from "../components/AccountingListTableModel";
+import { calculateAccountingTotal } from "../components/accounting-list-table-model";
 import { DailyAccountingTab } from "../components/DailyAccountingTab";
 import { useGetAccountings } from "../api/get-accountings";
 import type { AccountingFilters } from "../api/get-accountings";
@@ -33,7 +33,7 @@ import { usePermission } from "@/hooks/use-permission";
 
 // Types
 import type { Accounting as AccountingType } from "../types";
-import type { ActiveFilter } from "@/components/shared/NotionFilter/types";
+import type { ActiveFilter } from "@/components/shared/PropertyFilter/types";
 import { ResourceAccounting } from "@/types/generated/models";
 
 const TABS = [
@@ -163,7 +163,6 @@ export function AccountingList() {
     useSortableData(filteredRecords, { getSortValue });
 
   const pagination = usePagination(sortedData, {
-    pageSize: 20,
     resetKey: [deferredSearch, JSON.stringify(activeFilters)].join("|"),
   });
 
@@ -178,7 +177,7 @@ export function AccountingList() {
     if (clampedPage !== currentPage) {
       goToPage(clampedPage);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- currentPage/goToPage は意図的に除外（URL変更時のみ同期する設計。FE-144）
   }, [urlPage, totalPages]);
 
   // FE-144: ページ変更時にURLクエリパラメータを更新

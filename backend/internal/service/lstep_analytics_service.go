@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/animal-ekarte/backend/internal/config"
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/repository"
@@ -37,8 +38,6 @@ type VisitConversionByType struct {
 
 // LstepAnalyticsService は Lステップ分析データ取得サービス（FEAT-385）。
 type LstepAnalyticsService interface {
-	// GetDeliveryHistoryByOwner は飼主単位で期間内の配信トリガーログ一覧を返す。
-	GetDeliveryHistoryByOwner(ctx context.Context, clinicID, ownerID uint64, from, to time.Time) ([]model.LstepDeliveryTriggerLog, error)
 	// GetMonthlyDeliveryStats は月次でトリガー種別 × ステータス別集計を返す（クリニック全体）。yearMonth は "2006-01" 形式。
 	GetMonthlyDeliveryStats(ctx context.Context, clinicID uint64, yearMonth string) (*MonthlyDeliveryStats, error)
 	// GetVisitConversionSummary は月次で配信後来院率を返す。days は配信後来院の判定窓（日数）。
@@ -66,21 +65,12 @@ func NewLstepAnalyticsService(
 	}
 }
 
-func (s *lstepAnalyticsService) GetDeliveryHistoryByOwner(ctx context.Context, clinicID, ownerID uint64, from, to time.Time) ([]model.LstepDeliveryTriggerLog, error) {
-	logs, err := s.triggerLogRepo.ListByOwnerAndDateRange(ctx, clinicID, ownerID, from, to)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to list delivery trigger logs by owner", "error", err, "owner_id", ownerID)
-		return nil, apperrors.Wrap(err, "failed to list delivery history by owner")
-	}
-	return logs, nil
-}
-
 func (s *lstepAnalyticsService) GetMonthlyDeliveryStats(ctx context.Context, clinicID uint64, yearMonth string) (*MonthlyDeliveryStats, error) {
-	t, err := time.ParseInLocation("2006-01", yearMonth, jst)
+	t, err := time.ParseInLocation("2006-01", yearMonth, config.JST)
 	if err != nil {
 		return nil, apperrors.WrapInvalidInput("invalid year_month format: " + yearMonth)
 	}
-	from := time.Date(t.Year(), t.Month(), 1, 0, 0, 0, 0, jst)
+	from := time.Date(t.Year(), t.Month(), 1, 0, 0, 0, 0, config.JST)
 	until := from.AddDate(0, 1, 0)
 
 	rows, err := s.triggerLogRepo.CountByTypeAndStatus(ctx, clinicID, from, until)
@@ -95,11 +85,11 @@ func (s *lstepAnalyticsService) GetVisitConversionSummary(ctx context.Context, c
 	if days < 1 {
 		return nil, apperrors.WrapInvalidInput("days は 1 以上で指定してください")
 	}
-	t, err := time.ParseInLocation("2006-01", yearMonth, jst)
+	t, err := time.ParseInLocation("2006-01", yearMonth, config.JST)
 	if err != nil {
 		return nil, apperrors.WrapInvalidInput("invalid year_month format: " + yearMonth)
 	}
-	from := time.Date(t.Year(), t.Month(), 1, 0, 0, 0, 0, jst)
+	from := time.Date(t.Year(), t.Month(), 1, 0, 0, 0, 0, config.JST)
 	until := from.AddDate(0, 1, 0)
 
 	rows, err := s.triggerLogRepo.CountVisitConversionsByType(ctx, clinicID, from, until, days)

@@ -18,8 +18,8 @@ type LstepCsvImportRepository interface {
 	Update(ctx context.Context, imp *model.LstepCsvImport) error
 	// FindByID はクリニックスコープで ID に一致するインポート履歴を返す。
 	FindByID(ctx context.Context, clinicID uint64, id uuid.UUID) (*model.LstepCsvImport, error)
-	// ListByClinic はクリニックスコープで最新順にインポート履歴一覧を返す。
-	ListByClinic(ctx context.Context, clinicID uint64, limit int) ([]*model.LstepCsvImport, error)
+	// FindAllByClinicID はクリニックスコープで最新順にインポート履歴一覧を返す。
+	FindAllByClinicID(ctx context.Context, clinicID uint64, limit int) ([]*model.LstepCsvImport, error)
 }
 
 type lstepCsvImportRepository struct{ db *gorm.DB }
@@ -37,9 +37,25 @@ func (r *lstepCsvImportRepository) Create(ctx context.Context, imp *model.LstepC
 }
 
 func (r *lstepCsvImportRepository) Update(ctx context.Context, imp *model.LstepCsvImport) error {
+	// NOTE: GORM's Save() keys UPDATE purely on the primary key when it is already populated
+	// (imp.ID is a non-zero UUID here) and silently ignores any chained .Where(...) clause —
+	// the clinic_id predicate below would have zero effect and allow cross-tenant overwrites.
+	// Use an explicit Model+Where+Updates(map) so the clinic_id predicate actually gates the
+	// UPDATE's WHERE clause (P4: clinicScope on Update, MANDATORY).
 	if err := r.db.WithContext(ctx).
-		Where("clinic_id = ?", imp.ClinicID).
-		Save(imp).Error; err != nil {
+		Model(&model.LstepCsvImport{}).
+		Where("id = ? AND clinic_id = ?", imp.ID, imp.ClinicID).
+		Updates(map[string]any{
+			"csv_type":            imp.CsvType,
+			"file_name":           imp.FileName,
+			"uploaded_by_user_id": imp.UploadedByUserID,
+			"row_count":           imp.RowCount,
+			"success_count":       imp.SuccessCount,
+			"error_count":         imp.ErrorCount,
+			"status":              imp.Status,
+			"error_log":           imp.ErrorLog,
+			"imported_at":         imp.ImportedAt,
+		}).Error; err != nil {
 		return apperrors.FromGORM(err, "lstep_csv_import", imp.ID.String())
 	}
 	return nil
@@ -56,7 +72,7 @@ func (r *lstepCsvImportRepository) FindByID(ctx context.Context, clinicID uint64
 	return &imp, nil
 }
 
-func (r *lstepCsvImportRepository) ListByClinic(ctx context.Context, clinicID uint64, limit int) ([]*model.LstepCsvImport, error) {
+func (r *lstepCsvImportRepository) FindAllByClinicID(ctx context.Context, clinicID uint64, limit int) ([]*model.LstepCsvImport, error) {
 	var imports []*model.LstepCsvImport
 	err := r.db.WithContext(ctx).
 		Where("clinic_id = ?", clinicID).

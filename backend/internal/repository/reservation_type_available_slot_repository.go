@@ -76,7 +76,7 @@ func (r *reservationTypeAvailableSlotRepository) Delete(
 		return apperrors.FromGORM(result.Error, "reservation_type_available_slot", fmt.Sprintf("%d", id))
 	}
 	if result.RowsAffected == 0 {
-		return apperrors.FromGORM(gorm.ErrRecordNotFound, "reservation_type_available_slot", fmt.Sprintf("%d", id))
+		return apperrors.WrapNotFound("reservation_type_available_slot", fmt.Sprintf("%d", id))
 	}
 	return nil
 }

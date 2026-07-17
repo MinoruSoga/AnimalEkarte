@@ -48,7 +48,7 @@ const DEFAULT_FORM: VaccinationFormState = {
 };
 
 // BUG-026: calculate next date based on vaccination date and schedule type
-function calculateNextDate(vaccinationDate: string, scheduleType: string): string {
+export function calculateNextDate(vaccinationDate: string, scheduleType: string): string {
   if (!vaccinationDate || scheduleType === "other") return "";
   const date = new Date(vaccinationDate + "T00:00:00");
   if (isNaN(date.getTime())) return "";
@@ -175,6 +175,8 @@ export function useVaccinationForm(id?: string) {
             lot3: formData.lot3 || undefined,
             lot4: formData.lot4 || undefined,
             remarks: formData.remarks || undefined,
+            supplemental: formData.supplemental || undefined,
+            next_schedule_type: formData.nextScheduleType || undefined,
           };
           await updateMutation.mutateAsync({ id, req });
           toast.success("予防接種情報を更新しました");
@@ -192,6 +194,8 @@ export function useVaccinationForm(id?: string) {
             lot3: formData.lot3 || undefined,
             lot4: formData.lot4 || undefined,
             remarks: formData.remarks || undefined,
+            supplemental: formData.supplemental || undefined,
+            next_schedule_type: formData.nextScheduleType || undefined,
           };
           await createMutation.mutateAsync(req);
           toast.success("予防接種を登録しました");

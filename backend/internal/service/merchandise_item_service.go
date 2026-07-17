@@ -126,7 +126,7 @@ func (s *merchandiseItemService) Create(ctx context.Context, clinicID uint64, in
 	if input.TaxType != "" {
 		taxType = model.TaxType(input.TaxType)
 	}
-	taxRate := 0.10
+	taxRate := DefaultTaxRate
 	if input.TaxRate != nil {
 		taxRate = *input.TaxRate
 	}

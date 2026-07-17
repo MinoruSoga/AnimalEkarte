@@ -8,7 +8,7 @@ import { C } from "@/lib/design-tokens";
 import { todayJSTISO } from "@/lib/jst-date";
 // asJsonb / toDisplayTime / toStorageTime は LineReservationSettingsFormModel.ts に分離済み
 // (react-refresh/only-export-components: コンポーネントファイルからの値 export 禁止)。
-import { toDisplayTime, toStorageTime } from "./LineReservationSettingsFormModel";
+import { toDisplayTime, toStorageTime } from "./line-reservation-settings-form-model";
 
 export type BusinessHours = { start: string; end: string };
 export type BreakHour = { start: string; end: string };

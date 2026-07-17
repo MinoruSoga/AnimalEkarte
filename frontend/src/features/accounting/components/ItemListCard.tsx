@@ -1,118 +1,27 @@
 import { memo, useCallback, useDeferredValue, useMemo, useState } from "react";
 import { normalizeKana } from "@/lib/normalize-kana";
-import { ChevronDown, Plus } from "lucide-react";
+import { Plus } from "lucide-react";
 
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { DeleteIconButton } from "@/components/shared/DeleteIconButton/DeleteIconButton";
+import { Table, TableBody, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { EmptyState } from "@/components/shared/DataStates";
 import { FormFieldError } from "@/components/shared/FormFieldError/FormFieldError";
-import { TaxRateSelector } from "@/components/shared/TaxRateSelector/TaxRateSelector";
-import { TaxTypeSelector } from "@/components/shared/TaxTypeSelector/TaxTypeSelector";
 import { C, ICON, LAYOUT } from "@/lib/design-tokens";
+import { DEFAULT_STANDARD_TAX_RATE, DEFAULT_REDUCED_TAX_RATE } from "@/constants/tax";
+import { formatCurrency } from "@/utils/format/number";
+import { CATEGORY_LABELS } from "@/constants/item-category";
 import type { TaxType } from "@/types/generated/models";
-
-import { useGetBillingItemDiscountSuggestions } from "../api/get-discount-suggestions";
 
 import { useGetAllMerchandiseItems } from "../api/get-merchandise-items";
 import type { FrontendMerchandiseItem } from "../api/get-merchandise-items";
 import type { AccountingItem, ItemCategory } from "../types";
 
-interface DiscountCellProps {
-  item: AccountingItem;
-  canEdit: boolean;
-  accountingId: string | undefined;
-  onUpdateItemDiscount: ((itemId: string, discountAmount: number) => void) | undefined;
-}
-
-function DiscountCell({ item, canEdit, accountingId, onUpdateItemDiscount }: DiscountCellProps) {
-  const [open, setOpen] = useState(false);
-  const { data: suggestions = [], isFetching } = useGetBillingItemDiscountSuggestions(
-    accountingId !== undefined ? item.id : undefined,
-    open,
-  );
-
-  if (accountingId === undefined || onUpdateItemDiscount === undefined || !canEdit) {
-    return (
-      <span className={`text-sm ${C.text50}`}>
-        {item.discountAmount > 0 ? `¥${item.discountAmount.toLocaleString()}` : "-"}
-      </span>
-    );
-  }
-
-  return (
-    <div className="flex items-center gap-1 justify-center">
-      <Input
-        type="number"
-        min={0}
-        defaultValue={item.discountAmount}
-        onBlur={(e) => onUpdateItemDiscount(item.id, Math.max(0, parseInt(e.target.value, 10) || 0))}
-        className="w-20 text-right h-8"
-      />
-      <Popover open={open} onOpenChange={setOpen}>
-        <PopoverTrigger asChild>
-          <button
-            type="button"
-            title="割引候補を表示"
-            className={`h-8 w-6 flex items-center justify-center rounded ${C.text50} ${C.hoverBgLight} transition-colors shrink-0`}
-          >
-            <ChevronDown className="h-3.5 w-3.5" />
-          </button>
-        </PopoverTrigger>
-        <PopoverContent align="end" className="w-64 p-2">
-          {isFetching ? (
-            <p className={`text-xs ${C.text50} py-2 text-center`}>読み込み中...</p>
-          ) : suggestions.length === 0 ? (
-            <p className={`text-xs ${C.text50} py-2 text-center`}>適用可能な割引はありません</p>
-          ) : (
-            <ul className="space-y-0.5">
-              {suggestions.map((s, i) => (
-                <li key={s.campaign_id ?? `owner-${i}`}>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      onUpdateItemDiscount(item.id, s.amount);
-                      setOpen(false);
-                    }}
-                    className={`w-full text-left px-2 py-1.5 rounded text-xs ${C.hoverBgLight} transition-colors`}
-                  >
-                    <span className="font-medium">{s.name}</span>
-                    <span className={`ml-1 ${C.text50}`}>
-                      {s.discount_type === "rate"
-                        ? `${s.discount_value}%`
-                        : `¥${s.discount_value.toLocaleString()}`}
-                    </span>
-                    <span className={`float-right font-mono ${C.textRedIcon}`}>
-                      -¥{s.amount.toLocaleString()}
-                    </span>
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
-        </PopoverContent>
-      </Popover>
-    </div>
-  );
-}
-
-const CATEGORY_LABELS: Record<ItemCategory, string> = {
-  examination: "診察",
-  test: "検査",
-  procedure: "処置",
-  surgery: "手術",
-  medicine: "処方",
-  food: "フード",
-  goods: "物販",
-  trimming: "トリミング",
-  other: "その他",
-};
+import { AccountingItemRow } from "./AccountingItemRow";
 
 const MERCHANDISE_CATEGORY_OPTIONS = [
   { value: "all", label: "すべて" },
@@ -216,82 +125,16 @@ export const ItemListCard = memo(function ItemListCard({
   const itemRows = useMemo(
     () =>
       items.map((item) => (
-        <TableRow key={item.id} className="h-12">
-          <TableCell>
-            <Badge variant="outline" className="font-normal text-xs">
-              {CATEGORY_LABELS[item.category as ItemCategory] ?? "その他"}
-            </Badge>
-          </TableCell>
-          <TableCell className="font-medium">
-            {item.name}
-            {item.source === "medical_record" ? (
-              <span className={`ml-2 text-[10px] ${C.accent} ${C.bgAccent5} px-1.5 py-0.5 rounded`}>
-                カルテ連携
-              </span>
-            ) : null}
-            {item.source === "trimming" ? (
-              <span className={`ml-2 text-[10px] ${C.accent} ${C.bgAccent5} px-1.5 py-0.5 rounded`}>
-                トリミング
-              </span>
-            ) : null}
-          </TableCell>
-          <TableCell className="text-right">
-            ¥{item.unitPrice.toLocaleString()}
-          </TableCell>
-          <TableCell className="text-center">
-            <div className="flex items-center justify-center gap-2">
-              {item.quantity}
-            </div>
-          </TableCell>
-          <TableCell className="text-center">
-            <DiscountCell
-              item={item}
-              canEdit={canEdit}
-              accountingId={accountingId}
-              onUpdateItemDiscount={onUpdateItemDiscount}
-            />
-          </TableCell>
-          <TableCell className="text-center">
-            {accountingId !== undefined && onUpdateItemTax !== undefined && canEdit ? (
-              <TaxTypeSelector
-                value={item.taxType}
-                onChange={(v) => onUpdateItemTax(item.id, v, item.taxRate)}
-              />
-            ) : (
-              <span className={`text-sm ${C.text50}`}>
-                {item.taxType === "excluded" ? "外税" : item.taxType === "included" ? "内税" : "非課税"}
-              </span>
-            )}
-          </TableCell>
-          <TableCell className="text-center">
-            {accountingId !== undefined && onUpdateItemTax !== undefined && canEdit ? (
-              <TaxRateSelector
-                value={item.taxRate}
-                onChange={(v) => onUpdateItemTax(item.id, item.taxType, v)}
-              />
-            ) : (
-              <span className={`text-sm ${C.text50}`}>{Math.round(item.taxRate * 100)}%</span>
-            )}
-          </TableCell>
-          <TableCell className="text-right font-mono text-sm">
-            ¥{item.taxAmount.toLocaleString()}
-          </TableCell>
-          <TableCell className="text-center">
-            {item.isInsuranceApplicable ? (
-              <span className={`${C.textStatusGreen} font-bold text-xs`}>●</span>
-            ) : (
-              <span className={`${C.text20} text-xs`}>-</span>
-            )}
-          </TableCell>
-          <TableCell className="text-right font-medium">
-            ¥{(item.subtotal + item.taxAmount).toLocaleString()}
-          </TableCell>
-          <TableCell>
-            {accountingId === undefined || (item.source === "manual" && canDelete) ? (
-              <DeleteIconButton onClick={() => onDeleteItem(item.id)} />
-            ) : null}
-          </TableCell>
-        </TableRow>
+        <AccountingItemRow
+          key={item.id}
+          item={item}
+          accountingId={accountingId}
+          canEdit={canEdit}
+          canDelete={canDelete}
+          onDeleteItem={onDeleteItem}
+          onUpdateItemTax={onUpdateItemTax}
+          onUpdateItemDiscount={onUpdateItemDiscount}
+        />
       )),
     [items, accountingId, onDeleteItem, onUpdateItemTax, onUpdateItemDiscount, canEdit, canDelete],
   );
@@ -380,18 +223,18 @@ export const ItemListCard = memo(function ItemListCard({
                                 {CATEGORY_LABELS[item.category as ItemCategory] ?? item.category}
                               </td>
                               <td className="px-3 py-2 text-sm text-right font-mono">
-                                ¥{item.unitPrice.toLocaleString()}
+                                {formatCurrency(item.unitPrice)}
                               </td>
                               <td className={`px-3 py-2 text-sm text-right ${C.text50}`}>
-                                {item.taxRate === 0.1 ? "10%" : item.taxRate === 0.08 ? "8%" : `${item.taxRate * 100}%`}
+                                {item.taxRate === DEFAULT_STANDARD_TAX_RATE ? "10%" : item.taxRate === DEFAULT_REDUCED_TAX_RATE ? "8%" : `${item.taxRate * 100}%`}
                               </td>
                             </tr>
                           ))}
                         </tbody>
                       </table>
                     ) : (
-                      <div className={`flex items-center justify-center h-full text-sm ${C.text50} py-8`}>
-                        該当する品目がありません
+                      <div className="flex items-center justify-center h-full">
+                        <EmptyState message="該当する品目がありません" />
                       </div>
                     )}
                   </div>

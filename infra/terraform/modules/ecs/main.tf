@@ -71,7 +71,7 @@ resource "aws_lb_listener" "http" {
 # NOTE: CloudFront distribution 自体は Terraform 管理外（手動作成済み）。
 #       この resource apply 後に手動で distribution のオリジンを VPC Origin に切り替える。
 # NOTE: apply 後、AWS が CloudFront-VPCOrigins-Service-SG を自動生成する。
-#       Phase 2 SG 絞り込みは docs/infra/STG_AWS_CHANGE_READINESS.md §3.2 を参照。
+#       Phase 2 SG 絞り込みは docs/ops/stg-aws-change-readiness.md §3.2 を参照。
 resource "aws_cloudfront_vpc_origin" "alb" {
   count = var.alb_internal ? 1 : 0
 
@@ -146,6 +146,51 @@ resource "aws_iam_role" "task_execution" {
 resource "aws_iam_role_policy_attachment" "task_execution" {
   role       = aws_iam_role.task_execution.name
   policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
+}
+
+# H-5: containerDefinitions[*].secrets の valueFrom（SSM Parameter Store）を ECS Agent が
+# タスク起動時に解決するための権限。AmazonECSTaskExecutionRolePolicy には ssm:GetParameters が
+# 含まれないため個別付与する。パラメータ名は infra/CLAUDE.md の既存命名（/animalekarte/<env>/...）
+# に合わせ、name_prefix（例: animalekarte-stg）から環境名を導出してスコープを絞る。
+# SecureString は既定で AWS 管理キー（alias/aws/ssm）を使うため kms:Decrypt も合わせて付与する。
+# 適用（terraform apply）は SSM パラメータ実登録（H-5 ユーザー実施）とセットで行うこと。
+locals {
+  ssm_parameter_env  = trimprefix(var.name_prefix, "animalekarte-")
+  ssm_parameter_path = "/animalekarte/${local.ssm_parameter_env}"
+}
+
+data "aws_caller_identity" "current" {}
+
+resource "aws_iam_role_policy" "task_execution_ssm_secrets" {
+  name = "${var.name_prefix}-ecs-task-execution-ssm-secrets"
+  role = aws_iam_role.task_execution.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid    = "ReadAppSecretParameters"
+        Effect = "Allow"
+        Action = [
+          "ssm:GetParameters",
+        ]
+        Resource = "arn:aws:ssm:${var.aws_region}:${data.aws_caller_identity.current.account_id}:parameter${local.ssm_parameter_path}/*"
+      },
+      {
+        Sid    = "DecryptSecureStringWithDefaultSSMKey"
+        Effect = "Allow"
+        Action = [
+          "kms:Decrypt",
+        ]
+        Resource = "*"
+        Condition = {
+          StringEquals = {
+            "kms:ViaService" = "ssm.${var.aws_region}.amazonaws.com"
+          }
+        }
+      }
+    ]
+  })
 }
 
 # IAM Role for ECS Task

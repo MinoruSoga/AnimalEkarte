@@ -2,7 +2,7 @@ import { C, PALETTE } from "@/lib/design-tokens";
 
 import type { VisitConversionSummaryResponse } from "../api/get-lstep-visit-conversion";
 import { TriggerTypeLabels } from "../constants/trigger-types";
-import { formatPercent } from "./LstepAnalyticsModel";
+import { formatPercent } from "./lstep-analytics-model";
 
 interface VisitConversionSectionProps {
   data?: VisitConversionSummaryResponse;

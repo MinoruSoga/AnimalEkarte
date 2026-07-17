@@ -966,3 +966,69 @@ func TestIsCapable(t *testing.T) {
 		assert.False(t, isCapable([]model.StaffReservationCapability{}, 5))
 	})
 }
+
+// ================================================================
+// NewLiffService / NewLiffServiceWithType テスト
+// ================================================================
+
+// TestNewLiffService は削除された委譲コンストラクタ NewLiffService(typeRepo に nil を渡す
+// バリアント)が担っていた検証を、その本体だった NewLiffServiceWithType(<既存引数>, nil) への
+// 直接呼出として維持する（BE-refactor.md D-6）。
+func TestNewLiffService(t *testing.T) {
+	svc := NewLiffServiceWithType(
+		&mockLiffSettingRepository{},
+		&mockLiffTypeRepository{},
+		nil,
+		&mockLiffStaffRepository{},
+		&mockLiffScheduleRepository{},
+		&mockLiffAdminRepository{},
+		&mockLiffCustomerRepository{},
+		&mockLiffOwnerRepository{},
+		&mockTransactor{},
+		&mockLiffReservationRepository{},
+		&mockLiffNotifier{},
+		&mockLiffUnavailableTimeRepository{},
+		&mockAvailableSlotRepository{},
+		&mockReservationTypeOccupationRepository{},
+		&mockTrimmingCourseRepository{},
+		&mockTrimmingOptionRepository{},
+		&mockTrimmingDetailRepository{},
+		&mockVaccinationRepository{},
+	)
+	require.NotNil(t, svc)
+
+	impl, ok := svc.(*liffService)
+	require.True(t, ok, "戻り値は具象型 *liffService であるべき")
+	assert.Nil(t, impl.typeRepo, "typeRepo に nil を渡した場合 nil のままであること")
+	assert.NotNil(t, impl.validators, "validators が初期化されていること")
+}
+
+func TestNewLiffServiceWithType(t *testing.T) {
+	typeRepo := &mockLiffTypeRepository{}
+	svc := NewLiffServiceWithType(
+		&mockLiffSettingRepository{},
+		&mockLiffTypeRepository{},
+		typeRepo,
+		&mockLiffStaffRepository{},
+		&mockLiffScheduleRepository{},
+		&mockLiffAdminRepository{},
+		&mockLiffCustomerRepository{},
+		&mockLiffOwnerRepository{},
+		&mockTransactor{},
+		&mockLiffReservationRepository{},
+		&mockLiffNotifier{},
+		&mockLiffUnavailableTimeRepository{},
+		&mockAvailableSlotRepository{},
+		&mockReservationTypeOccupationRepository{},
+		&mockTrimmingCourseRepository{},
+		&mockTrimmingOptionRepository{},
+		&mockTrimmingDetailRepository{},
+		&mockVaccinationRepository{},
+	)
+	require.NotNil(t, svc)
+
+	impl, ok := svc.(*liffService)
+	require.True(t, ok, "戻り値は具象型 *liffService であるべき")
+	assert.Same(t, typeRepo, impl.typeRepo, "typeRepo が明示的に配線されること")
+	assert.NotNil(t, impl.validators, "validators が初期化されていること")
+}

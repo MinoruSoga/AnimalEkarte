@@ -14,6 +14,8 @@ Handler → Service → Repository
 - Service: business logic, call repository, wrap errors
 - Repository: GORM queries, convert GORM errors
 
+**パッケージ分割規約（BE8）**: 新規ドメインの repository/service はフラット直下でなく `internal/<layer>/<domain>/` サブパッケージで作成する。詳細 = 各層 CLAUDE.md／規約正本 = `.claude/rules/go-package-conventions.md`・計画 = `/BE-refactor.md`（対応後削除）。
+
 ## Error Handling (MANDATORY)
 
 ```go

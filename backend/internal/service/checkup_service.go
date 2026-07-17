@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"sync"
 	"time"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
@@ -40,12 +41,8 @@ type ListCheckupsByClinicInput struct {
 	EndDate       *string
 	NextStartDate *string
 	NextEndDate   *string
-}
-
-// CheckupAlertsResult は overdue + upcoming のアラート集計結果
-type CheckupAlertsResult struct {
-	Overdue  []model.Checkup // next_date < today
-	Upcoming []model.Checkup // today <= next_date <= today + withinDays
+	Page          int
+	Limit         int
 }
 
 // CheckupService は健診記録のビジネスロジックを定義するインターフェース
@@ -76,32 +73,33 @@ func buildCheckupUpdate(input *UpdateCheckupInput) map[string]any {
 
 type CheckupService interface {
 	List(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.Checkup, error)
-	ListByClinic(ctx context.Context, input ListCheckupsByClinicInput) ([]model.Checkup, error)
-	GetByID(ctx context.Context, clinicID, medicalRecordID, checkupID uint64) (*model.Checkup, error)
+	ListByClinic(ctx context.Context, input ListCheckupsByClinicInput) ([]model.Checkup, int64, error)
 	Create(ctx context.Context, medicalRecordID uint64, input *CreateCheckupInput) (*model.Checkup, error)
 	Update(ctx context.Context, clinicID, medicalRecordID, checkupID uint64, input *UpdateCheckupInput) (*model.Checkup, error)
 	Delete(ctx context.Context, clinicID, medicalRecordID, checkupID uint64) error
-	GetAlerts(ctx context.Context, clinicID uint64, withinDays int) (*CheckupAlertsResult, error)
+	// Wait は健診フォローアップトリガー goroutine（fire-and-forget）の完了を待つ。
+	// graceful shutdown で server.Shutdown(ctx) の後に呼び出し、goroutine の孤児化を防ぐ（BE-refactor.md B-1）。
+	Wait()
 }
 
 type checkupService struct {
 	repo                 repository.CheckupRepository
 	medicalRecordRepo    repository.MedicalRecordRepository
+	checkupTypeRepo      repository.CheckupTypeRepository
 	lstepDeliveryTrigger LstepDeliveryTriggerService
 	tagSyncSvc           LstepTagSyncService
-	nowFn                func() time.Time // test hook; nil uses time.Now
+	// wg は健診フォローアップトリガーの fire-and-forget goroutine を追跡する（BE-refactor.md B-1）。
+	wg sync.WaitGroup
+}
+
+// Wait は送信中の健診フォローアップトリガー goroutine の完了を待つ（BE-refactor.md B-1）。
+func (s *checkupService) Wait() {
+	s.wg.Wait()
 }
 
 // NewCheckupService は CheckupService の実装を返す
-func NewCheckupService(repo repository.CheckupRepository, medicalRecordRepo repository.MedicalRecordRepository, lstepDeliveryTrigger LstepDeliveryTriggerService, tagSyncSvc LstepTagSyncService) CheckupService {
-	return &checkupService{repo: repo, medicalRecordRepo: medicalRecordRepo, lstepDeliveryTrigger: lstepDeliveryTrigger, tagSyncSvc: tagSyncSvc}
-}
-
-func (s *checkupService) now() time.Time {
-	if s.nowFn != nil {
-		return s.nowFn()
-	}
-	return time.Now()
+func NewCheckupService(repo repository.CheckupRepository, medicalRecordRepo repository.MedicalRecordRepository, checkupTypeRepo repository.CheckupTypeRepository, lstepDeliveryTrigger LstepDeliveryTriggerService, tagSyncSvc LstepTagSyncService) CheckupService {
+	return &checkupService{repo: repo, medicalRecordRepo: medicalRecordRepo, checkupTypeRepo: checkupTypeRepo, lstepDeliveryTrigger: lstepDeliveryTrigger, tagSyncSvc: tagSyncSvc}
 }
 
 func (s *checkupService) List(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.Checkup, error) {
@@ -113,31 +111,19 @@ func (s *checkupService) List(ctx context.Context, clinicID, medicalRecordID uin
 	return result, nil
 }
 
-func (s *checkupService) ListByClinic(ctx context.Context, input ListCheckupsByClinicInput) ([]model.Checkup, error) {
+func (s *checkupService) ListByClinic(ctx context.Context, input ListCheckupsByClinicInput) ([]model.Checkup, int64, error) {
 	slog.InfoContext(ctx, "listing checkups by clinic", slog.Uint64("clinic_id", input.ClinicID))
-	result, err := s.repo.FindByClinicID(ctx, input.ClinicID, repository.CheckupFilters{
+	result, total, err := s.repo.FindByClinicID(ctx, input.ClinicID, repository.CheckupFilters{
 		StartDate:     input.StartDate,
 		EndDate:       input.EndDate,
 		NextStartDate: input.NextStartDate,
 		NextEndDate:   input.NextEndDate,
-	})
+	}, input.Page, input.Limit)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to list checkups by clinic", "error", err)
-		return nil, apperrors.Wrap(err, "failed to list checkups by clinic")
+		return nil, 0, apperrors.Wrap(err, "failed to list checkups by clinic")
 	}
-	return result, nil
-}
-
-func (s *checkupService) GetByID(ctx context.Context, clinicID, medicalRecordID, checkupID uint64) (*model.Checkup, error) {
-	checkup, err := s.repo.FindByID(ctx, clinicID, checkupID)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to get checkup", "error", err, "checkup_id", checkupID)
-		return nil, apperrors.Wrap(err, "failed to get checkup")
-	}
-	if checkup.MedicalRecordID != medicalRecordID {
-		return nil, apperrors.WrapNotFound("checkup", fmt.Sprintf("%d", checkupID))
-	}
-	return checkup, nil
+	return result, total, nil
 }
 
 func (s *checkupService) Create(ctx context.Context, medicalRecordID uint64, input *CreateCheckupInput) (*model.Checkup, error) {
@@ -148,6 +134,12 @@ func (s *checkupService) Create(ctx context.Context, medicalRecordID uint64, inp
 	}
 	if parent.Status == model.MedicalRecordStatusFinalized {
 		return nil, apperrors.WrapConflict("確定済みカルテのため健診記録は追加できません")
+	}
+	// クロステナント write 防止: checkup_type が caller の clinic に属することを検証する。
+	if input.CheckupTypeID != 0 {
+		if _, err := s.checkupTypeRepo.FindByID(ctx, input.ClinicID, input.CheckupTypeID); err != nil {
+			return nil, apperrors.Wrap(err, "failed to verify checkup type ownership")
+		}
 	}
 	checkup := &model.Checkup{
 		ClinicID:        input.ClinicID,
@@ -178,16 +170,19 @@ func (s *checkupService) Create(ctx context.Context, medicalRecordID uint64, inp
 		clinicID := input.ClinicID
 		ownerID := *created.MedicalRecord.OwnerID
 		svc := s.lstepDeliveryTrigger
-		// context.WithoutCancel: HTTP request の cancel から切離しつつ tracing context を保持。
+		// repository.DetachTx: HTTP request の cancel から切離しつつ tracing context を保持。
 		// M-4: fire-and-forget goroutine のため、context.WithTimeout で明示的に制限を設定。
-		bgCtx := context.WithoutCancel(ctx)
-		go func() {
+		// goroutine 境界を跨ぐ WithoutCancel は ambient tx を剥がすこと（BE-refactor.md B-2）。
+		bgCtx := repository.DetachTx(ctx)
+		s.wg.Add(1)
+		goSafe("checkup followup trigger", func() {
+			defer s.wg.Done()
 			trigCtx, cancel := context.WithTimeout(bgCtx, 35*time.Second)
 			defer cancel()
 			if err := svc.TriggerCheckupFollowUp(trigCtx, clinicID, ownerID); err != nil {
 				slog.WarnContext(trigCtx, "checkup followup trigger failed (non-fatal)", "error", err, "owner_id", ownerID)
 			}
-		}()
+		})
 	}
 	s.syncCheckupTag(ctx, input.ClinicID, created)
 
@@ -212,6 +207,14 @@ func (s *checkupService) Update(ctx context.Context, clinicID, medicalRecordID, 
 	if parent.Status == model.MedicalRecordStatusFinalized {
 		return nil, apperrors.WrapConflict("確定済みカルテのため健診記録は編集できません")
 	}
+	// クロステナント write 防止: 貼り替え先 checkup_type の所有権を検証する。
+	if err := validateOwnedMasterFK(ctx, "checkup type", clinicID, input.CheckupTypeID,
+		func(actx context.Context, cid, mid uint64) error {
+			_, err := s.checkupTypeRepo.FindByID(actx, cid, mid)
+			return err
+		}); err != nil {
+		return nil, err
+	}
 	fields := buildCheckupUpdate(input)
 	if len(fields) == 0 {
 		return nil, apperrors.WrapInvalidInput("at least one field must be provided")
@@ -233,35 +236,6 @@ func (s *checkupService) Update(ctx context.Context, clinicID, medicalRecordID, 
 	return updated, nil
 }
 
-func (s *checkupService) GetAlerts(ctx context.Context, clinicID uint64, withinDays int) (*CheckupAlertsResult, error) {
-	if withinDays < 1 || withinDays > 365 {
-		return nil, apperrors.WrapInvalidInput("within_days must be 1-365")
-	}
-	checkups, err := s.repo.FindAlerts(ctx, clinicID, withinDays)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to find checkup alerts", "error", err, "clinic_id", clinicID)
-		return nil, apperrors.Wrap(err, "failed to find checkup alerts")
-	}
-	nowJST := s.now().In(jstLocation)
-	today := time.Date(nowJST.Year(), nowJST.Month(), nowJST.Day(), 0, 0, 0, 0, jstLocation)
-	result := &CheckupAlertsResult{
-		Overdue:  make([]model.Checkup, 0),
-		Upcoming: make([]model.Checkup, 0),
-	}
-	for i := range checkups {
-		c := &checkups[i]
-		if c.NextDate == nil {
-			continue
-		}
-		if c.NextDate.Before(today) {
-			result.Overdue = append(result.Overdue, *c)
-		} else {
-			result.Upcoming = append(result.Upcoming, *c)
-		}
-	}
-	return result, nil
-}
-
 func (s *checkupService) Delete(ctx context.Context, clinicID, medicalRecordID, checkupID uint64) error {
 	existing, err := s.repo.FindByID(ctx, clinicID, checkupID)
 	if err != nil {
@@ -279,6 +253,7 @@ func (s *checkupService) Delete(ctx context.Context, clinicID, medicalRecordID, 
 		return apperrors.WrapConflict("確定済みカルテのため健診記録は削除できません")
 	}
 	if err := s.repo.Delete(ctx, clinicID, checkupID); err != nil {
+		slog.ErrorContext(ctx, "failed to delete checkup", "error", err, "clinic_id", clinicID, "checkup_id", checkupID)
 		return apperrors.Wrap(err, "failed to delete checkup")
 	}
 	slog.InfoContext(ctx, "checkup deleted",

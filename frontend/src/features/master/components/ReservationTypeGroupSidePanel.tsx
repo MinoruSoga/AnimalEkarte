@@ -73,7 +73,7 @@ export const GroupSidePanel = memo(function GroupSidePanel({
       <PropertyRow label="カラー">
         <div className="flex flex-col gap-1.5">
           <div className="flex items-center gap-2">
-            <input type="color" value={formData.color} onChange={handleColorPickerChange}
+            <input type="color" aria-label="カラー" value={formData.color} onChange={handleColorPickerChange}
               className={LAYOUT.colorInputSmall} />
             <PropertyInput value={formData.color} onChange={handleColorInputChange} placeholder={PALETTE.pickerDefaultBlue} />
           </div>

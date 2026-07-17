@@ -58,7 +58,7 @@ export function BulkTagRemoveDialog({
             <p className={`text-sm ${C.text70}`}>
               {progress.total}名中{progress.done}名完了...
             </p>
-            <div className={`w-full h-2 bg-[#E3E2E0] rounded-full overflow-hidden`}>
+            <div className={`w-full h-2 ${C.bgInactive} rounded-full overflow-hidden`}>
               <div
                 className={`h-full ${C.bgBrand} transition-all duration-200 rounded-full`}
                 style={{ width: `${progressPercent}%` }}

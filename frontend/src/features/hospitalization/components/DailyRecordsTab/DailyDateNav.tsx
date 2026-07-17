@@ -1,15 +1,11 @@
 // React/Framework
-import { C, ICON } from "@/lib/design-tokens";
+import { C } from "@/lib/design-tokens";
 import { useCallback, useMemo } from "react";
 
-// External
-import { ChevronLeft, ChevronRight } from "lucide-react";
-
 // Internal
-import { Button } from "@/components/ui/button";
+import { CalendarNavToolbar } from "@/components/shared/CalendarNavToolbar";
 import { formatJSTWallDate } from "@/lib/jst-date";
-
-const WEEK_DAYS = ["日", "月", "火", "水", "木", "金", "土"];
+import { formatJapaneseDate } from "@/utils/format/date";
 
 interface DailyDateNavProps {
     selectedDate: string; // YYYY-MM-DD
@@ -51,35 +47,24 @@ export function DailyDateNav({
         }
     }, [canGoNext, selectedDate, onDateChange]);
 
-    // Format for display: YYYY-MM-DD -> YYYY年M月D日（曜日）
+    // FE4-8: 共有 formatJapaneseDate へ委譲（ローカル getter 由来のため出力同一）
     const displayDate = useMemo(() => {
         const d = new Date(selectedDate + "T00:00:00");
-        return `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日（${WEEK_DAYS[d.getDay()]}）`;
+        return formatJapaneseDate(d);
     }, [selectedDate]);
 
     return (
-        <div className="flex items-center justify-between py-2 px-1">
-            <Button
-                variant="ghost"
-                size="sm"
-                onClick={handlePrev}
-                disabled={!canGoPrev}
-                className="h-8 w-8 p-0"
-                aria-label="前日"
-            >
-                <ChevronLeft className={ICON.action} />
-            </Button>
-            <span className={`text-sm font-semibold ${C.text}`}>{displayDate}</span>
-            <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleNext}
-                disabled={!canGoNext}
-                className="h-8 w-8 p-0"
-                aria-label="翌日"
-            >
-                <ChevronRight className={ICON.action} />
-            </Button>
-        </div>
+        <CalendarNavToolbar
+            layout="spread"
+            size="sm"
+            className="py-2 px-1"
+            onPrev={handlePrev}
+            onNext={handleNext}
+            prevDisabled={!canGoPrev}
+            nextDisabled={!canGoNext}
+            prevAriaLabel="前日"
+            nextAriaLabel="翌日"
+            label={<span className={`text-sm font-semibold ${C.text}`}>{displayDate}</span>}
+        />
     );
 }

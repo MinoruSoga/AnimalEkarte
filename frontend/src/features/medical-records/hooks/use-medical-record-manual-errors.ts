@@ -2,6 +2,9 @@ import { useEffect, useState } from "react";
 
 const MEDICAL_RECORD_PRIORITY_FIELDS = ["treatment_policy", "diagnosis1_category_id"] as const;
 
+/** エラーフィールドへのフォーカス移動を tab 切替後まで遅延させる時間 (FE5-6) */
+const FOCUS_DELAY_MS = 50;
+
 interface UseMedicalRecordManualErrorsArgs {
   setActiveTab: (tab: string) => void;
 }
@@ -38,7 +41,7 @@ export function useMedicalRecordManualErrors({
         element.focus();
         element.scrollIntoView({ behavior: "smooth", block: "center" });
       }
-    }, 50);
+    }, FOCUS_DELAY_MS);
   }, [manualErrors]);
 
   return {

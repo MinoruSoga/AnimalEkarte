@@ -1,14 +1,21 @@
-import { memo, type Dispatch, type ReactNode, type SetStateAction } from "react";
-import { Building2, Percent, X } from "lucide-react";
+import type { Dispatch, SetStateAction } from "react";
+import { Building2, FileText, Percent, X } from "lucide-react";
 
 import { DeleteIconButton } from "@/components/shared/DeleteIconButton/DeleteIconButton";
 import { FormFieldError } from "@/components/shared/FormFieldError";
 import { SubmitButton } from "@/components/shared/Form/SubmitButton";
 import { C, ICON, LAYOUT, STYLE } from "@/lib/design-tokens";
 import type { Clinic } from "../api/clinics";
-import type { ClinicFormData } from "./ClinicMasterSettingsModel";
-
-const PROP_INPUT_CLASS = `w-full bg-transparent text-sm ${C.text} outline-none border-none px-1.5 py-0.5 rounded-[3px] ${C.hoverBgLight} ${C.focusBgLight} transition-colors ${C.textPlaceholder}`;
+import type { ClinicFormData } from "./clinic-master-settings-model";
+import {
+  ClinicBooleanProperty,
+  ClinicTaxRateProperty,
+  ClinicTextProperty,
+  ClinicTextareaProperty,
+  PropertyRow,
+  SectionOrderProperty,
+  StatusPill,
+} from "./ClinicMasterSidePanelProperties";
 
 interface ClinicMasterSidePanelProps {
   selectedItem: Clinic | null;
@@ -75,6 +82,7 @@ export function ClinicMasterSidePanel({
                   value={formData.name}
                   onChange={(e) => setFormData((prev) => ({ ...prev, name: e.target.value }))}
                   placeholder="無題"
+                  aria-label="無題"
                 />
                 <FormFieldError message={nameError} />
               </div>
@@ -90,7 +98,7 @@ export function ClinicMasterSidePanel({
                     }
                     className={`inline-flex items-center rounded-[3px] ${C.hoverBgLight} transition-colors py-0.5 px-0.5 cursor-pointer`}
                   >
-                    <NotionStatusPill status={formData.is_active ? "active" : "inactive"} />
+                    <StatusPill status={formData.is_active ? "active" : "inactive"} />
                   </button>
                 </PropertyRow>
 
@@ -183,6 +191,105 @@ export function ClinicMasterSidePanel({
                     }))
                   }
                 />
+
+                <div className={`${STYLE.sectionDivider} my-2`} />
+                <div className={`flex items-center gap-1.5 py-1.5 text-xs ${C.text45} select-none`}>
+                  <FileText className={ICON.xs} />
+                  明細兼領収書
+                </div>
+
+                <ClinicBooleanProperty
+                  label="ロゴ表示"
+                  value={formData.accounting_document_show_logo}
+                  onChange={(value) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      accounting_document_show_logo: value,
+                    }))
+                  }
+                />
+                <ClinicBooleanProperty
+                  label="登録番号警告"
+                  value={formData.accounting_document_show_registration_warning}
+                  onChange={(value) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      accounting_document_show_registration_warning: value,
+                    }))
+                  }
+                />
+                <ClinicBooleanProperty
+                  label="項目カテゴリ"
+                  value={formData.accounting_document_show_item_category}
+                  onChange={(value) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      accounting_document_show_item_category: value,
+                    }))
+                  }
+                />
+                {/* #190: セクション表示トグル */}
+                <ClinicBooleanProperty
+                  label="病院情報ヘッダー"
+                  value={formData.accounting_document_show_clinic_header}
+                  onChange={(value) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      accounting_document_show_clinic_header: value,
+                    }))
+                  }
+                />
+                <ClinicBooleanProperty
+                  label="飼主・ペット情報"
+                  value={formData.accounting_document_show_owner_pet_info}
+                  onChange={(value) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      accounting_document_show_owner_pet_info: value,
+                    }))
+                  }
+                />
+                <ClinicBooleanProperty
+                  label="明細テーブル"
+                  value={formData.accounting_document_show_items_table}
+                  onChange={(value) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      accounting_document_show_items_table: value,
+                    }))
+                  }
+                />
+                <ClinicBooleanProperty
+                  label="お会計サマリー"
+                  value={formData.accounting_document_show_payment_summary}
+                  onChange={(value) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      accounting_document_show_payment_summary: value,
+                    }))
+                  }
+                />
+                {/* #190: セクション表示順 */}
+                <SectionOrderProperty
+                  order={formData.accounting_document_section_order}
+                  onChange={(order) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      accounting_document_section_order: order,
+                    }))
+                  }
+                />
+                <ClinicTextareaProperty
+                  label="フッター"
+                  value={formData.accounting_document_footer_note}
+                  placeholder="例: ご来院ありがとうございました。"
+                  onChange={(value) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      accounting_document_footer_note: value,
+                    }))
+                  }
+                />
               </div>
             </div>
           </div>
@@ -192,108 +299,11 @@ export function ClinicMasterSidePanel({
               キャンセル
             </button>
             {canEdit ? (
-              <SubmitButton className={STYLE.sidePeekSaveBtn}>保存</SubmitButton>
+              <SubmitButton className="h-9 px-5">保存</SubmitButton>
             ) : null}
           </div>
         </fieldset>
       </form>
     </div>
-  );
-}
-
-const PropertyRow = memo(function PropertyRow({
-  label,
-  children,
-}: {
-  label: string;
-  children: ReactNode;
-}) {
-  return (
-    <div className={STYLE.propertyRow}>
-      <div className={`${LAYOUT.propertyRow.labelW} shrink-0 text-sm ${C.text65} select-none truncate flex items-center`}>
-        {label}
-      </div>
-      <div className="flex-1 flex items-center">{children}</div>
-    </div>
-  );
-});
-
-function ClinicTextProperty({
-  label,
-  value,
-  onChange,
-  placeholder,
-  type = "text",
-}: {
-  label: string;
-  value: string;
-  onChange: (value: string) => void;
-  placeholder: string;
-  type?: string;
-}) {
-  return (
-    <PropertyRow label={label}>
-      <input
-        type={type}
-        className={PROP_INPUT_CLASS}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder={placeholder}
-      />
-    </PropertyRow>
-  );
-}
-
-function ClinicTaxRateProperty({
-  label,
-  value,
-  onChange,
-}: {
-  label: string;
-  value: number;
-  onChange: (value: number) => void;
-}) {
-  return (
-    <PropertyRow label={label}>
-      <div className="flex items-center gap-1.5">
-        <input
-          type="number"
-          min={0}
-          max={100}
-          step={1}
-          className={`${PROP_INPUT_CLASS} w-20`}
-          value={Math.round(value * 100)}
-          onChange={(e) => onChange(Number(e.target.value) / 100)}
-        />
-        <span className={`text-sm ${C.text50}`}>%</span>
-      </div>
-    </PropertyRow>
-  );
-}
-
-const STATUS_CONFIG = {
-  active: {
-    dot: `${C.bgAccent}`,
-    label: "有効",
-    bg: `${C.bgAccentLight}`,
-    text: `${C.textAccentDark}`,
-  },
-  inactive: {
-    dot: C.bgPrimary10,
-    label: "無効",
-    bg: `${C.bgInactive}`,
-    text: C.text60,
-  },
-} as const;
-
-function NotionStatusPill({ status }: { status: "active" | "inactive" }) {
-  const cfg = STATUS_CONFIG[status];
-  return (
-    <span
-      className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-sm text-xs ${cfg.bg} ${cfg.text}`}
-    >
-      <span className={`size-[7px] rounded-full ${cfg.dot}`} />
-      {cfg.label}
-    </span>
   );
 }

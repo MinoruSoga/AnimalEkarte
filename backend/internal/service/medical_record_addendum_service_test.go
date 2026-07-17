@@ -200,6 +200,25 @@ func TestMedicalRecordAddendumService_FindByMedicalRecordID(t *testing.T) {
 		assert.Error(t, err)
 		assert.Nil(t, addenda)
 	})
+
+	t.Run("returns wrapped error when addendum repository lookup fails", func(t *testing.T) {
+		mrRepo := &mockMedicalRecordRepository{
+			findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
+				return finalizedRecord, nil
+			},
+		}
+		addendumRepo := &mockMedicalRecordAddendumRepository{
+			findByMedicalRecordIDFn: func(_ context.Context, _, _ uint64) ([]*model.MedicalRecordAddendum, error) {
+				return nil, errors.New("addendum db error")
+			},
+		}
+		svc := NewMedicalRecordAddendumService(addendumRepo, mrRepo, nil)
+
+		addenda, err := svc.FindByMedicalRecordID(context.Background(), 1, 1)
+
+		assert.Error(t, err)
+		assert.Nil(t, addenda)
+	})
 }
 
 // TestMedicalRecordAddendumService_Create_AuditLog は Create 成功時に
@@ -220,7 +239,7 @@ func TestMedicalRecordAddendumService_Create_AuditLog(t *testing.T) {
 			return nil
 		},
 	}
-	auditSvc := &mockMedicalRecordAuditService{}
+	auditSvc := &mockAuditService{}
 	svc := NewMedicalRecordAddendumService(addendumRepo, mrRepo, auditSvc)
 
 	input := CreateMedicalRecordAddendumInput{
@@ -254,7 +273,7 @@ func TestMedicalRecordAddendumService_AuditFailure_NonFatal(t *testing.T) {
 			return nil
 		},
 	}
-	auditSvc := &mockMedicalRecordAuditService{
+	auditSvc := &mockAuditService{
 		logAddendumCreateFn: func(_ context.Context, _ uint64, _ *uint64, _, _ uint64, _ *model.MedicalRecordAddendum) error {
 			return errors.New("audit db down")
 		},

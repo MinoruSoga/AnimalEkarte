@@ -52,15 +52,20 @@ func (r *vitalRepository) FindByID(ctx context.Context, clinicID, id uint64) (*m
 	return &vital, nil
 }
 
+// Create は dbOrTx(ctx, r.db) で ambient tx に参加する（BE-refactor.md X-11）。
+// LockByIDForUpdate の行ロック保持 tx 内から呼ばれた場合、別コネクションで INSERT すると
+// vital_records.medical_record_id の FK 制約チェックが同一行への FOR UPDATE ロックと
+// デッドロックする（FK チェックは FOR KEY SHARE を要求し FOR UPDATE と競合するため）。
 func (r *vitalRepository) Create(ctx context.Context, vital *model.VitalRecord) error {
-	if err := r.db.WithContext(ctx).Create(vital).Error; err != nil {
+	if err := dbOrTx(ctx, r.db).Create(vital).Error; err != nil {
 		return apperrors.FromGORM(err, "vital", "")
 	}
 	return nil
 }
 
+// Update は dbOrTx(ctx, r.db) で ambient tx に参加する（Create と同じ理由、BE-refactor.md X-11）。
 func (r *vitalRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
-	result := r.db.WithContext(ctx).
+	result := dbOrTx(ctx, r.db).
 		Model(&model.VitalRecord{}).
 		Scopes(clinicScope(clinicID)).
 		Where("vital_records.id = ? AND vital_records.deleted_at IS NULL", id).
@@ -74,8 +79,9 @@ func (r *vitalRepository) Update(ctx context.Context, clinicID, id uint64, field
 	return nil
 }
 
+// Delete は dbOrTx(ctx, r.db) で ambient tx に参加する（Create と同じ理由、BE-refactor.md X-11）。
 func (r *vitalRepository) Delete(ctx context.Context, clinicID, id uint64) error {
-	result := r.db.WithContext(ctx).
+	result := dbOrTx(ctx, r.db).
 		Scopes(clinicScope(clinicID)).
 		Where("vital_records.id = ?", id).
 		Delete(&model.VitalRecord{})

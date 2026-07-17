@@ -5,6 +5,7 @@ import { motion } from "motion/react";
 import { useReducedMotion } from "@/hooks/use-reduced-motion";
 import { C } from "@/lib/design-tokens";
 import { getReservationTypeColor, getReservationTypeName } from "@/utils/status-helpers";
+import { DISPLAY_TIME_FORMAT } from "@/utils/format/date";
 import type { Reservation } from "@/types";
 
 import {
@@ -13,7 +14,7 @@ import {
   WHILE_DRAG_FULL,
   WHILE_DRAG_REDUCED,
   type ReservationTypeColor,
-} from "./WeekViewGridConstants";
+} from "./week-view-grid-constants";
 
 interface AppointmentCardProps {
   appointment: Reservation;
@@ -78,7 +79,7 @@ export const AppointmentCard = memo(function AppointmentCard({
   const tooltipText = useMemo(
     () =>
       [
-        `${format(appointment.start, "H:mm")}–${format(appointment.end, "H:mm")}`,
+        `${format(appointment.start, DISPLAY_TIME_FORMAT)}–${format(appointment.end, DISPLAY_TIME_FORMAT)}`,
         appointment.petName,
         appointment.ownerName,
         appointment.doctor,
@@ -98,7 +99,7 @@ export const AppointmentCard = memo(function AppointmentCard({
         ${isDimmed ? "opacity-60" : "opacity-100"}
         ${isCancelled ? `line-through ${C.decorationDanger50}` : ""}
       `}
-      aria-label={`${format(appointment.start, "H:mm")}〜${format(appointment.end, "H:mm")} ${appointment.petName} ${appointment.ownerName} ${getReservationTypeName(appointment.type)}`}
+      aria-label={`${format(appointment.start, DISPLAY_TIME_FORMAT)}〜${format(appointment.end, DISPLAY_TIME_FORMAT)} ${appointment.petName} ${appointment.ownerName} ${getReservationTypeName(appointment.type)}`}
       title={tooltipText}
       style={{
         top: `${top}px`,
@@ -145,7 +146,7 @@ export const AppointmentCard = memo(function AppointmentCard({
       {isCompact ? (
         <div className="flex items-center gap-1 h-full pointer-events-none relative z-10 pr-2">
           <span className="font-bold text-xs whitespace-nowrap leading-none">
-            {format(appointment.start, "H:mm")}
+            {format(appointment.start, DISPLAY_TIME_FORMAT)}
           </span>
           <FirstVisitBadge show={isFirstVisit} compact />
           <span className="truncate text-xs font-medium leading-none">{appointment.petName}</span>
@@ -156,7 +157,7 @@ export const AppointmentCard = memo(function AppointmentCard({
         <div className="flex flex-col h-full pointer-events-none relative z-10">
           <div className="flex items-center gap-1 pr-3 leading-none">
             <span className="font-bold text-xs whitespace-nowrap">
-              {format(appointment.start, "H:mm")}
+              {format(appointment.start, DISPLAY_TIME_FORMAT)}
             </span>
             <FirstVisitBadge show={isFirstVisit} compact />
           </div>
@@ -172,7 +173,7 @@ export const AppointmentCard = memo(function AppointmentCard({
       {!isCompact && !isNarrow ? (
         <div className="flex flex-col h-full pointer-events-none relative z-10">
           <div className="flex items-center gap-1 font-bold text-sm leading-none mb-1 pr-3">
-            <span className="truncate">{format(appointment.start, "H:mm")}</span>
+            <span className="truncate">{format(appointment.start, DISPLAY_TIME_FORMAT)}</span>
             <FirstVisitBadge show={isFirstVisit} />
           </div>
           <div className="font-medium truncate text-sm leading-none">{appointment.petName}</div>

@@ -1,5 +1,6 @@
 import { memo } from "react";
 import { C } from "@/lib/design-tokens";
+import { formatCurrency } from "@/utils/format/number";
 
 interface CashReconciliationCardProps {
   theoreticalCash: number;
@@ -17,13 +18,13 @@ export const CashReconciliationCard = memo(function CashReconciliationCard({
       <div className="flex justify-between items-center">
         <span className={`text-base ${C.text70}`}>理論現金</span>
         <span className={`text-base font-semibold ${C.text}`}>
-          ¥{theoreticalCash.toLocaleString()}
+          {formatCurrency(theoreticalCash)}
         </span>
       </div>
       <div className="flex justify-between items-center">
         <span className={`text-base ${C.text70}`}>実際の現金</span>
         <span className={`text-base font-semibold ${C.text}`}>
-          ¥{actualCash.toLocaleString()}
+          {formatCurrency(actualCash)}
         </span>
       </div>
       <div className={`flex justify-between items-center border-t pt-3 ${C.borderLight}`}>

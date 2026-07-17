@@ -67,7 +67,7 @@ export function jstNowISOString(): string {
   return formatJSTOffsetDateTime(new Date());
 }
 
-export function formatJSTOffsetDateTime(value: Date | string): string {
+function formatJSTOffsetDateTime(value: Date | string): string {
   const jstDate = toJSTParts(value);
   return `${jstDate.getUTCFullYear()}-${padDatePart(jstDate.getUTCMonth() + 1)}-${padDatePart(jstDate.getUTCDate())}T${padDatePart(jstDate.getUTCHours())}:${padDatePart(jstDate.getUTCMinutes())}:${padDatePart(jstDate.getUTCSeconds())}.${String(jstDate.getUTCMilliseconds()).padStart(3, "0")}+09:00`;
 }
@@ -84,10 +84,39 @@ export function jstDateTimeLocalToISOString(value: string): string {
   return `${date}T${normalizedTime}+09:00`;
 }
 
+/**
+ * FE4-8 parse 契約: "YYYY-MM-DD" → Date の解釈は 2 契約が併存する。
+ * この関数はローカル getter で整形するため、DatePicker 系（ローカル正午 parse。
+ * @see components/shared/DatePicker/DatePickerModel.ts の parseLocalDate）から得た
+ * Date を渡す想定。line-reserve/shared-liff 側の UTC 深夜 parse 由来の Date とは
+ * 契約が異なるため相互交換は日付ズレを起こす（禁止）。
+ */
 export function formatJSTWallDate(date: Date): string {
   return `${date.getFullYear()}-${padDatePart(date.getMonth() + 1)}-${padDatePart(date.getDate())}`;
 }
 
 export function formatJSTWallTime(date: Date): string {
   return `${padDatePart(date.getHours())}:${padDatePart(date.getMinutes())}`;
+}
+
+/**
+ * FE6-6: 2 つの日付文字列（JST 00:00 起点）の日数差を返す。
+ * refDate が未指定/不正な場合は 0 を返す。負値は 0 に丸める。
+ */
+export function daysSince(isoDate: string, refDate: string): number {
+  if (!refDate) return 0;
+  const from = new Date(`${isoDate}T00:00:00+09:00`);
+  const to = new Date(`${refDate}T00:00:00+09:00`);
+  if (isNaN(from.getTime()) || isNaN(to.getTime())) return 0;
+  return Math.max(0, Math.floor((to.getTime() - from.getTime()) / (1000 * 60 * 60 * 24)));
+}
+
+/**
+ * FE6-6: 現在時刻の JST 年月を "YYYY-MM" 形式で返す。
+ */
+export function currentJSTYearMonth(): string {
+  const jst = new Date(Date.now() + JST_OFFSET_MS);
+  const y = jst.getUTCFullYear();
+  const m = padDatePart(jst.getUTCMonth() + 1);
+  return `${y}-${m}`;
 }

@@ -15,6 +15,8 @@ import (
 // ReservationScheduleRepository はスタッフ個人スケジュール（shift_entries + shift_entry_breaks）のデータアクセスインターフェース
 type ReservationScheduleRepository interface {
 	FindAllByMonth(ctx context.Context, clinicID, staffID uint64, month string) ([]model.ShiftEntry, error)
+	// FindAllByStaffIDsAndDateRange は複数スタッフの指定期間内シフトエントリを一括取得する(G7-1: 日付ループN+1回避のプリフェッチ用)。
+	FindAllByStaffIDsAndDateRange(ctx context.Context, clinicID uint64, staffIDs []uint64, from, to time.Time) ([]model.ShiftEntry, error)
 	FindAllBreaksByEntryIDs(ctx context.Context, entryIDs []uint64) (map[uint64][]model.ShiftEntryBreak, error)
 	FindAllByDate(ctx context.Context, clinicID, staffID uint64, date time.Time) (*model.ShiftEntry, error)
 	FindAllBreaksByEntryID(ctx context.Context, entryID uint64) ([]model.ShiftEntryBreak, error)
@@ -40,13 +42,32 @@ func (r *reservationScheduleRepository) FindAllByMonth(ctx context.Context, clin
 	err = r.db.WithContext(ctx).
 		Scopes(clinicScope(clinicID)).
 		Where("staff_id = ? AND date >= ? AND date < ?",
-			staffID, start.Format("2006-01-02"), end.Format("2006-01-02")).
+			staffID, start.Format(time.DateOnly), end.Format(time.DateOnly)).
 		Order("date ASC").
 		Find(&entries).Error
 	if err != nil {
 		return nil, apperrors.FromGORM(err, "schedule_entry", "")
 	}
 
+	return entries, nil
+}
+
+// FindAllByStaffIDsAndDateRange は [from, to) 半開区間・複数スタッフのシフトエントリを1クエリで返す(G7-1)。
+// staffIDs が空の場合は空スライスを即返す(クエリを発行しない)。
+func (r *reservationScheduleRepository) FindAllByStaffIDsAndDateRange(ctx context.Context, clinicID uint64, staffIDs []uint64, from, to time.Time) ([]model.ShiftEntry, error) {
+	if len(staffIDs) == 0 {
+		return []model.ShiftEntry{}, nil
+	}
+	entries := make([]model.ShiftEntry, 0)
+	err := r.db.WithContext(ctx).
+		Scopes(clinicScope(clinicID)).
+		Where("staff_id IN ? AND date >= ? AND date < ?",
+			staffIDs, from.Format(time.DateOnly), to.Format(time.DateOnly)).
+		Order("date ASC").
+		Find(&entries).Error
+	if err != nil {
+		return nil, apperrors.FromGORM(err, "schedule_entry", "")
+	}
 	return entries, nil
 }
 
@@ -78,22 +99,22 @@ func (r *reservationScheduleRepository) FindAllByDate(ctx context.Context, clini
 	err := r.db.WithContext(ctx).
 		Scopes(clinicScope(clinicID)).
 		Where("staff_id = ? AND date = ?",
-			staffID, date.Format("2006-01-02")).
+			staffID, date.Format(time.DateOnly)).
 		First(&entry).Error
 	if err != nil {
-		return nil, apperrors.FromGORM(err, "shift_entry", fmt.Sprintf("staff=%d date=%s", staffID, date.Format("2006-01-02")))
+		return nil, apperrors.FromGORM(err, "shift_entry", fmt.Sprintf("staff=%d date=%s", staffID, date.Format(time.DateOnly)))
 	}
 	return &entry, nil
 }
 
 // Save は ShiftEntry と ShiftEntryBreaks をトランザクションで upsert する
 func (r *reservationScheduleRepository) Save(ctx context.Context, clinicID uint64, entry *model.ShiftEntry, breaks []model.ShiftEntryBreak) error {
-	if err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	if err := dbOrTx(ctx, r.db).Transaction(func(tx *gorm.DB) error {
 		// 既存エントリを検索
 		var existing model.ShiftEntry
 		err := tx.Scopes(clinicScope(entry.ClinicID)).
 			Where("staff_id = ? AND date = ?",
-				entry.StaffID, entry.Date.Format("2006-01-02")).
+				entry.StaffID, entry.Date.Format(time.DateOnly)).
 			First(&existing).Error
 
 		if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
@@ -144,13 +165,13 @@ func (r *reservationScheduleRepository) Delete(ctx context.Context, clinicID, st
 	result := r.db.WithContext(ctx).
 		Scopes(clinicScope(clinicID)).
 		Where("staff_id = ? AND date = ?",
-			staffID, date.Format("2006-01-02")).
+			staffID, date.Format(time.DateOnly)).
 		Delete(&model.ShiftEntry{})
 	if result.Error != nil {
-		return apperrors.FromGORM(result.Error, "schedule_entry", fmt.Sprintf("staff=%d date=%s", staffID, date.Format("2006-01-02")))
+		return apperrors.FromGORM(result.Error, "schedule_entry", fmt.Sprintf("staff=%d date=%s", staffID, date.Format(time.DateOnly)))
 	}
 	if result.RowsAffected == 0 {
-		return apperrors.WrapNotFound("shift_entry", fmt.Sprintf("staff=%d date=%s", staffID, date.Format("2006-01-02")))
+		return apperrors.WrapNotFound("shift_entry", fmt.Sprintf("staff=%d date=%s", staffID, date.Format(time.DateOnly)))
 	}
 	return nil
 }

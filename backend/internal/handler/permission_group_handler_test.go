@@ -92,79 +92,20 @@ func (m *mockEffectivePermissionService) GetEffectivePermissions(ctx context.Con
 	return nil, nil
 }
 
-// ---- mock AuditService (for permission group handler) ----
-
-type mockAuditServiceForPG struct {
-	logFn          func(ctx context.Context, log *model.AuditLog) error
-	logAuthLoginFn func(ctx context.Context, clinicID *uint64, staffID *uint64, action string, ipAddress string, userAgent string) error
-	lastLogEntry   *service.AuditLogInput // #122: audit 内容検証用
-}
-
-func (m *mockAuditServiceForPG) Log(ctx context.Context, log *model.AuditLog) error {
-	if m.logFn != nil {
-		return m.logFn(ctx, log)
-	}
-	return nil
-}
-
-func (m *mockAuditServiceForPG) LogEntry(ctx context.Context, input *service.AuditLogInput) error {
-	m.lastLogEntry = input // #122: capture for testing
-	if m.logFn != nil {
-		return m.logFn(ctx, &model.AuditLog{
-			ClinicID:   input.ClinicID,
-			ActorID:    input.ActorID,
-			ActorType:  input.ActorType,
-			Action:     input.Action,
-			Resource:   input.Resource,
-			ResourceID: input.ResourceID,
-			IPAddress:  input.IPAddress,
-			UserAgent:  input.UserAgent,
-		})
-	}
-	return nil
-}
-
-func (m *mockAuditServiceForPG) LogAuthLogin(ctx context.Context, clinicID, staffID *uint64, action, ipAddress, userAgent string) error {
-	if m.logAuthLoginFn != nil {
-		return m.logAuthLoginFn(ctx, clinicID, staffID, action, ipAddress, userAgent)
-	}
-	return nil
-}
-
-func (m *mockAuditServiceForPG) LogLstepOperation(_ context.Context, _ uint64, _ *uint64, _, _ string, _ *uint64) error {
-	return nil
-}
-
-func (m *mockAuditServiceForPG) LogLstepOperationWithMetadata(_ context.Context, _ uint64, _ *uint64, _, _ string, _ *uint64, _ any) error {
-	return nil
-}
-func (m *mockAuditServiceForPG) LogMedicalRecordChange(_ context.Context, _ uint64, _ *uint64, _ string, _ uint64, _, _ map[string]any) error {
-	return nil
-}
-func (m *mockAuditServiceForPG) LogVitalChange(_ context.Context, _ uint64, _ *uint64, _ string, _, _ uint64, _, _ map[string]any) error {
-	return nil
-}
-func (m *mockAuditServiceForPG) LogAddendumCreate(_ context.Context, _ uint64, _ *uint64, _, _ uint64, _ *model.MedicalRecordAddendum) error {
-	return nil
-}
-func (m *mockAuditServiceForPG) LogClinicSwitch(_ context.Context, _ *uint64, _, _ uint64, _, _ string) error {
-	return nil
-}
-
 // ---- helper ----
 
 func newHandlerWithPermissionGroupSvc(pgSvc service.PermissionGroupService) *Handler {
 	return &Handler{svc: &service.Services{
 		PermissionGroup:     pgSvc,
 		EffectivePermission: &mockEffectivePermissionService{},
-		Audit:               &mockAuditServiceForPG{},
+		Audit:               &mockAuditService{},
 	}}
 }
 
 // newHandlerWithCapturingAudit は #122 監査ログ内容検証用ヘルパー。
 // AuditService も返すので logEntryInput を検証できる。
-func newHandlerWithCapturingAudit(pgSvc service.PermissionGroupService) (*Handler, *mockAuditServiceForPG) {
-	auditSvc := &mockAuditServiceForPG{}
+func newHandlerWithCapturingAudit(pgSvc service.PermissionGroupService) (*Handler, *mockAuditService) {
+	auditSvc := &mockAuditService{}
 	h := &Handler{svc: &service.Services{
 		PermissionGroup:     pgSvc,
 		EffectivePermission: &mockEffectivePermissionService{},
@@ -812,7 +753,7 @@ func TestPermissionGroupHandler_Delete_AuditMinimalJSON(t *testing.T) {
 			return &model.PermissionGroup{ID: id, ClinicID: clinicID, Name: "管理者グループ"}, nil
 		},
 	}
-	auditSvc := &mockAuditServiceForPG{}
+	auditSvc := &mockAuditService{}
 	h := &Handler{svc: &service.Services{
 		PermissionGroup:     pgSvc,
 		EffectivePermission: &mockEffectivePermissionService{},

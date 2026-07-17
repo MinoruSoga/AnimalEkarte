@@ -56,7 +56,7 @@ type UpdateRecommendationReasonInput struct {
 
 type MedicalRecordService interface {
 	// List は指定した複数医院 (#86 拠点横断) のカルテ一覧を返す。clinicIDs はハンドラ層で所属検証済みであること。
-	List(ctx context.Context, clinicIDs []uint64, petID, ownerID *uint64, startDate, endDate *string, page, limit int) ([]model.MedicalRecord, int64, error)
+	List(ctx context.Context, clinicIDs []uint64, filters repository.MedicalRecordListFilters, page, limit int) ([]model.MedicalRecord, int64, error)
 	GetByID(ctx context.Context, clinicID, id uint64) (*model.MedicalRecord, error)
 	// GetByIDForClinics は複数医院スコープでカルテを1件取得する (#86 詳細画面拠点横断)。clinicIDs はハンドラ層で所属検証済みであること。
 	GetByIDForClinics(ctx context.Context, clinicIDs []uint64, id uint64) (*model.MedicalRecord, error)
@@ -74,10 +74,6 @@ type MedicalRecordService interface {
 	// UpdateRecommendationReason は受診推奨理由を更新する（FEAT-381-2）。
 	// "" は NULL として保存。4値以外は apperrors.WrapInvalidInput を返す。
 	UpdateRecommendationReason(ctx context.Context, clinicID, id uint64, input UpdateRecommendationReasonInput) (*model.MedicalRecord, error)
-	// GetOwnerMedicationHistory は飼い主の全ペット横断の投薬履歴（treatments item_type=medicine）を
-	// 日付降順でページング取得する（#158 飼主レポート）。clinic 隔離は repository 層で medical_records 経由。
-	// 戻り値はサービス層 DTO（repository 行型をハンドラへ漏らさない）。
-	GetOwnerMedicationHistory(ctx context.Context, clinicID, ownerID uint64, page, limit int) ([]OwnerMedicationHistoryItem, int64, error)
 }
 
 // CreateSubRecordsInput はカルテ作成時の inquiry / clinical_plan サブレコード作成 DTO
@@ -89,21 +85,25 @@ type CreateSubRecordsInput struct {
 	Assessment           *string // → ClinicalPlan.DiagnosisDetails
 	Diagnosis1CategoryID *uint64
 	Diagnosis1NameID     *uint64
-	Diagnosis2CategoryID *uint64
+	Diagnosis2TypeID     *uint64
 	Diagnosis2NameID     *uint64
 }
 
 type medicalRecordService struct {
-	repo                 repository.MedicalRecordRepository
-	ownerRepo            repository.OwnerRepository
-	petRepo              repository.PetRepository
-	inquiryRepo          repository.InquiryRepository
-	clinicalPlanRepo     repository.ClinicalPlanRepository
-	lineCustomerRepo     repository.LineCustomerRepository
-	reservationRepo      repository.ReservationRepository
-	lstepDeliveryTrigger LstepDeliveryTriggerService
-	auditService         AuditService
-	tagSyncSvc           LstepTagSyncService
+	repo                   repository.MedicalRecordRepository
+	ownerRepo              repository.OwnerRepository
+	petRepo                repository.PetRepository
+	inquiryRepo            repository.InquiryRepository
+	clinicalPlanRepo       repository.ClinicalPlanRepository
+	chiefComplaintTypeRepo repository.ChiefComplaintTypeRepository
+	diagTypeRepo           repository.DiagnosisTypeRepository
+	diagNameRepo           repository.DiagnosisNameRepository
+	lineCustomerRepo       repository.LineCustomerRepository
+	reservationRepo        repository.ReservationRepository
+	lstepDeliveryTrigger   LstepDeliveryTriggerService
+	auditService           AuditService
+	tx                     repository.Transactor
+	tagSyncSvc             LstepTagSyncService
 }
 
 func NewMedicalRecordService(
@@ -112,10 +112,14 @@ func NewMedicalRecordService(
 	petRepo repository.PetRepository,
 	inquiryRepo repository.InquiryRepository,
 	clinicalPlanRepo repository.ClinicalPlanRepository,
+	chiefComplaintTypeRepo repository.ChiefComplaintTypeRepository,
+	diagTypeRepo repository.DiagnosisTypeRepository,
+	diagNameRepo repository.DiagnosisNameRepository,
 	lineCustomerRepo repository.LineCustomerRepository,
 	reservationRepo repository.ReservationRepository,
 	lstepDeliveryTrigger LstepDeliveryTriggerService,
 	auditService AuditService,
+	tx repository.Transactor,
 	tagSyncSvc ...LstepTagSyncService,
 ) MedicalRecordService {
 	var syncSvc LstepTagSyncService
@@ -123,15 +127,27 @@ func NewMedicalRecordService(
 		syncSvc = tagSyncSvc[0]
 	}
 	return &medicalRecordService{
-		repo:                 repo,
-		ownerRepo:            ownerRepo,
-		petRepo:              petRepo,
-		inquiryRepo:          inquiryRepo,
-		clinicalPlanRepo:     clinicalPlanRepo,
-		lineCustomerRepo:     lineCustomerRepo,
-		reservationRepo:      reservationRepo,
-		lstepDeliveryTrigger: lstepDeliveryTrigger,
-		auditService:         auditService,
-		tagSyncSvc:           syncSvc,
+		repo:                   repo,
+		ownerRepo:              ownerRepo,
+		petRepo:                petRepo,
+		inquiryRepo:            inquiryRepo,
+		clinicalPlanRepo:       clinicalPlanRepo,
+		chiefComplaintTypeRepo: chiefComplaintTypeRepo,
+		diagTypeRepo:           diagTypeRepo,
+		diagNameRepo:           diagNameRepo,
+		lineCustomerRepo:       lineCustomerRepo,
+		reservationRepo:        reservationRepo,
+		lstepDeliveryTrigger:   lstepDeliveryTrigger,
+		auditService:           auditService,
+		tx:                     tx,
+		tagSyncSvc:             syncSvc,
 	}
+}
+
+// withTx runs fn inside Transactor when configured; nil tx (unit tests) runs fn directly.
+func (s *medicalRecordService) withTx(ctx context.Context, fn func(context.Context) error) error {
+	if s.tx == nil {
+		return fn(ctx)
+	}
+	return s.tx.WithTx(ctx, fn)
 }

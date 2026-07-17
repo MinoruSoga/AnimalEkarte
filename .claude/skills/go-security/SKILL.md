@@ -1,15 +1,18 @@
 ---
 name: go-security
-description: Go セキュリティ分析・OWASP対応（gosec、SQLインジェクション、パスワードハッシング）
+description: Go セキュリティ分析・OWASP対応（SQLインジェクション、パスワードハッシング。gosec は本プロジェクト未導入）
 ---
 
 # Go Security Analysis
 
-Go アプリケーションのセキュリティを OWASP Top 10 と gosec に基づいて分析します。
+Go アプリケーションのセキュリティを OWASP Top 10 に基づいて分析します（gosec は本プロジェクト未導入のため手動レビュー中心。導入すれば併用可能）。
 
 ## 実行スコープ
 
 ### 1. gosec 静的分析
+
+**gosec は本プロジェクト未導入**（Dockerfile/Makefile/CI に無し）。実行する場合は導入が先。CI の security-scan.yml は agentshield（エージェント設定監査）のみで Go コードスキャナではない
+
 ```bash
 docker compose exec backend gosec -json ./... | jq
 ```
@@ -21,9 +24,11 @@ docker compose exec backend gosec -json ./... | jq
 - パストラバーサル
 - クロスサイトスクリプティング (XSS)
 
-### 2. OWASP Top 10 チェック
+### 2. OWASP Top 10 — Go固有差分
 
-#### A1: Injection（インジェクション）
+OWASP Top 10 の一般論・脅威説明・チェックリストは `security-checklist` スキルの「OWASP Top 10 対応状況チェック」を参照。ここでは Go 実装固有の差分のみ扱う。
+
+#### A1: Injection — GORM実装
 ```go
 // ❌ 危険: 文字列連結
 query := fmt.Sprintf("SELECT * FROM users WHERE id = %d", userID)
@@ -33,26 +38,7 @@ db.Raw(query).Scan(&result)
 db.Where("id = ?", userID).Find(&result)
 ```
 
-#### A2: Broken Authentication（認証の破綻）
-- [ ] パスワードハッシング: bcrypt/argon2使用
-- [ ] セッション管理: httpOnly Cookie + secure flag
-- [ ] MFA対応
-- [ ] パスワードリセット: トークン有効期限設定
-
-#### A3: Sensitive Data Exposure（機密データ露出）
-```go
-// ❌ 危険: パスワードをログ
-slog.Info("user login", "password", password)
-
-// ✅ 安全: マスク
-slog.Info("user login", "user_id", userID)
-```
-
-#### A4: XML External Entities (XXE)（XML外部エンティティ）
-- [ ] XML パーサー設定確認
-- [ ] DTD 無効化
-
-#### A5: Broken Access Control（アクセス制御の破綻）
+#### A5: Broken Access Control — clinic_id検証実装
 ```go
 // clinic_id マルチテナント検証
 if visitRecord.ClinicID != clinicID {
@@ -60,39 +46,36 @@ if visitRecord.ClinicID != clinicID {
 }
 ```
 
-#### A6: Security Misconfiguration（セキュリティ設定ミス）
-- [ ] Debug mode 本番環境で無効
-- [ ] セキュリティヘッダー設定
-- [ ] CORS ホワイトリスト設定
+#### A7: XSS — Goテンプレート
+- Go で生成: template/html で自動エスケープ（React 側の対応は `react-security` 参照）
 
-#### A7: XSS（クロスサイトスクリプティング）
-- Go で生成: template/html で自動エスケープ
+#### A9: Using Components with Known Vulnerabilities — Go依存関係スキャン
 
-#### A8: Insecure Deserialization（不安全な逆シリアル化）
-- [ ] JSON アンマーシャリング時の型検証
+**nancy は本プロジェクト未導入**
 
-#### A9: Using Components with Known Vulnerabilities（既知の脆弱性を持つコンポーネント）
 ```bash
 docker compose exec backend go list -json -m all | nancy sleuth
 ```
 
-#### A10: Insufficient Logging & Monitoring（不十分なログ記録・監視）
-- [ ] エラーログに詳細情報記録
-- [ ] 監査ログ実装
-
-## セキュリティ実装パターン
+## セキュリティ実装パターン（Go固有）
 
 ### パスワードハッシング
 ```go
 import "golang.org/x/crypto/bcrypt"
 
-// ハッシング
-hashedPassword, _ := bcrypt.GenerateFromPassword(
+// ハッシング — エラーは必ず伝播する（無視禁止）
+hashedPassword, err := bcrypt.GenerateFromPassword(
   []byte(password), bcrypt.DefaultCost,
 )
+if err != nil {
+  return apperrors.Wrap(err)
+}
 
 // 検証
-err := bcrypt.CompareHashAndPassword(hashedPassword, []byte(inputPassword))
+err = bcrypt.CompareHashAndPassword(hashedPassword, []byte(inputPassword))
+if err != nil {
+  return apperrors.WrapUnauthorized(err) // fail-closed: 検証失敗は必ず拒否
+}
 ```
 
 ### JWT トークン (認証用)
@@ -107,12 +90,18 @@ type Claims struct {
 
 // トークン生成
 token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-tokenString, _ := token.SignedString([]byte(secretKey))
+tokenString, err := token.SignedString([]byte(secretKey))
+if err != nil {
+  return apperrors.Wrap(err)
+}
 
-// 検証（middleware で実装）
-token, _ := jwt.ParseWithClaims(tokenString, &Claims{}, func(token *jwt.Token) (interface{}, error) {
+// 検証（middleware で実装）— エラーを無視すると偽トークンを通過させる致命的脆弱性になる
+parsed, err := jwt.ParseWithClaims(tokenString, &Claims{}, func(token *jwt.Token) (interface{}, error) {
   return []byte(secretKey), nil
 })
+if err != nil || !parsed.Valid {
+  return apperrors.WrapUnauthorized(err) // fail-closed: パース/検証失敗は必ず拒否
+}
 ```
 
 ### Input バリデーション
@@ -129,14 +118,9 @@ validate := validator.New()
 err := validate.Struct(req)
 ```
 
-### SQL インジェクション対策
+SQLインジェクション対策の詳細は上記 A1 のパラメータ化例を参照。LIKE 検索も同様に安全化する:
 ```go
-// ❌ 危険
-query := "SELECT * FROM users WHERE name = '" + name + "'"
-
-// ✅ 安全 (GORM自動)
-db.Where("name = ?", name).Find(&users)
-db.Where("name LIKE ?", "%"+name+"%").Find(&users)
+db.Where("name LIKE ?", "%"+escapeLike(name)+"%").Find(&users)  // escapeLike（owner_repository.go）で % / _ をエスケープ（プロジェクト標準）
 ```
 
 ## 出力形式
@@ -158,7 +142,7 @@ db.Where("name LIKE ?", "%"+name+"%").Find(&users)
 - Missing CORS Headers
 
 ### ✅ Passed
-- gosec warnings: 0
+- gosec: 未導入のため実行なし（手動レビューでの検出結果のみ記載。導入済みなら `gosec warnings: N`）
 - OWASP Coverage: 90%
 
 ### 推奨修正リスト
@@ -169,5 +153,5 @@ db.Where("name LIKE ?", "%"+name+"%").Find(&users)
 
 ## 関連スキル
 
-- `error-handling-patterns` - エラーメッセージのセキュア化
+- `security-checklist` - OWASP一般論・シークレット管理・統合チェックリスト
 - `database-indexing` - クエリパフォーマンスと安全性

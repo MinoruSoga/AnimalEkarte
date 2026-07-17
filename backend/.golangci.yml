@@ -8,6 +8,11 @@ formatters:
   enable:
     - gofmt
     - goimports
+  # cmd/seed-old-db は旧DB→新スキーマの一回限り移行CLIのため、gofmt/goimports の
+  # 整形チェックを緩和する（本番サーバコードの整形は維持）。
+  exclusions:
+    paths:
+      - cmd/seed-old-db/
   settings:
     goimports:
       local-prefixes:
@@ -86,11 +91,41 @@ linters:
           - gosec
           - wrapcheck
           - errcheck
+          # テストヘルパは context.Background() でフィクスチャを生成するため
+          # contextcheck は false positive（internal/handler/middleware と同じ方針）。
+          - contextcheck
+          # テストヘルパは可読性のため意図的に柔軟なシグネチャ（clinic/exam ID を明示
+          # param で受ける・現状の呼び出しが一様・返り値を呼び出し側が破棄）を持つ。
+          # unparam の「常に同値 param / 未使用 result」は prod 向け API 最小化ルールで、
+          # fixture を magic number 化させるだけなので test では緩和する
+          # （gosec/wrapcheck/errcheck と同じ test 緩和方針）。
+          - unparam
 
       # main.goはwrapcheck緩和
       - path: cmd/
         linters:
           - wrapcheck
+
+      # cmd/seed-old-db: 旧DB→新スキーマの一回限り移行CLIツール（本番サーバではない）。
+      # 一回実行のバッチに perf/style 系 linter は過剰なため緩和する。
+      #   gocritic : hugeParam/rangeValCopy/whyNoLint/unnamedResult（144B の ManifestEntry 値渡し等の micro-opt）
+      #   prealloc : スライス事前確保（同上）
+      - path: cmd/seed-old-db/
+        linters:
+          - gocritic
+          - prealloc
+
+      # gosec/staticcheck は本質的なバグ検出を維持し、誤検知・style の該当ルールのみ個別抑制する。
+      #   gosec G703         : manifest 指定のローカル開発用パス（信頼境界内）に対する path traversal 誤検知
+      #   staticcheck QF1001 : De Morgan 変換提案（style quickfix のみ。SA系バグ検出は維持）
+      - path: cmd/seed-old-db/
+        text: "G703"
+        linters:
+          - gosec
+      - path: cmd/seed-old-db/
+        text: "QF1001"
+        linters:
+          - staticcheck
 
       # Gin handler/middleware 層: *gin.Context が context.Context を内包するため
       # contextcheck は false positive を出す（c.Request.Context() で正しく伝播済み）
@@ -102,5 +137,7 @@ linters:
           - contextcheck
 
 issues:
-  max-issues-per-linter: 50
-  max-same-issues: 10
+  # 2026-06-30: max-same-issues:10 により11件目以降の同種issueがCI上で隠蔽される事故を経験した
+  # (27件一括解消 ci_lint_26_to_0_complete 参照)。真の正本gateは無制限。cap を再導入しない。
+  max-issues-per-linter: 0
+  max-same-issues: 0

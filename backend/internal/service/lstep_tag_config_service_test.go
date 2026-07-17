@@ -106,6 +106,16 @@ func TestListConditionTagMappings_OK(t *testing.T) {
 	assert.Len(t, items, 1)
 }
 
+func TestListConditionTagMappings_Error(t *testing.T) {
+	repo := &mockLstepTagConfigRepository{
+		findAllConditionTagMappingsFn: func(_ context.Context) ([]*model.LstepConditionTagMapping, error) {
+			return nil, errors.New("db error")
+		},
+	}
+	_, err := newTagConfigSvc(repo).ListConditionTagMappings(context.Background())
+	assert.Error(t, err)
+}
+
 func TestCreateConditionTagMapping_OK(t *testing.T) {
 	repo := &mockLstepTagConfigRepository{
 		createConditionTagMappingFn: func(_ context.Context, m *model.LstepConditionTagMapping) error {
@@ -121,6 +131,19 @@ func TestCreateConditionTagMapping_OK(t *testing.T) {
 	assert.Equal(t, uint64(20), item.ID)
 }
 
+func TestCreateConditionTagMapping_Error(t *testing.T) {
+	repo := &mockLstepTagConfigRepository{
+		createConditionTagMappingFn: func(_ context.Context, _ *model.LstepConditionTagMapping) error {
+			return errors.New("db error")
+		},
+	}
+	_, err := newTagConfigSvc(repo).CreateConditionTagMapping(context.Background(), CreateConditionTagMappingInput{
+		ConditionCode: "DM",
+		TagName:       "CHRON_DM",
+	})
+	assert.Error(t, err)
+}
+
 func TestDeleteConditionTagMapping_OK(t *testing.T) {
 	var deletedID uint64
 	repo := &mockLstepTagConfigRepository{
@@ -134,6 +157,16 @@ func TestDeleteConditionTagMapping_OK(t *testing.T) {
 	assert.Equal(t, uint64(7), deletedID)
 }
 
+func TestDeleteConditionTagMapping_Error(t *testing.T) {
+	repo := &mockLstepTagConfigRepository{
+		deleteConditionTagMappingFn: func(_ context.Context, _ uint64) error {
+			return errors.New("not found")
+		},
+	}
+	err := newTagConfigSvc(repo).DeleteConditionTagMapping(context.Background(), 99)
+	assert.Error(t, err)
+}
+
 // --- send_purpose_tag_prefixes ---
 
 func TestListSendPurposeTagPrefixes_OK(t *testing.T) {
@@ -145,6 +178,16 @@ func TestListSendPurposeTagPrefixes_OK(t *testing.T) {
 	items, err := newTagConfigSvc(repo).ListSendPurposeTagPrefixes(context.Background())
 	require.NoError(t, err)
 	assert.Len(t, items, 1)
+}
+
+func TestListSendPurposeTagPrefixes_Error(t *testing.T) {
+	repo := &mockLstepTagConfigRepository{
+		findAllSendPurposeTagPrefixesFn: func(_ context.Context) ([]*model.LstepSendPurposeTagPrefix, error) {
+			return nil, errors.New("db error")
+		},
+	}
+	_, err := newTagConfigSvc(repo).ListSendPurposeTagPrefixes(context.Background())
+	assert.Error(t, err)
 }
 
 func TestCreateSendPurposeTagPrefix_OK(t *testing.T) {
@@ -162,6 +205,19 @@ func TestCreateSendPurposeTagPrefix_OK(t *testing.T) {
 	assert.Equal(t, uint64(30), item.ID)
 }
 
+func TestCreateSendPurposeTagPrefix_Error(t *testing.T) {
+	repo := &mockLstepTagConfigRepository{
+		createSendPurposeTagPrefixFn: func(_ context.Context, _ *model.LstepSendPurposeTagPrefix) error {
+			return errors.New("db error")
+		},
+	}
+	_, err := newTagConfigSvc(repo).CreateSendPurposeTagPrefix(context.Background(), CreateSendPurposeTagPrefixInput{
+		Purpose:   "vaccine_reminder",
+		TagPrefix: "PREV_",
+	})
+	assert.Error(t, err)
+}
+
 func TestDeleteSendPurposeTagPrefix_OK(t *testing.T) {
 	var deletedID uint64
 	repo := &mockLstepTagConfigRepository{
@@ -173,4 +229,14 @@ func TestDeleteSendPurposeTagPrefix_OK(t *testing.T) {
 	err := newTagConfigSvc(repo).DeleteSendPurposeTagPrefix(context.Background(), 3)
 	require.NoError(t, err)
 	assert.Equal(t, uint64(3), deletedID)
+}
+
+func TestDeleteSendPurposeTagPrefix_Error(t *testing.T) {
+	repo := &mockLstepTagConfigRepository{
+		deleteSendPurposeTagPrefixFn: func(_ context.Context, _ uint64) error {
+			return errors.New("db error")
+		},
+	}
+	err := newTagConfigSvc(repo).DeleteSendPurposeTagPrefix(context.Background(), 99)
+	assert.Error(t, err)
 }

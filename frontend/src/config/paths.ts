@@ -317,6 +317,11 @@ export const paths = {
       path: "/settings/merchandise-items",
       getHref: () => "/settings/merchandise-items",
     },
+    // FE4-13: BUG-383 旧URL redirect先。settings-routes.tsx の shift-template → shift-templates
+    shiftTemplates: {
+      path: "/settings/shift-templates",
+      getHref: () => "/settings/shift-templates",
+    },
     // BUG-385: /settings/vaccine|examination|consultation|procedure は dead route。
     // router.tsx の実在ルートに合わせ、/settings/treatment-items?tab=xxx へ直接リンク。
     vaccine: {

@@ -1,6 +1,6 @@
 import { SortableDataTableRow } from "@/components/shared/DataTable/SortableDataTableRow";
 import { RowActionButton } from "@/components/shared/RowActionButton";
-import { NotionStatusPill } from "@/components/shared/StatusPill/NotionStatusPill";
+import { StatusPill } from "@/components/shared/StatusPill/StatusPill";
 import { TableCell } from "@/components/ui/table";
 import { C } from "@/lib/design-tokens";
 
@@ -30,7 +30,7 @@ export function DiagnosisTypeRow({
         {item.description || "-"}
       </TableCell>
       <TableCell className="text-center">
-        <NotionStatusPill isActive={item.isActive} />
+        <StatusPill isActive={item.isActive} />
       </TableCell>
       <TableCell className="p-0 text-right">
         {canEdit ? <RowActionButton onClick={() => onEdit(item)} /> : null}
@@ -65,7 +65,7 @@ export function DiagnosisNameRow({
         {item.name}
       </TableCell>
       <TableCell className="text-center">
-        <NotionStatusPill isActive={item.isActive} />
+        <StatusPill isActive={item.isActive} />
       </TableCell>
       <TableCell className="p-0 text-right">
         {canEdit ? <RowActionButton onClick={() => onEdit(item)} /> : null}

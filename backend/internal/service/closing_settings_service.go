@@ -45,11 +45,24 @@ type ClosingSettingsResponse struct {
 	SpecialPeriods []model.ClosingSpecialPeriod `json:"special_periods"`
 }
 
+// defaultClosingAmStart は AM 開始時刻の既定値（#215）。migration 011 の DB default と一致させる。
+const defaultClosingAmStart = "09:00"
+
 // DaySchedule は指定日の締め時間スケジュール
 type DaySchedule struct {
 	AmPmBoundary string `json:"am_pm_boundary"`
 	PmEnd        string `json:"pm_end"`
-	IsHoliday    bool   `json:"is_holiday"`
+	// AmStart は AM 開始時刻（#215）。空の場合は既定 09:00 として扱う（resolvePeriodRange 側でフォールバック）。
+	AmStart   string `json:"am_start"`
+	IsHoliday bool   `json:"is_holiday"`
+}
+
+// amStartOrDefault は設定の AM 開始時刻を返す。未設定（migration 011 以前のデータ・zero-value）は既定 09:00。
+func amStartOrDefault(settings *model.ClinicSettings) string {
+	if settings != nil && settings.ClosingAmStart != "" {
+		return settings.ClosingAmStart
+	}
+	return defaultClosingAmStart
 }
 
 // UpdateClinicSettingsInput は標準設定更新の入力
@@ -159,11 +172,11 @@ func (s *closingSettingsService) UpdateStandard(ctx context.Context, clinicID ui
 }
 
 func (s *closingSettingsService) CreateSpecialPeriod(ctx context.Context, clinicID uint64, input *CreateSpecialPeriodInput) (*model.ClosingSpecialPeriod, error) {
-	startDate, err := time.ParseInLocation("2006-01-02", input.StartDate, time.Local)
+	startDate, err := time.ParseInLocation(time.DateOnly, input.StartDate, time.Local)
 	if err != nil {
 		return nil, apperrors.WrapInvalidInput("start_date は YYYY-MM-DD 形式で指定してください")
 	}
-	endDate, err := time.ParseInLocation("2006-01-02", input.EndDate, time.Local)
+	endDate, err := time.ParseInLocation(time.DateOnly, input.EndDate, time.Local)
 	if err != nil {
 		return nil, apperrors.WrapInvalidInput("end_date は YYYY-MM-DD 形式で指定してください")
 	}
@@ -226,7 +239,7 @@ func (s *closingSettingsService) UpdateSpecialPeriod(ctx context.Context, clinic
 	endDate := current.EndDate
 	var parsedStart, parsedEnd *time.Time
 	if input.StartDate != nil {
-		t, err := time.ParseInLocation("2006-01-02", *input.StartDate, time.Local)
+		t, err := time.ParseInLocation(time.DateOnly, *input.StartDate, time.Local)
 		if err != nil {
 			return nil, apperrors.WrapInvalidInput("start_date は YYYY-MM-DD 形式で指定してください")
 		}
@@ -234,7 +247,7 @@ func (s *closingSettingsService) UpdateSpecialPeriod(ctx context.Context, clinic
 		startDate = t
 	}
 	if input.EndDate != nil {
-		t, err := time.ParseInLocation("2006-01-02", *input.EndDate, time.Local)
+		t, err := time.ParseInLocation(time.DateOnly, *input.EndDate, time.Local)
 		if err != nil {
 			return nil, apperrors.WrapInvalidInput("end_date は YYYY-MM-DD 形式で指定してください")
 		}
@@ -296,9 +309,16 @@ func (s *closingSettingsService) ResolveSchedule(ctx context.Context, clinicID u
 		return nil, apperrors.Wrap(err, "failed to find special period")
 	}
 	if special != nil {
+		// #215: 特別期間は am_start を持たないため標準設定の値を継承する。
+		settings, err := s.settingsRepo.FindByClinicID(ctx, clinicID)
+		if err != nil {
+			slog.ErrorContext(ctx, "failed to get clinic settings for am_start", "error", err, "clinic_id", clinicID)
+			return nil, apperrors.Wrap(err, "failed to get clinic settings")
+		}
 		return &DaySchedule{
 			AmPmBoundary: special.AmPmBoundary,
 			PmEnd:        special.PmEnd,
+			AmStart:      amStartOrDefault(settings),
 			IsHoliday:    false,
 		}, nil
 	}
@@ -332,9 +352,9 @@ func (s *closingSettingsService) ResolveSchedule(ctx context.Context, clinicID u
 			slog.ErrorContext(ctx, "failed to find clinic holidays", "error", err, "clinic_id", clinicID)
 			return nil, apperrors.Wrap(err, "failed to find clinic holidays")
 		}
-		dateStr := date.Format("2006-01-02")
+		dateStr := date.Format(time.DateOnly)
 		for _, h := range holidays {
-			if h.Date.Format("2006-01-02") == dateStr {
+			if h.Date.Format(time.DateOnly) == dateStr {
 				isHoliday = true
 				break
 			}
@@ -344,6 +364,7 @@ func (s *closingSettingsService) ResolveSchedule(ctx context.Context, clinicID u
 	return &DaySchedule{
 		AmPmBoundary: settings.ClosingAmPmBoundary,
 		PmEnd:        pmEnd,
+		AmStart:      amStartOrDefault(settings),
 		IsHoliday:    isHoliday,
 	}, nil
 }

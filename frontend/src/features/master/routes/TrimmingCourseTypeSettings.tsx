@@ -5,15 +5,15 @@ import { useSidePeekDirty } from "@/hooks/use-side-peek-dirty";
 import { TableCell } from "@/components/ui/table";
 import { DataTableRow } from "@/components/shared/DataTable/DataTableRow";
 import { RowActionButton } from "@/components/shared/RowActionButton";
-import { NotionStatusPill } from "@/components/shared/StatusPill/NotionStatusPill";
+import { StatusPill } from "@/components/shared/StatusPill/StatusPill";
 import { C, ICON } from "@/lib/design-tokens";
 import { ResourceMasterTrimming } from "@/types/generated/models";
-import { MASTER_STATUS_FILTER } from "../constants/styles";
+import { MASTER_STATUS_FILTER, MASTER_TABLE_COL } from "../constants/styles";
 import { useMasterCRUD } from "../hooks/use-master-crud";
 import { useMasterSave } from "../hooks/use-master-save";
 import { MasterCRUDPage } from "../components/MasterCRUDPage";
 import { TrimmingCourseTypeSidePanel } from "../components/TrimmingCourseTypeSidePanel";
-import type { TrimmingCourseTypeFormData } from "../components/TrimmingCourseTypeSidePanelModel";
+import type { TrimmingCourseTypeFormData } from "../components/trimming-course-type-side-panel-model";
 import {
   useGetTrimmingCourseTypes,
   useCreateTrimmingCourseType,
@@ -28,13 +28,13 @@ import type {
 import {
   buildTrimmingCourseTypeCreateRequest,
   buildTrimmingCourseTypeUpdateRequest,
-} from "./TrimmingCourseTypeSettingsModel";
+} from "./trimming-course-type-settings-model";
 
 // ─── Constants ───
 const COLUMNS = [
   { header: "名称", className: "flex-1" },
-  { header: "ステータス", className: "w-[90px]", align: "center" as const },
-  { header: "操作", className: "w-[80px]", align: "right" as const },
+  { header: "ステータス", className: MASTER_TABLE_COL.w100, align: "center" as const },
+  { header: "操作", className: MASTER_TABLE_COL.w80, align: "right" as const },
 ];
 
 // ─── Page ───
@@ -86,7 +86,7 @@ export function TrimmingCourseTypeSettings() {
       renderRow={(item, onEdit, canEdit) => (
         <DataTableRow key={item.id} onClick={canEdit ? () => onEdit(item) : undefined}>
           <TableCell className={`font-medium text-base ${C.text}`}>{item.name}</TableCell>
-          <TableCell className="text-center"><NotionStatusPill isActive={item.isActive} /></TableCell>
+          <TableCell className="text-center"><StatusPill isActive={item.isActive} /></TableCell>
           <TableCell className="p-0 text-right">{canEdit ? <RowActionButton onClick={() => onEdit(item)} /> : null}</TableCell>
         </DataTableRow>
       )}

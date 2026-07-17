@@ -32,11 +32,11 @@ func toChronicConditionResponse(r *model.PetChronicCondition) chronicConditionRe
 		PetID:         r.PetID,
 		ConditionCode: r.ConditionCode,
 		ConditionName: r.ConditionName,
-		DiagnosedAt:   r.DiagnosedAt.In(time.Local).Format("2006-01-02"),
+		DiagnosedAt:   r.DiagnosedAt.In(time.Local).Format(time.DateOnly),
 		Notes:         r.Notes,
 		IsActive:      r.IsActive,
-		CreatedAt:     r.CreatedAt.In(time.Local).Format(time.RFC3339),
-		UpdatedAt:     r.UpdatedAt.In(time.Local).Format(time.RFC3339),
+		CreatedAt:     localTimeRFC3339(r.CreatedAt),
+		UpdatedAt:     localTimeRFC3339(r.UpdatedAt),
 	}
 }
 

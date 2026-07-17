@@ -1,35 +1,15 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import { handleApiError } from "@/lib/handle-api-error";
-import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
-import type { ReservationTypeUnavailableTime as ReservationTypeUnavailableTimeRaw } from "@/types/generated/models";
+import { unavailableTimesKey } from "@/hooks/use-reservation-type-unavailable-times";
 
-// ─────────────────────────────────────────────────
-// Transform function
-// ─────────────────────────────────────────────────
-
-function transformUnavailableTime(
-  raw: ReservationTypeUnavailableTimeRaw,
-) {
-  return {
-    id: raw.id,
-    clinicId: raw.clinic_id,
-    reservationTypeId: raw.reservation_type_id,
-    unavailableType: raw.unavailable_type,
-    dayOfWeek: raw.day_of_week ?? undefined,
-    specificDate: raw.specific_date ?? undefined,
-    startTime: raw.start_time,
-    endTime: raw.end_time,
-    createdAt: raw.created_at,
-    updatedAt: raw.updated_at,
-  };
-}
-
-// ─────────────────────────────────────────────────
-// Domain type
-// ─────────────────────────────────────────────────
-
-export type ReservationTypeUnavailableTime = ReturnType<typeof transformUnavailableTime>;
+// FE6-16: useGetUnavailableTimes / transformUnavailableTime / ReservationTypeUnavailableTime 型は
+// components/shared/ReservationFormModal からも参照される cross-feature データ取得のため
+// @/hooks/use-reservation-type-unavailable-times.ts へ移設。
+// このファイルには master 画面専用の CRUD mutation のみ残す。
+export {
+  useGetUnavailableTimes,
+} from "@/hooks/use-reservation-type-unavailable-times";
 
 // ─────────────────────────────────────────────────
 // Request types
@@ -44,34 +24,8 @@ export type CreateUnavailableTimeRequest = {
 };
 
 // ─────────────────────────────────────────────────
-// Query keys
-// ─────────────────────────────────────────────────
-
-const unavailableTimesKey = (
-  clinicId: string | null,
-  reservationTypeId: string,
-) => [
-  "masters",
-  "clinics",
-  clinicId,
-  "reservation-types",
-  reservationTypeId,
-  "unavailable-times",
-] as const;
-
-// ─────────────────────────────────────────────────
 // API functions
 // ─────────────────────────────────────────────────
-
-async function getUnavailableTimes(
-  reservationTypeId: string,
-): Promise<ReservationTypeUnavailableTime[]> {
-  const { data } = await axios.get<ReservationTypeUnavailableTimeRaw[] | { data: ReservationTypeUnavailableTimeRaw[] }>(
-    `/v1/masters/reservation-types/${reservationTypeId}/unavailable-times`,
-  );
-  const items = Array.isArray(data) ? data : data.data;
-  return items.map(transformUnavailableTime);
-}
 
 async function createUnavailableTime(
   reservationTypeId: string,
@@ -93,18 +47,8 @@ async function deleteUnavailableTime(
 }
 
 // ─────────────────────────────────────────────────
-// Query hooks
+// Mutation hooks
 // ─────────────────────────────────────────────────
-
-export function useGetUnavailableTimes(clinicId: string | null, reservationTypeId: string) {
-  return useQuery({
-    queryKey: unavailableTimesKey(clinicId, reservationTypeId),
-    queryFn: () => getUnavailableTimes(reservationTypeId),
-    enabled: clinicId !== null && reservationTypeId !== "",
-    staleTime: QUERY_STALE_TIMES.STATIC,
-    gcTime: QUERY_GC_TIMES.LONG,
-  });
-}
 
 export function useCreateUnavailableTime(clinicId: string, reservationTypeId: string) {
   const queryClient = useQueryClient();

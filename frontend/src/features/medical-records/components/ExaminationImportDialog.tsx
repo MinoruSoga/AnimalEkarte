@@ -10,7 +10,8 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Button } from "@/components/ui/button";
 import { C, ICON, STYLE } from "@/lib/design-tokens";
 import { handleApiError } from "@/lib/handle-api-error";
-import { useGetExaminations, useUpdateExamination } from "@/features/examinations";
+import { useGetExaminations } from "@/hooks/use-examinations";
+import { useUpdateExamination } from "@/hooks/use-update-examination";
 
 interface ExaminationImportDialogProps {
   open: boolean;
@@ -145,7 +146,7 @@ export const ExaminationImportDialog = memo(function ExaminationImportDialog({
             type="button"
             onClick={handleImport}
             disabled={selectedIds.size === 0 || isLinking}
-            className={`${C.bgAccent} ${C.bgAccentHover} ${C.textWhite} border-transparent`}
+            className={`${C.bgBrand} ${C.hoverBgBrand} ${C.textWhite} rounded-full border-transparent`}
           >
             {isLinking ? "取り込み中..." : `${selectedIds.size}件取り込む`}
           </Button>

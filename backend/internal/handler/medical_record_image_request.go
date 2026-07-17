@@ -16,6 +16,9 @@ import (
 
 const medicalRecordImageMaxUploadSize = 10 * 1024 * 1024 // 10MB
 
+// GIF を許可するのは意図的: カルテ画像は院内保存専用で LINE 配信を経由しないため、
+// 歩様など動きの記録に有用な GIF を受け付ける。LINE 配信経路の共有ファイル
+// （model/shared_file.go AllowedFileExtensions）は LINE API 制約で GIF 不可 — 同期してはならない。
 var allowedMedicalRecordImageMIMETypes = map[string]bool{
 	"image/jpeg":      true,
 	"image/png":       true,

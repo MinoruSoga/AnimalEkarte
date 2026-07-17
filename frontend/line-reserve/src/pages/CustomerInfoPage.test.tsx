@@ -1,4 +1,5 @@
 import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 
 import { CustomerInfoPage } from './CustomerInfoPage';
@@ -66,5 +67,139 @@ describe('CustomerInfoPage', () => {
     expect(screen.getByRole('checkbox')).toBeChecked();
     expect(screen.getByText('タマ')).toBeInTheDocument();
     expect(screen.getByText('(猫)')).toBeInTheDocument();
+  });
+
+  describe('R-F4: バリデーション（必須項目）', () => {
+    it('お名前・電話番号が未入力のとき「次へ」で止まり、両方のエラーメッセージを表示する', async () => {
+      const user = userEvent.setup();
+      const onNext = vi.fn();
+
+      render(
+        <CustomerInfoPage
+          profile={null}
+          initialInfo={emptyInfo}
+          onNext={onNext}
+          onBack={vi.fn()}
+        />
+      );
+
+      await user.click(screen.getByRole('button', { name: '次へ' }));
+
+      expect(screen.getByText('お名前を入力してください')).toBeInTheDocument();
+      expect(screen.getByText('電話番号を入力してください')).toBeInTheDocument();
+      expect(onNext).not.toHaveBeenCalled();
+    });
+
+    it('必須項目を入力すると次へ進み、onNext に入力値が渡る', async () => {
+      const user = userEvent.setup();
+      const onNext = vi.fn();
+
+      render(
+        <CustomerInfoPage
+          profile={null}
+          initialInfo={emptyInfo}
+          onNext={onNext}
+          onBack={vi.fn()}
+        />
+      );
+
+      await user.type(screen.getByLabelText(/お名前/), '鈴木一郎');
+      await user.type(screen.getByLabelText(/電話番号/), '070-9999-8888');
+      await user.click(screen.getByRole('button', { name: '次へ' }));
+
+      expect(onNext).toHaveBeenCalledWith({
+        name: '鈴木一郎',
+        phone: '070-9999-8888',
+        ownerName: '',
+        pets: [],
+      });
+    });
+
+    it('エラー表示後に再入力するとそのフィールドのエラーが消える', async () => {
+      const user = userEvent.setup();
+
+      render(
+        <CustomerInfoPage
+          profile={null}
+          initialInfo={emptyInfo}
+          onNext={vi.fn()}
+          onBack={vi.fn()}
+        />
+      );
+
+      await user.click(screen.getByRole('button', { name: '次へ' }));
+      expect(screen.getByText('お名前を入力してください')).toBeInTheDocument();
+
+      await user.type(screen.getByLabelText(/お名前/), '鈴木');
+      expect(screen.queryByText('お名前を入力してください')).not.toBeInTheDocument();
+    });
+  });
+
+  describe('R-F4: 新規ペット追加/削除', () => {
+    it('「+ 新しいペットを追加」→ペット名入力→追加すると一覧に表示され、onNext の pets に反映される', async () => {
+      const user = userEvent.setup();
+      const onNext = vi.fn();
+
+      render(
+        <CustomerInfoPage
+          profile={null}
+          initialInfo={emptyInfo}
+          onNext={onNext}
+          onBack={vi.fn()}
+        />
+      );
+
+      await user.click(screen.getByRole('button', { name: '+ 新しいペットを追加' }));
+      await user.type(screen.getByLabelText('ペット名'), 'ポチ');
+      await user.type(screen.getByLabelText('種類'), '柴犬');
+      await user.click(screen.getByRole('button', { name: '追加' }));
+
+      expect(screen.getByText('ポチ')).toBeInTheDocument();
+      expect(screen.getByText('(柴犬)')).toBeInTheDocument();
+
+      await user.type(screen.getByLabelText(/お名前/), '山田');
+      await user.type(screen.getByLabelText(/電話番号/), '0312345678');
+      await user.click(screen.getByRole('button', { name: '次へ' }));
+
+      expect(onNext).toHaveBeenCalledWith(
+        expect.objectContaining({
+          pets: [{ name: 'ポチ', type: '柴犬', isNew: true }],
+        }),
+      );
+    });
+
+    it('追加済みの新規ペットを削除できる', async () => {
+      const user = userEvent.setup();
+
+      render(
+        <CustomerInfoPage
+          profile={null}
+          initialInfo={{ ...emptyInfo, pets: [{ name: 'ポチ', type: '柴犬', isNew: true }] }}
+          onNext={vi.fn()}
+          onBack={vi.fn()}
+        />
+      );
+
+      expect(screen.getByText('ポチ')).toBeInTheDocument();
+      await user.click(screen.getByRole('button', { name: 'ポチを削除' }));
+
+      expect(screen.queryByText('ポチ')).not.toBeInTheDocument();
+    });
+
+    it('ペット名が空欄のときは「追加」ボタンが無効化される', async () => {
+      const user = userEvent.setup();
+
+      render(
+        <CustomerInfoPage
+          profile={null}
+          initialInfo={emptyInfo}
+          onNext={vi.fn()}
+          onBack={vi.fn()}
+        />
+      );
+
+      await user.click(screen.getByRole('button', { name: '+ 新しいペットを追加' }));
+      expect(screen.getByRole('button', { name: '追加' })).toBeDisabled();
+    });
   });
 });

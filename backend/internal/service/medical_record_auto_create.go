@@ -4,8 +4,10 @@ import (
 	"context"
 	"log/slog"
 	"strings"
+	"time"
 
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/repository"
 )
 
 func (s *medicalRecordService) AutoCreateFromReservation(ctx context.Context, clinicID uint64, reservation *model.Reservation) {
@@ -47,8 +49,12 @@ func (s *medicalRecordService) AutoCreateFromReservation(ctx context.Context, cl
 	}
 
 	// 同日同ペットのカルテ存在チェック（重複防止）
-	dateStr := reservation.StartTime.Format("2006-01-02")
-	_, total, err := s.repo.FindAll(ctx, []uint64{clinicID}, reservation.PetID, nil, &dateStr, &dateStr, 1, 1)
+	dateStr := reservation.StartTime.Format(time.DateOnly)
+	_, total, err := s.repo.FindAll(ctx, []uint64{clinicID}, repository.MedicalRecordListFilters{
+		PetID:     reservation.PetID,
+		StartDate: &dateStr,
+		EndDate:   &dateStr,
+	}, 1, 1)
 	if err != nil {
 		slog.WarnContext(ctx, "autoCreateFromReservation: failed to check existing records",
 			slog.Uint64("reservation_id", reservation.ID),

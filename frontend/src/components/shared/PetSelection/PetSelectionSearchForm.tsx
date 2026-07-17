@@ -66,10 +66,12 @@ export const PetSelectionSearchForm = memo(function PetSelectionSearchForm({ sea
         >
           クリア
         </Button>
+        {/* docs/spec/design-system.md button-primary: brand teal #038B94 + pill。cn()/tailwind-merge が
+            クラス競合を解決するため、後続の brand トークンで安全に上書きできる。 */}
         <Button
           size="sm"
           onClick={onSearch}
-          className={cn("gap-2 h-11 text-sm", C.textWhite, C.bgAccent, C.bgAccentHover)}
+          className={cn("gap-2 h-11 text-sm rounded-full", C.textWhite, C.bgBrand, C.hoverBgBrand)}
         >
           <Search className={ICON.action} />
           検索

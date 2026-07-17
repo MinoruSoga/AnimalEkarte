@@ -51,10 +51,7 @@ type closingSettingsFullResponse struct {
 }
 
 func toClosingSettingsFullResponse(s *model.ClinicSettings, periods []model.ClosingSpecialPeriod) closingSettingsFullResponse {
-	sp := make([]closingSpecialPeriodResponse, 0, len(periods))
-	for i := range periods {
-		sp = append(sp, toClosingSpecialPeriodResponse(&periods[i]))
-	}
+	sp := mapSlice(periods, toClosingSpecialPeriodResponse)
 	return closingSettingsFullResponse{
 		Settings:       toClinicSettingsResponse(s),
 		SpecialPeriods: sp,
@@ -65,8 +62,8 @@ func toClosingSpecialPeriodResponse(p *model.ClosingSpecialPeriod) closingSpecia
 	return closingSpecialPeriodResponse{
 		ID:           p.ID,
 		ClinicID:     p.ClinicID,
-		StartDate:    p.StartDate.In(time.Local).Format("2006-01-02"),
-		EndDate:      p.EndDate.In(time.Local).Format("2006-01-02"),
+		StartDate:    p.StartDate.In(time.Local).Format(time.DateOnly),
+		EndDate:      p.EndDate.In(time.Local).Format(time.DateOnly),
 		AmPmBoundary: p.AmPmBoundary,
 		PmEnd:        p.PmEnd,
 		Note:         p.Note,

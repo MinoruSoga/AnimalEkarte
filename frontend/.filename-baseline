@@ -1,0 +1,23 @@
+# FE-refactor.md「R-F3: features 配下ファイル名規則の機械強制」ratchet baseline
+# （scripts/check-feature-filename-convention.mjs が参照）。
+#
+# src/features/** 配下の非コンポーネント .ts（.tsx は対象外）で、basename に
+# 大文字を含むもの（kebab-case 非準拠）の合計件数を1行の数値で記録する。
+#
+# R-F3-S1 で PascalCase *Model.ts 53件 + 同種4件を kebab-case にリネーム済み。
+# R-F3-S2 で hooks/ 外に置かれたカスタムフック11件 + StaffSidePanelSelection.ts 1件を
+# 各 feature の hooks/ へ移動しつつ kebab-case に統一済み（12件解消、20→8）。
+# R-F3-S3 で settings/integrations/lstep/ を標準 feature 構成
+# （api/components/hooks/routes/__tests__）へ平坦化し、camelCase フック4件を
+# kebab-case に統一済み（4件解消、8→4）。
+#
+# R-F3-S8 で残存4件（AccountingDetailModel.test.ts, LoginForm.demo-guard.test.ts,
+# ManualContent.test.ts, ReservationManagement.filter.test.ts）を kebab-case に
+# リネームし解消済み（4件解消、4→0）。R-F3 の filename ratchet はこれで完全クローズ。
+#
+# 2026-07-09 実測（node scripts/check-feature-filename-convention.mjs で算出、
+# 現在の src/features/** 全件スキャン）: 0
+#
+# 更新規則: 新規 PascalCase .ts が src/features/** に追加された場合、baseline 0 により
+# 即 FAIL する（ratchet 締め後）。追加の要否自体を再検討すること。
+0

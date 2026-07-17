@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import { handleApiError } from "@/lib/handle-api-error";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
+import { queryKeys } from "@/lib/query-keys";
 import type { ReservationTypeAvailableSlot as ReservationTypeAvailableSlotRaw } from "@/types/generated/models";
 
 function transformAvailableSlot(raw: ReservationTypeAvailableSlotRaw) {
@@ -29,14 +30,8 @@ export type CreateAvailableSlotRequest = {
   specific_date?: string;
 };
 
-const availableSlotsKey = (clinicId: string, reservationTypeId: string) => [
-  "masters",
-  "clinics",
-  clinicId,
-  "reservation-types",
-  reservationTypeId,
-  "available-slots",
-] as const;
+const availableSlotsKey = (clinicId: string, reservationTypeId: string) =>
+  queryKeys.masters.reservationTypeSubResource(clinicId, reservationTypeId, "available-slots");
 
 async function getAvailableSlots(
   reservationTypeId: string,

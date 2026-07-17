@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import { handleApiError } from "@/lib/handle-api-error";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
+import { queryKeys } from "@/lib/query-keys";
 import type { InquiryTemplate as ModelInquiryTemplate } from "@/types/generated/models";
 
 // ─────────────────────────────────────────────────
@@ -45,25 +46,23 @@ export type InquiryTemplate = ReturnType<typeof transformInquiryTemplate>;
 // Query keys
 // ─────────────────────────────────────────────────
 
-const INQUIRY_TEMPLATES_QUERY_KEY = ["masters", "inquiry-templates"] as const;
-
 // ─────────────────────────────────────────────────
 // API functions
 // ─────────────────────────────────────────────────
 
-export async function listInquiryTemplates(): Promise<InquiryTemplate[]> {
+async function listInquiryTemplates(): Promise<InquiryTemplate[]> {
   const { data } = await axios.get<ModelInquiryTemplate[]>("/v1/masters/inquiry-templates");
   return data.map(transformInquiryTemplate);
 }
 
-export async function createInquiryTemplate(
+async function createInquiryTemplate(
   req: CreateInquiryTemplateRequest
 ): Promise<InquiryTemplate> {
   const { data } = await axios.post<ModelInquiryTemplate>("/v1/masters/inquiry-templates", req);
   return transformInquiryTemplate(data);
 }
 
-export async function updateInquiryTemplate(
+async function updateInquiryTemplate(
   id: string,
   req: UpdateInquiryTemplateRequest
 ): Promise<InquiryTemplate> {
@@ -74,7 +73,7 @@ export async function updateInquiryTemplate(
   return transformInquiryTemplate(data);
 }
 
-export async function deleteInquiryTemplate(id: string): Promise<void> {
+async function deleteInquiryTemplate(id: string): Promise<void> {
   await axios.delete(`/v1/masters/inquiry-templates/${id}`);
 }
 
@@ -84,7 +83,7 @@ export async function deleteInquiryTemplate(id: string): Promise<void> {
 
 export function useGetInquiryTemplates() {
   return useQuery({
-    queryKey: INQUIRY_TEMPLATES_QUERY_KEY,
+    queryKey: queryKeys.masters.category("inquiry-templates"),
     queryFn: listInquiryTemplates,
     staleTime: QUERY_STALE_TIMES.STATIC,
     gcTime: QUERY_GC_TIMES.LONG,
@@ -96,7 +95,7 @@ export function useCreateInquiryTemplate() {
   return useMutation({
     mutationFn: createInquiryTemplate,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: INQUIRY_TEMPLATES_QUERY_KEY });
+      queryClient.invalidateQueries({ queryKey: queryKeys.masters.category("inquiry-templates") });
     },
     onError: (error) => handleApiError(error, "作成"),
   });
@@ -108,7 +107,7 @@ export function useUpdateInquiryTemplate() {
     mutationFn: ({ id, req }: { id: string; req: UpdateInquiryTemplateRequest }) =>
       updateInquiryTemplate(id, req),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: INQUIRY_TEMPLATES_QUERY_KEY });
+      queryClient.invalidateQueries({ queryKey: queryKeys.masters.category("inquiry-templates") });
     },
     onError: (error) => handleApiError(error, "更新"),
   });
@@ -119,23 +118,9 @@ export function useDeleteInquiryTemplate() {
   return useMutation({
     mutationFn: deleteInquiryTemplate,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: INQUIRY_TEMPLATES_QUERY_KEY });
+      queryClient.invalidateQueries({ queryKey: queryKeys.masters.category("inquiry-templates") });
     },
     onError: (error) => handleApiError(error, "削除"),
   });
 }
 
-export async function reorderInquiryTemplates(ids: number[]): Promise<void> {
-  await axios.patch("/v1/masters/inquiry-templates/reorder", { ids });
-}
-
-export function useReorderInquiryTemplates() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (ids: number[]) => reorderInquiryTemplates(ids),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: INQUIRY_TEMPLATES_QUERY_KEY });
-    },
-    onError: (error) => handleApiError(error, "並び替え"),
-  });
-}

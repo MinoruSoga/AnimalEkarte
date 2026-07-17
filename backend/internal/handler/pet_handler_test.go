@@ -1,14 +1,575 @@
 package handler
 
 import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"testing"
+	"time"
 
+	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	apperrors "github.com/animal-ekarte/backend/internal/errors"
+	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/service"
 )
 
 // TestPetHandlerCompiles verifies pet_handler.go compiles
 func TestPetHandlerCompiles(t *testing.T) {
 	assert.True(t, true, "pet_handler.go compiled successfully")
+}
+
+// ---- mock PetService (full, for pet_handler.go tests) ----
+// NOTE: vaccination_handler_test.go already defines a minimal `mockPetService`
+// (used only for tag-sync pass-through). This handler needs every PetService
+// method independently configurable, so it uses a distinctly-named mock to
+// avoid redeclaring that type.
+type mockPetServiceHandler struct {
+	listFn              func(ctx context.Context, clinicID uint64, ownerID *uint64, page, limit int, search string) ([]model.Pet, int64, error)
+	getByIDFn           func(ctx context.Context, clinicID, id uint64) (*model.Pet, error)
+	getByIDForClinicsFn func(ctx context.Context, clinicIDs []uint64, id uint64) (*model.Pet, error)
+	createFn            func(ctx context.Context, clinicID uint64, input *service.CreatePetInput) (*model.Pet, error)
+	updateFn            func(ctx context.Context, clinicID, id uint64, input *service.UpdatePetInput) (*model.Pet, error)
+	deleteFn            func(ctx context.Context, clinicID, id uint64) error
+	getFirstVisitDateFn func(ctx context.Context, clinicID, petID uint64) (*time.Time, error)
+}
+
+func (m *mockPetServiceHandler) List(ctx context.Context, clinicID uint64, ownerID *uint64, page, limit int, search string) ([]model.Pet, int64, error) {
+	return m.listFn(ctx, clinicID, ownerID, page, limit, search)
+}
+
+func (m *mockPetServiceHandler) GetByID(ctx context.Context, clinicID, id uint64) (*model.Pet, error) {
+	return m.getByIDFn(ctx, clinicID, id)
+}
+
+func (m *mockPetServiceHandler) GetByIDForClinics(ctx context.Context, clinicIDs []uint64, id uint64) (*model.Pet, error) {
+	return m.getByIDForClinicsFn(ctx, clinicIDs, id)
+}
+
+func (m *mockPetServiceHandler) Create(ctx context.Context, clinicID uint64, input *service.CreatePetInput) (*model.Pet, error) {
+	return m.createFn(ctx, clinicID, input)
+}
+
+func (m *mockPetServiceHandler) Update(ctx context.Context, clinicID, id uint64, input *service.UpdatePetInput) (*model.Pet, error) {
+	return m.updateFn(ctx, clinicID, id, input)
+}
+
+func (m *mockPetServiceHandler) Delete(ctx context.Context, clinicID, id uint64) error {
+	return m.deleteFn(ctx, clinicID, id)
+}
+
+func (m *mockPetServiceHandler) GetFirstVisitDate(ctx context.Context, clinicID, petID uint64) (*time.Time, error) {
+	return m.getFirstVisitDateFn(ctx, clinicID, petID)
+}
+
+func newHandlerWithPetSvcHandler(svc service.PetService) *Handler {
+	return &Handler{svc: &service.Services{Pet: svc}}
+}
+
+// ---- ListPets ----
+
+func TestListPets(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	tests := []struct {
+		name       string
+		query      string
+		setupCtx   func(c *gin.Context)
+		svc        *mockPetServiceHandler
+		wantStatus int
+		wantBody   string
+	}{
+		{
+			name:     "returns paginated pets",
+			query:    "page=1&limit=10&owner_id=5&search=momo",
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockPetServiceHandler{
+				listFn: func(_ context.Context, clinicID uint64, ownerID *uint64, page, limit int, search string) ([]model.Pet, int64, error) {
+					assert.Equal(t, uint64(1), clinicID)
+					require.NotNil(t, ownerID)
+					assert.Equal(t, uint64(5), *ownerID)
+					assert.Equal(t, 1, page)
+					assert.Equal(t, 10, limit)
+					assert.Equal(t, "momo", search)
+					return []model.Pet{{ID: 1, Name: "ポチ"}}, 1, nil
+				},
+			},
+			wantStatus: http.StatusOK,
+			wantBody:   `"name":"ポチ"`,
+		},
+		{
+			name:       "returns 401 when clinic_id is missing",
+			setupCtx:   func(_ *gin.Context) {},
+			svc:        &mockPetServiceHandler{},
+			wantStatus: http.StatusUnauthorized,
+		},
+		{
+			name:       "returns 400 for invalid pagination",
+			query:      "page=0",
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockPetServiceHandler{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:       "returns 400 for invalid owner_id",
+			query:      "owner_id=abc",
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockPetServiceHandler{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:     "returns 500 on service error",
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockPetServiceHandler{
+				listFn: func(_ context.Context, _ uint64, _ *uint64, _, _ int, _ string) ([]model.Pet, int64, error) {
+					return nil, 0, fmt.Errorf("db failure")
+				},
+			},
+			wantStatus: http.StatusInternalServerError,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := newHandlerWithPetSvcHandler(tt.svc)
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			c.Request = httptest.NewRequest(http.MethodGet, "/?"+tt.query, http.NoBody)
+			tt.setupCtx(c)
+
+			h.ListPets(c)
+
+			assert.Equal(t, tt.wantStatus, w.Code)
+			if tt.wantBody != "" {
+				assert.Contains(t, w.Body.String(), tt.wantBody)
+			}
+		})
+	}
+}
+
+// ---- GetPet ----
+
+func TestGetPet(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	tests := []struct {
+		name       string
+		paramID    string
+		setupCtx   func(c *gin.Context)
+		svc        *mockPetServiceHandler
+		wantStatus int
+		wantBody   string
+	}{
+		{
+			name:     "returns pet by id across assigned clinics",
+			paramID:  "1",
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockPetServiceHandler{
+				getByIDForClinicsFn: func(_ context.Context, clinicIDs []uint64, id uint64) (*model.Pet, error) {
+					assert.Equal(t, []uint64{1}, clinicIDs)
+					assert.Equal(t, uint64(1), id)
+					return &model.Pet{ID: 1, Name: "ポチ"}, nil
+				},
+			},
+			wantStatus: http.StatusOK,
+			wantBody:   `"name":"ポチ"`,
+		},
+		{
+			name:       "returns 401 when clinic_id is missing",
+			paramID:    "1",
+			setupCtx:   func(_ *gin.Context) {},
+			svc:        &mockPetServiceHandler{},
+			wantStatus: http.StatusUnauthorized,
+		},
+		{
+			name:       "returns 400 for non-numeric id",
+			paramID:    "xyz",
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockPetServiceHandler{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:     "returns 404 when pet not found",
+			paramID:  "999",
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockPetServiceHandler{
+				getByIDForClinicsFn: func(_ context.Context, _ []uint64, _ uint64) (*model.Pet, error) {
+					return nil, apperrors.WrapNotFound("pet", "999")
+				},
+			},
+			wantStatus: http.StatusNotFound,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := newHandlerWithPetSvcHandler(tt.svc)
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			c.Request = httptest.NewRequest(http.MethodGet, "/", http.NoBody)
+			c.Params = gin.Params{{Key: "id", Value: tt.paramID}}
+			tt.setupCtx(c)
+
+			h.GetPet(c)
+
+			assert.Equal(t, tt.wantStatus, w.Code)
+			if tt.wantBody != "" {
+				assert.Contains(t, w.Body.String(), tt.wantBody)
+			}
+		})
+	}
+}
+
+// ---- GetPetFirstVisit ----
+
+func TestGetPetFirstVisit(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	tests := []struct {
+		name       string
+		paramID    string
+		setupCtx   func(c *gin.Context)
+		svc        *mockPetServiceHandler
+		wantStatus int
+		wantBody   string
+	}{
+		{
+			name:     "returns first visit date",
+			paramID:  "1",
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockPetServiceHandler{
+				getFirstVisitDateFn: func(_ context.Context, clinicID, petID uint64) (*time.Time, error) {
+					assert.Equal(t, uint64(1), clinicID)
+					assert.Equal(t, uint64(1), petID)
+					d := time.Date(2020, 1, 2, 0, 0, 0, 0, time.UTC)
+					return &d, nil
+				},
+			},
+			wantStatus: http.StatusOK,
+			wantBody:   `"first_visit_date"`,
+		},
+		{
+			name:     "returns null first visit date when no medical records",
+			paramID:  "1",
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockPetServiceHandler{
+				getFirstVisitDateFn: func(_ context.Context, _, _ uint64) (*time.Time, error) {
+					return nil, nil
+				},
+			},
+			wantStatus: http.StatusOK,
+			wantBody:   `"first_visit_date":null`,
+		},
+		{
+			name:       "returns 401 when clinic_id is missing",
+			paramID:    "1",
+			setupCtx:   func(_ *gin.Context) {},
+			svc:        &mockPetServiceHandler{},
+			wantStatus: http.StatusUnauthorized,
+		},
+		{
+			name:       "returns 400 for non-numeric id",
+			paramID:    "xyz",
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockPetServiceHandler{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:     "returns 500 on service error",
+			paramID:  "1",
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockPetServiceHandler{
+				getFirstVisitDateFn: func(_ context.Context, _, _ uint64) (*time.Time, error) {
+					return nil, fmt.Errorf("db failure")
+				},
+			},
+			wantStatus: http.StatusInternalServerError,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := newHandlerWithPetSvcHandler(tt.svc)
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			c.Request = httptest.NewRequest(http.MethodGet, "/", http.NoBody)
+			c.Params = gin.Params{{Key: "id", Value: tt.paramID}}
+			tt.setupCtx(c)
+
+			h.GetPetFirstVisit(c)
+
+			assert.Equal(t, tt.wantStatus, w.Code)
+			if tt.wantBody != "" {
+				assert.Contains(t, w.Body.String(), tt.wantBody)
+			}
+		})
+	}
+}
+
+// ---- CreatePet ----
+
+func TestCreatePet(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	validBody := func() map[string]any {
+		return map[string]any{
+			"owner_id":          5,
+			"animal_species_id": 1,
+			"name":              "ポチ",
+		}
+	}
+
+	tests := []struct {
+		name       string
+		body       any
+		setupCtx   func(c *gin.Context)
+		svc        *mockPetServiceHandler
+		wantStatus int
+		wantHeader string
+	}{
+		{
+			name:     "creates pet successfully",
+			body:     validBody(),
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockPetServiceHandler{
+				createFn: func(_ context.Context, clinicID uint64, input *service.CreatePetInput) (*model.Pet, error) {
+					assert.Equal(t, uint64(1), clinicID)
+					assert.Equal(t, "ポチ", input.Name)
+					return &model.Pet{ID: 10, ClinicID: clinicID, Name: input.Name}, nil
+				},
+			},
+			wantStatus: http.StatusCreated,
+			wantHeader: "/api/v1/pets/10",
+		},
+		{
+			name:       "returns 401 when clinic_id is missing",
+			body:       validBody(),
+			setupCtx:   func(_ *gin.Context) {},
+			svc:        &mockPetServiceHandler{},
+			wantStatus: http.StatusUnauthorized,
+		},
+		{
+			name:       "returns 400 when name is missing",
+			body:       map[string]any{"owner_id": 5, "animal_species_id": 1},
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockPetServiceHandler{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:       "returns 400 for invalid JSON",
+			body:       "not-json",
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockPetServiceHandler{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:     "returns 500 on service error",
+			body:     validBody(),
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockPetServiceHandler{
+				createFn: func(_ context.Context, _ uint64, _ *service.CreatePetInput) (*model.Pet, error) {
+					return nil, fmt.Errorf("db failure")
+				},
+			},
+			wantStatus: http.StatusInternalServerError,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := newHandlerWithPetSvcHandler(tt.svc)
+
+			bodyBytes, err := json.Marshal(tt.body)
+			require.NoError(t, err)
+
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			c.Request = httptest.NewRequest(http.MethodPost, "/", bytes.NewReader(bodyBytes))
+			c.Request.Header.Set("Content-Type", "application/json")
+			tt.setupCtx(c)
+
+			h.CreatePet(c)
+
+			assert.Equal(t, tt.wantStatus, w.Code)
+			if tt.wantHeader != "" {
+				assert.Equal(t, tt.wantHeader, w.Header().Get("Location"))
+			}
+		})
+	}
+}
+
+// ---- UpdatePet ----
+
+func TestUpdatePet(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	tests := []struct {
+		name       string
+		paramID    string
+		body       any
+		setupCtx   func(c *gin.Context)
+		svc        *mockPetServiceHandler
+		wantStatus int
+	}{
+		{
+			name:     "updates pet successfully",
+			paramID:  "1",
+			body:     map[string]any{"name": "タマ"},
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockPetServiceHandler{
+				updateFn: func(_ context.Context, _, _ uint64, input *service.UpdatePetInput) (*model.Pet, error) {
+					require.NotNil(t, input.Name)
+					assert.Equal(t, "タマ", *input.Name)
+					return &model.Pet{ID: 1, Name: *input.Name}, nil
+				},
+			},
+			wantStatus: http.StatusOK,
+		},
+		{
+			name:       "returns 401 when clinic_id is missing",
+			paramID:    "1",
+			body:       map[string]any{"name": "タマ"},
+			setupCtx:   func(_ *gin.Context) {},
+			svc:        &mockPetServiceHandler{},
+			wantStatus: http.StatusUnauthorized,
+		},
+		{
+			name:       "returns 400 for non-numeric id",
+			paramID:    "xyz",
+			body:       map[string]any{"name": "タマ"},
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockPetServiceHandler{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:       "returns 400 for invalid JSON",
+			paramID:    "1",
+			body:       "not-json",
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockPetServiceHandler{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:       "returns 400 for invalid status",
+			paramID:    "1",
+			body:       map[string]any{"status": "invalid"},
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockPetServiceHandler{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:     "returns 404 when pet not found",
+			paramID:  "999",
+			body:     map[string]any{"name": "タマ"},
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockPetServiceHandler{
+				updateFn: func(_ context.Context, _, _ uint64, _ *service.UpdatePetInput) (*model.Pet, error) {
+					return nil, apperrors.WrapNotFound("pet", "999")
+				},
+			},
+			wantStatus: http.StatusNotFound,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := newHandlerWithPetSvcHandler(tt.svc)
+
+			bodyBytes, err := json.Marshal(tt.body)
+			require.NoError(t, err)
+
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			c.Request = httptest.NewRequest(http.MethodPatch, "/", bytes.NewReader(bodyBytes))
+			c.Request.Header.Set("Content-Type", "application/json")
+			c.Params = gin.Params{{Key: "id", Value: tt.paramID}}
+			tt.setupCtx(c)
+
+			h.UpdatePet(c)
+
+			assert.Equal(t, tt.wantStatus, w.Code)
+		})
+	}
+}
+
+// ---- DeletePet ----
+//
+// c.Status(http.StatusNoContent) は Gin の ResponseWriter にステータスをバッファするだけで
+// httptest.ResponseRecorder には即時書き込まれない（owner_handler_test.go / cage_handler_test.go
+// と同じ既知の挙動）。そのため NoContent 系レスポンスは gin.Engine 経由でリクエストを送る。
+
+func newDeletePetRouter(svc service.PetService) *gin.Engine {
+	r := gin.New()
+	h := newHandlerWithPetSvcHandler(svc)
+	r.DELETE("/pets/:id", func(c *gin.Context) {
+		setClinicID(c)
+	}, h.DeletePet)
+	return r
+}
+
+func TestDeletePet(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	tests := []struct {
+		name       string
+		paramID    string
+		svc        *mockPetServiceHandler
+		wantStatus int
+	}{
+		{
+			name:    "deletes pet successfully",
+			paramID: "1",
+			svc: &mockPetServiceHandler{
+				deleteFn: func(_ context.Context, clinicID, id uint64) error {
+					assert.Equal(t, uint64(1), clinicID)
+					assert.Equal(t, uint64(1), id)
+					return nil
+				},
+			},
+			wantStatus: http.StatusNoContent,
+		},
+		{
+			name:       "returns 400 for non-numeric id",
+			paramID:    "xyz",
+			svc:        &mockPetServiceHandler{},
+			wantStatus: http.StatusBadRequest,
+		},
+		{
+			name:    "returns 500 on service error",
+			paramID: "1",
+			svc: &mockPetServiceHandler{
+				deleteFn: func(_ context.Context, _, _ uint64) error {
+					return fmt.Errorf("db failure")
+				},
+			},
+			wantStatus: http.StatusInternalServerError,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			router := newDeletePetRouter(tt.svc)
+			w := httptest.NewRecorder()
+			req := httptest.NewRequest(http.MethodDelete, "/pets/"+tt.paramID, http.NoBody)
+			router.ServeHTTP(w, req)
+			assert.Equal(t, tt.wantStatus, w.Code)
+		})
+	}
+
+	t.Run("returns 401 when clinic_id is missing", func(t *testing.T) {
+		h := newHandlerWithPetSvcHandler(&mockPetServiceHandler{})
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Request = httptest.NewRequest(http.MethodDelete, "/", http.NoBody)
+		c.Params = gin.Params{{Key: "id", Value: "1"}}
+		h.DeletePet(c)
+		assert.Equal(t, http.StatusUnauthorized, w.Code)
+	})
 }
 
 // ---- Comprehensive Test Coverage Documentation ----

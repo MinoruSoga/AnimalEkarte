@@ -14,6 +14,7 @@ import (
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 
+	"github.com/animal-ekarte/backend/internal/config"
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/repository"
@@ -30,9 +31,7 @@ const (
 // LstepCsvImportService は Lステップ CSV インポートサービス（FEAT-385）。
 type LstepCsvImportService interface {
 	// ImportFriendAttributesCSV は Lステップ友だち属性 CSV をインポートし、インポートレコードを返す。
-	ImportFriendAttributesCSV(ctx context.Context, clinicID uint64, fileName string, fileReader io.Reader, uploadedByUserID *uint64) (*model.LstepCsvImport, error)
-	// GetByID はクリニックスコープでインポート履歴を返す。
-	GetByID(ctx context.Context, clinicID uint64, id uuid.UUID) (*model.LstepCsvImport, error)
+	ImportFriendAttributesCSV(ctx context.Context, clinicID uint64, fileName string, fileReader io.Reader, uploadedByUserID uint64) (*model.LstepCsvImport, error)
 	// ListByClinic はクリニックスコープで最新順にインポート履歴一覧を返す。
 	ListByClinic(ctx context.Context, clinicID uint64, limit int) ([]*model.LstepCsvImport, error)
 }
@@ -59,7 +58,49 @@ func NewLstepCsvImportService(
 	}
 }
 
-func (s *lstepCsvImportService) ImportFriendAttributesCSV(ctx context.Context, clinicID uint64, fileName string, fileReader io.Reader, uploadedByUserID *uint64) (*model.LstepCsvImport, error) {
+// matchRowsToOwners は飼主 line_user_id → owner_id マップ構築 + データ行パース・マッチングを
+// 担う（BE-refactor.md E-6）。repo エラーはそのまま返し、markImportFailed は呼出元に残す。
+// 番号付き stage コメント構造は 1 stage = 1 呼出として維持する。
+func (s *lstepCsvImportService) matchRowsToOwners(ctx context.Context, clinicID uint64, importID uuid.UUID, dataRows [][]string, colIdx map[string]int, now time.Time) ([]*model.LstepFriendAttributeSnapshot, []csvImportErrorEntry, error) {
+	// 6. 飼主 line_user_id → owner_id マップ構築（TX 外・読み取り専用）
+	owners, err := s.ownerRepo.FindAllWithLineUserID(ctx, clinicID)
+	if err != nil {
+		return nil, nil, err
+	}
+	ownerIDByLineUserID := make(map[string]uint64, len(owners))
+	for i := range owners {
+		o := &owners[i]
+		if o.LineUserID != nil && *o.LineUserID != "" {
+			ownerIDByLineUserID[*o.LineUserID] = o.ID
+		}
+	}
+
+	// 7. データ行ループ — スナップショット収集
+	snapshots := make([]*model.LstepFriendAttributeSnapshot, 0, len(dataRows))
+	var errEntries []csvImportErrorEntry
+
+	for i, row := range dataRows {
+		rowNum := i + 2 // ヘッダー行 = 1 なので +2
+		snapshot, errEntry := s.parseFriendAttrCSVRow(row, colIdx, rowNum, clinicID, importID, now)
+		if errEntry != nil {
+			errEntries = append(errEntries, *errEntry)
+			continue
+		}
+		if _, ok := ownerIDByLineUserID[snapshot.LineUserID]; !ok {
+			errEntries = append(errEntries, csvImportErrorEntry{
+				Row:        rowNum,
+				LineUserID: snapshot.LineUserID,
+				Reason:     csvErrorReasonUnknownLineUserID,
+				Detail:     "no matching owner found for line_user_id",
+			})
+			continue
+		}
+		snapshots = append(snapshots, snapshot)
+	}
+	return snapshots, errEntries, nil
+}
+
+func (s *lstepCsvImportService) ImportFriendAttributesCSV(ctx context.Context, clinicID uint64, fileName string, fileReader io.Reader, uploadedByUserID uint64) (*model.LstepCsvImport, error) {
 	// 1. サイズ制限付き読み込み
 	limited := io.LimitReader(fileReader, maxCSVSizeBytes+1)
 	raw, err := io.ReadAll(limited)
@@ -116,44 +157,14 @@ func (s *lstepCsvImportService) ImportFriendAttributesCSV(ctx context.Context, c
 		return nil, apperrors.Wrap(err, "failed to create csv import record")
 	}
 
-	// 6. 飼主 line_user_id → owner_id マップ構築（TX 外・読み取り専用）
-	owners, err := s.ownerRepo.FindAllWithLineUserID(ctx, clinicID)
+	// 6-7. 飼主 line_user_id → owner_id マッチング（TX 外・読み取り専用）
+	now := time.Now().In(config.JST)
+	dataRows := allRecords[1:]
+	snapshots, errEntries, err := s.matchRowsToOwners(ctx, clinicID, imp.ID, dataRows, colIdx, now)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to find owners with line_user_id", "error", err, "clinic_id", clinicID)
 		s.markImportFailed(ctx, imp)
 		return nil, apperrors.Wrap(err, "failed to find owners")
-	}
-	ownerIDByLineUserID := make(map[string]uint64, len(owners))
-	for i := range owners {
-		o := &owners[i]
-		if o.LineUserID != nil && *o.LineUserID != "" {
-			ownerIDByLineUserID[*o.LineUserID] = o.ID
-		}
-	}
-
-	// 7. データ行ループ — スナップショット収集
-	now := time.Now().In(jst)
-	dataRows := allRecords[1:]
-	snapshots := make([]*model.LstepFriendAttributeSnapshot, 0, len(dataRows))
-	var errEntries []csvImportErrorEntry
-
-	for i, row := range dataRows {
-		rowNum := i + 2 // ヘッダー行 = 1 なので +2
-		snapshot, errEntry := s.parseFriendAttrCSVRow(row, colIdx, rowNum, clinicID, imp.ID, now)
-		if errEntry != nil {
-			errEntries = append(errEntries, *errEntry)
-			continue
-		}
-		if _, ok := ownerIDByLineUserID[snapshot.LineUserID]; !ok {
-			errEntries = append(errEntries, csvImportErrorEntry{
-				Row:        rowNum,
-				LineUserID: snapshot.LineUserID,
-				Reason:     csvErrorReasonUnknownLineUserID,
-				Detail:     "no matching owner found for line_user_id",
-			})
-			continue
-		}
-		snapshots = append(snapshots, snapshot)
 	}
 
 	// 最終集計をレコードに反映
@@ -175,10 +186,7 @@ func (s *lstepCsvImportService) ImportFriendAttributesCSV(ctx context.Context, c
 				return apperrors.FromGORM(err, "lstep_friend_attribute_snapshot", "bulk_create")
 			}
 		}
-		if err := tx.Where("clinic_id = ?", clinicID).Save(imp).Error; err != nil {
-			return apperrors.FromGORM(err, "lstep_csv_import", imp.ID.String())
-		}
-		return nil
+		return updateCsvImportRecordTx(tx, clinicID, imp)
 	})
 	if txErr != nil {
 		slog.ErrorContext(ctx, "failed to commit csv import transaction", "error", txErr, "import_id", imp.ID)
@@ -189,16 +197,8 @@ func (s *lstepCsvImportService) ImportFriendAttributesCSV(ctx context.Context, c
 	return imp, nil
 }
 
-func (s *lstepCsvImportService) GetByID(ctx context.Context, clinicID uint64, id uuid.UUID) (*model.LstepCsvImport, error) {
-	imp, err := s.csvImportRepo.FindByID(ctx, clinicID, id)
-	if err != nil {
-		return nil, apperrors.Wrap(err, "failed to find csv import")
-	}
-	return imp, nil
-}
-
 func (s *lstepCsvImportService) ListByClinic(ctx context.Context, clinicID uint64, limit int) ([]*model.LstepCsvImport, error) {
-	imports, err := s.csvImportRepo.ListByClinic(ctx, clinicID, limit)
+	imports, err := s.csvImportRepo.FindAllByClinicID(ctx, clinicID, limit)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to list csv imports", "error", err, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to list csv imports")
@@ -254,6 +254,32 @@ func (s *lstepCsvImportService) parseFriendAttrCSVRow(row []string, colIdx map[s
 	}
 
 	return snapshot, nil
+}
+
+// updateCsvImportRecordTx は最終集計結果を呼び出し元のトランザクション内で永続化する。
+// NOTE: GORM の Save() は imp.ID (主キー) がセット済みだと、事前に連結した .Where(...) 条件を
+// 無視して主キーのみで UPDATE を発行する（clinic_id 境界がクロステナント書き込みに対して無力化
+// される既知の落とし穴）。同じトランザクション内で完結させる必要があるため
+// LstepCsvImportRepository.Update は使わず、Model+Where+Updates(map) で明示的に id と clinic_id
+// 両方を WHERE 句に効かせる（P4: clinicScope on Update, MANDATORY）。
+func updateCsvImportRecordTx(tx *gorm.DB, clinicID uint64, imp *model.LstepCsvImport) error {
+	result := tx.Model(&model.LstepCsvImport{}).
+		Where("id = ? AND clinic_id = ?", imp.ID, clinicID).
+		Updates(map[string]any{
+			"row_count":     imp.RowCount,
+			"success_count": imp.SuccessCount,
+			"error_count":   imp.ErrorCount,
+			"status":        imp.Status,
+			"error_log":     imp.ErrorLog,
+			"imported_at":   imp.ImportedAt,
+		})
+	if result.Error != nil {
+		return apperrors.FromGORM(result.Error, "lstep_csv_import", imp.ID.String())
+	}
+	if result.RowsAffected == 0 {
+		return apperrors.WrapNotFound("lstep_csv_import", imp.ID.String())
+	}
+	return nil
 }
 
 // markImportFailed はインポートレコードを failed に更新する（TX 失敗後の補償処理）。

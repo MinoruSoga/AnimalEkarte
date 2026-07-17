@@ -3,6 +3,7 @@
  * ReservationDetailModal / AppointmentCard / ReceptionDetailModal のインライン定義を統合。
  */
 import { C } from "@/lib/design-tokens";
+import { RESERVATION_STATUS_LABELS } from "@/types";
 import type { ReservationStatus } from "@/types";
 
 // ──────────────────────────────────────────────
@@ -10,14 +11,14 @@ import type { ReservationStatus } from "@/types";
 // ──────────────────────────────────────────────
 
 export const RESERVATION_STATUS_COLORS = {
-  confirmed:       { label: "予約確定",    dot: C.bgStatusEmeraldDot, bg: C.bgStatusEmerald,  text: C.textStatusEmerald },
-  pending:         { label: "仮予約",      dot: C.bgStatusSkyDot,     bg: C.bgStatusSky,      text: C.textStatusSky },
-  checked_in:      { label: "受付済",      dot: C.bgStatusBlueDot,    bg: C.bgStatusBlueLight, text: C.textStatusBlue },
-  in_consultation: { label: "診療中",      dot: C.bgStatusPurpleDot, bg: C.bgStatusPurple, text: C.textStatusPurple },
-  accounting:      { label: "会計待ち",    dot: C.bgStatusAmberDot,   bg: C.bgStatusAmber,    text: C.textStatusAmber },
-  completed:       { label: "完了",        dot: C.bgStatusGrayMedium, bg: C.bgStatusGray, text: C.textStatusGray },
-  cancelled:       { label: "キャンセル",  dot: C.bgStatusRedDot,     bg: C.bgRedLight,     text: C.textNotionRed },
-  no_show:         { label: "未来院",      dot: C.bgStatusRedDot,     bg: C.bgRedLight,     text: C.textNotionRed },
+  confirmed:       { label: RESERVATION_STATUS_LABELS.confirmed,       dot: C.bgStatusEmeraldDot, bg: C.bgStatusEmerald,  text: C.textStatusEmerald },
+  pending:         { label: RESERVATION_STATUS_LABELS.pending,         dot: C.bgStatusSkyDot,     bg: C.bgStatusSky,      text: C.textStatusSky },
+  checked_in:      { label: RESERVATION_STATUS_LABELS.checked_in,      dot: C.bgStatusBlueDot,    bg: C.bgStatusBlueLight, text: C.textStatusBlue },
+  in_consultation: { label: RESERVATION_STATUS_LABELS.in_consultation, dot: C.bgStatusPurpleDot, bg: C.bgStatusPurple, text: C.textStatusPurple },
+  accounting:      { label: RESERVATION_STATUS_LABELS.accounting,      dot: C.bgStatusAmberDot,   bg: C.bgStatusAmber,    text: C.textStatusAmber },
+  completed:       { label: RESERVATION_STATUS_LABELS.completed,       dot: C.bgStatusGrayMedium, bg: C.bgStatusGray, text: C.textStatusGray },
+  cancelled:       { label: RESERVATION_STATUS_LABELS.cancelled,       dot: C.bgStatusRedDot,     bg: C.bgRedLight,     text: C.textNotionRed },
+  no_show:         { label: RESERVATION_STATUS_LABELS.no_show,         dot: C.bgStatusRedDot,     bg: C.bgRedLight,     text: C.textNotionRed },
 } as const;
 
 /**

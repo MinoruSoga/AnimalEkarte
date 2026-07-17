@@ -8,9 +8,9 @@ import (
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 )
 
-// PatchPetDeath godoc
+// UpdatePetDeath godoc
 // PATCH /pets/:id/death — ペット死亡を記録し CPM タグを再同期する（BE-017）。
-func (h *Handler) PatchPetDeath(c *gin.Context) {
+func (h *Handler) UpdatePetDeath(c *gin.Context) {
 	clinicID, ok := extractClinicID(c)
 	if !ok {
 		return
@@ -53,9 +53,9 @@ func (h *Handler) DeletePetDeath(c *gin.Context) {
 	c.Status(http.StatusNoContent)
 }
 
-// PostOwnerLstepOptOut godoc
+// UpdateOwnerLstepOptOut godoc
 // POST /owners/:id/lstep-opt-out — オーナーの Lステップ配信をオプトアウトする（BE-017）。
-func (h *Handler) PostOwnerLstepOptOut(c *gin.Context) {
+func (h *Handler) UpdateOwnerLstepOptOut(c *gin.Context) {
 	clinicID, ok := extractClinicID(c)
 	if !ok {
 		return
@@ -76,26 +76,13 @@ func (h *Handler) PostOwnerLstepOptOut(c *gin.Context) {
 	c.Status(http.StatusNoContent)
 }
 
-// DeleteOwnerLstepOptOut godoc
-// DELETE /owners/:id/lstep-opt-out — オーナーを Lステップ配信にオプトインする（BE-017）。
-func (h *Handler) DeleteOwnerLstepOptOut(c *gin.Context) {
-	clinicID, ok := extractClinicID(c)
-	if !ok {
-		return
-	}
-	ownerID, ok := parseIDParam(c, "id")
-	if !ok {
-		return
-	}
-	if err := h.svc.LstepLifecycle.HandleOwnerOptIn(c.Request.Context(), clinicID, ownerID); err != nil {
-		RespondError(c, err)
-		return
-	}
-	c.Status(http.StatusNoContent)
-}
-
 // PatchOwnerLstepOptOut godoc
 // PATCH /owners/:id/lstep/opt-out — opt_out:true でオプトアウト、false でオプトインする統合エンドポイント（ISSUE-001）。
+//
+// BE-refactor.md F-3 の Patch*→Update* リネーム対象外（意図的）: POST側の
+// PostOwnerLstepOptOut が同フェーズで UpdateOwnerLstepOptOut にリネームされたため、
+// このメソッドも同じ規則を適用すると同名になりコンパイルエラーになる
+// （*Handler に同名メソッドを2つ定義できない）。よって Patch プレフィックスのまま維持する。
 func (h *Handler) PatchOwnerLstepOptOut(c *gin.Context) {
 	clinicID, ok := extractClinicID(c)
 	if !ok {

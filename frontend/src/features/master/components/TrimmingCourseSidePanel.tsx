@@ -2,7 +2,7 @@ import { memo, useCallback, useEffect, useState, type ChangeEvent } from "react"
 import { Scissors } from "lucide-react";
 
 import { MasterSidePanel, PropertyInput, PropertyRow } from "@/components/shared/SidePeek";
-import { NotionStatusPill } from "@/components/shared/StatusPill/NotionStatusPill";
+import { StatusPill } from "@/components/shared/StatusPill/StatusPill";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { C, LAYOUT, STYLE } from "@/lib/design-tokens";
 
@@ -17,7 +17,7 @@ import {
   TARGET_SIZE_EMPTY_VALUE,
   trimmingCourseToFormData,
   type CourseFormData,
-} from "./TrimmingSidePanelModel";
+} from "./trimming-side-panel-model";
 
 interface TrimmingCourseSidePanelProps {
   item: TrimmingCourse | null;
@@ -115,7 +115,7 @@ export const TrimmingCourseSidePanel = memo(function TrimmingCourseSidePanel({
           onClick={handleToggleStatus}
           className={`inline-flex items-center rounded-[3px] ${C.hoverBgLight} transition-colors py-0.5 px-0.5 cursor-pointer`}
         >
-          <NotionStatusPill isActive={formData.isActive} />
+          <StatusPill isActive={formData.isActive} />
         </button>
       </PropertyRow>
 
@@ -172,6 +172,7 @@ export const TrimmingCourseSidePanel = memo(function TrimmingCourseSidePanel({
           <input
             type="number"
             min={0}
+            aria-label="単価(税込)"
             className={`w-32 bg-transparent text-base ${C.text} outline-none border-none ${LAYOUT.inputCompact} ${C.hoverBgLight} ${C.focusBgLight} transition-colors ${C.textPlaceholder}`}
             value={formData.price}
             onChange={handlePriceChange}

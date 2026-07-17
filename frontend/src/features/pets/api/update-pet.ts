@@ -2,6 +2,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import type { Pet } from "@/types";
 import { handleApiError } from "@/lib/handle-api-error";
+import { queryKeys } from "@/lib/query-keys";
 import { transformBackendPetToFrontend } from "@/lib/transforms/pet";
 import type { Pet as BackendPet } from "@/types/generated/models";
 import type { UpdatePetRequest } from "@/types/pet";
@@ -21,8 +22,8 @@ export const useUpdatePet = () => {
     mutationFn: ({ id, req }: { id: string; req: UpdatePetRequest }) =>
       updatePet(id, req),
     onSuccess: (_, { id }) => {
-      queryClient.invalidateQueries({ queryKey: ["pets"] });
-      queryClient.invalidateQueries({ queryKey: ["pet", id] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.pets.list() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.pets.detail(id) });
     },
     onError: (error) => handleApiError(error, "ペット更新"),
   });

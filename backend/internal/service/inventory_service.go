@@ -108,6 +108,11 @@ func (s *inventoryService) GetByID(ctx context.Context, clinicID, id uint64) (*m
 }
 
 func (s *inventoryService) Create(ctx context.Context, clinicID uint64, input *CreateInventoryInput) (*model.InventoryItem, error) {
+	// SD-4 決裁A: status はもはや信頼できる保存値ではない（読み取り時に
+	// model.DeriveInventoryStatus で quantity/min_stock_level から導出し直す —
+	// handler/inventory_response.go を参照）。ここでの status 書込は後方互換の
+	// ためだけに残す死んだ列であり、client 指定値があれば従来どおり保存するが
+	// 誰も読み取らない。
 	item := &model.InventoryItem{
 		ClinicID:      clinicID,
 		Name:          input.Name,

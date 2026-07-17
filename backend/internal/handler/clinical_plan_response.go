@@ -13,12 +13,16 @@ type clinicalPlanResponse struct {
 	PhysicalExam     string                 `json:"physical_exam"`
 	DiagnosisTypeID  *string                `json:"diagnosis_type_id,omitempty"`
 	DiagnosisNameID  *string                `json:"diagnosis_name_id,omitempty"`
+	Diagnosis2TypeID *string                `json:"diagnosis_2_type_id,omitempty"`
+	Diagnosis2NameID *string                `json:"diagnosis_2_name_id,omitempty"`
 	DiagnosisDetails string                 `json:"diagnosis_details"`
 	TreatmentPolicy  string                 `json:"treatment_policy"`
 	CreatedAt        time.Time              `json:"created_at"`
 	UpdatedAt        time.Time              `json:"updated_at"`
 	DiagnosisType    *diagnosisTypeResponse `json:"diagnosis_type,omitempty"`
 	DiagnosisName    *diagnosisNameResponse `json:"diagnosis_name,omitempty"`
+	Diagnosis2Type   *diagnosisTypeResponse `json:"diagnosis_2_type,omitempty"`
+	Diagnosis2Name   *diagnosisNameResponse `json:"diagnosis_2_name,omitempty"`
 }
 
 func toClinicalPlanResponse(p *model.ClinicalPlan) clinicalPlanResponse {
@@ -39,6 +43,14 @@ func toClinicalPlanResponse(p *model.ClinicalPlan) clinicalPlanResponse {
 		s := strconv.FormatUint(*p.DiagnosisNameID, 10)
 		resp.DiagnosisNameID = &s
 	}
+	if p.Diagnosis2TypeID != nil {
+		s := strconv.FormatUint(*p.Diagnosis2TypeID, 10)
+		resp.Diagnosis2TypeID = &s
+	}
+	if p.Diagnosis2NameID != nil {
+		s := strconv.FormatUint(*p.Diagnosis2NameID, 10)
+		resp.Diagnosis2NameID = &s
+	}
 	if p.DiagnosisType != nil {
 		r := toDiagnosisTypeResponse(p.DiagnosisType)
 		resp.DiagnosisType = &r
@@ -46,6 +58,14 @@ func toClinicalPlanResponse(p *model.ClinicalPlan) clinicalPlanResponse {
 	if p.DiagnosisName != nil {
 		r := toDiagnosisNameResponse(p.DiagnosisName)
 		resp.DiagnosisName = &r
+	}
+	if p.Diagnosis2Type != nil {
+		r := toDiagnosisTypeResponse(p.Diagnosis2Type)
+		resp.Diagnosis2Type = &r
+	}
+	if p.Diagnosis2Name != nil {
+		r := toDiagnosisNameResponse(p.Diagnosis2Name)
+		resp.Diagnosis2Name = &r
 	}
 	return resp
 }

@@ -4,14 +4,10 @@ import (
 	"log/slog"
 	"net/http"
 	"strconv"
-	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/golang-jwt/jwt/v5"
-	"github.com/google/uuid"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
-	"github.com/animal-ekarte/backend/internal/middleware"
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
@@ -46,7 +42,7 @@ func (h *Handler) Login(c *gin.Context) {
 	}
 	staff.ClinicAssignments = assignments
 
-	mainClinicID, clinicIDs := resolveClinicInfo(assignments)
+	mainClinicID, clinicIDs := h.authSvc().ResolveClinicInfo(assignments)
 
 	// クリニック一覧取得 (フォールバック適用に必要なため JWT 発行前に取得)
 	allClinics, err := h.svc.Clinic.ListClinics(ctx)
@@ -55,20 +51,22 @@ func (h *Handler) Login(c *gin.Context) {
 	}
 
 	// system_admin で assignments なしの場合、allClinics[0] を main にフォールバック (JWT 発行前に解決)
-	mainClinicID = resolveSystemAdminMainClinicID(mainClinicID, account.IsSystemAdmin, allClinics)
+	mainClinicID = h.authSvc().ResolveSystemAdminMainClinicID(mainClinicID, account.IsSystemAdmin, allClinics)
 
 	if err := h.issueAuthCookies(c, staff.ID, mainClinicID, account.IsSystemAdmin, clinicIDs); err != nil {
 		RespondError(c, err)
 		return
 	}
 
-	clinicNameMap := make(map[string]string)
-	for i := range allClinics {
-		cl := &allClinics[i]
-		clinicNameMap[strconv.FormatUint(cl.ID, 10)] = cl.Name
-	}
+	// Set context values that extractClinicID expects.
+	// calculateEffectivePermissions calls extractClinicID which reads c.Get("clinic_id").
+	// Without these, extractClinicID writes a 401 "missing clinic context" side-effect
+	// (RespondError without c.Abort) and then Login continues, producing a double-write
+	// response with HTTP 401 + user payload concatenated.
+	c.Set("clinic_id", mainClinicID)
+	c.Set("user_id", strconv.FormatUint(staff.ID, 10))
 
-	permMap := h.calculateEffectivePermissions(c, account.IsSystemAdmin, staff.ID)
+	meResponse := h.buildMeResponse(c, staff, account, mainClinicID, account.IsSystemAdmin, allClinics)
 
 	// 監査ログ: ログイン成功
 	if len(clinicIDs) > 0 {
@@ -80,8 +78,24 @@ func (h *Handler) Login(c *gin.Context) {
 
 	c.JSON(http.StatusOK, LoginResponse{
 		IsSystemAdmin: account.IsSystemAdmin,
-		User:          toMeResponse(staff, account, mainClinicID, clinicNameMap, allClinics, permMap),
+		User:          meResponse,
 	})
+}
+
+// buildMeResponse は取得済みの staff/account/clinics から /me 応答を組み立てる（E-4）。
+// clinics の取得とその失敗時ポリシーは呼び出し元の責務（Login=nil継続 / GetMe=エラー応答）。
+// mainClinicID は呼び出し元で resolveSystemAdminMainClinicID 済みでも未解決でもよい
+// （本関数内でも呼ぶため冪等 — Login は issueAuthCookies 前に解決済みの値を渡す）。
+func (h *Handler) buildMeResponse(c *gin.Context, staff *model.Staff, account *model.Account,
+	mainClinicID string, isSystemAdmin bool, allClinics []model.Clinic) *MeResponse {
+	clinicNameMap := make(map[string]string, len(allClinics))
+	for i := range allClinics {
+		cl := &allClinics[i]
+		clinicNameMap[strconv.FormatUint(cl.ID, 10)] = cl.Name
+	}
+	mainClinicID = h.authSvc().ResolveSystemAdminMainClinicID(mainClinicID, isSystemAdmin, allClinics)
+	permMap := h.calculateEffectivePermissions(c, isSystemAdmin, staff.ID)
+	return toMeResponse(staff, account, mainClinicID, clinicNameMap, allClinics, permMap)
 }
 
 // Logout godoc
@@ -90,40 +104,16 @@ func (h *Handler) Logout(c *gin.Context) {
 
 	// refresh_token の jti をブラックリストに登録してサーバーサイド失効させる（ベストエフォート）。
 	// 失効に失敗してもログアウト自体はブロックしない。
+	// ParseRefreshTokenClaims は BL 照合なし（既に失効済みでも parse でき、冪等 revoke 可能）。
 	if tokenStr, err := c.Cookie(refreshTokenCookieName); err == nil && tokenStr != "" {
-		claims := &middleware.JWTClaims{}
-		if _, parseErr := jwt.ParseWithClaims(tokenStr, claims, func(t *jwt.Token) (any, error) {
-			if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
-				return nil, jwt.ErrSignatureInvalid
-			}
-			return []byte(h.cfg.JWTSecret), nil
-		}); parseErr == nil && claims.ID != "" && claims.ExpiresAt != nil {
+		if claims, parseErr := h.tokenSvc().ParseRefreshTokenClaims(tokenStr); parseErr == nil && claims.ID != "" && claims.ExpiresAt != nil {
 			if revokeErr := h.svc.TokenBlacklist.RevokeToken(ctx, claims.ID, claims.ExpiresAt.Time); revokeErr != nil {
 				slog.ErrorContext(ctx, "failed to revoke refresh token on logout (best-effort)", "jti", claims.ID, "error", revokeErr)
 			}
 		}
 	}
 
-	// 監査ログ: ログアウト（ベストエフォート）
-	// extractStaffID/extractClinicID は Auth middleware が設定する user_id/clinic_id を前提とし、
-	// 存在しない場合に 401 レスポンスを書き込む副作用がある。
-	// /logout は保護グループ外（Auth middleware なし）なのでこれらの関数は使用しない。
-	// 代わりに c.Get() で直接チェックし、存在する場合のみ監査ログを記録する。
-	userIDVal, hasUser := c.Get("user_id")
-	clinicIDVal, hasClinic := c.Get("clinic_id")
-	if hasUser && hasClinic {
-		if userIDStr, ok := userIDVal.(string); ok {
-			if clinicIDStr, ok := clinicIDVal.(string); ok {
-				if staffID, err := strconv.ParseUint(userIDStr, 10, 64); err == nil {
-					if clinicID, err := strconv.ParseUint(clinicIDStr, 10, 64); err == nil {
-						if logErr := h.svc.Audit.LogAuthLogin(ctx, &clinicID, &staffID, model.AuditActionAuthLogout, c.ClientIP(), c.Request.Header.Get("User-Agent")); logErr != nil {
-							slog.ErrorContext(ctx, "audit log failed for logout", "staff_id", staffID, "clinic_id", clinicID, "error", logErr)
-						}
-					}
-				}
-			}
-		}
-	}
+	h.auditLogoutBestEffort(c)
 
 	isProduction := h.cfg.GinMode == "release"
 	sameSite := http.SameSiteLaxMode
@@ -131,44 +121,46 @@ func (h *Handler) Logout(c *gin.Context) {
 		sameSite = http.SameSiteNoneMode
 	}
 
-	http.SetCookie(c.Writer, &http.Cookie{
-		Name:     accessTokenCookieName,
-		Value:    "",
-		Path:     "/",
-		MaxAge:   -1,
-		HttpOnly: true,
-		Secure:   isProduction,
-		SameSite: sameSite,
-	})
-	http.SetCookie(c.Writer, &http.Cookie{
-		Name:     legacyCookieName,
-		Value:    "",
-		Path:     "/",
-		MaxAge:   -1,
-		HttpOnly: true,
-		Secure:   isProduction,
-		SameSite: sameSite,
-	})
-	http.SetCookie(c.Writer, &http.Cookie{
-		Name:     refreshTokenCookieName,
-		Value:    "",
-		Path:     "/api/v1/auth/refresh",
-		MaxAge:   -1,
-		HttpOnly: true,
-		Secure:   isProduction,
-		SameSite: sameSite,
-	})
-	http.SetCookie(c.Writer, &http.Cookie{
-		Name:     "prev_clinic_id",
-		Value:    "",
-		Path:     "/",
-		MaxAge:   -1,
-		HttpOnly: true,
-		Secure:   isProduction,
-		SameSite: sameSite,
-	})
+	clearCookie(c, accessTokenCookieName, "/", isProduction, sameSite)
+	clearCookie(c, legacyCookieName, "/", isProduction, sameSite)
+	clearCookie(c, refreshTokenCookieName, "/api/v1/auth/refresh", isProduction, sameSite)
+	clearCookie(c, "prev_clinic_id", "/", isProduction, sameSite)
 
 	c.JSON(http.StatusOK, gin.H{"message": "logged out"})
+}
+
+// auditLogoutBestEffort はログアウト監査ログをベストエフォートで記録する（E-2）。
+// extractStaffID/extractClinicID は Auth middleware が設定する user_id/clinic_id を前提とし、
+// 存在しない場合に 401 レスポンスを書き込む副作用がある。
+// /logout は保護グループ外（Auth middleware なし）なのでこれらの関数は使用しない。
+// 代わりに c.Get() で直接チェックし、存在する場合のみ監査ログを記録する。
+func (h *Handler) auditLogoutBestEffort(c *gin.Context) {
+	userIDVal, hasUser := c.Get("user_id")
+	clinicIDVal, hasClinic := c.Get("clinic_id")
+	if !hasUser || !hasClinic {
+		return
+	}
+	userIDStr, ok := userIDVal.(string)
+	if !ok {
+		return
+	}
+	clinicIDStr, ok := clinicIDVal.(string)
+	if !ok {
+		return
+	}
+	staffID, err := strconv.ParseUint(userIDStr, 10, 64)
+	if err != nil {
+		return
+	}
+	clinicID, err := strconv.ParseUint(clinicIDStr, 10, 64)
+	if err != nil {
+		return
+	}
+
+	ctx := c.Request.Context()
+	if logErr := h.svc.Audit.LogAuthLogin(ctx, &clinicID, &staffID, model.AuditActionAuthLogout, c.ClientIP(), c.Request.Header.Get("User-Agent")); logErr != nil {
+		slog.ErrorContext(ctx, "audit log failed for logout", "staff_id", staffID, "clinic_id", clinicID, "error", logErr)
+	}
 }
 
 // RefreshToken は refresh_token Cookie を検証し、新しい access_token + refresh_token を発行する。
@@ -182,37 +174,10 @@ func (h *Handler) RefreshToken(c *gin.Context) {
 		return
 	}
 
-	// refresh_token を検証
-	claims := &middleware.JWTClaims{}
-	if _, err := jwt.ParseWithClaims(tokenStr, claims, func(t *jwt.Token) (any, error) {
-		if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
-			return nil, jwt.ErrSignatureInvalid
-		}
-		return []byte(h.cfg.JWTSecret), nil
-	}); err != nil {
-		RespondError(c, apperrors.WrapUnauthorized("invalid or expired refresh token"))
+	claims, err := h.tokenSvc().VerifyRefreshToken(ctx, tokenStr)
+	if err != nil {
+		RespondError(c, err)
 		return
-	}
-
-	// Subject が "refresh" であることを確認（access_token の流用を防止）
-	if claims.Subject != "refresh" {
-		RespondError(c, apperrors.WrapUnauthorized("invalid token type"))
-		return
-	}
-
-	// JTI ブラックリスト照合（ログアウト済み・強制失効済みトークンを拒否）
-	if claims.ID != "" {
-		revoked, blacklistErr := h.svc.TokenBlacklist.IsRevoked(ctx, claims.ID)
-		if blacklistErr != nil {
-			// DB エラーはフェイルセーフ: 照合失敗はリフレッシュを拒否する
-			slog.ErrorContext(ctx, "token blacklist check failed", "jti", claims.ID, "error", blacklistErr)
-			RespondError(c, apperrors.WrapUnauthorized("token validation failed"))
-			return
-		}
-		if revoked {
-			RespondError(c, apperrors.WrapUnauthorized("token has been revoked"))
-			return
-		}
 	}
 
 	// staff の有効性チェック
@@ -237,28 +202,8 @@ func (h *Handler) RefreshToken(c *gin.Context) {
 		RespondError(c, apperrors.Wrap(asgErr, "failed to get clinic assignments"))
 		return
 	}
-	// resolveClinicInfo で最新割り当てから mainClinicID を再計算（旧 claims の値を引き継がない）
-	mainClinicID, clinicIDs := resolveClinicInfo(assignments)
-
-	// 新しい access_token（15分）
-	expiresAt := time.Now().Add(15 * time.Minute)
-	newAccessClaims := &middleware.JWTClaims{
-		UserID:        claims.UserID,
-		ClinicID:      mainClinicID,
-		IsSystemAdmin: claims.IsSystemAdmin,
-		ClinicIDs:     clinicIDs,
-		RegisteredClaims: jwt.RegisteredClaims{
-			ID:        uuid.NewString(),
-			ExpiresAt: jwt.NewNumericDate(expiresAt),
-			IssuedAt:  jwt.NewNumericDate(time.Now()),
-		},
-	}
-	newAccess := jwt.NewWithClaims(jwt.SigningMethodHS256, newAccessClaims)
-	newAccessStr, signErr := newAccess.SignedString([]byte(h.cfg.JWTSecret))
-	if signErr != nil {
-		RespondError(c, apperrors.Wrap(signErr, "failed to sign access token"))
-		return
-	}
+	// ResolveClinicInfo で最新割り当てから mainClinicID を再計算（旧 claims の値を引き継がない）
+	mainClinicID, clinicIDs := h.authSvc().ResolveClinicInfo(assignments)
 
 	// Token rotation: 旧 JTI をブラックリストに登録して旧トークンを失効させる（ベストエフォート）。
 	// 失効失敗は回帰させない（新トークン発行は続行）。
@@ -268,50 +213,11 @@ func (h *Handler) RefreshToken(c *gin.Context) {
 		}
 	}
 
-	// 新しい refresh_token（7日、rotation）
-	// 新 JTI を発行してブラックリスト照合を継続可能にする。
-	refreshExpiresAt := time.Now().Add(7 * 24 * time.Hour)
-	newRefreshClaims := &middleware.JWTClaims{
-		UserID:        claims.UserID,
-		ClinicID:      mainClinicID,
-		IsSystemAdmin: claims.IsSystemAdmin,
-		ClinicIDs:     clinicIDs,
-		RegisteredClaims: jwt.RegisteredClaims{
-			ID:        uuid.NewString(),
-			ExpiresAt: jwt.NewNumericDate(refreshExpiresAt),
-			IssuedAt:  jwt.NewNumericDate(time.Now()),
-			Subject:   "refresh",
-		},
-	}
-	newRefresh := jwt.NewWithClaims(jwt.SigningMethodHS256, newRefreshClaims)
-	newRefreshStr, rSignErr := newRefresh.SignedString([]byte(h.cfg.JWTSecret))
-	if rSignErr != nil {
-		RespondError(c, apperrors.Wrap(rSignErr, "failed to sign refresh token"))
+	// 新しい access_token + refresh_token を発行して Cookie にセットする（E-3: ログイン時と同じ発行処理に委譲）。
+	if err := h.issueAuthCookies(c, staff.ID, mainClinicID, claims.IsSystemAdmin, clinicIDs); err != nil {
+		RespondError(c, err)
 		return
 	}
-
-	// Cookie 設定
-	sameSite := http.SameSiteNoneMode
-	secure := true
-
-	http.SetCookie(c.Writer, &http.Cookie{
-		Name:     accessTokenCookieName,
-		Value:    newAccessStr,
-		Path:     "/",
-		MaxAge:   int(time.Until(expiresAt).Seconds()),
-		HttpOnly: true,
-		Secure:   secure,
-		SameSite: sameSite,
-	})
-	http.SetCookie(c.Writer, &http.Cookie{
-		Name:     refreshTokenCookieName,
-		Value:    newRefreshStr,
-		Path:     "/api/v1/auth/refresh",
-		MaxAge:   int(time.Until(refreshExpiresAt).Seconds()),
-		HttpOnly: true,
-		Secure:   secure,
-		SameSite: sameSite,
-	})
 
 	c.JSON(http.StatusOK, gin.H{"message": "token refreshed"})
 }
@@ -358,7 +264,11 @@ func (h *Handler) GetMe(c *gin.Context) {
 
 	// clinic assignments を取得
 	assignments, err := h.svc.StaffClinicAssignment.FindAllByStaffID(ctx, staff.ID)
-	if err == nil {
+	if err != nil {
+		// F-1: 取得失敗は観測性のため slog 記録（P11）。挙動は従来通り — ClinicAssignments を
+		// 未設定のまま続行する（error 伝播へのフリップは製品判断のため follow-up）。
+		slog.ErrorContext(ctx, "failed to find clinic assignments", "error", err, "staff_id", staff.ID)
+	} else {
 		staff.ClinicAssignments = assignments
 	}
 
@@ -368,21 +278,11 @@ func (h *Handler) GetMe(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	clinicNameMap := make(map[string]string, len(allClinics))
-	for i := range allClinics {
-		cl := &allClinics[i]
-		clinicNameMap[strconv.FormatUint(cl.ID, 10)] = cl.Name
-	}
 
-	// 実効権限を計算
 	isSystemAdmin := false
 	if account != nil {
 		isSystemAdmin = account.IsSystemAdmin
 	}
 
-	mainClinicIDStr = resolveSystemAdminMainClinicID(mainClinicIDStr, isSystemAdmin, allClinics)
-
-	permMap := h.calculateEffectivePermissions(c, isSystemAdmin, staff.ID)
-
-	c.JSON(http.StatusOK, toMeResponse(staff, account, mainClinicIDStr, clinicNameMap, allClinics, permMap))
+	c.JSON(http.StatusOK, h.buildMeResponse(c, staff, account, mainClinicIDStr, isSystemAdmin, allClinics))
 }

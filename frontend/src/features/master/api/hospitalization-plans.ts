@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import { handleApiError } from "@/lib/handle-api-error";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
+import { queryKeys } from "@/lib/query-keys";
 import type { BodySize, BillingUnit, HospitalizationPlan as ModelHospitalizationPlan, TaxType } from "@/types/generated/models";
 import {
   BodySizeSmall,
@@ -10,15 +11,6 @@ import {
   BillingUnitPerDay,
   BillingUnitPerNight,
 } from "@/types/generated/models";
-
-// Re-export enum constants for use in components
-export {
-  BodySizeSmall,
-  BodySizeMedium,
-  BodySizeLarge,
-  BillingUnitPerDay,
-  BillingUnitPerNight,
-};
 
 // ─────────────────────────────────────────────────
 // Request types (derived from models.ts)
@@ -90,21 +82,21 @@ export type HospitalizationPlan = ReturnType<typeof transformHospitalizationPlan
 
 const ENDPOINT = "/v1/masters/hospitalization-plans";
 
-export const getAllHospitalizationPlans = async (): Promise<
+const getAllHospitalizationPlans = async (): Promise<
   HospitalizationPlan[]
 > => {
   const { data } = await axios.get<ModelHospitalizationPlan[]>(ENDPOINT);
   return data.map(transformHospitalizationPlan);
 };
 
-export const createHospitalizationPlan = async (
+const createHospitalizationPlan = async (
   req: CreateHospitalizationPlanRequest,
 ): Promise<HospitalizationPlan> => {
   const { data } = await axios.post<ModelHospitalizationPlan>(ENDPOINT, req);
   return transformHospitalizationPlan(data);
 };
 
-export const updateHospitalizationPlan = async (
+const updateHospitalizationPlan = async (
   id: string,
   req: UpdateHospitalizationPlanRequest,
 ): Promise<HospitalizationPlan> => {
@@ -115,7 +107,7 @@ export const updateHospitalizationPlan = async (
   return transformHospitalizationPlan(data);
 };
 
-export const deleteHospitalizationPlan = async (id: string): Promise<void> => {
+const deleteHospitalizationPlan = async (id: string): Promise<void> => {
   await axios.delete(`${ENDPOINT}/${id}`);
 };
 
@@ -123,11 +115,9 @@ export const deleteHospitalizationPlan = async (id: string): Promise<void> => {
 // React Query Hooks
 // ─────────────────────────────────────────────────
 
-const HOSPITALIZATION_PLANS_QUERY_KEY = ["masters", "hospitalization-plans"] as const;
-
 export const useGetAllHospitalizationPlans = () => {
   return useQuery({
-    queryKey: HOSPITALIZATION_PLANS_QUERY_KEY,
+    queryKey: queryKeys.masters.category("hospitalization-plans"),
     queryFn: getAllHospitalizationPlans,
     staleTime: QUERY_STALE_TIMES.STATIC,
     gcTime: QUERY_GC_TIMES.LONG,
@@ -139,7 +129,7 @@ export const useCreateHospitalizationPlan = () => {
   return useMutation({
     mutationFn: createHospitalizationPlan,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: HOSPITALIZATION_PLANS_QUERY_KEY });
+      queryClient.invalidateQueries({ queryKey: queryKeys.masters.category("hospitalization-plans") });
     },
     onError: (error) => handleApiError(error, "作成"),
   });
@@ -156,7 +146,7 @@ export const useUpdateHospitalizationPlan = () => {
       req: UpdateHospitalizationPlanRequest;
     }) => updateHospitalizationPlan(id, req),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: HOSPITALIZATION_PLANS_QUERY_KEY });
+      queryClient.invalidateQueries({ queryKey: queryKeys.masters.category("hospitalization-plans") });
     },
     onError: (error) => handleApiError(error, "更新"),
   });
@@ -167,23 +157,9 @@ export const useDeleteHospitalizationPlan = () => {
   return useMutation({
     mutationFn: deleteHospitalizationPlan,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: HOSPITALIZATION_PLANS_QUERY_KEY });
+      queryClient.invalidateQueries({ queryKey: queryKeys.masters.category("hospitalization-plans") });
     },
     onError: (error) => handleApiError(error, "削除"),
   });
 };
 
-export const reorderHospitalizationPlans = async (ids: number[]): Promise<void> => {
-  await axios.patch(`${ENDPOINT}/reorder`, { ids });
-};
-
-export const useReorderHospitalizationPlans = () => {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (ids: number[]) => reorderHospitalizationPlans(ids),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: HOSPITALIZATION_PLANS_QUERY_KEY });
-    },
-    onError: (error) => handleApiError(error, "並び替え"),
-  });
-};

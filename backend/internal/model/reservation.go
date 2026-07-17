@@ -48,9 +48,11 @@ type Reservation struct {
 	IsDesignated      bool              `gorm:"default:false"                                  json:"is_designated"`
 	Status            ReservationStatus `gorm:"type:reservation_status;default:'pending'"      json:"status"`
 	Notes             string            `gorm:"default:''"                                     json:"notes"`
-	DeletedAt         gorm.DeletedAt    `                                                      json:"-"`
-	CreatedAt         time.Time         `gorm:"autoCreateTime"                                 json:"created_at"`
-	UpdatedAt         time.Time         `gorm:"autoUpdateTime"                                 json:"updated_at"`
+	// 受付ヘッダー テレメトリ（change-ui.md Phase 2）: checked_in へ遷移した時刻。待ち時間算出専用。
+	CheckedInAt *time.Time     `gorm:"column:checked_in_at" json:"checked_in_at,omitempty"`
+	DeletedAt   gorm.DeletedAt `                                                      json:"-"`
+	CreatedAt   time.Time      `gorm:"autoCreateTime"                                 json:"created_at"`
+	UpdatedAt   time.Time      `gorm:"autoUpdateTime"                                 json:"updated_at"`
 
 	// FEAT-381-2 Commit 3
 	ReservationRoute    *string    `gorm:"column:reservation_route;type:varchar(20)"  json:"reservation_route,omitempty"`

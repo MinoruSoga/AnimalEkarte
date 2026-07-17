@@ -1,99 +1,15 @@
-// Package repository provides data access implementations for Cage entity.
 package repository
 
 import (
-	"context"
-	"fmt"
-
 	"gorm.io/gorm"
 
-	apperrors "github.com/animal-ekarte/backend/internal/errors"
-	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/repository/cage"
 )
 
-// ---- Cage ----
+// CageRepository is a stable facade alias for the cage domain package.
+type CageRepository = cage.Repository
 
-type CageRepository interface {
-	FindAll(ctx context.Context, clinicID uint64, cageType *string) ([]model.Cage, error)
-	FindByID(ctx context.Context, clinicID, id uint64) (*model.Cage, error)
-	CountUsageByCageID(ctx context.Context, clinicID, id uint64) (int64, error)
-	Create(ctx context.Context, cage *model.Cage) error
-	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Cage, error)
-	Delete(ctx context.Context, clinicID, id uint64) error
-	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
-}
-
-type cageRepository struct{ db *gorm.DB }
-
-func NewCageRepository(db *gorm.DB) CageRepository { return &cageRepository{db: db} }
-
-func (r *cageRepository) FindAll(ctx context.Context, clinicID uint64, cageType *string) ([]model.Cage, error) {
-	cages := make([]model.Cage, 0)
-	q := r.db.WithContext(ctx).Model(&model.Cage{}).Scopes(clinicScope(clinicID))
-	if cageType != nil {
-		q = q.Where("cage_type = ?", *cageType)
-	}
-	if err := q.Order("sort_order ASC, name ASC").Find(&cages).Error; err != nil {
-		return nil, apperrors.FromGORM(err, "cage", "")
-	}
-	return cages, nil
-}
-
-func (r *cageRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Cage, error) {
-	var cage model.Cage
-	err := r.db.WithContext(ctx).Scopes(clinicScope(clinicID)).Where("id = ?", id).First(&cage).Error
-	if err != nil {
-		return nil, apperrors.FromGORM(err, "cage", fmt.Sprintf("%d", id))
-	}
-	return &cage, nil
-}
-
-func (r *cageRepository) Create(ctx context.Context, cage *model.Cage) error {
-	if err := r.db.WithContext(ctx).Create(cage).Error; err != nil {
-		return apperrors.FromGORM(err, "cage", "")
-	}
-	return nil
-}
-
-func (r *cageRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Cage, error) {
-	result := r.db.WithContext(ctx).
-		Model(&model.Cage{}).
-		Scopes(clinicScope(clinicID)).Where("id = ?", id).
-		Updates(fields)
-	if result.Error != nil {
-		return nil, apperrors.FromGORM(result.Error, "cage", fmt.Sprintf("%d", id))
-	}
-	if result.RowsAffected == 0 {
-		return nil, apperrors.WrapNotFound("cage", fmt.Sprintf("%d", id))
-	}
-	return r.FindByID(ctx, clinicID, id)
-}
-
-func (r *cageRepository) Delete(ctx context.Context, clinicID, id uint64) error {
-	result := r.db.WithContext(ctx).Scopes(clinicScope(clinicID)).Where("id = ?", id).Delete(&model.Cage{})
-	if result.Error != nil {
-		return apperrors.FromGORM(result.Error, "cage", fmt.Sprintf("%d", id))
-	}
-	if result.RowsAffected == 0 {
-		return apperrors.WrapNotFound("cage", fmt.Sprintf("%d", id))
-	}
-	return nil
-}
-
-// CountUsageByCageID はケージを参照している hospitalizations の件数を返す。
-// hospitalizations テーブルは直接 clinic_id を持つためテナント分離を直接適用する。
-func (r *cageRepository) CountUsageByCageID(ctx context.Context, clinicID, id uint64) (int64, error) {
-	var count int64
-	if err := r.db.WithContext(ctx).
-		Model(&model.Hospitalization{}).
-		Scopes(clinicScope(clinicID)).
-		Where("cage_id = ? AND deleted_at IS NULL", id).
-		Count(&count).Error; err != nil {
-		return 0, apperrors.FromGORM(err, "hospitalization", "")
-	}
-	return count, nil
-}
-
-func (r *cageRepository) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
-	return reorderByClinicID(ctx, r.db, &model.Cage{}, "cage", clinicID, ids)
+// NewCageRepository constructs the cage repository.
+func NewCageRepository(db *gorm.DB) CageRepository {
+	return cage.New(db)
 }

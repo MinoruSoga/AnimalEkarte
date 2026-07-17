@@ -8,8 +8,3 @@ var (
 	ErrInvalidRecipient = errors.New("line: invalid recipient — user has not added the bot or blocked it")
 	ErrRateLimit        = errors.New("line: messaging API rate limit exceeded")
 )
-
-// IsInvalidRecipient はエラーが ErrInvalidRecipient かどうかを判定する。
-func IsInvalidRecipient(err error) bool {
-	return errors.Is(err, ErrInvalidRecipient)
-}

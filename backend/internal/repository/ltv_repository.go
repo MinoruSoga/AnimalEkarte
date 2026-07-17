@@ -9,6 +9,18 @@ import (
 	"gorm.io/gorm"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
+	"github.com/animal-ekarte/backend/internal/model"
+)
+
+// 最終来院分類バケット名の定数（C-10）。
+// SQL 内 CASE 式（本ファイル内、"Go 定数 ltvBucket* と一致必須" コメント参照）と
+// Go 側の後段フィルタ・FindOwnerLTVParams.LastVisitBucket が同じ文字列を参照する。
+const (
+	ltvBucketNoVisit  = "no_visit"
+	ltvBucketWithin3m = "within_3m"
+	ltvBucketOver3m   = "over_3m"
+	ltvBucketOver6m   = "over_6m"
+	ltvBucketOver1y   = "over_1y"
 )
 
 // OwnerLTVRow はLTV集計クエリの結果行。
@@ -85,7 +97,7 @@ func (r *ltvRepository) FindOwnerLTV(ctx context.Context, params *FindOwnerLTVPa
 	if params.Search != "" {
 		// translate() で DB 列のカタカナをひらがなに正規化し、NormalizeKana で検索語も統一する。
 		where += " AND translate(o.name, ?, ?) ILIKE ? ESCAPE '\\'"
-		whereArgs = append(whereArgs, kanaSourceChars, kanaTargetChars, "%"+escapeLikePattern(NormalizeKana(params.Search))+"%")
+		whereArgs = append(whereArgs, kanaSourceChars, kanaTargetChars, "%"+escapeLike(NormalizeKana(params.Search))+"%")
 	}
 
 	// 期間決定（AGG-BE-001/002/003）
@@ -101,57 +113,10 @@ func (r *ltvRepository) FindOwnerLTV(ctx context.Context, params *FindOwnerLTVPa
 	}
 
 	// 金額式の構築（期間フィルタ付き）
-	var amountExpr string
-	hasPeriodFilter := fromDate != nil && toDate != nil
-	switch amountBasis {
-	case "paid_amount":
-		if hasPeriodFilter {
-			amountExpr = "COALESCE(SUM(CASE WHEN mr.date >= ? AND mr.date <= ? THEN p.billing_amount ELSE 0 END), 0)"
-		} else {
-			amountExpr = "COALESCE(SUM(p.billing_amount), 0)"
-		}
-	case "net_paid_amount":
-		if hasPeriodFilter {
-			amountExpr = "COALESCE(SUM(CASE WHEN mr.date >= ? AND mr.date <= ? THEN p.billing_amount ELSE 0 END) - COALESCE(SUM(CASE WHEN mr.date >= ? AND mr.date <= ? THEN br.amount ELSE 0 END), 0), 0)"
-		} else {
-			amountExpr = "COALESCE(SUM(p.billing_amount) - COALESCE(SUM(br.amount), 0), 0)"
-		}
-	default: // gross_total_amount
-		if hasPeriodFilter {
-			amountExpr = "COALESCE(SUM(CASE WHEN mr.date >= ? AND mr.date <= ? THEN b.total_amount ELSE 0 END), 0)"
-		} else {
-			amountExpr = "COALESCE(SUM(b.total_amount), 0)"
-		}
-	}
-	var amountExprArgs []any
-	if hasPeriodFilter {
-		amountExprArgs = append(amountExprArgs, fromDate, toDate)
-		if amountBasis == "net_paid_amount" {
-			amountExprArgs = append(amountExprArgs, fromDate, toDate)
-		}
-	}
+	amountExpr, amountExprArgs := buildLTVAmountExpr(amountBasis, fromDate, toDate)
 
 	// HAVING句構築
-	var having []string
-	var havingArgs []any
-
-	// 全期間の会計額フィルタ（AGG-BE-001: min_amount/max_amount は期間内）
-	if params.MinTotalAmount != nil {
-		having, havingArgs = appendAmountHaving(having, havingArgs, amountExpr, amountExprArgs, ">=", *params.MinTotalAmount)
-	}
-	if params.MaxTotalAmount != nil {
-		having, havingArgs = appendAmountHaving(having, havingArgs, amountExpr, amountExprArgs, "<=", *params.MaxTotalAmount)
-	}
-
-	// 来院回数フィルタ（AGG-BE-002）
-	if params.MinVisitCount != nil {
-		having = append(having, "COUNT(DISTINCT CASE WHEN (mr.date >= COALESCE(?::date, mr.date) AND mr.date <= COALESCE(?::date, mr.date)) THEN mr.date END) >= ?")
-		havingArgs = append(havingArgs, fromDate, toDate, *params.MinVisitCount)
-	}
-	if params.MaxVisitCount != nil {
-		having = append(having, "COUNT(DISTINCT CASE WHEN (mr.date >= COALESCE(?::date, mr.date) AND mr.date <= COALESCE(?::date, mr.date)) THEN mr.date END) <= ?")
-		havingArgs = append(havingArgs, fromDate, toDate, *params.MaxVisitCount)
-	}
+	having, havingArgs := buildLTVHaving(params, amountExpr, amountExprArgs, fromDate, toDate)
 
 	havingClause := ""
 	if len(having) > 0 {
@@ -179,6 +144,8 @@ func (r *ltvRepository) FindOwnerLTV(ctx context.Context, params *FindOwnerLTVPa
 		periodFilterArgs = append(periodFilterArgs, fromDate, toDate, fromDate, toDate)
 	}
 
+	// last_visit_bucket CASE 式のリテラル ('no_visit'/'within_3m'/'over_3m'/'over_6m'/'over_1y')
+	// は Go 定数 ltvBucket* と一致必須（C-10）。
 	query := fmt.Sprintf(`
 SELECT
   o.id               AS owner_id,
@@ -206,12 +173,12 @@ SELECT
     FROM billings b2
     WHERE b2.clinic_id = o.clinic_id
       AND b2.owner_id = o.id
-      AND b2.status = 'completed'
+      AND b2.status = ?
       AND b2.deleted_at IS NULL
   ), 0)                                                                              AS max_single_visit_amount
 FROM owners o
 LEFT JOIN medical_records mr ON mr.owner_id = o.id AND mr.clinic_id = o.clinic_id AND mr.deleted_at IS NULL
-LEFT JOIN billings b ON b.medical_record_id = mr.id AND b.clinic_id = o.clinic_id AND b.deleted_at IS NULL AND b.status = 'completed'
+LEFT JOIN billings b ON b.medical_record_id = mr.id AND b.clinic_id = o.clinic_id AND b.deleted_at IS NULL AND b.status = ?
 LEFT JOIN payments p ON p.billing_id = b.id AND p.deleted_at IS NULL
 LEFT JOIN billing_refunds br ON br.billing_id = b.id
 WHERE %s
@@ -220,9 +187,11 @@ GROUP BY o.id, o.name, o.line_user_id, o.lstep_opt_out
 ORDER BY %s
 `, amountExpr, periodVisitCountCondition, periodVisitCountCondition, where, havingClause, orderBy)
 
-	// Assemble args in the correct order: periodFilter args, then where args, then having args
-	args := make([]any, 0, len(periodFilterArgs)+len(whereArgs)+len(havingArgs))
+	// Assemble args in the correct order: periodFilter args, then the 2 max_single_visit_amount
+	// subquery / billings JOIN status placeholders (C-1), then where args, then having args
+	args := make([]any, 0, len(periodFilterArgs)+2+len(whereArgs)+len(havingArgs))
 	args = append(args, periodFilterArgs...)
+	args = append(args, model.BillingStatusCompleted, model.BillingStatusCompleted)
 	args = append(args, whereArgs...)
 	args = append(args, havingArgs...)
 
@@ -232,6 +201,68 @@ ORDER BY %s
 	}
 
 	// Post-processing: フィルタリング（include_zero, include_no_visit）
+	return filterLTVRows(rows, params), nil
+}
+
+// buildLTVAmountExpr は AmountBasis に応じた金額集計式と、その式が要するプレースホルダ引数を
+// 構築する（BE-refactor.md E-12: FindOwnerLTV の位置引数結合を事故源から隔離する純粋抽出）。
+func buildLTVAmountExpr(basis string, from, to *time.Time) (amountExpr string, amountExprArgs []any) {
+	hasPeriodFilter := from != nil && to != nil
+	switch basis {
+	case "paid_amount":
+		if hasPeriodFilter {
+			amountExpr = "COALESCE(SUM(CASE WHEN mr.date >= ? AND mr.date <= ? THEN p.billing_amount ELSE 0 END), 0)"
+		} else {
+			amountExpr = "COALESCE(SUM(p.billing_amount), 0)"
+		}
+	case "net_paid_amount":
+		if hasPeriodFilter {
+			amountExpr = "COALESCE(SUM(CASE WHEN mr.date >= ? AND mr.date <= ? THEN p.billing_amount ELSE 0 END) - COALESCE(SUM(CASE WHEN mr.date >= ? AND mr.date <= ? THEN br.amount ELSE 0 END), 0), 0)"
+		} else {
+			amountExpr = "COALESCE(SUM(p.billing_amount) - COALESCE(SUM(br.amount), 0), 0)"
+		}
+	default: // gross_total_amount
+		if hasPeriodFilter {
+			amountExpr = "COALESCE(SUM(CASE WHEN mr.date >= ? AND mr.date <= ? THEN b.total_amount ELSE 0 END), 0)"
+		} else {
+			amountExpr = "COALESCE(SUM(b.total_amount), 0)"
+		}
+	}
+	if hasPeriodFilter {
+		amountExprArgs = append(amountExprArgs, from, to)
+		if basis == "net_paid_amount" {
+			amountExprArgs = append(amountExprArgs, from, to)
+		}
+	}
+	return amountExpr, amountExprArgs
+}
+
+// buildLTVHaving は HAVING 句の条件断片とバインド引数を構築する（BE-refactor.md E-12）。
+func buildLTVHaving(params *FindOwnerLTVParams, amountExpr string, amountExprArgs []any, from, to *time.Time) (having []string, havingArgs []any) {
+
+	// 全期間の会計額フィルタ（AGG-BE-001: min_amount/max_amount は期間内）
+	if params.MinTotalAmount != nil {
+		having, havingArgs = appendAmountHaving(having, havingArgs, amountExpr, amountExprArgs, ">=", *params.MinTotalAmount)
+	}
+	if params.MaxTotalAmount != nil {
+		having, havingArgs = appendAmountHaving(having, havingArgs, amountExpr, amountExprArgs, "<=", *params.MaxTotalAmount)
+	}
+
+	// 来院回数フィルタ（AGG-BE-002）
+	if params.MinVisitCount != nil {
+		having = append(having, "COUNT(DISTINCT CASE WHEN (mr.date >= COALESCE(?::date, mr.date) AND mr.date <= COALESCE(?::date, mr.date)) THEN mr.date END) >= ?")
+		havingArgs = append(havingArgs, from, to, *params.MinVisitCount)
+	}
+	if params.MaxVisitCount != nil {
+		having = append(having, "COUNT(DISTINCT CASE WHEN (mr.date >= COALESCE(?::date, mr.date) AND mr.date <= COALESCE(?::date, mr.date)) THEN mr.date END) <= ?")
+		havingArgs = append(havingArgs, from, to, *params.MaxVisitCount)
+	}
+	return having, havingArgs
+}
+
+// filterLTVRows は include_zero / include_no_visit / last_visit_bucket の Go 側後段フィルタを
+// 適用する（BE-refactor.md E-12）。
+func filterLTVRows(rows []OwnerLTVRow, params *FindOwnerLTVParams) []OwnerLTVRow {
 	var filtered []OwnerLTVRow
 	for i := range rows {
 		row := &rows[i]
@@ -240,7 +271,7 @@ ORDER BY %s
 			continue
 		}
 		// include_no_visit フィルタ（AGG-BE-003）
-		if !params.IncludeNoVisit && row.LastVisitBucket != nil && *row.LastVisitBucket == "no_visit" {
+		if !params.IncludeNoVisit && row.LastVisitBucket != nil && *row.LastVisitBucket == ltvBucketNoVisit {
 			continue
 		}
 		// last_visit_bucket フィルタ（AGG-BE-003）
@@ -249,8 +280,7 @@ ORDER BY %s
 		}
 		filtered = append(filtered, *row)
 	}
-
-	return filtered, nil
+	return filtered
 }
 
 // appendAmountHaving はローカル生成した集計式だけを SQL 断片として埋め込み、
@@ -262,11 +292,6 @@ func appendAmountHaving(having []string, args []any, amountExpr string, amountEx
 	return having, args
 }
 
-func escapeLikePattern(value string) string {
-	replacer := strings.NewReplacer(`\`, `\\`, `%`, `\%`, `_`, `\_`)
-	return replacer.Replace(value)
-}
-
 // calculateDateRange は year/from/to/period_preset から集計期間を決定する。
 func (r *ltvRepository) calculateDateRange(params *FindOwnerLTVParams) (fromDate, toDate *time.Time, err error) {
 	now := time.Now().In(time.Local)
@@ -275,11 +300,11 @@ func (r *ltvRepository) calculateDateRange(params *FindOwnerLTVParams) (fromDate
 	// from/to が明示的に指定されている場合はそれを優先（優先度1）
 	if params.From != nil && params.To != nil {
 		// YYYY-MM-DD 形式をパース（エラーを明示的に処理）
-		from, err := time.ParseInLocation("2006-01-02", *params.From, time.Local)
+		from, err := time.ParseInLocation(time.DateOnly, *params.From, time.Local)
 		if err != nil {
 			return nil, nil, apperrors.Wrap(err, fmt.Sprintf("invalid From date format: %s (expected YYYY-MM-DD)", *params.From))
 		}
-		to, err := time.ParseInLocation("2006-01-02", *params.To, time.Local)
+		to, err := time.ParseInLocation(time.DateOnly, *params.To, time.Local)
 		if err != nil {
 			return nil, nil, apperrors.Wrap(err, fmt.Sprintf("invalid To date format: %s (expected YYYY-MM-DD)", *params.To))
 		}

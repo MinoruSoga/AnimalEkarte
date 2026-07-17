@@ -6,7 +6,7 @@ globs: ["frontend/src/**/*.{ts,tsx}"]
 
 # TypeScript / React 19 Rules
 
-React 19 + TypeScript 5.7 project standards.
+React 19 + TypeScript 6.0 project standards.
 
 ## Core Rules
 
@@ -227,7 +227,8 @@ const OwnerInfoSection = memo(function OwnerInfoSection({ data, onChange }: Prop
 - [ ] Feature imports = via `index.ts` (Feature Indexing)
 - [ ] Forms = `useActionState` + `SubmitButton`
 - [ ] useCallback for handler stabilization
-- [ ] Complex forms = useTransition (NOT useState + setIsPending)
+- [ ] Complex forms = useActionState (controlled fields via useState; NOT useState + setIsPending, NOT useTransition)
+- [ ] Non-form async (list refetch / nav / delete) = useTransition
 - [ ] Search filter = useDeferredValue
 - [ ] API = useQuery/useMutation
-- [ ] Forms = useXxxForm hook
+- [ ] Forms = use-xxx-form hook

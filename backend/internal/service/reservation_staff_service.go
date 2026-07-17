@@ -70,8 +70,6 @@ type ReservationStaffCoreService interface {
 
 // ReservationStaffExclusionService は予約スタッフの除外コース操作
 type ReservationStaffExclusionService interface {
-	// GetExcludedReservationTypes は指定スタッフの除外コース一覧を返す
-	GetExcludedReservationTypes(ctx context.Context, staffID uint64) ([]model.StaffReservationExclusion, error)
 	// ListExcludedByStaffIDs は複数スタッフの除外コースをバルク取得してスタッフID→除外コース一覧のマップを返す（N+1回避）
 	ListExcludedByStaffIDs(ctx context.Context, staffIDs []uint64) (map[uint64][]model.StaffReservationExclusion, error)
 }
@@ -128,7 +126,7 @@ func (s *reservationStaffService) Create(ctx context.Context, clinicID uint64, i
 			return apperrors.Wrap(err, "failed to create reservation staff")
 		}
 		if len(input.ExcludedTypeIDs) > 0 {
-			if err := s.repo.UpdateExcludedReservationTypes(txCtx, staff.ID, input.ExcludedTypeIDs); err != nil {
+			if err := s.repo.UpdateExcludedReservationTypes(txCtx, clinicID, staff.ID, input.ExcludedTypeIDs); err != nil {
 				slog.ErrorContext(txCtx, "failed to set excluded courses", "error", err)
 				return apperrors.Wrap(err, "failed to set excluded courses")
 			}
@@ -149,24 +147,35 @@ func (s *reservationStaffService) Create(ctx context.Context, clinicID uint64, i
 }
 
 func (s *reservationStaffService) Update(ctx context.Context, clinicID, id uint64, input *UpdateReservationStaffInput) (*model.Staff, []model.StaffReservationExclusion, error) {
-	// clinicID 確認
-	if _, err := s.GetByID(ctx, clinicID, id); err != nil {
-		slog.ErrorContext(ctx, "failed to verify reservation staff ownership", "error", err)
-		return nil, nil, apperrors.Wrap(err, "failed to verify reservation staff ownership")
-	}
-
-	fields := buildReservationStaffUpdate(input)
-	if len(fields) > 0 {
-		if err := s.repo.Update(ctx, clinicID, id, fields); err != nil {
-			slog.ErrorContext(ctx, "failed to update reservation staff", "error", err, "id", id, "clinic_id", clinicID)
-			return nil, nil, apperrors.Wrap(err, "failed to update reservation staff")
+	// BE-refactor.md X-8: staff 本体更新 + 除外コース置換を WithTx で括り原子化する（Create と対称）。
+	// 括らないと、fields 更新が成功し UpdateExcludedReservationTypes が失敗した場合に
+	// staff 側の変更（名前/種別/表示可否等）だけがコミットされ、除外コースは古いまま残る
+	// 非原子な部分更新になる。
+	// BE-refactor.md H-7: clinicID 確認（所有権確認）を WithTx 閉包の外から先頭へ移動し、
+	// dbOrTx 化済みの repo.FindByID を txCtx で呼ぶことで ambient tx に参加させる。
+	// これにより確認〜更新の間にスタッフ削除/所属変更が起きる TOCTOU 窓を閉じる
+	// （repo.Update は R13 で updateScopedByID 化済み・RowsAffected==0 は WrapNotFound）。
+	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
+		if _, err := s.repo.FindByID(txCtx, clinicID, id); err != nil {
+			slog.ErrorContext(txCtx, "failed to verify reservation staff ownership", "error", err)
+			return apperrors.Wrap(err, "failed to verify reservation staff ownership")
 		}
-	}
-	if input.ExcludedTypeIDs != nil {
-		if err := s.repo.UpdateExcludedReservationTypes(ctx, id, *input.ExcludedTypeIDs); err != nil {
-			slog.ErrorContext(ctx, "failed to update excluded courses", "error", err, "id", id, "clinic_id", clinicID)
-			return nil, nil, apperrors.Wrap(err, "failed to update excluded courses")
+		fields := buildReservationStaffUpdate(input)
+		if len(fields) > 0 {
+			if err := s.repo.Update(txCtx, clinicID, id, fields); err != nil {
+				slog.ErrorContext(txCtx, "failed to update reservation staff", "error", err, "id", id, "clinic_id", clinicID)
+				return apperrors.Wrap(err, "failed to update reservation staff")
+			}
 		}
+		if input.ExcludedTypeIDs != nil {
+			if err := s.repo.UpdateExcludedReservationTypes(txCtx, clinicID, id, *input.ExcludedTypeIDs); err != nil {
+				slog.ErrorContext(txCtx, "failed to update excluded courses", "error", err, "id", id, "clinic_id", clinicID)
+				return apperrors.Wrap(err, "failed to update excluded courses")
+			}
+		}
+		return nil
+	}); err != nil {
+		return nil, nil, err //nolint:wrapcheck // tx 閉包内の 3 分岐とも文脈付き wrap 済み（同義二重ラップ回避）
 	}
 	updated, err := s.repo.FindByID(ctx, clinicID, id)
 	if err != nil {
@@ -245,16 +254,6 @@ func (s *reservationStaffService) PatchSortOrder(ctx context.Context, clinicID, 
 		return apperrors.Wrap(err, "failed to reorder reservation staff")
 	}
 	return nil
-}
-
-// GetExcludedReservationTypes は指定スタッフの除外コース一覧を返す
-func (s *reservationStaffService) GetExcludedReservationTypes(ctx context.Context, staffID uint64) ([]model.StaffReservationExclusion, error) {
-	items, err := s.repo.FindAllExcludedReservationTypes(ctx, staffID)
-	if err != nil {
-		slog.ErrorContext(ctx, "failed to get excluded service types", "error", err, "id", staffID)
-		return nil, apperrors.Wrap(err, "failed to get excluded service types")
-	}
-	return items, nil
 }
 
 // ListExcludedByStaffIDs は複数スタッフの除外コースをバルク取得してスタッフID→除外コース一覧のマップを返す

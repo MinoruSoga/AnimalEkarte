@@ -84,6 +84,55 @@ func buildBillingItemUpdate(input *UpdateBillingItemInput) map[string]any {
 	return fields
 }
 
+func validateCreateBillingItemInput(input *CreateBillingItemInput) error {
+	if input.BillingID == 0 {
+		return apperrors.WrapInvalidInput("請求IDは必須です")
+	}
+	if input.Name == "" {
+		return apperrors.WrapInvalidInput("商品名は必須です")
+	}
+	if input.UnitPrice < 0 {
+		return apperrors.WrapInvalidInput(ErrMsgPriceZeroOrMore)
+	}
+	if input.Quantity <= 0 {
+		return apperrors.WrapInvalidInput("数量は正の値である必要があります")
+	}
+	return nil
+}
+
+func resolveBillingItemDefaults(input *CreateBillingItemInput) (model.TaxType, float64, model.ItemSource, error) {
+	// カテゴリバリデーション
+	if err := validateItemCategory(input.Category); err != nil {
+		return "", 0, "", apperrors.Wrap(err, "failed to validate item category")
+	}
+
+	// TaxType デフォルト設定とバリデーション
+	taxType := model.TaxTypeExcluded
+	if input.TaxType != "" {
+		if err := validateTaxType(input.TaxType); err != nil {
+			return "", 0, "", apperrors.Wrap(err, "failed to validate tax type")
+		}
+		taxType = model.TaxType(input.TaxType)
+	}
+
+	// TaxRate デフォルト設定
+	taxRate := DefaultTaxRate
+	if input.TaxRate > 0 {
+		taxRate = input.TaxRate
+	}
+
+	// Source デフォルト設定とバリデーション
+	source := model.ItemSourceManual
+	if input.Source != "" {
+		if err := validateItemSource(input.Source); err != nil {
+			return "", 0, "", apperrors.Wrap(err, "failed to validate item source")
+		}
+		source = model.ItemSource(input.Source)
+	}
+
+	return taxType, taxRate, source, nil
+}
+
 // ---- BillingItemService ----
 
 // BillingItemService は billing_items の CRUD とトータル再計算を担うインターフェース
@@ -106,12 +155,14 @@ type UngroupedSameDaySummary struct {
 }
 
 type billingItemService struct {
-	repo          repository.BillingItemRepository
-	billingRepo   repository.AccountingRepository
-	treatmentRepo repository.TreatmentRepository
-	transactor    repository.Transactor
-	campaignRepo  repository.CampaignRepository // #81 段階2b: nil の場合は自動割引なし
-	ownerRepo     repository.OwnerRepository    // #81 段階2b: 飼主割引取得用
+	repo               repository.BillingItemRepository
+	billingRepo        repository.AccountingRepository
+	treatmentRepo      repository.TreatmentRepository
+	transactor         repository.Transactor
+	trimmingCourseRepo repository.TrimmingCourseRepository // X-4: クロステナント write 防止用の所有権検証
+	trimmingOptionRepo repository.TrimmingOptionRepository // X-4: クロステナント write 防止用の所有権検証
+	campaignRepo       repository.CampaignRepository       // #81 段階2b: nil の場合は自動割引なし
+	ownerRepo          repository.OwnerRepository          // #81 段階2b: 飼主割引取得用
 }
 
 type unbilledTrimmingItemFinder interface {
@@ -122,14 +173,34 @@ type ungroupedTrimmingCounter interface {
 	CountNonAccountingTrimmingByPetAndDate(ctx context.Context, clinicID, petID uint64, date time.Time) (int64, error)
 }
 
-// NewBillingItemService は BillingItemService を初期化して返す（キャンペーン自動割引なし）
-func NewBillingItemService(repo repository.BillingItemRepository, billingRepo repository.AccountingRepository, treatmentRepo repository.TreatmentRepository, transactor repository.Transactor) BillingItemService {
-	return &billingItemService{repo: repo, billingRepo: billingRepo, treatmentRepo: treatmentRepo, transactor: transactor}
+// NewBillingItemServiceWithCampaign は #81 段階2b: キャンペーン/飼主割引の自動適用を有効にした BillingItemService を返す。
+func NewBillingItemServiceWithCampaign(repo repository.BillingItemRepository, billingRepo repository.AccountingRepository, treatmentRepo repository.TreatmentRepository, transactor repository.Transactor, trimmingCourseRepo repository.TrimmingCourseRepository, trimmingOptionRepo repository.TrimmingOptionRepository, campaignRepo repository.CampaignRepository, ownerRepo repository.OwnerRepository) BillingItemService {
+	return &billingItemService{repo: repo, billingRepo: billingRepo, treatmentRepo: treatmentRepo, transactor: transactor, trimmingCourseRepo: trimmingCourseRepo, trimmingOptionRepo: trimmingOptionRepo, campaignRepo: campaignRepo, ownerRepo: ownerRepo}
 }
 
-// NewBillingItemServiceWithCampaign は #81 段階2b: キャンペーン/飼主割引の自動適用を有効にした BillingItemService を返す。
-func NewBillingItemServiceWithCampaign(repo repository.BillingItemRepository, billingRepo repository.AccountingRepository, treatmentRepo repository.TreatmentRepository, transactor repository.Transactor, campaignRepo repository.CampaignRepository, ownerRepo repository.OwnerRepository) BillingItemService {
-	return &billingItemService{repo: repo, billingRepo: billingRepo, treatmentRepo: treatmentRepo, transactor: transactor, campaignRepo: campaignRepo, ownerRepo: ownerRepo}
+// validateBillingItemOwnership は billing および trimming マスタFKのテナント所有権を検証する。
+func (s *billingItemService) validateBillingItemOwnership(ctx context.Context, input *CreateBillingItemInput) error {
+	// テナント所有権確認: billing が同一クリニックに属することを確認
+	if _, err := s.billingRepo.FindByID(ctx, input.ClinicID, input.BillingID); err != nil {
+		slog.ErrorContext(ctx, "billing not found or belongs to different clinic", "error", err)
+		return apperrors.Wrap(err, "billing not found or belongs to different clinic")
+	}
+
+	// X-4: クロステナント write 防止: trimming_course_id/trimming_option_id が
+	// caller の clinic に属することを検証する(#124/#125 と同型の master FK 所有権チェック)。
+	if input.TrimmingCourseID != nil {
+		if _, err := s.trimmingCourseRepo.FindByID(ctx, input.ClinicID, *input.TrimmingCourseID); err != nil {
+			slog.ErrorContext(ctx, "trimming course not found or belongs to different clinic", "error", err)
+			return apperrors.Wrap(err, "failed to verify trimming course ownership")
+		}
+	}
+	if input.TrimmingOptionID != nil {
+		if _, err := s.trimmingOptionRepo.FindByID(ctx, input.ClinicID, *input.TrimmingOptionID); err != nil {
+			slog.ErrorContext(ctx, "trimming option not found or belongs to different clinic", "error", err)
+			return apperrors.Wrap(err, "failed to verify trimming option ownership")
+		}
+	}
+	return nil
 }
 
 // resolveOwnerDiscountRate は会計に紐付く飼主の割引率を返す。ownerRepo 未配線または取得失敗は 0。
@@ -158,6 +229,9 @@ func (s *billingItemService) resolveAutoDiscount(ctx context.Context, input *Cre
 	ownerRate := s.resolveOwnerDiscountRate(ctx, input.ClinicID, billing.OwnerID)
 	campaign, cerr := s.campaignRepo.FindApplicableForItem(ctx, input.ClinicID, billing.ScheduledDate, model.ItemCategory(input.Category), input.MerchandiseItemID)
 	if cerr != nil {
+		// A-4: best-effort 継続自体は妥当（自動割引はあくまで補助機能）だが、クエリ障害で
+		// 自動割引が静かに止まると運用から不可視になるため Warn ログを追加する。
+		slog.WarnContext(ctx, "campaign lookup failed; skipping auto discount", "error", cerr, "clinic_id", input.ClinicID, "billing_id", input.BillingID)
 		campaign = nil // best-effort: キャンペーン検索失敗は割引なしで続行
 	}
 	itemSubtotal := int64(float64(input.UnitPrice) * input.Quantity)
@@ -165,52 +239,15 @@ func (s *billingItemService) resolveAutoDiscount(ctx context.Context, input *Cre
 }
 
 func (s *billingItemService) CreateItem(ctx context.Context, input *CreateBillingItemInput) (*model.BillingItem, error) {
-	if input.BillingID == 0 {
-		return nil, apperrors.WrapInvalidInput("請求IDは必須です")
+	if err := validateCreateBillingItemInput(input); err != nil {
+		return nil, err
 	}
-	if input.Name == "" {
-		return nil, apperrors.WrapInvalidInput("商品名は必須です")
+	if err := s.validateBillingItemOwnership(ctx, input); err != nil {
+		return nil, err
 	}
-	if input.UnitPrice < 0 {
-		return nil, apperrors.WrapInvalidInput(ErrMsgPriceZeroOrMore)
-	}
-	if input.Quantity <= 0 {
-		return nil, apperrors.WrapInvalidInput("数量は正の値である必要があります")
-	}
-
-	// テナント所有権確認: billing が同一クリニックに属することを確認
-	if _, err := s.billingRepo.FindByID(ctx, input.ClinicID, input.BillingID); err != nil {
-		slog.ErrorContext(ctx, "billing not found or belongs to different clinic", "error", err)
-		return nil, apperrors.Wrap(err, "billing not found or belongs to different clinic")
-	}
-
-	// カテゴリバリデーション
-	if err := validateItemCategory(input.Category); err != nil {
-		return nil, apperrors.Wrap(err, "failed to validate item category")
-	}
-
-	// TaxType デフォルト設定とバリデーション
-	taxType := model.TaxTypeExcluded
-	if input.TaxType != "" {
-		if err := validateTaxType(input.TaxType); err != nil {
-			return nil, apperrors.Wrap(err, "failed to validate tax type")
-		}
-		taxType = model.TaxType(input.TaxType)
-	}
-
-	// TaxRate デフォルト設定
-	taxRate := 0.10
-	if input.TaxRate > 0 {
-		taxRate = input.TaxRate
-	}
-
-	// Source デフォルト設定とバリデーション
-	source := model.ItemSourceManual
-	if input.Source != "" {
-		if err := validateItemSource(input.Source); err != nil {
-			return nil, apperrors.Wrap(err, "failed to validate item source")
-		}
-		source = model.ItemSource(input.Source)
+	taxType, taxRate, source, err := resolveBillingItemDefaults(input)
+	if err != nil {
+		return nil, err
 	}
 
 	item := &model.BillingItem{
@@ -395,7 +432,7 @@ func treatmentToUnbilledBillingItem(t *model.Treatment) model.BillingItem {
 		UnitPrice:             t.UnitPrice,
 		Quantity:              t.Quantity,
 		TaxType:               model.TaxTypeExcluded,
-		TaxRate:               0.10,
+		TaxRate:               DefaultTaxRate,
 		IsInsuranceApplicable: t.IsInsurance,
 		Source:                model.ItemSourceMedicalRecord,
 		TreatmentID:           &treatmentID,

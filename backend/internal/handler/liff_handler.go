@@ -58,10 +58,7 @@ func (h *Handler) GetLiffTypes(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	resp := make([]liffCourseResponse, 0, len(courses))
-	for i := range courses {
-		resp = append(resp, toLiffCourseResponse(&courses[i]))
-	}
+	resp := mapSlice(courses, toLiffCourseResponse)
 	c.JSON(http.StatusOK, resp)
 }
 
@@ -82,10 +79,7 @@ func (h *Handler) GetLiffStaffs(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	resp := make([]liffStaffResponse, 0, len(staffs))
-	for i := range staffs {
-		resp = append(resp, toLiffStaffResponse(&staffs[i]))
-	}
+	resp := mapSlice(staffs, toLiffStaffResponse)
 	c.JSON(http.StatusOK, resp)
 }
 
@@ -201,7 +195,7 @@ func (h *Handler) CreateLiffReservation(c *gin.Context) {
 		return
 	}
 	c.Header("Location", fmt.Sprintf("/api/v1/reservations/%d", appt.ID))
-	c.JSON(http.StatusCreated, gin.H{"id": appt.ID, "notes": appt.Notes})
+	c.JSON(http.StatusCreated, toLiffReservationCreatedResponse(appt))
 }
 
 // GetLiffTrimmingCourses はLIFF向けトリミングコース一覧を返す。
@@ -216,10 +210,7 @@ func (h *Handler) GetLiffTrimmingCourses(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	resp := make([]liffTrimmingCourseResponse, 0, len(courses))
-	for i := range courses {
-		resp = append(resp, toLiffTrimmingCourseResponse(&courses[i]))
-	}
+	resp := mapSlice(courses, toLiffTrimmingCourseResponse)
 	c.JSON(http.StatusOK, resp)
 }
 
@@ -235,10 +226,7 @@ func (h *Handler) GetLiffTrimmingOptions(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	resp := make([]liffTrimmingOptionResponse, 0, len(options))
-	for i := range options {
-		resp = append(resp, toLiffTrimmingOptionResponse(&options[i]))
-	}
+	resp := mapSlice(options, toLiffTrimmingOptionResponse)
 	c.JSON(http.StatusOK, resp)
 }
 
@@ -260,11 +248,28 @@ func (h *Handler) GetLiffMyReservations(c *gin.Context) {
 		RespondError(c, err)
 		return
 	}
-	resp := make([]liffReservationResponse, 0, len(items))
-	for i := range items {
-		resp = append(resp, toLiffReservationResponse(&items[i]))
-	}
+	resp := mapSlice(items, toLiffReservationResponse)
 	c.JSON(http.StatusOK, resp)
+}
+
+// GetLiffHealthCard はLIFF健康手帳データを返す。
+// GET /api/liff/:clinicId/health-card
+func (h *Handler) GetLiffHealthCard(c *gin.Context) {
+	clinicID, ok := parseIDParam(c, "clinicId")
+	if !ok {
+		return
+	}
+	customerID, ok := middleware.ExtractLiffCustomerID(c)
+	if !ok {
+		RespondError(c, apperrors.WrapUnauthorized("missing customer id"))
+		return
+	}
+	result, err := h.svc.Liff.GetHealthCard(c.Request.Context(), clinicID, customerID)
+	if err != nil {
+		RespondError(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, toLiffHealthCardResponse(result))
 }
 
 // CancelLiffReservation は予約をキャンセルする。

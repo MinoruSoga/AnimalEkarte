@@ -40,12 +40,7 @@ func (r *consultationRepository) FindAll(ctx context.Context, clinicID uint64) (
 }
 
 func (r *consultationRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Consultation, error) {
-	var consultation model.Consultation
-	err := r.db.WithContext(ctx).Scopes(clinicScope(clinicID)).Where("id = ?", id).First(&consultation).Error
-	if err != nil {
-		return nil, apperrors.FromGORM(err, "consultation", fmt.Sprintf("%d", id))
-	}
-	return &consultation, nil
+	return findByIDScoped[model.Consultation](ctx, r.db, "consultation", clinicID, id)
 }
 
 func (r *consultationRepository) Create(ctx context.Context, consultation *model.Consultation) error {
@@ -57,28 +52,14 @@ func (r *consultationRepository) Create(ctx context.Context, consultation *model
 }
 
 func (r *consultationRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Consultation, error) {
-	result := r.db.WithContext(ctx).
-		Model(&model.Consultation{}).
-		Scopes(clinicScope(clinicID)).Where("id = ?", id).
-		Updates(fields)
-	if result.Error != nil {
-		return nil, apperrors.FromGORM(result.Error, "consultation", fmt.Sprintf("%d", id))
-	}
-	if result.RowsAffected == 0 {
-		return nil, apperrors.WrapNotFound("consultation", fmt.Sprintf("%d", id))
+	if err := updateScopedByID(ctx, r.db, &model.Consultation{}, "consultation", clinicID, id, fields); err != nil {
+		return nil, err
 	}
 	return r.FindByID(ctx, clinicID, id)
 }
 
 func (r *consultationRepository) Delete(ctx context.Context, clinicID, id uint64) error {
-	result := r.db.WithContext(ctx).Scopes(clinicScope(clinicID)).Where("id = ?", id).Delete(&model.Consultation{})
-	if result.Error != nil {
-		return apperrors.FromGORM(result.Error, "consultation", fmt.Sprintf("%d", id))
-	}
-	if result.RowsAffected == 0 {
-		return apperrors.WrapNotFound("consultation", fmt.Sprintf("%d", id))
-	}
-	return nil
+	return deleteScopedByID(ctx, r.db, &model.Consultation{}, "consultation", clinicID, id)
 }
 
 func (r *consultationRepository) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
@@ -105,7 +86,7 @@ func (r *consultationRepository) CountUsageByConsultationID(ctx context.Context,
 	var count int64
 	if err := r.db.WithContext(ctx).
 		Model(&model.Treatment{}).
-		Joins("JOIN medical_records ON medical_records.id = treatments.medical_record_id AND medical_records.clinic_id = ? AND medical_records.deleted_at IS NULL", clinicID).
+		Scopes(medicalRecordTenantScope("treatments", clinicID)).
 		Where("treatments.consultation_id = ? AND treatments.deleted_at IS NULL", consultationID).
 		Count(&count).Error; err != nil {
 		return 0, apperrors.FromGORM(err, "treatment", "")

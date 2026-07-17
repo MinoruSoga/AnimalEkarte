@@ -48,13 +48,12 @@ type addCareLogRequest struct {
 }
 
 func (r *addCareLogRequest) toServiceInput() (*service.CreateCareLogInput, error) {
-	recordedAt, err := time.ParseInLocation(dailyRecordTimeLayout, r.Time, time.Local)
-	if err != nil {
+	if _, err := time.ParseInLocation(dailyRecordTimeLayout, r.Time, time.Local); err != nil {
 		return nil, fmt.Errorf("invalid time format, expected HH:MM:SS")
 	}
 
 	return &service.CreateCareLogInput{
-		Time:    recordedAt,
+		Time:    r.Time,
 		Type:    r.Type,
 		Status:  r.Status,
 		Value:   r.Value,
@@ -71,13 +70,12 @@ type addStaffNoteRequest struct {
 }
 
 func (r addStaffNoteRequest) toServiceInput() (*service.CreateStaffNoteInput, error) {
-	recordedAt, err := time.ParseInLocation(dailyRecordTimeLayout, r.Time, time.Local)
-	if err != nil {
+	if _, err := time.ParseInLocation(dailyRecordTimeLayout, r.Time, time.Local); err != nil {
 		return nil, fmt.Errorf("invalid time format, expected HH:MM:SS")
 	}
 
 	return &service.CreateStaffNoteInput{
-		Time:    recordedAt,
+		Time:    r.Time,
 		Content: r.Content,
 		StaffID: r.StaffID,
 	}, nil

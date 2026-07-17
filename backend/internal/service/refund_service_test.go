@@ -2,52 +2,36 @@ package service
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
 type mockRefundRepo struct {
-	createFn      func(ctx context.Context, refund *model.BillingRefund) error
-	sumFn         func(ctx context.Context, clinicID, billingID uint64) (int64, error)
-	sumByMethodFn func(ctx context.Context, clinicID, billingID uint64, method model.PaymentMethod) (int64, error)
+	createFn          func(ctx context.Context, refund *model.BillingRefund) error
+	sumFn             func(ctx context.Context, clinicID, billingID uint64) (int64, error)
+	sumByMethodFn     func(ctx context.Context, clinicID, billingID uint64, method model.PaymentMethod) (int64, error)
+	findByBillingIDFn func(ctx context.Context, clinicID, billingID uint64) ([]model.BillingRefund, error)
 }
 
-// noopAuditService is a minimal audit service for testing
-type noopAuditService struct{}
+// noopAuditTxLogger は AuditTxLogger の noop 実装（テスト用）
+type noopAuditTxLogger struct{}
 
-func (n *noopAuditService) Log(ctx context.Context, log *model.AuditLog) error       { return nil }
-func (n *noopAuditService) LogEntry(ctx context.Context, input *AuditLogInput) error { return nil }
-func (n *noopAuditService) LogAuthLogin(ctx context.Context, clinicID, staffID *uint64, action, ip, ua string) error {
-	return nil
-}
-func (n *noopAuditService) LogLstepOperation(ctx context.Context, clinicID uint64, actorID *uint64, action, resource string, resourceID *uint64) error {
-	return nil
-}
-func (n *noopAuditService) LogLstepOperationWithMetadata(ctx context.Context, clinicID uint64, actorID *uint64, action, resource string, resourceID *uint64, metadata any) error {
-	return nil
-}
-func (n *noopAuditService) LogMedicalRecordChange(ctx context.Context, clinicID uint64, actorID *uint64, action string, recordID uint64, oldValue, newValue map[string]any) error {
-	return nil
-}
-func (n *noopAuditService) LogVitalChange(ctx context.Context, clinicID uint64, actorID *uint64, action string, vitalID, medicalRecordID uint64, oldValue, newValue map[string]any) error {
-	return nil
-}
-func (n *noopAuditService) LogAddendumCreate(ctx context.Context, clinicID uint64, actorID *uint64, addendumID, medicalRecordID uint64, addendum *model.MedicalRecordAddendum) error {
-	return nil
-}
-func (n *noopAuditService) LogClinicSwitch(ctx context.Context, actorID *uint64, fromClinicID, toClinicID uint64, ipAddress, userAgent string) error {
-	return nil
-}
+func (n *noopAuditTxLogger) LogEntryTx(_ context.Context, _ *AuditLogInput) error { return nil }
 
 func (m *mockRefundRepo) Create(ctx context.Context, refund *model.BillingRefund) error {
 	return m.createFn(ctx, refund)
 }
 
-func (m *mockRefundRepo) FindByBillingID(_ context.Context, _, _ uint64) ([]model.BillingRefund, error) {
+func (m *mockRefundRepo) FindByBillingID(ctx context.Context, clinicID, billingID uint64) ([]model.BillingRefund, error) {
+	if m.findByBillingIDFn != nil {
+		return m.findByBillingIDFn(ctx, clinicID, billingID)
+	}
 	return nil, nil
 }
 
@@ -95,7 +79,7 @@ func TestRefundService_Create_RecordsPaymentMethod(t *testing.T) {
 		},
 	}
 	mockTx := &mockTransactor{withTxErr: nil}
-	svc := NewRefundService(refundRepo, accountRepo, &noopAuditService{}, mockTx)
+	svc := NewRefundService(refundRepo, accountRepo, &noopAuditTxLogger{}, mockTx)
 
 	method := model.PaymentMethodCreditCard
 	_, err := svc.Create(context.Background(), 1, 1, CreateRefundInput{
@@ -128,7 +112,7 @@ func TestRefundService_Create_NilPaymentMethodWhenUnspecified(t *testing.T) {
 		},
 	}
 	mockTx := &mockTransactor{withTxErr: nil}
-	svc := NewRefundService(refundRepo, accountRepo, &noopAuditService{}, mockTx)
+	svc := NewRefundService(refundRepo, accountRepo, &noopAuditTxLogger{}, mockTx)
 
 	_, err := svc.Create(context.Background(), 1, 1, CreateRefundInput{
 		StaffID: ptrUint64(1),
@@ -153,7 +137,7 @@ func TestRefundService_Create_RejectsNonCompletedBilling(t *testing.T) {
 		createFn: func(_ context.Context, _ *model.BillingRefund) error { return nil },
 	}
 	mockTx := &mockTransactor{withTxErr: nil}
-	svc := NewRefundService(refundRepo, accountRepo, &noopAuditService{}, mockTx)
+	svc := NewRefundService(refundRepo, accountRepo, &noopAuditTxLogger{}, mockTx)
 
 	_, err := svc.Create(context.Background(), 1, 1, CreateRefundInput{Amount: 1000})
 	assert.Error(t, err)
@@ -170,7 +154,7 @@ func TestRefundService_Create_PaymentMethodExceedsReceived(t *testing.T) {
 		createFn: func(_ context.Context, _ *model.BillingRefund) error { return nil },
 	}
 	mockTx := &mockTransactor{withTxErr: nil}
-	svc := NewRefundService(refundRepo, accountRepo, &noopAuditService{}, mockTx)
+	svc := NewRefundService(refundRepo, accountRepo, &noopAuditTxLogger{}, mockTx)
 
 	method := model.PaymentMethodCreditCard
 	_, err := svc.Create(context.Background(), 1, 1, CreateRefundInput{Amount: 3500, PaymentMethod: &method})
@@ -188,7 +172,7 @@ func TestRefundService_Create_PaymentMethodNotUsed(t *testing.T) {
 		createFn: func(_ context.Context, _ *model.BillingRefund) error { return nil },
 	}
 	mockTx := &mockTransactor{withTxErr: nil}
-	svc := NewRefundService(refundRepo, accountRepo, &noopAuditService{}, mockTx)
+	svc := NewRefundService(refundRepo, accountRepo, &noopAuditTxLogger{}, mockTx)
 
 	method := model.PaymentMethodCreditCard // 現金のみの会計にカード返金
 	_, err := svc.Create(context.Background(), 1, 1, CreateRefundInput{Amount: 1000, PaymentMethod: &method})
@@ -209,7 +193,7 @@ func TestRefundService_Create_PaymentMethodAccumulates(t *testing.T) {
 		},
 	}
 	mockTx := &mockTransactor{withTxErr: nil}
-	svc := NewRefundService(refundRepo, accountRepo, &noopAuditService{}, mockTx)
+	svc := NewRefundService(refundRepo, accountRepo, &noopAuditTxLogger{}, mockTx)
 
 	method := model.PaymentMethodCreditCard
 	_, err := svc.Create(context.Background(), 1, 1, CreateRefundInput{Amount: 2500, PaymentMethod: &method})
@@ -235,7 +219,7 @@ func TestRefundService_Create_PaymentMethodWithinLimit(t *testing.T) {
 		},
 	}
 	mockTx := &mockTransactor{withTxErr: nil}
-	svc := NewRefundService(refundRepo, accountRepo, &noopAuditService{}, mockTx)
+	svc := NewRefundService(refundRepo, accountRepo, &noopAuditTxLogger{}, mockTx)
 
 	method := model.PaymentMethodCreditCard
 	_, err := svc.Create(context.Background(), 1, 1, CreateRefundInput{Amount: 1500, PaymentMethod: &method})
@@ -245,14 +229,17 @@ func TestRefundService_Create_PaymentMethodWithinLimit(t *testing.T) {
 	}
 }
 
-// capturingAuditService は refund 監査テスト用の AuditService モック。LogEntry のみ capture する。
-type capturingAuditService struct {
-	noopAuditService
+// capturingAuditTxLogger は refund 監査テスト用の AuditTxLogger モック。LogEntryTx のみ capture する。
+type capturingAuditTxLogger struct {
 	lastInput *AuditLogInput
+	err       error
 }
 
-func (c *capturingAuditService) LogEntry(_ context.Context, input *AuditLogInput) error {
+func (c *capturingAuditTxLogger) LogEntryTx(_ context.Context, input *AuditLogInput) error {
 	c.lastInput = input
+	if c.err != nil {
+		return c.err
+	}
 	return nil
 }
 
@@ -273,7 +260,7 @@ func TestRefundService_Create_AuditMinimalJSON(t *testing.T) {
 		},
 	}
 	mockTx := &mockTransactor{withTxErr: nil}
-	auditSvc := &capturingAuditService{}
+	auditSvc := &capturingAuditTxLogger{}
 	svc := NewRefundService(refundRepo, accountRepo, auditSvc, mockTx)
 
 	_, err := svc.Create(context.Background(), 1, 1, CreateRefundInput{
@@ -283,7 +270,7 @@ func TestRefundService_Create_AuditMinimalJSON(t *testing.T) {
 	})
 
 	assert.NoError(t, err)
-	require.NotNil(t, auditSvc.lastInput, "audit LogEntry should be called")
+	require.NotNil(t, auditSvc.lastInput, "audit LogEntryTx should be called")
 	assert.Equal(t, model.AuditActionBillingRefundCreate, auditSvc.lastInput.Action)
 	assert.Equal(t, "billing_refund", auditSvc.lastInput.Resource)
 
@@ -295,4 +282,187 @@ func TestRefundService_Create_AuditMinimalJSON(t *testing.T) {
 	_, hasBillingID := newVal["billing_id"]
 	assert.False(t, hasBillingID, "全Struct保存禁止: billing_id は NewValue に含まれてはいけない")
 	_ = saved
+}
+
+// 金額が0以下の場合は即座にバリデーションエラー（トランザクションに入る前）。
+func TestRefundService_Create_RejectsNonPositiveAmount(t *testing.T) {
+	accountRepo := &mockAccountingRepository{}
+	refundRepo := &mockRefundRepo{}
+	mockTx := &mockTransactor{withTxErr: nil}
+	svc := NewRefundService(refundRepo, accountRepo, &noopAuditTxLogger{}, mockTx)
+
+	_, err := svc.Create(context.Background(), 1, 1, CreateRefundInput{Amount: 0})
+	assert.Error(t, err)
+	assert.True(t, apperrors.IsInvalidInput(err))
+
+	_, err = svc.Create(context.Background(), 1, 1, CreateRefundInput{Amount: -100})
+	assert.Error(t, err)
+	assert.True(t, apperrors.IsInvalidInput(err))
+}
+
+// LockAndFindByID（billing取得）が失敗した場合はラップされたエラーを返す。
+func TestRefundService_Create_LockAndFindByIDError(t *testing.T) {
+	accountRepo := &mockAccountingRepository{
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.Billing, error) {
+			return nil, errors.New("db error")
+		},
+	}
+	refundRepo := &mockRefundRepo{}
+	mockTx := &mockTransactor{withTxErr: nil}
+	svc := NewRefundService(refundRepo, accountRepo, &noopAuditTxLogger{}, mockTx)
+
+	_, err := svc.Create(context.Background(), 1, 1, CreateRefundInput{Amount: 1000})
+	assert.Error(t, err)
+}
+
+// SumByBillingID の集計エラーはラップされて伝播する。
+func TestRefundService_Create_SumByBillingIDError(t *testing.T) {
+	accountRepo := &mockAccountingRepository{
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.Billing, error) {
+			return completedBillingForRefund(), nil
+		},
+	}
+	refundRepo := &mockRefundRepo{
+		sumFn: func(_ context.Context, _, _ uint64) (int64, error) {
+			return 0, errors.New("sum error")
+		},
+	}
+	mockTx := &mockTransactor{withTxErr: nil}
+	svc := NewRefundService(refundRepo, accountRepo, &noopAuditTxLogger{}, mockTx)
+
+	_, err := svc.Create(context.Background(), 1, 1, CreateRefundInput{Amount: 1000})
+	assert.Error(t, err)
+}
+
+// 返金額が請求残高を超える場合は400エラー。
+func TestRefundService_Create_ExceedsAvailableBalance(t *testing.T) {
+	accountRepo := &mockAccountingRepository{
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.Billing, error) {
+			return completedBillingForRefund(), nil // TotalAmount: 10000
+		},
+	}
+	refundRepo := &mockRefundRepo{
+		sumFn: func(_ context.Context, _, _ uint64) (int64, error) {
+			return 9000, nil // already refunded 9000, available = 1000
+		},
+	}
+	mockTx := &mockTransactor{withTxErr: nil}
+	svc := NewRefundService(refundRepo, accountRepo, &noopAuditTxLogger{}, mockTx)
+
+	_, err := svc.Create(context.Background(), 1, 1, CreateRefundInput{Amount: 1500})
+	assert.Error(t, err)
+	assert.True(t, apperrors.IsInvalidInput(err))
+}
+
+// refund repo.Create の失敗はラップされて返る。
+func TestRefundService_Create_RefundCreateRepoError(t *testing.T) {
+	accountRepo := &mockAccountingRepository{
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.Billing, error) {
+			return completedBillingForRefund(), nil
+		},
+	}
+	refundRepo := &mockRefundRepo{
+		createFn: func(_ context.Context, _ *model.BillingRefund) error {
+			return errors.New("insert failed")
+		},
+	}
+	mockTx := &mockTransactor{withTxErr: nil}
+	svc := NewRefundService(refundRepo, accountRepo, &noopAuditTxLogger{}, mockTx)
+
+	_, err := svc.Create(context.Background(), 1, 1, CreateRefundInput{Amount: 1000})
+	assert.Error(t, err)
+}
+
+// 監査ログ書き込み失敗は fail-closed（返金自体も失敗として扱われる #211）。
+func TestRefundService_Create_AuditLogFailureIsFailClosed(t *testing.T) {
+	accountRepo := &mockAccountingRepository{
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.Billing, error) {
+			return completedBillingForRefund(), nil
+		},
+	}
+	refundRepo := &mockRefundRepo{
+		createFn: func(_ context.Context, r *model.BillingRefund) error {
+			r.ID = 500
+			return nil
+		},
+	}
+	mockTx := &mockTransactor{withTxErr: nil}
+	auditSvc := &capturingAuditTxLogger{err: errors.New("audit write failed")}
+	svc := NewRefundService(refundRepo, accountRepo, auditSvc, mockTx)
+
+	_, err := svc.Create(context.Background(), 1, 1, CreateRefundInput{Amount: 1000, Reason: "test"})
+	assert.Error(t, err)
+}
+
+// トランザクション自体が失敗（WithTx が伝播するエラー）した場合はラップされて返る。
+func TestRefundService_Create_TransactorError(t *testing.T) {
+	accountRepo := &mockAccountingRepository{
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.Billing, error) {
+			return completedBillingForRefund(), nil
+		},
+	}
+	refundRepo := &mockRefundRepo{}
+	mockTx := &mockTransactor{withTxErr: errors.New("tx failed")}
+	svc := NewRefundService(refundRepo, accountRepo, &noopAuditTxLogger{}, mockTx)
+
+	_, err := svc.Create(context.Background(), 1, 1, CreateRefundInput{Amount: 1000})
+	assert.Error(t, err)
+}
+
+// ---- ListByBillingID tests ----
+
+func TestRefundService_ListByBillingID(t *testing.T) {
+	t.Run("returns refunds when billing exists", func(t *testing.T) {
+		accountRepo := &mockAccountingRepository{
+			findByIDFn: func(_ context.Context, _, _ uint64) (*model.Billing, error) {
+				return completedBillingForRefund(), nil
+			},
+		}
+		refundRepo := &mockRefundRepo{
+			findByBillingIDFn: func(_ context.Context, _, _ uint64) ([]model.BillingRefund, error) {
+				return []model.BillingRefund{{ID: 1, Amount: 1000}, {ID: 2, Amount: 2000}}, nil
+			},
+		}
+		mockTx := &mockTransactor{}
+		svc := NewRefundService(refundRepo, accountRepo, &noopAuditTxLogger{}, mockTx)
+
+		items, err := svc.ListByBillingID(context.Background(), 1, 1)
+		assert.NoError(t, err)
+		assert.Len(t, items, 2)
+	})
+
+	t.Run("returns wrapped error when billing lookup fails (multi-tenant protection)", func(t *testing.T) {
+		accountRepo := &mockAccountingRepository{
+			findByIDFn: func(_ context.Context, _, _ uint64) (*model.Billing, error) {
+				return nil, apperrors.WrapNotFound("billing", "999")
+			},
+		}
+		refundRepo := &mockRefundRepo{}
+		mockTx := &mockTransactor{}
+		svc := NewRefundService(refundRepo, accountRepo, &noopAuditTxLogger{}, mockTx)
+
+		items, err := svc.ListByBillingID(context.Background(), 1, 999)
+		assert.Error(t, err)
+		assert.True(t, apperrors.IsNotFound(err))
+		assert.Nil(t, items)
+	})
+
+	t.Run("returns wrapped error when repo.FindByBillingID fails", func(t *testing.T) {
+		accountRepo := &mockAccountingRepository{
+			findByIDFn: func(_ context.Context, _, _ uint64) (*model.Billing, error) {
+				return completedBillingForRefund(), nil
+			},
+		}
+		refundRepo := &mockRefundRepo{
+			findByBillingIDFn: func(_ context.Context, _, _ uint64) ([]model.BillingRefund, error) {
+				return nil, errors.New("db error")
+			},
+		}
+		mockTx := &mockTransactor{}
+		svc := NewRefundService(refundRepo, accountRepo, &noopAuditTxLogger{}, mockTx)
+
+		items, err := svc.ListByBillingID(context.Background(), 1, 1)
+		assert.Error(t, err)
+		assert.Nil(t, items)
+	})
 }

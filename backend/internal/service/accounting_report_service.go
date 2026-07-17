@@ -6,15 +6,15 @@ import (
 	"encoding/csv"
 	"fmt"
 	"log/slog"
+	"math"
 	"time"
 
+	"github.com/animal-ekarte/backend/internal/config"
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/repository"
+	"github.com/animal-ekarte/backend/internal/timeutil"
 )
-
-// jst は日本標準時（UTC+9）のタイムゾーン定数
-var jst = time.FixedZone("Asia/Tokyo", 9*60*60)
 
 // ---- レスポンス型（フロントエンド期待形式） ----
 
@@ -22,6 +22,8 @@ var jst = time.FixedZone("Asia/Tokyo", 9*60*60)
 type MonthlyReportResponse struct {
 	Year         int                  `json:"year"`
 	Month        int                  `json:"month"`
+	StartDate    string               `json:"start_date"`
+	EndDate      string               `json:"end_date"`
 	Summary      MonthlyReportSummary `json:"summary"`
 	DailyDetails []DailyReportDetail  `json:"daily_details"`
 }
@@ -71,12 +73,37 @@ type MonthlyCSVResult struct {
 	Data     []byte
 }
 
+type accountingReportTaxRates struct {
+	StandardPercent int64
+	ReducedPercent  int64
+}
+
+func clinicTaxRates(clinic *model.Clinic) accountingReportTaxRates {
+	standard := int64(10)
+	reduced := int64(8)
+	if clinic != nil {
+		if clinic.StandardTaxRate > 0 {
+			standard = int64(math.Round(clinic.StandardTaxRate * 100))
+		}
+		if clinic.ReducedTaxRate > 0 {
+			reduced = int64(math.Round(clinic.ReducedTaxRate * 100))
+		}
+	}
+	return accountingReportTaxRates{StandardPercent: standard, ReducedPercent: reduced}
+}
+
+func isReducedTaxRate(rowRate int64, rates accountingReportTaxRates) bool {
+	return rowRate == rates.ReducedPercent
+}
+
 // buildMonthlyReportResponse は生データからフロントエンド向けレスポンスを構築する
 func buildMonthlyReportResponse(
 	year, month int,
+	startDate, endDate time.Time,
 	raw *repository.MonthlyReportResult,
 	payMethodNames map[uint64]string,
 	holidaySet map[string]bool,
+	taxRates accountingReportTaxRates,
 ) *MonthlyReportResponse {
 	// 日付別の集計マップを構築
 	type dailyAgg struct {
@@ -150,34 +177,31 @@ func buildMonthlyReportResponse(
 	// 税率別集計を TaxBreakdownSummary に変換
 	var taxSummary TaxBreakdownSummary
 	for _, tr := range raw.TaxBreakdown {
-		if tr.TaxRate > 8 {
-			// 標準税率（10%）
-			taxSummary.Standard.TaxableAmount += tr.TaxableAmount
-			taxSummary.Standard.TaxAmount += tr.TaxAmount
-		} else {
-			// 軽減税率（8%以下）
+		if isReducedTaxRate(tr.TaxRate, taxRates) {
 			taxSummary.Reduced.TaxableAmount += tr.TaxableAmount
 			taxSummary.Reduced.TaxAmount += tr.TaxAmount
+		} else {
+			taxSummary.Standard.TaxableAmount += tr.TaxableAmount
+			taxSummary.Standard.TaxAmount += tr.TaxAmount
 		}
 	}
 
-	// 日別明細スライスを日付昇順で構築
-	startDate := time.Date(year, time.Month(month), 1, 0, 0, 0, 0, jst)
-	daysInMonth := startDate.AddDate(0, 1, 0).AddDate(0, 0, -1).Day()
-
-	weekdayJP := [7]string{"日", "月", "火", "水", "木", "金", "土"}
-	dailyDetails := make([]DailyReportDetail, 0, daysInMonth)
+	// 日別明細スライスを期間内の日付昇順で構築
+	days := int(endDate.Sub(startDate).Hours()/24) + 1
+	if days < 0 {
+		days = 0
+	}
+	dailyDetails := make([]DailyReportDetail, 0, days)
 	workingDays := 0
 
-	for day := 1; day <= daysInMonth; day++ {
-		d := time.Date(year, time.Month(month), day, 0, 0, 0, 0, jst)
-		dateStr := d.Format("2006-01-02")
+	for d := startDate; !d.After(endDate); d = d.AddDate(0, 0, 1) {
+		dateStr := d.Format(time.DateOnly)
 		isHoliday := holidaySet[dateStr]
 
 		agg := dailyMap[dateStr]
 		detail := DailyReportDetail{
 			Date:      dateStr,
-			Weekday:   weekdayJP[d.Weekday()],
+			Weekday:   timeutil.WeekdayJP(d),
 			IsHoliday: isHoliday,
 		}
 		if agg != nil {
@@ -212,22 +236,27 @@ func buildMonthlyReportResponse(
 	return &MonthlyReportResponse{
 		Year:         year,
 		Month:        month,
+		StartDate:    startDate.Format(time.DateOnly),
+		EndDate:      endDate.Format(time.DateOnly),
 		Summary:      summary,
 		DailyDetails: dailyDetails,
 	}
 }
 
-// buildTaxBreakdown は TaxBreakdownRow スライスを TaxBreakdownSummary に変換する
-// cash_register_service.go からも利用するためパッケージスコープで定義する
-func buildTaxBreakdown(rows []repository.TaxBreakdownRow) TaxBreakdownSummary {
+// buildTaxBreakdown は TaxBreakdownRow スライスを病院マスタ税率（exact-match）で標準/軽減に分類し
+// TaxBreakdownSummary に変換する。cash_register_service.go（締めレジ経路）からも利用するため
+// パッケージスコープで定義する。M-7(#191): 固定閾値 `>8` を廃止し月次レポート経路と分類規則を統一。
+// 軽減税率と一致しない税率（0% 非課税を含む）は標準へ分類する（月次 #191 と同一規則）。
+// 保存済みの過去の締め記録（category_breakdown スナップショット）は再計算しない。
+func buildTaxBreakdown(rows []repository.TaxBreakdownRow, rates accountingReportTaxRates) TaxBreakdownSummary {
 	var summary TaxBreakdownSummary
 	for _, tr := range rows {
-		if tr.TaxRate > 8 {
-			summary.Standard.TaxableAmount += tr.TaxableAmount
-			summary.Standard.TaxAmount += tr.TaxAmount
-		} else {
+		if isReducedTaxRate(tr.TaxRate, rates) {
 			summary.Reduced.TaxableAmount += tr.TaxableAmount
 			summary.Reduced.TaxAmount += tr.TaxAmount
+		} else {
+			summary.Standard.TaxableAmount += tr.TaxableAmount
+			summary.Standard.TaxAmount += tr.TaxAmount
 		}
 	}
 	return summary
@@ -247,7 +276,9 @@ func buildPayMethodNameMap(methods []model.PaymentMethodMaster) map[uint64]strin
 // AccountingReportService は月次売上レポートのビジネスロジックインターフェース
 type AccountingReportService interface {
 	GetMonthly(ctx context.Context, clinicID uint64, year, month int) (*MonthlyReportResponse, error)
+	GetMonthlyByPeriod(ctx context.Context, clinicID uint64, startDate, endDate time.Time) (*MonthlyReportResponse, error)
 	ExportMonthlyCSV(ctx context.Context, clinicID uint64, year, month int) (*MonthlyCSVResult, error)
+	ExportMonthlyCSVByPeriod(ctx context.Context, clinicID uint64, startDate, endDate time.Time) (*MonthlyCSVResult, error)
 }
 
 // ---- サービス実装 ----
@@ -256,6 +287,7 @@ type accountingReportService struct {
 	repo          repository.AccountingRepository
 	payMethodRepo repository.PaymentMethodMasterRepository
 	holidayRepo   repository.ClinicHolidayRepository
+	clinicRepo    repository.ClinicRepository
 }
 
 // NewAccountingReportService は AccountingReportService を初期化して返す
@@ -263,11 +295,13 @@ func NewAccountingReportService(
 	repo repository.AccountingRepository,
 	payMethodRepo repository.PaymentMethodMasterRepository,
 	holidayRepo repository.ClinicHolidayRepository,
+	clinicRepo repository.ClinicRepository,
 ) AccountingReportService {
 	return &accountingReportService{
 		repo:          repo,
 		payMethodRepo: payMethodRepo,
 		holidayRepo:   holidayRepo,
+		clinicRepo:    clinicRepo,
 	}
 }
 
@@ -279,17 +313,52 @@ func validateMonth(month int) error {
 	return nil
 }
 
+func validateReportPeriod(startDate, endDate time.Time) error {
+	if startDate.After(endDate) {
+		return apperrors.WrapInvalidInput("start_date は end_date 以前の日付を指定してください")
+	}
+	if endDate.Sub(startDate).Hours()/24 > 366 {
+		return apperrors.WrapInvalidInput("集計期間は 367 日以内で指定してください")
+	}
+	return nil
+}
+
 func (s *accountingReportService) GetMonthly(ctx context.Context, clinicID uint64, year, month int) (*MonthlyReportResponse, error) {
 	if err := validateMonth(month); err != nil {
 		return nil, apperrors.Wrap(err, "failed to validate month")
 	}
 
+	startDate := time.Date(year, time.Month(month), 1, 0, 0, 0, 0, config.JST)
+	endDate := startDate.AddDate(0, 1, -1)
 	raw, err := s.repo.GetMonthlyReport(ctx, clinicID, year, month)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to get monthly report", "error", err)
 		return nil, apperrors.Wrap(err, "failed to get monthly report")
 	}
+	return s.buildReportResponse(ctx, clinicID, year, month, startDate, endDate, raw)
+}
 
+func (s *accountingReportService) GetMonthlyByPeriod(ctx context.Context, clinicID uint64, startDate, endDate time.Time) (*MonthlyReportResponse, error) {
+	if err := validateReportPeriod(startDate, endDate); err != nil {
+		return nil, apperrors.Wrap(err, "failed to validate report period")
+	}
+
+	periodEnd := endDate.AddDate(0, 0, 1)
+	raw, err := s.repo.GetMonthlyReportByPeriod(ctx, clinicID, startDate, periodEnd)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to get monthly report by period", "error", err, "clinic_id", clinicID)
+		return nil, apperrors.Wrap(err, "failed to get monthly report by period")
+	}
+	return s.buildReportResponse(ctx, clinicID, startDate.Year(), int(startDate.Month()), startDate, endDate, raw)
+}
+
+func (s *accountingReportService) buildReportResponse(
+	ctx context.Context,
+	clinicID uint64,
+	year, month int,
+	startDate, endDate time.Time,
+	raw *repository.MonthlyReportResult,
+) (*MonthlyReportResponse, error) {
 	// 支払方法マスタを取得してID→名前マップを構築
 	payMethods, err := s.payMethodRepo.FindAll(ctx, clinicID)
 	if err != nil {
@@ -302,18 +371,39 @@ func (s *accountingReportService) GetMonthly(ctx context.Context, clinicID uint6
 	}
 
 	// 休診日マスタを取得
-	yearMonth := fmt.Sprintf("%04d-%02d", year, month)
-	holidays, err := s.holidayRepo.FindAllByYearMonth(ctx, clinicID, yearMonth)
+	holidaySet, err := s.buildHolidaySet(ctx, clinicID, startDate, endDate)
 	if err != nil {
-		slog.ErrorContext(ctx, "failed to get clinic holidays", "error", err)
-		return nil, apperrors.Wrap(err, "failed to get clinic holidays")
-	}
-	holidaySet := make(map[string]bool, len(holidays))
-	for _, h := range holidays {
-		holidaySet[h.Date.Format("2006-01-02")] = true
+		return nil, err
 	}
 
-	return buildMonthlyReportResponse(year, month, raw, payMethodNames, holidaySet), nil
+	clinic, err := s.clinicRepo.FindByID(ctx, clinicID)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to get clinic tax settings", "error", err, "clinic_id", clinicID)
+		return nil, apperrors.Wrap(err, "failed to get clinic tax settings")
+	}
+
+	return buildMonthlyReportResponse(year, month, startDate, endDate, raw, payMethodNames, holidaySet, clinicTaxRates(clinic)), nil
+}
+
+func (s *accountingReportService) buildHolidaySet(ctx context.Context, clinicID uint64, startDate, endDate time.Time) (map[string]bool, error) {
+	holidaySet := make(map[string]bool)
+	startStr := startDate.Format(time.DateOnly)
+	endStr := endDate.Format(time.DateOnly)
+	for cursor := time.Date(startDate.Year(), startDate.Month(), 1, 0, 0, 0, 0, config.JST); !cursor.After(endDate); cursor = cursor.AddDate(0, 1, 0) {
+		yearMonth := fmt.Sprintf("%04d-%02d", cursor.Year(), cursor.Month())
+		holidays, err := s.holidayRepo.FindAllByYearMonth(ctx, clinicID, yearMonth)
+		if err != nil {
+			slog.ErrorContext(ctx, "failed to get clinic holidays", "error", err, "clinic_id", clinicID, "year_month", yearMonth)
+			return nil, apperrors.Wrap(err, "failed to get clinic holidays")
+		}
+		for _, h := range holidays {
+			date := h.Date.Format(time.DateOnly)
+			if date >= startStr && date <= endStr {
+				holidaySet[date] = true
+			}
+		}
+	}
+	return holidaySet, nil
 }
 
 // ExportMonthlyCSV は月次売上レポートの CSV バイト列とファイル名を返す
@@ -323,7 +413,19 @@ func (s *accountingReportService) ExportMonthlyCSV(ctx context.Context, clinicID
 		slog.ErrorContext(ctx, "failed to get monthly accounting report", "error", err)
 		return nil, apperrors.Wrap(err, "failed to get monthly accounting report")
 	}
+	return buildMonthlyCSV(result, fmt.Sprintf("monthly_report_%04d%02d.csv", year, month))
+}
 
+func (s *accountingReportService) ExportMonthlyCSVByPeriod(ctx context.Context, clinicID uint64, startDate, endDate time.Time) (*MonthlyCSVResult, error) {
+	result, err := s.GetMonthlyByPeriod(ctx, clinicID, startDate, endDate)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to get accounting report by period", "error", err)
+		return nil, apperrors.Wrap(err, "failed to get accounting report by period")
+	}
+	return buildMonthlyCSV(result, fmt.Sprintf("monthly_report_%s_%s.csv", startDate.Format("20060102"), endDate.Format("20060102")))
+}
+
+func buildMonthlyCSV(result *MonthlyReportResponse, filename string) (*MonthlyCSVResult, error) {
 	var buf bytes.Buffer
 	// BOM（Excel の UTF-8 認識用）
 	buf.Write([]byte("\xEF\xBB\xBF"))
@@ -387,7 +489,7 @@ func (s *accountingReportService) ExportMonthlyCSV(ctx context.Context, clinicID
 	}
 
 	return &MonthlyCSVResult{
-		Filename: fmt.Sprintf("monthly_report_%04d%02d.csv", year, month),
+		Filename: filename,
 		Data:     buf.Bytes(),
 	}, nil
 }

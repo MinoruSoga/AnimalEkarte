@@ -2,28 +2,10 @@
  * Shifts feature types
  * Backend types: {@link ShiftEntry}, {@link ShiftType as BackendShiftType} from models.ts
  */
-import {
-  ShiftTypeFull,
-  ShiftTypeMorning,
-  ShiftTypeAfternoon,
-  ShiftTypeOff,
-  ShiftTypePaidLeave,
-} from "@/types/generated/models";
-
-/** ShiftType — models.ts const 値と一致する union 型（型安全性のため union 維持） */
-export type ShiftType =
-  | typeof ShiftTypeFull
-  | typeof ShiftTypeMorning
-  | typeof ShiftTypeAfternoon
-  | typeof ShiftTypeOff
-  | typeof ShiftTypePaidLeave;
-
-/** 休憩時間 */
-export interface ShiftBreak {
-  id: string;
-  break_start: string;
-  break_end: string;
-}
+// FE6-3: tygo enum_style: "union"（FE6-1/FE6-2）により生成定数が真の literal union になったため、
+// 手書き union を生成型からの re-export へ移行した。drift テストは union-drift.test.ts から削除済み。
+import type { ShiftType } from "@/types/generated/models";
+export type { ShiftType };
 
 /** UI-facing shift (string IDs — post-transform) */
 export type { Shift } from "../api/transforms";
@@ -54,11 +36,11 @@ export interface UpdateShiftInput {
 }
 
 export const SHIFT_TYPE_LABELS: Record<ShiftType, string> = {
-  [ShiftTypeFull]: "全日",
-  [ShiftTypeMorning]: "午前",
-  [ShiftTypeAfternoon]: "午後",
-  [ShiftTypeOff]: "休日",
-  [ShiftTypePaidLeave]: "有休",
+  full: "全日",
+  morning: "午前",
+  afternoon: "午後",
+  off: "休日",
+  paid_leave: "有休",
 };
 
 
@@ -71,7 +53,7 @@ export interface ShiftStaff {
 // ─── シフトテンプレート型 ────────────────────────────────────────────────
 
 /** バックエンド ShiftTemplateBreak の UI 型 */
-export interface ShiftTemplateBreak {
+interface ShiftTemplateBreak {
   id: string;
   shift_template_id: string;
   break_start: string;

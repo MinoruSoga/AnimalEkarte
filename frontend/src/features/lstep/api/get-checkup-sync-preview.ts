@@ -1,6 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import { getStoredClinicId } from "@/lib/current-clinic";
+import type { CPMStage } from "@/lib/cpm-stage";
+import { queryKeys } from "@/lib/query-keys";
 
 export type CheckupType =
   | "annual"
@@ -10,14 +12,8 @@ export type CheckupType =
   | "cancer"
   | "other";
 
-// ISSUE-009: CPM ステージ値域は backend service.CPMStage* と一致させる。
-export type CPMStage =
-  | "cpm_encounter"
-  | "cpm_growing"
-  | "cpm_core"
-  | "cpm_spot"
-  | "cpm_noah"
-  | "cpm_dormant";
+// ISSUE-009/180: CPM ステージ値域は共有定義 @/lib/cpm-stage に集約（単一真実源）。
+// ファイル内では上部 import の CPMStage を利用。外部からは @/lib/cpm-stage を直接 import すること。
 
 export interface CheckupSyncParams {
   checkup_type: CheckupType;
@@ -73,7 +69,7 @@ export function useGetCheckupSyncPreview(params: CheckupSyncParams | null) {
   const clinicId = getStoredClinicId();
 
   return useQuery({
-    queryKey: ["checkup-sync-preview", clinicId, params],
+    queryKey: queryKeys.checkupSyncPreview(clinicId, params),
     queryFn: async () => {
       if (clinicId === null) {
         return Promise.reject(new Error("clinic_id is not selected"));

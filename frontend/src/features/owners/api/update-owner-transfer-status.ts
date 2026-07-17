@@ -3,6 +3,7 @@ import { toast } from "sonner";
 import { axios } from "@/lib/axios";
 import { getStoredClinicId } from "@/lib/current-clinic";
 import { handleApiError } from "@/lib/handle-api-error";
+import { queryKeys } from "@/lib/query-keys";
 import type { Owner } from "@/types/owner";
 import { transformOwner, type OwnerApiResponse } from "./transforms";
 
@@ -33,9 +34,9 @@ export function useUpdateOwnerTransferStatus(ownerId: string) {
       return updateOwnerTransferStatus(clinicId, ownerId, body);
     },
     onSuccess: (owner, variables) => {
-      queryClient.setQueryData(["owners", ownerId], owner);
-      queryClient.invalidateQueries({ queryKey: ["owners", ownerId] });
-      queryClient.invalidateQueries({ queryKey: ["owner-line-tags", ownerId] });
+      queryClient.setQueryData(queryKeys.owners.detail(ownerId), owner);
+      queryClient.invalidateQueries({ queryKey: queryKeys.owners.detail(ownerId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.ownerLineTags(ownerId) });
       toast.success(variables.is_transferred ? "転院済みに設定しました" : "転院設定を解除しました");
     },
     onError: (error) => {

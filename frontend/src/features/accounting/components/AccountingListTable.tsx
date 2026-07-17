@@ -1,40 +1,28 @@
 import { Calendar, CircleDot, CreditCard, FileText, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { TableCell } from "@/components/ui/table";
-import { DataTable } from "@/components/shared/DataTable/DataTable";
+import { DataTable, DESIGN_TABLE_HEADER_ROW, DESIGN_TABLE_HEADER_CELL } from "@/components/shared/DataTable/DataTable";
 import { DataTableRow } from "@/components/shared/DataTable/DataTableRow";
 import { FilteringIndicator } from "@/components/shared/FilteringIndicator/FilteringIndicator";
-import { NotionFilter } from "@/components/shared/NotionFilter/NotionFilter";
-import { CONDITIONS_NO_EMPTY, CONDITIONS_WITH_EMPTY } from "@/components/shared/NotionFilter/types";
+import { PropertyFilter } from "@/components/shared/PropertyFilter/PropertyFilter";
+import { CONDITIONS_NO_EMPTY, CONDITIONS_WITH_EMPTY } from "@/components/shared/PropertyFilter/types";
 import type {
   ActiveFilter,
   ActiveSort,
   FilterProperty,
   SortProperty,
-} from "@/components/shared/NotionFilter/types";
+} from "@/components/shared/PropertyFilter/types";
 import { Pagination } from "@/components/shared/Pagination/Pagination";
 import { RowActionButton } from "@/components/shared/RowActionButton";
 import { SortableHeader } from "@/components/shared/SortableHeader/SortableHeader";
 import { StatusBadge } from "@/components/shared/StatusBadge/StatusBadge";
 import { C, ICON } from "@/lib/design-tokens";
+import { PAYMENT_METHOD_LABELS } from "@/constants/payment-method";
+import { ACCOUNTING_STATUS_LABELS } from "@/constants/accounting-status";
 import { formatCurrency } from "@/utils/format/number";
 import { getAccountingStatusColor } from "@/utils/status-helpers";
-import type { Accounting as AccountingType, AccountingStatus, PaymentMethod } from "../types";
-import { calculateAccountingTotal } from "./AccountingListTableModel";
-
-const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
-  cash: "現金",
-  credit_card: "クレジットカード",
-  electronic_money: "電子マネー",
-  bank_transfer: "銀行振込",
-};
-
-const ACCOUNTING_STATUS_LABELS: Record<AccountingStatus, string> = {
-  waiting: "会計待ち",
-  pending: "会計待ち",
-  completed: "会計済",
-  cancelled: "キャンセル",
-};
+import type { Accounting as AccountingType } from "../types";
+import { calculateAccountingTotal } from "./accounting-list-table-model";
 
 const FILTER_PROPERTIES: FilterProperty[] = [
   {
@@ -49,11 +37,7 @@ const FILTER_PROPERTIES: FilterProperty[] = [
     type: "select",
     icon: CircleDot,
     conditions: CONDITIONS_NO_EMPTY,
-    options: [
-      { value: "waiting", label: "会計待ち" },
-      { value: "completed", label: "会計済" },
-      { value: "cancelled", label: "キャンセル" },
-    ],
+    options: Object.entries(ACCOUNTING_STATUS_LABELS).map(([value, label]) => ({ value, label })),
   },
   {
     key: "paymentMethod",
@@ -61,12 +45,7 @@ const FILTER_PROPERTIES: FilterProperty[] = [
     type: "select",
     icon: CreditCard,
     conditions: CONDITIONS_WITH_EMPTY,
-    options: [
-      { value: "cash", label: "現金" },
-      { value: "credit_card", label: "クレジットカード" },
-      { value: "electronic_money", label: "電子マネー" },
-      { value: "bank_transfer", label: "銀行振込" },
-    ],
+    options: Object.entries(PAYMENT_METHOD_LABELS).map(([value, label]) => ({ value, label })),
   },
 ];
 
@@ -185,7 +164,7 @@ export function AccountingListTable({
 
   return (
     <>
-      <NotionFilter
+      <PropertyFilter
         properties={FILTER_PROPERTIES}
         activeFilters={activeFilters}
         onFilterChange={onFilterChange}
@@ -200,6 +179,8 @@ export function AccountingListTable({
 
       <FilteringIndicator isFiltering={isFiltering}>
         <DataTable
+          headerRowClassName={DESIGN_TABLE_HEADER_ROW}
+          headerCellClassName={DESIGN_TABLE_HEADER_CELL}
           columns={columns}
           data={pagination.paginatedData}
           emptyMessage="会計データが見つかりません"
@@ -286,7 +267,7 @@ function AccountingListRow({
           <Button
             variant="ghost"
             size="icon"
-            className={`h-8 w-8 ${C.accent} ${C.hoverTextAccent} ${C.hoverBgAccent5}`}
+            className={`h-8 w-8 ${C.textBrand} ${C.hoverTextBrand} ${C.hoverBgBrand5}`}
             onClick={(event) => {
               event.stopPropagation();
               onMedicalRecordOpen(accounting.medicalRecordId!);

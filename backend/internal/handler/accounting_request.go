@@ -191,6 +191,9 @@ type paymentSplitRequest struct {
 	Amount          int64   `json:"amount"           binding:"required,min=1"`
 	ReceivedAmount  int64   `json:"received_amount"`
 	ChangeAmount    int64   `json:"change_amount"    binding:"min=0"` // #119: 非負のみ強制（必須ではない。お釣り整合性は service の validatePaymentSplits が検証）
+	// ChangeOverride は #188: お釣り直接上書きモード。true の場合、レジ実機の誤差吸収のため
+	// service の validatePaymentSplits が change == received - amount 整合検証を緩和する（下限ガードは維持）。
+	ChangeOverride bool `json:"change_override"`
 }
 
 func (r paymentSplitRequest) toServiceInput() service.PaymentSplitInput {
@@ -200,6 +203,7 @@ func (r paymentSplitRequest) toServiceInput() service.PaymentSplitInput {
 		Amount:          r.Amount,
 		ReceivedAmount:  r.ReceivedAmount,
 		ChangeAmount:    r.ChangeAmount,
+		ChangeOverride:  r.ChangeOverride,
 	}
 }
 
@@ -212,6 +216,27 @@ func toPaymentSplitInputs(reqs []paymentSplitRequest) []service.PaymentSplitInpu
 		out = append(out, r.toServiceInput())
 	}
 	return out
+}
+
+// correctCreditPaymentRequest は確定済み会計のクレジット（カード）金額の確定後訂正リクエスト（#189）。
+// 訂正対象はカード系手段1件。理由は必須。受領額・お釣りはカード内訳では持たないため受け取らない。
+type correctCreditPaymentRequest struct {
+	Method string `json:"method" binding:"required,oneof=credit_card electronic_money"`
+	Amount int64  `json:"amount" binding:"required,min=1"`
+	Reason string `json:"reason" binding:"required"`
+	Memo   string `json:"memo"`
+}
+
+func (r *correctCreditPaymentRequest) toServiceInput(id, clinicID, staffID uint64) *service.CorrectCreditPaymentInput {
+	return &service.CorrectCreditPaymentInput{
+		ClinicID:  clinicID,
+		BillingID: id,
+		StaffID:   &staffID,
+		Method:    model.PaymentMethod(r.Method),
+		Amount:    r.Amount,
+		Reason:    r.Reason,
+		Memo:      r.Memo,
+	}
 }
 
 // updateAccountingRequest は会計更新リクエスト。

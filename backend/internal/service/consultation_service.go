@@ -43,11 +43,7 @@ func buildConsultationUpdate(input *UpdateConsultationInput) map[string]any {
 	if input.Duration != nil {
 		fields[colConsultationDuration] = *input.Duration
 	}
-	if input.ClearParentID {
-		fields[colConsultationParentID] = nil
-	} else if input.ParentID != nil {
-		fields[colConsultationParentID] = *input.ParentID
-	}
+	setNullableUint64Field(fields, colConsultationParentID, input.ClearParentID, input.ParentID)
 	if input.SortOrder != nil {
 		fields[colConsultationSortOrder] = *input.SortOrder
 	}
@@ -128,11 +124,14 @@ func (s *consultationService) Create(ctx context.Context, clinicID uint64, input
 	if err := validateRequiredName(input.Name); err != nil {
 		return nil, apperrors.Wrap(err, "failed to validate required name")
 	}
+	if err := s.validateParentOwnership(ctx, clinicID, input.ParentID); err != nil {
+		return nil, err
+	}
 	taxType := model.TaxTypeExcluded
 	if input.TaxType != nil && *input.TaxType != "" {
 		taxType = model.TaxType(*input.TaxType)
 	}
-	taxRate := 0.10
+	taxRate := DefaultTaxRate
 	if input.TaxRate != nil {
 		taxRate = *input.TaxRate
 	}
@@ -163,6 +162,9 @@ func (s *consultationService) Update(ctx context.Context, clinicID, id uint64, i
 	if _, err := s.repo.FindByID(ctx, clinicID, id); err != nil {
 		slog.ErrorContext(ctx, "failed to get consultation", "error", err, "id", id, "clinic_id", clinicID)
 		return nil, apperrors.Wrap(err, "failed to get consultation")
+	}
+	if err := s.validateParentOwnership(ctx, clinicID, input.ParentID); err != nil {
+		return nil, err
 	}
 	if err := validateOptionalName(input.Name); err != nil {
 		return nil, apperrors.Wrap(err, "failed to validate optional name")
@@ -219,4 +221,14 @@ func (s *consultationService) Reorder(ctx context.Context, clinicID uint64, ids 
 		slog.Uint64("clinic_id", clinicID),
 		slog.Int("count", len(ids)))
 	return nil
+}
+
+// validateParentOwnership verifies a request-supplied parent_id belongs to the caller's
+// clinic before it is persisted (X-14 self-ref master FK guard).
+func (s *consultationService) validateParentOwnership(ctx context.Context, clinicID uint64, parentID *uint64) error {
+	return validateOwnedMasterFK(ctx, "parent consultation", clinicID, parentID,
+		func(actx context.Context, cid, mid uint64) error {
+			_, err := s.repo.FindByID(actx, cid, mid)
+			return err
+		})
 }

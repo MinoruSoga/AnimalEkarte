@@ -1,4 +1,5 @@
 import type { ReservationType as ModelReservationType } from "@/types/generated/models";
+import type { ReorderRequest } from "@/types/form";
 
 // Server-managed fields excluded from request types
 type ServerFields = "id" | "clinic_id" | "created_at" | "updated_at";
@@ -18,6 +19,4 @@ export type UpdateReservationTypeRequest =
 // Reorder request type (手書き)
 // ─────────────────────────────────────────────────
 
-export interface ReorderReservationTypeRequest {
-  ids: number[];
-}
+export type ReorderReservationTypeRequest = ReorderRequest;
