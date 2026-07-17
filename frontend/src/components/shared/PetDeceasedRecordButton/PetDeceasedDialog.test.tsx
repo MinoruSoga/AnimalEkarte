@@ -35,6 +35,7 @@ function tomorrowStr(): string {
 
 function renderDialog(overrides: Partial<React.ComponentProps<typeof PetDeceasedDialog>> = {}) {
   const onOpenChange = overrides.onOpenChange ?? vi.fn();
+  const onRecorded = overrides.onRecorded ?? vi.fn();
   render(
     <PetDeceasedDialog
       open={overrides.open ?? true}
@@ -44,9 +45,10 @@ function renderDialog(overrides: Partial<React.ComponentProps<typeof PetDeceased
       petBreed={overrides.petBreed}
       petGender={overrides.petGender}
       petAge={overrides.petAge}
+      onRecorded={onRecorded}
     />,
   );
-  return { onOpenChange };
+  return { onOpenChange, onRecorded };
 }
 
 function submitForm() {
@@ -138,6 +140,37 @@ describe("PetDeceasedDialog", () => {
     submitForm();
 
     await waitFor(() => expect(onOpenChange).toHaveBeenCalledWith(false));
+  });
+
+  // BUG-407: バックエンドへの即時保存は既にこのダイアログ内で完結しているが、
+  // 外側 PetEditModal のローカル formData（生死ラジオ・deceasedAt）へ結果を
+  // 伝える手段が無いと、次に外側「更新」を押した際 status="生存" で
+  // 上書きされ deceased_at のみ残る不整合を再現する。onRecorded がその橋渡し。
+  it("登録成功時に onRecorded を保存内容付きで呼ぶ", async () => {
+    mockMutateAsync.mockResolvedValueOnce(undefined);
+    const { onRecorded } = renderDialog();
+
+    const reasonInput = screen.getByLabelText(/死亡理由/);
+    fireEvent.change(reasonInput, { target: { value: "老衰" } });
+
+    submitForm();
+
+    await waitFor(() => {
+      expect(onRecorded).toHaveBeenCalledWith({
+        deceasedAt: todayStr(),
+        deceasedReason: "老衰",
+      });
+    });
+  });
+
+  it("mutateAsync が失敗した場合 onRecorded は呼ばない", async () => {
+    mockMutateAsync.mockRejectedValueOnce(new Error("network error"));
+    const { onRecorded } = renderDialog();
+
+    submitForm();
+
+    await screen.findByText("死亡の記録に失敗しました");
+    expect(onRecorded).not.toHaveBeenCalled();
   });
 
   it("mutateAsync が失敗した場合エラーメッセージを表示し onOpenChange は呼ばない", async () => {

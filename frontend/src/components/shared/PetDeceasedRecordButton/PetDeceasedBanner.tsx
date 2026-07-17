@@ -10,6 +10,8 @@ interface PetDeceasedBannerProps {
   birthDate?: string;
   petId: string;
   canEdit?: boolean;
+  /** BUG-407: 死亡記録解除成功時に外側フォームのローカル状態へ同期するためのコールバック */
+  onRevoked?: () => void;
 }
 
 // FE4-9 fix: `new Date(deceasedAt)` の後にブラウザローカル TZ の getter で整形していたため、
@@ -28,6 +30,7 @@ export function PetDeceasedBanner({
   birthDate,
   petId,
   canEdit = false,
+  onRevoked,
 }: PetDeceasedBannerProps) {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const revokeButtonRef = useRef<HTMLButtonElement>(null);
@@ -38,6 +41,7 @@ export function PetDeceasedBanner({
 
   const handleRevokeConfirm = () => {
     mutation.mutate(petId, {
+      onSuccess: () => onRevoked?.(),
       onSettled: () => setConfirmOpen(false),
     });
   };

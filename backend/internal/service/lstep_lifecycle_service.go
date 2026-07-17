@@ -8,6 +8,7 @@ import (
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/infra/lstep"
+	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/repository"
 )
 
@@ -15,9 +16,9 @@ import (
 // Lステップタグのライフサイクルイベントを処理する（BE-017）。
 type LstepLifecycleService interface {
 	// HandlePetDeath はペット死亡を記録し CPM タグを再同期する。
-	HandlePetDeath(ctx context.Context, clinicID, petID uint64, deceasedAt time.Time, reason string) error
+	HandlePetDeath(ctx context.Context, clinicID, petID uint64, deceasedAt time.Time, reason string, actorID *uint64) error
 	// HandlePetRevival はペット死亡取り消しを記録し CPM タグを再同期する。
-	HandlePetRevival(ctx context.Context, clinicID, petID uint64) error
+	HandlePetRevival(ctx context.Context, clinicID, petID uint64, actorID *uint64) error
 	// HandleOwnerOptOut はオプトアウトを記録し Lステップの全タグを解除する。
 	HandleOwnerOptOut(ctx context.Context, clinicID, ownerID uint64, reason string) error
 	// HandleOwnerOptIn はオプトインを記録し CPM タグを再同期する。
@@ -80,7 +81,7 @@ func (s *lstepLifecycleService) buildClient(ctx context.Context, clinicID uint64
 
 // HandlePetDeath はペット死亡を記録し、オーナーのタグを再同期する。
 // 全ペットが死亡した場合は Lステップ全タグを解除する（配信停止）。
-func (s *lstepLifecycleService) HandlePetDeath(ctx context.Context, clinicID, petID uint64, deceasedAt time.Time, reason string) error {
+func (s *lstepLifecycleService) HandlePetDeath(ctx context.Context, clinicID, petID uint64, deceasedAt time.Time, reason string, actorID *uint64) error {
 	// P1: FindByID before Update
 	pet, err := s.petRepo.FindByID(ctx, clinicID, petID)
 	if err != nil {
@@ -88,13 +89,25 @@ func (s *lstepLifecycleService) HandlePetDeath(ctx context.Context, clinicID, pe
 		return apperrors.Wrap(err, "failed to find pet")
 	}
 
+	// BUG-407: status は deceased_at と独立した二重管理フィールドのため、
+	// 同一 Update で "deceased" へ揃える。分離したままだと、外側フォームの
+	// 生死ラジオが未追従のまま次回の外側「更新」で status="alive" に
+	// 上書きされ、deceased_at だけ残る不整合状態になる。
 	fields := map[string]any{
 		"deceased_at":     deceasedAt,
 		"deceased_reason": reason,
+		"status":          model.PetStatusDeceased,
 	}
 	if err := s.petRepo.Update(ctx, clinicID, petID, fields); err != nil {
 		slog.ErrorContext(ctx, "failed to update pet deceased fields", "error", err)
 		return apperrors.Wrap(err, "failed to record pet death")
+	}
+
+	// 監査ログ（臨床的に重大な状態変更のため、全コードパス — 生存ペットの有無に関わらず — で
+	// 必ず記録する。実行者は呼び出し元から渡された actorID をそのまま使う）。
+	// 監査書込自体の失敗は死亡記録という臨床アクションをブロックしない（best-effort・WarnContext）。
+	if auditErr := s.auditSvc.LogLstepOperation(ctx, clinicID, actorID, "pet_death", "pet", &petID); auditErr != nil {
+		slog.WarnContext(ctx, "audit log failed for pet death", "error", auditErr, "pet_id", petID)
 	}
 
 	ownerID := pet.OwnerID
@@ -146,7 +159,7 @@ func (s *lstepLifecycleService) HandlePetDeath(ctx context.Context, clinicID, pe
 }
 
 // HandlePetRevival はペット死亡取り消しを記録し CPM タグを再同期する。
-func (s *lstepLifecycleService) HandlePetRevival(ctx context.Context, clinicID, petID uint64) error {
+func (s *lstepLifecycleService) HandlePetRevival(ctx context.Context, clinicID, petID uint64, actorID *uint64) error {
 	// P1: FindByID before Update
 	pet, err := s.petRepo.FindByID(ctx, clinicID, petID)
 	if err != nil {
@@ -154,13 +167,23 @@ func (s *lstepLifecycleService) HandlePetRevival(ctx context.Context, clinicID, 
 		return apperrors.Wrap(err, "failed to find pet")
 	}
 
+	// BUG-407: 死亡取り消し時も status を "alive" に戻し、deceased_at/status の
+	// 二重管理不整合を防ぐ（HandlePetDeath と対称）。
 	fields := map[string]any{
 		"deceased_at":     nil,
 		"deceased_reason": nil,
+		"status":          model.PetStatusAlive,
 	}
 	if err := s.petRepo.Update(ctx, clinicID, petID, fields); err != nil {
 		slog.ErrorContext(ctx, "failed to clear pet deceased fields", "error", err)
 		return apperrors.Wrap(err, "failed to record pet revival")
+	}
+
+	// 監査ログ（臨床的に重大な状態変更のため、生死同期の成否に関わらず必ず記録する。
+	// 実行者は呼び出し元から渡された actorID をそのまま使う）。監査書込自体の失敗は
+	// 死亡取消という臨床アクションをブロックしない（best-effort・WarnContext）。
+	if auditErr := s.auditSvc.LogLstepOperation(ctx, clinicID, actorID, "pet_revival", "pet", &petID); auditErr != nil {
+		slog.WarnContext(ctx, "audit log failed for pet revival", "error", auditErr, "pet_id", petID)
 	}
 
 	if syncErr := s.syncSvc.SyncOwnerAnimalClassificationTags(ctx, clinicID, pet.OwnerID); syncErr != nil {

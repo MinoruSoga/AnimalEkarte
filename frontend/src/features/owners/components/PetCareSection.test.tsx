@@ -1,12 +1,21 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi, beforeEach } from "vitest";
 
 import { PetCareSection } from "./PetCareSection";
 import type { PetFormData } from "../types";
 
+const { mockMutateAsync, mockMutate } = vi.hoisted(() => ({
+  mockMutateAsync: vi.fn(),
+  mockMutate: vi.fn(),
+}));
+
 vi.mock("@/hooks/use-revoke-pet-death", () => ({
-  useRevokePetDeath: () => ({ mutate: vi.fn(), isPending: false }),
+  useRevokePetDeath: () => ({ mutate: mockMutate, isPending: false }),
+}));
+
+vi.mock("@/hooks/use-record-pet-death", () => ({
+  useRecordPetDeath: () => ({ mutateAsync: mockMutateAsync }),
 }));
 
 const basePet: PetFormData = {
@@ -30,12 +39,15 @@ const basePet: PetFormData = {
   insuranceId: "",
 };
 
-function renderPetCareSection(formData: PetFormData) {
+function renderPetCareSection(
+  formData: PetFormData,
+  setFormData: (updater: (prev: PetFormData) => PetFormData) => void = () => {},
+) {
   return render(
     <MemoryRouter>
       <PetCareSection
         formData={formData}
-        setFormData={() => {}}
+        setFormData={setFormData}
         insuranceSelectItems={null}
         isLoadingInsurances={false}
         canEdit
@@ -72,5 +84,57 @@ describe("PetCareSection (PR#186 P2-2 Bug#1)", () => {
 
     expect(screen.getByRole("button", { name: "死亡を記録" })).toBeInTheDocument();
     expect(screen.queryByText(/永眠/)).not.toBeInTheDocument();
+  });
+});
+
+// BUG-407: サブダイアログ確定/解除は既にバックエンドへ即時保存されるが、外側
+// PetEditModal のローカル formData（生死ラジオ・deceasedAt）へ同期する配線が
+// 無いと、次に外側「更新」を押した際に古い status で上書きされる。
+// PetCareSection がその同期配線（setFormData 呼び出し）を担うことを固定する。
+describe("PetCareSection (BUG-407 outer-form sync)", () => {
+  beforeEach(() => {
+    mockMutateAsync.mockReset();
+    mockMutate.mockReset();
+  });
+
+  it("死亡記録成功時に setFormData で status/deceasedAt を即時同期する", async () => {
+    mockMutateAsync.mockResolvedValueOnce(undefined);
+    let latestFormData: PetFormData = { ...basePet, status: "生存", deceasedAt: null };
+    const setFormData = vi.fn((updater: (prev: PetFormData) => PetFormData) => {
+      latestFormData = updater(latestFormData);
+    });
+
+    renderPetCareSection(latestFormData, setFormData);
+
+    fireEvent.click(screen.getByRole("button", { name: "死亡を記録" }));
+    fireEvent.click(screen.getByRole("button", { name: "死亡を記録する" }));
+
+    await waitFor(() => expect(setFormData).toHaveBeenCalled());
+    expect(latestFormData.status).toBe("死亡");
+    expect(latestFormData.deceasedAt).toBeTruthy();
+  });
+
+  it("死亡記録解除成功時に setFormData で status を生存へ即時同期する", async () => {
+    mockMutate.mockImplementation((_petId, options) => {
+      options?.onSuccess?.();
+      options?.onSettled?.();
+    });
+    let latestFormData: PetFormData = {
+      ...basePet,
+      status: "死亡",
+      deceasedAt: "2026-07-10T12:00:00+09:00",
+    };
+    const setFormData = vi.fn((updater: (prev: PetFormData) => PetFormData) => {
+      latestFormData = updater(latestFormData);
+    });
+
+    renderPetCareSection(latestFormData, setFormData);
+
+    fireEvent.click(screen.getByRole("button", { name: "死亡記録を解除" }));
+    fireEvent.click(screen.getByRole("button", { name: "解除する" }));
+
+    await waitFor(() => expect(setFormData).toHaveBeenCalled());
+    expect(latestFormData.status).toBe("生存");
+    expect(latestFormData.deceasedAt).toBeNull();
   });
 });

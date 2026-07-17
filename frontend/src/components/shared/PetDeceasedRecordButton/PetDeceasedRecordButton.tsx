@@ -12,6 +12,10 @@ interface PetDeceasedRecordButtonProps {
   birthDate?: string;
   deceasedAt?: string | null;
   canEdit?: boolean;
+  /** BUG-407: 死亡記録成功時に外側フォームのローカル状態へ同期するためのコールバック */
+  onRecorded?: (result: { deceasedAt: string; deceasedReason?: string }) => void;
+  /** BUG-407: 死亡記録解除成功時に外側フォームのローカル状態へ同期するためのコールバック */
+  onRevoked?: () => void;
 }
 
 export function PetDeceasedRecordButton({
@@ -22,6 +26,8 @@ export function PetDeceasedRecordButton({
   birthDate,
   deceasedAt,
   canEdit = false,
+  onRecorded,
+  onRevoked,
 }: PetDeceasedRecordButtonProps) {
   const [dialogOpen, setDialogOpen] = useState(false);
 
@@ -34,6 +40,7 @@ export function PetDeceasedRecordButton({
         birthDate={birthDate}
         petId={petId}
         canEdit={canEdit}
+        onRevoked={onRevoked}
       />
     );
   }
@@ -57,6 +64,7 @@ export function PetDeceasedRecordButton({
           petBreed={petBreed}
           petGender={petGender}
           petAge={petAge}
+          onRecorded={onRecorded}
         />
       ) : null}
     </>

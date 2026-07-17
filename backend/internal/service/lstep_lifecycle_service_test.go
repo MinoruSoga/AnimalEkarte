@@ -348,7 +348,7 @@ func TestLstepLifecycleService_HandlePetDeath(t *testing.T) {
 				syncSvc,
 			)
 
-			err := svc.HandlePetDeath(context.Background(), 1, 1, time.Now(), "病気")
+			err := svc.HandlePetDeath(context.Background(), 1, 1, time.Now(), "病気", nil)
 			if tt.wantErr {
 				assert.Error(t, err)
 				if tt.wantErrIs != nil {
@@ -359,6 +359,39 @@ func TestLstepLifecycleService_HandlePetDeath(t *testing.T) {
 			assert.NoError(t, err)
 		})
 	}
+}
+
+// BUG-407: HandlePetDeath は deceased_at/reason に加えて status も
+// 同一 Update で "deceased" に書き換える。status が deceased_at と
+// 独立した二重管理フィールドのままだと、外側フォームの生死ラジオが
+// 追従せず、次に外側「更新」を押した際に status="alive" で上書きされ
+// deceased_at だけが残る不整合状態を再現してしまう。
+func TestLstepLifecycleService_HandlePetDeath_SetsStatusDeceased(t *testing.T) {
+	var capturedFields map[string]any
+	petRepo := &mockPetRepository{
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.Pet, error) {
+			return &model.Pet{ID: 1, OwnerID: 10}, nil
+		},
+		updateFn: func(_ context.Context, _, _ uint64, fields map[string]any) error {
+			capturedFields = fields
+			return nil
+		},
+		findLivingByOwnerFn: func(_ context.Context, _, _ uint64) ([]model.Pet, error) {
+			return []model.Pet{{ID: 2, OwnerID: 10}}, nil
+		},
+	}
+	svc := newLstepLifecycleSvc(
+		defaultLstepSettingsSvc(),
+		&mockOwnerRepository{},
+		petRepo,
+		&mockLstepTagCacheRepository{},
+		&mockLstepTagSyncService{},
+	)
+
+	err := svc.HandlePetDeath(context.Background(), 1, 1, time.Now(), "老衰", nil)
+
+	assert.NoError(t, err)
+	assert.Equal(t, model.PetStatusDeceased, capturedFields["status"])
 }
 
 // ---- テスト: HandlePetRevival ----
@@ -379,6 +412,9 @@ func TestLstepLifecycleService_HandlePetRevival(t *testing.T) {
 			petUpdateFn: func(_ context.Context, _, _ uint64, fields map[string]any) error {
 				assert.Nil(t, fields["deceased_at"])
 				assert.Nil(t, fields["deceased_reason"])
+				// BUG-407: 死亡取り消し時も status を "alive" に戻し、
+				// deceased_at と status の二重管理不整合を防ぐ。
+				assert.Equal(t, model.PetStatusAlive, fields["status"])
 				return nil
 			},
 		},
@@ -406,7 +442,7 @@ func TestLstepLifecycleService_HandlePetRevival(t *testing.T) {
 				&mockLstepTagSyncService{},
 			)
 
-			err := svc.HandlePetRevival(context.Background(), 1, 1)
+			err := svc.HandlePetRevival(context.Background(), 1, 1, nil)
 			if tt.wantErr {
 				assert.Error(t, err)
 				if tt.wantErrIs != nil {
@@ -1149,7 +1185,7 @@ func TestLstepLifecycleService_HandlePetDeath_FindLivingByOwnerError(t *testing.
 	}
 	svc := newLstepLifecycleSvc(defaultLstepSettingsSvc(), &mockOwnerRepository{}, petRepo, &mockLstepTagCacheRepository{}, &mockLstepTagSyncService{})
 
-	err := svc.HandlePetDeath(context.Background(), 1, 1, time.Now(), "病気")
+	err := svc.HandlePetDeath(context.Background(), 1, 1, time.Now(), "病気", nil)
 
 	assert.Error(t, err)
 }
@@ -1173,7 +1209,7 @@ func TestLstepLifecycleService_HandlePetDeath_AllPetsDead_OwnerFindError(t *test
 
 	// owner lookup failure on the all-pets-dead path is best-effort: HandlePetDeath must
 	// still return nil (the death was already recorded successfully).
-	err := svc.HandlePetDeath(context.Background(), 1, 1, time.Now(), "病気")
+	err := svc.HandlePetDeath(context.Background(), 1, 1, time.Now(), "病気", nil)
 
 	assert.NoError(t, err)
 }
@@ -1206,7 +1242,7 @@ func TestLstepLifecycleService_HandlePetDeath_AllPetsDead_LineLinkedRemovesTags(
 	}
 	svc := newLstepLifecycleSvc(defaultLstepSettingsSvc(), ownerRepo, petRepo, tagCacheRepo, &mockLstepTagSyncService{})
 
-	err := svc.HandlePetDeath(context.Background(), 1, 1, time.Now(), "病気")
+	err := svc.HandlePetDeath(context.Background(), 1, 1, time.Now(), "病気", nil)
 
 	assert.NoError(t, err)
 	assert.True(t, deleteAllCalled)
@@ -1239,7 +1275,7 @@ func TestLstepLifecycleService_HandlePetDeath_SurvivingPets_PetDerivedCleanupBes
 	}
 	svc := newLstepLifecycleSvc(settingsSvc, ownerRepo, petRepo, &mockLstepTagCacheRepository{}, &mockLstepTagSyncService{})
 
-	err := svc.HandlePetDeath(context.Background(), 1, 1, time.Now(), "病気")
+	err := svc.HandlePetDeath(context.Background(), 1, 1, time.Now(), "病気", nil)
 
 	assert.NoError(t, err)
 }
@@ -1264,9 +1300,90 @@ func TestLstepLifecycleService_HandlePetDeath_AuditLogFailureIsBestEffort(t *tes
 		nil,
 	)
 
-	err := svc.HandlePetDeath(context.Background(), 1, 1, time.Now(), "病気")
+	err := svc.HandlePetDeath(context.Background(), 1, 1, time.Now(), "病気", nil)
 
 	assert.NoError(t, err)
+}
+
+// BUG-407 follow-up (healthcare-reviewer HIGH finding): HandlePetDeath must record the
+// user-driven death event itself in the audit trail (action="pet_death") with the real
+// actor, on EVERY code path — including the all-pets-dead early-return branch, which
+// previously skipped audit entirely (only the best-effort "pet_death_tag_sync" fired, and
+// only on the living-pets branch).
+func TestLstepLifecycleService_HandlePetDeath_LogsUserActionAudit(t *testing.T) {
+	tests := []struct {
+		name                string
+		findLivingByOwnerFn func(ctx context.Context, clinicID, ownerID uint64) ([]model.Pet, error)
+	}{
+		{
+			name: "living pets remain",
+			findLivingByOwnerFn: func(_ context.Context, _, _ uint64) ([]model.Pet, error) {
+				return []model.Pet{{ID: 2, OwnerID: 10}}, nil
+			},
+		},
+		{
+			name: "all pets dead (early return branch)",
+			findLivingByOwnerFn: func(_ context.Context, _, _ uint64) ([]model.Pet, error) {
+				return []model.Pet{}, nil
+			},
+		},
+	}
+
+	type capturedCall struct {
+		actorID    *uint64
+		action     string
+		resource   string
+		resourceID *uint64
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			actor := uint64(42)
+			var calls []capturedCall
+
+			petRepo := &mockPetRepository{
+				findByIDFn: func(_ context.Context, _, _ uint64) (*model.Pet, error) {
+					return &model.Pet{ID: 1, OwnerID: 10}, nil
+				},
+				updateFn:            func(_ context.Context, _, _ uint64, _ map[string]any) error { return nil },
+				findLivingByOwnerFn: tt.findLivingByOwnerFn,
+			}
+			auditSvc := &mockAuditService{
+				logLstepOperationFn: func(_ context.Context, _ uint64, actorID *uint64, action, resource string, resourceID *uint64) error {
+					calls = append(calls, capturedCall{actorID: actorID, action: action, resource: resource, resourceID: resourceID})
+					return nil
+				},
+			}
+			svc := NewLstepLifecycleService(
+				defaultLstepSettingsSvc(),
+				&mockOwnerRepository{},
+				petRepo,
+				&mockLstepTagCacheRepository{},
+				&mockLstepTagSyncService{},
+				auditSvc,
+				nil,
+			)
+
+			err := svc.HandlePetDeath(context.Background(), 1, 1, time.Now(), "病気", &actor)
+			assert.NoError(t, err)
+
+			var found bool
+			for _, c := range calls {
+				if c.action != "pet_death" {
+					continue
+				}
+				found = true
+				assert.Equal(t, "pet", c.resource)
+				if assert.NotNil(t, c.actorID) {
+					assert.Equal(t, actor, *c.actorID)
+				}
+				if assert.NotNil(t, c.resourceID) {
+					assert.Equal(t, uint64(1), *c.resourceID)
+				}
+			}
+			assert.True(t, found, "expected a pet_death audit log call with the real actor")
+		})
+	}
 }
 
 // ---- HandlePetRevival: additional branches ----
@@ -1282,7 +1399,7 @@ func TestLstepLifecycleService_HandlePetRevival_UpdateError(t *testing.T) {
 	}
 	svc := newLstepLifecycleSvc(defaultLstepSettingsSvc(), &mockOwnerRepository{}, petRepo, &mockLstepTagCacheRepository{}, &mockLstepTagSyncService{})
 
-	err := svc.HandlePetRevival(context.Background(), 1, 1)
+	err := svc.HandlePetRevival(context.Background(), 1, 1, nil)
 
 	assert.Error(t, err)
 }
@@ -1315,9 +1432,64 @@ func TestLstepLifecycleService_HandlePetRevival_SyncErrorsAreBestEffort(t *testi
 		nil,
 	)
 
-	err := svc.HandlePetRevival(context.Background(), 1, 1)
+	err := svc.HandlePetRevival(context.Background(), 1, 1, nil)
 
 	assert.NoError(t, err)
+}
+
+// BUG-407 follow-up (healthcare-reviewer HIGH finding): HandlePetRevival must record the
+// user-driven revival event itself in the audit trail (action="pet_revival") with the
+// real actor (symmetric with HandlePetDeath's new "pet_death" audit).
+func TestLstepLifecycleService_HandlePetRevival_LogsUserActionAudit(t *testing.T) {
+	type capturedCall struct {
+		actorID    *uint64
+		action     string
+		resource   string
+		resourceID *uint64
+	}
+	actor := uint64(77)
+	var calls []capturedCall
+
+	petRepo := &mockPetRepository{
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.Pet, error) {
+			return &model.Pet{ID: 1, OwnerID: 10}, nil
+		},
+		updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) error { return nil },
+	}
+	auditSvc := &mockAuditService{
+		logLstepOperationFn: func(_ context.Context, _ uint64, actorID *uint64, action, resource string, resourceID *uint64) error {
+			calls = append(calls, capturedCall{actorID: actorID, action: action, resource: resource, resourceID: resourceID})
+			return nil
+		},
+	}
+	svc := NewLstepLifecycleService(
+		defaultLstepSettingsSvc(),
+		&mockOwnerRepository{},
+		petRepo,
+		&mockLstepTagCacheRepository{},
+		&mockLstepTagSyncService{},
+		auditSvc,
+		nil,
+	)
+
+	err := svc.HandlePetRevival(context.Background(), 1, 1, &actor)
+	assert.NoError(t, err)
+
+	var found bool
+	for _, c := range calls {
+		if c.action != "pet_revival" {
+			continue
+		}
+		found = true
+		assert.Equal(t, "pet", c.resource)
+		if assert.NotNil(t, c.actorID) {
+			assert.Equal(t, actor, *c.actorID)
+		}
+		if assert.NotNil(t, c.resourceID) {
+			assert.Equal(t, uint64(1), *c.resourceID)
+		}
+	}
+	assert.True(t, found, "expected a pet_revival audit log call with the real actor")
 }
 
 // ---- HandleOwnerOptIn: additional branches ----

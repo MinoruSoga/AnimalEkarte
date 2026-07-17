@@ -1,9 +1,11 @@
-import { describe, it, expect, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { PetDeceasedBanner } from "./PetDeceasedBanner";
 
+const { mockMutate } = vi.hoisted(() => ({ mockMutate: vi.fn() }));
+
 vi.mock("@/hooks/use-revoke-pet-death", () => ({
-  useRevokePetDeath: () => ({ mutate: vi.fn(), isPending: false }),
+  useRevokePetDeath: () => ({ mutate: mockMutate, isPending: false }),
 }));
 
 // FE4-9 fix 回帰テスト: `new Date(deceasedAt)` + ブラウザローカル TZ getter だった旧実装は
@@ -24,5 +26,37 @@ describe("PetDeceasedBanner (FE4-9)", () => {
       <PetDeceasedBanner deceasedAt="2026-07-11T23:30:00+09:00" petId="1" canEdit={false} />,
     );
     expect(screen.getByText("2026年7月11日 永眠")).toBeInTheDocument();
+  });
+});
+
+// BUG-407: 解除成功時に外側フォームのローカル formData（生死ラジオ・deceasedAt）へ
+// 同期する onRevoked コールバックの回帰テスト。無いと死亡記録解除後も外側の
+// 生死ラジオが「死亡」のまま残り、次に外側「更新」を押すと status="死亡" で
+// 上書きされ、直前に解除したはずの deceased_at=null と矛盾する。
+describe("PetDeceasedBanner (BUG-407)", () => {
+  beforeEach(() => {
+    mockMutate.mockReset();
+  });
+
+  it("解除確定成功時に onRevoked を呼ぶ", async () => {
+    mockMutate.mockImplementation((_petId, options) => {
+      options?.onSuccess?.();
+      options?.onSettled?.();
+    });
+    const onRevoked = vi.fn();
+
+    render(
+      <PetDeceasedBanner
+        deceasedAt="2026-07-11T00:00:00+09:00"
+        petId="1"
+        canEdit
+        onRevoked={onRevoked}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "死亡記録を解除" }));
+    fireEvent.click(screen.getByRole("button", { name: "解除する" }));
+
+    await waitFor(() => expect(onRevoked).toHaveBeenCalledTimes(1));
   });
 });

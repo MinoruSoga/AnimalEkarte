@@ -112,6 +112,12 @@ export function PetCareSection({
               birthDate={formData.birthDate}
               deceasedAt={formData.deceasedAt ?? null}
               canEdit={canEdit}
+              onRecorded={({ deceasedAt }) =>
+                setFormData((prev) => ({ ...prev, status: "死亡", deceasedAt }))
+              }
+              onRevoked={() =>
+                setFormData((prev) => ({ ...prev, status: "生存", deceasedAt: null }))
+              }
             />
           </div>
         ) : null}
