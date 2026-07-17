@@ -71,5 +71,5 @@ func (r *inquiryTemplateRepository) CountUsageByInquiryTemplateID(_ context.Cont
 }
 
 func (r *inquiryTemplateRepository) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
-	return reorderByClinicID(ctx, r.db, &model.InquiryTemplate{}, "inquiry_template", clinicID, ids, "sort_order")
+	return reorderByClinicID(ctx, r.db, &model.InquiryTemplate{}, "inquiry_template", clinicID, ids)
 }

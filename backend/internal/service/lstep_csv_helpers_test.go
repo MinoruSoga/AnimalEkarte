@@ -185,6 +185,7 @@ func TestParseCsvTime(t *testing.T) {
 			}
 			if got == nil {
 				t.Fatalf("got nil, want %v", *tc.want)
+				return
 			}
 			if !got.Equal(*tc.want) {
 				t.Errorf("got %v, want %v", *got, *tc.want)

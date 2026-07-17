@@ -22,7 +22,7 @@ import (
 func setupHospitalizationPlanRepoTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
 	db := setupTestDB(t)
-	require.NoError(t, ensureAutoMigrated(db, 
+	require.NoError(t, ensureAutoMigrated(db,
 		&model.AnimalSpecies{}, &model.Pet{}, &model.Cage{},
 		&model.Medicine{}, &model.Procedure{},
 		&model.HospitalizationPlan{}, &model.Hospitalization{}, &model.CarePlanItem{},

@@ -39,7 +39,7 @@ import (
 func setupReservationStaffTxAtomicityTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
 	db := setupTestDB(t)
-	require.NoError(t, ensureAutoMigrated(db, 
+	require.NoError(t, ensureAutoMigrated(db,
 		&model.Staff{}, &model.StaffClinicAssignment{},
 		&model.ReservationType{}, &model.StaffReservationExclusion{},
 		&model.StaffReservationCapability{},

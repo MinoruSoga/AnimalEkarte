@@ -99,7 +99,7 @@ func TestReservationRepository_FindAllByCategory_ReservationTypePreloadClinicIso
 	db.Exec("TRUNCATE TABLE appointment_trimming_details CASCADE")
 	db.Exec("TRUNCATE TABLE appointments CASCADE")
 	db.Exec("TRUNCATE TABLE reservation_types CASCADE")
-	require.NoError(t, ensureAutoMigrated(db, 
+	require.NoError(t, ensureAutoMigrated(db,
 		&model.ReservationType{}, &model.Reservation{},
 		&model.TrimmingCourse{}, &model.TrimmingOption{},
 		&model.AppointmentTrimmingDetail{}, &model.AppointmentTrimmingOption{},

@@ -31,9 +31,10 @@ import (
 func setupEffectivePermissionsTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
 	db := setupTestDB(t)
-	require.NoError(t, ensureAutoMigrated(db, 
+	require.NoError(t, ensureAutoMigrated(db,
 		&model.Staff{}, &model.PermissionGroup{}, &model.StaffPermissionGroup{}, &model.PermissionGroupRule{},
 	))
+	ensureStaffPermissionGroupsCreatedAt(t, db)
 	db.Exec("TRUNCATE TABLE staff_permission_groups, permission_group_rules, permission_groups, staffs CASCADE")
 	return db
 }

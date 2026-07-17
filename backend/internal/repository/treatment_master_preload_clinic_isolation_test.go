@@ -27,7 +27,7 @@ import (
 func setupTreatmentMasterPreloadTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
 	db := setupTestDB(t)
-	require.NoError(t, ensureAutoMigrated(db, 
+	require.NoError(t, ensureAutoMigrated(db,
 		&model.AnimalSpecies{}, &model.Pet{}, &model.Procedure{}, &model.Medicine{}, &model.Treatment{},
 	))
 	db.Exec("TRUNCATE TABLE treatments CASCADE")

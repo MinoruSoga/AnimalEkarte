@@ -63,7 +63,7 @@ func (r *consultationRepository) Delete(ctx context.Context, clinicID, id uint64
 }
 
 func (r *consultationRepository) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
-	return reorderByClinicID(ctx, r.db, &model.Consultation{}, "consultation", clinicID, ids, "sort_order")
+	return reorderByClinicID(ctx, r.db, &model.Consultation{}, "consultation", clinicID, ids)
 }
 
 // CountChildrenByParentID は指定した親 ID を持つ子診察項目の件数を返す。

@@ -80,7 +80,7 @@ func (r *procedureRepository) CountUsageByProcedureID(ctx context.Context, clini
 }
 
 func (r *procedureRepository) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
-	return reorderByClinicID(ctx, r.db, &model.Procedure{}, "procedure", clinicID, ids, "sort_order")
+	return reorderByClinicID(ctx, r.db, &model.Procedure{}, "procedure", clinicID, ids)
 }
 
 // CountChildrenByParentID は指定した処置の子処置数を返す (BUG-390)

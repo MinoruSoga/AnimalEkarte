@@ -24,11 +24,25 @@ import (
 func setupPermissionGroupStaffIsolationTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
 	db := setupTestDB(t)
-	require.NoError(t, ensureAutoMigrated(db, 
+	require.NoError(t, ensureAutoMigrated(db,
 		&model.Staff{}, &model.StaffClinicAssignment{}, &model.PermissionGroup{}, &model.StaffPermissionGroup{},
 	))
+	ensureStaffPermissionGroupsCreatedAt(t, db)
 	db.Exec("TRUNCATE TABLE staff_permission_groups, staff_clinic_assignments, permission_groups, staffs CASCADE")
 	return db
+}
+
+// ensureStaffPermissionGroupsCreatedAt self-heals a stale ekarte_db_test where
+// staff_permission_groups was created as a bare many2many join (staff_id, group_id only).
+// model.StaffPermissionGroup.CreatedAt and 001_init.sql both require created_at; GORM
+// AutoMigrate does not always widen an existing join table that PermissionGroup.Staffs
+// many2many already provisioned without the extra column.
+func ensureStaffPermissionGroupsCreatedAt(t *testing.T, db *gorm.DB) {
+	t.Helper()
+	require.NoError(t, db.Exec(`
+		ALTER TABLE staff_permission_groups
+		ADD COLUMN IF NOT EXISTS created_at timestamptz NOT NULL DEFAULT now()
+	`).Error)
 }
 
 func makePermissionGroup(t *testing.T, db *gorm.DB, clinicID uint64, name string) *model.PermissionGroup {

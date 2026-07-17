@@ -1323,6 +1323,10 @@ export interface CareLog {
   id: number /* uint64 */;
   clinic_id: number /* uint64 */;
   daily_record_id: number /* uint64 */;
+  /**
+   * TIME 列は string で受ける（pg ドライバは TIME を string で返すため time.Time では Scan 不能。
+   * clinic_settings / shift_entry_break 等の既存 TIME 列と同じ規約。BUG-404）
+   */
   time: string;
   type: CareLogType;
   status: CareLogStatus;

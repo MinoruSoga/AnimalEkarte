@@ -164,7 +164,7 @@ func TestCarePlanItemRepository_FindByID_MasterPreloadClinicIsolation(t *testing
 	db.Exec("TRUNCATE TABLE procedures CASCADE")
 	db.Exec("TRUNCATE TABLE pets CASCADE")
 	db.Exec("TRUNCATE TABLE animal_species CASCADE")
-	require.NoError(t, ensureAutoMigrated(db, 
+	require.NoError(t, ensureAutoMigrated(db,
 		&model.AnimalSpecies{}, &model.Pet{}, &model.Cage{}, &model.Hospitalization{},
 		&model.Medicine{}, &model.Procedure{}, &model.CarePlanItem{},
 	))
@@ -197,7 +197,7 @@ func TestCarePlanItemRepository_FindByID_MasterPreloadClinicIsolation(t *testing
 
 func TestClinicalPlanRepository_FindByMedicalRecordID_DiagnosisPreloadClinicIsolation(t *testing.T) {
 	db := setupTestDB(t)
-	require.NoError(t, ensureAutoMigrated(db, 
+	require.NoError(t, ensureAutoMigrated(db,
 		&model.AnimalSpecies{}, &model.Pet{}, &model.DiagnosisType{}, &model.DiagnosisName{}, &model.ClinicalPlan{},
 	))
 	db.Exec("TRUNCATE TABLE clinical_plans CASCADE")

@@ -61,7 +61,7 @@ func TestPetRepository_Update_ClinicIsolation(t *testing.T) {
 func setupMedImageIsolationTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
 	db := setupTestDB(t)
-	require.NoError(t, ensureAutoMigrated(db, 
+	require.NoError(t, ensureAutoMigrated(db,
 		&model.AnimalSpecies{}, &model.Pet{}, &model.MedicalRecord{}, &model.MedicalRecordImage{},
 	))
 	db.Exec("TRUNCATE TABLE medical_record_images CASCADE")

@@ -9,9 +9,10 @@ import (
 )
 
 // reorderByClinicID はマスタテーブルの並び順をトランザクション内で一括更新する汎用ヘルパー。
-// clinicID スコープ付きの Reorder 実装で使用する。orderColumn は "sort_order" または "display_order"。
-func reorderByClinicID(ctx context.Context, db *gorm.DB, model any, resource string, clinicID uint64, ids []uint64, orderColumn string) error {
-	return repohelpers.ReorderByClinicID(ctx, db, model, resource, clinicID, ids, orderColumn)
+// clinicID スコープ付きの Reorder 実装で使用する。列名は "sort_order" 固定
+// （"display_order" 系は paymentmethod 等のドメインパッケージ側ラッパを使う）。
+func reorderByClinicID(ctx context.Context, db *gorm.DB, model any, resource string, clinicID uint64, ids []uint64) error {
+	return repohelpers.ReorderByClinicID(ctx, db, model, resource, clinicID, ids, "sort_order")
 }
 
 // reorderGlobal はクリニック横断マスタテーブルの並び順をトランザクション内で一括更新する汎用ヘルパー。

@@ -21,7 +21,7 @@ import (
 func setupStaffClinicAssignmentRepositoryTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
 	db := setupTestDB(t)
-	require.NoError(t, ensureAutoMigrated(db, 
+	require.NoError(t, ensureAutoMigrated(db,
 		&model.Company{}, &model.Clinic{}, &model.Staff{}, &model.StaffClinicAssignment{},
 	))
 	// model.StaffClinicAssignment has no `uniqueIndex` gorm tag, so AutoMigrate does not recreate

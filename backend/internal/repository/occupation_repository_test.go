@@ -22,7 +22,7 @@ import (
 func setupOccupationRepoTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
 	db := setupTestDB(t)
-	require.NoError(t, ensureAutoMigrated(db, 
+	require.NoError(t, ensureAutoMigrated(db,
 		&model.Company{}, &model.Clinic{}, &model.Occupation{}, &model.Staff{}, &model.StaffClinicAssignment{},
 	))
 	require.NoError(t, db.Exec("TRUNCATE TABLE staff_clinic_assignments, staffs, occupations CASCADE").Error)

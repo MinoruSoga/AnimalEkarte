@@ -27,7 +27,7 @@ import (
 func setupExaminationTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
 	db := setupTestDB(t)
-	require.NoError(t, ensureAutoMigrated(db, 
+	require.NoError(t, ensureAutoMigrated(db,
 		&model.ExaminationType{}, &model.ExamTypeField{},
 		&model.AnimalSpecies{}, &model.Pet{}, &model.Staff{},
 		&model.Examination{}, &model.ExamResult{},

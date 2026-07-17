@@ -408,7 +408,7 @@ func (r *fooRepository) Nope() { _ = other.DBOrTx(ctx, r.db).Find(&x) }`,
 		{
 			name: "reorder helper alone is NOT detected (ambient path documented separately)",
 			src: `package p
-func (r *fooRepository) Reorder() { _ = reorderByClinicID(ctx, r.db, m, "x", 1, ids, "sort_order") }`,
+func (r *fooRepository) Reorder() { _ = reorderByClinicID(ctx, r.db, m, "x", 1, ids) }`,
 			want: false,
 		},
 	}

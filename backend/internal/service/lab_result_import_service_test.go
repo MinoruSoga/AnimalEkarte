@@ -654,6 +654,7 @@ func TestLabResultImportService_Commit_ContextCancelledDuringPersist(t *testing.
 	}
 	if job == nil {
 		t.Fatal("expected job to have been created before cancellation was observed")
+		return
 	}
 	if job.Status != model.LabImportJobStatusFailed {
 		t.Errorf("expected job status=failed after cancellation cleanup, got %s", job.Status)
@@ -697,6 +698,7 @@ func TestLabResultImportService_Commit_ContextCancelledDuringPersist_Compensatio
 	}
 	if job == nil {
 		t.Fatal("expected job to have been created before cancellation was observed")
+		return
 	}
 	if job.Status == model.LabImportJobStatusFailed {
 		t.Errorf("expected job to remain stuck in a non-terminal status when compensation transition fails, got %s", job.Status)
@@ -726,6 +728,7 @@ func TestLabResultImportService_Commit_EmptyInputs(t *testing.T) {
 	job, _ := jobSvc.GetJob(context.Background(), 1, resp.JobID)
 	if job == nil {
 		t.Fatal("expected job to be created even for empty inputs")
+		return
 	}
 	if job.Status != model.LabImportJobStatusDuplicate {
 		t.Errorf("expected job status=duplicate for empty inputs, got %s", job.Status)
