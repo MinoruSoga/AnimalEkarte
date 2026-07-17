@@ -94,19 +94,20 @@
     <p class="lede">
       <a href="https://github.com/MinoruSoga/AnimalEkarte/pull/186">PR #186</a>（main → staging）の Codex スレッドのうち、
       まだ <strong>Open</strong> のもの＋コード完了後の運用投入待ちのみを集約する。
-      エージェント実装で閉じた指摘（Resolved 19）は PR 上で Resolve 済みのため本ファイルからは削除済み。
+      Resolve 済みの指摘（20 件）は PR を正とし本ファイルには載せない。
+      スレッドの生死は <code>gh api graphql</code>（reviewThreads の isResolved）で実測してから更新する。
     </p>
     <div class="meta-grid">
-      <div class="meta-card"><div class="k">更新日</div><div class="v">2026-07-16</div></div>
+      <div class="meta-card"><div class="k">更新日</div><div class="v">2026-07-17（スレッド実測済み）</div></div>
       <div class="meta-card"><div class="k">対象 PR</div><div class="v"><a href="https://github.com/MinoruSoga/AnimalEkarte/pull/186">#186</a></div></div>
-      <div class="meta-card"><div class="k">PR スレッド</div><div class="v">Open 5 · Resolved 19</div></div>
-      <div class="meta-card"><div class="k">関連</div><div class="v"><a href="todo-me.html">todo-me.html</a></div></div>
+      <div class="meta-card"><div class="k">PR スレッド</div><div class="v">Open 4 · Resolved 20</div></div>
+      <div class="meta-card"><div class="k">関連</div><div class="v"><a href="todo-me.html">todo-me.html</a> / <a href="todo.md">todo.md</a></div></div>
     </div>
     <div class="summary-box">
       <div class="summary-grid">
-        <div><div class="summary-num" id="sum-open">5</div><div class="summary-label">PR Open threads</div></div>
+        <div><div class="summary-num" id="sum-open">4</div><div class="summary-label">PR Open threads</div></div>
         <div><div class="summary-num" style="color:var(--warn)">1</div><div class="summary-label">Ops (値投入)</div></div>
-        <div><div class="summary-num" style="color:var(--muted)">2</div><div class="summary-label">New Work (任意)</div></div>
+        <div><div class="summary-num" style="color:var(--muted)">1</div><div class="summary-label">New Work (任意)</div></div>
       </div>
     </div>
   </div>
@@ -123,14 +124,14 @@
       <h3 class="task-title">gitleaks / 履歴シークレット baseline</h3>
       <span class="pill warn">BLOCKED</span>
     </div>
-    <p class="task-desc">H-5 Secrets ローテーション完了まで gitleaks baseline を入れない方針。ローテ後に方針確定が必要。</p>
+    <p class="task-desc">Secrets ローテーション（todo.md U-2 = SEC-SECRETS-5）完了まで gitleaks baseline を入れない方針。ローテ後に方針確定が必要。</p>
     <div class="task-body">
       <h4>PR スレッド</h4>
       <ul>
         <li><a href="https://github.com/MinoruSoga/AnimalEkarte/pull/186#discussion_r3572087678">.github/workflows/ci.yml L78</a></li>
       </ul>
       <h4>必要な USER 入力</h4>
-      <div class="need"><strong>要:</strong> H-5（SSM/Secrets ローテ）完了の合図、または「baseline する / しない」の最終決定</div>
+      <div class="need"><strong>要:</strong> SEC-SECRETS-5（4系統ローテ）完了の合図、または「baseline する / しない」の最終決定</div>
       <h4>閉じ方</h4>
       <ul>
         <li>ローテ完了後: baseline 追加 or allowlist 方針を実装 → スレッド Resolve</li>
@@ -145,14 +146,22 @@
       <h3 class="task-title">Cron Triggers vs always-on（sleeping container）</h3>
       <span class="pill warn">BLOCKED</span>
     </div>
-    <p class="task-desc">Cron / sleeping container のアーキテクチャ判断。実装より先に運用方針が必要。</p>
+    <p class="task-desc">Cron / sleeping container のアーキテクチャ判断。実装より先に運用方針が必要。worker に scheduled ハンドラは現状存在しない（always-on 前提のまま）。</p>
     <div class="task-body">
       <h4>PR スレッド</h4>
       <ul>
         <li><a href="https://github.com/MinoruSoga/AnimalEkarte/pull/186#discussion_r3585524451">backend/worker/index.ts L20</a></li>
       </ul>
+      <h4>関連する既決事項</h4>
+      <ul>
+        <li>Lステップ cron 3本の配線は PO-001 で「Write API 再有効化とセット」に確定（後継 Issue <a href="https://github.com/MinoruSoga/AnimalEkarte/issues/259">#259</a>・納品後対応）。本スレッドはそれとは別に、worker 全体のスケジューラ方式（Cloudflare Cron Triggers vs コンテナ常駐）の判断。</li>
+      </ul>
       <h4>必要な USER 入力</h4>
       <div class="need"><strong>要:</strong> Cron Triggers 採用 / Container always-on 維持 / 現状受容 のいずれか</div>
+      <h4>閉じ方</h4>
+      <ul>
+        <li>方針決定 → （採用なら）wrangler に triggers 追加＋scheduled ハンドラ実装はエージェント可 → スレッドへ決定を返信し Resolve</li>
+      </ul>
     </div>
   </article>
 
@@ -171,8 +180,12 @@
       <ul>
         <li><a href="https://github.com/MinoruSoga/AnimalEkarte/pull/186#discussion_r3572087680">.github/workflows/backend-deploy-ecs.yml L155</a></li>
       </ul>
+      <h4>先に判断すべきこと</h4>
+      <ul>
+        <li><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/99">#99</a>（🔴 廃止予定 ECS deploy 経路の撤去）が採用されると、この workflow ごと削除され本タスクは消滅する。<strong>キー一覧を作る前に #99 の裁定を先に行うのが最短</strong>。</li>
+      </ul>
       <h4>必要な USER 入力</h4>
-      <div class="need"><strong>要:</strong> ECS environment（平文）に載せる非シークレットキー名の一覧</div>
+      <div class="need"><strong>要:</strong> ① #99 採用（ECS 経路撤去 → 本タスク消滅）か、② ECS rollback 維持（→ 非シークレットキー名の一覧提供）か</div>
     </div>
   </article>
 
@@ -183,8 +196,8 @@
       <span class="pill scope">範囲外 → 判断待ち</span>
     </div>
     <p class="task-desc">
-      <code>LoginForm.tsx</code> で <code>VERCEL_ENV</code> 未設定時の扱い。今回の Codex P1/P2 実装バッチでは未対応のまま Open。
-      対応する / 受容して閉じる、の方針が必要。
+      現状実装（M-10 / #91）: <code>SHOW_DEMO = __VERCEL_ENV__ !== "production" && (DEV || VITE_SHOW_DEMO_ACCOUNTS === "true")</code>（<code>LoginForm.tsx:28-30</code>）。
+      Production では一次ガードが効くが、<strong><code>VERCEL_ENV</code> が注入されないビルド環境</strong>で <code>VITE_SHOW_DEMO_ACCOUNTS=true</code> だとデモアカウントが表示される fail-open が残る。
     </p>
     <div class="task-body">
       <h4>PR スレッド</h4>
@@ -192,26 +205,7 @@
         <li><a href="https://github.com/MinoruSoga/AnimalEkarte/pull/186#discussion_r3588439775">frontend/src/features/auth/components/LoginForm.tsx L31</a></li>
       </ul>
       <h4>必要な USER 入力</h4>
-      <div class="need"><strong>要:</strong> 実装して閉じる / 受容して Resolve / 別 PR に切り出す、のいずれか</div>
-    </div>
-  </article>
-
-  <article class="task is-scope" id="p1-standalone-ddl">
-    <div class="task-head">
-      <span class="task-id">P1</span>
-      <h3 class="task-title">新 DDL を standalone migration として出荷</h3>
-      <span class="pill scope">範囲外 → 判断待ち</span>
-    </div>
-    <p class="task-desc">
-      <code>001_init.sql</code> への追記ではなく standalone migration にせよ、という指摘。今回バッチでは未対応のまま Open。
-    </p>
-    <div class="task-body">
-      <h4>PR スレッド</h4>
-      <ul>
-        <li><a href="https://github.com/MinoruSoga/AnimalEkarte/pull/186#discussion_r3588439786">backend/migrations/001_init.sql L3191</a></li>
-      </ul>
-      <h4>必要な USER 入力</h4>
-      <div class="need"><strong>要:</strong> 実装して閉じる / 受容して Resolve / 別 PR に切り出す、のいずれか</div>
+      <div class="need"><strong>要:</strong> ① fail-closed 化（<code>__VERCEL_ENV__</code> 未定義時は SHOW_DEMO=false に倒す — 数行・エージェント着手可。<code>show-demo-accounts.ts</code> と両方修正＋テスト）② 現状受容して Resolve（U-7 の Vercel 側フラグ確認を防壁とする）のいずれか</div>
     </div>
   </article>
 
@@ -226,27 +220,16 @@
     </div>
     <p class="task-desc">
       コードは <code>S3_PUBLIC_BASE_URL</code> 優先で公開オブジェクト URL を組み立てる実装済み。
-      <code>backend/wrangler.jsonc</code> の値は空のまま（推測ドメインは書かない）。
+      値は <code>backend/wrangler.jsonc</code> L81 と <code>backend/wrangler.production.jsonc</code> L96 の両方で空のまま（推測ドメインは書かない）。
     </p>
     <div class="task-body">
       <h4>必要な USER 作業</h4>
-      <div class="need"><strong>要:</strong> R2 の公開ドメイン（custom domain / <code>*.r2.dev</code>）を確定し、<code>S3_PUBLIC_BASE_URL</code> に実値を投入（値はチャットに貼らない）</div>
+      <div class="need"><strong>要:</strong> R2 の公開ドメイン（custom domain / <code>*.r2.dev</code>）を確定し、STG・production 両方の <code>S3_PUBLIC_BASE_URL</code> に実値を投入（値はチャットに貼らない — 設定後 <code>.secret</code> にメモの運用）</div>
     </div>
   </article>
 
   <h2>New Work（任意）</h2>
   <p class="section-intro">Codex Open スレッドではない。優先度は USER 判断。</p>
-
-  <article class="task" id="nw-decouple">
-    <div class="task-head">
-      <span class="task-id">NW-1</span>
-      <h3 class="task-title">P2-3 <code>decouple</code>（migrate を pre-deploy CI 化）</h3>
-      <span class="pill na">OPTIONAL</span>
-    </div>
-    <p class="task-desc">
-      accept-window でクローズ済みの代替案。記録: <code>migration-cloudflare.md</code> / <code>backend-deploy.yml</code> コメント。
-    </p>
-  </article>
 
   <article class="task" id="nw-ssot">
     <div class="task-head">
@@ -255,14 +238,16 @@
       <span class="pill na">OPTIONAL</span>
     </div>
     <p class="task-desc">
-      二重管理の解消。レガシー死亡ラジオが <code>deceased_at</code> を更新しない問題も含む。PO 設計判断が先。
+      ペットの生存判定は <code>deceased_at</code> 列が正、はすでに確定済み（2026-07-12 BE 台帳棚卸し）。
+      残る実作業は ① レガシー死亡ラジオが <code>deceased_at</code> を更新しないバグの修正 ② <code>status</code> 側の死亡表現を廃止する二重管理解消、の 2 段。
+      ②はデータ移行を伴うため PO 設計判断が先（着手する場合は q&a.html に質問カードを起票してから）。
     </p>
   </article>
 
   <p class="foot">
-    更新: 2026-07-16 · PR #186 Open 5 + ops 1 ·
-    対応済エージェント項目・「完了済み」一覧は削除済み（PR Resolved 19 を正とする）。
-    CF 移行の人間タスク正本は <a href="todo-me.html">todo-me.html</a>。
+    更新: 2026-07-17 · PR #186 Open 4 + ops 1 ·
+    Resolve 済みスレッドは PR を正とし本ファイルから削除（standalone-DDL 指摘は 2026-07-17 の migration 001 完全統合により前提消滅・Resolve 済み。NW-1 decouple 代替案はクローズ済みのため削除 — 記録は <code>migration-cloudflare.md</code>）。
+    CF 移行の人間タスク正本は <a href="todo-me.html">todo-me.html</a>、プロジェクト全体の残タスク正本は <code>todo.md</code>。
   </p>
 </main>
 
