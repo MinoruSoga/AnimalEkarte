@@ -21,7 +21,7 @@
 | 4 | カルテを確定（Lock）する: 画面右下のフローティングアクションの「確定する」ボタン（`MedicalRecordFloatingActions`。編集権限あり・保存済み・未確定の場合のみ表示）をクリックし、`MedicalRecordFinalizeDialog` で「確定後はカルテを編集できなくなります…この操作は元に戻せません」の警告を確認した上で「確定する」を押す（[06 §2.3](../../../spec/screens/06-medical-records-form.md)） | カルテ一覧のステータスが「確定済」に変わる（[05 §1.2](../../../spec/screens/05-medical-records-list.md)）。カルテ詳細ヘッダーに「確定済」バッジが表示され、「確定する」ボタンは消える |
 | 5 | 確定済みカルテを開き、属性を変更して保存を試行する | 主要タブの入力欄・追加/削除ボタンが UI 上で無効化されており（`<fieldset disabled>` による一括ガード、[06 §2.3](../../../spec/screens/06-medical-records-form.md)）操作自体を試行できない。仮に直接 API を叩いた場合はバックエンドが更新を 409 で拒否する。エラー「確定済みカルテは編集できません」（[05 §3.1](../../../spec/screens/05-medical-records-list.md)） |
 | 6 | 確定済みカルテを一覧から削除しようとする、またはカルテ詳細のフローティングアクションを確認する | 一覧・詳細いずれも削除操作の導線が表示されない（`MedicalRecordFloatingActions` は確定済みで削除ボタンを非表示）。直接 API を叩いた場合は「確定済みの診療記録は削除できません」で拒否される（[05 §3.1](../../../spec/screens/05-medical-records-list.md)） |
-| 7 | 確定済みカルテへ訂正追記（addendum）を行う | 訂正は追記のみ許可される（[06 §2.3](../../../spec/screens/06-medical-records-form.md)）。【要実測】追記の UI 経路（`MedicalRecordAddenda` は確定済みカルテでのみ表示） |
+| 7 | 確定済みカルテの各タブ下部「追記する」ボタンから訂正追記（addendum）を行う（修正内容・修正理由が必須のモーダル — 2026-07-17 実測で確定） | 保存後、同タブ下部に時刻・スタッフ付きの時系列リストとして表示され、リロード後も永続する（[06 §2.3](../../../spec/screens/06-medical-records-form.md)） |
 | 8 | 確定の解除（確定済 → 作成中へ戻す）を試行する | 解除（unfinalize）API はバックエンドに存在しない（`medical_record_crud.go` に該当メソッドなし）。確定は一方向遷移であり、確定後の修正経路は訂正追記（addendum）のみ。解除機能が必要な場合は GAP-1 とは別に要件を起票する（2026-07-16 Fable 代理決裁） |
 | 9 | 手順 1〜4 の操作について `audit_logs` を DB で確認する（**USER 実施**。例: resource がカルテ関連の行を時刻降順で参照） | 作成（create）・更新（update）・確定の各操作が、操作者（actor_id）・時刻（created_at）・変更内容（old/new_value）付きで記録されている（[specification.md §2.1](../../../spec/specification.md)「全テーブルの CRUD を audit_logs で追跡」） |
 

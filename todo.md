@@ -46,10 +46,10 @@
 |----|------------------------|---------|------------------------|
 | U-1 | **#201 [SAFETY] 個人責任者ゲート**: 使用医院の臨床責任者（個人名）を確定し、①絶対上限 ②warning 範囲 ③体重/species/パラメータ欠落時の手動入力可否 ④緊急時例外フローの要否、を承認させる | 承認内容（4点）が #201 に記録される | #201 本文「必須仕様 1〜6」に従い BE 物理 reject＋（④が要なら）権限付き例外フローを実装。`computeDoseGate`（FE）と `backend/internal/service/` の dose 系が対象。実装後 06 doc 更新 |
 | U-2 | **SEC-SECRETS-5**: 4系統ローテーション＋ P5-2 `gh secret set`＋ #97 本文マスク。手順 = runbook §0.5 / `infra/cloudflare/README.md` | 4系統の新 credential が有効・旧値無効化・GitHub Secrets 登録済み | ① gitleaks baseline 方針の実装（task.html P1-1）② `STG_DEMO_*` 登録済みなら #109 Phase C: performance-tests のフォールバック撤去 |
-| U-3 | **`DB_RESET=true` 再適用（ローカル→STG）**: 001 checksum 変更（#211 A6 統合）＋ seed 変更 2 件（A1+A2 = 90553a51／GAP-2 閲覧専用ロール = 13c6a93a）をまとめて反映。DB reset はエージェント実行禁止 | 両環境で reset 完了・起動 green | 受け入れシナリオ S02（権限差ロック検証）が実行可能になる（U-6 の前提解除）。特に追加作業なし |
+| U-3 | **`DB_RESET=true` 再適用（ローカル→STG）**: 001 checksum 変更（#211 A6 統合）＋ seed 変更 2 件（A1+A2 = 90553a51／GAP-2 閲覧専用ロール = 13c6a93a）をまとめて反映。DB reset はエージェント実行禁止。**優先度上昇（2026-07-17）**: 第1バッチが stale DB で実行され BUG-403/404 の環境起因疑いが未決着のまま | 両環境で reset 完了・起動 green | ① BUG-403/404 の再測（stale DB 起因なら実装調査不要でクローズ）② S02 権限差・S05 ケアプラン/デイリー記録の再実行（U-6 の前提解除） |
 | U-4 | **SD-9 被害判定 SQL を STG/本番で実行**（SQL 本文は下の「個別タスク詳細」）。`9b6a01ed` の修正は新規作成院にしか効かないため既存データの手動確認が必要 | 0 行 → クローズ。ヒット → 結果をエージェントへ共有 | ヒット時: 対象グループへのルールバックフィル（`defaultPermissionRuleTable` 準拠の UPDATE 文起草＋適用手順書）を別タスク起票。`assigned_staff > 0` の行を最優先（該当スタッフが全機能ロックアウト中） |
 | U-5 | **SD-14 STG 実機検証**: LINE 紐付け E2E。飼主フォーム（04 画面）で紐付け URL 発行 → LINE で開く → LIFF 遷移 → 紐付け完了まで | 紐付け成功が確認できる | 失敗時: 症状を聞いて `line_link_service.go`／`frontend/liff` の LiffLinkPage を調査・修正（2e4808b5 が直近の修正） |
-| U-6 | **受け入れシナリオ初回実行**: `docs/ops/testing/scenarios/` S01-S12＋V01-V05。**U-3 完了が前提**（S02 は閲覧専用ロール seed 必須） | 87 件の要実測項目に実測値が入る | 実測結果とシナリオ文書の乖離を修正（シナリオは執筆時に critic 照合済みだが初回実行での校正が前提の設計） |
+| U-6 | **受け入れシナリオ実行（続き）**: 第1バッチ S01〜S06 は 2026-07-17 実施済み（30 PASS / 4 FAIL / 13 BLOCKED — レポート = `docs/ops/testing/scenarios/reports/2026-07-17-local.md`・FAIL は下の BUG-401〜407）。**残 = ①S07〜S12＋V01〜V05 ②U-3 後の再測分（S02 権限差・S05 の 2 FAIL・S04 は BUG-402 修正後）③S02 境界値の再確認**。**U-3 完了が前提** | 全シナリオ実施・要実測 87 件（残 78）に実測値が入る | 実測結果の【要実測】昇格とシナリオ乖離修正（第1バッチ分 4 件は昇格済み） |
 | U-7 | Vercel Production `VITE_SHOW_DEMO_ACCOUNTS=false` の確認/設定 | Vercel ダッシュボードで確認済み | なし（FE は `__VERCEL_ENV__ !== "production"` 一次ガード実装済みのため二重防御） |
 | U-8 | `terraform apply`（P2 internal ALB + VPC Origin）。`infra/terraform/terraform.tfvars` はローカル準備済み（gitignore 対象） | apply 成功・疎通確認 | なし |
 | U-9 | **ADR-003（PO-006）独立 Issue 起票**（起票操作は USER 専権） | Issue 番号が確定 | 案 1B（TRIGGER）＋支払方法の二重保持解消を実装 |
@@ -57,6 +57,22 @@
 | U-11 | **FEAT-searchable-select 目視確認**: 検索・スクロール・選択・カスケード・per-option disabled（対象 15 箇所の一覧は下の「個別タスク詳細」） | 全対象で挙動 OK | NG 箇所があれば個別修正。全 OK なら本項目を台帳から削除 |
 | U-12 | [任意] `docker compose exec frontend pnpm type-check` を実行し `use-reception-kanban.ts` の型エラー再現有無を確認（フル type-check は USER 実行コマンド） | エラー再現なし → クローズ | 再現時: エラー全文を受けて修正 |
 | U-13 | [任意] Notion EkarteSprint 文字化け 3 語（します／共有済み／事前提供）の目視確認。対象ページ: クレジット訂正フロー／検査④機器データ取込／検査⑥自動連携調査 | 3 ページの該当文が正常 | なし（クローズのみ） |
+
+---
+
+## 受け入れシナリオ第1バッチ BUG（2026-07-17 起票・レポート = scenarios/reports/2026-07-17-local.md）
+
+> **注意**: 第1バッチは U-3 未実施の stale DB で実行された。「要再測」印のものは **U-3 完了後に再測してから**実装調査に入ること（stale DB 起因なら調査不要でクローズ）。
+
+| ID | 内容 | 根拠 | 状態 |
+|----|------|------|------|
+| BUG-401 | ワクチン登録フォームのフィラリア選択肢がマスタ 11 件に対し 2 件のみ表示 | S03 手順7。フォーム側フィルタ（対象動物種/カテゴリ）とマスタ実データの不一致疑い。対象犬で再現 | 調査可（環境非依存疑い） |
+| BUG-402 | `/line-reserve/{clinicId}/` で Vite dev サーバが `src/main.tsx` を 503 返却し白画面。clinicId なしは正常 | S04 手順1。`frontend/vite.config.ts` の `lineReserveDevPlugin` のパス解決。**ローカル LIFF 検証を全塞ぎ**（S04 の 10 BLOCKED の原因） | 調査可（dev 環境固有だが優先高） |
+| BUG-403 | ケアプラン項目 type=medicine/treatment/item が常に 400「入力値が正しくありません」（food/instruction は成功） | S05。**静的検証済み: DDL enum・model・service・handler の全層が 5 値許可** — HEAD コードでは説明不能 | **要再測（U-3 後）** — stale DB スキーマ乖離が最有力 |
+| BUG-404 | 入院デイリー記録 GET が 500・ケアログ POST 全 type 500（保存済みバイタルがリロード後に消えて見える） | S05 手順3。daily_records 系は migration 統合で変更歴あり | **要再測（U-3 後）** — BUG-403 と同根疑い |
+| BUG-405 | 当日開始の入院が「入院中」タブに出ず「予約」のまま。詳細には退院処理ボタンがあり実質アクティブ。チェックイン導線不明 | S05。ステータス遷移（予約→入院中）のトリガー設計の欠落か未発見の導線か | 調査可（仕様確認から） |
+| BUG-406 | カルテ問診タブの主訴詳細等が保存成功（一覧に反映・DB 保存済み）なのに編集フォーム再読込で空テンプレートに戻る hydration 不具合 | S06 手順1。医師が「消えた」と誤認し再入力・重複記録するリスク | 調査可（FE hydration） |
+| BUG-407 | 【UX】ペット死亡登録のサブダイアログ確定で成功トーストが出るが、外側フォームの「更新」を押さないと保存されない（誤認でデータ喪失） | S01 手順1。トーストの誤誘導 | 調査可（トースト抑止 or 即時保存化の設計判断） |
 
 ---
 
