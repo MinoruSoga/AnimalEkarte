@@ -31,7 +31,10 @@ const DEFAULT_NEXT_SCHEDULE_TYPE = "1year" as const;
 
 // react-reviewer指摘: インラインの `?? []` は毎レンダー新規参照になり vaccineOptions の
 // useMemo を不必要に再計算させる（取得未完了/エラー時に顕著）。安定参照にする。
-const EMPTY_VACCINES_MASTER: ReturnType<typeof useGetAllVaccinesMaster>["data"] = [];
+// NonNullable: react-query の data は T[] | undefined。undefined を残したままだと
+// 分割代入デフォルト値(= vaccinesMaster = EMPTY_VACCINES_MASTER)の型も undefined を
+// 含んだままになり、既定値を与えた意味が消えて possibly-undefined エラーになる。
+const EMPTY_VACCINES_MASTER: NonNullable<ReturnType<typeof useGetAllVaccinesMaster>["data"]> = [];
 
 // BUG-401/BUG-026: vaccine interval (vaccines master 実データ) → schedule type。
 // 旧実装はハードコードの vaccine_id "1"/"2" をキーにしていたため、実マスタ ID（例: "14"）に
