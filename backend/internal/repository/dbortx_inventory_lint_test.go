@@ -26,14 +26,22 @@ package repository
 //
 // ─── Technique ──────────────────────────────────────────────────────────────────────
 //
-// preload_clinic_scope_lint_test.go の repoSourceFS（go:embed *.go）と baseFileName / receiverMethodKey
+// preload_clinic_scope_lint_test.go の repoSourceFS（go:embed *.go */*.go）と baseFileName / receiverMethodKey
 // （audit_tx_inventory_lint_test.go）を再利用。各 FuncDecl 本体に `dbOrTx(` 呼び出しがあるものを
 // (baseFile | ReceiverType.Method) で列挙し、allowlist と双方向突合する。
 //
-// 注（syntactic match・sibling lint と同一設計）: `funcUsesDBOrTx` は `dbOrTx` という Ident の名前一致で
-// 判定し go/types の意味解決はしない。`dbOrTx` は package 唯一の free function でシャドーイングされない
-// 前提のため実害はないが、意図的に同名ローカル変数を作ると誤検知/見逃しが起こり得る（preload/audit-tx
-// lint と同じ既知の割り切り）。
+// 注（syntactic match・sibling lint と同一設計）: `funcUsesDBOrTx` は
+//   1) Ident `dbOrTx`（parent package wrapper）
+//   2) Ident `DBOrTx`（same-package free name, e.g. inside repohelpers）
+//   3) Selector `repohelpers.DBOrTx`（domain subpackages）
+// を検出する。go/types の意味解決はしない。シャドーイングや別名 import は誤検知/見逃しの既知限界
+// （preload/audit-tx lint と同じ割り切り）。
+//
+// ambient Reorder 方針: `Reorder` が `reorderByClinicID` / `repohelpers.ReorderByClinicID` のみを
+// 呼ぶ経路はメソッド本体に `dbOrTx`/`DBOrTx` が現れない。参加保証の正本は
+// `repohelpers.ReorderByClinicID`/`ReorderGlobal` 内の `DBOrTx`（free func・本 inventory の
+// receiver 走査外）であり、TestDBOrTxInventory_ReorderHelpersUseDBOrTx で固定する。
+// ドメイン Reorder を method inventory に載せる必要はない（allowlist 膨張と偽回帰を避ける）。
 
 import (
 	"go/ast"
@@ -155,14 +163,15 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"reservation_repository.go|reservationRepository.LockAndFindByID":                    {},
 	"reservation_repository.go|reservationRepository.Update":                             {},
 	"appointment_admin_repository.go|reservationAdminRepository.Create":                  {}, // AUD-001
-	// reservation_type (uniform dbOrTx)
-	"reservation_type_repository.go|reservationTypeRepository.CountChildrenByParentID":       {},
-	"reservation_type_repository.go|reservationTypeRepository.CountUsageByReservationTypeID": {},
-	"reservation_type_repository.go|reservationTypeRepository.Create":                        {},
-	"reservation_type_repository.go|reservationTypeRepository.FindAll":                       {},
-	"reservation_type_repository.go|reservationTypeRepository.FindAllWithChildren":           {},
-	"reservation_type_repository.go|reservationTypeRepository.FindByID":                      {},
-	"reservation_type_repository.go|reservationTypeRepository.FindByIDWithChildren":          {},
+	// reservationtype domain package (methods that previously used dbOrTx; Update/Delete remain
+	// r.db.WithContext by design — behavior preserved from flat file; facade keeps service imports)
+	"reservationtype/repository.go|repository.CountChildrenByParentID":       {},
+	"reservationtype/repository.go|repository.CountUsageByReservationTypeID": {},
+	"reservationtype/repository.go|repository.Create":                        {},
+	"reservationtype/repository.go|repository.FindAll":                       {},
+	"reservationtype/repository.go|repository.FindAllWithChildren":           {},
+	"reservationtype/repository.go|repository.FindByID":                      {},
+	"reservationtype/repository.go|repository.FindByIDWithChildren":          {},
 	// staff_clinic_assignment
 	"staff_clinic_assignment_repository.go|staffClinicAssignmentRepository.CountByStaffAndClinic": {},
 	"staff_clinic_assignment_repository.go|staffClinicAssignmentRepository.Create":                {},
@@ -247,7 +256,8 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"reservation_staff_repository.go|reservationStaffRepository.FindByID": {},
 }
 
-// funcUsesDBOrTx reports whether a function body contains a call to dbOrTx(...).
+// funcUsesDBOrTx reports whether a function body contains a call to dbOrTx / DBOrTx /
+// repohelpers.DBOrTx(...). Does not chase helpers (see Reorder ambient policy in file header).
 func funcUsesDBOrTx(fd *ast.FuncDecl) bool {
 	if fd.Body == nil {
 		return false
@@ -261,9 +271,21 @@ func funcUsesDBOrTx(fd *ast.FuncDecl) bool {
 		if !ok {
 			return true
 		}
-		if id, ok := ce.Fun.(*ast.Ident); ok && id.Name == "dbOrTx" {
-			found = true
-			return false
+		switch fun := ce.Fun.(type) {
+		case *ast.Ident:
+			// parent package wrapper `dbOrTx` or same-package `DBOrTx` (repohelpers).
+			if fun.Name == "dbOrTx" || fun.Name == "DBOrTx" {
+				found = true
+				return false
+			}
+		case *ast.SelectorExpr:
+			// domain subpackages: repohelpers.DBOrTx(ctx, r.db)
+			if fun.Sel != nil && fun.Sel.Name == "DBOrTx" {
+				if id, ok := fun.X.(*ast.Ident); ok && id.Name == "repohelpers" {
+					found = true
+					return false
+				}
+			}
 		}
 		return true
 	})
@@ -271,19 +293,11 @@ func funcUsesDBOrTx(fd *ast.FuncDecl) bool {
 }
 
 // walkRepositoryForDBOrTx enumerates every repository method that calls dbOrTx, keyed by
-// "<file> | <ReceiverType>.<Method>".
+// "<file> | <ReceiverType>.<Method>". Includes domain subpackages embedded in repoSourceFS.
 func walkRepositoryForDBOrTx(t *testing.T) map[string]struct{} {
 	t.Helper()
-	names, err := repoSourceFS.ReadDir(".")
-	if err != nil {
-		t.Fatalf("readdir embedded repository source: %v", err)
-	}
 	found := map[string]struct{}{}
-	for _, e := range names {
-		name := e.Name()
-		if e.IsDir() || !strings.HasSuffix(name, ".go") || strings.HasSuffix(name, "_test.go") {
-			continue
-		}
+	for _, name := range listEmbeddedRepoGoFiles(t) {
 		src, err := repoSourceFS.ReadFile(name)
 		if err != nil {
 			t.Fatalf("read embedded %s: %v", name, err)
@@ -293,14 +307,18 @@ func walkRepositoryForDBOrTx(t *testing.T) map[string]struct{} {
 		if err != nil {
 			t.Fatalf("parse %s: %v", name, err)
 		}
-		base := baseFileName(name)
+		// Root allowlist entries use basenames; nested paths keep relative path to avoid collisions.
+		keyFile := baseFileName(name)
+		if strings.Contains(name, "/") {
+			keyFile = name
+		}
 		for _, decl := range f.Decls {
 			fd, ok := decl.(*ast.FuncDecl)
 			if !ok || fd.Recv == nil {
 				continue
 			}
 			if funcUsesDBOrTx(fd) {
-				found[base+"|"+receiverMethodKey(fd)] = struct{}{}
+				found[keyFile+"|"+receiverMethodKey(fd)] = struct{}{}
 			}
 		}
 	}
@@ -369,6 +387,30 @@ func (r *fooRepository) Baz() { _ = r.db.WithContext(ctx).Find(&x) }`,
 func (r *fooRepository) Qux() { _ = dbOrTx(ctx, r.db).Transaction(func(tx *gorm.DB) error { return nil }) }`,
 			want: true,
 		},
+		{
+			name: "repohelpers.DBOrTx selector is detected",
+			src: `package p
+func (r *fooRepository) Sel() { _ = repohelpers.DBOrTx(ctx, r.db).Find(&x) }`,
+			want: true,
+		},
+		{
+			name: "same-package DBOrTx Ident is detected",
+			src: `package p
+func (r *fooRepository) Cap() { _ = DBOrTx(ctx, r.db).Find(&x) }`,
+			want: true,
+		},
+		{
+			name: "unrelated selector is NOT detected",
+			src: `package p
+func (r *fooRepository) Nope() { _ = other.DBOrTx(ctx, r.db).Find(&x) }`,
+			want: false,
+		},
+		{
+			name: "reorder helper alone is NOT detected (ambient path documented separately)",
+			src: `package p
+func (r *fooRepository) Reorder() { _ = reorderByClinicID(ctx, r.db, m, "x", 1, ids, "sort_order") }`,
+			want: false,
+		},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -382,6 +424,87 @@ func (r *fooRepository) Qux() { _ = dbOrTx(ctx, r.db).Transaction(func(tx *gorm.
 				t.Fatalf("funcUsesDBOrTx = %v, want %v", funcUsesDBOrTx(fd), tc.want)
 			}
 		})
+	}
+}
+
+// TestDBOrTxInventory_ReorderHelpersUseDBOrTx pins the ambient-tx contract for Reorder:
+// repohelpers.ReorderByClinicID / ReorderGlobal must call DBOrTx so domain Reorder methods
+// that only delegate to those helpers still join ambient WithTx (paymentmethod, cage, …).
+func TestDBOrTxInventory_ReorderHelpersUseDBOrTx(t *testing.T) {
+	src, err := repoSourceFS.ReadFile("repohelpers/scope.go")
+	if err != nil {
+		t.Fatalf("read repohelpers/scope.go: %v", err)
+	}
+	fset := token.NewFileSet()
+	f, err := parser.ParseFile(fset, "repohelpers/scope.go", src, 0)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	want := map[string]bool{
+		"ReorderByClinicID": false,
+		"ReorderGlobal":     false,
+	}
+	for _, decl := range f.Decls {
+		fd, ok := decl.(*ast.FuncDecl)
+		if !ok || fd.Recv != nil || fd.Name == nil {
+			continue
+		}
+		if _, ok := want[fd.Name.Name]; !ok {
+			continue
+		}
+		if !funcUsesDBOrTx(fd) {
+			t.Errorf("repohelpers.%s must call DBOrTx (ambient Reorder contract)", fd.Name.Name)
+			continue
+		}
+		want[fd.Name.Name] = true
+	}
+	for name, seen := range want {
+		if !seen {
+			t.Errorf("repohelpers.%s not found in scope.go", name)
+		}
+	}
+
+	// paymentmethod.Reorder must keep delegating to the DBOrTx-aware reorder helper
+	// (not r.db.WithContext Transaction).
+	pmSrc, err := repoSourceFS.ReadFile("paymentmethod/repository.go")
+	if err != nil {
+		t.Fatalf("read paymentmethod/repository.go: %v", err)
+	}
+	pmFset := token.NewFileSet()
+	pmF, err := parser.ParseFile(pmFset, "paymentmethod/repository.go", pmSrc, 0)
+	if err != nil {
+		t.Fatalf("parse paymentmethod: %v", err)
+	}
+	foundReorder := false
+	for _, decl := range pmF.Decls {
+		fd, ok := decl.(*ast.FuncDecl)
+		if !ok || fd.Name == nil || fd.Name.Name != "Reorder" || fd.Recv == nil {
+			continue
+		}
+		foundReorder = true
+		// Must call reorderByClinicID (local wrapper → repohelpers.ReorderByClinicID).
+		callsHelper := false
+		ast.Inspect(fd.Body, func(n ast.Node) bool {
+			ce, ok := n.(*ast.CallExpr)
+			if !ok {
+				return true
+			}
+			if id, ok := ce.Fun.(*ast.Ident); ok && id.Name == "reorderByClinicID" {
+				callsHelper = true
+				return false
+			}
+			if sel, ok := ce.Fun.(*ast.SelectorExpr); ok && sel.Sel != nil && sel.Sel.Name == "ReorderByClinicID" {
+				callsHelper = true
+				return false
+			}
+			return true
+		})
+		if !callsHelper {
+			t.Error("paymentmethod.repository.Reorder must call reorderByClinicID or repohelpers.ReorderByClinicID")
+		}
+	}
+	if !foundReorder {
+		t.Error("paymentmethod.repository.Reorder not found")
 	}
 }
 

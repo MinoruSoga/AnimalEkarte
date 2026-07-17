@@ -22,12 +22,12 @@ import (
 )
 
 // setupScheduleIsolationTestDB はシフト clinic_id 隔離テスト用の DB を整備する。
-// setupTestDB が DROP TYPE shift_type CASCADE で shift_entries.shift_type 列を落とすため、
-// TRUNCATE を AutoMigrate より前に実行して既存行 NULL 違反を防ぐ。
+// setupTestDB はスキーマをプロセス共有し per-call は TRUNCATE のみ（ENUM は毎 call DROP しない）。
+// 共有 DB に残った shift_entries を AutoMigrate 前にクリアして fixture を独立させる。
 func setupScheduleIsolationTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
 	db := setupTestDB(t)
-	// AutoMigrate より先にクリア（DROP TYPE CASCADE で列が消えた後の NULL 違反回避）
+	// AutoMigrate より先に共有テーブルをクリア（テスト isolation）
 	db.Exec("TRUNCATE TABLE shift_entries CASCADE")
 	require.NoError(t, ensureAutoMigrated(db, &model.Staff{}, &model.ShiftEntry{}))
 	return db

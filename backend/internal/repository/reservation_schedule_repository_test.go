@@ -22,7 +22,7 @@ import (
 func setupReservationScheduleCRUDTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
 	db := setupTestDB(t)
-	// AutoMigrate より先にクリア（DROP TYPE CASCADE で shift_type 列が消えた後の NULL 違反回避）
+	// AutoMigrate より先に共有テーブルをクリア（テスト isolation; setupTestDB は per-call DROP TYPE しない）
 	db.Exec("TRUNCATE TABLE shift_entries CASCADE")
 	require.NoError(t, ensureAutoMigrated(db, &model.Staff{}, &model.ShiftEntry{}, &model.ShiftEntryBreak{}))
 	// shift_entry_breaks.break_start/break_end can be left as "timestamp with time zone" in a

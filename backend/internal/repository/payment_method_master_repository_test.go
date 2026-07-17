@@ -5,6 +5,7 @@ package repository
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -21,7 +22,7 @@ import (
 func setupPaymentMethodMasterRepoTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
 	db := setupTestDB(t)
-	require.NoError(t, ensureAutoMigrated(db, 
+	require.NoError(t, ensureAutoMigrated(db,
 		&model.PaymentMethodMaster{}, &model.Billing{}, &model.Payment{},
 	))
 	db.Exec("TRUNCATE TABLE payments CASCADE")
@@ -263,5 +264,35 @@ func TestPaymentMethodMasterRepository_Reorder(t *testing.T) {
 
 		err := repo.Reorder(ctx, clinicA, []uint64{mA.ID, mB.ID})
 		require.Error(t, err)
+	})
+
+	t.Run("ambient WithTx ロールバックで並び替えが取り消される", func(t *testing.T) {
+		m1 := makePaymentMethodMaster(t, db, clinicA, "tx並び1")
+		m2 := makePaymentMethodMaster(t, db, clinicA, "tx並び2")
+		before, err := repo.FindAll(ctx, clinicA)
+		require.NoError(t, err)
+		orderBefore := map[uint64]int{}
+		for _, m := range before {
+			if m.ID == m1.ID || m.ID == m2.ID {
+				orderBefore[m.ID] = m.DisplayOrder
+			}
+		}
+
+		tx := NewTransactor(db)
+		err = tx.WithTx(ctx, func(txCtx context.Context) error {
+			if err := repo.Reorder(txCtx, clinicA, []uint64{m2.ID, m1.ID}); err != nil {
+				return err
+			}
+			return errors.New("force ambient rollback")
+		})
+		require.Error(t, err)
+
+		after, err := repo.FindAll(ctx, clinicA)
+		require.NoError(t, err)
+		for _, m := range after {
+			if want, ok := orderBefore[m.ID]; ok {
+				assert.Equal(t, want, m.DisplayOrder, "id=%d must not commit reorder after ambient rollback", m.ID)
+			}
+		}
 	})
 }

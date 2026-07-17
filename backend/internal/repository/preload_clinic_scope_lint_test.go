@@ -25,13 +25,14 @@ import (
 	"testing"
 )
 
-// repoSourceFS embeds every .go file in this package directory at compile time.
-// The *.go glob also matches *_test.go (including this file); those are skipped at
-// runtime in walkRepositoryPreloads so the lint never inspects its own fixtures or
-// other test helpers. Embedding (vs parser.ParseDir on a relative path) keeps the
-// lint correct under -trimpath — the reason the audit-taxonomy precedent uses embed.
+// repoSourceFS embeds repository source for inventory lints at compile time.
+// Top-level *.go and one-level domain subpackages (e.g. paymentmethod/*.go) are
+// included so splits cannot escape preload/dbOrTx/audit inventory gates.
+// The globs also match *_test.go; those are skipped at runtime in walkers.
+// Embedding (vs parser.ParseDir on a relative path) keeps the lint correct under
+// -trimpath — the reason the audit-taxonomy precedent uses embed.
 //
-//go:embed *.go
+//go:embed *.go */*.go
 var repoSourceFS embed.FS
 
 // clinicScopedMasterAssoc maps a GORM association name (the LAST dotted segment of a
@@ -357,22 +358,38 @@ func isInSet(set map[string]struct{}, key string) bool {
 	return ok
 }
 
+// listEmbeddedRepoGoFiles returns non-test .go paths from repoSourceFS (root + one-level subpackages).
+func listEmbeddedRepoGoFiles(t *testing.T) []string {
+	t.Helper()
+	var names []string
+	err := fs.WalkDir(repoSourceFS, ".", func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if d.IsDir() || !strings.HasSuffix(path, ".go") || strings.HasSuffix(path, "_test.go") {
+			return nil
+		}
+		// Inventory keys historically use basenames for root package files; keep nested paths
+		// as relative paths so paymentmethod/repository.go does not collide with a root file.
+		names = append(names, path)
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("walk embedded repository source: %v", err)
+	}
+	return names
+}
+
 // walkRepositoryPreloads runs the analyzer over every non-test .go file embedded from this
-// package directory and aggregates findings + stats.
+// package directory (and domain subpackages) and aggregates findings + stats.
 func walkRepositoryPreloads(t *testing.T) ([]preloadFinding, preloadStats) {
 	t.Helper()
 
-	names, err := fs.Glob(repoSourceFS, "*.go")
-	if err != nil {
-		t.Fatalf("glob embedded repository source: %v", err)
-	}
+	names := listEmbeddedRepoGoFiles(t)
 
 	var all []preloadFinding
 	agg := preloadStats{siteExemptByKey: make(map[string]int)}
 	for _, name := range names {
-		if strings.HasSuffix(name, "_test.go") {
-			continue
-		}
 		src, err := repoSourceFS.ReadFile(name)
 		if err != nil {
 			t.Fatalf("read embedded %s: %v", name, err)

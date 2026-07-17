@@ -1,6 +1,6 @@
-// Package paymentmethod is the first thin domain split of the flat repository package.
-// It owns payment_methods master CRUD. Shared clinic-scope helpers are local copies
-// for this slice; a future repository/repohelpers extraction will dedupe them.
+// Package paymentmethod is a thin domain split of the flat repository package.
+// It owns payment_methods master CRUD. Shared clinic-scope helpers come from
+// repository/repohelpers (ambient DBOrTx-aware Reorder included).
 package paymentmethod
 
 import (

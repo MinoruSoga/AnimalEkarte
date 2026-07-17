@@ -28,8 +28,8 @@ import (
 
 // setupReservationRepoTestDB は reservation_repository.go の全メソッドをカバーするために
 // ReservationType/Reservation/Staff/ShiftEntry/LineCustomer を整備する。
-// shift_entries は ENUM 再構築（DROP TYPE shift_type CASCADE）で列が消える可能性があるため
-// TRUNCATE を AutoMigrate より先に実行する（reservation_schedule_clinic_isolation_test.go と同じ順序）。
+// shift_entries は共有テスト DB に残るため TRUNCATE を AutoMigrate より先に実行する
+// （reservation_schedule_clinic_isolation_test.go と同じ順序）。
 func setupReservationRepoTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
 	db := setupTestDB(t)

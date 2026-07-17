@@ -27,8 +27,8 @@ import (
 )
 
 // setupAccountingIsolationTestDB は accounting clinic_id 隔離テスト用の DB を整備する。
-// setupTestDB が item_category/item_source/payment_method ENUM を DROP TYPE ... CASCADE で削除するため
-// billing_items / payment_splits テーブルが失われる。AutoMigrate で再追加する。
+// setupTestDB はコアテーブルのみ共有 AutoMigrate する。billing_items / payment_splits は
+// ここで ensureAutoMigrated する（ENUM を毎 setup で DROP するわけではない）。
 // billings / payments / billing_refunds / owners は setupTestDB が既に AutoMigrate 済み。
 func setupAccountingIsolationTestDB(t *testing.T) *gorm.DB {
 	t.Helper()

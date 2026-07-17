@@ -421,7 +421,9 @@ jobs:
         # 進行）——非線形の速度劣化を示唆。ローカル -race 実測245.867s完走との乖離も大きいため、
         # 憶測を重ねず十分な余裕(実測450s未達の2倍)を確保する。恒久対策は setupTestDB の
         # セットアップコスト削減/パッケージ分割が別途必要（PR #186 timeout調査参照）。
-        run: go test ./... -count=1 -race -covermode=atomic -coverprofile=coverage.out -coverpkg=./internal/... -timeout 900s
+        # -p 1: 共有 ekarte_db_test への package 並列アクセスを禁止（repository/CLAUDE.md）。
+        # Makefile ci-local / test と揃える。
+        run: go test ./... -count=1 -race -covermode=atomic -coverprofile=coverage.out -coverpkg=./internal/... -timeout 900s -p 1
 
       - name: Coverage summary (non-gating, baseline visibility)
         if: always()

@@ -210,11 +210,40 @@ tx 参加は `audit_tx_inventory_lint_test.go`（`TestClinicalResultAuditTxInven
 正本は上記の rollback/atomicity runtime test。`reorderByClinicID`/`reorderGlobal`（`helpers.go`）は
 BE-refactor.md R23 で `dbOrTx` 化済み（reorder ヘルパーが repo 内部 tx 生イディオムを使う最後の箇所だった）。
 
+## Repository domain split roadmap
+
+Domain packages already split (facade in parent + subpackage impl + `repohelpers`):
+- paymentmethod, tokenblacklist, passwordreset
+- closingspecialperiod, trimmingcoursetype, insurance, cage, animalspecies
+- **Wave B complete:** merchandiseitem, occupation, vaccine, examtype, chiefcomplaint
+- **Wave D thin slice done:** reservationtype (type master only)
+
+**Wave D remaining (do not batch-implement clusters):** high-coupling — split only after boundary map + service import freeze:
+1. **reservation cluster core** — `reservation_*` booking, schedule/shift, type children (group/slot/unavailable/occupation/liff), line_link_token if tied to booking flows
+2. **medical_record cluster** — medical_record + clinical children (inquiry/treatment/plan/image)
+3. **accounting cluster** — accounting/billing/payment/refund/cash_register
+4. **LSTEP cluster** — LSTEP-facing billing/item queries and related sync surfaces
+
+**Next cut order:** reservation_type_group (optional co-master) → reservation type children (slot/unavailable) → reservation core → medical_record → accounting last (largest ambient-tx surface).  
+**Forbidden in drive-by tasks:** full reservation/medical_record/accounting/LSTEP cluster splits.
+
+## 共有テスト DB と並列実行 (MANDATORY)
+
+repository テストは既定で物理 DB `ekarte_db_test` をプロセス内共有する（`setupTestDB` / `db_setup_test.go`）。
+- **パッケージ内に `t.Parallel()` は置かない**（実装済み・維持）。
+- **複数プロセスでの並列実行を禁止**: 同じ `ekarte_db_test` に対して同時に
+  `go test ./internal/repository/...` を走らせない（別ターミナル・CI job の並行・高い `-p` で
+  他パッケージが同じ test DB を触る場合も不可）。TRUNCATE/スキーマ整備が衝突しフレークする。
+- **機械ガード**: Makefile `test` / `test-cover` / `ci-local` と CI Backend Test は `-p 1` を付与し、
+  docker-compose `GOFLAGS=-p=4` を上書きする。repository 単独は `make test-repository`（`-p 1`）。
+  別ターミナル同時実行まではロックしない（プロセス横断は運用禁止のまま）。
+- スキーマ破壊（`DROP TABLE`/`DROP TYPE` → 再作成）は下記 `setupIsolatedTestDB` を使う。
+
 ## テストヘルパー: DROP+CREATE 系は setupIsolatedTestDB を使う (MANDATORY)
 
 `*_test.go` の setup ヘルパーがテーブル/ENUM 型を `DROP TABLE`/`DROP TYPE` → 再作成する場合、
 `setupTestDB`（全テストで共有する DB 接続プール）ではなく `setupIsolatedTestDB`（呼び出し毎の
-使い捨て接続、`ltv_repository_test.go`）を使う。共有プール上で DROP+CREATE すると、他テストが
+使い捨て接続、`db_setup_test.go`）を使う。共有プール上で DROP+CREATE すると、他テストが
 保持する古いテーブル/型 OID を参照したキャッシュ済み prepared statement が壊れる
 （`cache lookup failed` SQLSTATE XX000 / `cached plan must not change result type` SQLSTATE 0A000）。
 

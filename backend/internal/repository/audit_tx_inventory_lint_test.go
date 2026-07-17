@@ -35,7 +35,7 @@ package repository
 //
 // ─── Technique ──────────────────────────────────────────────────────────────────────
 //
-// Reuses repoSourceFS (go:embed *.go, declared in preload_clinic_scope_lint_test.go)
+// Reuses repoSourceFS (go:embed *.go */*.go, declared in preload_clinic_scope_lint_test.go)
 // and the baseFileName helper. AST walker detects .Delete(&model.X{}) calls where X is
 // in clinicalResultHardDeleteModels. Key = (file, receiverType.Method, modelType) +
 // exact occurrence count — same technique as preload site exceptions and master-FK lint.
@@ -66,7 +66,6 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
-	"io/fs"
 	"strconv"
 	"strings"
 	"testing"
@@ -261,23 +260,19 @@ func auditInventoryKey(file, function, modelType string) string {
 }
 
 // walkRepositoryForClinicalResultDeletes runs the analyzer over every non-test .go file
-// embedded from this package directory.
+// embedded from this package directory and domain subpackages (repoSourceFS).
 func walkRepositoryForClinicalResultDeletes(t *testing.T) []auditInventoryFinding {
 	t.Helper()
-	names, err := fs.Glob(repoSourceFS, "*.go") // repoSourceFS from preload_clinic_scope_lint_test.go
-	if err != nil {
-		t.Fatalf("glob embedded repository source: %v", err)
-	}
+	names := listEmbeddedRepoGoFiles(t) // root + */*.go via preload_clinic_scope_lint_test.go
 	var all []auditInventoryFinding
 	for _, name := range names {
-		if strings.HasSuffix(name, "_test.go") {
-			continue
-		}
 		src, err := repoSourceFS.ReadFile(name)
 		if err != nil {
 			t.Fatalf("read embedded %s: %v", name, err)
 		}
-		findings, err := analyzeFileForClinicalResultDeletes(name, src)
+		// Inventory keys use basenames for stable allowlist entries on root package files.
+		keyName := baseFileName(name)
+		findings, err := analyzeFileForClinicalResultDeletes(keyName, src)
 		if err != nil {
 			t.Fatalf("parse %s: %v", name, err)
 		}

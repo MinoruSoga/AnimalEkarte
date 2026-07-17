@@ -196,12 +196,18 @@ lint-fix:
 		golangci-lint run --fix
 
 # テスト実行（Go）
+# -p 1: 共有 test DB (ekarte_db_test) を触る package 同士の並列 TRUNCATE を避ける。
+# docker-compose の GOFLAGS=-p=4 を CLI で上書きする（repository/CLAUDE.md 共有 DB 規則）。
 test:
-	$(DC) exec backend go test -race -v ./...
+	$(DC) exec backend go test -race -v -p 1 ./...
 
 # テスト実行（カバレッジ付き）
 test-cover:
-	$(DC) exec backend go test -race -cover ./...
+	$(DC) exec backend go test -race -cover -p 1 ./...
+
+# repository パッケージのみ（共有 DB・必ず serial）
+test-repository:
+	$(DC) exec backend go test ./internal/repository/ -count=1 -p 1 -timeout 900s
 
 # フロント静的チェック一式（ローカル必須・CI ゲート外）
 # ESLint + TypeScript type-check + knip（旧 CI Frontend の静的ステップ相当）
@@ -260,7 +266,8 @@ ci-local:
 	@echo "=== [4/11] Backend: test ==="
 	# -timeout 900s: internal/repository + -race は 120s では完走不可（ローカル実測 ~250s 帯）。
 	# CI (.github/workflows/ci.yml) と同じ 900s に揃える。恒久対策は setupTestDB コスト削減が別途。
-	$(DC) exec backend go test ./... -count=1 -race -timeout 900s
+	# -p 1: 共有 ekarte_db_test への package 並列アクセスを禁止（GOFLAGS=-p=4 上書き）。
+	$(DC) exec backend go test ./... -count=1 -race -timeout 900s -p 1
 	@echo "=== [5/11] Backend: lint (local-only; not a CI gate) ==="
 	docker run --rm \
 		-v $(PWD)/backend:/app \
