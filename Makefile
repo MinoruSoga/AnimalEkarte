@@ -258,7 +258,9 @@ ci-local:
 	@echo "=== [3/11] Backend: build ==="
 	$(DC) exec backend go build ./...
 	@echo "=== [4/11] Backend: test ==="
-	$(DC) exec backend go test ./... -count=1 -race -timeout 120s
+	# -timeout 900s: internal/repository + -race は 120s では完走不可（ローカル実測 ~250s 帯）。
+	# CI (.github/workflows/ci.yml) と同じ 900s に揃える。恒久対策は setupTestDB コスト削減が別途。
+	$(DC) exec backend go test ./... -count=1 -race -timeout 900s
 	@echo "=== [5/11] Backend: lint (local-only; not a CI gate) ==="
 	docker run --rm \
 		-v $(PWD)/backend:/app \

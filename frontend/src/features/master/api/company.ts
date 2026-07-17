@@ -30,7 +30,7 @@ function transformCompany(data: ModelCompany) {
 
 type Company = ReturnType<typeof transformCompany>;
 
-export interface UpdateCompanyRequest {
+interface UpdateCompanyRequest {
   name?: string;
   postal_code?: string;
   address?: string;

@@ -355,7 +355,7 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
 
       <MedicalRecordFloatingActions
         activeTab={activeTab}
-        canDelete={canDelete && !isFinalized}
+        canDelete={!!canDelete && !isFinalized}
         canEdit={canEdit}
         canSubmit={canSubmit}
         isNewRecord={isNewRecord}

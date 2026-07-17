@@ -37,9 +37,6 @@ import {
   isEstimateLockedStatus,
 } from "../utils/is-estimate-locked-status";
 
-// re-export: 既存テスト・外部参照用（定義は utils/estimate-status-options）
-export { CREATE_STATUS_OPTIONS, EDIT_STATUS_OPTIONS };
-
 // rendering-hoist-jsx: SelectItem リストは静的なのでモジュール定数に巻き上げ
 const EDIT_STATUS_SELECT_ITEMS = EDIT_STATUS_OPTIONS.map(opt => (
   <SelectItem key={opt.value} value={opt.value}>

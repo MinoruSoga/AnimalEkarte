@@ -20,4 +20,3 @@ export { TrimmingSettings } from "./routes/TrimmingSettings";
 export { TrimmingCourseTypeSettings } from "./routes/TrimmingCourseTypeSettings";
 
 export { useGetCompany, useUpdateCompany } from "./api/company";
-export type { UpdateCompanyRequest } from "./api/company";
