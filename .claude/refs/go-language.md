@@ -163,6 +163,22 @@ func (s *OwnerService) Create(ctx context.Context, input CreateOwnerInput) (*Own
 
 ### 8. Package Layout（BE8 規約・2026-07-17 決定 — 正本 = リポジトリ直下 `BE-refactor.md` §3）
 
+**目標構成**（層優先 × ドメインサブパッケージ）:
+
+```
+backend/internal/
+  handler/                 # 現状フラット維持（分割は BE-refactor.md BE8-7 で service 完了後に判断）
+  service/
+    <domain>/              # 例: service/reservation/ — 新規ドメインはここに作る
+  repository/
+    repohelpers/           # 共有 clinic-scope / DBOrTx ヘルパ
+    <domain>/              # 例: repository/paymentmethod/（先行 14 ドメイン分割済み）
+  model/                   # 単一パッケージ維持（FK 相互参照のため分割しない — 決定事項）
+  middleware/ infra/ config/ ...  # 健全・変更不要
+```
+
+出典: [Go 公式 module layout](https://go.dev/doc/modules/layout)（server logic は internal/ 配下のドメイン名パッケージ）・[Google Go Style: Best Practices](https://google.github.io/styleguide/go/best-practices)（util 禁止・stutter 禁止）。採用理由と不採用案（ドメイン優先 Option A・pkg/ 新設）は `BE-refactor.md` §2-3。
+
 - **層優先 × ドメインサブパッケージ**: 新規ドメインの repository / service 実装はフラット直下に置かず、`internal/<layer>/<domain>/` のサブパッケージで作る（先例: `repository/paymentmethod`）。
 - パッケージ名 = 単数形・全小文字・アンダースコアなしのドメイン名。`util` / `common` / `helpers` 単独名は禁止（`repohelpers` は既存例外）。
 - **stutter 禁止**: 新規は `reservation.NewRepository` 形。既存型の公開リネームは移動と同時にやらない（別コミット）。

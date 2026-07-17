@@ -8,6 +8,19 @@ origin: ECC (adapted for AnimalEkarte)
 
 このプロジェクト（Go 1.25 / Gin）の REST API 設計標準。
 
+## コードの配置（BE8 規約・2026-07-17 — 正本 = /BE-refactor.md §3）
+
+新規エンドポイントの実装コードは次に配置する:
+
+| 層 | 配置 | 備考 |
+|---|---|---|
+| handler | `internal/handler/`（フラット直下） | 分割は BE8-7 まで保留。ルート登録は `handler.go` / `master_routes.go` |
+| service | `internal/service/<domain>/` **サブパッケージ** | フラット直下への新規追加は禁止。ドメイン間参照は consumer 側の小文字ローカル interface |
+| repository | `internal/repository/<domain>/` **サブパッケージ** | 先例: `paymentmethod/`。共有ヘルパは `repohelpers`。**サブパッケージ内にさらにディレクトリを掘らない**（走査 lint が 1 階層のため不可視化する） |
+| model | `internal/model/`（単一パッケージ） | 分割しない — 決定事項 |
+
+パッケージ名 = 単数形・全小文字・連結（`trimmingcoursetype` 形式）。型名で パッケージ名を繰り返さない（`reservation.NewRepository`）。詳細規約 = `.claude/refs/go-language.md` §8。
+
 ## When to Activate
 
 - 新規 API エンドポイントの設計
