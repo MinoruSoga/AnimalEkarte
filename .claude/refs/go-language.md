@@ -161,6 +161,15 @@ func (s *OwnerService) Create(ctx context.Context, input CreateOwnerInput) (*Own
 | Interface | PascalCase + er | `OwnerRepository` |
 | Table | snake_case (plural) | `owners`, `medical_records` |
 
+### 8. Package Layout（BE8 規約・2026-07-17 決定 — 正本 = リポジトリ直下 `BE-refactor.md` §3）
+
+- **層優先 × ドメインサブパッケージ**: 新規ドメインの repository / service 実装はフラット直下に置かず、`internal/<layer>/<domain>/` のサブパッケージで作る（先例: `repository/paymentmethod`）。
+- パッケージ名 = 単数形・全小文字・アンダースコアなしのドメイン名。`util` / `common` / `helpers` 単独名は禁止（`repohelpers` は既存例外）。
+- **stutter 禁止**: 新規は `reservation.NewRepository` 形。既存型の公開リネームは移動と同時にやらない（別コミット）。
+- service ↔ service のドメイン間参照は **consumer 側で小文字ローカル interface** を定義して受ける（先例: `reservation_service.go` の `reservationTypeFinder`）。import cycle は interface 抽出で解決し、移動の巻き戻しはしない。
+- **サブパッケージ内にさらにディレクトリを掘らない** — repository の走査 lint 群は `go:embed *.go */*.go` の 1 階層走査で、2 階層目は不可視（サイレント緑）になる。
+- 既存フラットファイルは実装変更で触るときに移す（strangler）。一斉移動は禁止。
+
 ## Checklist
 
 - [ ] All functions have `ctx context.Context` argument
@@ -169,6 +178,7 @@ func (s *OwnerService) Create(ctx context.Context, input CreateOwnerInput) (*Own
 - [ ] PATCH uses pointer types + buildUpdateFields()
 - [ ] errgroup for parallel processing
 - [ ] Interfaces minimized (3-5 methods)
+- [ ] 新規ドメインの repository/service はサブパッケージで作成（§8）
 
 ## Architecture Compliance
 

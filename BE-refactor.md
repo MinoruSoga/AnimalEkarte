@@ -129,9 +129,9 @@ backend/internal/
 - **完了条件**: ①1階層違反検出の回帰テスト 3 本追加 ②2階層の扱いが規約化 ③allowlist 移動耐性の実証記録。
 - 注意: **service 側を走査する lint は存在しない**（§5-1）。BE8-5 開始時に「service にも同種 lint が必要か」を判断事項として q&a.html に起票する。
 
-### BE8-1: 規約の明文化（即日可・コード変更なし）
-- **作業**: §3 の決定（Option B・命名規約・strangler・consumer 側 interface）を以下へ追記: `backend/internal/repository/CLAUDE.md`・`backend/internal/service/CLAUDE.md`（各 3〜5 行 + 本ファイルへのリンク）、`backend/CLAUDE.md`（1 行）。
-- **完了条件**: 新規ドメイン実装時にエージェントが迷わず「サブパッケージで作る」を選べる記述になっている。
+### BE8-1: 規約の明文化（即日可・コード変更なし）— **✅ 完了（2026-07-17）**
+- **実施済み**: §3 の決定を `backend/internal/repository/CLAUDE.md`・`backend/internal/service/CLAUDE.md`（各「パッケージ分割規約」節）・`backend/CLAUDE.md`（Architecture 節 1 行）・`.claude/refs/go-language.md` §8（+Checklist 1 項目）へ追記。他エージェント向けミラー `.agents/` はルート AGENTS.md → `.claude/CLAUDE.md` 正本参照 + sync-agents-skills.sh 再生成で追随。
+- 完了条件充足: 新規ドメイン実装時に、どの層の CLAUDE.md を読んでも「サブパッケージで作る」へ誘導される。
 
 ### BE8-2: 依存グラフ実測と抽出順リストの確定
 - **作業**: ① service 202 ファイルのドメイン間参照を機械集計する（同一パッケージ内のため import では見えない — go/ast で「他ドメインファイル定義の識別子参照」を数える使い捨てスクリプトを scratchpad に書く。ドメイン境界は §9 の prefix 近似を初期値とし、集計結果で補正）② 出力 = 被参照ゼロの葉ドメインから並べた抽出順リストで **§9 の表を置き換える**。

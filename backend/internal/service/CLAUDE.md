@@ -126,3 +126,9 @@ checkup_field_result）への書込は、確定(finalize)と子エンティテ�
 行ロックを取らないため、ロックベースの7サービスと比べてごく短い理論上のレース窓が残る
 （サービス層の事前チェックと repo の書込の間に確定が割り込む極小ケース）。ただし書込自体は
 repo 層の atomic WHERE で必ず拒否されるため、確定済みカルテへのデータ混入は発生しない。
+
+## パッケージ分割規約（BE8・2026-07-17 — 正本 = /BE-refactor.md §3）
+
+- **新規ドメイン service はフラット直下に置かず `service/<domain>/` サブパッケージで作る**。命名は repository と同規約（単数形・全小文字・stutter 禁止）。
+- ドメイン間参照は **consumer 側の小文字ローカル interface** で受ける（先例: `reservation_service.go` の `reservationTypeFinder`）。import cycle は interface 抽出で解決する。
+- 注意: service を走査する自作 lint は現存しない（安全網は repository 側のみ）。分割バッチは /BE-refactor.md BE8-5 の手順に従う。

@@ -265,3 +265,10 @@ func setupXxxTestDB(t *testing.T) *gorm.DB {
 
 TRUNCATE のみ（テーブル構造を変えない）なら `setupTestDB` のままでよい。既存例:
 `checkup_field_repository_test.go` の `setupCheckupFieldTestDB`。
+
+## パッケージ分割規約（BE8・2026-07-17 — 正本 = /BE-refactor.md §3）
+
+- **新規ドメイン repository はフラット直下に置かず `repository/<domain>/` サブパッケージで作る**（先例: `paymentmethod/`。共有 clinic-scope/tx ヘルパは `repohelpers`）。
+- パッケージ名 = 単数形・全小文字・連結（`trimmingcoursetype` 形式）。stutter 禁止（`<domain>.NewRepository`）。
+- **サブパッケージ内にさらにディレクトリを掘らない** — 本ディレクトリの走査 lint（preload_clinic_scope / audit_tx_inventory / dbortx_inventory）は `go:embed *.go */*.go` の 1 階層走査であり、2 階層目のファイルは lint 不可視（サイレント緑）になる。
+- 既存フラットファイルは実装変更で触るときに移す（strangler）。一斉移動・移動と同時の公開型リネームは禁止。
