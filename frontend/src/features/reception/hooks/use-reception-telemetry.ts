@@ -26,11 +26,11 @@ export function useReceptionTelemetry(columns: ColumnData[]): ReceptionTelemetry
 
   const totalCount = useMemo(() => computeReceptionTotalCount(columns), [columns]);
 
-  const waitStats = useMemo(
-    () => computeCheckedInWaitStats(columns, new Date()),
-    // tick は値を使わないが、60秒毎の再計算トリガーとして意図的に依存配列へ含める
-    [columns, tick],
-  );
+  const waitStats = useMemo(() => {
+    // tick は 60 秒毎の再計算トリガー。値自体は使わず Date を取り直す。
+    void tick;
+    return computeCheckedInWaitStats(columns, new Date());
+  }, [columns, tick]);
 
   return { totalCount, ...waitStats };
 }

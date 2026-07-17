@@ -53,7 +53,6 @@ export function useMedicalRecordQuickPatchActions({
 
   // 来院種別変更ハンドラ（即時PATCH）
   // existingRecordVersion のみ参照するため object 全体を dep に含めない (OCC versioning)
-  // eslint-disable-next-line react-hooks/preserve-manual-memoization
   const handleVisitTypeChange = useCallback((newVisitType: string) => {
     const prevVisitType = visitType;
     setVisitType(newVisitType);
@@ -77,7 +76,6 @@ export function useMedicalRecordQuickPatchActions({
 
   // 次回予定変更ハンドラ（ヘッダー NextVisitButton 用・即時PATCH）
   // existingRecordVersion のみ参照するため object 全体を dep に含めない (OCC versioning)
-  // eslint-disable-next-line react-hooks/preserve-manual-memoization
   const handleNextVisitDatePatch = useCallback((newDate: string) => {
     const prev = nextVisitDate;
     setNextVisitDate(newDate);
@@ -102,7 +100,6 @@ export function useMedicalRecordQuickPatchActions({
 
   // 診察日変更ハンドラ
   // existingRecordVersion のみ参照するため object 全体を dep に含めない (OCC versioning)
-  // eslint-disable-next-line react-hooks/preserve-manual-memoization
   const handleChangeDate = useCallback((newDate: string) => {
     if (!recordId) return;
     startSaveTransition(async () => {
@@ -126,7 +123,6 @@ export function useMedicalRecordQuickPatchActions({
   // 更新を 409 で拒否し（medical_record_crud.go）、確定の取り消し API は存在しない
   // （訂正は addendum のみ）。既存の quick-patch と同じ OCC versioning パターンに従う。
   // existingRecordVersion のみ参照するため object 全体を dep に含めない (OCC versioning)
-  // eslint-disable-next-line react-hooks/preserve-manual-memoization
   const handleFinalize = useCallback(() => {
     if (!recordId) return;
     startSaveTransition(async () => {

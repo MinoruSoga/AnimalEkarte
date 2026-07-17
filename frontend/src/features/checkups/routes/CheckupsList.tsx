@@ -115,7 +115,10 @@ export function CheckupsList() {
   );
 
   const { data: checkupsResult, isLoading, error } = useGetCheckups(requestFilters);
-  const checkups = checkupsResult?.data ?? [];
+  const checkups = useMemo(
+    () => checkupsResult?.data ?? [],
+    [checkupsResult?.data],
+  );
   const total = checkupsResult?.total ?? 0;
   const limit = checkupsResult?.limit ?? PAGE_SIZE;
   const totalPages = Math.max(1, Math.ceil(total / limit));
@@ -147,9 +150,12 @@ export function CheckupsList() {
   useEffect(() => {
     const clampedPage = Math.max(1, Math.min(urlPage, totalPages));
     if (clampedPage !== currentPage) {
+      // URL/サーバ total 由来のページ同期。render 中 setState は不可のため effect で反映する。
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- FE-144 URL page clamp sync
       setCurrentPage(clampedPage);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+  // currentPage は比較対象のみ。URL/totalPages 変化時だけ同期する（自己ループ防止）
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- FE-144 URL page sync
   }, [urlPage, totalPages]);
 
   // FE-144: ページ変更時にURLクエリパラメータを更新

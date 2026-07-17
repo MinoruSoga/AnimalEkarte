@@ -26,6 +26,8 @@ export function useFetchState<T>(fetcher: () => Promise<T>, context: string): Us
 
   useEffect(() => {
     let cancelled = false;
+    // 外部 fetcher 開始時に loading/error をリセットする。render 中 setState は不可。
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- async fetch lifecycle reset
     setLoading(true);
     setError(null);
 

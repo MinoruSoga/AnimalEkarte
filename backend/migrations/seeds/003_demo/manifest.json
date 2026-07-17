@@ -274,6 +274,10 @@
       "csvFile": "billing_items.csv"
     },
     {
+      "table": "payment_methods",
+      "csvFile": "payment_methods.csv"
+    },
+    {
       "table": "payments",
       "csvFile": "payments.csv"
     },

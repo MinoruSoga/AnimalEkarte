@@ -98,6 +98,11 @@ var bundleTables = map[string][]string{
 		"staff_notes",
 		"billings",
 		"billing_items",
+		// FK parent of payments/payment_splits.payment_method_id. Must load
+		// before payments. clinics INSERT trigger also auto-inserts defaults;
+		// cmd/migrate disables that trigger when this table is in the manifest
+		// so explicit seed IDs remain authoritative.
+		"payment_methods",
 		"payments",
 		"payment_splits",
 		"billing_refunds",
@@ -129,11 +134,12 @@ var bundleOrder = []string{"002_master", "003_demo", "004_staging"}
 // totalSeedTableCount is a guard-rail constant checked at runtime against
 // len(bundleTables flattened) so a future hand-edit that drops or duplicates
 // a table entry fails loudly instead of silently shipping an incomplete
-// export. 92 is the verified unique seeded-table count (5 + 86 + 1) — not
+// export. 93 is the verified unique seeded-table count (5 + 87 + 1) — not
 // 139, which was the sum of raw INSERT-touched-table counts per file before
 // dedup, and not the 108 CREATE TABLE count in 001_init.sql (which includes
 // tables no seed file ever populates). The original count of 90 missed
 // checkup_type_fields, whose old seed lived inside a DO $$ block (J-12b) that
 // the top-level INSERT INTO scan did not see. 91→92 when trimming_course_types
-// was added as the explicit FK parent of trimming_courses.course_type_id.
-const totalSeedTableCount = 92
+// was added; 92→93 when payment_methods was added as the explicit FK parent
+// of payments/payment_splits.payment_method_id.
+const totalSeedTableCount = 93

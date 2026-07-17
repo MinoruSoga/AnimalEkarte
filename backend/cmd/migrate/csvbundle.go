@@ -71,6 +71,13 @@ func loadBundleManifest(migrationsDir, bundleDir string) (seedbundle.Manifest, [
 // during clinics COPY or the explicit CSV collides on PK/UNIQUE.
 const clinicDefaultTrimmingCourseTypesTrigger = "trg_create_default_trimming_course_types"
 
+// clinicDefaultPaymentMethodsTrigger auto-inserts default payment_methods on
+// clinics INSERT (001_init.sql). When the seed bundle ships an explicit
+// payment_methods.csv with stable IDs that payments/payment_splits may
+// reference, that trigger must not fire during clinics COPY or the explicit
+// CSV collides on PK/UNIQUE.
+const clinicDefaultPaymentMethodsTrigger = "trg_create_default_payment_methods"
+
 // applyCSVBundle loads every table in a bundle's manifest via a raw Postgres
 // COPY FROM STDIN, in manifest order (already FK-safe — see
 // cmd/seed-export/tables.go for how that order was derived and verified),
@@ -91,14 +98,17 @@ func applyCSVBundle(ctx context.Context, connStr, migrationsDir, bundleDir strin
 		return err
 	}
 
-	// Explicit trimming_course_types.csv owns IDs; disable the clinics default
-	// trigger only around the clinics COPY so app-time clinic creation still
-	// gets defaults after seed commits.
+	// Explicit CSV owns IDs for trigger-default child masters; disable the
+	// clinics default triggers only around the clinics COPY so app-time clinic
+	// creation still gets defaults after seed commits.
 	ownsTrimmingCourseTypes := false
+	ownsPaymentMethods := false
 	for _, entry := range manifest.Tables {
-		if entry.Table == "trimming_course_types" {
+		switch entry.Table {
+		case "trimming_course_types":
 			ownsTrimmingCourseTypes = true
-			break
+		case "payment_methods":
+			ownsPaymentMethods = true
 		}
 	}
 
@@ -119,16 +129,23 @@ func applyCSVBundle(ctx context.Context, connStr, migrationsDir, bundleDir strin
 	// a rolled-back attempt; the next retry then assigns non-1-based IDs while
 	// CSVs still hardcode the original serials (course_type_id=1/3/5, …) and
 	// fail FK. Re-align those sequences when the child table is empty.
-	// Still needed for payment_methods (trigger-only, no CSV) and as a safety
-	// net if trimming_course_types is ever loaded without ownsTrimmingCourseTypes.
+	// Safety net when a trigger-owned table is empty after a failed seed, or
+	// when an explicit CSV is loaded without the matching owns* flag.
 	if err := realignEmptyTriggerSerials(ctx, tx); err != nil {
 		return fmt.Errorf("failed to realign empty trigger serials: %w", err)
 	}
 
 	for _, entry := range manifest.Tables {
-		if ownsTrimmingCourseTypes && entry.Table == "clinics" {
-			if _, err := tx.Exec(ctx, `ALTER TABLE clinics DISABLE TRIGGER `+clinicDefaultTrimmingCourseTypesTrigger); err != nil {
-				return fmt.Errorf("failed to disable %s for seed clinics load: %w", clinicDefaultTrimmingCourseTypesTrigger, err)
+		if entry.Table == "clinics" {
+			if ownsTrimmingCourseTypes {
+				if _, err := tx.Exec(ctx, `ALTER TABLE clinics DISABLE TRIGGER `+clinicDefaultTrimmingCourseTypesTrigger); err != nil {
+					return fmt.Errorf("failed to disable %s for seed clinics load: %w", clinicDefaultTrimmingCourseTypesTrigger, err)
+				}
+			}
+			if ownsPaymentMethods {
+				if _, err := tx.Exec(ctx, `ALTER TABLE clinics DISABLE TRIGGER `+clinicDefaultPaymentMethodsTrigger); err != nil {
+					return fmt.Errorf("failed to disable %s for seed clinics load: %w", clinicDefaultPaymentMethodsTrigger, err)
+				}
 			}
 		}
 
@@ -139,11 +156,18 @@ func applyCSVBundle(ctx context.Context, connStr, migrationsDir, bundleDir strin
 		}
 		logger.Info("Loaded seed table", slog.String("bundle", bundleDir), slog.String("table", entry.Table), slog.Int64("rows", rows))
 
-		if ownsTrimmingCourseTypes && entry.Table == "clinics" {
+		if entry.Table == "clinics" {
 			// Re-enable inside the same transaction before commit so a
-			// successful seed does not leave the trigger permanently off.
-			if _, err := tx.Exec(ctx, `ALTER TABLE clinics ENABLE TRIGGER `+clinicDefaultTrimmingCourseTypesTrigger); err != nil {
-				return fmt.Errorf("failed to re-enable %s after seed clinics load: %w", clinicDefaultTrimmingCourseTypesTrigger, err)
+			// successful seed does not leave the triggers permanently off.
+			if ownsTrimmingCourseTypes {
+				if _, err := tx.Exec(ctx, `ALTER TABLE clinics ENABLE TRIGGER `+clinicDefaultTrimmingCourseTypesTrigger); err != nil {
+					return fmt.Errorf("failed to re-enable %s after seed clinics load: %w", clinicDefaultTrimmingCourseTypesTrigger, err)
+				}
+			}
+			if ownsPaymentMethods {
+				if _, err := tx.Exec(ctx, `ALTER TABLE clinics ENABLE TRIGGER `+clinicDefaultPaymentMethodsTrigger); err != nil {
+					return fmt.Errorf("failed to re-enable %s after seed clinics load: %w", clinicDefaultPaymentMethodsTrigger, err)
+				}
 			}
 		}
 

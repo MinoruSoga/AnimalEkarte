@@ -188,7 +188,7 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
         handleApiError(error, "カルテ削除");
       },
     });
-  }, [recordId, deleteRecord, navigate]);
+  }, [recordId, deleteRecord, navigate, setIsDeleteConfirmOpen]);
 
   useEffect(() => {
     if (shouldRedirectToSelectPet) {

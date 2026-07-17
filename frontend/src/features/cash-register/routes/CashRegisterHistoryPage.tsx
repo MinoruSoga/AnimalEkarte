@@ -73,13 +73,13 @@ export function CashRegisterHistoryPage() {
     setYear(Number(e.target.value));
     setSingleDate(null);
     setPage(1);
-  }, []);
+  }, [setPage]);
 
   const handleMonthChange = useCallback((e: React.ChangeEvent<HTMLSelectElement>) => {
     setMonth(Number(e.target.value));
     setSingleDate(null);
     setPage(1);
-  }, []);
+  }, [setPage]);
 
   const handlePeriodFilterChange = useCallback((e: React.ChangeEvent<HTMLSelectElement>) => {
     setPeriodFilter(e.target.value as PeriodFilter);

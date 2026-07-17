@@ -95,6 +95,27 @@ export default tseslint.config(
     },
   },
   {
+    // Fast Refresh は「ファイルがコンポーネントのみ export」を要求するが、本リポジトリは
+    // 画面/UI 単位で定数・ヘルパー・route config をコロケーションする方針を採る。
+    // 分離すると import 拡散と再エクスポート層が増える一方、HMR の完全性は開発 UX のみ。
+    // allowConstantExport は関数/JSX 定数/route 配列をカバーしないため、既知の同居面だけ off。
+    // 新規ファイルへの安易な追加は避け、可能な限り *-model.ts 抽出を優先すること。
+    files: [
+      "src/app/routes/app-routes.tsx",
+      "src/components/shared/DataTable/DataTable.tsx",
+      "src/features/auth/components/LoginForm.tsx",
+      "src/features/checkups/components/DynamicCheckupFields.tsx",
+      "src/features/hospitalization/components/CarePlanTab/CarePlanBadges.tsx",
+      "src/features/line-reservation/components/LineReservationSettingsFormSections.tsx",
+      "src/features/manual/components/ManualContent.tsx",
+      "src/features/owner-report/components/PetSwitcher.tsx",
+      "src/features/reservations/routes/ReservationManagement.tsx",
+    ],
+    rules: {
+      "react-refresh/only-export-components": "off",
+    },
+  },
+  {
     // FE-R1: queryKey ファクトリーの定義自体はここでのみ配列リテラルを許可する
     files: ["src/lib/query-keys.ts"],
     rules: {

@@ -101,12 +101,12 @@ export function MedicineSettings() {
   const handleEdit = useCallback((medicine: Medicine) => {
     setDefaultParentId(undefined);
     medicineCrud.handleEdit(medicine);
-  }, [medicineCrud.handleEdit]);
+  }, [medicineCrud]);
 
   const handleCreate = useCallback((parentId?: string) => {
     setDefaultParentId(parentId);
     medicineCrud.handleNew();
-  }, [medicineCrud.handleNew]);
+  }, [medicineCrud]);
 
   // ── startSaveTransition wrapper for useMasterSave ──
   const [, startSaveTransition] = useTransition();
