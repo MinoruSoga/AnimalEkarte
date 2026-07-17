@@ -6,13 +6,20 @@
 
 ## Open
 
-### BUG-408:【データ整合性疑い】予防接種フォームがワクチンマスタを一切参照せず、UIラベルと実際のvaccine_idが動物種で食い違う
+### BUG-411:【CRITICAL・データ喪失リスク】会計・検査一覧が backend デフォルト limit=20 で切られた配列に対し偽のクライアントページネーションを行い、フルデータ規模で大半のレコードが不可視化する
 
-- **症状**: 予防接種の新規登録フォーム（`frontend/src/features/vaccinations/components/VaccinationFormPanels.tsx`）のワクチン選択は `VACCINE_TYPE_ITEMS`（value:"1"=混合ワクチン, value:"2"=狂犬病ワクチン の2件のみ）というハードコード定数で、ワクチンマスタ（GET /api/v1/masters/vaccines、アクティブ11件）を一切クエリしていない。マスタの id=2 は「ワクチン猫」（猫用）だが、UI上のラベルは「狂犬病ワクチン」で犬患者にも選択可能 — 選択したラベルと実際に永続化される vaccine_id の動物種が食い違っている疑いが強い。
-- **影響範囲調査が必要**: 既存の犬患者ワクチン記録に誤った vaccine_id が入っている可能性がある。
-- **未決の設計判断**（実装前に責任者の決定が必要）: (a) マスタ項目を選択ペットの動物種でどう絞り込むか（選択ペットのデータ型に species が含まれておらず型拡張が必要になる可能性）。(b) `use-vaccination-form.ts` の `VACCINE_SCHEDULE_MAP`（"1"/"2"の2値のみで次回接種予定を自動計算）を実マスタの interval 等メタデータとどう統合するか。カルテ内蔵フォーム（`features/medical-records/components/MedicalRecordVaccination.tsx`）は `useGetAllVaccinesMaster` でマスタを参照するが isActive のみでフィルタし動物種フィルタが無く、同じく誤った動物種のワクチンが選択できてしまう。
-- **調査の起点**: BUG-401 調査中に発見（マスタ11件に対しフォームが2件しか出ない症状の根因はマスタ未参照そのものであり、「フィルタが厳しすぎる」ではなかった）。既存パターンをそのまま移植すると動物種フィルタが皆無になり臨床リスクを新設するため、単純なバグ修正ではなく機能設計として扱う。
-- **発見**: 2026-07-17（BUG-401 調査中に判明。BUG-401 自体は本エントリへ統合しクローズ）。
+- **症状**: `AccountingList.tsx`（会計一覧）と `ExaminationsList.tsx`（検査一覧）は `useGetAccountings`/`useGetExaminations` 呼び出しで `page`/`limit` を一切送らない。バックエンドの `parsePagination`（`backend/internal/handler/query_helpers.go:27`）は未指定時 `limit=20` をデフォルト適用するため、実際には常に「最新（もしくは任意順）20件」だけが返る。フロント側はこの20件配列を `usePagination()`（`frontend/src/hooks/use-pagination.ts`）でクライアントページネーションするため `totalPages` は常に1、`Pagination` コンポーネントは非表示、件数表示も「20件」等の**偽の全件数**を示す。ユーザーには「全件表示されている」ように見えるが、実データの大半が一覧にもフィルタにも検索にも一切現れない。
+- **実測件数（ローカルフルデータ）**: `billings` テーブル **392,105件**（会計）、`exams` テーブル **14,533件**（検査） — いずれも表示されるのは先頭20件のみ。#266 のような白画面クラッシュにはならない（over-fetch ではなく under-fetch）ため気づかれにくく、**会計データの大半が一覧上「存在しないもの」として扱われる**という点で #266 より発見しにくく深刻。
+- **同型パターンの他候補**: `AccountingList`/`ExaminationsList` の他に、`InventoryList`/`VaccinationList`/`TrimmingList` も同じ `usePagination()` 消費側だが、これらは対応する取得APIが date-scoped もしくは実データ件数が小さい（`inventory_items`=30件、`vaccinations`=0件、ローカル実測）ため本チケットでは相対的に低リスクと判定。ただし本番の実データ移行（#250）後は再確認が必要。
+- **調査の起点**: `frontend/src/features/accounting/api/get-accountings.ts`（`getAccountings` の `params` に `page`/`limit` が無い）、`frontend/src/hooks/use-examinations.ts`（同様）。修正方針は #266 の owners 対応（サーバサイド search/page/limit を URL 経由で loader/hook に転送し、`usePagination()` の client-side slicing をやめる）と同型。
+- **発見**: 2026-07-17（#266 の fetch-limits 横断棚卸し中に発見。`frontend/src/config/fetch-limits.ts` 経由の各所は SD-18 で「直近100件表示」の可視キャップ表示済みで別枠 — 本件は fetch-limits.ts を経由しない、キャップ表示すら無い"偽ページネーション"のため独立起票）。
+
+### BUG-408:【設計判断待ち】予防接種フォームのワクチン選択に動物種(species)フィルタが無い
+
+- **経緯**: 旧 BUG-408/401（予防接種フォームが `VACCINE_TYPE_ITEMS` というハードコード2択で、ワクチンマスタを一切クエリせず、誤った vaccine_id を永続化していたデータ破損）は **2026-07-17 に修正済み**。`VaccinationFormPanels.tsx` が姉妹フォーム（`MedicalRecordVaccination.tsx`）と同じ `useGetAllVaccinesMaster()` パターンで実マスタを `isActive` フィルタ付きでクエリするよう変更し、`use-vaccination-form.ts` の `VACCINE_SCHEDULE_MAP`（"1"/"2"固定キー）も選択ワクチンの `interval` フィールドから次回予定を導出する方式に置き換えた（回帰テスト: `use-vaccination-form.test.ts` の「BUG-401」節、`VaccinationFormPanels.test.tsx`）。
+- **残存する設計判断（未決・本エントリが追跡するのはこれのみ）**: マスタ項目を選択ペットの動物種でどう絞り込むか。姉妹フォームも動物種フィルタを持たないため、上記修正は parity に留め新規リスクを増やしていないが、犬患者に猫用ワクチン（またはその逆）が選択可能な状態そのものは残っている。選択ペットのデータ型に `species` が含まれておらず型拡張が必要になる可能性がある。
+- **調査の起点**: `usePetSelection` が返す pet オブジェクトの型定義、`VaccineItem.species` フィールド（`frontend/src/lib/transforms/treatment.ts`）との突合。
+- **発見**: 2026-07-17（BUG-401 調査中）。vaccine_id 誤保存自体は同日中に修正済み。
 
 ### BUG-409:【要検証】ペット死亡ステータスの二重管理が外側フォーム経由で再発しうる
 
