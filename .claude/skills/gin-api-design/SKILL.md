@@ -8,7 +8,7 @@ origin: ECC (adapted for AnimalEkarte)
 
 このプロジェクト（Go 1.25 / Gin）の REST API 設計標準。
 
-## コードの配置（BE8 規約・2026-07-17 — 正本 = /BE-refactor.md §3）
+## コードの配置（BE8 規約・2026-07-17 — 正本 = /.claude/skills/be8-package-refactor/SKILL.md §3）
 
 新規エンドポイントの実装コードは次に配置する:
 

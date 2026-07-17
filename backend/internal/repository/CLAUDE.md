@@ -266,7 +266,7 @@ func setupXxxTestDB(t *testing.T) *gorm.DB {
 TRUNCATE のみ（テーブル構造を変えない）なら `setupTestDB` のままでよい。既存例:
 `checkup_field_repository_test.go` の `setupCheckupFieldTestDB`。
 
-## パッケージ分割規約（BE8・2026-07-17 — 正本 = /BE-refactor.md §3）
+## パッケージ分割規約（BE8・2026-07-17 — 正本 = /.claude/skills/be8-package-refactor/SKILL.md §3）
 
 - **新規ドメイン repository はフラット直下に置かず `repository/<domain>/` サブパッケージで作る**（先例: `paymentmethod/`。共有 clinic-scope/tx ヘルパは `repohelpers`）。
 - パッケージ名 = 単数形・全小文字・連結（`trimmingcoursetype` 形式）。stutter 禁止（`<domain>.NewRepository`）。

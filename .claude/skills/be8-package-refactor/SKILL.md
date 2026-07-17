@@ -1,3 +1,10 @@
+---
+name: be8-package-refactor
+description: backend/ 全体のパッケージ構成を Go ベストプラクティスへ統一する BE 第8期計画の正本（規約・目標構成・地雷・BE8-0〜8 手順・ドメイン一覧）。backend のパッケージ分割・構成リファクタ・新規ドメイン配置の判断時に必ずロード。着手条件 = Go-live 後 + PR#186 マージ + CI green（BE8-1 のみ消化済み）。
+---
+
+> **正本宣言**: 本ファイル（`.claude/skills/be8-package-refactor/SKILL.md`）が BE8 計画の正本。`.agents/skills/` 側は sync-agents-skills.sh による生成ミラーであり直接編集禁止。旧リポジトリ直下 `BE-refactor.md` は 2026-07-17 に本スキルへ移設・削除済み。
+
 # BE-refactor 第8期（BE8）— backend/ 全体構成の Go ベストプラクティス統一
 
 > 起票: 2026-07-17（要件責任者: 曽我。フラット巨大パッケージの是正を Go/Gin ベストプラクティスへ統一する方針決定）
