@@ -6,6 +6,27 @@
 
 ## Open
 
+### BUG-415:【MEDIUM・healthcare-reviewer指摘】generic PATCH /pets/:id が status を deceased_at・監査ログと無結合のまま書込可能（BUG-409 backend follow-up）
+
+- **経緯**: BUG-409（生死ステータスの二重管理・修正済み 74652f72）の独立監査（healthcare-reviewer、2026-07-18、APPROVE WITH FOLLOW-UP REQUIRED）で指摘。BUG-409 の修正は FE の生死ラジオ（唯一のUI攻撃面）を disabled 化して閉じたが、**二重管理の構造自体は backend API 契約層に残っている**。
+- **症状**: `frontend/src/lib/transforms/pet.ts:201`（`transformUpdatePetRequest`）は `status` を無条件に常時送信する。ペット編集の「更新」保存は毎回 generic `PATCH /pets/:id` に到達し、`backend/internal/service/pet_service.go:109-111`（`buildPetUpdate`）が `status` を `deceased_at` と無結合・監査ログなしで書き込む。現行 FE UI からは divergent な値を生成できない（disabled ラジオのため）が、任意の API クライアント・将来の FE 面・transform のバグにより `status=死亡, deceased_at=NULL, 監査なし`（またはその逆）を生成できる**構造**が生きたままである。死亡登録の監査証跡はカルテの法的・臨床記録要件。
+- **修正方針（healthcare-reviewer 提案）**: generic 書込経路から `status` を削除する。
+  - FE: `transformUpdatePetRequest`（`frontend/src/lib/transforms/pet.ts`）から `status` フィールドを除去。
+  - BE: `buildPetUpdate`（`backend/internal/service/pet_service.go:109-111`）の `status` 分岐を除去。
+  - 結果、`HandlePetDeath`/`HandlePetRevival`（`lstep_lifecycle_service.go`、status+deceased_at+監査を同一tx・fail-closed で原子更新）が `status` の唯一の書込元になる。status は alive/deceased の2値のみ・Create 時に設定・遷移は死亡登録/取消のみ、と既に確定しているため安全に削除可能と判定済み。
+  - 副次効果: `use-pet-form-list-state.ts` の `isPetRevival`（generic PATCH 後に revoke を呼ぶ冗長経路）が自然に不要化・簡素化される。
+- **重要度**: MEDIUM（現行 UI から divergent 値は作れないため即時 hotfix 級ではないが、Go-live 前の backend ハードニング対象）。
+- **発見**: 2026-07-18（healthcare-reviewer による BUG-409 修正の独立監査、APPROVE WITH FOLLOW-UP REQUIRED）。
+
+### BUG-416:【LOW〜MEDIUM・healthcare-reviewer指摘・現状は潜在的で未発火】カルテ診断(diagnosis1/2)保存の非対称送信・バリデーション欠如・楽観ロック欠如（BUG-410 backend/UI follow-up、3件）
+
+- **経緯**: BUG-410（構造化診断 hydrate 欠落・修正済み 1407a39a）の独立監査（healthcare-reviewer、2026-07-18、APPROVE・3件とも非ブロッキング）で指摘。いずれも本コミットが新規導入したものではなく、修正後も残る既存の潜在リスク。
+- **① save-action の diagnosis1/diagnosis2 送信非対称（クリアUI追加時の前提条件）**: `use-medical-record-save-action.ts` は diagnosis1 を `?? undefined`（未送信=BE 側で「更新しない」扱い）、diagnosis2 は state の値をそのまま送信（`null` なら明示クリア）という非対称な契約になっている。現行 UI（`SearchableSelect`）には選択解除操作が無いため両方とも現状は発火しないが、**将来 diagnosis1/2 いずれかにクリアボタンを追加する場合、diagnosis1 側は `?? undefined` のためクリア操作がサイレントに no-op する**（「保存しました」トーストは出るが DB は変わらない）。クリアUI追加時はこの非対称の是正が前提条件。
+- **② diagnosis2 の FE 病名バリデーション欠如**: diagnosis1 には `if (diagnosis1CategoryId && !diagnosis1NameId)` の FE バリデーションがあるが、diagnosis2 には同等のチェックが無い。backend `clinical_plan_service.go` の `assertNameBelongsToType`（AUD-007）も `nameID == nil` の場合は許可を返すため、「diagnosis2 のカテゴリだけ変更→病名未選択のまま保存」が 400 で拒否されず、type あり/name NULL の不完全状態が永続化されうる。データ喪失ではないが臨床データの不整合。
+- **③ clinical_plan PATCH に楽観ロック（version）が無い**: `updateTreatmentPlanMutation` の payload に `version` が含まれない（同じフックの後続 `updateMutation`＝次回来院日更新は version を送る）。2名の獣医が同一カルテの診断を同時編集すると last-write-wins で lost update の理論的余地がある。
+- **重要度**: ①③ は LOW（現状 UI からは未到達 / 低頻度な同時編集シナリオ）、② は MEDIUM（到達可能な不完全データ永続化）。
+- **発見**: 2026-07-18（healthcare-reviewer による BUG-410 修正の独立監査、APPROVE・3件とも別チケット化推奨）。
+
 ### BUG-413:【要監視・#250後に判定】予防接種・トリミング一覧が同型のページネーション不可視化リスクを抱える（現状 seed 0件で無症状）
 
 - **経緯**: BUG-412（在庫一覧の偽ページネーション）の派生監査（2026-07-17）で発見。BUG-412 は 2026-07-17 に修正済み（`InventoryList`/`use-inventory.ts`/`frontend/src/features/inventory/api/inventory.ts` をサーバサイド page/limit 転送 + 実 total 消費に変更。backend `inventory_repository.go` は元々 clinic-scoped 実 COUNT を WHERE 適用後に返しており変更不要だった）。本エントリは BUG-412 調査で判明した**同一パターンの潜在リスク**のうち、今回は修正しないと判断したものを引き続き追跡する。
