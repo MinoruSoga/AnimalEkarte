@@ -115,4 +115,18 @@ describe("transformBackendPetToFrontend", () => {
 
     expect(pet.deceasedAt).toBeUndefined();
   });
+
+  // BUG-415: generic PATCH /pets/:id 経由の status 書込は deceased_at・監査ログと
+  // 無結合のため除去した。status 変更は監査付きの死亡登録/取消
+  // (PetDeceasedRecordButton → /:id/death)に一本化済み。
+  // このテストは修正前は落ちていた(RED): 旧実装は status を無条件送信していたため
+  // request.status が "alive" になり toBeUndefined() は失敗していた。
+  it("更新リクエストは status を送信しない（死亡/復活は /:id/death に一本化）", () => {
+    const request = transformUpdatePetRequest({
+      name: "ポチ",
+      status: "alive",
+    });
+
+    expect(request.status).toBeUndefined();
+  });
 });

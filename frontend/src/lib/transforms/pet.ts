@@ -179,6 +179,10 @@ export const transformCreatePetRequest = (data: PetFormInput & {
 
 /**
  * フロントエンドフォームデータからバックエンド UpdatePetRequest に変換
+ *
+ * status は意図的に送信しない(BUG-415)。生死ステータスの変更は監査付きの
+ * 死亡登録/取消エンドポイント(PetDeceasedRecordButton → /:id/death)に一本化されており、
+ * generic PATCH 経由での status 書込は backend 側でも除去済み(buildPetUpdate)。
  */
 export const transformUpdatePetRequest = (data: PetFormInput): UpdatePetRequest => ({
   owner_id: data.ownerId ? Number(data.ownerId) : undefined,
@@ -198,7 +202,6 @@ export const transformUpdatePetRequest = (data: PetFormInput): UpdatePetRequest 
   neutered_date: data.neuteredDate ? jstDateStartISOString(data.neuteredDate) : undefined,
   acquisition_type: data.acquisitionType ? (ACQUISITION_TYPE_REVERSE_MAP[data.acquisitionType] ?? data.acquisitionType) : undefined,
   danger_level: data.dangerLevel ? (DANGER_LEVEL_REVERSE_MAP[data.dangerLevel] ?? data.dangerLevel) : undefined,
-  status: data.status,
   insurance_id: data.insuranceId ? Number(data.insuranceId) : undefined,
   remarks: data.remarks,
 });

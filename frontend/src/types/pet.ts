@@ -33,8 +33,13 @@ export type CreatePetRequest =
 /**
  * ペット更新リクエスト（バックエンドAPI）
  * PATCH: 全フィールドoptional
+ *
+ * status は意図的に除外する(BUG-415)。generic update から status を書けなくする
+ * backend 側の除去(buildPetUpdate)を型レベルでも多層防御する。status 変更は
+ * 監査付きの死亡登録/取消エンドポイント(/:id/death)に一本化されている。
+ * CreatePetRequest は PetWritable を直接参照するため、この除外の影響を受けない。
  */
-export type UpdatePetRequest = Partial<PetWritable>;
+export type UpdatePetRequest = Omit<Partial<PetWritable>, "status">;
 
 /**
  * useOwnerForm への依存性注入インターフェース

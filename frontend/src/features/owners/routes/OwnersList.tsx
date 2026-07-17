@@ -227,7 +227,7 @@ export function OwnersList({ onUpdatePet }: OwnersListProps = {}) {
           neuteredDate: formData.neuteredDate,
           acquisitionType: formData.acquisitionType,
           dangerLevel: formData.dangerLevel,
-          status: formData.status === "死亡" ? "deceased" : "alive",
+          // status は渡さない(BUG-415): transformUpdatePetRequest は status を無視する。
           insuranceId: formData.insuranceId,
           remarks: formData.remarks,
         });

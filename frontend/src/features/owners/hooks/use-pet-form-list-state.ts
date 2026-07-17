@@ -76,16 +76,16 @@ export function usePetFormListState({ id, initialPets, petMutations }: UsePetFor
         neuteredDate: petData.neuteredDate,
         acquisitionType: petData.acquisitionType,
         dangerLevel: petData.dangerLevel,
-        status: PET_STATUS_REVERSE_MAP[petData.status],
+        // status は渡さない(BUG-415): transformUpdatePetRequest は status を無視する。
         insuranceId: petData.insuranceId,
         remarks: petData.remarks,
       });
 
-      // 死亡→生存 の実際の遷移時のみ死亡記録を解除する。
-      // editingPet.status は編集開始時にロードされた初期値（handleEditPet 以外で書き換わらない）。
-      // 送信後の status が生存というだけでは発火させない（大半のペット編集は status を触らず生存のまま）。
-      const isPetRevival = editingPet.status === "死亡" && petData.status === "生存";
-
+      // BUG-415: 生死ステータスの変更は監査付きの死亡登録/取消エンドポイント
+      // (PetCareSection → PetDeceasedRecordButton → useRecordPetDeath/useRevokePetDeath) に
+      // 一本化済み。それらは status 変更を自身のミューテーションで即時完結させるため、
+      // 汎用 Save (updatePetMutate) に「死亡→生存の遷移を検知して revokePetDeathMutate を
+      // 補完発火する」旧ロジック(isPetRevival)は不要かつ二重発火の原因になるため削除した。
       petMutations?.updatePetMutate(
         { id: editingPet.id, req: updateRequest },
         {
@@ -96,10 +96,6 @@ export function usePetFormListState({ id, initialPets, petMutations }: UsePetFor
               )
             );
             toast.success("ペット情報を更新しました");
-            // status PATCH が永続化された後にのみ死亡記録を解除する。
-            if (isPetRevival) {
-              petMutations?.revokePetDeathMutate(editingPet.id);
-            }
           },
           onError: (error: unknown) => {
             handleApiError(error, "更新");

@@ -1,10 +1,16 @@
 /**
- * P2-2 Bug #2: usePetFormListState.handleSavePet — 死亡→生存 遷移時のみ死亡記録解除
+ * BUG-415: usePetFormListState.handleSavePet — 死亡記録解除の補完発火(isPetRevival)を削除
  *
- * 死亡記録の解除（revokePetDeathMutate）は「編集開始時の初期 status が死亡」かつ
- * 「送信 status が生存」の実際の遷移時のみ発火する。送信後が生存というだけでは発火しない
- * （大半のペット編集は status を触らず生存のままであり、無条件発火は不要な Lstep API 呼び出しと
- * 誤った "pet_revival" 監査ログを毎回生む）。
+ * 旧ロジックは「編集開始時の初期 status が死亡」かつ「送信 status が生存」の遷移を検知し、
+ * 汎用 Save の onSuccess から revokePetDeathMutate を追加発火していた（P2-2 Bug #2 対応）。
+ * この補完発火は、汎用 PATCH (updatePetMutate) がもう status を送信しないこと、および
+ * 生死の変更が PetCareSection → PetDeceasedRecordButton 経由の専用エンドポイント
+ * (useRecordPetDeath/useRevokePetDeath) に一本化されたことにより不要となった
+ * （専用ボタンが自身のクリックで即座にミューテーションを完結させるため、後続の汎用 Save で
+ * 再度 revokePetDeathMutate を呼ぶと二重発火になる）。
+ *
+ * このテストは、汎用 Save (handleSavePet) がどのような status 遷移であっても
+ * revokePetDeathMutate を一切呼ばないことを回帰ガードする。
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { renderHook, act } from "@testing-library/react";
@@ -37,7 +43,6 @@ function makePet(overrides: Partial<PetFormData> = {}): PetFormData {
 
 function makePetMutations() {
   // 更新成功をシミュレートするため updatePetMutate は onSuccess を即時呼ぶ。
-  // revoke は onSuccess 内で発火するため、これを呼ばないと revival ケースが検出できない。
   const updatePetMutate = vi.fn(
     (_args: unknown, callbacks: { onSuccess: () => void }) => callbacks.onSuccess(),
   );
@@ -52,12 +57,12 @@ function makePetMutations() {
   return { mutations, updatePetMutate, revokePetDeathMutate };
 }
 
-describe("usePetFormListState.handleSavePet — 死亡記録解除の遷移ガード", () => {
+describe("usePetFormListState.handleSavePet — 汎用 Save は生死ステータスに関与しない（BUG-415）", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it("初期 status=死亡 のペットを生存で保存 → revokePetDeathMutate が1回呼ばれる", () => {
+  it("初期 status=死亡 のペットを生存で保存しても revokePetDeathMutate は呼ばれない（旧 isPetRevival の回帰ガード）", () => {
     const deceasedPet = makePet({ status: "死亡" });
     const { mutations, updatePetMutate, revokePetDeathMutate } = makePetMutations();
 
@@ -67,12 +72,11 @@ describe("usePetFormListState.handleSavePet — 死亡記録解除の遷移ガ�
 
     // 編集開始（editingPet に初期 status=死亡 がロードされる）
     act(() => result.current.handleEditPet(deceasedPet));
-    // 生存で保存（死亡→生存の遷移）
+    // 生存で保存（旧実装ではここで revokePetDeathMutate が補完発火していた）
     act(() => result.current.handleSavePet(makePet({ status: "生存" })));
 
     expect(updatePetMutate).toHaveBeenCalledTimes(1);
-    expect(revokePetDeathMutate).toHaveBeenCalledTimes(1);
-    expect(revokePetDeathMutate).toHaveBeenCalledWith("pet-1");
+    expect(revokePetDeathMutate).not.toHaveBeenCalled();
   });
 
   it("初期 status=生存 のペットを生存のまま保存 → revokePetDeathMutate は呼ばれない（回帰ガード）", () => {
@@ -89,5 +93,20 @@ describe("usePetFormListState.handleSavePet — 死亡記録解除の遷移ガ�
 
     expect(updatePetMutate).toHaveBeenCalledTimes(1);
     expect(revokePetDeathMutate).not.toHaveBeenCalled();
+  });
+
+  it("更新リクエストのペイロードに status キーを含めない（transformUpdatePetRequest の BUG-415 修正と整合）", () => {
+    const deceasedPet = makePet({ status: "死亡" });
+    const { mutations, updatePetMutate } = makePetMutations();
+
+    const { result } = renderHook(() =>
+      usePetFormListState({ id: "owner-1", initialPets: [deceasedPet], petMutations: mutations }),
+    );
+
+    act(() => result.current.handleEditPet(deceasedPet));
+    act(() => result.current.handleSavePet(makePet({ status: "生存" })));
+
+    const [{ req }] = updatePetMutate.mock.calls[0] as [{ req: Record<string, unknown> }];
+    expect(req).not.toHaveProperty("status");
   });
 });
