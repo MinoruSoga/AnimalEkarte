@@ -28,12 +28,6 @@
 - **調査の起点**: `usePetSelection` が返す pet オブジェクトの型定義、`VaccineItem.species` フィールド（`frontend/src/lib/transforms/treatment.ts`）との突合。
 - **発見**: 2026-07-17（BUG-401 調査中）。vaccine_id 誤保存自体は同日中に修正済み。
 
-### BUG-409:【要検証】ペット死亡ステータスの二重管理が外側フォーム経由で再発しうる
-
-- **症状（未確認・要検証）**: BUG-407 の修正で死亡登録サブダイアログの即時保存時に `status`/`deceased_at` を同一 Update で同期するようにしたが、`PetEditModal` の生死ラジオ（外側フォーム）が `deceased_at` と独立に `status` を変更できる可能性があり、外側の「更新」経由の保存が `status` のみ書き込み `deceased_at` を触らない実装であれば、再度 `status=生存` かつ `deceased_at` 残存という不整合状態を生みうる。
-- **調査の起点**: `PetEditModal` の生死ラジオ状態と `transformUpdatePetRequest`（PATCH /pets/:id 系）が `status` と `deceased_at` の両方を一貫して扱っているかを確認する。
-- **発見**: 2026-07-17（healthcare-reviewer による BUG-407 修正の独立監査で指摘、MEDIUM）。
-
 ### BUG-410:【要検証】カルテ編集保存時に構造化診断（diagnosis1/2）が再投入されず上書きされる可能性
 
 - **症状（未確認・要検証）**: BUG-406 の修正で問診（Inquiry）は再読込時に正しく復元されるようになったが、`use-apply-medical-record.ts` / `transforms.ts` は assessment/plan の自由記述は再投入する一方、diagnosis1/2 の category/name ID を再投入していない（`transformMedicalRecord` がそもそも露出しない）。保存アクションが未ロードの診断マスタ state を送信する実装であれば、通常の編集保存で保存済みの構造化診断が意図せず上書き・クリアされる可能性がある。
@@ -42,4 +36,5 @@
 
 ## 直近クローズ（次回整理で削除）
 
+- **BUG-409**（ペット死亡ステータスの二重管理が外側フォーム経由で再発しうる）: **修正済み 2026-07-18**（commit 74652f72）。再現テストで確認: `PetCareSection.tsx` の生死ラジオが `deceased_at`/監査ログと独立に `status` のみを書き換え可能で、①生存ペットで死亡ラジオ→保存 = status=死亡・deceased_at=null・監査ログ無し、②ダイアログ死亡登録後に生存ラジオ→保存 = status=生存・deceased_at残存、の2経路で不整合を実際に生成できた（`transformUpdatePetRequest`/backend `buildPetUpdate` いずれも deceased_at に触れない）。修正はラジオを現在値表示専用(disabled)にし、生死変更を監査付き `PetDeceasedRecordButton` 経由に一本化（transform への deceased_at 追加は無監査の第二死亡経路を新設するため不採用）。
 - **BUG-404**（入院デイリー記録 GET/ケアログ POST 全 500）: **修正済み 2026-07-17**（commit 58c653df）。根因 = TIME 列を `time.Time` で Scan（書込成功・読取全滅）+ 永続テスト DB のスキーマドリフトがテストを素通りさせていた（自己修復 ALTER 追加済み）。次回シナリオ再実行で最終確認したら本行を削除。
