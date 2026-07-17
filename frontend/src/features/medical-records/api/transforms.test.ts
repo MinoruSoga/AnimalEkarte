@@ -126,6 +126,40 @@ describe("transformMedicalRecord", () => {
     expect(result.chiefComplaintTypeId).toBeNull();
   });
 
+  it("BUG-410: clinical_plan の diagnosis_type_id/diagnosis_name_id/diagnosis_2_type_id/diagnosis_2_name_id を diagnosis1CategoryId/diagnosis1NameId/diagnosis2CategoryId/diagnosis2NameId にマップする", () => {
+    const result = transformMedicalRecord({
+      ...minimal,
+      clinical_plan: {
+        physical_exam: "",
+        diagnosis_details: "",
+        treatment_policy: "",
+        diagnosis_type_id: 3,
+        diagnosis_name_id: 7,
+        diagnosis_2_type_id: 4,
+        diagnosis_2_name_id: 9,
+      } as BackendMedicalRecord["clinical_plan"],
+    });
+    expect(result.diagnosis1CategoryId).toBe(3);
+    expect(result.diagnosis1NameId).toBe(7);
+    expect(result.diagnosis2CategoryId).toBe(4);
+    expect(result.diagnosis2NameId).toBe(9);
+  });
+
+  it("BUG-410: diagnosis1/2 の ID が未設定のとき null（undefined ではなく明示的に null）", () => {
+    const result = transformMedicalRecord({
+      ...minimal,
+      clinical_plan: {
+        physical_exam: "",
+        diagnosis_details: "",
+        treatment_policy: "",
+      } as BackendMedicalRecord["clinical_plan"],
+    });
+    expect(result.diagnosis1CategoryId).toBeNull();
+    expect(result.diagnosis1NameId).toBeNull();
+    expect(result.diagnosis2CategoryId).toBeNull();
+    expect(result.diagnosis2NameId).toBeNull();
+  });
+
   it("visit_count をそのまま返す", () => {
     expect(transformMedicalRecord({ ...minimal, visit_count: 5 }).visitCount).toBe(5);
   });

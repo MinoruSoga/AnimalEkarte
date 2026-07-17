@@ -45,6 +45,13 @@ export const transformMedicalRecord = (
     diagnosis: undefined, // clinical_plan.diagnosis_details は assessment にマップ済み
     treatment: undefined, // clinical_plan.treatment_policy は plan にマップ済み
     prescription: undefined,
+    // BUG-410: 構造化診断(diagnosis1/2)のカテゴリ/名称IDを再読込経路で復元するためのマップ。
+    // 欠落していると保存済み診断が編集保存で無言クリアされる(特に diagnosis2 は backend の
+    // null=クリア契約のため直接データ喪失に繋がる)。
+    diagnosis1CategoryId: record.clinical_plan?.diagnosis_type_id ?? null,
+    diagnosis1NameId: record.clinical_plan?.diagnosis_name_id ?? null,
+    diagnosis2CategoryId: record.clinical_plan?.diagnosis_2_type_id ?? null,
+    diagnosis2NameId: record.clinical_plan?.diagnosis_2_name_id ?? null,
     notes: record.inquiry?.notes,
     accountingId: record.accounting_id ? String(record.accounting_id) : undefined,
     visitCount: record.visit_count,

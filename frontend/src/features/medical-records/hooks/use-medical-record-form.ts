@@ -87,6 +87,10 @@ export function useMedicalRecordForm(recordId?: string) {
     setAssessment,
     setVisitType,
     setNextVisitDate,
+    setDiagnosis1CategoryId,
+    setDiagnosis1NameId,
+    setDiagnosis2CategoryId,
+    setDiagnosis2NameId,
   });
 
   // petIdを決定: 新規作成時はURLパラメータ、編集時はカルテのpetId

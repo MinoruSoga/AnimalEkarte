@@ -250,6 +250,38 @@ describe("useMedicalRecordForm", () => {
         expect(result.current.chiefComplaintTypeId).toBe(5);
       });
     });
+
+    it("BUG-410: 既存レコードに diagnosis1/2 の category/name ID がある場合、state に反映される（未反映だと編集保存で無言クリアされる）", async () => {
+      const loadedRecord = {
+        data: {
+          id: "10",
+          visitType: "再診",
+          chiefComplaint: "",
+          plan: "",
+          assessment: "",
+          notes: "",
+          version: 1,
+          diagnosis1CategoryId: 3,
+          diagnosis1NameId: 7,
+          diagnosis2CategoryId: 4,
+          diagnosis2NameId: 9,
+        },
+        isLoading: false,
+        isError: false,
+      };
+      mockUseGetMedicalRecord.mockReturnValue({ data: undefined, isLoading: true, isError: false });
+      const { result, rerender } = renderHook(() => useMedicalRecordForm("10"));
+
+      mockUseGetMedicalRecord.mockReturnValue(loadedRecord as never);
+      rerender();
+
+      await waitFor(() => {
+        expect(result.current.diagnosis1CategoryId).toBe(3);
+        expect(result.current.diagnosis1NameId).toBe(7);
+        expect(result.current.diagnosis2CategoryId).toBe(4);
+        expect(result.current.diagnosis2NameId).toBe(9);
+      });
+    });
   });
 
   // ──────────────────────────
