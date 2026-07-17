@@ -84,36 +84,40 @@ backend/internal/
 
 ## 5. 制約・地雷（着手前に必読）
 
-| # | 地雷 | 実測根拠 | 対処 |
+| # | 地雷 | 実測根拠（2026-07-17 検証済み） | 対処 |
 |---|------|---------|------|
-| 1 | **自作 lint のサブディレクトリ盲点** — `preload_clinic_scope_lint_test.go` は `go:embed` + `fs.WalkDir` でソースを走査する。embed パターンがフラット `*.go` のみだと、サブパッケージへ移した瞬間にそのファイルが**臨床安全 lint の監視から静かに外れる**（サイレント緑） | `backend/internal/repository/preload_clinic_scope_lint_test.go:32,365` | BE8-0 が必須ゲート。5 本全 lint（preload_clinic_scope / audit_tx_inventory / dbortx_inventory / migration_cascade / test_schema_enum_parity）で確認 |
-| 2 | **先行 9 サブパッケージはパッケージローカルテスト無しで出荷済み** — `paymentmethod/*_test.go` は 0 件 | `ls repository/paymentmethod/` | BE8-3 でテスト基盤（setupTestDB の共有方法）を確立してから残りを移す |
-| 3 | **DI 配線が cmd/api/main.go に無い**（`Service` 文字列 0 件）— 配線箇所が未特定 | grep 実測 | BE8-2 で配線ファイルを特定してから移動計画を確定 |
-| 4 | **同一パッケージ内のドメイン間参照は import に現れない** — 分割して初めて cycle がコンパイルエラー化する | Go 言語仕様 | BE8-2 の依存グラフ実測で葉から抽出。cycle は §3 の consumer 側 interface で切る |
-| 5 | パス参照の追随対象: `.github/workflows/ci.yml`（paths フィルタ）・各層 CLAUDE.md・`docs/architecture/overview.md`・`.claude/refs/gin-architecture-compliance.md`・scoped 検証規約 | grep 実測 | 各バッチのチェックリストに含める（BE8-4 手順テンプレ） |
+| 1 | **自作 lint の走査範囲は「1階層まで」** — `repoSourceFS` の embed は `//go:embed *.go */*.go`（`preload_clinic_scope_lint_test.go:35`）で、`repository/<domain>/*.go` は**既にカバー済み**。audit_tx / dbortx の 2 lint も同じ repoSourceFS を共有（各ファイル冒頭コメントで明記）。**残る盲点 = ①2階層目以降（`<domain>/<subdir>/*.go` は不可視）②service 側を走査する lint は存在しない**。migration_cascade は `os.ReadDir(migrationsDir)` で本件と無関係。※ファイル名は `test_schema_enum_parity_test.go`（`_lint_test` ではない）| BE8-0: 「2階層目の違反が RED になる」回帰テスト追加（不可なら 2 階層構成を規約で禁止）。dbortx の allowlist は `baseFileName` キーのため移動で壊れない（要 1 件実証） |
+| 2 | **サブパッケージからテスト基盤が使えない（構造的）** — `setupTestDB` は `repository/db_setup_test.go:130` の **`_test.go` 内定義**であり、テストファイルはパッケージ外から import 不能。先行 9 サブパッケージのローカルテストが 0 件なのはこれが原因 | grep 実測 | BE8-3: `db_setup_test.go` のヘルパを importable なパッケージ（案: `repohelpers/repotest`）へ抽出するのが必須の先行作業 |
+| 3 | **DI 配線 = `cmd/api/main.go`**（`service.New*` を直接呼ぶ。他に `handler/auth_session.go`・`cmd/lstep-migrate/main.go` が service を参照）。移動バッチごとに main.go の import/呼び出しが変わる | grep 実測（初回調査の「main.go に無い」は BSD grep の `\b` 非対応による偽陰性 — 訂正済み） | 各バッチで main.go を必ず diff 確認。コンストラクタは `NewReservationServiceWithAvailabilityAndType` 等 stutter 命名 — 移動時はリネームしない（§3） |
+| 4 | **同一パッケージ内のドメイン間参照は import に現れない** — 分割して初めて cycle がコンパイルエラー化する | Go 言語仕様 | BE8-2 の依存グラフ実測で葉から抽出。cycle は consumer 側 interface で切る — **in-repo 先例あり**: `reservation_service.go:125` の `typeRepo reservationTypeFinder`（小文字ローカル interface）。この形を標準とする |
+| 5 | パス参照の追随対象: 各層 CLAUDE.md・`docs/architecture/overview.md`・`.claude/refs/gin-architecture-compliance.md`・scoped 検証規約。**ci.yml は `backend/**` 一括フィルタのため追随不要**（確認済み） | `ci.yml:46` | 各バッチのチェックリストに含める（BE8-4 手順テンプレ） |
 | 6 | PR #186（main→staging）が open — 大規模 rename は PR を膨らませる | task.html | 着手は #186 マージ後 |
 
 ---
 
 ## 6. タスク分割（この順で実行）
 
-### BE8-0: 自作 lint のサブディレクトリ網羅化【必須ゲート・他タスクの前提】
-- **作業**: 5 本の lint テストが `internal/repository/` 配下を**再帰的に**走査することを検証し、フラット限定なら修正する。検証は temp-revert RED 方式 — 既知違反コード片を `repository/paymentmethod/` 配下に一時ファイルとして置き、lint が **RED になることを確認**してから削除する（GREEN のままなら盲点が実在する）。
-- **対象**: `backend/internal/repository/{preload_clinic_scope,audit_tx_inventory,dbortx_inventory,migration_cascade,test_schema_enum_parity}_lint_test.go`
+### BE8-0: 自作 lint の網羅性固定【必須ゲート・他タスクの前提】
+- **前提事実（検証済み・§5-1）**: 1 階層サブパッケージは `go:embed *.go */*.go` で既にカバーされている。よって本タスクは「盲点調査」ではなく**「カバー範囲を回帰テストで固定し、範囲外を規約で塞ぐ」**作業。
+- **作業**:
+  1. temp-revert RED 実証: 既知違反コード片を `repository/paymentmethod/` 配下（1階層）に一時配置 → preload/audit_tx/dbortx の 3 lint が **RED になること**を確認 → 削除。これを恒久回帰テスト（embed 済みフィクスチャ）として 3 lint に追加。
+  2. 2 階層（`repository/<domain>/<subdir>/`）に同じ違反片を置き、**GREEN のまま＝不可視**であることを実証。対処は「`all:` embed 化して検出」or「サブパッケージ内のさらなるディレクトリ分割を規約で禁止（repository/CLAUDE.md へ 1 行）」— 後者を推奨（YAGNI・embed 変更は 3 lint 共有部の変更でリスクが上がる）。
+  3. dbortx allowlist が `baseFileName` キーで移動に耐えることを、allowlist 記載済みファイル 1 件を仮移動して実証。
+- **対象**: `backend/internal/repository/{preload_clinic_scope,audit_tx_inventory,dbortx_inventory}_lint_test.go`（migration_cascade は `os.ReadDir(migrations)` のため対象外。`test_schema_enum_parity_test.go` は走査方式を着手時に確認）
 - **検証**: `docker compose exec backend go test ./internal/repository/ -run 'Lint|Inventory|Parity' -count=1`
-- **完了条件**: 5 本すべてに「サブディレクトリ内の違反を検出する」回帰テストケースが追加されている。
-- 注意: lint テスト自体の移動は不要。service 側へ分割を進める際（BE8-5）に service を走査する lint があるかを同方式で再確認する。
+- **完了条件**: ①1階層違反検出の回帰テスト 3 本追加 ②2階層の扱いが規約化 ③allowlist 移動耐性の実証記録。
+- 注意: **service 側を走査する lint は存在しない**（§5-1）。BE8-5 開始時に「service にも同種 lint が必要か」を判断事項として q&a.html に起票する。
 
 ### BE8-1: 規約の明文化（即日可・コード変更なし）
 - **作業**: §3 の決定（Option B・命名規約・strangler・consumer 側 interface）を以下へ追記: `backend/internal/repository/CLAUDE.md`・`backend/internal/service/CLAUDE.md`（各 3〜5 行 + 本ファイルへのリンク）、`backend/CLAUDE.md`（1 行）。
 - **完了条件**: 新規ドメイン実装時にエージェントが迷わず「サブパッケージで作る」を選べる記述になっている。
 
 ### BE8-2: 依存グラフ実測と抽出順リストの確定
-- **作業**: ① service 202 ファイルのドメイン間参照を機械集計する（同一パッケージ内のため import では見えない — go/ast で「他ドメインファイル定義の識別子参照」を数える使い捨てスクリプトを scratchpad に書く。ドメイン境界はファイル名プレフィックスで近似: `reservation_*.go` 等）② DI 配線ファイルを特定する（`grep -rn "NewReservationService(" backend/` 起点）③ 出力 = 被参照ゼロの葉ドメインから並べた抽出順リストを**本ファイル §9 として追記**。
-- **完了条件**: 抽出順リスト（ドメイン名・ファイル数・被参照元）が本ファイルに追記され、最初の 3 バッチが確定している。
+- **作業**: ① service 202 ファイルのドメイン間参照を機械集計する（同一パッケージ内のため import では見えない — go/ast で「他ドメインファイル定義の識別子参照」を数える使い捨てスクリプトを scratchpad に書く。ドメイン境界は §9 の prefix 近似を初期値とし、集計結果で補正）② 出力 = 被参照ゼロの葉ドメインから並べた抽出順リストで **§9 の表を置き換える**。
+- **完了条件**: 抽出順リスト（ドメイン名・ファイル数・被参照元）が §9 に反映され、最初の 3 バッチが確定している。DI 配線は特定済み（§5-3: `cmd/api/main.go`）。
 
 ### BE8-3: サブパッケージ用テスト基盤の確立
-- **作業**: フラット repository パッケージ内の `setupTestDB` 系ヘルパをサブパッケージから利用可能にする（候補: `repohelpers` へ export / `internal/testutil` 新設 — 既存コードの実態を見て低摩擦な方を選ぶ）。先行 9 サブパッケージのうち 1 個（paymentmethod 推奨）にパッケージローカルテストの雛形を実装し、以後のバッチのテンプレとする。
+- **作業**: `repository/db_setup_test.go:130` の `setupTestDB` は `_test.go` 内定義のためサブパッケージから **import 不能**（§5-2 — 先行 9 分割のテスト 0 件の構造的原因）。これを importable なパッケージへ抽出する（案: `repository/repohelpers/repotest` — 通常 .go ファイルとして定義し `//go:build` タグ不要。setupTestDB が参照する DB 名生成・DROP 順序等の付随ヘルパも一括で）。抽出後、先行 9 サブパッケージのうち 1 個（paymentmethod 推奨）にパッケージローカルテストの雛形を実装し、以後のバッチのテンプレとする。既存フラット側の呼び出し元 164 テストファイルは薄い alias で無変更に保つ。
 - **検証**: `docker compose exec backend go test ./internal/repository/paymentmethod/ -count=1`
 - **完了条件**: サブパッケージ内で DB 統合テストが書ける状態 + 雛形 1 本が green。
 
@@ -142,3 +146,24 @@ backend/internal/
 - **pkg/ ディレクトリ新設** — self-contained server binary であり公式ガイダンス上 `internal/` で完結（§2-1）。
 - **handler 層の分割** — service 完了後に実測データを持って再評価。今期スコープに含めない。
 - **移動と同時の公開型リネーム** — diff 爆発防止。リネームは別コミット。
+
+---
+
+## 9. ドメイン別ファイル数（2026-07-17 prefix 近似・BE8-2 の初期入力）
+
+> 集計コマンド: `ls backend/internal/service/*.go | grep -v _test | xargs -n1 basename | <prefix抽出> | sort | uniq -c | sort -rn`
+> 境界はファイル名 prefix の近似。BE8-2 の go/ast 集計で置き換える。
+
+**service（実装 202 files）の主クラスタ:**
+
+| クラスタ | files（近似） | 備考 |
+|---------|------|------|
+| lstep_*（tag/health/delivery/settings/batch/csv） | **約 40** | 最大クラスタ。Write API 停止中（PO-001）のため参照断面が安定しており分割好機。ただし delivery trigger は実 LINE 配信に繋がる — 移動時 scoped test 必須 |
+| liff_* | 10 | 飼主向け。他ドメインからの被参照が少ない葉候補 |
+| reservation_type / reservation_staff | 11 | reservation 本体と分離可能か BE8-2 で判定 |
+| medical_record | 9 | finalized ガード（142f5ebe）を含む臨床安全コア — 移動は最後尾に回す |
+| validators_*（pet/owner/name/master/contact/auth/accounting） | 8 | ドメイン横断の入力検証。`validators` サブパッケージ 1 個に束ねる（util 名は不可・§3） |
+| staff / owner / accounting / checkup_sync | 各 4 | 中規模 |
+| 残り | 1〜2 files × 多数 | ロングテール。機械的に移せる葉 |
+
+**repository（フラット実装 107 files）:** `accounting` 8 files が唯一のクラスタで、**残りはほぼ 1 ドメイン = 1 ファイル**（reservation_type 系 6 種・trimming 系 4 種・staff/shift 系 4 種など）。分割は service より機械的で、BE8-4 を先行させる根拠。
