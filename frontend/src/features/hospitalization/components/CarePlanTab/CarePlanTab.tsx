@@ -13,7 +13,7 @@ import { ItemRow } from "./ItemRow";
 import { AddForm } from "./AddForm";
 
 // Types
-import type { CarePlanItemType, CarePlanTiming, UpdateCarePlanItemInput } from "../../api/care-plan-items";
+import type { CreateCarePlanItemInput, UpdateCarePlanItemInput } from "../../api/care-plan-items";
 
 interface CarePlanTabProps {
     hospitalizationId: string;
@@ -64,8 +64,8 @@ export const CarePlanTab = memo(function CarePlanTab({ hospitalizationId }: Care
     );
 
     const handleAdd = useCallback(
-        (type: CarePlanItemType, name: string, timing: CarePlanTiming[]) => {
-            createItem.mutate({ type, name, timing });
+        (input: CreateCarePlanItemInput) => {
+            createItem.mutate(input);
         },
         [createItem]
     );

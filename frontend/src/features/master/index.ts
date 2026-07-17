@@ -20,3 +20,6 @@ export { TrimmingSettings } from "./routes/TrimmingSettings";
 export { TrimmingCourseTypeSettings } from "./routes/TrimmingCourseTypeSettings";
 
 export { useGetCompany, useUpdateCompany } from "./api/company";
+export { useGetAllMedicines } from "./api/medicines";
+export { useGetAllProcedures } from "./api/procedures";
+export { useGetAllHospitalizationPlans } from "./api/hospitalization-plans";
