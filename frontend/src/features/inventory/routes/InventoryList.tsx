@@ -110,14 +110,20 @@ export function InventoryList() {
   const urlPage = Math.max(1, Number(searchParams.get("page") ?? 1) || 1);
 
   const categoryFilter = activeFilters.find((f) => f.key === "category");
-  // "is" 条件のみサーバーサイド、"is_not" はクライアントサイドで処理
+  // "is" 条件のみサーバーサイド、"is_not" はクライアントサイドで処理（下記 excludeCategory/excludeStatus）
   const category: CategoryFilter = categoryFilter?.condition === "is"
     ? (categoryFilter.value as CategoryFilter)
     : "all";
+  // BUG-414: is_not はサーバーに絞り込み条件を渡さず(=category:"all")、取得後にクライアント側で除外する。
+  const excludeCategory: InventoryItem["category"] | null =
+    categoryFilter?.condition === "is_not" ? (categoryFilter.value as InventoryItem["category"]) : null;
   const statusFilterEntry = activeFilters.find((f) => f.key === "status");
   const statusFilter: StatusFilter = statusFilterEntry?.condition === "is"
     ? (statusFilterEntry.value as StatusFilter)
     : "all";
+  // BUG-414: status も同様に is_not はクライアント側除外。
+  const excludeStatus: InventoryItem["status"] | null =
+    statusFilterEntry?.condition === "is_not" ? (statusFilterEntry.value as InventoryItem["status"]) : null;
 
   const {
     data: filteredItems,
@@ -135,8 +141,19 @@ export function InventoryList() {
     limit: INVENTORY_PAGE_SIZE,
   });
 
+  // BUG-414: is_not はサーバーに送らず全件取得した上でここで除外する
+  // （PropertyFilter/CONDITIONS_NO_EMPTY は共有定数のため変更しない。除外は本 feature 内で完結させる）。
+  const excludedFilteredItems = useMemo(() => {
+    if (!excludeCategory && !excludeStatus) return filteredItems;
+    return filteredItems.filter(
+      (item) =>
+        (!excludeCategory || item.category !== excludeCategory) &&
+        (!excludeStatus || item.status !== excludeStatus)
+    );
+  }, [filteredItems, excludeCategory, excludeStatus]);
+
   const { activeSorts, setActiveSorts, toggleSort, directionFor, sortedData } =
-    useSortableData(filteredItems, { numericKeys: ["quantity"] });
+    useSortableData(excludedFilteredItems, { numericKeys: ["quantity"] });
 
   // BUG-412: usePagination() のクライアントスライスを撤去し、サーバの total/page/limit をそのまま使う。
   // paginatedData はクライアント検索・ソート済みの「現在ページの行」（サーバは既にページ分だけ返す）。
@@ -203,7 +220,9 @@ export function InventoryList() {
   }, [setSearchParams]);
 
   // BUG-412: 検索・並び替えは backend 非対応で現在ページ内のみが対象（advisor指摘: sortもfilterと同型）。
-  const hasPageScopedFilter = deferredSearch !== "" || activeSorts.length > 0;
+  // BUG-414: category/status の is_not も同型のクライアント側処理のため現在ページ内のみが対象。
+  const hasPageScopedFilter =
+    deferredSearch !== "" || activeSorts.length > 0 || excludeCategory !== null || excludeStatus !== null;
 
   const handleCreate = useCallback(() => {
     navigate(paths.inventory.new.getHref());
@@ -351,7 +370,7 @@ export function InventoryList() {
           searchTerm={searchTerm}
           onSearchChange={handleSearchChange}
           searchPlaceholder="品名、保管場所、仕入先..."
-          count={filteredItems.length}
+          count={excludedFilteredItems.length}
           sortProperties={INVENTORY_SORT_PROPERTIES}
           activeSorts={activeSorts}
           onSortChange={setActiveSorts}
