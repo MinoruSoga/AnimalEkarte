@@ -1,6 +1,7 @@
-# BE-refactor 第8期（BE8）— backend/internal パッケージ構成の Go ベストプラクティス統一
+# BE-refactor 第8期（BE8）— backend/ 全体構成の Go ベストプラクティス統一
 
 > 起票: 2026-07-17（要件責任者: 曽我。フラット巨大パッケージの是正を Go/Gin ベストプラクティスへ統一する方針決定）
+> 2026-07-17 (2): ユーザー指示によりスコープを repository/service から **backend/ 全体**へ拡張。internal 全 15 パッケージ + cmd/ + worker/ + migrations/ + 直下ファイルを実測評価済み（§1・§1.5）。
 > **着手条件: Go-live（2026-07-18）完了後**。納品前の構造変更は禁止。
 > 読者 = 着手するエージェント（Sonnet 5 想定）。本ファイルだけで作業に入れる粒度で書く。実測値は 2026-07-17 時点 — **着手時に §1 の計測コマンドで再実測してから始めること**。
 
@@ -8,7 +9,7 @@
 
 ## 0. 要約
 
-`backend/internal/service`（404 files / 13.1万行）と `repository`（271 files / 5.2万行）は単一フラットパッケージであり、ドメイン間のカプセル化が型システムで効かず、コンパイル単位・名前空間が巨大化している。repository 側では既にドメインサブパッケージ分割が 9 個進行中だが**方針が未文書のまま 2 規約が混在**している。本計画は「層優先 × ドメインサブパッケージ」を正式規約とし、strangler 方式で段階統一する。**一斉移動は禁止**。最初の必須ゲートは BE8-0（自作 lint のサブディレクトリ盲点解消）— これを飛ばすと移動したファイルが臨床安全 lint の監視から静かに外れる。
+backend/ 全体を実測評価した結果、**問題は service / repository / handler の3層フラット肥大に集中**しており、他の 12 internal パッケージ・cmd/・worker/・migrations/・直下ファイルは健全（§1.5 で個別に判定根拠を明示 — 触らないこと自体が決定事項）。`service`（404 files / 13.1万行）と `handler`（475 files / 9.5万行）は単一フラットパッケージで、ドメイン間のカプセル化が型システムで効かず、コンパイル単位・名前空間が巨大化している。repository は分割進行中だが**方針が未文書のまま 2 規約が混在**し、しかも分割が lint 網羅性の検証（BE8-0）なしに進んでいる。本計画は「層優先 × ドメインサブパッケージ」を正式規約とし、strangler 方式で repository → service → handler の順に段階統一する。**一斉移動は禁止**。最初の必須ゲートは BE8-0 — これを飛ばすと移動したファイルが臨床安全 lint の監視から静かに外れる。
 
 ---
 
@@ -16,23 +17,42 @@
 
 ```bash
 # 再実測コマンド（着手時に必ず実行）
-for d in repository service handler; do
-  n=$(ls backend/internal/$d/*.go 2>/dev/null | grep -vc _test)
-  t=$(ls backend/internal/$d/*.go 2>/dev/null | grep -c _test)
-  echo "$d: impl $n + test $t / $(cat backend/internal/$d/*.go | wc -l) 行"
+cd backend
+for d in internal/*/; do
+  n=$(find "$d" -maxdepth 1 -name "*.go" | grep -vc _test); t=$(find "$d" -maxdepth 1 -name "*.go" | grep -c _test)
+  echo "$d impl=$n test=$t subdirs=$(find "$d" -mindepth 1 -type d | wc -l) lines=$(find "$d" -name '*.go' | xargs cat | wc -l)"
 done
-find backend/internal/repository backend/internal/service -mindepth 1 -type d
 ```
 
-| 層 | 実測（2026-07-17） | 構成 |
-|---|---|---|
-| service | 202 + 202 test = 404 files / 131,093 行 | **完全フラット**（サブ dir 0） |
-| repository | 107 + 164 test = 271 files / 52,158 行 | **混在** — フラット + サブパッケージ 9 個 |
-| handler | 269 + 206 test = 475 files / 95,040 行 | フラット（今期スコープ外・§8） |
+**internal/ 全 15 パッケージ（2026-07-17 実測）:**
 
-既存サブパッケージ（先行事例）: `repository/{paymentmethod, animalspecies, cage, closingspecialperiod, insurance, passwordreset, tokenblacklist, trimmingcoursetype}` + 共有ヘルパ `repository/repohelpers`（scope.go / tx.go）。`paymentmethod/repository.go` 冒頭コメントが分割の設計意図の先例（"thin domain split of the flat repository package. Shared clinic-scope helpers come from repository/repohelpers"）。
+| パッケージ | impl + test | 行数 | 判定 |
+|---|---|---|---|
+| **service** | 202 + 202 | **131,093** | **是正対象（BE8-5）** — 完全フラット |
+| **handler** | 269 + 206 | **95,040** | **是正対象（BE8-7）** — フラット（サブ dir は testdata のみ） |
+| **repository** | 107 + 164 | **53,221** | **是正対象（BE8-4）** — 混在: ドメインサブパッケージ **14 個** + repohelpers + フラット残 |
+| model | 85 + 18 | 5,751 | 現状維持（§8 — GORM モデルは FK 相互参照で分割すると cycle 不可避） |
+| middleware | 9 + 8 | 2,343 | 健全 |
+| infra | 7 + 2 | 1,450 | 健全（既にサブ dir 4 個で目標形） |
+| apicontract | 1 + 2 | 1,232 | 健全（単一責務） |
+| config | 2 + 2 | 525 | 健全 |
+| errors | 1 + 1 | 447 | **任意是正（BE8-8）** — `package errors` が stdlib を遮蔽し全 import 側が `apperrors` alias を強制されている |
+| csvimport / dbconn / logger / seedbundle / timeutil / authjwt | 各 1〜2 | 12〜257 | 健全（小さく単一責務。timeutil は用途限定名で `util` 禁止則に非抵触） |
+
+repository サブパッケージ実勢（**計画起票日中に 9→14 へ増加 — strangler が BE8-0 ゲート未整備のまま進行中**であり、BE8-0/BE8-1 の緊急度が高い）: `animalspecies, cage, chiefcomplaint, closingspecialperiod, examtype, insurance, merchandiseitem, occupation, passwordreset, paymentmethod, reservationtype, tokenblacklist, trimmingcoursetype, vaccine` + `repohelpers`（scope.go / tx.go）。設計意図の先例 = `paymentmethod/repository.go` 冒頭コメント。
 
 個々のファイルは最大 617 行で 800 行規約内。**問題はファイルサイズではなくパッケージ粒度**。
+
+### 1.5 対象外と評価した領域（触らないことも決定事項）
+
+| 領域 | 実測 | 判定理由 |
+|---|---|---|
+| `cmd/`（api, migrate, lstep-migrate, seed-export, stage-import, coverage-ratchet） | 6 バイナリ + `_archive`（underscore prefix で Go ビルド対象外） | 公式レイアウト準拠。変更不要 |
+| `worker/`（index.ts ほか） | TypeScript の Cloudflare Worker ラッパ | Go スコープ外。配置は妥当（backend デプロイ単位に同梱） |
+| `migrations/` | 001_init.sql + seeds | 独自規約あり（migrations/CLAUDE.md）。本計画のスコープ外 |
+| backend/ 直下のバイナリ・成果物（`api`, `migrate`, `lstep-migrate`, `seed-old-db`, `stage-import`, `coverage.out`, `tmp/`） | **全て gitignored を確認済み**（git ls-files / check-ignore 実測） | 衛生問題なし。`seed-old-db` は対応する cmd/ が既に無い stale ローカルバイナリ — 見つけたら手元で消してよい（git 影響なし） |
+| `backend/docs/`（api.yaml） | OpenAPI 正本 | 変更不要 |
+| Dockerfile.dev / .production / entrypoint.sh / tygo.yaml / CODING_RULES.md | 設定・規約ファイル | 公式レイアウト上、非 Go ファイルのルート配置は正当 |
 
 ---
 
@@ -62,7 +82,8 @@ backend/internal/
     servicehelpers/     # 必要になった時点で新設（先行して作らない — YAGNI）
     reservation/        # package reservation（service 側）
     ...
-  handler/              # 今期は現状維持（§8）
+  handler/              # BE8-7: service 完了後に同方式で分割（testdata/ は共有のまま）
+  model/                # 現状維持（§8 — 分割しない決定）
 ```
 
 **不採用 = Option A（ドメイン優先: `internal/reservation/{handler,service,repository}`）**。理由: ①層別 CLAUDE.md・P1-P18 lint 体系・scoped 検証規約がすべて層パスを前提としており波及が桁違い ②repository の先行 9 分割が Option B 形であり方向転換は二重の手戻り。
@@ -130,8 +151,19 @@ backend/internal/
 - BE8-4 と同じ手順テンプレ。追加事項: ドメイン間参照は consumer 側 interface（§3）で切ってから移動する。cycle が出たら **移動を戻すのではなく interface 抽出で解決**する。service を走査する自作 lint の有無を BE8-0 方式で先に確認。
 - **完了条件**: 同上（service フラット直下が空になる）。
 
-### BE8-6: ドキュメント最終同期
-- `docs/architecture/overview.md`・`gin-architecture-compliance.md`・`docs/spec/screens/` の該当 doc のパッケージパス記述を一括更新。`scripts/check-docs-symbol-drift.sh` green を確認。
+### BE8-6: ドキュメント同期（各フェーズ末に反復）
+- `docs/architecture/overview.md`・`gin-architecture-compliance.md`・`docs/spec/screens/` の該当 doc のパッケージパス記述を更新。`scripts/check-docs-symbol-drift.sh` green を確認。BE8-4/5/7 の各完了時に実施する（最後に一括ではなく）。
+
+### BE8-7: handler 層の分割（BE8-5 完了後）
+- **規模**: 269 + 206 test = 475 files / 9.5万行（3層で最多ファイル数）。サブ dir は `testdata/` のみ — 分割後も `testdata/` は共有位置に残す（各サブパッケージからの相対参照を確認）。
+- **作業**: BE8-4/5 と同じ手順テンプレ。handler 固有の追加確認: ①ルート登録（`handler.go`・`master_routes.go`・`reservation_line_routes.go`）が全ハンドラを参照するため、バッチごとに登録側の import 更新が必須 ②handler 内 lint（`medical_record_image_handler_test.go`・`lab_report_handler_test.go` 等の allowlist 型テスト）の走査範囲を BE8-0 方式で先に確認 ③P5（RequirePermission 必須）等の handler 系 P ルールの検査機構がパッケージ分割に耐えるか確認。
+- **完了条件**: handler フラット直下が ルート登録ファイル・lint テスト・testdata のみになる。
+- **判断ゲート**: BE8-5 完了時点の実測（ビルド時間・見つけにくさの実感）で「handler は分割せず現状維持」へ倒すことも許可する。その場合は §8 へ理由付きで移す。
+
+### BE8-8: [任意・独立] `internal/errors` → `internal/apperrors` リネーム
+- **背景（実測）**: `package errors` が標準ライブラリ `errors` を遮蔽するため、**全 import 側が `apperrors "..."` の alias を強制**されている（service 層で確認）。Google スタイルの「呼び出し側から見た名前」原則に反する。
+- **作業**: ディレクトリ・package 宣言を `apperrors` へ変更し、既存の alias 付き import を素の import に機械置換（alias 名と新パッケージ名が一致するため、`apperrors "..."` → `"..."` の削除だけで動く低リスク変換）。
+- **検証**: 変更パッケージの scoped test + `gofmt -l` 無出力。**優先度: 低**。どのフェーズとも独立して実行可。
 
 ---
 
@@ -144,8 +176,10 @@ backend/internal/
 
 - **Option A（ドメイン優先の全面転換）** — §3 の理由により不採用。再評価しない。
 - **pkg/ ディレクトリ新設** — self-contained server binary であり公式ガイダンス上 `internal/` で完結（§2-1）。
-- **handler 層の分割** — service 完了後に実測データを持って再評価。今期スコープに含めない。
+- **model の分割** — GORM モデル 85 files は FK・Preload で相互参照しており、ドメイン分割すると model 間 import cycle が不可避。単一 `model` パッケージは go.dev 公式例（`internal/model/`）とも整合。5,751 行と軽量で実害なし。
+- **§1.5 の健全領域への変更**（cmd/・worker/・migrations/・小規模 12 パッケージ）— 触らないことが決定事項。改善提案が出たら①要件から検証する。
 - **移動と同時の公開型リネーム** — diff 爆発防止。リネームは別コミット。
+- ~~handler 層の分割はやらない~~ → スコープ全体化（2026-07-17 (2)）に伴い **BE8-7 として計画内へ移動**（BE8-5 完了後・判断ゲート付き）。
 
 ---
 

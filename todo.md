@@ -125,6 +125,6 @@ SearchableSelect 本体 = `frontend/src/components/ui/searchable-select.tsx`。�
 | `BE-pending.md` | 着手保留・次期送り・任意検証の BE 詳細 |
 | `q&a.html` | 内部 PO 判断キュー（決裁記録の正本。PO-001〜008・SD-1〜19・GAP-1/2 回答済み） |
 | `task.html` | PR #186 Codex レビュー残タスク（Open スレッド＋値投入待ち） |
-| `BE-refactor.md` | **BE 第8期計画（2026-07-17 新設）**: backend/internal パッケージ構成の Go ベストプラクティス統一。着手は Go-live 後・BE8-0（lint 盲点解消）が必須ゲート |
+| `BE-refactor.md` | **BE 第8期計画（2026-07-17 新設・同日 backend/ 全体へスコープ拡張）**: 全 15 internal パッケージ+cmd+worker+migrations を実測評価。是正対象 = repository/service/handler の3層（BE8-0〜8）・健全 12 領域は「触らない」を決定事項として明記。着手は Go-live 後・BE8-0（lint 網羅性固定）が必須ゲート |
 
 > 旧 `BE_todo.md` / `FE-refactor.md` は本ファイルへ吸収済み（削除）。`BE-refactor.md` は第7期版を吸収・削除後、2026-07-17 に第8期計画として新設。旧 `docs/tasks/`・`docs/archive/` は 2026-07-16 に廃止（詳細は git 履歴）。
