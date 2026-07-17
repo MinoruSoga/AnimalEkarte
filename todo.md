@@ -131,7 +131,20 @@
 
 **残 USER アクション（SD/GAP 由来）:**
 
-- [ ] **[USER] SD-9 既存院の被害判定 SQL を STG/本番で実行** — `permission_groups` にルール 0 件のグループが無いか（クエリは 9b6a01ed のコミット対象調査報告参照・0 件なら実害なし。ヒット時はバックフィル別タスク起票）
+- [ ] **[USER] SD-9 既存院の被害判定 SQL を STG/本番で実行** — ルール 0 件の権限グループの有無を確認（9b6a01ed の修正は**新規作成の院にしか効かない**ため、既存データは手動確認が必要）。0 行なら実害なし・本項クローズ。ヒット時は対象グループへのルールバックフィルを別タスク起票:
+
+  ```sql
+  SELECT pg.id, pg.clinic_id, pg.name, COUNT(DISTINCT sp.staff_id) AS assigned_staff
+  FROM permission_groups pg
+  LEFT JOIN permission_group_rules r ON r.group_id = pg.id AND r.deleted_at IS NULL
+  LEFT JOIN staff_permission_groups sp ON sp.group_id = pg.id
+  WHERE pg.deleted_at IS NULL
+  GROUP BY pg.id, pg.clinic_id, pg.name
+  HAVING COUNT(r.id) = 0
+  ORDER BY pg.clinic_id, pg.id;
+  ```
+
+  `assigned_staff > 0` の行が最優先（実際にそのグループ所属のスタッフが全機能ロックアウト中）。
 - [ ] **[USER] SD-14 STG 実機検証** — LINE 紐付け E2E（URL 発行→LIFF 遷移→紐付け完了）
 - [ ] **[USER] GAP-2 反映の `db_reset`**（seed 変更 13c6a93a）
 
