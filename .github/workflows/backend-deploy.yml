@@ -61,7 +61,10 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
         working-directory: backend
-        run: pnpm exec wrangler deploy
+        # pnpm exec は backend/ に package.json が無いためワークスペースルートを CWD にしてしまい、
+        # wrangler.jsonc 不在の root で新規プロジェクト誤検出 → 別名 Worker(nimal-karte) へ配布される実害があった
+        # (2026-07-17 発覚)。npx は node_modules を上方探索しつつ CWD=backend を維持する。
+        run: npx wrangler deploy
 
       # PR#186 P2-3: wrangler deploy は Worker/Container を即座に切り替える(段階的ロールアウト機構なし)ため、
       # 旧ECSフロー(migrateジョブ→exit code検証→失敗ならAPI deployをabort、migration-cloudflare.md:425が
