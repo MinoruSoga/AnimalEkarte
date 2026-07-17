@@ -89,7 +89,6 @@ export function PetCareSection({
               value="生存"
               checked={formData.status === "生存"}
               disabled
-              readOnly
               className="accent-current"
             />
             生存
@@ -101,7 +100,6 @@ export function PetCareSection({
               value="死亡"
               checked={formData.status === "死亡"}
               disabled
-              readOnly
               className="accent-current"
             />
             死亡
