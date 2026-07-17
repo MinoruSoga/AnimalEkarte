@@ -480,5 +480,64 @@ describe("useMedicalRecordForm", () => {
       // toast.error は使わず fieldErrors でインライン表示する
       expect(result.current.formState.success).toBe(false);
     });
+
+    // BUG-410: hydrate された diagnosis1/2 が実際の保存ペイロードに反映されることを、
+    // state のアサーションではなく updateTreatmentPlanMutation.mutateAsync への
+    // 実引数で証明する。state レベルのテスト（use-medical-record-form.test.ts）だけでは
+    // render中setState(useApplyMedicalRecord)→useActionStateのクロージャ経路で
+    // 古い値が送信され続ける可能性を反証できない。
+    it("BUG-410: 既存レコードの diagnosis2 が hydrate 済みの状態で診断以外を編集して保存すると、mutateAsync に stale null ではなく hydrate された diagnosis_2_type_id/diagnosis_2_name_id が渡る", async () => {
+      const loadedRecord = {
+        data: {
+          id: "10",
+          visitType: "再診",
+          chiefComplaint: "",
+          plan: "既存の治療方針",
+          assessment: "既存の所見",
+          notes: "",
+          version: 1,
+          diagnosis1CategoryId: 3,
+          diagnosis1NameId: 7,
+          diagnosis2CategoryId: 4,
+          diagnosis2NameId: 9,
+        },
+        isLoading: false,
+        isError: false,
+      };
+      mockUseGetMedicalRecord.mockReturnValue({ data: undefined, isLoading: true, isError: false });
+      const { result, rerender } = renderHook(() => useMedicalRecordForm("10"));
+
+      mockUseGetMedicalRecord.mockReturnValue(loadedRecord as never);
+      rerender();
+
+      // hydrate が state に反映されるまで待つ（use-medical-record-form.test.ts と同一の待機点）
+      await waitFor(() => {
+        expect(result.current.diagnosis2CategoryId).toBe(4);
+        expect(result.current.diagnosis2NameId).toBe(9);
+      });
+
+      act(() => { result.current.setActiveTab("診察/治療プラン"); });
+      await waitFor(() => {
+        expect(result.current.activeTab).toBe("診察/治療プラン");
+      });
+
+      // 診断とは無関係な治療方針テキストのみ編集する（診断1/2 は一切触らない）
+      act(() => { result.current.setPlan("更新後の治療方針"); });
+
+      runFormAction(result.current.formAction);
+
+      await waitFor(() => {
+        expect(result.current.formState.success).toBe(true);
+      });
+      // useUpdateClinicalPlan は noMutation にモックされている（clinical-plan.ts の
+      // vi.mock）。診断以外の治療方針テキストしか編集していないのに、hydrate が
+      // 効いていなければここに diagnosis_2_type_id: null が渡り保存済み診断2が消える。
+      expect(noMutation.mutateAsync).toHaveBeenCalledWith(
+        expect.objectContaining({
+          diagnosis_2_type_id: 4,
+          diagnosis_2_name_id: 9,
+        }),
+      );
+    });
   });
 });
