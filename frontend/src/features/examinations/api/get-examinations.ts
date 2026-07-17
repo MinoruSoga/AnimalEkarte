@@ -6,5 +6,4 @@ export {
   useGetExaminations,
   useGetExaminationsPage,
   type ExaminationFilters,
-  type ExaminationPageFilters,
 } from "@/hooks/use-examinations";
