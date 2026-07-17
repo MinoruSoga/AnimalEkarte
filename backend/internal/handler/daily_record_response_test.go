@@ -77,7 +77,7 @@ func TestToCareLogResponse(t *testing.T) {
 		cr := &model.CareLog{
 			ID:            1,
 			DailyRecordID: 5,
-			Time:          time.Date(0, 1, 1, 10, 15, 0, 0, time.Local),
+			Time:          "10:15:00",
 			Type:          model.CareLogTypeFood,
 			Status:        model.CareLogStatusCompleted,
 			Value:         "half",
@@ -103,7 +103,7 @@ func TestToCareLogResponse(t *testing.T) {
 		cr := &model.CareLog{
 			ID:            2,
 			DailyRecordID: 5,
-			Time:          time.Date(0, 1, 1, 10, 15, 0, 0, time.Local),
+			Time:          "10:15:00",
 			Type:          model.CareLogTypeFood,
 			CreatedAt:     time.Date(2026, 7, 1, 10, 16, 0, 0, time.Local),
 		}
@@ -121,7 +121,7 @@ func TestToStaffNoteResponse(t *testing.T) {
 		sn := &model.StaffNote{
 			ID:            1,
 			DailyRecordID: 5,
-			Time:          time.Date(0, 1, 1, 11, 0, 0, 0, time.Local),
+			Time:          "11:00:00",
 			Content:       "content",
 			StaffID:       &staffID,
 			CreatedAt:     time.Date(2026, 7, 1, 11, 1, 0, 0, time.Local),
@@ -141,7 +141,7 @@ func TestToStaffNoteResponse(t *testing.T) {
 		sn := &model.StaffNote{
 			ID:            2,
 			DailyRecordID: 5,
-			Time:          time.Date(0, 1, 1, 11, 0, 0, 0, time.Local),
+			Time:          "11:00:00",
 			Content:       "content",
 			CreatedAt:     time.Date(2026, 7, 1, 11, 1, 0, 0, time.Local),
 		}
@@ -165,10 +165,10 @@ func TestToDailyRecordResponse(t *testing.T) {
 				{ID: 1, RecordedAt: time.Date(2026, 7, 1, 9, 0, 0, 0, time.Local), CreatedAt: time.Date(2026, 7, 1, 9, 0, 0, 0, time.Local)},
 			},
 			CareLogs: []model.CareLog{
-				{ID: 1, DailyRecordID: 1, Time: time.Date(0, 1, 1, 10, 0, 0, 0, time.Local), Type: model.CareLogTypeFood, CreatedAt: time.Date(2026, 7, 1, 10, 0, 0, 0, time.Local)},
+				{ID: 1, DailyRecordID: 1, Time: "10:00:00", Type: model.CareLogTypeFood, CreatedAt: time.Date(2026, 7, 1, 10, 0, 0, 0, time.Local)},
 			},
 			StaffNotes: []model.StaffNote{
-				{ID: 1, DailyRecordID: 1, Time: time.Date(0, 1, 1, 11, 0, 0, 0, time.Local), Content: "note", CreatedAt: time.Date(2026, 7, 1, 11, 0, 0, 0, time.Local)},
+				{ID: 1, DailyRecordID: 1, Time: "11:00:00", Content: "note", CreatedAt: time.Date(2026, 7, 1, 11, 0, 0, 0, time.Local)},
 			},
 		}
 

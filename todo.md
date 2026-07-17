@@ -68,8 +68,8 @@
 |----|------|------|------|
 | BUG-401 | ワクチン登録フォームのフィラリア選択肢がマスタ 11 件に対し 2 件のみ表示 | S03 手順7。フォーム側フィルタ（対象動物種/カテゴリ）とマスタ実データの不一致疑い。対象犬で再現 | 調査可（環境非依存疑い） |
 | BUG-402 | `/line-reserve/{clinicId}/` で Vite dev サーバが `src/main.tsx` を 503 返却し白画面。clinicId なしは正常 | S04 手順1。`frontend/vite.config.ts` の `lineReserveDevPlugin` のパス解決。**ローカル LIFF 検証を全塞ぎ**（S04 の 10 BLOCKED の原因） | 調査可（dev 環境固有だが優先高） |
-| BUG-403 | ケアプラン項目 type=medicine/treatment/item が常に 400「入力値が正しくありません」（food/instruction は成功） | S05。**静的検証済み: DDL enum・model・service・handler の全層が 5 値許可** — HEAD コードでは説明不能 | **要再測（U-3 後）** — stale DB スキーマ乖離が最有力 |
-| BUG-404 | 入院デイリー記録 GET が 500・ケアログ POST 全 type 500（保存済みバイタルがリロード後に消えて見える） | S05 手順3。daily_records 系は migration 統合で変更歴あり | **要再測（U-3 後）** — BUG-403 と同根疑い |
+| BUG-403 | ケアプラン type=medicine/treatment/item が 400 — **真因確定（U-3 後再測）**: DDL の CHECK `chk_care_plan_item_ref` が投薬=medicine_id・処置=procedure_id・持ち物=hospitalization_plan_id を必須とする設計（妥当）に対し、`CarePlanTab/AddForm.tsx` にマスタ選択 UI が無く FK を送れない | S05・API 再測 2026-07-17。API 型定義（care-plan-items.ts）には FK あり | **FE 実装待ち**: AddForm/EditRow に type 連動マスタ選択を追加 + BE エラーメッセージ具体化 |
+| BUG-404 | ~~入院デイリー記録 GET/ケアログ POST 500~~ — **修正済み（2026-07-17）**: 真因 = TIME 列（care_logs/staff_notes.time）を `time.Time` で Scan していた（書込成功・読取全滅）。string 化+永続テスト DB のスキーマドリフト自己修復を追加。実機 green | S05 手順3・API 再測 | **クローズ**（次回シナリオ再実行で最終確認） |
 | BUG-405 | 当日開始の入院が「入院中」タブに出ず「予約」のまま。詳細には退院処理ボタンがあり実質アクティブ。チェックイン導線不明 | S05。ステータス遷移（予約→入院中）のトリガー設計の欠落か未発見の導線か | 調査可（仕様確認から） |
 | BUG-406 | カルテ問診タブの主訴詳細等が保存成功（一覧に反映・DB 保存済み）なのに編集フォーム再読込で空テンプレートに戻る hydration 不具合 | S06 手順1。医師が「消えた」と誤認し再入力・重複記録するリスク | 調査可（FE hydration） |
 | BUG-407 | 【UX】ペット死亡登録のサブダイアログ確定で成功トーストが出るが、外側フォームの「更新」を押さないと保存されない（誤認でデータ喪失） | S01 手順1。トーストの誤誘導 | 調査可（トースト抑止 or 即時保存化の設計判断） |

@@ -27,7 +27,7 @@ import (
 func setupDailyRecordTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
 	db := setupTestDB(t)
-	require.NoError(t, ensureAutoMigrated(db, 
+	require.NoError(t, ensureAutoMigrated(db,
 		&model.AnimalSpecies{},
 		&model.Pet{},
 		&model.Hospitalization{},
@@ -36,6 +36,13 @@ func setupDailyRecordTestDB(t *testing.T) *gorm.DB {
 		&model.CareLog{},
 		&model.StaffNote{},
 	))
+	// 永続テストDBのスキーマドリフト自己修復（BUG-404 の再発防止）:
+	// 旧モデル（type タグなしの time.Time）時代に AutoMigrate された永続テストDBでは
+	// time 列が timestamptz のまま残る（AutoMigrate は既存列の型を変更しない）。
+	// 本番 001_init.sql の正は TIME 型。このドリフトが「time.Time では TIME 列を
+	// Scan できない」本番バグをテストから隠していた。冪等 ALTER で 001 に揃える。
+	db.Exec(`ALTER TABLE care_logs ALTER COLUMN "time" TYPE time USING "time"::time`)
+	db.Exec(`ALTER TABLE staff_notes ALTER COLUMN "time" TYPE time USING "time"::time`)
 	db.Exec("TRUNCATE TABLE staff_notes CASCADE")
 	db.Exec("TRUNCATE TABLE care_logs CASCADE")
 	db.Exec("TRUNCATE TABLE vital_records CASCADE")
@@ -81,10 +88,10 @@ func TestDailyRecordRepository_FindByHospitalizationID(t *testing.T) {
 	vr := &model.VitalRecord{ClinicID: clinicA, PetID: petA.ID, DailyRecordID: &recordLater.ID, Weight: &weight}
 	require.NoError(t, repo.CreateVitalRecord(ctx, vr))
 
-	cl := &model.CareLog{ClinicID: clinicA, DailyRecordID: recordLater.ID, Time: time.Now(), Type: model.CareLogTypeFood}
+	cl := &model.CareLog{ClinicID: clinicA, DailyRecordID: recordLater.ID, Time: "12:00:00", Type: model.CareLogTypeFood}
 	require.NoError(t, repo.CreateCareLog(ctx, cl))
 
-	sn := &model.StaffNote{DailyRecordID: recordLater.ID, Time: time.Now(), Content: "経過良好"}
+	sn := &model.StaffNote{DailyRecordID: recordLater.ID, Time: "12:00:00", Content: "経過良好"}
 	require.NoError(t, repo.CreateStaffNote(ctx, sn))
 
 	t.Run("returns records ordered by date DESC with vital/care/staff notes preloaded", func(t *testing.T) {
@@ -200,7 +207,7 @@ func TestDailyRecordRepository_CreateCareLog(t *testing.T) {
 	hospA := makeHospitalizationRec(t, db, clinicA, ownerA.ID, petA.ID, nil)
 	record := makeDailyRecord(t, db, clinicA, hospA.ID, time.Now())
 
-	cl := &model.CareLog{ClinicID: clinicA, DailyRecordID: record.ID, Time: time.Now(), Type: model.CareLogTypeMedicine}
+	cl := &model.CareLog{ClinicID: clinicA, DailyRecordID: record.ID, Time: "12:00:00", Type: model.CareLogTypeMedicine}
 	require.NoError(t, repo.CreateCareLog(ctx, cl))
 	assert.NotZero(t, cl.ID)
 }
@@ -216,7 +223,7 @@ func TestDailyRecordRepository_CreateStaffNote(t *testing.T) {
 	hospA := makeHospitalizationRec(t, db, clinicA, ownerA.ID, petA.ID, nil)
 	record := makeDailyRecord(t, db, clinicA, hospA.ID, time.Now())
 
-	sn := &model.StaffNote{DailyRecordID: record.ID, Time: time.Now(), Content: "テストノート"}
+	sn := &model.StaffNote{DailyRecordID: record.ID, Time: "12:00:00", Content: "テストノート"}
 	require.NoError(t, repo.CreateStaffNote(ctx, sn))
 	assert.NotZero(t, sn.ID)
 }

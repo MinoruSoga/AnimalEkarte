@@ -24,7 +24,7 @@ type CreateVitalRecordInput struct {
 
 // CreateCareLogInput はケアログ記録作成のサービス入力DTO
 type CreateCareLogInput struct {
-	Time    time.Time
+	Time    string // "HH:MM:SS"（TIME 列は string 規約）
 	Type    string
 	Status  string
 	Value   string
@@ -34,7 +34,7 @@ type CreateCareLogInput struct {
 
 // CreateStaffNoteInput はスタッフメモ記録作成のサービス入力DTO
 type CreateStaffNoteInput struct {
-	Time    time.Time
+	Time    string // "HH:MM:SS"（TIME 列は string 規約）
 	Content string
 	StaffID *uint64
 }

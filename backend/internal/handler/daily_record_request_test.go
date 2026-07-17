@@ -54,8 +54,8 @@ func TestAddCareLogRequest_ToServiceInput(t *testing.T) {
 		t.Fatalf("toServiceInput() error = %v", err)
 	}
 
-	if got := input.Time.Format(dailyRecordTimeLayout); got != req.Time {
-		t.Errorf("Time = %q, want %q", got, req.Time)
+	if input.Time != req.Time {
+		t.Errorf("Time = %q, want %q", input.Time, req.Time)
 	}
 	if input.Type != req.Type {
 		t.Errorf("Type = %q, want %q", input.Type, req.Type)
@@ -89,8 +89,8 @@ func TestAddStaffNoteRequest_ToServiceInput(t *testing.T) {
 		t.Fatalf("toServiceInput() error = %v", err)
 	}
 
-	if got := input.Time.Format(dailyRecordTimeLayout); got != req.Time {
-		t.Errorf("Time = %q, want %q", got, req.Time)
+	if input.Time != req.Time {
+		t.Errorf("Time = %q, want %q", input.Time, req.Time)
 	}
 	if input.Content != req.Content {
 		t.Errorf("Content = %q, want %q", input.Content, req.Content)

@@ -305,7 +305,6 @@ func TestDailyRecordService_AddVitalRecord_RefetchError(t *testing.T) {
 
 func TestDailyRecordService_AddCareLog(t *testing.T) {
 	today := time.Now().UTC().Truncate(24 * time.Hour)
-	recordTime := today.Add(12 * time.Hour)
 	staffID := uint64(10)
 
 	tests := []struct {
@@ -321,7 +320,7 @@ func TestDailyRecordService_AddCareLog(t *testing.T) {
 			hospitalizationID: 1,
 			date:              today,
 			input: &CreateCareLogInput{
-				Time:    recordTime,
+				Time:    "10:00:00",
 				Type:    string(model.CareLogTypeFood),
 				Status:  string(model.CareLogStatusCompleted),
 				Value:   "100ml",
@@ -336,7 +335,7 @@ func TestDailyRecordService_AddCareLog(t *testing.T) {
 			hospitalizationID: 1,
 			date:              today,
 			input: &CreateCareLogInput{
-				Time:   recordTime,
+				Time:   "10:00:00",
 				Type:   string(model.CareLogTypeMedicine),
 				Status: "", // Will default to Completed
 				Value:  "2 tablets",
@@ -349,7 +348,7 @@ func TestDailyRecordService_AddCareLog(t *testing.T) {
 			hospitalizationID: 1,
 			date:              today,
 			input: &CreateCareLogInput{
-				Time:   recordTime,
+				Time:   "10:00:00",
 				Type:   "invalid_type",
 				Status: string(model.CareLogStatusCompleted),
 			},
@@ -361,7 +360,7 @@ func TestDailyRecordService_AddCareLog(t *testing.T) {
 			hospitalizationID: 1,
 			date:              today,
 			input: &CreateCareLogInput{
-				Time:   recordTime,
+				Time:   "10:00:00",
 				Type:   string(model.CareLogTypeFood),
 				Status: "invalid_status",
 			},
@@ -373,7 +372,7 @@ func TestDailyRecordService_AddCareLog(t *testing.T) {
 			hospitalizationID: 1,
 			date:              today,
 			input: &CreateCareLogInput{
-				Time:   recordTime,
+				Time:   "10:00:00",
 				Type:   string(model.CareLogTypeFood),
 				Status: string(model.CareLogStatusCompleted),
 			},
@@ -426,7 +425,7 @@ func TestDailyRecordService_AddCareLog_CreateError(t *testing.T) {
 	svc := NewDailyRecordService(repo, okHospRepoForDailyRecord(), &mockTransactor{})
 
 	record, err := svc.AddCareLog(context.Background(), 1, 1, today, &CreateCareLogInput{
-		Time: today, Type: string(model.CareLogTypeFood), Status: string(model.CareLogStatusCompleted),
+		Time: "10:00:00", Type: string(model.CareLogTypeFood), Status: string(model.CareLogStatusCompleted),
 	})
 
 	assert.Error(t, err)
@@ -449,7 +448,7 @@ func TestDailyRecordService_AddCareLog_RefetchError(t *testing.T) {
 	svc := NewDailyRecordService(repo, okHospRepoForDailyRecord(), &mockTransactor{})
 
 	record, err := svc.AddCareLog(context.Background(), 1, 1, today, &CreateCareLogInput{
-		Time: today, Type: string(model.CareLogTypeFood), Status: string(model.CareLogStatusCompleted),
+		Time: "10:00:00", Type: string(model.CareLogTypeFood), Status: string(model.CareLogStatusCompleted),
 	})
 
 	assert.Error(t, err)
@@ -473,7 +472,7 @@ func TestDailyRecordService_AddStaffNote(t *testing.T) {
 			hospitalizationID: 1,
 			date:              today,
 			input: &CreateStaffNoteInput{
-				Time:    today.Add(9 * time.Hour),
+				Time:    "09:00:00",
 				Content: "Patient showing improvement",
 				StaffID: &staffID,
 			},
@@ -485,7 +484,7 @@ func TestDailyRecordService_AddStaffNote(t *testing.T) {
 			hospitalizationID: 1,
 			date:              today,
 			input: &CreateStaffNoteInput{
-				Time:    today.Add(14*time.Hour + 30*time.Minute),
+				Time:    "14:30:00",
 				Content: "Brief note",
 			},
 			repoErr: nil,
@@ -496,7 +495,7 @@ func TestDailyRecordService_AddStaffNote(t *testing.T) {
 			hospitalizationID: 1,
 			date:              today,
 			input: &CreateStaffNoteInput{
-				Time:    today.Add(9 * time.Hour),
+				Time:    "09:00:00",
 				Content: "Test note",
 			},
 			repoErr: errors.New("db error"),
@@ -546,7 +545,7 @@ func TestDailyRecordService_AddStaffNote_CreateError(t *testing.T) {
 	}
 	svc := NewDailyRecordService(repo, okHospRepoForDailyRecord(), &mockTransactor{})
 
-	record, err := svc.AddStaffNote(context.Background(), 1, 1, today, &CreateStaffNoteInput{Time: today, Content: "note"})
+	record, err := svc.AddStaffNote(context.Background(), 1, 1, today, &CreateStaffNoteInput{Time: "10:00:00", Content: "note"})
 
 	assert.Error(t, err)
 	assert.Nil(t, record)
@@ -567,7 +566,7 @@ func TestDailyRecordService_AddStaffNote_RefetchError(t *testing.T) {
 	}
 	svc := NewDailyRecordService(repo, okHospRepoForDailyRecord(), &mockTransactor{})
 
-	record, err := svc.AddStaffNote(context.Background(), 1, 1, today, &CreateStaffNoteInput{Time: today, Content: "note"})
+	record, err := svc.AddStaffNote(context.Background(), 1, 1, today, &CreateStaffNoteInput{Time: "10:00:00", Content: "note"})
 
 	assert.Error(t, err)
 	assert.Nil(t, record)
@@ -760,7 +759,7 @@ func TestDailyRecordService_AddCareLog_CrossTenantParentRejected(t *testing.T) {
 	svc := NewDailyRecordService(repo, crossTenantHospRepo(), &mockTransactor{})
 
 	record, err := svc.AddCareLog(context.Background(), 1, 99, today, &CreateCareLogInput{
-		Time: today,
+		Time: "10:00:00",
 		Type: string(model.CareLogTypeFood),
 	})
 
@@ -784,7 +783,7 @@ func TestDailyRecordService_AddStaffNote_CrossTenantParentRejected(t *testing.T)
 	}
 	svc := NewDailyRecordService(repo, crossTenantHospRepo(), &mockTransactor{})
 
-	record, err := svc.AddStaffNote(context.Background(), 1, 99, today, &CreateStaffNoteInput{Time: today, Content: "x"})
+	record, err := svc.AddStaffNote(context.Background(), 1, 99, today, &CreateStaffNoteInput{Time: "10:00:00", Content: "x"})
 
 	assert.Error(t, err)
 	assert.True(t, apperrors.IsNotFound(err), "%v", err)

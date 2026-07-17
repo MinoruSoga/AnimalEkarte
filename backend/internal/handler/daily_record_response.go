@@ -79,7 +79,7 @@ func toCareLogResponse(cr *model.CareLog) careLogResponse {
 	r := careLogResponse{
 		ID:            strconv.FormatUint(cr.ID, 10),
 		DailyRecordID: strconv.FormatUint(cr.DailyRecordID, 10),
-		Time:          localTime(cr.Time).Format("15:04:05"),
+		Time:          cr.Time,
 		Type:          string(cr.Type),
 		Status:        string(cr.Status),
 		Value:         cr.Value,
@@ -97,7 +97,7 @@ func toStaffNoteResponse(sn *model.StaffNote) staffNoteResponse {
 	r := staffNoteResponse{
 		ID:            strconv.FormatUint(sn.ID, 10),
 		DailyRecordID: strconv.FormatUint(sn.DailyRecordID, 10),
-		Time:          localTime(sn.Time).Format("15:04:05"),
+		Time:          sn.Time,
 		Content:       sn.Content,
 		CreatedAt:     localTime(sn.CreatedAt),
 	}
