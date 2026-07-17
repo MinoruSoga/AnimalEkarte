@@ -64,6 +64,13 @@ func loadBundleManifest(migrationsDir, bundleDir string) (seedbundle.Manifest, [
 	return manifest, raw, nil
 }
 
+// clinicDefaultTrimmingCourseTypesTrigger auto-inserts default
+// trimming_course_types on clinics INSERT (001_init.sql). When the seed
+// bundle ships an explicit trimming_course_types.csv with stable IDs that
+// trimming_courses.course_type_id references, that trigger must not fire
+// during clinics COPY or the explicit CSV collides on PK/UNIQUE.
+const clinicDefaultTrimmingCourseTypesTrigger = "trg_create_default_trimming_course_types"
+
 // applyCSVBundle loads every table in a bundle's manifest via a raw Postgres
 // COPY FROM STDIN, in manifest order (already FK-safe — see
 // cmd/seed-export/tables.go for how that order was derived and verified),
@@ -84,6 +91,17 @@ func applyCSVBundle(ctx context.Context, connStr, migrationsDir, bundleDir strin
 		return err
 	}
 
+	// Explicit trimming_course_types.csv owns IDs; disable the clinics default
+	// trigger only around the clinics COPY so app-time clinic creation still
+	// gets defaults after seed commits.
+	ownsTrimmingCourseTypes := false
+	for _, entry := range manifest.Tables {
+		if entry.Table == "trimming_course_types" {
+			ownsTrimmingCourseTypes = true
+			break
+		}
+	}
+
 	pool, err := pgxpool.New(ctx, connStr)
 	if err != nil {
 		return fmt.Errorf("failed to open pgx pool for CSV bundle load: %w", err)
@@ -96,13 +114,38 @@ func applyCSVBundle(ctx context.Context, connStr, migrationsDir, bundleDir strin
 	}
 	defer tx.Rollback(ctx) //nolint:errcheck // no-op after a successful Commit; rollback is the failure-path safety net
 
+	// Sequences do not roll back with failed seed transactions. Clinic INSERT
+	// triggers (payment_methods / trimming_course_types) consume nextval during
+	// a rolled-back attempt; the next retry then assigns non-1-based IDs while
+	// CSVs still hardcode the original serials (course_type_id=1/3/5, …) and
+	// fail FK. Re-align those sequences when the child table is empty.
+	// Still needed for payment_methods (trigger-only, no CSV) and as a safety
+	// net if trimming_course_types is ever loaded without ownsTrimmingCourseTypes.
+	if err := realignEmptyTriggerSerials(ctx, tx); err != nil {
+		return fmt.Errorf("failed to realign empty trigger serials: %w", err)
+	}
+
 	for _, entry := range manifest.Tables {
+		if ownsTrimmingCourseTypes && entry.Table == "clinics" {
+			if _, err := tx.Exec(ctx, `ALTER TABLE clinics DISABLE TRIGGER `+clinicDefaultTrimmingCourseTypesTrigger); err != nil {
+				return fmt.Errorf("failed to disable %s for seed clinics load: %w", clinicDefaultTrimmingCourseTypesTrigger, err)
+			}
+		}
+
 		csvPath := filepath.Join(migrationsDir, "seeds", bundleDir, entry.CSVFile)
 		rows, err := copyTableFromCSV(ctx, tx.Conn(), csvPath, entry.Table)
 		if err != nil {
 			return fmt.Errorf("failed to load %s from %s: %w", entry.Table, csvPath, err)
 		}
 		logger.Info("Loaded seed table", slog.String("bundle", bundleDir), slog.String("table", entry.Table), slog.Int64("rows", rows))
+
+		if ownsTrimmingCourseTypes && entry.Table == "clinics" {
+			// Re-enable inside the same transaction before commit so a
+			// successful seed does not leave the trigger permanently off.
+			if _, err := tx.Exec(ctx, `ALTER TABLE clinics ENABLE TRIGGER `+clinicDefaultTrimmingCourseTypesTrigger); err != nil {
+				return fmt.Errorf("failed to re-enable %s after seed clinics load: %w", clinicDefaultTrimmingCourseTypesTrigger, err)
+			}
+		}
 
 		// COPY loads explicit id values without touching the backing
 		// SERIAL/BIGSERIAL sequence, so the next application-level INSERT
@@ -117,6 +160,40 @@ func applyCSVBundle(ctx context.Context, connStr, migrationsDir, bundleDir strin
 
 	if err := tx.Commit(ctx); err != nil {
 		return fmt.Errorf("failed to commit CSV bundle %s: %w", bundleDir, err)
+	}
+	return nil
+}
+
+// realignEmptyTriggerSerials resets id sequences for tables that clinic
+// INSERT triggers populate when those tables are currently empty. Safe to
+// call on a fresh DB (setval(1,false) is a no-op relative to the default)
+// and required after a prior failed seed that advanced sequences without
+// leaving rows.
+func realignEmptyTriggerSerials(ctx context.Context, tx pgx.Tx) error {
+	// Keep in sync with CREATE TRIGGER defaults in backend/migrations/001_init.sql.
+	for _, table := range []string{"trimming_course_types", "payment_methods"} {
+		var count int64
+		if err := tx.QueryRow(ctx, fmt.Sprintf(
+			`SELECT COUNT(*) FROM %s`, quoteIdent(table),
+		)).Scan(&count); err != nil {
+			return fmt.Errorf("count %s: %w", table, err)
+		}
+		if count > 0 {
+			continue
+		}
+		if _, err := tx.Exec(ctx, fmt.Sprintf(`
+			DO $$
+			DECLARE
+				seq regclass;
+			BEGIN
+				seq := pg_get_serial_sequence(%[1]s, 'id');
+				IF seq IS NOT NULL THEN
+					PERFORM setval(seq, 1, false);
+				END IF;
+			END $$;
+		`, quoteLiteral(table))); err != nil {
+			return fmt.Errorf("reset sequence for empty %s: %w", table, err)
+		}
 	}
 	return nil
 }

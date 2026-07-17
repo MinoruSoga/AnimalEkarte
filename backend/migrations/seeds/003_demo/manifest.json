@@ -98,6 +98,10 @@
       "csvFile": "hospitalization_plans.csv"
     },
     {
+      "table": "trimming_course_types",
+      "csvFile": "trimming_course_types.csv"
+    },
+    {
       "table": "trimming_courses",
       "csvFile": "trimming_courses.csv"
     },
