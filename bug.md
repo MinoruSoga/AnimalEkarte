@@ -6,13 +6,15 @@
 
 ## Open
 
-### BUG-411:【CRITICAL・データ喪失リスク】会計・検査一覧が backend デフォルト limit=20 で切られた配列に対し偽のクライアントページネーションを行い、フルデータ規模で大半のレコードが不可視化する
+### BUG-412:【HIGH・潜在的データ不可視化】在庫一覧が backend デフォルト limit=20 のみ取得しページネーション未対応（既にローカルデモデータで顕在化）／予防接種・トリミング一覧にも同型の潜在リスク
 
-- **症状**: `AccountingList.tsx`（会計一覧）と `ExaminationsList.tsx`（検査一覧）は `useGetAccountings`/`useGetExaminations` 呼び出しで `page`/`limit` を一切送らない。バックエンドの `parsePagination`（`backend/internal/handler/query_helpers.go:27`）は未指定時 `limit=20` をデフォルト適用するため、実際には常に「最新（もしくは任意順）20件」だけが返る。フロント側はこの20件配列を `usePagination()`（`frontend/src/hooks/use-pagination.ts`）でクライアントページネーションするため `totalPages` は常に1、`Pagination` コンポーネントは非表示、件数表示も「20件」等の**偽の全件数**を示す。ユーザーには「全件表示されている」ように見えるが、実データの大半が一覧にもフィルタにも検索にも一切現れない。
-- **実測件数（ローカルフルデータ）**: `billings` テーブル **392,105件**（会計）、`exams` テーブル **14,533件**（検査） — いずれも表示されるのは先頭20件のみ。#266 のような白画面クラッシュにはならない（over-fetch ではなく under-fetch）ため気づかれにくく、**会計データの大半が一覧上「存在しないもの」として扱われる**という点で #266 より発見しにくく深刻。
-- **同型パターンの他候補**: `AccountingList`/`ExaminationsList` の他に、`InventoryList`/`VaccinationList`/`TrimmingList` も同じ `usePagination()` 消費側だが、これらは対応する取得APIが date-scoped もしくは実データ件数が小さい（`inventory_items`=30件、`vaccinations`=0件、ローカル実測）ため本チケットでは相対的に低リスクと判定。ただし本番の実データ移行（#250）後は再確認が必要。
-- **調査の起点**: `frontend/src/features/accounting/api/get-accountings.ts`（`getAccountings` の `params` に `page`/`limit` が無い）、`frontend/src/hooks/use-examinations.ts`（同様）。修正方針は #266 の owners 対応（サーバサイド search/page/limit を URL 経由で loader/hook に転送し、`usePagination()` の client-side slicing をやめる）と同型。
-- **発見**: 2026-07-17（#266 の fetch-limits 横断棚卸し中に発見。`frontend/src/config/fetch-limits.ts` 経由の各所は SD-18 で「直近100件表示」の可視キャップ表示済みで別枠 — 本件は fetch-limits.ts を経由しない、キャップ表示すら無い"偽ページネーション"のため独立起票）。
+- **症状**: `InventoryList.tsx`（在庫管理）の取得経路 `use-inventory.ts` → `frontend/src/features/inventory/api/inventory.ts` の `getInventoryItems`/`GetInventoryItemsParams` は `category`/`status` のみを送り `page`/`limit` を一切送らない。backend `inventory_handler.go` の `ListInventory` は `parsePagination`（未指定時 `limit=20`）を適用するため、20件を超える在庫は一覧・フィルタ・検索から不可視化する。BUG-411（会計・検査一覧の偽ページネーション、2026-07-17 修正済み）と同型のバグ。
+- **実測件数（ローカル seed）**: `backend/migrations/seeds/003_demo/inventory_items.csv` = **30件**（ヘッダ除く実データ行数で確認）。30>20のため、**ローカルデモデータの時点で既に10件が一覧に出ない**。旧 BUG-411 エントリが「low risk」と判定した根拠（"inventory_items=30件、実データ小さいため相対的に低リスク"）は自己矛盾していた（30自体が既に既定 limit=20 を超えている）。BUG-411 対応中の派生監査（2026-07-17）で発覚。
+- **関連する潜在リスク（同一取得パターン。現状データ0件のため無症状だが、旧 bug.md の「date-scoped だから安全」という前提自体が誤り）**:
+  - `VaccinationList.tsx`（予防接種一覧）: `use-vaccinations.ts` → `get-vaccinations.ts` の `getVaccinations` は `start_date`/`end_date` をユーザーが日付フィルタを使った時だけ送る任意パラメータで、未指定時は無条件で `parsePagination` の既定 `limit=20` に落ちる（date-scoped ではない）。seed 0件のため今は無症状。
+  - `TrimmingList.tsx`（トリミング一覧）: `use-trimming-records.ts` → `get-trimmings.ts` の `getTrimmings` は明示的に `page:1, limit:HISTORY_FETCH_LIMIT`（`frontend/src/config/fetch-limits.ts` で `100` = backend `defaultMaxPaginationLimit`）を送信しており `limit=20` のバグではない。ただし1リクエストで取得できる上限が100件で、それ以降のページネーション導線が無い。seed 0件のため今は無症状だが、100件超のトリミング実績が蓄積すると同型の不可視化が起きる。
+- **修正方針**: BUG-411（会計・検査、#266 owners と同型）で確立したサーバサイド page/limit 転送パターンをそのまま踏襲する。`InventoryList` を優先（既に顕在化）。`VaccinationList`/`TrimmingList` は本番データ移行（#250）後の実件数を見て優先度判断（`TrimmingList` は limit=100→カーソル/オフセット継続取得への拡張が別途必要）。
+- **発見**: 2026-07-17（BUG-411 対応中の派生監査。be411-other-screens-audit subagent による調査、コーディネーターが claim を再検証済み）。
 
 ### BUG-408:【設計判断待ち】予防接種フォームのワクチン選択に動物種(species)フィルタが無い
 

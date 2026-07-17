@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, keepPreviousData } from "@tanstack/react-query";
 import { axios } from "@/lib/axios";
 import { queryKeys } from "@/lib/query-keys";
 import { QUERY_STALE_TIMES, QUERY_GC_TIMES } from "@/lib/react-query";
@@ -26,15 +26,19 @@ export interface AccountingFilters {
   clinicIds?: string[];
 }
 
-const getAccountings = async (
-  filters?: AccountingFilters,
-): Promise<Accounting[]> => {
+function buildAccountingParams(filters?: AccountingFilters): Record<string, string> {
   const params: Record<string, string> = {};
   if (filters?.startDate) params.start_date = filters.startDate;
   if (filters?.endDate) params.end_date = filters.endDate;
   if (filters?.ownerId) params.owner_id = filters.ownerId;
   if (filters?.clinicIds && filters.clinicIds.length > 1) params.clinic_ids = filters.clinicIds.join(",");
-  const { data } = await axios.get<AccountingsListResponse>("/v1/accountings", { params });
+  return params;
+}
+
+const getAccountings = async (
+  filters?: AccountingFilters,
+): Promise<Accounting[]> => {
+  const { data } = await axios.get<AccountingsListResponse>("/v1/accountings", { params: buildAccountingParams(filters) });
   return data.data.map(transformToAccounting);
 };
 
@@ -46,5 +50,42 @@ export const useGetAccountings = (filters?: AccountingFilters) => {
     gcTime: QUERY_GC_TIMES.STANDARD,
     // ownerId フィルタが空文字の場合はクエリを実行しない（誤って全件取得しないため）
     enabled: filters?.ownerId === undefined || filters.ownerId !== "",
+  });
+};
+
+export interface AccountingsPage {
+  data: Accounting[];
+  total: number;
+  page: number;
+  limit: number;
+}
+
+export interface AccountingPageFilters extends AccountingFilters {
+  page: number;
+  limit: number;
+}
+
+const getAccountingsPage = async (
+  filters: AccountingPageFilters,
+): Promise<AccountingsPage> => {
+  const params = buildAccountingParams(filters);
+  params.page = String(filters.page);
+  params.limit = String(filters.limit);
+  const { data } = await axios.get<AccountingsListResponse>("/v1/accountings", { params });
+  return { data: data.data.map(transformToAccounting), total: data.total, page: data.page, limit: data.limit };
+};
+
+/**
+ * BUG-411: サーバサイドページネーション版。AccountingList 専用。
+ * useGetAccountings（DailyAccountingTab/OwnerAccountingHistory が使う全件系）とは
+ * queryKey の filters shape が異なる（page/limit を含む）ため自然に別キャッシュエントリになる。
+ */
+export const useGetAccountingsPage = (filters: AccountingPageFilters) => {
+  return useQuery({
+    queryKey: queryKeys.accountings.list(filters),
+    queryFn: () => getAccountingsPage(filters),
+    staleTime: QUERY_STALE_TIMES.MEDIUM,
+    gcTime: QUERY_GC_TIMES.STANDARD,
+    placeholderData: keepPreviousData,
   });
 };

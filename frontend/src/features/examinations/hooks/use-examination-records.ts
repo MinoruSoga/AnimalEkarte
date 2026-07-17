@@ -1,15 +1,36 @@
 import { useMemo } from "react";
-import { useGetExaminations } from "../api/get-examinations";
+import { useGetExaminationsPage } from "../api/get-examinations";
 import { normalizeKana } from "@/lib/normalize-kana";
 import type { ExaminationFilters } from "../api/get-examinations";
 import type { ActiveFilter } from "@/components/shared/PropertyFilter/types";
+import type { ExaminationRecord } from "../api/transforms";
 
+// rerender-stable-empty-array: pageResult 未ロード時のフォールバックを毎レンダー新規配列にしない
+// （useMemo の deps に使うため参照が安定している必要がある）
+const EMPTY_EXAMINATIONS: ExaminationRecord[] = [];
+
+interface PageArgs {
+  page: number;
+  limit: number;
+}
+
+/**
+ * BUG-411: page/limit を受け取りサーバサイドページネーションで検査一覧を取得する。
+ * status/testType/doctor フィルタとテキスト検索は backend が受け付けないため、
+ * 修正前と同じくクライアントサイドで「取得済みデータの中でだけ」適用する
+ * （修正前は取得済み20件の中、修正後は取得済み1ページの中 — 制約の性質は変わらず退行ではない）。
+ */
 export function useFilterExaminationRecords(
   searchTerm: string,
+  pageArgs: PageArgs,
   filters?: ExaminationFilters,
   activeFilters?: ActiveFilter[],
 ) {
-  const { data: examinationsData = [], isLoading, error } = useGetExaminations(filters);
+  const { data: pageResult, isLoading, error } = useGetExaminationsPage({
+    ...filters,
+    ...pageArgs,
+  });
+  const examinationsData = pageResult?.data ?? EMPTY_EXAMINATIONS;
 
   const filteredRecords = useMemo(() => {
     let result = examinationsData;
@@ -67,5 +88,13 @@ export function useFilterExaminationRecords(
     );
   }, [examinationsData, searchTerm, activeFilters]);
 
-  return { data: filteredRecords, allExaminations: examinationsData, isLoading, error };
+  return {
+    data: filteredRecords,
+    allExaminations: examinationsData,
+    isLoading,
+    error,
+    total: pageResult?.total ?? 0,
+    page: pageResult?.page ?? pageArgs.page,
+    limit: pageResult?.limit ?? pageArgs.limit,
+  };
 }

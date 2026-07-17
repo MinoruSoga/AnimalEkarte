@@ -8,7 +8,7 @@ import { useSortableData } from "@/hooks/use-sortable-data";
 import { uniqueSortedOptions } from "@/utils/unique-sorted-options";
 
 // External
-import { Plus, TestTube, Calendar, CircleDot, FlaskConical, User } from "lucide-react";
+import { Plus, TestTube, Calendar, CircleDot, FlaskConical, User, Info } from "lucide-react";
 
 // Internal
 import { TableCell } from "@/components/ui/table";
@@ -22,7 +22,6 @@ import { StatusBadge } from "@/components/shared/StatusBadge/StatusBadge";
 import { RowActionButton } from "@/components/shared/RowActionButton";
 import { SortableHeader } from "@/components/shared/SortableHeader/SortableHeader";
 import { getExaminationStatusColor } from "@/utils/status-helpers";
-import { usePagination } from "@/hooks/use-pagination";
 import { Pagination } from "@/components/shared/Pagination/Pagination";
 import { FilteringIndicator } from "@/components/shared/FilteringIndicator/FilteringIndicator";
 
@@ -78,6 +77,14 @@ const EXAMINATION_SORT_PROPERTIES: SortProperty[] = [
   { key: "status", label: "ステータス" },
 ];
 
+// BUG-411: サーバサイドページネーションのページサイズ。backend parsePagination の既定 limit(20) を踏襲。
+const EXAMINATIONS_PAGE_SIZE = 20;
+
+// BUG-411 react-reviewer指摘(HIGH): backend が受け付けないため client-only のまま残るフィルタキー。
+// これらが有効な間は「表示件数」と Pagination の「総件数」が別ソース（前者=現在ページの絞込結果、
+// 後者=サーバ生total）になり乖離しうる。ユーザーへの明示的な告知で対応する（案B）。
+const CLIENT_ONLY_FILTER_KEYS = ["status", "testType", "doctor"];
+
 export function ExaminationsList() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -86,6 +93,9 @@ export function ExaminationsList() {
   const [activeFilters, setActiveFilters] = useState<ActiveFilter[]>([]);
   const deferredSearch = useDeferredValue(searchTerm);
   const isFiltering = searchTerm !== deferredSearch;
+
+  // FE-144: URLクエリパラメータからページ番号を読み取る（BUG-411: サーバフェッチのキーそのものになる）
+  const urlPage = Math.max(1, Number(searchParams.get("page") ?? 1) || 1);
 
   // activeFilters から日付フィルタを抽出
   const filters = useMemo(() => {
@@ -98,7 +108,8 @@ export function ExaminationsList() {
     };
   }, [activeFilters]);
 
-  const { data: filteredRecords, allExaminations, isLoading, error } = useFilterExaminationRecords(deferredSearch, filters, activeFilters);
+  const { data: filteredRecords, allExaminations, isLoading, error, total, page: serverPage, limit: serverLimit } =
+    useFilterExaminationRecords(deferredSearch, { page: urlPage, limit: EXAMINATIONS_PAGE_SIZE }, filters, activeFilters);
 
   // js-cache-function-results: ロード済みデータから検査種別・担当医の選択肢を動的生成
   const filterProperties = useMemo<FilterProperty[]>(() => {
@@ -116,27 +127,45 @@ export function ExaminationsList() {
   const { activeSorts, setActiveSorts, toggleSort, directionFor, sortedData } =
     useSortableData(filteredRecords);
 
-  const pagination = usePagination(sortedData, {
-    resetKey: [deferredSearch, JSON.stringify(activeFilters)].join("|"),
-  });
+  // BUG-411 react-reviewer指摘(HIGH): 検索語 or client-only フィルタ（ステータス・検査種別・担当医）が
+  // 有効な間は、表示行数（現在ページ内で絞り込み済み）と Pagination の総件数（サーバ生total）が
+  // 一致しない。ユーザーに明示する。
+  const hasPageScopedFilter =
+    deferredSearch !== "" || activeFilters.some((f) => CLIENT_ONLY_FILTER_KEYS.includes(f.key));
 
-  // FE-144: URLクエリパラメータからページ番号を読み取る
-  const urlPage = Number(searchParams.get("page") ?? 1);
+  // BUG-411: usePagination() のクライアントスライスを撤去し、サーバの total/page/limit をそのまま使う。
+  // paginatedData はクライアントフィルタ・ソート済みの「現在ページの行」（サーバは既にページ分だけ返す）。
+  const totalPages = Math.max(1, Math.ceil(total / serverLimit));
+  const pagination = {
+    paginatedData: sortedData,
+    totalPages,
+    totalCount: total,
+    startIndex: total === 0 ? 0 : (serverPage - 1) * serverLimit + 1,
+    endIndex: Math.min(serverPage * serverLimit, total),
+    currentPage: serverPage,
+  };
 
-  // FE-144: URLのページ番号とローカル状態を同期（URLが変わったときのみ）
-  // rerender-dependencies: pagination（オブジェクト）を destructure し primitive を deps に使用
-  const { totalPages, currentPage, goToPage } = pagination;
+  // FE-144 / BUG-411: URLの page がサーバ total から導いた totalPages を超えている場合はクランプする
+  // （日付フィルタ変更等で母集団が縮んだ場合に空ページへ迷い込むのを防ぐ。既存クランプ effect を踏襲）。
   useEffect(() => {
+    if (isLoading) return;
     const clampedPage = Math.max(1, Math.min(urlPage, totalPages));
-    if (clampedPage !== currentPage) {
-      goToPage(clampedPage);
+    if (clampedPage !== urlPage) {
+      setSearchParams((prev) => {
+        const next = new URLSearchParams(prev);
+        if (clampedPage === 1) {
+          next.delete("page");
+        } else {
+          next.set("page", String(clampedPage));
+        }
+        return next;
+      }, { replace: true });
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [urlPage, totalPages]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- setSearchParams は安定参照。urlPage/totalPages/isLoading の変化時のみ再評価する設計（FE-144踏襲）。
+  }, [urlPage, totalPages, isLoading]);
 
   // FE-144: ページ変更時にURLクエリパラメータを更新
   const handlePageChange = useCallback((page: number) => {
-    goToPage(page);
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev);
       if (page === 1) {
@@ -146,7 +175,28 @@ export function ExaminationsList() {
       }
       return next;
     }, { replace: true });
-  }, [goToPage, setSearchParams]);
+  }, [setSearchParams]);
+
+  // BUG-411 react-reviewer指摘: 旧 usePagination() の resetKey（検索・フィルタ変更時に page を1へ戻す）
+  // を撤去したままだと、ページ3閲覧中にフィルタ変更→表示件数とPaginationのtotalが食い違ったまま
+  // page=3に留まる退行になる。検索・フィルタ変更時は常に page を1へ戻す（旧挙動を維持）。
+  const handleSearchChange = useCallback((value: string) => {
+    setSearchTerm(value);
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.delete("page");
+      return next;
+    }, { replace: true });
+  }, [setSearchParams]);
+
+  const handleFilterChange = useCallback((next: ActiveFilter[]) => {
+    setActiveFilters(next);
+    setSearchParams((prev) => {
+      const params = new URLSearchParams(prev);
+      params.delete("page");
+      return params;
+    }, { replace: true });
+  }, [setSearchParams]);
 
   const handleCreate = useCallback(() => {
     navigate(paths.examinations.selectPet.getHref());
@@ -264,15 +314,25 @@ export function ExaminationsList() {
         <PropertyFilter
           properties={filterProperties}
           activeFilters={activeFilters}
-          onFilterChange={setActiveFilters}
+          onFilterChange={handleFilterChange}
           searchTerm={searchTerm}
-          onSearchChange={setSearchTerm}
+          onSearchChange={handleSearchChange}
           searchPlaceholder="飼主名、ペット名、検査種別..."
           count={isLoading ? undefined : filteredRecords.length}
           sortProperties={EXAMINATION_SORT_PROPERTIES}
           activeSorts={activeSorts}
           onSortChange={setActiveSorts}
         />
+
+        {hasPageScopedFilter && pagination.totalPages > 1 ? (
+          <div className={`flex items-start gap-2 rounded-md px-3 py-2 text-sm ${C.textWarning}`}>
+            <Info className={`${ICON.action} ${C.textWarningIcon} shrink-0 mt-0.5`} />
+            <span>
+              検索・ステータス・検査種別・担当医での絞り込みは現在表示中のページ内のみが対象です。
+              他のページにある検査記録はこの検索では見つかりません。全期間から探す場合は日付での絞り込みをご利用ください。
+            </span>
+          </div>
+        ) : null}
 
         <FilteringIndicator isFiltering={isFiltering}>
           <DataTable
