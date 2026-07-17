@@ -562,7 +562,6 @@ func TestValidateUpdatePetInput(t *testing.T) {
 	name := "pet"
 	weight := 5.5
 	gender := string(model.PetGenderMale)
-	status := string(model.PetStatusAlive)
 	acq := string(model.AcquisitionTypePurchase)
 	danger := string(model.DangerLevelLow)
 
@@ -571,7 +570,6 @@ func TestValidateUpdatePetInput(t *testing.T) {
 			Name:            &name,
 			Weight:          &weight,
 			Gender:          &gender,
-			Status:          &status,
 			AcquisitionType: &acq,
 			DangerLevel:     &danger,
 		}
@@ -596,11 +594,8 @@ func TestValidateUpdatePetInput(t *testing.T) {
 		assert.Error(t, validateUpdatePetInput(input))
 	})
 
-	t.Run("invalid status", func(t *testing.T) {
-		badStatus := "bad"
-		input := &UpdatePetInput{Status: &badStatus}
-		assert.Error(t, validateUpdatePetInput(input))
-	})
+	// BUG-415: UpdatePetInput は status を意図的に持たない。無効値検証は
+	// validatePetStatus（Create/CreatePetForOwner 用）で別途カバー済み。
 
 	t.Run("invalid acquisition", func(t *testing.T) {
 		badAcq := "bad"

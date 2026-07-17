@@ -625,17 +625,6 @@ func TestPetService_Update(t *testing.T) {
 			wantErr:   true,
 		},
 		{
-			name:     "rejects invalid status",
-			clinicID: 1,
-			id:       1,
-			input: UpdatePetInput{
-				Name:   ptrString("ペット"),
-				Status: ptrString("invalid"),
-			},
-			updateErr: nil,
-			wantErr:   true,
-		},
-		{
 			name:      "returns error when no fields provided",
 			clinicID:  1,
 			id:        1,
@@ -965,7 +954,6 @@ func TestBuildPetUpdate(t *testing.T) {
 		name := "ポチ"
 		nameKana := "ポチ"
 		gender := "male"
-		status := "alive"
 		birthDate := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
 		breed := "柴犬"
 		color := "茶"
@@ -990,7 +978,6 @@ func TestBuildPetUpdate(t *testing.T) {
 			Name:            &name,
 			PetNameKana:     &nameKana,
 			Gender:          &gender,
-			Status:          &status,
 			BirthDate:       &birthDate,
 			Breed:           &breed,
 			Color:           &color,
@@ -1016,7 +1003,6 @@ func TestBuildPetUpdate(t *testing.T) {
 		assert.Equal(t, name, fields[colPetName])
 		assert.Equal(t, nameKana, fields[colPetNameKana])
 		assert.Equal(t, gender, fields[colPetGender])
-		assert.Equal(t, status, fields[colPetStatus])
 		assert.Equal(t, birthDate, fields[colPetBirthDate])
 		assert.Equal(t, breed, fields[colPetBreed])
 		assert.Equal(t, color, fields["color"])
@@ -1032,7 +1018,12 @@ func TestBuildPetUpdate(t *testing.T) {
 		assert.Equal(t, lastVisit, fields["last_visit"])
 		assert.Equal(t, insuranceIDPtr, fields[colPetInsuranceID])
 		assert.Equal(t, remarks, fields[colPetRemarks])
-		assert.Len(t, fields, 22)
+		// BUG-415: status は generic update から意図的に除外されている（唯一の書込元は
+		// Create と HandlePetDeath/HandlePetRevival に一本化済み）。UpdatePetInput に
+		// Status フィールドが存在しないため、この map に status キーが混入する経路はない。
+		_, hasStatus := fields["status"]
+		assert.False(t, hasStatus, "buildPetUpdate は status を書き込んではならない(BUG-415)")
+		assert.Len(t, fields, 21)
 	})
 
 	t.Run("clears insurance_id when InsuranceID points to a nil pointer", func(t *testing.T) {

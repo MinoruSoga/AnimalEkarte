@@ -137,7 +137,6 @@ func TestUpdatePetRequest_ToServiceInput(t *testing.T) {
 	ownerID := uint64(6)
 	animalSpeciesID := uint64(2)
 	name := "タマ"
-	status := "alive"
 	insuranceID := uint64(12)
 	insuranceIDField := &insuranceID
 
@@ -145,7 +144,6 @@ func TestUpdatePetRequest_ToServiceInput(t *testing.T) {
 		OwnerID:         &ownerID,
 		AnimalSpeciesID: &animalSpeciesID,
 		Name:            &name,
-		Status:          &status,
 		LastVisit:       lastVisit,
 		InsuranceID:     &insuranceIDField,
 	}).toServiceInput()
@@ -153,7 +151,6 @@ func TestUpdatePetRequest_ToServiceInput(t *testing.T) {
 	assert.Same(t, &ownerID, input.OwnerID)
 	assert.Same(t, &animalSpeciesID, input.AnimalSpeciesID)
 	assert.Same(t, &name, input.Name)
-	assert.Same(t, &status, input.Status)
 	require.NotNil(t, input.LastVisit)
 	assert.Equal(t, lastVisit.Time, *input.LastVisit)
 	require.NotNil(t, input.InsuranceID)

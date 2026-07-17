@@ -115,11 +115,6 @@ func validateUpdatePetInput(input *UpdatePetInput) error {
 			return apperrors.Wrap(err, "failed to validate pet gender")
 		}
 	}
-	if input.Status != nil {
-		if err := validatePetStatus(*input.Status); err != nil {
-			return apperrors.Wrap(err, "failed to validate pet status")
-		}
-	}
 	if input.AcquisitionType != nil {
 		if err := validatePetAcquisitionType(*input.AcquisitionType); err != nil {
 			return apperrors.Wrap(err, "failed to validate pet acquisition type")

@@ -25,7 +25,6 @@ const (
 	colPetMicrochipNumber = "microchip_number"
 	colPetWeight          = "weight"
 	colPetEnvironment     = "environment"
-	colPetStatus          = "status"
 	colPetInsuranceID     = "insurance_id"
 	colPetRemarks         = "remarks"
 )
@@ -67,7 +66,9 @@ type UpdatePetInput struct {
 	Name            *string
 	PetNameKana     *string
 	Gender          *string
-	Status          *string
+	// Status は意図的に持たない(BUG-415)。generic update から status を書けなくし、
+	// 唯一の書込元を Create と HandlePetDeath/HandlePetRevival(監査+deceased_at 同一tx・
+	// fail-closed)に一本化する。
 	BirthDate       *time.Time
 	Breed           *string
 	Color           *string
@@ -105,9 +106,6 @@ func buildPetUpdate(input *UpdatePetInput) map[string]any {
 	}
 	if input.Gender != nil {
 		fields[colPetGender] = *input.Gender
-	}
-	if input.Status != nil {
-		fields[colPetStatus] = *input.Status
 	}
 	if input.BirthDate != nil {
 		fields[colPetBirthDate] = *input.BirthDate

@@ -116,13 +116,15 @@ func (r *createPetRequest) toServiceInput() *service.CreatePetInput {
 // updatePetRequest はペット更新のバインド struct（全フィールドポインタ型）
 // InsuranceID は **uint64: JSON未送信=nil, "insurance_id":null=&nil, "insurance_id":123=&&123
 type updatePetRequest struct {
-	OwnerID         *uint64   `json:"owner_id"`
-	AnimalSpeciesID *uint64   `json:"animal_species_id"`
-	PetNumber       *string   `json:"pet_number"` // 自動採番後も手動変更可
-	Name            *string   `json:"name"`
-	NameKana        *string   `json:"name_kana"`
-	Gender          *string   `json:"gender"            binding:"omitempty,oneof=male female unknown"`
-	Status          *string   `json:"status"            binding:"omitempty,oneof=alive deceased"`
+	OwnerID         *uint64 `json:"owner_id"`
+	AnimalSpeciesID *uint64 `json:"animal_species_id"`
+	PetNumber       *string `json:"pet_number"` // 自動採番後も手動変更可
+	Name            *string `json:"name"`
+	NameKana        *string `json:"name_kana"`
+	Gender          *string `json:"gender"            binding:"omitempty,oneof=male female unknown"`
+	// Status は意図的に持たない(BUG-415)。status の書込は Create と /:id/death
+	// (HandlePetDeath/HandlePetRevival、監査ログ+deceased_at 同一tx・fail-closed) に
+	// 一本化済み。ここに "status" を JSON で送っても未知フィールドとして無視される。
 	BirthDate       *jsonDate `json:"birth_date"`
 	Breed           *string   `json:"breed"`
 	Color           *string   `json:"color"`
@@ -148,7 +150,6 @@ func (r *updatePetRequest) toServiceInput() *service.UpdatePetInput {
 		Name:            r.Name,
 		PetNameKana:     r.NameKana,
 		Gender:          r.Gender,
-		Status:          r.Status,
 		BirthDate:       jsonDatePtr(r.BirthDate),
 		Breed:           r.Breed,
 		Color:           r.Color,
