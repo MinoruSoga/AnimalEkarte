@@ -45,7 +45,53 @@
 - **PlanetScale STG スキーマ初期化済み**: `fb758d50`（migration 002〜004 を 001 へ統合）による checksum mismatch を事前解消するため、一時 role（TTL 1h）経由で `DROP SCHEMA public CASCADE`（166 オブジェクト削除を実測確認）。次回デプロイの migrate は統合後 001 をフレッシュ適用する
 - **PR #186（main→staging）マージ待ち【ユーザー実施】**: ブロッカー = main `ef26ffe6` の CI 赤（Backend golangci-lint / Frontend / E2E）。7/15 に一度 CI green 化（`233e5531`）したが後続 push（seed CSV 取込アダプタ等）で再赤化 — 修正の再依頼が必要。E2E の `estimates-flow` 2 件は見積書 UI の実リグレッション疑い（マージ非ブロッカー裁定済みだが別途修正必須）
 - **監視稼働中**: マージ後の `backend-deploy.yml` 初回 run を自動検知・完了追跡するウォッチャーを起動済み（4 時間窓）
-- 残クリティカルパス（変更なし）: CI green → マージ → P5-5（2 連続 green）→ P2-4/5 画像移行 → P3-6/7 データ投入（STG は seed 再投入で代替可の判断待ち）→ Phase 7 NS 切替 → 本番 CF 整備（#253）→ #250 Access 投入 → 7/18 Go-live
+- 残クリティカルパス（変更なし）: CI green → マージ → P5-5（2 連続 green）→ P2-4/5 画像移行 → P3-6/7 データ投入（下記フルデモ手順で置換）→ Phase 7 NS 切替 → 本番 CF 整備（#253）→ #250 Access 投入 → 7/18 Go-live
+
+### STG フルデモデータ投入手順（2026-07-17 確定・PO 決定 = STG のデモデータはフル版 505MB を使う）
+
+**前提知識（調査確定・2026-07-17）:**
+
+- フル 003_demo（505MB・owners 10,499 / pets 15,737 等）は GitHub 100MB 制限のため **git 管理外**（`backend/migrations/seeds/003_demo/` に skip-worktree オーバーレイとしてこのマシンにのみ存在。退避元 = `old_db/sensitive-local/animalekarte-003-demo-full/`）。リポジトリ committed 版は小さいデモ（owners 61 行）
+- `cmd/migrate` の seed 投入は **checksum 厳格検証つき**（`runSeedBundles` → `isAlreadyApplied`）。記録済み checksum と不一致なら migrate は非ゼロ終了する。**⚠️ フル版の checksum が `schema_migrations` に記録されると、以後の全 CI デプロイ（committed = 小さい版で計算）が恒久的に mismatch で赤くなる** — 「フル CSV で migrate を STG に向けるだけ」は禁じ手
+- CSV 取込アダプタ（`backend/internal/csvimport/`・`cmd/seed-export`）は `IsLocalHost` ガード付きの**ローカル専用**で STG への経路ではない。CF の `POST /_internal/migrate` はイメージに焼き込まれた committed CSV しか読めないため、これもフル投入経路にはなり得ない
+- `cmd/migrate` 自体にはローカルガードが無く（意図的）、docker compose の bind mount（`./backend:/app`）でフルオーバーレイがそのままコンテナから見える — これが唯一の正規投入経路
+- 004_staging の FK 孤児行（appointment_trimming_details）は `b4fc1372` で修正済み — フル版適用時の FK 違反リスクは解消済み
+
+**手順（PR #186 マージ→ CF 初回デプロイ成功の後に実施）:**
+
+1. **CF デプロイ成功を確認**（小さいデモ + 正しい checksum が自動記録された状態を作る。この checksum は CI 自身が committed 内容から計算したもの — 手計算不要）
+2. **TTL 付き書込みロールを発行し、`seeds/003_demo` の checksum を控える**:
+   ```bash
+   pscale role create animalekarte-stg main full-demo-swap --org noah-animalekarte --inherited-roles postgres --ttl 2h
+   # 表示された DATABASE URL を使う（sslmode=verify-full&sslrootcert=/etc/ssl/cert.pem 付与）
+   psql "<DATABASE_URL>" -c "SELECT version, checksum FROM schema_migrations WHERE version LIKE 'seeds/%';"
+   # → seeds/003_demo の checksum 値をメモしておく（手順5で使う）
+   ```
+3. **スキーマ再初期化**（STG はデモデータのみのため破壊可）:
+   ```bash
+   psql "<DATABASE_URL>" -c 'DROP SCHEMA public CASCADE; CREATE SCHEMA public;'
+   ```
+4. **ローカル cmd/migrate を PlanetScale 直結で実行**（フルオーバーレイが bind mount で見える。トリガー無効化・シーケンス前進・FK 順は migrate 実装が自動処理。advisory lock の都合で Hyperdrive 非経由・直結必須）:
+   ```bash
+   docker compose run --rm --entrypoint go \
+     -e DB_HOST=ap-northeast-2.pg.psdb.cloud -e DB_PORT=5432 \
+     -e DB_USER=<role user> -e DB_PASSWORD=<role password> \
+     -e DB_NAME=postgres -e DB_SSL_MODE=require \
+     backend run ./cmd/migrate
+   # → 001 スキーマ + 002_master + フル 003_demo + 004_staging が一括適用される
+   # 505MB 転送のため 30〜60 分想定。ネットワーク安定時間帯に実施・切断時は手順3からやり直し
+   ```
+5. **checksum を committed 版の値に書き戻す**（手順2で控えた値。これで以後の CI は「適用済み・一致」で skip し、フルデータが上書きされず保持される）:
+   ```bash
+   psql "<DATABASE_URL>" -c "UPDATE schema_migrations SET checksum='<手順2の控え値>' WHERE version='seeds/003_demo';"
+   ```
+   ⚠️ この手順を飛ばすと以後の全 CF デプロイの migrate が恒久的に赤くなる（本手順の最重要ステップ）
+6. **検証**: `psql "<DATABASE_URL>" -c "SELECT (SELECT count(*) FROM owners) AS owners, (SELECT count(*) FROM pets) AS pets;"` → **owners=10,499 / pets=15,737** ならフル版。あわせて STG 画面でログイン + 飼主一覧表示を確認
+7. **ロールを失効**: `pscale role delete animalekarte-stg main <role-id> --org noah-animalekarte`（TTL 2h で自動失効もする）
+
+**ロールバック**: 手順3から再実行し、手順4の代わりに `gh workflow run backend-deploy.yml`（CI の migrate）を叩けば小さいデモ + 正 checksum の初期状態に戻る。
+
+**本番への注意**: 本番 DB では本手順を使わない。本番は 002_master のみが正で、`cmd/migrate` がフレッシュ DB に 003_demo/004_staging も自動投入してしまう問題への対処（seed バンドル選択の環境変数追加 or 投入後除去）は `docs/infra/deploy/PRODUCTION_CF_SETUP.md` の必須ステップ参照（判断未確定・#253）。
 
 ---
 
