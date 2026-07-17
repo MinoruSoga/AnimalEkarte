@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect } from "react";
 
 import type { MedicalRecord } from "../api/transforms";
 
@@ -32,10 +32,17 @@ export function useApplyMedicalRecord({
   setDiagnosis2CategoryId,
   setDiagnosis2NameId,
 }: UseApplyMedicalRecordArgs) {
-  const [prevExistingRecord, setPrevExistingRecord] = useState(existingRecord);
-
-  if (prevExistingRecord !== existingRecord && existingRecord) {
-    setPrevExistingRecord(existingRecord);
+  // ⚠️ レンダー中比較 (inline-comparison: useState(existingRecord) + if (prev !== existingRecord))
+  // に書き換えてはならない。この state は useMedicalRecordSaveAction の useActionState
+  // action closure から直接参照される (diagnosis1CategoryId 等)。render-phase setState は
+  // 「マウント時点で既に existingRecord が値を持つ」場合 (TanStack Query のウォームキャッシュ。
+  // useGetMedicalRecord は staleTime=QUERY_STALE_TIMES.MEDIUM=5分で、同一カルテの短時間内の
+  // 再訪問では初回レンダーから data を返す) に prevExistingRecord の初期値が existingRecord と
+  // 同一参照になり、hydrate が一度も発火しない (BUG-410 react-reviewer 指摘・RED で実証済み)。
+  // useEffect ならマウント含め毎回のコミット後に必ず一度実行されるため安全。
+  // 先例: 10f69364 (useAccountingDetailState で同型の render-phase setState バグを effect に差し戻し)。
+  useEffect(() => {
+    if (!existingRecord) return;
     if (existingRecord.chiefComplaint) setChiefComplaint(existingRecord.chiefComplaint);
     if (existingRecord.chiefComplaintTypeId != null && setChiefComplaintTypeId) {
       setChiefComplaintTypeId(existingRecord.chiefComplaintTypeId);
@@ -57,5 +64,6 @@ export function useApplyMedicalRecord({
     if (existingRecord.diagnosis2NameId != null && setDiagnosis2NameId) {
       setDiagnosis2NameId(existingRecord.diagnosis2NameId);
     }
-  }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- existingRecord のみで判定 (setter 群は安定参照)
+  }, [existingRecord]);
 }

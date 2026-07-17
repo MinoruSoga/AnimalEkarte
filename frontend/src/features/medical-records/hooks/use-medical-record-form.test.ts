@@ -282,6 +282,43 @@ describe("useMedicalRecordForm", () => {
         expect(result.current.diagnosis2NameId).toBe(9);
       });
     });
+
+    // react-reviewer 指摘: TanStack Query のウォームキャッシュ（staleTime=5分、
+    // QUERY_STALE_TIMES.MEDIUM）により、同一カルテを短時間内に再訪問すると
+    // useGetMedicalRecord は「ローディング→到着」ではなく初回レンダーから
+    // 既に data を返す。この場合 useState(existingRecord) で初期化される
+    // prevExistingRecord が existingRecord と同一参照になり、hydrate が
+    // 一度も発火しない可能性がある（render-phase setState の既知の穴）。
+    it("BUG-410: ウォームキャッシュ（初回レンダーから既に既存レコードを保持）でも diagnosis1/2 が state に反映される", async () => {
+      const loadedRecord = {
+        data: {
+          id: "10",
+          visitType: "再診",
+          chiefComplaint: "",
+          plan: "",
+          assessment: "",
+          notes: "",
+          version: 1,
+          diagnosis1CategoryId: 3,
+          diagnosis1NameId: 7,
+          diagnosis2CategoryId: 4,
+          diagnosis2NameId: 9,
+        },
+        isLoading: false,
+        isError: false,
+      };
+      // ローディング状態を経由せず、初回レンダーから既にデータ到着済みにする
+      // （TanStack Query のウォームキャッシュ相当）。
+      mockUseGetMedicalRecord.mockReturnValue(loadedRecord as never);
+      const { result } = renderHook(() => useMedicalRecordForm("10"));
+
+      await waitFor(() => {
+        expect(result.current.diagnosis1CategoryId).toBe(3);
+        expect(result.current.diagnosis1NameId).toBe(7);
+        expect(result.current.diagnosis2CategoryId).toBe(4);
+        expect(result.current.diagnosis2NameId).toBe(9);
+      });
+    });
   });
 
   // ──────────────────────────
