@@ -13,7 +13,7 @@ import (
 
 // Integration tests require BOTH the AnimalEkarte target DB and the old_db stage
 // DB to be reachable. They are gated behind STAGE_IMPORT_INTEGRATION=1 so the
-// default `go test ./...` (and `make test`/ci-local) stays hermetic. When the env
+// default `go test ./...` (and `make test`/`make ci`) stays hermetic. When the env
 // is set they run inside the backend container with the same DB_* / STAGE_DB_*
 // env the importer uses; see `make stage-import-rollback-test`.
 

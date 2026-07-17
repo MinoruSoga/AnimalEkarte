@@ -3,7 +3,7 @@
 #
 # scripts/*.sh をまとめて shellcheck にかける検証ゲート。
 # `make reset` の wait-set 契約チェック (check-reset-wait-services.sh) と同じく、
-# シェルスクリプトの退行を手動レビューではなく自動で弾くために ci-local と CI で実行する。
+# シェルスクリプトの退行を手動レビューではなく自動で弾くために make ci で実行する。
 #
 # 設計上のポイント:
 #   1. shellcheck は AST 解析なので、空白・行継続・整形トリックでは欺けない。

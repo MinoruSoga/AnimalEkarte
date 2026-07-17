@@ -17,6 +17,15 @@ env:
   # CI ランナーは UTC のため go test の time.Local 依存テストが日付境界でズレる。全 job に JST を適用する。
   TZ: Asia/Tokyo
 
+# ──────────────────────────────────────────────
+# ゲート分担（詳細: docs/ops/ci-policy.md）
+#
+# CI 必須（本 workflow）: path-filtered build/test/coverage、gitleaks、
+#   codegen / migration 検証、schema drift
+# ローカル必須（make ci）: inventory / guardrail / shellcheck / golangci /
+#   ESLint / type-check / knip / design CTA など、手元 Docker で十分な静的ゲート
+# ──────────────────────────────────────────────
+
 jobs:
   # ──────────────────────────────────────────────
   # 変更検出: どのジョブを実行すべきか判定
@@ -59,11 +68,8 @@ jobs:
 
   # ──────────────────────────────────────────────
   # C-1 再発防止: gitleaks によるシークレット漏洩スキャン。
-  # push/PR 全イベント無条件で実行し、平文シークレットのコミット混入を pre-merge で検出する
+  # push/PR 全イベント無条件。ローカル再現は困難でリモート必須。
   # （bug.md C-1: .env.staging への JWT_SECRET/DB_PASSWORD 平文混入の再発防止）。
-  # 個人アカウントリポジトリのため GITLEAKS_LICENSE は不要（gitleaks-action README 参照）。
-  # 既存の追跡済み .env.staging（過去コミット）は対象外の historical scan は行わず、
-  # 以後の新規コミット・変更差分に限定して漏洩の「これ以上の混入」を防ぐゲートとする。
   # ──────────────────────────────────────────────
   secret-scan:
     name: Gitleaks Secret Scan
@@ -83,264 +89,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   # ──────────────────────────────────────────────
-  # Reset wait-set contract: make reset の `up --wait` が
-  # 長寿命サービス (db backend frontend) だけを待ち、
-  # one-shot codegen を含めないことを静的に検証する。
-  # Docker 不要・純テキスト検査なので無条件かつ最速で走らせ、
-  # cosmetic exit-1 を起こす wait-set 退行を merge 前に reject する。
-  # ──────────────────────────────────────────────
-  reset-contract:
-    name: Reset Wait-Set Contract
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v7.0.0
-
-      - name: Verify make reset wait-set contract
-        run: bash scripts/check-reset-wait-services.sh
-
-      - name: Self-test the contract check
-        run: bash scripts/check-reset-wait-services.test.sh
-
-  # ──────────────────────────────────────────────
-  # CI step順序ガードレール: 各 job 内で Build（再導入時は Lint/Type check も）が
-  # Test/ratchet より前に配置されていることを検証する
-  # （feedback_ci_step_order_masks_lint 再発防止・FE-refactor.md）。
-  # 2026-07: golangci / ESLint / type-check / knip はローカル make 寄せ。CI の主ゲートは
-  # Build。fail-fast 下で risk が gate より前だと Build 退行が見えなくなる
-  # （PR #218 / 3fcbcaf4）。Docker 不要・純テキスト検査なので無条件かつ最速で走らせる。
-  # ──────────────────────────────────────────────
-  ci-step-order-guardrail:
-    name: CI Step Order Guardrail
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v7.0.0
-
-      - name: Verify ci.yml step order contract
-        run: bash scripts/check-ci-step-order.sh
-
-      - name: Self-test the step order guardrail
-        run: bash scripts/check-ci-step-order.test.sh
-
-  # ──────────────────────────────────────────────
-  # docs シンボル/数値ドリフト: docs/spec/screens + DESIGN_SYSTEM.md が言及する
-  # コンポーネント名・フック名・ソースファイル名の実在と、宣言数値
-  # （テーブル数/権限リソース数/ハンドラー数/配信トリガー数/画面数）の
-  # 実装一致を機械強制する（docs 全数同期 99943aaa の再発防止。
-  # 実在しない `NotionFilter` 等 20 件超が手動監査で検出された経緯）。
-  # 純テキスト検査・依存ゼロのため全イベント無条件で走らせる。
-  # ──────────────────────────────────────────────
-  docs-symbol-drift:
-    name: Docs Symbol Drift Guardrail
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v7.0.0
-
-      - name: Verify docs symbols and declared counts against implementation
-        run: bash scripts/check-docs-symbol-drift.sh
-
-      - name: Self-test the docs drift guardrail
-        run: bash scripts/check-docs-symbol-drift.test.sh
-
-  # ──────────────────────────────────────────────
-  # eslint-disable 根拠コメント ratchet: 根拠コメント（` -- 理由`）の無い
-  # eslint-disable が新規に増えていないかを検査する（FE-refactor.md「eslint-disable
-  # 根拠コメントの機械強制」・R-F3 の追跡）。plugin 依存を追加せず plain Node script
-  # （frontend/scripts/check-eslint-disable-rationale.mjs）で機械強制する。
-  # pnpm install 不要（依存ゼロのスクリプト）・全イベント無条件で走らせる。
-  # ──────────────────────────────────────────────
-  eslint-disable-rationale-guardrail:
-    name: eslint-disable Rationale Guardrail
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v7.0.0
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v6
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-
-      - name: Run eslint-disable rationale ratchet
-        working-directory: frontend
-        run: node scripts/check-eslint-disable-rationale.mjs
-
-      - name: Self-test the rationale ratchet
-        working-directory: frontend
-        run: node --test scripts/check-eslint-disable-rationale.test.mjs
-
-  # ──────────────────────────────────────────────
-  # ShellCheck: scripts/*.sh の静的検査ゲート。
-  # シェルスクリプトの退行を手動レビューではなく自動で弾く。
-  # ubuntu-latest には shellcheck がプリインストールされているため
-  # ゲートは PATH 上の shellcheck をそのまま使う（Docker fallback は不要）。
-  # 整形・行継続トリックでは欺けない AST 検査で無条件に実行する。
-  # ──────────────────────────────────────────────
-  shellcheck:
-    name: ShellCheck Scripts
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v7.0.0
-
-      - name: Lint scripts/*.sh (severity=warning)
-        run: bash scripts/shellcheck-scripts.sh
-
-      - name: Self-test the shellcheck gate
-        run: bash scripts/shellcheck-scripts.test.sh
-
-  # ──────────────────────────────────────────────
-  # P3.1 Preload clinic-scope lint: clinic-scoped マスタの Preload に clinic_id 述語が
-  # 無いものを go/ast で検出する read-IDOR (b3638d5e) 再発防止ゲート（DB 不要・純静的検査）。
-  # backend job は PR→main でスキップされる (daily work 想定) ため、セキュリティゲートは
-  # 全イベント無条件で走る独立 job にして pre-merge で必ずブロックする。
-  # ./... の backend Test step でも走るが、それは push/PR→staging のみ。
-  # ──────────────────────────────────────────────
-  preload-clinic-scope-lint:
-    name: P3.1 Preload Clinic-Scope Lint
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v7.0.0
-
-      - name: Setup Go
-        uses: actions/setup-go@v6
-        with:
-          go-version: ${{ env.GO_VERSION }}
-          cache-dependency-path: backend/go.sum
-
-      - name: Run P3.1 Preload clinic-scope lint
-        working-directory: backend
-        run: go test ./internal/repository/ -run TestPreloadClinicScope -count=1
-
-  # ──────────────────────────────────────────────
-  # P3.1 Master-FK write inventory gate: go/ast exhaustiveness check that every service
-  # method receiving a request-derived clinic-scoped master FK via a DTO is on a reviewed
-  # allowlist (write-side analogue of preload-clinic-scope-lint; the #124 slip-through
-  # prevention). REVIEW COVERAGE only — correctness is enforced by runtime isolation tests.
-  # DB 不要・純静的検査。backend job は PR→main でスキップされるため、独立 job で全イベント
-  # 無条件に走らせ pre-merge で必ずブロックする。
-  # ──────────────────────────────────────────────
-  master-fk-write-inventory:
-    name: P3.1 Master-FK Write Inventory Gate
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v7.0.0
-
-      - name: Setup Go
-        uses: actions/setup-go@v6
-        with:
-          go-version: ${{ env.GO_VERSION }}
-          cache-dependency-path: backend/go.sum
-
-      - name: Run P3.1 master-FK write inventory gate
-        working-directory: backend
-        run: go test ./internal/service/ -run TestMasterFKWriteInventory -count=1
-
-  # ──────────────────────────────────────────────
-  # Clinical-result audit-tx inventory gate: 患者臨床結果（exam_results/checkup_field_results）の
-  # hard-delete/replace サイトを go/ast で列挙し、監査ステータス付き allowlist と突合する。
-  # 未移行サイト（exam_results pending-migration）の CI 可視化と再発防止ゲート（#211 follow-up）。
-  # DB 不要・純静的検査。backend job は PR→main でスキップされるため、独立 job で全イベント
-  # 無条件に走らせ pre-merge で必ずブロックする。
-  # ──────────────────────────────────────────────
-  clinical-result-audit-tx-inventory:
-    name: Clinical-Result Audit-Tx Inventory Gate
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v7.0.0
-
-      - name: Setup Go
-        uses: actions/setup-go@v6
-        with:
-          go-version: ${{ env.GO_VERSION }}
-          cache-dependency-path: backend/go.sum
-
-      - name: Run clinical-result audit-tx inventory gate
-        working-directory: backend
-        run: go test ./internal/repository/ -run TestClinicalResultAuditTxInventory -count=1
-
-  # ──────────────────────────────────────────────
-  # Migration CASCADE inventory gate: backend/migrations/*.sql の "ON DELETE CASCADE" 出現数を
-  # ファイル単位でピンし、未レビューの新規 CASCADE 混入を検出する（BE-refactor.md R3-1・D9 P0）。
-  # migrations/CLAUDE.md の「CASCADE DELETE 禁止」原則を、新規 migration に対して機械強制する
-  # （既存の 001_init.sql/010 の正当な CASCADE は allowlist でピン留め済み）。
-  # DB 不要・純静的検査。backend job は PR→main でスキップされるため、独立 job で全イベント
-  # 無条件に走らせ pre-merge で必ずブロックする。
-  # ──────────────────────────────────────────────
-  migration-cascade-inventory:
-    name: Migration CASCADE Inventory Gate
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v7.0.0
-
-      - name: Setup Go
-        uses: actions/setup-go@v6
-        with:
-          go-version: ${{ env.GO_VERSION }}
-          cache-dependency-path: backend/go.sum
-
-      - name: Run migration CASCADE inventory gate
-        working-directory: backend
-        run: go test ./internal/repository/ -run TestMigrationCascadeInventory -count=1
-
-  # ──────────────────────────────────────────────
-  # OpenAPI date-format drift gate: docs/api.yaml の `format: date`（日付のみ）宣言と handler の
-  # response 構造体の time.Time/*time.Time フィールド（datetime wire）の乖離を検出する
-  # （BE-refactor.md R3-3・D9 P1）。既存 drift 22 箇所は allowlist で固定し、新規 drift・出現数変化・
-  # stale エントリで fail する。独立 package(internal/apicontract)が openapi + handler ソースを
-  # os.ReadFile+go/ast で読むため handler/service test package の compile 状態に依存しない。
-  # DB 不要・純静的検査。backend job は PR→main でスキップされるため独立 job で全イベント無条件。
-  # ──────────────────────────────────────────────
-  openapi-date-format-drift:
-    name: OpenAPI Date-Format Drift Gate
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v7.0.0
-
-      - name: Setup Go
-        uses: actions/setup-go@v6
-        with:
-          go-version: ${{ env.GO_VERSION }}
-          cache-dependency-path: backend/go.sum
-
-      - name: Run OpenAPI date-format drift gate
-        working-directory: backend
-        run: go test ./internal/apicontract/ -run TestOpenAPIDateFormatDrift -count=1
-
-  # ──────────────────────────────────────────────
-  # dbOrTx inventory gate: ambient transaction に参加する（dbOrTx を使う）repository メソッド集合を
-  # 固定し、(1) 固定メソッドが dbOrTx をやめる=tx参加 regression（R1-1/R1-2 の部分コミット/TOCTOU 修正の
-  # 退行）、(2) 未登録の新規 dbOrTx メソッド追加（atomicity/isolation テスト添付のレビュー強制）を検出する。
-  # 「WithTx 内で呼ばれるのに dbOrTx 未使用」の検出は taint 解析が必要で go/ast 単体では不可のため対象外
-  # （各 tx フローの atomicity テストが正本ガード）。DB 不要・純静的検査・全イベント無条件。
-  # ──────────────────────────────────────────────
-  dbortx-inventory:
-    name: dbOrTx Inventory Gate
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v7.0.0
-
-      - name: Setup Go
-        uses: actions/setup-go@v6
-        with:
-          go-version: ${{ env.GO_VERSION }}
-          cache-dependency-path: backend/go.sum
-
-      - name: Run dbOrTx inventory gate
-        working-directory: backend
-        run: go test ./internal/repository/ -run TestDBOrTxInventory -count=1
-
-  # ──────────────────────────────────────────────
   # Backend: build + test + schema check
-  # （golangci-lint はローカル必須: make lint / make ci-local。CI ゲートから外す）
+  # （golangci-lint / inventory はローカル必須: make ci）
   # ──────────────────────────────────────────────
   backend:
     name: Backend
@@ -414,15 +164,9 @@ jobs:
         # -coverpkg=./internal/... で internal/* のみを計測対象とし、cmd/,
         # lstep-migrate/, seed-old-db/(archived), stage-import/, migrations/ 等のエントリポイント・
         # インフラパッケージを除外する。除外ポリシー/ロードマップ: docs/ops/coverage-policy.md
-        # -timeout 900s: internal/repository は _test.go ファイル急増（33→130、b69932eb）で
-        # 旧 120s はもとより 450s でも実CI(run 28650708439)で test timed out。旧CI基準
-        # (33ファイル/69.9s, run e9687c98) からの単純比例なら130ファイルで約276sの想定に対し、
-        # 実CIは450sでも未完走（アルファベット順で TestReservationTypeGroupRepository_ 付近まで
-        # 進行）——非線形の速度劣化を示唆。ローカル -race 実測245.867s完走との乖離も大きいため、
-        # 憶測を重ねず十分な余裕(実測450s未達の2倍)を確保する。恒久対策は setupTestDB の
-        # セットアップコスト削減/パッケージ分割が別途必要（PR #186 timeout調査参照）。
+        # -timeout 900s: internal/repository は _test.go 急増で長時間化（PR #186 timeout調査参照）。
         # -p 1: 共有 ekarte_db_test への package 並列アクセスを禁止（repository/CLAUDE.md）。
-        # Makefile ci-local / test と揃える。
+        # Makefile ci と揃える。
         run: go test ./... -count=1 -race -covermode=atomic -coverprofile=coverage.out -coverpkg=./internal/... -timeout 900s -p 1
 
       - name: Coverage summary (non-gating, baseline visibility)
@@ -445,12 +189,8 @@ jobs:
           fi
 
       # BE-refactor.md R3-5 / bug.md H-7 / coverage-policy.md Phase 1: カバレッジ ratchet。
-      # .coverage-baseline は 2026-07-03 の CI 実測（run 28655388836 / commit 80e0648a）で 89.9% に
-      # arm 済み。baseline > 0 のため evaluateRatchet が tolerance（既定 0.5pp）を超える低下を検出すると
-      # 非0 exit する。continue-on-error を外し -warn-only も外しているため、低下時はこのステップ自体が
-      # 失敗し Backend Test job 全体を fail させる（Phase 1 の非ゲート運用から fail ゲートへ昇格）。
-      # coverage-summary.txt が無い場合（テスト自体が失敗しプロファイリング未完了）はスキップする —
-      # その場合は先行の Test ステップの失敗がジョブを落とす。
+      # baseline > 0 のため evaluateRatchet が tolerance（既定 0.5pp）を超える低下を検出すると
+      # 非0 exit する。coverage-summary.txt が無い場合（テスト自体が失敗）はスキップ。
       - name: Coverage ratchet
         if: always()
         working-directory: backend
@@ -486,7 +226,7 @@ jobs:
 
   # ──────────────────────────────────────────────
   # Frontend: build + test（STG 退行検知）
-  # type-check / ESLint / knip はローカル必須: make lint-front / make ci-local
+  # type-check / ESLint / knip / design CTA はローカル必須: make ci
   # ──────────────────────────────────────────────
   frontend:
     name: Frontend
@@ -533,17 +273,11 @@ jobs:
             fi
           fi
 
-      # type-check / ESLint / knip は CI 必須ゲートから外し、ローカル make lint-front に寄せた
-      # （STG 保護の薄いゲート = build + test + design CTA。静的 lint は開発者手元で再現）。
+      # 静的 lint / design CTA は CI 必須ゲートから外し make ci に寄せた
+      # （STG 保護の薄いゲート = build + test + coverage ratchet）。
       - name: Build
         working-directory: frontend
         run: pnpm run build
-
-      - name: Design primary CTA guard (accent reintroduction)
-        run: node scripts/check-design-primary-cta.mjs
-
-      - name: Self-test design primary CTA guard
-        run: bash scripts/check-design-primary-cta.test.sh
 
       # 非ゲートのカバレッジ可視化: vite.config.ts には coverage.thresholds 未設定のため、
       # --coverage はレポート生成のみで低カバレッジによる fail は起きない。テストの合否は従来どおり。
@@ -551,9 +285,7 @@ jobs:
         working-directory: frontend
         run: pnpm run test:coverage
 
-      # FE-refactor.md R-F5 / coverage-policy.md Phase 1: カバレッジ ratchet（backend cmd/coverage-ratchet と対）。
-      # .coverage-baseline が未記録（0）の間は warn のみで exit 0。実測値は本 PR merge 後の CI run の
-      # frontend-coverage artifact から取得し、別コミットで .coverage-baseline に転記する。
+      # FE-refactor.md R-F5 / coverage-policy.md Phase 1: カバレッジ ratchet。
       # Build は本ステップより前に実行済みのため、ratchet が fail しても Build 退行はマスクされない
       # （backend job の Build→Test→ratchet と同じ順序。feedback_ci_step_order_masks_lint 対策）。
       - name: Coverage ratchet

@@ -234,7 +234,7 @@ repository テストは既定で物理 DB `ekarte_db_test` をプロセス内共
 - **複数プロセスでの並列実行を禁止**: 同じ `ekarte_db_test` に対して同時に
   `go test ./internal/repository/...` を走らせない（別ターミナル・CI job の並行・高い `-p` で
   他パッケージが同じ test DB を触る場合も不可）。TRUNCATE/スキーマ整備が衝突しフレークする。
-- **機械ガード**: Makefile `test` / `test-cover` / `ci-local` と CI Backend Test は `-p 1` を付与し、
+- **機械ガード**: Makefile `test` / `test-cover` / `ci` と CI Backend Test は `-p 1` を付与し、
   docker-compose `GOFLAGS=-p=4` を上書きする。repository 単独は `make test-repository`（`-p 1`）。
   別ターミナル同時実行まではロックしない（プロセス横断は運用禁止のまま）。
 - スキーマ破壊（`DROP TABLE`/`DROP TYPE` → 再作成）は下記 `setupIsolatedTestDB` を使う。

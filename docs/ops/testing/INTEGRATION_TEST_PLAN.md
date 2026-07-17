@@ -24,7 +24,7 @@
 ### 2.2 API 統合テスト (API Integration)
 - **目的**: 実際の DB 接続を伴い、トランザクションや外部キー制約、認可ミドルウェアの連動を確認。CI（`.github/workflows/ci.yml`）の Backend job が PostgreSQL サービスコンテナ + 全マイグレーション適用の上で実行する。
 - **重点項目**: クリニック間でのデータリーク防止、一括保存時の不整合回避。
-- **補助ゲート**: CI には clinic_id 隔離 lint（Preload clinic-scope）・master-FK write / audit-tx / CASCADE / dbOrTx の各 inventory gate・docs-symbol-drift 等の静的検査 job が独立して常時実行され、pre-merge でブロックする。
+- **補助ゲート**: clinic_id 隔離 lint（Preload clinic-scope）・master-FK write / audit-tx / CASCADE / dbOrTx の各 inventory gate・docs-symbol-drift 等の静的検査は **ローカル `make ci`** で実行する（リモート CI は build/test/gitleaks 等の薄いゲート。詳細: docs/ops/ci-policy.md）。
 
 ### 2.3 E2E システムテスト (End-to-End)
 - **ツール**: Playwright によるブラウザ自動操作（`frontend/e2e/` 配下の spec 群。設定は `frontend/playwright.config.ts`）。

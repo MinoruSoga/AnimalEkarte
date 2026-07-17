@@ -243,10 +243,10 @@ make verify-old-db-seed
 - `make seed-old-db` は DB の drop/recreate を行わない。スキーマ変更は `make reset` で行う。
 - 全エントリが loaded/skipped になれば成功（error が 1 件でもあれば非ゼロ終了）。
 - `make reset` の `up --wait` wait-set 契約は `scripts/check-reset-wait-services.sh` が静的に検証する。
-  `make check-reset-contract`（および `ci-local` 先頭ステップ・CI の Reset Wait-Set Contract ジョブ）で
+  `make check-reset-contract`（および `make ci` 先頭ステップ）で
   自動実行されるため、one-shot codegen 混入や裸 `up --wait` への退行は手動確認なしで検出される。
   契約チェック自体の回帰テストは `make check-reset-contract-test` で実行できる。
-- `scripts/*.sh` の lint は `make shellcheck`（`ci-local` の [2/9] ステップ・CI の ShellCheck Scripts ジョブ）で
+- `scripts/*.sh` の lint は `make shellcheck`（`make ci` の ShellCheck ステップ）で
   shellcheck により**自動**実行される。シェルスクリプトのレビューは手動目視ではなく、整形・行継続トリックで
   欺けない AST 検査でゲートされる（`make reset` 等の運用スクリプトの退行は merge 前に reject される）。
   ゲート自体の回帰テストは `make shellcheck-test` で実行できる。shellcheck がローカルに無い場合は
