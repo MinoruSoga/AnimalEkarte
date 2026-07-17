@@ -63,9 +63,11 @@ func setupMedicineDoseParamSchema(db *gorm.DB) error {
 		return fmt.Errorf("failed to drop medicine_dose_params: %w", err)
 	}
 	// medicines は calculation_type に DEFAULT 'none' があるため AutoMigrate の ADD NOT NULL は残存行でも成功する。
+	// DROP 直後なので ensureAutoMigrated は使わない（キャッシュ済み型だと DROP 後の再 CREATE が抑止される）。
 	if err := db.AutoMigrate(&model.Medicine{}, &model.MedicineDoseParam{}); err != nil {
 		return fmt.Errorf("failed to migrate medicine dose param schema: %w", err)
 	}
+	markAutoMigrated(&model.Medicine{}, &model.MedicineDoseParam{})
 	return nil
 }
 

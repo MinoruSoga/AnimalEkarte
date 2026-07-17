@@ -30,7 +30,7 @@ func setupReservationStaffCapabilityPreloadTestDB(t *testing.T) *gorm.DB {
 	// staffs.staff_type・reservation_types.category 列が消える。AutoMigrate で再整備する。
 	// companies・clinics（seedClinicsForFK の FK 親）と staff_clinic_assignments（下の TRUNCATE 対象）も
 	// 明示作成する。fresh DB（CI）ではこれらを AutoMigrate しないと存在せず TRUNCATE / seed が失敗する。
-	require.NoError(t, db.AutoMigrate(
+	require.NoError(t, ensureAutoMigrated(db, 
 		&model.Company{}, &model.Clinic{}, &model.Staff{}, &model.ReservationType{},
 		&model.StaffReservationCapability{}, &model.StaffClinicAssignment{},
 	))

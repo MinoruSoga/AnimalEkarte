@@ -28,7 +28,7 @@ import (
 func setupLstepTriggerPriorityTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
 	db := setupTestDB(t)
-	require.NoError(t, db.AutoMigrate(&model.LstepTriggerPriority{}))
+	require.NoError(t, ensureAutoMigrated(db, &model.LstepTriggerPriority{}))
 	db.Exec("TRUNCATE TABLE lstep_trigger_priorities CASCADE")
 	return db
 }

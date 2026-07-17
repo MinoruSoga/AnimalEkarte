@@ -24,7 +24,7 @@ import (
 func setupLineLinkTokenTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
 	db := setupTestDB(t)
-	require.NoError(t, db.AutoMigrate(&model.LineLinkToken{}))
+	require.NoError(t, ensureAutoMigrated(db, &model.LineLinkToken{}))
 	db.Exec("TRUNCATE TABLE line_link_tokens CASCADE")
 	return db
 }

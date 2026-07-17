@@ -26,7 +26,7 @@ import (
 func setupLstepCsvImportTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
 	db := setupTestDB(t)
-	require.NoError(t, db.AutoMigrate(&model.LstepCsvImport{}))
+	require.NoError(t, ensureAutoMigrated(db, &model.LstepCsvImport{}))
 	db.Exec("TRUNCATE TABLE lstep_csv_imports CASCADE")
 	return db
 }

@@ -31,7 +31,7 @@ func makeExamRec(t *testing.T, db *gorm.DB, clinicID, petID, examTypeID uint64) 
 
 func TestExaminationRepository_FindByID_ExaminationTypePreloadClinicIsolation(t *testing.T) {
 	db := setupTestDB(t)
-	require.NoError(t, db.AutoMigrate(&model.AnimalSpecies{}, &model.Pet{}, &model.ExaminationType{}, &model.Examination{}, &model.ExamResult{}))
+	require.NoError(t, ensureAutoMigrated(db, &model.AnimalSpecies{}, &model.Pet{}, &model.ExaminationType{}, &model.Examination{}, &model.ExamResult{}))
 	db.Exec("TRUNCATE TABLE exam_results CASCADE")
 	db.Exec("TRUNCATE TABLE exams CASCADE")
 	db.Exec("TRUNCATE TABLE exam_types CASCADE")
@@ -99,7 +99,7 @@ func TestReservationRepository_FindAllByCategory_ReservationTypePreloadClinicIso
 	db.Exec("TRUNCATE TABLE appointment_trimming_details CASCADE")
 	db.Exec("TRUNCATE TABLE appointments CASCADE")
 	db.Exec("TRUNCATE TABLE reservation_types CASCADE")
-	require.NoError(t, db.AutoMigrate(
+	require.NoError(t, ensureAutoMigrated(db, 
 		&model.ReservationType{}, &model.Reservation{},
 		&model.TrimmingCourse{}, &model.TrimmingOption{},
 		&model.AppointmentTrimmingDetail{}, &model.AppointmentTrimmingOption{},

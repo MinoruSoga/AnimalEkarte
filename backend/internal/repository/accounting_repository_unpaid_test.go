@@ -24,7 +24,7 @@ func setupUnpaidCarryoverTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
 	db := setupTestDB(t)
 	// billings はすでに setupTestDB で truncate 済みなので CASCADE 安全
-	if err := db.AutoMigrate(&model.AnimalSpecies{}, &model.Pet{}); err != nil {
+	if err := ensureAutoMigrated(db, &model.AnimalSpecies{}, &model.Pet{}); err != nil {
 		t.Fatalf("failed to migrate animal_species/pets: %v", err)
 	}
 	db.Exec("TRUNCATE TABLE pets CASCADE")

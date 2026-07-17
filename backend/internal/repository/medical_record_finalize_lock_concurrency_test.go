@@ -44,7 +44,7 @@ import (
 // 完了することを検証する。
 func TestMedicalRecordRepository_LockByIDForUpdate_SerializesFinalizeAgainstChildWrite(t *testing.T) {
 	db := setupTestDB(t)
-	require.NoError(t, db.AutoMigrate(&model.AnimalSpecies{}, &model.Pet{}))
+	require.NoError(t, ensureAutoMigrated(db, &model.AnimalSpecies{}, &model.Pet{}))
 
 	const clinicID = uint64(90101)
 	owner := makeTestOwner(t, db, clinicID, "X-11 太郎")
@@ -126,7 +126,7 @@ func TestMedicalRecordRepository_LockByIDForUpdate_SerializesFinalizeAgainstChil
 // （旧・check-then-act のみの failure mode が再現しないことの確認）。
 func TestMedicalRecordRepository_LockByIDForUpdate_ChildWriteRejectedAfterFinalizeCommits(t *testing.T) {
 	db := setupTestDB(t)
-	require.NoError(t, db.AutoMigrate(&model.AnimalSpecies{}, &model.Pet{}))
+	require.NoError(t, ensureAutoMigrated(db, &model.AnimalSpecies{}, &model.Pet{}))
 
 	const clinicID = uint64(90102)
 	owner := makeTestOwner(t, db, clinicID, "X-11 花子")
@@ -174,7 +174,7 @@ func TestMedicalRecordRepository_LockByIDForUpdate_ChildWriteRejectedAfterFinali
 // （treatment_service.go Delete の repo-swap tx を模する）。
 func TestMedicalRecordRepository_LockByIDForUpdate_TreatmentDeleteRejectedAfterFinalizeCommits(t *testing.T) {
 	db := setupTestDB(t)
-	require.NoError(t, db.AutoMigrate(&model.AnimalSpecies{}, &model.Pet{}))
+	require.NoError(t, ensureAutoMigrated(db, &model.AnimalSpecies{}, &model.Pet{}))
 
 	const clinicID = uint64(90103)
 	owner := makeTestOwner(t, db, clinicID, "H-8f 太郎")
@@ -225,7 +225,7 @@ func TestMedicalRecordRepository_LockByIDForUpdate_TreatmentDeleteRejectedAfterF
 // （treatment_service.go BulkUpdateSortOrder の repo-swap tx を模する）。
 func TestMedicalRecordRepository_LockByIDForUpdate_TreatmentBulkSortOrderRejectedAfterFinalizeCommits(t *testing.T) {
 	db := setupTestDB(t)
-	require.NoError(t, db.AutoMigrate(&model.AnimalSpecies{}, &model.Pet{}))
+	require.NoError(t, ensureAutoMigrated(db, &model.AnimalSpecies{}, &model.Pet{}))
 
 	const clinicID = uint64(90104)
 	owner := makeTestOwner(t, db, clinicID, "H-8f 花子")

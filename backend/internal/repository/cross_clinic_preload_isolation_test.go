@@ -44,7 +44,7 @@ func setupInsurancePreloadTestDB(t *testing.T) *gorm.DB {
 	db.Exec("TRUNCATE TABLE insurances CASCADE")
 	db.Exec("TRUNCATE TABLE pets CASCADE")
 	db.Exec("TRUNCATE TABLE animal_species CASCADE")
-	require.NoError(t, db.AutoMigrate(&model.AnimalSpecies{}, &model.Pet{}, &model.Insurance{}))
+	require.NoError(t, ensureAutoMigrated(db, &model.AnimalSpecies{}, &model.Pet{}, &model.Insurance{}))
 	return db
 }
 
@@ -124,7 +124,7 @@ func TestReservationRepository_ReservationType_CrossClinicPreloadIsolation(t *te
 	db.Exec("TRUNCATE TABLE appointments CASCADE")
 	db.Exec("TRUNCATE TABLE reservation_types CASCADE")
 	db.Exec("TRUNCATE TABLE reservation_type_groups CASCADE")
-	require.NoError(t, db.AutoMigrate(&model.ReservationTypeGroup{}, &model.ReservationType{}, &model.Reservation{}))
+	require.NoError(t, ensureAutoMigrated(db, &model.ReservationTypeGroup{}, &model.ReservationType{}, &model.Reservation{}))
 	repo := NewReservationRepository(db)
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)

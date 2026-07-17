@@ -27,7 +27,7 @@ import (
 func setupCashRegisterCloseTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
 	db := setupTestDB(t)
-	require.NoError(t, db.AutoMigrate(&model.Staff{}, &model.CashRegisterClose{}))
+	require.NoError(t, ensureAutoMigrated(db, &model.Staff{}, &model.CashRegisterClose{}))
 	db.Exec("TRUNCATE TABLE cash_register_closes CASCADE")
 	db.Exec("TRUNCATE TABLE staffs CASCADE")
 	return db

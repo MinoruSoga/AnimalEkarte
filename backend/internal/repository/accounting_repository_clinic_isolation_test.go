@@ -33,7 +33,7 @@ import (
 func setupAccountingIsolationTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
 	db := setupTestDB(t)
-	require.NoError(t, db.AutoMigrate(&model.BillingItem{}, &model.PaymentSplit{}))
+	require.NoError(t, ensureAutoMigrated(db, &model.BillingItem{}, &model.PaymentSplit{}))
 	return db
 }
 

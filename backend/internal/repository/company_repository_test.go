@@ -25,7 +25,7 @@ import (
 func setupCompanyTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
 	db := setupTestDB(t)
-	require.NoError(t, db.AutoMigrate(&model.Company{}))
+	require.NoError(t, ensureAutoMigrated(db, &model.Company{}))
 	db.Exec("TRUNCATE TABLE companies CASCADE")
 	return db
 }

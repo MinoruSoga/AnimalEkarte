@@ -22,7 +22,7 @@ func setupReservationTypePreloadTestDB(t *testing.T) *gorm.DB {
 	db := setupTestDB(t)
 	// setupTestDB が reservation_type_category ENUM を DROP CASCADE するため category 列が消える。
 	// AutoMigrate で列・テーブルを再整備する。
-	require.NoError(t, db.AutoMigrate(&model.ReservationTypeGroup{}, &model.ReservationType{}))
+	require.NoError(t, ensureAutoMigrated(db, &model.ReservationTypeGroup{}, &model.ReservationType{}))
 	db.Exec("TRUNCATE TABLE reservation_types CASCADE")
 	db.Exec("TRUNCATE TABLE reservation_type_groups CASCADE")
 	return db

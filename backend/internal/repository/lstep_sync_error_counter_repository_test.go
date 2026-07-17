@@ -27,7 +27,7 @@ import (
 func setupLstepSyncErrorCounterTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
 	db := setupTestDB(t)
-	require.NoError(t, db.AutoMigrate(&model.LstepSyncErrorCounter{}))
+	require.NoError(t, ensureAutoMigrated(db, &model.LstepSyncErrorCounter{}))
 	db.Exec("TRUNCATE TABLE lstep_sync_error_counters CASCADE")
 	db.Exec(`CREATE UNIQUE INDEX IF NOT EXISTS ux_test_lstep_sync_error_counter_conflict
 		ON lstep_sync_error_counters (clinic_id, owner_id)`)

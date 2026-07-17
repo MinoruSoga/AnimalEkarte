@@ -27,7 +27,7 @@ import (
 func setupReservationAdminTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
 	db := setupTestDB(t)
-	require.NoError(t, db.AutoMigrate(
+	require.NoError(t, ensureAutoMigrated(db, 
 		&model.ReservationType{}, &model.Reservation{},
 		&model.AnimalSpecies{}, &model.Pet{}, &model.Staff{}, &model.LineCustomer{},
 	))

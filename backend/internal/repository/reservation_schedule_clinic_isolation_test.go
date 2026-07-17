@@ -29,7 +29,7 @@ func setupScheduleIsolationTestDB(t *testing.T) *gorm.DB {
 	db := setupTestDB(t)
 	// AutoMigrate より先にクリア（DROP TYPE CASCADE で列が消えた後の NULL 違反回避）
 	db.Exec("TRUNCATE TABLE shift_entries CASCADE")
-	require.NoError(t, db.AutoMigrate(&model.Staff{}, &model.ShiftEntry{}))
+	require.NoError(t, ensureAutoMigrated(db, &model.Staff{}, &model.ShiftEntry{}))
 	return db
 }
 

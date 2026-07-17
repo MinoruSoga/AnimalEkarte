@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"reflect"
 	"regexp"
 	"strings"
 	"sync"
@@ -25,13 +26,91 @@ import (
 // スキーマ内省クエリが呼び出し回数分積み上がり、repository テストスイート全体の支配的コストになる
 // （2026-07 計測: ローカル 191s → 本最適化後は setupTestDB 呼び出し側を一切変更せず短縮）。
 // TRUNCATE のみ setupTestDB 内で呼び出し毎に実行し、テスト間データ分離を維持する。
+//
+// ドメインテーブルの AutoMigrate も ensureAutoMigrated 経由でモデル型ごとに一度だけに抑える
+// （2026-07: 共有接続/ENUM 最適化後の残コストは per-helper AutoMigrate のカタログ内省）。
+// テスト間データ分離は各ヘルパーの TRUNCATE に依存する。package に t.Parallel() は無い。
+// DROP TABLE 後に再作成するパス（checkup_field_* 等）は ensureAutoMigrated を使わず生 AutoMigrate を残す。
 var (
 	sharedTestDB         *gorm.DB
 	sharedTestDBOnce     sync.Once
 	sharedTestDBErr      error
 	sharedTestSchemaOnce sync.Once
 	sharedTestSchemaErr  error
+	// autoMigratedTypes: ensureAutoMigrated 済みの *model 要素型（reflect.Type of non-pointer struct）。
+	autoMigratedTypes sync.Map
+	autoMigrateMu     sync.Mutex
 )
+
+// modelElemType は AutoMigrate 引数（通常 &model.X{}）からキャッシュキーとなる構造体型を返す。
+func modelElemType(m any) reflect.Type {
+	t := reflect.TypeOf(m)
+	for t != nil && t.Kind() == reflect.Ptr {
+		t = t.Elem()
+	}
+	return t
+}
+
+// ensureAutoMigrated は各モデル型についてプロセス全体で一度だけ db.AutoMigrate を実行する。
+// 既に migrate 済みの型はスキップし、GORM のスキーマ内省コストを削減する。
+// DROP TABLE 後の再作成には使わないこと（キャッシュが再 CREATE を抑止する）。
+func ensureAutoMigrated(db *gorm.DB, models ...any) error {
+	if len(models) == 0 {
+		return nil
+	}
+
+	// 高速パス: ロック前に全型が済みなら no-op
+	pending := make([]any, 0, len(models))
+	for _, m := range models {
+		t := modelElemType(m)
+		if t == nil {
+			continue
+		}
+		if _, ok := autoMigratedTypes.Load(t); ok {
+			continue
+		}
+		pending = append(pending, m)
+	}
+	if len(pending) == 0 {
+		return nil
+	}
+
+	autoMigrateMu.Lock()
+	defer autoMigrateMu.Unlock()
+
+	still := make([]any, 0, len(pending))
+	types := make([]reflect.Type, 0, len(pending))
+	for _, m := range pending {
+		t := modelElemType(m)
+		if t == nil {
+			continue
+		}
+		if _, ok := autoMigratedTypes.Load(t); ok {
+			continue
+		}
+		still = append(still, m)
+		types = append(types, t)
+	}
+	if len(still) == 0 {
+		return nil
+	}
+	if err := db.AutoMigrate(still...); err != nil {
+		return err
+	}
+	for _, t := range types {
+		autoMigratedTypes.Store(t, struct{}{})
+	}
+	return nil
+}
+
+// markAutoMigrated は setupSharedTestSchema 等で生 AutoMigrate した型をキャッシュに登録する。
+func markAutoMigrated(models ...any) {
+	for _, m := range models {
+		if t := modelElemType(m); t != nil {
+			autoMigratedTypes.Store(t, struct{}{})
+		}
+	}
+}
 
 // TestMain は internal/repository package の全テストで共有する DB 接続プールを管理する。
 // 個々のテストは接続を閉じず（sharedTestDBOnce で一度だけ確立・全テストで再利用）、プロセス終了時に
@@ -392,16 +471,18 @@ func setupSharedTestSchema(db *gorm.DB) error {
 		}
 	}
 
-	if err := db.AutoMigrate(
+	coreModels := []any{
 		&model.Owner{},
 		&model.MedicalRecord{},
 		&model.Billing{},
 		&model.Payment{},
 		&model.BillingRefund{},
 		&model.Treatment{},
-	); err != nil {
+	}
+	if err := db.AutoMigrate(coreModels...); err != nil {
 		return fmt.Errorf("failed to migrate test db: %w", err)
 	}
+	markAutoMigrated(coreModels...)
 	return nil
 }
 

@@ -28,7 +28,7 @@ import (
 func setupSharedFileTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
 	db := setupTestDB(t)
-	require.NoError(t, db.AutoMigrate(&model.SharedFile{}))
+	require.NoError(t, ensureAutoMigrated(db, &model.SharedFile{}))
 	db.Exec("TRUNCATE TABLE shared_files CASCADE")
 	return db
 }

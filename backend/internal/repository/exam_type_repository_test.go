@@ -25,7 +25,7 @@ import (
 func setupExamTypeTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
 	db := setupTestDB(t)
-	require.NoError(t, db.AutoMigrate(&model.ExaminationType{}, &model.ExamTypeField{}, &model.Examination{}))
+	require.NoError(t, ensureAutoMigrated(db, &model.ExaminationType{}, &model.ExamTypeField{}, &model.Examination{}))
 	db.Exec("TRUNCATE TABLE exams CASCADE")
 	db.Exec("TRUNCATE TABLE exam_type_fields CASCADE")
 	db.Exec("TRUNCATE TABLE exam_types CASCADE")

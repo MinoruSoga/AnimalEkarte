@@ -28,7 +28,7 @@ import (
 func setupCarePlanItemTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
 	db := setupTestDB(t)
-	require.NoError(t, db.AutoMigrate(
+	require.NoError(t, ensureAutoMigrated(db, 
 		&model.AnimalSpecies{},
 		&model.Pet{},
 		&model.Hospitalization{},

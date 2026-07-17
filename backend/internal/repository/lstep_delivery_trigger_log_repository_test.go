@@ -28,7 +28,7 @@ import (
 func setupLstepDeliveryTriggerLogTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
 	db := setupTestDB(t)
-	require.NoError(t, db.AutoMigrate(&model.LstepDeliveryTriggerLog{}))
+	require.NoError(t, ensureAutoMigrated(db, &model.LstepDeliveryTriggerLog{}))
 	db.Exec("TRUNCATE TABLE lstep_delivery_trigger_log CASCADE")
 	return db
 }
@@ -354,7 +354,7 @@ func TestLstepDeliveryTriggerLogRepository_CountByTypeAndStatus(t *testing.T) {
 // fired かつ非抑制ログを分母、期間内の有効カルテ存在を分子として来院転換率の元データを集計する不変条件を検証する。
 func TestLstepDeliveryTriggerLogRepository_CountVisitConversionsByType(t *testing.T) {
 	db := setupLstepDeliveryTriggerLogTestDB(t)
-	require.NoError(t, db.AutoMigrate(&model.Owner{}, &model.MedicalRecord{}))
+	require.NoError(t, ensureAutoMigrated(db, &model.Owner{}, &model.MedicalRecord{}))
 	repo := NewLstepDeliveryTriggerLogRepository(db)
 	ctx := context.Background()
 

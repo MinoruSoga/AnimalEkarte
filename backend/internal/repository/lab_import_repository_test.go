@@ -44,7 +44,7 @@ func setupLabImportTestDB(t *testing.T) *gorm.DB {
 	} {
 		require.NoError(t, db.Exec(stmt).Error)
 	}
-	require.NoError(t, db.AutoMigrate(
+	require.NoError(t, ensureAutoMigrated(db, 
 		&model.LabImportJob{}, &model.LabImportEvent{},
 		&model.AnimalSpecies{}, &model.Pet{}, &model.ExaminationType{}, &model.Examination{},
 	))

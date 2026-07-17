@@ -18,7 +18,7 @@ import (
 
 // setupClinicSettingsTestDB は clinic_settings_repository のテスト用に DB を整備する。
 //
-// FIXED (2026-07-13, Issue #212 → #236 BUG#3): 元々 db.AutoMigrate(&model.ClinicSettings{}) が
+// FIXED (2026-07-13, Issue #212 → #236 BUG#3): 元々 ensureAutoMigrated(db, &model.ClinicSettings{}) が
 // "invalid input syntax for type timestamp with time zone: 14:00" (SQLSTATE 22007) で失敗し
 // 全7テストが t.Skip されていた（GORM の AutoMigrate が gorm:"type:time" タグを無視し timestamptz
 // として CREATE TABLE を生成する既知の相性問題）。プロダクションコード（model/migration）を変更せず、
@@ -34,7 +34,7 @@ import (
 func setupClinicSettingsTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
 	db := setupTestDB(t)
-	require.NoError(t, db.AutoMigrate(&model.Company{}, &model.Clinic{}))
+	require.NoError(t, ensureAutoMigrated(db, &model.Company{}, &model.Clinic{}))
 	ensureClinicSettingsTable(t, db)
 	db.Exec("TRUNCATE TABLE clinic_settings CASCADE")
 	return db

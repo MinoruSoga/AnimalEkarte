@@ -31,7 +31,7 @@ import (
 func setupShiftEntryTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
 	db := setupTestDB(t)
-	require.NoError(t, db.AutoMigrate(&model.Staff{}, &model.ShiftEntry{}, &model.ShiftEntryBreak{}))
+	require.NoError(t, ensureAutoMigrated(db, &model.Staff{}, &model.ShiftEntry{}, &model.ShiftEntryBreak{}))
 	// shift_entry_breaks.break_start/break_end can be left as "timestamp with time zone" in a
 	// pre-existing ekarte_db_test if the table was ever created before model.ShiftEntryBreak's
 	// `gorm:"type:time"` tag existed — AutoMigrate never ALTERs an existing column's type, only

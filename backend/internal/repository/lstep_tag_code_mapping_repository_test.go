@@ -24,7 +24,7 @@ import (
 func setupLstepTagCodeMappingTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
 	db := setupTestDB(t)
-	require.NoError(t, db.AutoMigrate(&model.LstepTagCodeMapping{}))
+	require.NoError(t, ensureAutoMigrated(db, &model.LstepTagCodeMapping{}))
 	db.Exec("TRUNCATE TABLE lstep_tag_code_mappings CASCADE")
 	return db
 }

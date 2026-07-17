@@ -28,7 +28,7 @@ import (
 func setupTreatmentPlanTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
 	db := setupTestDB(t)
-	require.NoError(t, db.AutoMigrate(&model.AnimalSpecies{}, &model.Pet{}, &model.Hospitalization{}, &model.TreatmentPlan{}))
+	require.NoError(t, ensureAutoMigrated(db, &model.AnimalSpecies{}, &model.Pet{}, &model.Hospitalization{}, &model.TreatmentPlan{}))
 	db.Exec("TRUNCATE TABLE treatment_plans CASCADE")
 	db.Exec("TRUNCATE TABLE hospitalizations CASCADE")
 	db.Exec("TRUNCATE TABLE pets CASCADE")

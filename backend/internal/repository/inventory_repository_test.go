@@ -28,7 +28,7 @@ import (
 func setupInventoryTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
 	db := setupTestDB(t)
-	require.NoError(t, db.AutoMigrate(
+	require.NoError(t, ensureAutoMigrated(db, 
 		&model.Owner{}, &model.AnimalSpecies{}, &model.Pet{},
 		&model.InventoryItem{}, &model.Treatment{}, &model.Vaccine{}, &model.Medicine{},
 	))

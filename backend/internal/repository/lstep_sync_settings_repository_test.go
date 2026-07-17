@@ -27,7 +27,7 @@ import (
 func setupLstepSyncSettingsTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
 	db := setupTestDB(t)
-	require.NoError(t, db.AutoMigrate(&model.LstepSettings{}))
+	require.NoError(t, ensureAutoMigrated(db, &model.LstepSettings{}))
 	db.Exec("TRUNCATE TABLE lstep_settings CASCADE")
 	return db
 }

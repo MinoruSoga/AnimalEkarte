@@ -28,7 +28,7 @@ func setupReservationTypeOccupationTestDB(t *testing.T) *gorm.DB {
 	db := setupTestDB(t)
 	db.Exec("TRUNCATE TABLE shift_entries CASCADE")
 	db.Exec("TRUNCATE TABLE reservation_types CASCADE")
-	require.NoError(t, db.AutoMigrate(
+	require.NoError(t, ensureAutoMigrated(db, 
 		&model.Occupation{}, &model.Staff{}, &model.ShiftEntry{},
 		&model.ReservationType{}, &model.ReservationTypeOccupation{},
 	))

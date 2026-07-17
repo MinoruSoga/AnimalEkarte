@@ -26,7 +26,7 @@ import (
 func setupVaccineRepositoryTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
 	db := setupTestDB(t)
-	require.NoError(t, db.AutoMigrate(
+	require.NoError(t, ensureAutoMigrated(db, 
 		&model.Vaccine{}, &model.AnimalSpecies{}, &model.Owner{}, &model.Pet{}, &model.Vaccination{},
 	))
 	db.Exec("TRUNCATE TABLE vaccinations CASCADE")

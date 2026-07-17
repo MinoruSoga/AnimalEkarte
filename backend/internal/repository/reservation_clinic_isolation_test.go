@@ -31,7 +31,7 @@ func setupReservationIsolationTestDB(t *testing.T) *gorm.DB {
 	db := setupTestDB(t)
 	// setupTestDB が DROP TYPE ... reservation_type_category CASCADE を実行するため
 	// reservation_types.category 列が消える。AutoMigrate で列を再追加する。
-	require.NoError(t, db.AutoMigrate(&model.ReservationType{}, &model.Reservation{}))
+	require.NoError(t, ensureAutoMigrated(db, &model.ReservationType{}, &model.Reservation{}))
 	// reservation_types CASCADE により fk_appointments_reservation_type 経由で
 	// appointments も連鎖クリアされる。
 	db.Exec("TRUNCATE TABLE reservation_types CASCADE")

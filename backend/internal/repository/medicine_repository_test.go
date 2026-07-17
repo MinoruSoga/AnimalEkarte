@@ -24,7 +24,7 @@ import (
 func setupMedicineRepositoryTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
 	db := setupTestDB(t)
-	require.NoError(t, db.AutoMigrate(&model.Medicine{}))
+	require.NoError(t, ensureAutoMigrated(db, &model.Medicine{}))
 	db.Exec("TRUNCATE TABLE medicines CASCADE")
 	return db
 }
@@ -266,7 +266,7 @@ func TestMedicineRepository_CountUsageByMedicineID_TreatmentUsage(t *testing.T) 
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 
-	require.NoError(t, db.AutoMigrate(&model.MedicalRecord{}, &model.Treatment{}))
+	require.NoError(t, ensureAutoMigrated(db, &model.MedicalRecord{}, &model.Treatment{}))
 
 	medA := makeMedicine(t, db, clinicA, "使用中薬剤")
 

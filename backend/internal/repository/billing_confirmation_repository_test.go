@@ -24,7 +24,7 @@ import (
 func setupBillingConfirmationTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
 	db := setupTestDB(t)
-	require.NoError(t, db.AutoMigrate(&model.Staff{}, &model.BillingConfirmation{}))
+	require.NoError(t, ensureAutoMigrated(db, &model.Staff{}, &model.BillingConfirmation{}))
 	db.Exec("TRUNCATE TABLE billing_confirmations CASCADE")
 	db.Exec("TRUNCATE TABLE staffs CASCADE")
 	return db

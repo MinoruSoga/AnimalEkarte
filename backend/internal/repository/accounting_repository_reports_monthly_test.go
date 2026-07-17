@@ -22,7 +22,7 @@ import (
 func setupMonthlyReportTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
 	db := setupAccountingIsolationTestDB(t)
-	require.NoError(t, db.AutoMigrate(&model.CashRegisterClose{}))
+	require.NoError(t, ensureAutoMigrated(db, &model.CashRegisterClose{}))
 	db.Exec("TRUNCATE TABLE cash_register_closes CASCADE")
 	return db
 }

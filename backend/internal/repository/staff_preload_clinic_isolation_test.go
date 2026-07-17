@@ -66,7 +66,7 @@ func TestReservationRepository_DoctorPreload_MultiClinicStaffIsolation(t *testin
 	db.Exec("TRUNCATE TABLE appointments CASCADE")
 	db.Exec("TRUNCATE TABLE staff_clinic_assignments CASCADE")
 	db.Exec("TRUNCATE TABLE reservation_types CASCADE")
-	require.NoError(t, db.AutoMigrate(&model.Company{}, &model.Clinic{}, &model.Staff{}, &model.StaffClinicAssignment{}, &model.ReservationType{}, &model.Reservation{}))
+	require.NoError(t, ensureAutoMigrated(db, &model.Company{}, &model.Clinic{}, &model.Staff{}, &model.StaffClinicAssignment{}, &model.ReservationType{}, &model.Reservation{}))
 	repo := NewReservationRepository(db)
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)

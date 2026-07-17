@@ -22,7 +22,7 @@ import (
 func setupInquiryTemplateTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
 	db := setupTestDB(t)
-	require.NoError(t, db.AutoMigrate(&model.InquiryTemplate{}))
+	require.NoError(t, ensureAutoMigrated(db, &model.InquiryTemplate{}))
 	db.Exec("TRUNCATE TABLE inquiry_templates CASCADE")
 	return db
 }

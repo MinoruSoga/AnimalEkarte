@@ -34,7 +34,7 @@ func makeMedicalRecordForPet(t *testing.T, db *gorm.DB, clinicID, petID uint64, 
 // 論理削除カルテ・別医院カルテ・別ペットのカルテは集計から除外する。捏造はしない（無ければ nil）。
 func TestMedicalRecordRepository_FindFirstVisitDateByPetID(t *testing.T) {
 	db := setupTestDB(t)
-	require.NoError(t, db.AutoMigrate(&model.AnimalSpecies{}, &model.Pet{}))
+	require.NoError(t, ensureAutoMigrated(db, &model.AnimalSpecies{}, &model.Pet{}))
 	// 共有テスト DB の他テスト残骸と混ざらないよう、FK 連鎖ごと初期化する。
 	db.Exec("TRUNCATE TABLE medical_records, pets, animal_species CASCADE")
 
@@ -97,7 +97,7 @@ func TestMedicalRecordRepository_FindFirstVisitDateByPetID(t *testing.T) {
 func setupMedicalRecordListTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
 	db := setupTestDB(t)
-	require.NoError(t, db.AutoMigrate(&model.AnimalSpecies{}, &model.Pet{}, &model.Staff{}, &model.Inquiry{}))
+	require.NoError(t, ensureAutoMigrated(db, &model.AnimalSpecies{}, &model.Pet{}, &model.Staff{}, &model.Inquiry{}))
 	db.Exec("TRUNCATE TABLE inquiries, medical_records, pets, animal_species, staffs CASCADE")
 	return db
 }

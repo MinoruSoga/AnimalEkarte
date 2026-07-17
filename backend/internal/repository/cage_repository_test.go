@@ -21,7 +21,7 @@ import (
 func setupCageRepositoryTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
 	db := setupTestDB(t)
-	require.NoError(t, db.AutoMigrate(
+	require.NoError(t, ensureAutoMigrated(db, 
 		&model.Cage{}, &model.AnimalSpecies{}, &model.Owner{}, &model.Pet{}, &model.Hospitalization{},
 	))
 	db.Exec("TRUNCATE TABLE hospitalizations CASCADE")

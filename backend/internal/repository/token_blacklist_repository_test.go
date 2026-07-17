@@ -31,7 +31,7 @@ import (
 func setupTokenBlacklistTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
 	db := setupTestDB(t)
-	require.NoError(t, db.AutoMigrate(&model.TokenBlacklist{}))
+	require.NoError(t, ensureAutoMigrated(db, &model.TokenBlacklist{}))
 	db.Exec("TRUNCATE TABLE token_blacklist CASCADE")
 	return db
 }

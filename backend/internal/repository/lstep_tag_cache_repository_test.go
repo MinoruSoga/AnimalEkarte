@@ -30,7 +30,7 @@ import (
 func setupLstepTagCacheTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
 	db := setupTestDB(t)
-	require.NoError(t, db.AutoMigrate(&model.LstepTagCache{}))
+	require.NoError(t, ensureAutoMigrated(db, &model.LstepTagCache{}))
 	db.Exec("TRUNCATE TABLE lstep_tag_cache CASCADE")
 	db.Exec(`CREATE UNIQUE INDEX IF NOT EXISTS ux_test_lstep_tag_cache_conflict
 		ON lstep_tag_cache (clinic_id, owner_id, tag_name)`)

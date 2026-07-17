@@ -23,7 +23,7 @@ import (
 func setupLineSendLogTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
 	db := setupTestDB(t)
-	require.NoError(t, db.AutoMigrate(&model.LineSendLog{}))
+	require.NoError(t, ensureAutoMigrated(db, &model.LineSendLog{}))
 	db.Exec("TRUNCATE TABLE line_send_logs CASCADE")
 	return db
 }

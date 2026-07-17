@@ -27,7 +27,7 @@ import (
 func setupAccountTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
 	db := setupTestDB(t)
-	require.NoError(t, db.AutoMigrate(&model.Account{}))
+	require.NoError(t, ensureAutoMigrated(db, &model.Account{}))
 	db.Exec("TRUNCATE TABLE accounts CASCADE")
 	return db
 }

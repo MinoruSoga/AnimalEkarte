@@ -11,7 +11,6 @@ import {
   MedicineRoundingModeNearest,
   MedicineRoundingModeUp,
   MedicineUnitPerDose,
-  MedicineUnitPerGram,
   MedicineUnitPerML,
   MedicineUnitPerTablet,
 } from "@/types/generated/models";

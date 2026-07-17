@@ -78,7 +78,7 @@ func TestHospitalizationRepository_FindAll_CagePreloadClinicIsolation(t *testing
 	db.Exec("TRUNCATE TABLE cages CASCADE")
 	db.Exec("TRUNCATE TABLE pets CASCADE")
 	db.Exec("TRUNCATE TABLE animal_species CASCADE")
-	require.NoError(t, db.AutoMigrate(&model.AnimalSpecies{}, &model.Pet{}, &model.Cage{}, &model.Hospitalization{}))
+	require.NoError(t, ensureAutoMigrated(db, &model.AnimalSpecies{}, &model.Pet{}, &model.Cage{}, &model.Hospitalization{}))
 	repo := NewHospitalizationRepository(db)
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
@@ -109,7 +109,7 @@ func TestHospitalizationRepository_FindAll_CagePreloadClinicIsolation(t *testing
 
 func TestCheckupRepository_FindByID_CheckupTypePreloadClinicIsolation(t *testing.T) {
 	db := setupTestDB(t)
-	require.NoError(t, db.AutoMigrate(&model.AnimalSpecies{}, &model.Pet{}, &model.CheckupType{}, &model.Checkup{}))
+	require.NoError(t, ensureAutoMigrated(db, &model.AnimalSpecies{}, &model.Pet{}, &model.CheckupType{}, &model.Checkup{}))
 	db.Exec("TRUNCATE TABLE checkups CASCADE")
 	db.Exec("TRUNCATE TABLE checkup_types CASCADE")
 	db.Exec("TRUNCATE TABLE medical_records CASCADE")
@@ -164,7 +164,7 @@ func TestCarePlanItemRepository_FindByID_MasterPreloadClinicIsolation(t *testing
 	db.Exec("TRUNCATE TABLE procedures CASCADE")
 	db.Exec("TRUNCATE TABLE pets CASCADE")
 	db.Exec("TRUNCATE TABLE animal_species CASCADE")
-	require.NoError(t, db.AutoMigrate(
+	require.NoError(t, ensureAutoMigrated(db, 
 		&model.AnimalSpecies{}, &model.Pet{}, &model.Cage{}, &model.Hospitalization{},
 		&model.Medicine{}, &model.Procedure{}, &model.CarePlanItem{},
 	))
@@ -197,7 +197,7 @@ func TestCarePlanItemRepository_FindByID_MasterPreloadClinicIsolation(t *testing
 
 func TestClinicalPlanRepository_FindByMedicalRecordID_DiagnosisPreloadClinicIsolation(t *testing.T) {
 	db := setupTestDB(t)
-	require.NoError(t, db.AutoMigrate(
+	require.NoError(t, ensureAutoMigrated(db, 
 		&model.AnimalSpecies{}, &model.Pet{}, &model.DiagnosisType{}, &model.DiagnosisName{}, &model.ClinicalPlan{},
 	))
 	db.Exec("TRUNCATE TABLE clinical_plans CASCADE")
@@ -234,7 +234,7 @@ func TestClinicalPlanRepository_FindByMedicalRecordID_DiagnosisPreloadClinicIsol
 
 func TestReservationAdminRepository_FindByIDForNotify_ReservationTypePreloadClinicIsolation(t *testing.T) {
 	db := setupTestDB(t)
-	require.NoError(t, db.AutoMigrate(&model.ReservationType{}, &model.Reservation{}))
+	require.NoError(t, ensureAutoMigrated(db, &model.ReservationType{}, &model.Reservation{}))
 	db.Exec("TRUNCATE TABLE reservations CASCADE")
 	db.Exec("TRUNCATE TABLE reservation_types CASCADE")
 	repo := NewReservationAdminRepository(db)
@@ -265,7 +265,7 @@ func TestReservationAdminRepository_FindByIDForNotify_ReservationTypePreloadClin
 
 func TestDiagnosisTypeRepository_FindAll_NamesPreloadClinicIsolation(t *testing.T) {
 	db := setupTestDB(t)
-	require.NoError(t, db.AutoMigrate(&model.DiagnosisType{}, &model.DiagnosisName{}))
+	require.NoError(t, ensureAutoMigrated(db, &model.DiagnosisType{}, &model.DiagnosisName{}))
 	db.Exec("TRUNCATE TABLE diagnosis_names CASCADE")
 	db.Exec("TRUNCATE TABLE diagnosis_types CASCADE")
 	repo := NewDiagnosisTypeRepository(db)

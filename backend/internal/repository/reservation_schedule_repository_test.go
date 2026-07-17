@@ -24,7 +24,7 @@ func setupReservationScheduleCRUDTestDB(t *testing.T) *gorm.DB {
 	db := setupTestDB(t)
 	// AutoMigrate より先にクリア（DROP TYPE CASCADE で shift_type 列が消えた後の NULL 違反回避）
 	db.Exec("TRUNCATE TABLE shift_entries CASCADE")
-	require.NoError(t, db.AutoMigrate(&model.Staff{}, &model.ShiftEntry{}, &model.ShiftEntryBreak{}))
+	require.NoError(t, ensureAutoMigrated(db, &model.Staff{}, &model.ShiftEntry{}, &model.ShiftEntryBreak{}))
 	// shift_entry_breaks.break_start/break_end can be left as "timestamp with time zone" in a
 	// pre-existing ekarte_db_test if the table was ever created before model.ShiftEntryBreak's
 	// `gorm:"type:time"` tag existed — AutoMigrate never ALTERs an existing column's type, only

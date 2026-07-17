@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { render, screen, within } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter, Routes, Route, useSearchParams } from "react-router";
@@ -7,7 +7,7 @@ import { MemoryRouter, Routes, Route, useSearchParams } from "react-router";
 import { AuthContext } from "@/contexts/auth-context";
 import type { AuthContextValue } from "@/types/auth";
 import type { Resource, ResourceAction } from "@/types/generated/models";
-import { ResourceVaccinations, ResourceMedicalRecords } from "@/types/generated/models";
+import { ResourceVaccinations } from "@/types/generated/models";
 
 import { OwnerReport } from "./OwnerReport";
 

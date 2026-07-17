@@ -20,7 +20,7 @@ import (
 func setupReservationTypeAvailableSlotTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
 	db := setupTestDB(t)
-	require.NoError(t, db.AutoMigrate(&model.ReservationType{}, &model.ReservationTypeAvailableSlot{}))
+	require.NoError(t, ensureAutoMigrated(db, &model.ReservationType{}, &model.ReservationTypeAvailableSlot{}))
 	db.Exec("TRUNCATE TABLE reservation_types CASCADE")
 	return db
 }

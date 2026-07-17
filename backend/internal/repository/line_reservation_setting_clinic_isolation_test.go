@@ -26,7 +26,7 @@ import (
 func setupLineSettingIsolationTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
 	db := setupTestDB(t)
-	require.NoError(t, db.AutoMigrate(&model.LineReservationSetting{}))
+	require.NoError(t, ensureAutoMigrated(db, &model.LineReservationSetting{}))
 	db.Exec("TRUNCATE TABLE line_reservation_settings CASCADE")
 	return db
 }

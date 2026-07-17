@@ -20,7 +20,7 @@ import (
 func setupEstimateRepoTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
 	db := setupTestDB(t)
-	require.NoError(t, db.AutoMigrate(&model.Estimate{}, &model.EstimateItem{}))
+	require.NoError(t, ensureAutoMigrated(db, &model.Estimate{}, &model.EstimateItem{}))
 	db.Exec("TRUNCATE TABLE estimate_items CASCADE")
 	db.Exec("TRUNCATE TABLE estimates CASCADE")
 	return db

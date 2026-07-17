@@ -25,7 +25,7 @@ import (
 func setupOwnerPetIsolationTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
 	db := setupTestDB(t)
-	require.NoError(t, db.AutoMigrate(&model.AnimalSpecies{}, &model.Pet{}, &model.Insurance{}))
+	require.NoError(t, ensureAutoMigrated(db, &model.AnimalSpecies{}, &model.Pet{}, &model.Insurance{}))
 	// setupTestDB の TRUNCATE owners CASCADE が pets を清掃するが、
 	// animal_species と insurances は個別に初期化する。
 	db.Exec("TRUNCATE TABLE insurances CASCADE")

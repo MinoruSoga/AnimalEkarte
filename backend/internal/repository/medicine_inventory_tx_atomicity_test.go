@@ -30,7 +30,7 @@ import (
 func setupMedicineInventoryTxTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
 	db := setupTestDB(t)
-	require.NoError(t, db.AutoMigrate(&model.Medicine{}, &model.InventoryItem{}))
+	require.NoError(t, ensureAutoMigrated(db, &model.Medicine{}, &model.InventoryItem{}))
 	db.Exec("TRUNCATE TABLE medicines CASCADE")
 	db.Exec("TRUNCATE TABLE inventory_items CASCADE")
 	return db

@@ -19,7 +19,7 @@ import (
 func setupTreatmentHistoryTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
 	db := setupTestDB(t)
-	if err := db.AutoMigrate(&model.AnimalSpecies{}, &model.Pet{}, &model.Procedure{}, &model.Treatment{}); err != nil {
+	if err := ensureAutoMigrated(db, &model.AnimalSpecies{}, &model.Pet{}, &model.Procedure{}, &model.Treatment{}); err != nil {
 		t.Fatalf("failed to migrate pets/treatments/procedures: %v", err)
 	}
 	db.Exec("TRUNCATE TABLE treatments CASCADE")
@@ -209,7 +209,7 @@ func TestTreatmentRepository_FindHistoryByPetID_ProcedureFilters(t *testing.T) {
 func setupTreatmentBillingTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
 	db := setupTreatmentHistoryTestDB(t)
-	require.NoError(t, db.AutoMigrate(&model.BillingConfirmation{}, &model.BillingItem{}))
+	require.NoError(t, ensureAutoMigrated(db, &model.BillingConfirmation{}, &model.BillingItem{}))
 	db.Exec("TRUNCATE TABLE billing_items CASCADE")
 	db.Exec("TRUNCATE TABLE billing_confirmations CASCADE")
 	return db

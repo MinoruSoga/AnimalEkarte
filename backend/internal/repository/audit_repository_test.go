@@ -21,7 +21,7 @@ import (
 
 // setupAuditTestDB は audit_logs テーブルを整備する（依存する他テーブルなし）。
 //
-// X-3 (audit-ip-inet-model-drift): 従来は db.AutoMigrate(&model.AuditLog{}) で
+// X-3 (audit-ip-inet-model-drift): 従来は ensureAutoMigrated(db, &model.AuditLog{}) で
 // audit_logs.ip_address(実DDL=inet) から `text` カラムを生成していたため、本番で発生する
 // `”::inet` の 22P02 エラーをこのテストスイートが検出できなかった。setupAuditRealDDLTestDB
 // （audit_real_ddl_test.go）に委譲し、001_init.sql の実 DDL でテーブルを再作成する。

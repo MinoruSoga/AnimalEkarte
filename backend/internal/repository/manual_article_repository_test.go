@@ -28,7 +28,7 @@ import (
 func setupManualArticleTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
 	db := setupTestDB(t)
-	require.NoError(t, db.AutoMigrate(&model.ManualArticle{}, &model.ManualArticleVersion{}))
+	require.NoError(t, ensureAutoMigrated(db, &model.ManualArticle{}, &model.ManualArticleVersion{}))
 	db.Exec("TRUNCATE TABLE manual_article_versions CASCADE")
 	db.Exec("TRUNCATE TABLE manual_articles CASCADE")
 	return db

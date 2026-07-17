@@ -33,7 +33,7 @@ BEGIN
     END IF;
 END
 $$;`).Error)
-	require.NoError(t, db.AutoMigrate(&model.Campaign{}, &model.CampaignTargetCategory{}, &model.CampaignTargetItem{}))
+	require.NoError(t, ensureAutoMigrated(db, &model.Campaign{}, &model.CampaignTargetCategory{}, &model.CampaignTargetItem{}))
 	db.Exec("TRUNCATE TABLE campaign_target_items CASCADE")
 	db.Exec("TRUNCATE TABLE campaign_target_categories CASCADE")
 	db.Exec("TRUNCATE TABLE campaigns CASCADE")

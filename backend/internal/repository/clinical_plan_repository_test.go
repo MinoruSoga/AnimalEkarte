@@ -28,7 +28,7 @@ import (
 func setupClinicalPlanTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
 	db := setupTestDB(t)
-	require.NoError(t, db.AutoMigrate(&model.DiagnosisType{}, &model.DiagnosisName{}, &model.ClinicalPlan{}))
+	require.NoError(t, ensureAutoMigrated(db, &model.DiagnosisType{}, &model.DiagnosisName{}, &model.ClinicalPlan{}))
 	db.Exec("TRUNCATE TABLE clinical_plans CASCADE")
 	db.Exec("TRUNCATE TABLE diagnosis_names CASCADE")
 	db.Exec("TRUNCATE TABLE diagnosis_types CASCADE")

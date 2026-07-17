@@ -28,7 +28,7 @@ import (
 func setupLstepFriendAttributeSnapshotTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
 	db := setupTestDB(t)
-	require.NoError(t, db.AutoMigrate(&model.LstepFriendAttributeSnapshot{}))
+	require.NoError(t, ensureAutoMigrated(db, &model.LstepFriendAttributeSnapshot{}))
 	db.Exec("TRUNCATE TABLE lstep_friend_attribute_snapshots CASCADE")
 	db.Exec(`CREATE UNIQUE INDEX IF NOT EXISTS ux_test_lstep_friend_snapshot_conflict
 		ON lstep_friend_attribute_snapshots (clinic_id, line_user_id, snapshot_taken_at)`)

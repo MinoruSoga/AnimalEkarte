@@ -24,7 +24,7 @@ import (
 func setupPermissionGroupStaffIsolationTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
 	db := setupTestDB(t)
-	require.NoError(t, db.AutoMigrate(
+	require.NoError(t, ensureAutoMigrated(db, 
 		&model.Staff{}, &model.StaffClinicAssignment{}, &model.PermissionGroup{}, &model.StaffPermissionGroup{},
 	))
 	db.Exec("TRUNCATE TABLE staff_permission_groups, staff_clinic_assignments, permission_groups, staffs CASCADE")

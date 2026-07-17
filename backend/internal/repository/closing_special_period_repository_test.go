@@ -32,7 +32,7 @@ import (
 func setupClosingSpecialPeriodRepositoryTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
 	db := setupTestDB(t)
-	require.NoError(t, db.AutoMigrate(&model.ClosingSpecialPeriod{}))
+	require.NoError(t, ensureAutoMigrated(db, &model.ClosingSpecialPeriod{}))
 	require.NoError(t, db.Exec(`ALTER TABLE closing_special_periods ALTER COLUMN am_pm_boundary TYPE time USING am_pm_boundary::time`).Error)
 	require.NoError(t, db.Exec(`ALTER TABLE closing_special_periods ALTER COLUMN pm_end TYPE time USING pm_end::time`).Error)
 	db.Exec("TRUNCATE TABLE closing_special_periods CASCADE")

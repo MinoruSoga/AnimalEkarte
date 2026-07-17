@@ -26,7 +26,7 @@ import (
 func setupLstepSettingsTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
 	db := setupTestDB(t)
-	require.NoError(t, db.AutoMigrate(&model.ClinicIntegration{}))
+	require.NoError(t, ensureAutoMigrated(db, &model.ClinicIntegration{}))
 	db.Exec("TRUNCATE TABLE clinic_integrations CASCADE")
 	db.Exec(`CREATE UNIQUE INDEX IF NOT EXISTS ux_test_clinic_integrations_conflict
 		ON clinic_integrations (clinic_id, service, key_name)`)

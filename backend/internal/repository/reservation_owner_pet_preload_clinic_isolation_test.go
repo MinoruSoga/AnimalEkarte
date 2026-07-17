@@ -21,7 +21,7 @@ import (
 func setupReservationOwnerPetPreloadDB(t *testing.T) *gorm.DB {
 	t.Helper()
 	db := setupReservationIsolationTestDB(t)
-	require.NoError(t, db.AutoMigrate(
+	require.NoError(t, ensureAutoMigrated(db, 
 		&model.AnimalSpecies{}, &model.Pet{}, &model.LineCustomer{},
 	))
 	db.Exec("TRUNCATE TABLE pets CASCADE")

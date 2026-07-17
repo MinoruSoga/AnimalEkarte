@@ -180,10 +180,14 @@ def load_seed_state() -> tuple[SeedState, dict[str, Path]]:
     state.load("medicines", ("id", "clinic_id", "parent_id", "inventory_id"), ("is_active",))
     state.load("consultations", ("id", "clinic_id", "parent_id"), ("is_active",))
     state.load("procedures", ("id", "clinic_id", "parent_id"), ("is_active",))
-    state.load("trimming_courses", ("id", "clinic_id"), ())
+    state.load("trimming_courses", ("id", "clinic_id", "course_type_id"), ())
+    # Trigger-owned child of clinics; explicit CSV owns stable IDs for course_type_id FKs.
+    state.load("trimming_course_types", ("id", "clinic_id"), ())
     state.load("merchandise_items", ("id", "clinic_id"), ("is_active",))
     state.load("inventory_items", ("id", "clinic_id"), ())
     state.load("owners", ("id", "clinic_id"), ())
+    # estimates.owner_id previously hard-coded 1–5 against imported owners ≥ 300000 (seed FK fail).
+    state.load("estimates", ("id", "clinic_id", "owner_id"), ())
     state.load("medical_records", ("id", "clinic_id"), ())
     state.load(
         "treatments",
@@ -300,8 +304,14 @@ def check_fk_integrity(state: SeedState, errors: list[str]) -> None:
         ("treatments", "procedure_id", "procedures"),
         ("treatments", "medicine_id", "medicines"),
         ("treatments", "inventory_id", "inventory_items"),
+        # Phase B harden: regression gates for recent seed ID failures (estimates owners,
+        # trimming_courses → trimming_course_types after trigger/serial realign).
+        ("estimates", "owner_id", "owners"),
+        ("trimming_courses", "course_type_id", "trimming_course_types"),
     )
     for table, column, ref_table in fk_rules:
+        if table not in state.tables or ref_table not in state.tables:
+            continue
         missing: list[tuple[int, object]] = []
         for row_id, row in sorted(state.tables[table].items()):
             ref_id = row.get(column)
@@ -310,6 +320,52 @@ def check_fk_integrity(state: SeedState, errors: list[str]) -> None:
             if ref_id not in state.tables[ref_table]:
                 missing.append((row_id, ref_id))
         add_result(errors, not missing, f"{table}.{column}: missing FK targets {missing}")
+
+
+def check_demo_id_harden_invariants(state: SeedState, errors: list[str]) -> None:
+    """Static guards for known 003_demo ID/trigger failure modes.
+
+    1) estimates.owner_id must resolve to an imported owner (≥ IMPORTED_OWNER_ID_FLOOR when
+       the demo graph uses the stage-import owner range).
+    2) trimming_courses.course_type_id must reference an explicit trimming_course_types row
+       in the same clinic (trigger-only types are no longer the source of truth).
+    """
+    owners = state.tables.get("owners", {})
+    estimates = state.tables.get("estimates", {})
+    if estimates and owners and min(owners) >= IMPORTED_OWNER_ID_FLOOR:
+        low_owner_refs: list[tuple[int, object]] = []
+        for est_id, row in sorted(estimates.items()):
+            owner_id = row.get("owner_id")
+            if owner_id is None:
+                continue
+            if not isinstance(owner_id, int) or owner_id < IMPORTED_OWNER_ID_FLOOR:
+                low_owner_refs.append((est_id, owner_id))
+        add_result(
+            errors,
+            not low_owner_refs,
+            f"estimates.owner_id: below import floor {IMPORTED_OWNER_ID_FLOOR}: {low_owner_refs}",
+        )
+
+    courses = state.tables.get("trimming_courses", {})
+    course_types = state.tables.get("trimming_course_types", {})
+    if courses and course_types:
+        clinic_mismatches: list[tuple[int, object, object, object]] = []
+        for course_id, row in sorted(courses.items()):
+            type_id = row.get("course_type_id")
+            if type_id is None:
+                continue
+            target = course_types.get(type_id)
+            if target is None:
+                continue  # covered by check_fk_integrity
+            if row.get("clinic_id") != target.get("clinic_id"):
+                clinic_mismatches.append(
+                    (course_id, row.get("clinic_id"), type_id, target.get("clinic_id"))
+                )
+        add_result(
+            errors,
+            not clinic_mismatches,
+            f"trimming_courses.course_type_id: cross-clinic type refs {clinic_mismatches}",
+        )
 
 
 def check_cross_tenant(state: SeedState, errors: list[str]) -> None:
@@ -585,7 +641,8 @@ def print_summary(state: SeedState, errors: list[str]) -> None:
         treatment_note = "imported clinical graph (legacy treatment fixtures skipped)" if state.tables.get("owners") and min(state.tables["owners"]) >= IMPORTED_OWNER_ID_FLOOR else "treatments drift fixes"
         print(
             f"verified: 7 masters, {treatment_note}, CHECK equivalent, "
-            "procedure presence, FK, cross-tenant, appointment time window, daily distribution, "
+            "procedure presence, FK (incl. estimates.owner_id / trimming_courses.course_type_id), "
+            "demo ID harden, cross-tenant, appointment time window, daily distribution, "
             "audit log actor tenant, vaccination vaccine category, exam_type_field category"
         )
 
@@ -599,6 +656,7 @@ def main() -> int:
     check_treatment_constraints(state, errors)
     check_procedure_presence(state, errors)
     check_fk_integrity(state, errors)
+    check_demo_id_harden_invariants(state, errors)
     check_cross_tenant(state, errors)
     check_appointment_time_window(table_index, errors)
     check_audit_log_actor_tenant(table_index, errors)

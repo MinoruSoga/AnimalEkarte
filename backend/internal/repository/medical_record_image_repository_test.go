@@ -22,7 +22,7 @@ import (
 
 func TestMedicalRecordImageRepository_Create(t *testing.T) {
 	db := setupMedImageIsolationTestDB(t)
-	require.NoError(t, db.AutoMigrate(&model.Staff{}))
+	require.NoError(t, ensureAutoMigrated(db, &model.Staff{}))
 	db.Exec("TRUNCATE TABLE staffs CASCADE")
 	repo := NewMedicalRecordImageRepository(db)
 	ctx := context.Background()
@@ -49,7 +49,7 @@ func TestMedicalRecordImageRepository_Create(t *testing.T) {
 
 func TestMedicalRecordImageRepository_FindByMedicalRecordID(t *testing.T) {
 	db := setupMedImageIsolationTestDB(t)
-	require.NoError(t, db.AutoMigrate(&model.Staff{}))
+	require.NoError(t, ensureAutoMigrated(db, &model.Staff{}))
 	db.Exec("TRUNCATE TABLE staffs CASCADE")
 	repo := NewMedicalRecordImageRepository(db)
 	ctx := context.Background()

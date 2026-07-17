@@ -30,7 +30,7 @@ func setupTrimmingCourseTestDB(t *testing.T) *gorm.DB {
 	db.Exec("TRUNCATE TABLE appointment_trimming_details CASCADE")
 	db.Exec("TRUNCATE TABLE trimming_courses CASCADE")
 	db.Exec("TRUNCATE TABLE reservation_types CASCADE") // appointments も連鎖クリア
-	require.NoError(t, db.AutoMigrate(
+	require.NoError(t, ensureAutoMigrated(db, 
 		&model.ReservationType{}, &model.Reservation{},
 		&model.TrimmingCourse{}, &model.AppointmentTrimmingDetail{},
 	))

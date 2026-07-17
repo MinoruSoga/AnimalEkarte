@@ -34,7 +34,7 @@ func setupReservationRepoTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
 	db := setupTestDB(t)
 	db.Exec("TRUNCATE TABLE shift_entries CASCADE")
-	require.NoError(t, db.AutoMigrate(
+	require.NoError(t, ensureAutoMigrated(db, 
 		&model.ReservationType{}, &model.Reservation{},
 		&model.Staff{}, &model.ShiftEntry{}, &model.LineCustomer{},
 	))
