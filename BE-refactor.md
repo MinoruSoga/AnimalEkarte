@@ -69,7 +69,7 @@ repository サブパッケージ実勢（**計画起票日中に 9→14 へ増�
 
 ## 3. 目標構成（決定）
 
-> **コード規約の恒久正本は `.claude/skills/go-package-conventions/SKILL.md`**（本ファイルは対応後削除される計画書であり、規約は skill 側に残る。本節は作業用の写し）。
+> **コード規約の恒久正本は `.claude/rules/go-package-conventions.md`**（本ファイルは対応後削除される計画書であり、規約は skill 側に残る。本節は作業用の写し）。
 
 **採用 = Option B: 層優先を維持し、各層内をドメインサブパッケージ化**
 

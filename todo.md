@@ -116,6 +116,6 @@ SearchableSelect 本体 = `frontend/src/components/ui/searchable-select.tsx`。�
 | `BE-pending.md` | 着手保留・次期送り・任意検証の BE 詳細 |
 | `q&a.html` | 内部 PO 判断キュー（決裁記録の正本。PO-001〜008・SD-1〜19・GAP-1/2 回答済み） |
 | `task.html` | PR #186 Codex レビュー残タスク（Open スレッド＋値投入待ち） |
-| `BE-refactor.md` | **BE 第8期計画（repo 直下・対応後削除予定）**: backend/ 全体のパッケージ構成統一の移行手順（BE8-0〜8）。**コード規約の恒久正本 = `.claude/skills/go-package-conventions/SKILL.md`**（計画削除後も規約はそこに残る・`.agents/skills/` へ自動ミラー）。着手は Go-live 後・BE8-0（lint 網羅性固定）が必須ゲート |
+| `BE-refactor.md` | **BE 第8期計画（repo 直下・対応後削除予定）**: backend/ 全体のパッケージ構成統一の移行手順（BE8-0〜8）。**コード規約の恒久正本 = `.claude/rules/go-package-conventions.md`**（計画削除後も規約はそこに残る・`.agents/skills/` へ自動ミラー）。着手は Go-live 後・BE8-0（lint 網羅性固定）が必須ゲート |
 
-> 旧 `BE_todo.md` / `FE-refactor.md` は本ファイルへ吸収済み（削除）。`BE-refactor.md` は第7期版を吸収・削除後、2026-07-17 に第8期計画として新設（対応後削除予定・コード規約の恒久正本は `.claude/skills/go-package-conventions/SKILL.md` へ分離）。旧 `docs/tasks/`・`docs/archive/` は 2026-07-16 に廃止（詳細は git 履歴）。
+> 旧 `BE_todo.md` / `FE-refactor.md` は本ファイルへ吸収済み（削除）。`BE-refactor.md` は第7期版を吸収・削除後、2026-07-17 に第8期計画として新設（対応後削除予定・コード規約の恒久正本は `.claude/rules/go-package-conventions.md` へ分離）。旧 `docs/tasks/`・`docs/archive/` は 2026-07-16 に廃止（詳細は git 履歴）。

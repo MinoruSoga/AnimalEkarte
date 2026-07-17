@@ -1,11 +1,12 @@
 ---
-name: go-package-conventions
-description: backend の Go パッケージ配置・命名のコード規約（恒久・正本）。新規ドメイン実装・パッケージ分割・コードレビュー・「どこに置くか」の判断時にロード。層優先×ドメインサブパッケージ、stutter 禁止、consumer 側 interface、lint 1階層制約。
+description: backend の Go パッケージ配置・命名のコード規約（恒久正本）。層優先×ドメインサブパッケージ、stutter 禁止、consumer 側 interface、lint 1階層制約。
+alwaysApply: false
+globs: ["backend/**/*.go"]
 ---
 
 # Go パッケージ配置・命名規約（正本）
 
-> **正本宣言**: 本ファイル（`.claude/skills/go-package-conventions/SKILL.md`）がコード規約の恒久正本。`.agents/skills/` 側は sync-agents-skills.sh による生成ミラー（直接編集禁止）。移行**計画**（BE8 手順・地雷・ドメイン一覧）はリポジトリ直下 `BE-refactor.md` — 対応完了後に削除される使い捨て文書であり、規約は本ファイルに残る。
+> **正本宣言**: 本ファイル（`.claude/rules/go-package-conventions.md`）がコード規約の恒久正本。`.agents/rules/` 側は sync-agents-skills.sh による生成ミラー（直接編集禁止）。移行**計画**（BE8 手順・地雷・ドメイン一覧）はリポジトリ直下 `BE-refactor.md` — 対応完了後に削除される使い捨て文書であり、規約は本ファイルに残る。
 > 決定日: 2026-07-17（要件責任者: 曽我）
 
 ## 目標構成（層優先 × ドメインサブパッケージ）

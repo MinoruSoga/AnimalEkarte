@@ -1,5 +1,6 @@
 #!/bin/bash
-# .claude/skills + .claude/commands から .agents/skills (agy 等の他エージェント向けミラー) を再生成する。
+# .claude/skills + .claude/commands から .agents/skills を、.claude/rules から .agents/rules を再生成する
+# (agy 等の他エージェント向けミラー)。
 # .agents/ は untracked の生成物。.claude/skills または .claude/commands を変更したら本スクリプトを再実行すること
 # （通常は commit 時に pre-bash-commit-quality.js が自動再生成する。手動実行は任意）。
 #
@@ -49,6 +50,13 @@ mkdir -p "$(dirname "$DEST")"
 mv "$TMP" "$DEST"
 trap - EXIT
 
+# 4. rules をミラー（コード規約等の常時ルール → .agents/rules/）
+RULES_DEST="$ROOT/.agents/rules"
+rm -rf "$RULES_DEST"
+mkdir -p "$RULES_DEST"
+cp "$ROOT/.claude/rules"/*.md "$RULES_DEST"/
+
 echo "regenerated: $DEST"
 echo "  skills:   $(find "$DEST" -maxdepth 1 -type d ! -name 'source-command-*' | tail -n +2 | wc -l | tr -d ' ')"
 echo "  commands: $(find "$DEST" -maxdepth 1 -type d -name 'source-command-*' | wc -l | tr -d ' ')"
+echo "  rules:    $(ls "$RULES_DEST" | wc -l | tr -d ' ') -> $RULES_DEST"

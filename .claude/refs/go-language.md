@@ -161,7 +161,7 @@ func (s *OwnerService) Create(ctx context.Context, input CreateOwnerInput) (*Own
 | Interface | PascalCase + er | `OwnerRepository` |
 | Table | snake_case (plural) | `owners`, `medical_records` |
 
-### 8. Package Layout（BE8 規約・2026-07-17 決定 — 正本 = `.claude/skills/go-package-conventions/SKILL.md`（本節は要約））
+### 8. Package Layout（BE8 規約・2026-07-17 決定 — 正本 = `.claude/rules/go-package-conventions.md`（本節は要約））
 
 **目標構成**（層優先 × ドメインサブパッケージ）:
 
