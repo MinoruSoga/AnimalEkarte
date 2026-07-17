@@ -53,6 +53,11 @@ func testDBConfig(t *testing.T) *config.Config {
 		DBPass:    dbPassword,
 		DBName:    dbName + "_test",
 		DBSSLMode: "disable",
+		// config.Load() を経由しない手組み Config のため、DB接続プール上限
+		// (fe6a27303 で追加)も config.go の既定値と揃えて明示する。
+		// 未設定のままだとゼロ値になり TestNewDB の SetMaxOpenConns(50) 検証が失敗する。
+		DBMaxOpenConns: 50,
+		DBMaxIdleConns: 25,
 	}
 }
 
