@@ -130,6 +130,10 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"medicine_dose_param_repository.go|medicineDoseParamRepository.FindByMedicineAndSpecies": {},
 	"medicine_dose_param_repository.go|medicineDoseParamRepository.FindByMedicineID":         {},
 	"medicine_dose_param_repository.go|medicineDoseParamRepository.Update":                   {},
+	// pet (BUG-407: lstepLifecycleService.HandlePetDeath/HandlePetRevival が status/deceased_at
+	// 更新と一次監査ログ書込を Transactor.WithTx で束ね fail-closed 化。runtime proof は
+	// pet_repository_tx_atomicity_test.go)
+	"pet_repository.go|petRepository.Update": {},
 	// prescription (X-11 Appendix-A finalize-child-write-race fix — same FK-deadlock rationale as examination)
 	"prescription_repository.go|prescriptionRepository.Create": {},
 	"prescription_repository.go|prescriptionRepository.Update": {},
@@ -359,6 +363,39 @@ func TestDBOrTxInventory_MatchesAllowlist(t *testing.T) {
 	}
 	for _, v := range reconcileDBOrTxInventory(found, dbOrTxParticipatingMethods) {
 		t.Error(v)
+	}
+}
+
+// TestDBOrTxInventory_WalksAllEmbeddedFilesIncludingSubpackages pins that walkRepositoryForDBOrTx
+// processes every 1-level domain subpackage file listEmbeddedRepoGoFiles(t) returns, with no
+// additional per-lint filtering. See TestRepoSourceEmbed_ReachesOneLevelSubpackages
+// (preload_clinic_scope_lint_test.go) for the underlying embed-glob regression test that this
+// wrapper depends on (BE-refactor.md BE8-0).
+func TestDBOrTxInventory_WalksAllEmbeddedFilesIncludingSubpackages(t *testing.T) {
+	names := listEmbeddedRepoGoFiles(t)
+	nested := 0
+	for _, n := range names {
+		if strings.Contains(n, "/") {
+			nested++
+		}
+	}
+	if nested == 0 {
+		t.Fatal("no 1-level subpackage files in the embedded set walkRepositoryForDBOrTx iterates over")
+	}
+	// Reaching this line already proves every nested file parsed cleanly: walkRepositoryForDBOrTx
+	// calls t.Fatalf internally on any parse failure for ANY embedded file, subpackage included.
+	found := walkRepositoryForDBOrTx(t)
+	sawNestedKey := false
+	for k := range found {
+		if strings.Contains(k, "/") {
+			sawNestedKey = true
+			break
+		}
+	}
+	if !sawNestedKey {
+		t.Fatal("walkRepositoryForDBOrTx found no dbOrTx-using method keyed under a subpackage path " +
+			"(e.g. reservationtype/repository.go|...); either the embed stopped reaching subpackages, " +
+			"or the reservationtype dbOrTx usages were removed")
 	}
 }
 

@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"os"
+	"strconv"
 )
 
 // BcryptCost は bcrypt ハッシュ生成コストの標準値。
@@ -18,6 +19,12 @@ type Config struct {
 	DBName    string
 	DBSSLMode string
 	GinMode   string
+
+	// DB接続プール上限。既定はローカル/AWS前提の従来値。
+	// Cloudflare Containers(直結・プーラー無し)は max_instances 分が並存しうるため、
+	// wrangler.jsonc 側で低値を明示注入する(PlanetScaleのスロット枯渇防止 — 2026-07-17障害の再発防止)。
+	DBMaxOpenConns int
+	DBMaxIdleConns int
 
 	JWTSecret string
 
@@ -76,6 +83,9 @@ func Load() *Config {
 		DBName:    getEnv("DB_NAME", "ekarte_db"),
 		DBSSLMode: getEnv("DB_SSL_MODE", "disable"),
 		GinMode:   getEnv("GIN_MODE", "debug"),
+
+		DBMaxOpenConns: getEnvInt("DB_MAX_OPEN_CONNS", 50),
+		DBMaxIdleConns: getEnvInt("DB_MAX_IDLE_CONNS", 25),
 
 		JWTSecret: getEnv("JWT_SECRET", "dev-secret-change-me"),
 
@@ -153,4 +163,18 @@ func getEnv(key, defaultVal string) string {
 		return val
 	}
 	return defaultVal
+}
+
+// getEnvInt は正の整数として解釈できる場合のみ環境変数値を採用する。
+// 不正値でプール上限が 0(=無制限相当の誤設定)になる事故を防ぐため、失敗時は既定値へフォールバックする。
+func getEnvInt(key string, defaultVal int) int {
+	val := os.Getenv(key)
+	if val == "" {
+		return defaultVal
+	}
+	n, err := strconv.Atoi(val)
+	if err != nil || n <= 0 {
+		return defaultVal
+	}
+	return n
 }

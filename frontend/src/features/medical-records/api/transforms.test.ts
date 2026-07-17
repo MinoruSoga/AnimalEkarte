@@ -110,6 +110,22 @@ describe("transformMedicalRecord", () => {
     expect(result.chiefComplaint).toBe("元気がない");
   });
 
+  it("BUG-406 follow-up: inquiry.chief_complaint_type_id を chiefComplaintTypeId にマップする", () => {
+    const result = transformMedicalRecord({
+      ...minimal,
+      inquiry: { chief_complaint: "", chief_complaint_type_id: 5, notes: "" } as BackendMedicalRecord["inquiry"],
+    });
+    expect(result.chiefComplaintTypeId).toBe(5);
+  });
+
+  it("BUG-406 follow-up: inquiry.chief_complaint_type_id が未設定のとき chiefComplaintTypeId は null", () => {
+    const result = transformMedicalRecord({
+      ...minimal,
+      inquiry: { chief_complaint: "", notes: "" } as BackendMedicalRecord["inquiry"],
+    });
+    expect(result.chiefComplaintTypeId).toBeNull();
+  });
+
   it("visit_count をそのまま返す", () => {
     expect(transformMedicalRecord({ ...minimal, visit_count: 5 }).visitCount).toBe(5);
   });

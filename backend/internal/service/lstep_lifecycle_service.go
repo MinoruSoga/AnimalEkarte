@@ -8,6 +8,7 @@ import (
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/infra/lstep"
+	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/repository"
 )
 
@@ -15,9 +16,9 @@ import (
 // Lステップタグのライフサイクルイベントを処理する（BE-017）。
 type LstepLifecycleService interface {
 	// HandlePetDeath はペット死亡を記録し CPM タグを再同期する。
-	HandlePetDeath(ctx context.Context, clinicID, petID uint64, deceasedAt time.Time, reason string) error
+	HandlePetDeath(ctx context.Context, clinicID, petID uint64, deceasedAt time.Time, reason string, actorID *uint64) error
 	// HandlePetRevival はペット死亡取り消しを記録し CPM タグを再同期する。
-	HandlePetRevival(ctx context.Context, clinicID, petID uint64) error
+	HandlePetRevival(ctx context.Context, clinicID, petID uint64, actorID *uint64) error
 	// HandleOwnerOptOut はオプトアウトを記録し Lステップの全タグを解除する。
 	HandleOwnerOptOut(ctx context.Context, clinicID, ownerID uint64, reason string) error
 	// HandleOwnerOptIn はオプトインを記録し CPM タグを再同期する。
@@ -34,6 +35,11 @@ type lstepLifecycleService struct {
 	syncSvc       LstepTagSyncService
 	auditSvc      AuditService
 	tagConfigRepo repository.LstepTagConfigRepository
+	// transactor / auditTx: BUG-407 fail-closed 化。HandlePetDeath/HandlePetRevival の
+	// status/deceased_at 更新と一次監査ログ書込を同一 tx で束ね、監査失敗で status 更新も
+	// ロールバックする（#211 返金の fail-closed 先例と同型）。
+	transactor repository.Transactor
+	auditTx    AuditTxLogger
 }
 
 // NewLstepLifecycleService は LstepLifecycleService を初期化して返す。
@@ -46,6 +52,8 @@ func NewLstepLifecycleService(
 	syncSvc LstepTagSyncService,
 	auditSvc AuditService,
 	tagConfigRepo repository.LstepTagConfigRepository,
+	transactor repository.Transactor,
+	auditTx AuditTxLogger,
 ) LstepLifecycleService {
 	return &lstepLifecycleService{
 		settingsSvc:   settingsSvc,
@@ -55,6 +63,8 @@ func NewLstepLifecycleService(
 		syncSvc:       syncSvc,
 		auditSvc:      auditSvc,
 		tagConfigRepo: tagConfigRepo,
+		transactor:    transactor,
+		auditTx:       auditTx,
 	}
 }
 
@@ -80,7 +90,7 @@ func (s *lstepLifecycleService) buildClient(ctx context.Context, clinicID uint64
 
 // HandlePetDeath はペット死亡を記録し、オーナーのタグを再同期する。
 // 全ペットが死亡した場合は Lステップ全タグを解除する（配信停止）。
-func (s *lstepLifecycleService) HandlePetDeath(ctx context.Context, clinicID, petID uint64, deceasedAt time.Time, reason string) error {
+func (s *lstepLifecycleService) HandlePetDeath(ctx context.Context, clinicID, petID uint64, deceasedAt time.Time, reason string, actorID *uint64) error {
 	// P1: FindByID before Update
 	pet, err := s.petRepo.FindByID(ctx, clinicID, petID)
 	if err != nil {
@@ -88,13 +98,40 @@ func (s *lstepLifecycleService) HandlePetDeath(ctx context.Context, clinicID, pe
 		return apperrors.Wrap(err, "failed to find pet")
 	}
 
-	fields := map[string]any{
-		"deceased_at":     deceasedAt,
-		"deceased_reason": reason,
-	}
-	if err := s.petRepo.Update(ctx, clinicID, petID, fields); err != nil {
-		slog.ErrorContext(ctx, "failed to update pet deceased fields", "error", err)
-		return apperrors.Wrap(err, "failed to record pet death")
+	// BUG-407: status は deceased_at と独立した二重管理フィールドのため、
+	// 同一 Update で "deceased" へ揃える。分離したままだと、外側フォームの
+	// 生死ラジオが未追従のまま次回の外側「更新」で status="alive" に
+	// 上書きされ、deceased_at だけ残る不整合状態になる。
+	//
+	// BUG-407 (audit fail-closed): status/deceased_at 更新と一次監査ログ（pet_death）書込を
+	// 同一 tx で原子化する。監査書込が失敗したら status 更新もロールバックする — #211 返金の
+	// fail-closed 先例と同型（監査書込自体の失敗が死亡記録という臨床アクションをブロックする、
+	// という設計判断そのものが本 BUG-407 修正の核心。旧実装の best-effort/WarnContext は廃止）。
+	actorType := auditActorTypeFor(actorID)
+	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
+		fields := map[string]any{
+			"deceased_at":     deceasedAt,
+			"deceased_reason": reason,
+			"status":          model.PetStatusDeceased,
+		}
+		if err := s.petRepo.Update(txCtx, clinicID, petID, fields); err != nil {
+			slog.ErrorContext(txCtx, "failed to update pet deceased fields", "error", err)
+			return apperrors.Wrap(err, "failed to record pet death")
+		}
+		if auditErr := s.auditTx.LogEntryTx(txCtx, &AuditLogInput{
+			ClinicID:   &clinicID,
+			ActorID:    actorID,
+			ActorType:  actorType,
+			Action:     "pet_death",
+			Resource:   "pet",
+			ResourceID: &petID,
+		}); auditErr != nil {
+			slog.ErrorContext(txCtx, "audit log failed for pet death", "error", auditErr, "pet_id", petID)
+			return apperrors.Wrap(auditErr, "failed to write pet death audit log")
+		}
+		return nil
+	}); err != nil {
+		return apperrors.Wrap(err, "failed to record pet death in transaction")
 	}
 
 	ownerID := pet.OwnerID
@@ -146,7 +183,7 @@ func (s *lstepLifecycleService) HandlePetDeath(ctx context.Context, clinicID, pe
 }
 
 // HandlePetRevival はペット死亡取り消しを記録し CPM タグを再同期する。
-func (s *lstepLifecycleService) HandlePetRevival(ctx context.Context, clinicID, petID uint64) error {
+func (s *lstepLifecycleService) HandlePetRevival(ctx context.Context, clinicID, petID uint64, actorID *uint64) error {
 	// P1: FindByID before Update
 	pet, err := s.petRepo.FindByID(ctx, clinicID, petID)
 	if err != nil {
@@ -154,13 +191,36 @@ func (s *lstepLifecycleService) HandlePetRevival(ctx context.Context, clinicID, 
 		return apperrors.Wrap(err, "failed to find pet")
 	}
 
-	fields := map[string]any{
-		"deceased_at":     nil,
-		"deceased_reason": nil,
-	}
-	if err := s.petRepo.Update(ctx, clinicID, petID, fields); err != nil {
-		slog.ErrorContext(ctx, "failed to clear pet deceased fields", "error", err)
-		return apperrors.Wrap(err, "failed to record pet revival")
+	// BUG-407: 死亡取り消し時も status を "alive" に戻し、deceased_at/status の
+	// 二重管理不整合を防ぐ（HandlePetDeath と対称）。
+	//
+	// BUG-407 (audit fail-closed): status 更新と一次監査ログ（pet_revival）書込を同一 tx で
+	// 原子化する。監査書込が失敗したら status 更新もロールバックする（HandlePetDeath と対称）。
+	actorType := auditActorTypeFor(actorID)
+	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
+		fields := map[string]any{
+			"deceased_at":     nil,
+			"deceased_reason": nil,
+			"status":          model.PetStatusAlive,
+		}
+		if err := s.petRepo.Update(txCtx, clinicID, petID, fields); err != nil {
+			slog.ErrorContext(txCtx, "failed to clear pet deceased fields", "error", err)
+			return apperrors.Wrap(err, "failed to record pet revival")
+		}
+		if auditErr := s.auditTx.LogEntryTx(txCtx, &AuditLogInput{
+			ClinicID:   &clinicID,
+			ActorID:    actorID,
+			ActorType:  actorType,
+			Action:     "pet_revival",
+			Resource:   "pet",
+			ResourceID: &petID,
+		}); auditErr != nil {
+			slog.ErrorContext(txCtx, "audit log failed for pet revival", "error", auditErr, "pet_id", petID)
+			return apperrors.Wrap(auditErr, "failed to write pet revival audit log")
+		}
+		return nil
+	}); err != nil {
+		return apperrors.Wrap(err, "failed to record pet revival in transaction")
 	}
 
 	if syncErr := s.syncSvc.SyncOwnerAnimalClassificationTags(ctx, clinicID, pet.OwnerID); syncErr != nil {

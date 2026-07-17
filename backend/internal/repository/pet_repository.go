@@ -10,8 +10,20 @@ import (
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
+// PetListFilters はペット一覧のフィルタ条件（#266: サーバサイド pagination/search 拡張）。
+// Search はペット名/カナ + 飼主名/カナ/電話を対象に ILIKE + NormalizeKana で部分一致検索する。
+type PetListFilters struct {
+	OwnerID         *uint64
+	Search          string
+	AnimalSpeciesID *uint64
+	// IncludeDeceased: false（既定）は deceased_at IS NULL（生存のみ）に絞る。
+	IncludeDeceased bool
+}
+
 type PetRepository interface {
-	FindAll(ctx context.Context, clinicID uint64, ownerID *uint64, page, limit int, search string) ([]model.Pet, int64, error)
+	// FindAll は指定した複数医院 (#86 拠点横断) のペットを検索する。clinicIDs はハンドラ層で所属検証済みであること。
+	// 順序は owners.name_kana ASC, pets.id ASC で安定（#266: ページ送りでの重複/欠落防止）。
+	FindAll(ctx context.Context, clinicIDs []uint64, filters PetListFilters, page, limit int) ([]model.Pet, int64, error)
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.Pet, error)
 	// FindByIDForClinics は複数医院スコープでペットを1件取得する (#86 詳細画面拠点横断)。clinicIDs はハンドラ層で所属検証済みであること。
 	FindByIDForClinics(ctx context.Context, clinicIDs []uint64, id uint64) (*model.Pet, error)
@@ -39,30 +51,50 @@ func NewPetRepository(db *gorm.DB) PetRepository {
 	return &petRepository{db: db}
 }
 
-func (r *petRepository) FindAll(ctx context.Context, clinicID uint64, ownerID *uint64, page, limit int, search string) ([]model.Pet, int64, error) {
+func (r *petRepository) FindAll(ctx context.Context, clinicIDs []uint64, filters PetListFilters, page, limit int) ([]model.Pet, int64, error) {
 	pets := make([]model.Pet, 0)
 	var total int64
 
+	// フェイルセーフ: 検証バグ等で空スライスが渡っても全件露出させない
+	if len(clinicIDs) == 0 {
+		return pets, 0, nil
+	}
+
 	buildBase := func() *gorm.DB {
-		q := r.db.WithContext(ctx).Model(&model.Pet{}).Where("pets.clinic_id = ?", clinicID)
-		if ownerID != nil {
-			q = q.Where("pets.owner_id = ?", *ownerID)
+		// owners への LEFT JOIN は search 有無に関わらず常に張る
+		// (owners.name_kana ASC を安定順序の主キーにするため、Order 句が常にこの JOIN を要求する)。
+		// clinicScopeIn は "clinic_id" を無修飾で参照し pets/owners 両方に同名列を持つため、
+		// JOIN 併用時の曖昧列エラーを避けて pets.clinic_id / owners.clinic_id を明示指定する
+		// （owners 側も同一 clinicIDs で二重にスコープし、クロステナント JOIN 汚染を防ぐ）。
+		q := r.db.WithContext(ctx).Model(&model.Pet{}).
+			Where("pets.clinic_id IN ?", clinicIDs).
+			Where("pets.deleted_at IS NULL").
+			Joins("LEFT JOIN owners ON owners.id = pets.owner_id AND owners.clinic_id IN ? AND owners.deleted_at IS NULL", clinicIDs)
+		if filters.OwnerID != nil {
+			q = q.Where("pets.owner_id = ?", *filters.OwnerID)
 		}
-		if search != "" {
+		if filters.AnimalSpeciesID != nil {
+			q = q.Where("pets.animal_species_id = ?", *filters.AnimalSpeciesID)
+		}
+		if !filters.IncludeDeceased {
+			q = q.Where("pets.deceased_at IS NULL")
+		}
+		if filters.Search != "" {
 			// NormalizeKana で検索語のカタカナをひらがなに正規化。
 			// DB 列は translate() でひらがなに正規化済みのため、双方を統一して比較する。
-			pattern := "%" + escapeLike(NormalizeKana(search)) + "%"
-			q = q.Joins("LEFT JOIN owners ON owners.id = pets.owner_id AND owners.deleted_at IS NULL").
-				Where(
-					`(pets.name ILIKE ? ESCAPE '\'`+
-						` OR translate(pets.name_kana, ?, ?) ILIKE ? ESCAPE '\'`+
-						` OR owners.name ILIKE ? ESCAPE '\'`+
-						` OR translate(owners.name_kana, ?, ?) ILIKE ? ESCAPE '\')`,
-					pattern,
-					kanaSourceChars, kanaTargetChars, pattern,
-					pattern,
-					kanaSourceChars, kanaTargetChars, pattern,
-				)
+			pattern := "%" + escapeLike(NormalizeKana(filters.Search)) + "%"
+			q = q.Where(
+				`(pets.name ILIKE ? ESCAPE '\'`+
+					` OR translate(pets.name_kana, ?, ?) ILIKE ? ESCAPE '\'`+
+					` OR owners.name ILIKE ? ESCAPE '\'`+
+					` OR translate(owners.name_kana, ?, ?) ILIKE ? ESCAPE '\'`+
+					` OR owners.phone ILIKE ? ESCAPE '\')`,
+				pattern,
+				kanaSourceChars, kanaTargetChars, pattern,
+				pattern,
+				kanaSourceChars, kanaTargetChars, pattern,
+				pattern,
+			)
 		}
 		return q
 	}
@@ -70,8 +102,15 @@ func (r *petRepository) FindAll(ctx context.Context, clinicID uint64, ownerID *u
 	if err := buildBase().Count(&total).Error; err != nil {
 		return nil, 0, apperrors.FromGORM(err, "pet", "")
 	}
-	if err := buildBase().Preload("Owner", "deleted_at IS NULL").Preload("AnimalSpecies").Preload("Insurance", "clinic_id = ? AND deleted_at IS NULL", clinicID).
-		Scopes(paginate(page, limit)).Order("pets.created_at DESC").Find(&pets).Error; err != nil {
+	if err := buildBase().
+		Preload("Owner", "clinic_id IN ? AND deleted_at IS NULL", clinicIDs).
+		Preload("AnimalSpecies").
+		Preload("Insurance", "clinic_id IN ? AND deleted_at IS NULL", clinicIDs).
+		Scopes(paginate(page, limit)).
+		// 順序の安定性: owners.name_kana ASC を主キーに、pets.id ASC を一意タイブレーカとする
+		// （#266: 同一 kana でもページ送りで行の重複/欠落が起きないようにする）。
+		Order("owners.name_kana ASC, pets.id ASC").
+		Find(&pets).Error; err != nil {
 		return nil, 0, apperrors.FromGORM(err, "pet", "")
 	}
 	return pets, total, nil
@@ -191,8 +230,12 @@ func (r *petRepository) Create(ctx context.Context, pet *model.Pet) error {
 	return nil
 }
 
+// Update は BUG-407 の fail-closed 化（lstepLifecycleService.HandlePetDeath/HandlePetRevival が
+// status/deceased_at 更新と監査書込を同一 tx で原子化する）のため dbOrTx(ctx, r.db) を使う。
+// ambient tx が無い呼び出し（大多数の既存経路）では r.db.WithContext(ctx) と等価（後方互換）。
 func (r *petRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
-	result := r.db.WithContext(ctx).
+	db := dbOrTx(ctx, r.db)
+	result := db.
 		Model(&model.Pet{}).
 		Scopes(clinicScope(clinicID)).Where("id = ?", id).
 		Updates(fields)
@@ -201,7 +244,7 @@ func (r *petRepository) Update(ctx context.Context, clinicID, id uint64, fields 
 	}
 	if result.RowsAffected == 0 {
 		var count int64
-		if err := r.db.WithContext(ctx).Model(&model.Pet{}).
+		if err := db.Model(&model.Pet{}).
 			Scopes(clinicScope(clinicID)).
 			Where("id = ?", id).
 			Count(&count).Error; err != nil {

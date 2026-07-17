@@ -16,6 +16,7 @@ import (
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/repository"
 	"github.com/animal-ekarte/backend/internal/service"
 )
 
@@ -30,7 +31,7 @@ func TestPetHandlerCompiles(t *testing.T) {
 // method independently configurable, so it uses a distinctly-named mock to
 // avoid redeclaring that type.
 type mockPetServiceHandler struct {
-	listFn              func(ctx context.Context, clinicID uint64, ownerID *uint64, page, limit int, search string) ([]model.Pet, int64, error)
+	listFn              func(ctx context.Context, clinicIDs []uint64, filters repository.PetListFilters, page, limit int) ([]model.Pet, int64, error)
 	getByIDFn           func(ctx context.Context, clinicID, id uint64) (*model.Pet, error)
 	getByIDForClinicsFn func(ctx context.Context, clinicIDs []uint64, id uint64) (*model.Pet, error)
 	createFn            func(ctx context.Context, clinicID uint64, input *service.CreatePetInput) (*model.Pet, error)
@@ -39,8 +40,8 @@ type mockPetServiceHandler struct {
 	getFirstVisitDateFn func(ctx context.Context, clinicID, petID uint64) (*time.Time, error)
 }
 
-func (m *mockPetServiceHandler) List(ctx context.Context, clinicID uint64, ownerID *uint64, page, limit int, search string) ([]model.Pet, int64, error) {
-	return m.listFn(ctx, clinicID, ownerID, page, limit, search)
+func (m *mockPetServiceHandler) List(ctx context.Context, clinicIDs []uint64, filters repository.PetListFilters, page, limit int) ([]model.Pet, int64, error) {
+	return m.listFn(ctx, clinicIDs, filters, page, limit)
 }
 
 func (m *mockPetServiceHandler) GetByID(ctx context.Context, clinicID, id uint64) (*model.Pet, error) {
@@ -89,13 +90,13 @@ func TestListPets(t *testing.T) {
 			query:    "page=1&limit=10&owner_id=5&search=momo",
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockPetServiceHandler{
-				listFn: func(_ context.Context, clinicID uint64, ownerID *uint64, page, limit int, search string) ([]model.Pet, int64, error) {
-					assert.Equal(t, uint64(1), clinicID)
-					require.NotNil(t, ownerID)
-					assert.Equal(t, uint64(5), *ownerID)
+				listFn: func(_ context.Context, clinicIDs []uint64, filters repository.PetListFilters, page, limit int) ([]model.Pet, int64, error) {
+					assert.Equal(t, []uint64{1}, clinicIDs)
+					require.NotNil(t, filters.OwnerID)
+					assert.Equal(t, uint64(5), *filters.OwnerID)
 					assert.Equal(t, 1, page)
 					assert.Equal(t, 10, limit)
-					assert.Equal(t, "momo", search)
+					assert.Equal(t, "momo", filters.Search)
 					return []model.Pet{{ID: 1, Name: "ポチ"}}, 1, nil
 				},
 			},
@@ -126,11 +127,82 @@ func TestListPets(t *testing.T) {
 			name:     "returns 500 on service error",
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockPetServiceHandler{
-				listFn: func(_ context.Context, _ uint64, _ *uint64, _, _ int, _ string) ([]model.Pet, int64, error) {
+				listFn: func(_ context.Context, _ []uint64, _ repository.PetListFilters, _, _ int) ([]model.Pet, int64, error) {
 					return nil, 0, fmt.Errorf("db failure")
 				},
 			},
 			wantStatus: http.StatusInternalServerError,
+		},
+		{
+			name:     "species と include_deceased をフィルタへ渡す",
+			query:    "species=3&include_deceased=true",
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockPetServiceHandler{
+				listFn: func(_ context.Context, _ []uint64, filters repository.PetListFilters, _, _ int) ([]model.Pet, int64, error) {
+					require.NotNil(t, filters.AnimalSpeciesID)
+					assert.Equal(t, uint64(3), *filters.AnimalSpeciesID)
+					assert.True(t, filters.IncludeDeceased)
+					return nil, 0, nil
+				},
+			},
+			wantStatus: http.StatusOK,
+		},
+		{
+			name:     "include_deceased 未指定は false（生存のみ）を渡す",
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockPetServiceHandler{
+				listFn: func(_ context.Context, _ []uint64, filters repository.PetListFilters, _, _ int) ([]model.Pet, int64, error) {
+					assert.False(t, filters.IncludeDeceased)
+					return nil, 0, nil
+				},
+			},
+			wantStatus: http.StatusOK,
+		},
+		{
+			name:       "returns 400 for invalid species",
+			query:      "species=abc",
+			setupCtx:   func(c *gin.Context) { setClinicID(c) },
+			svc:        &mockPetServiceHandler{},
+			wantStatus: http.StatusBadRequest,
+		},
+		// ---- #86: 拠点横断一覧 (clinic_ids クエリ) の所属検証 ----
+		{
+			name:     "defaults to current clinic when clinic_ids absent",
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockPetServiceHandler{
+				listFn: func(_ context.Context, clinicIDs []uint64, _ repository.PetListFilters, _, _ int) ([]model.Pet, int64, error) {
+					assert.Equal(t, []uint64{1}, clinicIDs)
+					return nil, 0, nil
+				},
+			},
+			wantStatus: http.StatusOK,
+		},
+		{
+			name:  "passes requested clinic_ids when all assigned",
+			query: "clinic_ids=1,2",
+			setupCtx: func(c *gin.Context) {
+				setClinicID(c)
+				c.Set("is_system_admin", false)
+				c.Set("clinic_ids", []uint64{1, 2})
+			},
+			svc: &mockPetServiceHandler{
+				listFn: func(_ context.Context, clinicIDs []uint64, _ repository.PetListFilters, _, _ int) ([]model.Pet, int64, error) {
+					assert.Equal(t, []uint64{1, 2}, clinicIDs)
+					return nil, 0, nil
+				},
+			},
+			wantStatus: http.StatusOK,
+		},
+		{
+			name:  "returns 403 when clinic_ids contains unassigned clinic",
+			query: "clinic_ids=1,99",
+			setupCtx: func(c *gin.Context) {
+				setClinicID(c)
+				c.Set("is_system_admin", false)
+				c.Set("clinic_ids", []uint64{1, 2})
+			},
+			svc:        &mockPetServiceHandler{},
+			wantStatus: http.StatusForbidden,
 		},
 	}
 
@@ -765,5 +837,4 @@ func TestDeletePet(t *testing.T) {
 //    - Verify PATCH semantics (unspecified fields unchanged)
 //    - Verify Location header on CreatePet
 //    - Verify status transitions (alive → deceased)
-//    - Verify numeric range for danger_level and weight
 //

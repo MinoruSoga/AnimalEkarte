@@ -174,7 +174,13 @@ func analyzeFileForClinicalResultDeletes(filename string, src []byte) ([]auditIn
 	}
 
 	var findings []auditInventoryFinding
+	// Root files key by basename; 1-level subpackage files keep the relative path so e.g.
+	// paymentmethod/repository.go and vaccine/repository.go do not share an allowlist identity
+	// (BE-refactor.md §5-1-3; mirrors dbortx_inventory_lint_test.go's keyFile logic).
 	base := baseFileName(filename) // helper from preload_clinic_scope_lint_test.go
+	if strings.Contains(filename, "/") {
+		base = filename
+	}
 
 	for _, decl := range f.Decls {
 		fd, ok := decl.(*ast.FuncDecl)
@@ -270,9 +276,9 @@ func walkRepositoryForClinicalResultDeletes(t *testing.T) []auditInventoryFindin
 		if err != nil {
 			t.Fatalf("read embedded %s: %v", name, err)
 		}
-		// Inventory keys use basenames for stable allowlist entries on root package files.
-		keyName := baseFileName(name)
-		findings, err := analyzeFileForClinicalResultDeletes(keyName, src)
+		// analyzeFileForClinicalResultDeletes derives the key itself: basename for root package
+		// files, relative path for 1-level subpackage files (BE-refactor.md §5-1-3).
+		findings, err := analyzeFileForClinicalResultDeletes(name, src)
 		if err != nil {
 			t.Fatalf("parse %s: %v", name, err)
 		}
@@ -344,6 +350,64 @@ func reconcileClinicalResultDeletes(found map[string]int, allowlist []auditInven
 	return violations
 }
 
+// TestClinicalResultAuditTxInventory_AnalyzerDetectsViolationUnderNestedPathFilename proves the
+// analyzer itself (not just embed reachability — see
+// TestClinicalResultAuditTxInventory_WalksAllEmbeddedFilesIncludingSubpackages) flags a
+// non-allowlisted clinical-result hard-delete when the source is presented under a 1-level
+// subpackage filename, the shape repoSourceFS produces for real domain subpackages. BE8-0
+// follow-up: the prior walk-smoke test never fed a violation through analyzeFileForClinicalResultDeletes
+// + reconcileClinicalResultDeletes together (see BE-refactor.md BE8-0 follow-up note).
+func TestClinicalResultAuditTxInventory_AnalyzerDetectsViolationUnderNestedPathFilename(t *testing.T) {
+	src := "package p\nfunc (r *repository) Upsert() { db.Delete(&model.ExamResult{}) }\n"
+	findings, err := analyzeFileForClinicalResultDeletes("paymentmethod/repository.go", []byte(src))
+	if err != nil {
+		t.Fatalf("parse fixture: %v", err)
+	}
+	if len(findings) != 1 {
+		t.Fatalf("got %d findings for a nested-path-filename hard-delete, want 1: %+v", len(findings), findings)
+	}
+	agg := aggregateClinicalResultFindings(findings)
+	// Empty allowlist: the site is unreviewed, so it must be flagged (not silently accepted).
+	violations := reconcileClinicalResultDeletes(agg, nil)
+	if len(violations) == 0 {
+		t.Fatal("an unreviewed nested-path clinical-result hard-delete was not flagged against an empty allowlist")
+	}
+}
+
+// TestClinicalResultAuditTxInventory_AllowlistDoesNotCrossSubpackageBasenameCollision proves an
+// allowlist entry scoped to one 1-level domain subpackage's file cannot silently cover the same
+// hard-delete pattern in a DIFFERENT subpackage sharing the same basename (all 14 domain
+// subpackages currently have a "repository.go" — BE-refactor.md §5-1-3). The entry below
+// simulates one that was (or would be) registered under the bare basename a pre-fix
+// baseFileName(name) computes for ANY nested file — e.g. it was reviewed and intended for
+// paymentmethod/repository.go only. A different subpackage (vaccine/) with an identical
+// unreviewed ExamResult hard-delete must NOT inherit that review.
+func TestClinicalResultAuditTxInventory_AllowlistDoesNotCrossSubpackageBasenameCollision(t *testing.T) {
+	allowlist := []auditInventoryEntry{
+		{
+			file:        "repository.go",
+			function:    "repository.Upsert",
+			modelType:   "ExamResult",
+			occurrences: 1,
+			status:      statusAuditedTxInternal,
+			reason:      "BE8-0 collision-safety fixture: an allowlist entry intentionally scoped to one specific domain subpackage file only",
+		},
+	}
+	src := "package p\nfunc (r *repository) Upsert() { db.Delete(&model.ExamResult{}) }\n"
+	findings, err := analyzeFileForClinicalResultDeletes("vaccine/repository.go", []byte(src))
+	if err != nil {
+		t.Fatalf("parse fixture: %v", err)
+	}
+	agg := aggregateClinicalResultFindings(findings)
+	violations := reconcileClinicalResultDeletes(agg, allowlist)
+	if len(violations) == 0 {
+		t.Fatal("vaccine/repository.go's ExamResult hard-delete was silently matched by an allowlist entry " +
+			"keyed under the bare basename \"repository.go\" — this is the cross-subpackage basename collision " +
+			"BE-refactor.md §5-1-3 warns about: paymentmethod/repository.go and vaccine/repository.go must not " +
+			"share an allowlist identity")
+	}
+}
+
 // ─── Gate tests ─────────────────────────────────────────────────────────────────────
 
 // TestClinicalResultAuditTxInventory_AllowlistMatchesRealSource is the gate: every
@@ -373,6 +437,47 @@ func TestClinicalResultAuditTxInventory_AllowlistMatchesRealSource(t *testing.T)
 // no 'pending-migration' example. statusPendingMigration itself stays in the taxonomy (see the
 // const block above and TestClinicalResultAuditTxInventory_GateDetectsViolations fixtures) for
 // the next clinical-result hard-delete site that is added but not yet made ambient-tx-aware.
+// TestClinicalResultAuditTxInventory_WalksAllEmbeddedFilesIncludingSubpackages exercises
+// walkRepositoryForClinicalResultDeletes (the production walk used by the real gate,
+// TestClinicalResultAuditTxInventory_AllowlistMatchesRealSource) against the current embedded
+// set and confirms it completes without t.Fatal for the 1-level subpackage files that set
+// includes. It additionally confirms every subpackage file's raw source is independently
+// parseable via analyzeFileForClinicalResultDeletes. NOTE (audit gap, recorded 2026-07-17):
+// clinicalResultAuditTxAllowlist currently has zero subpackage entries, so this test cannot
+// assert that walkRepositoryForClinicalResultDeletes's own internals would still visit a
+// subpackage file if a future edit added a silent path-based filter inside that function — it
+// can only prove the embed reaches subpackages and their source is parseable today. See
+// TestRepoSourceEmbed_ReachesOneLevelSubpackages (preload_clinic_scope_lint_test.go) for the
+// underlying embed-glob regression test that this wrapper depends on (BE-refactor.md BE8-0).
+func TestClinicalResultAuditTxInventory_WalksAllEmbeddedFilesIncludingSubpackages(t *testing.T) {
+	names := listEmbeddedRepoGoFiles(t)
+	nested := 0
+	for _, n := range names {
+		if strings.Contains(n, "/") {
+			nested++
+		}
+	}
+	if nested == 0 {
+		t.Fatal("no 1-level subpackage files in the embedded set walkRepositoryForClinicalResultDeletes iterates over")
+	}
+	// Smoke-exercise the actual production walk against the current embedded set (including
+	// subpackages) — proves it does not t.Fatal/panic while subpackage files are present.
+	_ = walkRepositoryForClinicalResultDeletes(t)
+	for _, n := range names {
+		if !strings.Contains(n, "/") {
+			continue
+		}
+		src, err := repoSourceFS.ReadFile(n)
+		if err != nil {
+			t.Fatalf("read embedded %s: %v", n, err)
+		}
+		if _, err := analyzeFileForClinicalResultDeletes(n, src); err != nil {
+			t.Fatalf("analyzeFileForClinicalResultDeletes failed to parse embedded subpackage file %s: %v — "+
+				"this lint's walk would silently skip it", n, err)
+		}
+	}
+}
+
 func TestClinicalResultAuditTxInventory_StatusesAreLive(t *testing.T) {
 	counts := map[auditInventoryStatus]int{}
 	for _, e := range clinicalResultAuditTxAllowlist {

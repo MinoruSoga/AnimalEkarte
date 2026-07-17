@@ -11,11 +11,12 @@ import (
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/repository"
 )
 
 // mockPetRepository は PetRepository のテスト用モック実装
 type mockPetRepository struct {
-	findAllFn                     func(ctx context.Context, clinicID uint64, ownerID *uint64, page, limit int, search string) ([]model.Pet, int64, error)
+	findAllFn                     func(ctx context.Context, clinicIDs []uint64, filters repository.PetListFilters, page, limit int) ([]model.Pet, int64, error)
 	findByIDFn                    func(ctx context.Context, clinicID, id uint64) (*model.Pet, error)
 	findByIDForClinicsFn          func(ctx context.Context, clinicIDs []uint64, id uint64) (*model.Pet, error)
 	countByOwnerFn                func(ctx context.Context, clinicID, ownerID uint64) (int64, error)
@@ -28,8 +29,8 @@ type mockPetRepository struct {
 	findLivingByOwnerFn           func(ctx context.Context, clinicID, ownerID uint64) ([]model.Pet, error)
 }
 
-func (m *mockPetRepository) FindAll(ctx context.Context, clinicID uint64, ownerID *uint64, page, limit int, search string) ([]model.Pet, int64, error) {
-	return m.findAllFn(ctx, clinicID, ownerID, page, limit, search)
+func (m *mockPetRepository) FindAll(ctx context.Context, clinicIDs []uint64, filters repository.PetListFilters, page, limit int) ([]model.Pet, int64, error) {
+	return m.findAllFn(ctx, clinicIDs, filters, page, limit)
 }
 
 func (m *mockPetRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Pet, error) {
@@ -228,14 +229,14 @@ func TestPetService_List(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			capturedOwnerID := (*uint64)(nil)
 			repo := &mockPetRepository{
-				findAllFn: func(_ context.Context, _ uint64, ownerID *uint64, _, _ int, _ string) ([]model.Pet, int64, error) {
-					capturedOwnerID = ownerID
+				findAllFn: func(_ context.Context, _ []uint64, filters repository.PetListFilters, _, _ int) ([]model.Pet, int64, error) {
+					capturedOwnerID = filters.OwnerID
 					return tt.repoPets, tt.repoTotal, tt.repoErr
 				},
 			}
 			svc := newPetSvc(repo, defaultOwnerRepo(), defaultInsuranceRepo(tt.clinicID), defaultMedicalRecordRepo())
 
-			pets, total, err := svc.List(context.Background(), tt.clinicID, tt.ownerID, tt.page, tt.limit, tt.search)
+			pets, total, err := svc.List(context.Background(), []uint64{tt.clinicID}, repository.PetListFilters{OwnerID: tt.ownerID, Search: tt.search}, tt.page, tt.limit)
 
 			if tt.wantErr {
 				assert.Error(t, err)

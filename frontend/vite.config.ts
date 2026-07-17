@@ -10,10 +10,25 @@ function lineReserveDevPlugin(): Plugin {
     name: 'line-reserve-dev',
     configureServer(server) {
       server.middlewares.use((req, _res, next) => {
-        if (
-          req.url?.startsWith('/line-reserve') &&
-          !req.url.includes('.') // .tsx, .ts, .css 等のアセットリクエストは除外
-        ) {
+        if (!req.url?.startsWith('/line-reserve')) {
+          next();
+          return;
+        }
+
+        // line-reserve/index.html は <script src="./src/main.tsx"> と相対パスで
+        // main.tsx を読み込む。ブラウザはこれをアドレスバーの実URL基準で解決するため、
+        // /line-reserve/{clinicId}/ を開くと /line-reserve/{clinicId}/src/... という
+        // 実ファイルの位置より1階層深いパスをリクエストしてしまう(BUG-402)。
+        // 実ファイルの位置(/line-reserve/src/...)へ正規化する。
+        const nestedAssetMatch = req.url.match(/^\/line-reserve\/[^/]+\/(src\/.+)$/);
+        if (nestedAssetMatch) {
+          req.url = `/line-reserve/${nestedAssetMatch[1]}`;
+          next();
+          return;
+        }
+
+        if (!req.url.includes('.')) {
+          // .tsx, .ts, .css 等のアセットリクエストは除外
           req.url = '/line-reserve/index.html';
         }
         next();

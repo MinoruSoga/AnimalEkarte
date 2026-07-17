@@ -61,7 +61,7 @@ func TestPetRepository_FindAll(t *testing.T) {
 	makeSpeciesAndPet(t, db, clinicB, (makeTestOwner(t, db, clinicB, "検索飼主B")).ID, "ペットB1")
 
 	t.Run("clinic スコープと総数", func(t *testing.T) {
-		pets, total, err := repo.FindAll(ctx, clinicA, nil, 1, 10, "")
+		pets, total, err := repo.FindAll(ctx, []uint64{clinicA}, PetListFilters{}, 1, 10)
 		require.NoError(t, err)
 		assert.Equal(t, int64(3), total)
 		assert.Len(t, pets, 3)
@@ -71,19 +71,19 @@ func TestPetRepository_FindAll(t *testing.T) {
 	})
 
 	t.Run("ページング", func(t *testing.T) {
-		page1, total, err := repo.FindAll(ctx, clinicA, nil, 1, 2, "")
+		page1, total, err := repo.FindAll(ctx, []uint64{clinicA}, PetListFilters{}, 1, 2)
 		require.NoError(t, err)
 		assert.Equal(t, int64(3), total)
 		assert.Len(t, page1, 2)
 
-		page2, total2, err := repo.FindAll(ctx, clinicA, nil, 2, 2, "")
+		page2, total2, err := repo.FindAll(ctx, []uint64{clinicA}, PetListFilters{}, 2, 2)
 		require.NoError(t, err)
 		assert.Equal(t, int64(3), total2)
 		assert.Len(t, page2, 1)
 	})
 
 	t.Run("ownerID フィルタ", func(t *testing.T) {
-		pets, total, err := repo.FindAll(ctx, clinicA, &ownerA2.ID, 1, 10, "")
+		pets, total, err := repo.FindAll(ctx, []uint64{clinicA}, PetListFilters{OwnerID: &ownerA2.ID}, 1, 10)
 		require.NoError(t, err)
 		assert.Equal(t, int64(1), total)
 		require.Len(t, pets, 1)
@@ -91,7 +91,7 @@ func TestPetRepository_FindAll(t *testing.T) {
 	})
 
 	t.Run("ペット名の部分一致検索", func(t *testing.T) {
-		pets, total, err := repo.FindAll(ctx, clinicA, nil, 1, 10, "A2")
+		pets, total, err := repo.FindAll(ctx, []uint64{clinicA}, PetListFilters{Search: "A2"}, 1, 10)
 		require.NoError(t, err)
 		assert.Equal(t, int64(1), total)
 		require.Len(t, pets, 1)
@@ -99,7 +99,7 @@ func TestPetRepository_FindAll(t *testing.T) {
 	})
 
 	t.Run("飼主名での検索もヒットする", func(t *testing.T) {
-		pets, total, err := repo.FindAll(ctx, clinicA, nil, 1, 10, "検索飼主2")
+		pets, total, err := repo.FindAll(ctx, []uint64{clinicA}, PetListFilters{Search: "検索飼主2"}, 1, 10)
 		require.NoError(t, err)
 		assert.Equal(t, int64(1), total)
 		require.Len(t, pets, 1)
@@ -111,12 +111,123 @@ func TestPetRepository_FindAll(t *testing.T) {
 		petKana := makeSpeciesAndPet(t, db, clinicA, ownerKana.ID, "かな検索用ペット")
 		require.NoError(t, db.WithContext(ctx).Model(&model.Pet{}).Where("id = ?", petKana.ID).Update("name_kana", "ぽち").Error)
 
-		pets, total, err := repo.FindAll(ctx, clinicA, nil, 1, 10, "ポチ")
+		pets, total, err := repo.FindAll(ctx, []uint64{clinicA}, PetListFilters{Search: "ポチ"}, 1, 10)
 		require.NoError(t, err)
 		assert.Equal(t, int64(1), total)
 		require.Len(t, pets, 1)
 		assert.Equal(t, petKana.ID, pets[0].ID)
 	})
+
+	t.Run("飼主電話番号での検索もヒットする", func(t *testing.T) {
+		ownerPhone := makeTestOwner(t, db, clinicA, "電話検索飼主")
+		require.NoError(t, db.WithContext(ctx).Model(&model.Owner{}).Where("id = ?", ownerPhone.ID).Update("phone", "090-1111-2222").Error)
+		petPhone := makeSpeciesAndPet(t, db, clinicA, ownerPhone.ID, "電話検索用ペット")
+
+		pets, total, err := repo.FindAll(ctx, []uint64{clinicA}, PetListFilters{Search: "090-1111-2222"}, 1, 10)
+		require.NoError(t, err)
+		assert.Equal(t, int64(1), total)
+		require.Len(t, pets, 1)
+		assert.Equal(t, petPhone.ID, pets[0].ID)
+	})
+
+	t.Run("species フィルタ", func(t *testing.T) {
+		speciesX := &model.AnimalSpecies{Name: "species フィルタ用種"}
+		require.NoError(t, db.WithContext(ctx).Create(speciesX).Error)
+		ownerSpecies := makeTestOwner(t, db, clinicA, "species フィルタ飼主")
+		petSpeciesMatch := makePetDetailed(t, db, clinicA, ownerSpecies.ID, speciesX.ID, "species一致ペット", nil, nil)
+
+		pets, total, err := repo.FindAll(ctx, []uint64{clinicA}, PetListFilters{AnimalSpeciesID: &speciesX.ID}, 1, 10)
+		require.NoError(t, err)
+		assert.Equal(t, int64(1), total)
+		require.Len(t, pets, 1)
+		assert.Equal(t, petSpeciesMatch.ID, pets[0].ID)
+	})
+
+	t.Run("include_deceased 既定 false は死亡ペットを除外する", func(t *testing.T) {
+		ownerDeceased := makeTestOwner(t, db, clinicA, "生死フィルタ飼主")
+		deceasedAt := time.Now().Add(-24 * time.Hour)
+		speciesID := makeSyncSpeciesID(t, db)
+		alivePet := makePetDetailed(t, db, clinicA, ownerDeceased.ID, speciesID, "生死フィルタ生存ペット", nil, nil)
+		deadPet := makePetDetailed(t, db, clinicA, ownerDeceased.ID, speciesID, "生死フィルタ死亡ペット", nil, &deceasedAt)
+
+		pets, _, err := repo.FindAll(ctx, []uint64{clinicA}, PetListFilters{OwnerID: &ownerDeceased.ID}, 1, 10)
+		require.NoError(t, err)
+		ids := make([]uint64, len(pets))
+		for i, p := range pets {
+			ids[i] = p.ID
+		}
+		assert.Contains(t, ids, alivePet.ID)
+		assert.NotContains(t, ids, deadPet.ID, "include_deceased 未指定(false)は死亡ペットを除外する")
+
+		petsIncl, _, err := repo.FindAll(ctx, []uint64{clinicA}, PetListFilters{OwnerID: &ownerDeceased.ID, IncludeDeceased: true}, 1, 10)
+		require.NoError(t, err)
+		idsIncl := make([]uint64, len(petsIncl))
+		for i, p := range petsIncl {
+			idsIncl[i] = p.ID
+		}
+		assert.Contains(t, idsIncl, alivePet.ID)
+		assert.Contains(t, idsIncl, deadPet.ID, "include_deceased=true は死亡ペットを含める")
+	})
+
+	t.Run("順序は owners.name_kana ASC, pets.id ASC で安定する", func(t *testing.T) {
+		ownerZ := makeTestOwner(t, db, clinicA, "順序飼主Z")
+		require.NoError(t, db.WithContext(ctx).Model(&model.Owner{}).Where("id = ?", ownerZ.ID).Update("name_kana", "われ").Error)
+		ownerA := makeTestOwner(t, db, clinicA, "順序飼主A")
+		require.NoError(t, db.WithContext(ctx).Model(&model.Owner{}).Where("id = ?", ownerA.ID).Update("name_kana", "あお").Error)
+		speciesID := makeSyncSpeciesID(t, db)
+		petZ := makePetDetailed(t, db, clinicA, ownerZ.ID, speciesID, "順序ペットZ", nil, nil)
+		petA1 := makePetDetailed(t, db, clinicA, ownerA.ID, speciesID, "順序ペットA1", nil, nil)
+		petA2 := makePetDetailed(t, db, clinicA, ownerA.ID, speciesID, "順序ペットA2", nil, nil)
+
+		pets, _, err := repo.FindAll(ctx, []uint64{clinicA}, PetListFilters{}, 1, 100)
+		require.NoError(t, err)
+
+		idxZ := indexOfPetID(pets, petZ.ID)
+		idxA1 := indexOfPetID(pets, petA1.ID)
+		idxA2 := indexOfPetID(pets, petA2.ID)
+		require.True(t, idxA1 >= 0 && idxA2 >= 0 && idxZ >= 0)
+		assert.Less(t, idxA1, idxZ, "kana 昇順: あお(A) は われ(Z) より前")
+		assert.Less(t, idxA1, idxA2, "同一 owner 内は pets.id ASC でタイブレーク")
+	})
+
+	t.Run("owner サマリが埋め込まれる", func(t *testing.T) {
+		pets, _, err := repo.FindAll(ctx, []uint64{clinicA}, PetListFilters{OwnerID: &ownerA1.ID}, 1, 10)
+		require.NoError(t, err)
+		require.NotEmpty(t, pets)
+		require.NotNil(t, pets[0].Owner)
+		assert.Equal(t, ownerA1.ID, pets[0].Owner.ID)
+		assert.Equal(t, ownerA1.Name, pets[0].Owner.Name)
+	})
+
+	t.Run("#86 拠点横断: clinic_ids 複数指定で両医院のペットを返す", func(t *testing.T) {
+		// 総数は先行 subtest 群が同一 DB にペットを追加し続けるため固定値では検証しない
+		// （このファイルの既存慣習どおり subtest 間で DB をリセットしない）。
+		// ここでは clinicA/clinicB 双方のペットが含まれることのみを確認する。
+		pets, _, err := repo.FindAll(ctx, []uint64{clinicA, clinicB}, PetListFilters{}, 1, 100)
+		require.NoError(t, err)
+		clinics := make(map[uint64]bool)
+		for _, p := range pets {
+			clinics[p.ClinicID] = true
+		}
+		assert.True(t, clinics[clinicA])
+		assert.True(t, clinics[clinicB])
+	})
+
+	t.Run("クロステナント隔離: 空スライスは0件", func(t *testing.T) {
+		pets, total, err := repo.FindAll(ctx, []uint64{}, PetListFilters{}, 1, 10)
+		require.NoError(t, err)
+		assert.Equal(t, int64(0), total)
+		assert.Empty(t, pets)
+	})
+}
+
+func indexOfPetID(pets []model.Pet, id uint64) int {
+	for i := range pets {
+		if pets[i].ID == id {
+			return i
+		}
+	}
+	return -1
 }
 
 func TestPetRepository_FindByIDForClinics(t *testing.T) {

@@ -6,45 +6,32 @@
 
 ## Open
 
-### BUG-401: ワクチン登録フォームのフィラリア選択肢がマスタ 11 件に対し 2 件のみ表示
+### BUG-411:【CRITICAL・データ喪失リスク】会計・検査一覧が backend デフォルト limit=20 で切られた配列に対し偽のクライアントページネーションを行い、フルデータ規模で大半のレコードが不可視化する
 
-- **症状**: 予防接種の新規登録フォームでワクチン選択プルダウンを開くと、名称に「フィラリア」を含む項目が 2 件しか出ない。マスタ設定にはアクティブなフィラリア関連項目が 11 件登録されている。
-- **再現**: vet 相当でログイン → 予防接種一覧 → 新規登録 → 生存中の犬を選択 → ワクチン選択で「フィラリア」を確認（2件）→ 別タブでワクチン・予防マスタのアクティブ件数と突合（11件）。
-- **調査の起点**: フォーム側のフィルタ条件（対象動物種・カテゴリ絞り込み）とマスタ実データの不一致疑い。`VaccinationForm.tsx:72`（SearchableSelect）と選択肢を供給する hook のクエリ条件。#125（フィラリア誤参照）の回帰ではないことは名称確認ベースで確認済み。
-- **発見**: 受け入れシナリオ S03 手順7（2026-07-17・レポート = reports/2026-07-17-local.md）。
+- **症状**: `AccountingList.tsx`（会計一覧）と `ExaminationsList.tsx`（検査一覧）は `useGetAccountings`/`useGetExaminations` 呼び出しで `page`/`limit` を一切送らない。バックエンドの `parsePagination`（`backend/internal/handler/query_helpers.go:27`）は未指定時 `limit=20` をデフォルト適用するため、実際には常に「最新（もしくは任意順）20件」だけが返る。フロント側はこの20件配列を `usePagination()`（`frontend/src/hooks/use-pagination.ts`）でクライアントページネーションするため `totalPages` は常に1、`Pagination` コンポーネントは非表示、件数表示も「20件」等の**偽の全件数**を示す。ユーザーには「全件表示されている」ように見えるが、実データの大半が一覧にもフィルタにも検索にも一切現れない。
+- **実測件数（ローカルフルデータ）**: `billings` テーブル **392,105件**（会計）、`exams` テーブル **14,533件**（検査） — いずれも表示されるのは先頭20件のみ。#266 のような白画面クラッシュにはならない（over-fetch ではなく under-fetch）ため気づかれにくく、**会計データの大半が一覧上「存在しないもの」として扱われる**という点で #266 より発見しにくく深刻。
+- **同型パターンの他候補**: `AccountingList`/`ExaminationsList` の他に、`InventoryList`/`VaccinationList`/`TrimmingList` も同じ `usePagination()` 消費側だが、これらは対応する取得APIが date-scoped もしくは実データ件数が小さい（`inventory_items`=30件、`vaccinations`=0件、ローカル実測）ため本チケットでは相対的に低リスクと判定。ただし本番の実データ移行（#250）後は再確認が必要。
+- **調査の起点**: `frontend/src/features/accounting/api/get-accountings.ts`（`getAccountings` の `params` に `page`/`limit` が無い）、`frontend/src/hooks/use-examinations.ts`（同様）。修正方針は #266 の owners 対応（サーバサイド search/page/limit を URL 経由で loader/hook に転送し、`usePagination()` の client-side slicing をやめる）と同型。
+- **発見**: 2026-07-17（#266 の fetch-limits 横断棚卸し中に発見。`frontend/src/config/fetch-limits.ts` 経由の各所は SD-18 で「直近100件表示」の可視キャップ表示済みで別枠 — 本件は fetch-limits.ts を経由しない、キャップ表示すら無い"偽ページネーション"のため独立起票）。
 
-### BUG-402: `/line-reserve/{clinicId}/` で Vite dev サーバが 503 を返し白画面
+### BUG-408:【設計判断待ち】予防接種フォームのワクチン選択に動物種(species)フィルタが無い
 
-- **症状**: `http://localhost:3003/line-reserve/1/` にアクセスすると `GET /line-reserve/1/src/main.tsx` が HTTP 503 になり終始空白。`clinicId` なしの `/line-reserve/` は正常起動（「クリニックIDが見つかりません」の設計どおりの画面）。
-- **影響**: **ローカルでの LIFF 予約検証を全塞ぎ**（受け入れシナリオ S04 の 10 BLOCKED の唯一の原因）。dev 環境固有でビルド済み STG/本番には影響しない可能性が高いが、S04 再実行の前提のため優先高。
-- **調査の起点**: `frontend/vite.config.ts` の `lineReserveDevPlugin` — clinicId パスセグメントを含む URL でのアセットパス解決。
-- **発見**: S04 手順1（2026-07-17）。
+- **経緯**: 旧 BUG-408/401（予防接種フォームが `VACCINE_TYPE_ITEMS` というハードコード2択で、ワクチンマスタを一切クエリせず、誤った vaccine_id を永続化していたデータ破損）は **2026-07-17 に修正済み**。`VaccinationFormPanels.tsx` が姉妹フォーム（`MedicalRecordVaccination.tsx`）と同じ `useGetAllVaccinesMaster()` パターンで実マスタを `isActive` フィルタ付きでクエリするよう変更し、`use-vaccination-form.ts` の `VACCINE_SCHEDULE_MAP`（"1"/"2"固定キー）も選択ワクチンの `interval` フィールドから次回予定を導出する方式に置き換えた（回帰テスト: `use-vaccination-form.test.ts` の「BUG-401」節、`VaccinationFormPanels.test.tsx`）。
+- **残存する設計判断（未決・本エントリが追跡するのはこれのみ）**: マスタ項目を選択ペットの動物種でどう絞り込むか。姉妹フォームも動物種フィルタを持たないため、上記修正は parity に留め新規リスクを増やしていないが、犬患者に猫用ワクチン（またはその逆）が選択可能な状態そのものは残っている。選択ペットのデータ型に `species` が含まれておらず型拡張が必要になる可能性がある。
+- **調査の起点**: `usePetSelection` が返す pet オブジェクトの型定義、`VaccineItem.species` フィールド（`frontend/src/lib/transforms/treatment.ts`）との突合。
+- **発見**: 2026-07-17（BUG-401 調査中）。vaccine_id 誤保存自体は同日中に修正済み。
 
-### BUG-403: ケアプラン「投薬/処置・検査/持ち物」タイプが常に 400 で登録不能（FE 実装ギャップ）
+### BUG-409:【要検証】ペット死亡ステータスの二重管理が外側フォーム経由で再発しうる
 
-- **症状**: 入院詳細のケアプラン追加で type=投薬・処置・持ち物を選ぶと常に「入力値が正しくありません」。食事・指示は成功。
-- **根因（確定・2026-07-17 API 再測）**: DDL の CHECK 制約 `chk_care_plan_item_ref`（001_init.sql）が投薬=medicine_id・処置=procedure_id・持ち物=hospitalization_plan_id を必須とする**臨床的に妥当な設計**なのに対し、`frontend/src/features/hospitalization/components/CarePlanTab/AddForm.tsx` に**マスタ選択 UI が存在せず** FK を送れない。API 層の型定義（`api/care-plan-items.ts`）には FK フィールドが存在する — フォームが集めていないだけ。BE/DDL は正しい。
-- **修正方向**: ① AddForm / EditRow に type 連動のマスタ選択（投薬=薬剤・処置=処置・持ち物=入院プラン）を追加 ② BE の CHECK 違反エラーを「投薬タイプには薬剤の選択が必要です」等の具体メッセージに改善（`classifyPgError` は 23514 を汎用文言に落とす）。
-- **発見**: S05（2026-07-17）。
+- **症状（未確認・要検証）**: BUG-407 の修正で死亡登録サブダイアログの即時保存時に `status`/`deceased_at` を同一 Update で同期するようにしたが、`PetEditModal` の生死ラジオ（外側フォーム）が `deceased_at` と独立に `status` を変更できる可能性があり、外側の「更新」経由の保存が `status` のみ書き込み `deceased_at` を触らない実装であれば、再度 `status=生存` かつ `deceased_at` 残存という不整合状態を生みうる。
+- **調査の起点**: `PetEditModal` の生死ラジオ状態と `transformUpdatePetRequest`（PATCH /pets/:id 系）が `status` と `deceased_at` の両方を一貫して扱っているかを確認する。
+- **発見**: 2026-07-17（healthcare-reviewer による BUG-407 修正の独立監査で指摘、MEDIUM）。
 
-### BUG-405: 当日開始の入院が「入院中」タブに表示されず「予約」のまま（チェックイン導線不明）
+### BUG-410:【要検証】カルテ編集保存時に構造化診断（diagnosis1/2）が再投入されず上書きされる可能性
 
-- **症状**: 開始日=当日で入院登録しても一覧の「入院中」タブに出ず「予約」タブに残る。詳細画面には「退院処理」ボタンが表示され実質アクティブ扱い。ステータスを admitted へ遷移させる UI 導線が見当たらない。
-- **調査の起点**: hospitalizations.status（reserved/admitted/discharged）の遷移設計。BE の create は status 指定可（既定 reserved）。「チェックイン」操作が未実装なのか、受付カンバン等に隠れた導線があるのかの仕様確認から。仕様正本 = docs/spec/screens/07/09。
-- **発見**: S05（2026-07-17）。
-
-### BUG-406: カルテ問診タブの保存済み内容が編集フォーム再読込で空テンプレートに戻る（hydration 不具合）
-
-- **症状**: 問診タブの主訴詳細等を入力・保存（成功トースト・一覧の主訴列にも反映= DB 保存済み）→ ページ再読込で該当フィールドが空のテンプレート初期状態に戻って表示される。
-- **影響**: 医師が「入力が消えた」と誤認して再入力・重複記録するリスク。データ消失ではなく表示側の欠陥。
-- **調査の起点**: 編集フォームを開いた際の保存値復元（hydrate）処理。`use-medical-record-form.ts` / 問診タブの初期値ロード。保存時と読込時のフィールドマッピング差異。
-- **発見**: S06 手順1（2026-07-17）。
-
-### BUG-407:【UX・データ喪失リスク】ペット死亡登録がサブダイアログ確定だけでは保存されない
-
-- **症状**: ペット編集の死亡登録サブダイアログで「死亡を記録する」を確定すると成功トーストが出るが、実際には外側フォームの「更新」を押すまで保存されない。トーストを信じてダイアログを閉じると入力が失われる。
-- **修正方向の設計判断**: (a) サブダイアログ確定時に即時保存する (b) トーストを抑止し「未保存」状態を明示する — いずれかを選ぶ（確認ダイアログの追加は禁止則）。
-- **発見**: S01 手順1（2026-07-17）。
+- **症状（未確認・要検証）**: BUG-406 の修正で問診（Inquiry）は再読込時に正しく復元されるようになったが、`use-apply-medical-record.ts` / `transforms.ts` は assessment/plan の自由記述は再投入する一方、diagnosis1/2 の category/name ID を再投入していない（`transformMedicalRecord` がそもそも露出しない）。保存アクションが未ロードの診断マスタ state を送信する実装であれば、通常の編集保存で保存済みの構造化診断が意図せず上書き・クリアされる可能性がある。
+- **調査の起点**: カルテ編集保存の送信ペイロードが、未ロードの diagnosis1/2 を null 化して送っていないかを確認する。
+- **発見**: 2026-07-17（healthcare-reviewer による BUG-406 修正の独立監査で指摘、MEDIUM）。
 
 ## 直近クローズ（次回整理で削除）
 

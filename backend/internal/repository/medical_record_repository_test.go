@@ -454,6 +454,15 @@ func TestMedicalRecordRepository_FindByID(t *testing.T) {
 		require.Error(t, err)
 		assert.True(t, apperrors.IsNotFound(err))
 	})
+
+	t.Run("BUG-406: 保存済み Inquiry が FindByID の結果に含まれる", func(t *testing.T) {
+		makeInquiryForRecord(t, db, rec.ID, "再読込後も残るはずの主訴")
+
+		got, err := repo.FindByID(ctx, clinicA, rec.ID)
+		require.NoError(t, err)
+		require.NotNil(t, got.Inquiry, "Inquiry が Preload されていない（BUG-406 根本原因）")
+		assert.Equal(t, "再読込後も残るはずの主訴", got.Inquiry.ChiefComplaint)
+	})
 }
 
 // TestMedicalRecordRepository_FindByIDForClinics はマルチクリニック横断取得の

@@ -40,6 +40,16 @@ func TestClassifyPgError(t *testing.T) {
 			want: "入力値が正しくありません",
 		},
 		{
+			name: "check_violation on chk_care_plan_item_ref returns care-plan-specific message (BUG-403)",
+			err:  &pgconn.PgError{Code: "23514", ConstraintName: "chk_care_plan_item_ref"},
+			want: "選択した種別に応じたマスタ(投薬=薬剤・処置検査=処置・持ち物=入院プラン)を選択してください",
+		},
+		{
+			name: "check_violation with unrecognized constraint name falls back to generic check message",
+			err:  &pgconn.PgError{Code: "23514", ConstraintName: "some_other_check"},
+			want: "入力値が制約条件を満たしていません",
+		},
+		{
 			name: "wrapped pg error is unwrapped via errors.As",
 			err:  fmt.Errorf("wrapped: %w", &pgconn.PgError{Code: "23505"}),
 			want: "既に登録されています",

@@ -3,10 +3,10 @@
 > **作成日**: 2026-07-05 | **対象**: Staging 環境（us-east-1）の全リソース
 > **前提調査**: [research-cloudflare.html](research-cloudflare.html)（2026-07-04 再調査版）
 > **人間タスク一覧**: [todo-me.html](todo-me.html)（未完了かつ人間操作が必要な項目を依存順・優先度別にチェックリスト化）
-> **ステータス**: 実行中 — **Phase 4 完了（P4-1〜P4-9、2026-07-05 試行12確定）**。**Phase 5（CI/CD 置換）コード完了（2026-07-06。P5-1/P5-3/P5-4 実装・コミット `4a9ad331` 確定。P5-2（Secrets登録）/P5-5（2回連続成功確認）は人間タスク待ち・BLOCKED(genuine)）**。**Phase 6（監視・ログ・通知）— P6-1〜P6-3 完了（2026-07-06）・P6-4 調査完了/genuine BLOCKED（2026-07-07、Cloudflareにアカウント全体のドル建て支出アラート機構が存在しないため実装不可と判明）・P6-5 棚卸し完了（2026-07-07、AWS CloudWatch依存6項目中、代替不能は1件のみ=#4 RDS PostgreSQLログのCloudWatch Logsエクスポート↔PlanetScale側の同等性・未検証BLOCKED、他5件はPASS/N/A）**。
+> **ステータス**: **STG 切替完了（2026-07-17 夜）・並行稼働中（P7-2）** — 詳細は先頭の「最新更新」行と現況サマリ参照。以下この行の残りは 2026-07-07 時点の記録: 実行中 — **Phase 4 完了（P4-1〜P4-9、2026-07-05 試行12確定）**。**Phase 5（CI/CD 置換）コード完了（2026-07-06。P5-1/P5-3/P5-4 実装・コミット `4a9ad331` 確定。P5-2（Secrets登録）/P5-5（2回連続成功確認）は人間タスク待ち・BLOCKED(genuine)）**。**Phase 6（監視・ログ・通知）— P6-1〜P6-3 完了（2026-07-06）・P6-4 調査完了/genuine BLOCKED（2026-07-07、Cloudflareにアカウント全体のドル建て支出アラート機構が存在しないため実装不可と判明）・P6-5 棚卸し完了（2026-07-07、AWS CloudWatch依存6項目中、代替不能は1件のみ=#4 RDS PostgreSQLログのCloudWatch Logsエクスポート↔PlanetScale側の同等性・未検証BLOCKED、他5件はPASS/N/A）**。
 > Phase 0〜3 は完了（P2-4/P2-5 画像データ移行実行・P3-6/P3-7 データ本切替は人間判断待ち）。
 > トラフィック切替（P1-2 NS 切替・Phase 7）は未実施。現行 `api.stg.noah-karte.com` は AWS ECS 経路（夜間停止等で 503 になり得る）、Cloudflare 検証経路は `*.workers.dev`（2026-07-06 時点 `/health` 200 確認済み。P6着手セッションではdeployしていないため前回記録を維持）。詳細は「実施記録」の 2026-07-06 セクション参照
-> **最新更新: 2026-07-16（下記「現況サマリ」の同日付ブロック参照 — P5-2 完了・PlanetScale STG 初期化済み・残ブロッカー = main CI 赤修正 → PR #186 マージ【ユーザー】）**
+> **最新更新: 2026-07-17 夜 — STG 切替完了。** Phase 5 真の完結（P5-5 2連続green・run 29570272853/29570481824）→ フルデモ投入（owners 10,370/pets 15,654・checksum整合済み）→ P2-4/5 no-op クローズ → NS 切替（P1-2）→ SSL strict+ACM（P1-3）→ api.stg proxied 化（P7-1）→ 実URLフルスモーク全200（P7-3）。**`api.stg.noah-karte.com` の実体は CF Worker+Container+PlanetScale。** AWS は並行稼働温存（P7-2）。残 = 本番CF構築（#253・手順書 docs/infra/deploy/PRODUCTION_CF_SETUP.md）→ #250 Access投入 → 7/18 Go-live。同日の教訓は P5-5/P1-3 の注記参照（pnpm exec CWD 罠・Workers Routes 権限・ロールアウト競合・2階層サブドメイン証明書）
 
 ## 現況サマリ（2026-07-15 ステータス監査）
 
@@ -92,6 +92,13 @@
 **ロールバック**: 手順3から再実行し、手順4の代わりに `gh workflow run backend-deploy.yml`（CI の migrate）を叩けば小さいデモ + 正 checksum の初期状態に戻る。
 
 **本番への注意**: 本番 DB では本手順を使わない。本番は 002_master のみが正で、`cmd/migrate` がフレッシュ DB に 003_demo/004_staging も自動投入してしまう問題への対処（seed バンドル選択の環境変数追加 or 投入後除去）は `docs/infra/deploy/PRODUCTION_CF_SETUP.md` の必須ステップ参照（判断未確定・#253）。
+
+### 実施記録（2026-07-17 夜 — 完了。実測で判明した手順差分 3 点）
+
+- 完走・検証 PASS: owners=10,370 / pets=15,654 / medical_records=425,544 / billing_items=1,542,422（ローカル migrate 直結・24 分）。以後の CI デプロイが skip 判定でフルデータを保持することも実デプロイで確認済み
+- **差分①（checksum）**: 手順 2 の「CI 記録値を控えて書き戻す」は**そのままでは使えなかった** — 当時の CI migrate は旧コンテナイメージ（P5-5 偽 green 問題）で実行されており、schema_migrations のキー体系・値とも現行コードと異なっていた。実際は committed CSV から `bundleChecksum` と同一手順（sha256(manifest.json + manifest 順の全 CSV)）を git blob 経由で再現計算し、**002_master で Go 実装と完全一致を自己検証してから** UPDATE した
+- **差分②（権限・必須手順）**: `DROP SCHEMA` → ローカル migrate 再構築後は**全オブジェクトの所有者が投入用一時 role になり、worker role が権限を失う**。`GRANT ALL ON SCHEMA public TO PUBLIC` + 全 TABLES/SEQUENCES への GRANT + `ALTER DEFAULT PRIVILEGES` の投入が必須（未実施だと CI migrate が `permission denied for schema public` で失敗 — 実測）。**残課題**: 一時 role（full-demo-swap）が全 87 テーブルの所有者のまま残存（所有者のため TTL で drop されない）— `ALTER TABLE ... OWNER TO postgres` での所有権移転を後始末として実施（P7-2 観測 #1）
+- **差分③（旧イメージ）**: デプロイ直後の migrate は scale-to-zero 起床時に**旧イメージのインスタンス**へ当たりうる（Containers のローリング更新は非同期）。イメージ更新を伴う検証は 15 分静置（sleepAfter=10m 超）後に行う
 
 ---
 
@@ -786,11 +793,11 @@ Phase 1〜3 は互いに独立しており並行着手可能。Phase 4 が最大
 最小リスクの第一手。**既存 AWS スタックを温存したまま**前段に Cloudflare を被せる。**すべて `infra/cloudflare/` の Terraform で定義**する。
 
 - [x] **P1-1** ゾーン作成（`cloudflare_zone`）+ 既存 DNS レコードの Terraform 化 — `infra/cloudflare/zone.tf` に定義済み（`terraform validate` 成功。`apply` はBLOCKED）。棚卸しは `dig`（動的Anycast発覚）→ `vercel dns ls`/Vercel API一次情報で完了。詳細は上記実施記録 P1-1 参照
-- [ ] **P1-2** ネームサーバ移管（or サブドメイン NS 委任）。TTL を事前に短縮しておく — **スコープ外（人間タスク）**。事実確認済み: registrarはVercel、切替はVercelドメイン管理画面/APIでのカスタムNS設定（実施記録 P1-2 参照）
-- [ ] **P1-3** SSL モード **Full (strict)** を `cloudflare_zone_setting` で設定 — **未着手**（本タスクのスコープ外。P1-2完了後に着手）
+- [x] **P1-2** ネームサーバ移管 — **2026-07-17 夜 完了**。ユーザーが Vercel ドメイン管理でカスタム NS（melissa/yadiel.ns.cloudflare.com）へ切替、公開 DNS への伝播と zone status=active を実測確認。全レコード proxied=false 複製済みだったため切替時のトラフィック変動ゼロ（二段構え設計どおり）
+- [x] **P1-3** SSL モード **Full (strict)** — **2026-07-17 夜 完了**（zone settings API で PATCH・success 確認）。⚠️ **追加発覚**: `api.stg.noah-karte.com` は 2 階層サブドメインのため Universal SSL（`*.noah-karte.com`=1 階層のみ）の対象外で TLS alert 40 で全断 → **Advanced Certificate Manager（$10/月）を契約し `*.stg.noah-karte.com` 含む証明書を発行して解消**（注文から約4分で Active・Google Trust Services）。本番 `api.noah-karte.com` は 1 階層のため無料枠で足りる。納品後の任意判断: STG API ホストを 1 階層（api-stg.〜）へ改名すれば ACM 解約可
 - [ ] **P1-4** 無料枠 WAF マネージドルール・Bot Fight Mode を `cloudflare_ruleset` / `cloudflare_bot_management` で定義 — **未着手**（スコープ外）
 - [ ] **P1-5** キャッシュルールを `cloudflare_ruleset` で定義 — **未着手**（スコープ外）
-- [ ] **P1-6** Cookie 認証がプロキシ経由でも成立することを検証 — **未着手**（NS未切替のため検証不可。Phase 7で実施）
+- [x] **P1-6** Cookie 認証のプロキシ経由検証 — **2026-07-17 夜 完了**。proxied 化後の実 URL で login → Set-Cookie → /me 200 を curl スモークで、ログイン→ダッシュボード表示をブラウザ（Chrome DevTools）で実測確認
 - [ ] **P1-7** LIFF / LINE 予約のコールバック URL がドメイン変更の影響を受けないか確認 — **未着手**（スコープ外）
 
 **ロールバック**: ネームサーバを元に戻すだけ（AWS 側は無変更のため即時復旧可能）。
@@ -803,7 +810,7 @@ Phase 1〜3 は互いに独立しており並行着手可能。Phase 4 が最大
 - [x] **P2-2** **コード変更**: `S3_ENDPOINT` を `backend/internal/config/config.go` に追加、`backend/internal/infra/s3_endpoint.go`（`applyS3EndpointOverride`/`buildS3ObjectURL`）を新設、`s3_file_storage.go`/`s3_uploader.go`/`cmd/api/main.go` を更新。TDDで実装、`go test`/`go vet`/`gofmt` 全クリーン（実施記録 5. 参照）
 - [x] **P2-3** R2 S3互換SDK経路での Upload / GetSignedURL / Delete 実疎通 — **2026-07-05 試行8で PASS**。Account API Token に `Account API Tokens Write` 追加後、`POST /accounts/{id}/tokens` で R2 スコープ子トークンを CLI 発行。`backend/internal/infra/s3_r2_live_test.go` の `TestR2S3Live`（`R2_LIVE_TEST=1`）で Docker 経由検証。詳細は試行8記録参照
 - [x] **P2-4** 既存オブジェクトの移行スクリプト雛形 — `infra/scripts/migrate-images-r2.sh` を作成（rclone sync/check、dry-run確認プロンプト付き）。**実行はスコープ外**（AWS認証情報 + R2認証情報の両方が必要）
-- [ ] **P2-5** 突合（`rclone check`） — **未実行**（P2-4未実行のため）
+- [x] **P2-5** 突合 — **2026-07-17 クローズ（no-op 確定）**。移行元 `animalekarte-stg-uploads` の実測（`aws s3 ls --recursive --summarize`）= **1 オブジェクト 668B のみ**（2026-04-08 のテスト PNG）。STG DB（フルデモ投入後）の `medical_record_images` は 0 行でこのオブジェクトを参照する行は存在しない = 孤児。**移行すべき画像データが存在しないため P2-4 のスクリプト実行・突合とも不要**（工程ごと削除）。R2 への画像蓄積は NS 切替後の新規アップロードから自然に始まる
 - [ ] **P2-6** STG 環境変数切替 — **未実施**（Phase 4のデプロイ実行に付随するためスコープ外）
 - [ ] **P2-7** clinic_id 隔離の回帰確認 — **未実施**（R2実疎通確認後に実施する事項）
 
@@ -818,8 +825,8 @@ Phase 1〜3 は互いに独立しており並行着手可能。Phase 4 が最大
 - [x] **P3-3** 拡張機能の確認 — `\dx`で`pg_trgm`（+ PlanetScale標準の`hypopg`/`plpgsql`）を確認。現行RDSで使用中の拡張と一致
 - [x] **P3-4** Hyperdrive 設定作成 — `infra/cloudflare/hyperdrive.tf` の `cloudflare_hyperdrive_config`（`caching.disabled = true`）は試行6で **apply 済み**（ID: `45ae9b2a018a4c0fa84c1744c0f12efa`）。`backend/wrangler.jsonc` の placeholder は試行7でこの ID に置換済み
 - [x] **P3-5** Hyperdrive 実接続 CRUD/トランザクション検証 — **2026-07-05 試行7で PASS（確定）**。`wrangler dev --remote`（エフェメラルな edge プレビュー、永続 deploy ではない）+ `postgres.js` から `env.HYPERDRIVE.connectionString` 経由で SELECT/INSERT/UPDATE/DELETE + BEGIN→COMMIT/BEGIN→ROLLBACK を全実行し成功。`inet_server_addr()` がプール内部アドレスであることから Hyperdrive 経由であることを確認。詳細は下記「試行7」記録参照。**GORM(Go)自体での実接続確認 — 試行9(P4-4/AC-6)で間接検証済み**（旧記載「未実施」「Phase 4で行う」は試行4時点の暫定記録として陳腐化していたため2026-07-06に修正）: `cmd/api/main.go` は `repository.NewDB(cfg)`（GORM Open + Ping相当）が成功するまで HTTP サーバーを起動しない実装のため、`/health` が複数回 `200` を返した実測（試行9）はGORM×PlanetScale直接接続（`sslmode=require`・Hyperdrive非経由）の間接証跡として十分と判断済み（Container内部Goログでの直接確認は`wrangler tail`非対応のため未実施のまま・残課題として保持）。GORM互換性についての静的解析結論（`PrepareStmt`既定false・migrate直結方針）は実施記録10.・`hyperdrive.tf`コメント参照で変更なし
-- [ ] **P3-6** データ移行リハーサル — **スコープ外**（private RDSへの接続経路が必要なため未実施）
-- [ ] **P3-7** 本切替 — **スコープ外**（P3-6未実施のため）
+- [x] **P3-6** データ移行リハーサル — **2026-07-17 クローズ（superseded）**。RDS 実データの STG 移行は不要と確定 — STG のデータ正本はフルデモ seed とする PO 決定（7/17）により、「STG フルデモデータ投入手順」（現況サマリ節）が本工程を代替した
+- [x] **P3-7** 本切替 — **2026-07-17 完了（superseded）**。PlanetScale（フルデモ入り）が STG 実トラフィックの正 DB になった（P7-1 と同時成立）。RDS データは Phase 8 まで温存
 - [ ] **P3-8** RDS は**即削除しない** — 該当なし（Phase 8着手時まで判断保留）
 
 **ロールバック**: 接続先環境変数を RDS に戻す。凍結ウィンドウ内なら データロスなし。
@@ -850,7 +857,7 @@ Phase 1〜3 は互いに独立しており並行着手可能。Phase 4 が最大
 - [x] **P5-2** GitHub Secrets 登録 — **2026-07-15 完了**。`CLOUDFLARE_API_TOKEN`（統合トークンを流用 — STG は許容、**本番構築時は deploy 専用最小スコープを別発行すること**）/ `MIGRATE_RUN_SECRET`（控え紛失のため新値でローテし Worker 側 `wrangler secret put` と GitHub 側を同値で再投入・`.secret` に記録）/ `STG_DEMO_EMAIL`・`STG_DEMO_PASSWORD`（CRUD smoke 用）を登録済み（`gh secret list` 実測）。AWS OIDC 参照は `backend-deploy.yml` からは P5-1 で除去済み・`backend-deploy-ecs.yml`（ロールバック用）には意図的に温存（Phase 8 で削除）
 - [x] **P5-3** `staging-stop.yml`（夜間停止）を**廃止** — **2026-07-06 実装済み**。scale-to-zero + PlanetScale 固定額により不要と判断し非推奨コメントを追加（ファイル自体はECS/RDS緊急手動停止用に残置、Phase 8で完全削除）
 - [x] **P5-4** `stg-smoke.yml` / `e2e.yml` / `performance-tests.yml` の対象 URL・前提を新構成に更新 — **`stg-smoke.yml` は2026-07-06実装済み**（`workflow_dispatch`入力`api_base`で workers.dev/本番相当を切替可能）。`e2e.yml` / `performance-tests.yml` はP1-2 NS切替後に対象URLが確定するためPhase 7へdefer（部分完了）
-- [ ] **P5-5** デプロイ 2 回連続成功（通常デプロイ + マイグレーション含むデプロイ）を確認 — **BLOCKED 解除済み・PR #186 マージ待ち（2026-07-16 時点）**。P5-2 完了により実行可能。前提整備済み: PlanetScale STG スキーマ初期化済み（migration 001 統合の checksum mismatch 対策・2026-07-15）。ブロッカー = main（`ef26ffe6`）の CI 赤（Backend lint / Frontend / E2E）修正待ち → green 後にユーザーが PR #186 をマージ → 初回 run 自動監視中（1回目）→ `gh workflow run backend-deploy.yml`（2回目）
+- [x] **P5-5** デプロイ 2 回連続成功 — **2026-07-17 夜 完了（run 29570272853 / 29570481824 の 2 連続完全 green）**。⚠️ 同日昼の「完了」記録（run 29563657864/29563742613）は**偽りの green だった**: `pnpm exec wrangler deploy` が backend/ に package.json が無いためルート CWD で実行され、wrangler.jsonc 不在→新規プロジェクト誤検出→**別名 Worker「nimal-karte」への静的サイト配布**になっており、実 Worker は 7/6 のまま・green は旧環境の自己整合に過ぎなかった。是正の全チェーン: ①`npx wrangler deploy` 化（#263・CWD=backend 維持）②トークンに Zone>Workers Routes>Edit 追加（例外 #5 と同型・route 登録 403 解消）③スモークのデータセット非依存化（#264・フルデモに waiting 会計が無い/固定 ID 前提の除去）④Containers 非同期ロールアウトがスモーク実行中にインスタンスを入れ替える競合への retry（#265）。**Phase 5 真の完結**。教訓: 「デプロイ green」はデプロイ先の同一性（Worker 名・Version ID）まで確認して初めて信用できる
 
 ---
 
@@ -866,10 +873,11 @@ Phase 1〜3 は互いに独立しており並行着手可能。Phase 4 が最大
 
 ## Phase 7: 切替・並行稼働・検証（2〜3 人日 + 監視 1〜2 週間）
 
-- [ ] **P7-1** DNS 切替 — Worker ルートを本経路に昇格（旧 CloudFront 経路は温存）
-- [ ] **P7-2** 並行稼働期間（1〜2 週間）— 旧 ECS/ALB は起動したまま、トラフィックのみ新経路。日次でエラーログ・課金実績を確認
-- [ ] **P7-3** フルスモーク — CRUD / 会計 / 画像アップロード / LINE 連携 / 帳票の全系統
-- [ ] **P7-4** Vercel フロントエンドの API 向き先確認（`frontend-deploy.yml` の環境変数に API URL があれば更新）
+- [x] **P7-1** DNS 切替 — **2026-07-17 夜 完了**。`api.stg` レコードを proxied=true 化し、Workers ルート（`api.stg.noah-karte.com/*`、同日 #263 修正後のデプロイで登録済み）が実トラフィックを捕捉。**実 URL の本体が AWS ECS/RDS → CF Worker+Container+PlanetScale（フルデモ入り）に切替完了**。切り戻し = proxied=false の PATCH 1 発（AWS 側温存中）
+- [ ] **P7-2** 並行稼働期間 — 開始（2026-07-17〜）。旧 ECS/ALB/RDS は温存・夜間停止スケジュールも従来どおり
+  - **観測 #1（2026-07-17 夜・切替当日）**: Cloudflare 公式「Minor Service Outage」に伴い Containers が約 30 分フラッピング（cold start ハング・migrate 巻き込まれ失敗 1 回）。**当方の構成・DB・コードは全層シロを実測**（TLS 0.25s 成立・PlanetScale 直結正常・ACL 無傷）。20:27 に自然回復 → 自動検知チェーンがクリーンデプロイ green（run 29576889109）を取得済み。教訓: ①Go-live ゲートに「CF ステータス正常 + STG 安定」を含める ②夜間帯は AWS 切り戻し先も停止中（22:00-08:00）である点を切替判断に織り込む ③一時 role がテーブル所有者のまま残存（TTL で消えない）— 所有権を worker ロールへ移転する後始末が必要（ALTER TABLE ... OWNER TO。全 87 テーブル）
+- [x] **P7-3** フルスモーク（API 系統）— **2026-07-17 夜 PASS**: 実 URL 経由で health/login/me/clinics/owners/pets/accountings/examinations 全 200。UI 系統（ブラウザログイン・画像アップロード・LINE 連携・帳票）はユーザー確認および UAT（#254）で継続
+- [x] **P7-4** Vercel フロントエンドの API 向き先 — **変更不要を確認**（`frontend/vercel.json` の rewrite 先ホスト名 `api.stg.noah-karte.com` は不変のまま実体だけ CF に切替わったため）
 - [ ] **P7-5** 関係者への切替完了周知、`docs/ops/` 配下の運用ドキュメント更新（`INFRA_ARCHITECTURE.md` / `STG-CONTINUOUS-OPERATIONS.md` / `CI-CD-PIPELINE.md`）
 
 **Go/No-Go 基準**: 並行稼働期間中、新経路でエラー率が旧経路同等以下・スモーク全通過・課金が試算 ±50% 以内。

@@ -81,7 +81,7 @@ export const VaccinationForm = memo(function VaccinationForm() {
 
   const {
     date, setDate,
-    vaccineId, setVaccineId,
+    vaccineId, setVaccineId, vaccineOptions,
     nextScheduleType, setNextScheduleType,
     nextDate, setNextDate,
     supplemental, setSupplemental,
@@ -193,6 +193,7 @@ export const VaccinationForm = memo(function VaccinationForm() {
           <VaccinationFieldsPanel
             date={date}
             vaccineId={vaccineId}
+            vaccineOptions={vaccineOptions}
             supplemental={supplemental}
             lot1={lot1}
             lot2={lot2}

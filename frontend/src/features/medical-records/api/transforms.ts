@@ -33,6 +33,7 @@ export const transformMedicalRecord = (
     petName: record.pet?.name ?? "",
     species: record.pet?.animal_species?.name ?? "",
     chiefComplaint: record.inquiry?.chief_complaint ?? "",
+    chiefComplaintTypeId: record.inquiry?.chief_complaint_type_id ?? null,
     doctor: record.doctor?.name ?? String(record.doctor_id ?? ""),
     visitType: record.visit_type != null ? fromVisitTypeValue(record.visit_type) : undefined,
     nextVisitRecommendedDate: record.next_visit_recommended_date ?? "",

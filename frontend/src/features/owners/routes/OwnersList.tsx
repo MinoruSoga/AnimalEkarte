@@ -1,11 +1,11 @@
 // React/Framework
-import { useState, useMemo, useCallback, useTransition, useDeferredValue, lazy, Suspense, useEffect } from "react";
-import { useNavigate, useLoaderData, useRevalidator, useSearchParams } from "react-router";
+import { useState, useMemo, useCallback, useTransition, lazy, Suspense, useEffect } from "react";
+import { useNavigate, useLoaderData, useRevalidator, useSearchParams, useNavigation } from "react-router";
 
 // Hooks
-import { useSortableData } from "@/hooks/use-sortable-data";
 import { useModalState } from "@/hooks/use-modal-state";
 import { useClinicScope } from "@/hooks/use-clinic-scope";
+import { useAnimalSpecies } from "@/hooks/use-animal-species";
 
 // External
 import { Plus } from "lucide-react";
@@ -16,7 +16,6 @@ import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 import { ClinicScopeFilter } from "@/components/shared/ClinicScopeFilter/ClinicScopeFilter";
-import { usePagination } from "@/hooks/use-pagination";
 import { ICON } from "@/lib/design-tokens";
 import { paths } from "@/config/paths";
 import { transformUpdatePetRequest } from "@/lib/transforms/pet";
@@ -25,7 +24,6 @@ import { openOwnerReport } from "@/lib/owner-report-window";
 // bundle-barrel-imports: バレルindex経由ではなく直接ファイルからimport
 import { deleteOwner } from "../api/delete-owner";
 import { usePermission } from "@/hooks/use-permission";
-import { matchesPetSearch } from "@/lib/pet-search";
 
 // bundle-dynamic-imports: PetEditModal を遅延ロード
 const PetEditModal = lazy(() =>
@@ -40,6 +38,12 @@ import type { UpdatePetRequest } from "@/types/pet";
 import type { ActiveFilter } from "@/components/shared/PropertyFilter/types";
 import { ResourceMedicalRecords, ResourceOwners } from "@/types/generated/models";
 import { OwnersListTable } from "../components/OwnersListTable";
+import {
+  activeFiltersToParams,
+  paramsToActiveFilters,
+  buildSpeciesFilterOptions,
+  buildOwnerFilterProperties,
+} from "../lib/owners-list-filters";
 
 // Pet → ペット編集フォーム初期値の変換。本ルートのモーダルでのみ使用するため
 // コンポーネントファイルからの export はせずここに置く (react-refresh/only-export-components)。
@@ -75,6 +79,8 @@ interface OwnersListProps {
 
 const CLINIC_TOGGLE_RESET_PARAMS = ["page"] as const;
 
+const SEARCH_DEBOUNCE_MS = 300;
+
 export function OwnersList({ onUpdatePet }: OwnersListProps = {}) {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -82,7 +88,8 @@ export function OwnersList({ onUpdatePet }: OwnersListProps = {}) {
   // #158: レポート導線は medical-records:view でゲートする（カルテ内容を横断表示するため）
   const { canView: canReport } = usePermission(ResourceMedicalRecords);
   const revalidator = useRevalidator();
-  const { pets } = useLoaderData<OwnersLoaderData>();
+  const navigation = useNavigation();
+  const { pets, page, limit, total } = useLoaderData<OwnersLoaderData>();
 
   // #86: 拠点横断表示 — URL の ?clinics=1,2 が表示拠点。未指定は現在の医院のみ（従来挙動）。
   // 選択変更で loader が再実行され、サーバ側 (resolveListClinicIDs) で所属検証される。
@@ -94,106 +101,84 @@ export function OwnersList({ onUpdatePet }: OwnersListProps = {}) {
     currentClinicId,
     handleToggleClinic,
   } = useClinicScope({ resetParamsOnToggle: CLINIC_TOGGLE_RESET_PARAMS });
-  const [searchTerm, setSearchTerm] = useState("");
-  const [activeFilters, setActiveFilters] = useState<ActiveFilter[]>([]);
-  // rerender-transitions: 入力は即座に反映しつつ、全件フィルタリングは
-  // ブラウザがアイドル時まで遅延させてタイプ中の UI ブロッキングを防ぐ
-  const deferredSearchTerm = useDeferredValue(searchTerm);
+
+  // #266: 検索・フィルタ・ページはすべて URL 経由でサーバに転送する（loaders.ts 参照）。
+  // 検索語は即時入力を受けつつ、URL 反映（= loader 再フェッチ）はデバウンスする。
+  const urlSearch = searchParams.get("search") ?? "";
+  const [searchTerm, setSearchTerm] = useState(urlSearch);
+
+  // #266: species フィルタは pets.animal_species_id（数値ID）契約のためマスタ取得が必要。
+  const { activeSpecies } = useAnimalSpecies();
+  const speciesFilterOptions = useMemo(() => buildSpeciesFilterOptions(activeSpecies), [activeSpecies]);
+  const filterProperties = useMemo(() => buildOwnerFilterProperties(speciesFilterOptions), [speciesFilterOptions]);
+
+  // rerender-derived-state-no-effect: activeFilters は URL(searchParams) からの純粋な派生値のため
+  // useState+resync ではなく useMemo で直接算出する（source of truth は常に searchParams）。
+  const activeFilters = useMemo(
+    () => paramsToActiveFilters(searchParams, speciesFilterOptions),
+    [searchParams, speciesFilterOptions],
+  );
+
+  useEffect(() => {
+    if (searchTerm === urlSearch) return;
+    const timer = setTimeout(() => {
+      setSearchParams((prev) => {
+        const next = new URLSearchParams(prev);
+        if (searchTerm) next.set("search", searchTerm); else next.delete("search");
+        next.delete("page");
+        return next;
+      }, { replace: true });
+    }, SEARCH_DEBOUNCE_MS);
+    return () => clearTimeout(timer);
+  }, [searchTerm, urlSearch, setSearchParams]);
+
+  // ブラウザの戻る/進むなど、こちら以外の経路で URL が変わった場合に検索入力欄を再同期する。
+  // rerender-derived-state-no-effect: useEffect の代わりにレンダー中に derived state で処理
+  // （use-pagination.ts の resetKey 比較と同型。デバウンス中の自分自身の書き込みでは値が
+  // 一致するため no-op）。
+  const searchParamsKey = searchParams.toString();
+  const [prevSearchParamsKey, setPrevSearchParamsKey] = useState(searchParamsKey);
+  if (searchParamsKey !== prevSearchParamsKey) {
+    setPrevSearchParamsKey(searchParamsKey);
+    setSearchTerm(urlSearch);
+  }
+
+  const handleFilterChange = useCallback((filters: ActiveFilter[]) => {
+    const { species, include_deceased } = activeFiltersToParams(filters);
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      if (species) next.set("species", species); else next.delete("species");
+      if (include_deceased) next.set("include_deceased", include_deceased); else next.delete("include_deceased");
+      next.delete("page");
+      return next;
+    }, { replace: true });
+  }, [setSearchParams]);
+
   const deleteModal = useModalState<{ id: string; name: string }>();
   const [isDeleting, startDeleteTransition] = useTransition();
   const petModal = useModalState<Pet>();
   const [_isPetSaving, startPetSaveTransition] = useTransition();
 
-  const filteredPets = useMemo(() => {
-    let result = pets;
+  const totalPages = Math.max(1, Math.ceil(total / limit));
+  const startIndex = total === 0 ? 0 : (page - 1) * limit + 1;
+  const endIndex = Math.min(page * limit, total);
 
-    // ActiveFilter からフィルタ適用（condition 対応）
-    for (const filter of activeFilters) {
-      if (typeof filter.value !== "string") continue;
-
-      if (filter.key === "species") {
-        result = result.filter((p) => {
-          switch (filter.condition) {
-            case "is":
-              return p.species === filter.value;
-            case "is_not":
-              return p.species !== filter.value;
-            case "is_empty":
-              return !p.species;
-            case "is_not_empty":
-              return !!p.species;
-            default:
-              return p.species === filter.value;
-          }
-        });
-      }
-
-      if (filter.key === "status") {
-        result = result.filter((p) => {
-          const isDeceased = p.status === "死亡";
-          const matchesValue = filter.value === "deceased" ? isDeceased : !isDeceased;
-          switch (filter.condition) {
-            case "is":
-              return matchesValue;
-            case "is_not":
-              return !matchesValue;
-            case "is_empty":
-              return !p.status;
-            case "is_not_empty":
-              return !!p.status;
-            default:
-              return matchesValue;
-          }
-        });
-      }
-    }
-
-    // テキスト検索 — カナ正規化済み (ひらがな↔カタカナ区別なし)
-    if (deferredSearchTerm) {
-      result = result.filter((pet) => matchesPetSearch(pet, deferredSearchTerm));
-    }
-
-    return result;
-  }, [pets, activeFilters, deferredSearchTerm]);
-
-  const { activeSorts, setActiveSorts, toggleSort, directionFor, sortedData } =
-    useSortableData(filteredPets, { numericKeys: ["ownerNumber"] });
-
-  // BUG-049: URLクエリパラメータからページ番号を読み取る
-  const urlPage = Number(searchParams.get("page") ?? 1);
-
-  const pagination = usePagination(sortedData, {
-    resetKey: deferredSearchTerm,
-  });
-
-  // BUG-049: URLのページ番号とローカル状態を同期（URLが変わったときのみ）
-  // rerender-dependencies: pagination（オブジェクト）を destructure し primitive を deps に使用
-  const { totalPages, currentPage, goToPage } = pagination;
-  useEffect(() => {
-    const clampedPage = Math.max(1, Math.min(urlPage, totalPages));
-    if (clampedPage !== currentPage) {
-      goToPage(clampedPage);
-    }
-  // goToPage は安定した参照、totalPages は依存として必要
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [urlPage, totalPages]);
-
-  // BUG-049: ページ変更時にURLクエリパラメータを更新
-  const handlePageChange = useCallback((page: number) => {
-    goToPage(page);
+  // BUG-049 踏襲: ページ変更時に URL クエリパラメータを更新（loader が再フェッチする）
+  const handlePageChange = useCallback((nextPage: number) => {
+    const clamped = Math.max(1, Math.min(nextPage, totalPages));
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev);
-      if (page === 1) {
+      if (clamped === 1) {
         next.delete("page");
       } else {
-        next.set("page", String(page));
+        next.set("page", String(clamped));
       }
       return next;
     }, { replace: true });
-  }, [goToPage, setSearchParams]);
+  }, [totalPages, setSearchParams]);
 
-  // フィルタ計算が遅延中（入力値 ≠ deferred 値）の視覚フィードバック
-  const isFiltering = searchTerm !== deferredSearchTerm;
+  // #266: loader 再フェッチ中（検索・フィルタ・ページ変更）の視覚フィードバック
+  const isFiltering = navigation.state === "loading";
 
   const handleCreate = useCallback(() => {
     navigate(paths.owners.new.getHref());
@@ -305,11 +290,11 @@ export function OwnersList({ onUpdatePet }: OwnersListProps = {}) {
         </div>
       ) : null}
       <OwnersListTable
-        filteredCount={filteredPets.length}
-        pagination={pagination}
+        pets={pets}
+        pagination={{ currentPage: page, totalPages, totalCount: total, startIndex, endIndex }}
         searchTerm={searchTerm}
         activeFilters={activeFilters}
-        activeSorts={activeSorts}
+        filterProperties={filterProperties}
         isFiltering={isFiltering}
         canEdit={canEdit}
         canDelete={canDelete}
@@ -317,11 +302,8 @@ export function OwnersList({ onUpdatePet }: OwnersListProps = {}) {
         showClinicColumn={isMultiClinic}
         clinicNameById={clinicNameById}
         currentClinicId={currentClinicId}
-        directionFor={directionFor}
         onSearchChange={setSearchTerm}
-        onFilterChange={setActiveFilters}
-        onSortChange={setActiveSorts}
-        onToggleSort={toggleSort}
+        onFilterChange={handleFilterChange}
         onRowClick={handleRowClick}
         onEdit={handleEdit}
         onDeleteRequest={handleDeleteRequest}

@@ -885,12 +885,16 @@ components:
           type: string
     PetListItem:
       type: object
-      description: ペット一覧レスポンス（GET /v1/pets 専用・必要最小限フィールド）
+      description: ペット一覧レスポンス（GET /v1/pets 専用・必要最小限フィールド。#266 でペット行粒度の一覧基盤として拡張）
       properties:
         id:
           type: integer
           format: int64
           readOnly: true
+        clinic_id:
+          type: integer
+          format: int64
+          description: '#86 拠点横断一覧の医院表示・編集可否判定に使用'
         owner_id:
           type: integer
           format: int64
@@ -913,28 +917,64 @@ components:
           type: string
           format: date
           nullable: true
+        breed:
+          type: string
+        color:
+          type: string
+        blood_type:
+          type: string
+          nullable: true
+        microchip_number:
+          type: string
+          nullable: true
         weight:
           type: number
           format: double
           nullable: true
+        neutered_date:
+          type: string
+          format: date
+          nullable: true
+        acquisition_type:
+          type: string
+          nullable: true
+        danger_level:
+          type: string
+          enum: [low, medium, high]
+        food:
+          type: string
         environment:
           type: string
         last_visit:
           type: string
           format: date
           nullable: true
+        insurance_id:
+          type: integer
+          format: int64
+          nullable: true
+        remarks:
+          type: string
         owner:
           type: object
-          description: 飼主情報（Preload時のみ含まれる）
+          description: 飼主サマリ（Preload時のみ含まれる）
           nullable: true
           properties:
             id:
               type: integer
               format: int64
-            owner_name:
+            owner_number:
+              type: integer
+              format: int64
+              description: 現状は id のエイリアス（独立採番カラムではない）
+            name:
+              type: string
+            name_kana:
               type: string
             phone:
               type: string
+            is_dangerous:
+              type: boolean
         animal_species:
           type: object
           description: 種別情報（Preload時のみ含まれる）
@@ -947,6 +987,20 @@ components:
               type: string
             sort_order:
               type: integer
+        insurance:
+          type: object
+          description: 保険情報（Preload時のみ含まれる）
+          nullable: true
+          properties:
+            id:
+              type: integer
+              format: int64
+            name:
+              type: string
+            coverage_rate:
+              type: integer
+            contact_phone:
+              type: string
     CreatePetRequest:
       type: object
       required: [owner_id, animal_species_id, name]
@@ -9456,6 +9510,23 @@ paths:
           schema:
             type: integer
             format: int64
+        - name: species
+          in: query
+          description: '#266: animal_species_id で絞り込み（数値ID。マスタ由来の型付きパラメータ）'
+          schema:
+            type: integer
+            format: int64
+        - name: include_deceased
+          in: query
+          description: '#266: 死亡ペットを含めるか。未指定時の既定は false（生存のみ = deceased_at IS NULL）'
+          schema:
+            type: boolean
+            default: false
+        - name: clinic_ids
+          in: query
+          description: '#86 拠点横断一覧。カンマ区切りの複数医院ID。未指定は現在の医院のみ（所属検証はサーバ側）'
+          schema:
+            type: string
       responses:
         '200':
           description: ペット一覧

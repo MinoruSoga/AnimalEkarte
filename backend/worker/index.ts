@@ -34,6 +34,9 @@ export class AnimalEkarteApiContainer extends Container<Env> {
     DB_PASSWORD: env.DB_PASSWORD,
     DB_NAME: env.DB_NAME,
     DB_SSL_MODE: env.DB_SSL_MODE,
+    // 接続プール上限(wrangler.jsonc vars 参照 — スロット枯渇防止のため CF では低値必須)
+    DB_MAX_OPEN_CONNS: env.DB_MAX_OPEN_CONNS,
+    DB_MAX_IDLE_CONNS: env.DB_MAX_IDLE_CONNS,
 
     JWT_SECRET: env.JWT_SECRET,
     INTEGRATION_ENCRYPTION_KEY: env.INTEGRATION_ENCRYPTION_KEY,

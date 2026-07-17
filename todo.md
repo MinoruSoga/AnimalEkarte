@@ -46,10 +46,10 @@
 |----|------------------------|---------|------------------------|
 | U-1 | **#201 [SAFETY] 個人責任者ゲート**: 使用医院の臨床責任者（個人名）を確定し、①絶対上限 ②warning 範囲 ③体重/species/パラメータ欠落時の手動入力可否 ④緊急時例外フローの要否、を承認させる | 承認内容（4点）が #201 に記録される | #201 本文「必須仕様 1〜6」に従い BE 物理 reject＋（④が要なら）権限付き例外フローを実装。`computeDoseGate`（FE）と `backend/internal/service/` の dose 系が対象。実装後 06 doc 更新 |
 | U-2 | **SEC-SECRETS-5**: 4系統ローテーション＋ P5-2 `gh secret set`＋ #97 本文マスク。手順 = runbook §0.5 / `infra/cloudflare/README.md` | 4系統の新 credential が有効・旧値無効化・GitHub Secrets 登録済み | ① gitleaks baseline 方針の実装（task.html P1-1）② `STG_DEMO_*` 登録済みなら #109 Phase C: performance-tests のフォールバック撤去 |
-| U-3 | **`DB_RESET=true` 再適用（ローカル→STG）**: 001 checksum 変更（#211 A6 統合）＋ seed 変更 2 件（A1+A2 = 90553a51／GAP-2 閲覧専用ロール = 13c6a93a）をまとめて反映。DB reset はエージェント実行禁止。**優先度上昇（2026-07-17）**: 第1バッチが stale DB で実行され BUG-403/404 の環境起因疑いが未決着のまま | 両環境で reset 完了・起動 green | ① BUG-403/404 の再測（stale DB 起因なら実装調査不要でクローズ）② S02 権限差・S05 ケアプラン/デイリー記録の再実行（U-6 の前提解除） |
+| U-3 | **`DB_RESET=true` 再適用（ローカル→STG）**: 001 checksum 変更（#211 A6 統合）＋ seed 変更 2 件（A1+A2 = 90553a51／GAP-2 閲覧専用ロール = 13c6a93a）をまとめて反映。DB reset はエージェント実行禁止 | 両環境で reset 完了・起動 green | ① S02 権限差・S05 の再実行（U-6 の前提解除）。**BUG-403 は 2026-07-17 に stale DB のまま実測・修正・TDD 検証済みでクローズ済み（環境起因ではなく実装欠落と確定）— 本項目の対象から除外**。BUG-404 は commit 58c653df で修正済みだが「次回シナリオ再実行で最終確認」待ちのため bug.md の直近クローズ節に残置中 |
 | U-4 | **SD-9 被害判定 SQL を STG/本番で実行**（SQL 本文は下の「個別タスク詳細」）。`9b6a01ed` の修正は新規作成院にしか効かないため既存データの手動確認が必要 | 0 行 → クローズ。ヒット → 結果をエージェントへ共有 | ヒット時: 対象グループへのルールバックフィル（`defaultPermissionRuleTable` 準拠の UPDATE 文起草＋適用手順書）を別タスク起票。`assigned_staff > 0` の行を最優先（該当スタッフが全機能ロックアウト中） |
 | U-5 | **SD-14 STG 実機検証**: LINE 紐付け E2E。飼主フォーム（04 画面）で紐付け URL 発行 → LINE で開く → LIFF 遷移 → 紐付け完了まで | 紐付け成功が確認できる | 失敗時: 症状を聞いて `line_link_service.go`／`frontend/liff` の LiffLinkPage を調査・修正（2e4808b5 が直近の修正） |
-| U-6 | **受け入れシナリオ実行（続き）**: 第1バッチ S01〜S06 は 2026-07-17 実施済み（30 PASS / 4 FAIL / 13 BLOCKED — レポート = `docs/ops/testing/scenarios/reports/2026-07-17-local.md`・FAIL は下の BUG-401〜407）。**残 = ①S07〜S12＋V01〜V05 ②U-3 後の再測分（S02 権限差・S05 の 2 FAIL・S04 は BUG-402 修正後）③S02 境界値の再確認**。**U-3 完了が前提** | 全シナリオ実施・要実測 87 件（残 78）に実測値が入る | 実測結果の【要実測】昇格とシナリオ乖離修正（第1バッチ分 4 件は昇格済み） |
+| U-6 | **受け入れシナリオ実行（続き）**: 第1バッチ S01〜S06 は 2026-07-17 実施済み（30 PASS / 4 FAIL / 13 BLOCKED — レポート = `docs/ops/testing/scenarios/reports/2026-07-17-local.md`）。FAIL 由来の BUG-401〜407 のうち BUG-402/403/406 は修正・検証済み、BUG-401 は BUG-408 へ統合（機能設計待ち）、BUG-405 は仕様未定の機能欠落と確定（FEAT-CHECKIN へ移設）、BUG-407 は対応中。**残 = ①S07〜S12＋V01〜V05 ②U-3 後の再測分（S02 権限差・S05 の残 FAIL）③S02 境界値の再確認** | 全シナリオ実施・要実測 87 件（残 78）に実測値が入る | 実測結果の【要実測】昇格とシナリオ乖離修正（第1バッチ分 4 件は昇格済み） |
 | U-7 | Vercel Production `VITE_SHOW_DEMO_ACCOUNTS=false` の確認/設定 | Vercel ダッシュボードで確認済み | なし（FE は `__VERCEL_ENV__ !== "production"` 一次ガード実装済みのため二重防御） |
 | U-8 | `terraform apply`（P2 internal ALB + VPC Origin）。`infra/terraform/terraform.tfvars` はローカル準備済み（gitignore 対象） | apply 成功・疎通確認 | なし |
 | U-9 | **ADR-003（PO-006）独立 Issue 起票**（起票操作は USER 専権） | Issue 番号が確定 | 案 1B（TRIGGER）＋支払方法の二重保持解消を実装 |
@@ -62,11 +62,19 @@
 
 ## バグは別台帳
 
-> 未修正バグの正本 = リポジトリ直下 [`bug.md`](bug.md)（BUG-401〜407 は 2026-07-17 に移設）。本書はバグ以外の対応事項のみを扱う。
+> 未修正バグの正本 = リポジトリ直下 [`bug.md`](bug.md)（BUG-401〜407 は 2026-07-17 に移設。同日中に 401→408 統合・402/403/406 修正・405→本書 FEAT-CHECKIN へ移設・407 対応中・新規 408/409/410 起票）。本書はバグ以外の対応事項のみを扱う。
 
 ---
 
 ## 個別タスク詳細
+
+### FEAT-CHECKIN: 入院チェックイン（reserved→admitted）導線の新規追加
+
+- **背景**: bug.md BUG-405 として起票されたが、`docs/spec/screens/07/08/09` を全文突合した結果、reserved→admitted への遷移導線は仕様上も実装上も一切存在しない（discharged への遷移＝退院処理のみ定義）ため「バグ」ではなく未着手の機能と判定し本書へ移設（2026-07-17）。
+- **現状**: 入院登録は常に status=reserved で作成される（create form が status を送信せず backend default 頼み）。一覧の 入院中/予約 タブは status enum を直接 1:1 マップしているだけ（date 判定なし）なので、チェックイン導線を追加しない限り開始日当日でも予約タブに残り続ける。
+- **要件責任者（個人名）の確認が必要**（product-philosophy①）。
+- **検討事項（要決裁）**: (a) 開始日到来で自動的に reserved→admitted へ遷移（要: 停止手段・失敗通知・監査ログ — product-philosophy⑤）か、(b) 詳細画面/一覧に明示的な「チェックイン」ボタンを追加し手動で PATCH status=admitted を呼ぶか。まず①要件を疑う（自動でも良いのでは）から検討する。
+- **副作用**: `HospitalizationDetailActions.tsx` の「退院処理」ボタンは `status !== 退院済` で表示されるため reserved でも表示され「実質アクティブに見える」混乱を招く。実装時にボタン表示条件も見直すこと。
 
 ### U-4: SD-9 被害判定 SQL
 
@@ -116,6 +124,7 @@ SearchableSelect 本体 = `frontend/src/components/ui/searchable-select.tsx`。�
 | `BE-pending.md` | 着手保留・次期送り・任意検証の BE 詳細 |
 | `q&a.html` | 内部 PO 判断キュー（決裁記録の正本。PO-001〜008・SD-1〜19・GAP-1/2 回答済み） |
 | `task.html` | PR #186 Codex レビュー残タスク（Open スレッド＋値投入待ち） |
+| `FE-refactor.md` | **FE 第7期計画（2026-07-17 起票・repo 直下・対応後削除予定）**: 主目的 = ESLint 境界ガード新設（Feature Indexing の機械強制・FE7-0）+ 小粒整理4件。frontend 構成チェックの結果、規約適合はほぼ完璧のため構造再編はしない。着手は Go-live 後 |
 | `BE-refactor.md` | **BE 第8期計画（repo 直下・対応後削除予定）**: backend/ 全体のパッケージ構成統一の移行手順（BE8-0〜8）。**コード規約の恒久正本 = `.claude/rules/go-package-conventions.md`**（計画削除後も規約はそこに残る・`.agents/skills/` へ自動ミラー）。着手は Go-live 後・BE8-0（lint 網羅性固定）が必須ゲート |
 
-> 旧 `BE_todo.md` / `FE-refactor.md` は本ファイルへ吸収済み（削除）。`BE-refactor.md` は第7期版を吸収・削除後、2026-07-17 に第8期計画として新設（対応後削除予定・コード規約の恒久正本は `.claude/rules/go-package-conventions.md` へ分離）。旧 `docs/tasks/`・`docs/archive/` は 2026-07-16 に廃止（詳細は git 履歴）。
+> 旧 `BE_todo.md` は本ファイルへ吸収済み（削除）。`FE-refactor.md` は第6期版を吸収・削除後、2026-07-17 に第7期計画として新設（対応後削除予定）。`BE-refactor.md` は第7期版を吸収・削除後、2026-07-17 に第8期計画として新設（対応後削除予定・コード規約の恒久正本は `.claude/rules/go-package-conventions.md` へ分離）。旧 `docs/tasks/`・`docs/archive/` は 2026-07-16 に廃止（詳細は git 履歴）。

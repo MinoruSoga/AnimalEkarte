@@ -23,6 +23,11 @@ func TestNewListPetQuery(t *testing.T) {
 			want:   listPetQuery{OwnerID: "10", Search: "momo"},
 		},
 		{
+			name:   "parses species and include_deceased",
+			values: url.Values{"species": {"3"}, "include_deceased": {"true"}},
+			want:   listPetQuery{Species: "3", IncludeDeceased: "true"},
+		},
+		{
 			name:   "empty values yield zero query",
 			values: url.Values{},
 			want:   listPetQuery{},
@@ -48,10 +53,38 @@ func TestListPetQuery_ToServiceFilters(t *testing.T) {
 	require.NotNil(t, filters.OwnerID)
 	assert.Equal(t, uint64(10), *filters.OwnerID)
 	assert.Equal(t, "momo", filters.Search)
+	assert.Nil(t, filters.AnimalSpeciesID)
+	assert.False(t, filters.IncludeDeceased, "include_deceased 未指定は既定 false（生存のみ）")
+}
+
+func TestListPetQuery_ToServiceFilters_SpeciesAndIncludeDeceased(t *testing.T) {
+	filters, err := (&listPetQuery{
+		Species:         "3",
+		IncludeDeceased: "true",
+	}).toServiceFilters()
+	require.NoError(t, err)
+
+	require.NotNil(t, filters.AnimalSpeciesID)
+	assert.Equal(t, uint64(3), *filters.AnimalSpeciesID)
+	assert.True(t, filters.IncludeDeceased)
 }
 
 func TestListPetQuery_ToServiceFilters_InvalidOwnerID(t *testing.T) {
 	filters, err := (&listPetQuery{OwnerID: "abc"}).toServiceFilters()
+	require.Error(t, err)
+	assert.Equal(t, listPetFilters{}, filters)
+	assert.True(t, apperrors.IsInvalidInput(err))
+}
+
+func TestListPetQuery_ToServiceFilters_InvalidSpecies(t *testing.T) {
+	filters, err := (&listPetQuery{Species: "abc"}).toServiceFilters()
+	require.Error(t, err)
+	assert.Equal(t, listPetFilters{}, filters)
+	assert.True(t, apperrors.IsInvalidInput(err))
+}
+
+func TestListPetQuery_ToServiceFilters_InvalidIncludeDeceased(t *testing.T) {
+	filters, err := (&listPetQuery{IncludeDeceased: "not-a-bool"}).toServiceFilters()
 	require.Error(t, err)
 	assert.Equal(t, listPetFilters{}, filters)
 	assert.True(t, apperrors.IsInvalidInput(err))

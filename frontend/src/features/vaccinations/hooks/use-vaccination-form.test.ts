@@ -3,6 +3,7 @@ import { renderHook, act, waitFor } from "@testing-library/react";
 import { startTransition } from "react";
 import { calculateNextDate, useVaccinationForm } from "./use-vaccination-form";
 import { useGetPet } from "@/hooks/use-pet";
+import { useGetAllVaccinesMaster } from "@/hooks/use-treatment-master";
 import { useGetVaccination } from "../api/get-vaccination";
 import { useCreateVaccination } from "../api/create-vaccination";
 import { useUpdateVaccination } from "../api/update-vaccination";
@@ -25,6 +26,17 @@ vi.mock("@/lib/handle-api-error", () => ({ handleApiError: vi.fn() }));
 
 vi.mock("@/hooks/use-pet", () => ({
   useGetPet: vi.fn(() => ({ data: undefined, isLoading: false })),
+}));
+// BUG-401: 実マスタ参照化に伴い useGetAllVaccinesMaster をモックする。id="1"/"2" は既存の BUG-026
+// 回帰テスト期待値（両方とも 1year）を保つ interval="1年" の固定値。BUG-401 固有の interval マッピング
+// テストは個別に mockReturnValueOnce で上書きする。
+vi.mock("@/hooks/use-treatment-master", () => ({
+  useGetAllVaccinesMaster: vi.fn(() => ({
+    data: [
+      { id: "1", name: "混合ワクチン", isActive: true, interval: "1年" },
+      { id: "2", name: "狂犬病ワクチン", isActive: true, interval: "1年" },
+    ],
+  })),
 }));
 vi.mock("../api/get-vaccination", () => ({
   useGetVaccination: vi.fn(() => ({ data: undefined })),
@@ -98,6 +110,15 @@ describe("useVaccinationForm", () => {
     vi.setSystemTime(new Date("2026-07-10T01:00:00.000Z")); // JST 2026-07-10 10:00
     vi.mocked(useGetPet).mockReturnValue({ data: undefined, isLoading: false } as ReturnType<typeof useGetPet>);
     vi.mocked(useGetVaccination).mockReturnValue({ data: undefined } as ReturnType<typeof useGetVaccination>);
+    // BUG-401: renderHook 内の act() で複数回再レンダーが起きるため、mockReturnValueOnce だと
+    // 2 回目以降の呼び出しでモック実装がデフォルトへ巻き戻ってしまう（1 回限りの upvalue が枯渇する）。
+    // beforeEach でテストごとに明示的にデフォルトへ戻し、個別テストは mockReturnValue（永続）で上書きする。
+    vi.mocked(useGetAllVaccinesMaster).mockReturnValue({
+      data: [
+        { id: "1", name: "混合ワクチン", isActive: true, interval: "1年" },
+        { id: "2", name: "狂犬病ワクチン", isActive: true, interval: "1年" },
+      ],
+    } as ReturnType<typeof useGetAllVaccinesMaster>);
   });
 
   afterEach(() => {
@@ -432,6 +453,60 @@ describe("useVaccinationForm", () => {
       await waitFor(() => {
         expect(result.current.form.nextDate).toBe("2026-07-29");
       });
+    });
+  });
+
+  // ──────────────────────────
+  // BUG-401: 実マスタ参照化後も vaccine_id → schedule 自動計算が退行しないこと
+  // ──────────────────────────
+  describe("ワクチンマスタ interval に基づく次回予定自動計算（BUG-401）", () => {
+    it("interval='1ヶ月' のマスタを選択 → nextScheduleType=4weeks で自動計算される（旧ハードコード '1'/'2' 依存では発生しなかった分岐）", async () => {
+      vi.mocked(useGetAllVaccinesMaster).mockReturnValue({
+        data: [{ id: "14", name: "狂犬病ワクチン", isActive: true, interval: "1ヶ月" }],
+      } as ReturnType<typeof useGetAllVaccinesMaster>);
+
+      const { result } = renderHook(() => useVaccinationForm());
+      act(() => { result.current.form.setDate("2026-07-01"); });
+      await waitFor(() => expect(result.current.form.date).toBe("2026-07-01"));
+
+      act(() => { result.current.form.setVaccineId("14"); });
+
+      await waitFor(() => {
+        expect(result.current.form.nextScheduleType).toBe("4weeks");
+        expect(result.current.form.nextDate).toBe("2026-07-29");
+      });
+    });
+
+    it("マスタに存在しない/interval 未設定の vaccineId を選択 → デフォルト(1year)にフォールバックする（サイレント誤スケジュールにしない）", async () => {
+      vi.mocked(useGetAllVaccinesMaster).mockReturnValue({
+        data: [{ id: "3", name: "ワクチンエキゾ", isActive: true, interval: "" }],
+      } as ReturnType<typeof useGetAllVaccinesMaster>);
+
+      const { result } = renderHook(() => useVaccinationForm());
+      act(() => { result.current.form.setDate("2026-07-01"); });
+      await waitFor(() => expect(result.current.form.date).toBe("2026-07-01"));
+
+      act(() => { result.current.form.setVaccineId("3"); });
+
+      await waitFor(() => {
+        expect(result.current.form.nextScheduleType).toBe("1year");
+        expect(result.current.form.nextDate).toBe("2027-07-01");
+      });
+    });
+
+    it("vaccineOptions は isActive なマスタ項目のみを {value, label} で公開する", () => {
+      vi.mocked(useGetAllVaccinesMaster).mockReturnValue({
+        data: [
+          { id: "11", name: "混合ワクチン5種（犬）", isActive: true, interval: "1年" },
+          { id: "99", name: "廃盤ワクチン", isActive: false, interval: "1年" },
+        ],
+      } as ReturnType<typeof useGetAllVaccinesMaster>);
+
+      const { result } = renderHook(() => useVaccinationForm());
+
+      expect(result.current.form.vaccineOptions).toEqual([
+        { value: "11", label: "混合ワクチン5種（犬）" },
+      ]);
     });
   });
 

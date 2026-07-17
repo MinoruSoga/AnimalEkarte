@@ -188,7 +188,13 @@ func analyzeFilePreloads(filename string, src []byte) ([]preloadFinding, preload
 
 	var findings []preloadFinding
 	stats := preloadStats{filesParsed: 1}
+	// Root files key by basename; 1-level subpackage files keep the relative path so e.g.
+	// paymentmethod/repository.go and vaccine/repository.go do not share a site-exception
+	// identity (BE-refactor.md §5-1-3; mirrors dbortx_inventory_lint_test.go's keyFile logic).
 	base := baseFileName(filename)
+	if strings.Contains(filename, "/") {
+		base = filename
+	}
 
 	ast.Inspect(f, func(n ast.Node) bool {
 		ce, ok := n.(*ast.CallExpr)
@@ -369,8 +375,11 @@ func listEmbeddedRepoGoFiles(t *testing.T) []string {
 		if d.IsDir() || !strings.HasSuffix(path, ".go") || strings.HasSuffix(path, "_test.go") {
 			return nil
 		}
-		// Inventory keys historically use basenames for root package files; keep nested paths
-		// as relative paths so paymentmethod/repository.go does not collide with a root file.
+		// Return the path unmodified (basename for root files, relative path for 1-level
+		// subpackage files). All three lints (preload / audit-tx / dbortx) key their
+		// allowlists the same way: basename for root files, full relative path for
+		// subpackage files — so e.g. paymentmethod/repository.go and vaccine/repository.go
+		// never share an allowlist/exception identity (BE-refactor.md §5-1-3).
 		names = append(names, path)
 		return nil
 	})
@@ -500,6 +509,57 @@ func TestPreloadClinicScope_Analyzer(t *testing.T) {
 	}
 }
 
+// TestPreloadClinicScope_AnalyzerDetectsViolationUnderNestedPathFilename proves the analyzer
+// itself (not just the embed mechanism — see TestRepoSourceEmbed_ReachesOneLevelSubpackages)
+// flags a known-bad Preload pattern when the source is presented under a 1-level subpackage
+// filename (e.g. "paymentmethod/repository.go"), the same shape repoSourceFS produces for real
+// domain subpackages. BE8-0 follow-up: the prior 3 embed-reachability tests never fed a
+// violation through the analyzer at all (see BE-refactor.md BE8-0 follow-up note).
+func TestPreloadClinicScope_AnalyzerDetectsViolationUnderNestedPathFilename(t *testing.T) {
+	src := "package p\nfunc f() { _ = db.Preload(\"Vaccine\", \"deleted_at IS NULL\") }\n"
+	findings, _, err := analyzeFilePreloads("paymentmethod/repository.go", []byte(src))
+	if err != nil {
+		t.Fatalf("parse fixture: %v", err)
+	}
+	if len(findings) != 1 {
+		t.Fatalf("got %d findings for a nested-path-filename violation, want 1: %+v", len(findings), findings)
+	}
+}
+
+// TestPreloadClinicScope_ExceptionDoesNotCrossSubpackageBasenameCollision proves a site
+// exception scoped to one 1-level domain subpackage's file cannot silently exempt the same
+// violation pattern in a DIFFERENT subpackage that happens to share the same basename (all 14
+// domain subpackages currently have a "repository.go" — BE-refactor.md §5-1-3). The exception
+// below simulates one that was (or would be) registered under the bare basename a pre-fix
+// baseFileName(filename) computes for ANY nested file — e.g. it was intended for
+// paymentmethod/repository.go. A different subpackage (vaccine/) with an identical unscoped
+// Vaccine Preload must NOT inherit that waiver.
+func TestPreloadClinicScope_ExceptionDoesNotCrossSubpackageBasenameCollision(t *testing.T) {
+	original := preloadClinicScopeSiteExceptions
+	t.Cleanup(func() { preloadClinicScopeSiteExceptions = original })
+	preloadClinicScopeSiteExceptions = []preloadSiteException{
+		{
+			file:        "repository.go",
+			assoc:       "Vaccine",
+			predicate:   "deleted_at IS NULL",
+			occurrences: 1,
+			reason:      "BE8-0 collision-safety fixture: an exception intentionally scoped to one specific domain subpackage file only",
+		},
+	}
+
+	src := "package p\nfunc f() { _ = db.Preload(\"Vaccine\", \"deleted_at IS NULL\") }\n"
+	findings, _, err := analyzeFilePreloads("vaccine/repository.go", []byte(src))
+	if err != nil {
+		t.Fatalf("parse fixture: %v", err)
+	}
+	if len(findings) == 0 {
+		t.Fatal("vaccine/repository.go's unscoped Vaccine Preload was silently exempted by a site exception " +
+			"keyed under the bare basename \"repository.go\" — this is the cross-subpackage basename collision " +
+			"BE-refactor.md §5-1-3 warns about: paymentmethod/repository.go and vaccine/repository.go must not " +
+			"share a site-exception identity")
+	}
+}
+
 // TestPreloadClinicScope_SiteExceptionMatchingIsExact proves a site exception does not leak to
 // the normal scoped form: the same (file, assoc) with a clinic_id predicate is NOT exempted,
 // and an exception only matches its exact unscoped predicate string.
@@ -512,6 +572,45 @@ func TestPreloadClinicScope_SiteExceptionMatchingIsExact(t *testing.T) {
 	}
 	if isSiteExcepted("vaccine_repository.go", "Vaccine", "deleted_at IS NULL") {
 		t.Error("unrelated file/assoc must not match a site exception")
+	}
+}
+
+// TestRepoSourceEmbed_ReachesOneLevelSubpackages pins that the shared repoSourceFS embed glob
+// (`//go:embed *.go */*.go`) actually reaches one-level domain subpackages, not just the root
+// package. preload_clinic_scope / audit_tx_inventory / dbortx_inventory all share this walk via
+// listEmbeddedRepoGoFiles — if the glob's `*/*.go` term were narrowed or dropped (e.g. back to
+// `*.go` root-only), a domain split out of the flat repository layer would silently fall off all
+// three clinical-safety gates without any other test catching it (BE-refactor.md BE8-0 §5-1).
+// This is a regression test for the EMBED mechanism itself, not for the AST-matching analyzers
+// (those are pinned separately by each *_Analyzer test with inline fixtures — an analyzer test
+// alone would stay green even if the embed stopped reaching subpackages, since it never touches
+// repoSourceFS).
+func TestRepoSourceEmbed_ReachesOneLevelSubpackages(t *testing.T) {
+	names := listEmbeddedRepoGoFiles(t)
+
+	found := false
+	nested := 0
+	for _, n := range names {
+		if n == "paymentmethod/repository.go" {
+			found = true
+		}
+		if strings.Contains(n, "/") {
+			nested++
+		}
+	}
+	if !found {
+		t.Fatal("embedded repository source does not include paymentmethod/repository.go; " +
+			"repoSourceFS's `*/*.go` glob term may have been narrowed or removed — this would " +
+			"silently drop 1-level domain subpackages from preload/audit-tx/dbortx clinical-safety " +
+			"coverage without any other test catching it")
+	}
+	// Floor, not an exact pin: grows as the repository strangler split proceeds (17 nested
+	// non-test files across 14 domains + repohelpers as of 2026-07-17). A broken/narrowed embed
+	// glob would drop this near 0.
+	const nestedFloor = 10
+	if nested < nestedFloor {
+		t.Fatalf("only %d nested (1-level subpackage) source files embedded, want >= %d; "+
+			"repoSourceFS's `*/*.go` glob term may have narrowed", nested, nestedFloor)
 	}
 }
 

@@ -48,6 +48,12 @@
     // PlanetScale Postgres はTLS必須。証明書検証はスキップしつつ暗号化のみ要求する
     // (試行7で確認済みの sslmode=require 運用を踏襲)。
     "DB_SSL_MODE": "require",
+    // DB接続プール上限(Goコード既定=50/25はローカル・単一プロセス前提)。
+    // Containers は直結(Hyperdrive/プーラー無し)かつ max_instances=3 + ローリング更新中の新旧並存が
+    // ありうるため、インスタンスあたりを低く抑えないと PlanetScale の接続スロットを食い潰す
+    // (2026-07-17 実障害: 旧インスタンス滞留×50conn でスロット枯渇→新インスタンス起動不能ループ)。
+    "DB_MAX_OPEN_CONNS": "10",
+    "DB_MAX_IDLE_CONNS": "5",
     // 試行9で実測確定(migration-cloudflare.md参照)。/health に一時追加した診断フィールドで
     // 確認した Worker→Container 内部プロキシの実ソースIP。複数リクエストにわたり 10.1.0.0 で
     // 安定(ポートのみ変動)。RFC1918プライベートアドレスであり、Container の :8080 には Worker の

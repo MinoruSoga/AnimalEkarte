@@ -21,22 +21,22 @@ import (
 // ---- mock LstepLifecycleService ----
 
 type mockLstepLifecycleService struct {
-	handlePetDeathFn    func(ctx context.Context, clinicID, petID uint64, deceasedAt time.Time, reason string) error
-	handlePetRevivalFn  func(ctx context.Context, clinicID, petID uint64) error
+	handlePetDeathFn    func(ctx context.Context, clinicID, petID uint64, deceasedAt time.Time, reason string, actorID *uint64) error
+	handlePetRevivalFn  func(ctx context.Context, clinicID, petID uint64, actorID *uint64) error
 	handleOwnerOptOutFn func(ctx context.Context, clinicID, ownerID uint64, reason string) error
 	handleOwnerOptInFn  func(ctx context.Context, clinicID, ownerID uint64) error
 	handleOwnerDeleteFn func(ctx context.Context, clinicID, ownerID uint64) error
 }
 
-func (m *mockLstepLifecycleService) HandlePetDeath(ctx context.Context, clinicID, petID uint64, deceasedAt time.Time, reason string) error {
+func (m *mockLstepLifecycleService) HandlePetDeath(ctx context.Context, clinicID, petID uint64, deceasedAt time.Time, reason string, actorID *uint64) error {
 	if m.handlePetDeathFn != nil {
-		return m.handlePetDeathFn(ctx, clinicID, petID, deceasedAt, reason)
+		return m.handlePetDeathFn(ctx, clinicID, petID, deceasedAt, reason, actorID)
 	}
 	return nil
 }
-func (m *mockLstepLifecycleService) HandlePetRevival(ctx context.Context, clinicID, petID uint64) error {
+func (m *mockLstepLifecycleService) HandlePetRevival(ctx context.Context, clinicID, petID uint64, actorID *uint64) error {
 	if m.handlePetRevivalFn != nil {
-		return m.handlePetRevivalFn(ctx, clinicID, petID)
+		return m.handlePetRevivalFn(ctx, clinicID, petID, actorID)
 	}
 	return nil
 }
@@ -145,7 +145,7 @@ func TestPatchPetDeath(t *testing.T) {
 			paramID: "10",
 			body:    map[string]any{"deceased_at": "2026-04-01", "reason": "自然死"},
 			svc: &mockLstepLifecycleService{
-				handlePetDeathFn: func(_ context.Context, clinicID, petID uint64, _ time.Time, reason string) error {
+				handlePetDeathFn: func(_ context.Context, clinicID, petID uint64, _ time.Time, reason string, _ *uint64) error {
 					assert.Equal(t, uint64(1), clinicID)
 					assert.Equal(t, uint64(10), petID)
 					assert.Equal(t, "自然死", reason)
@@ -180,7 +180,7 @@ func TestPatchPetDeath(t *testing.T) {
 			paramID: "10",
 			body:    map[string]any{"deceased_at": "2026-04-01"},
 			svc: &mockLstepLifecycleService{
-				handlePetDeathFn: func(_ context.Context, _, _ uint64, _ time.Time, _ string) error {
+				handlePetDeathFn: func(_ context.Context, _, _ uint64, _ time.Time, _ string, _ *uint64) error {
 					return fmt.Errorf("db failure")
 				},
 			},
@@ -219,7 +219,7 @@ func TestDeletePetDeath(t *testing.T) {
 			name:    "returns 204 on success",
 			paramID: "5",
 			svc: &mockLstepLifecycleService{
-				handlePetRevivalFn: func(_ context.Context, clinicID, petID uint64) error {
+				handlePetRevivalFn: func(_ context.Context, clinicID, petID uint64, _ *uint64) error {
 					assert.Equal(t, uint64(1), clinicID)
 					assert.Equal(t, uint64(5), petID)
 					return nil
@@ -243,7 +243,7 @@ func TestDeletePetDeath(t *testing.T) {
 			name:    "returns 404 on not-found error",
 			paramID: "99",
 			svc: &mockLstepLifecycleService{
-				handlePetRevivalFn: func(_ context.Context, _, _ uint64) error {
+				handlePetRevivalFn: func(_ context.Context, _, _ uint64, _ *uint64) error {
 					return apperrors.WrapNotFound("pet", "99")
 				},
 			},

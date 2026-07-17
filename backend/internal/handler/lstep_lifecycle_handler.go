@@ -28,7 +28,8 @@ func (h *Handler) UpdatePetDeath(c *gin.Context) {
 		RespondError(c, apperrors.WrapInvalidInput("deceased_at は必須です"))
 		return
 	}
-	if err := h.svc.LstepLifecycle.HandlePetDeath(c.Request.Context(), clinicID, petID, req.DeceasedAt.Time, req.Reason); err != nil {
+	actorID := optionalStaffID(c)
+	if err := h.svc.LstepLifecycle.HandlePetDeath(c.Request.Context(), clinicID, petID, req.DeceasedAt.Time, req.Reason, actorID); err != nil {
 		RespondError(c, err)
 		return
 	}
@@ -46,7 +47,8 @@ func (h *Handler) DeletePetDeath(c *gin.Context) {
 	if !ok {
 		return
 	}
-	if err := h.svc.LstepLifecycle.HandlePetRevival(c.Request.Context(), clinicID, petID); err != nil {
+	actorID := optionalStaffID(c)
+	if err := h.svc.LstepLifecycle.HandlePetRevival(c.Request.Context(), clinicID, petID, actorID); err != nil {
 		RespondError(c, err)
 		return
 	}

@@ -2,25 +2,44 @@ package handler
 
 import (
 	"net/url"
+	"strconv"
 
+	apperrors "github.com/animal-ekarte/backend/internal/errors"
+	"github.com/animal-ekarte/backend/internal/repository"
 	"github.com/animal-ekarte/backend/internal/service"
 )
 
+// listPetFilters は互換のためのエイリアス。実体は repository.PetListFilters
+// （medical_record_request.go の listMedicalRecordFilters と同型パターン）。
+type listPetFilters = repository.PetListFilters
+
 type listPetQuery struct {
-	OwnerID string
-	Search  string
+	OwnerID         string
+	Search          string
+	Species         string
+	IncludeDeceased string
 }
 
 func newListPetQuery(values url.Values) listPetQuery {
 	return listPetQuery{
-		OwnerID: values.Get("owner_id"),
-		Search:  values.Get("search"),
+		OwnerID:         values.Get("owner_id"),
+		Search:          values.Get("search"),
+		Species:         values.Get("species"),
+		IncludeDeceased: values.Get("include_deceased"),
 	}
 }
 
-type listPetFilters struct {
-	OwnerID *uint64
-	Search  string
+// parseOptionalBoolQueryFilter はクエリパラメータを optional な bool にパースする。
+// 空文字は defaultVal を返す。パース失敗時は WrapInvalidInput を返す。
+func parseOptionalBoolQueryFilter(value, field string, defaultVal bool) (bool, error) {
+	if value == "" {
+		return defaultVal, nil
+	}
+	b, err := strconv.ParseBool(value)
+	if err != nil {
+		return false, apperrors.WrapInvalidInput("invalid " + field)
+	}
+	return b, nil
 }
 
 func (q listPetQuery) toServiceFilters() (listPetFilters, error) {
@@ -28,9 +47,20 @@ func (q listPetQuery) toServiceFilters() (listPetFilters, error) {
 	if err != nil {
 		return listPetFilters{}, err
 	}
+	speciesID, err := parseOptionalUintQueryFilter(q.Species, "species")
+	if err != nil {
+		return listPetFilters{}, err
+	}
+	// #266: 生死フィルタのデフォルトは生存のみ（include_deceased 未指定 = false）。
+	includeDeceased, err := parseOptionalBoolQueryFilter(q.IncludeDeceased, "include_deceased", false)
+	if err != nil {
+		return listPetFilters{}, err
+	}
 	return listPetFilters{
-		OwnerID: ownerID,
-		Search:  q.Search,
+		OwnerID:         ownerID,
+		Search:          q.Search,
+		AnimalSpeciesID: speciesID,
+		IncludeDeceased: includeDeceased,
 	}, nil
 }
 

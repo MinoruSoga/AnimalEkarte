@@ -22,6 +22,13 @@ interface PetDeceasedDialogProps {
   petBreed?: string;
   petGender?: string;
   petAge?: string;
+  /**
+   * BUG-407: 保存成功時に呼ばれる。バックエンドへの即時保存はこのダイアログが
+   * 既に完結させているが、この通知が無いと外側 PetEditModal のローカル
+   * formData（生死ラジオ・deceasedAt）が古いまま残り、次に外側「更新」を
+   * 押すと status="生存" で上書きされ deceased_at のみ残る不整合を再現する。
+   */
+  onRecorded?: (result: { deceasedAt: string; deceasedReason?: string }) => void;
 }
 
 function todayString(): string {
@@ -40,6 +47,7 @@ export function PetDeceasedDialog({
   petBreed,
   petGender,
   petAge,
+  onRecorded,
 }: PetDeceasedDialogProps) {
   const mutation = useRecordPetDeath();
 
@@ -69,11 +77,13 @@ export function PetDeceasedDialog({
       }
 
       try {
+        const normalizedReason = deceasedReason || undefined;
         await mutation.mutateAsync({
           petId,
           deceasedAt,
-          deceasedReason: deceasedReason || undefined,
+          deceasedReason: normalizedReason,
         });
+        onRecorded?.({ deceasedAt, deceasedReason: normalizedReason });
         onOpenChange(false);
         return { success: true, error: null, timestamp: Date.now() };
       } catch (error) {

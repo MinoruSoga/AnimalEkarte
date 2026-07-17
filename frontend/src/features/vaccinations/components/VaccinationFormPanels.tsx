@@ -12,13 +12,6 @@ import type { SortOrder } from "@/types";
 import type { VaccinationRecord } from "../api/transforms";
 import { VaccinationCard } from "./VaccinationCard";
 
-const VACCINE_TYPE_ITEMS = (
-  <>
-    <SelectItem value="1">混合ワクチン</SelectItem>
-    <SelectItem value="2">狂犬病ワクチン</SelectItem>
-  </>
-);
-
 const NEXT_SCHEDULE_ITEMS = (
   <>
     <SelectItem value="3weeks">3週後</SelectItem>
@@ -28,9 +21,15 @@ const NEXT_SCHEDULE_ITEMS = (
   </>
 );
 
+interface VaccineOption {
+  value: string;
+  label: string;
+}
+
 interface VaccinationFieldsPanelProps {
   date: string;
   vaccineId: string;
+  vaccineOptions: VaccineOption[];
   supplemental: string;
   lot1: string;
   lot2: string;
@@ -56,6 +55,7 @@ interface VaccinationFieldsPanelProps {
 export function VaccinationFieldsPanel({
   date,
   vaccineId,
+  vaccineOptions,
   supplemental,
   lot1,
   lot2,
@@ -113,7 +113,13 @@ export function VaccinationFieldsPanel({
               <SelectTrigger id="vaccine-select">
                 <SelectValue placeholder="選択してください" />
               </SelectTrigger>
-              <SelectContent>{VACCINE_TYPE_ITEMS}</SelectContent>
+              <SelectContent>
+                {vaccineOptions.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
             </Select>
             <FormFieldError message={fieldErrors.vaccineId} />
           </div>

@@ -7,6 +7,7 @@ import { jstDateStartISOString, todayJSTISO } from "@/lib/jst-date";
 import { paths } from "@/config/paths";
 import { usePetSelection } from "@/hooks/use-pet-selection";
 import { useGetPet } from "@/hooks/use-pet";
+import { useGetAllVaccinesMaster } from "@/hooks/use-treatment-master";
 import { useGetVaccination } from "../api/get-vaccination";
 import { useCreateVaccination } from "../api/create-vaccination";
 import { useUpdateVaccination } from "../api/update-vaccination";
@@ -28,11 +29,24 @@ interface VaccinationFormState {
 
 const DEFAULT_NEXT_SCHEDULE_TYPE = "1year" as const;
 
-// BUG-026: vaccine interval mapping (vaccine_id → schedule type)
-const VACCINE_SCHEDULE_MAP: Record<string, string> = {
-  "1": "1year", // 混合ワクチン（年1回）
-  "2": "1year", // 狂犬病ワクチン（年1回）
-};
+// react-reviewer指摘: インラインの `?? []` は毎レンダー新規参照になり vaccineOptions の
+// useMemo を不必要に再計算させる（取得未完了/エラー時に顕著）。安定参照にする。
+const EMPTY_VACCINES_MASTER: ReturnType<typeof useGetAllVaccinesMaster>["data"] = [];
+
+// BUG-401/BUG-026: vaccine interval (vaccines master 実データ) → schedule type。
+// 旧実装はハードコードの vaccine_id "1"/"2" をキーにしていたため、実マスタ ID（例: "14"）に
+// 切り替えると必ずフォールスルーして誤った次回予定を計算していた（サイレント mis-scheduling）。
+// マスタの vaccine.interval（"1年"/"1ヶ月"）から導出することで、実 ID に依存せず正しく動作する。
+function scheduleTypeForInterval(interval: string | undefined): string {
+  switch (interval) {
+    case "1年":
+      return "1year";
+    case "1ヶ月":
+      return "4weeks";
+    default:
+      return DEFAULT_NEXT_SCHEDULE_TYPE;
+  }
+}
 
 const DEFAULT_FORM: VaccinationFormState = {
   vaccineId: "",
@@ -73,6 +87,17 @@ export function useVaccinationForm(id?: string) {
   // Pet Selection
   const petSelection = usePetSelection();
   const { setSelectedPets, selectedPets } = petSelection;
+
+  // BUG-401: ワクチンマスタを実際にクエリする（姉妹フォーム MedicalRecordVaccination.tsx と同じ
+  // useGetAllVaccinesMaster パターン）。ハードコードの2択は別クリニックのマスタ行（id=1/2 は
+  // カテゴリ用の "ワクチン犬"/"ワクチン猫" スタブ）と衝突し、保存した vaccine_id が選択ラベルと
+  // 一致しないデータ破損を起こしていた。species フィルタは姉妹フォームも持たないため本修正では
+  // 追加しない（BUG-408 に残置）。
+  const { data: vaccinesMaster = EMPTY_VACCINES_MASTER } = useGetAllVaccinesMaster();
+  const vaccineOptions = useMemo(
+    () => vaccinesMaster.flatMap((v) => (v.isActive ? [{ value: v.id, label: v.name }] : [])),
+    [vaccinesMaster],
+  );
 
   // API hooks
   const { data: existingVaccination } = useGetVaccination(id ?? "");
@@ -239,10 +264,13 @@ export function useVaccinationForm(id?: string) {
 
   const isSaving = isPending;
 
-  // BUG-026: when vaccine type changes, auto-update nextScheduleType and recalculate nextDate
+  // BUG-026/BUG-401: when vaccine type changes, auto-update nextScheduleType and recalculate
+  // nextDate — derived from the selected master vaccine's own `interval` field (see
+  // scheduleTypeForInterval), not a hardcoded id table.
   const setVaccineId = useCallback((v: string) => {
     setLocalOverrides((prev) => {
-      const scheduleType = VACCINE_SCHEDULE_MAP[v] ?? DEFAULT_NEXT_SCHEDULE_TYPE;
+      const selected = vaccinesMaster.find((vac) => vac.id === v);
+      const scheduleType = scheduleTypeForInterval(selected?.interval);
       const currentDate = prev.date ?? "";
       const calculated = calculateNextDate(currentDate, scheduleType);
       return {
@@ -252,7 +280,7 @@ export function useVaccinationForm(id?: string) {
         ...(calculated ? { nextDate: calculated } : {}),
       };
     });
-  }, []);
+  }, [vaccinesMaster]);
 
   // BUG-026: auto-calculate nextDate when date changes
   const setDate = useCallback((v: string) => {
@@ -301,6 +329,7 @@ export function useVaccinationForm(id?: string) {
   const form = useMemo(() => ({
     vaccineId: formData.vaccineId,
     setVaccineId,
+    vaccineOptions,
     date: formData.date,
     setDate,
     supplemental: formData.supplemental,
@@ -320,7 +349,7 @@ export function useVaccinationForm(id?: string) {
     remarks: formData.remarks,
     setRemarks,
   }), [
-    formData.vaccineId, setVaccineId,
+    formData.vaccineId, setVaccineId, vaccineOptions,
     formData.date, setDate,
     formData.supplemental, setSupplemental,
     formData.lot1, setLot1,
