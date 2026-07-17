@@ -249,7 +249,8 @@ func newLstepLifecycleSvc(
 	tagCacheRepo *mockLstepTagCacheRepository,
 	syncSvc *mockLstepTagSyncService,
 ) LstepLifecycleService {
-	return NewLstepLifecycleService(settingsSvc, ownerRepo, petRepo, tagCacheRepo, syncSvc, &mockAuditService{}, nil)
+	audit := &mockAuditService{}
+	return NewLstepLifecycleService(settingsSvc, ownerRepo, petRepo, tagCacheRepo, syncSvc, audit, nil, &mockTransactor{}, audit)
 }
 
 func defaultLstepSettingsSvc() *mockLstepSettingsService {
@@ -1280,7 +1281,14 @@ func TestLstepLifecycleService_HandlePetDeath_SurvivingPets_PetDerivedCleanupBes
 	assert.NoError(t, err)
 }
 
-func TestLstepLifecycleService_HandlePetDeath_AuditLogFailureIsBestEffort(t *testing.T) {
+// BUG-407 (audit fail-closed): 旧実装は監査書込失敗を best-effort として飲み込み、status/deceased_at
+// の更新を確定させていた（fail-open）。#211 返金の fail-closed 先例に合わせ、一次監査ログ
+// （action="pet_death"）の書込失敗は Transactor.WithTx 経由で status 更新ごとロールバックされ、
+// HandlePetDeath はエラーを返すようになった。この service レベルのテストは「エラーが伝播すること」
+// (fail-closed の契約) を証明する — status 更新が実 DB でロールバックされること自体の証明は
+// mock では不可能なため repository/pet_repository_tx_atomicity_test.go の
+// TestPetRepository_Update_RollsBackWhenAmbientTxFails が担う（healthcare-reviewer 指摘どおりの役割分担）。
+func TestLstepLifecycleService_HandlePetDeath_AuditLogFailureRollsBackDeathRecord(t *testing.T) {
 	petRepo := &mockPetRepository{
 		findByIDFn: func(_ context.Context, _, _ uint64) (*model.Pet, error) {
 			return &model.Pet{ID: 1, OwnerID: 10}, nil
@@ -1290,19 +1298,22 @@ func TestLstepLifecycleService_HandlePetDeath_AuditLogFailureIsBestEffort(t *tes
 			return []model.Pet{{ID: 2, OwnerID: 10}}, nil
 		},
 	}
+	audit := &mockAuditService{logEntryTxErr: errors.New("audit db error")}
 	svc := NewLstepLifecycleService(
 		defaultLstepSettingsSvc(),
 		&mockOwnerRepository{},
 		petRepo,
 		&mockLstepTagCacheRepository{},
 		&mockLstepTagSyncService{},
-		&mockAuditService{logLstepOperationErr: errors.New("audit db error")},
+		audit,
 		nil,
+		&mockTransactor{},
+		audit,
 	)
 
 	err := svc.HandlePetDeath(context.Background(), 1, 1, time.Now(), "病気", nil)
 
-	assert.NoError(t, err)
+	assert.Error(t, err, "audit log failure must roll back the death record (fail-closed), not be swallowed as best-effort")
 }
 
 // BUG-407 follow-up (healthcare-reviewer HIGH finding): HandlePetDeath must record the
@@ -1349,6 +1360,8 @@ func TestLstepLifecycleService_HandlePetDeath_LogsUserActionAudit(t *testing.T) 
 				findLivingByOwnerFn: tt.findLivingByOwnerFn,
 			}
 			auditSvc := &mockAuditService{
+				// pet_death_tag_sync (best-effort, surviving-pets branch only) still goes
+				// through LogLstepOperation — captured here for parity with the pre-existing shape.
 				logLstepOperationFn: func(_ context.Context, _ uint64, actorID *uint64, action, resource string, resourceID *uint64) error {
 					calls = append(calls, capturedCall{actorID: actorID, action: action, resource: resource, resourceID: resourceID})
 					return nil
@@ -1362,26 +1375,31 @@ func TestLstepLifecycleService_HandlePetDeath_LogsUserActionAudit(t *testing.T) 
 				&mockLstepTagSyncService{},
 				auditSvc,
 				nil,
+				&mockTransactor{},
+				auditSvc,
 			)
 
 			err := svc.HandlePetDeath(context.Background(), 1, 1, time.Now(), "病気", &actor)
 			assert.NoError(t, err)
 
+			// BUG-407: the primary user-action audit (action="pet_death") is now written via
+			// AuditTxLogger.LogEntryTx (same tx as the status update, fail-closed), not
+			// LogLstepOperation — assert against auditSvc.entries instead of `calls`.
 			var found bool
-			for _, c := range calls {
-				if c.action != "pet_death" {
+			for _, e := range auditSvc.entries {
+				if e.Action != "pet_death" {
 					continue
 				}
 				found = true
-				assert.Equal(t, "pet", c.resource)
-				if assert.NotNil(t, c.actorID) {
-					assert.Equal(t, actor, *c.actorID)
+				assert.Equal(t, "pet", e.Resource)
+				if assert.NotNil(t, e.ActorID) {
+					assert.Equal(t, actor, *e.ActorID)
 				}
-				if assert.NotNil(t, c.resourceID) {
-					assert.Equal(t, uint64(1), *c.resourceID)
+				if assert.NotNil(t, e.ResourceID) {
+					assert.Equal(t, uint64(1), *e.ResourceID)
 				}
 			}
-			assert.True(t, found, "expected a pet_death audit log call with the real actor")
+			assert.True(t, found, "expected a pet_death audit log entry (via LogEntryTx) with the real actor")
 		})
 	}
 }
@@ -1422,33 +1440,62 @@ func TestLstepLifecycleService_HandlePetRevival_SyncErrorsAreBestEffort(t *testi
 			return errors.New("sync error")
 		},
 	}
+	audit := &mockAuditService{logLstepOperationErr: errors.New("audit db error")}
 	svc := NewLstepLifecycleService(
 		defaultLstepSettingsSvc(),
 		&mockOwnerRepository{},
 		petRepo,
 		&mockLstepTagCacheRepository{},
 		syncSvc,
-		&mockAuditService{logLstepOperationErr: errors.New("audit db error")},
+		audit,
 		nil,
+		&mockTransactor{},
+		audit,
 	)
 
 	err := svc.HandlePetRevival(context.Background(), 1, 1, nil)
 
+	// logLstepOperationErr only affects the secondary "pet_revival_tag_sync" best-effort audit
+	// (still LogLstepOperation, unaffected by BUG-407) — the primary "pet_revival" audit now
+	// goes through LogEntryTx (no error injected here), so HandlePetRevival still succeeds.
 	assert.NoError(t, err)
+}
+
+// BUG-407 (audit fail-closed): symmetric with HandlePetDeath — a failure writing the primary
+// user-action audit (action="pet_revival") via AuditTxLogger.LogEntryTx rolls back the status
+// update in the same tx and HandlePetRevival returns an error, instead of the old best-effort
+// swallow. Real-DB rollback proof lives in
+// repository/pet_repository_tx_atomicity_test.go (TestPetRepository_Update_RollsBackWhenAmbientTxFails).
+func TestLstepLifecycleService_HandlePetRevival_AuditLogFailureRollsBackRevivalRecord(t *testing.T) {
+	petRepo := &mockPetRepository{
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.Pet, error) {
+			return &model.Pet{ID: 1, OwnerID: 10}, nil
+		},
+		updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) error { return nil },
+	}
+	audit := &mockAuditService{logEntryTxErr: errors.New("audit db error")}
+	svc := NewLstepLifecycleService(
+		defaultLstepSettingsSvc(),
+		&mockOwnerRepository{},
+		petRepo,
+		&mockLstepTagCacheRepository{},
+		&mockLstepTagSyncService{},
+		audit,
+		nil,
+		&mockTransactor{},
+		audit,
+	)
+
+	err := svc.HandlePetRevival(context.Background(), 1, 1, nil)
+
+	assert.Error(t, err, "audit log failure must roll back the revival record (fail-closed), not be swallowed as best-effort")
 }
 
 // BUG-407 follow-up (healthcare-reviewer HIGH finding): HandlePetRevival must record the
 // user-driven revival event itself in the audit trail (action="pet_revival") with the
 // real actor (symmetric with HandlePetDeath's new "pet_death" audit).
 func TestLstepLifecycleService_HandlePetRevival_LogsUserActionAudit(t *testing.T) {
-	type capturedCall struct {
-		actorID    *uint64
-		action     string
-		resource   string
-		resourceID *uint64
-	}
 	actor := uint64(77)
-	var calls []capturedCall
 
 	petRepo := &mockPetRepository{
 		findByIDFn: func(_ context.Context, _, _ uint64) (*model.Pet, error) {
@@ -1456,12 +1503,7 @@ func TestLstepLifecycleService_HandlePetRevival_LogsUserActionAudit(t *testing.T
 		},
 		updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) error { return nil },
 	}
-	auditSvc := &mockAuditService{
-		logLstepOperationFn: func(_ context.Context, _ uint64, actorID *uint64, action, resource string, resourceID *uint64) error {
-			calls = append(calls, capturedCall{actorID: actorID, action: action, resource: resource, resourceID: resourceID})
-			return nil
-		},
-	}
+	auditSvc := &mockAuditService{}
 	svc := NewLstepLifecycleService(
 		defaultLstepSettingsSvc(),
 		&mockOwnerRepository{},
@@ -1470,26 +1512,31 @@ func TestLstepLifecycleService_HandlePetRevival_LogsUserActionAudit(t *testing.T
 		&mockLstepTagSyncService{},
 		auditSvc,
 		nil,
+		&mockTransactor{},
+		auditSvc,
 	)
 
 	err := svc.HandlePetRevival(context.Background(), 1, 1, &actor)
 	assert.NoError(t, err)
 
+	// BUG-407: the primary user-action audit (action="pet_revival") is now written via
+	// AuditTxLogger.LogEntryTx (same tx as the status update, fail-closed), not
+	// LogLstepOperation — assert against auditSvc.entries instead of a LogLstepOperation capture.
 	var found bool
-	for _, c := range calls {
-		if c.action != "pet_revival" {
+	for _, e := range auditSvc.entries {
+		if e.Action != "pet_revival" {
 			continue
 		}
 		found = true
-		assert.Equal(t, "pet", c.resource)
-		if assert.NotNil(t, c.actorID) {
-			assert.Equal(t, actor, *c.actorID)
+		assert.Equal(t, "pet", e.Resource)
+		if assert.NotNil(t, e.ActorID) {
+			assert.Equal(t, actor, *e.ActorID)
 		}
-		if assert.NotNil(t, c.resourceID) {
-			assert.Equal(t, uint64(1), *c.resourceID)
+		if assert.NotNil(t, e.ResourceID) {
+			assert.Equal(t, uint64(1), *e.ResourceID)
 		}
 	}
-	assert.True(t, found, "expected a pet_revival audit log call with the real actor")
+	assert.True(t, found, "expected a pet_revival audit log entry (via LogEntryTx) with the real actor")
 }
 
 // ---- HandleOwnerOptIn: additional branches ----

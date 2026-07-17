@@ -130,6 +130,10 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"medicine_dose_param_repository.go|medicineDoseParamRepository.FindByMedicineAndSpecies": {},
 	"medicine_dose_param_repository.go|medicineDoseParamRepository.FindByMedicineID":         {},
 	"medicine_dose_param_repository.go|medicineDoseParamRepository.Update":                   {},
+	// pet (BUG-407: lstepLifecycleService.HandlePetDeath/HandlePetRevival が status/deceased_at
+	// 更新と一次監査ログ書込を Transactor.WithTx で束ね fail-closed 化。runtime proof は
+	// pet_repository_tx_atomicity_test.go)
+	"pet_repository.go|petRepository.Update": {},
 	// prescription (X-11 Appendix-A finalize-child-write-race fix — same FK-deadlock rationale as examination)
 	"prescription_repository.go|prescriptionRepository.Create": {},
 	"prescription_repository.go|prescriptionRepository.Update": {},

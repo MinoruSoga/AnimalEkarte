@@ -197,7 +197,7 @@ func NewServices(repos *repository.Repositories, notifCfg *ReservationNotificati
 	// LSTEP services initialization: LINE予約設定と同一の cipher を再利用する（X-2）。
 	lstepSettingsSvc := NewLstepSettingsService(repos.LstepSettings, repos.LstepSyncSettings, cipher, auditSvc, repos.ClinicSettings)
 	lstepTagSyncSvc := NewLstepTagSyncFromRepos(repos, lstepSettingsSvc)
-	lstepLifecycleSvc := NewLstepLifecycleService(lstepSettingsSvc, repos.Owner, repos.Pet, repos.LstepTagCache, lstepTagSyncSvc, auditSvc, repos.LstepTagConfig)
+	lstepLifecycleSvc := NewLstepLifecycleService(lstepSettingsSvc, repos.Owner, repos.Pet, repos.LstepTagCache, lstepTagSyncSvc, auditSvc, repos.LstepTagConfig, tx, auditTxLogger)
 
 	// lab import (Phase 3): 同一 jobSvc インスタンスを LabImportJob/LabResultImport で共有する。
 	labImportJobSvc := NewLabImportJobService(repos.LabImportJob, repos.LabImportEvent)

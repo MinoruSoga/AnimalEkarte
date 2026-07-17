@@ -35,6 +35,11 @@ type lstepLifecycleService struct {
 	syncSvc       LstepTagSyncService
 	auditSvc      AuditService
 	tagConfigRepo repository.LstepTagConfigRepository
+	// transactor / auditTx: BUG-407 fail-closed 化。HandlePetDeath/HandlePetRevival の
+	// status/deceased_at 更新と一次監査ログ書込を同一 tx で束ね、監査失敗で status 更新も
+	// ロールバックする（#211 返金の fail-closed 先例と同型）。
+	transactor repository.Transactor
+	auditTx    AuditTxLogger
 }
 
 // NewLstepLifecycleService は LstepLifecycleService を初期化して返す。
@@ -47,6 +52,8 @@ func NewLstepLifecycleService(
 	syncSvc LstepTagSyncService,
 	auditSvc AuditService,
 	tagConfigRepo repository.LstepTagConfigRepository,
+	transactor repository.Transactor,
+	auditTx AuditTxLogger,
 ) LstepLifecycleService {
 	return &lstepLifecycleService{
 		settingsSvc:   settingsSvc,
@@ -56,6 +63,8 @@ func NewLstepLifecycleService(
 		syncSvc:       syncSvc,
 		auditSvc:      auditSvc,
 		tagConfigRepo: tagConfigRepo,
+		transactor:    transactor,
+		auditTx:       auditTx,
 	}
 }
 
@@ -93,21 +102,36 @@ func (s *lstepLifecycleService) HandlePetDeath(ctx context.Context, clinicID, pe
 	// 同一 Update で "deceased" へ揃える。分離したままだと、外側フォームの
 	// 生死ラジオが未追従のまま次回の外側「更新」で status="alive" に
 	// 上書きされ、deceased_at だけ残る不整合状態になる。
-	fields := map[string]any{
-		"deceased_at":     deceasedAt,
-		"deceased_reason": reason,
-		"status":          model.PetStatusDeceased,
-	}
-	if err := s.petRepo.Update(ctx, clinicID, petID, fields); err != nil {
-		slog.ErrorContext(ctx, "failed to update pet deceased fields", "error", err)
-		return apperrors.Wrap(err, "failed to record pet death")
-	}
-
-	// 監査ログ（臨床的に重大な状態変更のため、全コードパス — 生存ペットの有無に関わらず — で
-	// 必ず記録する。実行者は呼び出し元から渡された actorID をそのまま使う）。
-	// 監査書込自体の失敗は死亡記録という臨床アクションをブロックしない（best-effort・WarnContext）。
-	if auditErr := s.auditSvc.LogLstepOperation(ctx, clinicID, actorID, "pet_death", "pet", &petID); auditErr != nil {
-		slog.WarnContext(ctx, "audit log failed for pet death", "error", auditErr, "pet_id", petID)
+	//
+	// BUG-407 (audit fail-closed): status/deceased_at 更新と一次監査ログ（pet_death）書込を
+	// 同一 tx で原子化する。監査書込が失敗したら status 更新もロールバックする — #211 返金の
+	// fail-closed 先例と同型（監査書込自体の失敗が死亡記録という臨床アクションをブロックする、
+	// という設計判断そのものが本 BUG-407 修正の核心。旧実装の best-effort/WarnContext は廃止）。
+	actorType := auditActorTypeFor(actorID)
+	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
+		fields := map[string]any{
+			"deceased_at":     deceasedAt,
+			"deceased_reason": reason,
+			"status":          model.PetStatusDeceased,
+		}
+		if err := s.petRepo.Update(txCtx, clinicID, petID, fields); err != nil {
+			slog.ErrorContext(txCtx, "failed to update pet deceased fields", "error", err)
+			return apperrors.Wrap(err, "failed to record pet death")
+		}
+		if auditErr := s.auditTx.LogEntryTx(txCtx, &AuditLogInput{
+			ClinicID:   &clinicID,
+			ActorID:    actorID,
+			ActorType:  actorType,
+			Action:     "pet_death",
+			Resource:   "pet",
+			ResourceID: &petID,
+		}); auditErr != nil {
+			slog.ErrorContext(txCtx, "audit log failed for pet death", "error", auditErr, "pet_id", petID)
+			return apperrors.Wrap(auditErr, "failed to write pet death audit log")
+		}
+		return nil
+	}); err != nil {
+		return apperrors.Wrap(err, "failed to record pet death in transaction")
 	}
 
 	ownerID := pet.OwnerID
@@ -169,21 +193,34 @@ func (s *lstepLifecycleService) HandlePetRevival(ctx context.Context, clinicID, 
 
 	// BUG-407: 死亡取り消し時も status を "alive" に戻し、deceased_at/status の
 	// 二重管理不整合を防ぐ（HandlePetDeath と対称）。
-	fields := map[string]any{
-		"deceased_at":     nil,
-		"deceased_reason": nil,
-		"status":          model.PetStatusAlive,
-	}
-	if err := s.petRepo.Update(ctx, clinicID, petID, fields); err != nil {
-		slog.ErrorContext(ctx, "failed to clear pet deceased fields", "error", err)
-		return apperrors.Wrap(err, "failed to record pet revival")
-	}
-
-	// 監査ログ（臨床的に重大な状態変更のため、生死同期の成否に関わらず必ず記録する。
-	// 実行者は呼び出し元から渡された actorID をそのまま使う）。監査書込自体の失敗は
-	// 死亡取消という臨床アクションをブロックしない（best-effort・WarnContext）。
-	if auditErr := s.auditSvc.LogLstepOperation(ctx, clinicID, actorID, "pet_revival", "pet", &petID); auditErr != nil {
-		slog.WarnContext(ctx, "audit log failed for pet revival", "error", auditErr, "pet_id", petID)
+	//
+	// BUG-407 (audit fail-closed): status 更新と一次監査ログ（pet_revival）書込を同一 tx で
+	// 原子化する。監査書込が失敗したら status 更新もロールバックする（HandlePetDeath と対称）。
+	actorType := auditActorTypeFor(actorID)
+	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
+		fields := map[string]any{
+			"deceased_at":     nil,
+			"deceased_reason": nil,
+			"status":          model.PetStatusAlive,
+		}
+		if err := s.petRepo.Update(txCtx, clinicID, petID, fields); err != nil {
+			slog.ErrorContext(txCtx, "failed to clear pet deceased fields", "error", err)
+			return apperrors.Wrap(err, "failed to record pet revival")
+		}
+		if auditErr := s.auditTx.LogEntryTx(txCtx, &AuditLogInput{
+			ClinicID:   &clinicID,
+			ActorID:    actorID,
+			ActorType:  actorType,
+			Action:     "pet_revival",
+			Resource:   "pet",
+			ResourceID: &petID,
+		}); auditErr != nil {
+			slog.ErrorContext(txCtx, "audit log failed for pet revival", "error", auditErr, "pet_id", petID)
+			return apperrors.Wrap(auditErr, "failed to write pet revival audit log")
+		}
+		return nil
+	}); err != nil {
+		return apperrors.Wrap(err, "failed to record pet revival in transaction")
 	}
 
 	if syncErr := s.syncSvc.SyncOwnerAnimalClassificationTags(ctx, clinicID, pet.OwnerID); syncErr != nil {

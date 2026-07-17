@@ -191,8 +191,12 @@ func (r *petRepository) Create(ctx context.Context, pet *model.Pet) error {
 	return nil
 }
 
+// Update は BUG-407 の fail-closed 化（lstepLifecycleService.HandlePetDeath/HandlePetRevival が
+// status/deceased_at 更新と監査書込を同一 tx で原子化する）のため dbOrTx(ctx, r.db) を使う。
+// ambient tx が無い呼び出し（大多数の既存経路）では r.db.WithContext(ctx) と等価（後方互換）。
 func (r *petRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
-	result := r.db.WithContext(ctx).
+	db := dbOrTx(ctx, r.db)
+	result := db.
 		Model(&model.Pet{}).
 		Scopes(clinicScope(clinicID)).Where("id = ?", id).
 		Updates(fields)
@@ -201,7 +205,7 @@ func (r *petRepository) Update(ctx context.Context, clinicID, id uint64, fields 
 	}
 	if result.RowsAffected == 0 {
 		var count int64
-		if err := r.db.WithContext(ctx).Model(&model.Pet{}).
+		if err := db.Model(&model.Pet{}).
 			Scopes(clinicScope(clinicID)).
 			Where("id = ?", id).
 			Count(&count).Error; err != nil {
