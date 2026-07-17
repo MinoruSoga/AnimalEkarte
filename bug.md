@@ -6,15 +6,20 @@
 
 ## Open
 
-### BUG-412:【HIGH・潜在的データ不可視化】在庫一覧が backend デフォルト limit=20 のみ取得しページネーション未対応（既にローカルデモデータで顕在化）／予防接種・トリミング一覧にも同型の潜在リスク
+### BUG-413:【要監視・#250後に判定】予防接種・トリミング一覧が同型のページネーション不可視化リスクを抱える（現状 seed 0件で無症状）
 
-- **症状**: `InventoryList.tsx`（在庫管理）の取得経路 `use-inventory.ts` → `frontend/src/features/inventory/api/inventory.ts` の `getInventoryItems`/`GetInventoryItemsParams` は `category`/`status` のみを送り `page`/`limit` を一切送らない。backend `inventory_handler.go` の `ListInventory` は `parsePagination`（未指定時 `limit=20`）を適用するため、20件を超える在庫は一覧・フィルタ・検索から不可視化する。BUG-411（会計・検査一覧の偽ページネーション、2026-07-17 修正済み）と同型のバグ。
-- **実測件数（ローカル seed）**: `backend/migrations/seeds/003_demo/inventory_items.csv` = **30件**（ヘッダ除く実データ行数で確認）。30>20のため、**ローカルデモデータの時点で既に10件が一覧に出ない**。旧 BUG-411 エントリが「low risk」と判定した根拠（"inventory_items=30件、実データ小さいため相対的に低リスク"）は自己矛盾していた（30自体が既に既定 limit=20 を超えている）。BUG-411 対応中の派生監査（2026-07-17）で発覚。
-- **関連する潜在リスク（同一取得パターン。現状データ0件のため無症状だが、旧 bug.md の「date-scoped だから安全」という前提自体が誤り）**:
-  - `VaccinationList.tsx`（予防接種一覧）: `use-vaccinations.ts` → `get-vaccinations.ts` の `getVaccinations` は `start_date`/`end_date` をユーザーが日付フィルタを使った時だけ送る任意パラメータで、未指定時は無条件で `parsePagination` の既定 `limit=20` に落ちる（date-scoped ではない）。seed 0件のため今は無症状。
-  - `TrimmingList.tsx`（トリミング一覧）: `use-trimming-records.ts` → `get-trimmings.ts` の `getTrimmings` は明示的に `page:1, limit:HISTORY_FETCH_LIMIT`（`frontend/src/config/fetch-limits.ts` で `100` = backend `defaultMaxPaginationLimit`）を送信しており `limit=20` のバグではない。ただし1リクエストで取得できる上限が100件で、それ以降のページネーション導線が無い。seed 0件のため今は無症状だが、100件超のトリミング実績が蓄積すると同型の不可視化が起きる。
-- **修正方針**: BUG-411（会計・検査、#266 owners と同型）で確立したサーバサイド page/limit 転送パターンをそのまま踏襲する。`InventoryList` を優先（既に顕在化）。`VaccinationList`/`TrimmingList` は本番データ移行（#250）後の実件数を見て優先度判断（`TrimmingList` は limit=100→カーソル/オフセット継続取得への拡張が別途必要）。
-- **発見**: 2026-07-17（BUG-411 対応中の派生監査。be411-other-screens-audit subagent による調査、コーディネーターが claim を再検証済み）。
+- **経緯**: BUG-412（在庫一覧の偽ページネーション）の派生監査（2026-07-17）で発見。BUG-412 は 2026-07-17 に修正済み（`InventoryList`/`use-inventory.ts`/`frontend/src/features/inventory/api/inventory.ts` をサーバサイド page/limit 転送 + 実 total 消費に変更。backend `inventory_repository.go` は元々 clinic-scoped 実 COUNT を WHERE 適用後に返しており変更不要だった）。本エントリは BUG-412 調査で判明した**同一パターンの潜在リスク**のうち、今回は修正しないと判断したものを引き続き追跡する。
+- **VaccinationList.tsx（予防接種一覧）**: `use-vaccinations.ts` → `get-vaccinations.ts` の `getVaccinations` は `start_date`/`end_date` を日付フィルタ使用時のみ送る任意パラメータで、未指定時は無条件で backend `parsePagination` の既定 `limit=20` に落ちる（date-scoped ではない）。`backend/migrations/seeds/003_demo/vaccinations.csv` は現状 0 件（ヘッダのみ）で無症状・検証不能。
+- **TrimmingList.tsx（トリミング一覧）**: `use-trimming-records.ts` → `get-trimmings.ts` の `getTrimmings` は明示的に `page:1, limit:HISTORY_FETCH_LIMIT`（`frontend/src/config/fetch-limits.ts` で `100` = backend `defaultMaxPaginationLimit`）を送信しており `limit=20` の欠陥ではないが、1リクエストの上限100件を超えた場合の継続取得導線が無い。トリミング実績は `reservation_type.category='trimming'` の予約（`appointments.csv`）であり、現状 0 件で無症状・検証不能。
+- **今回修正しない理由**: 両画面とも seed が 0 件のため、ページネーション化しても page=2 が別レコードを返すことを実測で反証できず、「直った」ことを検証できない。加えて両フックとも医師/ステータス/種別等のクライアントサイドフィルタを持ち、BUG-411/412 と同様「フィルタがページ内スコープに退行しないか」の再設計が必要（Trimming はさらに limit=100→カーソル/オフセット継続取得という追加拡張が要る）。検証不能な状態での臨床データ一覧の書き換えは、修正漏れより悪い結果（未検証の新規回帰）を生みうるため見送った。
+- **要監視**: #250（本番データ移行）でこの2画面の実件数が判明した時点で、実件数が limit（Vaccination=20 / Trimming=100）を超えるか再確認し、超える場合は本エントリを起票根拠に BUG-411/412 と同型の修正を行う。#250 の受け入れ条件にこの再確認を明示的に含めること。
+- **発見**: 2026-07-17（BUG-412 対応中の派生調査、コーディネーターが claim を再検証済み）。
+
+### BUG-414:【LOW・既存バグ】在庫一覧のカテゴリ/ステータス絞り込みで「以外」条件（is_not）が無効化されず、単に無条件表示になる
+
+- **症状**: `InventoryList.tsx` の `category`/`statusFilterEntry` 導出ロジック（category は L112-116, status は L117-120 付近）は `condition === "is"` のときのみ値をサーバへ渡し、それ以外（`is_not` 含む）は無条件に `"all"` へフォールバックする。コメントは「"is" 条件のみサーバーサイド、"is_not" はクライアントサイドで処理」と書かれているが、`is_not` を除外フィルタとして適用するクライアントサイドのロジックはコード上どこにも存在しない（`use-inventory.ts` にも `InventoryList.tsx` にも無し）。結果、ユーザーが「カテゴリが医薬品以外」等を選択しても**何も絞り込まれず全件が表示される**（サイレントな無絞り込み）。
+- **調査の起点**: `frontend/src/features/inventory/routes/InventoryList.tsx` のコメント（102行目付近）と実装の乖離。修正方針は、コメント通りクライアントサイドで `is_not` の除外フィルタを実装するか、"is_not" 自体を `PropertyFilter` の `conditions` から除外するか（`CONDITIONS_NO_EMPTY` の内容を確認）のいずれか。
+- **発見**: 2026-07-17（BUG-412 対応中の investigate subagent による調査、コード実読で確認）。
 
 ### BUG-408:【設計判断待ち】予防接種フォームのワクチン選択に動物種(species)フィルタが無い
 
