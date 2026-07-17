@@ -71,17 +71,29 @@ call_api() {
   if [[ -n "${body}" ]]; then
     args+=(-H "Content-Type: application/json" --data "${body}")
   fi
-  local raw curl_exit
-  raw="$(curl "${args[@]}")"
-  curl_exit=$?
-  if [[ "${curl_exit}" -ne 0 ]]; then
-    # code-reviewer指摘 M-1: curl自体の失敗(タイムアウト/DNS等)とAPI異常を区別できるようにする
-    RESP_CODE="curl_error_${curl_exit}"
-    RESP_BODY=""
+  local raw curl_exit attempt=0
+  while :; do
+    raw="$(curl "${args[@]}")"
+    curl_exit=$?
+    if [[ "${curl_exit}" -ne 0 ]]; then
+      # code-reviewer指摘 M-1: curl自体の失敗(タイムアウト/DNS等)とAPI異常を区別できるようにする
+      RESP_CODE="curl_error_${curl_exit}"
+      RESP_BODY=""
+      return
+    fi
+    RESP_CODE="$(printf '%s' "${raw}" | tail -n1)"
+    RESP_BODY="$(printf '%s' "${raw}" | sed '$d')"
+    # デプロイ直後は Cloudflare Containers の非同期ロールアウトがスモーク実行中に
+    # インスタンスを入れ替えることがあり、遷移中は 500 "container is not running" が返る
+    # (2026-07-17 実測・数秒〜数十秒で自己回復)。この場合のみ最大5回リトライする。
+    if [[ "${RESP_CODE}" == "500" ]] && printf '%s' "${RESP_BODY}" | grep -q "container is not running" && (( attempt < 5 )); then
+      attempt=$((attempt + 1))
+      echo "    (container rollout 遷移中 — retry ${attempt}/5 in 10s)"
+      sleep 10
+      continue
+    fi
     return
-  fi
-  RESP_CODE="$(printf '%s' "${raw}" | tail -n1)"
-  RESP_BODY="$(printf '%s' "${raw}" | sed '$d')"
+  done
 }
 
 body_preview() {
