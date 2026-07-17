@@ -138,3 +138,30 @@ describe("PetCareSection (BUG-407 outer-form sync)", () => {
     expect(latestFormData.deceasedAt).toBeNull();
   });
 });
+
+// BUG-409: 生死ラジオ(79-104行目)が deceasedAt と独立に status のみを書き換えられると、
+// 外側フォームの「更新」保存で status=死亡 かつ deceasedAt=null（監査ログ・deceasedReason なし）
+// という不整合が生じる。生死の変更は監査付きの PetDeceasedRecordButton 経由のみに一本化し、
+// ラジオは現在値の表示専用（クリックしても setFormData を呼ばない）でなければならない。
+describe("PetCareSection (BUG-409 生死ラジオは二重管理の書込元にならない)", () => {
+  it("生存ペットで「死亡」ラジオをクリックしても setFormData は呼ばれない（deceasedAt 無しの不整合書込を防止）", () => {
+    const setFormData = vi.fn();
+    renderPetCareSection({ ...basePet, status: "生存", deceasedAt: null }, setFormData);
+
+    fireEvent.click(screen.getByRole("radio", { name: "死亡" }));
+
+    expect(setFormData).not.toHaveBeenCalled();
+  });
+
+  it("死亡ペットで「生存」ラジオをクリックしても setFormData は呼ばれない（deceasedAt 残存の不整合書込を防止）", () => {
+    const setFormData = vi.fn();
+    renderPetCareSection(
+      { ...basePet, status: "死亡", deceasedAt: "2026-07-10T12:00:00+09:00" },
+      setFormData,
+    );
+
+    fireEvent.click(screen.getByRole("radio", { name: "生存" }));
+
+    expect(setFormData).not.toHaveBeenCalled();
+  });
+});

@@ -78,25 +78,30 @@ export function PetCareSection({
 
       <div className="space-y-1">
         <Label className={LABEL_CLS}>生死ステータス</Label>
+        {/* BUG-409: 生死は deceased_at・監査ログと一体の事実であり、下の PetDeceasedRecordButton
+            （死亡登録・記録解除）経由の一箇所でのみ変更できる。ここは現在値の表示専用（disabled）。
+            直接クリックで status だけを書き換えられると deceased_at と食い違う不整合を再導入する。 */}
         <div className="flex gap-4 h-9 items-center">
-          <label className={`flex items-center gap-1.5 text-sm cursor-pointer ${C.text}`}>
+          <label className={`flex items-center gap-1.5 text-sm ${C.text}`}>
             <input
               type="radio"
               name="petStatus"
               value="生存"
               checked={formData.status === "生存"}
-              onChange={() => setFormData((prev) => ({ ...prev, status: "生存" }))}
+              disabled
+              readOnly
               className="accent-current"
             />
             生存
           </label>
-          <label className={`flex items-center gap-1.5 text-sm cursor-pointer ${C.text}`}>
+          <label className={`flex items-center gap-1.5 text-sm ${C.text}`}>
             <input
               type="radio"
               name="petStatus"
               value="死亡"
               checked={formData.status === "死亡"}
-              onChange={() => setFormData((prev) => ({ ...prev, status: "死亡" }))}
+              disabled
+              readOnly
               className="accent-current"
             />
             死亡
