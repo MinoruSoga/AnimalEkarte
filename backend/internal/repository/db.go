@@ -23,8 +23,8 @@ func NewDB(cfg *config.Config) (*gorm.DB, error) {
 	if err != nil {
 		return nil, apperrors.Wrap(err, "get sql.DB")
 	}
-	sqlDB.SetMaxOpenConns(50)
-	sqlDB.SetMaxIdleConns(25)
+	sqlDB.SetMaxOpenConns(cfg.DBMaxOpenConns)
+	sqlDB.SetMaxIdleConns(cfg.DBMaxIdleConns)
 	sqlDB.SetConnMaxLifetime(30 * time.Minute)
 	sqlDB.SetConnMaxIdleTime(5 * time.Minute)
 
