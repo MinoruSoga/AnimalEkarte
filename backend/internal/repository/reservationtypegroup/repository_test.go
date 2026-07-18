@@ -1,9 +1,11 @@
-package repository
+package reservationtypegroup
 
-// reservation_type_group_repository_test.go
-// ReservationTypeGroupRepository の CRUD・使用数カウント・並び替えを実 DB で検証する。
-// Group 名の Preload clinic_id 隔離は reservation_type_preload_clinic_isolation_test.go が
-// 別途カバーしているため、本ファイルは CRUD/Count/Reorder/NotFound/clinic_id 分離に焦点を当てる。
+// repository_test.go — Repository の CRUD・使用数カウント・並び替えを実 DB で検証する。
+// Group 名の Preload clinic_id 隔離はフラット repository package の
+// reservation_type_preload_clinic_isolation_test.go が別途カバーしているため、本ファイルは
+// CRUD/Count/Reorder/NotFound/clinic_id 分離に焦点を当てる。
+// makeReservationTypeGroup/makeReservationTypeLinked はフラット package の同名ヘルパーの複製
+// （BE8-4 batch1: import cycle を避けるための最小限の重複、移動時の型リネームはしない方針の対象外）。
 
 import (
 	"context"
@@ -15,23 +17,45 @@ import (
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/repository/repotest"
+	"github.com/animal-ekarte/backend/internal/repository/reservationtype"
 )
 
-// setupReservationTypeGroupTestDB は ReservationTypeGroupRepository の CRUD テスト用に DB を整備する。
-// setupTestDB が reservation_type_category ENUM を DROP CASCADE するため reservation_types.category 列が
-// 消える。AutoMigrate で列・テーブルを再整備してから TRUNCATE でクリーンな状態にする。
-func setupReservationTypeGroupTestDB(t *testing.T) *gorm.DB {
+// setupTestDB は Repository の CRUD テスト用に DB を整備する。setupTestDB が reservation_type_category
+// ENUM を DROP CASCADE するため reservation_types.category 列が消える。AutoMigrate で列・テーブルを
+// 再整備してから TRUNCATE でクリーンな状態にする。
+func setupTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
-	db := setupTestDB(t)
-	require.NoError(t, ensureAutoMigrated(db, &model.ReservationTypeGroup{}, &model.ReservationType{}))
+	db := repotest.SetupTestDB(t)
+	require.NoError(t, repotest.EnsureAutoMigrated(db, &model.ReservationTypeGroup{}, &model.ReservationType{}))
 	db.Exec("TRUNCATE TABLE reservation_types CASCADE")
 	db.Exec("TRUNCATE TABLE reservation_type_groups CASCADE")
 	return db
 }
 
-func TestReservationTypeGroupRepository_FindAll(t *testing.T) {
-	db := setupReservationTypeGroupTestDB(t)
-	repo := NewReservationTypeGroupRepository(db)
+func makeReservationTypeGroup(t *testing.T, db *gorm.DB, clinicID uint64, name string) *model.ReservationTypeGroup {
+	t.Helper()
+	g := &model.ReservationTypeGroup{ClinicID: clinicID, Name: name}
+	require.NoError(t, db.WithContext(context.Background()).Create(g).Error)
+	return g
+}
+
+func makeReservationTypeLinked(t *testing.T, db *gorm.DB, clinicID uint64, name string, groupID, parentID *uint64) *model.ReservationType {
+	t.Helper()
+	rt := &model.ReservationType{
+		ClinicID: clinicID,
+		Name:     name,
+		Category: model.ReservationTypeCategoryGeneral,
+		GroupID:  groupID,
+		ParentID: parentID,
+	}
+	require.NoError(t, db.WithContext(context.Background()).Create(rt).Error)
+	return rt
+}
+
+func TestRepository_FindAll(t *testing.T) {
+	db := setupTestDB(t)
+	repo := New(db)
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 
@@ -64,9 +88,9 @@ func TestReservationTypeGroupRepository_FindAll(t *testing.T) {
 	})
 }
 
-func TestReservationTypeGroupRepository_FindByID(t *testing.T) {
-	db := setupReservationTypeGroupTestDB(t)
-	repo := NewReservationTypeGroupRepository(db)
+func TestRepository_FindByID(t *testing.T) {
+	db := setupTestDB(t)
+	repo := New(db)
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 
@@ -93,10 +117,10 @@ func TestReservationTypeGroupRepository_FindByID(t *testing.T) {
 	})
 }
 
-func TestReservationTypeGroupRepository_CountUsageByReservationTypeGroupID(t *testing.T) {
-	db := setupReservationTypeGroupTestDB(t)
-	groupRepo := NewReservationTypeGroupRepository(db)
-	typeRepo := NewReservationTypeRepository(db)
+func TestRepository_CountUsageByReservationTypeGroupID(t *testing.T) {
+	db := setupTestDB(t)
+	groupRepo := New(db)
+	typeRepo := reservationtype.New(db)
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 
@@ -125,9 +149,9 @@ func TestReservationTypeGroupRepository_CountUsageByReservationTypeGroupID(t *te
 	})
 }
 
-func TestReservationTypeGroupRepository_Create(t *testing.T) {
-	db := setupReservationTypeGroupTestDB(t)
-	repo := NewReservationTypeGroupRepository(db)
+func TestRepository_Create(t *testing.T) {
+	db := setupTestDB(t)
+	repo := New(db)
 	ctx := context.Background()
 
 	g := &model.ReservationTypeGroup{ClinicID: 1, Name: "新規作成グループ"}
@@ -139,9 +163,9 @@ func TestReservationTypeGroupRepository_Create(t *testing.T) {
 	assert.Equal(t, "新規作成グループ", got.Name)
 }
 
-func TestReservationTypeGroupRepository_Update(t *testing.T) {
-	db := setupReservationTypeGroupTestDB(t)
-	repo := NewReservationTypeGroupRepository(db)
+func TestRepository_Update(t *testing.T) {
+	db := setupTestDB(t)
+	repo := New(db)
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 
@@ -161,9 +185,9 @@ func TestReservationTypeGroupRepository_Update(t *testing.T) {
 	})
 }
 
-func TestReservationTypeGroupRepository_Delete(t *testing.T) {
-	db := setupReservationTypeGroupTestDB(t)
-	repo := NewReservationTypeGroupRepository(db)
+func TestRepository_Delete(t *testing.T) {
+	db := setupTestDB(t)
+	repo := New(db)
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 
@@ -188,9 +212,9 @@ func TestReservationTypeGroupRepository_Delete(t *testing.T) {
 	})
 }
 
-func TestReservationTypeGroupRepository_Reorder(t *testing.T) {
-	db := setupReservationTypeGroupTestDB(t)
-	repo := NewReservationTypeGroupRepository(db)
+func TestRepository_Reorder(t *testing.T) {
+	db := setupTestDB(t)
+	repo := New(db)
 	ctx := context.Background()
 	const clinicA = uint64(1)
 
