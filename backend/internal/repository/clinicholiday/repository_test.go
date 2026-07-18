@@ -1,6 +1,9 @@
-package repository
+package clinicholiday
 
-// clinic_holiday_repository_test.go — ClinicHolidayRepository の統合テスト。
+// repository_test.go — Repository の統合テスト。
+//
+// makeClinicFixture はフラット package の clinic_repository_test.go 同名ヘルパーの複製
+// （BE8-4: import cycle を避けるための最小限の重複、移動時の型リネームはしない方針の対象外）。
 
 import (
 	"context"
@@ -13,13 +16,14 @@ import (
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/repository/repotest"
 )
 
-// setupClinicHolidayTestDB は clinic_holiday_repository のテスト用に DB を整備する。
+// setupClinicHolidayTestDB は clinicholiday.Repository のテスト用に DB を整備する。
 func setupClinicHolidayTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
-	db := setupTestDB(t)
-	require.NoError(t, ensureAutoMigrated(db, &model.Company{}, &model.Clinic{}, &model.ClinicHoliday{}))
+	db := repotest.SetupTestDB(t)
+	require.NoError(t, repotest.EnsureAutoMigrated(db, &model.Company{}, &model.Clinic{}, &model.ClinicHoliday{}))
 	// clinics/companies はテスト全体で TRUNCATE されない共有テーブル。他ファイル
 	// （staff_preload_clinic_isolation_test.go の seedClinicsForFK 等）が clinics.id を
 	// 明示指定して手動 INSERT すると、bigserial シーケンスの内部カウンタは追従せず、
@@ -35,9 +39,21 @@ func setupClinicHolidayTestDB(t *testing.T) *gorm.DB {
 	return db
 }
 
+// makeClinicFixture は新規 company + clinic を作成して返す（フラット package の
+// clinic_repository_test.go 同名ヘルパーの複製 — BE8-4 import cycle 回避のための最小限の重複）。
+func makeClinicFixture(t *testing.T, db *gorm.DB, name string) *model.Clinic {
+	t.Helper()
+	ctx := context.Background()
+	company := &model.Company{Name: "テスト法人_" + name}
+	require.NoError(t, db.WithContext(ctx).Create(company).Error)
+	clinic := &model.Clinic{CompanyID: company.ID, Name: name}
+	require.NoError(t, db.WithContext(ctx).Create(clinic).Error)
+	return clinic
+}
+
 func TestClinicHolidayRepository_FindAllByYearMonth(t *testing.T) {
 	db := setupClinicHolidayTestDB(t)
-	repo := NewClinicHolidayRepository(db)
+	repo := New(db)
 	ctx := context.Background()
 
 	clinicA := makeClinicFixture(t, db, "休診日一覧A")
@@ -78,7 +94,7 @@ func TestClinicHolidayRepository_FindAllByYearMonth(t *testing.T) {
 
 func TestClinicHolidayRepository_Save(t *testing.T) {
 	db := setupClinicHolidayTestDB(t)
-	repo := NewClinicHolidayRepository(db)
+	repo := New(db)
 	ctx := context.Background()
 	clinic := makeClinicFixture(t, db, "休診日Save用")
 	date := time.Date(2026, 9, 15, 0, 0, 0, 0, time.UTC)
@@ -108,7 +124,7 @@ func TestClinicHolidayRepository_Save(t *testing.T) {
 
 func TestClinicHolidayRepository_Delete(t *testing.T) {
 	db := setupClinicHolidayTestDB(t)
-	repo := NewClinicHolidayRepository(db)
+	repo := New(db)
 	ctx := context.Background()
 	clinic := makeClinicFixture(t, db, "休診日Delete用")
 	date := time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC)
@@ -132,7 +148,7 @@ func TestClinicHolidayRepository_Delete(t *testing.T) {
 
 func TestClinicHolidayRepository_FindByDate(t *testing.T) {
 	db := setupClinicHolidayTestDB(t)
-	repo := NewClinicHolidayRepository(db)
+	repo := New(db)
 	ctx := context.Background()
 
 	clinicA := makeClinicFixture(t, db, "休診日単件A")
