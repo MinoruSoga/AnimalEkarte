@@ -155,15 +155,16 @@ backend/internal/
 - **作業**: ① service 202 ファイルのドメイン間参照を機械集計する（同一パッケージ内のため import では見えない — go/ast で「他ドメインファイル定義の識別子参照」を数える使い捨てスクリプトを scratchpad に書く。ドメイン境界は §9 の prefix 近似を初期値とし、集計結果で補正）② 出力 = 被参照ゼロの葉ドメインから並べた抽出順リストで **§9 の表を置き換える**。
 - **完了条件**: 抽出順リスト（ドメイン名・ファイル数・被参照元）が §9 に反映され、最初の 3 バッチが確定している。DI 配線は特定済み（§5-3: `cmd/api/main.go`）。
 
-### BE8-3: サブパッケージ用テスト基盤の確立
-- **作業**: `repository/db_setup_test.go:130` の `setupTestDB` は `_test.go` 内定義のためサブパッケージから **import 不能**（§5-2 — 先行 9 分割のテスト 0 件の構造的原因）。これを importable なパッケージへ抽出する（案: `repository/repohelpers/repotest` — 通常 .go ファイルとして定義し `//go:build` タグ不要。setupTestDB が参照する DB 名生成・DROP 順序等の付随ヘルパも一括で）。抽出後、先行 9 サブパッケージのうち 1 個（paymentmethod 推奨）にパッケージローカルテストの雛形を実装し、以後のバッチのテンプレとする。既存フラット側の呼び出し元 164 テストファイルは薄い alias で無変更に保つ。
-- **検証**: `docker compose exec backend go test ./internal/repository/paymentmethod/ -count=1`
-- **完了条件**: サブパッケージ内で DB 統合テストが書ける状態 + 雛形 1 本が green。
+### BE8-3: サブパッケージ用テスト基盤の確立 — ✅ 完了（2026-07-18・commit aa0dd6804）
+- **実施内容**: `repotest/repohelpers` ではなく **`repository/repotest`（深さ1）** へ抽出（`repohelpers/repotest` は2階層になり「サブパッケージ内にさらにディレクトリを掘らない」規約に抵触するため実測で不採用に変更 — 抽出対象のsetupTestDB系ヘルパーはPreload/audit_tx/dbOrTxパターンを含まないため、深さ1への配置で3lintへの影響なし）。`SetupTestDB`/`SetupIsolatedTestDB`/`EnsureClinicSettingsTable`/`MakeTestOwner`/`EnsureAutoMigrated`/`MarkAutoMigrated`/`CloseSharedTestDB`/`EnumType`/`SharedTestSchemaEnumTypes`/`EnumValueRe` を export。`paymentmethod/repository_test.go` に雛形実装済み。
+- **既存165テストファイルへの影響**: 164ファイルは無変更。**唯一の例外** = `test_schema_enum_parity_test.go`（型がパッケージ境界を跨ぐため `.name`→`.Name`/`.create`→`.Create`/`enumValueRe`→`repotest.EnumValueRe` の機械的フィールドアクセス変更が必須。Go の非export フィールド越境不可のため回避不能）。
+- **検証済み**: `go test -p 1 ./internal/repository/... ` green（flat 165 + repotest + paymentmethod）。gofmt clean。
 
-### BE8-4: repository 残り約 107 ファイルの段階分割
-- **作業**: BE8-2 の抽出順に従い、1 バッチ = 1 ドメイン（5〜10 ファイル）で: ① `git mv` で `repository/<domain>/` へ（テストも同時） ② package 宣言変更 ③ import 更新（呼び出し側含む） ④ §5-5 のパス参照追随 ⑤ scoped test。型リネームはしない（§3）。
-- **検証（バッチごと）**: `docker compose exec backend go test ./internal/repository/<domain>/ -count=1` + 呼び出し側パッケージの scoped test + `gofmt -l` 無出力。
-- **完了条件**: `ls backend/internal/repository/*.go` が lint テスト・repohelpers 関連のみになる。
+### BE8-4: repository 残り約 107 ファイルの段階分割 — **3バッチ実施済み（2026-07-18・commit ebe845de9/8ef9f80d0/2b304cd66）、残多数**
+- **実施済みバッチ**: ①`reservationtypegroup`（次カット順序の先頭）②`reservationtypeavailableslot`+`reservationtypeunavailabletime`（次カット順序「type children (slot/unavailable)」）③`manualarticle`（reservation クラスタ外の独立leaf、手順テンプレの汎化確認）。
+- **手順テンプレ確定**: ① 新規サブパッケージへ実装+テストを新規作成（`Repository`/`repository`/`New` の非stutter命名）② repohelpers.X 直接呼び出し（cage/vaccine等の主流規約、paymentmethod のローカル scope.go alias 規約とは非統一のまま — 別途 BE8-1 追補が必要）③ **旧flatファイルは型名維持のfacade化**（`type XxxRepository = <domain>.Repository`）で service/handler呼び出し側を無変更に保つ ④ 3lint該当エントリの手動更新（本3バッチでは dbortx の1件のみ該当）⑤ `go test -p 1 ./internal/repository/... `（**`-p 1` 必須 — 複数パッケージ並行実行は同一物理test DBへの衝突で偽陽性FAILを起こす。repository/CLAUDE.md記載の既知の罠を本runで実地確認**）。
+- **残**: 5〜10ファイル/バッチ換算で30バッチ超が未着手（`accounting`クラスタ8ファイル・`reservation`/`medical_record`/`accounting`/`LSTEP`各クラスタはCLAUDE.mdの「Forbidden in drive-by tasks」により境界マップ確定まで着手不可）。
+- **検証**: `docker compose exec backend go test ./internal/repository/<domain>/ -count=1` + `go test -p 1 ./internal/repository/... ` + 3lint実行数確認（`-run` は関数名prefix、`Lint`は不可）。
 
 ### BE8-5: service の段階分割（BE8-4 完了後）
 - BE8-4 と同じ手順テンプレ。追加事項: ドメイン間参照は consumer 側 interface（§3）で切ってから移動する。cycle が出たら **移動を戻すのではなく interface 抽出で解決**する。service を走査する自作 lint の有無を BE8-0 方式で先に確認。
@@ -190,6 +191,7 @@ backend/internal/
 - **凍結**: Go-live（2026-07-18）完了まで着手禁止。BE8-1（文書のみ）だけは即日可。
 - **開始トリガ**: 納品完了 + PR #186 マージ + main CI green の 3 条件成立後、BE8-0 から。
 - **2026-07-17 実測（凍結ゲート判定）**: PR #186 = MERGED（`mergedAt: 2026-07-17T07:32:57Z`）。main CI = green（HEAD `e842e45ec`, 全 job success）。**Go-live（2026-07-18）は実行時点で未完了**（凍結解除の 3 条件のうち 1 つが未成立）。よって**フラット repository/service/handler への構造変更（BE8-3/BE8-4/BE8-8 等・本番コードパスに触れるタスク）は本 run では着手せず BLOCKED**。一方 BE8-0（lint 回帰テスト追加）と BE8-2（依存グラフ実測・ドキュメント更新）は本番バイナリのコードパスに一切触れないため凍結の趣旨に抵触しないと判断し、2026-07-17 に実施した（詳細は各タスク節）。
+- **2026-07-18 再実測（凍結解除）**: PR #186 = MERGED（変わらず）。main CI = HEAD `85cc02b7b`（着手時点）で CI success / Security Scan success 実測（プロンプト内の古い実測値「未green」を実測で上書き）。**Go-live完了をユーザーへ明示確認し「完了している」の回答を取得**（Issue #257 は OPEN のまま・受け入れ条件未チェックだったため、推測せず確認を挟んだ）。3条件成立によりBE8-3/BE8-4のTier B作業を実施（詳細は各タスク節）。
 
 ## 8. やらないこと（決定済み）
 
