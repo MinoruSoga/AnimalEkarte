@@ -1,14 +1,21 @@
-package repository
+package checkup
 
-// checkup_repository_test.go — CheckupRepository の統合テスト（カバレッジ向上）。
+// repository_test.go — Repository の統合テスト（カバレッジ向上）。
+//
+// 移動元: checkup_repository_test.go（BE8-4 batch24）。
 //
 // 対象: FindByClinicID / FindByMedicalRecordID / FindByOwnerID / FindByID /
 //       Create / Update / Delete
 // 検証観点: 正常系、フィルタ、clinic_id 隔離、ソフトデリート除外、NotFound ラップ。
 //
-// CheckupType Preload の clinic 隔離は master_preload_clinic_isolation_test.go の
+// CheckupType Preload の clinic 隔離は repository/master_preload_clinic_isolation_test.go の
 // TestCheckupRepository_FindByID_CheckupTypePreloadClinicIsolation で別途検証済みのため、
-// 本ファイルでは重複させない。
+// 本ファイルでは重複させない（同テストはフラット package の facade 経由で動作確認する）。
+//
+// makeSpeciesAndPet/makeHistoryMedicalRecord/makeCheckupTypeMaster/makeCheckupWithDates は
+// フラット package の同名ヘルパーの複製（BE8-4: import cycle を避けるための最小限の重複、
+// 移動時の型リネームはしない方針の対象外）。makeTestOwner はフラット側と同様
+// repotest.MakeTestOwner に直接委譲する。
 
 import (
 	"context"
@@ -21,19 +28,55 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/repository/repotest"
 )
 
 // setupCheckupRepoTestDB は checkups / checkup_types / medical_records 周りを整備する。
 func setupCheckupRepoTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
-	db := setupTestDB(t)
-	require.NoError(t, ensureAutoMigrated(db, &model.AnimalSpecies{}, &model.Pet{}, &model.CheckupType{}, &model.Checkup{}))
+	db := repotest.SetupTestDB(t)
+	require.NoError(t, repotest.EnsureAutoMigrated(db, &model.AnimalSpecies{}, &model.Pet{}, &model.CheckupType{}, &model.Checkup{}))
 	db.Exec("TRUNCATE TABLE checkups CASCADE")
 	db.Exec("TRUNCATE TABLE checkup_types CASCADE")
 	db.Exec("TRUNCATE TABLE medical_records CASCADE")
 	db.Exec("TRUNCATE TABLE pets CASCADE")
 	db.Exec("TRUNCATE TABLE animal_species CASCADE")
 	return db
+}
+
+func makeSpeciesAndPet(t *testing.T, db *gorm.DB, clinicID, ownerID uint64, petName string) *model.Pet {
+	t.Helper()
+	species := &model.AnimalSpecies{Name: "犬"}
+	require.NoError(t, db.WithContext(context.Background()).Create(species).Error)
+	pet := &model.Pet{
+		ClinicID:        clinicID,
+		OwnerID:         ownerID,
+		AnimalSpeciesID: species.ID,
+		Name:            petName,
+	}
+	require.NoError(t, db.WithContext(context.Background()).Create(pet).Error)
+	return pet
+}
+
+func makeHistoryMedicalRecord(t *testing.T, db *gorm.DB, clinicID, petID uint64, recordNo string, date time.Time) *model.MedicalRecord {
+	t.Helper()
+	pet := petID
+	mr := &model.MedicalRecord{
+		ClinicID: clinicID,
+		RecordNo: recordNo,
+		Date:     date,
+		PetID:    &pet,
+		Status:   model.MedicalRecordStatusFinalized,
+	}
+	require.NoError(t, db.WithContext(context.Background()).Create(mr).Error)
+	return mr
+}
+
+func makeCheckupTypeMaster(t *testing.T, db *gorm.DB, clinicID uint64, name string) *model.CheckupType {
+	t.Helper()
+	ct := &model.CheckupType{ClinicID: clinicID, Name: name}
+	require.NoError(t, db.WithContext(context.Background()).Create(ct).Error)
+	return ct
 }
 
 // makeCheckupWithDates は date / next_date を指定して Checkup を作成する。
@@ -52,18 +95,18 @@ func makeCheckupWithDates(t *testing.T, db *gorm.DB, clinicID, mrID, petID, chec
 	return c
 }
 
-func TestCheckupRepository_FindByClinicID_FiltersAndClinicIsolation(t *testing.T) {
+func TestRepository_FindByClinicID_FiltersAndClinicIsolation(t *testing.T) {
 	db := setupCheckupRepoTestDB(t)
-	repo := NewCheckupRepository(db)
+	repo := New(db)
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 
-	ownerA := makeTestOwner(t, db, clinicA, "健診一覧飼主A")
+	ownerA := repotest.MakeTestOwner(t, db, clinicA, "健診一覧飼主A")
 	petA := makeSpeciesAndPet(t, db, clinicA, ownerA.ID, "健診一覧ポチA")
 	mrA := makeHistoryMedicalRecord(t, db, clinicA, petA.ID, "MR-LIST-A", time.Now())
 	ctA := makeCheckupTypeMaster(t, db, clinicA, "医院Aの健診")
 
-	ownerB := makeTestOwner(t, db, clinicB, "健診一覧飼主B")
+	ownerB := repotest.MakeTestOwner(t, db, clinicB, "健診一覧飼主B")
 	petB := makeSpeciesAndPet(t, db, clinicB, ownerB.ID, "健診一覧ポチB")
 	mrB := makeHistoryMedicalRecord(t, db, clinicB, petB.ID, "MR-LIST-B", time.Now())
 	ctB := makeCheckupTypeMaster(t, db, clinicB, "医院Bの健診")
@@ -79,7 +122,7 @@ func TestCheckupRepository_FindByClinicID_FiltersAndClinicIsolation(t *testing.T
 	_ = makeCheckupWithDates(t, db, clinicB, mrB.ID, petB.ID, ctB.ID, d2, nil) // 別クリニック
 
 	t.Run("フィルタ無しで clinic A の健診が date DESC で返り total は全件数", func(t *testing.T) {
-		got, total, err := repo.FindByClinicID(ctx, clinicA, CheckupFilters{}, 1, 20)
+		got, total, err := repo.FindByClinicID(ctx, clinicA, Filters{}, 1, 20)
 		require.NoError(t, err)
 		require.Len(t, got, 3, "clinic A の健診のみ返る")
 		assert.EqualValues(t, 3, total)
@@ -94,7 +137,7 @@ func TestCheckupRepository_FindByClinicID_FiltersAndClinicIsolation(t *testing.T
 	t.Run("StartDate/EndDate で絞り込み", func(t *testing.T) {
 		start := "2026-02-01"
 		end := "2026-02-28"
-		got, total, err := repo.FindByClinicID(ctx, clinicA, CheckupFilters{StartDate: &start, EndDate: &end}, 1, 20)
+		got, total, err := repo.FindByClinicID(ctx, clinicA, Filters{StartDate: &start, EndDate: &end}, 1, 20)
 		require.NoError(t, err)
 		require.Len(t, got, 1)
 		assert.EqualValues(t, 1, total)
@@ -104,7 +147,7 @@ func TestCheckupRepository_FindByClinicID_FiltersAndClinicIsolation(t *testing.T
 	t.Run("NextStartDate/NextEndDate で絞り込み", func(t *testing.T) {
 		nStart := "2026-04-01"
 		nEnd := "2026-04-30"
-		got, total, err := repo.FindByClinicID(ctx, clinicA, CheckupFilters{NextStartDate: &nStart, NextEndDate: &nEnd}, 1, 20)
+		got, total, err := repo.FindByClinicID(ctx, clinicA, Filters{NextStartDate: &nStart, NextEndDate: &nEnd}, 1, 20)
 		require.NoError(t, err)
 		require.Len(t, got, 1, "next_date を持つ健診のみヒットする")
 		assert.EqualValues(t, 1, total)
@@ -112,14 +155,14 @@ func TestCheckupRepository_FindByClinicID_FiltersAndClinicIsolation(t *testing.T
 	})
 
 	t.Run("page/limit で結果件数を絞り込みつつ total はフィルタ全件を維持", func(t *testing.T) {
-		got, total, err := repo.FindByClinicID(ctx, clinicA, CheckupFilters{}, 1, 2)
+		got, total, err := repo.FindByClinicID(ctx, clinicA, Filters{}, 1, 2)
 		require.NoError(t, err)
 		require.Len(t, got, 2, "limit=2 で 1 ページ目は 2 件のみ")
 		assert.EqualValues(t, 3, total, "total は limit に関わらず全件数")
 		assert.Equal(t, recent.ID, got[0].ID)
 		assert.Equal(t, mid.ID, got[1].ID)
 
-		got2, total2, err := repo.FindByClinicID(ctx, clinicA, CheckupFilters{}, 2, 2)
+		got2, total2, err := repo.FindByClinicID(ctx, clinicA, Filters{}, 2, 2)
 		require.NoError(t, err)
 		require.Len(t, got2, 1, "2 ページ目は残り 1 件")
 		assert.EqualValues(t, 3, total2)
@@ -127,13 +170,13 @@ func TestCheckupRepository_FindByClinicID_FiltersAndClinicIsolation(t *testing.T
 	})
 }
 
-func TestCheckupRepository_FindByMedicalRecordID(t *testing.T) {
+func TestRepository_FindByMedicalRecordID(t *testing.T) {
 	db := setupCheckupRepoTestDB(t)
-	repo := NewCheckupRepository(db)
+	repo := New(db)
 	ctx := context.Background()
 	const clinicA = uint64(1)
 
-	owner := makeTestOwner(t, db, clinicA, "健診MR飼主")
+	owner := repotest.MakeTestOwner(t, db, clinicA, "健診MR飼主")
 	pet := makeSpeciesAndPet(t, db, clinicA, owner.ID, "健診MRポチ")
 	mr := makeHistoryMedicalRecord(t, db, clinicA, pet.ID, "MR-DETAIL", time.Now())
 	ct := makeCheckupTypeMaster(t, db, clinicA, "健診種別")
@@ -157,14 +200,14 @@ func TestCheckupRepository_FindByMedicalRecordID(t *testing.T) {
 }
 
 // FindByOwnerID は ISSUE-004 タグ再同期用: medical_records 経由で owner_id を解決する。
-func TestCheckupRepository_FindByOwnerID(t *testing.T) {
+func TestRepository_FindByOwnerID(t *testing.T) {
 	db := setupCheckupRepoTestDB(t)
-	repo := NewCheckupRepository(db)
+	repo := New(db)
 	ctx := context.Background()
 	const clinicA = uint64(1)
 
-	owner := makeTestOwner(t, db, clinicA, "健診飼主同期")
-	otherOwner := makeTestOwner(t, db, clinicA, "別の飼主")
+	owner := repotest.MakeTestOwner(t, db, clinicA, "健診飼主同期")
+	otherOwner := repotest.MakeTestOwner(t, db, clinicA, "別の飼主")
 	pet := makeSpeciesAndPet(t, db, clinicA, owner.ID, "健診同期ポチ")
 	ct := makeCheckupTypeMaster(t, db, clinicA, "同期健診種別")
 
@@ -185,13 +228,13 @@ func TestCheckupRepository_FindByOwnerID(t *testing.T) {
 	}
 }
 
-func TestCheckupRepository_FindByID(t *testing.T) {
+func TestRepository_FindByID(t *testing.T) {
 	db := setupCheckupRepoTestDB(t)
-	repo := NewCheckupRepository(db)
+	repo := New(db)
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 
-	owner := makeTestOwner(t, db, clinicA, "健診単体飼主")
+	owner := repotest.MakeTestOwner(t, db, clinicA, "健診単体飼主")
 	pet := makeSpeciesAndPet(t, db, clinicA, owner.ID, "健診単体ポチ")
 	mr := makeHistoryMedicalRecord(t, db, clinicA, pet.ID, "MR-SINGLE", time.Now())
 	ct := makeCheckupTypeMaster(t, db, clinicA, "単体健診種別")
@@ -217,13 +260,13 @@ func TestCheckupRepository_FindByID(t *testing.T) {
 	})
 }
 
-func TestCheckupRepository_Create(t *testing.T) {
+func TestRepository_Create(t *testing.T) {
 	db := setupCheckupRepoTestDB(t)
-	repo := NewCheckupRepository(db)
+	repo := New(db)
 	ctx := context.Background()
 	const clinicA = uint64(1)
 
-	owner := makeTestOwner(t, db, clinicA, "新規健診飼主")
+	owner := repotest.MakeTestOwner(t, db, clinicA, "新規健診飼主")
 	pet := makeSpeciesAndPet(t, db, clinicA, owner.ID, "新規健診ポチ")
 	mr := makeHistoryMedicalRecord(t, db, clinicA, pet.ID, "MR-NEW", time.Now())
 	ct := makeCheckupTypeMaster(t, db, clinicA, "新規健診種別")
@@ -237,13 +280,13 @@ func TestCheckupRepository_Create(t *testing.T) {
 	assert.Equal(t, c.ID, got.ID)
 }
 
-func TestCheckupRepository_Update(t *testing.T) {
+func TestRepository_Update(t *testing.T) {
 	db := setupCheckupRepoTestDB(t)
-	repo := NewCheckupRepository(db)
+	repo := New(db)
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 
-	owner := makeTestOwner(t, db, clinicA, "更新健診飼主")
+	owner := repotest.MakeTestOwner(t, db, clinicA, "更新健診飼主")
 	pet := makeSpeciesAndPet(t, db, clinicA, owner.ID, "更新健診ポチ")
 	mr := makeHistoryMedicalRecord(t, db, clinicA, pet.ID, "MR-UPD", time.Now())
 	ct := makeCheckupTypeMaster(t, db, clinicA, "更新健診種別")
@@ -269,13 +312,13 @@ func TestCheckupRepository_Update(t *testing.T) {
 	})
 }
 
-func TestCheckupRepository_Delete(t *testing.T) {
+func TestRepository_Delete(t *testing.T) {
 	db := setupCheckupRepoTestDB(t)
-	repo := NewCheckupRepository(db)
+	repo := New(db)
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 
-	owner := makeTestOwner(t, db, clinicA, "削除健診飼主")
+	owner := repotest.MakeTestOwner(t, db, clinicA, "削除健診飼主")
 	pet := makeSpeciesAndPet(t, db, clinicA, owner.ID, "削除健診ポチ")
 	mr := makeHistoryMedicalRecord(t, db, clinicA, pet.ID, "MR-DEL", time.Now())
 	ct := makeCheckupTypeMaster(t, db, clinicA, "削除健診種別")
@@ -299,7 +342,7 @@ func TestCheckupRepository_Delete(t *testing.T) {
 		_, err := repo.FindByID(ctx, clinicA, c.ID)
 		assert.True(t, apperrors.IsNotFound(err))
 
-		all, _, err := repo.FindByClinicID(ctx, clinicA, CheckupFilters{}, 1, 20)
+		all, _, err := repo.FindByClinicID(ctx, clinicA, Filters{}, 1, 20)
 		require.NoError(t, err)
 		for _, x := range all {
 			assert.NotEqual(t, c.ID, x.ID)
