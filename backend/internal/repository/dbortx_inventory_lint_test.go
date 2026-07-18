@@ -177,10 +177,10 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"reservationtype/repository.go|repository.FindByID":                      {},
 	"reservationtype/repository.go|repository.FindByIDWithChildren":          {},
 	// staff_clinic_assignment
-	"staff_clinic_assignment_repository.go|staffClinicAssignmentRepository.CountByStaffAndClinic": {},
-	"staff_clinic_assignment_repository.go|staffClinicAssignmentRepository.Create":                {},
-	"staff_clinic_assignment_repository.go|staffClinicAssignmentRepository.Delete":                {},
-	"staff_clinic_assignment_repository.go|staffClinicAssignmentRepository.FindByStaffID":         {},
+	"staffclinicassignment/repository.go|repository.CountByStaffAndClinic": {}, // BE8-4 batch19: moved from staff_clinic_assignment_repository.go
+	"staffclinicassignment/repository.go|repository.Create":                {}, // BE8-4 batch19: moved from staff_clinic_assignment_repository.go
+	"staffclinicassignment/repository.go|repository.Delete":                {}, // BE8-4 batch19: moved from staff_clinic_assignment_repository.go
+	"staffclinicassignment/repository.go|repository.FindByStaffID":         {}, // BE8-4 batch19: moved from staff_clinic_assignment_repository.go
 	// staff (uniform dbOrTx)
 	"staff_repository.go|staffRepository.CountBlockingReferencesByStaffID": {},
 	"staff_repository.go|staffRepository.Create":                           {},

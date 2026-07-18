@@ -1,27 +1,34 @@
-package repository
+package staffclinicassignment
 
-// staff_clinic_assignment_repository_test.go — StaffClinicAssignmentRepository の統合テスト
-// （実 Postgres テスト DB）。スタッフ-クリニック中間テーブルの CRUD と GORM SoftDelete スコープの
-// 自動適用（コメントに記載された前提）を実際の DB 動作で検証する。
+// repository_test.go — Repository の統合テスト（実 Postgres テスト DB）。
+// スタッフ-クリニック中間テーブルの CRUD と GORM SoftDelete スコープの自動適用
+// （コメントに記載された前提）を実際の DB 動作で検証する。
+//
+// makeDoctor / seedClinicsForFK は親 repository パッケージの
+// isolation_test_helpers_test.go / staff_preload_clinic_isolation_test.go 内の同名ヘルパーの複製
+// （BE8-4: import cycle を避けるための最小限の重複、移動時の型リネームはしない方針の対象外）。
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/repository/repotest"
 )
 
-// setupStaffClinicAssignmentRepositoryTestDB は staff_clinic_assignment_repository.go のテスト用に
+// setupStaffClinicAssignmentRepositoryTestDB は repository.go のテスト用に
 // FK 親（companies/clinics）と staffs/staff_clinic_assignments を整備する。
 func setupStaffClinicAssignmentRepositoryTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
-	db := setupTestDB(t)
-	require.NoError(t, ensureAutoMigrated(db,
+	db := repotest.SetupTestDB(t)
+	require.NoError(t, repotest.EnsureAutoMigrated(db,
 		&model.Company{}, &model.Clinic{}, &model.Staff{}, &model.StaffClinicAssignment{},
 	))
 	// model.StaffClinicAssignment has no `uniqueIndex` gorm tag, so AutoMigrate does not recreate
@@ -33,9 +40,29 @@ func setupStaffClinicAssignmentRepositoryTestDB(t *testing.T) *gorm.DB {
 	return db
 }
 
+// seedClinicsForFK は staff_clinic_assignments → clinics FK を満たすため clinics を seed する
+// （親 repository パッケージの staff_preload_clinic_isolation_test.go 同名ヘルパーの複製）。
+func seedClinicsForFK(t *testing.T, db *gorm.DB, clinicIDs ...uint64) {
+	t.Helper()
+	company := &model.Company{Name: "テスト法人(staff clinic assignment)"}
+	require.NoError(t, db.WithContext(context.Background()).Create(company).Error)
+	for _, cid := range clinicIDs {
+		c := &model.Clinic{ID: cid, CompanyID: company.ID, Name: fmt.Sprintf("テスト医院%d", cid)}
+		require.NoError(t, db.WithContext(context.Background()).Clauses(clause.OnConflict{DoNothing: true}).Create(c).Error)
+	}
+}
+
+// makeDoctor は親 repository パッケージの isolation_test_helpers_test.go 同名ヘルパーの複製。
+func makeDoctor(t *testing.T, db *gorm.DB, clinicID uint64, name string) *model.Staff {
+	t.Helper()
+	s := &model.Staff{ClinicID: clinicID, Name: name, StaffType: model.StaffTypeDoctor}
+	require.NoError(t, db.WithContext(context.Background()).Create(s).Error)
+	return s
+}
+
 func TestStaffClinicAssignmentRepository_Create_HappyPath(t *testing.T) {
 	db := setupStaffClinicAssignmentRepositoryTestDB(t)
-	repo := NewStaffClinicAssignmentRepository(db)
+	repo := New(db)
 	ctx := context.Background()
 	const clinicID = uint64(1)
 	seedClinicsForFK(t, db, clinicID)
@@ -55,7 +82,7 @@ func TestStaffClinicAssignmentRepository_Create_HappyPath(t *testing.T) {
 
 func TestStaffClinicAssignmentRepository_FindByStaffID_ReturnsAllClinicsForMultiAssignedStaff(t *testing.T) {
 	db := setupStaffClinicAssignmentRepositoryTestDB(t)
-	repo := NewStaffClinicAssignmentRepository(db)
+	repo := New(db)
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 	seedClinicsForFK(t, db, clinicA, clinicB)
@@ -71,7 +98,7 @@ func TestStaffClinicAssignmentRepository_FindByStaffID_ReturnsAllClinicsForMulti
 
 func TestStaffClinicAssignmentRepository_FindByStaffID_EmptyForUnassignedStaff(t *testing.T) {
 	db := setupStaffClinicAssignmentRepositoryTestDB(t)
-	repo := NewStaffClinicAssignmentRepository(db)
+	repo := New(db)
 	ctx := context.Background()
 	const clinicID = uint64(1)
 	seedClinicsForFK(t, db, clinicID)
@@ -85,7 +112,7 @@ func TestStaffClinicAssignmentRepository_FindByStaffID_EmptyForUnassignedStaff(t
 
 func TestStaffClinicAssignmentRepository_FindByStaffID_ExcludesSoftDeleted(t *testing.T) {
 	db := setupStaffClinicAssignmentRepositoryTestDB(t)
-	repo := NewStaffClinicAssignmentRepository(db)
+	repo := New(db)
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 	seedClinicsForFK(t, db, clinicA, clinicB)
@@ -110,7 +137,7 @@ func TestStaffClinicAssignmentRepository_FindByStaffID_ExcludesSoftDeleted(t *te
 
 func TestStaffClinicAssignmentRepository_CountByStaffAndClinic_ReturnsOneWhenAssigned(t *testing.T) {
 	db := setupStaffClinicAssignmentRepositoryTestDB(t)
-	repo := NewStaffClinicAssignmentRepository(db)
+	repo := New(db)
 	ctx := context.Background()
 	const clinicID = uint64(1)
 	seedClinicsForFK(t, db, clinicID)
@@ -125,7 +152,7 @@ func TestStaffClinicAssignmentRepository_CountByStaffAndClinic_ReturnsOneWhenAss
 
 func TestStaffClinicAssignmentRepository_CountByStaffAndClinic_ZeroWhenNotAssigned(t *testing.T) {
 	db := setupStaffClinicAssignmentRepositoryTestDB(t)
-	repo := NewStaffClinicAssignmentRepository(db)
+	repo := New(db)
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 	seedClinicsForFK(t, db, clinicA, clinicB)
@@ -139,7 +166,7 @@ func TestStaffClinicAssignmentRepository_CountByStaffAndClinic_ZeroWhenNotAssign
 
 func TestStaffClinicAssignmentRepository_CountByStaffAndClinic_ExcludesSoftDeleted(t *testing.T) {
 	db := setupStaffClinicAssignmentRepositoryTestDB(t)
-	repo := NewStaffClinicAssignmentRepository(db)
+	repo := New(db)
 	ctx := context.Background()
 	const clinicID = uint64(1)
 	seedClinicsForFK(t, db, clinicID)
@@ -156,7 +183,7 @@ func TestStaffClinicAssignmentRepository_CountByStaffAndClinic_ExcludesSoftDelet
 
 func TestStaffClinicAssignmentRepository_Delete_RemovesAllAssignmentsForStaff(t *testing.T) {
 	db := setupStaffClinicAssignmentRepositoryTestDB(t)
-	repo := NewStaffClinicAssignmentRepository(db)
+	repo := New(db)
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 	seedClinicsForFK(t, db, clinicA, clinicB)
@@ -174,7 +201,7 @@ func TestStaffClinicAssignmentRepository_Delete_RemovesAllAssignmentsForStaff(t 
 
 func TestStaffClinicAssignmentRepository_Delete_DoesNotAffectOtherStaff(t *testing.T) {
 	db := setupStaffClinicAssignmentRepositoryTestDB(t)
-	repo := NewStaffClinicAssignmentRepository(db)
+	repo := New(db)
 	ctx := context.Background()
 	const clinicID = uint64(1)
 	seedClinicsForFK(t, db, clinicID)
@@ -193,7 +220,7 @@ func TestStaffClinicAssignmentRepository_Delete_DoesNotAffectOtherStaff(t *testi
 
 func TestStaffClinicAssignmentRepository_Create_DuplicateStaffClinicViolatesUniqueConstraint(t *testing.T) {
 	db := setupStaffClinicAssignmentRepositoryTestDB(t)
-	repo := NewStaffClinicAssignmentRepository(db)
+	repo := New(db)
 	ctx := context.Background()
 	const clinicID = uint64(1)
 	seedClinicsForFK(t, db, clinicID)
