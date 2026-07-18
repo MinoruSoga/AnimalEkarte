@@ -5,7 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter } from "react-router";
 import { http, HttpResponse } from "msw";
 import { server } from "@/testing/mocks/node";
-import { AuthContext } from "@/contexts/auth-context";
+import { AuthContext } from "@/hooks/auth-context";
 import { LineIntegrationCard } from "./LineIntegrationCard";
 import type { Owner } from "@/types/owner";
 import { LSTEP_EXCL_DELIVERY_STOP } from "@/constants/lstep-tag-names";

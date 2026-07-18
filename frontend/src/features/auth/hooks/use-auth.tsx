@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import type { AuthContextValue, AuthUser, Resource, ResourceAction } from "@/types/auth";
-import { AuthContext } from "@/contexts/auth-context";
+import { AuthContext } from "@/hooks/auth-context";
 import { CURRENT_CLINIC_STORAGE_KEY, getStoredClinicId } from "@/lib/current-clinic";
 import { login as loginApi } from "../api/login";
 import { logout as logoutApi } from "../api/logout";

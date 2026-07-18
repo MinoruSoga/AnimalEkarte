@@ -5,7 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter } from "react-router";
 import { http, HttpResponse, delay } from "msw";
 import { server } from "@/testing/mocks/node";
-import { AuthContext } from "@/contexts/auth-context";
+import { AuthContext } from "@/hooks/auth-context";
 import { LstepDeliveryMonitorPage } from "./LstepDeliveryMonitorPage";
 import type { DeliveryTriggerSummaryResponse } from "../api/get-lstep-delivery-trigger-summary";
 import type { DeliveryTriggerLogsPageResponse } from "../api/get-lstep-delivery-trigger-logs";
