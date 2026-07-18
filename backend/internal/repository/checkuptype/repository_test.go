@@ -1,10 +1,14 @@
-package repository
+package checkuptype
 
-// checkup_type_repository_test.go — CheckupTypeRepository の統合テスト（Phase 4 カバレッジ向上）。
+// repository_test.go — Repository の統合テスト（Phase 4 カバレッジ向上）。
 //
 // 対象: FindAll / FindByID / Create / Update / Delete / Reorder /
 //       CountUsageByCheckupTypeID / CountChildrenByParentID
 // 検証観点: 正常系、clinic_id 隔離、ソフトデリート除外、NotFound ラップ。
+//
+// makeSpeciesAndPet/makeHistoryMedicalRecord/makeCheckupRec はフラット package の同名ヘルパーの複製
+// （BE8-4: import cycle を避けるための最小限の重複、移動時の型リネームはしない方針の対象外）。
+// makeTestOwner はフラット側と同様 repotest.MakeTestOwner に直接委譲する。
 
 import (
 	"context"
@@ -17,14 +21,15 @@ import (
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/repository/repotest"
 )
 
 // setupCheckupTypeTestDB は checkup_types / checkups 周りを整備する。
 // CountUsageByCheckupTypeID は checkups を JOIN 相当で参照するため owner/pet/medical_record も揃える。
 func setupCheckupTypeTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
-	db := setupTestDB(t)
-	require.NoError(t, ensureAutoMigrated(db, &model.AnimalSpecies{}, &model.Pet{}, &model.CheckupType{}, &model.Checkup{}))
+	db := repotest.SetupTestDB(t)
+	require.NoError(t, repotest.EnsureAutoMigrated(db, &model.AnimalSpecies{}, &model.Pet{}, &model.CheckupType{}, &model.Checkup{}))
 	db.Exec("TRUNCATE TABLE checkups CASCADE")
 	db.Exec("TRUNCATE TABLE checkup_types CASCADE")
 	db.Exec("TRUNCATE TABLE medical_records CASCADE")
@@ -33,9 +38,51 @@ func setupCheckupTypeTestDB(t *testing.T) *gorm.DB {
 	return db
 }
 
+func makeSpeciesAndPet(t *testing.T, db *gorm.DB, clinicID, ownerID uint64, petName string) *model.Pet {
+	t.Helper()
+	species := &model.AnimalSpecies{Name: "犬"}
+	require.NoError(t, db.WithContext(context.Background()).Create(species).Error)
+	pet := &model.Pet{
+		ClinicID:        clinicID,
+		OwnerID:         ownerID,
+		AnimalSpeciesID: species.ID,
+		Name:            petName,
+	}
+	require.NoError(t, db.WithContext(context.Background()).Create(pet).Error)
+	return pet
+}
+
+func makeHistoryMedicalRecord(t *testing.T, db *gorm.DB, clinicID, petID uint64, recordNo string, date time.Time) *model.MedicalRecord {
+	t.Helper()
+	pet := petID
+	mr := &model.MedicalRecord{
+		ClinicID: clinicID,
+		RecordNo: recordNo,
+		Date:     date,
+		PetID:    &pet,
+		Status:   model.MedicalRecordStatusFinalized,
+	}
+	require.NoError(t, db.WithContext(context.Background()).Create(mr).Error)
+	return mr
+}
+
+func makeCheckupRec(t *testing.T, db *gorm.DB, clinicID, mrID, petID, checkupTypeID uint64) uint64 {
+	t.Helper()
+	pid := petID
+	c := &model.Checkup{
+		ClinicID:        clinicID,
+		MedicalRecordID: mrID,
+		PetID:           &pid,
+		CheckupTypeID:   checkupTypeID,
+		Date:            time.Now(),
+	}
+	require.NoError(t, db.WithContext(context.Background()).Create(c).Error)
+	return c.ID
+}
+
 func TestCheckupTypeRepository_FindAll_ClinicIsolationAndSortOrder(t *testing.T) {
 	db := setupCheckupTypeTestDB(t)
-	repo := NewCheckupTypeRepository(db)
+	repo := New(db)
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 
@@ -58,7 +105,7 @@ func TestCheckupTypeRepository_FindAll_ClinicIsolationAndSortOrder(t *testing.T)
 
 func TestCheckupTypeRepository_FindByID(t *testing.T) {
 	db := setupCheckupTypeTestDB(t)
-	repo := NewCheckupTypeRepository(db)
+	repo := New(db)
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 
@@ -86,7 +133,7 @@ func TestCheckupTypeRepository_FindByID(t *testing.T) {
 
 func TestCheckupTypeRepository_Create(t *testing.T) {
 	db := setupCheckupTypeTestDB(t)
-	repo := NewCheckupTypeRepository(db)
+	repo := New(db)
 	ctx := context.Background()
 	const clinicA = uint64(1)
 
@@ -101,7 +148,7 @@ func TestCheckupTypeRepository_Create(t *testing.T) {
 
 func TestCheckupTypeRepository_Update(t *testing.T) {
 	db := setupCheckupTypeTestDB(t)
-	repo := NewCheckupTypeRepository(db)
+	repo := New(db)
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 
@@ -129,7 +176,7 @@ func TestCheckupTypeRepository_Update(t *testing.T) {
 
 func TestCheckupTypeRepository_Delete(t *testing.T) {
 	db := setupCheckupTypeTestDB(t)
-	repo := NewCheckupTypeRepository(db)
+	repo := New(db)
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 
@@ -170,7 +217,7 @@ func TestCheckupTypeRepository_Delete(t *testing.T) {
 
 func TestCheckupTypeRepository_Reorder(t *testing.T) {
 	db := setupCheckupTypeTestDB(t)
-	repo := NewCheckupTypeRepository(db)
+	repo := New(db)
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 
@@ -202,11 +249,11 @@ func TestCheckupTypeRepository_Reorder(t *testing.T) {
 
 func TestCheckupTypeRepository_CountUsageByCheckupTypeID(t *testing.T) {
 	db := setupCheckupTypeTestDB(t)
-	repo := NewCheckupTypeRepository(db)
+	repo := New(db)
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 
-	owner := makeTestOwner(t, db, clinicA, "健診種別使用飼主")
+	owner := repotest.MakeTestOwner(t, db, clinicA, "健診種別使用飼主")
 	pet := makeSpeciesAndPet(t, db, clinicA, owner.ID, "使用ポチ")
 	mr := makeHistoryMedicalRecord(t, db, clinicA, pet.ID, "MR-CTUSE", time.Now().UTC())
 	ct := &model.CheckupType{ClinicID: clinicA, Name: "使用中の健診種別"}
@@ -242,7 +289,7 @@ func TestCheckupTypeRepository_CountUsageByCheckupTypeID(t *testing.T) {
 
 func TestCheckupTypeRepository_CountChildrenByParentID(t *testing.T) {
 	db := setupCheckupTypeTestDB(t)
-	repo := NewCheckupTypeRepository(db)
+	repo := New(db)
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 
