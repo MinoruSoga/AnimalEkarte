@@ -1,6 +1,6 @@
-package repository
+package dailyrecord
 
-// daily_record_vital_tx_atomicity_test.go — AUD-006:
+// vital_tx_atomicity_test.go — AUD-006:
 // FindOrCreateByDate と CreateVitalRecord が同一 ambient tx に参加し、
 // Vital 失敗時に新規 DailyRecord も rollback されることを検証する。
 
@@ -14,21 +14,21 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/repository/repotest"
 )
 
 func TestDailyRecordRepository_AddVital_FindOrCreateAndCreateShareTx_Rollback(t *testing.T) {
 	db := setupDailyRecordTestDB(t)
-	repo := NewDailyRecordRepository(db)
-	tx := NewTransactor(db)
+	repo := New(db)
 	ctx := context.Background()
 
 	const clinicA = uint64(1)
-	ownerA := makeTestOwner(t, db, clinicA, "飼主A-AUD006")
+	ownerA := repotest.MakeTestOwner(t, db, clinicA, "飼主A-AUD006")
 	petA := makeSpeciesAndPet(t, db, clinicA, ownerA.ID, "ポチA-AUD006")
 	hospA := makeHospitalizationRec(t, db, clinicA, ownerA.ID, petA.ID, nil)
 	date := time.Date(2026, 7, 14, 0, 0, 0, 0, time.UTC)
 
-	err := tx.WithTx(ctx, func(txCtx context.Context) error {
+	err := withTx(ctx, db, func(txCtx context.Context) error {
 		daily, err := repo.FindOrCreateByDate(txCtx, clinicA, hospA.ID, date)
 		if err != nil {
 			return err
@@ -56,17 +56,16 @@ func TestDailyRecordRepository_AddVital_FindOrCreateAndCreateShareTx_Rollback(t 
 
 func TestDailyRecordRepository_AddVital_FindOrCreateAndCreateShareTx_Commit(t *testing.T) {
 	db := setupDailyRecordTestDB(t)
-	repo := NewDailyRecordRepository(db)
-	tx := NewTransactor(db)
+	repo := New(db)
 	ctx := context.Background()
 
 	const clinicA = uint64(1)
-	ownerA := makeTestOwner(t, db, clinicA, "飼主A-AUD006b")
+	ownerA := repotest.MakeTestOwner(t, db, clinicA, "飼主A-AUD006b")
 	petA := makeSpeciesAndPet(t, db, clinicA, ownerA.ID, "ポチA-AUD006b")
 	hospA := makeHospitalizationRec(t, db, clinicA, ownerA.ID, petA.ID, nil)
 	date := time.Date(2026, 7, 15, 0, 0, 0, 0, time.UTC)
 
-	require.NoError(t, tx.WithTx(ctx, func(txCtx context.Context) error {
+	require.NoError(t, withTx(ctx, db, func(txCtx context.Context) error {
 		daily, err := repo.FindOrCreateByDate(txCtx, clinicA, hospA.ID, date)
 		if err != nil {
 			return err

@@ -1,0 +1,102 @@
+// Package dailyrecord owns daily_records (+ vital_records/care_logs/staff_notes writes)
+// data access (BE8-4 batch6 — leaf domain).
+package dailyrecord
+
+import (
+	"context"
+	"fmt"
+	"time"
+
+	"gorm.io/gorm"
+
+	apperrors "github.com/animal-ekarte/backend/internal/errors"
+	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/repository/repohelpers"
+)
+
+// Repository is the data access interface for daily records.
+type Repository interface {
+	FindByHospitalizationID(ctx context.Context, clinicID, hospitalizationID uint64) ([]model.DailyRecord, error)
+	FindByHospitalizationIDAndDate(ctx context.Context, clinicID, hospitalizationID uint64, date time.Time) (*model.DailyRecord, error)
+	FindOrCreateByDate(ctx context.Context, clinicID, hospitalizationID uint64, date time.Time) (*model.DailyRecord, error)
+	CreateVitalRecord(ctx context.Context, vr *model.VitalRecord) error
+	CreateCareLog(ctx context.Context, cr *model.CareLog) error
+	CreateStaffNote(ctx context.Context, sn *model.StaffNote) error
+}
+
+type repository struct {
+	db *gorm.DB
+}
+
+// New constructs a Repository.
+func New(db *gorm.DB) Repository {
+	return &repository{db: db}
+}
+
+func (r *repository) FindByHospitalizationID(ctx context.Context, clinicID, hospitalizationID uint64) ([]model.DailyRecord, error) {
+	records := make([]model.DailyRecord, 0)
+	err := r.db.WithContext(ctx).
+		Scopes(repohelpers.ClinicScope(clinicID)).Where("hospitalization_id = ?", hospitalizationID).
+		Order("date DESC").
+		Preload("VitalRecords", "clinic_id = ?", clinicID).
+		Preload("CareLogs", "clinic_id = ?", clinicID).
+		Preload("StaffNotes").
+		Find(&records).Error
+	if err != nil {
+		return nil, apperrors.FromGORM(err, "daily_record", "")
+	}
+	return records, nil
+}
+
+func (r *repository) FindByHospitalizationIDAndDate(ctx context.Context, clinicID, hospitalizationID uint64, date time.Time) (*model.DailyRecord, error) {
+	var record model.DailyRecord
+	err := r.db.WithContext(ctx).
+		Scopes(repohelpers.ClinicScope(clinicID)).Where("hospitalization_id = ? AND date = ?", hospitalizationID, date).
+		Preload("VitalRecords", "clinic_id = ?", clinicID).
+		Preload("CareLogs", "clinic_id = ?", clinicID).
+		Preload("StaffNotes").
+		First(&record).Error
+	if err != nil {
+		return nil, apperrors.FromGORM(err, "daily_record", fmt.Sprintf("%d/%s", hospitalizationID, date.Format(time.DateOnly)))
+	}
+	return &record, nil
+}
+
+func (r *repository) FindOrCreateByDate(ctx context.Context, clinicID, hospitalizationID uint64, date time.Time) (*model.DailyRecord, error) {
+	record := model.DailyRecord{
+		ClinicID:          clinicID,
+		HospitalizationID: hospitalizationID,
+		Date:              date,
+	}
+	result := repohelpers.DBOrTx(ctx, r.db).
+		Where(model.DailyRecord{ClinicID: clinicID, HospitalizationID: hospitalizationID, Date: date}).
+		FirstOrCreate(&record)
+	if result.Error != nil {
+		return nil, apperrors.FromGORM(result.Error, "daily_record", "")
+	}
+	return &record, nil
+}
+
+func (r *repository) CreateVitalRecord(ctx context.Context, vr *model.VitalRecord) error {
+	err := repohelpers.DBOrTx(ctx, r.db).Create(vr).Error
+	if err != nil {
+		return apperrors.FromGORM(err, "vital_record", "")
+	}
+	return nil
+}
+
+func (r *repository) CreateCareLog(ctx context.Context, cr *model.CareLog) error {
+	err := r.db.WithContext(ctx).Create(cr).Error
+	if err != nil {
+		return apperrors.FromGORM(err, "care_log", "")
+	}
+	return nil
+}
+
+func (r *repository) CreateStaffNote(ctx context.Context, sn *model.StaffNote) error {
+	err := r.db.WithContext(ctx).Create(sn).Error
+	if err != nil {
+		return apperrors.FromGORM(err, "staff_note", "")
+	}
+	return nil
+}
