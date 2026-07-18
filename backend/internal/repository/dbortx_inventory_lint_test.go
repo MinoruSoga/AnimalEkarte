@@ -192,14 +192,14 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"staff_repository.go|staffRepository.Update":                           {},
 	"staff_repository.go|staffRepository.UpdatePrimaryClinicID":            {},
 	// shift_entry (uniform dbOrTx)
-	"shift_entry_repository.go|shiftEntryRepository.Create":           {},
-	"shift_entry_repository.go|shiftEntryRepository.Delete":           {},
-	"shift_entry_repository.go|shiftEntryRepository.ExistsByStaffID":  {},
-	"shift_entry_repository.go|shiftEntryRepository.FindAll":          {},
-	"shift_entry_repository.go|shiftEntryRepository.FindByID":         {},
-	"shift_entry_repository.go|shiftEntryRepository.FindOnDutyStaffs": {},
-	"shift_entry_repository.go|shiftEntryRepository.Update":           {},
-	"shift_entry_repository.go|shiftEntryRepository.ReplaceBreaks":    {}, // G6-2 repo-internal tx replace
+	"shiftentry/repository.go|repository.Create":           {}, // BE8-4 batch13: moved from shift_entry_repository.go
+	"shiftentry/repository.go|repository.Delete":           {}, // BE8-4 batch13: moved from shift_entry_repository.go
+	"shiftentry/repository.go|repository.ExistsByStaffID":  {}, // BE8-4 batch13: moved from shift_entry_repository.go
+	"shiftentry/repository.go|repository.FindAll":          {}, // BE8-4 batch13: moved from shift_entry_repository.go
+	"shiftentry/repository.go|repository.FindByID":         {}, // BE8-4 batch13: moved from shift_entry_repository.go
+	"shiftentry/repository.go|repository.FindOnDutyStaffs": {}, // BE8-4 batch13: moved from shift_entry_repository.go
+	"shiftentry/repository.go|repository.Update":           {}, // BE8-4 batch13: moved from shift_entry_repository.go
+	"shiftentry/repository.go|repository.ReplaceBreaks":    {}, // BE8-4 batch13: moved from shift_entry_repository.go; G6-2 repo-internal tx replace
 	// trimming detail (uniform dbOrTx)
 	"trimming_repository.go|appointmentTrimmingDetailRepository.Create":              {},
 	"trimming_repository.go|appointmentTrimmingDetailRepository.FindByAppointmentID": {},

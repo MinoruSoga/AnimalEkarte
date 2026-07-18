@@ -1,6 +1,6 @@
-package repository
+package shiftentry
 
-// shift_entry_repository_test.go — ShiftEntryRepository 統合テスト。
+// repository_test.go — Repository 統合テスト。
 //
 // 保護する不変条件:
 //   - FindAll / FindByID / ExistsByStaffID は clinic_id でテナント隔離される。
@@ -10,6 +10,9 @@ package repository
 //   - Update / Delete は対象なしで NotFound を返す。
 //   - ReplaceBreaks は既存 breaks を削除してから新しい breaks を作成する（空スライスなら全削除のみ）。
 //   - FindOnDutyStaffs は退職(deleted_at)・非アクティブ(is_active=false)スタッフを除外する。
+//
+// makeDoctor は親 repository パッケージの isolation_test_helpers_test.go 内の同名ヘルパーの複製
+// （BE8-4: import cycle を避けるための最小限の重複、移動時の型リネームはしない方針の対象外）。
 
 import (
 	"context"
@@ -22,6 +25,7 @@ import (
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/repository/repotest"
 )
 
 // setupShiftEntryTestDB は shift_entries / shift_entry_breaks / staffs を整備する。
@@ -30,8 +34,8 @@ import (
 // 意味のある形で検証するため、明示的に複合 UNIQUE INDEX を追加する。
 func setupShiftEntryTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
-	db := setupTestDB(t)
-	require.NoError(t, ensureAutoMigrated(db, &model.Staff{}, &model.ShiftEntry{}, &model.ShiftEntryBreak{}))
+	db := repotest.SetupTestDB(t)
+	require.NoError(t, repotest.EnsureAutoMigrated(db, &model.Staff{}, &model.ShiftEntry{}, &model.ShiftEntryBreak{}))
 	// shift_entry_breaks.break_start/break_end can be left as "timestamp with time zone" in a
 	// pre-existing ekarte_db_test if the table was ever created before model.ShiftEntryBreak's
 	// `gorm:"type:time"` tag existed — AutoMigrate never ALTERs an existing column's type, only
@@ -44,6 +48,13 @@ func setupShiftEntryTestDB(t *testing.T) *gorm.DB {
 	db.Exec(`CREATE UNIQUE INDEX IF NOT EXISTS ux_test_shift_entry_staff_date
 		ON shift_entries (clinic_id, staff_id, date)`)
 	return db
+}
+
+func makeDoctor(t *testing.T, db *gorm.DB, clinicID uint64, name string) *model.Staff {
+	t.Helper()
+	s := &model.Staff{ClinicID: clinicID, Name: name, StaffType: model.StaffTypeDoctor}
+	require.NoError(t, db.WithContext(context.Background()).Create(s).Error)
+	return s
 }
 
 func makeShiftEntryWithType(t *testing.T, db *gorm.DB, clinicID, staffID uint64, date time.Time, shiftType model.ShiftType) *model.ShiftEntry {
@@ -60,7 +71,7 @@ func makeShiftEntryWithType(t *testing.T, db *gorm.DB, clinicID, staffID uint64,
 
 func TestShiftEntryRepository_FindAll(t *testing.T) {
 	db := setupShiftEntryTestDB(t)
-	repo := NewShiftEntryRepository(db)
+	repo := New(db)
 	ctx := context.Background()
 
 	const (
@@ -82,7 +93,7 @@ func TestShiftEntryRepository_FindAll(t *testing.T) {
 	makeShiftEntryWithType(t, db, clinicB, staffB.ID, june1, model.ShiftTypeFull)
 
 	t.Run("clinic isolation", func(t *testing.T) {
-		got, err := repo.FindAll(ctx, clinicA, ShiftEntryFilter{})
+		got, err := repo.FindAll(ctx, clinicA, Filter{})
 		require.NoError(t, err)
 		require.Len(t, got, 3)
 		for _, e := range got {
@@ -91,7 +102,7 @@ func TestShiftEntryRepository_FindAll(t *testing.T) {
 	})
 
 	t.Run("filters by YearMonth", func(t *testing.T) {
-		got, err := repo.FindAll(ctx, clinicA, ShiftEntryFilter{YearMonth: "2026-06"})
+		got, err := repo.FindAll(ctx, clinicA, Filter{YearMonth: "2026-06"})
 		require.NoError(t, err)
 		require.Len(t, got, 2)
 		for _, e := range got {
@@ -100,7 +111,7 @@ func TestShiftEntryRepository_FindAll(t *testing.T) {
 	})
 
 	t.Run("filters by StaffID", func(t *testing.T) {
-		got, err := repo.FindAll(ctx, clinicA, ShiftEntryFilter{StaffID: &staffA1.ID})
+		got, err := repo.FindAll(ctx, clinicA, Filter{StaffID: &staffA1.ID})
 		require.NoError(t, err)
 		require.Len(t, got, 2)
 		for _, e := range got {
@@ -109,14 +120,14 @@ func TestShiftEntryRepository_FindAll(t *testing.T) {
 	})
 
 	t.Run("invalid YearMonth returns invalid input error", func(t *testing.T) {
-		got, err := repo.FindAll(ctx, clinicA, ShiftEntryFilter{YearMonth: "not-a-date"})
+		got, err := repo.FindAll(ctx, clinicA, Filter{YearMonth: "not-a-date"})
 		assert.Error(t, err)
 		assert.Nil(t, got)
 		assert.True(t, apperrors.IsInvalidInput(err))
 	})
 
 	t.Run("preloads Staff", func(t *testing.T) {
-		got, err := repo.FindAll(ctx, clinicA, ShiftEntryFilter{StaffID: &staffA1.ID})
+		got, err := repo.FindAll(ctx, clinicA, Filter{StaffID: &staffA1.ID})
 		require.NoError(t, err)
 		require.NotEmpty(t, got)
 		require.NotNil(t, got[0].Staff)
@@ -126,7 +137,7 @@ func TestShiftEntryRepository_FindAll(t *testing.T) {
 
 func TestShiftEntryRepository_FindByID(t *testing.T) {
 	db := setupShiftEntryTestDB(t)
-	repo := NewShiftEntryRepository(db)
+	repo := New(db)
 	ctx := context.Background()
 
 	const (
@@ -160,7 +171,7 @@ func TestShiftEntryRepository_FindByID(t *testing.T) {
 
 func TestShiftEntryRepository_Create(t *testing.T) {
 	db := setupShiftEntryTestDB(t)
-	repo := NewShiftEntryRepository(db)
+	repo := New(db)
 	ctx := context.Background()
 
 	const clinicA = uint64(1)
@@ -183,7 +194,7 @@ func TestShiftEntryRepository_Create(t *testing.T) {
 
 func TestShiftEntryRepository_Update(t *testing.T) {
 	db := setupShiftEntryTestDB(t)
-	repo := NewShiftEntryRepository(db)
+	repo := New(db)
 	ctx := context.Background()
 
 	const (
@@ -213,7 +224,7 @@ func TestShiftEntryRepository_Update(t *testing.T) {
 
 func TestShiftEntryRepository_Delete(t *testing.T) {
 	db := setupShiftEntryTestDB(t)
-	repo := NewShiftEntryRepository(db)
+	repo := New(db)
 	ctx := context.Background()
 
 	const (
@@ -248,7 +259,7 @@ func TestShiftEntryRepository_Delete(t *testing.T) {
 
 func TestShiftEntryRepository_ExistsByStaffID(t *testing.T) {
 	db := setupShiftEntryTestDB(t)
-	repo := NewShiftEntryRepository(db)
+	repo := New(db)
 	ctx := context.Background()
 
 	const (
@@ -280,7 +291,7 @@ func TestShiftEntryRepository_ExistsByStaffID(t *testing.T) {
 
 func TestShiftEntryRepository_ReplaceBreaks(t *testing.T) {
 	db := setupShiftEntryTestDB(t)
-	repo := NewShiftEntryRepository(db)
+	repo := New(db)
 	ctx := context.Background()
 
 	const clinicA = uint64(1)
@@ -323,7 +334,7 @@ func TestShiftEntryRepository_ReplaceBreaks(t *testing.T) {
 
 func TestShiftEntryRepository_FindOnDutyStaffs(t *testing.T) {
 	db := setupShiftEntryTestDB(t)
-	repo := NewShiftEntryRepository(db)
+	repo := New(db)
 	ctx := context.Background()
 
 	const (

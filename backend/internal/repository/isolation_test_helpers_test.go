@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
@@ -25,4 +26,19 @@ func makeDoctor(t *testing.T, db *gorm.DB, clinicID uint64, name string) *model.
 	s := &model.Staff{ClinicID: clinicID, Name: name, StaffType: model.StaffTypeDoctor}
 	require.NoError(t, db.WithContext(context.Background()).Create(s).Error)
 	return s
+}
+
+// makeShiftEntryWithType は shiftentry/repository_test.go の同名ヘルパーの最小限の複製
+// （BE8-4 batch13: shift_entry_repository_test.go の移動先パッケージから本パッケージの
+// reservation_type_occupation_repository_test.go が引き続き参照するため）。
+func makeShiftEntryWithType(t *testing.T, db *gorm.DB, clinicID, staffID uint64, date time.Time, shiftType model.ShiftType) *model.ShiftEntry {
+	t.Helper()
+	e := &model.ShiftEntry{
+		ClinicID:  clinicID,
+		StaffID:   staffID,
+		Date:      date,
+		ShiftType: shiftType,
+	}
+	require.NoError(t, db.WithContext(context.Background()).Create(e).Error)
+	return e
 }
