@@ -1,6 +1,6 @@
-package repository
+package inquirytemplate
 
-// inquiry_template_repository_test.go — InquiryTemplateRepository の統合テスト（内部カバレッジ向上）。
+// repository_test.go — Repository の統合テスト（内部カバレッジ向上）。
 //
 // 対象: FindAll / FindByID / Create / Update / Delete / Reorder / CountUsageByInquiryTemplateID
 // 検証観点: 正常系、clinic_id 隔離、ソフトデリート除外、NotFound ラップ。
@@ -16,20 +16,21 @@ import (
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/repository/repotest"
 )
 
 // setupInquiryTemplateTestDB は inquiry_templates テーブルを整備する。
 func setupInquiryTemplateTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
-	db := setupTestDB(t)
-	require.NoError(t, ensureAutoMigrated(db, &model.InquiryTemplate{}))
+	db := repotest.SetupTestDB(t)
+	require.NoError(t, repotest.EnsureAutoMigrated(db, &model.InquiryTemplate{}))
 	db.Exec("TRUNCATE TABLE inquiry_templates CASCADE")
 	return db
 }
 
 func TestInquiryTemplateRepository_FindAll_ClinicIsolationAndSortOrder(t *testing.T) {
 	db := setupInquiryTemplateTestDB(t)
-	repo := NewInquiryTemplateRepository(db)
+	repo := New(db)
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 
@@ -52,7 +53,7 @@ func TestInquiryTemplateRepository_FindAll_ClinicIsolationAndSortOrder(t *testin
 
 func TestInquiryTemplateRepository_FindByID(t *testing.T) {
 	db := setupInquiryTemplateTestDB(t)
-	repo := NewInquiryTemplateRepository(db)
+	repo := New(db)
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 
@@ -80,7 +81,7 @@ func TestInquiryTemplateRepository_FindByID(t *testing.T) {
 
 func TestInquiryTemplateRepository_Create(t *testing.T) {
 	db := setupInquiryTemplateTestDB(t)
-	repo := NewInquiryTemplateRepository(db)
+	repo := New(db)
 	ctx := context.Background()
 	const clinicA = uint64(1)
 
@@ -95,7 +96,7 @@ func TestInquiryTemplateRepository_Create(t *testing.T) {
 
 func TestInquiryTemplateRepository_Update(t *testing.T) {
 	db := setupInquiryTemplateTestDB(t)
-	repo := NewInquiryTemplateRepository(db)
+	repo := New(db)
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 
@@ -123,7 +124,7 @@ func TestInquiryTemplateRepository_Update(t *testing.T) {
 
 func TestInquiryTemplateRepository_Delete(t *testing.T) {
 	db := setupInquiryTemplateTestDB(t)
-	repo := NewInquiryTemplateRepository(db)
+	repo := New(db)
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 
@@ -162,7 +163,7 @@ func TestInquiryTemplateRepository_Delete(t *testing.T) {
 
 func TestInquiryTemplateRepository_Reorder(t *testing.T) {
 	db := setupInquiryTemplateTestDB(t)
-	repo := NewInquiryTemplateRepository(db)
+	repo := New(db)
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 
@@ -193,7 +194,7 @@ func TestInquiryTemplateRepository_Reorder(t *testing.T) {
 }
 
 func TestInquiryTemplateRepository_CountUsageByInquiryTemplateID(t *testing.T) {
-	repo := NewInquiryTemplateRepository(setupInquiryTemplateTestDB(t))
+	repo := New(setupInquiryTemplateTestDB(t))
 	ctx := context.Background()
 
 	// 現スキーマに inquiry_template_id を参照する FK テーブルが存在しないため常に 0 を返す
