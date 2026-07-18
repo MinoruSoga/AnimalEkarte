@@ -7,7 +7,7 @@ import { FormFieldError } from "@/components/shared/FormFieldError/FormFieldErro
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 import { C } from "@/lib/design-tokens";
 import { calculateDose } from "@/lib/medicine-dose";
-import { formatCurrency } from "@/utils/format/number";
+import { formatCurrency } from "@/lib/format/number";
 
 // Relative
 import {

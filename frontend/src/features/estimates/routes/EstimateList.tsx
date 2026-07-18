@@ -6,7 +6,7 @@ import { useNavigate } from "react-router";
 import { usePermission } from "@/hooks/use-permission";
 import { useModalState } from "@/hooks/use-modal-state";
 import { usePagination } from "@/hooks/use-pagination";
-import { formatCurrency } from "@/utils/format/number";
+import { formatCurrency } from "@/lib/format/number";
 import { Plus, FileText, Trash2, ExternalLink, CircleDot, Calendar } from "lucide-react";
 import { TableCell } from "@/components/ui/table";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";

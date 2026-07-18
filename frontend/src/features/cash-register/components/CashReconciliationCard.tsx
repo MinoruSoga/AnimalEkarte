@@ -1,6 +1,6 @@
 import { memo } from "react";
 import { C } from "@/lib/design-tokens";
-import { formatCurrency } from "@/utils/format/number";
+import { formatCurrency } from "@/lib/format/number";
 
 interface CashReconciliationCardProps {
   theoreticalCash: number;

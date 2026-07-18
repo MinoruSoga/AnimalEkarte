@@ -1,7 +1,7 @@
 import { Plus, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { C, ICON, STYLE } from "@/lib/design-tokens";
-import { formatCurrency } from "@/utils/format/number";
+import { formatCurrency } from "@/lib/format/number";
 import type { MedicineDoseContext } from "../../api/medicine-dose-lookup";
 import type { Treatment, TreatmentItemType, UpdateTreatmentInput } from "../../types";
 import { TreatmentRow } from "./TreatmentRow";

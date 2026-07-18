@@ -8,7 +8,7 @@ import { normalizeKana } from "@/lib/normalize-kana";
 import { Plus, LayoutGrid, List, Building2, Calendar, PawPrint } from "lucide-react";
 
 // Internal
-import { uniqueSortedOptions } from "@/utils/unique-sorted-options";
+import { uniqueSortedOptions } from "@/lib/unique-sorted-options";
 import { LoadingFallback, ErrorFallback } from "@/components/shared/DataStates";
 import { UnifiedTabs } from "@/components/shared/UnifiedTabs";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";

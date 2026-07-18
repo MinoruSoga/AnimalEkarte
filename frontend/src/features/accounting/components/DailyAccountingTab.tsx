@@ -18,7 +18,7 @@ import { LoadingFallback, ErrorFallback, EmptyState } from "@/components/shared/
 import { C, ICON } from "@/lib/design-tokens";
 import { PAYMENT_METHOD_LABELS } from "@/constants/payment-method";
 import { todayJSTISO } from "@/lib/jst-date";
-import { formatCurrency } from "@/utils/format/number";
+import { formatCurrency } from "@/lib/format/number";
 
 import { useGetAccountings } from "../api/get-accountings";
 import { useGetDailySummary } from "../api/get-daily-summary";

@@ -7,9 +7,9 @@ import { DataTable, DESIGN_TABLE_HEADER_ROW, DESIGN_TABLE_HEADER_CELL } from "@/
 import { DataTableRow } from "@/components/shared/DataTable/DataTableRow";
 import { StatusBadge } from "@/components/shared/StatusBadge/StatusBadge";
 import { RowActionButton } from "@/components/shared/RowActionButton";
-import { getHospitalizationStatusColor, getHospitalizationTypeColor } from "@/utils/status-helpers";
+import { getHospitalizationStatusColor, getHospitalizationTypeColor } from "@/lib/status-helpers";
 import { C, STYLE } from "@/lib/design-tokens";
-import { formatDate } from "@/utils/format/date";
+import { formatDate } from "@/lib/format/date";
 
 // Types
 import type { Hospitalization } from "@/types";

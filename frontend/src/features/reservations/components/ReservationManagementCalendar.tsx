@@ -8,7 +8,7 @@ import { CalendarNavToolbar } from "@/components/shared/CalendarNavToolbar";
 import type { LegendEntry, ReservationTypeColor } from "@/hooks/use-reservation-type-color-map";
 import { C, ICON } from "@/lib/design-tokens";
 import { typedSetter } from "@/lib/type-utils";
-import { getCalendarViewLabel } from "@/utils/status-helpers";
+import { getCalendarViewLabel } from "@/lib/status-helpers";
 import type { CalendarView, Reservation } from "../types";
 import { CALENDAR_VIEW_VALUES } from "../types";
 import { DaysRangeToggle } from "./DaysRangeToggle";

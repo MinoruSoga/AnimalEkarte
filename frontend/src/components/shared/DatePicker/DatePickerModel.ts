@@ -3,7 +3,7 @@
 // react-refresh/only-export-components 違反を解消する。
 import { C } from "@/lib/design-tokens";
 import { formatJSTWallDate } from "@/lib/jst-date";
-import { formatJapaneseDate } from "@/utils/format/date";
+import { formatJapaneseDate } from "@/lib/format/date";
 
 /**
  * FE4-8 parse 契約: "YYYY-MM-DD" → Date の解釈は 2 契約が併存する

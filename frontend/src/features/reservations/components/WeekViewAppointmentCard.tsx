@@ -4,8 +4,8 @@ import { motion } from "motion/react";
 
 import { useReducedMotion } from "@/hooks/use-reduced-motion";
 import { C } from "@/lib/design-tokens";
-import { getReservationTypeColor, getReservationTypeName } from "@/utils/status-helpers";
-import { DISPLAY_TIME_FORMAT } from "@/utils/format/date";
+import { getReservationTypeColor, getReservationTypeName } from "@/lib/status-helpers";
+import { DISPLAY_TIME_FORMAT } from "@/lib/format/date";
 import type { Reservation } from "@/types";
 
 import {

@@ -7,7 +7,7 @@ import { RowActionButton } from "@/components/shared/RowActionButton";
 import { StatusPill } from "@/components/shared/StatusPill/StatusPill";
 import { TableCell } from "@/components/ui/table";
 import { C, ICON } from "@/lib/design-tokens";
-import { formatCurrencyOrDash } from "@/utils/format/number";
+import { formatCurrencyOrDash } from "@/lib/format/number";
 import type { TreatmentItem } from "@/lib/transforms/treatment";
 
 import type { TreatmentTreeItem, TreatmentVirtualRow } from "./treatment-plan-tab-content-model";

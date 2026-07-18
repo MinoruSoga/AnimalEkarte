@@ -9,7 +9,7 @@ import { StatusPill } from "@/components/shared/StatusPill/StatusPill";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { TableCell, TableRow } from "@/components/ui/table";
 import { C, ICON, STYLE } from "@/lib/design-tokens";
-import { formatCurrencyOrDash } from "@/utils/format/number";
+import { formatCurrencyOrDash } from "@/lib/format/number";
 import type { Medicine } from "@/types";
 
 const DOSAGE_FORM_LABELS: Record<string, string> = {

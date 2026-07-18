@@ -19,8 +19,8 @@ import { StatusBadge } from "@/components/shared/StatusBadge/StatusBadge";
 import { C, ICON } from "@/lib/design-tokens";
 import { PAYMENT_METHOD_LABELS } from "@/constants/payment-method";
 import { ACCOUNTING_STATUS_LABELS } from "@/constants/accounting-status";
-import { formatCurrency } from "@/utils/format/number";
-import { getAccountingStatusColor } from "@/utils/status-helpers";
+import { formatCurrency } from "@/lib/format/number";
+import { getAccountingStatusColor } from "@/lib/status-helpers";
 import type { Accounting as AccountingType } from "../types";
 import { calculateAccountingTotal } from "./accounting-list-table-model";
 

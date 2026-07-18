@@ -1,7 +1,7 @@
 import { memo, type ReactNode } from "react";
 import { ICON, C } from "@/lib/design-tokens";
 import { ChevronRight } from "lucide-react";
-import { formatCurrency } from "@/utils/format/number";
+import { formatCurrency } from "@/lib/format/number";
 
 interface MasterSelectTriggerProps {
   id?: string;

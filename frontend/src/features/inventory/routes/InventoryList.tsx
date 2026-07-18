@@ -28,7 +28,7 @@ import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
 import { RowActionButton } from "@/components/shared/RowActionButton";
 import { StatusBadge } from "@/components/shared/StatusBadge/StatusBadge";
 import { SortableHeader } from "@/components/shared/SortableHeader/SortableHeader";
-import { getInventoryStatusColor, getInventoryStatusLabel } from "@/utils/status-helpers";
+import { getInventoryStatusColor, getInventoryStatusLabel } from "@/lib/status-helpers";
 import { Pagination } from "@/components/shared/Pagination/Pagination";
 import { FilteringIndicator } from "@/components/shared/FilteringIndicator/FilteringIndicator";
 import { LoadingFallback, ErrorFallback } from "@/components/shared/DataStates";

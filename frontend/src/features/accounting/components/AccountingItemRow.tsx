@@ -10,7 +10,7 @@ import { TaxRateSelector } from "@/components/shared/TaxRateSelector/TaxRateSele
 import { TaxTypeSelector } from "@/components/shared/TaxTypeSelector/TaxTypeSelector";
 import { C } from "@/lib/design-tokens";
 import type { TaxType } from "@/types/generated/models";
-import { formatCurrency, formatCurrencyOrDash } from "@/utils/format/number";
+import { formatCurrency, formatCurrencyOrDash } from "@/lib/format/number";
 
 import { useGetBillingItemDiscountSuggestions } from "../api/get-discount-suggestions";
 import type { AccountingItem, ItemCategory } from "../types";

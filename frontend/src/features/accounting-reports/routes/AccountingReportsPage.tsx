@@ -20,7 +20,7 @@ import { MonthlySummaryCards } from "../components/MonthlySummaryCards";
 import { DailyBreakdownTable } from "../components/DailyBreakdownTable";
 import { MonthlyReportPrintArea } from "../components/MonthlyReportPrintArea";
 import { formatJSTWallDate, toJSTWallDate } from "@/lib/jst-date";
-import { formatCurrency } from "@/utils/format/number";
+import { formatCurrency } from "@/lib/format/number";
 
 type ReportMode = "month" | "period";
 

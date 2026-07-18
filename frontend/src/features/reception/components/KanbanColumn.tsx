@@ -7,7 +7,7 @@ import Plus from "lucide-react/dist/esm/icons/plus";
 
 // Internal
 import { Button } from "@/components/ui/button";
-import { getReceptionColumnColor } from "@/utils/status-helpers";
+import { getReceptionColumnColor } from "@/lib/status-helpers";
 
 // Relative
 import { AppointmentCard } from "./AppointmentCard";

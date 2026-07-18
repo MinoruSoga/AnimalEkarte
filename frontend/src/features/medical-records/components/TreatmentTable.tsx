@@ -3,7 +3,7 @@ import { C, ICON, STYLE } from "@/lib/design-tokens";
 import React, { memo } from "react";
 
 // Shared
-import { calcLineItemAmount } from "@/utils/line-item-helpers";
+import { calcLineItemAmount } from "@/lib/line-item-helpers";
 
 // External
 import { Circle, X, PlusCircle } from "lucide-react";

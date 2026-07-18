@@ -9,7 +9,7 @@ import { DeleteIconButton } from "@/components/shared/DeleteIconButton/DeleteIco
 import { NumberInput } from "@/components/shared/NumberInput/NumberInput";
 import { SubmitButton } from "@/components/shared/Form/SubmitButton";
 import { C, ICON } from "@/lib/design-tokens";
-import { formatCurrency } from "@/utils/format/number";
+import { formatCurrency } from "@/lib/format/number";
 
 import type { PaymentMethod } from "../types";
 import { PAYMENT_METHOD_LABELS } from "@/constants/payment-method";

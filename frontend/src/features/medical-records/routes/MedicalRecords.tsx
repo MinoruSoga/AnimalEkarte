@@ -28,7 +28,7 @@ import { Pagination } from "@/components/shared/Pagination";
 import { FilteringIndicator } from "@/components/shared/FilteringIndicator/FilteringIndicator";
 import { ClinicScopeFilter } from "@/components/shared/ClinicScopeFilter/ClinicScopeFilter";
 import { C, STYLE, ICON, LAYOUT } from "@/lib/design-tokens";
-import { getMedicalRecordStatusColor } from "@/utils/status-helpers";
+import { getMedicalRecordStatusColor } from "@/lib/status-helpers";
 import { useStaffValidation } from "@/hooks/use-staff-validation";
 
 // Relative

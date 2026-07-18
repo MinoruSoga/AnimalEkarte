@@ -6,8 +6,8 @@ import { ja } from "date-fns/locale";
 // Internal
 import { C } from "@/lib/design-tokens";
 import { useClinicTaxRates } from "@/hooks/use-clinic-tax-rates";
-import { formatCurrency } from "@/utils/format/number";
-import { DISPLAY_DATE_FORMAT } from "@/utils/format/date";
+import { formatCurrency } from "@/lib/format/number";
+import { DISPLAY_DATE_FORMAT } from "@/lib/format/date";
 // #190: セクション定数 — R-F2-S9 で src/config/ へ抽出
 import {
   DOCUMENT_SECTION_KEYS,

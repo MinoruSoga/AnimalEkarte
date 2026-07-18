@@ -2,7 +2,7 @@
 import { C, ICON } from "@/lib/design-tokens";
 import { todayJSTISO } from "@/lib/jst-date";
 import { memo } from "react";
-import { formatDate } from "@/utils/format/date";
+import { formatDate } from "@/lib/format/date";
 
 // External
 import { Calendar, FileText } from "lucide-react";

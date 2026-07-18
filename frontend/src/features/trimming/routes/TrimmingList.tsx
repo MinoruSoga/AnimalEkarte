@@ -6,7 +6,7 @@ import { useNavigate, useSearchParams } from "react-router";
 // Hooks
 import { useSortableData } from "@/hooks/use-sortable-data";
 import { useModalState } from "@/hooks/use-modal-state";
-import { uniqueSortedOptions } from "@/utils/unique-sorted-options";
+import { uniqueSortedOptions } from "@/lib/unique-sorted-options";
 
 // External
 import { Plus, Scissors } from "lucide-react";

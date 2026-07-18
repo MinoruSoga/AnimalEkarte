@@ -2,7 +2,7 @@ import { GripVertical } from "lucide-react";
 
 import { StatusPill } from "@/components/shared/StatusPill/StatusPill";
 import { C, ICON, STYLE } from "@/lib/design-tokens";
-import { formatCurrency } from "@/utils/format/number";
+import { formatCurrency } from "@/lib/format/number";
 
 import type { FrontendMerchandiseItem } from "../api/merchandise-items";
 import {

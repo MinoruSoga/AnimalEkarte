@@ -4,7 +4,7 @@ import { Link } from "react-router";
 import { BADGE, C } from "@/lib/design-tokens";
 import { CPM_STAGE_SHORT_LABELS, type CPMStage } from "@/lib/cpm-stage";
 import { paths } from "@/config/paths";
-import { formatCurrency } from "@/utils/format/number";
+import { formatCurrency } from "@/lib/format/number";
 
 import type { AggregationOwner, LastVisitBucket } from "../api/get-aggregations";
 import type { AggregationTab } from "./aggregation-filter-panel-model";

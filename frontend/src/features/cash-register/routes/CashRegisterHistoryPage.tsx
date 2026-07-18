@@ -12,7 +12,7 @@ import {
 import { formatJSTDateTimeLocal, toJSTWallDate } from "@/lib/jst-date";
 import { Pagination } from "@/components/shared/Pagination";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
-import { formatCurrency } from "@/utils/format/number";
+import { formatCurrency } from "@/lib/format/number";
 import { useGetCashRegisterCloses } from "../api/get-cash-register-closes";
 import type { CashRegisterClose } from "../api/get-cash-register-closes";
 import { PERIOD_LABELS, PERIOD_OPTIONS, type CashRegisterPeriod } from "../constants";

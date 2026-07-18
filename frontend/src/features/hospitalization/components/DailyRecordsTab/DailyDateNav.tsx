@@ -5,7 +5,7 @@ import { useCallback, useMemo } from "react";
 // Internal
 import { CalendarNavToolbar } from "@/components/shared/CalendarNavToolbar";
 import { formatJSTWallDate } from "@/lib/jst-date";
-import { formatJapaneseDate } from "@/utils/format/date";
+import { formatJapaneseDate } from "@/lib/format/date";
 
 interface DailyDateNavProps {
     selectedDate: string; // YYYY-MM-DD

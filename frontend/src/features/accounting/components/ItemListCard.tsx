@@ -13,7 +13,7 @@ import { EmptyState } from "@/components/shared/DataStates";
 import { FormFieldError } from "@/components/shared/FormFieldError/FormFieldError";
 import { C, ICON, LAYOUT } from "@/lib/design-tokens";
 import { DEFAULT_STANDARD_TAX_RATE, DEFAULT_REDUCED_TAX_RATE } from "@/constants/tax";
-import { formatCurrency } from "@/utils/format/number";
+import { formatCurrency } from "@/lib/format/number";
 import { CATEGORY_LABELS } from "@/constants/item-category";
 import type { TaxType } from "@/types/generated/models";
 

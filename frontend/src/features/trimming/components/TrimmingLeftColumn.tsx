@@ -9,7 +9,7 @@ import { FormFieldError } from "@/components/shared/FormFieldError/FormFieldErro
 import { MasterLink } from "@/components/shared/MasterLink";
 import { MasterSelectTrigger } from "@/components/shared/MasterSelectModal";
 import { C, ICON } from "@/lib/design-tokens";
-import { formatCurrency } from "@/utils/format/number";
+import { formatCurrency } from "@/lib/format/number";
 
 import type { TrimmingLeftColumnProps } from "./trimming-form-column-types";
 import { TrimmingImageUploadField } from "./TrimmingImageUploadField";

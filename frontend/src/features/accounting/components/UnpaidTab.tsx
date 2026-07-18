@@ -9,7 +9,7 @@ import { LoadingFallback, ErrorFallback, EmptyState } from "@/components/shared/
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { C, STYLE } from "@/lib/design-tokens";
 import { paths } from "@/config/paths";
-import { formatCurrency } from "@/utils/format/number";
+import { formatCurrency } from "@/lib/format/number";
 import { daysSince, currentJSTYearMonth } from "@/lib/jst-date";
 
 import {

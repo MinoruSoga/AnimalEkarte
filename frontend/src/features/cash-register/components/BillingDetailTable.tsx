@@ -1,7 +1,7 @@
 import { memo } from "react";
 import { C, STYLE } from "@/lib/design-tokens";
 import { formatJSTTime } from "@/lib/jst-date";
-import { formatCurrency } from "@/utils/format/number";
+import { formatCurrency } from "@/lib/format/number";
 import type { CloseBillingDetail } from "../api/get-cash-register-preview";
 import { CATEGORY_LABELS } from "../constants";
 

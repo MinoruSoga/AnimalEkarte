@@ -9,7 +9,7 @@ import { CategoryChipsFilter } from "@/components/shared/CategoryChipsFilter";
 import { FilteringIndicator } from "@/components/shared/FilteringIndicator/FilteringIndicator";
 import { C } from "@/lib/design-tokens";
 import { normalizeKana } from "@/lib/normalize-kana";
-import { formatCurrency } from "@/utils/format/number";
+import { formatCurrency } from "@/lib/format/number";
 import {
   useGetAllConsultations,
   useGetAllProcedures,

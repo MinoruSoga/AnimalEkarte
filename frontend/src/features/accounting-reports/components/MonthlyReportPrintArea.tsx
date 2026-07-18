@@ -1,6 +1,6 @@
 import { PrintPortal } from "@/components/shared/PrintPortal";
 import { formatTaxRatePercent } from "@/hooks/use-clinic-tax-rates";
-import { formatCurrency } from "@/utils/format/number";
+import { formatCurrency } from "@/lib/format/number";
 import type { MonthlyReportResponse } from "../api/get-monthly-report";
 
 interface MonthlyReportPrintAreaProps {

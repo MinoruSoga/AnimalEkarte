@@ -1,7 +1,7 @@
 import { memo, useMemo } from "react";
 import { EmptyState } from "@/components/shared/DataStates";
 import { C, STYLE } from "@/lib/design-tokens";
-import { formatCurrency } from "@/utils/format/number";
+import { formatCurrency } from "@/lib/format/number";
 import type { PaymentMethodMaster } from "@/types/generated/models";
 import type { CloseBillingDetail } from "../api/get-cash-register-preview";
 import { buildUnifiedClosingRows, buildUnifiedClosingTotals } from "../closing-summary";

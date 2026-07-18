@@ -6,7 +6,7 @@ import { DatePicker } from "@/components/shared/DatePicker";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { SortOrder } from "@/types";
 import { SORT_ORDER_VALUES } from "@/types";
-import { getSortOrderLabel } from "@/utils/status-helpers";
+import { getSortOrderLabel } from "@/lib/status-helpers";
 import { isOneOf } from "@/lib/type-utils";
 import { C } from "@/lib/design-tokens";
 

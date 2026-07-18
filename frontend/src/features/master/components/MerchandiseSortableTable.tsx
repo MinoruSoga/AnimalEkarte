@@ -8,7 +8,7 @@ import { StatusPill } from "@/components/shared/StatusPill/StatusPill";
 import { SortableDataTableRow } from "@/components/shared/DataTable/SortableDataTableRow";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { C, ICON, STYLE } from "@/lib/design-tokens";
-import { formatCurrency } from "@/utils/format/number";
+import { formatCurrency } from "@/lib/format/number";
 
 import type { FrontendMerchandiseItem } from "../api/merchandise-items";
 import {

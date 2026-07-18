@@ -4,7 +4,7 @@ import { Check, Octagon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { formatDate } from "@/utils/format/date";
+import { formatDate } from "@/lib/format/date";
 import type { Pet } from "@/types";
 
 interface PetSelectionResultsTableProps {

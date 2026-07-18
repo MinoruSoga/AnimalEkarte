@@ -1,7 +1,7 @@
 import { memo } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { C } from "@/lib/design-tokens";
-import { formatCurrency } from "@/utils/format/number";
+import { formatCurrency } from "@/lib/format/number";
 import { useGetOwnerUnpaidBalance } from "../api/get-owner-unpaid-balance";
 
 interface OwnerUnpaidBalanceCardProps {

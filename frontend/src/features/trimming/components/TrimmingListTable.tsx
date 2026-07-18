@@ -17,7 +17,7 @@ import { SortableHeader } from "@/components/shared/SortableHeader/SortableHeade
 import { StatusBadge } from "@/components/shared/StatusBadge/StatusBadge";
 import { C, ICON } from "@/lib/design-tokens";
 import type { TrimmingUI } from "@/types";
-import { getTrimmingStatusColor } from "@/utils/status-helpers";
+import { getTrimmingStatusColor } from "@/lib/status-helpers";
 
 // フィルタ定義 (TRIMMING_STATIC_FILTER_PROPERTIES / buildTrimmingDynamicFilterProperties) は
 // TrimmingListTableModel.ts に分離済み (react-refresh/only-export-components)。

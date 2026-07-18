@@ -1,6 +1,6 @@
 // Internal
 import { PatientInfoCard } from "@/components/shared/PatientInfoCard";
-import { formatDate } from "@/utils/format/date";
+import { formatDate } from "@/lib/format/date";
 
 // Types
 import type { Hospitalization } from "@/types";

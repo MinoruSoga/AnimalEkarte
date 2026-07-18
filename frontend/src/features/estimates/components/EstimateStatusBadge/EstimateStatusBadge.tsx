@@ -1,5 +1,5 @@
 import { StatusBadge } from '@/components/shared/StatusBadge/StatusBadge';
-import { getEstimateStatusColor } from '@/utils/status-helpers';
+import { getEstimateStatusColor } from '@/lib/status-helpers';
 import type { EstimateStatus } from '../../types';
 
 const STATUS_LABELS: Record<EstimateStatus, string> = {

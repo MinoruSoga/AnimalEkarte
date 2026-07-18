@@ -1,7 +1,7 @@
 import { memo } from "react";
 import { EmptyState } from "@/components/shared/DataStates";
 import { C, STYLE } from "@/lib/design-tokens";
-import { formatCurrency } from "@/utils/format/number";
+import { formatCurrency } from "@/lib/format/number";
 import type { DailyReportDetail } from "../api/get-monthly-report";
 
 interface DailyBreakdownTableProps {

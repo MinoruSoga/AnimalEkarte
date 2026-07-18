@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { C, ICON, LAYOUT } from "@/lib/design-tokens";
 import { openOwnerReport } from "@/lib/owner-report-window";
 import { usePermission } from "@/hooks/use-permission";
-import { getMedicalRecordStatusColor } from "@/utils/status-helpers";
+import { getMedicalRecordStatusColor } from "@/lib/status-helpers";
 import { ResourceMedicalRecords } from "@/types/generated/models";
 import { todayJSTISO } from "@/lib/jst-date";
 import type { Pet } from "@/types";

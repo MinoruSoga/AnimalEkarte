@@ -25,7 +25,7 @@ import { BillingDetailTable } from "../components/BillingDetailTable";
 import { ClosePrintArea } from "../components/ClosePrintArea";
 import { useCashRegisterCloseForm } from "../hooks/use-cash-register-close-form";
 import { ResourceCashRegisterClose } from "@/types/generated/models";
-import { formatCurrency } from "@/utils/format/number";
+import { formatCurrency } from "@/lib/format/number";
 
 export function CashRegisterClosePage() {
   const { date, period, previewEnabled, handleDateChange, handlePeriodChange, enablePreview } =

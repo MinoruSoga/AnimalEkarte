@@ -8,7 +8,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar as CalendarIcon, Clock, ArrowRight } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { DISPLAY_TIME_FORMAT } from "@/utils/format/date";
+import { DISPLAY_TIME_FORMAT } from "@/lib/format/date";
 import { TIME_OPTIONS } from "./reservation-time-utils";
 import type { Reservation } from "@/types";
 

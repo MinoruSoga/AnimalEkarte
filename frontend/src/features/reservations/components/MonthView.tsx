@@ -9,7 +9,7 @@ import { ja } from "date-fns/locale";
 // Internal
 import { C } from "@/lib/design-tokens";
 import { toJSTWallDate } from "@/lib/jst-date";
-import { getReservationTypeColor } from "@/utils/status-helpers";
+import { getReservationTypeColor } from "@/lib/status-helpers";
 import { DAY_OF_WEEK_LABEL_LIST } from "@/constants/day-of-week";
 
 // Types

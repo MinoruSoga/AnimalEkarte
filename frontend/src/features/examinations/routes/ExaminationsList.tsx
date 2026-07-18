@@ -5,7 +5,7 @@ import { useNavigate, useSearchParams } from "react-router";
 
 // Hooks
 import { useSortableData } from "@/hooks/use-sortable-data";
-import { uniqueSortedOptions } from "@/utils/unique-sorted-options";
+import { uniqueSortedOptions } from "@/lib/unique-sorted-options";
 
 // External
 import { Plus, TestTube, Calendar, CircleDot, FlaskConical, User, Info } from "lucide-react";
@@ -21,7 +21,7 @@ import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
 import { StatusBadge } from "@/components/shared/StatusBadge/StatusBadge";
 import { RowActionButton } from "@/components/shared/RowActionButton";
 import { SortableHeader } from "@/components/shared/SortableHeader/SortableHeader";
-import { getExaminationStatusColor } from "@/utils/status-helpers";
+import { getExaminationStatusColor } from "@/lib/status-helpers";
 import { Pagination } from "@/components/shared/Pagination/Pagination";
 import { FilteringIndicator } from "@/components/shared/FilteringIndicator/FilteringIndicator";
 

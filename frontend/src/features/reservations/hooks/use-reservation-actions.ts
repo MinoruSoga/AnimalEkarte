@@ -5,7 +5,7 @@ import { toast } from "sonner";
 
 import { handleApiError } from "@/lib/handle-api-error";
 import { jstWallDateToISOString } from "@/lib/jst-date";
-import { getReservationStatusLabel } from "@/utils/status-helpers";
+import { getReservationStatusLabel } from "@/lib/status-helpers";
 import type { ReservationCreateMutations } from "@/types/reservation-create-mutations";
 
 import { useCreateReservation } from "../api/create-reservation";

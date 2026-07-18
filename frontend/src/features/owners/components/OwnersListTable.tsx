@@ -10,9 +10,9 @@ import { RowActionDropdown } from "@/components/shared/RowActionDropdown";
 import { StatusBadge } from "@/components/shared/StatusBadge/StatusBadge";
 import type { ActiveFilter, FilterProperty } from "@/components/shared/PropertyFilter/types";
 import { C, STYLE } from "@/lib/design-tokens";
-import { formatDate } from "@/utils/format/date";
-import { formatWeight } from "@/utils/format/number";
-import { getPetStatusColor } from "@/utils/status-helpers";
+import { formatDate } from "@/lib/format/date";
+import { formatWeight } from "@/lib/format/number";
+import { getPetStatusColor } from "@/lib/status-helpers";
 import type { Pet } from "@/types";
 
 // DESIGN.md ex-data-table-cell: header は canvas-soft 背景 + eyebrow 相当タイポグラフィ（12px/600/tracking）。

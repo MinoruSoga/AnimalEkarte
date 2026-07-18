@@ -11,7 +11,7 @@ import { Plus, GripVertical } from "lucide-react";
 import { Card, CardHeader, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { getHospitalizationTypeColor } from "@/utils/status-helpers";
+import { getHospitalizationTypeColor } from "@/lib/status-helpers";
 
 // Relative
 import { H_STYLES } from "../styles";

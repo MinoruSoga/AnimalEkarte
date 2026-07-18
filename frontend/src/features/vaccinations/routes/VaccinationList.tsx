@@ -5,7 +5,7 @@ import { useNavigate, useSearchParams } from "react-router";
 
 // Hooks
 import { useSortableData } from "@/hooks/use-sortable-data";
-import { uniqueSortedOptions } from "@/utils/unique-sorted-options";
+import { uniqueSortedOptions } from "@/lib/unique-sorted-options";
 
 // External
 import { Plus, Syringe, Calendar, User, Pencil, Trash2 } from "lucide-react";

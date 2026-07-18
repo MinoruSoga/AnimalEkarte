@@ -1,7 +1,7 @@
 import { memo, useMemo } from 'react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { formatCurrency } from '@/utils/format/number';
-import { calcLineItemAmount } from '@/utils/line-item-helpers';
+import { formatCurrency } from '@/lib/format/number';
+import { calcLineItemAmount } from '@/lib/line-item-helpers';
 import type { EstimateLineItem } from '../../types';
 import { C } from '@/lib/design-tokens';
 // FE5-26: 会計側の訳語(処方/フード/物販等)へ統一。旧ローカル定義(薬剤/食事/物品)は廃止。

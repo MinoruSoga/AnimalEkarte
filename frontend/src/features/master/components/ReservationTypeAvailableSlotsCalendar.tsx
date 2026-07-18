@@ -15,7 +15,7 @@ import { SubmitButton } from "@/components/shared/Form/SubmitButton";
 import { CalendarNavToolbar } from "@/components/shared/CalendarNavToolbar";
 import { C, ICON, STYLE } from "@/lib/design-tokens";
 import { toJSTWallDate } from "@/lib/jst-date";
-import { DISPLAY_DATE_FORMAT } from "@/utils/format/date";
+import { DISPLAY_DATE_FORMAT } from "@/lib/format/date";
 import { paths } from "@/config/paths";
 import { AvailableSlotTypeSpecific, AvailableSlotTypeWeekly } from "@/types/generated/models";
 import {

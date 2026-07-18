@@ -1,5 +1,5 @@
 import { C } from "@/lib/design-tokens";
-import { formatCurrency } from "@/utils/format/number";
+import { formatCurrency } from "@/lib/format/number";
 
 import type { CashCardAmount } from "./daily-accounting-utils";
 
