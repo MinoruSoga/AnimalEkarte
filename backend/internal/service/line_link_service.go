@@ -15,7 +15,7 @@ import (
 	"net/url"
 	"time"
 
-	apperrors "github.com/animal-ekarte/backend/internal/errors"
+	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/infra/crypto"
 	"github.com/animal-ekarte/backend/internal/infra/line"
 	"github.com/animal-ekarte/backend/internal/model"

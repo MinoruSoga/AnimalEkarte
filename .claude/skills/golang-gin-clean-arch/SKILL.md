@@ -378,7 +378,7 @@ func (h *Handler) RegisterOwnerRoutes(rg *gin.RouterGroup) {
 ## Error Flow
 
 ```go
-// internal/errors/errors.go
+// internal/apperrors/errors.go
 var (
     ErrNotFound      = errors.New("resource not found")
     ErrInvalidInput  = errors.New("invalid input")

@@ -7,7 +7,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	apperrors "github.com/animal-ekarte/backend/internal/errors"
+	"github.com/animal-ekarte/backend/internal/apperrors"
 )
 
 // medicineListMaxLimit はマスタ全件取得の上限定数（他マスタと統一の全件返却）

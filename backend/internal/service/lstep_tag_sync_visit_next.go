@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	apperrors "github.com/animal-ekarte/backend/internal/errors"
+	"github.com/animal-ekarte/backend/internal/apperrors"
 )
 
 // SyncNextVisitTag は次回来院推奨日タグを同期する（BE-006）。

@@ -6,7 +6,7 @@ package service
 // 計算時だけでなく書込時に弾くことで、誤 per_weight 設定（IU/%/非mg・含量欠落）が DB に入るのを防ぐ。
 
 import (
-	apperrors "github.com/animal-ekarte/backend/internal/errors"
+	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
 )
 

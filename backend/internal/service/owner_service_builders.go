@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	apperrors "github.com/animal-ekarte/backend/internal/errors"
+	"github.com/animal-ekarte/backend/internal/apperrors"
 )
 
 // buildOwnerUpdate はポインタが非 nil のフィールドのみ map に追加する

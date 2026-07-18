@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/animal-ekarte/backend/internal/config"
-	apperrors "github.com/animal-ekarte/backend/internal/errors"
+	"github.com/animal-ekarte/backend/internal/apperrors"
 )
 
 func TestNewLstepDeliveryMonitorSummaryQuery(t *testing.T) {

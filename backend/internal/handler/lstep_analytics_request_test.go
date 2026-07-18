@@ -4,7 +4,7 @@ import (
 	"net/url"
 	"testing"
 
-	apperrors "github.com/animal-ekarte/backend/internal/errors"
+	"github.com/animal-ekarte/backend/internal/apperrors"
 )
 
 func TestNewLstepMonthlyDeliveryStatsQuery(t *testing.T) {

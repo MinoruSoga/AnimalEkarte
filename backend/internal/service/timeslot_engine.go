@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"sort"
 
-	apperrors "github.com/animal-ekarte/backend/internal/errors"
+	"github.com/animal-ekarte/backend/internal/apperrors"
 )
 
 // ---- 時間表現ヘルパー ----

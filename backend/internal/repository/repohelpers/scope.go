@@ -6,7 +6,7 @@ import (
 
 	"gorm.io/gorm"
 
-	apperrors "github.com/animal-ekarte/backend/internal/errors"
+	"github.com/animal-ekarte/backend/internal/apperrors"
 )
 
 // MaxMasterListRows is the safety cap for master list queries (C-10).

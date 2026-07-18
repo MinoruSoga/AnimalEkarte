@@ -4,7 +4,7 @@ import (
 	"context"
 	"log/slog"
 
-	apperrors "github.com/animal-ekarte/backend/internal/errors"
+	"github.com/animal-ekarte/backend/internal/apperrors"
 )
 
 func (s *lstepBatchService) RunLTVTopPercentSyncAllClinics(ctx context.Context) error {

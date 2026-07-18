@@ -5,7 +5,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	apperrors "github.com/animal-ekarte/backend/internal/errors"
+	"github.com/animal-ekarte/backend/internal/apperrors"
 )
 
 func validateRequiredName(name string) error {

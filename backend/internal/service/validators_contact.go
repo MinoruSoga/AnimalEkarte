@@ -3,7 +3,7 @@ package service
 import (
 	"regexp"
 
-	apperrors "github.com/animal-ekarte/backend/internal/errors"
+	"github.com/animal-ekarte/backend/internal/apperrors"
 )
 
 // RFC 5322簡易的なメール形式パターン

@@ -35,7 +35,7 @@
 ### 規模と実績
 - **実装規模**: 108 テーブル、88 ハンドラー（`backend/internal/handler/*_handler.go` ファイル数）、15 配信トリガー。
 
-- **エラー処理**: `internal/errors` による統一されたセンチネルエラー体系。
+- **エラー処理**: `internal/apperrors` による統一されたセンチネルエラー体系。
 
 ---
 

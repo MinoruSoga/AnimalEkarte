@@ -11,7 +11,7 @@ import (
 	"golang.org/x/text/encoding/japanese"
 	"golang.org/x/text/transform"
 
-	apperrors "github.com/animal-ekarte/backend/internal/errors"
+	"github.com/animal-ekarte/backend/internal/apperrors"
 )
 
 // decodeCsvBytes は CSV のバイト列を文字コード判定して UTF-8 文字列に変換する。

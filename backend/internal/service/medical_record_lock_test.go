@@ -6,7 +6,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	apperrors "github.com/animal-ekarte/backend/internal/errors"
+	"github.com/animal-ekarte/backend/internal/apperrors"
 )
 
 // TestLockDraftMedicalRecord_NilParentFailsClosed は、LockByIDForUpdate が (nil, nil) を

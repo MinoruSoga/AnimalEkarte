@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	apperrors "github.com/animal-ekarte/backend/internal/errors"
+	"github.com/animal-ekarte/backend/internal/apperrors"
 )
 
 // BUG-LINE-012: LIFF 予約作成入力のサイズ制限定数。

@@ -5,7 +5,7 @@ import (
 	"strings"
 	"time"
 
-	apperrors "github.com/animal-ekarte/backend/internal/errors"
+	"github.com/animal-ekarte/backend/internal/apperrors"
 )
 
 // errFlexibleDateParse は parseFlexibleDate 内部の sentinel error。

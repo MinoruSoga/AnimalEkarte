@@ -3,7 +3,7 @@ package repository
 import (
 	"context"
 
-	apperrors "github.com/animal-ekarte/backend/internal/errors"
+	"github.com/animal-ekarte/backend/internal/apperrors"
 
 	"gorm.io/gorm"
 )

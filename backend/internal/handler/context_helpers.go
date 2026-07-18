@@ -7,7 +7,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	apperrors "github.com/animal-ekarte/backend/internal/errors"
+	"github.com/animal-ekarte/backend/internal/apperrors"
 )
 
 // maxClinicIDsParam は clinic_ids クエリパラメータの上限数 (staff_request の clinic_ids binding max=50 と整合)

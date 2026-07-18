@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/animal-ekarte/backend/internal/config"
-	apperrors "github.com/animal-ekarte/backend/internal/errors"
+	"github.com/animal-ekarte/backend/internal/apperrors"
 )
 
 func (s *lstepBatchService) runDeliveryTriggersForClinic(ctx context.Context, clinicID uint64) (int, []error) {

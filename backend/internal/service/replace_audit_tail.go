@@ -4,7 +4,7 @@ import (
 	"context"
 	"log/slog"
 
-	apperrors "github.com/animal-ekarte/backend/internal/errors"
+	"github.com/animal-ekarte/backend/internal/apperrors"
 )
 
 // logReplaceDeletionTx は replace系操作（スナップショット→Replace→削除監査）の監査テールを
