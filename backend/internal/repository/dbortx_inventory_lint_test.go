@@ -69,7 +69,7 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"accounting_repository.go|accountingRepository.SavePaymentSplits":              {},
 	"accounting_repository.go|accountingRepository.Update":                         {},
 	// audit (#211 tx-internal)
-	"audit_repository.go|auditRepository.CreateTx": {},
+	"audit/repository.go|repository.CreateTx": {}, // BE8-4 batch22: moved from audit_repository.go
 	// billing_confirmation (SD-2 系ガード監査: 会計医師確認 Confirm/Return が確定済みカルテ書込
 	// ガード対象と判明。billingConfirmationService.Confirm/Return の LockByIDForUpdate ambient tx
 	// に参加させる)
