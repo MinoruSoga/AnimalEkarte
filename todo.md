@@ -124,7 +124,6 @@ SearchableSelect 本体 = `frontend/src/components/ui/searchable-select.tsx`。�
 | `BE-pending.md` | 着手保留・次期送り・任意検証の BE 詳細 |
 | `q&a.html` | 内部 PO 判断キュー（決裁記録の正本。PO-001〜008・SD-1〜19・GAP-1/2 回答済み） |
 | `task.html` | PR #186 Codex レビュー残タスク（Open スレッド＋値投入待ち） |
-| `FE-refactor.md` | **FE 第7期計画（2026-07-17 起票・repo 直下・対応後削除予定）**: 主目的 = ESLint 境界ガード新設（Feature Indexing の機械強制・FE7-0）+ 小粒整理4件。frontend 構成チェックの結果、規約適合はほぼ完璧のため構造再編はしない。着手は Go-live 後 |
 | `BE-refactor.md` | **BE 第8期計画（repo 直下・対応後削除予定）**: backend/ 全体のパッケージ構成統一の移行手順（BE8-0〜8）。**コード規約の恒久正本 = `.claude/rules/go-package-conventions.md`**（計画削除後も規約はそこに残る・`.agents/skills/` へ自動ミラー）。着手は Go-live 後・BE8-0（lint 網羅性固定）が必須ゲート |
 
-> 旧 `BE_todo.md` は本ファイルへ吸収済み（削除）。`FE-refactor.md` は第6期版を吸収・削除後、2026-07-17 に第7期計画として新設（対応後削除予定）。`BE-refactor.md` は第7期版を吸収・削除後、2026-07-17 に第8期計画として新設（対応後削除予定・コード規約の恒久正本は `.claude/rules/go-package-conventions.md` へ分離）。旧 `docs/tasks/`・`docs/archive/` は 2026-07-16 に廃止（詳細は git 履歴）。
+> 旧 `BE_todo.md` は本ファイルへ吸収済み（削除）。`FE-refactor.md`（FE 第7期計画・ESLint 境界ガード新設 FE7-0〜2 + FE7-3/4 判断）は 2026-07-18 に対応完了・削除済み。恒久規約は `frontend/CLAUDE.md`（Shared Helper 配置/Shared Constants 配置/shared-liff 配置/Import 境界 Lint/design-tokens 例外の各節）へ同梱済み。FE7-4(a)（`src/contexts/` の lib/hooks 吸収）は配置先が規約から一意に定まらず skip・follow-up 化（18 importers・過剰整理回避）。`BE-refactor.md` は第7期版を吸収・削除後、2026-07-17 に第8期計画として新設（対応後削除予定・コード規約の恒久正本は `.claude/rules/go-package-conventions.md` へ分離）。旧 `docs/tasks/`・`docs/archive/` は 2026-07-16 に廃止（詳細は git 履歴）。
