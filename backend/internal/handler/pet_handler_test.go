@@ -526,13 +526,24 @@ func TestUpdatePet(t *testing.T) {
 			svc:        &mockPetServiceHandler{},
 			wantStatus: http.StatusBadRequest,
 		},
+		// BUG-415: "returns 400 for invalid status" was removed — updatePetRequest no
+		// longer binds a "status" field at all (see pet_request.go), so a "status" key
+		// in the PATCH body is now silently ignored as unknown JSON rather than
+		// validated/rejected. Coverage moves to the case below, which proves that
+		// silent-ignore behavior end-to-end through the real handler.
 		{
-			name:       "returns 400 for invalid status",
-			paramID:    "1",
-			body:       map[string]any{"status": "invalid"},
-			setupCtx:   func(c *gin.Context) { setClinicID(c) },
-			svc:        &mockPetServiceHandler{},
-			wantStatus: http.StatusBadRequest,
+			name:     "ignores status in PATCH body (status write is not part of generic update, BUG-415)",
+			paramID:  "1",
+			body:     map[string]any{"name": "タマ", "status": "deceased"},
+			setupCtx: func(c *gin.Context) { setClinicID(c) },
+			svc: &mockPetServiceHandler{
+				updateFn: func(_ context.Context, _, _ uint64, input *service.UpdatePetInput) (*model.Pet, error) {
+					require.NotNil(t, input.Name)
+					assert.Equal(t, "タマ", *input.Name)
+					return &model.Pet{ID: 1, Name: *input.Name}, nil
+				},
+			},
+			wantStatus: http.StatusOK,
 		},
 		{
 			name:     "returns 404 when pet not found",
