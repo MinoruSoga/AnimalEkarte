@@ -106,6 +106,12 @@ export function useMedicalRecordSaveAction({
               setManualErrors(diagError);
               return { success: false, fieldErrors: diagError, timestamp: Date.now() };
             }
+            // BUG-416 ②: diagnosis1 と同じバリデーションを diagnosis2 にも適用する（FE validation parity）
+            if (diagnosis2CategoryId && !diagnosis2NameId) {
+              const diagError = { diagnosis2_name_id: "診断名を選択してください" };
+              setManualErrors(diagError);
+              return { success: false, fieldErrors: diagError, timestamp: Date.now() };
+            }
             // BUG-102: DEFAULT値でも常に送信する（undefined を送ると BE が 400 を返す）
             const treatmentPlanPayload = {
               treatment_policy: plan,

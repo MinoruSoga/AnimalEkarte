@@ -481,6 +481,30 @@ describe("useMedicalRecordForm", () => {
       expect(result.current.formState.success).toBe(false);
     });
 
+    // BUG-416 ②: diagnosis1 と同じバリデーションを diagnosis2 にも適用する（FE validation parity）
+    it("recordId あり & 診察/治療プランタブ & diagnosis2CategoryId あり & diagnosis2NameId なし → バリデーションエラー", async () => {
+      const { result } = renderHook(() => useMedicalRecordForm("10"));
+
+      // タブを診察/治療プランに切り替え
+      act(() => { result.current.setActiveTab("診察/治療プラン"); });
+      await waitFor(() => {
+        expect(result.current.activeTab).toBe("診察/治療プラン");
+      });
+      // 診断2カテゴリを設定、名前は未設定
+      act(() => { result.current.setDiagnosis2CategoryId(5); });
+      await waitFor(() => {
+        expect(result.current.diagnosis2CategoryId).toBe(5);
+      });
+
+      runFormAction(result.current.formAction);
+      await waitFor(() => {
+        expect(result.current.formState.fieldErrors?.diagnosis2_name_id).toBe("診断名を選択してください");
+      });
+
+      // toast.error は使わず fieldErrors でインライン表示する
+      expect(result.current.formState.success).toBe(false);
+    });
+
     // BUG-410: hydrate された diagnosis1/2 が実際の保存ペイロードに反映されることを、
     // state のアサーションではなく updateTreatmentPlanMutation.mutateAsync への
     // 実引数で証明する。state レベルのテスト（use-medical-record-form.test.ts）だけでは
