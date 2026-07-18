@@ -45,6 +45,9 @@ description: commit/push 前のスコープ限定ローカル検証ゲート。�
 - **lint の「全件直した」判定は cap 解除フラグ付きで行う**: `--max-same-issues 0 --max-issues-per-linter 0` を明示付与する。cap が有効な設定では件数が隠蔽される（実 11 件が 10 件表示され、10 件直しても 11 件目が後出しした実例。現行 backend/.golangci.yml は解除済みだがフラグ明示はドリフト耐性がある）。（出典: memory ops_golangci_lint_cap_and_reconcile_20260630）
 - **post-edit-typecheck-ts.js の exit 2 には false-positive がある**: 出力が `DB_USER variable is not set` 等の docker compose env 警告のみで `error TS` 行が無ければ実エラーではない。`grep -cE 'error TS'` の有無で判定する。（出典: memory feedback_frontend_verify_harness_gotchas）
 - **PostToolUse formatter hook が日本語コメントを行折返しで破壊しコンパイルを壊すことがある**。編集後は touched package を `go build ./internal/<pkg>/...` で必ず確認する。（出典: memory cross_tenant_write_audit_20260629）
+- **frontend の import path 改名・移行は `src` `liff/src` `line-reserve/src` の3アプリ全域を対象にする**: 3アプリは `tsconfig.json` の同一 `include`（`src`, `liff/src`, `line-reserve/src`）で同一 `@/` alias を共有する。grep・機械置換を `frontend/src` 限定で行うと他2アプリの死にimportを見逃す（実例: `@/utils/` → `@/lib/` 置換が `line-reserve/src/pages/TrimmingOptionSelectPage.tsx` 等2件を残し、独立レビューの tsc で発見）。（出典: memory fe7_utils_lib_migration_scope_trap_20260718）
+- **`tsc --noEmit`（`pnpm type-check`）は test ファイルを検証しない**: `frontend/tsconfig.json` の `exclude` が `src/**/*.test.tsx` 等（`liff/src`・`line-reserve/src` も同様のパターンで除外、`*.spec.*` は `src` のみ）を除外するため、tsc は本番コードのみを type/module 解決チェックする。import 改名の importer にテストファイルが含まれる場合、tsc が exit 0 でも死にimportを検出できない。`docker compose exec frontend npx vitest run <該当パス>` で module 解決を実証する（dead import なら vitest が fail-fast。実例: `@/contexts/auth-context` → `@/hooks/auth-context` の18 importer中大半がテストファイルで、advisor 指摘後 vitest で17件を実証）。（出典: memory fe7_utils_lib_migration_scope_trap_20260718）
+- **検証ツール別の盲点を PASS 判定前に照合する**: tsc=テストファイル除外・ESLint（`no-restricted-imports`等）=module解決しない・grep=列挙した dir のみが対象。「検証面 ⊇ 変更面」（変更したファイル集合が検証コマンドのスコープに完全に含まれるか）を確認してから完了報告する。（出典: memory fe7_utils_lib_migration_scope_trap_20260718）
 
 ## 良い例・悪い例
 
@@ -75,4 +78,4 @@ docker compose exec backend go test ./...
 
 ## 出典
 
-memory: `feedback_claudecode_local_verify_skipping` / `ops_backend_scoped_lint_entrypoint_override` / `feedback_frontend_verify_harness_gotchas` / `feedback_pnpm_haiku` / `ops_golangci_lint_stale_cache_false_zero`
+memory: `feedback_claudecode_local_verify_skipping` / `ops_backend_scoped_lint_entrypoint_override` / `feedback_frontend_verify_harness_gotchas` / `feedback_pnpm_haiku` / `ops_golangci_lint_stale_cache_false_zero` / `fe7_utils_lib_migration_scope_trap_20260718`
