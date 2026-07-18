@@ -211,7 +211,7 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"vital_repository.go|vitalRepository.Delete": {},
 	// G6-2 (BE-refactor.md tx-mechanism-consolidation): repo-internal r.db.WithContext(ctx).Transaction
 	// → dbOrTx(ctx, r.db).Transaction conversion, no ambient-tx caller into any of these (verified per-file).
-	"manual_article_repository.go|manualArticleRepository.Upsert":                       {},
+	"manualarticle/repository.go|repository.Upsert":                                     {}, // BE8-4 batch3: moved from manual_article_repository.go
 	"owner_repository.go|ownerRepository.CreateWithPets":                                {},
 	"reservation_schedule_repository.go|reservationScheduleRepository.Save":             {},
 	"reservation_type_liff_repository.go|reservationTypeLiffRepository.UpdateSortOrder": {},
