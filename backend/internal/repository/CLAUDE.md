@@ -217,6 +217,9 @@ Domain packages already split (facade in parent + subpackage impl + `repohelpers
 - closingspecialperiod, trimmingcoursetype, insurance, cage, animalspecies
 - **Wave B complete:** merchandiseitem, occupation, vaccine, examtype, chiefcomplaint
 - **Wave D thin slice done:** reservationtype (type master only)
+- **BE8-4 batch20-28 (leaf splits, non-forbidden):** trimmingoption, procedure, audit, account,
+  checkup, consultation, trimmingcourse, diagnosistype, diagnosisname — see `BE-refactor.md` for
+  the authoritative running batch log; this list is a summary, not the source of truth.
 
 **Wave D remaining (do not batch-implement clusters):** high-coupling — split only after boundary map + service import freeze:
 1. **reservation cluster core** — `reservation_*` booking, schedule/shift, type children (group/slot/unavailable/occupation/liff), line_link_token if tied to booking flows
