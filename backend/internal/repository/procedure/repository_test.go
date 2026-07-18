@@ -1,11 +1,12 @@
-package repository
+package procedure
 
-// procedure_repository_test.go — ProcedureRepository の統合テスト（実 Postgres テスト DB）。
+// repository_test.go — Repository の統合テスト（実 Postgres テスト DB）。
 // happy path・not-found・clinic_id 隔離・ソフトデリート除外・Update/Delete/Reorder・
 // CountChildrenByParentID・CountUsageByProcedureID を対象とする。
 //
-// makeProcedure ヘルパーは treatment_repository_test.go に定義済みのものを再利用する
-// （同一パッケージ内での重複宣言を避けるため）。
+// 移動元: procedure_repository_test.go（BE8-4 batch21）。makeProcedure ヘルパーは
+// 元は treatment_repository_test.go のものを同一パッケージ内で再利用していたが、
+// パッケージ分割に伴い本ファイルへローカル複製する。
 
 import (
 	"context"
@@ -18,22 +19,35 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/repository/repotest"
 )
 
 // setupProcedureRepositoryTestDB は procedures テーブルと、CountUsageByProcedureID が
 // JOIN する medical_records / treatments を用意する。
 func setupProcedureRepositoryTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
-	db := setupTestDB(t)
-	require.NoError(t, ensureAutoMigrated(db, &model.Procedure{}, &model.MedicalRecord{}, &model.Treatment{}))
+	db := repotest.SetupTestDB(t)
+	require.NoError(t, repotest.EnsureAutoMigrated(db, &model.Procedure{}, &model.MedicalRecord{}, &model.Treatment{}))
 	db.Exec("TRUNCATE TABLE treatments CASCADE")
 	db.Exec("TRUNCATE TABLE procedures CASCADE")
 	return db
 }
 
-func TestProcedureRepository_Create_And_FindByID(t *testing.T) {
+func makeProcedure(t *testing.T, db *gorm.DB, clinicID uint64, name string, anesthesia model.AnesthesiaType, isSurgery bool) *model.Procedure {
+	t.Helper()
+	p := &model.Procedure{
+		ClinicID:   clinicID,
+		Name:       name,
+		Anesthesia: anesthesia,
+		IsSurgery:  isSurgery,
+	}
+	require.NoError(t, db.WithContext(context.Background()).Create(p).Error)
+	return p
+}
+
+func TestRepository_Create_And_FindByID(t *testing.T) {
 	db := setupProcedureRepositoryTestDB(t)
-	repo := NewProcedureRepository(db)
+	repo := New(db)
 	ctx := context.Background()
 	const clinicID = uint64(1)
 
@@ -64,9 +78,9 @@ func TestProcedureRepository_Create_And_FindByID(t *testing.T) {
 	})
 }
 
-func TestProcedureRepository_FindAll_ClinicIsolation(t *testing.T) {
+func TestRepository_FindAll_ClinicIsolation(t *testing.T) {
 	db := setupProcedureRepositoryTestDB(t)
-	repo := NewProcedureRepository(db)
+	repo := New(db)
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 
@@ -88,9 +102,9 @@ func TestProcedureRepository_FindAll_ClinicIsolation(t *testing.T) {
 	})
 }
 
-func TestProcedureRepository_FindAll_ExcludesSoftDeleted(t *testing.T) {
+func TestRepository_FindAll_ExcludesSoftDeleted(t *testing.T) {
 	db := setupProcedureRepositoryTestDB(t)
-	repo := NewProcedureRepository(db)
+	repo := New(db)
 	ctx := context.Background()
 	const clinicID = uint64(1)
 
@@ -108,9 +122,9 @@ func TestProcedureRepository_FindAll_ExcludesSoftDeleted(t *testing.T) {
 	assert.Equal(t, int64(1), rawCount, "ソフトデリートされた行はDBにまだ存在する")
 }
 
-func TestProcedureRepository_Update(t *testing.T) {
+func TestRepository_Update(t *testing.T) {
 	db := setupProcedureRepositoryTestDB(t)
-	repo := NewProcedureRepository(db)
+	repo := New(db)
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 
@@ -140,9 +154,9 @@ func TestProcedureRepository_Update(t *testing.T) {
 	})
 }
 
-func TestProcedureRepository_Delete(t *testing.T) {
+func TestRepository_Delete(t *testing.T) {
 	db := setupProcedureRepositoryTestDB(t)
-	repo := NewProcedureRepository(db)
+	repo := New(db)
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 
@@ -171,9 +185,9 @@ func TestProcedureRepository_Delete(t *testing.T) {
 	})
 }
 
-func TestProcedureRepository_Reorder(t *testing.T) {
+func TestRepository_Reorder(t *testing.T) {
 	db := setupProcedureRepositoryTestDB(t)
-	repo := NewProcedureRepository(db)
+	repo := New(db)
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 
@@ -199,10 +213,10 @@ func TestProcedureRepository_Reorder(t *testing.T) {
 	})
 }
 
-// TestProcedureRepository_CountChildrenByParentID は BUG-390 の子手技カウントを検証する。
-func TestProcedureRepository_CountChildrenByParentID(t *testing.T) {
+// TestRepository_CountChildrenByParentID は BUG-390 の子手技カウントを検証する。
+func TestRepository_CountChildrenByParentID(t *testing.T) {
 	db := setupProcedureRepositoryTestDB(t)
-	repo := NewProcedureRepository(db)
+	repo := New(db)
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 
@@ -237,19 +251,19 @@ func TestProcedureRepository_CountChildrenByParentID(t *testing.T) {
 	})
 }
 
-// TestProcedureRepository_CountUsageByProcedureID_KnownCarePlanItemsColumnBug は
+// TestRepository_CountUsageByProcedureID_KnownCarePlanItemsColumnBug は
 // CountUsageByProcedureID（BUG-107）の既知の不具合（本テストで顕在化）を検証する。
 //
-// 既知の不具合: CountUsageByProcedureID の care_plan_items 集計クエリ（procedure_repository.go
+// 既知の不具合: CountUsageByProcedureID の care_plan_items 集計クエリ（repository.go
 // 内の第2クエリ）が `care_plan_items.deleted_at IS NULL` を参照するが、care_plan_items テーブルには
 // deleted_at 列が存在しない（migrations/001_init.sql の CREATE TABLE care_plan_items 定義・
 // model.CarePlanItem 構造体のいずれにも soft-delete 列がない）。medicine_repository.go の
 // CountUsageByMedicineID と全く同型の不具合（medicine_repository_test.go の
 // TestMedicineRepository_CountUsageByMedicineID_TreatmentUsage を参照）。
 // そのため treatments 側の集計が成功していても、本メソッドは呼び出す度にエラーを返す。
-func TestProcedureRepository_CountUsageByProcedureID_KnownCarePlanItemsColumnBug(t *testing.T) {
+func TestRepository_CountUsageByProcedureID_KnownCarePlanItemsColumnBug(t *testing.T) {
 	db := setupProcedureRepositoryTestDB(t)
-	repo := NewProcedureRepository(db)
+	repo := New(db)
 	ctx := context.Background()
 	const clinicA = uint64(1)
 

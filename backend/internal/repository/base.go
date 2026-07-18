@@ -8,10 +8,6 @@ import (
 	"github.com/animal-ekarte/backend/internal/repository/repohelpers"
 )
 
-// maxMasterListRows はマスタ一覧取得の安全上限件数（C-10）。
-// procedure_repository.go 等の Limit を集約。正本は repohelpers.MaxMasterListRows。
-const maxMasterListRows = repohelpers.MaxMasterListRows
-
 // clinicScope は指定した clinic_id でレコードをフィルタする GORM スコープ。
 // 主テーブルが直接 clinic_id カラムを持つ場合に使用する。
 // JOIN 先テーブルを経由してテナント判定する repository では使用不可（JOIN 条件で明示する）。
