@@ -173,7 +173,7 @@ CGO_ENABLED=0 GOOS=linux go build -o main ./cmd/api
 センチネルエラーとエラーラッピングを使用:
 
 ```go
-import apperrors "github.com/animal-ekarte/backend/internal/errors"
+import "github.com/animal-ekarte/backend/internal/apperrors"
 
 // エラー発生時はラッピング
 if err != nil {

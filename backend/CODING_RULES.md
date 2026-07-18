@@ -219,7 +219,7 @@ func GetRequestID(ctx context.Context) string {
 ### 3.1 センチネルエラー
 
 センチネルエラー・`AppError`・ラッピングヘルパー（`Wrap` / `WrapNotFound` / `WrapInvalidInput` /
-`WrapConflict` / `WrapAlreadyExists` / `FromGORM`）の正本は `internal/errors/errors.go` である。
+`WrapConflict` / `WrapAlreadyExists` / `FromGORM`）の正本は `internal/apperrors/errors.go` である。
 実装とのドリフトを防ぐため、本ファイルでは一覧を再掲しない。
 
 ### 3.2 エラー判定
