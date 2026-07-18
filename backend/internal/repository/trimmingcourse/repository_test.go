@@ -1,17 +1,22 @@
-package repository
+package trimmingcourse
 
-// trimming_course_repository_test.go — TrimmingCourseRepository の統合テスト（カバレッジ向上）。
+// repository_test.go — Repository の統合テスト（カバレッジ向上）。
+//
+// 移動元: trimming_course_repository_test.go（BE8-4 batch26）。makeReservationType/
+// makeReservation はフラット package の同名ヘルパー（reservation_clinic_isolation_test.go）の
+// 複製（BE8-4: import cycle を避けるための最小限の重複、移動時の型リネームはしない方針の対象外）。
 //
 // 対象: FindAll / FindByID / Create / Update / Delete / CountUsageByTrimmingCourseID / Reorder
 // 検証観点: 正常系、clinic_id 隔離、ソフトデリート除外、NotFound ラップ。
 //
 // CountUsageByTrimmingCourseID は appointment_trimming_details を appointments に JOIN するため、
-// setup で reservation_types / appointments (model.Reservation) も migrate する（既存の
-// preload_followup_clinic_isolation_test.go / reservation_clinic_isolation_test.go と同じ構成）。
+// setup で reservation_types / appointments (model.Reservation) も migrate する。
 
 import (
 	"context"
+	"encoding/json"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -19,27 +24,59 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/repository/repotest"
 )
 
 // setupTrimmingCourseTestDB は trimming_courses / appointment_trimming_details / appointments 周りを整備する。
 func setupTrimmingCourseTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
-	db := setupTestDB(t)
+	db := repotest.SetupTestDB(t)
 	// TRUNCATE first: 他テストが残した orphan 行を除去してから AutoMigrate（FK 検証を通すため）。
 	db.Exec("TRUNCATE TABLE appointment_trimming_options CASCADE")
 	db.Exec("TRUNCATE TABLE appointment_trimming_details CASCADE")
 	db.Exec("TRUNCATE TABLE trimming_courses CASCADE")
 	db.Exec("TRUNCATE TABLE reservation_types CASCADE") // appointments も連鎖クリア
-	require.NoError(t, ensureAutoMigrated(db,
+	require.NoError(t, repotest.EnsureAutoMigrated(db,
 		&model.ReservationType{}, &model.Reservation{},
 		&model.TrimmingCourse{}, &model.AppointmentTrimmingDetail{},
 	))
 	return db
 }
 
+// makeReservationType はテスト用予約区分を1件作成する（reservation_clinic_isolation_test.go の複製）。
+func makeReservationType(t *testing.T, db *gorm.DB, clinicID uint64) *model.ReservationType {
+	t.Helper()
+	rt := &model.ReservationType{
+		ClinicID: clinicID,
+		Name:     "テスト診療区分",
+		Category: model.ReservationTypeCategoryGeneral,
+	}
+	require.NoError(t, db.WithContext(context.Background()).Create(rt).Error)
+	return rt
+}
+
+// makeReservation はテスト用予約を1件作成する（reservation_clinic_isolation_test.go の複製）。
+func makeReservation(t *testing.T, db *gorm.DB, clinicID uint64) *model.Reservation {
+	t.Helper()
+	rt := makeReservationType(t, db, clinicID)
+	now := time.Now().UTC().Truncate(time.Minute)
+	res := &model.Reservation{
+		ClinicID:          clinicID,
+		StartTime:         now,
+		EndTime:           now.Add(15 * time.Minute),
+		ReservationTypeID: rt.ID,
+		VisitType:         model.VisitTypeRevisit,
+		Status:            model.ReservationStatusPending,
+		Source:            model.ReservationSourceManual,
+		CustomerFields:    json.RawMessage(`{}`),
+	}
+	require.NoError(t, db.WithContext(context.Background()).Create(res).Error)
+	return res
+}
+
 func TestTrimmingCourseRepository_FindAll_ClinicIsolationAndSortOrder(t *testing.T) {
 	db := setupTrimmingCourseTestDB(t)
-	repo := NewTrimmingCourseRepository(db)
+	repo := New(db)
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 
@@ -62,7 +99,7 @@ func TestTrimmingCourseRepository_FindAll_ClinicIsolationAndSortOrder(t *testing
 
 func TestTrimmingCourseRepository_FindByID(t *testing.T) {
 	db := setupTrimmingCourseTestDB(t)
-	repo := NewTrimmingCourseRepository(db)
+	repo := New(db)
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 
@@ -93,7 +130,7 @@ func TestTrimmingCourseRepository_FindByID(t *testing.T) {
 
 func TestTrimmingCourseRepository_Create(t *testing.T) {
 	db := setupTrimmingCourseTestDB(t)
-	repo := NewTrimmingCourseRepository(db)
+	repo := New(db)
 	ctx := context.Background()
 	const clinicA = uint64(1)
 
@@ -108,7 +145,7 @@ func TestTrimmingCourseRepository_Create(t *testing.T) {
 
 func TestTrimmingCourseRepository_Update(t *testing.T) {
 	db := setupTrimmingCourseTestDB(t)
-	repo := NewTrimmingCourseRepository(db)
+	repo := New(db)
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 
@@ -136,7 +173,7 @@ func TestTrimmingCourseRepository_Update(t *testing.T) {
 
 func TestTrimmingCourseRepository_Delete(t *testing.T) {
 	db := setupTrimmingCourseTestDB(t)
-	repo := NewTrimmingCourseRepository(db)
+	repo := New(db)
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 
@@ -175,7 +212,7 @@ func TestTrimmingCourseRepository_Delete(t *testing.T) {
 
 func TestTrimmingCourseRepository_CountUsageByTrimmingCourseID(t *testing.T) {
 	db := setupTrimmingCourseTestDB(t)
-	repo := NewTrimmingCourseRepository(db)
+	repo := New(db)
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 
@@ -215,7 +252,7 @@ func TestTrimmingCourseRepository_CountUsageByTrimmingCourseID(t *testing.T) {
 
 func TestTrimmingCourseRepository_Reorder(t *testing.T) {
 	db := setupTrimmingCourseTestDB(t)
-	repo := NewTrimmingCourseRepository(db)
+	repo := New(db)
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 
