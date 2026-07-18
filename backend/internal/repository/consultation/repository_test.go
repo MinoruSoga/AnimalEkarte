@@ -1,6 +1,11 @@
-package repository
+package consultation
 
-// consultation_repository_test.go — ConsultationRepository の統合テスト。
+// repository_test.go — Repository の統合テスト。
+//
+// 移動元: consultation_repository_test.go（BE8-4 batch25）。makeSpeciesAndPet/
+// makeHistoryMedicalRecord はフラット package の同名ヘルパーの複製（BE8-4: import cycle を
+// 避けるための最小限の重複、移動時の型リネームはしない方針の対象外）。makeTestOwner は
+// フラット側と同様 repotest.MakeTestOwner に直接委譲する。
 //
 // 保護する不変条件:
 //   - FindAll/FindByID/Update/Delete/Reorder は clinic_id で正しく分離される。
@@ -20,14 +25,15 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/repository/repotest"
 )
 
 // setupConsultationTestDB は consultations と、CountUsageByConsultationID の JOIN 先
 // treatments/medical_records/pets/animal_species を整備する。
 func setupConsultationTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
-	db := setupTestDB(t)
-	require.NoError(t, ensureAutoMigrated(db, &model.Consultation{}, &model.AnimalSpecies{}, &model.Pet{}, &model.Treatment{}))
+	db := repotest.SetupTestDB(t)
+	require.NoError(t, repotest.EnsureAutoMigrated(db, &model.Consultation{}, &model.AnimalSpecies{}, &model.Pet{}, &model.Treatment{}))
 	db.Exec("TRUNCATE TABLE treatments CASCADE")
 	db.Exec("TRUNCATE TABLE medical_records CASCADE")
 	db.Exec("TRUNCATE TABLE consultations CASCADE")
@@ -54,9 +60,38 @@ func makeConsultationTreatment(t *testing.T, db *gorm.DB, medicalRecordID, consu
 	return tr
 }
 
+// makeSpeciesAndPet はテスト用の AnimalSpecies と Pet を作成して返す。
+func makeSpeciesAndPet(t *testing.T, db *gorm.DB, clinicID, ownerID uint64, petName string) *model.Pet {
+	t.Helper()
+	species := &model.AnimalSpecies{Name: "犬"}
+	require.NoError(t, db.WithContext(context.Background()).Create(species).Error)
+	pet := &model.Pet{
+		ClinicID:        clinicID,
+		OwnerID:         ownerID,
+		AnimalSpeciesID: species.ID,
+		Name:            petName,
+	}
+	require.NoError(t, db.WithContext(context.Background()).Create(pet).Error)
+	return pet
+}
+
+func makeHistoryMedicalRecord(t *testing.T, db *gorm.DB, clinicID, petID uint64, recordNo string, date time.Time) *model.MedicalRecord {
+	t.Helper()
+	pet := petID
+	mr := &model.MedicalRecord{
+		ClinicID: clinicID,
+		RecordNo: recordNo,
+		Date:     date,
+		PetID:    &pet,
+		Status:   model.MedicalRecordStatusFinalized,
+	}
+	require.NoError(t, db.WithContext(context.Background()).Create(mr).Error)
+	return mr
+}
+
 func TestConsultationRepository_FindAll(t *testing.T) {
 	db := setupConsultationTestDB(t)
-	repo := NewConsultationRepository(db)
+	repo := New(db)
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 
@@ -77,7 +112,7 @@ func TestConsultationRepository_FindAll(t *testing.T) {
 
 func TestConsultationRepository_FindByID(t *testing.T) {
 	db := setupConsultationTestDB(t)
-	repo := NewConsultationRepository(db)
+	repo := New(db)
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 
@@ -106,7 +141,7 @@ func TestConsultationRepository_FindByID(t *testing.T) {
 
 func TestConsultationRepository_Create(t *testing.T) {
 	db := setupConsultationTestDB(t)
-	repo := NewConsultationRepository(db)
+	repo := New(db)
 	ctx := context.Background()
 	const clinicA = uint64(1)
 
@@ -125,7 +160,7 @@ func TestConsultationRepository_Create(t *testing.T) {
 
 func TestConsultationRepository_Update(t *testing.T) {
 	db := setupConsultationTestDB(t)
-	repo := NewConsultationRepository(db)
+	repo := New(db)
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 
@@ -156,7 +191,7 @@ func TestConsultationRepository_Update(t *testing.T) {
 
 func TestConsultationRepository_Delete(t *testing.T) {
 	db := setupConsultationTestDB(t)
-	repo := NewConsultationRepository(db)
+	repo := New(db)
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 
@@ -192,7 +227,7 @@ func TestConsultationRepository_Delete(t *testing.T) {
 
 func TestConsultationRepository_Reorder(t *testing.T) {
 	db := setupConsultationTestDB(t)
-	repo := NewConsultationRepository(db)
+	repo := New(db)
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 
@@ -221,7 +256,7 @@ func TestConsultationRepository_Reorder(t *testing.T) {
 
 func TestConsultationRepository_CountChildrenByParentID(t *testing.T) {
 	db := setupConsultationTestDB(t)
-	repo := NewConsultationRepository(db)
+	repo := New(db)
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 
@@ -260,11 +295,11 @@ func TestConsultationRepository_CountChildrenByParentID(t *testing.T) {
 
 func TestConsultationRepository_CountUsageByConsultationID(t *testing.T) {
 	db := setupConsultationTestDB(t)
-	repo := NewConsultationRepository(db)
+	repo := New(db)
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 
-	owner := makeTestOwner(t, db, clinicA, "診察使用飼主")
+	owner := repotest.MakeTestOwner(t, db, clinicA, "診察使用飼主")
 	pet := makeSpeciesAndPet(t, db, clinicA, owner.ID, "診察使用犬")
 	mr := makeHistoryMedicalRecord(t, db, clinicA, pet.ID, "CONS-USAGE-1", time.Now())
 	consultation := makeConsultation(t, db, clinicA, "使用中診察", nil)
