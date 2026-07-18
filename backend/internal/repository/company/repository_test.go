@@ -1,6 +1,6 @@
-package repository
+package company
 
-// company_repository_test.go — CompanyRepository の統合テスト（内部カバレッジ向上）。
+// repository_test.go — Repository の統合テスト（内部カバレッジ向上）。
 //
 // 対象: FindSingleton / Update
 // 検証観点: 正常系（id=1 固定シングルトン）、レコード不在時の NotFound。
@@ -19,13 +19,14 @@ import (
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/repository/repotest"
 )
 
 // setupCompanyTestDB は companies テーブルを整備する（依存する他テーブルなし）。
 func setupCompanyTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
-	db := setupTestDB(t)
-	require.NoError(t, ensureAutoMigrated(db, &model.Company{}))
+	db := repotest.SetupTestDB(t)
+	require.NoError(t, repotest.EnsureAutoMigrated(db, &model.Company{}))
 	db.Exec("TRUNCATE TABLE companies CASCADE")
 	return db
 }
@@ -33,7 +34,7 @@ func setupCompanyTestDB(t *testing.T) *gorm.DB {
 // TestCompanyRepository_FindSingleton はシングルトン取得の正常系・NotFound を検証する。
 func TestCompanyRepository_FindSingleton(t *testing.T) {
 	db := setupCompanyTestDB(t)
-	repo := NewCompanyRepository(db)
+	repo := New(db)
 	ctx := context.Background()
 
 	t.Run("レコードが無ければ NotFound を返す", func(t *testing.T) {
@@ -56,7 +57,7 @@ func TestCompanyRepository_FindSingleton(t *testing.T) {
 // TestCompanyRepository_Update は部分更新の正常系・NotFound を検証する。
 func TestCompanyRepository_Update(t *testing.T) {
 	db := setupCompanyTestDB(t)
-	repo := NewCompanyRepository(db)
+	repo := New(db)
 	ctx := context.Background()
 
 	t.Run("レコードが無ければ NotFound を返す", func(t *testing.T) {
