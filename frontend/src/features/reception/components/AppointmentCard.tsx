@@ -22,7 +22,7 @@ import BedDouble from "lucide-react/dist/esm/icons/bed-double";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { C, ICON, STYLE } from "@/lib/design-tokens";
-import { getVisitTypeColor } from "@/utils/constants/status-colors";
+import { getVisitTypeColor } from "@/constants/status-colors";
 
 // Types
 import type { ReceptionAppointment } from "../api/types";

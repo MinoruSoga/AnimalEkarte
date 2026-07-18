@@ -16,7 +16,7 @@ import { getReservationTypeName, getReservationStatusLabel } from "@/lib/status-
 import { DISPLAY_TIME_FORMAT } from "@/lib/format/date";
 import { typedSetter } from "@/lib/type-utils";
 import { useReservationTypeColorMap } from "@/hooks/use-reservation-type-color-map";
-import { RESERVATION_STATUS_COLORS, getReservationStatusColor, getVisitTypeColor } from "@/utils/constants/status-colors";
+import { RESERVATION_STATUS_COLORS, getReservationStatusColor, getVisitTypeColor } from "@/constants/status-colors";
 
 interface ReservationDetailModalProps {
   isOpen: boolean;

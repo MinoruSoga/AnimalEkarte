@@ -16,7 +16,7 @@ import { C, ICON } from "@/lib/design-tokens";
 import {
   RECEPTION_STATUS_COLOR_FALLBACK,
   RECEPTION_STATUS_COLORS,
-} from "@/utils/constants/status-colors";
+} from "@/constants/status-colors";
 
 import { ActionButtons, type ActionButtonsProps } from "./ReceptionDialogActionButtons";
 import type { ReceptionAppointment as Appointment } from "../api/types";
