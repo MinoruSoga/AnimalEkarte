@@ -82,9 +82,9 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"billing_item_repository.go|billingItemRepository.Update":              {},
 	"billing_item_repository.go|billingItemRepository.UpdateBillingTotals": {},
 	// campaign
-	"campaign_repository.go|campaignRepository.FindAllApplicableForItem": {},
-	"campaign_repository.go|campaignRepository.FindApplicableForItem":    {},
-	"campaign_repository.go|campaignRepository.ReplaceTargets":           {}, // G6-2 repo-internal tx replace
+	"campaign/repository.go|repository.FindAllApplicableForItem": {}, // BE8-4 batch9: moved from campaign_repository.go
+	"campaign/repository.go|repository.FindApplicableForItem":    {}, // BE8-4 batch9: moved from campaign_repository.go
+	"campaign/repository.go|repository.ReplaceTargets":           {}, // BE8-4 batch9: moved from campaign_repository.go; G6-2 repo-internal tx replace
 	// daily_record (AUD-006: FindOrCreate+CreateVital same ambient tx)
 	"dailyrecord/repository.go|repository.CreateVitalRecord":  {}, // BE8-4 batch6: moved from daily_record_repository.go
 	"dailyrecord/repository.go|repository.FindOrCreateByDate": {}, // BE8-4 batch6: moved from daily_record_repository.go

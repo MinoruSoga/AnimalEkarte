@@ -1,6 +1,6 @@
-package repository
+package campaign
 
-// campaign_repository_test.go — CampaignRepository の統合テスト（内部カバレッジ向上）。
+// repository_test.go — Repository の統合テスト（内部カバレッジ向上）。
 //
 // 対象: FindAll / FindByID / Create / Update / ReplaceTargets / Delete / Reorder /
 //       FindApplicableForItem / FindAllApplicableForItem
@@ -18,13 +18,14 @@ import (
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/repository/repotest"
 )
 
 // setupCampaignTestDB は campaigns / campaign_target_categories / campaign_target_items を整備する。
-// campaign_discount_type ENUM は setupTestDB の共通リストに含まれないため、ここで個別に作成する。
+// campaign_discount_type ENUM は repotest.SetupTestDB の共通リストに含まれないため、ここで個別に作成する。
 func setupCampaignTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
-	db := setupTestDB(t)
+	db := repotest.SetupTestDB(t)
 	require.NoError(t, db.Exec(`
 DO $$
 BEGIN
@@ -33,7 +34,7 @@ BEGIN
     END IF;
 END
 $$;`).Error)
-	require.NoError(t, ensureAutoMigrated(db, &model.Campaign{}, &model.CampaignTargetCategory{}, &model.CampaignTargetItem{}))
+	require.NoError(t, repotest.EnsureAutoMigrated(db, &model.Campaign{}, &model.CampaignTargetCategory{}, &model.CampaignTargetItem{}))
 	db.Exec("TRUNCATE TABLE campaign_target_items CASCADE")
 	db.Exec("TRUNCATE TABLE campaign_target_categories CASCADE")
 	db.Exec("TRUNCATE TABLE campaigns CASCADE")
@@ -42,7 +43,7 @@ $$;`).Error)
 
 func TestCampaignRepository_FindAll_ClinicIsolationAndSortOrder(t *testing.T) {
 	db := setupCampaignTestDB(t)
-	repo := NewCampaignRepository(db)
+	repo := New(db)
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 	jun := time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC)
@@ -67,7 +68,7 @@ func TestCampaignRepository_FindAll_ClinicIsolationAndSortOrder(t *testing.T) {
 
 func TestCampaignRepository_FindByID(t *testing.T) {
 	db := setupCampaignTestDB(t)
-	repo := NewCampaignRepository(db)
+	repo := New(db)
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 	jun := time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC)
@@ -97,7 +98,7 @@ func TestCampaignRepository_FindByID(t *testing.T) {
 
 func TestCampaignRepository_Create(t *testing.T) {
 	db := setupCampaignTestDB(t)
-	repo := NewCampaignRepository(db)
+	repo := New(db)
 	ctx := context.Background()
 	const clinicA = uint64(1)
 	jun := time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC)
@@ -132,7 +133,7 @@ func TestCampaignRepository_Create(t *testing.T) {
 
 func TestCampaignRepository_Update(t *testing.T) {
 	db := setupCampaignTestDB(t)
-	repo := NewCampaignRepository(db)
+	repo := New(db)
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 	jun := time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC)
@@ -162,7 +163,7 @@ func TestCampaignRepository_Update(t *testing.T) {
 
 func TestCampaignRepository_ReplaceTargets(t *testing.T) {
 	db := setupCampaignTestDB(t)
-	repo := NewCampaignRepository(db)
+	repo := New(db)
 	ctx := context.Background()
 	const clinicA = uint64(1)
 	jun := time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC)
@@ -193,7 +194,7 @@ func TestCampaignRepository_ReplaceTargets(t *testing.T) {
 
 func TestCampaignRepository_Delete(t *testing.T) {
 	db := setupCampaignTestDB(t)
-	repo := NewCampaignRepository(db)
+	repo := New(db)
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 	jun := time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC)
@@ -234,7 +235,7 @@ func TestCampaignRepository_Delete(t *testing.T) {
 
 func TestCampaignRepository_Reorder(t *testing.T) {
 	db := setupCampaignTestDB(t)
-	repo := NewCampaignRepository(db)
+	repo := New(db)
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 	jun := time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC)
@@ -268,7 +269,7 @@ func TestCampaignRepository_Reorder(t *testing.T) {
 
 func TestCampaignRepository_FindApplicableForItem(t *testing.T) {
 	db := setupCampaignTestDB(t)
-	repo := NewCampaignRepository(db)
+	repo := New(db)
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 	inRange := time.Date(2026, 7, 15, 0, 0, 0, 0, time.UTC)
@@ -331,7 +332,7 @@ func TestCampaignRepository_FindApplicableForItem(t *testing.T) {
 
 func TestCampaignRepository_FindAllApplicableForItem(t *testing.T) {
 	db := setupCampaignTestDB(t)
-	repo := NewCampaignRepository(db)
+	repo := New(db)
 	ctx := context.Background()
 	const clinicA = uint64(1)
 	inRange := time.Date(2026, 7, 15, 0, 0, 0, 0, time.UTC)

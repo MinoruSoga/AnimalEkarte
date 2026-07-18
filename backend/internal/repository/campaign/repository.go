@@ -1,0 +1,178 @@
+// Package campaign owns campaigns / campaign_target_categories / campaign_target_items
+// data access (BE8-4 batch9 — leaf domain).
+package campaign
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"time"
+
+	"gorm.io/gorm"
+
+	apperrors "github.com/animal-ekarte/backend/internal/errors"
+	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/repository/repohelpers"
+)
+
+// Repository は割引キャンペーンマスタのデータアクセスインターフェース (#81)
+type Repository interface {
+	FindAll(ctx context.Context, clinicID uint64) ([]model.Campaign, error)
+	FindByID(ctx context.Context, clinicID, id uint64) (*model.Campaign, error)
+	Create(ctx context.Context, m *model.Campaign) (*model.Campaign, error)
+	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Campaign, error)
+	ReplaceTargets(ctx context.Context, campaignID uint64, categories []model.ItemCategory, itemIDs []uint64) error
+	Delete(ctx context.Context, clinicID, id uint64) error
+	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
+	// FindApplicableForItem は指定日・カテゴリ・商品に適用される有効なキャンペーンを返す（#81 段階2b）。
+	// 該当が複数ある場合は discount_value が大きいものを優先。該当なしは (nil, nil)。
+	FindApplicableForItem(ctx context.Context, clinicID uint64, date time.Time, category model.ItemCategory, merchandiseItemID *uint64) (*model.Campaign, error)
+	// FindAllApplicableForItem は指定日・カテゴリ・商品に適用される全有効キャンペーンを返す（#81 Q-I スタッフ選択用）。
+	// discount_value 降順。該当なしは (nil, nil)。
+	FindAllApplicableForItem(ctx context.Context, clinicID uint64, date time.Time, category model.ItemCategory, merchandiseItemID *uint64) ([]*model.Campaign, error)
+}
+
+type repository struct{ db *gorm.DB }
+
+// New は Repository を初期化して返す
+func New(db *gorm.DB) Repository {
+	return &repository{db: db}
+}
+
+func (r *repository) FindAll(ctx context.Context, clinicID uint64) ([]model.Campaign, error) {
+	var ms []model.Campaign
+	err := r.db.WithContext(ctx).
+		Scopes(repohelpers.ClinicScope(clinicID)).
+		Preload("TargetCategories").
+		Preload("TargetItems").
+		Order("sort_order ASC, start_date DESC").
+		Find(&ms).Error
+	if err != nil {
+		return nil, apperrors.FromGORM(err, "campaign", "")
+	}
+	return ms, nil
+}
+
+func (r *repository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Campaign, error) {
+	var m model.Campaign
+	err := r.db.WithContext(ctx).
+		Scopes(repohelpers.ClinicScope(clinicID)).
+		Preload("TargetCategories").
+		Preload("TargetItems").
+		First(&m, id).Error
+	if err != nil {
+		return nil, apperrors.FromGORM(err, "campaign", fmt.Sprintf("%d", id))
+	}
+	return &m, nil
+}
+
+func (r *repository) Create(ctx context.Context, m *model.Campaign) (*model.Campaign, error) {
+	// GORM が TargetCategories / TargetItems も関連として同時作成する
+	if err := r.db.WithContext(ctx).Create(m).Error; err != nil {
+		return nil, apperrors.FromGORM(err, "campaign", "")
+	}
+	return r.FindByID(ctx, m.ClinicID, m.ID)
+}
+
+func (r *repository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Campaign, error) {
+	result := r.db.WithContext(ctx).
+		Model(&model.Campaign{}).
+		Scopes(repohelpers.ClinicScope(clinicID)).
+		Where("id = ?", id).
+		Updates(fields)
+	if result.Error != nil {
+		return nil, apperrors.FromGORM(result.Error, "campaign", fmt.Sprintf("%d", id))
+	}
+	if result.RowsAffected == 0 {
+		return nil, apperrors.WrapNotFound("campaign", fmt.Sprintf("%d", id))
+	}
+	return r.FindByID(ctx, clinicID, id)
+}
+
+// ReplaceTargets は campaign の対象カテゴリ・対象商品を全削除→再作成で差し替える。
+// 呼び出し側(service)で campaign の所有(clinic_id)を確認済みであること。
+func (r *repository) ReplaceTargets(ctx context.Context, campaignID uint64, categories []model.ItemCategory, itemIDs []uint64) error {
+	if err := repohelpers.DBOrTx(ctx, r.db).Transaction(func(tx *gorm.DB) error {
+		if err := tx.Where("campaign_id = ?", campaignID).Delete(&model.CampaignTargetCategory{}).Error; err != nil {
+			return apperrors.FromGORM(err, "campaign_target_category", "")
+		}
+		if err := tx.Where("campaign_id = ?", campaignID).Delete(&model.CampaignTargetItem{}).Error; err != nil {
+			return apperrors.FromGORM(err, "campaign_target_item", "")
+		}
+		for _, c := range categories {
+			if err := tx.Create(&model.CampaignTargetCategory{CampaignID: campaignID, Category: c}).Error; err != nil {
+				return apperrors.FromGORM(err, "campaign_target_category", "")
+			}
+		}
+		for _, id := range itemIDs {
+			if err := tx.Create(&model.CampaignTargetItem{CampaignID: campaignID, MerchandiseItemID: id}).Error; err != nil {
+				return apperrors.FromGORM(err, "campaign_target_item", "")
+			}
+		}
+		return nil
+	}); err != nil {
+		return apperrors.Wrap(err, "failed to replace campaign targets")
+	}
+	return nil
+}
+
+func (r *repository) Delete(ctx context.Context, clinicID, id uint64) error {
+	result := r.db.WithContext(ctx).
+		Scopes(repohelpers.ClinicScope(clinicID)).
+		Where("id = ?", id).
+		Delete(&model.Campaign{})
+	if result.Error != nil {
+		return apperrors.FromGORM(result.Error, "campaign", fmt.Sprintf("%d", id))
+	}
+	if result.RowsAffected == 0 {
+		return apperrors.WrapNotFound("campaign", fmt.Sprintf("%d", id))
+	}
+	return nil
+}
+
+func (r *repository) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
+	return repohelpers.ReorderByClinicID(ctx, r.db, &model.Campaign{}, "campaign", clinicID, ids, "sort_order")
+}
+
+func (r *repository) buildApplicableCond(category model.ItemCategory, merchandiseItemID *uint64) (cond string, args []any) {
+	cond = "EXISTS (SELECT 1 FROM campaign_target_categories ctc WHERE ctc.campaign_id = campaigns.id AND ctc.category = ?)"
+	args = []any{category}
+	if merchandiseItemID != nil {
+		cond += " OR EXISTS (SELECT 1 FROM campaign_target_items cti WHERE cti.campaign_id = campaigns.id AND cti.merchandise_item_id = ?)"
+		args = append(args, *merchandiseItemID)
+	}
+	return cond, args
+}
+
+func (r *repository) FindApplicableForItem(ctx context.Context, clinicID uint64, date time.Time, category model.ItemCategory, merchandiseItemID *uint64) (*model.Campaign, error) {
+	cond, args := r.buildApplicableCond(category, merchandiseItemID)
+	var campaign model.Campaign
+	err := repohelpers.DBOrTx(ctx, r.db).
+		Scopes(repohelpers.ClinicScope(clinicID)).
+		Where("is_active = ? AND start_date <= ? AND end_date >= ?", true, date, date).
+		Where(cond, args...).
+		Order("discount_value DESC").
+		First(&campaign).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil // 該当キャンペーンなし
+		}
+		return nil, apperrors.FromGORM(err, "campaign", "")
+	}
+	return &campaign, nil
+}
+
+func (r *repository) FindAllApplicableForItem(ctx context.Context, clinicID uint64, date time.Time, category model.ItemCategory, merchandiseItemID *uint64) ([]*model.Campaign, error) {
+	cond, args := r.buildApplicableCond(category, merchandiseItemID)
+	var campaigns []*model.Campaign
+	err := repohelpers.DBOrTx(ctx, r.db).
+		Scopes(repohelpers.ClinicScope(clinicID)).
+		Where("is_active = ? AND start_date <= ? AND end_date >= ?", true, date, date).
+		Where(cond, args...).
+		Order("discount_value DESC").
+		Find(&campaigns).Error
+	if err != nil {
+		return nil, apperrors.FromGORM(err, "campaign", "")
+	}
+	return campaigns, nil
+}
