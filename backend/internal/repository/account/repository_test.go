@@ -1,8 +1,10 @@
-package repository
+package account
 
-// account_repository_test.go — AccountRepository の統合テスト。
+// repository_test.go — Repository の統合テスト。
 //
-// account_repository.go は P4 (clinicScope) の例外対象（accounts テーブルは clinic_id を
+// 移動元: account_repository_test.go（BE8-4 batch23）。
+//
+// account の repository.go は P4 (clinicScope) の例外対象（accounts テーブルは clinic_id を
 // 持たないグローバルなログインアカウント）のため、clinic_id 隔離テストは対象外。
 //
 // 保護する不変条件:
@@ -21,13 +23,14 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/repository/repotest"
 )
 
 // setupAccountTestDB は accounts テーブルを用意し、クリーンな状態でテストを開始できるようにする。
 func setupAccountTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
-	db := setupTestDB(t)
-	require.NoError(t, ensureAutoMigrated(db, &model.Account{}))
+	db := repotest.SetupTestDB(t)
+	require.NoError(t, repotest.EnsureAutoMigrated(db, &model.Account{}))
 	db.Exec("TRUNCATE TABLE accounts CASCADE")
 	return db
 }
@@ -44,9 +47,9 @@ func makeAccount(t *testing.T, db *gorm.DB, email string) *model.Account {
 	return a
 }
 
-func TestAccountRepository_FindByID(t *testing.T) {
+func TestRepository_FindByID(t *testing.T) {
 	db := setupAccountTestDB(t)
-	repo := NewAccountRepository(db)
+	repo := New(db)
 	ctx := context.Background()
 
 	t.Run("存在するIDでは取得できる", func(t *testing.T) {
@@ -75,9 +78,9 @@ func TestAccountRepository_FindByID(t *testing.T) {
 	})
 }
 
-func TestAccountRepository_FindByEmail(t *testing.T) {
+func TestRepository_FindByEmail(t *testing.T) {
 	db := setupAccountTestDB(t)
-	repo := NewAccountRepository(db)
+	repo := New(db)
 	ctx := context.Background()
 
 	t.Run("存在するメールアドレスでは取得できる", func(t *testing.T) {
@@ -106,9 +109,9 @@ func TestAccountRepository_FindByEmail(t *testing.T) {
 	})
 }
 
-func TestAccountRepository_Create(t *testing.T) {
+func TestRepository_Create(t *testing.T) {
 	db := setupAccountTestDB(t)
-	repo := NewAccountRepository(db)
+	repo := New(db)
 	ctx := context.Background()
 
 	t.Run("新規アカウントを作成できる", func(t *testing.T) {
@@ -139,9 +142,9 @@ func TestAccountRepository_Create(t *testing.T) {
 	})
 }
 
-func TestAccountRepository_Update(t *testing.T) {
+func TestRepository_Update(t *testing.T) {
 	db := setupAccountTestDB(t)
-	repo := NewAccountRepository(db)
+	repo := New(db)
 	ctx := context.Background()
 
 	t.Run("指定フィールドのみ更新される", func(t *testing.T) {

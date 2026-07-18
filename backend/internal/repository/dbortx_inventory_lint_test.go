@@ -56,10 +56,10 @@ import (
 // 追加/削除時はこのマップを更新し、新規は対応する atomicity/isolation テストを添えること。
 var dbOrTxParticipatingMethods = map[string]struct{}{
 	// account
-	"account_repository.go|accountRepository.Create":      {},
-	"account_repository.go|accountRepository.FindByEmail": {},
-	"account_repository.go|accountRepository.FindByID":    {},
-	"account_repository.go|accountRepository.Update":      {},
+	"account/repository.go|repository.Create":      {}, // BE8-4 batch23: moved from account_repository.go
+	"account/repository.go|repository.FindByEmail": {}, // BE8-4 batch23: moved from account_repository.go
+	"account/repository.go|repository.FindByID":    {}, // BE8-4 batch23: moved from account_repository.go
+	"account/repository.go|repository.Update":      {}, // BE8-4 batch23: moved from account_repository.go
 	// accounting (R1-1 money-path atomicity; Create/CompleteAccountingAppointments added for
 	// BE-refactor.md X-12 billing-complete-appt-post-tx atomicity fix)
 	"accounting_repository.go|accountingRepository.CompleteAccountingAppointments": {},
