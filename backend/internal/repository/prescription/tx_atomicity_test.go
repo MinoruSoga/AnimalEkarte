@@ -1,6 +1,6 @@
-package repository
+package prescription
 
-// prescription_repository_tx_atomicity_test.go — BE-refactor.md H-8e: prescriptionRepository.Delete
+// tx_atomicity_test.go — BE-refactor.md H-8e: prescriptionRepository.Delete
 // の tx 内原子性（DB-backed）。
 //
 // Delete が caller の ambient transaction に参加し、削除後に同一 tx 内の後続処理（=
@@ -35,11 +35,10 @@ func TestPrescriptionRepository_Delete_RollsBackWhenAmbientTxFails(t *testing.T)
 	ownerA := makeTestOwner(t, db, clinicA, "飼主A（Delete原子性RB）")
 	p := makePrescription(t, db, clinicA, ownerA.ID, nil, time.Now())
 
-	repo := NewPrescriptionRepository(db)
+	repo := New(db)
 
-	tx := NewTransactor(db)
 	sentinel := errors.New("simulated post-delete failure")
-	txErr := tx.WithTx(ctx, func(txCtx context.Context) error {
+	txErr := withTx(ctx, db, func(txCtx context.Context) error {
 		if e := repo.Delete(txCtx, clinicA, p.ID); e != nil {
 			return e
 		}
@@ -62,10 +61,9 @@ func TestPrescriptionRepository_Delete_CommitsWithinAmbientTx(t *testing.T) {
 	ownerA := makeTestOwner(t, db, clinicA, "飼主A（Delete原子性CM）")
 	p := makePrescription(t, db, clinicA, ownerA.ID, nil, time.Now())
 
-	repo := NewPrescriptionRepository(db)
+	repo := New(db)
 
-	tx := NewTransactor(db)
-	txErr := tx.WithTx(ctx, func(txCtx context.Context) error {
+	txErr := withTx(ctx, db, func(txCtx context.Context) error {
 		return repo.Delete(txCtx, clinicA, p.ID)
 	})
 	require.NoError(t, txErr)

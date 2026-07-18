@@ -1,6 +1,6 @@
-package repository
+package prescription
 
-// prescription_repository_test.go — PrescriptionRepository 統合テスト。
+// repository_test.go — Repository 統合テスト。
 //
 // 保護する不変条件:
 //   - FindByMedicalRecordID / FindByID / Update / Delete は clinic_id でテナント隔離される。
@@ -9,6 +9,9 @@ package repository
 //     （deleted_at IS NULL を明示条件に持つ、LSTEP-BE-009）。
 //   - Update / Delete は対象なしで NotFound を返す。
 //   - Delete はソフトデリートであり、以後 FindByID / FindActiveByOwner から除外される。
+//
+// makeTestOwner は repotest.MakeTestOwner に直接委譲する。withTx は repository.Transactor.WithTx
+// を import cycle なしで再現する repohelpers 直結ヘルパー（BE8-4 方針）。
 
 import (
 	"context"
@@ -21,14 +24,30 @@ import (
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/repository/repohelpers"
+	"github.com/animal-ekarte/backend/internal/repository/repotest"
 )
+
+func makeTestOwner(t *testing.T, db *gorm.DB, clinicID uint64, name string) *model.Owner {
+	t.Helper()
+	return repotest.MakeTestOwner(t, db, clinicID, name)
+}
+
+// withTx mirrors repository.Transactor.WithTx (repohelpers-based ambient tx) without
+// importing the flat repository package, which would create an import cycle
+// (repository imports this subpackage via its facade).
+func withTx(ctx context.Context, db *gorm.DB, fn func(ctx context.Context) error) error {
+	return db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		return fn(repohelpers.WithTxValue(ctx, tx))
+	})
+}
 
 // setupPrescriptionTestDB は prescriptions と、FK 先の pets/animal_species を用意する。
 // owners / medical_records は setupTestDB がすでに用意する。
 func setupPrescriptionTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
-	db := setupTestDB(t)
-	require.NoError(t, ensureAutoMigrated(db, &model.AnimalSpecies{}, &model.Pet{}, &model.Prescription{}))
+	db := repotest.SetupTestDB(t)
+	require.NoError(t, repotest.EnsureAutoMigrated(db, &model.AnimalSpecies{}, &model.Pet{}, &model.Prescription{}))
 	db.Exec("TRUNCATE TABLE prescriptions CASCADE")
 	db.Exec("TRUNCATE TABLE pets CASCADE")
 	db.Exec("TRUNCATE TABLE animal_species CASCADE")
@@ -57,7 +76,7 @@ func makePrescription(t *testing.T, db *gorm.DB, clinicID, ownerID uint64, medic
 
 func TestPrescriptionRepository_FindByMedicalRecordID(t *testing.T) {
 	db := setupPrescriptionTestDB(t)
-	repo := NewPrescriptionRepository(db)
+	repo := New(db)
 	ctx := context.Background()
 
 	const (
@@ -90,7 +109,7 @@ func TestPrescriptionRepository_FindByMedicalRecordID(t *testing.T) {
 
 func TestPrescriptionRepository_FindByID(t *testing.T) {
 	db := setupPrescriptionTestDB(t)
-	repo := NewPrescriptionRepository(db)
+	repo := New(db)
 	ctx := context.Background()
 
 	const (
@@ -124,7 +143,7 @@ func TestPrescriptionRepository_FindByID(t *testing.T) {
 
 func TestPrescriptionRepository_FindActiveByOwner(t *testing.T) {
 	db := setupPrescriptionTestDB(t)
-	repo := NewPrescriptionRepository(db)
+	repo := New(db)
 	ctx := context.Background()
 
 	const (
@@ -170,7 +189,7 @@ func TestPrescriptionRepository_FindActiveByOwner(t *testing.T) {
 
 func TestPrescriptionRepository_Create(t *testing.T) {
 	db := setupPrescriptionTestDB(t)
-	repo := NewPrescriptionRepository(db)
+	repo := New(db)
 	ctx := context.Background()
 
 	const clinicA = uint64(1)
@@ -183,7 +202,7 @@ func TestPrescriptionRepository_Create(t *testing.T) {
 
 func TestPrescriptionRepository_Update(t *testing.T) {
 	db := setupPrescriptionTestDB(t)
-	repo := NewPrescriptionRepository(db)
+	repo := New(db)
 	ctx := context.Background()
 
 	const (
@@ -213,7 +232,7 @@ func TestPrescriptionRepository_Update(t *testing.T) {
 
 func TestPrescriptionRepository_Delete(t *testing.T) {
 	db := setupPrescriptionTestDB(t)
-	repo := NewPrescriptionRepository(db)
+	repo := New(db)
 	ctx := context.Background()
 
 	const (
