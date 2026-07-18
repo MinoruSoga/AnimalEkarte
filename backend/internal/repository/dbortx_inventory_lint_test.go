@@ -141,9 +141,9 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	// Delete を s.transactor.WithTx で束ねるようになったための追加。examination Delete=H-8d と同型)
 	"prescription/repository.go|repository.Delete": {}, // BE8-4 batch7: moved from prescription_repository.go
 	// refund (R1-1 TOCTOU)
-	"refund_repository.go|refundRepository.Create":                         {},
-	"refund_repository.go|refundRepository.SumByBillingID":                 {},
-	"refund_repository.go|refundRepository.SumByBillingIDAndPaymentMethod": {},
+	"refund/repository.go|repository.Create":                         {}, // BE8-4 batch8: moved from refund_repository.go
+	"refund/repository.go|repository.SumByBillingID":                 {}, // BE8-4 batch8: moved from refund_repository.go
+	"refund/repository.go|repository.SumByBillingIDAndPaymentMethod": {}, // BE8-4 batch8: moved from refund_repository.go
 	// reservation (uniform dbOrTx)
 	"reservation_repository.go|reservationRepository.AssertLineCustomerInClinic":         {}, // AUD-001
 	"reservation_repository.go|reservationRepository.AssertOwnerInClinic":                {}, // AUD-001

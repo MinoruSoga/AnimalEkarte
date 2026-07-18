@@ -1,6 +1,6 @@
-package repository
+package refund
 
-// refund_tx_atomicity_test.go — 返金 INSERT + 監査の tx 内原子性（DB-backed）
+// tx_atomicity_test.go — 返金 INSERT + 監査の tx 内原子性（DB-backed）
 //
 // billing_refunds の INSERT が caller の ambient transaction に参加し、
 // INSERT 後に同一 tx 内の後続処理（= 監査書込を模倣）が失敗したら
@@ -23,18 +23,32 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/repository/repohelpers"
+	"github.com/animal-ekarte/backend/internal/repository/repotest"
 )
 
 // makeBillingForRefund は billing_refunds の FK を満たす最小 Billing を作成して返す。
-// ownerID / petID は nil — FK 制約違反なし（makeBillingRet と同パターン）。
-// makeBillingWith（billing_test_fixtures_test.go）への thin wrapper。
+// ownerID / petID は nil — FK 制約違反なし。フラット package の makeBillingWith
+// （billing_test_fixtures_test.go）と同型を import cycle 回避のため直接構築する
+// （BE8-4: 移動時の型リネームはしない方針の対象外の最小限複製）。
 func makeBillingForRefund(t *testing.T, db *gorm.DB, clinicID uint64) *model.Billing {
 	t.Helper()
-	return makeBillingWith(t, db, billingFixtureOpts{
+	b := &model.Billing{
 		ClinicID:      clinicID,
 		TotalAmount:   10000,
 		Status:        model.BillingStatusCompleted,
 		ScheduledDate: time.Date(2026, 7, 1, 0, 0, 0, 0, time.UTC),
+	}
+	require.NoError(t, db.WithContext(context.Background()).Create(b).Error)
+	return b
+}
+
+// withTx mirrors repository.Transactor.WithTx (repohelpers-based ambient tx) without
+// importing the flat repository package, which would create an import cycle
+// (repository imports this subpackage via its facade).
+func withTx(ctx context.Context, db *gorm.DB, fn func(ctx context.Context) error) error {
+	return db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		return fn(repohelpers.WithTxValue(ctx, tx))
 	})
 }
 
@@ -48,13 +62,12 @@ func makeBillingForRefund(t *testing.T, db *gorm.DB, clinicID uint64) *model.Bil
 //   - 本テストを実行 → INSERT が独立 tx で即 commit → rollback 対象外 → count=1 で FAIL
 //   - 元に戻す → GREEN
 func TestRefundRepository_Create_RollsBackWhenAmbientTxFails(t *testing.T) {
-	db := setupTestDB(t)
+	db := repotest.SetupTestDB(t)
 	ctx := context.Background()
 	const clinicA = uint64(1)
 
 	billing := makeBillingForRefund(t, db, clinicA)
-	repo := NewRefundRepository(db)
-	tx := NewTransactor(db)
+	repo := New(db)
 
 	refund := &model.BillingRefund{
 		ClinicID:   clinicA,
@@ -64,7 +77,7 @@ func TestRefundRepository_Create_RollsBackWhenAmbientTxFails(t *testing.T) {
 		RefundedAt: time.Now(),
 	}
 	sentinel := errors.New("simulated post-create audit failure")
-	txErr := tx.WithTx(ctx, func(txCtx context.Context) error {
+	txErr := withTx(ctx, db, func(txCtx context.Context) error {
 		if err := repo.Create(txCtx, refund); err != nil {
 			return err
 		}
@@ -82,13 +95,12 @@ func TestRefundRepository_Create_RollsBackWhenAmbientTxFails(t *testing.T) {
 // ambient tx 内で refund INSERT が成功し commit されると
 // billing_refunds テーブルに行が永続化されることを検証する。
 func TestRefundRepository_Create_CommitsWithinAmbientTx(t *testing.T) {
-	db := setupTestDB(t)
+	db := repotest.SetupTestDB(t)
 	ctx := context.Background()
 	const clinicA = uint64(1)
 
 	billing := makeBillingForRefund(t, db, clinicA)
-	repo := NewRefundRepository(db)
-	tx := NewTransactor(db)
+	repo := New(db)
 
 	refund := &model.BillingRefund{
 		ClinicID:   clinicA,
@@ -97,7 +109,7 @@ func TestRefundRepository_Create_CommitsWithinAmbientTx(t *testing.T) {
 		Reason:     "コミットテスト",
 		RefundedAt: time.Now(),
 	}
-	require.NoError(t, tx.WithTx(ctx, func(txCtx context.Context) error {
+	require.NoError(t, withTx(ctx, db, func(txCtx context.Context) error {
 		return repo.Create(txCtx, refund)
 	}))
 

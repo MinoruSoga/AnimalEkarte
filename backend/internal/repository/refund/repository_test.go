@@ -1,12 +1,12 @@
-package repository
+package refund
 
-// refund_repository_test.go — refund_repository.go の実 DB 結合テスト（#212: internal/repository カバレッジ向上）。
+// repository_test.go — Repository の実 DB 結合テスト（#212: internal/repository カバレッジ向上）。
 //
 // ローカル実測: FindByBillingID は 0% だった。Create/SumByBillingID/SumByBillingIDAndPaymentMethod は
-// refund_tx_atomicity_test.go / refund_repository_sum_tx_participation_test.go で正常系・tx参加は
+// tx_atomicity_test.go / sum_tx_participation_test.go で正常系・tx参加は
 // ある程度カバー済みのため、本ファイルは異常系・clinic_id 隔離・FK バリデーションを優先する。
 //
-// makeBillingForRefund は refund_tx_atomicity_test.go に定義済みのものを再利用する。
+// makeBillingForRefund は tx_atomicity_test.go に定義済みのものを再利用する。
 
 import (
 	"context"
@@ -19,6 +19,7 @@ import (
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/repository/repotest"
 )
 
 // setupRefundRepoTestDB は billing_refunds の FK/Preload テストに必要な staffs テーブルを
@@ -28,8 +29,8 @@ import (
 // setupStaffOccupationPreloadTestDB と同様のパターン）。
 func setupRefundRepoTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
-	db := setupTestDB(t)
-	require.NoError(t, ensureAutoMigrated(db, &model.Staff{}))
+	db := repotest.SetupTestDB(t)
+	require.NoError(t, repotest.EnsureAutoMigrated(db, &model.Staff{}))
 	return db
 }
 
@@ -48,7 +49,7 @@ func makeStaffForRefundRepositoryTest(t *testing.T, db *gorm.DB, clinicID uint64
 
 func TestRefundRepository_FindByBillingID(t *testing.T) {
 	db := setupRefundRepoTestDB(t)
-	repo := NewRefundRepository(db)
+	repo := New(db)
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 
@@ -128,7 +129,7 @@ func TestRefundRepository_FindByBillingID(t *testing.T) {
 
 func TestRefundRepository_Create_InvalidBillingID(t *testing.T) {
 	db := setupRefundRepoTestDB(t)
-	repo := NewRefundRepository(db)
+	repo := New(db)
 	ctx := context.Background()
 	const clinicA = uint64(1)
 
@@ -148,7 +149,7 @@ func TestRefundRepository_Create_InvalidBillingID(t *testing.T) {
 
 func TestRefundRepository_SumByBillingID(t *testing.T) {
 	db := setupRefundRepoTestDB(t)
-	repo := NewRefundRepository(db)
+	repo := New(db)
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 
@@ -199,7 +200,7 @@ func TestRefundRepository_SumByBillingID(t *testing.T) {
 
 func TestRefundRepository_SumByBillingIDAndPaymentMethod(t *testing.T) {
 	db := setupRefundRepoTestDB(t)
-	repo := NewRefundRepository(db)
+	repo := New(db)
 	ctx := context.Background()
 	const clinicA = uint64(1)
 

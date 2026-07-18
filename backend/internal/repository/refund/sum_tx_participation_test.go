@@ -1,6 +1,6 @@
-package repository
+package refund
 
-// refund_repository_sum_tx_participation_test.go — BE-refactor.md R1-1 (D2) の DB-backed 原子性証明
+// sum_tx_participation_test.go — BE-refactor.md R1-1 (D2) の DB-backed 原子性証明
 //
 // 背景: refund_service.Create は WithTx 内で SumByBillingID / SumByBillingIDAndPaymentMethod を
 // 呼び「返金可能残額チェック（トランザクション内で再計算）」する。しかし実装は r.db.WithContext(ctx)
@@ -26,18 +26,18 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/repository/repotest"
 )
 
 func TestRefundRepository_SumByBillingID_SeesUncommittedInsertWithinAmbientTx(t *testing.T) {
-	db := setupTestDB(t)
+	db := repotest.SetupTestDB(t)
 	ctx := context.Background()
 	const clinicA = uint64(1)
 
 	billing := makeBillingForRefund(t, db, clinicA)
-	repo := NewRefundRepository(db)
-	tx := NewTransactor(db)
+	repo := New(db)
 
-	err := tx.WithTx(ctx, func(txCtx context.Context) error {
+	err := withTx(ctx, db, func(txCtx context.Context) error {
 		refund := &model.BillingRefund{
 			ClinicID:   clinicA,
 			BillingID:  billing.ID,
@@ -61,21 +61,20 @@ func TestRefundRepository_SumByBillingID_SeesUncommittedInsertWithinAmbientTx(t 
 	require.NoError(t, err)
 
 	// tx 成功でコミットされた後も、通常の読み取りで確認できる（回帰確認）。
-	committedSum, sumErr := NewRefundRepository(db).SumByBillingID(ctx, clinicA, billing.ID)
+	committedSum, sumErr := New(db).SumByBillingID(ctx, clinicA, billing.ID)
 	require.NoError(t, sumErr)
 	assert.EqualValues(t, 4000, committedSum)
 }
 
 func TestRefundRepository_SumByBillingIDAndPaymentMethod_SeesUncommittedInsertWithinAmbientTx(t *testing.T) {
-	db := setupTestDB(t)
+	db := repotest.SetupTestDB(t)
 	ctx := context.Background()
 	const clinicA = uint64(1)
 
 	billing := makeBillingForRefund(t, db, clinicA)
-	repo := NewRefundRepository(db)
-	tx := NewTransactor(db)
+	repo := New(db)
 
-	err := tx.WithTx(ctx, func(txCtx context.Context) error {
+	err := withTx(ctx, db, func(txCtx context.Context) error {
 		method := model.PaymentMethodCreditCard
 		refund := &model.BillingRefund{
 			ClinicID:      clinicA,
