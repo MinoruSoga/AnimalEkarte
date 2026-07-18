@@ -215,7 +215,7 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"owner_repository.go|ownerRepository.CreateWithPets":                                {},
 	"reservation_schedule_repository.go|reservationScheduleRepository.Save":             {},
 	"reservation_type_liff_repository.go|reservationTypeLiffRepository.UpdateSortOrder": {},
-	"shift_template_repository.go|shiftTemplateRepository.UpdateBreaks":                 {},
+	"shifttemplate/repository.go|repository.UpdateBreaks":                               {}, // BE8-4 batch12: moved from shift_template_repository.go
 	"treatment_repository.go|treatmentRepository.BulkUpdateSortOrder":                   {},
 	// X-6 (Appendix-A tx-atomicity fix, commit d7eff8c8): medicine/inventory repo-internal
 	// r.db.WithContext(ctx).Transaction → dbOrTx(ctx, r.db).Transaction. Allowlist backfill

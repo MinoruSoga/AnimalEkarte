@@ -1,6 +1,6 @@
-package repository
+package shifttemplate
 
-// shift_template_repository_test.go — ShiftTemplateRepository 統合テスト。
+// repository_test.go — Repository 統合テスト。
 //
 // 保護する不変条件:
 //   - FindAll / FindByID / CountUsageByShiftTemplateID は clinic_id でテナント隔離される。
@@ -19,13 +19,14 @@ import (
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/repository/repotest"
 )
 
 // setupShiftTemplateTestDB は shift_templates / shift_template_breaks を整備する。
 func setupShiftTemplateTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
-	db := setupTestDB(t)
-	require.NoError(t, ensureAutoMigrated(db, &model.ShiftTemplate{}, &model.ShiftTemplateBreak{}))
+	db := repotest.SetupTestDB(t)
+	require.NoError(t, repotest.EnsureAutoMigrated(db, &model.ShiftTemplate{}, &model.ShiftTemplateBreak{}))
 	// shift_template_breaks.break_start/break_end can be left as "timestamp with time zone" in a
 	// pre-existing ekarte_db_test if the table was ever created before model.ShiftTemplateBreak's
 	// `gorm:"type:time"` tag existed — AutoMigrate never ALTERs an existing column's type, only
@@ -51,7 +52,7 @@ func makeShiftTemplate(t *testing.T, db *gorm.DB, clinicID uint64, name string, 
 
 func TestShiftTemplateRepository_FindAll(t *testing.T) {
 	db := setupShiftTemplateTestDB(t)
-	repo := NewShiftTemplateRepository(db)
+	repo := New(db)
 	ctx := context.Background()
 
 	const (
@@ -74,7 +75,7 @@ func TestShiftTemplateRepository_FindAll(t *testing.T) {
 
 func TestShiftTemplateRepository_FindByID(t *testing.T) {
 	db := setupShiftTemplateTestDB(t)
-	repo := NewShiftTemplateRepository(db)
+	repo := New(db)
 	ctx := context.Background()
 
 	const (
@@ -114,7 +115,7 @@ func TestShiftTemplateRepository_FindByID(t *testing.T) {
 
 func TestShiftTemplateRepository_Create(t *testing.T) {
 	db := setupShiftTemplateTestDB(t)
-	repo := NewShiftTemplateRepository(db)
+	repo := New(db)
 	ctx := context.Background()
 
 	tpl := &model.ShiftTemplate{ClinicID: 1, Name: "新規テンプレ", ShiftType: model.ShiftTypeFull}
@@ -124,7 +125,7 @@ func TestShiftTemplateRepository_Create(t *testing.T) {
 
 func TestShiftTemplateRepository_Update(t *testing.T) {
 	db := setupShiftTemplateTestDB(t)
-	repo := NewShiftTemplateRepository(db)
+	repo := New(db)
 	ctx := context.Background()
 
 	const (
@@ -156,7 +157,7 @@ func TestShiftTemplateRepository_Update(t *testing.T) {
 
 func TestShiftTemplateRepository_Delete(t *testing.T) {
 	db := setupShiftTemplateTestDB(t)
-	repo := NewShiftTemplateRepository(db)
+	repo := New(db)
 	ctx := context.Background()
 
 	const (
@@ -190,7 +191,7 @@ func TestShiftTemplateRepository_Delete(t *testing.T) {
 
 func TestShiftTemplateRepository_UpdateBreaks(t *testing.T) {
 	db := setupShiftTemplateTestDB(t)
-	repo := NewShiftTemplateRepository(db)
+	repo := New(db)
 	ctx := context.Background()
 
 	const clinicA = uint64(1)
@@ -230,7 +231,7 @@ func TestShiftTemplateRepository_UpdateBreaks(t *testing.T) {
 
 func TestShiftTemplateRepository_Reorder(t *testing.T) {
 	db := setupShiftTemplateTestDB(t)
-	repo := NewShiftTemplateRepository(db)
+	repo := New(db)
 	ctx := context.Background()
 
 	const (
@@ -261,7 +262,7 @@ func TestShiftTemplateRepository_Reorder(t *testing.T) {
 
 func TestShiftTemplateRepository_CountUsageByShiftTemplateID(t *testing.T) {
 	db := setupShiftTemplateTestDB(t)
-	repo := NewShiftTemplateRepository(db)
+	repo := New(db)
 	ctx := context.Background()
 
 	const clinicA = uint64(1)
