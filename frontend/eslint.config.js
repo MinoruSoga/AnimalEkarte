@@ -85,6 +85,59 @@ export default tseslint.config(
             "insertAdjacentHTML は禁止。React の JSX を使うか、生 HTML が必須なら DOMPurify でサニタイズすること。",
         },
       ],
+      // FE7-0: deep import 禁止（全域）。feature の外からは @/features/<name>
+      // （index.ts）経由で import する。feature 内部も相対 import を使うこと
+      // （FE-refactor.md FE7-0 / frontend/CLAUDE.md Feature Indexing の機械強制）。
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              group: ["@/features/*/*", "@/features/*/*/**"],
+              message:
+                "feature の外からは @/features/<name>（index.ts）経由で import する。feature 内部は相対 import を使うこと。deep import は禁止。",
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
+    // FE7-0: 層逆転禁止。components/hooks/lib から @/features への import を禁止する
+    // （features は components/hooks/lib に依存してよいが逆方向は禁止 — 一方向依存の強制）。
+    files: ["src/components/**", "src/hooks/**", "src/lib/**"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              group: ["@/features", "@/features/**"],
+              message:
+                "components/hooks/lib から @/features への import は禁止（層逆転）。features 側が components/hooks/lib に依存する一方向のみ許可する。",
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
+    // FE7-0: アプリ境界。liff/line-reserve は frontend の features に依存しない
+    // （3アプリは shared-liff 経由でのみ共有し、features は frontend 専有とする）。
+    files: ["liff/src/**", "line-reserve/src/**"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              group: ["@/features", "@/features/**"],
+              message:
+                "liff/line-reserve から frontend の @/features への import は禁止（アプリ境界）。共有が必要なら shared-liff 経由にすること。",
+            },
+          ],
+        },
+      ],
     },
   },
   {
