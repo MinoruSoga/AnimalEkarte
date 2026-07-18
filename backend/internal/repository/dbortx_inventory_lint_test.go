@@ -220,22 +220,22 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	// X-6 (Appendix-A tx-atomicity fix, commit d7eff8c8): medicine/inventory repo-internal
 	// r.db.WithContext(ctx).Transaction → dbOrTx(ctx, r.db).Transaction. Allowlist backfill
 	// discovered during G6-2 (X-6 landed without registering these).
-	"medicine_repository.go|medicineRepository.Create":                            {},
-	"medicine_repository.go|medicineRepository.Update":                            {},
-	"medicine_repository.go|medicineRepository.Delete":                            {},
-	"medicine_repository.go|medicineRepository.FindAll":                           {},
-	"medicine_repository.go|medicineRepository.FindByID":                          {},
-	"medicine_repository.go|medicineRepository.CountChildrenByParentID":           {},
-	"medicine_repository.go|medicineRepository.CountUsageByMedicineID":            {},
-	"inventory_repository.go|inventoryRepository.Create":                          {},
-	"inventory_repository.go|inventoryRepository.Update":                          {},
-	"inventory_repository.go|inventoryRepository.Delete":                          {},
-	"inventory_repository.go|inventoryRepository.FindAll":                         {},
-	"inventory_repository.go|inventoryRepository.FindByID":                        {},
-	"inventory_repository.go|inventoryRepository.DecreaseStock":                   {},
-	"inventory_repository.go|inventoryRepository.CountUsageByInventoryID":         {},
-	"inventory_repository.go|inventoryRepository.UpdateNameByMedicineCategory":    {},
-	"inventory_repository.go|inventoryRepository.DeleteByNameAndMedicineCategory": {},
+	"medicine_repository.go|medicineRepository.Create":                   {},
+	"medicine_repository.go|medicineRepository.Update":                   {},
+	"medicine_repository.go|medicineRepository.Delete":                   {},
+	"medicine_repository.go|medicineRepository.FindAll":                  {},
+	"medicine_repository.go|medicineRepository.FindByID":                 {},
+	"medicine_repository.go|medicineRepository.CountChildrenByParentID":  {},
+	"medicine_repository.go|medicineRepository.CountUsageByMedicineID":   {},
+	"inventory/repository.go|repository.Create":                          {}, // BE8-4 batch18: moved from inventory_repository.go
+	"inventory/repository.go|repository.Update":                          {}, // BE8-4 batch18: moved from inventory_repository.go
+	"inventory/repository.go|repository.Delete":                          {}, // BE8-4 batch18: moved from inventory_repository.go
+	"inventory/repository.go|repository.FindAll":                         {}, // BE8-4 batch18: moved from inventory_repository.go
+	"inventory/repository.go|repository.FindByID":                        {}, // BE8-4 batch18: moved from inventory_repository.go
+	"inventory/repository.go|repository.DecreaseStock":                   {}, // BE8-4 batch18: moved from inventory_repository.go
+	"inventory/repository.go|repository.CountUsageByInventoryID":         {}, // BE8-4 batch18: moved from inventory_repository.go
+	"inventory/repository.go|repository.UpdateNameByMedicineCategory":    {}, // BE8-4 batch18: moved from inventory_repository.go
+	"inventory/repository.go|repository.DeleteByNameAndMedicineCategory": {}, // BE8-4 batch18: moved from inventory_repository.go
 	// X-7 (Appendix-A tx-atomicity fix, commit 2a7a4dfc): clinic/permission_group repo-internal
 	// tx conversion. Allowlist backfill discovered during G6-2 (X-7 landed without registering these).
 	"clinic_repository.go|clinicRepository.Create":                               {},

@@ -1,12 +1,14 @@
-package repository
+package inventory
 
-// inventory_repository_test.go — InventoryRepository の統合テスト（内部カバレッジ向上）。
+// repository_test.go — Repository の統合テスト（内部カバレッジ向上）。
 //
 // 対象: FindAll / FindByID / Create / Update / Delete / DecreaseStock /
 //       CountUsageByInventoryID / DeleteByNameAndMedicineCategory / UpdateNameByMedicineCategory
 // 検証観点: 正常系、clinic_id 隔離、ソフトデリート除外、NotFound ラップ、使用数カウントの参照種別別合算。
 //
-// makeHistoryMedicalRecord は treatment_repository_test.go で定義され、このファイルからも再利用する。
+// makeSpeciesAndPet/makeHistoryMedicalRecord はフラット package の同名ヘルパーの複製
+// （BE8-4: import cycle を避けるための最小限の重複、移動時の型リネームはしない方針の対象外）。
+// makeTestOwner はフラット側と同様 repotest.MakeTestOwner に直接委譲する。
 
 import (
 	"context"
@@ -19,6 +21,7 @@ import (
 
 	apperrors "github.com/animal-ekarte/backend/internal/errors"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/repository/repotest"
 )
 
 // setupInventoryTestDB は inventory_items と CountUsageByInventoryID の JOIN 先
@@ -27,8 +30,8 @@ import (
 // AutoMigrate 対象に含める（makeHistoryMedicalRecord は実在の pet.ID を要求する）。
 func setupInventoryTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
-	db := setupTestDB(t)
-	require.NoError(t, ensureAutoMigrated(db,
+	db := repotest.SetupTestDB(t)
+	require.NoError(t, repotest.EnsureAutoMigrated(db,
 		&model.Owner{}, &model.AnimalSpecies{}, &model.Pet{},
 		&model.InventoryItem{}, &model.Treatment{}, &model.Vaccine{}, &model.Medicine{},
 	))
@@ -50,9 +53,37 @@ func makeInventoryItem(t *testing.T, db *gorm.DB, clinicID uint64, name string, 
 	return item
 }
 
+func makeSpeciesAndPet(t *testing.T, db *gorm.DB, clinicID, ownerID uint64, petName string) *model.Pet {
+	t.Helper()
+	species := &model.AnimalSpecies{Name: "犬"}
+	require.NoError(t, db.WithContext(context.Background()).Create(species).Error)
+	pet := &model.Pet{
+		ClinicID:        clinicID,
+		OwnerID:         ownerID,
+		AnimalSpeciesID: species.ID,
+		Name:            petName,
+	}
+	require.NoError(t, db.WithContext(context.Background()).Create(pet).Error)
+	return pet
+}
+
+func makeHistoryMedicalRecord(t *testing.T, db *gorm.DB, clinicID, petID uint64, recordNo string, date time.Time) *model.MedicalRecord {
+	t.Helper()
+	pet := petID
+	mr := &model.MedicalRecord{
+		ClinicID: clinicID,
+		RecordNo: recordNo,
+		Date:     date,
+		PetID:    &pet,
+		Status:   model.MedicalRecordStatusFinalized,
+	}
+	require.NoError(t, db.WithContext(context.Background()).Create(mr).Error)
+	return mr
+}
+
 func TestInventoryRepository_FindAll_ClinicIsolationFiltersAndPagination(t *testing.T) {
 	db := setupInventoryTestDB(t)
-	repo := NewInventoryRepository(db)
+	repo := New(db)
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 
@@ -116,7 +147,7 @@ func TestInventoryRepository_FindAll_ClinicIsolationFiltersAndPagination(t *test
 
 func TestInventoryRepository_FindByID(t *testing.T) {
 	db := setupInventoryTestDB(t)
-	repo := NewInventoryRepository(db)
+	repo := New(db)
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 
@@ -143,7 +174,7 @@ func TestInventoryRepository_FindByID(t *testing.T) {
 
 func TestInventoryRepository_Create(t *testing.T) {
 	db := setupInventoryTestDB(t)
-	repo := NewInventoryRepository(db)
+	repo := New(db)
 	ctx := context.Background()
 	const clinicA = uint64(1)
 
@@ -159,7 +190,7 @@ func TestInventoryRepository_Create(t *testing.T) {
 
 func TestInventoryRepository_Update(t *testing.T) {
 	db := setupInventoryTestDB(t)
-	repo := NewInventoryRepository(db)
+	repo := New(db)
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 
@@ -186,7 +217,7 @@ func TestInventoryRepository_Update(t *testing.T) {
 
 func TestInventoryRepository_Delete(t *testing.T) {
 	db := setupInventoryTestDB(t)
-	repo := NewInventoryRepository(db)
+	repo := New(db)
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 
@@ -218,7 +249,7 @@ func TestInventoryRepository_Delete(t *testing.T) {
 
 func TestInventoryRepository_DecreaseStock(t *testing.T) {
 	db := setupInventoryTestDB(t)
-	repo := NewInventoryRepository(db)
+	repo := New(db)
 	ctx := context.Background()
 	const clinicA = uint64(1)
 
@@ -246,7 +277,7 @@ func TestInventoryRepository_DecreaseStock(t *testing.T) {
 // 保存 status とわざと矛盾させたレコードで検証し、保存値が無視されていることを証明する。
 func TestInventoryRepository_FindAll_StatusFilterUsesQuantityDerivedPredicate(t *testing.T) {
 	db := setupInventoryTestDB(t)
-	repo := NewInventoryRepository(db)
+	repo := New(db)
 	ctx := context.Background()
 	const clinicA = uint64(1)
 
@@ -307,7 +338,7 @@ func TestInventoryRepository_FindAll_StatusFilterUsesQuantityDerivedPredicate(t 
 
 func TestInventoryRepository_CountUsageByInventoryID(t *testing.T) {
 	db := setupInventoryTestDB(t)
-	repo := NewInventoryRepository(db)
+	repo := New(db)
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 
@@ -319,7 +350,7 @@ func TestInventoryRepository_CountUsageByInventoryID(t *testing.T) {
 		assert.Equal(t, int64(0), count)
 	})
 
-	owner := makeTestOwner(t, db, clinicA, "在庫使用飼主")
+	owner := repotest.MakeTestOwner(t, db, clinicA, "在庫使用飼主")
 	pet := makeSpeciesAndPet(t, db, clinicA, owner.ID, "在庫使用犬")
 	mr := makeHistoryMedicalRecord(t, db, clinicA, pet.ID, "MR-INV-001", time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC))
 	inventoryID := item.ID
@@ -362,7 +393,7 @@ func TestInventoryRepository_CountUsageByInventoryID(t *testing.T) {
 
 func TestInventoryRepository_DeleteByNameAndMedicineCategory(t *testing.T) {
 	db := setupInventoryTestDB(t)
-	repo := NewInventoryRepository(db)
+	repo := New(db)
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 
@@ -396,7 +427,7 @@ func TestInventoryRepository_DeleteByNameAndMedicineCategory(t *testing.T) {
 
 func TestInventoryRepository_UpdateNameByMedicineCategory(t *testing.T) {
 	db := setupInventoryTestDB(t)
-	repo := NewInventoryRepository(db)
+	repo := New(db)
 	ctx := context.Background()
 	const clinicA, clinicB = uint64(1), uint64(2)
 
