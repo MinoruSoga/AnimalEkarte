@@ -13,6 +13,7 @@ type updateClinicalPlanRequest struct {
 	TreatmentPolicy  *string                    `json:"treatment_policy"`
 	Diagnosis2TypeID nullableUint64RequestField `json:"diagnosis_2_type_id"`
 	Diagnosis2NameID nullableUint64RequestField `json:"diagnosis_2_name_id"`
+	Version          *int                       `json:"version"` // 楽観的ロック用
 }
 
 func (r updateClinicalPlanRequest) toServiceInput() *service.UpdateClinicalPlanInput {
@@ -24,5 +25,6 @@ func (r updateClinicalPlanRequest) toServiceInput() *service.UpdateClinicalPlanI
 		TreatmentPolicy:  r.TreatmentPolicy,
 		Diagnosis2TypeID: r.Diagnosis2TypeID.toServiceInput(),
 		Diagnosis2NameID: r.Diagnosis2NameID.toServiceInput(),
+		Version:          r.Version,
 	}
 }

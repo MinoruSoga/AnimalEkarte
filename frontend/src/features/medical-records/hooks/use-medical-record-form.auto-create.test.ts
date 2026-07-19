@@ -65,7 +65,13 @@ vi.mock("@/hooks/use-get-reservations", () => ({
 }));
 vi.mock("../api/update-medical-record", () => ({ useUpdateMedicalRecord: () => noMutation }));
 vi.mock("../api/inquiries", () => ({ useUpdateInquiry: () => noMutation }));
-vi.mock("../api/clinical-plan", () => ({ useUpdateClinicalPlan: () => noMutation }));
+// BUG-416③: useGetClinicalPlan は clinical_plan の version（楽観ロック用）取得元。
+// per-test で version を差し替えられるよう mockUseGetMedicalRecord と同じ間接呼び出しパターンにする。
+const mockUseGetClinicalPlan = vi.fn(() => noData);
+vi.mock("../api/clinical-plan", () => ({
+  useUpdateClinicalPlan: () => noMutation,
+  useGetClinicalPlan: (...args: unknown[]) => mockUseGetClinicalPlan(...args),
+}));
 vi.mock("@/hooks/use-reservation-types", () => ({
   useGetReservationTypesGrouped: vi.fn(() => ({
     data: [
@@ -100,6 +106,7 @@ describe("useMedicalRecordForm", () => {
     mockSearchParams = new URLSearchParams();
     mockLocationState = null;
     mockUseGetMedicalRecord.mockReturnValue(noData);
+    mockUseGetClinicalPlan.mockReturnValue(noData);
     // デフォルト: pet データなし
     vi.mocked(useGetPet).mockReturnValue({ data: undefined, isLoading: false, isError: false });
     // デフォルト: owner データなし
@@ -561,6 +568,34 @@ describe("useMedicalRecordForm", () => {
           diagnosis_2_type_id: 4,
           diagnosis_2_name_id: 9,
         }),
+      );
+    });
+
+    // BUG-416③: clinical_plan PATCH の楽観ロック。GET .../clinical-plan から取得した
+    // version を保存ペイロードにそのまま渡すことを、updateTreatmentPlanMutation.mutateAsync
+    // への実引数で証明する（他のユーザーによる同時編集を BE 側の 409 で検知できるようにする配線）。
+    it("BUG-416③: 診察/治療プラン保存時、useGetClinicalPlan の version が updateTreatmentPlanMutation.mutateAsync のペイロードに渡る", async () => {
+      mockUseGetClinicalPlan.mockReturnValue({
+        data: { version: 5 },
+        isLoading: false,
+        isError: false,
+      });
+
+      const { result } = renderHook(() => useMedicalRecordForm("10"));
+
+      act(() => { result.current.setActiveTab("診察/治療プラン"); });
+      await waitFor(() => {
+        expect(result.current.activeTab).toBe("診察/治療プラン");
+      });
+
+      runFormAction(result.current.formAction);
+
+      await waitFor(() => {
+        expect(result.current.formState.success).toBe(true);
+      });
+
+      expect(noMutation.mutateAsync).toHaveBeenCalledWith(
+        expect.objectContaining({ version: 5 }),
       );
     });
   });

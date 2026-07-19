@@ -17,6 +17,7 @@ type clinicalPlanResponse struct {
 	Diagnosis2NameID *string                `json:"diagnosis_2_name_id,omitempty"`
 	DiagnosisDetails string                 `json:"diagnosis_details"`
 	TreatmentPolicy  string                 `json:"treatment_policy"`
+	Version          int                    `json:"version"`
 	CreatedAt        time.Time              `json:"created_at"`
 	UpdatedAt        time.Time              `json:"updated_at"`
 	DiagnosisType    *diagnosisTypeResponse `json:"diagnosis_type,omitempty"`
@@ -32,6 +33,7 @@ func toClinicalPlanResponse(p *model.ClinicalPlan) clinicalPlanResponse {
 		PhysicalExam:     p.PhysicalExam,
 		DiagnosisDetails: p.DiagnosisDetails,
 		TreatmentPolicy:  p.TreatmentPolicy,
+		Version:          p.Version,
 		CreatedAt:        localTime(p.CreatedAt),
 		UpdatedAt:        localTime(p.UpdatedAt),
 	}

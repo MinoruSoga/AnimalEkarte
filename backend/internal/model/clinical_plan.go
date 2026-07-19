@@ -17,6 +17,7 @@ type ClinicalPlan struct {
 	Diagnosis2NameID *uint64        `gorm:"column:diagnosis_2_name_id"                     json:"diagnosis_2_name_id,omitempty"`
 	DiagnosisDetails string         `gorm:"default:''"                                     json:"diagnosis_details"`
 	TreatmentPolicy  string         `gorm:"default:''"                                     json:"treatment_policy"`
+	Version          int            `gorm:"default:1"                                      json:"version"`
 	CreatedAt        time.Time      `gorm:"autoCreateTime"                                 json:"created_at"`
 	UpdatedAt        time.Time      `gorm:"autoUpdateTime"                                 json:"updated_at"`
 	DeletedAt        gorm.DeletedAt `gorm:"index"                                          json:"-"`

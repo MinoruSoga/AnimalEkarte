@@ -12,7 +12,7 @@ import { useGetMedicalRecord } from "../api/get-medical-record";
 import { useCreateMedicalRecord } from "../api/create-medical-record";
 import { useUpdateMedicalRecord } from "../api/update-medical-record";
 import { useUpdateInquiry } from "../api/inquiries";
-import { useUpdateClinicalPlan } from "../api/clinical-plan";
+import { useUpdateClinicalPlan, useGetClinicalPlan } from "../api/clinical-plan";
 import type { TreatmentItem } from "../components/TreatmentTable";
 import { useApplyMedicalRecord } from "./use-apply-medical-record";
 import { useMedicalRecordManualErrors } from "./use-medical-record-manual-errors";
@@ -130,6 +130,12 @@ export function useMedicalRecordForm(recordId?: string) {
   const updateMutation = useUpdateMedicalRecord(recordClinicId);
   const updateInquiryMutation = useUpdateInquiry(recordId ?? "");
   const updateTreatmentPlanMutation = useUpdateClinicalPlan(recordId ?? "", recordClinicId);
+  // BUG-416③: clinical_plan の楽観ロック用に現在バージョンを取得する。
+  // medical_record GET レスポンスに clinical_plan は同梱されないため、
+  // useGetClinicalPlan が version の唯一の取得元（TanStack Query が
+  // クエリキーで dedupe するため、MedicalRecordForm.tsx 側の呼び出しと
+  // 追加ネットワークリクエストにはならない）。
+  const { data: clinicalPlan } = useGetClinicalPlan(recordId ?? "", recordClinicId);
 
   const { formState, formAction, isSaving } = useMedicalRecordSaveAction({
     recordId,
@@ -149,6 +155,7 @@ export function useMedicalRecordForm(recordId?: string) {
     treatmentPolicyDefault: DEFAULT_TREATMENT_POLICY,
     nextVisitDate,
     existingRecordVersion: existingRecord?.version,
+    existingClinicalPlanVersion: clinicalPlan?.version,
     setManualErrors,
     queryClient,
     updateInquiryMutation,

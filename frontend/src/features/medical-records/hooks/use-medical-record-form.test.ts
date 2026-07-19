@@ -54,7 +54,12 @@ vi.mock("@/hooks/use-get-reservations", () => ({
 }));
 vi.mock("../api/update-medical-record", () => ({ useUpdateMedicalRecord: () => noMutation }));
 vi.mock("../api/inquiries", () => ({ useUpdateInquiry: () => noMutation }));
-vi.mock("../api/clinical-plan", () => ({ useUpdateClinicalPlan: () => noMutation }));
+// BUG-416③: useGetClinicalPlan は clinical_plan の version（楽観ロック用）取得元。
+const mockUseGetClinicalPlan = vi.fn(() => noData);
+vi.mock("../api/clinical-plan", () => ({
+  useUpdateClinicalPlan: () => noMutation,
+  useGetClinicalPlan: (...args: unknown[]) => mockUseGetClinicalPlan(...args),
+}));
 vi.mock("@/hooks/use-reservation-types", () => ({
   useGetReservationTypesGrouped: vi.fn(() => ({
     data: [
@@ -89,6 +94,7 @@ describe("useMedicalRecordForm", () => {
     mockSearchParams = new URLSearchParams();
     mockLocationState = null;
     mockUseGetMedicalRecord.mockReturnValue(noData);
+    mockUseGetClinicalPlan.mockReturnValue(noData);
     // デフォルト: pet データなし
     vi.mocked(useGetPet).mockReturnValue({ data: undefined, isLoading: false, isError: false });
     // デフォルト: owner データなし

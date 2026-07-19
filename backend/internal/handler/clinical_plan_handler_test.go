@@ -310,6 +310,63 @@ func TestUpdateClinicalPlan_BindsDiagnosis2TypeID(t *testing.T) {
 	assert.Contains(t, w.Body.String(), `"diagnosis_2_name_id":"32"`)
 }
 
+// TestUpdateClinicalPlan_BindsVersion は BUG-416③ の楽観的ロックについて、PATCH body の
+// "version" フィールドが updateClinicalPlanRequest.Version にバインドされ、
+// service.UpdateClinicalPlanInput.Version までそのまま届くことを検証する。
+func TestUpdateClinicalPlan_BindsVersion(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	physicalExam := "経過観察"
+	claimedVersion := 3
+	body := map[string]any{"physical_exam": physicalExam, "version": claimedVersion}
+	called := false
+	svc := &mockClinicalPlanService{
+		updateFn: func(_ context.Context, _, _ uint64, input *service.UpdateClinicalPlanInput) (*model.ClinicalPlan, error) {
+			called = true
+			require.NotNil(t, input.Version)
+			assert.Equal(t, claimedVersion, *input.Version)
+			return &model.ClinicalPlan{ID: 1, MedicalRecordID: 8, PhysicalExam: physicalExam, Version: claimedVersion + 1}, nil
+		},
+	}
+	h := newHandlerWithClinicalPlanSvc(svc)
+	b, err := json.Marshal(body)
+	require.NoError(t, err)
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest(http.MethodPatch, "/medical-records/8/clinical-plan", bytes.NewReader(b))
+	c.Request.Header.Set("Content-Type", "application/json")
+	c.Params = gin.Params{{Key: "id", Value: "8"}}
+	setClinicID(c)
+	h.UpdateClinicalPlan(c)
+	assert.Equal(t, http.StatusOK, w.Code)
+	assert.True(t, called)
+	assert.Contains(t, w.Body.String(), `"version":4`)
+}
+
+// TestUpdateClinicalPlan_OmittedVersionBindsNil は version 未送信時に
+// input.Version が nil のまま（照合スキップ）であることを検証する。
+func TestUpdateClinicalPlan_OmittedVersionBindsNil(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	physicalExam := "経過観察"
+	body := map[string]any{"physical_exam": physicalExam}
+	svc := &mockClinicalPlanService{
+		updateFn: func(_ context.Context, _, _ uint64, input *service.UpdateClinicalPlanInput) (*model.ClinicalPlan, error) {
+			assert.Nil(t, input.Version, "version未送信時はnilのままであるべき")
+			return &model.ClinicalPlan{ID: 1, MedicalRecordID: 8, PhysicalExam: physicalExam}, nil
+		},
+	}
+	h := newHandlerWithClinicalPlanSvc(svc)
+	b, err := json.Marshal(body)
+	require.NoError(t, err)
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest(http.MethodPatch, "/medical-records/8/clinical-plan", bytes.NewReader(b))
+	c.Request.Header.Set("Content-Type", "application/json")
+	c.Params = gin.Params{{Key: "id", Value: "8"}}
+	setClinicID(c)
+	h.UpdateClinicalPlan(c)
+	assert.Equal(t, http.StatusOK, w.Code)
+}
+
 func TestUpdateClinicalPlan_NullClearsDiagnosis2(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	body := map[string]any{"diagnosis_2_type_id": nil, "diagnosis_2_name_id": nil}

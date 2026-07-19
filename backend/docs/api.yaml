@@ -4256,6 +4256,13 @@ components:
         updated_at:
           type: string
           format: date-time
+        version:
+          type: integer
+          format: int32
+          description: |
+            楽観的ロック用バージョン番号（BUG-416③）。medical_record と異なり、
+            clinicalPlanResponse は Version を実際に返却する（toClinicalPlanResponse で
+            マッピング済み）。次回 PATCH の version にはこの値をそのまま使う。
 
         diagnosis_type_id:
           type: integer
@@ -4294,6 +4301,14 @@ components:
         treatment_policy:
           type: string
           nullable: true
+        version:
+          type: integer
+          format: int32
+          nullable: true
+          description: |
+            楽観的ロック用バージョン番号（BUG-416③、updateClinicalPlanRequest.Version）。
+            省略/null の場合はバージョン照合をスキップする（後方互換）。GET/PATCH レスポンス
+            の ClinicalPlan.version をそのまま次回送信すること。不一致時は 409 Conflict。
 
     # ─── Checkup (健診記録) ───────────────────────────────────────────────────
     Checkup:

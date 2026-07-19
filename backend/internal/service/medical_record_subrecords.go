@@ -87,7 +87,7 @@ func (s *medicalRecordService) CreateSubRecords(ctx context.Context, clinicID, r
 		if input.Diagnosis2NameID != nil {
 			fields["diagnosis_2_name_id"] = *input.Diagnosis2NameID
 		}
-		if err := s.clinicalPlanRepo.Update(ctx, clinicID, plan.ID, fields); err != nil {
+		if err := s.clinicalPlanRepo.Update(ctx, clinicID, plan.ID, fields, nil); err != nil {
 			slog.WarnContext(ctx, "createSubRecords: failed to update clinical plan",
 				slog.Uint64("medical_record_id", recordID),
 				slog.String("error", err.Error()))

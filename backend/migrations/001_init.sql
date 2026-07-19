@@ -1554,6 +1554,7 @@ CREATE TABLE clinical_plans (
     diagnosis_2_name_id   bigint               REFERENCES diagnosis_names(id) ON DELETE SET NULL,
     diagnosis_details     text        NOT NULL DEFAULT '',
     treatment_policy      text        NOT NULL DEFAULT '',
+    version               INTEGER     NOT NULL DEFAULT 1,
     created_at            timestamptz NOT NULL DEFAULT now(),
     updated_at            timestamptz NOT NULL DEFAULT now(),
     deleted_at            timestamptz

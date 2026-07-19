@@ -26,6 +26,7 @@ function transformClinicalPlan(item: {
   diagnosis_name?: { id: string; name: string } | null;
   diagnosis_2_type?: { id: string; name: string } | null;
   diagnosis_2_name?: { id: string; name: string } | null;
+  version: number;
 }) {
   return {
     id: item.id,
@@ -43,6 +44,7 @@ function transformClinicalPlan(item: {
     diagnosis_name: item.diagnosis_name,
     diagnosis_2_type: item.diagnosis_2_type,
     diagnosis_2_name: item.diagnosis_2_name,
+    version: item.version,
   };
 }
 export type ClinicalPlan = ReturnType<typeof transformClinicalPlan>;
@@ -55,6 +57,7 @@ export interface UpdateClinicalPlanInput {
   diagnosis_2_name_id?: number | null;
   diagnosis_details?: string;
   treatment_policy?: string;
+  version?: number;
 }
 
 // P2-15 (PR #186 review): 拠点横断で開いたカルテ（record.clinicId）の子リソースを操作する場合、

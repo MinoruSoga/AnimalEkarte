@@ -14,7 +14,7 @@ import (
 type ClinicalPlanRepository interface {
 	FindByMedicalRecordID(ctx context.Context, clinicID, medicalRecordID uint64) (*model.ClinicalPlan, error)
 	Create(ctx context.Context, plan *model.ClinicalPlan) error
-	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error
+	Update(ctx context.Context, clinicID, id uint64, fields map[string]any, expectedVersion *int) error
 	Delete(ctx context.Context, clinicID, id uint64) error
 }
 
@@ -65,20 +65,42 @@ func (r *clinicalPlanRepository) existsInClinic(ctx context.Context, clinicID, i
 	return count > 0, nil
 }
 
+// parentStillDraft は id の clinical_plan の親カルテが（clinicID 配下で）draft のままかを返す。
+// Update の RowsAffected==0 を「バージョン不一致（親は draft のまま）」と「親が確定済み」で
+// 区別するために使う（existsInClinic と同じサブクエリ形状に status='draft' を追加したもの）。
+func (r *clinicalPlanRepository) parentStillDraft(ctx context.Context, clinicID, id uint64) (bool, error) {
+	var count int64
+	if err := r.db.WithContext(ctx).
+		Model(&model.ClinicalPlan{}).
+		Where("clinical_plans.id = ? AND clinical_plans.medical_record_id IN (SELECT id FROM medical_records WHERE clinic_id = ? AND status = ? AND deleted_at IS NULL)",
+			id, clinicID, model.MedicalRecordStatusDraft).
+		Count(&count).Error; err != nil {
+		return false, apperrors.FromGORM(err, "clinical_plan", fmt.Sprintf("%d", id))
+	}
+	return count > 0, nil
+}
+
 // Update は親カルテが draft のときのみ更新する（BE-refactor.md X-11 の確定済みカルテ書込ガード）。
 // clinicalPlanService は Transactor を持たない設計上の制約（cross_tenant_master_fk_write_test.go の
 // 既存呼び出しが repository.Transactor 無しの旧コンストラクタ引数に依存しており、変更できない）のため
 // LockByIDForUpdate による行ロックは行わない。代わりに medical_records の status='draft' 条件を
 // WHERE 部分に含め、UPDATE 自体を原子的に（サービス層の事前チェックとのレース窓を残さず）拒否する。
-// RowsAffected==0 は「存在しない」と「親が確定済み」の両方を意味しうるため existsInClinic で
-// 再照会し正しいエラー種別（NotFound / Conflict）に正規化する
+// expectedVersion が非 nil の場合、WHERE に version 述語を追加し（BUG-416③: 楽観ロックの原子化、
+// medical_record_repository.go の Update と同型）、RowsAffected==0 を「バージョン不一致（親は draft
+// のまま）」と「親が確定済み」に区別する。expectedVersion が nil の場合は従来どおり version 述語
+// なし（照合スキップ、medical_record_subrecords.go の best-effort 呼び出し等）。
+// RowsAffected==0 は「存在しない」「親が確定済み」「バージョン不一致」のいずれかを意味しうるため
+// existsInClinic / parentStillDraft で再照会し正しいエラー種別に正規化する
 // （estimate_repository.go の normalizeDeleteIfNotLockedMiss と同型）。
-func (r *clinicalPlanRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
-	result := r.db.WithContext(ctx).
+func (r *clinicalPlanRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any, expectedVersion *int) error {
+	q := r.db.WithContext(ctx).
 		Model(&model.ClinicalPlan{}).
 		Where("clinical_plans.id = ? AND clinical_plans.medical_record_id IN (SELECT id FROM medical_records WHERE clinic_id = ? AND status = ? AND deleted_at IS NULL)",
-			id, clinicID, model.MedicalRecordStatusDraft).
-		Updates(fields)
+			id, clinicID, model.MedicalRecordStatusDraft)
+	if expectedVersion != nil {
+		q = q.Where("clinical_plans.version = ?", *expectedVersion)
+	}
+	result := q.Updates(fields)
 	if result.Error != nil {
 		return apperrors.FromGORM(result.Error, "clinical_plan", fmt.Sprintf("%d", id))
 	}
@@ -89,6 +111,13 @@ func (r *clinicalPlanRepository) Update(ctx context.Context, clinicID, id uint64
 		}
 		if !exists {
 			return apperrors.WrapNotFound("clinical_plan", fmt.Sprintf("%d", id))
+		}
+		if expectedVersion != nil {
+			// 再照会失敗（親が確定済み等）はエラーを出さず従来の Conflict にフォールバックする
+			// （情報を出し過ぎない。medical_record_repository.go の Update と同じ方針）。
+			if stillDraft, draftErr := r.parentStillDraft(ctx, clinicID, id); draftErr == nil && stillDraft {
+				return apperrors.WrapConflict("他のユーザーがこの所見・診断を変更しました。再読み込みしてください")
+			}
 		}
 		return apperrors.WrapConflict("確定済みカルテの所見・診断は編集できません")
 	}

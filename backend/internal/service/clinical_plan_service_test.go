@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
@@ -13,10 +14,14 @@ import (
 
 // ---- ClinicalPlan モック ----
 
+// updateFn は既存呼び出し（cross_tenant_master_fk_write_test.go を含む）との互換のため
+// 4引数のまま維持する（BUG-416③: そのファイルは他セッションが編集中のため変更不可）。
+// expectedVersion を検証したい新規テストは updateWithVersionFn を設定する（下記 Update メソッド参照）。
 type mockClinicalPlanRepository struct {
 	findByMedicalRecordIDFn func(ctx context.Context, clinicID, medicalRecordID uint64) (*model.ClinicalPlan, error)
 	createFn                func(ctx context.Context, plan *model.ClinicalPlan) error
 	updateFn                func(ctx context.Context, clinicID, planID uint64, fields map[string]any) error
+	updateWithVersionFn     func(ctx context.Context, clinicID, planID uint64, fields map[string]any, expectedVersion *int) error
 	deleteFn                func(ctx context.Context, clinicID, planID uint64) error
 }
 
@@ -28,7 +33,10 @@ func (m *mockClinicalPlanRepository) Create(ctx context.Context, plan *model.Cli
 	return m.createFn(ctx, plan)
 }
 
-func (m *mockClinicalPlanRepository) Update(ctx context.Context, clinicID, planID uint64, fields map[string]any) error {
+func (m *mockClinicalPlanRepository) Update(ctx context.Context, clinicID, planID uint64, fields map[string]any, expectedVersion *int) error {
+	if m.updateWithVersionFn != nil {
+		return m.updateWithVersionFn(ctx, clinicID, planID, fields, expectedVersion)
+	}
 	return m.updateFn(ctx, clinicID, planID, fields)
 }
 
@@ -586,4 +594,68 @@ func TestClinicalPlanService_Update_RejectsMismatchedDiagnosis2TypeName(t *testi
 	})
 	assert.Error(t, err)
 	assert.Nil(t, plan)
+}
+
+// TestClinicalPlanService_Update_VersionPassthrough は BUG-416③ の楽観的ロックについて、
+// (a) input.Version がそのまま（nextVersion ではなく）repo.Update の expectedVersion に渡ること、
+// (b) fields["version"] が input.Version==nil のとき plan.Version+1、非nilのとき *input.Version+1
+// になること（medical_record_crud.go の Update と同型の二分岐）を検証する。
+func TestClinicalPlanService_Update_VersionPassthrough(t *testing.T) {
+	physicalExam := "test"
+
+	t.Run("input.Version が nil のとき plan.Version+1 を使い、expectedVersion は nil のまま渡る", func(t *testing.T) {
+		var gotExpectedVersion *int
+		var gotVersionCaptured bool
+		var gotFields map[string]any
+		repo := &mockClinicalPlanRepository{
+			findByMedicalRecordIDFn: func(_ context.Context, _, _ uint64) (*model.ClinicalPlan, error) {
+				return &model.ClinicalPlan{ID: 1, MedicalRecordID: 1, Version: 3}, nil
+			},
+			updateWithVersionFn: func(_ context.Context, _, _ uint64, fields map[string]any, expectedVersion *int) error {
+				gotExpectedVersion = expectedVersion
+				gotVersionCaptured = true
+				gotFields = fields
+				return nil
+			},
+		}
+		svc := NewClinicalPlanService(repo, okMedRecForPlan(), okDiagnosisTypeRepo(), okDiagnosisNameRepo())
+
+		plan, err := svc.Update(context.Background(), 1, 1, &UpdateClinicalPlanInput{PhysicalExam: &physicalExam})
+
+		assert.NoError(t, err)
+		assert.NotNil(t, plan)
+		require.True(t, gotVersionCaptured, "repo.Update must be called")
+		assert.Nil(t, gotExpectedVersion, "expectedVersion must be nil when input.Version is nil")
+		assert.Equal(t, 4, gotFields["version"], "fields[version] must be plan.Version+1")
+	})
+
+	t.Run("input.Version が非nilのとき、その値が expectedVersion にそのまま渡り fields[version] は *input.Version+1", func(t *testing.T) {
+		claimedVersion := 5
+		var gotExpectedVersion *int
+		var gotFields map[string]any
+		repo := &mockClinicalPlanRepository{
+			findByMedicalRecordIDFn: func(_ context.Context, _, _ uint64) (*model.ClinicalPlan, error) {
+				// plan.Version はサーバ側の実際の値（claimedVersion と異なっていても
+				// nextVersion 計算は input.Version 起点になることを示すため意図的にずらす）。
+				return &model.ClinicalPlan{ID: 1, MedicalRecordID: 1, Version: 99}, nil
+			},
+			updateWithVersionFn: func(_ context.Context, _, _ uint64, fields map[string]any, expectedVersion *int) error {
+				gotExpectedVersion = expectedVersion
+				gotFields = fields
+				return nil
+			},
+		}
+		svc := NewClinicalPlanService(repo, okMedRecForPlan(), okDiagnosisTypeRepo(), okDiagnosisNameRepo())
+
+		plan, err := svc.Update(context.Background(), 1, 1, &UpdateClinicalPlanInput{
+			PhysicalExam: &physicalExam,
+			Version:      &claimedVersion,
+		})
+
+		assert.NoError(t, err)
+		assert.NotNil(t, plan)
+		require.NotNil(t, gotExpectedVersion)
+		assert.Equal(t, claimedVersion, *gotExpectedVersion, "expectedVersion must be input.Version itself, not nextVersion")
+		assert.Equal(t, claimedVersion+1, gotFields["version"], "fields[version] must be *input.Version+1")
+	})
 }

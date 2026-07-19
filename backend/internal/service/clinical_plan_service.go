@@ -24,6 +24,10 @@ type UpdateClinicalPlanInput struct {
 	Diagnosis2NameID **uint64
 	DiagnosisDetails *string
 	TreatmentPolicy  *string
+	// Version は楽観的ロック用（nil=照合スキップ）。buildClinicalPlanUpdate では扱わず、
+	// Update メソッド内で nextVersion 計算と repo.Update への expectedVersion 受け渡しに使う
+	// （medical_record_crud.go の Update と同型）。
+	Version *int
 }
 
 func buildClinicalPlanUpdate(input *UpdateClinicalPlanInput) map[string]any {
@@ -194,7 +198,15 @@ func (s *clinicalPlanService) Update(ctx context.Context, clinicID, medicalRecor
 	if len(fields) == 0 {
 		return plan, nil
 	}
-	if err := s.repo.Update(ctx, clinicID, plan.ID, fields); err != nil {
+	// バージョンをインクリメント（input.Version 指定時はそれを起点にする。version 一致確認は
+	// repo.Update の WHERE 述語に一本化したため、ここでの事前チェックは行わない。
+	// medical_record_crud.go の Update と同型）
+	nextVersion := plan.Version + 1
+	if input.Version != nil {
+		nextVersion = *input.Version + 1
+	}
+	fields["version"] = nextVersion
+	if err := s.repo.Update(ctx, clinicID, plan.ID, fields, input.Version); err != nil {
 		slog.ErrorContext(ctx, "failed to update clinical plan", "error", err)
 		return nil, apperrors.Wrap(err, "failed to update clinical plan")
 	}

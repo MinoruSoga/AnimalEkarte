@@ -29,7 +29,7 @@ func TestClinicalPlanRepository_Diagnosis2_SetChangeClearAndPreload(t *testing.T
 		require.NoError(t, repo.Update(ctx, clinicA, plan.ID, map[string]any{
 			"diagnosis_2_type_id": typeA.ID,
 			"diagnosis_2_name_id": nameA.ID,
-		}))
+		}, nil))
 		got, err := repo.FindByMedicalRecordID(ctx, clinicA, mr.ID)
 		require.NoError(t, err)
 		require.NotNil(t, got.Diagnosis2TypeID)
@@ -44,7 +44,7 @@ func TestClinicalPlanRepository_Diagnosis2_SetChangeClearAndPreload(t *testing.T
 		require.NoError(t, repo.Update(ctx, clinicA, plan.ID, map[string]any{
 			"diagnosis_2_type_id": typeB.ID,
 			"diagnosis_2_name_id": nameB.ID,
-		}))
+		}, nil))
 		got, err := repo.FindByMedicalRecordID(ctx, clinicA, mr.ID)
 		require.NoError(t, err)
 		require.NotNil(t, got.Diagnosis2TypeID)
@@ -56,7 +56,7 @@ func TestClinicalPlanRepository_Diagnosis2_SetChangeClearAndPreload(t *testing.T
 		require.NoError(t, repo.Update(ctx, clinicA, plan.ID, map[string]any{
 			"diagnosis_2_type_id": nil,
 			"diagnosis_2_name_id": nil,
-		}))
+		}, nil))
 		got, err := repo.FindByMedicalRecordID(ctx, clinicA, mr.ID)
 		require.NoError(t, err)
 		assert.Nil(t, got.Diagnosis2TypeID)

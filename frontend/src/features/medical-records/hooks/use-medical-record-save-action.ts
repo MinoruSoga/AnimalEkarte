@@ -25,6 +25,7 @@ interface UseMedicalRecordSaveActionArgs {
   treatmentPolicyDefault: string;
   nextVisitDate: string;
   existingRecordVersion?: number;
+  existingClinicalPlanVersion?: number;
   setManualErrors: (errors: Record<string, string>) => void;
   queryClient: QueryClient;
   updateInquiryMutation: {
@@ -42,6 +43,7 @@ interface UseMedicalRecordSaveActionArgs {
       diagnosis_name_id?: number;
       diagnosis_2_type_id?: number | null;
       diagnosis_2_name_id?: number | null;
+      version?: number;
     }) => Promise<unknown>;
   };
   updateMutation: {
@@ -67,6 +69,7 @@ export function useMedicalRecordSaveAction({
   treatmentPolicyDefault,
   nextVisitDate,
   existingRecordVersion,
+  existingClinicalPlanVersion,
   setManualErrors,
   queryClient,
   updateInquiryMutation,
@@ -120,6 +123,9 @@ export function useMedicalRecordSaveAction({
               diagnosis_name_id: diagnosis1NameId ?? undefined,
               diagnosis_2_type_id: diagnosis2CategoryId,
               diagnosis_2_name_id: diagnosis2NameId,
+              // BUG-416③: clinical_plan 楽観ロック。undefined を送ると BE は
+              // バージョンチェックをスキップする（後方互換）ため常に送信する。
+              version: existingClinicalPlanVersion,
             };
             await updateTreatmentPlanMutation.mutateAsync(treatmentPlanPayload);
             // 次回来院推奨日を更新（空欄 = クリア、値あり = 設定）
