@@ -1,4 +1,4 @@
-package handler
+package manualarticle
 
 import (
 	"bytes"
@@ -15,57 +15,64 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/service"
 )
 
 // ---- mock ManualArticleService ----
 
-type mockManualArticleService struct {
+type mockManualArticleServiceForHandler struct {
 	findAllFn               func(ctx context.Context) ([]model.ManualArticle, error)
 	findByCategoryAndSlugFn func(ctx context.Context, category model.ManualCategory, slug string) (*model.ManualArticle, error)
-	upsertFn                func(ctx context.Context, input *service.UpsertManualArticleInput, editorStaffID *uint64) (*model.ManualArticle, error)
+	upsertFn                func(ctx context.Context, input *UpsertManualArticleInput, editorStaffID *uint64) (*model.ManualArticle, error)
 	deleteFn                func(ctx context.Context, category model.ManualCategory, slug string) error
 	findVersionsByArticleFn func(ctx context.Context, articleID uint64) ([]model.ManualArticleVersion, error)
 }
 
-func (m *mockManualArticleService) FindAll(ctx context.Context) ([]model.ManualArticle, error) {
+func (m *mockManualArticleServiceForHandler) FindAll(ctx context.Context) ([]model.ManualArticle, error) {
 	return m.findAllFn(ctx)
 }
 
-func (m *mockManualArticleService) FindByCategoryAndSlug(ctx context.Context, category model.ManualCategory, slug string) (*model.ManualArticle, error) {
+func (m *mockManualArticleServiceForHandler) FindByCategoryAndSlug(ctx context.Context, category model.ManualCategory, slug string) (*model.ManualArticle, error) {
 	return m.findByCategoryAndSlugFn(ctx, category, slug)
 }
 
-func (m *mockManualArticleService) Upsert(ctx context.Context, input *service.UpsertManualArticleInput, editorStaffID *uint64) (*model.ManualArticle, error) {
+func (m *mockManualArticleServiceForHandler) Upsert(ctx context.Context, input *UpsertManualArticleInput, editorStaffID *uint64) (*model.ManualArticle, error) {
 	return m.upsertFn(ctx, input, editorStaffID)
 }
 
-func (m *mockManualArticleService) Delete(ctx context.Context, category model.ManualCategory, slug string) error {
+func (m *mockManualArticleServiceForHandler) Delete(ctx context.Context, category model.ManualCategory, slug string) error {
 	return m.deleteFn(ctx, category, slug)
 }
 
-func (m *mockManualArticleService) FindVersionsByArticleID(ctx context.Context, articleID uint64) ([]model.ManualArticleVersion, error) {
+func (m *mockManualArticleServiceForHandler) FindVersionsByArticleID(ctx context.Context, articleID uint64) ([]model.ManualArticleVersion, error) {
 	return m.findVersionsByArticleFn(ctx, articleID)
+}
+
+// ---- mock AuditLogger ----
+// A small local mock of manualarticle's own AuditLogger interface (2c/BE9-2B design: no
+// dependency on internal/service's much larger AuditService mock).
+
+type mockAuditLogger struct {
+	lastLogEntry *AuditEntry
+	logEntryErr  error
+}
+
+func (m *mockAuditLogger) LogEntry(_ context.Context, entry AuditEntry) error {
+	m.lastLogEntry = &entry
+	return m.logEntryErr
 }
 
 // ---- test helpers ----
 
-func newHandlerWithManualArticleSvc(svc service.ManualArticleService) *Handler {
-	return &Handler{
-		svc: &service.Services{
-			ManualArticle: svc,
-			Audit:         &mockAuditService{},
-		},
-	}
+func setClinicID(c *gin.Context) {
+	c.Set("clinic_id", "1")
 }
 
-func newHandlerWithManualArticleAndAuditSvc(svc service.ManualArticleService, auditSvc service.AuditService) *Handler {
-	return &Handler{
-		svc: &service.Services{
-			ManualArticle: svc,
-			Audit:         auditSvc,
-		},
-	}
+func newHandlerWithManualArticleSvc(svc ManualArticleService) *Handler {
+	return NewHandler(svc, &mockAuditLogger{}, nil)
+}
+
+func newHandlerWithManualArticleAndAuditSvc(svc ManualArticleService, audit AuditLogger) *Handler {
+	return NewHandler(svc, audit, nil)
 }
 
 // ---- ListManualArticles ----
@@ -75,13 +82,13 @@ func TestListManualArticles(t *testing.T) {
 
 	tests := []struct {
 		name       string
-		svc        *mockManualArticleService
+		svc        *mockManualArticleServiceForHandler
 		wantStatus int
 		wantBody   string
 	}{
 		{
 			name: "returns list of manual articles",
-			svc: &mockManualArticleService{
+			svc: &mockManualArticleServiceForHandler{
 				findAllFn: func(_ context.Context) ([]model.ManualArticle, error) {
 					return []model.ManualArticle{{ID: 1, Category: "general", Slug: "intro", Title: "はじめに"}}, nil
 				},
@@ -91,7 +98,7 @@ func TestListManualArticles(t *testing.T) {
 		},
 		{
 			name: "returns 500 on service error",
-			svc: &mockManualArticleService{
+			svc: &mockManualArticleServiceForHandler{
 				findAllFn: func(_ context.Context) ([]model.ManualArticle, error) {
 					return nil, fmt.Errorf("db error")
 				},
@@ -126,7 +133,7 @@ func TestGetManualArticle(t *testing.T) {
 		name          string
 		paramCategory string
 		paramSlug     string
-		svc           *mockManualArticleService
+		svc           *mockManualArticleServiceForHandler
 		wantStatus    int
 		wantBody      string
 	}{
@@ -134,7 +141,7 @@ func TestGetManualArticle(t *testing.T) {
 			name:          "returns manual article",
 			paramCategory: "general",
 			paramSlug:     "intro",
-			svc: &mockManualArticleService{
+			svc: &mockManualArticleServiceForHandler{
 				findByCategoryAndSlugFn: func(_ context.Context, category model.ManualCategory, slug string) (*model.ManualArticle, error) {
 					assert.Equal(t, model.ManualCategory("general"), category)
 					assert.Equal(t, "intro", slug)
@@ -148,14 +155,14 @@ func TestGetManualArticle(t *testing.T) {
 			name:          "returns 400 when slug is empty",
 			paramCategory: "general",
 			paramSlug:     "",
-			svc:           &mockManualArticleService{},
+			svc:           &mockManualArticleServiceForHandler{},
 			wantStatus:    http.StatusBadRequest,
 		},
 		{
 			name:          "returns 404 when article not found",
 			paramCategory: "general",
 			paramSlug:     "missing",
-			svc: &mockManualArticleService{
+			svc: &mockManualArticleServiceForHandler{
 				findByCategoryAndSlugFn: func(_ context.Context, _ model.ManualCategory, _ string) (*model.ManualArticle, error) {
 					return nil, apperrors.WrapNotFound("manual_article", "missing")
 				},
@@ -166,7 +173,7 @@ func TestGetManualArticle(t *testing.T) {
 			name:          "returns 500 on service error",
 			paramCategory: "general",
 			paramSlug:     "intro",
-			svc: &mockManualArticleService{
+			svc: &mockManualArticleServiceForHandler{
 				findByCategoryAndSlugFn: func(_ context.Context, _ model.ManualCategory, _ string) (*model.ManualArticle, error) {
 					return nil, fmt.Errorf("db error")
 				},
@@ -216,7 +223,7 @@ func TestUpsertManualArticle(t *testing.T) {
 		paramCategory string
 		paramSlug     string
 		body          any
-		svc           *mockManualArticleService
+		svc           *mockManualArticleServiceForHandler
 		wantStatus    int
 		wantBody      string
 	}{
@@ -226,8 +233,8 @@ func TestUpsertManualArticle(t *testing.T) {
 			paramCategory: "general",
 			paramSlug:     "intro",
 			body:          validBody(),
-			svc: &mockManualArticleService{
-				upsertFn: func(_ context.Context, input *service.UpsertManualArticleInput, editorStaffID *uint64) (*model.ManualArticle, error) {
+			svc: &mockManualArticleServiceForHandler{
+				upsertFn: func(_ context.Context, input *UpsertManualArticleInput, editorStaffID *uint64) (*model.ManualArticle, error) {
 					assert.Equal(t, model.ManualCategory("general"), input.Category)
 					assert.Equal(t, "intro", input.Slug)
 					assert.Equal(t, "はじめに", input.Title)
@@ -245,7 +252,7 @@ func TestUpsertManualArticle(t *testing.T) {
 			paramCategory: "general",
 			paramSlug:     "intro",
 			body:          validBody(),
-			svc:           &mockManualArticleService{},
+			svc:           &mockManualArticleServiceForHandler{},
 			wantStatus:    http.StatusUnauthorized,
 		},
 		{
@@ -254,7 +261,7 @@ func TestUpsertManualArticle(t *testing.T) {
 			paramCategory: "general",
 			paramSlug:     "",
 			body:          validBody(),
-			svc:           &mockManualArticleService{},
+			svc:           &mockManualArticleServiceForHandler{},
 			wantStatus:    http.StatusBadRequest,
 		},
 		{
@@ -263,7 +270,7 @@ func TestUpsertManualArticle(t *testing.T) {
 			paramCategory: "general",
 			paramSlug:     "intro",
 			body:          map[string]any{"section": "基本"},
-			svc:           &mockManualArticleService{},
+			svc:           &mockManualArticleServiceForHandler{},
 			wantStatus:    http.StatusBadRequest,
 		},
 		{
@@ -272,7 +279,7 @@ func TestUpsertManualArticle(t *testing.T) {
 			paramCategory: "general",
 			paramSlug:     "intro",
 			body:          "not-json",
-			svc:           &mockManualArticleService{},
+			svc:           &mockManualArticleServiceForHandler{},
 			wantStatus:    http.StatusBadRequest,
 		},
 		{
@@ -281,8 +288,8 @@ func TestUpsertManualArticle(t *testing.T) {
 			paramCategory: "general",
 			paramSlug:     "intro",
 			body:          validBody(),
-			svc: &mockManualArticleService{
-				upsertFn: func(_ context.Context, _ *service.UpsertManualArticleInput, _ *uint64) (*model.ManualArticle, error) {
+			svc: &mockManualArticleServiceForHandler{
+				upsertFn: func(_ context.Context, _ *UpsertManualArticleInput, _ *uint64) (*model.ManualArticle, error) {
 					return nil, fmt.Errorf("db error")
 				},
 			},
@@ -322,13 +329,13 @@ func TestUpsertManualArticle(t *testing.T) {
 func TestUpsertManualArticle_AuditLogged(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
-	svc := &mockManualArticleService{
-		upsertFn: func(_ context.Context, input *service.UpsertManualArticleInput, _ *uint64) (*model.ManualArticle, error) {
+	svc := &mockManualArticleServiceForHandler{
+		upsertFn: func(_ context.Context, input *UpsertManualArticleInput, _ *uint64) (*model.ManualArticle, error) {
 			return &model.ManualArticle{ID: 42, Category: input.Category, Slug: input.Slug, Title: input.Title}, nil
 		},
 	}
-	auditSvc := &mockAuditService{logEntryErr: fmt.Errorf("audit write failed")}
-	h := newHandlerWithManualArticleAndAuditSvc(svc, auditSvc)
+	audit := &mockAuditLogger{logEntryErr: fmt.Errorf("audit write failed")}
+	h := newHandlerWithManualArticleAndAuditSvc(svc, audit)
 
 	body := map[string]any{
 		"title":         "はじめに",
@@ -354,11 +361,11 @@ func TestUpsertManualArticle_AuditLogged(t *testing.T) {
 
 	// Audit failure is best-effort; handler still returns 200.
 	assert.Equal(t, http.StatusOK, w.Code)
-	require.NotNil(t, auditSvc.lastLogEntry)
-	assert.Equal(t, model.AuditActionManualArticleUpsert, auditSvc.lastLogEntry.Action)
-	assert.Equal(t, "manual_article", auditSvc.lastLogEntry.Resource)
-	require.NotNil(t, auditSvc.lastLogEntry.ResourceID)
-	assert.Equal(t, uint64(42), *auditSvc.lastLogEntry.ResourceID)
+	require.NotNil(t, audit.lastLogEntry)
+	assert.Equal(t, model.AuditActionManualArticleUpsert, audit.lastLogEntry.Action)
+	assert.Equal(t, "manual_article", audit.lastLogEntry.Resource)
+	require.NotNil(t, audit.lastLogEntry.ResourceID)
+	assert.Equal(t, uint64(42), *audit.lastLogEntry.ResourceID)
 }
 
 // TestDeleteManualArticle_AuditLogged verifies the audit log entry is written with expected fields,
@@ -366,7 +373,7 @@ func TestUpsertManualArticle_AuditLogged(t *testing.T) {
 func TestDeleteManualArticle_AuditLogged(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
-	svc := &mockManualArticleService{
+	svc := &mockManualArticleServiceForHandler{
 		findByCategoryAndSlugFn: func(_ context.Context, category model.ManualCategory, slug string) (*model.ManualArticle, error) {
 			return &model.ManualArticle{ID: 42, Category: category, Slug: slug}, nil
 		},
@@ -374,8 +381,8 @@ func TestDeleteManualArticle_AuditLogged(t *testing.T) {
 			return nil
 		},
 	}
-	auditSvc := &mockAuditService{logEntryErr: fmt.Errorf("audit write failed")}
-	h := newHandlerWithManualArticleAndAuditSvc(svc, auditSvc)
+	audit := &mockAuditLogger{logEntryErr: fmt.Errorf("audit write failed")}
+	h := newHandlerWithManualArticleAndAuditSvc(svc, audit)
 
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
@@ -389,18 +396,18 @@ func TestDeleteManualArticle_AuditLogged(t *testing.T) {
 
 	h.DeleteManualArticle(c)
 
-	require.NotNil(t, auditSvc.lastLogEntry)
-	assert.Equal(t, model.AuditActionManualArticleDelete, auditSvc.lastLogEntry.Action)
-	assert.Equal(t, "manual_article", auditSvc.lastLogEntry.Resource)
-	require.NotNil(t, auditSvc.lastLogEntry.ResourceID)
-	assert.Equal(t, uint64(42), *auditSvc.lastLogEntry.ResourceID)
+	require.NotNil(t, audit.lastLogEntry)
+	assert.Equal(t, model.AuditActionManualArticleDelete, audit.lastLogEntry.Action)
+	assert.Equal(t, "manual_article", audit.lastLogEntry.Resource)
+	require.NotNil(t, audit.lastLogEntry.ResourceID)
+	assert.Equal(t, uint64(42), *audit.lastLogEntry.ResourceID)
 }
 
 // ---- DeleteManualArticle ----
 
 // newDeleteManualArticleRouter builds a router with clinic_id/user_id injected via middleware.
 // A full router is required so gin flushes the response header for the 204 No Content success path.
-func newDeleteManualArticleRouter(svc service.ManualArticleService) *gin.Engine {
+func newDeleteManualArticleRouter(svc ManualArticleService) *gin.Engine {
 	r := gin.New()
 	h := newHandlerWithManualArticleSvc(svc)
 	r.DELETE("/manual/articles/:category/:slug", func(c *gin.Context) {
@@ -417,14 +424,14 @@ func TestDeleteManualArticle(t *testing.T) {
 		name          string
 		paramCategory string
 		paramSlug     string
-		svc           *mockManualArticleService
+		svc           *mockManualArticleServiceForHandler
 		wantStatus    int
 	}{
 		{
 			name:          "deletes manual article successfully",
 			paramCategory: "general",
 			paramSlug:     "intro",
-			svc: &mockManualArticleService{
+			svc: &mockManualArticleServiceForHandler{
 				findByCategoryAndSlugFn: func(_ context.Context, category model.ManualCategory, slug string) (*model.ManualArticle, error) {
 					return &model.ManualArticle{ID: 1, Category: category, Slug: slug}, nil
 				},
@@ -440,7 +447,7 @@ func TestDeleteManualArticle(t *testing.T) {
 			name:          "returns 404 when article to delete not found",
 			paramCategory: "general",
 			paramSlug:     "missing",
-			svc: &mockManualArticleService{
+			svc: &mockManualArticleServiceForHandler{
 				findByCategoryAndSlugFn: func(_ context.Context, _ model.ManualCategory, _ string) (*model.ManualArticle, error) {
 					return nil, apperrors.WrapNotFound("manual_article", "missing")
 				},
@@ -451,7 +458,7 @@ func TestDeleteManualArticle(t *testing.T) {
 			name:          "returns 500 when delete fails",
 			paramCategory: "general",
 			paramSlug:     "intro",
-			svc: &mockManualArticleService{
+			svc: &mockManualArticleServiceForHandler{
 				findByCategoryAndSlugFn: func(_ context.Context, category model.ManualCategory, slug string) (*model.ManualArticle, error) {
 					return &model.ManualArticle{ID: 1, Category: category, Slug: slug}, nil
 				},
@@ -474,7 +481,7 @@ func TestDeleteManualArticle(t *testing.T) {
 	}
 
 	t.Run("returns 401 when clinic_id is missing", func(t *testing.T) {
-		h := newHandlerWithManualArticleSvc(&mockManualArticleService{})
+		h := newHandlerWithManualArticleSvc(&mockManualArticleServiceForHandler{})
 		w := httptest.NewRecorder()
 		c, _ := gin.CreateTestContext(w)
 		c.Request = httptest.NewRequest(http.MethodDelete, "/", http.NoBody)
@@ -487,7 +494,7 @@ func TestDeleteManualArticle(t *testing.T) {
 	})
 
 	t.Run("returns 400 when slug is empty", func(t *testing.T) {
-		h := newHandlerWithManualArticleSvc(&mockManualArticleService{})
+		h := newHandlerWithManualArticleSvc(&mockManualArticleServiceForHandler{})
 		w := httptest.NewRecorder()
 		c, _ := gin.CreateTestContext(w)
 		c.Request = httptest.NewRequest(http.MethodDelete, "/", http.NoBody)
@@ -510,7 +517,7 @@ func TestListManualArticleVersions(t *testing.T) {
 		name          string
 		paramCategory string
 		paramSlug     string
-		svc           *mockManualArticleService
+		svc           *mockManualArticleServiceForHandler
 		wantStatus    int
 		wantBody      string
 	}{
@@ -518,7 +525,7 @@ func TestListManualArticleVersions(t *testing.T) {
 			name:          "returns list of manual article versions",
 			paramCategory: "general",
 			paramSlug:     "intro",
-			svc: &mockManualArticleService{
+			svc: &mockManualArticleServiceForHandler{
 				findByCategoryAndSlugFn: func(_ context.Context, category model.ManualCategory, slug string) (*model.ManualArticle, error) {
 					return &model.ManualArticle{ID: 7, Category: category, Slug: slug}, nil
 				},
@@ -534,14 +541,14 @@ func TestListManualArticleVersions(t *testing.T) {
 			name:          "returns 400 when slug is empty",
 			paramCategory: "general",
 			paramSlug:     "",
-			svc:           &mockManualArticleService{},
+			svc:           &mockManualArticleServiceForHandler{},
 			wantStatus:    http.StatusBadRequest,
 		},
 		{
 			name:          "returns 404 when article not found",
 			paramCategory: "general",
 			paramSlug:     "missing",
-			svc: &mockManualArticleService{
+			svc: &mockManualArticleServiceForHandler{
 				findByCategoryAndSlugFn: func(_ context.Context, _ model.ManualCategory, _ string) (*model.ManualArticle, error) {
 					return nil, apperrors.WrapNotFound("manual_article", "missing")
 				},
@@ -552,7 +559,7 @@ func TestListManualArticleVersions(t *testing.T) {
 			name:          "returns 500 when version lookup fails",
 			paramCategory: "general",
 			paramSlug:     "intro",
-			svc: &mockManualArticleService{
+			svc: &mockManualArticleServiceForHandler{
 				findByCategoryAndSlugFn: func(_ context.Context, category model.ManualCategory, slug string) (*model.ManualArticle, error) {
 					return &model.ManualArticle{ID: 7, Category: category, Slug: slug}, nil
 				},

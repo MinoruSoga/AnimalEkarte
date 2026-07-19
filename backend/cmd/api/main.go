@@ -16,10 +16,35 @@ import (
 	"github.com/animal-ekarte/backend/internal/infra"
 	appCrypto "github.com/animal-ekarte/backend/internal/infra/crypto"
 	"github.com/animal-ekarte/backend/internal/logger"
+	"github.com/animal-ekarte/backend/internal/manualarticle"
 	"github.com/animal-ekarte/backend/internal/middleware"
 	"github.com/animal-ekarte/backend/internal/repository"
 	"github.com/animal-ekarte/backend/internal/service"
 )
+
+// manualArticleAuditAdapter adapts the shared audit kernel (internal/service.AuditService —
+// BE9-2A classification: "keep") to internal/manualarticle's own minimal AuditLogger
+// interface, so internal/manualarticle itself never imports internal/service (ADR-006
+// "aggregator 非経由"). This is exactly the kind of narrow, composition-root-only bridge
+// BE9-2B item 3 anticipates ("DI を main.go だけに限定せず、型安全な composition を維持する").
+type manualArticleAuditAdapter struct {
+	audit service.AuditService
+}
+
+func (a manualArticleAuditAdapter) LogEntry(ctx context.Context, entry manualarticle.AuditEntry) error {
+	return a.audit.LogEntry(ctx, &service.AuditLogInput{
+		ClinicID:   entry.ClinicID,
+		ActorID:    entry.ActorID,
+		ActorType:  entry.ActorType,
+		Action:     entry.Action,
+		Resource:   entry.Resource,
+		ResourceID: entry.ResourceID,
+		OldValue:   entry.OldValue,
+		NewValue:   entry.NewValue,
+		IPAddress:  entry.IPAddress,
+		UserAgent:  entry.UserAgent,
+	})
+}
 
 func main() {
 	// 設定読み込み（ロガー初期化より先に行い、LOG_LEVEL を含む全設定を config.Config に一元化する）
@@ -179,7 +204,20 @@ func main() {
 	r.Use(middleware.RequestLoggingMiddleware())
 	// BUG-067: POST/PATCH/PUT ボディから NULL バイトを除去（PostgreSQL エラー防止）
 	r.Use(middleware.SanitizeNullBytes())
-	h.RegisterRoutes(appCtx, r)
+	protected := h.RegisterRoutes(appCtx, r)
+
+	// BE9-2B pilot: internal/manualarticle is composed here directly — it does not go
+	// through handler.Handler/service.Services/repository.Repositories. It reuses the same
+	// protected *gin.RouterGroup (so it inherits middleware.Auth's clinic_id/user_id/
+	// is_system_admin context) and the transitional h.RequirePermission method value (auth
+	// domain has not migrated yet; see internal/manualarticle/handler.go's PermissionMiddleware
+	// doc comment).
+	manualArticleHandler := manualarticle.NewHandler(
+		manualarticle.NewManualArticleService(manualarticle.New(db)),
+		manualArticleAuditAdapter{audit: svcs.Audit},
+		h.RequirePermission,
+	)
+	manualArticleHandler.RegisterRoutes(protected)
 
 	// HTTPサーバー設定
 	server := &http.Server{

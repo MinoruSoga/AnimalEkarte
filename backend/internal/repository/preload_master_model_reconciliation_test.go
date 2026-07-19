@@ -1,6 +1,6 @@
 package repository
 
-// preload_master_model_reconciliation_test.go — BE-refactor.md R3-2 (D9・P1): automated
+// preload_master_model_reconciliation_test.go — BE-refactor.md R3-2 (D9・cross-check follow-up): automated
 // cross-check between the manually curated clinicScopedMasterAssoc (read side, this
 // package's preload_clinic_scope_lint_test.go) and two independent sources of truth:
 //
@@ -8,7 +8,7 @@ package repository
 //     reliable ground truth for "does this Go type have a clinic_id column" — a hand-written
 //     comment can drift out of sync with the struct definition, but the AST cannot.
 //  2. internal/service's clinicScopedMasterFKField (master_fk_write_inventory_lint_test.go,
-//     the write-side P3.1 registry): an INDEPENDENTLY curated list of clinic-scoped master
+//     the write-side clinic-scope registry): an INDEPENDENTLY curated list of clinic-scoped master
 //     model names. Before this gate, a model newly registered on the write side had no
 //     automated check forcing its read-side registration — repository/CLAUDE.md's "新マスタ
 //     追加時" note previously relied on a human remembering to update both lists by hand.
@@ -22,7 +22,7 @@ package repository
 // 区分". That distinction is a domain judgment call the codebase already makes explicitly
 // (see clinicScopedMasterAssoc's own comment re: Account/LineCustomer being intentionally
 // excluded despite having clinic_id). Instead this gate validates the judgment calls already
-// made on BOTH sides of the P3.1 read/write split against EACH OTHER and against the
+// made on BOTH sides of the clinic-scope-Preload read/write split against EACH OTHER and against the
 // compiler-checked model layer — the audit_tx_inventory_lint_test.go bidirectional-
 // reconciliation technique applied across package boundaries instead of within one file.
 //
@@ -246,7 +246,7 @@ func reconcileMasterModelCoverage(modelClinicScoped map[string]struct{}, writeMo
 		if _, onReadSide := readSet[name]; !onReadSide {
 			violations = append(violations,
 				"model \""+name+"\" is registered in service.clinicScopedMasterFKField (write-side "+
-					"P3.1 registry) and has a ClinicID column, but is missing from "+
+					"clinic-scope registry) and has a ClinicID column, but is missing from "+
 					"repository.clinicScopedMasterAssoc (read-side registry). If a Preload of this "+
 					"master already exists, register the association name in clinicScopedMasterAssoc. "+
 					"If no association field exists in internal/model yet, add an entry to "+
@@ -335,7 +335,7 @@ func loadWriteSideMasterModelNames(t *testing.T) []string {
 }
 
 // TestMasterModelReconciliation_RealSourceIsConsistent is the gate: every model registered
-// on the write-side P3.1 registry (and every model referenced by the read-side registry)
+// on the write-side clinic-scope registry (and every model referenced by the read-side registry)
 // must be mutually consistent, grounded in the real internal/model struct definitions. Floor
 // guards prevent a vacuous green if cross-package file discovery or AST matching breaks.
 func TestMasterModelReconciliation_RealSourceIsConsistent(t *testing.T) {

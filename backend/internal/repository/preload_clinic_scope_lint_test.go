@@ -1,45 +1,78 @@
 package repository
 
-// P3.1 mechanical enforcement — clinic-scoped master Preloads must carry a clinic_id predicate.
+// Clinic-scope Preload rule (mechanical enforcement) — clinic-scoped master Preloads must
+// carry a clinic_id predicate.
 //
 // Background: a systemic cross-tenant read IDOR (b3638d5e) was fixed by hand: when a
 // clinic-scoped "master/区分" is Preloaded by an FK value without a clinic_id predicate,
 // a polluted FK (write-side validation gaps #124/#125, or pre-remediation data) makes the
-// query return ANOTHER clinic's master name/price. Rule P3.1 (repository/CLAUDE.md) requires
+// query return ANOTHER clinic's master name/price. The clinic-scope Preload rule (repository/CLAUDE.md) requires
 // every such Preload to scope clinic_id. This test enforces that rule mechanically so the
 // gap cannot regress — the read-side analogue of the runtime *_clinic_isolation_test.go guards.
 //
-// Technique is reused from model/audit_taxonomy_exhaustiveness_test.go: the package source is
-// embedded with go:embed (so parsing is correct under -trimpath / embedded test binaries),
-// parsed with go/parser + go/ast, and pinned with self-verification + good/bad fixtures so the
-// check is never vacuously green.
+// ─── Discovery mechanism (BE9-1) ─────────────────────────────────────────────────────
+//
+// Source discovery is delegated to the shared internal/lintscan package
+// (lintscan.WalkInternalTreeT), NOT to a package-local go:embed. Before BE9-1 this file declared
+// `//go:embed *.go */*.go` and a package-level `repoSourceFS embed.FS`, which only reached this
+// package's own root files plus exactly ONE level of domain subpackage (e.g.
+// paymentmethod/repository.go) — it could not see 2+-level nesting, and it could not see any
+// other internal/ package (service, model, handler, ...) at all. lintscan.WalkInternalTreeT walks
+// the WHOLE module's internal/ tree to arbitrary depth, so preload / audit-tx / dbortx
+// (this file, audit_tx_inventory_lint_test.go, dbortx_inventory_lint_test.go) now all scan every
+// production .go file under internal/, not only internal/repository — a violation fixture placed
+// anywhere under internal/ (any depth, any top-level package) is caught by all three gates.
+//
+// Key-format backward compatibility: lintscan keys are relative to internal/ (e.g.
+// "repository/foo.go", "repository/paymentmethod/repository.go", "service/vaccination_service.go").
+// legacyLintKey (below) strips the "repository/" prefix before the key reaches
+// analyzeFilePreloads, so a repository root file is still keyed "foo.go" and a repository
+// subpackage file is still keyed "paymentmethod/repository.go" — byte-for-byte the same shape the
+// old repoSourceFS walk produced — which keeps every existing preloadClinicScopeSiteExceptions
+// entry matching. Any OTHER top-level internal/ package keeps its full lintscan key unchanged
+// (e.g. "service/vaccination_service.go"); those have no legacy site-exception entries, so a new,
+// longer-but-stable key shape for anything newly discovered there is expected and fine.
+//
+// ─── Blind spots (static AST analysis; not a replacement for runtime guards) ────────
+//
+// This lint (like the other two BE9-1 lints in this package) parses Go source with go/ast and
+// pattern-matches literal call shapes. It structurally cannot see:
+//   - a clinic_id predicate hidden inside a raw SQL string literal (e.g. db.Exec("SELECT ...
+//     WHERE vaccine_id = ?")) — raw SQL is never parsed as a Preload call, so a violation
+//     reachable only through raw SQL is invisible to this gate;
+//   - a bare scalar FK column that resolves to a clinic-scoped master but whose association
+//     name is not registered in clinicScopedMasterAssoc — an unregistered name silently falls
+//     outside this gate's scope until someone adds it;
+//   - a violation reachable only through a background job, cron, worker, or any other code path
+//     that is not represented as a literal .Preload(...) AST call shape inside a plain .go file
+//     this scanner visits.
+//
+// The cross-tenant runtime tests (the *_clinic_isolation_test.go-style guards) remain required
+// for exactly these blind spots. This static lint is a complement layered on top of those runtime
+// guards, not a substitute for them.
+//
+// Technique origin: reused from model/audit_taxonomy_exhaustiveness_test.go — parsed with
+// go/parser + go/ast, pinned with self-verification + good/bad fixtures so the check is never
+// vacuously green.
 
 import (
-	"embed"
 	"go/ast"
 	"go/parser"
 	"go/token"
-	"io/fs"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"testing"
-)
 
-// repoSourceFS embeds repository source for inventory lints at compile time.
-// Top-level *.go and one-level domain subpackages (e.g. paymentmethod/*.go) are
-// included so splits cannot escape preload/dbOrTx/audit inventory gates.
-// The globs also match *_test.go; those are skipped at runtime in walkers.
-// Embedding (vs parser.ParseDir on a relative path) keeps the lint correct under
-// -trimpath — the reason the audit-taxonomy precedent uses embed.
-//
-//go:embed *.go */*.go
-var repoSourceFS embed.FS
+	"github.com/animal-ekarte/backend/internal/lintscan"
+)
 
 // clinicScopedMasterAssoc maps a GORM association name (the LAST dotted segment of a
 // Preload path) to the clinic-scoped master model it resolves to. Every Preload of one
-// of these MUST carry a clinic_id predicate (P3.1).
+// of these MUST carry a clinic_id predicate (the clinic-scope Preload rule).
 //
-// Membership is curated from the P3.1 master list and confirmed against each model's
+// Membership is curated from the clinic-scope Preload rule's master list and confirmed against each model's
 // clinic_id column — deliberately NOT "every table that has a clinic_id". Account and
 // LineCustomer have clinic_id but are not configurable masters and are intentionally
 // excluded. The generic alias names (Parent/Children/Group/Names/Course/Options) are
@@ -69,7 +102,7 @@ var clinicScopedMasterAssoc = map[string]string{
 	"Diagnosis2Name":   "DiagnosisName",
 	"Names":            "DiagnosisName", // diagnosis_type.Names []DiagnosisName
 	"Occupation":       "Occupation",
-	// BE-refactor.md R3-2 (D9・P1): 以下3件は write 側 clinicScopedMasterFKField
+	// BE-refactor.md R3-2 (D9・pre-registration follow-up): 以下3件は write 側 clinicScopedMasterFKField
 	// (master_fk_write_inventory_lint_test.go) には既に登録済みで、model 層にも
 	// gorm:"foreignKey:...ID" association フィールドが既に存在するが、本ファイル作成時点では
 	// repository 層でまだ一度も Preload されていない「未点火の地雷」だった。read 側に未登録のまま
@@ -82,11 +115,11 @@ var clinicScopedMasterAssoc = map[string]string{
 	// 残り3件（MerchandiseItem/TrimmingCourseType/PaymentMethodMaster）は write 側
 	// clinicScopedMasterFKField には登録済みだが、model 層に gorm:"foreignKey:...ID" association
 	// フィールドがまだ存在しない（生の *ID フィールドのみ）。Preload 自体が構文的に不可能なため
-	// 本マップへの事前登録はできない。P1 follow-up: これらに association フィールドを追加する際は
+	// 本マップへの事前登録はできない。TODO follow-up: これらに association フィールドを追加する際は
 	// 同一コミットで本マップにも登録すること（read/write 両ゲートの双方向整合を維持する）。
 }
 
-// staffExemptAssoc: P3.1 Staff exception. Staff belongs to multiple clinics via
+// staffExemptAssoc: the clinic-scope Preload rule's Staff exception. Staff belongs to multiple clinics via
 // staff_clinic_assignments (staffs.clinic_id is the primary only). Scoping a historical
 // Doctor/Staff preload by staffs.clinic_id would wrongly hide shared/reassigned staff from
 // past records; the leak is a staff NAME only, low severity, and unreachable in normal flow
@@ -113,7 +146,7 @@ var globalExemptAssoc = map[string]struct{}{
 // preloadSiteException records a specific (file, assoc, predicate) site where a clinic-scoped
 // master is intentionally Preloaded WITHOUT a clinic_id predicate because clinicID is not in
 // scope and threading it is cross-layer-invasive. Each is a documented low-severity residual
-// with a P1 follow-up — NOT a blanket "writes are validated" waiver. The key is the exact
+// with a TODO follow-up — NOT a blanket "writes are validated" waiver. The key is the exact
 // (base filename, assoc, raw predicate) so any normally-scoped preload added later is still
 // enforced; only this precise unscoped pattern is tolerated.
 //
@@ -139,7 +172,7 @@ var preloadClinicScopeSiteExceptions = []preloadSiteException{
 		occurrences: 1, // FindByID(id) only; FindAll is clinic_id-scoped
 		reason: "FindByID(id) is a cross-clinic identity/auth lookup with no clinicID param; " +
 			"the Occupation NAME leak is low severity; threading clinicID would break the " +
-			"identity-lookup contract used by auth/service callers. P1: scope via a dedicated " +
+			"identity-lookup contract used by auth/service callers. TODO: scope via a dedicated " +
 			"call or drop the preload.",
 	},
 	{
@@ -150,7 +183,7 @@ var preloadClinicScopeSiteExceptions = []preloadSiteException{
 		reason: "FindAllExcludedReservationTypes(ByStaffIDs) key by staff_id with no clinicID " +
 			"param; threading it cascades through the service+handler layers. Writes validate " +
 			"reservation_type clinic ownership (UpdateExcludedReservationTypes). Residual: " +
-			"cross-clinic type NAME via past pollution, low severity. P1: plumb clinicID.",
+			"cross-clinic type NAME via past pollution, low severity. TODO: plumb clinicID.",
 	},
 }
 
@@ -177,7 +210,7 @@ func siteExceptionKey(file, assoc, predicate string) string {
 }
 
 // analyzeFilePreloads parses one Go source file and reports clinic-scoped master Preloads that
-// lack a clinic_id predicate. It is a pure function over (filename, src) so the real embedded
+// lack a clinic_id predicate. It is a pure function over (filename, src) so the real discovered
 // source and the inline fixtures exercise exactly the same logic.
 func analyzeFilePreloads(filename string, src []byte) ([]preloadFinding, preloadStats, error) {
 	fset := token.NewFileSet()
@@ -220,7 +253,7 @@ func analyzeFilePreloads(filename string, src []byte) ([]preloadFinding, preload
 			return true
 		}
 		if _, isMaster := clinicScopedMasterAssoc[key]; !isMaster {
-			return true // OTHER (Owner/Pet/Items/Payments/...) — outside P3.1 master scope
+			return true // OTHER (Owner/Pet/Items/Payments/...) — outside the clinic-scope Preload rule's master scope
 		}
 
 		stats.masterPreloads++
@@ -277,7 +310,7 @@ func preloadHasClinicScope(ce *ast.CallExpr) (hasScope bool, predicate string) {
 // via a clinicScope(...) helper call (e.g. db.Scopes(clinicScope(id))) which does not contain
 // the literal substring.
 //
-// KISS tradeoff (matches the string-predicate path and P3.1's documented stance): this is a
+// KISS tradeoff (matches the string-predicate path and the clinic-scope Preload rule's documented stance): this is a
 // substring/identifier heuristic, not data-flow analysis. A contrived closure with an incidental
 // "clinic_id" string literal, or one that merely names the clinicScope identifier without applying
 // it, would pass. Verifying that the clinic_id actually scopes the query would require type/SSA
@@ -364,48 +397,99 @@ func isInSet(set map[string]struct{}, key string) bool {
 	return ok
 }
 
-// listEmbeddedRepoGoFiles returns non-test .go paths from repoSourceFS (root + one-level subpackages).
-func listEmbeddedRepoGoFiles(t *testing.T) []string {
+// moduleInternalSource returns every production .go file across the WHOLE module's internal/
+// tree (internal/repository, internal/service, internal/model, ...) via
+// lintscan.WalkInternalTreeT(t). Keys are lintscan's raw path relative to internal/ (e.g.
+// "repository/foo.go", "repository/paymentmethod/repository.go", "service/vaccination_service.go").
+// preload / audit-tx / dbortx (this file, audit_tx_inventory_lint_test.go,
+// dbortx_inventory_lint_test.go) all share this single discovery step (BE9-1) so a violation
+// planted anywhere under internal/ — not only internal/repository — is caught by all three gates.
+func moduleInternalSource(t *testing.T) map[string][]byte {
 	t.Helper()
-	var names []string
-	err := fs.WalkDir(repoSourceFS, ".", func(path string, d fs.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-		if d.IsDir() || !strings.HasSuffix(path, ".go") || strings.HasSuffix(path, "_test.go") {
-			return nil
-		}
-		// Return the path unmodified (basename for root files, relative path for 1-level
-		// subpackage files). All three lints (preload / audit-tx / dbortx) key their
-		// allowlists the same way: basename for root files, full relative path for
-		// subpackage files — so e.g. paymentmethod/repository.go and vaccine/repository.go
-		// never share an allowlist/exception identity (BE-refactor.md §5-1-3).
-		names = append(names, path)
-		return nil
-	})
-	if err != nil {
-		t.Fatalf("walk embedded repository source: %v", err)
-	}
-	return names
+	return lintscan.WalkInternalTreeT(t)
 }
 
-// walkRepositoryPreloads runs the analyzer over every non-test .go file embedded from this
-// package directory (and domain subpackages) and aggregates findings + stats.
+// legacyLintKey converts a lintscan raw key (relative to internal/) into the key shape the
+// preload / audit-tx / dbortx lints have used since before BE9-1's module-wide migration, so
+// every existing site-exception / allowlist entry keeps matching byte-for-byte:
+//
+//	"repository/foo.go"                      -> "foo.go"                      (root file)
+//	"repository/paymentmethod/repository.go" -> "paymentmethod/repository.go" (1-level subpkg)
+//	"repository/a/b/c.go"                    -> "a/b/c.go"                    (N-level nested)
+//
+// Any OTHER top-level internal/ package (service/, model/, ...) keeps its full lintscan key
+// unchanged: those have no legacy allowlist/site-exception entries, so a new, longer-but-stable
+// key shape for anything newly discovered there is expected and fine — only files that originate
+// under internal/repository/** need this exact historical shape preserved.
+func legacyLintKey(key string) string {
+	const repositoryPrefix = "repository/"
+	if strings.HasPrefix(key, repositoryPrefix) {
+		return strings.TrimPrefix(key, repositoryPrefix)
+	}
+	return key
+}
+
+// assertDiscoversFileFromDifferentTopLevelPackage proves tree (the shared module-wide discovery
+// set every one of preload/audit-tx/dbortx's walkers now sources from via moduleInternalSource)
+// reaches at least one file OUTSIDE internal/repository — proving real, live module-wide reach
+// (BE9-1), not just internal/repository reach.
+func assertDiscoversFileFromDifferentTopLevelPackage(t *testing.T, tree map[string][]byte) {
+	t.Helper()
+	for key := range tree {
+		if !strings.HasPrefix(key, "repository/") {
+			return
+		}
+	}
+	t.Fatal("module-wide discovery set contains no file outside internal/repository; " +
+		"module-wide reach (BE9-1) is not proven — lintscan.WalkInternalTreeT may have narrowed " +
+		"back to a single top-level package")
+}
+
+// assertLintscanReachesTwoOrMoreNestingLevels proves the shared lintscan discovery mechanism
+// underlying moduleInternalSource is not artificially limited to 1-level subpackages. This uses a
+// synthetic t.TempDir() tree rather than the real repository because, as of this writing, no real
+// internal/ package nests 2+ levels deep (the deepest today is exactly 1-level, e.g.
+// repository/paymentmethod/repository.go) — the CAPABILITY, not today's real depth, is what BE9-1
+// requires proven. See lintscan.WalkInternalTree's own doc comment: "walking arbitrarily deep is
+// what makes it agnostic to however many subpackage levels exist today or are added later".
+func assertLintscanReachesTwoOrMoreNestingLevels(t *testing.T) {
+	t.Helper()
+	tmp := t.TempDir()
+	internalDir := filepath.Join(tmp, "internal")
+	deep := filepath.Join(internalDir, "pkg", "sub", "deeper", "file.go")
+	if err := os.MkdirAll(filepath.Dir(deep), 0o755); err != nil {
+		t.Fatalf("mkdir %s: %v", filepath.Dir(deep), err)
+	}
+	if err := os.WriteFile(deep, []byte("package deeper\n"), 0o644); err != nil {
+		t.Fatalf("write %s: %v", deep, err)
+	}
+
+	tree, err := lintscan.WalkInternalTree(internalDir)
+	if err != nil {
+		t.Fatalf("lintscan.WalkInternalTree(%s): %v", internalDir, err)
+	}
+	const want = "pkg/sub/deeper/file.go"
+	if _, ok := tree[want]; !ok {
+		t.Fatalf("lintscan.WalkInternalTree did not discover a 2+-level nested file %q; got %v", want, tree)
+	}
+}
+
+// walkRepositoryPreloads runs the analyzer over every production .go file discovered
+// module-wide (moduleInternalSource) and aggregates findings + stats. Filenames fed to
+// analyzeFilePreloads are legacyLintKey-normalized so site-exception identity for
+// internal/repository/** files is unchanged from the pre-BE9-1 repoSourceFS walk.
 func walkRepositoryPreloads(t *testing.T) ([]preloadFinding, preloadStats) {
 	t.Helper()
 
-	names := listEmbeddedRepoGoFiles(t)
+	tree := moduleInternalSource(t)
 
 	var all []preloadFinding
 	agg := preloadStats{siteExemptByKey: make(map[string]int)}
-	for _, name := range names {
-		src, err := repoSourceFS.ReadFile(name)
+	for rawKey, src := range tree {
+		key := legacyLintKey(rawKey)
+		findings, stats, err := analyzeFilePreloads(key, src)
 		if err != nil {
-			t.Fatalf("read embedded %s: %v", name, err)
-		}
-		findings, stats, err := analyzeFilePreloads(name, src)
-		if err != nil {
-			t.Fatalf("parse %s: %v", name, err)
+			t.Fatalf("parse %s: %v", key, err)
 		}
 		all = append(all, findings...)
 		agg.filesParsed += stats.filesParsed
@@ -422,13 +506,13 @@ func walkRepositoryPreloads(t *testing.T) ([]preloadFinding, preloadStats) {
 
 // TestPreloadClinicScope_RealRepositorySourceHasNoUnscopedMasterPreload is the gate: no
 // clinic-scoped master Preload in this package may omit a clinic_id predicate (unless covered
-// by a documented site exception). The floor guards prevent a vacuous green if the embed glob
-// or AST matching silently breaks.
+// by a documented site exception). The floor guards prevent a vacuous green if discovery or the
+// AST matching silently breaks.
 func TestPreloadClinicScope_RealRepositorySourceHasNoUnscopedMasterPreload(t *testing.T) {
 	findings, stats := walkRepositoryPreloads(t)
 
 	if stats.filesParsed < 40 {
-		t.Fatalf("only %d repository source files parsed; embed glob likely broken (would vacuously pass)", stats.filesParsed)
+		t.Fatalf("only %d repository source files parsed; discovery likely broken (would vacuously pass)", stats.filesParsed)
 	}
 	// Floor, not an exact pin: master preloads grow as the schema grows. A broken AST matcher
 	// would drop this to ~0, far below the floor. Update the floor only if it ever exceeds the
@@ -438,7 +522,7 @@ func TestPreloadClinicScope_RealRepositorySourceHasNoUnscopedMasterPreload(t *te
 	}
 
 	for _, f := range findings {
-		t.Errorf("P3.1 violation: %s:%d Preload(%q): %s", f.file, f.line, f.assoc, f.detail)
+		t.Errorf("clinic-scope Preload violation: %s:%d Preload(%q): %s", f.file, f.line, f.assoc, f.detail)
 	}
 	if len(findings) > 0 {
 		t.Errorf("%d clinic-scoped master Preload(s) missing clinic_id predicate. "+
@@ -487,7 +571,7 @@ func TestPreloadClinicScope_Analyzer(t *testing.T) {
 		{"global master exempt", `db.Preload("AnimalSpecies")`, 0},
 		{"non-master ignored", `db.Preload("Items", "deleted_at IS NULL")`, 0},
 		{"non-literal predicate fails closed", `db.Preload("Vaccine", cond)`, 1},
-		// BE-refactor.md R3-2 (D9・P1): 事前登録した「未点火の地雷」3件が実際に効くことの証明。
+		// BE-refactor.md R3-2 (D9・pre-registration follow-up): 事前登録した「未点火の地雷」3件が実際に効くことの証明。
 		{"pre-registered ChiefComplaintType missing clinic_id", `db.Preload("ChiefComplaintType", "deleted_at IS NULL")`, 1},
 		{"pre-registered ChiefComplaintType scoped", `db.Preload("ChiefComplaintType", "clinic_id = ? AND deleted_at IS NULL", clinicID)`, 0},
 		{"pre-registered HospitalizationPlan missing clinic_id", `db.Preload("HospitalizationPlan", "deleted_at IS NULL")`, 1},
@@ -510,19 +594,30 @@ func TestPreloadClinicScope_Analyzer(t *testing.T) {
 }
 
 // TestPreloadClinicScope_AnalyzerDetectsViolationUnderNestedPathFilename proves the analyzer
-// itself (not just the embed mechanism — see TestRepoSourceEmbed_ReachesOneLevelSubpackages)
-// flags a known-bad Preload pattern when the source is presented under a 1-level subpackage
-// filename (e.g. "paymentmethod/repository.go"), the same shape repoSourceFS produces for real
-// domain subpackages. BE8-0 follow-up: the prior 3 embed-reachability tests never fed a
-// violation through the analyzer at all (see BE-refactor.md BE8-0 follow-up note).
+// itself (not just discovery reach — see
+// TestPreloadClinicScope_DiscoveryReachesModuleWideAndNestedPackages) flags a known-bad Preload
+// pattern identically regardless of the filename/location shape the source is presented under: a
+// repository-root-shaped filename, a DIFFERENT top-level internal/ package filename, and a
+// 2+-level nested filename must all report the SAME violation (BE9-1: module-wide, depth-agnostic
+// scanning). BE8-0 follow-up: the prior 3 embed-reachability tests never fed a violation through
+// the analyzer at all (see BE-refactor.md BE8-0 follow-up note).
 func TestPreloadClinicScope_AnalyzerDetectsViolationUnderNestedPathFilename(t *testing.T) {
 	src := "package p\nfunc f() { _ = db.Preload(\"Vaccine\", \"deleted_at IS NULL\") }\n"
-	findings, _, err := analyzeFilePreloads("paymentmethod/repository.go", []byte(src))
-	if err != nil {
-		t.Fatalf("parse fixture: %v", err)
+	filenames := []string{
+		"repository/x.go",          // root-shaped
+		"service/x.go",             // a different top-level internal/ package
+		"repository/two/deep/x.go", // 2+-level nested
 	}
-	if len(findings) != 1 {
-		t.Fatalf("got %d findings for a nested-path-filename violation, want 1: %+v", len(findings), findings)
+	for _, fn := range filenames {
+		t.Run(fn, func(t *testing.T) {
+			findings, _, err := analyzeFilePreloads(fn, []byte(src))
+			if err != nil {
+				t.Fatalf("parse fixture: %v", err)
+			}
+			if len(findings) != 1 {
+				t.Fatalf("got %d findings for filename %q, want 1: %+v", len(findings), fn, findings)
+			}
+		})
 	}
 }
 
@@ -575,43 +670,49 @@ func TestPreloadClinicScope_SiteExceptionMatchingIsExact(t *testing.T) {
 	}
 }
 
-// TestRepoSourceEmbed_ReachesOneLevelSubpackages pins that the shared repoSourceFS embed glob
-// (`//go:embed *.go */*.go`) actually reaches one-level domain subpackages, not just the root
-// package. preload_clinic_scope / audit_tx_inventory / dbortx_inventory all share this walk via
-// listEmbeddedRepoGoFiles — if the glob's `*/*.go` term were narrowed or dropped (e.g. back to
-// `*.go` root-only), a domain split out of the flat repository layer would silently fall off all
-// three clinical-safety gates without any other test catching it (BE-refactor.md BE8-0 §5-1).
-// This is a regression test for the EMBED mechanism itself, not for the AST-matching analyzers
-// (those are pinned separately by each *_Analyzer test with inline fixtures — an analyzer test
-// alone would stay green even if the embed stopped reaching subpackages, since it never touches
-// repoSourceFS).
-func TestRepoSourceEmbed_ReachesOneLevelSubpackages(t *testing.T) {
-	names := listEmbeddedRepoGoFiles(t)
+// TestPreloadClinicScope_DiscoveryReachesModuleWideAndNestedPackages pins that moduleInternalSource
+// (backed by lintscan.WalkInternalTreeT) actually reaches: (a) 1-level+ repository domain
+// subpackages, (b) at least one file from a DIFFERENT top-level internal/ package (proving real
+// module-wide reach, not just internal/repository reach), and (c) 2+-level nesting (a scanner
+// CAPABILITY proof via a synthetic tree — see assertLintscanReachesTwoOrMoreNestingLevels for why
+// the real repository cannot exercise this today). preload_clinic_scope / audit_tx_inventory /
+// dbortx_inventory all share this discovery step via moduleInternalSource — if it narrowed back
+// to a single top-level package or a fixed depth, a violation outside internal/repository (or
+// 2+ levels deep) would silently fall off all three clinical-safety gates without any other test
+// catching it (BE9-1; historical precedent: BE-refactor.md BE8-0 §5-1, for the original 1-level
+// embed-glob regression).
+//
+// Renamed + strengthened from the pre-BE9-1 TestRepoSourceEmbed_ReachesOneLevelSubpackages, which
+// only pinned the go:embed glob's 1-level reach within this package.
+func TestPreloadClinicScope_DiscoveryReachesModuleWideAndNestedPackages(t *testing.T) {
+	tree := moduleInternalSource(t)
 
-	found := false
-	nested := 0
-	for _, n := range names {
-		if n == "paymentmethod/repository.go" {
-			found = true
+	foundPaymentMethod := false
+	nestedRepositorySubpackages := 0
+	for n := range tree {
+		if n == "repository/paymentmethod/repository.go" {
+			foundPaymentMethod = true
 		}
-		if strings.Contains(n, "/") {
-			nested++
+		if strings.HasPrefix(n, "repository/") && strings.Contains(legacyLintKey(n), "/") {
+			nestedRepositorySubpackages++
 		}
 	}
-	if !found {
-		t.Fatal("embedded repository source does not include paymentmethod/repository.go; " +
-			"repoSourceFS's `*/*.go` glob term may have been narrowed or removed — this would " +
-			"silently drop 1-level domain subpackages from preload/audit-tx/dbortx clinical-safety " +
-			"coverage without any other test catching it")
+	if !foundPaymentMethod {
+		t.Fatal("module-wide discovery does not include repository/paymentmethod/repository.go; " +
+			"lintscan's walk may have narrowed and would silently drop 1-level domain subpackages " +
+			"from preload/audit-tx/dbortx clinical-safety coverage without any other test catching it")
 	}
-	// Floor, not an exact pin: grows as the repository strangler split proceeds (17 nested
-	// non-test files across 14 domains + repohelpers as of 2026-07-17). A broken/narrowed embed
-	// glob would drop this near 0.
+	// Floor, not an exact pin: grows as the repository strangler split proceeds (47 nested
+	// non-test files across domains + repohelpers/repotest as of 2026-07-19). A broken/narrowed
+	// discovery walk would drop this near 0.
 	const nestedFloor = 10
-	if nested < nestedFloor {
-		t.Fatalf("only %d nested (1-level subpackage) source files embedded, want >= %d; "+
-			"repoSourceFS's `*/*.go` glob term may have narrowed", nested, nestedFloor)
+	if nestedRepositorySubpackages < nestedFloor {
+		t.Fatalf("only %d nested (1-level+ subpackage) repository source files discovered, want >= %d; "+
+			"lintscan's walk may have narrowed", nestedRepositorySubpackages, nestedFloor)
 	}
+
+	assertDiscoversFileFromDifferentTopLevelPackage(t, tree)
+	assertLintscanReachesTwoOrMoreNestingLevels(t)
 }
 
 // TestPreloadClinicScope_SiteExceptionsMatchExpectedOccurrences pins each site exception to its
@@ -632,5 +733,60 @@ func TestPreloadClinicScope_SiteExceptionsMatchExpectedOccurrences(t *testing.T)
 				"this waiver; if the exempted site was fixed/removed, delete the now-stale exception.",
 				ex.file, ex.assoc, ex.predicate, got, ex.occurrences)
 		}
+	}
+}
+
+// TestPreloadClinicScope_EndToEndDiscoveryIsLocationAgnostic is the BE9-1 end-to-end proof: using
+// a synthetic module-shaped t.TempDir() tree (go.mod + internal/), the SAME minimal bad
+// (clinic_id-less) Preload source snippet is planted at 3 different depths/locations — a
+// root-level file, a 1-level subpackage file, and a 2+-level nested subpackage file — then
+// lintscan.WalkInternalTree (the pure discovery function) is run against that temp internal/ dir
+// and every discovered file is fed through the REAL, unmodified analyzeFilePreloads. All 3 must
+// report the identical violation. This proves the full discovery+judgment pipeline is
+// location-agnostic end-to-end, not just the pure analyzer in isolation (see
+// TestPreloadClinicScope_AnalyzerDetectsViolationUnderNestedPathFilename for that narrower proof).
+func TestPreloadClinicScope_EndToEndDiscoveryIsLocationAgnostic(t *testing.T) {
+	tmp := t.TempDir()
+	if err := os.WriteFile(filepath.Join(tmp, "go.mod"), []byte("module example.com/synthetic\n\ngo 1.25.0\n"), 0o644); err != nil {
+		t.Fatalf("write go.mod: %v", err)
+	}
+	internalDir := filepath.Join(tmp, "internal")
+
+	badSrc := []byte("package p\nfunc f() { _ = db.Preload(\"Vaccine\", \"deleted_at IS NULL\") }\n")
+	locations := []string{
+		filepath.Join(internalDir, "repository", "root_violation.go"),                           // root-level
+		filepath.Join(internalDir, "repository", "sub", "one_violation.go"),                     // 1-level subpackage
+		filepath.Join(internalDir, "repository", "sub", "deeper", "nested", "two_violation.go"), // 2+-level nested
+	}
+	for _, loc := range locations {
+		if err := os.MkdirAll(filepath.Dir(loc), 0o755); err != nil {
+			t.Fatalf("mkdir %s: %v", filepath.Dir(loc), err)
+		}
+		if err := os.WriteFile(loc, badSrc, 0o644); err != nil {
+			t.Fatalf("write %s: %v", loc, err)
+		}
+	}
+
+	tree, err := lintscan.WalkInternalTree(internalDir)
+	if err != nil {
+		t.Fatalf("lintscan.WalkInternalTree(%s): %v", internalDir, err)
+	}
+	if len(tree) != len(locations) {
+		t.Fatalf("got %d discovered files, want %d: %v", len(tree), len(locations), tree)
+	}
+
+	total := 0
+	for key, src := range tree {
+		findings, _, err := analyzeFilePreloads(key, src)
+		if err != nil {
+			t.Fatalf("parse %s: %v", key, err)
+		}
+		if len(findings) != 1 {
+			t.Errorf("location %s: got %d findings, want 1: %+v", key, len(findings), findings)
+		}
+		total += len(findings)
+	}
+	if total != len(locations) {
+		t.Fatalf("expected %d total violations across %d planted locations, got %d", len(locations), len(locations), total)
 	}
 }

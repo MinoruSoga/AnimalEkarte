@@ -19,7 +19,7 @@ Go コードを Idiom・パフォーマンス・セキュリティの観点で�
 
 ## レビュー項目・出力形式
 
-`go-reviewer` エージェント定義（P1-P18準拠・CRITICAL/HIGH/MEDIUM構造化）を正本とする。ここにチェックリストを複製しない。
+`go-reviewer` エージェント定義と `.claude/refs/go-gin-backend-review.md` を正本とする。固定layerや旧P番号のチェックリストを複製しない。
 
 ## 使用エージェント
 

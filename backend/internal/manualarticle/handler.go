@@ -1,4 +1,4 @@
-package handler
+package manualarticle
 
 import (
 	"log/slog"
@@ -7,17 +7,42 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
+	"github.com/animal-ekarte/backend/internal/httpapi"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/service"
 )
+
+// PermissionMiddleware builds the gin.HandlerFunc that gates a route on (resource, action).
+// This is manualarticle's consumer-side view of the permission-checking middleware — BE9-2A
+// classifies permission_middleware.go as target:auth, and manualarticle (topologically before
+// auth in ADR-006's permitted dependency graph: "httpapi → clinic → inventory →
+// manualarticle → owner → pet → staff → auth → ...") must not depend on the not-yet-migrated
+// auth domain package. The composition root (cmd/api/main.go) supplies the concrete
+// implementation (today, the transitional *handler.Handler.RequirePermission method value;
+// once BE9-2C/2D migrates auth, an *auth.Handler method value instead) — manualarticle never
+// imports internal/handler or internal/auth.
+type PermissionMiddleware func(resource, action string) gin.HandlerFunc
+
+// Handler serves the manualarticle HTTP boundary. Unlike the legacy *handler.Handler, it takes
+// only the narrow dependencies it actually needs (service, audit, permission middleware) —
+// it never holds *service.Services / *repository.Repositories / *handler.Handler.
+type Handler struct {
+	service           ManualArticleService
+	audit             AuditLogger
+	requirePermission PermissionMiddleware
+}
+
+// NewHandler initializes a Handler.
+func NewHandler(service ManualArticleService, audit AuditLogger, requirePermission PermissionMiddleware) *Handler {
+	return &Handler{service: service, audit: audit, requirePermission: requirePermission}
+}
 
 // ListManualArticles は全マニュアル記事を返す（認証済みユーザー全員）
 //
 // GET /api/v1/manual/articles
 func (h *Handler) ListManualArticles(c *gin.Context) {
-	articles, err := h.svc.ManualArticle.FindAll(c.Request.Context())
+	articles, err := h.service.FindAll(c.Request.Context())
 	if err != nil {
-		RespondError(c, err)
+		httpapi.RespondError(c, err)
 		return
 	}
 	c.JSON(http.StatusOK, toManualArticleListResponse(articles))
@@ -30,12 +55,12 @@ func (h *Handler) GetManualArticle(c *gin.Context) {
 	category := model.ManualCategory(c.Param("category"))
 	slug := c.Param("slug")
 	if slug == "" {
-		RespondError(c, apperrors.WrapInvalidInput("slug is required"))
+		httpapi.RespondError(c, apperrors.WrapInvalidInput("slug is required"))
 		return
 	}
-	article, err := h.svc.ManualArticle.FindByCategoryAndSlug(c.Request.Context(), category, slug)
+	article, err := h.service.FindByCategoryAndSlug(c.Request.Context(), category, slug)
 	if err != nil {
-		RespondError(c, err)
+		httpapi.RespondError(c, err)
 		return
 	}
 	c.JSON(http.StatusOK, toManualArticleResponse(article))
@@ -46,37 +71,37 @@ func (h *Handler) GetManualArticle(c *gin.Context) {
 // PUT /api/v1/manual/articles/:category/:slug
 // Requires: ResourceManualEdit, edit permission
 func (h *Handler) UpsertManualArticle(c *gin.Context) {
-	clinicID, ok := extractClinicID(c)
+	clinicID, ok := httpapi.ExtractClinicID(c)
 	if !ok {
 		return
 	}
 	category := model.ManualCategory(c.Param("category"))
 	slug := c.Param("slug")
 	if slug == "" {
-		RespondError(c, apperrors.WrapInvalidInput("slug is required"))
+		httpapi.RespondError(c, apperrors.WrapInvalidInput("slug is required"))
 		return
 	}
 
 	var req UpsertManualArticleRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
+		httpapi.RespondError(c, apperrors.WrapInvalidInput(httpapi.ParseBindError(err)))
 		return
 	}
 
 	var editorStaffID *uint64
-	if id, ok := extractStaffID(c); ok {
+	if id, ok := httpapi.ExtractStaffID(c); ok {
 		editorStaffID = &id
 	}
 
-	saved, err := h.svc.ManualArticle.Upsert(c.Request.Context(), req.toServiceInput(category, slug), editorStaffID)
+	saved, err := h.service.Upsert(c.Request.Context(), req.toServiceInput(category, slug), editorStaffID)
 	if err != nil {
-		RespondError(c, err)
+		httpapi.RespondError(c, err)
 		return
 	}
 
 	// 監査ログ: マニュアル編集（ベストエフォート、失敗はログ記録）
-	if staffID, ok := extractStaffID(c); ok {
-		if err := h.svc.Audit.LogEntry(c.Request.Context(), &service.AuditLogInput{
+	if staffID, ok := httpapi.ExtractStaffID(c); ok {
+		if err := h.audit.LogEntry(c.Request.Context(), AuditEntry{
 			ClinicID:   &clinicID,
 			ActorID:    &staffID,
 			ActorType:  "staff",
@@ -100,32 +125,32 @@ func (h *Handler) UpsertManualArticle(c *gin.Context) {
 // DELETE /api/v1/manual/articles/:category/:slug
 // Requires: ResourceManualEdit, delete permission
 func (h *Handler) DeleteManualArticle(c *gin.Context) {
-	clinicID, ok := extractClinicID(c)
+	clinicID, ok := httpapi.ExtractClinicID(c)
 	if !ok {
 		return
 	}
 	category := model.ManualCategory(c.Param("category"))
 	slug := c.Param("slug")
 	if slug == "" {
-		RespondError(c, apperrors.WrapInvalidInput("slug is required"))
+		httpapi.RespondError(c, apperrors.WrapInvalidInput("slug is required"))
 		return
 	}
 
 	// 削除前に対象を取得しておく（監査ログ用）
-	target, findErr := h.svc.ManualArticle.FindByCategoryAndSlug(c.Request.Context(), category, slug)
+	target, findErr := h.service.FindByCategoryAndSlug(c.Request.Context(), category, slug)
 	if findErr != nil {
-		RespondError(c, findErr)
+		httpapi.RespondError(c, findErr)
 		return
 	}
 
-	if err := h.svc.ManualArticle.Delete(c.Request.Context(), category, slug); err != nil {
-		RespondError(c, err)
+	if err := h.service.Delete(c.Request.Context(), category, slug); err != nil {
+		httpapi.RespondError(c, err)
 		return
 	}
 
 	// 監査ログ: マニュアル削除（ベストエフォート、失敗はログ記録）
-	if staffID, ok := extractStaffID(c); ok {
-		if err := h.svc.Audit.LogEntry(c.Request.Context(), &service.AuditLogInput{
+	if staffID, ok := httpapi.ExtractStaffID(c); ok {
+		if err := h.audit.LogEntry(c.Request.Context(), AuditEntry{
 			ClinicID:   &clinicID,
 			ActorID:    &staffID,
 			ActorType:  "staff",
@@ -144,21 +169,21 @@ func (h *Handler) DeleteManualArticle(c *gin.Context) {
 	c.Status(http.StatusNoContent)
 }
 
-// registerManualArticleRoutes はマニュアル記事ルートを登録する。
+// RegisterRoutes はマニュアル記事ルートを登録する。
 //
 // マニュアルは医院共通のため clinic_id を持たない。
 // GET は認証済みユーザー全員、編集系は ResourceManualEdit 権限が必要。
-func (h *Handler) registerManualArticleRoutes(rg *gin.RouterGroup) {
+func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	manual := rg.Group("/manual/articles")
 	// 閲覧系: 認証済みユーザー全員（マニュアル閲覧は全スタッフ向け）
 	// SEC-602: P5 RequirePermission(view) 付与
-	manual.GET("", h.RequirePermission(string(model.ResourceManualEdit), "view"), h.ListManualArticles)
-	manual.GET("/:category/:slug", h.RequirePermission(string(model.ResourceManualEdit), "view"), h.GetManualArticle)
-	manual.GET("/:category/:slug/versions", h.RequirePermission(string(model.ResourceManualEdit), "view"), h.ListManualArticleVersions)
+	manual.GET("", h.requirePermission(string(model.ResourceManualEdit), "view"), h.ListManualArticles)
+	manual.GET("/:category/:slug", h.requirePermission(string(model.ResourceManualEdit), "view"), h.GetManualArticle)
+	manual.GET("/:category/:slug/versions", h.requirePermission(string(model.ResourceManualEdit), "view"), h.ListManualArticleVersions)
 
 	// 編集系: ResourceManualEdit 権限必須
-	manual.PUT("/:category/:slug", h.RequirePermission(string(model.ResourceManualEdit), "edit"), h.UpsertManualArticle)
-	manual.DELETE("/:category/:slug", h.RequirePermission(string(model.ResourceManualEdit), "delete"), h.DeleteManualArticle)
+	manual.PUT("/:category/:slug", h.requirePermission(string(model.ResourceManualEdit), "edit"), h.UpsertManualArticle)
+	manual.DELETE("/:category/:slug", h.requirePermission(string(model.ResourceManualEdit), "delete"), h.DeleteManualArticle)
 }
 
 // ListManualArticleVersions は指定記事の編集履歴を返す
@@ -168,18 +193,18 @@ func (h *Handler) ListManualArticleVersions(c *gin.Context) {
 	category := model.ManualCategory(c.Param("category"))
 	slug := c.Param("slug")
 	if slug == "" {
-		RespondError(c, apperrors.WrapInvalidInput("slug is required"))
+		httpapi.RespondError(c, apperrors.WrapInvalidInput("slug is required"))
 		return
 	}
 	// まず article を特定して ID を取得
-	article, err := h.svc.ManualArticle.FindByCategoryAndSlug(c.Request.Context(), category, slug)
+	article, err := h.service.FindByCategoryAndSlug(c.Request.Context(), category, slug)
 	if err != nil {
-		RespondError(c, err)
+		httpapi.RespondError(c, err)
 		return
 	}
-	versions, err := h.svc.ManualArticle.FindVersionsByArticleID(c.Request.Context(), article.ID)
+	versions, err := h.service.FindVersionsByArticleID(c.Request.Context(), article.ID)
 	if err != nil {
-		RespondError(c, err)
+		httpapi.RespondError(c, err)
 		return
 	}
 	c.JSON(http.StatusOK, toManualArticleVersionListResponse(versions))

@@ -20,7 +20,7 @@
 #     PrepareStmt を明示していないため既定値 false。GORM はクエリ毎に名前付き prepared
 #     statement をキャッシュ・再利用しない(SQLレベルの PREPARE/DEALLOCATE 文を発行しない)。
 #     → Hyperdrive の「SQLレベル prepared statement 非対応」制約に対し、通常の
-#       Handler→Service→Repository 経路(API トラフィック)は抵触しないと判断する。
+#       通常のGo APIトラフィックは抵触しないと判断する。
 #   - `backend/internal/repository/*_test.go`(テストのみ)と `backend/cmd/migrate/main.go`
 #     (本番 one-shot マイグレーションタスク)は `pg_advisory_lock` を使用する。advisory lock は
 #     Hyperdrive 非対応機能に明記されているため、migrate 実行は Hyperdrive を経由せず

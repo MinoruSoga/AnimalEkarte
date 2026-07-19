@@ -12,7 +12,7 @@ import (
 )
 
 // MedicineDoseParamRepository は薬剤 × 種の投与量パラメータの永続化（#201）。
-// 子テーブルに clinic_id を非正規化保持し clinicScope(P4) を直適用する（JOIN スコープは base.go で不可）。
+// 子テーブルに clinic_id を非正規化保持し clinicScope を直適用する（JOIN スコープは base.go で不可）。
 type MedicineDoseParamRepository interface {
 	FindByMedicineID(ctx context.Context, clinicID, medicineID uint64) ([]model.MedicineDoseParam, error)
 	FindByMedicineAndSpecies(ctx context.Context, clinicID, medicineID uint64, species model.MedicineDoseSpecies) (*model.MedicineDoseParam, error)

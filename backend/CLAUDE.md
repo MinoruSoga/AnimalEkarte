@@ -1,59 +1,33 @@
-# Backend — Go / Gin / GORM
+# Backend Instructions
 
-## Stack
+backend を変更する前に次を読む。
 
-Go 1.25 / Gin / GORM / PostgreSQL 18
+1. [Go/Gin Backend Guidelines](../.claude/rules/go-gin-backend-guidelines.md) — Go/Gin 公式由来の正本
+2. [Backend Coding Rules](CODING_RULES.md) — backend 作業用サマリー
+3. [Backend Application Invariants](../.claude/refs/backend-application-invariants.md) — clinic/owner/pet/staff 分離
+4. 変更対象に最も近い `CLAUDE.md` と関連 ADR/OpenAPI
 
 ## Architecture
 
-```
-Handler → Service → Repository
-```
+- Go/Gin公式は Handler → Service → Repository、Clean Architecture、layer-first/domain-first を規定しない。
+- package は現在の folder tree ではなく、凝集性、利用者、依存方向、変更単位を根拠に設計する。
+- interface は一般に利用側で最小に定義し、実装側は concrete type を返す。
+- 新しい抽象化や package 分割は、実際の利用箇所が生じてから導入する。
+- 既存 package 名は現状の実装説明であり、新規 code の固定 template ではない。
 
-- Handler: bind request, call service, convert response, return JSON
-- Service: business logic, call repository, wrap errors
-- Repository: GORM queries, convert GORM errors
+## Required safety
 
-**パッケージ分割規約（BE8）**: 新規ドメインの repository/service はフラット直下でなく `internal/<layer>/<domain>/` サブパッケージで作成する。詳細 = 各層 CLAUDE.md／規約正本 = `.claude/rules/go-package-conventions.md`・計画 = `/BE-refactor.md`（対応後削除）。
+- boundary で input を検証し、authentication、authorization、resource ownership を分ける。
+- request Context を DB/外部 API へ伝播し、Context を struct に保存しない。
+- clinic-scoped data は全 read/write/delete path で認証済み clinic に制約する。
+- error response と log に secret、credential、個人情報、内部詳細を出さない。
+- OpenAPI、migration、security ADR との contract を維持する。
 
-## Error Handling (MANDATORY)
+## Commands and verification
 
-```go
-// Repository
-return nil, apperrors.FromGORM(err, "vaccine", fmt.Sprintf("%d", id))
+- host で `go` command を直接実行しない。Docker の scoped command を使う。
+- full `go test ./...`、full lint、DB reset/migration apply は自動実行しない。
+- 変更 package に限定した test、format、lint を優先する。
+- docs-only change は runtime verification 不要。link、reference、format drift を確認する。
 
-// Service
-return nil, apperrors.Wrap(err, "failed to find vaccine")
-
-// Handler
-RespondError(c, err)  // NEVER c.JSON(http.StatusBadRequest, ...)
-```
-
-## Master Data Deletion Pattern
-
-```go
-// Service.Delete — always check FK references first
-count, _ := s.repo.CountUsageByVaccineID(ctx, id)
-if count > 0 {
-    return apperrors.WrapConflict(fmt.Errorf("vaccine %d is in use", id))
-}
-```
-
-## P1–P18 Compliance (MANDATORY)
-
-Full rules in `.claude/refs/gin-architecture-compliance.md`.
-
-| Layer | Patterns |
-|-------|---------|
-| Handler | P5, P6, P7, P12, P14, P15, P18 — see `internal/handler/CLAUDE.md` |
-| Service | P1, P8, P10, P11, P13, P17 — see `internal/service/CLAUDE.md` |
-| Repository | P2, P3, P4, P9, P16 — see `internal/repository/CLAUDE.md` |
-
-## Prohibited Commands (must NOT auto-execute)
-
-```bash
-docker compose exec backend go test ./...
-docker compose exec backend golangci-lint run ./...
-docker compose exec backend gofmt -w ./...
-docker compose exec backend go mod download
-```
+P1–P18 は廃止された project 固有 checklist であり、レビュー基準に使わない。レビューは [Go/Gin Backend Review](../.claude/refs/go-gin-backend-review.md) を使う。

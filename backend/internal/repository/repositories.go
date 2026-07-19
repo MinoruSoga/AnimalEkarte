@@ -67,11 +67,12 @@ type Repositories struct {
 	CheckupTypeField          CheckupTypeFieldRepository
 	CheckupFieldResult        CheckupFieldResultRepository
 	Estimate                  EstimateRepository
-	ManualArticle             ManualArticleRepository
-	MerchandiseItem           MerchandiseItemRepository
-	BillingItem               BillingItemRepository
-	Refund                    RefundRepository
-	Audit                     AuditRepository
+	// ManualArticle: BE9-2B — moved to internal/manualarticle (aggregator-free domain
+	// package). No longer constructed here; see cmd/api/main.go.
+	MerchandiseItem MerchandiseItemRepository
+	BillingItem     BillingItemRepository
+	Refund          RefundRepository
+	Audit           AuditRepository
 	// LINE予約
 	LineReservationSetting         LineReservationSettingRepository
 	ReservationTypeLiff            ReservationTypeLiffRepository
@@ -184,7 +185,6 @@ func NewRepositories(db *gorm.DB) *Repositories {
 		CheckupTypeField:               NewCheckupTypeFieldRepository(db),
 		CheckupFieldResult:             NewCheckupFieldResultRepository(db),
 		Estimate:                       NewEstimateRepository(db),
-		ManualArticle:                  NewManualArticleRepository(db),
 		MerchandiseItem:                NewMerchandiseItemRepository(db),
 		BillingItem:                    NewBillingItemRepository(db),
 		Refund:                         NewRefundRepository(db),

@@ -1,6 +1,6 @@
 # インフラ・システム構成書 (Infrastructure Architecture)
 
-> **目的**: AWS/Vercelインフラ構成図・ネットワーク設計を定義する(`docs/architecture/overview.md`＝レイヤードアーキテクチャとは別物)。
+> **目的**: AWS/Vercelインフラ構成図・ネットワーク設計を定義する（backend設計は`docs/architecture/overview.md`を参照）。
 > **読者**: インフラ担当・新規参加者。
 > **タイミング**: AWS/Vercel構成を把握したい時。
 

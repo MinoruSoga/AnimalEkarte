@@ -24,7 +24,7 @@ description: backend/migrations/ の新規作成・編集、およびseedバン�
 1. **命名規則**: `{既存最大番号+1}_{snake_case説明}.sql`。番号を飛ばしたり既存ファイルを上書きしない（`backend/migrations/CLAUDE.md`）
 2. **clinic_idスコープ**: クリニック間分離が必要な新テーブルは `clinic_id BIGINT NOT NULL` 必須。複合indexの先頭カラムに置く
 3. **ソフトデリート**: 業務データテーブルには `deleted_at TIMESTAMPTZ` を追加する
-4. **CASCADE DELETEは原則禁止**: 許容されるのは「純粋な従属データ」（join table / 親の構成要素として不可分な子行 / 業務履歴を失わないマスタ参照lookup）のみ。`owners`/`pets`/`medical_records`等PHI・業務データを親とする連鎖削除は禁止——service層の依存チェック（409応答）で代替する
+4. **CASCADE DELETEは原則禁止**: 許容されるのは「純粋な従属データ」（join table / 親の構成要素として不可分な子行 / 業務履歴を失わないマスタ参照lookup）のみ。`owners`/`pets`/`medical_records`等PHI・業務データを親とする連鎖削除は禁止——applicationの削除境界で依存確認と明示的な409応答を行う
 5. **既存ファイルを絶対に編集しない**: 一度コミットされたmigrationファイルは追記専用。修正が必要なら新しい番号のmigrationで訂正する。このリポジトリには既存migration編集時に警告する `.claude/hooks/pre-edit-migration-guard.js` フックがあるが、フックは非ブロッキングなので最終判断は書き手が行う
 
 ## 必須チェックリスト（seed差し替え時）

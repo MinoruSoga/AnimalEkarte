@@ -3,29 +3,21 @@ package handler
 import (
 	"time"
 
-	"github.com/animal-ekarte/backend/internal/timeutil"
+	"github.com/animal-ekarte/backend/internal/httpapi"
 )
 
+// DEPRECATED facade (BE9-2B): moved to internal/httpapi.LocalTime/LocalTimePtr/
+// LocalTimeRFC3339. See context_helpers.go's file header for the rationale; delete once
+// BE9-2F migrates every remaining internal/handler file to internal/httpapi directly.
+
 func localTime(t time.Time) time.Time {
-	if t.IsZero() {
-		return t
-	}
-	return t.In(time.Local)
+	return httpapi.LocalTime(t)
 }
 
 func localTimePtr(t *time.Time) *time.Time {
-	if t == nil {
-		return nil
-	}
-	v := localTime(*t)
-	return &v
+	return httpapi.LocalTimePtr(t)
 }
 
-// localTimeRFC3339 はローカルタイムゾーンの RFC3339 文字列を返す。
-// レスポンス DTO が string 型のタイムスタンプフィールドを持つ場合に使う
-// （time.Time 型フィールドは localTime/localTimePtr + JSON 自動 marshal を使う）。
-// C-6: ローカルタイムゾーンの RFC3339 フォーマットのインライン再実装30箇所を集約する。
-// BE-refactor.md C-1: 本体は timeutil.LocalRFC3339 の1行ラッパ（handler 30箇所の再置換はしない）。
 func localTimeRFC3339(t time.Time) string {
-	return timeutil.LocalRFC3339(t)
+	return httpapi.LocalTimeRFC3339(t)
 }

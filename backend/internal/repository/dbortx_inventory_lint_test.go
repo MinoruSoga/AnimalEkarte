@@ -1,6 +1,6 @@
 package repository
 
-// dbortx_inventory_lint_test.go — BE-refactor follow-up (P1 harness): dbOrTx 参加メソッドの inventory ゲート
+// dbortx_inventory_lint_test.go — BE-refactor follow-up (ambient-transaction harness): dbOrTx 参加メソッドの inventory ゲート
 //
 // ─── Background ──────────────────────────────────────────────────────────────────────
 //
@@ -24,11 +24,32 @@ package repository
 // atomicity テスト（accounting_repository_tx_atomicity_test.go / refund_repository_sum_tx_participation_test.go
 // / checkup_field_result_tx_atomicity_test.go 等）が担う。
 //
+// ─── Static scanning blind spots (BE9-1) ───────────────────────────────────────────
+//
+// This gate is a syntactic match over literal AST call shapes (see the `funcUsesDBOrTx` doc
+// comment below for the exact three shapes matched). It cannot see:
+//   - a dbOrTx-equivalent participation hidden behind a raw SQL string, or a renamed/aliased
+//     import of the dbOrTx helper (shadowing/aliasing is a documented existing limitation, not
+//     new to BE9-1);
+//   - a method that SHOULD participate in an ambient tx but calls a helper that itself lacks
+//     dbOrTx (the taint-analysis limitation already documented above);
+//   - any dbOrTx-shaped call reachable only through a background job, cron, worker, or other
+//     code path that is not represented as a literal AST call shape in a plain .go file this
+//     scanner visits.
+// The tx atomicity/isolation runtime tests referenced throughout this file's allowlist comments
+// remain required for exactly these blind spots; this static inventory gate is a complement
+// layered on top of them, not a substitute.
+//
 // ─── Technique ──────────────────────────────────────────────────────────────────────
 //
-// preload_clinic_scope_lint_test.go の repoSourceFS（go:embed *.go */*.go）と baseFileName / receiverMethodKey
-// （audit_tx_inventory_lint_test.go）を再利用。各 FuncDecl 本体に `dbOrTx(` 呼び出しがあるものを
-// (baseFile | ReceiverType.Method) で列挙し、allowlist と双方向突合する。
+// preload_clinic_scope_lint_test.go の moduleInternalSource / legacyLintKey（内部で
+// internal/lintscan.WalkInternalTreeT を使用。BE9-1・旧 repoSourceFS go:embed を置換）と
+// baseFileName / receiverMethodKey（audit_tx_inventory_lint_test.go）を再利用。モジュール全体の
+// internal/ 配下（internal/repository 以外の internal/service・internal/model 等も含む）を走査し、
+// 各 FuncDecl 本体に `dbOrTx(` 呼び出しがあるものを (keyFile | ReceiverType.Method) で列挙し、
+// allowlist と双方向突合する。internal/repository/** 由来のキーは legacyLintKey により旧
+// repoSourceFS 相当の形（basename / 1階層以上の相対パス）へ正規化され、既存 allowlist のキー形が
+// そのまま一致し続ける。
 //
 // 注（syntactic match・sibling lint と同一設計）: `funcUsesDBOrTx` は
 //   1) Ident `dbOrTx`（parent package wrapper）
@@ -296,25 +317,20 @@ func funcUsesDBOrTx(fd *ast.FuncDecl) bool {
 	return found
 }
 
-// walkRepositoryForDBOrTx enumerates every repository method that calls dbOrTx, keyed by
-// "<file> | <ReceiverType>.<Method>". Includes domain subpackages embedded in repoSourceFS.
+// walkRepositoryForDBOrTx enumerates every method (module-wide; BE9-1) that calls dbOrTx, keyed
+// by "<file> | <ReceiverType>.<Method>". Discovery is module-wide via moduleInternalSource
+// (internal/repository plus every other internal/ package); keys for internal/repository/**
+// files are legacyLintKey-normalized so existing allowlist entries keep matching unchanged.
 func walkRepositoryForDBOrTx(t *testing.T) map[string]struct{} {
 	t.Helper()
 	found := map[string]struct{}{}
-	for _, name := range listEmbeddedRepoGoFiles(t) {
-		src, err := repoSourceFS.ReadFile(name)
-		if err != nil {
-			t.Fatalf("read embedded %s: %v", name, err)
-		}
+	tree := moduleInternalSource(t)
+	for rawKey, src := range tree {
+		keyFile := legacyLintKey(rawKey)
 		fset := token.NewFileSet()
-		f, err := parser.ParseFile(fset, name, src, 0)
+		f, err := parser.ParseFile(fset, keyFile, src, 0)
 		if err != nil {
-			t.Fatalf("parse %s: %v", name, err)
-		}
-		// Root allowlist entries use basenames; nested paths keep relative path to avoid collisions.
-		keyFile := baseFileName(name)
-		if strings.Contains(name, "/") {
-			keyFile = name
+			t.Fatalf("parse %s: %v", keyFile, err)
 		}
 		for _, decl := range f.Decls {
 			fd, ok := decl.(*ast.FuncDecl)
@@ -358,7 +374,7 @@ func reconcileDBOrTxInventory(found, allow map[string]struct{}) []string {
 func TestDBOrTxInventory_MatchesAllowlist(t *testing.T) {
 	found := walkRepositoryForDBOrTx(t)
 	if len(found) < 30 {
-		t.Fatalf("only %d dbOrTx-using methods found; embed/AST likely broke (would vacuously pass). "+
+		t.Fatalf("only %d dbOrTx-using methods found; discovery/AST likely broke (would vacuously pass). "+
 			"Expected the R1-1/R1-2 + uniform reservation/staff/shift/trimming surface (~80).", len(found))
 	}
 	for _, v := range reconcileDBOrTxInventory(found, dbOrTxParticipatingMethods) {
@@ -366,24 +382,29 @@ func TestDBOrTxInventory_MatchesAllowlist(t *testing.T) {
 	}
 }
 
-// TestDBOrTxInventory_WalksAllEmbeddedFilesIncludingSubpackages pins that walkRepositoryForDBOrTx
-// processes every 1-level domain subpackage file listEmbeddedRepoGoFiles(t) returns, with no
-// additional per-lint filtering. See TestRepoSourceEmbed_ReachesOneLevelSubpackages
-// (preload_clinic_scope_lint_test.go) for the underlying embed-glob regression test that this
-// wrapper depends on (BE-refactor.md BE8-0).
-func TestDBOrTxInventory_WalksAllEmbeddedFilesIncludingSubpackages(t *testing.T) {
-	names := listEmbeddedRepoGoFiles(t)
+// TestDBOrTxInventory_DiscoveryReachesModuleWideAndNestedPackages pins that the module-wide
+// discovery set (moduleInternalSource, backed by lintscan.WalkInternalTreeT; BE9-1)
+// walkRepositoryForDBOrTx iterates over reaches: (a) 1-level+ repository domain subpackages
+// (walkRepositoryForDBOrTx must still discover a dbOrTx usage keyed under one), (b) at least one
+// file from a DIFFERENT top-level internal/ package, and (c) 2+-level nesting (scanner
+// capability, proven via a synthetic tree).
+//
+// Renamed + strengthened from the pre-BE9-1
+// TestDBOrTxInventory_WalksAllEmbeddedFilesIncludingSubpackages, which only pinned the go:embed
+// glob's 1-level reach within internal/repository.
+func TestDBOrTxInventory_DiscoveryReachesModuleWideAndNestedPackages(t *testing.T) {
+	tree := moduleInternalSource(t)
 	nested := 0
-	for _, n := range names {
-		if strings.Contains(n, "/") {
+	for n := range tree {
+		if strings.HasPrefix(n, "repository/") && strings.Contains(legacyLintKey(n), "/") {
 			nested++
 		}
 	}
 	if nested == 0 {
-		t.Fatal("no 1-level subpackage files in the embedded set walkRepositoryForDBOrTx iterates over")
+		t.Fatal("no 1-level+ subpackage repository files in the module-wide discovered set walkRepositoryForDBOrTx iterates over")
 	}
-	// Reaching this line already proves every nested file parsed cleanly: walkRepositoryForDBOrTx
-	// calls t.Fatalf internally on any parse failure for ANY embedded file, subpackage included.
+	// Reaching this line already proves every discovered file parsed cleanly: walkRepositoryForDBOrTx
+	// calls t.Fatalf internally on any parse failure for ANY discovered file, subpackage included.
 	found := walkRepositoryForDBOrTx(t)
 	sawNestedKey := false
 	for k := range found {
@@ -393,10 +414,13 @@ func TestDBOrTxInventory_WalksAllEmbeddedFilesIncludingSubpackages(t *testing.T)
 		}
 	}
 	if !sawNestedKey {
-		t.Fatal("walkRepositoryForDBOrTx found no dbOrTx-using method keyed under a subpackage path " +
-			"(e.g. reservationtype/repository.go|...); either the embed stopped reaching subpackages, " +
+		t.Fatal("walkRepositoryForDBOrTx found no dbOrTx-using method keyed under a repository subpackage path " +
+			"(e.g. reservationtype/repository.go|...); either discovery stopped reaching subpackages, " +
 			"or the reservationtype dbOrTx usages were removed")
 	}
+
+	assertDiscoversFileFromDifferentTopLevelPackage(t, tree)
+	assertLintscanReachesTwoOrMoreNestingLevels(t)
 }
 
 // TestDBOrTxInventory_Analyzer pins the dbOrTx detector on inline fixtures.
@@ -464,13 +488,45 @@ func (r *fooRepository) Reorder() { _ = reorderByClinicID(ctx, r.db, m, "x", 1, 
 	}
 }
 
+// TestDBOrTxInventory_AnalyzerDetectsUsageUnderNestedPathFilename is the dbortx-specific
+// counterpart of the preload/audit-tx "AnalyzerDetectsViolationUnderNestedPathFilename" tests
+// (BE9-1: dbortx lacked one — see the precedent map in the BE9-1 task notes). funcUsesDBOrTx
+// itself takes no filename — it inspects only the parsed *ast.FuncDecl body — so this proves
+// dbOrTx-usage detection is identical regardless of the filename/location shape used to parse the
+// SAME source: a repository-root-shaped filename, a DIFFERENT top-level internal/ package
+// filename, and a 2+-level nested filename must all detect the SAME dbOrTx usage.
+func TestDBOrTxInventory_AnalyzerDetectsUsageUnderNestedPathFilename(t *testing.T) {
+	src := `package p
+func (r *fooRepository) Bar() { _ = dbOrTx(ctx, r.db).Find(&x) }`
+	filenames := []string{
+		"repository/x.go",          // root-shaped
+		"service/x.go",             // a different top-level internal/ package
+		"repository/two/deep/x.go", // 2+-level nested
+	}
+	for _, fn := range filenames {
+		t.Run(fn, func(t *testing.T) {
+			fset := token.NewFileSet()
+			f, err := parser.ParseFile(fset, fn, []byte(src), 0)
+			if err != nil {
+				t.Fatalf("parse fixture: %v", err)
+			}
+			fd := f.Decls[0].(*ast.FuncDecl)
+			if !funcUsesDBOrTx(fd) {
+				t.Fatalf("dbOrTx usage not detected under filename %q", fn)
+			}
+		})
+	}
+}
+
 // TestDBOrTxInventory_ReorderHelpersUseDBOrTx pins the ambient-tx contract for Reorder:
 // repohelpers.ReorderByClinicID / ReorderGlobal must call DBOrTx so domain Reorder methods
 // that only delegate to those helpers still join ambient WithTx (paymentmethod, cage, …).
 func TestDBOrTxInventory_ReorderHelpersUseDBOrTx(t *testing.T) {
-	src, err := repoSourceFS.ReadFile("repohelpers/scope.go")
-	if err != nil {
-		t.Fatalf("read repohelpers/scope.go: %v", err)
+	tree := moduleInternalSource(t)
+
+	src, ok := tree["repository/repohelpers/scope.go"]
+	if !ok {
+		t.Fatal("repository/repohelpers/scope.go not found in module-wide discovery set")
 	}
 	fset := token.NewFileSet()
 	f, err := parser.ParseFile(fset, "repohelpers/scope.go", src, 0)
@@ -503,9 +559,9 @@ func TestDBOrTxInventory_ReorderHelpersUseDBOrTx(t *testing.T) {
 
 	// paymentmethod.Reorder must keep delegating to the DBOrTx-aware reorder helper
 	// (not r.db.WithContext Transaction).
-	pmSrc, err := repoSourceFS.ReadFile("paymentmethod/repository.go")
-	if err != nil {
-		t.Fatalf("read paymentmethod/repository.go: %v", err)
+	pmSrc, ok := tree["repository/paymentmethod/repository.go"]
+	if !ok {
+		t.Fatal("repository/paymentmethod/repository.go not found in module-wide discovery set")
 	}
 	pmFset := token.NewFileSet()
 	pmF, err := parser.ParseFile(pmFset, "paymentmethod/repository.go", pmSrc, 0)

@@ -1,4 +1,4 @@
-package handler
+package httpapi
 
 import (
 	"fmt"
@@ -17,96 +17,6 @@ func newTestContext() (*gin.Context, *httptest.ResponseRecorder) {
 	c, _ := gin.CreateTestContext(w)
 	c.Request = httptest.NewRequest(http.MethodGet, "/", http.NoBody)
 	return c, w
-}
-
-func TestExtractClinicID(t *testing.T) {
-	gin.SetMode(gin.TestMode)
-
-	tests := []struct {
-		name            string
-		setupContext    func(c *gin.Context)
-		wantClinicID    uint64
-		wantOK          bool
-		wantStatus      int
-		wantBodyContain string
-	}{
-		{
-			name: "extracts valid numeric clinic_id from context",
-			setupContext: func(c *gin.Context) {
-				c.Set("clinic_id", "42")
-			},
-			wantClinicID: 42,
-			wantOK:       true,
-		},
-		{
-			name:            "returns false when clinic_id key is missing",
-			setupContext:    func(_ *gin.Context) {},
-			wantClinicID:    0,
-			wantOK:          false,
-			wantStatus:      http.StatusUnauthorized,
-			wantBodyContain: "missing clinic context",
-		},
-		{
-			name: "returns false when clinic_id is not a string",
-			setupContext: func(c *gin.Context) {
-				c.Set("clinic_id", 42) // int instead of string
-			},
-			wantClinicID:    0,
-			wantOK:          false,
-			wantStatus:      http.StatusBadRequest,
-			wantBodyContain: "invalid clinic context",
-		},
-		{
-			name: "returns false when clinic_id is non-numeric string",
-			setupContext: func(c *gin.Context) {
-				c.Set("clinic_id", "not-a-number")
-			},
-			wantClinicID:    0,
-			wantOK:          false,
-			wantStatus:      http.StatusBadRequest,
-			wantBodyContain: "invalid clinic context",
-		},
-		{
-			name: "returns false for negative numeric string",
-			setupContext: func(c *gin.Context) {
-				c.Set("clinic_id", "-1")
-			},
-			wantClinicID:    0,
-			wantOK:          false,
-			wantStatus:      http.StatusBadRequest,
-			wantBodyContain: "invalid clinic context",
-		},
-		{
-			name: "returns false for empty string",
-			setupContext: func(c *gin.Context) {
-				c.Set("clinic_id", "")
-			},
-			wantClinicID:    0,
-			wantOK:          false,
-			wantStatus:      http.StatusBadRequest,
-			wantBodyContain: "invalid clinic context",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			w := httptest.NewRecorder()
-			c, _ := gin.CreateTestContext(w)
-			c.Request = httptest.NewRequest(http.MethodGet, "/", http.NoBody)
-			tt.setupContext(c)
-
-			clinicID, ok := extractClinicID(c)
-
-			assert.Equal(t, tt.wantOK, ok)
-			if tt.wantOK {
-				assert.Equal(t, tt.wantClinicID, clinicID)
-			} else {
-				assert.Equal(t, uint64(0), clinicID)
-				assert.Equal(t, tt.wantStatus, w.Code)
-				assert.Contains(t, w.Body.String(), tt.wantBodyContain)
-			}
-		})
-	}
 }
 
 func TestRespondError(t *testing.T) {
@@ -175,8 +85,9 @@ func TestRespondError(t *testing.T) {
 	}
 }
 
-// thirdPartyCodeMessageError は Code/Message の exported string フィールドを持つが
-// service.ReservationLimitError ではない任意のエラー型（サードパーティ SDK エラー等を模す）。
+// thirdPartyCodeMessageError は Code/Message の exported string フィールドを持つ任意のエラー型
+// （サードパーティ SDK エラー等を模す）。httpapi は internal/service.ReservationLimitError を
+// 知らないため、httpapi.RespondError にとって「非 AppError エラー」はすべてこの種類として扱う。
 type thirdPartyCodeMessageError struct {
 	Code    string
 	Message string
@@ -187,8 +98,8 @@ func (e *thirdPartyCodeMessageError) Error() string {
 }
 
 // TestRespondError_UnclassifiedCustomErrorWithCodeMessageFields は、
-// exported Code/Message フィールドを持つが service.ReservationLimitError ではない
-// 非 AppError エラーが 500 + "internal server error" に落ちることを検証する
+// exported Code/Message フィールドを持つ非 AppError エラーが
+// 500 + "internal server error" に落ちることを検証する
 // （第5期回帰: reflection フォールバックにより 409 + 自身のメッセージが漏れていた）。
 func TestRespondError_UnclassifiedCustomErrorWithCodeMessageFields(t *testing.T) {
 	gin.SetMode(gin.TestMode)
@@ -247,116 +158,4 @@ func TestRespondError_NotImplementedIgnoresCustomMessage(t *testing.T) {
 	assert.Equal(t, http.StatusNotImplemented, w.Code)
 	assert.Contains(t, w.Body.String(), "not implemented")
 	assert.NotContains(t, w.Body.String(), "この機能は未実装です")
-}
-
-func TestParsePagination(t *testing.T) {
-	gin.SetMode(gin.TestMode)
-
-	tests := []struct {
-		name      string
-		query     string
-		wantPage  int
-		wantLimit int
-		wantErr   bool
-	}{
-		{
-			name:      "defaults return page 1 and limit 20",
-			query:     "",
-			wantPage:  1,
-			wantLimit: 20,
-			wantErr:   false,
-		},
-		{
-			name:      "custom valid values are accepted",
-			query:     "page=2&limit=50",
-			wantPage:  2,
-			wantLimit: 50,
-			wantErr:   false,
-		},
-		{
-			name:      "limit of 100 is accepted",
-			query:     "page=1&limit=100",
-			wantPage:  1,
-			wantLimit: 100,
-			wantErr:   false,
-		},
-		{
-			name:    "page zero is invalid",
-			query:   "page=0",
-			wantErr: true,
-		},
-		{
-			name:    "negative page is invalid",
-			query:   "page=-1",
-			wantErr: true,
-		},
-		{
-			name:    "limit over 100 is invalid",
-			query:   "limit=101",
-			wantErr: true,
-		},
-		{
-			name:    "limit zero is invalid",
-			query:   "limit=0",
-			wantErr: true,
-		},
-		{
-			name:    "non-numeric page is invalid",
-			query:   "page=abc",
-			wantErr: true,
-		},
-		{
-			name:    "non-numeric limit is invalid",
-			query:   "limit=xyz",
-			wantErr: true,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			w := httptest.NewRecorder()
-			c, _ := gin.CreateTestContext(w)
-			c.Request = httptest.NewRequest(http.MethodGet, "/?"+tt.query, http.NoBody)
-
-			page, limit, err := parsePagination(c)
-
-			if tt.wantErr {
-				assert.Error(t, err)
-				assert.Equal(t, 0, page)
-				assert.Equal(t, 0, limit)
-			} else {
-				assert.NoError(t, err)
-				assert.Equal(t, tt.wantPage, page)
-				assert.Equal(t, tt.wantLimit, limit)
-			}
-		})
-	}
-}
-
-// TestCamelToSnake は CamelCase → snake_case 変換を検証する。
-// BUG-LINE-010: 連続した大文字（頭字語）を 1 単語として扱うこと。
-func TestCamelToSnake(t *testing.T) {
-	tests := []struct {
-		input string
-		want  string
-	}{
-		{"OwnerName", "owner_name"},
-		{"IsDangerous", "is_dangerous"},
-		{"TypeID", "type_id"},         // BUG-LINE-010: 以前は "type_i_d"
-		{"OwnerID", "owner_id"},       // 同上
-		{"HTTPServer", "http_server"}, // 頭字語の末尾で区切る
-		{"APIKey", "api_key"},
-		{"URL", "url"},
-		{"ID", "id"},
-		{"Name", "name"},
-		{"", ""},
-		{"A", "a"},
-		{"lowercase", "lowercase"},
-	}
-	for _, tt := range tests {
-		t.Run(tt.input, func(t *testing.T) {
-			got := camelToSnake(tt.input)
-			assert.Equal(t, tt.want, got)
-		})
-	}
 }

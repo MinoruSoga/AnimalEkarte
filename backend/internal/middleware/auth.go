@@ -40,7 +40,7 @@ func Auth(tokenSvc service.TokenService, isProduction bool, auditSvc service.Aud
 		c.Set("user_id", claims.UserID)
 		c.Set("is_system_admin", claims.IsSystemAdmin)
 
-		// P10: staff 有効性チェック（deactivation / soft-delete 防止）
+		// staff 有効性チェック（deactivation / soft-delete 防止）
 		if !checkStaffActive(c, staffSvc, claims.UserID) {
 			return
 		}
@@ -81,7 +81,7 @@ func extractToken(c *gin.Context) string {
 }
 
 // checkStaffActive は staff の有効性（is_active && deleted_at IS NULL）を検証する
-// （BE-refactor.md E-14: P10 deactivation / soft-delete 防止）。戻り値が false の場合、
+// （BE-refactor.md E-14: staff deactivation / soft-delete 防止）。戻り値が false の場合、
 // 既に 403 レスポンスを書き込み済みのため呼び出し元は即座に return すること。
 // userID が数値でない、staffSvc が nil、または DB 一時障害の場合は検証をスキップし
 // true を返す（既存挙動を維持）。

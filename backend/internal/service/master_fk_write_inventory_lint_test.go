@@ -1,6 +1,6 @@
 package service
 
-// Write-side P3.1 review-coverage gate — every service method that receives a
+// Write-side clinic-scope review-coverage gate — every service method that receives a
 // REQUEST-DERIVED clinic-scoped master foreign key (FK) through one of its input
 // parameters (a DTO struct field, possibly nested in a sub-struct / slice / embedded
 // struct) must appear in the maintained masterFKWriteAllowlist with an explicit status.
@@ -13,7 +13,7 @@ package service
 //	This gate does NOT verify that a FindByID(ctx, clinicID, …) ownership guard exists
 //	or actually works. Proving "the request-supplied master FK was checked against the
 //	caller's clinic before persistence" requires interprocedural taint analysis across
-//	handler→service→repository, which go/ast cannot do reliably. #124 (f4e7b7a7) is the
+//	multiple package/function boundaries, which go/ast cannot do reliably. #124 (f4e7b7a7) is the
 //	standing counterexample: the parent exam_type_id was validated while a NESTED
 //	exam_type_field_id was not. A static rule that "looks 80% validated" is the exact
 //	"felt-validated" failure mode that let #124 regress, so we deliberately do not build
@@ -22,7 +22,7 @@ package service
 //	it forces every master-FK write onto a curated allowlist with a status. It is the
 //	write-side analogue of repository/preload_clinic_scope_lint_test.go (read side).
 //
-// Residual gaps this gate does NOT cover (documented in repository/CLAUDE.md P3.1):
+// Residual gaps this gate does NOT cover (documented in repository/CLAUDE.md's clinic-scope Preload rule):
 //  1. Correctness of the ownership guard (see above) — runtime tests are the source of truth.
 //  2. A master FK arriving as a BARE scalar parameter (e.g. `medicineID uint64`) rather
 //     than via a DTO struct field. Detection keys on DTO struct fields by design (the
@@ -34,30 +34,77 @@ package service
 //  3. A master FK propagated through a non-`model.` cross-package struct parameter. Today
 //     there are none; knownSafeParamQualifiers pins this so a new external param qualifier
 //     fails closed and is forced into review.
+//  4. (field-name/shape matching limits, independent of role scope) A master-FK-bearing DTO reached only via an UNREGISTERED
+//     field name (not a key of clinicScopedMasterFKField) is invisible by design — this gate
+//     detects by field-name matching, not exhaustive type inspection. A struct type reachable
+//     only through a shape masterFKsOf's recursion does not follow (an interface-typed field, a
+//     map/func-typed field, a generic type parameter, or a type alias) is also invisible — the
+//     recursion only walks named/embedded struct-typed fields reached by peeling pointers and
+//     slices/arrays. This gate makes no claim of exhaustiveness against either gap, and scanning
+//     more of internal/ does not close them — a single struct's fields can hide from field-
+//     name/shape-based matching regardless of scan breadth. Cross-tenant ownership correctness
+//     remains enforced at RUNTIME by cross_tenant_master_fk_write_test.go and the
+//     *_clinic_isolation_test.go guards (see the SCOPE / ROLE BOUNDARY section above).
 //
-// Technique reused verbatim from repository/preload_clinic_scope_lint_test.go and
-// model/audit_taxonomy_exhaustiveness_test.go: go:embed the package source (correct under
-// -trimpath), parse with go/parser+go/ast, curate the field set + allowlist, and pin
-// everything with good/bad fixtures, floor guards, bidirectional exhaustiveness, and a
-// negative self-check so the gate can never pass vacuously.
+// Technique reused from repository/preload_clinic_scope_lint_test.go and
+// model/audit_taxonomy_exhaustiveness_test.go, adapted for BE9-1: file discovery now goes
+// through the shared internal/lintscan package (lintscan.WalkInternalTreeT), which walks the
+// WHOLE module's internal/** tree via filepath.WalkDir — package-independent, not go:embed-
+// rooted; see internal/lintscan/lintscan.go's package doc for the discovery-layer/content-
+// classification-layer split this reuse relies on. lintscan already excludes *_test.go files,
+// testdata/, and vendor/, so this gate never inspects its own fixtures or other test helpers.
+// Parsing (go/parser+go/ast),
+// the curated field set + allowlist, and pinning with good/bad fixtures, floor guards,
+// bidirectional exhaustiveness, and a negative self-check so the gate can never pass vacuously
+// are unchanged from the pre-BE9-1 go:embed-based version.
+//
+// SERVICE-WRITE ROLE SCOPE — analyzeRealServiceSource narrows lintscan's whole-tree walk down to
+// the service-write role package(s): isServiceWriteRolePackage / serviceWriteRolePackagePrefixes,
+// defined just above analyzeRealServiceSource below. This narrowing is the gate's permanent,
+// by-design scope. This gate reviews SERVICE-WRITE persistence coverage — the layer where a
+// request-derived DTO is validated and actually persisted. internal/model (GORM column/struct
+// definitions) and internal/handler (HTTP request/response DTOs and transport binding) are
+// DIFFERENT layers with DIFFERENT concerns — schema definition and transport binding, not
+// persistence write logic — and are intentionally, permanently excluded from this gate's role
+// scope; that is a deliberate layer boundary, not a coverage gap. A prior independent AST audit
+// found 206 field-name occurrences of clinic-scoped master FK field names across internal/model
+// and internal/handler combined; every one of them is correctly out of THIS gate's scope
+// (schema/transport, not a service-write persistence decision), not silently allowlisted or
+// missed. Widening the role scope to internal/model or internal/handler would not add
+// write-review coverage — it would blur this gate's single responsibility with two layers it was
+// never designed to audit. When BE9-2 migrates service-write persistence logic OUT of
+// internal/service into a new domain package (e.g. internal/owner, internal/pet), that new
+// package's lintscan prefix is added to serviceWriteRolePackagePrefixes — and ONLY there; no
+// other code in this file changes to admit it. See
+// TestMasterFKWriteInventory_RoleFilterPackageScope and
+// TestMasterFKWriteInventory_RoleFilterExtensionPointGeneralizes for the extension-point proof,
+// and TestMasterFKWriteInventory_RoleFilterIntegrationExcludesOtherLayers for the direct
+// service-vs-model-vs-handler detection proof.
+//
+// CROSS-PACKAGE TYPE-NAME COLLISION SAFETY: the struct index is keyed by (containing-directory-
+// of-the-file relative to internal/, type name) via mfkStructKey, not by bare type name alone —
+// two unrelated internal/ packages may each declare an unrelated local struct with the same name
+// (e.g. a handler.Input and a service.Input), and an unqualified param type reference is only
+// resolved against entries whose directory matches that SAME file's own directory — mirroring
+// real Go semantics, where an unqualified type reference can only resolve to a type declared in
+// that file's own package. This makes analyzeServicePackage itself correct across the WHOLE
+// internal/** tree, independent of whatever subset of files analyzeRealServiceSource happens to
+// feed it — exercised directly against multi-package fixtures by
+// TestMasterFKWriteInventory_AnalyzerDetectsViolationUnderNestedPathFilename and
+// TestMasterFKWriteInventory_CrossPackageTypeNameCollisionIsolation. See the SERVICE-WRITE ROLE
+// SCOPE section above for why the real feed itself stays permanently restricted to the
+// service-write role scope regardless of the analyzer's own whole-tree correctness.
 
 import (
-	"embed"
 	"go/ast"
 	"go/parser"
 	"go/token"
-	"io/fs"
 	"sort"
 	"strings"
 	"testing"
-)
 
-// serviceSourceFS embeds every .go file in this package directory at compile time.
-// The glob also matches *_test.go (incl. this file); those are skipped at runtime in
-// analyzeServicePackage so the gate never inspects its own fixtures or other test helpers.
-//
-//go:embed *.go
-var serviceSourceFS embed.FS
+	"github.com/animal-ekarte/backend/internal/lintscan"
+)
 
 // clinicScopedMasterFKField maps a Go struct field name to the clinic-scoped master model
 // it references. When a service method's input DTO carries one of these fields (with an
@@ -126,7 +173,7 @@ var knownSafeParamQualifiers = map[string]struct{}{
 	// repository.* — read-filter/query structs (e.g. MedicalRecordListFilters), not persistence
 	// write DTOs. Fields checked against clinicScopedMasterFKField: PetID/OwnerID/StartDate/
 	// EndDate/Status/Search carry no master FK; DoctorID references Staff (explicitly exempt from
-	// clinic-scope write checks — multi-clinic assignment, see repository/CLAUDE.md P3.1); and
+	// clinic-scope write checks — multi-clinic assignment, see repository/CLAUDE.md's clinic-scope Preload rule); and
 	// AnimalSpeciesID is a global (non clinic-scoped) master. Re-review if repository.* gains a
 	// write-path DTO carrying a clinic-scoped master FK field.
 	"repository": {},
@@ -141,7 +188,7 @@ const (
 	// *_clinic_isolation_test.go) proves a cross-clinic master FK is rejected.
 	statusGuarded masterFKWriteStatus = "guarded"
 	// statusKnownUnguarded: reviewed; NO dedicated isolation test confirms ownership
-	// rejection yet. Residual P1 risk tracked here (the candidate work list for adding tests).
+	// rejection yet. Residual high-priority risk tracked here (the candidate work list for adding tests).
 	statusKnownUnguarded masterFKWriteStatus = "known-unguarded"
 	// statusExempt: not a persistence write of the FK (preview/read/validate-only), or the
 	// FK is validated by a different documented mechanism. Reason must justify it.
@@ -168,7 +215,7 @@ type masterFKWriteEntry struct {
 //	                  ALL master FKs the method carries. Verified in code (commits 03bf1cb5 /
 //	                  f4e7b7a7 and direct inspection).
 //	known-unguarded = at least one master FK is persisted WITHOUT an ownership check (incl.
-//	                  partially-guarded methods). Residual P1 — the work list for runtime tests.
+//	                  partially-guarded methods). Residual high-priority — the work list for runtime tests.
 //	exempt          = does not persist the FK / validated by a documented alternate mechanism.
 //
 // REMINDER: status is a human review record. The gate does NOT verify it (see file header).
@@ -197,7 +244,7 @@ var masterFKWriteAllowlist = []masterFKWriteEntry{
 	{"vaccinationService.Create", statusGuarded, []string{"VaccineID"}, "vaccineRepo.FindByID(ctx, clinicID, VaccineID) (#125, 03bf1cb5); test present"},
 	{"vaccinationService.Update", statusGuarded, []string{"VaccineID"}, "vaccineRepo.FindByID when non-nil (03bf1cb5); test present"},
 
-	// ── known-unguarded: at least one master FK persisted without an ownership check (residual P1) ──
+	// ── known-unguarded: at least one master FK persisted without an ownership check (residual, high-priority) ──
 	{"billingItemService.CreateItem", statusKnownUnguarded, []string{"MerchandiseItemID", "TrimmingCourseID", "TrimmingOptionID"}, "PARTIAL (X-4): TrimmingCourseID/TrimmingOptionID now guarded via trimmingCourseRepo/trimmingOptionRepo.FindByID(ctx, clinicID, id) before persist; test: TestBillingItemService_CreateItem_RejectsCrossClinicTrimmingFK. MerchandiseItemID remains unguarded but is a DEAD field for this write path — CreateItem never assigns input.MerchandiseItemID onto model.BillingItem (billing_item_service.go, item struct literal), so it carries no actual cross-tenant persistence risk today; out of scope for X-4."},
 	{"checkupTypeService.Create", statusGuarded, []string{"ParentID"}, "checkup_type_service.go: validateParentOwnership FindByID(ctx, clinicID, *ParentID) before persist (X-14 batch3); test: TestCheckupTypeService_Create_RejectsCrossClinicParentFK"},
 	{"checkupTypeService.Update", statusGuarded, []string{"ParentID"}, "as Create — validateParentOwnership guards *input.ParentID before repo.Update (X-14 batch3); test: TestCheckupTypeService_Update_RejectsCrossClinicParentFK"},
@@ -244,6 +291,28 @@ type mfkFieldEntry struct {
 	typeExpr ast.Expr
 }
 
+// mfkStructKey identifies a locally-declared struct type by BOTH its containing directory
+// (relative to internal/, e.g. "service", "repository/paymentmethod", "" for a bare fixture
+// filename with no "/") and its bare type name. Keying by name alone would let two unrelated
+// internal/ packages that happen to declare a same-named local struct (e.g. both defining
+// "Input") contaminate each other's field sets — see the CROSS-PACKAGE TYPE-NAME COLLISION
+// SAFETY note at the top of this file.
+type mfkStructKey struct {
+	dir  string
+	name string
+}
+
+// mfkDirOf returns the directory portion of a lintscan-style forward-slash path (e.g.
+// "repository/paymentmethod/repository.go" -> "repository/paymentmethod"), or "" for a
+// bare filename with no directory component (the shape inline test fixtures use, all
+// implicitly sharing the single "" package).
+func mfkDirOf(filePath string) string {
+	if i := strings.LastIndex(filePath, "/"); i >= 0 {
+		return filePath[:i]
+	}
+	return ""
+}
+
 type mfkWriteFinding struct {
 	receiver  string
 	method    string
@@ -257,6 +326,13 @@ type mfkStats struct {
 	structsIndexed  int
 	methodsScanned  int
 	externalParamQs map[string]struct{} // observed non-stdlib-builtin param qualifiers
+	// wholeTreeFilesDiscovered is the file count lintscan.WalkInternalTreeT(t) returned BEFORE
+	// the service-write role filter (isServiceWriteRolePackage) narrowed it down. Populated only
+	// by analyzeRealServiceSource (zero when analyzeServicePackage is called directly on inline
+	// fixtures). Distinguishes "lintscan discovery broke" from "the role filter legitimately
+	// narrowed a healthy whole-tree result" as two different failure modes — see the floor guard
+	// in TestMasterFKWriteInventory_AllowlistMatchesRealSource.
+	wholeTreeFilesDiscovered int
 }
 
 func mfkKey(receiver, method string) string { return receiver + "." + method }
@@ -299,38 +375,47 @@ func localStructName(expr ast.Expr) (name, qualifier string) {
 	}
 }
 
-// masterFKsOf returns the set of clinic-scoped master FK field names that structName
-// transitively contains. `visiting` guards self/mutual recursion (struct graph cycles),
-// which the audit-taxonomy precedent never needed but a struct graph requires.
+// masterFKsOf returns the set of clinic-scoped master FK field names that (dir, structName)
+// transitively contains. dir stays fixed across the whole recursion: an unqualified struct
+// type name reached from a field of a struct declared in directory dir can, per real Go
+// semantics, only resolve to another type declared in that SAME directory/package — never to a
+// same-named type in a different internal/ package (see the CROSS-PACKAGE TYPE-NAME COLLISION
+// SAFETY note at the top of this file). `visiting` guards self/mutual recursion (struct graph
+// cycles), which the audit-taxonomy precedent never needed but a struct graph requires; it is
+// keyed by mfkStructKey (not bare name) for the same collision-safety reason.
 //
 // NOT memoized on purpose: a result computed while truncating a cycle is incomplete, and
 // caching it would poison later lookups (a false-negative). DTO graphs are acyclic and tiny
 // (whole gate runs in <0.2s), so recomputing per top-level param is both correct and cheap.
-func masterFKsOf(structName string, index map[string][]mfkFieldEntry, visiting map[string]bool) map[string]struct{} {
-	if visiting[structName] {
+func masterFKsOf(dir, structName string, index map[mfkStructKey][]mfkFieldEntry, visiting map[mfkStructKey]bool) map[string]struct{} {
+	key := mfkStructKey{dir: dir, name: structName}
+	if visiting[key] {
 		return map[string]struct{}{} // cycle: contribution already accounted up the stack
 	}
-	visiting[structName] = true
+	visiting[key] = true
 
 	out := map[string]struct{}{}
-	for _, fe := range index[structName] {
+	for _, fe := range index[key] {
 		// Direct scalar master FK field (name match + ID-shaped type).
 		for _, n := range fe.names {
 			if _, ok := clinicScopedMasterFKField[n]; ok && isIDType(fe.typeExpr) {
 				out[n] = struct{}{}
 			}
 		}
-		// Recurse into a same-package struct-typed field (named or embedded).
+		// Recurse into a same-package (same dir) struct-typed field (named or embedded). A
+		// same-directory lookup is the only Go-semantics-correct resolution for an unqualified
+		// type name — never search a different directory for it.
 		if child, _ := localStructName(fe.typeExpr); child != "" {
-			if _, ok := index[child]; ok {
-				for k := range masterFKsOf(child, index, visiting) {
+			childKey := mfkStructKey{dir: dir, name: child}
+			if _, ok := index[childKey]; ok {
+				for k := range masterFKsOf(dir, child, index, visiting) {
 					out[k] = struct{}{}
 				}
 			}
 		}
 	}
 
-	delete(visiting, structName)
+	delete(visiting, key)
 	return out
 }
 
@@ -352,7 +437,7 @@ func analyzeServicePackage(t *testing.T, files map[string]string) ([]mfkWriteFin
 	fset := token.NewFileSet()
 	stats := mfkStats{externalParamQs: map[string]struct{}{}}
 
-	index := map[string][]mfkFieldEntry{}
+	index := map[mfkStructKey][]mfkFieldEntry{}
 	parsed := make([]*ast.File, 0, len(files))
 
 	// Deterministic file order for stable diagnostics.
@@ -362,7 +447,9 @@ func analyzeServicePackage(t *testing.T, files map[string]string) ([]mfkWriteFin
 	}
 	sort.Strings(names)
 
-	// Pass 1: parse + build struct index across all files.
+	// Pass 1: parse + build struct index across all files, keyed by (dir, type name) so
+	// same-named local structs in different internal/ packages cannot collide (see the
+	// CROSS-PACKAGE TYPE-NAME COLLISION SAFETY note at the top of this file).
 	for _, name := range names {
 		f, err := parser.ParseFile(fset, name, files[name], 0)
 		if err != nil {
@@ -370,6 +457,7 @@ func analyzeServicePackage(t *testing.T, files map[string]string) ([]mfkWriteFin
 		}
 		parsed = append(parsed, f)
 		stats.filesParsed++
+		dir := mfkDirOf(name)
 		ast.Inspect(f, func(n ast.Node) bool {
 			ts, ok := n.(*ast.TypeSpec)
 			if !ok {
@@ -387,7 +475,7 @@ func analyzeServicePackage(t *testing.T, files map[string]string) ([]mfkWriteFin
 				}
 				fields = append(fields, mfkFieldEntry{names: fnames, typeExpr: fld.Type})
 			}
-			index[ts.Name.Name] = fields
+			index[mfkStructKey{dir: dir, name: ts.Name.Name}] = fields
 			stats.structsIndexed++
 			return true
 		})
@@ -397,6 +485,7 @@ func analyzeServicePackage(t *testing.T, files map[string]string) ([]mfkWriteFin
 	var findings []mfkWriteFinding
 	for fi, f := range parsed {
 		fname := names[fi]
+		dir := mfkDirOf(fname)
 		for _, decl := range f.Decls {
 			fd, ok := decl.(*ast.FuncDecl)
 			if !ok || fd.Recv == nil || len(fd.Recv.List) == 0 {
@@ -422,10 +511,14 @@ func analyzeServicePackage(t *testing.T, files map[string]string) ([]mfkWriteFin
 					if child == "" {
 						continue
 					}
-					if _, ok := index[child]; !ok {
+					// Unqualified type reference: resolve ONLY within this file's own
+					// directory/package (mirrors real Go semantics) — never search a
+					// different internal/ package's same-named local struct.
+					childKey := mfkStructKey{dir: dir, name: child}
+					if _, ok := index[childKey]; !ok {
 						continue
 					}
-					for k := range masterFKsOf(child, index, map[string]bool{}) {
+					for k := range masterFKsOf(dir, child, index, map[mfkStructKey]bool{}) {
 						combined[k] = struct{}{}
 					}
 				}
@@ -453,25 +546,68 @@ func baseName(p string) string {
 	return p
 }
 
-// analyzeRealServiceSource runs the analyzer over every embedded non-test .go file.
+// serviceWriteRolePackagePrefixes is the SINGLE extension point for widening which
+// lintscan-discovered files this gate treats as "service-write role" source, i.e. eligible for
+// the master-FK write review-coverage check. Matching is prefix-based against the
+// lintscan-relative path key (e.g. "service/foo.go", "service/sub/deep/foo.go"), not
+// depth-limited, so a subpackage nested under a listed prefix is admitted without any logic
+// change. See the "SERVICE-WRITE ROLE SCOPE" note at the top of this file for why this scope is
+// permanent rather than a placeholder.
+//
+// BE9-2 EXTENSION POINT: when service-write persistence logic migrates out of internal/service
+// into a new domain package (e.g. internal/owner, internal/pet), add that package's lintscan
+// prefix here — and ONLY here. Do not touch analyzeRealServiceSource's body, the analyzer
+// (analyzeServicePackage / masterFKsOf), or knownSafeParamQualifiers to admit a new package; this
+// var (and isServiceWriteRolePackage below, which consults it) is the one and only place that
+// decides what counts as "in role scope" for this gate.
+var serviceWriteRolePackagePrefixes = []string{"service/"}
+
+// isServiceWriteRolePackage reports whether key — a lintscan.WalkInternalTreeT path key such as
+// "service/foo.go" or "service/sub/deep/foo.go" — belongs to the service-write role scope this
+// gate audits, per serviceWriteRolePackagePrefixes.
+func isServiceWriteRolePackage(key string) bool {
+	return matchesRolePackagePrefixes(key, serviceWriteRolePackagePrefixes)
+}
+
+// matchesRolePackagePrefixes is the prefix-matching primitive isServiceWriteRolePackage applies
+// to the production serviceWriteRolePackagePrefixes list. It is factored out separately (rather
+// than inlined into isServiceWriteRolePackage) so a test can prove the extension-point property —
+// admitting a future BE9-2 domain package requires only a DATA addition to a prefix list, not a
+// logic change — by exercising this SAME matching primitive against a locally constructed prefix
+// list, without ever mutating the production serviceWriteRolePackagePrefixes var. See
+// TestMasterFKWriteInventory_RoleFilterExtensionPointGeneralizes.
+func matchesRolePackagePrefixes(key string, prefixes []string) bool {
+	for _, prefix := range prefixes {
+		if strings.HasPrefix(key, prefix) {
+			return true
+		}
+	}
+	return false
+}
+
+// analyzeRealServiceSource runs the analyzer over every production (non-test) .go file in the
+// service-write role scope (isServiceWriteRolePackage), sourced via the shared lintscan package
+// rather than the old package-local go:embed. Discovery walks the WHOLE module's internal/** tree
+// (lintscan.WalkInternalTreeT) — a pure, package-structure-independent discovery step — and this
+// function then narrows that whole-tree result down to the service-write role scope. That
+// narrowing is the gate's permanent, by-design scope: see the "SERVICE-WRITE ROLE SCOPE" section
+// at the top of this file for why internal/model and internal/handler are deliberately,
+// permanently outside it. lintscan already excludes *_test.go files, testdata/, and vendor/, so
+// no additional filtering for those is needed here.
 func analyzeRealServiceSource(t *testing.T) ([]mfkWriteFinding, mfkStats) {
 	t.Helper()
-	entries, err := fs.Glob(serviceSourceFS, "*.go")
-	if err != nil {
-		t.Fatalf("glob embedded service source: %v", err)
-	}
-	files := map[string]string{}
-	for _, name := range entries {
-		if strings.HasSuffix(name, "_test.go") {
+	byteFiles := lintscan.WalkInternalTreeT(t)
+	wholeTreeFiles := len(byteFiles)
+	files := make(map[string]string, len(byteFiles))
+	for name, src := range byteFiles {
+		if !isServiceWriteRolePackage(name) {
 			continue
-		}
-		src, err := serviceSourceFS.ReadFile(name)
-		if err != nil {
-			t.Fatalf("read embedded %s: %v", name, err)
 		}
 		files[name] = string(src)
 	}
-	return analyzeServicePackage(t, files)
+	findings, stats := analyzeServicePackage(t, files)
+	stats.wholeTreeFilesDiscovered = wholeTreeFiles
+	return findings, stats
 }
 
 func equalStringSets(a, b []string) bool {
@@ -546,12 +682,26 @@ func joinSet(s []string) string { return "[" + strings.Join(s, " ") + "]" }
 // TestMasterFKWriteInventory_AllowlistMatchesRealSource is the gate: every service method
 // whose input DTO transitively carries a clinic-scoped master FK must be on the allowlist
 // with a matching pinned field set, and every allowlist entry must still match a real
-// method. Floors prevent a vacuous green if the embed glob or AST matching silently breaks.
+// method. Floors prevent a vacuous green if the lintscan walk or AST matching silently breaks.
 func TestMasterFKWriteInventory_AllowlistMatchesRealSource(t *testing.T) {
 	findings, stats := analyzeRealServiceSource(t)
 
+	// Pre-filter floor: proves lintscan.WalkInternalTreeT itself returned a healthy whole-tree
+	// result BEFORE isServiceWriteRolePackage narrowed it. Distinguishes "discovery broke" from
+	// "the role filter legitimately narrowed a healthy result" — a low pre-filter count means
+	// discovery broke; a low post-filter count (below) with a healthy pre-filter count means the
+	// role filter itself is misconfigured. 300 is comfortably below the real whole-tree count
+	// (~748 non-test files under internal/ at last measurement) and comfortably above what the
+	// service-only filter alone would ever produce (~202), so it cannot be satisfied by
+	// accidentally discovering only the already-narrowed subset.
+	if stats.wholeTreeFilesDiscovered < 300 {
+		t.Fatalf("only %d whole-tree internal/** files discovered by lintscan.WalkInternalTreeT "+
+			"before the service-write role filter narrowed them; lintscan discovery itself likely "+
+			"broke (would vacuously pass)", stats.wholeTreeFilesDiscovered)
+	}
 	if stats.filesParsed < 100 {
-		t.Fatalf("only %d non-test service files parsed; embed glob likely broken (would vacuously pass)", stats.filesParsed)
+		t.Fatalf("only %d non-test internal/service files parsed; lintscan walk or the "+
+			"isServiceWriteRolePackage service-write role filter likely broken (would vacuously pass)", stats.filesParsed)
 	}
 	if stats.structsIndexed < 150 {
 		t.Fatalf("only %d structs indexed; struct-index pass likely broken", stats.structsIndexed)
@@ -636,7 +786,7 @@ func TestMasterFKWriteInventory_StatusesAreLive(t *testing.T) {
 		t.Error("no 'guarded' allowlist entries; the guarded write sites (treatment/vaccination/…) drifted")
 	}
 	if counts[statusKnownUnguarded] == 0 {
-		t.Error("no 'known-unguarded' allowlist entries; the residual P1 list is empty — verify, don't assume")
+		t.Error("no 'known-unguarded' allowlist entries; the residual high-priority list is empty — verify, don't assume")
 	}
 }
 
@@ -787,5 +937,189 @@ func TestMasterFKWriteInventory_NoCyclePoisoning(t *testing.T) {
 		if !equalStringSets(got[key], []string{"MedicineID"}) {
 			t.Errorf("%s: got %v, want [MedicineID] (cycle poisoning would drop B's finding)", key, got[key])
 		}
+	}
+}
+
+// TestMasterFKWriteInventory_AnalyzerDetectsViolationUnderNestedPathFilename proves the
+// analyzer itself (not just the lintscan discovery mechanism — see
+// TestMasterFKWriteInventory_AllowlistMatchesRealSource's floor guards for that) flags a
+// known-bad master-FK write when the source is presented under filenames simulating different
+// top-level internal/ packages and nesting depths — the shape lintscan.WalkInternalTreeT now
+// produces for the WHOLE internal/** tree (not just internal/service). Mirrors
+// repository/preload_clinic_scope_lint_test.go's
+// TestPreloadClinicScope_AnalyzerDetectsViolationUnderNestedPathFilename, and doubles as proof
+// that analyzeServicePackage's directory-scoped struct-key handles arbitrary top-level internal/
+// packages correctly — useful both for internal/service's own possible future subdirectories and
+// for whatever package a later serviceWriteRolePackagePrefixes addition brings into scope.
+func TestMasterFKWriteInventory_AnalyzerDetectsViolationUnderNestedPathFilename(t *testing.T) {
+	cases := []struct {
+		name     string
+		filename string
+	}{
+		{"top-level file directly under a different internal/ package", "handler/foo.go"},
+		{"one level of nesting under a different internal/ package", "repository/paymentmethod/repository.go"},
+		{"two levels of nesting under yet another internal/ package", "model/sub/deeper/thing.go"},
+	}
+
+	src := "package p\n" +
+		`type T struct { MedicineID *uint64 }` + "\n" +
+		`func (s *svc) Create(in *T) error { return nil }` + "\n"
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			findings, _ := analyzeServicePackage(t, map[string]string{tc.filename: src})
+			if len(findings) != 1 {
+				t.Fatalf("got %d findings for a nested-path-filename violation at %q, want 1: %+v", len(findings), tc.filename, findings)
+			}
+			if got := mfkKey(findings[0].receiver, findings[0].method); got != "svc.Create" {
+				t.Fatalf("got key %s, want svc.Create", got)
+			}
+			if !equalStringSets(findings[0].masterFKs, []string{"MedicineID"}) {
+				t.Fatalf("got fields %v, want [MedicineID]", findings[0].masterFKs)
+			}
+		})
+	}
+}
+
+// TestMasterFKWriteInventory_CrossPackageTypeNameCollisionIsolation is the regression fixture
+// for the directory-scoped mfkStructKey fix (see the CROSS-PACKAGE TYPE-NAME COLLISION SAFETY
+// note at the top of this file). Two different simulated internal/ packages each declare a
+// local struct named "Input": handler's has no master FK field, service's does. A flat
+// (bare-name-only) index would let service.Input's MedicineID field leak into handler's index
+// entry (false positive) — or, depending on map iteration/overwrite order, silently drop
+// service.Input's real finding (false negative). The directory-scoped index must keep both
+// packages' same-named "Input" struct completely isolated.
+func TestMasterFKWriteInventory_CrossPackageTypeNameCollisionIsolation(t *testing.T) {
+	files := map[string]string{
+		"handler/foo.go": "package handler\n" +
+			`type Input struct { Name string }` + "\n" +
+			`func (h *fooHandler) Bind(in *Input) error { return nil }` + "\n",
+		"service/bar.go": "package service\n" +
+			`type Input struct { MedicineID *uint64 }` + "\n" +
+			`func (s *barService) Create(in *Input) error { return nil }` + "\n",
+	}
+
+	findings, _ := analyzeServicePackage(t, files)
+	got := map[string][]string{}
+	for _, f := range findings {
+		got[mfkKey(f.receiver, f.method)] = f.masterFKs
+	}
+
+	if fks, ok := got["fooHandler.Bind"]; ok {
+		t.Errorf("fooHandler.Bind must NOT be flagged: handler.Input carries no master FK field; "+
+			"a same-named service.Input struct in a DIFFERENT package incorrectly contaminated it "+
+			"via a non-directory-scoped type-name index. got masterFKs=%v", fks)
+	}
+	if !equalStringSets(got["barService.Create"], []string{"MedicineID"}) {
+		t.Errorf("barService.Create: got %v, want [MedicineID] (its own package's Input.MedicineID "+
+			"field must still be detected despite the same-named handler.Input in a different package)",
+			got["barService.Create"])
+	}
+}
+
+// TestMasterFKWriteInventory_RoleFilterPackageScope pins isServiceWriteRolePackage directly:
+// service/ paths (at any nesting depth — the filter is prefix-based, not depth-limited) are in
+// role scope; model/, handler/, repository/, and lintscan/ paths are not. This is the Solution A
+// permanent role filter's own unit-level proof, independent of the whole-tree integration fixture
+// below.
+func TestMasterFKWriteInventory_RoleFilterPackageScope(t *testing.T) {
+	cases := []struct {
+		key  string
+		want bool
+	}{
+		{"service/foo.go", true},
+		{"service/sub/deep/foo.go", true}, // prefix-based, not depth-limited
+		{"model/foo.go", false},
+		{"handler/foo.go", false},
+		{"repository/foo.go", false},
+		{"lintscan/foo.go", false},
+	}
+	for _, tc := range cases {
+		if got := isServiceWriteRolePackage(tc.key); got != tc.want {
+			t.Errorf("isServiceWriteRolePackage(%q) = %v, want %v", tc.key, got, tc.want)
+		}
+	}
+}
+
+// TestMasterFKWriteInventory_RoleFilterExtensionPointGeneralizes proves the BE9-2 extension-point
+// claim in serviceWriteRolePackagePrefixes's doc comment: admitting a future domain package
+// requires only a DATA addition to a prefix list, not a logic change. It builds a LOCAL copy of
+// the prefix list (simulating a future BE9-2 change that appends "owner/"), feeds it through the
+// SAME matchesRolePackagePrefixes primitive isServiceWriteRolePackage itself uses, and asserts
+// the simulated-future path is now admitted while model/handler paths remain excluded — all
+// without ever mutating the production serviceWriteRolePackagePrefixes var.
+func TestMasterFKWriteInventory_RoleFilterExtensionPointGeneralizes(t *testing.T) {
+	future := append(append([]string{}, serviceWriteRolePackagePrefixes...), "owner/")
+
+	cases := []struct {
+		key  string
+		want bool
+	}{
+		{"owner/foo.go", true},   // admitted only via the simulated future prefix
+		{"service/foo.go", true}, // still admitted via the existing production prefix
+		{"model/foo.go", false},
+		{"handler/foo.go", false},
+	}
+	for _, tc := range cases {
+		if got := matchesRolePackagePrefixes(tc.key, future); got != tc.want {
+			t.Errorf("matchesRolePackagePrefixes(%q, future-prefixes) = %v, want %v", tc.key, got, tc.want)
+		}
+	}
+
+	// The production var itself must be untouched by this simulation.
+	for _, p := range serviceWriteRolePackagePrefixes {
+		if p == "owner/" {
+			t.Fatal("serviceWriteRolePackagePrefixes must not be mutated by this test")
+		}
+	}
+	if isServiceWriteRolePackage("owner/foo.go") {
+		t.Fatal(`isServiceWriteRolePackage("owner/foo.go") must still be false: the production ` +
+			"var was not changed, only a local copy was")
+	}
+}
+
+// TestMasterFKWriteInventory_RoleFilterIntegrationExcludesOtherLayers is the direct integration
+// proof for the SERVICE-WRITE ROLE SCOPE decision: an identical violating shape (a struct field
+// carrying a registered master FK, exposed via an exported method) is placed under three
+// simulated top-level internal/ packages — service/, model/, and handler/ — in a fabricated file
+// map shaped exactly like what lintscan.WalkInternalTreeT(t) would hand analyzeRealServiceSource.
+// The SAME two-step pipeline analyzeRealServiceSource itself runs (filter via
+// isServiceWriteRolePackage, then analyzeServicePackage) is applied here, and only the service/
+// placement must be detected — model/ and handler/ must NOT false-positive despite carrying the
+// byte-identical violating shape, proving the exclusion is a deliberate role-scope decision, not
+// an accidental gap.
+func TestMasterFKWriteInventory_RoleFilterIntegrationExcludesOtherLayers(t *testing.T) {
+	violatingSrc := "package p\n" +
+		`type T struct { MedicineID *uint64 }` + "\n" +
+		`func (s *svc) Create(in *T) error { return nil }` + "\n"
+
+	// Shape mirrors lintscan.WalkInternalTreeT(t)'s output: a flat map of lintscan-relative path
+	// key -> file source, spanning multiple top-level internal/ packages.
+	wholeTree := map[string]string{
+		"service/violating.go": violatingSrc,
+		"model/violating.go":   violatingSrc,
+		"handler/violating.go": violatingSrc,
+	}
+
+	// Mirrors analyzeRealServiceSource's own two-step pipeline exactly, without touching the real
+	// repository tree via lintscan.WalkInternalTreeT.
+	filtered := make(map[string]string, len(wholeTree))
+	for name, src := range wholeTree {
+		if !isServiceWriteRolePackage(name) {
+			continue
+		}
+		filtered[name] = src
+	}
+
+	findings, _ := analyzeServicePackage(t, filtered)
+	if len(findings) != 1 {
+		t.Fatalf("expected exactly 1 finding (service/ only; model/ and handler/ must be excluded "+
+			"by role scope despite the identical violating shape), got %d: %+v", len(findings), findings)
+	}
+	if got := mfkKey(findings[0].receiver, findings[0].method); got != "svc.Create" {
+		t.Fatalf("got key %s, want svc.Create", got)
+	}
+	if !equalStringSets(findings[0].masterFKs, []string{"MedicineID"}) {
+		t.Fatalf("got fields %v, want [MedicineID]", findings[0].masterFKs)
 	}
 }

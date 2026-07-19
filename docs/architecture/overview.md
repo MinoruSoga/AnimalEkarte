@@ -1,82 +1,94 @@
-# システムアーキテクチャ (Architecture)
+# Architecture Overview
 
-> **目的**: レイヤードアーキテクチャ(handler→service→repository→model)の責務分離を定義する。
-> **読者**: 新規参加開発者・アーキテクチャ判断を行う開発者。
-> **タイミング**: オンボーディング時、または層をまたぐ設計判断が必要な実装前。
+> **目的**: backend の設計原則と request lifecycle を説明する。
+> Go/Gin公式は特定の application layer や folder tree を規定しない。本書も directory 配置を architecture contract にしない。
 
-> **Animal Ekarte**: 高信頼・高拡張な動物病院管理システム
-> **最新更新**: 2026-07-10 | **ステータス**: Production Ready
+## System context
 
----
+```text
+Browser / external client
+        |
+        v
+React frontend / API client
+        |
+     HTTPS JSON
+        |
+        v
+Go net/http + Gin
+        |
+        +--> PostgreSQL
+        +--> external services
+        +--> background work
+```
 
-## 1. 設計思想
+API contract は [`backend/docs/api.yaml`](../../backend/docs/api.yaml)、data isolation は [ADR-002](adr/002-multitenancy-clinic-id-isolation.md) を正本とする。
 
-本システムは、**「最速の機能提供」と「長期的な保守性」の両立**を目的として、**軽量レイヤードアーキテクチャ**を採用しています。
+## Backend design baseline
 
-### 核心となる原則
-- **Single Source of Truth (SSOT)**: バックエンドの Go モデルを唯一の真実とし、フロントエンドの型定義を自動生成。
-- **カプセル化と依存性の逆転**: 各機能（Feature）を独立させ、Feature 間の直接参照を禁止。
-- **データ分離の徹底**: 全エンドポイントで `clinic_id` による厳格なマルチテナント分離。
+backend は [Go/Gin Backend Guidelines](../../.claude/rules/go-gin-backend-guidelines.md) に従う。
 
----
+- server 内部 code は必要に応じて Go の `internal` mechanism で保護する。
+- executable が複数ある場合は `cmd/<command>` で entry point を整理できる。
+- application package は凝集性、利用者、依存方向、変更単位で分ける。
+- package 名や folder 名ではなく、package API と import dependency を境界として扱う。
+- interface は一般に利用側で最小に定義し、implementation は concrete type を返す。
+- dependency は closure または struct で型安全に注入し、global state を避ける。
 
-## 2. バックエンド・アーキテクチャ (Go 1.25)
+Handler → Service → Repository、Clean Architecture、repository pattern、layer-first/domain-first は Go/Gin公式が定める architecture ではない。必要な設計判断は ADR に記録し、公式由来の規約と区別する。
 
-### 層の責務分離
+## Request lifecycle
 
-| 層 (ディレクトリ) | 責務 | 依存方向 |
-|:---|:---|:---|
-| **`handler/`** | HTTP/JSON の受付・返却。権限チェック（RBAC）。 | → `service` |
-| **`service/`** | 業務ロジックの核心。バリデーション、他サービス連携、集計。 | → `repository`, `infra` |
-| **`repository/`** | DB (GORM) 操作の抽象化。センチネルエラーへの変換。 | → `model` |
-| **`model/`** | DB スキーマ定義。SSOT としての構造体。 | (依存なし) |
-| **`infra/`** | LINE API、S3 ストレージ、外部サービスとの低レイヤ連携。 | (依存なし) |
+1. `net/http` / Gin が request を受ける。
+2. route group と middleware が recovery、observability、authentication、authorization、rate limit 等を適用する。
+3. HTTP boundary が body/query/URI/header を型付き input に bind し、形式を検証する。
+4. 認証済み identity から clinic scope を決め、resource ownership を検証する。
+5. request Context を database と external service へ伝播する。
+6. domain/application logic と persistence が、必要な transaction/invariant を維持して処理する。
+7. error boundary が既知 error を stable HTTP contract に mapping し、未知 error を一般化する。
+8. 公開 contract に必要な field だけを response として返す。
 
-### 規模と実績
-- **実装規模**: 108 テーブル、88 ハンドラー（`backend/internal/handler/*_handler.go` ファイル数）、15 配信トリガー。
+この sequence は責務を示すが、それぞれを別 package や別 layer にすることを要求しない。小規模 resource は1つの凝集 package にまとまり得る。分離は実際の複雑性と利用者が生じてから行う。
 
-- **エラー処理**: `internal/apperrors` による統一されたセンチネルエラー体系。
+## Security boundaries
 
----
+- authentication、authorization、resource ownership は独立した check とする。
+- clinic-scoped data は read/write/delete、join/preload/count、bulk/background job の全 path で制約する。
+- client supplied な clinic/owner/pet/staff ID を認可根拠にしない。
+- secret、credential、個人情報、内部 error を response/log に出さない。
+- HTTPS、CORS allowlist、CSRF、secure cookie、trusted proxy、rate limit を deployment に合わせる。
 
-## 3. フロントエンド・アーキテクチャ (React 19)
+詳細は [Backend Application Invariants](../../.claude/refs/backend-application-invariants.md) と [auth.md](auth.md) を参照する。
 
-### Feature-Based 構造
-`src/features/[feature]/` に以下の要素をカプセル化し、高度な独立性を維持しています（すべての Feature が全要素を持つわけではない）。
-- **`api/`**: TanStack Query による API 通信。
-- **`components/`**: Feature 内専用の UI 部品。
-- **`routes/`**: ルーティング対象のページコンポーネント。
-- **`hooks/`**: Feature 特有のステート・ロジック。
-- **`types/`**: ドメイン固有の型定義。
+## Error and observability
 
-### 合成とページ構成
-各 Feature は主に **`src/app/routes/`**（機能カテゴリ別のルート定義ファイル群。lazy import による主要な合成点）で合成され、一部の個別ページは **`src/app/pages/`** のラッパー経由で合成されます。これにより、ある Feature の変更が別の Feature に予期せぬ影響を与えることを防ぎます。
+- error chain を保持し、処理できる境界まで返す。
+- 同じ failure を複数箇所で重複ログしない。
+- request ID/trace 等の correlation を Context と structured log で伝播する。
+- unknown error は汎用 500 とし、診断情報は server-side に限定する。
+- panic recovery は process crash 回避用であり、通常の error flow の代替にしない。
 
-### React 19 実装パターン
-- **`useActionState`**: サーバーアクション（保存・更新）の標準。
-- **`useTransition` / `useDeferredValue`**: 高負荷な一覧表示やフィルタリングの最適化。
-- **`ref as prop`**: コンポーネント間の連携を簡素化。
+## Server lifecycle
 
----
+- production server は `http.Server` で timeout/limit を明示する。
+- SIGINT/SIGTERM から timeout 付き graceful shutdown を行う。
+- DB、worker、queue 等を安全な順序で close する。
+- goroutine は元の `*gin.Context` を保持せず、終了条件と cancel/error 経路を持つ。
 
-## 4. インフラ・デプロイ構成
+## Testing strategy
 
-### 技術スタック
-- **Runtime**: Cloudflare Workers + Containers (Go。`backend-deploy.yml` による自動デプロイ先。ECS Fargate は `backend-deploy-ecs.yml` によるロールバック専用), Vercel (React)
-- **Database**: RDS PostgreSQL 18
-- **Storage**: AWS S3 (領収書、検査結果、証明書)
-- **Messaging**: LINE Messaging API / Lステップ API
+- handler/middleware は `net/http/httptest` と最小 router で test する。
+- binding、validation、authentication、authorization、not-found、conflict、internal-error を確認する。
+- query、transaction、tenant isolation は risk に応じて実 DB integration test を行う。
+- cancellation、concurrency、shutdown は変更箇所に応じて検証する。
+- package layout そのものではなく、observable behavior と security boundary を test する。
 
-### セキュリティ
-- **認証**: JWT + httpOnly Cookie によるセキュアなセッション管理。
-- **認可**: リソース単位の CRUD 権限管理 (RBAC)。
-- **通信**: 全経路 TLS 1.3、S3 署名付き URL。
+## Decision ownership
 
----
-
-## 5. 将来の拡張方針
-
-- **疎結合の維持**: 将来的なマイクロサービス化やサブシステム（トリミング専用機等）の切り出しを容易にする設計。
-- **自動化**: `make codegen` による型同期、CI/CD による自動テストの徹底。
-
----
+| Concern | Source of truth |
+|:---|:---|
+| Go/Gin general guidance | [go-gin-backend-guidelines.md](../../.claude/rules/go-gin-backend-guidelines.md) |
+| API contract | [`backend/docs/api.yaml`](../../backend/docs/api.yaml) |
+| Tenant isolation | [ADR-002](adr/002-multitenancy-clinic-id-isolation.md) |
+| Authentication/authorization | [auth.md](auth.md) |
+| Database schema | [erd.md](erd.md) and migrations |
+| Architecture decisions | [adr/](adr/README.md) |

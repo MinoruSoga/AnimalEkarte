@@ -63,23 +63,20 @@ grep -oE '(TASK|BUG|FEAT|PERF)-[0-9]+' todo.md | sort -V | tail -1
 
 ```bash
 # 関連テーブル・カラムの確認
-grep -n "関連キーワード" backend/migrations/001_init.sql
+rg -n "関連キーワード" backend/migrations --glob '*.sql'
 ```
 
 ### 2.2 Backend モデル・API 調査
 
 ```bash
-# Go モデル
-grep -rn "関連キーワード" backend/internal/model/
-# ハンドラ（エンドポイント）
-grep -rn "関連キーワード" backend/internal/handler/
-# サービス
-grep -rn "関連キーワード" backend/internal/service/
-# リポジトリ
-grep -rn "関連キーワード" backend/internal/repository/
-# ルーティング
-grep -n "関連パス" backend/cmd/api/main.go
+# package配置を仮定せずbackendの全Go codeを調査
+rg -n "関連キーワード" backend --glob '*.go'
+# route/contract
+rg -n "関連パス" backend --glob '*.go'
+rg -n "関連パス|関連キーワード" backend/docs/api.yaml
 ```
+
+現行の`model`/`handler`/`service`/`repository` directoryは追加調査の絞り込みに使ってよいが、必須layerや検索範囲の上限にしない。
 
 ### 2.3 Frontend コンポーネント・API 調査
 
@@ -245,7 +242,7 @@ todo.md は git 追跡ファイルのため、追記分はコミット対象。
 ### BE イシューの粒度
 
 - **DB + Model 変更**: 1イシュー（`make codegen` まで含む）
-- **新規 API エンドポイント**: 1イシュー（handler + service + repository の3層セット）
+- **新規 API エンドポイント**: 1イシュー（contract・security boundary・必要な凝集package・testsのセット）
 - **既存 API 修正**: 影響範囲が明確なら1イシュー
 
 ### FE イシューの粒度

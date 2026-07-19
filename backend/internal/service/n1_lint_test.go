@@ -2,18 +2,33 @@ package service
 
 // n1_lint_test.go — PERF-FOLLOWUP-07: N+1 クエリ静的検出 lint。
 //
-// Placement decision (deviates from the spec doc's literal path
-// of PERF-FOLLOWUP-07 (task ledger: root todo.md), which suggests
-// internal/repository/n1_lint_test.go scanning the service/ directory): go:embed can only
-// embed files inside its OWN package's directory subtree. The precedent
-// repository/preload_clinic_scope_lint_test.go works because it lives IN package repository
-// and embeds repository/*.go — a repository-package file cannot go:embed service/*.go. This
-// lint instead lives in package service and embeds its own directory, which sidesteps the
-// cross-package embed restriction while reusing the same technique (embed + go/parser +
-// go/ast + curated allowlist + self-verification fixtures) as the precedent and as
-// master_fk_write_inventory_lint_test.go (same package). It reuses that file's existing
-// `serviceSourceFS` embed.FS (both files are package service; a second `//go:embed *.go`
-// declaring a second variable would be redundant, not a conflict, but reuse is simpler).
+// Placement (BE9-1 update, 2026-07): this file still lives in package service — that is now an
+// organizational choice, not a technical necessity. Historically (pre-BE9-1, deviating from the
+// spec doc's literal path of PERF-FOLLOWUP-07 (task ledger: root todo.md), which suggested
+// internal/repository/n1_lint_test.go scanning the service/ directory) it was forced here
+// because go:embed can only embed files inside its OWN package's directory subtree: a
+// repository-package file could not go:embed service/*.go, so this lint had to live in package
+// service and embed its own directory instead. That restriction no longer applies. File
+// discovery is now delegated to the shared internal/lintscan package
+// (lintscan.WalkInternalTreeT), which walks the WHOLE module's internal/** tree via
+// filepath.WalkDir — package-independent, not go:embed-rooted (see
+// internal/lintscan/lintscan.go's package doc for the discovery-layer/judgment-layer split this
+// reuse relies on) — so this lint now genuinely scans every production .go file under internal/,
+// not only internal/service's own files. This is NOT the same at the master_fk_write_inventory_lint_test.go
+// real-gate level (same package): under Solution A, that lint's real gate (analyzeRealServiceSource)
+// is permanently role-filtered back to internal/service/ only — only its pure analyzer function
+// scans the wider tree. Do not assume the two lints behave identically here.
+// lintscan already excludes *_test.go files, testdata/, and vendor/.
+//
+// BE9-1 module-wide broadening blind spot (does not restate, and must not contradict, the KISS
+// tradeoff paragraph below — that indirect-call-graph limitation is unchanged): scanning ALL of
+// internal/** rather than only internal/service does not change what this lint can see WITHIN a
+// single file — it still only catches a Repo.Find*/settingsSvc.Get* call lexically inside a
+// *ast.RangeStmt body in the SAME function, in the SAME file. This lint makes no exhaustiveness
+// claim against N+1 query patterns; a genuinely data-bound N+1 reached through an indirect call graph
+// (see the KISS tradeoff paragraph below) remains a residual gap regardless of scan breadth, and
+// runtime/perf verification remains the source of truth for anything this syntactic gate cannot
+// see.
 //
 // Detection targets (see spec doc):
 //   Pattern 1: an *ast.RangeStmt body containing a call `<x>Repo.Find*(...)` — a repository
@@ -66,9 +81,11 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
-	"io/fs"
+	"sort"
 	"strings"
 	"testing"
+
+	"github.com/animal-ekarte/backend/internal/lintscan"
 )
 
 // n1Finding is one loop-body Find/Get call site flagged as an N+1 candidate.
@@ -213,29 +230,28 @@ func baseNameN1(p string) string {
 	return p
 }
 
-// walkServiceN1 runs the analyzer over every non-test .go file embedded from this package
-// directory (reusing master_fk_write_inventory_lint_test.go's serviceSourceFS) and aggregates
-// findings + allowlist hit counts + the total RangeStmt count (a floor guard against a
-// vacuously-green embed/AST break).
+// walkServiceN1 runs the analyzer over every production (non-test) .go file under the WHOLE
+// internal/** tree (via lintscan.WalkInternalTreeT, shared with
+// master_fk_write_inventory_lint_test.go) — not only internal/service's own directory — and
+// aggregates findings + allowlist hit counts + the total RangeStmt count (a floor guard against
+// a vacuously-green lintscan-walk/AST break). lintscan already excludes *_test.go files, so no
+// additional filtering is needed here.
 func walkServiceN1(t *testing.T) (findings []n1Finding, allowHits map[string]int, totalRangeLoops int) {
 	t.Helper()
 
-	names, err := fs.Glob(serviceSourceFS, "*.go")
-	if err != nil {
-		t.Fatalf("glob embedded service source: %v", err)
+	files := lintscan.WalkInternalTreeT(t)
+
+	// Deterministic file order for stable diagnostics.
+	names := make([]string, 0, len(files))
+	for n := range files {
+		names = append(names, n)
 	}
+	sort.Strings(names)
 
 	var all []n1Finding
 	agg := make(map[string]int)
 	for _, name := range names {
-		if strings.HasSuffix(name, "_test.go") {
-			continue
-		}
-		src, err := serviceSourceFS.ReadFile(name)
-		if err != nil {
-			t.Fatalf("read embedded %s: %v", name, err)
-		}
-		fileFindings, fileAllowHits, rangeLoops, err := analyzeFileN1(name, src)
+		fileFindings, fileAllowHits, rangeLoops, err := analyzeFileN1(name, files[name])
 		if err != nil {
 			t.Fatalf("parse %s: %v", name, err)
 		}
@@ -261,7 +277,7 @@ func TestN1Lint_RealServiceSourceHasNoUnresolvedLoopBodyFindOrGet(t *testing.T) 
 	findings, _, rangeLoops := walkServiceN1(t)
 
 	if rangeLoops < 200 {
-		t.Fatalf("only %d RangeStmt loops parsed across package service; embed glob or AST walk likely broken (would vacuously pass)", rangeLoops)
+		t.Fatalf("only %d RangeStmt loops parsed across internal/**; lintscan walk or AST walk likely broken (would vacuously pass)", rangeLoops)
 	}
 
 	for _, f := range findings {
@@ -380,6 +396,50 @@ func (s *xService) validateOwnerPetsInsuranceOwnership(ctx context.Context, clin
 			}
 			if len(findings) != tc.want {
 				t.Fatalf("got %d findings, want %d: %+v", len(findings), tc.want, findings)
+			}
+		})
+	}
+}
+
+// TestN1Lint_AnalyzerDetectsViolationUnderNestedPathFilename proves the analyzer itself (not
+// just the lintscan discovery mechanism — see TestN1Lint_RealServiceSourceHasNoUnresolvedLoopBodyFindOrGet's
+// floor guard for that) flags a known-bad range-loop Find/Get call when the source is presented
+// under filenames simulating different top-level internal/ packages and nesting depths — the
+// shape lintscan.WalkInternalTreeT now produces for the WHOLE internal/** tree (not just
+// internal/service). Mirrors repository/preload_clinic_scope_lint_test.go's
+// TestPreloadClinicScope_AnalyzerDetectsViolationUnderNestedPathFilename, and doubles as the
+// BE9-1 "same verdict at 3 locations" proof (point 2 of the module-wide broadening plan).
+// analyzeFileN1 is a pure per-file function with no cross-file index, so — unlike
+// master-fk-write's directory-scoped struct index — this test needs no collision-safety
+// companion fixture.
+func TestN1Lint_AnalyzerDetectsViolationUnderNestedPathFilename(t *testing.T) {
+	cases := []struct {
+		name     string
+		filename string
+	}{
+		{"top-level file directly under a different internal/ package", "handler/foo.go"},
+		{"one level of nesting under a different internal/ package", "repository/paymentmethod/repository.go"},
+		{"two levels of nesting under yet another internal/ package", "model/sub/deeper/thing.go"},
+	}
+
+	src := []byte(`package p
+func (s *xService) f(ctx context.Context, clinicID uint64, owners []Owner) {
+	for _, o := range owners {
+		s.settingsRepo.FindByClinicID(ctx, clinicID)
+	}
+}`)
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			findings, _, _, err := analyzeFileN1(tc.filename, src)
+			if err != nil {
+				t.Fatalf("parse fixture: %v", err)
+			}
+			if len(findings) != 1 {
+				t.Fatalf("got %d findings for a nested-path-filename violation at %q, want 1: %+v", len(findings), tc.filename, findings)
+			}
+			if findings[0].callee != "settingsRepo.FindByClinicID" {
+				t.Fatalf("got callee %q, want settingsRepo.FindByClinicID", findings[0].callee)
 			}
 		})
 	}

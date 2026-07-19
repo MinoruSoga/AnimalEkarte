@@ -1,7 +1,7 @@
 // P4-2〜P4-4: Cloudflare Worker エントリポイント。
 //
 // 役割は薄いプロキシのみ: 全 HTTP リクエストを Container(Go/Gin API, :8080) へフォワードする。
-// ビジネスロジックは一切持たない(Handler→Service→Repository は Container 内の Go バイナリ側)。
+// ビジネスロジックは一切持たない（Container内のGoアプリケーション側が担当）。
 //
 // DB接続方針(migration-cloudflare.md 試行9): Hyperdrive は Container 内非対応
 // (https://github.com/cloudflare/containers/issues/97 — Container は通常の Linux プロセスであり

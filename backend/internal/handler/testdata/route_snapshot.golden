@@ -21,7 +21,6 @@ DELETE /api/v1/lstep-settings DeleteLstepSettings
 DELETE /api/v1/lstep-tag-config/auto-managed-prefixes/:id DeleteAutoManagedPrefix
 DELETE /api/v1/lstep-tag-config/condition-tag-mappings/:id DeleteConditionTagMapping
 DELETE /api/v1/lstep-tag-config/send-purpose-tag-prefixes/:id DeleteSendPurposeTagPrefix
-DELETE /api/v1/manual/articles/:category/:slug DeleteManualArticle
 DELETE /api/v1/masters/animal-species/:id DeleteAnimalSpecies
 DELETE /api/v1/masters/cages/:id DeleteCage
 DELETE /api/v1/masters/campaigns/:id DeleteCampaign
@@ -151,9 +150,6 @@ GET /api/v1/lstep/delivery-monitor/summary GetLstepDeliveryTriggerSummary
 GET /api/v1/lstep/owners SearchLstepOwnersByTag
 GET /api/v1/lstep/tag-summary GetLstepTagSummary
 GET /api/v1/lstep/trigger-priorities GetLstepTriggerPriorities
-GET /api/v1/manual/articles ListManualArticles
-GET /api/v1/manual/articles/:category/:slug GetManualArticle
-GET /api/v1/manual/articles/:category/:slug/versions ListManualArticleVersions
 GET /api/v1/masters/animal-species ListAnimalSpecies
 GET /api/v1/masters/animal-species/:id GetAnimalSpecies
 GET /api/v1/masters/cages ListCages
@@ -465,7 +461,6 @@ PUT /api/v1/clinics/:clinic_id/reservation-staffs/:staffId/schedules/:date Upser
 PUT /api/v1/clinics/:clinic_id/reservation-types/:id UpdateReservationTypeLiff
 PUT /api/v1/examinations/:id/items ReplaceExaminationItems
 PUT /api/v1/lstep-tag-code-mappings/:tag_name ReplaceTagCodeMappingsForTag
-PUT /api/v1/manual/articles/:category/:slug UpsertManualArticle
 PUT /api/v1/masters/medicines/:id/dose-params/:species UpsertMedicineDoseParam
 PUT /api/v1/masters/permission-groups/:id/rules SetPermissionGroupRules
 PUT /api/v1/masters/staffs/:id/capable-reservation-types SetStaffCapableReservationTypes

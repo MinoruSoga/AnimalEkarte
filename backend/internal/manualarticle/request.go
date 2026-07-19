@@ -1,9 +1,6 @@
-package handler
+package manualarticle
 
-import (
-	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/service"
-)
+import "github.com/animal-ekarte/backend/internal/model"
 
 // UpsertManualArticleRequest はマニュアル upsert の HTTP リクエスト
 type UpsertManualArticleRequest struct {
@@ -13,8 +10,8 @@ type UpsertManualArticleRequest struct {
 	BodyMarkdown string  `json:"body_markdown" binding:"required"`
 }
 
-func (r UpsertManualArticleRequest) toServiceInput(category model.ManualCategory, slug string) *service.UpsertManualArticleInput {
-	return &service.UpsertManualArticleInput{
+func (r UpsertManualArticleRequest) toServiceInput(category model.ManualCategory, slug string) *UpsertManualArticleInput {
+	return &UpsertManualArticleInput{
 		Category:     category,
 		Slug:         slug,
 		Title:        r.Title,

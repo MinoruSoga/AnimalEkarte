@@ -35,10 +35,14 @@ package repository
 //
 // ─── Technique ──────────────────────────────────────────────────────────────────────
 //
-// Reuses repoSourceFS (go:embed *.go */*.go, declared in preload_clinic_scope_lint_test.go)
-// and the baseFileName helper. AST walker detects .Delete(&model.X{}) calls where X is
-// in clinicalResultHardDeleteModels. Key = (file, receiverType.Method, modelType) +
-// exact occurrence count — same technique as preload site exceptions and master-FK lint.
+// Discovery is delegated to moduleInternalSource / legacyLintKey (both declared in
+// preload_clinic_scope_lint_test.go; BE9-1), which source from the shared internal/lintscan
+// package instead of a package-local go:embed. This scans every production .go file under the
+// WHOLE module's internal/ tree, not only internal/repository — see
+// preload_clinic_scope_lint_test.go's file header ("Discovery mechanism (BE9-1)") for the full
+// key-format-compatibility rationale. AST walker detects .Delete(&model.X{}) calls where X is
+// in clinicalResultHardDeleteModels. Key = (file, receiverType.Method, modelType) + exact
+// occurrence count — same technique as preload site exceptions and master-FK lint.
 //
 // ─── AST detection blindspot ────────────────────────────────────────────────────────
 //
@@ -49,6 +53,14 @@ package repository
 //   (c) association clear: Association("Items").Unscoped().Clear()
 // Both current sites use composite-literal form. When migrating exam_results, preserve
 // this form (or extend the matcher) to ensure the gate continues to fire.
+//
+// More generally (BE9-1): a Go model type not registered in clinicalResultHardDeleteModels is
+// invisible to this gate even in composite-literal form, and any hard-delete reachable only
+// through a background job, cron, or worker path that never appears as a literal AST call shape
+// inside a plain .go file this scanner visits is also invisible. The runtime atomicity tests
+// (*_tx_atomicity_test.go) and the cross-tenant *_clinic_isolation_test.go-style guards remain
+// required for these blind spots; this static inventory gate is a complement layered on top of
+// them, not a substitute.
 //
 // ─── Intentional exclusions ─────────────────────────────────────────────────────────
 //
@@ -165,7 +177,7 @@ type auditInventoryFinding struct {
 
 // analyzeFileForClinicalResultDeletes parses one Go source file and reports every
 // .Delete(&model.X{}) call whose X is in clinicalResultHardDeleteModels.
-// It is a pure function so fixtures and the embedded real source exercise the same logic.
+// It is a pure function so fixtures and the real discovered source exercise the same logic.
 func analyzeFileForClinicalResultDeletes(filename string, src []byte) ([]auditInventoryFinding, error) {
 	fset := token.NewFileSet()
 	f, err := parser.ParseFile(fset, filename, src, 0)
@@ -265,22 +277,23 @@ func auditInventoryKey(file, function, modelType string) string {
 	return file + "|" + function + "|" + modelType
 }
 
-// walkRepositoryForClinicalResultDeletes runs the analyzer over every non-test .go file
-// embedded from this package directory and domain subpackages (repoSourceFS).
+// walkRepositoryForClinicalResultDeletes runs the analyzer over every production .go file
+// discovered module-wide (moduleInternalSource; BE9-1) — internal/repository and every other
+// internal/ package. Filenames fed to analyzeFileForClinicalResultDeletes are
+// legacyLintKey-normalized so allowlist identity for internal/repository/** files is unchanged
+// from the pre-BE9-1 repoSourceFS walk.
 func walkRepositoryForClinicalResultDeletes(t *testing.T) []auditInventoryFinding {
 	t.Helper()
-	names := listEmbeddedRepoGoFiles(t) // root + */*.go via preload_clinic_scope_lint_test.go
+	tree := moduleInternalSource(t)
 	var all []auditInventoryFinding
-	for _, name := range names {
-		src, err := repoSourceFS.ReadFile(name)
+	for rawKey, src := range tree {
+		key := legacyLintKey(rawKey)
+		// analyzeFileForClinicalResultDeletes derives its own key from the filename argument:
+		// basename for root package files, relative path for subpackage files
+		// (BE-refactor.md §5-1-3).
+		findings, err := analyzeFileForClinicalResultDeletes(key, src)
 		if err != nil {
-			t.Fatalf("read embedded %s: %v", name, err)
-		}
-		// analyzeFileForClinicalResultDeletes derives the key itself: basename for root package
-		// files, relative path for 1-level subpackage files (BE-refactor.md §5-1-3).
-		findings, err := analyzeFileForClinicalResultDeletes(name, src)
-		if err != nil {
-			t.Fatalf("parse %s: %v", name, err)
+			t.Fatalf("parse %s: %v", key, err)
 		}
 		all = append(all, findings...)
 	}
@@ -351,26 +364,37 @@ func reconcileClinicalResultDeletes(found map[string]int, allowlist []auditInven
 }
 
 // TestClinicalResultAuditTxInventory_AnalyzerDetectsViolationUnderNestedPathFilename proves the
-// analyzer itself (not just embed reachability — see
-// TestClinicalResultAuditTxInventory_WalksAllEmbeddedFilesIncludingSubpackages) flags a
-// non-allowlisted clinical-result hard-delete when the source is presented under a 1-level
-// subpackage filename, the shape repoSourceFS produces for real domain subpackages. BE8-0
-// follow-up: the prior walk-smoke test never fed a violation through analyzeFileForClinicalResultDeletes
-// + reconcileClinicalResultDeletes together (see BE-refactor.md BE8-0 follow-up note).
+// analyzer itself (not just discovery reach — see
+// TestClinicalResultAuditTxInventory_DiscoveryReachesModuleWideAndNestedPackages) flags a
+// non-allowlisted clinical-result hard-delete identically regardless of the filename/location
+// shape the source is presented under: a repository-root-shaped filename, a DIFFERENT top-level
+// internal/ package filename, and a 2+-level nested filename must all report the SAME violation
+// (BE9-1). BE8-0 follow-up: the prior walk-smoke test never fed a violation through
+// analyzeFileForClinicalResultDeletes + reconcileClinicalResultDeletes together (see
+// BE-refactor.md BE8-0 follow-up note).
 func TestClinicalResultAuditTxInventory_AnalyzerDetectsViolationUnderNestedPathFilename(t *testing.T) {
 	src := "package p\nfunc (r *repository) Upsert() { db.Delete(&model.ExamResult{}) }\n"
-	findings, err := analyzeFileForClinicalResultDeletes("paymentmethod/repository.go", []byte(src))
-	if err != nil {
-		t.Fatalf("parse fixture: %v", err)
+	filenames := []string{
+		"repository/x.go",          // root-shaped
+		"service/x.go",             // a different top-level internal/ package
+		"repository/two/deep/x.go", // 2+-level nested
 	}
-	if len(findings) != 1 {
-		t.Fatalf("got %d findings for a nested-path-filename hard-delete, want 1: %+v", len(findings), findings)
-	}
-	agg := aggregateClinicalResultFindings(findings)
-	// Empty allowlist: the site is unreviewed, so it must be flagged (not silently accepted).
-	violations := reconcileClinicalResultDeletes(agg, nil)
-	if len(violations) == 0 {
-		t.Fatal("an unreviewed nested-path clinical-result hard-delete was not flagged against an empty allowlist")
+	for _, fn := range filenames {
+		t.Run(fn, func(t *testing.T) {
+			findings, err := analyzeFileForClinicalResultDeletes(fn, []byte(src))
+			if err != nil {
+				t.Fatalf("parse fixture: %v", err)
+			}
+			if len(findings) != 1 {
+				t.Fatalf("got %d findings for filename %q, want 1: %+v", len(findings), fn, findings)
+			}
+			agg := aggregateClinicalResultFindings(findings)
+			// Empty allowlist: the site is unreviewed, so it must be flagged (not silently accepted).
+			violations := reconcileClinicalResultDeletes(agg, nil)
+			if len(violations) == 0 {
+				t.Fatalf("an unreviewed clinical-result hard-delete under filename %q was not flagged against an empty allowlist", fn)
+			}
+		})
 	}
 }
 
@@ -413,15 +437,15 @@ func TestClinicalResultAuditTxInventory_AllowlistDoesNotCrossSubpackageBasenameC
 // TestClinicalResultAuditTxInventory_AllowlistMatchesRealSource is the gate: every
 // clinical-result hard-delete site in this repository package must be on the allowlist
 // with a matching occurrence count, and every allowlist entry must still match a real site.
-// The floor prevents a vacuous green if the embed glob or AST matching silently breaks.
+// The floor prevents a vacuous green if discovery or the AST matching silently breaks.
 func TestClinicalResultAuditTxInventory_AllowlistMatchesRealSource(t *testing.T) {
 	findings := walkRepositoryForClinicalResultDeletes(t)
 
 	// Floor: at least 2 sites (ExamResult + CheckupFieldResult). A broken AST matcher
-	// or missing embed would drop this to 0 — far below the floor.
+	// or broken discovery would drop this to 0 — far below the floor.
 	if len(findings) < 2 {
 		t.Fatalf("only %d clinical-result hard-delete site(s) found; AST matching or "+
-			"embed likely broken (would vacuously pass). Expected ≥2 (ExamResult + CheckupFieldResult).",
+			"discovery likely broken (would vacuously pass). Expected ≥2 (ExamResult + CheckupFieldResult).",
 			len(findings))
 	}
 
@@ -437,47 +461,6 @@ func TestClinicalResultAuditTxInventory_AllowlistMatchesRealSource(t *testing.T)
 // no 'pending-migration' example. statusPendingMigration itself stays in the taxonomy (see the
 // const block above and TestClinicalResultAuditTxInventory_GateDetectsViolations fixtures) for
 // the next clinical-result hard-delete site that is added but not yet made ambient-tx-aware.
-// TestClinicalResultAuditTxInventory_WalksAllEmbeddedFilesIncludingSubpackages exercises
-// walkRepositoryForClinicalResultDeletes (the production walk used by the real gate,
-// TestClinicalResultAuditTxInventory_AllowlistMatchesRealSource) against the current embedded
-// set and confirms it completes without t.Fatal for the 1-level subpackage files that set
-// includes. It additionally confirms every subpackage file's raw source is independently
-// parseable via analyzeFileForClinicalResultDeletes. NOTE (audit gap, recorded 2026-07-17):
-// clinicalResultAuditTxAllowlist currently has zero subpackage entries, so this test cannot
-// assert that walkRepositoryForClinicalResultDeletes's own internals would still visit a
-// subpackage file if a future edit added a silent path-based filter inside that function — it
-// can only prove the embed reaches subpackages and their source is parseable today. See
-// TestRepoSourceEmbed_ReachesOneLevelSubpackages (preload_clinic_scope_lint_test.go) for the
-// underlying embed-glob regression test that this wrapper depends on (BE-refactor.md BE8-0).
-func TestClinicalResultAuditTxInventory_WalksAllEmbeddedFilesIncludingSubpackages(t *testing.T) {
-	names := listEmbeddedRepoGoFiles(t)
-	nested := 0
-	for _, n := range names {
-		if strings.Contains(n, "/") {
-			nested++
-		}
-	}
-	if nested == 0 {
-		t.Fatal("no 1-level subpackage files in the embedded set walkRepositoryForClinicalResultDeletes iterates over")
-	}
-	// Smoke-exercise the actual production walk against the current embedded set (including
-	// subpackages) — proves it does not t.Fatal/panic while subpackage files are present.
-	_ = walkRepositoryForClinicalResultDeletes(t)
-	for _, n := range names {
-		if !strings.Contains(n, "/") {
-			continue
-		}
-		src, err := repoSourceFS.ReadFile(n)
-		if err != nil {
-			t.Fatalf("read embedded %s: %v", n, err)
-		}
-		if _, err := analyzeFileForClinicalResultDeletes(n, src); err != nil {
-			t.Fatalf("analyzeFileForClinicalResultDeletes failed to parse embedded subpackage file %s: %v — "+
-				"this lint's walk would silently skip it", n, err)
-		}
-	}
-}
-
 func TestClinicalResultAuditTxInventory_StatusesAreLive(t *testing.T) {
 	counts := map[auditInventoryStatus]int{}
 	for _, e := range clinicalResultAuditTxAllowlist {
@@ -491,6 +474,51 @@ func TestClinicalResultAuditTxInventory_StatusesAreLive(t *testing.T) {
 		t.Error("a non-audited-tx-internal entry exists; if this is a genuine new pending-migration " +
 			"site that is expected, this assertion should be relaxed with a comment explaining why")
 	}
+}
+
+// TestClinicalResultAuditTxInventory_DiscoveryReachesModuleWideAndNestedPackages pins that the
+// module-wide discovery set (moduleInternalSource, backed by lintscan.WalkInternalTreeT; BE9-1)
+// walkRepositoryForClinicalResultDeletes iterates over reaches: (a) 1-level+ repository domain
+// subpackages, (b) at least one file from a DIFFERENT top-level internal/ package, and (c)
+// 2+-level nesting (scanner capability, proven via a synthetic tree — see
+// assertLintscanReachesTwoOrMoreNestingLevels). Also smoke-exercises the actual production walk
+// and confirms every reached repository subpackage file's raw source is independently parseable
+// via analyzeFileForClinicalResultDeletes.
+//
+// Renamed + strengthened from the pre-BE9-1
+// TestClinicalResultAuditTxInventory_WalksAllEmbeddedFilesIncludingSubpackages, which only pinned
+// the go:embed glob's 1-level reach within internal/repository. NOTE (audit gap, recorded
+// 2026-07-17, still true post-BE9-1): clinicalResultAuditTxAllowlist currently has zero
+// subpackage entries, so this test cannot assert that walkRepositoryForClinicalResultDeletes's
+// own internals would still visit a subpackage file if a future edit added a silent path-based
+// filter inside that function — it can only prove the discovery reaches subpackages (and other
+// packages, and depth) and their source is parseable today.
+func TestClinicalResultAuditTxInventory_DiscoveryReachesModuleWideAndNestedPackages(t *testing.T) {
+	tree := moduleInternalSource(t)
+	nested := 0
+	for n := range tree {
+		if strings.HasPrefix(n, "repository/") && strings.Contains(legacyLintKey(n), "/") {
+			nested++
+		}
+	}
+	if nested == 0 {
+		t.Fatal("no 1-level+ subpackage repository files in the module-wide discovered set walkRepositoryForClinicalResultDeletes iterates over")
+	}
+	// Smoke-exercise the actual production walk against the current discovered set — proves it
+	// does not t.Fatal/panic while subpackage AND non-repository files are present.
+	_ = walkRepositoryForClinicalResultDeletes(t)
+	for rawKey, src := range tree {
+		if !strings.HasPrefix(rawKey, "repository/") || !strings.Contains(legacyLintKey(rawKey), "/") {
+			continue
+		}
+		if _, err := analyzeFileForClinicalResultDeletes(legacyLintKey(rawKey), src); err != nil {
+			t.Fatalf("analyzeFileForClinicalResultDeletes failed to parse module-wide subpackage file %s: %v — "+
+				"this lint's walk would silently skip it", rawKey, err)
+		}
+	}
+
+	assertDiscoversFileFromDifferentTopLevelPackage(t, tree)
+	assertLintscanReachesTwoOrMoreNestingLevels(t)
 }
 
 // TestClinicalResultAuditTxInventory_Analyzer pins detection on inline fixtures (SC3 non-vacuous

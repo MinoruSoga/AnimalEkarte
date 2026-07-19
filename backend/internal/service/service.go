@@ -68,12 +68,13 @@ type Services struct {
 	Checkup                        CheckupService
 	CheckupFieldResult             CheckupFieldResultService
 	Estimate                       EstimateService
-	ManualArticle                  ManualArticleService
-	MerchandiseItem                MerchandiseItemService
-	BillingItem                    BillingItemService
-	Refund                         RefundService
-	PasswordReset                  PasswordResetService
-	ReservationNotifier            ReservationNotifier
+	// ManualArticle: BE9-2B — moved to internal/manualarticle (aggregator-free domain
+	// package). No longer constructed here; see cmd/api/main.go.
+	MerchandiseItem     MerchandiseItemService
+	BillingItem         BillingItemService
+	Refund              RefundService
+	PasswordReset       PasswordResetService
+	ReservationNotifier ReservationNotifier
 
 	// FEAT-368: 集計・締め機能
 	ClosingSettings     ClosingSettingsService
@@ -303,7 +304,6 @@ func NewServices(repos *repository.Repositories, notifCfg *ReservationNotificati
 		Checkup:                        checkupSvc,
 		CheckupFieldResult:             NewCheckupFieldResultService(repos.Checkup, repos.MedicalRecord, repos.CheckupTypeField, repos.CheckupFieldResult, auditTxLogger, tx),
 		Estimate:                       NewEstimateService(repos.Estimate, repos.MedicalRecord, repos.Reservation, repos.StaffClinicAssignment, auditSvc, tx),
-		ManualArticle:                  NewManualArticleService(repos.ManualArticle),
 		MerchandiseItem:                NewMerchandiseItemService(repos.MerchandiseItem),
 		BillingItem:                    NewBillingItemServiceWithCampaign(repos.BillingItem, repos.Accounting, repos.Treatment, tx, repos.TrimmingCourse, repos.TrimmingOption, repos.Campaign, repos.Owner),
 		Refund:                         NewRefundService(repos.Refund, repos.Accounting, auditTxLogger, tx),

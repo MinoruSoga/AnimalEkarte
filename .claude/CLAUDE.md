@@ -5,7 +5,7 @@
 **As a senior engineer, maintain these principles:**
 - Flat Thinking: Remove social pleasantries. Direct feedback based on facts and logic
 - Type Safety First: Prohibit `any` in both Go and TypeScript
-- Architecture Adherence: Maintain handler → service → repository lightweight layering
+- Evidence-based Architecture: Follow Go/Gin official guidance; design backend packages by cohesion, consumers, and dependency direction
 
 ## 🧭 Product Philosophy (業務効率の意思決定原則) — MANDATORY
 
@@ -118,7 +118,8 @@ $ docker compose exec backend go test ./internal/service/...
 | File | Read When |
 |------|-----------|
 | `go-language.md` | Go code implementation/review |
-| `gin-architecture-compliance.md` | Gin/GORM P1-P18 compliance check (handler/service/repository) |
+| `go-gin-backend-review.md` | Go/Gin公式ガイドとapplication invariantに基づくbackendレビュー |
+| `backend-application-invariants.md` | clinic/owner/pet/staff分離などbackend固有の安全不変条件 |
 | `error-handling.md` | Error handling implementation (Go/TS both) |
 | `typescript-react.md` | Frontend implementation/review |
 | `api.md` | API design, endpoint additions (pointer to gin-api-design skill) |
@@ -137,16 +138,16 @@ DB design/migrations → `postgres-patterns` / `migration-seed-safety` skills. G
 - GitHub access should use the user's global GitHub MCP/plugin or `gh` CLI. External write actions such as comments, reviews, pushes, and merges require explicit approval.
 - PostgreSQL MCP is local opt-in only. Use it only for read-only schema investigation, never as a default project-shared server. Direct DB writes, migrations, resets, and production/staging access require explicit approval.
 - Prefer docs/search MCPs from the user's global configuration. Enable heavy or high-risk MCPs only for the task that needs them.
-## 🏗 Architecture (Layer-specific CLAUDE.md)
+## 🏗 Architecture (Directory-specific CLAUDE.md)
 
 Layer-specific rules are documented close to the code:
 
 | Directory | Rules |
 |-----------|-------|
-| `backend/` | Error handling, P1-P18 overview, build commands |
-| `backend/internal/handler/` | P5, P6, P7, P12, P14, P15, P18 |
-| `backend/internal/service/` | P1, P8, P10, P11, P13, P17 |
-| `backend/internal/repository/` | P2, P3, P4 (clinicScope), P9, P16 |
+| `backend/` | Go/Gin公式ベースライン、security invariant、Docker verification |
+| `backend/internal/handler/` | 現行Gin HTTP boundaryの局所レビュー観点（mandatory layerではない） |
+| `backend/internal/service/` | 現行application logic packageの局所レビュー観点（mandatory layerではない） |
+| `backend/internal/repository/` | 現行persistence packageの局所レビュー観点（repository patternはmandatoryではない） |
 | `backend/migrations/` | Migration naming, clinic_id, CASCADE DELETE禁止 |
 | `frontend/` | React 19 patterns, design tokens, build commands |
 | `frontend/src/features/` | Feature Indexing, index.ts structure |
@@ -160,5 +161,5 @@ Layer-specific rules are documented close to the code:
 | `.claude/refs/*.md` | `.claude/refs/` | 詳細リファレンス。スキャンプロンプト・完全仕様 |
 
 **原則**: ディレクトリ CLAUDE.md で日常的なルールを把握する。
-P1-P18 の完全スキャンや網羅的な確認が必要な時だけ `refs/gin-architecture-compliance.md` を読む。
+backend の設計・レビューでは `rules/go-gin-backend-guidelines.md` と `refs/go-gin-backend-review.md` を読む。clinic/owner/pet/staff の境界を変更する場合は `refs/backend-application-invariants.md` も読む。
 `refs/` は凍結された二重管理コピーの温床になりやすい。内容が他スキル/グローバルルールでカバーされたら削除する（2026-07 に 14 本中 7 本を削除済み）。

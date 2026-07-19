@@ -94,7 +94,7 @@ ORDER BY pg.clinic_id, pg.id;
 ### U-11: FEAT-searchable-select 確認対象（実装完了・目視のみ残）
 
 SearchableSelect 本体 = `frontend/src/components/ui/searchable-select.tsx`。適用済み 15 箇所:
-予約区分・担当者(`ReservationFormFields.tsx:334,416`)、診断名1/2+カテゴリ(`DiagnosisHeaderDiagnosis.tsx:52,58,64`)、診療計画病名(`ClinicalPlanSection.tsx:47`)、主訴(`InterviewChiefComplaint.tsx:45`)、ワクチン(`VaccinationForm.tsx:72`)、検査種別・担当医(`ExaminationFormFields.tsx:56,63`)、健診種別・担当医(`CheckupForm.tsx:111,143`)、入院ケージ(`HospitalizationBasicInfo.tsx:106`)、薬剤親カテゴリ(`MedicineSidePanelSections.tsx:67`)、指名フィルタ(`ReceptionFilterPanel.tsx:59`)、医師フィルタ(`ReservationManagementCalendar.tsx:85`)、動物種(`NewOwnerInlineForm.tsx:83`/`PetEditModalFieldSections.tsx`)、スタッフフィルタ(`ShiftCalendar.tsx:107`・per-option `disabled`)。
+予約区分・担当者(`ReservationFormFields.tsx:334,416`)、診断名1/2+カテゴリ(`DiagnosisHeaderDiagnosis.tsx:52,58,64`)、診療計画病名(`ClinicalPlanSection.tsx:47`)、主訴(`InterviewChiefComplaint.tsx:45`)、ワクチン(`VaccinationForm.tsx:72`)、検査種別・担当医(`ExaminationFormFields.tsx:56,63`)、健診種別・担当医(`CheckupForm.tsx:111,143`)、入院ケージ(`HospitalizationBasicInfo.tsx:106`)、薬剤親カテゴリ(`MedicineSidePanelSections.tsx:67`)、指名フィルタ(`ReceptionFilterPanel.tsx:59`)、医師フィルタ(`ReservationManagementCalendar.tsx:85`)、動物種(`NewOwnerInlineForm.tsx:83`/`PetIdentitySection.tsx:95` in `frontend/src/features/owners/components/` — 2026-07-11 FE-R14 分割 commit `52bd37816` で `PetEditModalFieldSections.tsx` から移設・2026-07-19 再監査で参照先を訂正)、スタッフフィルタ(`ShiftCalendar.tsx:107`・per-option `disabled`)。
 
 意図的スキップ（対応不要）: `ShiftFormDialog` テンプレ選択（非制御アクショントリガー）／`ReservationTypeSidePanel` グループ選択（カラードット custom JSX・実件数<15）。保留候補: Lステップ TriggerType（`LstepDeliveryMonitorPageParts.tsx:71`）。
 
@@ -124,6 +124,6 @@ SearchableSelect 本体 = `frontend/src/components/ui/searchable-select.tsx`。�
 | `BE-pending.md` | 着手保留・次期送り・任意検証の BE 詳細 |
 | `q&a.html` | 内部 PO 判断キュー（決裁記録の正本。PO-001〜008・SD-1〜19・GAP-1/2 回答済み） |
 | `task.html` | PR #186 Codex レビュー残タスク（Open スレッド＋値投入待ち） |
-| `BE-refactor.md` | **BE 第8期計画（repo 直下・対応後削除予定）**: backend/ 全体のパッケージ構成統一の移行手順（BE8-0〜8）。**コード規約の恒久正本 = `.claude/rules/go-package-conventions.md`**（計画削除後も規約はそこに残る・`.agents/skills/` へ自動ミラー）。着手は Go-live 後・BE8-0（lint 網羅性固定）が必須ゲート |
+| `BE-refactor.md` | **BE9 active plan**: Go/Gin公式原則を適用し、巨大なhandler/service/repositoryをdomain/resource packageへ大規模移行する。package非依存lint・HTTP/security review・旧layer撤去までを含む。旧BE8固定layer計画はsuperseded historyとして実行禁止 |
 
-> 旧 `BE_todo.md` は本ファイルへ吸収済み（削除）。`FE-refactor.md`（FE 第7期計画・ESLint 境界ガード新設 FE7-0〜2 + FE7-3/4 判断）は 2026-07-18 に対応完了・削除済み。恒久規約は `frontend/CLAUDE.md`（Shared Helper 配置/Shared Constants 配置/shared-liff 配置/Import 境界 Lint/design-tokens 例外の各節）へ同梱済み。FE7-4(a)（`src/contexts/` の lib/hooks 吸収）は配置先が規約から一意に定まらず skip・follow-up 化（18 importers・過剰整理回避）。`BE-refactor.md` は第7期版を吸収・削除後、2026-07-17 に第8期計画として新設（対応後削除予定・コード規約の恒久正本は `.claude/rules/go-package-conventions.md` へ分離）。旧 `docs/tasks/`・`docs/archive/` は 2026-07-16 に廃止（詳細は git 履歴）。
+> 旧 `BE_todo.md` は本ファイルへ吸収済み（削除）。`FE-refactor.md`（FE 第7期計画・ESLint 境界ガード新設 FE7-0〜2 + FE7-3/4 判断）は 2026-07-18 に対応完了・削除済み。恒久規約は `frontend/CLAUDE.md` へ同梱済み。BE8の固定layer計画は2026-07-19にADR-005でsupersededとなり、backend正本を `.claude/rules/go-gin-backend-guidelines.md` へ置換。`BE-refactor.md` は同日、実装・lint・reviewを新規約へ移すBE9 active planへ更新した。旧 `docs/tasks/`・`docs/archive/` は2026-07-16に廃止（詳細はgit履歴）。

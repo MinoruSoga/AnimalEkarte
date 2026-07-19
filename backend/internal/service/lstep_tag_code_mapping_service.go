@@ -1,6 +1,7 @@
 package service
 
-// P13 definition order: const → buildFunc → interface → struct → constructor → methods
+// File organization (this file only, non-mandatory convention — order is not enforced by any
+// gate; see service/CLAUDE.md): const → buildFunc → interface → struct → constructor → methods
 
 import (
 	"context"

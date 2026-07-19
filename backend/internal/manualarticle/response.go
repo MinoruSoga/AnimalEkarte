@@ -1,8 +1,9 @@
-package handler
+package manualarticle
 
 import (
 	"time"
 
+	"github.com/animal-ekarte/backend/internal/httpapi"
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
@@ -43,12 +44,12 @@ type ManualArticleVersionResponse struct {
 }
 
 func toManualArticleListResponse(articles []model.ManualArticle) ManualArticleListResponse {
-	data := mapSlice(articles, toManualArticleResponse)
+	data := httpapi.MapSlice(articles, toManualArticleResponse)
 	return ManualArticleListResponse{Data: data}
 }
 
 func toManualArticleVersionListResponse(versions []model.ManualArticleVersion) ManualArticleVersionListResponse {
-	data := mapSlice(versions, toManualArticleVersionResponse)
+	data := httpapi.MapSlice(versions, toManualArticleVersionResponse)
 	return ManualArticleVersionListResponse{Data: data}
 }
 
@@ -62,8 +63,8 @@ func toManualArticleResponse(a *model.ManualArticle) ManualArticleResponse {
 		Section:          a.Section,
 		BodyMarkdown:     a.BodyMarkdown,
 		UpdatedByStaffID: a.UpdatedByStaffID,
-		CreatedAt:        localTime(a.CreatedAt),
-		UpdatedAt:        localTime(a.UpdatedAt),
+		CreatedAt:        httpapi.LocalTime(a.CreatedAt),
+		UpdatedAt:        httpapi.LocalTime(a.UpdatedAt),
 	}
 }
 
@@ -76,6 +77,6 @@ func toManualArticleVersionResponse(v *model.ManualArticleVersion) ManualArticle
 		Section:         v.Section,
 		BodyMarkdown:    v.BodyMarkdown,
 		EditedByStaffID: v.EditedByStaffID,
-		EditedAt:        localTime(v.EditedAt),
+		EditedAt:        httpapi.LocalTime(v.EditedAt),
 	}
 }

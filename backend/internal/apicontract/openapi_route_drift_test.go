@@ -430,15 +430,39 @@ func (rc *routeCollector) handleExprStmt(s *ast.ExprStmt, env map[string]string)
 	}
 }
 
-// collectRealRoutes parses every non-test .go file in internal/handler, resolves the
-// Register*Routes call graph from RegisterRoutes, and returns the set of resolved
-// routes plus any unresolved call sites (which should always be empty; a non-empty
-// result means the codebase's routing style changed and the walker needs updating).
-func collectRealRoutes(t *testing.T) (found map[string]int, unresolved []string) {
+// migratedDomainRoutePackages lists BE9-2 domain packages whose RegisterRoutes lives
+// outside internal/handler (composed directly from cmd/api/main.go — ADR-006
+// "aggregator 非経由"). Each is walked as its own independent root, bound to the exact
+// prefix its RegisterRoutes call site is wired to in main.go (today, always the
+// `protected` group = "/api/v1" + middleware.Auth — see main.go's
+// `protected := h.RegisterRoutes(appCtx, r)` followed by `manualArticleHandler.RegisterRoutes(protected)`).
+//
+// This is a deliberately narrow, explicit, hand-maintained registry (same pattern as
+// this file's own knownMissingFromSpec/knownPhantomInSpec and
+// internal/service/master_fk_write_inventory_lint_test.go's
+// serviceWriteRolePackagePrefixes) rather than a generic cross-package AST trace of
+// cmd/api/main.go's composition root — a fully general walker would need to resolve
+// arbitrary `X := pkg.NewHandler(...)` + `X.RegisterRoutes(group)` call shapes across
+// every future domain package, which is real future work (tracked as a BE9-2 follow-up
+// alongside the next migration) but is not required to correctly gate the one domain
+// migrated so far. BE9-2C/2D/2E: when a domain package's RegisterRoutes moves out of
+// internal/handler, add its {dir, prefix} pair here in the same commit.
+var migratedDomainRoutePackages = []struct {
+	dir    string
+	prefix string
+}{
+	{dir: "../manualarticle", prefix: "/api/v1"},
+}
+
+// buildFuncsFromDir parses every non-test .go file directly under dir and returns its
+// method/function declarations keyed by bare name (sufficient today since each walked
+// package registers exactly one function per name; collectRealRoutes never merges two
+// dirs' funcs maps into one, so cross-package name collisions cannot occur here).
+func buildFuncsFromDir(t *testing.T, dir string) map[string]*ast.FuncDecl {
 	t.Helper()
-	files, err := filepath.Glob(filepath.Join(handlerDir, "*.go"))
+	files, err := filepath.Glob(filepath.Join(dir, "*.go"))
 	if err != nil {
-		t.Fatalf("glob handler dir: %v", err)
+		t.Fatalf("glob %s: %v", dir, err)
 	}
 	fset := token.NewFileSet()
 	funcs := map[string]*ast.FuncDecl{}
@@ -446,7 +470,7 @@ func collectRealRoutes(t *testing.T) (found map[string]int, unresolved []string)
 		if strings.HasSuffix(fp, "_test.go") {
 			continue
 		}
-		src, err := os.ReadFile(fp) //nolint:gosec // fixed handler source dir, not untrusted input
+		src, err := os.ReadFile(fp) //nolint:gosec // fixed source dirs enumerated in this test file, not untrusted input
 		if err != nil {
 			t.Fatalf("read %s: %v", fp, err)
 		}
@@ -462,6 +486,17 @@ func collectRealRoutes(t *testing.T) (found map[string]int, unresolved []string)
 			funcs[fd.Name.Name] = fd
 		}
 	}
+	return funcs
+}
+
+// collectRealRoutes resolves the Register*Routes call graph rooted at
+// internal/handler's RegisterRoutes, plus each migratedDomainRoutePackages entry's own
+// independent root, and returns the merged set of resolved routes plus any unresolved
+// call sites (which should always be empty; a non-empty result means the codebase's
+// routing style changed and the walker needs updating).
+func collectRealRoutes(t *testing.T) (found map[string]int, unresolved []string) {
+	t.Helper()
+	funcs := buildFuncsFromDir(t, handlerDir)
 
 	root, ok := funcs["RegisterRoutes"]
 	if !ok {
@@ -475,7 +510,23 @@ func collectRealRoutes(t *testing.T) (found map[string]int, unresolved []string)
 	for _, r := range rc.routes {
 		agg[r]++
 	}
-	return agg, rc.unresolved
+	allUnresolved := append([]string{}, rc.unresolved...)
+
+	for _, domain := range migratedDomainRoutePackages {
+		domainFuncs := buildFuncsFromDir(t, domain.dir)
+		domainRoot, ok := domainFuncs["RegisterRoutes"]
+		if !ok {
+			t.Fatalf("RegisterRoutes not found in %s — migratedDomainRoutePackages entry is stale", domain.dir)
+		}
+		drc := &routeCollector{funcs: domainFuncs, visiting: map[string]bool{}}
+		drc.walkFunc(domainRoot, domain.prefix)
+		for _, r := range drc.routes {
+			agg[r]++
+		}
+		allUnresolved = append(allUnresolved, drc.unresolved...)
+	}
+
+	return agg, allUnresolved
 }
 
 // ─── OpenAPI paths parsing ───────────────────────────────────────────────────────────

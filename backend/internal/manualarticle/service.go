@@ -1,4 +1,4 @@
-package service
+package manualarticle
 
 import (
 	"context"
@@ -7,7 +7,6 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository"
 )
 
 // UpsertManualArticleInput はマニュアル upsert の入力
@@ -33,11 +32,11 @@ type ManualArticleService interface {
 }
 
 type manualArticleService struct {
-	repo repository.ManualArticleRepository
+	repo Repository
 }
 
 // NewManualArticleService は ManualArticleService を初期化
-func NewManualArticleService(repo repository.ManualArticleRepository) ManualArticleService {
+func NewManualArticleService(repo Repository) ManualArticleService {
 	return &manualArticleService{repo: repo}
 }
 

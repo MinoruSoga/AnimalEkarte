@@ -6,11 +6,11 @@ This repository uses Claude Code and Codex-style agent workflows. The source of 
 
 Before making changes, read [.claude/CLAUDE.md](.claude/CLAUDE.md), then load only the referenced files relevant to the task. Do not bulk-read unrelated docs.
 
-Also load the project-wide rules in [.claude/rules/](.claude/rules/) (code conventions such as Go package layout — mirrored at `.agents/rules/`). Claude Code auto-loads these; other agents must read them explicitly.
+Also load the project-wide rules in [.claude/rules/](.claude/rules/) (including the Go/Gin backend guidelines — mirrored at `.agents/rules/`). Claude Code auto-loads these; other agents must read them explicitly.
 
 ## Core Rules
 
-- Preserve the Handler → Service → Repository architecture.
+- For backend work, follow [.claude/rules/go-gin-backend-guidelines.md](.claude/rules/go-gin-backend-guidelines.md). Design packages by cohesion, consumers, and dependency direction; do not treat a fixed layer layout as a Go/Gin requirement.
 - Keep TypeScript and Go type-safe; do not introduce `any` or untyped escape hatches.
 - Use Docker-based commands for this project; do not run local npm/go commands directly.
 - Keep changes minimal and aligned with the nearest directory-level `CLAUDE.md`.

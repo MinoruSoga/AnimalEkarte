@@ -1,107 +1,19 @@
-# Handler Layer — P5 / P6 / P7 / P12 / P14 / P15 / P18
+# Gin HTTP Boundary
 
-## P7: toXxxResponse() wrapping (MANDATORY)
+このディレクトリ名は現行実装の整理であり、Go/Gin公式が要求する layer ではない。新規 code の配置は [Go/Gin Backend Guidelines](../../../.claude/rules/go-gin-backend-guidelines.md) に従い、凝集性と利用者で判断する。
 
-```go
-// ✅
-c.JSON(http.StatusOK, toVaccineResponse(vaccine))
-c.JSON(http.StatusOK, toVaccineListResponse(vaccines))
+## Review points
 
-// ❌ Direct model or gin.H
-c.JSON(http.StatusOK, vaccine)
-c.JSON(http.StatusOK, gin.H{"data": vaccine})
-```
+- route group で prefix と middleware scope を明示する。
+- public/authenticated/authorized route の境界を登録時に確認する。
+- body、query、URI、header に合う `ShouldBind*` を使い、error を必ず処理する。
+- 入力の型、形式、長さ、範囲を検証した後、resource ownership を別途確認する。
+- `c.Request.Context()` を request-scoped な下流処理へ渡す。
+- response は公開 contract に必要な field だけを含め、OpenAPI と status code を一致させる。
+- application error は一貫した HTTP contract に mapping し、未知 error の内部情報を出さない。
+- dependency は closure または struct で型安全に注入し、global state を避ける。
+- route/handler は `httptest` と最小 router で正常系・4xx・5xxを検証する。
 
-## P12: ShouldBindJSON error handling (MANDATORY)
+特定の response helper、DTO ファイル名、変換関数名、下流 package の種類は Gin 公式要件ではない。
 
-```go
-// ✅
-var req CreateVaccineRequest
-if err := c.ShouldBindJSON(&req); err != nil {
-    RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
-    return
-}
-
-// ❌
-c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-```
-
-## P14: No direct Repository injection (MANDATORY)
-
-```go
-// ✅
-type VaccineHandler struct {
-    svc service.VaccineService
-}
-
-// ❌
-type VaccineHandler struct {
-    svc  service.VaccineService
-    repo repository.VaccineRepository  // 直接注入禁止
-}
-```
-
-## P15: POST returns 201 + Location header (MANDATORY)
-
-```go
-// ✅ master routes
-c.Header("Location", fmt.Sprintf("/v1/masters/vaccines/%d", vaccine.ID))
-c.JSON(http.StatusCreated, toVaccineResponse(vaccine))
-
-// ✅ business routes
-c.Header("Location", fmt.Sprintf("/api/v1/owners/%d", owner.ID))
-c.JSON(http.StatusCreated, toOwnerResponse(owner))
-
-// ❌
-c.JSON(http.StatusOK, toVaccineResponse(vaccine))    // 200 is wrong
-c.JSON(http.StatusCreated, toVaccineResponse(vaccine)) // no Location
-```
-
-## P18: toXxxResponse function naming (MANDATORY)
-
-```go
-// ✅
-func toVaccineResponse(v *model.Vaccine) VaccineResponse { ... }
-func toVaccineListResponse(vs []*model.Vaccine) []VaccineResponse { ... }
-
-// ❌ Wrong prefixes
-func convertToVaccine(...)     // convert
-func buildVaccineResponse(...) // build
-func mapVaccine(...)           // map
-func newVaccineResponse(...)   // new
-```
-
-## P5: RequirePermission on ALL non-public routes (MANDATORY)
-
-GET は `"view"`, POST は `"create"`, PUT/PATCH は `"edit"`, DELETE は `"delete"`。
-**全ルートに付与必須** (AUDIT-H2 2026-05-09)。
-
-```go
-// ✅ in RegisterXxxRoutes
-masters.GET("/vaccines", perm(model.ResourceMasterMedical, "view"), h.ListVaccines)
-masters.POST("/vaccines", perm(model.ResourceMasterMedical, "create"), h.CreateVaccine)
-masters.PATCH("/vaccines/:id", perm(model.ResourceMasterMedical, "edit"), h.UpdateVaccine)
-masters.DELETE("/vaccines/:id", perm(model.ResourceMasterMedical, "delete"), h.DeleteVaccine)
-
-// Exemptions (no RequirePermission):
-// /login, /logout, /auth/*, /me, /health, LIFF public APIs, webhooks
-
-// ❌
-masters.GET("/vaccines", h.ListVaccines)  // missing view RequirePermission
-masters.POST("/vaccines", h.Create)       // missing create RequirePermission
-```
-
-## P6: DELETE uses "delete" permission, not "edit" (MANDATORY)
-
-```go
-// ✅
-masters.DELETE("/vaccines/:id", RequirePermission("delete"), h.Delete)
-
-// ❌
-masters.DELETE("/vaccines/:id", RequirePermission("edit"), h.Delete)
-```
-
-**唯一の例外（PO 決定 2026-07-12・BE-refactor.md X-15）**: `pet_handler.go` の
-`pets.DELETE("/:id/death")` / `clinicPets.DELETE("/:id/death")` は死亡記録解除という
-状態トグル（リソース削除ではない）のため `edit` のまま。他の DELETE ルートで edit を使う
-先例にはできない — 新規実装は引き続き `delete` を使うこと。
+clinic/owner/pet/staff の認可とデータ分離は [Backend Application Invariants](../../../.claude/refs/backend-application-invariants.md) を必ず維持する。

@@ -1,143 +1,38 @@
 ---
-description: Error handling standards (Go Sentinel, HTTP Status, user messages)
-alwaysApply: true
-globs: ["backend/**/*.go", "frontend/src/**/*.{ts,tsx}"]
+description: Go/GinとTypeScriptに共通するerror handlingの原則
 ---
 
-# Error Handling Rules
+# Error Handling
 
-Standard error handling conventions.
+## Common principles
 
-## Core Rules
+- error を無視しない。処理できる境界まで返すか、明示的に回復する。
+- user/client 向け message と内部診断情報を分離する。
+- secret、credential、個人情報、SQL、stack trace、内部 path を外部へ返さない。
+- 同じ failure を複数層で重複ログしない。必要な文脈が揃う境界で1回記録する。
+- retry 可能性、client action、observability に必要な stable code を設計する。
 
-### 1. Go Error Flow (Repository → Service → Handler)
+## Go
 
-```go
-// errors/errors.go - Define Sentinels
-var (
-  ErrNotFound       = errors.New("not found")
-  ErrConflict       = errors.New("conflict")
-  ErrInvalidInput   = errors.New("invalid input")
-)
+- 文脈を追加する場合は `fmt.Errorf("...: %w", err)` を使う。
+- error の種類は `errors.Is` / `errors.As` で判定し、message 文字列比較をしない。
+- sentinel/type は caller が programmatically 判定する必要がある場合だけ公開する。
+- panic/recover を通常の validation や DB failure に使わない。
+- cleanup error と primary error のどちらを返すか明示する。
 
-// repository/owner_repository.go - Convert GORM errors
-func (r *OwnerRepository) GetByID(ctx context.Context, id uint) (*model.Owner, error) {
-  var owner model.Owner
-  if err := r.db.WithContext(ctx).First(&owner, id).Error; err != nil {
-    // ✅ MANDATE: Use FromGORM in Repository
-    return nil, apperrors.FromGORM(err, "owner", fmt.Sprintf("%d", id))
-  }
-  return &owner, nil
-}
+## Gin HTTP boundary
 
-// service/owner_service.go - Wrap errors
-func (s *OwnerService) GetOwner(ctx context.Context, id uint) (*model.Owner, error) {
-  owner, err := s.repo.GetByID(ctx, id)
-  if err != nil {
-    // ✅ MANDATE: Use Wrap in Service
-    return nil, apperrors.Wrap(err, "failed to get owner")
-  }
-  return owner, nil
-}
-```
+- binding/validation error は client-correctable な 4xx に変換する。
+- authentication、authorization、not-found、conflict、rate-limit を一貫した contract に mapping する。
+- unknown error は汎用的な 500 response にし、内部 error は server-side で記録する。
+- `c.Error(err)` と error middleware による集中 mapping を利用できる。
+- response を書いた後に別の error response を重ねない。
 
-### 2. Frontend Error Handling (handleApiError)
+特定の application error 型、helper 名、layer ごとの wrap 責務は Go/Gin 公式未規定である。backend の詳細は [go-gin-backend-guidelines.md](../rules/go-gin-backend-guidelines.md) を参照する。
 
-Call `handleApiError` in all `catch` blocks.
+## TypeScript/UI
 
-```typescript
-// ✅ MANDATE: Use handleApiError in all catch blocks
-try {
-  await api.updateOwner(id, data);
-} catch (error) {
-  handleApiError(error, "owner update");
-}
-```
-
-### 3. HTTP Status Mapping
-
-```go
-// handler/response.go
-func RespondError(c *gin.Context, err error) {
-  code := http.StatusInternalServerError
-  message := "Internal server error"
-
-  switch {
-  case errors.Is(err, apperrors.ErrNotFound):
-    code = http.StatusNotFound
-    message = "Resource not found"
-  case errors.Is(err, apperrors.ErrConflict):
-    code = http.StatusConflict
-    message = "Resource already exists"
-  case errors.Is(err, apperrors.ErrInvalidInput):
-    code = http.StatusBadRequest
-    message = "Invalid input"
-  }
-
-  slog.ErrorContext(c.Request.Context(), "error", "message", message, "error", err)
-
-  c.JSON(code, gin.H{
-    "code": errorCode(err),
-    "message": message,
-    "timestamp": time.Now(),
-  })
-}
-```
-
-### 4. React Error Boundary
-
-```typescript
-// components/errors/ErrorBoundary.tsx
-export class ErrorBoundary extends React.Component<Props, State> {
-  state: State = { hasError: false, error: null };
-
-  static getDerivedStateFromError(error: Error) {
-    return { hasError: true, error };
-  }
-
-  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-    console.error('Error:', error, errorInfo);
-  }
-
-  render() {
-    if (this.state.hasError) {
-      return <ErrorFallback error={this.state.error} />;
-    }
-    return this.props.children;
-  }
-}
-```
-
-### 5. React Query Error Handling
-
-`queryFn` 内のエラーは自動的に `error` state に載る。UI 側で明示的にハンドルしない限り無音失敗になるため、`isError`/`error` を必ず消費するか `handleApiError` を呼ぶ。
-
-```typescript
-// hooks/use-owners.ts
-export function useGetOwners(clinicID: number) {
-  const query = useQuery({
-    queryKey: ['owners', clinicID],
-    queryFn: () => api.get(`/api/owners?clinic_id=${clinicID}`).then(res => res.data),
-    retry: 1,
-  });
-
-  useEffect(() => {
-    if (query.isError) {
-      handleApiError(query.error, 'owners fetch');
-    }
-  }, [query.isError, query.error]);
-
-  return query;
-}
-```
-
-## Checklist
-
-- [ ] Repository: Use `apperrors.FromGORM(err, "resource", id)`
-- [ ] Service: Use `apperrors.Wrap(err, "context")`
-- [ ] Frontend: Use `handleApiError(error, "context")` in all `catch` blocks
-- [ ] HTTP Status mapping (RespondError)
-- [ ] Logging: Structured with slog.ErrorContext
-- [ ] React Error Boundary implemented
-- [ ] React Query retry configured（`isError`/`error` を消費、無音失敗にしない）
-- [ ] `console.error` はアドホックに撒かない。`handleApiError` 内部のフォールバックとして使う分は可（実装: `frontend/src/lib/handle-api-error.ts`）
+- `catch` では `unknown` として narrowing する。
+- user が回復できる message と、telemetry/debug 情報を分離する。
+- promise rejection を放置せず、UI state を loading/success/error として表現する。
+- API error code を型付けし、message 文字列による分岐を避ける。

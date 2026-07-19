@@ -74,7 +74,7 @@ gh pr review <NUMBER> --approve --body "<summary>"
 | CRITICAL 指摘あり（セキュリティ・データ消失リスク）| **BLOCK** |
 | HIGH 指摘あり（バグ・ロジックエラー）| **REQUEST CHANGES** |
 | MEDIUM/LOW のみ | **COMMENT** |
-| 指摘なし、P1-P18 準拠 | **APPROVE** |
+| CRITICAL/HIGHなし、Go/Gin reviewおよびapplication invariantに適合 | **APPROVE** |
 
 ## 出力形式
 

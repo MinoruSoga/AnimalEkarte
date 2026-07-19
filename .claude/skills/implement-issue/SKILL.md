@@ -88,8 +88,8 @@ git log --all --oneline -- 'docs/archive/**' | head
   - loader → `features/owners/loaders.ts`
 
 **BE イシューの場合:**
-- `backend/CLAUDE.md` のレイヤードパターンを確認
-- 同じドメインの既存実装を参照（例: owners の handler/service/repository）
+- `.claude/rules/go-gin-backend-guidelines.md` と `backend/CLAUDE.md` を確認
+- 同じresourceの既存contractと実装を参照し、packageは凝集性・利用者・依存方向で選ぶ（固定layerをtemplate化しない）
 
 ### 2.3 コーディングルール読み込み
 
@@ -131,13 +131,14 @@ git log --all --oneline -- 'docs/archive/**' | head
 
 | # | パターン | 適用条件 |
 |---|---------|---------|
-| 1 | 全関数に `ctx context.Context` 第一引数 | 全関数 |
-| 2 | handler: `*_request.go` → `service.XxxInput` → `toXxxResponse()` | 新規/修正ハンドラ |
-| 3 | service: HTTP を知らない（`binding:` タグ禁止、`*gin.Context` 禁止） | service 層 |
-| 4 | PATCH: ポインタ型 + `buildXxxUpdateFields()` → `map[string]any` | PATCH エンドポイント |
-| 5 | エラー: sentinel → `fmt.Errorf("...: %w", err)` → `RespondError(c, err)` | エラー処理 |
-| 6 | slog は service 層のみ（handler・repository には書かない） | ログ |
-| 7 | インターフェース最小化（3-5メソッド） | 新規インターフェース |
+| 1 | request-scoped関数は `ctx context.Context` を第1引数で受け、下流へ伝播 | request/DB/外部API |
+| 2 | body/query/URI/headerを型付き入力へbindし、error・形式・範囲を検証 | HTTP boundary |
+| 3 | authentication / authorization / ownershipを独立して確認 | protected resource |
+| 4 | packageを凝集性・利用者・依存方向で選び、固定layerを増やさない | 新規package/API |
+| 5 | error chainを `%w` で保持し、unknown errorの内部情報を返さない | error処理 |
+| 6 | 同じerrorを重複ログせず、secret・個人情報をlogに含めない | logging |
+| 7 | interfaceはconsumer側の必要最小methodだけ。mock目的で先行作成しない | abstraction |
+| 8 | HTTPは`httptest`、DB/transaction/tenant境界はriskに応じintegration test | testing |
 
 ### 3.3 実装実行
 
@@ -175,11 +176,12 @@ make codegen
 - [ ] feature 間 import なし
 
 **BE の場合:**
-- [ ] 全関数に `ctx context.Context`
+- [ ] request-scoped処理にContextを伝播し、structへ保存していない
 - [ ] エラーは `fmt.Errorf("...: %w", err)` でラップ
-- [ ] slog は service 層のみ
-- [ ] PATCH はポインタ型 + `buildXxxUpdateFields()`
-- [ ] service に `*gin.Context` / `binding:` タグなし
+- [ ] binding/validation/authentication/authorization/ownershipを分離
+- [ ] package/interfaceは利用者と凝集性に基づく必要最小限
+- [ ] unknown error・secret・個人情報をresponse/logに出していない
+- [ ] tenant boundaryとOpenAPI contractをtestしている
 
 ### 4.4 Lint・ビルド・テスト実行（Docker 経由・スコープ限定）
 

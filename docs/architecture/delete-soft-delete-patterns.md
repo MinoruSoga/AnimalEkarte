@@ -361,7 +361,7 @@ func (r *Repo) DeleteParentWithSoftDeletedChildren(ctx context.Context,
 
 ### 13.2 Hard Delete 下での隔離
 - clinic A が clinic B のデータを hard delete できないか確認
-- Repository 層での `clinic_id` WHERE 句は削除時も必須
+- persistence pathでの `clinic_id` WHERE句は削除時も必須
 - テスト項目：clinic A の staff が clinic B の staff を削除できないことを確認
 
 ### 13.3 FK で clinic_id の一貫性を検証
@@ -379,19 +379,19 @@ func (r *Repo) DeleteParentWithSoftDeletedChildren(ctx context.Context,
   - [ ] FK 関係を mapper（外部キー制約）で確認
   - [ ] 親子関係の削除順序を定義
 
-- [ ] **Service 層**
+- [ ] **Application invariant**
   - [ ] 削除前チェック：アクティブな子レコード数をカウント（FK チェック）
   - [ ] 409 Conflict を返す条件を明示
   - [ ] トランザクション制御：begin / commit / rollback の実装
 
-- [ ] **Repository 層**
+- [ ] **Persistence**
   - [ ] FK チェック済み前提で削除実行
   - [ ] Hard delete の場合：clinic_id スコープを必ず含める
   - [ ] Soft delete の場合：audit log タイムスタンプを記録
   - [ ] Unscoped() の使用箇所を限定（FK cleanup のみ）
   - [ ] コメント：Unscoped 使用理由を記載（保守性のため）
 
-- [ ] **Handler 層**
+- [ ] **HTTP boundary**
   - [ ] DELETE ハンドラの実装
   - [ ] 409 vs 400 vs 403 のステータスコード判定
   - [ ] エラーレスポンスに blocking_type / blocking_count を含める

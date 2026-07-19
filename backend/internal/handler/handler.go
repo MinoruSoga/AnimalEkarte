@@ -24,7 +24,7 @@ type Handler struct {
 }
 
 // New はHandlerを初期化して返す
-// P14: repos は LiffAuth 用の narrow interface 2 件のみを抽出して保持する（全 repository 集約は保持しない）。
+// consumer側narrow interface方針: repos は LiffAuth 用の narrow interface 2 件のみを抽出して保持する（全 repository 集約は保持しない）。
 func New(cfg *config.Config, svc *service.Services, repos *repository.Repositories, uploader infra.FileUploader) *Handler {
 	h := &Handler{cfg: cfg, svc: svc, uploader: uploader}
 	if repos != nil {
@@ -54,7 +54,11 @@ func (h *Handler) Health(c *gin.Context) {
 
 // RegisterRoutes はすべてのルートを登録する。
 // ctx はバックグラウンドゴルーチン（rate limiter cleanup 等）のライフタイム管理に使用する。
-func (h *Handler) RegisterRoutes(ctx context.Context, r *gin.Engine) {
+//
+// BE9-2B: protected *gin.RouterGroup を返すようになった。manualarticle のような
+// aggregator 非経由の domain package は、この group を cmd/api/main.go 経由で受け取り、
+// 自身の RegisterRoutes(protected) を呼ぶ（*handler.Handler を経由しない）。
+func (h *Handler) RegisterRoutes(ctx context.Context, r *gin.Engine) *gin.RouterGroup {
 	// Health check エンドポイント（ルートレベル）
 	r.GET("/health", h.Health)
 
@@ -101,7 +105,6 @@ func (h *Handler) RegisterRoutes(ctx context.Context, r *gin.Engine) {
 	h.RegisterMasterRoutes(protected)
 	h.RegisterClinicRoutes(protected)
 	h.registerEstimateRoutesWithAuth(protected)
-	h.registerManualArticleRoutes(protected)
 	h.RegisterShiftRoutes(protected)
 	h.RegisterShiftTemplateRoutes(protected)
 	h.RegisterClinicHolidayRoutes(protected)
@@ -145,6 +148,8 @@ func (h *Handler) RegisterRoutes(ctx context.Context, r *gin.Engine) {
 
 	// BE-021: LINE Webhook（JWT認証なし・HMAC-SHA256署名検証）
 	r.POST("/api/line/webhook", h.ReceiveLineWebhook)
+
+	return protected
 }
 
 // registerOwnerRoutesWithAuth は飼主ルートに RBAC 権限チェックを適用する（BUG-125: CRUD個別ガード）
@@ -155,7 +160,7 @@ func (h *Handler) RegisterRoutes(ctx context.Context, r *gin.Engine) {
 // ことを前提に docs/api.yaml とのドリフト検出を行っており（動的な値は
 // "dynamic path cannot be statically resolved" として unresolved 扱いにし意図的に
 // fail loud する設計 — 同ファイルのコメント参照）、struct スライス + ループへの
-// table 化はこの機械ゲートを恒久的に無効化する。P3.1 の write 側 taint 解析断念と
+// table 化はこの機械ゲートを恒久的に無効化する。write 側 clinic-scope review-coverage ゲートの taint 解析断念と
 // 同じ理由（静的解析の対象外にすると"検証した気にさせる"だけの偽ガードになる）で
 // ゲート側を緩めることは選ばない。よって table-driven 化は行わず、計画の実質的な
 // 意図（エイリアス非対称の理由を明文化する）のみをコメントで果たす。

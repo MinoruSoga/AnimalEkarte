@@ -43,7 +43,7 @@ grep -r '"<ComponentName>"' frontend/src/
 2. **コード重複** — 80%以上類似のロジック
 3. **型安全性** — `any` 使用、unsafe cast、型情報の欠落
 4. **Feature Indexing 違反** — deep import（`features/owners/components/Foo` など）
-5. **Go イディオム違反** — P1-P18（apperrors パターン、clinicScope 欠落）
+5. **Go/Gin設計違反** — package API、Context、error chain、resource cleanup、HTTP/security boundary
 
 ## Step 4: SAFE ティア安全削除ループ
 

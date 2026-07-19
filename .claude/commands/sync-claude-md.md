@@ -17,7 +17,7 @@ CLAUDE.md ファイルの実装参照セクションをスキャンし、現在�
 |------|-------------|------------|
 | `frontend/src/hooks/CLAUDE.md` | フックリスト・importer 数テーブル | hooks 追加/削除、参照元変更 |
 | `.claude/CLAUDE.md` | refs テーブルのファイルパス参照 | ファイル移動/削除 |
-| その他 CLAUDE.md | なし（P1-P18 ルール等は静的） | — |
+| その他 CLAUDE.md | Go/Gin正本・局所ガイドへの参照 | 正本の移動、directory guidance変更 |
 
 ---
 
