@@ -62,7 +62,7 @@ export const InterviewHistory = memo(function InterviewHistory({
         </div>
       </div>
 
-      <ScrollArea className="flex-1">
+      <ScrollArea className="flex-1 min-h-0">
         <div className={`divide-y ${C.borderDivider}`}>
           {filteredItems.map((item) => {
             const isExpanded = expandedId === item.id;

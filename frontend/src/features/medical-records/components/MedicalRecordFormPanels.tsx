@@ -270,7 +270,7 @@ export function MedicalRecordTabsArea({
   return (
     <div className={`mt-4 ${LAYOUT.fullHeight}`}>
       {mountedTabs.has("問診") ? (
-        <UnifiedTabsContent value="問診">
+        <UnifiedTabsContent value="問診" className="min-h-0 flex flex-col">
           <div className={`${LAYOUT.fullHeight} ${activeTab === "問診" ? "" : "hidden"}`}>
             <MedicalRecordInterview
               chiefComplaint={chiefComplaint}

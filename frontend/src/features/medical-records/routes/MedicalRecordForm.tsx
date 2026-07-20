@@ -272,7 +272,7 @@ export const MedicalRecordForm = memo(function MedicalRecordForm() {
       scrollContainerRef={scrollContainerRef}
     >
       <NavigationBlocker when={isDirty} />
-      <UnifiedTabsRoot value={activeTab} onValueChange={handleTabChange}>
+      <UnifiedTabsRoot value={activeTab} onValueChange={handleTabChange} className={activeTab === "問診" ? "flex-1 min-h-0" : undefined}>
       <MedicalRecordStickyHeader
         selectedPet={selectedPet}
         staffName={staffName}
