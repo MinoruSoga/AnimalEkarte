@@ -696,7 +696,7 @@ export const STYLE = {
   paginationBtn:
     `h-8 w-8 ${C.text60} ${C.hoverBgPageHalf} rounded-xs`,
   paginationBtnActive:
-    `h-8 w-8 ${C.bgPrimary} text-white ${C.hoverBgPrimaryDark} text-base rounded-xs`,
+    `h-8 w-8 ${C.bgBrand} text-white ${C.hoverBgBrand} text-base rounded-xs`,
   paginationInfo:
     `text-base ${C.text50}`,
 

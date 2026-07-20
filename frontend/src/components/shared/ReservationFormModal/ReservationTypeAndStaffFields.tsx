@@ -113,7 +113,7 @@ export function ReservationTypeAndStaffFields({
                 className={cn(
                   `block h-9 rounded-full border-2 px-3 py-1.5 text-center text-sm font-medium cursor-pointer transition-colors ${C.text}`,
                   formData.visitType === "first"
-                    ? `${C.borderDanger} ${C.bgDanger8}`
+                    ? `${C.borderBrand} ${C.bgBrand8}`
                     : `${C.borderMediumLight} bg-white ${C.hoverBgSubtle}`
                 )}
               >

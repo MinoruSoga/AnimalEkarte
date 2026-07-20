@@ -110,7 +110,7 @@ export const MasterSelectModal = memo(function MasterSelectModal({
                   </div>
                   <div className="flex items-center gap-2 shrink-0 ml-3">
                     {isSelected ? (
-                      <div className={`size-5 rounded-full ${C.bgPrimary} flex items-center justify-center`}>
+                      <div className={`size-5 rounded-full ${C.bgBrand} flex items-center justify-center`}>
                         <Check className={`${ICON.xs} ${C.textWhite}`} />
                       </div>
                     ) : (

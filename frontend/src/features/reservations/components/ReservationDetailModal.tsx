@@ -118,7 +118,7 @@ export const ReservationDetailModal = memo(function ReservationDetailModal({
         <div className="px-5 pt-3 pb-4 space-y-4">
           {/* LINE Warning */}
           {lineData !== undefined && (!lineData.is_linked || lineData.lstep_opt_out) ? (
-            <div className={`flex items-start gap-2 p-3 rounded-md ${C.bgRed50} border ${C.borderRed300} text-sm ${C.textRed700}`}>
+            <div className={`flex items-start gap-2 p-3 rounded-md ${C.bgWarning50} border ${C.borderWarning20} text-sm ${C.textWarning}`}>
               <AlertTriangle className="shrink-0 mt-0.5 w-4 h-4" />
               <span>
                 {lineData.lstep_opt_out

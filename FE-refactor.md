@@ -64,9 +64,9 @@ T  残渣   : teal/旧 accent 青の直値・画像・ハードコードが視�
 | A | /owners/:id | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | 未払い warning=semantic 帯（§2.4 維持対象） | ✅済 |
 | A | /owners/:id/report | ✅ | ✅ | ✅ | ✅ | ⚠ | — | ✅ | ✅ | セクション見出しの brand 青 tick=decorative-primary 疑い。**owner-report feature に他セッション未コミット変更があり衝突回避で保留**（当該 workstream commit 後に裁定） | ⚠保留 |
 | A | /aggregation | ✅ | ✅ | 🔧 | ✅ | 🔧 | ✅ | ✅ | ✅ | active タブ ink→brand 化（UnifiedTabs/dataActive\* トークン一括=全タブ画面に波及・computed 実測 #0075DE） | ✅済 |
-| B1 | /reservations（週カレンダー） | | | | | | — | | | | 未 |
-| B1 | 予約詳細モーダル | | | | | | — | | | | 未 |
-| B1 | 予約登録モーダル | | | | | | — | | | | 未 |
+| B1 | /reservations（週カレンダー） | ✅ | ✅ | ✅ | ✅ | ✅ | — | ✅ | ✅ | CTA/表示トグル/今日ハイライト=brand ✓。カテゴリ凡例=DB 設定色 dots（sanctioned） | ✅済 |
+| B1 | 予約詳細モーダル | ✅ | ✅ | ✅ | ✅ | 🔧 | — | ✅ | ✅ | LINE 未連携警告を danger 赤→warning 帯へ（§2.4 階調適正化・danger 希釈防止）。カテゴリ帯/状態紫=装飾 status（sanctioned） | ✅済 |
+| B1 | 予約登録モーダル | ✅ | ✅ | ✅ | ✅ | 🔧 | — | ✅ | ✅ | 検索=ink 黒フィル→brand・初診選択状態=danger→brand（computed 実測）。**同型 ink フィル action を全域一括反転: paginationBtnActive・DatePicker 選択日・ConfirmDialog 非 danger 主ボタン・MasterSelectModal チェック円** | ✅済 |
 | B2 | /hospitalization | | | | | | | | | | 未 |
 | B2 | /hospitalization/select-pet | | | | | | | | | | 未 |
 | B2 | /hospitalization/new | | | | | | — | | | | 未 |
