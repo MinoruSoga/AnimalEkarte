@@ -12,7 +12,6 @@ DELETE /api/v1/clinics/:clinic_id/reservations/:reservationId DeleteReservationA
 DELETE /api/v1/closing-settings/holidays/:date DeleteClinicHoliday
 DELETE /api/v1/closing-settings/special-periods/:id DeleteSpecialPeriod
 DELETE /api/v1/estimates/:id DeleteEstimate
-DELETE /api/v1/examinations/:id DeleteExamination
 DELETE /api/v1/inventory/:id DeleteInventory
 DELETE /api/v1/lstep-settings DeleteLstepSettings
 DELETE /api/v1/lstep-tag-config/auto-managed-prefixes/:id DeleteAutoManagedPrefix
@@ -33,7 +32,6 @@ DELETE /api/v1/masters/staffs/:id DeleteStaff
 DELETE /api/v1/masters/trimming-course-types/:id DeleteTrimmingCourseType
 DELETE /api/v1/masters/trimming-courses/:id DeleteTrimmingCourse
 DELETE /api/v1/masters/trimming-options/:id DeleteTrimmingOption
-DELETE /api/v1/medical-records/:id DeleteMedicalRecord
 DELETE /api/v1/owners/:id DeleteOwner
 DELETE /api/v1/owners/:id/line DeleteOwnerLine
 DELETE /api/v1/owners/:id/lstep/tags/:tag_name DeleteOwnerLstepTag
@@ -99,9 +97,6 @@ GET /api/v1/closing-settings/special-periods ListSpecialPeriods
 GET /api/v1/company GetCompany
 GET /api/v1/estimates ListEstimates
 GET /api/v1/estimates/:id GetEstimate
-GET /api/v1/examinations ListExaminations
-GET /api/v1/examinations/:id GetExamination
-GET /api/v1/examinations/:id/items ListExaminationItems
 GET /api/v1/inventory ListInventory
 GET /api/v1/inventory/:id GetInventory
 GET /api/v1/lstep-settings GetLstepSettings
@@ -146,9 +141,6 @@ GET /api/v1/masters/trimming-courses/:id GetTrimmingCourse
 GET /api/v1/masters/trimming-options ListTrimmingOptions
 GET /api/v1/masters/trimming-options/:id GetTrimmingOption
 GET /api/v1/me GetMe
-GET /api/v1/medical-records ListMedicalRecords
-GET /api/v1/medical-records/:id GetMedicalRecord
-GET /api/v1/medical-records/:id/addenda ListMedicalRecordAddenda
 GET /api/v1/medical-records/:id/billing-confirmation GetBillingConfirmation
 GET /api/v1/owners ListOwners
 GET /api/v1/owners/:id GetOwner
@@ -197,7 +189,6 @@ PATCH /api/v1/closing-settings UpdateClosingSettings
 PATCH /api/v1/closing-settings/special-periods/:id UpdateSpecialPeriod
 PATCH /api/v1/company UpdateCompany
 PATCH /api/v1/estimates/:id UpdateEstimate
-PATCH /api/v1/examinations/:id UpdateExamination
 PATCH /api/v1/inventory/:id UpdateInventory
 PATCH /api/v1/lstep-settings UpdateLstepSettings
 PATCH /api/v1/lstep/trigger-priorities UpdateLstepTriggerPriorities
@@ -225,8 +216,6 @@ PATCH /api/v1/masters/trimming-courses/:id UpdateTrimmingCourse
 PATCH /api/v1/masters/trimming-courses/reorder ReorderTrimmingCourses
 PATCH /api/v1/masters/trimming-options/:id UpdateTrimmingOption
 PATCH /api/v1/masters/trimming-options/reorder ReorderTrimmingOptions
-PATCH /api/v1/medical-records/:id UpdateMedicalRecord
-PATCH /api/v1/medical-records/:id/recommendation-reason UpdateMedicalRecordRecommendationReason
 PATCH /api/v1/owners/:id UpdateOwner
 PATCH /api/v1/owners/:id/delivery-caution UpdateOwnerDeliveryCaution
 PATCH /api/v1/owners/:id/delivery-exclusion UpdateOwnerDeliveryExclusion
@@ -274,7 +263,6 @@ POST /api/v1/clinics/:clinic_id/reservations CreateReservationAdmin
 POST /api/v1/closing-settings/holidays SetClinicHoliday
 POST /api/v1/closing-settings/special-periods CreateSpecialPeriod
 POST /api/v1/estimates CreateEstimate
-POST /api/v1/examinations CreateExamination
 POST /api/v1/inventory CreateInventory
 POST /api/v1/login Login
 POST /api/v1/logout Logout
@@ -297,8 +285,6 @@ POST /api/v1/masters/staffs CreateStaff
 POST /api/v1/masters/trimming-course-types CreateTrimmingCourseType
 POST /api/v1/masters/trimming-courses CreateTrimmingCourse
 POST /api/v1/masters/trimming-options CreateTrimmingOption
-POST /api/v1/medical-records CreateMedicalRecord
-POST /api/v1/medical-records/:id/addenda CreateMedicalRecordAddendum
 POST /api/v1/medical-records/:id/billing-confirmation/confirm ConfirmBillingConfirmation
 POST /api/v1/medical-records/:id/billing-confirmation/return ReturnBillingConfirmation
 POST /api/v1/owners CreateOwner
@@ -320,7 +306,6 @@ PUT /api/v1/clinics/:clinic_id/lstep-tag-code-mappings/:tag_name ReplaceTagCodeM
 PUT /api/v1/clinics/:clinic_id/reservation-staffs/:staffId UpdateReservationStaff
 PUT /api/v1/clinics/:clinic_id/reservation-staffs/:staffId/schedules/:date UpsertReservationSchedule
 PUT /api/v1/clinics/:clinic_id/reservation-types/:id UpdateReservationTypeLiff
-PUT /api/v1/examinations/:id/items ReplaceExaminationItems
 PUT /api/v1/lstep-tag-code-mappings/:tag_name ReplaceTagCodeMappingsForTag
 PUT /api/v1/masters/permission-groups/:id/rules SetPermissionGroupRules
 PUT /api/v1/masters/staffs/:id/capable-reservation-types SetStaffCapableReservationTypes

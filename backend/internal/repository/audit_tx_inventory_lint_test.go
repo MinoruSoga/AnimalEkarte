@@ -152,12 +152,12 @@ var clinicalResultAuditTxAllowlist = []auditInventoryEntry{
 			"Runtime proof: checkup_field_result_tx_atomicity_test.go (fe04b460).",
 	},
 	{
-		file:        "examination_repository.go",
+		file:        "medicalrecord/examination_repository.go",
 		function:    "examinationRepository.ReplaceItemsByExamID",
 		modelType:   "ExamResult",
 		occurrences: 1,
 		status:      statusAuditedTxInternal,
-		reason: "examination_repository.go: ReplaceItemsByExamID uses dbOrTx(ctx, r.db).Transaction(...) — " +
+		reason: "internal/medicalrecord/examination_repository.go (BE9-2D ⑦, moved): ReplaceItemsByExamID uses dbOrTx(ctx, r.db).Transaction(...) — " +
 			"ambient-tx-aware (BE-refactor.md R1-2). The delete participates in the caller's " +
 			"Transactor.WithTx ambient tx; examinationService.ReplaceItems writes a post-replace " +
 			"AuditTxLogger.LogEntryTx entry (gated on deletedCount > 0) in the same tx, and if it fails " +

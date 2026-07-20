@@ -15,6 +15,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
+	"github.com/animal-ekarte/backend/internal/medicalrecord"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/service"
 )
@@ -75,7 +76,7 @@ func newHandlerWithReservationSvc(svc service.ReservationService) *Handler {
 	}}
 }
 
-func newHandlerWithReservationAndMedicalRecordSvc(reservationSvc service.ReservationService, medicalRecordSvc service.MedicalRecordService) *Handler {
+func newHandlerWithReservationAndMedicalRecordSvc(reservationSvc service.ReservationService, medicalRecordSvc medicalrecord.MedicalRecordService) *Handler {
 	return &Handler{svc: &service.Services{
 		Reservation:           reservationSvc,
 		MedicalRecord:         medicalRecordSvc,

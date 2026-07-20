@@ -26,33 +26,36 @@ type PermissionMiddleware func(resource, action string) gin.HandlerFunc
 // only holds the service(s) it actually needs (Go/Gin guideline: consumer declares minimal
 // dependencies) — Handler is purely a routing composition, not a new aggregate.
 type Handler struct {
-	diagnosis           *DiagnosisHandler
-	examType            *ExamTypeHandler
-	chiefComplaint      *ChiefComplaintHandler
-	checkup             *CheckupHandler
-	checkupType         *CheckupTypeHandler
-	vaccine             *VaccineHandler
-	vaccination         *VaccinationHandler
-	prescription        *PrescriptionHandler
-	inquiry             *InquiryHandler
-	inquiryTemplate     *InquiryTemplateHandler
-	labImport           *LabImportHandler
-	labReport           *LabReportHandler
-	vital               *VitalHandler
-	clinicalPlan        *ClinicalPlanHandler
-	medicalRecordImage  *MedicalRecordImageHandler
-	treatment           *TreatmentHandler
-	hospitalization     *HospitalizationHandler
-	hospitalizationPlan *HospitalizationPlanHandler
-	dailyRecord         *DailyRecordHandler
-	carePlanItem        *CarePlanItemHandler
-	consultation        *ConsultationHandler
-	procedure           *ProcedureHandler
-	medicine            *MedicineHandler
-	medicineDoseParam   *MedicineDoseParamHandler
-	cage                *CageHandler
-	treatmentPlan       *TreatmentPlanHandler
-	requirePermission   PermissionMiddleware
+	diagnosis             *DiagnosisHandler
+	examType              *ExamTypeHandler
+	chiefComplaint        *ChiefComplaintHandler
+	checkup               *CheckupHandler
+	checkupType           *CheckupTypeHandler
+	vaccine               *VaccineHandler
+	vaccination           *VaccinationHandler
+	prescription          *PrescriptionHandler
+	inquiry               *InquiryHandler
+	inquiryTemplate       *InquiryTemplateHandler
+	labImport             *LabImportHandler
+	labReport             *LabReportHandler
+	vital                 *VitalHandler
+	clinicalPlan          *ClinicalPlanHandler
+	medicalRecordImage    *MedicalRecordImageHandler
+	treatment             *TreatmentHandler
+	hospitalization       *HospitalizationHandler
+	hospitalizationPlan   *HospitalizationPlanHandler
+	dailyRecord           *DailyRecordHandler
+	carePlanItem          *CarePlanItemHandler
+	consultation          *ConsultationHandler
+	procedure             *ProcedureHandler
+	medicine              *MedicineHandler
+	medicineDoseParam     *MedicineDoseParamHandler
+	cage                  *CageHandler
+	treatmentPlan         *TreatmentPlanHandler
+	medicalRecord         *MedicalRecordHandler
+	medicalRecordAddendum *MedicalRecordAddendumHandler
+	examination           *ExaminationHandler
+	requirePermission     PermissionMiddleware
 }
 
 // NewHandler initializes a Handler.
@@ -83,36 +86,42 @@ func NewHandler(
 	medicineDoseParam *MedicineDoseParamHandler,
 	cage *CageHandler,
 	treatmentPlan *TreatmentPlanHandler,
+	medicalRecord *MedicalRecordHandler,
+	medicalRecordAddendum *MedicalRecordAddendumHandler,
+	examination *ExaminationHandler,
 	requirePermission PermissionMiddleware,
 ) *Handler {
 	return &Handler{
-		diagnosis:           diagnosis,
-		examType:            examType,
-		chiefComplaint:      chiefComplaint,
-		checkup:             checkup,
-		checkupType:         checkupType,
-		vaccine:             vaccine,
-		vaccination:         vaccination,
-		prescription:        prescription,
-		inquiry:             inquiry,
-		inquiryTemplate:     inquiryTemplate,
-		labImport:           labImport,
-		labReport:           labReport,
-		vital:               vital,
-		clinicalPlan:        clinicalPlan,
-		medicalRecordImage:  medicalRecordImage,
-		treatment:           treatment,
-		hospitalization:     hospitalization,
-		hospitalizationPlan: hospitalizationPlan,
-		dailyRecord:         dailyRecord,
-		carePlanItem:        carePlanItem,
-		consultation:        consultation,
-		procedure:           procedure,
-		medicine:            medicine,
-		medicineDoseParam:   medicineDoseParam,
-		cage:                cage,
-		treatmentPlan:       treatmentPlan,
-		requirePermission:   requirePermission,
+		diagnosis:             diagnosis,
+		examType:              examType,
+		chiefComplaint:        chiefComplaint,
+		checkup:               checkup,
+		checkupType:           checkupType,
+		vaccine:               vaccine,
+		vaccination:           vaccination,
+		prescription:          prescription,
+		inquiry:               inquiry,
+		inquiryTemplate:       inquiryTemplate,
+		labImport:             labImport,
+		labReport:             labReport,
+		vital:                 vital,
+		clinicalPlan:          clinicalPlan,
+		medicalRecordImage:    medicalRecordImage,
+		treatment:             treatment,
+		hospitalization:       hospitalization,
+		hospitalizationPlan:   hospitalizationPlan,
+		dailyRecord:           dailyRecord,
+		carePlanItem:          carePlanItem,
+		consultation:          consultation,
+		procedure:             procedure,
+		medicine:              medicine,
+		medicineDoseParam:     medicineDoseParam,
+		cage:                  cage,
+		treatmentPlan:         treatmentPlan,
+		medicalRecord:         medicalRecord,
+		medicalRecordAddendum: medicalRecordAddendum,
+		examination:           examination,
+		requirePermission:     requirePermission,
 	}
 }
 
@@ -330,6 +339,27 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	hospitalizations.POST("/:id/treatment-plans", perm(model.ResourceHospitalization, "create"), h.treatmentPlan.CreateTreatmentPlanForHospitalization)
 	hospitalizations.PATCH("/:id/treatment-plans/:planId", perm(model.ResourceHospitalization, "edit"), h.treatmentPlan.UpdateTreatmentPlanInHospitalization)
 	hospitalizations.DELETE("/:id/treatment-plans/:planId", perm(model.ResourceHospitalization, "delete"), h.treatmentPlan.DeleteTreatmentPlanInHospitalization)
+
+	// Medical record core + addenda + examinations (BE9-2D ⑦: moved from handler.go
+	// registerMedicalRecordRoutesWithAuth / RegisterMedicalRecordAddendumRoutes /
+	// registerExaminationRoutesWithAuth; RBAC 逐語転記。billing-confirmation は billing 残留
+	// domain のため旧側 /medical-records group に残置・gin path merge 共存)。
+	records.GET("", perm(model.ResourceMedicalRecords, "view"), h.medicalRecord.ListMedicalRecords)
+	records.GET("/:id", perm(model.ResourceMedicalRecords, "view"), h.medicalRecord.GetMedicalRecord)
+	records.POST("", perm(model.ResourceMedicalRecords, "create"), h.medicalRecord.CreateMedicalRecord)
+	records.PATCH("/:id", perm(model.ResourceMedicalRecords, "edit"), h.medicalRecord.UpdateMedicalRecord)
+	records.DELETE("/:id", perm(model.ResourceMedicalRecords, "delete"), h.medicalRecord.DeleteMedicalRecord)
+	records.PATCH("/:id/recommendation-reason", perm(model.ResourceMedicalRecords, "edit"), h.medicalRecord.UpdateMedicalRecordRecommendationReason)
+	records.GET("/:id/addenda", perm(model.ResourceMedicalRecords, "view"), h.medicalRecordAddendum.ListMedicalRecordAddenda)
+	records.POST("/:id/addenda", perm(model.ResourceMedicalRecords, "edit"), h.medicalRecordAddendum.CreateMedicalRecordAddendum)
+	examinations := rg.Group("/examinations")
+	examinations.GET("", perm(model.ResourceExaminations, "view"), h.examination.ListExaminations)
+	examinations.GET("/:id", perm(model.ResourceExaminations, "view"), h.examination.GetExamination)
+	examinations.POST("", perm(model.ResourceExaminations, "create"), h.examination.CreateExamination)
+	examinations.PATCH("/:id", perm(model.ResourceExaminations, "edit"), h.examination.UpdateExamination)
+	examinations.DELETE("/:id", perm(model.ResourceExaminations, "delete"), h.examination.DeleteExamination)
+	examinations.GET("/:id/items", perm(model.ResourceExaminations, "view"), h.examination.ListExaminationItems)
+	examinations.PUT("/:id/items", perm(model.ResourceExaminations, "edit"), h.examination.ReplaceExaminationItems)
 
 	// Lab import saga (BE9-2D sub-batch③: moved from internal/handler lab_import_handler.go
 	// RegisterLabImportRoutes). All routes guard ResourceLabImport (preview/commit=create,

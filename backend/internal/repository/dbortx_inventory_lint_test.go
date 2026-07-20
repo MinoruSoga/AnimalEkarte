@@ -130,16 +130,16 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	// finalize-child-write-race — must join the LockByIDForUpdate ambient tx or the FK check on
 	// examinations.medical_record_id deadlocks against the FOR UPDATE row lock; Delete added for
 	// H-8d — same finalize-lock race as Update, now WithTx-wrapped in examinationService.Delete)
-	"examination_repository.go|examinationRepository.Create":               {},
-	"examination_repository.go|examinationRepository.Delete":               {},
-	"examination_repository.go|examinationRepository.FindAllItemsByExamID": {},
-	"examination_repository.go|examinationRepository.FindByID":             {},
-	"examination_repository.go|examinationRepository.ReplaceItemsByExamID": {},
-	"examination_repository.go|examinationRepository.Update":               {},
+	"medicalrecord/examination_repository.go|examinationRepository.Create":               {},
+	"medicalrecord/examination_repository.go|examinationRepository.Delete":               {},
+	"medicalrecord/examination_repository.go|examinationRepository.FindAllItemsByExamID": {},
+	"medicalrecord/examination_repository.go|examinationRepository.FindByID":             {},
+	"medicalrecord/examination_repository.go|examinationRepository.ReplaceItemsByExamID": {},
+	"medicalrecord/examination_repository.go|examinationRepository.Update":               {},
 	// medical_record_addendum
-	"medical_record_addendum_repository.go|medicalRecordAddendumRepository.Create":                {},
-	"medical_record_addendum_repository.go|medicalRecordAddendumRepository.FindByID":              {},
-	"medical_record_addendum_repository.go|medicalRecordAddendumRepository.FindByMedicalRecordID": {},
+	"medicalrecord/medical_record_addendum_repository.go|medicalRecordAddendumRepository.Create":                {},
+	"medicalrecord/medical_record_addendum_repository.go|medicalRecordAddendumRepository.FindByID":              {},
+	"medicalrecord/medical_record_addendum_repository.go|medicalRecordAddendumRepository.FindByMedicalRecordID": {},
 	// medical_record (X-11 Appendix-A finalize-child-write-race fix)
 	// SD-2: 確定済みカルテ画像ガード — Create/Delete/FindByID が LockByIDForUpdate の
 	// ambient tx に参加する（medical_record_image_service.go の WithTx 内から呼ばれる）。
@@ -148,10 +148,10 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"medicalrecord/medical_record_image_repository.go|medicalRecordImageRepository.Delete":   {},
 	"medicalrecord/medical_record_image_repository.go|medicalRecordImageRepository.FindByID": {},
 
-	"medical_record_repository.go|medicalRecordRepository.LockByIDForUpdate":     {},
-	"medical_record_repository.go|medicalRecordRepository.Create":                {},
-	"medical_record_repository.go|medicalRecordRepository.Update":                {},
-	"medical_record_repository.go|medicalRecordRepository.findMedicalRecordByID": {},
+	"medicalrecord/medical_record_repository.go|medicalRecordRepository.LockByIDForUpdate":     {},
+	"medicalrecord/medical_record_repository.go|medicalRecordRepository.Create":                {},
+	"medicalrecord/medical_record_repository.go|medicalRecordRepository.Update":                {},
+	"medicalrecord/medical_record_repository.go|medicalRecordRepository.findMedicalRecordByID": {},
 	// medicine_dose_param (R1-2 dose-param tx)
 	"medicalrecord/medicine_dose_param_repository.go|medicineDoseParamRepository.Create":                   {},
 	"medicalrecord/medicine_dose_param_repository.go|medicineDoseParamRepository.Delete":                   {},

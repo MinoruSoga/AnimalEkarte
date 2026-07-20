@@ -3,20 +3,24 @@ package service
 import (
 	"github.com/animal-ekarte/backend/internal/infra"
 	"github.com/animal-ekarte/backend/internal/infra/crypto"
+	"github.com/animal-ekarte/backend/internal/medicalrecord"
 	"github.com/animal-ekarte/backend/internal/repository"
 )
 
 // Services はすべてのサービスを保持するDIコンテナ
 type Services struct {
-	Account                        AccountService
-	StaffClinicAssignment          StaffClinicAssignmentService
-	Audit                          AuditService
-	AnimalSpecies                  AnimalSpeciesService
-	Owner                          OwnerService
-	Pet                            PetService
-	Reservation                    ReservationService
-	MedicalRecord                  MedicalRecordService
-	MedicalRecordAddendum          MedicalRecordAddendumService
+	Account               AccountService
+	StaffClinicAssignment StaffClinicAssignmentService
+	Audit                 AuditService
+	AnimalSpecies         AnimalSpeciesService
+	Owner                 OwnerService
+	Pet                   PetService
+	Reservation           ReservationService
+	// MedicalRecord: BE9-2D ⑦ で実装は internal/medicalrecord へ移動済み。残存 consumer =
+	// reservation_handler（AutoCreateFromReservation/DeleteDraftFromReservation）のみのため
+	// medicalrecord 型 field として残置し cmd/api/main.go が構築後に代入する（⑤ Hospitalization 先例。
+	// 削除 = reservation domain 移行時）。
+	MedicalRecord                  medicalrecord.MedicalRecordService
 	Accounting                     AccountingService
 	Trimming                       TrimmingService
 	Inventory                      InventoryService
@@ -33,7 +37,6 @@ type Services struct {
 	TrimmingCourse                 TrimmingCourseService
 	TrimmingOption                 TrimmingOptionService
 	Clinic                         ClinicService
-	Examination                    ExaminationService
 	Occupation                     OccupationService
 	Company                        CompanyService
 	PermissionGroup                PermissionGroupService
@@ -194,7 +197,6 @@ func NewServices(repos *repository.Repositories, notifCfg *ReservationNotificati
 	// FEAT-383: 自動配信トリガー（LstepBatch / MedicalRecord / Checkup より先に初期化）
 	lstepDeliveryTriggerSvc := NewLstepDeliveryTriggerService(repos.Owner, repos.MedicalRecord, repos.Vaccination, repos.BillingItem, repos.Pet, repos.LstepTagCache, repos.LstepDeliveryTriggerLog, lstepSettingsSvc, lstepTriggerPrioritySvc)
 	// FEAT-383: イベントフック注入（LstepDeliveryTrigger 確定後に構築）
-	medicalRecordSvc := NewMedicalRecordService(repos.MedicalRecord, repos.Owner, repos.Pet, repos.Inquiry, repos.ClinicalPlan, repos.ChiefComplaintType, repos.DiagnosisType, repos.DiagnosisName, repos.LineCustomerMgr, repos.Reservation, lstepDeliveryTriggerSvc, auditSvc, tx, lstepTagSyncSvc)
 	// BE9-2D: checkup/checkup-field-result/checkup-type/vaccine/vaccination/inquiry/
 	// inquiry-template/prescription services moved to internal/medicalrecord and are now
 	// constructed directly in cmd/api/main.go (ADR-006 aggregator 非経由) — no longer fields
@@ -216,8 +218,6 @@ func NewServices(repos *repository.Repositories, notifCfg *ReservationNotificati
 		Owner:                 NewOwnerService(repos.Owner, repos.Insurance, lstepTagSyncSvc, auditSvc),
 		Pet:                   NewPetService(repos.Pet, repos.Owner, repos.Insurance, repos.MedicalRecord, lstepTagSyncSvc),
 		Reservation:           NewReservationServiceWithAvailabilityAndType(repos.Reservation, repos.ReservationType, tx, repos.ReservationStaff, repos.ReservationTypeUnavailableTime, repos.ReservationTypeAvailableSlot),
-		MedicalRecord:         medicalRecordSvc,
-		MedicalRecordAddendum: NewMedicalRecordAddendumService(repos.MedicalRecordAddendum, repos.MedicalRecord, auditSvc),
 		Accounting:            NewAccountingService(repos.Accounting, repos.MedicalRecord, repos.Hospitalization, repos.Reservation, lstepTagSyncSvc, tx, auditTxLogger, repos.PaymentMethodMaster),
 		Trimming: NewTrimmingService(
 			repos.Reservation,
@@ -244,7 +244,6 @@ func NewServices(repos *repository.Repositories, notifCfg *ReservationNotificati
 		TrimmingCourse:                 NewTrimmingCourseService(repos.TrimmingCourse, repos.TrimmingCourseType),
 		TrimmingOption:                 NewTrimmingOptionService(repos.TrimmingOption),
 		Clinic:                         NewClinicService(repos.Clinic, repos.PermissionGroup, tx),
-		Examination:                    NewExaminationService(repos.Examination, repos.MedicalRecord, repos.ExaminationType, auditTxLogger, tx),
 		Occupation:                     NewOccupationService(repos.Occupation),
 		Company:                        NewCompanyService(repos.Company),
 		PermissionGroup:                permissionGroupSvc,

@@ -346,6 +346,17 @@ func main() {
 	medicineDoseParamSvc := medicalrecord.NewMedicineDoseParamService(repos.MedicineDoseParam, repos.Medicine, mrTx, medicalRecordAuditTxAdapter{inner: mrAuditTxLogger})
 	cageSvc := medicalrecord.NewCageService(repos.Cage)
 	treatmentPlanSvc := medicalrecord.NewTreatmentPlanService(repos.TreatmentPlan)
+	// medical record core slice (BE9-2D ⑦): 本体+addendum+examination。audit は
+	// LogMedicalRecordChange/LogAddendumCreate が primitives+model 型のみのため svcs.Audit を
+	// 無 adapter で直渡し（vitalAuditLogger 先例）。
+	medicalRecordSvc := medicalrecord.NewMedicalRecordService(
+		repos.MedicalRecord, repos.Inquiry, repos.ClinicalPlan, repos.ChiefComplaintType,
+		repos.DiagnosisType, repos.DiagnosisName, repos.LineCustomerMgr, repos.Reservation,
+		svcs.LstepDeliveryTrigger, svcs.Audit, mrTx, svcs.LstepTagSync)
+	// reservation_handler（残置）が AutoCreateFromReservation 等に使うため Services へ注入。
+	svcs.MedicalRecord = medicalRecordSvc
+	medicalRecordAddendumSvc := medicalrecord.NewMedicalRecordAddendumService(repos.MedicalRecordAddendum, repos.MedicalRecord, svcs.Audit)
+	examinationSvc := medicalrecord.NewExaminationService(repos.Examination, repos.MedicalRecord, repos.ExaminationType, medicalRecordAuditTxAdapter{inner: mrAuditTxLogger}, mrTx)
 	dailyRecordSvc := medicalrecord.NewDailyRecordService(repos.DailyRecord, repos.Hospitalization, mrTx)
 	carePlanItemSvc := medicalrecord.NewCarePlanItemService(repos.CarePlanItem, repos.Hospitalization, repos.Medicine, repos.Procedure, repos.HospitalizationPlan)
 	treatmentSvc := medicalrecord.NewTreatmentServiceWithAudit(
@@ -368,9 +379,9 @@ func main() {
 		medicalrecord.NewInquiryTemplateHandler(inquiryTemplateSvc),
 		medicalrecord.NewLabImportHandler(labResultImportSvc, labImportJobSvc, labAuditLogger),
 		medicalrecord.NewLabReportHandler(labReportQuerySvc),
-		medicalrecord.NewVitalHandler(vitalSvc, svcs.MedicalRecord),
+		medicalrecord.NewVitalHandler(vitalSvc, medicalRecordSvc),
 		medicalrecord.NewClinicalPlanHandler(clinicalPlanSvc),
-		medicalrecord.NewMedicalRecordImageHandler(medicalRecordImageSvc, svcs.MedicalRecord, uploader),
+		medicalrecord.NewMedicalRecordImageHandler(medicalRecordImageSvc, medicalRecordSvc, uploader),
 		medicalrecord.NewTreatmentHandler(treatmentSvc, h.HasPermission),
 		medicalrecord.NewHospitalizationHandler(hospitalizationSvc),
 		medicalrecord.NewHospitalizationPlanHandler(hospitalizationPlanSvc),
@@ -381,7 +392,10 @@ func main() {
 		medicalrecord.NewMedicineHandler(medicineSvc),
 		medicalrecord.NewMedicineDoseParamHandler(medicineDoseParamSvc),
 		medicalrecord.NewCageHandler(cageSvc),
-		medicalrecord.NewTreatmentPlanHandler(treatmentPlanSvc, hospitalizationSvc, svcs.MedicalRecord, h.HasPermission),
+		medicalrecord.NewTreatmentPlanHandler(treatmentPlanSvc, hospitalizationSvc, medicalRecordSvc, h.HasPermission),
+		medicalrecord.NewMedicalRecordHandler(medicalRecordSvc),
+		medicalrecord.NewMedicalRecordAddendumHandler(medicalRecordAddendumSvc),
+		medicalrecord.NewExaminationHandler(examinationSvc),
 		h.RequirePermission,
 	)
 	medicalRecordHandler.RegisterRoutes(protected)

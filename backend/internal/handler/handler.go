@@ -98,7 +98,7 @@ func (h *Handler) RegisterRoutes(ctx context.Context, r *gin.Engine) *gin.Router
 	// hospitalizations 系 route: BE9-2D ⑤⑥で全て internal/medicalrecord の RegisterRoutes へ移動。
 	h.registerAccountingRoutesWithAuth(protected)
 	h.registerTrimmingRoutesWithAuth(protected)
-	h.registerExaminationRoutesWithAuth(protected)
+	// examinations 系 route: BE9-2D ⑦ で internal/medicalrecord の RegisterRoutes へ移動。
 	// BE9-2D: /vaccinations moved to internal/medicalrecord.Handler.RegisterRoutes
 	// (composed directly in cmd/api/main.go, ADR-006 aggregator 非経由).
 	h.registerInventoryRoutesWithAuth(protected)
@@ -218,22 +218,10 @@ func (h *Handler) registerOwnerRoutesWithAuth(rg *gin.RouterGroup) {
 // registerMedicalRecordRoutesWithAuth はカルテルートに RBAC 権限チェックを適用する（BUG-125: CRUD個別ガード）
 func (h *Handler) registerMedicalRecordRoutesWithAuth(rg *gin.RouterGroup) {
 	records := rg.Group("/medical-records")
-	records.GET("", h.RequirePermission(string(model.ResourceMedicalRecords), "view"), h.ListMedicalRecords)
-	records.GET("/:id", h.RequirePermission(string(model.ResourceMedicalRecords), "view"), h.GetMedicalRecord)
-	records.POST("", h.RequirePermission(string(model.ResourceMedicalRecords), "create"), h.CreateMedicalRecord)
-	records.PATCH("/:id", h.RequirePermission(string(model.ResourceMedicalRecords), "edit"), h.UpdateMedicalRecord)
-	records.DELETE("/:id", h.RequirePermission(string(model.ResourceMedicalRecords), "delete"), h.DeleteMedicalRecord)
-	records.PATCH("/:id/recommendation-reason", h.RequirePermission(string(model.ResourceMedicalRecords), "edit"), h.UpdateMedicalRecordRecommendationReason)
-
+	// BE9-2D ⑦: カルテ本体 CRUD/recommendation-reason/addenda は internal/medicalrecord の
+	// RegisterRoutes へ移動。billing-confirmation（billing 残留 domain）のみここに残る
+	// （/medical-records group は gin path merge で共存）。
 	h.RegisterBillingConfirmationRoutes(records)
-	// BE9-2D: /medical-records/:id/{checkups,prescriptions,inquiries} (+ checkup
-	// field-results) moved to internal/medicalrecord.Handler.RegisterRoutes, which registers
-	// its own rg.Group("/medical-records") on the same protected group (composed in
-	// cmd/api/main.go). RegisterCheckupSyncRoutes stays (checkup-sync is deferred to a later
-	// lstep batch). sub-batch④a moved /vitals, /clinical-plan, and /images there too
-	// (RegisterVitalRoutes / RegisterClinicalPlanRoutes / RegisterMedicalRecordImageRoutes),
-	// leaving treatment / treatment-plan / billing-confirmation / addendum here.
-	h.RegisterMedicalRecordAddendumRoutes(records)
 }
 
 // registerTrimmingRoutesWithAuth はトリミングルートに RBAC 権限チェックを適用する（BUG-125: CRUD個別ガード）
@@ -244,20 +232,6 @@ func (h *Handler) registerTrimmingRoutesWithAuth(rg *gin.RouterGroup) {
 	trimmings.POST("", h.RequirePermission(string(model.ResourceTrimming), "create"), h.CreateTrimming)
 	trimmings.PATCH("/:id", h.RequirePermission(string(model.ResourceTrimming), "edit"), h.UpdateTrimming)
 	trimmings.DELETE("/:id", h.RequirePermission(string(model.ResourceTrimming), "delete"), h.DeleteTrimming)
-}
-
-// registerExaminationRoutesWithAuth は検査ルートに RBAC 権限チェックを適用する（BUG-125: CRUD個別ガード）
-func (h *Handler) registerExaminationRoutesWithAuth(rg *gin.RouterGroup) {
-	examinations := rg.Group("/examinations")
-	examinations.GET("", h.RequirePermission(string(model.ResourceExaminations), "view"), h.ListExaminations)
-	examinations.GET("/:id", h.RequirePermission(string(model.ResourceExaminations), "view"), h.GetExamination)
-	examinations.POST("", h.RequirePermission(string(model.ResourceExaminations), "create"), h.CreateExamination)
-	examinations.PATCH("/:id", h.RequirePermission(string(model.ResourceExaminations), "edit"), h.UpdateExamination)
-	examinations.DELETE("/:id", h.RequirePermission(string(model.ResourceExaminations), "delete"), h.DeleteExamination)
-
-	// 検査項目（exam_results）— PUT 一括置換セマンティクス
-	examinations.GET("/:id/items", h.RequirePermission(string(model.ResourceExaminations), "view"), h.ListExaminationItems)
-	examinations.PUT("/:id/items", h.RequirePermission(string(model.ResourceExaminations), "edit"), h.ReplaceExaminationItems)
 }
 
 // registerAccountingRoutesWithAuth は会計ルートに RBAC 権限チェックを適用する（BUG-125: CRUD個別ガード）

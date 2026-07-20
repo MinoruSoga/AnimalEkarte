@@ -7,6 +7,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/sharedkernel"
 )
 
 // This file declares medicalrecord's consumer-side views of dependencies that live outside
@@ -215,4 +216,36 @@ type medicineInventoryRepo interface {
 	Create(ctx context.Context, clinicID uint64, item *model.InventoryItem) error
 	UpdateNameByMedicineCategory(ctx context.Context, clinicID uint64, oldName, newName string) error
 	DeleteByNameAndMedicineCategory(ctx context.Context, clinicID uint64, name string) error
+}
+
+// ── medical_record 本体/addendum consumer-side views (BE9-2D ⑦) ──
+
+// mrLineCustomerRepo は LINE 顧客の read view（medical_record の LINE 連携 hydrate 用）。
+type mrLineCustomerRepo interface {
+	FindByID(ctx context.Context, clinicID, id uint64) (*model.LineCustomer, error)
+}
+
+// mrReservationRepo は予約読取+ステータス更新 view（AutoCreateFromReservation/来院確定連携）。
+type mrReservationRepo interface {
+	sharedkernel.OwnerPetLinkVerifier
+	FindByID(ctx context.Context, clinicID, id uint64) (*model.Reservation, error)
+	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Reservation, error)
+}
+
+// mrDeliveryTrigger は初診ウェルカム配信トリガーの view（nil 許容）。
+type mrDeliveryTrigger interface {
+	TriggerFirstVisitWelcome(ctx context.Context, clinicID, ownerID uint64) error
+}
+
+// mrTagSyncer は来院系 Lstep タグ同期 view（nil 許容）。
+type mrTagSyncer interface {
+	SyncNextVisitTag(ctx context.Context, clinicID, ownerID uint64) error
+	SyncVisitCompletionTags(ctx context.Context, clinicID, ownerID uint64) error
+}
+
+// mrAuditLogger は共有監査カーネルのカルテ変更/追記記録 view（vitalAuditLogger 同様、signature が
+// primitives+map/model 型のみのため composition root は具象 service.AuditService を無 adapter で直渡し）。
+type mrAuditLogger interface {
+	LogMedicalRecordChange(ctx context.Context, clinicID uint64, actorID *uint64, action string, recordID uint64, oldValue, newValue map[string]any) error
+	LogAddendumCreate(ctx context.Context, clinicID uint64, actorID *uint64, addendumID, medicalRecordID uint64, addendum *model.MedicalRecordAddendum) error
 }

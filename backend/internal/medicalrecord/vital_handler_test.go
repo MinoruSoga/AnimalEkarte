@@ -65,20 +65,7 @@ func setStaffID(c *gin.Context) {
 	c.Set("user_id", "1")
 }
 
-// mockMedicalRecordService は per-entity handler が要求する medicalRecordGetter (GetByID) の
-// テストダブル。pre-move の internal/handler では service.MedicalRecordService 全体を満たす大きな
-// mock だったが、移行後の VitalHandler / MedicalRecordImageHandler は所有権検証のための GetByID
-// しか呼ばないため最小実装に絞る。vital と image のハンドラテストで共有する。
-type mockMedicalRecordService struct {
-	getByIDFn func(ctx context.Context, clinicID, id uint64) (*model.MedicalRecord, error)
-}
-
-func (m *mockMedicalRecordService) GetByID(ctx context.Context, clinicID, id uint64) (*model.MedicalRecord, error) {
-	if m.getByIDFn != nil {
-		return m.getByIDFn(ctx, clinicID, id)
-	}
-	return nil, nil
-}
+// mockMedicalRecordService: medical_record_handler_test.go の full 定義を使用（⑦統合）。
 
 // pre-move の TestListVitals_ViewPermissionDenied（RequirePermission 経由の 403 検証）は
 // lab_import_handler_test.go の先例に倣い移行しない。RequirePermission / EffectivePermissionService

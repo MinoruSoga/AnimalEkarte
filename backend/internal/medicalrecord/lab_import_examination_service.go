@@ -4,8 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"strconv"
-	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -304,33 +302,4 @@ func (s *labImportExaminationService) PersistBatch(ctx context.Context, inputs [
 	return results, nil
 }
 
-// computeExamResultStatus は internal/service/examination_service.go の computeExamResultStatus の
-// 文書化された挙動不変の複製（BE9-2D sub-batch③, checkup_field_result_service.go の複製先例と同方針）。
-// medicalrecord は internal/service を import しないため（ADR-006）、lab import が buildExamResults 経由で
-// 必要とするこの純関数をローカルに複製する。examination_service.go 側の原本と field-for-field 一致させる
-// （挙動を一字も変えない）。export はしない。examination_service.go が internal/service に残る間、両コピーは
-// 併存する（後日 2つ目の移行ドメインが必要とした時点で共有 package へ集約する）。
-//
-// 仕様:
-//   - inspection_value が空・パース不能 → (normal, false)
-//   - ref_min が指定され v < ref_min → (low, true)
-//   - ref_max が指定され v > ref_max → (high, true)
-//   - 範囲内 → (normal, false)
-//   - ref_min == ref_max == nil → (normal, false)（比較できない）
-func computeExamResultStatus(inspectionValue string, refMin, refMax *float64) (model.ExaminationResultStatus, bool) {
-	trimmed := strings.TrimSpace(inspectionValue)
-	if trimmed == "" {
-		return model.ExaminationResultStatusNormal, false
-	}
-	v, err := strconv.ParseFloat(trimmed, 64)
-	if err != nil {
-		return model.ExaminationResultStatusNormal, false
-	}
-	if refMin != nil && v < *refMin {
-		return model.ExaminationResultStatusLow, true
-	}
-	if refMax != nil && v > *refMax {
-		return model.ExaminationResultStatusHigh, true
-	}
-	return model.ExaminationResultStatusNormal, false
-}
+// computeExamResultStatus: ③で複製していたが⑦の examination_service 移動で原本に統合（計画通りの自己解消）。
