@@ -137,25 +137,56 @@ type TreatmentService interface {
 // ─── Implementation ───────────────────────────────────────────────────────────
 
 type treatmentService struct {
-	repos *repository.Repositories
-	// auditSvc は非nilかどうかのみを「逸脱audit機能の有効/無効」フラグとして使う。
-	// BE-refactor.md R1-2 (D1): treatment は repos.Transaction(ctx, func(txRepos...)) で tx 境界を
-	// 作る（Transactor.WithTx + ctx-txKey とは別機構）。この機構では tx が txRepos（tx にバインドされた
-	// *Repositories）に宿り、ctx には伝播しないため、AuditTxLogger.LogEntryTx（dbOrTx が ctx の txKey を
-	// 見る）は参加できない — base db に書いてしまい fail-closed にならない。そのため実際の書込は
-	// auditDoseDeviationTx が txRepos.Audit.CreateTx を直接使う（tx にバインドされた Audit リポジトリ
-	// インスタンス自体が tx 参加を保証する）。auditSvc のメソッドは呼ばない。
-	auditSvc AuditService
+	treatmentRepo     repository.TreatmentRepository
+	medicalRecordRepo repository.MedicalRecordRepository
+	medicineRepo      repository.MedicineRepository
+	procedureRepo     repository.ProcedureRepository
+	consultationRepo  repository.ConsultationRepository
+	inventoryRepo     repository.InventoryRepository
+	vitalRepo         repository.VitalRepository
+	doseParamRepo     repository.MedicineDoseParamRepository
+	transactor        repository.Transactor
+	// auditTx は非nilかどうかを「逸脱audit機能の有効/無効」フラグとして併用する。
+	// BE9-2D ④b: 旧実装は repos.Transaction(ctx, func(txRepos)) 機構（tx が txRepos に宿り ctx に
+	// 伝播しない）だったため LogEntryTx（dbOrTx が ctx の txKey を見る）が tx に参加できず、
+	// txRepos.Audit.CreateTx を直接使っていた。Transactor.WithTx + treatment/vital repo の dbOrTx 化
+	// により LogEntryTx が同一 tx へ参加できるため、medicine/dose-param と同じ AuditTxLogger 経由の
+	// fail-closed 監査（R1-2 (D1)・#211/refund パターン）へ統一した。
+	auditTx AuditTxLogger
 }
 
 // NewTreatmentServiceWithAudit は逸脱 audit 機能を有効化する（#201 B-2）。
-// auditSvc は非nilフラグとしてのみ使う（上記 struct コメント参照）。
-func NewTreatmentServiceWithAudit(repos *repository.Repositories, auditSvc AuditService) TreatmentService {
-	return &treatmentService{repos: repos, auditSvc: auditSvc}
+// auditTx は非nilフラグとしてのみ使う（上記 struct コメント参照）。
+// BE9-2D ④b: *repository.Repositories 集約依存を実消費 repo の個別注入へ分解した
+// （medicine/accounting 先例。medicalrecord への縦移動時に consumer-side interface へ差し替える前段）。
+func NewTreatmentServiceWithAudit(
+	treatmentRepo repository.TreatmentRepository,
+	medicalRecordRepo repository.MedicalRecordRepository,
+	medicineRepo repository.MedicineRepository,
+	procedureRepo repository.ProcedureRepository,
+	consultationRepo repository.ConsultationRepository,
+	inventoryRepo repository.InventoryRepository,
+	vitalRepo repository.VitalRepository,
+	doseParamRepo repository.MedicineDoseParamRepository,
+	transactor repository.Transactor,
+	auditTx AuditTxLogger,
+) TreatmentService {
+	return &treatmentService{
+		treatmentRepo:     treatmentRepo,
+		medicalRecordRepo: medicalRecordRepo,
+		medicineRepo:      medicineRepo,
+		procedureRepo:     procedureRepo,
+		consultationRepo:  consultationRepo,
+		inventoryRepo:     inventoryRepo,
+		vitalRepo:         vitalRepo,
+		doseParamRepo:     doseParamRepo,
+		transactor:        transactor,
+		auditTx:           auditTx,
+	}
 }
 
 func (s *treatmentService) GetByID(ctx context.Context, clinicID, id uint64) (*model.Treatment, error) {
-	treatment, err := s.repos.Treatment.FindByID(ctx, clinicID, id)
+	treatment, err := s.treatmentRepo.FindByID(ctx, clinicID, id)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to get treatment", "error", err)
 		return nil, apperrors.Wrap(err, "failed to get treatment")
@@ -164,7 +195,7 @@ func (s *treatmentService) GetByID(ctx context.Context, clinicID, id uint64) (*m
 }
 
 func (s *treatmentService) List(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.Treatment, error) {
-	treatments, err := s.repos.Treatment.FindByMedicalRecordID(ctx, clinicID, medicalRecordID)
+	treatments, err := s.treatmentRepo.FindByMedicalRecordID(ctx, clinicID, medicalRecordID)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to list treatments", "error", err)
 		return nil, apperrors.Wrap(err, "failed to list treatments")
@@ -178,7 +209,7 @@ func (s *treatmentService) ListPetHistory(ctx context.Context, clinicID, petID u
 			return nil, 0, apperrors.Wrap(err, "failed to validate treatment item type")
 		}
 	}
-	treatments, total, err := s.repos.Treatment.FindHistoryByPetID(ctx, clinicID, petID, filter, page, limit)
+	treatments, total, err := s.treatmentRepo.FindHistoryByPetID(ctx, clinicID, petID, filter, page, limit)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to list pet treatment history", "error", err)
 		return nil, 0, apperrors.Wrap(err, "failed to list pet treatment history")
@@ -221,11 +252,13 @@ func (s *treatmentService) Create(ctx context.Context, clinicID, medicalRecordID
 	var doseEval *SavedDoseEvaluation
 
 	// ─── Transaction ───
-	err := s.repos.Transaction(ctx, func(txRepos *repository.Repositories) error {
+	// BE9-2D ④b: repos.Transaction（tx-bound clone）→ Transactor.WithTx（ctx-txKey）へ変換。
+	// 閉包内の read/write は各 repo の dbOrTx が txCtx の ambient tx へ参加する（挙動は旧機構と等価）。
+	err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
 		// テナント所有権 + 確定ロック検証（Update/Delete と対称化・healthcare review CRITICAL）。
 		// treatments は自前 clinic_id を持たず medical_records 経由で隔離するため、所有権を Create でも明示検証する。
 		// BE-refactor.md X-11/E-5: lockDraftMedicalRecord に行ロック+finalizedガードを集約。
-		if err := lockDraftMedicalRecord(ctx, txRepos.MedicalRecord, clinicID, medicalRecordID,
+		if err := lockDraftMedicalRecord(txCtx, s.medicalRecordRepo, clinicID, medicalRecordID,
 			"failed to verify medical record ownership", "確定済みカルテには治療を追加できません"); err != nil {
 			return err
 		}
@@ -251,17 +284,17 @@ func (s *treatmentService) Create(ctx context.Context, clinicID, medicalRecordID
 		}
 
 		// #201 B-2: per_weight 医薬の保存時 BE 再検証＋スナップショット値固定（C1/両上限/species 一致）。
-		eval, derr := s.evaluateDoseForSave(ctx, txRepos, clinicID, medicalRecordID, input.ItemType, input.MedicineID, input.Quantity)
+		eval, derr := s.evaluateDoseForSave(txCtx, clinicID, medicalRecordID, input.ItemType, input.MedicineID, input.Quantity)
 		if derr != nil {
 			return derr // species 不一致など fail-closed
 		}
 		if eval != nil {
 			doseEval = eval
-			applyDoseSnapshotToTreatment(ctx, treatment, eval)
+			applyDoseSnapshotToTreatment(txCtx, treatment, eval)
 		}
 
 		// 1. Create Treatment
-		if err := txRepos.Treatment.Create(ctx, treatment); err != nil {
+		if err := s.treatmentRepo.Create(txCtx, treatment); err != nil {
 			return apperrors.Wrap(err, "failed to create treatment")
 		}
 
@@ -270,7 +303,7 @@ func (s *treatmentService) Create(ctx context.Context, clinicID, medicalRecordID
 		// フォールバックは書込 IDOR（medicines.id と inventory_items.id の採番衝突で他クリニックの
 		// 在庫を減算しうる）だったため廃止した。減算は InventoryID が明示指定された場合のみ行う。
 		if input.InventoryID != nil && *input.InventoryID > 0 {
-			if err := txRepos.Inventory.DecreaseStock(ctx, *input.InventoryID, input.Quantity); err != nil {
+			if err := s.inventoryRepo.DecreaseStock(txCtx, *input.InventoryID, input.Quantity); err != nil {
 				return apperrors.Wrap(err, "failed to decrease inventory stock")
 			}
 		}
@@ -278,7 +311,7 @@ func (s *treatmentService) Create(ctx context.Context, clinicID, medicalRecordID
 		// #201 B-2 / BE-refactor.md R1-2: 逸脱（過量/過少/著しい上書き）を監査記録（fail-closed）。
 		// tx 内で失敗すると treatment 作成・在庫減算ごとロールバックする。
 		if doseEval != nil && input.MedicineID != nil {
-			if err := s.auditDoseDeviationTx(ctx, txRepos, clinicID, input.ActorID, treatment.ID, *input.MedicineID, doseEval); err != nil {
+			if err := s.auditDoseDeviationTx(txCtx, clinicID, input.ActorID, treatment.ID, *input.MedicineID, doseEval); err != nil {
 				return err
 			}
 		}
@@ -319,7 +352,7 @@ func effectiveDoseInputs(existing *model.Treatment, input *UpdateTreatmentInput)
 
 func (s *treatmentService) Update(ctx context.Context, clinicID, medicalRecordID, treatmentID uint64, input *UpdateTreatmentInput) (*model.Treatment, error) {
 	// 所属確認（clinic_id + id で検索）
-	existing, err := s.repos.Treatment.FindByID(ctx, clinicID, treatmentID)
+	existing, err := s.treatmentRepo.FindByID(ctx, clinicID, treatmentID)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to get treatment", "error", err)
 		return nil, apperrors.Wrap(err, "failed to get treatment")
@@ -329,7 +362,7 @@ func (s *treatmentService) Update(ctx context.Context, clinicID, medicalRecordID
 	}
 
 	// HC-004: 親カルテが確定済みの場合は編集拒否
-	parent, err := s.repos.MedicalRecord.FindByID(ctx, clinicID, medicalRecordID)
+	parent, err := s.medicalRecordRepo.FindByID(ctx, clinicID, medicalRecordID)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to find medical record", "error", err)
 		return nil, apperrors.Wrap(err, "failed to find medical record")
@@ -378,37 +411,37 @@ func (s *treatmentService) Update(ctx context.Context, clinicID, medicalRecordID
 	doseRelevant := input.Quantity != nil || input.MedicineID != nil || input.ItemType != nil
 	var doseEval *SavedDoseEvaluation
 	var doseMedicineID uint64
-	if txErr := s.repos.Transaction(ctx, func(txRepos *repository.Repositories) error {
+	if txErr := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
 		// テナント所有権 + 確定ロック検証（Create と対称化・BE-refactor.md H-8a）。
-		// :331-338 の事前チェックは fast-fail として維持しつつ、tx 内でも lockDraftMedicalRecord
+		// 冒頭の事前チェックは fast-fail として維持しつつ、tx 内でも lockDraftMedicalRecord
 		// の行ロックで finalize と直列化し、チェック通過後〜Update 実行前に finalize が
 		// 割り込むレースを防ぐ（BE-refactor.md E-5）。
-		if err := lockDraftMedicalRecord(ctx, txRepos.MedicalRecord, clinicID, medicalRecordID,
+		if err := lockDraftMedicalRecord(txCtx, s.medicalRecordRepo, clinicID, medicalRecordID,
 			"failed to verify medical record ownership", "確定済みカルテの治療は編集できません"); err != nil {
 			return err
 		}
 
 		if doseRelevant {
 			effItemType, effMedicineID, effQty := effectiveDoseInputs(existing, input)
-			eval, derr := s.evaluateDoseForSave(ctx, txRepos, clinicID, medicalRecordID, effItemType, effMedicineID, effQty)
+			eval, derr := s.evaluateDoseForSave(txCtx, clinicID, medicalRecordID, effItemType, effMedicineID, effQty)
 			if derr != nil {
 				return derr // species 不一致など fail-closed
 			}
 			if eval != nil {
 				doseEval = eval
 				doseMedicineID = *effMedicineID
-				maps.Copy(fields, doseSnapshotColumns(ctx, eval))
+				maps.Copy(fields, doseSnapshotColumns(txCtx, eval))
 			} else if treatmentHasDoseSnapshot(existing) {
 				// per_weight 対象でなくなった（薬剤/item_type 変更）→ stale スナップショットをクリア（L-3）。
 				maps.Copy(fields, clearedDoseColumns())
 			}
 		}
-		if err := txRepos.Treatment.Update(ctx, clinicID, treatmentID, fields); err != nil {
+		if err := s.treatmentRepo.Update(txCtx, clinicID, treatmentID, fields); err != nil {
 			return err
 		}
 		// #201 B-2 / BE-refactor.md R1-2: 逸脱監査を fail-closed 化。失敗すると Update ごとロールバックする。
 		if doseEval != nil {
-			return s.auditDoseDeviationTx(ctx, txRepos, clinicID, input.ActorID, treatmentID, doseMedicineID, doseEval)
+			return s.auditDoseDeviationTx(txCtx, clinicID, input.ActorID, treatmentID, doseMedicineID, doseEval)
 		}
 		return nil
 	}); txErr != nil {
@@ -421,7 +454,7 @@ func (s *treatmentService) Update(ctx context.Context, clinicID, medicalRecordID
 		slog.Uint64("clinic_id", clinicID),
 		slog.Uint64("medical_record_id", medicalRecordID))
 
-	treatment, err := s.repos.Treatment.FindByID(ctx, clinicID, treatmentID)
+	treatment, err := s.treatmentRepo.FindByID(ctx, clinicID, treatmentID)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to get updated treatment", "error", err)
 		return nil, apperrors.Wrap(err, "failed to get updated treatment")
@@ -430,7 +463,7 @@ func (s *treatmentService) Update(ctx context.Context, clinicID, medicalRecordID
 }
 
 func (s *treatmentService) Delete(ctx context.Context, clinicID, medicalRecordID, treatmentID uint64) error {
-	existing, err := s.repos.Treatment.FindByID(ctx, clinicID, treatmentID)
+	existing, err := s.treatmentRepo.FindByID(ctx, clinicID, treatmentID)
 	if err != nil {
 		return apperrors.Wrap(err, "failed to get treatment")
 	}
@@ -441,13 +474,13 @@ func (s *treatmentService) Delete(ctx context.Context, clinicID, medicalRecordID
 	// HC-004: 親カルテが確定済みの場合は削除拒否（BE-refactor.md H-8b）。
 	// finalized チェックと Delete を同一 tx に束ね、閉包先頭の LockByIDForUpdate の行ロックで
 	// finalize（medical_record_repository.Update の draft-only WHERE）と直列化する。
-	if err := s.repos.Transaction(ctx, func(txRepos *repository.Repositories) error {
-		if err := lockDraftMedicalRecord(ctx, txRepos.MedicalRecord, clinicID, medicalRecordID,
+	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
+		if err := lockDraftMedicalRecord(txCtx, s.medicalRecordRepo, clinicID, medicalRecordID,
 			"failed to verify medical record ownership", "確定済みカルテの治療は削除できません"); err != nil {
 			return err
 		}
 
-		if err := txRepos.Treatment.Delete(ctx, clinicID, treatmentID); err != nil {
+		if err := s.treatmentRepo.Delete(txCtx, clinicID, treatmentID); err != nil {
 			return apperrors.Wrap(err, "failed to delete treatment")
 		}
 		return nil
@@ -477,13 +510,13 @@ func (s *treatmentService) BulkUpdateSortOrder(ctx context.Context, clinicID, me
 	// HC-004: 親カルテが確定済みの場合は並び順変更を拒否（BE-refactor.md H-8c）。
 	// テナント所有権確認（LockByIDForUpdate）と finalized チェックを同一 tx に束ね、
 	// 行ロックで finalize（medical_record_repository.Update の draft-only WHERE）と直列化する。
-	if err := s.repos.Transaction(ctx, func(txRepos *repository.Repositories) error {
-		if err := lockDraftMedicalRecord(ctx, txRepos.MedicalRecord, clinicID, medicalRecordID,
+	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
+		if err := lockDraftMedicalRecord(txCtx, s.medicalRecordRepo, clinicID, medicalRecordID,
 			"failed to verify medical record ownership", "確定済みカルテの治療は編集できません"); err != nil {
 			return err
 		}
 
-		if err := txRepos.Treatment.BulkUpdateSortOrder(ctx, updates); err != nil {
+		if err := s.treatmentRepo.BulkUpdateSortOrder(txCtx, updates); err != nil {
 			return apperrors.Wrap(err, "failed to bulk update treatment sort order")
 		}
 		return nil
@@ -509,28 +542,28 @@ func (s *treatmentService) BulkUpdateSortOrder(ctx context.Context, clinicID, me
 func (s *treatmentService) validateTreatmentMasterFKs(ctx context.Context, clinicID uint64, medicineID, procedureID, consultationID, inventoryID *uint64) error {
 	if err := validateOwnedMasterFK(ctx, "medicine", clinicID, medicineID,
 		func(actx context.Context, cid, mid uint64) error {
-			_, err := s.repos.Medicine.FindByID(actx, cid, mid)
+			_, err := s.medicineRepo.FindByID(actx, cid, mid)
 			return err
 		}); err != nil {
 		return err
 	}
 	if err := validateOwnedMasterFK(ctx, "procedure", clinicID, procedureID,
 		func(actx context.Context, cid, mid uint64) error {
-			_, err := s.repos.Procedure.FindByID(actx, cid, mid)
+			_, err := s.procedureRepo.FindByID(actx, cid, mid)
 			return err
 		}); err != nil {
 		return err
 	}
 	if err := validateOwnedMasterFK(ctx, "consultation", clinicID, consultationID,
 		func(actx context.Context, cid, mid uint64) error {
-			_, err := s.repos.Consultation.FindByID(actx, cid, mid)
+			_, err := s.consultationRepo.FindByID(actx, cid, mid)
 			return err
 		}); err != nil {
 		return err
 	}
 	if err := validateOwnedMasterFK(ctx, "inventory", clinicID, inventoryID,
 		func(actx context.Context, cid, mid uint64) error {
-			_, err := s.repos.Inventory.FindByID(actx, cid, mid)
+			_, err := s.inventoryRepo.FindByID(actx, cid, mid)
 			return err
 		}); err != nil {
 		return err

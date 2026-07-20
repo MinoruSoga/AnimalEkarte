@@ -67,6 +67,36 @@ func (m *mockTreatmentRepository) CountFinalizedUnconfirmedByPetAndDate(_ contex
 	return 0, nil
 }
 
+// ---- BE9-2D ④b test harness ----
+
+// draftMedicalRecordRepo は lockDraftMedicalRecord（mock の LockByIDForUpdate は FindByID へ
+// fallback）を draft で通すための共通 mock。
+func draftMedicalRecordRepo() *mockMedicalRecordRepository {
+	return &mockMedicalRecordRepository{
+		findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
+			return &model.MedicalRecord{Status: model.MedicalRecordStatusDraft}, nil
+		},
+	}
+}
+
+// benignVitalRepo は vital 未記録（dose 再検証は手動 fallback）を返す無害 mock。
+// mockVitalRepository は nil fn で panic するため、dose パスに入らないテストでも nil でなくこれを配線する。
+func benignVitalRepo() *mockVitalRepository {
+	return &mockVitalRepository{listByMedicalRecordIDFn: func(_ context.Context, _, _ uint64) ([]model.VitalRecord, error) {
+		return nil, nil
+	}}
+}
+
+// newTreatmentSvc は個別依存注入コンストラクタ（BE9-2D ④b）へのテスト共通配線。
+// 旧 harness の repos.TransactionFn インライン実行は mockTransactor の WithTx 素通し（fn(ctx)）が等価。
+// dose 再検証パスに入らないテスト用に medicine/procedure/consultation は ok*Repo、vital/doseParam は
+// 空応答 mock を配線する。
+func newTreatmentSvc(repo repository.TreatmentRepository, mrRepo repository.MedicalRecordRepository, invRepo repository.InventoryRepository, auditTx AuditTxLogger) TreatmentService {
+	return NewTreatmentServiceWithAudit(
+		repo, mrRepo, okMedicineRepo(), okProcedureRepo(), okConsultationRepo(), invRepo,
+		benignVitalRepo(), &mockMedicineDoseParamRepository{}, &mockTransactor{}, auditTx)
+}
+
 // ---- Tests ----
 
 func TestTreatmentService_List(t *testing.T) {
@@ -115,11 +145,7 @@ func TestTreatmentService_List(t *testing.T) {
 					return tt.repoTreatments, tt.repoErr
 				},
 			}
-			svc := NewTreatmentServiceWithAudit(&repository.Repositories{
-				Treatment:     repo,
-				MedicalRecord: &mockMedicalRecordRepository{},
-				Inventory:     &mockInventoryRepository{},
-			}, nil)
+			svc := newTreatmentSvc(repo, &mockMedicalRecordRepository{}, &mockInventoryRepository{}, nil)
 
 			treatments, err := svc.List(context.Background(), clinicID, tt.medicalRecordID)
 
@@ -151,7 +177,7 @@ func TestTreatmentService_ListPetHistory(t *testing.T) {
 				return []model.Treatment{{ID: 1}, {ID: 2}}, 2, nil
 			},
 		}
-		svc := NewTreatmentServiceWithAudit(&repository.Repositories{Treatment: repo}, nil)
+		svc := newTreatmentSvc(repo, &mockMedicalRecordRepository{}, &mockInventoryRepository{}, nil)
 
 		treatments, total, err := svc.ListPetHistory(context.Background(), clinicID, petID, model.PetTreatmentHistoryFilter{ItemType: &medicine}, 1, 100)
 
@@ -171,7 +197,7 @@ func TestTreatmentService_ListPetHistory(t *testing.T) {
 				return nil, 0, nil
 			},
 		}
-		svc := NewTreatmentServiceWithAudit(&repository.Repositories{Treatment: repo}, nil)
+		svc := newTreatmentSvc(repo, &mockMedicalRecordRepository{}, &mockInventoryRepository{}, nil)
 
 		_, _, err := svc.ListPetHistory(context.Background(), clinicID, petID, model.PetTreatmentHistoryFilter{ItemType: &invalid}, 1, 100)
 
@@ -185,7 +211,7 @@ func TestTreatmentService_ListPetHistory(t *testing.T) {
 				return nil, 0, errors.New("db error")
 			},
 		}
-		svc := NewTreatmentServiceWithAudit(&repository.Repositories{Treatment: repo}, nil)
+		svc := newTreatmentSvc(repo, &mockMedicalRecordRepository{}, &mockInventoryRepository{}, nil)
 
 		_, _, err := svc.ListPetHistory(context.Background(), clinicID, petID, model.PetTreatmentHistoryFilter{}, 1, 100)
 
@@ -200,7 +226,7 @@ func TestTreatmentService_ListPetHistory(t *testing.T) {
 				return []model.Treatment{{ID: 10}}, 1, nil
 			},
 		}
-		svc := NewTreatmentServiceWithAudit(&repository.Repositories{Treatment: repo}, nil)
+		svc := newTreatmentSvc(repo, &mockMedicalRecordRepository{}, &mockInventoryRepository{}, nil)
 
 		_, _, err := svc.ListPetHistory(context.Background(), clinicID, petID, model.PetTreatmentHistoryFilter{AnesthesiaOnly: true}, 1, 100)
 
@@ -218,7 +244,7 @@ func TestTreatmentService_ListPetHistory(t *testing.T) {
 				return []model.Treatment{{ID: 20}}, 1, nil
 			},
 		}
-		svc := NewTreatmentServiceWithAudit(&repository.Repositories{Treatment: repo}, nil)
+		svc := newTreatmentSvc(repo, &mockMedicalRecordRepository{}, &mockInventoryRepository{}, nil)
 
 		_, _, err := svc.ListPetHistory(context.Background(), clinicID, petID, model.PetTreatmentHistoryFilter{IsSurgery: true}, 1, 100)
 
@@ -312,24 +338,8 @@ func TestTreatmentService_Create(t *testing.T) {
 					return tt.repoErr
 				},
 			}
-			invRepo := &mockInventoryRepository{}
-			// TransactionFn: DB 不要でトランザクションをインライン実行
-			repos := &repository.Repositories{
-				Treatment: repo,
-				MedicalRecord: &mockMedicalRecordRepository{
-					findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
-						return &model.MedicalRecord{Status: model.MedicalRecordStatusDraft}, nil
-					},
-				},
-				Inventory:    invRepo,
-				Medicine:     okMedicineRepo(),
-				Procedure:    okProcedureRepo(),
-				Consultation: okConsultationRepo(),
-			}
-			repos.TransactionFn = func(ctx context.Context, fn func(*repository.Repositories) error) error {
-				return fn(repos)
-			}
-			svc := NewTreatmentServiceWithAudit(repos, nil)
+			// mockTransactor: DB 不要でトランザクションをインライン実行
+			svc := newTreatmentSvc(repo, draftMedicalRecordRepo(), &mockInventoryRepository{}, nil)
 
 			treatment, err := svc.Create(context.Background(), clinicID, tt.medicalRecordID, tt.input)
 
@@ -372,22 +382,7 @@ func TestTreatmentService_Create_DecreaseStock(t *testing.T) {
 				return nil
 			},
 		}
-		repos := &repository.Repositories{
-			Treatment: treatmentRepo,
-			MedicalRecord: &mockMedicalRecordRepository{
-				findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
-					return &model.MedicalRecord{Status: model.MedicalRecordStatusDraft}, nil
-				},
-			},
-			Inventory:    invRepo,
-			Medicine:     okMedicineRepo(),
-			Procedure:    okProcedureRepo(),
-			Consultation: okConsultationRepo(),
-		}
-		repos.TransactionFn = func(_ context.Context, fn func(*repository.Repositories) error) error {
-			return fn(repos)
-		}
-		svc := NewTreatmentServiceWithAudit(repos, nil)
+		svc := newTreatmentSvc(treatmentRepo, draftMedicalRecordRepo(), invRepo, nil)
 		input := &CreateTreatmentInput{
 			ItemType:   model.TreatmentItemTypeMedicine,
 			MedicineID: &medicineID,
@@ -422,22 +417,7 @@ func TestTreatmentService_Create_DecreaseStock(t *testing.T) {
 				return nil
 			},
 		}
-		repos := &repository.Repositories{
-			Treatment: treatmentRepo,
-			MedicalRecord: &mockMedicalRecordRepository{
-				findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
-					return &model.MedicalRecord{Status: model.MedicalRecordStatusDraft}, nil
-				},
-			},
-			Inventory:    invRepo,
-			Medicine:     okMedicineRepo(),
-			Procedure:    okProcedureRepo(),
-			Consultation: okConsultationRepo(),
-		}
-		repos.TransactionFn = func(_ context.Context, fn func(*repository.Repositories) error) error {
-			return fn(repos)
-		}
-		svc := NewTreatmentServiceWithAudit(repos, nil)
+		svc := newTreatmentSvc(treatmentRepo, draftMedicalRecordRepo(), invRepo, nil)
 		input := &CreateTreatmentInput{
 			ItemType:    model.TreatmentItemTypeMedicine,
 			MedicineID:  &medicineID,
@@ -593,19 +573,7 @@ func TestTreatmentService_Update(t *testing.T) {
 					return tt.updateErr
 				},
 			}
-			updateRepos := &repository.Repositories{
-				Treatment: repo,
-				MedicalRecord: &mockMedicalRecordRepository{
-					findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
-						return &model.MedicalRecord{Status: model.MedicalRecordStatusDraft}, nil
-					},
-				},
-				Inventory: &mockInventoryRepository{},
-			}
-			updateRepos.TransactionFn = func(ctx context.Context, fn func(*repository.Repositories) error) error {
-				return fn(updateRepos)
-			}
-			svc := NewTreatmentServiceWithAudit(updateRepos, nil)
+			svc := newTreatmentSvc(repo, draftMedicalRecordRepo(), &mockInventoryRepository{}, nil)
 
 			treatment, err := svc.Update(context.Background(), clinicID, tt.medicalRecordID, tt.treatmentID, tt.input)
 
@@ -688,20 +656,8 @@ func TestTreatmentService_Delete(t *testing.T) {
 					return tt.deleteErr
 				},
 			}
-			repos := &repository.Repositories{
-				Treatment: repo,
-				MedicalRecord: &mockMedicalRecordRepository{
-					findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
-						return &model.MedicalRecord{Status: model.MedicalRecordStatusDraft}, nil
-					},
-				},
-				Inventory: &mockInventoryRepository{},
-			}
-			// TransactionFn: DB 不要でトランザクションをインライン実行（BE-refactor.md H-8b）
-			repos.TransactionFn = func(_ context.Context, fn func(*repository.Repositories) error) error {
-				return fn(repos)
-			}
-			svc := NewTreatmentServiceWithAudit(repos, nil)
+			// mockTransactor: DB 不要でトランザクションをインライン実行（BE-refactor.md H-8b）
+			svc := newTreatmentSvc(repo, draftMedicalRecordRepo(), &mockInventoryRepository{}, nil)
 
 			err := svc.Delete(context.Background(), clinicID, tt.medicalRecordID, tt.treatmentID)
 
@@ -789,16 +745,8 @@ func TestTreatmentService_BulkUpdateSortOrder(t *testing.T) {
 					return &model.MedicalRecord{Status: tt.parentStatus}, nil
 				},
 			}
-			repos := &repository.Repositories{
-				Treatment:     repo,
-				Inventory:     &mockInventoryRepository{},
-				MedicalRecord: mrRepo,
-			}
-			// TransactionFn: DB 不要でトランザクションをインライン実行（BE-refactor.md H-8c）
-			repos.TransactionFn = func(_ context.Context, fn func(*repository.Repositories) error) error {
-				return fn(repos)
-			}
-			svc := NewTreatmentServiceWithAudit(repos, nil)
+			// mockTransactor: DB 不要でトランザクションをインライン実行（BE-refactor.md H-8c）
+			svc := newTreatmentSvc(repo, mrRepo, &mockInventoryRepository{}, nil)
 
 			err := svc.BulkUpdateSortOrder(context.Background(), clinicID, tt.medicalRecordID, tt.input)
 

@@ -183,23 +183,14 @@ func TestTreatmentService_Create_RejectsCrossClinicMasterFK(t *testing.T) {
 	unitPrice := int64(1000)
 
 	newSvc := func(created *bool) TreatmentService {
-		repos := &repository.Repositories{
-			Treatment: &mockTreatmentRepository{createFn: func(_ context.Context, _ *model.Treatment) error {
-				*created = true
-				return nil
-			}},
-			MedicalRecord: &mockMedicalRecordRepository{
-				findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
-					return &model.MedicalRecord{Status: model.MedicalRecordStatusDraft}, nil
-				},
-			},
-			Inventory:    &mockInventoryRepository{},
-			Medicine:     okMedicineRepo(),
-			Consultation: okConsultationRepo(),
-			Procedure:    rejectProcedureRepo(ownedProcedureID),
-		}
-		repos.TransactionFn = func(_ context.Context, fn func(*repository.Repositories) error) error { return fn(repos) }
-		return NewTreatmentServiceWithAudit(repos, nil)
+		treatRepo := &mockTreatmentRepository{createFn: func(_ context.Context, _ *model.Treatment) error {
+			*created = true
+			return nil
+		}}
+		return NewTreatmentServiceWithAudit(
+			treatRepo, draftMedicalRecordRepo(), okMedicineRepo(), rejectProcedureRepo(ownedProcedureID),
+			okConsultationRepo(), &mockInventoryRepository{}, benignVitalRepo(),
+			&mockMedicineDoseParamRepository{}, &mockTransactor{}, nil)
 	}
 
 	t.Run("rejects cross-clinic procedure_id and does not persist", func(t *testing.T) {
@@ -239,28 +230,19 @@ func TestTreatmentService_Update_RejectsCrossClinicMasterFK(t *testing.T) {
 	const foreignProcedureID = uint64(999)
 
 	newSvc := func(updated *bool) TreatmentService {
-		repos := &repository.Repositories{
-			Treatment: &mockTreatmentRepository{
-				findByIDFn: func(_ context.Context, _, treatmentID uint64) (*model.Treatment, error) {
-					return &model.Treatment{ID: treatmentID, MedicalRecordID: 1}, nil
-				},
-				updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) error {
-					*updated = true
-					return nil
-				},
+		treatRepo := &mockTreatmentRepository{
+			findByIDFn: func(_ context.Context, _, treatmentID uint64) (*model.Treatment, error) {
+				return &model.Treatment{ID: treatmentID, MedicalRecordID: 1}, nil
 			},
-			MedicalRecord: &mockMedicalRecordRepository{
-				findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
-					return &model.MedicalRecord{Status: model.MedicalRecordStatusDraft}, nil
-				},
+			updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) error {
+				*updated = true
+				return nil
 			},
-			Inventory:    &mockInventoryRepository{},
-			Medicine:     okMedicineRepo(),
-			Consultation: okConsultationRepo(),
-			Procedure:    rejectProcedureRepo(ownedProcedureID),
 		}
-		repos.TransactionFn = func(_ context.Context, fn func(*repository.Repositories) error) error { return fn(repos) }
-		return NewTreatmentServiceWithAudit(repos, nil)
+		return NewTreatmentServiceWithAudit(
+			treatRepo, draftMedicalRecordRepo(), okMedicineRepo(), rejectProcedureRepo(ownedProcedureID),
+			okConsultationRepo(), &mockInventoryRepository{}, benignVitalRepo(),
+			&mockMedicineDoseParamRepository{}, &mockTransactor{}, nil)
 	}
 
 	t.Run("rejects cross-clinic procedure_id on update and does not persist", func(t *testing.T) {
@@ -284,23 +266,14 @@ func TestTreatmentService_Create_RejectsCrossClinicInventoryFK(t *testing.T) {
 	unitPrice := int64(1000)
 
 	newSvc := func(created *bool) TreatmentService {
-		repos := &repository.Repositories{
-			Treatment: &mockTreatmentRepository{createFn: func(_ context.Context, _ *model.Treatment) error {
-				*created = true
-				return nil
-			}},
-			MedicalRecord: &mockMedicalRecordRepository{
-				findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
-					return &model.MedicalRecord{Status: model.MedicalRecordStatusDraft}, nil
-				},
-			},
-			Inventory:    rejectInventoryRepo(ownedInventoryID),
-			Medicine:     okMedicineRepo(),
-			Consultation: okConsultationRepo(),
-			Procedure:    okProcedureRepo(),
-		}
-		repos.TransactionFn = func(_ context.Context, fn func(*repository.Repositories) error) error { return fn(repos) }
-		return NewTreatmentServiceWithAudit(repos, nil)
+		treatRepo := &mockTreatmentRepository{createFn: func(_ context.Context, _ *model.Treatment) error {
+			*created = true
+			return nil
+		}}
+		return NewTreatmentServiceWithAudit(
+			treatRepo, draftMedicalRecordRepo(), okMedicineRepo(), okProcedureRepo(),
+			okConsultationRepo(), rejectInventoryRepo(ownedInventoryID), benignVitalRepo(),
+			&mockMedicineDoseParamRepository{}, &mockTransactor{}, nil)
 	}
 
 	t.Run("rejects cross-clinic inventory_id and does not persist", func(t *testing.T) {
@@ -340,28 +313,19 @@ func TestTreatmentService_Update_RejectsCrossClinicInventoryFK(t *testing.T) {
 	const foreignInventoryID = uint64(888)
 
 	newSvc := func(updated *bool) TreatmentService {
-		repos := &repository.Repositories{
-			Treatment: &mockTreatmentRepository{
-				findByIDFn: func(_ context.Context, _, treatmentID uint64) (*model.Treatment, error) {
-					return &model.Treatment{ID: treatmentID, MedicalRecordID: 1}, nil
-				},
-				updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) error {
-					*updated = true
-					return nil
-				},
+		treatRepo := &mockTreatmentRepository{
+			findByIDFn: func(_ context.Context, _, treatmentID uint64) (*model.Treatment, error) {
+				return &model.Treatment{ID: treatmentID, MedicalRecordID: 1}, nil
 			},
-			MedicalRecord: &mockMedicalRecordRepository{
-				findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
-					return &model.MedicalRecord{Status: model.MedicalRecordStatusDraft}, nil
-				},
+			updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) error {
+				*updated = true
+				return nil
 			},
-			Inventory:    rejectInventoryRepo(ownedInventoryID),
-			Medicine:     okMedicineRepo(),
-			Consultation: okConsultationRepo(),
-			Procedure:    okProcedureRepo(),
 		}
-		repos.TransactionFn = func(_ context.Context, fn func(*repository.Repositories) error) error { return fn(repos) }
-		return NewTreatmentServiceWithAudit(repos, nil)
+		return NewTreatmentServiceWithAudit(
+			treatRepo, draftMedicalRecordRepo(), okMedicineRepo(), okProcedureRepo(),
+			okConsultationRepo(), rejectInventoryRepo(ownedInventoryID), benignVitalRepo(),
+			&mockMedicineDoseParamRepository{}, &mockTransactor{}, nil)
 	}
 
 	t.Run("rejects cross-clinic inventory_id on update and does not persist", func(t *testing.T) {

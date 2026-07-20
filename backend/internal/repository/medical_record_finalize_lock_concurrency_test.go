@@ -11,12 +11,14 @@ package repository
 // これを塞ぐ（同一行への UPDATE は postgres の行ロックにより FOR UPDATE 保持者の commit/rollback
 // までブロックされる）。
 //
-// 子書込 tx の構築は treatment_service.go 実コードと同じ repo-swap 機構（Repositories.Transaction /
-// NewRepositories(tx)）を使う。ctx-txKey 機構（Transactor.WithTx）と treatmentRepository を
-// 混在させると、txRepos を経由しない treatmentRepository.Create が別コネクションで INSERT し、
-// FK チェック（FOR KEY SHARE）が LockByIDForUpdate の FOR UPDATE と自己デッドロックする
-// （検証中に実際に踏んだ失敗モード。repo-swap は txRepos.MedicalRecord/txRepos.Treatment が
-// 同一 tx-bound *gorm.DB を共有するためこの問題が起きない）。
+// 子書込 tx の構築は treatment_service.go 実コードと同じ ctx-txKey 機構（Transactor.WithTx）を
+// 使う（BE9-2D ④b で repo-swap 機構 Repositories.Transaction から移行）。旧実装では
+// treatmentRepository.Create が `r.db.WithContext` 直参照で ambient tx 非参加だったため、
+// WithTx と混在させると別コネクションの INSERT の FK チェック（FOR KEY SHARE）が
+// LockByIDForUpdate の FOR UPDATE と自己デッドロックした（検証中に実際に踏んだ失敗モード）。
+// ④b で treatmentRepository.Create/Update/Delete を dbOrTx 化し解消 — 本テストが WithTx 機構で
+// green であること自体が「treatment 書込が同一 tx に参加している（自己デッドロックしない）」ことの
+// 実 DB 証明を兼ねる。
 //
 // 検証方法（順方向）: 子書込トランザクション（LockByIDForUpdate → 意図的な待機 → Treatment.Create）
 // が行ロックを保持している間、並行する finalize の UPDATE が完全にブロックされ、子書込
@@ -51,7 +53,8 @@ func TestMedicalRecordRepository_LockByIDForUpdate_SerializesFinalizeAgainstChil
 	pet := makeSpeciesAndPet(t, db, clinicID, owner.ID, "X-11 ポチ")
 
 	medRecRepo := NewMedicalRecordRepository(db)
-	repos := NewRepositories(db)
+	treatmentRepo := NewTreatmentRepository(db)
+	transactor := NewTransactor(db)
 	ctx := context.Background()
 
 	petID := pet.ID
@@ -70,8 +73,8 @@ func TestMedicalRecordRepository_LockByIDForUpdate_SerializesFinalizeAgainstChil
 
 	go func() {
 		defer close(childDone)
-		childErr = repos.Transaction(context.Background(), func(txRepos *Repositories) error {
-			parent, err := txRepos.MedicalRecord.LockByIDForUpdate(context.Background(), clinicID, mr.ID)
+		childErr = transactor.WithTx(context.Background(), func(txCtx context.Context) error {
+			parent, err := medRecRepo.LockByIDForUpdate(txCtx, clinicID, mr.ID)
 			if err != nil {
 				return err
 			}
@@ -80,7 +83,7 @@ func TestMedicalRecordRepository_LockByIDForUpdate_SerializesFinalizeAgainstChil
 			if parent.Status == model.MedicalRecordStatusFinalized {
 				return apperrors.WrapConflict("確定済みカルテには治療を追加できません")
 			}
-			return txRepos.Treatment.Create(context.Background(), &model.Treatment{MedicalRecordID: mr.ID})
+			return treatmentRepo.Create(txCtx, &model.Treatment{MedicalRecordID: mr.ID})
 		})
 	}()
 
@@ -133,7 +136,8 @@ func TestMedicalRecordRepository_LockByIDForUpdate_ChildWriteRejectedAfterFinali
 	pet := makeSpeciesAndPet(t, db, clinicID, owner.ID, "X-11 タマ")
 
 	medRecRepo := NewMedicalRecordRepository(db)
-	repos := NewRepositories(db)
+	treatmentRepo := NewTreatmentRepository(db)
+	transactor := NewTransactor(db)
 	ctx := context.Background()
 
 	petID := pet.ID
@@ -148,15 +152,15 @@ func TestMedicalRecordRepository_LockByIDForUpdate_ChildWriteRejectedAfterFinali
 	_, err := medRecRepo.Update(ctx, clinicID, mr.ID, map[string]any{"status": model.MedicalRecordStatusFinalized}, nil)
 	require.NoError(t, err)
 
-	childErr := repos.Transaction(ctx, func(txRepos *Repositories) error {
-		parent, err := txRepos.MedicalRecord.LockByIDForUpdate(ctx, clinicID, mr.ID)
+	childErr := transactor.WithTx(ctx, func(txCtx context.Context) error {
+		parent, err := medRecRepo.LockByIDForUpdate(txCtx, clinicID, mr.ID)
 		if err != nil {
 			return err
 		}
 		if parent.Status == model.MedicalRecordStatusFinalized {
 			return apperrors.WrapConflict("確定済みカルテには治療を追加できません")
 		}
-		return txRepos.Treatment.Create(ctx, &model.Treatment{MedicalRecordID: mr.ID})
+		return treatmentRepo.Create(txCtx, &model.Treatment{MedicalRecordID: mr.ID})
 	})
 
 	require.Error(t, childErr)
@@ -171,7 +175,7 @@ func TestMedicalRecordRepository_LockByIDForUpdate_ChildWriteRejectedAfterFinali
 // H-8f（H-8b の並行性証明）: ChildWriteRejectedAfterFinalizeCommits と同型で、finalize が先に
 // commit した場合、treatment.Delete 経路の tx が LockByIDForUpdate 取得時点で既に
 // status=finalized を観測し、Conflict を返し治療が削除されないことを検証する
-// （treatment_service.go Delete の repo-swap tx を模する）。
+// （treatment_service.go Delete の Transactor.WithTx tx を模する）。
 func TestMedicalRecordRepository_LockByIDForUpdate_TreatmentDeleteRejectedAfterFinalizeCommits(t *testing.T) {
 	db := setupTestDB(t)
 	require.NoError(t, ensureAutoMigrated(db, &model.AnimalSpecies{}, &model.Pet{}))
@@ -181,7 +185,8 @@ func TestMedicalRecordRepository_LockByIDForUpdate_TreatmentDeleteRejectedAfterF
 	pet := makeSpeciesAndPet(t, db, clinicID, owner.ID, "H-8f ポチ")
 
 	medRecRepo := NewMedicalRecordRepository(db)
-	repos := NewRepositories(db)
+	treatmentRepo := NewTreatmentRepository(db)
+	transactor := NewTransactor(db)
 	ctx := context.Background()
 
 	petID := pet.ID
@@ -194,20 +199,20 @@ func TestMedicalRecordRepository_LockByIDForUpdate_TreatmentDeleteRejectedAfterF
 	require.NoError(t, medRecRepo.Create(ctx, mr))
 
 	treatment := &model.Treatment{MedicalRecordID: mr.ID}
-	require.NoError(t, repos.Treatment.Create(ctx, treatment))
+	require.NoError(t, treatmentRepo.Create(ctx, treatment))
 
 	_, err := medRecRepo.Update(ctx, clinicID, mr.ID, map[string]any{"status": model.MedicalRecordStatusFinalized}, nil)
 	require.NoError(t, err)
 
-	childErr := repos.Transaction(ctx, func(txRepos *Repositories) error {
-		parent, err := txRepos.MedicalRecord.LockByIDForUpdate(ctx, clinicID, mr.ID)
+	childErr := transactor.WithTx(ctx, func(txCtx context.Context) error {
+		parent, err := medRecRepo.LockByIDForUpdate(txCtx, clinicID, mr.ID)
 		if err != nil {
 			return err
 		}
 		if parent.Status == model.MedicalRecordStatusFinalized {
 			return apperrors.WrapConflict("確定済みカルテの治療は削除できません")
 		}
-		return txRepos.Treatment.Delete(ctx, clinicID, treatment.ID)
+		return treatmentRepo.Delete(txCtx, clinicID, treatment.ID)
 	})
 
 	require.Error(t, childErr)
@@ -222,7 +227,7 @@ func TestMedicalRecordRepository_LockByIDForUpdate_TreatmentDeleteRejectedAfterF
 // H-8f（H-8c の並行性証明）: ChildWriteRejectedAfterFinalizeCommits と同型で、finalize が先に
 // commit した場合、treatment.BulkUpdateSortOrder 経路の tx が LockByIDForUpdate 取得時点で既に
 // status=finalized を観測し、Conflict を返し並び順が変更されないことを検証する
-// （treatment_service.go BulkUpdateSortOrder の repo-swap tx を模する）。
+// （treatment_service.go BulkUpdateSortOrder の Transactor.WithTx tx を模する）。
 func TestMedicalRecordRepository_LockByIDForUpdate_TreatmentBulkSortOrderRejectedAfterFinalizeCommits(t *testing.T) {
 	db := setupTestDB(t)
 	require.NoError(t, ensureAutoMigrated(db, &model.AnimalSpecies{}, &model.Pet{}))
@@ -232,7 +237,8 @@ func TestMedicalRecordRepository_LockByIDForUpdate_TreatmentBulkSortOrderRejecte
 	pet := makeSpeciesAndPet(t, db, clinicID, owner.ID, "H-8f タマ")
 
 	medRecRepo := NewMedicalRecordRepository(db)
-	repos := NewRepositories(db)
+	treatmentRepo := NewTreatmentRepository(db)
+	transactor := NewTransactor(db)
 	ctx := context.Background()
 
 	petID := pet.ID
@@ -245,21 +251,21 @@ func TestMedicalRecordRepository_LockByIDForUpdate_TreatmentBulkSortOrderRejecte
 	require.NoError(t, medRecRepo.Create(ctx, mr))
 
 	treatment := &model.Treatment{MedicalRecordID: mr.ID, SortOrder: 0}
-	require.NoError(t, repos.Treatment.Create(ctx, treatment))
+	require.NoError(t, treatmentRepo.Create(ctx, treatment))
 
 	_, err := medRecRepo.Update(ctx, clinicID, mr.ID, map[string]any{"status": model.MedicalRecordStatusFinalized}, nil)
 	require.NoError(t, err)
 
 	updates := []TreatmentSortUpdate{{ID: treatment.ID, ClinicID: clinicID, SortOrder: 99}}
-	childErr := repos.Transaction(ctx, func(txRepos *Repositories) error {
-		parent, err := txRepos.MedicalRecord.LockByIDForUpdate(ctx, clinicID, mr.ID)
+	childErr := transactor.WithTx(ctx, func(txCtx context.Context) error {
+		parent, err := medRecRepo.LockByIDForUpdate(txCtx, clinicID, mr.ID)
 		if err != nil {
 			return err
 		}
 		if parent.Status == model.MedicalRecordStatusFinalized {
 			return apperrors.WrapConflict("確定済みカルテの治療は編集できません")
 		}
-		return txRepos.Treatment.BulkUpdateSortOrder(ctx, updates)
+		return treatmentRepo.BulkUpdateSortOrder(txCtx, updates)
 	})
 
 	require.Error(t, childErr)

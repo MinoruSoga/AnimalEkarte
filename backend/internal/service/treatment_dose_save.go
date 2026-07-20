@@ -7,7 +7,6 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository"
 )
 
 // ─── #201 B-2: 保存時 dose 再検証 ──────────────────────────────────────────────
@@ -16,16 +15,17 @@ import (
 // (eval, nil)        : per_weight 対象で再検証成立（snapshot 永続化・逸脱 audit に使用）
 // (nil, nil)         : 非対象（medicine でない/per_weight でない/species 解決不能/体重未記録/param 無し）→ 後方互換の手動入力
 // (nil, err)         : species 不一致など fail-closed すべき安全違反、または読み出し失敗
-// reads は呼び出し側の repos（tx 内なら txRepos）を使う。
+// BE9-2D ④b: 保存 tx（Transactor.WithTx）の txCtx で呼ばれ、各 repo の dbOrTx が同一 tx で読む
+// （読み出しと UPDATE を同一 tx に束ねるスナップショット TOCTOU 防止 = security review MEDIUM-1 を維持）。
 func (s *treatmentService) evaluateDoseForSave(
-	ctx context.Context, repos *repository.Repositories,
+	ctx context.Context,
 	clinicID, medicalRecordID uint64,
 	itemType model.TreatmentItemType, medicineID *uint64, submittedQty float64,
 ) (*SavedDoseEvaluation, error) {
 	if itemType != model.TreatmentItemTypeMedicine || medicineID == nil {
 		return nil, nil
 	}
-	medicine, err := repos.Medicine.FindByID(ctx, clinicID, *medicineID)
+	medicine, err := s.medicineRepo.FindByID(ctx, clinicID, *medicineID)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to load medicine for dose revalidation", "error", err)
 		return nil, apperrors.Wrap(err, "failed to load medicine for dose revalidation")
@@ -35,7 +35,7 @@ func (s *treatmentService) evaluateDoseForSave(
 	}
 
 	// pet species を解決（medical_record → pet → animal_species）。マップ不能は fail-closed（手動）。
-	mr, err := repos.MedicalRecord.FindByID(ctx, clinicID, medicalRecordID)
+	mr, err := s.medicalRecordRepo.FindByID(ctx, clinicID, medicalRecordID)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to load medical record for dose revalidation", "error", err)
 		return nil, apperrors.Wrap(err, "failed to load medical record for dose revalidation")
@@ -51,14 +51,14 @@ func (s *treatmentService) evaluateDoseForSave(
 	}
 
 	// 体重を解決（来院近傍 vital・暫定確定(2026-07-15 PO)）。未記録は fail-closed（手動）。
-	weightKg, weightSource, ok := s.resolveDoseWeight(ctx, repos, clinicID, medicalRecordID)
+	weightKg, weightSource, ok := s.resolveDoseWeight(ctx, clinicID, medicalRecordID)
 	if !ok {
 		slog.InfoContext(ctx, "dose revalidation skipped: weight unavailable", "medical_record_id", medicalRecordID)
 		return nil, nil
 	}
 
 	// pet species で param を引く＝犬↔猫越境を構造的に排除（HIGH-4）。
-	param, err := repos.MedicineDoseParam.FindByMedicineAndSpecies(ctx, clinicID, *medicineID, species)
+	param, err := s.doseParamRepo.FindByMedicineAndSpecies(ctx, clinicID, *medicineID, species)
 	if err != nil {
 		if apperrors.IsNotFound(err) {
 			return nil, nil // この種の param 無し → 手動（fail-closed）
@@ -84,8 +84,8 @@ func (s *treatmentService) evaluateDoseForSave(
 }
 
 // resolveDoseWeight は来院カルテの vital から最新の体重(kg)を解決する（暫定確定(2026-07-15 PO)の安全側デフォルト）。
-func (s *treatmentService) resolveDoseWeight(ctx context.Context, repos *repository.Repositories, clinicID, medicalRecordID uint64) (weightKg float64, source string, ok bool) {
-	vitals, err := repos.Vital.FindByMedicalRecordID(ctx, clinicID, medicalRecordID)
+func (s *treatmentService) resolveDoseWeight(ctx context.Context, clinicID, medicalRecordID uint64) (weightKg float64, source string, ok bool) {
+	vitals, err := s.vitalRepo.FindByMedicalRecordID(ctx, clinicID, medicalRecordID)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to load vitals for dose weight", "error", err)
 		return 0, "", false
@@ -111,12 +111,14 @@ func (s *treatmentService) resolveDoseWeight(ctx context.Context, repos *reposit
 }
 
 // auditDoseDeviationTx は逸脱（過量/過少/著しい上書き）を audit_logs に fail-closed で記録する。
-// BE-refactor.md R1-2 (D1): txRepos.Audit（呼び出し元 repos.Transaction が tx にバインドした
-// Audit リポジトリインスタンス）へ直接 CreateTx する。s.auditSvc は有効/無効フラグとしてのみ使う
-// （struct コメント参照 — LogEntryTx 経由だと ctx に tx が伝播せず fail-closed にならない）。
-// エラーを返すと呼び出し元の repos.Transaction が rollback し、treatment 書込ごと無効になる。
-func (s *treatmentService) auditDoseDeviationTx(ctx context.Context, txRepos *repository.Repositories, clinicID uint64, actorID *uint64, treatmentID, medicineID uint64, eval *SavedDoseEvaluation) error {
-	if s.auditSvc == nil || eval == nil || !eval.IsDeviation() {
+// BE9-2D ④b: 保存 tx（Transactor.WithTx）の txCtx で呼ばれ、AuditTxLogger.LogEntryTx（内部の
+// CreateTx が dbOrTx で ctx の ambient tx に参加）が同一 tx へ書く。旧 repos.Transaction 機構では
+// tx が ctx に伝播せず txRepos.Audit.CreateTx 直呼びが必要だったが、WithTx 化で medicine/dose-param
+// と同じ共有監査カーネル経由（R1-2 (D1)・#211/refund パターン）に統一した。監査ログの内容は
+// 旧実装と同一（LogEntryTx = buildAuditLog + validateAuditLog + CreateTx で処理列も等価）。
+// エラーを返すと呼び出し元の WithTx が rollback し、treatment 書込ごと無効になる。
+func (s *treatmentService) auditDoseDeviationTx(ctx context.Context, clinicID uint64, actorID *uint64, treatmentID, medicineID uint64, eval *SavedDoseEvaluation) error {
+	if s.auditTx == nil || eval == nil || !eval.IsDeviation() {
 		return nil
 	}
 	actorType := auditActorTypeFor(actorID)
@@ -131,11 +133,7 @@ func (s *treatmentService) auditDoseDeviationTx(ctx context.Context, txRepos *re
 		NewValue:   map[string]any{"submitted_quantity": eval.Snapshot.SubmittedQty, "effective_mg": eval.SavedEffectiveMg, "exceeds_max": eval.ExceedsCapSaved, "below_min": eval.BelowMinSaved},
 		Metadata:   map[string]any{"medicine_id": medicineID, "deviation_threshold_pending_operational": true},
 	}
-	log := buildAuditLog(input)
-	if err := validateAuditLog(log); err != nil {
-		return err
-	}
-	if err := txRepos.Audit.CreateTx(ctx, log); err != nil {
+	if err := s.auditTx.LogEntryTx(ctx, input); err != nil {
 		return apperrors.Wrap(err, "failed to write dose deviation audit log")
 	}
 	return nil

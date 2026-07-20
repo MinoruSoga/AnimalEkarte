@@ -33,9 +33,13 @@ func NewVitalRepository(db *gorm.DB) VitalRepository {
 	return &vitalRepository{db: db}
 }
 
+// FindByMedicalRecordID は repohelpers.DBOrTx で ambient tx に参加する（BE9-2D ④b）。
+// treatmentService の dose 体重解決（resolveDoseWeight）が保存 tx 内から読む read で、旧
+// repos.Transaction（tx-bound clone）では暗黙に tx 参加していた。WithTx 化後も同一 tx で読み、
+// 並行 vital 変更による dose スナップショット TOCTOU を作らない（#201 B-2 security review MEDIUM-1）。
 func (r *vitalRepository) FindByMedicalRecordID(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.VitalRecord, error) {
 	vitals := make([]model.VitalRecord, 0)
-	if err := r.db.WithContext(ctx).
+	if err := repohelpers.DBOrTx(ctx, r.db).
 		Scopes(repohelpers.ClinicScope(clinicID)).
 		Where("vital_records.medical_record_id = ? AND vital_records.deleted_at IS NULL", medicalRecordID).
 		Order("vital_records.recorded_at ASC").

@@ -229,9 +229,12 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"trimming_repository.go|appointmentTrimmingDetailRepository.Update":              {},
 	// vital (X-11 Appendix-A finalize-child-write-race fix — same FK-deadlock rationale as examination)
 	// BE9-2D sub-batch④a: moved to internal/medicalrecord (facade kept in internal/repository).
-	"medicalrecord/vital_repository.go|vitalRepository.Create": {},
-	"medicalrecord/vital_repository.go|vitalRepository.Update": {},
-	"medicalrecord/vital_repository.go|vitalRepository.Delete": {},
+	// FindByMedicalRecordID: BE9-2D ④b — treatmentService の dose 体重解決が保存 tx 内から読む
+	// read の tx 参加維持（旧 repos.Transaction の tx-bound clone と等価にする）
+	"medicalrecord/vital_repository.go|vitalRepository.FindByMedicalRecordID": {},
+	"medicalrecord/vital_repository.go|vitalRepository.Create":                {},
+	"medicalrecord/vital_repository.go|vitalRepository.Update":                {},
+	"medicalrecord/vital_repository.go|vitalRepository.Delete":                {},
 	// G6-2 (BE-refactor.md tx-mechanism-consolidation): repo-internal r.db.WithContext(ctx).Transaction
 	// → dbOrTx(ctx, r.db).Transaction conversion, no ambient-tx caller into any of these (verified per-file).
 	"manualarticle/repository.go|repository.Upsert":                                     {}, // BE8-4 batch3: moved from manual_article_repository.go
@@ -239,7 +242,12 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"reservation_schedule_repository.go|reservationScheduleRepository.Save":             {},
 	"reservation_type_liff_repository.go|reservationTypeLiffRepository.UpdateSortOrder": {},
 	"shifttemplate/repository.go|repository.UpdateBreaks":                               {}, // BE8-4 batch12: moved from shift_template_repository.go
-	"treatment_repository.go|treatmentRepository.BulkUpdateSortOrder":                   {},
+	// treatment (BE9-2D ④b: treatmentService の repos.Transaction→Transactor.WithTx 化に伴い、
+	// lockDraftMedicalRecord 行ロック・在庫減算・逸脱監査と同一 ambient tx へ参加させる)
+	"treatment_repository.go|treatmentRepository.Create":              {},
+	"treatment_repository.go|treatmentRepository.Delete":              {},
+	"treatment_repository.go|treatmentRepository.Update":              {},
+	"treatment_repository.go|treatmentRepository.BulkUpdateSortOrder": {},
 	// X-6 (Appendix-A tx-atomicity fix, commit d7eff8c8): medicine/inventory repo-internal
 	// r.db.WithContext(ctx).Transaction → dbOrTx(ctx, r.db).Transaction. Allowlist backfill
 	// discovered during G6-2 (X-6 landed without registering these).

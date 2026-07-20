@@ -276,7 +276,7 @@ func NewServices(repos *repository.Repositories, notifCfg *ReservationNotificati
 		// Vital / MedicalRecordImage / ClinicalPlan: BE9-2D sub-batch④a — service + handler とも
 		// internal/medicalrecord へ移設済み。composition root (cmd/api/main.go) が medicalrecord.NewX
 		// で直接構築する（Services には保持しない）。
-		Treatment:           NewTreatmentServiceWithAudit(repos, auditSvc),
+		Treatment:           NewTreatmentServiceWithAudit(repos.Treatment, repos.MedicalRecord, repos.Medicine, repos.Procedure, repos.Consultation, repos.Inventory, repos.Vital, repos.MedicineDoseParam, tx, auditTxLogger),
 		DailyRecord:         NewDailyRecordService(repos.DailyRecord, repos.Hospitalization, tx),
 		Estimate:            NewEstimateService(repos.Estimate, repos.MedicalRecord, repos.Reservation, repos.StaffClinicAssignment, auditSvc, tx),
 		MerchandiseItem:     NewMerchandiseItemService(repos.MerchandiseItem),
