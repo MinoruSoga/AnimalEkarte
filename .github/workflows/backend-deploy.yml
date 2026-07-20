@@ -1,5 +1,5 @@
 # Cloudflare Workers + Containers デプロイ (migration-cloudflare.md Phase 5 / P5-1)
-# ECS 版は backend-deploy-ecs.yml (workflow_dispatch のみ、ロールバック用)
+# 旧 AWS ECS 版 CI は 2026-07-20 の AWS 廃止(migration-cloudflare.md Phase 8)で削除済み
 
 name: Backend Deploy
 
