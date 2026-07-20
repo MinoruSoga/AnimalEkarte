@@ -72,7 +72,7 @@ grep で先行検出できる P1〜P7 信号を全数計測した。**大半は�
 | P5 単一アクセント（sticker色の構造漏れ） | bg-/border- への sticker/dot 色使用 = **0件**（C1/C5 が既にガード） | ✅ **クリーン** |
 | P2 太枠 | `border-2`/`border-4` = 6箇所 | ✅ **全件正当**（1件ずつ精査済み — スピナーのストローク幅 border-4・破線ドロップゾーン border-2 border-dashed・4×4 チェックボックス枠・選択 pill トグルの状態境界。カードの重枠は 0件。修正なし） |
 | P3 見出し階層（font-bold） | 107件。medical-records×14ファイル・accounting×9・hospitalization×6 に集中。サンプルは `text-sm font-bold` の h2/h3/h4 見出しが多数 | 🔶 **要裁定**（下記） |
-| P6 テーブル chrome | 主要テーブルが `ex-data-table-cell` 準拠（canvas-soft header + eyebrow）か未確認 | 🔶 **ブラウザ/深掘り必須** |
+| P6 テーブル chrome | 静的調査済み: 生 `bg-gray-100` ヘッダ 11件は**全て PrintArea（帳票・印刷面）**でスコープ外。`TABLE_STYLES` に正規ヘッダトークンは無く（row/actionButton のみ）、画面テーブル42部品のヘッダ chrome は grep 照合対象が存在しない | 🔶 **ブラウザ必須**（照合基準が無く各テーブルを視覚判定するしかない） |
 | P7 状態（hover/focus） | focus は FE9-2 で brand teal 統一済み。hover の知覚性は静的判定不能 | 🔶 **ブラウザ必須** |
 
 **font-bold 107件の裁定論点（ユーザー判断が要る）**: §3.4 は「700(font-bold)は title/section 見出し専用」だが、実装は `text-sm font-bold`（15px 見出し）が多い。これは §3.4 の title(20px)/section(18px) ロールに一致しない**カード内サブ見出し**であり、(A) 現状容認（サブ見出しの font-bold は許可）か (B) `font-semibold`(600) へ格下げして 700 を title/section に限定するか、で分岐する。**推奨=A**（サブ見出しの視認性を保つ・107件の一括変更は視覚影響大でリスク）。B を採るなら本文/数値セルに漏れた font-bold のみ抽出して是正（別 batch）。
