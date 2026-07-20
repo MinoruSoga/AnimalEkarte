@@ -122,7 +122,7 @@ describe("AccountingReportsPage カード配置 (#179 ④-b) + 税率設定導�
     // 印刷ポータル(body直下)にも同名テキストが出るため、画面側(ポータル外)のみを対象にする
     const screenKpi = screen.getAllByText("診療日数").find((el) => !printArea.contains(el));
     const screenDailyHeading = screen
-      .getAllByText("日次明細")
+      .getAllByText(/日次明細/)
       .find((el) => !printArea.contains(el));
     expect(screenKpi).toBeDefined();
     expect(screenDailyHeading).toBeDefined();
