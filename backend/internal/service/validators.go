@@ -12,7 +12,8 @@ import (
 const MasterNameMaxLength = sharedkernel.MasterNameMaxLength
 
 // DefaultTaxRate は消費税標準税率。nil 税率時のデフォルト。
-const DefaultTaxRate = 0.10
+// DefaultTaxRate の正本は sharedkernel（⑤で medicalrecord と共有化）。
+const DefaultTaxRate = sharedkernel.DefaultTaxRate
 
 // normalizePagination はページネーションパラメータを正規化する（C-7）。
 // page<=0 は1に、perPage<=0 は defaultPerPage に、perPage>maxPerPage は

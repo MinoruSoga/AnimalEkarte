@@ -323,3 +323,77 @@ func (m *mockMedicineDoseParamRepository) Delete(ctx context.Context, clinicID, 
 	}
 	return m.deleteFn(ctx, clinicID, id)
 }
+
+// ── BE9-2D ⑤ carrier ──
+// mockHospitalizationRepository は旧 hospitalization_service_test.go の同名 mock の残置コピー
+// （accounting_fk_clinic_isolation_test / accounting_service_test が使用・解消=accounting/billing domain 移行時）。
+type mockHospitalizationRepository struct {
+	findAllFn                                func(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status, startDate, endDate *string, page, limit int) ([]model.Hospitalization, int64, error)
+	findByIDFn                               func(ctx context.Context, clinicID, id uint64) (*model.Hospitalization, error)
+	createFn                                 func(ctx context.Context, hospitalization *model.Hospitalization) error
+	updateFieldsFn                           func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Hospitalization, error)
+	updateIfNotDischargedFn                  func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Hospitalization, error)
+	deleteFn                                 func(ctx context.Context, clinicID, id uint64) error
+	countCarePlanItemsByHospitalizationIDFn  func(ctx context.Context, clinicID, hospitalizationID uint64) (int64, error)
+	countDailyRecordsByHospitalizationIDFn   func(ctx context.Context, clinicID, hospitalizationID uint64) (int64, error)
+	countTreatmentPlansByHospitalizationIDFn func(ctx context.Context, clinicID, hospitalizationID uint64) (int64, error)
+}
+
+func (m *mockHospitalizationRepository) FindAll(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status, startDate, endDate *string, page, limit int) ([]model.Hospitalization, int64, error) {
+	return m.findAllFn(ctx, clinicID, petID, ownerID, status, startDate, endDate, page, limit)
+}
+
+func (m *mockHospitalizationRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Hospitalization, error) {
+	if m.findByIDFn != nil {
+		return m.findByIDFn(ctx, clinicID, id)
+	}
+	return nil, nil
+}
+
+func (m *mockHospitalizationRepository) LockByIDForUpdate(ctx context.Context, clinicID, id uint64) (*model.Hospitalization, error) {
+	return m.FindByID(ctx, clinicID, id)
+}
+
+func (m *mockHospitalizationRepository) Create(ctx context.Context, hospitalization *model.Hospitalization) error {
+	return m.createFn(ctx, hospitalization)
+}
+
+func (m *mockHospitalizationRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Hospitalization, error) {
+	return m.updateFieldsFn(ctx, clinicID, id, fields)
+}
+
+func (m *mockHospitalizationRepository) UpdateIfNotDischarged(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Hospitalization, error) {
+	if m.updateIfNotDischargedFn != nil {
+		return m.updateIfNotDischargedFn(ctx, clinicID, id, fields)
+	}
+	return nil, apperrors.WrapNotFound("hospitalization", "updateIfNotDischargedFn not stubbed")
+}
+
+func (m *mockHospitalizationRepository) Delete(ctx context.Context, clinicID, id uint64) error {
+	return m.deleteFn(ctx, clinicID, id)
+}
+
+func (m *mockHospitalizationRepository) CountByCageID(_ context.Context, _, _ uint64) (int64, error) {
+	return 0, nil
+}
+
+func (m *mockHospitalizationRepository) CountCarePlanItemsByHospitalizationID(ctx context.Context, clinicID, hospitalizationID uint64) (int64, error) {
+	if m.countCarePlanItemsByHospitalizationIDFn == nil {
+		return 0, nil
+	}
+	return m.countCarePlanItemsByHospitalizationIDFn(ctx, clinicID, hospitalizationID)
+}
+
+func (m *mockHospitalizationRepository) CountDailyRecordsByHospitalizationID(ctx context.Context, clinicID, hospitalizationID uint64) (int64, error) {
+	if m.countDailyRecordsByHospitalizationIDFn == nil {
+		return 0, nil
+	}
+	return m.countDailyRecordsByHospitalizationIDFn(ctx, clinicID, hospitalizationID)
+}
+
+func (m *mockHospitalizationRepository) CountTreatmentPlansByHospitalizationID(ctx context.Context, clinicID, hospitalizationID uint64) (int64, error) {
+	if m.countTreatmentPlansByHospitalizationIDFn == nil {
+		return 0, nil
+	}
+	return m.countTreatmentPlansByHospitalizationIDFn(ctx, clinicID, hospitalizationID)
+}

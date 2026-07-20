@@ -181,3 +181,29 @@ type treatmentInventoryRepo interface {
 type doseParamFinder interface {
 	FindByMedicineAndSpecies(ctx context.Context, clinicID, medicineID uint64, species model.MedicineDoseSpecies) (*model.MedicineDoseParam, error)
 }
+
+// ── hospitalization/discharge-with-billing consumer-side views (BE9-2D ⑤) ──
+// hospitalizationService moved here from internal/service (Phase 1 で WithTx+個別注入化済み)。
+// hospitalization/hospitalization_plan/daily_record/care_plan_item の各 repository は in-package
+// 具象になったため view 不要。以下は internal/repository に残る依存の最小 view。owner/pet link
+// 検証は sharedkernel.OwnerPetLinkVerifier（repository.ReservationRepository が structural に満たす）。
+
+// cageFinder は入院の CageID master-FK 所有権検証 read view（X-14 同型）。
+type cageFinder interface {
+	FindByID(ctx context.Context, clinicID, id uint64) (*model.Cage, error)
+}
+
+// accountingCreator は DischargeWithBilling の会計レコード作成 write view
+// （repository.AccountingRepository.Create 相当・R1-1 dbOrTx 参加済み）。
+type accountingCreator interface {
+	Create(ctx context.Context, clinicID uint64, billing *model.Billing) error
+}
+
+// billingItemWriter は DischargeWithBilling の明細作成+合計更新 write view
+// （repository.BillingItemRepository の部分集合・R1-1 dbOrTx 参加済み。billing 側の型は
+// import しない — *model.Billing/BillingItem は model 帰属のため ADR-006 の billing→medicalrecord
+// 逆依存禁止に抵触しない）。
+type billingItemWriter interface {
+	Create(ctx context.Context, item *model.BillingItem) error
+	UpdateBillingTotals(ctx context.Context, clinicID, billingID uint64, subtotal, taxTotal, totalAmount int64) error
+}

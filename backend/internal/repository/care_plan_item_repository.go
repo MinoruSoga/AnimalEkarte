@@ -1,102 +1,16 @@
 package repository
 
 import (
-	"context"
-	"fmt"
-
 	"gorm.io/gorm"
 
-	"github.com/animal-ekarte/backend/internal/apperrors"
-	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/medicalrecord"
 )
 
-// CarePlanItemRepository はケアプランアイテムのデータアクセスインターフェース
-type CarePlanItemRepository interface {
-	FindByHospitalizationID(ctx context.Context, clinicID, hospitalizationID uint64) ([]model.CarePlanItem, error)
-	FindByID(ctx context.Context, clinicID, id uint64) (*model.CarePlanItem, error)
-	Create(ctx context.Context, item *model.CarePlanItem) error
-	Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error
-	Delete(ctx context.Context, clinicID, id uint64) error
-}
+// BE9-2D ⑤ Batch A: 実装は internal/medicalrecord/care_plan_item_repository.go へ縦移動済み。
+// 残存呼び出し側互換のための期限付き facade（削除=BE9-2F）。
 
-type carePlanItemRepository struct {
-	db *gorm.DB
-}
+type CarePlanItemRepository = medicalrecord.CarePlanItemRepository
 
-// NewCarePlanItemRepository は CarePlanItemRepository を初期化して返す
 func NewCarePlanItemRepository(db *gorm.DB) CarePlanItemRepository {
-	return &carePlanItemRepository{db: db}
-}
-
-// FindByHospitalizationID は dbOrTx で ambient tx に参加する（BE9-2D ⑤: DischargeWithBilling が
-// FOR UPDATE 保持中に読み billing_items へ変換する read＝旧 repos.Transaction の tx-bound clone と等価維持）。
-func (r *carePlanItemRepository) FindByHospitalizationID(ctx context.Context, clinicID, hospitalizationID uint64) ([]model.CarePlanItem, error) {
-	items := make([]model.CarePlanItem, 0)
-	err := dbOrTx(ctx, r.db).
-		Joins("JOIN hospitalizations ON hospitalizations.id = care_plan_items.hospitalization_id AND hospitalizations.deleted_at IS NULL").
-		Where("hospitalizations.clinic_id = ? AND care_plan_items.hospitalization_id = ?", clinicID, hospitalizationID).
-		Order("care_plan_items.sort_order ASC").
-		Preload("Medicine", "clinic_id = ? AND deleted_at IS NULL", clinicID).
-		Preload("Procedure", "clinic_id = ? AND deleted_at IS NULL", clinicID).
-		Find(&items).Error
-	if err != nil {
-		return nil, apperrors.FromGORM(err, "care_plan_item", "")
-	}
-	return items, nil
-}
-
-func (r *carePlanItemRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.CarePlanItem, error) {
-	var item model.CarePlanItem
-	err := r.db.WithContext(ctx).
-		Joins("JOIN hospitalizations ON hospitalizations.id = care_plan_items.hospitalization_id AND hospitalizations.deleted_at IS NULL").
-		Where("hospitalizations.clinic_id = ? AND care_plan_items.id = ?", clinicID, id).
-		Preload("Medicine", "clinic_id = ? AND deleted_at IS NULL", clinicID).
-		Preload("Procedure", "clinic_id = ? AND deleted_at IS NULL", clinicID).
-		First(&item).Error
-	if err != nil {
-		return nil, apperrors.FromGORM(err, "care_plan_item", fmt.Sprintf("%d", id))
-	}
-	return &item, nil
-}
-
-func (r *carePlanItemRepository) Create(ctx context.Context, item *model.CarePlanItem) error {
-	err := r.db.WithContext(ctx).Create(item).Error
-	if err != nil {
-		return apperrors.FromGORM(err, "care_plan_item", "")
-	}
-	return nil
-}
-
-func (r *carePlanItemRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
-	// NOTE: GORM does not propagate Joins() into the generated UPDATE statement's SQL
-	// (it is a SELECT-only clause), so a WHERE referencing the joined table fails with
-	// "missing FROM-clause entry". clinic_id isolation must be expressed as a subquery instead.
-	result := r.db.WithContext(ctx).
-		Model(&model.CarePlanItem{}).
-		Where("care_plan_items.id = ? AND care_plan_items.hospitalization_id IN (SELECT id FROM hospitalizations WHERE clinic_id = ? AND deleted_at IS NULL)", id, clinicID).
-		Updates(fields)
-	if result.Error != nil {
-		return apperrors.FromGORM(result.Error, "care_plan_item", fmt.Sprintf("%d", id))
-	}
-	if result.RowsAffected == 0 {
-		return apperrors.WrapNotFound("care_plan_item", fmt.Sprintf("%d", id))
-	}
-	return nil
-}
-
-func (r *carePlanItemRepository) Delete(ctx context.Context, clinicID, id uint64) error {
-	// NOTE: see Update — Joins() does not propagate into DELETE's SQL either.
-	// .Unscoped() is a no-op here (CarePlanItem has no DeletedAt field, i.e. it is a hard-delete
-	// model already) but is kept to make that intent explicit for future maintainers.
-	result := r.db.WithContext(ctx).
-		Where("care_plan_items.id = ? AND care_plan_items.hospitalization_id IN (SELECT id FROM hospitalizations WHERE clinic_id = ? AND deleted_at IS NULL)", id, clinicID).
-		Unscoped().
-		Delete(&model.CarePlanItem{})
-	if result.Error != nil {
-		return apperrors.FromGORM(result.Error, "care_plan_item", fmt.Sprintf("%d", id))
-	}
-	if result.RowsAffected == 0 {
-		return apperrors.WrapNotFound("care_plan_item", fmt.Sprintf("%d", id))
-	}
-	return nil
+	return medicalrecord.NewCarePlanItemRepository(db)
 }

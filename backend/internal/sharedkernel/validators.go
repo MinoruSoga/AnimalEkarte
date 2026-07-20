@@ -10,6 +10,9 @@ import (
 	"github.com/animal-ekarte/backend/internal/apperrors"
 )
 
+// DefaultTaxRate はデフォルト税率（外税10%・billing/discharge 系の共有定数）。
+const DefaultTaxRate = 0.10
+
 // MasterNameMaxLength は各マスタ name カラム（VARCHAR(255)）に合わせた上限（BUG-379）。
 const MasterNameMaxLength = 255
 

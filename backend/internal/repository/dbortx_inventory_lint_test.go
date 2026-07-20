@@ -107,14 +107,14 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"campaign/repository.go|repository.FindApplicableForItem":    {}, // BE8-4 batch9: moved from campaign_repository.go
 	"campaign/repository.go|repository.ReplaceTargets":           {}, // BE8-4 batch9: moved from campaign_repository.go; G6-2 repo-internal tx replace
 	// daily_record (AUD-006: FindOrCreate+CreateVital same ambient tx)
-	"dailyrecord/repository.go|repository.CreateVitalRecord":  {}, // BE8-4 batch6: moved from daily_record_repository.go
-	"dailyrecord/repository.go|repository.FindOrCreateByDate": {}, // BE8-4 batch6: moved from daily_record_repository.go
+	"medicalrecord/daily_record_repository.go|dailyRecordRepository.CreateVitalRecord":  {}, // BE8-4 batch6: moved from daily_record_repository.go
+	"medicalrecord/daily_record_repository.go|dailyRecordRepository.FindOrCreateByDate": {}, // BE8-4 batch6: moved from daily_record_repository.go
 	// care_plan_item / hospitalization (BE9-2D ⑤: DischargeWithBilling の repos.Transaction→
 	// Transactor.WithTx 化。FOR UPDATE 直列化・退院status更新・care plan read を billing 書込と
 	// 同一 ambient tx に参加させる＝二重会計防止)
-	"care_plan_item_repository.go|carePlanItemRepository.FindByHospitalizationID":   {},
-	"hospitalization_repository.go|hospitalizationRepository.LockByIDForUpdate":     {},
-	"hospitalization_repository.go|hospitalizationRepository.UpdateIfNotDischarged": {},
+	"medicalrecord/care_plan_item_repository.go|carePlanItemRepository.FindByHospitalizationID":   {},
+	"medicalrecord/hospitalization_repository.go|hospitalizationRepository.LockByIDForUpdate":     {},
+	"medicalrecord/hospitalization_repository.go|hospitalizationRepository.UpdateIfNotDischarged": {},
 	// checkup_field (#211 tx-internal replace)
 	"medicalrecord/checkup_field_repository.go|checkupFieldResultRepository.FindByCheckupID":   {},
 	"medicalrecord/checkup_field_repository.go|checkupFieldResultRepository.ReplaceForCheckup": {},

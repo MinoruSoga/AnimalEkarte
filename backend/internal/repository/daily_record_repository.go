@@ -3,15 +3,15 @@ package repository
 import (
 	"gorm.io/gorm"
 
-	"github.com/animal-ekarte/backend/internal/repository/dailyrecord"
+	"github.com/animal-ekarte/backend/internal/medicalrecord"
 )
 
-// DailyRecordRepository is a stable facade alias for the dailyrecord domain
-// package (BE8-4). Service/handler imports keep using repository.* so the split
-// does not churn all importers.
-type DailyRecordRepository = dailyrecord.Repository
+// BE9-2D ⑤ Batch A: dailyrecord subpackage を internal/medicalrecord へ roll-up。
+// 残存呼び出し側互換のための期限付き facade（削除=BE9-2F）。
+
+type DailyRecordRepository = medicalrecord.DailyRecordRepository
 
 // NewDailyRecordRepository constructs the daily record repository.
 func NewDailyRecordRepository(db *gorm.DB) DailyRecordRepository {
-	return dailyrecord.New(db)
+	return medicalrecord.NewDailyRecordRepository(db)
 }

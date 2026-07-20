@@ -26,23 +26,27 @@ type PermissionMiddleware func(resource, action string) gin.HandlerFunc
 // only holds the service(s) it actually needs (Go/Gin guideline: consumer declares minimal
 // dependencies) — Handler is purely a routing composition, not a new aggregate.
 type Handler struct {
-	diagnosis          *DiagnosisHandler
-	examType           *ExamTypeHandler
-	chiefComplaint     *ChiefComplaintHandler
-	checkup            *CheckupHandler
-	checkupType        *CheckupTypeHandler
-	vaccine            *VaccineHandler
-	vaccination        *VaccinationHandler
-	prescription       *PrescriptionHandler
-	inquiry            *InquiryHandler
-	inquiryTemplate    *InquiryTemplateHandler
-	labImport          *LabImportHandler
-	labReport          *LabReportHandler
-	vital              *VitalHandler
-	clinicalPlan       *ClinicalPlanHandler
-	medicalRecordImage *MedicalRecordImageHandler
-	treatment          *TreatmentHandler
-	requirePermission  PermissionMiddleware
+	diagnosis           *DiagnosisHandler
+	examType            *ExamTypeHandler
+	chiefComplaint      *ChiefComplaintHandler
+	checkup             *CheckupHandler
+	checkupType         *CheckupTypeHandler
+	vaccine             *VaccineHandler
+	vaccination         *VaccinationHandler
+	prescription        *PrescriptionHandler
+	inquiry             *InquiryHandler
+	inquiryTemplate     *InquiryTemplateHandler
+	labImport           *LabImportHandler
+	labReport           *LabReportHandler
+	vital               *VitalHandler
+	clinicalPlan        *ClinicalPlanHandler
+	medicalRecordImage  *MedicalRecordImageHandler
+	treatment           *TreatmentHandler
+	hospitalization     *HospitalizationHandler
+	hospitalizationPlan *HospitalizationPlanHandler
+	dailyRecord         *DailyRecordHandler
+	carePlanItem        *CarePlanItemHandler
+	requirePermission   PermissionMiddleware
 }
 
 // NewHandler initializes a Handler.
@@ -63,26 +67,34 @@ func NewHandler(
 	clinicalPlan *ClinicalPlanHandler,
 	medicalRecordImage *MedicalRecordImageHandler,
 	treatment *TreatmentHandler,
+	hospitalization *HospitalizationHandler,
+	hospitalizationPlan *HospitalizationPlanHandler,
+	dailyRecord *DailyRecordHandler,
+	carePlanItem *CarePlanItemHandler,
 	requirePermission PermissionMiddleware,
 ) *Handler {
 	return &Handler{
-		diagnosis:          diagnosis,
-		examType:           examType,
-		chiefComplaint:     chiefComplaint,
-		checkup:            checkup,
-		checkupType:        checkupType,
-		vaccine:            vaccine,
-		vaccination:        vaccination,
-		prescription:       prescription,
-		inquiry:            inquiry,
-		inquiryTemplate:    inquiryTemplate,
-		labImport:          labImport,
-		labReport:          labReport,
-		vital:              vital,
-		clinicalPlan:       clinicalPlan,
-		medicalRecordImage: medicalRecordImage,
-		treatment:          treatment,
-		requirePermission:  requirePermission,
+		diagnosis:           diagnosis,
+		examType:            examType,
+		chiefComplaint:      chiefComplaint,
+		checkup:             checkup,
+		checkupType:         checkupType,
+		vaccine:             vaccine,
+		vaccination:         vaccination,
+		prescription:        prescription,
+		inquiry:             inquiry,
+		inquiryTemplate:     inquiryTemplate,
+		labImport:           labImport,
+		labReport:           labReport,
+		vital:               vital,
+		clinicalPlan:        clinicalPlan,
+		medicalRecordImage:  medicalRecordImage,
+		treatment:           treatment,
+		hospitalization:     hospitalization,
+		hospitalizationPlan: hospitalizationPlan,
+		dailyRecord:         dailyRecord,
+		carePlanItem:        carePlanItem,
+		requirePermission:   requirePermission,
 	}
 }
 
@@ -226,6 +238,38 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	// gin 上で path merge され共存する（/medical-records group の既存共存と同型・param 名 :id 一致）。
 	pets := rg.Group("/pets")
 	pets.GET("/:id/treatment-history", perm(model.ResourceMedicalRecords, "view"), h.treatment.ListPetTreatmentHistory)
+
+	// Hospitalization Plans master (BE9-2D ⑤: moved from master_routes.go;
+	// ResourceMasterHospitalization parity 逐語転記).
+	masters.GET("/hospitalization-plans", perm(model.ResourceMasterHospitalization, "view"), h.hospitalizationPlan.ListHospitalizationPlans)
+	masters.POST("/hospitalization-plans", perm(model.ResourceMasterHospitalization, "create"), h.hospitalizationPlan.CreateHospitalizationPlan)
+	masters.PATCH("/hospitalization-plans/reorder", perm(model.ResourceMasterHospitalization, "edit"), h.hospitalizationPlan.ReorderHospitalizationPlans)
+	masters.GET("/hospitalization-plans/:id", perm(model.ResourceMasterHospitalization, "view"), h.hospitalizationPlan.GetHospitalizationPlan)
+	masters.PATCH("/hospitalization-plans/:id", perm(model.ResourceMasterHospitalization, "edit"), h.hospitalizationPlan.UpdateHospitalizationPlan)
+	masters.DELETE("/hospitalization-plans/:id", perm(model.ResourceMasterHospitalization, "delete"), h.hospitalizationPlan.DeleteHospitalizationPlan)
+
+	// Hospitalizations + nested daily-records / care-plan-items (BE9-2D ⑤: moved from
+	// handler.go registerHospitalizationRoutesWithAuth / RegisterDailyRecordRoutes /
+	// RegisterCarePlanItemRoutes; ResourceHospitalization per-route parity 逐語転記。
+	// treatment-plan sub-resource は internal/handler 残置——/hospitalizations group は
+	// gin path merge で共存・param 名 :id 一致)。
+	hospitalizations := rg.Group("/hospitalizations")
+	hospitalizations.GET("", perm(model.ResourceHospitalization, "view"), h.hospitalization.ListHospitalizations)
+	hospitalizations.GET("/:id", perm(model.ResourceHospitalization, "view"), h.hospitalization.GetHospitalization)
+	hospitalizations.POST("", perm(model.ResourceHospitalization, "create"), h.hospitalization.CreateHospitalization)
+	hospitalizations.PATCH("/:id", perm(model.ResourceHospitalization, "edit"), h.hospitalization.UpdateHospitalization)
+	hospitalizations.DELETE("/:id", perm(model.ResourceHospitalization, "delete"), h.hospitalization.DeleteHospitalization)
+	hospitalizations.POST("/:id/discharge-with-billing", perm(model.ResourceHospitalization, "edit"), h.hospitalization.DischargeWithBilling)
+	hospitalizations.GET("/:id/daily-records", perm(model.ResourceHospitalization, "view"), h.dailyRecord.ListDailyRecords)
+	hospitalizations.POST("/:id/daily-records", perm(model.ResourceHospitalization, "create"), h.dailyRecord.CreateDailyRecord)
+	hospitalizations.GET("/:id/daily-records/:date", perm(model.ResourceHospitalization, "view"), h.dailyRecord.GetDailyRecord)
+	hospitalizations.POST("/:id/daily-records/:date/vitals", perm(model.ResourceHospitalization, "create"), h.dailyRecord.AddVitalRecord)
+	hospitalizations.POST("/:id/daily-records/:date/care-logs", perm(model.ResourceHospitalization, "create"), h.dailyRecord.AddCareLog)
+	hospitalizations.POST("/:id/daily-records/:date/staff-notes", perm(model.ResourceHospitalization, "create"), h.dailyRecord.AddStaffNote)
+	hospitalizations.GET("/:id/care-plan-items", perm(model.ResourceHospitalization, "view"), h.carePlanItem.ListCarePlanItems)
+	hospitalizations.POST("/:id/care-plan-items", perm(model.ResourceHospitalization, "create"), h.carePlanItem.CreateCarePlanItem)
+	hospitalizations.PATCH("/:id/care-plan-items/:itemId", perm(model.ResourceHospitalization, "edit"), h.carePlanItem.UpdateCarePlanItem)
+	hospitalizations.DELETE("/:id/care-plan-items/:itemId", perm(model.ResourceHospitalization, "delete"), h.carePlanItem.DeleteCarePlanItem)
 
 	// Lab import saga (BE9-2D sub-batch③: moved from internal/handler lab_import_handler.go
 	// RegisterLabImportRoutes). All routes guard ResourceLabImport (preview/commit=create,

@@ -2,13 +2,13 @@ package service
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
 	"time"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/repository"
+	"github.com/animal-ekarte/backend/internal/sharedkernel"
 )
 
 // allowedReservationRoutes は予約経路の許可値ホワイトリスト（FEAT-381-2 Commit 3）。
@@ -159,24 +159,11 @@ func resolveFinalOwnerPet(current *model.Reservation, input *UpdateReservationIn
 	return ownerID, petID
 }
 
-// validateReservationOwnerPetLinks は request 由来 Owner/Pet の clinic 所有と Owner-Pet 整合を検証する（AUD-001）。
-// 別 clinic と未存在は区別せず NotFound 系で返す。nil 関連は既存契約どおり許可する。
+// validateReservationOwnerPetLinks は sharedkernel.ValidateReservationOwnerPetLinks への
+// 既存呼び出し面互換 delegate（実装正本は sharedkernel・BE9-2D ⑤ Batch B 昇格。
+// medicalrecord の hospitalization 系と恒久共有のため）。
 func validateReservationOwnerPetLinks(ctx context.Context, repo repository.ReservationRepository, clinicID uint64, ownerID, petID *uint64) error {
-	if ownerID != nil {
-		if err := repo.AssertOwnerInClinic(ctx, clinicID, *ownerID); err != nil {
-			return apperrors.Wrap(err, "failed to verify owner ownership")
-		}
-	}
-	if petID != nil {
-		petOwnerID, err := repo.FindPetOwnerInClinic(ctx, clinicID, *petID)
-		if err != nil {
-			return apperrors.Wrap(err, "failed to verify pet ownership")
-		}
-		if ownerID != nil && petOwnerID != *ownerID {
-			return apperrors.WrapNotFound("pet", fmt.Sprintf("%d", *petID))
-		}
-	}
-	return nil
+	return sharedkernel.ValidateReservationOwnerPetLinks(ctx, repo, clinicID, ownerID, petID)
 }
 
 func (s *reservationService) List(ctx context.Context, clinicIDs []uint64, page, limit int, date, startDate, endDate *time.Time, status, source *string, petID, ownerID *uint64) ([]model.Reservation, int64, error) {

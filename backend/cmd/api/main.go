@@ -332,6 +332,17 @@ func main() {
 	// treatment (BE9-2D sub-batch④b): Phase 1 で WithTx+個別依存化済みの service を移動後、
 	// cross-package 依存は Batch A facade alias（repos.Treatment 等）の具象を structural typing で
 	// 注入する。audit は checkupFieldResult と同じ medicalRecordAuditTxAdapter 経由（tx 内 fail-closed）。
+	// hospitalization slice (BE9-2D ⑤): Phase 1 で WithTx+個別依存化済みの4 serviceを移動後、
+	// cross-package 依存（reservation/pet/cage/accounting/billingItem）は facade 具象の
+	// structural typing 注入。owner/pet link 検証は sharedkernel.OwnerPetLinkVerifier。
+	hospitalizationSvc := medicalrecord.NewHospitalizationService(
+		repos.Hospitalization, repos.Reservation, repos.Pet, repos.Cage,
+		repos.CarePlanItem, repos.Accounting, repos.BillingItem, mrTx)
+	// treatment_plan_handler（internal/handler 残置・④外）が入院所有権検証に使うため Services へ注入。
+	svcs.Hospitalization = hospitalizationSvc
+	hospitalizationPlanSvc := medicalrecord.NewHospitalizationPlanService(repos.HospitalizationPlan)
+	dailyRecordSvc := medicalrecord.NewDailyRecordService(repos.DailyRecord, repos.Hospitalization, mrTx)
+	carePlanItemSvc := medicalrecord.NewCarePlanItemService(repos.CarePlanItem, repos.Hospitalization, repos.Medicine, repos.Procedure, repos.HospitalizationPlan)
 	treatmentSvc := medicalrecord.NewTreatmentServiceWithAudit(
 		repos.Treatment, repos.MedicalRecord, repos.Medicine, repos.Procedure, repos.Consultation,
 		repos.Inventory, repos.Vital, repos.MedicineDoseParam, mrTx, medicalRecordAuditTxAdapter{inner: mrAuditTxLogger})
@@ -356,6 +367,10 @@ func main() {
 		medicalrecord.NewClinicalPlanHandler(clinicalPlanSvc),
 		medicalrecord.NewMedicalRecordImageHandler(medicalRecordImageSvc, svcs.MedicalRecord, uploader),
 		medicalrecord.NewTreatmentHandler(treatmentSvc, h.HasPermission),
+		medicalrecord.NewHospitalizationHandler(hospitalizationSvc),
+		medicalrecord.NewHospitalizationPlanHandler(hospitalizationPlanSvc),
+		medicalrecord.NewDailyRecordHandler(dailyRecordSvc),
+		medicalrecord.NewCarePlanItemHandler(carePlanItemSvc),
 		h.RequirePermission,
 	)
 	medicalRecordHandler.RegisterRoutes(protected)

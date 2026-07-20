@@ -48,6 +48,10 @@ func TestRegisterRoutes_Snapshot(t *testing.T) {
 		NewClinicalPlanHandler(nil),
 		NewMedicalRecordImageHandler(nil, nil, nil),
 		NewTreatmentHandler(nil, nil),
+		NewHospitalizationHandler(nil),
+		NewHospitalizationPlanHandler(nil),
+		NewDailyRecordHandler(nil),
+		NewCarePlanItemHandler(nil),
 		noopPermission,
 	)
 
@@ -63,11 +67,14 @@ func TestRegisterRoutes_Snapshot(t *testing.T) {
 	got := strings.Join(lines, "\n") + "\n"
 
 	want := "" +
+		"DELETE /api/v1/hospitalizations/:id DeleteHospitalization\n" +
+		"DELETE /api/v1/hospitalizations/:id/care-plan-items/:itemId DeleteCarePlanItem\n" +
 		"DELETE /api/v1/masters/checkup-types/:id DeleteCheckupType\n" +
 		"DELETE /api/v1/masters/chief-complaint-types/:id DeleteChiefComplaint\n" +
 		"DELETE /api/v1/masters/diagnosis-names/:id DeleteDiagnosisName\n" +
 		"DELETE /api/v1/masters/diagnosis-types/:id DeleteDiagnosisType\n" +
 		"DELETE /api/v1/masters/examination-types/:id DeleteExaminationType\n" +
+		"DELETE /api/v1/masters/hospitalization-plans/:id DeleteHospitalizationPlan\n" +
 		"DELETE /api/v1/masters/inquiry-templates/:id DeleteInquiryTemplate\n" +
 		"DELETE /api/v1/masters/vaccines/:id DeleteVaccine\n" +
 		"DELETE /api/v1/medical-records/:id/checkups/:checkupId DeleteCheckup\n" +
@@ -79,6 +86,11 @@ func TestRegisterRoutes_Snapshot(t *testing.T) {
 		"DELETE /api/v1/vaccinations/:id DeleteVaccination\n" +
 		"GET /api/v1/checkups ListGlobalCheckups\n" +
 		"GET /api/v1/checkups/field-results ListPetCheckupResults\n" +
+		"GET /api/v1/hospitalizations ListHospitalizations\n" +
+		"GET /api/v1/hospitalizations/:id GetHospitalization\n" +
+		"GET /api/v1/hospitalizations/:id/care-plan-items ListCarePlanItems\n" +
+		"GET /api/v1/hospitalizations/:id/daily-records ListDailyRecords\n" +
+		"GET /api/v1/hospitalizations/:id/daily-records/:date GetDailyRecord\n" +
 		"GET /api/v1/lab-imports/:job_id GetLabImportJob\n" +
 		"GET /api/v1/lab-imports/:job_id/events ListLabImportEvents\n" +
 		"GET /api/v1/lab-reports/exams/:exam_id GetLabExamReport\n" +
@@ -95,6 +107,8 @@ func TestRegisterRoutes_Snapshot(t *testing.T) {
 		"GET /api/v1/masters/diagnosis-types/:id GetDiagnosisType\n" +
 		"GET /api/v1/masters/examination-types ListExaminationTypes\n" +
 		"GET /api/v1/masters/examination-types/:id GetExaminationType\n" +
+		"GET /api/v1/masters/hospitalization-plans ListHospitalizationPlans\n" +
+		"GET /api/v1/masters/hospitalization-plans/:id GetHospitalizationPlan\n" +
 		"GET /api/v1/masters/inquiry-templates ListInquiryTemplates\n" +
 		"GET /api/v1/masters/inquiry-templates/:id GetInquiryTemplate\n" +
 		"GET /api/v1/masters/vaccines ListVaccines\n" +
@@ -109,6 +123,8 @@ func TestRegisterRoutes_Snapshot(t *testing.T) {
 		"GET /api/v1/pets/:id/treatment-history ListPetTreatmentHistory\n" +
 		"GET /api/v1/vaccinations ListVaccinations\n" +
 		"GET /api/v1/vaccinations/:id GetVaccination\n" +
+		"PATCH /api/v1/hospitalizations/:id UpdateHospitalization\n" +
+		"PATCH /api/v1/hospitalizations/:id/care-plan-items/:itemId UpdateCarePlanItem\n" +
 		"PATCH /api/v1/masters/checkup-types/:id UpdateCheckupType\n" +
 		"PATCH /api/v1/masters/checkup-types/reorder ReorderCheckupTypes\n" +
 		"PATCH /api/v1/masters/chief-complaint-types/:id UpdateChiefComplaint\n" +
@@ -119,6 +135,8 @@ func TestRegisterRoutes_Snapshot(t *testing.T) {
 		"PATCH /api/v1/masters/diagnosis-types/reorder ReorderDiagnosisTypes\n" +
 		"PATCH /api/v1/masters/examination-types/:id UpdateExaminationType\n" +
 		"PATCH /api/v1/masters/examination-types/reorder ReorderExaminationTypes\n" +
+		"PATCH /api/v1/masters/hospitalization-plans/:id UpdateHospitalizationPlan\n" +
+		"PATCH /api/v1/masters/hospitalization-plans/reorder ReorderHospitalizationPlans\n" +
 		"PATCH /api/v1/masters/inquiry-templates/:id UpdateInquiryTemplate\n" +
 		"PATCH /api/v1/masters/inquiry-templates/reorder ReorderInquiryTemplates\n" +
 		"PATCH /api/v1/masters/vaccines/:id UpdateVaccine\n" +
@@ -130,6 +148,13 @@ func TestRegisterRoutes_Snapshot(t *testing.T) {
 		"PATCH /api/v1/medical-records/:id/treatments/:treatmentId UpdateTreatment\n" +
 		"PATCH /api/v1/medical-records/:id/vitals/:vitalId UpdateVital\n" +
 		"PATCH /api/v1/vaccinations/:id UpdateVaccination\n" +
+		"POST /api/v1/hospitalizations CreateHospitalization\n" +
+		"POST /api/v1/hospitalizations/:id/care-plan-items CreateCarePlanItem\n" +
+		"POST /api/v1/hospitalizations/:id/daily-records CreateDailyRecord\n" +
+		"POST /api/v1/hospitalizations/:id/daily-records/:date/care-logs AddCareLog\n" +
+		"POST /api/v1/hospitalizations/:id/daily-records/:date/staff-notes AddStaffNote\n" +
+		"POST /api/v1/hospitalizations/:id/daily-records/:date/vitals AddVitalRecord\n" +
+		"POST /api/v1/hospitalizations/:id/discharge-with-billing DischargeWithBilling\n" +
 		"POST /api/v1/lab-imports CommitLabImport\n" +
 		"POST /api/v1/lab-imports/preview PreviewLabImport\n" +
 		"POST /api/v1/masters/checkup-types CreateCheckupType\n" +
@@ -137,6 +162,7 @@ func TestRegisterRoutes_Snapshot(t *testing.T) {
 		"POST /api/v1/masters/diagnosis-names CreateDiagnosisName\n" +
 		"POST /api/v1/masters/diagnosis-types CreateDiagnosisType\n" +
 		"POST /api/v1/masters/examination-types CreateExaminationType\n" +
+		"POST /api/v1/masters/hospitalization-plans CreateHospitalizationPlan\n" +
 		"POST /api/v1/masters/inquiry-templates CreateInquiryTemplate\n" +
 		"POST /api/v1/masters/vaccines CreateVaccine\n" +
 		"POST /api/v1/medical-records/:id/checkups CreateCheckup\n" +
@@ -150,7 +176,7 @@ func TestRegisterRoutes_Snapshot(t *testing.T) {
 		"PUT /api/v1/medical-records/:id/treatments BulkUpdateTreatments\n"
 
 	assert.Equal(t, want, got, "medicalrecord route snapshot drifted from the pre-move baseline "+
-		"(internal/handler/testdata/route_snapshot.golden, before these 85 lines were removed)")
+		"(internal/handler/testdata/route_snapshot.golden, before these 107 lines were removed)")
 }
 
 // lastHandlerSegment mirrors internal/handler/handler_routes_snapshot_test.go's helper of the

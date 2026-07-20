@@ -115,12 +115,7 @@ func (h *Handler) RegisterMasterRoutes(rg *gin.RouterGroup) {
 	masters.DELETE("/procedures/:id", perm(model.ResourceMasterMedical, "delete"), h.DeleteProcedure)
 
 	// Hospitalization Plans
-	masters.GET("/hospitalization-plans", perm(model.ResourceMasterHospitalization, "view"), h.ListHospitalizationPlans)
-	masters.POST("/hospitalization-plans", perm(model.ResourceMasterHospitalization, "create"), h.CreateHospitalizationPlan)
-	masters.PATCH("/hospitalization-plans/reorder", perm(model.ResourceMasterHospitalization, "edit"), h.ReorderHospitalizationPlans)
-	masters.GET("/hospitalization-plans/:id", perm(model.ResourceMasterHospitalization, "view"), h.GetHospitalizationPlan)
-	masters.PATCH("/hospitalization-plans/:id", perm(model.ResourceMasterHospitalization, "edit"), h.UpdateHospitalizationPlan)
-	masters.DELETE("/hospitalization-plans/:id", perm(model.ResourceMasterHospitalization, "delete"), h.DeleteHospitalizationPlan)
+	// hospitalization-plans: BE9-2D ⑤ で internal/medicalrecord の RegisterRoutes へ移動。
 
 	// Trimming Courses
 	masters.GET("/trimming-courses", perm(model.ResourceMasterTrimming, "view"), h.ListTrimmingCourses)

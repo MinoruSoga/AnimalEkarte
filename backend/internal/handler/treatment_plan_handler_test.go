@@ -17,6 +17,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/medicalrecord"
 	"github.com/animal-ekarte/backend/internal/service"
 )
 
@@ -68,7 +69,7 @@ func (m *mockTreatmentPlanService) Delete(ctx context.Context, clinicID, id uint
 // reused here; note that its getByIDFn field has no nil-safe default, so every test case in
 // this file that reaches Hospitalization.GetByID must set it explicitly.)
 
-func newHandlerWithTreatmentPlanSvc(tpSvc service.TreatmentPlanService, hospSvc service.HospitalizationService, mrSvc service.MedicalRecordService, effPerm service.EffectivePermissionService) *Handler {
+func newHandlerWithTreatmentPlanSvc(tpSvc service.TreatmentPlanService, hospSvc medicalrecord.HospitalizationService, mrSvc service.MedicalRecordService, effPerm service.EffectivePermissionService) *Handler {
 	return &Handler{svc: &service.Services{
 		TreatmentPlan:       tpSvc,
 		Hospitalization:     hospSvc,

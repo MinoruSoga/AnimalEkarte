@@ -237,18 +237,11 @@ func (h *Handler) registerMedicalRecordRoutesWithAuth(rg *gin.RouterGroup) {
 	h.RegisterMedicalRecordAddendumRoutes(records)
 }
 
-// registerHospitalizationRoutesWithAuth は入院ルートに RBAC 権限チェックを適用する（BUG-125: CRUD個別ガード）
+// registerHospitalizationRoutesWithAuth: BE9-2D ⑤ で入院本体/daily-records/care-plan-items は
+// internal/medicalrecord の RegisterRoutes へ移動。treatment-plan（④外・後続バッチ）のみ残置。
+// /hospitalizations group は gin の path merge で medicalrecord 側と共存する（/pets 先例）。
 func (h *Handler) registerHospitalizationRoutesWithAuth(rg *gin.RouterGroup) {
 	hospitalizations := rg.Group("/hospitalizations")
-	hospitalizations.GET("", h.RequirePermission(string(model.ResourceHospitalization), "view"), h.ListHospitalizations)
-	hospitalizations.GET("/:id", h.RequirePermission(string(model.ResourceHospitalization), "view"), h.GetHospitalization)
-	hospitalizations.POST("", h.RequirePermission(string(model.ResourceHospitalization), "create"), h.CreateHospitalization)
-	hospitalizations.PATCH("/:id", h.RequirePermission(string(model.ResourceHospitalization), "edit"), h.UpdateHospitalization)
-	hospitalizations.DELETE("/:id", h.RequirePermission(string(model.ResourceHospitalization), "delete"), h.DeleteHospitalization)
-	hospitalizations.POST("/:id/discharge-with-billing", h.RequirePermission(string(model.ResourceHospitalization), "edit"), h.DischargeWithBilling)
-
-	h.RegisterDailyRecordRoutes(hospitalizations)
-	h.RegisterCarePlanItemRoutes(hospitalizations)
 	h.RegisterTreatmentPlanHospitalizationRoutes(hospitalizations)
 }
 

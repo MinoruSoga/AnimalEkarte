@@ -13,8 +13,6 @@ DELETE /api/v1/closing-settings/holidays/:date DeleteClinicHoliday
 DELETE /api/v1/closing-settings/special-periods/:id DeleteSpecialPeriod
 DELETE /api/v1/estimates/:id DeleteEstimate
 DELETE /api/v1/examinations/:id DeleteExamination
-DELETE /api/v1/hospitalizations/:id DeleteHospitalization
-DELETE /api/v1/hospitalizations/:id/care-plan-items/:itemId DeleteCarePlanItem
 DELETE /api/v1/hospitalizations/:id/treatment-plans/:planId DeleteTreatmentPlanInHospitalization
 DELETE /api/v1/inventory/:id DeleteInventory
 DELETE /api/v1/lstep-settings DeleteLstepSettings
@@ -25,7 +23,6 @@ DELETE /api/v1/masters/animal-species/:id DeleteAnimalSpecies
 DELETE /api/v1/masters/cages/:id DeleteCage
 DELETE /api/v1/masters/campaigns/:id DeleteCampaign
 DELETE /api/v1/masters/consultations/:id DeleteConsultation
-DELETE /api/v1/masters/hospitalization-plans/:id DeleteHospitalizationPlan
 DELETE /api/v1/masters/insurances/:id DeleteInsurance
 DELETE /api/v1/masters/medicines/:id DeleteMedicine
 DELETE /api/v1/masters/medicines/:id/dose-params/:species DeleteMedicineDoseParam
@@ -112,11 +109,6 @@ GET /api/v1/estimates/:id GetEstimate
 GET /api/v1/examinations ListExaminations
 GET /api/v1/examinations/:id GetExamination
 GET /api/v1/examinations/:id/items ListExaminationItems
-GET /api/v1/hospitalizations ListHospitalizations
-GET /api/v1/hospitalizations/:id GetHospitalization
-GET /api/v1/hospitalizations/:id/care-plan-items ListCarePlanItems
-GET /api/v1/hospitalizations/:id/daily-records ListDailyRecords
-GET /api/v1/hospitalizations/:id/daily-records/:date GetDailyRecord
 GET /api/v1/hospitalizations/:id/treatment-plans ListTreatmentPlansByHospitalization
 GET /api/v1/inventory ListInventory
 GET /api/v1/inventory/:id GetInventory
@@ -138,8 +130,6 @@ GET /api/v1/masters/campaigns ListCampaigns
 GET /api/v1/masters/campaigns/:id GetCampaign
 GET /api/v1/masters/consultations ListConsultations
 GET /api/v1/masters/consultations/:id GetConsultation
-GET /api/v1/masters/hospitalization-plans ListHospitalizationPlans
-GET /api/v1/masters/hospitalization-plans/:id GetHospitalizationPlan
 GET /api/v1/masters/insurances ListInsurances
 GET /api/v1/masters/insurances/:id GetInsurance
 GET /api/v1/masters/medicines ListMedicines
@@ -226,8 +216,6 @@ PATCH /api/v1/closing-settings/special-periods/:id UpdateSpecialPeriod
 PATCH /api/v1/company UpdateCompany
 PATCH /api/v1/estimates/:id UpdateEstimate
 PATCH /api/v1/examinations/:id UpdateExamination
-PATCH /api/v1/hospitalizations/:id UpdateHospitalization
-PATCH /api/v1/hospitalizations/:id/care-plan-items/:itemId UpdateCarePlanItem
 PATCH /api/v1/hospitalizations/:id/treatment-plans/:planId UpdateTreatmentPlanInHospitalization
 PATCH /api/v1/inventory/:id UpdateInventory
 PATCH /api/v1/lstep-settings UpdateLstepSettings
@@ -240,8 +228,6 @@ PATCH /api/v1/masters/campaigns/:id UpdateCampaign
 PATCH /api/v1/masters/campaigns/reorder ReorderCampaigns
 PATCH /api/v1/masters/consultations/:id UpdateConsultation
 PATCH /api/v1/masters/consultations/reorder ReorderConsultations
-PATCH /api/v1/masters/hospitalization-plans/:id UpdateHospitalizationPlan
-PATCH /api/v1/masters/hospitalization-plans/reorder ReorderHospitalizationPlans
 PATCH /api/v1/masters/insurances/:id UpdateInsurance
 PATCH /api/v1/masters/insurances/reorder ReorderInsurances
 PATCH /api/v1/masters/medicines/:id UpdateMedicine
@@ -317,13 +303,6 @@ POST /api/v1/closing-settings/holidays SetClinicHoliday
 POST /api/v1/closing-settings/special-periods CreateSpecialPeriod
 POST /api/v1/estimates CreateEstimate
 POST /api/v1/examinations CreateExamination
-POST /api/v1/hospitalizations CreateHospitalization
-POST /api/v1/hospitalizations/:id/care-plan-items CreateCarePlanItem
-POST /api/v1/hospitalizations/:id/daily-records CreateDailyRecord
-POST /api/v1/hospitalizations/:id/daily-records/:date/care-logs AddCareLog
-POST /api/v1/hospitalizations/:id/daily-records/:date/staff-notes AddStaffNote
-POST /api/v1/hospitalizations/:id/daily-records/:date/vitals AddVitalRecord
-POST /api/v1/hospitalizations/:id/discharge-with-billing DischargeWithBilling
 POST /api/v1/hospitalizations/:id/treatment-plans CreateTreatmentPlanForHospitalization
 POST /api/v1/inventory CreateInventory
 POST /api/v1/login Login
@@ -336,7 +315,6 @@ POST /api/v1/masters/animal-species CreateAnimalSpecies
 POST /api/v1/masters/cages CreateCage
 POST /api/v1/masters/campaigns CreateCampaign
 POST /api/v1/masters/consultations CreateConsultation
-POST /api/v1/masters/hospitalization-plans CreateHospitalizationPlan
 POST /api/v1/masters/insurances CreateInsurance
 POST /api/v1/masters/medicines CreateMedicine
 POST /api/v1/masters/merchandise-items CreateMerchandiseItem
