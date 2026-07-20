@@ -888,6 +888,18 @@ Phase 1〜3 は互いに独立しており並行着手可能。Phase 4 が最大
 
 ## Phase 8: AWS リソース廃止（1〜2 人日）
 
+> **2026-07-20 完遂（PO 指示「AWS の課金を停止」）**: `terraform destroy` で STG AWS 一式を破棄し課金停止。実施順と結果:
+> 1. 最終 RDS スナップショット `animalekarte-stg-final-20260720-1108`（20GB・available）を保全用に取得（復元経路として保持・課金わずか）
+> 2. terraform destroy 第1波: RDS / ECS / fck-nat EC2+EIP / スケジューラ / OIDC ロール / SG 破棄（48→残8）
+> 3. 依存障害: 手動作成の CloudFront ディストリビューション `dcqico6azu5w2`(ERCVR5P0IAJKS) が VPC Origin→ALB を参照し ALB 削除をブロック → CloudFront を Enabled=false 化 → Deployed 到達後に delete-distribution → ECR は `--force` で削除
+> 4. terraform destroy 第2波: VPC Origin / ALB / ALB SG / VPC / サブネット破棄（残0）
+> 5. 検証: terraform state 0 件・ALB/VPC/CloudFront 全消滅・**STG 実 URL(CF 経由) は health 200 で無影響**（切替が完全だった証明）
+>
+> **残存（意図的・課金ほぼゼロ）**: (a) 復元用 RDS スナップショット 20GB（不要になれば削除可） (b) S3 `animalekarte-stg-uploads`（668B の孤児テスト画像・R2 移行後不要） (c) tfstate S3 バケット + DynamoDB ロック（backend。state は空・削除は任意） (d) PlanetScale 所有権 REASSIGN の未解決サポートチケット（AWS とは別件）
+> **ロールバック不可に変化**: AWS ホットスタンバイは消滅した。以後 STG の障害復旧は「CF 側の修正」または「スナップショット+IaC からの再建(30-60分)」のみ。本番はまだ CF 未構築のため本 destroy の影響を受けない
+
+
+
 **順序が重要**。データを持つものは最後、復旧手段は最後の最後。
 
 - [ ] **P8-1** RDS 最終スナップショット取得 → エクスポート保管（保険。90 日後に削除判断）
