@@ -19,8 +19,8 @@ interface SidebarSectionProps {
 function SidebarSection({ section, collapsed = false }: SidebarSectionProps) {
   return (
     <div className="space-y-px">
+      {/* FE9-2: design-system.md §3.4 micro ロールへ全面統一。旧 10px 任意値は廃止。 */}
       {!collapsed ? (
-        {/* FE9-2: design-system.md §3.4 micro ロールへ全面統一。旧 10px 任意値は廃止。 */}
         <p className={`px-3 mb-1 text-2xs font-bold ${C.text40} uppercase tracking-wider`}>
           {section.title}
         </p>
