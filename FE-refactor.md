@@ -68,16 +68,16 @@ grep で先行検出できる P1〜P7 信号を全数計測した。**大半は�
 | 項目 | 静的計測結果 | 判定 |
 |------|-------------|------|
 | P1 図地 | 独自シェル routes（Reception/ManualPage/ReservationManagement 等）は全て `C.bgPage` を正しく敷く。PageLayout 系は STYLE.page が担保 | ✅ **クリーン** |
-| P4 余白リズム（任意値） | spacing 任意値 9件のみ（`px-[7.5px]`×3・`p-[3px]`×2・`p-[13px]`・`space-y-[9px]`・`py-[7px]`・`pl-[22px]`・`pb-[1px]`） | ⚠️ **静的修正可**（要個別判断 — 7.5px/22px 等はピクセル調整の可能性。盲目丸めNG） |
+| P4 余白リズム（任意値） | spacing 任意値 9件（`px-[7.5px]`×3・`p-[3px]`・`p-[13px]`・`space-y-[9px]`・`py-[7px]`・`pl-[22px]`・`pb-[1px]`） | ✅ **全件意図的**（1件ずつ精査済み — バッジ寸法 h-[22px]/px-[7.5px]・1px整列ナッジ・pl-[22px]=アイコン幅合わせ・shadcn タブ内 p-[3px]・密なカンバンカード padding。盲目丸めは視覚回帰。修正なし） |
 | P5 単一アクセント（sticker色の構造漏れ） | bg-/border- への sticker/dot 色使用 = **0件**（C1/C5 が既にガード） | ✅ **クリーン** |
-| P2 太枠 | `border-2`×5・`border-4`×5 = 10件 | ⚠️ **静的修正可**（hairline 哲学違反か focus/区切りの正当使用か個別判断） |
+| P2 太枠 | `border-2`/`border-4` = 6箇所 | ✅ **全件正当**（1件ずつ精査済み — スピナーのストローク幅 border-4・破線ドロップゾーン border-2 border-dashed・4×4 チェックボックス枠・選択 pill トグルの状態境界。カードの重枠は 0件。修正なし） |
 | P3 見出し階層（font-bold） | 107件。medical-records×14ファイル・accounting×9・hospitalization×6 に集中。サンプルは `text-sm font-bold` の h2/h3/h4 見出しが多数 | 🔶 **要裁定**（下記） |
 | P6 テーブル chrome | 主要テーブルが `ex-data-table-cell` 準拠（canvas-soft header + eyebrow）か未確認 | 🔶 **ブラウザ/深掘り必須** |
 | P7 状態（hover/focus） | focus は FE9-2 で brand teal 統一済み。hover の知覚性は静的判定不能 | 🔶 **ブラウザ必須** |
 
 **font-bold 107件の裁定論点（ユーザー判断が要る）**: §3.4 は「700(font-bold)は title/section 見出し専用」だが、実装は `text-sm font-bold`（15px 見出し）が多い。これは §3.4 の title(20px)/section(18px) ロールに一致しない**カード内サブ見出し**であり、(A) 現状容認（サブ見出しの font-bold は許可）か (B) `font-semibold`(600) へ格下げして 700 を title/section に限定するか、で分岐する。**推奨=A**（サブ見出しの視認性を保つ・107件の一括変更は視覚影響大でリスク）。B を採るなら本文/数値セルに漏れた font-bold のみ抽出して是正（別 batch）。
 
-**結論**: FE9-3 の機械判定可能な部分は P1/P5=クリーン、P2/P4=静的修正可（計19件・要個別判断）。**真にブラウザ必須なのは P6（テーブル chrome 一貫性）・P7（hover/focus）・および全画面の視覚階層/余白リズムの「体感」判定のみ**。ブラウザ手段が整い次第、この残余に絞って batch 監査する。
+**結論（1件ずつ精査後・2026-07-21）**: 静的判定可能な P1/P2/P4/P5 は**全てクリーンまたは意図的例外**で、ブラウザ無しで安全に是正できる違反は **0件**だった。コードベースの DESIGN.md 準拠は既に高く、19件の「候補」は制御要素の境界・ピクセル調整・整列ナッジといった正当な例外である（盲目修正は視覚回帰を生むため実施しない）。**残る FE9-3 作業は全てブラウザ必須** = P6（テーブル chrome 一貫性）・P7（hover/focus 知覚性）・全画面の視覚階層/余白リズムの体感判定。ブラウザ手段が整い次第、この残余に絞って batch 監査する。font-bold 107件は推奨A（現状容認）で確定 = 作業なし。
 
 - **ページ一覧の正本**: `docs/spec/ui-design-compliance.md` §2 の全リーフルート表（84 routes・83 準拠/1 対象外）。**本書へ転記しない**（台帳への番号列挙は必ずドリフトする — 着手時に §2 を読み batch を編成する）
 - **batch 編成**: feature 単位で 8〜12 ページ/batch（目安: ①owners/pets ②reception/reservations ③medical-records 系 ④accounting/cash-register/estimates ⑤hospitalization/trimming/vaccinations/checkups ⑥master/settings 系 ⑦inventory/aggregation/lstep/manual/auth ほか）。1 batch = 1 コミット
