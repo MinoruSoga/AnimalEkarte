@@ -95,6 +95,13 @@ grep で先行検出できる P1〜P7 信号を全数計測した。**大半は�
 □ P7 状態: hover/focus が知覚可能。disabled が RBAC 非活性表現（C6a）を退行させていない
 ```
 
+#### ブラウザ監査セッション結果（2026-07-21・エージェント自力起動）
+
+デバッグ Chrome（隔離プロファイル `/tmp/chrome-fe9-debug`・port 9222）を自力起動し dev(localhost:3003) へ接続。**認証不要で監査できたのは /login のみ**（/forgot-password は未認証で /login へリダイレクト＝auth-gated、reset-password はトークン依存）。残り81ルートはログイン必須で、認証情報入力はエージェント禁止行為のため **USER 在席が前提**。
+
+- **🔴 P0 ビルド破壊を発見・修正（コミット 1e7ccdbf0）**: FE9-2（f4d3ff5e2）が `Sidebar.tsx:23` に JSX コメントを三項演算子の括弧内（単一式が必要な位置）へ `<p>` と隣接挿入し、**Vite が全体をコンパイル不能＝アプリ起動不可**の状態で出荷していた。`git log` 上は「FE9-2 完了・vitest 444 green」だったが、当該ファイルは実行3スイートに未 import・build/type-check は禁止コマンドで未実行のため**すり抜けていた**。ブラウザ実測（dev server 初回描画）で即検出。**教訓: className スイープ後は必ず `pnpm build` を通すこと**（vitest は import されないファイルのコンパイルを検証しない）。
+- **/login 監査結果 = DESIGN.md 準拠**: 暖色 canvas-soft 地・入力は白 surface + hairline・単一 teal(#038B94) アクセント（ログインボタン＋ロゴタイル）・見出し階層・余白リズム良好。ロール badge は sanctioned な category 装飾。**修正不要**。SEC-DEMO のデモ表示が dev で正しく出ることも確認。
+
 - **手順/batch**: 各ページをブラウザで開き screenshot → P1〜P7 判定 → 違反を最小差分で修正 → scoped vitest + design-audit → screenshot 再取得。判定と証跡（違反項目・修正 file:line）を Completion Report に列挙
 - **エスカレーション**: チェックリストで判定できない構造問題（レイアウト再設計級）は修正せず「発見事項」として報告 — 本計画のスコープ外（別起票）
 
