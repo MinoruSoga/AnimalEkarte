@@ -2,16 +2,20 @@
 import { useNavigate } from "react-router";
 
 // External
-import { Settings, LogOut } from "lucide-react";
+import { Settings, LogOut, LogIn } from "lucide-react";
 
 // Internal
 import { Button } from "@/components/ui/button";
+import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
 import { usePermission } from "@/hooks/use-permission";
+import { HospitalizationStatusAdmitted } from "@/types/generated/models";
 
 // Relative
 import { H_STYLES } from "../styles";
 import { C } from "@/lib/design-tokens";
 import { paths } from "@/config/paths";
+import { HOSPITALIZATION_STATUS } from "../constants";
+import { useUpdateHospitalization } from "../api/update-hospitalization";
 
 // Types
 import type { Hospitalization } from "@/types";
@@ -24,10 +28,38 @@ interface HospitalizationDetailActionsProps {
 export function HospitalizationDetailActions({ hospitalization, onDischargeClick }: HospitalizationDetailActionsProps) {
     const navigate = useNavigate();
     const { canEdit, canDelete } = usePermission("hospitalization");
+    const { mutateAsync: updateHospitalization, isPending: isCheckingIn } = useUpdateHospitalization();
+
+    const isReserved = hospitalization.status === HOSPITALIZATION_STATUS.RESERVED;
+    const isAdmitted = hospitalization.status === HOSPITALIZATION_STATUS.ACTIVE;
+    const showCheckIn = canEdit && isReserved;
+    const showDischarge = canDelete && isAdmitted;
+
+    const handleCheckIn = async () => {
+        try {
+            await updateHospitalization({
+                id: hospitalization.id,
+                req: { status: HospitalizationStatusAdmitted },
+            });
+        } catch {
+            // useUpdateHospitalization.onError → handleApiError 済み
+        }
+    };
 
     return (
         <div className={`flex ${H_STYLES.gap.default}`}>
-            {canDelete && hospitalization.status !== "退院済" ? (
+            {showCheckIn ? (
+                <PrimaryButton
+                    colorVariant="brand"
+                    className={`gap-2 ${H_STYLES.button.action}`}
+                    onClick={handleCheckIn}
+                    disabled={isCheckingIn}
+                >
+                    <LogIn className={H_STYLES.button.icon} />
+                    チェックイン
+                </PrimaryButton>
+            ) : null}
+            {showDischarge ? (
                 <Button
                     variant="ghost-danger"
                     className={`gap-2 border ${C.borderDanger20} ${H_STYLES.button.action}`}

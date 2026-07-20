@@ -75,13 +75,7 @@
 
 ## 個別タスク詳細
 
-> task-create スキルの起票先は本節。以下 3 件は 2026-07-20 の代理決裁（正本 = `q&a.html` DEC-2〜8 カード）で着手可能化されたもの。
-
-### FEAT-CHECKIN: 入院チェックイン（reserved→admitted）手動ボタン【DEC-2 裁定済み・着手可】
-
-- **裁定**: 案(b) 手動チェックインボタン（自動遷移は運用実績確立後に再検討）。裁定根拠 = `q&a.html` DEC-2。
-- **実装**: ①入院詳細（または一覧行）に「チェックイン」ボタンを追加し PATCH status=admitted を発火（reserved のときのみ表示） ②`HospitalizationDetailActions.tsx` の「退院処理」ボタン表示条件を `status === admitted` 系へ是正（reserved でも表示される現状の混乱を解消） ③監査ログは既存 PATCH 経路の仕組みに従う。
-- **BE 注意**: hospitalization 系は BE9 target=medicalrecord（「BE 実装規約」参照）。status enum の 1:1 タブマップ（date 判定なし）は仕様として維持 — チェックインしない限り予約タブに残るのが裁定後の正しい挙動。
+> task-create スキルの起票先は本節。以下は 2026-07-20 の代理決裁（正本 = `q&a.html` DEC-2〜8 カード）で着手可能化されたもの。FEAT-CHECKIN（DEC-2）は実装完了済みのため本書から削除。
 
 ### FEAT-VACCINE-SPECIES: ワクチン選択の動物種フィルタ【DEC-3 裁定済み・着手可】
 
