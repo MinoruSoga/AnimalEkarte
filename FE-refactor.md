@@ -32,7 +32,14 @@
 | R3 | テーブルヘッダ `ex-data-table-cell` 化: `STYLE.tableHeaderRow`（canvas-soft 帯）+ `tableHeaderCell`（eyebrow 型）一括反転（部分適用禁止 — 旧 §7.5） | ✅済 |
 | R4 | 機械ガード反転: audit C1 = `C.accent`/`#2383E2`/**`#038B94`/`#027078`**（teal を legacy 化・`#0075DE` を解禁）+ audit テスト追随 | ✅済 |
 | R5 | 文書同期: `docs/spec/design-system.md`（字義基準へ改訂・製品上書き撤回・臨床例外のみ残す）+ `ui-design-compliance.md` C1 行/注記 + `frontend/CLAUDE.md` | ✅済 |
-| R6 | 全ページ視覚スイープ（下表・P1〜P7 + リブランド残渣 T 判定）| 進行中 |
+| R6 | 全ページ視覚スイープ（下表・P1〜P7 + リブランド残渣 T 判定）| **77/84 済**（残 = B7 の 7 面 ⏸ backend 並行作業中断 + B2 入院詳細/編集 2 面 ⏸ データ待ち + owner-report ⚠ 1 件） |
+
+### 再開手順（次セッション向け）
+
+1. backend が green（`curl http://localhost:8080/health` = 200）でログイン可能になったら、port 9222 の Chrome でデモアカウント（林 文明）ログイン → B7 残 7 面を probe（eyebrow th / brand pill / active tab / teal 残渣）。
+2. **Vite 罠**: ホスト側でファイル編集後は `docker compose exec frontend touch <file>` しないと dev server が stale transform を配信し続ける（bind mount のイベント欠落・本スイープ中に実測）。
+3. B2 入院詳細/編集はデータ投入後に実施。owner-report の brand tick ⚠ は当該 feature の他セッション未コミット変更が commit された後に裁定。
+4. 全行 ✅ 後: USER フルゲート（lint/type-check/build/test 手動）+ 目視承認 → 本ファイル削除。
 
 ## R6 方法（1画面ずつ）
 
@@ -87,58 +94,58 @@ T  残渣   : teal/旧 accent 青の直値・画像・ハードコードが視�
 | B4 | /estimates/new | ✅ | ✅ | ✅ | ✅ | ✅ | — | ✅ | ✅ | 作成=brand pill・disabled 表現 ✓ | ✅済 |
 | B4 | /estimates/:id | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | 承認済み=green semantic badge ✓・明細ヘッダ eyebrow ✓ | ✅済 |
 | B4 | /estimates/:id/edit | ✅ | ✅ | ✅ | ✅ | ✅ | — | ✅ | ✅ | EstimateForm 同一実体 | ✅済 |
-| B5 | /settings（トップ） | | | | | | — | | | | 未 |
-| B5 | /settings/clinic | | | | | | | | | | 未 |
-| B5 | /settings/staff | | | | | | | | | | 未 |
-| B5 | /settings/treatment-items | | | | | | | | | | 未 |
-| B5 | /settings/diagnosis | | | | | | | | | | 未 |
-| B5 | /settings/animal-species | | | | | | | | | | 未 |
-| B5 | /settings/trimming | | | | | | | | | | 未 |
-| B5 | /settings/trimming-course-type | | | | | | | | | | 未 |
-| B5 | /settings/medicine | | | | | | | | | | 未 |
-| B5 | /settings/reservation-type | | | | | | | | | | 未 |
-| B5 | /settings/hospitalization | | | | | | | | | | 未 |
-| B5 | /settings/cage | | | | | | | | | | 未 |
-| B5 | /settings/merchandise-items | | | | | | | | | | 未 |
-| B5 | /settings/insurance | | | | | | | | | | 未 |
-| B5 | /settings/occupations | | | | | | | | | | 未 |
-| B5 | /settings/permission-groups | | | | | | | | | | 未 |
-| B5 | /settings/inquiry-templates | | | | | | | | | | 未 |
-| B5 | /settings/interview/chief-complaint | | | | | | | | | | 未 |
-| B5 | /settings/interview/templates | | | | | | | | | | 未 |
-| B5 | /settings/shift-templates | | | | | | | | | | 未 |
-| B5 | /settings/closing-time | | | | | | | | | | 未 |
-| B5 | /settings/payment-methods | | | | | | | | | | 未 |
-| B5 | /settings/campaigns | | | | | | | | | | 未 |
-| B5 | /settings/integrations/lstep | | | | | | | | | | 未 |
-| B5 | /settings/lstep/tags | | | | | | | | | | 未 |
-| B6 | /inventory | | | | | | | | | | 未 |
-| B6 | /inventory/new | | | | | | — | | | | 未 |
-| B6 | /inventory/:id | | | | | | — | | | | 未 |
-| B6 | /trimming | | | | | | | | | | 未 |
-| B6 | /trimming/select-pet | | | | | | | | | | 未 |
-| B6 | /trimming/new | | | | | | — | | | | 未 |
-| B6 | /trimming/:id | | | | | | — | | | | 未 |
-| B6 | /vaccinations | | | | | | | | | | 未 |
-| B6 | /vaccinations/select-pet | | | | | | | | | | 未 |
-| B6 | /vaccinations/new | | | | | | — | | | | 未 |
-| B6 | /vaccinations/:id | | | | | | — | | | | 未 |
-| B6 | /checkups | | | | | | | | | | 未 |
-| B6 | /checkups/select-pet | | | | | | | | | | 未 |
-| B6 | /checkups/new | | | | | | — | | | | 未 |
-| B6 | /examinations | | | | | | | | | | 未 |
-| B6 | /examinations/select-pet | | | | | | | | | | 未 |
-| B6 | /examinations/new | | | | | | — | | | | 未 |
-| B6 | /examinations/:id | | | | | | — | | | | 未 |
-| B7 | /shifts | | | | | | — | | | | 未 |
-| B7 | /lstep/checkup-sync | | | | | | | | | | 未 |
-| B7 | /lstep/delivery-monitor | | | | | | | | | | 未 |
-| B7 | /lstep/analytics | | | | | | | | | | 未 |
-| B7 | /line-reservation/settings | | | | | | | | | | 未 |
-| B7 | /line-reservation/page-editor | | | | | | | | | | 未 |
-| B7 | /line-reservation/slots | | | | | | | | | | 未 |
-| B7 | /manual | | | | | | — | | | | 未 |
-| B7 | /manual/:category/:slug | | | | | | — | | | | 未 |
+| B5 | /settings（トップ） | ✅ | ✅ | ✅ | ✅ | ✅ | — | ✅ | ✅ | グループラベル=sectionLabel eyebrow 化反映（実測） | ✅済 |
+| B5 | /settings/clinic | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | probe 全通過（eyebrow/brand pill/canvas） | ✅済 |
+| B5 | /settings/staff | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | **MasterCRUDPage シェル代表・スクショ精査**。権限バッジ=DB 色 dots・有効=status badge（sanctioned） | ✅済 |
+| B5 | /settings/treatment-items | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | **MasterTabPage シェル代表**（eyebrow/brand tab/brand pill probe 全通過） | ✅済 |
+| B5 | /settings/diagnosis | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | MasterTabPage シェル同一実体（代表実測） | ✅済 |
+| B5 | /settings/animal-species | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | MasterCRUDPage シェル同一実体 | ✅済 |
+| B5 | /settings/trimming | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | MasterTabPage シェル同一実体 | ✅済 |
+| B5 | /settings/trimming-course-type | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | MasterCRUDPage シェル同一実体 | ✅済 |
+| B5 | /settings/medicine | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | probe 全通過。SidePanel ラベル=sectionLabel 統一済み（B4 静的修正） | ✅済 |
+| B5 | /settings/reservation-type | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | probe: 実ヘッダ eyebrow ✓（空ハンドル列 th のブラウザ既定 16px/700 は空セルで視覚影響なし） | ✅済 |
+| B5 | /settings/hospitalization | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | MasterCRUDPage シェル同一実体 | ✅済 |
+| B5 | /settings/cage | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | MasterCRUDPage シェル同一実体 | ✅済 |
+| B5 | /settings/merchandise-items | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | MasterCRUDPage シェル同一実体 | ✅済 |
+| B5 | /settings/insurance | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | MasterCRUDPage シェル同一実体 | ✅済 |
+| B5 | /settings/occupations | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | MasterCRUDPage シェル同一実体 | ✅済 |
+| B5 | /settings/permission-groups | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | スクショ精査。RBAC 表示退行なし（C6a） | ✅済 |
+| B5 | /settings/inquiry-templates | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | MasterCRUDPage シェル同一実体 | ✅済 |
+| B5 | /settings/interview/chief-complaint | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | MasterCRUDPage シェル同一実体 | ✅済 |
+| B5 | /settings/interview/templates | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | inquiry-templates と同一 Component | ✅済 |
+| B5 | /settings/shift-templates | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | probe: eyebrow ✓・新規登録=brand テキストリンク（inline link=primary ✓） | ✅済 |
+| B5 | /settings/closing-time | ✅ | ✅ | ✅ | ✅ | ✅ | — | ✅ | ✅ | スクショ精査: 保存=brand pill（buttonVariants pill 化反映）・checked=brand | ✅済 |
+| B5 | /settings/payment-methods | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | MasterCRUDPage シェル同一実体 | ✅済 |
+| B5 | /settings/campaigns | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | MasterCRUDPage シェル同一実体 | ✅済 |
+| B5 | /settings/integrations/lstep | ✅ | ✅ | ✅ | ✅ | ✅ | — | ✅ | ✅ | スクショ精査: form card・未設定 badge・4px 入力 ✓ | ✅済 |
+| B5 | /settings/lstep/tags | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | probe 全通過 | ✅済 |
+| B6 | /inventory | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | probe 全通過（eyebrow/brand pill） | ✅済 |
+| B6 | /inventory/new | ✅ | ✅ | ✅ | ✅ | ✅ | — | ✅ | ✅ | probe: 登録=brand pill・入力 4px・canvas ✓ | ✅済 |
+| B6 | /inventory/:id | ✅ | ✅ | ✅ | ✅ | ✅ | — | ✅ | ✅ | InventoryForm 同一実体 | ✅済 |
+| B6 | /trimming | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | probe 全通過 | ✅済 |
+| B6 | /trimming/select-pet | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | 共有 PetSelection（複数面で実測済み） | ✅済 |
+| B6 | /trimming/new | ✅ | ✅ | ✅ | ✅ | ✅ | — | ✅ | ✅ | フォーム共通 idiom（shell） | ✅済 |
+| B6 | /trimming/:id | ✅ | ✅ | ✅ | ✅ | ✅ | — | ✅ | ✅ | TrimmingForm 同一実体 | ✅済 |
+| B6 | /vaccinations | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | probe 全通過 | ✅済 |
+| B6 | /vaccinations/select-pet | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | 共有 PetSelection | ✅済 |
+| B6 | /vaccinations/new | ✅ | ✅ | ✅ | ✅ | ✅ | — | ✅ | ✅ | フォーム共通 idiom | ✅済 |
+| B6 | /vaccinations/:id | ✅ | ✅ | ✅ | ✅ | ✅ | — | ✅ | ✅ | VaccinationForm 同一実体 | ✅済 |
+| B6 | /checkups | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | probe 全通過 | ✅済 |
+| B6 | /checkups/select-pet | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | 共有 PetSelection | ✅済 |
+| B6 | /checkups/new | ✅ | ✅ | ✅ | ✅ | ✅ | — | ✅ | ✅ | フォーム共通 idiom | ✅済 |
+| B6 | /examinations | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | probe 全通過 | ✅済 |
+| B6 | /examinations/select-pet | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | 共有 PetSelection | ✅済 |
+| B6 | /examinations/new | ✅ | ✅ | ✅ | ✅ | ✅ | — | ✅ | ✅ | フォーム共通 idiom | ✅済 |
+| B6 | /examinations/:id | ✅ | ✅ | ✅ | ✅ | ✅ | — | ✅ | ✅ | ExaminationForm 同一実体 | ✅済 |
+| B7 | /shifts | ✅ | ✅ | ✅ | ✅ | ✅ | — | ✅ | ✅ | スクショ精査: シフト種別チップ=装飾 status tint・週末=カレンダー semantic（sanctioned） | ✅済 |
+| B7 | /lstep/checkup-sync | ✅ | ✅ | ✅ | ✅ | ✅ | — | ✅ | ✅ | probe: 対象者を検索=brand。テーブルは STYLE.tableHeader* 経由（静的確認済み） | ✅済 |
+| B7 | /lstep/delivery-monitor | | | | | | | | | **backend 停止（他セッション BE9 reservation 編集中のビルド失敗）で中断** | ⏸中断 |
+| B7 | /lstep/analytics | | | | | | | | | 同上 | ⏸中断 |
+| B7 | /line-reservation/settings | | | | | | | | | 同上 | ⏸中断 |
+| B7 | /line-reservation/page-editor | | | | | | | | | 同上 | ⏸中断 |
+| B7 | /line-reservation/slots | | | | | | | | | 同上 | ⏸中断 |
+| B7 | /manual | | | | | | — | | | 同上（要ログイン） | ⏸中断 |
+| B7 | /manual/:category/:slug | | | | | | — | | | 同上 | ⏸中断 |
 
 （404 fallback は inline 簡易要素のため対象外 — ui-design-compliance §2 脚注どおり。リダイレクト専用 12 route も対象外）
 
