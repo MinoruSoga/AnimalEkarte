@@ -8,6 +8,7 @@ import (
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/repository"
+	"github.com/animal-ekarte/backend/internal/sharedkernel"
 )
 
 // normalizeIPAddress は空文字列を nil に正規化する（X-3）。audit_logs.ip_address は実DDLで
@@ -132,10 +133,7 @@ func validateAuditLog(log *model.AuditLog) error {
 
 // auditActorTypeFor は actorID の有無から監査ログの actor 種別を導出する。
 func auditActorTypeFor(actorID *uint64) string {
-	if actorID != nil {
-		return model.AuditActorTypeStaff
-	}
-	return model.AuditActorTypeSystem
+	return sharedkernel.AuditActorTypeFor(actorID)
 }
 
 func NewAuditService(repo repository.AuditRepository) AuditService {

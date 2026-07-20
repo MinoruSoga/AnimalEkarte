@@ -5,7 +5,7 @@ import (
 	"log/slog"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
-	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/sharedkernel"
 )
 
 // logReplaceDeletionTx and auditActorTypeFor are documented, behavior-identical duplicates of
@@ -46,8 +46,5 @@ func logReplaceDeletionTx(txCtx context.Context, auditTx AuditTxLogger, clinicID
 
 // auditActorTypeFor は actorID の有無から監査ログの actor 種別を導出する。
 func auditActorTypeFor(actorID *uint64) string {
-	if actorID != nil {
-		return model.AuditActorTypeStaff
-	}
-	return model.AuditActorTypeSystem
+	return sharedkernel.AuditActorTypeFor(actorID)
 }

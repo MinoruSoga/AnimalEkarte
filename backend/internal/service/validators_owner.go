@@ -6,13 +6,11 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/sharedkernel"
 )
 
 func validateDiscountRate(rate float64) error {
-	if rate < 0 || rate > 100 {
-		return apperrors.WrapInvalidInput("割引率は0〜100の範囲で入力してください")
-	}
-	return nil
+	return sharedkernel.ValidateDiscountRate(rate)
 }
 
 // validateMedicalImageType は診療画像種別がドメイン上有効かを検証する
