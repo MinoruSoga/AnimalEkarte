@@ -194,7 +194,7 @@ func TestHospitalizationService_List(t *testing.T) {
 					return tt.repoItems, tt.repoTotal, tt.repoErr
 				},
 			}
-			svc := NewHospitalizationService(&repository.Repositories{Hospitalization: repo})
+			svc := NewHospitalizationService(repo, nil, nil, nil, nil, nil, nil, &mockTransactor{})
 
 			items, total, err := svc.List(context.Background(), tt.clinicID, tt.petID, tt.ownerID, tt.status, nil, nil, tt.page, tt.limit)
 
@@ -262,7 +262,7 @@ func TestHospitalizationService_GetByID(t *testing.T) {
 					return tt.repoItem, tt.repoErr
 				},
 			}
-			svc := NewHospitalizationService(&repository.Repositories{Hospitalization: repo})
+			svc := NewHospitalizationService(repo, nil, nil, nil, nil, nil, nil, &mockTransactor{})
 
 			item, err := svc.GetByID(context.Background(), tt.clinicID, tt.id)
 
@@ -346,20 +346,16 @@ func TestHospitalizationService_Create(t *testing.T) {
 					return tt.repoErr
 				},
 			}
-			svc := NewHospitalizationService(&repository.Repositories{
-				Hospitalization: repo,
-				Reservation: &mockReservationRepository{
-					assertOwnerInClinicFn: func(_ context.Context, _, _ uint64) error { return nil },
-					findPetOwnerInClinicFn: func(_ context.Context, _, _ uint64) (uint64, error) {
-						return tt.input.OwnerID, nil
-					},
+			svc := NewHospitalizationService(repo, &mockReservationRepository{
+				assertOwnerInClinicFn: func(_ context.Context, _, _ uint64) error { return nil },
+				findPetOwnerInClinicFn: func(_ context.Context, _, _ uint64) (uint64, error) {
+					return tt.input.OwnerID, nil
 				},
-				Pet: &mockPetRepository{
-					findByIDFn: func(_ context.Context, _, id uint64) (*model.Pet, error) {
-						return &model.Pet{ID: id}, nil
-					},
+			}, &mockPetRepository{
+				findByIDFn: func(_ context.Context, _, id uint64) (*model.Pet, error) {
+					return &model.Pet{ID: id}, nil
 				},
-			})
+			}, nil, nil, nil, nil, &mockTransactor{})
 
 			hosp, err := svc.Create(context.Background(), tt.clinicID, tt.input)
 
@@ -416,7 +412,7 @@ func TestHospitalizationService_Update(t *testing.T) {
 					return &model.Hospitalization{ID: 1, ClinicID: 1}, nil
 				},
 			}
-			svc := NewHospitalizationService(&repository.Repositories{Hospitalization: repo})
+			svc := NewHospitalizationService(repo, nil, nil, nil, nil, nil, nil, &mockTransactor{})
 
 			hosp, err := svc.Update(context.Background(), 1, 1, &tt.input)
 
@@ -438,7 +434,7 @@ func TestHospitalizationService_Update_InputNil(t *testing.T) {
 			return nil, nil
 		},
 	}
-	svc := NewHospitalizationService(&repository.Repositories{Hospitalization: repo})
+	svc := NewHospitalizationService(repo, nil, nil, nil, nil, nil, nil, &mockTransactor{})
 
 	hosp, err := svc.Update(context.Background(), 1, 1, nil)
 
@@ -458,7 +454,7 @@ func TestHospitalizationService_Update_FindByIDError(t *testing.T) {
 			return nil, nil
 		},
 	}
-	svc := NewHospitalizationService(&repository.Repositories{Hospitalization: repo})
+	svc := NewHospitalizationService(repo, nil, nil, nil, nil, nil, nil, &mockTransactor{})
 
 	hosp, err := svc.Update(context.Background(), 1, 999, &UpdateHospitalizationInput{Status: &statusAdmitted})
 
@@ -578,7 +574,7 @@ func TestHospitalizationService_Delete(t *testing.T) {
 					return tt.repoErr
 				},
 			}
-			svc := NewHospitalizationService(&repository.Repositories{Hospitalization: repo})
+			svc := NewHospitalizationService(repo, nil, nil, nil, nil, nil, nil, &mockTransactor{})
 
 			err := svc.Delete(context.Background(), tt.clinicID, tt.id)
 
@@ -607,7 +603,7 @@ func TestHospitalizationService_Delete_FindByIDError(t *testing.T) {
 			return 0, nil
 		},
 	}
-	svc := NewHospitalizationService(&repository.Repositories{Hospitalization: repo})
+	svc := NewHospitalizationService(repo, nil, nil, nil, nil, nil, nil, &mockTransactor{})
 
 	err := svc.Delete(context.Background(), 1, 999)
 
@@ -667,20 +663,16 @@ func TestHospitalizationService_Create_InsuranceFields(t *testing.T) {
 					return nil
 				},
 			}
-			svc := NewHospitalizationService(&repository.Repositories{
-				Hospitalization: repo,
-				Reservation: &mockReservationRepository{
-					assertOwnerInClinicFn: func(_ context.Context, _, _ uint64) error { return nil },
-					findPetOwnerInClinicFn: func(_ context.Context, _, _ uint64) (uint64, error) {
-						return tt.input.OwnerID, nil
-					},
+			svc := NewHospitalizationService(repo, &mockReservationRepository{
+				assertOwnerInClinicFn: func(_ context.Context, _, _ uint64) error { return nil },
+				findPetOwnerInClinicFn: func(_ context.Context, _, _ uint64) (uint64, error) {
+					return tt.input.OwnerID, nil
 				},
-				Pet: &mockPetRepository{
-					findByIDFn: func(_ context.Context, _, id uint64) (*model.Pet, error) {
-						return &model.Pet{ID: id}, nil
-					},
+			}, &mockPetRepository{
+				findByIDFn: func(_ context.Context, _, id uint64) (*model.Pet, error) {
+					return &model.Pet{ID: id}, nil
 				},
-			})
+			}, nil, nil, nil, nil, &mockTransactor{})
 
 			hosp, err := svc.Create(context.Background(), 1, tt.input)
 
@@ -701,18 +693,14 @@ func TestHospitalizationService_Create_RejectsDeceasedPet(t *testing.T) {
 			return nil
 		},
 	}
-	svc := NewHospitalizationService(&repository.Repositories{
-		Hospitalization: repo,
-		Reservation: &mockReservationRepository{
-			assertOwnerInClinicFn:  func(_ context.Context, _, _ uint64) error { return nil },
-			findPetOwnerInClinicFn: func(_ context.Context, _, _ uint64) (uint64, error) { return 2, nil },
+	svc := NewHospitalizationService(repo, &mockReservationRepository{
+		assertOwnerInClinicFn:  func(_ context.Context, _, _ uint64) error { return nil },
+		findPetOwnerInClinicFn: func(_ context.Context, _, _ uint64) (uint64, error) { return 2, nil },
+	}, &mockPetRepository{
+		findByIDFn: func(_ context.Context, _, id uint64) (*model.Pet, error) {
+			return &model.Pet{ID: id, DeceasedAt: &deceasedAt}, nil
 		},
-		Pet: &mockPetRepository{
-			findByIDFn: func(_ context.Context, _, id uint64) (*model.Pet, error) {
-				return &model.Pet{ID: id, DeceasedAt: &deceasedAt}, nil
-			},
-		},
-	})
+	}, nil, nil, nil, nil, &mockTransactor{})
 
 	hosp, err := svc.Create(context.Background(), 1, &CreateHospitalizationInput{
 		OwnerID:             2,
@@ -739,18 +727,14 @@ func TestHospitalizationService_Update_RejectsDeceasedPetReplacement(t *testing.
 			return nil, nil
 		},
 	}
-	svc := NewHospitalizationService(&repository.Repositories{
-		Hospitalization: repo,
-		Reservation: &mockReservationRepository{
-			assertOwnerInClinicFn:  func(_ context.Context, _, _ uint64) error { return nil },
-			findPetOwnerInClinicFn: func(_ context.Context, _, _ uint64) (uint64, error) { return 2, nil },
+	svc := NewHospitalizationService(repo, &mockReservationRepository{
+		assertOwnerInClinicFn:  func(_ context.Context, _, _ uint64) error { return nil },
+		findPetOwnerInClinicFn: func(_ context.Context, _, _ uint64) (uint64, error) { return 2, nil },
+	}, &mockPetRepository{
+		findByIDFn: func(_ context.Context, _, id uint64) (*model.Pet, error) {
+			return &model.Pet{ID: id, DeceasedAt: &deceasedAt}, nil
 		},
-		Pet: &mockPetRepository{
-			findByIDFn: func(_ context.Context, _, id uint64) (*model.Pet, error) {
-				return &model.Pet{ID: id, DeceasedAt: &deceasedAt}, nil
-			},
-		},
-	})
+	}, nil, nil, nil, nil, &mockTransactor{})
 
 	hosp, err := svc.Update(context.Background(), 1, 1, &UpdateHospitalizationInput{PetID: &newPetID})
 
@@ -880,13 +864,23 @@ func TestBuildHospitalizationUpdate_EmptyInput(t *testing.T) {
 
 // ---- DischargeWithBilling ----
 
-func newDischargeTestRepos(hospRepo repository.HospitalizationRepository, carePlanRepo repository.CarePlanItemRepository, accountingRepo repository.AccountingRepository, billingItemRepo repository.BillingItemRepository) *repository.Repositories {
-	repos := &repository.Repositories{
-		Hospitalization: hospRepo,
-		CarePlanItem:    carePlanRepo,
-		Accounting:      accountingRepo,
-		BillingItem:     billingItemRepo,
-		Reservation: &mockReservationRepository{
+// dischargeTestDeps は BE9-2D ⑤ Phase1 の個別注入コンストラクタ向け discharge テスト共通配線。
+// 旧 harness の repos.TransactionFn インライン実行は mockTransactor の WithTx 素通しが等価。
+type dischargeTestDeps struct {
+	hosp        repository.HospitalizationRepository
+	carePlan    repository.CarePlanItemRepository
+	accounting  repository.AccountingRepository
+	billingItem repository.BillingItemRepository
+	reservation repository.ReservationRepository
+}
+
+func newDischargeTestDeps(hospRepo repository.HospitalizationRepository, carePlanRepo repository.CarePlanItemRepository, accountingRepo repository.AccountingRepository, billingItemRepo repository.BillingItemRepository) *dischargeTestDeps {
+	return &dischargeTestDeps{
+		hosp:        hospRepo,
+		carePlan:    carePlanRepo,
+		accounting:  accountingRepo,
+		billingItem: billingItemRepo,
+		reservation: &mockReservationRepository{
 			assertOwnerInClinicFn: func(_ context.Context, _, _ uint64) error { return nil },
 			findPetOwnerInClinicFn: func(_ context.Context, _, petID uint64) (uint64, error) {
 				// Discharge fixtures use OwnerID=2 / PetID=5 by default.
@@ -897,10 +891,10 @@ func newDischargeTestRepos(hospRepo repository.HospitalizationRepository, carePl
 			},
 		},
 	}
-	repos.TransactionFn = func(_ context.Context, fn func(*repository.Repositories) error) error {
-		return fn(repos)
-	}
-	return repos
+}
+
+func (d *dischargeTestDeps) svc() HospitalizationService {
+	return NewHospitalizationService(d.hosp, d.reservation, nil, nil, d.carePlan, d.accounting, d.billingItem, &mockTransactor{})
 }
 
 func TestHospitalizationService_DischargeWithBilling_NotFound(t *testing.T) {
@@ -909,7 +903,7 @@ func TestHospitalizationService_DischargeWithBilling_NotFound(t *testing.T) {
 			return nil, apperrors.WrapNotFound("hospitalization", "999")
 		},
 	}
-	svc := NewHospitalizationService(newDischargeTestRepos(hospRepo, nil, nil, nil))
+	svc := newDischargeTestDeps(hospRepo, nil, nil, nil).svc()
 
 	result, err := svc.DischargeWithBilling(context.Background(), 1, 999, DischargeWithBillingInput{})
 
@@ -923,7 +917,7 @@ func TestHospitalizationService_DischargeWithBilling_AlreadyDischarged(t *testin
 			return &model.Hospitalization{ID: id, Status: model.HospitalizationStatusDischarged}, nil
 		},
 	}
-	svc := NewHospitalizationService(newDischargeTestRepos(hospRepo, nil, nil, nil))
+	svc := newDischargeTestDeps(hospRepo, nil, nil, nil).svc()
 
 	result, err := svc.DischargeWithBilling(context.Background(), 1, 10, DischargeWithBillingInput{})
 
@@ -941,7 +935,7 @@ func TestHospitalizationService_DischargeWithBilling_UpdateFails(t *testing.T) {
 			return nil, errors.New("db error")
 		},
 	}
-	svc := NewHospitalizationService(newDischargeTestRepos(hospRepo, nil, nil, nil))
+	svc := newDischargeTestDeps(hospRepo, nil, nil, nil).svc()
 
 	result, err := svc.DischargeWithBilling(context.Background(), 1, 10, DischargeWithBillingInput{DischargeDate: time.Now()})
 
@@ -966,7 +960,7 @@ func TestHospitalizationService_DischargeWithBilling_WithoutAccounting(t *testin
 			return nil, nil
 		},
 	}
-	svc := NewHospitalizationService(newDischargeTestRepos(hospRepo, carePlanRepo, nil, nil))
+	svc := newDischargeTestDeps(hospRepo, carePlanRepo, nil, nil).svc()
 
 	dischargeDate := time.Now()
 	result, err := svc.DischargeWithBilling(context.Background(), 1, 10, DischargeWithBillingInput{DischargeDate: dischargeDate, CreateAccounting: false})
@@ -993,7 +987,7 @@ func TestHospitalizationService_DischargeWithBilling_CarePlanItemsFetchError(t *
 			return nil, errors.New("db error")
 		},
 	}
-	svc := NewHospitalizationService(newDischargeTestRepos(hospRepo, carePlanRepo, nil, nil))
+	svc := newDischargeTestDeps(hospRepo, carePlanRepo, nil, nil).svc()
 
 	result, err := svc.DischargeWithBilling(context.Background(), 1, 10, DischargeWithBillingInput{DischargeDate: time.Now(), CreateAccounting: true})
 
@@ -1020,7 +1014,7 @@ func TestHospitalizationService_DischargeWithBilling_BillingCreateError(t *testi
 			return errors.New("db error")
 		},
 	}
-	svc := NewHospitalizationService(newDischargeTestRepos(hospRepo, carePlanRepo, accountingRepo, nil))
+	svc := newDischargeTestDeps(hospRepo, carePlanRepo, accountingRepo, nil).svc()
 
 	result, err := svc.DischargeWithBilling(context.Background(), 1, 10, DischargeWithBillingInput{DischargeDate: time.Now(), CreateAccounting: true})
 
@@ -1068,7 +1062,7 @@ func TestHospitalizationService_DischargeWithBilling_WithCarePlanItems(t *testin
 			return nil
 		},
 	}
-	svc := NewHospitalizationService(newDischargeTestRepos(hospRepo, carePlanRepo, accountingRepo, billingItemRepo))
+	svc := newDischargeTestDeps(hospRepo, carePlanRepo, accountingRepo, billingItemRepo).svc()
 
 	result, err := svc.DischargeWithBilling(context.Background(), 1, 10, DischargeWithBillingInput{DischargeDate: time.Now(), CreateAccounting: true})
 
@@ -1106,7 +1100,7 @@ func TestHospitalizationService_DischargeWithBilling_BillingItemCreateError(t *t
 			return errors.New("db error")
 		},
 	}
-	svc := NewHospitalizationService(newDischargeTestRepos(hospRepo, carePlanRepo, accountingRepo, billingItemRepo))
+	svc := newDischargeTestDeps(hospRepo, carePlanRepo, accountingRepo, billingItemRepo).svc()
 
 	result, err := svc.DischargeWithBilling(context.Background(), 1, 10, DischargeWithBillingInput{DischargeDate: time.Now(), CreateAccounting: true})
 
@@ -1143,7 +1137,7 @@ func TestHospitalizationService_DischargeWithBilling_UpdateBillingTotalsError(t 
 			return errors.New("db error")
 		},
 	}
-	svc := NewHospitalizationService(newDischargeTestRepos(hospRepo, carePlanRepo, accountingRepo, billingItemRepo))
+	svc := newDischargeTestDeps(hospRepo, carePlanRepo, accountingRepo, billingItemRepo).svc()
 
 	result, err := svc.DischargeWithBilling(context.Background(), 1, 10, DischargeWithBillingInput{DischargeDate: time.Now(), CreateAccounting: true})
 
@@ -1178,7 +1172,7 @@ func TestHospitalizationService_DischargeWithBilling_ConcurrentDoubleDischarge_R
 			return nil
 		},
 	}
-	svc := NewHospitalizationService(newDischargeTestRepos(hospRepo, carePlanRepo, accountingRepo, nil))
+	svc := newDischargeTestDeps(hospRepo, carePlanRepo, accountingRepo, nil).svc()
 
 	result, err := svc.DischargeWithBilling(context.Background(), 1, 10, DischargeWithBillingInput{
 		DischargeDate:    time.Now(),

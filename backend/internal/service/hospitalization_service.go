@@ -156,15 +156,43 @@ type HospitalizationService interface {
 }
 
 type hospitalizationService struct {
-	repos *repository.Repositories
+	hospRepo         repository.HospitalizationRepository
+	reservationRepo  repository.ReservationRepository
+	petRepo          repository.PetRepository
+	cageRepo         repository.CageRepository
+	carePlanItemRepo repository.CarePlanItemRepository
+	accountingRepo   repository.AccountingRepository
+	billingItemRepo  repository.BillingItemRepository
+	transactor       repository.Transactor
 }
 
-func NewHospitalizationService(repos *repository.Repositories) HospitalizationService {
-	return &hospitalizationService{repos: repos}
+// NewHospitalizationService は実消費 repo の個別注入で初期化する（BE9-2D ⑤ Phase1:
+// *repository.Repositories 集約と repo-swap tx 機構を treatment ④b と同型で解体。
+// DischargeWithBilling は Transactor.WithTx + 各 repo の dbOrTx 参加で原子性を維持する）。
+func NewHospitalizationService(
+	hospRepo repository.HospitalizationRepository,
+	reservationRepo repository.ReservationRepository,
+	petRepo repository.PetRepository,
+	cageRepo repository.CageRepository,
+	carePlanItemRepo repository.CarePlanItemRepository,
+	accountingRepo repository.AccountingRepository,
+	billingItemRepo repository.BillingItemRepository,
+	transactor repository.Transactor,
+) HospitalizationService {
+	return &hospitalizationService{
+		hospRepo:         hospRepo,
+		reservationRepo:  reservationRepo,
+		petRepo:          petRepo,
+		cageRepo:         cageRepo,
+		carePlanItemRepo: carePlanItemRepo,
+		accountingRepo:   accountingRepo,
+		billingItemRepo:  billingItemRepo,
+		transactor:       transactor,
+	}
 }
 
 func (s *hospitalizationService) List(ctx context.Context, clinicID uint64, petID, ownerID *uint64, status, startDate, endDate *string, page, limit int) ([]model.Hospitalization, int64, error) {
-	result, total, err := s.repos.Hospitalization.FindAll(ctx, clinicID, petID, ownerID, status, startDate, endDate, page, limit)
+	result, total, err := s.hospRepo.FindAll(ctx, clinicID, petID, ownerID, status, startDate, endDate, page, limit)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to list hospitalizations", "error", err)
 		return nil, 0, apperrors.Wrap(err, "failed to list hospitalizations")
@@ -173,7 +201,7 @@ func (s *hospitalizationService) List(ctx context.Context, clinicID uint64, petI
 }
 
 func (s *hospitalizationService) GetByID(ctx context.Context, clinicID, id uint64) (*model.Hospitalization, error) {
-	result, err := s.repos.Hospitalization.FindByID(ctx, clinicID, id)
+	result, err := s.hospRepo.FindByID(ctx, clinicID, id)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to get hospitalization", "error", err)
 		return nil, apperrors.Wrap(err, "failed to get hospitalization")
@@ -196,19 +224,19 @@ func (s *hospitalizationService) Create(ctx context.Context, clinicID uint64, in
 
 	// クロステナント write 防止: request 由来 Owner/Pet の clinic 所有と Owner-Pet 整合を検証する（AUD-004）。
 	ownerID, petID := input.OwnerID, input.PetID
-	if err := validateReservationOwnerPetLinks(ctx, s.repos.Reservation, clinicID, &ownerID, &petID); err != nil {
+	if err := validateReservationOwnerPetLinks(ctx, s.reservationRepo, clinicID, &ownerID, &petID); err != nil {
 		return nil, err
 	}
 
 	// 死亡ペットの入院ブロック（SD-10）
-	if err := validatePetNotDeceased(ctx, s.repos.Pet, clinicID, petID); err != nil {
+	if err := validatePetNotDeceased(ctx, s.petRepo, clinicID, petID); err != nil {
 		return nil, err
 	}
 
 	// クロステナント write 防止: request 由来の cage マスタが caller の clinic に属することを検証する。
 	if err := validateOwnedMasterFK(ctx, "cage", clinicID, input.CageID,
 		func(actx context.Context, cid, mid uint64) error {
-			_, err := s.repos.Cage.FindByID(actx, cid, mid)
+			_, err := s.cageRepo.FindByID(actx, cid, mid)
 			return err
 		}); err != nil {
 		return nil, err
@@ -230,7 +258,7 @@ func (s *hospitalizationService) Create(ctx context.Context, clinicID uint64, in
 		InsuranceCompanyName: insuranceCompanyName,
 		InsuranceNumber:      insuranceNumber,
 	}
-	if err := s.repos.Hospitalization.Create(ctx, hospitalization); err != nil {
+	if err := s.hospRepo.Create(ctx, hospitalization); err != nil {
 		slog.ErrorContext(ctx, "failed to create hospitalization", "error", err)
 		return nil, apperrors.Wrap(err, "failed to create hospitalization")
 	}
@@ -244,7 +272,7 @@ func (s *hospitalizationService) Update(ctx context.Context, clinicID, id uint64
 	if input == nil {
 		return nil, apperrors.WrapInvalidInput("input must not be nil")
 	}
-	existing, err := s.repos.Hospitalization.FindByID(ctx, clinicID, id)
+	existing, err := s.hospRepo.FindByID(ctx, clinicID, id)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to find hospitalization", "error", err)
 		return nil, apperrors.Wrap(err, "failed to find hospitalization")
@@ -253,14 +281,14 @@ func (s *hospitalizationService) Update(ctx context.Context, clinicID, id uint64
 	// クロステナント write 防止: 最終マージ後の Owner/Pet を検証する（AUD-004）。
 	if input.OwnerID != nil || input.PetID != nil {
 		finalOwnerID, finalPetID := resolveFinalHospitalizationOwnerPet(existing, input)
-		if err := validateReservationOwnerPetLinks(ctx, s.repos.Reservation, clinicID, finalOwnerID, finalPetID); err != nil {
+		if err := validateReservationOwnerPetLinks(ctx, s.reservationRepo, clinicID, finalOwnerID, finalPetID); err != nil {
 			return nil, err
 		}
 	}
 
 	// 死亡ペットへの貼り替えブロック（SD-10）: PetID が変更される場合のみ検証する。
 	if input.PetID != nil {
-		if err := validatePetNotDeceased(ctx, s.repos.Pet, clinicID, *input.PetID); err != nil {
+		if err := validatePetNotDeceased(ctx, s.petRepo, clinicID, *input.PetID); err != nil {
 			return nil, err
 		}
 	}
@@ -268,7 +296,7 @@ func (s *hospitalizationService) Update(ctx context.Context, clinicID, id uint64
 	// クロステナント write 防止: 貼り替え先 cage マスタの所有権を検証する。
 	if err := validateOwnedMasterFK(ctx, "cage", clinicID, input.CageID,
 		func(actx context.Context, cid, mid uint64) error {
-			_, err := s.repos.Cage.FindByID(actx, cid, mid)
+			_, err := s.cageRepo.FindByID(actx, cid, mid)
 			return err
 		}); err != nil {
 		return nil, err
@@ -278,7 +306,7 @@ func (s *hospitalizationService) Update(ctx context.Context, clinicID, id uint64
 	if len(fields) == 0 {
 		return nil, apperrors.WrapInvalidInput("at least one field must be provided")
 	}
-	hosp, err := s.repos.Hospitalization.Update(ctx, clinicID, id, fields)
+	hosp, err := s.hospRepo.Update(ctx, clinicID, id, fields)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to update hospitalization", "error", err)
 		return nil, apperrors.Wrap(err, "failed to update hospitalization")
@@ -289,11 +317,11 @@ func (s *hospitalizationService) Update(ctx context.Context, clinicID, id uint64
 	return hosp, nil
 }
 func (s *hospitalizationService) Delete(ctx context.Context, clinicID, id uint64) error {
-	if _, err := s.repos.Hospitalization.FindByID(ctx, clinicID, id); err != nil {
+	if _, err := s.hospRepo.FindByID(ctx, clinicID, id); err != nil {
 		return apperrors.Wrap(err, "failed to find hospitalization")
 	}
 	// FK依存チェック: 入院に紐付く日次記録が存在する場合は削除を拒否
-	dailyCount, err := s.repos.Hospitalization.CountDailyRecordsByHospitalizationID(ctx, clinicID, id)
+	dailyCount, err := s.hospRepo.CountDailyRecordsByHospitalizationID(ctx, clinicID, id)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to check daily record dependencies", "error", err, "id", id, "clinic_id", clinicID)
 		return apperrors.Wrap(err, "failed to check daily record dependencies")
@@ -303,7 +331,7 @@ func (s *hospitalizationService) Delete(ctx context.Context, clinicID, id uint64
 	}
 
 	// FK依存チェック: 入院に紐付く治療計画が存在する場合は削除を拒否
-	planCount, err := s.repos.Hospitalization.CountTreatmentPlansByHospitalizationID(ctx, clinicID, id)
+	planCount, err := s.hospRepo.CountTreatmentPlansByHospitalizationID(ctx, clinicID, id)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to check treatment plan dependencies", "error", err, "id", id, "clinic_id", clinicID)
 		return apperrors.Wrap(err, "failed to check treatment plan dependencies")
@@ -313,7 +341,7 @@ func (s *hospitalizationService) Delete(ctx context.Context, clinicID, id uint64
 	}
 
 	// FK依存チェック: 入院に紐付くケアプラン項目が存在する場合は削除を拒否
-	itemCount, err := s.repos.Hospitalization.CountCarePlanItemsByHospitalizationID(ctx, clinicID, id)
+	itemCount, err := s.hospRepo.CountCarePlanItemsByHospitalizationID(ctx, clinicID, id)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to check care plan item dependencies", "error", err, "id", id, "clinic_id", clinicID)
 		return apperrors.Wrap(err, "failed to check care plan item dependencies")
@@ -322,7 +350,7 @@ func (s *hospitalizationService) Delete(ctx context.Context, clinicID, id uint64
 		return apperrors.WrapConflict("ケアプランが紐付いているため削除できません。先にケアプランを削除してください")
 	}
 
-	if err := s.repos.Hospitalization.Delete(ctx, clinicID, id); err != nil {
+	if err := s.hospRepo.Delete(ctx, clinicID, id); err != nil {
 		slog.ErrorContext(ctx, "failed to delete hospitalization", "error", err, "id", id, "clinic_id", clinicID)
 		return apperrors.Wrap(err, "failed to delete hospitalization")
 	}
@@ -338,7 +366,7 @@ func (s *hospitalizationService) Delete(ctx context.Context, clinicID, id uint64
 // care_plan_items を billing_items に変換してトランザクション内で原子的に実行する。
 func (s *hospitalizationService) DischargeWithBilling(ctx context.Context, clinicID, id uint64, input DischargeWithBillingInput) (*DischargeWithBillingResult, error) {
 	// 入院レコード取得
-	hosp, err := s.repos.Hospitalization.FindByID(ctx, clinicID, id)
+	hosp, err := s.hospRepo.FindByID(ctx, clinicID, id)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to get hospitalization", "error", err)
 		return nil, apperrors.Wrap(err, "failed to get hospitalization")
@@ -352,10 +380,12 @@ func (s *hospitalizationService) DischargeWithBilling(ctx context.Context, clini
 		Status:            string(model.HospitalizationStatusDischarged),
 	}
 
-	err = s.repos.Transaction(ctx, func(txRepos *repository.Repositories) error {
+	// BE9-2D ⑤ Phase1: repos.Transaction（tx-bound clone）→ Transactor.WithTx（ctx-txKey）へ変換。
+	// 閉包内の read/write は各 repo の dbOrTx が txCtx の ambient tx へ参加する（挙動は旧機構と等価）。
+	err = s.transactor.WithTx(ctx, func(txCtx context.Context) error {
 		// 0. Q2-C: FOR UPDATE で直列化し、locked 行の OwnerID/PetID で Q2-A 再検証する。
 		// LockByIDForUpdate の行スナップショットにスカラーが含まれるため、検証用 ID が空にならない。
-		locked, err := txRepos.Hospitalization.LockByIDForUpdate(ctx, clinicID, id)
+		locked, err := s.hospRepo.LockByIDForUpdate(txCtx, clinicID, id)
 		if err != nil {
 			return apperrors.Wrap(err, "failed to lock hospitalization for discharge")
 		}
@@ -364,7 +394,7 @@ func (s *hospitalizationService) DischargeWithBilling(ctx context.Context, clini
 		}
 
 		// 1. 汚染行対策: CreateAccounting 有無に関わらず、Update 前に Owner/Pet の clinic 所有を再検証する（AUD-004 Q2-A）。
-		if err := validateReservationOwnerPetLinks(ctx, txRepos.Reservation, clinicID, &locked.OwnerID, &locked.PetID); err != nil {
+		if err := validateReservationOwnerPetLinks(txCtx, s.reservationRepo, clinicID, &locked.OwnerID, &locked.PetID); err != nil {
 			return err
 		}
 
@@ -374,7 +404,7 @@ func (s *hospitalizationService) DischargeWithBilling(ctx context.Context, clini
 			"status":   dischargedStatus,
 			"end_date": input.DischargeDate,
 		}
-		if _, err := txRepos.Hospitalization.UpdateIfNotDischarged(ctx, clinicID, id, dischargeFields); err != nil {
+		if _, err := s.hospRepo.UpdateIfNotDischarged(txCtx, clinicID, id, dischargeFields); err != nil {
 			return apperrors.Wrap(err, "failed to discharge hospitalization")
 		}
 
@@ -383,7 +413,7 @@ func (s *hospitalizationService) DischargeWithBilling(ctx context.Context, clini
 		}
 
 		// 2. ケアプラン取得
-		carePlanItems, err := txRepos.CarePlanItem.FindByHospitalizationID(ctx, clinicID, id)
+		carePlanItems, err := s.carePlanItemRepo.FindByHospitalizationID(txCtx, clinicID, id)
 		if err != nil {
 			return apperrors.Wrap(err, "failed to get care plan items")
 		}
@@ -397,7 +427,7 @@ func (s *hospitalizationService) DischargeWithBilling(ctx context.Context, clini
 			Status:            model.BillingStatusWaiting,
 			ScheduledDate:     input.DischargeDate,
 		}
-		if err := txRepos.Accounting.Create(ctx, clinicID, billing); err != nil {
+		if err := s.accountingRepo.Create(txCtx, clinicID, billing); err != nil {
 			return apperrors.Wrap(err, "failed to create billing")
 		}
 
@@ -416,7 +446,7 @@ func (s *hospitalizationService) DischargeWithBilling(ctx context.Context, clini
 				Source:    model.ItemSourceHospitalization,
 				SortOrder: i,
 			}
-			if err := txRepos.BillingItem.Create(ctx, billingItem); err != nil {
+			if err := s.billingItemRepo.Create(txCtx, billingItem); err != nil {
 				return apperrors.Wrap(err, "failed to create billing item")
 			}
 			totalAmount += item.UnitPrice
@@ -425,7 +455,7 @@ func (s *hospitalizationService) DischargeWithBilling(ctx context.Context, clini
 		// 5. 合計金額更新
 		if len(carePlanItems) > 0 {
 			taxTotal := int64(float64(totalAmount) * DefaultTaxRate)
-			if err := txRepos.BillingItem.UpdateBillingTotals(ctx, clinicID, billing.ID, totalAmount, taxTotal, totalAmount+taxTotal); err != nil {
+			if err := s.billingItemRepo.UpdateBillingTotals(txCtx, clinicID, billing.ID, totalAmount, taxTotal, totalAmount+taxTotal); err != nil {
 				return apperrors.Wrap(err, "failed to update billing totals")
 			}
 		}

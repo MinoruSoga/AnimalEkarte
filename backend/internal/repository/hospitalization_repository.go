@@ -87,9 +87,12 @@ func (r *hospitalizationRepository) FindByID(ctx context.Context, clinicID, id u
 // OwnerID/PetID など Q2-A 再検証に必要なスカラーはロック取得時の行スナップショットに含まれる。
 // DischargeWithBilling は Repositories.Transaction（repo-swap）内の txRepos 経由で呼ぶこと。
 // r.db が tx にバインドされていないとロックは SELECT 終了と同時に解放され直列化できない。
+// LockByIDForUpdate / UpdateIfNotDischarged は dbOrTx で ambient tx（Transactor.WithTx）に参加する
+// （BE9-2D ⑤: hospitalizationService.DischargeWithBilling の repos.Transaction→WithTx 化に伴い、
+// FOR UPDATE 直列化と退院status更新をbilling書込と同一 tx に保つ＝二重会計防止の要）。
 func (r *hospitalizationRepository) LockByIDForUpdate(ctx context.Context, clinicID, id uint64) (*model.Hospitalization, error) {
 	var hospitalization model.Hospitalization
-	err := r.db.WithContext(ctx).
+	err := dbOrTx(ctx, r.db).
 		Scopes(clinicScope(clinicID)).
 		Clauses(clause.Locking{Strength: "UPDATE"}).
 		Where("id = ?", id).First(&hospitalization).Error
@@ -125,7 +128,7 @@ func (r *hospitalizationRepository) Update(ctx context.Context, clinicID, id uin
 }
 
 func (r *hospitalizationRepository) UpdateIfNotDischarged(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Hospitalization, error) {
-	result := r.db.WithContext(ctx).
+	result := dbOrTx(ctx, r.db).
 		Model(&model.Hospitalization{}).
 		Scopes(clinicScope(clinicID)).
 		Where("id = ? AND status != ?", id, model.HospitalizationStatusDischarged).

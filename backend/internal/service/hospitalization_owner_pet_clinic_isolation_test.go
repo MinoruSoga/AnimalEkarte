@@ -101,10 +101,7 @@ func TestHospitalizationService_Create_RejectsCrossClinicOwnerPet(t *testing.T) 
 				assertOwnerInClinicFn:  tt.assertOwnerFn,
 				findPetOwnerInClinicFn: tt.findPetFn,
 			}
-			svc := NewHospitalizationService(&repository.Repositories{
-				Hospitalization: hospRepo,
-				Reservation:     resRepo,
-			})
+			svc := NewHospitalizationService(hospRepo, resRepo, nil, nil, nil, nil, nil, &mockTransactor{})
 
 			got, err := svc.Create(context.Background(), clinicID, &CreateHospitalizationInput{
 				OwnerID:             tt.ownerID,
@@ -135,15 +132,11 @@ func TestHospitalizationService_Create_AcceptsSameClinicOwnerPet(t *testing.T) {
 			return nil
 		},
 	}
-	svc := NewHospitalizationService(&repository.Repositories{
-		Hospitalization: hospRepo,
-		Reservation:     acceptMatchingOwnerPetReservationRepo(ownedOwnerID, ownedPetID),
-		Pet: &mockPetRepository{
-			findByIDFn: func(_ context.Context, _, id uint64) (*model.Pet, error) {
-				return &model.Pet{ID: id}, nil
-			},
+	svc := NewHospitalizationService(hospRepo, acceptMatchingOwnerPetReservationRepo(ownedOwnerID, ownedPetID), &mockPetRepository{
+		findByIDFn: func(_ context.Context, _, id uint64) (*model.Pet, error) {
+			return &model.Pet{ID: id}, nil
 		},
-	})
+	}, nil, nil, nil, nil, &mockTransactor{})
 
 	got, err := svc.Create(context.Background(), clinicID, &CreateHospitalizationInput{
 		OwnerID:             ownedOwnerID,
@@ -232,10 +225,7 @@ func TestHospitalizationService_Update_RejectsCrossClinicOwnerPetAndMismatch(t *
 				assertOwnerInClinicFn:  tt.assertOwnerFn,
 				findPetOwnerInClinicFn: tt.findPetFn,
 			}
-			svc := NewHospitalizationService(&repository.Repositories{
-				Hospitalization: hospRepo,
-				Reservation:     resRepo,
-			})
+			svc := NewHospitalizationService(hospRepo, resRepo, nil, nil, nil, nil, nil, &mockTransactor{})
 
 			got, err := svc.Update(context.Background(), clinicID, 1, tt.input)
 
@@ -266,15 +256,11 @@ func TestHospitalizationService_Update_AcceptsSameClinicFinalOwnerPet(t *testing
 			return &model.Hospitalization{ID: 1, ClinicID: clinicID, OwnerID: ownedOwnerID, PetID: newPetID}, nil
 		},
 	}
-	svc := NewHospitalizationService(&repository.Repositories{
-		Hospitalization: hospRepo,
-		Reservation:     acceptMatchingOwnerPetReservationRepo(ownedOwnerID, ownedPetID),
-		Pet: &mockPetRepository{
-			findByIDFn: func(_ context.Context, _, id uint64) (*model.Pet, error) {
-				return &model.Pet{ID: id}, nil
-			},
+	svc := NewHospitalizationService(hospRepo, acceptMatchingOwnerPetReservationRepo(ownedOwnerID, ownedPetID), &mockPetRepository{
+		findByIDFn: func(_ context.Context, _, id uint64) (*model.Pet, error) {
+			return &model.Pet{ID: id}, nil
 		},
-	})
+	}, nil, nil, nil, nil, &mockTransactor{})
 
 	got, err := svc.Update(context.Background(), clinicID, 1, &UpdateHospitalizationInput{PetID: &newPetID})
 
@@ -320,9 +306,9 @@ func TestHospitalizationService_DischargeWithBilling_DoesNotPropagateForeignOwne
 			return apperrors.WrapNotFound("owner", "201")
 		},
 	}
-	repos := newDischargeTestRepos(hospRepo, carePlanRepo, accountingRepo, nil)
-	repos.Reservation = resRepo
-	svc := NewHospitalizationService(repos)
+	deps := newDischargeTestDeps(hospRepo, carePlanRepo, accountingRepo, nil)
+	deps.reservation = resRepo
+	svc := deps.svc()
 
 	result, err := svc.DischargeWithBilling(context.Background(), clinicID, 10, DischargeWithBillingInput{
 		DischargeDate:    time.Now(),
@@ -382,9 +368,9 @@ func TestHospitalizationService_DischargeWithBilling_RejectsContaminatedOwnerPet
 			return apperrors.WrapNotFound("owner", "201")
 		},
 	}
-	repos := newDischargeTestRepos(hospRepo, carePlanRepo, accountingRepo, nil)
-	repos.Reservation = resRepo
-	svc := NewHospitalizationService(repos)
+	deps := newDischargeTestDeps(hospRepo, carePlanRepo, accountingRepo, nil)
+	deps.reservation = resRepo
+	svc := deps.svc()
 
 	result, err := svc.DischargeWithBilling(context.Background(), clinicID, 10, DischargeWithBillingInput{
 		DischargeDate:    time.Now(),
@@ -429,9 +415,9 @@ func TestHospitalizationService_DischargeWithBilling_WithoutAccounting_RejectsFo
 			return apperrors.WrapNotFound("owner", "201")
 		},
 	}
-	repos := newDischargeTestRepos(hospRepo, carePlanRepo, nil, nil)
-	repos.Reservation = resRepo
-	svc := NewHospitalizationService(repos)
+	deps := newDischargeTestDeps(hospRepo, carePlanRepo, nil, nil)
+	deps.reservation = resRepo
+	svc := deps.svc()
 
 	result, err := svc.DischargeWithBilling(context.Background(), clinicID, 10, DischargeWithBillingInput{
 		DischargeDate:    time.Now(),
@@ -565,9 +551,9 @@ func TestHospitalizationService_DischargeWithBilling_RejectsInvalidOwnerPetLinks
 				assertOwnerInClinicFn:  tt.assertOwnerFn,
 				findPetOwnerInClinicFn: tt.findPetFn,
 			}
-			repos := newDischargeTestRepos(hospRepo, carePlanRepo, accountingRepo, nil)
-			repos.Reservation = resRepo
-			svc := NewHospitalizationService(repos)
+			deps := newDischargeTestDeps(hospRepo, carePlanRepo, accountingRepo, nil)
+			deps.reservation = resRepo
+			svc := deps.svc()
 
 			result, err := svc.DischargeWithBilling(context.Background(), clinicID, 10, DischargeWithBillingInput{
 				DischargeDate:    time.Now(),

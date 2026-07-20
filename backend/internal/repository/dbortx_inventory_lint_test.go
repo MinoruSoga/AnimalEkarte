@@ -109,6 +109,12 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	// daily_record (AUD-006: FindOrCreate+CreateVital same ambient tx)
 	"dailyrecord/repository.go|repository.CreateVitalRecord":  {}, // BE8-4 batch6: moved from daily_record_repository.go
 	"dailyrecord/repository.go|repository.FindOrCreateByDate": {}, // BE8-4 batch6: moved from daily_record_repository.go
+	// care_plan_item / hospitalization (BE9-2D ⑤: DischargeWithBilling の repos.Transaction→
+	// Transactor.WithTx 化。FOR UPDATE 直列化・退院status更新・care plan read を billing 書込と
+	// 同一 ambient tx に参加させる＝二重会計防止)
+	"care_plan_item_repository.go|carePlanItemRepository.FindByHospitalizationID":   {},
+	"hospitalization_repository.go|hospitalizationRepository.LockByIDForUpdate":     {},
+	"hospitalization_repository.go|hospitalizationRepository.UpdateIfNotDischarged": {},
 	// checkup_field (#211 tx-internal replace)
 	"medicalrecord/checkup_field_repository.go|checkupFieldResultRepository.FindByCheckupID":   {},
 	"medicalrecord/checkup_field_repository.go|checkupFieldResultRepository.ReplaceForCheckup": {},

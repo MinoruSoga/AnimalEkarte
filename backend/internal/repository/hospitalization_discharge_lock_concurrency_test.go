@@ -7,7 +7,10 @@ package repository
 // Owner/Pet 汚染や退院を割り込ませ、二重退院/汚染永続化の窓が開く。
 // LockByIDForUpdate は FOR UPDATE で入院行をロックし、並行 UPDATE を直列化する。
 //
-// Discharge と同じ repo-swap（Repositories.Transaction / NewRepositories(tx)）で検証する。
+// Discharge と同じ ctx-txKey 機構（Transactor.WithTx）で検証する（BE9-2D ⑤ Phase1 で
+// hospitalizationService の repos.Transaction を WithTx 化したため、production 実機構へ追随。
+// LockByIDForUpdate/UpdateIfNotDischarged は dbOrTx 化済み — 本テストが WithTx で green である
+// こと自体が両メソッドの ambient tx 参加の実DB証明を兼ねる・④b X-11 テストと同型）。
 //
 // Callers: DischargeWithBilling（service）。API: HospitalizationRepository.LockByIDForUpdate。
 // Schema: 変更なし（FOR UPDATE のみ）。
@@ -66,7 +69,7 @@ func TestHospitalizationRepository_LockByIDForUpdate(t *testing.T) {
 // Lock 保持中に並行の UpdateIfNotDischarged がブロックされ、ロック解放後にのみ完了することを検証する。
 func TestHospitalizationRepository_LockByIDForUpdate_SerializesConcurrentDischargeUpdate(t *testing.T) {
 	db := setupHospitalizationRepoTestDB(t)
-	repos := NewRepositories(db)
+	transactor := NewTransactor(db)
 	hospRepo := NewHospitalizationRepository(db)
 	ctx := context.Background()
 
@@ -85,8 +88,8 @@ func TestHospitalizationRepository_LockByIDForUpdate_SerializesConcurrentDischar
 
 	go func() {
 		defer close(holderDone)
-		holderErr = repos.Transaction(context.Background(), func(txRepos *Repositories) error {
-			locked, err := txRepos.Hospitalization.LockByIDForUpdate(context.Background(), clinicID, hosp.ID)
+		holderErr = transactor.WithTx(context.Background(), func(txCtx context.Context) error {
+			locked, err := hospRepo.LockByIDForUpdate(txCtx, clinicID, hosp.ID)
 			if err != nil {
 				return err
 			}
@@ -94,7 +97,7 @@ func TestHospitalizationRepository_LockByIDForUpdate_SerializesConcurrentDischar
 			lockedPetID = locked.PetID
 			close(lockAcquired)
 			<-proceed
-			_, err = txRepos.Hospitalization.UpdateIfNotDischarged(context.Background(), clinicID, hosp.ID, map[string]any{
+			_, err = hospRepo.UpdateIfNotDischarged(txCtx, clinicID, hosp.ID, map[string]any{
 				"status":   model.HospitalizationStatusDischarged,
 				"end_date": time.Now().UTC().Truncate(time.Second),
 			})
@@ -146,7 +149,7 @@ func TestHospitalizationRepository_LockByIDForUpdate_SerializesConcurrentDischar
 // Lock 保持中に並行の Owner/Pet 更新がブロックされ、Discharge 完了後にのみ走ることを検証する。
 func TestHospitalizationRepository_LockByIDForUpdate_SerializesOwnerPetContamination(t *testing.T) {
 	db := setupHospitalizationRepoTestDB(t)
-	repos := NewRepositories(db)
+	transactor := NewTransactor(db)
 	hospRepo := NewHospitalizationRepository(db)
 
 	const clinicID = uint64(90202)
@@ -166,8 +169,8 @@ func TestHospitalizationRepository_LockByIDForUpdate_SerializesOwnerPetContamina
 
 	go func() {
 		defer close(holderDone)
-		holderErr = repos.Transaction(context.Background(), func(txRepos *Repositories) error {
-			locked, err := txRepos.Hospitalization.LockByIDForUpdate(context.Background(), clinicID, hosp.ID)
+		holderErr = transactor.WithTx(context.Background(), func(txCtx context.Context) error {
+			locked, err := hospRepo.LockByIDForUpdate(txCtx, clinicID, hosp.ID)
 			if err != nil {
 				return err
 			}
@@ -175,7 +178,7 @@ func TestHospitalizationRepository_LockByIDForUpdate_SerializesOwnerPetContamina
 			lockedPetID = locked.PetID
 			close(lockAcquired)
 			<-proceed
-			_, err = txRepos.Hospitalization.UpdateIfNotDischarged(context.Background(), clinicID, hosp.ID, map[string]any{
+			_, err = hospRepo.UpdateIfNotDischarged(txCtx, clinicID, hosp.ID, map[string]any{
 				"status":   model.HospitalizationStatusDischarged,
 				"end_date": time.Now().UTC().Truncate(time.Second),
 			})

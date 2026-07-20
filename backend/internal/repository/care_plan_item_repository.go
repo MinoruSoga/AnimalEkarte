@@ -28,9 +28,11 @@ func NewCarePlanItemRepository(db *gorm.DB) CarePlanItemRepository {
 	return &carePlanItemRepository{db: db}
 }
 
+// FindByHospitalizationID は dbOrTx で ambient tx に参加する（BE9-2D ⑤: DischargeWithBilling が
+// FOR UPDATE 保持中に読み billing_items へ変換する read＝旧 repos.Transaction の tx-bound clone と等価維持）。
 func (r *carePlanItemRepository) FindByHospitalizationID(ctx context.Context, clinicID, hospitalizationID uint64) ([]model.CarePlanItem, error) {
 	items := make([]model.CarePlanItem, 0)
-	err := r.db.WithContext(ctx).
+	err := dbOrTx(ctx, r.db).
 		Joins("JOIN hospitalizations ON hospitalizations.id = care_plan_items.hospitalization_id AND hospitalizations.deleted_at IS NULL").
 		Where("hospitalizations.clinic_id = ? AND care_plan_items.hospitalization_id = ?", clinicID, hospitalizationID).
 		Order("care_plan_items.sort_order ASC").

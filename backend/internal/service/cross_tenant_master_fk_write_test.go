@@ -455,21 +455,16 @@ func TestHospitalizationService_Create_RejectsCrossClinicCageFK(t *testing.T) {
 		repo := &mockHospitalizationRepository{
 			createFn: func(_ context.Context, _ *model.Hospitalization) error { *created = true; return nil },
 		}
-		return NewHospitalizationService(&repository.Repositories{
-			Hospitalization: repo,
-			Cage:            rejectCageRepo(ownedCageID),
-			Reservation: &mockReservationRepository{
+		return NewHospitalizationService(repo, &mockReservationRepository{
 				assertOwnerInClinicFn: func(_ context.Context, _, _ uint64) error { return nil },
 				findPetOwnerInClinicFn: func(_ context.Context, _, _ uint64) (uint64, error) {
 					return 2, nil
 				},
-			},
-			Pet: &mockPetRepository{
+			}, &mockPetRepository{
 				findByIDFn: func(_ context.Context, _, id uint64) (*model.Pet, error) {
 					return &model.Pet{ID: id}, nil
 				},
-			},
-		})
+			}, rejectCageRepo(ownedCageID), nil, nil, nil, &mockTransactor{})
 	}
 
 	t.Run("rejects cross-clinic cage_id and does not persist", func(t *testing.T) {
@@ -512,10 +507,7 @@ func TestHospitalizationService_Update_RejectsCrossClinicCageFK(t *testing.T) {
 				return &model.Hospitalization{ID: 1, ClinicID: clinicID}, nil
 			},
 		}
-		return NewHospitalizationService(&repository.Repositories{
-			Hospitalization: repo,
-			Cage:            rejectCageRepo(ownedCageID),
-		})
+		return NewHospitalizationService(repo, nil, nil, rejectCageRepo(ownedCageID), nil, nil, nil, &mockTransactor{})
 	}
 
 	t.Run("rejects cross-clinic cage_id on update and does not persist", func(t *testing.T) {
