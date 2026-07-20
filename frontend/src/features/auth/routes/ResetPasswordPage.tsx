@@ -72,7 +72,7 @@ export function ResetPasswordPage() {
           <div className={`inline-flex items-center justify-center size-[48px] rounded-xl mb-4 ${C.bgBrand}`}>
             <Stethoscope className={`size-[26px] ${C.textWhite}`} />
           </div>
-          <h1 className={`text-[24px] font-bold ${C.text}`}>無効なリンクです</h1>
+          <h1 className={`text-2xl font-bold ${C.text}`}>無効なリンクです</h1>
           <p className={`text-sm ${C.text50}`}>
             パスワードリセットリンクが無効または期限切れです。再度リセットを申請してください。
           </p>
@@ -95,7 +95,7 @@ export function ResetPasswordPage() {
           <div className={`inline-flex items-center justify-center size-[48px] rounded-xl mb-4 ${C.bgBrand}`}>
             <Stethoscope className={`size-[26px] ${C.textWhite}`} />
           </div>
-          <h1 className={`text-[24px] font-bold leading-tight ${C.text} mb-1`}>
+          <h1 className={`text-2xl font-bold leading-tight ${C.text} mb-1`}>
             新しいパスワードの設定
           </h1>
           <p className={`text-base ${C.text50}`}>8文字以上のパスワードを設定してください</p>

@@ -23,6 +23,8 @@ import {
   checkC7,
   checkC8,
   checkC9,
+  checkC10,
+  checkC11,
   C8_ALLOWLIST,
   collectViolations,
 } from "./design-system-audit.mjs";
@@ -328,6 +330,31 @@ test("checkC9: rounded 任意値を検出する", () => {
   ].join("\n");
   const violations = checkC9(text);
   assert.equal(violations.length, 2);
+});
+
+test("checkC10: Tailwind 既定影と shadow 任意値を検出し、level トークンは許可する", () => {
+  const text = [
+    'className="shadow-sm"',
+    'className="data-[variant=outline]:shadow-xs"',
+    'className="shadow-[0_1px_2px_rgba(0,0,0,0.1)]"',
+    'className="shadow-level1"',
+    'className="shadow-level2"',
+    'className="shadow-btn shadow-none"',
+    'className="drop-shadow-md"',
+  ].join("\n");
+  const violations = checkC10(text);
+  assert.equal(violations.length, 3);
+});
+
+test("checkC11: font-size 任意値を検出し、ロールクラスは許可する", () => {
+  const text = [
+    'className="text-[11px]"',
+    'className="text-[0.6875rem]"',
+    'className="text-2xs"',
+    'className="text-sm text-[24px]"',
+  ].join("\n");
+  const violations = checkC11(text);
+  assert.equal(violations.length, 3);
 });
 
 test("checkC8: allowlist / PageLayout / 欠落を判定する", () => {

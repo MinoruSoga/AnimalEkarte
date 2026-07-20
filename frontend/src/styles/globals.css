@@ -96,6 +96,8 @@
   --shadow-btn: rgba(15,15,15,0.04) 0px 1px 2px;
   --shadow-panel: -1px 0 5px rgba(0,0,0,0.02);
   --shadow-focus-brand: 0 0 0 1px rgba(3,139,148,0.35);
+  /* FE9-2: STYLE.brandGlow（Layout ナビ進捗バーの brand グロー）の任意値を C10 ガード対象外化のためトークン化。値は既存直値のまま。 */
+  --shadow-brand-glow: 0 0 8px rgba(3,139,148,0.5);
   --text-2xs: 0.6875rem;  /* 11px — design-system.md §3.4 micro ロール（バッジ・密なメタ表示） */
   --text-2xs--line-height: 1.45;
   --color-background: var(--background);

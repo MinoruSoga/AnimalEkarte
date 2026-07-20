@@ -102,7 +102,7 @@ export function ManualSidebar({
 
         {groups.map((g) => (
           <div key={g.section} className="mb-3">
-            <p className={`px-2 mb-1 text-[10px] font-bold ${C.text40} uppercase tracking-wider`}>
+            <p className={`px-2 mb-1 text-2xs font-bold ${C.text40} uppercase tracking-wider`}>
               {g.section}
             </p>
             <ul className="space-y-0.5">
@@ -121,7 +121,7 @@ export function ManualSidebar({
                     >
                       {a.title}
                       {isSearching && a.category !== viewMode ? (
-                        <span className={`ml-1 text-[10px] ${C.text40}`}>
+                        <span className={`ml-1 text-2xs ${C.text40}`}>
                           ({a.category === "screens" ? "画面" : "フロー"})
                         </span>
                       ) : null}

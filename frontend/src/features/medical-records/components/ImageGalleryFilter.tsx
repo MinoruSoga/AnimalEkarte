@@ -99,7 +99,7 @@ export const ImageGalleryFilter = memo(function ImageGalleryFilter({
       ) : null}
 
       {/* Filters */}
-      <div className={`flex items-end gap-4 flex-wrap ${C.bgWhite} p-4 rounded-lg border ${C.borderMedium} shadow-sm`}>
+      <div className={`flex items-end gap-4 flex-wrap ${C.bgWhite} p-4 rounded-lg border ${C.borderMedium}`}>
         <div className="flex flex-col gap-1.5 w-[300px]">
           <Label htmlFor="image-gallery-search" className={`text-sm font-medium ${C.text60}`}>
             検索単語
@@ -137,7 +137,7 @@ export const ImageGalleryFilter = memo(function ImageGalleryFilter({
           <Button
             type="button"
             variant="outline"
-            className={`h-10 ${C.bgWhite} ${C.text} ${C.borderMedium} ${C.hoverBgPage} text-sm shadow-sm px-3`}
+            className={`h-10 ${C.bgWhite} ${C.text} ${C.borderMedium} ${C.hoverBgPage} text-sm px-3`}
           >
             クリア
           </Button>

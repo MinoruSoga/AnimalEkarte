@@ -178,7 +178,7 @@ export function ReservationTypeAvailableSlotsCalendar({
       </div>
 
       {/* 予約管理画面と同じ密度の週グリッド */}
-      <div className={`flex-1 min-h-0 overflow-y-auto flex flex-col border-l border-t ${C.borderMedium} rounded-lg ${C.bgWhite} shadow-sm`}>
+      <div className={`flex-1 min-h-0 overflow-y-auto flex flex-col border-l border-t ${C.borderMedium} rounded-lg ${C.bgWhite}`}>
         {HEADER_ROW}
         <div className="grid grid-cols-7 flex-1 min-h-[420px]">
           {weekDays.map((day) => {
@@ -205,7 +205,7 @@ export function ReservationTypeAvailableSlotsCalendar({
                   <div className="min-w-0">
                     <span
                       className={`text-base font-bold size-8 flex items-center justify-center rounded-full ${
-                        isSameDay(day, today) ? `${C.bgBrand} ${C.textWhite} shadow-sm` : C.text
+                        isSameDay(day, today) ? `${C.bgBrand} ${C.textWhite}` : C.text
                       }`}
                     >
                       {format(day, "d")}
@@ -236,7 +236,7 @@ export function ReservationTypeAvailableSlotsCalendar({
       </div>
 
       {/* 日別編集パネル */}
-      <div className={`shrink-0 ${C.bgWhite} rounded-md border ${C.borderMedium} p-3 shadow-sm`}>
+      <div className={`shrink-0 ${C.bgWhite} rounded-md border ${C.borderMedium} p-3`}>
         {selectedDate === null ? (
           <p className={`text-sm ${C.text40}`}>日付をクリックすると、その日の枠を編集できます</p>
         ) : (

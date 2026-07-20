@@ -40,7 +40,7 @@ export const ExaminationGroup = memo(function ExaminationGroup({
         </Button>
       </div>
 
-      <div className={`border ${C.borderMedium} rounded-lg ${C.bgWhite} overflow-hidden shadow-sm overflow-x-auto`}>
+      <div className={`border ${C.borderMedium} rounded-lg ${C.bgWhite} overflow-hidden overflow-x-auto`}>
         <div className={`min-w-[600px] grid grid-cols-[2fr_1.5fr_1.5fr_2fr_1.5fr] gap-0 border-b ${C.borderMedium} ${C.bgPage} ${STYLE.sectionLabel} h-12 items-center`}>
           <div className={`p-2 border-r ${C.borderMedium} pl-3`}>
             項目名

@@ -236,7 +236,7 @@ export function AccountingDocumentPreviewDialog({
           <DialogDescription>印刷イメージを確認できます。</DialogDescription>
         </DialogHeader>
         <div className={`flex-1 ${C.bgActive} overflow-auto p-8 flex items-center justify-center`}>
-          <div className="shadow-lg transform scale-100 origin-top">
+          <div className="shadow-level1 transform scale-100 origin-top">
             {accounting.payment ? (
               <AccountingDocument
                 accounting={accounting}

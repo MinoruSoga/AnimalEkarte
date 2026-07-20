@@ -208,7 +208,7 @@ export const ReservationDetailModal = memo(function ReservationDetailModal({
                 <div className="flex items-center gap-1.5">
                   {reservation.doctor}
                   {reservation.isDesignated ? (
-                    <Badge variant="outline" className={`text-[11px] h-5 px-1.5 ${C.bgNotice} ${C.textNotice} ${C.borderNotice}`}>
+                    <Badge variant="outline" className={`text-2xs h-5 px-1.5 ${C.bgNotice} ${C.textNotice} ${C.borderNotice}`}>
                       指名
                     </Badge>
                   ) : null}

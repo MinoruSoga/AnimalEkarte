@@ -71,10 +71,10 @@ export function ReservationTypeTree({ types, selectedId, onSelect }: Props) {
               )}
               <span className="truncate flex-1">{parent.name}</span>
               {!parent.isActive ? (
-                <span className={`shrink-0 text-[10px] ${C.text40}`}>（無効）</span>
+                <span className={`shrink-0 text-2xs ${C.text40}`}>（無効）</span>
               ) : null}
               <span
-                className={`shrink-0 text-[10px] ${C.bgLight} ${C.text40} rounded-sm px-1.5 py-0.5`}
+                className={`shrink-0 text-2xs ${C.bgLight} ${C.text40} rounded-sm px-1.5 py-0.5`}
               >
                 グループ
               </span>
@@ -105,7 +105,7 @@ export function ReservationTypeTree({ types, selectedId, onSelect }: Props) {
                       />
                       <span className="truncate flex-1">{leaf.name}</span>
                       {!leaf.isActive ? (
-                        <span className={`shrink-0 text-[10px] ${C.text40}`}>
+                        <span className={`shrink-0 text-2xs ${C.text40}`}>
                           （無効）
                         </span>
                       ) : null}
@@ -135,7 +135,7 @@ export function ReservationTypeTree({ types, selectedId, onSelect }: Props) {
             />
             <span className="truncate flex-1">{leaf.name}</span>
             {!leaf.isActive ? (
-              <span className={`shrink-0 text-[10px] ${C.text40}`}>（無効）</span>
+              <span className={`shrink-0 text-2xs ${C.text40}`}>（無効）</span>
             ) : null}
           </button>
         );

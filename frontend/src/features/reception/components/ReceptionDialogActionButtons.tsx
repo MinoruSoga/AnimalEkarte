@@ -102,7 +102,7 @@ export const ActionButtons = memo(function ActionButtons({
               <Scissors className={ICON.action} />
               トリミングカルテ作成
             </Button>
-            <span className={`text-[10px] ${C.text40}`}>
+            <span className={`text-2xs ${C.text40}`}>
               ※カルテ作成と同時に「診療中」へ移動します
             </span>
           </div>
@@ -118,7 +118,7 @@ export const ActionButtons = memo(function ActionButtons({
               <FileText className={ICON.action} />
               カルテ作成
             </Button>
-            <span className={`text-[10px] ${C.text40}`}>
+            <span className={`text-2xs ${C.text40}`}>
               ※カルテ作成と同時に「診療中」へ移動します
             </span>
           </div>

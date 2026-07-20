@@ -109,7 +109,7 @@ export function CalendarNavToolbar({
 
   return (
     <div className={cn("flex items-center gap-4", className)}>
-      <div className={cn("flex items-center", C.bgWhite, "rounded-md border", C.borderMedium, "p-1 shadow-sm")}>
+      <div className={cn("flex items-center", C.bgWhite, "rounded-md border", C.borderMedium, "p-1")}>
         {prevBtn}
         {todayBtn}
         {nextBtn}

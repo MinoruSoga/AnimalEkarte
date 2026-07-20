@@ -59,7 +59,7 @@ const CustomTooltip = memo(function CustomTooltip({ active, payload, label }: Cu
   if (!active || !payload?.length) return null;
   const metric = METRICS.find((m) => m.key === payload[0]?.dataKey);
   return (
-    <div className={`${C.bgWhite} border ${C.borderMedium} rounded-xs shadow-md px-3 py-2 text-sm`}>
+    <div className={`${C.bgWhite} border ${C.borderMedium} rounded-xs shadow-level1 px-3 py-2 text-sm`}>
       <p className={`${C.text60} text-xs mb-1`}>{label}</p>
       {payload.map((item) => {
         const def = METRICS.find((m) => m.key === item.dataKey);

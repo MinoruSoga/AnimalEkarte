@@ -113,7 +113,7 @@ export function ManualEditor({ article, onClose }: ManualEditorProps) {
         <span className={`text-xs ${C.text50} truncate`}>{article.title}</span>
         {isDirty ? (
           <span
-            className={`text-[10px] px-1.5 py-0.5 rounded-xxs ${C.bgWarning50} ${C.textWarning}`}
+            className={`text-2xs px-1.5 py-0.5 rounded-xxs ${C.bgWarning50} ${C.textWarning}`}
           >
             未保存
           </span>

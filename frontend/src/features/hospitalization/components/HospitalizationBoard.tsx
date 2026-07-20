@@ -68,7 +68,7 @@ const CageCard = memo(function CageCard({ cage, occupant, onNavigateToForm, canC
                         : `${C.bgWhite} border-l-4 ${C.borderLMedicalBlue}`
                       : `${C.bgPage} border-dashed ${C.borderPrimary20}`
                   }
-                  ${isDragging ? 'opacity-50 scale-95' : 'hover:shadow-md'}
+                  ${isDragging ? 'opacity-50 scale-95' : 'hover:shadow-level1'}
                   ${isOver ? `ring-2 ${C.ringMedicalBlue} ring-offset-2 ${C.bgMedicalBlue5}` : ''}
                   ${isDeceased ? 'cursor-default' : 'cursor-pointer'}
                 `}

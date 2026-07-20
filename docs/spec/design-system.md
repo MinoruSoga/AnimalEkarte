@@ -212,7 +212,7 @@ shadcn `DialogContent`（`frontend/src/components/ui/dialog.tsx`）は `rounded-
 - 実装トークン（`globals.css` `@theme inline`・FE9-1 実装済み）:
   - `--shadow-level1`: `0 0.175px 1.041px rgba(0,0,0,0.01), 0 0.8px 2.925px rgba(0,0,0,0.02), 0 2.025px 7.847px rgba(0,0,0,0.027), 0 4px 18px rgba(0,0,0,0.04)`
   - `--shadow-level2`: `0 0.8px 2.9px rgba(0,0,0,0.02), 0 2px 7.8px rgba(0,0,0,0.027), 0 4px 18px rgba(0,0,0,0.04), 0 10px 32px rgba(0,0,0,0.045), 0 23px 52px rgba(0,0,0,0.05)`（中間段は Level-1 の等比を踏襲した5段・末尾は DESIGN.md 実測値）
-  - 製品マイクロトークン（実態の公式化）: `--shadow-btn`（ボタン微細影 = 旧 `--notion-shadow-btn` 値）・`--shadow-panel`（SidePeek 等の左方向影）・`--shadow-focus-brand`（focus リング `0 0 0 1px rgba(3,139,148,.35)` — DESIGN.md「focus signal は primary」原則に従い旧 legacy accent 色 ring を brand 化）
+  - 製品マイクロトークン（実態の公式化）: `--shadow-btn`（ボタン微細影 = 旧 `--notion-shadow-btn` 値）・`--shadow-panel`（SidePeek 等の左方向影）・`--shadow-focus-brand`（focus リング `0 0 0 1px rgba(3,139,148,.35)` — DESIGN.md「focus signal は primary」原則に従い旧 legacy accent 色 ring を brand 化）・`--shadow-brand-glow`（ナビ進捗バーの brand グロー `0 0 8px rgba(3,139,148,.5)` — 既存直値の公式化）
 - 使い分け: 通常カード = **Level 0（hairline のみ・shadow なし）**／ドロップダウン・ポップオーバー・浮動パネル・フォーカス強調 = `shadow-level1`／モーダル・トースト = `shadow-level2`。
 - **Tailwind 既定の `shadow-sm/md/lg/xl` と `shadow-[...]` 任意値は新規使用禁止**（実測: sm×55 / md×4 / lg×5 / 任意値×6・2026-07-21）。FE9 で level トークンへ移行し audit C10 で恒久ガード。`drop-shadow`・CSS 直書き `box-shadow` は 0 件を維持する。
 

@@ -64,7 +64,7 @@ export const TreatmentTable = memo(function TreatmentTable({
     : "grid-cols-[3fr_2fr_0.8fr_1fr_0.8fr_1fr_1fr_1fr_0.8fr]";
 
   return (
-    <div className={`flex-1 flex flex-col min-h-0 border ${C.borderMedium} rounded-lg ${C.bgWhite} overflow-hidden shadow-sm`}>
+    <div className={`flex-1 flex flex-col min-h-0 border ${C.borderMedium} rounded-lg ${C.bgWhite} overflow-hidden`}>
       {/* Header — DESIGN.md ex-data-table-cell: canvas-soft 背景 + eyebrow 相当タイポグラフィ（STYLE.sectionLabel） */}
       <div
         className={cn(

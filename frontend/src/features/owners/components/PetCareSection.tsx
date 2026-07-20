@@ -59,7 +59,7 @@ export function PetCareSection({
       <div className="space-y-1">
         <div className="flex items-center justify-between">
           <Label htmlFor="insuranceId" className={LABEL_CLS}>保険</Label>
-          <MasterLink category="insurance" label="編集" className="text-[11px]" />
+          <MasterLink category="insurance" label="編集" className="text-2xs" />
         </div>
         <Select
           value={formData.insuranceId || "none"}

@@ -20,7 +20,7 @@ export function TopPage({ settings, onNewReservation, onMyReservations }: TopPag
 
       {/* メインコンテンツ */}
       <main className="flex-1 max-w-md mx-auto w-full px-4 py-8 flex flex-col gap-4">
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 text-center">
+        <div className="bg-white rounded-xl border border-gray-100 p-6 text-center">
           <p className="text-noah-text-sub mb-6 text-sm">
             ご予約はこちらから手続きください
           </p>
@@ -32,7 +32,7 @@ export function TopPage({ settings, onNewReservation, onMyReservations }: TopPag
         <button
           type="button"
           onClick={onMyReservations}
-          className="w-full bg-white border border-gray-200 text-noah-text rounded-xl py-3 px-4 font-semibold shadow-sm hover:bg-gray-50 active:bg-gray-100 transition-colors"
+          className="w-full bg-white border border-gray-200 text-noah-text rounded-xl py-3 px-4 font-semibold hover:bg-gray-50 active:bg-gray-100 transition-colors"
         >
           予約確認・キャンセル
         </button>

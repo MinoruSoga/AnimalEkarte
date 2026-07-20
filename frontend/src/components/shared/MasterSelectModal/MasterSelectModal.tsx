@@ -95,7 +95,7 @@ export const MasterSelectModal = memo(function MasterSelectModal({
                     w-full p-3 border rounded-lg cursor-pointer transition-all flex items-center justify-between group text-left
                     ${
                       isSelected
-                        ? `${C.bgPage} ${C.borderPrimary} shadow-sm`
+                        ? `${C.bgPage} ${C.borderPrimary}`
                         : `bg-white ${C.borderMedium} ${C.hoverBorderPrimary30} ${C.hoverBgPageHalf}`
                     }
                   `}

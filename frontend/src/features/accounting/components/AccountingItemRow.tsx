@@ -125,12 +125,12 @@ export function AccountingItemRow({
       <TableCell className="font-medium">
         {item.name}
         {item.source === "medical_record" ? (
-          <span className={`ml-2 text-[10px] ${C.textBrand} ${C.bgBrand5} px-1.5 py-0.5 rounded`}>
+          <span className={`ml-2 text-2xs ${C.textBrand} ${C.bgBrand5} px-1.5 py-0.5 rounded`}>
             カルテ連携
           </span>
         ) : null}
         {item.source === "trimming" ? (
-          <span className={`ml-2 text-[10px] ${C.textBrand} ${C.bgBrand5} px-1.5 py-0.5 rounded`}>
+          <span className={`ml-2 text-2xs ${C.textBrand} ${C.bgBrand5} px-1.5 py-0.5 rounded`}>
             トリミング
           </span>
         ) : null}

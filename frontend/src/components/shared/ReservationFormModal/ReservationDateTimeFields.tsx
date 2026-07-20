@@ -24,7 +24,7 @@ export interface FieldLabelProps {
 export function FieldLabel({ children, required, trailing }: FieldLabelProps) {
   return (
     <div className="flex items-center justify-between gap-2">
-      <Label className={`text-[12px] ${C.text40} tracking-wide font-medium`}>
+      <Label className={`text-xs ${C.text40} tracking-wide font-medium`}>
         {children}
         {required ? (
           <span style={{ color: C.danger }} className="ml-1" aria-hidden="true">*</span>
@@ -107,7 +107,7 @@ export function ReservationDateTimeFields({
       </div>
 
       <div className="space-y-1.5">
-        <div className={`flex items-center gap-2 text-[12px] ${C.text40} tracking-wide font-medium`}>
+        <div className={`flex items-center gap-2 text-xs ${C.text40} tracking-wide font-medium`}>
           <Clock className={ICON.action} />
           時間
           <span style={{ color: C.danger }} className="ml-0.5" aria-hidden="true">*</span>

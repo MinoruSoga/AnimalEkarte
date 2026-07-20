@@ -439,7 +439,7 @@ function PropInput({ value, onChange, placeholder }: {
 
 | トークン | 定義（`design-tokens.ts` の合成元） |
 |---------|------------|
-| `STYLE.sidePeekPanel` | `flex flex-col h-full overflow-y-auto bg-white border-l ${C.borderLight} shadow-[-1px_0_5px_rgba(0,0,0,0.02)]` |
+| `STYLE.sidePeekPanel` | `flex flex-col h-full overflow-y-auto bg-white border-l ${C.borderLight} shadow-panel`（FE9-2: design-system.md §5.1 shadow-panel トークンへ移行。値は同一） |
 | `STYLE.sidePeekToolbar` | `flex items-center justify-between h-[48px] px-3 shrink-0` |
 | `STYLE.sidePeekToolbarBtn` | `size-9 flex items-center justify-center rounded-[3px] ${C.text45} ${C.hoverBgMedium} transition-colors` |
 | `STYLE.sidePeekBody` | `flex-1 overflow-y-auto` |

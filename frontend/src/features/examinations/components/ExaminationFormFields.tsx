@@ -66,7 +66,7 @@ function ExaminationFormFieldsBase({
   );
 
   return (
-    <div className={`${C.bgWhite} p-4 rounded-lg border ${C.borderMedium} space-y-4 shadow-sm`}>
+    <div className={`${C.bgWhite} p-4 rounded-lg border ${C.borderMedium} space-y-4`}>
       {isConfirmed ? (
         <p className={`text-sm font-medium ${C.text60}`}>確定済みのため編集できません。</p>
       ) : null}
@@ -74,7 +74,7 @@ function ExaminationFormFieldsBase({
         <div className="space-y-1.5">
           <div className="flex items-center justify-between">
             <Label className={`text-sm ${C.text60}`}>検査種別</Label>
-            <MasterLink category="examination" label="編集" className="text-[11px]" />
+            <MasterLink category="examination" label="編集" className="text-2xs" />
           </div>
           {masterLoading ? (
             <div className={`h-10 ${C.bgGray100} rounded-md animate-pulse`} />
@@ -96,7 +96,7 @@ function ExaminationFormFieldsBase({
         <div className="space-y-1.5">
           <div className="flex items-center justify-between">
             <Label className={`text-sm ${C.text60}`}>担当医</Label>
-            <MasterLink category="staff" label="編集" className="text-[11px]" />
+            <MasterLink category="staff" label="編集" className="text-2xs" />
           </div>
           {masterLoading ? (
             <div className={`h-10 ${C.bgGray100} rounded-md animate-pulse`} />

@@ -42,7 +42,7 @@ export const TrimmingLeftColumn = memo(function TrimmingLeftColumn({
   const optionIdSet = useMemo(() => new Set(formData.optionIds), [formData.optionIds]);
 
   return (
-    <div className={`${C.bgWhite} rounded-lg shadow-sm border ${C.borderMedium} p-3 space-y-4`}>
+    <div className={`${C.bgWhite} rounded-lg border ${C.borderMedium} p-3 space-y-4`}>
       {showInitialStatusSelector ? (
         <div>
           <Label className={`text-sm ${C.text60} mb-2 block`}>登録時ステータス</Label>

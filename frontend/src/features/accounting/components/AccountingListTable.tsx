@@ -255,7 +255,7 @@ function AccountingListRow({
             {statusLabel}
           </StatusBadge>
           {accounting.totalRefundedAmount > 0 ? (
-            <span className={`inline-flex items-center gap-0.5 text-[10px] font-medium px-1.5 py-0.5 rounded ${C.bgDiscountLight} ${C.textDiscount} ${C.borderOrangeBadge}`}>
+            <span className={`inline-flex items-center gap-0.5 text-2xs font-medium px-1.5 py-0.5 rounded ${C.bgDiscountLight} ${C.textDiscount} ${C.borderOrangeBadge}`}>
               <RotateCcw className={ICON.action} />
               返金あり
             </span>

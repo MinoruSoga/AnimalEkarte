@@ -94,7 +94,7 @@ export const ExamItemsTable = memo(function ExamItemsTable({
   }
 
   return (
-    <div className={`border ${C.borderMedium} rounded-lg ${C.bgWhite} overflow-hidden shadow-sm overflow-x-auto`}>
+    <div className={`border ${C.borderMedium} rounded-lg ${C.bgWhite} overflow-hidden overflow-x-auto`}>
       {/* ヘッダー */}
       <div
         className={`min-w-[600px] grid grid-cols-[2fr_1.5fr_1fr_1.8fr_1.2fr] gap-0 border-b ${C.borderMedium} ${C.bgPage} text-sm font-bold ${C.text80} h-11 items-center`}

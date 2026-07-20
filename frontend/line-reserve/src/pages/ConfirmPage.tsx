@@ -179,7 +179,7 @@ export function ConfirmPage({
           </div>
 
           {/* 予約内容テーブル */}
-          <div className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
+          <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
             {rows.map(row => (
               <div
                 key={row.label}

@@ -49,7 +49,7 @@ export const ExaminationFilter = memo(function ExaminationFilter({
       </div>
 
       {/* Filters */}
-      <div className={`flex flex-col md:flex-row items-end gap-4 ${C.bgWhite} p-4 rounded-lg border ${C.borderMedium} shadow-sm`}>
+      <div className={`flex flex-col md:flex-row items-end gap-4 ${C.bgWhite} p-4 rounded-lg border ${C.borderMedium}`}>
         <div className="flex flex-col gap-1.5 w-full md:w-[300px]">
           <Label className={`text-sm font-medium ${C.text60}`}>
             検査項目検索

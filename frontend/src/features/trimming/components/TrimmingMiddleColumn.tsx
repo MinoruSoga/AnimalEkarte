@@ -25,7 +25,7 @@ export const TrimmingMiddleColumn = memo(function TrimmingMiddleColumn({
   onRemoveCompletedImage,
 }: TrimmingMiddleColumnProps) {
   return (
-    <div className={`${C.bgWhite} rounded-lg shadow-sm border ${C.borderMedium} p-3 space-y-4`}>
+    <div className={`${C.bgWhite} rounded-lg border ${C.borderMedium} p-3 space-y-4`}>
       <div>
         <Label className={`text-sm ${C.text60} mb-2 block`}>体重 (BW)</Label>
         <div className="flex gap-2">

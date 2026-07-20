@@ -136,7 +136,7 @@ export const AppointmentCard = memo(function AppointmentCard({
     >
       {dotInfo ? (
         <div
-          className={`rounded-full ${dotInfo.color} border border-white absolute shadow-sm z-20 ${
+          className={`rounded-full ${dotInfo.color} border border-white absolute z-20 ${
             isCompact ? "w-1.5 h-1.5 top-0.5 right-0.5" : "w-2.5 h-2.5 top-1 right-1"
           }`}
           title={dotInfo.label}

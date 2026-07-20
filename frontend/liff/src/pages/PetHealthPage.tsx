@@ -57,7 +57,7 @@ export function PetHealthPage({ idToken, displayName, pictureUrl }: PetHealthPag
   return (
     <div className="min-h-screen bg-liff-brand-bg pb-10">
       {/* ヘッダー */}
-      <div className="bg-white shadow-sm px-4 py-4 flex items-center gap-3">
+      <div className="bg-white border-b border-gray-100 px-4 py-4 flex items-center gap-3">
         {pictureUrl ? (
           <img
             src={pictureUrl}
@@ -77,7 +77,7 @@ export function PetHealthPage({ idToken, displayName, pictureUrl }: PetHealthPag
         ) : null}
 
         {data.pets.map((pet) => (
-          <div key={pet.pet_id} className="bg-white rounded-2xl shadow-sm overflow-hidden">
+          <div key={pet.pet_id} className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
             {/* ペット基本情報 */}
             <div className="bg-liff-brand px-5 py-4">
               <h2 className="text-lg font-bold text-white">{pet.pet_name}</h2>

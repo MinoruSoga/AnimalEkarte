@@ -42,7 +42,7 @@ export function VitalsDisplayRow({
       <td className={`px-3 text-sm text-right ${C.text}`}>{displayNum(vital.respiration_rate)}</td>
       <td className={`px-3 text-sm text-right ${C.text}`}>
         {displayNum(vital.weight)}
-        <span className={`ml-0.5 text-[10px] ${C.text40}`}>{vital.weight_unit}</span>
+        <span className={`ml-0.5 text-2xs ${C.text40}`}>{vital.weight_unit}</span>
       </td>
       <td className={`px-3 text-sm ${C.text60}`}>{vital.note ? vital.note : "-"}</td>
       <td className="px-2">
@@ -195,7 +195,7 @@ export const VitalsEditRow = memo(function VitalsEditRow({
           <button
             type="button"
             onClick={() => handleChange("weight_unit", form.weight_unit === "Kg" ? "g" : "Kg")}
-            className={`text-[10px] px-1 h-6 rounded border ${C.borderMedium} ${C.bgPage} ${C.hoverBgPage} min-w-[24px]`}
+            className={`text-2xs px-1 h-6 rounded border ${C.borderMedium} ${C.bgPage} ${C.hoverBgPage} min-w-[24px]`}
           >
             {form.weight_unit}
           </button>
@@ -308,7 +308,7 @@ export function VitalsAddRow({
         <button
           type="button"
           onClick={() => onChange("weight_unit", addForm.weight_unit === "Kg" ? "g" : "Kg")}
-          className={`text-[10px] px-1 h-6 rounded border ${C.borderMedium} ${C.bgPage} ${C.hoverBgPage} min-w-[24px]`}
+          className={`text-2xs px-1 h-6 rounded border ${C.borderMedium} ${C.bgPage} ${C.hoverBgPage} min-w-[24px]`}
         >
           {addForm.weight_unit}
         </button>

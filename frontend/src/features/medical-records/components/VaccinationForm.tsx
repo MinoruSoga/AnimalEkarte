@@ -75,7 +75,7 @@ export const VaccinationForm = memo(function VaccinationForm({
         <div className="flex flex-col gap-1.5">
           <div className="flex items-center justify-between">
             <Label className={`text-sm font-medium ${C.text60}`}>予防接種名</Label>
-            <MasterLink category="vaccine" label="編集" className="text-[11px]" />
+            <MasterLink category="vaccine" label="編集" className="text-2xs" />
           </div>
           <SearchableSelect
             value={vaccineName}

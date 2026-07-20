@@ -20,9 +20,8 @@ function SidebarSection({ section, collapsed = false }: SidebarSectionProps) {
   return (
     <div className="space-y-px">
       {!collapsed ? (
-        // text-[10px]: コードベース全体で30+ファイルが使う既存の極小ラベル慣習値(DESIGN.mdの最小スケールeyebrow=12pxとは別系統)。
-        // Sidebar単体で新スケールに置換すると他箇所と不整合になるため、全面改修(範囲外)まで維持する。
-        <p className={`px-3 mb-1 text-[10px] font-bold ${C.text40} uppercase tracking-wider`}>
+        {/* FE9-2: design-system.md §3.4 micro ロールへ全面統一。旧 10px 任意値は廃止。 */}
+        <p className={`px-3 mb-1 text-2xs font-bold ${C.text40} uppercase tracking-wider`}>
           {section.title}
         </p>
       ) : null}

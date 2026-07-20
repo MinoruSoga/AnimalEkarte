@@ -217,7 +217,7 @@ export const MedicalRecordBillCheck = memo(function MedicalRecordBillCheck({ isN
               size="sm"
               disabled={isConfirmPending || items.length === 0}
               onClick={handleConfirm}
-              className={`${C.bgBrand} ${C.hoverBgBrand} text-white rounded-full border-transparent min-w-[120px] shadow-lg h-10 text-sm gap-2 transition-colors`}
+              className={`${C.bgBrand} ${C.hoverBgBrand} text-white rounded-full border-transparent min-w-[120px] h-10 text-sm gap-2 transition-colors`}
             >
               <CheckCircle2 className={ICON.action} />
               {isConfirmPending ? "処理中..." : "チェック完了"}

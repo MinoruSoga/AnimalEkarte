@@ -96,11 +96,11 @@ export const PatientSelectionTable = memo(function PatientSelectionTable({ onSel
   return (
     <div className="flex flex-col gap-4 h-full">
       {/* Search Criteria */}
-      <div className={`rounded-lg bg-white p-3 shadow-sm border ${C.borderMedium} shrink-0`}>
+      <div className={`rounded-lg bg-white p-3 border ${C.borderMedium} shrink-0`}>
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 mb-3">
           {FIELDS.map((field) => (
             <div key={field.key} className="space-y-0.5">
-              <Label htmlFor={field.key} className={`text-[12px] ${C.text60}`}>
+              <Label htmlFor={field.key} className={`text-xs ${C.text60}`}>
                 {field.label}
               </Label>
               <Input
@@ -116,7 +116,7 @@ export const PatientSelectionTable = memo(function PatientSelectionTable({ onSel
                     handleSearch();
                   }
                 }}
-                className={`text-[12px] h-9 bg-white ${C.borderMediumLight} ${C.text}`}
+                className={`text-xs h-9 bg-white ${C.borderMediumLight} ${C.text}`}
               />
             </div>
           ))}
@@ -145,7 +145,7 @@ export const PatientSelectionTable = memo(function PatientSelectionTable({ onSel
       </div>
 
       {/* Results Table */}
-      <div className={`flex-1 rounded-lg bg-white overflow-hidden shadow-sm border ${C.borderMedium} min-h-0`}>
+      <div className={`flex-1 rounded-lg bg-white overflow-hidden border ${C.borderMedium} min-h-0`}>
         <div className="overflow-auto h-full flex flex-col">
           {!hasSearched ? (
             <div className="flex flex-col items-center justify-center flex-1 text-center gap-3">
@@ -167,14 +167,14 @@ export const PatientSelectionTable = memo(function PatientSelectionTable({ onSel
             <Table>
               <TableHeader className={`${C.bgPage} sticky top-0 z-10`}>
                 <TableRow className={`border-b ${C.borderMedium} h-9 ${C.hoverBgPage}`}>
-                  <TableHead className={`min-w-[80px] text-[12px] ${C.text40} h-9`}>飼主No</TableHead>
-                  <TableHead className={`min-w-[120px] text-[12px] ${C.text40} h-9`}>飼主名</TableHead>
-                  <TableHead className={`min-w-[100px] text-[12px] ${C.text40} h-9`}>ペット名</TableHead>
-                  <TableHead className={`min-w-[60px] text-[12px] ${C.text40} h-9`}>種別</TableHead>
-                  <TableHead className={`min-w-[60px] text-[12px] ${C.text40} h-9`}>性別</TableHead>
-                  <TableHead className={`min-w-[80px] text-[12px] ${C.text40} h-9`}>生年月日</TableHead>
-                  <TableHead className={`min-w-[60px] text-[12px] ${C.text40} h-9`}>体重</TableHead>
-                  <TableHead className={`min-w-[60px] text-[12px] ${C.text40} h-9`}>操作</TableHead>
+                  <TableHead className={`min-w-[80px] text-xs ${C.text40} h-9`}>飼主No</TableHead>
+                  <TableHead className={`min-w-[120px] text-xs ${C.text40} h-9`}>飼主名</TableHead>
+                  <TableHead className={`min-w-[100px] text-xs ${C.text40} h-9`}>ペット名</TableHead>
+                  <TableHead className={`min-w-[60px] text-xs ${C.text40} h-9`}>種別</TableHead>
+                  <TableHead className={`min-w-[60px] text-xs ${C.text40} h-9`}>性別</TableHead>
+                  <TableHead className={`min-w-[80px] text-xs ${C.text40} h-9`}>生年月日</TableHead>
+                  <TableHead className={`min-w-[60px] text-xs ${C.text40} h-9`}>体重</TableHead>
+                  <TableHead className={`min-w-[60px] text-xs ${C.text40} h-9`}>操作</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>

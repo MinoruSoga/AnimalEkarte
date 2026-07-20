@@ -68,7 +68,7 @@ export const ShiftCell = memo(function ShiftCell({
     >
       <span className="block leading-tight">{label}</span>
       {shift.start_time ? (
-        <span className="block leading-tight text-[10px] opacity-70">
+        <span className="block leading-tight text-2xs opacity-70">
           {shift.start_time}
           {shift.end_time ? `〜${shift.end_time}` : ""}
         </span>
@@ -78,7 +78,7 @@ export const ShiftCell = memo(function ShiftCell({
     <div className={`w-full min-h-[36px] px-1 py-1 rounded border text-xs font-medium ${colorClass}`}>
       <span className="block leading-tight">{label}</span>
       {shift.start_time ? (
-        <span className="block leading-tight text-[10px] opacity-70">
+        <span className="block leading-tight text-2xs opacity-70">
           {shift.start_time}
           {shift.end_time ? `〜${shift.end_time}` : ""}
         </span>

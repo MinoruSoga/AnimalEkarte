@@ -21,7 +21,7 @@ import BedDouble from "lucide-react/dist/esm/icons/bed-double";
 // Internal
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { C, ICON, STYLE } from "@/lib/design-tokens";
+import { C, ICON } from "@/lib/design-tokens";
 import { getVisitTypeColor } from "@/constants/status-colors";
 
 // Types
@@ -147,7 +147,7 @@ export const AppointmentCard = memo(function AppointmentCard({
         }
       }}
     >
-      <Card className={`w-full ${C.hoverBgPage} transition-colors border ${C.borderLight} rounded-md ${STYLE.cardShadow}`}>
+      <Card className={`w-full ${C.hoverBgPage} transition-colors border ${C.borderLight} rounded-md`}>
         <CardContent className="p-[13px] space-y-[9px]">
           <div className="flex items-start justify-between gap-2">
             <div className={`flex items-center gap-1.5 ${C.text60} min-w-0`}>
@@ -180,7 +180,7 @@ export const AppointmentCard = memo(function AppointmentCard({
             <Badge variant="outline" className={`flex items-center gap-1 text-sm px-[7.5px] h-[22px] tracking-[var(--tracking-compact-sm)] ${appointment.isDesignated ? `${C.bgDiscountLight} ${C.textDiscount} ${C.borderDiscount20}` : `${C.bgWhite} ${C.text60}`}`}>
               <Stethoscope className={`${ICON.xs} shrink-0`} />
               <span className="truncate max-w-[80px]">{appointment.doctor ?? "担当医未設定"}</span>
-              {appointment.isDesignated ? <span className="text-[10px] ml-0.5 font-bold tracking-[0.12em]">指</span> : null}
+              {appointment.isDesignated ? <span className="text-2xs ml-0.5 font-bold tracking-[0.12em]">指</span> : null}
             </Badge>
           </div>
 
@@ -190,7 +190,7 @@ export const AppointmentCard = memo(function AppointmentCard({
               <button
                 type="button"
                 aria-label={isTrimming ? `${appointment.petName}のトリミング記録` : `${appointment.petName}のカルテ`}
-                className={`flex items-center gap-1 text-[11px] tracking-[var(--tracking-compact-xs)] ${C.textBrand} ${C.bgBrandLight30} border ${C.borderBrandLight} rounded px-1.5 py-0.5 ${C.hoverBgBrandLight60} transition-colors`}
+                className={`flex items-center gap-1 text-2xs tracking-[var(--tracking-compact-xs)] ${C.textBrand} ${C.bgBrandLight30} border ${C.borderBrandLight} rounded px-1.5 py-0.5 ${C.hoverBgBrandLight60} transition-colors`}
                 onClick={handleKarteClick}
               >
                 {isTrimming ? <Scissors className={`${ICON.xs} shrink-0`} /> : <FileText className={`${ICON.xs} shrink-0`} />}
@@ -201,7 +201,7 @@ export const AppointmentCard = memo(function AppointmentCard({
               <button
                 type="button"
                 aria-label={`${appointment.petName}の会計`}
-                className={`flex items-center gap-1 text-[11px] tracking-[var(--tracking-compact-xs)] ${C.textStatusGreen} ${C.bgStatusGreen30} border ${C.borderStatusGreen} rounded px-1.5 py-0.5 ${C.hoverBgStatusGreenLight60} transition-colors`}
+                className={`flex items-center gap-1 text-2xs tracking-[var(--tracking-compact-xs)] ${C.textStatusGreen} ${C.bgStatusGreen30} border ${C.borderStatusGreen} rounded px-1.5 py-0.5 ${C.hoverBgStatusGreenLight60} transition-colors`}
                 onClick={handleAccountingClick}
               >
                 <CreditCard className={`${ICON.xs} shrink-0`} />
@@ -212,7 +212,7 @@ export const AppointmentCard = memo(function AppointmentCard({
               <button
                 type="button"
                 aria-label={`${appointment.petName}の入院登録`}
-                className={`flex items-center gap-1 text-[11px] tracking-[var(--tracking-compact-xs)] ${C.textStatusPurple} ${C.bgStatusPurple30} border ${C.borderStatusPurple} rounded px-1.5 py-0.5 ${C.hoverBgStatusPurpleLight60} transition-colors`}
+                className={`flex items-center gap-1 text-2xs tracking-[var(--tracking-compact-xs)] ${C.textStatusPurple} ${C.bgStatusPurple30} border ${C.borderStatusPurple} rounded px-1.5 py-0.5 ${C.hoverBgStatusPurpleLight60} transition-colors`}
                 onClick={handleHospitalizationClick}
               >
                 <BedDouble className={`${ICON.xs} shrink-0`} />

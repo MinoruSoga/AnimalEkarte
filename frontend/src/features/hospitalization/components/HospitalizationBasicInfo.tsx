@@ -28,7 +28,7 @@ interface HospitalizationBasicInfoProps {
 
 export const HospitalizationBasicInfo = memo(function HospitalizationBasicInfo({ formData, onChange, cageItems }: HospitalizationBasicInfoProps) {
   return (
-    <div className={`${C.bgWhite} rounded-lg shadow-sm border ${C.borderMedium} ${H_STYLES.padding.box}`}>
+    <div className={`${C.bgWhite} rounded-lg border ${C.borderMedium} ${H_STYLES.padding.box}`}>
       <h2 className={`${H_STYLES.text.base} font-bold mb-3 flex items-center gap-2 ${C.text}`}>
         <Building2 className={`${ICON.action} ${C.text60}`} />
         基本情報
@@ -93,7 +93,7 @@ export const HospitalizationBasicInfo = memo(function HospitalizationBasicInfo({
       <div className="mb-3">
           <div className="flex items-center justify-between mb-1.5">
             <Label className={`${H_STYLES.text.sm} ${C.text60}`}>ケージ・個室</Label>
-            <MasterLink category="cage" label="編集" className="text-[11px]" />
+            <MasterLink category="cage" label="編集" className="text-2xs" />
           </div>
           <SearchableSelect
               id="cage_id"

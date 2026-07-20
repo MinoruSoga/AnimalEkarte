@@ -122,7 +122,7 @@ export function SearchableSelect({
         className={cn(
           "flex h-10 w-full items-center justify-between gap-2 rounded-xs border bg-white px-3 py-2 text-sm whitespace-nowrap transition-colors outline-none",
           C.borderMedium,
-          `${PALETTE.hoverBgInput} focus:bg-white ${PALETTE.focusBorderLegacyAccent} ${PALETTE.focusRingLegacyAccent}`,
+          `${PALETTE.hoverBgInput} focus:bg-white ${PALETTE.focusBorderLegacyAccent} ${PALETTE.focusRingBrand}`,
           "disabled:cursor-not-allowed disabled:opacity-50",
           ariaInvalid && C.borderDanger,
           className,

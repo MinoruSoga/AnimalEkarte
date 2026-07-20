@@ -37,7 +37,7 @@ const FIELD_DEFS = [
 
 export const PetSelectionSearchForm = memo(function PetSelectionSearchForm({ searchParams, setSearchParams, onSearch, onClear }: PetSelectionSearchFormProps) {
   return (
-    <div className={cn("mb-4 rounded-lg bg-white p-4 shadow-sm border", C.borderMedium)}>
+    <div className={cn("mb-4 rounded-lg bg-white p-4 border", C.borderMedium)}>
       <h2 className={cn("mb-2 text-sm font-medium", C.text)}>検索条件</h2>
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mb-4">
         {FIELD_DEFS.map(({ id, label, placeholder }) => (

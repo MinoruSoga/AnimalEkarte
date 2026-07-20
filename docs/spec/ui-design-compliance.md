@@ -16,6 +16,8 @@
 | C7 | PageLayout `maxWidth` 生値禁止（`max-w-full` / `max-w-[Npx]`） | LAYOUT.pageContentMaxWidth | **機械化**（C7） |
 | C8 | routes/*.tsx は PageLayout / Master*Page / allowlist | PageLayout | **機械化**（C8・allowlist 15件） |
 | C9 | `rounded-[Npx]` 任意値禁止 | `--radius-xxs/xs/...` | **機械化**（C9） |
+| C10 | Tailwind 既定影（`shadow-2xs〜2xl`）と `shadow-[...]` 任意値禁止。`shadow-level1/level2/btn/panel/focus-brand` 等の elevation トークンのみ使用可 | design-system.md §5.1 | **機械化**（`pnpm design-audit` / make ci） |
+| C11 | `text-[Npx\|Nrem]` font-size 任意値禁止。`text-2xs/xs/sm/base/...` ロールクラスのみ使用可 | design-system.md §3.4 | **機械化**（`pnpm design-audit` / make ci） |
 
 **AE 上書き注記**: DESIGN.md フロントマターの `{colors.primary}` は Notion Analysis テンプレート値 `#0075DE` のまま。製品正本は DESIGN_SYSTEM.md が定義する **`#038B94`**（SSOT 優先順位: 実装 `design-tokens.ts` > DESIGN_SYSTEM.md > DESIGN.md）。
 

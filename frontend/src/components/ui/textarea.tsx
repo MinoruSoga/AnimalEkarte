@@ -10,7 +10,7 @@ function Textarea({ className, ...props }: React.ComponentProps<"textarea">) {
       className={cn(
         "resize-none border-input placeholder:text-muted-foreground flex field-sizing-content min-h-16 w-full rounded-xs border bg-transparent px-3 py-2 text-sm transition-colors outline-none disabled:cursor-not-allowed disabled:opacity-50",
         PALETTE.hoverBgInput,
-        `focus:bg-white ${PALETTE.focusBorderLegacyAccent} ${PALETTE.focusRingLegacyAccent}`,
+        `focus:bg-white ${PALETTE.focusBorderLegacyAccent} ${PALETTE.focusRingBrand}`,
         "aria-invalid:border-destructive aria-invalid:bg-destructive/5",
         className,
       )}

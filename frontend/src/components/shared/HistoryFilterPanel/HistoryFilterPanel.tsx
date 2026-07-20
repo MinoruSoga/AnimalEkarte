@@ -42,7 +42,7 @@ export const HistoryFilterPanel = memo(function HistoryFilterPanel({
   onClear,
 }: HistoryFilterPanelProps) {
   return (
-    <div className={`space-y-3 bg-white p-3 rounded-lg border ${C.borderMedium} shadow-sm`}>
+    <div className={`space-y-3 bg-white p-3 rounded-lg border ${C.borderMedium}`}>
       {showDateRange ? (
         <div className="flex flex-col gap-1.5">
           <Label className={`text-sm ${C.text60}`}>実施日</Label>

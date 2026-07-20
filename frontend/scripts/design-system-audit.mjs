@@ -41,6 +41,8 @@ const C5_BRAND_VALUE = "brand";
 const C6_RE = /rgba?\(|hsla?\(/;
 const C7_RE = /maxWidth=["']max-w-(full|\[[0-9]+px\])["']/;
 const C9_RE = /rounded(?:-[trbl]{1,2})?-\[[0-9]+px\]/
+const C10_RE = /(?:^|[^-\w])shadow-(?:2xs|xs|sm|md|lg|xl|2xl)\b|shadow-\[/;
+const C11_RE = /text-\[[0-9.]+(?:px|rem)\]/;
 
 /** C8: PageLayout/Master shell を持たない正当な routes ファイル（basename 15件） */
 export const C8_ALLOWLIST = new Set([
@@ -197,6 +199,34 @@ export function checkC9(text) {
   return violations;
 }
 
+/**
+ * checkC10 は Tailwind 既定影（shadow-2xs〜2xl）と shadow-[...] 任意値を検出する（FE9-2）。
+ * 許可は design-system.md §5.1 のトークン（shadow-level1/level2/btn/panel/focus-brand）と shadow-none のみ。
+ */
+export function checkC10(text) {
+  const violations = [];
+  text.split("\n").forEach((line, i) => {
+    if (C10_RE.test(line)) {
+      violations.push({ lineNumber: i + 1, text: line.trim() });
+    }
+  });
+  return violations;
+}
+
+/**
+ * checkC11 は text-[Npx|Nrem] の font-size 任意値を検出する（FE9-2）。
+ * サイズは design-system.md §3.4 のロール（text-2xs〜text-2xl）経由のみ。
+ */
+export function checkC11(text) {
+  const violations = [];
+  text.split("\n").forEach((line, i) => {
+    if (C11_RE.test(line)) {
+      violations.push({ lineNumber: i + 1, text: line.trim() });
+    }
+  });
+  return violations;
+}
+
 async function walk(dir, exts, excludeNames) {
   let entries;
   try {
@@ -223,7 +253,7 @@ async function walk(dir, exts, excludeNames) {
  * ファイル I/O のみ副作用を持ち、判定ロジック自体は checkC1/checkC3/checkC5/checkC6 に委譲する。
  */
 export async function collectViolations(cwd) {
-  const result = { c1: [], c3: [], c5: [], c6: [], c7: [], c8: [], c9: [] };
+  const result = { c1: [], c3: [], c5: [], c6: [], c7: [], c8: [], c9: [], c10: [], c11: [] };
 
   for (const scanRoot of SCAN_ROOTS) {
     const root = path.join(cwd, scanRoot);
@@ -260,6 +290,12 @@ export async function collectViolations(cwd) {
         }
         for (const v of checkC9(text)) {
           result.c9.push({ file: relPath, ...v });
+        }
+        for (const v of checkC10(text)) {
+          result.c10.push({ file: relPath, ...v });
+        }
+        for (const v of checkC11(text)) {
+          result.c11.push({ file: relPath, ...v });
         }
       }
 
@@ -308,9 +344,11 @@ async function main() {
   printGroup("C7 maxWidth 生値", result.c7);
   printGroup("C8 PageLayout 未使用 routes", result.c8);
   printGroup("C9 rounded 任意値", result.c9);
+  printGroup("C10 shadow 既定/任意値", result.c10);
+  printGroup("C11 font-size 任意値", result.c11);
 
   const total = result.c1.length + result.c3.length + result.c5.length + result.c6.length
-    + result.c7.length + result.c8.length + result.c9.length;
+    + result.c7.length + result.c8.length + result.c9.length + result.c10.length + result.c11.length;
   if (total > 0) {
     console.log(`design-system-audit: FAIL — ${total} 件の違反`);
     process.exit(1);

@@ -282,7 +282,7 @@ export const ItemListCard = memo(function ItemListCard({
       </CardHeader>
       <CardContent className="p-0 overflow-auto flex-1">
         <Table>
-          <TableHeader className={`sticky top-0 ${C.bgWhite} z-10 shadow-sm`}>
+          <TableHeader className={`sticky top-0 ${C.bgWhite} z-10 shadow-level1`}>
             <TableRow>
               <TableHead className="w-[100px]">区分</TableHead>
               <TableHead>項目名</TableHead>

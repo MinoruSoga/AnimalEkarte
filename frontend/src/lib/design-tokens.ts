@@ -97,10 +97,10 @@ export const PALETTE = {
    */
   focusBorderLegacyAccent: "focus:border-[rgba(35,131,226,0.57)]",
   /**
-   * Input/select/textarea focus ring — legacy accent (#2383E2) rgb 表記。
-   * FE3-1: 値は変更せず既存直値をトークン化しただけ。正しい色への修正は別途デザイン判断。
+   * Input/select/textarea focus ring — brand teal（#038B94）。
+   * FE9-2: design-system.md §5.1「focus signal は primary」原則に従い legacy accent 青 → brand 化。
    */
-  focusRingLegacyAccent: "focus:shadow-[0_0_0_1px_rgba(35,131,226,0.35)]",
+  focusRingBrand: "focus:shadow-focus-brand",
 } as const;
 
 /* ================================================================== */
@@ -638,8 +638,9 @@ export const LAYOUT = {
  * FE3-1: ShiftTemplateSettingsParts.tsx の保存ボタンで使うピルボタンの影。
  * STYLE オブジェクト内は自己参照できないため、
  * 定義前のモジュールスコープ定数として保持し STYLE.pillShadow から再輸出する。
+ * FE9-2: design-system.md §5.1 の shadow-btn トークンへ移行。
  */
-const PILL_SHADOW = "shadow-[0_1px_2px_rgba(0,0,0,0.1)]";
+const PILL_SHADOW = "shadow-btn";
 
 export const STYLE = {
   /* ── Page / Section ─ */
@@ -657,7 +658,7 @@ export const STYLE = {
   btnDanger:
     `${C.bgDanger} ${C.textWhite} ${C.hoverBgDanger90} h-11 px-4 text-base rounded-xs transition-colors shadow-none border-transparent`,
   btnOutline:
-    `bg-white ${C.borderMedium} ${C.hoverBgLight} h-11 px-4 text-base rounded-xs shadow-[var(--notion-shadow-btn)] transition-colors`,
+    `bg-white ${C.borderMedium} ${C.hoverBgLight} h-11 px-4 text-base rounded-xs shadow-btn transition-colors`,
 
   /* ── Table ── */
   tableContainer:
@@ -717,7 +718,7 @@ export const STYLE = {
 
   /* ── Side Peek ── */
   sidePeekPanel:
-    `flex flex-col h-full overflow-y-auto bg-white border-l ${C.borderLight} shadow-[-1px_0_5px_rgba(0,0,0,0.02)]`,
+    `flex flex-col h-full overflow-y-auto bg-white border-l ${C.borderLight} shadow-panel`,
   sidePeekToolbar:
     "flex items-center justify-between h-[48px] px-3 shrink-0",
   sidePeekToolbarBtn:
@@ -776,26 +777,25 @@ export const STYLE = {
   formInputError:
     `ring-2 ring-[#C0392B]/30 ${C.borderDanger}`,
   formCard:
-    `bg-white p-6 rounded-lg shadow-sm border ${C.borderMedium}`,
+    `bg-white p-6 rounded-lg border ${C.borderMedium}`,
 
   /** Standard multi-line text area */
   textarea:     `w-full rounded-xxs border ${C.borderMedium} bg-white p-3 text-sm ${C.text} outline-none ${C.focusBorderAccent} transition-colors resize-none leading-relaxed font-mono`,
 
   /* ── Drag Overlay ── */
-  dragOverlayShadow: "shadow-[0_4px_16px_rgba(0,0,0,0.12)]",
+  /** FE9-2: ドラッグ中の浮遊オーバーレイ = design-system.md §5.1 shadow-level1（浮動要素）へ移行。 */
+  dragOverlayShadow: "shadow-level1",
   /**
    * Week view ドラッグ中プレビューの box-shadow 生値（framer motion の
    * whileDrag style prop 用。className ではなく inline style として使うため
-   * `shadow-[...]` の Tailwind ラッパーは付けない）。dragOverlayShadow とは値が
+   * Tailwind の任意値クラス表記は使わない）。dragOverlayShadow とは値が
    * 異なるため統合しない。FE3-1: 値は既存直値のまま。
    */
   dragPreviewShadowLarge: "0 10px 30px rgba(0,0,0,0.15)",
-  /** 予約カード（AppointmentCard）の二重影。FE3-1: 値は既存直値のまま。 */
-  cardShadow: "shadow-[0px_1px_3px_0px_rgba(0,0,0,0.1),0px_1px_2px_0px_rgba(0,0,0,0.06)]",
   /** ピルボタンの影（ShiftTemplateSettingsParts.tsx で使用）。 */
   pillShadow: PILL_SHADOW,
-  /** Layout のナビゲーション進捗バー brand グロー（#038B94）。FE3-1: 値は既存直値のまま。 */
-  brandGlow: "shadow-[0_0_8px_rgba(3,139,148,0.5)]",
+  /** Layout のナビゲーション進捗バー brand グロー（#038B94）。FE9-2: shadow-brand-glow トークンへ移行。値は既存直値のまま。 */
+  brandGlow: "shadow-brand-glow",
 
   /* ── Table Row Hover (FG1 compliance) ── */
   /** Standard table row hover — use instead of hardcoded hover:bg-gray-50 */

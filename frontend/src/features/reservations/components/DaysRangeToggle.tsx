@@ -13,7 +13,7 @@ const OPTIONS: { value: 5 | 7; label: string }[] = [
 export function DaysRangeToggle({ days, onChange }: DaysRangeToggleProps) {
   return (
     <div
-      className={`flex items-center ${C.bgWhite} rounded-md border ${C.borderMedium} p-0.5 shadow-sm`}
+      className={`flex items-center ${C.bgWhite} rounded-md border ${C.borderMedium} p-0.5`}
       role="group"
       aria-label="表示日数切替"
     >

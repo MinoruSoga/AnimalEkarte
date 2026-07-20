@@ -22,7 +22,7 @@ export const PetSelectionResultsTable = memo(function PetSelectionResultsTable({
         </span>
       </div>
 
-      <div className={`rounded-lg bg-white overflow-hidden shadow-sm border ${C.borderMedium}`}>
+      <div className={`rounded-lg bg-white overflow-hidden border ${C.borderMedium}`}>
         <Table>
           <TableHeader>
             <TableRow

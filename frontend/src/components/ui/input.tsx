@@ -14,7 +14,7 @@ function Input({ className, type, ref, ...props }: InputProps) {
       className={cn(
         "file:text-foreground placeholder:text-muted-foreground selection:bg-primary selection:text-primary-foreground border-input flex h-10 w-full min-w-0 rounded-xs border px-3 py-2 text-sm bg-transparent transition-colors outline-none file:inline-flex file:h-7 file:border-0 file:bg-transparent file:text-sm file:font-medium disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50",
         PALETTE.hoverBgInput,
-        `focus:bg-white ${PALETTE.focusBorderLegacyAccent} ${PALETTE.focusRingLegacyAccent}`,
+        `focus:bg-white ${PALETTE.focusBorderLegacyAccent} ${PALETTE.focusRingBrand}`,
         "aria-invalid:border-destructive aria-invalid:bg-destructive/5",
         className,
       )}

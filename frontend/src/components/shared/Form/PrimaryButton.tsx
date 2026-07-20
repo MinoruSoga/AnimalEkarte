@@ -14,7 +14,7 @@ export function PrimaryButton({ className, colorVariant = "brand", ...props }: P
   const baseClassName =
     colorVariant === "brand"
       ? `${C.bgBrand} ${C.hoverBgBrand} ${C.textWhite} h-11 text-sm shadow-none rounded-full border-transparent`
-      : `${C.bgAccent} ${C.bgAccentHover} ${C.textWhite} h-11 text-sm shadow-sm border-transparent`;
+      : `${C.bgAccent} ${C.bgAccentHover} ${C.textWhite} h-11 text-sm shadow-none border-transparent`;
 
   return (
     <Button

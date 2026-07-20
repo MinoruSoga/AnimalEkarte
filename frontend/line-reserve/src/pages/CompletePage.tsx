@@ -44,7 +44,7 @@ export function CompletePage({
         </div>
 
         {/* 予約詳細カード */}
-        <div className="w-full bg-white rounded-xl border border-gray-200 shadow-sm p-5 mb-4">
+        <div className="w-full bg-white rounded-xl border border-gray-200 p-5 mb-4">
           {displayNumber ? (
             <div className="mb-4 pb-4 border-b border-gray-100">
               <p className="text-xs text-noah-text-sub mb-1">予約番号</p>

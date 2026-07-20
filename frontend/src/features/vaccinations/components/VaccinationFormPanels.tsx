@@ -101,7 +101,7 @@ export function VaccinationFieldsPanel({
               <Label htmlFor="vaccine-select">
                 ワクチン<span className={`${C.textRequired} ml-1`}>*</span>
               </Label>
-              <MasterLink category="vaccine" label="編集" className="text-[11px]" />
+              <MasterLink category="vaccine" label="編集" className="text-2xs" />
             </div>
             <Select
               value={vaccineId}

@@ -51,7 +51,7 @@ export function ReservationTypeAndStaffFields({
               <MasterLink
                 category="reservationType"
                 label="編集"
-                className="text-[11px]"
+                className="text-2xs"
               />
             }
           >
@@ -144,7 +144,7 @@ export function ReservationTypeAndStaffFields({
             <MasterLink
               category="staff"
               label="編集"
-              className="text-[11px]"
+              className="text-2xs"
             />
           }
         >

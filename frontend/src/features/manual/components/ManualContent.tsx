@@ -221,7 +221,7 @@ export function ManualContent({ article }: ManualContentProps) {
               >
                 <ChevronLeft className={`size-5 shrink-0 ${C.text50}`} />
                 <div className="min-w-0">
-                  <div className={`text-[11px] ${C.text40} uppercase tracking-wider`}>前の項目</div>
+                  <div className={`text-2xs ${C.text40} uppercase tracking-wider`}>前の項目</div>
                   <div className={`truncate ${C.text}`}>{prev.title}</div>
                 </div>
               </Link>
@@ -234,7 +234,7 @@ export function ManualContent({ article }: ManualContentProps) {
                 className={`flex items-center gap-2 p-3 rounded-xxs border ${C.borderDivider} ${C.hoverBgLight} transition-colors text-right md:justify-end`}
               >
                 <div className="min-w-0 flex-1">
-                  <div className={`text-[11px] ${C.text40} uppercase tracking-wider`}>次の項目</div>
+                  <div className={`text-2xs ${C.text40} uppercase tracking-wider`}>次の項目</div>
                   <div className={`truncate ${C.text}`}>{next.title}</div>
                 </div>
                 <ChevronRight className={`size-5 shrink-0 ${C.text50}`} />
