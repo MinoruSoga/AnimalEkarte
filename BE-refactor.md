@@ -231,6 +231,19 @@ manifest target:medicalrecordの旧package残存83 fileを実測分類した結�
 
 **⑧ checkup_sync（8 file）= 論点#7通りlstep帰属変更が既定** — lstep domainのBE9-2C着手時にmanifest訂正の上lstepへ移動（medicalrecordへは移さない）。
 
+#### reservation domain sub-batch定義（2026-07-21 inventory実測: production 77 file = handler 30+service 31+repository 16）
+
+Phase 0（論点#1案A書込一本化）完遂済み（`3dc35694e`）。縦移動はmedicalrecord playbook（3batch A/B/C・RBAC逐語・snapshot両側追随・敵対レビュー1統合レンズ）を踏襲し、以下R①〜R⑥の順で実施:
+
+- **R① reservation_typeマスタ群**: reservation_type/group/availability/available_slot/unavailable_time/occupation/liff系type + BE8-4 subpackage 4個（reservationtype/reservationtypegroup/reservationtypeavailableslot/reservationtypeunavailabletime）roll-up。medicalrecord①と同型のmaster-CRUD先行。`internal/reservation`新設・単一Handler.RegisterRoutes・openapi migratedDomainRoutePackages登録。
+- **R② reservation_staff + reservation_schedule**: Phase 0のdelegate（staff domainの*ForReservation/SaveByStaffDate群）をconsumer-side interfaceで直接消費する形へ置換（reservation側repoのstaffs/shift_entries書込delegateはR②で解消・junction系exclusions/capabilitiesはreservation所有のまま移動）。
+- **R③ reservation本体 + capacity + timeslot_engine + available_dates**: コア予約フロー。reservation_handlerのMedicalRecord AutoCreate依存はconsumer-side narrow view（model型のみ・medicalrecord importはtopo逆行で禁止）+main.go注入で解決（Services.MedicalRecord残置fieldの解消先）。
+- **R④ appointment + appointment_admin + appointment_notification**: 管理画面予約系。
+- **R⑤ liff系**: liff_service_availability 6分割file+catalog/health_card/reservations/validation+liff_handler（§2でreservation帰属確定済み）。
+- **R⑥ reservation_line + line_reservation_setting**: LINE連携面（論点#4=line_reservation_setting帰属reservation確定済み）。
+
+各batchでdbortx/audit_tx/preload/master_fk allowlist再prefix+route snapshot±追随+全数test -p 1 green+敵対レビューApproveを完了条件とする。sub-batch内の依存詳細（narrow view設計・mock carrier方向）は各batch着手時にinventory実測で確定。
+
 **論点#4の紐付け（2026-07-20裁定済み）****論点#4の紐付け（2026-07-20裁定済み）**: `model/medicine.go`/`vaccine.go`は**medicalrecord帰属で確定**（ADR-006委任裁定）——sub-batch②のvaccine/vaccination移動は既定通りmedicalrecordへ（inventoryへの付け替えなし）。`internal/model/line_reservation_setting.go`は**reservation帰属で確定**（概念タグのみ・ファイル移動なし、reservation着手時にタグ通り扱う）。
 
 #### BE9-2E: 残る中小domainを規模順にmigrationする
