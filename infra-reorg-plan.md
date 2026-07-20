@@ -59,6 +59,8 @@ docs/ops/infra/
 ## 2. 実施フェーズ（順序厳守・各フェーズ独立コミット）
 
 ### Phase A — 死骸の除去（②削除・最優先・低リスク）
+
+> **✅ 完了（2026-07-20・コミット `8e868e0d` + `24c6e6c4`）**: infra/terraform・terraform-bootstrap・infra/ecs・migrate-images-r2.sh・scripts/stg-db-tunnel.sh(#98温床)・backend-deploy-ecs.yml・staging-stop.yml を削除（38ファイル・-3,030行）。AWS-era docs 3本を `docs/ops/infra/_archive/aws-legacy/` へ凍結。infra/CLAUDE.md を Cloudflare 正本へ書換。A-4 実施済み: tfstate バケット（68バージョン）+ DynamoDB ロック + 孤児 uploads バケットを削除し **S3=ゼロ**。AWS残存は復元用 RDS スナップショット 20GB のみ（意図的保険・月額約$2）。残参照は docs/ops/infra-architecture.md のみ（Phase C の書換対象として想定内）
 1. `infra/terraform/` `infra/terraform-bootstrap/` `infra/ecs/` を削除（AWS 環境は破棄済み・適用不能）
 2. `infra/scripts/` の AWS 専用スクリプト（`stg-db-tunnel.sh` 等）を削除・CF/pscale 系は残す
 3. AWS-era docs を `docs/ops/infra/_archive/aws-legacy/` へ移動（削除ではなく凍結 — 過去の意思決定記録の価値があるため）
