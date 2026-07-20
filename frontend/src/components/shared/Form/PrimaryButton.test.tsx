@@ -9,7 +9,6 @@ describe("PrimaryButton", () => {
     const button = screen.getByRole("button", { name: "新規登録" });
     expect(button.className).toContain(C.bgBrand);
     expect(button.className).toContain("rounded-full");
-    expect(button.className).not.toContain(C.bgAccent);
   });
 
   it('colorVariant="brand" を明示指定しても同じ結果になる（後方互換）', () => {
@@ -17,10 +16,11 @@ describe("PrimaryButton", () => {
     const button = screen.getByRole("button", { name: "新規登録" });
     expect(button.className).toContain(C.bgBrand);
     expect(button.className).toContain("rounded-full");
-    expect(button.className).not.toContain(C.bgAccent);
   });
 
-  it('colorVariant="default" は旧 accent ブルーを使う opt-out', () => {
+  // FE10 リブランドで legacy accent 値は brand #0075DE に統合済み（bgAccent === bgBrand）。
+  // "default" は角丸のみ異なる互換 variant として残存。
+  it('colorVariant="default" は旧 accent 系トークンを使う opt-out', () => {
     render(<PrimaryButton colorVariant="default">新規登録</PrimaryButton>);
     const button = screen.getByRole("button", { name: "新規登録" });
     expect(button.className).toContain(C.bgAccent);

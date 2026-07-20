@@ -6,7 +6,7 @@
 
 | ID | 観点 | 参照 | 判定方法 |
 |---|---|---|---|
-| C1 | 構造色は brand teal `#038B94` 系のみ。legacy accent（`#0075DE`/`#2383E2`/`C.accent`）禁止 | DESIGN_SYSTEM §2.1, §9, §10 | `rg 'C\.accent\|#0075DE\|#2383E2'`（route/pages glob） |
+| C1 | 構造色は brand `#0075DE`（DESIGN.md 字義・FE10）系のみ。legacy（旧 teal `#038B94`/`#027078`・旧 accent `#2383E2`・`C.accent`）禁止 | DESIGN_SYSTEM §2.1, §9, §10 | `rg 'C\.accent\|#038B94\|#027078\|#2383E2'`（route/pages glob） |
 | C2 | ページ canvas は暖色 canvas-soft（`PageLayout` / `STYLE.page*` / `C.bgPage`）。純白ページ禁止 | DESIGN.md canvas-soft／DESIGN_SYSTEM §2.2, §9 | **C8 機械化**（`src/features/*/routes/*.tsx` の PageLayout / Master*Page / allowlist）。§2 表は新規リーフ追加時に更新 |
 | C3 | route 表面での hex 直書き禁止。`design-tokens.ts` 経由必須 | DESIGN_SYSTEM §9 Don't, §10 | `rg "['\"\`]#[0-9A-Fa-f]{3,8}['\"\`]"`（**issue番号コメント `#158` 等は文字列リテラルでないため除外**） |
 | C4 | 一覧/詳細系ページは `PageLayout` または同等 shell を持つ | DESIGN_SYSTEM §4, §7.6 | **C8 機械化**（C2 と同一。shell 欠落 = C2/C4 同時フラグ） |
@@ -19,7 +19,7 @@
 | C10 | Tailwind 既定影（`shadow-2xs〜2xl`）と `shadow-[...]` 任意値禁止。`shadow-level1/level2/btn/panel/focus-brand` 等の elevation トークンのみ使用可 | design-system.md §5.1 | **機械化**（`pnpm design-audit` / make ci） |
 | C11 | `text-[Npx\|Nrem]` font-size 任意値禁止。`text-2xs/xs/sm/base/...` ロールクラスのみ使用可 | design-system.md §3.4 | **機械化**（`pnpm design-audit` / make ci） |
 
-**AE 上書き注記**: DESIGN.md フロントマターの `{colors.primary}` は Notion Analysis テンプレート値 `#0075DE` のまま。製品正本は DESIGN_SYSTEM.md が定義する **`#038B94`**（SSOT 優先順位: 実装 `design-tokens.ts` > DESIGN_SYSTEM.md > DESIGN.md）。
+**FE10 字義遵守注記（2026-07-21）**: 旧「製品上書き `#038B94`」は撤回。DESIGN.md `{colors.primary}` = **`#0075DE`** に字義で従う（決裁: 曽我）。唯一の逸脱は DESIGN_SYSTEM §2.4 臨床 semantic 色の維持。
 
 **監査範囲の限界**: 本監査は「route が指す Component ファイル」と、そこから明確に import される共有 shell（`PageLayout` / `MasterPageShell` / `MasterListPage` / `MasterTabPage` 経由）までを追跡した。Component 内部が呼び出す個別 UI パーツ（カード・モーダル等）の hex は対象外。C6 は目視レビューが必要な領域が残る。
 

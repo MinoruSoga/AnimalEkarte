@@ -41,18 +41,20 @@ test("isLeafRouteFile: routes/ または pages/ 配下を検出する", () => {
   assert.equal(isLeafRouteFile(path.join("accounting", "components", "Foo.tsx")), false);
 });
 
-test("checkC1: C.accent / #0075DE / #2383E2 を検出する", () => {
+test("checkC1: C.accent / 旧 teal #038B94・#027078 / #2383E2 を検出する（brand #0075DE は FE10 で解禁）", () => {
   const text = [
     'const x = <div className={C.accent} />;',
-    'const y = "#0075DE";',
+    'const y = "#038B94";',
     'const z = "#2383E2";',
+    'const w = "#027078";',
     'const ok = <div className={C.text} />;',
   ].join("\n");
   const violations = checkC1(text);
-  assert.equal(violations.length, 3);
+  assert.equal(violations.length, 4);
   assert.equal(violations[0].lineNumber, 1);
   assert.equal(violations[1].lineNumber, 2);
   assert.equal(violations[2].lineNumber, 3);
+  assert.equal(violations[3].lineNumber, 4);
 });
 
 test("checkC1: legacy accent が無ければ 0 件", () => {

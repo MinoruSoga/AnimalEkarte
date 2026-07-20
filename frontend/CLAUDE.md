@@ -140,7 +140,7 @@ docker compose exec frontend pnpm install
 - `PageLayout` に `resource` prop を渡す route の render test では `PermissionBadges → usePermission → useAuth` が呼ばれるため、`vi.mock("@/hooks/use-auth", () => ({ useAuth: () => ({ ... hasPermission: () => true }) }))` が必須（`AuthProvider` 無しだと `useAuth must be used within an AuthProvider` で全滅する）。正例: `frontend/src/features/cash-register/routes/CashRegisterHistoryPage.test.tsx`。
 - 新規リーフルートを追加したら `docs/spec/ui-design-compliance.md` §2 のページ表を同じコミットで更新すること。C1/C3/C5/C6b/C7/C8/C9 は `pnpm design-audit`（make ci 配線済み）で機械検証される。C8 は `src/features/*/routes/*.tsx` の PageLayout / Master*Page / allowlist（15件）を検査する — 正当な非 PageLayout ルートは `design-system-audit.mjs` の `C8_ALLOWLIST` へ同一コミットで追記すること。
 
-## DESIGN.md 適用範囲（MANDATORY）
+## DESIGN.md 適用範囲（MANDATORY・FE10 字義遵守 2026-07-21）
 
-SSOT 優先順位: 実装 `src/lib/design-tokens.ts` ＞ `docs/spec/design-system.md`（製品上書き: primary=#038B94）＞ `DESIGN.md`（Notion マーケテンプレート）。
-DESIGN.md は構造原則（spacing / rounded / hairline / canvas-soft×surface / 単一アクセント）のみ遵守対象。display 型・pill CTA・sticker palette 等のマーケ装飾規範は業務 EMR 画面の遵守対象外。
+`DESIGN.md` が意匠の**正本**であり字義で従う（決裁: 曽我）。brand = **`#0075DE`**（Notion blue・旧 teal `#038B94` は legacy — audit C1 で再導入禁止）。hairline `#E6E6E6`・caption 14px / eyebrow 12px・radius 最小 4px・`button-primary` = pill・テーブルヘッダ = `ex-data-table-cell` 様式（`STYLE.tableHeader*`）。
+唯一の逸脱 = `docs/spec/design-system.md` §2.4 臨床 semantic 色（danger/warning/status）の維持（臨床安全 SPECIFICATION 2.1 優先）。semantic 色を構造用途（CTA/リンク/active/focus）に使うことは引き続き禁止。

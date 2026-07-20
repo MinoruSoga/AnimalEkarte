@@ -1,58 +1,58 @@
 # UI デザインシステム 規約 (Design System)
 
-> **目的**: [DESIGN.md](../../DESIGN.md)（ルート — Notion Analysis / 意匠言語のテンプレート）を Animal Ekarte の実装に落とし込むための規約を定義する。
+> **目的**: [DESIGN.md](../../DESIGN.md)（ルート — Notion Analysis / 意匠言語）を Animal Ekarte の実装に落とし込むための規約を定義する。
 > **読者**: フロントエンド実装者。
 > **タイミング**: UI 実装・レビュー時。
-> **最新更新**: 2026-07-21（FE9: §3.4 タイポ採用範囲・§5.1 shadow 実装ルール・§7.2 pill 裁定を追補）
+> **最新更新**: 2026-07-21（**FE10: DESIGN.md 字義遵守リブランド** — 製品上書き（teal 等）を撤回し brand=`#0075DE` へ反転。唯一の存続例外は §2.4 臨床 semantic 色）
 
 ### SSOT 優先順位
 
 | 層 | ファイル | 役割 |
 |---|---|---|
-| 1 | [DESIGN.md](../../DESIGN.md) | 意匠言語の**テンプレート**（Notion Analysis）。トークン名・非 primary 色値・タイポ/レイアウト/コンポーネント定義の構造 SSOT。フロントマターの `{colors.primary}` は Notion blue `#0075DE` のまま。 |
-| 2 | **本書** (`docs/spec/design-system.md`) | Animal Ekarte **製品上書き**を含む実装規約。構造ブランドカラーは **`#038B94`（teal）** に統一して記載する。 |
-| 3 | `frontend/src/lib/design-tokens.ts` | 実行時 SSOT（`C` / `STYLE` / `PALETTE` / `LAYOUT`）。構造色は `#038B94` に同期済み — §2.6 参照。 |
+| 1 | [DESIGN.md](../../DESIGN.md) | 意匠言語の**正本**。トークン値・タイポ/レイアウト/コンポーネント定義に**字義で従う**（FE10 決裁・2026-07-21 曽我）。 |
+| 2 | **本書** (`docs/spec/design-system.md`) | DESIGN.md の実装規約化。逸脱は §2.4 臨床 semantic 色（唯一の例外）のみ。 |
+| 3 | `frontend/src/lib/design-tokens.ts` | 実行時 SSOT（`C` / `STYLE` / `PALETTE` / `LAYOUT`）。構造色は `#0075DE` に同期済み — §2.6 参照。 |
 
-> **Animal Ekarte**: Notion ライクな体験を臨床現場へ。DESIGN.md の `{colors.primary}` テンプレート値（`#0075DE`）は Notion Analysis 由来であり、本製品では **`#038B94`（brand teal）** で上書きする。
+> **Animal Ekarte**: Notion ライクな体験を臨床現場へ。構造色は DESIGN.md `{colors.primary}` 字義値 **`#0075DE`（Notion blue）**。旧製品上書き `#038B94`（teal）は FE10 で撤回・legacy 化（audit C1 が再導入を禁止）。
 
 ---
 
 ## 1. Overview / デザイン思想
 
-本システムの UI は、**「臨床現場での集中力を妨げないクリーンな情報設計」**を最優先としている。DESIGN.md の言葉を借りれば、「良い光の下の整理されたデスク」— 暖色の紙のようなキャンバス（`{colors.canvas-soft}`）の上に、抑制されたモノクロ＋**単一構造色（brand teal `#038B94`）** の UI が乗り、装飾は必要な場所（スティッカーパレット・意味的カラー）にのみ許可される。
+本システムの UI は、**「臨床現場での集中力を妨げないクリーンな情報設計」**を最優先としている。DESIGN.md の言葉を借りれば、「良い光の下の整理されたデスク」— 暖色の紙のようなキャンバス（`{colors.canvas-soft}`）の上に、抑制されたモノクロ＋**単一構造色（brand `#0075DE`・Notion blue）** の UI が乗り、装飾は必要な場所（スティッカーパレット・意味的カラー）にのみ許可される。
 
 ### 核心となる原則
 
-- **ミニマリズム**: 装飾を削ぎ落とし、データそのものを主役にする。構造色は `{colors.primary}`（Animal Ekarte 上では `#038B94`）一色のみとし、二番目の構造アクセントを導入しない。
+- **ミニマリズム**: 装飾を削ぎ落とし、データそのものを主役にする。構造色は `{colors.primary}`（`#0075DE`）一色のみとし、二番目の構造アクセントを導入しない。
 - **直感的な階層**: Notion スタイルの「プロパティ」と「カード」による情報の整理。カードは白 surface + hairline、ページ canvas は暖色オフホワイト。
 - **臨床安全の可視化**: 警告や異常値のみを、戦略的に配色された「意味的カラー」で強調する。危険バッジ・死亡グレーアウト・RBAC 非活性表示など、臨床安全 UI は本デザイン変更で退行させない。
 
-### Key Characteristics（DESIGN.md 準拠 + AE 上書き）
+### Key Characteristics（DESIGN.md 字義準拠）
 
 - 暖色 paper-soft canvas `{colors.canvas-soft}` — 純白ページではなく document-like な落ち着き
 - 近黒 `{colors.ink}` の Inter 系タイポ。display サイズではネガティブ tracking
-- **単一構造アクセント** — brand teal `{colors.primary}` = **`#038B94`** — Primary CTA・リンク・active/focus のみ
+- **単一構造アクセント** — `{colors.primary}` = **`#0075DE`（Notion blue）** — Primary CTA・リンク・active/focus のみ
 - 装飾専用マルチカラースティッカーパレット（purple / pink / orange / teal / green / sky）— 構造には使わない
 - Primary CTA は pill `{rounded.full}`、ユーティリティボタンは `{rounded.md}`（8px）— 意図的な対比
-- hairline + 極薄レイヤードシャドウによる elevation（重い drop-shadow 禁止）
+- hairline `#E6E6E6` + 極薄レイヤードシャドウによる elevation（重い drop-shadow 禁止）
 - 深 indigo `{colors.secondary}` の hero-band はマーケ向けパターン。AE アプリ本体では臨床 UI に合わせて限定的に使用
 
 ---
 
 ## 2. Colors / カラーパレット
 
-> トークン名・非 primary 色値は [DESIGN.md](../../DESIGN.md) `colors:` フロントマターが正。構造色 `{colors.primary}` / `{colors.primary-active}` のみ Animal Ekarte 製品上書き（§2.1）。
+> トークン名・色値とも [DESIGN.md](../../DESIGN.md) `colors:` フロントマターが正（FE10 字義遵守）。
 
 ### 2.1 Brand & Accent（構造色）
 
-| トークン | Animal Ekarte 値 | 用途 |
+| トークン | 値（DESIGN.md 字義） | 用途 |
 |---|---|---|
-| `{colors.primary}` | **`#038B94`**（brand teal） | 唯一の構造アクセント。Primary CTA fill、インラインリンク、active-tab / focus ring。**装飾には使わない。** |
-| `{colors.primary-active}` | **`#027078`**（提案値 — pressed / hover） | Primary CTA の押下状態。DESIGN.md の `{colors.primary-active}` パターンに倣った darker teal。**`design-tokens.ts` 同期時に確定。** |
-| `{colors.secondary}` | `#213183` | 深 indigo hero-band（DESIGN.md テンプレート値。AE では限定的） |
+| `{colors.primary}` | **`#0075DE`**（Notion blue） | 唯一の構造アクセント。Primary CTA fill、インラインリンク、active-tab / focus ring。**装飾には使わない。** |
+| `{colors.primary-active}` | **`#005BAB`** | Primary CTA の押下 / hover 状態。 |
+| `{colors.secondary}` | `#213183` | 深 indigo hero-band（AE では限定的） |
 | `{colors.on-primary}` | `#FFFFFF` | primary 上のテキスト |
 
-> **DESIGN.md テンプレートとの差**: ルート DESIGN.md の `{colors.primary}` は Notion Analysis 由来の `#0075DE`（Notion blue）のまま。Animal Ekarte は本書で **`#038B94`** に製品上書きする。DESIGN.md 本体はテンプレートとして編集しない。
+> **旧製品上書きの撤回（FE10・2026-07-21）**: 旧 brand teal `#038B94` / pressed `#027078` は legacy 化し、audit C1 が再導入を機械的に禁止する。旧 legacy accent `#2383E2` 系トークン（`C.bgAccent` 等）の**値**は brand `#0075DE` に統合済み（トークン名は互換のため残存 — 新規実装は brand 系を使うこと）。
 
 **装飾スティッカーパレット**（CTA・構造フィル禁止 — §2.5 参照）:
 Sky `#62AEF0`、Purple `#D6B6F6` / Deep `#391C57`、Pink `#FF64C8`、Orange `#DD5B00` / Deep `#793400`、Teal `#2A9D99`、Green `#1AAE39`、Brown `#523410`
@@ -74,9 +74,9 @@ Sky `#62AEF0`、Purple `#D6B6F6` / Deep `#391C57`、Pink `#FF64C8`、Orange `#DD
 | `{colors.ink-muted}` | `#615D59` | 補助・muted コピー |
 | `{colors.ink-faint}` | `#A39E98` | キャプション・メタデータ・placeholder |
 
-### 2.4 意味的カラー (Semantic Colors) — Animal Ekarte 拡張
+### 2.4 意味的カラー (Semantic Colors) — 唯一の DESIGN.md 逸脱（存続決定・FE10）
 
-DESIGN.md の Notion Analysis は装飾用スティッカーパレットのみで専用 semantic ramp を持たない。臨床上の判断を助けるため、本システムでは独自に意味的カラーを定義し、`design-tokens.ts` で一元管理する。
+DESIGN.md の Semantic 節は「Notion の*マーケ表面*は専用 semantic ramp を持たない」という観察であり、削除の指令ではない。臨床安全（SPECIFICATION 2.1 — 全原則に優先）により、本システムは意味的カラーを **FE10 字義リブランド後も維持する**。`design-tokens.ts` で一元管理し、構造色用途（CTA・リンク・active/focus）には使わない。
 
 - **危険 / 死亡 / 異常高**: `C.danger`（`#C0392B`、WCAG AA 7.1:1 準拠）
 - **注意 / 期限間近**: `C.textWarning` / `C.bgWarning50`
@@ -94,20 +94,21 @@ DESIGN.md Do's/Don'ts に従い、以下は **CTA・構造フィルには使用�
 
 ### 2.6 `design-tokens.ts` マッピング表
 
-| 役割 | DESIGN.md トークン | AE 規約値 | design-tokens.ts（現状） |
+| 役割 | DESIGN.md トークン | 字義値 | design-tokens.ts（FE10 反転済み） |
 |---|---|---|---|
-| 構造色（Primary CTA・リンク・active/focus） | `{colors.primary}` | **`#038B94`** | `PALETTE.brand` / `C.bgBrand` / `C.textBrand` / `C.borderBrand` = `#038B94` ✅ |
-| 構造色 Pressed | `{colors.primary-active}` | **`#027078`** | `PALETTE.brandHover` = `#027078` ✅ |
+| 構造色（Primary CTA・リンク・active/focus） | `{colors.primary}` | **`#0075DE`** | `PALETTE.brand` / `C.bgBrand` / `C.textBrand` / `C.borderBrand` = `#0075DE` ✅ |
+| 構造色 Pressed | `{colors.primary-active}` | **`#005BAB`** | `PALETTE.brandHover` = `#005BAB` ✅ |
 | ページ canvas | `{colors.canvas-soft}` | `#F6F5F4` | `PALETTE.bgMain`, `C.bgPage` ✅ |
 | カード surface | `{colors.canvas}` | `#FFFFFF` | `C.bgWhite` / `C.bgSubtle` ✅ |
-| Hairline | `{colors.hairline}` | `#E6E6E6` 相当 | `C.borderLight`（`rgba(0,0,0,0.09)`） |
+| Hairline | `{colors.hairline}` | **`#E6E6E6`** | `C.borderLight` / `globals.css` `--border` = `#E6E6E6` ✅（旧 `rgba(0,0,0,0.09)` を字義固体値化） |
+| 入力 border | `text-input` 1px `rgb(221,221,221)` | `#DDDDDD` | `globals.css` `--input` ✅ |
 | Ink 系 | `{colors.ink}` 〜 `{colors.ink-faint}` | DESIGN.md 準拠 | `C.text` / `C.text70` / `C.text60` / `C.text40` ✅ |
-| checked 状態 | `{colors.primary}` | **`#038B94`** | `C.dataCheckedBgBrand` / `C.dataCheckedBorderBrand` = `#038B94` ✅（brand 系と統一済み） |
-| CSS 変数 | `{colors.primary}` | **`#038B94`** | `globals.css` `--primary` / `--sidebar-primary` = `#038b94` ✅ |
+| checked / focus | `{colors.primary}` | **`#0075DE`** | `C.dataCheckedBgBrand` / `--ring` / `--shadow-focus-brand` ✅ |
+| CSS 変数 | `{colors.primary}` | **`#0075DE`** | `globals.css` `--primary` / `--sidebar-primary` = `#0075de` ✅ |
 
-> **既知の技術的負債（2026-07-06 時点）**:
-> - 構造色 `#038B94` への tokens 同期（`PALETTE.brand` 系・`globals.css` `--primary`/`--sidebar-primary`）は完了済み。
-> - `C.accent` / `C.bgAccent` 系（旧 `#2383E2`/`#0075DE` 由来）は DESIGN.md テンプレートのレガシー値として残存。装飾・過去互換用途のみに限定され、route 表面（`frontend/src/features/*/routes`）からは排除済み（grep 監査 0 件、2026-07-06 時点）。**新規実装は必ず `brand` 系を使うこと**。
+> **legacy トークンの扱い（FE10）**:
+> - 旧 teal `#038B94`/`#027078` は全反転済み・audit C1 で再導入禁止。
+> - `C.accent`/`C.bgAccent` 系トークンは**値を brand `#0075DE` に統合**して残存（名前互換のみ）。route 表面からは従来どおり排除（C1/C5）。**新規実装は必ず `brand` 系を使うこと**。
 
 ---
 
@@ -142,22 +143,22 @@ DESIGN.md `typography:` フロントマターに準拠。実装のフォント�
 
 診察室 iPad 利用を想定し、Tailwind v4 `@theme inline` でクリックターゲット・フォントサイズを標準より約 **10% 拡大**（§7 参照）。
 
-### 3.4 採用範囲と実装マッピング（AE 製品裁定・2026-07-21）
+### 3.4 採用範囲と実装マッピング（FE10 字義化・2026-07-21）
 
-アプリ本体 UI が採用するのは **`{typography.title}` 以下のみ**。`display-1/2`・`heading-1/2/3` はマーケティング面（LP・hero）専用であり、アプリ画面の遵守チェック対象外（§3.1 の表は DESIGN.md 構造の転写として保持する）。
+アプリ本体 UI が日常的に使うのは `{typography.title}` 以下（display/heading 系は hero/LP 等の大面積見出しでのみ使用機会がある — 用途列が示すとおり DESIGN.md 自身の使い分け）。サイズは **DESIGN.md 字義値**に整列済み。
 
 | ロール | AE 実装（Tailwind） | 実サイズ | 用途 |
 |---|---|---|---|
 | title | `text-xl font-semibold` | 20px | ページ内最上位見出し（PageLayout タイトル等） |
-| section | `text-lg font-semibold` | 18px | セクション見出し（AE 独自の中間段 — DESIGN.md 対応なし） |
+| section | `text-lg font-semibold` | 18px | セクション見出し（title と body の中間段） |
 | body-md | `text-base` | 16px | 標準本文・フォームラベル |
-| body-sm | `text-sm` | 15px（`--text-sm` 上書き） | テーブル行・密な UI の既定 |
-| caption | `text-xs` | 13px（`--text-xs` 上書き — DESIGN.md caption 14px の製品上書き） | キャプション・メタ・placeholder |
-| eyebrow | `text-xs font-semibold tracking-wide` | 13px | テーブルヘッダー・小ラベル（DESIGN.md 12px の製品上書き — スケール段数を増やさない） |
-| micro | `text-2xs` | 11px（`--text-2xs` — 製品拡張。実測で 10/11px 任意値が48件あったため radius 3px と同型の「視覚変化最小の公式化」裁定・2026-07-21） | バッジ内文字・極小メタ表示。乱用禁止 — caption で足りるなら caption |
+| body-sm | `text-sm` | 15px（`--text-sm`） | テーブル行・密な UI の既定 |
+| caption | `text-xs` | **14px**（`--text-xs` — DESIGN.md caption 字義値。FE10 で 13px 上書きを撤回） | キャプション・メタ・placeholder |
+| eyebrow | `text-2xs font-semibold tracking-wide` | **12px**（DESIGN.md eyebrow 字義値） | データテーブルヘッダー（`STYLE.tableHeaderCell`）・小ラベル |
+| micro | `text-2xs` | **12px**（`--text-2xs` — FE10 で 11px 製品拡張を撤回し eyebrow 段に統合） | バッジ内文字・極小メタ表示。乱用禁止 — caption で足りるなら caption |
 
-- **`text-[Npx]` 等の font-size 任意値は禁止**（実測 66 件・2026-07-21 — FE9 で撲滅し audit C11 で恒久ガード）。
-- font-weight: 本文 400、強調 500（`font-medium`）、見出し 600（`font-semibold`）。**700（`font-bold`）は title/section 見出し専用** — 本文・数値セルに使わない（§3.2 の 700 vs 400 コントラスト原則の製品適用）。
+- **`text-[Npx]` 等の font-size 任意値は禁止**（audit C11 恒久ガード）。
+- font-weight: 本文 400、強調 500（`font-medium`）、見出し 600（`font-semibold`）。**700（`font-bold`）は title/section 見出し専用** — 本文・数値セルに使わない（§3.2 の 700 vs 400 コントラスト原則）。
 
 ---
 
@@ -212,7 +213,7 @@ shadcn `DialogContent`（`frontend/src/components/ui/dialog.tsx`）は `rounded-
 - 実装トークン（`globals.css` `@theme inline`・FE9-1 実装済み）:
   - `--shadow-level1`: `0 0.175px 1.041px rgba(0,0,0,0.01), 0 0.8px 2.925px rgba(0,0,0,0.02), 0 2.025px 7.847px rgba(0,0,0,0.027), 0 4px 18px rgba(0,0,0,0.04)`
   - `--shadow-level2`: `0 0.8px 2.9px rgba(0,0,0,0.02), 0 2px 7.8px rgba(0,0,0,0.027), 0 4px 18px rgba(0,0,0,0.04), 0 10px 32px rgba(0,0,0,0.045), 0 23px 52px rgba(0,0,0,0.05)`（中間段は Level-1 の等比を踏襲した5段・末尾は DESIGN.md 実測値）
-  - 製品マイクロトークン（実態の公式化）: `--shadow-btn`（ボタン微細影 = 旧 `--notion-shadow-btn` 値）・`--shadow-panel`（SidePeek 等の左方向影）・`--shadow-focus-brand`（focus リング `0 0 0 1px rgba(3,139,148,.35)` — DESIGN.md「focus signal は primary」原則に従い旧 legacy accent 色 ring を brand 化）・`--shadow-brand-glow`（ナビ進捗バーの brand グロー `0 0 8px rgba(3,139,148,.5)` — 既存直値の公式化）
+  - 製品マイクロトークン（実態の公式化）: `--shadow-btn`（ボタン微細影 = 旧 `--notion-shadow-btn` 値）・`--shadow-panel`（SidePeek 等の左方向影）・`--shadow-focus-brand`（focus リング `0 0 0 1px rgba(0,117,222,.35)` — DESIGN.md「focus signal は primary」原則）・`--shadow-brand-glow`（ナビ進捗バーの brand グロー `0 0 8px rgba(0,117,222,.5)`）— FE10 リブランドで brand 系 rgba を `#0075DE` 基準へ反転済み
 - 使い分け: 通常カード = **Level 0（hairline のみ・shadow なし）**／ドロップダウン・ポップオーバー・浮動パネル・フォーカス強調 = `shadow-level1`／モーダル・トースト = `shadow-level2`。
 - **Tailwind 既定の `shadow-sm/md/lg/xl` と `shadow-[...]` 任意値は新規使用禁止**（実測: sm×55 / md×4 / lg×5 / 任意値×6・2026-07-21）。FE9 で level トークンへ移行し audit C10 で恒久ガード。`drop-shadow`・CSS 直書き `box-shadow` は 0 件を維持する。
 
@@ -229,7 +230,7 @@ DESIGN.md `rounded:` フロントマターに準拠。**コンポーネント種
 
 | トークン | 値 | 用途 |
 |---|---|---|
-| `{rounded.xxs}` | 3px | 製品上書き（Notion 実測値）。コンパクト入力・アイコンボタン。`--radius-xxs` in `globals.css` |
+| `{rounded.xxs}` | **4px**（FE10 字義化 — 3px 製品拡張を撤回し DESIGN.md 最小段 xs に整列。クラス名は互換のため残存） | コンパクト入力・アイコンボタン。`--radius-xxs` in `globals.css` |
 | `{rounded.xs}` | 4px | フォーム入力（`text-input`）・小タグ |
 | `{rounded.sm}` | 5px | メニュー項目・リスト行・status pill |
 | `{rounded.md}` | 8px | ユーティリティボタン（`button-utility`）・小カード |
@@ -253,13 +254,13 @@ DESIGN.md `rounded:` フロントマターに準拠。**コンポーネント種
 
 | コンポーネント | 仕様 | AE 実装 |
 |---|---|---|
-| `button-primary` | bg `{colors.primary}`（`#038B94`）、text `{colors.on-primary}`、`{typography.button}`、`{rounded.full}` | `SubmitButton` / `PrimaryButton` — `colorVariant="brand"` |
-| `button-primary-pressed` | bg `{colors.primary-active}`（`#027078`） | `PALETTE.brandHover` = `#027078` ✅ |
+| `button-primary` | bg `{colors.primary}`（`#0075DE`）、text `{colors.on-primary}`、`{typography.button}`、`{rounded.full}` pill | `SubmitButton` / `PrimaryButton` — `colorVariant="brand"`（既定・pill 実装済み） |
+| `button-primary-pressed` | bg `{colors.primary-active}`（`#005BAB`） | `PALETTE.brandHover` = `#005BAB` ✅ |
 | `button-secondary` | white surface、`{colors.ink}`、pill、Level-1 shadow | 二次 CTA |
-| `button-utility` | white surface、`{rounded.md}`、4px 14px padding、hairline border | ナビ / プラン選択 |
+| `button-utility` | white surface、`{rounded.md}`、4px 14px padding、hairline border | ナビ / ユーティリティ操作 |
 | `button-icon-circular` | `rgba(0,0,0,0.05)` fill、`{rounded.full}` | カルーセル / メディア制御 |
 
-> **pill 裁定（2026-07-21）**: `{rounded.full}` の pill CTA は**マーケティング面専用**。アプリ本体の `PrimaryButton` / `SubmitButton` は `button-utility` 系の角丸（`rounded-xxs`〜`rounded-md`）を標準とし pill 化しない — 高密度な業務アクション列に pill は過大で、DESIGN.md 自身も utility 文脈では `{rounded.md}` を規定している。バッジ・円形アイコンボタンの `{rounded.full}` は従来どおり。
+> **FE10 字義化**: 旧「pill はマーケ専用」裁定（2026-07-21 旧版）は撤回。DESIGN.md 字義どおり **`button-primary` = pill**（実装は既に準拠）。フォーム入力への pill 適用は引き続き禁止（DESIGN.md Don't — 入力は `{rounded.xs}` 4px）。
 
 ### 7.3 Cards & Containers
 
@@ -294,7 +295,7 @@ DESIGN.md `rounded:` フロントマターに準拠。**コンポーネント種
 | `ex-empty-state-card` | canvas-soft + `{spacing.xxl}` padding | 空状態 |
 | `ex-toast` | feature-card shape + medium shadow | トースト通知 |
 
-> **AE テーブルヘッダ様式（house スタイル・FE9-3 裁定 2026-07-21）**: 実装の一覧テーブル（`OwnersListTable`/`カルテ管理`/`飼主一覧` 等）は全て共通で **plain muted テキストヘッダ ＋ hairline 下線**（canvas-soft バンド・eyebrow mono-caps を敷かない）で**一貫**している。DESIGN.md `ex-data-table-cell` の理想（canvas-soft header band + eyebrow）とは異なるが、これは不統一ではなく高密度な臨床データ向けの意図的 house 様式であり**現状維持する**（ブラウザ全数監査で一貫性を実測確認済み）。将来 Notion 風ヘッダへ寄せる場合は `TABLE_STYLES.header` を新設し全テーブル一括適用すること（部分適用は不統一を生むため禁止）。
+> **テーブルヘッダ様式（FE10 字義化・2026-07-21）**: 旧 house 様式裁定（plain muted ヘッダ）は撤回。`STYLE.tableHeaderRow` / `STYLE.tableHeaderCell` を DESIGN.md `ex-data-table-cell` 字義（**canvas-soft ヘッダ帯 + eyebrow 型 12px/600/tracking + hairline 行区切り**）へ一括反転済み — STYLE トークン経由の全テーブルに一斉適用される。STYLE を経由しない手書きヘッダは FE10 R6 スイープで検出し同様式へ統一する（部分適用は不統一を生むため禁止）。
 
 ### 7.6 Animal Ekarte 固有パターン
 
@@ -322,12 +323,12 @@ DESIGN.md `rounded:` フロントマターに準拠。**コンポーネント種
 
 ### Do
 
-- `{colors.primary}`（**`#038B94`**）は Primary CTA・インラインリンク・active/focus のみに使う。装飾には使わない。
+- `{colors.primary}`（**`#0075DE`**）は Primary CTA・インラインリンク・active/focus のみに使う。装飾には使わない。
 - ページ canvas は暖色 `{colors.canvas-soft}`、カード・フィールドは白 `{colors.surface}` にする。
 - スティッカーパレット（`{colors.accent-pink}`、`{colors.accent-teal}` 等）はバッジ・タグ・凡例ドットなど装飾用途にのみ使う。
-- 見出し階層は §3.4 の採用範囲に従う（アプリ本体は `title` 以下。display/heading 系はマーケ面専用）。
-- ボタン角丸は §7.2 pill 裁定に従う（アプリ本体は utility 系。pill はマーケ面・バッジ・円形アイコンのみ）。
-- カード境界は hairline + Level-1 の極薄シャドウで表現する。
+- 見出し階層は §3.4 のロール表に従う。
+- Primary CTA は pill `{rounded.full}`（`button-primary` 字義）、ユーティリティボタンは `{rounded.md}` — 対比は意図的。
+- カード境界は hairline `#E6E6E6` + Level-1 の極薄シャドウで表現する。
 - 深 indigo `{colors.secondary}` hero-band は単一の hero モーメントに限定する。
 
 ### Don't
@@ -349,6 +350,6 @@ DESIGN.md `rounded:` フロントマターに準拠。**コンポーネント種
 
 - **`frontend/src/lib/design-tokens.ts`**: `PALETTE`（raw hex）、`C`（Tailwind クラス）、`STYLE`（複合クラスプリセット）、`LAYOUT`（寸法）、`BADGE`（バッジ配色コンボ）、`ICON`（アイコンサイズ）。
 - 新しい色を追加する場合は、必ず `design-tokens.ts` に追加した上でコンポーネントから参照する。**コンポーネント内での hex 直書きは禁止。**
-- **規約 vs 実装**: 本書 §2.6 のとおり、構造色 `#038B94` は tokens・`globals.css` ともに同期済み。route 表面のレガシー accent (`#0075DE`/`#2383E2`) 使用は grep 監査で 0 件（2026-07-06 時点）。
+- **規約 vs 実装**: 本書 §2.6 のとおり、構造色 `#0075DE` は tokens・`globals.css` ともに同期済み（FE10）。route 表面の legacy 色（旧 teal `#038B94`/`#027078`・旧 accent `#2383E2`）は audit C1 が機械的に禁止する。
 
 ---

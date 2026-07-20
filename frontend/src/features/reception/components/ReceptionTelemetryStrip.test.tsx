@@ -40,7 +40,7 @@ describe("ReceptionTelemetryStrip", () => {
     expect(screen.getByText("32分 — ミルク")).toBeInTheDocument();
   });
 
-  it("最長待ちの強調はテキスト色のみで、構造色 #038b94 系のクラスを使わない", () => {
+  it("最長待ちの強調はテキスト色のみで、構造色（brand 0075de・旧 teal 038b94）系のクラスを使わない", () => {
     render(
       <ReceptionTelemetryStrip
         totalCount={32}
@@ -49,7 +49,7 @@ describe("ReceptionTelemetryStrip", () => {
     );
 
     const longest = screen.getByText("32分 — ミルク");
-    expect(longest.className).not.toMatch(/038B94|038b94/);
+    expect(longest.className).not.toMatch(/038B94|038b94|0075DE|0075de/);
   });
 
   it("コンポーネントソースに raw hex カラーリテラルを直書きしない(design-tokens 経由のみ)", () => {

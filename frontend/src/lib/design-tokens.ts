@@ -31,22 +31,22 @@ export const PALETTE = {
   pickerDefaultBlue: "#3B82F6",
 
   /* ── Brand (hospital main color) ── */
-  /** Brand primary — docs/spec/design-system.md §2.1 {colors.primary} (teal, AE product override of DESIGN.md's Notion blue) */
-  brand: "#038B94",
+  /** Brand primary — DESIGN.md {colors.primary} 字義値（Notion blue）。FE10 リブランド（2026-07-21）で teal #038B94 から反転 */
+  brand: "#0075DE",
   /** Brand hover/pressed — docs/spec/design-system.md §2.1 {colors.primary-active} */
-  brandHover: "#027078",
+  brandHover: "#005BAB",
   /** Brand light background */
-  brandLight: "#E1F3F4",
+  brandLight: "#E5F1FC",
   /** Brand dark text (on light bg) */
-  brandDark: "#025F66",
+  brandDark: "#004C8F",
 
   /** Border – light (table cell, card) */
-  borderLight: "rgba(0,0,0,0.09)",
+  borderLight: "#E6E6E6",
 
   /** Semi-transparent white (80%) — toggle dot on active chart buttons */
   whiteAlpha80: "rgba(255,255,255,0.8)",
 
-  /** DESIGN.md primary blue accent */
+  /** = brand（FE10 リブランドで一致）。チャート系列色など raw 用途のみ。構造用途は brand を使うこと */
   accent: "#0075DE",
 
   /** Destructive / danger — BUG-084: #C0392B (contrast 7.1:1 on white, WCAG AA) */
@@ -92,13 +92,13 @@ export const PALETTE = {
   /** Input/select/textarea hover bg (warm neutral) */
   hoverBgInput:      "hover:bg-[rgba(242,241,238,0.5)]",
   /**
-   * Input/select/textarea focus border — legacy accent (#2383E2) rgb 表記。
-   * FE3-1: 値は変更せず既存直値をトークン化しただけ。正しい色への修正は別途デザイン判断。
+   * Input/select/textarea focus border — brand primary の半透明表記。
+   * FE10: DESIGN.md「focus signal は primary」字義に従い legacy #2383E2 → brand #0075DE へ反転（トークン名は互換のため維持）。
    */
-  focusBorderLegacyAccent: "focus:border-[rgba(35,131,226,0.57)]",
+  focusBorderLegacyAccent: "focus:border-[rgba(0,117,222,0.57)]",
   /**
-   * Input/select/textarea focus ring — brand teal（#038B94）。
-   * FE9-2: design-system.md §5.1「focus signal は primary」原則に従い legacy accent 青 → brand 化。
+   * Input/select/textarea focus ring — brand（#0075DE）。
+   * DESIGN.md「focus signal は primary」原則。
    */
   focusRingBrand: "focus:shadow-focus-brand",
 } as const;
@@ -145,70 +145,70 @@ export const C = {
   /** Faint tinted background — skeleton shimmer base */
   bgSkeleton:    "bg-[rgba(0,0,0,0.06)]",
   /** Lightest bg — matching borderLight opacity; use for hr-style dividers */
-  bgLight:       "bg-[rgba(0,0,0,0.09)]",
+  bgLight:       "bg-[#E6E6E6]",
 
   /* ── Brand (Hospital teal) ── */
-  textBrand:     "text-[#038B94]",
-  bgBrand:       "bg-[#038B94]",
-  bgBrand10:     "bg-[#038B94]/10",
-  bgBrand8:      "bg-[#038B94]/8",
-  bgBrand5:      "bg-[#038B94]/5",
-  bgBrandDot:    "bg-[#038B94]",
-  hoverBgBrand:  "hover:bg-[#027078]",
-  hoverBgBrand5: "hover:bg-[#038B94]/5",
+  textBrand:     "text-[#0075DE]",
+  bgBrand:       "bg-[#0075DE]",
+  bgBrand10:     "bg-[#0075DE]/10",
+  bgBrand8:      "bg-[#0075DE]/8",
+  bgBrand5:      "bg-[#0075DE]/5",
+  bgBrandDot:    "bg-[#0075DE]",
+  hoverBgBrand:  "hover:bg-[#005BAB]",
+  hoverBgBrand5: "hover:bg-[#0075DE]/5",
   /** Hover text — matches PALETTE.brandHover */
-  hoverTextBrand: "hover:text-[#027078]",
-  focusRingBrand:"focus:ring-[#038B94]",
+  hoverTextBrand: "hover:text-[#005BAB]",
+  focusRingBrand:"focus:ring-[#0075DE]",
   /** Focus ring (40% opacity) — use for form inputs matching the manual sidebar search field */
-  focusRingBrand40: "focus:ring-[#038B94]/40",
-  borderBrand:   "border-[#038B94]",
-  borderLBrand:  "border-l-[#038B94]",
+  focusRingBrand40: "focus:ring-[#0075DE]/40",
+  borderBrand:   "border-[#0075DE]",
+  borderLBrand:  "border-l-[#0075DE]",
   /** Light brand border for outline/badge use — matches legacy borderAccentLight/borderAccentBadge weight */
-  borderBrandLight: "border-[#038B94]/30",
+  borderBrandLight: "border-[#0075DE]/30",
   /** Tailwind accent-color utility (checkbox/radio) — brand teal */
-  accentBrand:   "accent-[#038B94]",
-  /* Brand light background — matches PALETTE.brandLight (#E1F3F4), replaces legacy bgAccentLight family */
-  bgBrandLight:   "bg-[#E1F3F4]",
-  bgBrandLight8:  "bg-[#E1F3F4]/8",
-  bgBrandLight30: "bg-[#E1F3F4]/30",
-  bgBrandLight40: "bg-[#E1F3F4]/40",
-  bgBrandLight50: "bg-[#E1F3F4]/50",
-  hoverBgBrandLight:   "hover:bg-[#E1F3F4]",
-  hoverBgBrandLight60: "hover:bg-[#E1F3F4]/60",
-  /** Darker brand text for contrast on bgBrandLight — matches PALETTE.brandDark (#025F66), replaces legacy textAccentDark on brand-light surfaces */
-  textBrandDark: "text-[#025F66]",
+  accentBrand:   "accent-[#0075DE]",
+  /* Brand light background — matches PALETTE.brandLight (#E5F1FC), replaces legacy bgAccentLight family */
+  bgBrandLight:   "bg-[#E5F1FC]",
+  bgBrandLight8:  "bg-[#E5F1FC]/8",
+  bgBrandLight30: "bg-[#E5F1FC]/30",
+  bgBrandLight40: "bg-[#E5F1FC]/40",
+  bgBrandLight50: "bg-[#E5F1FC]/50",
+  hoverBgBrandLight:   "hover:bg-[#E5F1FC]",
+  hoverBgBrandLight60: "hover:bg-[#E5F1FC]/60",
+  /** Darker brand text for contrast on bgBrandLight — matches PALETTE.brandDark (#004C8F), replaces legacy textAccentDark on brand-light surfaces */
+  textBrandDark: "text-[#004C8F]",
 
   /* ── Border ── */
-  borderLight:   "border-[rgba(0,0,0,0.09)]",
-  borderLight50: "border-[rgba(0,0,0,0.09)]/50",
+  borderLight:   "border-[#E6E6E6]",
+  borderLight50: "border-[#E6E6E6]/50",
   borderMediumLight: "border-[rgba(0,0,0,0.12)]",
   borderMedium:  "border-[rgba(0,0,0,0.16)]",
   borderDivider: "border-[rgba(0,0,0,0.06)]",
   borderPrimary: "border-[#000000]",
   borderPrimary20: "border-[#000000]/20",
   borderPrimary10: "border-[#000000]/10",
-  divideDivider: "divide-[rgba(0,0,0,0.09)]",
+  divideDivider: "divide-[#E6E6E6]",
   divideDividerFaint: "divide-[rgba(0,0,0,0.06)]",
 
   /* ── Accent ── */
-  bgAccent:      "bg-[#2383E2]",
-  bgAccentHover: "hover:bg-[#1B6EC2]",
+  bgAccent:      "bg-[#0075DE]",
+  bgAccentHover: "hover:bg-[#005BAB]",
   bgAccentLight: "bg-[#D3E5EF]",
   bgAccentLight60: "bg-[#D3E5EF]/60",
   textAccentDark:"text-[#183B56]",
   textAccentDark90:"text-[#183B56]/90",
   /** Light accent border for outline accent buttons */
-  borderAccentLight: "border-[#2383E2]/30",
-  focusBorderAccent: "focus:border-[#2383E2]",
-  focusRingAccent: "focus-visible:ring-[#2383E2]",
-  focusRingAccent40: "focus-visible:ring-[#2383E2]/40",
+  borderAccentLight: "border-[#0075DE]/30",
+  focusBorderAccent: "focus:border-[#0075DE]",
+  focusRingAccent: "focus-visible:ring-[#0075DE]",
+  focusRingAccent40: "focus-visible:ring-[#0075DE]/40",
   /** Focus ring (30% opacity, `focus:` not `focus-visible:`) — plain form inputs (date/number fields) */
-  focusRingAccent30: "focus:ring-[#2383E2]/30",
+  focusRingAccent30: "focus:ring-[#0075DE]/30",
   /** data-state checked (Radix Checkbox) */
-  dataCheckedBgAccent: "data-[state=checked]:bg-[#2383E2]",
-  dataCheckedBorderAccent: "data-[state=checked]:border-[#2383E2]",
-  dataCheckedBgBrand: "data-[state=checked]:bg-[#038B94]",
-  dataCheckedBorderBrand: "data-[state=checked]:border-[#038B94]",
+  dataCheckedBgAccent: "data-[state=checked]:bg-[#0075DE]",
+  dataCheckedBorderAccent: "data-[state=checked]:border-[#0075DE]",
+  dataCheckedBgBrand: "data-[state=checked]:bg-[#0075DE]",
+  dataCheckedBorderBrand: "data-[state=checked]:border-[#0075DE]",
 
   /* ── Destructive — BUG-084: updated to #C0392B (7.1:1 contrast on white, WCAG AA) ── */
   danger:        "text-[#C0392B]",
@@ -360,7 +360,7 @@ export const C = {
 
   /* ── Focus utilities ── */
   focusBgLight:  "focus:bg-[rgba(0,0,0,0.04)]",
-  focusBorderLight: "focus:border-[rgba(0,0,0,0.09)]",
+  focusBorderLight: "focus:border-[#E6E6E6]",
   focusRingMedium: "focus-visible:ring-[rgba(0,0,0,0.16)]",
 
   /* ─ Ring ── */
@@ -663,10 +663,11 @@ export const STYLE = {
   /* ── Table ── */
   tableContainer:
     `bg-white border ${C.borderLight} rounded-xs flex flex-col flex-1 min-h-0`,
+  /* FE10: DESIGN.md ex-data-table-cell 字義化 — header は canvas-soft 帯 + eyebrow 型（house 様式裁定を撤回・全テーブル一括） */
   tableHeaderRow:
-    `border-b ${C.borderLight} ${C.bgPage30} h-11`,
+    `border-b ${C.borderLight} ${C.bgPage} h-11`,
   tableHeaderCell:
-    `text-base font-medium ${C.text70} h-11`,
+    `text-2xs font-semibold tracking-wide ${C.text70} h-11`,
   tableRow:
     `border-b ${C.borderLight} ${C.hoverBgPageHalf} transition-colors cursor-pointer h-16`,
   tableCell:
@@ -794,7 +795,7 @@ export const STYLE = {
   dragPreviewShadowLarge: "0 10px 30px rgba(0,0,0,0.15)",
   /** ピルボタンの影（ShiftTemplateSettingsParts.tsx で使用）。 */
   pillShadow: PILL_SHADOW,
-  /** Layout のナビゲーション進捗バー brand グロー（#038B94）。FE9-2: shadow-brand-glow トークンへ移行。値は既存直値のまま。 */
+  /** Layout のナビゲーション進捗バー brand グロー（#0075DE）。FE9-2: shadow-brand-glow トークンへ移行。値は既存直値のまま。 */
   brandGlow: "shadow-brand-glow",
 
   /* ── Table Row Hover (FG1 compliance) ── */

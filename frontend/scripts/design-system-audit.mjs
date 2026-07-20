@@ -2,7 +2,7 @@
  * design-system-audit — docs/spec/ui-design-compliance.md §1 の機械判定。
  *
  * 判定内容:
- *   C1 — legacy accent 色（`C.accent` / `#0075DE` / `#2383E2`）禁止。
+ *   C1 — legacy 構造色（`C.accent` / 旧 teal `#038B94`/`#027078` / 旧 accent `#2383E2`）禁止。FE10 リブランドで brand=#0075DE 解禁・teal を legacy 化。
  *   C3 — hex 直書き（文字列/テンプレートリテラル内）禁止。
  *   C5 — Primary CTA の `colorVariant` は `"brand"` のみ。
  *   C6 — rgba()/rgb()/hsla()/hsl() の直値禁止（doc §1 の臨床安全 C6a とは ID 分離: 本スクリプトは C6b）。
@@ -34,7 +34,7 @@ const DESIGN_TOKENS_REL_PATH = path.join("src", "lib", "design-tokens.ts");
 // 実行時に動的生成する rgba() のみ扱う（JSDoc で根拠を記載済み）ため C6 の allowlist。
 const COLOR_MAP_REL_PATH = path.join("src", "hooks", "use-reservation-type-color-map.ts");
 
-const C1_RE = /C\.accent\b|#0075DE|#2383E2/;
+const C1_RE = /C\.accent\b|#038B94|#027078|#2383E2/i;
 const C3_RE = /['"`]#[0-9A-Fa-f]{3,8}['"`]/;
 const C5_RE = /colorVariant="([a-zA-Z]+)"/g;
 const C5_BRAND_VALUE = "brand";

@@ -25,7 +25,7 @@ const MembershipTypeButtons = memo(function MembershipTypeButtons({
           type="button"
           variant={value === type ? "default" : "outline"}
           size="sm"
-          // docs/spec/design-system.md: 構造色は brand teal #038B94 のみ（旧 accent ブルーから移行）
+          // docs/spec/design-system.md: 構造色は brand blue #0075DE のみ（FE10 字義リブランド）
           className={
             value === type
               ? `${C.bgBrand} ${C.hoverBgBrand} ${C.textWhite} h-11 text-sm px-3 rounded-full transition-colors shadow-none border-transparent`

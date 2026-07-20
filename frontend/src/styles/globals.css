@@ -8,7 +8,7 @@
   --card-foreground: #000000;
   --popover: #ffffff;
   --popover-foreground: #000000;
-  --primary: #038b94;
+  --primary: #0075de;
   --primary-foreground: #ffffff;
   --secondary: #F1F0EE;
   --secondary-foreground: #000000;
@@ -18,13 +18,13 @@
   --accent-foreground: #000000;
   --destructive: #C0392B;
   --destructive-foreground: #ffffff;
-  --border: rgba(0, 0, 0, 0.09);
-  --input: rgba(0, 0, 0, 0.16);
+  --border: #e6e6e6;
+  --input: #dddddd;
   --input-background: rgba(242, 241, 238, 0.6);
   --switch-background: #E3E2E0;
   --font-weight-medium: 500;
   --font-weight-normal: 400;
-  --ring: rgba(3, 139, 148, 0.32);
+  --ring: rgba(0, 117, 222, 0.32);
   --chart-1: oklch(0.646 0.222 41.116);
   --chart-2: oklch(0.6 0.118 184.704);
   --chart-3: oklch(0.398 0.07 227.392);
@@ -35,12 +35,12 @@
   --radius: 0.75rem;
   --sidebar: #ffffff;
   --sidebar-foreground: #000000;
-  --sidebar-primary: #038b94;
+  --sidebar-primary: #0075de;
   --sidebar-primary-foreground: #ffffff;
   --sidebar-accent: #f6f5f4;
   --sidebar-accent-foreground: #000000;
-  --sidebar-border: rgba(0, 0, 0, 0.09);
-  --sidebar-ring: rgba(3, 139, 148, 0.32);
+  --sidebar-border: #e6e6e6;
+  --sidebar-ring: rgba(0, 117, 222, 0.32);
 }
 
 .dark {
@@ -82,9 +82,9 @@
 
 @theme inline {
   --font-sans: 'Inter', 'Noto Sans JP', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  /* Notion text scale: matches Figma's custom text sizes (xs=13px, sm=15px at 16px base) */
-  --text-xs: 0.8125rem;  /* 13px */
-  --text-sm: 0.9375rem;  /* 15px */
+  /* DESIGN.md 字義スケール（FE10）: xs=14px caption / sm=15px body-sm / 2xs=12px eyebrow */
+  --text-xs: 0.875rem;  /* 14px — DESIGN.md caption */
+  --text-sm: 0.9375rem;  /* 15px — DESIGN.md body-sm */
   --tracking-compact: 0;
   --tracking-compact-sm: 0;
   --tracking-compact-xs: 0;
@@ -95,10 +95,10 @@
   --shadow-level2: 0 0.8px 2.9px rgba(0,0,0,0.02), 0 2px 7.8px rgba(0,0,0,0.027), 0 4px 18px rgba(0,0,0,0.04), 0 10px 32px rgba(0,0,0,0.045), 0 23px 52px rgba(0,0,0,0.05);
   --shadow-btn: rgba(15,15,15,0.04) 0px 1px 2px;
   --shadow-panel: -1px 0 5px rgba(0,0,0,0.02);
-  --shadow-focus-brand: 0 0 0 1px rgba(3,139,148,0.35);
+  --shadow-focus-brand: 0 0 0 1px rgba(0,117,222,0.35);
   /* FE9-2: STYLE.brandGlow（Layout ナビ進捗バーの brand グロー）の任意値を C10 ガード対象外化のためトークン化。値は既存直値のまま。 */
-  --shadow-brand-glow: 0 0 8px rgba(3,139,148,0.5);
-  --text-2xs: 0.6875rem;  /* 11px — design-system.md §3.4 micro ロール（バッジ・密なメタ表示） */
+  --shadow-brand-glow: 0 0 8px rgba(0,117,222,0.5);
+  --text-2xs: 0.75rem;  /* 12px — DESIGN.md eyebrow 最小段（FE10 字義化: 11px 製品拡張を撤回） */
   --text-2xs--line-height: 1.45;
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -129,7 +129,7 @@
   /* Pinned directly to DESIGN.md's rounded scale (xs/sm/md/lg/xl = 4/5/8/12/16px)
      instead of the shadcn default relative-offset chain, so rounded-sm doesn't
      balloon in lockstep with rounded-lg/xl. */
-  --radius-xxs: 3px;
+  --radius-xxs: 4px; /* FE10: DESIGN.md 最小段 xs=4px に整列（3px 製品拡張を撤回） */
   --radius-xs: 4px;
   --radius-sm: 5px;
   --radius-md: 8px;
