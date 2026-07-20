@@ -1,7 +1,7 @@
 # BE-refactor — Go/Gin公式ベースラインへのコード移行
 
 > **ACTIVE (2026-07-19)**: 実行対象は下記BE9のみ。現行正本 = [`.claude/rules/go-gin-backend-guidelines.md`](.claude/rules/go-gin-backend-guidelines.md)、review正本 = [`.claude/refs/go-gin-backend-review.md`](.claude/refs/go-gin-backend-review.md)。
-> **進捗 (2026-07-21)**: BE9-0 → BE9-2A → BE9-1 → BE9-2B（pilot=manualarticle・`d00c72a93`）→ **sub-batch①（`538cdb34`）→ ②（`14f00f6c`）→ ③（lab saga・`75c55c48`）→ ④a（vital/clinical_plan/medical_record_image・`e3eb253e`）→ ④b（treatment+dose kernel・Phase1=`cd8fd984d` WithTx化 / Phase2=`6508faab0` 縦移動）完遂**。checkup_sync系はlstep batchへ先送り（論点#7）。medicalrecord domainの残 = **⑤（hospitalization/discharge-with-billing）→（②③④の枠外: medical_record本体/examination/addendum等の残留高riskパスは⑤後に再定義）**。共有カーネル昇格batch = **完遂（`f93299f1c`）**。⑤ = **完遂（Phase1=`d4e227cf8` WithTx化／Phase2=`f024b09e7` 4エンティティ縦移動・72file）** — **BE9-2Dのmedicalrecord定義済みsub-batch①〜⑤は全消化**。repos.Transaction機構のproduction consumer=0（機構削除=BE9-2F）。BUG-418（DischargeWithBilling監査なし・既存負債）はtodo.mdバグ台帳起票済み。次 = **medicalrecord残留パスの再定義**（medical_record本体/examination/addendum等の枠外高riskパス棚卸し）→**次domainのlargest-ready選定**（reservation=論点#1裁定済み／billing=BUG-417是正前提／lstep=論点#7合流）。分割根拠と着手前ゲートは「現在地」節参照。push未実施。
+> **進捗 (2026-07-21)**: BE9-0 → BE9-2A → BE9-1 → BE9-2B（pilot=manualarticle・`d00c72a93`）→ **sub-batch①（`538cdb34`）→ ②（`14f00f6c`）→ ③（lab saga・`75c55c48`）→ ④a（vital/clinical_plan/medical_record_image・`e3eb253e`）→ ④b（treatment+dose kernel・Phase1=`cd8fd984d` WithTx化 / Phase2=`6508faab0` 縦移動）完遂**。checkup_sync系はlstep batchへ先送り（論点#7）。medicalrecord domainの残 = **⑤（hospitalization/discharge-with-billing）→（②③④の枠外: medical_record本体/examination/addendum等の残留高riskパスは⑤後に再定義）**。共有カーネル昇格batch = **完遂（`f93299f1c`）**。⑤ = **完遂（Phase1=`d4e227cf8` WithTx化／Phase2=`f024b09e7` 4エンティティ縦移動・72file）** — **BE9-2Dのmedicalrecord定義済みsub-batch①〜⑤は全消化**。repos.Transaction機構のproduction consumer=0（機構削除=BE9-2F）。BUG-418（DischargeWithBilling監査なし・既存負債）はtodo.mdバグ台帳起票済み。残留パス再定義 = **完遂（⑥残マスタ28file+⑦medical_record本体/addendum/examination=unit完了条件+⑧checkup_sync→lstep帰属・詳細は⑥〜⑧節）**。次 = **⑥（clean move・alias/carrier解消込み）→⑦（最高risk）**、または並行可能な**reservation（77file・論点#1裁定済みブロック解除・largest-ready）**。分割根拠と着手前ゲートは「現在地」節参照。push未実施。
 > **BE8 SUPERSEDED**: 固定layer・層優先subpackage・repository→service→handler移行は [ADR-005](docs/architecture/adr/005-go-gin-backend-guidelines.md) により廃止。BE8-4/5/6/7の残作業は実行しない。旧本文は未コミット履歴の保全目的で残す。
 
 ## Active task: BE9 — 新コード規約をbackend実装・自動検査へ適用する（High）
@@ -211,7 +211,25 @@ sub-batch①（master-CRUD: diagnosis type/name, examination type, chief complai
 
 **完遂（2026-07-21・Phase1=`d4e227cf8`／Phase2=`f024b09e7`）**: ④bと同型のrefactor-then-move。Phase1=hospitalizationServiceのWithTx+個別注入8本化（dbOrTx化3本=hospitalization Lock/UpdateIfNotDischarged+carePlanItem FindByHospitalizationID・Q2-C並行性テスト2本をWithTx追随・敵対レビューApprove/CRITICAL-HIGH 0・MEDIUM=BUG-418起票）。Phase2=hospitalization/hospitalization_plan/daily_record/care_plan_itemの4エンティティ72fileを3batch順次で縦移動（dailyrecord subpackageはroll-up・facade 4本・route 22本RBAC逐語転記・snapshot両側追随85→107）。**追加のkernel昇格2本**: validateReservationOwnerPetLinks（AUD-001・reservation系と恒久跨ぎ）+DefaultTaxRate。**billing実エッジの決着**: accountingCreator/billingItemWriter view（*model.Billing/BillingItem=model帰属のためADR-006逆依存禁止に非抵触）。**残置**: Services.Hospitalization field（treatment_plan_handler④外の入院所有権検証が唯一のconsumer・medicalrecord型でmain.go注入・削除=treatment-plan移行時）。敵対レビュー統合レンズApprove・CRITICAL/HIGH 0・MEDIUM（allowlist reason stale）は同コミット内是正。LOW参考=旧handler残置treatment-planとの/hospitalizationsグループgin path merge共存に統合起動自動テストなし（staging実起動で確認推奨）。
 
-**論点#4の紐付け（2026-07-20裁定済み）**: `model/medicine.go`/`vaccine.go`は**medicalrecord帰属で確定**（ADR-006委任裁定）——sub-batch②のvaccine/vaccination移動は既定通りmedicalrecordへ（inventoryへの付け替えなし）。`internal/model/line_reservation_setting.go`は**reservation帰属で確定**（概念タグのみ・ファイル移動なし、reservation着手時にタグ通り扱う）。
+**⑥〜⑧: 残留パスの再定義（2026-07-21・⑤完遂後の全数棚卸し）**
+
+manifest target:medicalrecordの旧package残存83 fileを実測分類した結果、実体は以下の3グループ+facade群（treatment/vital/checkup系等の完了batch由来alias=BE9-2F対象）。①〜⑤と同じbatch規律（3batch順次・RBAC逐語転記・snapshot両側追随・同名test green・敵対レビュー）を適用する。
+
+**⑥ 残マスタ群（clean move・低risk）= consultation / procedure / medicine(+dose_param) / cage / treatment_plan（計28 file+subpackage 3個roll-up: cage/ consultation/ procedure/）**
+- medicine/medicine_dose_paramは既にWithTx+auditTxLogger注入済み（R1-2）、他はrepo単発注入 — Phase 1不要で①同型のclean move。dose kernel（ValidateMedicineDoseConfig等）は④bでmedicalrecord移動済みのため、medicine移動でservice側のtransitional alias（MedicineDoseParamInput）とcarrier（fptr/errAuditWriteFailed/mockMedicineDoseParamRepository）が解消できる。
+- treatment_plan移動でServices.Hospitalization残置field（⑤の唯一consumer=treatment_plan_handlerの入院所有権検証4箇所）とhandler側carrier（mockHospitalizationService）も解消。
+- baseline: 各service test（consultation/procedure/medicine/cage/treatment_plan_service_test.go）+ medicine系cross-tenant/dose config test群 + master_fk allowlistのmedicineService系エントリ。
+- 論点#4済み: medicine帰属=medicalrecord確定。
+
+**⑦ medical_record本体+addendum+examination（最高risk・finalize/audit中核・medicalrecord unit完了条件）**
+- 対象: medical_record_service群7 file（crud/builders/subrecords/auto_create/lstep_sync/lock delegate）+ handler/request/response + medical_record_repository.go/owner_visit_repository.go、addendum 5 file（確定後追記・audit）、examination 5 file（tx atomicity・ReplaceItemsByExamID）。
+- baseline（実測済みの主要test file）: medical_record_service_test / medical_record_auto_create_test / medical_record_appointment_clinic_isolation_test / medical_record_owner_pet_clinic_isolation_test / cross_tenantのCreateSubRecords系（ChiefComplaint+Diagnosis 4スロットFK）/ medical_record_finalize_lock_concurrency_test（X-11・repository側）/ addendum service+repository test / examination_repository_tx_atomicity_test。
+- 移動でlockDraftMedicalRecord/goSafe/validateOwnedMasterFK等のservice側delegate群のmedicalrecord系consumerが消え、computeExamResultStatus/logReplaceDeletionTx複製が自己解消（③④の申し送り通り）。lstep_sync（medical_record_lstep_sync.go）はlstepTagSync等のconsumer-side view化が必要（②checkup先例）。
+- **これが完了するとBE9-2Dのmedicalrecord domain単位完了条件（高riskパス全提供+runtime test green）を充足**。
+
+**⑧ checkup_sync（8 file）= 論点#7通りlstep帰属変更が既定** — lstep domainのBE9-2C着手時にmanifest訂正の上lstepへ移動（medicalrecordへは移さない）。
+
+**論点#4の紐付け（2026-07-20裁定済み）****論点#4の紐付け（2026-07-20裁定済み）**: `model/medicine.go`/`vaccine.go`は**medicalrecord帰属で確定**（ADR-006委任裁定）——sub-batch②のvaccine/vaccination移動は既定通りmedicalrecordへ（inventoryへの付け替えなし）。`internal/model/line_reservation_setting.go`は**reservation帰属で確定**（概念タグのみ・ファイル移動なし、reservation着手時にタグ通り扱う）。
 
 #### BE9-2E: 残る中小domainを規模順にmigrationする
 
@@ -253,7 +271,7 @@ sub-batch①（master-CRUD: diagnosis type/name, examination type, chief complai
 
 ### 現在地と着手前ゲート（2026-07-20）
 
-**BE9-0 → BE9-2A → BE9-1 → BE9-2B（`d00c72a93`）→ ①（`538cdb34`）→ ②（`14f00f6c`）→ ③（`75c55c48`）→ ④a（`e3eb253e`）→ ④b（`cd8fd984d`+`6508faab0`）→ 共有カーネル昇格（`f93299f1c`）→ ⑤（`d4e227cf8`+`f024b09e7`・2026-07-21）まで完遂 = **medicalrecord定義済みsub-batch全消化**。次 = medicalrecord残留パス再定義→次domain largest-ready選定**。
+**BE9-0 → BE9-2A → BE9-1 → BE9-2B（`d00c72a93`）→ ①（`538cdb34`）→ ②（`14f00f6c`）→ ③（`75c55c48`）→ ④a（`e3eb253e`）→ ④b（`cd8fd984d`+`6508faab0`）→ 共有カーネル昇格（`f93299f1c`）→ ⑤（`d4e227cf8`+`f024b09e7`・2026-07-21）まで完遂 = **medicalrecord定義済みsub-batch全消化**。残留パス再定義完遂（⑥⑦⑧節）。次 = ⑥→⑦、並行候補=reservation**。
 
 **sub-batch④の重要決定（2026-07-20 inventory+advisor）**:
 - **④を④a/④bに分割する**。**④a（clean move）= vital + clinical_plan + medical_record_image → 完遂（2026-07-20・コミット`e3eb253e`）**。①②③と同じnarrow consumer-side interfaceパターンで移動。**④a実績の非自明点**: (1) advisor指摘3点を織り込み——lockDraftMedicalRecordのmedicalrecordコピー（本体byte-identical確認済・コメント差のみ）にtest新設（`medical_record_lock_test.go`・nil-parent-fails-closed parity・従来カバレッジ0）、verifyMedicalRecordOwnershipを残留`internal/handler/medical_record_ownership.go`へ抽出（④外treatment_plan_handlerが消費）、vital LogVitalChangeは**adapter不要の具象直渡し**（signature=primitive+map[string]anyのみでservice.AuditServiceと完全一致——labAuditAdapter型変換不要でfield parity達成）。(2) Batch Cのfork委譲がエージェント調整の錯綜（相互peer認識・fork完了待ちループ）を招き、統括が引き取り単一finisherで解消。残留漏れ3件（medical_record_handler_testのServices.ClinicalPlan field参照×2・simple_settingsのmisfiled TestUpdateClinicalPlanRequest）を統括が直接是正。(3) 親medical_record handlerはh.svc.ClinicalPlanをproductionで元々不使用（HEAD確認）のためfield注入除去はbehavior-preserving。検証: 変更5 package DB-backed全数test -p 1 green・build/vet(./...)/gofmt/docs-drift/diff-check green・敵対レビュー4レンズ+反証で指摘0（vital監査byte-identical専用レンズ含む）。**④b（refactor-then-move）= treatment（+treatment_dose_save+dose kernel）→ 完遂（2026-07-21・Phase1=`cd8fd984d`/Phase2=`6508faab0`・ユーザーの「BE-refactor.md対応」指示をgo-aheadとして実行）**。計画通り2フェーズで実施——詳細は「BE9-2D: medicalrecord sub-batch定義」④の完遂記録参照。計画時に見えていなかった発見: (1) dose kernelのservice側残留consumer（dose_validators.go←medicine master書込検証）が安全マップ共有でkernelごと移動が必要だった。(2) X-11並行性テストが旧repo-swap機構を「productionと同じ」とpinしており、gate追随（WithTx化）自体が新機構のtx参加の実DB証明になった。(3) master-FK gateのcross-package qualifier検出はtype aliasで型同一のまま回避可能（qualifier包括allowlist化は恒久弱体化のため禁じ手）。
