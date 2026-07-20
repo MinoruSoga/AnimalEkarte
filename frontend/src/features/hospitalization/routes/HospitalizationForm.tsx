@@ -144,7 +144,7 @@ export function HospitalizationForm() {
 
   return (
     <>
-    <form action={formAction}>
+    <form action={formAction} className="h-full">
     <PageLayout
       title={hospitalizationId ? "入院編集" : "入院登録"}
       onBack={handleBack}

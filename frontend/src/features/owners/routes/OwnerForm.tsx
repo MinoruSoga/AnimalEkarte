@@ -10,7 +10,7 @@ import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
 import { useTitle } from "@/hooks/use-title";
 import { usePostalCodeLookup } from "../hooks/use-postal-code-lookup";
 import { useAuth } from "@/hooks/use-auth";
-import { C, ICON } from "@/lib/design-tokens";
+import { C, ICON, LAYOUT } from "@/lib/design-tokens";
 import { handleApiError } from "@/lib/handle-api-error";
 import { paths } from "@/config/paths";
 import { usePermission } from "@/hooks/use-permission";
@@ -205,12 +205,12 @@ export function OwnerForm({ petMutations, lineSection, accountingSection }: Owne
   );
 
   return (
-    <form action={formAction}>
+    <form action={formAction} className="h-full">
       <PageLayout
         title={isEdit ? "飼主・ペット　編集" : "飼主・ペット　登録"}
         onBack={handleBack}
         resource={ResourceOwners}
-        maxWidth="max-w-[1400px]"
+        maxWidth={LAYOUT.pageContentMaxWidth.full}
         headerAction={
           canSubmit ? (
             <SubmitButton size="sm" colorVariant="brand">
