@@ -89,11 +89,6 @@
 - **実装**: ①migration 002 でカラム追加（既存レコードは name パターン推定で backfill・既定 `other`。`migration-seed-safety` スキル必読・DB_RESET 要否を明記） ②FE フィルタは「一致+`both` をデフォルト表示・『全て表示』トグル」— hard block しない ③適用先 = `VaccinationFormPanels.tsx` と姉妹フォーム `MedicalRecordVaccination.tsx` の両方（parity 維持） ④マスタ管理 UI に category 編集を追加。
 - **BE 注意**: vaccine/vaccination は BE9 target=medicalrecord（sub-batch②領域 — 並行 batch と衝突しないか着手前に worktree/git log 確認）。
 
-### SEC-DEMO-FAILCLOSED: デモアカウント表示の fail-closed 化【DEC-7 裁定済み・着手可・小】
-
-- **裁定**: `__VERCEL_ENV__` 未定義時は SHOW_DEMO=false に倒す。裁定根拠 = `q&a.html` DEC-7。
-- **実装**: `frontend/src/features/auth/components/LoginForm.tsx:28-30` と `show-demo-accounts.ts` の両方を修正+テスト（未定義環境で `VITE_SHOW_DEMO_ACCOUNTS=true` でも非表示になることを RED→GREEN で実証）。完了後 PR #186 該当スレッドへの返信・Resolve は USER 操作（q&a.html 参照）。
-
 ---
 
 ## 完了済みトピックの参照先（本書には残さない）
