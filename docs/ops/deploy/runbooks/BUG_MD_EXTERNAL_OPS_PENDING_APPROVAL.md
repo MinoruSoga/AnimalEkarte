@@ -11,7 +11,7 @@
 ## 0. 現状
 
 **正系統**: Cloudflare Workers + Containers + PlanetScale Postgres
-（`migration-cloudflare.md` Phase 5 完了・`backend-deploy.yml` が `staging` push で
+（`../../infra/_archive/migration-cloudflare.md` Phase 5 完了・`backend-deploy.yml` が `staging` push で
 `wrangler deploy` → `POST /_internal/migrate` を実行）。
 
 **ロールバック経路**: `.github/workflows/backend-deploy-ecs.yml` は Phase 8（AWS 廃止）

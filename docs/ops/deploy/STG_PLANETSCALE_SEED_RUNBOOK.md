@@ -36,7 +36,7 @@ STG はデモデータ運用（`docs/ops/deploy/STG-DEMO-DATA-LIFECYCLE.md` §2.
 - `runSeedBundles` は各バンドルが `schema_migrations` に未記録の場合のみ CSV を投入する（`isAlreadyApplied` ガード, main.go:551-559）。**未記録かどうか**が投入有無を決める唯一の条件であり、`DB_RESET` は関係しない。
 - 既存 DB（テーブルが実在する）への誤投入を防ぐガードは `baselineIfNeeded`（main.go:293-394）。`clinics` テーブルが存在しなければ「新規 DB」と判定し baseline せず（main.go:324-327）、そのまま `runSeedBundles` が CSV を実投入する。
 
-CF 経路（`POST /_internal/migrate` → `Container.exec(["/app/migrate"])`）は起動引数が固定で `DB_RESET` を注入する経路が構造的に存在しない（`migration-cloudflare.md:431` 「DB_RESETは本経路から渡せない(常にfalse)」、同 L622 のセキュリティレビュー所見も参照）。
+CF 経路（`POST /_internal/migrate` → `Container.exec(["/app/migrate"])`）は起動引数が固定で `DB_RESET` を注入する経路が構造的に存在しない（`../infra/_archive/migration-cloudflare.md:431` 「DB_RESETは本経路から渡せない(常にfalse)」、同 L622 のセキュリティレビュー所見も参照）。
 
 **結論**: `DROP SCHEMA public CASCADE` 実行後の STG は「`clinics` テーブルが存在しない = 新規 DB」と cmd/migrate から見える。したがって次の `POST /_internal/migrate` は DB_RESET の値に関係なく、001_init.sql 適用 → 002_master → 003_demo → 004_staging の順で CSV を **自動投入する**（`seedbundle.BundleOrder`, `backend/internal/seedbundle/manifest.go:23`）。`docs/ops/deploy/SEED_MIGRATION_OPERATIONS.md:18` も「fresh DB 適用後の正しい終了状態は `schema_migrations` に4行」と明記しており、これは自動投入を前提にした記述。
 
@@ -93,7 +93,7 @@ CF 経路（`POST /_internal/migrate` → `Container.exec(["/app/migrate"])`）�
 
 PlanetScale Postgres は `pscale role create <database> <branch> <name> --inherited-roles <roles> --ttl <duration>` で、期限付き（TTL）の Postgres ロールを都度発行できる（ローカル `pscale role create --help` で確認済み。`--ttl duration` は `"2h"` 等を受け付け、デフォルト無期限）。STG では `noah-animalekarte` 組織の `animalekarte-stg` データベース・`main` ブランチが対象（`infra/scripts/pscale-create-stg.sh:8-11`）。
 
-既存運用は `pscale role reset-default`（アプリ本体が使う既定 `postgres` ロールのパスワードを都度再発行・失効）だが（`migration-cloudflare.md:403,570,622,694` 等）、これはアプリ稼働用の共有クレデンシャルを毎回ローテーションする前提で、本番稼働中の Worker/Hyperdrive 設定にも影響する。本書の検証・任意投入作業は本番トラフィックに影響しない**別ロール**を使うべきなので、`pscale role reset-default` ではなく `pscale role create` で使い捨てロールを発行する（TTL 失効で自動的に片付く）。
+既存運用は `pscale role reset-default`（アプリ本体が使う既定 `postgres` ロールのパスワードを都度再発行・失効）だが（`../infra/_archive/migration-cloudflare.md:403,570,622,694` 等）、これはアプリ稼働用の共有クレデンシャルを毎回ローテーションする前提で、本番稼働中の Worker/Hyperdrive 設定にも影響する。本書の検証・任意投入作業は本番トラフィックに影響しない**別ロール**を使うべきなので、`pscale role reset-default` ではなく `pscale role create` で使い捨てロールを発行する（TTL 失効で自動的に片付く）。
 
 直結接続が必要な理由: `cmd/migrate` は `pg_advisory_lock` を使うため Hyperdrive 経由の接続では動作しない（`infra/scripts/pscale-create-stg.sh:34-35` 「Hyperdrive 経由では advisory lock が非対応」）。同じ理由で、手動の `CREATE SCHEMA public;` やロールバック用 `DROP SCHEMA` も **Hyperdrive を経由しない直結接続**（`pscale role` で発行したロールの host/port へ直接 psql）で行う。
 

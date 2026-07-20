@@ -14,7 +14,7 @@
 > §4.1〜4.3, §6 のトラブルシューティング診断コマンド）は、旧 AWS ECS ロールバック経路
 > （`backend-deploy-ecs.yml`、`workflow_dispatch` のみ）にのみ適用される。Cloudflare 正系統向けの
 > 同等の日次/週次/月次運用手順（Workers Logs 監視等）は未文書化 — 現状のギャップとして
-> `migration-cloudflare.md` Phase 6 の記録を参照すること。§1・§2.1・§3・§5 は経路に依存せず有効。
+> `../infra/_archive/migration-cloudflare.md` Phase 6 の記録を参照すること。§1・§2.1・§3・§5 は経路に依存せず有効。
 
 ## 1. 目的と対象読者
 

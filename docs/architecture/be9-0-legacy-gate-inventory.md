@@ -33,7 +33,7 @@
 | バケット | 件数 | 変更 |
 |---|---:|---|
 | A. Enforcing gate ファイル（意味化改名済み） | 37 | 改修（コメント/メッセージのみ、ロジック不変） |
-| B. 対象外 — Infra/Cloudflare/Terraform 移行タスクID (`migration-cloudflare.md` 系 P<n>) | 25 | 変更なし |
+| B. 対象外 — Infra/Cloudflare/Terraform 移行タスクID (`../ops/infra/_archive/migration-cloudflare.md` 系 P<n>) | 25 | 変更なし |
 | C. 対象外 — PRレビューID（`PR #186 review` 系 P<n>） | 23 | 変更なし |
 | D. 対象外 — CPM閾値ラベル（業務優先度、architecture P<n>と無関係） | 8 | 変更なし |
 | E. 対象外 — TEST-FLAKEタグ | 2 | 変更なし |
@@ -80,7 +80,7 @@ B〜H の内訳は `rg -c` によるファイル単位の機械カウントで�
 
 | バケット | 代表ファイル:行 | 識別根拠 |
 |---|---|---|
-| B. Infra/Cloudflare/Terraform移行タスクID | `wrangler.jsonc`(10), `worker/index.ts`(5), `worker/migrate-exec.ts`(1), `.github/workflows/backend-deploy.yml`(5: L1,21,55,99,134), `backend-deploy-ecs.yml`(1), `stg-smoke.yml`(1), `staging-stop.yml`(1), `scripts/infra-terraform-plan-preflight.sh`(1) | `migration-cloudflare.md` の Phase/タスクID（P1-2 NS切替、P2-3 R2、P2-5運用タスク、P4-x Worker実装、P5-x デプロイ）。architecture P1–P18と数値体系が偶然重複するだけで別文書の別採番 |
+| B. Infra/Cloudflare/Terraform移行タスクID | `wrangler.jsonc`(10), `worker/index.ts`(5), `worker/migrate-exec.ts`(1), `.github/workflows/backend-deploy.yml`(5: L1,21,55,99,134), `backend-deploy-ecs.yml`(1), `stg-smoke.yml`(1), `staging-stop.yml`(1), `scripts/infra-terraform-plan-preflight.sh`(1) | `../ops/infra/_archive/migration-cloudflare.md` の Phase/タスクID（P1-2 NS切替、P2-3 R2、P2-5運用タスク、P4-x Worker実装、P5-x デプロイ）。architecture P1–P18と数値体系が偶然重複するだけで別文書の別採番 |
 | C. PRレビューID | `backend-deploy.yml`(2: L69,83), `config_validate_test.go`(1), `cmd/migrate/main.go`(2), `legacy_seed_keys_test.go`(1), `cmd/api/main.go`(1), `infra/s3_r2_live_test.go`(1), `infra/s3_endpoint_test.go`(1), `liff_response_test.go`(1), `liff_response.go`(1), `cross_tenant_master_fk_write_test.go`(3), `lab_import_examination_service_test.go`(4), `lab_import_examination_service.go`(2), `pet_response_test.go`(1), `cash_register_service_test.go`(2) | `PR #186 review` の指摘連番（P1-2, P1-3, P1-6, P2-2, P2-3, P2-5, P2-7, P2-13）。PRレビュー管理番号であり architecture ruleではない |
 | D. CPM閾値ラベル | `model/clinic_settings.go`(3), `model/cpm_v2_thresholds.go`(1), `service/lstep_settings_service.go`(3), `service/lstep_tag_sync_service.go`(1) | "P1 CPM V2 来院回数閾値" 等、業務ドメインの優先度ラベル（CPM=Customer/Patient Metric）。migration 007-009 の閾値カラム名接頭辞であり、architecture P1–P18と無関係 |
 | E. TEST-FLAKEタグ | `preload_followup_clinic_isolation_test.go`(1), `trimming_repository_test.go`(1) | `TEST-FLAKE-P2` = flakeチケット#236由来のtestタグ |

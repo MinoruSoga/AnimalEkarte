@@ -1,3 +1,5 @@
+> **📦 アーカイブ（2026-07-20）**: STG の Cloudflare 移行は Phase 0〜8 全て完了し、本書は凍結された実施記録である。現行構成の正本は [docs/ops/infra/architecture.md](../architecture.md)。本文中の相対リンクは旧配置（リポジトリ root）基準のため一部切れている。
+
 # STG AWS → Cloudflare 全面移行 タスクドキュメント
 
 > **作成日**: 2026-07-05 | **対象**: Staging 環境（us-east-1）の全リソース

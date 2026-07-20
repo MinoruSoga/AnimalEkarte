@@ -2,8 +2,8 @@
 
 > STG 版は [`../README.md`](../README.md)。安全ルール・認証手順・実行フローは同一のため
 > ここでは再掲しない(重複管理を避ける)。人間の実施手順の正本は
-> [`docs/ops/deploy/PRODUCTION_CF_SETUP.md`](../../../docs/ops/deploy/PRODUCTION_CF_SETUP.md)。
-> 追跡Issue: #253。PO決定: migration-cloudflare.md「現況サマリ」2026-07-15 ブロック参照。
+> [`../../../docs/ops/infra/production/setup.md`](../../../../../../docs/ops/infra/production/setup.md)。
+> 追跡Issue: #253。PO決定: ../../../docs/ops/infra/_archive/migration-cloudflare.md「現況サマリ」2026-07-15 ブロック参照。
 
 ## STGとの違い
 
@@ -34,4 +34,4 @@ infra/cloudflare/production/
 
 `terraform init -backend=false` / `terraform validate` はこのドラフト作成時に実行済み
 (認証不要)。`terraform plan` / `terraform apply` は Cloudflare認証情報が必要なため未実行。
-実行手順は `docs/ops/deploy/PRODUCTION_CF_SETUP.md` を参照すること。
+実行手順は `../../../docs/ops/infra/production/setup.md` を参照すること。

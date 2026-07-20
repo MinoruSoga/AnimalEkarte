@@ -32,9 +32,9 @@ flowchart TB
 - **データベース**: PlanetScale PostgreSQL。DB の実体は Cloudflare 外（PlanetScale がホスト）。
 - **ファイルストレージ**: Cloudflare R2（ペット写真・検査結果 PDF 等。参照は有効期限付き署名 URL 経由）。
 - **外部連携**: LINE Messaging API / Lステップ API（予約・リマインド配信・タグ管理）。
-- 詳細: [docs/architecture/overview.md](../architecture/overview.md)（アプリ構造）／[docs/ops/infra-architecture.md](../ops/infra-architecture.md)（旧 AWS 構成の記述を含む。Cloudflare 移行の正本は [migration-cloudflare.md](../../migration-cloudflare.md)）
+- 詳細: [docs/architecture/overview.md](../architecture/overview.md)（アプリ構造）／[../ops/infra/architecture.md](../ops/../ops/infra/architecture.md)（旧 AWS 構成の記述を含む。Cloudflare 移行の正本は [../ops/infra/_archive/migration-cloudflare.md](../../../ops/infra/_archive/migration-cloudflare.md)）
 
-> **移行経過に伴う注記**: 旧 AWS 構成（ECS/RDS/CloudFront）は切替後の安定確認期間中、切り戻し先として温存されます（[GOLIVE_RUNBOOK.md](GOLIVE_RUNBOOK.md) §4）。安定確認後に廃止（migration-cloudflare.md Phase 8）。
+> **移行経過に伴う注記**: 旧 AWS 構成（ECS/RDS/CloudFront）は切替後の安定確認期間中、切り戻し先として温存されます（[GOLIVE_RUNBOOK.md](GOLIVE_RUNBOOK.md) §4）。安定確認後に廃止（../ops/infra/_archive/migration-cloudflare.md Phase 8）。
 
 ### 1.2 利用サービスと契約の一覧
 
@@ -153,7 +153,7 @@ flowchart TB
 
 - ヘルスチェック: `https://api.noah-karte.com/health`（HTTP 200 / `{"status":"ok"}` が正常）。
 - 5xx 率の自動通知: Cloudflare 通知ポリシー（`infra/cloudflare/notifications.tf`）。（確定待ち: 送信先メールアドレスの供給・検証と apply — #253）
-- コスト監視: Cloudflare にはアカウント全体の支出アラート機構が存在しないため、使用量 API の定期確認で代替（migration-cloudflare.md P6-4 の記録参照）。
+- コスト監視: Cloudflare にはアカウント全体の支出アラート機構が存在しないため、使用量 API の定期確認で代替（../ops/infra/_archive/migration-cloudflare.md P6-4 の記録参照）。
 - 障害監視・通知体制の完成条件は #253 の受け入れ条件（プロセス死活・5xx 急増・DB 接続断の通知）を正本とする。
 
 ---
@@ -169,4 +169,4 @@ flowchart TB
 | [docs/spec/screens/](../spec/screens/README.md) | 画面別 詳細仕様書 | 管理者・開発側 |
 | [docs/ops/deploy/README.md](../ops/deploy/README.md) | デプロイ・運用ハブ（環境一覧・ロールバック判定） | 開発側 |
 | [docs/ops/testing/SECTION_14_MANUAL_TEST_GUIDE.md](../ops/testing/SECTION_14_MANUAL_TEST_GUIDE.md) | ブラウザ手動検証シナリオ | 開発側・QA |
-| [migration-cloudflare.md](../../migration-cloudflare.md) | Cloudflare 移行計画・実施記録（正本） | 開発側 |
+| [../ops/infra/_archive/migration-cloudflare.md](../../../ops/infra/_archive/migration-cloudflare.md) | Cloudflare 移行計画・実施記録（正本） | 開発側 |

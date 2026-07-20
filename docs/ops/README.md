@@ -16,10 +16,10 @@
 | [ci-policy.md](ci-policy.md) | CI ワークフローの決定事項記録（Actions バージョンピン方針等） | .github/workflows/ 変更前 |
 | [coverage-policy.md](coverage-policy.md) | テストカバレッジ ratchet 方式の運用ポリシー | カバレッジゲート調整時 |
 | [backlog-spreadsheet.md](backlog-spreadsheet.md) | Q&A バックログスプレッドシートの運用ルール | クライアント Q&A シート操作前 |
-| [infra-architecture.md](infra-architecture.md) | インフラ構成図・ネットワーク・セキュリティ設計（`../architecture/overview.md` のレイヤード構造とは別物） | インフラ構成の調査・変更前 |
-| [p2-terraform-plan-runbook.md](p2-terraform-plan-runbook.md) | P2 Terraform（internal ALB + VPC Origin）plan/apply ランブック | P2 インフラ適用時 |
-| [stg-aws-change-readiness.md](stg-aws-change-readiness.md) | STG AWS 変更の準備状況・SG 絞り込み手順 | AWS 側変更の検討時 |
-| [stg-aws-cost-reduction.md](stg-aws-cost-reduction.md) | STG AWS コスト削減の実施記録と方針 | AWS コスト見直し時 |
+| [infra/architecture.md](infra/architecture.md) | インフラ構成図・ネットワーク・セキュリティ設計（`../architecture/overview.md` のレイヤード構造とは別物） | インフラ構成の調査・変更前 |
+| [infra/_archive/aws-legacy/p2-terraform-plan-runbook.md](infra/_archive/aws-legacy/p2-terraform-plan-runbook.md) | P2 Terraform（internal ALB + VPC Origin）plan/apply ランブック | P2 インフラ適用時 |
+| [infra/_archive/aws-legacy/stg-aws-change-readiness.md](infra/_archive/aws-legacy/stg-aws-change-readiness.md) | STG AWS 変更の準備状況・SG 絞り込み手順 | AWS 側変更の検討時 |
+| [infra/_archive/aws-legacy/stg-aws-cost-reduction.md](infra/_archive/aws-legacy/stg-aws-cost-reduction.md) | STG AWS コスト削減の実施記録と方針 | AWS コスト見直し時 |
 
 ## AI エージェント向け注記
 

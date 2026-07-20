@@ -18,7 +18,7 @@
 | **Backend API** | Cloudflare Workers + Containers | `wrangler deploy` + migrate one-shot + `/health` ポーリング | `staging` ブランチへの push | `.github/workflows/backend-deploy.yml`（ECS ロールバック版: `backend-deploy-ecs.yml`, `workflow_dispatch`のみ） |
 | **Frontend** | Vercel | Vercel CLI 経由デプロイ | `staging` ブランチへの push | `.github/workflows/frontend-deploy.yml` |
 
-> **2026-07-06**: Backend の主経路を AWS ECS から Cloudflare Workers/Containers へ移行済み（`migration-cloudflare.md` Phase 5）。
+> **2026-07-06**: Backend の主経路を AWS ECS から Cloudflare Workers/Containers へ移行済み（`../infra/_archive/migration-cloudflare.md` Phase 5）。
 > 以下 §2 の手順詳細は現時点では `backend-deploy-ecs.yml`（ECS ロールバック専用ワークフロー）向けの記述として維持している（Phase 8 で ECS 撤去後に本節を全面更新予定）。
 
 ---

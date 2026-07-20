@@ -14,7 +14,7 @@
 | 環境 | Frontend URL | API Base URL | インフラ管理 |
 |:---|:---|:---|:---|
 | **Staging** | [stg.noah-karte.com](https://stg.noah-karte.com) | [api.stg.noah-karte.com/api](https://api.stg.noah-karte.com/api) | Backend: Cloudflare Workers + Containers（正系統。旧 AWS ECS/RDS はロールバック専用で残置） / Frontend: Vercel |
-| **Production** | [noah-karte.com](https://noah-karte.com) | [api.noah-karte.com/api](https://api.noah-karte.com/api) | 本番向けバックエンド自動デプロイワークフローは未整備（`migration-cloudflare.md` Phase 7/8 未完了）。Frontend のみ `frontend-deploy.yml` で自動デプロイ対象 |
+| **Production** | [noah-karte.com](https://noah-karte.com) | [api.noah-karte.com/api](https://api.noah-karte.com/api) | 本番向けバックエンド自動デプロイワークフローは未整備（`../infra/_archive/migration-cloudflare.md` Phase 7/8 未完了）。Frontend のみ `frontend-deploy.yml` で自動デプロイ対象 |
 
 ---
 
@@ -33,7 +33,7 @@
 - **[STG 継続運用チェックリスト (STG-CONTINUOUS-OPERATIONS.md)](./STG-CONTINUOUS-OPERATIONS.md)**: 日次/週次/月次の STG 環境監視・検査・メンテナンス。
 - **[Vercel フロントエンド検証手順 (VERCEL-FRONTEND-STAGING-TEST.md)](./VERCEL-FRONTEND-STAGING-TEST.md)**: デプロイ後の UI・ログイン・API 連携検証。
 - **[休憩時間データ形状監査 (BREAK-HOURS-SHAPE-AUDIT.md)](./BREAK-HOURS-SHAPE-AUDIT.md)**: R1-3 デプロイ前の STG/本番 break_hours 形状監査手順。
-- **[本番 Cloudflare 基盤 事前構築手順 (PRODUCTION_CF_SETUP.md)](./PRODUCTION_CF_SETUP.md)**: 本番環境（noah-karte.com）を CF Workers + Containers + PlanetScale で新設する実施手順（#253・7/18 Go-live 前提構築）。
+- **[本番 Cloudflare 基盤 事前構築手順 (../infra/production/setup.md)](./../infra/production/setup.md)**: 本番環境（noah-karte.com）を CF Workers + Containers + PlanetScale で新設する実施手順（#253・7/18 Go-live 前提構築）。
 - **[PlanetScale STG シード投入 Runbook (STG_PLANETSCALE_SEED_RUNBOOK.md)](./STG_PLANETSCALE_SEED_RUNBOOK.md)**: PlanetScale STG スキーマ初期化後の seed 復元・検証手順。
 - **[Delete / Soft Delete 設計パターン](../../architecture/delete-soft-delete-patterns.md)**: Hard Delete と Soft Delete の使い分け、FK 制約との関係、実装パターン、STG-001 教訓。
 
@@ -90,7 +90,7 @@ gh workflow run stg-smoke.yml
 > **注記(2026-07-10)**: §4.1 の手順1（`/health`）と §4.3 は Cloudflare 正系統でもそのまま有効。
 > §4.1 の手順2〜4（ECS desiredCount / CloudWatch / ALB）は旧 AWS ECS ロールバック経路にのみ適用される。
 > Cloudflare Workers + Containers 側の同等監視手順（Workers Logs 等）は未文書化 — 現状のギャップとして
-> `migration-cloudflare.md` Phase 6 の記録を参照すること。
+> `../infra/_archive/migration-cloudflare.md` Phase 6 の記録を参照すること。
 
 ### 4.1 ヘルスチェック手順
 

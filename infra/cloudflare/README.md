@@ -1,6 +1,6 @@
 # infra/cloudflare/ — Cloudflare Terraform 基盤
 
-> STG の Cloudflare 移行(移行計画: [`../../migration-cloudflare.md`](../../migration-cloudflare.md))で使う Terraform 構成。
+> STG の Cloudflare 移行(移行計画: [`../../../../docs/ops/infra/_archive/migration-cloudflare.md`](../../../../docs/ops/infra/_archive/migration-cloudflare.md))で使う Terraform 構成。
 > 既存 `infra/terraform/`(AWS)とは完全に分離する。
 
 ## 安全ルール(`infra/CLAUDE.md` の AWS 向けルールをそのまま踏襲)
@@ -12,7 +12,7 @@
 3. **CLOUDFLARE_API_TOKEN / CLOUDFLARE_ACCOUNT_ID はコミットしない。** 環境変数、または
    ローカル専用の `terraform.tfvars`(`.gitignore` 対象)で供給する。
 4. NS 切替(レジストラ側のネームサーバ変更)は本 Terraform の管理対象外。人手で実施し、
-   実施前後の状態を `migration-cloudflare.md` に記録する。
+   実施前後の状態を `../../docs/ops/infra/_archive/migration-cloudflare.md` に記録する。
 
 ## 前提ツール
 
@@ -72,7 +72,7 @@ infra/cloudflare/
 
 - 送信先メールアドレスは `TF_VAR_notification_email` で供給する（`terraform.tfvars` に書かない。値未供給時は `terraform plan` が変数未設定エラーで失敗する — 意図した genuine BLOCKED）。
 - Cloudflareの通知メール送信先はダッシュボードの Notification Settings で確認リンク経由の事前検証が必要な可能性がある（本リポジトリでは未検証。`terraform plan` はこの制約を検出できないため、`apply` 前に運用担当者が送信先アドレスの検証状態を確認すること）。
-- `http_alert_edge_error` はゾーン全体のエッジ観測5xx率に基づく代替指標であり、Worker/Containers専用のalert_typeはCloudflare通知APIに存在しない（詳細は `migration-cloudflare.md` P6-3参照）。P1-2(NS切替)完了までシグナルは発生しない。
+- `http_alert_edge_error` はゾーン全体のエッジ観測5xx率に基づく代替指標であり、Worker/Containers専用のalert_typeはCloudflare通知APIに存在しない（詳細は `../../docs/ops/infra/_archive/migration-cloudflare.md` P6-3参照）。P1-2(NS切替)完了までシグナルは発生しない。
 
 ## CI デプロイ (Phase 5 / P5-2)
 
@@ -117,7 +117,7 @@ gh workflow run backend-deploy.yml --ref staging
 
 Secrets 未設定の状態で実行すると `Verify Cloudflare credentials` / `Run database migration` ステップが
 `::error::...secret is not configured` で明示的に fail する（サイレント成功はしない設計）。
-P5-5 は Secrets 投入前は **BLOCKED（genuine）** として `migration-cloudflare.md` に記録し、実行しない。
+P5-5 は Secrets 投入前は **BLOCKED（genuine）** として `../../docs/ops/infra/_archive/migration-cloudflare.md` に記録し、実行しない。
 
 ## 関連スクリプト(`infra/scripts/`)
 

@@ -1,7 +1,7 @@
 # Infra — Cloudflare (STG/PROD)
 
 > AWS STG は 2026-07-20 に廃止済み(terraform destroy・課金停止)。経緯と実施記録は
-> `migration-cloudflare.md`(Phase 8)と `docs/ops/infra/_archive/aws-legacy/` を参照。
+> `../docs/ops/infra/_archive/migration-cloudflare.md`(Phase 8)と `docs/ops/infra/_archive/aws-legacy/` を参照。
 > 再編計画は `infra-reorg-plan.md`(Phase B で envs/ + modules/ 構造へ移行予定)。
 
 ## 構成の2層境界(MANDATORY)
@@ -34,4 +34,4 @@
 
 - デプロイハブ: `docs/ops/deploy/README.md`
 - STG フルデモ投入/検証: `docs/ops/deploy/STG_PLANETSCALE_SEED_RUNBOOK.md`
-- 本番構築手順: `docs/ops/deploy/PRODUCTION_CF_SETUP.md`(#253)
+- 本番構築手順: `../docs/ops/infra/production/setup.md`(#253)

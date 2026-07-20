@@ -3,7 +3,7 @@
 // 役割は薄いプロキシのみ: 全 HTTP リクエストを Container(Go/Gin API, :8080) へフォワードする。
 // ビジネスロジックは一切持たない（Container内のGoアプリケーション側が担当）。
 //
-// DB接続方針(migration-cloudflare.md 試行9): Hyperdrive は Container 内非対応
+// DB接続方針(docs/ops/infra/_archive/migration-cloudflare.md 試行9): Hyperdrive は Container 内非対応
 // (https://github.com/cloudflare/containers/issues/97 — Container は通常の Linux プロセスであり
 // Workers runtime 固有の Hyperdrive バインディングを直接利用できない)。そのため Container 内の
 // Go API は PlanetScale へ直結する(DB_HOST 等を envVars で直接注入。sslmode=require)。
@@ -16,7 +16,7 @@ import { isAuthorizedMigrateRequest, toMigrateResponse, type MigrateExecResult }
 export class AnimalEkarteApiContainer extends Container<Env> {
   defaultPort = 8080;
   // AC-5: scale-to-zero 検証用。アイドル10分でコンテナを停止する
-  // (migration-cloudflare.md の想定コスト・「通常操作 10 分間程度」の負荷スモーク方針に合わせる)。
+  // (docs/ops/infra/_archive/migration-cloudflare.md の想定コスト・「通常操作 10 分間程度」の負荷スモーク方針に合わせる)。
   sleepAfter = "10m";
 
   // Container 起動時に注入する環境変数。Go 側の config.Load()/main.go が読む
@@ -42,7 +42,7 @@ export class AnimalEkarteApiContainer extends Container<Env> {
     INTEGRATION_ENCRYPTION_KEY: env.INTEGRATION_ENCRYPTION_KEY,
 
     // H2: Worker→Container 経路の信頼プロキシ CIDR(rate-limit bypass 防止)。
-    // 値の根拠は migration-cloudflare.md 試行9(実測ログに基づき決定)参照。
+    // 値の根拠は docs/ops/infra/_archive/migration-cloudflare.md 試行9(実測ログに基づき決定)参照。
     TRUSTED_PROXY_CIDR: env.TRUSTED_PROXY_CIDR,
 
     CORS_ALLOWED_ORIGIN: env.CORS_ALLOWED_ORIGIN,
