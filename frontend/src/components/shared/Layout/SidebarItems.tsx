@@ -50,8 +50,8 @@ const SidebarItem = memo(function SidebarItem({ item, collapsed = false, level =
   };
 
   const contentBaseClassName = [
-    // rounded-[3px]: コードベース全体112箇所の既存compact-control標準値(全面改修は範囲外)
-    "w-full flex items-center gap-3 px-3 h-12 rounded-[3px] text-base transition-colors",
+    // rounded-xxs: コードベース全体112箇所の既存compact-control標準値(全面改修は範囲外)
+    "w-full flex items-center gap-3 px-3 h-12 rounded-xxs text-base transition-colors",
     isActive ? STYLE.sidebarItemActive : STYLE.sidebarItemIdle,
     collapsed ? "justify-center" : "",
     level === 1 ? "pl-8" : level > 1 ? "pl-14" : "",

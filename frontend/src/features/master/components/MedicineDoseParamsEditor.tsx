@@ -109,7 +109,7 @@ function SpeciesDoseParamPanel({ medicineId, species, existingParam }: SpeciesDo
   };
 
   return (
-    <div className="py-2 px-1 mb-2 rounded-[3px] border border-black/5">
+    <div className="py-2 px-1 mb-2 rounded-xxs border border-black/5">
       <div className="flex items-center justify-between px-1 py-1">
         <span className={`text-sm font-medium ${C.text65}`}>{SPECIES_LABEL[species]}</span>
         {existingParam ? (

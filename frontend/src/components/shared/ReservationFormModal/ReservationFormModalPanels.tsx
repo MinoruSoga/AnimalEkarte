@@ -314,14 +314,14 @@ const SelectedPetChip = memo(function SelectedPetChip({
 function LineStatusNotice({ status }: { status: LstepStatus }) {
   if (status === "not-linked") {
     return (
-      <div className={`rounded-[4px] border ${C.borderNotice} ${C.bgNotice40} px-3 py-2 text-xs ${C.textNotice}`}>
+      <div className={`rounded-xs border ${C.borderNotice} ${C.bgNotice40} px-3 py-2 text-xs ${C.textNotice}`}>
         この飼い主はLINEアカウントが未連携のため、予約確定後のLINE自動通知は送信されません。
       </div>
     );
   }
   if (status === "opt-out") {
     return (
-      <div className={`rounded-[4px] border ${C.borderMediumLight} ${C.bgPage30} px-3 py-2 text-xs ${C.text40}`}>
+      <div className={`rounded-xs border ${C.borderMediumLight} ${C.bgPage30} px-3 py-2 text-xs ${C.text40}`}>
         この飼い主はLINEメッセージの受信を拒否しています。予約確定後のLINE自動通知は送信されません。
       </div>
     );
@@ -329,7 +329,7 @@ function LineStatusNotice({ status }: { status: LstepStatus }) {
   if (status === "synced") {
     return (
       <div
-        className="rounded-[4px] border px-3 py-2 text-xs text-white flex items-center gap-1.5"
+        className="rounded-xs border px-3 py-2 text-xs text-white flex items-center gap-1.5"
         style={{ backgroundColor: PALETTE.lineGreen, borderColor: PALETTE.lineGreen }}
       >
         LINE連携済み — 予約確定後に自動通知が送信されます。

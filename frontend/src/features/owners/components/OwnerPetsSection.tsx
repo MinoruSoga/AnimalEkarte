@@ -57,7 +57,7 @@ const PetTableRow = memo(function PetTableRow({
         <div className="flex gap-1 justify-end">
           <DropdownMenu>
             <DropdownMenuTrigger
-              className={`inline-flex items-center justify-center rounded-[4px] cursor-pointer ${STYLE.tableActionBtn} ${C.hoverBgLight}`}
+              className={`inline-flex items-center justify-center rounded-xs cursor-pointer ${STYLE.tableActionBtn} ${C.hoverBgLight}`}
               aria-label="操作メニューを開く"
               onClick={(event) => event.stopPropagation()}
             >

@@ -36,7 +36,7 @@ const MEDICINE_UNIT_SELECT_ITEMS = (
 );
 
 // ts-review-201 MEDIUM: MedicineDoseParamsEditor.tsx と共有するため export する（重複定義の解消）。
-export const SELECT_TRIGGER_FULL = `h-[30px] text-base bg-transparent ${C.text} border-0 ${C.hoverBgLight} px-1.5 shadow-none rounded-[3px] w-full`;
+export const SELECT_TRIGGER_FULL = `h-[30px] text-base bg-transparent ${C.text} border-0 ${C.hoverBgLight} px-1.5 shadow-none rounded-xxs w-full`;
 
 type SetMedicineFormDataDirty = Dispatch<SetStateAction<MedicineFormData>>;
 
@@ -142,7 +142,7 @@ export function MedicineBasicFlagsSection({
         <button
           type="button"
           onClick={() => setFormDataDirty((prev) => ({ ...prev, isActive: !prev.isActive }))}
-          className={`inline-flex items-center rounded-[3px] ${C.hoverBgLight} transition-colors py-0.5 px-0.5 cursor-pointer`}
+          className={`inline-flex items-center rounded-xxs ${C.hoverBgLight} transition-colors py-0.5 px-0.5 cursor-pointer`}
         >
           <StatusPill isActive={formData.isActive} />
         </button>
@@ -153,7 +153,7 @@ export function MedicineBasicFlagsSection({
           type="button"
           onClick={() => setFormDataDirty((prev) => ({ ...prev, isNonInsurance: !prev.isNonInsurance }))}
           aria-label="保険対象外を切り替え"
-          className={`inline-flex items-center rounded-[3px] ${C.hoverBgLight} transition-colors py-0.5 px-1.5 cursor-pointer text-sm ${formData.isNonInsurance ? C.textBrand : C.text50}`}
+          className={`inline-flex items-center rounded-xxs ${C.hoverBgLight} transition-colors py-0.5 px-1.5 cursor-pointer text-sm ${formData.isNonInsurance ? C.textBrand : C.text50}`}
         >
           {formData.isNonInsurance ? "対象外" : "対象"}
         </button>

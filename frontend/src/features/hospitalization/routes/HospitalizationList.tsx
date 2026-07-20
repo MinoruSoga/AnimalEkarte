@@ -1,5 +1,5 @@
 // React/Framework
-import { C, ICON } from "@/lib/design-tokens";
+import { C, ICON, LAYOUT } from "@/lib/design-tokens";
 import { useState, useCallback, useEffect, useMemo, useDeferredValue } from "react";
 import { useSearchParams } from "react-router";
 import { normalizeKana } from "@/lib/normalize-kana";
@@ -249,7 +249,7 @@ export function HospitalizationList() {
           </PrimaryButton>
         ) : null
       }
-      maxWidth="max-w-full"
+      maxWidth={LAYOUT.pageContentMaxWidth.full}
     >
       <div className="flex flex-col gap-4">
         {/* Status Tabs */}
@@ -276,7 +276,7 @@ export function HospitalizationList() {
                   onSortChange={handleSortChange}
                 />
             </div>
-            <div className={`${C.bgWhite} rounded-[6px] border ${C.borderMedium} p-1 h-11 flex items-center`}>
+            <div className={`${C.bgWhite} rounded-sm border ${C.borderMedium} p-1 h-11 flex items-center`}>
                 <ToggleGroup type="single" value={viewMode} onValueChange={(v) => v && isValidViewMode(v) && setViewMode(v)}>
                     <ToggleGroupItem value="board" size="sm" aria-label="Board View">
                         <LayoutGrid className={ICON.action} />

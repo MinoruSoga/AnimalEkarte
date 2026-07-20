@@ -107,7 +107,7 @@ export function ManualPage() {
         type="button"
         onClick={() => setDrawerOpen(true)}
         aria-label="マニュアル目次を開く"
-        className={`md:hidden fixed top-3 left-16 z-30 size-10 flex items-center justify-center rounded-[3px] border ${C.borderDivider} ${C.bgWhite} shadow-sm ${C.hoverBgLight} no-print`}
+        className={`md:hidden fixed top-3 left-16 z-30 size-10 flex items-center justify-center rounded-xxs border ${C.borderDivider} ${C.bgWhite} shadow-sm ${C.hoverBgLight} no-print`}
       >
         <Menu className="size-5" />
       </button>
@@ -119,7 +119,7 @@ export function ManualPage() {
           onClick={() => setEditMode(true)}
           aria-label="このページを編集"
           title="このページを編集（編集内容はダウンロードして管理者に共有）"
-          className={`fixed top-3 right-16 z-30 size-10 flex items-center justify-center rounded-[3px] border ${C.borderDivider} ${C.bgWhite} shadow-sm ${C.hoverBgLight} no-print`}
+          className={`fixed top-3 right-16 z-30 size-10 flex items-center justify-center rounded-xxs border ${C.borderDivider} ${C.bgWhite} shadow-sm ${C.hoverBgLight} no-print`}
         >
           <Edit2 className="size-5" />
         </button>
@@ -132,7 +132,7 @@ export function ManualPage() {
           onClick={() => window.print()}
           aria-label="このページを印刷"
           title="このページを印刷"
-          className={`fixed top-3 right-3 z-30 size-10 flex items-center justify-center rounded-[3px] border ${C.borderDivider} ${C.bgWhite} shadow-sm ${C.hoverBgLight} no-print`}
+          className={`fixed top-3 right-3 z-30 size-10 flex items-center justify-center rounded-xxs border ${C.borderDivider} ${C.bgWhite} shadow-sm ${C.hoverBgLight} no-print`}
         >
           <Printer className="size-5" />
         </button>
@@ -179,7 +179,7 @@ export function ManualPage() {
               type="button"
               onClick={() => setDrawerOpen(false)}
               aria-label="ドロワーを閉じる"
-              className={`size-10 m-2 flex items-center justify-center rounded-[3px] ${C.bgWhite} border ${C.borderDivider} shadow-sm`}
+              className={`size-10 m-2 flex items-center justify-center rounded-xxs ${C.bgWhite} border ${C.borderDivider} shadow-sm`}
             >
               <X className="size-5" />
             </button>

@@ -17,7 +17,7 @@ interface CageRowOverlayProps {
 export function CageRowOverlay({ cage }: CageRowOverlayProps) {
   return (
     <div
-      className={`flex items-center h-12 ${C.bgWhite} border ${C.borderLight} rounded-[4px] ${STYLE.dragOverlayShadow} cursor-grabbing`}
+      className={`flex items-center h-12 ${C.bgWhite} border ${C.borderLight} rounded-xs ${STYLE.dragOverlayShadow} cursor-grabbing`}
       style={{ width: "100%" }}
     >
       <div className={`w-8 shrink-0 flex items-center justify-center ${C.text50}`}>

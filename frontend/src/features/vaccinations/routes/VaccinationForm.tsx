@@ -13,7 +13,7 @@ import { PatientInfoCard } from "@/components/shared/PatientInfoCard";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { NavigationBlocker } from "@/components/shared/NavigationBlocker";
 import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
-import { C, STYLE, ICON } from "@/lib/design-tokens";
+import { C, STYLE, ICON, LAYOUT } from "@/lib/design-tokens";
 import { normalizeKana } from "@/lib/normalize-kana";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 import { useGetVaccinations } from "../api/get-vaccinations";
@@ -151,7 +151,7 @@ export const VaccinationForm = memo(function VaccinationForm() {
         title={isEdit ? "予防接種詳細・編集" : "新規予防接種登録"}
         resource={ResourceVaccinations}
         onBack={handleBack}
-        maxWidth="max-w-[1200px]"
+        maxWidth={LAYOUT.pageContentMaxWidth.formMid}
         headerAction={
           <div className="flex gap-2">
             {canDelete && isEdit ? (

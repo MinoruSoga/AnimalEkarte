@@ -174,7 +174,7 @@ export function ManualContent({ article }: ManualContentProps) {
             if (isInline) {
               return (
                 <code
-                  className={`px-1.5 py-0.5 rounded-[3px] text-[0.875em] ${C.text} ${C.bgHoverMd}`}
+                  className={`px-1.5 py-0.5 rounded-xxs text-[0.875em] ${C.text} ${C.bgHoverMd}`}
                 >
                   {children}
                 </code>
@@ -186,7 +186,7 @@ export function ManualContent({ article }: ManualContentProps) {
           },
           pre: ({ children }) => (
             <pre
-              className={`my-4 p-4 rounded-[3px] overflow-x-auto text-sm ${C.text} ${C.bgPrimary10}`}
+              className={`my-4 p-4 rounded-xxs overflow-x-auto text-sm ${C.text} ${C.bgPrimary10}`}
             >
               {children}
             </pre>
@@ -195,7 +195,7 @@ export function ManualContent({ article }: ManualContentProps) {
             <img
               src={resolveImageSrc(typeof src === "string" ? src : undefined)}
               alt={alt ?? ""}
-              className={`my-4 rounded-[3px] border ${C.borderDivider} max-w-full`}
+              className={`my-4 rounded-xxs border ${C.borderDivider} max-w-full`}
               loading="lazy"
             />
           ),
@@ -217,7 +217,7 @@ export function ManualContent({ article }: ManualContentProps) {
             {prev ? (
               <Link
                 to={paths.manual.article.getHref(prev.category, prev.slug)}
-                className={`flex items-center gap-2 p-3 rounded-[3px] border ${C.borderDivider} ${C.hoverBgLight} transition-colors`}
+                className={`flex items-center gap-2 p-3 rounded-xxs border ${C.borderDivider} ${C.hoverBgLight} transition-colors`}
               >
                 <ChevronLeft className={`size-5 shrink-0 ${C.text50}`} />
                 <div className="min-w-0">
@@ -231,7 +231,7 @@ export function ManualContent({ article }: ManualContentProps) {
             {next ? (
               <Link
                 to={paths.manual.article.getHref(next.category, next.slug)}
-                className={`flex items-center gap-2 p-3 rounded-[3px] border ${C.borderDivider} ${C.hoverBgLight} transition-colors text-right md:justify-end`}
+                className={`flex items-center gap-2 p-3 rounded-xxs border ${C.borderDivider} ${C.hoverBgLight} transition-colors text-right md:justify-end`}
               >
                 <div className="min-w-0 flex-1">
                   <div className={`text-[11px] ${C.text40} uppercase tracking-wider`}>次の項目</div>

@@ -65,6 +65,10 @@ begin_step "Design primary CTA guard"
 node scripts/check-design-primary-cta.mjs
 bash scripts/check-design-primary-cta.test.sh
 
+begin_step "Design system audit (C1/C3/C5/C6/C7/C8/C9)"
+node frontend/scripts/design-system-audit.mjs --cwd frontend
+node --test frontend/scripts/design-system-audit.test.mjs
+
 # ── 7–12: Go inventory / build / test（backend コンテナ）────────
 require_compose_service backend
 
@@ -121,7 +125,7 @@ compose exec -T frontend pnpm run test:run
 
 echo ""
 echo "✓ make ci passed"
-echo "  local-only: inventory / guardrails / shellcheck / golangci / ESLint / type-check / knip / design CTA"
+echo "  local-only: inventory / guardrails / shellcheck / golangci / ESLint / type-check / knip / design CTA + design-audit"
 echo "  also covered: backend build+test+schema, frontend build+test, codegen"
 echo "  remote CI still runs: gitleaks / path-filtered build+test+coverage / AgentShield"
 echo "  E2E is local-only: make e2e (not in automatic PR CI)"

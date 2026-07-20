@@ -44,7 +44,7 @@ export function ReservationTypeGroupHeader({
           <button
             type="button"
             onClick={onGroupEdit}
-            className={`text-sm font-medium ${C.text} ${C.hoverBgLight} px-1 rounded-[3px] transition-colors`}
+            className={`text-sm font-medium ${C.text} ${C.hoverBgLight} px-1 rounded-xxs transition-colors`}
           >
             {group.name}
           </button>

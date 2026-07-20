@@ -93,7 +93,7 @@ export const CheckupEditRow = memo(function CheckupEditRow({
           onChange={(e) => handleChange("result", e.target.value)}
           placeholder="結果を入力..."
           aria-label={`結果 (${checkup.date})`}
-          className={`h-8 text-sm border ${C.borderMedium} rounded-[3px] px-2 ${C.bgWhite} ${C.text} outline-none ${C.focusBorderAccent} w-full`}
+          className={`h-8 text-sm border ${C.borderMedium} rounded-xxs px-2 ${C.bgWhite} ${C.text} outline-none ${C.focusBorderAccent} w-full`}
         />
       </td>
       <td className="px-2 py-2">
@@ -249,7 +249,7 @@ export function CheckupAddRow({
           if (e.key === "Escape") onCancel();
         }}
         aria-label="結果"
-        className={`flex-1 min-w-[160px] h-8 text-sm border ${C.borderMedium} rounded-[3px] px-2 ${C.bgWhite} ${C.text} outline-none ${C.focusBorderAccent}`}
+        className={`flex-1 min-w-[160px] h-8 text-sm border ${C.borderMedium} rounded-xxs px-2 ${C.bgWhite} ${C.text} outline-none ${C.focusBorderAccent}`}
       />
       <Button
         size="sm"
@@ -286,7 +286,7 @@ function CheckupTypeSelect({
     <select
       value={value}
       onChange={(e: ChangeEvent<HTMLSelectElement>) => onChange(e.target.value)}
-      className={`h-8 text-sm border ${C.borderMedium} rounded-[3px] px-2 ${C.bgWhite} ${C.text} outline-none ${C.focusBorderAccent} w-32`}
+      className={`h-8 text-sm border ${C.borderMedium} rounded-xxs px-2 ${C.bgWhite} ${C.text} outline-none ${C.focusBorderAccent} w-32`}
     >
       <option value="">{emptyLabel}</option>
       {checkupTypes.map((type) => (
@@ -313,7 +313,7 @@ function StaffSelect({
     <select
       value={value}
       onChange={(e: ChangeEvent<HTMLSelectElement>) => onChange(e.target.value)}
-      className={`h-8 text-sm border ${C.borderMedium} rounded-[3px] px-2 ${C.bgWhite} ${C.text} outline-none ${C.focusBorderAccent} w-32`}
+      className={`h-8 text-sm border ${C.borderMedium} rounded-xxs px-2 ${C.bgWhite} ${C.text} outline-none ${C.focusBorderAccent} w-32`}
     >
       <option value="">{emptyLabel}</option>
       {staffs.map((staff) => (

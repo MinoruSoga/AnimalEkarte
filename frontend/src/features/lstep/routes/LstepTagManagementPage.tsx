@@ -3,7 +3,7 @@ import { RefreshCw } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { Button } from "@/components/ui/button";
-import { C, ICON, STYLE } from "@/lib/design-tokens";
+import { C, ICON, STYLE, LAYOUT } from "@/lib/design-tokens";
 import { queryKeys } from "@/lib/query-keys";
 import { usePermission } from "@/hooks/use-permission";
 import { ResourceOwners } from "@/types/generated/models";
@@ -59,7 +59,7 @@ export function LstepTagManagementPage() {
   return (
     <PageLayout
       title="Lステップタグ管理"
-      maxWidth="max-w-full"
+      maxWidth={LAYOUT.pageContentMaxWidth.full}
       headerAction={
         <div className="flex items-center gap-3">
           {relativeTime !== null ? (

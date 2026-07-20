@@ -8,7 +8,7 @@ import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { NavigationBlocker } from "@/components/shared/NavigationBlocker";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
-import { C } from "@/lib/design-tokens";
+import { C, LAYOUT } from "@/lib/design-tokens";
 import type { SortOrder } from "@/types";
 
 // Relative
@@ -181,7 +181,7 @@ export function ExaminationForm() {
       title={isEdit ? "検査詳細・編集" : "新規検査登録"}
       resource={ResourceExaminations}
       onBack={handleBack}
-      maxWidth="max-w-[1200px]"
+      maxWidth={LAYOUT.pageContentMaxWidth.formMid}
       align="left"
     >
       {/* FE6-8: jsx-no-leaked-render は非型認識のため isDirty を boolean と静的に断定できず !! で明示する */}

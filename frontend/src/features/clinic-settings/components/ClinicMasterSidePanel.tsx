@@ -96,7 +96,7 @@ export function ClinicMasterSidePanel({
                     onClick={() =>
                       setFormData((prev) => ({ ...prev, is_active: !prev.is_active }))
                     }
-                    className={`inline-flex items-center rounded-[3px] ${C.hoverBgLight} transition-colors py-0.5 px-0.5 cursor-pointer`}
+                    className={`inline-flex items-center rounded-xxs ${C.hoverBgLight} transition-colors py-0.5 px-0.5 cursor-pointer`}
                   >
                     <StatusPill status={formData.is_active ? "active" : "inactive"} />
                   </button>

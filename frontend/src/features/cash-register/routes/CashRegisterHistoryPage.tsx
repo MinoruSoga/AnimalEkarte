@@ -130,7 +130,7 @@ export function CashRegisterHistoryPage() {
               id="hist_year"
               value={year}
               onChange={handleYearChange}
-              className={`${STYLE.formInput} rounded-[4px] border px-3 inline-block w-auto`}
+              className={`${STYLE.formInput} rounded-xs border px-3 inline-block w-auto`}
             >
               {yearOptions.map((y) => (
                 <option key={y} value={y}>
@@ -147,7 +147,7 @@ export function CashRegisterHistoryPage() {
               id="hist_month"
               value={month}
               onChange={handleMonthChange}
-              className={`${STYLE.formInput} rounded-[4px] border px-3 inline-block w-auto`}
+              className={`${STYLE.formInput} rounded-xs border px-3 inline-block w-auto`}
             >
               {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
                 <option key={m} value={m}>
@@ -164,7 +164,7 @@ export function CashRegisterHistoryPage() {
               id="hist_period"
               value={periodFilter}
               onChange={handlePeriodFilterChange}
-              className={`${STYLE.formInput} rounded-[4px] border px-3 inline-block w-auto`}
+              className={`${STYLE.formInput} rounded-xs border px-3 inline-block w-auto`}
             >
               <option value="all">すべて</option>
               {PERIOD_OPTIONS.map((p) => (

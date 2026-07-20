@@ -79,7 +79,7 @@ export function ReservationTypeAvailableSlotsSection({ clinicId, reservationType
     return (
       <div
         key={item.id}
-        className={`flex items-center justify-between gap-2 py-1.5 px-2 rounded-[3px] ${C.hoverBgLight} transition-colors group`}
+        className={`flex items-center justify-between gap-2 py-1.5 px-2 rounded-xxs ${C.hoverBgLight} transition-colors group`}
       >
         <Clock className={`${ICON.smXs} ${C.text40} shrink-0`} />
         <span className={`flex-1 text-sm ${C.text}`}>{label}</span>
@@ -150,7 +150,7 @@ export function ReservationTypeAvailableSlotsSection({ clinicId, reservationType
               aria-label="特定日"
               value={form.specificDate}
               onChange={(event) => handleFieldChange("specificDate", event.target.value)}
-              className={`rounded-[3px] border ${C.borderMedium} px-2 py-1 text-sm ${C.text} ${C.bgWhite}`}
+              className={`rounded-xxs border ${C.borderMedium} px-2 py-1 text-sm ${C.text} ${C.bgWhite}`}
             />
           )}
         </div>

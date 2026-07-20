@@ -80,7 +80,7 @@ export const StandardClosingTimeSection = memo(function StandardClosingTimeSecti
               type="time"
               value={amPmBoundary}
               onChange={(event) => setAmPmBoundary(event.target.value)}
-              className={`${STYLE.formInput} mt-1 w-full rounded-[4px] border px-3`}
+              className={`${STYLE.formInput} mt-1 w-full rounded-xs border px-3`}
               required
             />
           </div>
@@ -94,7 +94,7 @@ export const StandardClosingTimeSection = memo(function StandardClosingTimeSecti
               type="time"
               value={weekdayEnd}
               onChange={(event) => setWeekdayEnd(event.target.value)}
-              className={`${STYLE.formInput} mt-1 w-full rounded-[4px] border px-3`}
+              className={`${STYLE.formInput} mt-1 w-full rounded-xs border px-3`}
               required
             />
           </div>
@@ -108,14 +108,14 @@ export const StandardClosingTimeSection = memo(function StandardClosingTimeSecti
               type="time"
               value={sundayEnd}
               onChange={(event) => setSundayEnd(event.target.value)}
-              className={`${STYLE.formInput} mt-1 w-full rounded-[4px] border px-3`}
+              className={`${STYLE.formInput} mt-1 w-full rounded-xs border px-3`}
               required
             />
           </div>
         </div>
 
         {/* 時間帯プレビュー: 境界編集に即時追従する（Issue #151）。 */}
-        <div className={`overflow-x-auto rounded-[4px] border ${C.borderLight} ${C.bgSubtle} p-4`}>
+        <div className={`overflow-x-auto rounded-xs border ${C.borderLight} ${C.bgSubtle} p-4`}>
           <table className="w-full border-collapse text-left">
             <caption className={`mb-3 text-left text-sm font-medium ${C.textMuted}`}>
               時間帯プレビュー

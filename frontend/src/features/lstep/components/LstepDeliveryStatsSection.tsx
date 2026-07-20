@@ -45,7 +45,7 @@ export function DeliveryStatsSection({
         <select
           value={yearMonth}
           onChange={(e) => onYearMonthChange(e.target.value)}
-          className={`text-sm border ${C.borderLight} rounded-[4px] px-3 py-1.5 ${C.bgWhite} ${C.text80}`}
+          className={`text-sm border ${C.borderLight} rounded-xs px-3 py-1.5 ${C.bgWhite} ${C.text80}`}
           aria-label="集計対象年月"
         >
           {monthOptions.map((opt) => (
@@ -56,7 +56,7 @@ export function DeliveryStatsSection({
         </select>
       </div>
 
-      <div className={`border ${C.borderLight} rounded-[4px] ${C.bgWhite} p-4`}>
+      <div className={`border ${C.borderLight} rounded-xs ${C.bgWhite} p-4`}>
         {isLoading ? (
           <p className={`text-sm ${C.text40} py-8 text-center`}>読み込み中...</p>
         ) : isError ? (

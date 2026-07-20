@@ -7,11 +7,15 @@
 | ID | 観点 | 参照 | 判定方法 |
 |---|---|---|---|
 | C1 | 構造色は brand teal `#038B94` 系のみ。legacy accent（`#0075DE`/`#2383E2`/`C.accent`）禁止 | DESIGN_SYSTEM §2.1, §9, §10 | `rg 'C\.accent\|#0075DE\|#2383E2'`（route/pages glob） |
-| C2 | ページ canvas は暖色 canvas-soft（`PageLayout` / `STYLE.page*` / `C.bgPage`）。純白ページ禁止 | DESIGN.md canvas-soft／DESIGN_SYSTEM §2.2, §9 | 各リーフ Component の `PageLayout` 使用を追跡（直接 or 共有 shell 経由） |
+| C2 | ページ canvas は暖色 canvas-soft（`PageLayout` / `STYLE.page*` / `C.bgPage`）。純白ページ禁止 | DESIGN.md canvas-soft／DESIGN_SYSTEM §2.2, §9 | **C8 機械化**（`src/features/*/routes/*.tsx` の PageLayout / Master*Page / allowlist）。§2 表は新規リーフ追加時に更新 |
 | C3 | route 表面での hex 直書き禁止。`design-tokens.ts` 経由必須 | DESIGN_SYSTEM §9 Don't, §10 | `rg "['\"\`]#[0-9A-Fa-f]{3,8}['\"\`]"`（**issue番号コメント `#158` 等は文字列リテラルでないため除外**） |
-| C4 | 一覧/詳細系ページは `PageLayout` または同等 shell を持つ | DESIGN_SYSTEM §4, §7.6 | C2 と同一判定（shell 欠落 = C2/C4 同時フラグ） |
+| C4 | 一覧/詳細系ページは `PageLayout` または同等 shell を持つ | DESIGN_SYSTEM §4, §7.6 | **C8 機械化**（C2 と同一。shell 欠落 = C2/C4 同時フラグ） |
 | C5 | Primary CTA は `PrimaryButton`/`SubmitButton` の `colorVariant="brand"` | DESIGN_SYSTEM §7.2 | `rg 'colorVariant="[a-zA-Z]+"'` の値分布確認 |
-| C6 | 臨床安全 UI（危険/死亡/RBAC 非活性表示）はデザイン変更で退行させない | DESIGN_SYSTEM §2.4, §9 | 静的 grep では網羅不可 — **コードレビュー要**。本監査では danger/warning の hex 直書き逸脱のみ C3 と合わせて確認（0 件） |
+| C6a | 臨床安全 UI（危険/死亡/RBAC 非活性表示）はデザイン変更で退行させない | DESIGN_SYSTEM §2.4, §9 | 静的 grep では網羅不可 — **コードレビュー要**。danger/warning の hex 直書き逸脱は C3 と合わせて確認 |
+| C6b | rgba/rgb/hsla/hsl 直値禁止 | design-system-audit.mjs C6 | **機械化**（`pnpm design-audit` / make ci） |
+| C7 | PageLayout `maxWidth` 生値禁止（`max-w-full` / `max-w-[Npx]`） | LAYOUT.pageContentMaxWidth | **機械化**（C7） |
+| C8 | routes/*.tsx は PageLayout / Master*Page / allowlist | PageLayout | **機械化**（C8・allowlist 15件） |
+| C9 | `rounded-[Npx]` 任意値禁止 | `--radius-xxs/xs/...` | **機械化**（C9） |
 
 **AE 上書き注記**: DESIGN.md フロントマターの `{colors.primary}` は Notion Analysis テンプレート値 `#0075DE` のまま。製品正本は DESIGN_SYSTEM.md が定義する **`#038B94`**（SSOT 優先順位: 実装 `design-tokens.ts` > DESIGN_SYSTEM.md > DESIGN.md）。
 
@@ -26,7 +30,7 @@ rg --files-without-match 'PageLayout|STYLE\.page|C\.bgPage' <leaf-component-file
 rg -o 'colorVariant="[a-zA-Z]+"' src/features --glob '**/routes/**'
 ```
 
-**C1/C3/C5 の機械化（2026-07-06 追加）**: 上記 grep のうち C1/C3/C5 は `frontend/scripts/design-system-audit.mjs` で自動判定できる（strict fail — 現状 0 件からの新規混入を検知）。C2/C4（`PageLayout` 追跡）は leaf component 解決が動的で自動化が複雑なため、引き続き §2 の手動更新で追跡する。
+**機械化（FE8-5 更新）**: C1/C3/C5/C6b/C7/C8/C9 は `frontend/scripts/design-system-audit.mjs` で strict fail。C2/C4 は C8 により `routes/*.tsx` を機械化済み。§2 表と C8 allowlist は新規リーフ追加時に同一コミットで更新する。C6a（臨床安全 UI）は引き続きコードレビュー要。
 ```bash
 docker compose exec frontend pnpm design-audit
 ```

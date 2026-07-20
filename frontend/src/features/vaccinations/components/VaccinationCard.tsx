@@ -26,7 +26,7 @@ export const VaccinationCard = memo(function VaccinationCard({
 
   return (
     <Card
-      className={`${C.bgWhite} border ${C.borderLight} shadow-none rounded-[4px] ${C.hoverBgPage} transition-colors ${onClick ? "cursor-pointer" : ""} ${className ?? ""}`}
+      className={`${C.bgWhite} border ${C.borderLight} shadow-none rounded-xs ${C.hoverBgPage} transition-colors ${onClick ? "cursor-pointer" : ""} ${className ?? ""}`}
       onClick={onClick}
     >
       <CardContent className="px-4 py-3">

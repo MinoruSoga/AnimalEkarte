@@ -167,7 +167,7 @@ GOLANGCI_LINT_VERSION := v2.11.4
 # リモート CI 必須: path-filtered build/test/coverage、gitleaks、
 #                   codegen/migration 検証、AgentShield
 # ローカル必須（make ci）: inventory / guardrail / shellcheck / golangci /
-#                          ESLint / type-check / knip / design CTA + build/test
+#                          ESLint / type-check / knip / design CTA + design-audit + build/test
 # ローカル任意: make e2e（Playwright。リモート自動 CI には含めない）
 # ────────────────────────────────────────────────────────────────
 

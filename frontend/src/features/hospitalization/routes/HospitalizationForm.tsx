@@ -28,7 +28,7 @@ import { NavigationBlocker } from "@/components/shared/NavigationBlocker";
 import { LoadingFallback } from "@/components/shared/DataStates";
 import { FormFieldError } from "@/components/shared/FormFieldError";
 import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
-import { C, STYLE, ICON } from "@/lib/design-tokens";
+import { C, STYLE, ICON, LAYOUT } from "@/lib/design-tokens";
 import { ResourceHospitalization } from "@/types/generated/models";
 
 export function HospitalizationForm() {
@@ -150,7 +150,7 @@ export function HospitalizationForm() {
       onBack={handleBack}
       icon={<FileText className={`${ICON.page} ${C.text}`} />}
       resource={ResourceHospitalization}
-      maxWidth="max-w-[1400px]"
+      maxWidth={LAYOUT.pageContentMaxWidth.form}
       headerAction={
         <div className="flex gap-2">
             {hospitalizationId ? (

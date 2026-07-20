@@ -24,7 +24,7 @@ export function VisitConversionSection({
         <p className={`text-xs ${C.text40}`}>配信日から30日以内の来院を集計</p>
       </div>
 
-      <div className={`border ${C.borderLight} rounded-[4px] ${C.bgWhite} p-4 space-y-5`}>
+      <div className={`border ${C.borderLight} rounded-xs ${C.bgWhite} p-4 space-y-5`}>
         {isLoading ? (
           <p className={`text-sm ${C.text40} py-8 text-center`}>読み込み中...</p>
         ) : isError ? (
@@ -54,7 +54,7 @@ function VisitConversionCards({ data }: { data?: VisitConversionSummaryResponse 
 
 function MetricCard({ label, value }: { label: string; value: string }) {
   return (
-    <div className={`${C.bgWhite} rounded-[4px] border ${C.borderLight} p-4 flex flex-col gap-1`}>
+    <div className={`${C.bgWhite} rounded-xs border ${C.borderLight} p-4 flex flex-col gap-1`}>
       <span className={`text-sm ${C.text60}`}>{label}</span>
       <span className={`text-2xl font-semibold ${C.text80}`}>{value}</span>
     </div>

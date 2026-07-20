@@ -100,7 +100,7 @@ export function TriggerPrioritySection() {
         数値が小さいほど優先。同値は同一優先階層として扱われます。
       </p>
 
-      <div className={`border ${C.borderLight} rounded-[4px] overflow-hidden`}>
+      <div className={`border ${C.borderLight} rounded-xs overflow-hidden`}>
         {draft.map((item, idx) => (
           <div
             key={item.trigger_type}
@@ -117,7 +117,7 @@ export function TriggerPrioritySection() {
               value={item.priority}
               onChange={(e) => handlePriorityChange(item.trigger_type, e.target.value)}
               aria-label={`${TriggerTypeLabels[item.trigger_type] ?? item.trigger_type} 優先順位`}
-              className={`${STYLE.formInput} rounded-[4px] border px-2 w-20 text-right outline-none focus:ring-2 ${C.focusRingAccent30}`}
+              className={`${STYLE.formInput} rounded-xs border px-2 w-20 text-right outline-none focus:ring-2 ${C.focusRingAccent30}`}
             />
           </div>
         ))}

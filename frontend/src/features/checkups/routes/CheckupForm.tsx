@@ -6,7 +6,7 @@ import { useNavigate } from "react-router";
 import { ClipboardCheck } from "lucide-react";
 
 // Internal
-import { C, ICON } from "@/lib/design-tokens";
+import { C, ICON, LAYOUT } from "@/lib/design-tokens";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { PatientInfoCard } from "@/components/shared/PatientInfoCard";
 import { SubmitButton } from "@/components/shared/Form/SubmitButton";
@@ -62,7 +62,7 @@ export function CheckupForm() {
         resource={ResourceCheckups}
         icon={<ClipboardCheck className={`${ICON.page} ${C.text}`} />}
         onBack={handleBack}
-        maxWidth="max-w-[900px]"
+        maxWidth={LAYOUT.pageContentMaxWidth.formNarrow}
         headerAction={
           <SubmitButton
             className="px-6 h-10 text-sm"

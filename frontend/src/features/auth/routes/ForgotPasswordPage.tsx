@@ -7,7 +7,7 @@ import { FormFieldError } from "@/components/shared/FormFieldError";
 import { SubmitButton } from "@/components/shared/Form/SubmitButton";
 import { forgotPassword } from "../api/forgot-password";
 
-const INPUT_BASE = `w-full h-[48px] text-base rounded-[3px] ${C.bgInputLogin} border ${C.borderMedium} ${C.text} ${C.textPlaceholder} outline-none transition-all focus:ring-2 ${C.focusRingBrand} focus:border-transparent disabled:opacity-60`;
+const INPUT_BASE = `w-full h-[48px] text-base rounded-xxs ${C.bgInputLogin} border ${C.borderMedium} ${C.text} ${C.textPlaceholder} outline-none transition-all focus:ring-2 ${C.focusRingBrand} focus:border-transparent disabled:opacity-60`;
 
 type ForgotPasswordState =
   | { status: "idle"; error: null }
@@ -60,7 +60,7 @@ export function ForgotPasswordPage() {
 
         {state.status === "sent" ? (
           <div className="space-y-4">
-            <div className={`rounded-[3px] p-4 ${C.bgStatusGreen} border ${C.borderStatusGreen}`}>
+            <div className={`rounded-xxs p-4 ${C.bgStatusGreen} border ${C.borderStatusGreen}`}>
               <p className={`text-sm ${C.text}`}>
                 パスワードリセットのリンクをメールに送信しました。メールをご確認ください。
               </p>

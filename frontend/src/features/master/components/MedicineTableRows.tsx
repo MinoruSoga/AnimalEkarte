@@ -74,7 +74,7 @@ export const MedicineCategoryHeaderRow = memo(function MedicineCategoryHeaderRow
               event.stopPropagation();
               onToggleGroup(parentId);
             }}
-            className={`flex items-center gap-1.5 py-1.5 px-1 ${C.hoverBgLight} rounded-[3px] transition-colors`}
+            className={`flex items-center gap-1.5 py-1.5 px-1 ${C.hoverBgLight} rounded-xxs transition-colors`}
           >
             <ChevronRight
               className={`${ICON.xs} ${C.text50} transition-transform duration-150 ${
@@ -186,7 +186,7 @@ interface MedicineRowOverlayProps {
 export function MedicineRowOverlay({ medicine, grouped }: MedicineRowOverlayProps) {
   return (
     <div
-      className={`flex items-center h-12 ${C.bgWhite} border ${C.borderLight} rounded-[4px] ${STYLE.dragOverlayShadow} cursor-grabbing`}
+      className={`flex items-center h-12 ${C.bgWhite} border ${C.borderLight} rounded-xs ${STYLE.dragOverlayShadow} cursor-grabbing`}
       style={{ width: "100%" }}
     >
       <div className={`w-8 shrink-0 flex items-center justify-center ${C.text50}`}>

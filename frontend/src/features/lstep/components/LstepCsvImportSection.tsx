@@ -20,7 +20,7 @@ export function CsvImportSection() {
         友だち属性 CSV インポート
       </h2>
 
-      <div className={`border ${C.borderLight} rounded-[4px] ${C.bgWhite} p-4 space-y-5`}>
+      <div className={`border ${C.borderLight} rounded-xs ${C.bgWhite} p-4 space-y-5`}>
         <div>
           <p className={`text-sm font-medium ${C.text80} mb-3`}>新規アップロード</p>
           <CsvUploadSection />
@@ -61,7 +61,7 @@ function CsvUploadSection() {
 
   return (
     <form action={formAction} className="space-y-3">
-      <div className={`flex items-center gap-3 p-4 border ${C.borderLight} rounded-[4px] ${C.bgLight}`}>
+      <div className={`flex items-center gap-3 p-4 border ${C.borderLight} rounded-xs ${C.bgLight}`}>
         <UploadCloud className={`${ICON.action} ${C.text40} shrink-0`} />
         <div className="flex-1 min-w-0">
           <p className={`text-sm font-medium ${C.text80}`}>友だち属性 CSV</p>

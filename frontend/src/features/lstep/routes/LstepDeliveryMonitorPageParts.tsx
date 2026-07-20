@@ -40,7 +40,7 @@ export function DeliveryMonitorFilters({
   onStatusChange,
 }: DeliveryMonitorFiltersProps) {
   return (
-    <div className={`bg-white border ${C.borderLight} rounded-[4px] px-4 py-3 flex flex-wrap items-center gap-3`}>
+    <div className={`bg-white border ${C.borderLight} rounded-xs px-4 py-3 flex flex-wrap items-center gap-3`}>
       <label className={`text-sm ${C.text70} flex items-center gap-2`}>
         期間
         <DateRangeInputs
@@ -50,7 +50,7 @@ export function DeliveryMonitorFilters({
           onToChange={onToChange}
           fromTestId="filter-from"
           toTestId="filter-to"
-          inputClassName={`h-9 w-auto px-2 text-sm border ${C.borderMedium} rounded-[4px] bg-white ${C.text}`}
+          inputClassName={`h-9 w-auto px-2 text-sm border ${C.borderMedium} rounded-xs bg-white ${C.text}`}
         />
       </label>
 
@@ -105,7 +105,7 @@ export function DeliverySummaryCards({ summary }: DeliverySummaryCardsProps) {
       {DELIVERY_STATUS_CARDS.map(({ key, label }) => (
         <div
           key={key}
-          className={`bg-white border ${C.borderLight} rounded-[4px] px-5 py-4`}
+          className={`bg-white border ${C.borderLight} rounded-xs px-5 py-4`}
           data-testid={`summary-card-${key}`}
         >
           <p className={`text-xs ${C.text50} mb-1`}>{label}</p>
@@ -124,7 +124,7 @@ export function DeliveryFailedWarning({ summary }: DeliverySummaryCardsProps) {
   return (
     <div
       role="alert"
-      className={`flex items-center gap-2 ${C.bgDanger8} border ${C.borderDanger20} rounded-[4px] px-4 py-3`}
+      className={`flex items-center gap-2 ${C.bgDanger8} border ${C.borderDanger20} rounded-xs px-4 py-3`}
       data-testid="failed-warning-banner"
     >
       <AlertTriangle className={`${ICON.sm} ${C.danger} shrink-0`} />
@@ -146,7 +146,7 @@ export function DeliveryExcludedReasonBreakdown({ summary }: DeliverySummaryCard
   }
 
   return (
-    <div className={`bg-white border ${C.borderLight} rounded-[4px] px-4 py-3`} data-testid="excluded-reason-breakdown">
+    <div className={`bg-white border ${C.borderLight} rounded-xs px-4 py-3`} data-testid="excluded-reason-breakdown">
       <p className={`text-sm font-medium ${C.text70} mb-2`}>除外理由</p>
       <div className="flex flex-wrap gap-2">
         {Object.entries(summary.excluded_reason_breakdown).map(([reason, count]) => (

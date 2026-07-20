@@ -138,4 +138,9 @@ docker compose exec frontend pnpm install
 - `docker compose exec frontend pnpm test:run -- <path>` は罠 — `--` 以降のパスがスコープ指定として渡らず全件実行になる。スコープ限定したい場合は必ず `docker compose exec frontend npx vitest run <path>` を使うこと（`.claude/skills/scoped-verification-gates/SKILL.md` と整合）。
 - `tsc --noEmit`（`pnpm type-check`）は `tsconfig.json` の `exclude` によりテストファイルを検証しない。import 改名・移行の検証罠（3アプリ全域grep・vitest実証手順）は `.claude/skills/scoped-verification-gates/SKILL.md`「検証の罠」節を参照。
 - `PageLayout` に `resource` prop を渡す route の render test では `PermissionBadges → usePermission → useAuth` が呼ばれるため、`vi.mock("@/hooks/use-auth", () => ({ useAuth: () => ({ ... hasPermission: () => true }) }))` が必須（`AuthProvider` 無しだと `useAuth must be used within an AuthProvider` で全滅する）。正例: `frontend/src/features/cash-register/routes/CashRegisterHistoryPage.test.tsx`。
-- 新規リーフルートを追加したら `docs/spec/ui-design-compliance.md` §2 のページ表を同じコミットで更新すること（C1/C3/C5 は `pnpm design-audit` で機械検証されるが、C2/C4 の `PageLayout` 使用有無は手動追跡のみのため更新漏れが唯一の防御線）。
+- 新規リーフルートを追加したら `docs/spec/ui-design-compliance.md` §2 のページ表を同じコミットで更新すること。C1/C3/C5/C6b/C7/C8/C9 は `pnpm design-audit`（make ci 配線済み）で機械検証される。C8 は `src/features/*/routes/*.tsx` の PageLayout / Master*Page / allowlist（15件）を検査する — 正当な非 PageLayout ルートは `design-system-audit.mjs` の `C8_ALLOWLIST` へ同一コミットで追記すること。
+
+## DESIGN.md 適用範囲（MANDATORY）
+
+SSOT 優先順位: 実装 `src/lib/design-tokens.ts` ＞ `docs/spec/design-system.md`（製品上書き: primary=#038B94）＞ `DESIGN.md`（Notion マーケテンプレート）。
+DESIGN.md は構造原則（spacing / rounded / hairline / canvas-soft×surface / 単一アクセント）のみ遵守対象。display 型・pill CTA・sticker palette 等のマーケ装飾規範は業務 EMR 画面の遵守対象外。

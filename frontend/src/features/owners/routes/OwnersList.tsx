@@ -16,7 +16,7 @@ import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog/ConfirmDialog";
 import { ClinicScopeFilter } from "@/components/shared/ClinicScopeFilter/ClinicScopeFilter";
-import { ICON } from "@/lib/design-tokens";
+import { ICON, LAYOUT } from "@/lib/design-tokens";
 import { paths } from "@/config/paths";
 import { transformUpdatePetRequest } from "@/lib/transforms/pet";
 import { handleApiError } from "@/lib/handle-api-error";
@@ -277,7 +277,7 @@ export function OwnersList({ onUpdatePet }: OwnersListProps = {}) {
           </PrimaryButton>
         ) : null
       }
-      maxWidth="max-w-full"
+      maxWidth={LAYOUT.pageContentMaxWidth.full}
     >
       {/* #86: 複数所属ユーザーのみ拠点横断フィルタを表示 */}
       {assignedClinics.length >= 2 ? (

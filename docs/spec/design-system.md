@@ -203,6 +203,7 @@ DESIGN.md `rounded:` フロントマターに準拠。**コンポーネント種
 
 | トークン | 値 | 用途 |
 |---|---|---|
+| `{rounded.xxs}` | 3px | 製品上書き（Notion 実測値）。コンパクト入力・アイコンボタン。`--radius-xxs` in `globals.css` |
 | `{rounded.xs}` | 4px | フォーム入力（`text-input`）・小タグ |
 | `{rounded.sm}` | 5px | メニュー項目・リスト行・status pill |
 | `{rounded.md}` | 8px | ユーティリティボタン（`button-utility`）・小カード |

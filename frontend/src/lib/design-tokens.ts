@@ -565,8 +565,16 @@ export const LAYOUT = {
    * `default` 設定・単票フォーム系ページ（PageLayout の暗黙デフォルト）
    */
   pageContentMaxWidth: {
-    full:    "max-w-full",
-    default: "max-w-[1440px]",
+    full:       "max-w-full",
+    default:    "max-w-[1440px]",
+    /** 広い編集フォーム（飼主・入院・トリミング等） */
+    form:       "max-w-[1400px]",
+    /** 中規模編集フォーム（検査・ワクチン等） */
+    formMid:    "max-w-[1200px]",
+    /** 狭い単票フォーム（健診等） */
+    formNarrow: "max-w-[900px]",
+    /** 詳細ワークスペース（入院詳細等） */
+    detailWide: "max-w-[1600px]",
   },
 
   /**
@@ -612,9 +620,9 @@ export const LAYOUT = {
 
   /* ── Input / Color Picker compact patterns ── */
   /** Compact padding + rounded for small inline inputs and buttons */
-  inputCompact:     "px-1.5 py-0.5 rounded-[3px]",
+  inputCompact:     "px-1.5 py-0.5 rounded-xxs",
   /** Standard padding + rounded for number/text inputs in side panels */
-  inputStandard:    "px-2 py-1 rounded-[3px]",
+  inputStandard:    "px-2 py-1 rounded-xxs",
   /** Small color-picker input (w-7 h-7) */
   colorInputSmall:  "w-7 h-7 rounded cursor-pointer border-0 bg-transparent p-0",
   /** Medium color-picker input (w-12 h-12) */
@@ -647,13 +655,13 @@ export const STYLE = {
   btnGhost:
     `${C.text60} ${C.hoverText} hover:bg-transparent`,
   btnDanger:
-    `${C.bgDanger} ${C.textWhite} ${C.hoverBgDanger90} h-11 px-4 text-base rounded-[4px] transition-colors shadow-none border-transparent`,
+    `${C.bgDanger} ${C.textWhite} ${C.hoverBgDanger90} h-11 px-4 text-base rounded-xs transition-colors shadow-none border-transparent`,
   btnOutline:
-    `bg-white ${C.borderMedium} ${C.hoverBgLight} h-11 px-4 text-base rounded-[4px] shadow-[var(--notion-shadow-btn)] transition-colors`,
+    `bg-white ${C.borderMedium} ${C.hoverBgLight} h-11 px-4 text-base rounded-xs shadow-[var(--notion-shadow-btn)] transition-colors`,
 
   /* ── Table ── */
   tableContainer:
-    `bg-white border ${C.borderLight} rounded-[4px] flex flex-col flex-1 min-h-0`,
+    `bg-white border ${C.borderLight} rounded-xs flex flex-col flex-1 min-h-0`,
   tableHeaderRow:
     `border-b ${C.borderLight} ${C.bgPage30} h-11`,
   tableHeaderCell:
@@ -675,7 +683,7 @@ export const STYLE = {
 
   /* ── Search Filter Bar ── */
   searchInput:
-    `pl-8 h-11 w-full text-base ${C.text} ${C.textPlaceholder} ${C.bgPage} border border-transparent rounded-[4px] outline-none transition-colors ${C.hoverBgPageDark} focus:bg-white ${C.focusBorderLight}`,
+    `pl-8 h-11 w-full text-base ${C.text} ${C.textPlaceholder} ${C.bgPage} border border-transparent rounded-xs outline-none transition-colors ${C.hoverBgPageDark} focus:bg-white ${C.focusBorderLight}`,
   searchIcon:
     `absolute left-2.5 top-1/2 -translate-y-1/2 size-5 ${C.text30}`,
   searchCount:
@@ -683,9 +691,9 @@ export const STYLE = {
 
   /* ── Pagination ── */
   paginationBtn:
-    `h-8 w-8 ${C.text60} ${C.hoverBgPageHalf} rounded-[4px]`,
+    `h-8 w-8 ${C.text60} ${C.hoverBgPageHalf} rounded-xs`,
   paginationBtnActive:
-    `h-8 w-8 ${C.bgPrimary} text-white ${C.hoverBgPrimaryDark} text-base rounded-[4px]`,
+    `h-8 w-8 ${C.bgPrimary} text-white ${C.hoverBgPrimaryDark} text-base rounded-xs`,
   paginationInfo:
     `text-base ${C.text50}`,
 
@@ -699,13 +707,13 @@ export const STYLE = {
   sidebarItemIdle:
     `${C.text65} ${C.hoverBgPrimary4} ${C.hoverText}`,
   sidebarToggle:
-    `size-7 flex items-center justify-center ${C.text40} ${C.hoverText} ${C.hoverBgMedium} rounded-[3px] transition-colors`,
+    `size-7 flex items-center justify-center ${C.text40} ${C.hoverText} ${C.hoverBgMedium} rounded-xxs transition-colors`,
 
   /* ── Notion Property Row ── */
   propertyRow:
-    `flex gap-2 py-2 px-2 -mx-2 rounded-[3px] ${C.hoverBgLight} transition-colors min-h-[40px]`,
+    `flex gap-2 py-2 px-2 -mx-2 rounded-xxs ${C.hoverBgLight} transition-colors min-h-[40px]`,
   propertyInput:
-    `w-full bg-transparent text-base ${C.text} outline-none border-none px-1.5 py-0.5 rounded-[3px] ${C.hoverBgLight} ${C.focusBgLight} transition-colors ${C.textPlaceholder}`,
+    `w-full bg-transparent text-base ${C.text} outline-none border-none px-1.5 py-0.5 rounded-xxs ${C.hoverBgLight} ${C.focusBgLight} transition-colors ${C.textPlaceholder}`,
 
   /* ── Side Peek ── */
   sidePeekPanel:
@@ -713,29 +721,29 @@ export const STYLE = {
   sidePeekToolbar:
     "flex items-center justify-between h-[48px] px-3 shrink-0",
   sidePeekToolbarBtn:
-    `size-9 flex items-center justify-center rounded-[3px] ${C.text45} ${C.hoverBgMedium} transition-colors`,
+    `size-9 flex items-center justify-center rounded-xxs ${C.text45} ${C.hoverBgMedium} transition-colors`,
 
   /* ── Compact Icon Buttons (size-8=32px / size-7=28px / size-6=24px) ── */
   /** 32px アイコンボタン基底クラス (医療記録タブ・認証フォーム) */
-  iconBtn32: `size-8 flex items-center justify-center rounded-[3px] transition-colors`,
+  iconBtn32: `size-8 flex items-center justify-center rounded-xxs transition-colors`,
   /** 28px アイコンボタン基底クラス (サイドバー・TreatmentRow) */
-  iconBtn28: `size-7 flex items-center justify-center rounded-[3px] transition-colors`,
+  iconBtn28: `size-7 flex items-center justify-center rounded-xxs transition-colors`,
   /** 20px アイコンボタン基底クラス (折りたたみトグル等) */
-  iconBtn20: `size-5 flex items-center justify-center rounded-[3px] transition-colors`,
+  iconBtn20: `size-5 flex items-center justify-center rounded-xxs transition-colors`,
   sidePeekBody:
     "flex-1 overflow-y-auto",
   sidePeekFooter:
     `flex items-center justify-end gap-2 px-4 py-3 border-t ${C.borderLight} shrink-0`,
   sidePeekCancelBtn:
-    `px-4 py-[7px] text-base ${C.text65} ${C.hoverBgLight} rounded-[3px] transition-colors cursor-pointer`,
+    `px-4 py-[7px] text-base ${C.text65} ${C.hoverBgLight} rounded-xxs transition-colors cursor-pointer`,
 
   /* ── Notion Page Icon ── */
   pageIcon:
-    `size-[38px] flex items-center justify-center rounded-[3px] ${C.bgPage} ${C.text45}`,
+    `size-[38px] flex items-center justify-center rounded-xxs ${C.bgPage} ${C.text45}`,
 
   /* ── Select Trigger (compact, side peek) ── */
   selectCompact:
-    `h-[30px] text-base bg-transparent ${C.text} border-0 ${C.hoverBgLight} px-1.5 shadow-none rounded-[3px] w-auto max-w-full`,
+    `h-[30px] text-base bg-transparent ${C.text} border-0 ${C.hoverBgLight} px-1.5 shadow-none rounded-xxs w-auto max-w-full`,
 
   /* ── Section heading (uppercase label) ── */
   sectionLabel:
@@ -747,13 +755,13 @@ export const STYLE = {
 
   /* ── Confirm dialog primary ── */
   confirmPrimary:
-    `${C.bgAccent} text-white ${C.bgAccentHover} h-11 px-4 text-base rounded-[4px] transition-colors shadow-none border-transparent`,
+    `${C.bgAccent} text-white ${C.bgAccentHover} h-11 px-4 text-base rounded-xs transition-colors shadow-none border-transparent`,
 
   /* ── Master settings index row ── */
   settingsRow:
     `w-full flex items-center gap-3 px-4 py-3 ${C.hoverBgPage} transition-colors cursor-pointer group text-left`,
   settingsRowIcon:
-    `size-[32px] flex items-center justify-center rounded-[3px] ${C.bgPage} ${C.text45} ${C.groupHoverBgPrimary} ${C.groupHoverTextWhite} transition-colors shrink-0`,
+    `size-[32px] flex items-center justify-center rounded-xxs ${C.bgPage} ${C.text45} ${C.groupHoverBgPrimary} ${C.groupHoverTextWhite} transition-colors shrink-0`,
 
   /* ── Inline Add Row ── */
   inlineAddBtn:
@@ -771,7 +779,7 @@ export const STYLE = {
     `bg-white p-6 rounded-lg shadow-sm border ${C.borderMedium}`,
 
   /** Standard multi-line text area */
-  textarea:     `w-full rounded-[3px] border ${C.borderMedium} bg-white p-3 text-sm ${C.text} outline-none ${C.focusBorderAccent} transition-colors resize-none leading-relaxed font-mono`,
+  textarea:     `w-full rounded-xxs border ${C.borderMedium} bg-white p-3 text-sm ${C.text} outline-none ${C.focusBorderAccent} transition-colors resize-none leading-relaxed font-mono`,
 
   /* ── Drag Overlay ── */
   dragOverlayShadow: "shadow-[0_4px_16px_rgba(0,0,0,0.12)]",

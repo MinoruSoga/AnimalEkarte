@@ -9,6 +9,7 @@ import { LoadingFallback, ErrorFallback } from "@/components/shared/DataStates";
 import { useGetClinicHolidays } from "../api/clinic-holidays";
 import type { ClinicHoliday } from "../api/clinic-holidays";
 import { todayJSTISO } from "@/lib/jst-date";
+import { LAYOUT } from "@/lib/design-tokens";
 
 const ClinicHolidayModal = lazy(() =>
   import("../components/ClinicHolidayModal/ClinicHolidayModal").then((m) => ({ default: m.ClinicHolidayModal }))
@@ -77,7 +78,7 @@ export function ShiftCalendarPage() {
 
   if (shiftsQuery.isLoading || staffsQuery.isLoading) {
     return (
-      <PageLayout title="シフト管理" resource={ResourceShifts} maxWidth="max-w-full">
+      <PageLayout title="シフト管理" resource={ResourceShifts} maxWidth={LAYOUT.pageContentMaxWidth.full}>
         <LoadingFallback />
       </PageLayout>
     );
@@ -85,14 +86,14 @@ export function ShiftCalendarPage() {
 
   if (shiftsQuery.isError || staffsQuery.isError) {
     return (
-      <PageLayout title="シフト管理" resource={ResourceShifts} maxWidth="max-w-full">
+      <PageLayout title="シフト管理" resource={ResourceShifts} maxWidth={LAYOUT.pageContentMaxWidth.full}>
         <ErrorFallback message="シフトデータの取得に失敗しました" />
       </PageLayout>
     );
   }
 
   return (
-    <PageLayout title="シフト管理" resource={ResourceShifts} maxWidth="max-w-full">
+    <PageLayout title="シフト管理" resource={ResourceShifts} maxWidth={LAYOUT.pageContentMaxWidth.full}>
       <ShiftCalendarGrid
         yearMonth={yearMonth}
         shifts={shifts}

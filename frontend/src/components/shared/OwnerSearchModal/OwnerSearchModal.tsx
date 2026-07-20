@@ -146,7 +146,7 @@ export const OwnerSearchModal = memo(function OwnerSearchModal({
                 onChange={(e) => setSearchTerm(e.target.value)}
                 onKeyDown={handleKeyDown}
                 placeholder="飼主名 / 飼主No / 電話番号"
-                className={`pl-9 h-10 text-base ${C.bgPage} ${C.borderMedium} ${C.focusBorderAccent} rounded-[4px]`}
+                className={`pl-9 h-10 text-base ${C.bgPage} ${C.borderMedium} ${C.focusBorderAccent} rounded-xs`}
               />
             </div>
             <Button

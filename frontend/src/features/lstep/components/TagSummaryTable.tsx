@@ -75,7 +75,7 @@ export function TagSummaryTable({
   return (
     <div className="flex flex-col gap-3">
       {/* フィルタバー */}
-      <div className={`bg-white border ${C.borderLight} rounded-[4px] p-3 flex flex-wrap gap-3 items-center`}>
+      <div className={`bg-white border ${C.borderLight} rounded-xs p-3 flex flex-wrap gap-3 items-center`}>
         <div className="relative min-w-[200px]">
           <Search className={STYLE.searchIcon} />
           <Input

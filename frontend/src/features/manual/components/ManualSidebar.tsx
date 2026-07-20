@@ -51,13 +51,13 @@ export function ManualSidebar({
     >
       {/* View Mode Toggle */}
       <div className={`p-3 border-b ${C.borderDivider} space-y-2`}>
-        <div role="tablist" aria-label="マニュアル表示モード" className="grid grid-cols-2 gap-1 p-0.5 rounded-[3px] bg-black/5">
+        <div role="tablist" aria-label="マニュアル表示モード" className="grid grid-cols-2 gap-1 p-0.5 rounded-xxs bg-black/5">
           <button
             type="button"
             role="tab"
             aria-selected={viewMode === "screens"}
             onClick={() => onChangeViewMode("screens")}
-            className={`px-2 py-1.5 text-sm rounded-[3px] transition-colors ${
+            className={`px-2 py-1.5 text-sm rounded-xxs transition-colors ${
               viewMode === "screens"
                 ? `${C.bgBrand} text-white font-medium`
                 : `${C.text65} ${C.hoverBgLight}`
@@ -70,7 +70,7 @@ export function ManualSidebar({
             role="tab"
             aria-selected={viewMode === "workflows"}
             onClick={() => onChangeViewMode("workflows")}
-            className={`px-2 py-1.5 text-sm rounded-[3px] transition-colors ${
+            className={`px-2 py-1.5 text-sm rounded-xxs transition-colors ${
               viewMode === "workflows"
                 ? `${C.bgBrand} text-white font-medium`
                 : `${C.text65} ${C.hoverBgLight}`
@@ -89,7 +89,7 @@ export function ManualSidebar({
             value={query}
             onChange={(e) => onChangeQuery(e.target.value)}
             aria-label="マニュアル内検索"
-            className={`w-full pl-8 pr-2 py-1.5 text-sm rounded-[3px] border ${C.borderDivider} bg-white outline-none focus:ring-1 ${C.focusRingBrand40} ${C.text}`}
+            className={`w-full pl-8 pr-2 py-1.5 text-sm rounded-xxs border ${C.borderDivider} bg-white outline-none focus:ring-1 ${C.focusRingBrand40} ${C.text}`}
           />
         </div>
       </div>
@@ -113,7 +113,7 @@ export function ManualSidebar({
                   <li key={`${a.category}/${a.slug}`}>
                     <Link
                       to={href}
-                      className={`block px-2 py-1.5 rounded-[3px] text-sm transition-colors ${
+                      className={`block px-2 py-1.5 rounded-xxs text-sm transition-colors ${
                         isActive
                           ? `${STYLE.sidebarItemActive} font-medium`
                           : `${C.text65} ${C.hoverBgLight} ${C.hoverText}`

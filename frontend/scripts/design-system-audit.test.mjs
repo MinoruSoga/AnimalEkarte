@@ -20,6 +20,10 @@ import {
   checkC3,
   checkC5,
   checkC6,
+  checkC7,
+  checkC8,
+  checkC9,
+  C8_ALLOWLIST,
   collectViolations,
 } from "./design-system-audit.mjs";
 
@@ -149,6 +153,8 @@ test("collectViolations: クリーンな fixture は 0 件", async () => {
     assert.equal(result.c3.length, 0);
     assert.equal(result.c5.length, 0);
     assert.equal(result.c6.length, 0);
+    assert.equal(result.c7.length, 0);
+    assert.equal(result.c9.length, 0);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
@@ -165,7 +171,7 @@ test("collectViolations: 意図的違反 fixture は各カテゴリで検出さ�
         'const hex = "#FF0000";',
         'const raw = "rgba(0,0,0,0.5)";',
         'export function BrokenPage() {',
-        '  return <PrimaryButton colorVariant="default">NG</PrimaryButton>;',
+        '  return <PrimaryButton colorVariant="default" className="rounded-[4px]" maxWidth="max-w-full">NG</PrimaryButton>;',
         "}",
       ].join("\n"),
     );
@@ -174,6 +180,10 @@ test("collectViolations: 意図的違反 fixture は各カテゴリで検出さ�
     assert.equal(result.c3.length, 1);
     assert.equal(result.c5.length, 1);
     assert.equal(result.c6.length, 1);
+    assert.equal(result.c7.length, 1);
+    assert.equal(result.c9.length, 1);
+    // BrokenPage は PageLayout 無し・allowlist 外 → C8
+    assert.equal(result.c8.length, 1);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
@@ -288,11 +298,56 @@ test("CLI: 違反なしの fixture は exit code 0", () => {
   try {
     writeFileSync(
       path.join(routesDir, "CleanPage.tsx"),
-      'export function CleanPage() { return null; }',
+      'export function CleanPage() { return <PageLayout title="ok">x</PageLayout>; }',
     );
     const scriptPath = path.join(import.meta.dirname, "design-system-audit.mjs");
     const stdout = execFileSync("node", [scriptPath, "--cwd", root], { encoding: "utf-8" });
     assert.match(stdout, /PASS/);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+
+test("checkC7: maxWidth 生値を検出する", () => {
+  const text = [
+    'maxWidth="max-w-full"',
+    'maxWidth="max-w-[1400px]"',
+    'maxWidth={LAYOUT.pageContentMaxWidth.full}',
+    'maxWidth="max-w-3xl"',
+  ].join("\n");
+  const violations = checkC7(text);
+  assert.equal(violations.length, 2);
+});
+
+test("checkC9: rounded 任意値を検出する", () => {
+  const text = [
+    'className="rounded-[4px]"',
+    'className="rounded-t-[3px]"',
+    'className="rounded-xs"',
+  ].join("\n");
+  const violations = checkC9(text);
+  assert.equal(violations.length, 2);
+});
+
+test("checkC8: allowlist / PageLayout / 欠落を判定する", () => {
+  assert.equal(C8_ALLOWLIST.size, 15);
+  assert.equal(checkC8("Login.tsx", "export function Login() { return null; }").length, 0);
+  assert.equal(checkC8("FooPage.tsx", "return <PageLayout title=\"x\">").length, 0);
+  assert.equal(checkC8("FooPage.tsx", "return <MasterListPage />").length, 0);
+  assert.equal(checkC8("FooPage.tsx", "export function Foo() { return null; }").length, 1);
+});
+
+test("collectViolations（FE8-5）: C8 は allowlist basename を除外する", async () => {
+  const root = mkdtempSync(path.join(tmpdir(), "design-audit-fixture-"));
+  try {
+    const routesDir = path.join(root, "src", "features", "auth", "routes");
+    mkdirSync(routesDir, { recursive: true });
+    writeFileSync(path.join(routesDir, "Login.tsx"), "export function Login() { return null; }");
+    writeFileSync(path.join(routesDir, "OrphanPage.tsx"), "export function OrphanPage() { return null; }");
+    const result = await collectViolations(root);
+    assert.equal(result.c8.length, 1);
+    assert.match(result.c8[0].file, /OrphanPage\.tsx$/);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

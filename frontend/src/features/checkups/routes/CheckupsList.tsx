@@ -1,5 +1,5 @@
 // React/Framework
-import { C, ICON } from "@/lib/design-tokens";
+import { C, ICON, LAYOUT } from "@/lib/design-tokens";
 import { useCallback, useDeferredValue, useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import { normalizeKana } from "@/lib/normalize-kana";
@@ -244,7 +244,7 @@ export function CheckupsList() {
       title="定期健診"
       resource={ResourceCheckups}
       icon={<ClipboardCheck className={`${ICON.page} ${C.text}`} />}
-      maxWidth="max-w-full"
+      maxWidth={LAYOUT.pageContentMaxWidth.full}
       headerAction={
         canCreate ? (
           <PrimaryButton colorVariant="brand" onClick={handleCreate}>

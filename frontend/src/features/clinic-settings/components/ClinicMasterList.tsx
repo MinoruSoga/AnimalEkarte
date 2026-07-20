@@ -8,7 +8,7 @@ import { PropertyFilter } from "@/components/shared/PropertyFilter/PropertyFilte
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
 import { RowActionButton } from "@/components/shared/RowActionButton";
-import { C, ICON } from "@/lib/design-tokens";
+import { C, ICON, LAYOUT } from "@/lib/design-tokens";
 import { ResourceHospitalSettings } from "@/types/generated/models";
 import type { Clinic } from "../api/clinics";
 
@@ -58,7 +58,7 @@ export function ClinicMasterList({
           </PrimaryButton>
         ) : null
       }
-      maxWidth="max-w-full"
+      maxWidth={LAYOUT.pageContentMaxWidth.full}
     >
       <div className="flex flex-col gap-4">
         {topSection}

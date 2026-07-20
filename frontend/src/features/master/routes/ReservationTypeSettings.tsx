@@ -6,7 +6,7 @@ import { useMasterCRUD } from "../hooks/use-master-crud";
 import { useMasterSave } from "../hooks/use-master-save";
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
-import { C, ICON } from "@/lib/design-tokens";
+import { C, ICON, LAYOUT } from "@/lib/design-tokens";
 import { paths } from "@/config/paths";
 import { usePermission } from "@/hooks/use-permission";
 import { ResourceMasterReservationType } from "@/types/generated/models";
@@ -153,7 +153,7 @@ export function ReservationTypeSettings() {
             icon={<Activity className={`${ICON.page} ${C.text}`} />}
             resource={ResourceMasterReservationType}
             onBack={() => navigate(paths.settings.getHref())}
-            maxWidth="max-w-full"
+            maxWidth={LAYOUT.pageContentMaxWidth.full}
             headerAction={
               canCreate ? (
                 <PrimaryButton onClick={() => handleCategoryAddInGroup(undefined)}>

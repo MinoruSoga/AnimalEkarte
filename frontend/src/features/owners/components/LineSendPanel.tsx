@@ -152,7 +152,7 @@ export function LineSendPanel({
                     name="text"
                     rows={5}
                     placeholder="送信するメッセージを入力してください"
-                    className={`w-full rounded-[3px] border ${C.borderMedium} bg-white p-3 text-sm ${C.text} ${C.textPlaceholder} outline-none ${C.focusBorderAccent} transition-colors resize-none leading-relaxed`}
+                    className={`w-full rounded-xxs border ${C.borderMedium} bg-white p-3 text-sm ${C.text} ${C.textPlaceholder} outline-none ${C.focusBorderAccent} transition-colors resize-none leading-relaxed`}
                   />
                 </div>
               ) : null}
@@ -204,7 +204,7 @@ export function LineSendPanel({
                   name="purpose"
                   type="text"
                   placeholder="例: 術後フォロー"
-                  className={`${STYLE.formInput} rounded-[3px] px-3`}
+                  className={`${STYLE.formInput} rounded-xxs px-3`}
                 />
               </div>
 

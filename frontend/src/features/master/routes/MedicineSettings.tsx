@@ -13,7 +13,7 @@ import Plus from "lucide-react/dist/esm/icons/plus";
 // Internal – shared
 import { PageLayout } from "@/components/shared/PageLayout/PageLayout";
 import { PrimaryButton } from "@/components/shared/Form/PrimaryButton";
-import { C, ICON } from "@/lib/design-tokens";
+import { C, ICON, LAYOUT } from "@/lib/design-tokens";
 import { useReducedMotion } from "@/hooks/use-reduced-motion";
 import { useMasterCRUD } from "../hooks/use-master-crud";
 import { useMasterSave } from "../hooks/use-master-save";
@@ -164,7 +164,7 @@ export function MedicineSettings() {
             icon={<Pill className={`${ICON.page} ${C.text}`} />}
             resource={ResourceMasterMedical}
             onBack={() => navigate(paths.settings.getHref())}
-            maxWidth="max-w-full"
+            maxWidth={LAYOUT.pageContentMaxWidth.full}
             headerAction={
               canCreate ? (
                 <PrimaryButton onClick={() => handleCreate()}>

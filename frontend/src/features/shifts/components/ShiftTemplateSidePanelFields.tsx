@@ -44,7 +44,7 @@ export function ShiftTemplateProperties({
           <button
             type="button"
             onClick={() => onField("is_active", !formData.is_active)}
-            className={`inline-flex items-center rounded-[3px] ${C.hoverBgLight} transition-colors py-0.5 px-0.5 cursor-pointer`}
+            className={`inline-flex items-center rounded-xxs ${C.hoverBgLight} transition-colors py-0.5 px-0.5 cursor-pointer`}
           >
             <StatusPill isActive={formData.is_active} />
           </button>
@@ -171,7 +171,7 @@ function BreakEditor({
 function PropertyRow({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div
-      className={`flex gap-2 py-2 px-2 -mx-2 rounded-[3px] ${C.hoverBgLight} transition-colors min-h-[40px]`}
+      className={`flex gap-2 py-2 px-2 -mx-2 rounded-xxs ${C.hoverBgLight} transition-colors min-h-[40px]`}
     >
       <div className={`w-[120px] shrink-0 text-sm ${C.text65} select-none truncate flex items-center`}>
         {label}
@@ -198,7 +198,7 @@ function PropInput({
     <input
       type={type}
       aria-label={ariaLabel}
-      className={`w-full bg-transparent text-sm ${C.text} outline-none border-none px-1.5 py-0.5 rounded-[3px] ${C.hoverBgLight} transition-colors ${C.textPlaceholder}`}
+      className={`w-full bg-transparent text-sm ${C.text} outline-none border-none px-1.5 py-0.5 rounded-xxs ${C.hoverBgLight} transition-colors ${C.textPlaceholder}`}
       value={value}
       onChange={(e) => onChange(e.target.value)}
       placeholder={placeholder ?? "空"}

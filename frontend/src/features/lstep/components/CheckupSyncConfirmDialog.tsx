@@ -66,7 +66,7 @@ export function CheckupSyncConfirmDialog({
               type="text"
               value={tagName}
               onChange={(e) => onTagNameChange(e.target.value)}
-              className={`w-full ${STYLE.formInput} border rounded-[4px] px-3 ${isTagNameEmpty ? STYLE.formInputError : ""}`}
+              className={`w-full ${STYLE.formInput} border rounded-xs px-3 ${isTagNameEmpty ? STYLE.formInputError : ""}`}
               placeholder="例: checkup_annual_2026"
             />
             {isTagNameEmpty ? (
@@ -75,7 +75,7 @@ export function CheckupSyncConfirmDialog({
           </div>
 
           {/* 確認メッセージ */}
-          <div className={`rounded-[4px] p-4 ${C.bgBrand10} border ${C.borderBrand}`}>
+          <div className={`rounded-xs p-4 ${C.bgBrand10} border ${C.borderBrand}`}>
             <p className={`text-sm ${C.text}`}>
               <span className={`font-semibold ${C.textBrand}`}>
                 {CHECKUP_TYPE_LABELS[checkupType]}

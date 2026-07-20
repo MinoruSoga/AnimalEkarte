@@ -1,41 +1,23 @@
-#!/usr/bin/env node
-
 /**
- * design-system-audit — docs/spec/ui-design-compliance.md §1 の C1/C3/C5 判定と、
- * FE3-2 で新設した C6（rgb/rgba/hsl 直値）判定を機械化する。
- *
- * 2026-07-06 UI 準拠監査で C2/C4（PageLayout 未使用）5件を grep ベースで手動発見したが、
- * 再発防止のため機械化できる判定（C1/C3/C5/C6）だけを CI 前に実行できる形で固定する。
- * C2/C4（leaf component の PageLayout 使用追跡）は動的解決が複雑なため対象外 —
- * 引き続き docs/spec/ui-design-compliance.md §2 の手動更新で追跡する。
+ * design-system-audit — docs/spec/ui-design-compliance.md §1 の機械判定。
  *
  * 判定内容:
- *   C1 — legacy accent 色（`C.accent` / `#0075DE` / `#2383E2`）は brand teal 系のみ許容のため禁止。
- *        単語境界判定のため `C.accentBrand` 等の正当なトークン名には前方一致しない。
- *        design-tokens.ts（legacy トークンそのものの定義元）のみ allowlist。
- *   C3 — hex 直書き（文字列/テンプレートリテラル内の `#RGB`〜`#RRGGBBAA`）禁止。
- *        issue 番号コメント（`#158` 等）は引用符で囲まれないため誤検知しない。
- *   C5 — Primary CTA の `colorVariant` は `"brand"` のみ許容（`"default"` 等は違反）。
- *        `*.test.*` は「default」opt-out 自体を検証する正当なテストのため対象外。
- *   C6 — rgba()/rgb()/hsla()/hsl() の直値禁止（FE3-2 新設）。design-tokens.ts（定義正本）と
- *        use-reservation-type-color-map.ts（実行時動的生成・JSDoc 根拠あり）のみ allowlist。
+ *   C1 — legacy accent 色（`C.accent` / `#0075DE` / `#2383E2`）禁止。
+ *   C3 — hex 直書き（文字列/テンプレートリテラル内）禁止。
+ *   C5 — Primary CTA の `colorVariant` は `"brand"` のみ。
+ *   C6 — rgba()/rgb()/hsla()/hsl() の直値禁止（doc §1 の臨床安全 C6a とは ID 分離: 本スクリプトは C6b）。
+ *   C7 — PageLayout maxWidth の生値禁止（`max-w-full` / `max-w-[Npx]`）。トークン経由のみ。
+ *   C8 — `src/features/<feat>/routes/<file>.tsx` が PageLayout / Master*Page / allowlist のいずれか。
+ *   C9 — `rounded(-[trbl]{1,2})?-[Npx]` 任意値禁止（トークン `rounded-xxs/xs/...` へ）。
  *
- * 対象範囲（FE3-2 でスコープ拡大）: `src/**`・`liff/src/**`・`line-reserve/src/**` 全体（.ts/.tsx）。
- * C3/C5/C6 は `*.test.*` を除外する（テストのモックデータ・opt-out 検証に正当な値が頻出するため）。
- * C1/C3/C6 は design-tokens.ts を allowlist する（色定数カタログそのものであるため）。
+ * C2/C4（PageLayout 使用）は C8 で routes 配下を機械化。新規リーフを allowlist に載せる場合は
+ * C8_ALLOWLIST と docs/spec/ui-design-compliance.md §2 を同一コミットで更新する。
  *
- * 現状は C1/C3/C5/C6 いずれも違反 0 件のため baseline ratchet ではなく
- * strict fail（1件でも検出したら exit 1）を採用する。新規に non-brand / legacy accent /
- * hex 直書き / rgba 直値が混入した時点で失敗させ、baseline 更新という「既知債務化」の抜け道を作らない。
+ * strict fail（1件でも検出したら exit 1）。正当例外は allowlist 追記のみ。
  *
- * Exit code:
- *   0 — 違反なし
- *   1 — 違反あり（file:line を stdout に列挙）
- *   2 — 実行エラー（想定外の例外）
- *
- * 実行:
- * $ node scripts/design-system-audit.mjs
- * $ docker compose exec frontend pnpm design-audit
+ * Exit: 0=OK / 1=違反 / 2=実行エラー
+ * 実行: node scripts/design-system-audit.mjs [--cwd frontend]
+ *       docker compose exec frontend pnpm design-audit
  */
 
 import { readFileSync } from "node:fs";
@@ -57,6 +39,28 @@ const C3_RE = /['"`]#[0-9A-Fa-f]{3,8}['"`]/;
 const C5_RE = /colorVariant="([a-zA-Z]+)"/g;
 const C5_BRAND_VALUE = "brand";
 const C6_RE = /rgba?\(|hsla?\(/;
+const C7_RE = /maxWidth=["']max-w-(full|\[[0-9]+px\])["']/;
+const C9_RE = /rounded(?:-[trbl]{1,2})?-\[[0-9]+px\]/
+
+/** C8: PageLayout/Master shell を持たない正当な routes ファイル（basename 15件） */
+export const C8_ALLOWLIST = new Set([
+  "Login.tsx",
+  "ForgotPasswordPage.tsx",
+  "ResetPasswordPage.tsx",
+  "OwnerReport.tsx",
+  "Reception.tsx",
+  "ManualPage.tsx",
+  "ReservationManagement.tsx",
+  "CheckupSyncPage.tsx",
+  "ClinicMasterSettings.tsx",
+  "LineReservationSlotsSettings.tsx",
+  "TrimmingLazyModals.tsx",
+  "ReceptionLazyModals.tsx",
+  "LstepDeliveryMonitorPageParts.tsx",
+  "LstepDeliveryMonitorLogsTable.tsx",
+  "medical-records-columns.tsx",
+]);
+const C8_SHELL_RE = /<PageLayout|Master(?:CRUD|Tab|List)Page/;
 
 function parseArgs(argv) {
   const args = { cwd: process.cwd() };
@@ -156,6 +160,43 @@ export function checkC6(text) {
   return violations;
 }
 
+
+/**
+ * checkC7 は maxWidth="max-w-full" / maxWidth="max-w-[Npx]" の生値を検出する（FE8-5）。
+ */
+export function checkC7(text) {
+  const violations = [];
+  text.split("\n").forEach((line, i) => {
+    if (C7_RE.test(line)) {
+      violations.push({ lineNumber: i + 1, text: line.trim() });
+    }
+  });
+  return violations;
+}
+
+/**
+ * checkC8 は routes ファイル本文が PageLayout / Master*Page / allowlist のいずれかを満たすか判定する。
+ * 違反時は 1 件の擬似 violation を返す（ファイル単位）。
+ */
+export function checkC8(fileName, text) {
+  if (C8_ALLOWLIST.has(fileName)) return [];
+  if (C8_SHELL_RE.test(text)) return [];
+  return [{ lineNumber: 1, text: "PageLayout / Master*Page / C8 allowlist のいずれも無し" }];
+}
+
+/**
+ * checkC9 は rounded-[Npx] / rounded-t-[Npx] 等の任意値角丸を検出する（FE8-5）。
+ */
+export function checkC9(text) {
+  const violations = [];
+  text.split("\n").forEach((line, i) => {
+    if (C9_RE.test(line)) {
+      violations.push({ lineNumber: i + 1, text: line.trim() });
+    }
+  });
+  return violations;
+}
+
 async function walk(dir, exts, excludeNames) {
   let entries;
   try {
@@ -182,7 +223,7 @@ async function walk(dir, exts, excludeNames) {
  * ファイル I/O のみ副作用を持ち、判定ロジック自体は checkC1/checkC3/checkC5/checkC6 に委譲する。
  */
 export async function collectViolations(cwd) {
-  const result = { c1: [], c3: [], c5: [], c6: [] };
+  const result = { c1: [], c3: [], c5: [], c6: [], c7: [], c8: [], c9: [] };
 
   for (const scanRoot of SCAN_ROOTS) {
     const root = path.join(cwd, scanRoot);
@@ -213,6 +254,29 @@ export async function collectViolations(cwd) {
           result.c6.push({ file: relPath, ...v });
         }
       }
+      if (!isTest) {
+        for (const v of checkC7(text)) {
+          result.c7.push({ file: relPath, ...v });
+        }
+        for (const v of checkC9(text)) {
+          result.c9.push({ file: relPath, ...v });
+        }
+      }
+
+      // C8: src/features/<feat>/routes/<file>.tsx のみ（ネスト無し・.test 除外）
+      const parts = relPath.split(path.sep);
+      if (
+        parts[0] === "src" &&
+        parts[1] === "features" &&
+        parts[3] === "routes" &&
+        parts.length === 5 &&
+        path.extname(parts[4]) === ".tsx" &&
+        !isTest
+      ) {
+        for (const v of checkC8(parts[4], text)) {
+          result.c8.push({ file: relPath, ...v });
+        }
+      }
     }
   }
   return result;
@@ -241,8 +305,12 @@ async function main() {
   printGroup("C3 hex 直書き", result.c3);
   printGroup("C5 非 brand colorVariant", result.c5);
   printGroup("C6 rgba/hsla 直値", result.c6);
+  printGroup("C7 maxWidth 生値", result.c7);
+  printGroup("C8 PageLayout 未使用 routes", result.c8);
+  printGroup("C9 rounded 任意値", result.c9);
 
-  const total = result.c1.length + result.c3.length + result.c5.length + result.c6.length;
+  const total = result.c1.length + result.c3.length + result.c5.length + result.c6.length
+    + result.c7.length + result.c8.length + result.c9.length;
   if (total > 0) {
     console.log(`design-system-audit: FAIL — ${total} 件の違反`);
     process.exit(1);

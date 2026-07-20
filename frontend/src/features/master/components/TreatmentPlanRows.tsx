@@ -111,7 +111,7 @@ function TreatmentExpandButton({
         event.stopPropagation();
         onToggle();
       }}
-      className={`size-[22px] flex items-center justify-center rounded-[3px] ${C.text40} ${C.hoverBgMedium} transition-colors shrink-0`}
+      className={`size-[22px] flex items-center justify-center rounded-xxs ${C.text40} ${C.hoverBgMedium} transition-colors shrink-0`}
     >
       {isExpanded ? (
         <ChevronDown className={ICON.xs} />

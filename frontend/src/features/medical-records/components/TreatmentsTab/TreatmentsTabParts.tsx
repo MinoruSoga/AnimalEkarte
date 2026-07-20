@@ -145,7 +145,7 @@ export function TreatmentAddControls({
         <select
           value={addItemType}
           onChange={(event) => onItemTypeChange(event.target.value as TreatmentItemType)}
-          className={`h-8 text-sm rounded-[3px] border ${C.borderMedium} ${C.bgWhite} px-2 ${C.text}`}
+          className={`h-8 text-sm rounded-xxs border ${C.borderMedium} ${C.bgWhite} px-2 ${C.text}`}
         >
           {ITEM_TYPE_OPTIONS.map((option) => (
             <option key={option.value} value={option.value}>
@@ -157,7 +157,7 @@ export function TreatmentAddControls({
           <select
             value={addAdminRoute}
             onChange={(event) => onAdminRouteChange(event.target.value)}
-            className={`h-8 text-sm rounded-[3px] border ${C.borderMedium} ${C.bgWhite} px-2 ${C.text}`}
+            className={`h-8 text-sm rounded-xxs border ${C.borderMedium} ${C.bgWhite} px-2 ${C.text}`}
           >
             {ADMIN_ROUTE_OPTIONS.map((option) => (
               <option key={option.value} value={option.value}>
@@ -177,7 +177,7 @@ export function TreatmentAddControls({
             if (event.key === "Escape") onCancel();
           }}
           aria-label="治療内容"
-          className={`flex-1 h-8 text-sm border ${C.borderMedium} rounded-[3px] px-2 ${C.bgWhite} ${C.text} outline-none ${C.focusBorderAccent}`}
+          className={`flex-1 h-8 text-sm border ${C.borderMedium} rounded-xxs px-2 ${C.bgWhite} ${C.text} outline-none ${C.focusBorderAccent}`}
         />
         <Button
           size="sm"
@@ -233,7 +233,7 @@ export function TreatmentTotals({
   ownerDiscountRate,
 }: TreatmentTotalsProps) {
   return (
-    <div className={`${C.bgWhite} border ${C.borderLight} rounded-[4px] px-4 py-3`}>
+    <div className={`${C.bgWhite} border ${C.borderLight} rounded-xs px-4 py-3`}>
       <div className="flex flex-col gap-1.5">
         <div className={`flex items-center justify-between text-sm ${C.text60}`}>
           <span>全明細合計 ({totalCount}件)</span>

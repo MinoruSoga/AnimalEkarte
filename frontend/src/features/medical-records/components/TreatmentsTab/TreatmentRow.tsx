@@ -267,7 +267,7 @@ export const TreatmentRow = memo(function TreatmentRow({
           />
         ) : (
           <button type="button"
-            className={`w-full text-left text-sm ${C.text} ${C.hoverBgLight} px-1 py-0.5 rounded-[3px] transition-colors`}
+            className={`w-full text-left text-sm ${C.text} ${C.hoverBgLight} px-1 py-0.5 rounded-xxs transition-colors`}
             onClick={() => setEditField("content")}
           >
             {treatment.content || (
@@ -297,7 +297,7 @@ export const TreatmentRow = memo(function TreatmentRow({
           </>
         ) : (
           <button type="button"
-            className={`w-full text-right text-sm ${C.text} ${C.hoverBgLight} px-1 py-0.5 rounded-[3px] transition-colors font-mono`}
+            className={`w-full text-right text-sm ${C.text} ${C.hoverBgLight} px-1 py-0.5 rounded-xxs transition-colors font-mono`}
             onClick={() => setEditField("unit_price")}
           >
             {formatCurrency(treatment.unit_price)}
@@ -322,7 +322,7 @@ export const TreatmentRow = memo(function TreatmentRow({
           />
         ) : (
           <button type="button"
-            className={`w-full text-right text-sm ${C.hoverBgLight} px-1 py-0.5 rounded-[3px] transition-colors ${
+            className={`w-full text-right text-sm ${C.hoverBgLight} px-1 py-0.5 rounded-xxs transition-colors ${
               currentGate.warning === "exceeds-max"
                 ? C.textRed700
                 : currentGate.warning === "below-min"
@@ -391,7 +391,7 @@ export const TreatmentRow = memo(function TreatmentRow({
           <button type="button"
             className={`w-full text-right text-sm ${
               treatment.discount_amount > 0 ? C.textDiscount : C.text40
-            } ${canEditDiscount ? C.hoverBgLight : ""} px-1 py-0.5 rounded-[3px] transition-colors font-mono ${!canEditDiscount ? "cursor-not-allowed opacity-60" : ""}`}
+            } ${canEditDiscount ? C.hoverBgLight : ""} px-1 py-0.5 rounded-xxs transition-colors font-mono ${!canEditDiscount ? "cursor-not-allowed opacity-60" : ""}`}
             onClick={() => { if (canEditDiscount) setEditField("discount_amount"); }}
             disabled={!canEditDiscount}
             title={!canEditDiscount ? "値引の変更には権限が必要です" : undefined}
@@ -418,7 +418,7 @@ export const TreatmentRow = memo(function TreatmentRow({
           />
         ) : (
           <button type="button"
-            className={`w-full text-left text-sm ${C.text60} ${C.hoverBgLight} px-1 py-0.5 rounded-[3px] transition-colors`}
+            className={`w-full text-left text-sm ${C.text60} ${C.hoverBgLight} px-1 py-0.5 rounded-xxs transition-colors`}
             onClick={() => setEditField("memo")}
           >
             {treatment.memo || <span className={C.text30}>メモ</span>}

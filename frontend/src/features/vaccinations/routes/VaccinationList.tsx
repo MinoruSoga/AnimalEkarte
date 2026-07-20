@@ -1,5 +1,5 @@
 // React/Framework
-import { C, ICON } from "@/lib/design-tokens";
+import { C, ICON, LAYOUT } from "@/lib/design-tokens";
 import { useState, useDeferredValue, useCallback, useEffect, useMemo, useTransition } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 
@@ -247,7 +247,7 @@ export function VaccinationList() {
           ) : null}
         </div>
       }
-      maxWidth="max-w-full"
+      maxWidth={LAYOUT.pageContentMaxWidth.full}
     >
       <div className="flex flex-col gap-4">
         <PropertyFilter

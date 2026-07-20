@@ -59,7 +59,7 @@ const DemoAccount = memo(function DemoAccount({
     <button
       type="button"
       onClick={() => onSelect(email)}
-      className={`w-full text-left px-2.5 py-2 rounded-[3px] ${C.hoverBgLight} transition-colors flex items-center gap-3`}
+      className={`w-full text-left px-2.5 py-2 rounded-xxs ${C.hoverBgLight} transition-colors flex items-center gap-3`}
     >
       <div className={`size-[36px] rounded-full flex items-center justify-center shrink-0 ${C.bgInactive}`}>
         <span className={`text-sm font-medium ${C.text65}`}>{displayName.charAt(0)}</span>
@@ -67,14 +67,14 @@ const DemoAccount = memo(function DemoAccount({
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-1.5 flex-wrap">
           <span className={`text-sm font-medium ${C.text}`}>{displayName}</span>
-          <span className={`text-xs px-1.5 py-px rounded-[3px] ${C.text50} ${C.bgInactive}`}>
+          <span className={`text-xs px-1.5 py-px rounded-xxs ${C.text50} ${C.bgInactive}`}>
             {occupationLabel}
           </span>
-          <span className={`text-xs px-1.5 py-px rounded-[3px] ${C.textBrand} ${C.bgBrand10}`}>
+          <span className={`text-xs px-1.5 py-px rounded-xxs ${C.textBrand} ${C.bgBrand10}`}>
             {permissionLabel}
           </span>
           {isSystemAdmin ? (
-            <span className={`text-xs px-1.5 py-px rounded-[3px] ${C.danger} ${C.bgDanger8}`}>
+            <span className={`text-xs px-1.5 py-px rounded-xxs ${C.danger} ${C.bgDanger8}`}>
               システム管理者
             </span>
           ) : null}
@@ -91,7 +91,7 @@ const DemoAccount = memo(function DemoAccount({
 
 /* ---- Shared input classes (padding-x set per field to avoid conflict) ---- */
 // Figma実測: fontSize=15px, height=~48px, bg=warm neutral 60%透過（PALETTE.hoverBgInput相当の色調）, borderRadius=3px
-const INPUT_BASE = `w-full h-[48px] text-base rounded-[3px] ${C.bgInputLogin} border ${C.borderMedium} ${C.text} ${C.textPlaceholder} outline-none transition-all focus:ring-2 ${C.focusRingBrand} focus:border-transparent disabled:opacity-60`;
+const INPUT_BASE = `w-full h-[48px] text-base rounded-xxs ${C.bgInputLogin} border ${C.borderMedium} ${C.text} ${C.textPlaceholder} outline-none transition-all focus:ring-2 ${C.focusRingBrand} focus:border-transparent disabled:opacity-60`;
 
 /* ---- Login Form ---- */
 
