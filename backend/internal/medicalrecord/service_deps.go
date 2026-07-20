@@ -207,3 +207,12 @@ type billingItemWriter interface {
 	Create(ctx context.Context, item *model.BillingItem) error
 	UpdateBillingTotals(ctx context.Context, clinicID, billingID uint64, subtotal, taxTotal, totalAmount int64) error
 }
+
+// medicineInventoryRepo は medicineService の BUG-320 連携在庫同期 write view + ParentID/
+// InventoryID master-FK 検証 read view（repository.InventoryRepository の部分集合・BE9-2D ⑥）。
+type medicineInventoryRepo interface {
+	FindByID(ctx context.Context, clinicID, id uint64) (*model.InventoryItem, error)
+	Create(ctx context.Context, clinicID uint64, item *model.InventoryItem) error
+	UpdateNameByMedicineCategory(ctx context.Context, clinicID uint64, oldName, newName string) error
+	DeleteByNameAndMedicineCategory(ctx context.Context, clinicID uint64, name string) error
+}

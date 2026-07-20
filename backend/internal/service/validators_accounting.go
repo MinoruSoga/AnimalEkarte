@@ -9,15 +9,7 @@ import (
 )
 
 func validateTaxType(taxType string) error {
-	if taxType == "" {
-		return nil
-	}
-	switch model.TaxType(taxType) {
-	case model.TaxTypeIncluded, model.TaxTypeExcluded, model.TaxTypeExempt:
-		return nil
-	default:
-		return apperrors.WrapInvalidInput(fmt.Sprintf("税種別の値が不正です: %s", taxType))
-	}
+	return sharedkernel.ValidateTaxType(taxType)
 }
 
 // validateItemCategory は明細カテゴリ文字列がドメイン上有効かを検証する

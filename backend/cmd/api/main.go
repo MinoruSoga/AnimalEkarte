@@ -338,9 +338,14 @@ func main() {
 	hospitalizationSvc := medicalrecord.NewHospitalizationService(
 		repos.Hospitalization, repos.Reservation, repos.Pet, repos.Cage,
 		repos.CarePlanItem, repos.Accounting, repos.BillingItem, mrTx)
-	// treatment_plan_handler（internal/handler 残置・④外）が入院所有権検証に使うため Services へ注入。
-	svcs.Hospitalization = hospitalizationSvc
 	hospitalizationPlanSvc := medicalrecord.NewHospitalizationPlanService(repos.HospitalizationPlan)
+	// masters slice (BE9-2D ⑥): consultation/procedure/medicine(+dose)/cage/treatment_plan。
+	consultationSvc := medicalrecord.NewConsultationService(repos.Consultation)
+	procedureSvc := medicalrecord.NewProcedureService(repos.Procedure)
+	medicineSvc := medicalrecord.NewMedicineServiceWithAudit(repos.Medicine, repos.Inventory, mrTx, medicalRecordAuditTxAdapter{inner: mrAuditTxLogger})
+	medicineDoseParamSvc := medicalrecord.NewMedicineDoseParamService(repos.MedicineDoseParam, repos.Medicine, mrTx, medicalRecordAuditTxAdapter{inner: mrAuditTxLogger})
+	cageSvc := medicalrecord.NewCageService(repos.Cage)
+	treatmentPlanSvc := medicalrecord.NewTreatmentPlanService(repos.TreatmentPlan)
 	dailyRecordSvc := medicalrecord.NewDailyRecordService(repos.DailyRecord, repos.Hospitalization, mrTx)
 	carePlanItemSvc := medicalrecord.NewCarePlanItemService(repos.CarePlanItem, repos.Hospitalization, repos.Medicine, repos.Procedure, repos.HospitalizationPlan)
 	treatmentSvc := medicalrecord.NewTreatmentServiceWithAudit(
@@ -371,6 +376,12 @@ func main() {
 		medicalrecord.NewHospitalizationPlanHandler(hospitalizationPlanSvc),
 		medicalrecord.NewDailyRecordHandler(dailyRecordSvc),
 		medicalrecord.NewCarePlanItemHandler(carePlanItemSvc),
+		medicalrecord.NewConsultationHandler(consultationSvc),
+		medicalrecord.NewProcedureHandler(procedureSvc),
+		medicalrecord.NewMedicineHandler(medicineSvc),
+		medicalrecord.NewMedicineDoseParamHandler(medicineDoseParamSvc),
+		medicalrecord.NewCageHandler(cageSvc),
+		medicalrecord.NewTreatmentPlanHandler(treatmentPlanSvc, hospitalizationSvc, svcs.MedicalRecord, h.HasPermission),
 		h.RequirePermission,
 	)
 	medicalRecordHandler.RegisterRoutes(protected)

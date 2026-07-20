@@ -95,7 +95,7 @@ func (h *Handler) RegisterRoutes(ctx context.Context, r *gin.Engine) *gin.Router
 	h.RegisterPetRoutes(protected)
 	h.RegisterReservationRoutes(protected)
 	h.registerMedicalRecordRoutesWithAuth(protected)
-	h.registerHospitalizationRoutesWithAuth(protected)
+	// hospitalizations 系 route: BE9-2D ⑤⑥で全て internal/medicalrecord の RegisterRoutes へ移動。
 	h.registerAccountingRoutesWithAuth(protected)
 	h.registerTrimmingRoutesWithAuth(protected)
 	h.registerExaminationRoutesWithAuth(protected)
@@ -226,7 +226,6 @@ func (h *Handler) registerMedicalRecordRoutesWithAuth(rg *gin.RouterGroup) {
 	records.PATCH("/:id/recommendation-reason", h.RequirePermission(string(model.ResourceMedicalRecords), "edit"), h.UpdateMedicalRecordRecommendationReason)
 
 	h.RegisterBillingConfirmationRoutes(records)
-	h.RegisterTreatmentPlanMedicalRecordRoutes(records)
 	// BE9-2D: /medical-records/:id/{checkups,prescriptions,inquiries} (+ checkup
 	// field-results) moved to internal/medicalrecord.Handler.RegisterRoutes, which registers
 	// its own rg.Group("/medical-records") on the same protected group (composed in
@@ -235,14 +234,6 @@ func (h *Handler) registerMedicalRecordRoutesWithAuth(rg *gin.RouterGroup) {
 	// (RegisterVitalRoutes / RegisterClinicalPlanRoutes / RegisterMedicalRecordImageRoutes),
 	// leaving treatment / treatment-plan / billing-confirmation / addendum here.
 	h.RegisterMedicalRecordAddendumRoutes(records)
-}
-
-// registerHospitalizationRoutesWithAuth: BE9-2D ⑤ で入院本体/daily-records/care-plan-items は
-// internal/medicalrecord の RegisterRoutes へ移動。treatment-plan（④外・後続バッチ）のみ残置。
-// /hospitalizations group は gin の path merge で medicalrecord 側と共存する（/pets 先例）。
-func (h *Handler) registerHospitalizationRoutesWithAuth(rg *gin.RouterGroup) {
-	hospitalizations := rg.Group("/hospitalizations")
-	h.RegisterTreatmentPlanHospitalizationRoutes(hospitalizations)
 }
 
 // registerTrimmingRoutesWithAuth はトリミングルートに RBAC 権限チェックを適用する（BUG-125: CRUD個別ガード）

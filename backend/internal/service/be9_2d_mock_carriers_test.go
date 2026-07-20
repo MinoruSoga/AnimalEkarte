@@ -11,7 +11,6 @@ package service
 
 import (
 	"context"
-	"errors"
 	"time"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
@@ -271,59 +270,6 @@ func (m *mockClinicalPlanRepository) Delete(ctx context.Context, clinicID, planI
 	return m.deleteFn(ctx, clinicID, planID)
 }
 
-// ── BE9-2D sub-batch④b carriers ──
-// dose kernel（dose_calc/dose_revalidation/dose_validators/treatment_dose_save）の medicalrecord
-// 移動後も、残留する medicine_dose_config_test.go / medicine_dose_param_service_test.go が使う
-// helper/mock/センチネルの残置コピー。carrier 解消は medicine domain の BE9-2C/2D 時。
-
-// fptr は旧 dose_calc_test.go の同名 helper の残置コピー。
-func fptr(v float64) *float64 { return &v }
-
-// errAuditWriteFailed は旧 treatment_dose_save_test.go の同名センチネルの残置コピー
-// （mockAuditService.logEntryTxErr にセットして使う）。
-var errAuditWriteFailed = errors.New("audit write failed")
-
-// mockMedicineDoseParamRepository は旧 treatment_dose_save_test.go の同名 mock の残置コピー
-// （repository.MedicineDoseParamRepository 全メソッド実装）。
-type mockMedicineDoseParamRepository struct {
-	findByMedicineIDFn         func(ctx context.Context, clinicID, medicineID uint64) ([]model.MedicineDoseParam, error)
-	findByMedicineAndSpeciesFn func(ctx context.Context, clinicID, medicineID uint64, species model.MedicineDoseSpecies) (*model.MedicineDoseParam, error)
-	createFn                   func(ctx context.Context, clinicID uint64, param *model.MedicineDoseParam) error
-	updateFn                   func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.MedicineDoseParam, error)
-	deleteFn                   func(ctx context.Context, clinicID, id uint64) error
-}
-
-func (m *mockMedicineDoseParamRepository) FindByMedicineID(ctx context.Context, clinicID, medicineID uint64) ([]model.MedicineDoseParam, error) {
-	if m.findByMedicineIDFn == nil {
-		return nil, nil
-	}
-	return m.findByMedicineIDFn(ctx, clinicID, medicineID)
-}
-func (m *mockMedicineDoseParamRepository) FindByMedicineAndSpecies(ctx context.Context, clinicID, medicineID uint64, species model.MedicineDoseSpecies) (*model.MedicineDoseParam, error) {
-	if m.findByMedicineAndSpeciesFn == nil {
-		return nil, apperrors.WrapNotFound("medicine_dose_param", "")
-	}
-	return m.findByMedicineAndSpeciesFn(ctx, clinicID, medicineID, species)
-}
-func (m *mockMedicineDoseParamRepository) Create(ctx context.Context, clinicID uint64, param *model.MedicineDoseParam) error {
-	if m.createFn == nil {
-		return nil
-	}
-	return m.createFn(ctx, clinicID, param)
-}
-func (m *mockMedicineDoseParamRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.MedicineDoseParam, error) {
-	if m.updateFn == nil {
-		return nil, nil
-	}
-	return m.updateFn(ctx, clinicID, id, fields)
-}
-func (m *mockMedicineDoseParamRepository) Delete(ctx context.Context, clinicID, id uint64) error {
-	if m.deleteFn == nil {
-		return nil
-	}
-	return m.deleteFn(ctx, clinicID, id)
-}
-
 // ── BE9-2D ⑤ carrier ──
 // mockHospitalizationRepository は旧 hospitalization_service_test.go の同名 mock の残置コピー
 // （accounting_fk_clinic_isolation_test / accounting_service_test が使用・解消=accounting/billing domain 移行時）。
@@ -397,3 +343,162 @@ func (m *mockHospitalizationRepository) CountTreatmentPlansByHospitalizationID(c
 	}
 	return m.countTreatmentPlansByHospitalizationIDFn(ctx, clinicID, hospitalizationID)
 }
+
+// ── BE9-2D ⑥ carriers ──
+// medicine/procedure/consultation の service test 移動後も、残留する cross_tenant builder
+// （ok/reject 系: estimate/billing_item/examination 等が使用）と clinic_service_test（strPtr）が
+// 使う test double の残置コピー。解消 = 各残留 domain の移行時。
+
+func strPtr(s string) *string { return &s }
+
+type mockMedicineRepository struct {
+	findAllFn                 func(ctx context.Context, clinicID uint64, page, limit int) ([]model.Medicine, int64, error)
+	findByIDFn                func(ctx context.Context, clinicID, id uint64) (*model.Medicine, error)
+	countChildrenByParentIDFn func(ctx context.Context, clinicID, parentID uint64) (int64, error)
+	createFn                  func(ctx context.Context, medicine *model.Medicine) error
+	updateFieldsFn            func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Medicine, error)
+	deleteFn                  func(ctx context.Context, clinicID, id uint64) error
+	reorderFn                 func(ctx context.Context, clinicID uint64, ids []uint64) error
+}
+
+func (m *mockMedicineRepository) FindAll(ctx context.Context, clinicID uint64, page, limit int) ([]model.Medicine, int64, error) {
+	return m.findAllFn(ctx, clinicID, page, limit)
+}
+
+func (m *mockMedicineRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Medicine, error) {
+	return m.findByIDFn(ctx, clinicID, id)
+}
+
+func (m *mockMedicineRepository) CountChildrenByParentID(ctx context.Context, clinicID, parentID uint64) (int64, error) {
+	if m.countChildrenByParentIDFn != nil {
+		return m.countChildrenByParentIDFn(ctx, clinicID, parentID)
+	}
+	return 0, nil
+}
+
+func (m *mockMedicineRepository) CountUsageByMedicineID(_ context.Context, _, _ uint64) (int64, error) {
+	return 0, nil
+}
+
+func (m *mockMedicineRepository) Create(ctx context.Context, medicine *model.Medicine) error {
+	return m.createFn(ctx, medicine)
+}
+
+func (m *mockMedicineRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Medicine, error) {
+	return m.updateFieldsFn(ctx, clinicID, id, fields)
+}
+
+func (m *mockMedicineRepository) Delete(ctx context.Context, clinicID, id uint64) error {
+	return m.deleteFn(ctx, clinicID, id)
+}
+
+func (m *mockMedicineRepository) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
+	if m.reorderFn != nil {
+		return m.reorderFn(ctx, clinicID, ids)
+	}
+	return nil
+}
+
+type mockProcedureRepository struct {
+	findAllFn                 func(ctx context.Context, clinicID uint64) ([]model.Procedure, error)
+	findByIDFn                func(ctx context.Context, clinicID, id uint64) (*model.Procedure, error)
+	createFn                  func(ctx context.Context, procedure *model.Procedure) error
+	updateFieldsFn            func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Procedure, error)
+	deleteFn                  func(ctx context.Context, clinicID, id uint64) error
+	countUsageByProcedureIDFn func(ctx context.Context, clinicID, procedureID uint64) (int64, error)
+	countChildrenByParentIDFn func(ctx context.Context, clinicID, parentID uint64) (int64, error)
+	reorderFn                 func(ctx context.Context, clinicID uint64, ids []uint64) error
+}
+
+func (m *mockProcedureRepository) FindAll(ctx context.Context, clinicID uint64) ([]model.Procedure, error) {
+	return m.findAllFn(ctx, clinicID)
+}
+
+func (m *mockProcedureRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Procedure, error) {
+	return m.findByIDFn(ctx, clinicID, id)
+}
+
+func (m *mockProcedureRepository) Create(ctx context.Context, procedure *model.Procedure) error {
+	return m.createFn(ctx, procedure)
+}
+
+func (m *mockProcedureRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Procedure, error) {
+	if m.updateFieldsFn != nil {
+		return m.updateFieldsFn(ctx, clinicID, id, fields)
+	}
+	return &model.Procedure{ID: id}, nil
+}
+
+func (m *mockProcedureRepository) Delete(ctx context.Context, clinicID, id uint64) error {
+	return m.deleteFn(ctx, clinicID, id)
+}
+
+func (m *mockProcedureRepository) Reorder(ctx context.Context, clinicID uint64, ids []uint64) error {
+	return m.reorderFn(ctx, clinicID, ids)
+}
+
+func (m *mockProcedureRepository) CountUsageByProcedureID(ctx context.Context, clinicID, procedureID uint64) (int64, error) {
+	if m.countUsageByProcedureIDFn == nil {
+		return 0, nil
+	}
+	return m.countUsageByProcedureIDFn(ctx, clinicID, procedureID)
+}
+
+func (m *mockProcedureRepository) CountChildrenByParentID(ctx context.Context, clinicID, parentID uint64) (int64, error) {
+	if m.countChildrenByParentIDFn == nil {
+		return 0, nil
+	}
+	return m.countChildrenByParentIDFn(ctx, clinicID, parentID)
+}
+
+type mockConsultationRepository struct {
+	findAllFn                    func(ctx context.Context, clinicID uint64) ([]model.Consultation, error)
+	findByIDFn                   func(ctx context.Context, clinicID, id uint64) (*model.Consultation, error)
+	createFn                     func(ctx context.Context, consultation *model.Consultation) error
+	updateFieldsFn               func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Consultation, error)
+	deleteFn                     func(ctx context.Context, clinicID, id uint64) error
+	countUsageByConsultationIDFn func(ctx context.Context, clinicID, consultationID uint64) (int64, error)
+	countChildrenByParentIDFn    func(ctx context.Context, clinicID, parentID uint64) (int64, error)
+	reorderErr                   error
+}
+
+func (m *mockConsultationRepository) FindAll(ctx context.Context, clinicID uint64) ([]model.Consultation, error) {
+	return m.findAllFn(ctx, clinicID)
+}
+
+func (m *mockConsultationRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Consultation, error) {
+	return m.findByIDFn(ctx, clinicID, id)
+}
+
+func (m *mockConsultationRepository) Create(ctx context.Context, consultation *model.Consultation) error {
+	return m.createFn(ctx, consultation)
+}
+
+func (m *mockConsultationRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.Consultation, error) {
+	return m.updateFieldsFn(ctx, clinicID, id, fields)
+}
+
+func (m *mockConsultationRepository) Delete(ctx context.Context, clinicID, id uint64) error {
+	return m.deleteFn(ctx, clinicID, id)
+}
+
+func (m *mockConsultationRepository) Reorder(_ context.Context, _ uint64, _ []uint64) error {
+	return m.reorderErr
+}
+
+func (m *mockConsultationRepository) CountUsageByConsultationID(ctx context.Context, clinicID, consultationID uint64) (int64, error) {
+	if m.countUsageByConsultationIDFn == nil {
+		return 0, nil
+	}
+	return m.countUsageByConsultationIDFn(ctx, clinicID, consultationID)
+}
+
+func (m *mockConsultationRepository) CountChildrenByParentID(ctx context.Context, clinicID, parentID uint64) (int64, error) {
+	if m.countChildrenByParentIDFn == nil {
+		return 0, nil
+	}
+	return m.countChildrenByParentIDFn(ctx, clinicID, parentID)
+}
+
+// uint64Ptr は ⑥ 移動ファイル由来 helper の残置コピー（medical_record/owner 系残留テストが使用）。
+func uint64Ptr(v uint64) *uint64 { return &v }

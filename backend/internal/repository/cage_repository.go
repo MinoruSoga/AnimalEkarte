@@ -3,13 +3,14 @@ package repository
 import (
 	"gorm.io/gorm"
 
-	"github.com/animal-ekarte/backend/internal/repository/cage"
+	"github.com/animal-ekarte/backend/internal/medicalrecord"
 )
 
-// CageRepository is a stable facade alias for the cage domain package.
-type CageRepository = cage.Repository
+// BE9-2D ⑥ Batch A: cage subpackage を internal/medicalrecord へ roll-up。
+// 残存呼び出し側互換のための期限付き facade（削除=BE9-2F）。
 
-// NewCageRepository constructs the cage repository.
+type CageRepository = medicalrecord.CageRepository
+
 func NewCageRepository(db *gorm.DB) CageRepository {
-	return cage.New(db)
+	return medicalrecord.NewCageRepository(db)
 }

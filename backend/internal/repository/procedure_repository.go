@@ -3,13 +3,14 @@ package repository
 import (
 	"gorm.io/gorm"
 
-	"github.com/animal-ekarte/backend/internal/repository/procedure"
+	"github.com/animal-ekarte/backend/internal/medicalrecord"
 )
 
-// ProcedureRepository is a stable facade alias for the procedure domain package.
-type ProcedureRepository = procedure.Repository
+// BE9-2D ⑥ Batch A: procedure subpackage を internal/medicalrecord へ roll-up。
+// 残存呼び出し側互換のための期限付き facade（削除=BE9-2F）。
 
-// NewProcedureRepository constructs the procedure repository.
+type ProcedureRepository = medicalrecord.ProcedureRepository
+
 func NewProcedureRepository(db *gorm.DB) ProcedureRepository {
-	return procedure.New(db)
+	return medicalrecord.NewProcedureRepository(db)
 }

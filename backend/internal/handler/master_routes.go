@@ -40,24 +40,9 @@ func (h *Handler) RegisterMasterRoutes(rg *gin.RouterGroup) {
 	masters.PUT("/staffs/:id/capable-reservation-types", perm(model.ResourceMasterStaff, "edit"), h.SetStaffCapableReservationTypes)
 
 	// Cages
-	masters.GET("/cages", perm(model.ResourceMasterHospitalization, "view"), h.ListCages)
-	masters.POST("/cages", perm(model.ResourceMasterHospitalization, "create"), h.CreateCage)
-	masters.PATCH("/cages/reorder", perm(model.ResourceMasterHospitalization, "edit"), h.ReorderCages)
-	masters.GET("/cages/:id", perm(model.ResourceMasterHospitalization, "view"), h.GetCage)
-	masters.PATCH("/cages/:id", perm(model.ResourceMasterHospitalization, "edit"), h.UpdateCage)
-	masters.DELETE("/cages/:id", perm(model.ResourceMasterHospitalization, "delete"), h.DeleteCage)
 
 	// Medicines
-	masters.GET("/medicines", perm(model.ResourceMasterMedical, "view"), h.ListMedicines)
-	masters.POST("/medicines", perm(model.ResourceMasterMedical, "create"), h.CreateMedicine)
-	masters.PATCH("/medicines/reorder", perm(model.ResourceMasterMedical, "edit"), h.ReorderMedicines)
-	masters.GET("/medicines/:id", perm(model.ResourceMasterMedical, "view"), h.GetMedicine)
-	masters.PATCH("/medicines/:id", perm(model.ResourceMasterMedical, "edit"), h.UpdateMedicine)
-	masters.DELETE("/medicines/:id", perm(model.ResourceMasterMedical, "delete"), h.DeleteMedicine)
 	// #201 B-2c: 薬剤 × 種の投与量計算パラメータ（dog/cat の mg/kg）。species を自然キーに upsert。
-	masters.GET("/medicines/:id/dose-params", perm(model.ResourceMasterMedical, "view"), h.ListMedicineDoseParams)
-	masters.PUT("/medicines/:id/dose-params/:species", perm(model.ResourceMasterMedical, "edit"), h.UpsertMedicineDoseParam)
-	masters.DELETE("/medicines/:id/dose-params/:species", perm(model.ResourceMasterMedical, "delete"), h.DeleteMedicineDoseParam)
 
 	// Vaccines: moved to internal/medicalrecord.Handler.RegisterRoutes (BE9-2D — composed
 	// directly in cmd/api/main.go, ADR-006 aggregator 非経由). See internal/medicalrecord/routes.go.
@@ -99,21 +84,11 @@ func (h *Handler) RegisterMasterRoutes(rg *gin.RouterGroup) {
 	masters.DELETE("/reservation-types/:id/occupations/:occupation_id", perm(model.ResourceMasterReservationType, "delete"), h.UnlinkReservationTypeOccupation)
 
 	// Consultations
-	masters.GET("/consultations", perm(model.ResourceMasterMedical, "view"), h.ListConsultations)
-	masters.POST("/consultations", perm(model.ResourceMasterMedical, "create"), h.CreateConsultation)
-	masters.PATCH("/consultations/reorder", perm(model.ResourceMasterMedical, "edit"), h.ReorderConsultations)
-	masters.GET("/consultations/:id", perm(model.ResourceMasterMedical, "view"), h.GetConsultation)
-	masters.PATCH("/consultations/:id", perm(model.ResourceMasterMedical, "edit"), h.UpdateConsultation)
-	masters.DELETE("/consultations/:id", perm(model.ResourceMasterMedical, "delete"), h.DeleteConsultation)
 
 	// Procedures
-	masters.GET("/procedures", perm(model.ResourceMasterMedical, "view"), h.ListProcedures)
-	masters.POST("/procedures", perm(model.ResourceMasterMedical, "create"), h.CreateProcedure)
-	masters.PATCH("/procedures/reorder", perm(model.ResourceMasterMedical, "edit"), h.ReorderProcedures)
-	masters.GET("/procedures/:id", perm(model.ResourceMasterMedical, "view"), h.GetProcedure)
-	masters.PATCH("/procedures/:id", perm(model.ResourceMasterMedical, "edit"), h.UpdateProcedure)
-	masters.DELETE("/procedures/:id", perm(model.ResourceMasterMedical, "delete"), h.DeleteProcedure)
 
+	// cages/medicines(+dose-params)/consultations/procedures: BE9-2D ⑥ で
+	// internal/medicalrecord の RegisterRoutes へ移動。
 	// Hospitalization Plans
 	// hospitalization-plans: BE9-2D ⑤ で internal/medicalrecord の RegisterRoutes へ移動。
 

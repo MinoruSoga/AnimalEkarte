@@ -62,16 +62,7 @@ func (m *mockBillingItemRepository) UpdateBillingTotals(ctx context.Context, cli
 	return nil
 }
 
-type mockCageRepository struct {
-	findByIDFn func(ctx context.Context, clinicID, id uint64) (*model.Cage, error)
-}
-
-func (m *mockCageRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Cage, error) {
-	if m.findByIDFn != nil {
-		return m.findByIDFn(ctx, clinicID, id)
-	}
-	return &model.Cage{ID: id}, nil
-}
+// mockCageRepository は cage_service_test.go（⑥で本 package へ移動）の full 定義を使用。
 
 // rejectCageRepo は internal/service cross_tenant_master_fk_write_test.go の同名 builder の
 // narrow-view 版（CageFK guard テスト用）。

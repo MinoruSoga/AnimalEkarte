@@ -1,5 +1,10 @@
 package repository
 
+// BE9-2D ⑥注記: medicine repository 実装は internal/medicalrecord へ移動済みだが、本テストは
+// inventory repository（未移行 domain）との tx atomicity を跨いで検証するため repository package に
+// 残置し facade 経由で実装を検証する（medicalrecord からは repository を import できないため）。
+// 移設 = inventory domain 移行時。
+
 // medicine_inventory_tx_atomicity_test.go — BE-refactor.md Appendix-A X-6
 //
 // 背景: medicine_service.Create/Update/Delete は BUG-429/R1-2 のコメントで

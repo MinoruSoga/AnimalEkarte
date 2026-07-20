@@ -3,7 +3,6 @@ package service
 import (
 	"github.com/animal-ekarte/backend/internal/infra"
 	"github.com/animal-ekarte/backend/internal/infra/crypto"
-	"github.com/animal-ekarte/backend/internal/medicalrecord"
 	"github.com/animal-ekarte/backend/internal/repository"
 )
 
@@ -25,17 +24,12 @@ type Services struct {
 	StaffCore                      StaffCoreService
 	StaffAccount                   StaffAccountService
 	StaffPermission                StaffPermissionService
-	Cage                           CageService
-	Medicine                       MedicineService
-	MedicineDoseParam              MedicineDoseParamService
 	Insurance                      InsuranceService
 	ReservationType                ReservationTypeCoreService
 	ReservationTypeUnavailableTime ReservationTypeUnavailableTimeService
 	ReservationTypeAvailableSlot   ReservationTypeAvailableSlotService
 	ReservationTypeOccupation      ReservationTypeOccupationService
 	ReservationTypeGroup           ReservationTypeGroupService
-	Consultation                   ConsultationService
-	Procedure                      ProcedureService
 	TrimmingCourse                 TrimmingCourseService
 	TrimmingOption                 TrimmingOptionService
 	Clinic                         ClinicService
@@ -48,12 +42,6 @@ type Services struct {
 	ShiftEntry                     ShiftEntryService
 	ShiftTemplate                  ShiftTemplateService
 	ClinicHoliday                  ClinicHolidayService
-	TreatmentPlan                  TreatmentPlanService
-	// Hospitalization: BE9-2D ⑤ で実装は internal/medicalrecord へ移動済み。残存 consumer =
-	// treatment_plan_handler（④外・入院所有権検証で GetByID を呼ぶ）のみのため、medicalrecord 型の
-	// field として残置し cmd/api/main.go が構築後に代入する（NewServices では構築しない。
-	// 削除 = treatment-plan の domain 移行時）。
-	Hospitalization medicalrecord.HospitalizationService
 	// Vital / MedicalRecordImage / ClinicalPlan（④a）/ Treatment（④b）: BE9-2D — service + handler
 	// とも internal/medicalrecord へ移設済み。composition root (cmd/api/main.go) が medicalrecord.NewX
 	// で直接構築し medicalrecord.NewHandler へ合成するため、Services には保持しない
@@ -247,17 +235,12 @@ func NewServices(repos *repository.Repositories, notifCfg *ReservationNotificati
 		StaffCore:                      staffSvc,
 		StaffAccount:                   staffSvc,
 		StaffPermission:                staffSvc,
-		Cage:                           NewCageService(repos.Cage),
-		Medicine:                       NewMedicineServiceWithAudit(repos.Medicine, repos.Inventory, tx, auditTxLogger),
-		MedicineDoseParam:              NewMedicineDoseParamService(repos.MedicineDoseParam, repos.Medicine, tx, auditTxLogger),
 		Insurance:                      NewInsuranceService(repos.Insurance),
 		ReservationType:                reservationTypeSvc,
 		ReservationTypeUnavailableTime: reservationTypeSvc,
 		ReservationTypeAvailableSlot:   reservationTypeSvc,
 		ReservationTypeOccupation:      reservationTypeSvc,
 		ReservationTypeGroup:           NewReservationTypeGroupService(repos.ReservationTypeGroup),
-		Consultation:                   NewConsultationService(repos.Consultation),
-		Procedure:                      NewProcedureService(repos.Procedure),
 		TrimmingCourse:                 NewTrimmingCourseService(repos.TrimmingCourse, repos.TrimmingCourseType),
 		TrimmingOption:                 NewTrimmingOptionService(repos.TrimmingOption),
 		Clinic:                         NewClinicService(repos.Clinic, repos.PermissionGroup, tx),
@@ -270,7 +253,6 @@ func NewServices(repos *repository.Repositories, notifCfg *ReservationNotificati
 		ShiftEntry:                     NewShiftEntryService(repos.ShiftEntry),
 		ShiftTemplate:                  NewShiftTemplateService(repos.ShiftTemplate),
 		ClinicHoliday:                  NewClinicHolidayService(repos.ClinicHoliday),
-		TreatmentPlan:                  NewTreatmentPlanService(repos.TreatmentPlan),
 		// Vital / MedicalRecordImage / ClinicalPlan: BE9-2D sub-batch④a — service + handler とも
 		// internal/medicalrecord へ移設済み。composition root (cmd/api/main.go) が medicalrecord.NewX
 		// で直接構築する（Services には保持しない）。

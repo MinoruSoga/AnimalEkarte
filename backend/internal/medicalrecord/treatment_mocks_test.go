@@ -101,42 +101,16 @@ func (m *mockTreatmentAuditTxLogger) LogEntryTx(_ context.Context, input *AuditE
 // ---- narrow view mocks（medicineFinder/procedureFinder/consultationFinder/
 // treatmentInventoryRepo/doseParamFinder） ----
 
-type mockMedicineRepository struct {
-	findByIDFn func(ctx context.Context, clinicID, id uint64) (*model.Medicine, error)
-}
+// mockMedicineRepository は ⑥ で移動してきた各 service test の full 定義を使用（④b minimal 版は撤去）。
 
-func (m *mockMedicineRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Medicine, error) {
-	if m.findByIDFn != nil {
-		return m.findByIDFn(ctx, clinicID, id)
-	}
-	return nil, nil
-}
+// mockProcedureRepository は ⑥ で移動してきた各 service test の full 定義を使用（④b minimal 版は撤去）。
 
-type mockProcedureRepository struct {
-	findByIDFn func(ctx context.Context, clinicID, id uint64) (*model.Procedure, error)
-}
-
-func (m *mockProcedureRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Procedure, error) {
-	if m.findByIDFn != nil {
-		return m.findByIDFn(ctx, clinicID, id)
-	}
-	return nil, nil
-}
-
-type mockConsultationRepository struct {
-	findByIDFn func(ctx context.Context, clinicID, id uint64) (*model.Consultation, error)
-}
-
-func (m *mockConsultationRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.Consultation, error) {
-	if m.findByIDFn != nil {
-		return m.findByIDFn(ctx, clinicID, id)
-	}
-	return nil, nil
-}
+// mockConsultationRepository は ⑥ で移動してきた各 service test の full 定義を使用（④b minimal 版は撤去）。
 
 type mockInventoryRepository struct {
 	findByIDFn      func(ctx context.Context, clinicID, id uint64) (*model.InventoryItem, error)
 	decreaseStockFn func(ctx context.Context, id uint64, quantity float64) error
+	createFn        func(ctx context.Context, clinicID uint64, item *model.InventoryItem) error
 }
 
 func (m *mockInventoryRepository) FindByID(ctx context.Context, clinicID, id uint64) (*model.InventoryItem, error) {
@@ -153,11 +127,38 @@ func (m *mockInventoryRepository) DecreaseStock(ctx context.Context, id uint64, 
 	return nil
 }
 
-// mockMedicineDoseParamRepository は doseParamFinder の test double（移動元
-// treatment_dose_save_test.go の同名 mock の FindByMedicineAndSpecies 部分集合。nil fn の
-// NotFound デフォルトも踏襲。原本は internal/service の carrier に残置）。
+// 以下3メソッドは medicineInventoryRepo view（⑥ medicine 連携在庫同期）用の nil-guard 実装。
+func (m *mockInventoryRepository) Create(ctx context.Context, clinicID uint64, item *model.InventoryItem) error {
+	if m.createFn != nil {
+		return m.createFn(ctx, clinicID, item)
+	}
+	return nil
+}
+
+func (m *mockInventoryRepository) UpdateNameByMedicineCategory(_ context.Context, _ uint64, _, _ string) error {
+	return nil
+}
+
+func (m *mockInventoryRepository) DeleteByNameAndMedicineCategory(_ context.Context, _ uint64, _ string) error {
+	return nil
+}
+
+// mockMedicineDoseParamRepository は MedicineDoseParamRepository の full test double
+// （④b では doseParamFinder 部分集合だったが、⑥で dose_param service test が本 package へ
+// 移動したため full 実装へ拡張。nil fn の NotFound デフォルト維持）。
 type mockMedicineDoseParamRepository struct {
+	findByMedicineIDFn         func(ctx context.Context, clinicID, medicineID uint64) ([]model.MedicineDoseParam, error)
 	findByMedicineAndSpeciesFn func(ctx context.Context, clinicID, medicineID uint64, species model.MedicineDoseSpecies) (*model.MedicineDoseParam, error)
+	createFn                   func(ctx context.Context, clinicID uint64, param *model.MedicineDoseParam) error
+	updateFn                   func(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.MedicineDoseParam, error)
+	deleteFn                   func(ctx context.Context, clinicID, id uint64) error
+}
+
+func (m *mockMedicineDoseParamRepository) FindByMedicineID(ctx context.Context, clinicID, medicineID uint64) ([]model.MedicineDoseParam, error) {
+	if m.findByMedicineIDFn == nil {
+		return nil, nil
+	}
+	return m.findByMedicineIDFn(ctx, clinicID, medicineID)
 }
 
 func (m *mockMedicineDoseParamRepository) FindByMedicineAndSpecies(ctx context.Context, clinicID, medicineID uint64, species model.MedicineDoseSpecies) (*model.MedicineDoseParam, error) {
@@ -165,6 +166,27 @@ func (m *mockMedicineDoseParamRepository) FindByMedicineAndSpecies(ctx context.C
 		return nil, apperrors.WrapNotFound("medicine_dose_param", "")
 	}
 	return m.findByMedicineAndSpeciesFn(ctx, clinicID, medicineID, species)
+}
+
+func (m *mockMedicineDoseParamRepository) Create(ctx context.Context, clinicID uint64, param *model.MedicineDoseParam) error {
+	if m.createFn == nil {
+		return nil
+	}
+	return m.createFn(ctx, clinicID, param)
+}
+
+func (m *mockMedicineDoseParamRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) (*model.MedicineDoseParam, error) {
+	if m.updateFn == nil {
+		return nil, nil
+	}
+	return m.updateFn(ctx, clinicID, id, fields)
+}
+
+func (m *mockMedicineDoseParamRepository) Delete(ctx context.Context, clinicID, id uint64) error {
+	if m.deleteFn == nil {
+		return nil
+	}
+	return m.deleteFn(ctx, clinicID, id)
 }
 
 // ---- builders（移動元 internal/service cross_tenant_master_fk_write_test.go /
@@ -197,7 +219,7 @@ func rejectProcedureRepo(ownedID uint64) procedureFinder {
 	}}
 }
 
-func rejectInventoryRepo(ownedID uint64) treatmentInventoryRepo {
+func rejectInventoryRepo(ownedID uint64) *mockInventoryRepository {
 	return &mockInventoryRepository{
 		findByIDFn: func(_ context.Context, _, id uint64) (*model.InventoryItem, error) {
 			if id != ownedID {
@@ -222,5 +244,13 @@ func draftMedicalRecordRepo() *mockMedicalRecordRepository {
 func benignVitalRepo() *mockVitalRepository {
 	return &mockVitalRepository{listByMedicalRecordIDFn: func(_ context.Context, _, _ uint64) ([]model.VitalRecord, error) {
 		return nil, nil
+	}}
+}
+
+// okInventoryRepo は service 側同名 builder の narrow 版（⑥ medicine InventoryFK テスト用・
+// 具象を返し treatmentInventoryRepo/medicineInventoryRepo 両 view を満たす）。
+func okInventoryRepo() *mockInventoryRepository {
+	return &mockInventoryRepository{findByIDFn: func(_ context.Context, _, id uint64) (*model.InventoryItem, error) {
+		return &model.InventoryItem{ID: id}, nil
 	}}
 }

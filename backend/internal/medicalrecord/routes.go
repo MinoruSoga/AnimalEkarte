@@ -46,6 +46,12 @@ type Handler struct {
 	hospitalizationPlan *HospitalizationPlanHandler
 	dailyRecord         *DailyRecordHandler
 	carePlanItem        *CarePlanItemHandler
+	consultation        *ConsultationHandler
+	procedure           *ProcedureHandler
+	medicine            *MedicineHandler
+	medicineDoseParam   *MedicineDoseParamHandler
+	cage                *CageHandler
+	treatmentPlan       *TreatmentPlanHandler
 	requirePermission   PermissionMiddleware
 }
 
@@ -71,6 +77,12 @@ func NewHandler(
 	hospitalizationPlan *HospitalizationPlanHandler,
 	dailyRecord *DailyRecordHandler,
 	carePlanItem *CarePlanItemHandler,
+	consultation *ConsultationHandler,
+	procedure *ProcedureHandler,
+	medicine *MedicineHandler,
+	medicineDoseParam *MedicineDoseParamHandler,
+	cage *CageHandler,
+	treatmentPlan *TreatmentPlanHandler,
 	requirePermission PermissionMiddleware,
 ) *Handler {
 	return &Handler{
@@ -94,6 +106,12 @@ func NewHandler(
 		hospitalizationPlan: hospitalizationPlan,
 		dailyRecord:         dailyRecord,
 		carePlanItem:        carePlanItem,
+		consultation:        consultation,
+		procedure:           procedure,
+		medicine:            medicine,
+		medicineDoseParam:   medicineDoseParam,
+		cage:                cage,
+		treatmentPlan:       treatmentPlan,
 		requirePermission:   requirePermission,
 	}
 }
@@ -239,6 +257,37 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	pets := rg.Group("/pets")
 	pets.GET("/:id/treatment-history", perm(model.ResourceMedicalRecords, "view"), h.treatment.ListPetTreatmentHistory)
 
+	// Consultations / Procedures / Medicines(+dose-params) / Cages master (BE9-2D ⑥:
+	// moved from master_routes.go; resource は旧値逐語転記 — cages のみ
+	// ResourceMasterHospitalization、他は ResourceMasterMedical)。
+	masters.GET("/consultations", perm(model.ResourceMasterMedical, "view"), h.consultation.ListConsultations)
+	masters.POST("/consultations", perm(model.ResourceMasterMedical, "create"), h.consultation.CreateConsultation)
+	masters.PATCH("/consultations/reorder", perm(model.ResourceMasterMedical, "edit"), h.consultation.ReorderConsultations)
+	masters.GET("/consultations/:id", perm(model.ResourceMasterMedical, "view"), h.consultation.GetConsultation)
+	masters.PATCH("/consultations/:id", perm(model.ResourceMasterMedical, "edit"), h.consultation.UpdateConsultation)
+	masters.DELETE("/consultations/:id", perm(model.ResourceMasterMedical, "delete"), h.consultation.DeleteConsultation)
+	masters.GET("/procedures", perm(model.ResourceMasterMedical, "view"), h.procedure.ListProcedures)
+	masters.POST("/procedures", perm(model.ResourceMasterMedical, "create"), h.procedure.CreateProcedure)
+	masters.PATCH("/procedures/reorder", perm(model.ResourceMasterMedical, "edit"), h.procedure.ReorderProcedures)
+	masters.GET("/procedures/:id", perm(model.ResourceMasterMedical, "view"), h.procedure.GetProcedure)
+	masters.PATCH("/procedures/:id", perm(model.ResourceMasterMedical, "edit"), h.procedure.UpdateProcedure)
+	masters.DELETE("/procedures/:id", perm(model.ResourceMasterMedical, "delete"), h.procedure.DeleteProcedure)
+	masters.GET("/medicines", perm(model.ResourceMasterMedical, "view"), h.medicine.ListMedicines)
+	masters.POST("/medicines", perm(model.ResourceMasterMedical, "create"), h.medicine.CreateMedicine)
+	masters.PATCH("/medicines/reorder", perm(model.ResourceMasterMedical, "edit"), h.medicine.ReorderMedicines)
+	masters.GET("/medicines/:id", perm(model.ResourceMasterMedical, "view"), h.medicine.GetMedicine)
+	masters.PATCH("/medicines/:id", perm(model.ResourceMasterMedical, "edit"), h.medicine.UpdateMedicine)
+	masters.DELETE("/medicines/:id", perm(model.ResourceMasterMedical, "delete"), h.medicine.DeleteMedicine)
+	masters.GET("/medicines/:id/dose-params", perm(model.ResourceMasterMedical, "view"), h.medicineDoseParam.ListMedicineDoseParams)
+	masters.PUT("/medicines/:id/dose-params/:species", perm(model.ResourceMasterMedical, "edit"), h.medicineDoseParam.UpsertMedicineDoseParam)
+	masters.DELETE("/medicines/:id/dose-params/:species", perm(model.ResourceMasterMedical, "delete"), h.medicineDoseParam.DeleteMedicineDoseParam)
+	masters.GET("/cages", perm(model.ResourceMasterHospitalization, "view"), h.cage.ListCages)
+	masters.POST("/cages", perm(model.ResourceMasterHospitalization, "create"), h.cage.CreateCage)
+	masters.PATCH("/cages/reorder", perm(model.ResourceMasterHospitalization, "edit"), h.cage.ReorderCages)
+	masters.GET("/cages/:id", perm(model.ResourceMasterHospitalization, "view"), h.cage.GetCage)
+	masters.PATCH("/cages/:id", perm(model.ResourceMasterHospitalization, "edit"), h.cage.UpdateCage)
+	masters.DELETE("/cages/:id", perm(model.ResourceMasterHospitalization, "delete"), h.cage.DeleteCage)
+
 	// Hospitalization Plans master (BE9-2D ⑤: moved from master_routes.go;
 	// ResourceMasterHospitalization parity 逐語転記).
 	masters.GET("/hospitalization-plans", perm(model.ResourceMasterHospitalization, "view"), h.hospitalizationPlan.ListHospitalizationPlans)
@@ -270,6 +319,17 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	hospitalizations.POST("/:id/care-plan-items", perm(model.ResourceHospitalization, "create"), h.carePlanItem.CreateCarePlanItem)
 	hospitalizations.PATCH("/:id/care-plan-items/:itemId", perm(model.ResourceHospitalization, "edit"), h.carePlanItem.UpdateCarePlanItem)
 	hospitalizations.DELETE("/:id/care-plan-items/:itemId", perm(model.ResourceHospitalization, "delete"), h.carePlanItem.DeleteCarePlanItem)
+
+	// Treatment plans (BE9-2D ⑥: moved from treatment_plan_handler.go の Register 2関数;
+	// medical-records 配下=ResourceMedicalRecords / hospitalizations 配下=ResourceHospitalization 逐語転記)。
+	records.GET("/:id/treatment-plans", perm(model.ResourceMedicalRecords, "view"), h.treatmentPlan.ListTreatmentPlansByMedicalRecord)
+	records.POST("/:id/treatment-plans", perm(model.ResourceMedicalRecords, "create"), h.treatmentPlan.CreateTreatmentPlanForMedicalRecord)
+	records.PATCH("/:id/treatment-plans/:planId", perm(model.ResourceMedicalRecords, "edit"), h.treatmentPlan.UpdateTreatmentPlanInMedicalRecord)
+	records.DELETE("/:id/treatment-plans/:planId", perm(model.ResourceMedicalRecords, "delete"), h.treatmentPlan.DeleteTreatmentPlanInMedicalRecord)
+	hospitalizations.GET("/:id/treatment-plans", perm(model.ResourceHospitalization, "view"), h.treatmentPlan.ListTreatmentPlansByHospitalization)
+	hospitalizations.POST("/:id/treatment-plans", perm(model.ResourceHospitalization, "create"), h.treatmentPlan.CreateTreatmentPlanForHospitalization)
+	hospitalizations.PATCH("/:id/treatment-plans/:planId", perm(model.ResourceHospitalization, "edit"), h.treatmentPlan.UpdateTreatmentPlanInHospitalization)
+	hospitalizations.DELETE("/:id/treatment-plans/:planId", perm(model.ResourceHospitalization, "delete"), h.treatmentPlan.DeleteTreatmentPlanInHospitalization)
 
 	// Lab import saga (BE9-2D sub-batch③: moved from internal/handler lab_import_handler.go
 	// RegisterLabImportRoutes). All routes guard ResourceLabImport (preview/commit=create,

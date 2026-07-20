@@ -2,7 +2,6 @@ package medicalrecord
 
 import (
 	"fmt"
-	"math"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -32,61 +31,23 @@ func NewTreatmentHandler(service TreatmentService, hasPermission PermissionCheck
 }
 
 // ── BUG-372 discount permission guards ──
-// internal/handler/discount_permission.go の同名メソッドのローカル移植（treatment 経路分のみ。
-// 原本は treatment_plan / accounting / hospitalization 等の残存ハンドラが共有し続ける）。
-// 設計方針 (AC-10): 未指定 nil / ゼロ値&既存ゼロ / 値不変は権限不要、それ以外は
-// discount:create / discount:edit を要求する。
-
-const discountFloatEpsilon = 0.0001
-
-func floatEquals(a, b float64) bool {
-	return math.Abs(a-b) < discountFloatEpsilon
-}
+// 実装は discount_permission.go の package-level 共有関数（⑥で treatment-plan と共用化）。
+// 既存テスト互換のため thin method を維持する。
 
 func (h *TreatmentHandler) requireDiscountEditFloat(c *gin.Context, newVal *float64, oldVal float64) error {
-	if newVal == nil {
-		return nil
-	}
-	if floatEquals(*newVal, oldVal) {
-		return nil
-	}
-	if h.hasPermission(c, string(model.ResourceDiscount), "edit") {
-		return nil
-	}
-	return apperrors.WrapForbidden("割引フィールドの編集権限がありません")
+	return requireDiscountEditFloat(c, h.hasPermission, newVal, oldVal)
 }
 
 func (h *TreatmentHandler) requireDiscountEditInt(c *gin.Context, newVal *int64, oldVal int64) error {
-	if newVal == nil {
-		return nil
-	}
-	if *newVal == oldVal {
-		return nil
-	}
-	if h.hasPermission(c, string(model.ResourceDiscount), "edit") {
-		return nil
-	}
-	return apperrors.WrapForbidden("割引フィールドの編集権限がありません")
+	return requireDiscountEditInt(c, h.hasPermission, newVal, oldVal)
 }
 
 func (h *TreatmentHandler) requireDiscountCreateFloat(c *gin.Context, val float64) error {
-	if floatEquals(val, 0) {
-		return nil
-	}
-	if h.hasPermission(c, string(model.ResourceDiscount), "create") {
-		return nil
-	}
-	return apperrors.WrapForbidden("割引フィールドの作成権限がありません")
+	return requireDiscountCreateFloat(c, h.hasPermission, val)
 }
 
 func (h *TreatmentHandler) requireDiscountCreateInt(c *gin.Context, val int64) error {
-	if val == 0 {
-		return nil
-	}
-	if h.hasPermission(c, string(model.ResourceDiscount), "create") {
-		return nil
-	}
-	return apperrors.WrapForbidden("割引フィールドの作成権限がありません")
+	return requireDiscountCreateInt(c, h.hasPermission, val)
 }
 
 // ListTreatments godoc
