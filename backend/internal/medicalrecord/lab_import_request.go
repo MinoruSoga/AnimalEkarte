@@ -1,4 +1,4 @@
-package handler
+package medicalrecord
 
 import (
 	"fmt"
@@ -6,7 +6,6 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/service"
 )
 
 // ------------------------------------
@@ -107,8 +106,8 @@ func toBatch(req labImportBatchReq) (model.LabInboundBatch, error) {
 	}, nil
 }
 
-func toExamInputs(clinicID uint64, reqs []labExamInputReq) ([]service.LabExamPersistInput, error) {
-	inputs := make([]service.LabExamPersistInput, 0, len(reqs))
+func toExamInputs(clinicID uint64, reqs []labExamInputReq) ([]LabExamPersistInput, error) {
+	inputs := make([]LabExamPersistInput, 0, len(reqs))
 	for i, r := range reqs {
 		if r.ExamTypeID == 0 {
 			return nil, apperrors.WrapInvalidInput(fmt.Sprintf("inputs[%d].exam_type_id は必須です", i))
@@ -123,9 +122,9 @@ func toExamInputs(clinicID uint64, reqs []labExamInputReq) ([]service.LabExamPer
 		// UTC date-only 正規化 (IsDuplicate の要件)
 		d = time.Date(d.Year(), d.Month(), d.Day(), 0, 0, 0, 0, time.UTC)
 
-		items := make([]service.LabExamItemInput, len(r.Items))
+		items := make([]LabExamItemInput, len(r.Items))
 		for j, it := range r.Items {
-			items[j] = service.LabExamItemInput{
+			items[j] = LabExamItemInput{
 				Name:            it.Name,
 				InspectionValue: it.InspectionValue,
 				Unit:            it.Unit,
@@ -135,7 +134,7 @@ func toExamInputs(clinicID uint64, reqs []labExamInputReq) ([]service.LabExamPer
 				SortOrder:       it.SortOrder,
 			}
 		}
-		inputs = append(inputs, service.LabExamPersistInput{
+		inputs = append(inputs, LabExamPersistInput{
 			ClinicID:        clinicID,
 			PetID:           r.PetID,
 			MedicalRecordID: r.MedicalRecordID,

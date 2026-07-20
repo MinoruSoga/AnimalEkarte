@@ -1,8 +1,9 @@
-package handler
+package medicalrecord
 
 import (
 	"strconv"
 
+	"github.com/animal-ekarte/backend/internal/httpapi"
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
@@ -103,15 +104,15 @@ func toLabImportJobResponse(j *model.LabImportJob) labImportJobResponse {
 		NeedsReviewCount:  j.NeedsReviewCount,
 		FailedCount:       j.FailedCount,
 		ErrorCode:         j.ErrorCode,
-		CreatedAt:         localTimeRFC3339(j.CreatedAt),
-		UpdatedAt:         localTimeRFC3339(j.UpdatedAt),
+		CreatedAt:         httpapi.LocalTimeRFC3339(j.CreatedAt),
+		UpdatedAt:         httpapi.LocalTimeRFC3339(j.UpdatedAt),
 	}
 	if j.StartedAt != nil {
-		s := localTimeRFC3339(*j.StartedAt)
+		s := httpapi.LocalTimeRFC3339(*j.StartedAt)
 		r.StartedAt = &s
 	}
 	if j.FinishedAt != nil {
-		s := localTimeRFC3339(*j.FinishedAt)
+		s := httpapi.LocalTimeRFC3339(*j.FinishedAt)
 		r.FinishedAt = &s
 	}
 	return r
@@ -128,7 +129,7 @@ func toLabImportEventResponse(e *model.LabImportEvent) labImportEventResponse {
 		DuplicateCount:   e.DuplicateCount,
 		NeedsReviewCount: e.NeedsReviewCount,
 		ErrorCode:        e.ErrorCode,
-		CreatedAt:        localTimeRFC3339(e.CreatedAt),
+		CreatedAt:        httpapi.LocalTimeRFC3339(e.CreatedAt),
 	}
 	if e.FromStatus != nil {
 		s := string(*e.FromStatus)

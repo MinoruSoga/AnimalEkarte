@@ -123,9 +123,8 @@ type Repositories struct {
 	LstepTagConfig LstepTagConfigRepository
 	// 認証: refresh_token JTI ブラックリスト
 	TokenBlacklist TokenBlacklistRepository
-	// lab import
-	LabImportJob   LabImportJobRepository
-	LabImportEvent LabImportEventRepository
+	// lab import: BE9-2D sub-batch③ で internal/medicalrecord へ移動（leaf domain, no facade）。
+	// 構築は medicalrecord.NewLabImport*Repository が担う（cmd/api/main.go / NewServices）。
 }
 
 // NewRepositories はすべてのリポジトリを初期化して返す
@@ -225,9 +224,7 @@ func NewRepositories(db *gorm.DB) *Repositories {
 		LstepFriendAttributeSnapshot: NewLstepFriendAttributeSnapshotRepository(db),
 		LstepTagConfig:               NewLstepTagConfigRepository(db),
 		TokenBlacklist:               NewTokenBlacklistRepository(db),
-		// lab import
-		LabImportJob:   NewLabImportJobRepository(db),
-		LabImportEvent: NewLabImportEventRepository(db),
+		// lab import: BE9-2D sub-batch③ — moved to internal/medicalrecord (leaf domain, no facade).
 	}
 }
 

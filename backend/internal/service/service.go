@@ -123,12 +123,9 @@ type Services struct {
 	Token TokenService
 	// 認証: ログイン照合・クリニック解決・実効権限計算
 	Auth AuthService
-	// lab import: 外部検査結果インポートジョブ管理 (Phase 3–4)
-	LabImportJob    LabImportJobService
-	LabResultImport LabResultImportService
-	LabAudit        LabAuditLogger
-	// lab report: 検査帳票 read-only クエリ (Phase 4B.2)
-	LabReportQuery LabReportQueryService
+	// lab import/report (Phase 3–4): BE9-2D sub-batch③ で実装を internal/medicalrecord へ移動
+	// （leaf domain）し、handler ともども cmd/api/main.go で直接構築する（ADR-006 aggregator 非経由）。
+	// もはや Services の field ではない。
 }
 
 // NewServices はリポジトリからすべてのサービスを初期化して返す。
@@ -186,9 +183,6 @@ func NewServices(repos *repository.Repositories, notifCfg *ReservationNotificati
 	lstepSettingsSvc := NewLstepSettingsService(repos.LstepSettings, repos.LstepSyncSettings, cipher, auditSvc, repos.ClinicSettings)
 	lstepTagSyncSvc := NewLstepTagSyncFromRepos(repos, lstepSettingsSvc)
 	lstepLifecycleSvc := NewLstepLifecycleService(lstepSettingsSvc, repos.Owner, repos.Pet, repos.LstepTagCache, lstepTagSyncSvc, auditSvc, repos.LstepTagConfig, tx, auditTxLogger)
-
-	// lab import (Phase 3): 同一 jobSvc インスタンスを LabImportJob/LabResultImport で共有する。
-	labImportJobSvc := NewLabImportJobService(repos.LabImportJob, repos.LabImportEvent)
 
 	// G9-1: 旧 main.go 二段階DI（NewServices 呼び出し後の再構築ブロック）をここに統合。
 	// main.go 由来の元の構築順序をそのまま保持する。
@@ -346,19 +340,5 @@ func NewServices(repos *repository.Repositories, notifCfg *ReservationNotificati
 		TokenBlacklist: tokenBlacklistSvc,
 		Token:          NewTokenService(jwtSecret, tokenBlacklistSvc),
 		Auth:           NewAuthService(NewAccountService(repos.Account), staffSvc, permissionGroupSvc),
-		// lab import (Phase 3–4)
-		LabImportJob: labImportJobSvc,
-		LabResultImport: NewLabResultImportService(
-			labImportJobSvc,
-			NewLabImportExaminationService(
-				repos.Examination,
-				repository.NewLabImportDuplicateCheckerDB(repos.DB()),
-				repos.ExaminationType,
-				repos.Pet,
-				repos.MedicalRecord,
-			),
-		),
-		LabAudit:       NewLabAuditLogger(auditSvc),
-		LabReportQuery: NewLabReportQueryService(repos.Examination),
 	}
 }

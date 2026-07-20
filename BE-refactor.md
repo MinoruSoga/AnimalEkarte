@@ -1,7 +1,7 @@
 # BE-refactor — Go/Gin公式ベースラインへのコード移行
 
 > **ACTIVE (2026-07-19)**: 実行対象は下記BE9のみ。現行正本 = [`.claude/rules/go-gin-backend-guidelines.md`](.claude/rules/go-gin-backend-guidelines.md)、review正本 = [`.claude/refs/go-gin-backend-review.md`](.claude/refs/go-gin-backend-review.md)。
-> **進捗 (2026-07-20)**: BE9-0 → BE9-2A → BE9-1 → BE9-2B（pilot=manualarticle）完遂（`d00c72a93`）→ **sub-batch①（master-CRUD 4エンティティ）完遂・コミット済み（`538cdb34`）→ sub-batch②（checkup/vaccine/prescription/inquiry・非確定処理）完遂（本コミット）**。checkup_sync系はsub-batch②から除外しlstep batchへ先送り（論点#7・現在地節）。次 = sub-batch③（lab saga・先行inventory実施済み）。着手前ゲートは「実装順序とbatch境界」の現在地節を参照。
+> **進捗 (2026-07-20)**: BE9-0 → BE9-2A → BE9-1 → BE9-2B（pilot=manualarticle・`d00c72a93`）→ **sub-batch①（master-CRUD 4エンティティ・`538cdb34`）→ sub-batch②（checkup/vaccine/prescription/inquiry・`14f00f6c`）→ sub-batch③（lab_import/lab_report saga・本コミット）完遂**。checkup_sync系はlstep batchへ先送り（論点#7）。medicalrecord domainの残 = sub-batch④（treatment/vital/clinical_plan・lockDraftMedicalRecord row-lock中核）→⑤（hospitalization/discharge-with-billing）。次 = sub-batch④。着手前ゲートは「実装順序とbatch境界」の現在地節を参照。
 > **BE8 SUPERSEDED**: 固定layer・層優先subpackage・repository→service→handler移行は [ADR-005](docs/architecture/adr/005-go-gin-backend-guidelines.md) により廃止。BE8-4/5/6/7の残作業は実行しない。旧本文は未コミット履歴の保全目的で残す。
 
 ## Active task: BE9 — 新コード規約をbackend実装・自動検査へ適用する（High）
@@ -179,6 +179,9 @@ sub-batch①（master-CRUD: diagnosis type/name, examination type, chief complai
 - **rollback単位**: sub-batch②と同型（composition切替→facade剥がしを別コミット）。lab importはexam_type（sub-batch①で既にmedicalrecord内）に依存するため、①完了後は追加の外部依存なし。
 - **前提条件**: sub-batch①（済）。reservation/billing依存なし。
 
+**完遂（2026-07-20・コミット`<sub-batch③>`・3batch順次A/B/C）**: lab 19 file（service 5+repository 1+handler 5+test）をmedicalrecordへ縦移動。**labはleaf domainでfacade残置ゼロ**（外部fan-inがservice.go/repositories.go/handler.goのaggregator配線3点に集約・移動で全消滅→完全削除。sub-batch②の8 facade残置とは対照的）。**確立/再確認した知見**: ①leaf domainでもrepository層は中間状態で一時facade必須（Batch A単独ではservice/handlerがまだrepository.LabImport*参照→build不能。Batch Bで参照消滅と同時に完全削除しleaf原則をdischarge）②saga補償（per-row partial success・context.WithoutCancel補償遷移・孤児exam Delete掃除P2-7）はtx primitive非依存のためconsumer-side interface（examinationImportRepoにDelete method含む=補償の消失防止）越しの通常呼び出しで挙動不変移植可③非tx監査（LogEntry best-effort）用にAuditTxLogger（tx版）とは別の非tx AuditLogger view新設+main.go adapter④中間状態でlint緩めた"medicalrecord" qualifierはBatch Cで除去しゲート復元⑤computeExamResultStatus複製で共有helper複製が3箇所目到達→**rule-of-three発火・次domain（sub-batch④/⑤またはreservation/billing）着手時に共有カーネルpackage昇格を必須化**。cross_tenant lab 5本はmedicalrecordの集約testへ（persistExam型assertionで実装同時移動）。ptr[T]はaccounting/cash_register test依存のためinternal/serviceに残置コピー。検証: baseline 27本green→移動後medicalrecord側同名green（=== RUN確認）・変更5 package DB-backed全数test -p 1 green・build/vet(./...)/gofmt/docs-symbol-drift/git diff --check clean・敵対レビュー4レンズ+反証。
+- **前提条件**: sub-batch①（済）。reservation/billing依存なし。
+
 **④treatment/vital/clinical_plan（`lockDraftMedicalRecord` row-lock中核・抽出時にA全体="診断/検査/処方/lab"が先に必要）**
 
 - 対象file代表例: `internal/service/{treatment,vital,clinical_plan,medical_record_lock,medical_record_image}_service.go` + `internal/repository/{treatment,vital,clinical_plan}_repository.go` + `internal/handler/{treatment,vital,clinical_plan}_*.go`。manifest上treatment系11 file・vital系5 file・clinical_plan系5 fileが母集団。
@@ -242,7 +245,7 @@ sub-batch①（master-CRUD: diagnosis type/name, examination type, chief complai
 
 ### 現在地と着手前ゲート（2026-07-20）
 
-**BE9-0 → BE9-2A → BE9-1 → BE9-2B（`d00c72a93`）→ sub-batch①（`538cdb34`）→ sub-batch②（本コミット）まで完遂。次 = BE9-2D sub-batch③（lab_import/lab_report saga）— 前提条件なし・先行inventory実施済み（移動対象=test込み19 file・lab repositoryはflat直下でroll-up不要・cross_tenantのlabセクション5本はunexported `persistExam`型assertionのため実装と同時移動必須・`lab_import_jobs`専用ENUM 2型に専用test DB setup helper必要・route 6本は2つのRegister関数から単一RegisterRoutesへ統合必須）**。ゲートの正本 = ADR-006「未解決論点」節。以下は要約:
+**BE9-0 → BE9-2A → BE9-1 → BE9-2B（`d00c72a93`）→ sub-batch①（`538cdb34`）→ sub-batch②（`14f00f6c`）→ sub-batch③（本コミット）まで完遂。次 = BE9-2D sub-batch④（treatment/vital/clinical_plan）— 前提条件=sub-batch①②③完了（済）。着手前に`lockDraftMedicalRecord`本体の先行移動（fan-in=20/8file/3domain・§3.7④の推奨分割(i)(ii)参照）とbaseline test（`TestLockDraftMedicalRecord_NilParentFailsClosed`はfail-closed契約の唯一の直接test・移動前後必須green）を確認。⑤hospitalization/discharge-with-billingは④の後。billing側の`lockDraftMedicalRecord`呼び出し元は触れない（論点#6=billing着手時）。共有helper複製がrule-of-three到達済み（sub-batch③）のため、④着手時に共有カーネルpackage昇格を検討する**。ゲートの正本 = ADR-006「未解決論点」節。以下は要約:
 
 **2026-07-20: 論点#1〜#4はユーザーのPO判断委任に基づき裁定済み（Resolved）** — 裁定内容・根拠・実装条件の正本 = ADR-006「未解決論点」節（同日追記）。要約:
 

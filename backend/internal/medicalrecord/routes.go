@@ -36,6 +36,8 @@ type Handler struct {
 	prescription      *PrescriptionHandler
 	inquiry           *InquiryHandler
 	inquiryTemplate   *InquiryTemplateHandler
+	labImport         *LabImportHandler
+	labReport         *LabReportHandler
 	requirePermission PermissionMiddleware
 }
 
@@ -51,6 +53,8 @@ func NewHandler(
 	prescription *PrescriptionHandler,
 	inquiry *InquiryHandler,
 	inquiryTemplate *InquiryTemplateHandler,
+	labImport *LabImportHandler,
+	labReport *LabReportHandler,
 	requirePermission PermissionMiddleware,
 ) *Handler {
 	return &Handler{
@@ -64,6 +68,8 @@ func NewHandler(
 		prescription:      prescription,
 		inquiry:           inquiry,
 		inquiryTemplate:   inquiryTemplate,
+		labImport:         labImport,
+		labReport:         labReport,
 		requirePermission: requirePermission,
 	}
 }
@@ -176,4 +182,21 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	records.PATCH("/:id/prescriptions/:prescriptionId", perm(model.ResourceMedicalRecords, "edit"), h.prescription.UpdatePrescription)
 	records.DELETE("/:id/prescriptions/:prescriptionId", perm(model.ResourceMedicalRecords, "delete"), h.prescription.DeletePrescription)
 	records.PATCH("/:id/inquiries", perm(model.ResourceMedicalRecords, "edit"), h.inquiry.UpdateInquiry)
+
+	// Lab import saga (BE9-2D sub-batch③: moved from internal/handler lab_import_handler.go
+	// RegisterLabImportRoutes). All routes guard ResourceLabImport (preview/commit=create,
+	// job/events reads=view) — P5 parity.
+	labImports := rg.Group("/lab-imports")
+	labImports.POST("/preview", perm(model.ResourceLabImport, "create"), h.labImport.PreviewLabImport)
+	labImports.POST("", perm(model.ResourceLabImport, "create"), h.labImport.CommitLabImport)
+	labImports.GET("/:job_id", perm(model.ResourceLabImport, "view"), h.labImport.GetLabImportJob)
+	labImports.GET("/:job_id/events", perm(model.ResourceLabImport, "view"), h.labImport.ListLabImportEvents)
+
+	// Lab report read-only queries (BE9-2D sub-batch③: moved from lab_report_handler.go
+	// RegisterLabReportRoutes). Both reads guard ResourceLabImport "view" — NOT a separate
+	// lab-report resource — per Phase 4B.1 決定3 (the report views are scoped to the same
+	// import permission, mirroring the lab-import read routes above).
+	labReports := rg.Group("/lab-reports")
+	labReports.GET("/jobs/:job_id/summaries", perm(model.ResourceLabImport, "view"), h.labReport.GetLabJobReportSummaries)
+	labReports.GET("/exams/:exam_id", perm(model.ResourceLabImport, "view"), h.labReport.GetLabExamReport)
 }

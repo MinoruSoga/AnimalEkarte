@@ -124,10 +124,6 @@ GET /api/v1/hospitalizations/:id/daily-records/:date GetDailyRecord
 GET /api/v1/hospitalizations/:id/treatment-plans ListTreatmentPlansByHospitalization
 GET /api/v1/inventory ListInventory
 GET /api/v1/inventory/:id GetInventory
-GET /api/v1/lab-imports/:job_id GetLabImportJob
-GET /api/v1/lab-imports/:job_id/events ListLabImportEvents
-GET /api/v1/lab-reports/exams/:exam_id GetLabExamReport
-GET /api/v1/lab-reports/jobs/:job_id/summaries GetLabJobReportSummaries
 GET /api/v1/lstep-settings GetLstepSettings
 GET /api/v1/lstep-tag-code-mappings ListTagCodeMappings
 GET /api/v1/lstep-tag-config/auto-managed-prefixes ListAutoManagedPrefixes
@@ -342,8 +338,6 @@ POST /api/v1/hospitalizations/:id/daily-records/:date/vitals AddVitalRecord
 POST /api/v1/hospitalizations/:id/discharge-with-billing DischargeWithBilling
 POST /api/v1/hospitalizations/:id/treatment-plans CreateTreatmentPlanForHospitalization
 POST /api/v1/inventory CreateInventory
-POST /api/v1/lab-imports CommitLabImport
-POST /api/v1/lab-imports/preview PreviewLabImport
 POST /api/v1/login Login
 POST /api/v1/logout Logout
 POST /api/v1/lstep-settings/test-connection TestLstepConnection

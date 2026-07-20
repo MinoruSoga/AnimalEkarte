@@ -70,6 +70,28 @@ func (a medicalRecordAuditTxAdapter) LogEntryTx(ctx context.Context, e *medicalr
 	})
 }
 
+// labAuditAdapter adapts the shared audit kernel's non-tx logger (AuditService.LogEntry over
+// *service.AuditLogInput) to internal/medicalrecord's consumer-side AuditLogger view (LogEntry
+// over *medicalrecord.AuditEntry), so internal/medicalrecord never imports internal/service
+// (ADR-006 aggregator 非経由). Used by medicalrecord's labAuditLogger for its best-effort
+// (non-tx) lab-import audit trail. Moved here from internal/service/lab_middle_state.go in
+// BE9-2D sub-batch③ Batch C (mirrors medicalRecordAuditTxAdapter / manualArticleAuditAdapter).
+type labAuditAdapter struct{ audit service.AuditService }
+
+func (a labAuditAdapter) LogEntry(ctx context.Context, e *medicalrecord.AuditEntry) error {
+	return a.audit.LogEntry(ctx, &service.AuditLogInput{
+		ClinicID:   e.ClinicID,
+		ActorID:    e.ActorID,
+		ActorType:  e.ActorType,
+		Action:     e.Action,
+		Resource:   e.Resource,
+		ResourceID: e.ResourceID,
+		OldValue:   e.OldValue,
+		NewValue:   e.NewValue,
+		Metadata:   e.Metadata,
+	})
+}
+
 func main() {
 	// 設定読み込み（ロガー初期化より先に行い、LOG_LEVEL を含む全設定を config.Config に一元化する）
 	cfg := config.Load()
@@ -246,14 +268,16 @@ func main() {
 	// BE9-2C/2D (medicalrecord slice): same aggregator-non-経由 pattern as the BE9-2B
 	// manualarticle pilot above. The master-CRUD entities (diagnosis/exam/chief-complaint,
 	// BE9-2C) plus checkup/checkup-field-result/checkup-type/vaccine/vaccination/inquiry/
-	// inquiry-template/prescription (BE9-2D) are composed here directly from repos rather than
-	// via svcs.* (their Services fields were removed — nothing else read them). Unlike the 2C
-	// master handlers (which never wrote audit entries), the 2D services need the same LSTEP
-	// tag-sync / delivery-trigger deps and tx/audit boundary the pre-move NewServices wired:
-	// the LSTEP deps come from svcs.LstepTagSync / svcs.LstepDeliveryTrigger (still constructed
-	// inside NewServices), tx from repository.NewTransactor(repos.DB()), and the tx-internal
-	// audit logger via medicalRecordAuditTxAdapter. checkupSvc is kept in scope for its
-	// graceful-shutdown drain (checkupSvc.Wait() below, replacing the old svcs.Checkup.Wait()).
+	// inquiry-template/prescription (BE9-2D) plus the lab import/report saga (BE9-2D
+	// sub-batch③, wired just below the checkup services) are composed here directly from repos
+	// rather than via svcs.* (their Services fields were removed — nothing else read them).
+	// Unlike the 2C master handlers (which never wrote audit entries), the 2D services need the
+	// same LSTEP tag-sync / delivery-trigger deps and tx/audit boundary the pre-move NewServices
+	// wired: the LSTEP deps come from svcs.LstepTagSync / svcs.LstepDeliveryTrigger (still
+	// constructed inside NewServices), tx from repository.NewTransactor(repos.DB()), and the
+	// tx-internal audit logger via medicalRecordAuditTxAdapter (lab's best-effort non-tx audit
+	// uses labAuditAdapter). checkupSvc is kept in scope for its graceful-shutdown drain
+	// (checkupSvc.Wait() below, replacing the old svcs.Checkup.Wait()).
 	mrTx := repository.NewTransactor(repos.DB())
 	mrAuditTxLogger, ok := svcs.Audit.(service.AuditTxLogger)
 	if !ok {
@@ -269,6 +293,31 @@ func main() {
 	inquirySvc := medicalrecord.NewInquiryService(repos.Inquiry, repos.ChiefComplaintType)
 	inquiryTemplateSvc := medicalrecord.NewInquiryTemplateService(repos.InquiryTemplate)
 
+	// lab import/report saga (BE9-2D sub-batch③): moved from internal/service NewServices to
+	// here (leaf domain, no facade). labImportJobSvc is a single instance shared by the
+	// LabImportJob reads (get/events) and the LabResultImport commit path — preserving the
+	// pre-move sharing. examinationImportRepo/examinationReportRepo=repos.Examination,
+	// petFinder=repos.Pet, medicalRecordFinder=repos.MedicalRecord, ExamTypeRepository=
+	// repos.ExaminationType, dupChecker=medicalrecord.NewLabImportDuplicateCheckerDB (the
+	// repository facade was deleted in Batch B), and the non-tx best-effort audit trail flows
+	// through labAuditAdapter (mirrors the checkup tx-audit adapter above).
+	labImportJobSvc := medicalrecord.NewLabImportJobService(
+		medicalrecord.NewLabImportJobRepository(repos.DB()),
+		medicalrecord.NewLabImportEventRepository(repos.DB()),
+	)
+	labResultImportSvc := medicalrecord.NewLabResultImportService(
+		labImportJobSvc,
+		medicalrecord.NewLabImportExaminationService(
+			repos.Examination,
+			medicalrecord.NewLabImportDuplicateCheckerDB(repos.DB()),
+			repos.ExaminationType,
+			repos.Pet,
+			repos.MedicalRecord,
+		),
+	)
+	labAuditLogger := medicalrecord.NewLabAuditLogger(labAuditAdapter{audit: svcs.Audit})
+	labReportQuerySvc := medicalrecord.NewLabReportQueryService(repos.Examination)
+
 	medicalRecordHandler := medicalrecord.NewHandler(
 		medicalrecord.NewDiagnosisHandler(
 			medicalrecord.NewDiagnosisTypeService(repos.DiagnosisType),
@@ -283,6 +332,8 @@ func main() {
 		medicalrecord.NewPrescriptionHandler(prescriptionSvc),
 		medicalrecord.NewInquiryHandler(inquirySvc),
 		medicalrecord.NewInquiryTemplateHandler(inquiryTemplateSvc),
+		medicalrecord.NewLabImportHandler(labResultImportSvc, labImportJobSvc, labAuditLogger),
+		medicalrecord.NewLabReportHandler(labReportQuerySvc),
 		h.RequirePermission,
 	)
 	medicalRecordHandler.RegisterRoutes(protected)

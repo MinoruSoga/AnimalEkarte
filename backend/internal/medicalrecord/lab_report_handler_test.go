@@ -1,4 +1,4 @@
-package handler
+package medicalrecord
 
 import (
 	"context"
@@ -15,8 +15,15 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/service"
 )
+
+// These tests moved from internal/handler/lab_report_handler_test.go in BE9-2D sub-batch③.
+// The pre-move RequirePermission 403 tests (mockEffectivePermissionService deny-all router) were
+// dropped following the sibling precedent — permission enforcement is injected middleware here,
+// tested in internal/handler; the report routes' ResourceLabImport "view" parity is documented in
+// routes.go. The admin-bypass routers were replaced by direct handler calls (equivalent: no
+// permission middleware to bypass). What survives is the handler behaviour: clinic-scope
+// pass-through, param validation, response shape, and the PII field allowlists.
 
 // ------------------------------------
 // Stub — LabReportQueryService
@@ -36,49 +43,8 @@ func (s *stubLabReportQueryService) GetExamReport(ctx context.Context, clinicID,
 }
 
 // ------------------------------------
-// Router helpers
+// Fixtures
 // ------------------------------------
-
-// labReportTestRouter builds a router with lab-report routes and a configurable permission service.
-// system_admin=false forces RequirePermission middleware to evaluate rules.
-func labReportTestRouter(reportSvc service.LabReportQueryService, permSvc service.EffectivePermissionService) *gin.Engine {
-	r := gin.New()
-	h := &Handler{
-		svc: &service.Services{
-			LabReportQuery:      reportSvc,
-			EffectivePermission: permSvc,
-		},
-	}
-	g := r.Group("/api/v1")
-	g.Use(func(c *gin.Context) {
-		c.Set("clinic_id", "1")
-		c.Set("user_id", "1")
-		c.Set("is_system_admin", false)
-		c.Next()
-	})
-	h.RegisterLabReportRoutes(g)
-	return r
-}
-
-// labReportAdminRouter builds a router with system_admin=true (bypasses permission middleware).
-func labReportAdminRouter(reportSvc service.LabReportQueryService) *gin.Engine {
-	r := gin.New()
-	h := &Handler{
-		svc: &service.Services{
-			LabReportQuery:      reportSvc,
-			EffectivePermission: &mockEffectivePermissionService{},
-		},
-	}
-	g := r.Group("/api/v1")
-	g.Use(func(c *gin.Context) {
-		c.Set("clinic_id", "1")
-		c.Set("user_id", "1")
-		c.Set("is_system_admin", true)
-		c.Next()
-	})
-	h.RegisterLabReportRoutes(g)
-	return r
-}
 
 // syntheticSummary builds a PII-safe LabExamReportSummary for handler tests.
 func syntheticSummary(examID uint64, jobID uuid.UUID) model.LabExamReportSummary {
@@ -116,44 +82,24 @@ func syntheticDetail(examID uint64, jobID uuid.UUID) *model.LabExamReportDetail 
 	}
 }
 
-// ------------------------------------
-// Permission enforcement tests
-// ------------------------------------
-
-// TestGetLabJobReportSummaries_MissingPermission_Returns403 verifies ResourceLabImport "view"
-// is enforced for the summaries endpoint.
-func TestGetLabJobReportSummaries_MissingPermission_Returns403(t *testing.T) {
-	gin.SetMode(gin.TestMode)
-	r := labReportTestRouter(nil, denyAllPermSvc())
-
-	w := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/lab-reports/jobs/"+uuid.New().String()+"/summaries", http.NoBody)
-	r.ServeHTTP(w, req)
-
-	assert.Equal(t, http.StatusForbidden, w.Code)
-}
-
-// TestGetLabExamReport_MissingPermission_Returns403 verifies ResourceLabImport "view"
-// is enforced for the exam detail endpoint.
-func TestGetLabExamReport_MissingPermission_Returns403(t *testing.T) {
-	gin.SetMode(gin.TestMode)
-	r := labReportTestRouter(nil, denyAllPermSvc())
-
-	w := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/lab-reports/exams/1", http.NoBody)
-	r.ServeHTTP(w, req)
-
-	assert.Equal(t, http.StatusForbidden, w.Code)
+// newReportContext builds a gin.Context with clinic_id=1 and the given URL param, for direct
+// handler invocation (the handlers write via c.JSON, so no gin.Engine round-trip is needed).
+func newReportContext(w *httptest.ResponseRecorder, paramKey, paramVal string) *gin.Context {
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest(http.MethodGet, "/", http.NoBody)
+	c.Params = gin.Params{{Key: paramKey, Value: paramVal}}
+	setClinicID(c)
+	return c
 }
 
 // ------------------------------------
-// Missing clinic_id tests (via direct handler call, no router)
+// Missing clinic_id tests (401)
 // ------------------------------------
 
 // TestGetLabJobReportSummaries_MissingClinicID_Returns401 verifies missing clinic_id → 401.
 func TestGetLabJobReportSummaries_MissingClinicID_Returns401(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	h := &Handler{svc: &service.Services{LabReportQuery: nil}}
+	h := NewLabReportHandler(nil)
 
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
@@ -169,7 +115,7 @@ func TestGetLabJobReportSummaries_MissingClinicID_Returns401(t *testing.T) {
 // TestGetLabExamReport_MissingClinicID_Returns401 verifies missing clinic_id → 401.
 func TestGetLabExamReport_MissingClinicID_Returns401(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	h := &Handler{svc: &service.Services{LabReportQuery: nil}}
+	h := NewLabReportHandler(nil)
 
 	w := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(w)
@@ -188,17 +134,14 @@ func TestGetLabExamReport_MissingClinicID_Returns401(t *testing.T) {
 // TestGetLabJobReportSummaries_InvalidUUID_Returns400 verifies that a non-UUID job_id returns 400.
 func TestGetLabJobReportSummaries_InvalidUUID_Returns400(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	h := &Handler{svc: &service.Services{LabReportQuery: &stubLabReportQueryService{
+	h := NewLabReportHandler(&stubLabReportQueryService{
 		listFn: func(_ context.Context, _ uint64, _ uuid.UUID) ([]model.LabExamReportSummary, error) {
 			return nil, nil
 		},
-	}}}
+	})
 
 	w := httptest.NewRecorder()
-	c, _ := gin.CreateTestContext(w)
-	c.Request = httptest.NewRequest(http.MethodGet, "/api/v1/lab-reports/jobs/not-a-uuid/summaries", http.NoBody)
-	c.Params = gin.Params{{Key: "job_id", Value: "not-a-uuid"}}
-	setClinicID(c)
+	c := newReportContext(w, "job_id", "not-a-uuid")
 
 	h.GetLabJobReportSummaries(c)
 
@@ -208,17 +151,14 @@ func TestGetLabJobReportSummaries_InvalidUUID_Returns400(t *testing.T) {
 // TestGetLabExamReport_NonNumericExamID_Returns400 verifies that a non-integer exam_id returns 400.
 func TestGetLabExamReport_NonNumericExamID_Returns400(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	h := &Handler{svc: &service.Services{LabReportQuery: &stubLabReportQueryService{
+	h := NewLabReportHandler(&stubLabReportQueryService{
 		getFn: func(_ context.Context, _ uint64, _ uint64) (*model.LabExamReportDetail, error) {
 			return nil, nil
 		},
-	}}}
+	})
 
 	w := httptest.NewRecorder()
-	c, _ := gin.CreateTestContext(w)
-	c.Request = httptest.NewRequest(http.MethodGet, "/api/v1/lab-reports/exams/abc", http.NoBody)
-	c.Params = gin.Params{{Key: "exam_id", Value: "abc"}}
-	setClinicID(c)
+	c := newReportContext(w, "exam_id", "abc")
 
 	h.GetLabExamReport(c)
 
@@ -228,17 +168,14 @@ func TestGetLabExamReport_NonNumericExamID_Returns400(t *testing.T) {
 // TestGetLabExamReport_ZeroExamID_Returns400 verifies that exam_id=0 is rejected.
 func TestGetLabExamReport_ZeroExamID_Returns400(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	h := &Handler{svc: &service.Services{LabReportQuery: &stubLabReportQueryService{
+	h := NewLabReportHandler(&stubLabReportQueryService{
 		getFn: func(_ context.Context, _ uint64, _ uint64) (*model.LabExamReportDetail, error) {
 			return nil, nil
 		},
-	}}}
+	})
 
 	w := httptest.NewRecorder()
-	c, _ := gin.CreateTestContext(w)
-	c.Request = httptest.NewRequest(http.MethodGet, "/api/v1/lab-reports/exams/0", http.NoBody)
-	c.Params = gin.Params{{Key: "exam_id", Value: "0"}}
-	setClinicID(c)
+	c := newReportContext(w, "exam_id", "0")
 
 	h.GetLabExamReport(c)
 
@@ -246,7 +183,7 @@ func TestGetLabExamReport_ZeroExamID_Returns400(t *testing.T) {
 }
 
 // ------------------------------------
-// Happy-path tests (via router — permission bypassed with admin flag)
+// Happy-path tests
 // ------------------------------------
 
 // TestGetLabJobReportSummaries_Happy_Returns200 verifies a valid request returns 200
@@ -262,11 +199,12 @@ func TestGetLabJobReportSummaries_Happy_Returns200(t *testing.T) {
 			return []model.LabExamReportSummary{syntheticSummary(1, jobID)}, nil
 		},
 	}
-	r := labReportAdminRouter(svc)
+	h := NewLabReportHandler(svc)
 
 	w := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/lab-reports/jobs/"+jobID.String()+"/summaries", http.NoBody)
-	r.ServeHTTP(w, req)
+	c := newReportContext(w, "job_id", jobID.String())
+
+	h.GetLabJobReportSummaries(c)
 
 	require.Equal(t, http.StatusOK, w.Code)
 
@@ -287,11 +225,12 @@ func TestGetLabJobReportSummaries_EmptyResult_Returns200(t *testing.T) {
 			return []model.LabExamReportSummary{}, nil
 		},
 	}
-	r := labReportAdminRouter(svc)
+	h := NewLabReportHandler(svc)
 
 	w := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/lab-reports/jobs/"+uuid.New().String()+"/summaries", http.NoBody)
-	r.ServeHTTP(w, req)
+	c := newReportContext(w, "job_id", uuid.New().String())
+
+	h.GetLabJobReportSummaries(c)
 
 	require.Equal(t, http.StatusOK, w.Code)
 
@@ -312,11 +251,12 @@ func TestGetLabExamReport_Happy_Returns200(t *testing.T) {
 			return syntheticDetail(10, jobID), nil
 		},
 	}
-	r := labReportAdminRouter(svc)
+	h := NewLabReportHandler(svc)
 
 	w := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/lab-reports/exams/10", http.NoBody)
-	r.ServeHTTP(w, req)
+	c := newReportContext(w, "exam_id", "10")
+
+	h.GetLabExamReport(c)
 
 	require.Equal(t, http.StatusOK, w.Code)
 
@@ -337,38 +277,19 @@ func TestGetLabExamReport_NotFound_Returns404(t *testing.T) {
 			return nil, apperrors.WrapNotFound("exam", "999")
 		},
 	}
-	r := labReportAdminRouter(svc)
+	h := NewLabReportHandler(svc)
 
 	w := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/lab-reports/exams/999", http.NoBody)
-	r.ServeHTTP(w, req)
+	c := newReportContext(w, "exam_id", "999")
+
+	h.GetLabExamReport(c)
 
 	assert.Equal(t, http.StatusNotFound, w.Code)
 }
 
 // ------------------------------------
-// Clinic scope isolation via router
+// Clinic scope isolation
 // ------------------------------------
-
-// labReportClinicScopeRouter builds a router that injects a specific clinic_id.
-func labReportClinicScopeRouter(clinicID string, reportSvc service.LabReportQueryService) *gin.Engine {
-	r := gin.New()
-	h := &Handler{
-		svc: &service.Services{
-			LabReportQuery:      reportSvc,
-			EffectivePermission: &mockEffectivePermissionService{},
-		},
-	}
-	g := r.Group("/api/v1")
-	g.Use(func(c *gin.Context) {
-		c.Set("clinic_id", clinicID)
-		c.Set("user_id", "1")
-		c.Set("is_system_admin", true) // bypass permission; focus on clinic scope
-		c.Next()
-	})
-	h.RegisterLabReportRoutes(g)
-	return r
-}
 
 // TestGetLabJobReportSummaries_WrongClinic_ReturnsEmpty verifies that an exam belonging
 // to clinic 2 is not returned when the request is scoped to clinic 1.
@@ -385,11 +306,12 @@ func TestGetLabJobReportSummaries_WrongClinic_ReturnsEmpty(t *testing.T) {
 			return []model.LabExamReportSummary{syntheticSummary(1, jid)}, nil
 		},
 	}
-	r := labReportClinicScopeRouter("1", svc) // request as clinic 1
+	h := NewLabReportHandler(svc)
 
 	w := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/lab-reports/jobs/"+jobID.String()+"/summaries", http.NoBody)
-	r.ServeHTTP(w, req)
+	c := newReportContext(w, "job_id", jobID.String()) // request as clinic 1
+
+	h.GetLabJobReportSummaries(c)
 
 	require.Equal(t, http.StatusOK, w.Code)
 	var body []map[string]any
@@ -411,11 +333,12 @@ func TestGetLabExamReport_WrongClinic_Returns404(t *testing.T) {
 			return syntheticDetail(examID, uuid.New()), nil
 		},
 	}
-	r := labReportClinicScopeRouter("1", svc) // request as clinic 1
+	h := NewLabReportHandler(svc)
 
 	w := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/lab-reports/exams/5", http.NoBody)
-	r.ServeHTTP(w, req)
+	c := newReportContext(w, "exam_id", "5") // request as clinic 1
+
+	h.GetLabExamReport(c)
 
 	assert.Equal(t, http.StatusNotFound, w.Code)
 }
@@ -434,11 +357,12 @@ func TestGetLabExamReport_ResponseDoesNotLeakPII(t *testing.T) {
 			return syntheticDetail(1, jobID), nil
 		},
 	}
-	r := labReportAdminRouter(svc)
+	h := NewLabReportHandler(svc)
 
 	w := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/lab-reports/exams/1", http.NoBody)
-	r.ServeHTTP(w, req)
+	c := newReportContext(w, "exam_id", "1")
+
+	h.GetLabExamReport(c)
 
 	require.Equal(t, http.StatusOK, w.Code)
 	body := w.Body.String()
@@ -462,11 +386,12 @@ func TestGetLabJobReportSummaries_ResponseDoesNotLeakPII(t *testing.T) {
 			return []model.LabExamReportSummary{syntheticSummary(1, jid)}, nil
 		},
 	}
-	r := labReportAdminRouter(svc)
+	h := NewLabReportHandler(svc)
 
 	w := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/lab-reports/jobs/"+jobID.String()+"/summaries", http.NoBody)
-	r.ServeHTTP(w, req)
+	c := newReportContext(w, "job_id", jobID.String())
+
+	h.GetLabJobReportSummaries(c)
 
 	require.Equal(t, http.StatusOK, w.Code)
 	body := w.Body.String()
@@ -537,11 +462,12 @@ func TestGetLabJobReportSummaries_ExactFieldAllowlist(t *testing.T) {
 			return []model.LabExamReportSummary{syntheticSummary(1, jid)}, nil
 		},
 	}
-	r := labReportAdminRouter(svc)
+	h := NewLabReportHandler(svc)
 
 	w := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/lab-reports/jobs/"+jobID.String()+"/summaries", http.NoBody)
-	r.ServeHTTP(w, req)
+	c := newReportContext(w, "job_id", jobID.String())
+
+	h.GetLabJobReportSummaries(c)
 
 	require.Equal(t, http.StatusOK, w.Code)
 
@@ -565,11 +491,12 @@ func TestGetLabExamReport_ExactFieldAllowlist(t *testing.T) {
 			return syntheticDetail(1, jobID), nil
 		},
 	}
-	r := labReportAdminRouter(svc)
+	h := NewLabReportHandler(svc)
 
 	w := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/lab-reports/exams/1", http.NoBody)
-	r.ServeHTTP(w, req)
+	c := newReportContext(w, "exam_id", "1")
+
+	h.GetLabExamReport(c)
 
 	require.Equal(t, http.StatusOK, w.Code)
 
@@ -617,11 +544,12 @@ func TestGetLabExamReport_ExactFieldAllowlist_NilOptionalFields(t *testing.T) {
 			}, nil
 		},
 	}
-	r := labReportAdminRouter(svc)
+	h := NewLabReportHandler(svc)
 
 	w := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/lab-reports/exams/1", http.NoBody)
-	r.ServeHTTP(w, req)
+	c := newReportContext(w, "exam_id", "1")
+
+	h.GetLabExamReport(c)
 
 	require.Equal(t, http.StatusOK, w.Code)
 

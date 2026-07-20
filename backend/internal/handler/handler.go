@@ -119,10 +119,9 @@ func (h *Handler) RegisterRoutes(ctx context.Context, r *gin.Engine) *gin.Router
 	h.RegisterAccountingReportRoutes(protected)
 	h.RegisterPaymentMethodMasterRoutes(protected)
 
-	// lab import: 外部検査結果インポートジョブ管理 (Phase 3)
-	h.RegisterLabImportRoutes(protected)
-	// lab report: 検査帳票 read-only クエリ (Phase 4B.2)
-	h.RegisterLabReportRoutes(protected)
+	// BE9-2D sub-batch③: /lab-imports and /lab-reports moved to
+	// internal/medicalrecord.Handler.RegisterRoutes (composed in cmd/api/main.go, ADR-006
+	// aggregator 非経由).
 
 	// LSTEP / LINE連携
 	h.RegisterLstepSettingsRoutes(protected)

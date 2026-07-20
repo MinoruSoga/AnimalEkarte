@@ -1,4 +1,4 @@
-package service
+package medicalrecord
 
 import (
 	"context"
@@ -10,7 +10,6 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository"
 )
 
 // labImportTransitions は許可された状態遷移テーブル。
@@ -71,14 +70,14 @@ type TransitionCounts struct {
 }
 
 type labImportJobService struct {
-	jobRepo   repository.LabImportJobRepository
-	eventRepo repository.LabImportEventRepository
+	jobRepo   LabImportJobRepository
+	eventRepo LabImportEventRepository
 }
 
 // NewLabImportJobService は LabImportJobService を初期化して返す。
 func NewLabImportJobService(
-	jobRepo repository.LabImportJobRepository,
-	eventRepo repository.LabImportEventRepository,
+	jobRepo LabImportJobRepository,
+	eventRepo LabImportEventRepository,
 ) LabImportJobService {
 	return &labImportJobService{
 		jobRepo:   jobRepo,

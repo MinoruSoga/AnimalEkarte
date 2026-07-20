@@ -189,11 +189,11 @@ var knownSafeParamQualifiers = map[string]struct{}{
 	// Every future BE9-2C/2D/2E domain package will hit this same qualifier once it merges
 	// handler code into role scope; no further per-domain qualifier addition should be needed.
 	"gin": {},
-	// (BE9-2D Batch C removed the transitional "medicalrecord" qualifier: the last internal/
-	// service holder of a *medicalrecord.* parameter — medicalrecordAuditTxAdapter.LogEntryTx in
-	// medicalrecord_middle_state.go — was relocated to cmd/api/main.go, so no service-package
-	// method takes a medicalrecord-qualified parameter anymore. The master-FK-bearing DTOs are
-	// inspected as package-local types inside internal/medicalrecord's own lint scope.)
+	// NOTE (BE9-2D sub-batch③): a "medicalrecord" qualifier was temporarily exempted in the
+	// Batch B middle state (labAuditAdapter.LogEntry(ctx, *medicalrecord.AuditEntry) in the now-
+	// deleted lab_middle_state.go). Batch C relocated lab construction — and that adapter — to
+	// cmd/api/main.go, so the service package no longer holds any *medicalrecord.* parameter and
+	// the exemption is removed again (mirrors sub-batch②'s medicalrecord_middle_state.go lifecycle).
 }
 
 // masterFKWriteStatus records WHY a master-FK write is on the allowlist. The gate does not
@@ -270,8 +270,8 @@ var masterFKWriteAllowlist = []masterFKWriteEntry{
 	{"examTypeService.Create", statusGuarded, []string{"ParentID"}, "internal/medicalrecord/exam_type_service.go (BE9-2C, moved from internal/service/exam_type_service.go): validateParentOwnership FindByID(ctx, clinicID, *ParentID) before persist (X-14 batch3); test: TestExamTypeService_Create_RejectsCrossClinicParentFK (internal/medicalrecord/exam_type_cross_tenant_test.go)"},
 	{"examTypeService.Update", statusGuarded, []string{"ParentID"}, "as Create — validateParentOwnership guards *input.ParentID before repo.Update (X-14 batch3); test: TestExamTypeService_Update_RejectsCrossClinicParentFK (internal/medicalrecord/exam_type_cross_tenant_test.go)"},
 	{"inquiryService.Save", statusGuarded, []string{"ChiefComplaintTypeID"}, "internal/medicalrecord/inquiry_service.go (BE9-2D, moved from internal/service): chiefComplaintTypeRepo.FindByID(ctx, input.ClinicID, *ChiefComplaintTypeID) before persist (X-14 batch U4); test: TestInquiryService_Save_RejectsCrossClinicChiefComplaintType (internal/medicalrecord/cross_tenant_master_fk_write_test.go)"},
-	{"labImportExaminationService.PersistBatch", statusGuarded, []string{"ExamTypeID"}, "PersistBatch delegates each row to persistExam (unexported, B-5), which now guards ExamTypeID (X-14 batch U3); test: TestLabImportExaminationService_PersistBatch_RejectsCrossClinicExamType"},
-	{"labResultImportService.Commit", statusGuarded, []string{"ExamTypeID"}, "Commit delegates to labImportExaminationService.PersistBatch/persistExam, which now guards ExamTypeID (X-14 batch U3); test: TestLabResultImportService_Commit_RejectsCrossClinicExamType"},
+	{"labImportExaminationService.PersistBatch", statusGuarded, []string{"ExamTypeID"}, "internal/medicalrecord/lab_import_examination_service.go (BE9-2D sub-batch③, moved from internal/service): PersistBatch delegates each row to persistExam (unexported, B-5), which guards ExamTypeID (X-14 batch U3); test: TestLabImportExaminationService_PersistBatch_RejectsCrossClinicExamType (internal/medicalrecord/cross_tenant_master_fk_write_test.go)"},
+	{"labResultImportService.Commit", statusGuarded, []string{"ExamTypeID"}, "internal/medicalrecord/lab_result_import_service.go (BE9-2D sub-batch③, moved from internal/service): Commit delegates to labImportExaminationService.PersistBatch/persistExam, which guards ExamTypeID (X-14 batch U3); test: TestLabResultImportService_Commit_RejectsCrossClinicExamType (internal/medicalrecord/cross_tenant_master_fk_write_test.go)"},
 	{"liffService.CreateReservation", statusGuarded, []string{"ReservationTypeID", "TrimmingCourseID", "TrimmingOptionIDs"}, "liffService.CreateReservation delegates fully to reservationValidators.ValidateAndCreate, which now guards all three FKs before tx (X-14 U6a); test: TestLiffService_CreateReservation_RejectsCrossClinicTrimmingFK"},
 	{"medicalRecordService.CreateSubRecords", statusGuarded, []string{"ChiefComplaintTypeID", "Diagnosis1CategoryID", "Diagnosis1NameID", "Diagnosis2TypeID", "Diagnosis2NameID"}, "medical_record_subrecords.go: chiefComplaintTypeRepo.FindByID before inquiry upsert; validateCreateSubRecordDiagnosisFKs (validateDiagnosisFKs-equivalent, unexported local helper) guards all four diagnosis FKs before clinicalPlanRepo.Update (X-14 batch U4); best-effort — failure skips the write (Warn), does not error. test: TestMedicalRecordService_CreateSubRecords_RejectsCrossClinicChiefComplaintType, TestMedicalRecordService_CreateSubRecords_RejectsCrossClinicDiagnosisFK"},
 	{"medicineService.Create", statusGuarded, []string{"InventoryID", "ParentID"}, "medicine_service.go: validateParentOwnership (self-ref repo.FindByID) + validateInventoryOwnership (inventoryRepo.FindByID) before persist (X-14 batch U2); test: TestMedicineService_Create_RejectsCrossClinicParentFK, TestMedicineService_Create_RejectsCrossClinicInventoryFK"},

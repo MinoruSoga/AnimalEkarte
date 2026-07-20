@@ -1,4 +1,4 @@
-package service
+package medicalrecord
 
 import (
 	"context"
@@ -52,13 +52,14 @@ type CommitAuditCounts struct {
 	FailedCount    int
 }
 
-// labAuditLogger は AuditService を使って lab import 監査イベントを記録する。
+// labAuditLogger は非tx の AuditLogger（共有監査カーネルの LogEntry view）を使って
+// lab import 監査イベントを記録する。
 type labAuditLogger struct {
-	audit AuditService
+	audit AuditLogger
 }
 
 // NewLabAuditLogger は LabAuditLogger を初期化して返す。
-func NewLabAuditLogger(audit AuditService) LabAuditLogger {
+func NewLabAuditLogger(audit AuditLogger) LabAuditLogger {
 	return &labAuditLogger{audit: audit}
 }
 
@@ -110,11 +111,11 @@ func (l *labAuditLogger) LogSourceBlocked(ctx context.Context, clinicID uint64, 
 	})
 }
 
-// logBestEffort は AuditService.LogEntry を呼び出し、失敗時は warn ログを残して無視する。
+// logBestEffort は AuditLogger.LogEntry を呼び出し、失敗時は warn ログを残して無視する。
 // 失敗が lab import フローを中断しないようにするためのベストエフォート設計。
 func (l *labAuditLogger) logBestEffort(ctx context.Context, clinicID uint64, actorID *uint64, action string, metadata map[string]any) {
 	actorType := auditActorTypeFor(actorID)
-	if err := l.audit.LogEntry(ctx, &AuditLogInput{
+	if err := l.audit.LogEntry(ctx, &AuditEntry{
 		ClinicID:  &clinicID,
 		ActorID:   actorID,
 		ActorType: actorType,

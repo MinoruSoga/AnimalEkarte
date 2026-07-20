@@ -1,4 +1,4 @@
-package handler
+package medicalrecord
 
 import (
 	"errors"
@@ -9,25 +9,36 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
+	"github.com/animal-ekarte/backend/internal/httpapi"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/service"
 )
 
-// ------------------------------------
-// Handler methods
-// ------------------------------------
+// LabImportHandler serves the lab-import saga HTTP boundary (preview / commit / job / events).
+// It holds only the services these four endpoints use (Go/Gin guideline: consumer declares its
+// minimal dependencies). audit is nil-safe: a nil LabAuditLogger disables the best-effort audit
+// trail without changing the import flow (preserving the pre-move h.labAudit() nil-guard).
+type LabImportHandler struct {
+	resultImport LabResultImportService
+	job          LabImportJobService
+	audit        LabAuditLogger
+}
+
+// NewLabImportHandler initializes a LabImportHandler. audit may be nil (audit trail disabled).
+func NewLabImportHandler(resultImport LabResultImportService, job LabImportJobService, audit LabAuditLogger) *LabImportHandler {
+	return &LabImportHandler{resultImport: resultImport, job: job, audit: audit}
+}
 
 // PreviewLabImport godoc
 // POST /api/v1/lab-imports/preview — バッチ内容を検証してサマリを返す（DB 書き込みなし）。
-func (h *Handler) PreviewLabImport(c *gin.Context) {
-	clinicID, ok := extractClinicID(c)
+func (h *LabImportHandler) PreviewLabImport(c *gin.Context) {
+	clinicID, ok := httpapi.ExtractClinicID(c)
 	if !ok {
 		return
 	}
 
 	var req labImportPreviewRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
+		httpapi.RespondError(c, apperrors.WrapInvalidInput(httpapi.ParseBindError(err)))
 		return
 	}
 
@@ -51,17 +62,17 @@ func (h *Handler) PreviewLabImport(c *gin.Context) {
 	}
 
 	if la := h.labAudit(); la != nil {
-		la.LogPreviewRequested(c.Request.Context(), clinicID, optionalStaffID(c), req.SourceType, len(batch.ResultRows))
+		la.LogPreviewRequested(c.Request.Context(), clinicID, httpapi.OptionalStaffID(c), req.SourceType, len(batch.ResultRows))
 	}
 
-	preview, err := h.svc.LabResultImport.Preview(c.Request.Context(), clinicID, batch)
+	preview, err := h.resultImport.Preview(c.Request.Context(), clinicID, batch)
 	if err != nil {
-		RespondError(c, err)
+		httpapi.RespondError(c, err)
 		return
 	}
 
 	if la := h.labAudit(); la != nil && len(preview.BlockedReasons) > 0 {
-		la.LogSourceBlocked(c.Request.Context(), clinicID, optionalStaffID(c),
+		la.LogSourceBlocked(c.Request.Context(), clinicID, httpapi.OptionalStaffID(c),
 			req.SourceType, "preview", model.LabBlockedReasonSourceTypeBlocked)
 	}
 
@@ -71,46 +82,46 @@ func (h *Handler) PreviewLabImport(c *gin.Context) {
 // CommitLabImport godoc
 // POST /api/v1/lab-imports — fixture バッチを commit して exams + job を永続化する。
 // source_type=fixture 以外は 400 を返す（Phase 3 制約）。
-func (h *Handler) CommitLabImport(c *gin.Context) {
-	clinicID, ok := extractClinicID(c)
+func (h *LabImportHandler) CommitLabImport(c *gin.Context) {
+	clinicID, ok := httpapi.ExtractClinicID(c)
 	if !ok {
 		return
 	}
 
 	var req labImportCommitRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		RespondError(c, apperrors.WrapInvalidInput(parseBindError(err)))
+		httpapi.RespondError(c, apperrors.WrapInvalidInput(httpapi.ParseBindError(err)))
 		return
 	}
 
 	batch, err := toBatch(req.Batch)
 	if err != nil {
-		RespondError(c, err)
+		httpapi.RespondError(c, err)
 		return
 	}
 
 	inputs, err := toExamInputs(clinicID, req.Inputs)
 	if err != nil {
-		RespondError(c, err)
+		httpapi.RespondError(c, err)
 		return
 	}
 
-	actorID := optionalStaffID(c)
+	actorID := httpapi.OptionalStaffID(c)
 	if la := h.labAudit(); la != nil {
 		la.LogCommitRequested(c.Request.Context(), clinicID, actorID, req.Batch.SourceType, len(req.Inputs))
 	}
 
-	result, err := h.svc.LabResultImport.Commit(c.Request.Context(), clinicID, batch, inputs)
+	result, err := h.resultImport.Commit(c.Request.Context(), clinicID, batch, inputs)
 	if err != nil {
 		if la := h.labAudit(); la != nil {
 			la.LogCommitFailed(c.Request.Context(), clinicID, actorID, errorCategory(err))
 		}
-		RespondError(c, err)
+		httpapi.RespondError(c, err)
 		return
 	}
 
 	if la := h.labAudit(); la != nil {
-		la.LogCommitSucceeded(c.Request.Context(), clinicID, actorID, result.JobID, service.CommitAuditCounts{
+		la.LogCommitSucceeded(c.Request.Context(), clinicID, actorID, result.JobID, CommitAuditCounts{
 			RowCount:       result.PersistedCount + result.DuplicateCount + result.FailedCount,
 			PersistedCount: result.PersistedCount,
 			DuplicateCount: result.DuplicateCount,
@@ -124,19 +135,19 @@ func (h *Handler) CommitLabImport(c *gin.Context) {
 
 // GetLabImportJob godoc
 // GET /api/v1/lab-imports/:job_id — ジョブ詳細を返す。
-func (h *Handler) GetLabImportJob(c *gin.Context) {
-	clinicID, ok := extractClinicID(c)
+func (h *LabImportHandler) GetLabImportJob(c *gin.Context) {
+	clinicID, ok := httpapi.ExtractClinicID(c)
 	if !ok {
 		return
 	}
-	jobID, ok := parseUUIDParam(c, "job_id")
+	jobID, ok := httpapi.ParseUUIDParam(c, "job_id")
 	if !ok {
 		return
 	}
 
-	job, err := h.svc.LabImportJob.GetJob(c.Request.Context(), clinicID, jobID)
+	job, err := h.job.GetJob(c.Request.Context(), clinicID, jobID)
 	if err != nil {
-		RespondError(c, err)
+		httpapi.RespondError(c, err)
 		return
 	}
 	c.JSON(http.StatusOK, toLabImportJobResponse(job))
@@ -144,19 +155,19 @@ func (h *Handler) GetLabImportJob(c *gin.Context) {
 
 // ListLabImportEvents godoc
 // GET /api/v1/lab-imports/:job_id/events — ジョブのイベント一覧を返す（作成昇順）。
-func (h *Handler) ListLabImportEvents(c *gin.Context) {
-	clinicID, ok := extractClinicID(c)
+func (h *LabImportHandler) ListLabImportEvents(c *gin.Context) {
+	clinicID, ok := httpapi.ExtractClinicID(c)
 	if !ok {
 		return
 	}
-	jobID, ok := parseUUIDParam(c, "job_id")
+	jobID, ok := httpapi.ParseUUIDParam(c, "job_id")
 	if !ok {
 		return
 	}
 
-	events, err := h.svc.LabImportJob.ListEvents(c.Request.Context(), clinicID, jobID)
+	events, err := h.job.ListEvents(c.Request.Context(), clinicID, jobID)
 	if err != nil {
-		RespondError(c, err)
+		httpapi.RespondError(c, err)
 		return
 	}
 	resp := make([]labImportEventResponse, len(events))
@@ -168,11 +179,8 @@ func (h *Handler) ListLabImportEvents(c *gin.Context) {
 
 // labAudit は nil-safe な LabAuditLogger アクセサ。
 // Handler が LabAudit を持たない場合（テスト等）は nil を返す。
-func (h *Handler) labAudit() service.LabAuditLogger {
-	if h.svc == nil {
-		return nil
-	}
-	return h.svc.LabAudit
+func (h *LabImportHandler) labAudit() LabAuditLogger {
+	return h.audit
 }
 
 // errorCategory は apperrors エラーから audit 用の LabAuditErrorCategory を返す。
@@ -193,15 +201,4 @@ func errorCategory(err error) model.LabAuditErrorCategory {
 	default:
 		return model.LabAuditErrorCategoryInternal
 	}
-}
-
-// RegisterLabImportRoutes は lab import エンドポイントのルートを登録する。
-// 全エンドポイントに RequirePermission を付与する（P5 準拠）。
-func (h *Handler) RegisterLabImportRoutes(rg *gin.RouterGroup) {
-	g := rg.Group("/lab-imports")
-	perm := h.RequirePermission
-	g.POST("/preview", perm(string(model.ResourceLabImport), "create"), h.PreviewLabImport)
-	g.POST("", perm(string(model.ResourceLabImport), "create"), h.CommitLabImport)
-	g.GET("/:job_id", perm(string(model.ResourceLabImport), "view"), h.GetLabImportJob)
-	g.GET("/:job_id/events", perm(string(model.ResourceLabImport), "view"), h.ListLabImportEvents)
 }

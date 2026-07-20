@@ -1,4 +1,4 @@
-package handler
+package medicalrecord
 
 import (
 	"bytes"
@@ -17,8 +17,16 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/service"
 )
+
+// These tests moved from internal/handler/lab_import_handler_test.go in BE9-2D sub-batch③.
+// The pre-move file also carried RequirePermission 403 tests (via a mockEffectivePermissionService
+// deny-all router); those were dropped following the sibling precedent (checkup/vaccination/inquiry
+// handlers): permission enforcement is injected middleware here, and the RequirePermission +
+// EffectivePermissionService machinery stays tested in internal/handler. The (resource, action)
+// parity for the lab routes is hand-transcribed and documented in routes.go, not gated (see
+// routes_snapshot_test.go's header). What survives here is the handler's own behaviour:
+// binding/validation, clinic-scope pass-through, response shape, PII safety, and the audit trail.
 
 // ------------------------------------
 // Stubs — LabResultImportService
@@ -26,14 +34,14 @@ import (
 
 type stubLabResultImportService struct {
 	previewFn func(ctx context.Context, clinicID uint64, batch model.LabInboundBatch) (*model.LabImportPreviewResponse, error)
-	commitFn  func(ctx context.Context, clinicID uint64, batch model.LabInboundBatch, inputs []service.LabExamPersistInput) (*model.LabImportCommitResponse, error)
+	commitFn  func(ctx context.Context, clinicID uint64, batch model.LabInboundBatch, inputs []LabExamPersistInput) (*model.LabImportCommitResponse, error)
 }
 
 func (s *stubLabResultImportService) Preview(ctx context.Context, clinicID uint64, batch model.LabInboundBatch) (*model.LabImportPreviewResponse, error) {
 	return s.previewFn(ctx, clinicID, batch)
 }
 
-func (s *stubLabResultImportService) Commit(ctx context.Context, clinicID uint64, batch model.LabInboundBatch, inputs []service.LabExamPersistInput) (*model.LabImportCommitResponse, error) {
+func (s *stubLabResultImportService) Commit(ctx context.Context, clinicID uint64, batch model.LabInboundBatch, inputs []LabExamPersistInput) (*model.LabImportCommitResponse, error) {
 	return s.commitFn(ctx, clinicID, batch, inputs)
 }
 
@@ -50,16 +58,12 @@ func (s *stubLabImportJobServiceForHandler) CreateJob(_ context.Context, _ uint6
 	return nil, nil
 }
 
-func (s *stubLabImportJobServiceForHandler) TransitionStatus(_ context.Context, _ uint64, _ uuid.UUID, _ model.LabImportJobStatus, _ service.TransitionCounts) (*model.LabImportJob, error) {
+func (s *stubLabImportJobServiceForHandler) TransitionStatus(_ context.Context, _ uint64, _ uuid.UUID, _ model.LabImportJobStatus, _ TransitionCounts) (*model.LabImportJob, error) {
 	return nil, nil
 }
 
 func (s *stubLabImportJobServiceForHandler) GetJob(ctx context.Context, clinicID uint64, jobID uuid.UUID) (*model.LabImportJob, error) {
 	return s.getJobFn(ctx, clinicID, jobID)
-}
-
-func (s *stubLabImportJobServiceForHandler) ListJobs(_ context.Context, _ uint64, _ int) ([]*model.LabImportJob, error) {
-	return nil, nil
 }
 
 func (s *stubLabImportJobServiceForHandler) PreviewBatch(_ context.Context, _ uint64, _ model.LabInboundBatch) (*model.LabImportPreviewResponse, error) {
@@ -74,18 +78,13 @@ func (s *stubLabImportJobServiceForHandler) ListEvents(ctx context.Context, clin
 // Helper: build handler
 // ------------------------------------
 
-func newHandlerWithLabSvc(previewSvc service.LabResultImportService, jobSvc service.LabImportJobService) *Handler {
-	return &Handler{
-		svc: &service.Services{
-			LabResultImport: previewSvc,
-			LabImportJob:    jobSvc,
-		},
-	}
+func newHandlerWithLabSvc(previewSvc LabResultImportService, jobSvc LabImportJobService) *LabImportHandler {
+	return NewLabImportHandler(previewSvc, jobSvc, nil)
 }
 
 // fixturePreviewSvc returns a LabResultImportService stub that succeeds for fixture
 // batches and returns blocked_reasons for drwan/manual.
-func fixturePreviewSvc() service.LabResultImportService {
+func fixturePreviewSvc() LabResultImportService {
 	return &stubLabResultImportService{
 		previewFn: func(_ context.Context, _ uint64, batch model.LabInboundBatch) (*model.LabImportPreviewResponse, error) {
 			resp := &model.LabImportPreviewResponse{
@@ -101,19 +100,19 @@ func fixturePreviewSvc() service.LabResultImportService {
 			}
 			return resp, nil
 		},
-		commitFn: func(_ context.Context, _ uint64, _ model.LabInboundBatch, _ []service.LabExamPersistInput) (*model.LabImportCommitResponse, error) {
+		commitFn: func(_ context.Context, _ uint64, _ model.LabInboundBatch, _ []LabExamPersistInput) (*model.LabImportCommitResponse, error) {
 			return nil, apperrors.WrapInvalidInput("not expected")
 		},
 	}
 }
 
 // fixtureCommitSvc returns a stub that commits fixture batches and rejects non-fixture.
-func fixtureCommitSvc(jobID uuid.UUID) service.LabResultImportService {
+func fixtureCommitSvc(jobID uuid.UUID) LabResultImportService {
 	return &stubLabResultImportService{
 		previewFn: func(_ context.Context, _ uint64, _ model.LabInboundBatch) (*model.LabImportPreviewResponse, error) {
 			return &model.LabImportPreviewResponse{RowCount: 0, MappingWarnings: []string{}, BlockedReasons: []string{}}, nil
 		},
-		commitFn: func(_ context.Context, _ uint64, batch model.LabInboundBatch, inputs []service.LabExamPersistInput) (*model.LabImportCommitResponse, error) {
+		commitFn: func(_ context.Context, _ uint64, batch model.LabInboundBatch, inputs []LabExamPersistInput) (*model.LabImportCommitResponse, error) {
 			if batch.SourceType != model.LabImportSourceTypeFixture {
 				return nil, apperrors.WrapInvalidInput("commit only allowed for fixture")
 			}
@@ -128,7 +127,7 @@ func fixtureCommitSvc(jobID uuid.UUID) service.LabResultImportService {
 // fixtureJobSvc returns a minimal job service stub for get/list endpoints.
 // Clinic-scope mismatch produces WrapNotFound (same as repository behavior:
 // the query scopes by clinic_id, so a cross-clinic access simply finds nothing).
-func fixtureJobSvc(clinicID uint64, job *model.LabImportJob, events []*model.LabImportEvent) service.LabImportJobService {
+func fixtureJobSvc(clinicID uint64, job *model.LabImportJob, events []*model.LabImportEvent) LabImportJobService {
 	return &stubLabImportJobServiceForHandler{
 		getJobFn: func(_ context.Context, cid uint64, jobID uuid.UUID) (*model.LabImportJob, error) {
 			if cid != clinicID || job == nil || job.ID != jobID {
@@ -152,7 +151,7 @@ func jsonBody(v any) *bytes.Reader {
 }
 
 // ------------------------------------
-// Phase 3C — Auth boundary tests
+// Auth boundary tests (missing clinic_id → 401)
 // ------------------------------------
 
 // TestPostLabImportPreview_MissingClinicID_Returns401 verifies that missing clinic_id
@@ -224,151 +223,8 @@ func TestListLabImportEvents_MissingClinicID_Returns401(t *testing.T) {
 }
 
 // ------------------------------------
-// Phase 3C — Permission enforcement via router
-//
-// RequirePermission is a middleware applied in RegisterLabImportRoutes.
-// We verify it by building a test router without granting any permission rules.
+// Clinic scope tests (job of another clinic → 404)
 // ------------------------------------
-
-// labImportTestRouter creates a gin router that applies RequirePermission middleware
-// exactly as RegisterLabImportRoutes does, wired to a mock EffectivePermissionService
-// that returns no rules (deny-all non-admin).
-func labImportTestRouter(
-	resultSvc service.LabResultImportService,
-	jobSvc service.LabImportJobService,
-	permSvc service.EffectivePermissionService,
-) *gin.Engine {
-	r := gin.New()
-	h := &Handler{
-		svc: &service.Services{
-			LabResultImport:     resultSvc,
-			LabImportJob:        jobSvc,
-			EffectivePermission: permSvc,
-		},
-	}
-	g := r.Group("/api/v1")
-	// Inject non-admin auth context for all requests
-	g.Use(func(c *gin.Context) {
-		c.Set("clinic_id", "1")
-		c.Set("user_id", "1")
-		c.Set("is_system_admin", false)
-		c.Next()
-	})
-	h.RegisterLabImportRoutes(g)
-	return r
-}
-
-// denyAllPermSvc returns an EffectivePermissionService that denies all permissions.
-func denyAllPermSvc() service.EffectivePermissionService {
-	return &mockEffectivePermissionService{
-		getEffectivePermissionsFn: func(_ context.Context, _, _ uint64) ([]model.PermissionGroupRule, error) {
-			return []model.PermissionGroupRule{}, nil
-		},
-	}
-}
-
-// TestPostLabImportPreview_MissingPermission_Returns403 verifies ResourceLabImport "create"
-// is enforced: non-admin with no permission rules gets 403.
-func TestPostLabImportPreview_MissingPermission_Returns403(t *testing.T) {
-	gin.SetMode(gin.TestMode)
-	r := labImportTestRouter(fixturePreviewSvc(), nil, denyAllPermSvc())
-
-	w := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/lab-imports/preview",
-		jsonBody(map[string]any{"source_type": "fixture"}))
-	req.Header.Set("Content-Type", "application/json")
-	r.ServeHTTP(w, req)
-
-	assert.Equal(t, http.StatusForbidden, w.Code)
-}
-
-// TestPostLabImportCommit_MissingPermission_Returns403 verifies ResourceLabImport "create"
-// is enforced for the commit endpoint.
-func TestPostLabImportCommit_MissingPermission_Returns403(t *testing.T) {
-	gin.SetMode(gin.TestMode)
-	jobID := uuid.New()
-	r := labImportTestRouter(fixtureCommitSvc(jobID), nil, denyAllPermSvc())
-
-	w := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/lab-imports",
-		jsonBody(map[string]any{"batch": map[string]any{"source_type": "fixture"}}))
-	req.Header.Set("Content-Type", "application/json")
-	r.ServeHTTP(w, req)
-
-	assert.Equal(t, http.StatusForbidden, w.Code)
-}
-
-// TestGetLabImportJob_MissingPermission_Returns403 verifies ResourceLabImport "view"
-// is enforced for the GetJob endpoint.
-func TestGetLabImportJob_MissingPermission_Returns403(t *testing.T) {
-	gin.SetMode(gin.TestMode)
-	jobID := uuid.New()
-	job := &model.LabImportJob{
-		ID:         jobID,
-		ClinicID:   1,
-		SourceType: model.LabImportSourceTypeFixture,
-		Status:     model.LabImportJobStatusPersisted,
-		CreatedAt:  time.Now(),
-		UpdatedAt:  time.Now(),
-	}
-	r := labImportTestRouter(nil, fixtureJobSvc(1, job, nil), denyAllPermSvc())
-
-	w := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/lab-imports/"+jobID.String(), http.NoBody)
-	r.ServeHTTP(w, req)
-
-	assert.Equal(t, http.StatusForbidden, w.Code)
-}
-
-// TestListLabImportEvents_MissingPermission_Returns403 verifies ResourceLabImport "view"
-// is enforced for the ListEvents endpoint.
-func TestListLabImportEvents_MissingPermission_Returns403(t *testing.T) {
-	gin.SetMode(gin.TestMode)
-	jobID := uuid.New()
-	job := &model.LabImportJob{
-		ID:        jobID,
-		ClinicID:  1,
-		CreatedAt: time.Now(),
-		UpdatedAt: time.Now(),
-	}
-	r := labImportTestRouter(nil, fixtureJobSvc(1, job, nil), denyAllPermSvc())
-
-	w := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/lab-imports/"+jobID.String()+"/events", http.NoBody)
-	r.ServeHTTP(w, req)
-
-	assert.Equal(t, http.StatusForbidden, w.Code)
-}
-
-// ------------------------------------
-// Phase 3C — Clinic scope tests
-// ------------------------------------
-
-// labImportClinicScopeRouter builds a router where clinic_id is injected from a variable.
-func labImportClinicScopeRouter(
-	clinicID string,
-	resultSvc service.LabResultImportService,
-	jobSvc service.LabImportJobService,
-) *gin.Engine {
-	r := gin.New()
-	h := &Handler{
-		svc: &service.Services{
-			LabResultImport: resultSvc,
-			LabImportJob:    jobSvc,
-			// system_admin=true bypasses permission check; we focus on clinic scope
-			EffectivePermission: &mockEffectivePermissionService{},
-		},
-	}
-	g := r.Group("/api/v1")
-	g.Use(func(c *gin.Context) {
-		c.Set("clinic_id", clinicID)
-		c.Set("user_id", "1")
-		c.Set("is_system_admin", true) // bypass permission check; test clinic scope only
-		c.Next()
-	})
-	h.RegisterLabImportRoutes(g)
-	return r
-}
 
 // TestGetLabImportJob_WrongClinic_Returns404 verifies that a job belonging to clinic 2
 // cannot be retrieved by a request scoped to clinic 1.
@@ -384,12 +240,15 @@ func TestGetLabImportJob_WrongClinic_Returns404(t *testing.T) {
 		UpdatedAt: time.Now(),
 	}
 	// jobSvc scoped to clinic 2: clinic 1 gets not-found.
-	jobSvc := fixtureJobSvc(2, job, nil)
-	r := labImportClinicScopeRouter("1", nil, jobSvc)
+	h := newHandlerWithLabSvc(nil, fixtureJobSvc(2, job, nil))
 
 	w := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/lab-imports/"+jobID.String(), http.NoBody)
-	r.ServeHTTP(w, req)
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest(http.MethodGet, "/", http.NoBody)
+	c.Params = gin.Params{{Key: "job_id", Value: jobID.String()}}
+	setClinicID(c) // clinic 1
+
+	h.GetLabImportJob(c)
 
 	// clinic scope mismatch → 404 (not found for this clinic)
 	assert.Equal(t, http.StatusNotFound, w.Code)
@@ -406,12 +265,15 @@ func TestListLabImportEvents_WrongClinic_Returns404(t *testing.T) {
 		CreatedAt: time.Now(),
 		UpdatedAt: time.Now(),
 	}
-	jobSvc := fixtureJobSvc(2, job, nil)
-	r := labImportClinicScopeRouter("1", nil, jobSvc)
+	h := newHandlerWithLabSvc(nil, fixtureJobSvc(2, job, nil))
 
 	w := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/lab-imports/"+jobID.String()+"/events", http.NoBody)
-	r.ServeHTTP(w, req)
+	c, _ := gin.CreateTestContext(w)
+	c.Request = httptest.NewRequest(http.MethodGet, "/", http.NoBody)
+	c.Params = gin.Params{{Key: "job_id", Value: jobID.String()}}
+	setClinicID(c) // clinic 1
+
+	h.ListLabImportEvents(c)
 
 	assert.Equal(t, http.StatusNotFound, w.Code)
 }
@@ -427,7 +289,7 @@ func TestPostLabImportCommit_ClinicID_FromContext_NotBody(t *testing.T) {
 		previewFn: func(_ context.Context, _ uint64, _ model.LabInboundBatch) (*model.LabImportPreviewResponse, error) {
 			return nil, nil
 		},
-		commitFn: func(_ context.Context, cid uint64, _ model.LabInboundBatch, _ []service.LabExamPersistInput) (*model.LabImportCommitResponse, error) {
+		commitFn: func(_ context.Context, cid uint64, _ model.LabInboundBatch, _ []LabExamPersistInput) (*model.LabImportCommitResponse, error) {
 			capturedClinicID = cid
 			return &model.LabImportCommitResponse{JobID: uuid.New(), PersistedCount: 0}, nil
 		},
@@ -447,7 +309,7 @@ func TestPostLabImportCommit_ClinicID_FromContext_NotBody(t *testing.T) {
 }
 
 // ------------------------------------
-// Phase 3C — Preview endpoint tests
+// Preview endpoint tests
 // ------------------------------------
 
 // TestPostLabImportPreview_Fixture_ReturnsOK verifies fixture preview succeeds with 200
@@ -533,7 +395,7 @@ func TestPostLabImportPreview_NoDBWrite(t *testing.T) {
 		previewFn: func(_ context.Context, _ uint64, _ model.LabInboundBatch) (*model.LabImportPreviewResponse, error) {
 			return &model.LabImportPreviewResponse{RowCount: 1, MappingWarnings: []string{}, BlockedReasons: []string{}}, nil
 		},
-		commitFn: func(_ context.Context, _ uint64, _ model.LabInboundBatch, _ []service.LabExamPersistInput) (*model.LabImportCommitResponse, error) {
+		commitFn: func(_ context.Context, _ uint64, _ model.LabInboundBatch, _ []LabExamPersistInput) (*model.LabImportCommitResponse, error) {
 			commitCalled = true
 			return nil, nil
 		},
@@ -587,7 +449,7 @@ func TestPostLabImportPreview_MalformedJSON_Returns400(t *testing.T) {
 }
 
 // ------------------------------------
-// Phase 3C — Commit endpoint tests
+// Commit endpoint tests
 // ------------------------------------
 
 // TestPostLabImportCommit_Fixture_Returns201 verifies fixture commit returns 201,
@@ -817,7 +679,7 @@ func TestPostLabImportCommit_JobIDMatchesLocationHeader(t *testing.T) {
 }
 
 // ------------------------------------
-// Phase 3C — GetLabImportJob tests
+// GetLabImportJob tests
 // ------------------------------------
 
 // TestGetLabImportJob_Returns200WithDTO verifies a valid job is returned with
@@ -896,7 +758,7 @@ func TestGetLabImportJob_NotFound_Returns404(t *testing.T) {
 }
 
 // ------------------------------------
-// Phase 3C — ListLabImportEvents tests
+// ListLabImportEvents tests
 // ------------------------------------
 
 // TestListLabImportEvents_ReturnsEmptySlice verifies empty event list returns []
@@ -990,26 +852,7 @@ func TestListLabImportEvents_InvalidUUID_Returns400(t *testing.T) {
 }
 
 // ------------------------------------
-// Phase 3C — Route registration tests
-// ------------------------------------
-
-// TestLabImportRoutes_NoPanic verifies that RegisterLabImportRoutes does not panic
-// (Gin detects wildcard conflicts at registration time).
-func TestLabImportRoutes_NoPanic(t *testing.T) {
-	gin.SetMode(gin.TestMode)
-
-	h := &Handler{
-		svc: &service.Services{},
-	}
-	assert.NotPanics(t, func() {
-		r := gin.New()
-		rg := r.Group("/api/v1")
-		h.RegisterLabImportRoutes(rg)
-	})
-}
-
-// ------------------------------------
-// Phase 3C — Response shape / no-PHI tests
+// Response shape / no-PHI tests
 // ------------------------------------
 
 // TestPostLabImportPreview_ResponseHasNoRawLabValues verifies the preview response
@@ -1042,7 +885,7 @@ func TestPostLabImportPreview_ResponseHasNoRawLabValues(t *testing.T) {
 }
 
 // ------------------------------------
-// Phase 3C — Duplicate commit tests
+// Duplicate commit tests
 // ------------------------------------
 
 // TestPostLabImportCommit_Duplicate_ReturnsCommitResponse verifies that when the service
@@ -1055,7 +898,7 @@ func TestPostLabImportCommit_Duplicate_ReturnsCommitResponse(t *testing.T) {
 		previewFn: func(_ context.Context, _ uint64, _ model.LabInboundBatch) (*model.LabImportPreviewResponse, error) {
 			return nil, nil
 		},
-		commitFn: func(_ context.Context, _ uint64, batch model.LabInboundBatch, inputs []service.LabExamPersistInput) (*model.LabImportCommitResponse, error) {
+		commitFn: func(_ context.Context, _ uint64, batch model.LabInboundBatch, inputs []LabExamPersistInput) (*model.LabImportCommitResponse, error) {
 			return &model.LabImportCommitResponse{
 				JobID:          jobID,
 				PersistedCount: 0,
@@ -1089,7 +932,7 @@ func TestPostLabImportCommit_Duplicate_ReturnsCommitResponse(t *testing.T) {
 }
 
 // ------------------------------------
-// Phase 3C — Previously-existing unit tests (preserved)
+// request/response conversion unit tests
 // ------------------------------------
 
 // TestToLabImportJobResponse verifies the DTO conversion does not expose clinic_id as uint64.
@@ -1207,7 +1050,7 @@ type commitSucceededCall struct {
 	clinicID uint64
 	actorID  *uint64
 	jobID    uuid.UUID
-	counts   service.CommitAuditCounts
+	counts   CommitAuditCounts
 }
 type commitFailedCall struct {
 	clinicID      uint64
@@ -1228,7 +1071,7 @@ func (s *stubLabAuditLoggerForHandler) LogPreviewRequested(_ context.Context, cl
 func (s *stubLabAuditLoggerForHandler) LogCommitRequested(_ context.Context, clinicID uint64, actorID *uint64, sourceType string, rowCount int) {
 	s.commitRequested = append(s.commitRequested, commitRequestedCall{clinicID, actorID, sourceType, rowCount})
 }
-func (s *stubLabAuditLoggerForHandler) LogCommitSucceeded(_ context.Context, clinicID uint64, actorID *uint64, jobID uuid.UUID, counts service.CommitAuditCounts) {
+func (s *stubLabAuditLoggerForHandler) LogCommitSucceeded(_ context.Context, clinicID uint64, actorID *uint64, jobID uuid.UUID, counts CommitAuditCounts) {
 	s.commitSucceeded = append(s.commitSucceeded, commitSucceededCall{clinicID, actorID, jobID, counts})
 }
 func (s *stubLabAuditLoggerForHandler) LogCommitFailed(_ context.Context, clinicID uint64, actorID *uint64, errorCategory model.LabAuditErrorCategory) {
@@ -1238,15 +1081,9 @@ func (s *stubLabAuditLoggerForHandler) LogSourceBlocked(_ context.Context, clini
 	s.sourceBlocked = append(s.sourceBlocked, sourceBlockedCall{clinicID, actorID, sourceType, operation, reason})
 }
 
-// newHandlerWithAudit builds a Handler with a lab audit stub wired in.
-func newHandlerWithAudit(previewSvc service.LabResultImportService, jobSvc service.LabImportJobService, audit service.LabAuditLogger) *Handler {
-	return &Handler{
-		svc: &service.Services{
-			LabResultImport: previewSvc,
-			LabImportJob:    jobSvc,
-			LabAudit:        audit,
-		},
-	}
+// newHandlerWithAudit builds a LabImportHandler with a lab audit stub wired in.
+func newHandlerWithAudit(previewSvc LabResultImportService, jobSvc LabImportJobService, audit LabAuditLogger) *LabImportHandler {
+	return NewLabImportHandler(previewSvc, jobSvc, audit)
 }
 
 // TestPostLabImportPreview_AuditPreviewRequested verifies the preview endpoint emits
@@ -1379,7 +1216,7 @@ func TestPostLabImportCommit_AuditPayloadNoPII(t *testing.T) {
 		previewFn: func(_ context.Context, _ uint64, _ model.LabInboundBatch) (*model.LabImportPreviewResponse, error) {
 			return &model.LabImportPreviewResponse{MappingWarnings: []string{}, BlockedReasons: []string{}}, nil
 		},
-		commitFn: func(_ context.Context, _ uint64, _ model.LabInboundBatch, inputs []service.LabExamPersistInput) (*model.LabImportCommitResponse, error) {
+		commitFn: func(_ context.Context, _ uint64, _ model.LabInboundBatch, inputs []LabExamPersistInput) (*model.LabImportCommitResponse, error) {
 			return &model.LabImportCommitResponse{JobID: jobID, PersistedCount: 1}, nil
 		},
 	}
@@ -1463,7 +1300,7 @@ func TestPostLabImportCommit_AuditCommitFailed_InternalError(t *testing.T) {
 		previewFn: func(_ context.Context, _ uint64, _ model.LabInboundBatch) (*model.LabImportPreviewResponse, error) {
 			return nil, nil
 		},
-		commitFn: func(_ context.Context, _ uint64, _ model.LabInboundBatch, _ []service.LabExamPersistInput) (*model.LabImportCommitResponse, error) {
+		commitFn: func(_ context.Context, _ uint64, _ model.LabInboundBatch, _ []LabExamPersistInput) (*model.LabImportCommitResponse, error) {
 			return nil, apperrors.WrapInternalServerError("db unavailable")
 		},
 	}
@@ -1485,9 +1322,9 @@ func TestPostLabImportCommit_AuditCommitFailed_InternalError(t *testing.T) {
 	assert.Equal(t, model.LabAuditErrorCategoryInternal, audit.commitFailed[0].errorCategory)
 }
 
-// TestPostLabImportPreview_AuditNilSafe verifies handler does not panic when LabAudit is nil.
+// TestPostLabImportPreview_AuditNilSafe verifies handler does not panic when audit is nil.
 func TestPostLabImportPreview_AuditNilSafe(t *testing.T) {
-	// Handler with no LabAudit set (e.g., older tests / nil svc)
+	// Handler with no LabAudit set (e.g., older tests / nil audit)
 	h := newHandlerWithLabSvc(fixturePreviewSvc(), fixtureJobSvc(1, nil, nil))
 
 	w := httptest.NewRecorder()

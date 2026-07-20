@@ -1,4 +1,4 @@
-package service
+package medicalrecord
 
 import (
 	"context"
@@ -10,7 +10,6 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository"
 	"github.com/animal-ekarte/backend/internal/timeutil"
 )
 
@@ -35,11 +34,11 @@ type LabReportQueryService interface {
 }
 
 type labReportQueryService struct {
-	examRepo repository.ExaminationRepository
+	examRepo examinationReportRepo
 }
 
 // NewLabReportQueryService は LabReportQueryService を初期化して返す。
-func NewLabReportQueryService(examRepo repository.ExaminationRepository) LabReportQueryService {
+func NewLabReportQueryService(examRepo examinationReportRepo) LabReportQueryService {
 	return &labReportQueryService{examRepo: examRepo}
 }
 

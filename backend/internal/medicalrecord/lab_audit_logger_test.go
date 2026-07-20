@@ -1,4 +1,4 @@
-package service
+package medicalrecord
 
 import (
 	"context"
@@ -15,40 +15,20 @@ import (
 // Fake AuditService for audit logger tests
 // ------------------------------------
 
+// fakeAuditServiceForLab is a minimal double for the consumer-side AuditLogger view
+// (non-tx LogEntry over *AuditEntry) that labAuditLogger writes through after the BE9-2D move.
+// Before the move it implemented the full internal/service.AuditService; only LogEntry was ever
+// exercised, so the migrated copy narrows to exactly that method.
 type fakeAuditServiceForLab struct {
-	entries []*AuditLogInput
+	entries []*AuditEntry
 	err     error
 }
 
-func (f *fakeAuditServiceForLab) Log(_ context.Context, _ *model.AuditLog) error {
-	return f.err
-}
-func (f *fakeAuditServiceForLab) LogEntry(_ context.Context, input *AuditLogInput) error {
+func (f *fakeAuditServiceForLab) LogEntry(_ context.Context, input *AuditEntry) error {
 	if f.err != nil {
 		return f.err
 	}
 	f.entries = append(f.entries, input)
-	return nil
-}
-func (f *fakeAuditServiceForLab) LogAuthLogin(_ context.Context, _, _ *uint64, _, _, _ string) error {
-	return nil
-}
-func (f *fakeAuditServiceForLab) LogLstepOperation(_ context.Context, _ uint64, _ *uint64, _, _ string, _ *uint64) error {
-	return nil
-}
-func (f *fakeAuditServiceForLab) LogLstepOperationWithMetadata(_ context.Context, _ uint64, _ *uint64, _, _ string, _ *uint64, _ any) error {
-	return nil
-}
-func (f *fakeAuditServiceForLab) LogMedicalRecordChange(_ context.Context, _ uint64, _ *uint64, _ string, _ uint64, _, _ map[string]any) error {
-	return nil
-}
-func (f *fakeAuditServiceForLab) LogVitalChange(_ context.Context, _ uint64, _ *uint64, _ string, _, _ uint64, _, _ map[string]any) error {
-	return nil
-}
-func (f *fakeAuditServiceForLab) LogAddendumCreate(_ context.Context, _ uint64, _ *uint64, _, _ uint64, _ *model.MedicalRecordAddendum) error {
-	return nil
-}
-func (f *fakeAuditServiceForLab) LogClinicSwitch(_ context.Context, _ *uint64, _, _ uint64, _, _ string) error {
 	return nil
 }
 

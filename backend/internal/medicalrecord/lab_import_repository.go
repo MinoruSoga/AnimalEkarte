@@ -1,4 +1,11 @@
-package repository
+package medicalrecord
+
+// lab_import_repository.go — moved from internal/repository (BE9-2D sub-batch③, lab_import/lab_report
+// saga roll-up). lab is a leaf domain, so the flat internal/repository side keeps only a temporary
+// facade (repository/lab_import_repository.go) until the lab service/handler also move; that facade is
+// deleted in Batch B/C. Behavior is unchanged: the package-private clinicScope helper is replaced by the
+// exported repohelpers.ClinicScope (identical predicate), and r.db is referenced directly (no ambient-tx
+// DBOrTx conversion) exactly as before.
 
 import (
 	"context"
@@ -9,6 +16,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/repository/repohelpers"
 )
 
 // LabImportJobRepository は lab_import_jobs の永続化インターフェース。
@@ -49,14 +57,14 @@ func (r *labImportJobRepository) Create(ctx context.Context, job *model.LabImpor
 
 func (r *labImportJobRepository) Update(ctx context.Context, job *model.LabImportJob) error {
 	// NOTE: GORM's Save() keys UPDATE purely on the primary key when it is already populated
-	// (job.ID is a non-zero UUID here) and silently ignores the chained Scopes(clinicScope(...))
+	// (job.ID is a non-zero UUID here) and silently ignores the chained Scopes(repohelpers.ClinicScope(...))
 	// condition — the clinic_id predicate would have zero effect and allow cross-tenant
 	// overwrites. Use an explicit Model+Where+Updates(map) so clinic_id actually gates the
 	// UPDATE's WHERE clause (P4: clinicScope on Update, MANDATORY).
 	result := r.db.WithContext(ctx).
 		Model(&model.LabImportJob{}).
 		Where("id = ?", job.ID).
-		Scopes(clinicScope(job.ClinicID)).
+		Scopes(repohelpers.ClinicScope(job.ClinicID)).
 		Updates(map[string]any{
 			"source_type":        job.SourceType,
 			"source_fingerprint": job.SourceFingerprint,

@@ -1,8 +1,9 @@
-package handler
+package medicalrecord
 
 import (
 	"github.com/google/uuid"
 
+	"github.com/animal-ekarte/backend/internal/httpapi"
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
@@ -83,7 +84,7 @@ func toLabExamReportDetailResponse(d *model.LabExamReportDetail) labExamReportDe
 		ExamTypeName:    d.ExamTypeName,
 		Status:          d.Status,
 		Machine:         d.Machine,
-		Items:           mapSlice(d.Items, toLabExamResultItemResponse),
+		Items:           httpapi.MapSlice(d.Items, toLabExamResultItemResponse),
 		CreatedAt:       d.CreatedAt,
 		UpdatedAt:       d.UpdatedAt,
 	}

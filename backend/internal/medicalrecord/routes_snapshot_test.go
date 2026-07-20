@@ -13,11 +13,13 @@ import (
 // TestRegisterRoutes_Snapshot is medicalrecord's half of the BE9-2B/2C/2D route-snapshot
 // regression check (see internal/handler/handler_routes_snapshot_test.go's file header for
 // the pattern and internal/manualarticle/routes_snapshot_test.go for the precedent this
-// mirrors). Before BE9-2C/2D these 62 routes were captured inside
+// mirrors). Before BE9-2C/2D these 68 routes were captured inside
 // internal/handler/testdata/route_snapshot.golden as part of *handler.Handler.RegisterRoutes
 // (25 master-CRUD routes via RegisterMasterRoutes in 2C, plus 37 more in 2D — the
 // vaccine/checkup-type/inquiry-template masters, /vaccinations, /checkups, and the
-// checkup/prescription/inquiry medical-record sub-resources); that golden file was updated to
+// checkup/prescription/inquiry medical-record sub-resources — plus 6 lab saga routes in
+// sub-batch③: /lab-imports preview/commit/job/events + /lab-reports summaries/exam);
+// that golden file was updated to
 // drop them (they moved here — same routes, same methods, same handler names, just registered
 // by medicalrecord.Handler.RegisterRoutes instead of *handler.Handler). The permission
 // arguments are NOT captured here (gin's RouteInfo.Handler exposes only the trailing handler
@@ -39,6 +41,8 @@ func TestRegisterRoutes_Snapshot(t *testing.T) {
 		NewPrescriptionHandler(nil),
 		NewInquiryHandler(nil),
 		NewInquiryTemplateHandler(nil),
+		NewLabImportHandler(nil, nil, nil),
+		NewLabReportHandler(nil),
 		noopPermission,
 	)
 
@@ -66,6 +70,10 @@ func TestRegisterRoutes_Snapshot(t *testing.T) {
 		"DELETE /api/v1/vaccinations/:id DeleteVaccination\n" +
 		"GET /api/v1/checkups ListGlobalCheckups\n" +
 		"GET /api/v1/checkups/field-results ListPetCheckupResults\n" +
+		"GET /api/v1/lab-imports/:job_id GetLabImportJob\n" +
+		"GET /api/v1/lab-imports/:job_id/events ListLabImportEvents\n" +
+		"GET /api/v1/lab-reports/exams/:exam_id GetLabExamReport\n" +
+		"GET /api/v1/lab-reports/jobs/:job_id/summaries GetLabJobReportSummaries\n" +
 		"GET /api/v1/masters/checkup-types ListCheckupTypes\n" +
 		"GET /api/v1/masters/checkup-types/:id GetCheckupType\n" +
 		"GET /api/v1/masters/checkup-types/:id/fields ListCheckupTypeFields\n" +
@@ -105,6 +113,8 @@ func TestRegisterRoutes_Snapshot(t *testing.T) {
 		"PATCH /api/v1/medical-records/:id/inquiries UpdateInquiry\n" +
 		"PATCH /api/v1/medical-records/:id/prescriptions/:prescriptionId UpdatePrescription\n" +
 		"PATCH /api/v1/vaccinations/:id UpdateVaccination\n" +
+		"POST /api/v1/lab-imports CommitLabImport\n" +
+		"POST /api/v1/lab-imports/preview PreviewLabImport\n" +
 		"POST /api/v1/masters/checkup-types CreateCheckupType\n" +
 		"POST /api/v1/masters/chief-complaint-types CreateChiefComplaint\n" +
 		"POST /api/v1/masters/diagnosis-names CreateDiagnosisName\n" +
@@ -118,7 +128,7 @@ func TestRegisterRoutes_Snapshot(t *testing.T) {
 		"PUT /api/v1/medical-records/:id/checkups/:checkupId/field-results ReplaceCheckupFieldResults\n"
 
 	assert.Equal(t, want, got, "medicalrecord route snapshot drifted from the pre-move baseline "+
-		"(internal/handler/testdata/route_snapshot.golden, before these 62 lines were removed)")
+		"(internal/handler/testdata/route_snapshot.golden, before these 68 lines were removed)")
 }
 
 // lastHandlerSegment mirrors internal/handler/handler_routes_snapshot_test.go's helper of the

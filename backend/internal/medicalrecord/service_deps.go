@@ -4,6 +4,8 @@ import (
 	"context"
 	"time"
 
+	"github.com/google/uuid"
+
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
@@ -80,4 +82,44 @@ type prescriptionTagSyncer interface {
 // （LstepDeliveryTriggerService.TriggerCheckupFollowUp 相当）。nil 許容（未設定ならトリガーしない）。
 type checkupFollowUpTrigger interface {
 	TriggerCheckupFollowUp(ctx context.Context, clinicID, ownerID uint64) error
+}
+
+// ── lab import/report saga consumer-side views (BE9-2D sub-batch③) ──
+// The lab services (labImportExaminationService / labReportQueryService / labAuditLogger) moved
+// here from internal/service as a leaf domain. Following the same "define interfaces where they
+// are consumed" rule as above, each below is the minimal method set the lab services actually
+// call over repository.ExaminationRepository / repository.PetRepository / the shared audit kernel.
+// The composition root (cmd/api/main.go in the final state; NewServices in the BE9-2D Batch B
+// middle state) passes the concrete repository.* implementations in by structural typing.
+
+// examinationImportRepo is labImportExaminationService's write-side view of the examination
+// repository: Create + ReplaceItemsByExamID persist the exam and its results, and Delete performs
+// the P2-7 orphan-exam compensation (dropping it silently would make a failed row un-retriable).
+type examinationImportRepo interface {
+	Create(ctx context.Context, exam *model.Examination) error
+	ReplaceItemsByExamID(ctx context.Context, clinicID, examID uint64, items []model.ExamResult) ([]model.ExamResult, int64, error)
+	Delete(ctx context.Context, clinicID, id uint64) error
+}
+
+// examinationReportRepo is labReportQueryService's read-side view of the examination repository
+// (clinic-scoped report queries only).
+type examinationReportRepo interface {
+	FindByJobID(ctx context.Context, clinicID uint64, jobID uuid.UUID) ([]*model.Examination, error)
+	FindByID(ctx context.Context, clinicID, id uint64) (*model.Examination, error)
+}
+
+// petFinder is labImportExaminationService's minimal view of the pet repository, used to verify
+// a request-derived pet_id belongs to the import clinic before persisting the exam (P1-2, #186).
+type petFinder interface {
+	FindByID(ctx context.Context, clinicID, id uint64) (*model.Pet, error)
+}
+
+// AuditLogger is the non-tx consumer-side view of the shared audit kernel
+// (internal/service.AuditService's LogEntry) that labAuditLogger.logBestEffort writes through.
+// Distinct from AuditTxLogger above (tx-internal LogEntryTx): lab audit is best-effort and does
+// not join the import flow's transaction. The composition root adapts the concrete
+// service.AuditService.LogEntry(ctx, *service.AuditLogInput) to this signature (see the lab audit
+// adapter in cmd/api/main.go in the final state / internal/service/lab_middle_state.go in Batch B).
+type AuditLogger interface {
+	LogEntry(ctx context.Context, entry *AuditEntry) error
 }
