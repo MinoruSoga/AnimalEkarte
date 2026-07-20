@@ -40,6 +40,13 @@
 
 ### Open
 
+#### BUG-418:【LOW・潜在・BE9-2D ⑤ Phase1敵対レビューで検出】DischargeWithBilling（退院+会計自動生成）に監査ログ書込がない
+
+- **症状**: `hospitalizationService.DischargeWithBilling`（BE9 target=medicalrecord・現在は `internal/service/hospitalization_service.go`）は退院status更新+Billing/BillingItem行の自動生成を単一txで行う金銭パスだが、**audit_logs への書込が一切ない**。会計レコードの自動生成が「誰が・いつ・どの入院から」発生したか監査証跡で追えない。
+- **現状の安全性**: 旧実装から一貫して audit なしであり、⑤ Phase1（tx機構refactor・`f93299f1c`後の同名コミット）はこの状態を変更していない（behavior-preserving・レビューで「既存負債・悪化なし」判定）。HTTP アクセスログ+billings 行自体の created_at で部分的な追跡は可能。
+- **修正方向**: tx 内 fail-closed 監査（`AuditTxLogger.LogEntryTx`・medicine/dose-param/treatment逸脱監査と同型）を DischargeWithBilling の tx 閉包末尾へ追加。Action 定数（例: `hospitalization.discharge_with_billing`）+ ResourceID=hospitalizationID + NewValue に billing_id/合計額。**機能追加=behavior変更のため BE9 の移動batchに混ぜない**（⑤ Phase2 移動後の別コミット、または medicalrecord 移行完了後）。
+- **発見**: 2026-07-21（BE9-2D ⑤ Phase1 敵対レビュー・clinic-isolation-auditor MEDIUM 指摘）。
+
 #### BUG-417:【LOW・潜在・BE9-2A監査で検出】billing_item_repository.go の Update/Delete が clinic 分離を実質担保していない（defense-in-depth 不全・現状は生きた漏洩ではない）
 
 - **症状**: `internal/repository/billing_item_repository.go`（BE9 target=billing）の Update/Delete が `.Joins("JOIN billings ON ...billings.clinic_id=?...")` を `.Updates()`/`.Delete()` へ連結する形式だが、**GORM の `Joins()` は UPDATE/DELETE SQL へ伝播しない**ため、repository 層の clinic 述語は実質 no-op。Treatment/ClinicalPlan 等が subquery 形式で正しく回避している同型の罠に、このファイルだけが該当（billing_confirmation/estimate は検証済みで正しい）。
