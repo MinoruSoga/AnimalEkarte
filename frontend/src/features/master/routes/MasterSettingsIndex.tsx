@@ -113,7 +113,7 @@ function PermissionFilteredSection({
 
   return (
     <div className="mb-5">
-      <div className={`px-1 pb-1.5 text-base ${C.text40} uppercase tracking-wide select-none`}>
+      <div className={`px-1 pb-1.5 ${STYLE.sectionLabel}`}>
         {section.title}
       </div>
       <div className={`${C.bgWhite} rounded-lg border ${C.borderLight} overflow-hidden divide-y ${C.divideDivider}`}>

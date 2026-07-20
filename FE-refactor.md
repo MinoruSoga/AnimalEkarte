@@ -67,26 +67,26 @@ T  残渣   : teal/旧 accent 青の直値・画像・ハードコードが視�
 | B1 | /reservations（週カレンダー） | ✅ | ✅ | ✅ | ✅ | ✅ | — | ✅ | ✅ | CTA/表示トグル/今日ハイライト=brand ✓。カテゴリ凡例=DB 設定色 dots（sanctioned） | ✅済 |
 | B1 | 予約詳細モーダル | ✅ | ✅ | ✅ | ✅ | 🔧 | — | ✅ | ✅ | LINE 未連携警告を danger 赤→warning 帯へ（§2.4 階調適正化・danger 希釈防止）。カテゴリ帯/状態紫=装飾 status（sanctioned） | ✅済 |
 | B1 | 予約登録モーダル | ✅ | ✅ | ✅ | ✅ | 🔧 | — | ✅ | ✅ | 検索=ink 黒フィル→brand・初診選択状態=danger→brand（computed 実測）。**同型 ink フィル action を全域一括反転: paginationBtnActive・DatePicker 選択日・ConfirmDialog 非 danger 主ボタン・MasterSelectModal チェック円** | ✅済 |
-| B2 | /hospitalization | | | | | | | | | | 未 |
-| B2 | /hospitalization/select-pet | | | | | | | | | | 未 |
-| B2 | /hospitalization/new | | | | | | — | | | | 未 |
-| B2 | /hospitalization/:id（詳細+デイリー記録） | | | | | | | | | | 未 |
-| B2 | /hospitalization/:id/edit | | | | | | — | | | | 未 |
-| B3 | /medical-records（一覧） | | | | | | | | | | 未 |
-| B3 | /medical-records/select-pet | | | | | | | | | | 未 |
-| B3 | /medical-records/new | | | | | | — | | | | 未 |
-| B3 | /medical-records/:id（問診/診察/治療プランタブ） | | | | | | | | | | 未 |
-| B4 | /accounting | | | | | | | | | | 未 |
-| B4 | /accounting/select-pet | | | | | | | | | | 未 |
-| B4 | /accounting/new | | | | | | | | | | 未 |
-| B4 | /accounting/:id | | | | | | | | | | 未 |
-| B4 | /accounting/close | | | | | | | | | | 未 |
-| B4 | /accounting/close/history | | | | | | | | | | 未 |
-| B4 | /accounting/reports | | | | | | | | | | 未 |
-| B4 | /estimates | | | | | | | | | | 未 |
-| B4 | /estimates/new | | | | | | — | | | | 未 |
-| B4 | /estimates/:id | | | | | | | | | | 未 |
-| B4 | /estimates/:id/edit | | | | | | — | | | | 未 |
+| B2 | /hospitalization | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | タブ active=brand 反映 ✓・空ケージ=dashed 空状態 idiom・リスト表示テーブル eyebrow 実測(12px/600) | ✅済 |
+| B2 | /hospitalization/select-pet | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | 死亡行=グレーアウト+選択不可(臨床非活性維持 ✓)・検索=brand pill | ✅済 |
+| B2 | /hospitalization/new | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | 治療プラン表=eyebrow 様式 ✓・数値セル非 bold ✓ | ✅済 |
+| B2 | /hospitalization/:id（詳細+デイリー記録） | | | | | | | | | 入院データ0件（八王子）のため未実施。デモデータ汚染回避で作成せず — データ投入後に実施 | ⏸データ待ち |
+| B2 | /hospitalization/:id/edit | | | | | | — | | | 同上 | ⏸データ待ち |
+| B3 | /medical-records（一覧） | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ヘッダ eyebrow 実測(12px/600)・作成中/確定済/会計/担当医⚠は status・semantic（sanctioned） | ✅済 |
+| B3 | /medical-records/select-pet | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | 共有 PetSelection（computed 全通過） | ✅済 |
+| B3 | /medical-records/new | ✅ | ✅ | ✅ | ✅ | ✅ | — | ✅ | ✅ | MedicalRecordForm 同一実体（:id で実測） | ✅済 |
+| B3 | /medical-records/:id（問診/診察/治療プランタブ） | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | タブ active=brand ✓・保存=brand pill・削除=danger ghost（semantic ✓）。治療タブは UI 切替不能（状態依存）だがヘッダは sectionLabel 経由で eyebrow 反映済み（静的確認） | ✅済 |
+| B4 | /accounting（3タブ） | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | 保留=warning badge・カルテ=blue link（sanctioned） | ✅済 |
+| B4 | /accounting/select-pet | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | 共有 PetSelection（computed） | ✅済 |
+| B4 | /accounting/new | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | AccountingDetail 同一実体（:id で実測） | ✅済 |
+| B4 | /accounting/:id（会計精算） | ✅ | ✅ | ✅ | ✅ | ✅ | 🔧 | ✅ | ✅ | 明細ヘッダ eyebrow 化（**shadcn TableHead 基底に eyebrow を設定=全 shadcn テーブル一括**）・物販ピッカー表も統一・sticky ヘッダ bg=canvas-soft 化。金額大字 bold=pricing idiom（許容） | ✅済 |
+| B4 | /accounting/close | ✅ | ✅ | ✅ | ✅ | 🔧 | — | ✅ | ✅ | 区分選択 active=brand ✓。**brand フィル button=pill 字義を shadcn buttonVariants(default/primary)へ一括適用**・旧 medical accent blue(#2EAADC)を brand へ値統合（第二構造アクセント禁止） | ✅済 |
+| B4 | /accounting/close/history | ✅ | ✅ | ✅ | ✅ | ✅ | — | ✅ | ✅ | 空状態 ✓ | ✅済 |
+| B4 | /accounting/reports | ✅ | ✅ | ✅ | ✅ | ✅ | 🔧 | ✅ | ✅ | 日次明細ヘッダを eyebrow 字義化（DailyBreakdownTable） | ✅済 |
+| B4 | /estimates | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | eyebrow/brand pill computed 実測 | ✅済 |
+| B4 | /estimates/new | ✅ | ✅ | ✅ | ✅ | ✅ | — | ✅ | ✅ | 作成=brand pill・disabled 表現 ✓ | ✅済 |
+| B4 | /estimates/:id | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | 承認済み=green semantic badge ✓・明細ヘッダ eyebrow ✓ | ✅済 |
+| B4 | /estimates/:id/edit | ✅ | ✅ | ✅ | ✅ | ✅ | — | ✅ | ✅ | EstimateForm 同一実体 | ✅済 |
 | B5 | /settings（トップ） | | | | | | — | | | | 未 |
 | B5 | /settings/clinic | | | | | | | | | | 未 |
 | B5 | /settings/staff | | | | | | | | | | 未 |

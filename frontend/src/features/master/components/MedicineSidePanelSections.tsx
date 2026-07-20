@@ -185,7 +185,7 @@ export function MedicineDetailSection({
       <div className="py-1">
         <div className="flex items-center gap-1.5 py-2 mb-1">
           <Pill className={`${ICON.xs} ${C.text40}`} />
-          <span className={`text-base font-medium ${C.text50} uppercase tracking-wide select-none`}>
+          <span className={`${STYLE.sectionLabel}`}>
             薬剤詳細
           </span>
         </div>
@@ -240,7 +240,7 @@ export function MedicineDoseCalculationSection({
       <div className="py-1">
         <div className="flex items-center gap-1.5 py-2 mb-1">
           <Pill className={`${ICON.xs} ${C.text40}`} />
-          <span className={`text-base font-medium ${C.text50} uppercase tracking-wide select-none`}>
+          <span className={`${STYLE.sectionLabel}`}>
             投与量自動計算
           </span>
         </div>

@@ -6,7 +6,8 @@ export const buttonVariants = cva(
   {
     variants: {
       variant: {
-        default: "bg-primary text-primary-foreground hover:bg-primary/90",
+        // FE10: brand フィル = DESIGN.md button-primary = pill（rounded.full）
+        default: "bg-primary text-primary-foreground hover:bg-primary/90 rounded-full",
         destructive:
           "bg-destructive text-white hover:bg-destructive/90",
         outline:
@@ -16,7 +17,8 @@ export const buttonVariants = cva(
         ghost:
           "hover:bg-accent hover:text-accent-foreground",
         link: "text-primary underline-offset-4 hover:underline",
-        primary: `${C.bgMedicalBlue} text-white ${C.hoverBgMedicalBlue90}`,
+        // FE10: 旧 medical accent blue（第二構造アクセント）を brand へ統合 — DESIGN.md「第二構造アクセント禁止」
+        primary: "bg-primary text-primary-foreground hover:bg-primary/90 rounded-full",
         "ghost-danger": STYLE.btnDangerGhost,
       },
       size: {

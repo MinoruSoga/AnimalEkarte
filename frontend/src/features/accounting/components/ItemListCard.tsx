@@ -204,11 +204,11 @@ export const ItemListCard = memo(function ItemListCard({
                     {filteredMerchandise.length > 0 ? (
                       <table className="w-full">
                         <thead>
-                          <tr className={`border-b ${C.bgPage30} text-xs`}>
-                            <th className="px-3 py-2 text-left font-medium">品目名</th>
-                            <th className="px-3 py-2 text-left font-medium w-[70px]">区分</th>
-                            <th className="px-3 py-2 text-right font-medium w-[90px]">単価</th>
-                            <th className="px-3 py-2 text-right font-medium w-[60px]">税率</th>
+                          <tr className={`border-b ${C.bgPage} text-2xs font-semibold tracking-wide`}>
+                            <th className="px-3 py-2 text-left">品目名</th>
+                            <th className="px-3 py-2 text-left w-[70px]">区分</th>
+                            <th className="px-3 py-2 text-right w-[90px]">単価</th>
+                            <th className="px-3 py-2 text-right w-[60px]">税率</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -282,7 +282,7 @@ export const ItemListCard = memo(function ItemListCard({
       </CardHeader>
       <CardContent className="p-0 overflow-auto flex-1">
         <Table>
-          <TableHeader className={`sticky top-0 ${C.bgWhite} z-10 shadow-level1`}>
+          <TableHeader className={`sticky top-0 ${C.bgPage} z-10 shadow-level1`}>
             <TableRow>
               <TableHead className="w-[100px]">区分</TableHead>
               <TableHead>項目名</TableHead>

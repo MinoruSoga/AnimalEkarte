@@ -415,14 +415,14 @@ export const C = {
   hoverBgGreenBadge40:   "hover:bg-[#C3DFC3]/40",
   hoverTextStatusGreen:  "hover:text-[#0F7B6C]",
 
-  /* ── Medical accent blue (karte / hospitalization) ── */
-  bgMedicalBlue:          "bg-[#2EAADC]",
-  bgMedicalBlue5:         "bg-[#2EAADC]/5",
-  textMedicalBlue:        "text-[#2EAADC]",
-  borderLMedicalBlue:     "border-l-[#2EAADC]",
-  hoverBgMedicalBlue90:   "hover:bg-[#2EAADC]/90",
-  ringMedicalBlue:        "ring-[#2EAADC]",
-  focusRingMedicalBlue:   "focus-visible:ring-[#2EAADC]",
+  /* ── Medical accent blue — FE10: 第二構造アクセント禁止により brand #0075DE へ値統合（トークン名は互換残存） ── */
+  bgMedicalBlue:          "bg-[#0075DE]",
+  bgMedicalBlue5:         "bg-[#0075DE]/5",
+  textMedicalBlue:        "text-[#0075DE]",
+  borderLMedicalBlue:     "border-l-[#0075DE]",
+  hoverBgMedicalBlue90:   "hover:bg-[#0075DE]/90",
+  ringMedicalBlue:        "ring-[#0075DE]",
+  focusRingMedicalBlue:   "focus-visible:ring-[#0075DE]",
 
   /* ── 健診「期限間近」バッジ ── */
   bgCheckupDueSoon:   "bg-[#F0D070]",

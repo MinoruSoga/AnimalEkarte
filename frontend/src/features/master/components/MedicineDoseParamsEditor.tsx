@@ -50,7 +50,7 @@ export function MedicineDoseParamsEditor({ medicineId }: MedicineDoseParamsEdito
       <div className={`${STYLE.sectionDivider} mt-3 mb-1`} />
       <div className="py-1">
         <div className="flex items-center gap-1.5 py-2 mb-1">
-          <span className={`text-base font-medium ${C.text50} uppercase tracking-wide select-none`}>
+          <span className={`${STYLE.sectionLabel}`}>
             種別パラメータ（犬・猫）
           </span>
         </div>

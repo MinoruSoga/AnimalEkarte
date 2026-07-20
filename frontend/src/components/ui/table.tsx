@@ -79,7 +79,8 @@ function TableHead({ className, ref, ...props }: TableHeadProps) {
       ref={ref}
       scope="col"
       className={cn(
-        "h-10 px-2 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]",
+        // FE10: DESIGN.md ex-data-table-cell headerTypography（eyebrow 12px/600）を基底化 — 個別 className が cn() で上書き可能
+        "h-10 px-2 text-left align-middle text-2xs font-semibold tracking-wide text-muted-foreground [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]",
         className,
       )}
       {...props}
