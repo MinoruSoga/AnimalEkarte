@@ -294,6 +294,8 @@ DESIGN.md `rounded:` フロントマターに準拠。**コンポーネント種
 | `ex-empty-state-card` | canvas-soft + `{spacing.xxl}` padding | 空状態 |
 | `ex-toast` | feature-card shape + medium shadow | トースト通知 |
 
+> **AE テーブルヘッダ様式（house スタイル・FE9-3 裁定 2026-07-21）**: 実装の一覧テーブル（`OwnersListTable`/`カルテ管理`/`飼主一覧` 等）は全て共通で **plain muted テキストヘッダ ＋ hairline 下線**（canvas-soft バンド・eyebrow mono-caps を敷かない）で**一貫**している。DESIGN.md `ex-data-table-cell` の理想（canvas-soft header band + eyebrow）とは異なるが、これは不統一ではなく高密度な臨床データ向けの意図的 house 様式であり**現状維持する**（ブラウザ全数監査で一貫性を実測確認済み）。将来 Notion 風ヘッダへ寄せる場合は `TABLE_STYLES.header` を新設し全テーブル一括適用すること（部分適用は不統一を生むため禁止）。
+
 ### 7.6 Animal Ekarte 固有パターン
 
 #### 7.6.1 プロパティ編集 (`PropertyInput`)
