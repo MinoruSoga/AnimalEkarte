@@ -1,10 +1,10 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
-// #91: LoginForm.tsx の SHOW_DEMO はコメント上 computeShowDemoAccounts と同一ロジックを
-// インライン化していると主張していたが、実装には __VERCEL_ENV__ 本番ガードが欠落していた。
-// VITE_SHOW_DEMO_ACCOUNTS=true が Vercel Production にも設定された場合、デモアカウント一覧
-// （実メールアドレス群）がログイン画面に露出する回帰を防止する。
-describe("LoginForm SHOW_DEMO — Vercel Production 一次ガード (#91)", () => {
+// #91 / DEC-7: SHOW_DEMO は computeShowDemoAccounts と同ロジックのリテラル式。
+// 旧実装は `__VERCEL_ENV__ !== "production" && (DEV || flag)` で production ガードは存在した。
+// 欠陥は未定義 ""（非 Vercel ビルド）時に `!== "production"` が true になり fail-open すること。
+// 本スイートは production 非表示・preview 表示・未定義時 fail-closed を固定する。
+describe("LoginForm SHOW_DEMO — fail-closed ゲート (#91 / DEC-7)", () => {
   beforeEach(() => {
     vi.resetModules();
   });
