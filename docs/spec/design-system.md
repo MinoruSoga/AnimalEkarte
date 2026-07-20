@@ -3,7 +3,7 @@
 > **目的**: [DESIGN.md](../../DESIGN.md)（ルート — Notion Analysis / 意匠言語のテンプレート）を Animal Ekarte の実装に落とし込むための規約を定義する。
 > **読者**: フロントエンド実装者。
 > **タイミング**: UI 実装・レビュー時。
-> **最新更新**: 2026-07-06
+> **最新更新**: 2026-07-21（FE9: §3.4 タイポ採用範囲・§5.1 shadow 実装ルール・§7.2 pill 裁定を追補）
 
 ### SSOT 優先順位
 
@@ -142,6 +142,23 @@ DESIGN.md `typography:` フロントマターに準拠。実装のフォント�
 
 診察室 iPad 利用を想定し、Tailwind v4 `@theme inline` でクリックターゲット・フォントサイズを標準より約 **10% 拡大**（§7 参照）。
 
+### 3.4 採用範囲と実装マッピング（AE 製品裁定・2026-07-21）
+
+アプリ本体 UI が採用するのは **`{typography.title}` 以下のみ**。`display-1/2`・`heading-1/2/3` はマーケティング面（LP・hero）専用であり、アプリ画面の遵守チェック対象外（§3.1 の表は DESIGN.md 構造の転写として保持する）。
+
+| ロール | AE 実装（Tailwind） | 実サイズ | 用途 |
+|---|---|---|---|
+| title | `text-xl font-semibold` | 20px | ページ内最上位見出し（PageLayout タイトル等） |
+| section | `text-lg font-semibold` | 18px | セクション見出し（AE 独自の中間段 — DESIGN.md 対応なし） |
+| body-md | `text-base` | 16px | 標準本文・フォームラベル |
+| body-sm | `text-sm` | 15px（`--text-sm` 上書き） | テーブル行・密な UI の既定 |
+| caption | `text-xs` | 13px（`--text-xs` 上書き — DESIGN.md caption 14px の製品上書き） | キャプション・メタ・placeholder |
+| eyebrow | `text-xs font-semibold tracking-wide` | 13px | テーブルヘッダー・小ラベル（DESIGN.md 12px の製品上書き — スケール段数を増やさない） |
+| micro | `text-2xs` | 11px（`--text-2xs` — 製品拡張。実測で 10/11px 任意値が48件あったため radius 3px と同型の「視覚変化最小の公式化」裁定・2026-07-21） | バッジ内文字・極小メタ表示。乱用禁止 — caption で足りるなら caption |
+
+- **`text-[Npx]` 等の font-size 任意値は禁止**（実測 66 件・2026-07-21 — FE9 で撲滅し audit C11 で恒久ガード）。
+- font-weight: 本文 400、強調 500（`font-medium`）、見出し 600（`font-semibold`）。**700（`font-bold`）は title/section 見出し専用** — 本文・数値セルに使わない（§3.2 の 700 vs 400 コントラスト原則の製品適用）。
+
 ---
 
 ## 4. Layout / レイアウト
@@ -190,6 +207,15 @@ DESIGN.md 準拠：**barely-there** — hairline + 複数レイヤーの極薄�
 
 shadcn `DialogContent`（`frontend/src/components/ui/dialog.tsx`）は `rounded-xl` + `p-6`（`{spacing.lg}`）+ `shadow-lg` を既定とし、`ex-modal-card`（`{rounded.xl}` / Level-2）に一致。
 
+### 5.1 実装ルール（2026-07-21 追補 — FE9）
+
+- 実装トークン（`globals.css` `@theme inline`・FE9-1 実装済み）:
+  - `--shadow-level1`: `0 0.175px 1.041px rgba(0,0,0,0.01), 0 0.8px 2.925px rgba(0,0,0,0.02), 0 2.025px 7.847px rgba(0,0,0,0.027), 0 4px 18px rgba(0,0,0,0.04)`
+  - `--shadow-level2`: `0 0.8px 2.9px rgba(0,0,0,0.02), 0 2px 7.8px rgba(0,0,0,0.027), 0 4px 18px rgba(0,0,0,0.04), 0 10px 32px rgba(0,0,0,0.045), 0 23px 52px rgba(0,0,0,0.05)`（中間段は Level-1 の等比を踏襲した5段・末尾は DESIGN.md 実測値）
+  - 製品マイクロトークン（実態の公式化）: `--shadow-btn`（ボタン微細影 = 旧 `--notion-shadow-btn` 値）・`--shadow-panel`（SidePeek 等の左方向影）・`--shadow-focus-brand`（focus リング `0 0 0 1px rgba(3,139,148,.35)` — DESIGN.md「focus signal は primary」原則に従い旧 legacy accent 色 ring を brand 化）
+- 使い分け: 通常カード = **Level 0（hairline のみ・shadow なし）**／ドロップダウン・ポップオーバー・浮動パネル・フォーカス強調 = `shadow-level1`／モーダル・トースト = `shadow-level2`。
+- **Tailwind 既定の `shadow-sm/md/lg/xl` と `shadow-[...]` 任意値は新規使用禁止**（実測: sm×55 / md×4 / lg×5 / 任意値×6・2026-07-21）。FE9 で level トークンへ移行し audit C10 で恒久ガード。`drop-shadow`・CSS 直書き `box-shadow` は 0 件を維持する。
+
 ### Decorative Depth
 
 - AE では illustration より **意味的カラー**（§2.4）と hairline 階層で depth を表現
@@ -232,6 +258,8 @@ DESIGN.md `rounded:` フロントマターに準拠。**コンポーネント種
 | `button-secondary` | white surface、`{colors.ink}`、pill、Level-1 shadow | 二次 CTA |
 | `button-utility` | white surface、`{rounded.md}`、4px 14px padding、hairline border | ナビ / プラン選択 |
 | `button-icon-circular` | `rgba(0,0,0,0.05)` fill、`{rounded.full}` | カルーセル / メディア制御 |
+
+> **pill 裁定（2026-07-21）**: `{rounded.full}` の pill CTA は**マーケティング面専用**。アプリ本体の `PrimaryButton` / `SubmitButton` は `button-utility` 系の角丸（`rounded-xxs`〜`rounded-md`）を標準とし pill 化しない — 高密度な業務アクション列に pill は過大で、DESIGN.md 自身も utility 文脈では `{rounded.md}` を規定している。バッジ・円形アイコンボタンの `{rounded.full}` は従来どおり。
 
 ### 7.3 Cards & Containers
 
@@ -295,8 +323,8 @@ DESIGN.md `rounded:` フロントマターに準拠。**コンポーネント種
 - `{colors.primary}`（**`#038B94`**）は Primary CTA・インラインリンク・active/focus のみに使う。装飾には使わない。
 - ページ canvas は暖色 `{colors.canvas-soft}`、カード・フィールドは白 `{colors.surface}` にする。
 - スティッカーパレット（`{colors.accent-pink}`、`{colors.accent-teal}` 等）はバッジ・タグ・凡例ドットなど装飾用途にのみ使う。
-- 見出しは `{typography.display-1}` / `{typography.heading-1}` + ネガティブ tracking を明示適用する。
-- Primary CTA は `{rounded.full}`、ユーティリティボタンは `{rounded.md}` — 意図的な対比を維持する。
+- 見出し階層は §3.4 の採用範囲に従う（アプリ本体は `title` 以下。display/heading 系はマーケ面専用）。
+- ボタン角丸は §7.2 pill 裁定に従う（アプリ本体は utility 系。pill はマーケ面・バッジ・円形アイコンのみ）。
 - カード境界は hairline + Level-1 の極薄シャドウで表現する。
 - 深 indigo `{colors.secondary}` hero-band は単一の hero モーメントに限定する。
 

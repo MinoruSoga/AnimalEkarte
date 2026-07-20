@@ -90,6 +90,14 @@
   --tracking-compact-xs: 0;
   --notion-shadow: rgba(15,15,15,0.04) 0px 0px 0px 1px, rgba(15,15,15,0.04) 0px 4px 18px;
   --notion-shadow-btn: rgba(15,15,15,0.04) 0px 1px 2px;
+  /* FE9-1: DESIGN.md §5 Elevation 実装トークン（design-system.md §5.1 が正本。Tailwind v4 が shadow-level1 等を生成） */
+  --shadow-level1: 0 0.175px 1.041px rgba(0,0,0,0.01), 0 0.8px 2.925px rgba(0,0,0,0.02), 0 2.025px 7.847px rgba(0,0,0,0.027), 0 4px 18px rgba(0,0,0,0.04);
+  --shadow-level2: 0 0.8px 2.9px rgba(0,0,0,0.02), 0 2px 7.8px rgba(0,0,0,0.027), 0 4px 18px rgba(0,0,0,0.04), 0 10px 32px rgba(0,0,0,0.045), 0 23px 52px rgba(0,0,0,0.05);
+  --shadow-btn: rgba(15,15,15,0.04) 0px 1px 2px;
+  --shadow-panel: -1px 0 5px rgba(0,0,0,0.02);
+  --shadow-focus-brand: 0 0 0 1px rgba(3,139,148,0.35);
+  --text-2xs: 0.6875rem;  /* 11px — design-system.md §3.4 micro ロール（バッジ・密なメタ表示） */
+  --text-2xs--line-height: 1.45;
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
