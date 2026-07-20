@@ -159,30 +159,10 @@ func (h *Handler) RegisterMasterRoutes(rg *gin.RouterGroup) {
 	masters.PATCH("/campaigns/:id", perm(model.ResourceAccounting, "edit"), h.UpdateCampaign)
 	masters.DELETE("/campaigns/:id", perm(model.ResourceAccounting, "delete"), h.DeleteCampaign)
 
-	// Examination Types
-	masters.GET("/examination-types", perm(model.ResourceMasterMedical, "view"), h.ListExaminationTypes)
-	masters.POST("/examination-types", perm(model.ResourceMasterMedical, "create"), h.CreateExaminationType)
-	masters.PATCH("/examination-types/reorder", perm(model.ResourceMasterMedical, "edit"), h.ReorderExaminationTypes)
-	masters.GET("/examination-types/:id", perm(model.ResourceMasterMedical, "view"), h.GetExaminationType)
-	masters.PATCH("/examination-types/:id", perm(model.ResourceMasterMedical, "edit"), h.UpdateExaminationType)
-	masters.DELETE("/examination-types/:id", perm(model.ResourceMasterMedical, "delete"), h.DeleteExaminationType)
-
-	// Diagnosis Categories
-	masters.GET("/diagnosis-types", perm(model.ResourceMasterMedical, "view"), h.ListDiagnosisTypes)
-	masters.POST("/diagnosis-types", perm(model.ResourceMasterMedical, "create"), h.CreateDiagnosisType)
-	masters.PATCH("/diagnosis-types/reorder", perm(model.ResourceMasterMedical, "edit"), h.ReorderDiagnosisTypes)
-	masters.GET("/diagnosis-types/:id", perm(model.ResourceMasterMedical, "view"), h.GetDiagnosisType)
-	masters.PATCH("/diagnosis-types/:id", perm(model.ResourceMasterMedical, "edit"), h.UpdateDiagnosisType)
-	masters.DELETE("/diagnosis-types/:id", perm(model.ResourceMasterMedical, "delete"), h.DeleteDiagnosisType)
-
-	// Diagnosis Names
-	masters.GET("/diagnosis-names", perm(model.ResourceMasterMedical, "view"), h.ListDiagnosisNames)
-	masters.GET("/diagnosis-names/all", perm(model.ResourceMasterMedical, "view"), h.ListDiagnosisNamesAll)
-	masters.POST("/diagnosis-names", perm(model.ResourceMasterMedical, "create"), h.CreateDiagnosisName)
-	masters.PATCH("/diagnosis-names/reorder", perm(model.ResourceMasterMedical, "edit"), h.ReorderDiagnosisNames)
-	masters.GET("/diagnosis-names/:id", perm(model.ResourceMasterMedical, "view"), h.GetDiagnosisName)
-	masters.PATCH("/diagnosis-names/:id", perm(model.ResourceMasterMedical, "edit"), h.UpdateDiagnosisName)
-	masters.DELETE("/diagnosis-names/:id", perm(model.ResourceMasterMedical, "delete"), h.DeleteDiagnosisName)
+	// Examination Types / Diagnosis Categories / Diagnosis Names: moved to
+	// internal/medicalrecord.Handler.RegisterRoutes (BE9-2C master-CRUD slice — composed
+	// directly in cmd/api/main.go, ADR-006 "aggregator 非経由"). See
+	// internal/medicalrecord/routes.go.
 
 	// Checkup Types
 	masters.GET("/checkup-types", perm(model.ResourceCheckups, "view"), h.ListCheckupTypes)
@@ -204,13 +184,8 @@ func (h *Handler) RegisterMasterRoutes(rg *gin.RouterGroup) {
 
 	h.RegisterPermissionGroupRoutes(masters)
 
-	// Chief Complaint Categories
-	masters.GET("/chief-complaint-types", perm(model.ResourceMasterMedical, "view"), h.ListChiefComplaints)
-	masters.POST("/chief-complaint-types", perm(model.ResourceMasterMedical, "create"), h.CreateChiefComplaint)
-	masters.PATCH("/chief-complaint-types/reorder", perm(model.ResourceMasterMedical, "edit"), h.ReorderChiefComplaints)
-	masters.GET("/chief-complaint-types/:id", perm(model.ResourceMasterMedical, "view"), h.GetChiefComplaint)
-	masters.PATCH("/chief-complaint-types/:id", perm(model.ResourceMasterMedical, "edit"), h.UpdateChiefComplaint)
-	masters.DELETE("/chief-complaint-types/:id", perm(model.ResourceMasterMedical, "delete"), h.DeleteChiefComplaint)
+	// Chief Complaint Categories: moved to internal/medicalrecord.Handler.RegisterRoutes
+	// (BE9-2C master-CRUD slice). See internal/medicalrecord/routes.go.
 
 	// Inquiry Templates
 	masters.GET("/inquiry-templates", perm(model.ResourceMasterMedical, "view"), h.ListInquiryTemplates)

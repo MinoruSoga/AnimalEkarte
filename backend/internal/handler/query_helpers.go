@@ -1,92 +1,38 @@
 package handler
 
 import (
-	"fmt"
-	"strconv"
-
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 
-	"github.com/animal-ekarte/backend/internal/apperrors"
+	"github.com/animal-ekarte/backend/internal/httpapi"
 )
 
-const defaultMaxPaginationLimit = 100
+// DEPRECATED facade (BE9-2C): moved to internal/httpapi.ParseIDParam/ParsePagination/
+// ParsePaginationWithMax/ParseUUIDParam (BE9-2A target:httpapi, ADR-006 — this file was the
+// last of the 6-file httpapi extraction deferred by BE9-2B because the manualarticle pilot
+// didn't need it; internal/medicalrecord's master-CRUD slice does). See
+// context_helpers.go's file header for the rationale; delete once BE9-2F migrates every
+// remaining internal/handler file to internal/httpapi directly.
+//
+// httpapi.ParseOptionalUint64Query and httpapi.DefaultMaxPaginationLimit have no facade
+// here: this package's sole caller (diagnosis_handler.go's ListDiagnosisNames/
+// ListDiagnosisNamesAll) moved to internal/medicalrecord with this batch, and no other
+// internal/handler file used them (verified — golangci-lint's unused check would otherwise
+// flag a facade with zero callers). Not-yet-migrated handler files that need optional-uint64
+// query parsing can call httpapi.ParseOptionalUint64Query directly.
 
-// parsePagination はページネーションパラメータを安全にパースする。
-// page: 1以上の整数, limit: 1〜100の整数
 func parsePagination(c *gin.Context) (page, limit int, err error) {
-	return parsePaginationWithMax(c, defaultMaxPaginationLimit)
+	return httpapi.ParsePagination(c)
 }
 
-// parsePaginationWithMax はページネーション上限だけを呼び出し元で調整できる共通パーサ。
 func parsePaginationWithMax(c *gin.Context, maxLimit int) (page, limit int, err error) {
-	pageStr := c.DefaultQuery("page", "1")
-	// BUG-143: limit と per_page の両方をサポート（per_page は limit のエイリアス）
-	limitStr := c.DefaultQuery("limit", "")
-	if limitStr == "" {
-		limitStr = c.DefaultQuery("per_page", "20")
-	}
-
-	page, err = strconv.Atoi(pageStr)
-	if err != nil || page < 1 {
-		return 0, 0, apperrors.WrapInvalidInput("page は1以上の整数で指定してください")
-	}
-
-	limit, err = strconv.Atoi(limitStr)
-	if err != nil || limit < 1 || limit > maxLimit {
-		return 0, 0, apperrors.WrapInvalidInput(fmt.Sprintf("limit は1〜%dの範囲で指定してください", maxLimit))
-	}
-
-	return page, limit, nil
+	return httpapi.ParsePaginationWithMax(c, maxLimit)
 }
 
-// parseOptionalUint64Query はクエリパラメータを optional な uint64 にパースする汎用ヘルパー。
-// パラメータが空文字の場合は (nil, true) を返す。
-// パース失敗時は即座に HTTP 400 レスポンスを書いて (nil, false) を返す。
-// 呼び出し元は false 時に即 return すること。
-func parseOptionalUint64Query(c *gin.Context, key string) (*uint64, bool) {
-	s := c.Query(key)
-	if s == "" {
-		return nil, true
-	}
-	id, err := strconv.ParseUint(s, 10, 64)
-	if err != nil {
-		RespondError(c, apperrors.WrapInvalidInput(fmt.Sprintf("invalid %s", key)))
-		return nil, false
-	}
-	return &id, true
-}
-
-// parseIDParam は URL path parameter を uint64 にパースする汎用ヘルパー。
-// パース失敗時は即座に HTTP 400 レスポンスを書いて false を返す。
-// 呼び出し元は false 時に即 return すること。
 func parseIDParam(c *gin.Context, key string) (uint64, bool) {
-	s := c.Param(key)
-	if s == "" {
-		RespondError(c, apperrors.WrapInvalidInput("パラメータが不足しています: "+key))
-		return 0, false
-	}
-	id, err := strconv.ParseUint(s, 10, 64)
-	if err != nil {
-		RespondError(c, apperrors.WrapInvalidInput("パラメータの形式が不正です: "+key))
-		return 0, false
-	}
-	if id == 0 {
-		RespondError(c, apperrors.WrapInvalidInput("IDは1以上を指定してください"))
-		return 0, false
-	}
-	return id, true
+	return httpapi.ParseIDParam(c, key)
 }
 
-// parseUUIDParam は URL path parameter を uuid.UUID にパースする汎用ヘルパー。
-// パース失敗時は即座に HTTP 400 レスポンスを書いて false を返す。
-// 呼び出し元は false 時に即 return すること。
 func parseUUIDParam(c *gin.Context, key string) (uuid.UUID, bool) {
-	s := c.Param(key)
-	id, err := uuid.Parse(s)
-	if err != nil {
-		RespondError(c, apperrors.WrapInvalidInput(fmt.Sprintf("パラメータの形式が不正です: %s は有効な UUID ではありません", key)))
-		return uuid.Nil, false
-	}
-	return id, true
+	return httpapi.ParseUUIDParam(c, key)
 }

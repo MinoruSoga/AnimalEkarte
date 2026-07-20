@@ -1,7 +1,7 @@
 # BE-refactor — Go/Gin公式ベースラインへのコード移行
 
 > **ACTIVE (2026-07-19)**: 実行対象は下記BE9のみ。現行正本 = [`.claude/rules/go-gin-backend-guidelines.md`](.claude/rules/go-gin-backend-guidelines.md)、review正本 = [`.claude/refs/go-gin-backend-review.md`](.claude/refs/go-gin-backend-review.md)。
-> **進捗 (2026-07-19)**: BE9-0 → BE9-2A → BE9-1 → BE9-2B（pilot=manualarticle）まで完遂。[ADR-006](docs/architecture/adr/006-backend-domain-package-boundaries.md) Accepted。**成果物は全て未コミット** — `internal/lintscan`・`internal/httpapi`・`internal/manualarticle`の新設と旧layer側の修正が相互依存するため**部分コミット禁止**（lintscanを欠くとlint testがbuild不能になる）。次 = BE9-2C。着手前ゲートは「実装順序とbatch境界」の現在地節を参照。
+> **進捗 (2026-07-20)**: BE9-0 → BE9-2A → BE9-1 → BE9-2B（pilot=manualarticle）完遂・コミット済み（`d00c72a93`）。**BE9-2C第1 slice = medicalrecord sub-batch①（master-CRUD 4エンティティ）完遂・未コミット**（`internal/medicalrecord`新設35 file+httpapi query/paginationヘルパ切り出し。build green確認済み）。次 = BE9-2D sub-batch②（checkup/vaccine/prescription/inquiry・前提条件なし即着手可）。着手前ゲートは「実装順序とbatch境界」の現在地節を参照。
 > **BE8 SUPERSEDED**: 固定layer・層優先subpackage・repository→service→handler移行は [ADR-005](docs/architecture/adr/005-go-gin-backend-guidelines.md) により廃止。BE8-4/5/6/7の残作業は実行しない。旧本文は未コミット履歴の保全目的で残す。
 
 ## Active task: BE9 — 新コード規約をbackend実装・自動検査へ適用する（High）
@@ -53,7 +53,7 @@ backend/
 
 | 暫定優先 | target domain | 実測file数 | 着手方針 |
 |---|---|---:|---|
-| 1 | medicalrecord | 185 | 最大domain。master CRUD→非確定処理→lab(saga)→finalize lock中核→hospitalization/billing接続の順（sub-batch案 = boundary map §3.7） |
+| 1 | medicalrecord | 185 | 最大domain・**進行中**。sub-batch①master CRUD=移行済み（2026-07-19）→②非確定処理→③lab(saga)→④finalize lock中核→⑤hospitalization/billing接続の順（詳細定義 = 本doc「BE9-2D: medicalrecord sub-batch定義」） |
 | 2 | lstep | 106 | read/config/tag系から開始し、delivery/background writeは後段。line/liff内部分割はADR-006論点#2（BE9-2D着手直前に再確認） |
 | 3 | reservation | 77 | query/master系から開始。**着手前にADR-006論点#1（reservation↔staff共有テーブル二重書き込み）の決裁が必須** |
 | 4 | billing | 65 | read/calculationから開始。**着手時に`billing_item_repository.go`のUpdate/Delete防御ギャップ是正+クロステナントtest追加が必須前提（ADR-006論点#6）** |
@@ -117,6 +117,19 @@ backend/
 
 **BE9-2Cのdomain単位完了条件**: ready frontierから選択した1つの大規模domainについて、低〜中riskのvertical sliceがtarget packageへ移り、そのsliceの旧実装は期限付きfacadeだけになっている。旧packageに残るproduction implementationはBE9-2D対象として一覧化した高risk pathだけとする。API/SQL/tenant behaviorのbefore/after testが同一で、BE9-2Dのbaseline testとrollback単位が定義されている。
 
+**進捗（2026-07-19・第1 slice完遂）**: largest-ready = medicalrecord（185 file最大。reservation=論点#1未決裁でハードブロック、billing=論点#6是正が前提でより小規模、lstepはDAG最上位で早期抽出不利のため対象外）。boundary map §3.7 sub-batch①（out-dom=0純粋master-CRUD: diagnosis type/name, examination type, chief complaint type）を`internal/medicalrecord`へ移動。
+
+- **repository層**: BE8-4既存subpackage 4個（diagnosistype/diagnosisname/examtype/chiefcomplaint、いずれも旧42 subpackageの一部）をroll-up（削除しmedicalrecordへ統合）。generic `Repository`/`New`をentity-specific名へ改名（`DiagnosisTypeRepository`等）——外部から見える`internal/repository`側facade名は不変のため呼び出し側影響なし。`paginate()`ヘルパーの重複定義（diagnosistype/diagnosisname双方が独立複製していたもの）を1箇所へ統合。
+- **service層**: 診断カテゴリ・診断名・検査種別・主訴種別の4サービス、DTO名は完全不変で移動。
+- **handler層**: `DiagnosisHandler`/`ExamTypeHandler`/`ChiefComplaintHandler`の3 struct + 単一の`medicalrecord.Handler.RegisterRoutes`エントリポイント。**設計上の発見**: 当初per-entity複数`RegisterRoutes`を検討したが、`openapi_route_drift_test.go`の`buildFuncsFromDir`がbare名でfunc mapを構築するため、同名メソッドが複数struct上にあると2/3のroute setがdrift検知から静かに脱落する。単一エントリポイント必須と判明し設計を修正（BE9-2D以降も同じ制約に従うこと）。
+- **共有ヘルパーの扱い**: `internal/service`の共有validation kernel（validators.go/validators_name.go/update_fields.go、9ドメインfan-in、boundary map §4.2「維持」）はmedicalrecordがimport禁止のため、pure/statelessな部分のみ`internal/medicalrecord/validators.go`へ複製（意図的な既知debt——boundary map §4.3のaudit kernel昇格と同型の解消を推奨、昇格先ができたら両コピーを統合）。`internal/handler/query_helpers.go`（parseIDParam/parsePagination/parseOptionalUint64Query/parseUUIDParam）はboundary map §3.13で既にtarget:httpapi認定済みだがBE9-2B pilotが未使用のため未移動だった箇所——本batchが初のconsumerとなり`internal/httpapi/query_helpers.go`+`pagination_response.go`として正式に切り出し完了（handler側は薄いfacade化）。
+- **cross-package依存の新規発見**: `internal/handler/clinical_plan_response.go`（ClinicalPlan、sub-batch④・BE9-2D対象、本batch対象外）が`diagnosisTypeResponse`/`diagnosisNameResponse`をunqualified参照しており、medicalrecord内での想定外の密結合が判明。`DiagnosisTypeResponse`/`DiagnosisNameResponse`をexportし、`clinical_plan_response.go`が`internal/medicalrecord`をimportする形で解消（DTOの二重定義を回避）。**申し送り**: sub-batch②以降で他domainの旧handler fileが同様にmedicalrecordの response/request 型を直接参照していないか、着手時に確認すること。
+- **旧facade方針の例外**: fan-in 0のservice/handler層は**facade化せず完全削除**（manualarticle先例のrepository facade完全削除と同型——型aliasで延命する理由がない場合はそうする）。fan-in>0のrepository層facade（clinical_plan_service.go/medical_record_service.go/examination_service.go/lab_import_examination_service.go/inquiry_service.goが依存）のみ型alias+delegate constructorとして維持。
+- **test**: 旧`internal/service/{diagnosis,exam_type,chief_complaint}_service_test.go`と`internal/handler/{diagnosis,exam_type,chief_complaint}_{handler,request,response}_test.go`はmedicalrecordへ完全移動。旧`repository/{diagnosistype,diagnosisname}`のtestも移動。examtype/chiefcomplaintのフラット直下test（`internal/repository/exam_type_repository_test.go`・`chief_complaint_repository_test.go`）は**両方medicalrecordへ完全移動**——ただし`makeExamTypeMaster`/`makeExaminationRec`（`examination_repository_test.go`/`examination_repository_tx_atomicity_test.go`が共有、BE9-2D対象で本batch対象外）は旧ファイルにローカルコピーとして残置、`makeChiefComplaintType`は当初「`inquiry_repository_test.go`が共有」と誤判定（実際はコメント記述のみで実呼び出しなし、`golangci-lint`のunused検出で発覚・訂正）し旧`chief_complaint_repository_test.go`ごと削除（medicalrecord側に一本化）。`cross_tenant_master_fk_write_test.go`（複数domain共有の巨大test file）はexam_typeの2 FK guard testのみ切り出し（`NewExamTypeService`等がinternal/serviceから消えるため必須）、`mockDiagnosisTypeRepository`/`mockDiagnosisNameRepository`/`mockChiefComplaintTypeRepository`/`mockExamTypeRepository`の4モック構造体は他domain（ClinicalPlanService/InquiryService/MedicalRecordService/ExaminationService/LabImportExaminationService、いずれもBE9-2D対象）が`ok*Repo()`/`reject*Repo()`経由で使い続けるため定義元ファイルにコメント付きで残置。
+- **gate追随**: `route_snapshot.golden`（25行削除）、`openapi_route_drift_test.go`の`migratedDomainRoutePackages`（`{dir: "../medicalrecord", prefix: "/api/v1"}`追加）、`master_fk_write_inventory_lint_test.go`の`serviceWriteRolePackagePrefixes`（`"medicalrecord/"`追加。副作用として`internal/medicalrecord`のhandler層が`*gin.Context`引数を伴いスキャン対象へ入り`knownSafeParamQualifiers`へ`"gin"`追加が必要になった——将来のBE9-2C/2D/2Eドメインも同じ制約に当たるため以後追加不要）+ allowlist該当4エントリのコメント更新——全gate green確認済み。他4 lint（preload_clinic_scope/audit_tx/dbortx/n1）はこの4ドメインに既存allowlist entryなし、basename→相対パス更新は不要だった（無違反ファイルのため）。
+- **検証**: `internal/medicalrecord`・`internal/repository`（42 subpackage含む）・`internal/service`・`internal/handler`・`internal/httpapi`・`internal/apicontract`の全パッケージが単独実行でPASS（`gofmt -l`/`go vet`もclean、pre-existing debtとは無関係）。並行エージェント多数が同一`animalekarte-db-1`へ同時アクセスした状態での再実行時のみ、Owner/Treatment/TreatmentPlan等（本batch対象外domain）で`ERROR: deadlock detected`・行数不一致の非決定論的flakeを観測——単独実行で100%再現しないため§5 row 6と同型の環境要因と判定（詳細はCompletion Report）。
+- 次 = BE9-2C sub-batch②（checkup/vaccine/prescription/inquiry等、非確定処理）または他domainのBE9-2C、あるいはmedicalrecordのBE9-2D（高riskパス）。
+
 #### BE9-2D: 大規模domain内の高risk pathを段階移行する（BE9-2Cと反復）
 
 1. LSTEPはread/config/tag処理を先に移し、outbound delivery、background job、外部writeを後段にする。
@@ -128,6 +141,56 @@ backend/
 **BE9-2Dのdomain単位完了条件**: 選択domainの全高risk pathがADR-006の許可依存graph内から提供され、該当するclinical finalize lock、audit fail-closed、billing atomicity、clinic isolationのruntime integration testがPASSする。選択domainのproduction implementationとtestがtarget packageへ移り、旧package側には作業中batchの期限付きfacade以外を残さない。
 
 **BE9-2C/2Dの全体完了条件**: 1domainごとにBE9-2C→BE9-2Dを完了してから次のlargest-ready domainへ進み、LSTEP/LINE、medical record/clinical、reservation、billing/accountingの4大規模domainがすべてdomain単位完了条件を満たす。
+
+##### BE9-2D: medicalrecord sub-batch定義（boundary map §3.7①-⑤の詳細化・2026-07-19）
+
+sub-batch①（master-CRUD: diagnosis type/name, examination type, chief complaint type）はBE9-2Cで完遂済み（`internal/medicalrecord`）。以下は②-⑤の高risk path一覧・baseline test・rollback単位。**定義のみ・実装はBE9-2D本体（別unit）**。file一覧は代表例——完全なfile集合は着手時に`docs/architecture/be9-2a-classification-manifest.csv`のtarget:medicalrecordエントリを当該token（checkup/vaccin/prescription/inquiry等）でgrepして確定すること（本docは一覧の網羅を保証しない）。
+
+**②checkup/vaccine/prescription/inquiry（非確定処理・lstep通知はinterface経由のため抽出を妨げない）**
+
+- 対象file代表例: `internal/service/{checkup,checkup_field_result,checkup_type,vaccine,vaccination,prescription,inquiry,inquiry_template}_service.go` + 対応`internal/repository/*_repository.go`（vaccine/vaccinationは既にsubpackage化されていない場合あり、着手時に`internal/repository/vaccine/`等の存在を確認）+ `internal/handler/{checkup,vaccination,prescription,inquiry}_*.go`。manifest上のcheckup系29 file・vaccin系13 file・prescription系6 file・inquiry系11 fileが母集団（handler/service/repository/test合算、正確な内訳は着手時にmanifestで再集計）。
+- **baseline test（移動前green必須）**:
+  - finalize-lock保護: `TestCheckupService_Create_FinalizedRejection` / `TestCheckupService_Update_FinalizedRejection` / `TestCheckupService_Delete_FinalizedRejection`（`internal/service/checkup_service_test.go`）、`TestPrescriptionService_Create_FinalizedRejected` / `_Update_FinalizedRejected` / `_Delete_FinalizedRejected`（`internal/service/prescription_service_test.go`）。**vaccinationはガードなし**（boundary map §3.7既知）——`TestVitalService_*`同様、移動時に新規finalize-lock guardを追加してはならない（behavior-preserving、機能追加は別issue）。
+  - clinic isolation: `TestVaccinationRepository_FindByID_VaccinePreloadClinicIsolation` / `_SameClinicVaccinePreloaded`（`internal/repository/vaccination_master_preload_clinic_isolation_test.go`）。checkup/prescription/inquiryの専用clinic-isolation test fileは未確認——`preload_clinic_scope_lint_test.go`（package非依存walk、§3.7既存記載）のgreenが機械的代替網。
+  - master-FK-write fail-open防止: `internal/service/master_fk_write_inventory_lint_test.go`の`inquiryService.Save`エントリ（test: `TestInquiryService_Save_RejectsCrossClinicChiefComplaintType`、`internal/service/cross_tenant_master_fk_write_test.go:2224`）——inquiry移動時は`serviceWriteRolePackagePrefixes`の`"medicalrecord/"`が既にBE9-2Cで追加済みのため新規prefix追加不要、allowlist keyの受信先コメント更新のみ。
+  - TOCTOUギャップ既知（§3.7既存記載）: checkupは`lockDraftMedicalRecord`未使用のTOCTOU gapが移動前から存在——移動でこのgapを拡大/縮小しないことをbaseline確認の対象とする（新規安全化はBE9-2D本体の別issue、本batch=移動のみでは変更しない）。
+- **rollback単位**: (i) composition切替batch — `internal/medicalrecord`への実装+test移動、旧`internal/service|handler|repository`側は期限付きfacade化（fan-in 0なら完全削除、BE9-2C同様）。(ii) facade剥がしbatch — 残る呼び出し側（存在すれば）の直接import切替、BE9-2Fへ持ち越し。2つは別コミットとし、(i)のみでrevert可能な状態を維持する。
+- **前提条件**: なし（reservation/billing依存なし、ready frontier上は即着手可）。inquiryのChiefComplaintTypeID FK guardは既にBE9-2Cで`internal/medicalrecord`のChiefComplaintTypeRepositoryへ依存済みのため、移動時はimport pathの単純化のみ。
+
+**③lab_import/lab_report（sagaパターン・単一tx wrappingではなくper-row partial success）**
+
+- 対象file代表例: `internal/service/{lab_import_examination,lab_result_import,lab_import,lab_report_query,lab_audit_logger}_service.go` + `internal/repository/lab_import_duplicate_checker*.go`等。manifest上lab_import系6 file・lab_report系3 fileが母集団。
+- **baseline test（移動前green必須・saga挙動の証拠）**:
+  - 部分失敗耐性: `TestLabResultImportService_Commit_RowError` / `TestLabResultImportService_Commit_AllFailed` / `TestLabResultImportService_Commit_WithDuplicate` / `_AllDuplicate`（`internal/service/lab_result_import_service_test.go`）。
+  - clinic isolation: `TestLabResultImportService_Commit_ClinicScopeEnforced`。
+  - キャンセル・補償遷移: `TestLabResultImportService_Commit_ContextCancelledDuringPersist` / `_CompensationTransitionAlsoFails`（saga補償ロジックの中核、移動時に最優先でgreen確認）。
+  - 出所制限（manual source blocked等、#安全ガード）: `TestLabResultImportService_Commit_NonFixtureBlocked_DrWan` / `_NonFixtureBlocked_Manual`、`internal/service/lab_audit_logger_test.go`の`TestLabAuditLogger_LogSourceBlocked_*`系7 test。
+  - master-FK-write: `labImportExaminationService.PersistBatch`（allowlist、test: `TestLabImportExaminationService_PersistBatch_RejectsCrossClinicExamType`）・`labResultImportService.Commit`（test: `TestLabResultImportService_Commit_RejectsCrossClinicExamType`）。
+- **rollback単位**: sub-batch②と同型（composition切替→facade剥がしを別コミット）。lab importはexam_type（sub-batch①で既にmedicalrecord内）に依存するため、①完了後は追加の外部依存なし。
+- **前提条件**: sub-batch①（済）。reservation/billing依存なし。
+
+**④treatment/vital/clinical_plan（`lockDraftMedicalRecord` row-lock中核・抽出時にA全体="診断/検査/処方/lab"が先に必要）**
+
+- 対象file代表例: `internal/service/{treatment,vital,clinical_plan,medical_record_lock,medical_record_image}_service.go` + `internal/repository/{treatment,vital,clinical_plan}_repository.go` + `internal/handler/{treatment,vital,clinical_plan}_*.go`。manifest上treatment系11 file・vital系5 file・clinical_plan系5 fileが母集団。
+- **baseline test（移動前green必須・row-lock中核のため最重要）**:
+  - `lockDraftMedicalRecord`本体: `TestLockDraftMedicalRecord_NilParentFailsClosed`（`internal/service/medical_record_lock_test.go`）——fail-closed契約の唯一の直接test、移動前後で必ずPASS。
+  - finalize-lock保護（per-domain）: `TestClinicalPlanService_Update_RejectsFinalizedParent` / `_Delete_RejectsFinalizedParent`（`internal/service/clinical_plan_service_test.go`）、`TestMedicalRecordImageService_FinalizedGuard`（`internal/service/medical_record_image_service_test.go`）。**treatment/vitalには対応する`Finalized`/`Lock`named testが存在しない**（grep実測でゼロ件確認、§3.7既存記載と整合——finalize-lock保護は`lockDraftMedicalRecord`呼び出し自体で担保され専用regression testが無い状態。移動時に新規追加してはならない=behavior-preserving、追加は別issue）。
+  - clinic isolation: `TestTreatmentRepository_FindByMedicalRecordID_MasterPreloadClinicIsolation` / `_SameClinicMasterPreloaded`（`internal/repository/treatment_master_preload_clinic_isolation_test.go`）。
+  - master-FK-write: `medicalRecordService.CreateSubRecords`のChiefComplaintTypeID/Diagnosis1-2系allowlistエントリ（`internal/service/master_fk_write_inventory_lint_test.go`、test: `TestMedicalRecordService_CreateSubRecords_RejectsCrossClinicChiefComplaintType` / `_RejectsCrossClinicDiagnosisFK`）——この移動でmedicalrecordパッケージ内のvalidateCreateSubRecordDiagnosisFKs相当ヘルパーも追随させる必要あり（診断FK 4スロット全て）。
+- **rollback単位**: sub-batch②③と同型。ただし`lockDraftMedicalRecord`は複数domain（medicalrecord A+B, billing）からfan-in=20/8file/3domainのため、単一batchでの移動はrisk大——**推奨分割**: (i) `medical_record_lock.go`本体+`TestLockDraftMedicalRecord_NilParentFailsClosed`のみ先行移動しfacade化、(ii) treatment/vital/clinical_planの各serviceを個別batchで追随（それぞれ独立してrevert可能）。billing（billing_confirmation_service.go/estimate_service.go）からの呼び出しは論点#6是正前提のため本sub-batchでは触れない。
+- **前提条件**: sub-batch①②③（全domain内依存解決後）。billing側の`lockDraftMedicalRecord`呼び出し元（billing_confirmation_service.go/estimate_service.go）は移動しない（billing domain着手時=論点#6是正後）——A domain内移動のみで billing→medicalrecord逆依存を新設しない。
+
+**⑤hospitalization/discharge-with-billing（billingとの実エッジを含む最終段）**
+
+- 対象file代表例: `internal/service/{hospitalization,hospitalization_plan,daily_record,care_plan_item}_service.go` + `internal/repository/hospitalization*.go` + `internal/handler/hospitalization*.go`。manifest上hospitalization系10 fileが母集団。
+- **baseline test（移動前green必須・billing atomicity中核）**:
+  - DischargeWithBilling一連: `TestHospitalizationService_DischargeWithBilling_NotFound` / `_AlreadyDischarged` / `_UpdateFails` / `_WithoutAccounting` / `_CarePlanItemsFetchError` / `_BillingCreateError` / `_WithCarePlanItems` / `_BillingItemCreateError` / `_UpdateBillingTotalsError` / `_ConcurrentDoubleDischarge_ReturnsNotFoundWithoutAccounting`（全10 test、`internal/service/hospitalization_service_test.go`）——billing atomicity（tx境界・二重会計防止）の直接証拠。
+  - clinic isolation（owner/pet混入防止）: `TestHospitalizationService_DischargeWithBilling_DoesNotPropagateForeignOwnerPet` / `_RejectsContaminatedOwnerPetAfterOuterFind` / `_WithoutAccounting_RejectsForeignOwnerPet` / `_RejectsInvalidOwnerPetLinks`（`internal/service/hospitalization_owner_pet_clinic_isolation_test.go`）。
+  - master-FK-write: `hospitalizationService.Create` / `Update`のCageID guard（allowlist、test: `TestHospitalizationService_Create_RejectsCrossClinicCageFK` / `_Update_RejectsCrossClinicCageFK`）。
+- **rollback単位**: sub-batch②③④と同型。**billingとの実エッジ（`DischargeWithBilling`がBilling/BillingItem行を作成）は逆依存を作らない**——medicalrecordがbillingのrepository/serviceをconsumer-side interfaceで受ける既存パターン（ADR-006 §5 cycle解消方式）を維持し、billing側の型をimportしない。billing domain自体がBE9-2Cで未着手のため、hospitalization移動時点でもbilling側は旧`internal/service`のまま——facadeでなくconsumer interfaceでの分離を維持すること。
+- **前提条件**: sub-batch①②③④。billing domainのBE9-2C未着手（billing_item_repository.go是正=論点#6が前提、bug.md BUG-417）でも本sub-batch自体は着手可——medicalrecord→billingは既にinterfaceで逆転済みのため billing側の状態に非依存。ただしbilling側のrepository実装がBUG-417の防御ギャップを抱えたままである点は、hospitalization移動が新たな依存を追加しないことの確認事項として残す（是正はbilling domain着手時）。
+
+**論点#4の紐付け（低影響・移動なし既定）**: `model/medicine.go`/`vaccine.go`のinventory vs medicalrecord帰属は現状`internal/repository/medicine_repository.go`/`vaccine_repository.go`がフラットのまま（サブパッケージ化されていない、2026-07-19時点実測）——sub-batch②のvaccine/vaccination移動時に併せて確定する（現状維持=medicalrecord帰属のまま移動が既定、inventoryへの付け替えは本docでは決定しない）。`internal/model/line_reservation_setting.go`のlstep vs reservation帰属はmedicalrecordのいずれのsub-batchにも属さない（reservation/lstep側の論点、本docの対象外）ため、reservation着手時（論点#1決裁後）に別途確定する。
 
 #### BE9-2E: 残る中小domainを規模順にmigrationする
 
@@ -167,9 +230,9 @@ backend/
 
 `BE9-0 → BE9-2A → BE9-1 → BE9-2B（pilot 1件）→ {BE9-2C ↔ BE9-2Dを大規模domainごとにlargest-ready方式で反復} → BE9-2E → BE9-2F → BE9-3 → BE9-4`。BE9-1は新target packageを監査できる状態にしてからproduction migrationを開始する。BE9-3のresource監査は各BE9-2 batchでも反復する。大規模domainを先に狙うが、各batchはroute/use case/transaction単位とし、behavior-preservingな移動と機能変更を混在させない。security invariantを変更する必要が出た場合は本タスク内で推測せず、ADRとruntime isolation testを先に更新する。
 
-### 現在地と着手前ゲート（2026-07-19）
+### 現在地と着手前ゲート（2026-07-20）
 
-**BE9-0 → BE9-2A → BE9-1 → BE9-2B まで完遂（全て未コミット）。次 = BE9-2C**。ゲートの正本 = ADR-006「未解決論点」節。以下は要約:
+**BE9-0 → BE9-2A → BE9-1 → BE9-2B（コミット `d00c72a93`）→ BE9-2C第1 slice = medicalrecord sub-batch①（未コミット）まで完遂。次 = BE9-2D sub-batch②（checkup/vaccine/prescription/inquiry）— 前提条件なし・ready frontier上は即着手可**。ゲートの正本 = ADR-006「未解決論点」節。以下は要約:
 
 | # | ゲート | 発火タイミング |
 |---|---|---|
@@ -177,15 +240,20 @@ backend/
 | 論点#2 | lstepのline/liff内部分割の再確認（現決定=単一`internal/lstep`） | BE9-2D lstep内部分割の実装直前 |
 | 論点#3 | clinic↔reservation/trimmingの営業時間制約依存が実測で確認できなかった件のドメインオーナー確認 | reservation/trimming着手時 |
 | 論点#4 | `model/medicine.go`・`vaccine.go`のinventory vs medicalrecord帰属、`line_reservation_setting.go`のlstep vs reservation帰属 | 該当domain着手時に併せて確定（低影響） |
-| 論点#6 | `billing_item_repository.go`のUpdate/Delete防御ギャップ — subquery形式是正+クロステナント分離test追加 | billing domain着手時（必須前提） |
+| 論点#6 | `billing_item_repository.go`のUpdate/Delete防御ギャップ — subquery形式是正+クロステナント分離test追加（バグ台帳 = bug.md BUG-417） | billing domain着手時（必須前提）。BE9外でこのファイルへ触れる場合もその場で是正 |
 
 （論点#5=間接isolation 3件はBE9-2A内で検証完了・決裁事項から除外済み）
 
-### BE9-2B実績からの申し送り（以降の各batchで踏む）
+### BE9-2B/2C実績からの申し送り（以降の各batchで踏む）
 
-- **handler側固定gateの追随を各batchに含める**: domain移行はroute snapshot（`handler/testdata/route_snapshot.golden`）とOpenAPI route drift（`apicontract/openapi_route_drift_test.go`）の更新を必ず伴う（BE9-2Bで実地確認）。batch計画時にこれら固定gateを事前列挙する。
+- **handler側固定gateの追随を各batchに含める**: domain移行はroute snapshot（`handler/testdata/route_snapshot.golden`）とOpenAPI route drift（`apicontract/openapi_route_drift_test.go`の`migratedDomainRoutePackages`への新domain登録）の更新を必ず伴う（BE9-2B/2Cで実地確認）。batch計画時にこれら固定gateを事前列挙する。
+- **domain packageのroute登録は単一エントリポイント必須**: `openapi_route_drift_test.go`の`buildFuncsFromDir`はbare名でfunc mapを構築するため、同名メソッドが複数struct上にあるとroute setがdrift検知から**静かに脱落**する。per-entity複数`RegisterRoutes`は禁止、`<domain>.Handler.RegisterRoutes` 1本に集約する（BE9-2C sub-batch①で発見・設計修正済み）。
+- **master-FK-write lintの`knownSafeParamQualifiers`への`"gin"`追加は対応済み**（sub-batch①）。以後のdomain移行でhandler層がスキャン対象に入っても追加作業は不要。`serviceWriteRolePackagePrefixes`への新domain prefix追加は初回のみ必要。
+- **fan-in 0の旧実装はfacade化せず完全削除が既定**（manualarticle/sub-batch①の先例）。型aliasで延命するのはfan-in>0（他domainの旧実装が依存）の場合のみで、削除期限を持たせる。
+- **共有validation kernelの複製debt**: `internal/medicalrecord/validators.go`は`internal/service/validators*.go`のpure部分の意図的複製（medicalrecordから旧serviceへのimportを禁止するため）。共有カーネルをcross-cutting packageへ昇格した時点で両コピーを統合する。以後のdomainで同じ複製が3個目に達したら昇格を必須化する（rule-of-three）。
 - **cross-domain依存の解消パターン**: Audit依存 = consumer-side interface（`AuditLogger`）+ `main.go`のadapter、Permission依存 = middleware関数型注入（auth domain未移行のため）。BE9-2C以降も同型を使う。
 - **旧layer側は薄いdelegating facadeで互換維持**（呼び出し側無変更）。facade削除はBE9-2Fまで持ち越し、削除期限を持たせる。
+- **docs数値ゲートの追随**: `scripts/check-docs-symbol-drift.sh`の「ハンドラー数」チェック（`internal/handler/*_handler.go`のfile数）はBE9のhandler分散で測定基盤が溶解したため、docs側の宣言（`docs/spec/specification.md`）を削除して恒久解消済み（2026-07-20。宣言が復活しない限り3cチェックは発火しない）。**各batch完了時に同スクリプトを実行して他の数値宣言のドリフトも確認する**（sub-batch①ではこの1件が漏れていた）。
 - **共有テストDBフレーク**（旧BE8 §5 row 6）はBE9でも生きている: `go test -p 1 ./internal/repository/...`で本batchが触れないファイルの赤は退行でない（pre-batch再現を確認して続行）。恒久対処=該当テストの`setupIsolatedTestDB`化はfollow-upのまま未着手。
 
 ---

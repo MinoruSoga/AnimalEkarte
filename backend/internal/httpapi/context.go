@@ -4,13 +4,16 @@
 // (it is the topologically-first node in ADR-006's permitted dependency graph:
 // "httpapi → clinic → inventory → manualarticle → ...").
 //
-// BE9-2B pilot note: this package currently holds only the 6 target:httpapi files the
-// manualarticle pilot actually needs (context_helpers.go, response.go, response_pg.go,
-// bind_errors.go, time_response.go, slice_helpers.go). The remaining target:httpapi files
-// (date.go, list_query_request.go, master_routes.go, query_helpers.go, validation.go,
-// validators.go — see docs/architecture/be9-2a-classification-manifest.csv) stay in
-// internal/handler until a later BE9-2C/2D/2E domain pilot needs them; growing this package
-// incrementally, only as consumers arrive, avoids speculative extraction (YAGNI).
+// Extraction history: BE9-2B's manualarticle pilot extracted the first 6 target:httpapi
+// files it actually needed (context_helpers.go, response.go, response_pg.go, bind_errors.go,
+// time_response.go, slice_helpers.go). BE9-2C's medicalrecord master-CRUD slice added
+// query_helpers.go and pagination_response.go (ParseIDParam/ParsePagination/
+// ParsePaginationWithMax/ParseOptionalUint64Query/ParseUUIDParam/PaginatedResponse[T]) — the
+// first consumer to need them. The remaining target:httpapi files (date.go,
+// list_query_request.go, master_routes.go, validation.go, validators.go — see
+// docs/architecture/be9-2a-classification-manifest.csv) stay in internal/handler until a
+// later BE9-2C/2D/2E domain batch needs them; growing this package incrementally, only as
+// consumers arrive, avoids speculative extraction (YAGNI).
 package httpapi
 
 import (

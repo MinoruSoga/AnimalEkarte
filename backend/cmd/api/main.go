@@ -17,6 +17,7 @@ import (
 	appCrypto "github.com/animal-ekarte/backend/internal/infra/crypto"
 	"github.com/animal-ekarte/backend/internal/logger"
 	"github.com/animal-ekarte/backend/internal/manualarticle"
+	"github.com/animal-ekarte/backend/internal/medicalrecord"
 	"github.com/animal-ekarte/backend/internal/middleware"
 	"github.com/animal-ekarte/backend/internal/repository"
 	"github.com/animal-ekarte/backend/internal/service"
@@ -218,6 +219,27 @@ func main() {
 		h.RequirePermission,
 	)
 	manualArticleHandler.RegisterRoutes(protected)
+
+	// BE9-2C (medicalrecord master-CRUD slice): same aggregator-non-経由 pattern as the
+	// BE9-2B manualarticle pilot above. diagnosis-types/diagnosis-names/examination-types/
+	// chief-complaint-types are composed here directly from repos (repository.Repositories
+	// still constructs these — clinical_plan_service.go/medical_record_service.go/
+	// examination_service.go/inquiry_service.go/lab_import_examination_service.go, all still
+	// in internal/service pending BE9-2D, depend on the repository-level facades) rather than
+	// via svcs.* (those Services fields were removed — nothing else read them). No audit
+	// adapter needed: these master handlers never wrote audit log entries even before the
+	// move (verified against the pre-move internal/handler/{diagnosis,exam_type,
+	// chief_complaint}_handler.go).
+	medicalRecordHandler := medicalrecord.NewHandler(
+		medicalrecord.NewDiagnosisHandler(
+			medicalrecord.NewDiagnosisTypeService(repos.DiagnosisType),
+			medicalrecord.NewDiagnosisNameService(repos.DiagnosisName, repos.DiagnosisType),
+		),
+		medicalrecord.NewExamTypeHandler(medicalrecord.NewExamTypeService(repos.ExaminationType)),
+		medicalrecord.NewChiefComplaintHandler(medicalrecord.NewChiefComplaintTypeService(repos.ChiefComplaintType)),
+		h.RequirePermission,
+	)
+	medicalRecordHandler.RegisterRoutes(protected)
 
 	// HTTPサーバー設定
 	server := &http.Server{

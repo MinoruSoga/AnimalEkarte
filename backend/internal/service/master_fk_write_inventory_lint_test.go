@@ -177,6 +177,18 @@ var knownSafeParamQualifiers = map[string]struct{}{
 	// AnimalSpeciesID is a global (non clinic-scoped) master. Re-review if repository.* gains a
 	// write-path DTO carrying a clinic-scoped master FK field.
 	"repository": {},
+	// gin.* — added BE9-2C when serviceWriteRolePackagePrefixes grew "medicalrecord/": unlike
+	// internal/service (pure application logic, no Gin dependency), a BE9-2 domain package
+	// holds handler+service+repository in one directory (ADR-006), so this gate's scan now
+	// also sees medicalrecord's *gin.Context-taking HTTP handler methods for the first time.
+	// gin.Context is the HTTP request/response context — it is never a persisted DTO and
+	// cannot carry a clinic-scoped master FK field; the actual master-FK-bearing DTOs those
+	// handlers build (createExamTypeRequest.toServiceInput() → *CreateExamTypeInput, etc.)
+	// are medicalrecord-local types with no package qualifier, so they're inspected by this
+	// gate exactly as before — only the transport-layer gin.Context parameter is exempted.
+	// Every future BE9-2C/2D/2E domain package will hit this same qualifier once it merges
+	// handler code into role scope; no further per-domain qualifier addition should be needed.
+	"gin": {},
 }
 
 // masterFKWriteStatus records WHY a master-FK write is on the allowlist. The gate does not
@@ -230,8 +242,8 @@ var masterFKWriteAllowlist = []masterFKWriteEntry{
 	{"checkupService.Create", statusGuarded, []string{"CheckupTypeID"}, "checkup_service.go: checkupTypeRepo.FindByID(ctx, clinicID, CheckupTypeID); test in cross_tenant_master_fk_write_test.go"},
 	{"checkupService.Update", statusGuarded, []string{"CheckupTypeID"}, "checkup_service.go:223 checkupTypeRepo.FindByID(ctx, clinicID, *CheckupTypeID)"},
 	{"clinicalPlanService.Update", statusGuarded, []string{"Diagnosis2TypeID", "Diagnosis2NameID", "DiagnosisNameID", "DiagnosisTypeID"}, "validateDiagnosisFKs FindByID for all four slots (03bf1cb5); test present"},
-	{"diagnosisNameService.Create", statusGuarded, []string{"DiagnosisTypeID"}, "diagnosis_service.go:295 typeRepo.FindByID(ctx, clinicID, DiagnosisTypeID) (#020)"},
-	{"diagnosisNameService.Update", statusGuarded, []string{"DiagnosisTypeID"}, "diagnosis_service.go:329 typeRepo.FindByID(ctx, clinicID, *DiagnosisTypeID)"},
+	{"diagnosisNameService.Create", statusGuarded, []string{"DiagnosisTypeID"}, "internal/medicalrecord/diagnosis_service.go (BE9-2C, moved from internal/service/diagnosis_service.go): typeRepo.FindByID(ctx, clinicID, DiagnosisTypeID) (#020)"},
+	{"diagnosisNameService.Update", statusGuarded, []string{"DiagnosisTypeID"}, "internal/medicalrecord/diagnosis_service.go (BE9-2C, moved from internal/service/diagnosis_service.go): typeRepo.FindByID(ctx, clinicID, *DiagnosisTypeID)"},
 	{"examinationService.Create", statusGuarded, []string{"ExamTypeID"}, "examTypeRepo.FindByID(ctx, clinicID, ExamTypeID) (#124, 03bf1cb5); test present"},
 	{"examinationService.ReplaceItems", statusGuarded, []string{"ExamTypeFieldID"}, "each ExamTypeFieldID validated within the owned exam_type's items (#124, f4e7b7a7); test present"},
 	{"examinationService.Update", statusGuarded, []string{"ExamTypeID"}, "examTypeRepo.FindByID when non-nil (03bf1cb5); test present"},
@@ -250,8 +262,8 @@ var masterFKWriteAllowlist = []masterFKWriteEntry{
 	{"checkupTypeService.Update", statusGuarded, []string{"ParentID"}, "as Create — validateParentOwnership guards *input.ParentID before repo.Update (X-14 batch3); test: TestCheckupTypeService_Update_RejectsCrossClinicParentFK"},
 	{"consultationService.Create", statusGuarded, []string{"ParentID"}, "consultation_service.go: validateParentOwnership FindByID(ctx, clinicID, *ParentID) before persist (X-14 batch3); test: TestConsultationService_Create_RejectsCrossClinicParentFK"},
 	{"consultationService.Update", statusGuarded, []string{"ParentID"}, "as Create — validateParentOwnership guards *input.ParentID before repo.Update (X-14 batch3); test: TestConsultationService_Update_RejectsCrossClinicParentFK"},
-	{"examTypeService.Create", statusGuarded, []string{"ParentID"}, "exam_type_service.go: validateParentOwnership FindByID(ctx, clinicID, *ParentID) before persist (X-14 batch3); test: TestExamTypeService_Create_RejectsCrossClinicParentFK"},
-	{"examTypeService.Update", statusGuarded, []string{"ParentID"}, "as Create — validateParentOwnership guards *input.ParentID before repo.Update (X-14 batch3); test: TestExamTypeService_Update_RejectsCrossClinicParentFK"},
+	{"examTypeService.Create", statusGuarded, []string{"ParentID"}, "internal/medicalrecord/exam_type_service.go (BE9-2C, moved from internal/service/exam_type_service.go): validateParentOwnership FindByID(ctx, clinicID, *ParentID) before persist (X-14 batch3); test: TestExamTypeService_Create_RejectsCrossClinicParentFK (internal/medicalrecord/exam_type_cross_tenant_test.go)"},
+	{"examTypeService.Update", statusGuarded, []string{"ParentID"}, "as Create — validateParentOwnership guards *input.ParentID before repo.Update (X-14 batch3); test: TestExamTypeService_Update_RejectsCrossClinicParentFK (internal/medicalrecord/exam_type_cross_tenant_test.go)"},
 	{"inquiryService.Save", statusGuarded, []string{"ChiefComplaintTypeID"}, "inquiry_service.go: chiefComplaintTypeRepo.FindByID(ctx, input.ClinicID, *ChiefComplaintTypeID) before persist (X-14 batch U4); test: TestInquiryService_Save_RejectsCrossClinicChiefComplaintType"},
 	{"labImportExaminationService.PersistBatch", statusGuarded, []string{"ExamTypeID"}, "PersistBatch delegates each row to persistExam (unexported, B-5), which now guards ExamTypeID (X-14 batch U3); test: TestLabImportExaminationService_PersistBatch_RejectsCrossClinicExamType"},
 	{"labResultImportService.Commit", statusGuarded, []string{"ExamTypeID"}, "Commit delegates to labImportExaminationService.PersistBatch/persistExam, which now guards ExamTypeID (X-14 batch U3); test: TestLabResultImportService_Commit_RejectsCrossClinicExamType"},
@@ -560,7 +572,13 @@ func baseName(p string) string {
 // (analyzeServicePackage / masterFKsOf), or knownSafeParamQualifiers to admit a new package; this
 // var (and isServiceWriteRolePackage below, which consults it) is the one and only place that
 // decides what counts as "in role scope" for this gate.
-var serviceWriteRolePackagePrefixes = []string{"service/"}
+//
+// "medicalrecord/" added BE9-2C: diagnosisNameService.Create/Update and
+// examTypeService.Create/Update moved from internal/service to internal/medicalrecord (master-
+// CRUD slice, boundary map §3.7 sub-batch ①). Their allowlist keys are unchanged (receiver
+// type names carried over verbatim) — only the evidence comments below now point at the new
+// file locations.
+var serviceWriteRolePackagePrefixes = []string{"service/", "medicalrecord/"}
 
 // isServiceWriteRolePackage reports whether key — a lintscan.WalkInternalTreeT path key such as
 // "service/foo.go" or "service/sub/deep/foo.go" — belongs to the service-write role scope this

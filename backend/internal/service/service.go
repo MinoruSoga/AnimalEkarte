@@ -40,15 +40,11 @@ type Services struct {
 	HospitalizationPlan            HospitalizationPlanService
 	TrimmingCourse                 TrimmingCourseService
 	TrimmingOption                 TrimmingOptionService
-	ExaminationType                ExaminationTypeService
-	DiagnosisType                  DiagnosisTypeService
-	DiagnosisName                  DiagnosisNameService
 	CheckupType                    CheckupTypeService
 	Clinic                         ClinicService
 	Examination                    ExaminationService
 	Vaccination                    VaccinationService
 	Occupation                     OccupationService
-	ChiefComplaintType             ChiefComplaintTypeService
 	Inquiry                        InquiryService
 	InquiryTemplate                InquiryTemplateService
 	Company                        CompanyService
@@ -276,15 +272,11 @@ func NewServices(repos *repository.Repositories, notifCfg *ReservationNotificati
 		HospitalizationPlan:            NewHospitalizationPlanService(repos.HospitalizationPlan),
 		TrimmingCourse:                 NewTrimmingCourseService(repos.TrimmingCourse, repos.TrimmingCourseType),
 		TrimmingOption:                 NewTrimmingOptionService(repos.TrimmingOption),
-		ExaminationType:                NewExamTypeService(repos.ExaminationType),
-		DiagnosisType:                  NewDiagnosisTypeService(repos.DiagnosisType),
-		DiagnosisName:                  NewDiagnosisNameService(repos.DiagnosisName, repos.DiagnosisType),
 		CheckupType:                    NewCheckupTypeService(repos.CheckupType),
 		Clinic:                         NewClinicService(repos.Clinic, repos.PermissionGroup, tx),
 		Examination:                    NewExaminationService(repos.Examination, repos.MedicalRecord, repos.ExaminationType, auditTxLogger, tx),
 		Vaccination:                    NewVaccinationService(repos.Vaccination, repos.Vaccine, lstepTagSyncSvc),
 		Occupation:                     NewOccupationService(repos.Occupation),
-		ChiefComplaintType:             NewChiefComplaintTypeService(repos.ChiefComplaintType),
 		Inquiry:                        NewInquiryService(repos.Inquiry, repos.ChiefComplaintType),
 		InquiryTemplate:                NewInquiryTemplateService(repos.InquiryTemplate),
 		Company:                        NewCompanyService(repos.Company),

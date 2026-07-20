@@ -31,8 +31,6 @@ func setupInquiryTestDB(t *testing.T) *gorm.DB {
 	return db
 }
 
-// makeChiefComplaintType は chief_complaint_repository_test.go で定義済み（同一パッケージのため再利用）。
-
 // makeInquiryMedicalRecord はテスト用の MedicalRecord を作成して返す（pet/owner の紐付け無し）。
 func makeInquiryMedicalRecord(t *testing.T, db *gorm.DB, clinicID uint64, recordNo string) *model.MedicalRecord {
 	t.Helper()

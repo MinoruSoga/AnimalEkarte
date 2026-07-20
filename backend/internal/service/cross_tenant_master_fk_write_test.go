@@ -1679,87 +1679,12 @@ func TestConsultationService_Update_RejectsCrossClinicParentFK(t *testing.T) {
 	})
 }
 
-func TestExamTypeService_Create_RejectsCrossClinicParentFK(t *testing.T) {
-	const clinicID = uint64(1)
-	const ownedParentID = uint64(10)
-	const foreignParentID = uint64(999)
-
-	newSvc := func(created *bool) ExaminationTypeService {
-		repo := &mockExamTypeRepository{
-			findByIDFn: func(_ context.Context, _, id uint64) (*model.ExaminationType, error) {
-				if id != ownedParentID {
-					return nil, apperrors.WrapNotFound("exam_type", "foreign")
-				}
-				return &model.ExaminationType{ID: id}, nil
-			},
-			createFn: func(_ context.Context, _ *model.ExaminationType) error { *created = true; return nil },
-		}
-		return NewExamTypeService(repo)
-	}
-
-	t.Run("rejects cross-clinic parent_id and does not persist", func(t *testing.T) {
-		created := false
-		svc := newSvc(&created)
-		foreign := foreignParentID
-		out, err := svc.Create(context.Background(), clinicID, &CreateExamTypeInput{Name: "x", ParentID: &foreign})
-		assert.Error(t, err)
-		assert.Nil(t, out)
-		assert.False(t, created, "exam type must NOT be persisted referencing another clinic's parent exam type")
-	})
-
-	t.Run("accepts same-clinic parent_id (no false-reject)", func(t *testing.T) {
-		created := false
-		svc := newSvc(&created)
-		owned := ownedParentID
-		out, err := svc.Create(context.Background(), clinicID, &CreateExamTypeInput{Name: "x", ParentID: &owned})
-		assert.NoError(t, err)
-		assert.NotNil(t, out)
-		assert.True(t, created)
-	})
-}
-
-func TestExamTypeService_Update_RejectsCrossClinicParentFK(t *testing.T) {
-	const clinicID = uint64(1)
-	const entityID = uint64(1)
-	const ownedParentID = uint64(10)
-	const foreignParentID = uint64(999)
-
-	newSvc := func(updated *bool) ExaminationTypeService {
-		repo := &mockExamTypeRepository{
-			findByIDFn: func(_ context.Context, _, id uint64) (*model.ExaminationType, error) {
-				if id == entityID || id == ownedParentID {
-					return &model.ExaminationType{ID: id}, nil
-				}
-				return nil, apperrors.WrapNotFound("exam_type", "foreign")
-			},
-			updateFieldsFn: func(_ context.Context, _, id uint64, _ map[string]any) (*model.ExaminationType, error) {
-				*updated = true
-				return &model.ExaminationType{ID: id}, nil
-			},
-		}
-		return NewExamTypeService(repo)
-	}
-
-	t.Run("rejects cross-clinic parent_id and does not persist", func(t *testing.T) {
-		updated := false
-		svc := newSvc(&updated)
-		foreign := foreignParentID
-		out, err := svc.Update(context.Background(), clinicID, entityID, &UpdateExamTypeInput{ParentID: &foreign})
-		assert.Error(t, err)
-		assert.Nil(t, out)
-		assert.False(t, updated, "exam type must NOT be updated to reference another clinic's parent exam type")
-	})
-
-	t.Run("accepts same-clinic parent_id (no false-reject)", func(t *testing.T) {
-		updated := false
-		svc := newSvc(&updated)
-		owned := ownedParentID
-		out, err := svc.Update(context.Background(), clinicID, entityID, &UpdateExamTypeInput{ParentID: &owned})
-		assert.NoError(t, err)
-		assert.NotNil(t, out)
-		assert.True(t, updated)
-	})
-}
+// TestExamTypeService_Create/Update_RejectsCrossClinicParentFK moved to
+// internal/medicalrecord/exam_type_cross_tenant_test.go (BE9-2C): ExaminationTypeService /
+// NewExamTypeService / CreateExamTypeInput / UpdateExamTypeInput no longer exist in this
+// package once internal/service/exam_type_service.go is deleted by that batch (zero
+// remaining fan-in — see internal/repository/exam_type_repository.go for the still-live
+// repository-level facade other not-yet-migrated services depend on).
 
 func TestProcedureService_Create_RejectsCrossClinicParentFK(t *testing.T) {
 	const clinicID = uint64(1)

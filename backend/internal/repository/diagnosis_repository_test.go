@@ -2,15 +2,20 @@ package repository
 
 // diagnosis_repository_test.go — DiagnosisTypeRepository/DiagnosisNameRepository の facade 経由テスト。
 //
-// TestDiagnosisTypeRepository_FindAll/FindByID/Create/Update/Delete/Reorder は
-// repository/diagnosistype/repository_test.go へ移設済み（BE8-4 batch27）。
-// TestDiagnosisNameRepository_* は repository/diagnosisname/repository_test.go へ移設済み（BE8-4 batch28）。
+// TestDiagnosisTypeRepository_FindAll/FindByID/Create/Update/Delete/Reorder と
+// TestDiagnosisNameRepository_* は internal/medicalrecord/diagnosis_type_repository_test.go /
+// diagnosis_name_repository_test.go へ移設済み（BE9-2C roll-up。旧
+// repository/diagnosistype・repository/diagnosisname サブパッケージは削除済み）。
 //
 // TestDiagnosisTypeRepository_CountChildrenByParentID のみ、ソフトデリート検証サブテストが
 // NewDiagnosisNameRepository(db) を直接呼ぶため意図的にここへ残置する（accepted deviation —
-// diagnosistype パッケージに移すと repository → diagnosistype facade との import cycle になる。
-// facade 経由で diagnosistype.Repository / diagnosisname.Repository の実装をテストしており、
-// カバレッジの欠落はない）。
+// このテストのfixtureヘルパー makeDiagnosisTypeMaster/makeDiagnosisNameRec は
+// master_preload_clinic_isolation_test.go 側で定義され他ドメインとも共有されているため、
+// このテストだけを medicalrecord へ切り出すとfixtureの複製が必要になる。BE9-2C時点で
+// DiagnosisType/DiagnosisNameが同一medicalrecordパッケージへ統合されたため、旧来のimport
+// cycle制約は解消済みだが、fixture共有による残留を優先し軽微な変更に留める）。
+// facade 経由で medicalrecord.DiagnosisTypeRepository / medicalrecord.DiagnosisNameRepository
+// の実装をテストしており、カバレッジの欠落はない。
 
 import (
 	"context"

@@ -7,6 +7,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/animal-ekarte/backend/internal/config"
+	"github.com/animal-ekarte/backend/internal/httpapi"
 	"github.com/animal-ekarte/backend/internal/infra"
 	"github.com/animal-ekarte/backend/internal/middleware"
 	"github.com/animal-ekarte/backend/internal/model"
@@ -34,17 +35,15 @@ func New(cfg *config.Config, svc *service.Services, repos *repository.Repositori
 	return h
 }
 
-// PaginatedResponse はページネーション付きレスポンスの共通構造
-type PaginatedResponse[T any] struct {
-	Data  T     `json:"data"`
-	Total int64 `json:"total"`
-	Page  int   `json:"page"`
-	Limit int   `json:"limit"`
-}
+// PaginatedResponse is a DEPRECATED facade (BE9-2C): moved to
+// internal/httpapi.PaginatedResponse (BE9-2A target:httpapi, ADR-006 — see
+// query_helpers.go's file header for why this extraction happened now). Delete once BE9-2F
+// migrates every remaining internal/handler file to internal/httpapi directly.
+type PaginatedResponse[T any] = httpapi.PaginatedResponse[T]
 
 // newPaginatedResponse はPaginatedResponseを型推論で生成するヘルパー
 func newPaginatedResponse[T any](data T, total int64, page, limit int) PaginatedResponse[T] {
-	return PaginatedResponse[T]{Data: data, Total: total, Page: page, Limit: limit}
+	return httpapi.NewPaginatedResponse(data, total, page, limit)
 }
 
 // Health はサーバーの稼働状態を返す
