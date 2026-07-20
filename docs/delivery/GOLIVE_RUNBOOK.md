@@ -10,7 +10,7 @@
 
 | # | 前提 | 対応 Issue / 正本 | 完了条件 | 状態 |
 |---|---|---|---|---|
-| 1 | STG Cloudflare 移行 Phase 7（NS 切替・並行稼働）完遂 | [migration-cloudflare.md](../../migration-cloudflare.md) P5-5〜P7 ／人間タスク正本 `todo-me.html` | staging デプロイ 2 回連続 green（P5-5）→ 画像移行（P2-4/5）→ データ投入（P3-6/7）→ NS 切替（P1-2）→ フルスモーク（P7-3） | （確定待ち: PR #186 マージ後に進行） |
+| 1 | STG Cloudflare 移行 Phase 7（NS 切替・並行稼働）完遂 | [migration-cloudflare.md](../../migration-cloudflare.md) P5-5〜P7 ／人間タスク正本 `q&a.html`「Cloudflare 移行」節 | staging デプロイ 2 回連続 green（P5-5）→ 画像移行（P2-4/5）→ データ投入（P3-6/7）→ NS 切替（P1-2）→ フルスモーク（P7-3） | （確定待ち: PR #186 マージ後に進行） |
 | 2 | 本番 Cloudflare 環境構築済み | #253 | 本番向け `backend-deploy.yml`（production 対応）で main → 本番反映が自動化・失敗通知あり・ロールバック手順文書化 | （確定待ち） |
 | 3 | Access データの本番投入済み | #250 | リハーサル移行 PASS → 本番 DB へ最終移行 → 突合検証（件数・clinic_id 別件数・金額合計）PASS | （確定待ち: 最終移行は当日タイムライン内で実施） |
 | 4 | 全業務シナリオ通し確認済み | #254 | 全シナリオ PASS、または FAIL 項目が「納品後対応合意済みリスト」に隔離済み | （確定待ち） |

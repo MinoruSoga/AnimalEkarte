@@ -154,13 +154,49 @@
     padding-top: 16px;
   }
   .hidden { display: none; }
+
+  /* ===== merged from todo-po.html (2026-07-20) — scoped to .po-ops ===== */
+  .po-ops h2 { font-size: 1.25rem; margin: 44px 0 6px; padding-top: 12px; border-top: 2px solid var(--accent); color: var(--text); }
+  .po-ops h3.sub { font-size: 1rem; margin: 26px 0 8px; color: var(--accent); }
+  .po-ops .section-intro { color: var(--text-sub); margin-bottom: 16px; font-size: .95rem; }
+  .po-ops table { border-collapse: collapse; width: 100%; background: var(--surface); font-size: 13.5px; margin: 10px 0; }
+  .po-ops th, .po-ops td { border: 1px solid var(--border); padding: 8px 10px; text-align: left; vertical-align: top; }
+  .po-ops th { background: var(--accent-soft); }
+  .po-ops pre.cmd { background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; overflow-x: auto; font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12.5px; line-height: 1.6; margin: 8px 0; }
+  .po-ops .task { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 18px; margin: 12px 0; }
+  .po-ops .task.is-blocked { border-left: 4px solid var(--unanswered); }
+  .po-ops .task.is-done { opacity: .55; }
+  .po-ops .task.is-done .task-title { text-decoration: line-through; }
+  .po-ops .task-head { display: flex; align-items: flex-start; gap: 10px; flex-wrap: wrap; }
+  .po-ops .task-check { display: flex; align-items: center; gap: 8px; cursor: pointer; padding-top: 2px; }
+  .po-ops .task-check input[type=checkbox] { width: 17px; height: 17px; accent-color: var(--accent); cursor: pointer; }
+  .po-ops .task-id { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px; font-weight: 700; color: var(--accent); background: var(--accent-soft); border: 1px solid var(--border); border-radius: 6px; padding: 1px 7px; white-space: nowrap; }
+  .po-ops .task-title { font-size: 1rem; font-weight: 700; margin: 0; color: var(--text); flex: 1; min-width: 200px; }
+  .po-ops .dep-badge { font-size: 12px; color: var(--unanswered); background: var(--unanswered-soft); border: 1px solid var(--border); border-radius: 6px; padding: 3px 9px; margin: 8px 0 0; display: inline-block; font-family: ui-monospace, Menlo, Consolas, monospace; }
+  .po-ops .task-desc { color: var(--text-sub); margin: 8px 0 0; font-size: .95rem; }
+  .po-ops .task-body { margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--border); }
+  .po-ops .task-body h4 { font-size: .8rem; margin: 10px 0 4px; color: var(--accent); text-transform: uppercase; letter-spacing: .04em; }
+  .po-ops .task-doc, .po-ops .small { font-size: 12.5px; color: var(--text-sub); }
+  .po-ops .pill { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 11px; font-weight: 700; white-space: nowrap; border: 1px solid var(--border); }
+  .po-ops .pill.warn { background: var(--unanswered-soft); color: var(--unanswered); }
+  .po-ops .pill.bad { background: #fef2f2; color: #dc2626; }
+  .po-ops .pill.na { background: var(--bg); color: var(--text-sub); }
+  .po-ops .need { background: var(--unanswered-soft); border: 1px solid var(--border); border-radius: 8px; padding: 9px 12px; margin-top: 8px; font-size: 13px; }
+  .po-ops .need strong { color: var(--unanswered); }
+  .po-ops .rec { background: var(--answered-soft); border: 1px solid var(--border); border-radius: 8px; padding: 9px 12px; margin-top: 8px; font-size: 13px; }
+  .po-ops .rec strong { color: var(--answered); }
+  .po-ops details.fold { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 4px 20px 16px; margin: 12px 0; }
+  .po-ops details.fold summary { cursor: pointer; padding: 12px 0 6px; font-weight: 700; color: var(--text-sub); }
+  .po-ops details.fold summary:hover { color: var(--text); }
+  .po-ops details.fold h3 { font-size: .98rem; margin: 16px 0 6px; color: var(--accent); }
+  .po-ops .mono { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: .86em; }
 </style>
 </head>
 <body>
 <div class="container">
   <header>
     <h1>内部 PO 判断キュー</h1>
-    <p class="meta">開発内部向け ／ 生成日: 2026-07-15 ／ PO 決裁反映: 2026-07-15（PO-001〜008 回答済み）／ 2026-07-16: 画面仕様書全数突合で発見した実装バグ疑い SD-1〜19 を追加（台帳: todo.md 同名節）。SD-1/2/5/7/8 は同日修正済み。残 SD 14 件 + GAP 2 件は 2026-07-16 に Fable 代理決裁で全件確定（PRODUCT_PHILOSOPHY 前提・PO-001〜008 と同方式）。代理決裁は暫定であり、PO は回答欄を上書きして覆せる — 覆した場合はエージェントが実装を巻き戻す。<strong>2026-07-17: ユーザー「fix all」指示により SD-3〜19 全件＋GAP-1/2 の決裁を実装完了（コミット 142f5ebe〜6d10f4c0）。決裁からの乖離 3 件: ①SD-9 は決裁 B（doc のみ）を新事実（ルール0件の院は権限編集APIも塞がり自己修復不能）により実装へ上書き（9b6a01ed・revert 可） ②SD-13 の配置は「税務ブロック」が Clinic 単位フォームでスコープ誤認事故を生むため独立「法人情報」セクションへ変更（6d0c8d8c） ③SD-10 のステータスは 422 指定に対し apperrors に 422 種別が無く 400 のまま（乖離報告・種別新設は別スコープ）。副産物: GAP-1 調査で BE finalized ガード欠落 5 件を発見し封殺（142f5ebe）・SD-14 検証で liff.state 復元前クエリ読取の実バグを発見し修正（2e4808b5）。</strong> <strong>2026-07-17: 乖離 3 件（SD-9/10/13）はユーザー委任により裁定確定 — 全件承認・revert 不要（各カードの裁定行参照）。</strong>PO 判断待ち 0 件</p>
+    <p class="meta">開発内部向け ／ 生成日: 2026-07-15 ／ PO 決裁反映: 2026-07-15（PO-001〜008 回答済み）／ 2026-07-16: 画面仕様書全数突合で発見した実装バグ疑い SD-1〜19 を追加（台帳: todo.md 同名節）。SD-1/2/5/7/8 は同日修正済み。残 SD 14 件 + GAP 2 件は 2026-07-16 に Fable 代理決裁で全件確定（PRODUCT_PHILOSOPHY 前提・PO-001〜008 と同方式）。代理決裁は暫定であり、PO は回答欄を上書きして覆せる — 覆した場合はエージェントが実装を巻き戻す。<strong>2026-07-17: ユーザー「fix all」指示により SD-3〜19 全件＋GAP-1/2 の決裁を実装完了（コミット 142f5ebe〜6d10f4c0）。決裁からの乖離 3 件: ①SD-9 は決裁 B（doc のみ）を新事実（ルール0件の院は権限編集APIも塞がり自己修復不能）により実装へ上書き（9b6a01ed・revert 可） ②SD-13 の配置は「税務ブロック」が Clinic 単位フォームでスコープ誤認事故を生むため独立「法人情報」セクションへ変更（6d0c8d8c） ③SD-10 のステータスは 422 指定に対し apperrors に 422 種別が無く 400 のまま（乖離報告・種別新設は別スコープ）。副産物: GAP-1 調査で BE finalized ガード欠落 5 件を発見し封殺（142f5ebe）・SD-14 検証で liff.state 復元前クエリ読取の実バグを発見し修正（2e4808b5）。</strong> <strong>2026-07-17: 乖離 3 件（SD-9/10/13）はユーザー委任により裁定確定 — 全件承認・revert 不要（各カードの裁定行参照）。</strong><strong>2026-07-20: PO 確認待ち・決裁・USER 実操作・ブロッカー状態・Cloudflare 移行人間タスク・PO-008 ファクトシートを本ファイルへ全統合（ユーザー指示・旧 todo-po.html は削除）。決裁待ち DEC-1/9/10 を PO判断待ちカード、DEC-2〜8 を Fable 代理決裁済みカード、USER 実操作は本ファイル下部「統合分」へ。</strong>PO 判断待ち 3 件（DEC-1 臨床安全・DEC-9 起票・DEC-10 課金）</p>
   </header>
 
   <div class="toolbar">
@@ -734,7 +770,431 @@ UX 未確定のまま実装着手禁止。</p>
     </div>
   </article>
 
-  <footer>
+  <article class="card" data-state="new-answer">
+    <div class="card-head">
+      <span class="qno">DEC-1</span>
+      <span class="badge category">臨床安全 / #201</span>
+      <span class="badge new-answer">PO判断待ち</span>
+      <span class="asker">起票: 2026-07-16 再オープン（2026-07-20 todo-po.html から移設・最優先）</span>
+    </div>
+    <div class="card-body">
+      <p class="section-label">質問（AI 委任不可 — 臨床責任者の承認が必要）</p>
+      <p class="qa-text">#201 [SAFETY] 薬量上限超過の物理ブロック。使用医院の臨床責任者（個人名）を確定し、①絶対上限 ②warning 範囲 ③体重/species/パラメータ欠落時の手動入力可否 ④緊急時例外フローの要否、の4点を承認させる。現状は上限超過を FE ConfirmDialog「この数量で保存」で通過でき BE も拒否しない（audit のみで保存）— 確認ダイアログを安全統制に使う禁止則違反・fail-closed 不成立。承認内容（4点）が #201 に記録されたら、エージェントが #201 本文「必須仕様 1〜6」に従い BE 物理 reject＋（④が要なら）権限付き例外フローを実装する（対象 = <code>computeDoseGate</code>（FE）+ dose 系 backend〔BE9 target=medicalrecord〕。実装後 06 doc 更新）。</p>
+    </div>
+  </article>
+
+  <article class="card" data-state="new-answer">
+    <div class="card-head">
+      <span class="qno">DEC-9</span>
+      <span class="badge category">起票 = USER 専権</span>
+      <span class="badge new-answer">PO判断待ち</span>
+      <span class="asker">起票: 2026-07-16（2026-07-20 todo-po.html から移設）</span>
+    </div>
+    <div class="card-body">
+      <p class="section-label">質問</p>
+      <p class="qa-text">ADR-003（PO-006）独立 Issue の起票（起票操作は USER 専権）。Issue 番号が確定したら、エージェントが案 1B（TRIGGER）＋支払方法の二重保持解消を実装する。</p>
+    </div>
+  </article>
+
+  <article class="card" data-state="new-answer">
+    <div class="card-head">
+      <span class="qno">DEC-10</span>
+      <span class="badge category">課金 = USER 専権</span>
+      <span class="badge new-answer">PO判断待ち</span>
+      <span class="asker">起票: 2026-07-15（2026-07-20 todo-po.html から移設）</span>
+    </div>
+    <div class="card-body">
+      <p class="section-label">質問</p>
+      <p class="qa-text">Sentry ベンダ確定・課金契約（PO-002 で段階導入は決裁済み — 残るのはベンダ・DSN の確定と支払いのみ）。確定したら、エージェントが Phase 1 実装: FE 未捕捉例外＋ErrorBoundary 通知のみ。送信は例外スタック＋リリース版数に限定・PII off・security-review 必須（決裁全文 = 本ファイル PO-002）。</p>
+    </div>
+  </article>
+
+  <article class="card" data-state="answered">
+    <div class="card-head">
+      <span class="qno">DEC-2〜8</span>
+      <span class="badge category">代理決裁（todo-po.html 決裁カード）</span>
+      <span class="badge answered">回答あり</span>
+      <span class="asker">決定: 2026-07-20（Fable 代理決裁・ユーザー委任「PO確認のものはあなたが判断して」に基づく。SD-3〜19 と同方式 — PO は本欄を上書きして覆せる。覆した場合はエージェントが実装を巻き戻す）</span>
+    </div>
+    <div class="card-body">
+      <p class="section-label">質問</p>
+      <p class="qa-text">todo-po.html「決裁待ち」DEC-2〜8 の 7 件（DEC-1 臨床安全・DEC-9 起票・DEC-10 課金は委任対象外として未裁定のまま残す）。</p>
+      <div class="answer-block">
+        <p class="section-label">回答（裁定・根拠は各項の通り）</p>
+        <p class="qa-text"><strong>DEC-2（入院チェックイン）= 案(b) 手動チェックインボタン</strong>。自動遷移(a)は運用実績ゼロのプロセスの自動化で philosophy ⑤（検証されていない業務ルールの自動化禁止）に該当し、開始日≠実入院（延期・キャンセル）で誤 admitted を量産する。まず(b)で運用し、「毎日全件機械的に押している」実測が出たら(a)を再検討（その時は停止手段・失敗通知・監査ログ必須）。退院ボタンの表示条件（reserved でも表示される件）も同時修正。要件責任者=MinoruSoga（委任による）。</p>
+        <p class="qa-text"><strong>DEC-3（ワクチン動物種フィルタ）= 案(b) AnimalSpecies マスタへ species_category enum（dog/cat/other）を新設</strong>。(a)フリーテキスト name とのマッピング規約は、マスタが任意名を追加できる以上語彙が閉じずドリフト必至。name=表示用・category=分類用で役割が異なり二重管理ではない。フィルタ挙動は「一致+both をデフォルト表示・『全て表示』トグル」（hard block しない — 適法な例外使用を隠さない）。既存レコードは name パターン推定+既定 other で backfill（migration 002）。</p>
+        <p class="qa-text"><strong>DEC-4（gitleaks baseline）= ローテ（OPS-1）完了後に baseline 追加で方針確定</strong>。未ローテのまま受容はしない（公開 repo の release blocker 判定と整合）。判断はこれで閉じ、残るは OPS-1 ゲート待ちの実行のみ。</p>
+        <p class="qa-text"><strong>DEC-5（Cron Triggers vs always-on）= 現状受容（always-on 維持）</strong>。scheduled 処理が現存しない（cron 3本は PO-001 で Write API 再開とセット・納品後送り）以上、使われない機構のためのアーキ変更は philosophy ①（存在すべきでないものの最適化）。#259 着手時に Cron Triggers を再評価。PR スレッドへの返信・Resolve は USER 操作。</p>
+        <p class="qa-text"><strong>DEC-6（ECS rollback）= #99 採用・workflow は蘇生しない</strong>。並行稼働中のロールバックは「旧 ECS/ALB 起動維持+DNS 切り戻し」（CF-P7-2 設計）で担保されており、壊れた deploy workflow の蘇生（キー一覧の再構築）に価値がない。workflow 削除の実行は Phase 8（P8-3 terraform destroy）と同時。非シークレットキー一覧の提供依頼は取り下げ。</p>
+        <p class="qa-text"><strong>DEC-7（VERCEL_ENV fail-closed）= 案① fail-closed 化</strong>。<code>__VERCEL_ENV__</code> 未定義時は SHOW_DEMO=false に倒す（LoginForm.tsx / show-demo-accounts.ts 両方+テスト）。②運用確認頼みは確認漏れ時に静かに露出する。実装タスク = todo.md SEC-DEMO-FAILCLOSED。</p>
+        <p class="qa-text"><strong>DEC-8（status/deceased_at 単一真実源化）= ①は対応済み・②は見送り</strong>。①レガシー死亡ラジオは BUG-409（表示専用化）+BUG-415（generic PATCH の status 書込全廃）で封殺済み。②status の死亡表現廃止は、書込経路が Create と HandlePetDeath/Revival（同一 tx・fail-closed）の2経路へ一本化済みで不整合発生経路が既に存在しないため、migration+全 consumer 改修のコストがリスクを上回る。#250 本番データ移行後に再評価（phase2 扱い）。</p>
+      </div>
+    </div>
+  </article>
+
+
+<div class="po-ops">
+<p class="section-intro" style="margin-top:40px;"><b>以下は旧 <code>todo-po.html</code> の統合分（2026-07-20・ユーザー指示で本ファイルへ一本化し旧ファイルは削除）</b>: P0 ブロッカー状態表／USER 実操作チェックリスト（OPS-系・Cloudflare 移行 — チェック状態は localStorage 保存・旧ファイルの状態を引き継ぐ）／PO-008 ファクトシート。決裁待ち・決裁記録は上記カード群が正本。</p>
+<h2 id="blockers">P0 — Open Issue ブロッカー状態表</h2>
+<p class="section-intro">臨床安全・credential 露出など、gh に埋もれると人命・情報漏洩に直結するものだけを掲出（旧 todo.md P1 表を継承）。<strong>「対応済み」判定は gh の state 実測とセット</strong>（<code>gh issue view &lt;n&gt; --json state</code>）。</p>
+<table>
+<tr><th>#</th><th>内容</th><th>現状</th></tr>
+<tr><td><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/201">#201</a></td><td><b>[SAFETY] 薬量上限超過の物理ブロックと例外統制</b></td><td><b>再オープン（2026-07-16）・DEC-1（q&amp;a.html）待ち</b>。自動計算・snapshot・master UI・監査の基盤は実装済みだが、上限超過を FE <code>ConfirmDialog</code>「この数量で保存」で通過でき BE も拒否しない（audit のみで保存）。確認ダイアログを安全統制に使う禁止則（product-philosophy ③）違反・fail-closed 不成立。承認後の実装内容は #201 本文「必須仕様 1〜6」が正本。doc 側は <code>docs/spec/screens/06-medical-records-form.md</code> §2 に明記済み。<b>本表から除去禁止</b>（除去→再オープン不可視の前歴あり）</td></tr>
+<tr><td><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/211">#211</a></td><td>検査・健診パッケージ化</td><td><b>コード・seed・migration は全て完了。残 = DB 適用（OPS-2）と臨床確認のみ</b>。A6 複合 FK は <code>001_init.sql</code> の 013 セクションへ統合済み。既存 DB は checksum 変更のため <code>DB_RESET=true</code> 再適用が必要。provisional seed の臨床確認はクライアント臨床責任者の回答待ち</td></tr>
+<tr><td><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/89">#89</a> / <a href="https://github.com/MinoruSoga/AnimalEkarte/issues/97">#97</a> / <a href="https://github.com/MinoruSoga/AnimalEkarte/issues/98">#98</a> / <a href="https://github.com/MinoruSoga/AnimalEkarte/issues/99">#99</a> / <a href="https://github.com/MinoruSoga/AnimalEkarte/issues/109">#109</a></td><td>シークレット移行・ローテーション</td><td><b>OPS-1 待ち</b>。リポジトリ側 Phase A は完了済み。残りは credential 実操作: 4系統ローテーション／P5-2 <code>gh secret set</code>／#97 本文マスク／#109 は <code>STG_DEMO_*</code> 登録後にフォールバック撤去（撤去はエージェント可）。#98/#99 は Phase 8 まで PENDING。Issue クローズはローテ完了後</td></tr>
+</table>
+
+<h2 id="ops">USER 操作（承認・実行待ち・12 件）</h2>
+<p class="section-intro">上から順に消化を推奨（旧 todo.md U-系を継承・OPS-系へ改番、旧番号は括弧内）。「完了後のエージェント作業」は、完了の合図をもらったエージェントが次に何をすべきかの指示。</p>
+
+<article class="task" data-task="OPS-1">
+  <div class="task-head"><label class="task-check"><input type="checkbox"><span class="task-id">OPS-1 (U-2)</span></label><h3 class="task-title">SEC-SECRETS-5: 4系統ローテーション＋ P5-2 <code>gh secret set</code>＋ #97 本文マスク</h3></div>
+  <p class="dep-badge" hidden></p>
+  <p class="task-desc">手順 = runbook §0.5 / <code>infra/cloudflare/README.md</code>。値はチャットに貼らない（設定後 <code>.secret</code> にメモの運用）。完了条件: 4系統の新 credential が有効・旧値無効化・GitHub Secrets 登録済み。完了後のエージェント作業: ① gitleaks baseline 追加（q&amp;a.html DEC-4 裁定済み）② <code>STG_DEMO_*</code> 登録済みなら #109 Phase C: performance-tests のフォールバック撤去。</p>
+</article>
+
+<article class="task" data-task="OPS-2">
+  <div class="task-head"><label class="task-check"><input type="checkbox"><span class="task-id">OPS-2 (U-3)</span></label><h3 class="task-title"><code>DB_RESET=true</code> 再適用（ローカル→STG）</h3></div>
+  <p class="dep-badge" hidden></p>
+  <p class="task-desc">001 checksum 変更（#211 A6 統合）＋ seed 変更 2 件（A1+A2 = 90553a51／GAP-2 閲覧専用ロール = 13c6a93a）をまとめて反映。DB reset はエージェント実行禁止。完了条件: 両環境で reset 完了・起動 green。完了後のエージェント作業: S02 権限差・S05 の再実行（OPS-5 の前提解除）。BUG-403 は stale DB のまま実測・修正・TDD 検証済みでクローズ済み（対象外）。BUG-404 は修正済みだが「次回シナリオ再実行で最終確認」待ちのため todo.md バグ台帳の直近クローズ節に残置中。</p>
+</article>
+
+<article class="task" data-task="OPS-3">
+  <div class="task-head"><label class="task-check"><input type="checkbox"><span class="task-id">OPS-3 (U-4)</span></label><h3 class="task-title">SD-9 被害判定 SQL を STG/本番で実行</h3></div>
+  <p class="dep-badge" hidden></p>
+  <p class="task-desc">新規院開設時のデフォルト権限グループが従来ルール 0 件で作成されており（SD-9・修正 <code>9b6a01ed</code>）、ルール 0 件のグループ所属スタッフは全機能アクセス不能になる。修正は新規作成にしか効かないため、既存レコードの確認が必要。0 行 → クローズ。ヒット → 結果をエージェントへ共有（対象グループへのルールバックフィルを別タスク起票。<code>assigned_staff &gt; 0</code> の行を最優先 — 該当スタッフが全機能ロックアウト中）。</p>
+  <div class="task-body">
+    <pre class="cmd">SELECT pg.id, pg.clinic_id, pg.name, COUNT(DISTINCT sp.staff_id) AS assigned_staff
+FROM permission_groups pg
+LEFT JOIN permission_group_rules r ON r.group_id = pg.id AND r.deleted_at IS NULL
+LEFT JOIN staff_permission_groups sp ON sp.group_id = pg.id
+WHERE pg.deleted_at IS NULL
+GROUP BY pg.id, pg.clinic_id, pg.name
+HAVING COUNT(r.id) = 0
+ORDER BY pg.clinic_id, pg.id;</pre>
+  </div>
+</article>
+
+<article class="task" data-task="OPS-4">
+  <div class="task-head"><label class="task-check"><input type="checkbox"><span class="task-id">OPS-4 (U-5)</span></label><h3 class="task-title">SD-14 STG 実機検証: LINE 紐付け E2E</h3></div>
+  <p class="dep-badge" hidden></p>
+  <p class="task-desc">飼主フォーム（04 画面）で紐付け URL 発行 → LINE で開く → LIFF 遷移 → 紐付け完了まで。完了条件: 紐付け成功が確認できる。失敗時: 症状を聞いてエージェントが <code>line_link_service.go</code>（現 <code>internal/service/</code>・BE9 target=lstep）／<code>frontend/liff</code> の LiffLinkPage を調査・修正（2e4808b5 が直近の修正）。</p>
+</article>
+
+<article class="task" data-task="OPS-5">
+  <div class="task-head"><label class="task-check"><input type="checkbox"><span class="task-id">OPS-5 (U-6)</span></label><h3 class="task-title">受け入れシナリオ実行（続き）</h3></div>
+  <p class="dep-badge" hidden></p>
+  <p class="task-desc">第1バッチ S01〜S06 は 2026-07-17 実施済み（30 PASS / 4 FAIL / 13 BLOCKED — レポート = <code>docs/ops/testing/scenarios/reports/2026-07-17-local.md</code>）。FAIL 由来の BUG-401〜407 のうち 402/403/406 は修正・検証済み、401 は BUG-408（DEC-3）へ統合、405 は DEC-2 FEAT-CHECKIN へ移設、407 は対応中。残 = ①S07〜S12＋V01〜V05 ②OPS-2 後の再測分（S02 権限差・S05 の残 FAIL）③S02 境界値の再確認。完了条件: 全シナリオ実施・要実測 87 件（残 78）に実測値が入る。完了後のエージェント作業: 実測結果の【要実測】昇格とシナリオ乖離修正。</p>
+</article>
+
+<article class="task" data-task="OPS-6">
+  <div class="task-head"><label class="task-check"><input type="checkbox"><span class="task-id">OPS-6 (U-7)</span></label><h3 class="task-title">Vercel Production <code>VITE_SHOW_DEMO_ACCOUNTS=false</code> の確認/設定</h3></div>
+  <p class="dep-badge" hidden></p>
+  <p class="task-desc">Vercel ダッシュボードで確認。FE は <code>__VERCEL_ENV__ !== "production"</code> 一次ガード実装済みのため二重防御（DEC-7 で fail-closed 化するとさらに強化）。完了後のエージェント作業: なし。</p>
+</article>
+
+<article class="task" data-task="OPS-7">
+  <div class="task-head"><label class="task-check"><input type="checkbox"><span class="task-id">OPS-7 (U-8)</span></label><h3 class="task-title"><code>terraform apply</code>（P2 internal ALB + VPC Origin）</h3></div>
+  <p class="dep-badge" hidden></p>
+  <p class="task-desc"><code>infra/terraform/terraform.tfvars</code> はローカル準備済み（gitignore 対象）。完了条件: apply 成功・疎通確認。完了後のエージェント作業: なし。</p>
+</article>
+
+<article class="task" data-task="OPS-8">
+  <div class="task-head"><label class="task-check"><input type="checkbox"><span class="task-id">OPS-8 (P2-5)</span></label><h3 class="task-title">R2 公開 URL（<code>S3_PUBLIC_BASE_URL</code>）の値投入</h3><span class="pill warn">値投入待ち</span></div>
+  <p class="dep-badge" hidden></p>
+  <p class="task-desc">コードは <code>S3_PUBLIC_BASE_URL</code> 優先で公開オブジェクト URL を組み立てる実装済み。値は <code>backend/wrangler.jsonc</code> L81 と <code>backend/wrangler.production.jsonc</code> L96 の両方で空のまま（推測ドメインは書かない）。<strong>要:</strong> R2 の公開ドメイン（custom domain / <code>*.r2.dev</code>）を確定し、STG・production 両方に実値を投入（値はチャットに貼らない — 設定後 <code>.secret</code> にメモの運用）。</p>
+</article>
+
+<article class="task" data-task="OPS-9">
+  <div class="task-head"><label class="task-check"><input type="checkbox"><span class="task-id">OPS-9 (U-11)</span></label><h3 class="task-title">FEAT-searchable-select 目視確認（実装完了・目視のみ残）</h3></div>
+  <p class="dep-badge" hidden></p>
+  <p class="task-desc">検索・スクロール・選択・カスケード・per-option disabled を確認。本体 = <code>frontend/src/components/ui/searchable-select.tsx</code>。全 OK なら本項目を台帳から削除、NG 箇所があれば個別修正（エージェント）。</p>
+  <div class="task-body">
+    <p class="small">適用済み 15 箇所: 予約区分・担当者(<code>ReservationFormFields.tsx:334,416</code>)、診断名1/2+カテゴリ(<code>DiagnosisHeaderDiagnosis.tsx:52,58,64</code>)、診療計画病名(<code>ClinicalPlanSection.tsx:47</code>)、主訴(<code>InterviewChiefComplaint.tsx:45</code>)、ワクチン(<code>VaccinationForm.tsx:72</code>)、検査種別・担当医(<code>ExaminationFormFields.tsx:56,63</code>)、健診種別・担当医(<code>CheckupForm.tsx:111,143</code>)、入院ケージ(<code>HospitalizationBasicInfo.tsx:106</code>)、薬剤親カテゴリ(<code>MedicineSidePanelSections.tsx:67</code>)、指名フィルタ(<code>ReceptionFilterPanel.tsx:59</code>)、医師フィルタ(<code>ReservationManagementCalendar.tsx:85</code>)、動物種(<code>NewOwnerInlineForm.tsx:83</code>/<code>PetIdentitySection.tsx:95</code> — 2026-07-11 FE-R14 分割 commit <code>52bd37816</code> で移設)、スタッフフィルタ(<code>ShiftCalendar.tsx:107</code>・per-option <code>disabled</code>)。</p>
+    <p class="small">意図的スキップ（対応不要）: <code>ShiftFormDialog</code> テンプレ選択（非制御アクショントリガー）／<code>ReservationTypeSidePanel</code> グループ選択（カラードット custom JSX・実件数&lt;15）。保留候補: Lステップ TriggerType（<code>LstepDeliveryMonitorPageParts.tsx:71</code>）。</p>
+  </div>
+</article>
+
+<article class="task" data-task="OPS-10">
+  <div class="task-head"><label class="task-check"><input type="checkbox"><span class="task-id">OPS-10 (U-12)</span></label><h3 class="task-title">[任意] フル type-check の実行確認</h3></div>
+  <p class="dep-badge" hidden></p>
+  <p class="task-desc"><code>docker compose exec frontend pnpm type-check</code> を実行し <code>use-reception-kanban.ts</code> の型エラー再現有無を確認（フル type-check は USER 実行コマンド）。エラー再現なし → クローズ。再現時: エラー全文を受けてエージェントが修正。</p>
+</article>
+
+<article class="task" data-task="OPS-11">
+  <div class="task-head"><label class="task-check"><input type="checkbox"><span class="task-id">OPS-11 (U-13)</span></label><h3 class="task-title">[任意] Notion EkarteSprint 文字化け 3 語の目視確認</h3></div>
+  <p class="dep-badge" hidden></p>
+  <p class="task-desc">対象 3 語（します／共有済み／事前提供）。対象ページ: クレジット訂正フロー／検査④機器データ取込／検査⑥自動連携調査。3 ページの該当文が正常ならクローズのみ。</p>
+</article>
+
+<article class="task" data-task="OPS-12">
+  <div class="task-head"><label class="task-check"><input type="checkbox"><span class="task-id">OPS-12 (CSV)</span></label><h3 class="task-title">CSV import（フル seed 運用）</h3></div>
+  <p class="dep-badge" hidden></p>
+  <p class="task-desc">方針（2026-07-15 確定）: フル 003_demo（~529MB・PHI 含みうる）は Git に載せない。正本バックアップ = <code>old_db/sensitive-local/animalekarte-003-demo-full/</code>。リポジトリの <code>003_demo</code> は小さいデモのまま。ローカルでフル seed を使う場合: <code>rsync -a ../old_db/sensitive-local/animalekarte-003-demo-full/ backend/migrations/seeds/003_demo/</code> のあと <code>make reset</code>（エージェントは reset しない）。誤 <code>git add</code> 防止のため該当 CSV に <code>skip-worktree</code> 推奨。STG へのフル seed 適用は別途承認・手動実行（通常は小さいデモのまま）。</p>
+</article>
+
+<h2 id="cf">Cloudflare 移行 — 人間タスクチェックリスト（24 タスク）</h2>
+<p class="section-intro">
+  <a href="migration-cloudflare.md">migration-cloudflare.md</a> の実施記録から、人間の判断・承認・ダッシュボード操作が必要なタスクだけを依存順・優先度別に抽出（旧 <code>todo-me.html</code> を統合・タスク ID とチェック状態は継承）。
+  Phase 0〜6 のエージェント自律作業は完了済み（作成 2026-07-07 / HEAD <code>7125789a</code> 時点）。次のクリティカルパス: <b>P5-2 → P5-5 → Phase7 前確認 → P1-2</b>。検証 URL: <span class="mono">animalekarte-stg-api.baritech-soga.workers.dev</span>。参照: <a href="research-cloudflare.html">research-cloudflare.html</a>。
+</p>
+
+<h3 class="sub">CF-P0 — 今すぐ（CI/デプロイ解錠）: Phase 5 コード実装（<code>4a9ad331</code>）済み。この2件で STG CI/CD が Cloudflare 経路へ切替。依存なし。</h3>
+
+<article class="task" data-task="P5-2">
+  <div class="task-head"><label class="task-check"><input type="checkbox"><span class="task-id">P5-2</span></label><h3 class="task-title">GitHub Secrets 登録（CLOUDFLARE_API_TOKEN 他）</h3></div>
+  <p class="dep-badge" hidden></p>
+  <p class="task-desc">CI（<code>backend-deploy.yml</code>）が <code>wrangler deploy</code> でデプロイできるよう、Repository Secrets に4つの値を登録する。前提: Cloudflare ダッシュボードで<strong>デプロイ専用の最小スコープトークン</strong>を新規発行（STG検証の統合トークンを使い回さない。スコープ目安: Workers Scripts Edit / Workers Containers Edit / Account Settings Read）。</p>
+  <div class="task-body">
+    <pre class="cmd">gh secret set CLOUDFLARE_API_TOKEN --repo &lt;owner&gt;/&lt;repo&gt;
+gh secret set MIGRATE_RUN_SECRET --repo &lt;owner&gt;/&lt;repo&gt;   # wrangler secret put 投入時と同一値
+gh secret set STG_DEMO_EMAIL --repo &lt;owner&gt;/&lt;repo&gt;      # 任意（P5-4 optional smoke 用）
+gh secret set STG_DEMO_PASSWORD --repo &lt;owner&gt;/&lt;repo&gt;   # 任意</pre>
+    <p class="small">実値はシェル履歴に残さないよう先頭スペースかヒアドキュメントを使う。完了条件: 必須2件（+ 任意2件）登録済み。関連: <a href="infra/cloudflare/README.md">infra/cloudflare/README.md</a> §CIデプロイ</p>
+  </div>
+</article>
+
+<article class="task" data-task="P5-5">
+  <div class="task-head"><label class="task-check"><input type="checkbox"><span class="task-id">P5-5</span></label><h3 class="task-title">CI デプロイ2回連続成功の確認</h3></div>
+  <p class="dep-badge" hidden></p>
+  <p class="task-desc">Secrets 投入後、通常デプロイとマイグレーション込みデプロイが2回連続で成功することを確認する。External write 境界のため人間承認後に実行。未設定のまま実行すると <code>Verify Cloudflare credentials</code> / <code>Run database migration</code> ステップが明示的に fail する設計（サイレント成功はしない）。</p>
+  <div class="task-body">
+    <pre class="cmd">gh workflow run backend-deploy.yml --ref staging
+gh run list --workflow=backend-deploy.yml --branch=staging --limit 1
+gh run view &lt;run-id&gt; --log-failed   # 失敗時のみ
+# 直後にもう一度実行し、migrate ステップが冪等（exit 0）で成功することを確認
+gh workflow run backend-deploy.yml --ref staging</pre>
+    <p class="small">完了条件: 2回連続成功（migrate は2回とも exit 0＝冪等）。関連: <a href="infra/cloudflare/README.md">infra/cloudflare/README.md</a> §CIデプロイ検証</p>
+  </div>
+</article>
+
+<h3 class="sub">CF-P1 — インフラ apply（承認境界）: <code>terraform apply</code> と <code>git push</code> は External write 境界。</h3>
+
+<article class="task" data-task="P6-3-apply">
+  <div class="task-head"><label class="task-check"><input type="checkbox"><span class="task-id">P6-3</span></label><h3 class="task-title">通知ポリシー（cloudflare_notification_policy）の apply</h3></div>
+  <p class="dep-badge" hidden></p>
+  <p class="task-desc"><code>infra/cloudflare/notifications.tf</code> は <code>terraform validate</code>/<code>plan</code> まで完了済み（1 to add, 1 to change＝無関係な Hyperdrive credential drift, 0 to destroy）。apply には運用担当者の実メールアドレス供給と明示承認が必要。<code>notification_email</code> 変数は default 無し（未供給時は plan が意図的に失敗する設計）。通知メール送信先はダッシュボードでの確認リンク検証が必要な可能性あり（未検証・plan では検出不能）。</p>
+  <div class="task-body">
+    <pre class="cmd">export TF_VAR_notification_email="&lt;運用担当者の実メールアドレス&gt;"
+cd infra/cloudflare
+terraform plan -out=tfplan   # 内容を確認
+# ここで承認者自身が確認・承認
+terraform apply tfplan
+# apply後、送信先メールに確認リンクが届いていればクリックして検証を完了する</pre>
+    <p class="small">完了条件: apply 成功・送信先メール verified。関連: <a href="infra/cloudflare/README.md">infra/cloudflare/README.md</a> §P6-3 / <a href="migration-cloudflare.md">migration-cloudflare.md</a> Phase 6</p>
+  </div>
+</article>
+
+<article class="task" data-task="git-push">
+  <div class="task-head"><label class="task-check"><input type="checkbox"><span class="task-id">git push</span></label><h3 class="task-title">ローカル main を origin へ push（明示承認時のみ）</h3></div>
+  <p class="dep-badge" hidden></p>
+  <p class="task-desc">実装コミットがローカル main に積まれた状態で origin 未反映。push は External write 境界のため、内容レビュー後の明示承認が必要。<code>git log origin/main..HEAD --oneline</code> でレビュー → 承認後 <code>git push origin main</code>。完了条件: <code>git log origin/main..HEAD</code> が空。</p>
+</article>
+
+<h3 class="sub">CF-P2 — Phase 7 前 Go/No-Go: DNS 切替前に確定させる事項。いずれも人間の判断・承認・外部認証情報が必要。</h3>
+
+<article class="task" data-task="P6-5-4">
+  <div class="task-head"><label class="task-check"><input type="checkbox"><span class="task-id">P6-5 #4</span></label><h3 class="task-title">PlanetScale ログ機能の同等性確認（RDS CloudWatch Logs 代替）</h3></div>
+  <p class="dep-badge" hidden></p>
+  <p class="task-desc">現行 RDS の <code>enabled_cloudwatch_logs_exports=["postgresql"]</code> に相当する機能が PlanetScale 側にあるかを実機確認（CloudWatch 依存6項目の棚卸しで唯一未検証・代替不能と判定）。PlanetScale ダッシュボードで <code>animalekarte-stg</code> のクエリログ/Insights を確認し、スロークエリ・接続ログ等が同等に取得できるか判定 → 結果を <code>migration-cloudflare.md</code> §9 リスク登録簿に追記。完了条件: PASS/FAIL 判定が記録され、FAIL 時は代替運用の要否が判断済み。</p>
+</article>
+
+<article class="task" data-task="P0-6">
+  <div class="task-head"><label class="task-check"><input type="checkbox"><span class="task-id">P0-6</span></label><h3 class="task-title">移行凍結ウィンドウの調整</h3></div>
+  <p class="dep-badge" hidden></p>
+  <p class="task-desc">Phase 3 の DB 本切替時に STG への書き込みを止める時間帯を関係者と調整・確定・周知し、<code>migration-cloudflare.md</code> Phase 0 / Phase 3 に追記する。完了条件: 凍結ウィンドウの日時が確定し周知済み。</p>
+</article>
+
+<article class="task" data-task="P2-4-5">
+  <div class="task-head"><label class="task-check"><input type="checkbox"><span class="task-id">P2-4 / P2-5</span></label><h3 class="task-title">画像データ移行の実行 + 突合（S3 → R2）</h3></div>
+  <p class="dep-badge" hidden></p>
+  <p class="task-desc">移行スクリプト雛形（<code>infra/scripts/migrate-images-r2.sh</code>）は作成済みだが、AWS 認証情報 + R2 認証情報（<code>R2_ACCESS_KEY_ID</code>/<code>R2_SECRET_ACCESS_KEY</code>）の両方が必要なため未実行。<code>./infra/scripts/migrate-images-r2.sh</code>（dry-run 確認プロンプトあり）→ <code>rclone check</code> で突合。完了条件: 差分0件（P2-5 突合 PASS）。関連: <a href="migration-cloudflare.md">migration-cloudflare.md</a> Phase 2</p>
+</article>
+
+<article class="task" data-task="P3-6-7">
+  <div class="task-head"><label class="task-check"><input type="checkbox"><span class="task-id">P3-6 / P3-7</span></label><h3 class="task-title">DB データ移行リハーサル + 本切替（RDS → PlanetScale）</h3></div>
+  <p class="dep-badge" hidden></p>
+  <p class="task-desc">private RDS への接続経路（SSM port-forward 等）が必要なためエージェント単独では未実施。P0-6（凍結ウィンドウ）確定後、①リハーサル: dump/restore＋チェックサム突合 ②凍結ウィンドウ内で本切替（アプリの DB 接続を PlanetScale/Hyperdrive 経由へ）③切替後 RDS は即削除せず2週間目安で保持。完了条件: チェックサム一致・アプリが PlanetScale 接続で正常動作。関連: <a href="migration-cloudflare.md">migration-cloudflare.md</a> Phase 3 / §9「DB切替時のデータ差分」</p>
+</article>
+
+<h3 class="sub">CF-P3 — 切替（Phase 7）: P2 グループ Go 判定後。<code>noah-karte.com</code> registrar は Vercel（NS 未切替: <span class="mono">melissa.ns.cloudflare.com</span> / <span class="mono">yadiel.ns.cloudflare.com</span> へ変更予定）。</h3>
+
+<article class="task" data-task="P1-2">
+  <div class="task-head"><label class="task-check"><input type="checkbox"><span class="task-id">P1-2</span></label><h3 class="task-title">ネームサーバ移管（Vercel → Cloudflare）</h3></div>
+  <p class="dep-badge" hidden></p>
+  <p class="task-desc">前提: P2 グループ（P6-5#4 / P0-6 / P2-4-5 / P3-6-7）全て Go・TTL 事前短縮。Vercel ドメイン管理画面（または API）でカスタムネームサーバーを Cloudflare 指定値へ変更 → <code>dig NS noah-karte.com</code> で伝播確認 → <code>backend/wrangler.jsonc</code> の <code>workers_dev: true</code> を <code>false</code> に戻す（既存 TODO の解消）。完了条件: dig が Cloudflare の NS を返す。</p>
+</article>
+
+<article class="task" data-task="P1-3">
+  <div class="task-head"><label class="task-check"><input type="checkbox"><span class="task-id">P1-3</span></label><h3 class="task-title">SSL モード Full (strict) 設定</h3></div>
+  <p class="dep-badge" hidden></p>
+  <p class="task-desc">NS 切替完了後、<code>cloudflare_zone_setting</code> で SSL モードを Full (strict) に設定。完了条件: ゾーン設定が Full (strict)。</p>
+</article>
+
+<article class="task" data-task="P7-1">
+  <div class="task-head"><label class="task-check"><input type="checkbox"><span class="task-id">P7-1</span></label><h3 class="task-title">DNS 切替（Worker ルートを本経路に昇格）</h3></div>
+  <p class="dep-badge" hidden></p>
+  <p class="task-desc">旧 CloudFront 経路は温存したまま、Worker ルートを本経路に昇格。完了条件: 本番相当ドメイン経由で Cloudflare Workers/Containers にトラフィックが流れている。</p>
+</article>
+
+<article class="task" data-task="P7-2">
+  <div class="task-head"><label class="task-check"><input type="checkbox"><span class="task-id">P7-2</span></label><h3 class="task-title">並行稼働期間（1〜2週間）</h3></div>
+  <p class="dep-badge" hidden></p>
+  <p class="task-desc">旧 ECS/ALB は起動したまま、トラフィックのみ新経路へ。日次でエラーログ・課金実績を確認。完了条件: 新経路でエラー率が旧経路同等以下・課金が試算 ±50% 以内（Go/No-Go 基準）。</p>
+</article>
+
+<article class="task" data-task="P7-3">
+  <div class="task-head"><label class="task-check"><input type="checkbox"><span class="task-id">P7-3</span></label><h3 class="task-title">フルスモーク（CRUD / 会計 / 画像アップロード / LINE連携 / 帳票）</h3></div>
+  <p class="dep-badge" hidden></p>
+  <p class="task-desc">試行11の AC-11（UI 混在会計）・試行12の LIFF 検証が本経路切替まで defer されていた項目を含む全系統スモーク。完了条件: 全系統 PASS。<code>frontend/index.html</code> の CSP <code>connect-src</code> に最終オリジンが含まれているか確認（試行12で判明した新規リスク）。</p>
+</article>
+
+<article class="task" data-task="P7-4">
+  <div class="task-head"><label class="task-check"><input type="checkbox"><span class="task-id">P7-4</span></label><h3 class="task-title">Vercel フロントエンドの API 向き先確認</h3></div>
+  <p class="dep-badge" hidden></p>
+  <p class="task-desc"><code>frontend/vercel.json</code> の rewrite 先・環境変数の API URL を新経路へ更新。完了条件: 新 API エンドポイントを向いている。</p>
+</article>
+
+<article class="task" data-task="P7-5">
+  <div class="task-head"><label class="task-check"><input type="checkbox"><span class="task-id">P7-5</span></label><h3 class="task-title">関係者周知 + 運用ドキュメント更新</h3></div>
+  <p class="dep-badge" hidden></p>
+  <p class="task-desc">切替完了を関係者へ周知し、<code>docs/ops/</code> 配下の運用ドキュメント（<code>INFRA_ARCHITECTURE.md</code> / <code>STG-CONTINUOUS-OPERATIONS.md</code> / <code>CI-CD-PIPELINE.md</code>）を更新。</p>
+</article>
+
+<h3 class="sub">CF-P4 — 廃止（Phase 8）: Phase 7 Go 判定後。<strong>順序が重要</strong> — データを持つものは最後、復旧手段は最後の最後に廃止。</h3>
+
+<article class="task" data-task="P8-1">
+  <div class="task-head"><label class="task-check"><input type="checkbox"><span class="task-id">P8-1</span></label><h3 class="task-title">RDS 最終スナップショット取得 → エクスポート保管</h3></div>
+  <p class="dep-badge" hidden></p><p class="task-desc">保険。90日後に削除判断。</p>
+</article>
+<article class="task" data-task="P8-2">
+  <div class="task-head"><label class="task-check"><input type="checkbox"><span class="task-id">P8-2</span></label><h3 class="task-title">S3 画像バケットの最終確認 → バケット削除 or Glacier 退避</h3></div>
+  <p class="dep-badge" hidden></p><p class="task-desc">R2 との突合済みであることを確認してから実施。</p>
+</article>
+<article class="task" data-task="P8-3">
+  <div class="task-head"><label class="task-check"><input type="checkbox"><span class="task-id">P8-3</span></label><h3 class="task-title">terraform destroy（ECS/ALB/EventBridge/fck-nat/EIP/VPC）</h3></div>
+  <p class="dep-badge" hidden></p><p class="task-desc">tfvars の toggle を使い段階的に削除。</p>
+</article>
+<article class="task" data-task="P8-4">
+  <div class="task-head"><label class="task-check"><input type="checkbox"><span class="task-id">P8-4</span></label><h3 class="task-title">ECR リポジトリ / CloudFront / ACM 証明書 削除</h3></div>
+  <p class="dep-badge" hidden></p><p class="task-desc">CloudFront ディストリビューション（手動管理）を含む。</p>
+</article>
+<article class="task" data-task="P8-5">
+  <div class="task-head"><label class="task-check"><input type="checkbox"><span class="task-id">P8-5</span></label><h3 class="task-title">GitHub OIDC Provider / IAM ロール削除</h3></div>
+  <p class="dep-badge" hidden></p><p class="task-desc"><code>terraform</code> ロールは最後（destroy 自体に必要なため）。</p>
+</article>
+<article class="task" data-task="P8-6">
+  <div class="task-head"><label class="task-check"><input type="checkbox"><span class="task-id">P8-6</span></label><h3 class="task-title">tfstate 用 S3 + DynamoDB の処置</h3></div>
+  <p class="dep-badge" hidden></p><p class="task-desc">他環境と共用なら残置。STG 専用なら最後に削除。</p>
+</article>
+<article class="task" data-task="P8-7">
+  <div class="task-head"><label class="task-check"><input type="checkbox"><span class="task-id">P8-7</span></label><h3 class="task-title">翌月 AWS 請求が $0（または tfstate 分のみ）であることを確認</h3></div>
+  <p class="dep-badge" hidden></p><p class="task-desc">この確認をもって移行完了とする。</p>
+</article>
+
+<h3 class="sub">CF 任意 follow-up</h3>
+
+<article class="task" data-task="P6-4-alt">
+  <div class="task-head"><label class="task-check"><input type="checkbox"><span class="task-id">P6-4 代替</span></label><h3 class="task-title">GraphQL Analytics API 定期確認への昇格（Budget Alert 代替）</h3></div>
+  <p class="dep-badge" hidden></p>
+  <p class="task-desc">P6-4（Budget Alert）は Cloudflare に機構自体が存在せず genuine BLOCKED と確定済み。代替として、試行12で使った GraphQL Analytics API（<code>containersUsageAdaptiveGroups</code>）による手動クエリを週次 cron 等の定期実行に昇格させ、想定コスト（~$27.5/月、閾値 $40 相当）からの乖離を人が確認する運用へ。完了条件: 週次で CPU/メモリ/ディスク使用量をクエリし、閾値超過時に人が気づける運用が確立。</p>
+</article>
+
+<article class="task" data-task="hyperdrive-cred-apply">
+  <div class="task-head"><label class="task-check"><input type="checkbox"><span class="task-id">Hyperdrive cred</span></label><h3 class="task-title">Hyperdrive credential ローテーション時の terraform apply</h3></div>
+  <p class="dep-badge" hidden></p>
+  <p class="task-desc"><code>pscale role reset-default</code> で PlanetScale クレデンシャルを再発行した際、<code>cloudflare_hyperdrive_config</code> の <code>origin.host/user/password</code> に drift が生じる（plan で確認済み・既知）。再発行後は明示承認を得て apply。完了条件: <code>terraform plan</code> が「No changes」に収束。</p>
+</article>
+
+<details class="fold">
+  <summary>CF 完了済み（参考）— Phase 0〜4/6 で完了した人間タスク（ダッシュボード操作の例外運用）</summary>
+  <ul>
+    <li>Cloudflare アカウント作成・Workers Paid プラン契約・支払い方法登録（P0-1）</li>
+    <li>Terraform/wrangler 用の初回 API Token 発行（例外#2）</li>
+    <li><code>noah-karte.com</code> の Add a Site（例外#4。zone_id/account_id 確定済み）</li>
+    <li>Account API Token への Containers Edit 権限追加（試行9、例外#5）</li>
+    <li>Account API Token への DNS Edit / Hyperdrive Edit 権限追加（試行4〜6）</li>
+    <li>R2 API Token の発行（試行8、P2-3 実疎通用）</li>
+    <li><code>STG_DEMO_EMAIL</code>/<code>STG_DEMO_PASSWORD</code> の <code>.env.staging</code> 投入（試行12、P4-8 実機検証用）</li>
+  </ul>
+</details>
+
+<h2 id="po008">PO-008 ファクトシート — 曽我様宛仕様書 §7 確認事項の現行実装動作</h2>
+<p class="section-intro">
+  作成 2026-07-16（旧 <code>po-008-factsheet.md</code> を統合・内容は原文のまま）。q&amp;a.html PO-008 決裁に基づき、仕様書 §7 の確認事項について「現在コードが実際にどう動いているか」を file:line 根拠付きで抽出したクライアント確認用ファクトシート。記載内容は<strong>現行実装の動作の暫定正</strong>であり、クライアントの意図した仕様と一致するとは限らない。
+  特に <b>7-1(a) の「年間」定義がフィールドごとに不統一である点、7-3(a) の Lステップ Write API 停止状態、7-3(b) の fatal/non-fatal 挙動がパスごとに異なる点</b>は、クライアントとの認識合わせが必須。
+</p>
+
+<details class="fold" open>
+  <summary>7-1 既存集計3項目の仕様</summary>
+  <p>対象は顧客集計 API（<code>GET /api/v1/clinics/:clinic_id/owners/aggregations</code>、<code>backend/internal/handler/aggregation_handler.go:106-123</code>, <code>128</code>）が返す集計値。集計元 SQL は <code>backend/internal/repository/ltv_repository.go</code> の <code>FindOwnerLTV</code>。</p>
+  <h3>(a) 年間定義・合算・CSV</h3>
+  <p><strong>年間定義は指標ごとに異なり、統一されていない。</strong></p>
+  <ul>
+    <li><code>annual_visit_count</code>（年間来院回数）: <b>直近365日ローリング</b>固定。パラメータで変更不可。
+      <pre class="cmd">COUNT(DISTINCT CASE WHEN mr.date >= NOW() - INTERVAL '365 days' THEN mr.date END) AS annual_visit_count</pre>
+      実装根拠: <code>ltv_repository.go:157</code></li>
+    <li><code>annual_amount</code>（年間売上）: <b>暦年（calendar_year）または明示的な期間指定に依存し、指定なしなら全期間</b>。ローリング365日ではない。優先順位は <code>From</code>/<code>To</code>（明示日付）→ <code>Year</code>（暦年 1/1〜12/31）→ <code>PeriodPreset</code>（<code>last_3_months</code>/<code>last_6_months</code>/<code>last_12_months</code>/<code>calendar_year</code>）→ 指定なし（全期間）。<code>last_12_months</code> プリセットのみが「直近12ヶ月ローリング」に相当。実装根拠: <code>ltv_repository.go:296-339</code>（<code>calculateDateRange</code>）
+      <div class="need">→ <strong>「直近365日ローリング」は q&amp;a 回答文が想定する統一仕様としては不正確</strong>。実際は <code>annual_visit_count</code> のみローリング365日固定で、<code>annual_amount</code> は別ロジック（暦年/期間指定/全期間）。この乖離自体をクライアントに確認する必要がある。</div></li>
+    <li><b>合算方法</b>: オーナー単位（<code>GROUP BY o.id</code>, <code>ltv_repository.go:185</code>）。オーナーに紐づく全ペットの <code>medical_records</code> を <code>owner_id</code> で JOIN し（<code>:180</code>）、来院回数は <code>COUNT(DISTINCT mr.date)</code> で<b>日付の重複を除去して集計</b>。<code>medical_records.date</code> は <code>type:date</code>（時刻を持たない日付型）のため、同日に複数ペットが来院しても1回とカウント。ペット単位の内訳は本 API のレスポンスに含まれない。実装根拠: <code>ltv_repository.go:156-157, 180, 185</code>、<code>backend/internal/model/medical_record.go:20</code></li>
+    <li><b>CSV出力</b>: <code>ListOwnerAggregation</code> ハンドラは <code>c.JSON</code> のみを返し、CSV エンドポイントは存在しない（<code>aggregation_handler.go:106-129</code>）。CSV 出力機能を持つのは別機能（<code>accounting_report_handler.go:78-80</code> の会計レポート、<code>lstep_tag_summary_handler.go:45-50</code> の Lステップタグサマリー）で、顧客集計（本項目）には未実装。</li>
+  </ul>
+  <h3>(b) 来院回数期間</h3>
+  <table>
+    <tr><th>フィールド</th><th>期間</th><th>実装根拠</th></tr>
+    <tr><td><code>total_visit_count</code></td><td>全期間（制限なし）</td><td><code>ltv_repository.go:156</code></td></tr>
+    <tr><td><code>annual_visit_count</code></td><td>直近365日ローリング固定</td><td><code>ltv_repository.go:157</code></td></tr>
+    <tr><td><code>period_visit_count</code></td><td><code>PeriodPreset</code>/<code>Year</code>/<code>From</code>-<code>To</code> で指定した任意期間（未指定時は全期間扱い）</td><td><code>ltv_repository.go:161-162</code>, <code>296-339</code></td></tr>
+  </table>
+  <p>いずれも <code>COUNT(DISTINCT mr.date)</code>（来院日ベースの重複除去カウント）。</p>
+  <h3>(c) 最終来院閾値</h3>
+  <p><code>last_visit_bucket</code> は SQL の <code>CASE</code> 式で分類（<code>days_since_last_visit = EXTRACT(DAY FROM NOW() - MAX(mr.date))</code>）:</p>
+  <pre class="cmd">CASE
+  WHEN MAX(mr.date) IS NULL THEN 'no_visit'
+  WHEN EXTRACT(DAY FROM NOW() - MAX(mr.date)) < 90  THEN 'within_3m'
+  WHEN EXTRACT(DAY FROM NOW() - MAX(mr.date)) < 180 THEN 'over_3m'
+  WHEN EXTRACT(DAY FROM NOW() - MAX(mr.date)) < 365 THEN 'over_6m'
+  ELSE 'over_1y'
+END AS last_visit_bucket</pre>
+  <p>実装根拠: <code>ltv_repository.go:164-170</code>（バケット名定数 <code>:18-24</code>）</p>
+  <p>これとは別に、Lステップ配信（dormant/VISIT 系タグ付与）で使う休眠判定閾値は<b>クリニックごとに設定可能な4段階</b>（<code>DormantThresholds{Stage180, Stage210, Stage240, Stage365}</code>）で、DB 未設定時は既定値 <b>180日/210日/240日/365日</b>（q&amp;a 回答文の「C-1確定値」に一致）。実装根拠: 既定値 = <code>backend/internal/model/dormant_thresholds.go:21-34</code>、クリニック設定からの取得 = <code>backend/internal/service/lstep_settings_thresholds.go:27-41</code>、タグ判定（240日以上で <code>cpm_dormant</code> も付与）= <code>lstep_tag_sync_visit_dormant.go:31-45</code>、別系統の <code>VISIT_*</code> タグ閾値（120/180/220/240日、重複付与可）= 同 <code>:94-112</code>。</p>
+  <div class="need">→ 集計 API 側の <code>last_visit_bucket</code>（90/180/365日、3分類+未来院）と、Lステップ配信側の dormant 閾値（180/210/240/365日、4段階）は<strong>別ロジック・別目的</strong>であり、日数の境界値も一致しない。クライアントには両者が別物である旨の確認が必要。</div>
+</details>
+
+<details class="fold">
+  <summary>7-3 Lステップ API 仕様3項目</summary>
+  <p>対象実装: <code>backend/internal/infra/lstep/tag.go</code>, <code>user.go</code>（Lステップ HTTP クライアント）、<code>backend/internal/service/lstep_tag_sync_api.go</code>, <code>lstep_tag_service.go</code>, <code>lstep_lifecycle_service.go</code>, <code>checkup_sync_service_create.go</code>（呼び出し側サービス）。</p>
+  <h3>(a) タグ付与解除</h3>
+  <p><strong>重要な前提: Lステップ Write 系 API は 2026-05-15 頃から一時停止（no-op 化）されており、ファクトシート作成時点（2026-07-16）でも停止継続中。</strong></p>
+  <ul>
+    <li><code>AddTag</code> / <code>RemoveTag</code>（<code>tag.go:18-25, 27-38</code>）、<code>SetProperty</code>（<code>user.go:61-72</code>）は全て <code>[DISABLED]</code> コメント付きで実 HTTP 呼び出しが削除され、<code>lineUserID</code> が空文字の場合のみ <code>ErrUserNotFound</code> を返し、それ以外は常に <code>nil</code>（成功扱い）を返す no-op 実装。</li>
+    <li><code>AddTagBulk</code>（<code>tag.go:71-79</code>）も同様に <code>[DISABLED]</code> だが挙動が異なる: 単一 <code>lineUserID</code> パラメータを取らず、空文字チェックも存在せず、<b>入力に関わらず無条件に <code>nil</code> を返す</b>（<code>ErrUserNotFound</code> を返す経路は無い）。関数コメントの「空の lineUserIDs は即座に nil を返す」は未実装のコメントのみ。</li>
+    <li><b>Read 系（<code>GetUserTags</code> / <code>GetUser</code>）は稼働継続中</b>で実際に HTTP GET を呼ぶ（<code>tag.go:40-69</code>, <code>user.go:25-59</code>）。</li>
+    <li>呼び出し側サービスは no-op を成功と区別できないため、<b>実際には Lステップ上のタグは一切変化していないにもかかわらず、ローカルのタグキャッシュ（<code>lstep_tag_cache</code> 等）は「付与/解除済み」として更新され続ける</b>。UI 上は成功して見えても、LINE 公式アカウント側の友だちタグには反映されない状態。</li>
+  </ul>
+  <h3>(b) エラー処理</h3>
+  <p>q&amp;a 回答文の「add=fatal/remove=non-fatal」は<b>コード上、文脈依存で一様ではない</b>ため、そのまま正としない。実際の挙動は3系統:</p>
+  <ol>
+    <li><b>通常のタグ同期パス（sync/manual 操作）— add・remove 双方とも fatal</b>: <code>applyTagState</code>（失敗時 <code>notifyAPIFailure</code> 後にラップしたエラーを返す、<code>lstep_tag_sync_api.go:108-133</code>。タグキャッシュ更新の失敗のみ non-fatal）／<code>AddOwnerTag</code>（fatal、<code>lstep_tag_service.go:209-212</code>）／<code>RemoveOwnerTag</code>（fatal・<code>ErrUserNotFound</code> のみ冪等成功、<code>:253-259</code>）／<code>applyCheckupTag</code>（AddTag 失敗 fatal、<code>checkup_sync_service_create.go:144-156</code>）。</li>
+    <li><b>ライフサイクル系クリーンアップパス（オプトアウト・オーナー削除・ペット死亡）— remove は non-fatal（best-effort）</b>: <code>removeAllTagsFromLstep</code>（ログのみ・継続、<code>lstep_lifecycle_service.go:261-286</code>）／<code>HandleOwnerDeletion</code>（「タグ解除失敗は削除フローを止めない」、<code>:241-259</code>）／<code>removePetDerivedTagsFromLstep</code>（best-effort、<code>:288-313</code>）。</li>
+    <li><b>エラーカウンター補助パス — add・remove とも non-fatal（付随処理）</b>: <code>notifyAPIFailure</code>（<code>EXCL_カルテ連携エラー</code> タグ付与の失敗はログのみ、<code>lstep_tag_sync_api.go:135-157</code>）／<code>notifyAPISuccess</code>（<code>EXCL_</code> タグ解除失敗もログのみ、<code>:163-191</code>）。</li>
+  </ol>
+  <div class="need">→ 「add=fatal」は主経路（1系統）でおおむね成立するが、「remove=non-fatal」は<strong>クリーンアップ系（2系統）とエラーカウンター補助（3系統）に限られ</strong>、通常の同期パスでは remove も fatal。q&amp;a 回答文の一様な一般化は不正確。なお (a) の通り Write API 自体が現在 no-op のため、上記の fatal/non-fatal 分岐は<strong>現状すべて到達不能</strong>（Write API 再有効化後にのみ意味を持つ）。</div>
+  <h3>(c) LINE ID 紐付け</h3>
+  <p><code>LinkLineUserID</code>（<code>PATCH /owners/:id/line-user-id</code>, <code>backend/internal/handler/owner_handler.go:133-153</code>）の実装:</p>
+  <ul>
+    <li><b>重複判定</b>: 同一クリニック内で同じ <code>line_user_id</code> が既に別オーナーに紐付いている場合、<code>FindByLineUserID</code> で検出し <code>apperrors.WrapConflict</code> を返す（<code>owner_service_line.go:17-23</code>）。</li>
+    <li><b>ステータスコード</b>: <code>WrapConflict</code> は <code>resolveErrorResponse</code> で <code>http.StatusConflict</code>（409）にマッピング（<code>response.go:52-54</code>、<code>owner_handler.go:148-151</code>）。</li>
+    <li><b>監査ログ</b>: 紐付け成功時、<code>auditSvc.LogLstepOperation</code> で <code>action = "owner.line_id.link"</code>（解除時は <code>"owner.line_id.unlink"</code>）を記録。監査ログ書き込みの失敗は <b>best-effort</b>（警告ログのみ、リンク操作自体はロールバックしない）（<code>owner_service_line.go:28-37</code>）。参考: <code>ConfirmLineID</code> も <code>owner.line_id.confirm</code> を best-effort で監査記録（<code>:40-67</code>）。</li>
+  </ul>
+  <div class="rec">→ q&amp;a 回答文の「LINE ID 紐付け=409+監査」は本項目についてはコードと一致することを確認済み。</div>
+  <p class="small">注記: 本ファクトシートは 2026-07-16 時点のリポジトリ（main）に対する file:line 実測に基づく暫定正。パスは BE9 domain package 移行で移動しうる（現在地は <code>docs/architecture/be9-2a-classification-manifest.csv</code> で確認）。クライアント確認で意図する仕様と食い違いが判明した場合は、要件を再確認の上、必要に応じて実装（または本記載）を見直すこと。</p>
+</details>
+
+
+</div>
+
+<footer>
     <p>顧客 Q&amp;A 正本は Google Sheet（参照: <code>docs/ops/backlog-spreadsheet.md</code>）。本ファイルは開発内部の PO 判断待ち専用キューであり、顧客バックログ No.24〜32 の複製ではない。</p>
     <p>本タスク範囲ではユーザー明示によりリポジトリに内部キューとして配置。Sheet への書き込みや顧客向け Q&amp;A の復元は行わない。</p>
   </footer>
@@ -770,6 +1230,60 @@ UX 未確定のまま実装着手禁止。</p>
   });
   searchInput.addEventListener('input', apply);
   apply();
+</script>
+
+<script>
+(function () {
+  var TASKS = {
+    "OPS-1": { deps: [] }, "OPS-2": { deps: [] }, "OPS-3": { deps: [] }, "OPS-4": { deps: [] },
+    "OPS-5": { deps: ["OPS-2"] }, "OPS-6": { deps: [] }, "OPS-7": { deps: [] }, "OPS-8": { deps: [] },
+    "OPS-9": { deps: [] }, "OPS-10": { deps: [] }, "OPS-11": { deps: [] }, "OPS-12": { deps: [] },
+    "P5-2": { deps: [] }, "P5-5": { deps: ["P5-2"] }, "P6-3-apply": { deps: [] }, "git-push": { deps: [] },
+    "P6-5-4": { deps: [] }, "P0-6": { deps: [] }, "P2-4-5": { deps: [] }, "P3-6-7": { deps: ["P0-6"] },
+    "P1-2": { deps: ["P6-5-4", "P0-6", "P2-4-5", "P3-6-7"] }, "P1-3": { deps: ["P1-2"] },
+    "P7-1": { deps: ["P1-2"] }, "P7-2": { deps: ["P7-1"] }, "P7-3": { deps: ["P7-1"] }, "P7-4": { deps: ["P7-1"] },
+    "P7-5": { deps: ["P7-2", "P7-3", "P7-4"] },
+    "P8-1": { deps: ["P7-5"] }, "P8-2": { deps: ["P7-5"] }, "P8-3": { deps: ["P7-5"] }, "P8-4": { deps: ["P7-5"] },
+    "P8-5": { deps: ["P7-5"] }, "P8-6": { deps: ["P7-5"] }, "P8-7": { deps: ["P7-5"] },
+    "P6-4-alt": { deps: [] }, "hyperdrive-cred-apply": { deps: [] }
+  };
+  var STORAGE_KEY = "todo-me-state-v1"; // 旧 todo-me/todo-po のチェック状態を引き継ぐ
+  function loadState() { try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {}; } catch (e) { return {}; } }
+  function saveState(state) { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch (e) {} }
+  var state = loadState();
+  function isDone(id) { return !!state[id]; }
+  function isBlocked(task) { return (task.deps || []).some(function (d) { return !isDone(d); }); }
+  function render() {
+    Object.keys(TASKS).forEach(function (id) {
+      var el = document.querySelector('[data-task="' + id + '"]');
+      if (!el) return;
+      var checkbox = el.querySelector('input[type=checkbox]');
+      var done = isDone(id);
+      checkbox.checked = done;
+      var blocked = !done && isBlocked(TASKS[id]);
+      el.classList.toggle("is-done", done);
+      el.classList.toggle("is-blocked", blocked);
+      var badge = el.querySelector(".dep-badge");
+      if (badge) {
+        if (blocked) {
+          var unmet = TASKS[id].deps.filter(function (d) { return !isDone(d); });
+          badge.textContent = "🔒 依存未完了: " + unmet.join(", ");
+          badge.hidden = false;
+        } else { badge.hidden = true; }
+      }
+    });
+  }
+  document.addEventListener("change", function (e) {
+    var t = e.target;
+    if (t && t.matches && t.matches('[data-task] input[type=checkbox]')) {
+      var card = t.closest("[data-task]");
+      state[card.getAttribute("data-task")] = t.checked;
+      saveState(state);
+      render();
+    }
+  });
+  render();
+})();
 </script>
 </body>
 </html>

@@ -36,6 +36,7 @@
 <h1>3セッション開発計画 — Readiness View</h1>
 <p class="meta">
 監査日: 2026-07-16 ／ 基準: HEAD <code>5e91a520</code> ／ 当初納品予定: 2026-07-18（下記 blocker 解消が前提）<br>
+<b>改訂 2026-07-20</b>: backend は BE9（<code>BE-refactor.md</code> / ADR-006）により domain package へ再編中。全セッション共通の実装先ルール・衝突回避・ゲートを「BE9 backend 再編との整合」節に追記。<br>
 正本の優先順位: <b>各実装 Issue の受け入れ条件 → <a href="https://github.com/MinoruSoga/AnimalEkarte/issues/260">計画 #260</a> → 本 HTML</b>。本 HTML は tracked view であり、詳細仕様や実行 prompt を重複保持しない。
 </p>
 
@@ -54,6 +55,24 @@
 <tr><td><b>S2</b> カルテ・飼主</td><td><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/230">#230</a> → <a href="https://github.com/MinoruSoga/AnimalEkarte/issues/232">#232</a> → <a href="https://github.com/MinoruSoga/AnimalEkarte/issues/237">#237</a> → <a href="https://github.com/MinoruSoga/AnimalEkarte/issues/238">#238</a></td><td>Issue 修正後に scoped 実装可</td><td><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/234">#234</a> は運用確認待ち、<a href="https://github.com/MinoruSoga/AnimalEkarte/issues/235">#235</a> は価値検証待ち。#201 は safety work。</td></tr>
 <tr><td><b>S3</b> 会計・医院間リンク</td><td><a href="https://github.com/MinoruSoga/AnimalEkarte/issues/251">#251</a> → <a href="https://github.com/MinoruSoga/AnimalEkarte/issues/247">#247</a> → <a href="https://github.com/MinoruSoga/AnimalEkarte/issues/239">#239</a></td><td>設計／業務決裁待ち</td><td>全書込経路の分類、会計保存則、clinic isolation・権限・RLS・audit atomicity を先に確定。</td></tr>
 </table>
+
+<h2>BE9 backend 再編との整合（2026-07-20 追記）</h2>
+<div class="warn">
+<p style="margin:4px 0;">backend は BE9 により <code>internal/handler|service|repository</code> の3層フラットから <b>ADR-006 の 13 domain package</b>（<code>internal/medicalrecord</code> 等）へ移行中。正本 = <code>BE-refactor.md</code>（進捗・着手前ゲート・申し送り）／<code>docs/architecture/adr/006-backend-domain-package-boundaries.md</code>／file 帰属 = <code>docs/architecture/be9-2a-classification-manifest.csv</code>。全セッション共通ルール:</p>
+<ul>
+<li><b>新規 backend 実装は旧3層へ追加禁止</b>（BE9-2B 発効）。target domain package へ実装する。既存 resource の修正は現在地のまま行ってよい（移動は BE9 batch の仕事。混ぜない）。</li>
+<li><b>ファイルの現在地は着手時に manifest で確認</b>する。Issue 本文や本 HTML のパス表記は移行で古くなる（例: exam_type の handler/service/repository は既に <code>internal/medicalrecord</code> へ移動済み）。</li>
+<li><b>domain package へ route を追加する場合</b>: route 登録は <code>&lt;domain&gt;.Handler.RegisterRoutes</code> 1本に集約（複数 struct の同名メソッドは OpenAPI drift 検知から静かに脱落する）。<code>route_snapshot.golden</code>・<code>openapi_route_drift_test.go</code> の追随が必須。</li>
+<li><b>safety lint は package 非依存</b>（<code>internal/lintscan</code> が <code>internal/**</code> 全走査）。新 package に置いても clinic isolation・audit・N+1 lint の監査対象から外れない。</li>
+<li><b>BE9 batch との衝突回避</b>: BE9 側の次バッチ = medicalrecord sub-batch②（checkup/vaccine/prescription/inquiry）。同一 domain の file 群を session と BE9 batch が同時に触らない — 着手前に <code>git log</code>/worktree 状態を確認し、重なる場合は単一 owner に直列化する（BUG-415 の二重実行事故の再発防止）。</li>
+</ul>
+<table style="margin-top:8px;">
+<tr><th>セッション</th><th>BE9 上の domain</th><th>影響・ゲート</th></tr>
+<tr><td>S1 検査</td><td>medicalrecord</td><td>exam_type 系は<b>移行済み</b>（<code>internal/medicalrecord</code>）— 新規検査 resource は同 package へ。lab_import/lab_report は sub-batch③（saga）予定で未移行 — baseline test 一覧は <code>BE-refactor.md</code>「BE9-2D: medicalrecord sub-batch定義」③を参照し、着手時は BE9 側と order を調整</td></tr>
+<tr><td>S2 カルテ・飼主</td><td>medicalrecord / reservation / owner・pet</td><td>#237（EXISTS 検索）・#235（確定カルテ画像）は sub-batch④領域（未移行・現在地で修正）。#230/#232 の checkup/inquiry 系は <b>sub-batch②と正面衝突</b> — 直列化必須。#238 の reservation は既存位置での修正のみ・移行を伴う変更を始めない（論点#1 は 2026-07-20 裁定済み〔案A: staff を唯一の書き込み者に一本化〕だが、移行実施は BE9 batch の仕事でセッション側は行わない）</td></tr>
+<tr><td>S3 会計・医院間リンク</td><td>billing / owner・pet</td><td><b>ゲート: <code>billing_item_repository.go</code> に触れる変更は todo.md バグ台帳 BUG-417（Update/Delete の clinic 分離 no-op）の subquery 是正＋クロステナント test 追加を先行必須</b>（ADR-006 論点#6・BE9 外の変更でも適用）。#239 の cross-clinic link は clinic isolation invariant（ADR-002）に直結 — <code>clinic-isolation-auditor</code> レビューを必須とする</td></tr>
+</table>
+</div>
 
 <div class="card s1">
 <h3>S1 — #249 検査機能<span class="tag">条件付き</span></h3>
@@ -98,7 +117,7 @@
 <h2>依存・実行ルール</h2>
 <div class="warn">
 <ul>
-<li><b>migration</b>: 作成直前に実ファイル最大+1を再計算する。監査時点の最大は 002（現在作るなら 003）。#249・#234・#239・#250 を含め、作成と integration は単一担当が直列化する。</li>
+<li><b>migration</b>: 作成直前に実ファイル最大+1を再計算する。2026-07-17 に <code>001_init.sql</code> 単一構成へ統合済み（現在作るなら 002。適用済み 001 の編集は checksum mismatch を生むため禁止 — 詳細は <code>backend/migrations/CLAUDE.md</code>）。#249・#234・#239・#250 を含め、作成と integration は単一担当が直列化する。</li>
 <li><b>並列化</b>: 独立 worktree／checkout と file ownership を使い、単一 integration owner が順に取り込む。S2 owners と #239、S1 examinations と #239 は重なる。同一 dirty worktree で blind <code>git pull</code> しない。</li>
 <li><b>哲学</b>: 要件ごとに一人の責任者と業務目的を確定し、削除→簡素化→高速化→自動化の順で判断する。確認ダイアログを安全装置にせず、二重入力・二重管理を増やさない。</li>
 <li><b>責任者</b>: 公開 Issue から access-controlled 台帳上の一人へ一意に解決できることを開始条件とする。「現場」「担当部門」だけでは着手しない。</li>
