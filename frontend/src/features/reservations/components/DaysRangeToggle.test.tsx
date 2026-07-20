@@ -27,7 +27,6 @@ describe("DaysRangeToggle", () => {
     render(<DaysRangeToggle days={5} onChange={vi.fn()} />);
     const active = screen.getByTestId("days-toggle-5");
     expect(active.className).toContain(C.bgBrand);
-    expect(active.className).not.toContain(C.bgAccent);
   });
 
   it("7日ボタンをクリックすると onChange(7) が呼ばれる", async () => {

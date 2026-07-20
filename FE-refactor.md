@@ -55,15 +55,15 @@ T  残渣   : teal/旧 accent 青の直値・画像・ハードコードが視�
 
 | Batch | ルート | P1 | P2 | P3 | P4 | P5 | P6 | P7 | T | 所見 | 状態 |
 |-------|--------|----|----|----|----|----|----|----|---|------|------|
-| A | /login | | | | | | — | | | | 未 |
-| A | /forgot-password | | | | | | — | | | | 未 |
-| A | /reset-password | | | | | | — | | | | 未 |
-| A | /（受付カンバン） | | | | | | — | | | | 未 |
-| A | /owners（一覧） | | | | | | | | | | 未 |
-| A | /owners/new | | | | | | — | | | | 未 |
-| A | /owners/:id | | | | | | | | | | 未 |
-| A | /owners/:id/report | | | | | | | | | | 未 |
-| A | /aggregation | | | | | | | | | | 未 |
+| A | /login | ✅ | ✅ | ✅ | ✅ | 🔧 | — | ✅ | ✅ | forgot リンクを muted ink→brand 化（DESIGN.md「inline link=primary」） | ✅済 |
+| A | /forgot-password | ✅ | ✅ | ✅ | ✅ | 🔧 | — | ✅ | ✅ | 戻るリンク×2 brand 化。**副次発見: 未認証で到達不能（BUG-419 起票・機能バグ）** | ✅済 |
+| A | /reset-password | ✅ | ✅ | ✅ | ✅ | 🔧 | — | ✅ | ✅ | リンク×2 brand 化（無効リンク状態で実測） | ✅済 |
+| A | /（受付カンバン） | ✅ | ✅ | ✅ | ✅ | ✅ | — | ✅ | ✅ | CTA/カルテリンク blue pill 反映確認。カンバン列パステル=カテゴリ装飾（sanctioned） | ✅済 |
+| A | /owners（一覧） | ✅ | ✅ | ✅ | ✅ | ✅ | 🔧 | ✅ | ✅ | ヘッダを eyebrow 字義化（sectionLabel 16px→12px/600 一括・computed 実測 12px/600・band #F6F5F4・hairline #E6E6E6） | ✅済 |
+| A | /owners/new | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | 会員区分 active chip=brand ✓・required\*=semantic ✓ | ✅済 |
+| A | /owners/:id | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | 未払い warning=semantic 帯（§2.4 維持対象） | ✅済 |
+| A | /owners/:id/report | ✅ | ✅ | ✅ | ✅ | ⚠ | — | ✅ | ✅ | セクション見出しの brand 青 tick=decorative-primary 疑い。**owner-report feature に他セッション未コミット変更があり衝突回避で保留**（当該 workstream commit 後に裁定） | ⚠保留 |
+| A | /aggregation | ✅ | ✅ | 🔧 | ✅ | 🔧 | ✅ | ✅ | ✅ | active タブ ink→brand 化（UnifiedTabs/dataActive\* トークン一括=全タブ画面に波及・computed 実測 #0075DE） | ✅済 |
 | B1 | /reservations（週カレンダー） | | | | | | — | | | | 未 |
 | B1 | 予約詳細モーダル | | | | | | — | | | | 未 |
 | B1 | 予約登録モーダル | | | | | | — | | | | 未 |

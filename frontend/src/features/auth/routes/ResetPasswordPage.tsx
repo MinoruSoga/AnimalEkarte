@@ -78,7 +78,7 @@ export function ResetPasswordPage() {
           </p>
           <Link
             to={paths.auth.forgotPassword.getHref()}
-            className={`block text-sm ${C.text50} hover:underline`}
+            className={`block text-sm ${C.textBrand} hover:underline`}
           >
             パスワードリセットを再申請する
           </Link>
@@ -167,7 +167,7 @@ export function ResetPasswordPage() {
 
           <Link
             to={paths.auth.login.getHref()}
-            className={`block text-center text-sm ${C.text50} hover:underline`}
+            className={`block text-center text-sm ${C.textBrand} hover:underline`}
           >
             ログインページに戻る
           </Link>

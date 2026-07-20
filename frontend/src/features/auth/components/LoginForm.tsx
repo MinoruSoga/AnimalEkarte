@@ -239,7 +239,7 @@ export const LoginForm = memo(function LoginForm() {
         <div className="text-center">
           <Link
             to={paths.auth.forgotPassword.getHref()}
-            className={`text-sm ${C.text50} hover:underline`}
+            className={`text-sm ${C.textBrand} hover:underline`}
           >
             パスワードをお忘れですか？
           </Link>

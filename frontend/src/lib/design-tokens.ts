@@ -429,8 +429,9 @@ export const C = {
   textCheckupDueSoon: "text-[#7A5C00]",
 
   /* ── Data-state active (Radix Tabs) ── */
-  dataActiveBorderB: "data-[state=active]:border-b-[#000000]",
-  dataActiveText:    "data-[state=active]:text-[#000000]",
+  /** FE10: DESIGN.md「active-tab signal は primary」字義に従い ink → brand 化 */
+  dataActiveBorderB: "data-[state=active]:border-b-[#0075DE]",
+  dataActiveText:    "data-[state=active]:text-[#0075DE]",
 } as const;
 
 /* ================================================================== */
@@ -667,7 +668,7 @@ export const STYLE = {
   tableHeaderRow:
     `border-b ${C.borderLight} ${C.bgPage} h-11`,
   tableHeaderCell:
-    `text-2xs font-semibold tracking-wide ${C.text70} h-11`,
+    `text-2xs font-semibold tracking-wide ${C.text55} h-11`,
   tableRow:
     `border-b ${C.borderLight} ${C.hoverBgPageHalf} transition-colors cursor-pointer h-16`,
   tableCell:
@@ -747,9 +748,10 @@ export const STYLE = {
   selectCompact:
     `h-[30px] text-base bg-transparent ${C.text} border-0 ${C.hoverBgLight} px-1.5 shadow-none rounded-xxs w-auto max-w-full`,
 
-  /* ── Section heading (uppercase label) ── */
+  /* ── Section heading / table header eyebrow (uppercase label) ── */
+  /** FE10: DESIGN.md eyebrow 字義化（12px/600）。テーブルヘッダの de-facto トークン（ex-data-table-cell headerTypography）。旧 text-base(16px) は house 様式で撤回済み */
   sectionLabel:
-    `text-base ${C.text55} uppercase tracking-wide select-none`,
+    `text-2xs font-semibold ${C.text55} uppercase tracking-wide select-none`,
 
   /* ── Ghost Danger (delete buttons in form headers) ── */
   btnDangerGhost:

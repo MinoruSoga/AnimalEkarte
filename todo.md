@@ -40,6 +40,13 @@
 
 ### Open
 
+#### BUG-419:【MEDIUM・FE10視覚スイープで検出】/forgot-password・/reset-password が未認証で /login へリダイレクトされ、パスワードを忘れた本人が到達できない
+
+- **症状**: 未認証状態（隔離ブラウザコンテキスト）で `http://localhost:3003/forgot-password` へアクセスすると `/login?from=%2Fforgot-password` へリダイレクトされる。認証済みセッションでは正常に描画される。つまりパスワードリセット導線が**パスワードを知っているユーザーにしか使えない**。`/reset-password`（メール内リンクの着地先）も同経路なら同罪で、リセットメールのリンクが機能しない疑い。
+- **再現手順**: シークレットウィンドウで `/forgot-password` を開く → `/login` へ飛ばされる。ログイン画面の「パスワードをお忘れですか？」リンクをクリックしても同様。
+- **調査ポイント**: `frontend/src/app/` のルーター構成で ForgotPasswordPage / ResetPasswordPage が認証ガード（ProtectedRoute 相当）の内側に配置されている疑い。auth ガードの外（/login と同じ公開層）へ移すのが修正方向。移動後、未認証での直接アクセス・ログイン画面からの遷移・（可能なら）リセットメールリンクの着地を確認する。
+- **発見**: 2026-07-21（FE10 R6 Batch A 視覚スイープ中に副次発見。デザイン起因ではない機能バグのため FE10 とは独立に修正する）。
+
 #### BUG-418:【LOW・潜在・BE9-2D ⑤ Phase1敵対レビューで検出】DischargeWithBilling（退院+会計自動生成）に監査ログ書込がない
 
 - **症状**: `hospitalizationService.DischargeWithBilling`（BE9 target=medicalrecord・現在は `internal/service/hospitalization_service.go`）は退院status更新+Billing/BillingItem行の自動生成を単一txで行う金銭パスだが、**audit_logs への書込が一切ない**。会計レコードの自動生成が「誰が・いつ・どの入院から」発生したか監査証跡で追えない。
