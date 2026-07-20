@@ -3,8 +3,17 @@
 > **本書の役割**: 未修正バグの正本台帳。バグではないが対応すべきもの（USER アクション・実装タスク・改善）は `todo.md`。
 > **運用**: 受け入れシナリオ・レビュー・実機で発見した不具合はここへ BUG-XXX で起票する（BUG-4xx = 受け入れシナリオ由来）。修正完了したら本書から削除し、修正コミットと発見経緯は git 履歴・実行レポート（`docs/ops/testing/scenarios/reports/`）を正とする。
 > **粒度**: 次に着手するエージェントが本書だけで調査に入れること（症状・再現手順・調査済みの根因・修正方向）。
+> **BE9 注記（2026-07-19〜）**: backend は domain package へ移行中（`BE-refactor.md` BE9 / ADR-006）。本書が参照する backend パスは移行で順次移動する — 着手時に `docs/architecture/be9-2a-classification-manifest.csv` で現在地を確認し、修正が backend 新規実装を含む場合は `internal/handler|service|repository` へ追加せず target domain package へ実装する（todo.md「BE 実装規約」参照）。
 
 ## Open
+
+### BUG-417:【LOW・潜在・BE9-2A監査で検出】billing_item_repository.go の Update/Delete が clinic 分離を実質担保していない（defense-in-depth 不全・現状は生きた漏洩ではない）
+
+- **症状**: `internal/repository/billing_item_repository.go`（BE9 target=billing）の Update/Delete が `.Joins("JOIN billings ON ...billings.clinic_id=?...")` を `.Updates()`/`.Delete()` へ連結する形式だが、**GORM の `Joins()` は UPDATE/DELETE SQL へ伝播しない**ため、repository 層の clinic 述語は実質 no-op。Treatment/ClinicalPlan 等が subquery 形式で正しく回避している同型の罠に、このファイルだけが該当（billing_confirmation/estimate は検証済みで正しい）。
+- **現状の安全性**: `billing_item_service.go` の UpdateItem/DeleteItem が事前に clinic-scoped `FindByID` で gate しているため**現時点で生きた漏洩ではない**。ただし事前 check を経由しない新規経路（admin 経路・background job 等）が repository method へ直接到達すると silent なクロステナント書き込み/削除が発生し得る。クロステナント分離 test も現状ゼロ。
+- **修正方向**: subquery 形式（`WHERE id IN (SELECT ... JOIN billings ... WHERE billings.clinic_id=?)`）への是正＋クロステナント分離 test 追加。**詳細の正本 = `docs/architecture/be9-2a-boundary-map.md` §7.4／ADR-006 未解決論点#6**。
+- **修正タイミング**: BE9-2C/2D の billing domain 着手時の**必須前提**（ADR-006 で着手前ゲート化済み）。ただし BE9 と無関係にこのファイルへ触れる修正が先に発生した場合も、その場での是正を必須とする。
+- **発見**: 2026-07-19（BE9-2A santa dual-review round 2・clinic-isolation-auditor。BE9-2A は measurement-only のため未修正のまま記録）。
 
 ### BUG-416:【LOW・healthcare-reviewer指摘】カルテ診断(diagnosis1/2)保存の残存リスク（BUG-410 backend/UI follow-up）— 残るのは①④のみ（②FE病名バリデーション欠如=修正済み 08c82490／③clinical_plan楽観ロック欠如=修正済み 797f4d2d）
 

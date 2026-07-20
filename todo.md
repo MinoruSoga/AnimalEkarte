@@ -15,6 +15,12 @@
 - 変更した Go ファイルは `docker compose exec backend gofmt -l ./internal/<dir>/` 無出力を確認してからコミット。
 - `Co-Authored-By` なし。**push しない**（依頼があるまで）。
 
+### BE 実装規約（BE9 domain package 移行中・2026-07-19〜）
+
+- **backend の新規実装は `internal/handler|service|repository` へ追加禁止**（BE9-2B 発効）。ADR-006 の target domain package へ追加する。先例 = `internal/manualarticle`、配線・facade・固定 gate 追随のパターン = `BE-refactor.md`「BE9-2B実績からの申し送り」。
+- 本書・`bug.md` が参照する backend ファイルパスは BE9 移行で順次移動する。**着手時に `docs/architecture/be9-2a-classification-manifest.csv` で現在地と target package を確認する**（パス不一致は台帳の誤りではなく移行の進行）。移動済みファイルへの言及を見つけたら、修正作業のついでに台帳側パスも更新する。
+- ADR-006「未解決論点」に着手前ゲートが設定された領域（reservation/staff 共有テーブル・`billing_item_repository.go` 等）に触れる場合は、`BE-refactor.md`「現在地と着手前ゲート」の該当条件を先に満たす。
+
 ### 台帳スコープ規則
 
 - 本書には**今フェーズで着手可能なタスクのみ**を記載する。対応済みは削除する（記録は git 履歴）。
@@ -44,11 +50,11 @@
 
 | ID | アクション（USER 実施） | 完了条件 | 完了後のエージェント作業 |
 |----|------------------------|---------|------------------------|
-| U-1 | **#201 [SAFETY] 個人責任者ゲート**: 使用医院の臨床責任者（個人名）を確定し、①絶対上限 ②warning 範囲 ③体重/species/パラメータ欠落時の手動入力可否 ④緊急時例外フローの要否、を承認させる | 承認内容（4点）が #201 に記録される | #201 本文「必須仕様 1〜6」に従い BE 物理 reject＋（④が要なら）権限付き例外フローを実装。`computeDoseGate`（FE）と `backend/internal/service/` の dose 系が対象。実装後 06 doc 更新 |
+| U-1 | **#201 [SAFETY] 個人責任者ゲート**: 使用医院の臨床責任者（個人名）を確定し、①絶対上限 ②warning 範囲 ③体重/species/パラメータ欠落時の手動入力可否 ④緊急時例外フローの要否、を承認させる | 承認内容（4点）が #201 に記録される | #201 本文「必須仕様 1〜6」に従い BE 物理 reject＋（④が要なら）権限付き例外フローを実装。`computeDoseGate`（FE）と dose 系 backend（現 `internal/service/dose_*.go`・BE9 target=medicalrecord。新規追加分は BE9-2B 規約に従い target package へ）が対象。実装後 06 doc 更新 |
 | U-2 | **SEC-SECRETS-5**: 4系統ローテーション＋ P5-2 `gh secret set`＋ #97 本文マスク。手順 = runbook §0.5 / `infra/cloudflare/README.md` | 4系統の新 credential が有効・旧値無効化・GitHub Secrets 登録済み | ① gitleaks baseline 方針の実装（task.html P1-1）② `STG_DEMO_*` 登録済みなら #109 Phase C: performance-tests のフォールバック撤去 |
 | U-3 | **`DB_RESET=true` 再適用（ローカル→STG）**: 001 checksum 変更（#211 A6 統合）＋ seed 変更 2 件（A1+A2 = 90553a51／GAP-2 閲覧専用ロール = 13c6a93a）をまとめて反映。DB reset はエージェント実行禁止 | 両環境で reset 完了・起動 green | ① S02 権限差・S05 の再実行（U-6 の前提解除）。**BUG-403 は 2026-07-17 に stale DB のまま実測・修正・TDD 検証済みでクローズ済み（環境起因ではなく実装欠落と確定）— 本項目の対象から除外**。BUG-404 は commit 58c653df で修正済みだが「次回シナリオ再実行で最終確認」待ちのため bug.md の直近クローズ節に残置中 |
 | U-4 | **SD-9 被害判定 SQL を STG/本番で実行**（SQL 本文は下の「個別タスク詳細」）。`9b6a01ed` の修正は新規作成院にしか効かないため既存データの手動確認が必要 | 0 行 → クローズ。ヒット → 結果をエージェントへ共有 | ヒット時: 対象グループへのルールバックフィル（`defaultPermissionRuleTable` 準拠の UPDATE 文起草＋適用手順書）を別タスク起票。`assigned_staff > 0` の行を最優先（該当スタッフが全機能ロックアウト中） |
-| U-5 | **SD-14 STG 実機検証**: LINE 紐付け E2E。飼主フォーム（04 画面）で紐付け URL 発行 → LINE で開く → LIFF 遷移 → 紐付け完了まで | 紐付け成功が確認できる | 失敗時: 症状を聞いて `line_link_service.go`／`frontend/liff` の LiffLinkPage を調査・修正（2e4808b5 が直近の修正） |
+| U-5 | **SD-14 STG 実機検証**: LINE 紐付け E2E。飼主フォーム（04 画面）で紐付け URL 発行 → LINE で開く → LIFF 遷移 → 紐付け完了まで | 紐付け成功が確認できる | 失敗時: 症状を聞いて `line_link_service.go`（現 `internal/service/`・BE9 target=lstep）／`frontend/liff` の LiffLinkPage を調査・修正（2e4808b5 が直近の修正） |
 | U-6 | **受け入れシナリオ実行（続き）**: 第1バッチ S01〜S06 は 2026-07-17 実施済み（30 PASS / 4 FAIL / 13 BLOCKED — レポート = `docs/ops/testing/scenarios/reports/2026-07-17-local.md`）。FAIL 由来の BUG-401〜407 のうち BUG-402/403/406 は修正・検証済み、BUG-401 は BUG-408 へ統合（機能設計待ち）、BUG-405 は仕様未定の機能欠落と確定（FEAT-CHECKIN へ移設）、BUG-407 は対応中。**残 = ①S07〜S12＋V01〜V05 ②U-3 後の再測分（S02 権限差・S05 の残 FAIL）③S02 境界値の再確認** | 全シナリオ実施・要実測 87 件（残 78）に実測値が入る | 実測結果の【要実測】昇格とシナリオ乖離修正（第1バッチ分 4 件は昇格済み） |
 | U-7 | Vercel Production `VITE_SHOW_DEMO_ACCOUNTS=false` の確認/設定 | Vercel ダッシュボードで確認済み | なし（FE は `__VERCEL_ENV__ !== "production"` 一次ガード実装済みのため二重防御） |
 | U-8 | `terraform apply`（P2 internal ALB + VPC Origin）。`infra/terraform/terraform.tfvars` はローカル準備済み（gitignore 対象） | apply 成功・疎通確認 | なし |
@@ -75,6 +81,7 @@
 - **要件責任者（個人名）の確認が必要**（product-philosophy①）。
 - **検討事項（要決裁）**: (a) 開始日到来で自動的に reserved→admitted へ遷移（要: 停止手段・失敗通知・監査ログ — product-philosophy⑤）か、(b) 詳細画面/一覧に明示的な「チェックイン」ボタンを追加し手動で PATCH status=admitted を呼ぶか。まず①要件を疑う（自動でも良いのでは）から検討する。
 - **副作用**: `HospitalizationDetailActions.tsx` の「退院処理」ボタンは `status !== 退院済` で表示されるため reserved でも表示され「実質アクティブに見える」混乱を招く。実装時にボタン表示条件も見直すこと。
+- **BE 側の注意**: hospitalization 系は BE9 target=medicalrecord。backend 変更（特に (a) 自動遷移の background job）は上の「BE 実装規約」に従い target package へ実装する。自動遷移を選ぶ場合、boundary map §3.7 で medicalrecord は finalize-lock/tx 保護の高 risk 域と隣接するため、状態遷移の tx 境界と監査ログを BE9-2D の baseline test と整合させること。
 
 ### U-4: SD-9 被害判定 SQL
 
