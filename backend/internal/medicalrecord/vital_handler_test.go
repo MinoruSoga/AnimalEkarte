@@ -1,4 +1,4 @@
-package handler
+package medicalrecord
 
 import (
 	"bytes"
@@ -15,7 +15,6 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/service"
 )
 
 // TestVitalHandlerCompiles verifies vital_handler.go compiles
@@ -27,8 +26,8 @@ func TestVitalHandlerCompiles(t *testing.T) {
 
 type mockVitalService struct {
 	listFn   func(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.VitalRecord, error)
-	createFn func(ctx context.Context, medicalRecordID uint64, input *service.CreateVitalInput) (*model.VitalRecord, error)
-	updateFn func(ctx context.Context, clinicID, medicalRecordID, vitalID uint64, input *service.UpdateVitalInput) (*model.VitalRecord, error)
+	createFn func(ctx context.Context, medicalRecordID uint64, input *CreateVitalInput) (*model.VitalRecord, error)
+	updateFn func(ctx context.Context, clinicID, medicalRecordID, vitalID uint64, input *UpdateVitalInput) (*model.VitalRecord, error)
 	deleteFn func(ctx context.Context, clinicID, medicalRecordID, vitalID uint64) error
 }
 
@@ -39,14 +38,14 @@ func (m *mockVitalService) List(ctx context.Context, clinicID, medicalRecordID u
 	return nil, nil
 }
 
-func (m *mockVitalService) Create(ctx context.Context, medicalRecordID uint64, input *service.CreateVitalInput) (*model.VitalRecord, error) {
+func (m *mockVitalService) Create(ctx context.Context, medicalRecordID uint64, input *CreateVitalInput) (*model.VitalRecord, error) {
 	if m.createFn != nil {
 		return m.createFn(ctx, medicalRecordID, input)
 	}
 	return &model.VitalRecord{}, nil
 }
 
-func (m *mockVitalService) Update(ctx context.Context, clinicID, medicalRecordID, vitalID uint64, input *service.UpdateVitalInput) (*model.VitalRecord, error) {
+func (m *mockVitalService) Update(ctx context.Context, clinicID, medicalRecordID, vitalID uint64, input *UpdateVitalInput) (*model.VitalRecord, error) {
 	if m.updateFn != nil {
 		return m.updateFn(ctx, clinicID, medicalRecordID, vitalID, input)
 	}
@@ -60,37 +59,36 @@ func (m *mockVitalService) Delete(ctx context.Context, clinicID, medicalRecordID
 	return nil
 }
 
-// ---- view permission gate tests ----
-
-// TestListVitals_ViewPermissionDenied は view 権限を持たない非 system_admin が 403 を受けることを確認する。
-func TestListVitals_ViewPermissionDenied(t *testing.T) {
-	gin.SetMode(gin.TestMode)
-
-	h := &Handler{svc: &service.Services{
-		Vital:               &mockVitalService{},
-		EffectivePermission: &mockEffectivePermissionService{},
-	}}
-	r := gin.New()
-	r.GET("/medical-records/:id/vitals",
-		func(c *gin.Context) { setNonSystemAdmin(c); setClinicID(c) },
-		h.RequirePermission(string(model.ResourceMedicalRecords), "view"),
-		h.ListVitals,
-	)
-
-	req := httptest.NewRequest(http.MethodGet, "/medical-records/1/vitals", http.NoBody)
-	w := httptest.NewRecorder()
-	r.ServeHTTP(w, req)
-
-	assert.Equal(t, http.StatusForbidden, w.Code)
+// setStaffID は gin.Context に user_id（staff_id）を設定するヘルパー
+// (internal/handler/clinic_handler_test.go 由来・同一実装。UpdateVital の ActorID 取得経路で使用)。
+func setStaffID(c *gin.Context) {
+	c.Set("user_id", "1")
 }
+
+// mockMedicalRecordService は per-entity handler が要求する medicalRecordGetter (GetByID) の
+// テストダブル。pre-move の internal/handler では service.MedicalRecordService 全体を満たす大きな
+// mock だったが、移行後の VitalHandler / MedicalRecordImageHandler は所有権検証のための GetByID
+// しか呼ばないため最小実装に絞る。vital と image のハンドラテストで共有する。
+type mockMedicalRecordService struct {
+	getByIDFn func(ctx context.Context, clinicID, id uint64) (*model.MedicalRecord, error)
+}
+
+func (m *mockMedicalRecordService) GetByID(ctx context.Context, clinicID, id uint64) (*model.MedicalRecord, error) {
+	if m.getByIDFn != nil {
+		return m.getByIDFn(ctx, clinicID, id)
+	}
+	return nil, nil
+}
+
+// pre-move の TestListVitals_ViewPermissionDenied（RequirePermission 経由の 403 検証）は
+// lab_import_handler_test.go の先例に倣い移行しない。RequirePermission / EffectivePermissionService
+// の enforcement は injected middleware であり internal/handler 側でテストが維持される。ここに残すのは
+// ハンドラ自身の挙動（binding/validation/所有権検証の pass-through/response 整形）のみ。
 
 // ---- direct handler tests ----
 
-func newHandlerWithVitalSvc(vitalSvc service.VitalService, mrSvc service.MedicalRecordService) *Handler {
-	return &Handler{svc: &service.Services{
-		Vital:         vitalSvc,
-		MedicalRecord: mrSvc,
-	}}
+func newHandlerWithVitalSvc(vitalSvc VitalService, mrSvc medicalRecordGetter) *VitalHandler {
+	return NewVitalHandler(vitalSvc, mrSvc)
 }
 
 // ---- ListVitals ----
@@ -216,7 +214,7 @@ func TestCreateVital(t *testing.T) {
 				},
 			},
 			vitalSvc: &mockVitalService{
-				createFn: func(_ context.Context, medicalRecordID uint64, input *service.CreateVitalInput) (*model.VitalRecord, error) {
+				createFn: func(_ context.Context, medicalRecordID uint64, input *CreateVitalInput) (*model.VitalRecord, error) {
 					assert.Equal(t, uint64(5), medicalRecordID)
 					assert.Equal(t, uint64(1), input.ClinicID)
 					assert.Equal(t, uint64(7), input.PetID)
@@ -294,7 +292,7 @@ func TestCreateVital(t *testing.T) {
 				},
 			},
 			vitalSvc: &mockVitalService{
-				createFn: func(_ context.Context, _ uint64, _ *service.CreateVitalInput) (*model.VitalRecord, error) {
+				createFn: func(_ context.Context, _ uint64, _ *CreateVitalInput) (*model.VitalRecord, error) {
 					return nil, fmt.Errorf("db failure")
 				},
 			},
@@ -348,7 +346,7 @@ func TestUpdateVital(t *testing.T) {
 				},
 			},
 			vitalSvc: &mockVitalService{
-				updateFn: func(_ context.Context, clinicID, medicalRecordID, vitalID uint64, input *service.UpdateVitalInput) (*model.VitalRecord, error) {
+				updateFn: func(_ context.Context, clinicID, medicalRecordID, vitalID uint64, input *UpdateVitalInput) (*model.VitalRecord, error) {
 					assert.Equal(t, uint64(1), clinicID)
 					assert.Equal(t, uint64(5), medicalRecordID)
 					assert.Equal(t, uint64(9), vitalID)
@@ -448,7 +446,7 @@ func TestUpdateVital(t *testing.T) {
 				},
 			},
 			vitalSvc: &mockVitalService{
-				updateFn: func(_ context.Context, _, _, _ uint64, _ *service.UpdateVitalInput) (*model.VitalRecord, error) {
+				updateFn: func(_ context.Context, _, _, _ uint64, _ *UpdateVitalInput) (*model.VitalRecord, error) {
 					return nil, fmt.Errorf("db failure")
 				},
 			},

@@ -137,9 +137,10 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	// medical_record (X-11 Appendix-A finalize-child-write-race fix)
 	// SD-2: 確定済みカルテ画像ガード — Create/Delete/FindByID が LockByIDForUpdate の
 	// ambient tx に参加する（medical_record_image_service.go の WithTx 内から呼ばれる）。
-	"medical_record_image_repository.go|medicalRecordImageRepository.Create":   {},
-	"medical_record_image_repository.go|medicalRecordImageRepository.Delete":   {},
-	"medical_record_image_repository.go|medicalRecordImageRepository.FindByID": {},
+	// BE9-2D sub-batch④a: moved to internal/medicalrecord (facade kept in internal/repository).
+	"medicalrecord/medical_record_image_repository.go|medicalRecordImageRepository.Create":   {},
+	"medicalrecord/medical_record_image_repository.go|medicalRecordImageRepository.Delete":   {},
+	"medicalrecord/medical_record_image_repository.go|medicalRecordImageRepository.FindByID": {},
 
 	"medical_record_repository.go|medicalRecordRepository.LockByIDForUpdate":     {},
 	"medical_record_repository.go|medicalRecordRepository.Create":                {},
@@ -227,9 +228,10 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"trimming_repository.go|appointmentTrimmingDetailRepository.SetOptions":          {},
 	"trimming_repository.go|appointmentTrimmingDetailRepository.Update":              {},
 	// vital (X-11 Appendix-A finalize-child-write-race fix — same FK-deadlock rationale as examination)
-	"vital_repository.go|vitalRepository.Create": {},
-	"vital_repository.go|vitalRepository.Update": {},
-	"vital_repository.go|vitalRepository.Delete": {},
+	// BE9-2D sub-batch④a: moved to internal/medicalrecord (facade kept in internal/repository).
+	"medicalrecord/vital_repository.go|vitalRepository.Create": {},
+	"medicalrecord/vital_repository.go|vitalRepository.Update": {},
+	"medicalrecord/vital_repository.go|vitalRepository.Delete": {},
 	// G6-2 (BE-refactor.md tx-mechanism-consolidation): repo-internal r.db.WithContext(ctx).Transaction
 	// → dbOrTx(ctx, r.db).Transaction conversion, no ambient-tx caller into any of these (verified per-file).
 	"manualarticle/repository.go|repository.Upsert":                                     {}, // BE8-4 batch3: moved from manual_article_repository.go

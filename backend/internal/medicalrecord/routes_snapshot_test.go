@@ -18,7 +18,8 @@ import (
 // (25 master-CRUD routes via RegisterMasterRoutes in 2C, plus 37 more in 2D — the
 // vaccine/checkup-type/inquiry-template masters, /vaccinations, /checkups, and the
 // checkup/prescription/inquiry medical-record sub-resources — plus 6 lab saga routes in
-// sub-batch③: /lab-imports preview/commit/job/events + /lab-reports summaries/exam);
+// sub-batch③: /lab-imports preview/commit/job/events + /lab-reports summaries/exam, plus 11
+// vital/clinical-plan/image medical-record sub-resources in sub-batch④a, for 79 total);
 // that golden file was updated to
 // drop them (they moved here — same routes, same methods, same handler names, just registered
 // by medicalrecord.Handler.RegisterRoutes instead of *handler.Handler). The permission
@@ -43,6 +44,9 @@ func TestRegisterRoutes_Snapshot(t *testing.T) {
 		NewInquiryTemplateHandler(nil),
 		NewLabImportHandler(nil, nil, nil),
 		NewLabReportHandler(nil),
+		NewVitalHandler(nil, nil),
+		NewClinicalPlanHandler(nil),
+		NewMedicalRecordImageHandler(nil, nil, nil),
 		noopPermission,
 	)
 
@@ -66,7 +70,10 @@ func TestRegisterRoutes_Snapshot(t *testing.T) {
 		"DELETE /api/v1/masters/inquiry-templates/:id DeleteInquiryTemplate\n" +
 		"DELETE /api/v1/masters/vaccines/:id DeleteVaccine\n" +
 		"DELETE /api/v1/medical-records/:id/checkups/:checkupId DeleteCheckup\n" +
+		"DELETE /api/v1/medical-records/:id/clinical-plan DeleteClinicalPlan\n" +
+		"DELETE /api/v1/medical-records/:id/images/:imageId DeleteMedicalRecordImage\n" +
 		"DELETE /api/v1/medical-records/:id/prescriptions/:prescriptionId DeletePrescription\n" +
+		"DELETE /api/v1/medical-records/:id/vitals/:vitalId DeleteVital\n" +
 		"DELETE /api/v1/vaccinations/:id DeleteVaccination\n" +
 		"GET /api/v1/checkups ListGlobalCheckups\n" +
 		"GET /api/v1/checkups/field-results ListPetCheckupResults\n" +
@@ -92,7 +99,10 @@ func TestRegisterRoutes_Snapshot(t *testing.T) {
 		"GET /api/v1/masters/vaccines/:id GetVaccine\n" +
 		"GET /api/v1/medical-records/:id/checkups ListCheckups\n" +
 		"GET /api/v1/medical-records/:id/checkups/:checkupId/field-results ListCheckupFieldResults\n" +
+		"GET /api/v1/medical-records/:id/clinical-plan GetClinicalPlan\n" +
+		"GET /api/v1/medical-records/:id/images ListMedicalRecordImages\n" +
 		"GET /api/v1/medical-records/:id/prescriptions ListPrescriptions\n" +
+		"GET /api/v1/medical-records/:id/vitals ListVitals\n" +
 		"GET /api/v1/vaccinations ListVaccinations\n" +
 		"GET /api/v1/vaccinations/:id GetVaccination\n" +
 		"PATCH /api/v1/masters/checkup-types/:id UpdateCheckupType\n" +
@@ -110,8 +120,10 @@ func TestRegisterRoutes_Snapshot(t *testing.T) {
 		"PATCH /api/v1/masters/vaccines/:id UpdateVaccine\n" +
 		"PATCH /api/v1/masters/vaccines/reorder ReorderVaccines\n" +
 		"PATCH /api/v1/medical-records/:id/checkups/:checkupId UpdateCheckup\n" +
+		"PATCH /api/v1/medical-records/:id/clinical-plan UpdateClinicalPlan\n" +
 		"PATCH /api/v1/medical-records/:id/inquiries UpdateInquiry\n" +
 		"PATCH /api/v1/medical-records/:id/prescriptions/:prescriptionId UpdatePrescription\n" +
+		"PATCH /api/v1/medical-records/:id/vitals/:vitalId UpdateVital\n" +
 		"PATCH /api/v1/vaccinations/:id UpdateVaccination\n" +
 		"POST /api/v1/lab-imports CommitLabImport\n" +
 		"POST /api/v1/lab-imports/preview PreviewLabImport\n" +
@@ -123,12 +135,15 @@ func TestRegisterRoutes_Snapshot(t *testing.T) {
 		"POST /api/v1/masters/inquiry-templates CreateInquiryTemplate\n" +
 		"POST /api/v1/masters/vaccines CreateVaccine\n" +
 		"POST /api/v1/medical-records/:id/checkups CreateCheckup\n" +
+		"POST /api/v1/medical-records/:id/images CreateMedicalRecordImage\n" +
+		"POST /api/v1/medical-records/:id/images/upload UploadMedicalRecordImage\n" +
 		"POST /api/v1/medical-records/:id/prescriptions CreatePrescription\n" +
+		"POST /api/v1/medical-records/:id/vitals CreateVital\n" +
 		"POST /api/v1/vaccinations CreateVaccination\n" +
 		"PUT /api/v1/medical-records/:id/checkups/:checkupId/field-results ReplaceCheckupFieldResults\n"
 
 	assert.Equal(t, want, got, "medicalrecord route snapshot drifted from the pre-move baseline "+
-		"(internal/handler/testdata/route_snapshot.golden, before these 68 lines were removed)")
+		"(internal/handler/testdata/route_snapshot.golden, before these 79 lines were removed)")
 }
 
 // lastHandlerSegment mirrors internal/handler/handler_routes_snapshot_test.go's helper of the

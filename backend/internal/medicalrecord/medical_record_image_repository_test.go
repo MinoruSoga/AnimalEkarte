@@ -1,12 +1,18 @@
-package repository
+package medicalrecord
 
 // medical_record_image_repository_test.go — MedicalRecordImageRepository の統合テスト。
+// 移動元 internal/repository（BE9-2D sub-batch④a）。
 //
-// pet_write_medimage_clinic_isolation_test.go が FindByID / Delete の clinic_id 隔離
-// （親 medical_records への JOIN スコープ）を既にカバーしているため、本ファイルはそこで
+// pet_write_medimage_clinic_isolation_test.go（internal/repository に残留）が FindByID / Delete の
+// clinic_id 隔離（親 medical_records への JOIN スコープ）を既にカバーしているため、本ファイルはそこで
 // 未カバーだった Create / FindByMedicalRecordID（並び順・Staff preload・clinic_id 隔離）と、
 // 存在しないID系の NotFound ケースを補う。
-// setupMedImageIsolationTestDB / makeMedRecordImage は同ファイルで定義済みのため再利用する。
+//
+// setupMedImageIsolationTestDB / makeMedRecordImage は残留側 pet_write_medimage_clinic_isolation_test.go
+// で定義されており package をまたいで import できないため、medicalrecord 側でローカルに再構築する
+// （挙動同一。setupTestDB/ensureAutoMigrated → repotest.SetupTestDB/EnsureAutoMigrated 直呼びのみ差分）。
+// makeTestOwner / makeSpeciesAndPet / makeDoctor / makeHistoryMedicalRecord は既存の medicalrecord
+// 共有ヘルパーを再利用する（重複定義しない）。
 
 import (
 	"context"
@@ -15,14 +21,45 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"gorm.io/gorm"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/repository/repotest"
 )
+
+// setupMedImageIsolationTestDB は medical_record_image テスト用に DB を整える。
+// 残留 pet_write_medimage_clinic_isolation_test.go の同名ヘルパーの再構築版
+// （setupTestDB/ensureAutoMigrated → repotest 直呼びのみ差分・AutoMigrate model set は同一）。
+func setupMedImageIsolationTestDB(t *testing.T) *gorm.DB {
+	t.Helper()
+	db := repotest.SetupTestDB(t)
+	require.NoError(t, repotest.EnsureAutoMigrated(db,
+		&model.AnimalSpecies{}, &model.Pet{}, &model.MedicalRecord{}, &model.MedicalRecordImage{},
+	))
+	db.Exec("TRUNCATE TABLE medical_record_images CASCADE")
+	db.Exec("TRUNCATE TABLE medical_records CASCADE")
+	db.Exec("TRUNCATE TABLE pets CASCADE")
+	db.Exec("TRUNCATE TABLE animal_species CASCADE")
+	return db
+}
+
+// makeMedRecordImage は指定 medical_record に画像を1件作る。
+func makeMedRecordImage(t *testing.T, db *gorm.DB, medicalRecordID uint64, fileName string) *model.MedicalRecordImage {
+	t.Helper()
+	img := &model.MedicalRecordImage{
+		MedicalRecordID: medicalRecordID,
+		ImageURL:        "https://example.test/" + fileName,
+		FileName:        fileName,
+		ImageType:       model.MedicalImageTypeOther,
+	}
+	require.NoError(t, db.WithContext(context.Background()).Create(img).Error)
+	return img
+}
 
 func TestMedicalRecordImageRepository_Create(t *testing.T) {
 	db := setupMedImageIsolationTestDB(t)
-	require.NoError(t, ensureAutoMigrated(db, &model.Staff{}))
+	require.NoError(t, repotest.EnsureAutoMigrated(db, &model.Staff{}))
 	db.Exec("TRUNCATE TABLE staffs CASCADE")
 	repo := NewMedicalRecordImageRepository(db)
 	ctx := context.Background()
@@ -49,7 +86,7 @@ func TestMedicalRecordImageRepository_Create(t *testing.T) {
 
 func TestMedicalRecordImageRepository_FindByMedicalRecordID(t *testing.T) {
 	db := setupMedImageIsolationTestDB(t)
-	require.NoError(t, ensureAutoMigrated(db, &model.Staff{}))
+	require.NoError(t, repotest.EnsureAutoMigrated(db, &model.Staff{}))
 	db.Exec("TRUNCATE TABLE staffs CASCADE")
 	repo := NewMedicalRecordImageRepository(db)
 	ctx := context.Background()

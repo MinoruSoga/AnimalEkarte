@@ -1,6 +1,8 @@
 package handler
 
 import (
+	"context"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -10,9 +12,23 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/animal-ekarte/backend/internal/config"
+	"github.com/animal-ekarte/backend/internal/infra"
 	"github.com/animal-ekarte/backend/internal/repository"
 	"github.com/animal-ekarte/backend/internal/service"
 )
+
+// mockFileUploader is a no-op infra.FileUploader for wiring/identity tests. The
+// medical-record-image handler's own upload-path mock moved to internal/medicalrecord with that
+// handler (BE9-2D sub-batch④a); this residual copy exists only to satisfy New()'s uploader arg.
+type mockFileUploader struct{}
+
+func (m *mockFileUploader) Upload(_ context.Context, _ string, _ io.Reader, _ string) (string, error) {
+	return "", nil
+}
+
+func (m *mockFileUploader) Delete(_ context.Context, _ string) error { return nil }
+
+var _ infra.FileUploader = (*mockFileUploader)(nil)
 
 // ---- New ----
 
@@ -26,7 +42,7 @@ func TestNew(t *testing.T) {
 		LineCustomerMgr:        customerLookup,
 		LineReservationSetting: settingLookup,
 	}
-	uploader := &mockMedicalRecordImageUploader{}
+	uploader := &mockFileUploader{}
 
 	h := New(cfg, svc, repos, uploader)
 

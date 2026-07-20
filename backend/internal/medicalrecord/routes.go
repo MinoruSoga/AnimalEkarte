@@ -26,19 +26,22 @@ type PermissionMiddleware func(resource, action string) gin.HandlerFunc
 // only holds the service(s) it actually needs (Go/Gin guideline: consumer declares minimal
 // dependencies) — Handler is purely a routing composition, not a new aggregate.
 type Handler struct {
-	diagnosis         *DiagnosisHandler
-	examType          *ExamTypeHandler
-	chiefComplaint    *ChiefComplaintHandler
-	checkup           *CheckupHandler
-	checkupType       *CheckupTypeHandler
-	vaccine           *VaccineHandler
-	vaccination       *VaccinationHandler
-	prescription      *PrescriptionHandler
-	inquiry           *InquiryHandler
-	inquiryTemplate   *InquiryTemplateHandler
-	labImport         *LabImportHandler
-	labReport         *LabReportHandler
-	requirePermission PermissionMiddleware
+	diagnosis          *DiagnosisHandler
+	examType           *ExamTypeHandler
+	chiefComplaint     *ChiefComplaintHandler
+	checkup            *CheckupHandler
+	checkupType        *CheckupTypeHandler
+	vaccine            *VaccineHandler
+	vaccination        *VaccinationHandler
+	prescription       *PrescriptionHandler
+	inquiry            *InquiryHandler
+	inquiryTemplate    *InquiryTemplateHandler
+	labImport          *LabImportHandler
+	labReport          *LabReportHandler
+	vital              *VitalHandler
+	clinicalPlan       *ClinicalPlanHandler
+	medicalRecordImage *MedicalRecordImageHandler
+	requirePermission  PermissionMiddleware
 }
 
 // NewHandler initializes a Handler.
@@ -55,22 +58,28 @@ func NewHandler(
 	inquiryTemplate *InquiryTemplateHandler,
 	labImport *LabImportHandler,
 	labReport *LabReportHandler,
+	vital *VitalHandler,
+	clinicalPlan *ClinicalPlanHandler,
+	medicalRecordImage *MedicalRecordImageHandler,
 	requirePermission PermissionMiddleware,
 ) *Handler {
 	return &Handler{
-		diagnosis:         diagnosis,
-		examType:          examType,
-		chiefComplaint:    chiefComplaint,
-		checkup:           checkup,
-		checkupType:       checkupType,
-		vaccine:           vaccine,
-		vaccination:       vaccination,
-		prescription:      prescription,
-		inquiry:           inquiry,
-		inquiryTemplate:   inquiryTemplate,
-		labImport:         labImport,
-		labReport:         labReport,
-		requirePermission: requirePermission,
+		diagnosis:          diagnosis,
+		examType:           examType,
+		chiefComplaint:     chiefComplaint,
+		checkup:            checkup,
+		checkupType:        checkupType,
+		vaccine:            vaccine,
+		vaccination:        vaccination,
+		prescription:       prescription,
+		inquiry:            inquiry,
+		inquiryTemplate:    inquiryTemplate,
+		labImport:          labImport,
+		labReport:          labReport,
+		vital:              vital,
+		clinicalPlan:       clinicalPlan,
+		medicalRecordImage: medicalRecordImage,
+		requirePermission:  requirePermission,
 	}
 }
 
@@ -182,6 +191,24 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	records.PATCH("/:id/prescriptions/:prescriptionId", perm(model.ResourceMedicalRecords, "edit"), h.prescription.UpdatePrescription)
 	records.DELETE("/:id/prescriptions/:prescriptionId", perm(model.ResourceMedicalRecords, "delete"), h.prescription.DeletePrescription)
 	records.PATCH("/:id/inquiries", perm(model.ResourceMedicalRecords, "edit"), h.inquiry.UpdateInquiry)
+
+	// Vitals / clinical-plan / images (BE9-2D sub-batch④a: moved from internal/handler
+	// handler.go RegisterVitalRoutes/RegisterClinicalPlanRoutes/RegisterMedicalRecordImageRoutes).
+	// All guard ResourceMedicalRecords (BUG-125 CRUD parity). NOTE the non-uniform verbs,
+	// hand-transcribed verbatim from the pre-move Register funcs: vitals POST is "edit" (NOT
+	// "create"), whereas images POST / POST upload are "create". treatment / treatment-plan stay
+	// in internal/handler (sub-batch④b).
+	records.GET("/:id/vitals", perm(model.ResourceMedicalRecords, "view"), h.vital.ListVitals)
+	records.POST("/:id/vitals", perm(model.ResourceMedicalRecords, "edit"), h.vital.CreateVital)
+	records.PATCH("/:id/vitals/:vitalId", perm(model.ResourceMedicalRecords, "edit"), h.vital.UpdateVital)
+	records.DELETE("/:id/vitals/:vitalId", perm(model.ResourceMedicalRecords, "delete"), h.vital.DeleteVital)
+	records.GET("/:id/clinical-plan", perm(model.ResourceMedicalRecords, "view"), h.clinicalPlan.GetClinicalPlan)
+	records.PATCH("/:id/clinical-plan", perm(model.ResourceMedicalRecords, "edit"), h.clinicalPlan.UpdateClinicalPlan)
+	records.DELETE("/:id/clinical-plan", perm(model.ResourceMedicalRecords, "delete"), h.clinicalPlan.DeleteClinicalPlan)
+	records.GET("/:id/images", perm(model.ResourceMedicalRecords, "view"), h.medicalRecordImage.ListMedicalRecordImages)
+	records.POST("/:id/images", perm(model.ResourceMedicalRecords, "create"), h.medicalRecordImage.CreateMedicalRecordImage)
+	records.POST("/:id/images/upload", perm(model.ResourceMedicalRecords, "create"), h.medicalRecordImage.UploadMedicalRecordImage)
+	records.DELETE("/:id/images/:imageId", perm(model.ResourceMedicalRecords, "delete"), h.medicalRecordImage.DeleteMedicalRecordImage)
 
 	// Lab import saga (BE9-2D sub-batch③: moved from internal/handler lab_import_handler.go
 	// RegisterLabImportRoutes). All routes guard ResourceLabImport (preview/commit=create,

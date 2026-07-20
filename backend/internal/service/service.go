@@ -51,12 +51,13 @@ type Services struct {
 	ShiftTemplate                  ShiftTemplateService
 	ClinicHoliday                  ClinicHolidayService
 	TreatmentPlan                  TreatmentPlanService
-	Vital                          VitalService
-	Treatment                      TreatmentService
-	DailyRecord                    DailyRecordService
-	MedicalRecordImage             MedicalRecordImageService
-	ClinicalPlan                   ClinicalPlanService
-	Estimate                       EstimateService
+	// Vital / MedicalRecordImage / ClinicalPlan: BE9-2D sub-batch④a — service + handler とも
+	// internal/medicalrecord へ移設済み。composition root (cmd/api/main.go) が medicalrecord.NewX
+	// で直接構築し medicalrecord.NewHandler へ合成するため、Services には保持しない（treatment /
+	// daily-record / estimate は internal/service に残る）。
+	Treatment   TreatmentService
+	DailyRecord DailyRecordService
+	Estimate    EstimateService
 	// ManualArticle: BE9-2B — moved to internal/manualarticle (aggregator-free domain
 	// package). No longer constructed here; see cmd/api/main.go.
 	MerchandiseItem     MerchandiseItemService
@@ -272,17 +273,17 @@ func NewServices(repos *repository.Repositories, notifCfg *ReservationNotificati
 		ShiftTemplate:                  NewShiftTemplateService(repos.ShiftTemplate),
 		ClinicHoliday:                  NewClinicHolidayService(repos.ClinicHoliday),
 		TreatmentPlan:                  NewTreatmentPlanService(repos.TreatmentPlan),
-		Vital:                          NewVitalService(repos.Vital, repos.MedicalRecord, auditSvc, tx),
-		Treatment:                      NewTreatmentServiceWithAudit(repos, auditSvc),
-		DailyRecord:                    NewDailyRecordService(repos.DailyRecord, repos.Hospitalization, tx),
-		MedicalRecordImage:             NewMedicalRecordImageService(repos.MedicalRecordImage, repos.MedicalRecord, tx),
-		ClinicalPlan:                   NewClinicalPlanService(repos.ClinicalPlan, repos.MedicalRecord, repos.DiagnosisType, repos.DiagnosisName),
-		Estimate:                       NewEstimateService(repos.Estimate, repos.MedicalRecord, repos.Reservation, repos.StaffClinicAssignment, auditSvc, tx),
-		MerchandiseItem:                NewMerchandiseItemService(repos.MerchandiseItem),
-		BillingItem:                    NewBillingItemServiceWithCampaign(repos.BillingItem, repos.Accounting, repos.Treatment, tx, repos.TrimmingCourse, repos.TrimmingOption, repos.Campaign, repos.Owner),
-		Refund:                         NewRefundService(repos.Refund, repos.Accounting, auditTxLogger, tx),
-		PasswordReset:                  NewPasswordResetService(&pwResetCfg, repos.Account, repos.PasswordResetToken),
-		ReservationNotifier:            notifier,
+		// Vital / MedicalRecordImage / ClinicalPlan: BE9-2D sub-batch④a — service + handler とも
+		// internal/medicalrecord へ移設済み。composition root (cmd/api/main.go) が medicalrecord.NewX
+		// で直接構築する（Services には保持しない）。
+		Treatment:           NewTreatmentServiceWithAudit(repos, auditSvc),
+		DailyRecord:         NewDailyRecordService(repos.DailyRecord, repos.Hospitalization, tx),
+		Estimate:            NewEstimateService(repos.Estimate, repos.MedicalRecord, repos.Reservation, repos.StaffClinicAssignment, auditSvc, tx),
+		MerchandiseItem:     NewMerchandiseItemService(repos.MerchandiseItem),
+		BillingItem:         NewBillingItemServiceWithCampaign(repos.BillingItem, repos.Accounting, repos.Treatment, tx, repos.TrimmingCourse, repos.TrimmingOption, repos.Campaign, repos.Owner),
+		Refund:              NewRefundService(repos.Refund, repos.Accounting, auditTxLogger, tx),
+		PasswordReset:       NewPasswordResetService(&pwResetCfg, repos.Account, repos.PasswordResetToken),
+		ReservationNotifier: notifier,
 		// FEAT-368: 集計・締め機能
 		ClosingSettings:           closingSettingsSvc,
 		PaymentMethodMaster:       NewPaymentMethodMasterService(repos.PaymentMethodMaster),

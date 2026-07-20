@@ -1,7 +1,7 @@
-package repository
+package medicalrecord
 
 // clinical_plan_repository_optimistic_lock_test.go — BUG-416③: clinical_plan の楽観的ロック
-// （version 列 + expectedVersion 述語）の統合テスト。
+// （version 列 + expectedVersion 述語）の統合テスト。移動元 internal/repository（BE9-2D sub-batch④a）。
 //
 // medical_record_repository.go の Update（BE-refactor.md X-10）と同型の disambiguation を検証する:
 //   (a) expectedVersion 一致 → 更新成功、version は +1 される

@@ -16,6 +16,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
+	"github.com/animal-ekarte/backend/internal/medicalrecord"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/repository"
 	"github.com/animal-ekarte/backend/internal/service"
@@ -113,7 +114,7 @@ func (m *mockMedicalRecordService) UpdateRecommendationReason(ctx context.Contex
 
 type mockClinicalPlanService struct {
 	getOrCreateFn func(ctx context.Context, clinicID, medicalRecordID uint64) (*model.ClinicalPlan, error)
-	updateFn      func(ctx context.Context, clinicID, medicalRecordID uint64, input *service.UpdateClinicalPlanInput) (*model.ClinicalPlan, error)
+	updateFn      func(ctx context.Context, clinicID, medicalRecordID uint64, input *medicalrecord.UpdateClinicalPlanInput) (*model.ClinicalPlan, error)
 	deleteFn      func(ctx context.Context, clinicID, medicalRecordID uint64) error
 }
 
@@ -124,7 +125,7 @@ func (m *mockClinicalPlanService) GetOrCreate(ctx context.Context, clinicID, med
 	return &model.ClinicalPlan{}, nil
 }
 
-func (m *mockClinicalPlanService) Update(ctx context.Context, clinicID, medicalRecordID uint64, input *service.UpdateClinicalPlanInput) (*model.ClinicalPlan, error) {
+func (m *mockClinicalPlanService) Update(ctx context.Context, clinicID, medicalRecordID uint64, input *medicalrecord.UpdateClinicalPlanInput) (*model.ClinicalPlan, error) {
 	if m.updateFn != nil {
 		return m.updateFn(ctx, clinicID, medicalRecordID, input)
 	}
@@ -203,11 +204,13 @@ func (m *mockLstepTagSyncService) SyncDormantTagsWithThresholds(_ context.Contex
 
 // ---- test helper ----
 
-func newHandlerWithMedicalRecordSvc(mrSvc service.MedicalRecordService, cpSvc service.ClinicalPlanService) *Handler {
+// clinical_plan handler methods moved to internal/medicalrecord (BE9-2D sub-batch④a); the parent
+// medical-record handler never reads svc.ClinicalPlan, so cpSvc is retained only to keep the
+// existing table-driven call sites unchanged and is intentionally unused here.
+func newHandlerWithMedicalRecordSvc(mrSvc service.MedicalRecordService, _ medicalrecord.ClinicalPlanService) *Handler {
 	return &Handler{
 		svc: &service.Services{
 			MedicalRecord: mrSvc,
-			ClinicalPlan:  cpSvc,
 			LstepTagSync:  &mockLstepTagSyncService{},
 		},
 	}
@@ -515,7 +518,7 @@ func TestCreateMedicalRecord(t *testing.T) {
 				},
 			},
 			cpSvc: &mockClinicalPlanService{
-				updateFn: func(_ context.Context, _, _ uint64, input *service.UpdateClinicalPlanInput) (*model.ClinicalPlan, error) {
+				updateFn: func(_ context.Context, _, _ uint64, input *medicalrecord.UpdateClinicalPlanInput) (*model.ClinicalPlan, error) {
 					require.NotNil(t, input.TreatmentPolicy)
 					assert.Equal(t, "経過観察", *input.TreatmentPolicy)
 					return &model.ClinicalPlan{}, nil
@@ -1100,7 +1103,6 @@ func TestListMedicalRecords_ViewPermissionDenied(t *testing.T) {
 
 	h := &Handler{svc: &service.Services{
 		MedicalRecord:       &mockMedicalRecordService{},
-		ClinicalPlan:        &mockClinicalPlanService{},
 		LstepTagSync:        &mockLstepTagSyncService{},
 		EffectivePermission: &mockEffectivePermissionService{},
 	}}

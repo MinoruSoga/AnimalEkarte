@@ -225,17 +225,16 @@ func (h *Handler) registerMedicalRecordRoutesWithAuth(rg *gin.RouterGroup) {
 	records.DELETE("/:id", h.RequirePermission(string(model.ResourceMedicalRecords), "delete"), h.DeleteMedicalRecord)
 	records.PATCH("/:id/recommendation-reason", h.RequirePermission(string(model.ResourceMedicalRecords), "edit"), h.UpdateMedicalRecordRecommendationReason)
 
-	h.RegisterVitalRoutes(records)
 	h.RegisterTreatmentRoutes(records)
 	h.RegisterBillingConfirmationRoutes(records)
-	h.RegisterMedicalRecordImageRoutes(records)
 	h.RegisterTreatmentPlanMedicalRecordRoutes(records)
-	h.RegisterClinicalPlanRoutes(records)
 	// BE9-2D: /medical-records/:id/{checkups,prescriptions,inquiries} (+ checkup
 	// field-results) moved to internal/medicalrecord.Handler.RegisterRoutes, which registers
 	// its own rg.Group("/medical-records") on the same protected group (composed in
 	// cmd/api/main.go). RegisterCheckupSyncRoutes stays (checkup-sync is deferred to a later
-	// lstep batch).
+	// lstep batch). sub-batch④a moved /vitals, /clinical-plan, and /images there too
+	// (RegisterVitalRoutes / RegisterClinicalPlanRoutes / RegisterMedicalRecordImageRoutes),
+	// leaving treatment / treatment-plan / billing-confirmation / addendum here.
 	h.RegisterMedicalRecordAddendumRoutes(records)
 }
 

@@ -1,4 +1,4 @@
-package service
+package medicalrecord
 
 import (
 	"context"
@@ -43,6 +43,22 @@ func (m *mockVitalRepository) Update(ctx context.Context, clinicID, vitalID uint
 
 func (m *mockVitalRepository) Delete(ctx context.Context, clinicID, vitalID uint64) error {
 	return m.deleteFn(ctx, clinicID, vitalID)
+}
+
+// mockVitalAuditLogger は vitalAuditLogger (service_deps.go) の narrow test double。BE9-2D
+// sub-batch④a 移設前は service 側 mocks_shared_test.go の 19メソッド mockAuditService を使っていたが、
+// vitalService は LogVitalChange しか呼ばないため、その1メソッドと calls 記録だけを写す。
+type mockVitalAuditLogger struct {
+	logVitalChangeFn func(ctx context.Context, clinicID uint64, actorID *uint64, action string, vitalID, medicalRecordID uint64, oldValue, newValue map[string]any) error
+	calls            []string
+}
+
+func (m *mockVitalAuditLogger) LogVitalChange(ctx context.Context, clinicID uint64, actorID *uint64, action string, vitalID, medicalRecordID uint64, oldValue, newValue map[string]any) error {
+	m.calls = append(m.calls, action)
+	if m.logVitalChangeFn != nil {
+		return m.logVitalChangeFn(ctx, clinicID, actorID, action, vitalID, medicalRecordID, oldValue, newValue)
+	}
+	return nil
 }
 
 // ---- Tests ----
@@ -565,7 +581,7 @@ func ptrInt(i int) *int {
 
 // TestVitalService_Create_AuditLog はバイタル作成時に audit "create" が記録されることを確認する。
 func TestVitalService_Create_AuditLog(t *testing.T) {
-	auditSvc := &mockAuditService{}
+	auditSvc := &mockVitalAuditLogger{}
 	repo := &mockVitalRepository{
 		createFn: func(_ context.Context, v *model.VitalRecord) error {
 			v.ID = 55
@@ -595,7 +611,7 @@ func TestVitalService_Create_AuditLog(t *testing.T) {
 
 // TestVitalService_Update_AuditLog はバイタル更新時に audit "update" が記録されることを確認する。
 func TestVitalService_Update_AuditLog(t *testing.T) {
-	auditSvc := &mockAuditService{}
+	auditSvc := &mockVitalAuditLogger{}
 	existingVital := &model.VitalRecord{
 		ID:              55,
 		MedicalRecordID: ptrUint64(77),
@@ -641,7 +657,7 @@ func TestVitalService_Update_AuditLog(t *testing.T) {
 
 // TestVitalService_Delete_AuditLog はバイタル削除時に audit "delete" が記録されることを確認する。
 func TestVitalService_Delete_AuditLog(t *testing.T) {
-	auditSvc := &mockAuditService{}
+	auditSvc := &mockVitalAuditLogger{}
 	existingVital := &model.VitalRecord{
 		ID:              55,
 		MedicalRecordID: ptrUint64(77),
@@ -670,7 +686,7 @@ func TestVitalService_Delete_AuditLog(t *testing.T) {
 
 // TestVitalService_AuditFailure_NonFatal はバイタル監査ログ失敗がメイン処理を止めないことを確認する。
 func TestVitalService_AuditFailure_NonFatal(t *testing.T) {
-	auditSvc := &mockAuditService{
+	auditSvc := &mockVitalAuditLogger{
 		logVitalChangeFn: func(_ context.Context, _ uint64, _ *uint64, _ string, _, _ uint64, _, _ map[string]any) error {
 			return errors.New("audit db down")
 		},

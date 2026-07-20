@@ -123,3 +123,17 @@ type petFinder interface {
 type AuditLogger interface {
 	LogEntry(ctx context.Context, entry *AuditEntry) error
 }
+
+// vitalAuditLogger is vitalService's consumer-side view of the shared audit kernel's
+// vital-change recorder (internal/service.AuditService.LogVitalChange). vitalService writes a
+// best-effort, non-tx audit entry on each Create/Update/Delete (AUDIT-H1). Unlike the lab / checkup
+// audit views above, this signature carries no medicalrecord-owned struct — it is exactly
+// service.AuditService.LogVitalChange's parameter list (all primitives + map[string]any). The
+// composition root therefore passes the concrete service.AuditService straight in by structural
+// typing, with NO adapter: the audit record is produced by the same unchanged
+// auditService.LogVitalChange method, so its every field stays byte-for-byte identical to the
+// pre-move path (the goal an adapter would only have risked drifting from). A nil dependency keeps
+// the moved service's original best-effort nil-guard.
+type vitalAuditLogger interface {
+	LogVitalChange(ctx context.Context, clinicID uint64, actorID *uint64, action string, vitalID, medicalRecordID uint64, oldValue, newValue map[string]any) error
+}

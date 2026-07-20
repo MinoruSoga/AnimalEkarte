@@ -759,55 +759,6 @@ func rejectDiagnosisTypeRepo(ownedID uint64) repository.DiagnosisTypeRepository 
 	}}
 }
 
-// ── clinical_plan (HIGH): diagnosis_type_id / diagnosis_name_id (x2 slots) ──
-
-func TestClinicalPlanService_Update_RejectsCrossClinicDiagnosisFK(t *testing.T) {
-	const clinicID = uint64(1)
-	const ownedTypeID = uint64(10)
-	const foreignTypeID = uint64(999)
-
-	newSvc := func(updated *bool) ClinicalPlanService {
-		repo := &mockClinicalPlanRepository{
-			findByMedicalRecordIDFn: func(_ context.Context, _, mrID uint64) (*model.ClinicalPlan, error) {
-				return &model.ClinicalPlan{ID: 1, MedicalRecordID: mrID}, nil
-			},
-			updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) error { *updated = true; return nil },
-		}
-		return NewClinicalPlanService(repo, okMedRecForPlan(), rejectDiagnosisTypeRepo(ownedTypeID), okDiagnosisNameRepo())
-	}
-
-	t.Run("rejects cross-clinic diagnosis_type_id and does not persist", func(t *testing.T) {
-		updated := false
-		svc := newSvc(&updated)
-		foreign := foreignTypeID
-		out, err := svc.Update(context.Background(), clinicID, 1, &UpdateClinicalPlanInput{DiagnosisTypeID: &foreign})
-		assert.Error(t, err)
-		assert.Nil(t, out)
-		assert.False(t, updated, "clinical plan must NOT be updated to reference another clinic's diagnosis type")
-	})
-
-	t.Run("rejects cross-clinic diagnosis_2_type_id (second slot)", func(t *testing.T) {
-		updated := false
-		svc := newSvc(&updated)
-		foreign := foreignTypeID
-		foreignPtr := &foreign
-		out, err := svc.Update(context.Background(), clinicID, 1, &UpdateClinicalPlanInput{Diagnosis2TypeID: &foreignPtr})
-		assert.Error(t, err)
-		assert.Nil(t, out)
-		assert.False(t, updated)
-	})
-
-	t.Run("accepts same-clinic diagnosis_type_id (no false-reject)", func(t *testing.T) {
-		updated := false
-		svc := newSvc(&updated)
-		owned := ownedTypeID
-		out, err := svc.Update(context.Background(), clinicID, 1, &UpdateClinicalPlanInput{DiagnosisTypeID: &owned})
-		assert.NoError(t, err)
-		assert.NotNil(t, out)
-		assert.True(t, updated)
-	})
-}
-
 // ── checkup (MEDIUM, clinical screening record): checkup_type_id ──
 
 func rejectTrimmingCourseRepo(ownedID uint64) repository.TrimmingCourseRepository {
@@ -1293,53 +1244,6 @@ func TestCampaignService_Update_RejectsCrossClinicTargetItemFK(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NotNil(t, out)
 		assert.True(t, replaced)
-	})
-}
-
-func TestClinicalPlanService_Update_RejectsCrossClinicDiagnosisName(t *testing.T) {
-	const clinicID = uint64(1)
-	const ownedNameID = uint64(20)
-	const foreignNameID = uint64(888)
-
-	newSvc := func(updated *bool) ClinicalPlanService {
-		repo := &mockClinicalPlanRepository{
-			findByMedicalRecordIDFn: func(_ context.Context, _, mrID uint64) (*model.ClinicalPlan, error) {
-				return &model.ClinicalPlan{ID: 1, MedicalRecordID: mrID}, nil
-			},
-			updateFn: func(_ context.Context, _, _ uint64, _ map[string]any) error { *updated = true; return nil },
-		}
-		return NewClinicalPlanService(repo, okMedRecForPlan(), okDiagnosisTypeRepo(), rejectDiagnosisNameRepo(ownedNameID))
-	}
-
-	t.Run("rejects cross-clinic diagnosis_name_id and does not persist", func(t *testing.T) {
-		updated := false
-		svc := newSvc(&updated)
-		foreign := foreignNameID
-		out, err := svc.Update(context.Background(), clinicID, 1, &UpdateClinicalPlanInput{DiagnosisNameID: &foreign})
-		assert.Error(t, err)
-		assert.Nil(t, out)
-		assert.False(t, updated, "clinical plan must NOT be updated to reference another clinic's diagnosis name")
-	})
-
-	t.Run("rejects cross-clinic diagnosis_2_name_id (second slot)", func(t *testing.T) {
-		updated := false
-		svc := newSvc(&updated)
-		foreign := foreignNameID
-		foreignPtr := &foreign
-		out, err := svc.Update(context.Background(), clinicID, 1, &UpdateClinicalPlanInput{Diagnosis2NameID: &foreignPtr})
-		assert.Error(t, err)
-		assert.Nil(t, out)
-		assert.False(t, updated)
-	})
-
-	t.Run("accepts same-clinic diagnosis_name_id (no false-reject)", func(t *testing.T) {
-		updated := false
-		svc := newSvc(&updated)
-		owned := ownedNameID
-		out, err := svc.Update(context.Background(), clinicID, 1, &UpdateClinicalPlanInput{DiagnosisNameID: &owned})
-		assert.NoError(t, err)
-		assert.NotNil(t, out)
-		assert.True(t, updated)
 	})
 }
 

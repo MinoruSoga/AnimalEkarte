@@ -1,4 +1,4 @@
-package service
+package medicalrecord
 
 import (
 	"context"
@@ -7,7 +7,6 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository"
 )
 
 // CreateMedicalRecordImageInput は診療画像作成の Input DTO
@@ -33,13 +32,13 @@ type MedicalRecordImageService interface {
 }
 
 type medicalRecordImageService struct {
-	repo       repository.MedicalRecordImageRepository
-	medRec     repository.MedicalRecordRepository
-	transactor repository.Transactor
+	repo       MedicalRecordImageRepository
+	medRec     medicalRecordLocker
+	transactor Transactor
 }
 
 // NewMedicalRecordImageService は MedicalRecordImageService を初期化して返す
-func NewMedicalRecordImageService(repo repository.MedicalRecordImageRepository, medRec repository.MedicalRecordRepository, transactor repository.Transactor) MedicalRecordImageService {
+func NewMedicalRecordImageService(repo MedicalRecordImageRepository, medRec medicalRecordLocker, transactor Transactor) MedicalRecordImageService {
 	return &medicalRecordImageService{repo: repo, medRec: medRec, transactor: transactor}
 }
 

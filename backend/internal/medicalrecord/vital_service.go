@@ -1,4 +1,4 @@
-package service
+package medicalrecord
 
 import (
 	"context"
@@ -7,7 +7,6 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository"
 )
 
 // CreateVitalInput はバイタル作成の入力DTO（HTTP非依存）
@@ -76,16 +75,16 @@ type VitalService interface {
 }
 
 type vitalService struct {
-	repo              repository.VitalRepository
-	medicalRecordRepo repository.MedicalRecordRepository
-	auditService      AuditService
-	transactor        repository.Transactor
+	repo              VitalRepository
+	medicalRecordRepo medicalRecordLocker
+	auditService      vitalAuditLogger
+	transactor        Transactor
 }
 
 // NewVitalService はVitalServiceを初期化して返す。transactor は BE-refactor.md X-11
 // （確定と子書込の競合防止）のため、子書込を LockByIDForUpdate の行ロックと同一トランザクションに
 // 収める目的で注入する。
-func NewVitalService(repo repository.VitalRepository, medicalRecordRepo repository.MedicalRecordRepository, auditService AuditService, transactor repository.Transactor) VitalService {
+func NewVitalService(repo VitalRepository, medicalRecordRepo medicalRecordLocker, auditService vitalAuditLogger, transactor Transactor) VitalService {
 	return &vitalService{repo: repo, medicalRecordRepo: medicalRecordRepo, auditService: auditService, transactor: transactor}
 }
 
@@ -103,7 +102,7 @@ func (s *vitalService) Create(ctx context.Context, medicalRecordID uint64, input
 		return nil, apperrors.WrapInvalidInput("pet_id is required")
 	}
 	if input.Temperature == nil && input.HeartRate == nil && input.RespirationRate == nil && input.Weight == nil {
-		return nil, apperrors.WrapInvalidInput(ErrMsgAtLeastOneField)
+		return nil, apperrors.WrapInvalidInput(errMsgAtLeastOneField)
 	}
 
 	vital := &model.VitalRecord{

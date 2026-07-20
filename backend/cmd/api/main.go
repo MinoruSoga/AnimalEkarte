@@ -318,6 +318,18 @@ func main() {
 	labAuditLogger := medicalrecord.NewLabAuditLogger(labAuditAdapter{audit: svcs.Audit})
 	labReportQuerySvc := medicalrecord.NewLabReportQueryService(repos.Examination)
 
+	// vital / clinical-plan / medical-record-image (BE9-2D sub-batch④a): moved from
+	// internal/service NewServices to here (their Services fields were removed). Same wiring the
+	// pre-move NewServices used: repos.* (Batch A facade aliases), mrTx, and svcs.Audit as the
+	// vital audit sink — svcs.Audit satisfies medicalrecord's vitalAuditLogger view directly (no
+	// adapter; signature is LogVitalChange field-for-field). The vital / image handlers take
+	// svcs.MedicalRecord as their medicalRecordGetter (the faithful port of the pre-move
+	// verifyMedicalRecordOwnership → svc.MedicalRecord.GetByID), and the image handler takes the
+	// same infra.FileUploader (uploader) that internal/handler.New injected.
+	vitalSvc := medicalrecord.NewVitalService(repos.Vital, repos.MedicalRecord, svcs.Audit, mrTx)
+	clinicalPlanSvc := medicalrecord.NewClinicalPlanService(repos.ClinicalPlan, repos.MedicalRecord, repos.DiagnosisType, repos.DiagnosisName)
+	medicalRecordImageSvc := medicalrecord.NewMedicalRecordImageService(repos.MedicalRecordImage, repos.MedicalRecord, mrTx)
+
 	medicalRecordHandler := medicalrecord.NewHandler(
 		medicalrecord.NewDiagnosisHandler(
 			medicalrecord.NewDiagnosisTypeService(repos.DiagnosisType),
@@ -334,6 +346,9 @@ func main() {
 		medicalrecord.NewInquiryTemplateHandler(inquiryTemplateSvc),
 		medicalrecord.NewLabImportHandler(labResultImportSvc, labImportJobSvc, labAuditLogger),
 		medicalrecord.NewLabReportHandler(labReportQuerySvc),
+		medicalrecord.NewVitalHandler(vitalSvc, svcs.MedicalRecord),
+		medicalrecord.NewClinicalPlanHandler(clinicalPlanSvc),
+		medicalrecord.NewMedicalRecordImageHandler(medicalRecordImageSvc, svcs.MedicalRecord, uploader),
 		h.RequirePermission,
 	)
 	medicalRecordHandler.RegisterRoutes(protected)

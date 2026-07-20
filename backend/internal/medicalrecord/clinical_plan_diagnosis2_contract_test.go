@@ -1,4 +1,8 @@
-package repository
+package medicalrecord
+
+// 移動元 internal/repository（BE9-2D sub-batch④a）。setupClinicalPlanTestDB /
+// makeClinicalPlanMedicalRecord / makeClinicalPlanDiagnosisType / makeClinicalPlanDiagnosisName は
+// clinical_plan_repository_test.go の同 package ヘルパーを再利用する。
 
 import (
 	"context"

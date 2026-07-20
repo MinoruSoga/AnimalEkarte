@@ -198,3 +198,73 @@ func (m *mockInquiryRepository) SaveByMedicalRecordID(ctx context.Context, clini
 func (m *mockInquiryRepository) CountByChiefComplaintTypeID(_ context.Context, _, _ uint64) (int64, error) {
 	return 0, nil
 }
+
+// ---- carrier: mockVitalRepository (from vital_service_test.go) ----
+// vitalService moved to internal/medicalrecord in BE9-2D sub-batch④a, but treatment_dose_save_test.go
+// (treatment stays in internal/service until sub-batch④b) still constructs this double, so its
+// definition is retained here verbatim.
+
+type mockVitalRepository struct {
+	listByMedicalRecordIDFn func(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.VitalRecord, error)
+	findByIDFn              func(ctx context.Context, clinicID, vitalID uint64) (*model.VitalRecord, error)
+	createFn                func(ctx context.Context, vital *model.VitalRecord) error
+	updateFn                func(ctx context.Context, clinicID, vitalID uint64, fields map[string]any) error
+	deleteFn                func(ctx context.Context, clinicID, vitalID uint64) error
+}
+
+func (m *mockVitalRepository) FindByMedicalRecordID(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.VitalRecord, error) {
+	return m.listByMedicalRecordIDFn(ctx, clinicID, medicalRecordID)
+}
+
+func (m *mockVitalRepository) FindByID(ctx context.Context, clinicID, vitalID uint64) (*model.VitalRecord, error) {
+	if m.findByIDFn != nil {
+		return m.findByIDFn(ctx, clinicID, vitalID)
+	}
+	return nil, nil
+}
+
+func (m *mockVitalRepository) Create(ctx context.Context, vital *model.VitalRecord) error {
+	return m.createFn(ctx, vital)
+}
+
+func (m *mockVitalRepository) Update(ctx context.Context, clinicID, vitalID uint64, fields map[string]any) error {
+	return m.updateFn(ctx, clinicID, vitalID, fields)
+}
+
+func (m *mockVitalRepository) Delete(ctx context.Context, clinicID, vitalID uint64) error {
+	return m.deleteFn(ctx, clinicID, vitalID)
+}
+
+// ---- carrier: mockClinicalPlanRepository (from clinical_plan_service_test.go) ----
+// clinicalPlanService moved to internal/medicalrecord in BE9-2D sub-batch④a, but the residual
+// cross_tenant_master_fk_write_test.go / medical_record_auto_create_test.go /
+// medical_record_subrecords_test.go still construct this double, so its definition is retained
+// here verbatim. updateFn keeps the 4-arg shape (BUG-416③ compat); expectedVersion-checking tests
+// set updateWithVersionFn.
+
+type mockClinicalPlanRepository struct {
+	findByMedicalRecordIDFn func(ctx context.Context, clinicID, medicalRecordID uint64) (*model.ClinicalPlan, error)
+	createFn                func(ctx context.Context, plan *model.ClinicalPlan) error
+	updateFn                func(ctx context.Context, clinicID, planID uint64, fields map[string]any) error
+	updateWithVersionFn     func(ctx context.Context, clinicID, planID uint64, fields map[string]any, expectedVersion *int) error
+	deleteFn                func(ctx context.Context, clinicID, planID uint64) error
+}
+
+func (m *mockClinicalPlanRepository) FindByMedicalRecordID(ctx context.Context, clinicID, medicalRecordID uint64) (*model.ClinicalPlan, error) {
+	return m.findByMedicalRecordIDFn(ctx, clinicID, medicalRecordID)
+}
+
+func (m *mockClinicalPlanRepository) Create(ctx context.Context, plan *model.ClinicalPlan) error {
+	return m.createFn(ctx, plan)
+}
+
+func (m *mockClinicalPlanRepository) Update(ctx context.Context, clinicID, planID uint64, fields map[string]any, expectedVersion *int) error {
+	if m.updateWithVersionFn != nil {
+		return m.updateWithVersionFn(ctx, clinicID, planID, fields, expectedVersion)
+	}
+	return m.updateFn(ctx, clinicID, planID, fields)
+}
+
+func (m *mockClinicalPlanRepository) Delete(ctx context.Context, clinicID, planID uint64) error {
+	return m.deleteFn(ctx, clinicID, planID)
+}

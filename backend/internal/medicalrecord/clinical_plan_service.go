@@ -1,4 +1,4 @@
-package service
+package medicalrecord
 
 import (
 	"context"
@@ -6,7 +6,6 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository"
 )
 
 const (
@@ -64,14 +63,14 @@ type ClinicalPlanService interface {
 }
 
 type clinicalPlanService struct {
-	repo         repository.ClinicalPlanRepository
-	medRec       repository.MedicalRecordRepository
-	diagTypeRepo repository.DiagnosisTypeRepository
-	diagNameRepo repository.DiagnosisNameRepository
+	repo         ClinicalPlanRepository
+	medRec       medicalRecordFinder
+	diagTypeRepo DiagnosisTypeRepository
+	diagNameRepo DiagnosisNameRepository
 }
 
 // NewClinicalPlanService はClinicalPlanServiceを初期化して返す
-func NewClinicalPlanService(repo repository.ClinicalPlanRepository, medRec repository.MedicalRecordRepository, diagTypeRepo repository.DiagnosisTypeRepository, diagNameRepo repository.DiagnosisNameRepository) ClinicalPlanService {
+func NewClinicalPlanService(repo ClinicalPlanRepository, medRec medicalRecordFinder, diagTypeRepo DiagnosisTypeRepository, diagNameRepo DiagnosisNameRepository) ClinicalPlanService {
 	return &clinicalPlanService{repo: repo, medRec: medRec, diagTypeRepo: diagTypeRepo, diagNameRepo: diagNameRepo}
 }
 

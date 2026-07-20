@@ -1,8 +1,9 @@
-package handler
+package medicalrecord
 
 import (
 	"time"
 
+	"github.com/animal-ekarte/backend/internal/httpapi"
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
@@ -38,12 +39,12 @@ func toMedicalRecordImageResponse(img *model.MedicalRecordImage) medicalRecordIm
 		MimeType:        img.MimeType,
 		ImageType:       string(img.ImageType),
 		Description:     img.Description,
-		TakenAt:         localTimePtr(img.TakenAt),
+		TakenAt:         httpapi.LocalTimePtr(img.TakenAt),
 		ExamID:          img.ExamID,
 		StaffID:         img.StaffID,
 		SortOrder:       img.SortOrder,
-		CreatedAt:       localTime(img.CreatedAt),
-		UpdatedAt:       localTime(img.UpdatedAt),
+		CreatedAt:       httpapi.LocalTime(img.CreatedAt),
+		UpdatedAt:       httpapi.LocalTime(img.UpdatedAt),
 	}
 	if img.Staff != nil {
 		r.Staff = toStaffSummary(img.Staff)

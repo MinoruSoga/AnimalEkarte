@@ -1,4 +1,4 @@
-package handler
+package medicalrecord
 
 import (
 	"bytes"
@@ -16,9 +16,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
-	"github.com/animal-ekarte/backend/internal/infra"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/service"
 )
 
 // TestMedicalRecordImageHandlerCompiles verifies medical_record_image_handler.go compiles
@@ -30,7 +28,7 @@ func TestMedicalRecordImageHandlerCompiles(t *testing.T) {
 
 type mockMedicalRecordImageService struct {
 	listFn   func(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.MedicalRecordImage, error)
-	createFn func(ctx context.Context, clinicID, medicalRecordID uint64, input *service.CreateMedicalRecordImageInput) (*model.MedicalRecordImage, error)
+	createFn func(ctx context.Context, clinicID, medicalRecordID uint64, input *CreateMedicalRecordImageInput) (*model.MedicalRecordImage, error)
 	deleteFn func(ctx context.Context, clinicID, medicalRecordID, imageID uint64) error
 }
 
@@ -38,7 +36,7 @@ func (m *mockMedicalRecordImageService) List(ctx context.Context, clinicID, medi
 	return m.listFn(ctx, clinicID, medicalRecordID)
 }
 
-func (m *mockMedicalRecordImageService) Create(ctx context.Context, clinicID, medicalRecordID uint64, input *service.CreateMedicalRecordImageInput) (*model.MedicalRecordImage, error) {
+func (m *mockMedicalRecordImageService) Create(ctx context.Context, clinicID, medicalRecordID uint64, input *CreateMedicalRecordImageInput) (*model.MedicalRecordImage, error) {
 	return m.createFn(ctx, clinicID, medicalRecordID, input)
 }
 
@@ -66,16 +64,12 @@ func (m *mockMedicalRecordImageUploader) Delete(ctx context.Context, key string)
 	return nil
 }
 
-var _ infra.FileUploader = (*mockMedicalRecordImageUploader)(nil)
+// fileUploader は internal/medicalrecord がローカル宣言する consumer-side interface（handler_deps.go）。
+// pre-move の infra.FileUploader 全体ではなく、この最小 interface に対して満たすことを確認する。
+var _ fileUploader = (*mockMedicalRecordImageUploader)(nil)
 
-func newHandlerWithMedicalRecordImageSvc(mrSvc service.MedicalRecordService, imgSvc service.MedicalRecordImageService, uploader infra.FileUploader) *Handler {
-	return &Handler{
-		svc: &service.Services{
-			MedicalRecord:      mrSvc,
-			MedicalRecordImage: imgSvc,
-		},
-		uploader: uploader,
-	}
+func newHandlerWithMedicalRecordImageSvc(mrSvc medicalRecordGetter, imgSvc MedicalRecordImageService, uploader fileUploader) *MedicalRecordImageHandler {
+	return NewMedicalRecordImageHandler(imgSvc, mrSvc, uploader)
 }
 
 // buildImageMultipart はテスト用の multipart/form-data ボディを組み立てる。
@@ -219,7 +213,7 @@ func TestCreateMedicalRecordImage(t *testing.T) {
 				},
 			},
 			imgSvc: &mockMedicalRecordImageService{
-				createFn: func(_ context.Context, clinicID, medicalRecordID uint64, input *service.CreateMedicalRecordImageInput) (*model.MedicalRecordImage, error) {
+				createFn: func(_ context.Context, clinicID, medicalRecordID uint64, input *CreateMedicalRecordImageInput) (*model.MedicalRecordImage, error) {
 					return &model.MedicalRecordImage{ID: 9, MedicalRecordID: medicalRecordID, ImageURL: input.ImageURL, ImageType: input.ImageType}, nil
 				},
 			},
@@ -294,7 +288,7 @@ func TestCreateMedicalRecordImage(t *testing.T) {
 				},
 			},
 			imgSvc: &mockMedicalRecordImageService{
-				createFn: func(_ context.Context, _, _ uint64, _ *service.CreateMedicalRecordImageInput) (*model.MedicalRecordImage, error) {
+				createFn: func(_ context.Context, _, _ uint64, _ *CreateMedicalRecordImageInput) (*model.MedicalRecordImage, error) {
 					return nil, fmt.Errorf("db failure")
 				},
 			},
@@ -467,7 +461,7 @@ func TestUploadMedicalRecordImage(t *testing.T) {
 				},
 			},
 			imgSvc: &mockMedicalRecordImageService{
-				createFn: func(_ context.Context, clinicID, medicalRecordID uint64, input *service.CreateMedicalRecordImageInput) (*model.MedicalRecordImage, error) {
+				createFn: func(_ context.Context, clinicID, medicalRecordID uint64, input *CreateMedicalRecordImageInput) (*model.MedicalRecordImage, error) {
 					return &model.MedicalRecordImage{ID: 3, MedicalRecordID: medicalRecordID, ImageURL: input.ImageURL, ImageType: input.ImageType}, nil
 				},
 			},
@@ -605,7 +599,7 @@ func TestUploadMedicalRecordImage(t *testing.T) {
 				},
 			},
 			imgSvc: &mockMedicalRecordImageService{
-				createFn: func(_ context.Context, _, _ uint64, _ *service.CreateMedicalRecordImageInput) (*model.MedicalRecordImage, error) {
+				createFn: func(_ context.Context, _, _ uint64, _ *CreateMedicalRecordImageInput) (*model.MedicalRecordImage, error) {
 					return nil, fmt.Errorf("db failure")
 				},
 			},

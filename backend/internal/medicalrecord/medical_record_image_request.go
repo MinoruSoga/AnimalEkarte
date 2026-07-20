@@ -1,4 +1,4 @@
-package handler
+package medicalrecord
 
 import (
 	"crypto/rand"
@@ -11,7 +11,6 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/service"
 )
 
 const medicalRecordImageMaxUploadSize = 10 * 1024 * 1024 // 10MB
@@ -41,13 +40,13 @@ type createMedicalRecordImageRequest struct {
 	SortOrder    int        `json:"sort_order"`
 }
 
-func (r *createMedicalRecordImageRequest) toServiceInput() *service.CreateMedicalRecordImageInput {
+func (r *createMedicalRecordImageRequest) toServiceInput() *CreateMedicalRecordImageInput {
 	imageType := model.MedicalImageType(r.ImageType)
 	if imageType == "" {
 		imageType = model.MedicalImageTypeOther
 	}
 
-	return &service.CreateMedicalRecordImageInput{
+	return &CreateMedicalRecordImageInput{
 		ImageURL:     r.ImageURL,
 		ThumbnailURL: r.ThumbnailURL,
 		FileName:     r.FileName,
@@ -70,8 +69,8 @@ type uploadedMedicalRecordImageInput struct {
 	TakenAt  *time.Time
 }
 
-func (i uploadedMedicalRecordImageInput) toServiceInput() *service.CreateMedicalRecordImageInput {
-	return &service.CreateMedicalRecordImageInput{
+func (i uploadedMedicalRecordImageInput) toServiceInput() *CreateMedicalRecordImageInput {
+	return &CreateMedicalRecordImageInput{
 		ImageURL:  i.ImageURL,
 		FileName:  i.FileName,
 		FileSize:  i.FileSize,

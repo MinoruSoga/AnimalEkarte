@@ -1,10 +1,9 @@
-package handler
+package medicalrecord
 
 import (
 	"time"
 
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/service"
 )
 
 // createVitalRequest はバイタル作成のバインド struct
@@ -19,8 +18,8 @@ type createVitalRequest struct {
 	Notes           string    `json:"notes"`
 }
 
-func (r *createVitalRequest) toServiceInput(clinicID, petID uint64) *service.CreateVitalInput {
-	return &service.CreateVitalInput{
+func (r *createVitalRequest) toServiceInput(clinicID, petID uint64) *CreateVitalInput {
+	return &CreateVitalInput{
 		ClinicID:        clinicID,
 		PetID:           petID,
 		RecordedAt:      r.RecordedAt,
@@ -46,8 +45,8 @@ type updateVitalRequest struct {
 	Notes           *string    `json:"notes"`
 }
 
-func (r updateVitalRequest) toServiceInput(actorID uint64) *service.UpdateVitalInput {
-	return &service.UpdateVitalInput{
+func (r updateVitalRequest) toServiceInput(actorID uint64) *UpdateVitalInput {
+	return &UpdateVitalInput{
 		RecordedAt:      r.RecordedAt,
 		StaffID:         r.StaffID,
 		Temperature:     r.Temperature,

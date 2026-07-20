@@ -1,9 +1,10 @@
-package handler
+package medicalrecord
 
 import (
 	"strconv"
 	"time"
 
+	"github.com/animal-ekarte/backend/internal/httpapi"
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
@@ -24,14 +25,14 @@ type vitalResponse struct {
 func toVitalResponse(v *model.VitalRecord) vitalResponse {
 	r := vitalResponse{
 		ID:              strconv.FormatUint(v.ID, 10),
-		RecordedAt:      localTime(v.RecordedAt),
+		RecordedAt:      httpapi.LocalTime(v.RecordedAt),
 		Temperature:     v.Temperature,
 		HeartRate:       v.HeartRate,
 		RespirationRate: v.RespirationRate,
 		Weight:          v.Weight,
 		WeightUnit:      v.WeightUnit,
 		Notes:           v.Notes,
-		CreatedAt:       localTime(v.CreatedAt),
+		CreatedAt:       httpapi.LocalTime(v.CreatedAt),
 	}
 	if v.MedicalRecordID != nil {
 		s := strconv.FormatUint(*v.MedicalRecordID, 10)

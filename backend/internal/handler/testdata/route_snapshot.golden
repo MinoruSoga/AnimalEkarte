@@ -43,11 +43,8 @@ DELETE /api/v1/masters/trimming-course-types/:id DeleteTrimmingCourseType
 DELETE /api/v1/masters/trimming-courses/:id DeleteTrimmingCourse
 DELETE /api/v1/masters/trimming-options/:id DeleteTrimmingOption
 DELETE /api/v1/medical-records/:id DeleteMedicalRecord
-DELETE /api/v1/medical-records/:id/clinical-plan DeleteClinicalPlan
-DELETE /api/v1/medical-records/:id/images/:imageId DeleteMedicalRecordImage
 DELETE /api/v1/medical-records/:id/treatment-plans/:planId DeleteTreatmentPlanInMedicalRecord
 DELETE /api/v1/medical-records/:id/treatments/:treatmentId DeleteTreatment
-DELETE /api/v1/medical-records/:id/vitals/:vitalId DeleteVital
 DELETE /api/v1/owners/:id DeleteOwner
 DELETE /api/v1/owners/:id/line DeleteOwnerLine
 DELETE /api/v1/owners/:id/lstep/tags/:tag_name DeleteOwnerLstepTag
@@ -181,11 +178,8 @@ GET /api/v1/medical-records ListMedicalRecords
 GET /api/v1/medical-records/:id GetMedicalRecord
 GET /api/v1/medical-records/:id/addenda ListMedicalRecordAddenda
 GET /api/v1/medical-records/:id/billing-confirmation GetBillingConfirmation
-GET /api/v1/medical-records/:id/clinical-plan GetClinicalPlan
-GET /api/v1/medical-records/:id/images ListMedicalRecordImages
 GET /api/v1/medical-records/:id/treatment-plans ListTreatmentPlansByMedicalRecord
 GET /api/v1/medical-records/:id/treatments ListTreatments
-GET /api/v1/medical-records/:id/vitals ListVitals
 GET /api/v1/owners ListOwners
 GET /api/v1/owners/:id GetOwner
 GET /api/v1/owners/:id/line/send-logs GetLineSendLogs
@@ -276,11 +270,9 @@ PATCH /api/v1/masters/trimming-courses/reorder ReorderTrimmingCourses
 PATCH /api/v1/masters/trimming-options/:id UpdateTrimmingOption
 PATCH /api/v1/masters/trimming-options/reorder ReorderTrimmingOptions
 PATCH /api/v1/medical-records/:id UpdateMedicalRecord
-PATCH /api/v1/medical-records/:id/clinical-plan UpdateClinicalPlan
 PATCH /api/v1/medical-records/:id/recommendation-reason UpdateMedicalRecordRecommendationReason
 PATCH /api/v1/medical-records/:id/treatment-plans/:planId UpdateTreatmentPlanInMedicalRecord
 PATCH /api/v1/medical-records/:id/treatments/:treatmentId UpdateTreatment
-PATCH /api/v1/medical-records/:id/vitals/:vitalId UpdateVital
 PATCH /api/v1/owners/:id UpdateOwner
 PATCH /api/v1/owners/:id/delivery-caution UpdateOwnerDeliveryCaution
 PATCH /api/v1/owners/:id/delivery-exclusion UpdateOwnerDeliveryExclusion
@@ -368,11 +360,8 @@ POST /api/v1/medical-records CreateMedicalRecord
 POST /api/v1/medical-records/:id/addenda CreateMedicalRecordAddendum
 POST /api/v1/medical-records/:id/billing-confirmation/confirm ConfirmBillingConfirmation
 POST /api/v1/medical-records/:id/billing-confirmation/return ReturnBillingConfirmation
-POST /api/v1/medical-records/:id/images CreateMedicalRecordImage
-POST /api/v1/medical-records/:id/images/upload UploadMedicalRecordImage
 POST /api/v1/medical-records/:id/treatment-plans CreateTreatmentPlanForMedicalRecord
 POST /api/v1/medical-records/:id/treatments CreateTreatment
-POST /api/v1/medical-records/:id/vitals CreateVital
 POST /api/v1/owners CreateOwner
 POST /api/v1/owners/:id/line/link-token GenerateLineLinkToken
 POST /api/v1/owners/:id/line/send SendLineMessage
