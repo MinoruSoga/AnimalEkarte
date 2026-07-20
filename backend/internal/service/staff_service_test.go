@@ -71,6 +71,23 @@ func (m *mockStaffRepository) CountBlockingReferencesByStaffID(ctx context.Conte
 	return m.countBlockingRefsFn(ctx, clinicID, staffID)
 }
 
+// 予約用途 write（ADR-006 論点#1 案A）は staff service からは呼ばれない no-op スタブ。
+func (m *mockStaffRepository) CreateForReservation(_ context.Context, _ *model.Staff, _ uint64) error {
+	return nil
+}
+
+func (m *mockStaffRepository) UpdateForReservation(_ context.Context, _, _ uint64, _ map[string]any) error {
+	return nil
+}
+
+func (m *mockStaffRepository) DeleteForReservation(_ context.Context, _, _ uint64) error {
+	return nil
+}
+
+func (m *mockStaffRepository) SwapSortOrderForReservation(_ context.Context, _, _ uint64, _ string) error {
+	return nil
+}
+
 // mockReservationForStaff は Staff テストで使用する ReservationQueryRepository のスタブ
 type mockReservationForStaff struct {
 	existsByStaffIDFn func(ctx context.Context, clinicID, staffID uint64) (bool, error)
@@ -146,6 +163,14 @@ func (m *mockShiftEntryForStaff) ExistsByStaffID(ctx context.Context, clinicID, 
 
 func (m *mockShiftEntryForStaff) FindOnDutyStaffs(_ context.Context, _ uint64, _ time.Time) ([]model.Staff, error) {
 	return nil, nil
+}
+
+func (m *mockShiftEntryForStaff) SaveByStaffDate(_ context.Context, _ uint64, _ *model.ShiftEntry, _ []model.ShiftEntryBreak) error {
+	return nil
+}
+
+func (m *mockShiftEntryForStaff) DeleteByStaffDate(_ context.Context, _, _ uint64, _ time.Time) error {
+	return nil
 }
 
 // mockAccountForStaff は Staff テストで使用する AccountRepository のスタブ

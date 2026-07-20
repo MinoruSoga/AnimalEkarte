@@ -67,6 +67,15 @@ func (m *mockShiftEntryRepository) FindOnDutyStaffs(ctx context.Context, clinicI
 	return nil, nil
 }
 
+// 予約スケジュール用途 write（ADR-006 論点#1 案A）は shift entry service からは呼ばれない no-op スタブ。
+func (m *mockShiftEntryRepository) SaveByStaffDate(_ context.Context, _ uint64, _ *model.ShiftEntry, _ []model.ShiftEntryBreak) error {
+	return nil
+}
+
+func (m *mockShiftEntryRepository) DeleteByStaffDate(_ context.Context, _, _ uint64, _ time.Time) error {
+	return nil
+}
+
 // ---- Tests ----
 
 func TestShiftEntryService_List(t *testing.T) {

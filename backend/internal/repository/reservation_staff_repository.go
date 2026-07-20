@@ -2,7 +2,6 @@ package repository
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	"gorm.io/gorm"
@@ -31,10 +30,16 @@ type ReservationStaffRepository interface {
 	SupportsReservationType(ctx context.Context, clinicID, staffID, reservationTypeID uint64) (bool, error)
 }
 
-type reservationStaffRepository struct{ db *gorm.DB }
+type reservationStaffRepository struct {
+	db *gorm.DB
+	// staff は staffs テーブルの唯一の書き込み者（staff domain・ADR-006 論点#1 案A）。
+	// 本 repository の staffs write メソッドは staff へ delegate する。read と
+	// junction (staff_reservation_exclusions/capabilities) は reservation 所有のまま。
+	staff StaffRepository
+}
 
 func NewReservationStaffRepository(db *gorm.DB) ReservationStaffRepository {
-	return &reservationStaffRepository{db: db}
+	return &reservationStaffRepository{db: db, staff: NewStaffRepository(db)}
 }
 
 func (r *reservationStaffRepository) FindAll(ctx context.Context, clinicID uint64) ([]model.Staff, error) {
@@ -65,54 +70,19 @@ func (r *reservationStaffRepository) FindByID(ctx context.Context, clinicID, id 
 	return &staff, nil
 }
 
-// Create はスタッフ + StaffClinicAssignment をトランザクションで作成する。
-// BE-refactor.md X-8: dbOrTx(ctx, r.db).Transaction(...) にすることで、ambient tx（例:
-// reservationStaffService.Create の Transactor.WithTx）があればそのネスト tx（SAVEPOINT）
-// として参加する。過去は r.db.WithContext(ctx).Transaction(...) で常に独立した新規 tx を
-// 開始しており、ambient tx が UpdateExcludedReservationTypes の失敗で rollback しても
-// 本メソッドの staff/assignment 作成は既にコミット済みのため巻き戻らなかった
-// （除外コース未設定のまま孤児スタッフが残る部分コミットのバグ）。
+// Create は staffRepository.CreateForReservation へ delegate する（ADR-006 論点#1 案A: 実装は staff domain 側）。
 func (r *reservationStaffRepository) Create(ctx context.Context, staff *model.Staff, clinicID uint64) error {
-	if err := dbOrTx(ctx, r.db).Transaction(func(tx *gorm.DB) error {
-		if err := tx.Create(staff).Error; err != nil {
-			return apperrors.FromGORM(err, "reservation_staff", "")
-		}
-		assignment := &model.StaffClinicAssignment{
-			StaffID:  staff.ID,
-			ClinicID: clinicID,
-			IsMain:   true,
-		}
-		if err := tx.Create(assignment).Error; err != nil {
-			return apperrors.FromGORM(err, "staff_clinic_assignment", fmt.Sprintf("staff=%d", staff.ID))
-		}
-		return nil
-	}); err != nil {
-		return apperrors.Wrap(err, "failed to create reservation staff")
-	}
-	return nil
+	return r.staff.CreateForReservation(ctx, staff, clinicID)
 }
 
-// BE-refactor.md X-8: dbOrTx(ctx, r.db) にすることで、reservationStaffService.Update が
-// Transactor.WithTx で本メソッドと UpdateExcludedReservationTypes を括った場合に同一 tx へ参加する。
+// Update は staffRepository.UpdateForReservation へ delegate する（ADR-006 論点#1 案A: 実装は staff domain 側）。
 func (r *reservationStaffRepository) Update(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
-	return updateScopedByID(ctx, dbOrTx(ctx, r.db), &model.Staff{}, "reservation_staff", clinicID, id, fields)
+	return r.staff.UpdateForReservation(ctx, clinicID, id, fields)
 }
 
-// BE-refactor.md X-8: dbOrTx(ctx, r.db) で ambient tx 参加を統一する（他の write メソッドと対称）。
-// #236 BUG#1: Staff はソフトデリート対象のため Delete() は UPDATE に変換され、GORM は Joins() を落とす。
-// clinic 条件は WHERE 側の EXISTS に埋め、staff_repository.Delete と同型にする。
+// Delete は staffRepository.DeleteForReservation へ delegate する（ADR-006 論点#1 案A: 実装は staff domain 側）。
 func (r *reservationStaffRepository) Delete(ctx context.Context, clinicID, id uint64) error {
-	result := dbOrTx(ctx, r.db).
-		Where("id = ?", id).
-		Where("EXISTS (SELECT 1 FROM staff_clinic_assignments sca WHERE sca.staff_id = staffs.id AND sca.clinic_id = ? AND sca.deleted_at IS NULL)", clinicID).
-		Delete(&model.Staff{})
-	if result.Error != nil {
-		return apperrors.FromGORM(result.Error, "reservation_staff", fmt.Sprintf("%d", id))
-	}
-	if result.RowsAffected == 0 {
-		return apperrors.WrapNotFound("reservation_staff", fmt.Sprintf("%d", id))
-	}
-	return nil
+	return r.staff.DeleteForReservation(ctx, clinicID, id)
 }
 
 func (r *reservationStaffRepository) CountUsageByStaffID(ctx context.Context, clinicID, staffID uint64) (int64, error) {
@@ -128,51 +98,9 @@ func (r *reservationStaffRepository) CountUsageByStaffID(ctx context.Context, cl
 	return count, nil
 }
 
-// BE-refactor.md X-8: dbOrTx(ctx, r.db).Transaction(...) で ambient tx 参加を統一する
-// （Create/UpdateExcludedReservationTypes/UpdateReservationCapabilities と対称）。
+// UpdateSortOrder は staffRepository.SwapSortOrderForReservation へ delegate する（ADR-006 論点#1 案A: 実装は staff domain 側）。
 func (r *reservationStaffRepository) UpdateSortOrder(ctx context.Context, clinicID, id uint64, direction string) error {
-	if err := dbOrTx(ctx, r.db).Transaction(func(tx *gorm.DB) error {
-		var target model.Staff
-		err := tx.
-			Joins("JOIN staff_clinic_assignments sca ON sca.staff_id = staffs.id AND sca.clinic_id = ?", clinicID).
-			Where("staffs.id = ? AND staffs.deleted_at IS NULL", id).
-			First(&target).Error
-		if err != nil {
-			return apperrors.FromGORM(err, "reservation_staff", fmt.Sprintf("%d", id))
-		}
-
-		var neighbor model.Staff
-		q := tx.
-			Joins("JOIN staff_clinic_assignments sca ON sca.staff_id = staffs.id AND sca.clinic_id = ?", clinicID).
-			Where("staffs.deleted_at IS NULL")
-		if direction == "up" {
-			q = q.Where("staffs.sort_order < ?", target.SortOrder).Order("staffs.sort_order DESC")
-		} else {
-			q = q.Where("staffs.sort_order > ?", target.SortOrder).Order("staffs.sort_order ASC")
-		}
-		if err := q.First(&neighbor).Error; err != nil {
-			wrapped := apperrors.FromGORM(err, "reservation_staff", "neighbor")
-			if errors.Is(wrapped, apperrors.ErrNotFound) {
-				// 隣接なし → 変更なし
-				return nil
-			}
-			return wrapped
-		}
-
-		targetOrder := target.SortOrder
-		neighborOrder := neighbor.SortOrder
-
-		if err := tx.Scopes(clinicScope(clinicID)).Model(&model.Staff{}).Where("id = ?", target.ID).Update("sort_order", neighborOrder).Error; err != nil {
-			return apperrors.FromGORM(err, "reservation_staff", fmt.Sprintf("%d", target.ID))
-		}
-		if err := tx.Scopes(clinicScope(clinicID)).Model(&model.Staff{}).Where("id = ?", neighbor.ID).Update("sort_order", targetOrder).Error; err != nil {
-			return apperrors.FromGORM(err, "reservation_staff", fmt.Sprintf("%d", neighbor.ID))
-		}
-		return nil
-	}); err != nil {
-		return apperrors.Wrap(err, "failed to swap sort order")
-	}
-	return nil
+	return r.staff.SwapSortOrderForReservation(ctx, clinicID, id, direction)
 }
 
 // BE-refactor.md R2-5 (D12) レビュー結果: clinic_id 述語なしを意図的に維持する

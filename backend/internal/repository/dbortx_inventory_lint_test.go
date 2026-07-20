@@ -219,8 +219,15 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"staff_repository.go|staffRepository.Reorder":                          {},
 	"staff_repository.go|staffRepository.Update":                           {},
 	"staff_repository.go|staffRepository.UpdatePrimaryClinicID":            {},
+	// ADR-006 論点#1 案A: reservation_staff_repository.go から移動した予約用途 write
+	"staff_repository.go|staffRepository.CreateForReservation":        {},
+	"staff_repository.go|staffRepository.UpdateForReservation":        {},
+	"staff_repository.go|staffRepository.DeleteForReservation":        {},
+	"staff_repository.go|staffRepository.SwapSortOrderForReservation": {},
 	// shift_entry (uniform dbOrTx)
-	"shiftentry/repository.go|repository.Create":           {}, // BE8-4 batch13: moved from shift_entry_repository.go
+	"shiftentry/repository.go|repository.Create": {}, // BE8-4 batch13: moved from shift_entry_repository.go
+	// ADR-006 論点#1 案A: reservation_schedule_repository.go から移動した予約用途 write
+	"shiftentry/repository.go|repository.SaveByStaffDate":  {},
 	"shiftentry/repository.go|repository.Delete":           {}, // BE8-4 batch13: moved from shift_entry_repository.go
 	"shiftentry/repository.go|repository.ExistsByStaffID":  {}, // BE8-4 batch13: moved from shift_entry_repository.go
 	"shiftentry/repository.go|repository.FindAll":          {}, // BE8-4 batch13: moved from shift_entry_repository.go
@@ -245,7 +252,6 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	// → dbOrTx(ctx, r.db).Transaction conversion, no ambient-tx caller into any of these (verified per-file).
 	"manualarticle/repository.go|repository.Upsert":                                     {}, // BE8-4 batch3: moved from manual_article_repository.go
 	"owner_repository.go|ownerRepository.CreateWithPets":                                {},
-	"reservation_schedule_repository.go|reservationScheduleRepository.Save":             {},
 	"reservation_type_liff_repository.go|reservationTypeLiffRepository.UpdateSortOrder": {},
 	"shifttemplate/repository.go|repository.UpdateBreaks":                               {}, // BE8-4 batch12: moved from shift_template_repository.go
 	// treatment (BE9-2D ④b: WithTx 化に伴う ambient tx 参加。④b Batch A で medicalrecord へ移動済み、
@@ -286,10 +292,6 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"permission_group_repository.go|permissionGroupRepository.UpdateStaffGroups": {},
 	// X-8 (Appendix-A tx-atomicity fix, commit 1e2d483c): reservation_staff repo-internal tx
 	// conversion. Allowlist backfill discovered during G6-2 (X-8 landed without registering these).
-	"reservation_staff_repository.go|reservationStaffRepository.Create":                         {},
-	"reservation_staff_repository.go|reservationStaffRepository.Update":                         {},
-	"reservation_staff_repository.go|reservationStaffRepository.Delete":                         {},
-	"reservation_staff_repository.go|reservationStaffRepository.UpdateSortOrder":                {},
 	"reservation_staff_repository.go|reservationStaffRepository.UpdateExcludedReservationTypes": {},
 	"reservation_staff_repository.go|reservationStaffRepository.UpdateReservationCapabilities":  {},
 	// BE-refactor.md H-7: FindByID を dbOrTx 化し、reservationStaffService.Update の

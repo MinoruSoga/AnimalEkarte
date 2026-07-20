@@ -2,7 +2,6 @@ package repository
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"time"
 
@@ -10,6 +9,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/repository/shiftentry"
 )
 
 // ReservationScheduleRepository はスタッフ個人スケジュール（shift_entries + shift_entry_breaks）のデータアクセスインターフェース
@@ -24,10 +24,15 @@ type ReservationScheduleRepository interface {
 	Delete(ctx context.Context, clinicID, staffID uint64, date time.Time) error
 }
 
-type reservationScheduleRepository struct{ db *gorm.DB }
+type reservationScheduleRepository struct {
+	db *gorm.DB
+	// entries は shift_entries の唯一の書き込み者（staff domain・ADR-006 論点#1 案A）。
+	// 本 repository の write メソッドは entries へ delegate する。read は対象外（裁定条件iii）。
+	entries shiftentry.Repository
+}
 
 func NewReservationScheduleRepository(db *gorm.DB) ReservationScheduleRepository {
-	return &reservationScheduleRepository{db: db}
+	return &reservationScheduleRepository{db: db, entries: shiftentry.New(db)}
 }
 
 func (r *reservationScheduleRepository) FindAllByMonth(ctx context.Context, clinicID, staffID uint64, month string) ([]model.ShiftEntry, error) {
@@ -107,71 +112,12 @@ func (r *reservationScheduleRepository) FindAllByDate(ctx context.Context, clini
 	return &entry, nil
 }
 
-// Save は ShiftEntry と ShiftEntryBreaks をトランザクションで upsert する
+// Save は shiftentry.SaveByStaffDate へ delegate する（ADR-006 論点#1 案A: 実装は staff domain 側）。
 func (r *reservationScheduleRepository) Save(ctx context.Context, clinicID uint64, entry *model.ShiftEntry, breaks []model.ShiftEntryBreak) error {
-	if err := dbOrTx(ctx, r.db).Transaction(func(tx *gorm.DB) error {
-		// 既存エントリを検索
-		var existing model.ShiftEntry
-		err := tx.Scopes(clinicScope(entry.ClinicID)).
-			Where("staff_id = ? AND date = ?",
-				entry.StaffID, entry.Date.Format(time.DateOnly)).
-			First(&existing).Error
-
-		if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
-			return apperrors.FromGORM(err, "shift_entry", fmt.Sprintf("staff=%d", entry.StaffID))
-		}
-
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			// 新規作成
-			if err2 := tx.Create(entry).Error; err2 != nil {
-				return apperrors.FromGORM(err2, "shift_entry", "")
-			}
-		} else {
-			// 更新
-			entry.ID = existing.ID
-			fields := map[string]any{
-				"shift_type": entry.ShiftType,
-				"start_time": entry.StartTime,
-				"end_time":   entry.EndTime,
-				"notes":      entry.Notes,
-				"updated_at": gorm.Expr("NOW()"),
-			}
-			if err2 := tx.Scopes(clinicScope(entry.ClinicID)).
-				Model(&model.ShiftEntry{}).Where("id = ?", existing.ID).Updates(fields).Error; err2 != nil {
-				return apperrors.FromGORM(err2, "shift_entry", fmt.Sprintf("%d", existing.ID))
-			}
-		}
-
-		// 既存のbreaksを削除してから再作成
-		if err2 := tx.Where("shift_entry_id = ?", entry.ID).Delete(&model.ShiftEntryBreak{}).Error; err2 != nil {
-			return apperrors.FromGORM(err2, "shift_entry_break", fmt.Sprintf("%d", entry.ID))
-		}
-		if len(breaks) > 0 {
-			for i := range breaks {
-				breaks[i].ShiftEntryID = entry.ID
-			}
-			if err2 := tx.Create(&breaks).Error; err2 != nil {
-				return apperrors.FromGORM(err2, "shift_entry_break", "")
-			}
-		}
-		return nil
-	}); err != nil {
-		return apperrors.Wrap(err, "failed to upsert shift entry")
-	}
-	return nil
+	return r.entries.SaveByStaffDate(ctx, clinicID, entry, breaks)
 }
 
+// Delete は shiftentry.DeleteByStaffDate へ delegate する（ADR-006 論点#1 案A: 実装は staff domain 側）。
 func (r *reservationScheduleRepository) Delete(ctx context.Context, clinicID, staffID uint64, date time.Time) error {
-	result := r.db.WithContext(ctx).
-		Scopes(clinicScope(clinicID)).
-		Where("staff_id = ? AND date = ?",
-			staffID, date.Format(time.DateOnly)).
-		Delete(&model.ShiftEntry{})
-	if result.Error != nil {
-		return apperrors.FromGORM(result.Error, "schedule_entry", fmt.Sprintf("staff=%d date=%s", staffID, date.Format(time.DateOnly)))
-	}
-	if result.RowsAffected == 0 {
-		return apperrors.WrapNotFound("shift_entry", fmt.Sprintf("staff=%d date=%s", staffID, date.Format(time.DateOnly)))
-	}
-	return nil
+	return r.entries.DeleteByStaffDate(ctx, clinicID, staffID, date)
 }

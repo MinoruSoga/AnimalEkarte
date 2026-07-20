@@ -33,6 +33,12 @@ type Repository interface {
 	ReplaceBreaks(ctx context.Context, shiftEntryID uint64, breaks []model.ShiftEntryBreak) error
 	// FindOnDutyStaffs は指定日にシフトが登録されているスタッフ一覧を返す (BUG-344)
 	FindOnDutyStaffs(ctx context.Context, clinicID uint64, date time.Time) ([]model.Staff, error)
+	// --- 予約スケジュール用途の書き込み（ADR-006 論点#1 案A: shift_entries の書き込みは
+	// staff domain（本package）の exported メソッドへ一本化し、reservation 側は delegate 経由で呼ぶ）。
+	// 既存 Create/Update/Delete/ReplaceBreaks と意図的に別メソッド: (staff_id, date) キーの
+	// upsert + breaks 全置換を単一 tx で行う予約画面固有の contract のため。
+	SaveByStaffDate(ctx context.Context, clinicID uint64, entry *model.ShiftEntry, breaks []model.ShiftEntryBreak) error
+	DeleteByStaffDate(ctx context.Context, clinicID, staffID uint64, date time.Time) error
 }
 
 type repository struct{ db *gorm.DB }
@@ -161,4 +167,82 @@ func (r *repository) FindOnDutyStaffs(ctx context.Context, clinicID uint64, date
 		return nil, apperrors.FromGORM(err, "on_duty_staffs", dateStr)
 	}
 	return staffs, nil
+}
+
+// ---- 予約スケジュール用途の書き込み（ADR-006 論点#1 案A で reservation_schedule_repository.go から移動） ----
+
+// SaveByStaffDate は ShiftEntry と ShiftEntryBreaks をトランザクションで upsert する。
+// スコープは entry.ClinicID（呼び出し元 service が認証済み clinicID を設定する）。
+func (r *repository) SaveByStaffDate(ctx context.Context, clinicID uint64, entry *model.ShiftEntry, breaks []model.ShiftEntryBreak) error {
+	// fail-closed: スコープ述語は entry.ClinicID を使うため、認証済み clinicID との
+	// 不一致は書込前に拒否する（将来の呼び出し元が非認証由来の値を渡す事故を封じる）。
+	if entry.ClinicID != clinicID {
+		return apperrors.WrapInvalidInput("shift entry clinic_id mismatch")
+	}
+	if err := repohelpers.DBOrTx(ctx, r.db).Transaction(func(tx *gorm.DB) error {
+		// 既存エントリを検索
+		var existing model.ShiftEntry
+		err := tx.Scopes(repohelpers.ClinicScope(entry.ClinicID)).
+			Where("staff_id = ? AND date = ?",
+				entry.StaffID, entry.Date.Format(time.DateOnly)).
+			First(&existing).Error
+
+		if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+			return apperrors.FromGORM(err, "shift_entry", fmt.Sprintf("staff=%d", entry.StaffID))
+		}
+
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			// 新規作成
+			if err2 := tx.Create(entry).Error; err2 != nil {
+				return apperrors.FromGORM(err2, "shift_entry", "")
+			}
+		} else {
+			// 更新
+			entry.ID = existing.ID
+			fields := map[string]any{
+				"shift_type": entry.ShiftType,
+				"start_time": entry.StartTime,
+				"end_time":   entry.EndTime,
+				"notes":      entry.Notes,
+				"updated_at": gorm.Expr("NOW()"),
+			}
+			if err2 := tx.Scopes(repohelpers.ClinicScope(entry.ClinicID)).
+				Model(&model.ShiftEntry{}).Where("id = ?", existing.ID).Updates(fields).Error; err2 != nil {
+				return apperrors.FromGORM(err2, "shift_entry", fmt.Sprintf("%d", existing.ID))
+			}
+		}
+
+		// 既存のbreaksを削除してから再作成
+		if err2 := tx.Where("shift_entry_id = ?", entry.ID).Delete(&model.ShiftEntryBreak{}).Error; err2 != nil {
+			return apperrors.FromGORM(err2, "shift_entry_break", fmt.Sprintf("%d", entry.ID))
+		}
+		if len(breaks) > 0 {
+			for i := range breaks {
+				breaks[i].ShiftEntryID = entry.ID
+			}
+			if err2 := tx.Create(&breaks).Error; err2 != nil {
+				return apperrors.FromGORM(err2, "shift_entry_break", "")
+			}
+		}
+		return nil
+	}); err != nil {
+		return apperrors.Wrap(err, "failed to upsert shift entry")
+	}
+	return nil
+}
+
+// DeleteByStaffDate は (staff_id, date) キーで ShiftEntry を削除する（clinic_id スコープ付き）。
+func (r *repository) DeleteByStaffDate(ctx context.Context, clinicID, staffID uint64, date time.Time) error {
+	result := r.db.WithContext(ctx).
+		Scopes(repohelpers.ClinicScope(clinicID)).
+		Where("staff_id = ? AND date = ?",
+			staffID, date.Format(time.DateOnly)).
+		Delete(&model.ShiftEntry{})
+	if result.Error != nil {
+		return apperrors.FromGORM(result.Error, "schedule_entry", fmt.Sprintf("staff=%d date=%s", staffID, date.Format(time.DateOnly)))
+	}
+	if result.RowsAffected == 0 {
+		return apperrors.WrapNotFound("shift_entry", fmt.Sprintf("staff=%d date=%s", staffID, date.Format(time.DateOnly)))
+	}
+	return nil
 }

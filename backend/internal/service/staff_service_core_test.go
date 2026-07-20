@@ -75,6 +75,22 @@ func (m *coreMockStaffRepository) CountBlockingReferencesByStaffID(ctx context.C
 	return nil, nil
 }
 
+func (m *coreMockStaffRepository) CreateForReservation(_ context.Context, _ *model.Staff, _ uint64) error {
+	return nil
+}
+
+func (m *coreMockStaffRepository) UpdateForReservation(_ context.Context, _, _ uint64, _ map[string]any) error {
+	return nil
+}
+
+func (m *coreMockStaffRepository) DeleteForReservation(_ context.Context, _, _ uint64) error {
+	return nil
+}
+
+func (m *coreMockStaffRepository) SwapSortOrderForReservation(_ context.Context, _, _ uint64, _ string) error {
+	return nil
+}
+
 type coreMockAccountRepository struct {
 	updateFn func(ctx context.Context, id uint64, fields map[string]any) error
 }
@@ -182,6 +198,14 @@ func (m *coreMockShiftEntryRepository) ReplaceBreaks(_ context.Context, _ uint64
 }
 func (m *coreMockShiftEntryRepository) FindOnDutyStaffs(_ context.Context, _ uint64, _ time.Time) ([]model.Staff, error) {
 	return nil, nil
+}
+
+func (m *coreMockShiftEntryRepository) SaveByStaffDate(_ context.Context, _ uint64, _ *model.ShiftEntry, _ []model.ShiftEntryBreak) error {
+	return nil
+}
+
+func (m *coreMockShiftEntryRepository) DeleteByStaffDate(_ context.Context, _, _ uint64, _ time.Time) error {
+	return nil
 }
 
 // coreFakeTransactor runs fn directly without a real transaction (WithTx passthrough).

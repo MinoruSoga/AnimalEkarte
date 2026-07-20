@@ -3,6 +3,7 @@ package repository
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"gorm.io/gorm"
@@ -24,6 +25,15 @@ type StaffRepository interface {
 	Delete(ctx context.Context, clinicID, id uint64) error
 	Reorder(ctx context.Context, clinicID uint64, ids []uint64) error
 	CountBlockingReferencesByStaffID(ctx context.Context, clinicID, staffID uint64) ([]StaffDependencyCount, error)
+	// --- 予約用途の staffs 書き込み（ADR-006 論点#1 案A: staffs テーブルの書き込みは
+	// staff domain の exported メソッドへ一本化し、reservation 側は delegate 経由で呼ぶ）。
+	// 既存 Create/Update/Delete/Reorder と意図的に別メソッド: エラーリソース名
+	// ("reservation_staff")・スコープ機構（primary clinic_id vs assignment EXISTS）・
+	// tx 構成（main assignment 同時作成 / 隣接 swap）が異なり、統合は挙動変更になる。
+	CreateForReservation(ctx context.Context, staff *model.Staff, clinicID uint64) error
+	UpdateForReservation(ctx context.Context, clinicID, id uint64, fields map[string]any) error
+	DeleteForReservation(ctx context.Context, clinicID, id uint64) error
+	SwapSortOrderForReservation(ctx context.Context, clinicID, id uint64, direction string) error
 }
 
 type StaffDependencyCount struct {
@@ -214,4 +224,106 @@ func (r *staffRepository) CountBlockingReferencesByStaffID(ctx context.Context, 
 	}
 
 	return dependencies, nil
+}
+
+// ---- 予約用途の staffs 書き込み（ADR-006 論点#1 案A で reservation_staff_repository.go から移動） ----
+
+// CreateForReservation はスタッフ + StaffClinicAssignment をトランザクションで作成する。
+// BE-refactor.md X-8: dbOrTx(ctx, r.db).Transaction(...) にすることで、ambient tx（例:
+// reservationStaffService.Create の Transactor.WithTx）があればそのネスト tx（SAVEPOINT）
+// として参加する。過去は r.db.WithContext(ctx).Transaction(...) で常に独立した新規 tx を
+// 開始しており、ambient tx が UpdateExcludedReservationTypes の失敗で rollback しても
+// 本メソッドの staff/assignment 作成は既にコミット済みのため巻き戻らなかった
+// （除外コース未設定のまま孤児スタッフが残る部分コミットのバグ）。
+func (r *staffRepository) CreateForReservation(ctx context.Context, staff *model.Staff, clinicID uint64) error {
+	if err := dbOrTx(ctx, r.db).Transaction(func(tx *gorm.DB) error {
+		if err := tx.Create(staff).Error; err != nil {
+			return apperrors.FromGORM(err, "reservation_staff", "")
+		}
+		assignment := &model.StaffClinicAssignment{
+			StaffID:  staff.ID,
+			ClinicID: clinicID,
+			IsMain:   true,
+		}
+		if err := tx.Create(assignment).Error; err != nil {
+			return apperrors.FromGORM(err, "staff_clinic_assignment", fmt.Sprintf("staff=%d", staff.ID))
+		}
+		return nil
+	}); err != nil {
+		return apperrors.Wrap(err, "failed to create reservation staff")
+	}
+	return nil
+}
+
+// UpdateForReservation は予約用の staffs 更新（primary clinic_id スコープ・リソース名 reservation_staff）。
+// BE-refactor.md X-8: dbOrTx(ctx, r.db) にすることで、reservationStaffService.Update が
+// Transactor.WithTx で本メソッドと UpdateExcludedReservationTypes を括った場合に同一 tx へ参加する。
+func (r *staffRepository) UpdateForReservation(ctx context.Context, clinicID, id uint64, fields map[string]any) error {
+	return updateScopedByID(ctx, dbOrTx(ctx, r.db), &model.Staff{}, "reservation_staff", clinicID, id, fields)
+}
+
+// DeleteForReservation は予約用の staffs ソフトデリート。
+// BE-refactor.md X-8: dbOrTx(ctx, r.db) で ambient tx 参加を統一する（他の write メソッドと対称）。
+// #236 BUG#1: Staff はソフトデリート対象のため Delete() は UPDATE に変換され、GORM は Joins() を落とす。
+// clinic 条件は WHERE 側の EXISTS に埋め、staffRepository.Delete と同型にする。
+func (r *staffRepository) DeleteForReservation(ctx context.Context, clinicID, id uint64) error {
+	result := dbOrTx(ctx, r.db).
+		Where("id = ?", id).
+		Where("EXISTS (SELECT 1 FROM staff_clinic_assignments sca WHERE sca.staff_id = staffs.id AND sca.clinic_id = ? AND sca.deleted_at IS NULL)", clinicID).
+		Delete(&model.Staff{})
+	if result.Error != nil {
+		return apperrors.FromGORM(result.Error, "reservation_staff", fmt.Sprintf("%d", id))
+	}
+	if result.RowsAffected == 0 {
+		return apperrors.WrapNotFound("reservation_staff", fmt.Sprintf("%d", id))
+	}
+	return nil
+}
+
+// SwapSortOrderForReservation は隣接スタッフと sort_order を入れ替える（予約画面の並び替え）。
+// BE-refactor.md X-8: dbOrTx(ctx, r.db).Transaction(...) で ambient tx 参加を統一する
+// （CreateForReservation/UpdateExcludedReservationTypes/UpdateReservationCapabilities と対称）。
+func (r *staffRepository) SwapSortOrderForReservation(ctx context.Context, clinicID, id uint64, direction string) error {
+	if err := dbOrTx(ctx, r.db).Transaction(func(tx *gorm.DB) error {
+		var target model.Staff
+		err := tx.
+			Joins("JOIN staff_clinic_assignments sca ON sca.staff_id = staffs.id AND sca.clinic_id = ?", clinicID).
+			Where("staffs.id = ? AND staffs.deleted_at IS NULL", id).
+			First(&target).Error
+		if err != nil {
+			return apperrors.FromGORM(err, "reservation_staff", fmt.Sprintf("%d", id))
+		}
+
+		var neighbor model.Staff
+		q := tx.
+			Joins("JOIN staff_clinic_assignments sca ON sca.staff_id = staffs.id AND sca.clinic_id = ?", clinicID).
+			Where("staffs.deleted_at IS NULL")
+		if direction == "up" {
+			q = q.Where("staffs.sort_order < ?", target.SortOrder).Order("staffs.sort_order DESC")
+		} else {
+			q = q.Where("staffs.sort_order > ?", target.SortOrder).Order("staffs.sort_order ASC")
+		}
+		if err := q.First(&neighbor).Error; err != nil {
+			wrapped := apperrors.FromGORM(err, "reservation_staff", "neighbor")
+			if errors.Is(wrapped, apperrors.ErrNotFound) {
+				// 隣接なし → 変更なし
+				return nil
+			}
+			return wrapped
+		}
+
+		targetOrder := target.SortOrder
+		neighborOrder := neighbor.SortOrder
+
+		if err := tx.Scopes(clinicScope(clinicID)).Model(&model.Staff{}).Where("id = ?", target.ID).Update("sort_order", neighborOrder).Error; err != nil {
+			return apperrors.FromGORM(err, "reservation_staff", fmt.Sprintf("%d", target.ID))
+		}
+		if err := tx.Scopes(clinicScope(clinicID)).Model(&model.Staff{}).Where("id = ?", neighbor.ID).Update("sort_order", targetOrder).Error; err != nil {
+			return apperrors.FromGORM(err, "reservation_staff", fmt.Sprintf("%d", neighbor.ID))
+		}
+		return nil
+	}); err != nil {
+		return apperrors.Wrap(err, "failed to swap sort order")
+	}
+	return nil
 }
