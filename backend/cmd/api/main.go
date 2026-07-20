@@ -47,6 +47,29 @@ func (a manualArticleAuditAdapter) LogEntry(ctx context.Context, entry manualart
 	})
 }
 
+// medicalRecordAuditTxAdapter adapts internal/service's tx-internal audit logger
+// (AuditTxLogger.LogEntryTx over *service.AuditLogInput) to internal/medicalrecord's own
+// consumer-side AuditTxLogger view (LogEntryTx over *medicalrecord.AuditEntry), so
+// internal/medicalrecord never imports internal/service (ADR-006 aggregator 非経由). Used by
+// medicalrecord's checkupFieldResultService for its #211 fail-closed tx-internal deletion
+// audit. Moved here from internal/service/medicalrecord_middle_state.go in BE9-2D Batch C
+// (mirrors manualArticleAuditAdapter above).
+type medicalRecordAuditTxAdapter struct{ inner service.AuditTxLogger }
+
+func (a medicalRecordAuditTxAdapter) LogEntryTx(ctx context.Context, e *medicalrecord.AuditEntry) error {
+	return a.inner.LogEntryTx(ctx, &service.AuditLogInput{
+		ClinicID:   e.ClinicID,
+		ActorID:    e.ActorID,
+		ActorType:  e.ActorType,
+		Action:     e.Action,
+		Resource:   e.Resource,
+		ResourceID: e.ResourceID,
+		OldValue:   e.OldValue,
+		NewValue:   e.NewValue,
+		Metadata:   e.Metadata,
+	})
+}
+
 func main() {
 	// 設定読み込み（ロガー初期化より先に行い、LOG_LEVEL を含む全設定を config.Config に一元化する）
 	cfg := config.Load()
@@ -220,16 +243,32 @@ func main() {
 	)
 	manualArticleHandler.RegisterRoutes(protected)
 
-	// BE9-2C (medicalrecord master-CRUD slice): same aggregator-non-経由 pattern as the
-	// BE9-2B manualarticle pilot above. diagnosis-types/diagnosis-names/examination-types/
-	// chief-complaint-types are composed here directly from repos (repository.Repositories
-	// still constructs these — clinical_plan_service.go/medical_record_service.go/
-	// examination_service.go/inquiry_service.go/lab_import_examination_service.go, all still
-	// in internal/service pending BE9-2D, depend on the repository-level facades) rather than
-	// via svcs.* (those Services fields were removed — nothing else read them). No audit
-	// adapter needed: these master handlers never wrote audit log entries even before the
-	// move (verified against the pre-move internal/handler/{diagnosis,exam_type,
-	// chief_complaint}_handler.go).
+	// BE9-2C/2D (medicalrecord slice): same aggregator-non-経由 pattern as the BE9-2B
+	// manualarticle pilot above. The master-CRUD entities (diagnosis/exam/chief-complaint,
+	// BE9-2C) plus checkup/checkup-field-result/checkup-type/vaccine/vaccination/inquiry/
+	// inquiry-template/prescription (BE9-2D) are composed here directly from repos rather than
+	// via svcs.* (their Services fields were removed — nothing else read them). Unlike the 2C
+	// master handlers (which never wrote audit entries), the 2D services need the same LSTEP
+	// tag-sync / delivery-trigger deps and tx/audit boundary the pre-move NewServices wired:
+	// the LSTEP deps come from svcs.LstepTagSync / svcs.LstepDeliveryTrigger (still constructed
+	// inside NewServices), tx from repository.NewTransactor(repos.DB()), and the tx-internal
+	// audit logger via medicalRecordAuditTxAdapter. checkupSvc is kept in scope for its
+	// graceful-shutdown drain (checkupSvc.Wait() below, replacing the old svcs.Checkup.Wait()).
+	mrTx := repository.NewTransactor(repos.DB())
+	mrAuditTxLogger, ok := svcs.Audit.(service.AuditTxLogger)
+	if !ok {
+		logger.Error("DI wiring error: AuditService concrete does not implement AuditTxLogger (#211 tx-internal audit)")
+		os.Exit(1)
+	}
+	checkupSvc := medicalrecord.NewCheckupService(repos.Checkup, repos.MedicalRecord, repos.CheckupType, svcs.LstepDeliveryTrigger, svcs.LstepTagSync)
+	checkupFieldResultSvc := medicalrecord.NewCheckupFieldResultService(repos.Checkup, repos.MedicalRecord, repos.CheckupTypeField, repos.CheckupFieldResult, medicalRecordAuditTxAdapter{inner: mrAuditTxLogger}, mrTx)
+	checkupTypeSvc := medicalrecord.NewCheckupTypeService(repos.CheckupType)
+	vaccineSvc := medicalrecord.NewVaccineService(repos.Vaccine)
+	vaccinationSvc := medicalrecord.NewVaccinationService(repos.Vaccination, repos.Vaccine, svcs.LstepTagSync)
+	prescriptionSvc := medicalrecord.NewPrescriptionService(repos.Prescription, repos.MedicalRecord, svcs.LstepTagSync, mrTx)
+	inquirySvc := medicalrecord.NewInquiryService(repos.Inquiry, repos.ChiefComplaintType)
+	inquiryTemplateSvc := medicalrecord.NewInquiryTemplateService(repos.InquiryTemplate)
+
 	medicalRecordHandler := medicalrecord.NewHandler(
 		medicalrecord.NewDiagnosisHandler(
 			medicalrecord.NewDiagnosisTypeService(repos.DiagnosisType),
@@ -237,6 +276,13 @@ func main() {
 		),
 		medicalrecord.NewExamTypeHandler(medicalrecord.NewExamTypeService(repos.ExaminationType)),
 		medicalrecord.NewChiefComplaintHandler(medicalrecord.NewChiefComplaintTypeService(repos.ChiefComplaintType)),
+		medicalrecord.NewCheckupHandler(checkupSvc, checkupFieldResultSvc),
+		medicalrecord.NewCheckupTypeHandler(checkupTypeSvc),
+		medicalrecord.NewVaccineHandler(vaccineSvc),
+		medicalrecord.NewVaccinationHandler(vaccinationSvc),
+		medicalrecord.NewPrescriptionHandler(prescriptionSvc),
+		medicalrecord.NewInquiryHandler(inquirySvc),
+		medicalrecord.NewInquiryTemplateHandler(inquiryTemplateSvc),
 		h.RequirePermission,
 	)
 	medicalRecordHandler.RegisterRoutes(protected)
@@ -292,7 +338,7 @@ func main() {
 	logger.Info("draining in-flight reservation notification goroutines...")
 	svcs.ReservationNotifier.Wait()
 	logger.Info("draining in-flight checkup followup trigger goroutines...")
-	svcs.Checkup.Wait()
+	checkupSvc.Wait()
 
 	logger.Info("server stopped")
 }

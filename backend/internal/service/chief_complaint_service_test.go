@@ -4,10 +4,11 @@ package service
 // repository.ChiefComplaintTypeRepository. Its own ChiefComplaintTypeService test suite
 // moved to internal/medicalrecord/chief_complaint_service_test.go (BE9-2C —
 // internal/service/chief_complaint_service.go was deleted, zero remaining fan-in). This mock
-// stays here because cross_tenant_master_fk_write_test.go's InquiryService/
-// MedicalRecordService tests (still in internal/service, out of this batch's scope)
-// construct it via okChiefComplaintTypeRepo()/rejectChiefComplaintTypeRepo() and need it to
-// keep compiling.
+// stays here because cross_tenant_master_fk_write_test.go's MedicalRecordService test and
+// medical_record_subrecords_test.go (still in internal/service) construct it via
+// okChiefComplaintTypeRepo()/rejectChiefComplaintTypeRepo() and need it to keep compiling.
+// The InquiryService cross-tenant test moved to internal/medicalrecord in BE9-2D (which has its
+// own mockChiefComplaintTypeRepository + helper copies).
 
 import (
 	"context"

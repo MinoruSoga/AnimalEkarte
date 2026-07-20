@@ -10,14 +10,18 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// TestRegisterRoutes_Snapshot is medicalrecord's half of the BE9-2B/2C route-snapshot
+// TestRegisterRoutes_Snapshot is medicalrecord's half of the BE9-2B/2C/2D route-snapshot
 // regression check (see internal/handler/handler_routes_snapshot_test.go's file header for
 // the pattern and internal/manualarticle/routes_snapshot_test.go for the precedent this
-// mirrors). Before this batch these 25 routes were captured inside
+// mirrors). Before BE9-2C/2D these 62 routes were captured inside
 // internal/handler/testdata/route_snapshot.golden as part of *handler.Handler.RegisterRoutes
-// (via RegisterMasterRoutes); that golden file was updated to drop them (they moved here —
-// same routes, same methods, same handler names, just registered by
-// medicalrecord.Handler.RegisterRoutes instead of *handler.Handler).
+// (25 master-CRUD routes via RegisterMasterRoutes in 2C, plus 37 more in 2D — the
+// vaccine/checkup-type/inquiry-template masters, /vaccinations, /checkups, and the
+// checkup/prescription/inquiry medical-record sub-resources); that golden file was updated to
+// drop them (they moved here — same routes, same methods, same handler names, just registered
+// by medicalrecord.Handler.RegisterRoutes instead of *handler.Handler). The permission
+// arguments are NOT captured here (gin's RouteInfo.Handler exposes only the trailing handler
+// name, not the middleware chain) — RBAC parity is enforced by hand-transcription in routes.go.
 func TestRegisterRoutes_Snapshot(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
@@ -28,6 +32,13 @@ func TestRegisterRoutes_Snapshot(t *testing.T) {
 		NewDiagnosisHandler(nil, nil),
 		NewExamTypeHandler(nil),
 		NewChiefComplaintHandler(nil),
+		NewCheckupHandler(nil, nil),
+		NewCheckupTypeHandler(nil),
+		NewVaccineHandler(nil),
+		NewVaccinationHandler(nil),
+		NewPrescriptionHandler(nil),
+		NewInquiryHandler(nil),
+		NewInquiryTemplateHandler(nil),
 		noopPermission,
 	)
 
@@ -43,10 +54,21 @@ func TestRegisterRoutes_Snapshot(t *testing.T) {
 	got := strings.Join(lines, "\n") + "\n"
 
 	want := "" +
+		"DELETE /api/v1/masters/checkup-types/:id DeleteCheckupType\n" +
 		"DELETE /api/v1/masters/chief-complaint-types/:id DeleteChiefComplaint\n" +
 		"DELETE /api/v1/masters/diagnosis-names/:id DeleteDiagnosisName\n" +
 		"DELETE /api/v1/masters/diagnosis-types/:id DeleteDiagnosisType\n" +
 		"DELETE /api/v1/masters/examination-types/:id DeleteExaminationType\n" +
+		"DELETE /api/v1/masters/inquiry-templates/:id DeleteInquiryTemplate\n" +
+		"DELETE /api/v1/masters/vaccines/:id DeleteVaccine\n" +
+		"DELETE /api/v1/medical-records/:id/checkups/:checkupId DeleteCheckup\n" +
+		"DELETE /api/v1/medical-records/:id/prescriptions/:prescriptionId DeletePrescription\n" +
+		"DELETE /api/v1/vaccinations/:id DeleteVaccination\n" +
+		"GET /api/v1/checkups ListGlobalCheckups\n" +
+		"GET /api/v1/checkups/field-results ListPetCheckupResults\n" +
+		"GET /api/v1/masters/checkup-types ListCheckupTypes\n" +
+		"GET /api/v1/masters/checkup-types/:id GetCheckupType\n" +
+		"GET /api/v1/masters/checkup-types/:id/fields ListCheckupTypeFields\n" +
 		"GET /api/v1/masters/chief-complaint-types ListChiefComplaints\n" +
 		"GET /api/v1/masters/chief-complaint-types/:id GetChiefComplaint\n" +
 		"GET /api/v1/masters/diagnosis-names ListDiagnosisNames\n" +
@@ -56,6 +78,17 @@ func TestRegisterRoutes_Snapshot(t *testing.T) {
 		"GET /api/v1/masters/diagnosis-types/:id GetDiagnosisType\n" +
 		"GET /api/v1/masters/examination-types ListExaminationTypes\n" +
 		"GET /api/v1/masters/examination-types/:id GetExaminationType\n" +
+		"GET /api/v1/masters/inquiry-templates ListInquiryTemplates\n" +
+		"GET /api/v1/masters/inquiry-templates/:id GetInquiryTemplate\n" +
+		"GET /api/v1/masters/vaccines ListVaccines\n" +
+		"GET /api/v1/masters/vaccines/:id GetVaccine\n" +
+		"GET /api/v1/medical-records/:id/checkups ListCheckups\n" +
+		"GET /api/v1/medical-records/:id/checkups/:checkupId/field-results ListCheckupFieldResults\n" +
+		"GET /api/v1/medical-records/:id/prescriptions ListPrescriptions\n" +
+		"GET /api/v1/vaccinations ListVaccinations\n" +
+		"GET /api/v1/vaccinations/:id GetVaccination\n" +
+		"PATCH /api/v1/masters/checkup-types/:id UpdateCheckupType\n" +
+		"PATCH /api/v1/masters/checkup-types/reorder ReorderCheckupTypes\n" +
 		"PATCH /api/v1/masters/chief-complaint-types/:id UpdateChiefComplaint\n" +
 		"PATCH /api/v1/masters/chief-complaint-types/reorder ReorderChiefComplaints\n" +
 		"PATCH /api/v1/masters/diagnosis-names/:id UpdateDiagnosisName\n" +
@@ -64,13 +97,28 @@ func TestRegisterRoutes_Snapshot(t *testing.T) {
 		"PATCH /api/v1/masters/diagnosis-types/reorder ReorderDiagnosisTypes\n" +
 		"PATCH /api/v1/masters/examination-types/:id UpdateExaminationType\n" +
 		"PATCH /api/v1/masters/examination-types/reorder ReorderExaminationTypes\n" +
+		"PATCH /api/v1/masters/inquiry-templates/:id UpdateInquiryTemplate\n" +
+		"PATCH /api/v1/masters/inquiry-templates/reorder ReorderInquiryTemplates\n" +
+		"PATCH /api/v1/masters/vaccines/:id UpdateVaccine\n" +
+		"PATCH /api/v1/masters/vaccines/reorder ReorderVaccines\n" +
+		"PATCH /api/v1/medical-records/:id/checkups/:checkupId UpdateCheckup\n" +
+		"PATCH /api/v1/medical-records/:id/inquiries UpdateInquiry\n" +
+		"PATCH /api/v1/medical-records/:id/prescriptions/:prescriptionId UpdatePrescription\n" +
+		"PATCH /api/v1/vaccinations/:id UpdateVaccination\n" +
+		"POST /api/v1/masters/checkup-types CreateCheckupType\n" +
 		"POST /api/v1/masters/chief-complaint-types CreateChiefComplaint\n" +
 		"POST /api/v1/masters/diagnosis-names CreateDiagnosisName\n" +
 		"POST /api/v1/masters/diagnosis-types CreateDiagnosisType\n" +
-		"POST /api/v1/masters/examination-types CreateExaminationType\n"
+		"POST /api/v1/masters/examination-types CreateExaminationType\n" +
+		"POST /api/v1/masters/inquiry-templates CreateInquiryTemplate\n" +
+		"POST /api/v1/masters/vaccines CreateVaccine\n" +
+		"POST /api/v1/medical-records/:id/checkups CreateCheckup\n" +
+		"POST /api/v1/medical-records/:id/prescriptions CreatePrescription\n" +
+		"POST /api/v1/vaccinations CreateVaccination\n" +
+		"PUT /api/v1/medical-records/:id/checkups/:checkupId/field-results ReplaceCheckupFieldResults\n"
 
-	assert.Equal(t, want, got, "medicalrecord master-CRUD route snapshot drifted from the pre-move baseline "+
-		"(internal/handler/testdata/route_snapshot.golden, before these 25 master lines were removed)")
+	assert.Equal(t, want, got, "medicalrecord route snapshot drifted from the pre-move baseline "+
+		"(internal/handler/testdata/route_snapshot.golden, before these 62 lines were removed)")
 }
 
 // lastHandlerSegment mirrors internal/handler/handler_routes_snapshot_test.go's helper of the

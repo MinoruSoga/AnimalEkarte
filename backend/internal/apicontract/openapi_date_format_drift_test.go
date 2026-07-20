@@ -47,6 +47,17 @@ const (
 	handlerResponseDir = "../handler"
 )
 
+// responseScanDirs are every directory whose *_response.go files this gate scans. It began as
+// just internal/handler, but BE9-2 migrates response DTOs out of internal/handler into
+// aggregator-free domain packages (ADR-006) — e.g. BE9-2D moved vaccination_response.go (whose
+// date/next_date time.Time↔format:date drift is pinned in knownDateFormatDrifts) into
+// internal/medicalrecord. Since the drift MOVED rather than being RESOLVED, the gate must keep
+// covering it: the scan follows the file into the domain package. Same maintenance contract as
+// openapi_route_drift_test.go's migratedDomainRoutePackages — when a domain package gains
+// migrated *_response.go files, add its dir here in the same commit. driftKey is basename-keyed
+// (filepath.Base), so a moved file's allowlist entry stays valid as long as its filename is kept.
+var responseScanDirs = []string{handlerResponseDir, "../medicalrecord"}
+
 // knownDateFormatDrifts は現 HEAD に存在する「openapi format:date ↔ handler time.Time」drift を
 // (file, json名) → 出現数 で固定する。値は response 側の time.Time/*time.Time フィールド数。
 // 新規 drift（未登録キー）・出現数変化・stale エントリ（drift が解消された）はすべて fail。
@@ -218,27 +229,29 @@ func isTimeTimeType(expr ast.Expr) bool {
 	return ok && pkg.Name == "time" && sel.Sel.Name == "Time"
 }
 
-// walkHandlerResponseDrifts は handler の *_response.go 全ソースを走査し drift を集計する。
+// walkHandlerResponseDrifts は responseScanDirs 配下の *_response.go 全ソースを走査し drift を集計する。
 func walkHandlerResponseDrifts(t *testing.T, dateOnly map[string]struct{}) map[string]int {
 	t.Helper()
-	files, err := filepath.Glob(filepath.Join(handlerResponseDir, "*_response.go"))
-	if err != nil {
-		t.Fatalf("glob handler response files: %v", err)
-	}
-	// glob "*_response.go" は *_response_test.go にマッチしない（末尾が _test.go のため）ので
-	// test ファイル除外の追加チェックは不要。
 	agg := map[string]int{}
-	for _, fp := range files {
-		src, err := os.ReadFile(fp) //nolint:gosec // fixed handler source dir, not untrusted input
+	for _, dir := range responseScanDirs {
+		files, err := filepath.Glob(filepath.Join(dir, "*_response.go"))
 		if err != nil {
-			t.Fatalf("read %s: %v", fp, err)
+			t.Fatalf("glob response files in %s: %v", dir, err)
 		}
-		findings, err := analyzeResponseFileDateDrift(fp, src, dateOnly)
-		if err != nil {
-			t.Fatalf("parse %s: %v", fp, err)
-		}
-		for _, fnd := range findings {
-			agg[driftKey(fnd.file, fnd.jsonName)]++
+		// glob "*_response.go" は *_response_test.go にマッチしない（末尾が _test.go のため）ので
+		// test ファイル除外の追加チェックは不要。
+		for _, fp := range files {
+			src, err := os.ReadFile(fp) //nolint:gosec // fixed source dirs enumerated in this test, not untrusted input
+			if err != nil {
+				t.Fatalf("read %s: %v", fp, err)
+			}
+			findings, err := analyzeResponseFileDateDrift(fp, src, dateOnly)
+			if err != nil {
+				t.Fatalf("parse %s: %v", fp, err)
+			}
+			for _, fnd := range findings {
+				agg[driftKey(fnd.file, fnd.jsonName)]++
+			}
 		}
 	}
 	return agg

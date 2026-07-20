@@ -140,16 +140,8 @@ func (m *mockClinicalPlanService) Delete(ctx context.Context, clinicID, medicalR
 
 // ---- mock InquiryService ----
 
-type mockInquiryService struct {
-	upsertFn func(ctx context.Context, input service.UpsertInquiryInput) (*model.Inquiry, error)
-}
-
-func (m *mockInquiryService) Save(ctx context.Context, input service.UpsertInquiryInput) (*model.Inquiry, error) {
-	if m.upsertFn != nil {
-		return m.upsertFn(ctx, input)
-	}
-	return &model.Inquiry{}, nil
-}
+// mockInquiryService moved to internal/medicalrecord/inquiry_handler_test.go (BE9-2D — the
+// Inquiry service and its Services field were removed from this package).
 
 // ---- mock LstepTagSyncService ----
 
@@ -216,7 +208,6 @@ func newHandlerWithMedicalRecordSvc(mrSvc service.MedicalRecordService, cpSvc se
 		svc: &service.Services{
 			MedicalRecord: mrSvc,
 			ClinicalPlan:  cpSvc,
-			Inquiry:       &mockInquiryService{},
 			LstepTagSync:  &mockLstepTagSyncService{},
 		},
 	}
@@ -1110,7 +1101,6 @@ func TestListMedicalRecords_ViewPermissionDenied(t *testing.T) {
 	h := &Handler{svc: &service.Services{
 		MedicalRecord:       &mockMedicalRecordService{},
 		ClinicalPlan:        &mockClinicalPlanService{},
-		Inquiry:             &mockInquiryService{},
 		LstepTagSync:        &mockLstepTagSyncService{},
 		EffectivePermission: &mockEffectivePermissionService{},
 	}}

@@ -28,7 +28,6 @@ type Services struct {
 	Cage                           CageService
 	Medicine                       MedicineService
 	MedicineDoseParam              MedicineDoseParamService
-	Vaccine                        VaccineService
 	Insurance                      InsuranceService
 	ReservationType                ReservationTypeCoreService
 	ReservationTypeUnavailableTime ReservationTypeUnavailableTimeService
@@ -40,13 +39,9 @@ type Services struct {
 	HospitalizationPlan            HospitalizationPlanService
 	TrimmingCourse                 TrimmingCourseService
 	TrimmingOption                 TrimmingOptionService
-	CheckupType                    CheckupTypeService
 	Clinic                         ClinicService
 	Examination                    ExaminationService
-	Vaccination                    VaccinationService
 	Occupation                     OccupationService
-	Inquiry                        InquiryService
-	InquiryTemplate                InquiryTemplateService
 	Company                        CompanyService
 	PermissionGroup                PermissionGroupService
 	EffectivePermission            EffectivePermissionService
@@ -61,8 +56,6 @@ type Services struct {
 	DailyRecord                    DailyRecordService
 	MedicalRecordImage             MedicalRecordImageService
 	ClinicalPlan                   ClinicalPlanService
-	Checkup                        CheckupService
-	CheckupFieldResult             CheckupFieldResultService
 	Estimate                       EstimateService
 	// ManualArticle: BE9-2B — moved to internal/manualarticle (aggregator-free domain
 	// package). No longer constructed here; see cmd/api/main.go.
@@ -97,8 +90,6 @@ type Services struct {
 	LstepLifecycle LstepLifecycleService
 	LstepTag       LstepTagService
 	SharedFile     SharedFileService
-	// LSTEP-BE-009: 処方薬記録
-	Prescription PrescriptionService
 	// LSTEP-BE-010: LTV集計 → 顧客集計ドメインに統一
 	Aggregation AggregationService
 	// LSTEP-BE-012: 慢性疾患フラグ
@@ -220,7 +211,11 @@ func NewServices(repos *repository.Repositories, notifCfg *ReservationNotificati
 	lstepDeliveryTriggerSvc := NewLstepDeliveryTriggerService(repos.Owner, repos.MedicalRecord, repos.Vaccination, repos.BillingItem, repos.Pet, repos.LstepTagCache, repos.LstepDeliveryTriggerLog, lstepSettingsSvc, lstepTriggerPrioritySvc)
 	// FEAT-383: イベントフック注入（LstepDeliveryTrigger 確定後に構築）
 	medicalRecordSvc := NewMedicalRecordService(repos.MedicalRecord, repos.Owner, repos.Pet, repos.Inquiry, repos.ClinicalPlan, repos.ChiefComplaintType, repos.DiagnosisType, repos.DiagnosisName, repos.LineCustomerMgr, repos.Reservation, lstepDeliveryTriggerSvc, auditSvc, tx, lstepTagSyncSvc)
-	checkupSvc := NewCheckupService(repos.Checkup, repos.MedicalRecord, repos.CheckupType, lstepDeliveryTriggerSvc, lstepTagSyncSvc)
+	// BE9-2D: checkup/checkup-field-result/checkup-type/vaccine/vaccination/inquiry/
+	// inquiry-template/prescription services moved to internal/medicalrecord and are now
+	// constructed directly in cmd/api/main.go (ADR-006 aggregator 非経由) — no longer fields
+	// on Services. The LSTEP tag-sync / delivery-trigger deps they need are exposed to main.go
+	// via svcs.LstepTagSync / svcs.LstepDeliveryTrigger.
 	// LSTEP-BE-014: ノーショウ検知バッチ（LstepDeliveryTrigger 確定後に初期化）
 	lstepBatchSvc := NewLstepBatchService(repos.Reservation, lstepTagSyncSvc, repos.Clinic, repos.MedicalRecord, auditSvc, lstepSettingsSvc, lstepDeliveryTriggerSvc)
 	// FEAT-385: Lステップ CSV インポート・分析
@@ -260,7 +255,6 @@ func NewServices(repos *repository.Repositories, notifCfg *ReservationNotificati
 		Cage:                           NewCageService(repos.Cage),
 		Medicine:                       NewMedicineServiceWithAudit(repos.Medicine, repos.Inventory, tx, auditTxLogger),
 		MedicineDoseParam:              NewMedicineDoseParamService(repos.MedicineDoseParam, repos.Medicine, tx, auditTxLogger),
-		Vaccine:                        NewVaccineService(repos.Vaccine),
 		Insurance:                      NewInsuranceService(repos.Insurance),
 		ReservationType:                reservationTypeSvc,
 		ReservationTypeUnavailableTime: reservationTypeSvc,
@@ -272,13 +266,9 @@ func NewServices(repos *repository.Repositories, notifCfg *ReservationNotificati
 		HospitalizationPlan:            NewHospitalizationPlanService(repos.HospitalizationPlan),
 		TrimmingCourse:                 NewTrimmingCourseService(repos.TrimmingCourse, repos.TrimmingCourseType),
 		TrimmingOption:                 NewTrimmingOptionService(repos.TrimmingOption),
-		CheckupType:                    NewCheckupTypeService(repos.CheckupType),
 		Clinic:                         NewClinicService(repos.Clinic, repos.PermissionGroup, tx),
 		Examination:                    NewExaminationService(repos.Examination, repos.MedicalRecord, repos.ExaminationType, auditTxLogger, tx),
-		Vaccination:                    NewVaccinationService(repos.Vaccination, repos.Vaccine, lstepTagSyncSvc),
 		Occupation:                     NewOccupationService(repos.Occupation),
-		Inquiry:                        NewInquiryService(repos.Inquiry, repos.ChiefComplaintType),
-		InquiryTemplate:                NewInquiryTemplateService(repos.InquiryTemplate),
 		Company:                        NewCompanyService(repos.Company),
 		PermissionGroup:                permissionGroupSvc,
 		EffectivePermission:            permissionGroupSvc,
@@ -293,8 +283,6 @@ func NewServices(repos *repository.Repositories, notifCfg *ReservationNotificati
 		DailyRecord:                    NewDailyRecordService(repos.DailyRecord, repos.Hospitalization, tx),
 		MedicalRecordImage:             NewMedicalRecordImageService(repos.MedicalRecordImage, repos.MedicalRecord, tx),
 		ClinicalPlan:                   NewClinicalPlanService(repos.ClinicalPlan, repos.MedicalRecord, repos.DiagnosisType, repos.DiagnosisName),
-		Checkup:                        checkupSvc,
-		CheckupFieldResult:             NewCheckupFieldResultService(repos.Checkup, repos.MedicalRecord, repos.CheckupTypeField, repos.CheckupFieldResult, auditTxLogger, tx),
 		Estimate:                       NewEstimateService(repos.Estimate, repos.MedicalRecord, repos.Reservation, repos.StaffClinicAssignment, auditSvc, tx),
 		MerchandiseItem:                NewMerchandiseItemService(repos.MerchandiseItem),
 		BillingItem:                    NewBillingItemServiceWithCampaign(repos.BillingItem, repos.Accounting, repos.Treatment, tx, repos.TrimmingCourse, repos.TrimmingOption, repos.Campaign, repos.Owner),
@@ -316,7 +304,6 @@ func NewServices(repos *repository.Repositories, notifCfg *ReservationNotificati
 		ReservationSchedule:       NewReservationScheduleService(repos.ReservationSchedule),
 		ReservationAdmin:          NewReservationAdminServiceWithAvailabilityAndType(repos.ReservationAdmin, repos.Reservation, repos.ReservationType, tx, repos.ReservationStaff, repos.ReservationTypeUnavailableTime, repos.ReservationTypeAvailableSlot),
 		LineCustomer:              NewLineCustomerService(repos.LineCustomerMgr, repos.Owner),
-		Prescription:              NewPrescriptionService(repos.Prescription, repos.MedicalRecord, lstepTagSyncSvc, tx),
 		Aggregation:               NewAggregationService(repos.Ltv, repos.LstepTagCache, repos.LstepTagConfig, lstepSettingsSvc),
 		LstepSettings:             lstepSettingsSvc,
 		LstepTagSync:              lstepTagSyncSvc,

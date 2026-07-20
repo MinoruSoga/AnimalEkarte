@@ -59,13 +59,8 @@ func (h *Handler) RegisterMasterRoutes(rg *gin.RouterGroup) {
 	masters.PUT("/medicines/:id/dose-params/:species", perm(model.ResourceMasterMedical, "edit"), h.UpsertMedicineDoseParam)
 	masters.DELETE("/medicines/:id/dose-params/:species", perm(model.ResourceMasterMedical, "delete"), h.DeleteMedicineDoseParam)
 
-	// Vaccines
-	masters.GET("/vaccines", perm(model.ResourceMasterMedical, "view"), h.ListVaccines)
-	masters.POST("/vaccines", perm(model.ResourceMasterMedical, "create"), h.CreateVaccine)
-	masters.PATCH("/vaccines/reorder", perm(model.ResourceMasterMedical, "edit"), h.ReorderVaccines)
-	masters.GET("/vaccines/:id", perm(model.ResourceMasterMedical, "view"), h.GetVaccine)
-	masters.PATCH("/vaccines/:id", perm(model.ResourceMasterMedical, "edit"), h.UpdateVaccine)
-	masters.DELETE("/vaccines/:id", perm(model.ResourceMasterMedical, "delete"), h.DeleteVaccine)
+	// Vaccines: moved to internal/medicalrecord.Handler.RegisterRoutes (BE9-2D — composed
+	// directly in cmd/api/main.go, ADR-006 aggregator 非経由). See internal/medicalrecord/routes.go.
 
 	// Insurances
 	masters.GET("/insurances", perm(model.ResourceMasterInsurance, "view"), h.ListInsurances)
@@ -164,15 +159,8 @@ func (h *Handler) RegisterMasterRoutes(rg *gin.RouterGroup) {
 	// directly in cmd/api/main.go, ADR-006 "aggregator 非経由"). See
 	// internal/medicalrecord/routes.go.
 
-	// Checkup Types
-	masters.GET("/checkup-types", perm(model.ResourceCheckups, "view"), h.ListCheckupTypes)
-	masters.POST("/checkup-types", perm(model.ResourceCheckups, "create"), h.CreateCheckupType)
-	masters.PATCH("/checkup-types/reorder", perm(model.ResourceCheckups, "edit"), h.ReorderCheckupTypes)
-	masters.GET("/checkup-types/:id", perm(model.ResourceCheckups, "view"), h.GetCheckupType)
-	masters.PATCH("/checkup-types/:id", perm(model.ResourceCheckups, "edit"), h.UpdateCheckupType)
-	masters.DELETE("/checkup-types/:id", perm(model.ResourceCheckups, "delete"), h.DeleteCheckupType)
-	// #211: 健診パッケージのフィールド定義（FE 動的フォーム構築用）。
-	masters.GET("/checkup-types/:id/fields", perm(model.ResourceCheckups, "view"), h.ListCheckupTypeFields)
+	// Checkup Types (+ :id/fields): moved to internal/medicalrecord.Handler.RegisterRoutes
+	// (BE9-2D — composed in cmd/api/main.go). See internal/medicalrecord/routes.go.
 
 	// Occupations
 	masters.GET("/occupations", perm(model.ResourceMasterStaff, "view"), h.ListOccupations)
@@ -187,13 +175,8 @@ func (h *Handler) RegisterMasterRoutes(rg *gin.RouterGroup) {
 	// Chief Complaint Categories: moved to internal/medicalrecord.Handler.RegisterRoutes
 	// (BE9-2C master-CRUD slice). See internal/medicalrecord/routes.go.
 
-	// Inquiry Templates
-	masters.GET("/inquiry-templates", perm(model.ResourceMasterMedical, "view"), h.ListInquiryTemplates)
-	masters.POST("/inquiry-templates", perm(model.ResourceMasterMedical, "create"), h.CreateInquiryTemplate)
-	masters.PATCH("/inquiry-templates/reorder", perm(model.ResourceMasterMedical, "edit"), h.ReorderInquiryTemplates)
-	masters.GET("/inquiry-templates/:id", perm(model.ResourceMasterMedical, "view"), h.GetInquiryTemplate)
-	masters.PATCH("/inquiry-templates/:id", perm(model.ResourceMasterMedical, "edit"), h.UpdateInquiryTemplate)
-	masters.DELETE("/inquiry-templates/:id", perm(model.ResourceMasterMedical, "delete"), h.DeleteInquiryTemplate)
+	// Inquiry Templates: moved to internal/medicalrecord.Handler.RegisterRoutes (BE9-2D —
+	// composed in cmd/api/main.go). See internal/medicalrecord/routes.go.
 
 	// Merchandise Items
 	masters.GET("/merchandise-items", perm(model.ResourceMasterMerchandise, "view"), h.ListMerchandiseItems)

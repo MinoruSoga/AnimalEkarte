@@ -3,15 +3,16 @@ package repository
 import (
 	"gorm.io/gorm"
 
-	"github.com/animal-ekarte/backend/internal/repository/prescription"
+	"github.com/animal-ekarte/backend/internal/medicalrecord"
 )
 
-// PrescriptionRepository is a stable facade alias for the prescription domain
-// package (BE8-4). Service/handler imports keep using repository.* so the split
-// does not churn all importers.
-type PrescriptionRepository = prescription.Repository
+// PrescriptionRepository is a stable facade alias for medicalrecord.PrescriptionRepository
+// (BE9-2D roll-up of the former prescription subpackage). Kept because lstep_tag_sync_service.go (lstep
+// domain, staying in internal/service until its own BE9-2C batch) and the repositories.go
+// aggregator still depend on it.
+type PrescriptionRepository = medicalrecord.PrescriptionRepository
 
 // NewPrescriptionRepository constructs the prescription repository.
 func NewPrescriptionRepository(db *gorm.DB) PrescriptionRepository {
-	return prescription.New(db)
+	return medicalrecord.NewPrescriptionRepository(db)
 }

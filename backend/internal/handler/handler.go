@@ -99,7 +99,8 @@ func (h *Handler) RegisterRoutes(ctx context.Context, r *gin.Engine) *gin.Router
 	h.registerAccountingRoutesWithAuth(protected)
 	h.registerTrimmingRoutesWithAuth(protected)
 	h.registerExaminationRoutesWithAuth(protected)
-	h.registerVaccinationRoutesWithAuth(protected)
+	// BE9-2D: /vaccinations moved to internal/medicalrecord.Handler.RegisterRoutes
+	// (composed directly in cmd/api/main.go, ADR-006 aggregator 非経由).
 	h.registerInventoryRoutesWithAuth(protected)
 	h.RegisterMasterRoutes(protected)
 	h.RegisterClinicRoutes(protected)
@@ -108,7 +109,8 @@ func (h *Handler) RegisterRoutes(ctx context.Context, r *gin.Engine) *gin.Router
 	h.RegisterShiftTemplateRoutes(protected)
 	h.RegisterClinicHolidayRoutes(protected)
 	h.RegisterCompanyRoutes(protected)
-	h.RegisterGlobalCheckupRoutes(protected)
+	// BE9-2D: /checkups (+ /checkups/field-results) moved to
+	// internal/medicalrecord.Handler.RegisterRoutes (composed in cmd/api/main.go).
 	h.RegisterBillingItemRoutes(protected)
 	h.RegisterLineReservationRoutes(protected)
 	// FEAT-368: 集計・締め機能
@@ -230,9 +232,11 @@ func (h *Handler) registerMedicalRecordRoutesWithAuth(rg *gin.RouterGroup) {
 	h.RegisterMedicalRecordImageRoutes(records)
 	h.RegisterTreatmentPlanMedicalRecordRoutes(records)
 	h.RegisterClinicalPlanRoutes(records)
-	h.RegisterCheckupRoutes(records)
-	h.RegisterPrescriptionRoutes(records)
-	h.RegisterInquiryRoutes(records)
+	// BE9-2D: /medical-records/:id/{checkups,prescriptions,inquiries} (+ checkup
+	// field-results) moved to internal/medicalrecord.Handler.RegisterRoutes, which registers
+	// its own rg.Group("/medical-records") on the same protected group (composed in
+	// cmd/api/main.go). RegisterCheckupSyncRoutes stays (checkup-sync is deferred to a later
+	// lstep batch).
 	h.RegisterMedicalRecordAddendumRoutes(records)
 }
 
@@ -273,16 +277,6 @@ func (h *Handler) registerExaminationRoutesWithAuth(rg *gin.RouterGroup) {
 	// 検査項目（exam_results）— PUT 一括置換セマンティクス
 	examinations.GET("/:id/items", h.RequirePermission(string(model.ResourceExaminations), "view"), h.ListExaminationItems)
 	examinations.PUT("/:id/items", h.RequirePermission(string(model.ResourceExaminations), "edit"), h.ReplaceExaminationItems)
-}
-
-// registerVaccinationRoutesWithAuth はワクチンルートに RBAC 権限チェックを適用する（BUG-125: CRUD個別ガード）
-func (h *Handler) registerVaccinationRoutesWithAuth(rg *gin.RouterGroup) {
-	vaccinations := rg.Group("/vaccinations")
-	vaccinations.GET("", h.RequirePermission(string(model.ResourceVaccinations), "view"), h.ListVaccinations)
-	vaccinations.GET("/:id", h.RequirePermission(string(model.ResourceVaccinations), "view"), h.GetVaccination)
-	vaccinations.POST("", h.RequirePermission(string(model.ResourceVaccinations), "create"), h.CreateVaccination)
-	vaccinations.PATCH("/:id", h.RequirePermission(string(model.ResourceVaccinations), "edit"), h.UpdateVaccination)
-	vaccinations.DELETE("/:id", h.RequirePermission(string(model.ResourceVaccinations), "delete"), h.DeleteVaccination)
 }
 
 // registerAccountingRoutesWithAuth は会計ルートに RBAC 権限チェックを適用する（BUG-125: CRUD個別ガード）

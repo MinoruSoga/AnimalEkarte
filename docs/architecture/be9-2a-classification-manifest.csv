@@ -673,7 +673,7 @@ internal/service/lstep_tag_sync_pet.go,target:pet,prefix token='pet'
 internal/service/lstep_tag_sync_pet_basic.go,target:pet,prefix token='pet'
 internal/service/lstep_tag_sync_pet_exclusion.go,target:pet,prefix token='pet'
 internal/service/lstep_tag_sync_service.go,target:lstep,prefix token='lstep'
-internal/service/lstep_tag_sync_vaccine.go,target:medicalrecord,prefix token='vaccine'
+internal/service/lstep_tag_sync_vaccine.go,target:lstep,"RE-CLASSIFIED (bm-medrecord-a): receiver *lstepTagSyncService (same type as lstep_tag_sync_service.go), Go requires same-package methods"
 internal/service/lstep_tag_sync_visit.go,target:lstep,prefix token='lstep'
 internal/service/lstep_tag_sync_visit_cpm.go,target:lstep,prefix token='lstep'
 internal/service/lstep_tag_sync_visit_dormant.go,target:lstep,prefix token='lstep'

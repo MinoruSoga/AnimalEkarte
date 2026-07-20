@@ -140,12 +140,12 @@ type auditInventoryEntry struct {
 //	                      (NOT ambient-tx-aware). Migration target.
 var clinicalResultAuditTxAllowlist = []auditInventoryEntry{
 	{
-		file:        "checkup_field_repository.go",
+		file:        "medicalrecord/checkup_field_repository.go",
 		function:    "checkupFieldResultRepository.ReplaceForCheckup",
 		modelType:   "CheckupFieldResult",
 		occurrences: 1,
 		status:      statusAuditedTxInternal,
-		reason: "checkup_field_repository.go: ReplaceForCheckup uses dbOrTx(ctx, r.db).Transaction(...) — " +
+		reason: "medicalrecord/checkup_field_repository.go: ReplaceForCheckup uses dbOrTx(ctx, r.db).Transaction(...) — " +
 			"ambient-tx-aware. The delete participates in the caller's Transactor.WithTx ambient tx; " +
 			"if the post-replace audit write (auditRepository.CreateTx) fails and the caller rolls back, " +
 			"the delete is also reverted (fail-closed #211). " +

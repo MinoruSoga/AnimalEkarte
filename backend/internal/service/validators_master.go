@@ -21,19 +21,6 @@ func validateMedicalImageType(t string) error {
 	}
 }
 
-// validateMembershipType は会員種別がドメイン上有効かを検証する
-func validateVaccineSpecies(species string) error {
-	if species == "" {
-		return nil
-	}
-	switch model.VaccineSpecies(species) {
-	case model.VaccineSpeciesDog, model.VaccineSpeciesCat, model.VaccineSpeciesBoth:
-		return nil
-	default:
-		return apperrors.WrapInvalidInput(fmt.Sprintf("ワクチン対象種別の値が不正です: %s", species))
-	}
-}
-
 // validateAnesthesiaType は麻酔種別がドメイン上有効かを検証する
 func validateAnesthesiaType(anesthesia string) error {
 	if anesthesia == "" {

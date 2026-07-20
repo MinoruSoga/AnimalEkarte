@@ -20,33 +20,65 @@ type PermissionMiddleware func(resource, action string) gin.HandlerFunc
 // Handler composes this slice's per-entity handlers and registers their routes under a
 // single, package-unique RegisterRoutes entry point. Exactly one exported RegisterRoutes
 // per migrated dir is required by internal/apicontract/openapi_route_drift_test.go's
-// buildFuncsFromDir walker, which keys discovered funcs by bare name — three same-named
-// RegisterRoutes methods on three separate structs would collide in that map and silently
-// drop two of the three route sets from drift coverage. The per-entity handlers
-// (DiagnosisHandler/ExamTypeHandler/ChiefComplaintHandler) stay separate structs so each
+// buildFuncsFromDir walker, which keys discovered funcs by bare name — same-named
+// RegisterRoutes methods on separate structs would collide in that map and silently
+// drop route sets from drift coverage. The per-entity handlers stay separate structs so each
 // only holds the service(s) it actually needs (Go/Gin guideline: consumer declares minimal
 // dependencies) — Handler is purely a routing composition, not a new aggregate.
 type Handler struct {
 	diagnosis         *DiagnosisHandler
 	examType          *ExamTypeHandler
 	chiefComplaint    *ChiefComplaintHandler
+	checkup           *CheckupHandler
+	checkupType       *CheckupTypeHandler
+	vaccine           *VaccineHandler
+	vaccination       *VaccinationHandler
+	prescription      *PrescriptionHandler
+	inquiry           *InquiryHandler
+	inquiryTemplate   *InquiryTemplateHandler
 	requirePermission PermissionMiddleware
 }
 
 // NewHandler initializes a Handler.
-func NewHandler(diagnosis *DiagnosisHandler, examType *ExamTypeHandler, chiefComplaint *ChiefComplaintHandler, requirePermission PermissionMiddleware) *Handler {
+func NewHandler(
+	diagnosis *DiagnosisHandler,
+	examType *ExamTypeHandler,
+	chiefComplaint *ChiefComplaintHandler,
+	checkup *CheckupHandler,
+	checkupType *CheckupTypeHandler,
+	vaccine *VaccineHandler,
+	vaccination *VaccinationHandler,
+	prescription *PrescriptionHandler,
+	inquiry *InquiryHandler,
+	inquiryTemplate *InquiryTemplateHandler,
+	requirePermission PermissionMiddleware,
+) *Handler {
 	return &Handler{
 		diagnosis:         diagnosis,
 		examType:          examType,
 		chiefComplaint:    chiefComplaint,
+		checkup:           checkup,
+		checkupType:       checkupType,
+		vaccine:           vaccine,
+		vaccination:       vaccination,
+		prescription:      prescription,
+		inquiry:           inquiry,
+		inquiryTemplate:   inquiryTemplate,
 		requirePermission: requirePermission,
 	}
 }
 
-// RegisterRoutes registers this slice's master routes under rg's /masters sub-group,
-// matching the exact (method, path, permission) triples previously registered by
-// internal/handler/master_routes.go's RegisterMasterRoutes for these three entities (BUG-122/
-// BUG-125 RBAC parity — see this package's tests for the before==after proof).
+// RegisterRoutes registers this slice's routes, matching the exact (method, path, permission)
+// triples previously registered by internal/handler (master_routes.go's RegisterMasterRoutes,
+// handler.go's registerVaccinationRoutesWithAuth/registerMedicalRecordRoutesWithAuth, and
+// checkup/prescription/inquiry handler files) for these entities (BUG-122/BUG-125 RBAC parity —
+// see this package's route-snapshot test for the before==after proof of path/method/handler
+// name; the permission arguments are hand-transcribed here because the snapshot gate does not
+// capture middleware, only the trailing handler name). rg is the authenticated `protected`
+// group (cmd/api/main.go); the master routes nest under /masters, /vaccinations and /checkups
+// are top-level, and the checkup/prescription/inquiry sub-resources nest under /medical-records
+// (a second Group on the same prefix as internal/handler's own medical-records routes — gin
+// merges by path, same coexistence as the /masters group already shared with RegisterMasterRoutes).
 func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	masters := rg.Group("/masters")
 
@@ -86,4 +118,62 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	masters.GET("/chief-complaint-types/:id", perm(model.ResourceMasterMedical, "view"), h.chiefComplaint.GetChiefComplaint)
 	masters.PATCH("/chief-complaint-types/:id", perm(model.ResourceMasterMedical, "edit"), h.chiefComplaint.UpdateChiefComplaint)
 	masters.DELETE("/chief-complaint-types/:id", perm(model.ResourceMasterMedical, "delete"), h.chiefComplaint.DeleteChiefComplaint)
+
+	// Vaccines (BE9-2D: moved from master_routes.go; ResourceMasterMedical parity)
+	masters.GET("/vaccines", perm(model.ResourceMasterMedical, "view"), h.vaccine.ListVaccines)
+	masters.POST("/vaccines", perm(model.ResourceMasterMedical, "create"), h.vaccine.CreateVaccine)
+	masters.PATCH("/vaccines/reorder", perm(model.ResourceMasterMedical, "edit"), h.vaccine.ReorderVaccines)
+	masters.GET("/vaccines/:id", perm(model.ResourceMasterMedical, "view"), h.vaccine.GetVaccine)
+	masters.PATCH("/vaccines/:id", perm(model.ResourceMasterMedical, "edit"), h.vaccine.UpdateVaccine)
+	masters.DELETE("/vaccines/:id", perm(model.ResourceMasterMedical, "delete"), h.vaccine.DeleteVaccine)
+
+	// Checkup Types (BE9-2D: moved from master_routes.go; ResourceCheckups parity — NOT
+	// ResourceMasterMedical, unlike the sibling medical masters above. :id/fields is view.)
+	masters.GET("/checkup-types", perm(model.ResourceCheckups, "view"), h.checkupType.ListCheckupTypes)
+	masters.POST("/checkup-types", perm(model.ResourceCheckups, "create"), h.checkupType.CreateCheckupType)
+	masters.PATCH("/checkup-types/reorder", perm(model.ResourceCheckups, "edit"), h.checkupType.ReorderCheckupTypes)
+	masters.GET("/checkup-types/:id", perm(model.ResourceCheckups, "view"), h.checkupType.GetCheckupType)
+	masters.PATCH("/checkup-types/:id", perm(model.ResourceCheckups, "edit"), h.checkupType.UpdateCheckupType)
+	masters.DELETE("/checkup-types/:id", perm(model.ResourceCheckups, "delete"), h.checkupType.DeleteCheckupType)
+	masters.GET("/checkup-types/:id/fields", perm(model.ResourceCheckups, "view"), h.checkup.ListCheckupTypeFields)
+
+	// Inquiry Templates (BE9-2D: moved from master_routes.go; ResourceMasterMedical parity)
+	masters.GET("/inquiry-templates", perm(model.ResourceMasterMedical, "view"), h.inquiryTemplate.ListInquiryTemplates)
+	masters.POST("/inquiry-templates", perm(model.ResourceMasterMedical, "create"), h.inquiryTemplate.CreateInquiryTemplate)
+	masters.PATCH("/inquiry-templates/reorder", perm(model.ResourceMasterMedical, "edit"), h.inquiryTemplate.ReorderInquiryTemplates)
+	masters.GET("/inquiry-templates/:id", perm(model.ResourceMasterMedical, "view"), h.inquiryTemplate.GetInquiryTemplate)
+	masters.PATCH("/inquiry-templates/:id", perm(model.ResourceMasterMedical, "edit"), h.inquiryTemplate.UpdateInquiryTemplate)
+	masters.DELETE("/inquiry-templates/:id", perm(model.ResourceMasterMedical, "delete"), h.inquiryTemplate.DeleteInquiryTemplate)
+
+	// Vaccinations (BE9-2D: moved from handler.go registerVaccinationRoutesWithAuth;
+	// per-route ResourceVaccinations guards = BUG-125 parity, NOT a single group-level guard).
+	vaccinations := rg.Group("/vaccinations")
+	vaccinations.GET("", perm(model.ResourceVaccinations, "view"), h.vaccination.ListVaccinations)
+	vaccinations.GET("/:id", perm(model.ResourceVaccinations, "view"), h.vaccination.GetVaccination)
+	vaccinations.POST("", perm(model.ResourceVaccinations, "create"), h.vaccination.CreateVaccination)
+	vaccinations.PATCH("/:id", perm(model.ResourceVaccinations, "edit"), h.vaccination.UpdateVaccination)
+	vaccinations.DELETE("/:id", perm(model.ResourceVaccinations, "delete"), h.vaccination.DeleteVaccination)
+
+	// Global checkups (BE9-2D: moved from handler.go checkup_handler.go RegisterGlobalCheckupRoutes;
+	// ResourceCheckups parity).
+	checkups := rg.Group("/checkups")
+	checkups.GET("", perm(model.ResourceCheckups, "view"), h.checkup.ListGlobalCheckups)
+	checkups.GET("/field-results", perm(model.ResourceCheckups, "view"), h.checkup.ListPetCheckupResults)
+
+	// Medical-record sub-resources (BE9-2D: moved from handler.go RegisterCheckupRoutes/
+	// RegisterPrescriptionRoutes/RegisterInquiryRoutes). Children follow the parent
+	// medical-records permission (ResourceMedicalRecords) — BUG-133 parity, NOT the
+	// ResourceCheckups permission the /checkups and /masters/checkup-types routes use.
+	records := rg.Group("/medical-records")
+	records.GET("/:id/checkups", perm(model.ResourceMedicalRecords, "view"), h.checkup.ListCheckups)
+	records.POST("/:id/checkups", perm(model.ResourceMedicalRecords, "create"), h.checkup.CreateCheckup)
+	records.PATCH("/:id/checkups/:checkupId", perm(model.ResourceMedicalRecords, "edit"), h.checkup.UpdateCheckup)
+	records.DELETE("/:id/checkups/:checkupId", perm(model.ResourceMedicalRecords, "delete"), h.checkup.DeleteCheckup)
+	records.GET("/:id/checkups/:checkupId/field-results", perm(model.ResourceMedicalRecords, "view"), h.checkup.ListCheckupFieldResults)
+	records.PUT("/:id/checkups/:checkupId/field-results", perm(model.ResourceMedicalRecords, "edit"), h.checkup.ReplaceCheckupFieldResults)
+	records.GET("/:id/prescriptions", perm(model.ResourceMedicalRecords, "view"), h.prescription.ListPrescriptions)
+	records.POST("/:id/prescriptions", perm(model.ResourceMedicalRecords, "create"), h.prescription.CreatePrescription)
+	records.PATCH("/:id/prescriptions/:prescriptionId", perm(model.ResourceMedicalRecords, "edit"), h.prescription.UpdatePrescription)
+	records.DELETE("/:id/prescriptions/:prescriptionId", perm(model.ResourceMedicalRecords, "delete"), h.prescription.DeletePrescription)
+	records.PATCH("/:id/inquiries", perm(model.ResourceMedicalRecords, "edit"), h.inquiry.UpdateInquiry)
 }

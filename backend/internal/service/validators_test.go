@@ -312,12 +312,6 @@ func TestValidateMedicalImageType(t *testing.T) {
 	assert.Error(t, validateMedicalImageType("invalid_image_type"))
 }
 
-func TestValidateVaccineSpecies(t *testing.T) {
-	assert.NoError(t, validateVaccineSpecies(""))
-	assert.NoError(t, validateVaccineSpecies(string(model.VaccineSpeciesDog)))
-	assert.Error(t, validateVaccineSpecies("invalid_species"))
-}
-
 func TestValidateAnesthesiaType(t *testing.T) {
 	assert.NoError(t, validateAnesthesiaType(""))
 	assert.NoError(t, validateAnesthesiaType(string(model.AnesthesiaTypeNone)))

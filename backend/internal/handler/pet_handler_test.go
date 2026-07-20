@@ -26,10 +26,11 @@ func TestPetHandlerCompiles(t *testing.T) {
 }
 
 // ---- mock PetService (full, for pet_handler.go tests) ----
-// NOTE: vaccination_handler_test.go already defines a minimal `mockPetService`
-// (used only for tag-sync pass-through). This handler needs every PetService
-// method independently configurable, so it uses a distinctly-named mock to
-// avoid redeclaring that type.
+// NOTE: this mock is distinctly named `mockPetServiceHandler` (not `mockPetService`) for
+// historical reasons — vaccination_handler_test.go used to define a minimal `mockPetService`
+// in this package. That file moved to internal/medicalrecord in BE9-2D and dropped its
+// mockPetService, so the name collision no longer exists; the distinct name is kept to avoid
+// churn.
 type mockPetServiceHandler struct {
 	listFn              func(ctx context.Context, clinicIDs []uint64, filters repository.PetListFilters, page, limit int) ([]model.Pet, int64, error)
 	getByIDFn           func(ctx context.Context, clinicID, id uint64) (*model.Pet, error)

@@ -110,8 +110,8 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"dailyrecord/repository.go|repository.CreateVitalRecord":  {}, // BE8-4 batch6: moved from daily_record_repository.go
 	"dailyrecord/repository.go|repository.FindOrCreateByDate": {}, // BE8-4 batch6: moved from daily_record_repository.go
 	// checkup_field (#211 tx-internal replace)
-	"checkup_field_repository.go|checkupFieldResultRepository.FindByCheckupID":   {},
-	"checkup_field_repository.go|checkupFieldResultRepository.ReplaceForCheckup": {},
+	"medicalrecord/checkup_field_repository.go|checkupFieldResultRepository.FindByCheckupID":   {},
+	"medicalrecord/checkup_field_repository.go|checkupFieldResultRepository.ReplaceForCheckup": {},
 	// estimate (SD-2 系ガード監査: 見積書 Create/Update/Delete が確定済みカルテ書込ガード対象と判明。
 	// estimateService の LockByIDForUpdate ambient tx に参加させる。FindByID は
 	// UpdateIfNotLocked/normalizeDeleteIfNotLockedMiss の tx 内再取得のため併せて追加)
@@ -156,11 +156,11 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	// pet_repository_tx_atomicity_test.go)
 	"pet_repository.go|petRepository.Update": {},
 	// prescription (X-11 Appendix-A finalize-child-write-race fix — same FK-deadlock rationale as examination)
-	"prescription/repository.go|repository.Create": {}, // BE8-4 batch7: moved from prescription_repository.go
-	"prescription/repository.go|repository.Update": {}, // BE8-4 batch7: moved from prescription_repository.go
+	"medicalrecord/prescription_repository.go|prescriptionRepository.Create": {}, // BE8-4 batch7: moved from prescription_repository.go
+	"medicalrecord/prescription_repository.go|prescriptionRepository.Update": {}, // BE8-4 batch7: moved from prescription_repository.go
 	// prescription Delete (BE-refactor.md H-8e: prescriptionService.Delete が finalize ロック確認・
 	// Delete を s.transactor.WithTx で束ねるようになったための追加。examination Delete=H-8d と同型)
-	"prescription/repository.go|repository.Delete": {}, // BE8-4 batch7: moved from prescription_repository.go
+	"medicalrecord/prescription_repository.go|prescriptionRepository.Delete": {}, // BE8-4 batch7: moved from prescription_repository.go
 	// refund (R1-1 TOCTOU)
 	"refund/repository.go|repository.Create":                         {}, // BE8-4 batch8: moved from refund_repository.go
 	"refund/repository.go|repository.SumByBillingID":                 {}, // BE8-4 batch8: moved from refund_repository.go
