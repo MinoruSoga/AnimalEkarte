@@ -329,6 +329,12 @@ func main() {
 	vitalSvc := medicalrecord.NewVitalService(repos.Vital, repos.MedicalRecord, svcs.Audit, mrTx)
 	clinicalPlanSvc := medicalrecord.NewClinicalPlanService(repos.ClinicalPlan, repos.MedicalRecord, repos.DiagnosisType, repos.DiagnosisName)
 	medicalRecordImageSvc := medicalrecord.NewMedicalRecordImageService(repos.MedicalRecordImage, repos.MedicalRecord, mrTx)
+	// treatment (BE9-2D sub-batch④b): Phase 1 で WithTx+個別依存化済みの service を移動後、
+	// cross-package 依存は Batch A facade alias（repos.Treatment 等）の具象を structural typing で
+	// 注入する。audit は checkupFieldResult と同じ medicalRecordAuditTxAdapter 経由（tx 内 fail-closed）。
+	treatmentSvc := medicalrecord.NewTreatmentServiceWithAudit(
+		repos.Treatment, repos.MedicalRecord, repos.Medicine, repos.Procedure, repos.Consultation,
+		repos.Inventory, repos.Vital, repos.MedicineDoseParam, mrTx, medicalRecordAuditTxAdapter{inner: mrAuditTxLogger})
 
 	medicalRecordHandler := medicalrecord.NewHandler(
 		medicalrecord.NewDiagnosisHandler(
@@ -349,6 +355,7 @@ func main() {
 		medicalrecord.NewVitalHandler(vitalSvc, svcs.MedicalRecord),
 		medicalrecord.NewClinicalPlanHandler(clinicalPlanSvc),
 		medicalrecord.NewMedicalRecordImageHandler(medicalRecordImageSvc, svcs.MedicalRecord, uploader),
+		medicalrecord.NewTreatmentHandler(treatmentSvc, h.HasPermission),
 		h.RequirePermission,
 	)
 	medicalRecordHandler.RegisterRoutes(protected)

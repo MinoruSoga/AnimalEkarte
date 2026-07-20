@@ -21,6 +21,37 @@ func makeMedicineMaster(t *testing.T, db *gorm.DB, clinicID uint64, name string)
 	return m
 }
 
+// makeHistoryMedicalRecord は旧 treatment_repository_test.go の同名ヘルパーの最小限の複製
+// （BE9-2D ④b: 移動後も master_preload_clinic_isolation_test.go が本パッケージから参照するため）。
+func makeHistoryMedicalRecord(t *testing.T, db *gorm.DB, clinicID, petID uint64, recordNo string, date time.Time) *model.MedicalRecord {
+	t.Helper()
+	pet := petID
+	mr := &model.MedicalRecord{
+		ClinicID: clinicID,
+		RecordNo: recordNo,
+		Date:     date,
+		PetID:    &pet,
+		Status:   model.MedicalRecordStatusFinalized,
+	}
+	require.NoError(t, db.WithContext(context.Background()).Create(mr).Error)
+	return mr
+}
+
+// makeProcedure は旧 treatment_repository_test.go の同名ヘルパーの最小限の複製
+// （BE9-2D ④b: treatment repository test の medicalrecord 移動後も care_plan_item /
+// master_preload の各テストが本パッケージから引き続き参照するため。makeShiftEntryWithType 先例）。
+func makeProcedure(t *testing.T, db *gorm.DB, clinicID uint64, name string, anesthesia model.AnesthesiaType, isSurgery bool) *model.Procedure {
+	t.Helper()
+	p := &model.Procedure{
+		ClinicID:   clinicID,
+		Name:       name,
+		Anesthesia: anesthesia,
+		IsSurgery:  isSurgery,
+	}
+	require.NoError(t, db.WithContext(context.Background()).Create(p).Error)
+	return p
+}
+
 func makeDoctor(t *testing.T, db *gorm.DB, clinicID uint64, name string) *model.Staff {
 	t.Helper()
 	s := &model.Staff{ClinicID: clinicID, Name: name, StaffType: model.StaffTypeDoctor}

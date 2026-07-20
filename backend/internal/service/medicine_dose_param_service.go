@@ -15,6 +15,7 @@ import (
 	"log/slog"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
+	"github.com/animal-ekarte/backend/internal/medicalrecord"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/repository"
 )
@@ -59,6 +60,13 @@ func floatOrNil(p *float64) any {
 	}
 	return *p
 }
+
+// MedicineDoseParamInput は medicalrecord へ移動した dose kernel（BE9-2D ④b）の入力 DTO の
+// transitional alias。master-FK write gate（master_fk_write_inventory_lint）が cross-package
+// qualifier を blanket allowlist しないための facade — medicalrecord には master FK を運ぶ型
+// （CreateTreatmentInput 等）もあるため "medicalrecord" qualifier 全体を safe 扱いにはできない。
+// medicine domain の BE9-2C/2D 移行時に解消する。
+type MedicineDoseParamInput = medicalrecord.MedicineDoseParamInput
 
 // MedicineDoseParamService は種軸 dose パラメータの authoring CRUD。
 type MedicineDoseParamService interface {
@@ -107,11 +115,11 @@ func (s *medicineDoseParamService) Upsert(ctx context.Context, clinicID, medicin
 		return nil, apperrors.WrapInvalidInput("この薬剤は per_weight 計算ではないため投与量パラメータを設定できません")
 	}
 	// 医療安全ガード②: 親 medicine の単位/含量整合を再検証（互換しない unit・strength 欠落を弾く）。
-	if err := ValidateMedicineDoseConfig(med.CalculationType, med.MedicineUnit, med.Strength, med.FrequencyPerDay, med.DefaultDurationDays); err != nil {
+	if err := medicalrecord.ValidateMedicineDoseConfig(med.CalculationType, med.MedicineUnit, med.Strength, med.FrequencyPerDay, med.DefaultDurationDays); err != nil {
 		return nil, apperrors.Wrap(err, "failed to validate dose config")
 	}
 	// 医療安全ガード③: 行検証（default-deny / range / 上限必須 / 丸めペア）。
-	if err := ValidateMedicineDoseParamInput(input); err != nil {
+	if err := medicalrecord.ValidateMedicineDoseParamInput(input); err != nil {
 		return nil, apperrors.Wrap(err, "failed to validate dose param input")
 	}
 

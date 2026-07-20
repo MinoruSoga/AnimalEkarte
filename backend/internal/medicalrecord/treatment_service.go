@@ -1,4 +1,4 @@
-package service
+package medicalrecord
 
 import (
 	"context"
@@ -8,7 +8,6 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository"
 )
 
 // ─── Input DTOs ───────────────────────────────────────────────────────────────
@@ -137,15 +136,15 @@ type TreatmentService interface {
 // ─── Implementation ───────────────────────────────────────────────────────────
 
 type treatmentService struct {
-	treatmentRepo     repository.TreatmentRepository
-	medicalRecordRepo repository.MedicalRecordRepository
-	medicineRepo      repository.MedicineRepository
-	procedureRepo     repository.ProcedureRepository
-	consultationRepo  repository.ConsultationRepository
-	inventoryRepo     repository.InventoryRepository
-	vitalRepo         repository.VitalRepository
-	doseParamRepo     repository.MedicineDoseParamRepository
-	transactor        repository.Transactor
+	treatmentRepo     TreatmentRepository
+	medicalRecordRepo treatmentMedicalRecordRepo
+	medicineRepo      medicineFinder
+	procedureRepo     procedureFinder
+	consultationRepo  consultationFinder
+	inventoryRepo     treatmentInventoryRepo
+	vitalRepo         VitalRepository
+	doseParamRepo     doseParamFinder
+	transactor        Transactor
 	// auditTx は非nilかどうかを「逸脱audit機能の有効/無効」フラグとして併用する。
 	// BE9-2D ④b: 旧実装は repos.Transaction(ctx, func(txRepos)) 機構（tx が txRepos に宿り ctx に
 	// 伝播しない）だったため LogEntryTx（dbOrTx が ctx の txKey を見る）が tx に参加できず、
@@ -157,18 +156,19 @@ type treatmentService struct {
 
 // NewTreatmentServiceWithAudit は逸脱 audit 機能を有効化する（#201 B-2）。
 // auditTx は非nilフラグとしてのみ使う（上記 struct コメント参照）。
-// BE9-2D ④b: *repository.Repositories 集約依存を実消費 repo の個別注入へ分解した
-// （medicine/accounting 先例。medicalrecord への縦移動時に consumer-side interface へ差し替える前段）。
+// BE9-2D ④b: Phase 1 で集約依存を個別注入へ分解済み。本 package への縦移動で cross-package 依存を
+// service_deps.go の consumer-side view（treatmentMedicalRecordRepo/medicineFinder 等）へ、
+// treatment/vital repo を in-package 具象型へ差し替えた。
 func NewTreatmentServiceWithAudit(
-	treatmentRepo repository.TreatmentRepository,
-	medicalRecordRepo repository.MedicalRecordRepository,
-	medicineRepo repository.MedicineRepository,
-	procedureRepo repository.ProcedureRepository,
-	consultationRepo repository.ConsultationRepository,
-	inventoryRepo repository.InventoryRepository,
-	vitalRepo repository.VitalRepository,
-	doseParamRepo repository.MedicineDoseParamRepository,
-	transactor repository.Transactor,
+	treatmentRepo TreatmentRepository,
+	medicalRecordRepo treatmentMedicalRecordRepo,
+	medicineRepo medicineFinder,
+	procedureRepo procedureFinder,
+	consultationRepo consultationFinder,
+	inventoryRepo treatmentInventoryRepo,
+	vitalRepo VitalRepository,
+	doseParamRepo doseParamFinder,
+	transactor Transactor,
 	auditTx AuditTxLogger,
 ) TreatmentService {
 	return &treatmentService{
@@ -222,10 +222,10 @@ func (s *treatmentService) Create(ctx context.Context, clinicID, medicalRecordID
 		return nil, apperrors.Wrap(err, "failed to validate treatment item type")
 	}
 	if input.UnitPrice < 0 {
-		return nil, apperrors.WrapInvalidInput(ErrMsgPriceZeroOrMore)
+		return nil, apperrors.WrapInvalidInput(errMsgPriceZeroOrMore)
 	}
 	if input.Quantity <= 0 {
-		return nil, apperrors.WrapInvalidInput(ErrMsgQuantityPositive)
+		return nil, apperrors.WrapInvalidInput(errMsgQuantityPositive)
 	}
 	if err := validateDiscountRate(input.DiscountRate); err != nil {
 		return nil, err
@@ -388,10 +388,10 @@ func (s *treatmentService) Update(ctx context.Context, clinicID, medicalRecordID
 		}
 	}
 	if input.Quantity != nil && *input.Quantity <= 0 {
-		return nil, apperrors.WrapInvalidInput(ErrMsgQuantityPositive)
+		return nil, apperrors.WrapInvalidInput(errMsgQuantityPositive)
 	}
 	if input.UnitPrice != nil && *input.UnitPrice < 0 {
-		return nil, apperrors.WrapInvalidInput(ErrMsgPriceZeroOrMore)
+		return nil, apperrors.WrapInvalidInput(errMsgPriceZeroOrMore)
 	}
 	if input.DiscountRate != nil {
 		if err := validateDiscountRate(*input.DiscountRate); err != nil {
@@ -401,7 +401,7 @@ func (s *treatmentService) Update(ctx context.Context, clinicID, medicalRecordID
 
 	fields := buildTreatmentUpdate(input)
 	if len(fields) == 0 {
-		return nil, apperrors.WrapInvalidInput(ErrMsgAtLeastOneField)
+		return nil, apperrors.WrapInvalidInput(errMsgAtLeastOneField)
 	}
 
 	// #201 B-2: quantity/medicine が変わる場合のみ保存時 BE 再検証＋スナップショット更新。
@@ -498,9 +498,9 @@ func (s *treatmentService) Delete(ctx context.Context, clinicID, medicalRecordID
 }
 
 func (s *treatmentService) BulkUpdateSortOrder(ctx context.Context, clinicID, medicalRecordID uint64, input *BulkUpdateTreatmentsInput) error {
-	updates := make([]repository.TreatmentSortUpdate, 0, len(input.Treatments))
+	updates := make([]TreatmentSortUpdate, 0, len(input.Treatments))
 	for _, item := range input.Treatments {
-		updates = append(updates, repository.TreatmentSortUpdate{
+		updates = append(updates, TreatmentSortUpdate{
 			ID:        item.ID,
 			ClinicID:  clinicID,
 			SortOrder: item.SortOrder,

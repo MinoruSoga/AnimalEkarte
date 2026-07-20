@@ -1,4 +1,4 @@
-package service
+package medicalrecord
 
 // dose_revalidation_test.go — #201 B-2: 保存時 BE 再検証（EvaluateSavedDose）の純粋テスト。
 // C1 は「保存される実効用量(mg)」で判定する点・両上限・逸脱検出・スナップショット値固定を固定する。

@@ -1,4 +1,4 @@
-package service
+package medicalrecord
 
 // dose_calc_test.go — #201 投与量自動計算の純粋関数 golden table-driven test。
 // 計算モデル（#201）を仕様の単一の真実として固定する。FE(TS) 移植はこの期待値に一致させること。
@@ -9,9 +9,8 @@ import (
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
-// --- pointer helpers ---
+// --- pointer helpers ---（fptr は service_deps_mock_test.go の既存 mirror を使用）
 
-func fptr(v float64) *float64                                        { return &v }
 func iptr(v int) *int                                                { return &v }
 func muptr(v model.MedicineUnit) *model.MedicineUnit                 { return &v }
 func rmptr(v model.MedicineRoundingMode) *model.MedicineRoundingMode { return &v }

@@ -51,11 +51,10 @@ type Services struct {
 	ShiftTemplate                  ShiftTemplateService
 	ClinicHoliday                  ClinicHolidayService
 	TreatmentPlan                  TreatmentPlanService
-	// Vital / MedicalRecordImage / ClinicalPlan: BE9-2D sub-batch④a — service + handler とも
-	// internal/medicalrecord へ移設済み。composition root (cmd/api/main.go) が medicalrecord.NewX
-	// で直接構築し medicalrecord.NewHandler へ合成するため、Services には保持しない（treatment /
-	// daily-record / estimate は internal/service に残る）。
-	Treatment   TreatmentService
+	// Vital / MedicalRecordImage / ClinicalPlan（④a）/ Treatment（④b）: BE9-2D — service + handler
+	// とも internal/medicalrecord へ移設済み。composition root (cmd/api/main.go) が medicalrecord.NewX
+	// で直接構築し medicalrecord.NewHandler へ合成するため、Services には保持しない
+	// （treatment-plan / daily-record / estimate は internal/service に残る）。
 	DailyRecord DailyRecordService
 	Estimate    EstimateService
 	// ManualArticle: BE9-2B — moved to internal/manualarticle (aggregator-free domain
@@ -276,7 +275,6 @@ func NewServices(repos *repository.Repositories, notifCfg *ReservationNotificati
 		// Vital / MedicalRecordImage / ClinicalPlan: BE9-2D sub-batch④a — service + handler とも
 		// internal/medicalrecord へ移設済み。composition root (cmd/api/main.go) が medicalrecord.NewX
 		// で直接構築する（Services には保持しない）。
-		Treatment:           NewTreatmentServiceWithAudit(repos.Treatment, repos.MedicalRecord, repos.Medicine, repos.Procedure, repos.Consultation, repos.Inventory, repos.Vital, repos.MedicineDoseParam, tx, auditTxLogger),
 		DailyRecord:         NewDailyRecordService(repos.DailyRecord, repos.Hospitalization, tx),
 		Estimate:            NewEstimateService(repos.Estimate, repos.MedicalRecord, repos.Reservation, repos.StaffClinicAssignment, auditSvc, tx),
 		MerchandiseItem:     NewMerchandiseItemService(repos.MerchandiseItem),

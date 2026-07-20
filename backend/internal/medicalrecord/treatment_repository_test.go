@@ -1,4 +1,8 @@
-package repository
+package medicalrecord
+
+// 移動元 internal/repository（BE9-2D sub-batch④b）。setupTestDB/ensureAutoMigrated は
+// repotest 直呼びへ（vital_repository_test.go 先例）。makeHistoryMedicalRecord は本 package の
+// diagnosis_name_repository_test.go に byte-identical 定義が既存のため移動時に統合（複製削除）。
 
 import (
 	"context"
@@ -11,6 +15,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/repository/repotest"
 )
 
 // setupTreatmentHistoryTestDB は setupTestDB を拡張し pets / treatments / procedures 周りを整備する。
@@ -18,8 +23,8 @@ import (
 // medical_records.pet_id は pets への FK があるため pets/animal_species/owners も用意する。
 func setupTreatmentHistoryTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
-	db := setupTestDB(t)
-	if err := ensureAutoMigrated(db, &model.AnimalSpecies{}, &model.Pet{}, &model.Procedure{}, &model.Treatment{}); err != nil {
+	db := repotest.SetupTestDB(t)
+	if err := repotest.EnsureAutoMigrated(db, &model.AnimalSpecies{}, &model.Pet{}, &model.Procedure{}, &model.Treatment{}); err != nil {
 		t.Fatalf("failed to migrate pets/treatments/procedures: %v", err)
 	}
 	db.Exec("TRUNCATE TABLE treatments CASCADE")
@@ -28,20 +33,6 @@ func setupTreatmentHistoryTestDB(t *testing.T) *gorm.DB {
 	db.Exec("TRUNCATE TABLE pets CASCADE")
 	db.Exec("TRUNCATE TABLE animal_species CASCADE")
 	return db
-}
-
-func makeHistoryMedicalRecord(t *testing.T, db *gorm.DB, clinicID, petID uint64, recordNo string, date time.Time) *model.MedicalRecord {
-	t.Helper()
-	pet := petID
-	mr := &model.MedicalRecord{
-		ClinicID: clinicID,
-		RecordNo: recordNo,
-		Date:     date,
-		PetID:    &pet,
-		Status:   model.MedicalRecordStatusFinalized,
-	}
-	require.NoError(t, db.WithContext(context.Background()).Create(mr).Error)
-	return mr
 }
 
 func makeHistoryTreatment(t *testing.T, db *gorm.DB, medicalRecordID uint64, itemType model.TreatmentItemType, content string, sortOrder int) {
@@ -209,7 +200,7 @@ func TestTreatmentRepository_FindHistoryByPetID_ProcedureFilters(t *testing.T) {
 func setupTreatmentBillingTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
 	db := setupTreatmentHistoryTestDB(t)
-	require.NoError(t, ensureAutoMigrated(db, &model.BillingConfirmation{}, &model.BillingItem{}))
+	require.NoError(t, repotest.EnsureAutoMigrated(db, &model.BillingConfirmation{}, &model.BillingItem{}))
 	db.Exec("TRUNCATE TABLE billing_items CASCADE")
 	db.Exec("TRUNCATE TABLE billing_confirmations CASCADE")
 	return db

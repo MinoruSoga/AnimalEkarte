@@ -152,7 +152,6 @@ func (h *Handler) RegisterPetRoutes(rg *gin.RouterGroup) {
 	pets.DELETE("/:id", h.RequirePermission(string(model.ResourceOwners), "delete"), h.DeletePet)
 	// #158 飼主レポート: ペット単位の治療履歴（投薬/手術/治療）。
 	// 治療データはカルテ内容のため medical-records:view でゲートする（owners 権限ではない）。
-	pets.GET("/:id/treatment-history", h.RequirePermission(string(model.ResourceMedicalRecords), "view"), h.ListPetTreatmentHistory)
 	// #158 飼主レポート: ペットの初診日（最古カルテ date 由来）。カルテ内容由来のため medical-records:view でゲートする。
 	pets.GET("/:id/first-visit", h.RequirePermission(string(model.ResourceMedicalRecords), "view"), h.GetPetFirstVisit)
 	// BE-017: ペット死亡ライフサイクル

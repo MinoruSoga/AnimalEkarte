@@ -1,8 +1,8 @@
 package handler
 
 import (
+	"github.com/animal-ekarte/backend/internal/medicalrecord"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/service"
 )
 
 // upsertMedicineDoseParamRequest は種別 dose パラメータの upsert バインド struct（#201 B-2c）。
@@ -19,7 +19,7 @@ type upsertMedicineDoseParamRequest struct {
 	Notes           string   `json:"notes"`
 }
 
-func (r *upsertMedicineDoseParamRequest) toServiceInput(species model.MedicineDoseSpecies) *service.MedicineDoseParamInput {
+func (r *upsertMedicineDoseParamRequest) toServiceInput(species model.MedicineDoseSpecies) *medicalrecord.MedicineDoseParamInput {
 	doseBasis := model.MedicineDoseBasisPerAdministration
 	if r.DoseBasis != "" {
 		doseBasis = model.MedicineDoseBasis(r.DoseBasis)
@@ -29,7 +29,7 @@ func (r *upsertMedicineDoseParamRequest) toServiceInput(species model.MedicineDo
 		rm := model.MedicineRoundingMode(*r.RoundingMode)
 		roundingMode = &rm
 	}
-	return &service.MedicineDoseParamInput{
+	return &medicalrecord.MedicineDoseParamInput{
 		Species:         species,
 		DoseBasis:       doseBasis,
 		DosePerKg:       r.DosePerKg,

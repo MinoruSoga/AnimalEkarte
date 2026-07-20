@@ -225,7 +225,6 @@ func (h *Handler) registerMedicalRecordRoutesWithAuth(rg *gin.RouterGroup) {
 	records.DELETE("/:id", h.RequirePermission(string(model.ResourceMedicalRecords), "delete"), h.DeleteMedicalRecord)
 	records.PATCH("/:id/recommendation-reason", h.RequirePermission(string(model.ResourceMedicalRecords), "edit"), h.UpdateMedicalRecordRecommendationReason)
 
-	h.RegisterTreatmentRoutes(records)
 	h.RegisterBillingConfirmationRoutes(records)
 	h.RegisterTreatmentPlanMedicalRecordRoutes(records)
 	// BE9-2D: /medical-records/:id/{checkups,prescriptions,inquiries} (+ checkup

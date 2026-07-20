@@ -41,6 +41,7 @@ type Handler struct {
 	vital              *VitalHandler
 	clinicalPlan       *ClinicalPlanHandler
 	medicalRecordImage *MedicalRecordImageHandler
+	treatment          *TreatmentHandler
 	requirePermission  PermissionMiddleware
 }
 
@@ -61,6 +62,7 @@ func NewHandler(
 	vital *VitalHandler,
 	clinicalPlan *ClinicalPlanHandler,
 	medicalRecordImage *MedicalRecordImageHandler,
+	treatment *TreatmentHandler,
 	requirePermission PermissionMiddleware,
 ) *Handler {
 	return &Handler{
@@ -79,6 +81,7 @@ func NewHandler(
 		vital:              vital,
 		clinicalPlan:       clinicalPlan,
 		medicalRecordImage: medicalRecordImage,
+		treatment:          treatment,
 		requirePermission:  requirePermission,
 	}
 }
@@ -209,6 +212,20 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	records.POST("/:id/images", perm(model.ResourceMedicalRecords, "create"), h.medicalRecordImage.CreateMedicalRecordImage)
 	records.POST("/:id/images/upload", perm(model.ResourceMedicalRecords, "create"), h.medicalRecordImage.UploadMedicalRecordImage)
 	records.DELETE("/:id/images/:imageId", perm(model.ResourceMedicalRecords, "delete"), h.medicalRecordImage.DeleteMedicalRecordImage)
+
+	// Treatments (BE9-2D sub-batch④b: moved from treatment_handler.go RegisterTreatmentRoutes;
+	// ResourceMedicalRecords parity on all five, PUT/PATCH=edit・POST=create・DELETE=delete 逐語転記).
+	records.GET("/:id/treatments", perm(model.ResourceMedicalRecords, "view"), h.treatment.ListTreatments)
+	records.POST("/:id/treatments", perm(model.ResourceMedicalRecords, "create"), h.treatment.CreateTreatment)
+	records.PATCH("/:id/treatments/:treatmentId", perm(model.ResourceMedicalRecords, "edit"), h.treatment.UpdateTreatment)
+	records.DELETE("/:id/treatments/:treatmentId", perm(model.ResourceMedicalRecords, "delete"), h.treatment.DeleteTreatment)
+	records.PUT("/:id/treatments", perm(model.ResourceMedicalRecords, "edit"), h.treatment.BulkUpdateTreatments)
+
+	// Pet treatment history (#158/#159、BE9-2D sub-batch④b: moved from pet_handler.go's
+	// registration line — path/permission 逐語転記。/pets group は internal/handler の pet routes と
+	// gin 上で path merge され共存する（/medical-records group の既存共存と同型・param 名 :id 一致）。
+	pets := rg.Group("/pets")
+	pets.GET("/:id/treatment-history", perm(model.ResourceMedicalRecords, "view"), h.treatment.ListPetTreatmentHistory)
 
 	// Lab import saga (BE9-2D sub-batch③: moved from internal/handler lab_import_handler.go
 	// RegisterLabImportRoutes). All routes guard ResourceLabImport (preview/commit=create,

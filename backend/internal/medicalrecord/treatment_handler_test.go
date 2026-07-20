@@ -1,4 +1,4 @@
-package handler
+package medicalrecord
 
 import (
 	"bytes"
@@ -16,7 +16,6 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/service"
 )
 
 // ---- mock TreatmentService ----
@@ -24,10 +23,10 @@ import (
 type mockTreatmentService struct {
 	listFn                func(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.Treatment, error)
 	getByIDFn             func(ctx context.Context, clinicID, id uint64) (*model.Treatment, error)
-	createFn              func(ctx context.Context, clinicID, medicalRecordID uint64, input *service.CreateTreatmentInput) (*model.Treatment, error)
-	updateFn              func(ctx context.Context, clinicID, medicalRecordID, treatmentID uint64, input *service.UpdateTreatmentInput) (*model.Treatment, error)
+	createFn              func(ctx context.Context, clinicID, medicalRecordID uint64, input *CreateTreatmentInput) (*model.Treatment, error)
+	updateFn              func(ctx context.Context, clinicID, medicalRecordID, treatmentID uint64, input *UpdateTreatmentInput) (*model.Treatment, error)
 	deleteFn              func(ctx context.Context, clinicID, medicalRecordID, treatmentID uint64) error
-	bulkUpdateSortOrderFn func(ctx context.Context, clinicID, medicalRecordID uint64, input *service.BulkUpdateTreatmentsInput) error
+	bulkUpdateSortOrderFn func(ctx context.Context, clinicID, medicalRecordID uint64, input *BulkUpdateTreatmentsInput) error
 	listPetHistoryFn      func(ctx context.Context, clinicID, petID uint64, filter model.PetTreatmentHistoryFilter, page, limit int) ([]model.Treatment, int64, error)
 }
 
@@ -49,11 +48,11 @@ func (m *mockTreatmentService) GetByID(ctx context.Context, clinicID, id uint64)
 	return &model.Treatment{ID: id}, nil
 }
 
-func (m *mockTreatmentService) Create(ctx context.Context, clinicID, medicalRecordID uint64, input *service.CreateTreatmentInput) (*model.Treatment, error) {
+func (m *mockTreatmentService) Create(ctx context.Context, clinicID, medicalRecordID uint64, input *CreateTreatmentInput) (*model.Treatment, error) {
 	return m.createFn(ctx, clinicID, medicalRecordID, input)
 }
 
-func (m *mockTreatmentService) Update(ctx context.Context, clinicID, medicalRecordID, treatmentID uint64, input *service.UpdateTreatmentInput) (*model.Treatment, error) {
+func (m *mockTreatmentService) Update(ctx context.Context, clinicID, medicalRecordID, treatmentID uint64, input *UpdateTreatmentInput) (*model.Treatment, error) {
 	return m.updateFn(ctx, clinicID, medicalRecordID, treatmentID, input)
 }
 
@@ -61,14 +60,16 @@ func (m *mockTreatmentService) Delete(ctx context.Context, clinicID, medicalReco
 	return m.deleteFn(ctx, clinicID, medicalRecordID, treatmentID)
 }
 
-func (m *mockTreatmentService) BulkUpdateSortOrder(ctx context.Context, clinicID, medicalRecordID uint64, input *service.BulkUpdateTreatmentsInput) error {
+func (m *mockTreatmentService) BulkUpdateSortOrder(ctx context.Context, clinicID, medicalRecordID uint64, input *BulkUpdateTreatmentsInput) error {
 	return m.bulkUpdateSortOrderFn(ctx, clinicID, medicalRecordID, input)
 }
 
 // ---- test helpers ----
 
-func newHandlerWithTreatmentSvc(svc service.TreatmentService) *Handler {
-	return &Handler{svc: &service.Services{Treatment: svc}}
+// newHandlerWithTreatmentSvc は TreatmentHandler を allow-all の PermissionChecker で構築する
+// （BUG-372 discount ガードの 403 分岐は権限 stub の責務・本 package では pass-through のみ検証）。
+func newHandlerWithTreatmentSvc(svc TreatmentService) *TreatmentHandler {
+	return NewTreatmentHandler(svc, func(_ *gin.Context, _, _ string) bool { return true })
 }
 
 // ---- ListTreatments ----
@@ -293,7 +294,7 @@ func TestCreateTreatment(t *testing.T) {
 			body:     validBody(),
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockTreatmentService{
-				createFn: func(_ context.Context, clinicID, medicalRecordID uint64, input *service.CreateTreatmentInput) (*model.Treatment, error) {
+				createFn: func(_ context.Context, clinicID, medicalRecordID uint64, input *CreateTreatmentInput) (*model.Treatment, error) {
 					assert.Equal(t, uint64(1), clinicID)
 					assert.Equal(t, uint64(10), medicalRecordID)
 					assert.Equal(t, model.TreatmentItemType("procedure"), input.ItemType)
@@ -334,7 +335,7 @@ func TestCreateTreatment(t *testing.T) {
 			body:     validBody(),
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockTreatmentService{
-				createFn: func(_ context.Context, _, _ uint64, _ *service.CreateTreatmentInput) (*model.Treatment, error) {
+				createFn: func(_ context.Context, _, _ uint64, _ *CreateTreatmentInput) (*model.Treatment, error) {
 					return nil, fmt.Errorf("db error")
 				},
 			},
@@ -383,7 +384,7 @@ func TestUpdateTreatment(t *testing.T) {
 			body:        map[string]any{"unit_price": 8000, "quantity": 2.0},
 			setupCtx:    func(c *gin.Context) { setClinicID(c) },
 			svc: &mockTreatmentService{
-				updateFn: func(_ context.Context, clinicID, medicalRecordID, treatmentID uint64, input *service.UpdateTreatmentInput) (*model.Treatment, error) {
+				updateFn: func(_ context.Context, clinicID, medicalRecordID, treatmentID uint64, input *UpdateTreatmentInput) (*model.Treatment, error) {
 					assert.Equal(t, uint64(1), clinicID)
 					assert.Equal(t, uint64(10), medicalRecordID)
 					assert.Equal(t, uint64(5), treatmentID)
@@ -428,7 +429,7 @@ func TestUpdateTreatment(t *testing.T) {
 			body:        map[string]any{"content": "更新"},
 			setupCtx:    func(c *gin.Context) { setClinicID(c) },
 			svc: &mockTreatmentService{
-				updateFn: func(_ context.Context, _, _, _ uint64, _ *service.UpdateTreatmentInput) (*model.Treatment, error) {
+				updateFn: func(_ context.Context, _, _, _ uint64, _ *UpdateTreatmentInput) (*model.Treatment, error) {
 					return nil, apperrors.WrapNotFound("treatment", "999")
 				},
 			},
@@ -458,7 +459,7 @@ func TestUpdateTreatment(t *testing.T) {
 
 // ---- DeleteTreatment ----
 
-func newDeleteTreatmentRouter(svc service.TreatmentService) *gin.Engine {
+func newDeleteTreatmentRouter(svc TreatmentService) *gin.Engine {
 	r := gin.New()
 	h := newHandlerWithTreatmentSvc(svc)
 	r.DELETE("/medical-records/:id/treatments/:treatmentId", func(c *gin.Context) {
@@ -545,7 +546,7 @@ func TestDeleteTreatment(t *testing.T) {
 
 // ---- BulkUpdateTreatments ----
 
-func newBulkUpdateRouter(svc service.TreatmentService) *gin.Engine {
+func newBulkUpdateRouter(svc TreatmentService) *gin.Engine {
 	r := gin.New()
 	h := newHandlerWithTreatmentSvc(svc)
 	r.PUT("/medical-records/:id/treatments", func(c *gin.Context) {
@@ -579,7 +580,7 @@ func TestBulkUpdateTreatments(t *testing.T) {
 			paramID: "10",
 			body:    validBody(),
 			svc: &mockTreatmentService{
-				bulkUpdateSortOrderFn: func(_ context.Context, _, medicalRecordID uint64, input *service.BulkUpdateTreatmentsInput) error {
+				bulkUpdateSortOrderFn: func(_ context.Context, _, medicalRecordID uint64, input *BulkUpdateTreatmentsInput) error {
 					assert.Equal(t, uint64(10), medicalRecordID)
 					assert.Len(t, input.Treatments, 3)
 					assert.Equal(t, uint64(1), input.Treatments[0].ID)
@@ -601,7 +602,7 @@ func TestBulkUpdateTreatments(t *testing.T) {
 			paramID: "1",
 			body:    validBody(),
 			svc: &mockTreatmentService{
-				bulkUpdateSortOrderFn: func(_ context.Context, _, _ uint64, _ *service.BulkUpdateTreatmentsInput) error {
+				bulkUpdateSortOrderFn: func(_ context.Context, _, _ uint64, _ *BulkUpdateTreatmentsInput) error {
 					return fmt.Errorf("db error")
 				},
 			},

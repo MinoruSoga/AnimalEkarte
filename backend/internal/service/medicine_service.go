@@ -7,6 +7,7 @@ import (
 	"log/slog"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
+	"github.com/animal-ekarte/backend/internal/medicalrecord"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/repository"
 )
@@ -247,7 +248,7 @@ func validateDoseConfigAfterUpdate(existing *model.Medicine, input *UpdateMedici
 	if input.DefaultDurationDays != nil {
 		effDuration = input.DefaultDurationDays
 	}
-	return ValidateMedicineDoseConfig(effCalcType, effUnit, effStrength, effFreq, effDuration)
+	return medicalrecord.ValidateMedicineDoseConfig(effCalcType, effUnit, effStrength, effFreq, effDuration)
 }
 
 func (s *medicineService) Create(ctx context.Context, clinicID uint64, input *CreateMedicineInput) (*model.Medicine, error) {
@@ -263,7 +264,7 @@ func (s *medicineService) Create(ctx context.Context, clinicID uint64, input *Cr
 
 	// #201 投与量計算設定の書込検証（default-deny / per_weight 誤設定拒否）。
 	calcType := resolveCalculationType(input.CalculationType)
-	if err := ValidateMedicineDoseConfig(calcType, toMedicineUnitPtr(input.MedicineUnit), input.Strength, input.FrequencyPerDay, input.DefaultDurationDays); err != nil {
+	if err := medicalrecord.ValidateMedicineDoseConfig(calcType, toMedicineUnitPtr(input.MedicineUnit), input.Strength, input.FrequencyPerDay, input.DefaultDurationDays); err != nil {
 		return nil, apperrors.Wrap(err, "failed to validate dose config")
 	}
 

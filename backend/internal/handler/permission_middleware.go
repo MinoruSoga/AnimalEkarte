@@ -8,6 +8,14 @@ import (
 
 // RequirePermission は指定リソース・アクションの権限を持つユーザーのみ通過させる gin ミドルウェアを返す。
 // system_admin は全権限バイパス。それ以外は permission_group_rules から判定する。
+// HasPermission exposes the boolean permission check for composition-root injection into
+// migrated domain packages (BE9-2D ④b: medicalrecord.TreatmentHandler の BUG-372 discount
+// ガードが inline の bool 判定を要するため。RequirePermission の method-value 注入と同型の
+// transitional accessor — auth domain 移行時に *auth.Handler 側へ差し替える）。
+func (h *Handler) HasPermission(c *gin.Context, resource, action string) bool {
+	return h.hasPermission(c, resource, action)
+}
+
 func (h *Handler) RequirePermission(resource, action string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		if !h.hasPermission(c, resource, action) {

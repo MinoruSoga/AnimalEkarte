@@ -1,4 +1,4 @@
-package service
+package medicalrecord
 
 // dose_revalidation.go — #201 B-2: treatment 保存時の BE 再検証（患者安全の核・healthcare HIGH-3/HIGH-4）。
 //

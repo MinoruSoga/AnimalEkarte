@@ -1,4 +1,7 @@
-package repository
+package medicalrecord
+
+// 移動元 internal/repository（BE9-2D sub-batch④b）。setupTestDB/ensureAutoMigrated は
+// repotest 直呼びへ、makeTestOwner/makeSpeciesAndPet は本 package の共有ヘルパを再利用。
 
 // treatment_master_preload_clinic_isolation_test.go
 // クロステナント READ IDOR 監査（72e8887c write 監査の read 版）回帰テスト。
@@ -21,13 +24,23 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/repository/repotest"
 )
+
+// makeMedicineMaster は internal/repository/isolation_test_helpers_test.go の同名ヘルパーの
+// 最小限の複製（BE9-2D ④b: 原本は旧 package の他テストが引き続き使うため移動不可）。
+func makeMedicineMaster(t *testing.T, db *gorm.DB, clinicID uint64, name string) *model.Medicine {
+	t.Helper()
+	m := &model.Medicine{ClinicID: clinicID, Name: name}
+	require.NoError(t, db.WithContext(context.Background()).Create(m).Error)
+	return m
+}
 
 // setupTreatmentMasterPreloadTestDB は treatments + マスタ(procedures/medicines)隔離テスト用に DB を整備する。
 func setupTreatmentMasterPreloadTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
-	db := setupTestDB(t)
-	require.NoError(t, ensureAutoMigrated(db,
+	db := repotest.SetupTestDB(t)
+	require.NoError(t, repotest.EnsureAutoMigrated(db,
 		&model.AnimalSpecies{}, &model.Pet{}, &model.Procedure{}, &model.Medicine{}, &model.Treatment{},
 	))
 	db.Exec("TRUNCATE TABLE treatments CASCADE")

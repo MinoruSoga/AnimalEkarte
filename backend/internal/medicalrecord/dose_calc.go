@@ -1,4 +1,4 @@
-package service
+package medicalrecord
 
 // dose_calc.go — #201 カルテ薬量（投与量）自動計算の純粋関数群。
 //

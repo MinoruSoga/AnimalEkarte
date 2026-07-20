@@ -1,97 +1,24 @@
-package service
+package medicalrecord
 
 import (
 	"context"
 	"errors"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository"
 )
 
-// ---- Treatment モック ----
-
-type mockTreatmentRepository struct {
-	listByMedicalRecordIDFn func(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.Treatment, error)
-	findByIDFn              func(ctx context.Context, clinicID, treatmentID uint64) (*model.Treatment, error)
-	createFn                func(ctx context.Context, treatment *model.Treatment) error
-	updateFn                func(ctx context.Context, clinicID, treatmentID uint64, fields map[string]any) error
-	deleteFn                func(ctx context.Context, clinicID, treatmentID uint64) error
-	bulkUpdateSortOrderFn   func(ctx context.Context, updates []repository.TreatmentSortUpdate) error
-	findHistoryByPetIDFn    func(ctx context.Context, clinicID, petID uint64, filter model.PetTreatmentHistoryFilter, page, limit int) ([]model.Treatment, int64, error)
-}
-
-func (m *mockTreatmentRepository) FindByMedicalRecordID(ctx context.Context, clinicID, medicalRecordID uint64) ([]model.Treatment, error) {
-	return m.listByMedicalRecordIDFn(ctx, clinicID, medicalRecordID)
-}
-
-func (m *mockTreatmentRepository) FindByID(ctx context.Context, clinicID, treatmentID uint64) (*model.Treatment, error) {
-	if m.findByIDFn != nil {
-		return m.findByIDFn(ctx, clinicID, treatmentID)
-	}
-	return nil, nil
-}
-
-func (m *mockTreatmentRepository) Create(ctx context.Context, treatment *model.Treatment) error {
-	return m.createFn(ctx, treatment)
-}
-
-func (m *mockTreatmentRepository) Update(ctx context.Context, clinicID, treatmentID uint64, fields map[string]any) error {
-	return m.updateFn(ctx, clinicID, treatmentID, fields)
-}
-
-func (m *mockTreatmentRepository) Delete(ctx context.Context, clinicID, treatmentID uint64) error {
-	return m.deleteFn(ctx, clinicID, treatmentID)
-}
-
-func (m *mockTreatmentRepository) BulkUpdateSortOrder(ctx context.Context, updates []repository.TreatmentSortUpdate) error {
-	return m.bulkUpdateSortOrderFn(ctx, updates)
-}
-
-func (m *mockTreatmentRepository) FindUnbilledByPetID(_ context.Context, _, _ uint64) ([]model.Treatment, error) {
-	return nil, nil
-}
-
-func (m *mockTreatmentRepository) FindHistoryByPetID(ctx context.Context, clinicID, petID uint64, filter model.PetTreatmentHistoryFilter, page, limit int) ([]model.Treatment, int64, error) {
-	if m.findHistoryByPetIDFn != nil {
-		return m.findHistoryByPetIDFn(ctx, clinicID, petID, filter, page, limit)
-	}
-	return nil, 0, nil
-}
-
-func (m *mockTreatmentRepository) CountFinalizedUnconfirmedByPetAndDate(_ context.Context, _, _ uint64, _ time.Time) (int64, error) {
-	return 0, nil
-}
-
 // ---- BE9-2D ④b test harness ----
+// （mock/builder 群は treatment_mocks_test.go）
 
-// draftMedicalRecordRepo は lockDraftMedicalRecord（mock の LockByIDForUpdate は FindByID へ
-// fallback）を draft で通すための共通 mock。
-func draftMedicalRecordRepo() *mockMedicalRecordRepository {
-	return &mockMedicalRecordRepository{
-		findByIDFn: func(_ context.Context, _, _ uint64) (*model.MedicalRecord, error) {
-			return &model.MedicalRecord{Status: model.MedicalRecordStatusDraft}, nil
-		},
-	}
-}
-
-// benignVitalRepo は vital 未記録（dose 再検証は手動 fallback）を返す無害 mock。
-// mockVitalRepository は nil fn で panic するため、dose パスに入らないテストでも nil でなくこれを配線する。
-func benignVitalRepo() *mockVitalRepository {
-	return &mockVitalRepository{listByMedicalRecordIDFn: func(_ context.Context, _, _ uint64) ([]model.VitalRecord, error) {
-		return nil, nil
-	}}
-}
-
-// newTreatmentSvc は個別依存注入コンストラクタ（BE9-2D ④b）へのテスト共通配線。
+// newTreatmentSvc は個別依存注入コンストラクタへのテスト共通配線。
 // 旧 harness の repos.TransactionFn インライン実行は mockTransactor の WithTx 素通し（fn(ctx)）が等価。
 // dose 再検証パスに入らないテスト用に medicine/procedure/consultation は ok*Repo、vital/doseParam は
 // 空応答 mock を配線する。
-func newTreatmentSvc(repo repository.TreatmentRepository, mrRepo repository.MedicalRecordRepository, invRepo repository.InventoryRepository, auditTx AuditTxLogger) TreatmentService {
+func newTreatmentSvc(repo TreatmentRepository, mrRepo treatmentMedicalRecordRepo, invRepo treatmentInventoryRepo, auditTx AuditTxLogger) TreatmentService {
 	return NewTreatmentServiceWithAudit(
 		repo, mrRepo, okMedicineRepo(), okProcedureRepo(), okConsultationRepo(), invRepo,
 		benignVitalRepo(), &mockMedicineDoseParamRepository{}, &mockTransactor{}, auditTx)
@@ -736,7 +663,7 @@ func TestTreatmentService_BulkUpdateSortOrder(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			repo := &mockTreatmentRepository{
-				bulkUpdateSortOrderFn: func(_ context.Context, _ []repository.TreatmentSortUpdate) error {
+				bulkUpdateSortOrderFn: func(_ context.Context, _ []TreatmentSortUpdate) error {
 					return tt.repoErr
 				},
 			}

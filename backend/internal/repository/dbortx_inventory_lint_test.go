@@ -242,12 +242,12 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"reservation_schedule_repository.go|reservationScheduleRepository.Save":             {},
 	"reservation_type_liff_repository.go|reservationTypeLiffRepository.UpdateSortOrder": {},
 	"shifttemplate/repository.go|repository.UpdateBreaks":                               {}, // BE8-4 batch12: moved from shift_template_repository.go
-	// treatment (BE9-2D ④b: treatmentService の repos.Transaction→Transactor.WithTx 化に伴い、
+	// treatment (BE9-2D ④b: WithTx 化に伴う ambient tx 参加。④b Batch A で medicalrecord へ移動済み、
 	// lockDraftMedicalRecord 行ロック・在庫減算・逸脱監査と同一 ambient tx へ参加させる)
-	"treatment_repository.go|treatmentRepository.Create":              {},
-	"treatment_repository.go|treatmentRepository.Delete":              {},
-	"treatment_repository.go|treatmentRepository.Update":              {},
-	"treatment_repository.go|treatmentRepository.BulkUpdateSortOrder": {},
+	"medicalrecord/treatment_repository.go|treatmentRepository.Create":              {},
+	"medicalrecord/treatment_repository.go|treatmentRepository.Delete":              {},
+	"medicalrecord/treatment_repository.go|treatmentRepository.Update":              {},
+	"medicalrecord/treatment_repository.go|treatmentRepository.BulkUpdateSortOrder": {},
 	// X-6 (Appendix-A tx-atomicity fix, commit d7eff8c8): medicine/inventory repo-internal
 	// r.db.WithContext(ctx).Transaction → dbOrTx(ctx, r.db).Transaction. Allowlist backfill
 	// discovered during G6-2 (X-6 landed without registering these).

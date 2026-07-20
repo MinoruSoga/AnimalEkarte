@@ -1,4 +1,4 @@
-package service
+package medicalrecord
 
 import (
 	"context"
@@ -111,18 +111,16 @@ func (s *treatmentService) resolveDoseWeight(ctx context.Context, clinicID, medi
 }
 
 // auditDoseDeviationTx は逸脱（過量/過少/著しい上書き）を audit_logs に fail-closed で記録する。
-// BE9-2D ④b: 保存 tx（Transactor.WithTx）の txCtx で呼ばれ、AuditTxLogger.LogEntryTx（内部の
-// CreateTx が dbOrTx で ctx の ambient tx に参加）が同一 tx へ書く。旧 repos.Transaction 機構では
-// tx が ctx に伝播せず txRepos.Audit.CreateTx 直呼びが必要だったが、WithTx 化で medicine/dose-param
-// と同じ共有監査カーネル経由（R1-2 (D1)・#211/refund パターン）に統一した。監査ログの内容は
-// 旧実装と同一（LogEntryTx = buildAuditLog + validateAuditLog + CreateTx で処理列も等価）。
+// 保存 tx（Transactor.WithTx）の txCtx で呼ばれ、AuditTxLogger.LogEntryTx（composition root の
+// medicalRecordAuditTxAdapter → service.AuditService.LogEntryTx → CreateTx が dbOrTx で ambient tx
+// に参加）が同一 tx へ書く（R1-2 (D1)・#211/refund パターン・checkupFieldResult と同経路）。
 // エラーを返すと呼び出し元の WithTx が rollback し、treatment 書込ごと無効になる。
 func (s *treatmentService) auditDoseDeviationTx(ctx context.Context, clinicID uint64, actorID *uint64, treatmentID, medicineID uint64, eval *SavedDoseEvaluation) error {
 	if s.auditTx == nil || eval == nil || !eval.IsDeviation() {
 		return nil
 	}
 	actorType := auditActorTypeFor(actorID)
-	input := &AuditLogInput{
+	input := &AuditEntry{
 		ClinicID:   &clinicID,
 		ActorID:    actorID,
 		ActorType:  actorType,

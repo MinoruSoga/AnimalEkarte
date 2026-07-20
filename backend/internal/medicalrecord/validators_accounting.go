@@ -19,3 +19,19 @@ func validateNonNegativePrice(price *int64) error {
 	}
 	return nil
 }
+
+// errMsgQuantityPositive mirrors internal/service.ErrMsgQuantityPositive (validators.go) —
+// treatmentService (BE9-2D ④b) 用の複製。原本は internal/service の残存 service 群が共有し続ける
+// ため移動しない（validateNonNegativePrice と同方針。errMsgAtLeastOneField は validators.go に既存）。
+const errMsgQuantityPositive = "数量は0より大きい値を入力してください"
+
+// validateDiscountRate is a documented, byte-for-byte duplicate of
+// internal/service.validateDiscountRate (validators_owner.go). It stays duplicated because
+// internal/service's owner service still shares it; this copy serves treatmentService only
+// (BE9-2D ④b). Pure, stateless — collapse onto the shared kernel package when it exists.
+func validateDiscountRate(rate float64) error {
+	if rate < 0 || rate > 100 {
+		return apperrors.WrapInvalidInput("割引率は0〜100の範囲で入力してください")
+	}
+	return nil
+}

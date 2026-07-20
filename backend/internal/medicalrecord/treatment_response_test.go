@@ -1,4 +1,4 @@
-package handler
+package medicalrecord
 
 import (
 	"encoding/json"

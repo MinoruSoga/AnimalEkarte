@@ -1,8 +1,7 @@
-package handler
+package medicalrecord
 
 import (
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/service"
 )
 
 type createTreatmentRequest struct {
@@ -24,8 +23,8 @@ type createTreatmentRequest struct {
 	SortOrder      int     `json:"sort_order"`
 }
 
-func (r *createTreatmentRequest) toServiceInput() *service.CreateTreatmentInput {
-	return &service.CreateTreatmentInput{
+func (r *createTreatmentRequest) toServiceInput() *CreateTreatmentInput {
+	return &CreateTreatmentInput{
 		ItemType:       model.TreatmentItemType(r.ItemType),
 		ConsultationID: r.ConsultationID,
 		ProcedureID:    r.ProcedureID,
@@ -64,8 +63,8 @@ type updateTreatmentRequest struct {
 	SortOrder      *int     `json:"sort_order"`
 }
 
-func (r *updateTreatmentRequest) toServiceInput() *service.UpdateTreatmentInput {
-	input := &service.UpdateTreatmentInput{
+func (r *updateTreatmentRequest) toServiceInput() *UpdateTreatmentInput {
+	input := &UpdateTreatmentInput{
 		ConsultationID: r.ConsultationID,
 		ProcedureID:    r.ProcedureID,
 		MedicineID:     r.MedicineID,
@@ -93,15 +92,15 @@ type bulkUpdateTreatmentsRequest struct {
 	Treatments []bulkTreatmentItem `json:"treatments" binding:"required"`
 }
 
-func (r bulkUpdateTreatmentsRequest) toServiceInput() *service.BulkUpdateTreatmentsInput {
-	items := make([]service.BulkTreatmentItem, 0, len(r.Treatments))
+func (r bulkUpdateTreatmentsRequest) toServiceInput() *BulkUpdateTreatmentsInput {
+	items := make([]BulkTreatmentItem, 0, len(r.Treatments))
 	for _, treatment := range r.Treatments {
-		items = append(items, service.BulkTreatmentItem{
+		items = append(items, BulkTreatmentItem{
 			ID:        treatment.ID,
 			SortOrder: treatment.SortOrder,
 		})
 	}
-	return &service.BulkUpdateTreatmentsInput{Treatments: items}
+	return &BulkUpdateTreatmentsInput{Treatments: items}
 }
 
 type bulkTreatmentItem struct {

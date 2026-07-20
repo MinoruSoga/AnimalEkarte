@@ -47,6 +47,7 @@ func TestRegisterRoutes_Snapshot(t *testing.T) {
 		NewVitalHandler(nil, nil),
 		NewClinicalPlanHandler(nil),
 		NewMedicalRecordImageHandler(nil, nil, nil),
+		NewTreatmentHandler(nil, nil),
 		noopPermission,
 	)
 
@@ -73,6 +74,7 @@ func TestRegisterRoutes_Snapshot(t *testing.T) {
 		"DELETE /api/v1/medical-records/:id/clinical-plan DeleteClinicalPlan\n" +
 		"DELETE /api/v1/medical-records/:id/images/:imageId DeleteMedicalRecordImage\n" +
 		"DELETE /api/v1/medical-records/:id/prescriptions/:prescriptionId DeletePrescription\n" +
+		"DELETE /api/v1/medical-records/:id/treatments/:treatmentId DeleteTreatment\n" +
 		"DELETE /api/v1/medical-records/:id/vitals/:vitalId DeleteVital\n" +
 		"DELETE /api/v1/vaccinations/:id DeleteVaccination\n" +
 		"GET /api/v1/checkups ListGlobalCheckups\n" +
@@ -102,7 +104,9 @@ func TestRegisterRoutes_Snapshot(t *testing.T) {
 		"GET /api/v1/medical-records/:id/clinical-plan GetClinicalPlan\n" +
 		"GET /api/v1/medical-records/:id/images ListMedicalRecordImages\n" +
 		"GET /api/v1/medical-records/:id/prescriptions ListPrescriptions\n" +
+		"GET /api/v1/medical-records/:id/treatments ListTreatments\n" +
 		"GET /api/v1/medical-records/:id/vitals ListVitals\n" +
+		"GET /api/v1/pets/:id/treatment-history ListPetTreatmentHistory\n" +
 		"GET /api/v1/vaccinations ListVaccinations\n" +
 		"GET /api/v1/vaccinations/:id GetVaccination\n" +
 		"PATCH /api/v1/masters/checkup-types/:id UpdateCheckupType\n" +
@@ -123,6 +127,7 @@ func TestRegisterRoutes_Snapshot(t *testing.T) {
 		"PATCH /api/v1/medical-records/:id/clinical-plan UpdateClinicalPlan\n" +
 		"PATCH /api/v1/medical-records/:id/inquiries UpdateInquiry\n" +
 		"PATCH /api/v1/medical-records/:id/prescriptions/:prescriptionId UpdatePrescription\n" +
+		"PATCH /api/v1/medical-records/:id/treatments/:treatmentId UpdateTreatment\n" +
 		"PATCH /api/v1/medical-records/:id/vitals/:vitalId UpdateVital\n" +
 		"PATCH /api/v1/vaccinations/:id UpdateVaccination\n" +
 		"POST /api/v1/lab-imports CommitLabImport\n" +
@@ -138,12 +143,14 @@ func TestRegisterRoutes_Snapshot(t *testing.T) {
 		"POST /api/v1/medical-records/:id/images CreateMedicalRecordImage\n" +
 		"POST /api/v1/medical-records/:id/images/upload UploadMedicalRecordImage\n" +
 		"POST /api/v1/medical-records/:id/prescriptions CreatePrescription\n" +
+		"POST /api/v1/medical-records/:id/treatments CreateTreatment\n" +
 		"POST /api/v1/medical-records/:id/vitals CreateVital\n" +
 		"POST /api/v1/vaccinations CreateVaccination\n" +
-		"PUT /api/v1/medical-records/:id/checkups/:checkupId/field-results ReplaceCheckupFieldResults\n"
+		"PUT /api/v1/medical-records/:id/checkups/:checkupId/field-results ReplaceCheckupFieldResults\n" +
+		"PUT /api/v1/medical-records/:id/treatments BulkUpdateTreatments\n"
 
 	assert.Equal(t, want, got, "medicalrecord route snapshot drifted from the pre-move baseline "+
-		"(internal/handler/testdata/route_snapshot.golden, before these 79 lines were removed)")
+		"(internal/handler/testdata/route_snapshot.golden, before these 85 lines were removed)")
 }
 
 // lastHandlerSegment mirrors internal/handler/handler_routes_snapshot_test.go's helper of the

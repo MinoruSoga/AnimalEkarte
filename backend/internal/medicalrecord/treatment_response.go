@@ -1,10 +1,11 @@
-package handler
+package medicalrecord
 
 import (
 	"encoding/json"
 	"strconv"
 	"time"
 
+	"github.com/animal-ekarte/backend/internal/httpapi"
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
@@ -62,8 +63,8 @@ func toTreatmentResponse(t *model.Treatment) treatmentResponse {
 		DoseAmountMg:      t.DoseAmountMg,
 		DoseAmountUnit:    t.DoseAmountUnit,
 		DoseParamSnapshot: t.DoseParamSnapshot,
-		CreatedAt:         localTime(t.CreatedAt),
-		UpdatedAt:         localTime(t.UpdatedAt),
+		CreatedAt:         httpapi.LocalTime(t.CreatedAt),
+		UpdatedAt:         httpapi.LocalTime(t.UpdatedAt),
 	}
 }
 
@@ -104,7 +105,7 @@ func toPetTreatmentHistoryResponse(t *model.Treatment) petTreatmentHistoryRespon
 	}
 	// 診療日は medical_records.date 由来（treatments.created_at は入力時刻なので使わない）。
 	if t.MedicalRecord != nil {
-		resp.Date = localTimePtr(&t.MedicalRecord.Date)
+		resp.Date = httpapi.LocalTimePtr(&t.MedicalRecord.Date)
 	}
 	if t.Medicine != nil {
 		name := t.Medicine.Name

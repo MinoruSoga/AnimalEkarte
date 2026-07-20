@@ -17,6 +17,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
+	"github.com/animal-ekarte/backend/internal/medicalrecord"
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
@@ -40,8 +41,8 @@ func perWeightMedicineRepo() *mockMedicineRepository {
 	}
 }
 
-func validDoseParamInput() *MedicineDoseParamInput {
-	return &MedicineDoseParamInput{
+func validDoseParamInput() *medicalrecord.MedicineDoseParamInput {
+	return &medicalrecord.MedicineDoseParamInput{
 		Species:    model.MedicineDoseSpeciesDog,
 		DoseBasis:  model.MedicineDoseBasisPerAdministration,
 		DosePerKg:  5,
@@ -55,7 +56,7 @@ func TestMedicineDoseParamService_Upsert_OwnershipAndGuards(t *testing.T) {
 	tests := []struct {
 		name      string
 		medRepo   *mockMedicineRepository
-		input     *MedicineDoseParamInput
+		input     *medicalrecord.MedicineDoseParamInput
 		wantErrFn func(error) bool
 	}{
 		{
@@ -95,25 +96,25 @@ func TestMedicineDoseParamService_Upsert_OwnershipAndGuards(t *testing.T) {
 		{
 			name:      "dose_per_kg<=0は拒否",
 			medRepo:   perWeightMedicineRepo(),
-			input:     &MedicineDoseParamInput{Species: model.MedicineDoseSpeciesDog, DoseBasis: model.MedicineDoseBasisPerAdministration, DosePerKg: 0, MaxMgPerKg: fptr(10)},
+			input:     &medicalrecord.MedicineDoseParamInput{Species: model.MedicineDoseSpeciesDog, DoseBasis: model.MedicineDoseBasisPerAdministration, DosePerKg: 0, MaxMgPerKg: fptr(10)},
 			wantErrFn: apperrors.IsInvalidInput,
 		},
 		{
 			name:      "min>maxは拒否",
 			medRepo:   perWeightMedicineRepo(),
-			input:     &MedicineDoseParamInput{Species: model.MedicineDoseSpeciesDog, DoseBasis: model.MedicineDoseBasisPerAdministration, DosePerKg: 5, MinMgPerKg: fptr(20), MaxMgPerKg: fptr(10)},
+			input:     &medicalrecord.MedicineDoseParamInput{Species: model.MedicineDoseSpeciesDog, DoseBasis: model.MedicineDoseBasisPerAdministration, DosePerKg: 5, MinMgPerKg: fptr(20), MaxMgPerKg: fptr(10)},
 			wantErrFn: apperrors.IsInvalidInput,
 		},
 		{
 			name:      "上限(max/absolute)が無いと拒否(過量防止必須)",
 			medRepo:   perWeightMedicineRepo(),
-			input:     &MedicineDoseParamInput{Species: model.MedicineDoseSpeciesDog, DoseBasis: model.MedicineDoseBasisPerAdministration, DosePerKg: 5},
+			input:     &medicalrecord.MedicineDoseParamInput{Species: model.MedicineDoseSpeciesDog, DoseBasis: model.MedicineDoseBasisPerAdministration, DosePerKg: 5},
 			wantErrFn: apperrors.IsInvalidInput,
 		},
 		{
 			name:      "不正なspeciesは拒否",
 			medRepo:   perWeightMedicineRepo(),
-			input:     &MedicineDoseParamInput{Species: model.MedicineDoseSpecies("rabbit"), DoseBasis: model.MedicineDoseBasisPerAdministration, DosePerKg: 5, MaxMgPerKg: fptr(10)},
+			input:     &medicalrecord.MedicineDoseParamInput{Species: model.MedicineDoseSpecies("rabbit"), DoseBasis: model.MedicineDoseBasisPerAdministration, DosePerKg: 5, MaxMgPerKg: fptr(10)},
 			wantErrFn: apperrors.IsInvalidInput,
 		},
 	}

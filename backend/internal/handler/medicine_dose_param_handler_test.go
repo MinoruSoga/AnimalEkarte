@@ -17,6 +17,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
+	"github.com/animal-ekarte/backend/internal/medicalrecord"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/service"
 )
@@ -25,7 +26,7 @@ import (
 
 type mockMedicineDoseParamService struct {
 	listFn   func(ctx context.Context, clinicID, medicineID uint64) ([]model.MedicineDoseParam, error)
-	upsertFn func(ctx context.Context, clinicID, medicineID uint64, input *service.MedicineDoseParamInput, actorID *uint64) (*model.MedicineDoseParam, error)
+	upsertFn func(ctx context.Context, clinicID, medicineID uint64, input *medicalrecord.MedicineDoseParamInput, actorID *uint64) (*model.MedicineDoseParam, error)
 	deleteFn func(ctx context.Context, clinicID, medicineID uint64, species model.MedicineDoseSpecies, actorID *uint64) error
 }
 
@@ -35,7 +36,7 @@ func (m *mockMedicineDoseParamService) List(ctx context.Context, clinicID, medic
 	}
 	return m.listFn(ctx, clinicID, medicineID)
 }
-func (m *mockMedicineDoseParamService) Upsert(ctx context.Context, clinicID, medicineID uint64, input *service.MedicineDoseParamInput, actorID *uint64) (*model.MedicineDoseParam, error) {
+func (m *mockMedicineDoseParamService) Upsert(ctx context.Context, clinicID, medicineID uint64, input *medicalrecord.MedicineDoseParamInput, actorID *uint64) (*model.MedicineDoseParam, error) {
 	if m.upsertFn == nil {
 		return nil, nil
 	}
@@ -151,7 +152,7 @@ func TestUpsertMedicineDoseParam(t *testing.T) {
 			body:     validBody(),
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockMedicineDoseParamService{
-				upsertFn: func(_ context.Context, clinicID, medicineID uint64, input *service.MedicineDoseParamInput, _ *uint64) (*model.MedicineDoseParam, error) {
+				upsertFn: func(_ context.Context, clinicID, medicineID uint64, input *medicalrecord.MedicineDoseParamInput, _ *uint64) (*model.MedicineDoseParam, error) {
 					assert.Equal(t, uint64(1), clinicID)
 					assert.Equal(t, uint64(50), medicineID)
 					assert.Equal(t, model.MedicineDoseSpeciesDog, input.Species)
@@ -205,7 +206,7 @@ func TestUpsertMedicineDoseParam(t *testing.T) {
 			body:     validBody(),
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockMedicineDoseParamService{
-				upsertFn: func(_ context.Context, _, _ uint64, _ *service.MedicineDoseParamInput, _ *uint64) (*model.MedicineDoseParam, error) {
+				upsertFn: func(_ context.Context, _, _ uint64, _ *medicalrecord.MedicineDoseParamInput, _ *uint64) (*model.MedicineDoseParam, error) {
 					return nil, apperrors.WrapInvalidInput("この薬剤は per_weight 計算ではないため投与量パラメータを設定できません")
 				},
 			},
@@ -218,7 +219,7 @@ func TestUpsertMedicineDoseParam(t *testing.T) {
 			body:     validBody(),
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockMedicineDoseParamService{
-				upsertFn: func(_ context.Context, _, _ uint64, _ *service.MedicineDoseParamInput, _ *uint64) (*model.MedicineDoseParam, error) {
+				upsertFn: func(_ context.Context, _, _ uint64, _ *medicalrecord.MedicineDoseParamInput, _ *uint64) (*model.MedicineDoseParam, error) {
 					return nil, apperrors.WrapNotFound("medicine", "999")
 				},
 			},

@@ -1,6 +1,11 @@
-package service
+package medicalrecord
 
 // dose_validators.go — #201 薬マスタ書込時の投与量計算パラメータ検証（純粋関数）。
+// BE9-2D ④b: dose_calc.go の eligibleMedicineUnitsForPerWeight（per_weight 適格単位の安全マップ）を
+// 共有するため dose kernel ごと medicalrecord へ移動（マップ複製は許可集合のドリフト源になるため不可。
+// medicine の domain 帰属は ADR-006 論点#4 で medicalrecord 確定済み）。internal/service の
+// medicine/medicine_dose_param service は medicalrecord. 修飾で引き続き消費する（service→medicalrecord
+// は合法方向）。
 //
 // default-deny / strength 単位整合 / range の二重化（DB CHECK と service 検証）をマスタ書込時に強制する。
 // 計算時だけでなく書込時に弾くことで、誤 per_weight 設定（IU/%/非mg・含量欠落）が DB に入るのを防ぐ。

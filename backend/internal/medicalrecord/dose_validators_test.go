@@ -1,4 +1,4 @@
-package service
+package medicalrecord
 
 // dose_validators_test.go — #201 マスタ書込時バリデーションの table-driven test。
 // default-deny・strength 単位整合（誤 per_weight 拒否）・range 二重化を固定する。

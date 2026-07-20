@@ -137,3 +137,47 @@ type AuditLogger interface {
 type vitalAuditLogger interface {
 	LogVitalChange(ctx context.Context, clinicID uint64, actorID *uint64, action string, vitalID, medicalRecordID uint64, oldValue, newValue map[string]any) error
 }
+
+// ── treatment consumer-side views (BE9-2D sub-batch④b) ──
+// treatmentService moved here from internal/service (after the Phase-1 in-place refactor that
+// swapped its repo-swap tx machinery for Transactor.WithTx + per-repo dbOrTx participation).
+// The treatment/vital repositories are in-package concrete types now; the views below cover the
+// dependencies still living in internal/repository. Concrete repository.* implementations are
+// passed in from cmd/api/main.go by structural typing.
+
+// treatmentMedicalRecordRepo is treatmentService's view of the medical-record repository:
+// FindByID for the pre-tx fast-fail finalized check, LockByIDForUpdate for the X-11 row lock
+// (lockDraftMedicalRecord).
+type treatmentMedicalRecordRepo interface {
+	medicalRecordFinder
+	medicalRecordLocker
+}
+
+// medicineFinder is treatmentService's master-FK ownership-validation + #201 dose-revalidation
+// read view over the medicine master (repository.MedicineRepository.FindByID 相当).
+type medicineFinder interface {
+	FindByID(ctx context.Context, clinicID, id uint64) (*model.Medicine, error)
+}
+
+// procedureFinder / consultationFinder are treatmentService's master-FK ownership-validation
+// read views (#124/#125 同型 mislink 防止の write 前検証)。
+type procedureFinder interface {
+	FindByID(ctx context.Context, clinicID, id uint64) (*model.Procedure, error)
+}
+
+type consultationFinder interface {
+	FindByID(ctx context.Context, clinicID, id uint64) (*model.Consultation, error)
+}
+
+// treatmentInventoryRepo is treatmentService's view of the inventory repository. FindByID is the
+// only cross-tenant defense before DecreaseStock (X-14a: DecreaseStock takes no clinicID).
+type treatmentInventoryRepo interface {
+	FindByID(ctx context.Context, clinicID, id uint64) (*model.InventoryItem, error)
+	DecreaseStock(ctx context.Context, id uint64, quantity float64) error
+}
+
+// doseParamFinder is treatmentService's per-species dose-param read view（#201 B-2 保存時再検証、
+// species で引くことで犬↔猫越境を構造的に排除する HIGH-4 経路）.
+type doseParamFinder interface {
+	FindByMedicineAndSpecies(ctx context.Context, clinicID, medicineID uint64, species model.MedicineDoseSpecies) (*model.MedicineDoseParam, error)
+}
