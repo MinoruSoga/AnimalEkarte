@@ -114,12 +114,12 @@ function CsvImportHistoryTable() {
       <table className="w-full text-sm border-collapse">
         <thead>
           <tr className={`${C.bgLight} border-b ${C.borderLight}`}>
-            <th className={`text-left px-3 py-2 font-medium ${C.text80}`}>ファイル名</th>
-            <th className={`text-right px-3 py-2 font-medium ${C.text80}`}>総行数</th>
-            <th className={`text-right px-3 py-2 font-medium ${C.text80}`}>成功</th>
-            <th className={`text-right px-3 py-2 font-medium ${C.text80}`}>失敗</th>
-            <th className={`text-center px-3 py-2 font-medium ${C.text80}`}>ステータス</th>
-            <th className={`text-left px-3 py-2 font-medium ${C.text80}`}>アップロード日時</th>
+            <th className={`text-left px-3 py-2 text-2xs font-semibold tracking-wide ${C.text55}`}>ファイル名</th>
+            <th className={`text-right px-3 py-2 text-2xs font-semibold tracking-wide ${C.text55}`}>総行数</th>
+            <th className={`text-right px-3 py-2 text-2xs font-semibold tracking-wide ${C.text55}`}>成功</th>
+            <th className={`text-right px-3 py-2 text-2xs font-semibold tracking-wide ${C.text55}`}>失敗</th>
+            <th className={`text-center px-3 py-2 text-2xs font-semibold tracking-wide ${C.text55}`}>ステータス</th>
+            <th className={`text-left px-3 py-2 text-2xs font-semibold tracking-wide ${C.text55}`}>アップロード日時</th>
           </tr>
         </thead>
         <tbody>

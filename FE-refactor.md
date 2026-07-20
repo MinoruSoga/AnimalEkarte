@@ -32,7 +32,7 @@
 | R3 | テーブルヘッダ `ex-data-table-cell` 化: `STYLE.tableHeaderRow`（canvas-soft 帯）+ `tableHeaderCell`（eyebrow 型）一括反転（部分適用禁止 — 旧 §7.5） | ✅済 |
 | R4 | 機械ガード反転: audit C1 = `C.accent`/`#2383E2`/**`#038B94`/`#027078`**（teal を legacy 化・`#0075DE` を解禁）+ audit テスト追随 | ✅済 |
 | R5 | 文書同期: `docs/spec/design-system.md`（字義基準へ改訂・製品上書き撤回・臨床例外のみ残す）+ `ui-design-compliance.md` C1 行/注記 + `frontend/CLAUDE.md` | ✅済 |
-| R6 | 全ページ視覚スイープ（下表・P1〜P7 + リブランド残渣 T 判定）| **77/84 済**（残 = B7 の 7 面 ⏸ backend 並行作業中断 + B2 入院詳細/編集 2 面 ⏸ データ待ち + owner-report ⚠ 1 件） |
+| R6 | 全ページ視覚スイープ（下表・P1〜P7 + リブランド残渣 T 判定）| **79/84 視覚済 + 残5面は静的検査 clean（視覚のみ持ち越し）**。他に B2 入院詳細/編集 2 面 ⏸ データ待ち + owner-report ⚠ 1 件 |
 
 ### 再開手順（次セッション向け）
 
@@ -139,13 +139,13 @@ T  残渣   : teal/旧 accent 青の直値・画像・ハードコードが視�
 | B6 | /examinations/:id | ✅ | ✅ | ✅ | ✅ | ✅ | — | ✅ | ✅ | ExaminationForm 同一実体 | ✅済 |
 | B7 | /shifts | ✅ | ✅ | ✅ | ✅ | ✅ | — | ✅ | ✅ | スクショ精査: シフト種別チップ=装飾 status tint・週末=カレンダー semantic（sanctioned） | ✅済 |
 | B7 | /lstep/checkup-sync | ✅ | ✅ | ✅ | ✅ | ✅ | — | ✅ | ✅ | probe: 対象者を検索=brand。テーブルは STYLE.tableHeader* 経由（静的確認済み） | ✅済 |
-| B7 | /lstep/delivery-monitor | | | | | | | | | **backend 停止（他セッション BE9 reservation 編集中のビルド失敗）で中断** | ⏸中断 |
-| B7 | /lstep/analytics | | | | | | | | | 同上 | ⏸中断 |
-| B7 | /line-reservation/settings | | | | | | | | | 同上 | ⏸中断 |
-| B7 | /line-reservation/page-editor | | | | | | | | | 同上 | ⏸中断 |
-| B7 | /line-reservation/slots | | | | | | | | | 同上 | ⏸中断 |
-| B7 | /manual | | | | | | — | | | 同上（要ログイン） | ⏸中断 |
-| B7 | /manual/:category/:slug | | | | | | — | | | 同上 | ⏸中断 |
+| B7 | /lstep/delivery-monitor | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | probe 全通過（eyebrow 12px/600・teal 残渣なし） | ✅済 |
+| B7 | /lstep/analytics | ✅ | ✅ | ✅ | ✅ | ✅ | 🔧 | ✅ | ✅ | 来院転換/CSV 取込/配信統計の手書き 15px ヘッダを eyebrow 字義化（reload 後 12px/600 実測） | ✅済 |
+| B7 | /line-reservation/settings | | | | | 静✅ | 静✅ | | 静✅ | **静的検査 clean**（teal/ink フィル/非トークンヘッダ 0 件・共有トークン経由）。視覚確認のみ残 — backend 断続停止（BE9 reservation 編集中）で形式確認持ち越し | ⏸視覚のみ残 |
+| B7 | /line-reservation/page-editor | | | | | 静✅ | — | | 静✅ | 同上 | ⏸視覚のみ残 |
+| B7 | /line-reservation/slots | | | | | 静✅ | 静✅ | | 静✅ | 同上 | ⏸視覚のみ残 |
+| B7 | /manual | | | | | 静✅ | — | | 静✅ | 同上。ManualContent の markdown 文書表（bg-black/5 ヘッダ）は**文書レンダリング**であり app データテーブル規範（ex-data-table-cell）の対象外と裁定（印刷帳票と同型） | ⏸視覚のみ残 |
+| B7 | /manual/:category/:slug | | | | | 静✅ | — | | 静✅ | 同上 | ⏸視覚のみ残 |
 
 （404 fallback は inline 簡易要素のため対象外 — ui-design-compliance §2 脚注どおり。リダイレクト専用 12 route も対象外）
 

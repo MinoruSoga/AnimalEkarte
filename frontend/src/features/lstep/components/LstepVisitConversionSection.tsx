@@ -75,12 +75,12 @@ function VisitConversionTable({ data }: { data?: VisitConversionSummaryResponse 
       <table className="w-full text-sm border-collapse">
         <thead>
           <tr className={`${C.bgLight} border-b ${C.borderLight}`}>
-            <th className={`text-left px-3 py-2 font-medium ${C.text80} min-w-[180px]`}>
+            <th className={`text-left px-3 py-2 text-2xs font-semibold tracking-wide ${C.text55} min-w-[180px]`}>
               トリガー種別
             </th>
-            <th className={`text-right px-3 py-2 font-medium ${C.text80}`}>送信件数</th>
-            <th className={`text-right px-3 py-2 font-medium ${C.text80}`}>来院件数</th>
-            <th className={`text-right px-3 py-2 font-medium ${C.text80}`}>来院率</th>
+            <th className={`text-right px-3 py-2 text-2xs font-semibold tracking-wide ${C.text55}`}>送信件数</th>
+            <th className={`text-right px-3 py-2 text-2xs font-semibold tracking-wide ${C.text55}`}>来院件数</th>
+            <th className={`text-right px-3 py-2 text-2xs font-semibold tracking-wide ${C.text55}`}>来院率</th>
           </tr>
         </thead>
         <tbody>
@@ -95,7 +95,7 @@ function VisitConversionTable({ data }: { data?: VisitConversionSummaryResponse 
               <td className={`text-right px-3 py-2 ${C.text60} tabular-nums`}>
                 {row.visited_count.toLocaleString()}
               </td>
-              <td className={`text-right px-3 py-2 font-medium ${C.text80} tabular-nums`}>
+              <td className={`text-right px-3 py-2 text-2xs font-semibold tracking-wide ${C.text55} tabular-nums`}>
                 {formatPercent(row.visit_rate)}
               </td>
             </tr>
