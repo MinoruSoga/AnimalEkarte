@@ -453,6 +453,7 @@ var migratedDomainRoutePackages = []struct {
 }{
 	{dir: "../manualarticle", prefix: "/api/v1"},
 	{dir: "../medicalrecord", prefix: "/api/v1"},
+	{dir: "../reservation", prefix: "/api/v1"},
 }
 
 // buildFuncsFromDir parses every non-test .go file directly under dir and returns its

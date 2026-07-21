@@ -1,0 +1,6 @@
+package reservation
+
+// service/be9_2d_mock_carriers_test.go の同名ヘルパーの最小限の複製（package跨ぎimport不能のため）。
+func strPtr(s string) *string { return &s }
+
+func uint64Ptr(v uint64) *uint64 { return &v }

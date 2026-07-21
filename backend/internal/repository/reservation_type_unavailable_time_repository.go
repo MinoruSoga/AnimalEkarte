@@ -3,15 +3,13 @@ package repository
 import (
 	"gorm.io/gorm"
 
-	"github.com/animal-ekarte/backend/internal/repository/reservationtypeunavailabletime"
+	"github.com/animal-ekarte/backend/internal/reservation"
 )
 
-// ReservationTypeUnavailableTimeRepository is a stable facade alias for the
-// reservationtypeunavailabletime domain package (BE8-4). Service/handler imports keep
-// using repository.* so the split does not churn all importers.
-type ReservationTypeUnavailableTimeRepository = reservationtypeunavailabletime.Repository
+// ReservationTypeUnavailableTimeRepository は internal/reservation への移行facade（BE9-2C R①・BE9-2F削除予定）。
+type ReservationTypeUnavailableTimeRepository = reservation.ReservationTypeUnavailableTimeRepository
 
-// NewReservationTypeUnavailableTimeRepository constructs the reservation type unavailable time repository.
+// NewReservationTypeUnavailableTimeRepository は internal/reservation の実装を返す（BE9-2C R① facade）。
 func NewReservationTypeUnavailableTimeRepository(db *gorm.DB) ReservationTypeUnavailableTimeRepository {
-	return reservationtypeunavailabletime.New(db)
+	return reservation.NewReservationTypeUnavailableTimeRepository(db)
 }

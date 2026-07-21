@@ -3,15 +3,13 @@ package repository
 import (
 	"gorm.io/gorm"
 
-	"github.com/animal-ekarte/backend/internal/repository/reservationtypegroup"
+	"github.com/animal-ekarte/backend/internal/reservation"
 )
 
-// ReservationTypeGroupRepository is a stable facade alias for the reservationtypegroup
-// domain package (BE8-4). Service/handler imports keep using repository.* so the split
-// does not churn all importers.
-type ReservationTypeGroupRepository = reservationtypegroup.Repository
+// ReservationTypeGroupRepository は internal/reservation への移行facade（BE9-2C R①・BE9-2F削除予定）。
+type ReservationTypeGroupRepository = reservation.ReservationTypeGroupRepository
 
-// NewReservationTypeGroupRepository constructs the reservation type group repository.
+// NewReservationTypeGroupRepository は internal/reservation の実装を返す（BE9-2C R① facade）。
 func NewReservationTypeGroupRepository(db *gorm.DB) ReservationTypeGroupRepository {
-	return reservationtypegroup.New(db)
+	return reservation.NewReservationTypeGroupRepository(db)
 }

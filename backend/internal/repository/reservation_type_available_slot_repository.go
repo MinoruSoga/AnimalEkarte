@@ -3,15 +3,13 @@ package repository
 import (
 	"gorm.io/gorm"
 
-	"github.com/animal-ekarte/backend/internal/repository/reservationtypeavailableslot"
+	"github.com/animal-ekarte/backend/internal/reservation"
 )
 
-// ReservationTypeAvailableSlotRepository is a stable facade alias for the
-// reservationtypeavailableslot domain package (BE8-4). Service/handler imports keep
-// using repository.* so the split does not churn all importers.
-type ReservationTypeAvailableSlotRepository = reservationtypeavailableslot.Repository
+// ReservationTypeAvailableSlotRepository は internal/reservation への移行facade（BE9-2C R①・BE9-2F削除予定）。
+type ReservationTypeAvailableSlotRepository = reservation.ReservationTypeAvailableSlotRepository
 
-// NewReservationTypeAvailableSlotRepository constructs the reservation type available slot repository.
+// NewReservationTypeAvailableSlotRepository は internal/reservation の実装を返す（BE9-2C R① facade）。
 func NewReservationTypeAvailableSlotRepository(db *gorm.DB) ReservationTypeAvailableSlotRepository {
-	return reservationtypeavailableslot.New(db)
+	return reservation.NewReservationTypeAvailableSlotRepository(db)
 }

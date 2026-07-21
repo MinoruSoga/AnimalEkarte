@@ -7,7 +7,6 @@ DELETE /api/v1/clinics/:clinic_id/owners/:id/lstep/tags/:tag_name DeleteOwnerLst
 DELETE /api/v1/clinics/:clinic_id/pets/:id/death DeletePetDeath
 DELETE /api/v1/clinics/:clinic_id/reservation-staffs/:staffId DeleteReservationStaff
 DELETE /api/v1/clinics/:clinic_id/reservation-staffs/:staffId/schedules/:date DeleteReservationSchedule
-DELETE /api/v1/clinics/:clinic_id/reservation-types/:id DeleteReservationTypeLiff
 DELETE /api/v1/clinics/:clinic_id/reservations/:reservationId DeleteReservationAdmin
 DELETE /api/v1/closing-settings/holidays/:date DeleteClinicHoliday
 DELETE /api/v1/closing-settings/special-periods/:id DeleteSpecialPeriod
@@ -23,11 +22,6 @@ DELETE /api/v1/masters/insurances/:id DeleteInsurance
 DELETE /api/v1/masters/merchandise-items/:id DeleteMerchandiseItem
 DELETE /api/v1/masters/occupations/:id DeleteOccupation
 DELETE /api/v1/masters/permission-groups/:id DeletePermissionGroup
-DELETE /api/v1/masters/reservation-type-groups/:id DeleteReservationTypeGroup
-DELETE /api/v1/masters/reservation-types/:id DeleteReservationType
-DELETE /api/v1/masters/reservation-types/:id/available-slots/:available_slot_id DeleteAvailableSlot
-DELETE /api/v1/masters/reservation-types/:id/occupations/:occupation_id UnlinkReservationTypeOccupation
-DELETE /api/v1/masters/reservation-types/:id/unavailable-times/:unavailable_time_id DeleteUnavailableTime
 DELETE /api/v1/masters/staffs/:id DeleteStaff
 DELETE /api/v1/masters/trimming-course-types/:id DeleteTrimmingCourseType
 DELETE /api/v1/masters/trimming-courses/:id DeleteTrimmingCourse
@@ -89,7 +83,6 @@ GET /api/v1/clinics/:clinic_id/owners/:id/lstep/tags GetOwnerLstepTags
 GET /api/v1/clinics/:clinic_id/owners/aggregations ListOwnerAggregation
 GET /api/v1/clinics/:clinic_id/reservation-staffs ListReservationStaffs
 GET /api/v1/clinics/:clinic_id/reservation-staffs/:staffId/schedules ListReservationSchedules
-GET /api/v1/clinics/:clinic_id/reservation-types ListReservationTypeLiffs
 GET /api/v1/clinics/:clinic_id/reservations ListReservationsAdmin
 GET /api/v1/closing-settings GetClosingSettings
 GET /api/v1/closing-settings/holidays ListClinicHolidays
@@ -121,13 +114,6 @@ GET /api/v1/masters/occupations ListOccupations
 GET /api/v1/masters/occupations/:id GetOccupation
 GET /api/v1/masters/permission-groups ListPermissionGroups
 GET /api/v1/masters/permission-groups/:id GetPermissionGroup
-GET /api/v1/masters/reservation-type-groups ListReservationTypeGroups
-GET /api/v1/masters/reservation-type-groups/:id GetReservationTypeGroup
-GET /api/v1/masters/reservation-types ListReservationTypes
-GET /api/v1/masters/reservation-types/:id GetReservationType
-GET /api/v1/masters/reservation-types/:id/available-slots ListAvailableSlots
-GET /api/v1/masters/reservation-types/:id/occupations ListReservationTypeOccupations
-GET /api/v1/masters/reservation-types/:id/unavailable-times ListUnavailableTimes
 GET /api/v1/masters/staffs ListStaffs
 GET /api/v1/masters/staffs/:id GetStaff
 GET /api/v1/masters/staffs/:id/capable-reservation-types GetStaffCapableReservationTypes
@@ -183,8 +169,6 @@ PATCH /api/v1/clinics/:clinic_id/owners/:id/transfer-status UpdateOwnerTransferS
 PATCH /api/v1/clinics/:clinic_id/pets/:id/death UpdatePetDeath
 PATCH /api/v1/clinics/:clinic_id/reservation-staffs/:staffId/sort-order UpdateReservationStaffSortOrder
 PATCH /api/v1/clinics/:clinic_id/reservation-staffs/:staffId/status UpdateReservationStaffStatus
-PATCH /api/v1/clinics/:clinic_id/reservation-types/:id/sort-order UpdateReservationTypeLiffSortOrder
-PATCH /api/v1/clinics/:clinic_id/reservation-types/:id/status UpdateReservationTypeLiffStatus
 PATCH /api/v1/closing-settings UpdateClosingSettings
 PATCH /api/v1/closing-settings/special-periods/:id UpdateSpecialPeriod
 PATCH /api/v1/company UpdateCompany
@@ -204,10 +188,6 @@ PATCH /api/v1/masters/occupations/:id UpdateOccupation
 PATCH /api/v1/masters/occupations/reorder ReorderOccupations
 PATCH /api/v1/masters/permission-groups/:id UpdatePermissionGroup
 PATCH /api/v1/masters/permission-groups/reorder ReorderPermissionGroups
-PATCH /api/v1/masters/reservation-type-groups/:id UpdateReservationTypeGroup
-PATCH /api/v1/masters/reservation-type-groups/reorder ReorderReservationTypeGroups
-PATCH /api/v1/masters/reservation-types/:id UpdateReservationType
-PATCH /api/v1/masters/reservation-types/reorder ReorderReservationTypes
 PATCH /api/v1/masters/staffs/:id UpdateStaff
 PATCH /api/v1/masters/staffs/reorder ReorderStaffs
 PATCH /api/v1/masters/trimming-course-types/:id UpdateTrimmingCourseType
@@ -257,8 +237,6 @@ POST /api/v1/clinics/:clinic_id/owners/:id/lstep-opt-out UpdateOwnerLstepOptOut
 POST /api/v1/clinics/:clinic_id/owners/:id/lstep/tags AddOwnerLstepTag
 POST /api/v1/clinics/:clinic_id/reservation-staffs CreateReservationStaff
 POST /api/v1/clinics/:clinic_id/reservation-staffs/:staffId/image UploadReservationStaffImage
-POST /api/v1/clinics/:clinic_id/reservation-types CreateReservationTypeLiff
-POST /api/v1/clinics/:clinic_id/reservation-types/:id/image UploadReservationTypeLiffImage
 POST /api/v1/clinics/:clinic_id/reservations CreateReservationAdmin
 POST /api/v1/closing-settings/holidays SetClinicHoliday
 POST /api/v1/closing-settings/special-periods CreateSpecialPeriod
@@ -276,11 +254,6 @@ POST /api/v1/masters/insurances CreateInsurance
 POST /api/v1/masters/merchandise-items CreateMerchandiseItem
 POST /api/v1/masters/occupations CreateOccupation
 POST /api/v1/masters/permission-groups CreatePermissionGroup
-POST /api/v1/masters/reservation-type-groups CreateReservationTypeGroup
-POST /api/v1/masters/reservation-types CreateReservationType
-POST /api/v1/masters/reservation-types/:id/available-slots CreateAvailableSlot
-POST /api/v1/masters/reservation-types/:id/occupations LinkReservationTypeOccupation
-POST /api/v1/masters/reservation-types/:id/unavailable-times CreateUnavailableTime
 POST /api/v1/masters/staffs CreateStaff
 POST /api/v1/masters/trimming-course-types CreateTrimmingCourseType
 POST /api/v1/masters/trimming-courses CreateTrimmingCourse
@@ -305,7 +278,6 @@ PUT /api/v1/clinics/:clinic_id/line-reservation-settings SaveLineReservationSett
 PUT /api/v1/clinics/:clinic_id/lstep-tag-code-mappings/:tag_name ReplaceTagCodeMappingsForTag
 PUT /api/v1/clinics/:clinic_id/reservation-staffs/:staffId UpdateReservationStaff
 PUT /api/v1/clinics/:clinic_id/reservation-staffs/:staffId/schedules/:date UpsertReservationSchedule
-PUT /api/v1/clinics/:clinic_id/reservation-types/:id UpdateReservationTypeLiff
 PUT /api/v1/lstep-tag-code-mappings/:tag_name ReplaceTagCodeMappingsForTag
 PUT /api/v1/masters/permission-groups/:id/rules SetPermissionGroupRules
 PUT /api/v1/masters/staffs/:id/capable-reservation-types SetStaffCapableReservationTypes

@@ -8,6 +8,7 @@ import (
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/repository"
+	"github.com/animal-ekarte/backend/internal/reservation"
 	"github.com/animal-ekarte/backend/internal/sharedkernel"
 )
 
@@ -207,7 +208,7 @@ func (s *reservationService) Create(ctx context.Context, input *CreateManualRese
 	}
 	enforceBookingConstraints := shouldEnforceReservationBookingConstraints(input.Status, input.ReservationRoute)
 	if enforceBookingConstraints {
-		if err := validateReservationTypeAvailableTime(ctx, s.unavailableTimeRepo, input.ClinicID, input.ReservationTypeID, input.StartTime, input.EndTime); err != nil {
+		if err := reservation.ValidateReservationTypeAvailableTime(ctx, s.unavailableTimeRepo, input.ClinicID, input.ReservationTypeID, input.StartTime, input.EndTime); err != nil {
 			return nil, err
 		}
 	}
@@ -291,12 +292,10 @@ func shouldEnforceReservationBookingConstraints(status model.ReservationStatus, 
 	}
 }
 
-// validateTimeRange は end_time > start_time を確認する共通バリデーション。
+// validateTimeRange は end_time > start_time を確認する共通バリデーション
+// （BE9-2C R①: 実装は sharedkernel.ValidateTimeRange へ昇格・本関数は既存呼び出し面互換の delegate）。
 func validateTimeRange(startTime, endTime time.Time) error {
-	if !endTime.After(startTime) {
-		return apperrors.WrapInvalidInput("end_time must be after start_time")
-	}
-	return nil
+	return sharedkernel.ValidateTimeRange(startTime, endTime)
 }
 
 // errNoDoctorsOnDuty は当日の出勤医師が 0 人のためスロット予約不可を示すセンチネルエラー。
@@ -476,7 +475,7 @@ func (s *reservationService) Update(ctx context.Context, clinicID, id uint64, in
 		if input.ReservationTypeID != nil {
 			resolvedReservationTypeID = *input.ReservationTypeID
 		}
-		if err := validateReservationTypeAvailableTime(ctx, s.unavailableTimeRepo, clinicID, resolvedReservationTypeID, resolvedStart, resolvedEnd); err != nil {
+		if err := reservation.ValidateReservationTypeAvailableTime(ctx, s.unavailableTimeRepo, clinicID, resolvedReservationTypeID, resolvedStart, resolvedEnd); err != nil {
 			return nil, err
 		}
 	}

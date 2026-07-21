@@ -1034,7 +1034,7 @@ func TestTrimmingService_Create_ExistingAppointment_TimeRangeInvalid(t *testing.
 	}
 	svc := newTrimmingTestService(reserv, detail)
 
-	// end_time が start_time より前 → validateReservationTypeAvailableTime 内の
+	// end_time が start_time より前 → reservation.ValidateReservationTypeAvailableTime 内の
 	// validateTimeRange がエラーを返す。
 	appt, err := svc.Create(context.Background(), 1, &CreateTrimmingInput{
 		AppointmentID: &appointmentID,
@@ -1053,7 +1053,7 @@ func TestTrimmingService_Create_ExistingAppointment_ResolvesPartialTimeRange(t *
 	existingEnd := existingStart.Add(2 * time.Hour)
 	// newStart は既存の start_time より後だが、end_time (existingEnd) より前でなければならない。
 	// end_time は未指定のため appt.EndTime に解決され、resolvedStart < resolvedEnd を
-	// 満たす必要がある（validateReservationTypeAvailableTime 内の validateTimeRange）。
+	// 満たす必要がある（reservation.ValidateReservationTypeAvailableTime 内の validateTimeRange）。
 	newStart := existingStart.Add(30 * time.Minute)
 
 	reserv := &mockTrimmingReservationRepository{

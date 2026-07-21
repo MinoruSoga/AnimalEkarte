@@ -9,6 +9,7 @@ import (
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/repository"
+	"github.com/animal-ekarte/backend/internal/reservation"
 )
 
 // CreateTrimmingInput はトリミング予約作成の入力DTO（appointments ベース, BE-119）
@@ -182,7 +183,7 @@ func (s *trimmingService) Create(ctx context.Context, clinicID uint64, input *Cr
 		return nil, err
 	}
 	if shouldEnforceReservationBookingConstraints(status, input.ReservationRoute) {
-		if err := validateReservationTypeAvailableTime(ctx, s.unavailableTime, clinicID, input.ReservationTypeID, input.StartTime, input.EndTime); err != nil {
+		if err := reservation.ValidateReservationTypeAvailableTime(ctx, s.unavailableTime, clinicID, input.ReservationTypeID, input.StartTime, input.EndTime); err != nil {
 			return nil, err
 		}
 	} else if err := validateTimeRange(input.StartTime, input.EndTime); err != nil {
@@ -378,7 +379,7 @@ func (s *trimmingService) createDetailForExistingAppointment(
 			resolvedEnd = locked.EndTime
 		}
 		if !input.StartTime.IsZero() || !input.EndTime.IsZero() {
-			if err := validateReservationTypeAvailableTime(txCtx, s.unavailableTime, clinicID, locked.ReservationTypeID, resolvedStart, resolvedEnd); err != nil {
+			if err := reservation.ValidateReservationTypeAvailableTime(txCtx, s.unavailableTime, clinicID, locked.ReservationTypeID, resolvedStart, resolvedEnd); err != nil {
 				return err
 			}
 		}

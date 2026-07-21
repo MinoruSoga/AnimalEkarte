@@ -5,6 +5,7 @@ import (
 	"github.com/animal-ekarte/backend/internal/infra/crypto"
 	"github.com/animal-ekarte/backend/internal/medicalrecord"
 	"github.com/animal-ekarte/backend/internal/repository"
+	"github.com/animal-ekarte/backend/internal/reservation"
 )
 
 // Services はすべてのサービスを保持するDIコンテナ
@@ -29,11 +30,11 @@ type Services struct {
 	StaffAccount                   StaffAccountService
 	StaffPermission                StaffPermissionService
 	Insurance                      InsuranceService
-	ReservationType                ReservationTypeCoreService
-	ReservationTypeUnavailableTime ReservationTypeUnavailableTimeService
-	ReservationTypeAvailableSlot   ReservationTypeAvailableSlotService
-	ReservationTypeOccupation      ReservationTypeOccupationService
-	ReservationTypeGroup           ReservationTypeGroupService
+	ReservationType                reservation.ReservationTypeCoreService
+	ReservationTypeUnavailableTime reservation.ReservationTypeUnavailableTimeService
+	ReservationTypeAvailableSlot   reservation.ReservationTypeAvailableSlotService
+	ReservationTypeOccupation      reservation.ReservationTypeOccupationService
+	ReservationTypeGroup           reservation.ReservationTypeGroupService
 	TrimmingCourse                 TrimmingCourseService
 	TrimmingOption                 TrimmingOptionService
 	Clinic                         ClinicService
@@ -68,7 +69,7 @@ type Services struct {
 
 	// LINE予約
 	LineReservationSetting    LineReservationSettingService
-	ReservationTypeLiff       ReservationTypeLiffService
+	ReservationTypeLiff       reservation.ReservationTypeLiffService
 	ReservationStaff          ReservationStaffService
 	ReservationStaffCore      ReservationStaffCoreService
 	ReservationStaffExclusion ReservationStaffExclusionService
@@ -152,7 +153,7 @@ func NewServices(repos *repository.Repositories, notifCfg *ReservationNotificati
 
 	// ReservationTypeService はサブインターフェースを実装する単一インスタンス。
 	// 同一インスタンスを複数フィールドに割り当てることで余分な初期化を避ける。
-	reservationTypeSvc := NewReservationTypeService(
+	reservationTypeSvc := reservation.NewReservationTypeService(
 		repos.ReservationType,
 		repos.ReservationTypeUnavailableTime,
 		repos.ReservationTypeOccupation,
@@ -240,7 +241,7 @@ func NewServices(repos *repository.Repositories, notifCfg *ReservationNotificati
 		ReservationTypeUnavailableTime: reservationTypeSvc,
 		ReservationTypeAvailableSlot:   reservationTypeSvc,
 		ReservationTypeOccupation:      reservationTypeSvc,
-		ReservationTypeGroup:           NewReservationTypeGroupService(repos.ReservationTypeGroup),
+		ReservationTypeGroup:           reservation.NewReservationTypeGroupService(repos.ReservationTypeGroup),
 		TrimmingCourse:                 NewTrimmingCourseService(repos.TrimmingCourse, repos.TrimmingCourseType),
 		TrimmingOption:                 NewTrimmingOptionService(repos.TrimmingOption),
 		Clinic:                         NewClinicService(repos.Clinic, repos.PermissionGroup, tx),
@@ -269,7 +270,7 @@ func NewServices(repos *repository.Repositories, notifCfg *ReservationNotificati
 		CashRegister:              NewCashRegisterService(repos.CashRegisterClose, repos.Accounting, closingSettingsSvc, repos.PaymentMethodMaster, repos.Clinic),
 		AccountingReport:          NewAccountingReportService(repos.Accounting, repos.PaymentMethodMaster, repos.ClinicHoliday, repos.Clinic),
 		LineReservationSetting:    NewLineReservationSettingService(repos.LineReservationSetting, cipher),
-		ReservationTypeLiff:       NewReservationTypeLiffService(repos.ReservationTypeLiff, repos.ReservationAdmin, repos.Reservation),
+		ReservationTypeLiff:       reservation.NewReservationTypeLiffService(repos.ReservationTypeLiff, repos.Reservation),
 		ReservationStaff:          resStaffSvc,
 		ReservationStaffCore:      resStaffSvc,
 		ReservationStaffExclusion: resStaffSvc,

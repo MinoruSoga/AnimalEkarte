@@ -583,7 +583,7 @@ func baseName(p string) string {
 // CRUD slice, boundary map §3.7 sub-batch ①). Their allowlist keys are unchanged (receiver
 // type names carried over verbatim) — only the evidence comments below now point at the new
 // file locations.
-var serviceWriteRolePackagePrefixes = []string{"service/", "medicalrecord/"}
+var serviceWriteRolePackagePrefixes = []string{"service/", "medicalrecord/", "reservation/"}
 
 // isServiceWriteRolePackage reports whether key — a lintscan.WalkInternalTreeT path key such as
 // "service/foo.go" or "service/sub/deep/foo.go" — belongs to the service-write role scope this

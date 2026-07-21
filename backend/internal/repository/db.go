@@ -1,12 +1,12 @@
 package repository
 
 import (
-	"errors"
 	"time"
 
-	"github.com/jackc/pgx/v5/pgconn"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
+
+	"github.com/animal-ekarte/backend/internal/repository/repohelpers"
 
 	"github.com/animal-ekarte/backend/internal/config"
 	"github.com/animal-ekarte/backend/internal/apperrors"
@@ -32,13 +32,12 @@ func NewDB(cfg *config.Config) (*gorm.DB, error) {
 }
 
 // isUniqueConstraintErr はPostgreSQLのユニーク制約違反（23505）を判定する
+// （BE9-2C R①: 実装は repohelpers へ昇格・本関数は既存呼び出し面互換の delegate）
 func isUniqueConstraintErr(err error) bool {
-	var pgErr *pgconn.PgError
-	return errors.As(err, &pgErr) && pgErr.Code == "23505"
+	return repohelpers.IsUniqueConstraintErr(err)
 }
 
 // isFKConstraintErr はPostgreSQLの外部キー制約違反（23503）を判定する
 func isFKConstraintErr(err error) bool {
-	var pgErr *pgconn.PgError
-	return errors.As(err, &pgErr) && pgErr.Code == "23503"
+	return repohelpers.IsFKConstraintErr(err)
 }

@@ -12,6 +12,7 @@ import (
 	"github.com/animal-ekarte/backend/internal/config"
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/reservation"
 )
 
 // buildCapacityFilterFn は course.MaxConcurrent 制約下でのキャパシティフィルタ
@@ -95,7 +96,7 @@ func (s *liffService) GetAvailableDates(ctx context.Context, clinicID, typeID, s
 			slog.ErrorContext(ctx, "failed to get available slots", "error", err)
 			return nil, BookingWindow{}, apperrors.Wrap(err, "failed to get available slots")
 		}
-		if hasActiveAvailableSlots(availableSlots) || course.MaxConcurrent != nil {
+		if reservation.HasActiveAvailableSlots(availableSlots) || course.MaxConcurrent != nil {
 			slotFilterFn = func(date time.Time, slots []TimeSlot) []TimeSlot {
 				merged := mergeAvailableTimeSlots(slots, availableSlots, date, course.DurationMinutes)
 				if capacityFilter == nil {
@@ -278,7 +279,7 @@ func (s *liffService) GetAvailableTimes(ctx context.Context, clinicID, typeID, s
 			slog.ErrorContext(ctx, "failed to get available slots", "error", err)
 			return nil, apperrors.Wrap(err, "failed to get available slots")
 		}
-		if hasActiveAvailableSlots(availableSlots) {
+		if reservation.HasActiveAvailableSlots(availableSlots) {
 			result = mergeAvailableTimeSlots(result, availableSlots, date, course.DurationMinutes)
 		}
 	}
@@ -296,7 +297,7 @@ func (s *liffService) GetAvailableTimes(ctx context.Context, clinicID, typeID, s
 // 予約可能枠テーブルに登録された時刻を加算して返す（ホワイトリストではなく加算モード）。
 // 既に営業時間に含まれている時刻は重複追加しない。
 func mergeAvailableTimeSlots(slots []TimeSlot, availableSlots []model.ReservationTypeAvailableSlot, date time.Time, durationMinutes int) []TimeSlot {
-	applicableSlots := filterApplicableAvailableSlots(availableSlots, date)
+	applicableSlots := reservation.FilterApplicableAvailableSlots(availableSlots, date)
 	if len(applicableSlots) == 0 {
 		return slots
 	}

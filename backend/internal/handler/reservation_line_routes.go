@@ -21,15 +21,7 @@ func (h *Handler) RegisterLineReservationRoutes(rg *gin.RouterGroup) {
 	clinics.GET("/line-reservation-settings", h.RequirePermission(string(model.ResourceHospitalSettings), "view"), h.GetLineReservationSetting)
 	clinics.PUT("/line-reservation-settings", h.RequirePermission(string(model.ResourceHospitalSettings), "edit"), h.SaveLineReservationSetting)
 
-	// TASK-RES-011: 予約区分（LINE管理用）
-	types := clinics.Group("/reservation-types")
-	types.GET("", h.RequirePermission(string(model.ResourceMasterReservationType), "view"), h.ListReservationTypeLiffs)
-	types.POST("", h.RequirePermission(string(model.ResourceMasterReservationType), "create"), h.CreateReservationTypeLiff)
-	types.PUT("/:id", h.RequirePermission(string(model.ResourceMasterReservationType), "edit"), h.UpdateReservationTypeLiff)
-	types.DELETE("/:id", h.RequirePermission(string(model.ResourceMasterReservationType), "delete"), h.DeleteReservationTypeLiff)
-	types.PATCH("/:id/status", h.RequirePermission(string(model.ResourceMasterReservationType), "edit"), h.UpdateReservationTypeLiffStatus)
-	types.PATCH("/:id/sort-order", h.RequirePermission(string(model.ResourceMasterReservationType), "edit"), h.UpdateReservationTypeLiffSortOrder)
-	types.POST("/:id/image", h.RequirePermission(string(model.ResourceMasterReservationType), "create"), h.UploadReservationTypeLiffImage)
+	// TASK-RES-011: 予約区分（LINE管理用）routes は internal/reservation.RegisterRoutes へ移動（BE9-2C R①）
 
 	// TASK-RES-012: スタッフ
 	staffs := clinics.Group("/reservation-staffs")

@@ -3,13 +3,13 @@ package repository
 import (
 	"gorm.io/gorm"
 
-	"github.com/animal-ekarte/backend/internal/repository/reservationtype"
+	"github.com/animal-ekarte/backend/internal/reservation"
 )
 
-// ReservationTypeRepository is a stable facade alias for reservationtype.
-type ReservationTypeRepository = reservationtype.Repository
+// ReservationTypeRepository は internal/reservation への移行facade（BE9-2C R①・BE9-2F削除予定）。
+type ReservationTypeRepository = reservation.ReservationTypeRepository
 
-// NewReservationTypeRepository constructs the reservation type master repository.
+// NewReservationTypeRepository は internal/reservation の実装を返す（BE9-2C R① facade）。
 func NewReservationTypeRepository(db *gorm.DB) ReservationTypeRepository {
-	return reservationtype.New(db)
+	return reservation.NewReservationTypeRepository(db)
 }

@@ -10,6 +10,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/config"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/reservation"
 )
 
 type mockCapacityCounter struct {
@@ -26,7 +27,7 @@ func TestFilterApplicableAvailableSlots_WeeklyAndSpecific(t *testing.T) {
 	specificDate := time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC)
 	date := time.Date(2026, 6, 1, 0, 0, 0, 0, config.JST)
 
-	result := filterApplicableAvailableSlots([]model.ReservationTypeAvailableSlot{
+	result := reservation.FilterApplicableAvailableSlots([]model.ReservationTypeAvailableSlot{
 		{AvailableType: model.AvailableSlotTypeWeekly, DayOfWeek: &monday, StartTime: "09:45", IsActive: true},
 		{AvailableType: model.AvailableSlotTypeWeekly, DayOfWeek: &tuesday, StartTime: "12:30", IsActive: true},
 		{AvailableType: model.AvailableSlotTypeSpecific, SpecificDate: &specificDate, StartTime: "14:00", IsActive: true},

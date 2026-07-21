@@ -197,13 +197,13 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"appointment_admin_repository.go|reservationAdminRepository.Create":                  {}, // AUD-001
 	// reservationtype domain package (methods that previously used dbOrTx; Update/Delete remain
 	// r.db.WithContext by design — behavior preserved from flat file; facade keeps service imports)
-	"reservationtype/repository.go|repository.CountChildrenByParentID":       {},
-	"reservationtype/repository.go|repository.CountUsageByReservationTypeID": {},
-	"reservationtype/repository.go|repository.Create":                        {},
-	"reservationtype/repository.go|repository.FindAll":                       {},
-	"reservationtype/repository.go|repository.FindAllWithChildren":           {},
-	"reservationtype/repository.go|repository.FindByID":                      {},
-	"reservationtype/repository.go|repository.FindByIDWithChildren":          {},
+	"reservation/reservation_type_repository.go|reservationTypeRepository.CountChildrenByParentID":       {},
+	"reservation/reservation_type_repository.go|reservationTypeRepository.CountUsageByReservationTypeID": {},
+	"reservation/reservation_type_repository.go|reservationTypeRepository.Create":                        {},
+	"reservation/reservation_type_repository.go|reservationTypeRepository.FindAll":                       {},
+	"reservation/reservation_type_repository.go|reservationTypeRepository.FindAllWithChildren":           {},
+	"reservation/reservation_type_repository.go|reservationTypeRepository.FindByID":                      {},
+	"reservation/reservation_type_repository.go|reservationTypeRepository.FindByIDWithChildren":          {},
 	// staff_clinic_assignment
 	"staffclinicassignment/repository.go|repository.CountByStaffAndClinic": {}, // BE8-4 batch19: moved from staff_clinic_assignment_repository.go
 	"staffclinicassignment/repository.go|repository.Create":                {}, // BE8-4 batch19: moved from staff_clinic_assignment_repository.go
@@ -250,10 +250,10 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"medicalrecord/vital_repository.go|vitalRepository.Delete":                {},
 	// G6-2 (BE-refactor.md tx-mechanism-consolidation): repo-internal r.db.WithContext(ctx).Transaction
 	// → dbOrTx(ctx, r.db).Transaction conversion, no ambient-tx caller into any of these (verified per-file).
-	"manualarticle/repository.go|repository.Upsert":                                     {}, // BE8-4 batch3: moved from manual_article_repository.go
-	"owner_repository.go|ownerRepository.CreateWithPets":                                {},
-	"reservation_type_liff_repository.go|reservationTypeLiffRepository.UpdateSortOrder": {},
-	"shifttemplate/repository.go|repository.UpdateBreaks":                               {}, // BE8-4 batch12: moved from shift_template_repository.go
+	"manualarticle/repository.go|repository.Upsert":                                                 {}, // BE8-4 batch3: moved from manual_article_repository.go
+	"owner_repository.go|ownerRepository.CreateWithPets":                                            {},
+	"reservation/reservation_type_liff_repository.go|reservationTypeLiffRepository.UpdateSortOrder": {},
+	"shifttemplate/repository.go|repository.UpdateBreaks":                                           {}, // BE8-4 batch12: moved from shift_template_repository.go
 	// treatment (BE9-2D ④b: WithTx 化に伴う ambient tx 参加。④b Batch A で medicalrecord へ移動済み、
 	// lockDraftMedicalRecord 行ロック・在庫減算・逸脱監査と同一 ambient tx へ参加させる)
 	"medicalrecord/treatment_repository.go|treatmentRepository.Create":              {},

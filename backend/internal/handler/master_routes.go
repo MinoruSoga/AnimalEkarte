@@ -56,32 +56,11 @@ func (h *Handler) RegisterMasterRoutes(rg *gin.RouterGroup) {
 	masters.DELETE("/insurances/:id", perm(model.ResourceMasterInsurance, "delete"), h.DeleteInsurance)
 
 	// Reservation Category Groups
-	masters.GET("/reservation-type-groups", perm(model.ResourceMasterReservationType, "view"), h.ListReservationTypeGroups)
-	masters.POST("/reservation-type-groups", perm(model.ResourceMasterReservationType, "create"), h.CreateReservationTypeGroup)
-	masters.PATCH("/reservation-type-groups/reorder", perm(model.ResourceMasterReservationType, "edit"), h.ReorderReservationTypeGroups)
-	masters.GET("/reservation-type-groups/:id", perm(model.ResourceMasterReservationType, "view"), h.GetReservationTypeGroup)
-	masters.PATCH("/reservation-type-groups/:id", perm(model.ResourceMasterReservationType, "edit"), h.UpdateReservationTypeGroup)
-	masters.DELETE("/reservation-type-groups/:id", perm(model.ResourceMasterReservationType, "delete"), h.DeleteReservationTypeGroup)
 
 	// Reservation Types
-	masters.GET("/reservation-types", perm(model.ResourceMasterReservationType, "view"), h.ListReservationTypes)
-	masters.POST("/reservation-types", perm(model.ResourceMasterReservationType, "create"), h.CreateReservationType)
-	masters.PATCH("/reservation-types/reorder", perm(model.ResourceMasterReservationType, "edit"), h.ReorderReservationTypes)
-	masters.GET("/reservation-types/:id", perm(model.ResourceMasterReservationType, "view"), h.GetReservationType)
-	masters.PATCH("/reservation-types/:id", perm(model.ResourceMasterReservationType, "edit"), h.UpdateReservationType)
-	masters.DELETE("/reservation-types/:id", perm(model.ResourceMasterReservationType, "delete"), h.DeleteReservationType)
 	// 予約不可時間
-	masters.GET("/reservation-types/:id/unavailable-times", perm(model.ResourceMasterReservationType, "view"), h.ListUnavailableTimes)
-	masters.POST("/reservation-types/:id/unavailable-times", perm(model.ResourceMasterReservationType, "edit"), h.CreateUnavailableTime)
-	masters.DELETE("/reservation-types/:id/unavailable-times/:unavailable_time_id", perm(model.ResourceMasterReservationType, "delete"), h.DeleteUnavailableTime)
 	// 予約可能開始時刻
-	masters.GET("/reservation-types/:id/available-slots", perm(model.ResourceMasterReservationType, "view"), h.ListAvailableSlots)
-	masters.POST("/reservation-types/:id/available-slots", perm(model.ResourceMasterReservationType, "edit"), h.CreateAvailableSlot)
-	masters.DELETE("/reservation-types/:id/available-slots/:available_slot_id", perm(model.ResourceMasterReservationType, "delete"), h.DeleteAvailableSlot)
 	// 職種紐付け
-	masters.GET("/reservation-types/:id/occupations", perm(model.ResourceMasterReservationType, "view"), h.ListReservationTypeOccupations)
-	masters.POST("/reservation-types/:id/occupations", perm(model.ResourceMasterReservationType, "edit"), h.LinkReservationTypeOccupation)
-	masters.DELETE("/reservation-types/:id/occupations/:occupation_id", perm(model.ResourceMasterReservationType, "delete"), h.UnlinkReservationTypeOccupation)
 
 	// Consultations
 

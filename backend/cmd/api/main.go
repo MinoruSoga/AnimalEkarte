@@ -20,6 +20,7 @@ import (
 	"github.com/animal-ekarte/backend/internal/medicalrecord"
 	"github.com/animal-ekarte/backend/internal/middleware"
 	"github.com/animal-ekarte/backend/internal/repository"
+	"github.com/animal-ekarte/backend/internal/reservation"
 	"github.com/animal-ekarte/backend/internal/service"
 )
 
@@ -399,6 +400,15 @@ func main() {
 		h.RequirePermission,
 	)
 	medicalRecordHandler.RegisterRoutes(protected)
+
+	// reservation domain（BE9-2C R①〜）: reservation_type 系 master routes
+	reservationHandler := reservation.NewHandler(
+		reservation.NewReservationTypeHandler(svcs.ReservationType, svcs.ReservationTypeUnavailableTime, svcs.ReservationTypeAvailableSlot, svcs.ReservationTypeOccupation),
+		reservation.NewReservationTypeGroupHandler(svcs.ReservationTypeGroup),
+		reservation.NewReservationTypeLiffHandler(svcs.ReservationTypeLiff),
+		h.RequirePermission,
+	)
+	reservationHandler.RegisterRoutes(protected)
 
 	// HTTPサーバー設定
 	server := &http.Server{

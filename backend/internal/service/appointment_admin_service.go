@@ -9,6 +9,7 @@ import (
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/repository"
+	"github.com/animal-ekarte/backend/internal/reservation"
 )
 
 // CreateReservationAdminInput は管理者手動予約の入力データ
@@ -91,7 +92,7 @@ func (s *reservationAdminService) Create(ctx context.Context, clinicID uint64, i
 	if err := validateReservationStaffCapability(ctx, s.reservationStaffRepo, clinicID, input.DoctorID, input.ReservationTypeID); err != nil {
 		return nil, apperrors.Wrap(err, "failed to validate staff capability")
 	}
-	if err := validateReservationTypeAvailableTime(ctx, s.unavailableTimeRepo, clinicID, input.ReservationTypeID, input.StartTime, input.EndTime); err != nil {
+	if err := reservation.ValidateReservationTypeAvailableTime(ctx, s.unavailableTimeRepo, clinicID, input.ReservationTypeID, input.StartTime, input.EndTime); err != nil {
 		return nil, apperrors.Wrap(err, "failed to validate available time")
 	}
 

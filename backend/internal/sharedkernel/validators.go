@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"strings"
+	"time"
 	"unicode/utf8"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
@@ -108,6 +109,15 @@ func ValidateNonNegativePrice(price *int64) error {
 func ValidateDiscountRate(rate float64) error {
 	if rate < 0 || rate > 100 {
 		return apperrors.WrapInvalidInput("割引率は0〜100の範囲で入力してください")
+	}
+	return nil
+}
+
+// ValidateTimeRange は end_time > start_time を確認する共通バリデーション
+// （BE9-2C R①: service/reservation_service.go から昇格。reservation/trimming の恒久ドメイン跨ぎ）。
+func ValidateTimeRange(startTime, endTime time.Time) error {
+	if !endTime.After(startTime) {
+		return apperrors.WrapInvalidInput("end_time must be after start_time")
 	}
 	return nil
 }
