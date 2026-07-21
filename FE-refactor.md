@@ -32,9 +32,9 @@ FE10 の判定軸 P1〜P7 は **画面を見て違和感がないか**の視覚�
 | G1-5 | canvas-soft | `#F6F5F4` | `C.bgPage` / `--background` | ✅ |
 | G1-6 | hairline | `#E6E6E6` | `C.borderLight` / `--border` | ✅ |
 | G1-7 | ink | `#000000` | `C.text` | ✅ |
-| G1-8 | **ink-secondary** | `#31302E` | **実装に0箇所**。`text-[#000000]/80`等の黒アルファで代用 | ❌ |
-| G1-9 | **ink-muted** | `#615D59` | `--muted-foreground` のみ字義値。`C.text60/55/50` は黒アルファ | ❌ |
-| G1-10 | **ink-faint** | `#A39E98` | **実装に0箇所**。`C.text40`等の黒アルファで代用 | ❌ |
+| G1-8 | ink-secondary | `#31302E` | `C.text90/80/70` = `#31302E`（F2 で写像） | ✅ F2 |
+| G1-9 | ink-muted | `#615D59` | `C.text65/60/55/50` = `#615D59`（実測: フォームラベル一致） | ✅ F2 |
+| G1-10 | ink-faint | `#A39E98` | `C.text45`以下 + placeholder = `#A39E98` | ✅ F2 |
 | G1-11 | **secondary** | `#213183` | **実装に0箇所**（hero-band 未使用のため） | △ |
 | G1-12〜19 | **sticker palette 8色**<br>sky `#62AEF0` / purple `#D6B6F6` / purple-deep `#391C57` / pink `#FF64C8` / orange `#DD5B00` / orange-deep `#793400` / teal `#2A9D99` / green `#1AAE39` / brown `#523410` | 装飾専用 | **全て実装に0箇所**。装飾/status は独自色（`#6940A5` purple・`#D9730D` orange・`bg-blue-500` 等） | △ **要裁定 G1-c** |
 
@@ -44,12 +44,12 @@ FE10 の判定軸 P1〜P7 は **画面を見て違和感がないか**の視覚�
 
 | # | ロール | DESIGN.md | 実測 | 判定 |
 |---|---|---|---|---|
-| G2-1 | title | 20px / 600 / 1.4 / **−0.125px** | 20 / 600 / 1.4 / **normal** | ❌ tracking |
+| G2-1 | title | 20px / 600 / 1.4 / −0.125px | 20 / 600 / 1.4 / −0.125px | ✅ F1 |
 | G2-2 | body-md | 16px / 400 / 1.5 / 0 | 16 / 400 / 1.5 / normal | ✅ |
-| G2-3 | body-sm | 15px / 400 / **1.33** / 0 | 15 / 400 / **1.429** / normal | ❌ line-height |
-| G2-4 | caption | 14px / 400 / **1.43** / 0 | 14 / 400 / **1.333** / normal | ❌ line-height |
-| G2-5 | eyebrow | 12px / 600 / **1.33** / **+0.125px** | 12 / 600 / **1.45** / **+0.3px** | ❌ line-height・tracking |
-| G2-6 | button | **16px** / 500 / 1.5 / 0 | **15px** / 500 / 1.429 / normal | ❌ size・line-height |
+| G2-3 | body-sm | 15px / 400 / 1.33 / 0 | 15 / 400 / 1.33 / 0 | ✅ F1 |
+| G2-4 | caption | 14px / 400 / 1.43 / 0 | 14 / 400 / 1.43 / 0 | ✅ F1 |
+| G2-5 | eyebrow | 12px / 600 / 1.33 / +0.125px | 12 / 600 / 1.33 / +0.125px | ✅ F1 |
+| G2-6 | button | 16px / 500 / 1.5 / 0 | 16 / 500 / 1.5 / 0 | ✅ F1 |
 | G2-7 | heading-3 | 22 / 700 / 1.27 / −0.25px | 未定義（アプリ未使用） | △ |
 | G2-8 | heading-2 | 26 / 700 / 1.23 / −0.625px | 未定義（アプリ未使用） | △ |
 | G2-9 | heading-1 | 40 / 700 / 1.1 / −1px | 未定義（アプリ未使用） | △ |
@@ -71,7 +71,7 @@ FE10 の判定軸 P1〜P7 は **画面を見て違和感がないか**の視覚�
 
 | # | 項目 | DESIGN.md | 実装の現状 | 判定 |
 |---|---|---|---|---|
-| G6-1 | button-primary | bg primary / on-primary / **button 16px** / pill | pill ✅ ・**ラベル 15px** | ❌（G2-6 と同根） |
+| G6-1 | button-primary | bg primary / on-primary / button 16px / pill | pill ✅ ・ラベル 16px ✅ | ✅ F1 |
 | G6-2 | button-primary-pressed | bg primary-active | `hover:bg-primary/90`・`PALETTE.brandHover` | ✅ |
 | G6-3 | button-secondary | white / ink / pill / Level-1 | 二次 CTA は white+pill | ✅ |
 | G6-4 | button-utility | white / rounded-md / **padding 4px 14px** / hairline border | rounded-md ✅ ・padding は h-11 系で別値 | ❌ padding |
@@ -197,8 +197,8 @@ FE10 の判定軸 P1〜P7 は **画面を見て違和感がないか**の視覚�
 
 | 順 | フェーズ | 内容 | 対象 G# | 状態 |
 |---|---|---|---|---|
-| 1 | **F1 タイポ数値** | `--text-sm/xs/2xs--line-height` 定義・button 16px 化・tracking トークン新設と title/eyebrow への適用 | G2-1,3,4,5,6 / G6-1 | 未 |
-| 2 | **F2 ink ランプ** | 14段アルファ → DESIGN.md 4段実値へ集約（明度最近傍で写像）。**臨床非活性(disabled/RBAC)の可読退行を必ず実測** | G1-8,9,10 | 未 |
+| 1 | **F1 タイポ数値** | `--text-sm/xs/2xs--line-height` 定義・button 16px 化・tracking トークン新設と title/eyebrow への適用 | G2-1,3,4,5,6 / G6-1 | **✅済 2b20b1aab**（6ロール全てブラウザ実測で完全一致。インライン `tracking-wide` を7ファイルから除去＝字義値の上書きを排除） |
+| 2 | **F2 ink ランプ** | 14段アルファ → DESIGN.md 4段実値へ集約（明度最近傍で写像）。**臨床非活性(disabled/RBAC)の可読退行を必ず実測** | G1-8,9,10 | **✅済 27b483b64**（臨床非活性の退行なしを実測確認・placeholder も faint へ） |
 | 3 | **F3 コンポーネント寸法** | text-input padding 6px・button-utility padding 4px/14px・button-icon-circular fill | G6-4,5,6 | 未 |
 | 4 | **F4 未定義トークンの定義** | secondary・sticker palette 8色・display/heading 系をトークンとして定義（アプリ未使用でも語彙を揃える） | G1-11〜19 / G2-7〜11 | 未 |
 | 5 | **F5 機械ガード追加** | 黒アルファ text 直値の再混入を audit で禁止（C12）・tracking/line-height の退行検知 | — | 未 |
