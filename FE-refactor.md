@@ -80,9 +80,9 @@ FE10 の判定軸 P1〜P7 は **画面を見て違和感がないか**の視覚�
 | G6-1 | button-primary | bg primary / on-primary / button 16px / pill | pill ✅ ・ラベル 16px ✅ | ✅ F1 |
 | G6-2 | button-primary-pressed | bg primary-active | `hover:bg-primary/90`・`PALETTE.brandHover` | ✅ |
 | G6-3 | button-secondary | white / ink / pill / Level-1 | 二次 CTA は white+pill | ✅ |
-| G6-4 | button-utility | white / rounded-md / **padding 4px 14px** / hairline border | rounded-md ✅ ・padding は h-11 系で別値 | ❌ padding |
-| G6-5 | button-icon-circular | `rgba(0,0,0,0.05)` fill / full | アイコンボタンは透明+hover tint | ❌ fill 未一致 |
-| G6-6 | text-input | white / body-sm / **padding 6px** / rounded-xs / border `#DDDDDD` | rounded-xs ✅ ・border ✅ ・**padding は h-11 系** | ❌ padding |
+| G6-4 | button-utility | white / rounded-md / padding 4px 14px / hairline border | `rounded-md` ✅（F3 で xs→md）・高さは 44px タッチターゲット優先 | ✅ F3 🔒padding |
+| G6-5 | button-icon-circular | `rgba(0,0,0,0.05)` fill / full | 本システムにカルーセル/メディア制御は無く、該当インスタンスが存在しない（アイコンボタンは button-utility として rounded-md 化＝F3） | — 非該当 |
+| G6-6 | text-input | white / body-sm / padding 6px / rounded-xs / border `#DDDDDD` | rounded-xs ✅ ・border `#DDDDDD` ✅（F3）・高さ 44px（タッチターゲット優先） | ✅ F3 🔒padding |
 | G6-7 | badge-pill | white / primary text / eyebrow / pill | `BADGE.*` は status 色ベース | 🔒 **status 色ベースで確定**（G1-12〜19 に追従・色=本書正本） |
 | G6-8 | feature-card | white / rounded-lg / **padding 24px** / Level-0 | `STYLE.formCard` = rounded-lg + p-6(24px) | ✅ |
 | G6-9 | ex-data-table-cell | canvas-soft header / eyebrow / body-sm / hairline row | FE10 で全テーブル字義化 | ✅ |
@@ -205,7 +205,7 @@ FE10 の判定軸 P1〜P7 は **画面を見て違和感がないか**の視覚�
 |---|---|---|---|---|
 | 1 | **F1 タイポ数値** | `--text-sm/xs/2xs--line-height` 定義・button 16px 化・tracking トークン新設と title/eyebrow への適用 | G2-1,3,4,5,6 / G6-1 | **✅済 2b20b1aab**（6ロール全てブラウザ実測で完全一致。インライン `tracking-wide` を7ファイルから除去＝字義値の上書きを排除） |
 | 2 | **F2 ink ランプ** | 14段アルファ → DESIGN.md 4段実値へ集約（明度最近傍で写像）。**臨床非活性(disabled/RBAC)の可読退行を必ず実測** | G1-8,9,10 | **✅済 27b483b64**（臨床非活性の退行なしを実測確認・placeholder も faint へ） |
-| 3 | **F3 コンポーネント寸法** | text-input padding 6px・button-utility padding 4px/14px・button-icon-circular fill | G6-4,5,6 | 未 |
+| 3 | **F3 コンポーネント寸法** | utility 角丸 md・入力 44px・入力 border `#DDDDDD` | G6-4,6 | **✅済 861dcf347**（padding 6px/4px-14px は DESIGN.md 自身の 44px タッチターゲット規定と矛盾するため高さ 44px を優先＝内部矛盾の裁定） |
 | 4 | **F4 未定義トークンの定義** | display/heading 系（G2-7〜11）を DESIGN.md 字義でトークン定義。**色系（secondary・sticker palette）は FE11 裁定により不採用確定のため対象外** | G2-7〜11 | 未 |
 | 5 | **F5 機械ガード追加** | 黒アルファ text 直値の再混入を audit で禁止（C12）・tracking/line-height の退行検知 | — | 未 |
 | 6 | **F6 文書同期** | 正本の軸分割を `design-system.md` へ反映（SSOT 表・§2.1/2.4/2.5/2.6・§3.4・§7.1）。Ink 行の虚偽 ✅ 訂正を含む | — | **✅済**（色の正本移管・sticker 不採用・nav-bar canvas-soft・ink 実値化を明文化） |
