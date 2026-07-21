@@ -110,24 +110,44 @@ export const PALETTE = {
 /* ================================================================== */
 
 export const C = {
-  /* ── Text ── */
+  /* ── Text: DESIGN.md ink ランプ4段（FE11-F2 字義化）──────────────────────────
+   * DESIGN.md は ink 系を4段のみ規定する:
+   *   ink #000000 / ink-secondary #31302E / ink-muted #615D59 / ink-faint #A39E98
+   * 従来の黒アルファ14段（/90〜/15）は DESIGN.md に無い値だったため、
+   * **役割（DESIGN.md の用途記述）で4段へ写像**した。トークン名は呼び出し側 1664 箇所の
+   * 互換のため据え置き、値のみ字義化している。新規実装は text / textSecondary /
+   * textMuted / textFaint の4エイリアスを使うこと。
+   *   ink          = 見出し・本文               → text
+   *   ink-secondary= 二次本文・ラベル           → text90 / text80 / text70
+   *   ink-muted    = 補助・muted コピー         → text65 / text60 / text55 / text50
+   *   ink-faint    = キャプション・メタ・placeholder → text45 以下
+   */
   text:          "text-[#000000]",
-  text90:        "text-[#000000]/90",
-  text80:        "text-[#000000]/80",
-  text70:        "text-[#000000]/70",
-  text65:        "text-[#000000]/65",
-  text60:        "text-[#000000]/60",
-  text55:        "text-[#000000]/55",
-  text50:        "text-[#000000]/50",
-  text45:        "text-[#000000]/45",
-  text40:        "text-[#000000]/40",
-  text35:        "text-[#000000]/35",
-  text30:        "text-[#000000]/30",
-  text25:        "text-[#000000]/25",
-  text20:        "text-[#000000]/20",
-  text15:        "text-[#000000]/15",
-  textPlaceholder: "placeholder:text-[rgba(0,0,0,0.30)]",
-  textPlaceholderFaint: "placeholder:text-[rgba(0,0,0,0.15)]",
+  /** DESIGN.md {colors.ink} — 見出し・本文 */
+  textInk:       "text-[#000000]",
+  /** DESIGN.md {colors.ink-secondary} — 二次本文 */
+  textSecondary: "text-[#31302E]",
+  /** DESIGN.md {colors.ink-muted} — 補助・muted */
+  textMuted:     "text-[#615D59]",
+  /** DESIGN.md {colors.ink-faint} — キャプション・メタ・placeholder */
+  textFaint:     "text-[#A39E98]",
+
+  text90:        "text-[#31302E]",
+  text80:        "text-[#31302E]",
+  text70:        "text-[#31302E]",
+  text65:        "text-[#615D59]",
+  text60:        "text-[#615D59]",
+  text55:        "text-[#615D59]",
+  text50:        "text-[#615D59]",
+  text45:        "text-[#A39E98]",
+  text40:        "text-[#A39E98]",
+  text35:        "text-[#A39E98]",
+  text30:        "text-[#A39E98]",
+  text25:        "text-[#A39E98]",
+  text20:        "text-[#A39E98]",
+  text15:        "text-[#A39E98]",
+  textPlaceholder: "placeholder:text-[#A39E98]",
+  textPlaceholderFaint: "placeholder:text-[#A39E98]",
 
   /* ── Background ── */
   bgPage:        "bg-[#F6F5F4]",
