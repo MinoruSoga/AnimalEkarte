@@ -149,6 +149,18 @@ T  残渣   : teal/旧 accent 青の直値・画像・ハードコードが視�
 
 （404 fallback は inline 簡易要素のため対象外 — ui-design-compliance §2 脚注どおり。リダイレクト専用 12 route も対象外）
 
+## フルゲート結果（2026-07-21 実行・全緑）
+
+| ゲート | 結果 |
+|---|---|
+| `pnpm type-check` | ✅ 0 error（初回は TS6133 で失敗 → `button-variants.ts` の孤児 import を修正 1ed019189） |
+| `pnpm test:run` | ✅ 265 files / **2210 passed** / 3 skipped（初回は 1 失敗 → 下記の字義違反を検出・修正 e73623ec9） |
+| `pnpm build` | ✅ 5367 modules transformed |
+| `pnpm lint` | ✅ 0 problems（`--max-warnings 0`） |
+| `design-audit C1〜C11` | ✅ 私の変更範囲は PASS。**現在の working tree は owner-report の別ワークストリーム未コミット変更（13 file・+506行）が `shadow-sm`×6 で C10 に抵触**（FE10 起因ではない・当該担当が解消すること） |
+
+**フルゲートが摘出した字義違反1件（修正済み）**: legacy accent の *値* を brand へ統合した副作用で、受付カンバン「受付済」ドット（`C.bgAccent`）が**構造色 #0075DE の装飾使用**になっていた（DESIGN.md Do 違反）。既存の受付済指定トークン `C.bgStatusBlueDot` へ繋ぎ替え、テストに「構造色でないこと」の恒久ガードを追加。
+
 ## 検証規約
 
 - R1〜R5 後: `node scripts/design-system-audit.mjs`（frontend/）緑 + 影響テストの `npx vitest run <path>`。
