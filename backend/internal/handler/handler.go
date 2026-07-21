@@ -93,7 +93,7 @@ func (h *Handler) RegisterRoutes(ctx context.Context, r *gin.Engine) *gin.Router
 	// BUG-020: 各リソースの write 操作に権限チェックを適用
 	h.registerOwnerRoutesWithAuth(protected)
 	h.RegisterPetRoutes(protected)
-	h.RegisterReservationRoutes(protected)
+	// 予約 CRUD routes は internal/reservation.RegisterRoutes へ移動（BE9-2C R③）
 	h.registerMedicalRecordRoutesWithAuth(protected)
 	// hospitalizations 系 route: BE9-2D ⑤⑥で全て internal/medicalrecord の RegisterRoutes へ移動。
 	h.registerAccountingRoutesWithAuth(protected)

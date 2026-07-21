@@ -9,6 +9,7 @@ import (
 	"github.com/animal-ekarte/backend/internal/infra/crypto"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/repository"
+	"github.com/animal-ekarte/backend/internal/reservation"
 )
 
 // UpsertLineReservationSettingInput は予約設定 upsert のための入力データ
@@ -100,10 +101,10 @@ func validateBreakHoursShape(data []byte) error {
 		return apperrors.WrapInvalidInput(`break_hours は [{"start":"HHMM","end":"HHMM"}] 形式である必要があります`)
 	}
 	for _, b := range breaks {
-		if _, err := minutesSinceMidnight(b.Start); err != nil {
+		if _, err := reservation.MinutesSinceMidnight(b.Start); err != nil {
 			return apperrors.WrapInvalidInput("break_hours の start は HHMM 形式である必要があります: " + b.Start)
 		}
-		if _, err := minutesSinceMidnight(b.End); err != nil {
+		if _, err := reservation.MinutesSinceMidnight(b.End); err != nil {
 			return apperrors.WrapInvalidInput("break_hours の end は HHMM 形式である必要があります: " + b.End)
 		}
 	}

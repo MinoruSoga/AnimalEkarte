@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/reservation"
 )
 
 // ================================================================
@@ -83,7 +84,7 @@ func TestLiffService_CreateReservation_ValidateAndCreateGenericError(t *testing.
 
 	_, err := svc.CreateReservation(context.Background(), 3, 1, reservationBaseInput())
 	require.Error(t, err)
-	_, ok := IsReservationLimitError(err)
+	_, ok := reservation.IsReservationLimitError(err)
 	assert.False(t, ok, "通常のエラーは ReservationLimitError としてラップされない")
 }
 
@@ -100,7 +101,7 @@ func TestLiffService_CreateReservation_DateParseErrorSkipsAutoDelegation(t *test
 
 	input := reservationBaseInput()
 	input.StaffID = 0
-	input.StartTime = "invalid" // toDateTime のパースを失敗させる
+	input.StartTime = "invalid" // reservation.ToDateTime のパースを失敗させる
 
 	_, err := svc.CreateReservation(context.Background(), 3, 1, input)
 	require.NoError(t, err)

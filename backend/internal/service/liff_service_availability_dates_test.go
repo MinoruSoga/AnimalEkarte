@@ -11,6 +11,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/config"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/reservation"
 )
 
 // ================================================================
@@ -101,7 +102,7 @@ func TestGetAvailableDates_BuildAvailableDatesStaffInputsFn(t *testing.T) {
 	settings := AvailableDatesSettings{BookingWindowMinDays: 0, BookingWindowMaxDays: 1}
 
 	t.Run("シフト・休憩・予約を1クエリずつプリフェッチし日付ごとに正しく振り分ける", func(t *testing.T) {
-		minDate, maxDate := bookingWindowDates(settings)
+		minDate, maxDate := reservation.BookingWindowDates(settings)
 		startStr := "09:00:00"
 		endStr := "17:00:00"
 		entry := model.ShiftEntry{ID: 55, StaffID: 1, Date: minDate, ShiftType: model.ShiftTypeFull, StartTime: &startStr, EndTime: &endStr}
@@ -164,7 +165,7 @@ func TestGetAvailableDates_BuildAvailableDatesStaffInputsFn(t *testing.T) {
 		fn, err := svc.buildAvailableDatesStaffInputsFn(ctx, 1, staffs, settings)
 		require.NoError(t, err, "シフト取得失敗はエラーを伝播しない")
 
-		minDate, _ := bookingWindowDates(settings)
+		minDate, _ := reservation.BookingWindowDates(settings)
 		inputs, err := fn(ctx, minDate, 0, 0)
 		require.NoError(t, err)
 		require.Len(t, inputs, 1)
@@ -172,7 +173,7 @@ func TestGetAvailableDates_BuildAvailableDatesStaffInputsFn(t *testing.T) {
 	})
 
 	t.Run("休憩取得失敗は非致命的(Breaksが空のまま続行)", func(t *testing.T) {
-		minDate, _ := bookingWindowDates(settings)
+		minDate, _ := reservation.BookingWindowDates(settings)
 		startStr := "09:00:00"
 		endStr := "17:00:00"
 		entry := model.ShiftEntry{ID: 77, StaffID: 1, Date: minDate, ShiftType: model.ShiftTypeFull, StartTime: &startStr, EndTime: &endStr}

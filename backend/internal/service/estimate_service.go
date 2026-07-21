@@ -9,6 +9,7 @@ import (
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/repository"
+	"github.com/animal-ekarte/backend/internal/reservation"
 )
 
 // ---- EstimateService ----
@@ -162,7 +163,7 @@ func (s *estimateService) logEstimateChangeBestEffort(
 
 // validateEstimateRelatedFKs は見積 Create の関連 FK（medical_record / owner）の
 // clinic 所有と相互整合を検証する（AUD-005）。nil 関連は既存契約どおり許可する。
-// Owner は validateReservationOwnerPetLinks（AUD-001）を再利用する。
+// Owner は reservation.ValidateReservationOwnerPetLinksWithRepo（AUD-001）を再利用する。
 func (s *estimateService) validateEstimateRelatedFKs(
 	ctx context.Context,
 	clinicID uint64,
@@ -184,7 +185,7 @@ func (s *estimateService) validateEstimateRelatedFKs(
 		if s.reservationRepo == nil {
 			return apperrors.WrapNotFound("owner", fmt.Sprintf("%d", *ownerID))
 		}
-		if err := validateReservationOwnerPetLinks(ctx, s.reservationRepo, clinicID, ownerID, nil); err != nil {
+		if err := reservation.ValidateReservationOwnerPetLinksWithRepo(ctx, s.reservationRepo, clinicID, ownerID, nil); err != nil {
 			return err
 		}
 	}

@@ -31,7 +31,6 @@ DELETE /api/v1/payment-methods/:id DeletePaymentMethod
 DELETE /api/v1/pets/:id DeletePet
 DELETE /api/v1/pets/:id/chronic-conditions/:cc_id DeleteChronicCondition
 DELETE /api/v1/pets/:id/death DeletePetDeath
-DELETE /api/v1/reservations/:id DeleteReservation
 DELETE /api/v1/shared-files/:id DeleteSharedFile
 DELETE /api/v1/shift-templates/:id DeleteShiftTemplate
 DELETE /api/v1/shifts/:id DeleteShiftEntry
@@ -137,9 +136,6 @@ GET /api/v1/pets/:id/chronic-conditions ListChronicConditions
 GET /api/v1/pets/:id/first-visit GetPetFirstVisit
 GET /api/v1/reports/monthly GetMonthlyReport
 GET /api/v1/reports/monthly/csv ExportMonthlyCSV
-GET /api/v1/reservations ListReservations
-GET /api/v1/reservations/:id GetReservation
-GET /api/v1/reservations/available-times GetReservationAvailableTimes
 GET /api/v1/shared-files ListSharedFiles
 GET /api/v1/shared-files/:id/signed-url GetSharedFileSignedURL
 GET /api/v1/shift-templates ListShiftTemplates
@@ -203,8 +199,6 @@ PATCH /api/v1/payment-methods/reorder ReorderPaymentMethods
 PATCH /api/v1/pets/:id UpdatePet
 PATCH /api/v1/pets/:id/chronic-conditions/:cc_id UpdateChronicCondition
 PATCH /api/v1/pets/:id/death UpdatePetDeath
-PATCH /api/v1/reservations/:id UpdateReservation
-PATCH /api/v1/reservations/:id/reservation-route UpdateReservationReservationRoute
 PATCH /api/v1/shift-templates/:id UpdateShiftTemplate
 PATCH /api/v1/shift-templates/reorder ReorderShiftTemplates
 PATCH /api/v1/shifts/:id UpdateShiftEntry
@@ -261,7 +255,6 @@ POST /api/v1/owners/:id/lstep/tags AddOwnerLstepTag
 POST /api/v1/payment-methods CreatePaymentMethod
 POST /api/v1/pets CreatePet
 POST /api/v1/pets/:id/chronic-conditions CreateChronicCondition
-POST /api/v1/reservations CreateReservation
 POST /api/v1/shared-files UploadSharedFile
 POST /api/v1/shift-templates CreateShiftTemplate
 POST /api/v1/shifts CreateShiftEntry

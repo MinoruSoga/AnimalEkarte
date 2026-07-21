@@ -1,5 +1,8 @@
 package repository
 
+// BE9-2C R③: 本テストは ReservationAdminRepository（appointment_admin=R④未移行）も検証対象に
+// 含むため repository 残置。R④（appointment）移動時に internal/reservation へ移す。
+
 // reservation_owner_pet_preload_clinic_isolation_test.go — AUD-001
 // 汚染された Owner/Pet/LineCustomer FK を持つ予約から、別 clinic の個人情報が Preload されないことを検証する。
 

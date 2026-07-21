@@ -173,28 +173,28 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"refund/repository.go|repository.SumByBillingID":                 {}, // BE8-4 batch8: moved from refund_repository.go
 	"refund/repository.go|repository.SumByBillingIDAndPaymentMethod": {}, // BE8-4 batch8: moved from refund_repository.go
 	// reservation (uniform dbOrTx)
-	"reservation_repository.go|reservationRepository.AssertLineCustomerInClinic":         {}, // AUD-001
-	"reservation_repository.go|reservationRepository.AssertOwnerInClinic":                {}, // AUD-001
-	"reservation_repository.go|reservationRepository.AcquireBookingLock":                 {}, // X-9 (Appendix-A phantom-booking fix)
-	"reservation_repository.go|reservationRepository.FindPetOwnerInClinic":               {}, // AUD-001
-	"reservation_repository.go|reservationRepository.CountByCustomerAndDateRange":        {},
-	"reservation_repository.go|reservationRepository.CountByDateAndSource":               {},
-	"reservation_repository.go|reservationRepository.CountByTypeAndStartTime":            {},
-	"reservation_repository.go|reservationRepository.CountByTypeAndStartTimes":           {},
-	"reservation_repository.go|reservationRepository.CountConflicts":                     {},
-	"reservation_repository.go|reservationRepository.CountMedicalRecordsByReservationID": {},
-	"reservation_repository.go|reservationRepository.CountOnDutyDoctors":                 {},
-	"reservation_repository.go|reservationRepository.Create":                             {},
-	"reservation_repository.go|reservationRepository.Delete":                             {},
-	"reservation_repository.go|reservationRepository.ExistsByReservationTypeID":          {},
-	"reservation_repository.go|reservationRepository.ExistsByStaffID":                    {},
-	"reservation_repository.go|reservationRepository.FindAll":                            {},
-	"reservation_repository.go|reservationRepository.FindAllByCategory":                  {},
-	"reservation_repository.go|reservationRepository.findReservationByID":                {},
-	"reservation_repository.go|reservationRepository.HasDoctorConflict":                  {},
-	"reservation_repository.go|reservationRepository.LockAndFindByID":                    {},
-	"reservation_repository.go|reservationRepository.Update":                             {},
-	"appointment_admin_repository.go|reservationAdminRepository.Create":                  {}, // AUD-001
+	"reservation/reservation_repository.go|reservationRepository.AssertLineCustomerInClinic":         {}, // AUD-001
+	"reservation/reservation_repository.go|reservationRepository.AssertOwnerInClinic":                {}, // AUD-001
+	"reservation/reservation_repository.go|reservationRepository.AcquireBookingLock":                 {}, // X-9 (Appendix-A phantom-booking fix)
+	"reservation/reservation_repository.go|reservationRepository.FindPetOwnerInClinic":               {}, // AUD-001
+	"reservation/reservation_repository.go|reservationRepository.CountByCustomerAndDateRange":        {},
+	"reservation/reservation_repository.go|reservationRepository.CountByDateAndSource":               {},
+	"reservation/reservation_repository.go|reservationRepository.CountByTypeAndStartTime":            {},
+	"reservation/reservation_repository.go|reservationRepository.CountByTypeAndStartTimes":           {},
+	"reservation/reservation_repository.go|reservationRepository.CountConflicts":                     {},
+	"reservation/reservation_repository.go|reservationRepository.CountMedicalRecordsByReservationID": {},
+	"reservation/reservation_repository.go|reservationRepository.CountOnDutyDoctors":                 {},
+	"reservation/reservation_repository.go|reservationRepository.Create":                             {},
+	"reservation/reservation_repository.go|reservationRepository.Delete":                             {},
+	"reservation/reservation_repository.go|reservationRepository.ExistsByReservationTypeID":          {},
+	"reservation/reservation_repository.go|reservationRepository.ExistsByStaffID":                    {},
+	"reservation/reservation_repository.go|reservationRepository.FindAll":                            {},
+	"reservation/reservation_repository.go|reservationRepository.FindAllByCategory":                  {},
+	"reservation/reservation_repository.go|reservationRepository.findReservationByID":                {},
+	"reservation/reservation_repository.go|reservationRepository.HasDoctorConflict":                  {},
+	"reservation/reservation_repository.go|reservationRepository.LockAndFindByID":                    {},
+	"reservation/reservation_repository.go|reservationRepository.Update":                             {},
+	"appointment_admin_repository.go|reservationAdminRepository.Create":                              {}, // AUD-001
 	// reservationtype domain package (methods that previously used dbOrTx; Update/Delete remain
 	// r.db.WithContext by design — behavior preserved from flat file; facade keeps service imports)
 	"reservation/reservation_type_repository.go|reservationTypeRepository.CountChildrenByParentID":       {},

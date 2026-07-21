@@ -7,6 +7,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/reservation"
 )
 
 // paymentMethodSystemKeys は payment_method ENUM と payment_methods マスタの system_key を対応づける（#197）。
@@ -262,7 +263,7 @@ func buildAccountingUpdate(input *UpdateAccountingInput) map[string]any {
 
 // validateAccountingRelatedFKs は会計の関連 FK（medical_record / hospitalization / owner / pet）の
 // clinic 所有と相互整合を検証する（AUD-002）。nil 関連は既存契約どおり許可する。
-// Owner/Pet は validateReservationOwnerPetLinks（AUD-001）を再利用する。
+// Owner/Pet は reservation.ValidateReservationOwnerPetLinksWithRepo（AUD-001）を再利用する。
 func (s *accountingService) validateAccountingRelatedFKs(
 	ctx context.Context,
 	clinicID uint64,
@@ -293,7 +294,7 @@ func (s *accountingService) validateAccountingRelatedFKs(
 	}
 
 	if s.reservationRepo != nil {
-		if err := validateReservationOwnerPetLinks(ctx, s.reservationRepo, clinicID, ownerID, petID); err != nil {
+		if err := reservation.ValidateReservationOwnerPetLinksWithRepo(ctx, s.reservationRepo, clinicID, ownerID, petID); err != nil {
 			return err
 		}
 	}

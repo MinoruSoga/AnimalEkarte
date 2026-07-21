@@ -8,6 +8,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/reservation"
 )
 
 // CreateReservation は予約を確定する。staffID=0 の場合は no_staff_mode に従って自動割当する。
@@ -23,7 +24,7 @@ func (s *liffService) CreateReservation(ctx context.Context, clinicID, customerI
 
 	// TASK-RES-025: 指名なし委譲ロジック
 	if input.StaffID == 0 {
-		date, err := toDateTime(input.Date, input.StartTime)
+		date, err := reservation.ToDateTime(input.Date, input.StartTime)
 		if err == nil {
 			assignedID, err := s.delegateStaff(ctx, clinicID, input.ReservationTypeID, setting.NoStaffMode, date, input.StartTime, input.EndTime)
 			if err == nil && assignedID != 0 {

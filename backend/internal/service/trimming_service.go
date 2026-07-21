@@ -10,6 +10,7 @@ import (
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/repository"
 	"github.com/animal-ekarte/backend/internal/reservation"
+	"github.com/animal-ekarte/backend/internal/sharedkernel"
 )
 
 // CreateTrimmingInput はトリミング予約作成の入力DTO（appointments ベース, BE-119）
@@ -172,8 +173,8 @@ func (s *trimmingService) Create(ctx context.Context, clinicID uint64, input *Cr
 		return nil, apperrors.WrapInvalidInput("start_time and end_time are required")
 	}
 	if input.ReservationRoute != nil {
-		if _, ok := allowedReservationRoutes[*input.ReservationRoute]; !ok {
-			return nil, apperrors.WrapInvalidInput(allowedReservationRoutesMessage)
+		if _, ok := reservation.AllowedReservationRoutes[*input.ReservationRoute]; !ok {
+			return nil, apperrors.WrapInvalidInput(reservation.AllowedReservationRoutesMessage)
 		}
 	}
 	if err := s.validateTrimmingReservationType(ctx, clinicID, input.ReservationTypeID); err != nil {
@@ -182,11 +183,11 @@ func (s *trimmingService) Create(ctx context.Context, clinicID uint64, input *Cr
 	if err := reservation.ValidateReservationStaffCapability(ctx, s.reservationStaff, clinicID, input.StaffID, input.ReservationTypeID); err != nil {
 		return nil, err
 	}
-	if shouldEnforceReservationBookingConstraints(status, input.ReservationRoute) {
+	if reservation.ShouldEnforceReservationBookingConstraints(status, input.ReservationRoute) {
 		if err := reservation.ValidateReservationTypeAvailableTime(ctx, s.unavailableTime, clinicID, input.ReservationTypeID, input.StartTime, input.EndTime); err != nil {
 			return nil, err
 		}
-	} else if err := validateTimeRange(input.StartTime, input.EndTime); err != nil {
+	} else if err := sharedkernel.ValidateTimeRange(input.StartTime, input.EndTime); err != nil {
 		return nil, err
 	}
 	if err := s.validateTrimmingCourseAndOptions(ctx, clinicID, input.CourseID, input.OptionIDs, nil, nil); err != nil {
@@ -197,7 +198,7 @@ func (s *trimmingService) Create(ctx context.Context, clinicID uint64, input *Cr
 	// appointment → trimming_detail → options の3書き込みを単一トランザクションで実行する。
 	// 中間でエラーが発生した場合はロールバックされ、孤立レコードは残らない。
 	if err := s.transactor.WithTx(ctx, func(txCtx context.Context) error {
-		if err := validateReservationOwnerPetLinks(txCtx, s.reservation, clinicID, nil, input.PetID); err != nil {
+		if err := reservation.ValidateReservationOwnerPetLinksWithRepo(txCtx, s.reservation, clinicID, nil, input.PetID); err != nil {
 			return err
 		}
 		appt := &model.Reservation{
@@ -363,7 +364,7 @@ func (s *trimmingService) createDetailForExistingAppointment(
 		if input.PetID != nil {
 			finalPetID = input.PetID
 		}
-		if err := validateReservationOwnerPetLinks(txCtx, s.reservation, clinicID, locked.OwnerID, finalPetID); err != nil {
+		if err := reservation.ValidateReservationOwnerPetLinksWithRepo(txCtx, s.reservation, clinicID, locked.OwnerID, finalPetID); err != nil {
 			return err
 		}
 
@@ -464,7 +465,7 @@ func (s *trimmingService) Update(ctx context.Context, clinicID, id uint64, input
 			if err != nil {
 				return apperrors.Wrap(err, "failed to lock trimming appointment")
 			}
-			if err := validateReservationOwnerPetLinks(txCtx, s.reservation, clinicID, locked.OwnerID, input.PetID); err != nil {
+			if err := reservation.ValidateReservationOwnerPetLinksWithRepo(txCtx, s.reservation, clinicID, locked.OwnerID, input.PetID); err != nil {
 				return err
 			}
 		}

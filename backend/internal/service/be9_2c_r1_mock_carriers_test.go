@@ -5,7 +5,9 @@ package service
 
 import (
 	"context"
+	"time"
 
+	"github.com/animal-ekarte/backend/internal/config"
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
@@ -183,4 +185,38 @@ func (m *mockReservationStaffRepository) SupportsReservationType(ctx context.Con
 		return m.supportsReservationTypeFn(ctx, clinicID, staffID, reservationTypeID)
 	}
 	return true, nil
+}
+
+// mockReservationTypeFinder — R③移動test（reservation_capacity_test.go）由来のcarrier複製。
+type mockReservationTypeFinder struct {
+	findByIDFn func(ctx context.Context, clinicID, id uint64) (*model.ReservationType, error)
+}
+
+// dateInDays/newSettingForValidation — R③移動test（reservation_validators_test.go）由来のcarrier複製（liff系cross_tenant用）。
+// newSettingForValidation は業務ルール検証テスト用の設定を返す。
+// デフォルト: 営業時間 09:00-19:00 / 休憩 12:00-13:00 / 予約窓 2〜30日
+func newSettingForValidation() *model.LineReservationSetting {
+	return &model.LineReservationSetting{
+		Status:                "running",
+		ClosedWeekdays:        []byte("[]"),
+		ClosedDates:           []byte("[]"),
+		NationalHolidayClosed: false,
+		BusinessHours:         []byte(`{"start":"0900","end":"1900"}`),
+		BreakHours:            []byte(`[{"start":"1200","end":"1300"}]`),
+		BookingWindowMinDays:  2,
+		BookingWindowMaxDays:  30,
+	}
+}
+
+// dateInDays は今日から n 日後の 00:00 JST を返す。
+func dateInDays(n int) time.Time {
+	now := time.Now().In(config.JST)
+	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, config.JST)
+	return today.AddDate(0, 0, n)
+}
+
+func ptrU64(v uint64) *uint64 { return &v }
+
+func (m mockReservationTypeFinder) FindByID(ctx context.Context, clinicID, id uint64) (*model.ReservationType, error) {
+	return m.findByIDFn(ctx, clinicID, id)
 }

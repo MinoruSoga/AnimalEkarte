@@ -21,6 +21,7 @@ type Handler struct {
 	reservationTypeLiff  *ReservationTypeLiffHandler
 	reservationStaff     *ReservationStaffHandler
 	reservationSchedule  *ReservationScheduleHandler
+	reservationCRUD      *ReservationHandler
 	requirePermission    PermissionMiddleware
 }
 
@@ -31,6 +32,7 @@ func NewHandler(
 	reservationTypeLiff *ReservationTypeLiffHandler,
 	reservationStaff *ReservationStaffHandler,
 	reservationSchedule *ReservationScheduleHandler,
+	reservationCRUD *ReservationHandler,
 	requirePermission PermissionMiddleware,
 ) *Handler {
 	return &Handler{
@@ -39,6 +41,7 @@ func NewHandler(
 		reservationTypeLiff:  reservationTypeLiff,
 		reservationStaff:     reservationStaff,
 		reservationSchedule:  reservationSchedule,
+		reservationCRUD:      reservationCRUD,
 		requirePermission:    requirePermission,
 	}
 }
@@ -106,4 +109,14 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	schedules.GET("", h.requirePermission(string(model.ResourceMasterStaff), "view"), h.reservationSchedule.ListReservationSchedules)
 	schedules.PUT("/:date", h.requirePermission(string(model.ResourceMasterStaff), "edit"), h.reservationSchedule.UpsertReservationSchedule)
 	schedules.DELETE("/:date", h.requirePermission(string(model.ResourceMasterStaff), "delete"), h.reservationSchedule.DeleteReservationSchedule)
+
+	// 予約 CRUD（旧 handler.go RegisterReservationRoutes 逐語）
+	reservations := rg.Group("/reservations")
+	reservations.GET("", h.requirePermission(string(model.ResourceReservations), "view"), h.reservationCRUD.ListReservations)
+	reservations.GET("/available-times", h.requirePermission(string(model.ResourceReservations), "view"), h.reservationCRUD.GetReservationAvailableTimes)
+	reservations.GET("/:id", h.requirePermission(string(model.ResourceReservations), "view"), h.reservationCRUD.GetReservation)
+	reservations.POST("", h.requirePermission(string(model.ResourceReservations), "create"), h.reservationCRUD.CreateReservation)
+	reservations.PATCH("/:id", h.requirePermission(string(model.ResourceReservations), "edit"), h.reservationCRUD.UpdateReservation)
+	reservations.PATCH("/:id/reservation-route", h.requirePermission(string(model.ResourceReservations), "edit"), h.reservationCRUD.UpdateReservationReservationRoute)
+	reservations.DELETE("/:id", h.requirePermission(string(model.ResourceReservations), "delete"), h.reservationCRUD.DeleteReservation)
 }

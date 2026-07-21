@@ -10,6 +10,7 @@ import (
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/repository"
 	"github.com/animal-ekarte/backend/internal/reservation"
+	"github.com/animal-ekarte/backend/internal/sharedkernel"
 )
 
 // CreateReservationAdminInput は管理者手動予約の入力データ
@@ -86,7 +87,7 @@ func (s *reservationAdminService) ListByDay(ctx context.Context, clinicID uint64
 }
 
 func (s *reservationAdminService) Create(ctx context.Context, clinicID uint64, input *CreateReservationAdminInput) (*model.Reservation, error) {
-	if err := validateTimeRange(input.StartTime, input.EndTime); err != nil {
+	if err := sharedkernel.ValidateTimeRange(input.StartTime, input.EndTime); err != nil {
 		return nil, apperrors.Wrap(err, "failed to validate time range")
 	}
 	if err := reservation.ValidateReservationStaffCapability(ctx, s.reservationStaffRepo, clinicID, input.DoctorID, input.ReservationTypeID); err != nil {
@@ -107,7 +108,7 @@ func (s *reservationAdminService) Create(ctx context.Context, clinicID uint64, i
 
 	var result *model.Reservation
 	err := s.tx.WithTx(ctx, func(ctx context.Context) error {
-		if err := validateReservationOwnerPetLinks(ctx, s.resRepo, clinicID, input.OwnerID, input.PetID); err != nil {
+		if err := reservation.ValidateReservationOwnerPetLinksWithRepo(ctx, s.resRepo, clinicID, input.OwnerID, input.PetID); err != nil {
 			return err
 		}
 		if input.LineCustomerID != nil {
@@ -115,10 +116,10 @@ func (s *reservationAdminService) Create(ctx context.Context, clinicID uint64, i
 				return apperrors.Wrap(err, "failed to verify line customer ownership")
 			}
 		}
-		if err := checkSlotConflict(ctx, s.resRepo, clinicID, input.DoctorID, input.StartTime, input.EndTime, nil); err != nil {
+		if err := reservation.CheckSlotConflict(ctx, s.resRepo, clinicID, input.DoctorID, input.StartTime, input.EndTime, nil); err != nil {
 			return apperrors.Wrap(err, "failed to check slot conflict")
 		}
-		if err := checkReservationTypeCapacity(ctx, s.resRepo, s.typeRepo, clinicID, input.ReservationTypeID, input.StartTime, nil); err != nil {
+		if err := reservation.CheckReservationTypeCapacity(ctx, s.resRepo, s.typeRepo, clinicID, input.ReservationTypeID, input.StartTime, nil); err != nil {
 			return apperrors.Wrap(err, "failed to check reservation type capacity")
 		}
 

@@ -7,6 +7,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
+	"github.com/animal-ekarte/backend/internal/reservation"
 )
 
 // delegateStaff は指名なし時に no_staff_mode に従ってスタッフを自動割当する。
@@ -29,11 +30,11 @@ func (s *liffService) delegateStaff(ctx context.Context, clinicID, typeID uint64
 		if err != nil {
 			return 0, nil //nolint:nilerr // 意図的フォールバック: 既存予約取得失敗時は空き確認をスキップして指名なしにする
 		}
-		startMin, err := minutesSinceMidnight(startTime)
+		startMin, err := reservation.MinutesSinceMidnight(startTime)
 		if err != nil {
 			return 0, nil //nolint:nilerr // 意図的フォールバック: 時刻フォーマット不正時は空き確認をスキップして指名なしにする
 		}
-		endMin, err := minutesSinceMidnight(endTime)
+		endMin, err := reservation.MinutesSinceMidnight(endTime)
 		if err != nil {
 			return 0, nil //nolint:nilerr // 意図的フォールバック: 時刻フォーマット不正時は空き確認をスキップして指名なしにする
 		}

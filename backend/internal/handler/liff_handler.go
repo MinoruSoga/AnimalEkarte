@@ -8,7 +8,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/middleware"
-	"github.com/animal-ekarte/backend/internal/service"
+	"github.com/animal-ekarte/backend/internal/reservation"
 )
 
 // GetLiffSettings はLIFF公開設定を返す。
@@ -184,7 +184,7 @@ func (h *Handler) CreateLiffReservation(c *gin.Context) {
 	appt, err := h.svc.Liff.CreateReservation(c.Request.Context(), clinicID, customerID, input)
 	if err != nil {
 		// 予約制限エラーはフロントエンドに redirect_step を伝える
-		if limErr, ok := service.IsReservationLimitError(err); ok {
+		if limErr, ok := reservation.IsReservationLimitError(err); ok {
 			extras := map[string]any{
 				"redirect_step": limErr.RedirectStep,
 			}

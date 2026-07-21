@@ -6,6 +6,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/repository"
+	"github.com/animal-ekarte/backend/internal/reservation"
 )
 
 // LiffService はLIFF公開APIのビジネスロジックインターフェース
@@ -75,7 +76,7 @@ func NewLiffServiceWithType(
 		reservationRepo:     reservationRepo,
 		customerRepo:        customerRepo,
 		ownerRepo:           ownerRepo,
-		validators:          NewReservationValidators(tx, reservationRepo, typeRepo, trimmingCourseRepo, trimmingOptionRepo),
+		validators:          reservation.NewReservationValidators(tx, reservationRepo, typeRepo, trimmingCourseRepo, trimmingOptionRepo),
 		notifier:            notifier,
 		unavailableTimeRepo: unavailableTimeRepo,
 		availableSlotRepo:   availableSlotRepo,

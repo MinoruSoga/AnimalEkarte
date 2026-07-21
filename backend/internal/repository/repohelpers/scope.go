@@ -116,3 +116,12 @@ func ReorderGlobal(ctx context.Context, db *gorm.DB, model any, resource string,
 	}
 	return nil
 }
+
+// Paginate は 1-origin の page と limit を Offset/Limit に変換する共有 Scope
+// （BE9-2C R③: repository/base.go から昇格。値正規化は service 層の責務）。
+func Paginate(page, limit int) func(*gorm.DB) *gorm.DB {
+	return func(db *gorm.DB) *gorm.DB {
+		offset := (page - 1) * limit
+		return db.Offset(offset).Limit(limit)
+	}
+}
