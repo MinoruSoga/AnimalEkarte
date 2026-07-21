@@ -51,3 +51,8 @@ type liffAvailability interface {
 type staffAssignmentFinder interface {
 	FindAllByStaffID(ctx context.Context, staffID uint64) ([]model.StaffClinicAssignment, error)
 }
+
+// lineReservationSettingFinder は LINE 予約設定（R⑥未移行 repo）の最小view（通知用）。
+type lineReservationSettingFinder interface {
+	FindByClinicID(ctx context.Context, clinicID uint64) (*model.LineReservationSetting, error)
+}

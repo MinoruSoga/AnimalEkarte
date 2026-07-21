@@ -1,10 +1,9 @@
-package handler
+package reservation
 
 import (
+	"encoding/json"
 	"net/url"
 	"time"
-
-	"github.com/animal-ekarte/backend/internal/service"
 )
 
 type listReservationsAdminQuery struct {
@@ -39,8 +38,8 @@ type createReservationAdminRequest struct {
 	CustomerFields    jsonRawOrEmpty `json:"customer_fields"`
 }
 
-func (r *createReservationAdminRequest) toServiceInput(createdBy uint64) *service.CreateReservationAdminInput {
-	return &service.CreateReservationAdminInput{
+func (r *createReservationAdminRequest) toServiceInput(createdBy uint64) *CreateReservationAdminInput {
+	return &CreateReservationAdminInput{
 		StartTime:         r.StartTime,
 		EndTime:           r.EndTime,
 		OwnerID:           r.OwnerID,
@@ -56,3 +55,6 @@ func (r *createReservationAdminRequest) toServiceInput(createdBy uint64) *servic
 		CreatedBy:         &createdBy,
 	}
 }
+
+// jsonRawOrEmpty — internal/handler/line_reservation_setting_request.go の同名 alias の複製（R⑥移動時に統合）。
+type jsonRawOrEmpty = json.RawMessage

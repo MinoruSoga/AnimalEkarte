@@ -194,7 +194,7 @@ var dbOrTxParticipatingMethods = map[string]struct{}{
 	"reservation/reservation_repository.go|reservationRepository.HasDoctorConflict":                  {},
 	"reservation/reservation_repository.go|reservationRepository.LockAndFindByID":                    {},
 	"reservation/reservation_repository.go|reservationRepository.Update":                             {},
-	"appointment_admin_repository.go|reservationAdminRepository.Create":                              {}, // AUD-001
+	"reservation/appointment_admin_repository.go|reservationAdminRepository.Create":                  {}, // AUD-001
 	// reservationtype domain package (methods that previously used dbOrTx; Update/Delete remain
 	// r.db.WithContext by design — behavior preserved from flat file; facade keeps service imports)
 	"reservation/reservation_type_repository.go|reservationTypeRepository.CountChildrenByParentID":       {},

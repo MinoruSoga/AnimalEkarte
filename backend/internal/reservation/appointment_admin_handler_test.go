@@ -1,4 +1,4 @@
-package handler
+package reservation
 
 import (
 	"bytes"
@@ -17,7 +17,6 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/service"
 )
 
 // TestAppointmentAdminHandlerCompiles verifies appointment_admin_handler.go compiles
@@ -30,7 +29,7 @@ func TestAppointmentAdminHandlerCompiles(t *testing.T) {
 type mockReservationAdminService struct {
 	listByMonthFn func(ctx context.Context, clinicID uint64, yearMonth string) ([]model.Reservation, error)
 	listByDayFn   func(ctx context.Context, clinicID uint64, date time.Time) ([]model.Reservation, error)
-	createFn      func(ctx context.Context, clinicID uint64, input *service.CreateReservationAdminInput) (*model.Reservation, error)
+	createFn      func(ctx context.Context, clinicID uint64, input *CreateReservationAdminInput) (*model.Reservation, error)
 	deleteFn      func(ctx context.Context, clinicID, id uint64) error
 }
 
@@ -42,7 +41,7 @@ func (m *mockReservationAdminService) ListByDay(ctx context.Context, clinicID ui
 	return m.listByDayFn(ctx, clinicID, date)
 }
 
-func (m *mockReservationAdminService) Create(ctx context.Context, clinicID uint64, input *service.CreateReservationAdminInput) (*model.Reservation, error) {
+func (m *mockReservationAdminService) Create(ctx context.Context, clinicID uint64, input *CreateReservationAdminInput) (*model.Reservation, error) {
 	return m.createFn(ctx, clinicID, input)
 }
 
@@ -50,11 +49,8 @@ func (m *mockReservationAdminService) Delete(ctx context.Context, clinicID, id u
 	return m.deleteFn(ctx, clinicID, id)
 }
 
-func newHandlerWithReservationAdminSvc(svc service.ReservationAdminService) *Handler {
-	return &Handler{svc: &service.Services{
-		ReservationAdmin:      svc,
-		StaffClinicAssignment: &mockStaffClinicAssignmentService{},
-	}}
+func newHandlerWithReservationAdminSvc(svc ReservationAdminService) *ReservationAdminHandler {
+	return NewReservationAdminHandler(svc, &mockStaffClinicAssignmentService{})
 }
 
 // ---- ListReservationsAdmin ----
@@ -193,7 +189,7 @@ func TestCreateReservationAdmin(t *testing.T) {
 		name       string
 		body       any
 		setupCtx   func(c *gin.Context)
-		h          *Handler
+		h          *ReservationAdminHandler
 		wantStatus int
 	}{
 		{
@@ -201,7 +197,7 @@ func TestCreateReservationAdmin(t *testing.T) {
 			body:     validBody(),
 			setupCtx: func(c *gin.Context) { setClinicID(c); c.Set("user_id", "1") },
 			h: newHandlerWithReservationAdminSvc(&mockReservationAdminService{
-				createFn: func(_ context.Context, clinicID uint64, input *service.CreateReservationAdminInput) (*model.Reservation, error) {
+				createFn: func(_ context.Context, clinicID uint64, input *CreateReservationAdminInput) (*model.Reservation, error) {
 					assert.Equal(t, uint64(1), clinicID)
 					require.NotNil(t, input.CreatedBy)
 					assert.Equal(t, uint64(1), *input.CreatedBy)
@@ -215,7 +211,7 @@ func TestCreateReservationAdmin(t *testing.T) {
 			body:     func() map[string]any { b := validBody(); b["doctor_id"] = 2; return b }(),
 			setupCtx: func(c *gin.Context) { setClinicID(c); c.Set("user_id", "1") },
 			h: newHandlerWithReservationAdminSvc(&mockReservationAdminService{
-				createFn: func(_ context.Context, _ uint64, input *service.CreateReservationAdminInput) (*model.Reservation, error) {
+				createFn: func(_ context.Context, _ uint64, input *CreateReservationAdminInput) (*model.Reservation, error) {
 					require.NotNil(t, input.DoctorID)
 					assert.Equal(t, uint64(2), *input.DoctorID)
 					return &model.Reservation{ID: 10}, nil
@@ -245,13 +241,10 @@ func TestCreateReservationAdmin(t *testing.T) {
 			wantStatus: http.StatusBadRequest,
 		},
 		{
-			name:     "returns 400 when doctor does not belong to clinic",
-			body:     func() map[string]any { b := validBody(); b["doctor_id"] = 99; return b }(),
-			setupCtx: func(c *gin.Context) { setClinicID(c); c.Set("user_id", "1") },
-			h: &Handler{svc: &service.Services{
-				ReservationAdmin:      &mockReservationAdminService{},
-				StaffClinicAssignment: &mockStaffClinicAssignmentServiceEmpty{},
-			}},
+			name:       "returns 400 when doctor does not belong to clinic",
+			body:       func() map[string]any { b := validBody(); b["doctor_id"] = 99; return b }(),
+			setupCtx:   func(c *gin.Context) { setClinicID(c); c.Set("user_id", "1") },
+			h:          NewReservationAdminHandler(&mockReservationAdminService{}, &mockStaffClinicAssignmentServiceEmpty{}),
 			wantStatus: http.StatusBadRequest,
 		},
 		{
@@ -259,7 +252,7 @@ func TestCreateReservationAdmin(t *testing.T) {
 			body:     validBody(),
 			setupCtx: func(c *gin.Context) { setClinicID(c); c.Set("user_id", "1") },
 			h: newHandlerWithReservationAdminSvc(&mockReservationAdminService{
-				createFn: func(_ context.Context, _ uint64, _ *service.CreateReservationAdminInput) (*model.Reservation, error) {
+				createFn: func(_ context.Context, _ uint64, _ *CreateReservationAdminInput) (*model.Reservation, error) {
 					return nil, fmt.Errorf("db error")
 				},
 			}),
@@ -309,7 +302,7 @@ func (m *mockStaffClinicAssignmentServiceEmpty) Delete(_ context.Context, _, _ u
 // newDeleteReservationAdminRouter は c.Status(http.StatusNoContent) のみでボディ書き込みが
 // 無いハンドラのため、gin.Engine 経由 (router.ServeHTTP) でヘッダーを確実にフラッシュする。
 // (直接 h.DeleteReservationAdmin(c) 呼び出しだと WriteHeaderNow が走らず w.Code が 200 のままになる)
-func newDeleteReservationAdminRouter(svc service.ReservationAdminService) *gin.Engine {
+func newDeleteReservationAdminRouter(svc ReservationAdminService) *gin.Engine {
 	r := gin.New()
 	h := newHandlerWithReservationAdminSvc(svc)
 	r.DELETE("/reservations/admin/:reservationId", func(c *gin.Context) {

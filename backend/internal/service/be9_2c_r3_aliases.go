@@ -17,13 +17,16 @@ type (
 	AvailableDatesInput    = reservation.AvailableDatesInput
 	BookingWindow          = reservation.BookingWindow
 
-	CreateReservationInput       = reservation.CreateReservationInput
-	CreateManualReservationInput = reservation.CreateManualReservationInput
-	UpdateReservationInput       = reservation.UpdateReservationInput
-	UpdateReservationRouteInput  = reservation.UpdateReservationRouteInput
-	ReservationValidators        = reservation.ReservationValidators
-	ReservationLimitError        = reservation.ReservationLimitError
-	ReservationService           = reservation.ReservationService
+	CreateReservationInput        = reservation.CreateReservationInput
+	CreateManualReservationInput  = reservation.CreateManualReservationInput
+	UpdateReservationInput        = reservation.UpdateReservationInput
+	UpdateReservationRouteInput   = reservation.UpdateReservationRouteInput
+	ReservationValidators         = reservation.ReservationValidators
+	ReservationLimitError         = reservation.ReservationLimitError
+	ReservationService            = reservation.ReservationService
+	ReservationNotifier           = reservation.ReservationNotifier
+	ReservationNotificationConfig = reservation.ReservationNotificationConfig
+	ReservationAdminService       = reservation.ReservationAdminService
 )
 
 // reservationTypeFinder は appointment/liff 系（R④/R⑤）残留 consumer 用の view alias。REMOVE: R④⑤移動時。

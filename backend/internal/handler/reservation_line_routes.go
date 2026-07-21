@@ -29,11 +29,7 @@ func (h *Handler) RegisterLineReservationRoutes(rg *gin.RouterGroup) {
 	// TASK-RES-013: スタッフ個人スケジュール
 	// 予約スケジュール routes は internal/reservation.RegisterRoutes へ移動（BE9-2C R②）
 
-	// TASK-RES-014: 予約管理
-	reservations := clinics.Group("/reservations")
-	reservations.GET("", h.RequirePermission(string(model.ResourceReservations), "view"), h.ListReservationsAdmin)
-	reservations.POST("", h.RequirePermission(string(model.ResourceReservations), "create"), h.CreateReservationAdmin)
-	reservations.DELETE("/:reservationId", h.RequirePermission(string(model.ResourceReservations), "delete"), h.DeleteReservationAdmin)
+	// 予約管理（LINE管理用）routes は internal/reservation.RegisterRoutes へ移動（BE9-2C R④）
 
 	// TASK-RES-015: 顧客管理
 	customers := clinics.Group("/line-customers")

@@ -409,6 +409,7 @@ func main() {
 		reservation.NewReservationStaffHandler(svcs.ReservationStaff),
 		reservation.NewReservationScheduleHandler(svcs.ReservationSchedule),
 		reservation.NewReservationHandler(svcs.Reservation, medicalRecordSvc, svcs.Liff, svcs.StaffClinicAssignment),
+		reservation.NewReservationAdminHandler(svcs.ReservationAdmin, svcs.StaffClinicAssignment),
 		h.RequirePermission,
 	)
 	reservationHandler.RegisterRoutes(protected)

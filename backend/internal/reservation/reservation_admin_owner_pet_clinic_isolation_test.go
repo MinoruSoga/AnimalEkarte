@@ -1,8 +1,8 @@
-package service
+package reservation
 
 // reservation_admin_owner_pet_clinic_isolation_test.go — BE9-2C R③: 旧
 // reservation_owner_pet_clinic_isolation_test.go の ReservationAdminService（R④未移行）節を
-// service 残置分として分離。R④（appointment）移動時に internal/reservation へ合流。
+// R④で internal/reservation へ合流（分離時の予定通り）。
 
 import (
 	"context"

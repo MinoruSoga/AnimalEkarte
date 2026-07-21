@@ -745,60 +745,6 @@ func TestPetService_Update_RejectsCrossClinicInsuranceID(t *testing.T) {
 // (including the "shortcut" routes that skip capacity checks), and the reservation-type
 // master itself (GroupID — ParentID was already guarded).
 
-func TestReservationAdminService_Create_RejectsCrossClinicReservationType(t *testing.T) {
-	const clinicID = uint64(1)
-	const ownedTypeID = uint64(50)
-	const foreignTypeID = uint64(999)
-	start := time.Date(2026, 6, 1, 10, 0, 0, 0, time.UTC)
-
-	typeRepo := mockReservationTypeFinder{
-		findByIDFn: func(_ context.Context, gotClinicID, id uint64) (*model.ReservationType, error) {
-			if gotClinicID != clinicID || id != ownedTypeID {
-				return nil, apperrors.WrapNotFound("reservation_type", "foreign")
-			}
-			return &model.ReservationType{ID: id, ClinicID: clinicID}, nil
-		},
-	}
-
-	newSvc := func(created *bool) ReservationAdminService {
-		resRepo := &mockReservationRepository{
-			createFn: func(_ context.Context, _ *model.Reservation) error {
-				*created = true
-				return nil
-			},
-		}
-		return NewReservationAdminServiceWithAvailabilityAndType(
-			&mockReservationAdminRepository{}, resRepo, typeRepo, &mockTransactor{}, nil, nil,
-		)
-	}
-
-	baseInput := func(typeID uint64) *CreateReservationAdminInput {
-		return &CreateReservationAdminInput{
-			StartTime:         start,
-			EndTime:           start.Add(30 * time.Minute),
-			ReservationTypeID: typeID,
-		}
-	}
-
-	t.Run("rejects cross-clinic reservation_type_id and does not persist", func(t *testing.T) {
-		created := false
-		svc := newSvc(&created)
-		out, err := svc.Create(context.Background(), clinicID, baseInput(foreignTypeID))
-		assert.Error(t, err)
-		assert.Nil(t, out)
-		assert.False(t, created, "admin reservation must NOT be persisted referencing another clinic's reservation type")
-	})
-
-	t.Run("accepts same-clinic reservation_type_id (no false-reject)", func(t *testing.T) {
-		created := false
-		svc := newSvc(&created)
-		out, err := svc.Create(context.Background(), clinicID, baseInput(ownedTypeID))
-		assert.NoError(t, err)
-		assert.NotNil(t, out)
-		assert.True(t, created)
-	})
-}
-
 func TestStaffService_Create_RejectsCrossClinicOccupationID(t *testing.T) {
 	const clinicID = uint64(1)
 	const ownedOccupationID = uint64(10)

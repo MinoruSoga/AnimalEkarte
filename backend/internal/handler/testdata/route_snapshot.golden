@@ -5,7 +5,6 @@ DELETE /api/v1/clinics/:clinic_id DeleteClinic
 DELETE /api/v1/clinics/:clinic_id/lstep-settings DeleteLstepSettings
 DELETE /api/v1/clinics/:clinic_id/owners/:id/lstep/tags/:tag_name DeleteOwnerLstepTag
 DELETE /api/v1/clinics/:clinic_id/pets/:id/death DeletePetDeath
-DELETE /api/v1/clinics/:clinic_id/reservations/:reservationId DeleteReservationAdmin
 DELETE /api/v1/closing-settings/holidays/:date DeleteClinicHoliday
 DELETE /api/v1/closing-settings/special-periods/:id DeleteSpecialPeriod
 DELETE /api/v1/estimates/:id DeleteEstimate
@@ -78,7 +77,6 @@ GET /api/v1/clinics/:clinic_id/owners/:id/line/send-logs GetLineSendLogs
 GET /api/v1/clinics/:clinic_id/owners/:id/lstep/friend-attributes GetLstepOwnerFriendAttributes
 GET /api/v1/clinics/:clinic_id/owners/:id/lstep/tags GetOwnerLstepTags
 GET /api/v1/clinics/:clinic_id/owners/aggregations ListOwnerAggregation
-GET /api/v1/clinics/:clinic_id/reservations ListReservationsAdmin
 GET /api/v1/closing-settings GetClosingSettings
 GET /api/v1/closing-settings/holidays ListClinicHolidays
 GET /api/v1/closing-settings/special-periods ListSpecialPeriods
@@ -223,7 +221,6 @@ POST /api/v1/clinics/:clinic_id/lstep/csv-imports/friend-attributes ImportLstepF
 POST /api/v1/clinics/:clinic_id/owners/:id/line/send SendLineMessage
 POST /api/v1/clinics/:clinic_id/owners/:id/lstep-opt-out UpdateOwnerLstepOptOut
 POST /api/v1/clinics/:clinic_id/owners/:id/lstep/tags AddOwnerLstepTag
-POST /api/v1/clinics/:clinic_id/reservations CreateReservationAdmin
 POST /api/v1/closing-settings/holidays SetClinicHoliday
 POST /api/v1/closing-settings/special-periods CreateSpecialPeriod
 POST /api/v1/estimates CreateEstimate

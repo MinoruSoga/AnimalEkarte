@@ -21,10 +21,10 @@ func lastHandlerSegment(fullName string) string {
 }
 
 // TestRegisterRoutes_Snapshot は reservation 側の BE9-2C route-snapshot 回帰チェック
-// （internal/medicalrecord/routes_snapshot_test.go の先例を踏襲）。R①〜R③ で
-// internal/handler/testdata/route_snapshot.golden から 45 route（reservation-type-groups 6 +
+// （internal/medicalrecord/routes_snapshot_test.go の先例を踏襲）。R①〜R④ で
+// internal/handler/testdata/route_snapshot.golden から 48 route（reservation-type-groups 6 +
 // reservation-types 6 + unavailable-times 3 + available-slots 3 + occupations 3 +
-// LINE 管理用予約区分 7+予約スタッフ 7+スケジュール 3+予約CRUD 7）を drop し、本 package の RegisterRoutes が登録する。
+// LINE 管理用予約区分 7+予約スタッフ 7+スケジュール 3+予約CRUD 7+LINE管理予約 3）を drop し、本 package の RegisterRoutes が登録する。
 // permission 引数は capture されない — RBAC parity は routes.go の逐語転記でレビュー担保。
 func TestRegisterRoutes_Snapshot(t *testing.T) {
 	gin.SetMode(gin.TestMode)
@@ -39,6 +39,7 @@ func TestRegisterRoutes_Snapshot(t *testing.T) {
 		NewReservationStaffHandler(nil),
 		NewReservationScheduleHandler(nil),
 		NewReservationHandler(nil, nil, nil, nil),
+		NewReservationAdminHandler(nil, nil),
 		noopPermission,
 	)
 
@@ -57,6 +58,7 @@ func TestRegisterRoutes_Snapshot(t *testing.T) {
 		"DELETE /api/v1/clinics/:clinic_id/reservation-staffs/:staffId DeleteReservationStaff\n" +
 		"DELETE /api/v1/clinics/:clinic_id/reservation-staffs/:staffId/schedules/:date DeleteReservationSchedule\n" +
 		"DELETE /api/v1/clinics/:clinic_id/reservation-types/:id DeleteReservationTypeLiff\n" +
+		"DELETE /api/v1/clinics/:clinic_id/reservations/:reservationId DeleteReservationAdmin\n" +
 		"DELETE /api/v1/masters/reservation-type-groups/:id DeleteReservationTypeGroup\n" +
 		"DELETE /api/v1/masters/reservation-types/:id DeleteReservationType\n" +
 		"DELETE /api/v1/masters/reservation-types/:id/available-slots/:available_slot_id DeleteAvailableSlot\n" +
@@ -66,6 +68,7 @@ func TestRegisterRoutes_Snapshot(t *testing.T) {
 		"GET /api/v1/clinics/:clinic_id/reservation-staffs ListReservationStaffs\n" +
 		"GET /api/v1/clinics/:clinic_id/reservation-staffs/:staffId/schedules ListReservationSchedules\n" +
 		"GET /api/v1/clinics/:clinic_id/reservation-types ListReservationTypeLiffs\n" +
+		"GET /api/v1/clinics/:clinic_id/reservations ListReservationsAdmin\n" +
 		"GET /api/v1/masters/reservation-type-groups ListReservationTypeGroups\n" +
 		"GET /api/v1/masters/reservation-type-groups/:id GetReservationTypeGroup\n" +
 		"GET /api/v1/masters/reservation-types ListReservationTypes\n" +
@@ -90,6 +93,7 @@ func TestRegisterRoutes_Snapshot(t *testing.T) {
 		"POST /api/v1/clinics/:clinic_id/reservation-staffs/:staffId/image UploadReservationStaffImage\n" +
 		"POST /api/v1/clinics/:clinic_id/reservation-types CreateReservationTypeLiff\n" +
 		"POST /api/v1/clinics/:clinic_id/reservation-types/:id/image UploadReservationTypeLiffImage\n" +
+		"POST /api/v1/clinics/:clinic_id/reservations CreateReservationAdmin\n" +
 		"POST /api/v1/masters/reservation-type-groups CreateReservationTypeGroup\n" +
 		"POST /api/v1/masters/reservation-types CreateReservationType\n" +
 		"POST /api/v1/masters/reservation-types/:id/available-slots CreateAvailableSlot\n" +

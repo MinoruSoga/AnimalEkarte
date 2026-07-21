@@ -1,4 +1,4 @@
-package handler
+package reservation
 
 import (
 	"net/url"

@@ -6,3 +6,5 @@ func strPtr(s string) *string { return &s }
 func uint64Ptr(v uint64) *uint64 { return &v }
 
 func ptrString(s string) *string { return &s }
+
+func ptrUint64(v uint64) *uint64 { return &v }

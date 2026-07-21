@@ -1,4 +1,4 @@
-package service
+package reservation
 
 import (
 	"context"
@@ -8,8 +8,6 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository"
-	"github.com/animal-ekarte/backend/internal/reservation"
 	"github.com/animal-ekarte/backend/internal/sharedkernel"
 )
 
@@ -39,17 +37,17 @@ type ReservationAdminService interface {
 }
 
 type reservationAdminService struct {
-	repo                 repository.ReservationAdminRepository
-	resRepo              repository.ReservationRepository
+	repo                 ReservationAdminRepository
+	resRepo              ReservationRepository
 	typeRepo             reservationTypeFinder
-	tx                   repository.Transactor
-	reservationStaffRepo repository.ReservationStaffRepository
-	unavailableTimeRepo  repository.ReservationTypeUnavailableTimeRepository
-	availableSlotRepo    repository.ReservationTypeAvailableSlotRepository
+	tx                   Transactor
+	reservationStaffRepo ReservationStaffRepository
+	unavailableTimeRepo  ReservationTypeUnavailableTimeRepository
+	availableSlotRepo    ReservationTypeAvailableSlotRepository
 }
 
-func NewReservationAdminServiceWithAvailabilityAndType(repo repository.ReservationAdminRepository, resRepo repository.ReservationRepository, typeRepo reservationTypeFinder, tx repository.Transactor, reservationStaffRepo repository.ReservationStaffRepository, unavailableTimeRepo repository.ReservationTypeUnavailableTimeRepository, availableSlotRepo ...repository.ReservationTypeAvailableSlotRepository) ReservationAdminService {
-	var slotRepo repository.ReservationTypeAvailableSlotRepository
+func NewReservationAdminServiceWithAvailabilityAndType(repo ReservationAdminRepository, resRepo ReservationRepository, typeRepo reservationTypeFinder, tx Transactor, reservationStaffRepo ReservationStaffRepository, unavailableTimeRepo ReservationTypeUnavailableTimeRepository, availableSlotRepo ...ReservationTypeAvailableSlotRepository) ReservationAdminService {
+	var slotRepo ReservationTypeAvailableSlotRepository
 	if len(availableSlotRepo) > 0 {
 		slotRepo = availableSlotRepo[0]
 	}
@@ -90,10 +88,10 @@ func (s *reservationAdminService) Create(ctx context.Context, clinicID uint64, i
 	if err := sharedkernel.ValidateTimeRange(input.StartTime, input.EndTime); err != nil {
 		return nil, apperrors.Wrap(err, "failed to validate time range")
 	}
-	if err := reservation.ValidateReservationStaffCapability(ctx, s.reservationStaffRepo, clinicID, input.DoctorID, input.ReservationTypeID); err != nil {
+	if err := ValidateReservationStaffCapability(ctx, s.reservationStaffRepo, clinicID, input.DoctorID, input.ReservationTypeID); err != nil {
 		return nil, apperrors.Wrap(err, "failed to validate staff capability")
 	}
-	if err := reservation.ValidateReservationTypeAvailableTime(ctx, s.unavailableTimeRepo, clinicID, input.ReservationTypeID, input.StartTime, input.EndTime); err != nil {
+	if err := ValidateReservationTypeAvailableTime(ctx, s.unavailableTimeRepo, clinicID, input.ReservationTypeID, input.StartTime, input.EndTime); err != nil {
 		return nil, apperrors.Wrap(err, "failed to validate available time")
 	}
 
@@ -108,7 +106,7 @@ func (s *reservationAdminService) Create(ctx context.Context, clinicID uint64, i
 
 	var result *model.Reservation
 	err := s.tx.WithTx(ctx, func(ctx context.Context) error {
-		if err := reservation.ValidateReservationOwnerPetLinksWithRepo(ctx, s.resRepo, clinicID, input.OwnerID, input.PetID); err != nil {
+		if err := ValidateReservationOwnerPetLinksWithRepo(ctx, s.resRepo, clinicID, input.OwnerID, input.PetID); err != nil {
 			return err
 		}
 		if input.LineCustomerID != nil {
@@ -116,10 +114,10 @@ func (s *reservationAdminService) Create(ctx context.Context, clinicID uint64, i
 				return apperrors.Wrap(err, "failed to verify line customer ownership")
 			}
 		}
-		if err := reservation.CheckSlotConflict(ctx, s.resRepo, clinicID, input.DoctorID, input.StartTime, input.EndTime, nil); err != nil {
+		if err := CheckSlotConflict(ctx, s.resRepo, clinicID, input.DoctorID, input.StartTime, input.EndTime, nil); err != nil {
 			return apperrors.Wrap(err, "failed to check slot conflict")
 		}
-		if err := reservation.CheckReservationTypeCapacity(ctx, s.resRepo, s.typeRepo, clinicID, input.ReservationTypeID, input.StartTime, nil); err != nil {
+		if err := CheckReservationTypeCapacity(ctx, s.resRepo, s.typeRepo, clinicID, input.ReservationTypeID, input.StartTime, nil); err != nil {
 			return apperrors.Wrap(err, "failed to check reservation type capacity")
 		}
 

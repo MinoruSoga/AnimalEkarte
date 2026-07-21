@@ -1,6 +1,8 @@
 package service
 
 import (
+	"context"
+
 	"github.com/animal-ekarte/backend/internal/infra"
 	"github.com/animal-ekarte/backend/internal/infra/crypto"
 	"github.com/animal-ekarte/backend/internal/medicalrecord"
@@ -127,7 +129,12 @@ type Services struct {
 // nil の場合は暗号化なしで動作する（開発環境で INTEGRATION_ENCRYPTION_KEY 未設定時）。
 // lstep 連携と同一の cipher を再利用する。
 func NewServices(repos *repository.Repositories, notifCfg *ReservationNotificationConfig, cipher *crypto.AESGCMCipher, sharedStorage infra.FileStorage, jwtSecret string) *Services {
-	notifier := NewReservationNotificationService(notifCfg, repos.LineReservationSetting, cipher)
+	notifier := reservation.NewReservationNotificationService(notifCfg, repos.LineReservationSetting,
+		func(ctx context.Context, value string) string { return decryptLineCredential(ctx, cipher, value) },
+		func(channelToken string) reservation.LinePusher {
+			return NewLineMessagingService(channelToken)
+		},
+		smtpSendAdapter)
 	auditSvc := NewAuditService(repos.Audit)
 	// auditTxLogger: 具象 *auditService は tx 内監査の LogEntryTx も実装する（#211）。
 	// AuditService インターフェース自体は広げず（既存サービス/モックへ非波及）、tx 内監査を要する
@@ -275,7 +282,7 @@ func NewServices(repos *repository.Repositories, notifCfg *ReservationNotificati
 		ReservationStaffCore:      resStaffSvc,
 		ReservationStaffExclusion: resStaffSvc,
 		ReservationSchedule:       reservation.NewReservationScheduleService(repos.ReservationSchedule),
-		ReservationAdmin:          NewReservationAdminServiceWithAvailabilityAndType(repos.ReservationAdmin, repos.Reservation, repos.ReservationType, tx, repos.ReservationStaff, repos.ReservationTypeUnavailableTime, repos.ReservationTypeAvailableSlot),
+		ReservationAdmin:          reservation.NewReservationAdminServiceWithAvailabilityAndType(repos.ReservationAdmin, repos.Reservation, repos.ReservationType, tx, repos.ReservationStaff, repos.ReservationTypeUnavailableTime, repos.ReservationTypeAvailableSlot),
 		LineCustomer:              NewLineCustomerService(repos.LineCustomerMgr, repos.Owner),
 		Aggregation:               NewAggregationService(repos.Ltv, repos.LstepTagCache, repos.LstepTagConfig, lstepSettingsSvc),
 		LstepSettings:             lstepSettingsSvc,

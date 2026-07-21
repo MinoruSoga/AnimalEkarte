@@ -1,19 +1,19 @@
-package service
+package reservation
 
 import (
 	"context"
 	"errors"
+	"net"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository"
 )
 
 type mockLineSettingRepo struct {
-	repository.LineReservationSettingRepository
+	lineReservationSettingFinder
 	findByClinicIDFn func(ctx context.Context, clinicID uint64) (*model.LineReservationSetting, error)
 }
 
@@ -47,7 +47,7 @@ func TestReservationNotificationService_NotifyCreated(t *testing.T) {
 		cfg := &ReservationNotificationConfig{
 			SMTPHost: "",
 		}
-		svc := NewReservationNotificationService(cfg, repo, nil)
+		svc := NewReservationNotificationService(cfg, repo, testIdentityDecrypt, nil, nil)
 
 		appt := &model.Reservation{
 			ID:        123,
@@ -89,7 +89,7 @@ func TestReservationNotificationService_NotifyCreated(t *testing.T) {
 			},
 		}
 		cfg := &ReservationNotificationConfig{}
-		svc := NewReservationNotificationService(cfg, repo, nil)
+		svc := NewReservationNotificationService(cfg, repo, testIdentityDecrypt, nil, nil)
 
 		appt := &model.Reservation{
 			ID:       123,
@@ -124,7 +124,7 @@ func TestReservationNotificationService_NotifyCancelled(t *testing.T) {
 		cfg := &ReservationNotificationConfig{
 			SMTPHost: "",
 		}
-		svc := NewReservationNotificationService(cfg, repo, nil)
+		svc := NewReservationNotificationService(cfg, repo, testIdentityDecrypt, nil, nil)
 
 		appt := &model.Reservation{
 			ID:        123,
@@ -156,7 +156,7 @@ func TestReservationNotificationService_NotifyCancelled(t *testing.T) {
 			},
 		}
 		cfg := &ReservationNotificationConfig{}
-		svc := NewReservationNotificationService(cfg, repo, nil)
+		svc := NewReservationNotificationService(cfg, repo, testIdentityDecrypt, nil, nil)
 
 		appt := &model.Reservation{
 			ID:       123,
@@ -196,13 +196,14 @@ func TestReservationNotificationService_BuildCancelledLineMessage(t *testing.T) 
 	})
 }
 
-// TestReservationNotificationService_SendEmail は SMTP 未設定時のスキップ、
-// auth 分岐（SMTPUser 設定時）、接続失敗時のラップされたエラー返却を検証する。
-// smtp.SendMail は実ネットワークの成功応答をモックできないため、成功パスは
-// SMTPHost="" のスキップ分岐で代替する（本番コード変更なしでのテスト可能な範囲）。
+// TestReservationNotificationService_SendEmail は SMTP 未設定時のスキップと、
+// 接続失敗時のラップされたエラー返却を検証する（sendMail closure 注入後の R④ 形）。
+// 本番 sendSMTPMail の auth 分岐（SMTPUser 設定時の smtp.PlainAuth 構築）は
+// service/password_reset_service_test.go が実 sendSMTPMail で担保し、
+// closure の SMTPConfig→smtpConfig フィールド対応は service/smtp_sender_adapter_test.go が検証する。
 func TestReservationNotificationService_SendEmail(t *testing.T) {
 	t.Run("skips send when SMTPHost is empty", func(t *testing.T) {
-		svc := &reservationNotificationService{cfg: ReservationNotificationConfig{SMTPHost: ""}}
+		svc := &reservationNotificationService{cfg: ReservationNotificationConfig{SMTPHost: ""}, sendMail: testDialSendMail}
 		err := svc.sendEmail(context.Background(), "to@example.com", "subject", "body")
 		assert.NoError(t, err)
 	})
@@ -212,7 +213,7 @@ func TestReservationNotificationService_SendEmail(t *testing.T) {
 			SMTPHost: "127.0.0.1",
 			SMTPPort: "65533",
 			SMTPFrom: "from@example.com",
-		}}
+		}, sendMail: testDialSendMail}
 		err := svc.sendEmail(context.Background(), "to@example.com", "subject", "body")
 		assert.Error(t, err)
 	})
@@ -224,7 +225,7 @@ func TestReservationNotificationService_SendEmail(t *testing.T) {
 			SMTPUser: "user",
 			SMTPPass: "pass",
 			SMTPFrom: "from@example.com",
-		}}
+		}, sendMail: testDialSendMail}
 		err := svc.sendEmail(context.Background(), "to@example.com", "subject", "body")
 		assert.Error(t, err)
 	})
@@ -305,4 +306,20 @@ func TestNotificationHelpers(t *testing.T) {
 		assert.Equal(t, "real", customerDisplayName(&model.LineCustomer{RealName: "real", DisplayName: "disp"}))
 		assert.Equal(t, "disp", customerDisplayName(&model.LineCustomer{DisplayName: "disp"}))
 	})
+}
+
+// testIdentityDecrypt は旧 cipher=nil 挙動（復号なし・平文素通し）を再現する。
+func testIdentityDecrypt(_ context.Context, value string) string { return value }
+
+// testDialSendMail は接続失敗パス検証用の実ダイヤル closure（本番は service 集約が
+// service/smtp_sender.go の sendSMTPMail を注入する——本テストは到達不能ポートへの
+// 実接続失敗のみを検証するため net.Dial 相当の最小実装で等価）。
+func testDialSendMail(ctx context.Context, cfg SMTPConfig, _, _ string, _ []byte) error {
+	d := net.Dialer{}
+	conn, err := d.DialContext(ctx, "tcp", net.JoinHostPort(cfg.Host, cfg.Port))
+	if err != nil {
+		return err
+	}
+	_ = conn.Close()
+	return nil
 }

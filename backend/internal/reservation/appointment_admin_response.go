@@ -1,9 +1,10 @@
-package handler
+package reservation
 
 import (
 	"encoding/json"
 	"time"
 
+	"github.com/animal-ekarte/backend/internal/httpapi"
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
@@ -72,8 +73,8 @@ func toReservationSummaryResponse(ra *model.Reservation) reservationSummaryRespo
 
 	return reservationSummaryResponse{
 		ID:               ra.ID,
-		StartTime:        localTime(ra.StartTime),
-		EndTime:          localTime(ra.EndTime),
+		StartTime:        httpapi.LocalTime(ra.StartTime),
+		EndTime:          httpapi.LocalTime(ra.EndTime),
 		CustomerName:     customerName,
 		CourseShortName:  courseShortName,
 		StaffName:        staffName,
@@ -114,8 +115,8 @@ func toReservationDetailResponse(ra *model.Reservation) reservationDetailRespons
 
 	return reservationDetailResponse{
 		ID:                ra.ID,
-		StartTime:         localTime(ra.StartTime),
-		EndTime:           localTime(ra.EndTime),
+		StartTime:         httpapi.LocalTime(ra.StartTime),
+		EndTime:           httpapi.LocalTime(ra.EndTime),
 		OwnerID:           ra.OwnerID,
 		PetID:             ra.PetID,
 		VisitType:         string(ra.VisitType),
@@ -133,7 +134,7 @@ func toReservationDetailResponse(ra *model.Reservation) reservationDetailRespons
 		StaffName:         staffName,
 		CreatedBy:         ra.CreatedBy,
 		CreatedByName:     createdByName,
-		CreatedAt:         localTime(ra.CreatedAt),
-		UpdatedAt:         localTime(ra.UpdatedAt),
+		CreatedAt:         httpapi.LocalTime(ra.CreatedAt),
+		UpdatedAt:         httpapi.LocalTime(ra.UpdatedAt),
 	}
 }

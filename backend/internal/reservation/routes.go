@@ -22,6 +22,7 @@ type Handler struct {
 	reservationStaff     *ReservationStaffHandler
 	reservationSchedule  *ReservationScheduleHandler
 	reservationCRUD      *ReservationHandler
+	reservationAdmin     *ReservationAdminHandler
 	requirePermission    PermissionMiddleware
 }
 
@@ -33,6 +34,7 @@ func NewHandler(
 	reservationStaff *ReservationStaffHandler,
 	reservationSchedule *ReservationScheduleHandler,
 	reservationCRUD *ReservationHandler,
+	reservationAdmin *ReservationAdminHandler,
 	requirePermission PermissionMiddleware,
 ) *Handler {
 	return &Handler{
@@ -42,6 +44,7 @@ func NewHandler(
 		reservationStaff:     reservationStaff,
 		reservationSchedule:  reservationSchedule,
 		reservationCRUD:      reservationCRUD,
+		reservationAdmin:     reservationAdmin,
 		requirePermission:    requirePermission,
 	}
 }
@@ -109,6 +112,12 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	schedules.GET("", h.requirePermission(string(model.ResourceMasterStaff), "view"), h.reservationSchedule.ListReservationSchedules)
 	schedules.PUT("/:date", h.requirePermission(string(model.ResourceMasterStaff), "edit"), h.reservationSchedule.UpsertReservationSchedule)
 	schedules.DELETE("/:date", h.requirePermission(string(model.ResourceMasterStaff), "delete"), h.reservationSchedule.DeleteReservationSchedule)
+
+	// 予約管理（LINE管理用・旧 reservation_line_routes.go 逐語）
+	adminReservations := clinics.Group("/reservations")
+	adminReservations.GET("", h.requirePermission(string(model.ResourceReservations), "view"), h.reservationAdmin.ListReservationsAdmin)
+	adminReservations.POST("", h.requirePermission(string(model.ResourceReservations), "create"), h.reservationAdmin.CreateReservationAdmin)
+	adminReservations.DELETE("/:reservationId", h.requirePermission(string(model.ResourceReservations), "delete"), h.reservationAdmin.DeleteReservationAdmin)
 
 	// 予約 CRUD（旧 handler.go RegisterReservationRoutes 逐語）
 	reservations := rg.Group("/reservations")
