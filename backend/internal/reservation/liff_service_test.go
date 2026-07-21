@@ -1,4 +1,4 @@
-package service
+package reservation
 
 import (
 	"context"
@@ -12,7 +12,6 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/reservation"
 )
 
 // ================================================================
@@ -706,7 +705,7 @@ func TestLiffService_CreateReservation(t *testing.T) {
 
 		_, err := svc.CreateReservation(ctx, 3, 1, baseInput())
 		require.Error(t, err)
-		limErr, ok := reservation.IsReservationLimitError(err)
+		limErr, ok := IsReservationLimitError(err)
 		require.True(t, ok)
 		assert.Equal(t, "SLOT_TAKEN", limErr.Code)
 		assert.Equal(t, 5, limErr.RedirectStep)

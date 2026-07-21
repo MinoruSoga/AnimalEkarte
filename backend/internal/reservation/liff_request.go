@@ -1,4 +1,4 @@
-package handler
+package reservation
 
 import (
 	"encoding/json"
@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
-	"github.com/animal-ekarte/backend/internal/service"
 )
 
 type liffCourseQuery struct {
@@ -100,13 +99,13 @@ type liffCreateReservationRequest struct {
 	TrimmingStyleRequest string          `json:"trimming_style_request"` // BE-120
 }
 
-func (r *liffCreateReservationRequest) toServiceInput() (*service.CreateReservationInput, error) {
+func (r *liffCreateReservationRequest) toServiceInput() (*CreateReservationInput, error) {
 	date, err := time.ParseInLocation(time.DateOnly, r.Date, time.Local)
 	if err != nil {
 		return nil, fmt.Errorf("invalid date: must be YYYY-MM-DD")
 	}
 
-	return &service.CreateReservationInput{
+	return &CreateReservationInput{
 		ReservationTypeID:    r.TypeID,
 		StaffID:              r.StaffID,
 		Date:                 date,

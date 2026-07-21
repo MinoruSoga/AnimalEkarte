@@ -204,7 +204,7 @@ type patchReservationReservationRouteRequest struct {
 }
 
 func (r patchReservationReservationRouteRequest) toServiceInput() UpdateReservationRouteInput {
-	return UpdateReservationRouteInput{Route: r.Route}
+	return UpdateReservationRouteInput(r)
 }
 
 // updateReservationRequest は予約更新のバインド struct

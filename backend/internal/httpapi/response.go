@@ -40,7 +40,7 @@ func RespondErrorWithExtras(c *gin.Context, err error, extras map[string]any) {
 // BE9-2B note: this is the generic, domain-independent classification (apperrors sentinels +
 // pg errors + a safe 500 fallback). internal/handler's RespondError/RespondErrorWithExtras
 // facade wraps this with one additional domain-specific fallback
-// (*service.ReservationLimitError, liff/reservation-only) BEFORE delegating here, so that
+// (*reservation.ReservationLimitError（internal/reservation/response_error.go）, liff/reservation-only) BEFORE delegating here, so that
 // httpapi itself never imports internal/service (httpapi must stay dependency-free per
 // ADR-006's topological order) while today's 269 internal/handler call sites keep their exact
 // existing behavior. See internal/handler/response.go for that residual branch.

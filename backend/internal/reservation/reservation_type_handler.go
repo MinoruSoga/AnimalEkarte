@@ -35,7 +35,7 @@ func (h *ReservationTypeHandler) ListReservationTypes(c *gin.Context) {
 	}
 	reservationTypes, err := h.core.List(c.Request.Context(), clinicID)
 	if err != nil {
-		httpapi.RespondError(c, err)
+		respondError(c, err)
 		return
 	}
 	c.JSON(http.StatusOK, httpapi.MapSlice(reservationTypes, ToReservationTypeResponse))
@@ -53,7 +53,7 @@ func (h *ReservationTypeHandler) GetReservationType(c *gin.Context) {
 	}
 	st, err := h.core.GetByID(c.Request.Context(), clinicID, id)
 	if err != nil {
-		httpapi.RespondError(c, err)
+		respondError(c, err)
 		return
 	}
 	c.JSON(http.StatusOK, ToReservationTypeResponse(st))
@@ -67,12 +67,12 @@ func (h *ReservationTypeHandler) CreateReservationType(c *gin.Context) {
 	}
 	var req createReservationTypeRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		httpapi.RespondError(c, apperrors.WrapInvalidInput(httpapi.ParseBindError(err)))
+		respondError(c, apperrors.WrapInvalidInput(httpapi.ParseBindError(err)))
 		return
 	}
 	st, err := h.core.Create(c.Request.Context(), clinicID, req.toServiceInput())
 	if err != nil {
-		httpapi.RespondError(c, err)
+		respondError(c, err)
 		return
 	}
 	c.Header("Location", fmt.Sprintf("/v1/masters/reservation-types/%d", st.ID))
@@ -91,12 +91,12 @@ func (h *ReservationTypeHandler) UpdateReservationType(c *gin.Context) {
 	}
 	var req updateReservationTypeRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		httpapi.RespondError(c, apperrors.WrapInvalidInput(httpapi.ParseBindError(err)))
+		respondError(c, apperrors.WrapInvalidInput(httpapi.ParseBindError(err)))
 		return
 	}
 	st, err := h.core.Update(c.Request.Context(), clinicID, id, req.toServiceInput())
 	if err != nil {
-		httpapi.RespondError(c, err)
+		respondError(c, err)
 		return
 	}
 	c.JSON(http.StatusOK, ToReservationTypeResponse(st))
@@ -113,7 +113,7 @@ func (h *ReservationTypeHandler) DeleteReservationType(c *gin.Context) {
 		return
 	}
 	if err := h.core.Delete(c.Request.Context(), clinicID, id); err != nil {
-		httpapi.RespondError(c, err)
+		respondError(c, err)
 		return
 	}
 	c.Status(http.StatusNoContent)
@@ -131,7 +131,7 @@ func (h *ReservationTypeHandler) ListUnavailableTimes(c *gin.Context) {
 	}
 	items, err := h.unavailableTime.ListUnavailableTimes(c.Request.Context(), clinicID, id)
 	if err != nil {
-		httpapi.RespondError(c, err)
+		respondError(c, err)
 		return
 	}
 	c.JSON(http.StatusOK, httpapi.MapSlice(items, toUnavailableTimeResponse))
@@ -149,7 +149,7 @@ func (h *ReservationTypeHandler) CreateUnavailableTime(c *gin.Context) {
 	}
 	var req createUnavailableTimeRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		httpapi.RespondError(c, apperrors.WrapInvalidInput(httpapi.ParseBindError(err)))
+		respondError(c, apperrors.WrapInvalidInput(httpapi.ParseBindError(err)))
 		return
 	}
 
@@ -157,24 +157,24 @@ func (h *ReservationTypeHandler) CreateUnavailableTime(c *gin.Context) {
 	switch req.UnavailableType {
 	case "weekly":
 		if req.DayOfWeek == nil {
-			httpapi.RespondError(c, apperrors.WrapInvalidInput("weekly タイプでは day_of_week が必要です"))
+			respondError(c, apperrors.WrapInvalidInput("weekly タイプでは day_of_week が必要です"))
 			return
 		}
 	case "specific":
 		if req.SpecificDate == nil {
-			httpapi.RespondError(c, apperrors.WrapInvalidInput("specific タイプでは specific_date が必要です"))
+			respondError(c, apperrors.WrapInvalidInput("specific タイプでは specific_date が必要です"))
 			return
 		}
 	}
 
 	input, err := req.toServiceInput()
 	if err != nil {
-		httpapi.RespondError(c, apperrors.WrapInvalidInput("specific_date は YYYY-MM-DD 形式で入力してください"))
+		respondError(c, apperrors.WrapInvalidInput("specific_date は YYYY-MM-DD 形式で入力してください"))
 		return
 	}
 	result, err := h.unavailableTime.CreateUnavailableTime(c.Request.Context(), clinicID, id, input)
 	if err != nil {
-		httpapi.RespondError(c, err)
+		respondError(c, err)
 		return
 	}
 	resp := toUnavailableTimeResponse(result)
@@ -197,7 +197,7 @@ func (h *ReservationTypeHandler) DeleteUnavailableTime(c *gin.Context) {
 		return
 	}
 	if err := h.unavailableTime.DeleteUnavailableTime(c.Request.Context(), clinicID, reservationTypeID, unavailableTimeID); err != nil {
-		httpapi.RespondError(c, err)
+		respondError(c, err)
 		return
 	}
 	c.Status(http.StatusNoContent)
@@ -215,7 +215,7 @@ func (h *ReservationTypeHandler) ListAvailableSlots(c *gin.Context) {
 	}
 	items, err := h.availableSlot.ListAvailableSlots(c.Request.Context(), clinicID, id)
 	if err != nil {
-		httpapi.RespondError(c, err)
+		respondError(c, err)
 		return
 	}
 	c.JSON(http.StatusOK, httpapi.MapSlice(items, toAvailableSlotResponse))
@@ -233,29 +233,29 @@ func (h *ReservationTypeHandler) CreateAvailableSlot(c *gin.Context) {
 	}
 	var req createAvailableSlotRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		httpapi.RespondError(c, apperrors.WrapInvalidInput(httpapi.ParseBindError(err)))
+		respondError(c, apperrors.WrapInvalidInput(httpapi.ParseBindError(err)))
 		return
 	}
 	switch req.AvailableType {
 	case "weekly":
 		if req.DayOfWeek == nil {
-			httpapi.RespondError(c, apperrors.WrapInvalidInput("weekly タイプでは day_of_week が必要です"))
+			respondError(c, apperrors.WrapInvalidInput("weekly タイプでは day_of_week が必要です"))
 			return
 		}
 	case "specific":
 		if req.SpecificDate == nil {
-			httpapi.RespondError(c, apperrors.WrapInvalidInput("specific タイプでは specific_date が必要です"))
+			respondError(c, apperrors.WrapInvalidInput("specific タイプでは specific_date が必要です"))
 			return
 		}
 	}
 	input, err := req.toServiceInput()
 	if err != nil {
-		httpapi.RespondError(c, apperrors.WrapInvalidInput("specific_date は YYYY-MM-DD 形式で入力してください"))
+		respondError(c, apperrors.WrapInvalidInput("specific_date は YYYY-MM-DD 形式で入力してください"))
 		return
 	}
 	result, err := h.availableSlot.CreateAvailableSlot(c.Request.Context(), clinicID, id, input)
 	if err != nil {
-		httpapi.RespondError(c, err)
+		respondError(c, err)
 		return
 	}
 	resp := toAvailableSlotResponse(result)
@@ -278,7 +278,7 @@ func (h *ReservationTypeHandler) DeleteAvailableSlot(c *gin.Context) {
 		return
 	}
 	if err := h.availableSlot.DeleteAvailableSlot(c.Request.Context(), clinicID, reservationTypeID, availableSlotID); err != nil {
-		httpapi.RespondError(c, err)
+		respondError(c, err)
 		return
 	}
 	c.Status(http.StatusNoContent)
@@ -296,7 +296,7 @@ func (h *ReservationTypeHandler) ListReservationTypeOccupations(c *gin.Context) 
 	}
 	items, err := h.occupation.ListOccupations(c.Request.Context(), clinicID, id)
 	if err != nil {
-		httpapi.RespondError(c, err)
+		respondError(c, err)
 		return
 	}
 	c.JSON(http.StatusOK, httpapi.MapSlice(items, toReservationTypeOccupationResponse))
@@ -314,12 +314,12 @@ func (h *ReservationTypeHandler) LinkReservationTypeOccupation(c *gin.Context) {
 	}
 	var req linkOccupationRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		httpapi.RespondError(c, apperrors.WrapInvalidInput(httpapi.ParseBindError(err)))
+		respondError(c, apperrors.WrapInvalidInput(httpapi.ParseBindError(err)))
 		return
 	}
 	result, err := h.occupation.LinkOccupation(c.Request.Context(), clinicID, id, req.OccupationID)
 	if err != nil {
-		httpapi.RespondError(c, err)
+		respondError(c, err)
 		return
 	}
 	c.Header("Location", fmt.Sprintf("/v1/masters/reservation-types/%d/occupations/%d", id, result.ID))
@@ -341,7 +341,7 @@ func (h *ReservationTypeHandler) UnlinkReservationTypeOccupation(c *gin.Context)
 		return
 	}
 	if err := h.occupation.UnlinkOccupation(c.Request.Context(), clinicID, id, occupationID); err != nil {
-		httpapi.RespondError(c, err)
+		respondError(c, err)
 		return
 	}
 	c.Status(http.StatusNoContent)
@@ -355,11 +355,11 @@ func (h *ReservationTypeHandler) ReorderReservationTypes(c *gin.Context) {
 	}
 	var req httpapi.ReorderRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		httpapi.RespondError(c, apperrors.WrapInvalidInput(httpapi.ParseBindError(err)))
+		respondError(c, apperrors.WrapInvalidInput(httpapi.ParseBindError(err)))
 		return
 	}
 	if err := h.core.Reorder(c.Request.Context(), clinicID, req.IDs); err != nil {
-		httpapi.RespondError(c, err)
+		respondError(c, err)
 		return
 	}
 	c.Status(http.StatusNoContent)

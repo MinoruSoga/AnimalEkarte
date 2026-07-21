@@ -85,7 +85,7 @@ func validateJSONFields(fields map[string][]byte) error {
 	return nil
 }
 
-// validateBreakHoursShape は break_hours が []BreakPeriod{start,end} 形式に unmarshal でき、
+// validateBreakHoursShape は break_hours が []reservation.BreakPeriod{start,end} 形式に unmarshal でき、
 // 各エントリの start/end が HHMM 形式であることを確認する（go-reviewer/security-reviewer 指摘）。
 //
 // BE-refactor.md D10/F-2 で parseBusinessHoursForDate の break_hours unmarshal 失敗を
@@ -96,7 +96,7 @@ func validateBreakHoursShape(data []byte) error {
 	if len(data) == 0 {
 		return nil
 	}
-	var breaks []BreakPeriod
+	var breaks []reservation.BreakPeriod
 	if err := json.Unmarshal(data, &breaks); err != nil {
 		return apperrors.WrapInvalidInput(`break_hours は [{"start":"HHMM","end":"HHMM"}] 形式である必要があります`)
 	}

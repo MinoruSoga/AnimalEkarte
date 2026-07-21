@@ -10,6 +10,7 @@ import (
 	"github.com/animal-ekarte/backend/internal/infra/crypto"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/repository"
+	"github.com/animal-ekarte/backend/internal/reservation"
 )
 
 // TestNewServices_OwnerUsesInjectedCipherForLstepDecryption は X-2 の回帰テストである。
@@ -37,7 +38,7 @@ func TestNewServices_OwnerUsesInjectedCipherForLstepDecryption(t *testing.T) {
 		LstepSyncSettings: &mockLstepSyncSettingsRepository{},
 	}
 
-	svcs := NewServices(repos, &ReservationNotificationConfig{}, cipher, nil, "test-jwt-secret")
+	svcs := NewServices(repos, &reservation.ReservationNotificationConfig{}, cipher, nil, "test-jwt-secret")
 
 	// Owner の tagSyncSvc が保持する settingsSvc は NewServices が公開する
 	// svcs.LstepSettings と同一インスタンスでなければならない（DI 一貫性）。

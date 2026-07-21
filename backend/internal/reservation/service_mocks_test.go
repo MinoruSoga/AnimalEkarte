@@ -142,12 +142,20 @@ func (m *mockTrimmingCourseFinder) FindByID(ctx context.Context, clinicID, id ui
 	return m.findByIDFn(ctx, clinicID, id)
 }
 
+func (m *mockTrimmingCourseFinder) FindAll(_ context.Context, _ uint64) ([]model.TrimmingCourse, error) {
+	return nil, nil
+}
+
 type mockTrimmingOptionFinder struct {
 	findByIDFn func(ctx context.Context, clinicID, id uint64) (*model.TrimmingOption, error)
 }
 
 func (m *mockTrimmingOptionFinder) FindByID(ctx context.Context, clinicID, id uint64) (*model.TrimmingOption, error) {
 	return m.findByIDFn(ctx, clinicID, id)
+}
+
+func (m *mockTrimmingOptionFinder) FindAll(_ context.Context, _ uint64) ([]model.TrimmingOption, error) {
+	return nil, nil
 }
 
 func okTrimmingCourseRepo() trimmingCourseFinder {

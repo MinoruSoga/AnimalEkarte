@@ -29,7 +29,7 @@ func (h *ReservationTypeLiffHandler) ListReservationTypeLiffs(c *gin.Context) {
 	}
 	items, err := h.svc.List(c.Request.Context(), clinicID)
 	if err != nil {
-		httpapi.RespondError(c, err)
+		respondError(c, err)
 		return
 	}
 	c.JSON(http.StatusOK, httpapi.MapSlice(items, toReservationTypeLiffResponse))
@@ -43,12 +43,12 @@ func (h *ReservationTypeLiffHandler) CreateReservationTypeLiff(c *gin.Context) {
 	}
 	var req createReservationTypeLiffRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		httpapi.RespondError(c, apperrors.WrapInvalidInput(httpapi.ParseBindError(err)))
+		respondError(c, apperrors.WrapInvalidInput(httpapi.ParseBindError(err)))
 		return
 	}
 	st, err := h.svc.Create(c.Request.Context(), clinicID, req.toServiceInput())
 	if err != nil {
-		httpapi.RespondError(c, err)
+		respondError(c, err)
 		return
 	}
 	c.Header("Location", fmt.Sprintf("/v1/clinics/%d/reservation-types/%d", clinicID, st.ID))
@@ -67,12 +67,12 @@ func (h *ReservationTypeLiffHandler) UpdateReservationTypeLiff(c *gin.Context) {
 	}
 	var req updateReservationTypeLiffRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		httpapi.RespondError(c, apperrors.WrapInvalidInput(httpapi.ParseBindError(err)))
+		respondError(c, apperrors.WrapInvalidInput(httpapi.ParseBindError(err)))
 		return
 	}
 	st, err := h.svc.Update(c.Request.Context(), clinicID, id, req.toServiceInput())
 	if err != nil {
-		httpapi.RespondError(c, err)
+		respondError(c, err)
 		return
 	}
 	c.JSON(http.StatusOK, toReservationTypeLiffResponse(st))
@@ -89,7 +89,7 @@ func (h *ReservationTypeLiffHandler) DeleteReservationTypeLiff(c *gin.Context) {
 		return
 	}
 	if err := h.svc.Delete(c.Request.Context(), clinicID, id); err != nil {
-		httpapi.RespondError(c, err)
+		respondError(c, err)
 		return
 	}
 	c.Status(http.StatusNoContent)
@@ -107,12 +107,12 @@ func (h *ReservationTypeLiffHandler) UpdateReservationTypeLiffStatus(c *gin.Cont
 	}
 	var req patchReservationTypeLiffStatusRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		httpapi.RespondError(c, apperrors.WrapInvalidInput(httpapi.ParseBindError(err)))
+		respondError(c, apperrors.WrapInvalidInput(httpapi.ParseBindError(err)))
 		return
 	}
 	st, err := h.svc.PatchStatus(c.Request.Context(), clinicID, id, req.IsActive)
 	if err != nil {
-		httpapi.RespondError(c, err)
+		respondError(c, err)
 		return
 	}
 	c.JSON(http.StatusOK, toReservationTypeLiffResponse(st))
@@ -130,11 +130,11 @@ func (h *ReservationTypeLiffHandler) UpdateReservationTypeLiffSortOrder(c *gin.C
 	}
 	var req patchReservationTypeLiffSortOrderRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		httpapi.RespondError(c, apperrors.WrapInvalidInput(httpapi.ParseBindError(err)))
+		respondError(c, apperrors.WrapInvalidInput(httpapi.ParseBindError(err)))
 		return
 	}
 	if err := h.svc.PatchSortOrder(c.Request.Context(), clinicID, id, req.Direction); err != nil {
-		httpapi.RespondError(c, err)
+		respondError(c, err)
 		return
 	}
 	c.Status(http.StatusNoContent)
@@ -142,5 +142,5 @@ func (h *ReservationTypeLiffHandler) UpdateReservationTypeLiffSortOrder(c *gin.C
 
 // UploadReservationTypeLiffImage godoc — v2 スコープ：未実装
 func (h *ReservationTypeLiffHandler) UploadReservationTypeLiffImage(c *gin.Context) {
-	httpapi.RespondError(c, apperrors.WrapNotImplemented("この機能は未実装です"))
+	respondError(c, apperrors.WrapNotImplemented("この機能は未実装です"))
 }

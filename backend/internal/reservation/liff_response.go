@@ -1,12 +1,12 @@
-package handler
+package reservation
 
 import (
 	"encoding/json"
 	"strconv"
 	"time"
 
+	"github.com/animal-ekarte/backend/internal/httpapi"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/service"
 )
 
 // liffSettingsResponse はLIFF向け公開設定レスポンス（機密フィールド除外）。
@@ -114,7 +114,7 @@ type liffAvailableDateResponse struct {
 // liffAvailableDatesResponse は空き日付一覧レスポンス。
 type liffAvailableDatesResponse struct {
 	Dates  []liffAvailableDateResponse `json:"dates"`
-	Window service.BookingWindow       `json:"window"`
+	Window BookingWindow               `json:"window"`
 }
 
 // liffTimeSlotResponse は時間枠レスポンス。
@@ -252,15 +252,15 @@ type liffHealthCardResponse struct {
 	Pets      []liffHealthCardPetResponse `json:"pets"`
 }
 
-func toLiffHealthCardResponse(r *service.HealthCardResult) liffHealthCardResponse {
+func toLiffHealthCardResponse(r *HealthCardResult) liffHealthCardResponse {
 	pets := make([]liffHealthCardPetResponse, 0, len(r.Pets))
 	for _, p := range r.Pets {
 		vaccines := make([]liffHealthCardVaccineResponse, 0, len(p.Vaccines))
 		for _, v := range p.Vaccines {
 			vaccines = append(vaccines, liffHealthCardVaccineResponse{
 				VaccineName:  v.VaccineName,
-				VaccinatedAt: localTime(v.VaccinatedAt),
-				NextDueAt:    localTimePtr(v.NextDueAt),
+				VaccinatedAt: httpapi.LocalTime(v.VaccinatedAt),
+				NextDueAt:    httpapi.LocalTimePtr(v.NextDueAt),
 			})
 		}
 		var lastVisitDate *string

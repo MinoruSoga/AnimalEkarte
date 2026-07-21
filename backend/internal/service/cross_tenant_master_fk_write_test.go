@@ -26,7 +26,6 @@ import (
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/repository"
-	"github.com/animal-ekarte/backend/internal/reservation"
 )
 
 // ── permissive builders: any FindByID succeeds (used to keep existing tests green) ──
@@ -292,84 +291,6 @@ func TestBillingItemService_CreateItem_RejectsCrossClinicTrimmingFK(t *testing.T
 
 // ── reservationValidators.ValidateAndCreate / liffService.CreateReservation
 //    (X-14/U6a): ReservationTypeID / TrimmingCourseID / TrimmingOptionIDs ──
-
-// TestLiffService_CreateReservation_RejectsCrossClinicTrimmingFK は liff 経由でも
-// ValidateAndCreate の所有権ガードが効き、appointment が永続化されないことを検証する
-// (U6a: liffService は validators に委譲するのみで、ガード本体は validators 側にある)。
-func TestLiffService_CreateReservation_RejectsCrossClinicTrimmingFK(t *testing.T) {
-	const clinicID = uint64(3)
-	const customerID = uint64(1)
-	const ownedCourseID = uint64(300)
-	const foreignCourseID = uint64(999)
-
-	typeRepo := mockReservationTypeFinder{
-		findByIDFn: func(_ context.Context, _, id uint64) (*model.ReservationType, error) {
-			return &model.ReservationType{ID: id}, nil
-		},
-	}
-
-	newSvc := func(created *bool, courseRepo repository.TrimmingCourseRepository) *liffService {
-		reservationRepo := &mockReservationRepository{
-			createFn: func(_ context.Context, _ *model.Reservation) error {
-				*created = true
-				return nil
-			},
-		}
-		return &liffService{
-			settingRepo: &mockLiffSettingRepository{
-				findByClinicIDFn: func(_ context.Context, _ uint64) (*model.LineReservationSetting, error) {
-					return newSettingForValidation(), nil
-				},
-			},
-			customerRepo: &mockLiffCustomerRepository{
-				findByIDFn: func(_ context.Context, _, _ uint64) (*model.LineCustomer, error) {
-					return &model.LineCustomer{ID: customerID}, nil
-				},
-			},
-			ownerRepo:          nil,
-			reservationRepo:    reservationRepo,
-			trimmingDetailRepo: &mockTrimmingDetailRepository{},
-			notifier:           nil,
-			validators:         reservation.NewReservationValidators(&mockTransactor{}, reservationRepo, typeRepo, courseRepo, okTrimmingOptionRepo()),
-		}
-	}
-
-	baseInput := func() *CreateReservationInput {
-		return &CreateReservationInput{
-			ReservationTypeID: 1,
-			StaffID:           10,
-			Date:              dateInDays(3),
-			StartTime:         "1000",
-			EndTime:           "1015",
-		}
-	}
-
-	t.Run("rejects cross-clinic trimming course and does not create appointment", func(t *testing.T) {
-		created := false
-		svc := newSvc(&created, rejectTrimmingCourseRepo(ownedCourseID))
-		foreign := foreignCourseID
-		input := baseInput()
-		input.TrimmingCourseID = &foreign
-
-		out, err := svc.CreateReservation(context.Background(), clinicID, customerID, input)
-		assert.Error(t, err)
-		assert.Nil(t, out)
-		assert.False(t, created, "appointment must NOT be persisted referencing another clinic's trimming course")
-	})
-
-	t.Run("accepts same-clinic trimming course (no false-reject)", func(t *testing.T) {
-		created := false
-		svc := newSvc(&created, rejectTrimmingCourseRepo(ownedCourseID))
-		owned := ownedCourseID
-		input := baseInput()
-		input.TrimmingCourseID = &owned
-
-		out, err := svc.CreateReservation(context.Background(), clinicID, customerID, input)
-		assert.NoError(t, err)
-		assert.NotNil(t, out)
-		assert.True(t, created)
-	})
-}
 
 func rejectDiagnosisNameRepo(ownedID uint64) repository.DiagnosisNameRepository {
 	return &mockDiagnosisNameRepository{findByIDFn: func(_ context.Context, _, id uint64) (*model.DiagnosisName, error) {

@@ -1,4 +1,4 @@
-package service
+package reservation
 
 import (
 	"context"
@@ -8,7 +8,6 @@ import (
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/config"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/reservation"
 )
 
 // buildStaffSlotInputsForDate はスタッフ一覧と指定日から StaffSlotInputs を構築する（単日パス
@@ -90,7 +89,7 @@ func (s *liffService) buildStaffSlotInputsForDate(ctx context.Context, clinicID 
 func (s *liffService) buildAvailableDatesStaffInputsFn(
 	ctx context.Context, clinicID uint64, staffs []model.Staff, settings AvailableDatesSettings,
 ) (func(context.Context, time.Time, uint64, uint64) ([]StaffSlotInput, error), error) {
-	minDate, maxDate := reservation.BookingWindowDates(settings)
+	minDate, maxDate := BookingWindowDates(settings)
 	windowEnd := maxDate.AddDate(0, 0, 1) // 半開区間の排他的上限
 
 	staffIDs := make([]uint64, len(staffs))

@@ -35,7 +35,7 @@ func (h *ReservationScheduleHandler) ListReservationSchedules(c *gin.Context) {
 	query := newListReservationSchedulesQuery(c.Request.URL.Query(), time.Now())
 	entries, err := h.svc.ListByMonth(c.Request.Context(), clinicID, staffID, query.Month)
 	if err != nil {
-		httpapi.RespondError(c, err)
+		respondError(c, err)
 		return
 	}
 	list := httpapi.MapSlice(entries, toScheduleEntryResponse)
@@ -55,19 +55,19 @@ func (h *ReservationScheduleHandler) UpsertReservationSchedule(c *gin.Context) {
 	dateStr := c.Param("date")
 	date, err := time.ParseInLocation(time.DateOnly, dateStr, time.Local)
 	if err != nil {
-		httpapi.RespondError(c, apperrors.WrapInvalidInput("date must be YYYY-MM-DD format"))
+		respondError(c, apperrors.WrapInvalidInput("date must be YYYY-MM-DD format"))
 		return
 	}
 
 	var req upsertReservationScheduleRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		httpapi.RespondError(c, apperrors.WrapInvalidInput(httpapi.ParseBindError(err)))
+		respondError(c, apperrors.WrapInvalidInput(httpapi.ParseBindError(err)))
 		return
 	}
 
 	entry, isNew, err := h.svc.Save(c.Request.Context(), clinicID, staffID, date, req.toServiceInput())
 	if err != nil {
-		httpapi.RespondError(c, err)
+		respondError(c, err)
 		return
 	}
 	if isNew {
@@ -91,11 +91,11 @@ func (h *ReservationScheduleHandler) DeleteReservationSchedule(c *gin.Context) {
 	dateStr := c.Param("date")
 	date, err := time.ParseInLocation(time.DateOnly, dateStr, time.Local)
 	if err != nil {
-		httpapi.RespondError(c, apperrors.WrapInvalidInput("date must be YYYY-MM-DD format"))
+		respondError(c, apperrors.WrapInvalidInput("date must be YYYY-MM-DD format"))
 		return
 	}
 	if err := h.svc.Delete(c.Request.Context(), clinicID, staffID, date); err != nil {
-		httpapi.RespondError(c, err)
+		respondError(c, err)
 		return
 	}
 	c.Status(http.StatusNoContent)

@@ -838,18 +838,6 @@ func TestPatchReservationReservationRoute(t *testing.T) {
 	})
 }
 
-// mockLiffService — handler/liff_handler_test.go の同名モックの liffAvailability view 最小複製。
-type mockLiffService struct {
-	getAvailableTimesFn func(ctx context.Context, clinicID, typeID, staffID uint64, date time.Time) ([]TimeSlot, error)
-}
-
-func (m *mockLiffService) GetAvailableTimes(ctx context.Context, clinicID, typeID, staffID uint64, date time.Time) ([]TimeSlot, error) {
-	if m.getAvailableTimesFn != nil {
-		return m.getAvailableTimesFn(ctx, clinicID, typeID, staffID, date)
-	}
-	return nil, nil
-}
-
 // mockMedicalRecordService — medicalRecordAutoCreator view の最小モック
 // （handler/appointment_medical_record_mock_test.go の full 版とは独立・view 2メソッドのみ）。
 type mockMedicalRecordService struct {

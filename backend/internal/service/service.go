@@ -18,7 +18,7 @@ type Services struct {
 	AnimalSpecies         AnimalSpeciesService
 	Owner                 OwnerService
 	Pet                   PetService
-	Reservation           ReservationService
+	Reservation           reservation.ReservationService
 	// MedicalRecord: BE9-2D ⑦ で実装は internal/medicalrecord へ移動済み。残存 consumer =
 	// reservation_handler（AutoCreateFromReservation/DeleteDraftFromReservation）のみのため
 	// medicalrecord 型 field として残置し cmd/api/main.go が構築後に代入する（⑤ Hospitalization 先例。
@@ -59,7 +59,7 @@ type Services struct {
 	BillingItem         BillingItemService
 	Refund              RefundService
 	PasswordReset       PasswordResetService
-	ReservationNotifier ReservationNotifier
+	ReservationNotifier reservation.ReservationNotifier
 
 	// FEAT-368: 集計・締め機能
 	ClosingSettings     ClosingSettingsService
@@ -76,9 +76,9 @@ type Services struct {
 	ReservationStaffCore      reservation.ReservationStaffCoreService
 	ReservationStaffExclusion reservation.ReservationStaffExclusionService
 	ReservationSchedule       reservation.ReservationScheduleService
-	ReservationAdmin          ReservationAdminService
+	ReservationAdmin          reservation.ReservationAdminService
 	LineCustomer              LineCustomerService
-	Liff                      LiffService
+	Liff                      reservation.LiffService
 
 	// LSTEP / LINE連携
 	LstepSettings  LstepSettingsService
@@ -128,7 +128,7 @@ type Services struct {
 // cipher は LINE 認証情報（line_channel_secret / line_access_token）の暗号化に使う（H-4）。
 // nil の場合は暗号化なしで動作する（開発環境で INTEGRATION_ENCRYPTION_KEY 未設定時）。
 // lstep 連携と同一の cipher を再利用する。
-func NewServices(repos *repository.Repositories, notifCfg *ReservationNotificationConfig, cipher *crypto.AESGCMCipher, sharedStorage infra.FileStorage, jwtSecret string) *Services {
+func NewServices(repos *repository.Repositories, notifCfg *reservation.ReservationNotificationConfig, cipher *crypto.AESGCMCipher, sharedStorage infra.FileStorage, jwtSecret string) *Services {
 	notifier := reservation.NewReservationNotificationService(notifCfg, repos.LineReservationSetting,
 		func(ctx context.Context, value string) string { return decryptLineCredential(ctx, cipher, value) },
 		func(channelToken string) reservation.LinePusher {
@@ -303,7 +303,7 @@ func NewServices(repos *repository.Repositories, notifCfg *ReservationNotificati
 		LstepDeliveryMonitor:      lstepDeliveryMonitorSvc,
 		LstepCsvImport:            lstepCsvImportSvc,
 		LstepAnalytics:            lstepAnalyticsSvc,
-		Liff: NewLiffServiceWithType(
+		Liff: reservation.NewLiffServiceWithType(
 			repos.LineReservationSetting,
 			repos.ReservationTypeLiff,
 			repos.ReservationType,

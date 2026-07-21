@@ -13,7 +13,6 @@ import (
 )
 
 type mockLineSettingRepo struct {
-	lineReservationSettingFinder
 	findByClinicIDFn func(ctx context.Context, clinicID uint64) (*model.LineReservationSetting, error)
 }
 

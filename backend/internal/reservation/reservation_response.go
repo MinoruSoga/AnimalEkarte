@@ -75,10 +75,3 @@ func toReservationResponse(r *model.Reservation) reservationResponse {
 		UpdatedAt:           httpapi.LocalTime(r.UpdatedAt),
 	}
 }
-
-// liffTimeSlotResponse は internal/handler/liff_response.go の同名DTOの複製
-// （liff系=R⑤未移行のため・JSON tag同一でbyte等価出力・R⑤移動時に統合）。
-type liffTimeSlotResponse struct {
-	StartTime string `json:"start_time"`
-	EndTime   string `json:"end_time"`
-}

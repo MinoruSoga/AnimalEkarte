@@ -1,4 +1,4 @@
-package service
+package reservation
 
 import (
 	"context"
@@ -10,7 +10,6 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/config"
-	"github.com/animal-ekarte/backend/internal/reservation"
 )
 
 // buildCapacityFilterFn は course.MaxConcurrent 制約下でのキャパシティフィルタ
@@ -18,7 +17,7 @@ import (
 // 超過分を除外し、フィルタ失敗時は warn ログを出して base をそのまま返す（fail-open・既存挙動維持）。
 func (s *liffService) buildCapacityFilterFn(ctx context.Context, clinicID, typeID uint64, maxConcurrent int) func(date time.Time, base []TimeSlot) []TimeSlot {
 	return func(date time.Time, base []TimeSlot) []TimeSlot {
-		filtered, err := reservation.FilterSlotsByCapacity(ctx, base, s.reservationRepo, clinicID, typeID, date, maxConcurrent)
+		filtered, err := FilterSlotsByCapacity(ctx, base, s.reservationRepo, clinicID, typeID, date, maxConcurrent)
 		if err != nil {
 			slog.WarnContext(ctx, "failed to filter by capacity in dates, skipping", "error", err)
 			return base
@@ -46,7 +45,7 @@ func (s *liffService) GetAvailableDates(ctx context.Context, clinicID, typeID, s
 		return nil, BookingWindow{}, err
 	}
 
-	datesSettings, err := reservation.ParseAvailableDatesSettings(
+	datesSettings, err := ParseAvailableDatesSettings(
 		setting.ClosedWeekdays,
 		setting.ClosedDates,
 		setting.NationalHolidayClosed,
@@ -68,7 +67,7 @@ func (s *liffService) GetAvailableDates(ctx context.Context, clinicID, typeID, s
 	slotSettingsFn := func(date time.Time) TimeSlotsInput {
 		// 一覧表示パスは既存挙動を維持し break_hours 破損時のエラーを無視する（意図的・スコープ外。
 		// parseBusinessHoursForDate のコメント参照。書込パスの fail-closed 化のみ D10/F-2 対象）。
-		bh, defaultBreaks, _ := reservation.ParseBusinessHoursForDate(ctx, setting, date)
+		bh, defaultBreaks, _ := ParseBusinessHoursForDate(ctx, setting, date)
 		return TimeSlotsInput{
 			BusinessHours:     bh,
 			DefaultBreaks:     defaultBreaks,
@@ -79,7 +78,7 @@ func (s *liffService) GetAvailableDates(ctx context.Context, clinicID, typeID, s
 		}
 	}
 	// BE-refactor.md E-10: capacity フィルタ(warn-and-fallback付き)を1回だけ構築し、両分岐で使う。
-	// reservation.FilterSlotsByCapacity 内部で日付ごとの全スロットを1クエリにバッチ化済み
+	// FilterSlotsByCapacity 内部で日付ごとの全スロットを1クエリにバッチ化済み
 	// （reservationTypeCapacityBatchCounter、R2-4/D8）。日付間の反復は CalcAvailableDates の
 	// 制御下にあり残るが、支配的だったスロット数分の N+1 は解消。
 	var capacityFilter func(date time.Time, base []TimeSlot) []TimeSlot
@@ -94,9 +93,9 @@ func (s *liffService) GetAvailableDates(ctx context.Context, clinicID, typeID, s
 			slog.ErrorContext(ctx, "failed to get available slots", "error", err)
 			return nil, BookingWindow{}, apperrors.Wrap(err, "failed to get available slots")
 		}
-		if reservation.HasActiveAvailableSlots(availableSlots) || course.MaxConcurrent != nil {
+		if HasActiveAvailableSlots(availableSlots) || course.MaxConcurrent != nil {
 			slotFilterFn = func(date time.Time, slots []TimeSlot) []TimeSlot {
-				merged := reservation.MergeAvailableTimeSlots(slots, availableSlots, date, course.DurationMinutes)
+				merged := MergeAvailableTimeSlots(slots, availableSlots, date, course.DurationMinutes)
 				if capacityFilter == nil {
 					return merged
 				}
@@ -107,7 +106,7 @@ func (s *liffService) GetAvailableDates(ctx context.Context, clinicID, typeID, s
 		slotFilterFn = capacityFilter
 	}
 
-	results, window, err := reservation.CalcAvailableDates(ctx, &AvailableDatesInput{
+	results, window, err := CalcAvailableDates(ctx, &AvailableDatesInput{
 		Settings:       datesSettings,
 		TypeID:         typeID,
 		StaffID:        staffID,
@@ -210,7 +209,7 @@ func (s *liffService) GetAvailableTimes(ctx context.Context, clinicID, typeID, s
 	}
 
 	// 定休日チェック（GetAvailableDates で除外済みのはずだが多重防御）
-	datesSettings, err := reservation.ParseAvailableDatesSettings(
+	datesSettings, err := ParseAvailableDatesSettings(
 		setting.ClosedWeekdays,
 		setting.ClosedDates,
 		setting.NationalHolidayClosed,
@@ -241,7 +240,7 @@ func (s *liffService) GetAvailableTimes(ctx context.Context, clinicID, typeID, s
 
 	// 一覧表示パスは既存挙動を維持し break_hours 破損時のエラーを無視する（意図的・スコープ外。
 	// parseBusinessHoursForDate のコメント参照。書込パスの fail-closed 化のみ D10/F-2 対象）。
-	bh, defaultBreaks, _ := reservation.ParseBusinessHoursForDate(ctx, setting, date)
+	bh, defaultBreaks, _ := ParseBusinessHoursForDate(ctx, setting, date)
 	input := &TimeSlotsInput{
 		BusinessHours:     bh,
 		DefaultBreaks:     defaultBreaks,
@@ -266,7 +265,7 @@ func (s *liffService) GetAvailableTimes(ctx context.Context, clinicID, typeID, s
 		})
 	}
 
-	result, err := reservation.GenerateTimeSlots(input)
+	result, err := GenerateTimeSlots(input)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to generate time slots", "error", err)
 		return nil, apperrors.Wrap(err, "failed to generate time slots")
@@ -277,12 +276,12 @@ func (s *liffService) GetAvailableTimes(ctx context.Context, clinicID, typeID, s
 			slog.ErrorContext(ctx, "failed to get available slots", "error", err)
 			return nil, apperrors.Wrap(err, "failed to get available slots")
 		}
-		if reservation.HasActiveAvailableSlots(availableSlots) {
-			result = reservation.MergeAvailableTimeSlots(result, availableSlots, date, course.DurationMinutes)
+		if HasActiveAvailableSlots(availableSlots) {
+			result = MergeAvailableTimeSlots(result, availableSlots, date, course.DurationMinutes)
 		}
 	}
 	if course.MaxConcurrent != nil {
-		result, err = reservation.FilterSlotsByCapacity(ctx, result, s.reservationRepo, clinicID, typeID, date, *course.MaxConcurrent)
+		result, err = FilterSlotsByCapacity(ctx, result, s.reservationRepo, clinicID, typeID, date, *course.MaxConcurrent)
 		if err != nil {
 			slog.ErrorContext(ctx, "failed to filter slots by capacity", "error", err)
 			return nil, apperrors.Wrap(err, "failed to filter slots by capacity")

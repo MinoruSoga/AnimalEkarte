@@ -169,7 +169,7 @@ func main() {
 	// ChronicCondition/LineSend/LineLink/LstepTagSummary/CheckupSync/LstepDeliveryMonitor/
 	// LstepTriggerPriority/LstepDeliveryTrigger/MedicalRecord/Checkup/LstepBatch/LstepCsvImport/
 	// LstepAnalytics はすべて service.NewServices 内で一括構築される）
-	svcs := service.NewServices(repos, &service.ReservationNotificationConfig{
+	svcs := service.NewServices(repos, &reservation.ReservationNotificationConfig{
 		SMTPHost:    cfg.SMTPHost,
 		SMTPPort:    cfg.SMTPPort,
 		SMTPUser:    cfg.SMTPUser,
@@ -401,6 +401,9 @@ func main() {
 	)
 	medicalRecordHandler.RegisterRoutes(protected)
 
+	// LIFF レートリミット store（cleanup goroutine は appCtx ライフタイム）
+	liffRateLimitStore := middleware.NewRateLimitStore(appCtx)
+
 	// reservation domain（BE9-2C R①〜）: reservation_type 系 master routes
 	reservationHandler := reservation.NewHandler(
 		reservation.NewReservationTypeHandler(svcs.ReservationType, svcs.ReservationTypeUnavailableTime, svcs.ReservationTypeAvailableSlot, svcs.ReservationTypeOccupation),
@@ -410,9 +413,15 @@ func main() {
 		reservation.NewReservationScheduleHandler(svcs.ReservationSchedule),
 		reservation.NewReservationHandler(svcs.Reservation, medicalRecordSvc, svcs.Liff, svcs.StaffClinicAssignment),
 		reservation.NewReservationAdminHandler(svcs.ReservationAdmin, svcs.StaffClinicAssignment),
+		reservation.NewLiffHandler(svcs.Liff, svcs.StaffClinicAssignment),
+		middleware.LiffAuth(repos.LineCustomerMgr, repos.LineReservationSetting),
+		func(limit int) gin.HandlerFunc { return middleware.LiffRateLimit(liffRateLimitStore, limit) },
+		h.LinkLiffAccount,
 		h.RequirePermission,
 	)
 	reservationHandler.RegisterRoutes(protected)
+	// LIFF 公開 API（JWT 認証なし・LINE ID トークン認証・rate limit store は appCtx で cleanup）
+	reservationHandler.RegisterLiffRoutes(r)
 
 	// HTTPサーバー設定
 	server := &http.Server{

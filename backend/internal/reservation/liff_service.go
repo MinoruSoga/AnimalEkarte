@@ -1,12 +1,10 @@
-package service
+package reservation
 
 import (
 	"context"
 	"time"
 
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository"
-	"github.com/animal-ekarte/backend/internal/reservation"
 )
 
 // LiffService はLIFF公開APIのビジネスロジックインターフェース
@@ -26,45 +24,45 @@ type LiffService interface {
 }
 
 type liffService struct {
-	settingRepo         repository.LineReservationSettingRepository
-	typeLiffRepo        repository.ReservationTypeLiffRepository
+	settingRepo         lineReservationSettingFinder
+	typeLiffRepo        ReservationTypeLiffRepository
 	typeRepo            reservationTypeFinder
-	staffRepo           repository.ReservationStaffRepository
-	scheduleRepo        repository.ReservationScheduleRepository
-	adminRepo           repository.ReservationAdminRepository
-	reservationRepo     repository.ReservationRepository
-	customerRepo        repository.LineCustomerRepository
-	ownerRepo           repository.OwnerRepository
+	staffRepo           ReservationStaffRepository
+	scheduleRepo        ReservationScheduleRepository
+	adminRepo           ReservationAdminRepository
+	reservationRepo     ReservationRepository
+	customerRepo        liffLineCustomerRepo
+	ownerRepo           liffOwnerRepo
 	validators          ReservationValidators
 	notifier            ReservationNotifier
-	unavailableTimeRepo repository.ReservationTypeUnavailableTimeRepository // BE-117
-	availableSlotRepo   repository.ReservationTypeAvailableSlotRepository
-	occupationRepo      repository.ReservationTypeOccupationRepository // BE-117
-	trimmingCourseRepo  repository.TrimmingCourseRepository            // BE-120
-	trimmingOptionRepo  repository.TrimmingOptionRepository            // BE-120
-	trimmingDetailRepo  repository.AppointmentTrimmingDetailRepository // BE-120
-	vaccinationRepo     repository.VaccinationRepository
+	unavailableTimeRepo ReservationTypeUnavailableTimeRepository // BE-117
+	availableSlotRepo   ReservationTypeAvailableSlotRepository
+	occupationRepo      ReservationTypeOccupationRepository // BE-117
+	trimmingCourseRepo  trimmingCourseFinder                // BE-120
+	trimmingOptionRepo  trimmingOptionFinder                // BE-120
+	trimmingDetailRepo  liffTrimmingDetailRepo              // BE-120
+	vaccinationRepo     liffVaccinationRepo
 }
 
 func NewLiffServiceWithType(
-	settingRepo repository.LineReservationSettingRepository,
-	typeLiffRepo repository.ReservationTypeLiffRepository,
+	settingRepo lineReservationSettingFinder,
+	typeLiffRepo ReservationTypeLiffRepository,
 	typeRepo reservationTypeFinder,
-	staffRepo repository.ReservationStaffRepository,
-	scheduleRepo repository.ReservationScheduleRepository,
-	adminRepo repository.ReservationAdminRepository,
-	customerRepo repository.LineCustomerRepository,
-	ownerRepo repository.OwnerRepository,
-	tx repository.Transactor,
-	reservationRepo repository.ReservationRepository,
+	staffRepo ReservationStaffRepository,
+	scheduleRepo ReservationScheduleRepository,
+	adminRepo ReservationAdminRepository,
+	customerRepo liffLineCustomerRepo,
+	ownerRepo liffOwnerRepo,
+	tx Transactor,
+	reservationRepo ReservationRepository,
 	notifier ReservationNotifier,
-	unavailableTimeRepo repository.ReservationTypeUnavailableTimeRepository,
-	availableSlotRepo repository.ReservationTypeAvailableSlotRepository,
-	occupationRepo repository.ReservationTypeOccupationRepository,
-	trimmingCourseRepo repository.TrimmingCourseRepository,
-	trimmingOptionRepo repository.TrimmingOptionRepository,
-	trimmingDetailRepo repository.AppointmentTrimmingDetailRepository,
-	vaccinationRepo repository.VaccinationRepository,
+	unavailableTimeRepo ReservationTypeUnavailableTimeRepository,
+	availableSlotRepo ReservationTypeAvailableSlotRepository,
+	occupationRepo ReservationTypeOccupationRepository,
+	trimmingCourseRepo trimmingCourseFinder,
+	trimmingOptionRepo trimmingOptionFinder,
+	trimmingDetailRepo liffTrimmingDetailRepo,
+	vaccinationRepo liffVaccinationRepo,
 ) LiffService {
 	return &liffService{
 		settingRepo:         settingRepo,
@@ -76,7 +74,7 @@ func NewLiffServiceWithType(
 		reservationRepo:     reservationRepo,
 		customerRepo:        customerRepo,
 		ownerRepo:           ownerRepo,
-		validators:          reservation.NewReservationValidators(tx, reservationRepo, typeRepo, trimmingCourseRepo, trimmingOptionRepo),
+		validators:          NewReservationValidators(tx, reservationRepo, typeRepo, trimmingCourseRepo, trimmingOptionRepo),
 		notifier:            notifier,
 		unavailableTimeRepo: unavailableTimeRepo,
 		availableSlotRepo:   availableSlotRepo,

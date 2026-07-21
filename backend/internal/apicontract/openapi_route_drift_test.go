@@ -450,10 +450,15 @@ func (rc *routeCollector) handleExprStmt(s *ast.ExprStmt, env map[string]string)
 var migratedDomainRoutePackages = []struct {
 	dir    string
 	prefix string
+	// rootFn は walk の起点関数名（空なら "RegisterRoutes"）。BE9-2C R⑤: LIFF 公開 API は
+	// engine root へ絶対パスで登録されるため、reservation は RegisterLiffRoutes を
+	// prefix なしの追加 root として登録する（gate 強化方向の walker 拡張）。
+	rootFn string
 }{
 	{dir: "../manualarticle", prefix: "/api/v1"},
 	{dir: "../medicalrecord", prefix: "/api/v1"},
 	{dir: "../reservation", prefix: "/api/v1"},
+	{dir: "../reservation", prefix: "", rootFn: "RegisterLiffRoutes"},
 }
 
 // buildFuncsFromDir parses every non-test .go file directly under dir and returns its
@@ -516,9 +521,13 @@ func collectRealRoutes(t *testing.T) (found map[string]int, unresolved []string)
 
 	for _, domain := range migratedDomainRoutePackages {
 		domainFuncs := buildFuncsFromDir(t, domain.dir)
-		domainRoot, ok := domainFuncs["RegisterRoutes"]
+		rootName := domain.rootFn
+		if rootName == "" {
+			rootName = "RegisterRoutes"
+		}
+		domainRoot, ok := domainFuncs[rootName]
 		if !ok {
-			t.Fatalf("RegisterRoutes not found in %s — migratedDomainRoutePackages entry is stale", domain.dir)
+			t.Fatalf("%s not found in %s — migratedDomainRoutePackages entry is stale", rootName, domain.dir)
 		}
 		drc := &routeCollector{funcs: domainFuncs, visiting: map[string]bool{}}
 		drc.walkFunc(domainRoot, domain.prefix)

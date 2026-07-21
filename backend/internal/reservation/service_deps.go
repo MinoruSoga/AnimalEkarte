@@ -29,10 +29,12 @@ type Transactor interface {
 // 所有権確認に使う最小 view（LINE予約 validator 用）。
 type trimmingCourseFinder interface {
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.TrimmingCourse, error)
+	FindAll(ctx context.Context, clinicID uint64) ([]model.TrimmingCourse, error)
 }
 
 type trimmingOptionFinder interface {
 	FindByID(ctx context.Context, clinicID, id uint64) (*model.TrimmingOption, error)
+	FindAll(ctx context.Context, clinicID uint64) ([]model.TrimmingOption, error)
 }
 
 // medicalRecordAutoCreator は予約確定/キャンセルに伴うカルテ自動作成/下書き削除の最小view
@@ -55,4 +57,25 @@ type staffAssignmentFinder interface {
 // lineReservationSettingFinder は LINE 予約設定（R⑥未移行 repo）の最小view（通知用）。
 type lineReservationSettingFinder interface {
 	FindByClinicID(ctx context.Context, clinicID uint64) (*model.LineReservationSetting, error)
+}
+
+// ---- LIFF 用 consumer-side views（未移行 domain の repo・BE9-2C R⑤）----
+
+type liffLineCustomerRepo interface {
+	FindByID(ctx context.Context, clinicID, id uint64) (*model.LineCustomer, error)
+	UpdateOwnerLink(ctx context.Context, clinicID, id uint64, ownerID *uint64) error
+	UpdateAdditionalFields(ctx context.Context, clinicID, id uint64, fields []byte) error
+}
+
+type liffOwnerRepo interface {
+	FindByNameAndPhone(ctx context.Context, clinicID uint64, name, phone string) (*model.Owner, error)
+}
+
+type liffTrimmingDetailRepo interface {
+	Create(ctx context.Context, detail *model.AppointmentTrimmingDetail) error
+	SetOptions(ctx context.Context, clinicID, appointmentID uint64, optionIDs []uint64) error
+}
+
+type liffVaccinationRepo interface {
+	FindByOwner(ctx context.Context, clinicID, ownerID uint64) ([]model.Vaccination, error)
 }

@@ -14,7 +14,6 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/repository/repohelpers"
-	"github.com/animal-ekarte/backend/internal/repository/repotest"
 )
 
 var _ = time.Now // keep time import if unused by some subset
@@ -95,34 +94,3 @@ func (t testTransactorImpl) WithTx(ctx context.Context, fn func(ctx context.Cont
 }
 
 func testNewTransactor(db *gorm.DB) Transactor { return testTransactorImpl{db: db} }
-
-// makeSpeciesAndPet はテスト用の AnimalSpecies と Pet を作成して返す。
-func makeSpeciesAndPet(t *testing.T, db *gorm.DB, clinicID, ownerID uint64, petName string) *model.Pet {
-	t.Helper()
-	species := &model.AnimalSpecies{Name: "犬"}
-	require.NoError(t, db.WithContext(context.Background()).Create(species).Error)
-	pet := &model.Pet{
-		ClinicID:        clinicID,
-		OwnerID:         ownerID,
-		AnimalSpeciesID: species.ID,
-		Name:            petName,
-	}
-	require.NoError(t, db.WithContext(context.Background()).Create(pet).Error)
-	return pet
-}
-
-// setupReservationAdminTestDB — repository/appointment_admin_repository_test.go の同名の複製。
-func setupReservationAdminTestDB(t *testing.T) *gorm.DB {
-	t.Helper()
-	db := repotest.SetupTestDB(t)
-	require.NoError(t, repotest.EnsureAutoMigrated(db,
-		&model.ReservationType{}, &model.Reservation{},
-		&model.AnimalSpecies{}, &model.Pet{}, &model.Staff{}, &model.LineCustomer{},
-	))
-	db.Exec("TRUNCATE TABLE reservation_types CASCADE") // appointments も連鎖クリア
-	db.Exec("TRUNCATE TABLE pets CASCADE")
-	db.Exec("TRUNCATE TABLE animal_species CASCADE")
-	db.Exec("TRUNCATE TABLE staffs CASCADE")
-	db.Exec("TRUNCATE TABLE line_customers CASCADE")
-	return db
-}

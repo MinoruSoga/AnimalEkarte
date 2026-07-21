@@ -29,7 +29,7 @@ func (h *ReservationTypeGroupHandler) ListReservationTypeGroups(c *gin.Context) 
 	}
 	groups, err := h.svc.List(c.Request.Context(), clinicID)
 	if err != nil {
-		httpapi.RespondError(c, err)
+		respondError(c, err)
 		return
 	}
 	c.JSON(http.StatusOK, httpapi.MapSlice(groups, toReservationTypeGroupResponse))
@@ -47,7 +47,7 @@ func (h *ReservationTypeGroupHandler) GetReservationTypeGroup(c *gin.Context) {
 	}
 	g, err := h.svc.GetByID(c.Request.Context(), clinicID, id)
 	if err != nil {
-		httpapi.RespondError(c, err)
+		respondError(c, err)
 		return
 	}
 	c.JSON(http.StatusOK, toReservationTypeGroupResponse(g))
@@ -61,12 +61,12 @@ func (h *ReservationTypeGroupHandler) CreateReservationTypeGroup(c *gin.Context)
 	}
 	var req createReservationTypeGroupRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		httpapi.RespondError(c, apperrors.WrapInvalidInput(httpapi.ParseBindError(err)))
+		respondError(c, apperrors.WrapInvalidInput(httpapi.ParseBindError(err)))
 		return
 	}
 	g, err := h.svc.Create(c.Request.Context(), clinicID, req.toServiceInput())
 	if err != nil {
-		httpapi.RespondError(c, err)
+		respondError(c, err)
 		return
 	}
 	c.Header("Location", fmt.Sprintf("/v1/masters/reservation-type-groups/%d", g.ID))
@@ -85,12 +85,12 @@ func (h *ReservationTypeGroupHandler) UpdateReservationTypeGroup(c *gin.Context)
 	}
 	var req updateReservationTypeGroupRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		httpapi.RespondError(c, apperrors.WrapInvalidInput(httpapi.ParseBindError(err)))
+		respondError(c, apperrors.WrapInvalidInput(httpapi.ParseBindError(err)))
 		return
 	}
 	g, err := h.svc.Update(c.Request.Context(), clinicID, id, req.toServiceInput())
 	if err != nil {
-		httpapi.RespondError(c, err)
+		respondError(c, err)
 		return
 	}
 	c.JSON(http.StatusOK, toReservationTypeGroupResponse(g))
@@ -107,7 +107,7 @@ func (h *ReservationTypeGroupHandler) DeleteReservationTypeGroup(c *gin.Context)
 		return
 	}
 	if err := h.svc.Delete(c.Request.Context(), clinicID, id); err != nil {
-		httpapi.RespondError(c, err)
+		respondError(c, err)
 		return
 	}
 	c.Status(http.StatusNoContent)
@@ -121,11 +121,11 @@ func (h *ReservationTypeGroupHandler) ReorderReservationTypeGroups(c *gin.Contex
 	}
 	var req httpapi.ReorderRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		httpapi.RespondError(c, apperrors.WrapInvalidInput(httpapi.ParseBindError(err)))
+		respondError(c, apperrors.WrapInvalidInput(httpapi.ParseBindError(err)))
 		return
 	}
 	if err := h.svc.Reorder(c.Request.Context(), clinicID, req.IDs); err != nil {
-		httpapi.RespondError(c, err)
+		respondError(c, err)
 		return
 	}
 	c.Status(http.StatusNoContent)

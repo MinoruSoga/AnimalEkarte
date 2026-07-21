@@ -25,10 +25,7 @@ type breakInputRequest struct {
 func toReservationScheduleBreakInputs(reqs []breakInputRequest) []ReservationScheduleBreakInput {
 	breaks := make([]ReservationScheduleBreakInput, 0, len(reqs))
 	for _, req := range reqs {
-		breaks = append(breaks, ReservationScheduleBreakInput{
-			Start: req.Start,
-			End:   req.End,
-		})
+		breaks = append(breaks, ReservationScheduleBreakInput(req))
 	}
 	return breaks
 }

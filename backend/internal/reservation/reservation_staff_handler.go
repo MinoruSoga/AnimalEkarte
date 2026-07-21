@@ -29,7 +29,7 @@ func (h *ReservationStaffHandler) ListReservationStaffs(c *gin.Context) {
 	}
 	staffs, err := h.svc.List(c.Request.Context(), clinicID)
 	if err != nil {
-		httpapi.RespondError(c, err)
+		respondError(c, err)
 		return
 	}
 	staffIDs := make([]uint64, len(staffs))
@@ -38,7 +38,7 @@ func (h *ReservationStaffHandler) ListReservationStaffs(c *gin.Context) {
 	}
 	excludedMap, err := h.svc.ListExcludedByStaffIDs(c.Request.Context(), staffIDs)
 	if err != nil {
-		httpapi.RespondError(c, err)
+		respondError(c, err)
 		return
 	}
 	list := make([]reservationStaffResponse, 0, len(staffs))
@@ -56,12 +56,12 @@ func (h *ReservationStaffHandler) CreateReservationStaff(c *gin.Context) {
 	}
 	var req createReservationStaffRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		httpapi.RespondError(c, apperrors.WrapInvalidInput(httpapi.ParseBindError(err)))
+		respondError(c, apperrors.WrapInvalidInput(httpapi.ParseBindError(err)))
 		return
 	}
 	staff, excluded, err := h.svc.Create(c.Request.Context(), clinicID, req.toServiceInput())
 	if err != nil {
-		httpapi.RespondError(c, err)
+		respondError(c, err)
 		return
 	}
 	c.Header("Location", fmt.Sprintf("/v1/reservation-staffs/%d", staff.ID))
@@ -80,12 +80,12 @@ func (h *ReservationStaffHandler) UpdateReservationStaff(c *gin.Context) {
 	}
 	var req updateReservationStaffRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		httpapi.RespondError(c, apperrors.WrapInvalidInput(httpapi.ParseBindError(err)))
+		respondError(c, apperrors.WrapInvalidInput(httpapi.ParseBindError(err)))
 		return
 	}
 	staff, excluded, err := h.svc.Update(c.Request.Context(), clinicID, id, req.toServiceInput())
 	if err != nil {
-		httpapi.RespondError(c, err)
+		respondError(c, err)
 		return
 	}
 	c.JSON(http.StatusOK, toReservationStaffResponse(staff, excluded))
@@ -102,7 +102,7 @@ func (h *ReservationStaffHandler) DeleteReservationStaff(c *gin.Context) {
 		return
 	}
 	if err := h.svc.Delete(c.Request.Context(), clinicID, id); err != nil {
-		httpapi.RespondError(c, err)
+		respondError(c, err)
 		return
 	}
 	c.Status(http.StatusNoContent)
@@ -120,12 +120,12 @@ func (h *ReservationStaffHandler) UpdateReservationStaffStatus(c *gin.Context) {
 	}
 	var req patchReservationStaffStatusRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		httpapi.RespondError(c, apperrors.WrapInvalidInput(httpapi.ParseBindError(err)))
+		respondError(c, apperrors.WrapInvalidInput(httpapi.ParseBindError(err)))
 		return
 	}
 	staff, excluded, err := h.svc.PatchStatus(c.Request.Context(), clinicID, id, req.IsActive)
 	if err != nil {
-		httpapi.RespondError(c, err)
+		respondError(c, err)
 		return
 	}
 	c.JSON(http.StatusOK, toReservationStaffResponse(staff, excluded))
@@ -143,11 +143,11 @@ func (h *ReservationStaffHandler) UpdateReservationStaffSortOrder(c *gin.Context
 	}
 	var req patchReservationStaffSortOrderRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		httpapi.RespondError(c, apperrors.WrapInvalidInput(httpapi.ParseBindError(err)))
+		respondError(c, apperrors.WrapInvalidInput(httpapi.ParseBindError(err)))
 		return
 	}
 	if err := h.svc.PatchSortOrder(c.Request.Context(), clinicID, id, req.Direction); err != nil {
-		httpapi.RespondError(c, err)
+		respondError(c, err)
 		return
 	}
 	c.Status(http.StatusNoContent)
@@ -155,5 +155,5 @@ func (h *ReservationStaffHandler) UpdateReservationStaffSortOrder(c *gin.Context
 
 // UploadReservationStaffImage godoc — v2 スコープ：未実装
 func (h *ReservationStaffHandler) UploadReservationStaffImage(c *gin.Context) {
-	httpapi.RespondError(c, apperrors.WrapNotImplemented("この機能は未実装です"))
+	respondError(c, apperrors.WrapNotImplemented("この機能は未実装です"))
 }

@@ -60,20 +60,20 @@ func (h *ReservationHandler) ListReservations(c *gin.Context) {
 	}
 	page, limit, err := httpapi.ParsePaginationWithMax(c, reservationListMaxLimit)
 	if err != nil {
-		httpapi.RespondError(c, err)
+		respondError(c, err)
 		return
 	}
 
 	q := newListReservationQuery(c.Request.URL.Query())
 	filters, err := q.toServiceFilters()
 	if err != nil {
-		httpapi.RespondError(c, apperrors.WrapInvalidInput(err.Error()))
+		respondError(c, apperrors.WrapInvalidInput(err.Error()))
 		return
 	}
 
 	reservations, total, err := h.svc.List(c.Request.Context(), clinicIDs, page, limit, filters.Date, filters.StartDate, filters.EndDate, filters.Status, filters.Source, filters.PetID, filters.OwnerID)
 	if err != nil {
-		httpapi.RespondError(c, err)
+		respondError(c, err)
 		return
 	}
 	c.JSON(http.StatusOK, httpapi.NewPaginatedResponse(httpapi.MapSlice(reservations, toReservationResponse), total, page, limit))
@@ -92,7 +92,7 @@ func (h *ReservationHandler) GetReservation(c *gin.Context) {
 	}
 	reservation, err := h.svc.GetByIDForClinics(c.Request.Context(), clinicIDs, id)
 	if err != nil {
-		httpapi.RespondError(c, err)
+		respondError(c, err)
 		return
 	}
 	c.JSON(http.StatusOK, toReservationResponse(reservation))
@@ -107,16 +107,16 @@ func (h *ReservationHandler) GetReservationAvailableTimes(c *gin.Context) {
 	}
 	filters, err := newReservationAvailableTimesQuery(c.Request.URL.Query()).toServiceFilters()
 	if err != nil {
-		httpapi.RespondError(c, err)
+		respondError(c, err)
 		return
 	}
 	if h.liff == nil {
-		httpapi.RespondError(c, apperrors.WrapNotImplemented("予約可能時間の取得は未設定です"))
+		respondError(c, apperrors.WrapNotImplemented("予約可能時間の取得は未設定です"))
 		return
 	}
 	slots, err := h.liff.GetAvailableTimes(c.Request.Context(), clinicID, filters.ReservationTypeID, filters.StaffID, filters.Date)
 	if err != nil {
-		httpapi.RespondError(c, err)
+		respondError(c, err)
 		return
 	}
 	c.JSON(http.StatusOK, httpapi.MapSlice(slots, toReservationAvailableTimeResponse))
@@ -134,13 +134,13 @@ func (h *ReservationHandler) CreateReservation(c *gin.Context) {
 	}
 	var input createReservationRequest
 	if err := c.ShouldBindJSON(&input); err != nil {
-		httpapi.RespondError(c, apperrors.WrapInvalidInput(httpapi.ParseBindError(err)))
+		respondError(c, apperrors.WrapInvalidInput(httpapi.ParseBindError(err)))
 		return
 	}
 
 	svcInput, err := input.toServiceInput(clinicID, staffID)
 	if err != nil {
-		httpapi.RespondError(c, apperrors.WrapInvalidInput(err.Error()))
+		respondError(c, apperrors.WrapInvalidInput(err.Error()))
 		return
 	}
 
@@ -149,14 +149,14 @@ func (h *ReservationHandler) CreateReservation(c *gin.Context) {
 	// BUG-144: staff_id のクリニック所属チェック（クロスクリニック FK 防止）
 	if svcInput.DoctorID != nil {
 		if err := h.checkDoctorClinicAssignment(ctx, clinicID, *svcInput.DoctorID); err != nil {
-			httpapi.RespondError(c, err)
+			respondError(c, err)
 			return
 		}
 	}
 
 	reservation, err := h.svc.Create(ctx, svcInput)
 	if err != nil {
-		httpapi.RespondError(c, err)
+		respondError(c, err)
 		return
 	}
 	// #83: 予約確定(confirmed)で作成された場合はカルテを best-effort で自動作成する
@@ -179,13 +179,13 @@ func (h *ReservationHandler) UpdateReservation(c *gin.Context) {
 	}
 	var input updateReservationRequest
 	if err := c.ShouldBindJSON(&input); err != nil {
-		httpapi.RespondError(c, apperrors.WrapInvalidInput(httpapi.ParseBindError(err)))
+		respondError(c, apperrors.WrapInvalidInput(httpapi.ParseBindError(err)))
 		return
 	}
 
 	svcInput, err := input.toServiceInput()
 	if err != nil {
-		httpapi.RespondError(c, apperrors.WrapInvalidInput(err.Error()))
+		respondError(c, apperrors.WrapInvalidInput(err.Error()))
 		return
 	}
 
@@ -194,14 +194,14 @@ func (h *ReservationHandler) UpdateReservation(c *gin.Context) {
 	// BUG-144: staff_id のクリニック所属チェック（Update時も）
 	if svcInput.DoctorID != nil {
 		if err := h.checkDoctorClinicAssignment(ctx, clinicID, *svcInput.DoctorID); err != nil {
-			httpapi.RespondError(c, err)
+			respondError(c, err)
 			return
 		}
 	}
 
 	reservation, err := h.svc.Update(ctx, clinicID, id, &svcInput)
 	if err != nil {
-		httpapi.RespondError(c, err)
+		respondError(c, err)
 		return
 	}
 
@@ -251,7 +251,7 @@ func (h *ReservationHandler) DeleteReservation(c *gin.Context) {
 		return
 	}
 	if err := h.svc.Delete(c.Request.Context(), clinicID, id); err != nil {
-		httpapi.RespondError(c, err)
+		respondError(c, err)
 		return
 	}
 	c.Status(http.StatusNoContent)
@@ -270,7 +270,7 @@ func (h *ReservationHandler) UpdateReservationReservationRoute(c *gin.Context) {
 	}
 	var req patchReservationReservationRouteRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		httpapi.RespondError(c, apperrors.WrapInvalidInput(httpapi.ParseBindError(err)))
+		respondError(c, apperrors.WrapInvalidInput(httpapi.ParseBindError(err)))
 		return
 	}
 	reservation, err := h.svc.UpdateReservationRoute(
@@ -278,7 +278,7 @@ func (h *ReservationHandler) UpdateReservationReservationRoute(c *gin.Context) {
 		req.toServiceInput(),
 	)
 	if err != nil {
-		httpapi.RespondError(c, err)
+		respondError(c, err)
 		return
 	}
 	c.JSON(http.StatusOK, toReservationResponse(reservation))

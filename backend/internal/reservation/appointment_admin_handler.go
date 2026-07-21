@@ -54,7 +54,7 @@ func (h *ReservationAdminHandler) ListReservationsAdmin(c *gin.Context) {
 	case "month":
 		items, err := h.svc.ListByMonth(c.Request.Context(), clinicID, query.Date)
 		if err != nil {
-			httpapi.RespondError(c, err)
+			respondError(c, err)
 			return
 		}
 		list := httpapi.MapSlice(items, toReservationSummaryResponse)
@@ -63,19 +63,19 @@ func (h *ReservationAdminHandler) ListReservationsAdmin(c *gin.Context) {
 	case "day":
 		date, err := time.ParseInLocation(time.DateOnly, query.Date, time.Local)
 		if err != nil {
-			httpapi.RespondError(c, apperrors.WrapInvalidInput("date must be YYYY-MM-DD format for day view"))
+			respondError(c, apperrors.WrapInvalidInput("date must be YYYY-MM-DD format for day view"))
 			return
 		}
 		items, err := h.svc.ListByDay(c.Request.Context(), clinicID, date)
 		if err != nil {
-			httpapi.RespondError(c, err)
+			respondError(c, err)
 			return
 		}
 		list := httpapi.MapSlice(items, toReservationDetailResponse)
 		c.JSON(http.StatusOK, list)
 
 	default:
-		httpapi.RespondError(c, apperrors.WrapInvalidInput("view must be 'month' or 'day'"))
+		respondError(c, apperrors.WrapInvalidInput("view must be 'month' or 'day'"))
 	}
 }
 
@@ -91,20 +91,20 @@ func (h *ReservationAdminHandler) CreateReservationAdmin(c *gin.Context) {
 	}
 	var req createReservationAdminRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		httpapi.RespondError(c, apperrors.WrapInvalidInput(httpapi.ParseBindError(err)))
+		respondError(c, apperrors.WrapInvalidInput(httpapi.ParseBindError(err)))
 		return
 	}
 	// BUG-144: staff_id のクリニック所属チェック（クロスクリニック FK 防止）
 	if req.DoctorID != nil {
 		if err := h.checkDoctorClinicAssignment(c.Request.Context(), clinicID, *req.DoctorID); err != nil {
-			httpapi.RespondError(c, err)
+			respondError(c, err)
 			return
 		}
 	}
 
 	ra, err := h.svc.Create(c.Request.Context(), clinicID, req.toServiceInput(staffID))
 	if err != nil {
-		httpapi.RespondError(c, err)
+		respondError(c, err)
 		return
 	}
 	c.Header("Location", fmt.Sprintf("/api/v1/clinics/%d/reservations/%d", clinicID, ra.ID))
@@ -122,7 +122,7 @@ func (h *ReservationAdminHandler) DeleteReservationAdmin(c *gin.Context) {
 		return
 	}
 	if err := h.svc.Delete(c.Request.Context(), clinicID, id); err != nil {
-		httpapi.RespondError(c, err)
+		respondError(c, err)
 		return
 	}
 	c.Status(http.StatusNoContent)

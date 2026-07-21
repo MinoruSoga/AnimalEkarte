@@ -1,4 +1,3 @@
-DELETE /api/liff/:clinicId/my-reservations/:id CancelLiffReservation
 DELETE /api/v1/billing-items/:id DeleteBillingItem
 DELETE /api/v1/clinic-holidays/:date DeleteClinicHoliday
 DELETE /api/v1/clinics/:clinic_id DeleteClinic
@@ -34,16 +33,6 @@ DELETE /api/v1/shared-files/:id DeleteSharedFile
 DELETE /api/v1/shift-templates/:id DeleteShiftTemplate
 DELETE /api/v1/shifts/:id DeleteShiftEntry
 DELETE /api/v1/trimmings/:id DeleteTrimming
-GET /api/liff/:clinicId/available-dates GetLiffAvailableDates
-GET /api/liff/:clinicId/available-times GetLiffAvailableTimes
-GET /api/liff/:clinicId/courses GetLiffTypes
-GET /api/liff/:clinicId/health-card GetLiffHealthCard
-GET /api/liff/:clinicId/my-reservations GetLiffMyReservations
-GET /api/liff/:clinicId/profile GetLiffProfile
-GET /api/liff/:clinicId/settings GetLiffSettings
-GET /api/liff/:clinicId/staffs GetLiffStaffs
-GET /api/liff/:clinicId/trimming-courses GetLiffTrimmingCourses
-GET /api/liff/:clinicId/trimming-options GetLiffTrimmingOptions
 GET /api/v1/accountings ListAccountings
 GET /api/v1/accountings/:id GetAccounting
 GET /api/v1/accountings/:id/refunds ListRefunds
@@ -201,8 +190,6 @@ PATCH /api/v1/shift-templates/:id UpdateShiftTemplate
 PATCH /api/v1/shift-templates/reorder ReorderShiftTemplates
 PATCH /api/v1/shifts/:id UpdateShiftEntry
 PATCH /api/v1/trimmings/:id UpdateTrimming
-POST /api/liff/:clinicId/link LinkLiffAccount
-POST /api/liff/:clinicId/reservations CreateLiffReservation
 POST /api/line/webhook ReceiveLineWebhook
 POST /api/v1/accountings CreateAccounting
 POST /api/v1/accountings/:id/cancel CancelAccounting
