@@ -259,6 +259,19 @@ Phase 0（論点#1案A書込一本化）完遂済み（`3dc35694e`）。縦移�
 
 各batch完了条件=従来gate+scoped golangci-lint（billing全域）0件（R⑤知見④の恒久化）。
 
+#### lstep domain sub-batch定義（2026-07-21 inventory実測: production 107 file = handler 40+service 52+repository 15）
+
+前提=論点#2裁定済み（単一`internal/lstep`・内部3分割しない）+論点#7裁定（checkup_syncはlstep帰属＝⑧を本domainで合流）。playbook=medicalrecord/reservation/billing と同型（3batch A/B/C・敵対レビュー1統合レンズ・snapshot/lint/allowlist追随・昇格判定はシンボル単位）:
+
+- **L① 設定・認証基盤**: lstep_settings(+connection/credentials/thresholds/update)/lstep_sync_settings/line_credentials/lstep_sync_error_counter + repo 4本。cipher系closure注入はB④/B⑥先例（decrypt/encryptLineCredential）を踏襲。
+- **L② LINE 送信基盤**: line_messaging/line_send/line_send_log/line_link(+token)/line_customer + repo 4本。**reservation側が消費するLinePusher/decryptCredential closureの供給元**（R④注入の解消先）。
+- **L③ タグ同期コア**: lstep_tag_sync 群（tag_cache/tag_code_mapping/tag_config/trigger_priority repo + health_tag_sync 系 6file + CPM kernel）。**⑧checkup_sync（service 4+handler 3+repository/checkupsync）を本batchで合流**（論点#7）。
+- **L④ 配信トリガ・監視**: lstep_delivery_trigger 群（batch/client/methods/state/suppression/log）+ lstep_delivery_monitor + lstep_lifecycle。
+- **L⑤ バッチ・分析・CSV**: lstep_batch(+delivery/dormant/noshow/segmentation)/lstep_analytics/lstep_csv_import(+helpers)/lstep_friend_attribute_snapshot/aggregation。
+- **L⑥ 残置解消**: repository DTO alias（accounting_reports_dto_aliases.go=lstep系test consumer）・mock carrier群・Services field棚卸し。
+
+各batch完了条件=従来gate+scoped golangci-lint（lstep全域）0件。
+
 #### BE9-2E: 残る中小domainを規模順にmigrationする
 
 1. 大規模domainのために先行移行済みの小規模dependencyを除き、残存production行数、file数、facade/call-site削減量が大きいdomainから処理する。
