@@ -1,6 +1,4 @@
-package handler
-
-import "github.com/animal-ekarte/backend/internal/service"
+package reservation
 
 type createReservationStaffRequest struct {
 	Name               string   `json:"name"               binding:"required"`
@@ -11,8 +9,8 @@ type createReservationStaffRequest struct {
 	ExcludedTypeIDs    []uint64 `json:"excluded_type_ids"`
 }
 
-func (r *createReservationStaffRequest) toServiceInput() *service.CreateReservationStaffInput {
-	return &service.CreateReservationStaffInput{
+func (r *createReservationStaffRequest) toServiceInput() *CreateReservationStaffInput {
+	return &CreateReservationStaffInput{
 		Name:               r.Name,
 		StaffType:          r.StaffType,
 		ReservationVisible: r.ReservationVisible,
@@ -31,8 +29,8 @@ type updateReservationStaffRequest struct {
 	ExcludedTypeIDs    *[]uint64 `json:"excluded_type_ids"`
 }
 
-func (r updateReservationStaffRequest) toServiceInput() *service.UpdateReservationStaffInput {
-	return &service.UpdateReservationStaffInput{
+func (r updateReservationStaffRequest) toServiceInput() *UpdateReservationStaffInput {
+	return &UpdateReservationStaffInput{
 		Name:               r.Name,
 		StaffType:          r.StaffType,
 		ReservationVisible: r.ReservationVisible,

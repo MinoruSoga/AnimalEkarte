@@ -1,5 +1,9 @@
 package repository
 
+// BE9-2C R②: 実装は internal/reservation へ移動済み。本テストは意図的に repository 残置 —
+// production ctor（facade）が staff domain の shift_entries write 書き込み者を注入する配線そのものを
+// 実 DB で検証するため、両 domain を構築できる本 package が唯一の置き場（count_clinic_scope 先例）。
+
 // reservation_schedule_repository_test.go
 // ReservationScheduleRepository（shift_entries + shift_entry_breaks）の CRUD メソッドを実 DB で検証する。
 // clinic_id 隔離の回帰テストは reservation_schedule_clinic_isolation_test.go が別途カバーしているため、

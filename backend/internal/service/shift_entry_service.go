@@ -10,21 +10,14 @@ import (
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
 	"github.com/animal-ekarte/backend/internal/repository"
+	"github.com/animal-ekarte/backend/internal/sharedkernel"
 )
 
 // normalizeTimeString は "15:04" または "15:04:05" 形式の時刻文字列を "15:04:05" に正規化する。
 // 不正な形式の場合は nil を返す。
+// normalizeTimeString は sharedkernel.NormalizeTimeString への delegate（BE9-2C R② 昇格）。
 func normalizeTimeString(s *string) *string {
-	if s == nil || *s == "" {
-		return nil
-	}
-	for _, layout := range []string{"15:04:05", "15:04"} {
-		if t, err := time.ParseInLocation(layout, *s, time.Local); err == nil {
-			normalized := t.Format("15:04:05")
-			return &normalized
-		}
-	}
-	return nil
+	return sharedkernel.NormalizeTimeString(s)
 }
 
 // ShiftBreakInput は休憩時間の入力DTO
@@ -122,36 +115,13 @@ func validateShiftType(s model.ShiftType) error {
 // requiresTimeSlot は時刻（start_time/end_time）が必要なシフト種別かどうかを返す。
 // off・paid_leave は時刻不要。
 func requiresTimeSlot(shiftType model.ShiftType) bool {
-	switch shiftType {
-	case model.ShiftTypeOff, model.ShiftTypePaidLeave:
-		return false
-	default:
-		return true
-	}
+	return sharedkernel.RequiresTimeSlot(shiftType)
 }
 
 // validateShiftTimes は時刻が必要なシフト種別で end_time <= start_time でないかを検証する。
 // startTime/endTime は "15:04:05" 形式の文字列。
 func validateShiftTimes(shiftType model.ShiftType, startTime, endTime *string) error {
-	if !requiresTimeSlot(shiftType) {
-		return nil
-	}
-	if startTime == nil || endTime == nil {
-		return nil
-	}
-	const layout = "15:04:05"
-	st, err := time.ParseInLocation(layout, *startTime, time.Local)
-	if err != nil {
-		return apperrors.Wrap(apperrors.ErrInvalidInput, "invalid start_time format: expected HH:MM:SS")
-	}
-	et, err := time.ParseInLocation(layout, *endTime, time.Local)
-	if err != nil {
-		return apperrors.Wrap(apperrors.ErrInvalidInput, "invalid end_time format: expected HH:MM:SS")
-	}
-	if !et.After(st) {
-		return apperrors.Wrap(apperrors.ErrInvalidInput, "end_time must be after start_time")
-	}
-	return nil
+	return sharedkernel.ValidateShiftTimes(shiftType, startTime, endTime)
 }
 
 func (s *shiftEntryService) Create(ctx context.Context, clinicID uint64, input *CreateShiftEntryInput) (*model.ShiftEntry, error) {

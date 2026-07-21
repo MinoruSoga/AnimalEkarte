@@ -5,8 +5,6 @@ DELETE /api/v1/clinics/:clinic_id DeleteClinic
 DELETE /api/v1/clinics/:clinic_id/lstep-settings DeleteLstepSettings
 DELETE /api/v1/clinics/:clinic_id/owners/:id/lstep/tags/:tag_name DeleteOwnerLstepTag
 DELETE /api/v1/clinics/:clinic_id/pets/:id/death DeletePetDeath
-DELETE /api/v1/clinics/:clinic_id/reservation-staffs/:staffId DeleteReservationStaff
-DELETE /api/v1/clinics/:clinic_id/reservation-staffs/:staffId/schedules/:date DeleteReservationSchedule
 DELETE /api/v1/clinics/:clinic_id/reservations/:reservationId DeleteReservationAdmin
 DELETE /api/v1/closing-settings/holidays/:date DeleteClinicHoliday
 DELETE /api/v1/closing-settings/special-periods/:id DeleteSpecialPeriod
@@ -81,8 +79,6 @@ GET /api/v1/clinics/:clinic_id/owners/:id/line/send-logs GetLineSendLogs
 GET /api/v1/clinics/:clinic_id/owners/:id/lstep/friend-attributes GetLstepOwnerFriendAttributes
 GET /api/v1/clinics/:clinic_id/owners/:id/lstep/tags GetOwnerLstepTags
 GET /api/v1/clinics/:clinic_id/owners/aggregations ListOwnerAggregation
-GET /api/v1/clinics/:clinic_id/reservation-staffs ListReservationStaffs
-GET /api/v1/clinics/:clinic_id/reservation-staffs/:staffId/schedules ListReservationSchedules
 GET /api/v1/clinics/:clinic_id/reservations ListReservationsAdmin
 GET /api/v1/closing-settings GetClosingSettings
 GET /api/v1/closing-settings/holidays ListClinicHolidays
@@ -167,8 +163,6 @@ PATCH /api/v1/clinics/:clinic_id/owners/:id/line-id-confirm UpdateOwnerLineIDCon
 PATCH /api/v1/clinics/:clinic_id/owners/:id/line-user-id UpdateOwnerLineUserID
 PATCH /api/v1/clinics/:clinic_id/owners/:id/transfer-status UpdateOwnerTransferStatus
 PATCH /api/v1/clinics/:clinic_id/pets/:id/death UpdatePetDeath
-PATCH /api/v1/clinics/:clinic_id/reservation-staffs/:staffId/sort-order UpdateReservationStaffSortOrder
-PATCH /api/v1/clinics/:clinic_id/reservation-staffs/:staffId/status UpdateReservationStaffStatus
 PATCH /api/v1/closing-settings UpdateClosingSettings
 PATCH /api/v1/closing-settings/special-periods/:id UpdateSpecialPeriod
 PATCH /api/v1/company UpdateCompany
@@ -235,8 +229,6 @@ POST /api/v1/clinics/:clinic_id/lstep/csv-imports/friend-attributes ImportLstepF
 POST /api/v1/clinics/:clinic_id/owners/:id/line/send SendLineMessage
 POST /api/v1/clinics/:clinic_id/owners/:id/lstep-opt-out UpdateOwnerLstepOptOut
 POST /api/v1/clinics/:clinic_id/owners/:id/lstep/tags AddOwnerLstepTag
-POST /api/v1/clinics/:clinic_id/reservation-staffs CreateReservationStaff
-POST /api/v1/clinics/:clinic_id/reservation-staffs/:staffId/image UploadReservationStaffImage
 POST /api/v1/clinics/:clinic_id/reservations CreateReservationAdmin
 POST /api/v1/closing-settings/holidays SetClinicHoliday
 POST /api/v1/closing-settings/special-periods CreateSpecialPeriod
@@ -276,8 +268,6 @@ POST /api/v1/shifts CreateShiftEntry
 POST /api/v1/trimmings CreateTrimming
 PUT /api/v1/clinics/:clinic_id/line-reservation-settings SaveLineReservationSetting
 PUT /api/v1/clinics/:clinic_id/lstep-tag-code-mappings/:tag_name ReplaceTagCodeMappingsForTag
-PUT /api/v1/clinics/:clinic_id/reservation-staffs/:staffId UpdateReservationStaff
-PUT /api/v1/clinics/:clinic_id/reservation-staffs/:staffId/schedules/:date UpsertReservationSchedule
 PUT /api/v1/lstep-tag-code-mappings/:tag_name ReplaceTagCodeMappingsForTag
 PUT /api/v1/masters/permission-groups/:id/rules SetPermissionGroupRules
 PUT /api/v1/masters/staffs/:id/capable-reservation-types SetStaffCapableReservationTypes

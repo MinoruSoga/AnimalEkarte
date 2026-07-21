@@ -89,7 +89,7 @@ func (s *reservationAdminService) Create(ctx context.Context, clinicID uint64, i
 	if err := validateTimeRange(input.StartTime, input.EndTime); err != nil {
 		return nil, apperrors.Wrap(err, "failed to validate time range")
 	}
-	if err := validateReservationStaffCapability(ctx, s.reservationStaffRepo, clinicID, input.DoctorID, input.ReservationTypeID); err != nil {
+	if err := reservation.ValidateReservationStaffCapability(ctx, s.reservationStaffRepo, clinicID, input.DoctorID, input.ReservationTypeID); err != nil {
 		return nil, apperrors.Wrap(err, "failed to validate staff capability")
 	}
 	if err := reservation.ValidateReservationTypeAvailableTime(ctx, s.unavailableTimeRepo, clinicID, input.ReservationTypeID, input.StartTime, input.EndTime); err != nil {

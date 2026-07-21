@@ -24,20 +24,10 @@ func (h *Handler) RegisterLineReservationRoutes(rg *gin.RouterGroup) {
 	// TASK-RES-011: 予約区分（LINE管理用）routes は internal/reservation.RegisterRoutes へ移動（BE9-2C R①）
 
 	// TASK-RES-012: スタッフ
-	staffs := clinics.Group("/reservation-staffs")
-	staffs.GET("", h.RequirePermission(string(model.ResourceMasterStaff), "view"), h.ListReservationStaffs)
-	staffs.POST("", h.RequirePermission(string(model.ResourceMasterStaff), "create"), h.CreateReservationStaff)
-	staffs.PUT("/:staffId", h.RequirePermission(string(model.ResourceMasterStaff), "edit"), h.UpdateReservationStaff)
-	staffs.DELETE("/:staffId", h.RequirePermission(string(model.ResourceMasterStaff), "delete"), h.DeleteReservationStaff)
-	staffs.PATCH("/:staffId/status", h.RequirePermission(string(model.ResourceMasterStaff), "edit"), h.UpdateReservationStaffStatus)
-	staffs.PATCH("/:staffId/sort-order", h.RequirePermission(string(model.ResourceMasterStaff), "edit"), h.UpdateReservationStaffSortOrder)
-	staffs.POST("/:staffId/image", h.RequirePermission(string(model.ResourceMasterStaff), "create"), h.UploadReservationStaffImage)
+	// 予約スタッフ routes は internal/reservation.RegisterRoutes へ移動（BE9-2C R②）
 
 	// TASK-RES-013: スタッフ個人スケジュール
-	schedules := clinics.Group("/reservation-staffs/:staffId/schedules")
-	schedules.GET("", h.RequirePermission(string(model.ResourceMasterStaff), "view"), h.ListReservationSchedules)
-	schedules.PUT("/:date", h.RequirePermission(string(model.ResourceMasterStaff), "edit"), h.UpsertReservationSchedule)
-	schedules.DELETE("/:date", h.RequirePermission(string(model.ResourceMasterStaff), "delete"), h.DeleteReservationSchedule)
+	// 予約スケジュール routes は internal/reservation.RegisterRoutes へ移動（BE9-2C R②）
 
 	// TASK-RES-014: 予約管理
 	reservations := clinics.Group("/reservations")

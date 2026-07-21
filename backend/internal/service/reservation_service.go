@@ -203,7 +203,7 @@ func (s *reservationService) Create(ctx context.Context, input *CreateManualRese
 			return nil, apperrors.WrapInvalidInput(allowedReservationRoutesMessage)
 		}
 	}
-	if err := validateReservationStaffCapability(ctx, s.reservationStaffRepo, input.ClinicID, input.DoctorID, input.ReservationTypeID); err != nil {
+	if err := reservation.ValidateReservationStaffCapability(ctx, s.reservationStaffRepo, input.ClinicID, input.DoctorID, input.ReservationTypeID); err != nil {
 		return nil, err
 	}
 	enforceBookingConstraints := shouldEnforceReservationBookingConstraints(input.Status, input.ReservationRoute)
@@ -465,7 +465,7 @@ func (s *reservationService) Update(ctx context.Context, clinicID, id uint64, in
 		if input.ReservationTypeID != nil {
 			resolvedReservationTypeID = *input.ReservationTypeID
 		}
-		if err := validateReservationStaffCapability(ctx, s.reservationStaffRepo, clinicID, resolvedDoctorID, resolvedReservationTypeID); err != nil {
+		if err := reservation.ValidateReservationStaffCapability(ctx, s.reservationStaffRepo, clinicID, resolvedDoctorID, resolvedReservationTypeID); err != nil {
 			return nil, err
 		}
 	}

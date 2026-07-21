@@ -1,4 +1,4 @@
-package service
+package reservation
 
 import (
 	"context"
@@ -7,7 +7,7 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository"
+	"github.com/animal-ekarte/backend/internal/sharedkernel"
 )
 
 // ReservationScheduleBreakInput は休憩時間の入力データ
@@ -38,10 +38,10 @@ type ReservationScheduleService interface {
 }
 
 type reservationScheduleService struct {
-	repo repository.ReservationScheduleRepository
+	repo ReservationScheduleRepository
 }
 
-func NewReservationScheduleService(repo repository.ReservationScheduleRepository) ReservationScheduleService {
+func NewReservationScheduleService(repo ReservationScheduleRepository) ReservationScheduleService {
 	return &reservationScheduleService{repo: repo}
 }
 
@@ -75,9 +75,9 @@ func (s *reservationScheduleService) ListByMonth(ctx context.Context, clinicID, 
 
 func (s *reservationScheduleService) Save(ctx context.Context, clinicID, staffID uint64, date time.Time, input *CreateReservationScheduleInput) (*ScheduleEntry, bool, error) {
 	shiftType := model.ShiftType(input.ShiftType)
-	startTime := normalizeTimeString(input.WorkStart)
-	endTime := normalizeTimeString(input.WorkEnd)
-	if err := validateShiftTimes(shiftType, startTime, endTime); err != nil {
+	startTime := sharedkernel.NormalizeTimeString(input.WorkStart)
+	endTime := sharedkernel.NormalizeTimeString(input.WorkEnd)
+	if err := sharedkernel.ValidateShiftTimes(shiftType, startTime, endTime); err != nil {
 		return nil, false, err
 	}
 

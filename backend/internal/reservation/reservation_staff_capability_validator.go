@@ -1,13 +1,12 @@
-package service
+package reservation
 
 import (
 	"context"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
-	"github.com/animal-ekarte/backend/internal/repository"
 )
 
-func validateReservationStaffCapability(ctx context.Context, repo repository.ReservationStaffRepository, clinicID uint64, doctorID *uint64, reservationTypeID uint64) error {
+func ValidateReservationStaffCapability(ctx context.Context, repo ReservationStaffRepository, clinicID uint64, doctorID *uint64, reservationTypeID uint64) error {
 	if repo == nil || doctorID == nil || *doctorID == 0 || reservationTypeID == 0 {
 		return nil
 	}

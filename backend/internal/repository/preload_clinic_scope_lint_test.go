@@ -176,7 +176,7 @@ var preloadClinicScopeSiteExceptions = []preloadSiteException{
 			"call or drop the preload.",
 	},
 	{
-		file:        "reservation_staff_repository.go",
+		file:        "reservation/reservation_staff_repository.go",
 		assoc:       "ReservationType",
 		predicate:   "deleted_at IS NULL",
 		occurrences: 2, // covers FindAllExcludedReservationTypes + ...ByStaffIDs (2 call sites)

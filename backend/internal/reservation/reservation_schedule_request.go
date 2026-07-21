@@ -1,10 +1,8 @@
-package handler
+package reservation
 
 import (
 	"net/url"
 	"time"
-
-	"github.com/animal-ekarte/backend/internal/service"
 )
 
 type listReservationSchedulesQuery struct {
@@ -24,10 +22,10 @@ type breakInputRequest struct {
 	End   string `json:"end"   binding:"required"`
 }
 
-func toReservationScheduleBreakInputs(reqs []breakInputRequest) []service.ReservationScheduleBreakInput {
-	breaks := make([]service.ReservationScheduleBreakInput, 0, len(reqs))
+func toReservationScheduleBreakInputs(reqs []breakInputRequest) []ReservationScheduleBreakInput {
+	breaks := make([]ReservationScheduleBreakInput, 0, len(reqs))
 	for _, req := range reqs {
-		breaks = append(breaks, service.ReservationScheduleBreakInput{
+		breaks = append(breaks, ReservationScheduleBreakInput{
 			Start: req.Start,
 			End:   req.End,
 		})
@@ -42,8 +40,8 @@ type upsertReservationScheduleRequest struct {
 	Breaks    []breakInputRequest `json:"breaks"`
 }
 
-func (r upsertReservationScheduleRequest) toServiceInput() *service.CreateReservationScheduleInput {
-	return &service.CreateReservationScheduleInput{
+func (r upsertReservationScheduleRequest) toServiceInput() *CreateReservationScheduleInput {
+	return &CreateReservationScheduleInput{
 		ShiftType: r.ShiftType,
 		WorkStart: r.WorkStart,
 		WorkEnd:   r.WorkEnd,

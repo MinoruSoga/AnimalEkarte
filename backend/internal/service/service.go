@@ -70,10 +70,10 @@ type Services struct {
 	// LINE予約
 	LineReservationSetting    LineReservationSettingService
 	ReservationTypeLiff       reservation.ReservationTypeLiffService
-	ReservationStaff          ReservationStaffService
-	ReservationStaffCore      ReservationStaffCoreService
-	ReservationStaffExclusion ReservationStaffExclusionService
-	ReservationSchedule       ReservationScheduleService
+	ReservationStaff          reservation.ReservationStaffService
+	ReservationStaffCore      reservation.ReservationStaffCoreService
+	ReservationStaffExclusion reservation.ReservationStaffExclusionService
+	ReservationSchedule       reservation.ReservationScheduleService
 	ReservationAdmin          ReservationAdminService
 	LineCustomer              LineCustomerService
 	Liff                      LiffService
@@ -171,7 +171,7 @@ func NewServices(repos *repository.Repositories, notifCfg *ReservationNotificati
 	staffSvc := NewStaffService(repos.Staff, repos.Account, repos.StaffClinicAssignment, repos.Reservation, repos.ShiftEntry, repos.PermissionGroup, repos.ReservationStaff, repos.Occupation, tx)
 
 	// resStaffSvc は ReservationStaffService（Core + Exclusion の合成）を実装する。
-	resStaffSvc := NewReservationStaffService(repos.ReservationStaff, tx)
+	resStaffSvc := reservation.NewReservationStaffService(repos.ReservationStaff, tx)
 
 	// LSTEP services initialization: LINE予約設定と同一の cipher を再利用する（X-2）。
 	lstepSettingsSvc := NewLstepSettingsService(repos.LstepSettings, repos.LstepSyncSettings, cipher, auditSvc, repos.ClinicSettings)
@@ -274,7 +274,7 @@ func NewServices(repos *repository.Repositories, notifCfg *ReservationNotificati
 		ReservationStaff:          resStaffSvc,
 		ReservationStaffCore:      resStaffSvc,
 		ReservationStaffExclusion: resStaffSvc,
-		ReservationSchedule:       NewReservationScheduleService(repos.ReservationSchedule),
+		ReservationSchedule:       reservation.NewReservationScheduleService(repos.ReservationSchedule),
 		ReservationAdmin:          NewReservationAdminServiceWithAvailabilityAndType(repos.ReservationAdmin, repos.Reservation, repos.ReservationType, tx, repos.ReservationStaff, repos.ReservationTypeUnavailableTime, repos.ReservationTypeAvailableSlot),
 		LineCustomer:              NewLineCustomerService(repos.LineCustomerMgr, repos.Owner),
 		Aggregation:               NewAggregationService(repos.Ltv, repos.LstepTagCache, repos.LstepTagConfig, lstepSettingsSvc),

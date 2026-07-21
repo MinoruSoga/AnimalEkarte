@@ -1,8 +1,9 @@
-package handler
+package reservation
 
 import (
 	"time"
 
+	"github.com/animal-ekarte/backend/internal/httpapi"
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
@@ -47,7 +48,7 @@ func toReservationStaffResponse(staff *model.Staff, excluded []model.StaffReserv
 		ReservationComment:  staff.ReservationComment,
 		ReservationImageURL: staff.ReservationImageURL,
 		ExcludedCourses:     courses,
-		CreatedAt:           localTime(staff.CreatedAt),
-		UpdatedAt:           localTime(staff.UpdatedAt),
+		CreatedAt:           httpapi.LocalTime(staff.CreatedAt),
+		UpdatedAt:           httpapi.LocalTime(staff.UpdatedAt),
 	}
 }

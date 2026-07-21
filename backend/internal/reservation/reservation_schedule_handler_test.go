@@ -1,4 +1,4 @@
-package handler
+package reservation
 
 import (
 	"bytes"
@@ -14,7 +14,6 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/service"
 )
 
 // TestReservationScheduleHandlerCompiles verifies reservation_schedule_handler.go compiles
@@ -25,16 +24,16 @@ func TestReservationScheduleHandlerCompiles(t *testing.T) {
 // ---- mock ReservationScheduleService ----
 
 type mockReservationScheduleService struct {
-	listByMonthFn func(ctx context.Context, clinicID, staffID uint64, month string) ([]service.ScheduleEntry, error)
-	saveFn        func(ctx context.Context, clinicID, staffID uint64, date time.Time, input *service.CreateReservationScheduleInput) (*service.ScheduleEntry, bool, error)
+	listByMonthFn func(ctx context.Context, clinicID, staffID uint64, month string) ([]ScheduleEntry, error)
+	saveFn        func(ctx context.Context, clinicID, staffID uint64, date time.Time, input *CreateReservationScheduleInput) (*ScheduleEntry, bool, error)
 	deleteFn      func(ctx context.Context, clinicID, staffID uint64, date time.Time) error
 }
 
-func (m *mockReservationScheduleService) ListByMonth(ctx context.Context, clinicID, staffID uint64, month string) ([]service.ScheduleEntry, error) {
+func (m *mockReservationScheduleService) ListByMonth(ctx context.Context, clinicID, staffID uint64, month string) ([]ScheduleEntry, error) {
 	return m.listByMonthFn(ctx, clinicID, staffID, month)
 }
 
-func (m *mockReservationScheduleService) Save(ctx context.Context, clinicID, staffID uint64, date time.Time, input *service.CreateReservationScheduleInput) (*service.ScheduleEntry, bool, error) {
+func (m *mockReservationScheduleService) Save(ctx context.Context, clinicID, staffID uint64, date time.Time, input *CreateReservationScheduleInput) (*ScheduleEntry, bool, error) {
 	return m.saveFn(ctx, clinicID, staffID, date, input)
 }
 
@@ -42,8 +41,8 @@ func (m *mockReservationScheduleService) Delete(ctx context.Context, clinicID, s
 	return m.deleteFn(ctx, clinicID, staffID, date)
 }
 
-func newHandlerWithReservationScheduleSvc(svc service.ReservationScheduleService) *Handler {
-	return &Handler{svc: &service.Services{ReservationSchedule: svc}}
+func newHandlerWithReservationScheduleSvc(svc ReservationScheduleService) *ReservationScheduleHandler {
+	return NewReservationScheduleHandler(svc)
 }
 
 // ---- ListReservationSchedules ----
@@ -66,11 +65,11 @@ func TestListReservationSchedules(t *testing.T) {
 			query:    "month=2026-05",
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockReservationScheduleService{
-				listByMonthFn: func(_ context.Context, clinicID, staffID uint64, month string) ([]service.ScheduleEntry, error) {
+				listByMonthFn: func(_ context.Context, clinicID, staffID uint64, month string) ([]ScheduleEntry, error) {
 					assert.Equal(t, uint64(1), clinicID)
 					assert.Equal(t, uint64(3), staffID)
 					assert.Equal(t, "2026-05", month)
-					return []service.ScheduleEntry{
+					return []ScheduleEntry{
 						{
 							Entry: model.ShiftEntry{
 								ID:        1,
@@ -92,9 +91,9 @@ func TestListReservationSchedules(t *testing.T) {
 			query:    "",
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockReservationScheduleService{
-				listByMonthFn: func(_ context.Context, _, _ uint64, month string) ([]service.ScheduleEntry, error) {
+				listByMonthFn: func(_ context.Context, _, _ uint64, month string) ([]ScheduleEntry, error) {
 					assert.Regexp(t, `^\d{4}-\d{2}$`, month)
-					return []service.ScheduleEntry{}, nil
+					return []ScheduleEntry{}, nil
 				},
 			},
 			wantStatus: http.StatusOK,
@@ -119,7 +118,7 @@ func TestListReservationSchedules(t *testing.T) {
 			staffID:  "3",
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockReservationScheduleService{
-				listByMonthFn: func(_ context.Context, _, _ uint64, _ string) ([]service.ScheduleEntry, error) {
+				listByMonthFn: func(_ context.Context, _, _ uint64, _ string) ([]ScheduleEntry, error) {
 					return nil, fmt.Errorf("db failure")
 				},
 			},
@@ -166,9 +165,9 @@ func TestUpsertReservationSchedule(t *testing.T) {
 			body:     `{"shift_type":"full","work_start":"09:00","work_end":"18:00"}`,
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockReservationScheduleService{
-				saveFn: func(_ context.Context, clinicID, staffID uint64, date time.Time, input *service.CreateReservationScheduleInput) (*service.ScheduleEntry, bool, error) {
+				saveFn: func(_ context.Context, clinicID, staffID uint64, date time.Time, input *CreateReservationScheduleInput) (*ScheduleEntry, bool, error) {
 					assert.Equal(t, "full", input.ShiftType)
-					return &service.ScheduleEntry{Entry: model.ShiftEntry{ID: 1, ClinicID: clinicID, StaffID: staffID, Date: date, ShiftType: model.ShiftTypeFull}}, true, nil
+					return &ScheduleEntry{Entry: model.ShiftEntry{ID: 1, ClinicID: clinicID, StaffID: staffID, Date: date, ShiftType: model.ShiftTypeFull}}, true, nil
 				},
 			},
 			wantStatus:   http.StatusCreated,
@@ -181,8 +180,8 @@ func TestUpsertReservationSchedule(t *testing.T) {
 			body:     `{"shift_type":"off"}`,
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockReservationScheduleService{
-				saveFn: func(_ context.Context, clinicID, staffID uint64, date time.Time, _ *service.CreateReservationScheduleInput) (*service.ScheduleEntry, bool, error) {
-					return &service.ScheduleEntry{Entry: model.ShiftEntry{ID: 1, ClinicID: clinicID, StaffID: staffID, Date: date, ShiftType: model.ShiftTypeOff}}, false, nil
+				saveFn: func(_ context.Context, clinicID, staffID uint64, date time.Time, _ *CreateReservationScheduleInput) (*ScheduleEntry, bool, error) {
+					return &ScheduleEntry{Entry: model.ShiftEntry{ID: 1, ClinicID: clinicID, StaffID: staffID, Date: date, ShiftType: model.ShiftTypeOff}}, false, nil
 				},
 			},
 			wantStatus: http.StatusOK,
@@ -239,7 +238,7 @@ func TestUpsertReservationSchedule(t *testing.T) {
 			body:     `{"shift_type":"full"}`,
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockReservationScheduleService{
-				saveFn: func(_ context.Context, _, _ uint64, _ time.Time, _ *service.CreateReservationScheduleInput) (*service.ScheduleEntry, bool, error) {
+				saveFn: func(_ context.Context, _, _ uint64, _ time.Time, _ *CreateReservationScheduleInput) (*ScheduleEntry, bool, error) {
 					return nil, false, fmt.Errorf("db failure")
 				},
 			},

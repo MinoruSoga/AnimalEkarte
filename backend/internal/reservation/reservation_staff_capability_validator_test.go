@@ -1,4 +1,4 @@
-package service
+package reservation
 
 import (
 	"context"
@@ -9,11 +9,10 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository"
 )
 
 // mockReservationStaffRepositoryForCapability is a minimal ReservationStaffRepository
-// implementation used only for validateReservationStaffCapability tests.
+// implementation used only for ValidateReservationStaffCapability tests.
 type mockReservationStaffRepositoryForCapability struct {
 	findByIDFn                func(ctx context.Context, clinicID, id uint64) (*model.Staff, error)
 	supportsReservationTypeFn func(ctx context.Context, clinicID, staffID, reservationTypeID uint64) (bool, error)
@@ -74,7 +73,7 @@ func TestValidateReservationStaffCapability(t *testing.T) {
 
 	tests := []struct {
 		name              string
-		repo              repository.ReservationStaffRepository
+		repo              ReservationStaffRepository
 		doctorID          *uint64
 		reservationTypeID uint64
 		wantErr           bool
@@ -157,7 +156,7 @@ func TestValidateReservationStaffCapability(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := validateReservationStaffCapability(context.Background(), tt.repo, 1, tt.doctorID, tt.reservationTypeID)
+			err := ValidateReservationStaffCapability(context.Background(), tt.repo, 1, tt.doctorID, tt.reservationTypeID)
 			if tt.wantErr {
 				assert.Error(t, err)
 				if tt.wantInvalidInput {

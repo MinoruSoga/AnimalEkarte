@@ -1,4 +1,4 @@
-package handler
+package reservation
 
 import (
 	"testing"
@@ -7,7 +7,6 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/service"
 )
 
 func TestToShiftEntryBreakResponse(t *testing.T) {
@@ -49,12 +48,12 @@ func TestToScheduleEntryResponse(t *testing.T) {
 
 	tests := []struct {
 		name  string
-		entry *service.ScheduleEntry
+		entry *ScheduleEntry
 		check func(t *testing.T, got scheduleEntryResponse)
 	}{
 		{
 			name: "with breaks and work times",
-			entry: &service.ScheduleEntry{
+			entry: &ScheduleEntry{
 				Entry: model.ShiftEntry{
 					ID:        1,
 					ClinicID:  2,
@@ -91,7 +90,7 @@ func TestToScheduleEntryResponse(t *testing.T) {
 		},
 		{
 			name: "no breaks and nil work times",
-			entry: &service.ScheduleEntry{
+			entry: &ScheduleEntry{
 				Entry: model.ShiftEntry{
 					ID:        2,
 					ClinicID:  2,

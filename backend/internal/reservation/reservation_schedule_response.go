@@ -1,10 +1,10 @@
-package handler
+package reservation
 
 import (
 	"time"
 
+	"github.com/animal-ekarte/backend/internal/httpapi"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/service"
 )
 
 type shiftEntryBreakResponse struct {
@@ -27,7 +27,7 @@ type scheduleEntryResponse struct {
 	UpdatedAt string                    `json:"updated_at"`
 }
 
-func toScheduleEntryResponse(e *service.ScheduleEntry) scheduleEntryResponse {
+func toScheduleEntryResponse(e *ScheduleEntry) scheduleEntryResponse {
 	breaks := make([]shiftEntryBreakResponse, 0, len(e.Breaks))
 	for _, b := range e.Breaks {
 		breaks = append(breaks, toShiftEntryBreakResponse(b))
@@ -42,8 +42,8 @@ func toScheduleEntryResponse(e *service.ScheduleEntry) scheduleEntryResponse {
 		WorkEnd:   e.Entry.EndTime,
 		Note:      e.Entry.Notes,
 		Breaks:    breaks,
-		CreatedAt: localTimeRFC3339(e.Entry.CreatedAt),
-		UpdatedAt: localTimeRFC3339(e.Entry.UpdatedAt),
+		CreatedAt: httpapi.LocalTimeRFC3339(e.Entry.CreatedAt),
+		UpdatedAt: httpapi.LocalTimeRFC3339(e.Entry.UpdatedAt),
 	}
 }
 

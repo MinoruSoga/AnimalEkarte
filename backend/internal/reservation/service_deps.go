@@ -18,3 +18,8 @@ type occupationFinder interface {
 type reservationTypeUsageChecker interface {
 	ExistsByReservationTypeID(ctx context.Context, clinicID, reservationTypeID uint64) (bool, error)
 }
+
+// Transactor は repository.Transactor の consumer-side view（WithTx のみ・medicalrecord 同型）。
+type Transactor interface {
+	WithTx(ctx context.Context, fn func(ctx context.Context) error) error
+}

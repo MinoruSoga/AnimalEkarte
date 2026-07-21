@@ -179,7 +179,7 @@ func (s *trimmingService) Create(ctx context.Context, clinicID uint64, input *Cr
 	if err := s.validateTrimmingReservationType(ctx, clinicID, input.ReservationTypeID); err != nil {
 		return nil, err
 	}
-	if err := validateReservationStaffCapability(ctx, s.reservationStaff, clinicID, input.StaffID, input.ReservationTypeID); err != nil {
+	if err := reservation.ValidateReservationStaffCapability(ctx, s.reservationStaff, clinicID, input.StaffID, input.ReservationTypeID); err != nil {
 		return nil, err
 	}
 	if shouldEnforceReservationBookingConstraints(status, input.ReservationRoute) {
@@ -354,7 +354,7 @@ func (s *trimmingService) createDetailForExistingAppointment(
 			return err
 		}
 		if input.StaffID != nil {
-			if err := validateReservationStaffCapability(txCtx, s.reservationStaff, clinicID, input.StaffID, locked.ReservationTypeID); err != nil {
+			if err := reservation.ValidateReservationStaffCapability(txCtx, s.reservationStaff, clinicID, input.StaffID, locked.ReservationTypeID); err != nil {
 				return err
 			}
 		}

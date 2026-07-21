@@ -406,6 +406,8 @@ func main() {
 		reservation.NewReservationTypeHandler(svcs.ReservationType, svcs.ReservationTypeUnavailableTime, svcs.ReservationTypeAvailableSlot, svcs.ReservationTypeOccupation),
 		reservation.NewReservationTypeGroupHandler(svcs.ReservationTypeGroup),
 		reservation.NewReservationTypeLiffHandler(svcs.ReservationTypeLiff),
+		reservation.NewReservationStaffHandler(svcs.ReservationStaff),
+		reservation.NewReservationScheduleHandler(svcs.ReservationSchedule),
 		h.RequirePermission,
 	)
 	reservationHandler.RegisterRoutes(protected)

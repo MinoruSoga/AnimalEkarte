@@ -19,6 +19,8 @@ type Handler struct {
 	reservationType      *ReservationTypeHandler
 	reservationTypeGroup *ReservationTypeGroupHandler
 	reservationTypeLiff  *ReservationTypeLiffHandler
+	reservationStaff     *ReservationStaffHandler
+	reservationSchedule  *ReservationScheduleHandler
 	requirePermission    PermissionMiddleware
 }
 
@@ -27,12 +29,16 @@ func NewHandler(
 	reservationType *ReservationTypeHandler,
 	reservationTypeGroup *ReservationTypeGroupHandler,
 	reservationTypeLiff *ReservationTypeLiffHandler,
+	reservationStaff *ReservationStaffHandler,
+	reservationSchedule *ReservationScheduleHandler,
 	requirePermission PermissionMiddleware,
 ) *Handler {
 	return &Handler{
 		reservationType:      reservationType,
 		reservationTypeGroup: reservationTypeGroup,
 		reservationTypeLiff:  reservationTypeLiff,
+		reservationStaff:     reservationStaff,
+		reservationSchedule:  reservationSchedule,
 		requirePermission:    requirePermission,
 	}
 }
@@ -84,4 +90,20 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	types.PATCH("/:id/status", h.requirePermission(string(model.ResourceMasterReservationType), "edit"), h.reservationTypeLiff.UpdateReservationTypeLiffStatus)
 	types.PATCH("/:id/sort-order", h.requirePermission(string(model.ResourceMasterReservationType), "edit"), h.reservationTypeLiff.UpdateReservationTypeLiffSortOrder)
 	types.POST("/:id/image", h.requirePermission(string(model.ResourceMasterReservationType), "create"), h.reservationTypeLiff.UploadReservationTypeLiffImage)
+
+	// 予約スタッフ（LINE管理用・旧 reservation_line_routes.go 逐語）
+	staffs := clinics.Group("/reservation-staffs")
+	staffs.GET("", h.requirePermission(string(model.ResourceMasterStaff), "view"), h.reservationStaff.ListReservationStaffs)
+	staffs.POST("", h.requirePermission(string(model.ResourceMasterStaff), "create"), h.reservationStaff.CreateReservationStaff)
+	staffs.PUT("/:staffId", h.requirePermission(string(model.ResourceMasterStaff), "edit"), h.reservationStaff.UpdateReservationStaff)
+	staffs.DELETE("/:staffId", h.requirePermission(string(model.ResourceMasterStaff), "delete"), h.reservationStaff.DeleteReservationStaff)
+	staffs.PATCH("/:staffId/status", h.requirePermission(string(model.ResourceMasterStaff), "edit"), h.reservationStaff.UpdateReservationStaffStatus)
+	staffs.PATCH("/:staffId/sort-order", h.requirePermission(string(model.ResourceMasterStaff), "edit"), h.reservationStaff.UpdateReservationStaffSortOrder)
+	staffs.POST("/:staffId/image", h.requirePermission(string(model.ResourceMasterStaff), "create"), h.reservationStaff.UploadReservationStaffImage)
+
+	// 予約スケジュール（LINE管理用・旧 reservation_line_routes.go 逐語）
+	schedules := clinics.Group("/reservation-staffs/:staffId/schedules")
+	schedules.GET("", h.requirePermission(string(model.ResourceMasterStaff), "view"), h.reservationSchedule.ListReservationSchedules)
+	schedules.PUT("/:date", h.requirePermission(string(model.ResourceMasterStaff), "edit"), h.reservationSchedule.UpsertReservationSchedule)
+	schedules.DELETE("/:date", h.requirePermission(string(model.ResourceMasterStaff), "delete"), h.reservationSchedule.DeleteReservationSchedule)
 }

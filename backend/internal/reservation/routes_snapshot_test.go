@@ -21,10 +21,10 @@ func lastHandlerSegment(fullName string) string {
 }
 
 // TestRegisterRoutes_Snapshot は reservation 側の BE9-2C route-snapshot 回帰チェック
-// （internal/medicalrecord/routes_snapshot_test.go の先例を踏襲）。R① で
-// internal/handler/testdata/route_snapshot.golden から 28 route（reservation-type-groups 6 +
+// （internal/medicalrecord/routes_snapshot_test.go の先例を踏襲）。R①R② で
+// internal/handler/testdata/route_snapshot.golden から 38 route（reservation-type-groups 6 +
 // reservation-types 6 + unavailable-times 3 + available-slots 3 + occupations 3 +
-// LINE 管理用予約区分 7）を drop し、本 package の RegisterRoutes が登録する。
+// LINE 管理用予約区分 7+予約スタッフ 7+スケジュール 3）を drop し、本 package の RegisterRoutes が登録する。
 // permission 引数は capture されない — RBAC parity は routes.go の逐語転記でレビュー担保。
 func TestRegisterRoutes_Snapshot(t *testing.T) {
 	gin.SetMode(gin.TestMode)
@@ -36,6 +36,8 @@ func TestRegisterRoutes_Snapshot(t *testing.T) {
 		NewReservationTypeHandler(nil, nil, nil, nil),
 		NewReservationTypeGroupHandler(nil),
 		NewReservationTypeLiffHandler(nil),
+		NewReservationStaffHandler(nil),
+		NewReservationScheduleHandler(nil),
 		noopPermission,
 	)
 
@@ -51,12 +53,16 @@ func TestRegisterRoutes_Snapshot(t *testing.T) {
 	got := strings.Join(lines, "\n") + "\n"
 
 	want := "" +
+		"DELETE /api/v1/clinics/:clinic_id/reservation-staffs/:staffId DeleteReservationStaff\n" +
+		"DELETE /api/v1/clinics/:clinic_id/reservation-staffs/:staffId/schedules/:date DeleteReservationSchedule\n" +
 		"DELETE /api/v1/clinics/:clinic_id/reservation-types/:id DeleteReservationTypeLiff\n" +
 		"DELETE /api/v1/masters/reservation-type-groups/:id DeleteReservationTypeGroup\n" +
 		"DELETE /api/v1/masters/reservation-types/:id DeleteReservationType\n" +
 		"DELETE /api/v1/masters/reservation-types/:id/available-slots/:available_slot_id DeleteAvailableSlot\n" +
 		"DELETE /api/v1/masters/reservation-types/:id/occupations/:occupation_id UnlinkReservationTypeOccupation\n" +
 		"DELETE /api/v1/masters/reservation-types/:id/unavailable-times/:unavailable_time_id DeleteUnavailableTime\n" +
+		"GET /api/v1/clinics/:clinic_id/reservation-staffs ListReservationStaffs\n" +
+		"GET /api/v1/clinics/:clinic_id/reservation-staffs/:staffId/schedules ListReservationSchedules\n" +
 		"GET /api/v1/clinics/:clinic_id/reservation-types ListReservationTypeLiffs\n" +
 		"GET /api/v1/masters/reservation-type-groups ListReservationTypeGroups\n" +
 		"GET /api/v1/masters/reservation-type-groups/:id GetReservationTypeGroup\n" +
@@ -65,12 +71,16 @@ func TestRegisterRoutes_Snapshot(t *testing.T) {
 		"GET /api/v1/masters/reservation-types/:id/available-slots ListAvailableSlots\n" +
 		"GET /api/v1/masters/reservation-types/:id/occupations ListReservationTypeOccupations\n" +
 		"GET /api/v1/masters/reservation-types/:id/unavailable-times ListUnavailableTimes\n" +
+		"PATCH /api/v1/clinics/:clinic_id/reservation-staffs/:staffId/sort-order UpdateReservationStaffSortOrder\n" +
+		"PATCH /api/v1/clinics/:clinic_id/reservation-staffs/:staffId/status UpdateReservationStaffStatus\n" +
 		"PATCH /api/v1/clinics/:clinic_id/reservation-types/:id/sort-order UpdateReservationTypeLiffSortOrder\n" +
 		"PATCH /api/v1/clinics/:clinic_id/reservation-types/:id/status UpdateReservationTypeLiffStatus\n" +
 		"PATCH /api/v1/masters/reservation-type-groups/:id UpdateReservationTypeGroup\n" +
 		"PATCH /api/v1/masters/reservation-type-groups/reorder ReorderReservationTypeGroups\n" +
 		"PATCH /api/v1/masters/reservation-types/:id UpdateReservationType\n" +
 		"PATCH /api/v1/masters/reservation-types/reorder ReorderReservationTypes\n" +
+		"POST /api/v1/clinics/:clinic_id/reservation-staffs CreateReservationStaff\n" +
+		"POST /api/v1/clinics/:clinic_id/reservation-staffs/:staffId/image UploadReservationStaffImage\n" +
 		"POST /api/v1/clinics/:clinic_id/reservation-types CreateReservationTypeLiff\n" +
 		"POST /api/v1/clinics/:clinic_id/reservation-types/:id/image UploadReservationTypeLiffImage\n" +
 		"POST /api/v1/masters/reservation-type-groups CreateReservationTypeGroup\n" +
@@ -78,6 +88,8 @@ func TestRegisterRoutes_Snapshot(t *testing.T) {
 		"POST /api/v1/masters/reservation-types/:id/available-slots CreateAvailableSlot\n" +
 		"POST /api/v1/masters/reservation-types/:id/occupations LinkReservationTypeOccupation\n" +
 		"POST /api/v1/masters/reservation-types/:id/unavailable-times CreateUnavailableTime\n" +
+		"PUT /api/v1/clinics/:clinic_id/reservation-staffs/:staffId UpdateReservationStaff\n" +
+		"PUT /api/v1/clinics/:clinic_id/reservation-staffs/:staffId/schedules/:date UpsertReservationSchedule\n" +
 		"PUT /api/v1/clinics/:clinic_id/reservation-types/:id UpdateReservationTypeLiff\n"
 
 	assert.Equal(t, want, got)

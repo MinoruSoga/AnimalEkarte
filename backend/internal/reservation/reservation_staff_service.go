@@ -1,4 +1,4 @@
-package service
+package reservation
 
 import (
 	"context"
@@ -6,7 +6,6 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository"
 )
 
 const (
@@ -81,11 +80,11 @@ type ReservationStaffService interface {
 }
 
 type reservationStaffService struct {
-	repo       repository.ReservationStaffRepository
-	transactor repository.Transactor
+	repo       ReservationStaffRepository
+	transactor Transactor
 }
 
-func NewReservationStaffService(repo repository.ReservationStaffRepository, transactor repository.Transactor) ReservationStaffService {
+func NewReservationStaffService(repo ReservationStaffRepository, transactor Transactor) ReservationStaffService {
 	return &reservationStaffService{repo: repo, transactor: transactor}
 }
 

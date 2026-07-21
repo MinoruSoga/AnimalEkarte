@@ -114,3 +114,19 @@ func (m *mockReservationTypeOccupationRepository) CountWorkingStaffByReservation
 	}
 	return result, nil
 }
+
+// mockTransactor は service/trimming_service_test.go の同名モックの複製（def残存→再宣言規約）。
+type mockTransactor struct {
+	withTxErr error
+	withTxFn  func(ctx context.Context, fn func(ctx context.Context) error) error
+}
+
+func (m *mockTransactor) WithTx(ctx context.Context, fn func(ctx context.Context) error) error {
+	if m.withTxFn != nil {
+		return m.withTxFn(ctx, fn)
+	}
+	if m.withTxErr != nil {
+		return m.withTxErr
+	}
+	return fn(ctx)
+}

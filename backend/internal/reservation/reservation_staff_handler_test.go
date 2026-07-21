@@ -1,4 +1,4 @@
-package handler
+package reservation
 
 import (
 	"bytes"
@@ -16,7 +16,6 @@ import (
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/service"
 )
 
 // TestReservationStaffHandlerCompiles verifies reservation_staff_handler.go compiles
@@ -30,8 +29,8 @@ func TestReservationStaffHandlerCompiles(t *testing.T) {
 type mockReservationStaffService struct {
 	listFn                   func(ctx context.Context, clinicID uint64) ([]model.Staff, error)
 	getByIDFn                func(ctx context.Context, clinicID, id uint64) (*model.Staff, error)
-	createFn                 func(ctx context.Context, clinicID uint64, input *service.CreateReservationStaffInput) (*model.Staff, []model.StaffReservationExclusion, error)
-	updateFn                 func(ctx context.Context, clinicID, id uint64, input *service.UpdateReservationStaffInput) (*model.Staff, []model.StaffReservationExclusion, error)
+	createFn                 func(ctx context.Context, clinicID uint64, input *CreateReservationStaffInput) (*model.Staff, []model.StaffReservationExclusion, error)
+	updateFn                 func(ctx context.Context, clinicID, id uint64, input *UpdateReservationStaffInput) (*model.Staff, []model.StaffReservationExclusion, error)
 	deleteFn                 func(ctx context.Context, clinicID, id uint64) error
 	patchStatusFn            func(ctx context.Context, clinicID, id uint64, isActive bool) (*model.Staff, []model.StaffReservationExclusion, error)
 	patchSortOrderFn         func(ctx context.Context, clinicID, id uint64, direction string) error
@@ -53,14 +52,14 @@ func (m *mockReservationStaffService) GetByID(ctx context.Context, clinicID, id 
 	return nil, nil
 }
 
-func (m *mockReservationStaffService) Create(ctx context.Context, clinicID uint64, input *service.CreateReservationStaffInput) (*model.Staff, []model.StaffReservationExclusion, error) {
+func (m *mockReservationStaffService) Create(ctx context.Context, clinicID uint64, input *CreateReservationStaffInput) (*model.Staff, []model.StaffReservationExclusion, error) {
 	if m.createFn != nil {
 		return m.createFn(ctx, clinicID, input)
 	}
 	return nil, nil, nil
 }
 
-func (m *mockReservationStaffService) Update(ctx context.Context, clinicID, id uint64, input *service.UpdateReservationStaffInput) (*model.Staff, []model.StaffReservationExclusion, error) {
+func (m *mockReservationStaffService) Update(ctx context.Context, clinicID, id uint64, input *UpdateReservationStaffInput) (*model.Staff, []model.StaffReservationExclusion, error) {
 	if m.updateFn != nil {
 		return m.updateFn(ctx, clinicID, id, input)
 	}
@@ -104,12 +103,8 @@ func (m *mockReservationStaffService) ListExcludedByStaffIDs(ctx context.Context
 
 // ---- test helper ----
 
-func newHandlerWithReservationStaffSvc(svc service.ReservationStaffService) *Handler {
-	return &Handler{
-		svc: &service.Services{
-			ReservationStaff: svc,
-		},
-	}
+func newHandlerWithReservationStaffSvc(svc ReservationStaffService) *ReservationStaffHandler {
+	return NewReservationStaffHandler(svc)
 }
 
 // ---- ListReservationStaffs ----
@@ -224,7 +219,7 @@ func TestCreateReservationStaff_Valid_Returns201(t *testing.T) {
 			},
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockReservationStaffService{
-				createFn: func(_ context.Context, clinicID uint64, input *service.CreateReservationStaffInput) (*model.Staff, []model.StaffReservationExclusion, error) {
+				createFn: func(_ context.Context, clinicID uint64, input *CreateReservationStaffInput) (*model.Staff, []model.StaffReservationExclusion, error) {
 					assert.Equal(t, uint64(1), clinicID)
 					assert.Equal(t, "新予約スタッフ", input.Name)
 					return &model.Staff{ID: 30, Name: input.Name, StaffType: model.StaffTypeDoctor}, nil, nil
@@ -252,7 +247,7 @@ func TestCreateReservationStaff_Valid_Returns201(t *testing.T) {
 			body:     map[string]any{"name": "エラースタッフ"},
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockReservationStaffService{
-				createFn: func(_ context.Context, _ uint64, _ *service.CreateReservationStaffInput) (*model.Staff, []model.StaffReservationExclusion, error) {
+				createFn: func(_ context.Context, _ uint64, _ *CreateReservationStaffInput) (*model.Staff, []model.StaffReservationExclusion, error) {
 					return nil, nil, fmt.Errorf("db failure")
 				},
 			},
@@ -284,7 +279,7 @@ func TestCreateReservationStaff_Valid_Returns201(t *testing.T) {
 
 // ---- DeleteReservationStaff ----
 
-func newDeleteReservationStaffRouter(svc service.ReservationStaffService) *gin.Engine {
+func newDeleteReservationStaffRouter(svc ReservationStaffService) *gin.Engine {
 	r := gin.New()
 	h := newHandlerWithReservationStaffSvc(svc)
 	r.DELETE("/reservation-staffs/:staffId", func(c *gin.Context) {
@@ -374,7 +369,7 @@ func TestUpdateReservationStaff(t *testing.T) {
 			body:     map[string]any{"name": nameVal},
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockReservationStaffService{
-				updateFn: func(_ context.Context, clinicID, id uint64, input *service.UpdateReservationStaffInput) (*model.Staff, []model.StaffReservationExclusion, error) {
+				updateFn: func(_ context.Context, clinicID, id uint64, input *UpdateReservationStaffInput) (*model.Staff, []model.StaffReservationExclusion, error) {
 					assert.Equal(t, uint64(1), clinicID)
 					assert.Equal(t, uint64(3), id)
 					require.NotNil(t, input.Name)
@@ -398,7 +393,7 @@ func TestUpdateReservationStaff(t *testing.T) {
 			body:     map[string]any{"name": "テスト"},
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockReservationStaffService{
-				updateFn: func(_ context.Context, _, _ uint64, _ *service.UpdateReservationStaffInput) (*model.Staff, []model.StaffReservationExclusion, error) {
+				updateFn: func(_ context.Context, _, _ uint64, _ *UpdateReservationStaffInput) (*model.Staff, []model.StaffReservationExclusion, error) {
 					return nil, nil, apperrors.WrapNotFound("staff", "999")
 				},
 			},
@@ -533,7 +528,7 @@ func TestPatchReservationStaffStatus(t *testing.T) {
 // c.Status(http.StatusNoContent) は httptest.ResponseRecorder に即時反映されないため
 // gin.Engine 経由でリクエストを送る。
 
-func newPatchSortOrderRouter(svc service.ReservationStaffService) *gin.Engine {
+func newPatchSortOrderRouter(svc ReservationStaffService) *gin.Engine {
 	r := gin.New()
 	h := newHandlerWithReservationStaffSvc(svc)
 	r.PATCH("/reservation-staffs/:staffId/sort-order", func(c *gin.Context) {
