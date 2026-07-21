@@ -104,96 +104,116 @@ FE10 の判定軸 P1〜P7 は **画面を見て違和感がないか**の視覚�
        P10 タイポ: ロール別 size/line-height が G2 表と一致（特に button 16px・body-sm 1.33・caption 1.43・eyebrow 1.33）
 ```
 
-判定: ✅ 準拠 / 🔧 修正した / ⚠️ 裁定要 / — 該当なし / （空欄）未着手
+判定: ✅ 準拠 / 🔧 修正した / ⚠️ 裁定要 / — 該当なし
+
+### F7 の検証方式と根拠（2026-07-21 完了）
+
+P8/P9/P10 は **G軸の修正が全てトークン／CSS 層で行われたため全ページへ一括波及する性質**を持つ。よって
+84 画面を個別にスクリーンショットで舐めるのではなく、**漏れが構造的に起こり得ないことの証明**で確定した:
+
+1. **機械全数**: `text-*` の任意値=C11 / 非仕様サイズ段=C12 / ink 黒アルファ=C13 が**本体アプリ 0 件**。
+   つまりロール外のサイズ・色は実装に存在し得ない（再導入も恒久ブロック）。
+2. **迂回の全数走査**: トークンを迂回する手書きテキスト色（`text-gray/slate/zinc/neutral/stone-*`）を
+   src 全域で検索 → **1 件のみ**（印刷帳票。§2.7 で媒体外と裁定）。shadcn の `text-muted-foreground` は
+   `--muted-foreground: #615D59` に解決されるため字義準拠。
+3. **サイズ変更の回帰確認（目視サンプル）**: 入力 40→44px・ボタン 15→16px・見出し写像の影響が出やすい
+   代表面（/login・/owners/new・/accounting/:id 精算・/medical-records/:id 編集・入院ペット選択）で
+   レイアウト崩れなしを確認。
+4. **フルゲート**: type-check / test 2210 / build / lint 全緑。
+
+**残存リスク（明示）**: 上記1〜2で「ロール外の値が存在しない」ことは全数保証できるが、
+*ロール内で誤ったロールを選んでいる*（例: caption を使うべき箇所に body-sm）ケースは機械では検出できない。
+これは FE10 の P3（階層）で全 84 面を目視済みであり、F1〜F5 はサイズ**値**の変更でロール**選択**を
+変えていないため、退行は生じていない。
 
 ## 進捗表
 
 | Batch | ルート | FE10<br>P1-P7 | P8<br>ink | P9<br>字送り | P10<br>タイポ | 所見 | 状態 |
 |---|---|---|---|---|---|---|---|
-| A | /login | ✅ | | | | | 未 |
-| A | /forgot-password | ✅ | | | | BUG-419（未認証到達不能）は別件 | 未 |
-| A | /reset-password | ✅ | | | | | 未 |
-| A | /（受付カンバン） | ✅ | | | | | 未 |
-| A | /owners（一覧） | ✅ | | | | | 未 |
-| A | /owners/new | ✅ | | | | | 未 |
-| A | /owners/:id | ✅ | | | | | 未 |
+| A | /login | ✅ | ✅機 | ✅機 | ✅機 | | ✅済 |
+| A | /forgot-password | ✅ | ✅機 | ✅機 | ✅機 | BUG-419（未認証到達不能）は別件 | ✅済 |
+| A | /reset-password | ✅ | ✅機 | ✅機 | ✅機 | | ✅済 |
+| A | /（受付カンバン） | ✅ | ✅機 | ✅機 | ✅機 | | ✅済 |
+| A | /owners（一覧） | ✅ | ✅機 | ✅機 | ✅機 | | ✅済 |
+| A | /owners/new | ✅ | ✅機 | ✅機 | ✅機 | | ✅済 |
+| A | /owners/:id | ✅ | ✅機 | ✅機 | ✅機 | | ✅済 |
 | A | /owners/:id/report | ⚠ | | | | FE10 から継続: brand tick の装飾使用疑い＋別ワークストリーム編集中 | ⚠保留 |
-| A | /aggregation | ✅ | | | | | 未 |
-| B1 | /reservations | ✅ | | | | | 未 |
-| B1 | 予約詳細モーダル | ✅ | | | | | 未 |
-| B1 | 予約登録モーダル | ✅ | | | | | 未 |
-| B2 | /hospitalization | ✅ | | | | | 未 |
-| B2 | /hospitalization/select-pet | ✅ | | | | | 未 |
-| B2 | /hospitalization/new | ✅ | | | | | 未 |
+| A | /aggregation | ✅ | ✅機 | ✅機 | ✅機 | | ✅済 |
+| B1 | /reservations | ✅ | ✅機 | ✅機 | ✅機 | | ✅済 |
+| B1 | 予約詳細モーダル | ✅ | ✅機 | ✅機 | ✅機 | | ✅済 |
+| B1 | 予約登録モーダル | ✅ | ✅機 | ✅機 | ✅機 | | ✅済 |
+| B2 | /hospitalization | ✅ | ✅機 | ✅機 | ✅機 | | ✅済 |
+| B2 | /hospitalization/select-pet | ✅ | ✅機 | ✅機 | ✅機 | | ✅済 |
+| B2 | /hospitalization/new | ✅ | ✅機 | ✅機 | ✅機 | | ✅済 |
 | B2 | /hospitalization/:id | 静✅ | | | | 全4医院で入院0件（API実測）＝描画不能 | ⏸データ待ち |
 | B2 | /hospitalization/:id/edit | 静✅ | | | | 同上 | ⏸データ待ち |
-| B3 | /medical-records | ✅ | | | | | 未 |
-| B3 | /medical-records/select-pet | ✅ | | | | | 未 |
-| B3 | /medical-records/new | ✅ | | | | | 未 |
-| B3 | /medical-records/:id | ✅ | | | | | 未 |
-| B4 | /accounting（3タブ） | ✅ | | | | | 未 |
-| B4 | /accounting/select-pet | ✅ | | | | | 未 |
-| B4 | /accounting/new | ✅ | | | | | 未 |
-| B4 | /accounting/:id | ✅ | | | | | 未 |
-| B4 | /accounting/close | ✅ | | | | | 未 |
-| B4 | /accounting/close/history | ✅ | | | | | 未 |
-| B4 | /accounting/reports | ✅ | | | | | 未 |
-| B4 | /estimates | ✅ | | | | | 未 |
-| B4 | /estimates/new | ✅ | | | | | 未 |
-| B4 | /estimates/:id | ✅ | | | | | 未 |
-| B4 | /estimates/:id/edit | ✅ | | | | | 未 |
-| B5 | /settings | ✅ | | | | | 未 |
-| B5 | /settings/clinic | ✅ | | | | | 未 |
-| B5 | /settings/staff | ✅ | | | | | 未 |
-| B5 | /settings/treatment-items | ✅ | | | | | 未 |
-| B5 | /settings/diagnosis | ✅ | | | | | 未 |
-| B5 | /settings/animal-species | ✅ | | | | | 未 |
-| B5 | /settings/trimming | ✅ | | | | | 未 |
-| B5 | /settings/trimming-course-type | ✅ | | | | | 未 |
-| B5 | /settings/medicine | ✅ | | | | | 未 |
-| B5 | /settings/reservation-type | ✅ | | | | | 未 |
-| B5 | /settings/hospitalization | ✅ | | | | | 未 |
-| B5 | /settings/cage | ✅ | | | | | 未 |
-| B5 | /settings/merchandise-items | ✅ | | | | | 未 |
-| B5 | /settings/insurance | ✅ | | | | | 未 |
-| B5 | /settings/occupations | ✅ | | | | | 未 |
-| B5 | /settings/permission-groups | ✅ | | | | RBAC 非活性表現の退行を特に確認（C6a） | 未 |
-| B5 | /settings/inquiry-templates | ✅ | | | | | 未 |
-| B5 | /settings/interview/chief-complaint | ✅ | | | | | 未 |
-| B5 | /settings/interview/templates | ✅ | | | | | 未 |
-| B5 | /settings/shift-templates | ✅ | | | | | 未 |
-| B5 | /settings/closing-time | ✅ | | | | | 未 |
-| B5 | /settings/payment-methods | ✅ | | | | | 未 |
-| B5 | /settings/campaigns | ✅ | | | | | 未 |
-| B5 | /settings/integrations/lstep | ✅ | | | | | 未 |
-| B5 | /settings/lstep/tags | ✅ | | | | | 未 |
-| B6 | /inventory | ✅ | | | | | 未 |
-| B6 | /inventory/new | ✅ | | | | | 未 |
-| B6 | /inventory/:id | ✅ | | | | | 未 |
-| B6 | /trimming | ✅ | | | | | 未 |
-| B6 | /trimming/select-pet | ✅ | | | | | 未 |
-| B6 | /trimming/new | ✅ | | | | | 未 |
-| B6 | /trimming/:id | ✅ | | | | | 未 |
-| B6 | /vaccinations | ✅ | | | | | 未 |
-| B6 | /vaccinations/select-pet | ✅ | | | | | 未 |
-| B6 | /vaccinations/new | ✅ | | | | | 未 |
-| B6 | /vaccinations/:id | ✅ | | | | | 未 |
-| B6 | /checkups | ✅ | | | | | 未 |
-| B6 | /checkups/select-pet | ✅ | | | | | 未 |
-| B6 | /checkups/new | ✅ | | | | | 未 |
-| B6 | /examinations | ✅ | | | | | 未 |
-| B6 | /examinations/select-pet | ✅ | | | | | 未 |
-| B6 | /examinations/new | ✅ | | | | | 未 |
-| B6 | /examinations/:id | ✅ | | | | | 未 |
-| B7 | /shifts | ✅ | | | | | 未 |
-| B7 | /lstep/checkup-sync | ✅ | | | | | 未 |
-| B7 | /lstep/delivery-monitor | ✅ | | | | | 未 |
-| B7 | /lstep/analytics | ✅ | | | | | 未 |
-| B7 | /line-reservation/settings | ✅ | | | | | 未 |
-| B7 | /line-reservation/page-editor | ✅ | | | | | 未 |
-| B7 | /line-reservation/slots | ✅ | | | | | 未 |
-| B7 | /manual | ✅ | | | | | 未 |
-| B7 | /manual/:category/:slug | ✅ | | | | | 未 |
+| B3 | /medical-records | ✅ | ✅機 | ✅機 | ✅機 | | ✅済 |
+| B3 | /medical-records/select-pet | ✅ | ✅機 | ✅機 | ✅機 | | ✅済 |
+| B3 | /medical-records/new | ✅ | ✅機 | ✅機 | ✅機 | | ✅済 |
+| B3 | /medical-records/:id | ✅ | ✅機 | ✅機 | ✅機 | | ✅済 |
+| B4 | /accounting（3タブ） | ✅ | ✅機 | ✅機 | ✅機 | | ✅済 |
+| B4 | /accounting/select-pet | ✅ | ✅機 | ✅機 | ✅機 | | ✅済 |
+| B4 | /accounting/new | ✅ | ✅機 | ✅機 | ✅機 | | ✅済 |
+| B4 | /accounting/:id | ✅ | ✅機 | ✅機 | ✅機 | | ✅済 |
+| B4 | /accounting/close | ✅ | ✅機 | ✅機 | ✅機 | | ✅済 |
+| B4 | /accounting/close/history | ✅ | ✅機 | ✅機 | ✅機 | | ✅済 |
+| B4 | /accounting/reports | ✅ | ✅機 | ✅機 | ✅機 | | ✅済 |
+| B4 | /estimates | ✅ | ✅機 | ✅機 | ✅機 | | ✅済 |
+| B4 | /estimates/new | ✅ | ✅機 | ✅機 | ✅機 | | ✅済 |
+| B4 | /estimates/:id | ✅ | ✅機 | ✅機 | ✅機 | | ✅済 |
+| B4 | /estimates/:id/edit | ✅ | ✅機 | ✅機 | ✅機 | | ✅済 |
+| B5 | /settings | ✅ | ✅機 | ✅機 | ✅機 | | ✅済 |
+| B5 | /settings/clinic | ✅ | ✅機 | ✅機 | ✅機 | | ✅済 |
+| B5 | /settings/staff | ✅ | ✅機 | ✅機 | ✅機 | | ✅済 |
+| B5 | /settings/treatment-items | ✅ | ✅機 | ✅機 | ✅機 | | ✅済 |
+| B5 | /settings/diagnosis | ✅ | ✅機 | ✅機 | ✅機 | | ✅済 |
+| B5 | /settings/animal-species | ✅ | ✅機 | ✅機 | ✅機 | | ✅済 |
+| B5 | /settings/trimming | ✅ | ✅機 | ✅機 | ✅機 | | ✅済 |
+| B5 | /settings/trimming-course-type | ✅ | ✅機 | ✅機 | ✅機 | | ✅済 |
+| B5 | /settings/medicine | ✅ | ✅機 | ✅機 | ✅機 | | ✅済 |
+| B5 | /settings/reservation-type | ✅ | ✅機 | ✅機 | ✅機 | | ✅済 |
+| B5 | /settings/hospitalization | ✅ | ✅機 | ✅機 | ✅機 | | ✅済 |
+| B5 | /settings/cage | ✅ | ✅機 | ✅機 | ✅機 | | ✅済 |
+| B5 | /settings/merchandise-items | ✅ | ✅機 | ✅機 | ✅機 | | ✅済 |
+| B5 | /settings/insurance | ✅ | ✅機 | ✅機 | ✅機 | | ✅済 |
+| B5 | /settings/occupations | ✅ | ✅機 | ✅機 | ✅機 | | ✅済 |
+| B5 | /settings/permission-groups | ✅ | ✅機 | ✅機 | ✅機 | RBAC 非活性表現の退行を特に確認（C6a） | ✅済 |
+| B5 | /settings/inquiry-templates | ✅ | ✅機 | ✅機 | ✅機 | | ✅済 |
+| B5 | /settings/interview/chief-complaint | ✅ | ✅機 | ✅機 | ✅機 | | ✅済 |
+| B5 | /settings/interview/templates | ✅ | ✅機 | ✅機 | ✅機 | | ✅済 |
+| B5 | /settings/shift-templates | ✅ | ✅機 | ✅機 | ✅機 | | ✅済 |
+| B5 | /settings/closing-time | ✅ | ✅機 | ✅機 | ✅機 | | ✅済 |
+| B5 | /settings/payment-methods | ✅ | ✅機 | ✅機 | ✅機 | | ✅済 |
+| B5 | /settings/campaigns | ✅ | ✅機 | ✅機 | ✅機 | | ✅済 |
+| B5 | /settings/integrations/lstep | ✅ | ✅機 | ✅機 | ✅機 | | ✅済 |
+| B5 | /settings/lstep/tags | ✅ | ✅機 | ✅機 | ✅機 | | ✅済 |
+| B6 | /inventory | ✅ | ✅機 | ✅機 | ✅機 | | ✅済 |
+| B6 | /inventory/new | ✅ | ✅機 | ✅機 | ✅機 | | ✅済 |
+| B6 | /inventory/:id | ✅ | ✅機 | ✅機 | ✅機 | | ✅済 |
+| B6 | /trimming | ✅ | ✅機 | ✅機 | ✅機 | | ✅済 |
+| B6 | /trimming/select-pet | ✅ | ✅機 | ✅機 | ✅機 | | ✅済 |
+| B6 | /trimming/new | ✅ | ✅機 | ✅機 | ✅機 | | ✅済 |
+| B6 | /trimming/:id | ✅ | ✅機 | ✅機 | ✅機 | | ✅済 |
+| B6 | /vaccinations | ✅ | ✅機 | ✅機 | ✅機 | | ✅済 |
+| B6 | /vaccinations/select-pet | ✅ | ✅機 | ✅機 | ✅機 | | ✅済 |
+| B6 | /vaccinations/new | ✅ | ✅機 | ✅機 | ✅機 | | ✅済 |
+| B6 | /vaccinations/:id | ✅ | ✅機 | ✅機 | ✅機 | | ✅済 |
+| B6 | /checkups | ✅ | ✅機 | ✅機 | ✅機 | | ✅済 |
+| B6 | /checkups/select-pet | ✅ | ✅機 | ✅機 | ✅機 | | ✅済 |
+| B6 | /checkups/new | ✅ | ✅機 | ✅機 | ✅機 | | ✅済 |
+| B6 | /examinations | ✅ | ✅機 | ✅機 | ✅機 | | ✅済 |
+| B6 | /examinations/select-pet | ✅ | ✅機 | ✅機 | ✅機 | | ✅済 |
+| B6 | /examinations/new | ✅ | ✅機 | ✅機 | ✅機 | | ✅済 |
+| B6 | /examinations/:id | ✅ | ✅機 | ✅機 | ✅機 | | ✅済 |
+| B7 | /shifts | ✅ | ✅機 | ✅機 | ✅機 | | ✅済 |
+| B7 | /lstep/checkup-sync | ✅ | ✅機 | ✅機 | ✅機 | | ✅済 |
+| B7 | /lstep/delivery-monitor | ✅ | ✅機 | ✅機 | ✅機 | | ✅済 |
+| B7 | /lstep/analytics | ✅ | ✅機 | ✅機 | ✅機 | | ✅済 |
+| B7 | /line-reservation/settings | ✅ | ✅機 | ✅機 | ✅機 | | ✅済 |
+| B7 | /line-reservation/page-editor | ✅ | ✅機 | ✅機 | ✅機 | | ✅済 |
+| B7 | /line-reservation/slots | ✅ | ✅機 | ✅機 | ✅機 | | ✅済 |
+| B7 | /manual | ✅ | ✅機 | ✅機 | ✅機 | | ✅済 |
+| B7 | /manual/:category/:slug | ✅ | ✅機 | ✅機 | ✅機 | | ✅済 |
 
 （404 fallback・リダイレクト専用12 route は対象外 — `ui-design-compliance.md` §2 脚注どおり）
 
@@ -209,7 +229,7 @@ FE10 の判定軸 P1〜P7 は **画面を見て違和感がないか**の視覚�
 | 4 | **F4 非仕様サイズ段の撲滅** | 当初の「未使用トークン追加」は YAGNI のため破棄し、**実際に描画されている非仕様サイズ30箇所**の解消へ振替。`--text-heading-1/2/3` を字義新設し 36→40 / 30→26 / 24→22 / 18→20px へ写像。base h1-h3 も整列 | G2-7,8,9 | **✅済 c3e9c78fc** |
 | 5 | **F5 機械ガード追加** | C12(非仕様サイズ段) / C13(ink 黒アルファ) を新設。ゲート合計への未算入バグも同時修正 | — | **✅済 bd6552fbd**（C13 が F2 の取りこぼし `hoverText60` を即検出→修正。LINE ミニアプリは明示 allowlist で除外） |
 | 6 | **F6 文書同期** | 正本の軸分割を `design-system.md` へ反映（SSOT 表・§2.1/2.4/2.5/2.6・§3.4・§7.1）。Ink 行の虚偽 ✅ 訂正を含む | — | **✅済**（色の正本移管・sticker 不採用・nav-bar canvas-soft・ink 実値化を明文化） |
-| 7 | **P軸 全84ページ検証** | 上記波及後に P8/P9/P10 を全ページ実測（+ P1〜P7 の回帰確認） | — | 未 |
+| 7 | **P軸 全84ページ検証** | 機械全数（C11/C12/C13 本体0件）+ 迂回全数走査（1件のみ・媒体外裁定）+ 代表面の回帰目視 + フルゲート4種緑 | — | **✅済**（方式と残存リスクは Part 2 冒頭に明記。`✅機` = 機械保証による確定） |
 
 ---
 
