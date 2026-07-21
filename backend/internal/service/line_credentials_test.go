@@ -10,7 +10,7 @@ import (
 )
 
 // TestLineCredentialEncryptDecrypt は LINE 認証情報の暗号化/復号ヘルパーを検証する（H-4）。
-// testIntegrationKeyHex は line_reservation_setting_service_test.go で定義。
+// testIntegrationKeyHex は be9_2c_r1_mock_carriers_test.go（R⑥でreservationへ移動した旧line_reservation_setting_service_test.go由来のcarrier） で定義。
 func TestLineCredentialEncryptDecrypt(t *testing.T) {
 	ctx := context.Background()
 	cipher, err := crypto.NewAESGCMCipher(testIntegrationKeyHex)

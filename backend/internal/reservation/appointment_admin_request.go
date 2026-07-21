@@ -1,7 +1,6 @@
 package reservation
 
 import (
-	"encoding/json"
 	"net/url"
 	"time"
 )
@@ -55,6 +54,3 @@ func (r *createReservationAdminRequest) toServiceInput(createdBy uint64) *Create
 		CreatedBy:         &createdBy,
 	}
 }
-
-// jsonRawOrEmpty — internal/handler/line_reservation_setting_request.go の同名 alias の複製（R⑥移動時に統合）。
-type jsonRawOrEmpty = json.RawMessage

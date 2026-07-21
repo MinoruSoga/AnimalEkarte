@@ -1,9 +1,10 @@
-package handler
+package reservation
 
 import (
 	"encoding/json"
 	"time"
 
+	"github.com/animal-ekarte/backend/internal/httpapi"
 	"github.com/animal-ekarte/backend/internal/model"
 )
 
@@ -71,7 +72,7 @@ func toLineReservationSettingResponse(s *model.LineReservationSetting) lineReser
 		AdditionalFields:        json.RawMessage(s.AdditionalFields),
 		LineChannelID:           s.LineChannelID,
 		LiffID:                  s.LiffID,
-		CreatedAt:               localTime(s.CreatedAt),
-		UpdatedAt:               localTime(s.UpdatedAt),
+		CreatedAt:               httpapi.LocalTime(s.CreatedAt),
+		UpdatedAt:               httpapi.LocalTime(s.UpdatedAt),
 	}
 }

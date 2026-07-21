@@ -50,7 +50,6 @@ GET /api/v1/clinic-holidays ListClinicHolidays
 GET /api/v1/clinics ListClinics
 GET /api/v1/clinics/:clinic_id GetClinic
 GET /api/v1/clinics/:clinic_id/line-customers ListLineCustomers
-GET /api/v1/clinics/:clinic_id/line-reservation-settings GetLineReservationSetting
 GET /api/v1/clinics/:clinic_id/lstep-settings GetLstepSettings
 GET /api/v1/clinics/:clinic_id/lstep-tag-code-mappings ListTagCodeMappings
 GET /api/v1/clinics/:clinic_id/lstep/analytics/delivery-stats GetLstepMonthlyDeliveryStats
@@ -243,7 +242,6 @@ POST /api/v1/shared-files UploadSharedFile
 POST /api/v1/shift-templates CreateShiftTemplate
 POST /api/v1/shifts CreateShiftEntry
 POST /api/v1/trimmings CreateTrimming
-PUT /api/v1/clinics/:clinic_id/line-reservation-settings SaveLineReservationSetting
 PUT /api/v1/clinics/:clinic_id/lstep-tag-code-mappings/:tag_name ReplaceTagCodeMappingsForTag
 PUT /api/v1/lstep-tag-code-mappings/:tag_name ReplaceTagCodeMappingsForTag
 PUT /api/v1/masters/permission-groups/:id/rules SetPermissionGroupRules

@@ -413,6 +413,7 @@ func main() {
 		reservation.NewReservationScheduleHandler(svcs.ReservationSchedule),
 		reservation.NewReservationHandler(svcs.Reservation, medicalRecordSvc, svcs.Liff, svcs.StaffClinicAssignment),
 		reservation.NewReservationAdminHandler(svcs.ReservationAdmin, svcs.StaffClinicAssignment),
+		reservation.NewLineReservationSettingHandler(svcs.LineReservationSetting),
 		reservation.NewLiffHandler(svcs.Liff, svcs.StaffClinicAssignment),
 		middleware.LiffAuth(repos.LineCustomerMgr, repos.LineReservationSetting),
 		func(limit int) gin.HandlerFunc { return middleware.LiffRateLimit(liffRateLimitStore, limit) },

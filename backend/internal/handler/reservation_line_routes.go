@@ -14,9 +14,7 @@ import (
 func (h *Handler) RegisterLineReservationRoutes(rg *gin.RouterGroup) {
 	clinics := rg.Group("/clinics/:clinic_id")
 
-	// TASK-RES-010: 基本設定
-	clinics.GET("/line-reservation-settings", h.RequirePermission(string(model.ResourceHospitalSettings), "view"), h.GetLineReservationSetting)
-	clinics.PUT("/line-reservation-settings", h.RequirePermission(string(model.ResourceHospitalSettings), "edit"), h.SaveLineReservationSetting)
+	// TASK-RES-010: 基本設定 routes は internal/reservation.RegisterRoutes へ移動（BE9-2C R⑥）
 
 	// TASK-RES-011: 予約区分（LINE管理用）routes は internal/reservation.RegisterRoutes へ移動（BE9-2C R①）
 

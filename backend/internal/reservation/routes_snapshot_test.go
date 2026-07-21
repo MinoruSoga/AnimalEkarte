@@ -21,10 +21,10 @@ func lastHandlerSegment(fullName string) string {
 }
 
 // TestRegisterRoutes_Snapshot は reservation 側の BE9-2C route-snapshot 回帰チェック
-// （internal/medicalrecord/routes_snapshot_test.go の先例を踏襲）。R①〜R⑤ で
-// internal/handler/testdata/route_snapshot.golden から 61 route（reservation-type-groups 6 +
+// （internal/medicalrecord/routes_snapshot_test.go の先例を踏襲）。R①〜R⑥ で
+// internal/handler/testdata/route_snapshot.golden から 63 route（reservation-type-groups 6 +
 // reservation-types 6 + unavailable-times 3 + available-slots 3 + occupations 3 +
-// LINE 管理用予約区分 7+予約スタッフ 7+スケジュール 3+予約CRUD 7+LINE管理予約 3+LIFF公開 13）を drop し、本 package の RegisterRoutes が登録する。
+// LINE 管理用予約区分 7+予約スタッフ 7+スケジュール 3+予約CRUD 7+LINE管理予約 3+LIFF公開 13+LINE基本設定 2）を drop し、本 package の RegisterRoutes が登録する。
 // permission 引数は capture されない — RBAC parity は routes.go の逐語転記でレビュー担保。
 func TestRegisterRoutes_Snapshot(t *testing.T) {
 	gin.SetMode(gin.TestMode)
@@ -40,6 +40,7 @@ func TestRegisterRoutes_Snapshot(t *testing.T) {
 		NewReservationScheduleHandler(nil),
 		NewReservationHandler(nil, nil, nil, nil),
 		NewReservationAdminHandler(nil, nil),
+		NewLineReservationSettingHandler(nil),
 		NewLiffHandler(nil, nil),
 		nil,
 		func(limit int) gin.HandlerFunc { return func(c *gin.Context) {} },
@@ -81,6 +82,7 @@ func TestRegisterRoutes_Snapshot(t *testing.T) {
 		"GET /api/liff/:clinicId/staffs GetLiffStaffs\n" +
 		"GET /api/liff/:clinicId/trimming-courses GetLiffTrimmingCourses\n" +
 		"GET /api/liff/:clinicId/trimming-options GetLiffTrimmingOptions\n" +
+		"GET /api/v1/clinics/:clinic_id/line-reservation-settings GetLineReservationSetting\n" +
 		"GET /api/v1/clinics/:clinic_id/reservation-staffs ListReservationStaffs\n" +
 		"GET /api/v1/clinics/:clinic_id/reservation-staffs/:staffId/schedules ListReservationSchedules\n" +
 		"GET /api/v1/clinics/:clinic_id/reservation-types ListReservationTypeLiffs\n" +
@@ -118,6 +120,7 @@ func TestRegisterRoutes_Snapshot(t *testing.T) {
 		"POST /api/v1/masters/reservation-types/:id/occupations LinkReservationTypeOccupation\n" +
 		"POST /api/v1/masters/reservation-types/:id/unavailable-times CreateUnavailableTime\n" +
 		"POST /api/v1/reservations CreateReservation\n" +
+		"PUT /api/v1/clinics/:clinic_id/line-reservation-settings SaveLineReservationSetting\n" +
 		"PUT /api/v1/clinics/:clinic_id/reservation-staffs/:staffId UpdateReservationStaff\n" +
 		"PUT /api/v1/clinics/:clinic_id/reservation-staffs/:staffId/schedules/:date UpsertReservationSchedule\n" +
 		"PUT /api/v1/clinics/:clinic_id/reservation-types/:id UpdateReservationTypeLiff\n"

@@ -70,7 +70,7 @@ type Services struct {
 	AccountingReport    AccountingReportService
 
 	// LINE予約
-	LineReservationSetting    LineReservationSettingService
+	LineReservationSetting    reservation.LineReservationSettingService
 	ReservationTypeLiff       reservation.ReservationTypeLiffService
 	ReservationStaff          reservation.ReservationStaffService
 	ReservationStaffCore      reservation.ReservationStaffCoreService
@@ -270,13 +270,15 @@ func NewServices(repos *repository.Repositories, notifCfg *reservation.Reservati
 		PasswordReset:       NewPasswordResetService(&pwResetCfg, repos.Account, repos.PasswordResetToken),
 		ReservationNotifier: notifier,
 		// FEAT-368: 集計・締め機能
-		ClosingSettings:           closingSettingsSvc,
-		PaymentMethodMaster:       NewPaymentMethodMasterService(repos.PaymentMethodMaster),
-		TrimmingCourseType:        NewTrimmingCourseTypeService(repos.TrimmingCourseType),
-		Campaign:                  NewCampaignService(repos.Campaign, repos.MerchandiseItem),
-		CashRegister:              NewCashRegisterService(repos.CashRegisterClose, repos.Accounting, closingSettingsSvc, repos.PaymentMethodMaster, repos.Clinic),
-		AccountingReport:          NewAccountingReportService(repos.Accounting, repos.PaymentMethodMaster, repos.ClinicHoliday, repos.Clinic),
-		LineReservationSetting:    NewLineReservationSettingService(repos.LineReservationSetting, cipher),
+		ClosingSettings:     closingSettingsSvc,
+		PaymentMethodMaster: NewPaymentMethodMasterService(repos.PaymentMethodMaster),
+		TrimmingCourseType:  NewTrimmingCourseTypeService(repos.TrimmingCourseType),
+		Campaign:            NewCampaignService(repos.Campaign, repos.MerchandiseItem),
+		CashRegister:        NewCashRegisterService(repos.CashRegisterClose, repos.Accounting, closingSettingsSvc, repos.PaymentMethodMaster, repos.Clinic),
+		AccountingReport:    NewAccountingReportService(repos.Accounting, repos.PaymentMethodMaster, repos.ClinicHoliday, repos.Clinic),
+		LineReservationSetting: reservation.NewLineReservationSettingService(repos.LineReservationSetting,
+			func(value string) (string, error) { return encryptLineCredential(cipher, value) },
+			func(ctx context.Context, value string) string { return decryptLineCredential(ctx, cipher, value) }),
 		ReservationTypeLiff:       reservation.NewReservationTypeLiffService(repos.ReservationTypeLiff, repos.Reservation),
 		ReservationStaff:          resStaffSvc,
 		ReservationStaffCore:      resStaffSvc,

@@ -1,9 +1,7 @@
-package handler
+package reservation
 
 import (
 	"encoding/json"
-
-	"github.com/animal-ekarte/backend/internal/service"
 )
 
 type upsertLineReservationSettingRequest struct {
@@ -37,8 +35,8 @@ type upsertLineReservationSettingRequest struct {
 	LineAccessToken         string         `json:"line_access_token"`
 }
 
-func (r *upsertLineReservationSettingRequest) toServiceInput() *service.UpsertLineReservationSettingInput {
-	return &service.UpsertLineReservationSettingInput{
+func (r *upsertLineReservationSettingRequest) toServiceInput() *UpsertLineReservationSettingInput {
+	return &UpsertLineReservationSettingInput{
 		Status:                  r.Status,
 		HeaderText:              r.HeaderText,
 		ReservationNotice:       r.ReservationNotice,

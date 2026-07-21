@@ -16,14 +16,15 @@ type PermissionMiddleware func(resource, action string) gin.HandlerFunc
 // single, package-unique RegisterRoutes entry point（openapi_route_drift_test.go の
 // buildFuncsFromDir が bare 名で func map を構築するため、per-entity 複数 RegisterRoutes は禁止）。
 type Handler struct {
-	reservationType      *ReservationTypeHandler
-	reservationTypeGroup *ReservationTypeGroupHandler
-	reservationTypeLiff  *ReservationTypeLiffHandler
-	reservationStaff     *ReservationStaffHandler
-	reservationSchedule  *ReservationScheduleHandler
-	reservationCRUD      *ReservationHandler
-	reservationAdmin     *ReservationAdminHandler
-	liff                 *LiffHandler
+	reservationType        *ReservationTypeHandler
+	reservationTypeGroup   *ReservationTypeGroupHandler
+	reservationTypeLiff    *ReservationTypeLiffHandler
+	reservationStaff       *ReservationStaffHandler
+	reservationSchedule    *ReservationScheduleHandler
+	reservationCRUD        *ReservationHandler
+	reservationAdmin       *ReservationAdminHandler
+	lineReservationSetting *LineReservationSettingHandler
+	liff                   *LiffHandler
 	// LIFF 認証/レートリミット middleware（middleware package は service を import しており
 	// reservation からの import は循環——PermissionMiddleware と同じく合成済み closure を
 	// composition root (cmd/api/main.go) が注入する）
@@ -43,6 +44,7 @@ func NewHandler(
 	reservationSchedule *ReservationScheduleHandler,
 	reservationCRUD *ReservationHandler,
 	reservationAdmin *ReservationAdminHandler,
+	lineReservationSetting *LineReservationSettingHandler,
 	liff *LiffHandler,
 	liffAuth gin.HandlerFunc,
 	liffRateLimit func(limit int) gin.HandlerFunc,
@@ -50,18 +52,19 @@ func NewHandler(
 	requirePermission PermissionMiddleware,
 ) *Handler {
 	return &Handler{
-		reservationType:      reservationType,
-		reservationTypeGroup: reservationTypeGroup,
-		reservationTypeLiff:  reservationTypeLiff,
-		reservationStaff:     reservationStaff,
-		reservationSchedule:  reservationSchedule,
-		reservationCRUD:      reservationCRUD,
-		reservationAdmin:     reservationAdmin,
-		liff:                 liff,
-		liffAuth:             liffAuth,
-		liffRateLimit:        liffRateLimit,
-		linkLiffAccount:      linkLiffAccount,
-		requirePermission:    requirePermission,
+		reservationType:        reservationType,
+		reservationTypeGroup:   reservationTypeGroup,
+		reservationTypeLiff:    reservationTypeLiff,
+		reservationStaff:       reservationStaff,
+		reservationSchedule:    reservationSchedule,
+		reservationCRUD:        reservationCRUD,
+		reservationAdmin:       reservationAdmin,
+		lineReservationSetting: lineReservationSetting,
+		liff:                   liff,
+		liffAuth:               liffAuth,
+		liffRateLimit:          liffRateLimit,
+		linkLiffAccount:        linkLiffAccount,
+		requirePermission:      requirePermission,
 	}
 }
 
@@ -128,6 +131,10 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	schedules.GET("", h.requirePermission(string(model.ResourceMasterStaff), "view"), h.reservationSchedule.ListReservationSchedules)
 	schedules.PUT("/:date", h.requirePermission(string(model.ResourceMasterStaff), "edit"), h.reservationSchedule.UpsertReservationSchedule)
 	schedules.DELETE("/:date", h.requirePermission(string(model.ResourceMasterStaff), "delete"), h.reservationSchedule.DeleteReservationSchedule)
+
+	// LINE 予約基本設定（旧 reservation_line_routes.go 逐語）
+	clinics.GET("/line-reservation-settings", h.requirePermission(string(model.ResourceHospitalSettings), "view"), h.lineReservationSetting.GetLineReservationSetting)
+	clinics.PUT("/line-reservation-settings", h.requirePermission(string(model.ResourceHospitalSettings), "edit"), h.lineReservationSetting.SaveLineReservationSetting)
 
 	// 予約管理（LINE管理用・旧 reservation_line_routes.go 逐語）
 	adminReservations := clinics.Group("/reservations")

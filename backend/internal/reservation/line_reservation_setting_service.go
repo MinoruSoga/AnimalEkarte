@@ -1,4 +1,4 @@
-package service
+package reservation
 
 import (
 	"context"
@@ -6,10 +6,7 @@ import (
 	"log/slog"
 
 	"github.com/animal-ekarte/backend/internal/apperrors"
-	"github.com/animal-ekarte/backend/internal/infra/crypto"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository"
-	"github.com/animal-ekarte/backend/internal/reservation"
 )
 
 // UpsertLineReservationSettingInput は予約設定 upsert のための入力データ
@@ -51,16 +48,22 @@ type LineReservationSettingService interface {
 }
 
 type lineReservationSettingService struct {
-	repo repository.LineReservationSettingRepository
-	// cipher は line_channel_secret / line_access_token の暗号化に使う（H-4）。
+	repo LineReservationSettingRepository
+	// encrypt/decrypt は LINE credential の暗号化 helper（lstep 系実装・topo で import 不可）の
+	// closure 注入（R④ notification と同型・service 集約が旧実装を包んで渡す）。
+	encryptCredential func(value string) (string, error)
+	decryptCredential func(ctx context.Context, value string) string
 	// nil の場合は暗号化なしで動作する（開発環境で INTEGRATION_ENCRYPTION_KEY 未設定時）。
-	cipher *crypto.AESGCMCipher
 }
 
 // NewLineReservationSettingService は LineReservationSettingService を初期化して返す。
-// cipher が nil の場合は暗号化なしで動作する（lstep 連携と同一の cipher を再利用する）。
-func NewLineReservationSettingService(repo repository.LineReservationSettingRepository, cipher *crypto.AESGCMCipher) LineReservationSettingService {
-	return &lineReservationSettingService{repo: repo, cipher: cipher}
+// closure が nil/空文字素通しを判定する場合（旧 cipher=nil 契約）は暗号化なしで動作する（lstep 連携と同一の cipher を再利用する）。
+func NewLineReservationSettingService(
+	repo LineReservationSettingRepository,
+	encryptCredential func(value string) (string, error),
+	decryptCredential func(ctx context.Context, value string) string,
+) LineReservationSettingService {
+	return &lineReservationSettingService{repo: repo, encryptCredential: encryptCredential, decryptCredential: decryptCredential}
 }
 
 func (s *lineReservationSettingService) Get(ctx context.Context, clinicID uint64) (*model.LineReservationSetting, error) {
@@ -85,7 +88,7 @@ func validateJSONFields(fields map[string][]byte) error {
 	return nil
 }
 
-// validateBreakHoursShape は break_hours が []reservation.BreakPeriod{start,end} 形式に unmarshal でき、
+// validateBreakHoursShape は break_hours が []BreakPeriod{start,end} 形式に unmarshal でき、
 // 各エントリの start/end が HHMM 形式であることを確認する（go-reviewer/security-reviewer 指摘）。
 //
 // BE-refactor.md D10/F-2 で parseBusinessHoursForDate の break_hours unmarshal 失敗を
@@ -96,15 +99,15 @@ func validateBreakHoursShape(data []byte) error {
 	if len(data) == 0 {
 		return nil
 	}
-	var breaks []reservation.BreakPeriod
+	var breaks []BreakPeriod
 	if err := json.Unmarshal(data, &breaks); err != nil {
 		return apperrors.WrapInvalidInput(`break_hours は [{"start":"HHMM","end":"HHMM"}] 形式である必要があります`)
 	}
 	for _, b := range breaks {
-		if _, err := reservation.MinutesSinceMidnight(b.Start); err != nil {
+		if _, err := MinutesSinceMidnight(b.Start); err != nil {
 			return apperrors.WrapInvalidInput("break_hours の start は HHMM 形式である必要があります: " + b.Start)
 		}
-		if _, err := reservation.MinutesSinceMidnight(b.End); err != nil {
+		if _, err := MinutesSinceMidnight(b.End); err != nil {
 			return apperrors.WrapInvalidInput("break_hours の end は HHMM 形式である必要があります: " + b.End)
 		}
 	}
@@ -141,21 +144,21 @@ func (s *lineReservationSettingService) Save(ctx context.Context, clinicID uint6
 	accessToken := input.LineAccessToken
 	if existing != nil {
 		if channelSecret == "" {
-			channelSecret = decryptLineCredential(ctx, s.cipher, existing.LineChannelSecret)
+			channelSecret = s.decryptCredential(ctx, existing.LineChannelSecret)
 		}
 		if accessToken == "" {
-			accessToken = decryptLineCredential(ctx, s.cipher, existing.LineAccessToken)
+			accessToken = s.decryptCredential(ctx, existing.LineAccessToken)
 		}
 	}
 
 	// H-4: 保存時は常に暗号化して書き込む。既存のレガシー平文行は、この経路（次回保存）で
 	// 自然に暗号化される（機会的再暗号化）。一括 migration は行わない。
-	encryptedSecret, err := encryptLineCredential(s.cipher, channelSecret)
+	encryptedSecret, err := s.encryptCredential(channelSecret)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to encrypt line channel secret", "error", err, "clinic_id", clinicID)
 		return nil, false, apperrors.Wrap(err, "failed to encrypt line channel secret")
 	}
-	encryptedToken, err := encryptLineCredential(s.cipher, accessToken)
+	encryptedToken, err := s.encryptCredential(accessToken)
 	if err != nil {
 		slog.ErrorContext(ctx, "failed to encrypt line access token", "error", err, "clinic_id", clinicID)
 		return nil, false, apperrors.Wrap(err, "failed to encrypt line access token")

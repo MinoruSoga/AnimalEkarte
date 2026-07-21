@@ -352,3 +352,7 @@ func (m *mockReservationRepository) AssertLineCustomerInClinic(ctx context.Conte
 func (m *mockReservationRepository) FindNoShowCandidates(_ context.Context, _ uint64) ([]model.Reservation, error) {
 	return nil, nil
 }
+
+// testIntegrationKeyHex — R⑥移動test（line_reservation_setting_service_test.go）由来のcarrier複製（lstep系credential test用・lstep移行時に解消）。
+// testIntegrationKeyHex は 32 バイト（AES-256）のダミー暗号鍵。
+const testIntegrationKeyHex = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"

@@ -1,4 +1,4 @@
-package handler
+package reservation
 
 import (
 	"bytes"
@@ -14,7 +14,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/service"
 )
 
 // TestLineReservationSettingHandlerCompiles verifies line_reservation_setting_handler.go compiles
@@ -26,7 +25,7 @@ func TestLineReservationSettingHandlerCompiles(t *testing.T) {
 
 type mockLineReservationSettingService struct {
 	getFn  func(ctx context.Context, clinicID uint64) (*model.LineReservationSetting, error)
-	saveFn func(ctx context.Context, clinicID uint64, input *service.UpsertLineReservationSettingInput) (*model.LineReservationSetting, bool, error)
+	saveFn func(ctx context.Context, clinicID uint64, input *UpsertLineReservationSettingInput) (*model.LineReservationSetting, bool, error)
 }
 
 func (m *mockLineReservationSettingService) Get(ctx context.Context, clinicID uint64) (*model.LineReservationSetting, error) {
@@ -36,7 +35,7 @@ func (m *mockLineReservationSettingService) Get(ctx context.Context, clinicID ui
 	return nil, nil
 }
 
-func (m *mockLineReservationSettingService) Save(ctx context.Context, clinicID uint64, input *service.UpsertLineReservationSettingInput) (*model.LineReservationSetting, bool, error) {
+func (m *mockLineReservationSettingService) Save(ctx context.Context, clinicID uint64, input *UpsertLineReservationSettingInput) (*model.LineReservationSetting, bool, error) {
 	if m.saveFn != nil {
 		return m.saveFn(ctx, clinicID, input)
 	}
@@ -45,8 +44,8 @@ func (m *mockLineReservationSettingService) Save(ctx context.Context, clinicID u
 
 // ---- test helper ----
 
-func newHandlerWithLineReservationSettingSvc(svc service.LineReservationSettingService) *Handler {
-	return &Handler{svc: &service.Services{LineReservationSetting: svc}}
+func newHandlerWithLineReservationSettingSvc(svc LineReservationSettingService) *LineReservationSettingHandler {
+	return NewLineReservationSettingHandler(svc)
 }
 
 // ---- GetLineReservationSetting ----
@@ -148,7 +147,7 @@ func TestSaveLineReservationSetting(t *testing.T) {
 			body:     validBody(),
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockLineReservationSettingService{
-				saveFn: func(_ context.Context, clinicID uint64, input *service.UpsertLineReservationSettingInput) (*model.LineReservationSetting, bool, error) {
+				saveFn: func(_ context.Context, clinicID uint64, input *UpsertLineReservationSettingInput) (*model.LineReservationSetting, bool, error) {
 					assert.Equal(t, uint64(1), clinicID)
 					assert.Equal(t, "open", input.Status)
 					return &model.LineReservationSetting{ID: 1, ClinicID: clinicID, Status: input.Status}, true, nil
@@ -163,7 +162,7 @@ func TestSaveLineReservationSetting(t *testing.T) {
 			body:     validBody(),
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockLineReservationSettingService{
-				saveFn: func(_ context.Context, clinicID uint64, input *service.UpsertLineReservationSettingInput) (*model.LineReservationSetting, bool, error) {
+				saveFn: func(_ context.Context, clinicID uint64, input *UpsertLineReservationSettingInput) (*model.LineReservationSetting, bool, error) {
 					return &model.LineReservationSetting{ID: 1, ClinicID: clinicID, Status: input.Status}, false, nil
 				},
 			},
@@ -189,7 +188,7 @@ func TestSaveLineReservationSetting(t *testing.T) {
 			body:     validBody(),
 			setupCtx: func(c *gin.Context) { setClinicID(c) },
 			svc: &mockLineReservationSettingService{
-				saveFn: func(_ context.Context, _ uint64, _ *service.UpsertLineReservationSettingInput) (*model.LineReservationSetting, bool, error) {
+				saveFn: func(_ context.Context, _ uint64, _ *UpsertLineReservationSettingInput) (*model.LineReservationSetting, bool, error) {
 					return nil, false, fmt.Errorf("db error")
 				},
 			},

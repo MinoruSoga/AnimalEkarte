@@ -1,4 +1,4 @@
-package service
+package reservation
 
 import (
 	"context"
@@ -10,14 +10,13 @@ import (
 	"github.com/animal-ekarte/backend/internal/apperrors"
 	"github.com/animal-ekarte/backend/internal/infra/crypto"
 	"github.com/animal-ekarte/backend/internal/model"
-	"github.com/animal-ekarte/backend/internal/repository"
 )
 
 // testIntegrationKeyHex は 32 バイト（AES-256）のダミー暗号鍵。
 const testIntegrationKeyHex = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
 
 type mockLineReservationSettingRepository struct {
-	repository.LineReservationSettingRepository
+	LineReservationSettingRepository
 	findByClinicIDFn func(ctx context.Context, clinicID uint64) (*model.LineReservationSetting, error)
 	findAllFn        func(ctx context.Context) ([]model.LineReservationSetting, error)
 	saveFn           func(ctx context.Context, clinicID uint64, setting *model.LineReservationSetting) error
@@ -53,7 +52,7 @@ func TestLineReservationSettingService_Get(t *testing.T) {
 				return &model.LineReservationSetting{ClinicID: clinicID}, nil
 			},
 		}
-		svc := NewLineReservationSettingService(repo, nil)
+		svc := NewLineReservationSettingService(repo, testPlainEncrypt, testPlainDecrypt)
 		res, err := svc.Get(ctx, 1)
 		assert.NoError(t, err)
 		assert.NotNil(t, res)
@@ -65,7 +64,7 @@ func TestLineReservationSettingService_Get(t *testing.T) {
 				return nil, apperrors.WrapNotFound("setting", "")
 			},
 		}
-		svc := NewLineReservationSettingService(repo, nil)
+		svc := NewLineReservationSettingService(repo, testPlainEncrypt, testPlainDecrypt)
 		res, err := svc.Get(ctx, 1)
 		assert.NoError(t, err)
 		assert.Nil(t, res)
@@ -77,7 +76,7 @@ func TestLineReservationSettingService_Get(t *testing.T) {
 				return nil, errors.New("db error")
 			},
 		}
-		svc := NewLineReservationSettingService(repo, nil)
+		svc := NewLineReservationSettingService(repo, testPlainEncrypt, testPlainDecrypt)
 		_, err := svc.Get(ctx, 1)
 		assert.Error(t, err)
 	})
@@ -97,7 +96,7 @@ func TestLineReservationSettingService_Save(t *testing.T) {
 				return &model.LineReservationSetting{ClinicID: clinicID}, nil
 			},
 		}
-		svc := NewLineReservationSettingService(repo, nil)
+		svc := NewLineReservationSettingService(repo, testPlainEncrypt, testPlainDecrypt)
 		input := &UpsertLineReservationSettingInput{
 			Status:            "active",
 			ClosedWeekdays:    []byte("[1, 2]"),
@@ -121,7 +120,7 @@ func TestLineReservationSettingService_Save(t *testing.T) {
 				return existing, nil
 			},
 		}
-		svc := NewLineReservationSettingService(repo, nil)
+		svc := NewLineReservationSettingService(repo, testPlainEncrypt, testPlainDecrypt)
 		input := &UpsertLineReservationSettingInput{
 			Status:            "active",
 			ClosedWeekdays:    []byte("[1, 2]"),
@@ -135,7 +134,7 @@ func TestLineReservationSettingService_Save(t *testing.T) {
 	})
 
 	t.Run("invalid json fields", func(t *testing.T) {
-		svc := NewLineReservationSettingService(nil, nil)
+		svc := NewLineReservationSettingService(nil, testPlainEncrypt, testPlainDecrypt)
 		input := &UpsertLineReservationSettingInput{
 			ClosedWeekdays: []byte("bad-json"),
 		}
@@ -148,7 +147,7 @@ func TestLineReservationSettingService_Save(t *testing.T) {
 	// 検証しないと、構文的には有効だが形状が不正な値が保存された時点で当該クリニックの
 	// 全 LINE 予約が拒否され続ける可用性劣化になる。保存時に 400 で弾くことを保証する。
 	t.Run("break_hours: 構文は有効だが形状が不正（オブジェクト）→ 400", func(t *testing.T) {
-		svc := NewLineReservationSettingService(nil, nil)
+		svc := NewLineReservationSettingService(nil, testPlainEncrypt, testPlainDecrypt)
 		input := &UpsertLineReservationSettingInput{
 			BreakHours: []byte(`{}`),
 		}
@@ -158,7 +157,7 @@ func TestLineReservationSettingService_Save(t *testing.T) {
 	})
 
 	t.Run("break_hours: 配列だが数値フィールド（文字列でない）→ 400", func(t *testing.T) {
-		svc := NewLineReservationSettingService(nil, nil)
+		svc := NewLineReservationSettingService(nil, testPlainEncrypt, testPlainDecrypt)
 		input := &UpsertLineReservationSettingInput{
 			BreakHours: []byte(`[{"start":1200,"end":1300}]`),
 		}
@@ -168,7 +167,7 @@ func TestLineReservationSettingService_Save(t *testing.T) {
 	})
 
 	t.Run("break_hours: 配列・文字列だが HHMM 形式でないエントリ → 400", func(t *testing.T) {
-		svc := NewLineReservationSettingService(nil, nil)
+		svc := NewLineReservationSettingService(nil, testPlainEncrypt, testPlainDecrypt)
 		input := &UpsertLineReservationSettingInput{
 			BreakHours: []byte(`[{"start":"not-a-time","end":"1300"}]`),
 		}
@@ -183,7 +182,7 @@ func TestLineReservationSettingService_Save(t *testing.T) {
 				return &model.LineReservationSetting{ClinicID: clinicID}, nil
 			},
 		}
-		svc := NewLineReservationSettingService(repo, nil)
+		svc := NewLineReservationSettingService(repo, testPlainEncrypt, testPlainDecrypt)
 		input := &UpsertLineReservationSettingInput{
 			BreakHours: []byte(`[{"start":"1200","end":"1300"}]`),
 		}
@@ -197,7 +196,7 @@ func TestLineReservationSettingService_Save(t *testing.T) {
 				return &model.LineReservationSetting{ClinicID: clinicID}, nil
 			},
 		}
-		svc := NewLineReservationSettingService(repo, nil)
+		svc := NewLineReservationSettingService(repo, testPlainEncrypt, testPlainDecrypt)
 		input := &UpsertLineReservationSettingInput{
 			BreakHours: []byte(`[]`),
 		}
@@ -211,7 +210,7 @@ func TestLineReservationSettingService_Save(t *testing.T) {
 				return nil, errors.New("db error")
 			},
 		}
-		svc := NewLineReservationSettingService(repo, nil)
+		svc := NewLineReservationSettingService(repo, testPlainEncrypt, testPlainDecrypt)
 		_, _, err := svc.Save(ctx, 1, &UpsertLineReservationSettingInput{})
 		assert.Error(t, err)
 	})
@@ -225,7 +224,7 @@ func TestLineReservationSettingService_Save(t *testing.T) {
 				return errors.New("save error")
 			},
 		}
-		svc := NewLineReservationSettingService(repo, nil)
+		svc := NewLineReservationSettingService(repo, testPlainEncrypt, testPlainDecrypt)
 		_, _, err := svc.Save(ctx, 1, &UpsertLineReservationSettingInput{})
 		assert.Error(t, err)
 	})
@@ -241,7 +240,7 @@ func TestLineReservationSettingService_Save(t *testing.T) {
 				return nil, apperrors.WrapNotFound("setting", "")
 			},
 		}
-		svc := NewLineReservationSettingService(repo, nil)
+		svc := NewLineReservationSettingService(repo, testPlainEncrypt, testPlainDecrypt)
 		_, _, err := svc.Save(ctx, 1, &UpsertLineReservationSettingInput{})
 		assert.Error(t, err)
 	})
@@ -293,7 +292,7 @@ func TestLineReservationSettingService_Save_Encryption(t *testing.T) {
 				return nil
 			},
 		}
-		svc := NewLineReservationSettingService(repo, cipher)
+		svc := NewLineReservationSettingService(repo, testCipherEncrypt(cipher), testCipherDecrypt(cipher))
 		_, _, err := svc.Save(ctx, 1, &UpsertLineReservationSettingInput{
 			LineChannelSecret: "plain-secret",
 			LineAccessToken:   "plain-token",
@@ -323,7 +322,7 @@ func TestLineReservationSettingService_Save_Encryption(t *testing.T) {
 			LineChannelSecret: encSecret,
 			LineAccessToken:   encToken,
 		})
-		svc := NewLineReservationSettingService(repo, cipher)
+		svc := NewLineReservationSettingService(repo, testCipherEncrypt(cipher), testCipherDecrypt(cipher))
 		res, _, err := svc.Save(ctx, 1, &UpsertLineReservationSettingInput{
 			LineChannelSecret: "",
 			LineAccessToken:   "",
@@ -349,7 +348,7 @@ func TestLineReservationSettingService_Save_Encryption(t *testing.T) {
 			LineChannelSecret: legacyPlainSecret,
 			LineAccessToken:   "legacy-plain-token",
 		})
-		svc := NewLineReservationSettingService(repo, cipher)
+		svc := NewLineReservationSettingService(repo, testCipherEncrypt(cipher), testCipherDecrypt(cipher))
 		res, _, err := svc.Save(ctx, 1, &UpsertLineReservationSettingInput{})
 		assert.NoError(t, err)
 		if assert.NotNil(t, res) {
@@ -365,4 +364,36 @@ func TestLineReservationSettingService_Save_Encryption(t *testing.T) {
 			assert.Equal(t, "legacy-plain-token", gotToken)
 		}
 	})
+}
+
+// testPlainEncrypt/testPlainDecrypt は旧 cipher=nil 挙動（暗号化なし素通し）を再現する
+// （service/line_credentials.go の encrypt/decryptLineCredential の nil-cipher 分岐と同一契約）。
+func testPlainEncrypt(value string) (string, error) { return value, nil }
+
+func testPlainDecrypt(_ context.Context, value string) string { return value }
+
+// testCipherEncrypt/testCipherDecrypt は production 注入 closure（service 集約が
+// service/line_credentials.go の encrypt/decryptLineCredential を包む）と同一契約の
+// テスト側再現（nil/空文字素通し+実 cipher・H-4）。helper 本体の単体検証は
+// service/line_credentials_test.go が正本。
+func testCipherEncrypt(cipher *crypto.AESGCMCipher) func(string) (string, error) {
+	return func(value string) (string, error) {
+		if cipher == nil || value == "" {
+			return value, nil
+		}
+		return cipher.Encrypt(value)
+	}
+}
+
+func testCipherDecrypt(cipher *crypto.AESGCMCipher) func(context.Context, string) string {
+	return func(_ context.Context, value string) string {
+		if cipher == nil || value == "" {
+			return value
+		}
+		plaintext, err := cipher.Decrypt(value)
+		if err != nil {
+			return value
+		}
+		return plaintext
+	}
 }
